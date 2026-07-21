@@ -1,6 +1,7 @@
 export type DomainErrorCode =
   | 'APPOINTMENT_NOT_CONFIRMABLE'
   | 'APPOINTMENT_NOT_CANCELLABLE'
+  | 'APPOINTMENT_NOT_FOUND'
   | 'BOOKING_KIND_MISMATCH'
   | 'CANCELLATION_WINDOW_CLOSED'
   | 'COMPLETION_NOT_AUTHORIZED'
@@ -12,7 +13,8 @@ export type DomainErrorCode =
   | 'PAYROLL_DUPLICATE_CREDIT'
   | 'PAYROLL_NOT_ELIGIBLE'
   | 'SLOT_NOT_FOUND'
-  | 'SLOT_UNAVAILABLE';
+  | 'SLOT_UNAVAILABLE'
+  | 'TRANSITION_NOT_ALLOWED';
 
 export class DomainError extends Error {
   public readonly name = 'DomainError';

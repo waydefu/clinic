@@ -47,6 +47,8 @@ const requiredPaths = [
   'firestore.rules',
   'packages/domain/src/index.ts',
   'packages/domain/src/booking-transaction.ts',
+  'packages/domain/src/appointment-transition.ts',
+  'tests/firestore/appointment-transition.test.ts',
   'apps/api/src/firestore/booking.repository.ts',
   'tests/firestore/booking-transaction.test.ts',
   'packages/domain/src/outbox.ts',

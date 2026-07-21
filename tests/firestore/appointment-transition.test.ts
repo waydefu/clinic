@@ -1,0 +1,236 @@
+import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
+import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import {
+  COLLECTIONS,
+  FirestoreBookingRepository
+} from '../../apps/api/src/firestore/booking.repository.js';
+import type { AppointmentTransition } from '@beauessence/domain';
+
+const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
+const projectId = 'beauessence-appointment-local';
+
+let app: App;
+let db: Firestore;
+let repository: FirestoreBookingRepository;
+
+const NOW = '2026-07-21T09:00:00.000Z';
+const SLOT_A = 'slot_20300102_1200';
+const SLOT_B = 'slot_20300102_1230';
+const FOLLOW_UP_SLOT = 'slot_20300102_1215';
+const APPOINTMENT = 'appointment_001';
+
+async function wipe(): Promise<void> {
+  for (const collection of Object.values(COLLECTIONS)) {
+    const documents = await db.collection(collection).listDocuments();
+    await Promise.all(documents.map((document) => document.delete()));
+  }
+}
+
+async function seed(): Promise<void> {
+  await db.collection(COLLECTIONS.slots).doc(SLOT_A).set({
+    kind: 'initial',
+    startsAt: '2030-01-02T04:00:00.000Z',
+    reservationId: APPOINTMENT
+  });
+  await db
+    .collection(COLLECTIONS.slots)
+    .doc(SLOT_B)
+    .set({ kind: 'initial', startsAt: '2030-01-02T04:30:00.000Z' });
+  await db
+    .collection(COLLECTIONS.slots)
+    .doc(FOLLOW_UP_SLOT)
+    .set({ kind: 'follow_up', startsAt: '2030-01-02T04:15:00.000Z' });
+  await db.collection(COLLECTIONS.appointments).doc(APPOINTMENT).set({
+    slotId: SLOT_A,
+    startsAt: '2030-01-02T04:00:00.000Z',
+    patientId: 'patient_001',
+    bookingKind: 'initial',
+    status: 'confirmed'
+  });
+}
+
+const transition = (
+  kind: AppointmentTransition,
+  key = `idem_${kind}`
+): Promise<{ appointmentId: string; replayed: boolean }> =>
+  repository.transition({
+    appointmentId: APPOINTMENT,
+    transition: kind,
+    actorId: 'actor_front_desk_001',
+    requestedAt: NOW,
+    idempotencyKey: key
+  });
+
+const appointmentState = async () =>
+  (await db.collection(COLLECTIONS.appointments).doc(APPOINTMENT).get()).data();
+const slotState = async (id: string) =>
+  (await db.collection(COLLECTIONS.slots).doc(id).get()).data();
+
+beforeAll(() => {
+  if (emulatorHost === undefined)
+    throw new Error(
+      'FIRESTORE_EMULATOR_HOST is not set. Run this suite through pnpm test:rules.'
+    );
+  app = initializeApp({ projectId }, `transition-${Date.now()}`);
+  db = getFirestore(app);
+  repository = new FirestoreBookingRepository(db);
+});
+
+afterAll(async () => {
+  await deleteApp(app);
+});
+
+beforeEach(async () => {
+  await wipe();
+  await seed();
+});
+
+describe('appointment transitions in a Firestore transaction', () => {
+  it('cancels and returns the slot to the pool', async () => {
+    await transition('cancel');
+
+    expect((await appointmentState())?.['status']).toBe('cancelled');
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+  });
+
+  it('marks no_show and returns the slot to the pool', async () => {
+    await transition('no_show');
+
+    expect((await appointmentState())?.['status']).toBe('no_show');
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+  });
+
+  // 完成到診是已經發生的事實，時段不該被別人搶走。
+  it('keeps the slot reserved when the visit is completed', async () => {
+    await transition('complete');
+
+    const appointment = await appointmentState();
+    expect(appointment?.['status']).toBe('completed');
+    expect(appointment?.['completedAt']).toBe(NOW);
+    expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
+  });
+
+  it('keeps the slot reserved while a cancellation is only requested', async () => {
+    await transition('request_cancellation');
+
+    expect((await appointmentState())?.['status']).toBe(
+      'cancellation_requested'
+    );
+    expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
+  });
+
+  it('writes an audit event and an outbox job with every transition', async () => {
+    await transition('cancel');
+
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+    expect(audits.size).toBe(1);
+    expect(outbox.size).toBe(1);
+    expect(outbox.docs[0]?.data()).toMatchObject({
+      appointmentStatus: 'cancelled',
+      status: 'pending',
+      attempts: 0
+    });
+  });
+
+  it('replays an idempotency key instead of transitioning twice', async () => {
+    const first = await transition('cancel');
+    const second = await transition('cancel');
+
+    expect(first.replayed).toBe(false);
+    expect(second.replayed).toBe(true);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+
+  it('rejects a transition the state machine does not allow, writing nothing', async () => {
+    await transition('cancel');
+
+    await expect(
+      transition('complete', 'idem_complete_after_cancel')
+    ).rejects.toThrow(/cannot be complete/i);
+
+    expect((await appointmentState())?.['status']).toBe('cancelled');
+    expect((await db.collection(COLLECTIONS.outboxJobs).get()).size).toBe(1);
+  });
+
+  it('lets only one of many concurrent cancellations win', async () => {
+    const attempts = Array.from({ length: 6 }, (_, index) =>
+      transition('cancel', `idem_race_${index}`)
+    );
+    const settled = await Promise.allSettled(attempts);
+
+    expect(settled.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+});
+
+describe('reschedule in a Firestore transaction', () => {
+  const reschedule = (targetSlotId: string, key = 'idem_reschedule') =>
+    repository.reschedule({
+      appointmentId: APPOINTMENT,
+      targetSlotId,
+      actorId: 'actor_front_desk_001',
+      requestedAt: NOW,
+      idempotencyKey: key
+    });
+
+  it('releases the old slot and takes the new one atomically', async () => {
+    await reschedule(SLOT_B);
+
+    const appointment = await appointmentState();
+    expect(appointment?.['slotId']).toBe(SLOT_B);
+    expect(appointment?.['startsAt']).toBe('2030-01-02T04:30:00.000Z');
+    expect(appointment?.['status']).toBe('confirmed');
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await slotState(SLOT_B))?.['reservationId']).toBe(APPOINTMENT);
+  });
+
+  it('restores a requested cancellation to confirmed', async () => {
+    await transition('request_cancellation');
+    await reschedule(SLOT_B);
+
+    expect((await appointmentState())?.['status']).toBe('confirmed');
+  });
+
+  it('refuses to move onto the other booking grid, writing nothing', async () => {
+    await expect(reschedule(FOLLOW_UP_SLOT)).rejects.toThrow(/booking kind/i);
+
+    expect((await appointmentState())?.['slotId']).toBe(SLOT_A);
+    expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
+    expect(
+      (await slotState(FOLLOW_UP_SLOT))?.['reservationId']
+    ).toBeUndefined();
+  });
+
+  it('refuses a slot another appointment already holds', async () => {
+    await db
+      .collection(COLLECTIONS.slots)
+      .doc(SLOT_B)
+      .update({ reservationId: 'appointment_002' });
+
+    await expect(reschedule(SLOT_B)).rejects.toThrow(/not available/i);
+    expect((await appointmentState())?.['slotId']).toBe(SLOT_A);
+  });
+
+  it('never leaves both slots held when reschedules race', async () => {
+    const attempts = Array.from({ length: 5 }, (_, index) =>
+      reschedule(SLOT_B, `idem_race_${index}`)
+    );
+    const settled = await Promise.allSettled(attempts);
+
+    expect(settled.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await slotState(SLOT_B))?.['reservationId']).toBe(APPOINTMENT);
+  });
+
+  it('replays an idempotency key instead of moving twice', async () => {
+    const first = await reschedule(SLOT_B);
+    const second = await reschedule(SLOT_B);
+
+    expect(first.replayed).toBe(false);
+    expect(second.replayed).toBe(true);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+});

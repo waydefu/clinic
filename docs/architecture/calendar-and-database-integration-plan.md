@@ -42,6 +42,9 @@ Calendar 是投影，不是可用性的來源。
 
 ### 階段 A：本機 Emulator 的真實寫入路徑（不需任何雲端）— **已完成 2026-07-21**
 
+涵蓋建立預約與其後的全部狀態轉換（取消、提出取消、到診、未到、改期），
+以及 outbox worker 的重試、退避與死信。
+
 目的：證明 Firestore 交易、冪等與 outbox 在真實資料庫語意下成立。
 
 **已實作**
@@ -49,6 +52,9 @@ Calendar 是投影，不是可用性的來源。
 | 檔案 | 職責 |
 | --- | --- |
 | `packages/domain/src/booking-transaction.ts` | I/O-free 的 `planBooking`：讀到什麼就決定寫什麼。不做 I/O、不讀時鐘、不產生 ID、不呼叫外部服務 |
+| `packages/domain/src/appointment-transition.ts` | `planTransition` 與 `planReschedule`：取消、到診、未到與改期的純決策 |
+| `packages/domain/src/outbox.ts` | `planOutboxAttempt`：退避、重試上限與死信的純決策 |
+| `apps/worker/` | 領取（帶租約）→ 交易外呼叫外部服務 → 結算 |
 | `apps/api/src/firestore/booking.repository.ts` | 在一個 `runTransaction` 內套用計畫：先讀後寫，不含任何規則 |
 | `tests/firestore/booking-transaction.test.ts` | Emulator 上的併發、冪等與不變式測試 |
 
