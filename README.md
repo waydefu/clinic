@@ -31,13 +31,14 @@ NAS connection. The workflow remains isolated from production policy and real da
 ## Commands
 
 ```powershell
-pnpm install --frozen-lockfile
-pnpm verify
-pnpm test:rules
-pnpm --filter @beauessence/api dev
+corepack pnpm install --frozen-lockfile
+corepack pnpm verify
+corepack pnpm test:rules
+corepack pnpm --filter @beauessence/api dev
 ```
 
-`pnpm verify` runs the structure check, TypeScript builds and unit tests.
+`pnpm verify` runs the structure check, the test-only UI guard, the Prettier
+format check, TypeScript builds and unit tests.
 `pnpm test:rules` starts a disposable local Firestore Emulator and proves that
 direct client Firestore reads and writes are denied. Neither command uses a
 cloud Firebase project.

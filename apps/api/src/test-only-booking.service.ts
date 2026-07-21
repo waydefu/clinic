@@ -84,7 +84,9 @@ export interface TestOnlyBookingSnapshot {
 @Injectable()
 export class TestOnlyBookingService {
   private state = createTestOnlyBookingState(testOnlySlots);
-  private syntheticWorkloadCreditsById: Readonly<Record<string, PayrollCredit>> = {};
+  private syntheticWorkloadCreditsById: Readonly<
+    Record<string, PayrollCredit>
+  > = {};
   private followUp = initialTestOnlyFollowUpDecision();
   private schedule = createTestOnlySchedule(testOnlySchedule);
   private sequence = 1;

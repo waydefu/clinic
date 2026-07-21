@@ -51,7 +51,10 @@ function state() {
   ]);
 }
 
-function expectDomainError(operation: () => unknown, code: DomainError['code']) {
+function expectDomainError(
+  operation: () => unknown,
+  code: DomainError['code']
+) {
   try {
     operation();
     throw new Error(`Expected domain error ${code}.`);
@@ -98,7 +101,11 @@ describe('test-only booking workflow', () => {
 
   it('replays an identical booking idempotency key without another write', () => {
     const first = reserveTestOnlyAppointment(state(), policy, bookingCommand);
-    const replay = reserveTestOnlyAppointment(first.state, policy, bookingCommand);
+    const replay = reserveTestOnlyAppointment(
+      first.state,
+      policy,
+      bookingCommand
+    );
 
     expect(replay.replayed).toBe(true);
     expect(replay.response).toEqual(first.response);
@@ -166,11 +173,11 @@ describe('test-only booking workflow', () => {
     expectDomainError(
       () =>
         requestTestOnlyCancellation(booked.state, policy, {
-        idempotencyKey: 'cancel_test_key_0002',
-        appointmentId: 'appointment_test_001',
-        actor: { id: 'actor_test_patient_001', role: 'test_patient' },
-        requestedAt: '2026-08-01T10:00:01Z',
-        cancellationCutoffAt: '2026-08-01T10:00:00Z'
+          idempotencyKey: 'cancel_test_key_0002',
+          appointmentId: 'appointment_test_001',
+          actor: { id: 'actor_test_patient_001', role: 'test_patient' },
+          requestedAt: '2026-08-01T10:00:01Z',
+          cancellationCutoffAt: '2026-08-01T10:00:00Z'
         }),
       'CANCELLATION_WINDOW_CLOSED'
     );
@@ -182,10 +189,10 @@ describe('test-only booking workflow', () => {
     expectDomainError(
       () =>
         completeTestOnlyAppointment(booked.state, policy, {
-        idempotencyKey: 'complete_test_key_0001',
-        appointmentId: 'appointment_test_001',
-        actor: { id: 'actor_test_patient_001', role: 'test_patient' },
-        completedAt: '2026-08-02T10:31:00Z'
+          idempotencyKey: 'complete_test_key_0001',
+          appointmentId: 'appointment_test_001',
+          actor: { id: 'actor_test_patient_001', role: 'test_patient' },
+          completedAt: '2026-08-02T10:31:00Z'
         }),
       'COMPLETION_NOT_AUTHORIZED'
     );

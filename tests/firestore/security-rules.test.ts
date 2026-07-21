@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { assertFails, initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import {
+  assertFails,
+  initializeTestEnvironment
+} from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, type Firestore } from 'firebase/firestore';
 import { afterAll, beforeAll, describe, it } from 'vitest';
 
@@ -25,7 +28,9 @@ beforeAll(async () => {
       rules: await readFile(rulesPath, 'utf8')
     }
   });
-  unauthenticatedFirestore = testEnvironment.unauthenticatedContext().firestore();
+  unauthenticatedFirestore = testEnvironment
+    .unauthenticatedContext()
+    .firestore();
 });
 
 afterAll(async () => {

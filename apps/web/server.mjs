@@ -48,8 +48,11 @@ const server = createServer(async (request, response) => {
     const content = await readFile(filePath);
     response.writeHead(200, {
       'Cache-Control': 'no-store',
+      // connect-src must include 'self': the modular admin bootstrap fetches
+      // /admin-shell.html from this origin, and the v2 pages hold their
+      // synthetic state in the browser rather than calling the API.
       'Content-Security-Policy':
-        "default-src 'self'; connect-src http://127.0.0.1:3000; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+        "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'",
       'Content-Type': contentType,
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff'

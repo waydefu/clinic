@@ -1,23 +1,252 @@
 import { stagingRequest } from './staging-store-v2.js';
-import { emptyState,escapeHtml,formatFullDate,formatTime } from './modules/ui-format.js';
-const PATIENT_ID='patient_test_001';const isOnline=!['127.0.0.1','localhost'].includes(window.location.hostname);const elements=Object.fromEntries([...document.querySelectorAll('[id]')].map((element)=>[element.id,element]));const panels=[...document.querySelectorAll('[data-booking-step]')];const indicators=[...document.querySelectorAll('[data-step-indicator]')];let state;let selectedBookingType;let selectedSlotId;let selectedFollowUpId;let completedAppointmentId;
-function message(text,tone='info'){elements['patient-status'].textContent=text;elements['patient-status'].dataset.state=tone;}
-function showStep(step){panels.forEach((panel)=>{panel.hidden=Number(panel.dataset.bookingStep)!==step;});indicators.forEach((indicator)=>{const value=Number(indicator.dataset.stepIndicator);indicator.classList.toggle('is-active',value===step);indicator.classList.toggle('is-complete',value<step);});document.querySelector(`[data-booking-step="${step}"]`)?.scrollIntoView({behavior:'smooth',block:'start'});}
-function latestFollowUp(){return [...state.followUps].reverse().find((item)=>item.patientId===PATIENT_ID&&item.status==='required'&&item.scheduledAppointmentId===undefined);}
-function renderWorkspace(){const a=state.workspace.announcement;elements['patient-announcement'].hidden=a.status!=='published';elements['patient-announcement'].innerHTML=a.status==='published'?`<div><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.body)}</span></div>`:'';elements['patient-maintenance'].hidden=!state.maintenanceActive;elements['patient-booking-app'].hidden=state.maintenanceActive;if(state.maintenanceActive){const m=state.workspace.maintenance;elements['maintenance-page-title'].textContent=m.title;elements['maintenance-page-body'].textContent=m.body;elements['maintenance-page-resume'].textContent=m.resumeAt?`預計恢復：${m.resumeAt.replace('T',' ')}（Asia/Taipei）`:'恢復時間尚待管理者確認。';}}
-function renderFollowUpChoice(){const followUp=latestFollowUp();elements['follow-up-choice-status'].textContent=followUp===undefined?'尚待授權人員逐筆確認':`已確認需回診 · 建議日期 ${followUp.dueDate}`;}
-function availableSlots(){return state.slots.filter((slot)=>slot.reservationId===undefined).slice(0,18);}
-function renderSlots(){const slots=availableSlots();elements['patient-slots'].innerHTML=slots.length?slots.map((slot)=>`<button class="patient-slot-option" type="button" data-patient-slot="${escapeHtml(slot.id)}"><span class="patient-slot-date">${escapeHtml(formatFullDate(slot.startsAt))}</span><strong>${escapeHtml(formatTime(slot.startsAt))}–${escapeHtml(formatTime(slot.endsAt))}</strong><span>30 分鐘 · 合成諮詢</span><small>可預約</small></button>`).join(''):emptyState('目前沒有可預約時段','管理者發布新的排班後，時段會自動更新。');}
-function renderConfirmation(){const slot=state.slots.find((item)=>item.id===selectedSlotId);if(slot===undefined)return;elements['patient-booking-summary'].innerHTML=`<p class="eyebrow">APPOINTMENT SUMMARY</p><h3>${selectedBookingType==='follow_up'?'回診預約':'初次諮詢'}</h3><dl><div><dt>日期</dt><dd>${escapeHtml(formatFullDate(slot.startsAt))}</dd></div><div><dt>時間</dt><dd>${escapeHtml(formatTime(slot.startsAt))}–${escapeHtml(formatTime(slot.endsAt))}</dd></div><div><dt>地點</dt><dd>一森渼診所 · 合成顯示</dd></div><div><dt>身份</dt><dd>${PATIENT_ID}</dd></div></dl>`;elements['synthetic-confirmation'].checked=false;elements['confirm-patient-booking'].disabled=true;}
-function renderAppointments(){const list=state.appointments.filter((item)=>item.patientId===PATIENT_ID);elements['patient-appointments'].innerHTML=list.length?[...list].reverse().map((appointment)=>{const slot=state.slots.find((item)=>item.id===appointment.slotId);const cancellable=appointment.status==='confirmed';const label=appointment.status==='confirmed'?'預約成立':appointment.status==='completed'?'已完成':appointment.status==='cancelled'?'已取消':'取消待診所確認';return `<article class="patient-appointment-card"><div><span class="status-chip ${cancellable?'is-available':'is-reserved'}">${label}</span><strong>${slot?`${escapeHtml(formatFullDate(slot.startsAt))} ${escapeHtml(formatTime(slot.startsAt))}`:escapeHtml(appointment.slotId)}</strong><span class="code">${escapeHtml(appointment.id)}</span></div><button class="button button-tertiary" type="button" data-patient-cancel="${escapeHtml(appointment.id)}" ${cancellable?'':'disabled'}>提出取消</button></article>`;}).join(''):emptyState('目前沒有合成預約','完成上方流程後，預約摘要會出現在這裡。');}
-function renderAll(){renderWorkspace();renderFollowUpChoice();renderSlots();renderAppointments();}
-document.querySelectorAll('[data-booking-type]').forEach((button)=>button.addEventListener('click',()=>{const type=button.dataset.bookingType;const followUp=latestFollowUp();if(type==='follow_up'&&followUp===undefined){message('目前沒有已由授權人員確認、且尚未安排的回診需求。','error');return;}selectedBookingType=type;selectedFollowUpId=type==='follow_up'?followUp.appointmentId:undefined;renderSlots();showStep(2);message(type==='follow_up'?'請選擇回診合成時段。':'請選擇初次諮詢合成時段。','success');}));
-document.querySelectorAll('[data-booking-back]').forEach((button)=>button.addEventListener('click',()=>showStep(Number(button.dataset.bookingBack))));
-elements['patient-slots'].addEventListener('click',(event)=>{const button=event.target.closest('[data-patient-slot]');if(button===null)return;selectedSlotId=button.dataset.patientSlot;renderConfirmation();showStep(3);});
-elements['synthetic-confirmation'].addEventListener('change',()=>{elements['confirm-patient-booking'].disabled=!elements['synthetic-confirmation'].checked;});
-elements['confirm-patient-booking'].addEventListener('click',async()=>{elements['confirm-patient-booking'].disabled=true;try{state=await stagingRequest('/bookings',{method:'POST',body:JSON.stringify({slotId:selectedSlotId,patientId:PATIENT_ID,bookingType:selectedBookingType,sourceFollowUpId:selectedFollowUpId,origin:'patient'})});const appointment=state.appointments.at(-1);completedAppointmentId=appointment.id;elements['booking-complete-mark'].textContent='✓';elements['booking-complete-eyebrow'].textContent='BOOKING COMPLETE';elements['booking-complete-heading'].textContent='合成預約已建立';elements['booking-complete-description'].textContent='排班來源為管理者已發布版本；資料仍只存在目前瀏覽器。';elements['booking-result'].innerHTML=`<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>狀態：合成預約成立</span>`;renderAll();showStep(4);message('合成預約已建立；未傳送任何真實通知。','success');}catch(error){message(error.message,'error');elements['confirm-patient-booking'].disabled=false;}});
-elements['book-another'].addEventListener('click',()=>{selectedBookingType=undefined;selectedSlotId=undefined;selectedFollowUpId=undefined;showStep(1);});
-elements['patient-appointments'].addEventListener('click',async(event)=>{const button=event.target.closest('[data-patient-cancel]');if(button===null)return;if(!window.confirm('確定提出此合成預約的取消要求？正式取消期限尚未核准。'))return;try{state=await stagingRequest(`/bookings/${button.dataset.patientCancel}/cancellation`,{method:'POST',body:JSON.stringify({origin:'patient'})});if(button.dataset.patientCancel===completedAppointmentId){elements['booking-complete-mark'].textContent='↻';elements['booking-complete-eyebrow'].textContent='CANCELLATION REQUESTED';elements['booking-complete-heading'].textContent='取消要求已送出';elements['booking-complete-description'].textContent='診所櫃台確認後才會釋放時段；本預覽不會傳送外部通知。';elements['booking-result'].innerHTML=`<strong>預約編號：${escapeHtml(completedAppointmentId)}</strong><span>狀態：取消待診所確認</span>`;}renderAppointments();message('取消要求已記錄，等待合成櫃台確認。','success');}catch(error){message(error.message,'error');}});
-document.querySelector('.skip-link').addEventListener('click',(event)=>{event.preventDefault();window.location.hash='patient-main';elements['patient-main'].focus({preventScroll:true});});
-if(isOnline){document.querySelector('.environment-badge').lastChild.textContent='ONLINE SYNTHETIC PREVIEW';elements['patient-env-boundary'].textContent='公開網址持有人可存取 · 無真實資料';}
-try{state=await stagingRequest('/state');renderAll();showStep(1);message('已載入管理者發布的合成預約時段。','success');}catch(error){message(error instanceof Error?error.message:'無法載入合成預約資料。','error');}
+import {
+  emptyState,
+  escapeHtml,
+  formatFullDate,
+  formatTime
+} from './modules/ui-format.js';
+const PATIENT_ID = 'patient_test_001';
+const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
+const elements = Object.fromEntries(
+  [...document.querySelectorAll('[id]')].map((element) => [element.id, element])
+);
+const panels = [...document.querySelectorAll('[data-booking-step]')];
+const indicators = [...document.querySelectorAll('[data-step-indicator]')];
+let state;
+let selectedBookingType;
+let selectedSlotId;
+let selectedFollowUpId;
+let completedAppointmentId;
+function message(text, tone = 'info') {
+  elements['patient-status'].textContent = text;
+  elements['patient-status'].dataset.state = tone;
+}
+function showStep(step) {
+  panels.forEach((panel) => {
+    panel.hidden = Number(panel.dataset.bookingStep) !== step;
+  });
+  indicators.forEach((indicator) => {
+    const value = Number(indicator.dataset.stepIndicator);
+    indicator.classList.toggle('is-active', value === step);
+    indicator.classList.toggle('is-complete', value < step);
+  });
+  document
+    .querySelector(`[data-booking-step="${step}"]`)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function latestFollowUp() {
+  return [...state.followUps]
+    .reverse()
+    .find(
+      (item) =>
+        item.patientId === PATIENT_ID &&
+        item.status === 'required' &&
+        item.scheduledAppointmentId === undefined
+    );
+}
+function renderWorkspace() {
+  const a = state.workspace.announcement;
+  elements['patient-announcement'].hidden = a.status !== 'published';
+  elements['patient-announcement'].innerHTML =
+    a.status === 'published'
+      ? `<div><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.body)}</span></div>`
+      : '';
+  elements['patient-maintenance'].hidden = !state.maintenanceActive;
+  elements['patient-booking-app'].hidden = state.maintenanceActive;
+  if (state.maintenanceActive) {
+    const m = state.workspace.maintenance;
+    elements['maintenance-page-title'].textContent = m.title;
+    elements['maintenance-page-body'].textContent = m.body;
+    elements['maintenance-page-resume'].textContent = m.resumeAt
+      ? `預計恢復：${m.resumeAt.replace('T', ' ')}（Asia/Taipei）`
+      : '恢復時間尚待管理者確認。';
+  }
+}
+function renderFollowUpChoice() {
+  const followUp = latestFollowUp();
+  elements['follow-up-choice-status'].textContent =
+    followUp === undefined
+      ? '尚待授權人員逐筆確認'
+      : `已確認需回診 · 建議日期 ${followUp.dueDate}`;
+}
+function availableSlots() {
+  return state.slots
+    .filter((slot) => slot.reservationId === undefined)
+    .slice(0, 18);
+}
+function renderSlots() {
+  const slots = availableSlots();
+  elements['patient-slots'].innerHTML = slots.length
+    ? slots
+        .map(
+          (slot) =>
+            `<button class="patient-slot-option" type="button" data-patient-slot="${escapeHtml(slot.id)}"><span class="patient-slot-date">${escapeHtml(formatFullDate(slot.startsAt))}</span><strong>${escapeHtml(formatTime(slot.startsAt))}–${escapeHtml(formatTime(slot.endsAt))}</strong><span>30 分鐘 · 合成諮詢</span><small>可預約</small></button>`
+        )
+        .join('')
+    : emptyState(
+        '目前沒有可預約時段',
+        '管理者發布新的排班後，時段會自動更新。'
+      );
+}
+function renderConfirmation() {
+  const slot = state.slots.find((item) => item.id === selectedSlotId);
+  if (slot === undefined) return;
+  elements['patient-booking-summary'].innerHTML =
+    `<p class="eyebrow">APPOINTMENT SUMMARY</p><h3>${selectedBookingType === 'follow_up' ? '回診預約' : '初次諮詢'}</h3><dl><div><dt>日期</dt><dd>${escapeHtml(formatFullDate(slot.startsAt))}</dd></div><div><dt>時間</dt><dd>${escapeHtml(formatTime(slot.startsAt))}–${escapeHtml(formatTime(slot.endsAt))}</dd></div><div><dt>地點</dt><dd>一森渼診所 · 合成顯示</dd></div><div><dt>身份</dt><dd>${PATIENT_ID}</dd></div></dl>`;
+  elements['synthetic-confirmation'].checked = false;
+  elements['confirm-patient-booking'].disabled = true;
+}
+function renderAppointments() {
+  const list = state.appointments.filter(
+    (item) => item.patientId === PATIENT_ID
+  );
+  elements['patient-appointments'].innerHTML = list.length
+    ? [...list]
+        .reverse()
+        .map((appointment) => {
+          const slot = state.slots.find(
+            (item) => item.id === appointment.slotId
+          );
+          const cancellable = appointment.status === 'confirmed';
+          const label =
+            appointment.status === 'confirmed'
+              ? '預約成立'
+              : appointment.status === 'completed'
+                ? '已完成'
+                : appointment.status === 'cancelled'
+                  ? '已取消'
+                  : '取消待診所確認';
+          return `<article class="patient-appointment-card"><div><span class="status-chip ${cancellable ? 'is-available' : 'is-reserved'}">${label}</span><strong>${slot ? `${escapeHtml(formatFullDate(slot.startsAt))} ${escapeHtml(formatTime(slot.startsAt))}` : escapeHtml(appointment.slotId)}</strong><span class="code">${escapeHtml(appointment.id)}</span></div><button class="button button-tertiary" type="button" data-patient-cancel="${escapeHtml(appointment.id)}" ${cancellable ? '' : 'disabled'}>提出取消</button></article>`;
+        })
+        .join('')
+    : emptyState('目前沒有合成預約', '完成上方流程後，預約摘要會出現在這裡。');
+}
+function renderAll() {
+  renderWorkspace();
+  renderFollowUpChoice();
+  renderSlots();
+  renderAppointments();
+}
+document.querySelectorAll('[data-booking-type]').forEach((button) =>
+  button.addEventListener('click', () => {
+    const type = button.dataset.bookingType;
+    const followUp = latestFollowUp();
+    if (type === 'follow_up' && followUp === undefined) {
+      message('目前沒有已由授權人員確認、且尚未安排的回診需求。', 'error');
+      return;
+    }
+    selectedBookingType = type;
+    selectedFollowUpId =
+      type === 'follow_up' ? followUp.appointmentId : undefined;
+    renderSlots();
+    showStep(2);
+    message(
+      type === 'follow_up'
+        ? '請選擇回診合成時段。'
+        : '請選擇初次諮詢合成時段。',
+      'success'
+    );
+  })
+);
+document
+  .querySelectorAll('[data-booking-back]')
+  .forEach((button) =>
+    button.addEventListener('click', () =>
+      showStep(Number(button.dataset.bookingBack))
+    )
+  );
+elements['patient-slots'].addEventListener('click', (event) => {
+  const button = event.target.closest('[data-patient-slot]');
+  if (button === null) return;
+  selectedSlotId = button.dataset.patientSlot;
+  renderConfirmation();
+  showStep(3);
+});
+elements['synthetic-confirmation'].addEventListener('change', () => {
+  elements['confirm-patient-booking'].disabled =
+    !elements['synthetic-confirmation'].checked;
+});
+elements['confirm-patient-booking'].addEventListener('click', async () => {
+  elements['confirm-patient-booking'].disabled = true;
+  try {
+    state = await stagingRequest('/bookings', {
+      method: 'POST',
+      body: JSON.stringify({
+        slotId: selectedSlotId,
+        patientId: PATIENT_ID,
+        bookingType: selectedBookingType,
+        sourceFollowUpId: selectedFollowUpId,
+        origin: 'patient'
+      })
+    });
+    const appointment = state.appointments.at(-1);
+    completedAppointmentId = appointment.id;
+    elements['booking-complete-mark'].textContent = '✓';
+    elements['booking-complete-eyebrow'].textContent = 'BOOKING COMPLETE';
+    elements['booking-complete-heading'].textContent = '合成預約已建立';
+    elements['booking-complete-description'].textContent =
+      '排班來源為管理者已發布版本；資料仍只存在目前瀏覽器。';
+    elements['booking-result'].innerHTML =
+      `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>狀態：合成預約成立</span>`;
+    renderAll();
+    showStep(4);
+    message('合成預約已建立；未傳送任何真實通知。', 'success');
+  } catch (error) {
+    message(error.message, 'error');
+    elements['confirm-patient-booking'].disabled = false;
+  }
+});
+elements['book-another'].addEventListener('click', () => {
+  selectedBookingType = undefined;
+  selectedSlotId = undefined;
+  selectedFollowUpId = undefined;
+  showStep(1);
+});
+elements['patient-appointments'].addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-patient-cancel]');
+  if (button === null) return;
+  if (!window.confirm('確定提出此合成預約的取消要求？正式取消期限尚未核准。'))
+    return;
+  try {
+    state = await stagingRequest(
+      `/bookings/${button.dataset.patientCancel}/cancellation`,
+      { method: 'POST', body: JSON.stringify({ origin: 'patient' }) }
+    );
+    if (button.dataset.patientCancel === completedAppointmentId) {
+      elements['booking-complete-mark'].textContent = '↻';
+      elements['booking-complete-eyebrow'].textContent =
+        'CANCELLATION REQUESTED';
+      elements['booking-complete-heading'].textContent = '取消要求已送出';
+      elements['booking-complete-description'].textContent =
+        '診所櫃台確認後才會釋放時段；本預覽不會傳送外部通知。';
+      elements['booking-result'].innerHTML =
+        `<strong>預約編號：${escapeHtml(completedAppointmentId)}</strong><span>狀態：取消待診所確認</span>`;
+    }
+    renderAppointments();
+    message('取消要求已記錄，等待合成櫃台確認。', 'success');
+  } catch (error) {
+    message(error.message, 'error');
+  }
+});
+document.querySelector('.skip-link').addEventListener('click', (event) => {
+  event.preventDefault();
+  window.location.hash = 'patient-main';
+  elements['patient-main'].focus({ preventScroll: true });
+});
+if (isOnline) {
+  document.querySelector('.environment-badge').lastChild.textContent =
+    'ONLINE SYNTHETIC PREVIEW';
+  elements['patient-env-boundary'].textContent =
+    '公開網址持有人可存取 · 無真實資料';
+}
+try {
+  state = await stagingRequest('/state');
+  renderAll();
+  showStep(1);
+  message('已載入管理者發布的合成預約時段。', 'success');
+} catch (error) {
+  message(
+    error instanceof Error ? error.message : '無法載入合成預約資料。',
+    'error'
+  );
+}

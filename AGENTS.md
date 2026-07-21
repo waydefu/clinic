@@ -90,15 +90,18 @@ real clinic data, active Google Calendar integration or NAS connection.
 ## Current commands
 
 ```powershell
-pnpm install --frozen-lockfile
-pnpm check:ui
-pnpm verify
-pnpm test:rules
-pnpm --filter @beauessence/api dev
+corepack pnpm install --frozen-lockfile
+corepack pnpm check:ui
+corepack pnpm format
+corepack pnpm verify
+corepack pnpm test:rules
+corepack pnpm --filter @beauessence/api dev
 ```
 
-- `pnpm verify` runs the structure check, test-only UI guard, TypeScript builds
-  and unit tests.
+- `pnpm verify` runs the structure check, test-only UI guard, Prettier format
+  check, TypeScript builds and unit tests.
+- `pnpm format` applies Prettier. Source formatting is enforced, not manual:
+  do not hand-compress modules to satisfy a guard.
 - `pnpm check:ui` prevents the test-only dashboard from losing its loopback,
   synthetic-only input, landmark, live-update and focus-visible safeguards.
 - `pnpm test:rules` uses only a disposable local Firestore Emulator.

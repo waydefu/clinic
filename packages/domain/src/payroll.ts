@@ -57,7 +57,10 @@ export function createPayrollCredit(input: PayrollCreditInput): PayrollCredit {
   const { appointment, assignment } = input;
   const metricCode = input.metricCode ?? UNIQUE_PATIENT_COMPLETED_METRIC;
 
-  if (appointment.status !== 'completed' || appointment.completedAt === undefined) {
+  if (
+    appointment.status !== 'completed' ||
+    appointment.completedAt === undefined
+  ) {
     throw new DomainError(
       'PAYROLL_NOT_ELIGIBLE',
       'Only a completed appointment may create a payroll credit.'

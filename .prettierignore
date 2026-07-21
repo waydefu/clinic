@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.firebase/
+output/
+pnpm-lock.yaml
+
+# Prose and hand-aligned governance tables are authored by reviewers, not by a
+# formatter. Keeping them out avoids noisy diffs across ADRs and approval packets.
+*.md

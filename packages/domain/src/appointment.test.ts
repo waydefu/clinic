@@ -29,7 +29,9 @@ describe('appointment invariants', () => {
 
     expect(reserved.reservationId).toBe('appointment-001');
     expect(() => reserveSlot(reserved, 'appointment-002')).toThrow(
-      expect.objectContaining<Partial<DomainError>>({ code: 'SLOT_UNAVAILABLE' })
+      expect.objectContaining<Partial<DomainError>>({
+        code: 'SLOT_UNAVAILABLE'
+      })
     );
   });
 

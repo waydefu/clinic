@@ -19,7 +19,9 @@ const completedAppointment = {
 
 describe('monthly case-manager payroll credit', () => {
   it('uses Asia/Taipei at the UTC month boundary', () => {
-    expect(taipeiPayrollPeriod(completedAppointment.completedAt)).toBe('2026-08');
+    expect(taipeiPayrollPeriod(completedAppointment.completedAt)).toBe(
+      '2026-08'
+    );
   });
 
   it('uses a deterministic one-patient, one-manager, one-period key', () => {
@@ -41,7 +43,11 @@ describe('monthly case-manager payroll credit', () => {
   it('never grants a credit from a non-completed appointment', () => {
     expect(() =>
       createPayrollCredit({
-        appointment: { ...completedAppointment, status: 'confirmed', completedAt: undefined },
+        appointment: {
+          ...completedAppointment,
+          status: 'confirmed',
+          completedAt: undefined
+        },
         assignment: {
           patientId: 'patient-001',
           managerId: 'manager-001',
@@ -67,7 +73,11 @@ describe('monthly case-manager payroll credit', () => {
       ruleVersion: 'v1'
     });
     const second = createPayrollCredit({
-      appointment: { ...completedAppointment, id: 'appointment-002', patientId: 'patient-002' },
+      appointment: {
+        ...completedAppointment,
+        id: 'appointment-002',
+        patientId: 'patient-002'
+      },
       assignment: {
         patientId: 'patient-002',
         managerId: 'manager-001',
@@ -76,7 +86,11 @@ describe('monthly case-manager payroll credit', () => {
       ruleVersion: 'v1'
     });
     const revisedRule = createPayrollCredit({
-      appointment: { ...completedAppointment, id: 'appointment-003', patientId: 'patient-001' },
+      appointment: {
+        ...completedAppointment,
+        id: 'appointment-003',
+        patientId: 'patient-001'
+      },
       assignment: {
         patientId: 'patient-001',
         managerId: 'manager-001',
@@ -85,7 +99,9 @@ describe('monthly case-manager payroll credit', () => {
       ruleVersion: 'v2'
     });
 
-    expect(summarizeMonthlyManagerWorkload([first, second, revisedRule])).toEqual([
+    expect(
+      summarizeMonthlyManagerWorkload([first, second, revisedRule])
+    ).toEqual([
       {
         managerId: 'manager-001',
         payrollPeriod: '2026-08',

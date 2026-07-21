@@ -27,7 +27,9 @@ describe('v1 API contracts', () => {
   });
 
   it('keeps health and errors in stable structured envelopes', () => {
-    expect(HealthResponseSchema.parse({ service: 'api', status: 'ok' })).toEqual({
+    expect(
+      HealthResponseSchema.parse({ service: 'api', status: 'ok' })
+    ).toEqual({
       service: 'api',
       status: 'ok'
     });

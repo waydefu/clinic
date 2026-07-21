@@ -9,24 +9,31 @@ const rolePermissions = Object.freeze({
   ])
 });
 
+// Resolves only the account that is actually selected and active. There is
+// deliberately no fallback: an unresolvable session must lose its permissions
+// rather than inherit someone else's. `loadState` repairs stale sessions by
+// discarding the stored state, so this never becomes an unrecoverable UI.
 export function currentAccount(state) {
-  const selected = state.workspace.accounts.find(
-    (account) => account.id === state.workspace.currentAccountId && account.status === 'active'
-  );
-  if (selected !== undefined) return selected;
   return state.workspace.accounts.find(
-    (account) => account.role === 'admin' && account.status === 'active'
+    (account) =>
+      account.id === state.workspace.currentAccountId &&
+      account.status === 'active'
   );
 }
 
 export function permissionsFor(state) {
   const account = currentAccount(state);
-  return account === undefined ? [] : [...(rolePermissions[account.role] ?? new Set())];
+  return account === undefined
+    ? []
+    : [...(rolePermissions[account.role] ?? new Set())];
 }
 
 export function hasPermission(state, permission) {
   const account = currentAccount(state);
-  return account !== undefined && (rolePermissions[account.role]?.has(permission) ?? false);
+  return (
+    account !== undefined &&
+    (rolePermissions[account.role]?.has(permission) ?? false)
+  );
 }
 
 export function requirePermission(state, permission) {

@@ -5,23 +5,26 @@
   "description": "Enterprise appointment platform workspace for Beau Essence Clinic.",
   "packageManager": "pnpm@11.9.0",
   "engines": {
-    "node": "24.14.0",
+    "node": ">=24.14.0 <25",
     "pnpm": "11.9.0"
   },
   "scripts": {
     "build": "corepack pnpm --recursive --if-present run build",
     "check:structure": "node scripts/check-structure.mjs",
     "check:ui": "node scripts/check-test-only-ui-v2.mjs",
+    "check:format": "prettier --check .",
     "check:types": "corepack pnpm run build",
+    "format": "prettier --write .",
     "test:unit": "vitest run --exclude tests/firestore/**",
     "test:rules": "node scripts/run-firestore-rules.mjs",
-    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:ui && corepack pnpm run check:types && corepack pnpm run test:unit"
+    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:ui && corepack pnpm run check:format && corepack pnpm run check:types && corepack pnpm run test:unit"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",
     "@types/node": "^24.0.0",
     "firebase": "^12.0.0",
     "firebase-tools": "^15.0.0",
+    "prettier": "^3.9.5",
     "typescript": "^5.8.0",
     "vitest": "^3.0.0"
   }

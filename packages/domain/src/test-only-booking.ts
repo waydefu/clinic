@@ -16,10 +16,7 @@ import { DomainError } from './errors.js';
  * cannot silently become clinic configuration.
  */
 export type TestOnlyActorRole =
-  | 'test_patient'
-  | 'test_front_desk'
-  | 'test_clinic_admin'
-  | 'test_system';
+  'test_patient' | 'test_front_desk' | 'test_clinic_admin' | 'test_system';
 
 export interface TestOnlyActor {
   readonly id: string;
@@ -64,10 +61,7 @@ export interface TestOnlyOutboxJob {
 
 export interface TestOnlyAppointmentResponse {
   readonly appointmentId: string;
-  readonly status:
-    | 'confirmed'
-    | 'cancellation_requested'
-    | 'completed';
+  readonly status: 'confirmed' | 'cancellation_requested' | 'completed';
   readonly startsAt: string;
   readonly endsAt: string;
 }
@@ -132,7 +126,10 @@ export function createTestOnlyBookingState(
     assertUtcTimestamp(slot.startsAt, 'slot.startsAt');
     assertUtcTimestamp(slot.endsAt, 'slot.endsAt');
     if (slotsById[slot.id] !== undefined) {
-      throw new DomainError('INVALID_VALUE', 'Test-only slot IDs must be unique.');
+      throw new DomainError(
+        'INVALID_VALUE',
+        'Test-only slot IDs must be unique.'
+      );
     }
     slotsById[slot.id] = { ...slot };
   }
@@ -177,12 +174,18 @@ export function reserveTestOnlyAppointment(
   if (replay !== undefined) return replay;
 
   if (state.appointmentsById[command.appointmentId] !== undefined) {
-    throw new DomainError('INVALID_VALUE', 'The synthetic appointment ID already exists.');
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The synthetic appointment ID already exists.'
+    );
   }
 
   const slot = state.slotsById[command.slotId];
   if (slot === undefined) {
-    throw new DomainError('SLOT_NOT_FOUND', 'The synthetic slot does not exist.');
+    throw new DomainError(
+      'SLOT_NOT_FOUND',
+      'The synthetic slot does not exist.'
+    );
   }
 
   const reservedSlot = reserveSlot(slot, command.appointmentId);
@@ -345,7 +348,10 @@ function withTransition(
   }
 ): TestOnlyCommandResult {
   const slotsById = transition.updatedSlot
-    ? { ...state.slotsById, [transition.updatedSlot.id]: transition.updatedSlot }
+    ? {
+        ...state.slotsById,
+        [transition.updatedSlot.id]: transition.updatedSlot
+      }
     : state.slotsById;
 
   return {
@@ -392,15 +398,24 @@ function findAppointment(
 ): TestOnlyAppointment {
   const appointment = state.appointmentsById[appointmentId];
   if (appointment === undefined) {
-    throw new DomainError('INVALID_VALUE', 'The synthetic appointment does not exist.');
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The synthetic appointment does not exist.'
+    );
   }
   return appointment;
 }
 
-function findSlot(state: TestOnlyBookingState, slotId: string): AvailabilitySlot {
+function findSlot(
+  state: TestOnlyBookingState,
+  slotId: string
+): AvailabilitySlot {
   const slot = state.slotsById[slotId];
   if (slot === undefined) {
-    throw new DomainError('SLOT_NOT_FOUND', 'The synthetic slot does not exist.');
+    throw new DomainError(
+      'SLOT_NOT_FOUND',
+      'The synthetic slot does not exist.'
+    );
   }
   return slot;
 }
@@ -414,7 +429,10 @@ function toResponse(
     appointment.status !== 'cancellation_requested' &&
     appointment.status !== 'completed'
   ) {
-    throw new DomainError('INVALID_VALUE', 'The synthetic status cannot be returned.');
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The synthetic status cannot be returned.'
+    );
   }
   return {
     appointmentId: appointment.id,
@@ -444,7 +462,10 @@ function assertReservationCommand(
   assertOpaqueIdentifier(command.serviceId, 'serviceId');
   assertActor(command.actor);
   assertUtcTimestamp(command.requestedAt, 'requestedAt');
-  assertUtcTimestamp(command.privacyAcceptance.acceptedAt, 'privacyAcceptance.acceptedAt');
+  assertUtcTimestamp(
+    command.privacyAcceptance.acceptedAt,
+    'privacyAcceptance.acceptedAt'
+  );
 }
 
 function assertActor(actor: TestOnlyActor): void {
@@ -476,7 +497,9 @@ function completionActorRoleFor(
   }
 }
 
-function reservationFingerprint(command: ReserveTestOnlyAppointmentCommand): string {
+function reservationFingerprint(
+  command: ReserveTestOnlyAppointmentCommand
+): string {
   return JSON.stringify({
     operation: 'reserve',
     appointmentId: command.appointmentId,
@@ -502,7 +525,9 @@ function cancellationFingerprint(
   });
 }
 
-function completionFingerprint(command: CompleteTestOnlyAppointmentCommand): string {
+function completionFingerprint(
+  command: CompleteTestOnlyAppointmentCommand
+): string {
   return JSON.stringify({
     operation: 'complete',
     appointmentId: command.appointmentId,

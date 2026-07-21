@@ -30,6 +30,7 @@ const requiredPaths = [
   'docs/runbooks/calendar-sync-failure.md',
   'docs/architecture/synthetic-web-modular-architecture.md',
   'docs/reviews/manager-workflow-analysis-and-remediation-2026-07-21.md',
+  'docs/reviews/codebase-analysis-and-remediation-2026-07-21.md',
   'docs/runbooks/synthetic-online-preview.md',
   'docs/reviews/2026-07-20-implementation-readiness-review.md',
   'docs/reviews/phase-1-entry-checkpoint-2026-07-20.md',
@@ -65,16 +66,12 @@ const requiredPaths = [
   'apps/web/package.json',
   'apps/web/server.mjs',
   'apps/web/public/index.html',
-  'apps/web/public/app.js',
   'apps/web/public/patient.html',
-  'apps/web/public/patient.js',
-  'apps/web/public/staging-store.js',
   'scripts/check-test-only-ui-v2.mjs',
   'apps/web/public/styles.css',
   'apps/web/public/favicon.svg',
   'scripts/run-firestore-rules.mjs',
   'scripts/run-firestore-vitest.mjs',
-  'scripts/check-test-only-ui.mjs',
   'scripts/cleanup-local-firestore-emulator.ps1'
 ];
 
@@ -92,5 +89,7 @@ if (missing.length > 0) {
   for (const requiredPath of missing) console.error(`- ${requiredPath}`);
   process.exitCode = 1;
 } else {
-  console.log(`Structure check passed (${requiredPaths.length} required files).`);
+  console.log(
+    `Structure check passed (${requiredPaths.length} required files).`
+  );
 }

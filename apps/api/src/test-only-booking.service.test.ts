@@ -31,7 +31,8 @@ describe('TestOnlyBookingService', () => {
     const service = new TestOnlyBookingService();
     const first = service.reserve('slot_test_001');
     const firstAppointmentId = first.appointments[0]?.id;
-    if (firstAppointmentId === undefined) throw new Error('Missing appointment.');
+    if (firstAppointmentId === undefined)
+      throw new Error('Missing appointment.');
 
     const completed = service.complete(firstAppointmentId);
     expect(completed.appointments[0]).toMatchObject({ status: 'completed' });
@@ -47,11 +48,14 @@ describe('TestOnlyBookingService', () => {
     const secondAppointmentId = second.appointments.find(
       (appointment) => appointment.slotId === 'slot_test_002'
     )?.id;
-    if (secondAppointmentId === undefined) throw new Error('Missing appointment.');
+    if (secondAppointmentId === undefined)
+      throw new Error('Missing appointment.');
 
     const cancelled = service.cancel(secondAppointmentId);
     expect(
-      cancelled.appointments.find((appointment) => appointment.id === secondAppointmentId)
+      cancelled.appointments.find(
+        (appointment) => appointment.id === secondAppointmentId
+      )
     ).toMatchObject({ status: 'cancellation_requested' });
 
     expect(service.reset().appointments).toEqual([]);
@@ -69,9 +73,9 @@ describe('TestOnlyBookingService', () => {
       decidedBy: 'actor_test_clinic_admin_001'
     });
     expect(JSON.stringify(decision.followUp)).not.toContain('patient_test_001');
-    expect(() => service.setFollowUpDecision('not_required', '2030-01-15')).toThrow(
-      'only allowed when follow-up is required'
-    );
+    expect(() =>
+      service.setFollowUpDecision('not_required', '2030-01-15')
+    ).toThrow('only allowed when follow-up is required');
   });
 
   it('keeps a validated synthetic schedule only in memory', () => {
@@ -79,7 +83,10 @@ describe('TestOnlyBookingService', () => {
     const updated = service.setSchedule({
       timeZone: 'Asia/Taipei',
       weeklyAvailability: [
-        { weekday: 3, intervals: [{ startLocalTime: '10:00', endLocalTime: '14:00' }] }
+        {
+          weekday: 3,
+          intervals: [{ startLocalTime: '10:00', endLocalTime: '14:00' }]
+        }
       ],
       dateExceptions: [
         { date: '2030-01-10', kind: 'closed', reasonCode: 'REST_DAY' }
@@ -114,6 +121,8 @@ describe('TestOnlyBookingService', () => {
         uniquePatientCount: 1
       })
     ]);
-    expect(JSON.stringify(completed.workload)).not.toContain('patient_test_001');
+    expect(JSON.stringify(completed.workload)).not.toContain(
+      'patient_test_001'
+    );
   });
 });

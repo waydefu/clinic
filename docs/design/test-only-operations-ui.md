@@ -44,7 +44,7 @@ D-001～D-011 尚未核准的政策、角色與文字均使用清楚標示的合
 - 動態顯示只允許不透明合成 ID、狀態、測試時間、合成政策／服務參照及彙總數字。
 - 自訂公告、維護說明、帳號標籤與發布摘要不得輸入患者、員工、憑證或其他真實敏感資料。
 - 不載入外部字型、追蹤碼、遠端圖片或第三方 UI 資產。
-- `index.html`／`patient.html` 負責語意結構，`styles.css` 集中設計 token 與元件樣式，`app.js`／`patient.js` 只處理互動與渲染，`staging-store.js` 集中合成狀態轉換。
+- `index.html`／`patient.html`／`admin-shell.html` 負責語意結構，`styles.css` 與 `admin-v2.css` 集中設計 token 與元件樣式，`admin-bootstrap.js`／`patient-app-v2.js` 只處理互動與渲染，`staging-store-v2.js` 與 `modules/` 集中合成狀態轉換。
 - 正式 API、行動 App 與 NAS 必須共用 domain API；不得讓任何客戶端直接寫 Firestore。
 
 ## 回歸驗證
@@ -52,12 +52,11 @@ D-001～D-011 尚未核准的政策、角色與文字均使用清楚標示的合
 每次變更至少執行：
 
 ```powershell
-node --check apps/web/public/app.js
-node --check apps/web/public/patient.js
-node --check apps/web/public/staging-store.js
 corepack pnpm check:ui
 corepack pnpm verify
 ```
+
+`verify` 已包含 `check:format`（Prettier），排版不再由人工維持。
 
 實機瀏覽器需覆蓋：管理者／櫃台切換、批次新增與逐筆刪除、多種日期例外、帳號生命週期、公告、維護啟閉、病患四步驟預約、取消狀態同步、桌面與 390px 手機版，以及 0 console errors／warnings。
 
@@ -67,7 +66,7 @@ corepack pnpm verify
 
 ## 模組化工作臺 v2
 
-2026-07-21 起，實際載入的管理工作臺改由 `admin-bootstrap.js`、`admin-shell.html`、`modules/admin-view.js` 與 `staging-store-v2.js` 組成。排班、權限、預約、逐筆回診、個管統計、帳號與維護排程各自位於獨立模組；舊 `app.js`、`patient.js` 與 `staging-store.js` 只保留作為 Phase 1 歷史基線，不再由頁面載入。
+2026-07-21 起，實際載入的管理工作臺改由 `admin-bootstrap.js`、`admin-shell.html`、`modules/admin-view.js` 與 `staging-store-v2.js` 組成。排班、權限、預約、逐筆回診、個管統計、帳號與維護排程各自位於獨立模組。舊 `app.js`、`patient.js` 與 `staging-store.js` 已於 2026-07-21 刪除；歷史基線改由 Git 保存，不再以死碼形式留在會被 Hosting 公開發佈的 `apps/web/public/`。
 
 新版必須保持：草稿排班不影響患者、發布前檢查既有預約、病患取消與櫃台確認分離、回診決定綁定單筆到診、個管統計由指派及完成到診推導，以及管理者權限在狀態轉換層強制執行。
 

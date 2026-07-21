@@ -8,12 +8,15 @@ import {
 
 describe('test-only follow-up decision', () => {
   it('requires a staff decision and a target date only when follow-up is required', () => {
-    const result = setTestOnlyFollowUpDecision(initialTestOnlyFollowUpDecision(), {
-      status: 'required',
-      dueDate: '2030-01-15',
-      actor: { id: 'actor_test_clinic_admin_001', role: 'test_clinic_admin' },
-      decidedAt: '2030-01-02T02:00:00.000Z'
-    });
+    const result = setTestOnlyFollowUpDecision(
+      initialTestOnlyFollowUpDecision(),
+      {
+        status: 'required',
+        dueDate: '2030-01-15',
+        actor: { id: 'actor_test_clinic_admin_001', role: 'test_clinic_admin' },
+        decidedAt: '2030-01-02T02:00:00.000Z'
+      }
+    );
 
     expect(result.decision).toEqual({
       status: 'required',
@@ -25,12 +28,13 @@ describe('test-only follow-up decision', () => {
   });
 
   it('does not allow a patient actor or a mismatched due date', () => {
-    const unauthorised = () => setTestOnlyFollowUpDecision(initialTestOnlyFollowUpDecision(), {
-      status: 'required',
-      dueDate: '2030-01-15',
-      actor: { id: 'actor_test_patient_001', role: 'test_patient' },
-      decidedAt: '2030-01-02T02:00:00.000Z'
-    });
+    const unauthorised = () =>
+      setTestOnlyFollowUpDecision(initialTestOnlyFollowUpDecision(), {
+        status: 'required',
+        dueDate: '2030-01-15',
+        actor: { id: 'actor_test_patient_001', role: 'test_patient' },
+        decidedAt: '2030-01-02T02:00:00.000Z'
+      });
     expect(unauthorised).toThrow(DomainError);
     try {
       unauthorised();
@@ -38,12 +42,13 @@ describe('test-only follow-up decision', () => {
       expect(error).toMatchObject({ code: 'COMPLETION_NOT_AUTHORIZED' });
     }
 
-    const mismatchedDate = () => setTestOnlyFollowUpDecision(initialTestOnlyFollowUpDecision(), {
-      status: 'not_required',
-      dueDate: '2030-01-15',
-      actor: { id: 'actor_test_clinic_admin_001', role: 'test_clinic_admin' },
-      decidedAt: '2030-01-02T02:00:00.000Z'
-    });
+    const mismatchedDate = () =>
+      setTestOnlyFollowUpDecision(initialTestOnlyFollowUpDecision(), {
+        status: 'not_required',
+        dueDate: '2030-01-15',
+        actor: { id: 'actor_test_clinic_admin_001', role: 'test_clinic_admin' },
+        decidedAt: '2030-01-02T02:00:00.000Z'
+      });
     expect(mismatchedDate).toThrow(DomainError);
     try {
       mismatchedDate();

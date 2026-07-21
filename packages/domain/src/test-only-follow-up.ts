@@ -33,7 +33,10 @@ export interface TestOnlyFollowUpAuditEvent {
 export function setTestOnlyFollowUpDecision(
   current: TestOnlyFollowUpDecision,
   command: SetTestOnlyFollowUpCommand
-): { readonly decision: TestOnlyFollowUpDecision; readonly auditEvent: TestOnlyFollowUpAuditEvent } {
+): {
+  readonly decision: TestOnlyFollowUpDecision;
+  readonly auditEvent: TestOnlyFollowUpAuditEvent;
+} {
   if (!isFollowUpDecisionRole(command.actor.role)) {
     throw new DomainError(
       'COMPLETION_NOT_AUTHORIZED',
@@ -44,7 +47,10 @@ export function setTestOnlyFollowUpDecision(
 
   if (command.status === 'required') {
     if (command.dueDate === undefined) {
-      throw new DomainError('INVALID_VALUE', 'A required follow-up needs a target date.');
+      throw new DomainError(
+        'INVALID_VALUE',
+        'A required follow-up needs a target date.'
+      );
     }
     assertLocalDate(command.dueDate);
   } else if (command.dueDate !== undefined) {
@@ -81,16 +87,28 @@ function isFollowUpDecisionRole(role: TestOnlyActor['role']): boolean {
 
 function assertLocalDate(value: string): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new DomainError('INVALID_VALUE', 'dueDate must use YYYY-MM-DD format.');
+    throw new DomainError(
+      'INVALID_VALUE',
+      'dueDate must use YYYY-MM-DD format.'
+    );
   }
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
-    throw new DomainError('INVALID_VALUE', 'dueDate must be a valid local date.');
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== value
+  ) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'dueDate must be a valid local date.'
+    );
   }
 }
 
 function assertUtcTimestamp(value: string, fieldName: string): void {
   if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
+    throw new DomainError(
+      'INVALID_TIMESTAMP',
+      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
+    );
   }
 }

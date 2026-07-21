@@ -11,8 +11,8 @@ describe('local Firebase configuration', () => {
   });
 
   it('rejects non-local hosts', () => {
-    expect(() => parseFirestoreEmulatorTarget('firestore.googleapis.com:443')).toThrow(
-      'FIRESTORE_EMULATOR_HOST'
-    );
+    expect(() =>
+      parseFirestoreEmulatorTarget('firestore.googleapis.com:443')
+    ).toThrow('FIRESTORE_EMULATOR_HOST');
   });
 });

@@ -18,7 +18,9 @@ import {
 
 @Controller('test-only')
 export class TestOnlyBookingController {
-  public constructor(private readonly testOnlyBooking: TestOnlyBookingService) {}
+  public constructor(
+    private readonly testOnlyBooking: TestOnlyBookingService
+  ) {}
 
   @Get('state')
   public getState(): TestOnlyBookingSnapshot {
@@ -31,7 +33,9 @@ export class TestOnlyBookingController {
     @Body() body: { readonly slotId?: unknown }
   ): TestOnlyBookingSnapshot {
     if (typeof body.slotId !== 'string') {
-      throw new BadRequestException('slotId must be a synthetic opaque identifier.');
+      throw new BadRequestException(
+        'slotId must be a synthetic opaque identifier.'
+      );
     }
 
     try {
@@ -80,10 +84,15 @@ export class TestOnlyBookingController {
       throw new BadRequestException('status must be required or not_required.');
     }
     if (body.dueDate !== undefined && typeof body.dueDate !== 'string') {
-      throw new BadRequestException('dueDate must be a local date string when present.');
+      throw new BadRequestException(
+        'dueDate must be a local date string when present.'
+      );
     }
     try {
-      return this.testOnlyBooking.setFollowUpDecision(body.status, body.dueDate);
+      return this.testOnlyBooking.setFollowUpDecision(
+        body.status,
+        body.dueDate
+      );
     } catch (error) {
       this.rethrowDomainError(error);
     }

@@ -1,32 +1,203 @@
-import { createBooking, recordFollowUp, transitionAppointment } from './modules/appointment-domain.js';
-import { assignCaseManager, buildOperationalTasks, buildWorkload } from './modules/case-management.js';
+import {
+  createBooking,
+  recordFollowUp,
+  transitionAppointment
+} from './modules/appointment-domain.js';
+import {
+  assignCaseManager,
+  buildOperationalTasks,
+  buildWorkload
+} from './modules/case-management.js';
 import { PERMISSIONS } from './modules/constants.js';
-import { currentAccount, permissionsFor, requirePermission } from './modules/permissions.js';
-import { cloneSchedule, generateSlots, scheduleImpact, schedulesEqual, validateSchedule } from './modules/schedule-engine.js';
-import { initialState, loadState, resetState, saveState, storageKey } from './modules/state-schema.js';
-import { addRelease, createAccount, isMaintenanceActive, saveAnnouncement, saveMaintenance, switchAccount, toggleAccount } from './modules/workspace-domain.js';
+import {
+  currentAccount,
+  permissionsFor,
+  requirePermission
+} from './modules/permissions.js';
+import {
+  cloneSchedule,
+  generateSlots,
+  scheduleImpact,
+  schedulesEqual,
+  validateSchedule
+} from './modules/schedule-engine.js';
+import {
+  initialState,
+  loadState,
+  resetState,
+  saveState,
+  storageKey
+} from './modules/state-schema.js';
+import {
+  addRelease,
+  createAccount,
+  isMaintenanceActive,
+  saveAnnouncement,
+  saveMaintenance,
+  switchAccount,
+  toggleAccount
+} from './modules/workspace-domain.js';
+
 export { storageKey };
-function appendWorkspaceAudit(state,action,actorId){state.auditEvents.push({id:`audit_workspace_${action}_${Date.now()}`,action,appointmentId:'workspace',actorId,occurredAt:new Date().toISOString()});}
-function snapshotState(state){return structuredClone({...state,workload:buildWorkload(state),tasks:buildOperationalTasks(state),maintenanceActive:isMaintenanceActive(state.workspace.maintenance),session:{account:currentAccount(state),permissions:permissionsFor(state)}});}
-function workspaceState(state){return structuredClone({...state.workspace,maintenanceActive:isMaintenanceActive(state.workspace.maintenance),currentAccount:currentAccount(state),permissions:permissionsFor(state)});}
-function saveDraft(state,schedule){validateSchedule(schedule);state.scheduleDraft=cloneSchedule(schedule);state.scheduleMeta.draftDirty=!schedulesEqual(state.schedule,state.scheduleDraft);}
-function publishSchedule(state,actorId){validateSchedule(state.scheduleDraft);const candidate=generateSlots(state.scheduleDraft,state.slots);const impacted=scheduleImpact(state.appointments,candidate);if(impacted.length>0)throw new Error(`排班發布會影響 ${impacted.length} 筆尚未結束的合成預約，請先處理預約。`);state.schedule=cloneSchedule(state.scheduleDraft);state.slots=candidate;state.scheduleMeta={publishedVersion:state.scheduleMeta.publishedVersion+1,draftDirty:false,publishedAt:new Date().toISOString(),publishedBy:actorId};appendWorkspaceAudit(state,'schedule_published',actorId);}
-function parseBody(options){return options.body===undefined?{}:JSON.parse(options.body);}
-export async function stagingRequest(path,options={}){const method=options.method??'GET';if(method==='GET'&&path==='/state')return snapshotState(loadState());if(method==='GET'&&path==='/workspace')return workspaceState(loadState());if(method!=='POST')throw new Error('線上合成預覽只允許 GET 與 POST。');if(path==='/reset')return snapshotState(resetState());const state=loadState();const body=parseBody(options);
-if(path==='/workspace/session'){switchAccount(state,body.accountId);}
-else if(path==='/workspace/accounts'){const actor=requirePermission(state,PERMISSIONS.MANAGE_ACCOUNTS);createAccount(state,body);appendWorkspaceAudit(state,'account_created',actor.id);}
-else if(/^\/workspace\/accounts\/[A-Za-z0-9_-]+\/toggle$/.test(path)){const actor=requirePermission(state,PERMISSIONS.MANAGE_ACCOUNTS);toggleAccount(state,path.split('/')[3]);appendWorkspaceAudit(state,'account_status_changed',actor.id);}
-else if(path==='/workspace/announcement'){const actor=requirePermission(state,PERMISSIONS.MANAGE_COMMUNICATIONS);saveAnnouncement(state,body);appendWorkspaceAudit(state,'announcement_saved',actor.id);}
-else if(path==='/workspace/maintenance'){const actor=requirePermission(state,PERMISSIONS.MANAGE_COMMUNICATIONS);saveMaintenance(state,body);appendWorkspaceAudit(state,'maintenance_saved',actor.id);}
-else if(path==='/workspace/releases'){const actor=requirePermission(state,PERMISSIONS.MANAGE_COMMUNICATIONS);addRelease(state,body);appendWorkspaceAudit(state,'release_recorded',actor.id);}
-else if(path==='/schedule/draft'){requirePermission(state,PERMISSIONS.MANAGE_SCHEDULE);saveDraft(state,body);}
-else if(path==='/schedule/publish'){const actor=requirePermission(state,PERMISSIONS.MANAGE_SCHEDULE);publishSchedule(state,actor.id);}
-else if(path==='/schedule/discard'){requirePermission(state,PERMISSIONS.MANAGE_SCHEDULE);state.scheduleDraft=cloneSchedule(state.schedule);state.scheduleMeta.draftDirty=false;}
-else if(path==='/bookings'){const actorId=body.origin==='patient'?'actor_test_patient_001':requirePermission(state,PERMISSIONS.CREATE_BOOKING).id;createBooking(state,body,actorId);}
-else if(/^\/bookings\/[A-Za-z0-9_-]+\/cancellation$/.test(path)){const actorId=body.origin==='patient'?'actor_test_patient_001':currentAccount(state)?.id;transitionAppointment(state,path.split('/')[2],'request_cancellation',actorId);}
-else if(/^\/bookings\/[A-Za-z0-9_-]+\/cancel$/.test(path)){const actor=requirePermission(state,PERMISSIONS.CANCEL_BOOKING);transitionAppointment(state,path.split('/')[2],'cancel',actor.id);}
-else if(/^\/bookings\/[A-Za-z0-9_-]+\/complete$/.test(path)){const actor=requirePermission(state,PERMISSIONS.COMPLETE_VISIT);transitionAppointment(state,path.split('/')[2],'complete',actor.id);}
-else if(/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)){const actor=requirePermission(state,PERMISSIONS.MANAGE_FOLLOW_UP);recordFollowUp(state,path.split('/')[2],body.status,body.dueDate,actor.id);}
-else if(path==='/case-assignments'){const actor=requirePermission(state,PERMISSIONS.MANAGE_CASES);assignCaseManager(state,body.appointmentId,body.managerId,actor.id);}
-else throw new Error('找不到合成測試動作。');saveState(state);return snapshotState(state);}
+
+const PATIENT_ACTOR_ID = 'actor_test_patient_001';
+
+// The synthetic patient page and the staff workbench share this in-browser
+// store, so `origin` only records which UI initiated the action. It is declared
+// by the caller and therefore proves nothing about who is acting. The real
+// service must derive its actor from an authenticated session: do not port this
+// branch into apps/api. See ADR-0001.
+function resolveActor(state, body, permission) {
+  if (body.origin === 'patient') return PATIENT_ACTOR_ID;
+  return requirePermission(state, permission).id;
+}
+
+function appendWorkspaceAudit(state, action, actorId) {
+  state.auditEvents.push({
+    id: `audit_workspace_${action}_${Date.now()}`,
+    action,
+    appointmentId: 'workspace',
+    actorId,
+    occurredAt: new Date().toISOString()
+  });
+}
+
+function snapshotState(state) {
+  return structuredClone({
+    ...state,
+    workload: buildWorkload(state),
+    tasks: buildOperationalTasks(state),
+    maintenanceActive: isMaintenanceActive(state.workspace.maintenance),
+    session: {
+      account: currentAccount(state),
+      permissions: permissionsFor(state)
+    }
+  });
+}
+
+function workspaceState(state) {
+  return structuredClone({
+    ...state.workspace,
+    maintenanceActive: isMaintenanceActive(state.workspace.maintenance),
+    currentAccount: currentAccount(state),
+    permissions: permissionsFor(state)
+  });
+}
+
+function saveDraft(state, schedule) {
+  validateSchedule(schedule);
+  state.scheduleDraft = cloneSchedule(schedule);
+  state.scheduleMeta.draftDirty = !schedulesEqual(
+    state.schedule,
+    state.scheduleDraft
+  );
+}
+
+function publishSchedule(state, actorId) {
+  validateSchedule(state.scheduleDraft);
+  const candidate = generateSlots(state.scheduleDraft, state.slots);
+  const impacted = scheduleImpact(state.appointments, candidate);
+  if (impacted.length > 0) {
+    throw new Error(
+      `排班發布會影響 ${impacted.length} 筆尚未結束的合成預約，請先處理預約。`
+    );
+  }
+  state.schedule = cloneSchedule(state.scheduleDraft);
+  state.slots = candidate;
+  state.scheduleMeta = {
+    publishedVersion: state.scheduleMeta.publishedVersion + 1,
+    draftDirty: false,
+    publishedAt: new Date().toISOString(),
+    publishedBy: actorId
+  };
+  appendWorkspaceAudit(state, 'schedule_published', actorId);
+}
+
+function parseBody(options) {
+  return options.body === undefined ? {} : JSON.parse(options.body);
+}
+
+export async function stagingRequest(path, options = {}) {
+  const method = options.method ?? 'GET';
+  if (method === 'GET' && path === '/state') return snapshotState(loadState());
+  if (method === 'GET' && path === '/workspace')
+    return workspaceState(loadState());
+  if (method !== 'POST') throw new Error('線上合成預覽只允許 GET 與 POST。');
+  if (path === '/reset') return snapshotState(resetState());
+
+  const state = loadState();
+  const body = parseBody(options);
+
+  if (path === '/workspace/session') {
+    switchAccount(state, body.accountId);
+  } else if (path === '/workspace/accounts') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);
+    createAccount(state, body);
+    appendWorkspaceAudit(state, 'account_created', actor.id);
+  } else if (/^\/workspace\/accounts\/[A-Za-z0-9_-]+\/toggle$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);
+    toggleAccount(state, path.split('/')[3]);
+    appendWorkspaceAudit(state, 'account_status_changed', actor.id);
+  } else if (path === '/workspace/announcement') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
+    saveAnnouncement(state, body);
+    appendWorkspaceAudit(state, 'announcement_saved', actor.id);
+  } else if (path === '/workspace/maintenance') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
+    saveMaintenance(state, body);
+    appendWorkspaceAudit(state, 'maintenance_saved', actor.id);
+  } else if (path === '/workspace/releases') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
+    addRelease(state, body);
+    appendWorkspaceAudit(state, 'release_recorded', actor.id);
+  } else if (path === '/schedule/draft') {
+    requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
+    saveDraft(state, body);
+  } else if (path === '/schedule/publish') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
+    publishSchedule(state, actor.id);
+  } else if (path === '/schedule/discard') {
+    requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
+    state.scheduleDraft = cloneSchedule(state.schedule);
+    state.scheduleMeta.draftDirty = false;
+  } else if (path === '/bookings') {
+    createBooking(
+      state,
+      body,
+      resolveActor(state, body, PERMISSIONS.CREATE_BOOKING)
+    );
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/cancellation$/.test(path)) {
+    const actorId = resolveActor(state, body, PERMISSIONS.CANCEL_BOOKING);
+    transitionAppointment(
+      state,
+      path.split('/')[2],
+      'request_cancellation',
+      actorId
+    );
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/cancel$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.CANCEL_BOOKING);
+    transitionAppointment(state, path.split('/')[2], 'cancel', actor.id);
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/complete$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
+    transitionAppointment(state, path.split('/')[2], 'complete', actor.id);
+  } else if (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
+    recordFollowUp(
+      state,
+      path.split('/')[2],
+      body.status,
+      body.dueDate,
+      actor.id
+    );
+  } else if (path === '/case-assignments') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_CASES);
+    assignCaseManager(state, body.appointmentId, body.managerId, actor.id);
+  } else {
+    throw new Error('找不到合成測試動作。');
+  }
+
+  saveState(state);
+  return snapshotState(state);
+}
+
 export { initialState };

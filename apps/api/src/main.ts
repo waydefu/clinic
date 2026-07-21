@@ -10,6 +10,30 @@ import {
 
 import { AppModule } from './app.module.js';
 
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
+
+/**
+ * The test-only booking routes carry no authentication or authorization. They
+ * may therefore only ever be reachable from the machine running them. The web
+ * harness hard-codes its loopback bind; this keeps the API side symmetrical so
+ * a stray HOST value cannot publish those write endpoints to a network.
+ */
+export function resolveListenHost(
+  environment: NodeJS.ProcessEnv = process.env
+): string {
+  const host = environment['HOST'] ?? '127.0.0.1';
+  if (
+    environment['ENABLE_TEST_ONLY_BOOKING'] === 'true' &&
+    !LOOPBACK_HOSTS.has(host)
+  ) {
+    throw new Error(
+      `Refusing to bind the test-only API to non-loopback host "${host}". ` +
+        'Unset HOST or unset ENABLE_TEST_ONLY_BOOKING.'
+    );
+  }
+  return host;
+}
+
 export async function createApplication(): Promise<NestFastifyApplication> {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
@@ -29,9 +53,10 @@ export async function createApplication(): Promise<NestFastifyApplication> {
 }
 
 async function bootstrap(): Promise<void> {
+  const host = resolveListenHost();
   const app = await createApplication();
   await app.listen({
-    host: process.env['HOST'] ?? '127.0.0.1',
+    host,
     port: Number(process.env['PORT'] ?? '3000')
   });
 }

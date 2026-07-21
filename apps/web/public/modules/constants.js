@@ -31,5 +31,11 @@ export const SYNTHETIC_CASE_MANAGERS = Object.freeze([
 ]);
 
 export const WEEKDAY_LABELS = Object.freeze([
-  '週日', '週一', '週二', '週三', '週四', '週五', '週六'
+  '週日',
+  '週一',
+  '週二',
+  '週三',
+  '週四',
+  '週五',
+  '週六'
 ]);

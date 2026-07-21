@@ -47,7 +47,11 @@ export function createTestOnlySchedule(
 
   const seenWeekdays = new Set<number>();
   const weeklyAvailability = schedule.weeklyAvailability.map((entry) => {
-    if (!Number.isInteger(entry.weekday) || entry.weekday < 0 || entry.weekday > 6) {
+    if (
+      !Number.isInteger(entry.weekday) ||
+      entry.weekday < 0 ||
+      entry.weekday > 6
+    ) {
       throw invalid('weekday must be an integer from 0 through 6.');
     }
     if (seenWeekdays.has(entry.weekday)) {
@@ -70,7 +74,11 @@ export function createTestOnlySchedule(
     seenExceptionDates.add(exception.date);
 
     if (exception.kind === 'closed') {
-      return { date: exception.date, kind: 'closed' as const, reasonCode: exception.reasonCode };
+      return {
+        date: exception.date,
+        kind: 'closed' as const,
+        reasonCode: exception.reasonCode
+      };
     }
     return {
       date: exception.date,
@@ -82,7 +90,9 @@ export function createTestOnlySchedule(
 
   return {
     timeZone: 'Asia/Taipei',
-    weeklyAvailability: weeklyAvailability.sort((a, b) => a.weekday - b.weekday),
+    weeklyAvailability: weeklyAvailability.sort(
+      (a, b) => a.weekday - b.weekday
+    ),
     dateExceptions: dateExceptions.sort((a, b) => a.date.localeCompare(b.date))
   };
 }
@@ -104,9 +114,9 @@ export function effectiveTestOnlyIntervals(
   if (exception?.kind === 'closed') return [];
 
   const weekday = weekdayForLocalDate(localDate);
-  const weekly = normalized.weeklyAvailability.find(
-    (entry) => entry.weekday === weekday
-  )?.intervals ?? [];
+  const weekly =
+    normalized.weeklyAvailability.find((entry) => entry.weekday === weekday)
+      ?.intervals ?? [];
   const extra = exception?.kind === 'extra_open' ? exception.intervals : [];
 
   return validateIntervals([...weekly, ...extra], 'Effective availability');
@@ -120,19 +130,28 @@ function validateIntervals(
     throw invalid(`${label} must contain at least one interval.`);
   }
 
-  const normalized = intervals.map((interval) => {
-    assertLocalTime(interval.startLocalTime);
-    assertLocalTime(interval.endLocalTime);
-    if (interval.startLocalTime >= interval.endLocalTime) {
-      throw invalid(`${label} interval start must be before its end.`);
-    }
-    return { startLocalTime: interval.startLocalTime, endLocalTime: interval.endLocalTime };
-  }).sort((a, b) => a.startLocalTime.localeCompare(b.startLocalTime));
+  const normalized = intervals
+    .map((interval) => {
+      assertLocalTime(interval.startLocalTime);
+      assertLocalTime(interval.endLocalTime);
+      if (interval.startLocalTime >= interval.endLocalTime) {
+        throw invalid(`${label} interval start must be before its end.`);
+      }
+      return {
+        startLocalTime: interval.startLocalTime,
+        endLocalTime: interval.endLocalTime
+      };
+    })
+    .sort((a, b) => a.startLocalTime.localeCompare(b.startLocalTime));
 
   for (let index = 1; index < normalized.length; index += 1) {
     const previous = normalized[index - 1];
     const current = normalized[index];
-    if (previous !== undefined && current !== undefined && previous.endLocalTime > current.startLocalTime) {
+    if (
+      previous !== undefined &&
+      current !== undefined &&
+      previous.endLocalTime > current.startLocalTime
+    ) {
       throw invalid(`${label} intervals must not overlap.`);
     }
   }
@@ -149,7 +168,10 @@ function assertLocalDate(value: string): void {
     throw invalid('date must use the YYYY-MM-DD local-date format.');
   }
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== value
+  ) {
     throw invalid('date must be a valid calendar date.');
   }
 }
