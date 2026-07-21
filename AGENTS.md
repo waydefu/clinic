@@ -74,12 +74,13 @@ do not rely on a copy of it elsewhere.
 1. Identify the boundary and read its documents.
 2. Confirm the corresponding Phase 1 decision is approved; otherwise document
    the dependency and stop before making policy-dependent behavior. The sole
-   exception is the explicit synthetic-only profile in
-   `docs/product/test-only-sandbox-baseline.md`; it permits pure local tests
-   and its double-gated loopback browser harness, including a non-monetary
-   synthetic manager-workload report. The separately recorded 2026-07-21
-   authority also permits an expiring static Hosting preview with browser-only
-   synthetic state, never real data or a cloud backend.
+   exception is the explicit test profile in
+   `docs/product/test-only-sandbox-baseline.md`; it permits local tests and the
+   loopback browser harness, including a non-monetary manager-workload report.
+   The separately recorded 2026-07-21 authority also permits an expiring static
+   Hosting preview holding its state in the visitor's own browser, never a
+   cloud backend. The same authority allows the patient form to collect name,
+   phone, birth date and national ID; every other field still needs a decision.
 3. Update domain and/or contract before API, worker or web code.
 4. Add focused tests using synthetic opaque identifiers only.
 5. For each write path, prove authentication, authorization, validation,

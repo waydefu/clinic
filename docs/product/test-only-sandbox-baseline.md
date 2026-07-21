@@ -10,27 +10,35 @@ register.
 
 ## Hard boundaries
 
-1. Use only opaque synthetic identifiers such as `patient_test_001` and never
-   use a real name, phone number, email address, appointment, staff member or
-   calendar entry.
-2. The test profile uses only pure in-memory domain state. The local website
-   requires both `ENABLE_TEST_ONLY_BOOKING=true` and
-   `TEST_ONLY_WEB_ENABLED=true`, with both processes bound to `127.0.0.1`.
-   The separately authorized online preview is static Firebase Hosting only;
-   it uses browser `localStorage` with fixed synthetic identifiers and has no
-   server-side state.
+1. **Superseded on 2026-07-21 for the patient booking form.** The project owner
+   directed that the form collect name, phone, birth date and national ID, and
+   that the public preview carry those fields. Those values stay in the
+   visitor's own browser `localStorage`; nothing is transmitted to or
+   stored by the clinic. See the decision register for the mitigations.
+   Everywhere else — staff accounts, announcements, audit records, outbox jobs
+   and the calendar projection — opaque identifiers remain mandatory, and no
+   real staff member or calendar entry may be used.
+2. The browser pages hold their whole state in `localStorage`; there is no
+   backend, database or login. The local site requires `TEST_ONLY_WEB_ENABLED=true`
+   and binds to `127.0.0.1`. The API no longer carries test-only routes, so it
+   is not part of this profile.
+   The separately authorized online preview is static Firebase Hosting only
+   and has no server-side state either.
 3. No cloud Firestore, Realtime Database, Functions, Cloud Run, Storage,
    Authentication, Google Calendar, LINE, Meta, email, SMS, NAS, payment or
    identity-provider connection is permitted. The only cloud exception is the
    temporary Hosting preview documented on 2026-07-21.
 4. No test-only value may be copied to production configuration. Production
    needs the corresponding formally approved D-001 through D-011 record.
-5. Test-only API code must remain disabled by default. Its local API routes must
-   not exist unless `ENABLE_TEST_ONLY_BOOKING=true`; its static website must
-   refuse to start locally unless `TEST_ONLY_WEB_ENABLED=true`. An online
-   build must visibly say `ONLINE SYNTHETIC PREVIEW`, use no backend, include
-   `noindex` and security headers, deploy only to the separate staging project,
-   and use an expiring preview channel rather than the live channel.
+5. The API carries no test-only routes at all; it exposes `/v1/health` only,
+   and the booking write path stays unrouted until the Phase 1 gate opens. The
+   static website must refuse to start locally unless
+   `TEST_ONLY_WEB_ENABLED=true`. Any route that does not yet enforce
+   authentication may only be enabled with `ALLOW_UNAUTHENTICATED_ROUTES=true`,
+   which makes the loopback bind non-negotiable. An online build must visibly
+   say `ONLINE PREVIEW`, use no backend, include `noindex` and security
+   headers, deploy only to the separate staging project, and use an expiring
+   preview channel rather than the live channel.
 
 ## Synthetic parameters
 
@@ -45,7 +53,8 @@ register.
 | Calendar side effect | In-memory outbox record with opaque IDs only | No API call, event or credential |
 | Workload report | `manager_test_001`, unique completed synthetic patients and rule `v1` | No wage amount, assignment policy, month-close authority or real payroll; D-007 and D-008 remain policy-gated |
 | Scheduling workbench | In-memory `Asia/Taipei` weekly intervals plus `closed` / `extra_open` date exceptions | No clinic timetable, capacity decision, calendar projection or persistent configuration; D-004 remains policy-gated |
-| Follow-up decision and patient page | Fixed opaque `patient_test_001`; explicit synthetic staff decision and optional local target date | No clinical inference, patient authentication, public site, PII or notification; D-001～D-006 and D-011 remain policy-gated |
+| Follow-up decision | Explicit staff decision, optional target date, multi-select follow-up tags and a certificate count | No clinical inference; the system never decides on its own |
+| Patient booking form | Name, phone, birth date, national ID and NHI card, held only in the visitor's browser; national IDs render masked | Not patient authentication, not a lawful basis, and not permission to rely on real data operationally; D-001～D-003 remain policy-gated |
 
 ## Test objectives
 

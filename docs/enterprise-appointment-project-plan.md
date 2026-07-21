@@ -182,9 +182,9 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 | 路徑 | 用途 | 狀態 |
 |---|---|---|
 | `apps/web/` | 病患預約站與管理後台 | 合成測試介面已建立；正式預約站未建立 |
-| `apps/api/` | NestJS API、認證、權限與 OpenAPI | 骨架與 test-only 路由已建立；正式寫入路徑未啟用 |
-| `apps/worker/` | Calendar、Email、社群等背景工作 | 僅有 README，尚未實作 |
-| `packages/domain/` | 預約狀態機、時段規則、純商業邏輯 | 已建立並有測試 |
+| `apps/api/` | NestJS API、認證、權限與 OpenAPI | 只暴露 `/v1/health`；預約寫入路徑有 repository 與 Emulator 測試，依 Phase 1 gate 尚未開為路由 |
+| `apps/worker/` | Calendar、Email、社群等背景工作 | outbox 處理器已實作：租約領取、指數退避、死信；外部服務以 port 隔離 |
+| `packages/domain/` | 預約狀態機、時段規則、純商業邏輯 | 已建立並有測試；建立、五種轉換、改期與 outbox 重試皆為 I/O-free 的純決策 |
 | `packages/contracts/` | Zod schema、OpenAPI 型別、錯誤碼 | 已建立 |
 | `packages/config/` | 安全設定解析與本機預設值 | 已建立 |
 | `packages/ui/` | 共用 UI 元件與設計 token | 尚未建立；目前樣式集中於 `apps/web/public` |
