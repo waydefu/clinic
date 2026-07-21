@@ -1,4 +1,5 @@
 import {
+  APPOINTMENT_ACTIONS,
   APPOINTMENT_STATUS_LABELS,
   BOOKING_KIND_LABELS,
   BOOKING_NOTE_TAGS,
@@ -12,6 +13,7 @@ import {
   formatDateTime,
   formatFullDate,
   formatTime,
+  groupSlotsByDate,
   roleLabel
 } from './ui-format.js';
 
@@ -59,6 +61,30 @@ function patientDetail(state, id) {
 
 function detailRow(state, id) {
   return `<span class="code detail-line">${patientDetail(state, id)}</span>`;
+}
+
+// 哪些處置在什麼狀態下可用，集中在這裡，避免選單與 domain 規則各說各話。
+function actionEnabled(actionId, appointment) {
+  const active = ['confirmed', 'cancellation_requested'].includes(
+    appointment.status
+  );
+  switch (actionId) {
+    case 'follow_up_confirm':
+      return appointment.status === 'completed';
+    case 'complete':
+      return appointment.status === 'confirmed';
+    default:
+      return active;
+  }
+}
+
+function actionMenu(appointment, decided) {
+  const items = APPOINTMENT_ACTIONS.map((action) => {
+    const suffix =
+      action.id === 'follow_up_confirm' && decided ? '（已記錄）' : '';
+    return `<button type="button" data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}" ${actionEnabled(action.id, appointment) ? '' : 'disabled'}>${escapeHtml(action.label)}${suffix}</button>`;
+  }).join('');
+  return `<details class="action-menu"><summary>處置</summary><div class="action-menu-list">${items}</div></details>`;
 }
 function managerLabel(state, id) {
   return state.caseManagers.find((item) => item.id === id)?.label ?? id;
@@ -113,17 +139,23 @@ export function renderTagPicker(selected = []) {
 }
 
 export function renderSlots(state, kind, selectedSlotId) {
-  const slots = state.slots
-    .filter((slot) => slot.reservationId === undefined && slot.kind === kind)
-    .slice(0, 24);
-  return slots.length === 0
-    ? emptyState('目前沒有可預約時段', '請先由管理者發布新的排班草稿。')
-    : slots
-        .map(
-          (slot) =>
-            `<article class="slot-card${slot.id === selectedSlotId ? ' is-selected' : ''}"><div class="slot-card-heading"><span class="slot-date">${escapeHtml(formatFullDate(slot.startsAt))}</span><span class="status-chip is-available">${escapeHtml(BOOKING_KIND_LABELS[slot.kind])}</span></div><p class="slot-time">${escapeHtml(formatTime(slot.startsAt))}</p><button class="button ${slot.id === selectedSlotId ? 'button-primary' : 'button-secondary'}" type="button" data-select-slot="${escapeHtml(slot.id)}">${slot.id === selectedSlotId ? '已選擇' : '選擇此時段'}</button></article>`
-        )
+  const slots = state.slots.filter(
+    (slot) => slot.reservationId === undefined && slot.kind === kind
+  );
+  if (slots.length === 0)
+    return emptyState('目前沒有可預約時段', '請先由管理者發布新的排班草稿。');
+
+  return groupSlotsByDate(slots.slice(0, 60))
+    .map((group) => {
+      const buttons = group.slots
+        .map((slot) => {
+          const selected = slot.id === selectedSlotId;
+          return `<button class="slot-chip${selected ? ' is-selected' : ''}" type="button" data-select-slot="${escapeHtml(slot.id)}" aria-pressed="${selected}">${escapeHtml(formatTime(slot.startsAt))}${selected ? '<span class="slot-chip-mark" aria-hidden="true">✓</span>' : ''}</button>`;
+        })
         .join('');
+      return `<section class="slot-day"><h4 class="slot-day-label">${escapeHtml(group.label)}<span class="slot-day-count">${group.slots.length} 個${escapeHtml(BOOKING_KIND_LABELS[kind])}時段</span></h4><div class="slot-chip-row">${buttons}</div></section>`;
+    })
+    .join('');
 }
 
 function rescheduleOptions(state, appointment) {
@@ -157,10 +189,6 @@ export function renderAppointments(state, filters) {
   // state.appointments 已由 store 依看診時間排序（越接近現在越前面）。
   return list
     .map((appointment) => {
-      const active = ['confirmed', 'cancellation_requested'].includes(
-        appointment.status
-      );
-      const canComplete = appointment.status === 'confirmed';
       const notes = tagLabels(appointment.noteTags, BOOKING_NOTE_TAGS);
       if (appointment.noteText) notes.push(appointment.noteText);
       const noteRow =
@@ -170,7 +198,7 @@ export function renderAppointments(state, filters) {
       const decided = state.followUps.some(
         (item) => item.appointmentId === appointment.id
       );
-      return `<article class="appointment-card"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><p>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</p><span class="code detail-line">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')} · ${escapeHtml(appointment.id)}</span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><details class="action-menu"><summary>處置</summary><div class="action-menu-list"><button type="button" data-appointment-action="follow_up_confirm" data-appointment-id="${escapeHtml(appointment.id)}" ${appointment.status === 'completed' ? '' : 'disabled'}>回診確認${decided ? '（已記錄）' : ''}</button><button type="button" data-appointment-action="reschedule" data-appointment-id="${escapeHtml(appointment.id)}" ${active ? '' : 'disabled'}>改期</button><button type="button" data-appointment-action="cancel" data-appointment-id="${escapeHtml(appointment.id)}" ${active ? '' : 'disabled'}>取消</button><button type="button" data-appointment-action="no_show" data-appointment-id="${escapeHtml(appointment.id)}" ${active ? '' : 'disabled'}>未到</button><button type="button" data-appointment-action="complete" data-appointment-id="${escapeHtml(appointment.id)}" ${canComplete ? '' : 'disabled'}>到診</button></div></details><form class="reschedule-form" data-reschedule-form="${escapeHtml(appointment.id)}" hidden><label>改期至<select name="slotId">${rescheduleOptions(state, appointment)}</select></label><button class="button button-primary" type="submit">確認改期</button></form></article>`;
+      return `<article class="appointment-card"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><p>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</p><span class="code detail-line">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')} · ${escapeHtml(appointment.id)}</span>${detailRow(state, appointment.patientId)}${noteRow}</div></div>${actionMenu(appointment, decided)}<form class="reschedule-form" data-reschedule-form="${escapeHtml(appointment.id)}" hidden><label>改期至<select name="slotId">${rescheduleOptions(state, appointment)}</select></label><button class="button button-primary" type="submit">確認改期</button></form></article>`;
     })
     .join('');
 }

@@ -15,7 +15,7 @@ export function cloneSchedule(schedule) {
   return structuredClone(schedule);
 }
 
-export function blockedTimesOf(schedule) {
+function blockedTimesOf(schedule) {
   const blocked = schedule?.blockedTimes ?? {};
   return {
     initial: [...(blocked.initial ?? DEFAULT_BLOCKED_TIMES.initial)],

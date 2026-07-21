@@ -9,7 +9,7 @@ export const storageKey = 'beauessence_synthetic_online_preview_v3';
 const SCHEMA_VERSION = 3;
 
 // 營業時間：週三至週五 12:00–20:30，週六 10:00–18:00，週日至週二休診。
-export function defaultSchedule() {
+function defaultSchedule() {
   return {
     timeZone: TIME_ZONE,
     weeklyAvailability: [

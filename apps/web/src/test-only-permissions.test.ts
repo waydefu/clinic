@@ -7,6 +7,11 @@ import {
 } from '../public/modules/permissions.js';
 import { initialState, isUsableState } from '../public/modules/state-schema.js';
 import { PERMISSIONS } from '../public/modules/constants.js';
+import {
+  identityKey,
+  maskNationalId,
+  validatePatientInput
+} from '../public/modules/patient-registry.js';
 
 const MANAGE_ACCOUNTS = PERMISSIONS.MANAGE_ACCOUNTS;
 
@@ -74,5 +79,61 @@ describe('stored synthetic state is validated before use', () => {
     const brokenCollections = initialState();
     brokenCollections.appointments = 'not-an-array';
     expect(isUsableState(brokenCollections)).toBe(false);
+  });
+});
+
+describe('患者資料驗證與遮罩', () => {
+  const VALID = {
+    name: '王測試',
+    phone: '0912345678',
+    birthDate: '1990-05-20',
+    nationalId: 'a123456789',
+    hasNhiCard: true
+  };
+
+  it('正規化身分證字號並保留欄位', () => {
+    const result = validatePatientInput(VALID);
+    expect(result.nationalId).toBe('A123456789');
+    expect(result.hasNhiCard).toBe(true);
+  });
+
+  it('未勾選健保卡時預設為 false', () => {
+    expect(
+      validatePatientInput({ ...VALID, hasNhiCard: undefined }).hasNhiCard
+    ).toBe(false);
+  });
+
+  it('拒絕無效輸入', () => {
+    expect(() => validatePatientInput({ ...VALID, name: '   ' })).toThrow(
+      /姓名/
+    );
+    expect(() =>
+      validatePatientInput({ ...VALID, name: 'x'.repeat(31) })
+    ).toThrow(/姓名/);
+    expect(() => validatePatientInput({ ...VALID, phone: '12' })).toThrow(
+      /電話/
+    );
+    expect(() =>
+      validatePatientInput({ ...VALID, birthDate: '1800-01-01' })
+    ).toThrow(/西元/);
+    expect(() =>
+      validatePatientInput({ ...VALID, birthDate: '2999-01-01' })
+    ).toThrow(/生日/);
+    expect(() =>
+      validatePatientInput({ ...VALID, nationalId: 'A323456789' })
+    ).toThrow(/身分證/);
+  });
+
+  it('身分證字號一律以遮罩呈現', () => {
+    expect(maskNationalId('A123456789')).toBe('A12****789');
+    expect(maskNationalId('A123456789')).not.toContain('456');
+    expect(maskNationalId('')).toBe('——');
+    expect(maskNationalId(undefined)).toBe('——');
+  });
+
+  it('身分證字號大小寫不影響身分比對', () => {
+    expect(identityKey({ nationalId: 'a123456789' })).toBe(
+      identityKey({ nationalId: 'A123456789' })
+    );
   });
 });

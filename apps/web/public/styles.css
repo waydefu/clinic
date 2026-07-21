@@ -1713,3 +1713,94 @@ textarea {
     gap: 0.3rem;
   }
 }
+
+/* ---- 時段選擇：依日期分組，時間以 chip 呈現 ---- */
+.slot-day {
+  margin-bottom: 1.5rem;
+}
+.slot-day-label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: baseline;
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid currentColor;
+  font-size: 1rem;
+}
+.slot-day-count {
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.slot-chip-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+}
+.slot-chip {
+  /* 44px 最小點擊區，符合行動裝置觸控建議 */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.slot-chip:hover {
+  border-width: 2px;
+}
+.slot-chip:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}
+.slot-chip.is-selected {
+  /* 選取狀態同時用邊框粗細與勾號表示，不單靠顏色 */
+  border-width: 3px;
+  font-weight: 700;
+}
+.slot-chip-mark {
+  font-size: 0.85em;
+}
+
+/* ---- 表單：必填標示與逐欄位錯誤 ---- */
+.form-required-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.required-mark {
+  margin-left: 0.15rem;
+  font-weight: 700;
+}
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.field-error {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.field-error::before {
+  content: '⚠ ';
+}
+label.has-error input {
+  border-width: 2px;
+  outline: 1px solid currentColor;
+}
+
+/* 行內文字按鈕在觸控裝置上需要足夠的點擊區，而不只是文字高度 */
+.text-button {
+  min-height: 44px;
+  padding-block: 0.5rem;
+}

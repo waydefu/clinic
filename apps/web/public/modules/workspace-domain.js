@@ -1,6 +1,6 @@
 import { ROLE_LABELS } from './constants.js';
 import { currentAccount } from './permissions.js';
-export function safeText(value, label, maximum) {
+function safeText(value, label, maximum) {
   if (
     typeof value !== 'string' ||
     value.trim().length === 0 ||

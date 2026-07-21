@@ -28,16 +28,54 @@ function requireText(value, label, pattern) {
   return text;
 }
 
+const trimmed = (value) => (typeof value === 'string' ? value.trim() : '');
+
+function birthDateError(value) {
+  if (!datePattern.test(value)) return '請以西元年月日填寫，例如 1990-05-20。';
+  const parsed = new Date(`${value}T00:00:00+08:00`);
+  if (Number.isNaN(parsed.getTime())) return '這不是有效的日期。';
+  const year = Number(value.slice(0, 4));
+  if (year < 1900 || year > 2100) return '生日請填西元年。';
+  if (parsed.getTime() > Date.now()) return '生日不可晚於今天。';
+  return undefined;
+}
+
+// 逐欄位的錯誤訊息，供表單即時提示使用。validatePatientInput 仍會擋下所有
+// 無效輸入，介面只是提前把同一組規則說清楚。
+export function fieldErrors(input) {
+  const errors = {};
+  const name = trimmed(input?.name);
+  if (name === '') errors.name = '請填寫姓名。';
+  else if (!namePattern.test(name)) errors.name = '姓名請控制在 30 字以內。';
+
+  const phone = trimmed(input?.phone);
+  if (phone === '') errors.phone = '請填寫聯絡電話。';
+  else if (!phonePattern.test(phone))
+    errors.phone = '請填寫 8–20 位的數字電話，例如 0912345678。';
+
+  const birthDate = trimmed(input?.birthDate);
+  if (birthDate === '') errors.birthDate = '請填寫生日。';
+  else {
+    const problem = birthDateError(birthDate);
+    if (problem !== undefined) errors.birthDate = problem;
+  }
+
+  const nationalId = trimmed(input?.nationalId);
+  if (nationalId === '') errors.nationalId = '請填寫身分證字號。';
+  else if (!nationalIdPattern.test(nationalId))
+    errors.nationalId = '格式為 1 個英文字母加 9 位數字，例如 A123456789。';
+
+  return errors;
+}
+
 export function validatePatientInput(input) {
   const name = requireText(input?.name, '姓名', namePattern);
   const phone = requireText(input?.phone, '電話', phonePattern);
   const birthDate = requireText(input?.birthDate, '生日', datePattern);
 
-  const parsed = new Date(`${birthDate}T00:00:00+08:00`);
-  if (Number.isNaN(parsed.getTime())) throw new Error('生日格式不正確。');
-  const year = Number(birthDate.slice(0, 4));
-  if (year < 1900 || year > 2100) throw new Error('生日請填西元年。');
-  if (parsed.getTime() > Date.now()) throw new Error('生日不可晚於今天。');
+  const problem = birthDateError(birthDate);
+  if (problem !== undefined)
+    throw new Error(problem.includes('西元') ? '生日請填西元年。' : problem);
 
   // Format only. A checksum check would reject the made-up numbers this
   // preview is meant to be tested with.
@@ -56,7 +94,7 @@ export function validatePatientInput(input) {
   };
 }
 
-export function findPatientByIdentity(state, patient) {
+function findPatientByIdentity(state, patient) {
   const key = identityKey(patient);
   return state.patients.find((item) => identityKey(item) === key);
 }

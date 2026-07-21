@@ -4,11 +4,13 @@ import {
   PATIENT_SERVICES,
   WEEKDAY_LABELS
 } from './modules/constants.js';
+import { fieldErrors } from './modules/patient-registry.js';
 import {
   emptyState,
   escapeHtml,
   formatFullDate,
-  formatTime
+  formatTime,
+  groupSlotsByDate
 } from './modules/ui-format.js';
 
 const identityKeyStorage = 'beauessence_patient_last_identity';
@@ -127,21 +129,26 @@ function availableSlots() {
       (slot) =>
         slot.reservationId === undefined && slot.kind === selectedBookingType
     )
-    .slice(0, 24);
+    .slice(0, 60);
 }
 
 function renderSlots() {
   const slots = availableSlots();
   elements['slot-choice-description'].textContent =
     selectedBookingType === 'follow_up'
-      ? '回診開放每小時 15 分與 45 分，時間以 Asia/Taipei 顯示。'
-      : '初診開放整點與 30 分，時間以 Asia/Taipei 顯示。';
+      ? '回診開放每小時 15 分與 45 分，時間以 Asia/Taipei（台北時間）顯示。'
+      : '初診開放整點與 30 分，時間以 Asia/Taipei（台北時間）顯示。';
   elements['patient-slots'].innerHTML = slots.length
-    ? slots
-        .map(
-          (slot) =>
-            `<button class="patient-slot-option" type="button" data-patient-slot="${escapeHtml(slot.id)}"><span class="patient-slot-date">${escapeHtml(formatFullDate(slot.startsAt))}</span><strong>${escapeHtml(formatTime(slot.startsAt))}</strong><span>${escapeHtml(BOOKING_KIND_LABELS[slot.kind])}</span><small>可預約</small></button>`
-        )
+    ? groupSlotsByDate(slots)
+        .map((group) => {
+          const buttons = group.slots
+            .map((slot) => {
+              const selected = slot.id === selectedSlotId;
+              return `<button class="slot-chip${selected ? ' is-selected' : ''}" type="button" data-patient-slot="${escapeHtml(slot.id)}" aria-pressed="${selected}">${escapeHtml(formatTime(slot.startsAt))}${selected ? '<span class="slot-chip-mark" aria-hidden="true">✓</span>' : ''}</button>`;
+            })
+            .join('');
+          return `<section class="slot-day"><h3 class="slot-day-label">${escapeHtml(group.label)}<span class="slot-day-count">${group.slots.length} 個時段</span></h3><div class="slot-chip-row">${buttons}</div></section>`;
+        })
         .join('')
     : emptyState('目前沒有可預約時段', '診所發布新的排班後，時段會自動更新。');
 }
@@ -176,12 +183,39 @@ function patientInput() {
   };
 }
 
+const fieldToId = {
+  name: 'patient-name',
+  phone: 'patient-phone',
+  birthDate: 'patient-birth',
+  nationalId: 'patient-national-id'
+};
+
+// 只對「使用者已經離開過」的欄位顯示錯誤，避免一進表單就滿江紅。
+const touched = new Set();
+
+function showFieldErrors(only = touched) {
+  const errors = fieldErrors(patientInput());
+  for (const [field, id] of Object.entries(fieldToId)) {
+    const input = elements[id];
+    const hint = elements[`${id}-error`];
+    const problem = only.has(id) ? errors[field] : undefined;
+    hint.textContent = problem ?? '';
+    hint.hidden = problem === undefined;
+    input.setAttribute(
+      'aria-invalid',
+      problem === undefined ? 'false' : 'true'
+    );
+    input
+      .closest('label')
+      ?.classList.toggle('has-error', problem !== undefined);
+  }
+  return errors;
+}
+
+// 送出鈕刻意保持可按。停用的按鈕不會說明「為什麼不能按」，使用者只能自己猜；
+// 改為按下後把問題逐欄指出來，並把焦點帶到第一個要修正的地方。
 function updateSubmitState() {
-  const filled = formFields.every(
-    (field) => elements[field].value.trim() !== ''
-  );
-  elements['confirm-patient-booking'].disabled =
-    !filled || !elements['synthetic-confirmation'].checked;
+  showFieldErrors();
 }
 
 function statusLabel(status) {
@@ -262,6 +296,7 @@ elements['patient-slots'].addEventListener('click', (event) => {
   const button = event.target.closest('[data-patient-slot]');
   if (button === null) return;
   selectedSlotId = button.dataset.patientSlot;
+  renderSlots();
   renderConfirmation();
   showStep(3);
 });
@@ -276,8 +311,33 @@ elements['synthetic-confirmation'].addEventListener(
   'change',
   updateSubmitState
 );
+// 離開欄位才提示該欄錯誤（on-blur）；輸入中只更新送出按鈕，避免邊打邊被罵。
+for (const field of formFields)
+  elements[field].addEventListener('blur', () => {
+    touched.add(field);
+    updateSubmitState();
+  });
 
 elements['confirm-patient-booking'].addEventListener('click', async () => {
+  // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
+  for (const field of formFields) touched.add(field);
+  const errors = showFieldErrors();
+  const firstProblem = Object.keys(fieldToId).find(
+    (field) => errors[field] !== undefined
+  );
+  if (firstProblem !== undefined) {
+    const target = elements[fieldToId[firstProblem]];
+    target.focus();
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    message('有欄位需要修正，請看欄位下方的提示。', 'error');
+    return;
+  }
+  if (!elements['synthetic-confirmation'].checked) {
+    elements['synthetic-confirmation'].focus();
+    message('請先勾選下方的確認項目。', 'error');
+    return;
+  }
+
   elements['confirm-patient-booking'].disabled = true;
   try {
     state = await stagingRequest('/bookings', {
@@ -310,7 +370,7 @@ elements['confirm-patient-booking'].addEventListener('click', async () => {
     message('預約已建立。', 'success');
   } catch (error) {
     message(error.message, 'error');
-    updateSubmitState();
+    elements['confirm-patient-booking'].disabled = false;
   }
 });
 
