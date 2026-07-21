@@ -42,6 +42,7 @@ const requiredPaths = [
   'docs/reviews/phase-1-synthetic-online-preview-checkpoint-2026-07-21.md',
   'docs/adr/0001-domain-api-is-the-only-write-path.md',
   'docs/adr/0003-firestore-direct-client-access-is-deny-by-default.md',
+  'docs/adr/0004-browser-and-server-share-one-compiled-domain.md',
   'infra/terraform/README.md',
   'firebase.json',
   'firestore.rules',
