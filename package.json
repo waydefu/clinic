@@ -21,6 +21,7 @@
     "verify": "node scripts/check-structure.mjs && corepack pnpm run check:ui && corepack pnpm run check:docs && corepack pnpm run check:format && corepack pnpm run check:types && corepack pnpm run test:unit"
   },
   "devDependencies": {
+    "@beauessence/domain": "workspace:*",
     "@firebase/rules-unit-testing": "^5.0.0",
     "@types/node": "^24.0.0",
     "firebase": "^12.0.0",

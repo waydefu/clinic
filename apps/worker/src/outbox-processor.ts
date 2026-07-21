@@ -1,0 +1,178 @@
+import {
+  isDue,
+  planOutboxAttempt,
+  type AttemptOutcome,
+  type OutboxJob
+} from '@beauessence/domain';
+import type { Firestore } from 'firebase-admin/firestore';
+
+import { CalendarError, type CalendarPort } from './calendar-port.js';
+
+export const OUTBOX_COLLECTION = 'outbox_jobs';
+export const APPOINTMENTS_COLLECTION = 'appointments';
+
+/** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
+export const LEASE_SECONDS = 120;
+
+export interface ProcessSummary {
+  readonly claimed: number;
+  readonly completed: number;
+  readonly retried: number;
+  readonly deadLettered: number;
+}
+
+/**
+ * 消費 outbox，把預約投影到外部日曆。
+ *
+ * 三件事分開：
+ *   1. 領取（交易內，帶租約）——兩個 worker 不會同時處理同一筆。
+ *   2. 外部呼叫（交易外）——ADR-0002 禁止在交易內呼叫外部服務。
+ *   3. 結算（交易外的單筆更新，依 planOutboxAttempt 的純決策）。
+ *
+ * 外部呼叫刻意放在交易之外：Firestore 會重試交易，若把呼叫放進去，重試就會
+ * 重複建立日曆事件或重複寄送通知。
+ */
+export class OutboxProcessor {
+  public constructor(
+    private readonly db: Firestore,
+    private readonly calendar: CalendarPort
+  ) {}
+
+  /** 以交易領取一筆到期工作並加上租約，回傳 undefined 表示沒有可做的事。 */
+  private async claim(now: string): Promise<OutboxJob | undefined> {
+    const candidates = await this.db
+      .collection(OUTBOX_COLLECTION)
+      .where('status', 'in', ['pending', 'in_progress'])
+      .limit(20)
+      .get();
+
+    for (const candidate of candidates.docs) {
+      const claimed = await this.db.runTransaction(async (transaction) => {
+        const reference = this.db
+          .collection(OUTBOX_COLLECTION)
+          .doc(candidate.id);
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists) return undefined;
+        const job = { id: snapshot.id, ...snapshot.data() } as OutboxJob & {
+          leaseExpiresAt?: string;
+        };
+
+        const leaseExpired =
+          job.leaseExpiresAt === undefined ||
+          Date.parse(job.leaseExpiresAt) <= Date.parse(now);
+
+        if (job.status === 'in_progress' && !leaseExpired) return undefined;
+        if (job.status === 'pending' && !isDue(job, now)) return undefined;
+        if (job.status === 'completed' || job.status === 'dead_letter')
+          return undefined;
+
+        transaction.update(reference, {
+          status: 'in_progress',
+          leaseExpiresAt: new Date(
+            Date.parse(now) + LEASE_SECONDS * 1000
+          ).toISOString()
+        });
+        return job;
+      });
+
+      if (claimed !== undefined) return claimed;
+    }
+    return undefined;
+  }
+
+  private async settle(
+    job: OutboxJob,
+    outcome: AttemptOutcome,
+    now: string
+  ): Promise<'completed' | 'retried' | 'deadLettered'> {
+    // 結算時把 status 還原成領取前的樣子再交給純決策，避免 in_progress
+    // 這個純技術狀態洩漏進領域規則。
+    const decision = planOutboxAttempt(
+      { ...job, status: 'pending' },
+      outcome,
+      now
+    );
+
+    await this.db
+      .collection(OUTBOX_COLLECTION)
+      .doc(job.id)
+      .update({
+        status: decision.status,
+        attempts: decision.attempts,
+        needsOperator: decision.needsOperator,
+        leaseExpiresAt: null,
+        ...(decision.nextAttemptAt === undefined
+          ? {}
+          : { nextAttemptAt: decision.nextAttemptAt }),
+        ...(decision.lastError === undefined
+          ? {}
+          : { lastError: decision.lastError }),
+        settledAt: now
+      });
+
+    if (decision.status === 'completed') return 'completed';
+    if (decision.status === 'dead_letter') return 'deadLettered';
+    return 'retried';
+  }
+
+  /** 處理到沒有到期工作為止，或到達 maxJobs 上限。 */
+  public async processDue(
+    now = new Date().toISOString(),
+    maxJobs = 50
+  ): Promise<ProcessSummary> {
+    let claimed = 0;
+    let completed = 0;
+    let retried = 0;
+    let deadLettered = 0;
+
+    while (claimed < maxJobs) {
+      const job = await this.claim(now);
+      if (job === undefined) break;
+      claimed += 1;
+
+      const appointment = await this.db
+        .collection(APPOINTMENTS_COLLECTION)
+        .doc(job.appointmentId)
+        .get();
+
+      let outcome: AttemptOutcome;
+      try {
+        // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
+        // 手術種類與備註一律不得離開本系統（ADR-0002）。
+        await this.calendar.project({
+          idempotencyKey: job.idempotencyKey,
+          appointmentId: job.appointmentId,
+          appointmentStatus:
+            (appointment.data()?.['status'] as string) ?? 'unknown',
+          startsAt: (appointment.data()?.['startsAt'] as string) ?? '',
+          bookingKind: (appointment.data()?.['bookingKind'] as string) ?? ''
+        });
+        outcome = { kind: 'succeeded' };
+      } catch (error) {
+        outcome = {
+          kind: 'failed',
+          reason: error instanceof Error ? error.message : 'Unknown failure.',
+          retryable: error instanceof CalendarError ? error.retryable : true
+        };
+      }
+
+      const result = await this.settle(job, outcome, now);
+      if (result === 'completed') completed += 1;
+      else if (result === 'retried') retried += 1;
+      else deadLettered += 1;
+    }
+
+    return { claimed, completed, retried, deadLettered };
+  }
+
+  /** 後台的待處理清單：需要人工補救的死信。 */
+  public async deadLetters(): Promise<OutboxJob[]> {
+    const snapshot = await this.db
+      .collection(OUTBOX_COLLECTION)
+      .where('status', '==', 'dead_letter')
+      .get();
+    return snapshot.docs.map(
+      (document) => ({ id: document.id, ...document.data() }) as OutboxJob
+    );
+  }
+}

@@ -132,6 +132,12 @@ function effectiveIntervals(schedule, date) {
 // Slots are single points on a per-kind grid, not free-running ranges: initial
 // visits land on :00/:30 and follow-ups on :15/:45. Blocked clock times remove
 // the doctor's fixed commitments from whichever grid they belong to.
+//
+// The two grids overlap in wall-clock terms (14:00 initial vs 14:15 follow-up)
+// and that is deliberate, confirmed by the clinic on 2026-07-21: consultants
+// and doctors are staffed to run both lines in parallel, so a follow-up does
+// not consume an initial-visit slot. Do not "fix" this by making the grids
+// mutually exclusive — capacity is per staff line, not per clock minute.
 function marksWithin(interval, kind, blockedSet, duration) {
   const from = minutes(interval.startLocalTime);
   const to = minutes(interval.endLocalTime);

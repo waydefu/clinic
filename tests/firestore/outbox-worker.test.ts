@@ -1,0 +1,206 @@
+import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
+import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { MAX_ATTEMPTS } from '@beauessence/domain';
+import { InMemoryCalendar } from '../../apps/worker/src/calendar-port.js';
+import {
+  APPOINTMENTS_COLLECTION,
+  OUTBOX_COLLECTION,
+  OutboxProcessor
+} from '../../apps/worker/src/outbox-processor.js';
+
+const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
+const projectId = 'beauessence-appointment-local';
+
+let app: App;
+let db: Firestore;
+let calendar: InMemoryCalendar;
+let processor: OutboxProcessor;
+
+const NOW = '2026-07-21T09:00:00.000Z';
+const later = (seconds: number) =>
+  new Date(Date.parse(NOW) + seconds * 1000).toISOString();
+
+async function wipe(): Promise<void> {
+  for (const collection of [OUTBOX_COLLECTION, APPOINTMENTS_COLLECTION]) {
+    const documents = await db.collection(collection).listDocuments();
+    await Promise.all(documents.map((document) => document.delete()));
+  }
+}
+
+async function seedJob(id = 'outbox_001'): Promise<void> {
+  await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
+    status: 'confirmed',
+    startsAt: '2030-01-02T04:00:00.000Z',
+    bookingKind: 'initial',
+    patientId: 'patient_001',
+    // 以下欄位刻意存在，用來證明它們不會外洩到日曆。
+    patientName: '王測試',
+    nationalId: 'A123456789',
+    itemLabel: '鼻中膈彎曲'
+  });
+  await db.collection(OUTBOX_COLLECTION).doc(id).set({
+    appointmentId: 'appointment_001',
+    idempotencyKey: 'calendar_confirmed_appointment_001',
+    type: 'calendar_projection_requested',
+    status: 'pending',
+    attempts: 0
+  });
+}
+
+const jobState = async (id = 'outbox_001') =>
+  (await db.collection(OUTBOX_COLLECTION).doc(id).get()).data();
+
+beforeAll(() => {
+  if (emulatorHost === undefined)
+    throw new Error(
+      'FIRESTORE_EMULATOR_HOST is not set. Run this suite through pnpm test:rules.'
+    );
+  app = initializeApp({ projectId }, `worker-${Date.now()}`);
+  db = getFirestore(app);
+});
+
+afterAll(async () => {
+  await deleteApp(app);
+});
+
+beforeEach(async () => {
+  await wipe();
+  calendar = new InMemoryCalendar();
+  processor = new OutboxProcessor(db, calendar);
+});
+
+describe('outbox worker', () => {
+  it('projects a pending job and marks it completed', async () => {
+    await seedJob();
+    const summary = await processor.processDue(NOW);
+
+    expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+    expect(calendar.events.size).toBe(1);
+    expect((await jobState())?.['status']).toBe('completed');
+  });
+
+  it('never sends patient identifiers to the calendar', async () => {
+    await seedJob();
+    await processor.processDue(NOW);
+
+    const projected = JSON.stringify([...calendar.events.values()]);
+    for (const secret of ['王測試', 'A123456789', '鼻中膈彎曲', 'patient_001'])
+      expect(projected).not.toContain(secret);
+  });
+
+  it('backs off after a retryable failure instead of giving up', async () => {
+    await seedJob();
+    calendar.failNext(1);
+
+    const summary = await processor.processDue(NOW);
+    expect(summary).toMatchObject({ claimed: 1, retried: 1, completed: 0 });
+
+    const state = await jobState();
+    expect(state?.['status']).toBe('pending');
+    expect(state?.['attempts']).toBe(1);
+    expect(state?.['lastError']).toMatch(/Synthetic calendar failure/);
+    expect(Date.parse(state?.['nextAttemptAt'] as string)).toBeGreaterThan(
+      Date.parse(NOW)
+    );
+  });
+
+  it('does not pick the job up again before its backoff has elapsed', async () => {
+    await seedJob();
+    calendar.failNext(1);
+    await processor.processDue(NOW);
+
+    const immediate = await processor.processDue(later(1));
+    expect(immediate.claimed).toBe(0);
+
+    calendar.failNext(0);
+    const afterBackoff = await processor.processDue(later(60));
+    expect(afterBackoff).toMatchObject({ claimed: 1, completed: 1 });
+  });
+
+  it('dead-letters after the attempt ceiling and flags it for an operator', async () => {
+    await seedJob();
+    calendar.failNext(MAX_ATTEMPTS);
+
+    let clock = NOW;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+      await processor.processDue(clock);
+      clock = later(3600 * (attempt + 1) * 2);
+    }
+
+    const state = await jobState();
+    expect(state?.['status']).toBe('dead_letter');
+    expect(state?.['attempts']).toBe(MAX_ATTEMPTS);
+    expect(state?.['needsOperator']).toBe(true);
+
+    const pending = await processor.deadLetters();
+    expect(pending).toHaveLength(1);
+  });
+
+  it('dead-letters a non-retryable failure without burning the retry budget', async () => {
+    await seedJob();
+    calendar.failNext(1, false);
+
+    const summary = await processor.processDue(NOW);
+    expect(summary).toMatchObject({ deadLettered: 1 });
+
+    const state = await jobState();
+    expect(state?.['attempts']).toBe(1);
+    expect(state?.['status']).toBe('dead_letter');
+  });
+
+  it('creates exactly one calendar event no matter how often it retries', async () => {
+    await seedJob();
+    // 每次都先失敗一次再成功，重複 5 輪：日曆被呼叫多次，但事件只有一個。
+    let clock = NOW;
+    for (let round = 0; round < 5; round += 1) {
+      calendar.failNext(1);
+      await processor.processDue(clock);
+      clock = later(3600 * (round + 1) * 2);
+    }
+    calendar.failNext(0);
+    await processor.processDue(clock);
+
+    expect(calendar.callCount).toBeGreaterThan(5);
+    expect(calendar.events.size).toBe(1);
+  });
+
+  it('leaves finished work alone on later runs', async () => {
+    await seedJob();
+    await processor.processDue(NOW);
+    const second = await processor.processDue(later(7200));
+
+    expect(second.claimed).toBe(0);
+    expect(calendar.events.size).toBe(1);
+  });
+
+  it('lets a second worker take over a job whose lease expired', async () => {
+    await seedJob();
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_001')
+      .update({
+        status: 'in_progress',
+        leaseExpiresAt: later(-60)
+      });
+
+    const summary = await processor.processDue(NOW);
+    expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+  });
+
+  it('will not touch a job another worker still holds', async () => {
+    await seedJob();
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_001')
+      .update({
+        status: 'in_progress',
+        leaseExpiresAt: later(300)
+      });
+
+    const summary = await processor.processDue(NOW);
+    expect(summary.claimed).toBe(0);
+    expect(calendar.events.size).toBe(0);
+  });
+});
