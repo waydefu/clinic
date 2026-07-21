@@ -13,22 +13,28 @@ import { AppModule } from './app.module.js';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
 /**
- * The test-only booking routes carry no authentication or authorization. They
- * may therefore only ever be reachable from the machine running them. The web
- * harness hard-codes its loopback bind; this keeps the API side symmetrical so
- * a stray HOST value cannot publish those write endpoints to a network.
+ * Any route that does not yet enforce authentication may only ever be reachable
+ * from the machine running it. Setting ALLOW_UNAUTHENTICATED_ROUTES is how such
+ * a route gets enabled, and this makes the loopback bind non-negotiable while it
+ * is set, so a stray HOST value cannot publish an unguarded write endpoint to a
+ * network. The web harness hard-codes its own loopback bind; this keeps the API
+ * side symmetrical.
+ *
+ * The booking write path is not exposed yet (see the Phase 1 gate), so nothing
+ * currently sets this flag. It stays because the guard must already be in place
+ * on the day the first route lands, not added afterwards.
  */
 export function resolveListenHost(
   environment: NodeJS.ProcessEnv = process.env
 ): string {
   const host = environment['HOST'] ?? '127.0.0.1';
   if (
-    environment['ENABLE_TEST_ONLY_BOOKING'] === 'true' &&
+    environment['ALLOW_UNAUTHENTICATED_ROUTES'] === 'true' &&
     !LOOPBACK_HOSTS.has(host)
   ) {
     throw new Error(
-      `Refusing to bind the test-only API to non-loopback host "${host}". ` +
-        'Unset HOST or unset ENABLE_TEST_ONLY_BOOKING.'
+      `Refusing to bind unauthenticated routes to non-loopback host "${host}". ` +
+        'Unset HOST or unset ALLOW_UNAUTHENTICATED_ROUTES.'
     );
   }
   return host;
@@ -42,13 +48,6 @@ export async function createApplication(): Promise<NestFastifyApplication> {
   );
 
   app.setGlobalPrefix('v1');
-  if (process.env['ENABLE_TEST_ONLY_BOOKING'] === 'true') {
-    app.enableCors({
-      origin: 'http://127.0.0.1:3100',
-      methods: ['GET', 'POST'],
-      allowedHeaders: ['Content-Type']
-    });
-  }
   return app;
 }
 

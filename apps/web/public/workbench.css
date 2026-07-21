@@ -88,15 +88,6 @@
   font-size: var(--text-micro);
   font-weight: 720;
 }
-.task-danger {
-  border-left-color: var(--danger);
-}
-.task-warning {
-  border-left-color: var(--amber);
-}
-.task-neutral {
-  border-left-color: var(--forest);
-}
 .filter-bar {
   align-items: end;
   background: var(--surface-soft);
@@ -170,10 +161,6 @@
 }
 .decision-card label {
   min-width: 0;
-}
-.status-cancelled {
-  background: #edf0ee;
-  color: var(--ink-muted);
 }
 .status-cancellation_requested {
   background: var(--amber-light);

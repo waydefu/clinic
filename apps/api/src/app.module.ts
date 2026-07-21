@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 
 import { HealthController } from './health.controller.js';
-import { TestOnlyBookingModule } from './test-only-booking.module.js';
 
-const testOnlyBookingEnabled =
-  process.env['ENABLE_TEST_ONLY_BOOKING'] === 'true';
-
+/**
+ * The API currently exposes only /v1/health. The booking write path exists as
+ * a repository plus Emulator tests (see apps/api/src/firestore) but is
+ * deliberately not routed: the Phase 1 gate forbids enabling a booking write
+ * endpoint before the privacy, appointment-policy and role decisions land.
+ */
 @Module({
-  imports: testOnlyBookingEnabled ? [TestOnlyBookingModule] : [],
   controllers: [HealthController]
 })
 export class AppModule {}

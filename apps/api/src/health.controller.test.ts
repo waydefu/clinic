@@ -21,13 +21,13 @@ describe('GET /v1/health', () => {
     expect(response.json()).toEqual({ service: 'api', status: 'ok' });
   });
 
-  it('does not load test-only booking routes without the explicit flag', async () => {
+  it('exposes no other route; the booking write path is not routed yet', async () => {
     app = await createApplication();
     await app.init();
 
     const response = await app.inject({
-      method: 'GET',
-      url: '/v1/test-only/state'
+      method: 'POST',
+      url: '/v1/bookings'
     });
 
     expect(response.statusCode).toBe(404);
