@@ -8,6 +8,7 @@ const paths = {
   patientHtml: 'apps/web/public/patient.html',
   patientClient: 'apps/web/public/patient-app-v2.js',
   store: 'apps/web/public/staging-store-v2.js',
+  adminView: 'apps/web/public/modules/admin-view.js',
   schedule: 'apps/web/public/modules/schedule-engine.js',
   cases: 'apps/web/public/modules/case-management.js',
   permissions: 'apps/web/public/modules/permissions.js',
@@ -130,11 +131,25 @@ requireText(
   'Modular admin CSS must preserve visible focus.'
 );
 
+// 2026-07-21 決定（專案負責人）：預約流程改為收集姓名、電話、生日與身分證，
+// 公開預覽一併更新。因此這裡不再是「不得有任何輸入欄位」，而是「只允許清單內
+// 的欄位」——新增任何欄位都必須是刻意的決定，並回頭確認 D-001～D-003。
 const allowedControls = new Set([
   'workspace-account',
-  'booking-patient',
+  'booking-name',
+  'booking-phone',
+  'booking-birth',
+  'booking-national-id',
+  'booking-nhi-card',
+  'booking-kind',
+  'booking-item',
+  'booking-note',
+  'slot-kind-filter',
   'appointment-status-filter',
+  'appointment-kind-filter',
   'appointment-patient-filter',
+  'blocked-initial',
+  'blocked-follow-up',
   'weekday-0',
   'weekday-1',
   'weekday-2',
@@ -176,12 +191,32 @@ for (const control of files.adminShell.matchAll(
   if (!allowedTextareas.has(control[1]))
     failures.push(`Unexpected modular admin textarea: ${control[1]}.`);
 }
+const allowedPatientControls = new Set([
+  'patient-name',
+  'patient-phone',
+  'patient-birth',
+  'patient-national-id',
+  'patient-nhi-card',
+  'synthetic-confirmation'
+]);
 for (const control of files.patientHtml.matchAll(
   /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"[^>]*>/gi
 )) {
-  if (control[1] !== 'synthetic-confirmation')
+  if (!allowedPatientControls.has(control[1]))
     failures.push(`Unexpected patient data input: ${control[1]}.`);
 }
+// The patient page must keep telling visitors where their data goes, and the
+// list must never render an unmasked national ID.
+requireText(
+  files.patientHtml,
+  '只會保存在我這台裝置的瀏覽器',
+  'Patient form no longer states where the data is stored.'
+);
+requireText(
+  files.adminView,
+  'maskNationalId',
+  'Workbench must render masked national IDs.'
+);
 const combinedClient = `${files.adminClient}\n${files.patientClient}\n${files.store}\n${files.schedule}\n${files.cases}`;
 const externalUrls = combinedClient.match(/https?:\/\/[^'"\s`]+/g) ?? [];
 for (const url of externalUrls)

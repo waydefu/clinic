@@ -4,12 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta
-      name="description"
-      content="一森渼診所企業級預約流程的合成資料預覽。"
-    />
+    <meta name="description" content="一森渼診所線上門診預約。" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>一森渼診所｜線上預約（合成測試）</title>
+    <title>一森渼診所｜線上預約</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body class="patient-body">
@@ -61,9 +58,10 @@
         <section class="patient-hero" aria-labelledby="patient-title">
           <div>
             <p class="eyebrow">BEAU ESSENCE · ONLINE BOOKING</p>
-            <h1 id="patient-title">安排您的諮詢時段</h1>
+            <h1 id="patient-title">確認您的門診時段</h1>
             <p>
-              以清楚的步驟選擇預約類型與合成時段。此頁為企業流程預覽，不收集任何真實個人或醫療資料。
+              依序選擇看診類型、項目與時段，最後填寫基本資料。所有時間以
+              Asia/Taipei 顯示。
             </p>
             <div class="patient-trust-row">
               <span>✓ 台北時區</span><span>✓ 行動裝置友善</span
@@ -73,7 +71,7 @@
           <aside class="patient-contact-card">
             <p class="eyebrow">CLINIC</p>
             <strong>一森渼診所</strong><span>臺北市松山區光復北路112號2樓</span
-            ><span>本預覽不提供正式聯絡或醫療服務</span>
+            ><span id="patient-hours-summary">門診時間讀取中</span>
           </aside>
         </section>
 
@@ -83,18 +81,18 @@
           role="status"
           aria-live="polite"
         >
-          正在準備合成預約流程。
+          正在準備預約流程。
         </p>
 
         <ol class="booking-stepper" aria-label="預約步驟">
           <li class="is-active" data-step-indicator="1">
-            <span>1</span><strong>預約類型</strong>
+            <span>1</span><strong>類型與項目</strong>
           </li>
           <li data-step-indicator="2">
             <span>2</span><strong>日期時段</strong>
           </li>
           <li data-step-indicator="3">
-            <span>3</span><strong>資料確認</strong>
+            <span>3</span><strong>基本資料</strong>
           </li>
           <li data-step-indicator="4"><span>4</span><strong>完成</strong></li>
         </ol>
@@ -107,8 +105,8 @@
         >
           <div class="booking-panel-heading">
             <p class="eyebrow">STEP 01</p>
-            <h2 id="booking-type-heading">這次要預約哪一類服務？</h2>
-            <p>正式服務項目尚未核准，目前以兩種合成流程驗證操作。</p>
+            <h2 id="booking-type-heading">這次是初診還是回診？</h2>
+            <p>初診開放整點與 30 分，回診開放 15 分與 45 分。</p>
           </div>
           <div class="service-choice-grid">
             <button
@@ -117,7 +115,7 @@
               data-booking-type="initial"
             >
               <span class="service-icon" aria-hidden="true">＋</span
-              ><strong>初次諮詢</strong><span>第一次安排合成諮詢時段</span
+              ><strong>初診</strong><span>第一次安排門診時段</span
               ><small>不需要回診確認</small>
             </button>
             <button
@@ -126,10 +124,21 @@
               data-booking-type="follow_up"
             >
               <span class="service-icon" aria-hidden="true">↻</span
-              ><strong>回診預約</strong><span>依授權人員確認的回診安排</span
+              ><strong>回診</strong><span>依醫師確認的回診安排</span
               ><small id="follow-up-choice-status">讀取回診狀態中</small>
             </button>
           </div>
+
+          <div class="booking-panel-heading" style="margin-top: 1.5rem">
+            <h2 id="service-choice-heading">看診項目</h2>
+            <p>選擇本次要進行的項目。</p>
+          </div>
+          <div
+            id="patient-services"
+            class="service-choice-grid"
+            role="group"
+            aria-labelledby="service-choice-heading"
+          ></div>
         </section>
 
         <section
@@ -140,7 +149,7 @@
         >
           <div class="booking-panel-heading">
             <button class="text-button" type="button" data-booking-back="1">
-              ← 返回預約類型
+              ← 返回類型與項目
             </button>
             <p class="eyebrow">STEP 02</p>
             <h2 id="slot-choice-heading">選擇日期與時段</h2>
@@ -164,25 +173,48 @@
               ← 返回選擇時段
             </button>
             <p class="eyebrow">STEP 03</p>
-            <h2 id="confirmation-heading">確認預約內容</h2>
-            <p>正式版會在隱私與身份驗證核准後，於此步驟收集最少必要資料。</p>
+            <h2 id="confirmation-heading">填寫基本資料</h2>
+            <p>
+              為了確認身分與避免重複掛號，需要以下資料。同一位患者同時只能有一筆未完成的預約。
+            </p>
           </div>
           <div class="booking-confirmation-grid">
             <article
               class="booking-summary"
               id="patient-booking-summary"
             ></article>
-            <aside class="synthetic-identity-card">
-              <span class="status-chip is-available">合成身份</span
-              ><strong>patient_test_001</strong>
-              <p>不含姓名、電話、Email、病情、醫囑或付款資料。</p>
+            <div class="patient-form-grid">
+              <label
+                >姓名
+                <input id="patient-name" type="text" autocomplete="off" />
+              </label>
+              <label
+                >聯絡電話
+                <input id="patient-phone" type="tel" autocomplete="off" />
+              </label>
+              <label
+                >生日（西元）
+                <input id="patient-birth" type="date" autocomplete="off" />
+              </label>
+              <label
+                >身分證字號
+                <input
+                  id="patient-national-id"
+                  type="text"
+                  maxlength="10"
+                  autocomplete="off"
+                />
+              </label>
+              <label class="consent-preview"
+                ><input id="patient-nhi-card" type="checkbox" />本次會攜帶健保卡
+              </label>
               <label class="consent-preview"
                 ><input
                   id="synthetic-confirmation"
                   type="checkbox"
-                />我了解這是公開的合成資料測試，不會輸入真實資料。</label
+                />我了解此頁為測試版本，填寫的資料只會保存在我這台裝置的瀏覽器。</label
               >
-            </aside>
+            </div>
           </div>
           <button
             id="confirm-patient-booking"
@@ -190,7 +222,7 @@
             type="button"
             disabled
           >
-            確認建立合成預約
+            送出預約
           </button>
         </section>
 
@@ -207,7 +239,7 @@
             >✓</span
           >
           <p id="booking-complete-eyebrow" class="eyebrow">BOOKING COMPLETE</p>
-          <h2 id="booking-complete-heading">合成預約已建立</h2>
+          <h2 id="booking-complete-heading">預約已建立</h2>
           <p id="booking-complete-description">
             這筆資料只存在目前瀏覽器，未連線診所、日曆或通知服務。
           </p>
@@ -218,7 +250,7 @@
               type="button"
               id="book-another"
             >
-              再建立一筆測試預約</button
+              再建立一筆預約</button
             ><a class="button button-secondary" href="/">返回工作臺</a>
           </div>
         </section>
@@ -229,10 +261,10 @@
         >
           <div class="section-heading">
             <div>
-              <p class="eyebrow">MY SYNTHETIC BOOKINGS</p>
+              <p class="eyebrow">MY BOOKINGS</p>
               <h2 id="upcoming-heading">目前瀏覽器的預約</h2>
             </div>
-            <p class="section-description">可測試取消，不代表正式取消規則</p>
+            <p class="section-description">可提出取消，實際取消由櫃台確認</p>
           </div>
           <div
             id="patient-appointments"
@@ -247,27 +279,27 @@
           aria-label="預約須知"
         >
           <article>
-            <span>01</span><strong>資料安全</strong>
-            <p>此預覽只使用合成識別碼，禁止輸入真實個資。</p>
+            <span>01</span><strong>資料保存</strong>
+            <p>此測試版本的資料只留在您這台裝置的瀏覽器，不會傳送到診所。</p>
           </article>
           <article>
             <span>02</span><strong>回診判斷</strong>
-            <p>系統不會自行判斷是否需要回診，須由授權人員確認。</p>
+            <p>系統不會自行判斷是否需要回診，須由醫師確認後才能預約回診。</p>
           </article>
           <article>
-            <span>03</span><strong>正式上線</strong>
-            <p>隱私、身分驗證與營運規則核准後才會成為正式服務。</p>
+            <span>03</span><strong>重複預約</strong>
+            <p>
+              同一位患者同時只能有一筆未完成的預約，完成或取消後才能再預約。
+            </p>
           </article>
         </section>
       </div>
     </main>
 
     <footer class="patient-footer">
-      <div>
-        <strong>一森渼診所</strong><span>企業級預約體驗 · 合成資料預覽</span>
-      </div>
+      <div><strong>一森渼診所</strong><span>線上門診預約 · 測試版本</span></div>
       <div><a href="#patient-help">預約須知</a><a href="/">開發工作臺</a></div>
-      <span id="patient-env-boundary">本機模式只連 127.0.0.1 · 無真實資料</span>
+      <span id="patient-env-boundary">資料只保存在本機瀏覽器</span>
     </footer>
     <script type="module" src="/patient-app-v2.js"></script>
   </body>

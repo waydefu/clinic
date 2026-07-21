@@ -9,10 +9,13 @@ import {
   renderReleases,
   renderSchedule,
   renderSlots,
+  renderTagPicker,
   renderTasks,
   renderWorkload
 } from './modules/admin-view.js';
+import { WORKBENCH_PROCEDURES } from './modules/constants.js';
 import { escapeHtml, roleLabel } from './modules/ui-format.js';
+
 const adminStyles = document.createElement('link');
 adminStyles.rel = 'stylesheet';
 adminStyles.href = '/admin-v2.css';
@@ -26,13 +29,17 @@ const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element])
 );
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
+
 let state;
-let filters = { status: 'all', patientId: 'all' };
-let selectedPatientId = 'patient_test_001';
+let filters = { status: 'all', kind: 'all', patientId: 'all' };
+let slotKind = 'initial';
+let selectedSlotId;
+
 function message(text, tone = 'info') {
   elements.status.textContent = text;
   elements.status.dataset.state = tone;
 }
+
 async function post(path, body = {}) {
   state = await stagingRequest(path, {
     method: 'POST',
@@ -41,6 +48,7 @@ async function post(path, body = {}) {
   render();
   return state;
 }
+
 function options(items, selectedId, label) {
   return items
     .map(
@@ -49,6 +57,7 @@ function options(items, selectedId, label) {
     )
     .join('');
 }
+
 function renderSession() {
   const active = state.workspace.accounts.filter(
     (item) => item.status === 'active'
@@ -63,7 +72,7 @@ function renderSession() {
   elements['current-account-boundary'].textContent =
     state.session.account.role === 'admin'
       ? '可設定排班、回診、個管、帳號與系統治理。'
-      : '只保留預約、取消與完成到診的日常權限。';
+      : '只保留預約、取消、改期與到診處置的日常權限。';
   const admin = state.session.account.role === 'admin';
   document
     .querySelectorAll('[data-admin-only],[data-admin-nav]')
@@ -71,16 +80,15 @@ function renderSession() {
       element.hidden = !admin;
     });
 }
+
 function renderFilters() {
-  elements['booking-patient'].innerHTML = options(
-    state.patients,
-    selectedPatientId,
-    (item) => item.label
-  );
   elements['appointment-patient-filter'].innerHTML =
-    `<option value="all">全部合成患者</option>${options(state.patients, filters.patientId, (item) => item.label)}`;
+    `<option value="all">全部患者</option>${options(state.patients, filters.patientId, (item) => item.name)}`;
   elements['appointment-status-filter'].value = filters.status;
+  elements['appointment-kind-filter'].value = filters.kind;
+  elements['slot-kind-filter'].value = slotKind;
 }
+
 function renderSummary() {
   elements['available-count'].textContent = String(
     state.slots.filter((slot) => slot.reservationId === undefined).length
@@ -100,6 +108,23 @@ function renderSummary() {
   elements['schedule-version-chip'].textContent =
     `已發布排班 v${state.scheduleMeta.publishedVersion}`;
 }
+
+function renderBookingForm() {
+  if (elements['booking-item'].innerHTML === '')
+    elements['booking-item'].innerHTML = options(
+      WORKBENCH_PROCEDURES,
+      undefined,
+      (item) => item.label
+    );
+  if (elements['booking-tags'].querySelector('label') === null)
+    elements['booking-tags'].insertAdjacentHTML('beforeend', renderTagPicker());
+  const slot = state.slots.find((item) => item.id === selectedSlotId);
+  elements['booking-slot-hint'].textContent =
+    slot === undefined
+      ? '請先於下方「可預約時段」選擇一個時間點。'
+      : `已選擇時段：${new Date(slot.startsAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`;
+}
+
 function renderCommunicationForms() {
   const a = state.workspace.announcement;
   elements['operations-announcement'].hidden = a.status !== 'published';
@@ -118,11 +143,24 @@ function renderCommunicationForms() {
   elements['maintenance-resume-at'].value = m.resumeAt ?? '';
   elements['release-list'].innerHTML = renderReleases(state.workspace);
 }
+
+function renderBlockedTimesForm() {
+  const blocked = state.scheduleDraft.blockedTimes ?? {
+    initial: [],
+    follow_up: []
+  };
+  if (document.activeElement !== elements['blocked-initial'])
+    elements['blocked-initial'].value = (blocked.initial ?? []).join('、');
+  if (document.activeElement !== elements['blocked-follow-up'])
+    elements['blocked-follow-up'].value = (blocked.follow_up ?? []).join('、');
+}
+
 function render() {
   renderSession();
   renderFilters();
   renderSummary();
-  elements.slots.innerHTML = renderSlots(state, selectedPatientId);
+  renderBookingForm();
+  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
   elements.appointments.innerHTML = renderAppointments(state, filters);
   elements['published-schedule'].innerHTML = renderSchedule(
     state.schedule,
@@ -132,6 +170,7 @@ function render() {
     state.scheduleDraft,
     true
   );
+  renderBlockedTimesForm();
   elements['schedule-draft-status'].textContent = state.scheduleMeta.draftDirty
     ? '有未發布變更'
     : '草稿與發布版本一致';
@@ -150,12 +189,21 @@ function render() {
   );
   elements['outbox-jobs'].innerHTML = renderOutbox(state);
 }
+
 async function updateDraft(mutator, text) {
   const draft = structuredClone(state.scheduleDraft);
   mutator(draft);
   await post('/schedule/draft', draft);
   message(text, 'success');
 }
+
+function parseTimeList(value) {
+  return value
+    .split(/[、,，\s]+/)
+    .map((item) => item.trim())
+    .filter((item) => item !== '');
+}
+
 elements['workspace-account'].addEventListener('change', async () => {
   try {
     await post('/workspace/session', {
@@ -166,67 +214,145 @@ elements['workspace-account'].addEventListener('change', async () => {
     message(error.message, 'error');
   }
 });
+
 elements['reset-state'].addEventListener('click', async () => {
-  if (
-    !window.confirm(
-      '確定重設目前瀏覽器的全部合成資料？此動作不影響任何正式資料。'
-    )
-  )
+  if (!window.confirm('確定清除目前瀏覽器保存的全部預約與患者資料？無法復原。'))
     return;
   state = await stagingRequest('/reset', { method: 'POST', body: '{}' });
-  filters = { status: 'all', patientId: 'all' };
-  selectedPatientId = 'patient_test_001';
+  filters = { status: 'all', kind: 'all', patientId: 'all' };
+  selectedSlotId = undefined;
   render();
-  message('合成測試資料已重設。', 'success');
+  message('本機資料已清除。', 'success');
 });
-elements['booking-patient'].addEventListener('change', () => {
-  selectedPatientId = elements['booking-patient'].value;
-  elements.slots.innerHTML = renderSlots(state, selectedPatientId);
+
+elements['slot-kind-filter'].addEventListener('change', () => {
+  slotKind = elements['slot-kind-filter'].value;
+  elements['booking-kind'].value = slotKind;
+  selectedSlotId = undefined;
+  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderBookingForm();
 });
+
+elements['booking-kind'].addEventListener('change', () => {
+  slotKind = elements['booking-kind'].value;
+  elements['slot-kind-filter'].value = slotKind;
+  selectedSlotId = undefined;
+  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderBookingForm();
+});
+
 elements['appointment-status-filter'].addEventListener('change', () => {
   filters.status = elements['appointment-status-filter'].value;
+  elements.appointments.innerHTML = renderAppointments(state, filters);
+});
+elements['appointment-kind-filter'].addEventListener('change', () => {
+  filters.kind = elements['appointment-kind-filter'].value;
   elements.appointments.innerHTML = renderAppointments(state, filters);
 });
 elements['appointment-patient-filter'].addEventListener('change', () => {
   filters.patientId = elements['appointment-patient-filter'].value;
   elements.appointments.innerHTML = renderAppointments(state, filters);
 });
-elements.slots.addEventListener('click', async (event) => {
-  const button = event.target.closest('[data-reserve-slot]');
+
+elements.slots.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-select-slot]');
   if (button === null) return;
+  selectedSlotId = button.dataset.selectSlot;
+  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderBookingForm();
+  message('已選擇時段，請確認上方預約資料後建立。', 'success');
+});
+
+elements['booking-form'].addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (selectedSlotId === undefined)
+    return message('請先於「可預約時段」選擇一個時間點。', 'error');
+  const noteTags = [
+    ...elements['booking-tags'].querySelectorAll('[data-booking-tag]:checked')
+  ].map((item) => item.dataset.bookingTag);
   try {
     await post('/bookings', {
-      slotId: button.dataset.reserveSlot,
-      patientId: selectedPatientId,
-      bookingType: 'initial',
+      slotId: selectedSlotId,
+      bookingKind: elements['booking-kind'].value,
+      itemId: elements['booking-item'].value,
+      noteTags,
+      noteText: elements['booking-note'].value,
+      patient: {
+        name: elements['booking-name'].value,
+        phone: elements['booking-phone'].value,
+        birthDate: elements['booking-birth'].value,
+        nationalId: elements['booking-national-id'].value,
+        hasNhiCard: elements['booking-nhi-card'].checked
+      },
       origin: 'staff'
     });
-    message('合成預約已建立；可在下方繼續取消或完成到診。', 'success');
+    selectedSlotId = undefined;
+    elements['booking-form'].reset();
+    render();
+    message('預約已建立。', 'success');
   } catch (error) {
     message(error.message, 'error');
   }
 });
+
 elements.appointments.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-appointment-action]');
   if (button === null) return;
   const action = button.dataset.appointmentAction;
-  const question =
-    action === 'complete'
-      ? '確認此合成患者已完成到診？'
-      : '確認取消此合成預約並釋放時段？';
-  if (!window.confirm(question)) return;
+  const id = button.dataset.appointmentId;
+
+  if (action === 'follow_up_confirm') {
+    document
+      .querySelector(`[data-follow-up-form="${id}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    message('請於下方「逐筆回診確認」記錄決定。', 'info');
+    return;
+  }
+  if (action === 'reschedule') {
+    const form = document.querySelector(`[data-reschedule-form="${id}"]`);
+    if (form !== null) {
+      form.hidden = !form.hidden;
+      if (!form.hidden) form.querySelector('select')?.focus();
+    }
+    return;
+  }
+
+  const questions = {
+    cancel: '確認取消此預約並釋放時段？',
+    no_show: '確認將此預約標記為未到？時段會釋放。',
+    complete: '確認此患者已完成到診？'
+  };
+  if (!window.confirm(questions[action])) return;
+  const paths = { cancel: 'cancel', no_show: 'no-show', complete: 'complete' };
   try {
-    await post(`/bookings/${button.dataset.appointmentId}/${action}`);
-    message(
-      action === 'complete'
-        ? '完成到診已記錄，請接續處理回診與個管指派。'
-        : '合成預約已取消並釋放時段。',
-      'success'
-    );
+    await post(`/bookings/${id}/${paths[action]}`);
+    const done = {
+      cancel: '預約已取消並釋放時段。',
+      no_show: '已標記未到並釋放時段。',
+      complete: '到診已記錄，請接續處理回診與個管指派。'
+    };
+    message(done[action], 'success');
   } catch (error) {
     message(error.message, 'error');
   }
 });
+
+elements.appointments.addEventListener('submit', async (event) => {
+  const form = event.target.closest('[data-reschedule-form]');
+  if (form === null) return;
+  event.preventDefault();
+  const slotId = new FormData(form).get('slotId');
+  if (!slotId) return message('沒有可改期的時段。', 'error');
+  try {
+    await post(`/bookings/${form.dataset.rescheduleForm}/reschedule`, {
+      slotId
+    });
+    message('預約已改期。', 'success');
+  } catch (error) {
+    message(error.message, 'error');
+  }
+});
+
 elements['weekly-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   const weekdays = [
@@ -257,6 +383,7 @@ elements['weekly-form'].addEventListener('submit', async (event) => {
     message(error.message, 'error');
   }
 });
+
 elements['date-exception-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -284,6 +411,21 @@ elements['date-exception-form'].addEventListener('submit', async (event) => {
     message(error.message, 'error');
   }
 });
+
+elements['blocked-times-form'].addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    await updateDraft((draft) => {
+      draft.blockedTimes = {
+        initial: parseTimeList(elements['blocked-initial'].value),
+        follow_up: parseTimeList(elements['blocked-follow-up'].value)
+      };
+    }, '固定不開放時間已加入排班草稿。');
+  } catch (error) {
+    message(error.message, 'error');
+  }
+});
+
 elements['draft-schedule'].addEventListener('click', async (event) => {
   const weekly = event.target.closest('[data-remove-weekly]');
   const exception = event.target.closest('[data-remove-exception]');
@@ -309,6 +451,7 @@ elements['draft-schedule'].addEventListener('click', async (event) => {
     message(error.message, 'error');
   }
 });
+
 elements['publish-schedule'].addEventListener('click', async () => {
   if (
     !window.confirm(
@@ -318,16 +461,18 @@ elements['publish-schedule'].addEventListener('click', async () => {
     return;
   try {
     await post('/schedule/publish');
-    message('排班已發布，病患端可預約時段已同步更新。', 'success');
+    message('排班已發布，患者端可預約時段已同步更新。', 'success');
   } catch (error) {
     message(error.message, 'error');
   }
 });
+
 elements['discard-schedule'].addEventListener('click', async () => {
   if (!window.confirm('確定捨棄所有未發布的排班變更？')) return;
   await post('/schedule/discard');
   message('未發布排班變更已捨棄。', 'success');
 });
+
 elements['follow-up-list'].addEventListener('submit', async (event) => {
   const form = event.target.closest('[data-follow-up-form]');
   if (form === null) return;
@@ -336,13 +481,17 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   try {
     await post(`/follow-ups/${form.dataset.followUpForm}`, {
       status: data.get('status'),
-      dueDate: data.get('dueDate')
+      dueDate: data.get('dueDate'),
+      tags: data.getAll('tags'),
+      noteText: data.get('noteText'),
+      certificateCopies: Number(data.get('certificateCopies') ?? 0)
     });
     message('逐筆回診決定已記錄。', 'success');
   } catch (error) {
     message(error.message, 'error');
   }
 });
+
 elements['case-assignment-list'].addEventListener('submit', async (event) => {
   const form = event.target.closest('[data-case-form]');
   if (form === null) return;
@@ -358,6 +507,7 @@ elements['case-assignment-list'].addEventListener('submit', async (event) => {
     message(error.message, 'error');
   }
 });
+
 elements['account-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -365,22 +515,24 @@ elements['account-form'].addEventListener('submit', async (event) => {
       label: elements['account-label'].value,
       role: elements['account-role'].value
     });
-    message('合成帳號已建立。', 'success');
+    message('帳號已建立。', 'success');
   } catch (error) {
     message(error.message, 'error');
   }
 });
+
 elements['account-list'].addEventListener('click', async (event) => {
   const button = event.target.closest('[data-account-toggle]');
   if (button === null) return;
-  if (!window.confirm('確定變更此合成帳號的啟用狀態？')) return;
+  if (!window.confirm('確定變更此帳號的啟用狀態？')) return;
   try {
     await post(`/workspace/accounts/${button.dataset.accountToggle}/toggle`);
-    message('合成帳號狀態已更新。', 'success');
+    message('帳號狀態已更新。', 'success');
   } catch (error) {
     message(error.message, 'error');
   }
 });
+
 elements['announcement-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -394,6 +546,7 @@ elements['announcement-form'].addEventListener('submit', async (event) => {
     message(error.message, 'error');
   }
 });
+
 elements['maintenance-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   if (
@@ -419,6 +572,7 @@ elements['maintenance-form'].addEventListener('submit', async (event) => {
     message(error.message, 'error');
   }
 });
+
 elements['release-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -426,30 +580,31 @@ elements['release-form'].addEventListener('submit', async (event) => {
       version: elements['release-version'].value,
       summary: elements['release-summary'].value
     });
-    message('合成發布紀錄已新增；未觸發真實部署。', 'success');
+    message('發布紀錄已新增；未觸發真實部署。', 'success');
   } catch (error) {
     message(error.message, 'error');
   }
 });
+
 elements['audit-filter'].addEventListener('change', () => {
   elements['audit-events'].innerHTML = renderAudit(
     state,
     elements['audit-filter'].value
   );
 });
+
 document.querySelector('.skip-link').addEventListener('click', (event) => {
   event.preventDefault();
   window.location.hash = 'main-content';
   elements['main-content'].focus({ preventScroll: true });
 });
+
 if (!isOnline) elements['environment-label'].textContent = 'LOCAL TEST ONLY';
+
 try {
   state = await stagingRequest('/state');
   render();
-  message('管理工作臺已就緒。所有內容皆為合成資料。', 'success');
+  message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
 } catch (error) {
-  message(
-    error instanceof Error ? error.message : '無法載入合成工作臺。',
-    'error'
-  );
+  message(error instanceof Error ? error.message : '無法載入工作臺。', 'error');
 }

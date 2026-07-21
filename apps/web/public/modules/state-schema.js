@@ -1,27 +1,37 @@
 import {
+  DEFAULT_BLOCKED_TIMES,
   SYNTHETIC_CASE_MANAGERS,
-  SYNTHETIC_PATIENTS,
   TIME_ZONE
 } from './constants.js';
 import { cloneSchedule, generateSlots } from './schedule-engine.js';
 
-export const storageKey = 'beauessence_synthetic_online_preview_v2';
-const SCHEMA_VERSION = 2;
+export const storageKey = 'beauessence_synthetic_online_preview_v3';
+const SCHEMA_VERSION = 3;
 
+// 營業時間：週三至週五 12:00–20:30，週六 10:00–18:00，週日至週二休診。
 export function defaultSchedule() {
   return {
     timeZone: TIME_ZONE,
     weeklyAvailability: [
       {
-        weekday: 1,
-        intervals: [{ startLocalTime: '09:00', endLocalTime: '12:00' }]
+        weekday: 3,
+        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:30' }]
       },
       {
-        weekday: 2,
-        intervals: [{ startLocalTime: '13:00', endLocalTime: '17:00' }]
+        weekday: 4,
+        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:30' }]
+      },
+      {
+        weekday: 5,
+        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:30' }]
+      },
+      {
+        weekday: 6,
+        intervals: [{ startLocalTime: '10:00', endLocalTime: '18:00' }]
       }
     ],
-    dateExceptions: []
+    dateExceptions: [],
+    blockedTimes: structuredClone(DEFAULT_BLOCKED_TIMES)
   };
 }
 
@@ -30,8 +40,7 @@ export function initialState() {
   return {
     schemaVersion: SCHEMA_VERSION,
     policyVersion: 'privacy-v1',
-    serviceId: 'service_test_consult',
-    patients: structuredClone(SYNTHETIC_PATIENTS),
+    patients: [],
     caseManagers: structuredClone(SYNTHETIC_CASE_MANAGERS),
     schedule,
     scheduleDraft: cloneSchedule(schedule),
@@ -47,6 +56,7 @@ export function initialState() {
     auditEvents: [],
     outboxJobs: [],
     sequence: 1,
+    patientSequence: 1,
     workspace: {
       currentAccountId: 'admin_test_001',
       accounts: [
@@ -66,22 +76,22 @@ export function initialState() {
       accountSequence: 2,
       announcement: {
         status: 'published',
-        title: '合成預約服務測試中',
-        body: '目前為非正式線上測試版，請勿輸入任何真實資料。',
+        title: '線上預約測試中',
+        body: '目前為測試版本，輸入的資料只會留在您這台裝置的瀏覽器。',
         updatedAt: '2026-07-21T00:00:00.000Z'
       },
       maintenance: {
         enabled: false,
         title: '預約系統維護中',
-        body: '請稍後再回來測試，造成不便敬請見諒。',
+        body: '請稍後再回來，造成不便敬請見諒。',
         startsAt: '',
         resumeAt: '2030-01-02T12:00'
       },
       releases: [
         {
           id: 'release_test_001',
-          version: 'preview-2.0',
-          summary: '模組化管理工作臺、發布排班與個管指派流程',
+          version: 'preview-3.0',
+          summary: '初診／回診分流掛號、門診時段、備註標籤與病患資料欄位',
           publishedAt: '2026-07-21T00:00:00.000Z'
         }
       ]

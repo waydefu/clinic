@@ -1,6 +1,8 @@
 import {
   createBooking,
   recordFollowUp,
+  rescheduleAppointment,
+  sortedAppointments,
   transitionAppointment
 } from './modules/appointment-domain.js';
 import {
@@ -65,6 +67,7 @@ function appendWorkspaceAudit(state, action, actorId) {
 function snapshotState(state) {
   return structuredClone({
     ...state,
+    appointments: sortedAppointments(state),
     workload: buildWorkload(state),
     tasks: buildOperationalTasks(state),
     maintenanceActive: isMaintenanceActive(state.workspace.maintenance),
@@ -180,15 +183,15 @@ export async function stagingRequest(path, options = {}) {
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/complete$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
     transitionAppointment(state, path.split('/')[2], 'complete', actor.id);
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/no-show$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
+    transitionAppointment(state, path.split('/')[2], 'no_show', actor.id);
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/reschedule$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
+    rescheduleAppointment(state, path.split('/')[2], body.slotId, actor.id);
   } else if (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
-    recordFollowUp(
-      state,
-      path.split('/')[2],
-      body.status,
-      body.dueDate,
-      actor.id
-    );
+    recordFollowUp(state, path.split('/')[2], body, actor.id);
   } else if (path === '/case-assignments') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_CASES);
     assignCaseManager(state, body.appointmentId, body.managerId, actor.id);

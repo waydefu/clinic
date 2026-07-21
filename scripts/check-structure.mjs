@@ -57,6 +57,7 @@ const requiredPaths = [
   'apps/web/public/staging-store-v2.js',
   'apps/web/public/modules/constants.js',
   'apps/web/public/modules/permissions.js',
+  'apps/web/public/modules/patient-registry.js',
   'apps/web/public/modules/schedule-engine.js',
   'apps/web/public/modules/appointment-domain.js',
   'apps/web/public/modules/case-management.js',

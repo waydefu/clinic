@@ -20,6 +20,28 @@ infer an answer from an existing website, social message or Calendar event.
 
 ## Recorded inputs
 
+### Patient identity fields in the preview - 2026-07-21
+
+- The project owner directed that the booking flow collect 姓名、電話、
+  生日（西元）、身分證字號 and 有無健保卡, and that the public preview be
+  updated with those fields rather than keeping them local-only. The national
+  ID is the identity key behind the "one active booking per person" limit.
+- This was recorded because it reverses an earlier guardrail: the test-only UI
+  guard previously rejected every input field on the patient page. It now
+  enforces an explicit allowlist instead, so any further field is a deliberate
+  decision rather than a drift.
+- Mitigations built in: lists render the national ID masked
+  (`A12****789`, `modules/patient-registry.js`), the patient form states that
+  entries stay in the visitor's own browser, and the workbench keeps a
+  one-click "清除本機資料".
+- Scope and residual risk: values are held in the visitor's own
+  `localStorage`. Nothing is transmitted to, or stored by, the clinic — there
+  is still no backend, database, Authentication or Calendar connection.
+  Persistence on a shared device is the residual risk.
+- This does **not** approve D-001 through D-003. Lawful basis, retention,
+  deletion workflow, the published policy text and the real identity model
+  remain `pending`, and no real patient data may be relied upon operationally.
+
 ### Synthetic online preview authority - 2026-07-21
 
 - The project owner explicitly requested a non-production real-device online

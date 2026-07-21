@@ -1,14 +1,43 @@
 import {
+  BOOKING_KINDS,
+  DEFAULT_BLOCKED_TIMES,
   SLOT_DURATION_MINUTES,
+  SLOT_MINUTE_MARKS,
   SYNTHETIC_WINDOW_DAYS,
   SYNTHETIC_WINDOW_START,
   TIME_ZONE
 } from './constants.js';
 
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const KINDS = [BOOKING_KINDS.INITIAL, BOOKING_KINDS.FOLLOW_UP];
 
 export function cloneSchedule(schedule) {
   return structuredClone(schedule);
+}
+
+export function blockedTimesOf(schedule) {
+  const blocked = schedule?.blockedTimes ?? {};
+  return {
+    initial: [...(blocked.initial ?? DEFAULT_BLOCKED_TIMES.initial)],
+    follow_up: [...(blocked.follow_up ?? DEFAULT_BLOCKED_TIMES.follow_up)]
+  };
+}
+
+function validateBlockedTimes(schedule) {
+  const blocked = schedule?.blockedTimes;
+  if (blocked === undefined) return;
+  for (const kind of KINDS) {
+    const list = blocked[kind];
+    if (list === undefined) continue;
+    if (!Array.isArray(list)) throw new Error('固定不開放時間格式無效。');
+    for (const value of list) {
+      if (!timePattern.test(value)) throw new Error('固定不開放時間格式無效。');
+      if (!SLOT_MINUTE_MARKS[kind].includes(minutes(value) % 60))
+        throw new Error(
+          `${value} 不是${kind === BOOKING_KINDS.INITIAL ? '初診' : '回診'}的掛號時間點。`
+        );
+    }
+  }
 }
 
 export function validateSchedule(schedule) {
@@ -39,6 +68,7 @@ export function validateSchedule(schedule) {
       throw new Error('日期例外類型無效。');
     if (entry.kind === 'extra_open') validateIntervals(entry.intervals);
   }
+  validateBlockedTimes(schedule);
   return schedule;
 }
 
@@ -70,10 +100,13 @@ function minutes(time) {
   const [hour, minute] = time.split(':').map(Number);
   return hour * 60 + minute;
 }
-function localIso(date, totalMinutes) {
+function clockText(totalMinutes) {
   const hour = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
   const minute = String(totalMinutes % 60).padStart(2, '0');
-  return new Date(`${date}T${hour}:${minute}:00+08:00`).toISOString();
+  return `${hour}:${minute}`;
+}
+function localIso(date, totalMinutes) {
+  return new Date(`${date}T${clockText(totalMinutes)}:00+08:00`).toISOString();
 }
 
 function effectiveIntervals(schedule, date) {
@@ -96,36 +129,66 @@ function effectiveIntervals(schedule, date) {
   );
 }
 
+// Slots are single points on a per-kind grid, not free-running ranges: initial
+// visits land on :00/:30 and follow-ups on :15/:45. Blocked clock times remove
+// the doctor's fixed commitments from whichever grid they belong to.
+function marksWithin(interval, kind, blockedSet, duration) {
+  const from = minutes(interval.startLocalTime);
+  const to = minutes(interval.endLocalTime);
+  const found = [];
+  const firstHour = Math.floor(from / 60);
+  const lastHour = Math.floor(to / 60);
+  for (let hour = firstHour; hour <= lastHour; hour += 1) {
+    for (const mark of SLOT_MINUTE_MARKS[kind]) {
+      const start = hour * 60 + mark;
+      if (start < from || start + duration > to) continue;
+      if (blockedSet.has(clockText(start))) continue;
+      found.push(start);
+    }
+  }
+  return found;
+}
+
 export function generateSlots(schedule, existingSlots = [], options = {}) {
   validateSchedule(schedule);
   const startDate = options.startDate ?? SYNTHETIC_WINDOW_START;
   const dayCount = options.dayCount ?? SYNTHETIC_WINDOW_DAYS;
   const duration = options.durationMinutes ?? SLOT_DURATION_MINUTES;
+  const blocked = blockedTimesOf(schedule);
+  const blockedSets = {
+    initial: new Set(blocked.initial),
+    follow_up: new Set(blocked.follow_up)
+  };
   const existingById = new Map(existingSlots.map((slot) => [slot.id, slot]));
   const slots = [];
   for (let offset = 0; offset < dayCount; offset += 1) {
     const date = addDays(startDate, offset);
     for (const interval of effectiveIntervals(schedule, date)) {
-      for (
-        let start = minutes(interval.startLocalTime);
-        start + duration <= minutes(interval.endLocalTime);
-        start += duration
-      ) {
-        const startText = `${String(Math.floor(start / 60)).padStart(2, '0')}${String(start % 60).padStart(2, '0')}`;
-        const id = `slot_${date.replaceAll('-', '')}_${startText}`;
-        const previous = existingById.get(id);
-        slots.push({
-          id,
-          startsAt: localIso(date, start),
-          endsAt: localIso(date, start + duration),
-          ...(previous?.reservationId === undefined
-            ? {}
-            : { reservationId: previous.reservationId })
-        });
+      for (const kind of KINDS) {
+        for (const start of marksWithin(
+          interval,
+          kind,
+          blockedSets[kind],
+          duration
+        )) {
+          const startText = clockText(start).replace(':', '');
+          const id = `slot_${date.replaceAll('-', '')}_${startText}`;
+          const previous = existingById.get(id);
+          slots.push({
+            id,
+            kind,
+            startsAt: localIso(date, start),
+            ...(previous?.reservationId === undefined
+              ? {}
+              : { reservationId: previous.reservationId })
+          });
+        }
       }
     }
   }
-  return slots;
+  return slots.sort((left, right) =>
+    left.startsAt.localeCompare(right.startsAt)
+  );
 }
 
 export function scheduleImpact(appointments, candidateSlots) {
