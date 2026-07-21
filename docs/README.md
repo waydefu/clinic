@@ -13,11 +13,12 @@ Read in this order before changing a boundary or enabling a capability.
 
 | # | Document | Why |
 | --- | --- | --- |
-| 1 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
-| 2 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
-| 3 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
-| 4 | [Open decisions](product/open-decisions.md) | Historical decision context (superseded for active tracking) |
-| 5 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
+| 1 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme: architecture, phases, data model, privacy and the plan-versus-implementation gap register |
+| 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
+| 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
+| 4 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
+| 5 | [Open decisions](product/open-decisions.md) | Historical decision context (superseded for active tracking) |
+| 6 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
 
 ## 2. Decisions and approval packets
 
@@ -79,4 +80,4 @@ Newest first. Each entry is dated evidence, not a plan.
 Kept for history. Do not use as a basis for work.
 
 - [Open product decisions](product/open-decisions.md) — superseded for active tracking by the [decision register](product/phase-1-decision-register.md)
-- [`../../clinic_zerocost_proposal.md`](../../clinic_zerocost_proposal.md) — the free-tier proposal, superseded by the enterprise project plan
+- [Zero-cost proposal](archive/clinic-zerocost-proposal.md) — the Firebase Spark / Vercel Hobby / Apps Script proposal, superseded by the enterprise project plan. Kept verbatim for history; its data handling does not meet the current privacy baseline.

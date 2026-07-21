@@ -8,6 +8,8 @@ const requiredPaths = [
   'CONTRIBUTING.md',
   '.env.example',
   'docs/README.md',
+  'docs/enterprise-appointment-project-plan.md',
+  'docs/archive/clinic-zerocost-proposal.md',
   'docs/product/open-decisions.md',
   'docs/product/test-only-sandbox-baseline.md',
   'docs/product/test-only-scheduling-follow-up-workbench.md',

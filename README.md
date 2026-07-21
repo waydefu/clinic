@@ -18,7 +18,9 @@ NAS connection. The workflow remains isolated from production policy and real da
 ## Start here
 
 1. Read [AGENTS.md](AGENTS.md) for mandatory guardrails and task routing.
-2. Read the [Phase 1 execution plan](docs/phase-1-execution-plan.md).
+2. Read the [enterprise project plan](docs/enterprise-appointment-project-plan.md)
+   for the whole programme, then the
+   [Phase 1 execution plan](docs/phase-1-execution-plan.md) for current scope.
 3. Use the [Phase 1 decision register](docs/product/phase-1-decision-register.md)
    to record formal clinic approvals.
 4. Use [docs/README.md](docs/README.md) — the canonical index of every
