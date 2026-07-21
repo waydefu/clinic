@@ -40,9 +40,41 @@ Calendar 是投影，不是可用性的來源。
 
 ## 3. 分階段計畫
 
-### 階段 A：本機 Emulator 的真實寫入路徑（不需任何雲端）
+### 階段 A：本機 Emulator 的真實寫入路徑（不需任何雲端）— **已完成 2026-07-21**
 
 目的：證明 Firestore 交易、冪等與 outbox 在真實資料庫語意下成立。
+
+**已實作**
+
+| 檔案 | 職責 |
+| --- | --- |
+| `packages/domain/src/booking-transaction.ts` | I/O-free 的 `planBooking`：讀到什麼就決定寫什麼。不做 I/O、不讀時鐘、不產生 ID、不呼叫外部服務 |
+| `apps/api/src/firestore/booking.repository.ts` | 在一個 `runTransaction` 內套用計畫：先讀後寫，不含任何規則 |
+| `tests/firestore/booking-transaction.test.ts` | Emulator 上的併發、冪等與不變式測試 |
+
+計畫器與 repository 分開的原因：Firestore 可能重試交易，因此「要寫什麼」必須是
+「讀到什麼」的純函式。規則放在計畫器，重試時重新計算即可；repository 只負責
+套用，本身不含判斷。
+
+**實測結果**（`corepack pnpm test:rules`，9 項通過）
+
+| 驗收項目 | 結果 |
+| --- | --- |
+| 併發預約同一時段 | 8 個同時請求，**恰好 1 個成功、7 個失敗**；資料庫僅 1 筆預約、1 筆 outbox、1 筆稽核，無部分寫入殘留 |
+| 冪等重送 | 相同 `idempotencyKey` 第二次回傳 `replayed: true` 與同一預約編號，不產生第二筆 |
+| 同一人重複預約 | 第二筆遭拒（`DUPLICATE_ACTIVE_BOOKING`）；到診完成後可再預約 |
+| 掛號別不符 | 以回診時段建立初診遭拒，且未寫入任何資料 |
+| 時段不存在 | 遭拒且未寫入任何資料 |
+| 客戶端直接存取 | Rules 仍為預設拒絕（既有測試持續通過） |
+| 交易內外部呼叫 | 無。Calendar 只以 `outbox_jobs` 記錄意圖 |
+
+**尚未做、且刻意不做的事**
+
+- **沒有對外開放任何預約寫入端點。** Phase 1 gate 明定在隱私、預約政策與
+  身分/角色決策核准前不得啟用寫入路徑，因此本階段只有 repository 與測試。
+- 未接雲端 Firestore、未接 Authentication。
+- 瀏覽器仍使用自己的 `modules/`；伺服器規則另存於 `packages/domain`。兩者收斂
+  需要 `apps/web` 導入建置流程，列為階段 B 的工作。
 
 - 將 `modules/` 的領域規則上移為 `packages/domain` 的共用來源，瀏覽器與 API
   共用同一份規則，避免兩套實作漂移。

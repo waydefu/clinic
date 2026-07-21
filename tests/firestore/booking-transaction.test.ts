@@ -1,0 +1,210 @@
+import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
+import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import {
+  COLLECTIONS,
+  FirestoreBookingRepository
+} from '../../apps/api/src/firestore/booking.repository.js';
+import type { BookingRequest } from '@beauessence/domain';
+
+// The Emulator is disposable and never holds real data. `emulators:exec` sets
+// FIRESTORE_EMULATOR_HOST; refuse to run without it so this suite can never be
+// pointed at a cloud project by accident.
+const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
+const projectId = 'beauessence-appointment-local';
+
+let app: App;
+let db: Firestore;
+let repository: FirestoreBookingRepository;
+
+const SLOT_ID = 'slot_20300102_1200';
+const OTHER_SLOT_ID = 'slot_20300102_1230';
+
+function bookingRequest(
+  overrides: Partial<BookingRequest> = {}
+): BookingRequest {
+  return {
+    appointmentId: 'appointment_001',
+    slotId: SLOT_ID,
+    patientId: 'patient_001',
+    bookingKind: 'initial',
+    itemId: 'service_snoring',
+    actorId: 'actor_front_desk_001',
+    requestedAt: '2026-07-21T09:00:00.000Z',
+    idempotencyKey: 'idem_001',
+    ...overrides
+  };
+}
+
+async function wipe(): Promise<void> {
+  for (const collection of Object.values(COLLECTIONS)) {
+    const documents = await db.collection(collection).listDocuments();
+    await Promise.all(documents.map((document) => document.delete()));
+  }
+}
+
+async function seedSlots(): Promise<void> {
+  await db.collection(COLLECTIONS.slots).doc(SLOT_ID).set({
+    kind: 'initial',
+    startsAt: '2030-01-02T04:00:00.000Z'
+  });
+  await db.collection(COLLECTIONS.slots).doc(OTHER_SLOT_ID).set({
+    kind: 'initial',
+    startsAt: '2030-01-02T04:30:00.000Z'
+  });
+  await db.collection(COLLECTIONS.slots).doc('slot_20300102_1215').set({
+    kind: 'follow_up',
+    startsAt: '2030-01-02T04:15:00.000Z'
+  });
+}
+
+beforeAll(() => {
+  if (emulatorHost === undefined)
+    throw new Error(
+      'FIRESTORE_EMULATOR_HOST is not set. Run this suite through pnpm test:rules.'
+    );
+  app = initializeApp({ projectId }, `booking-${Date.now()}`);
+  db = getFirestore(app);
+  repository = new FirestoreBookingRepository(db);
+});
+
+afterAll(async () => {
+  await deleteApp(app);
+});
+
+beforeEach(async () => {
+  await wipe();
+  await seedSlots();
+});
+
+describe('booking write path in a Firestore transaction', () => {
+  it('writes the appointment, slot reservation, audit event and outbox job together', async () => {
+    const result = await repository.reserve(bookingRequest());
+    expect(result).toEqual({
+      appointmentId: 'appointment_001',
+      replayed: false
+    });
+
+    const appointment = await db
+      .collection(COLLECTIONS.appointments)
+      .doc('appointment_001')
+      .get();
+    const slot = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+
+    expect(appointment.data()).toMatchObject({
+      status: 'confirmed',
+      patientId: 'patient_001',
+      startsAt: '2030-01-02T04:00:00.000Z'
+    });
+    expect(slot.data()?.['reservationId']).toBe('appointment_001');
+    expect(audits.size).toBe(1);
+    expect(outbox.size).toBe(1);
+    expect(outbox.docs[0]?.data()).toMatchObject({
+      type: 'calendar_projection_requested',
+      status: 'pending',
+      attempts: 0
+    });
+  });
+
+  it('allows only one of many concurrent reservations of the same slot', async () => {
+    const attempts = Array.from({ length: 8 }, (_, index) =>
+      repository.reserve(
+        bookingRequest({
+          appointmentId: `appointment_${String(index).padStart(3, '0')}`,
+          patientId: `patient_${String(index).padStart(3, '0')}`,
+          idempotencyKey: `idem_${index}`
+        })
+      )
+    );
+
+    const settled = await Promise.allSettled(attempts);
+    const won = settled.filter((entry) => entry.status === 'fulfilled');
+    const lost = settled.filter((entry) => entry.status === 'rejected');
+
+    expect(won).toHaveLength(1);
+    expect(lost).toHaveLength(7);
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    expect(appointments.size).toBe(1);
+
+    // Nothing partial may survive a losing attempt.
+    const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    expect(outbox.size).toBe(1);
+    expect(audits.size).toBe(1);
+  });
+
+  it('replays the same idempotency key instead of booking twice', async () => {
+    const first = await repository.reserve(bookingRequest());
+    const second = await repository.reserve(bookingRequest());
+
+    expect(first.replayed).toBe(false);
+    expect(second.replayed).toBe(true);
+    expect(second.appointmentId).toBe(first.appointmentId);
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+    expect(appointments.size).toBe(1);
+    expect(outbox.size).toBe(1);
+  });
+
+  it('rejects a second active booking by the same patient', async () => {
+    await repository.reserve(bookingRequest());
+
+    await expect(
+      repository.reserve(
+        bookingRequest({
+          appointmentId: 'appointment_002',
+          slotId: OTHER_SLOT_ID,
+          idempotencyKey: 'idem_002'
+        })
+      )
+    ).rejects.toThrow(/active booking/i);
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    expect(appointments.size).toBe(1);
+  });
+
+  it('lets the patient book again once the first visit is finished', async () => {
+    await repository.reserve(bookingRequest());
+    await db
+      .collection(COLLECTIONS.appointments)
+      .doc('appointment_001')
+      .update({ status: 'completed' });
+
+    const second = await repository.reserve(
+      bookingRequest({
+        appointmentId: 'appointment_002',
+        slotId: OTHER_SLOT_ID,
+        idempotencyKey: 'idem_002'
+      })
+    );
+
+    expect(second.replayed).toBe(false);
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    expect(appointments.size).toBe(2);
+  });
+
+  it('rejects a slot from the other booking grid and writes nothing', async () => {
+    await expect(
+      repository.reserve(bookingRequest({ slotId: 'slot_20300102_1215' }))
+    ).rejects.toThrow(/booking kind/i);
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+    expect(appointments.size).toBe(0);
+    expect(outbox.size).toBe(0);
+  });
+
+  it('rejects an unknown slot and writes nothing', async () => {
+    await expect(
+      repository.reserve(bookingRequest({ slotId: 'slot_does_not_exist' }))
+    ).rejects.toThrow(/slot/i);
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    expect(appointments.size).toBe(0);
+  });
+});
