@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { glob } from 'node:fs/promises';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import process from 'node:process';
 
 // This project carries more governance documentation than code, and a stale

@@ -49,16 +49,18 @@ export class InMemoryCalendar implements CalendarPort {
     this.failureRetryable = retryable;
   }
 
-  public async project(request: CalendarProjectionRequest): Promise<void> {
+  // 這個假實作沒有真正的 I/O，因此不是 async function；回傳 Promise 是為了
+  // 符合 CalendarPort 介面，讓 worker 的呼叫路徑與真實實作完全一致。
+  public project(request: CalendarProjectionRequest): Promise<void> {
     this.callCount += 1;
     if (this.failuresRemaining > 0) {
       this.failuresRemaining -= 1;
-      throw new CalendarError(
-        'Synthetic calendar failure.',
-        this.failureRetryable
+      return Promise.reject(
+        new CalendarError('Synthetic calendar failure.', this.failureRetryable)
       );
     }
     // 冪等：同一把鑰匙只留一個事件。
     this.events.set(request.idempotencyKey, request);
+    return Promise.resolve();
   }
 }

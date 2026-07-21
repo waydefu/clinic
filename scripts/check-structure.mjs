@@ -81,6 +81,9 @@ const requiredPaths = [
   'apps/web/public/styles.css',
   'apps/web/public/favicon.svg',
   'scripts/check-docs-links.mjs',
+  'eslint.config.mjs',
+  'tsconfig.eslint.json',
+  '.github/workflows/verify.yml',
   'scripts/run-firestore-rules.mjs',
   'scripts/run-firestore-vitest.mjs',
   'scripts/cleanup-local-firestore-emulator.ps1'

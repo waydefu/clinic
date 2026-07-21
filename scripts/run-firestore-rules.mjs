@@ -47,6 +47,9 @@ function runPnpm(args) {
   });
 }
 
+// 預設為失敗。這不是多餘的賦值：這個腳本是 CI 的閘門，任何未預期的路徑都
+// 必須以非零結束，絕不能因為漏掉賦值而被誤判為通過。
+// eslint-disable-next-line no-useless-assignment
 let exitCode = 1;
 try {
   // Firebase CLI can leave its Java child behind on Windows after a failed

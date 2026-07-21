@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": false
+  },
+  // 只給 ESLint 的型別感知規則使用，不參與建置。
+  // 各套件的 tsconfig 刻意排除 *.test.ts（測試不進 dist），但 lint 仍需要
+  // 型別資訊才能檢查測試裡的浮動 Promise 等問題，因此這裡全部納入。
+  "include": [
+    "apps/**/*.ts",
+    "packages/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    "vitest.rules.config.ts"
+  ],
+  "exclude": ["**/dist/**", "**/node_modules/**"]
+}

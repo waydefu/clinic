@@ -99,8 +99,12 @@ corepack pnpm test:rules
 corepack pnpm --filter @beauessence/api dev
 ```
 
-- `pnpm verify` runs the structure check, test-only UI guard, documentation
-  check, Prettier format check, TypeScript builds and unit tests.
+- `pnpm verify` runs the structure check, UI guard, documentation check,
+  Prettier format check, ESLint, TypeScript builds and unit tests. CI runs the
+  same command plus `pnpm test:rules` on every push and pull request.
+- ESLint covers correctness only; Prettier owns formatting. The type-aware
+  rules matter most for `no-floating-promises`: a missing await in the booking
+  or outbox paths fails silently.
 - `pnpm check:docs` proves every relative markdown link resolves and every
   document under `docs/` is listed in `docs/README.md`. A new document must be
   registered in that index or the gate fails.

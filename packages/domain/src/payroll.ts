@@ -91,27 +91,31 @@ export function createPayrollCredit(input: PayrollCreditInput): PayrollCredit {
   };
 }
 
+/**
+ * 彙總過程的中間狀態。抽成具名型別是必要的，不只是為了可讀性：先前把它們
+ * 寫成行內型別，`?? { ... ruleBreakdowns: new Map() }` 這個 fallback 裡的
+ * `new Map()` 會被推導成 `Map<any, any>`，聯集之後整條薪資彙總鏈的型別保護
+ * 就全部失效了。
+ */
+interface RuleBreakdownAccumulator {
+  readonly metricCode: typeof UNIQUE_PATIENT_COMPLETED_METRIC;
+  readonly ruleVersion: string;
+  readonly creditIds: Set<string>;
+  readonly patientIds: Set<string>;
+}
+
+interface WorkloadAccumulator {
+  readonly managerId: string;
+  readonly payrollPeriod: string;
+  readonly patientIds: Set<string>;
+  readonly ruleBreakdowns: Map<string, RuleBreakdownAccumulator>;
+}
+
 export function summarizeMonthlyManagerWorkload(
   credits: readonly PayrollCredit[]
 ): readonly MonthlyManagerWorkload[] {
   const creditIds = new Set<string>();
-  const workloads = new Map<
-    string,
-    {
-      readonly managerId: string;
-      readonly payrollPeriod: string;
-      readonly patientIds: Set<string>;
-      readonly ruleBreakdowns: Map<
-        string,
-        {
-          readonly metricCode: typeof UNIQUE_PATIENT_COMPLETED_METRIC;
-          readonly ruleVersion: string;
-          readonly creditIds: Set<string>;
-          readonly patientIds: Set<string>;
-        }
-      >;
-    }
-  >();
+  const workloads = new Map<string, WorkloadAccumulator>();
 
   for (const credit of credits) {
     assertStoredPayrollCredit(credit);
@@ -124,7 +128,7 @@ export function summarizeMonthlyManagerWorkload(
     creditIds.add(credit.id);
 
     const workloadKey = `${credit.managerId}|${credit.payrollPeriod}`;
-    const workload = workloads.get(workloadKey) ?? {
+    const workload: WorkloadAccumulator = workloads.get(workloadKey) ?? {
       managerId: credit.managerId,
       payrollPeriod: credit.payrollPeriod,
       patientIds: new Set<string>(),
@@ -134,7 +138,9 @@ export function summarizeMonthlyManagerWorkload(
     workload.patientIds.add(credit.patientId);
 
     const ruleKey = `${credit.metricCode}|${credit.ruleVersion}`;
-    const ruleBreakdown = workload.ruleBreakdowns.get(ruleKey) ?? {
+    const ruleBreakdown: RuleBreakdownAccumulator = workload.ruleBreakdowns.get(
+      ruleKey
+    ) ?? {
       metricCode: credit.metricCode,
       ruleVersion: credit.ruleVersion,
       creditIds: new Set<string>(),

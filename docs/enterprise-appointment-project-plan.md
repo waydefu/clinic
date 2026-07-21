@@ -215,12 +215,18 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 | 檢查 | 內容 |
 |---|---|
 | 結構檢查 | 必要文件與模組存在，避免被誤刪 |
-| UI 邊界檢查 | 合成測試介面的權限、無外部端點、無資料輸入欄位與無障礙基線 |
+| UI 邊界檢查 | 介面的權限、無外部端點、欄位允許清單與無障礙基線 |
 | 文件檢查 | 所有 markdown 相對連結可解析，且每份文件都登記在 `docs/README.md` |
 | 格式檢查 | Prettier（2026-07-21 導入） |
+| **Lint** | **ESLint + typescript-eslint，含型別感知規則（2026-07-21 導入）** |
 | 型別與建置 | 各 TypeScript 專案 |
 | 單元測試 | 領域規則、契約、API 與瀏覽器模組 |
-| Rules 測試 | `corepack pnpm test:rules`，本機 Emulator 驗證預設拒絕 |
+| Rules 測試 | `corepack pnpm test:rules`，本機 Emulator 驗證交易、冪等、outbox 與預設拒絕 |
+| **CI** | **`.github/workflows/verify.yml`，於 push 與 PR 執行上列全部檢查** |
+
+Lint 只負責正確性，排版交給 Prettier，兩者不重疊。型別感知規則中最重要的是
+`no-floating-promises`：本專案的預約寫入、outbox 重試與瀏覽器互動全是非同步，
+漏掉一個 `await` 會靜默失敗而不報錯。
 
 （此表刻意不記錄檔案數或測試數：寫死的數字必然過期，正是本節要避免的問題。
 實際數量以 `corepack pnpm verify` 的輸出為準。）
@@ -229,11 +235,13 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 
 | 缺口 | 影響 | 建議補齊時點 |
 |---|---|---|
-| 無 CI（`.github/workflows` 不存在） | 上列檢查全靠人工在本機執行；規約要求的「PR 必須通過」目前無強制力 | Phase 1.5 前 |
-| 無 ESLint | 只有格式化，沒有正確性 lint（未使用變數、浮動 Promise 等） | Phase 1.5 前 |
+| ~~無 CI~~ | 已於 2026-07-21 補齊 | ✅ |
+| ~~無 ESLint~~ | 已於 2026-07-21 補齊 | ✅ |
+| ~~`apps/worker/` 僅有 README~~ | outbox 處理器已實作並以 Emulator 驗證 | ✅ |
+| **瀏覽器與伺服器是兩份領域規則** | `apps/web/public/modules/` 與 `packages/domain/` 各自實作同一套規則，會隨時間漂移 | **目前最大的技術債**；需 `apps/web` 導入建置流程 |
 | 無 API contract test 與端對端測試 | §5.2 已列為 PR 門檻，但尚未建立 | 啟用正式寫入路徑前 |
 | 無 remote repository | 版本控制只存在單一台機器，無異地備援 | 儘早 |
-| `apps/worker/`、`infra/terraform/` 僅有 README | outbox worker 與雲端資源為 Phase 1 完成標準的一部分 | 依 Phase 1 排程 |
+| `infra/terraform/` 僅有 README | 雲端資源為 Phase 1 完成標準的一部分 | 依 Phase 1 排程 |
 | OpenAPI 文件尚未產生 | 契約目前以 `packages/contracts` 的 TypeScript 型別為準 | 對外提供 API 前 |
 
 這些缺口都不影響目前「僅合成資料、無雲端後端」的範圍，但屬於 Phase 1.5
