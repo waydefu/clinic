@@ -1,4 +1,11 @@
 export const TIME_ZONE = 'Asia/Taipei';
+
+// 診所對外資訊的單一來源。patient.html 的結構化資料與行事曆匯出都以此為準；
+// 修改時請一併更新 patient.html 內的 JSON-LD。
+export const CLINIC = Object.freeze({
+  name: '一森渼診所',
+  address: '臺北市松山區光復北路112號2樓'
+});
 export const SYNTHETIC_WINDOW_START = '2030-01-01';
 export const SYNTHETIC_WINDOW_DAYS = 21;
 export const SLOT_DURATION_MINUTES = 30;

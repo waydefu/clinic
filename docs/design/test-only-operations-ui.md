@@ -46,12 +46,12 @@ D-001～D-011 尚未核准的政策、角色與文字均使用清楚標示的合
 | 規則 | 為什麼 | 落點 |
 | --- | --- | --- |
 | 時段依日期分組，日期只在群組標題出現一次 | 平鋪清單會讓每格重複日期，無法快速掃視「這天有哪些時間」 | `ui-format.js` 的 `groupSlotsByDate` |
-| 時段只顯示單一時間點，24 小時制 | 避免 AM/PM 誤讀；掛號本來就只需要起始時間 | `admin-view.js`、`patient-app-v2.js` |
+| 時段只顯示單一時間點，24 小時制 | 避免 AM/PM 誤讀；掛號本來就只需要起始時間 | `admin-view.js`、`patient-app.js` |
 | 明確標示時區為 Asia/Taipei（台北時間） | 沒有時區脈絡的時間在跨裝置情境會出錯 | 兩端的時段說明文字 |
 | 選取狀態不單靠顏色 | 色覺障礙者無法辨識 | 邊框粗細 + 勾號 + `aria-pressed` |
 | 觸控目標至少 44px | 行動裝置誤觸 | `.slot-chip`、`.text-button` |
 | **送出按鈕不得因驗證未過而停用** | 停用的按鈕不會說明「為什麼不能按」，使用者只能猜 | 按下後逐欄提示並聚焦第一個問題欄位 |
-| 錯誤在離開欄位後才提示，送出時全部攤開 | 邊打邊報錯很煩躁；送出時則要一次講完 | `patient-app-v2.js` 的 `touched` 集合 |
+| 錯誤在離開欄位後才提示，送出時全部攤開 | 邊打邊報錯很煩躁；送出時則要一次講完 | `patient-app.js` 的 `touched` 集合 |
 | 錯誤訊息以 `aria-describedby` 綁定欄位，並帶 `role="alert"` 與 `aria-invalid` | 螢幕報讀者需要知道是哪一欄、錯在哪 | `patient.html` |
 | 必填以文字說明加符號標示，不只用顏色 | 同上 | `.required-mark` 與表單說明 |
 | 錯誤訊息要說「怎麼填才對」而非只說「格式錯誤」 | 可行動的訊息才有用 | `patient-registry.js` 的 `fieldErrors` |
@@ -64,7 +64,7 @@ D-001～D-011 尚未核准的政策、角色與文字均使用清楚標示的合
 - 動態顯示只允許不透明合成 ID、狀態、測試時間、合成政策／服務參照及彙總數字。
 - 自訂公告、維護說明、帳號標籤與發布摘要不得輸入患者、員工、憑證或其他真實敏感資料。
 - 不載入外部字型、追蹤碼、遠端圖片或第三方 UI 資產。
-- `index.html`／`patient.html`／`admin-shell.html` 負責語意結構，`styles.css` 與 `admin-v2.css` 集中設計 token 與元件樣式，`admin-bootstrap.js`／`patient-app-v2.js` 只處理互動與渲染，`staging-store-v2.js` 與 `modules/` 集中合成狀態轉換。
+- `index.html`（工作臺）／`patient.html`（患者端）負責語意結構，`styles.css` 與 `workbench.css` 集中設計 token 與元件樣式，`admin-bootstrap.js`／`patient-app.js` 只處理互動與渲染，`store.js` 與 `modules/` 集中狀態轉換。
 - 正式 API、行動 App 與 NAS 必須共用 domain API；不得讓任何客戶端直接寫 Firestore。
 
 ## 回歸驗證
@@ -86,7 +86,9 @@ corepack pnpm verify
 
 ## 模組化工作臺 v2
 
-2026-07-21 起，實際載入的管理工作臺改由 `admin-bootstrap.js`、`admin-shell.html`、`modules/admin-view.js` 與 `staging-store-v2.js` 組成。排班、權限、預約、逐筆回診、個管統計、帳號與維護排程各自位於獨立模組。舊 `app.js`、`patient.js` 與 `staging-store.js` 已於 2026-07-21 刪除；歷史基線改由 Git 保存，不再以死碼形式留在會被 Hosting 公開發佈的 `apps/web/public/`。
+2026-07-21 起，管理工作臺由 `index.html`（標記）、`admin-bootstrap.js`（事件）、`modules/admin-view.js`（渲染）與 `store.js`（狀態）組成。排班、權限、預約、逐筆回診、個管統計、帳號與維護排程各自位於獨立模組。
+
+同日的兩次清理：舊 `app.js`、`patient.js`、`staging-store.js` 已刪除，歷史基線改由 Git 保存；`admin-shell.html` 已併入 `index.html`，取消執行期 `fetch` 後抽換 `document.body` 的做法——那會多一次往返、造成畫面跳動，也是先前 CSP 事故的成因。檔名的 `-v2` 後綴一併移除（`staging-store-v2.js` → `store.js`、`patient-app-v2.js` → `patient-app.js`、`admin-v2.css` → `workbench.css`），因為 v1 已不存在。
 
 新版必須保持：草稿排班不影響患者、發布前檢查既有預約、病患取消與櫃台確認分離、回診決定綁定單筆到診、個管統計由指派及完成到診推導，以及管理者權限在狀態轉換層強制執行。
 

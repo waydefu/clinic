@@ -1,4 +1,28 @@
 :root {
+  /* ---------------------------------------------------------------
+   * 字級尺度：基準 16px，單一比例 1.2（Minor third）。
+   *
+   * --text-micro (14px) 是唯一低於基準的一階，且是刻意設定的下限：
+   * 嚴格套用 1.2 往下會得到 13.3px，低於無障礙可讀下限，因此不採用。
+   * 小字區的階層改由字重與顏色承擔，而不是再切出更多尺寸——本系統
+   * 先前有 17 種字級、其中 12.48px 出現 105 次，正是這樣失控的。
+   *
+   * 繁體中文字形筆畫較密，14px 僅供 eyebrow、代碼、輔助說明等
+   * 非必要文字；正文一律 --text-body 以上。
+   * --------------------------------------------------------------- */
+  --text-micro: 0.875rem;
+  --text-body: 1rem;
+  --text-md: 1.2rem;
+  --text-lg: 1.44rem;
+  --text-xl: 1.728rem;
+  --text-2xl: 2.074rem;
+  --text-3xl: 2.488rem;
+
+  /* 行高：正文 1.5–1.65，標題隨字級變大而收緊（WCAG 1.4.12 要求 ≥1.5×）。 */
+  --leading-body: 1.6;
+  --leading-tight: 1.3;
+  --leading-display: 1.1;
+
   --canvas: #f5f7f5;
   --surface: #ffffff;
   --surface-soft: #f7fbf8;
@@ -114,7 +138,7 @@ textarea:focus-visible {
   box-shadow: 0 0.5rem 1rem rgba(21, 92, 72, 0.2);
   color: #fff;
   display: inline-flex;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   height: 2.5rem;
   justify-content: center;
   width: 2.5rem;
@@ -122,14 +146,14 @@ textarea:focus-visible {
 
 .brand strong {
   display: block;
-  font-size: 1rem;
+  font-size: var(--text-body);
   letter-spacing: 0.025em;
 }
 
 .brand small {
   color: var(--ink-muted);
   display: block;
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
   letter-spacing: 0.08em;
   margin-top: 0.1rem;
   text-transform: uppercase;
@@ -149,7 +173,7 @@ textarea:focus-visible {
   border-radius: 999px;
   color: #f5fff8;
   display: inline-flex;
-  font-size: 0.68rem;
+  font-size: var(--text-micro);
   font-weight: 800;
   gap: 0.45rem;
   letter-spacing: 0.075em;
@@ -168,10 +192,11 @@ textarea:focus-visible {
   align-items: center;
   border-radius: 0.65rem;
   display: inline-flex;
-  font-size: 0.875rem;
+  font-size: var(--text-micro);
   font-weight: 760;
   justify-content: center;
-  min-height: 2.7rem;
+  /* 44px：WCAG 2.2 的下限是 24px，此處採用通用觸控目標建議值。 */
+  min-height: 2.75rem;
   padding: 0.65rem 1rem;
   transition:
     background-color 160ms ease,
@@ -250,7 +275,7 @@ textarea:focus-visible {
 
 .eyebrow {
   color: var(--forest);
-  font-size: 0.68rem;
+  font-size: var(--text-micro);
   font-weight: 800;
   letter-spacing: 0.11em;
   margin: 0 0 0.55rem;
@@ -268,26 +293,26 @@ p {
 }
 
 h1 {
-  font-size: clamp(2rem, 4.5vw, 3.75rem);
+  font-size: clamp(var(--text-2xl), 4.5vw, var(--text-3xl));
   letter-spacing: -0.035em;
   line-height: 1.08;
   margin-bottom: 1rem;
 }
 
 h2 {
-  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-size: clamp(var(--text-md), 2vw, var(--text-lg));
   letter-spacing: -0.02em;
   margin-bottom: 0;
 }
 
 h3 {
-  font-size: 1rem;
+  font-size: var(--text-body);
   margin-bottom: 0;
 }
 
 .hero-lead {
   color: #d9eee2;
-  font-size: 1rem;
+  font-size: var(--text-body);
   line-height: 1.8;
   margin-bottom: 1.4rem;
   max-width: 43rem;
@@ -307,7 +332,7 @@ h3 {
   border: 1px solid rgba(231, 255, 242, 0.14);
   border-radius: 999px;
   color: #ecfff4;
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   padding: 0.45rem 0.65rem;
 }
 
@@ -325,13 +350,13 @@ h3 {
 }
 
 .environment-card h2 {
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   margin-bottom: 0.75rem;
 }
 
 .environment-card > p:last-child {
   color: var(--ink-muted);
-  font-size: 0.83rem;
+  font-size: var(--text-micro);
   line-height: 1.65;
   margin-bottom: 0;
 }
@@ -341,7 +366,7 @@ h3 {
   border-radius: 0.5rem;
   color: var(--forest-dark);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
   margin-bottom: 0.85rem;
   overflow-wrap: anywhere;
   padding: 0.55rem 0.65rem;
@@ -355,7 +380,7 @@ h3 {
   box-shadow: 0 0.45rem 1rem rgba(20, 53, 41, 0.04);
   color: var(--ink-muted);
   display: flex;
-  font-size: 0.875rem;
+  font-size: var(--text-micro);
   font-weight: 650;
   margin: 1.25rem 0;
   min-height: 3.35rem;
@@ -407,7 +432,7 @@ h3 {
 .summary-label {
   color: var(--ink-muted);
   display: block;
-  font-size: 0.77rem;
+  font-size: var(--text-micro);
   font-weight: 720;
   margin-bottom: 0.65rem;
 }
@@ -415,7 +440,7 @@ h3 {
 .summary-card strong {
   color: var(--forest-dark);
   display: block;
-  font-size: 2rem;
+  font-size: var(--text-2xl);
   letter-spacing: -0.06em;
   line-height: 1;
   margin-bottom: 0.55rem;
@@ -423,7 +448,7 @@ h3 {
 
 .summary-detail {
   color: var(--ink-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
   line-height: 1.45;
 }
 
@@ -458,7 +483,7 @@ h3 {
   color: var(--forest);
   display: inline-flex;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
   font-weight: 800;
   height: 2.6rem;
   justify-content: center;
@@ -468,7 +493,7 @@ h3 {
 .section-description,
 .event-section-heading > p {
   color: var(--ink-muted);
-  font-size: 0.84rem;
+  font-size: var(--text-micro);
   margin-bottom: 0.15rem;
   text-align: right;
 }
@@ -498,14 +523,14 @@ h3 {
 }
 .control-card > p {
   color: var(--ink-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-micro);
   line-height: 1.5;
   margin-bottom: 0;
 }
 label {
   color: var(--ink-muted);
   display: grid;
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   font-weight: 720;
   gap: 0.38rem;
 }
@@ -551,7 +576,7 @@ textarea {
   margin-bottom: 0;
 }
 .schedule-display h3 {
-  font-size: 0.85rem;
+  font-size: var(--text-micro);
   margin-bottom: 0.5rem;
 }
 .schedule-display ul {
@@ -565,7 +590,7 @@ textarea {
   align-items: baseline;
   color: var(--ink-muted);
   display: flex;
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   gap: 0.65rem;
   justify-content: space-between;
 }
@@ -579,7 +604,7 @@ textarea {
 }
 .form-boundary {
   color: var(--ink-muted);
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
   line-height: 1.55;
   margin: 0.65rem 0 0;
 }
@@ -600,19 +625,19 @@ textarea {
   padding: 1rem 1.15rem;
 }
 .role-console h2 {
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   margin-bottom: 0.3rem;
 }
 .role-console p:last-child {
   color: var(--ink-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   margin: 0;
 }
 .role-chip {
   background: var(--forest-light);
   border-radius: 999px;
   color: var(--forest-dark);
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
   font-weight: 800;
   padding: 0.65rem 0.8rem;
   text-align: center;
@@ -624,7 +649,7 @@ textarea {
   border-radius: 0.8rem;
   color: #244e78;
   display: flex;
-  font-size: 0.8rem;
+  font-size: var(--text-micro);
   gap: 0.7rem;
   margin: 1rem 0;
   padding: 0.8rem 1rem;
@@ -643,7 +668,7 @@ textarea {
 }
 .weekday-picker legend {
   color: var(--ink-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   font-weight: 720;
   margin-bottom: 0.4rem;
 }
@@ -670,7 +695,7 @@ textarea {
   color: var(--danger);
   display: inline-flex;
   flex: 0 0 auto;
-  font-size: 1rem;
+  font-size: var(--text-body);
   height: 1.8rem;
   justify-content: center;
   padding: 0;
@@ -701,7 +726,7 @@ textarea {
 }
 .account-row strong {
   display: block;
-  font-size: 0.86rem;
+  font-size: var(--text-micro);
 }
 .account-row .code {
   display: block;
@@ -709,7 +734,7 @@ textarea {
 }
 .account-row > span:not(.status-chip) {
   color: var(--ink-muted);
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
 }
 .release-grid {
   display: grid;
@@ -732,12 +757,12 @@ textarea {
 }
 .release-row strong {
   display: block;
-  font-size: 0.82rem;
+  font-size: var(--text-micro);
   margin-bottom: 0.2rem;
 }
 .release-row div span {
   color: var(--ink-muted);
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
 }
 
 /* Enterprise synthetic patient booking */
@@ -769,7 +794,7 @@ textarea {
 }
 .patient-nav a {
   color: var(--ink-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-micro);
   font-weight: 720;
   text-decoration: none;
 }
@@ -791,10 +816,10 @@ textarea {
 }
 .patient-announcement strong {
   color: #aee5c9;
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
 }
 .patient-announcement span {
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
 }
 #patient-main {
   margin: 0 auto;
@@ -825,7 +850,7 @@ textarea {
 }
 .patient-hero h1 {
   color: var(--forest-dark);
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
   margin-bottom: 0.85rem;
 }
 .patient-hero > div > p:last-of-type {
@@ -843,7 +868,7 @@ textarea {
   border: 1px solid #d6e5dc;
   border-radius: 999px;
   color: var(--forest-dark);
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
   font-weight: 720;
   padding: 0.45rem 0.65rem;
 }
@@ -860,11 +885,11 @@ textarea {
 }
 .patient-contact-card strong {
   color: var(--forest-dark);
-  font-size: 1.1rem;
+  font-size: var(--text-md);
 }
 .patient-contact-card span {
   color: var(--ink-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   line-height: 1.55;
 }
 .booking-stepper {
@@ -880,7 +905,7 @@ textarea {
   border-bottom: 3px solid var(--line);
   color: var(--ink-muted);
   display: flex;
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
   gap: 0.5rem;
   padding: 0 0.5rem 0.8rem;
 }
@@ -889,7 +914,7 @@ textarea {
   background: #edf1ef;
   border-radius: 50%;
   display: inline-flex;
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
   height: 1.7rem;
   justify-content: center;
   width: 1.7rem;
@@ -920,12 +945,12 @@ textarea {
 }
 .booking-panel-heading h2 {
   color: var(--forest-dark);
-  font-size: 1.55rem;
+  font-size: var(--text-lg);
   margin-bottom: 0.5rem;
 }
 .booking-panel-heading > p:last-child {
   color: var(--ink-muted);
-  font-size: 0.82rem;
+  font-size: var(--text-micro);
   line-height: 1.65;
 }
 .service-choice-grid {
@@ -956,7 +981,7 @@ textarea {
   border-radius: 0.7rem;
   color: var(--forest);
   display: inline-flex;
-  font-size: 1.15rem;
+  font-size: var(--text-md);
   height: 2.5rem;
   justify-content: center;
   margin-bottom: 1rem;
@@ -964,17 +989,17 @@ textarea {
 }
 .service-choice strong {
   color: var(--forest-dark);
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   margin-bottom: 0.45rem;
 }
 .service-choice > span:not(.service-icon) {
   color: var(--ink-muted);
-  font-size: 0.82rem;
+  font-size: var(--text-micro);
   line-height: 1.6;
 }
 .service-choice small {
   color: var(--forest);
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   font-weight: 760;
   margin-top: auto;
   padding-top: 1rem;
@@ -982,7 +1007,7 @@ textarea {
 .text-button {
   background: transparent;
   color: var(--forest);
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   font-weight: 760;
   margin-bottom: 1rem;
   padding: 0;
@@ -991,43 +1016,6 @@ textarea {
   display: grid;
   gap: 0.8rem;
   grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-}
-.patient-slot-option {
-  align-items: flex-start;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 0.85rem;
-  color: var(--ink);
-  display: flex;
-  flex-direction: column;
-  min-height: 9rem;
-  padding: 1rem;
-  text-align: left;
-}
-.patient-slot-option:hover {
-  border-color: var(--forest);
-  box-shadow: 0 0.6rem 1.2rem rgba(21, 92, 72, 0.09);
-}
-.patient-slot-option strong {
-  color: var(--forest-dark);
-  font-size: 1.2rem;
-  margin: 0.65rem 0 0.25rem;
-}
-.patient-slot-option > span {
-  color: var(--ink-muted);
-  font-size: 0.76rem;
-}
-.patient-slot-option small {
-  background: var(--forest-light);
-  border-radius: 999px;
-  color: var(--forest-dark);
-  font-size: 0.68rem;
-  font-weight: 760;
-  margin-top: auto;
-  padding: 0.35rem 0.5rem;
-}
-.patient-slot-date {
-  font-weight: 720;
 }
 .booking-confirmation-grid {
   display: grid;
@@ -1043,7 +1031,7 @@ textarea {
 }
 .booking-summary h3 {
   color: var(--forest-dark);
-  font-size: 1.3rem;
+  font-size: var(--text-md);
 }
 .booking-summary dl {
   display: grid;
@@ -1060,11 +1048,11 @@ textarea {
 }
 .booking-summary dt {
   color: var(--ink-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
 }
 .booking-summary dd {
   color: var(--ink);
-  font-size: 0.82rem;
+  font-size: var(--text-micro);
   font-weight: 720;
   margin: 0;
   text-align: right;
@@ -1080,7 +1068,7 @@ textarea {
 }
 .synthetic-identity-card > p {
   color: var(--ink-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   line-height: 1.6;
 }
 .consent-preview {
@@ -1089,7 +1077,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 0.65rem;
   display: flex;
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
   gap: 0.55rem;
   line-height: 1.5;
   margin-top: auto;
@@ -1116,7 +1104,7 @@ textarea {
   border-radius: 50%;
   color: #fff;
   display: flex;
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
   height: 4rem;
   justify-content: center;
   margin-bottom: 1rem;
@@ -1137,7 +1125,7 @@ textarea {
 }
 .booking-result span {
   color: var(--ink-muted);
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
 }
 .patient-upcoming-section {
   margin-top: 3rem;
@@ -1176,7 +1164,7 @@ textarea {
 .patient-help-grid article > span {
   color: var(--forest);
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   font-weight: 800;
 }
 .patient-help-grid strong {
@@ -1185,7 +1173,7 @@ textarea {
 }
 .patient-help-grid p {
   color: var(--ink-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   line-height: 1.6;
   margin: 0;
 }
@@ -1211,7 +1199,7 @@ textarea {
   border-radius: 50%;
   color: var(--amber);
   display: flex;
-  font-size: 1.6rem;
+  font-size: var(--text-xl);
   height: 4rem;
   justify-content: center;
   margin-bottom: 1rem;
@@ -1233,7 +1221,7 @@ textarea {
 .patient-footer span,
 .patient-footer a {
   color: #b9d1c4;
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
 }
 .patient-footer > div:nth-child(2) {
   display: flex;
@@ -1243,43 +1231,11 @@ textarea {
   text-decoration: none;
 }
 
-.slot-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  box-shadow: 0 0.5rem 1.2rem rgba(20, 53, 41, 0.035);
-  display: flex;
-  flex-direction: column;
-  min-height: 14.5rem;
-  padding: 1.2rem;
-}
-
-.slot-card.is-available {
-  border-top: 3px solid var(--forest);
-}
-.slot-card.is-reserved {
-  background: #fbfbfa;
-  border-top: 3px solid #b3c0b9;
-}
-
-.slot-card-heading {
-  align-items: center;
-  display: flex;
-  gap: 0.8rem;
-  justify-content: space-between;
-}
-
-.slot-date {
-  color: var(--ink-muted);
-  font-size: 0.82rem;
-  font-weight: 680;
-}
-
 .status-chip {
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
   font-weight: 800;
   line-height: 1;
   padding: 0.42rem 0.56rem;
@@ -1302,19 +1258,6 @@ textarea {
 .status-chip.status-cancellation_requested {
   background: var(--amber-light);
   color: var(--amber);
-}
-
-.slot-time {
-  font-size: 1.55rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  margin: 1.05rem 0 0.35rem;
-}
-
-.slot-description {
-  color: var(--ink-muted);
-  font-size: 0.82rem;
-  margin-bottom: 1.25rem;
 }
 
 .slot-action {
@@ -1353,14 +1296,14 @@ textarea {
 .code {
   color: var(--forest-dark);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   margin-bottom: 0.3rem;
   overflow-wrap: anywhere;
 }
 
 .appointment-meta {
   color: var(--ink-muted);
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
   margin-bottom: 0;
 }
 
@@ -1381,17 +1324,17 @@ textarea {
 .workload-overview strong {
   color: var(--forest-dark);
   display: block;
-  font-size: 1.55rem;
+  font-size: var(--text-lg);
   letter-spacing: -0.04em;
   margin-bottom: 0.45rem;
 }
 .workload-overview strong span {
-  font-size: 0.9rem;
+  font-size: var(--text-micro);
   letter-spacing: 0;
 }
 .workload-overview > p:last-child {
   color: var(--ink-muted);
-  font-size: 0.77rem;
+  font-size: var(--text-micro);
   margin-bottom: 0;
 }
 .follow-up-card {
@@ -1402,7 +1345,7 @@ textarea {
   border: 1px solid #f1d9b0;
   border-radius: 0.7rem;
   color: #785315;
-  font-size: 0.8rem;
+  font-size: var(--text-micro);
   line-height: 1.7;
   margin: 0;
   padding: 0.8rem 0.9rem;
@@ -1424,7 +1367,7 @@ textarea {
   color: var(--ink-muted);
   display: flex;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   gap: 0.8rem;
   justify-content: space-between;
   padding: 0.65rem 0.75rem;
@@ -1433,7 +1376,7 @@ textarea {
 .workload-breakdown strong {
   color: var(--forest-dark);
   font-family: 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   white-space: nowrap;
 }
 
@@ -1451,17 +1394,17 @@ textarea {
 
 .empty-state-icon {
   color: var(--forest);
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
   line-height: 1;
 }
 .empty-state strong {
   color: var(--ink);
   display: block;
-  font-size: 0.9rem;
+  font-size: var(--text-micro);
   margin-bottom: 0.25rem;
 }
 .empty-state p {
-  font-size: 0.8rem;
+  font-size: var(--text-micro);
   line-height: 1.55;
   margin-bottom: 0;
 }
@@ -1501,7 +1444,7 @@ textarea {
   border-radius: 0.65rem;
   color: var(--forest);
   display: inline-flex;
-  font-size: 1rem;
+  font-size: var(--text-body);
   font-weight: 900;
   height: 2.25rem;
   justify-content: center;
@@ -1537,20 +1480,20 @@ textarea {
 .event-list strong {
   color: var(--ink);
   display: block;
-  font-size: 0.84rem;
+  font-size: var(--text-micro);
   margin-bottom: 0.18rem;
 }
 .event-list span {
   color: var(--ink-muted);
   display: block;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .empty-event {
   color: var(--ink-muted);
-  font-size: 0.82rem;
+  font-size: var(--text-micro);
   padding: 0.35rem 0;
 }
 
@@ -1558,7 +1501,7 @@ textarea {
   color: var(--ink-muted);
   display: flex;
   flex-wrap: wrap;
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   gap: 0.6rem 1.5rem;
   justify-content: space-between;
   padding: 2rem 0 0.75rem;
@@ -1726,10 +1669,10 @@ textarea {
   margin: 0 0 0.6rem;
   padding-bottom: 0.4rem;
   border-bottom: 1px solid currentColor;
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .slot-day-count {
-  font-size: 0.8rem;
+  font-size: var(--text-micro);
   font-weight: 400;
   opacity: 0.7;
 }
@@ -1772,7 +1715,7 @@ textarea {
 /* ---- 表單：必填標示與逐欄位錯誤 ---- */
 .form-required-note {
   margin: 0 0 0.75rem;
-  font-size: 0.85rem;
+  font-size: var(--text-micro);
   opacity: 0.8;
 }
 .required-mark {
@@ -1782,13 +1725,13 @@ textarea {
 .field-hint {
   display: block;
   margin-top: 0.25rem;
-  font-size: 0.8rem;
+  font-size: var(--text-micro);
   opacity: 0.75;
 }
 .field-error {
   display: block;
   margin-top: 0.3rem;
-  font-size: 0.82rem;
+  font-size: var(--text-micro);
   font-weight: 600;
 }
 .field-error::before {
@@ -1803,4 +1746,45 @@ label.has-error input {
 .text-button {
   min-height: 44px;
   padding-block: 0.5rem;
+}
+
+/* ---------------------------------------------------------------
+ * 可選項（selectable）：與「動作按鈕」是不同的元件類別。
+ * slot-chip 與 service-choice 共用同一組選取語彙，讓「我選了什麼」
+ * 在兩個步驟裡看起來一致。
+ *
+ * 選取狀態同時用邊框粗細、底色與勾號表示，不單靠顏色（WCAG 1.4.1）。
+ * --------------------------------------------------------------- */
+.service-choice.is-selected,
+.slot-chip.is-selected {
+  border-color: var(--forest);
+  border-width: 3px;
+  background: var(--forest-light);
+  color: var(--forest-dark);
+  font-weight: 700;
+}
+
+.service-choice {
+  position: relative;
+}
+
+.service-choice.is-selected::after {
+  content: '✓';
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  font-weight: 800;
+  color: var(--forest);
+}
+
+.service-choice:focus-visible,
+.slot-chip:focus-visible {
+  outline: 3px solid var(--forest);
+  outline-offset: 2px;
+}
+
+/* 送出中的忙碌狀態：文字已改為「送出中…」，此處再降低不透明度作為輔助訊號。 */
+[data-busy='true'] {
+  opacity: 0.75;
+  cursor: progress;
 }

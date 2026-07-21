@@ -19,7 +19,7 @@
   border-radius: 0.55rem;
   color: var(--ink-muted);
   flex: 0 0 auto;
-  font-size: 0.78rem;
+  font-size: var(--text-micro);
   font-weight: 750;
   padding: 0.65rem 0.8rem;
   text-decoration: none;
@@ -33,7 +33,7 @@
   align-items: center;
   color: var(--ink-muted);
   display: flex;
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   font-weight: 700;
   gap: 0.45rem;
 }
@@ -55,7 +55,7 @@
 }
 .summary-card a {
   color: var(--forest);
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   font-weight: 760;
   text-decoration: none;
 }
@@ -81,11 +81,11 @@
   text-decoration: none;
 }
 .task-card strong {
-  font-size: 1.3rem;
+  font-size: var(--text-md);
 }
 .task-card span {
   color: var(--ink-muted);
-  font-size: 0.76rem;
+  font-size: var(--text-micro);
   font-weight: 720;
 }
 .task-danger {
@@ -244,9 +244,9 @@
   cursor: pointer;
   list-style: none;
   padding: 0.45rem 0.9rem;
-  border: 1px solid var(--line, #d5d8e0);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: var(--text-micro);
   white-space: nowrap;
 }
 .action-menu > summary::-webkit-details-marker {
@@ -264,10 +264,10 @@
   flex-direction: column;
   min-width: 10rem;
   padding: 0.35rem;
-  border: 1px solid var(--line, #d5d8e0);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--surface, #fff);
-  box-shadow: 0 10px 30px rgb(15 20 40 / 12%);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 .action-menu-list button {
   padding: 0.5rem 0.7rem;
@@ -279,7 +279,7 @@
   cursor: pointer;
 }
 .action-menu-list button:hover:not(:disabled) {
-  background: rgb(15 20 40 / 6%);
+  background: var(--surface-tint);
 }
 .action-menu-list button:disabled {
   opacity: 0.4;
@@ -295,14 +295,14 @@
   gap: 0.6rem;
   margin: 0.5rem 0;
   padding: 0.6rem 0.8rem;
-  border: 1px solid var(--line, #d5d8e0);
+  border: 1px solid var(--line);
   border-radius: 10px;
 }
 .tag-option {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.9rem;
+  font-size: var(--text-micro);
 }
 .note-row {
   display: flex;
@@ -313,8 +313,8 @@
 .note-chip {
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  background: rgb(15 20 40 / 7%);
-  font-size: 0.8rem;
+  background: var(--surface-tint);
+  font-size: var(--text-micro);
 }
 .reschedule-form {
   display: flex;
@@ -331,9 +331,6 @@
 }
 .booking-form .inline-fields > label {
   flex: 1 1 12rem;
-}
-.slot-card.is-selected {
-  outline: 2px solid currentColor;
 }
 .detail-line {
   display: block;

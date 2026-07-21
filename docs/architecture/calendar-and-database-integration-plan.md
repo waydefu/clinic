@@ -9,7 +9,7 @@
 現況是一個**沒有後端的瀏覽器原型**：
 
 ```text
-瀏覽器 ──► staging-store-v2.js ──► localStorage
+瀏覽器 ──► store.js ──► localStorage
              （modules/ 內為純領域規則）
 ```
 

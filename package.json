@@ -11,7 +11,7 @@
   "scripts": {
     "build": "corepack pnpm --recursive --if-present run build",
     "check:structure": "node scripts/check-structure.mjs",
-    "check:ui": "node scripts/check-test-only-ui-v2.mjs",
+    "check:ui": "node scripts/check-web-ui.mjs",
     "check:docs": "node scripts/check-docs-links.mjs",
     "check:format": "prettier --check .",
     "check:types": "corepack pnpm run build",

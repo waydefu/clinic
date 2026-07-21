@@ -13,6 +13,7 @@ Read in this order before changing a boundary or enabling a capability.
 
 | # | Document | Why |
 | --- | --- | --- |
+| 0 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
 | 1 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme: architecture, phases, data model, privacy and the plan-versus-implementation gap register |
 | 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
 | 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
@@ -69,6 +70,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-21 | [UI/UX audit and rework](reviews/ui-ux-audit-and-rework-2026-07-21.md) | Type scale 17→6, dead styles removed, shell inlined, SEO and calendar export added |
 | 2026-07-21 | [Cleanup, security and UX review](reviews/cleanup-and-ux-review-2026-07-21.md) | Dead exports removed, XSS verified in a browser, slot picker and form validation reworked against published guidance |
 | 2026-07-21 | [Codebase analysis and remediation](reviews/codebase-analysis-and-remediation-2026-07-21.md) | Version control established; loopback, permission, CSP and formatting gaps closed |
 | 2026-07-21 | [Manager workflow analysis and remediation](reviews/manager-workflow-analysis-and-remediation-2026-07-21.md) | Workbench reordered into a daily operating sequence |

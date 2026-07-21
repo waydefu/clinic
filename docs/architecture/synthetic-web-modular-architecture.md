@@ -15,10 +15,10 @@
 | `modules/case-management.js` | 個管指派、月度不重複患者與待辦 | 移至 domain；月結鎖定由 API 管理 |
 | `modules/workspace-domain.js` | 合成帳號、公告、維護排程與發布紀錄 | 正式 IAM、CMS 與 deployment service adapter |
 | `modules/state-schema.js` | 合成 state schema、預設值與 localStorage | 替換成 versioned API DTO，不讓 UI 直接碰 Firestore |
-| `staging-store-v2.js` | 合成 command/query dispatcher | 替換成 `api-client.js`，保留相同 command 語意 |
+| `store.js` | 合成 command/query dispatcher | 替換成 `api-client.js`，保留相同 command 語意 |
 | `modules/admin-view.js` | 純 HTML renderer | 可沿用或替換為框架元件 |
 | `admin-bootstrap.js` | 管理者 UI controller 與事件協調 | 呼叫正式 API client |
-| `patient-app-v2.js` | 病患四步驟流程 | Web／Android／iOS 共用 API contract |
+| `patient-app.js` | 病患四步驟流程 | Web／Android／iOS 共用 API contract |
 
 ## 資料流
 

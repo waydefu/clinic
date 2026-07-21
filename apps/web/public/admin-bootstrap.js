@@ -1,4 +1,4 @@
-import { stagingRequest } from './staging-store-v2.js';
+import { stagingRequest } from './store.js';
 import {
   renderAccounts,
   renderAppointments,
@@ -16,15 +16,9 @@ import {
 import { WORKBENCH_PROCEDURES } from './modules/constants.js';
 import { escapeHtml, roleLabel } from './modules/ui-format.js';
 
-const adminStyles = document.createElement('link');
-adminStyles.rel = 'stylesheet';
-adminStyles.href = '/admin-v2.css';
-document.head.append(adminStyles);
-const shell = await fetch('/admin-shell.html').then((response) => {
-  if (!response.ok) throw new Error('無法載入管理工作臺介面。');
-  return response.text();
-});
-document.body.innerHTML = shell;
+// 工作臺的標記與樣式直接寫在 index.html 裡，不再於執行期 fetch 一份 shell
+// 再抽換 document.body。那個做法多一次往返、會讓畫面從假骨架跳成真介面，
+// 而且是先前 CSP 事故的成因（connect-src 少了 'self' 就整頁掛掉）。
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element])
 );

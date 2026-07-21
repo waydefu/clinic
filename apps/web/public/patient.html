@@ -3,10 +3,76 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 測試版本維持 noindex。正式上線時移除這一行，並把 og:url 與
+         canonical 換成正式網域。 -->
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="description" content="一森渼診所線上門診預約。" />
+    <meta
+      name="description"
+      content="一森渼診所線上門診預約。可自行選擇初診或回診時段，門診時間週三至週五 12:00–20:30、週六 10:00–18:00。"
+    />
+    <meta name="theme-color" content="#155c48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>一森渼診所｜線上預約</title>
+    <link rel="canonical" href="https://beauessence.com.tw/booking" />
+    <title>線上預約｜一森渼診所</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="一森渼診所" />
+    <meta property="og:title" content="線上預約｜一森渼診所" />
+    <meta
+      property="og:description"
+      content="自行選擇門診時段，完成預約只要四個步驟。"
+    />
+    <meta property="og:url" content="https://beauessence.com.tw/booking" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:image" content="/og-booking.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- 結構化資料：診所基本資料與門診時間。openingHours 必須與
+         modules/state-schema.js 的 defaultSchedule 保持一致。 -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "MedicalClinic",
+        "name": "一森渼診所",
+        "url": "https://beauessence.com.tw",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "光復北路112號2樓",
+          "addressLocality": "松山區",
+          "addressRegion": "臺北市",
+          "postalCode": "10560",
+          "addressCountry": "TW"
+        },
+        "telephone": "+886-2-2577-1314",
+        "medicalSpecialty": "Otolaryngologic",
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Wednesday", "Thursday", "Friday"],
+            "opens": "12:00",
+            "closes": "20:30"
+          },
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": "Saturday",
+            "opens": "10:00",
+            "closes": "18:00"
+          }
+        ],
+        "potentialAction": {
+          "@type": "ReserveAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://beauessence.com.tw/booking",
+            "actionPlatform": [
+              "https://schema.org/DesktopWebPlatform",
+              "https://schema.org/MobileWebPlatform"
+            ]
+          },
+          "result": { "@type": "Reservation", "name": "門診預約" }
+        }
+      }
+    </script>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body class="patient-body">
@@ -304,11 +370,27 @@
             <button
               class="button button-primary"
               type="button"
+              id="add-to-calendar"
+            >
+              加入行事曆</button
+            ><a
+              class="button button-secondary"
+              id="add-to-google-calendar"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              >加入 Google 日曆</a
+            ><button
+              class="button button-tertiary"
+              type="button"
               id="book-another"
             >
-              再建立一筆預約</button
-            ><a class="button button-secondary" href="/">返回工作臺</a>
+              再建立一筆預約
+            </button>
           </div>
+          <p class="field-hint">
+            行事曆項目只包含診所名稱、掛號別、時間與地址，不含身分證或看診項目。
+          </p>
         </section>
 
         <section
@@ -357,6 +439,6 @@
       <div><a href="#patient-help">預約須知</a><a href="/">開發工作臺</a></div>
       <span id="patient-env-boundary">資料只保存在本機瀏覽器</span>
     </footer>
-    <script type="module" src="/patient-app-v2.js"></script>
+    <script type="module" src="/patient-app.js"></script>
   </body>
 </html>

@@ -1,9 +1,13 @@
-import { stagingRequest } from './staging-store-v2.js';
+import { stagingRequest } from './store.js';
 import {
   BOOKING_KIND_LABELS,
   PATIENT_SERVICES,
   WEEKDAY_LABELS
 } from './modules/constants.js';
+import {
+  buildGoogleCalendarUrl,
+  downloadIcs
+} from './modules/calendar-export.js';
 import { fieldErrors } from './modules/patient-registry.js';
 import {
   emptyState,
@@ -26,6 +30,7 @@ let selectedBookingType = 'initial';
 let selectedServiceId;
 let selectedSlotId;
 let completedAppointmentId;
+let completedAppointment;
 
 function myPatientId() {
   try {
@@ -338,7 +343,14 @@ elements['confirm-patient-booking'].addEventListener('click', async () => {
     return;
   }
 
-  elements['confirm-patient-booking'].disabled = true;
+  // 送出期間必須有明確回饋。只把按鈕變灰不足以說明「系統正在處理」，
+  // 使用者會以為沒按到而重複點擊。
+  const submitButton = elements['confirm-patient-booking'];
+  const submitLabel = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.dataset.busy = 'true';
+  submitButton.textContent = '送出中…';
+  message('正在送出預約，請稍候。', 'info');
   try {
     state = await stagingRequest('/bookings', {
       method: 'POST',
@@ -357,6 +369,13 @@ elements['confirm-patient-booking'].addEventListener('click', async () => {
       (item) => item.slotId === selectedSlotId && item.status === 'confirmed'
     );
     completedAppointmentId = appointment.id;
+    completedAppointment = {
+      id: appointment.id,
+      startsAt: appointment.startsAt,
+      kindLabel: BOOKING_KIND_LABELS[appointment.bookingKind]
+    };
+    elements['add-to-google-calendar'].href =
+      buildGoogleCalendarUrl(completedAppointment);
     rememberPatient(appointment.patientId);
     elements['booking-complete-mark'].textContent = '✓';
     elements['booking-complete-eyebrow'].textContent = 'BOOKING COMPLETE';
@@ -370,8 +389,17 @@ elements['confirm-patient-booking'].addEventListener('click', async () => {
     message('預約已建立。', 'success');
   } catch (error) {
     message(error.message, 'error');
-    elements['confirm-patient-booking'].disabled = false;
+  } finally {
+    submitButton.disabled = false;
+    delete submitButton.dataset.busy;
+    submitButton.textContent = submitLabel;
   }
+});
+
+elements['add-to-calendar'].addEventListener('click', () => {
+  if (completedAppointment === undefined) return;
+  downloadIcs(completedAppointment);
+  message('行事曆檔案已下載，開啟後即可加入。', 'success');
 });
 
 elements['book-another'].addEventListener('click', () => {

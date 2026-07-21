@@ -3,357 +3,455 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 內部營運工具，永遠不對外索引，因此刻意不提供 OG 或結構化資料。 -->
     <meta name="robots" content="noindex, nofollow" />
     <meta
       name="description"
-      content="一森渼診所預約營運工作台的本機合成資料測試介面。"
+      content="一森渼診所預約營運工作臺：預約、回診、排班與個管的內部作業介面。"
     />
+    <meta name="theme-color" content="#155c48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>一森渼診所｜預約營運工作台（測試專用）</title>
+    <title>預約營運工作臺｜一森渼診所</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/workbench.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳至主要內容</a>
-    <div class="app-shell">
+    <div class="app-shell app-shell-wide">
       <header class="topbar">
         <a
           class="brand"
-          href="#workspace-title"
-          aria-label="一森渼診所預約營運工作台"
+          href="#overview"
+          aria-label="一森渼診所預約營運工作臺首頁"
+          ><span class="brand-mark" aria-hidden="true">✦</span
+          ><span
+            ><strong>一森渼診所</strong
+            ><small>Appointment operations</small></span
+          ></a
         >
-          <span class="brand-mark" aria-hidden="true">✦</span>
-          <span>
-            <strong>一森渼診所</strong>
-            <small>Appointment operations</small>
-          </span>
-        </a>
-
         <div class="topbar-actions">
           <span class="environment-badge"
-            ><span aria-hidden="true"></span>LOCAL TEST ONLY</span
-          >
-          <a class="button button-secondary" href="/patient.html"
-            >開啟患者測試頁</a
-          >
-          <button
-            id="reset-button"
-            class="button button-secondary"
+            ><span></span><b id="environment-label">ONLINE PREVIEW</b></span
+          ><label class="session-picker"
+            >操作帳號<select
+              id="workspace-account"
+              aria-label="目前操作帳號"
+            ></select></label
+          ><a class="button button-secondary" href="/patient.html">患者預約頁</a
+          ><button
+            id="reset-state"
+            class="button button-danger-outline"
             type="button"
           >
-            重設測試狀態
+            清除本機資料
           </button>
         </div>
       </header>
-
+      <nav class="workspace-nav" aria-label="管理工作臺導覽">
+        <a href="#overview">營運首頁</a
+        ><a href="#appointments-section">預約與回診</a
+        ><a href="#schedule-section" data-admin-nav>排班管理</a
+        ><a href="#case-section" data-admin-nav>個案管理</a
+        ><a href="#accounts-section" data-admin-nav>員工權限</a
+        ><a href="#communications-section" data-admin-nav>患者端與系統</a
+        ><a href="#audit-section">稽核紀錄</a>
+      </nav>
       <main id="main-content" class="dashboard" tabindex="-1">
-        <section class="hero-panel" aria-labelledby="workspace-title">
+        <section
+          class="hero-panel compact-hero"
+          aria-labelledby="workspace-title"
+        >
           <div class="hero-copy">
             <p class="eyebrow">BEAU ESSENCE · OPERATIONS</p>
-            <h1 id="workspace-title">預約營運工作台</h1>
-            <p class="hero-lead">
-              以清楚、可稽核的流程驗證預約、到診與個案管理月度工作量。
-              此頁只使用本機記憶體與合成識別碼。
+            <h1 id="workspace-title">預約營運工作臺</h1>
+            <p>
+              依照「今日待辦 → 預約與回診 → 排班 → 個管 →
+              系統治理」完成診所日常工作。
             </p>
-            <ul class="hero-facts" aria-label="測試安全界線">
-              <li>不收集個人或醫療資料</li>
-              <li>不連線外部行事曆或 Firebase</li>
-              <li>僅限 127.0.0.1 本機測試</li>
+            <ul class="safety-list" aria-label="測試安全界線">
+              <li>資料只保存在這台裝置的瀏覽器</li>
+              <li>無 Firebase 資料庫與外部日曆連線</li>
+              <li>公開預覽，網址持有人皆可存取</li>
             </ul>
           </div>
-
-          <aside class="environment-card" aria-labelledby="environment-heading">
-            <p class="eyebrow">ENVIRONMENT</p>
-            <h2 id="environment-heading">安全測試範圍</h2>
-            <p id="policy-version" class="policy-code">讀取中</p>
-            <p>正式隱私政策、服務規則、個管指派與薪資制度均未在此啟用。</p>
+          <aside class="environment-card">
+            <p class="eyebrow">CURRENT SESSION</p>
+            <h2 id="current-account-label">載入中</h2>
+            <p id="current-account-boundary">這不是正式 Authentication。</p>
+            <span id="schedule-version-chip" class="status-chip is-available"
+              >排班版本載入中</span
+            >
           </aside>
         </section>
-
-        <p
-          id="status-message"
-          class="status-message"
-          role="status"
-          aria-live="polite"
-        >
-          正在載入合成測試狀態。
-        </p>
-
-        <section class="role-console" aria-labelledby="role-console-heading">
-          <div>
-            <p class="eyebrow">ROLE SIMULATOR</p>
-            <h2 id="role-console-heading">營運身分模擬</h2>
-            <p>這不是正式登入；用來驗證管理者與櫃台的最小權限及畫面差異。</p>
-          </div>
-          <label
-            >目前角色
-            <select id="workspace-role">
-              <option value="admin">管理者</option>
-              <option value="front_desk">櫃台員工</option>
-            </select>
-          </label>
-          <div id="current-role-card" class="role-chip" aria-live="polite">
-            讀取角色中
-          </div>
-        </section>
-
-        <aside
+        <div
           id="operations-announcement"
-          class="announcement-banner"
-          aria-live="polite"
-        ></aside>
-
-        <section class="summary-grid" aria-label="流程摘要">
-          <article class="summary-card">
-            <span class="summary-label">可測試時段</span>
-            <strong id="available-count">—</strong>
-            <span class="summary-detail">目前可建立合成預約</span>
-          </article>
-          <article class="summary-card">
-            <span class="summary-label">待處理預約</span>
-            <strong id="confirmed-count">—</strong>
-            <span class="summary-detail">可測試取消或完成到診</span>
-          </article>
-          <article class="summary-card">
-            <span class="summary-label">已完成到診</span>
-            <strong id="completed-count">—</strong>
-            <span class="summary-detail">僅供流程驗證</span>
-          </article>
-          <article class="summary-card summary-card-accent">
-            <span class="summary-label">個管月度患者</span>
-            <strong id="workload-patient-count">—</strong>
-            <span class="summary-detail">不重複的合成患者</span>
-          </article>
-        </section>
-
+          class="operations-announcement"
+          hidden
+        ></div>
+        <div id="status" class="status-banner" role="status" aria-live="polite">
+          正在載入工作臺…
+        </div>
         <section
-          id="booking-flow"
+          id="overview"
           class="workspace-section"
-          aria-labelledby="slots-heading"
+          aria-labelledby="overview-heading"
         >
           <div class="section-heading">
-            <div class="section-title">
-              <span class="step-index" aria-hidden="true">01</span>
-              <div>
-                <p class="eyebrow">BOOKING FLOW</p>
-                <h2 id="slots-heading">選擇測試時段</h2>
-              </div>
-            </div>
-            <p class="section-description">服務：測試諮詢 · 30 分鐘</p>
-          </div>
-          <div id="slots" class="slot-grid" aria-live="polite"></div>
-        </section>
-
-        <section class="workspace-section" aria-labelledby="schedule-heading">
-          <div class="section-heading">
-            <div class="section-title">
-              <span class="step-index" aria-hidden="true">02</span>
-              <div>
-                <p class="eyebrow">AVAILABILITY WORKBENCH</p>
-                <h2 id="schedule-heading">本機排班與日期例外</h2>
-              </div>
+            <div>
+              <p class="eyebrow">DAILY OVERVIEW</p>
+              <h2 id="overview-heading">今日營運與待辦</h2>
             </div>
             <p class="section-description">
-              僅保存於本機記憶體；不等同正式門診表
+              先處理需要人員判斷的事項，再進入設定工作。
             </p>
           </div>
-          <div class="schedule-layout" data-admin-only>
-            <form id="weekly-schedule-form" class="control-card">
-              <h3>批次新增每週開放時段</h3>
-              <p>一次選取多個星期；重複操作可為同一天加入多段不重疊時段。</p>
-              <fieldset class="weekday-picker">
-                <legend>選擇星期</legend>
-                <label
-                  ><input
-                    id="weekday-1"
-                    type="checkbox"
-                    value="1"
-                    checked
-                  />週一</label
-                >
-                <label
-                  ><input
-                    id="weekday-2"
-                    type="checkbox"
-                    value="2"
-                    checked
-                  />週二</label
-                >
-                <label
-                  ><input id="weekday-3" type="checkbox" value="3" />週三</label
-                >
-                <label
-                  ><input id="weekday-4" type="checkbox" value="4" />週四</label
-                >
-                <label
-                  ><input id="weekday-5" type="checkbox" value="5" />週五</label
-                >
-                <label
-                  ><input id="weekday-6" type="checkbox" value="6" />週六</label
-                >
-                <label
-                  ><input id="weekday-0" type="checkbox" value="0" />週日</label
-                >
-              </fieldset>
-              <div class="time-pair">
-                <label
-                  >開始
-                  <input
-                    id="weekly-start"
-                    type="time"
-                    value="09:00"
-                    required /></label
-                ><label
-                  >結束
-                  <input id="weekly-end" type="time" value="12:00" required
-                /></label>
-              </div>
-              <button class="button button-primary" type="submit">
-                批次加入合成時段
-              </button>
-            </form>
-            <form id="date-exception-form" class="control-card">
-              <h3>加開或休診日期</h3>
-              <p>休診優先；加開需填寫一段時間。</p>
-              <label
-                >日期
-                <input
-                  id="exception-date"
-                  type="date"
-                  value="2030-01-10"
-                  required
-              /></label>
-              <label
-                >類型
-                <select id="exception-kind">
-                  <option value="closed">休診</option>
-                  <option value="extra_open">加開</option>
-                </select></label
-              >
-              <div class="time-pair">
-                <label
-                  >開始
-                  <input
-                    id="exception-start"
-                    type="time"
-                    value="18:00" /></label
-                ><label
-                  >結束 <input id="exception-end" type="time" value="20:00"
-                /></label>
-              </div>
-              <button class="button button-secondary" type="submit">
-                儲存日期例外
-              </button>
-            </form>
+          <div class="summary-grid" aria-label="營運摘要">
+            <article class="summary-card">
+              <span>可預約時段</span><strong id="available-count">0</strong
+              ><a href="#appointments-section">查看時段</a>
+            </article>
+            <article class="summary-card">
+              <span>待處理預約</span><strong id="confirmed-count">0</strong
+              ><a href="#appointments-section">處理預約</a>
+            </article>
+            <article class="summary-card">
+              <span>已完成到診</span><strong id="completed-count">0</strong
+              ><a href="#case-section">查看個管</a>
+            </article>
+            <article class="summary-card">
+              <span>個管月度患者</span><strong id="workload-count">0</strong
+              ><a href="#case-section">查看統計</a>
+            </article>
           </div>
-          <div
-            id="schedule-summary"
-            class="schedule-summary"
-            aria-live="polite"
-          ></div>
+          <div id="task-list" class="task-grid" aria-live="polite"></div>
         </section>
 
         <section
+          id="appointments-section"
           class="workspace-section"
           aria-labelledby="appointments-heading"
         >
           <div class="section-heading">
-            <div class="section-title">
-              <span class="step-index" aria-hidden="true">02</span>
-              <div>
-                <p class="eyebrow">VISIT CONTROL</p>
-                <h2 id="appointments-heading">合成預約狀態</h2>
-              </div>
+            <div>
+              <p class="eyebrow">APPOINTMENTS & FOLLOW-UP</p>
+              <h2 id="appointments-heading">預約與回診管理</h2>
             </div>
-            <p class="section-description">模擬病患取消與櫃檯完成到診</p>
+            <p class="section-description">
+              櫃台與管理者共同使用的日常工作區；建立預約、處置到診、確認回診都在這裡。
+            </p>
           </div>
-          <div id="appointments" class="card-list" aria-live="polite"></div>
-        </section>
 
-        <section class="workspace-section" aria-labelledby="workload-heading">
-          <div class="section-heading">
-            <div class="section-title">
-              <span class="step-index" aria-hidden="true">03</span>
-              <div>
-                <p class="eyebrow">CASE MANAGEMENT</p>
-                <h2 id="workload-heading">個案管理月度工作量</h2>
-              </div>
+          <h3 class="subsection-title">建立預約</h3>
+          <form id="booking-form" class="control-card booking-form">
+            <div class="inline-fields">
+              <label
+                >姓名<input
+                  id="booking-name"
+                  type="text"
+                  maxlength="30"
+                  autocomplete="off"
+                  required /></label
+              ><label
+                >電話<input
+                  id="booking-phone"
+                  type="tel"
+                  autocomplete="off"
+                  required
+              /></label>
             </div>
-            <p class="section-description">僅計不重複患者；不含薪資金額</p>
-          </div>
-          <div id="workload" class="card-list" aria-live="polite"></div>
-        </section>
-
-        <section class="workspace-section" aria-labelledby="follow-up-heading">
-          <div class="section-heading">
-            <div class="section-title">
-              <span class="step-index" aria-hidden="true">04</span>
-              <div>
-                <p class="eyebrow">FOLLOW-UP SAFETY</p>
-                <h2 id="follow-up-heading">回診確認狀態</h2>
-              </div>
+            <div class="inline-fields">
+              <label
+                >生日（西元）<input
+                  id="booking-birth"
+                  type="date"
+                  autocomplete="off"
+                  required /></label
+              ><label
+                >身分證字號<input
+                  id="booking-national-id"
+                  type="text"
+                  maxlength="10"
+                  autocomplete="off"
+                  required
+              /></label>
             </div>
-            <p class="section-description">僅供確認流程；系統不做臨床推論</p>
-          </div>
-          <div id="follow-up" class="card-list" aria-live="polite"></div>
-          <form id="follow-up-form" class="follow-up-form" data-admin-only>
+            <div class="inline-fields">
+              <label
+                >掛號別<select id="booking-kind">
+                  <option value="initial">初診（整點／30 分）</option>
+                  <option value="follow_up">回診（15 分／45 分）</option>
+                </select></label
+              ><label>手術種類<select id="booking-item"></select></label>
+            </div>
+            <label class="switch-row"
+              ><input id="booking-nhi-card" type="checkbox" />已帶健保卡</label
+            >
+            <fieldset id="booking-tags" class="tag-picker">
+              <legend>備註（可複選）</legend>
+            </fieldset>
             <label
-              >授權測試決定
-              <select id="follow-up-status">
-                <option value="required">需要回診</option>
-                <option value="not_required">目前無需回診</option>
-              </select>
-            </label>
-            <label
-              >回診目標日期
-              <input id="follow-up-date" type="date" value="2030-01-15"
+              >自填備註<input
+                id="booking-note"
+                type="text"
+                maxlength="120"
+                autocomplete="off"
             /></label>
-            <button class="button button-primary" type="submit" data-admin-only>
-              記錄合成決定
+            <p id="booking-slot-hint" class="section-description">
+              請先於下方「可預約時段」選擇一個時間點。
+            </p>
+            <button class="button button-primary" type="submit">
+              建立預約
             </button>
           </form>
-          <p class="form-boundary">
-            此動作僅模擬授權人員的明確決定；不會代替醫師判斷。
+
+          <h3 class="subsection-title">可預約時段</h3>
+          <div class="filter-bar">
+            <label
+              >時段類型<select id="slot-kind-filter">
+                <option value="initial">初診（整點／30 分）</option>
+                <option value="follow_up">回診（15 分／45 分）</option>
+              </select></label
+            >
+          </div>
+          <div id="slots" class="slot-grid" aria-live="polite"></div>
+
+          <h3 class="subsection-title">預約清單</h3>
+          <div class="filter-bar">
+            <label
+              >狀態篩選<select id="appointment-status-filter">
+                <option value="all">全部狀態</option>
+                <option value="confirmed">預約成立</option>
+                <option value="cancellation_requested">取消待確認</option>
+                <option value="completed">已完成到診</option>
+                <option value="cancelled">已取消</option>
+                <option value="no_show">未到</option>
+              </select></label
+            ><label
+              >掛號別篩選<select id="appointment-kind-filter">
+                <option value="all">全部掛號別</option>
+                <option value="initial">初診</option>
+                <option value="follow_up">回診</option>
+              </select></label
+            ><label
+              >患者篩選<select id="appointment-patient-filter">
+                <option value="all">全部患者</option>
+              </select></label
+            >
+          </div>
+          <div id="appointments" class="card-list" aria-live="polite"></div>
+
+          <h3 class="subsection-title">逐筆回診確認</h3>
+          <p class="section-description">
+            系統不進行臨床推論，只記錄授權人員的明確決定。
           </p>
+          <div id="follow-up-list" class="card-list" aria-live="polite"></div>
         </section>
 
         <section
-          class="workspace-section admin-governance"
+          id="schedule-section"
+          class="workspace-section"
+          aria-labelledby="schedule-heading"
+          data-admin-only
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">SCHEDULE</p>
+              <h2 id="schedule-heading">排班草稿與發布</h2>
+            </div>
+            <p class="section-description">
+              修改先進入草稿；發布後才會改變患者可預約時段。
+            </p>
+          </div>
+          <div class="schedule-toolbar">
+            <span id="schedule-draft-status" class="status-chip"
+              >沒有未發布變更</span
+            ><button
+              id="discard-schedule"
+              class="button button-secondary"
+              type="button"
+            >
+              捨棄草稿</button
+            ><button
+              id="publish-schedule"
+              class="button button-primary"
+              type="button"
+            >
+              檢查並發布排班
+            </button>
+          </div>
+          <div class="schedule-controls">
+            <form id="weekly-form" class="control-card">
+              <h3>批次加入每週時段</h3>
+              <fieldset class="weekday-picker">
+                <legend>選擇星期</legend>
+                <label
+                  ><input id="weekday-1" type="checkbox" value="1" />週一</label
+                ><label
+                  ><input id="weekday-2" type="checkbox" value="2" />週二</label
+                ><label
+                  ><input
+                    id="weekday-3"
+                    type="checkbox"
+                    value="3"
+                    checked
+                  />週三</label
+                ><label
+                  ><input
+                    id="weekday-4"
+                    type="checkbox"
+                    value="4"
+                    checked
+                  />週四</label
+                ><label
+                  ><input
+                    id="weekday-5"
+                    type="checkbox"
+                    value="5"
+                    checked
+                  />週五</label
+                ><label
+                  ><input id="weekday-6" type="checkbox" value="6" />週六</label
+                ><label
+                  ><input id="weekday-0" type="checkbox" value="0" />週日</label
+                >
+              </fieldset>
+              <div class="inline-fields">
+                <label
+                  >開始<input
+                    id="weekly-start"
+                    type="time"
+                    value="12:00"
+                    required /></label
+                ><label
+                  >結束<input
+                    id="weekly-end"
+                    type="time"
+                    value="20:30"
+                    required
+                /></label>
+              </div>
+              <button class="button button-primary" type="submit">
+                加入排班草稿
+              </button>
+            </form>
+            <form id="date-exception-form" class="control-card">
+              <h3>加開或休診日期</h3>
+              <label
+                >日期<input
+                  id="exception-date"
+                  type="date"
+                  value="2030-01-10"
+                  required /></label
+              ><label
+                >類型<select id="exception-kind">
+                  <option value="closed">休診</option>
+                  <option value="extra_open">加開</option>
+                </select></label
+              >
+              <div class="inline-fields">
+                <label
+                  >開始<input
+                    id="exception-start"
+                    type="time"
+                    value="18:00" /></label
+                ><label
+                  >結束<input id="exception-end" type="time" value="20:00"
+                /></label>
+              </div>
+              <button class="button button-secondary" type="submit">
+                加入日期草稿
+              </button>
+            </form>
+            <form id="blocked-times-form" class="control-card">
+              <h3>固定不開放時間</h3>
+              <p class="section-description">
+                醫師固定行程，以逗號分隔。初診限整點／30 分，回診限 15 分／45
+                分。
+              </p>
+              <label
+                >初診不開放<input
+                  id="blocked-initial"
+                  type="text"
+                  autocomplete="off" /></label
+              ><label
+                >回診不開放<input
+                  id="blocked-follow-up"
+                  type="text"
+                  autocomplete="off"
+              /></label>
+              <button class="button button-secondary" type="submit">
+                套用至草稿
+              </button>
+            </form>
+          </div>
+          <div class="schedule-comparison">
+            <article>
+              <h3>已發布排班</h3>
+              <div id="published-schedule"></div>
+            </article>
+            <article>
+              <h3>目前草稿</h3>
+              <div id="draft-schedule"></div>
+            </article>
+          </div>
+        </section>
+
+        <section
+          id="case-section"
+          class="workspace-section"
+          aria-labelledby="case-heading"
+          data-admin-only
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CASE MANAGEMENT</p>
+              <h2 id="case-heading">個案指派與月度工作量</h2>
+            </div>
+            <p class="section-description">
+              完成到診後先指派個管師，再依月份計算不重複患者。
+            </p>
+          </div>
+          <div
+            id="case-assignment-list"
+            class="card-list"
+            aria-live="polite"
+          ></div>
+          <h3 class="subsection-title">月度統計</h3>
+          <div id="workload" class="card-list" aria-live="polite"></div>
+        </section>
+
+        <section
+          id="accounts-section"
+          class="workspace-section"
           aria-labelledby="accounts-heading"
           data-admin-only
         >
           <div class="section-heading">
-            <div class="section-title">
-              <span class="step-index" aria-hidden="true">05</span>
-              <div>
-                <p class="eyebrow">ACCESS GOVERNANCE</p>
-                <h2 id="accounts-heading">測試帳號管理</h2>
-              </div>
+            <div>
+              <p class="eyebrow">ACCESS</p>
+              <h2 id="accounts-heading">員工帳號與權限</h2>
             </div>
             <p class="section-description">
-              模擬建立、停用與恢復；不是真實登入帳號
+              目前只模擬帳號生命週期；正式版由後端 Authentication 驗證。
             </p>
           </div>
           <div class="governance-grid">
             <form id="account-form" class="control-card">
-              <h3>新增合成工作帳號</h3>
+              <h3>新增帳號</h3>
               <label
-                >帳號標籤
-                <input
+                >帳號標籤<input
                   id="account-label"
                   type="text"
                   maxlength="24"
                   value="測試櫃台 B"
-                  required
-              /></label>
-              <label
-                >角色
-                <select id="account-role">
+                  required /></label
+              ><label
+                >角色<select id="account-role">
                   <option value="front_desk">櫃台員工</option>
                   <option value="admin">管理者</option>
                 </select></label
-              >
-              <button class="button button-primary" type="submit">
-                建立合成帳號
+              ><button class="button button-primary" type="submit">
+                建立帳號
               </button>
             </form>
             <div
@@ -365,48 +463,42 @@
         </section>
 
         <section
-          class="workspace-section admin-governance"
-          aria-labelledby="release-heading"
+          id="communications-section"
+          class="workspace-section"
+          aria-labelledby="communications-heading"
           data-admin-only
         >
           <div class="section-heading">
-            <div class="section-title">
-              <span class="step-index" aria-hidden="true">06</span>
-              <div>
-                <p class="eyebrow">RELEASE OPERATIONS</p>
-                <h2 id="release-heading">公告、發布與維護模式</h2>
-              </div>
+            <div>
+              <p class="eyebrow">PATIENT & SYSTEM</p>
+              <h2 id="communications-heading">患者公告、維護與發布紀錄</h2>
             </div>
-            <p class="section-description">開發與營運協作的合成控制面板</p>
+            <p class="section-description">
+              高風險操作提供確認，維護模式支援開始與自動恢復時間。
+            </p>
           </div>
           <div class="release-grid">
             <form id="announcement-form" class="control-card">
               <h3>患者端公告</h3>
               <label
-                >公告狀態
-                <select id="announcement-status">
+                >狀態<select id="announcement-status">
                   <option value="published">發布</option>
                   <option value="draft">草稿</option>
                 </select></label
-              >
-              <label
-                >公告標題
-                <input
+              ><label
+                >標題<input
                   id="announcement-title"
                   type="text"
                   maxlength="40"
-                  required
-              /></label>
-              <label
-                >公告內容
-                <textarea
+                  required /></label
+              ><label
+                >內容<textarea
                   id="announcement-body"
                   maxlength="160"
                   rows="3"
                   required
-                ></textarea>
-              </label>
-              <button class="button button-primary" type="submit">
+                ></textarea></label
+              ><button class="button button-primary" type="submit">
                 儲存公告
               </button>
             </form>
@@ -417,100 +509,95 @@
                   id="maintenance-enabled"
                   type="checkbox"
                 />啟用患者端維護畫面</label
-              >
-              <label
-                >維護標題
-                <input
+              ><label
+                >標題<input
                   id="maintenance-title"
                   type="text"
                   maxlength="40"
-                  required
-              /></label>
-              <label
-                >維護說明
-                <textarea
+                  required /></label
+              ><label
+                >說明<textarea
                   id="maintenance-body"
                   maxlength="160"
                   rows="3"
                   required
-                ></textarea>
-              </label>
-              <label
-                >預計恢復
-                <input id="maintenance-resume-at" type="datetime-local"
-              /></label>
-              <button class="button button-secondary" type="submit">
-                套用維護設定
+                ></textarea></label
+              ><label
+                >預定開始<input
+                  id="maintenance-starts-at"
+                  type="datetime-local" /></label
+              ><label
+                >預計恢復<input
+                  id="maintenance-resume-at"
+                  type="datetime-local" /></label
+              ><button class="button button-secondary" type="submit">
+                預覽並套用
               </button>
             </form>
             <form id="release-form" class="control-card">
               <h3>發布紀錄</h3>
               <label
-                >版本
-                <input
+                >版本<input
                   id="release-version"
                   type="text"
                   maxlength="24"
-                  value="preview-1.1"
-                  required
-              /></label>
-              <label
-                >發布摘要
-                <textarea
+                  value="preview-3.1"
+                  required /></label
+              ><label
+                >摘要<textarea
                   id="release-summary"
                   maxlength="120"
                   rows="3"
                   required
                 >
-完善管理者、櫃台與患者端流程</textarea>
-              </label>
-              <button class="button button-secondary" type="submit">
-                新增發布公告
+初診／回診分流掛號與備註欄位</textarea></label
+              ><button class="button button-secondary" type="submit">
+                新增紀錄
               </button>
             </form>
           </div>
           <div id="release-list" class="release-list" aria-live="polite"></div>
-          <p class="form-boundary">
-            所有文字只供合成測試；不得輸入患者、員工、憑證或其他真實敏感資料。
-          </p>
         </section>
 
-        <section class="event-section" aria-labelledby="events-heading">
-          <div class="event-section-heading">
+        <section
+          id="audit-section"
+          class="workspace-section"
+          aria-labelledby="audit-heading"
+        >
+          <div class="section-heading">
             <div>
               <p class="eyebrow">TRACEABILITY</p>
-              <h2 id="events-heading">稽核與投影意圖</h2>
+              <h2 id="audit-heading">稽核與投影意圖</h2>
             </div>
-            <p>所有內容皆為不含個資的合成事件。</p>
+            <p class="section-description">
+              可依事件類型快速理解目前瀏覽器中的操作歷史。
+            </p>
+          </div>
+          <div class="filter-bar">
+            <label
+              >稽核篩選<select id="audit-filter">
+                <option value="all">全部事件</option>
+                <option value="appointment">預約事件</option>
+                <option value="schedule">排班事件</option>
+                <option value="governance">治理事件</option>
+              </select></label
+            >
           </div>
           <div class="events-grid">
-            <article class="event-panel" aria-labelledby="audit-heading">
-              <div class="event-panel-heading">
-                <span class="panel-icon" aria-hidden="true">✓</span>
-                <div>
-                  <p class="eyebrow">AUDIT</p>
-                  <h3 id="audit-heading">稽核事件</h3>
-                </div>
-              </div>
+            <article class="event-panel">
+              <h3>稽核事件</h3>
               <ol id="audit-events" class="event-list"></ol>
             </article>
-            <article class="event-panel" aria-labelledby="outbox-heading">
-              <div class="event-panel-heading">
-                <span class="panel-icon" aria-hidden="true">↗</span>
-                <div>
-                  <p class="eyebrow">OUTBOX</p>
-                  <h3 id="outbox-heading">日曆投影意圖</h3>
-                </div>
-              </div>
+            <article class="event-panel">
+              <h3>日曆投影意圖</h3>
               <ol id="outbox-jobs" class="event-list"></ol>
             </article>
           </div>
         </section>
       </main>
-
       <footer class="app-footer">
-        <span>一森渼診所 · 本機合成流程驗證</span>
-        <span>無外部連線 · 無真實患者資料</span>
+        <span>一森渼診所 · 預約營運工作臺</span
+        ><span>本機介面只允許 127.0.0.1；線上版無後端，資料留在瀏覽器</span>
       </footer>
     </div>
     <script type="module" src="/admin-bootstrap.js"></script>

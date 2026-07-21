@@ -1,18 +1,18 @@
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 
+// 工作臺的標記自 2026-07-21 起直接寫在 index.html，不再有獨立的 shell 檔。
 const paths = {
-  fallbackHtml: 'apps/web/public/index.html',
-  adminShell: 'apps/web/public/admin-shell.html',
+  adminShell: 'apps/web/public/index.html',
   adminClient: 'apps/web/public/admin-bootstrap.js',
   patientHtml: 'apps/web/public/patient.html',
-  patientClient: 'apps/web/public/patient-app-v2.js',
-  store: 'apps/web/public/staging-store-v2.js',
+  patientClient: 'apps/web/public/patient-app.js',
+  store: 'apps/web/public/store.js',
   adminView: 'apps/web/public/modules/admin-view.js',
   schedule: 'apps/web/public/modules/schedule-engine.js',
   cases: 'apps/web/public/modules/case-management.js',
   permissions: 'apps/web/public/modules/permissions.js',
-  css: 'apps/web/public/admin-v2.css'
+  css: 'apps/web/public/workbench.css'
 };
 const entries = await Promise.all(
   Object.entries(paths).map(async ([key, path]) => [
@@ -31,17 +31,17 @@ function requireText(source, text, description) {
 }
 
 requireText(
-  files.fallbackHtml,
-  'LOCAL TEST ONLY',
-  'Fallback page is missing the local-test label.'
+  files.adminShell,
+  'id="environment-label"',
+  'Workbench no longer states which environment it is running in.'
 );
 requireText(
-  files.fallbackHtml,
+  files.adminShell,
   '127.0.0.1',
-  'Fallback page is missing the loopback boundary.'
+  'Workbench is missing the loopback boundary notice.'
 );
 requireText(
-  files.fallbackHtml,
+  files.adminShell,
   'src="/admin-bootstrap.js"',
   'Root page does not load the modular admin bootstrap.'
 );
@@ -77,7 +77,7 @@ requireText(
 );
 requireText(
   files.adminClient,
-  "import { stagingRequest } from './staging-store-v2.js'",
+  "import { stagingRequest } from './store.js'",
   'Admin client does not use the modular store.'
 );
 requireText(
@@ -87,7 +87,7 @@ requireText(
 );
 requireText(
   files.patientHtml,
-  'src="/patient-app-v2.js"',
+  'src="/patient-app.js"',
   'Patient page does not load the modular client.'
 );
 requireText(
