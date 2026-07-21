@@ -1,0 +1,9 @@
+{
+  "name": "@beauessence/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:test-only": "node server.mjs"
+  }
+}

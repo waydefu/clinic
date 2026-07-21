@@ -1,0 +1,31 @@
+# Dependencies and build outputs
+node_modules/
+.pnpm-store/
+dist/
+.next/
+coverage/
+*-debug.log
+.firebase/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+
+# Patient, payroll, backup, and local exports
+exports/
+backups/
+*.csv
+*.xlsx
+*.sql
+
+# Tooling
+.playwright-cli/
+output/playwright/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

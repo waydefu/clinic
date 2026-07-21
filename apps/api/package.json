@@ -1,0 +1,23 @@
+{
+  "name": "@beauessence/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --import tsx src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@beauessence/contracts": "workspace:*",
+    "@beauessence/domain": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-fastify": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}
