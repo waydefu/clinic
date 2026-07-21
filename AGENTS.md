@@ -31,12 +31,13 @@ real clinic data, active Google Calendar integration or NAS connection.
 ## Mandatory reading order
 
 1. `README.md`
-2. `docs/phase-1-execution-plan.md`
-3. `docs/product/phase-1-decision-register.md`
-4. `docs/product/open-decisions.md`
-5. `docs/architecture/domain-boundaries.md`
-6. Relevant ADR/runbook/privacy/payroll document and the Phase 1 entry
-   checkpoint in `docs/reviews/phase-1-entry-checkpoint-2026-07-20.md`
+2. `docs/phase-1-execution-plan.md` — current scope and prohibitions
+3. `docs/product/phase-1-decision-register.md` — which decisions are approved
+4. `docs/architecture/domain-boundaries.md` — which package owns which rule
+
+Then read the document that covers the boundary you are changing. `docs/README.md`
+is the canonical index of every document and the only list that is maintained;
+do not rely on a copy of it elsewhere.
 
 ## Repository map
 
@@ -98,8 +99,11 @@ corepack pnpm test:rules
 corepack pnpm --filter @beauessence/api dev
 ```
 
-- `pnpm verify` runs the structure check, test-only UI guard, Prettier format
-  check, TypeScript builds and unit tests.
+- `pnpm verify` runs the structure check, test-only UI guard, documentation
+  check, Prettier format check, TypeScript builds and unit tests.
+- `pnpm check:docs` proves every relative markdown link resolves and every
+  document under `docs/` is listed in `docs/README.md`. A new document must be
+  registered in that index or the gate fails.
 - `pnpm format` applies Prettier. Source formatting is enforced, not manual:
   do not hand-compress modules to satisfy a guard.
 - `pnpm check:ui` prevents the test-only dashboard from losing its loopback,

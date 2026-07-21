@@ -70,6 +70,7 @@ const requiredPaths = [
   'scripts/check-test-only-ui-v2.mjs',
   'apps/web/public/styles.css',
   'apps/web/public/favicon.svg',
+  'scripts/check-docs-links.mjs',
   'scripts/run-firestore-rules.mjs',
   'scripts/run-firestore-vitest.mjs',
   'scripts/cleanup-local-firestore-emulator.ps1'

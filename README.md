@@ -21,12 +21,8 @@ NAS connection. The workflow remains isolated from production policy and real da
 2. Read the [Phase 1 execution plan](docs/phase-1-execution-plan.md).
 3. Use the [Phase 1 decision register](docs/product/phase-1-decision-register.md)
    to record formal clinic approvals.
-4. Review [open decisions](docs/product/open-decisions.md), the
-   [API v1 baseline](docs/architecture/api-v1-contract.md), relevant ADRs and
-   the [Phase 1 checkpoints](docs/reviews/phase-1-entry-checkpoint-2026-07-20.md)
-   [test-only verification](docs/reviews/phase-1-test-only-checkpoint-2026-07-20.md)
-   [synthetic case-manager workload check](docs/reviews/phase-1-synthetic-case-workload-checkpoint-2026-07-20.md)
-   and [synthetic online preview checkpoint](docs/reviews/phase-1-synthetic-online-preview-checkpoint-2026-07-21.md).
+4. Use [docs/README.md](docs/README.md) — the canonical index of every
+   architecture, approval, runbook and review document.
 
 ## Commands
 
