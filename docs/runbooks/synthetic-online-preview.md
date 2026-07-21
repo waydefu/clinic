@@ -32,12 +32,21 @@ firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-
 
 ## 驗收
 
-1. 首頁顯示 `ONLINE SYNTHETIC PREVIEW`，並說明網址持有人皆可存取。
-2. 回診頁只顯示 `patient_test_001`，沒有姓名、電話、email、病情或自由文字欄位。
-3. 排班、回診狀態、預約、取消、完成與重設均只影響目前瀏覽器。
-4. 回應包含 CSP、`X-Robots-Tag: noindex`、`Referrer-Policy: no-referrer` 與
+1. 首頁顯示 `ONLINE PREVIEW`，並說明網址持有人皆可存取。
+2. 患者端只出現已核准的欄位：姓名、電話、生日、身分證字號、健保卡與確認勾選。
+   出現任何其他資料輸入欄位即為異常，應停止測試並回頭確認
+   `scripts/check-test-only-ui-v2.mjs` 的允許清單。
+3. 患者端明確告知「資料只會保存在這台裝置的瀏覽器」，且工作臺清單顯示的身分證
+   字號為遮罩形式（如 `A12****789`），不得完整外露。
+4. 排班、預約、取消、改期、未到、到診、回診確認與清除資料均只影響目前瀏覽器。
+5. 回應包含 CSP、`X-Robots-Tag: noindex`、`Referrer-Policy: no-referrer` 與
    `Cache-Control: no-store`。
-5. 不存在對 API、Firestore、Calendar 或其他外部服務的網路要求。
+6. 不存在對 API、Firestore、Calendar 或其他外部服務的網路要求。
+
+> 2026-07-21 起，患者端依專案負責人決定收集姓名、電話、生日與身分證字號。
+> 這些值只存在測試者自己的瀏覽器，不會傳送或保存於診所。決定與其緩解措施記錄
+> 於 [決策登錄](../product/phase-1-decision-register.md)；D-001～D-003 仍為 pending，
+> 因此**不得以此預覽蒐集真實病患資料作為營運用途**。
 
 ## 下架
 

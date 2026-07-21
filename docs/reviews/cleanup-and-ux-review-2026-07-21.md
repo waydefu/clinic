@@ -79,3 +79,28 @@
 
 D-001～D-011 仍為 pending。本次未觸及正式寫入路徑、Authentication、
 Google Calendar、薪資規則或 NAS 整合。
+
+## 線上預覽部署紀錄（2026-07-21）
+
+依 [synthetic-online-preview runbook](../runbooks/synthetic-online-preview.md)
+部署至 `beauessence-clinic-staging` 的到期預覽頻道。
+
+- 指令：`firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`
+- 頻道網址：`https://beauessence-clinic-staging--synthetic-review-gpt86j36.web.app`
+- 到期：2026-07-28
+- **live 頻道未受影響**：部署後 `hosting:channel:list` 顯示 live 最後發布時間
+  仍為當日稍早的 11:05（建站時的空發布），實際存取回應 `Site Not Found`。
+
+驗收結果：
+
+| 項目 | 結果 |
+| --- | --- |
+| 環境標示 | `ONLINE PREVIEW` |
+| 患者端輸入欄位 | 僅允許清單內的 6 項，無其他資料欄位 |
+| 資料去向告知 | 「公開網址持有人可存取 · 資料只保存在本機瀏覽器」 |
+| 安全標頭 | CSP `default-src 'self'`、`X-Robots-Tag: noindex`、`Referrer-Policy: no-referrer`、`Cache-Control: no-store`、`X-Frame-Options: DENY` |
+| 外部請求 | 無。頁面資源來源只有預覽網域本身 |
+| 管理工作臺 | 正常掛載，時段分組與門診時間正確 |
+
+後續：整合規劃見
+[Calendar 與資料庫整合測試計畫](../architecture/calendar-and-database-integration-plan.md)。
