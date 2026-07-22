@@ -12,6 +12,7 @@ import {
   buildWorkload
 } from '../public/modules/case-management.js';
 import {
+  followUpDueTimes,
   generateSlots,
   scheduleImpact
 } from '../public/modules/schedule-engine.js';
@@ -106,6 +107,24 @@ describe('門診時段', () => {
       '17:15'
     ])
       expect(wednesday).not.toContain(blocked);
+  });
+
+  it('回診目標時間依日期產生：營業日給 :15/:45 網格、未營業日為空', () => {
+    const state = initialState();
+    // 2030-01-02 週三 12:00–20:30：第一格 12:15、跳過固定不開放的 13:15。
+    const wednesday = followUpDueTimes(state.schedule, '2030-01-02');
+    expect(wednesday[0]).toBe('12:15');
+    expect(wednesday).not.toContain('13:15');
+    expect(wednesday).toContain('12:45');
+    // 週日未營業與格式錯誤都回空陣列。
+    expect(followUpDueTimes(state.schedule, '2030-01-06')).toEqual([]);
+    expect(followUpDueTimes(state.schedule, 'not-a-date')).toEqual([]);
+    // 休診例外日也不可選。
+    const closed = {
+      ...state.schedule,
+      dateExceptions: [{ date: '2030-01-02', kind: 'closed', intervals: [] }]
+    };
+    expect(followUpDueTimes(closed, '2030-01-02')).toEqual([]);
   });
 
   it('可自訂固定不開放時間', () => {
@@ -368,6 +387,7 @@ describe('櫃台處置', () => {
       {
         status: 'required',
         dueDate: '2030-02-01',
+        dueTime: '12:15',
         tags: ['nose_follow_up', 'half_year_repair'],
         noteText: '追蹤鼻塞',
         certificateCopies: 2
@@ -377,6 +397,32 @@ describe('櫃台處置', () => {
 
     expect(decision.tags).toEqual(['nose_follow_up', 'half_year_repair']);
     expect(decision.certificateCopies).toBe(2);
+    expect(decision.dueTime).toBe('12:15');
+  });
+
+  it('回診目標日期未營業或時間不在回診網格時拒絕', () => {
+    const state = initialState();
+    const appointment = book(state);
+    transitionAppointment(
+      state,
+      appointment.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    const record = (dueDate: string, dueTime: string) =>
+      recordFollowUp(
+        state,
+        appointment.id,
+        { status: 'required', dueDate, dueTime, tags: [] },
+        'admin_test_001'
+      );
+
+    // 2030-02-03 週日、02-04 週一未營業；13:15 是固定不開放；12:00 非 :15/:45。
+    expect(() => record('2030-02-03', '12:15')).toThrow(/未營業/);
+    expect(() => record('2030-02-04', '12:15')).toThrow(/未營業/);
+    expect(() => record('2030-02-01', '13:15')).toThrow(/回診可掛號時間/);
+    expect(() => record('2030-02-01', '12:00')).toThrow(/回診可掛號時間/);
+    expect(record('2030-02-01', '12:45').dueTime).toBe('12:45');
   });
 
   it('拒絕未定義的回診項目與超量診斷書', () => {

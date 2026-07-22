@@ -251,9 +251,19 @@
   .task-grid {
     grid-template-columns: 1fr;
   }
+  /* 手機上三個篩選各佔一整列會吃掉整個畫面：改 2 欄格線，
+     奇數個時最後一個跨滿（單一篩選的 filter-bar 也適用）。 */
   .filter-bar {
-    align-items: stretch;
-    flex-direction: column;
+    display: grid;
+    gap: 0.6rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filter-bar label:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .filter-bar select {
+    min-width: 0;
+    width: 100%;
   }
   .decision-card {
     align-items: stretch;
@@ -265,6 +275,13 @@
   .schedule-display li .text-button {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+  /* 手機版預約卡直向排列，「處置」鈕靠左：選單改往右開，
+     沿用 right:0 會往左展開直接超出螢幕（2026-07-22 實機回報）。 */
+  .action-menu-list {
+    left: 0;
+    right: auto;
+    max-width: calc(100vw - 3rem);
   }
 }
 

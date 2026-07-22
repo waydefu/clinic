@@ -144,7 +144,7 @@ function renderFollowUpChoice() {
   elements['follow-up-choice-status'].textContent =
     followUp === undefined
       ? '尚待醫師確認回診'
-      : `已確認需回診 · 建議日期 ${followUp.dueDate}`;
+      : `已確認需回診 · 建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}`;
 }
 
 function renderServices() {

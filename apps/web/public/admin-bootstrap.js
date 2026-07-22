@@ -15,6 +15,7 @@ import {
 } from './modules/admin-view.js';
 import { confirmDialog } from './modules/confirm-dialog.js';
 import { WORKBENCH_PROCEDURES } from './modules/constants.js';
+import { followUpDueTimes } from './modules/schedule-engine.js';
 import {
   escapeHtml,
   formatFullDate,
@@ -562,6 +563,25 @@ elements['discard-schedule'].addEventListener('click', async () => {
   message('未發布排班變更已捨棄。', 'success', 'schedule-toolbar-status');
 });
 
+// 目標日期改變時，重建當天的回診時間選單；未營業日直接標示，
+// 不留下可送出的空值（送出端 domain 仍會再擋一次）。
+elements['follow-up-list'].addEventListener('change', (event) => {
+  const dateInput = event.target.closest('input[name="dueDate"]');
+  if (dateInput === null) return;
+  const select = dateInput
+    .closest('[data-follow-up-form]')
+    ?.querySelector('select[name="dueTime"]');
+  if (select === undefined || select === null) return;
+  const times = followUpDueTimes(state.schedule, dateInput.value);
+  select.innerHTML = times.length
+    ? times
+        .map((time) => `<option value="${escapeHtml(time)}">${time}</option>`)
+        .join('')
+    : '<option value="">當天未營業</option>';
+  if (times.length === 0)
+    message('目標日期當天未營業，請改選有門診的日期。', 'error');
+});
+
 elements['follow-up-list'].addEventListener('submit', async (event) => {
   const form = event.target.closest('[data-follow-up-form]');
   if (form === null) return;
@@ -571,6 +591,7 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
     await post(`/follow-ups/${form.dataset.followUpForm}`, {
       status: data.get('status'),
       dueDate: data.get('dueDate'),
+      dueTime: data.get('dueTime'),
       tags: data.getAll('tags'),
       noteText: data.get('noteText'),
       certificateCopies: Number(data.get('certificateCopies') ?? 0)

@@ -13,6 +13,7 @@ import {
   ensureWithinActiveBookingLimit
 } from './domain-rules.js';
 import { identityKey, upsertPatient } from './patient-registry.js';
+import { followUpDueTimes } from './schedule-engine.js';
 
 const MAX_NOTE_LENGTH = 120;
 const MAX_CERTIFICATE_COPIES = 10;
@@ -238,8 +239,18 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   if (!['required', 'not_required'].includes(status))
     throw new Error('回診狀態無效。');
   const dueDate = input?.dueDate;
-  if (status === 'required' && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate ?? ''))
-    throw new Error('需要回診時必須設定目標日期。');
+  const dueTime = input?.dueTime;
+  if (status === 'required') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate ?? ''))
+      throw new Error('需要回診時必須設定目標日期。');
+    // 目標日期與時間必須落在可掛號的回診網格上：未營業日、非 :15/:45、
+    // 固定不開放時間都在此擋下，與時段產生共用同一套語意。
+    const validTimes = followUpDueTimes(state.schedule, dueDate);
+    if (validTimes.length === 0)
+      throw new Error('目標日期當天未營業，請改選有門診的日期。');
+    if (!validTimes.includes(dueTime ?? ''))
+      throw new Error('目標時間不在當天的回診可掛號時間內。');
+  }
 
   const tags = selectedTags(input?.tags, FOLLOW_UP_NOTE_TAGS, '回診項目');
   const noteText = optionalNote(input?.noteText);
@@ -253,7 +264,7 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
     appointmentId,
     patientId: appointment.patientId,
     status,
-    ...(status === 'required' ? { dueDate } : {}),
+    ...(status === 'required' ? { dueDate, dueTime } : {}),
     tags,
     noteText,
     certificateCopies: copies,

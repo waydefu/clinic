@@ -7,6 +7,7 @@ import {
   WEEKDAY_LABELS
 } from './constants.js';
 import { maskNationalId } from './patient-registry.js';
+import { followUpDueTimes } from './schedule-engine.js';
 import {
   emptyState,
   escapeHtml,
@@ -247,7 +248,26 @@ export function renderFollowUps(state) {
         (tag) =>
           `<label class="tag-option"><input type="checkbox" name="tags" value="${escapeHtml(tag.id)}" ${decision?.tags?.includes(tag.id) ? 'checked' : ''} />${escapeHtml(tag.label)}</label>`
       ).join('');
-      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '需要回診' : '目前無需回診') : '待確認'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span></div><label>決定<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(decision?.dueDate ?? '2030-01-15')}"></label><fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存逐筆決定</button></form>`;
+      // 目標日期預設為第一個有回診時段的門診日（舊版寫死 2030-01-15，
+      // 其實是週二未營業日）；時間選單只列該日可掛號的回診時間，
+      // 未營業日給出明確提示而不是留下可送出的空值。
+      // slot id 形如 slot_20300102_1215，前段就是台北時間的日期。
+      const firstId = state.slots.find((slot) => slot.kind === 'follow_up')?.id;
+      const firstFollowUpDate =
+        firstId === undefined
+          ? undefined
+          : `${firstId.slice(5, 9)}-${firstId.slice(9, 11)}-${firstId.slice(11, 13)}`;
+      const dueDate = decision?.dueDate ?? firstFollowUpDate ?? '2030-01-16';
+      const dueTimes = followUpDueTimes(state.schedule, dueDate);
+      const dueTimeOptions = dueTimes.length
+        ? dueTimes
+            .map(
+              (time) =>
+                `<option value="${escapeHtml(time)}" ${decision?.dueTime === time ? 'selected' : ''}>${escapeHtml(time)}</option>`
+            )
+            .join('')
+        : '<option value="">當天未營業</option>';
+      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '需要回診' : '目前無需回診') : '待確認'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span></div><label>決定<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label><fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存逐筆決定</button></form>`;
     })
     .join('');
 }

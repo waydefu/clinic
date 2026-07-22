@@ -197,6 +197,24 @@ export function generateSlots(schedule, existingSlots = [], options = {}) {
   );
 }
 
+// 回診「目標日期」當天可掛號的時間點，語意與時段產生完全一致：
+// 每週時段、加開／休診例外、固定不開放與 :15/:45 網格。
+// 未營業日回傳空陣列——呼叫端以此判斷該日期不可選。
+export function followUpDueTimes(schedule, date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) return [];
+  const blockedSet = new Set(blockedTimesOf(schedule).follow_up);
+  const times = [];
+  for (const interval of effectiveIntervals(schedule, date))
+    for (const start of marksWithin(
+      interval,
+      BOOKING_KINDS.FOLLOW_UP,
+      blockedSet,
+      SLOT_DURATION_MINUTES
+    ))
+      times.push(clockText(start));
+  return times;
+}
+
 export function scheduleImpact(appointments, candidateSlots) {
   const ids = new Set(candidateSlots.map((slot) => slot.id));
   return appointments.filter(
