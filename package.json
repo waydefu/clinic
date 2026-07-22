@@ -9,16 +9,18 @@
     "pnpm": "11.9.0"
   },
   "scripts": {
-    "build": "corepack pnpm --recursive --if-present run build",
+    "build": "corepack pnpm --recursive --if-present run build && corepack pnpm run sync:domain",
     "check:structure": "node scripts/check-structure.mjs",
     "check:ui": "node scripts/check-web-ui.mjs",
     "check:docs": "node scripts/check-docs-links.mjs",
     "check:format": "prettier --check .",
     "check:types": "corepack pnpm run build",
+    "sync:domain": "node scripts/sync-domain-vendor.mjs",
+    "check:sync": "node scripts/sync-domain-vendor.mjs --check",
     "format": "prettier --write .",
     "test:unit": "vitest run --exclude tests/firestore/**",
     "test:rules": "node scripts/run-firestore-rules.mjs",
-    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:ui && corepack pnpm run check:docs && corepack pnpm run check:format && corepack pnpm run check:lint && corepack pnpm run check:types && corepack pnpm run test:unit",
+    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:ui && corepack pnpm run check:docs && corepack pnpm run check:format && corepack pnpm run check:lint && corepack pnpm run check:types && corepack pnpm run check:sync && corepack pnpm run test:unit",
     "check:lint": "eslint ."
   },
   "devDependencies": {

@@ -23,11 +23,29 @@ Hosting 的部署路徑改變。**該評估是錯的。**
 
 **不引入 bundler。** 以 `tsc` 既有的輸出作為共用來源：
 
-1. `packages/domain` 編譯出的 `dist/*.js` 直接複製到 `apps/web/public/vendor/domain/`。
-2. 兩個頁面以 import map 將裸名 `@beauessence/domain` 對應到該路徑，讓瀏覽器
-   端的匯入寫法與伺服器端完全一致。
-3. 以雜湊比對檢查確認 vendored 副本與 `dist` 一致，納入 `verify`；不一致即失敗。
+1. `packages/domain` 編譯出的 `dist/*.js` 由 `scripts/sync-domain-vendor.mjs`
+   複製到 `apps/web/public/vendor/domain/`，並寫入 sha256 manifest。
+2. 瀏覽器模組以**相對路徑** `../vendor/domain/index.js` 匯入該產物。
+3. 以雜湊比對檢查（`check:sync`）確認 vendored 副本與 `dist` 一致，且未被手動
+   竄改，納入 `verify`；不一致即失敗。
 4. `apps/web/public/modules/` 中與 `packages/domain` 重複的規則刪除，改為匯入。
+
+### 為何用相對路徑，而非 import map 的裸名
+
+原本的設計是用 import map 讓瀏覽器以裸名 `@beauessence/domain` 匯入，與 Node 端
+寫法一致。**實機測試推翻了這個做法。**
+
+`<script type="importmap">` 是 inline script，受 CSP 的 `script-src` 管制。本專案
+的 CSP 是 `script-src 'self'`（無 `unsafe-inline`，這是先前為防 XSS 刻意訂的），
+因此 import map 被瀏覽器靜默拒絕，裸名無法解析，整個模組圖載入失敗——頁面的
+靜態骨架仍在，但 JS 不會啟動。
+
+替代方案是為 import map 內容計算 CSP hash 並釘進 `server.mjs` 與 `firebase.json`
+兩處的 CSP 標頭。但那會新增一個必須跨兩處同步的漂移面，只為換取「裸名」這個
+外觀。相對路徑不涉及 CSP，單一來源與防漂移的目的完全不變，因此採用相對路徑。
+
+這正是「先實機驗證再定案」的價值：import map 在文件上看起來合理，但與本專案
+既有的安全設定衝突，只有真的在瀏覽器載入才會發現。
 
 ## 原因
 
@@ -53,11 +71,6 @@ backoffSeconds(1, 2, 3, 10)     → 30, 60, 120, 3600
 `module: nodenext` + `moduleResolution: nodenext`，並明確指出該組合會強制加上
 副檔名。換言之，這條路一直是開著的。
 
-### import map 已是可用的瀏覽器標準
-
-Import maps 目前在所有現代瀏覽器可用，可將裸名對應到實際 URL，使瀏覽器與
-Node 的匯入寫法一致，不需要別名解析器。
-
 ### 與 bundler 方案的取捨
 
 | | Bundler（Vite） | 本決定 |
@@ -82,7 +95,9 @@ bundler 能多帶來的好處（打包成單檔、hashed 檔名長期快取、�
 - 瀏覽器端仍保有自己的模組，但只剩下與 UI 相關的部分（渲染、狀態容器、
   表單互動）。純規則一律來自 `packages/domain`。
 - `packages/domain` 從此同時是伺服器與瀏覽器的相依，因此**永遠不得引入
-  Node 專屬 API 或第三方套件**。這條限制需要一個檢查來保護。
+  Node 專屬 API 或第三方套件**。`scripts/sync-domain-vendor.mjs` 會在同步時
+  掃描產物的每一個 import，發現 `node:` 內建或裸名第三方相依即中止，讓錯誤
+  停在建置階段而不是使用者的瀏覽器。
 
 ## 替代方案
 

@@ -1,3 +1,14 @@
+// 防重複的規則與伺服器共用，改從 packages/domain 的編譯產物匯入，避免兩邊
+// 各寫一份而漂移（ADR-0004）。這裡只是接力再匯出，讓其餘瀏覽器模組不變。
+//
+// 直接用相對路徑而非 import map 的裸名：import map 是 inline script，會被本
+// 專案的 CSP（script-src 'self'，無 unsafe-inline）擋掉，實機驗證過。相對路徑
+// 不涉及 CSP，且單一來源與防漂移的目的完全不受影響。
+export {
+  ACTIVE_BOOKING_LIMIT,
+  ACTIVE_BOOKING_STATUSES
+} from '../vendor/domain/index.js';
+
 export const TIME_ZONE = 'Asia/Taipei';
 
 // 診所對外資訊的單一來源。patient.html 的結構化資料與行事曆匯出都以此為準；
@@ -74,13 +85,6 @@ export const APPOINTMENT_STATUS_LABELS = Object.freeze({
   cancelled: '已取消',
   no_show: '未到'
 });
-
-// 同一人同時只允許一筆未結束的預約。
-export const ACTIVE_BOOKING_LIMIT = 1;
-export const ACTIVE_BOOKING_STATUSES = Object.freeze([
-  'confirmed',
-  'cancellation_requested'
-]);
 
 export const ROLE_LABELS = Object.freeze({
   admin: '管理者',

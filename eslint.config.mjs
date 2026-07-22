@@ -17,6 +17,8 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/.firebase/**',
       'output/**',
+      // packages/domain 的編譯產物，同步而來，不重複檢查。
+      'apps/web/public/vendor/**',
       'pnpm-lock.yaml'
     ]
   },

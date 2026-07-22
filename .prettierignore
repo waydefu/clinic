@@ -5,6 +5,9 @@ coverage/
 output/
 pnpm-lock.yaml
 
+# 編譯產物：packages/domain 建置後同步過來的，不由本專案排版。
+apps/web/public/vendor/
+
 # Prose and hand-aligned governance tables are authored by reviewers, not by a
 # formatter. Keeping them out avoids noisy diffs across ADRs and approval packets.
 *.md
