@@ -1427,6 +1427,15 @@ textarea {
     flex-direction: column;
     gap: 0.3rem;
   }
+  /* 44rem 斷點把這些容器設為 2 欄；到了手機寬度每欄只剩約 156px，
+     裡面的表單欄位與統計數字塞不下就溢出容器（2026-07-22 實機回報）。
+     週次選擇維持 2 欄——「週一」這種短標籤放得下。 */
+  .workload-card,
+  .events-grid,
+  .schedule-display,
+  .governance-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---- 時段選擇：依日期分組，時間以 chip 呈現 ---- */

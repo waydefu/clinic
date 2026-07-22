@@ -8,6 +8,8 @@ import type { Firestore } from 'firebase-admin/firestore';
 
 import {
   CalendarError,
+  CLINIC_EVENT_COLOR_ID,
+  clinicEventEnd,
   type CalendarAction,
   type CalendarPort
 } from './calendar-port.js';
@@ -150,6 +152,7 @@ export class OutboxProcessor {
         .get();
 
       const status = (appointment.data()?.['status'] as string) ?? 'unknown';
+      const startsAt = (appointment.data()?.['startsAt'] as string) ?? '';
       let outcome: AttemptOutcome;
       try {
         // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
@@ -159,7 +162,9 @@ export class OutboxProcessor {
           action: actionForStatus(status),
           appointmentId: job.appointmentId,
           appointmentStatus: status,
-          startsAt: (appointment.data()?.['startsAt'] as string) ?? '',
+          startsAt,
+          endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
+          colorId: CLINIC_EVENT_COLOR_ID,
           bookingKind: (appointment.data()?.['bookingKind'] as string) ?? ''
         });
         outcome = { kind: 'succeeded' };

@@ -20,6 +20,31 @@ import { isCalendarEventId } from '@beauessence/domain';
 
 export type CalendarAction = 'upsert' | 'cancel';
 
+/**
+ * 診所端日曆事件的長度（2026-07-22 專案負責人指定）。
+ *
+ * 與時段網格（初診 30 分）刻意不同：時段是掛號的節奏，這裡是醫師日曆上要
+ * 預留的實際看診區塊。患者自己的行事曆則只標記開始時間，不佔區間——見
+ * `apps/web/public/modules/calendar-export.js`。
+ *
+ * 這是測試設定，不代表 D-004（服務時長與容量）已核准。
+ */
+export const CLINIC_EVENT_MINUTES = 60;
+
+/**
+ * 事件顏色。Google Calendar API 用 `colorId`（字串數字），`11` 是番茄紅、
+ * `10` 是羅勒綠。診所端採綠色與品牌一致；紅色在多數行事曆語彙裡代表取消。
+ * 真實用戶端接上時把這個值填進 `events.insert` 的 `colorId`。
+ */
+export const CLINIC_EVENT_COLOR_ID = '10';
+
+/** 依開始時間推算診所端事件的結束時間。 */
+export function clinicEventEnd(startsAt: string): string {
+  return new Date(
+    Date.parse(startsAt) + CLINIC_EVENT_MINUTES * 60_000
+  ).toISOString();
+}
+
 export interface CalendarProjectionRequest {
   /**
    * 固定的冪等鍵，直接作為 Google Calendar 的 event ID：同一鍵重送不得產生
@@ -32,7 +57,11 @@ export interface CalendarProjectionRequest {
   readonly appointmentId: string;
   readonly appointmentStatus: string;
   readonly startsAt: string;
+  /** 診所端事件的結束時間（開始 + `CLINIC_EVENT_MINUTES`）。 */
+  readonly endsAt: string;
   readonly bookingKind: string;
+  /** 傳給 Google 的 `colorId`。 */
+  readonly colorId: string;
 }
 
 export interface CalendarPort {

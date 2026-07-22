@@ -28,9 +28,12 @@ describe('buildIcs', () => {
     expect([...ics.matchAll(/END:VEVENT/g)]).toHaveLength(1);
   });
 
-  it('derives a 30-minute end from the start', () => {
+  // 患者端只標記開始時間：RFC 5545 §3.6.1 規定沒有 DTEND／DURATION 的
+  // VEVENT 就落在 DTSTART 那個時間點上。診所端的一小時區塊是另一條路徑。
+  it('marks only the start time, with no end or duration', () => {
     expect(ics).toContain('DTSTART:20300102T040000Z');
-    expect(ics).toContain('DTEND:20300102T043000Z');
+    expect(ics).not.toContain('DTEND');
+    expect(ics).not.toContain('DURATION');
   });
 
   it('carries a stable UID so re-importing replaces rather than duplicates', () => {
@@ -38,9 +41,15 @@ describe('buildIcs', () => {
     expect(buildIcs(appointment)).toContain('UID:appointment_001@beauessence');
   });
 
-  it('sets a reminder before the appointment', () => {
+  it('reminds the patient one day ahead', () => {
     expect(ics).toContain('BEGIN:VALARM');
-    expect(ics).toContain('TRIGGER:-PT2H');
+    expect(ics).toContain('TRIGGER:-P1D');
+  });
+
+  // COLOR 是 RFC 7986 屬性，支援度因用戶端而異（Google 匯入會忽略）。
+  // 因此它只當加分，不承載必要資訊——這裡只確認有正確送出。
+  it('requests a colour without relying on it', () => {
+    expect(ics).toContain('COLOR:green');
   });
 
   // 許多人的行事曆與家人共用，因此匯出內容與日曆投影適用同一套最小化原則。
@@ -86,9 +95,11 @@ describe('buildGoogleCalendarUrl', () => {
     expect(url.searchParams.get('action')).toBe('TEMPLATE');
   });
 
-  it('passes the same window as the .ics file', () => {
+  // dates 必填且成對，因此起訖同一時間點——Google 會建立零長度事件，
+  // 與 .ics 只給 DTSTART 的效果一致。
+  it('passes a zero-length window, matching the .ics file', () => {
     expect(url.searchParams.get('dates')).toBe(
-      '20300102T040000Z/20300102T043000Z'
+      '20300102T040000Z/20300102T040000Z'
     );
   });
 

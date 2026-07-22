@@ -72,6 +72,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-22 | [Workbench tabs and calendar projection](reviews/workbench-tabs-and-calendar-projection-2026-07-22.md) | Tabbed workbench, in-place note editing, inline case assignment, calendar event ID bound to the appointment, patient/clinic calendar split |
 | 2026-07-22 | [UI theme, dialog and flow review](reviews/ui-theme-dialog-and-flow-review-2026-07-22.md) | Opaque nav, custom confirm dialog, patient back-flow, auto/light/warm/dark themes with AA contrast, standards sweep; calendar-test prerequisites documented |
 | 2026-07-22 | [UI feedback review and remediation](reviews/ui-feedback-review-and-remediation-2026-07-22.md) | Action feedback made visible at the point of action; booking failures now state the reason; duplicate-account and stale-reschedule guards added |
 | 2026-07-21 | [UI/UX audit and rework](reviews/ui-ux-audit-and-rework-2026-07-21.md) | Type scale 17→6, dead styles removed, shell inlined, SEO and calendar export added |

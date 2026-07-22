@@ -6,7 +6,10 @@ import {
   calendarEventIdForAppointment,
   MAX_ATTEMPTS
 } from '@beauessence/domain';
-import { InMemoryCalendar } from '../../apps/worker/src/calendar-port.js';
+import {
+  CLINIC_EVENT_COLOR_ID,
+  InMemoryCalendar
+} from '../../apps/worker/src/calendar-port.js';
 import {
   APPOINTMENTS_COLLECTION,
   OUTBOX_COLLECTION,
@@ -86,6 +89,17 @@ describe('outbox worker', () => {
     expect(summary).toMatchObject({ claimed: 1, completed: 1 });
     expect(calendar.events.size).toBe(1);
     expect((await jobState())?.['status']).toBe('completed');
+  });
+
+  // 診所端的事件是一小時的看診區塊，與患者端「只標記開始時間」不同。
+  it('gives the clinic a one-hour block with the clinic colour', async () => {
+    await seedJob();
+    await processor.processDue(NOW);
+
+    const [event] = [...calendar.events.values()];
+    expect(event?.startsAt).toBe('2030-01-02T04:00:00.000Z');
+    expect(event?.endsAt).toBe('2030-01-02T05:00:00.000Z');
+    expect(event?.colorId).toBe(CLINIC_EVENT_COLOR_ID);
   });
 
   it('uses the projected job key as a valid Calendar event ID', async () => {

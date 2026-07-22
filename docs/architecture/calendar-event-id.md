@@ -109,6 +109,17 @@ worker 依**執行當下**的預約狀態決定動作，而不是工作排入時
 假日曆（`InMemoryCalendar`）已實作這四種語意並提供 `insertCount`、
 `conflictUpdateCount`、`cancelCount`、`cancelMissCount` 供測試斷言。
 
+### 事件的長度與顏色
+
+診所端事件是**開始到結束一小時**（`CLINIC_EVENT_MINUTES`），顏色用 Google 的
+`colorId`（綠色，與品牌一致；紅色在行事曆語彙裡代表取消）。這與時段網格
+（初診 30 分）刻意不同：時段是掛號的節奏，日曆事件是醫師要預留的看診區塊。
+
+患者自己的行事曆走的是另一條路徑（`apps/web/public/modules/calendar-export.js`），
+**只標記開始時間、不佔區間**，提醒設在前一天。兩邊不共用設定值。
+
+以上為 2026-07-22 專案負責人指定的測試設定，不代表 D-004 已核准。
+
 ## 鍵的粒度：為什麼綁預約而不是綁狀態（2026-07-22 決定）
 
 曾經是「每個狀態一把鑰匙」（`calendar_{status}_{id}`）。那等於**每個狀態都在
