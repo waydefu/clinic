@@ -198,7 +198,12 @@ export function renderAppointments(state, filters) {
       const decided = state.followUps.some(
         (item) => item.appointmentId === appointment.id
       );
-      return `<article class="appointment-card"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><p>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</p><span class="code detail-line">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')} · ${escapeHtml(appointment.id)}</span>${detailRow(state, appointment.patientId)}${noteRow}</div></div>${actionMenu(appointment, decided)}<form class="reschedule-form" data-reschedule-form="${escapeHtml(appointment.id)}" hidden><label>改期至<select name="slotId">${rescheduleOptions(state, appointment)}</select></label><button class="button button-primary" type="submit">確認改期</button></form></article>`;
+      // 改期表單只在還能改期的狀態出現，與 actionEnabled 的閘門一致；
+      // 否則按「確認改期」只會被 domain 拒絕，看起來像沒反應。
+      const rescheduleForm = actionEnabled('reschedule', appointment)
+        ? `<form class="reschedule-form" data-reschedule-form="${escapeHtml(appointment.id)}" hidden><label>改期至<select name="slotId">${rescheduleOptions(state, appointment)}</select></label><button class="button button-primary" type="submit">確認改期</button></form>`
+        : '';
+      return `<article class="appointment-card"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><p>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</p><span class="code detail-line">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')} · ${escapeHtml(appointment.id)}</span>${detailRow(state, appointment.patientId)}${noteRow}</div></div>${actionMenu(appointment, decided)}${rescheduleForm}</article>`;
     })
     .join('');
 }

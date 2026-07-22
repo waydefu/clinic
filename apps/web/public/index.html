@@ -202,6 +202,7 @@
             <button class="button button-primary" type="submit">
               建立預約
             </button>
+            <p id="booking-form-status" class="form-status" hidden></p>
           </form>
 
           <h3 class="subsection-title">可預約時段</h3>
@@ -278,6 +279,7 @@
             >
               檢查並發布排班
             </button>
+            <p id="schedule-toolbar-status" class="form-status" hidden></p>
           </div>
           <div class="schedule-controls">
             <form id="weekly-form" class="control-card">
@@ -333,6 +335,7 @@
               <button class="button button-primary" type="submit">
                 加入排班草稿
               </button>
+              <p id="weekly-form-status" class="form-status" hidden></p>
             </form>
             <form id="date-exception-form" class="control-card">
               <h3>加開或休診日期</h3>
@@ -361,6 +364,7 @@
               <button class="button button-secondary" type="submit">
                 加入日期草稿
               </button>
+              <p id="date-exception-form-status" class="form-status" hidden></p>
             </form>
             <form id="blocked-times-form" class="control-card">
               <h3>固定不開放時間</h3>
@@ -382,6 +386,7 @@
               <button class="button button-secondary" type="submit">
                 套用至草稿
               </button>
+              <p id="blocked-times-form-status" class="form-status" hidden></p>
             </form>
           </div>
           <div class="schedule-comparison">
@@ -443,7 +448,6 @@
                   id="account-label"
                   type="text"
                   maxlength="24"
-                  value="測試櫃台 B"
                   required /></label
               ><label
                 >角色<select id="account-role">
@@ -453,6 +457,7 @@
               ><button class="button button-primary" type="submit">
                 建立帳號
               </button>
+              <p id="account-form-status" class="form-status" hidden></p>
             </form>
             <div
               id="account-list"
@@ -501,6 +506,7 @@
               ><button class="button button-primary" type="submit">
                 儲存公告
               </button>
+              <p id="announcement-form-status" class="form-status" hidden></p>
             </form>
             <form id="maintenance-form" class="control-card">
               <h3>維護模式</h3>
@@ -533,6 +539,7 @@
               ><button class="button button-secondary" type="submit">
                 預覽並套用
               </button>
+              <p id="maintenance-form-status" class="form-status" hidden></p>
             </form>
             <form id="release-form" class="control-card">
               <h3>發布紀錄</h3>
@@ -554,6 +561,7 @@
               ><button class="button button-secondary" type="submit">
                 新增紀錄
               </button>
+              <p id="release-form-status" class="form-status" hidden></p>
             </form>
           </div>
           <div id="release-list" class="release-list" aria-live="polite"></div>

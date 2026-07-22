@@ -244,108 +244,125 @@
               為了確認身分與避免重複掛號，需要以下資料。同一位患者同時只能有一筆未完成的預約。
             </p>
           </div>
-          <div class="booking-confirmation-grid">
-            <article
-              class="booking-summary"
-              id="patient-booking-summary"
-            ></article>
-            <p class="form-required-note">
-              標示 <span class="required-mark" aria-hidden="true">*</span>
-              的欄位為必填。
-            </p>
-            <div class="patient-form-grid">
-              <label
-                >姓名<span class="required-mark" aria-hidden="true">*</span>
-                <input
-                  id="patient-name"
-                  type="text"
-                  autocomplete="name"
-                  required
-                  aria-describedby="patient-name-error"
-                />
-                <span
-                  id="patient-name-error"
-                  class="field-error"
-                  role="alert"
-                  hidden
-                ></span>
-              </label>
-              <label
-                >聯絡電話<span class="required-mark" aria-hidden="true">*</span>
-                <input
-                  id="patient-phone"
-                  type="tel"
-                  inputmode="tel"
-                  autocomplete="tel"
-                  required
-                  aria-describedby="patient-phone-error"
-                />
-                <span
-                  id="patient-phone-error"
-                  class="field-error"
-                  role="alert"
-                  hidden
-                ></span>
-              </label>
-              <label
-                >生日（西元）<span class="required-mark" aria-hidden="true"
-                  >*</span
-                >
-                <input
-                  id="patient-birth"
-                  type="date"
-                  autocomplete="bday"
-                  required
-                  aria-describedby="patient-birth-error"
-                />
-                <span
-                  id="patient-birth-error"
-                  class="field-error"
-                  role="alert"
-                  hidden
-                ></span>
-              </label>
-              <label
-                >身分證字號<span class="required-mark" aria-hidden="true"
-                  >*</span
-                >
-                <input
-                  id="patient-national-id"
-                  type="text"
-                  maxlength="10"
-                  autocapitalize="characters"
-                  autocomplete="off"
-                  required
-                  aria-describedby="patient-national-id-error patient-national-id-hint"
-                />
-                <span id="patient-national-id-hint" class="field-hint"
-                  >1 個英文字母加 9 位數字，例如 A123456789</span
-                >
-                <span
-                  id="patient-national-id-error"
-                  class="field-error"
-                  role="alert"
-                  hidden
-                ></span>
-              </label>
-              <label class="consent-preview"
-                ><input id="patient-nhi-card" type="checkbox" />本次會攜帶健保卡
-              </label>
-              <label class="consent-preview"
-                ><input
-                  id="synthetic-confirmation"
-                  type="checkbox"
-                />我了解此頁為測試版本，填寫的資料只會保存在我這台裝置的瀏覽器。</label
-              >
+          <!-- novalidate：驗證由 patient-app.js 一次攤開全部錯誤並聚焦第一欄，
+               不用瀏覽器一次只報一欄的原生氣泡。包 form 讓欄位內按 Enter 可送出。 -->
+          <form id="patient-booking-form" novalidate>
+            <div class="booking-confirmation-grid">
+              <article
+                class="booking-summary"
+                id="patient-booking-summary"
+              ></article>
+              <p class="form-required-note">
+                標示 <span class="required-mark" aria-hidden="true">*</span>
+                的欄位為必填。
+              </p>
+              <div class="patient-form-grid">
+                <label
+                  >姓名<span class="required-mark" aria-hidden="true">*</span>
+                  <input
+                    id="patient-name"
+                    type="text"
+                    autocomplete="name"
+                    required
+                    aria-describedby="patient-name-error"
+                  />
+                  <span
+                    id="patient-name-error"
+                    class="field-error"
+                    role="alert"
+                    hidden
+                  ></span>
+                </label>
+                <label
+                  >聯絡電話<span class="required-mark" aria-hidden="true"
+                    >*</span
+                  >
+                  <input
+                    id="patient-phone"
+                    type="tel"
+                    inputmode="tel"
+                    autocomplete="tel"
+                    required
+                    aria-describedby="patient-phone-error"
+                  />
+                  <span
+                    id="patient-phone-error"
+                    class="field-error"
+                    role="alert"
+                    hidden
+                  ></span>
+                </label>
+                <label
+                  >生日（西元）<span class="required-mark" aria-hidden="true"
+                    >*</span
+                  >
+                  <input
+                    id="patient-birth"
+                    type="date"
+                    autocomplete="bday"
+                    required
+                    aria-describedby="patient-birth-error"
+                  />
+                  <span
+                    id="patient-birth-error"
+                    class="field-error"
+                    role="alert"
+                    hidden
+                  ></span>
+                </label>
+                <label
+                  >身分證字號<span class="required-mark" aria-hidden="true"
+                    >*</span
+                  >
+                  <input
+                    id="patient-national-id"
+                    type="text"
+                    maxlength="10"
+                    autocapitalize="characters"
+                    autocomplete="off"
+                    required
+                    aria-describedby="patient-national-id-error patient-national-id-hint"
+                  />
+                  <span id="patient-national-id-hint" class="field-hint"
+                    >1 個英文字母加 9 位數字，例如 A123456789</span
+                  >
+                  <span
+                    id="patient-national-id-error"
+                    class="field-error"
+                    role="alert"
+                    hidden
+                  ></span>
+                </label>
+                <label class="consent-preview"
+                  ><input
+                    id="patient-nhi-card"
+                    type="checkbox"
+                  />本次會攜帶健保卡
+                </label>
+                <label class="consent-preview"
+                  ><input
+                    id="synthetic-confirmation"
+                    type="checkbox"
+                    aria-describedby="synthetic-confirmation-error"
+                  />我了解此頁為測試版本，填寫的資料只會保存在我這台裝置的瀏覽器。
+                  <span
+                    id="synthetic-confirmation-error"
+                    class="field-error"
+                    role="alert"
+                    hidden
+                  ></span>
+                </label>
+              </div>
             </div>
-          </div>
-          <button
-            id="confirm-patient-booking"
-            class="button button-primary booking-submit"
-            type="button"
-          >
-            送出預約
-          </button>
+            <button
+              id="confirm-patient-booking"
+              class="button button-primary booking-submit"
+              type="submit"
+            >
+              送出預約
+            </button>
+            <p id="patient-submit-status" class="form-status" hidden></p>
+          </form>
         </section>
 
         <section

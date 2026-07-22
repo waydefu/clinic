@@ -47,12 +47,26 @@ function rememberPatient(patientId) {
   }
 }
 
-function message(text, tone = 'info') {
+// 頂端 #patient-status 是唯一的 aria-live 播報點；anchorId 把同一句話放到
+// 送出鈕旁，避免使用者在表單位置看不到失敗原因。
+let inlineStatus;
+function message(text, tone = 'info', anchorId) {
   elements['patient-status'].textContent = text;
   elements['patient-status'].dataset.state = tone;
+  const target = anchorId === undefined ? undefined : elements[anchorId];
+  if (inlineStatus !== undefined && inlineStatus !== target) {
+    inlineStatus.hidden = true;
+    inlineStatus.textContent = '';
+  }
+  inlineStatus = target;
+  if (target !== undefined) {
+    target.textContent = text;
+    target.dataset.state = tone;
+    target.hidden = false;
+  }
 }
 
-function showStep(step) {
+function showStep(step, { focusHeading = true } = {}) {
   panels.forEach((panel) => {
     panel.hidden = Number(panel.dataset.bookingStep) !== step;
   });
@@ -60,10 +74,21 @@ function showStep(step) {
     const value = Number(indicator.dataset.stepIndicator);
     indicator.classList.toggle('is-active', value === step);
     indicator.classList.toggle('is-complete', value < step);
+    // 目前步驟不能只靠 class 的顏色表達，輔助科技讀 aria-current。
+    if (value === step) indicator.setAttribute('aria-current', 'step');
+    else indicator.removeAttribute('aria-current');
   });
-  document
-    .querySelector(`[data-booking-step="${step}"]`)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const panel = document.querySelector(`[data-booking-step="${step}"]`);
+  panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!focusHeading || panel === null) return;
+  // 換步驟後把鍵盤焦點帶到新步驟的標題，鍵盤與報讀使用者才不會停在原地。
+  const heading = document.getElementById(
+    panel.getAttribute('aria-labelledby') ?? ''
+  );
+  if (heading !== null) {
+    heading.setAttribute('tabindex', '-1');
+    heading.focus({ preventScroll: true });
+  }
 }
 
 function latestFollowUp() {
@@ -312,10 +337,13 @@ for (const field of [
   'synthetic-confirmation'
 ])
   elements[field].addEventListener('input', updateSubmitState);
-elements['synthetic-confirmation'].addEventListener(
-  'change',
-  updateSubmitState
-);
+elements['synthetic-confirmation'].addEventListener('change', () => {
+  if (elements['synthetic-confirmation'].checked) {
+    elements['synthetic-confirmation-error'].hidden = true;
+    elements['synthetic-confirmation-error'].textContent = '';
+  }
+  updateSubmitState();
+});
 // 離開欄位才提示該欄錯誤（on-blur）；輸入中只更新送出按鈕，避免邊打邊被罵。
 for (const field of formFields)
   elements[field].addEventListener('blur', () => {
@@ -323,7 +351,8 @@ for (const field of formFields)
     updateSubmitState();
   });
 
-elements['confirm-patient-booking'].addEventListener('click', async () => {
+elements['patient-booking-form'].addEventListener('submit', async (event) => {
+  event.preventDefault();
   // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
   for (const field of formFields) touched.add(field);
   const errors = showFieldErrors();
@@ -334,12 +363,24 @@ elements['confirm-patient-booking'].addEventListener('click', async () => {
     const target = elements[fieldToId[firstProblem]];
     target.focus();
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    message('有欄位需要修正，請看欄位下方的提示。', 'error');
+    message(
+      '尚未送出：有欄位需要修正，請看欄位下方的提示。',
+      'error',
+      'patient-submit-status'
+    );
     return;
   }
   if (!elements['synthetic-confirmation'].checked) {
+    // 錯誤必須以文字說明，不能只默默移動焦點——那看起來像按了沒反應。
+    elements['synthetic-confirmation-error'].textContent =
+      '請勾選此項才能送出：確認資料只保存在這台裝置的瀏覽器。';
+    elements['synthetic-confirmation-error'].hidden = false;
     elements['synthetic-confirmation'].focus();
-    message('請先勾選下方的確認項目。', 'error');
+    message(
+      '尚未送出：請先勾選資料保存的確認項目。',
+      'error',
+      'patient-submit-status'
+    );
     return;
   }
 
@@ -350,7 +391,7 @@ elements['confirm-patient-booking'].addEventListener('click', async () => {
   submitButton.disabled = true;
   submitButton.dataset.busy = 'true';
   submitButton.textContent = '送出中…';
-  message('正在送出預約，請稍候。', 'info');
+  message('正在送出預約，請稍候。', 'info', 'patient-submit-status');
   try {
     state = await stagingRequest('/bookings', {
       method: 'POST',
@@ -386,9 +427,10 @@ elements['confirm-patient-booking'].addEventListener('click', async () => {
       `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`;
     renderAll();
     showStep(4);
-    message('預約已建立。', 'success');
+    message(`預約已建立：${appointment.id}。`, 'success');
   } catch (error) {
-    message(error.message, 'error');
+    // 失敗原因要出現在送出鈕旁；只寫在頁面頂端等於「按了沒反應」。
+    message(`未送出預約：${error.message}`, 'error', 'patient-submit-status');
   } finally {
     submitButton.disabled = false;
     delete submitButton.dataset.busy;
@@ -451,7 +493,8 @@ if (isOnline) {
 try {
   state = await stagingRequest('/state');
   renderAll();
-  showStep(1);
+  // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。
+  showStep(1, { focusHeading: false });
   message('已載入診所發布的門診時段。', 'success');
 } catch (error) {
   message(

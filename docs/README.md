@@ -71,6 +71,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-22 | [UI feedback review and remediation](reviews/ui-feedback-review-and-remediation-2026-07-22.md) | Action feedback made visible at the point of action; booking failures now state the reason; duplicate-account and stale-reschedule guards added |
 | 2026-07-21 | [UI/UX audit and rework](reviews/ui-ux-audit-and-rework-2026-07-21.md) | Type scale 17→6, dead styles removed, shell inlined, SEO and calendar export added |
 | 2026-07-21 | [Cleanup, security and UX review](reviews/cleanup-and-ux-review-2026-07-21.md) | Dead exports removed, XSS verified in a browser, slot picker and form validation reworked against published guidance |
 | 2026-07-21 | [Codebase analysis and remediation](reviews/codebase-analysis-and-remediation-2026-07-21.md) | Version control established; loopback, permission, CSP and formatting gaps closed |

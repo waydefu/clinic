@@ -29,6 +29,49 @@
   background: var(--forest-light);
   color: var(--forest-dark);
 }
+/* 全域狀態列：sticky 讓它在整頁任何捲動位置都看得到。長頁面上只放頂端
+   等於沒有回饋——操作者在表單位置看不到成功或失敗。top 需讓出上方導覽列。 */
+.status-banner {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.45rem 1rem rgba(20, 53, 41, 0.08);
+  color: var(--ink-muted);
+  display: flex;
+  font-size: var(--text-micro);
+  font-weight: 700;
+  margin: 0.75rem 0 1rem;
+  min-height: 2.9rem;
+  padding: 0.65rem 1rem;
+  position: sticky;
+  top: 4.1rem;
+  z-index: 7;
+}
+.status-banner::before {
+  background: var(--forest);
+  border-radius: 50%;
+  content: '';
+  flex: 0 0 auto;
+  height: 0.48rem;
+  margin-right: 0.65rem;
+  width: 0.48rem;
+}
+.status-banner[data-state='success'] {
+  background: #f1faf4;
+  color: var(--forest-dark);
+}
+.status-banner[data-state='error'] {
+  background: var(--danger-light);
+  border-color: #f0cbcb;
+  color: var(--danger);
+}
+.status-banner[data-state='error']::before {
+  background: var(--danger);
+}
+.schedule-toolbar .form-status {
+  flex-basis: 100%;
+}
 .session-picker {
   align-items: center;
   color: var(--ink-muted);

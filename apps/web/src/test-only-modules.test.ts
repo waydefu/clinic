@@ -16,6 +16,7 @@ import {
   scheduleImpact
 } from '../public/modules/schedule-engine.js';
 import { initialState } from '../public/modules/state-schema.js';
+import { createAccount } from '../public/modules/workspace-domain.js';
 
 const PATIENT_A = {
   name: '測試患者甲',
@@ -133,6 +134,22 @@ describe('門診時段', () => {
     const empty = { ...state.schedule, weeklyAvailability: [] };
     expect(
       scheduleImpact(state.appointments, generateSlots(empty))
+    ).toHaveLength(1);
+  });
+});
+
+describe('帳號治理', () => {
+  it('拒絕重複的帳號標籤（標籤是清單上辨識帳號的唯一依據）', () => {
+    const state = initialState();
+    createAccount(state, { label: '測試櫃台 B', role: 'front_desk' });
+    expect(() =>
+      createAccount(state, { label: '測試櫃台 B', role: 'front_desk' })
+    ).toThrowError(/已有名稱/);
+    expect(() =>
+      createAccount(state, { label: ' 測試櫃台 B ', role: 'admin' })
+    ).toThrowError(/已有名稱/);
+    expect(
+      state.workspace.accounts.filter((item) => item.label === '測試櫃台 B')
     ).toHaveLength(1);
   });
 });

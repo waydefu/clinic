@@ -19,11 +19,15 @@ export function switchAccount(state, accountId) {
 export function createAccount(state, input) {
   if (!Object.hasOwn(ROLE_LABELS, input.role))
     throw new Error('合成角色無效。');
+  const label = safeText(input.label, '帳號標籤', 24);
+  // 標籤是人在清單上辨識帳號的唯一依據，重複會讓停用／恢復按錯人。
+  if (state.workspace.accounts.some((item) => item.label === label))
+    throw new Error(`已有名稱為「${label}」的帳號，請改用其他標籤。`);
   const suffix = String(state.workspace.accountSequence).padStart(3, '0');
   const prefix = input.role === 'admin' ? 'admin' : 'front_desk';
   state.workspace.accounts.push({
     id: `${prefix}_test_${suffix}`,
-    label: safeText(input.label, '帳號標籤', 24),
+    label,
     role: input.role,
     status: 'active'
   });

@@ -72,6 +72,13 @@ D-001～D-011 尚未核准，因此本頁的政策、角色與文字都不得被
 | 錯誤訊息以 `aria-describedby` 綁定欄位，並帶 `role="alert"` 與 `aria-invalid` | 螢幕報讀者需要知道是哪一欄、錯在哪 | `patient.html` |
 | 必填以文字說明加符號標示，不只用顏色 | 同上 | `.required-mark` 與表單說明 |
 | 錯誤訊息要說「怎麼填才對」而非只說「格式錯誤」 | 可行動的訊息才有用 | `patient-registry.js` 的 `fieldErrors` |
+| **回饋出現在操作點**：每個表單旁有就地 `form-status`，成功與失敗原因顯示在剛按下的按鈕旁；全域狀態列為 sticky，任何捲動位置皆可見 | 長頁面上只寫頁首等於沒有回饋，體感是「按了沒反應」（2026-07-22 實測 838px 外） | `message(text, tone, anchorId)`（兩端）、`.status-banner`／`.status-message` sticky |
+| 預約失敗必須寫出原因（「未建立預約：…」），成功寫出編號與時間 | 使用者要能不捲動就確認結果與補救方向 | `admin-bootstrap.js`、`patient-app.js` 的 booking handlers |
+| 每個必勾項目未勾時要有文字錯誤，不得只移動焦點 | 沒有文字的拒絕看起來像沒反應（WCAG 3.3.1） | `synthetic-confirmation-error` |
+| 步驟切換把焦點移到新步驟標題，指示器帶 `aria-current="step"` | 鍵盤與報讀使用者不會停留在原地迷失 | `patient-app.js` 的 `showStep` |
+| 患者資料步驟包在 `<form novalidate>` 內，Enter 可送出並走同一套驗證 | 鍵盤慣例；novalidate 保留「一次攤開全部錯誤」模式 | `patient.html` 的 `patient-booking-form` |
+| 狀態不允許的操作不渲染或停用（含改期表單），與 `actionEnabled` 同一閘門 | 可按但必被拒絕的按鈕等於「按了沒反應」 | `admin-view.js` 的 `renderAppointments` |
+| 建立類表單成功後清空輸入；同名帳號在狀態轉換層拒絕 | 防止殘留值連按兩次建立重複資料 | `workspace-domain.js` 的 `createAccount` |
 
 驗證方式：`corepack pnpm check:ui` 檢查結構與安全界線；版面與焦點行為需以
 瀏覽器在桌面與 375px 寬度各確認一次，且不得出現水平溢出。
@@ -98,6 +105,8 @@ corepack pnpm verify
 實機瀏覽器需覆蓋：管理者／櫃台切換、建立預約、五種櫃台處置、改期、回診確認、排班發布、公告與維護啟閉、患者四步驟預約、行事曆匯出、桌面與 375px 手機版，以及 0 console errors／warnings。
 
 ## 最近驗證
+
+2026-07-22 於本機實機驗證（詳見[回饋可見性檢查](../reviews/ui-feedback-review-and-remediation-2026-07-22.md)）：工作臺與患者端全部建立／失敗路徑的就地回饋、sticky 狀態列、帳號重複防護、完成後改期閘門、患者端焦點與 `aria-current`、Enter 送出、主控台 0 errors／0 warnings。
 
 2026-07-21 於本機與 Hosting preview 實機驗證：管理者／櫃台權限差異、初診與回診分流時段、防重複預約、改期、未到、到診、回診項目與診斷書份數、逐欄表單驗證與焦點管理、`.ics` 內容、桌面與 375px 版面、主控台 0 errors／0 warnings。
 

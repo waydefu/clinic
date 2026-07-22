@@ -14,7 +14,12 @@ import {
   renderWorkload
 } from './modules/admin-view.js';
 import { WORKBENCH_PROCEDURES } from './modules/constants.js';
-import { escapeHtml, roleLabel } from './modules/ui-format.js';
+import {
+  escapeHtml,
+  formatFullDate,
+  formatTime,
+  roleLabel
+} from './modules/ui-format.js';
 
 // 工作臺的標記與樣式直接寫在 index.html 裡，不再於執行期 fetch 一份 shell
 // 再抽換 document.body。那個做法多一次往返、會讓畫面從假骨架跳成真介面，
@@ -29,9 +34,23 @@ let filters = { status: 'all', kind: 'all', patientId: 'all' };
 let slotKind = 'initial';
 let selectedSlotId;
 
-function message(text, tone = 'info') {
+// 頂端 #status 是唯一的 aria-live 播報點；anchorId 則把同一句話放到剛按下的
+// 按鈕旁邊。長頁面上只寫頂端等於沒有回饋——操作者看不到成功或失敗的原因。
+let inlineStatus;
+function message(text, tone = 'info', anchorId) {
   elements.status.textContent = text;
   elements.status.dataset.state = tone;
+  const target = anchorId === undefined ? undefined : elements[anchorId];
+  if (inlineStatus !== undefined && inlineStatus !== target) {
+    inlineStatus.hidden = true;
+    inlineStatus.textContent = '';
+  }
+  inlineStatus = target;
+  if (target !== undefined) {
+    target.textContent = text;
+    target.dataset.state = tone;
+    target.hidden = false;
+  }
 }
 
 async function post(path, body = {}) {
@@ -184,11 +203,11 @@ function render() {
   elements['outbox-jobs'].innerHTML = renderOutbox(state);
 }
 
-async function updateDraft(mutator, text) {
+async function updateDraft(mutator, text, anchorId) {
   const draft = structuredClone(state.scheduleDraft);
   mutator(draft);
   await post('/schedule/draft', draft);
-  message(text, 'success');
+  message(text, 'success', anchorId);
 }
 
 function parseTimeList(value) {
@@ -254,19 +273,28 @@ elements.slots.addEventListener('click', (event) => {
   selectedSlotId = button.dataset.selectSlot;
   elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
   renderBookingForm();
-  message('已選擇時段，請確認上方預約資料後建立。', 'success');
+  message(
+    '已選擇時段，請確認上方預約資料後建立。',
+    'success',
+    'booking-form-status'
+  );
 });
 
 elements['booking-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   if (selectedSlotId === undefined)
-    return message('請先於「可預約時段」選擇一個時間點。', 'error');
+    return message(
+      '尚未建立：請先於下方「可預約時段」選擇一個時間點。',
+      'error',
+      'booking-form-status'
+    );
   const noteTags = [
     ...elements['booking-tags'].querySelectorAll('[data-booking-tag]:checked')
   ].map((item) => item.dataset.bookingTag);
+  const bookedSlotId = selectedSlotId;
   try {
     await post('/bookings', {
-      slotId: selectedSlotId,
+      slotId: bookedSlotId,
       bookingKind: elements['booking-kind'].value,
       itemId: elements['booking-item'].value,
       noteTags,
@@ -280,12 +308,22 @@ elements['booking-form'].addEventListener('submit', async (event) => {
       },
       origin: 'staff'
     });
+    // 成功訊息要講清楚建立了哪一筆，操作者不必捲到預約清單才能確認。
+    const created = state.appointments.find(
+      (item) => item.slotId === bookedSlotId && item.status === 'confirmed'
+    );
     selectedSlotId = undefined;
     elements['booking-form'].reset();
     render();
-    message('預約已建立。', 'success');
+    message(
+      created === undefined
+        ? '預約已建立，可於下方「預約清單」查看。'
+        : `預約已建立：${created.id} · ${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`,
+      'success',
+      'booking-form-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未建立預約：${error.message}`, 'error', 'booking-form-status');
   }
 });
 
@@ -352,71 +390,92 @@ elements['weekly-form'].addEventListener('submit', async (event) => {
   const weekdays = [
     ...document.querySelectorAll('.weekday-picker input:checked')
   ].map((item) => Number(item.value));
-  if (weekdays.length === 0) return message('至少選擇一個星期。', 'error');
+  if (weekdays.length === 0)
+    return message(
+      '未加入草稿：至少選擇一個星期。',
+      'error',
+      'weekly-form-status'
+    );
   try {
-    await updateDraft((draft) => {
-      for (const weekday of weekdays) {
-        let entry = draft.weeklyAvailability.find(
-          (item) => item.weekday === weekday
-        );
-        if (entry === undefined) {
-          entry = { weekday, intervals: [] };
-          draft.weeklyAvailability.push(entry);
+    await updateDraft(
+      (draft) => {
+        for (const weekday of weekdays) {
+          let entry = draft.weeklyAvailability.find(
+            (item) => item.weekday === weekday
+          );
+          if (entry === undefined) {
+            entry = { weekday, intervals: [] };
+            draft.weeklyAvailability.push(entry);
+          }
+          entry.intervals.push({
+            startLocalTime: elements['weekly-start'].value,
+            endLocalTime: elements['weekly-end'].value
+          });
+          entry.intervals.sort((a, b) =>
+            a.startLocalTime.localeCompare(b.startLocalTime)
+          );
         }
-        entry.intervals.push({
-          startLocalTime: elements['weekly-start'].value,
-          endLocalTime: elements['weekly-end'].value
-        });
-        entry.intervals.sort((a, b) =>
-          a.startLocalTime.localeCompare(b.startLocalTime)
-        );
-      }
-      draft.weeklyAvailability.sort((a, b) => a.weekday - b.weekday);
-    }, `已為 ${weekdays.length} 個星期加入排班草稿。`);
+        draft.weeklyAvailability.sort((a, b) => a.weekday - b.weekday);
+      },
+      `已為 ${weekdays.length} 個星期加入排班草稿。`,
+      'weekly-form-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未加入草稿：${error.message}`, 'error', 'weekly-form-status');
   }
 });
 
 elements['date-exception-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
-    await updateDraft((draft) => {
-      const kind = elements['exception-kind'].value;
-      const entry = {
-        date: elements['exception-date'].value,
-        kind,
-        intervals:
-          kind === 'extra_open'
-            ? [
-                {
-                  startLocalTime: elements['exception-start'].value,
-                  endLocalTime: elements['exception-end'].value
-                }
-              ]
-            : []
-      };
-      draft.dateExceptions = [
-        ...draft.dateExceptions.filter((item) => item.date !== entry.date),
-        entry
-      ].sort((a, b) => a.date.localeCompare(b.date));
-    }, '日期例外已加入排班草稿。');
+    await updateDraft(
+      (draft) => {
+        const kind = elements['exception-kind'].value;
+        const entry = {
+          date: elements['exception-date'].value,
+          kind,
+          intervals:
+            kind === 'extra_open'
+              ? [
+                  {
+                    startLocalTime: elements['exception-start'].value,
+                    endLocalTime: elements['exception-end'].value
+                  }
+                ]
+              : []
+        };
+        draft.dateExceptions = [
+          ...draft.dateExceptions.filter((item) => item.date !== entry.date),
+          entry
+        ].sort((a, b) => a.date.localeCompare(b.date));
+      },
+      '日期例外已加入排班草稿。',
+      'date-exception-form-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(
+      `未加入草稿：${error.message}`,
+      'error',
+      'date-exception-form-status'
+    );
   }
 });
 
 elements['blocked-times-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
-    await updateDraft((draft) => {
-      draft.blockedTimes = {
-        initial: parseTimeList(elements['blocked-initial'].value),
-        follow_up: parseTimeList(elements['blocked-follow-up'].value)
-      };
-    }, '固定不開放時間已加入排班草稿。');
+    await updateDraft(
+      (draft) => {
+        draft.blockedTimes = {
+          initial: parseTimeList(elements['blocked-initial'].value),
+          follow_up: parseTimeList(elements['blocked-follow-up'].value)
+        };
+      },
+      '固定不開放時間已加入排班草稿。',
+      'blocked-times-form-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未套用：${error.message}`, 'error', 'blocked-times-form-status');
   }
 });
 
@@ -426,23 +485,28 @@ elements['draft-schedule'].addEventListener('click', async (event) => {
   if (weekly === null && exception === null) return;
   if (!window.confirm('確定從排班草稿刪除此設定？')) return;
   try {
-    await updateDraft((draft) => {
-      if (weekly !== null) {
-        const [weekdayText, indexText] = weekly.dataset.removeWeekly.split(':');
-        const entry = draft.weeklyAvailability.find(
-          (item) => item.weekday === Number(weekdayText)
-        );
-        entry.intervals.splice(Number(indexText), 1);
-        draft.weeklyAvailability = draft.weeklyAvailability.filter(
-          (item) => item.intervals.length > 0
-        );
-      } else
-        draft.dateExceptions = draft.dateExceptions.filter(
-          (item) => item.date !== exception.dataset.removeException
-        );
-    }, '排班草稿項目已刪除。');
+    await updateDraft(
+      (draft) => {
+        if (weekly !== null) {
+          const [weekdayText, indexText] =
+            weekly.dataset.removeWeekly.split(':');
+          const entry = draft.weeklyAvailability.find(
+            (item) => item.weekday === Number(weekdayText)
+          );
+          entry.intervals.splice(Number(indexText), 1);
+          draft.weeklyAvailability = draft.weeklyAvailability.filter(
+            (item) => item.intervals.length > 0
+          );
+        } else
+          draft.dateExceptions = draft.dateExceptions.filter(
+            (item) => item.date !== exception.dataset.removeException
+          );
+      },
+      '排班草稿項目已刪除。',
+      'schedule-toolbar-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未刪除：${error.message}`, 'error', 'schedule-toolbar-status');
   }
 });
 
@@ -455,16 +519,20 @@ elements['publish-schedule'].addEventListener('click', async () => {
     return;
   try {
     await post('/schedule/publish');
-    message('排班已發布，患者端可預約時段已同步更新。', 'success');
+    message(
+      '排班已發布，患者端可預約時段已同步更新。',
+      'success',
+      'schedule-toolbar-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未發布：${error.message}`, 'error', 'schedule-toolbar-status');
   }
 });
 
 elements['discard-schedule'].addEventListener('click', async () => {
   if (!window.confirm('確定捨棄所有未發布的排班變更？')) return;
   await post('/schedule/discard');
-  message('未發布排班變更已捨棄。', 'success');
+  message('未發布排班變更已捨棄。', 'success', 'schedule-toolbar-status');
 });
 
 elements['follow-up-list'].addEventListener('submit', async (event) => {
@@ -504,14 +572,21 @@ elements['case-assignment-list'].addEventListener('submit', async (event) => {
 
 elements['account-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
+  const label = elements['account-label'].value;
   try {
     await post('/workspace/accounts', {
-      label: elements['account-label'].value,
+      label,
       role: elements['account-role'].value
     });
-    message('帳號已建立。', 'success');
+    // 成功即清空輸入，避免殘留的標籤被再按一次送出。
+    elements['account-form'].reset();
+    message(
+      `帳號「${label.trim()}」已建立。`,
+      'success',
+      'account-form-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未建立帳號：${error.message}`, 'error', 'account-form-status');
   }
 });
 
@@ -535,9 +610,9 @@ elements['announcement-form'].addEventListener('submit', async (event) => {
       title: elements['announcement-title'].value,
       body: elements['announcement-body'].value
     });
-    message('患者公告已儲存。', 'success');
+    message('患者公告已儲存。', 'success', 'announcement-form-status');
   } catch (error) {
-    message(error.message, 'error');
+    message(`未儲存：${error.message}`, 'error', 'announcement-form-status');
   }
 });
 
@@ -560,10 +635,11 @@ elements['maintenance-form'].addEventListener('submit', async (event) => {
       state.maintenanceActive
         ? '患者端維護模式目前生效中。'
         : '維護排程已儲存，目前尚未生效或已自動恢復。',
-      'success'
+      'success',
+      'maintenance-form-status'
     );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未套用：${error.message}`, 'error', 'maintenance-form-status');
   }
 });
 
@@ -574,9 +650,13 @@ elements['release-form'].addEventListener('submit', async (event) => {
       version: elements['release-version'].value,
       summary: elements['release-summary'].value
     });
-    message('發布紀錄已新增；未觸發真實部署。', 'success');
+    message(
+      '發布紀錄已新增；未觸發真實部署。',
+      'success',
+      'release-form-status'
+    );
   } catch (error) {
-    message(error.message, 'error');
+    message(`未新增：${error.message}`, 'error', 'release-form-status');
   }
 });
 
