@@ -1,3 +1,7 @@
+import {
+  assertSlotBookable,
+  assertWithinActiveBookingLimit
+} from './appointment-rules.js';
 import { DomainError } from './errors.js';
 
 /**
@@ -121,33 +125,17 @@ export function planBooking(
   assertIdentifier(request.idempotencyKey, 'idempotencyKey');
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
 
-  if (slot === undefined) {
-    throw new DomainError('SLOT_UNAVAILABLE', 'The slot does not exist.');
-  }
-  if (slot.id !== request.slotId) {
+  // The slot/request-id mismatch is specific to this write path (the caller
+  // passed a slot that is not the one it named), so it stays here. The booking
+  // rules themselves come from the shared assertions.
+  if (slot !== undefined && slot.id !== request.slotId) {
     throw new DomainError(
       'INVALID_VALUE',
       'The slot does not match the request.'
     );
   }
-  if (slot.reservationId !== undefined) {
-    throw new DomainError(
-      'SLOT_UNAVAILABLE',
-      'A reserved slot cannot be reserved again.'
-    );
-  }
-  if (slot.kind !== request.bookingKind) {
-    throw new DomainError(
-      'BOOKING_KIND_MISMATCH',
-      'The slot belongs to a different booking kind.'
-    );
-  }
-  if (activeBookingCount >= ACTIVE_BOOKING_LIMIT) {
-    throw new DomainError(
-      'DUPLICATE_ACTIVE_BOOKING',
-      'The patient already has an active booking.'
-    );
-  }
+  assertSlotBookable(slot, request.bookingKind);
+  assertWithinActiveBookingLimit(activeBookingCount);
 
   const appointment: PlannedAppointment = {
     id: request.appointmentId,

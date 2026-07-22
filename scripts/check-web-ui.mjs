@@ -8,6 +8,7 @@ const paths = {
   patientHtml: 'apps/web/public/patient.html',
   patientClient: 'apps/web/public/patient-app.js',
   store: 'apps/web/public/store.js',
+  domainRules: 'apps/web/public/modules/domain-rules.js',
   adminView: 'apps/web/public/modules/admin-view.js',
   schedule: 'apps/web/public/modules/schedule-engine.js',
   cases: 'apps/web/public/modules/case-management.js',
@@ -217,7 +218,7 @@ requireText(
   'maskNationalId',
   'Workbench must render masked national IDs.'
 );
-const combinedClient = `${files.adminClient}\n${files.patientClient}\n${files.store}\n${files.schedule}\n${files.cases}`;
+const combinedClient = `${files.adminClient}\n${files.patientClient}\n${files.store}\n${files.domainRules}\n${files.schedule}\n${files.cases}`;
 const externalUrls = combinedClient.match(/https?:\/\/[^'"\s`]+/g) ?? [];
 for (const url of externalUrls)
   failures.push(`Unexpected external client endpoint: ${url}`);

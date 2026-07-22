@@ -221,7 +221,7 @@ describe('預約建立', () => {
         },
         'admin_test_001'
       )
-    ).toThrow(/同時只能有 1 筆/);
+    ).toThrow(/未完成的預約/);
 
     expect(() =>
       createBooking(
@@ -332,7 +332,7 @@ describe('櫃台處置', () => {
         followUpSlot.id,
         'admin_test_001'
       )
-    ).toThrow(/相同/);
+    ).toThrow(/掛號別不符/);
   });
 
   it('回診確認可記錄項目、備註與診斷書份數', () => {

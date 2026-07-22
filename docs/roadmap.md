@@ -40,21 +40,22 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 階段 A 只做了「建立預約」。其餘四種狀態轉換同樣需要交易、冪等與 outbox，
 規則已存在於瀏覽器模組，移植即可。
 
-### 3. 收斂兩份規則 — **不需要 bundler**（2026-07-21 重新評估）
+### 3. 收斂兩份規則 — ✅ 已完成（2026-07-22）
 
-目前瀏覽器用 `apps/web/public/modules/`、伺服器用 `packages/domain/`，是兩份
-實作。先前判斷需要引入 bundler，**該判斷已證實為錯**。
+先前瀏覽器與伺服器各有一份預約規則。判斷需要 bundler 才能收斂，**該判斷已
+證實為錯**：`tsc` 的產物已是合格的瀏覽器 ESM。
 
-`tsc` 的產物已經是合格的瀏覽器 ESM。實測：把 `packages/domain/dist` 複製到
-`public/vendor/domain/` 後，瀏覽器可直接 `import()` 並執行 `planBooking`、
-正確拋出 `DomainError`、算出退避秒數。決策與證據見
-[ADR-0004](adr/0004-browser-and-server-share-one-compiled-domain.md)。
+已完成（見 [ADR-0004](adr/0004-browser-and-server-share-one-compiled-domain.md)）：
 
-做法：複製 `dist` + import map + 雜湊比對檢查防漂移。無新依賴、`public/` 保留
-存檔即生效、`check-web-ui.mjs` 與 Hosting 部署都不動。
+- 四組規則（時段可預約、防重複、狀態轉換、改期）抽到 `packages/domain/src/
+  appointment-rules.ts` 的純斷言，伺服器 planner 與瀏覽器都呼叫同一份。
+- 瀏覽器經 `modules/domain-rules.js` 呼叫斷言並把錯誤碼翻成中文——規則在領域、
+  措辭在邊緣。
+- vendor 同步 + 雜湊防漂移（`check:sync`）納入 `verify` 與 CI。
+- 相對路徑載入而非 import map：後者是 inline script，會被 CSP 擋掉（實機發現）。
 
-bundler 能額外帶來的打包、hashed 檔名與樣式分頁屬於效能最佳化，與規則漂移
-無關，留到正式化階段單獨評估。
+無新依賴、`public/` 保留存檔即生效、Hosting 部署不變。bundler 能額外帶來的
+打包與 hashed 檔名屬於效能最佳化，與規則漂移無關，留到正式化階段評估。
 
 ### 4. CI 與 ESLint — ✅ 已完成 2026-07-21
 
@@ -104,11 +105,10 @@ bundler 能額外帶來的打包、hashed 檔名與樣式分頁屬於效能最�
 ## 五、建議的執行順序
 
 ```text
-✅ worker 重試死信    ✅ CI + ESLint    ✅ 全部狀態轉換納入交易
+✅ worker 重試死信   ✅ CI + ESLint   ✅ 全部狀態轉換納入交易   ✅ 收斂兩份規則
 
-現在 ──► ① 收斂兩份規則（vendored ESM，無 bundler）── 純重構，功能不變
-         ② outbox 冪等鍵改為 base32hex ────────────── 修既有缺陷
-         ③ 接真實 Google Calendar ─────────────────── 新功能
+現在 ──► ① outbox 冪等鍵改為 base32hex ── 修既有缺陷（接日曆前必做）
+         ② 接真實 Google Calendar ─────── 新功能
               │
               ├── D-006 + D-010 核准 ──► 階段 B：雲端 Firestore + 登入
               │                                    │
@@ -119,8 +119,8 @@ bundler 能額外帶來的打包、hashed 檔名與樣式分頁屬於效能最�
                         D-001～D-005、D-011 核准 ──► 階段 D：真實資料上線
 ```
 
-①②③ 刻意分開：① 是純重構、② 是修正既有缺陷、③ 才是新功能。前兩項不碰雲端，
-可立即進行且風險最低。
+① 是修正既有缺陷（現有冪等鍵含底線，不符 Google 日曆的 base32hex 格式，直接
+用會被拒絕），不碰雲端、可立即做。② 才需要 D-009 核准。
 
 技術項目與核准流程可以並行：技術面先把可靠性做完，診所同時走決策程序。等核准
 下來時，剩下的只是接線，而不是從頭建。

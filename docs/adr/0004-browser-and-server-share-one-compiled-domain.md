@@ -30,6 +30,21 @@ Hosting 的部署路徑改變。**該評估是錯的。**
    竄改，納入 `verify`；不一致即失敗。
 4. `apps/web/public/modules/` 中與 `packages/domain` 重複的規則刪除，改為匯入。
 
+### 落實進度
+
+- **第一步（2026-07-21）**：建立 vendor 同步、雜湊防漂移與相對路徑載入，並把
+  重複的常數（`ACTIVE_BOOKING_LIMIT`、`ACTIVE_BOOKING_STATUSES`）改為匯入。
+- **第二步（2026-07-22）**：規則邏輯本身收斂。四組規則（時段可預約、防重複
+  上限、狀態轉換允許、改期允許）抽到 `packages/domain/src/appointment-rules.ts`
+  的純斷言函式；伺服器 planner 與瀏覽器 `appointment-domain.js` 都呼叫同一份。
+
+  瀏覽器透過 `modules/domain-rules.js` 呼叫這些斷言，並把 `DomainError` 的錯誤碼
+  翻成中文訊息——**規則在領域套件，措辭在瀏覽器邊緣**。掛號別不符時仍能給出
+  「初診請選整點／30 分」這類具體提示，因為那是措辭而非規則：是否允許由共用
+  斷言決定，瀏覽器只是換一種說法。
+
+  至此瀏覽器與伺服器對「什麼被允許」是同一份程式碼，漂移風險關閉。
+
 ### 為何用相對路徑，而非 import map 的裸名
 
 原本的設計是用 import map 讓瀏覽器以裸名 `@beauessence/domain` 匯入，與 Node 端

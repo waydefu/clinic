@@ -4,7 +4,7 @@
 
 本架構服務 Phase 1 測試版，但模組邊界刻意對齊未來 API、Android、iOS 與 NAS。瀏覽器資料層未來可替換成 `/v1` API client；排班、權限、預約、回診與個管規則不應被 UI 或 Firebase SDK 綁定。
 
-**已知重複**：伺服器端的同一批規則另存於 `packages/domain`（`booking-transaction.ts`、`appointment-transition.ts`、`outbox.ts`）。兩份必須手動保持一致，直到 `apps/web` 導入建置流程為止。這是目前唯一剩下的技術債，改動任一邊都必須同步另一邊。
+**規則單一來源（2026-07-22 起）**：預約規則只存在 `packages/domain`。其編譯產物由 `scripts/sync-domain-vendor.mjs` 同步到 `apps/web/public/vendor/domain/`，瀏覽器透過 `modules/domain-rules.js` 呼叫共用斷言，並把錯誤碼翻成中文訊息。改規則只改 `packages/domain` 一處，`check:sync` 會擋下未同步的 vendor（ADR-0004）。
 
 ## 模組地圖
 
@@ -13,7 +13,8 @@
 | `modules/constants.js` | 時區、掛號別、時段格、服務與手術項目、標籤、角色與權限 | 由 contracts/config 提供版本化設定 |
 | `modules/permissions.js` | 目前帳號、角色權限集合與動作授權 | 正式版由 API middleware／policy engine 執行 |
 | `modules/schedule-engine.js` | 排班驗證、有效區間、時段產生與發布影響 | 移至 `packages/domain`，API 交易發布版本 |
-| `modules/appointment-domain.js` | 建立、取消、改期、未到、到診、逐筆回診與 audit/outbox 意圖 | 已在 `packages/domain` 有對應實作，待合併 |
+| `modules/appointment-domain.js` | 建立、取消、改期、未到、到診、逐筆回診與 audit/outbox 意圖；規則來自共用斷言 | 移至 API transaction；規則已與伺服器共用 |
+| `modules/domain-rules.js` | 呼叫 `packages/domain` 的共用斷言，並把錯誤碼翻成中文訊息 | 正式版由 API 回傳錯誤碼，前端做 i18n |
 | `modules/patient-registry.js` | 患者資料驗證、身分比對與身分證遮罩 | 移至 domain；正式版由 API 驗證 |
 | `modules/calendar-export.js` | `.ics` 與 Google 日曆連結 | 純前端，正式版沿用 |
 | `modules/case-management.js` | 個管指派、月度不重複患者與待辦 | 移至 domain；月結鎖定由 API 管理 |
@@ -69,4 +70,4 @@ apps/worker → Calendar / notification / NAS projection
 - 改角色：先讀 `permissions.js`，不可只隱藏 HTML。
 - 改管理頁：`index.html` 管語意結構、`admin-view.js` 管 rendering、`admin-bootstrap.js` 管事件。
 - 改患者頁：欄位採允許清單（`scripts/check-web-ui.mjs`）。姓名、電話、生日與身分證已於 2026-07-21 核准收集；**新增任何其他欄位**（Email、病情、付款等）仍須先取得隱私與資料最小化決策。
-- 改領域規則：`packages/domain` 有對應實作，兩邊必須同步。
+- 改領域規則：只改 `packages/domain/src/appointment-rules.ts`，再 `pnpm build` 同步 vendor；瀏覽器透過 `modules/domain-rules.js` 呼叫同一份，不需要（也不應）另寫一份。

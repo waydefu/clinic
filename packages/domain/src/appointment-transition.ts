@@ -1,31 +1,20 @@
+import {
+  assertReschedulable,
+  assertTransitionAllowed,
+  type AppointmentStatusValue,
+  type AppointmentTransition
+} from './appointment-rules.js';
 import type { BookingKind, SlotSnapshot } from './booking-transaction.js';
 import { DomainError } from './errors.js';
 
+export type { AppointmentStatusValue, AppointmentTransition };
+
 /**
  * The I/O-free core of every appointment state change after the initial
- * reservation, mirroring `planBooking`.
- *
- * These rules are deliberately identical to `apps/web/public/modules/
- * appointment-domain.js`. Until the browser and the server share one build,
- * that duplication is the project's largest debt, so the transitions are kept
- * literally side by side and covered by the same scenarios on both sides.
+ * reservation, mirroring `planBooking`. The rules themselves live in
+ * `appointment-rules.ts` and are shared with the browser (ADR-0004); this
+ * module only turns an allowed transition into the set of writes to apply.
  */
-
-export type AppointmentTransition =
-  'request_cancellation' | 'cancel' | 'complete' | 'no_show';
-
-export type AppointmentStatusValue =
-  | 'confirmed'
-  | 'cancellation_requested'
-  | 'cancelled'
-  | 'completed'
-  | 'no_show';
-
-/** 尚未結束、仍佔用時段的狀態。 */
-const OPEN_STATUSES: readonly AppointmentStatusValue[] = [
-  'confirmed',
-  'cancellation_requested'
-];
 
 export interface AppointmentSnapshot {
   readonly id: string;
@@ -125,24 +114,6 @@ function assertUtcTimestamp(value: string, fieldName: string): void {
   }
 }
 
-function assertAllowed(
-  transition: AppointmentTransition,
-  appointment: AppointmentSnapshot
-): void {
-  // 只有「預約成立」可提出取消或標記到診；取消與未到則允許從取消待確認進入。
-  const allowedFrom: readonly AppointmentStatusValue[] =
-    transition === 'request_cancellation' || transition === 'complete'
-      ? ['confirmed']
-      : OPEN_STATUSES;
-
-  if (!allowedFrom.includes(appointment.status)) {
-    throw new DomainError(
-      'TRANSITION_NOT_ALLOWED',
-      `An appointment in status "${appointment.status}" cannot be ${transition}.`
-    );
-  }
-}
-
 function outboxFor(
   appointmentId: string,
   status: AppointmentStatusValue,
@@ -174,7 +145,7 @@ export function planTransition(
       'The appointment does not exist.'
     );
   }
-  assertAllowed(request.transition, appointment);
+  assertTransitionAllowed(request.transition, appointment.status);
 
   const nextStatus = NEXT_STATUS[request.transition];
   // 取消與未到會把時段還給其他患者；提出取消只是等櫃台確認，完成到診則是
@@ -219,31 +190,13 @@ export function planReschedule(
       'The appointment does not exist.'
     );
   }
-  if (!OPEN_STATUSES.includes(appointment.status)) {
-    throw new DomainError(
-      'TRANSITION_NOT_ALLOWED',
-      'Only an appointment that has not finished can be rescheduled.'
-    );
-  }
-  if (targetSlot === undefined || targetSlot.reservationId !== undefined) {
-    throw new DomainError(
-      'SLOT_UNAVAILABLE',
-      'The target slot is not available.'
-    );
-  }
-  if (targetSlot.id === appointment.slotId) {
-    throw new DomainError(
-      'INVALID_VALUE',
-      'The target slot is the appointment’s current slot.'
-    );
-  }
-  // 改期不得跨掛號別：初診與回診走不同的時段格，混用會讓時段語意失效。
-  if (targetSlot.kind !== appointment.bookingKind) {
-    throw new DomainError(
-      'BOOKING_KIND_MISMATCH',
-      'A rescheduled slot must keep the original booking kind.'
-    );
-  }
+  // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。
+  assertReschedulable(
+    appointment.status,
+    appointment.slotId,
+    targetSlot,
+    appointment.bookingKind
+  );
 
   return {
     appointmentId: appointment.id,

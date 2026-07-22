@@ -1,5 +1,4 @@
 import {
-  ACTIVE_BOOKING_LIMIT,
   ACTIVE_BOOKING_STATUSES,
   BOOKING_KINDS,
   BOOKING_NOTE_TAGS,
@@ -7,6 +6,12 @@ import {
   PATIENT_SERVICES,
   WORKBENCH_PROCEDURES
 } from './constants.js';
+import {
+  ensureReschedulable,
+  ensureSlotBookable,
+  ensureTransitionAllowed,
+  ensureWithinActiveBookingLimit
+} from './domain-rules.js';
 import { identityKey, upsertPatient } from './patient-registry.js';
 
 const MAX_NOTE_LENGTH = 120;
@@ -82,19 +87,14 @@ export function activeBookingsFor(state, patient) {
 
 export function createBooking(state, input, actorId) {
   const slot = state.slots.find((item) => item.id === input.slotId);
-  if (slot === undefined || slot.reservationId !== undefined)
-    throw new Error('此時段已無法預約。');
 
   const bookingKind =
     input.bookingKind === BOOKING_KINDS.FOLLOW_UP
       ? BOOKING_KINDS.FOLLOW_UP
       : BOOKING_KINDS.INITIAL;
-  if (slot.kind !== bookingKind)
-    throw new Error(
-      bookingKind === BOOKING_KINDS.FOLLOW_UP
-        ? '回診請選擇 15 分或 45 分的時段。'
-        : '初診請選擇整點或 30 分的時段。'
-    );
+
+  // 時段可預約與掛號別相符：規則由共用斷言決定（ADR-0004）。
+  ensureSlotBookable(slot, bookingKind);
 
   const item = resolveItem(input.itemId);
   const noteTags = selectedTags(input.noteTags, BOOKING_NOTE_TAGS, '備註');
@@ -105,10 +105,8 @@ export function createBooking(state, input, actorId) {
   // registering first and colliding second.
   const patientDetails = { ...input.patient };
   const active = activeBookingsFor(state, patientDetails);
-  if (active.length >= ACTIVE_BOOKING_LIMIT && input.allowDuplicate !== true)
-    throw new Error(
-      `同一位患者同時只能有 ${ACTIVE_BOOKING_LIMIT} 筆未完成的預約，請先完成或取消現有預約。`
-    );
+  if (input.allowDuplicate !== true)
+    ensureWithinActiveBookingLimit(active.length);
 
   const patient = upsertPatient(state, patientDetails);
 
@@ -162,30 +160,34 @@ export function transitionAppointment(state, appointmentId, action, actorId) {
   const slot = state.slots.find((item) => item.id === appointment.slotId);
   const now = new Date().toISOString();
 
+  const TRANSITIONS = {
+    request_cancellation: 'request_cancellation',
+    cancel: 'cancel',
+    complete: 'complete',
+    no_show: 'no_show'
+  };
+  if (TRANSITIONS[action] === undefined) throw new Error('不支援的預約動作。');
+
+  // 是否允許這個轉換由共用斷言決定（ADR-0004）。之後的狀態寫入、時段釋出
+  // 與稽核是瀏覽器端的機制，維持原樣。
+  ensureTransitionAllowed(action, appointment.status);
+
   if (action === 'request_cancellation') {
-    if (appointment.status !== 'confirmed')
-      throw new Error('目前狀態無法提出取消。');
     appointment.status = 'cancellation_requested';
     appendAudit(state, 'cancellation_requested', appointmentId, actorId);
   } else if (action === 'cancel') {
-    if (!['confirmed', 'cancellation_requested'].includes(appointment.status))
-      throw new Error('目前狀態無法取消。');
     appointment.status = 'cancelled';
     if (slot?.reservationId === appointmentId) delete slot.reservationId;
     appendAudit(state, 'appointment_cancelled', appointmentId, actorId);
   } else if (action === 'complete') {
-    if (appointment.status !== 'confirmed')
-      throw new Error('只有預約成立狀態可標記到診。');
     appointment.status = 'completed';
     appointment.completedAt = now;
     appendAudit(state, 'appointment_completed', appointmentId, actorId);
-  } else if (action === 'no_show') {
-    if (!['confirmed', 'cancellation_requested'].includes(appointment.status))
-      throw new Error('目前狀態無法標記未到。');
+  } else {
     appointment.status = 'no_show';
     if (slot?.reservationId === appointmentId) delete slot.reservationId;
     appendAudit(state, 'appointment_no_show', appointmentId, actorId);
-  } else throw new Error('不支援的預約動作。');
+  }
 
   appointment.updatedAt = now;
   appendOutbox(state, appointment);
@@ -202,14 +204,16 @@ export function rescheduleAppointment(
     (item) => item.id === appointmentId
   );
   if (appointment === undefined) throw new Error('找不到這筆預約。');
-  if (!['confirmed', 'cancellation_requested'].includes(appointment.status))
-    throw new Error('只有尚未結束的預約可以改期。');
 
   const target = state.slots.find((item) => item.id === targetSlotId);
-  if (target === undefined || target.reservationId !== undefined)
-    throw new Error('目標時段已無法預約。');
-  if (target.kind !== appointment.bookingKind)
-    throw new Error('改期後的時段必須與原掛號別相同。');
+  // 改期規則（狀態尚未結束、目標時段可預約、不可跨掛號別、不可原地）由共用
+  // 斷言決定（ADR-0004）。
+  ensureReschedulable(
+    appointment.status,
+    appointment.slotId,
+    target,
+    appointment.bookingKind
+  );
 
   const previous = state.slots.find((item) => item.id === appointment.slotId);
   if (previous?.reservationId === appointmentId) delete previous.reservationId;

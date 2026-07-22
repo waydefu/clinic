@@ -61,6 +61,8 @@ const requiredPaths = [
   'apps/api/src/health.controller.ts',
   'apps/web/src/calendar-export.test.ts',
   'apps/web/public/modules/calendar-export.js',
+  'apps/web/public/modules/domain-rules.js',
+  'packages/domain/src/appointment-rules.ts',
   'apps/web/public/admin-bootstrap.js',
   'apps/web/public/workbench.css',
   'apps/web/public/patient-app.js',
