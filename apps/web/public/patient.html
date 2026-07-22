@@ -74,6 +74,8 @@
       }
     </script>
     <link rel="stylesheet" href="/styles.css" />
+    <!-- 同步載入：首次繪製前套用主題，避免閃爍（CSP 禁 inline script）。 -->
+    <script src="/theme.js"></script>
   </head>
   <body class="patient-body">
     <a class="skip-link" href="#patient-main">跳至預約內容</a>
@@ -93,6 +95,14 @@
           <a href="#booking-start">線上預約</a
           ><a href="#patient-help">預約須知</a><a href="/">工作臺</a>
         </nav>
+        <label class="theme-picker-label"
+          >主題<select id="theme-picker" aria-label="顯示主題">
+            <option value="auto">跟隨系統</option>
+            <option value="light">淺色</option>
+            <option value="warm">護眼</option>
+            <option value="dark">深色</option>
+          </select></label
+        >
         <span class="environment-badge"
           ><span aria-hidden="true"></span>LOCAL TEST ONLY</span
         >
@@ -220,6 +230,7 @@
             <p class="eyebrow">STEP 02</p>
             <h2 id="slot-choice-heading">選擇日期與時段</h2>
             <p id="slot-choice-description">所有時間均以 Asia/Taipei 顯示。</p>
+            <p id="booking-context" class="booking-context"></p>
           </div>
           <div
             id="patient-slots"
@@ -237,6 +248,9 @@
           <div class="booking-panel-heading">
             <button class="text-button" type="button" data-booking-back="2">
               ← 返回選擇時段
+            </button>
+            <button class="text-button" type="button" data-booking-back="1">
+              ← 重新選擇類型與項目
             </button>
             <p class="eyebrow">STEP 03</p>
             <h2 id="confirmation-heading">填寫基本資料</h2>

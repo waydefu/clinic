@@ -13,6 +13,7 @@ import {
   renderTasks,
   renderWorkload
 } from './modules/admin-view.js';
+import { confirmDialog } from './modules/confirm-dialog.js';
 import { WORKBENCH_PROCEDURES } from './modules/constants.js';
 import {
   escapeHtml,
@@ -229,7 +230,12 @@ elements['workspace-account'].addEventListener('change', async () => {
 });
 
 elements['reset-state'].addEventListener('click', async () => {
-  if (!window.confirm('確定清除目前瀏覽器保存的全部預約與患者資料？無法復原。'))
+  if (
+    !(await confirmDialog(
+      '確定清除目前瀏覽器保存的全部預約與患者資料？此動作無法復原。',
+      { danger: true, confirmLabel: '清除資料' }
+    ))
+  )
     return;
   state = await stagingRequest('/reset', { method: 'POST', body: '{}' });
   filters = { status: 'all', kind: 'all', patientId: 'all' };
@@ -354,7 +360,15 @@ elements.appointments.addEventListener('click', async (event) => {
     no_show: '確認將此預約標記為未到？時段會釋放。',
     complete: '確認此患者已完成到診？'
   };
-  if (!window.confirm(questions[action])) return;
+  const confirmed = await confirmDialog(questions[action], {
+    danger: action !== 'complete',
+    confirmLabel: {
+      cancel: '取消預約',
+      no_show: '標記未到',
+      complete: '完成到診'
+    }[action]
+  });
+  if (!confirmed) return;
   const paths = { cancel: 'cancel', no_show: 'no-show', complete: 'complete' };
   try {
     await post(`/bookings/${id}/${paths[action]}`);
@@ -483,7 +497,13 @@ elements['draft-schedule'].addEventListener('click', async (event) => {
   const weekly = event.target.closest('[data-remove-weekly]');
   const exception = event.target.closest('[data-remove-exception]');
   if (weekly === null && exception === null) return;
-  if (!window.confirm('確定從排班草稿刪除此設定？')) return;
+  if (
+    !(await confirmDialog('確定從排班草稿刪除此設定？', {
+      danger: true,
+      confirmLabel: '刪除'
+    }))
+  )
+    return;
   try {
     await updateDraft(
       (draft) => {
@@ -512,9 +532,10 @@ elements['draft-schedule'].addEventListener('click', async (event) => {
 
 elements['publish-schedule'].addEventListener('click', async () => {
   if (
-    !window.confirm(
-      '發布後將重新產生患者可預約時段。系統會阻擋影響既有預約的變更，是否繼續？'
-    )
+    !(await confirmDialog(
+      '發布後將重新產生患者可預約時段。系統會阻擋影響既有預約的變更，是否繼續？',
+      { confirmLabel: '發布排班' }
+    ))
   )
     return;
   try {
@@ -530,7 +551,13 @@ elements['publish-schedule'].addEventListener('click', async () => {
 });
 
 elements['discard-schedule'].addEventListener('click', async () => {
-  if (!window.confirm('確定捨棄所有未發布的排班變更？')) return;
+  if (
+    !(await confirmDialog('確定捨棄所有未發布的排班變更？', {
+      danger: true,
+      confirmLabel: '捨棄草稿'
+    }))
+  )
+    return;
   await post('/schedule/discard');
   message('未發布排班變更已捨棄。', 'success', 'schedule-toolbar-status');
 });
@@ -593,7 +620,12 @@ elements['account-form'].addEventListener('submit', async (event) => {
 elements['account-list'].addEventListener('click', async (event) => {
   const button = event.target.closest('[data-account-toggle]');
   if (button === null) return;
-  if (!window.confirm('確定變更此帳號的啟用狀態？')) return;
+  if (
+    !(await confirmDialog('確定變更此帳號的啟用狀態？', {
+      confirmLabel: '變更狀態'
+    }))
+  )
+    return;
   try {
     await post(`/workspace/accounts/${button.dataset.accountToggle}/toggle`);
     message('帳號狀態已更新。', 'success');
@@ -620,7 +652,10 @@ elements['maintenance-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   if (
     elements['maintenance-enabled'].checked &&
-    !window.confirm('啟用後，生效時間內患者端將無法建立預約。確定套用？')
+    !(await confirmDialog(
+      '啟用後，生效時間內患者端將無法建立預約。確定套用？',
+      { danger: true, confirmLabel: '套用維護模式' }
+    ))
   )
     return;
   try {

@@ -1,6 +1,7 @@
 # Google Calendar 與資料庫整合測試計畫
 
-**狀態：** 規劃草案，尚未實作。撰寫於 2026-07-21。
+**狀態：** 階段 A 已完成；接日曆實測的技術前置清單見第 3.1 節。
+撰寫於 2026-07-21，更新於 2026-07-22。
 **前提：** 本計畫不自行核准任何 D-001～D-011 決策，也不改變目前
 「僅瀏覽器狀態、無雲端後端」的事實。
 
@@ -79,19 +80,31 @@ Calendar 是投影，不是可用性的來源。
 - **沒有對外開放任何預約寫入端點。** Phase 1 gate 明定在隱私、預約政策與
   身分/角色決策核准前不得啟用寫入路徑，因此本階段只有 repository 與測試。
 - 未接雲端 Firestore、未接 Authentication。
-- 瀏覽器仍使用自己的 `modules/`；伺服器規則另存於 `packages/domain`。兩者收斂
-  需要 `apps/web` 導入建置流程，列為階段 B 的工作。
 
-- 將 `modules/` 的領域規則上移為 `packages/domain` 的共用來源，瀏覽器與 API
-  共用同一份規則，避免兩套實作漂移。
-- `apps/api` 新增 repository 層，寫入路徑以 Firestore Transaction 實作：
-  在同一筆交易內檢查時段、寫入 `appointments`、更新 `slots`、寫入
-  `audit_events` 與 `outbox_jobs`。
-- 冪等：以 `Idempotency-Key` 標頭加 `appointments` 的唯一鍵，重送不得產生第二筆。
-- 全部跑在 Firebase Local Emulator Suite，沿用既有的 `pnpm test:rules`。
+**2026-07-22 更新**：瀏覽器與伺服器的規則已收斂——四組預約規則抽入
+`packages/domain`，瀏覽器經 vendor 同步（雜湊防漂移）呼叫同一份，見
+[ADR-0004](../adr/0004-browser-and-server-share-one-compiled-domain.md)。
+原「兩套實作漂移」的風險已消除。
 
-**驗收**：併發請求同一時段只有一筆成立；重送同一 idempotency key 不重複建立；
-Rules 測試證明客戶端直接讀寫仍被拒絕；交易內沒有任何外部呼叫。
+### 3.1 接日曆實測的技術前置（不需核准、可立即做）
+
+依 roadmap 的順序，接上真實 Google Calendar 之前必須先完成：
+
+1. **outbox 冪等鍵改為 base32hex**——現有鍵含底線與大小寫，不符 Google
+   Calendar event ID 的格式限制（小寫 `a–v` 與 `0–9`，RFC 4648
+   base32hex）。直接沿用會在第一次真實呼叫就被拒絕。純本機修改，
+   `packages/domain/src/outbox.ts` 產鍵處與對應測試一併更新。
+2. **worker 的 Calendar adapter 先以假服務定型**——`apps/worker` 的
+   `calendar-port.ts` 已是可替換的 port；補一個符合 Google Calendar API
+   語意（事件建立／更新／刪除、409 已存在視為冪等成功）的假實作，
+   讓重試、退避與死信在該語意下通過既有測試。
+3. **事件欄位最小化定型**——事件內容只放預約編號、掛號別、時間與診所
+   地址；測試以斷言鎖住「不得出現姓名、電話、身分證、手術種類、備註」。
+4. **runbook 演練**——依 [calendar-sync-failure runbook](../runbooks/calendar-sync-failure.md)
+   在本機以假服務演練一次失敗→死信→補回。
+
+以上完成後，D-009 一核准（日曆擁有者、授權模型、scope、專用測試日曆），
+剩下的就只是把假服務換成真實 API 用戶端與憑證注入。
 
 **阻擋決策**：無（合成資料、無雲端）。這是**現在就可以做**的部分。
 

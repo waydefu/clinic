@@ -1,10 +1,12 @@
 .app-shell-wide {
   max-width: 92rem;
 }
+/* 不透明底：半透明會讓 hero 文字透出來疊在導覽列上（2026-07-22 截圖回報）。 */
 .workspace-nav {
   align-items: center;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface);
   border: 1px solid var(--line);
+  box-shadow: 0 0.4rem 1rem rgba(20, 53, 41, 0.07);
   border-radius: 0.9rem;
   display: flex;
   gap: 0.3rem;
@@ -58,12 +60,12 @@
   width: 0.48rem;
 }
 .status-banner[data-state='success'] {
-  background: #f1faf4;
+  background: var(--success-soft);
   color: var(--forest-dark);
 }
 .status-banner[data-state='error'] {
   background: var(--danger-light);
-  border-color: #f0cbcb;
+  border-color: var(--danger-line);
   color: var(--danger);
 }
 .status-banner[data-state='error']::before {
@@ -85,8 +87,8 @@
   min-width: 12rem;
 }
 .button-danger-outline {
-  background: #fff;
-  border: 1px solid #dfb7b7;
+  background: var(--surface);
+  border: 1px solid var(--danger-line);
   color: var(--danger);
 }
 .button-danger-outline:hover {
@@ -113,7 +115,7 @@
 }
 .task-card {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-left: 0.28rem solid var(--line-strong);
   border-radius: 0.75rem;
@@ -172,7 +174,7 @@
   margin-top: 1rem;
 }
 .schedule-comparison > article {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   padding: 1rem;
@@ -188,7 +190,7 @@
 }
 .decision-card {
   align-items: end;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   display: grid;

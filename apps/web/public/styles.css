@@ -24,25 +24,99 @@
   --leading-display: 1.1;
 
   --canvas: #f5f7f5;
+  --canvas-top: #fbfcfb;
+  --canvas-glow: rgba(204, 229, 216, 0.85);
   --surface: #ffffff;
   --surface-soft: #f7fbf8;
   --surface-tint: #e8f3ed;
+  --surface-tint-strong: #d8ebe0;
   --ink: #132a24;
   --ink-muted: #5d7068;
   --line: #dbe5df;
   --line-strong: #c3d3ca;
+  --line-accent: #91c1a9;
+  /* --forest / --forest-dark 是「文字與框線」的品牌色，深色主題會調亮；
+   * --accent-solid 系列是「白字襯底」的實心色，任何主題都維持深綠。 */
   --forest: #155c48;
   --forest-dark: #0f4537;
   --forest-light: #e4f1ea;
+  --accent-solid: #155c48;
+  --accent-solid-strong: #0f4537;
+  --accent-solid-soft: #2f7f68;
+  --on-accent: #ffffff;
+  --success-soft: #f1faf4;
+  --neutral-soft: #eff2f0;
+  --neutral-text: #65756d;
+  --info-soft: #e8effd;
+  --info-text: #315a9c;
   --amber: #aa6c1b;
   --amber-light: #fff4df;
   --danger: #a83737;
   --danger-light: #fff0f0;
+  --danger-line: #f0cbcb;
+  --focus-ring: #e6a84b;
   --shadow: 0 1rem 2.75rem rgba(18, 52, 40, 0.08);
   background: var(--canvas);
   color: var(--ink);
+  color-scheme: light;
   font-family:
     'Noto Sans TC', 'Microsoft JhengHei', Inter, system-ui, sans-serif;
+}
+/* 護眼暖色：整體移向低藍光的紙感暖白，品牌綠維持辨識。 */
+:root[data-theme='warm'] {
+  --canvas: #f5efe3;
+  --canvas-top: #faf6ec;
+  --canvas-glow: rgba(226, 219, 195, 0.85);
+  --surface: #fffdf6;
+  --surface-soft: #faf5e9;
+  --surface-tint: #f0e9d8;
+  --surface-tint-strong: #e6dcc6;
+  --ink: #2c2b22;
+  --ink-muted: #6b675a;
+  --line: #e2dac7;
+  --line-strong: #cdc3ab;
+  --line-accent: #a8bd9c;
+  --forest-light: #e9efdf;
+  --success-soft: #eff3e2;
+  --neutral-soft: #efece3;
+  --neutral-text: #6f6a5c;
+  --info-soft: #e9edf5;
+  --info-text: #3d5a86;
+  --amber-light: #f6ead1;
+  --danger-light: #f8e7e2;
+  --danger-line: #e5c1b8;
+  --shadow: 0 1rem 2.75rem rgba(74, 62, 36, 0.1);
+}
+/* 深色：綠灰基底，文字用亮色；實心綠底白字沿用，對比維持 WCAG AA。 */
+:root[data-theme='dark'] {
+  --canvas: #101714;
+  --canvas-top: #131b17;
+  --canvas-glow: rgba(30, 54, 44, 0.6);
+  --surface: #18221d;
+  --surface-soft: #141d18;
+  --surface-tint: #1e2b25;
+  --surface-tint-strong: #27362f;
+  --ink: #e3ece6;
+  --ink-muted: #9db0a6;
+  --line: #2b3a33;
+  --line-strong: #3c4f45;
+  --line-accent: #3f6b58;
+  --forest: #5cc39c;
+  --forest-dark: #8ad9ba;
+  --forest-light: #1e332b;
+  --success-soft: #17281f;
+  --neutral-soft: #222c27;
+  --neutral-text: #a9b8b0;
+  --info-soft: #1c2735;
+  --info-text: #9dbdec;
+  --amber: #dfa957;
+  --amber-light: #2e2415;
+  --danger: #e08f8f;
+  --danger-light: #34201f;
+  --danger-line: #5c3532;
+  --focus-ring: #ecb662;
+  --shadow: 0 1rem 2.75rem rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -52,12 +126,8 @@ html {
 }
 body {
   background:
-    radial-gradient(
-      circle at 94% -10%,
-      rgba(204, 229, 216, 0.85),
-      transparent 30rem
-    ),
-    linear-gradient(180deg, #fbfcfb 0, var(--canvas) 34rem);
+    radial-gradient(circle at 94% -10%, var(--canvas-glow), transparent 30rem),
+    linear-gradient(180deg, var(--canvas-top) 0, var(--canvas) 34rem);
   margin: 0;
   min-width: 20rem;
 }
@@ -79,13 +149,13 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid #e6a84b;
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 .skip-link {
-  background: var(--forest-dark);
+  background: var(--accent-solid-strong);
   border-radius: 0 0 0.6rem 0.6rem;
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 750;
   left: 1rem;
   padding: 0.7rem 0.9rem;
@@ -120,10 +190,14 @@ textarea:focus-visible {
 }
 .brand-mark {
   align-items: center;
-  background: linear-gradient(145deg, var(--forest), #2f7f68);
+  background: linear-gradient(
+    145deg,
+    var(--accent-solid),
+    var(--accent-solid-soft)
+  );
   border-radius: 0.8rem 0.8rem 0.8rem 0.2rem;
   box-shadow: 0 0.5rem 1rem rgba(21, 92, 72, 0.2);
-  color: #fff;
+  color: var(--on-accent);
   display: inline-flex;
   font-size: var(--text-md);
   height: 2.5rem;
@@ -189,15 +263,15 @@ textarea:focus-visible {
   transform: translateY(-1px);
 }
 .button-primary {
-  background: var(--forest);
+  background: var(--accent-solid);
   box-shadow: 0 0.35rem 0.8rem rgba(21, 92, 72, 0.15);
-  color: #fff;
+  color: var(--on-accent);
 }
 .button-primary:not(:disabled):hover {
-  background: var(--forest-dark);
+  background: var(--accent-solid-strong);
 }
 .button-secondary {
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--surface);
   border: 1px solid var(--line-strong);
   color: var(--forest-dark);
 }
@@ -210,7 +284,7 @@ textarea:focus-visible {
   color: var(--forest-dark);
 }
 .button-tertiary:not(:disabled):hover {
-  background: #d8ebe0;
+  background: var(--surface-tint-strong);
 }
 .dashboard {
   padding-top: 1.25rem;
@@ -275,7 +349,7 @@ h3 {
 }
 .environment-card {
   align-self: end;
-  background: rgba(250, 255, 252, 0.95);
+  background: var(--surface);
   border-radius: 1rem;
   box-shadow: 0 0.8rem 1.5rem rgba(6, 40, 29, 0.16);
   color: var(--ink);
@@ -332,12 +406,12 @@ h3 {
   width: 0.48rem;
 }
 .status-message[data-state='success'] {
-  background: #f1faf4;
+  background: var(--success-soft);
   color: var(--forest-dark);
 }
 .status-message[data-state='error'] {
   background: var(--danger-light);
-  border-color: #f0cbcb;
+  border-color: var(--danger-line);
   color: var(--danger);
 }
 .status-message[data-state='error']::before {
@@ -353,7 +427,7 @@ h3 {
   padding: 0.6rem 0.8rem;
 }
 .form-status[data-state='success'] {
-  background: #f1faf4;
+  background: var(--success-soft);
   color: var(--forest-dark);
 }
 .form-status[data-state='success']::before {
@@ -431,7 +505,7 @@ label {
 }
 input,
 select {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: 0.55rem;
   color: var(--ink);
@@ -440,7 +514,7 @@ select {
   padding: 0.45rem 0.55rem;
 }
 textarea {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: 0.55rem;
   color: var(--ink);
@@ -451,7 +525,7 @@ textarea {
 }
 .schedule-display {
   background: var(--surface-soft);
-  border: 1px solid #e3eee8;
+  border: 1px solid var(--line);
   border-radius: 1rem;
   display: grid;
   gap: 1rem;
@@ -583,10 +657,10 @@ textarea {
 
 /* Enterprise synthetic patient booking */
 .patient-body {
-  background: #f7f8f6;
+  background: var(--surface-soft);
 }
 .patient-header {
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
@@ -644,8 +718,8 @@ textarea {
 }
 .patient-hero {
   align-items: center;
-  background: linear-gradient(135deg, #f4faf6, #e5f1e9);
-  border: 1px solid #cfe0d6;
+  background: linear-gradient(135deg, var(--surface-soft), var(--surface-tint));
+  border: 1px solid var(--line-strong);
   border-radius: 1.6rem;
   display: grid;
   gap: 2rem;
@@ -680,8 +754,8 @@ textarea {
   gap: 0.55rem;
 }
 .patient-trust-row span {
-  background: #fff;
-  border: 1px solid #d6e5dc;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
   color: var(--forest-dark);
   font-size: var(--text-micro);
@@ -689,7 +763,7 @@ textarea {
   padding: 0.45rem 0.65rem;
 }
 .patient-contact-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1rem;
   box-shadow: var(--shadow);
@@ -727,7 +801,7 @@ textarea {
 }
 .booking-stepper li span {
   align-items: center;
-  background: #edf1ef;
+  background: var(--surface-tint);
   border-radius: 50%;
   display: inline-flex;
   font-size: var(--text-micro);
@@ -741,14 +815,14 @@ textarea {
 }
 .booking-stepper li.is-active span,
 .booking-stepper li.is-complete span {
-  background: var(--forest);
-  color: #fff;
+  background: var(--accent-solid);
+  color: var(--on-accent);
 }
 .booking-stepper li.is-complete {
-  border-color: #91c1a9;
+  border-color: var(--line-accent);
 }
 .booking-panel {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1.25rem;
   box-shadow: 0 0.8rem 2rem rgba(20, 53, 41, 0.05);
@@ -787,7 +861,7 @@ textarea {
   text-align: left;
 }
 .service-choice:hover {
-  background: #eef7f1;
+  background: var(--surface-tint);
   border-color: var(--forest);
   transform: translateY(-2px);
 }
@@ -869,7 +943,7 @@ textarea {
 }
 .consent-preview {
   align-items: flex-start;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.65rem;
   display: flex;
@@ -896,9 +970,9 @@ textarea {
 }
 .complete-mark {
   align-items: center;
-  background: var(--forest);
+  background: var(--accent-solid);
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-accent);
   display: flex;
   font-size: var(--text-lg);
   height: 4rem;
@@ -911,7 +985,7 @@ textarea {
 }
 .booking-result {
   background: var(--surface-tint);
-  border: 1px solid #cae3d5;
+  border: 1px solid var(--line-strong);
   border-radius: 0.8rem;
   display: grid;
   gap: 0.3rem;
@@ -928,7 +1002,7 @@ textarea {
 }
 .patient-appointment-card {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   display: flex;
@@ -952,7 +1026,7 @@ textarea {
   padding-top: 2rem;
 }
 .patient-help-grid article {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.85rem;
   padding: 1rem;
@@ -975,7 +1049,7 @@ textarea {
 }
 .maintenance-screen {
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1.4rem;
   display: flex;
@@ -1042,12 +1116,12 @@ textarea {
   color: var(--forest-dark);
 }
 .status-chip.is-reserved {
-  background: #eff2f0;
-  color: #65756d;
+  background: var(--neutral-soft);
+  color: var(--neutral-text);
 }
 .status-chip.status-completed {
-  background: #e8effd;
-  color: #315a9c;
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 .status-chip.status-cancellation_requested {
   background: var(--amber-light);
@@ -1122,7 +1196,7 @@ textarea {
 .workload-breakdown li {
   align-items: center;
   background: var(--surface-soft);
-  border: 1px solid #e3eee8;
+  border: 1px solid var(--line);
   border-radius: 0.65rem;
   color: var(--ink-muted);
   display: flex;
@@ -1482,4 +1556,76 @@ label.has-error input {
 [data-busy='true'] {
   opacity: 0.75;
   cursor: progress;
+}
+
+/* ---------------------------------------------------------------
+ * 自製確認彈窗：原生 <dialog> + showModal，內建焦點陷阱與 Esc。
+ * 取代 window.confirm 以維持版面語言與主題一致。
+ * --------------------------------------------------------------- */
+.confirm-dialog {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  max-width: 26rem;
+  padding: 1.5rem;
+  width: calc(100vw - 2.5rem);
+}
+.confirm-dialog::backdrop {
+  background: rgba(9, 18, 14, 0.55);
+}
+.confirm-dialog-title {
+  font-size: var(--text-md);
+  line-height: var(--leading-tight);
+  margin: 0 0 0.6rem;
+}
+.confirm-dialog-message {
+  color: var(--ink-muted);
+  line-height: var(--leading-body);
+  margin: 0 0 1.25rem;
+}
+.confirm-dialog-actions {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: flex-end;
+}
+.confirm-dialog .button-danger {
+  background: var(--danger);
+  color: var(--on-accent);
+}
+
+/* 尊重使用者的減少動態偏好（WCAG 2.3.3）。 */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 主題切換選單（兩頁共用；工作臺另掛 session-picker 版型）。 */
+.theme-picker-label {
+  align-items: center;
+  color: var(--ink-muted);
+  display: inline-flex;
+  font-size: var(--text-micro);
+  font-weight: 700;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+.theme-picker-label select {
+  min-height: 2.5rem;
+}
+
+/* 第 2 步的目前選擇脈絡：選錯類型的人在這裡就能發現並返回重選。 */
+.booking-context {
+  background: var(--surface-tint);
+  border-radius: 0.6rem;
+  color: var(--forest-dark);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  margin: 0.6rem 0 0;
+  padding: 0.55rem 0.8rem;
 }

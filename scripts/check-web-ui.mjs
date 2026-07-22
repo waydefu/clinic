@@ -13,6 +13,8 @@ const paths = {
   schedule: 'apps/web/public/modules/schedule-engine.js',
   cases: 'apps/web/public/modules/case-management.js',
   permissions: 'apps/web/public/modules/permissions.js',
+  confirmDialog: 'apps/web/public/modules/confirm-dialog.js',
+  theme: 'apps/web/public/theme.js',
   css: 'apps/web/public/workbench.css'
 };
 const entries = await Promise.all(
@@ -173,7 +175,9 @@ const allowedControls = new Set([
   'maintenance-starts-at',
   'maintenance-resume-at',
   'release-version',
-  'audit-filter'
+  'audit-filter',
+  // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
+  'theme-picker'
 ]);
 for (const control of files.adminShell.matchAll(
   /<(?:input|select)\b[^>]*\bid="([^"]+)"[^>]*>/gi
@@ -198,7 +202,9 @@ const allowedPatientControls = new Set([
   'patient-birth',
   'patient-national-id',
   'patient-nhi-card',
-  'synthetic-confirmation'
+  'synthetic-confirmation',
+  // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
+  'theme-picker'
 ]);
 for (const control of files.patientHtml.matchAll(
   /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"[^>]*>/gi
@@ -218,10 +224,20 @@ requireText(
   'maskNationalId',
   'Workbench must render masked national IDs.'
 );
-const combinedClient = `${files.adminClient}\n${files.patientClient}\n${files.store}\n${files.domainRules}\n${files.schedule}\n${files.cases}`;
+const combinedClient = `${files.adminClient}\n${files.patientClient}\n${files.store}\n${files.domainRules}\n${files.schedule}\n${files.cases}\n${files.confirmDialog}\n${files.theme}`;
 const externalUrls = combinedClient.match(/https?:\/\/[^'"\s`]+/g) ?? [];
 for (const url of externalUrls)
   failures.push(`Unexpected external client endpoint: ${url}`);
+// 2026-07-22 基線：確認一律走自製 <dialog> 彈窗（焦點陷阱、主題一致），
+// 不得退回無樣式且無法自訂的 window.confirm。
+if (/window\.confirm/.test(combinedClient))
+  failures.push('window.confirm is banned; use modules/confirm-dialog.js.');
+for (const key of ['adminClient', 'patientClient'])
+  requireText(
+    files[key],
+    "from './modules/confirm-dialog.js'",
+    `${key} must use the shared confirm dialog.`
+  );
 
 if (failures.length > 0) {
   console.error('Modular test-only UI guard failed:');

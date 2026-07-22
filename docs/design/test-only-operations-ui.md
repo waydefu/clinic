@@ -79,6 +79,12 @@ D-001～D-011 尚未核准，因此本頁的政策、角色與文字都不得被
 | 患者資料步驟包在 `<form novalidate>` 內，Enter 可送出並走同一套驗證 | 鍵盤慣例；novalidate 保留「一次攤開全部錯誤」模式 | `patient.html` 的 `patient-booking-form` |
 | 狀態不允許的操作不渲染或停用（含改期表單），與 `actionEnabled` 同一閘門 | 可按但必被拒絕的按鈕等於「按了沒反應」 | `admin-view.js` 的 `renderAppointments` |
 | 建立類表單成功後清空輸入；同名帳號在狀態轉換層拒絕 | 防止殘留值連按兩次建立重複資料 | `workspace-domain.js` 的 `createAccount` |
+| sticky 導覽列與狀態列必須不透明 | 半透明會與底下內容疊字（2026-07-22 截圖實證） | `.workspace-nav`、`.status-banner` 用 `--surface` |
+| 確認一律走自製 `<dialog>` 彈窗，禁止 `window.confirm` | 原生 confirm 無法設樣式與主題；`showModal` 內建焦點陷阱與 Esc，取消鈕優先聚焦 | `modules/confirm-dialog.js`；`check:ui` 強制 |
+| 色彩一律用 design token，不得硬編碼 | 主題系統靠 token 覆蓋；硬編碼會在護眼／深色主題漏網 | `styles.css` 的 `:root` 與 `[data-theme]` 區塊 |
+| 主題四段：自動／淺色／護眼／深色；深色對比 ≥ WCAG AA | 尊重系統偏好與護眼需求；實測全配對 ≥ 6.19:1 | `theme.js`（head 同步載入防閃爍）＋ `#theme-picker` |
+| 患者端第 2 步顯示目前選擇並可返回；第 3 步可直達第 1 步重選 | 選錯類型的人要能發現並輕鬆重來（NN/g #3） | `#booking-context` 與雙返回鈕 |
+| 二元選擇按鈕（類型／項目）帶 `aria-pressed` | 選取狀態不能只靠顏色 | `renderBookingTypeButtons`、`renderServices` |
 
 驗證方式：`corepack pnpm check:ui` 檢查結構與安全界線；版面與焦點行為需以
 瀏覽器在桌面與 375px 寬度各確認一次，且不得出現水平溢出。
@@ -105,6 +111,8 @@ corepack pnpm verify
 實機瀏覽器需覆蓋：管理者／櫃台切換、建立預約、五種櫃台處置、改期、回診確認、排班發布、公告與維護啟閉、患者四步驟預約、行事曆匯出、桌面與 375px 手機版，以及 0 console errors／warnings。
 
 ## 最近驗證
+
+2026-07-22（第二輪）於本機實機驗證（詳見[主題、彈窗與動線優化](../reviews/ui-theme-dialog-and-flow-review-2026-07-22.md)）：不透明導覽列、四段主題切換與持久化、深色對比 ≥ 6.19:1、自製彈窗取消／確認／Esc 路徑、患者端脈絡列與雙返回鈕、`aria-pressed`／`aria-current`、主控台 0 errors。
 
 2026-07-22 於本機實機驗證（詳見[回饋可見性檢查](../reviews/ui-feedback-review-and-remediation-2026-07-22.md)）：工作臺與患者端全部建立／失敗路徑的就地回饋、sticky 狀態列、帳號重複防護、完成後改期閘門、患者端焦點與 `aria-current`、Enter 送出、主控台 0 errors／0 warnings。
 

@@ -8,6 +8,7 @@ import {
   buildGoogleCalendarUrl,
   downloadIcs
 } from './modules/calendar-export.js';
+import { confirmDialog } from './modules/confirm-dialog.js';
 import { fieldErrors } from './modules/patient-registry.js';
 import {
   emptyState,
@@ -149,8 +150,17 @@ function renderFollowUpChoice() {
 function renderServices() {
   elements['patient-services'].innerHTML = PATIENT_SERVICES.map(
     (service) =>
-      `<button class="service-choice${service.id === selectedServiceId ? ' is-selected' : ''}" type="button" data-service="${escapeHtml(service.id)}"><strong>${escapeHtml(service.label)}</strong><span>${escapeHtml(service.note)}</span></button>`
+      `<button class="service-choice${service.id === selectedServiceId ? ' is-selected' : ''}" type="button" data-service="${escapeHtml(service.id)}" aria-pressed="${service.id === selectedServiceId}"><strong>${escapeHtml(service.label)}</strong><span>${escapeHtml(service.note)}</span></button>`
   ).join('');
+}
+
+// 選取狀態不能只靠顏色：is-selected 之外同步 aria-pressed。
+function renderBookingTypeButtons() {
+  document.querySelectorAll('[data-booking-type]').forEach((button) => {
+    const selected = button.dataset.bookingType === selectedBookingType;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
 }
 
 function availableSlots() {
@@ -162,7 +172,16 @@ function availableSlots() {
     .slice(0, 60);
 }
 
+// 第 2 步顯示目前的類型與項目：選錯的人在這裡就會發現，
+// 並知道可以按「返回類型與項目」重選，不必等到最後一步。
+function renderBookingContext() {
+  const service = selectedService();
+  elements['booking-context'].textContent =
+    `目前選擇：${BOOKING_KIND_LABELS[selectedBookingType]}${service ? ` · ${service.label}` : ''}。選錯了嗎？可按上方「返回類型與項目」重選。`;
+}
+
 function renderSlots() {
+  renderBookingContext();
   const slots = availableSlots();
   elements['slot-choice-description'].textContent =
     selectedBookingType === 'follow_up'
@@ -280,6 +299,7 @@ function renderAll() {
   renderWorkspace();
   renderHours();
   renderFollowUpChoice();
+  renderBookingTypeButtons();
   renderServices();
   renderSlots();
   renderAppointments();
@@ -293,9 +313,7 @@ document.querySelectorAll('[data-booking-type]').forEach((button) =>
       return;
     }
     selectedBookingType = type;
-    document
-      .querySelectorAll('[data-booking-type]')
-      .forEach((item) => item.classList.toggle('is-selected', item === button));
+    renderBookingTypeButtons();
     renderSlots();
     message(
       `已選擇${BOOKING_KIND_LABELS[type]}，請接著選擇看診項目。`,
@@ -454,7 +472,12 @@ elements['book-another'].addEventListener('click', () => {
 elements['patient-appointments'].addEventListener('click', async (event) => {
   const button = event.target.closest('[data-patient-cancel]');
   if (button === null) return;
-  if (!window.confirm('確定提出此預約的取消要求？')) return;
+  if (
+    !(await confirmDialog('確定提出此預約的取消要求？實際取消由櫃台確認。', {
+      confirmLabel: '提出取消'
+    }))
+  )
+    return;
   try {
     state = await stagingRequest(
       `/bookings/${button.dataset.patientCancel}/cancellation`,
