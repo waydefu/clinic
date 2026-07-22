@@ -49,8 +49,9 @@ infer an answer from an existing website, social message or Calendar event.
 - A separate Firebase project, `beauessence-clinic-staging`, was created only
   for static Firebase Hosting preview channels. No Firestore, Functions,
   Storage, Authentication, Calendar or other backend integration was enabled.
-- Preview channel `synthetic-review` uses browser-local synthetic state, is
-  publicly reachable to anyone with the URL, and expires on 2026-07-28.
+- Preview channel `synthetic-review` uses browser-local synthetic state and is
+  publicly reachable to anyone with the URL. Redeployed 2026-07-22 with the
+  feedback-visibility remediation (same URL); it now expires on 2026-07-29.
 - This authorization does **not** approve D-001 through D-011, does not permit
   real data, and does not authorize a Firebase live-channel deployment.
 - Operating and deletion instructions are in

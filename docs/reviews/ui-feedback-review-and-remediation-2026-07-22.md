@@ -34,6 +34,15 @@
 | 8 | 患者端步驟切換後焦點停在 BODY；步驟指示器無 `aria-current` | `showStep` 把焦點移到新步驟標題（初始載入除外）；指示器同步 `aria-current="step"` |
 | 9 | 患者端無 `<form>`，欄位內按 Enter 無法送出 | 第 3 步包進 `<form novalidate>`，Enter 觸發同一套「一次攤開全部錯誤」驗證 |
 
+## 線上預覽重新部署（2026-07-22）
+
+依 runbook 完成部署前檢查（`pnpm verify`、`login:list`、`projects:list`）後，
+以 `hosting:channel:deploy synthetic-review --expires 7d` 重新部署。網址不變，
+新效期 2026-07-29 13:44；`hosting:channel:list` 確認 live 頻道時間戳未變動
+（2026-07-21 11:05）。線上驗收：CSP／`noindex`／`no-referrer`／`no-store`
+標頭齊備，`form-status` 元素與 anchor 版 `message()`、患者端 `<form>`、
+`aria-current` 皆已上線。
+
 ## 驗證（2026-07-22，本機 127.0.0.1:3100）
 
 - `corepack pnpm verify` 通過（含新增的帳號重複單元測試，95 tests）。
