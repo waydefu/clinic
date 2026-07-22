@@ -69,8 +69,32 @@ calendar_confirmed_appointment_001
 - `tests/firestore/outbox-worker.test.ts`：送到日曆的鍵確實是 base32hex；
   舊格式殘留的工作會直接進死信而非無限重試。
 
+## 投影動作（2026-07-22 補完）
+
+worker 依**執行當下**的預約狀態決定動作，而不是工作排入時的狀態——工作可能
+等到退避結束才執行，期間預約已被取消，這時再把事件寫回日曆就是錯的。
+
+| 預約狀態 | action | 真實 Calendar 呼叫 | 特殊情形 |
+| --- | --- | --- | --- |
+| `confirmed`／`completed`／`cancellation_requested` | `upsert` | `events.insert`（自訂 ID）；回 **409 就改 `events.patch`** | 409 = 事件已存在 → **冪等成功**，不是失敗 |
+| `cancelled`／`no_show` | `cancel` | `events.delete` | 410／404 = 早就沒了 → **視為成功**，目標狀態已達成 |
+
+為什麼是 upsert 而不是分開的 create／update：worker 手上只有預約狀態，無法
+知道日曆那一側到底有沒有這個事件（Google 明說無法保證偵測 ID 衝突）。
+「先 insert，撞到就 patch」是官方建議寫法，也讓重試永遠安全。
+
+假日曆（`InMemoryCalendar`）已實作這四種語意並提供 `insertCount`、
+`conflictUpdateCount`、`cancelCount`、`cancelMissCount` 供測試斷言。
+
 ## 尚未處理
 
-worker 目前只有「建立或更新」一種投影動作。真實 Calendar 還需要更新與取消
-（delete）的語意，以及把 Google 回的 409（事件已存在）明確視為冪等成功——
-列於[日曆整合計畫 §3.1](calendar-and-database-integration-plan.md)。
+**改期會在日曆留下舊事件。** 改期的投影用的是帶目標時段的新鍵（新 event
+ID），因此舊事件不會被自動刪除。兩種解法各有代價，需要在接真實日曆前決定：
+
+- 事件 ID 固定綁預約（Google 較自然的模型）：改期變成更新同一個事件，但
+  `outbox_jobs` 需要另一個欄位來區分不同次的投影意圖。
+- 維持現狀並在改期時額外排一筆 `cancel` 舊事件的工作：outbox 語意不變，但
+  多一筆工作與一次外部呼叫。
+
+在決定之前，不要因為「看起來像 bug」就片面改動——那會改變診所日曆上實際
+看到的內容。

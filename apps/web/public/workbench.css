@@ -31,6 +31,12 @@
   background: var(--forest-light);
   color: var(--forest-dark);
 }
+/* 目前分頁：底色以外再加下緣線，不單靠顏色表達（另有 aria-current）。 */
+.workspace-nav a.is-active {
+  background: var(--forest-light);
+  box-shadow: inset 0 -0.18rem 0 var(--forest);
+  color: var(--forest-dark);
+}
 /* 全域狀態列：sticky 讓它在整頁任何捲動位置都看得到。長頁面上只放頂端
    等於沒有回饋——操作者在表單位置看不到成功或失敗。top 需讓出上方導覽列。 */
 .status-banner {
@@ -383,4 +389,26 @@
 }
 .detail-line {
   display: block;
+}
+
+/* 預約卡的控制列：修改備註與處置選單並排，手機上仍靠左不溢出。 */
+.appointment-controls {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+.notes-form {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  width: 100%;
+}
+.notes-form-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }

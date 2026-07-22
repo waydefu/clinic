@@ -20,6 +20,7 @@ import {
 
 const auditLabels = {
   appointment_confirmed: '建立預約',
+  appointment_notes_updated: '修改備註',
   cancellation_requested: '提出取消',
   appointment_cancelled: '確認取消',
   appointment_completed: '完成到診',
@@ -38,6 +39,7 @@ const auditLabels = {
 
 const appointmentActions = new Set([
   'appointment_confirmed',
+  'appointment_notes_updated',
   'cancellation_requested',
   'appointment_cancelled',
   'appointment_completed',
@@ -132,11 +134,29 @@ export function renderTasks(state) {
     .join('');
 }
 
-export function renderTagPicker(selected = []) {
+/**
+ * 備註標籤的勾選清單。
+ *
+ * `scope` 決定送出方式：建立預約的表單以 `data-booking-tag` 由 bootstrap
+ * 逐一讀取；卡片內的修改備註表單走原生 FormData，因此需要 `name`。
+ */
+export function renderTagPicker(selected = [], scope = 'booking') {
+  const attribute =
+    scope === 'notes'
+      ? `name="noteTags" value="__ID__"`
+      : `data-booking-tag="__ID__"`;
   return BOOKING_NOTE_TAGS.map(
     (tag) =>
-      `<label class="tag-option"><input type="checkbox" data-booking-tag="${escapeHtml(tag.id)}" ${selected.includes(tag.id) ? 'checked' : ''} />${escapeHtml(tag.label)}</label>`
+      `<label class="tag-option"><input type="checkbox" ${attribute.replace('__ID__', escapeHtml(tag.id))} ${selected.includes(tag.id) ? 'checked' : ''} />${escapeHtml(tag.label)}</label>`
   ).join('');
+}
+
+// 備註可改的狀態，與 updateAppointmentNotes 的規則一致：已取消或未到的
+// 預約是已經發生的事實，不再修改。
+function notesEditable(appointment) {
+  return ['confirmed', 'cancellation_requested', 'completed'].includes(
+    appointment.status
+  );
 }
 
 export function renderSlots(state, kind, selectedSlotId) {
@@ -204,7 +224,16 @@ export function renderAppointments(state, filters) {
       const rescheduleForm = actionEnabled('reschedule', appointment)
         ? `<form class="reschedule-form" data-reschedule-form="${escapeHtml(appointment.id)}" hidden><label>改期至<select name="slotId">${rescheduleOptions(state, appointment)}</select></label><button class="button button-primary" type="submit">確認改期</button></form>`
         : '';
-      return `<article class="appointment-card"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><p>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</p><span class="code detail-line">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')} · ${escapeHtml(appointment.id)}</span>${detailRow(state, appointment.patientId)}${noteRow}</div></div>${actionMenu(appointment, decided)}${rescheduleForm}</article>`;
+      // 備註是營運註記（當天到、國外客…），與臨床決定無關，因此放在處置
+      // 選單外面直接可按；已取消／未到的預約不再開放修改。
+      const editable = notesEditable(appointment);
+      const notesControl = editable
+        ? `<button class="text-button" type="button" data-notes-toggle="${escapeHtml(appointment.id)}" aria-expanded="false">修改備註</button>`
+        : '';
+      const notesForm = editable
+        ? `<form class="notes-form" data-notes-form="${escapeHtml(appointment.id)}" hidden><fieldset class="tag-picker"><legend>備註（可複選）</legend>${renderTagPicker(appointment.noteTags ?? [], 'notes')}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(appointment.noteText ?? '')}"></label><div class="notes-form-actions"><button class="button button-primary" type="submit">儲存備註</button><button class="text-button" type="button" data-notes-cancel="${escapeHtml(appointment.id)}">取消</button></div></form>`
+        : '';
+      return `<article class="appointment-card"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><p>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</p><span class="code detail-line">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')} · ${escapeHtml(appointment.id)}</span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${notesControl}${actionMenu(appointment, decided)}</div>${rescheduleForm}${notesForm}</article>`;
     })
     .join('');
 }
@@ -267,7 +296,21 @@ export function renderFollowUps(state) {
             )
             .join('')
         : '<option value="">當天未營業</option>';
-      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '需要回診' : '目前無需回診') : '待確認'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span></div><label>決定<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label><fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存逐筆決定</button></form>`;
+      // 個管指派在這裡是「順手做完」的捷徑，與「個案管理」分頁用的是同一個
+      // domain 函式與同一組稽核事件；留空表示暫不指派，不會清掉既有指派。
+      const assignment = state.caseAssignments.find(
+        (item) =>
+          item.appointmentId === appointment.id && item.status === 'active'
+      );
+      const managerOptions = state.caseManagers
+        .filter((item) => item.status === 'active')
+        .map(
+          (manager) =>
+            `<option value="${escapeHtml(manager.id)}" ${assignment?.managerId === manager.id ? 'selected' : ''}>${escapeHtml(manager.label)}</option>`
+        )
+        .join('');
+      const managerField = `<label>個案管理師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前：${escapeHtml(managerLabel(state, assignment.managerId))}` : '完成到診後可在此或「個案管理」分頁指派'}</span></label>`;
+      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '需要回診' : '目前無需回診') : '待確認'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span></div><label>決定<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存逐筆決定</button></form>`;
     })
     .join('');
 }

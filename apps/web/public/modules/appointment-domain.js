@@ -234,6 +234,36 @@ export function rescheduleAppointment(
   return appointment;
 }
 
+/**
+ * 修改預約的備註標籤與自填備註。
+ *
+ * 備註是櫃台的營運註記（當天到、國外客…），與臨床決定無關，因此**不改變
+ * 狀態、不動時段、不產生日曆投影**；但仍寫稽核，因為它會影響現場判斷。
+ * 已結束（取消／未到）的預約不再修改：那是已經發生的事實。
+ */
+export function updateAppointmentNotes(state, appointmentId, input, actorId) {
+  const appointment = state.appointments.find(
+    (item) => item.id === appointmentId
+  );
+  if (appointment === undefined) throw new Error('找不到這筆預約。');
+  if (
+    !['confirmed', 'cancellation_requested', 'completed'].includes(
+      appointment.status
+    )
+  )
+    throw new Error('已取消或未到的預約不可再修改備註。');
+
+  appointment.noteTags = selectedTags(
+    input?.noteTags,
+    BOOKING_NOTE_TAGS,
+    '備註'
+  );
+  appointment.noteText = optionalNote(input?.noteText);
+  appointment.updatedAt = new Date().toISOString();
+  appendAudit(state, 'appointment_notes_updated', appointmentId, actorId);
+  return appointment;
+}
+
 export function recordFollowUp(state, appointmentId, input, actorId) {
   const appointment = state.appointments.find(
     (item) => item.id === appointmentId

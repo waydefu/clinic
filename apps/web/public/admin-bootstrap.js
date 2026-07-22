@@ -17,6 +17,10 @@ import { confirmDialog } from './modules/confirm-dialog.js';
 import { WORKBENCH_PROCEDURES } from './modules/constants.js';
 import { followUpDueTimes } from './modules/schedule-engine.js';
 import {
+  applyWorkspacePanel,
+  initWorkspaceTabs
+} from './modules/workspace-tabs.js';
+import {
   escapeHtml,
   formatFullDate,
   formatTime,
@@ -89,11 +93,15 @@ function renderSession() {
       ? '可設定排班、回診、個管、帳號與系統治理。'
       : '只保留預約、取消、改期與到診處置的日常權限。';
   const admin = state.session.account.role === 'admin';
-  document
-    .querySelectorAll('[data-admin-only],[data-admin-nav]')
-    .forEach((element) => {
-      element.hidden = !admin;
-    });
+  // 導覽連結直接隱藏；工作區只標記「被權限擋下」，實際的 hidden 由分頁模組
+  // 統一決定——兩邊各自寫 hidden 會互相蓋掉（櫃台切到排班會看到空白頁）。
+  document.querySelectorAll('[data-admin-nav]').forEach((element) => {
+    element.hidden = !admin;
+  });
+  document.querySelectorAll('[data-admin-only]').forEach((element) => {
+    element.dataset.restricted = String(!admin);
+  });
+  applyWorkspacePanel();
 }
 
 function renderFilters() {
@@ -384,7 +392,39 @@ elements.appointments.addEventListener('click', async (event) => {
   }
 });
 
+// 修改備註：展開／收合卡片內的表單。備註不改狀態也不動時段，因此不放進
+// 「處置」選單，直接一鍵可按。
+elements.appointments.addEventListener('click', (event) => {
+  const toggle = event.target.closest('[data-notes-toggle]');
+  const cancel = event.target.closest('[data-notes-cancel]');
+  const id = toggle?.dataset.notesToggle ?? cancel?.dataset.notesCancel;
+  if (id === undefined) return;
+  const form = document.querySelector(`[data-notes-form="${id}"]`);
+  const button = document.querySelector(`[data-notes-toggle="${id}"]`);
+  if (form === null || button === null) return;
+  form.hidden = cancel !== null ? true : !form.hidden;
+  button.setAttribute('aria-expanded', String(!form.hidden));
+  if (!form.hidden) form.querySelector('input')?.focus();
+  else button.focus();
+});
+
 elements.appointments.addEventListener('submit', async (event) => {
+  const notesForm = event.target.closest('[data-notes-form]');
+  if (notesForm !== null) {
+    event.preventDefault();
+    const data = new FormData(notesForm);
+    try {
+      await post(`/bookings/${notesForm.dataset.notesForm}/notes`, {
+        noteTags: data.getAll('noteTags'),
+        noteText: data.get('noteText')
+      });
+      message('備註已更新。', 'success');
+    } catch (error) {
+      message(`未更新備註：${error.message}`, 'error');
+    }
+    return;
+  }
+
   const form = event.target.closest('[data-reschedule-form]');
   if (form === null) return;
   event.preventDefault();
@@ -588,15 +628,20 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = new FormData(form);
   try {
+    const managerId = data.get('managerId');
     await post(`/follow-ups/${form.dataset.followUpForm}`, {
       status: data.get('status'),
       dueDate: data.get('dueDate'),
       dueTime: data.get('dueTime'),
       tags: data.getAll('tags'),
       noteText: data.get('noteText'),
-      certificateCopies: Number(data.get('certificateCopies') ?? 0)
+      certificateCopies: Number(data.get('certificateCopies') ?? 0),
+      managerId
     });
-    message('逐筆回診決定已記錄。', 'success');
+    message(
+      managerId ? '逐筆回診決定與個管指派已記錄。' : '逐筆回診決定已記錄。',
+      'success'
+    );
   } catch (error) {
     message(error.message, 'error');
   }
@@ -734,6 +779,7 @@ if (!isOnline) elements['environment-label'].textContent = 'LOCAL TEST ONLY';
 try {
   state = await stagingRequest('/state');
   render();
+  initWorkspaceTabs();
   message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
 } catch (error) {
   message(error instanceof Error ? error.message : '無法載入工作臺。', 'error');

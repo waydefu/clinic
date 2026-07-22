@@ -21,9 +21,30 @@
 | `modules/workspace-domain.js` | 合成帳號、公告、維護排程與發布紀錄 | 正式 IAM、CMS 與 deployment service adapter |
 | `modules/state-schema.js` | 合成 state schema、預設值與 localStorage | 替換成 versioned API DTO，不讓 UI 直接碰 Firestore |
 | `store.js` | command/query dispatcher | 替換成 `api-client.js`，保留相同 command 語意 |
+| `modules/workspace-tabs.js` | 工作臺分頁切換（一次只顯示一個工作區） | 正式版若改多頁路由，只換這一個檔 |
 | `modules/admin-view.js` | 純 HTML renderer | 可沿用或替換為框架元件 |
 | `admin-bootstrap.js` | 管理者 UI controller 與事件協調 | 呼叫正式 API client |
 | `patient-app.js` | 患者四步驟流程與逐欄驗證 | Web／Android／iOS 共用 API contract |
+
+## 工作臺分頁：為什麼用 hash 而不是 History 路由（2026-07-22 決定）
+
+工作臺的七個工作區改為一次只顯示一個（`modules/workspace-tabs.js`），路由用
+`location.hash`。曾評估 History API（`/schedule` 這種路徑），**不採用**：
+
+| 面向 | hash（採用） | History 路徑 |
+| --- | --- | --- |
+| 伺服器設定 | 不需要 | `firebase.json` 要加 `rewrites`，`server.mjs` 也要改 fallback（目前無副檔名的路徑一律 404）——兩份設定必須永遠一致 |
+| 失敗模式 | 無 | 兩邊漂移 → **子頁重新整理變 404**，典型 SPA 部署 bug |
+| 無 JS 時 | 仍是可用的錨點連結 | 需要攔截點擊，退化較差 |
+| URL 美觀／SEO | 較差 | 較好——但本站全域 `noindex`，且預覽網址本身就是隨機字串 |
+
+改用 History 的**唯一觸發條件**：需要把 hash 讓給頁內錨點時（例如深連結到
+某一筆預約卡 `#appointment_001`）。屆時建議走 `?tab=` + `pushState` 的折衷，
+同樣不需要伺服器 rewrite，且只需改 `workspace-tabs.js` 一個檔。
+
+分頁與權限的關係集中在一處：管理者專屬區塊由 `admin-bootstrap.js` 標上
+`data-restricted`，實際 `hidden` 一律由 `workspace-tabs.js` 決定。兩邊各自寫
+`hidden` 會互相蓋掉——櫃台帳號切到排班會看到空白頁，而不是被導回營運首頁。
 
 ## 資料流
 

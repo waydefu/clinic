@@ -3,7 +3,8 @@ import {
   recordFollowUp,
   rescheduleAppointment,
   sortedAppointments,
-  transitionAppointment
+  transitionAppointment,
+  updateAppointmentNotes
 } from './modules/appointment-domain.js';
 import {
   assignCaseManager,
@@ -189,9 +190,20 @@ export async function stagingRequest(path, options = {}) {
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/reschedule$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
     rescheduleAppointment(state, path.split('/')[2], body.slotId, actor.id);
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/notes$/.test(path)) {
+    // 備註是櫃台的營運註記，沿用建立預約的權限，不需要管理者。
+    const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
+    updateAppointmentNotes(state, path.split('/')[2], body, actor.id);
   } else if (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
-    recordFollowUp(state, path.split('/')[2], body, actor.id);
+    const appointmentId = path.split('/')[2];
+    recordFollowUp(state, appointmentId, body, actor.id);
+    // 回診卡上的個管欄位只是捷徑，仍必須各自通過個管權限——在別的表單裡
+    // 順手做，不代表可以繞過該動作的授權。留空表示不變更現有指派。
+    if (typeof body.managerId === 'string' && body.managerId !== '') {
+      const caseActor = requirePermission(state, PERMISSIONS.MANAGE_CASES);
+      assignCaseManager(state, appointmentId, body.managerId, caseActor.id);
+    }
   } else if (path === '/case-assignments') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_CASES);
     assignCaseManager(state, body.appointmentId, body.managerId, actor.id);

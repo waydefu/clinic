@@ -96,11 +96,14 @@ Calendar 是投影，不是可用性的來源。
    `fromCalendarEventId` 還原邏輯鍵供人工追查。`booking-transaction.ts`、
    `appointment-transition.ts` 與瀏覽器預覽都改呼叫同一個產生器；假日曆
    會拒絕不合格式的 ID 並標記為不可重試。單元 105 項、Emulator 35 項通過。
-2. **worker 的 Calendar adapter 先以假服務定型**——`apps/worker` 的
-   `calendar-port.ts` 已是可替換的 port。已具備：格式把關、以 event ID
-   去重（同鍵重送只留一個事件）、可設定連續失敗次數。**仍待補**：把
-   「事件已存在（Google 回 409）」明確視為冪等成功的案例，以及更新與
-   取消（delete）兩種操作的語意。
+2. **worker 的 Calendar adapter 先以假服務定型** — ✅ 已完成 2026-07-22。
+   `calendar-port.ts` 現在具備：event ID 格式把關（不合格式＝不可重試）、
+   `upsert`／`cancel` 兩種動作、409（事件已存在）與 410／404（早已刪除）
+   都視為冪等成功，以及依**執行當下**的預約狀態決定動作。Emulator 39 項
+   通過，含四個新案例。細節見
+   [日曆 event ID 與 outbox 冪等鍵](calendar-event-id.md)。
+   **已知缺口**：改期會在日曆留下舊事件，兩種解法與取捨記於同一份文件，
+   需在接真實日曆前決定。
 3. **事件欄位最小化定型**——事件內容只放預約編號、掛號別、時間與診所
    地址；測試以斷言鎖住「不得出現姓名、電話、身分證、手術種類、備註」。
 4. **runbook 演練**——依 [calendar-sync-failure runbook](../runbooks/calendar-sync-failure.md)

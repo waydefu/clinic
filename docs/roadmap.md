@@ -90,9 +90,11 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 
 ### 6. 接日曆實測的技術前置 — 詳見[日曆整合計畫 §3.1](architecture/calendar-and-database-integration-plan.md)
 
-✅ base32hex 冪等鍵修正（2026-07-22）→ 假 Calendar 服務定型（部分完成：
-格式把關與去重已有，409／更新／刪除語意待補）→ 事件欄位最小化斷言（已有
-測試）→ runbook 演練。全部不需核准；D-009 核准後只剩換上真實 API 用戶端。
+✅ base32hex 冪等鍵修正 → ✅ 假 Calendar 服務定型（upsert／cancel、409 與
+410 皆視為冪等成功）→ ✅ 事件欄位最小化斷言 → **待辦：runbook 演練**，以及
+決定改期時舊日曆事件的處理方式（兩種解法見
+[日曆 event ID 文件](architecture/calendar-event-id.md)）。
+全部不需核准；D-009 核准後只剩換上真實 API 用戶端。
 
 ## 三、需要核准才能做的事
 

@@ -112,6 +112,77 @@ describe('outbox worker', () => {
     expect(calendar.events.size).toBe(0);
   });
 
+  it('treats an existing event as an idempotent success (Google 409 path)', async () => {
+    await seedJob();
+    await processor.processDue(NOW);
+    // 同一把鑰匙再送一次：插入變成命中既有事件並更新，仍然只有一個事件。
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_001')
+      .update({ status: 'pending', attempts: 0 });
+    const summary = await processor.processDue(later(1));
+
+    expect(summary).toMatchObject({ completed: 1 });
+    expect(calendar.events.size).toBe(1);
+    expect(calendar.insertCount).toBe(1);
+    expect(calendar.conflictUpdateCount).toBe(1);
+  });
+
+  it('cancels the event when the appointment is cancelled or a no-show', async () => {
+    for (const status of ['cancelled', 'no_show']) {
+      await wipe();
+      calendar = new InMemoryCalendar();
+      processor = new OutboxProcessor(db, calendar);
+      await seedJob();
+      // 先讓事件存在，再把預約改成已結束並重新排入工作。
+      await processor.processDue(NOW);
+      expect(calendar.events.size).toBe(1);
+
+      await db
+        .collection(APPOINTMENTS_COLLECTION)
+        .doc('appointment_001')
+        .update({ status });
+      await db
+        .collection(OUTBOX_COLLECTION)
+        .doc('outbox_001')
+        .update({ status: 'pending', attempts: 0 });
+      const summary = await processor.processDue(later(1));
+
+      expect(summary).toMatchObject({ completed: 1 });
+      expect(calendar.events.size).toBe(0);
+      expect(calendar.cancelCount).toBe(1);
+    }
+  });
+
+  it('treats cancelling an already-missing event as a success (410/404 path)', async () => {
+    await seedJob();
+    await db
+      .collection(APPOINTMENTS_COLLECTION)
+      .doc('appointment_001')
+      .update({ status: 'cancelled' });
+
+    // 事件從未建立過就先被取消：目標狀態已達成，不該重試也不該死信。
+    const summary = await processor.processDue(NOW);
+    expect(summary).toMatchObject({ completed: 1 });
+    expect(calendar.cancelMissCount).toBe(1);
+    expect(calendar.events.size).toBe(0);
+  });
+
+  it('uses the appointment status at run time, not when the job was queued', async () => {
+    await seedJob();
+    // 工作排入時預約仍成立，但退避期間被取消——恢復後不該把事件寫回日曆。
+    calendar.failNext(1);
+    await processor.processDue(NOW);
+    await db
+      .collection(APPOINTMENTS_COLLECTION)
+      .doc('appointment_001')
+      .update({ status: 'cancelled' });
+
+    await processor.processDue(later(60));
+    expect(calendar.events.size).toBe(0);
+    expect(calendar.insertCount).toBe(0);
+  });
+
   it('never sends patient identifiers to the calendar', async () => {
     await seedJob();
     await processor.processDue(NOW);

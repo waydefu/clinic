@@ -6,10 +6,24 @@ import {
 } from '@beauessence/domain';
 import type { Firestore } from 'firebase-admin/firestore';
 
-import { CalendarError, type CalendarPort } from './calendar-port.js';
+import {
+  CalendarError,
+  type CalendarAction,
+  type CalendarPort
+} from './calendar-port.js';
 
 export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
+
+/**
+ * 已結束且不再佔用時段的預約，其日曆事件應該消失；其餘狀態都是 upsert。
+ *
+ * 用預約的**目前**狀態而不是工作建立時的狀態：工作可能等到退避結束才執行，
+ * 期間預約已被取消——這時再把事件寫回日曆就是錯的。
+ */
+function actionForStatus(status: string): CalendarAction {
+  return status === 'cancelled' || status === 'no_show' ? 'cancel' : 'upsert';
+}
 
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
 export const LEASE_SECONDS = 120;
@@ -135,15 +149,16 @@ export class OutboxProcessor {
         .doc(job.appointmentId)
         .get();
 
+      const status = (appointment.data()?.['status'] as string) ?? 'unknown';
       let outcome: AttemptOutcome;
       try {
         // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
         // 手術種類與備註一律不得離開本系統（ADR-0002）。
         await this.calendar.project({
           idempotencyKey: job.idempotencyKey,
+          action: actionForStatus(status),
           appointmentId: job.appointmentId,
-          appointmentStatus:
-            (appointment.data()?.['status'] as string) ?? 'unknown',
+          appointmentStatus: status,
           startsAt: (appointment.data()?.['startsAt'] as string) ?? '',
           bookingKind: (appointment.data()?.['bookingKind'] as string) ?? ''
         });

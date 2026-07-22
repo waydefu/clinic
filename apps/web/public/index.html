@@ -57,13 +57,16 @@
         </div>
       </header>
       <nav class="workspace-nav" aria-label="管理工作臺導覽">
-        <a href="#overview">營運首頁</a
-        ><a href="#appointments-section">預約與回診</a
-        ><a href="#schedule-section" data-admin-nav>排班管理</a
-        ><a href="#case-section" data-admin-nav>個案管理</a
-        ><a href="#accounts-section" data-admin-nav>員工權限</a
-        ><a href="#communications-section" data-admin-nav>患者端與系統</a
-        ><a href="#audit-section">稽核紀錄</a>
+        <a href="#overview" data-workspace-nav>營運首頁</a
+        ><a href="#appointments-section" data-workspace-nav>預約與回診</a
+        ><a href="#schedule-section" data-workspace-nav data-admin-nav
+          >排班管理</a
+        ><a href="#case-section" data-workspace-nav data-admin-nav>個案管理</a
+        ><a href="#accounts-section" data-workspace-nav data-admin-nav
+          >員工權限</a
+        ><a href="#communications-section" data-workspace-nav data-admin-nav
+          >患者端與系統</a
+        ><a href="#audit-section" data-workspace-nav>稽核紀錄</a>
       </nav>
       <main id="main-content" class="dashboard" tabindex="-1">
         <section
@@ -103,6 +106,7 @@
         <section
           id="overview"
           class="workspace-section"
+          data-workspace-panel
           aria-labelledby="overview-heading"
         >
           <div class="section-heading">
@@ -138,6 +142,7 @@
         <section
           id="appointments-section"
           class="workspace-section"
+          data-workspace-panel
           aria-labelledby="appointments-heading"
         >
           <div class="section-heading">
@@ -260,6 +265,7 @@
         <section
           id="schedule-section"
           class="workspace-section"
+          data-workspace-panel
           aria-labelledby="schedule-heading"
           data-admin-only
         >
@@ -413,6 +419,7 @@
         <section
           id="case-section"
           class="workspace-section"
+          data-workspace-panel
           aria-labelledby="case-heading"
           data-admin-only
         >
@@ -437,6 +444,7 @@
         <section
           id="accounts-section"
           class="workspace-section"
+          data-workspace-panel
           aria-labelledby="accounts-heading"
           data-admin-only
         >
@@ -479,6 +487,7 @@
         <section
           id="communications-section"
           class="workspace-section"
+          data-workspace-panel
           aria-labelledby="communications-heading"
           data-admin-only
         >
@@ -579,6 +588,7 @@
         <section
           id="audit-section"
           class="workspace-section"
+          data-workspace-panel
           aria-labelledby="audit-heading"
         >
           <div class="section-heading">
