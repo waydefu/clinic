@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  calendarEventIdForReschedule,
-  calendarEventIdForStatus,
+  calendarEventIdForAppointment,
   fromCalendarEventId,
   isCalendarEventId,
   toCalendarEventId
@@ -20,9 +19,8 @@ const codeOf = (run: () => unknown): string | undefined => {
 describe('Calendar event ID', () => {
   it('只產生 Calendar 允許的字元（小寫 a–v 與 0–9）', () => {
     const ids = [
-      calendarEventIdForStatus('appointment_001', 'confirmed'),
-      calendarEventIdForStatus('appointment_001', 'cancelled'),
-      calendarEventIdForReschedule('appointment_001', 'slot_20300102_1200')
+      calendarEventIdForAppointment('appointment_001'),
+      calendarEventIdForAppointment('appointment_002')
     ];
     for (const id of ids) {
       expect(id).toMatch(/^[0-9a-v]+$/);
@@ -34,42 +32,27 @@ describe('Calendar event ID', () => {
   });
 
   it('長度落在 5–1024 之間', () => {
-    const id = calendarEventIdForStatus('appointment_001', 'confirmed');
+    const id = calendarEventIdForAppointment('appointment_001');
     expect(id.length).toBeGreaterThanOrEqual(5);
     expect(id.length).toBeLessThanOrEqual(1024);
   });
 
-  it('同一邏輯鍵永遠得到同一個 ID（冪等的基礎）', () => {
-    expect(calendarEventIdForStatus('appointment_001', 'confirmed')).toBe(
-      calendarEventIdForStatus('appointment_001', 'confirmed')
+  it('同一筆預約永遠得到同一個 ID（冪等的基礎）', () => {
+    expect(calendarEventIdForAppointment('appointment_001')).toBe(
+      calendarEventIdForAppointment('appointment_001')
     );
   });
 
-  it('不同預約、不同狀態、不同改期目標各自不同', () => {
-    const confirmed = calendarEventIdForStatus('appointment_001', 'confirmed');
-    expect(confirmed).not.toBe(
-      calendarEventIdForStatus('appointment_001', 'cancelled')
-    );
-    expect(confirmed).not.toBe(
-      calendarEventIdForStatus('appointment_002', 'confirmed')
-    );
-    expect(calendarEventIdForReschedule('appointment_001', 'slot_a')).not.toBe(
-      calendarEventIdForReschedule('appointment_001', 'slot_b')
-    );
-    // 改期投影必須與成立投影不同，否則 worker 會誤判為重送而不更新日曆。
-    expect(calendarEventIdForReschedule('appointment_001', 'slot_a')).not.toBe(
-      confirmed
+  it('不同預約各自不同', () => {
+    expect(calendarEventIdForAppointment('appointment_001')).not.toBe(
+      calendarEventIdForAppointment('appointment_002')
     );
   });
 
   it('可解回邏輯鍵，讓人在日曆上看到 ID 時能追查', () => {
-    const id = calendarEventIdForStatus('appointment_001', 'confirmed');
-    expect(fromCalendarEventId(id)).toBe('calendar_confirmed_appointment_001');
     expect(
-      fromCalendarEventId(
-        calendarEventIdForReschedule('appointment_001', 'slot_20300102_1200')
-      )
-    ).toBe('calendar_rescheduled_appointment_001_slot_20300102_1200');
+      fromCalendarEventId(calendarEventIdForAppointment('appointment_001'))
+    ).toBe('calendar_appointment_001');
   });
 
   it('編碼為 RFC 4648 base32hex：對照已知向量', () => {

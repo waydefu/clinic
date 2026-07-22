@@ -14,7 +14,7 @@ import {
 } from './domain-rules.js';
 import { identityKey, upsertPatient } from './patient-registry.js';
 import { followUpDueTimes } from './schedule-engine.js';
-import { calendarEventIdForStatus } from '../vendor/domain/index.js';
+import { calendarEventIdForAppointment } from '../vendor/domain/index.js';
 
 const MAX_NOTE_LENGTH = 120;
 const MAX_CERTIFICATE_COPIES = 10;
@@ -37,10 +37,7 @@ function appendOutbox(state, appointment) {
     appointmentStatus: appointment.status,
     // 預覽的投影意圖不會真的送到日曆，但鍵仍由共用產生器產生：格式只有
     // 一個來源，預覽看到的就是正式路徑會用的鍵（ADR-0002、ADR-0004）。
-    idempotencyKey: calendarEventIdForStatus(
-      appointment.id,
-      appointment.status
-    ),
+    idempotencyKey: calendarEventIdForAppointment(appointment.id),
     status: 'pending'
   });
 }

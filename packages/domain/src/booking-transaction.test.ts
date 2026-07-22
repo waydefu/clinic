@@ -6,7 +6,7 @@ import {
   type SlotSnapshot
 } from './booking-transaction.js';
 import {
-  calendarEventIdForStatus,
+  calendarEventIdForAppointment,
   fromCalendarEventId,
   isCalendarEventId
 } from './calendar-event-id.js';
@@ -79,10 +79,10 @@ describe('planBooking', () => {
     expect(plan.auditEvent.id).toContain('appointment_001');
     // 鍵是編碼後的 Calendar event ID；解回來才是可讀的邏輯鍵。
     expect(plan.outboxJob.idempotencyKey).toBe(
-      calendarEventIdForStatus('appointment_001', 'confirmed')
+      calendarEventIdForAppointment('appointment_001')
     );
     expect(fromCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(
-      'calendar_confirmed_appointment_001'
+      'calendar_appointment_001'
     );
     expect(isCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(true);
   });

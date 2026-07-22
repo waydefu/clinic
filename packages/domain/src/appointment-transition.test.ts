@@ -83,18 +83,24 @@ describe('planTransition', () => {
     expect(request('cancel').plan().completedAt).toBeUndefined();
   });
 
-  it('gives each status its own calendar idempotency key', () => {
-    const cancelKey = request('cancel').plan().outboxJob.idempotencyKey;
-    const completeKey = request('complete').plan().outboxJob.idempotencyKey;
+  // 一筆預約 = 日曆上一個事件。每個狀態各自一個 ID 會讓改期留下殘影、
+  // 到診多開一格，而取消去刪一個從未建立過的 ID（2026-07-22 解法 A）。
+  it('keys every status to the same calendar event', () => {
+    const keys = (
+      [
+        'request_cancellation',
+        'cancel',
+        'complete',
+        'no_show'
+      ] as AppointmentTransition[]
+    ).map((transition) => request(transition).plan().outboxJob.idempotencyKey);
+
+    expect(new Set(keys).size).toBe(1);
+    expect(isCalendarEventId(keys[0] as string)).toBe(true);
     // 鍵是編碼後的 Calendar event ID；解回來才是可讀的邏輯鍵。
-    expect(fromCalendarEventId(cancelKey)).toBe(
-      'calendar_cancelled_appointment_001'
+    expect(fromCalendarEventId(keys[0] as string)).toBe(
+      'calendar_appointment_001'
     );
-    expect(fromCalendarEventId(completeKey)).toBe(
-      'calendar_completed_appointment_001'
-    );
-    expect(isCalendarEventId(cancelKey)).toBe(true);
-    expect(isCalendarEventId(completeKey)).toBe(true);
   });
 
   it('allows cancel and no_show from a pending cancellation', () => {
@@ -182,12 +188,15 @@ describe('planReschedule', () => {
     expect(plan.nextStatus).toBe('confirmed');
   });
 
-  it('keys the projection to the new slot so it is not mistaken for a resend', () => {
-    const key = reschedule(target).outboxJob.idempotencyKey;
-    expect(fromCalendarEventId(key)).toBe(
-      'calendar_rescheduled_appointment_001_slot_20300102_1230'
+  // 工作要能與原本的成立工作區分，否則會被當成同一筆而覆蓋；但日曆事件是
+  // 同一個——改期是把事件搬到新時間，不是再開一格。
+  it('keys the job to the new slot but the calendar event to the appointment', () => {
+    const plan = reschedule(target);
+    expect(plan.outboxJob.id).toContain(target.id);
+    expect(fromCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(
+      'calendar_appointment_001'
     );
-    expect(isCalendarEventId(key)).toBe(true);
+    expect(isCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(true);
   });
 
   it('rejects a taken, missing or same slot', () => {

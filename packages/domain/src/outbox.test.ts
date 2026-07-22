@@ -9,12 +9,12 @@ import {
   planOutboxAttempt,
   type OutboxJob
 } from './outbox.js';
-import { calendarEventIdForStatus } from './calendar-event-id.js';
+import { calendarEventIdForAppointment } from './calendar-event-id.js';
 
 const job: OutboxJob = {
   id: 'outbox_001',
   appointmentId: 'appointment_001',
-  idempotencyKey: calendarEventIdForStatus('appointment_001', 'confirmed'),
+  idempotencyKey: calendarEventIdForAppointment('appointment_001'),
   status: 'pending',
   attempts: 0
 };

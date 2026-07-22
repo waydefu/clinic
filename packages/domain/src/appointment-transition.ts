@@ -5,10 +5,7 @@ import {
   type AppointmentTransition
 } from './appointment-rules.js';
 import type { BookingKind, SlotSnapshot } from './booking-transaction.js';
-import {
-  calendarEventIdForReschedule,
-  calendarEventIdForStatus
-} from './calendar-event-id.js';
+import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
 export type { AppointmentStatusValue, AppointmentTransition };
@@ -128,9 +125,9 @@ function outboxFor(
     type: 'calendar_projection_requested',
     appointmentId,
     appointmentStatus: status,
-    // 每個狀態一把固定的鑰匙：重試不會產生第二個日曆事件，而不同狀態的
-    // 投影仍各自送出一次。鍵的組成與編碼集中在 calendar-event-id.ts。
-    idempotencyKey: calendarEventIdForStatus(appointmentId, status),
+    // 一筆預約一個日曆事件：每次狀態變化都是更新或刪除同一個事件，而不是
+    // 再開一格。鍵的組成與編碼集中在 calendar-event-id.ts。
+    idempotencyKey: calendarEventIdForAppointment(appointmentId),
     status: 'pending',
     attempts: 0,
     createdAt: at
@@ -218,12 +215,9 @@ export function planReschedule(
     },
     outboxJob: {
       ...outboxFor(appointment.id, 'confirmed', request.requestedAt),
-      // 改期後的投影要能與原本的成立事件區分，否則 worker 會誤判為重送。
-      id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`,
-      idempotencyKey: calendarEventIdForReschedule(
-        appointment.id,
-        targetSlot.id
-      )
+      // 工作本身要能與原本的成立工作區分（否則會被視為同一筆而覆蓋），但
+      // 日曆事件仍是同一個——改期是把事件搬到新時間，不是再開一格。
+      id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`
     },
     idempotencyRecord: {
       key: request.idempotencyKey,

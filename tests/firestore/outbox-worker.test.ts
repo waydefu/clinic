@@ -2,7 +2,10 @@ import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { calendarEventIdForStatus, MAX_ATTEMPTS } from '@beauessence/domain';
+import {
+  calendarEventIdForAppointment,
+  MAX_ATTEMPTS
+} from '@beauessence/domain';
 import { InMemoryCalendar } from '../../apps/worker/src/calendar-port.js';
 import {
   APPOINTMENTS_COLLECTION,
@@ -30,7 +33,8 @@ async function wipe(): Promise<void> {
 }
 
 // 種子鍵一律走與正式路徑相同的產生器：手寫字串會悄悄退回舊格式。
-const CONFIRMED_KEY = calendarEventIdForStatus('appointment_001', 'confirmed');
+// 一筆預約一個事件，因此整條生命週期的工作都用這一把鑰匙。
+const CONFIRMED_KEY = calendarEventIdForAppointment('appointment_001');
 
 async function seedJob(id = 'outbox_001'): Promise<void> {
   await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
@@ -128,17 +132,17 @@ describe('outbox worker', () => {
     expect(calendar.conflictUpdateCount).toBe(1);
   });
 
-  // 這個案例沿用同一筆工作、只改預約狀態，因此驗證的是「cancel 動作本身正確」。
-  // 實際流程會為取消產生帶**不同**鍵的新工作，而那個鍵對應的事件從未建立過
-  // ——目前的鍵粒度會導致原本的事件刪不掉。缺口與兩種解法記於
-  // docs/architecture/calendar-event-id.md；決定後這裡應改為走完整流程。
-  it('cancels the event when the appointment is cancelled or a no-show', async () => {
+  // 走完整流程：取消會產生**另一筆**工作（不同的 job id），但兩筆工作指向
+  // 同一個日曆事件，所以取消真的刪得掉建立時寫進去的那一格。
+  // 舊的「每狀態一個 event ID」設計在這裡會失敗——它去刪一個從未建立過的
+  // ID，然後回報成功（見 docs/architecture/calendar-event-id.md）。
+  it('cancels the very event the booking created, through the real two-job flow', async () => {
     for (const status of ['cancelled', 'no_show']) {
       await wipe();
       calendar = new InMemoryCalendar();
       processor = new OutboxProcessor(db, calendar);
+
       await seedJob();
-      // 先讓事件存在，再把預約改成已結束並重新排入工作。
       await processor.processDue(NOW);
       expect(calendar.events.size).toBe(1);
 
@@ -146,16 +150,51 @@ describe('outbox worker', () => {
         .collection(APPOINTMENTS_COLLECTION)
         .doc('appointment_001')
         .update({ status });
-      await db
-        .collection(OUTBOX_COLLECTION)
-        .doc('outbox_001')
-        .update({ status: 'pending', attempts: 0 });
+      // 這才是實際流程：狀態轉換排入一筆新工作，鍵仍是同一個事件。
+      await db.collection(OUTBOX_COLLECTION).doc(`outbox_002_${status}`).set({
+        appointmentId: 'appointment_001',
+        idempotencyKey: CONFIRMED_KEY,
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: 0
+      });
       const summary = await processor.processDue(later(1));
 
       expect(summary).toMatchObject({ completed: 1 });
       expect(calendar.events.size).toBe(0);
       expect(calendar.cancelCount).toBe(1);
+      expect(calendar.cancelMissCount).toBe(0);
     }
+  });
+
+  // 整條生命週期跑完，日曆上不該留下任何殘影。
+  it('leaves no ghost events after book, reschedule, complete and cancel', async () => {
+    await seedJob();
+    await processor.processDue(NOW);
+
+    let clock = 1;
+    const queue = async (jobId: string, status: string) => {
+      await db
+        .collection(APPOINTMENTS_COLLECTION)
+        .doc('appointment_001')
+        .update({ status });
+      await db.collection(OUTBOX_COLLECTION).doc(jobId).set({
+        appointmentId: 'appointment_001',
+        idempotencyKey: CONFIRMED_KEY,
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: 0
+      });
+      await processor.processDue(later(clock));
+      clock += 1;
+    };
+
+    await queue('outbox_rescheduled', 'confirmed');
+    expect(calendar.events.size).toBe(1);
+    await queue('outbox_completed', 'completed');
+    expect(calendar.events.size).toBe(1);
+    await queue('outbox_cancelled', 'cancelled');
+    expect(calendar.events.size).toBe(0);
   });
 
   it('treats cancelling an already-missing event as a success (410/404 path)', async () => {

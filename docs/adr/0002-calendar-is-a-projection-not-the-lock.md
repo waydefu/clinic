@@ -32,19 +32,24 @@ Google 官方指定的防重複做法是**由我們自行指定 event ID**：
 產生：邏輯鍵經 UTF-8 → base32hex（小寫、無填充）編碼，並在編碼時檢查長度。
 
 ```text
-calendar_confirmed_appointment_001
-  ↓ calendarEventIdForStatus('appointment_001', 'confirmed')
-cdgmopbechgn4nr3dtn6cqbidlim8nr1e1o6uqbeehmmarjkbso30c8   （55 字元，合法）
+calendar_appointment_001
+  ↓ calendarEventIdForAppointment('appointment_001')
+（base32hex 字串，合法的 event ID）
   ↓ fromCalendarEventId(...)
-calendar_confirmed_appointment_001
+calendar_appointment_001
 ```
+
+**一筆預約 = 日曆上一個事件**（2026-07-22 決定）。改期是搬動同一個事件、到診
+是更新它、取消是刪除它。曾採「每個狀態一把鑰匙」，但那會讓每個狀態各開一格，
+且取消時去刪一個從未建立過的 ID——理由與替代方案見
+[日曆 event ID 文件](../architecture/calendar-event-id.md)。
 
 可讀性未因編碼而喪失：`outbox_jobs` 保留 `appointmentId` 與
 `appointmentStatus` 明文欄位（人工追查優先看這裡），且 `fromCalendarEventId`
 可把日曆上看到的 ID 還原回邏輯鍵。
 
-鍵的組成規則只存在該檔（`calendarEventIdForStatus`、
-`calendarEventIdForReschedule`），呼叫端不得自行拼字串。本機的假日曆
+鍵的組成規則只存在該檔（`calendarEventIdForAppointment`），呼叫端不得
+自行拼字串。本機的假日曆
 （`apps/worker/src/calendar-port.ts`）會拒絕不合格式的 ID 且標記為
 **不可重試**，格式一旦回歸就會在本機測試爆炸，而不是等接上真實 API 才發現。
 

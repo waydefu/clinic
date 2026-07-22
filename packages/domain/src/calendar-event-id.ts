@@ -22,11 +22,11 @@ import { DomainError } from './errors.js';
  * ## 這裡的鍵長什麼樣子
  *
  * ```text
- * 邏輯鍵    calendar_confirmed_appointment_001
+ * 邏輯鍵    calendar_appointment_001
  *   ↓ toCalendarEventId（UTF-8 → base32hex，小寫、無填充）
- * event ID  cdgmopbechgn4nr3dtn6cqbidlim8nr1e1o6uqbeehmmarjkbso30c8
+ * event ID  cdgmopbechgn4nr1e1o6uqbeehmmarjkbso30c8
  *   ↓ fromCalendarEventId
- * 邏輯鍵    calendar_confirmed_appointment_001
+ * 邏輯鍵    calendar_appointment_001
  * ```
  *
  * 可讀性不靠 ID 本身承擔：`outbox_jobs` 仍保有 `appointmentId` 與
@@ -38,9 +38,8 @@ import { DomainError } from './errors.js';
  * - `appointment-transition.ts`：取消／到診／未到／改期的投影意圖
  * - `apps/worker`：拿 `outboxJob.idempotencyKey` 當 event ID 呼叫 Calendar
  *
- * 邏輯鍵的組成規則只存在本檔（`calendarEventIdForStatus` /
- * `calendarEventIdForReschedule`），呼叫端不得自行拼字串——兩處各拼一次，
- * 就是漂移的開始。
+ * 邏輯鍵的組成規則只存在本檔（`calendarEventIdForAppointment`），呼叫端不得
+ * 自行拼字串——兩處各拼一次，就是漂移的開始。
  *
  * ## 仍須由 worker 負責的部分
  *
@@ -152,25 +151,25 @@ export function isCalendarEventId(value: unknown): boolean {
 }
 
 /**
- * 狀態投影的 event ID：每個「預約 × 狀態」一把固定的鑰匙。
- * 重試不會產生第二個事件，而不同狀態的投影仍各自送出一次。
+ * 一筆預約 = 日曆上一個事件，從頭到尾同一個 event ID。
+ *
+ * 這個粒度是刻意的（2026-07-22 決定，解法 A）。曾經是「每個狀態一把鑰匙」
+ * （`calendar_{status}_{id}`），但那樣每個狀態都會在日曆上開一格新的：
+ *
+ * ```text
+ * 建立 → 1 個事件；改期 → 2 個；到診 → 3 個；取消 → 仍然 3 個
+ * ```
+ *
+ * 取消刪不掉任何一個，因為它去刪的是「取消專用」的 ID，那格從來沒被建立過。
+ * 改成綁預約後，改期是「搬動同一個事件」、到診是「更新同一個事件」、取消是
+ * 「刪掉那個事件」——正是 Google 預期的用法，三個症狀一次解決。
+ *
+ * 併發也安全：worker 讀的是執行當下的預約狀態，兩筆工作不論誰先跑，寫出來
+ * 的都是同一個正確結果。
+ *
+ * 若日後需要「一筆預約對應多個日曆事件」（例如回診提醒另開一則），請新增
+ * 另一個具名函式（如 `calendarEventIdForReminder`），不要把狀態塞回這裡。
  */
-export function calendarEventIdForStatus(
-  appointmentId: string,
-  status: string
-): string {
-  return toCalendarEventId(`calendar_${status}_${appointmentId}`);
-}
-
-/**
- * 改期投影的 event ID：帶上目標時段，才能與原本的成立事件區分，
- * 否則 worker 會誤判為重送而不更新日曆。
- */
-export function calendarEventIdForReschedule(
-  appointmentId: string,
-  targetSlotId: string
-): string {
-  return toCalendarEventId(
-    `calendar_rescheduled_${appointmentId}_${targetSlotId}`
-  );
+export function calendarEventIdForAppointment(appointmentId: string): string {
+  return toCalendarEventId(`calendar_${appointmentId}`);
 }
