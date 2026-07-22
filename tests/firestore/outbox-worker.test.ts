@@ -128,6 +128,10 @@ describe('outbox worker', () => {
     expect(calendar.conflictUpdateCount).toBe(1);
   });
 
+  // 這個案例沿用同一筆工作、只改預約狀態，因此驗證的是「cancel 動作本身正確」。
+  // 實際流程會為取消產生帶**不同**鍵的新工作，而那個鍵對應的事件從未建立過
+  // ——目前的鍵粒度會導致原本的事件刪不掉。缺口與兩種解法記於
+  // docs/architecture/calendar-event-id.md；決定後這裡應改為走完整流程。
   it('cancels the event when the appointment is cancelled or a no-show', async () => {
     for (const status of ['cancelled', 'no_show']) {
       await wipe();
