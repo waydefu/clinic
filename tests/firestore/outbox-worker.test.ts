@@ -2,7 +2,7 @@ import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { MAX_ATTEMPTS } from '@beauessence/domain';
+import { calendarEventIdForStatus, MAX_ATTEMPTS } from '@beauessence/domain';
 import { InMemoryCalendar } from '../../apps/worker/src/calendar-port.js';
 import {
   APPOINTMENTS_COLLECTION,
@@ -29,6 +29,9 @@ async function wipe(): Promise<void> {
   }
 }
 
+// 種子鍵一律走與正式路徑相同的產生器：手寫字串會悄悄退回舊格式。
+const CONFIRMED_KEY = calendarEventIdForStatus('appointment_001', 'confirmed');
+
 async function seedJob(id = 'outbox_001'): Promise<void> {
   await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
     status: 'confirmed',
@@ -42,7 +45,7 @@ async function seedJob(id = 'outbox_001'): Promise<void> {
   });
   await db.collection(OUTBOX_COLLECTION).doc(id).set({
     appointmentId: 'appointment_001',
-    idempotencyKey: 'calendar_confirmed_appointment_001',
+    idempotencyKey: CONFIRMED_KEY,
     type: 'calendar_projection_requested',
     status: 'pending',
     attempts: 0
@@ -79,6 +82,34 @@ describe('outbox worker', () => {
     expect(summary).toMatchObject({ claimed: 1, completed: 1 });
     expect(calendar.events.size).toBe(1);
     expect((await jobState())?.['status']).toBe('completed');
+  });
+
+  it('uses the projected job key as a valid Calendar event ID', async () => {
+    await seedJob();
+    await processor.processDue(NOW);
+
+    // 送到日曆的鍵就是 event ID，必須是 base32hex；舊格式含底線會被退件。
+    const [eventId] = [...calendar.events.keys()];
+    expect(eventId).toMatch(/^[0-9a-v]+$/);
+    expect(eventId).toBe(CONFIRMED_KEY);
+  });
+
+  it('dead-letters a malformed event ID instead of retrying it forever', async () => {
+    await seedJob();
+    // 模擬舊格式殘留（例如手動補的工作）：重試一百次格式還是錯的。
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_001')
+      .update({ idempotencyKey: 'calendar_confirmed_appointment_001' });
+
+    const summary = await processor.processDue(NOW);
+    expect(summary).toMatchObject({ deadLettered: 1 });
+
+    const state = await jobState();
+    expect(state?.['status']).toBe('dead_letter');
+    expect(state?.['attempts']).toBe(1);
+    expect(state?.['lastError']).toMatch(/not a valid Calendar event ID/);
+    expect(calendar.events.size).toBe(0);
   });
 
   it('never sends patient identifiers to the calendar', async () => {

@@ -1,4 +1,5 @@
 import { assertReschedulable, assertTransitionAllowed } from './appointment-rules.js';
+import { calendarEventIdForReschedule, calendarEventIdForStatus } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 const AUDIT_ACTIONS = {
     request_cancellation: 'cancellation_requested',
@@ -24,8 +25,8 @@ function outboxFor(appointmentId, status, at) {
         appointmentId,
         appointmentStatus: status,
         // 每個狀態一把固定的鑰匙：重試不會產生第二個日曆事件，而不同狀態的
-        // 投影仍各自送出一次。
-        idempotencyKey: `calendar_${status}_${appointmentId}`,
+        // 投影仍各自送出一次。鍵的組成與編碼集中在 calendar-event-id.ts。
+        idempotencyKey: calendarEventIdForStatus(appointmentId, status),
         status: 'pending',
         attempts: 0,
         createdAt: at
@@ -89,7 +90,7 @@ export function planReschedule(request, appointment, targetSlot) {
             ...outboxFor(appointment.id, 'confirmed', request.requestedAt),
             // 改期後的投影要能與原本的成立事件區分，否則 worker 會誤判為重送。
             id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`,
-            idempotencyKey: `calendar_rescheduled_${appointment.id}_${targetSlot.id}`
+            idempotencyKey: calendarEventIdForReschedule(appointment.id, targetSlot.id)
         },
         idempotencyRecord: {
             key: request.idempotencyKey,

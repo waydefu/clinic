@@ -2,6 +2,7 @@ import {
   assertSlotBookable,
   assertWithinActiveBookingLimit
 } from './appointment-rules.js';
+import { calendarEventIdForStatus } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
 /**
@@ -169,7 +170,11 @@ export function planBooking(
       type: 'calendar_projection_requested',
       appointmentId: request.appointmentId,
       appointmentStatus: 'confirmed',
-      idempotencyKey: `calendar_confirmed_${request.appointmentId}`,
+      // Calendar event ID 有嚴格字元限制，鍵一律由 calendar-event-id.ts 產生。
+      idempotencyKey: calendarEventIdForStatus(
+        request.appointmentId,
+        'confirmed'
+      ),
       status: 'pending',
       attempts: 0,
       createdAt: request.requestedAt

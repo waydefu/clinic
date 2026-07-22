@@ -26,10 +26,27 @@ Google 官方指定的防重複做法是**由我們自行指定 event ID**：
 | 長度 | 5–1024 字元 |
 | 唯一性 | 每個日曆內唯一 |
 
-**目前的 outbox 冪等鍵不符合此規定。** `calendar_confirmed_appointment_001`
-含底線，直接作為 event ID 會被 API 拒絕。接上真實 Calendar 前必須改為
-base32hex 編碼；同時保留可讀的 `appointmentId` 欄位供人工追查，不要為了編碼
-而失去可讀性。
+**已於 2026-07-22 修正。** 舊鍵 `calendar_confirmed_appointment_001` 含底線，
+直接作為 event ID 會被 API 拒絕。現在鍵一律由
+[`packages/domain/src/calendar-event-id.ts`](../../packages/domain/src/calendar-event-id.ts)
+產生：邏輯鍵經 UTF-8 → base32hex（小寫、無填充）編碼，並在編碼時檢查長度。
+
+```text
+calendar_confirmed_appointment_001
+  ↓ calendarEventIdForStatus('appointment_001', 'confirmed')
+cdgmopbechgn4nr3dtn6cqbidlim8nr1e1o6uqbeehmmarjkbso30c8   （55 字元，合法）
+  ↓ fromCalendarEventId(...)
+calendar_confirmed_appointment_001
+```
+
+可讀性未因編碼而喪失：`outbox_jobs` 保留 `appointmentId` 與
+`appointmentStatus` 明文欄位（人工追查優先看這裡），且 `fromCalendarEventId`
+可把日曆上看到的 ID 還原回邏輯鍵。
+
+鍵的組成規則只存在該檔（`calendarEventIdForStatus`、
+`calendarEventIdForReschedule`），呼叫端不得自行拼字串。本機的假日曆
+（`apps/worker/src/calendar-port.ts`）會拒絕不合格式的 ID 且標記為
+**不可重試**，格式一旦回歸就會在本機測試爆炸，而不是等接上真實 API 才發現。
 
 另有一項不能忽略的官方說明：
 

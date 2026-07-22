@@ -90,14 +90,17 @@ Calendar 是投影，不是可用性的來源。
 
 依 roadmap 的順序，接上真實 Google Calendar 之前必須先完成：
 
-1. **outbox 冪等鍵改為 base32hex**——現有鍵含底線與大小寫，不符 Google
-   Calendar event ID 的格式限制（小寫 `a–v` 與 `0–9`，RFC 4648
-   base32hex）。直接沿用會在第一次真實呼叫就被拒絕。純本機修改，
-   `packages/domain/src/outbox.ts` 產鍵處與對應測試一併更新。
+1. **outbox 冪等鍵改為 base32hex** — ✅ 已完成 2026-07-22。鍵改由
+   [`packages/domain/src/calendar-event-id.ts`](../../packages/domain/src/calendar-event-id.ts)
+   產生（UTF-8 → base32hex、小寫、無填充、長度 5–1024），並提供
+   `fromCalendarEventId` 還原邏輯鍵供人工追查。`booking-transaction.ts`、
+   `appointment-transition.ts` 與瀏覽器預覽都改呼叫同一個產生器；假日曆
+   會拒絕不合格式的 ID 並標記為不可重試。單元 105 項、Emulator 35 項通過。
 2. **worker 的 Calendar adapter 先以假服務定型**——`apps/worker` 的
-   `calendar-port.ts` 已是可替換的 port；補一個符合 Google Calendar API
-   語意（事件建立／更新／刪除、409 已存在視為冪等成功）的假實作，
-   讓重試、退避與死信在該語意下通過既有測試。
+   `calendar-port.ts` 已是可替換的 port。已具備：格式把關、以 event ID
+   去重（同鍵重送只留一個事件）、可設定連續失敗次數。**仍待補**：把
+   「事件已存在（Google 回 409）」明確視為冪等成功的案例，以及更新與
+   取消（delete）兩種操作的語意。
 3. **事件欄位最小化定型**——事件內容只放預約編號、掛號別、時間與診所
    地址；測試以斷言鎖住「不得出現姓名、電話、身分證、手術種類、備註」。
 4. **runbook 演練**——依 [calendar-sync-failure runbook](../runbooks/calendar-sync-failure.md)

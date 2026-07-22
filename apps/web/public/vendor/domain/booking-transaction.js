@@ -1,4 +1,5 @@
 import { assertSlotBookable, assertWithinActiveBookingLimit } from './appointment-rules.js';
+import { calendarEventIdForStatus } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 /** 同一人同時只能有一筆未結束的預約。 */
 export const ACTIVE_BOOKING_LIMIT = 1;
@@ -67,7 +68,8 @@ export function planBooking(request, slot, activeBookingCount) {
             type: 'calendar_projection_requested',
             appointmentId: request.appointmentId,
             appointmentStatus: 'confirmed',
-            idempotencyKey: `calendar_confirmed_${request.appointmentId}`,
+            // Calendar event ID 有嚴格字元限制，鍵一律由 calendar-event-id.ts 產生。
+            idempotencyKey: calendarEventIdForStatus(request.appointmentId, 'confirmed'),
             status: 'pending',
             attempts: 0,
             createdAt: request.requestedAt

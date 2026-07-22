@@ -8,6 +8,7 @@ import {
   type AppointmentTransition
 } from './appointment-transition.js';
 import type { SlotSnapshot } from './booking-transaction.js';
+import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
 const NOW = '2026-07-21T09:00:00.000Z';
@@ -83,12 +84,17 @@ describe('planTransition', () => {
   });
 
   it('gives each status its own calendar idempotency key', () => {
-    expect(request('cancel').plan().outboxJob.idempotencyKey).toBe(
+    const cancelKey = request('cancel').plan().outboxJob.idempotencyKey;
+    const completeKey = request('complete').plan().outboxJob.idempotencyKey;
+    // 鍵是編碼後的 Calendar event ID；解回來才是可讀的邏輯鍵。
+    expect(fromCalendarEventId(cancelKey)).toBe(
       'calendar_cancelled_appointment_001'
     );
-    expect(request('complete').plan().outboxJob.idempotencyKey).toBe(
+    expect(fromCalendarEventId(completeKey)).toBe(
       'calendar_completed_appointment_001'
     );
+    expect(isCalendarEventId(cancelKey)).toBe(true);
+    expect(isCalendarEventId(completeKey)).toBe(true);
   });
 
   it('allows cancel and no_show from a pending cancellation', () => {
@@ -177,9 +183,11 @@ describe('planReschedule', () => {
   });
 
   it('keys the projection to the new slot so it is not mistaken for a resend', () => {
-    expect(reschedule(target).outboxJob.idempotencyKey).toBe(
+    const key = reschedule(target).outboxJob.idempotencyKey;
+    expect(fromCalendarEventId(key)).toBe(
       'calendar_rescheduled_appointment_001_slot_20300102_1230'
     );
+    expect(isCalendarEventId(key)).toBe(true);
   });
 
   it('rejects a taken, missing or same slot', () => {

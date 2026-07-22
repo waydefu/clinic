@@ -43,7 +43,7 @@ do not rely on a copy of it elsewhere.
 
 | Area | Owns | Does not own |
 | --- | --- | --- |
-| `packages/domain` | Pure rules, invariants, state transitions, payroll uniqueness | I/O, database SDKs, HTTP, secrets |
+| `packages/domain` | Pure rules, invariants, state transitions, payroll uniqueness, Calendar event-ID encoding | I/O, database SDKs, HTTP, secrets |
 | `packages/contracts` | Versioned request/response/error schemas | Authorization decisions or persistence |
 | `packages/config` | Safe configuration parsing and local defaults | Cloud secrets or live credentials |
 | `apps/api` | `/v1` boundary, authentication, authorization, validation, transaction orchestration, audit | Direct integration side effects |
@@ -61,6 +61,7 @@ do not rely on a copy of it elsewhere.
 | Public API shape or error | `packages/contracts` | API baseline and API tests |
 | API behavior | Contract + domain first | Authentication, authorization, validation, idempotency, audit |
 | Calendar sync | ADR-0002 + Calendar runbook | Outbox, idempotency, no PII, retry/dead letter |
+| Calendar event ID / outbox key | `docs/architecture/calendar-event-id.md` | Never hand-build the key; base32hex only, encode/decode round-trip |
 | Firestore Rules | ADR-0003 + local baseline | Allowed and denied Emulator tests |
 | Privacy/UI form | Privacy checklist + policy draft | Data minimisation and separate marketing consent |
 | Loopback test UI | `docs/design/test-only-operations-ui.md` | Keyboard flow, responsive layout and synthetic-only display |

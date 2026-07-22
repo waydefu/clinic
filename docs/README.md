@@ -44,6 +44,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Local Firestore baseline](architecture/firestore-local-baseline.md) — Emulator-only project and Rules baseline
 - [Synthetic Web modular architecture](architecture/synthetic-web-modular-architecture.md) — browser module boundaries and how they are later replaced by the real API
 - [Calendar and database integration plan](architecture/calendar-and-database-integration-plan.md) — staged route from the browser prototype to Firestore and a Calendar projection, and which decision blocks each stage
+- [Calendar event ID and outbox key](architecture/calendar-event-id.md) — why the outbox key is base32hex, where it is generated, and what to check before changing it
 
 ## 4. Building and testing
 

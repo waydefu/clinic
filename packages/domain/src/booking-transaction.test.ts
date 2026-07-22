@@ -5,6 +5,11 @@ import {
   type BookingRequest,
   type SlotSnapshot
 } from './booking-transaction.js';
+import {
+  calendarEventIdForStatus,
+  fromCalendarEventId,
+  isCalendarEventId
+} from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
 const request: BookingRequest = {
@@ -72,9 +77,14 @@ describe('planBooking', () => {
     const plan = planBooking(request, openSlot, 0);
     expect(plan.outboxJob.id).toContain('appointment_001');
     expect(plan.auditEvent.id).toContain('appointment_001');
+    // 鍵是編碼後的 Calendar event ID；解回來才是可讀的邏輯鍵。
     expect(plan.outboxJob.idempotencyKey).toBe(
+      calendarEventIdForStatus('appointment_001', 'confirmed')
+    );
+    expect(fromCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(
       'calendar_confirmed_appointment_001'
     );
+    expect(isCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(true);
   });
 
   it('rejects a missing slot', () => {
