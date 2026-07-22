@@ -72,7 +72,7 @@ export function validateSchedule(schedule) {
   return schedule;
 }
 
-export function validateIntervals(intervals) {
+function validateIntervals(intervals) {
   if (!Array.isArray(intervals) || intervals.length === 0)
     throw new Error('至少需要一段時間。');
   const sorted = [...intervals].sort((a, b) =>
