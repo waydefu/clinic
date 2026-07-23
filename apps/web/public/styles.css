@@ -809,6 +809,10 @@ textarea {
   justify-content: center;
   width: 1.7rem;
 }
+.booking-stepper li strong {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
 .booking-stepper li.is-active {
   border-color: var(--forest);
   color: var(--forest-dark);
@@ -905,10 +909,50 @@ textarea {
   margin-bottom: 1rem;
   padding: 0;
 }
+.slot-date-filter {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.slot-date-filter label {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.slot-date-filter input[type='date'] {
+  border: 1px solid var(--line-strong);
+  border-radius: 0.6rem;
+  color: var(--ink);
+  font: inherit;
+  min-height: 2.6rem;
+  padding: 0.35rem 0.65rem;
+}
+.slot-date-filter input[type='date']:disabled {
+  background: var(--surface-tint);
+  color: var(--ink-muted);
+}
+.slot-date-filter .text-button {
+  margin-bottom: 0;
+}
 .patient-slot-list {
   display: grid;
   gap: 0.8rem;
   grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+.slot-load-more {
+  align-self: start;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--forest-dark);
+  display: inline-flex;
+  gap: 0.5rem;
+  justify-self: start;
+}
+.slot-load-more-count {
+  color: var(--ink-muted);
+  font-weight: 640;
 }
 .booking-confirmation-grid {
   display: grid;
@@ -1390,7 +1434,29 @@ textarea {
   }
   .patient-hero {
     border-radius: 1.1rem;
-    padding: 1.4rem;
+    gap: 1rem;
+    padding: 1.3rem;
+  }
+  /* 首屏優先讓「開始預約」露出：手機版把 hero 壓成精簡標題帶——收起與步驟
+     內容重複的長介紹段落、信任標籤，以及診所聯絡卡（地址與門診時間改由頁尾
+     承接），讓步驟指示與預約操作盡早出現，不再被推到第二屏。 */
+  .patient-hero {
+    gap: 0.6rem;
+  }
+  .patient-hero > div > p:last-of-type,
+  .patient-trust-row,
+  .patient-contact-card {
+    display: none;
+  }
+  .patient-hero h1 {
+    font-size: var(--text-2xl);
+    margin-bottom: 0.35rem;
+  }
+  #patient-status.status-message {
+    margin: 0.4rem 0;
+  }
+  .booking-stepper {
+    margin: 0.9rem 0 0.8rem;
   }
   .booking-stepper li {
     flex-direction: column;
@@ -1401,8 +1467,12 @@ textarea {
   }
   .booking-stepper strong {
     display: block;
-    font-size: 0.7rem;
-    line-height: 1.2;
+    line-height: 1.25;
+  }
+  .booking-stepper li span {
+    font-size: var(--text-sm);
+    height: 1.9rem;
+    width: 1.9rem;
   }
   .booking-panel {
     scroll-margin-top: 1rem;

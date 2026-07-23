@@ -33,6 +33,11 @@ let selectedServiceId;
 let selectedSlotId;
 let completedAppointmentId;
 let completedAppointment;
+// 時段清單一次只展開幾天，避免一口氣塞滿整月；可按「顯示更多日期」加載，
+// 或用日期選擇器直接跳到某一天。切換看診類型時重置。
+const SLOT_DAYS_PAGE = 5;
+let slotVisibleDays = SLOT_DAYS_PAGE;
+let slotDateFilter = '';
 
 function myPatientId() {
   try {
@@ -117,8 +122,12 @@ function renderHours() {
           )
           .join('、')}`
     );
-  elements['patient-hours-summary'].textContent =
+  const summary =
     lines.length > 0 ? `門診時間：${lines.join('；')}` : '目前未開放門診時間';
+  elements['patient-hours-summary'].textContent = summary;
+  // 頁尾也顯示門診時間：手機版 hero 會收起聯絡卡，時間資訊改由頁尾承接。
+  if (elements['patient-hours-footer'] !== undefined)
+    elements['patient-hours-footer'].textContent = summary;
 }
 
 function renderWorkspace() {
@@ -172,7 +181,9 @@ function availableSlots() {
         slot.kind === selectedBookingType &&
         isUpcomingSlot(slot)
     )
-    .slice(0, 60);
+    .sort((left, right) =>
+      String(left.startsAt).localeCompare(String(right.startsAt))
+    );
 }
 
 // 第 2 步顯示目前的類型與項目：選錯的人在這裡就會發現，
@@ -183,6 +194,35 @@ function renderBookingContext() {
     `目前選擇：${BOOKING_KIND_LABELS[selectedBookingType]}${service ? ` · ${service.label}` : ''}。選錯了嗎？可按上方「返回類型與項目」重選。`;
 }
 
+function renderDayGroup(group) {
+  const buttons = group.slots
+    .map((slot) => {
+      const selected = slot.id === selectedSlotId;
+      return `<button class="slot-chip${selected ? ' is-selected' : ''}" type="button" data-patient-slot="${escapeHtml(slot.id)}" aria-pressed="${selected}">${escapeHtml(formatTime(slot.startsAt))}${selected ? '<span class="slot-chip-mark" aria-hidden="true">✓</span>' : ''}</button>`;
+    })
+    .join('');
+  return `<section class="slot-day"><h3 class="slot-day-label">${escapeHtml(group.label)}<span class="slot-day-count">${group.slots.length} 個時段</span></h3><div class="slot-chip-row">${buttons}</div></section>`;
+}
+
+// 依可預約範圍設定日期選擇器的上下限，並在無資料時停用，避免使用者跳到
+// 一個沒有時段的日期。
+function syncSlotDateInput(dayKeys) {
+  const input = elements['patient-slot-date'];
+  const clear = elements['patient-slot-date-clear'];
+  if (input === undefined) return;
+  if (dayKeys.length === 0) {
+    input.value = '';
+    input.disabled = true;
+    if (clear !== undefined) clear.hidden = true;
+    return;
+  }
+  input.disabled = false;
+  input.min = dayKeys[0];
+  input.max = dayKeys[dayKeys.length - 1];
+  input.value = slotDateFilter;
+  if (clear !== undefined) clear.hidden = slotDateFilter === '';
+}
+
 function renderSlots() {
   renderBookingContext();
   const slots = availableSlots();
@@ -190,19 +230,38 @@ function renderSlots() {
     selectedBookingType === 'follow_up'
       ? '回診開放每小時 15 分與 45 分，時間以 Asia/Taipei（台北時間）顯示。'
       : '初診開放整點與 30 分，時間以 Asia/Taipei（台北時間）顯示。';
-  elements['patient-slots'].innerHTML = slots.length
-    ? groupSlotsByDate(slots)
-        .map((group) => {
-          const buttons = group.slots
-            .map((slot) => {
-              const selected = slot.id === selectedSlotId;
-              return `<button class="slot-chip${selected ? ' is-selected' : ''}" type="button" data-patient-slot="${escapeHtml(slot.id)}" aria-pressed="${selected}">${escapeHtml(formatTime(slot.startsAt))}${selected ? '<span class="slot-chip-mark" aria-hidden="true">✓</span>' : ''}</button>`;
-            })
-            .join('');
-          return `<section class="slot-day"><h3 class="slot-day-label">${escapeHtml(group.label)}<span class="slot-day-count">${group.slots.length} 個時段</span></h3><div class="slot-chip-row">${buttons}</div></section>`;
-        })
-        .join('')
-    : emptyState('目前沒有可預約時段', '診所發布新的排班後，時段會自動更新。');
+
+  const groups = groupSlotsByDate(slots);
+  syncSlotDateInput(groups.map((group) => group.key));
+
+  if (groups.length === 0) {
+    elements['patient-slots'].innerHTML = emptyState(
+      '目前沒有可預約時段',
+      '診所發布新的排班後，時段會自動更新。'
+    );
+    return;
+  }
+
+  // 有指定日期時只顯示那一天；否則逐頁展開最近幾天，其餘用「顯示更多日期」。
+  if (slotDateFilter !== '') {
+    const match = groups.find((group) => group.key === slotDateFilter);
+    elements['patient-slots'].innerHTML = match
+      ? renderDayGroup(match)
+      : emptyState(
+          '這一天沒有可預約時段',
+          '請改選其他日期，或清除日期查看全部。'
+        );
+    return;
+  }
+
+  const shown = groups.slice(0, slotVisibleDays);
+  const remaining = groups.length - shown.length;
+  const moreButton =
+    remaining > 0
+      ? `<button class="button slot-load-more" type="button" data-load-more-days>顯示更多日期<span class="slot-load-more-count">還有 ${remaining} 天</span></button>`
+      : '';
+  elements['patient-slots'].innerHTML =
+    shown.map(renderDayGroup).join('') + moreButton;
 }
 
 function selectedService() {
@@ -316,6 +375,9 @@ document.querySelectorAll('[data-booking-type]').forEach((button) =>
       return;
     }
     selectedBookingType = type;
+    // 換看診類型等於換一批時段，重置日期展開與跳轉。
+    slotVisibleDays = SLOT_DAYS_PAGE;
+    slotDateFilter = '';
     renderBookingTypeButtons();
     renderSlots();
     message(
@@ -344,12 +406,28 @@ document
   );
 
 elements['patient-slots'].addEventListener('click', (event) => {
+  if (event.target.closest('[data-load-more-days]') !== null) {
+    slotVisibleDays += SLOT_DAYS_PAGE;
+    renderSlots();
+    return;
+  }
   const button = event.target.closest('[data-patient-slot]');
   if (button === null) return;
   selectedSlotId = button.dataset.patientSlot;
   renderSlots();
   renderConfirmation();
   showStep(3);
+});
+
+elements['patient-slot-date'].addEventListener('change', (event) => {
+  slotDateFilter = event.target.value;
+  renderSlots();
+});
+
+elements['patient-slot-date-clear'].addEventListener('click', () => {
+  slotDateFilter = '';
+  slotVisibleDays = SLOT_DAYS_PAGE;
+  renderSlots();
 });
 
 for (const field of [

@@ -524,6 +524,35 @@ describe('櫃台處置', () => {
     ).not.toContain(appointment.id);
   });
 
+  it('缺 session 時回診版卡片不拋錯、且隱藏「調整回診」', () => {
+    const state: any = initialState();
+    state.session = {
+      account: state.workspace.accounts[0],
+      permissions: [PERMISSIONS.MANAGE_FOLLOW_UP]
+    };
+    const appointment = book(state);
+    transitionAppointment(state, appointment.id, 'complete', 'front_desk_001');
+    recordFollowUp(
+      state,
+      appointment.id,
+      { status: 'required', dueDate: '2030-02-01', dueTime: '12:15', tags: [] },
+      'admin_001'
+    );
+    // 模擬登入前／測試夾具：拿掉 session 後渲染不得整個拋錯。
+    state.session = undefined;
+    let html = '';
+    expect(() => {
+      html = renderAppointments(state, {
+        status: 'all',
+        kind: 'all',
+        query: ''
+      });
+    }).not.toThrow();
+    expect(html).toContain('待安排回診');
+    // 沒有權限（無 session）時不出現調整回診的入口。
+    expect(html).not.toContain('data-follow-up-edit');
+  });
+
   it('回診目標日期未營業或時間不在回診網格時拒絕', () => {
     const state = initialState();
     const appointment = book(state);

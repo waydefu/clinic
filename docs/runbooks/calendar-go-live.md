@@ -39,16 +39,36 @@ GOOGLE_CALENDAR_ID=...
 GOOGLE_SERVICE_ACCOUNT_JSON={"client_email":"...","private_key":"..."}
 ```
 
-> **Test connection verified (2026-07-23):** `GoogleCalendarClient` created and
-> immediately deleted one synthetic, non-PII event in the dedicated test
-> calendar. Both write and delete permissions were verified. The service-account
-> JSON was read only from an owner-controlled local file into the process
-> environment, and was not written to the repository, `.env`, documentation,
-> or command output. This test does **not** approve D-009 or permit requests to
-> a production/private calendar, real patient data, or the online preview.
-
 `createCalendarPort()` 會在**兩者都齊備**時回傳真實用戶端；否則回退到假日曆，
-因此沒設憑證的環境不會意外對外呼叫。
+因此沒設憑證的環境不會意外對外呼叫。用戶端在啟動時就會驗證金鑰型別（必含
+`client_email` 與 `private_key`）——若誤放 OAuth 用戶端會直接被拒。
+
+## 本機煙霧測試（負責人執行）
+
+> **狀態（2026-07-23）：** 負責人已備妥專用測試日曆 ID 與服務帳戶金鑰檔（金鑰
+> 留在本機、未進版控）。真實連線的煙霧測試**尚未執行**，須由負責人自行在本機
+> 跑下列指令——助理不讀金鑰內容，也不代跑會在真實日曆建立／刪除事件的連線。
+
+`apps/worker/src/calendar-smoke.ts` 會對真實日曆做一次 upsert 再 cancel，只建立
+並隨即刪除**一筆**合成、無 PII 的事件；未注入憑證時直接中止、不對外呼叫。
+
+PowerShell（把金鑰檔內容讀進 env，不落地、不入庫）：
+
+```powershell
+corepack pnpm --filter @beauessence/worker build
+$env:GOOGLE_CALENDAR_ID = '<你的測試日曆 ID>'
+$env:GOOGLE_SERVICE_ACCOUNT_JSON = Get-Content '<你的服務帳戶金鑰檔路徑>' -Raw
+node apps/worker/dist/calendar-smoke.js
+```
+
+預期輸出兩個 ✓（建立、刪除）並印出完成訊息。跑完後清掉環境變數：
+
+```powershell
+Remove-Item Env:GOOGLE_SERVICE_ACCOUNT_JSON, Env:GOOGLE_CALENDAR_ID
+```
+
+> 界線：此測試只碰**測試日曆**與合成事件，**不代表** D-009 核准，也不允許連
+> 正式／私人日曆、真實病患資料或線上預覽。
 
 ## 驗收
 

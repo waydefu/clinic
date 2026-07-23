@@ -25,7 +25,11 @@
     <meta property="og:url" content="https://beauessence.com.tw/booking" />
     <meta property="og:locale" content="zh_TW" />
     <meta property="og:image" content="/og-booking.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="一森渼診所線上門診預約" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/og-booking.png" />
 
     <!-- 結構化資料：診所基本資料與門診時間。openingHours 必須與
          modules/state-schema.js 的 defaultSchedule 保持一致。 -->
@@ -232,6 +236,18 @@
             <h2 id="slot-choice-heading">選擇日期與時段</h2>
             <p id="slot-choice-description">所有時間均以 Asia/Taipei 顯示。</p>
             <p id="booking-context" class="booking-context"></p>
+          </div>
+          <div class="slot-date-filter">
+            <label for="patient-slot-date">跳到日期</label>
+            <input id="patient-slot-date" type="date" autocomplete="off" />
+            <button
+              id="patient-slot-date-clear"
+              class="text-button"
+              type="button"
+              hidden
+            >
+              清除日期
+            </button>
           </div>
           <div
             id="patient-slots"
@@ -467,7 +483,10 @@
     </main>
 
     <footer class="patient-footer">
-      <div><strong>一森渼診所</strong><span>線上門診預約 · 測試版本</span></div>
+      <div>
+        <strong>一森渼診所</strong><span>臺北市松山區光復北路112號2樓</span
+        ><span id="patient-hours-footer">門診時間讀取中</span>
+      </div>
       <div>
         <a href="#patient-help">預約須知</a
         ><a href="/" data-local-only-link>開發工作臺</a>

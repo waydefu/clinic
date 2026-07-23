@@ -14,6 +14,8 @@ coverage/
 *.pem
 *.key
 service-account*.json
+# Safe local drop for Google service-account keys; nothing here is committed.
+secrets/
 
 # Patient, payroll, backup, and local exports
 exports/

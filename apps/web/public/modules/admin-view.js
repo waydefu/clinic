@@ -289,11 +289,12 @@ function followUpQueueCard(state, entry) {
     notes.length === 0
       ? ''
       : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
-  const adjust = state.session.permissions.includes(
-    PERMISSIONS.MANAGE_FOLLOW_UP
-  )
-    ? `<button class="button appointment-primary-action appointment-follow-up-button" type="button" data-follow-up-edit="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#8635;</span>調整回診</button>`
-    : '';
+  // 缺 session 時（測試夾具、登入前）不顯示「調整回診」，而非拋錯。
+  const adjust =
+    (state.session?.permissions?.includes(PERMISSIONS.MANAGE_FOLLOW_UP) ??
+    false)
+      ? `<button class="button appointment-primary-action appointment-follow-up-button" type="button" data-follow-up-edit="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#8635;</span>調整回診</button>`
+      : '';
   return `<article class="appointment-card follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">回診</span></div><p class="appointment-time">${escapeHtml(formatFullDate(effectiveStart))}<strong>${escapeHtml(formatTime(effectiveStart))}</strong></p><span class="detail-line appointment-service">回診提醒已上日曆<span aria-hidden="true">·</span>來源 <span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${adjust}</div></article>`;
 }
 
@@ -349,9 +350,10 @@ export function renderAppointments(state, filters) {
         : '可調整篩選，或展開下方「建立新預約」。'
     );
 
-  const canManageFollowUp = state.session.permissions.includes(
-    PERMISSIONS.MANAGE_FOLLOW_UP
-  );
+  // session 可能還沒建立（測試夾具、登入前的初始畫面）。缺 session 時一律
+  // 視為沒有回診管理權限：隱藏回診卡的管理控制項，而不是整個清單拋錯。
+  const canManageFollowUp =
+    state.session?.permissions?.includes(PERMISSIONS.MANAGE_FOLLOW_UP) ?? false;
   return entries
     .map((entry) => {
       if (entry.mode === 'followup') return followUpQueueCard(state, entry);

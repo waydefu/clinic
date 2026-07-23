@@ -208,7 +208,9 @@ const allowedPatientControls = new Set([
   'patient-nhi-card',
   'synthetic-confirmation',
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
-  'theme-picker'
+  'theme-picker',
+  // 2026-07-23：時段清單的日期跳轉，只是檢視用篩選，不收集任何患者資料。
+  'patient-slot-date'
 ]);
 for (const control of files.patientHtml.matchAll(
   /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"[^>]*>/gi
