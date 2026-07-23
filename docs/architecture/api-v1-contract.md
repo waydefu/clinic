@@ -29,6 +29,8 @@ by a route yet**:
 | --- | --- | --- | --- |
 | `POST /v1/appointments` | `CreateAppointmentRequestSchema` | `CreateAppointmentResponseSchema` | Verified patient identity from server context, transaction-based slot reservation, idempotency and audit. |
 | `POST /v1/appointments/{id}/cancellations` | `CancelAppointmentRequestSchema` | `CancelAppointmentResponseSchema` | Cancellation rule must be resolved server-side; no free-text reason is collected. |
+| `POST /v1/appointments/{id}/transitions` | `TransitionAppointmentRequestSchema` | `TransitionAppointmentResponseSchema` | Staff-only `confirm_cancellation`/`complete`/`no_show`; body carries only the key and action, and `STAFF_TRANSITION_TO_DOMAIN` maps each to the domain transition that `planTransition` authorizes. |
+| `POST /v1/appointments/{id}/reschedules` | `RescheduleAppointmentRequestSchema` | `RescheduleAppointmentResponseSchema` | Server resolves capacity, cancellation window and role; the appointment stays confirmed and the server returns authoritative start/end. |
 
 `CreateAppointmentRequestSchema` is an appointment command only:
 `idempotencyKey`, `slotId`, `serviceId` and `bookingKind`. It deliberately
@@ -64,9 +66,9 @@ Only health is routed; create/cancellation schemas remain reserved.
 | Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; fields, verification and matching remain TBD pending D-001～D-003, D-006, D-011 |
 | Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; D-001～D-006, D-010, D-011 |
 | Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005/D-006 |
-| Confirm cancellation | None | Future staff application mapping → `TransitionRequest(cancel)` | Inventory only; D-005/D-006 |
-| Complete / no-show | None | Future staff application mapping → `TransitionRequest(complete/no_show)` | Inventory only; D-004/D-006 |
-| Reschedule | None | Future application mapping → `RescheduleRequest` | Inventory only; capacity/cancellation/roles pending D-004～D-006 |
+| Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; route/authorization pending D-005/D-006 |
+| Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; route/authorization pending D-004/D-006 |
+| Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | Future application mapping → `RescheduleRequest` | Unrouted Stage 0 schema; capacity/cancellation/roles pending D-004～D-006 |
 | Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification, fields and roles pending D-001～D-003/D-006 |
 | Follow-up decision | None | Browser-only synthetic behavior; follow-up domain contract required | Inventory only; D-004/D-006/D-007 |
 | Schedule draft / publish / rollback | None | Browser-only synthetic behavior; versioned schedule planner required | Inventory only; D-004/D-006/D-010 |
