@@ -4,12 +4,27 @@
 （見[決策登錄](../product/phase-1-decision-register.md)）。D-009 正式核准仍為
 pending，正式上線不適用本文件。
 
+## 要「服務帳號」，不是「OAuth 用戶端」
+
+Google Cloud 有兩種容易混淆的憑證，**這裡要的是服務帳號**：
+
+| | 服務帳號（要這個） | OAuth 用戶端（不是這個） |
+| --- | --- | --- |
+| 用途 | 背景服務自己的身分，直接簽章換 token | 代表某個使用者，需開瀏覽器按「同意」 |
+| JSON 欄位 | `client_email`、`private_key` | `client_id`、`client_secret` |
+| 適合 | 沒有人在旁邊的 worker | 有使用者互動的網頁登入 |
+
+worker 沒有人可以按同意畫面，因此用服務帳號：把測試日曆**分享給服務帳號的
+email**（可編輯權限）即可，不需要任何同意流程。若手邊已建了 OAuth 用戶端，
+那份用不到，請直接刪除或停用（它的 `client_secret` 是機密）。
+
 ## 誰做什麼
 
 | 步驟 | 由誰做 | 為什麼 |
 | --- | --- | --- |
-| 建 Google Cloud 專案、啟用 Calendar API、建服務帳號、產金鑰 | **專案負責人** | 涉及建立帳號與憑證，助理不做也不能做 |
-| 建一個**專用測試日曆**，分享給服務帳號（可編輯） | **專案負責人** | 事件寫在這裡，不得用醫師私人或正式日曆 |
+| 建 Google Cloud 專案、啟用 Calendar API | **專案負責人** | 涉及建立帳號 |
+| 建**服務帳號**（IAM 與管理 → 服務帳號 → 建立），並「新增金鑰 → JSON」下載 | **專案負責人** | 涉及憑證，助理不做也不能做 |
+| 建一個**專用測試日曆**，在日曆設定裡把它分享給服務帳號 email（可編輯） | **專案負責人** | 事件寫在這裡，不得用醫師私人或正式日曆 |
 | 設定環境變數把憑證注入 worker | **專案負責人** | 金鑰只走 env，絕不進 repo |
 | 用戶端程式（insert／patch／delete、409／410、欄位最小化） | 已完成 | `apps/worker/src/google-calendar.ts` |
 
@@ -23,6 +38,14 @@ GOOGLE_CALENDAR_ID=...
 # 服務帳號 JSON 的完整內容（一行字串），由密鑰管理注入，不落地
 GOOGLE_SERVICE_ACCOUNT_JSON={"client_email":"...","private_key":"..."}
 ```
+
+> **Test connection verified (2026-07-23):** `GoogleCalendarClient` created and
+> immediately deleted one synthetic, non-PII event in the dedicated test
+> calendar. Both write and delete permissions were verified. The service-account
+> JSON was read only from an owner-controlled local file into the process
+> environment, and was not written to the repository, `.env`, documentation,
+> or command output. This test does **not** approve D-009 or permit requests to
+> a production/private calendar, real patient data, or the online preview.
 
 `createCalendarPort()` 會在**兩者都齊備**時回傳真實用戶端；否則回退到假日曆，
 因此沒設憑證的環境不會意外對外呼叫。
