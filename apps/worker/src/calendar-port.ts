@@ -108,10 +108,21 @@ export class InMemoryCalendar implements CalendarPort {
   public cancelMissCount = 0;
   private failuresRemaining = 0;
   private failureRetryable = true;
+  private writeThenFailRemaining = 0;
 
   public failNext(times: number, retryable = true): void {
     this.failuresRemaining = times;
     this.failureRetryable = retryable;
+  }
+
+  /**
+   * 模擬 Google 官方警告的最危險情境：**事件已在日曆建立成功，但回應在網路上
+   * 遺失**，於是 worker 以為失敗而重試。這正是「自訂 event ID」要防的重複風險。
+   * 這裡先把事件寫進去，再丟可重試錯誤——重送時 upsert 撞到既有事件，必須維持
+   * 一個事件而非兩個（runbook 步驟 3）。
+   */
+  public failNextAfterWrite(times: number): void {
+    this.writeThenFailRemaining = times;
   }
 
   // 這個假實作沒有真正的 I/O，因此不是 async function；回傳 Promise 是為了
@@ -129,6 +140,20 @@ export class InMemoryCalendar implements CalendarPort {
       this.failuresRemaining -= 1;
       return Promise.reject(
         new CalendarError('Synthetic calendar failure.', this.failureRetryable)
+      );
+    }
+    if (this.writeThenFailRemaining > 0 && request.action !== 'cancel') {
+      this.writeThenFailRemaining -= 1;
+      // 事件真的寫進去了，只是回應遺失。
+      if (this.events.has(request.idempotencyKey))
+        this.conflictUpdateCount += 1;
+      else this.insertCount += 1;
+      this.events.set(request.idempotencyKey, request);
+      return Promise.reject(
+        new CalendarError(
+          'Calendar wrote the event but the response was lost.',
+          true
+        )
       );
     }
 

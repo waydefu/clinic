@@ -4,7 +4,7 @@ import {
   type AttemptOutcome,
   type OutboxJob
 } from '@beauessence/domain';
-import type { Firestore } from 'firebase-admin/firestore';
+import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 
 import {
   CalendarError,
@@ -194,5 +194,39 @@ export class OutboxProcessor {
     return snapshot.docs.map(
       (document) => ({ id: document.id, ...document.data() }) as OutboxJob
     );
+  }
+
+  /**
+   * 操作者在排除根因後，把一筆死信重新排入（runbook 步驟 3）。
+   *
+   * 刻意**只作用於死信**：正在重試或已完成的工作不該被人工插手，否則會與
+   * worker 的租約打架。重新排入沿用**同一個 idempotencyKey**——這是冪等的
+   * 關鍵，若日曆上其實已有事件（回應遺失的情境），重送只會 upsert 而不會
+   * 產生第二筆。attempts 歸零給予全新的重試額度，並留下 requeuedAt／
+   * requeuedBy 供稽核（runbook 步驟 5）。
+   *
+   * 回傳是否真的重新排入：對非死信的工作回傳 false，讓呼叫端知道沒動作，
+   * 而不是靜默假成功。
+   */
+  public async requeue(jobId: string, operatorId: string): Promise<boolean> {
+    return this.db.runTransaction(async (transaction) => {
+      const reference = this.db.collection(OUTBOX_COLLECTION).doc(jobId);
+      const snapshot = await transaction.get(reference);
+      if (!snapshot.exists) return false;
+      if (snapshot.data()?.['status'] !== 'dead_letter') return false;
+
+      // 刪除 nextAttemptAt（而非設 null）：isDue 以 `=== undefined` 判斷「立即
+      // 到期」，設 null 會讓 Date.parse(null) 變 NaN，工作反而永遠領不到。
+      transaction.update(reference, {
+        status: 'pending',
+        attempts: 0,
+        needsOperator: false,
+        leaseExpiresAt: FieldValue.delete(),
+        nextAttemptAt: FieldValue.delete(),
+        requeuedAt: new Date().toISOString(),
+        requeuedBy: operatorId
+      });
+      return true;
+    });
   }
 }

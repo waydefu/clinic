@@ -97,12 +97,12 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 
 ✅ base32hex 冪等鍵修正（鍵綁預約，一筆預約一個日曆事件）→ ✅ 假 Calendar
 服務定型（upsert／cancel、409 與 410 皆視為冪等成功、依執行當下狀態選動作、
-診所端一小時區塊）→ ✅ 事件欄位最小化斷言 → **只剩：runbook 演練**（依
-[calendar-sync-failure runbook](runbooks/calendar-sync-failure.md)在本機以假服務
-走一次失敗→死信→補回）。
+診所端一小時區塊）→ ✅ 事件欄位最小化斷言 → ✅ runbook 演練（失敗→死信→補回
+已固定為 Emulator 測試，並補上 `OutboxProcessor.requeue` 這個 runbook 步驟 3
+缺的操作能力；見
+[演練紀錄](reviews/calendar-sync-runbook-rehearsal-2026-07-23.md)）。
 
-改期舊事件殘影的缺口已用「鍵綁預約」一併解決（見
-[日曆 event ID 文件](architecture/calendar-event-id.md)），不再是待決事項。
+**四項技術前置全部完成。** 改期舊事件殘影的缺口已用「鍵綁預約」一併解決。
 全部不需核准；D-009 核准後只剩換上真實 API 用戶端與憑證注入。
 
 ## 三、需要核准才能做的事

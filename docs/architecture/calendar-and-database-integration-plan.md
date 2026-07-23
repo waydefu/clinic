@@ -89,8 +89,7 @@ Calendar 是投影，不是可用性的來源。
 ### 3.1 接日曆實測的技術前置（不需核准、可立即做）
 
 依 roadmap 的順序，接上真實 Google Calendar 之前必須先完成。**四項技術前置
-中，前三項已完成，只剩 runbook 演練**（截至 2026-07-22，單元 106 項、
-Emulator 41 項通過）：
+全部完成**（截至 2026-07-23，單元 106 項、Emulator 44 項通過）：
 
 1. **outbox 冪等鍵改為 base32hex** — ✅ 已完成 2026-07-22。鍵改由
    [`packages/domain/src/calendar-event-id.ts`](../../packages/domain/src/calendar-event-id.ts)
@@ -110,10 +109,15 @@ Emulator 41 項通過）：
 3. **事件欄位最小化定型** — ✅ 已完成。事件內容只放預約編號、掛號別、時間與
    診所地址；Emulator 測試以斷言鎖住「不得出現姓名、電話、身分證、手術種類、
    備註」，患者端 `.ics` 匯出另有同款斷言。
-4. **runbook 演練**——依 [calendar-sync-failure runbook](../runbooks/calendar-sync-failure.md)
-   在本機以假服務演練一次失敗→死信→補回。**這是唯一剩下的前置項目。**
+4. **runbook 演練** — ✅ 已完成 2026-07-23。依
+   [calendar-sync-failure runbook](../runbooks/calendar-sync-failure.md)在本機
+   以假日曆走過失敗→死信→補回，並固定為 Emulator 測試
+   （`tests/firestore/calendar-sync-runbook.test.ts`，3 案例）。過程補上
+   `OutboxProcessor.requeue`（runbook 步驟 3 缺的操作能力：只作用於死信、沿用
+   同一把鑰匙）。證據見
+   [Runbook 演練紀錄](../reviews/calendar-sync-runbook-rehearsal-2026-07-23.md)。
 
-前三項完成後，D-009 一核准（日曆擁有者、授權模型、scope、專用測試日曆），
+四項完成後，D-009 一核准（日曆擁有者、授權模型、scope、專用測試日曆），
 剩下的就只是把假服務換成真實 API 用戶端與憑證注入。
 
 **阻擋決策**：無（合成資料、無雲端）。這是**現在就可以做**的部分。
