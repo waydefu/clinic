@@ -3,3 +3,4 @@ export * from './audit.js';
 export * from './common.js';
 export * from './errors.js';
 export * from './health.js';
+export * from './idempotency.js';

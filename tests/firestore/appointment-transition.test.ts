@@ -6,6 +6,10 @@ import {
   COLLECTIONS,
   FirestoreBookingRepository
 } from '../../apps/api/src/firestore/booking.repository.js';
+import {
+  rescheduleAppointmentIdempotency,
+  transitionAppointmentIdempotency
+} from '../../apps/api/src/idempotency/appointment-idempotency.js';
 import { AuditEventV2Schema } from '../../packages/contracts/src/audit.js';
 import type { AppointmentTransition } from '@beauessence/domain';
 
@@ -73,7 +77,12 @@ const transition = (
       policyVersion: null
     },
     requestedAt: NOW,
-    idempotencyKey: key
+    idempotency: transitionAppointmentIdempotency({
+      key,
+      actorId: 'actor_front_desk_001',
+      appointmentId: APPOINTMENT,
+      transition: kind
+    })
   });
 
 const appointmentState = async () =>
@@ -193,6 +202,17 @@ describe('appointment transitions in a Firestore transaction', () => {
     expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
   });
 
+  it('rejects the same transition-scoped key when the command changes', async () => {
+    await transition('cancel', 'idem_transition_shared');
+
+    await expect(
+      transition('complete', 'idem_transition_shared')
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+
+    expect((await appointmentState())?.['status']).toBe('cancelled');
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+
   it('rejects a transition the state machine does not allow, writing nothing', async () => {
     await transition('cancel');
 
@@ -242,7 +262,12 @@ describe('reschedule in a Firestore transaction', () => {
         policyVersion: null
       },
       requestedAt: NOW,
-      idempotencyKey: key
+      idempotency: rescheduleAppointmentIdempotency({
+        key,
+        actorId: 'actor_front_desk_001',
+        appointmentId: APPOINTMENT,
+        targetSlotId
+      })
     });
 
   it('releases the old slot and takes the new one atomically', async () => {
@@ -323,5 +348,26 @@ describe('reschedule in a Firestore transaction', () => {
     expect(first.replayed).toBe(false);
     expect(second.replayed).toBe(true);
     expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+
+  it('rejects the same reschedule-scoped key for another target', async () => {
+    await reschedule(SLOT_B, 'idem_reschedule_shared');
+
+    await expect(
+      reschedule(FOLLOW_UP_SLOT, 'idem_reschedule_shared')
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+
+    expect((await appointmentState())?.['slotId']).toBe(SLOT_B);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+
+  it('allows the same raw key in transition and reschedule scopes', async () => {
+    await transition('request_cancellation', 'idem_cross_scope');
+    const result = await reschedule(SLOT_B, 'idem_cross_scope');
+
+    expect(result.replayed).toBe(false);
+    expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
+      2
+    );
   });
 });

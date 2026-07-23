@@ -5,8 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import {
   AppointmentApplicationService,
-  MissingVerifiedPatientError
+  MissingVerifiedPatientError,
+  toBookingRequest
 } from './appointment.application-service.js';
+import { createAppointmentIdempotency } from '../idempotency/appointment-idempotency.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
 import type {
   AppointmentRepositoryPort,
@@ -76,7 +78,14 @@ describe('AppointmentApplicationService', () => {
         policyVersion: null
       },
       requestedAt: '2026-07-23T14:30:00.000Z',
-      idempotencyKey: 'booking_request_0001'
+      idempotency: createAppointmentIdempotency({
+        key: 'booking_request_0001',
+        actorId: 'actor_verified_001',
+        patientId: 'patient_opaque_001',
+        slotId: 'slot_001',
+        bookingKind: 'initial',
+        itemId: 'service_consult'
+      })
     });
   });
 
@@ -91,6 +100,36 @@ describe('AppointmentApplicationService', () => {
     ).rejects.toBeInstanceOf(MissingVerifiedPatientError);
     expect(assertCanCreate).not.toHaveBeenCalled();
     expect(reserve).not.toHaveBeenCalled();
+  });
+
+  it('keeps retry identity stable when server execution metadata changes', () => {
+    const first = toBookingRequest(COMMAND, {
+      appointmentId: 'appointment_server_001',
+      patientId: 'patient_opaque_001',
+      requestedAt: '2026-07-23T14:30:00.000Z',
+      audit: {
+        actorId: 'actor_verified_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_server_001',
+        source: 'api',
+        reasonCode: null,
+        policyVersion: null
+      }
+    });
+    const retry = toBookingRequest(COMMAND, {
+      appointmentId: 'appointment_server_002',
+      patientId: 'patient_opaque_001',
+      requestedAt: '2026-07-23T14:31:00.000Z',
+      audit: {
+        ...first.audit,
+        correlationId: 'corr_server_002'
+      }
+    });
+
+    expect(retry.appointmentId).not.toBe(first.appointmentId);
+    expect(retry.requestedAt).not.toBe(first.requestedAt);
+    expect(retry.audit.correlationId).not.toBe(first.audit.correlationId);
+    expect(retry.idempotency).toEqual(first.idempotency);
   });
 
   it('does not persist when authorization denies the command', async () => {

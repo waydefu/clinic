@@ -1,15 +1,19 @@
 import {
+  assertIdempotencyContext,
   planBooking,
   planReschedule,
   planTransition,
+  resolveIdempotencyReplay,
   type AppointmentSnapshot,
   type BookingRequest,
+  type IdempotencyContext,
   type PatientBookingGuardSnapshot,
   type PlannedPatientBookingGuardMutation,
   type RescheduleRequest,
   type SlotSnapshot,
   type TransitionRequest
 } from '@beauessence/domain';
+import { IdempotencyRecordV1Schema } from '@beauessence/contracts';
 import type {
   DocumentSnapshot,
   Firestore,
@@ -45,9 +49,10 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   public constructor(private readonly db: Firestore) {}
 
   public async reserve(request: BookingRequest): Promise<ReservationResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
       .collection(COLLECTIONS.idempotencyKeys)
-      .doc(request.idempotencyKey);
+      .doc(request.idempotency.recordId);
     const slotRef = this.db.collection(COLLECTIONS.slots).doc(request.slotId);
     const patientGuardRef = this.db
       .collection(COLLECTIONS.patientBookingGuards)
@@ -55,13 +60,11 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
-      const replay = await transaction.get(idempotencyRef);
-      if (replay.exists) {
-        return {
-          appointmentId: replay.data()?.['appointmentId'] as string,
-          replayed: true
-        };
-      }
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
+      if (replay !== undefined) return replay;
 
       const patientGuardDocument = await transaction.get(patientGuardRef);
       const slotDocument = await transaction.get(slotRef);
@@ -104,11 +107,15 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     });
   }
 
-  /** 冪等重放的共用判斷：已記錄過同一把鑰匙就不再寫入。 */
-  private replayOf(snapshot: DocumentSnapshot): ReservationResult | undefined {
+  /** Exact matches replay; scoped-key reuse with other content is rejected. */
+  private replayOf(
+    snapshot: DocumentSnapshot,
+    context: IdempotencyContext
+  ): ReservationResult | undefined {
     if (!snapshot.exists) return undefined;
+    const record = IdempotencyRecordV1Schema.parse(snapshot.data());
     return {
-      appointmentId: snapshot.data()?.['appointmentId'] as string,
+      appointmentId: resolveIdempotencyReplay(record, context),
       replayed: true
     };
   }
@@ -170,16 +177,20 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   public async transition(
     request: TransitionRequest
   ): Promise<ReservationResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
       .collection(COLLECTIONS.idempotencyKeys)
-      .doc(request.idempotencyKey);
+      .doc(request.idempotency.recordId);
     const appointmentRef = this.db
       .collection(COLLECTIONS.appointments)
       .doc(request.appointmentId);
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
-      const replay = this.replayOf(await transaction.get(idempotencyRef));
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
       if (replay !== undefined) return replay;
 
       const appointmentDocument = await transaction.get(appointmentRef);
@@ -244,9 +255,10 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   public async reschedule(
     request: RescheduleRequest
   ): Promise<ReservationResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
       .collection(COLLECTIONS.idempotencyKeys)
-      .doc(request.idempotencyKey);
+      .doc(request.idempotency.recordId);
     const appointmentRef = this.db
       .collection(COLLECTIONS.appointments)
       .doc(request.appointmentId);
@@ -256,7 +268,10 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
-      const replay = this.replayOf(await transaction.get(idempotencyRef));
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
       if (replay !== undefined) return replay;
 
       const appointmentDocument = await transaction.get(appointmentRef);

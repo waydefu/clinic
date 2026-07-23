@@ -6,7 +6,12 @@ import {
   COLLECTIONS,
   FirestoreBookingRepository
 } from '../../apps/api/src/firestore/booking.repository.js';
+import {
+  createAppointmentIdempotency,
+  transitionAppointmentIdempotency
+} from '../../apps/api/src/idempotency/appointment-idempotency.js';
 import { AuditEventV2Schema } from '../../packages/contracts/src/audit.js';
+import { IdempotencyRecordV1Schema } from '../../packages/contracts/src/idempotency.js';
 import type { BookingRequest } from '@beauessence/domain';
 
 // The Emulator is disposable and never holds real data. `emulators:exec` sets
@@ -26,10 +31,15 @@ const PATIENT_RACE_SLOT_IDS = Array.from(
   (_, index) => `slot_patient_race_${index}`
 );
 
+type BookingRequestOverrides = Partial<Omit<BookingRequest, 'idempotency'>> & {
+  readonly idempotencyKey?: string;
+};
+
 function bookingRequest(
-  overrides: Partial<BookingRequest> = {}
+  overrides: BookingRequestOverrides = {}
 ): BookingRequest {
-  return {
+  const { idempotencyKey = 'idem_001', ...requestOverrides } = overrides;
+  const request: Omit<BookingRequest, 'idempotency'> = {
     appointmentId: 'appointment_001',
     slotId: SLOT_ID,
     patientId: 'patient_001',
@@ -44,8 +54,19 @@ function bookingRequest(
       policyVersion: null
     },
     requestedAt: '2026-07-21T09:00:00.000Z',
-    idempotencyKey: 'idem_001',
-    ...overrides
+    ...requestOverrides
+  };
+
+  return {
+    ...request,
+    idempotency: createAppointmentIdempotency({
+      key: idempotencyKey,
+      actorId: request.audit.actorId,
+      patientId: request.patientId,
+      slotId: request.slotId,
+      bookingKind: request.bookingKind,
+      itemId: request.itemId
+    })
   };
 }
 
@@ -105,7 +126,8 @@ beforeEach(async () => {
 
 describe('booking write path in a Firestore transaction', () => {
   it('writes the appointment, slot reservation, audit event and outbox job together', async () => {
-    const result = await repository.reserve(bookingRequest());
+    const request = bookingRequest();
+    const result = await repository.reserve(request);
     expect(result).toEqual({
       appointmentId: 'appointment_001',
       replayed: false
@@ -122,6 +144,10 @@ describe('booking write path in a Firestore transaction', () => {
       .get();
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
     const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+    const idempotency = await db
+      .collection(COLLECTIONS.idempotencyKeys)
+      .doc(request.idempotency.recordId)
+      .get();
 
     expect(appointment.data()).toMatchObject({
       status: 'confirmed',
@@ -161,6 +187,18 @@ describe('booking write path in a Firestore transaction', () => {
       status: 'pending',
       attempts: 0
     });
+    expect(IdempotencyRecordV1Schema.parse(idempotency.data())).toEqual({
+      actorId: 'actor_front_desk_001',
+      scope: 'appointment:create',
+      requestHash: request.idempotency.requestHash,
+      responseReference: {
+        resourceType: 'appointment',
+        resourceId: 'appointment_001'
+      },
+      recordedAt: '2026-07-21T09:00:00.000Z',
+      schemaVersion: 1
+    });
+    expect(idempotency.data()).not.toHaveProperty('key');
   });
 
   it('allows only one of many concurrent reservations of the same slot', async () => {
@@ -256,6 +294,52 @@ describe('booking write path in a Firestore transaction', () => {
     expect(outbox.size).toBe(1);
   });
 
+  it('rejects the same scoped key when request content changes', async () => {
+    await repository.reserve(bookingRequest());
+
+    await expect(
+      repository.reserve(
+        bookingRequest({
+          appointmentId: 'appointment_002',
+          slotId: OTHER_SLOT_ID
+        })
+      )
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(1);
+    expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
+      1
+    );
+  });
+
+  it('scopes the same raw key independently for another actor', async () => {
+    await repository.reserve(bookingRequest());
+
+    const second = await repository.reserve(
+      bookingRequest({
+        appointmentId: 'appointment_002',
+        slotId: OTHER_SLOT_ID,
+        patientId: 'patient_002',
+        audit: {
+          actorId: 'actor_front_desk_002',
+          actorRole: 'test_front_desk',
+          correlationId: 'corr_booking_002',
+          source: 'api',
+          reasonCode: null,
+          policyVersion: null
+        }
+      })
+    );
+
+    expect(second).toEqual({
+      appointmentId: 'appointment_002',
+      replayed: false
+    });
+    expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
+      2
+    );
+  });
+
   it('never overwrites an existing audit event and rolls back every sibling write', async () => {
     const auditRef = db
       .collection(COLLECTIONS.auditEvents)
@@ -316,7 +400,12 @@ describe('booking write path in a Firestore transaction', () => {
         policyVersion: null
       },
       requestedAt: '2026-07-21T10:00:00.000Z',
-      idempotencyKey: 'idem_complete_001'
+      idempotency: transitionAppointmentIdempotency({
+        key: 'idem_complete_001',
+        actorId: 'actor_front_desk_001',
+        appointmentId: 'appointment_001',
+        transition: 'complete'
+      })
     });
 
     expect(

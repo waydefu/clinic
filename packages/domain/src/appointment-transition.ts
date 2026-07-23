@@ -17,6 +17,12 @@ import type {
 } from './booking-transaction.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
+import {
+  assertIdempotencyContext,
+  planIdempotencyRecord,
+  type IdempotencyContext,
+  type PlannedIdempotencyRecord
+} from './idempotency.js';
 
 export type { AppointmentStatusValue, AppointmentTransition };
 
@@ -40,7 +46,7 @@ export interface TransitionRequest {
   readonly transition: AppointmentTransition;
   readonly audit: AuditContext;
   readonly requestedAt: string;
-  readonly idempotencyKey: string;
+  readonly idempotency: IdempotencyContext;
 }
 
 export interface RescheduleRequest {
@@ -48,7 +54,7 @@ export interface RescheduleRequest {
   readonly targetSlotId: string;
   readonly audit: AuditContext;
   readonly requestedAt: string;
-  readonly idempotencyKey: string;
+  readonly idempotency: IdempotencyContext;
 }
 
 export interface PlannedOutboxEntry {
@@ -82,11 +88,7 @@ export interface TransitionPlan {
   readonly patientBookingGuard: PlannedPatientBookingGuardMutation;
   readonly auditEvent: AuditEventV2;
   readonly outboxJob: PlannedOutboxEntry;
-  readonly idempotencyRecord: {
-    readonly key: string;
-    readonly appointmentId: string;
-    readonly recordedAt: string;
-  };
+  readonly idempotencyRecord: PlannedIdempotencyRecord;
 }
 
 export interface ReschedulePlan {
@@ -99,11 +101,7 @@ export interface ReschedulePlan {
   readonly patientBookingGuard: PlannedPatientBookingGuardMutation;
   readonly auditEvent: AuditEventV2;
   readonly outboxJob: PlannedOutboxEntry;
-  readonly idempotencyRecord: {
-    readonly key: string;
-    readonly appointmentId: string;
-    readonly recordedAt: string;
-  };
+  readonly idempotencyRecord: PlannedIdempotencyRecord;
 }
 
 const AUDIT_ACTIONS: Record<AppointmentTransition, AuditAction> = {
@@ -166,6 +164,7 @@ export function planTransition(
   patientBookingGuard: PatientBookingGuardSnapshot | undefined
 ): TransitionPlan {
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
   if (appointment === undefined) {
     throw new DomainError(
@@ -220,11 +219,11 @@ export function planTransition(
       context: request.audit
     }),
     outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt),
-    idempotencyRecord: {
-      key: request.idempotencyKey,
-      appointmentId: appointment.id,
-      recordedAt: request.requestedAt
-    }
+    idempotencyRecord: planIdempotencyRecord(
+      request.idempotency,
+      appointment.id,
+      request.requestedAt
+    )
   };
 }
 
@@ -235,6 +234,7 @@ export function planReschedule(
   patientBookingGuard: PatientBookingGuardSnapshot | undefined
 ): ReschedulePlan {
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
   if (appointment === undefined) {
     throw new DomainError(
@@ -287,10 +287,10 @@ export function planReschedule(
       // 日曆事件仍是同一個——改期是把事件搬到新時間，不是再開一格。
       id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`
     },
-    idempotencyRecord: {
-      key: request.idempotencyKey,
-      appointmentId: appointment.id,
-      recordedAt: request.requestedAt
-    }
+    idempotencyRecord: planIdempotencyRecord(
+      request.idempotency,
+      appointment.id,
+      request.requestedAt
+    )
   };
 }

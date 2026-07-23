@@ -28,7 +28,12 @@ const request: BookingRequest = {
     policyVersion: null
   },
   requestedAt: '2026-07-21T09:00:00.000Z',
-  idempotencyKey: 'idem_001'
+  idempotency: {
+    actorId: 'actor_front_desk_001',
+    scope: 'appointment:create',
+    requestHash: 'a'.repeat(64),
+    recordId: 'b'.repeat(64)
+  }
 };
 
 const openSlot: SlotSnapshot = {
@@ -96,9 +101,16 @@ describe('planBooking', () => {
       status: 'pending',
       attempts: 0
     });
-    expect(plan.idempotencyRecord).toMatchObject({
-      key: 'idem_001',
-      appointmentId: 'appointment_001'
+    expect(plan.idempotencyRecord).toEqual({
+      actorId: 'actor_front_desk_001',
+      scope: 'appointment:create',
+      requestHash: 'a'.repeat(64),
+      responseReference: {
+        resourceType: 'appointment',
+        resourceId: 'appointment_001'
+      },
+      recordedAt: request.requestedAt,
+      schemaVersion: 1
     });
   });
 

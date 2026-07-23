@@ -23,9 +23,11 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
    port 骨架，不接真實 IdP。✅ 2026-07-23 完成本機未掛路由骨架。
 3. 建立 `patient_booking_guards`，補同病患／不同 slots 的併發測試。✅
    2026-07-23 完成 Emulator 8-slot 競態驗證。
-4. Audit v2 contract 與 transaction assertions。✅ 2026-07-23 完成；下一切片為
-   idempotency scope/request hash。
-5. 建立 worker correlation/metrics port 與 production CI skeleton。
+4. Audit v2 contract 與 transaction assertions。✅ 2026-07-23 完成。
+5. Idempotency scope/request hash。✅ 2026-07-23 完成；以 actor＋operation
+   scope＋raw key 的 SHA-256 作文件定位，record 綁 request hash 與 response
+   reference；完全相同才 replay，不同內容回 `IDEMPOTENCY_KEY_REUSED`。
+6. 建立 worker correlation/metrics port 與 production CI skeleton。
 
 Booking route、cloud Firestore/Auth、Calendar projection、真實資料與 Terraform
 apply 仍依 D-001～D-011 對應 gate 保持關閉。

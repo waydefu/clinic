@@ -2,6 +2,7 @@ import { assertSlotBookable, assertWithinActiveBookingLimit } from './appointmen
 import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
+import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
 /** 同一人同時只能有一筆未結束的預約。 */
 export const ACTIVE_BOOKING_LIMIT = 1;
 export const ACTIVE_BOOKING_STATUSES = [
@@ -28,8 +29,8 @@ function assertUtcTimestamp(value, fieldName) {
 export function planBooking(request, slot, patientBookingGuard) {
     assertIdentifier(request.appointmentId, 'appointmentId');
     assertIdentifier(request.patientId, 'patientId');
-    assertIdentifier(request.idempotencyKey, 'idempotencyKey');
     assertUtcTimestamp(request.requestedAt, 'requestedAt');
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
     // The slot/request-id mismatch is specific to this write path (the caller
     // passed a slot that is not the one it named), so it stays here. The booking
     // rules themselves come from the shared assertions.
@@ -86,10 +87,6 @@ export function planBooking(request, slot, patientBookingGuard) {
             attempts: 0,
             createdAt: request.requestedAt
         },
-        idempotencyRecord: {
-            key: request.idempotencyKey,
-            appointmentId: request.appointmentId,
-            recordedAt: request.requestedAt
-        }
+        idempotencyRecord: planIdempotencyRecord(request.idempotency, request.appointmentId, request.requestedAt)
     };
 }

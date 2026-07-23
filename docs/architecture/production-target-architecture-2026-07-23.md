@@ -380,6 +380,21 @@ domain -----------------> nothing outside packages/domain
 | `payroll_credits` | 規則版本化 credit | unique key + effective assignment |
 | `payroll_periods` | close/lock snapshot | lock 後只允許 adjustment |
 
+### 5.1 Idempotency v1 executable contract（Stage 0）
+
+2026-07-23 已在 local/Emulator 固定以下邊界：
+
+- application service 以明確排序的業務欄位計算 canonical SHA-256；建立預約時
+  server 新產生的 appointment ID、request time、correlation ID 不進 request
+  hash；
+- Firestore 文件 ID 由 `actorId + operation scope + raw idempotency key`
+  的 SHA-256 產生，原始 key 不持久化；
+- record 僅保存 actor、scope、request hash、appointment response reference、
+  UTC recorded time 與 schema version；
+- actor、scope、request hash 完全相同才回放原 appointment；同一 scoped key
+  對不同內容拋出 `IDEMPOTENCY_KEY_REUSED`，且在任何 sibling write 前終止；
+- 相同 raw key 可由不同 actor 或不同 operation scope 獨立使用。
+
 ## 6. 關鍵交易
 
 ### 6.1 建立預約

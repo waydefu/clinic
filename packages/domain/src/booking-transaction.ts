@@ -9,6 +9,12 @@ import {
 } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
+import {
+  assertIdempotencyContext,
+  planIdempotencyRecord,
+  type IdempotencyContext,
+  type PlannedIdempotencyRecord
+} from './idempotency.js';
 
 /**
  * The I/O-free core of the booking write path.
@@ -57,7 +63,7 @@ export interface BookingRequest {
   readonly itemId: string;
   readonly audit: AuditContext;
   readonly requestedAt: string;
-  readonly idempotencyKey: string;
+  readonly idempotency: IdempotencyContext;
 }
 
 export interface PlannedAppointment {
@@ -81,12 +87,6 @@ export interface PlannedOutboxJob {
   readonly status: 'pending';
   readonly attempts: 0;
   readonly createdAt: string;
-}
-
-export interface PlannedIdempotencyRecord {
-  readonly key: string;
-  readonly appointmentId: string;
-  readonly recordedAt: string;
 }
 
 export interface BookingPlan {
@@ -133,8 +133,8 @@ export function planBooking(
 ): BookingPlan {
   assertIdentifier(request.appointmentId, 'appointmentId');
   assertIdentifier(request.patientId, 'patientId');
-  assertIdentifier(request.idempotencyKey, 'idempotencyKey');
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
   // The slot/request-id mismatch is specific to this write path (the caller
   // passed a slot that is not the one it named), so it stays here. The booking
@@ -197,10 +197,10 @@ export function planBooking(
       attempts: 0,
       createdAt: request.requestedAt
     },
-    idempotencyRecord: {
-      key: request.idempotencyKey,
-      appointmentId: request.appointmentId,
-      recordedAt: request.requestedAt
-    }
+    idempotencyRecord: planIdempotencyRecord(
+      request.idempotency,
+      request.appointmentId,
+      request.requestedAt
+    )
   };
 }

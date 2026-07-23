@@ -2,6 +2,7 @@ import { assertReschedulable, assertTransitionAllowed } from './appointment-rule
 import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
+import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
 const AUDIT_ACTIONS = {
     request_cancellation: 'cancellation_requested',
     cancel: 'appointment_cancelled',
@@ -40,6 +41,7 @@ function assertPatientBookingGuardOwnedBy(appointment, guard) {
 }
 export function planTransition(request, appointment, patientBookingGuard) {
     assertUtcTimestamp(request.requestedAt, 'requestedAt');
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
     if (appointment === undefined) {
         throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
     }
@@ -86,15 +88,12 @@ export function planTransition(request, appointment, patientBookingGuard) {
             context: request.audit
         }),
         outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt),
-        idempotencyRecord: {
-            key: request.idempotencyKey,
-            appointmentId: appointment.id,
-            recordedAt: request.requestedAt
-        }
+        idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };
 }
 export function planReschedule(request, appointment, targetSlot, patientBookingGuard) {
     assertUtcTimestamp(request.requestedAt, 'requestedAt');
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
     if (appointment === undefined) {
         throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
     }
@@ -137,10 +136,6 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
             // 日曆事件仍是同一個——改期是把事件搬到新時間，不是再開一格。
             id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`
         },
-        idempotencyRecord: {
-            key: request.idempotencyKey,
-            appointmentId: appointment.id,
-            recordedAt: request.requestedAt
-        }
+        idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };
 }

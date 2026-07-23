@@ -281,7 +281,7 @@ owner；決策能及時完成：
 - [ ] RBAC + resource-scope policy
 - [ ] application services
 - [ ] repository ports/adapters
-- [ ] idempotency scope + request hash
+- [x] idempotency scope + request hash（2026-07-23 local/Emulator）
 - [ ] rate limit/anti-automation
 - [ ] maintenance gate
 - [ ] safe error/correlation mapping

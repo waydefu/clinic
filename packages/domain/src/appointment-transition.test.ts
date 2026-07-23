@@ -37,6 +37,13 @@ const audit = {
   policyVersion: null
 };
 
+const idempotencyFor = (actorId = audit.actorId) => ({
+  actorId,
+  scope: `appointment:${appointment.id}:transition`,
+  requestHash: 'a'.repeat(64),
+  recordId: 'b'.repeat(64)
+});
+
 const request = (
   transition: AppointmentTransition,
   overrides: Partial<AppointmentSnapshot> = {}
@@ -49,7 +56,7 @@ const request = (
           transition,
           audit,
           requestedAt: NOW,
-          idempotencyKey: `idem_${transition}`
+          idempotency: idempotencyFor()
         },
         { ...appointment, ...overrides },
         patientBookingGuard
@@ -199,7 +206,7 @@ describe('planTransition', () => {
             transition: 'cancel',
             audit: { ...audit, actorId: 'a' },
             requestedAt: NOW,
-            idempotencyKey: 'k'
+            idempotency: idempotencyFor('a')
           },
           undefined,
           undefined
@@ -225,7 +232,10 @@ describe('planReschedule', () => {
         targetSlotId: slot?.id ?? 'missing',
         audit,
         requestedAt: NOW,
-        idempotencyKey: 'idem_reschedule'
+        idempotency: {
+          ...idempotencyFor(),
+          scope: `appointment:${appointment.id}:reschedule`
+        }
       },
       { ...appointment, ...patch },
       slot,
@@ -288,7 +298,7 @@ describe('planReschedule', () => {
       transition: 'cancel' as const,
       audit,
       requestedAt: NOW,
-      idempotencyKey: 'idem_guard'
+      idempotency: idempotencyFor()
     };
 
     expect(

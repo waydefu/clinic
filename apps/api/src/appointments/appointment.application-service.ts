@@ -7,6 +7,7 @@ import type {
   AppointmentRepositoryPort,
   ReservationResult
 } from './appointment.repository-port.js';
+import { createAppointmentIdempotency } from '../idempotency/appointment-idempotency.js';
 
 export interface AppointmentIdGenerator {
   next(): string;
@@ -48,7 +49,14 @@ export function toBookingRequest(
     itemId: command.serviceId,
     audit: context.audit,
     requestedAt: context.requestedAt,
-    idempotencyKey: command.idempotencyKey
+    idempotency: createAppointmentIdempotency({
+      key: command.idempotencyKey,
+      actorId: context.audit.actorId,
+      patientId: context.patientId,
+      slotId: command.slotId,
+      bookingKind: command.bookingKind,
+      itemId: command.serviceId
+    })
   };
 }
 
