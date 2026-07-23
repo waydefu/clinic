@@ -55,8 +55,13 @@ requireText(
 );
 requireText(
   files.adminShell,
-  'id="workspace-account"',
-  'Admin shell is missing account-based session selection.'
+  'id="login-account"',
+  'Admin shell is missing the synthetic account+password login gate.'
+);
+requireText(
+  files.adminShell,
+  'id="logout"',
+  'Admin shell is missing the logout control for the login gate.'
 );
 requireText(
   files.adminShell,
@@ -138,7 +143,9 @@ requireText(
 // 公開預覽一併更新。因此這裡不再是「不得有任何輸入欄位」，而是「只允許清單內
 // 的欄位」——新增任何欄位都必須是刻意的決定，並回頭確認 D-001～D-003。
 const allowedControls = new Set([
-  'workspace-account',
+  // 合成帳密登入閘門的欄位（browser-local、非安全邊界）。
+  'login-account',
+  'login-password',
   'booking-name',
   'booking-phone',
   'booking-birth',

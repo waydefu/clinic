@@ -41,6 +41,16 @@ const elements = Object.fromEntries(
 );
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
 const mobileViewport = window.matchMedia('(max-width: 48rem)');
+const appShell = document.querySelector('.app-shell');
+
+// 合成登入閘門：未登入時只顯示登入頁，登入後才顯示工作臺。這是 UX 原型、
+// 不是安全邊界——權限仍由帳號角色決定，`state` 也已在瀏覽器內，登出不等於
+// 伺服器端撤銷（AUTH-001／D-006）。
+function renderGate() {
+  const authenticated = state.session.authenticated === true;
+  elements['login-view'].hidden = authenticated;
+  appShell.hidden = !authenticated;
+}
 
 function syncResponsiveDisclosures() {
   const topbarTools = document.querySelector('.topbar-tools');
@@ -150,14 +160,6 @@ function options(items, selectedId, label) {
 }
 
 function renderSession() {
-  const active = state.workspace.accounts.filter(
-    (item) => item.status === 'active'
-  );
-  elements['workspace-account'].innerHTML = options(
-    active,
-    state.session.account.id,
-    (item) => `${item.label} · ${roleLabel(item.role)}`
-  );
   elements['current-account-label'].textContent =
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
@@ -261,6 +263,7 @@ function renderBlockedTimesForm() {
 }
 
 function render() {
+  renderGate();
   renderSession();
   renderFilters();
   renderSummary();
@@ -367,12 +370,32 @@ function parseTimeList(value) {
     .filter((item) => item !== '');
 }
 
-elements['workspace-account'].addEventListener('change', async () => {
+elements['login-form'].addEventListener('submit', async (event) => {
+  event.preventDefault();
   try {
-    await post('/workspace/session', {
-      accountId: elements['workspace-account'].value
+    await post('/workspace/login', {
+      username: elements['login-account'].value,
+      password: elements['login-password'].value
     });
-    message(`已切換為 ${state.session.account.label}。`, 'success');
+    elements['login-password'].value = '';
+    elements['login-error'].hidden = true;
+    elements['login-error'].textContent = '';
+    message(`已登入為 ${state.session.account.label}。`, 'success');
+    elements['main-content'].focus({ preventScroll: true });
+  } catch (error) {
+    // 登入失敗把訊息就地顯示在登入表單旁（工作臺的 #status 這時是隱藏的）。
+    elements['login-error'].textContent = error.message;
+    elements['login-error'].hidden = false;
+    elements['login-password'].value = '';
+    elements['login-password'].focus();
+  }
+});
+
+elements['logout'].addEventListener('click', async () => {
+  try {
+    await post('/workspace/logout');
+    elements['login-account'].focus();
+    message('已登出。', 'success');
   } catch (error) {
     message(error.message, 'error');
   }
@@ -1044,7 +1067,9 @@ try {
   state = await stagingRequest('/state');
   render();
   initWorkspaceTabs();
-  message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
+  if (state.session.authenticated === true)
+    message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
+  else elements['login-account'].focus();
 } catch (error) {
   message(error instanceof Error ? error.message : '無法載入工作臺。', 'error');
 }

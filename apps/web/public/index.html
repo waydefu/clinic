@@ -19,7 +19,62 @@
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳至主要內容</a>
-    <div class="app-shell app-shell-wide">
+    <!-- 合成帳密登入閘門。這不是安全邊界：帳密只比對本機瀏覽器內的合成資料，
+         登入後才顯示工作臺。正式版需改為真實身分驗證（AUTH-001／D-006）。 -->
+    <main
+      class="login-view"
+      id="login-view"
+      aria-labelledby="login-heading"
+      hidden
+    >
+      <div class="login-card">
+        <p class="login-brand">一森渼診所</p>
+        <h1 id="login-heading">登入營運工作臺</h1>
+        <p class="login-lead">
+          請以員工帳號登入。這是合成測試登入，非真實身分驗證。
+        </p>
+        <form id="login-form" class="login-form" novalidate>
+          <label class="login-field"
+            ><span>帳號</span
+            ><input
+              id="login-account"
+              type="text"
+              name="login-account"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              required
+          /></label>
+          <label class="login-field"
+            ><span>密碼</span
+            ><input
+              id="login-password"
+              type="password"
+              name="login-password"
+              autocomplete="current-password"
+              required
+          /></label>
+          <p id="login-error" class="login-error" role="alert" hidden></p>
+          <button id="login-submit" class="button button-primary" type="submit">
+            登入
+          </button>
+        </form>
+        <div class="login-hint">
+          <p><strong>測試帳號（合成、非機密）</strong></p>
+          <ul>
+            <li>
+              管理者：<code>admin</code> ／ <code>beauessence-admin</code>
+            </li>
+            <li>櫃台：<code>front</code> ／ <code>beauessence-front</code></li>
+          </ul>
+          <p class="login-boundary">
+            ⚠
+            非安全邊界：帳密只存在本機瀏覽器、未加密，僅供合成測試。正式上線將改為真實身分驗證。
+          </p>
+        </div>
+      </div>
+    </main>
+    <div class="app-shell app-shell-wide" hidden>
       <header class="topbar">
         <a
           class="brand"
@@ -47,11 +102,8 @@
           <div class="topbar-actions">
             <span class="environment-badge"
               ><span></span><b id="environment-label">ONLINE PREVIEW</b></span
-            ><label class="session-picker"
-              >操作帳號<select
-                id="workspace-account"
-                aria-label="目前操作帳號"
-              ></select></label
+            ><button id="logout" class="button button-secondary" type="button">
+              登出</button
             ><label class="session-picker theme-picker-label"
               >主題<select id="theme-picker" aria-label="顯示主題">
                 <option value="auto">跟隨系統</option>

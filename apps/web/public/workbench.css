@@ -1252,3 +1252,82 @@ details[open] > summary .workflow-summary-chevron {
     outline-offset: -2px;
   }
 }
+
+/* 合成帳密登入頁（非安全邊界）。沿用 styles.css 的 token，因此深淺色與工作臺
+ * 一致；欄位與提示都自成一張置中卡片，登入後由 JS 換成工作臺。 */
+.login-view {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  max-width: 26rem;
+  padding: 2rem;
+  width: 100%;
+}
+.login-brand {
+  color: var(--forest);
+  font-weight: 750;
+  margin: 0;
+}
+.login-view h1 {
+  font-size: var(--text-xl);
+  margin: 0.25rem 0 0;
+}
+.login-lead {
+  color: var(--ink-muted);
+  margin: 0.5rem 0 1.25rem;
+}
+.login-form {
+  display: grid;
+  gap: 0.9rem;
+}
+.login-field {
+  display: grid;
+  gap: 0.35rem;
+}
+.login-field span {
+  font-weight: 700;
+}
+.login-field input {
+  border: 1px solid var(--line-strong);
+  border-radius: 0.55rem;
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+}
+.login-error {
+  background: var(--danger-light);
+  border-radius: 0.55rem;
+  color: var(--danger);
+  font-weight: 700;
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+}
+.login-hint {
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+.login-hint ul {
+  margin: 0.35rem 0;
+  padding-left: 1.25rem;
+}
+.login-hint code {
+  background: var(--surface-tint);
+  border-radius: 0.3rem;
+  padding: 0.05rem 0.3rem;
+}
+.login-boundary {
+  color: var(--amber);
+  font-weight: 700;
+  margin: 0.5rem 0 0;
+}
