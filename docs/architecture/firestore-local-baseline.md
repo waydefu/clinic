@@ -19,6 +19,23 @@ rule change requires:
 3. updated Rules tests for allowed and denied cases; and
 4. review of the API/audit impact.
 
+## Transaction invariants
+
+The disposable Emulator suite also exercises the server repository:
+
+- each reservation atomically writes its appointment, slot reservation,
+  `patient_booking_guards/{patientId}`, audit event, outbox job and idempotency
+  record;
+- simultaneous requests by different patients for one slot have one winner;
+- simultaneous requests by one patient for different slots have one winner
+  because every request reads and writes the same patient guard document;
+- cancellation, completion and no-show conditionally release the matching
+  patient guard, while cancellation request and reschedule retain it.
+- each successful appointment mutation appends a strict Audit v2 event in the
+  same transaction; an existing event ID is never overwritten, and a create
+  conflict rolls back the appointment, slot, guard, outbox and idempotency
+  writes together.
+
 ## Commands
 
 ```powershell

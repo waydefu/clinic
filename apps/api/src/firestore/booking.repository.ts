@@ -1,10 +1,11 @@
 import {
-  ACTIVE_BOOKING_STATUSES,
   planBooking,
   planReschedule,
   planTransition,
   type AppointmentSnapshot,
   type BookingRequest,
+  type PatientBookingGuardSnapshot,
+  type PlannedPatientBookingGuardMutation,
   type RescheduleRequest,
   type SlotSnapshot,
   type TransitionRequest
@@ -15,15 +16,15 @@ import type {
   Transaction
 } from 'firebase-admin/firestore';
 
-export interface ReservationResult {
-  readonly appointmentId: string;
-  /** True when the request replayed an idempotency key instead of writing. */
-  readonly replayed: boolean;
-}
+import type {
+  AppointmentRepositoryPort,
+  ReservationResult
+} from '../appointments/appointment.repository-port.js';
 
 export const COLLECTIONS = {
   slots: 'slots',
   appointments: 'appointments',
+  patientBookingGuards: 'patient_booking_guards',
   auditEvents: 'audit_events',
   outboxJobs: 'outbox_jobs',
   idempotencyKeys: 'idempotency_keys'
@@ -40,7 +41,7 @@ export const COLLECTIONS = {
  * Every read happens before every write, as the transaction API requires, and
  * no external service is called from inside it (ADR-0002).
  */
-export class FirestoreBookingRepository {
+export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   public constructor(private readonly db: Firestore) {}
 
   public async reserve(request: BookingRequest): Promise<ReservationResult> {
@@ -48,10 +49,9 @@ export class FirestoreBookingRepository {
       .collection(COLLECTIONS.idempotencyKeys)
       .doc(request.idempotencyKey);
     const slotRef = this.db.collection(COLLECTIONS.slots).doc(request.slotId);
-    const activeBookingsQuery = this.db
-      .collection(COLLECTIONS.appointments)
-      .where('patientId', '==', request.patientId)
-      .where('status', 'in', [...ACTIVE_BOOKING_STATUSES]);
+    const patientGuardRef = this.db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc(request.patientId);
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
@@ -63,8 +63,8 @@ export class FirestoreBookingRepository {
         };
       }
 
+      const patientGuardDocument = await transaction.get(patientGuardRef);
       const slotDocument = await transaction.get(slotRef);
-      const activeBookings = await transaction.get(activeBookingsQuery);
 
       const slot = slotDocument.exists
         ? ({
@@ -72,9 +72,12 @@ export class FirestoreBookingRepository {
             ...slotDocument.data()
           } as SlotSnapshot)
         : undefined;
+      const patientBookingGuard = patientGuardDocument.exists
+        ? (patientGuardDocument.data() as PatientBookingGuardSnapshot)
+        : undefined;
 
       // --- decision (pure) ---------------------------------------------
-      const plan = planBooking(request, slot, activeBookings.size);
+      const plan = planBooking(request, slot, patientBookingGuard);
 
       // --- writes -------------------------------------------------------
       transaction.set(
@@ -84,8 +87,11 @@ export class FirestoreBookingRepository {
       transaction.update(slotRef, {
         reservationId: plan.slotReservation.reservationId
       });
-      transaction.set(
-        this.db.collection(COLLECTIONS.auditEvents).doc(plan.auditEvent.id),
+      transaction.create(patientGuardRef, plan.patientBookingGuard);
+      transaction.create(
+        this.db
+          .collection(COLLECTIONS.auditEvents)
+          .doc(plan.auditEvent.eventId),
         plan.auditEvent
       );
       transaction.set(
@@ -114,6 +120,13 @@ export class FirestoreBookingRepository {
     return { id: document.id, ...document.data() } as AppointmentSnapshot;
   }
 
+  private patientGuardSnapshotOf(
+    document: DocumentSnapshot | undefined
+  ): PatientBookingGuardSnapshot | undefined {
+    if (document === undefined || !document.exists) return undefined;
+    return document.data() as PatientBookingGuardSnapshot;
+  }
+
   /**
    * 釋出時段時必須確認它仍指向這筆預約。若時段已被改期或其他流程接手，
    * 貿然清掉 reservationId 會把別人的預約踢掉。
@@ -126,6 +139,31 @@ export class FirestoreBookingRepository {
     if (!slotDocument.exists) return;
     if (slotDocument.data()?.['reservationId'] !== appointmentId) return;
     transaction.update(slotDocument.ref, { reservationId: null });
+  }
+
+  /**
+   * A terminal transition may release only the guard that still names this
+   * appointment. It must never delete a newer appointment's lock.
+   */
+  private applyPatientGuardMutation(
+    transaction: Transaction,
+    guardDocument: DocumentSnapshot | undefined,
+    mutation: PlannedPatientBookingGuardMutation
+  ): void {
+    if (guardDocument === undefined) return;
+
+    if (mutation.action === 'release') {
+      if (
+        guardDocument.exists &&
+        guardDocument.data()?.['activeAppointmentId'] ===
+          mutation.activeAppointmentId
+      ) {
+        transaction.delete(guardDocument.ref);
+      }
+      return;
+    }
+
+    transaction.update(guardDocument.ref, mutation.guard);
   }
 
   /** 取消、提出取消、到診與未到；規則由 planTransition 決定。 */
@@ -146,6 +184,14 @@ export class FirestoreBookingRepository {
 
       const appointmentDocument = await transaction.get(appointmentRef);
       const appointment = this.snapshotOf(appointmentDocument);
+      const patientGuardDocument =
+        appointment === undefined
+          ? undefined
+          : await transaction.get(
+              this.db
+                .collection(COLLECTIONS.patientBookingGuards)
+                .doc(appointment.patientId)
+            );
 
       // 時段必須在任何寫入之前讀取，即使這次轉換不會釋出它。
       const slotDocument =
@@ -156,7 +202,11 @@ export class FirestoreBookingRepository {
             );
 
       // --- decision (pure) ---------------------------------------------
-      const plan = planTransition(request, appointment);
+      const plan = planTransition(
+        request,
+        appointment,
+        this.patientGuardSnapshotOf(patientGuardDocument)
+      );
 
       // --- writes -------------------------------------------------------
       transaction.update(appointmentRef, {
@@ -169,8 +219,15 @@ export class FirestoreBookingRepository {
       if (plan.releaseSlotId !== undefined && slotDocument !== undefined) {
         this.releaseSlot(transaction, slotDocument, plan.appointmentId);
       }
-      transaction.set(
-        this.db.collection(COLLECTIONS.auditEvents).doc(plan.auditEvent.id),
+      this.applyPatientGuardMutation(
+        transaction,
+        patientGuardDocument,
+        plan.patientBookingGuard
+      );
+      transaction.create(
+        this.db
+          .collection(COLLECTIONS.auditEvents)
+          .doc(plan.auditEvent.eventId),
         plan.auditEvent
       );
       transaction.set(
@@ -211,13 +268,26 @@ export class FirestoreBookingRepository {
           : await transaction.get(
               this.db.collection(COLLECTIONS.slots).doc(appointment.slotId)
             );
+      const patientGuardDocument =
+        appointment === undefined
+          ? undefined
+          : await transaction.get(
+              this.db
+                .collection(COLLECTIONS.patientBookingGuards)
+                .doc(appointment.patientId)
+            );
 
       const targetSlot = targetDocument.exists
         ? ({ id: targetDocument.id, ...targetDocument.data() } as SlotSnapshot)
         : undefined;
 
       // --- decision (pure) ---------------------------------------------
-      const plan = planReschedule(request, appointment, targetSlot);
+      const plan = planReschedule(
+        request,
+        appointment,
+        targetSlot,
+        this.patientGuardSnapshotOf(patientGuardDocument)
+      );
 
       // --- writes -------------------------------------------------------
       if (previousDocument !== undefined) {
@@ -230,8 +300,15 @@ export class FirestoreBookingRepository {
         status: plan.nextStatus,
         updatedAt: plan.updatedAt
       });
-      transaction.set(
-        this.db.collection(COLLECTIONS.auditEvents).doc(plan.auditEvent.id),
+      this.applyPatientGuardMutation(
+        transaction,
+        patientGuardDocument,
+        plan.patientBookingGuard
+      );
+      transaction.create(
+        this.db
+          .collection(COLLECTIONS.auditEvents)
+          .doc(plan.auditEvent.eventId),
         plan.auditEvent
       );
       transaction.set(

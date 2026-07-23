@@ -7,6 +7,14 @@
 
 ---
 
+> **2026-07-23 實作補充：** 本文件保留完整 programme 背景；目前施工順序以
+> [正式化後續實作規劃書](product/production-readiness-delivery-plan-2026-07-23.md)
+> 為準，技術邊界以
+> [正式環境目標架構書](architecture/production-target-architecture-2026-07-23.md)
+> 為準，現況證據見
+> [企業級上線前審查](reviews/2026-07-23-enterprise-production-readiness-review.md)。
+> 三者均不自行核准 D-001～D-011。
+
 ## 1. 執行摘要
 
 診所目前從官網、LINE 官方帳號、Facebook Messenger 與 Instagram 收到預約或諮詢訊息，再由櫃台人工填入 Google Calendar。這種流程會造成跨平台切換、晚間漏接、時段衝突與人工追蹤成本。

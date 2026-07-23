@@ -864,6 +864,10 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
       certificateCopies: Number(data.get('certificateCopies') ?? 0),
       managerId
     });
+    if (data.get('status') === 'required') {
+      weekStart = weekStartOf(data.get('dueDate'));
+      renderWeek();
+    }
     message(
       managerId ? '逐筆回診決定與個管指派已記錄。' : '逐筆回診決定已記錄。',
       'success'

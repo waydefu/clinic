@@ -3,7 +3,6 @@ import { z } from 'zod';
 import {
   IdempotencyKeySchema,
   OpaqueIdentifierSchema,
-  PolicyVersionSchema,
   UtcIsoTimestampSchema
 } from './common.js';
 
@@ -16,28 +15,17 @@ export const AppointmentStatusSchema = z.enum([
 ]);
 
 /**
- * This is the smallest booking payload required for the initial pilot.  Free
- * text is intentionally absent; clinical concerns, diagnosis and images do
- * not belong in the appointment platform.
+ * The appointment command intentionally contains no patient profile, actor,
+ * policy version or client timestamp. Patient intake/verification is a
+ * separate, still decision-gated boundary; the verified patient and actor
+ * identities plus IDs and timestamps must come from the server.
  */
 export const CreateAppointmentRequestSchema = z
   .object({
     idempotencyKey: IdempotencyKeySchema,
     slotId: OpaqueIdentifierSchema,
     serviceId: OpaqueIdentifierSchema,
-    patient: z
-      .object({
-        fullName: z.string().trim().min(1).max(80),
-        mobileE164: z.string().regex(/^\+[1-9][0-9]{7,14}$/),
-        email: z.email().optional()
-      })
-      .strict(),
-    privacyAcceptance: z
-      .object({
-        policyVersion: PolicyVersionSchema,
-        acceptedAt: UtcIsoTimestampSchema
-      })
-      .strict()
+    bookingKind: z.enum(['initial', 'follow_up'])
   })
   .strict();
 

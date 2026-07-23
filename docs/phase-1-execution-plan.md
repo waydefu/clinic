@@ -11,6 +11,12 @@ Google Calendar, social webhooks and NAS connections remain out of scope.
 Prepare a reviewed, testable appointment write-path design. Phase 1 does not
 enable a public booking form or accept real patient data.
 
+The active local implementation entry is Stage 0 of the
+[production-readiness delivery plan](product/production-readiness-delivery-plan-2026-07-23.md),
+using the boundaries in the
+[production target architecture](architecture/production-target-architecture-2026-07-23.md).
+This authorises architecture hardening only; it does not change D-001～D-011.
+
 ## Workstreams
 
 | Stream | Deliverables | Blocking decisions |
@@ -33,6 +39,9 @@ enable a public booking form or accept real patient data.
   API and Web environment flags are both explicitly enabled. It must use the
   in-memory synthetic model, not Firestore or any external service.
 - Review and version the privacy-policy text without recording a real consent.
+- Align contracts and domain requests, create disabled API application-boundary
+  interfaces, add an explicit patient booking guard, extend audit v2 and add
+  synthetic Emulator concurrency tests as described by Stage 0.
 - Deploy the documented static synthetic site to the expiring
   `synthetic-review` channel of `beauessence-clinic-staging`; it must use only
   browser-local synthetic state and follow the online-preview runbook.
@@ -55,7 +64,8 @@ enable a public booking form or accept real patient data.
 4. Define the Firestore transaction plus outbox; never make an external call
    inside the transaction.
 5. Add local tests for success, slot conflict, duplicate idempotency key and
-   direct-client denial.
+   direct-client denial. The active-booking invariant must also cover the same
+   patient concurrently requesting different slots through one guard document.
 6. Review Calendar projection separately; it is never an availability lock.
 
 ## Exit criteria
@@ -73,6 +83,9 @@ enable a public booking form or accept real patient data.
 
 The project is in the decision-and-design portion of Phase 1. No booking write
 endpoint may be enabled until every relevant blocking decision is approved.
+Stage 0 architecture hardening is the only active implementation entry:
+contract/domain alignment, application-boundary interfaces,
+`patient_booking_guards`, audit v2 and synthetic tests.
 The test-only profile may exercise pure local domain transitions with synthetic
 IDs, including its documented synthetic manager-workload aggregation, but it
 is not a route, assignment rule, compensation policy or production capability.

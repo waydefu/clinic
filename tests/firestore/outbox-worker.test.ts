@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   calendarEventIdForAppointment,
+  calendarEventIdForFollowUp,
   MAX_ATTEMPTS
 } from '@beauessence/domain';
 import {
@@ -38,6 +39,7 @@ async function wipe(): Promise<void> {
 // 種子鍵一律走與正式路徑相同的產生器：手寫字串會悄悄退回舊格式。
 // 一筆預約一個事件，因此整條生命週期的工作都用這一把鑰匙。
 const CONFIRMED_KEY = calendarEventIdForAppointment('appointment_001');
+const FOLLOW_UP_KEY = calendarEventIdForFollowUp('appointment_001');
 
 async function seedJob(id = 'outbox_001'): Promise<void> {
   await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
@@ -114,6 +116,85 @@ describe('outbox worker', () => {
     const [event] = [...calendar.events.values()];
     expect(event?.startsAt).toBe('2030-02-01T04:15:00.000Z');
     expect(event?.endsAt).toBe('2030-02-01T05:15:00.000Z');
+  });
+
+  it('upserts a follow-up reminder even though its source visit is completed', async () => {
+    await seedJob();
+    await db
+      .collection(APPOINTMENTS_COLLECTION)
+      .doc('appointment_001')
+      .update({ status: 'completed' });
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
+      idempotencyKey: FOLLOW_UP_KEY,
+      appointmentStatus: 'follow_up_required',
+      followUpSourceId: 'appointment_001',
+      startsAt: '2030-02-01T04:15:00.000Z'
+    });
+
+    await processor.processDue(NOW);
+
+    expect(calendar.events.size).toBe(1);
+    expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(true);
+    expect(calendar.events.get(FOLLOW_UP_KEY)).toMatchObject({
+      action: 'upsert',
+      appointmentStatus: 'follow_up_required',
+      bookingKind: 'follow_up',
+      startsAt: '2030-02-01T04:15:00.000Z'
+    });
+  });
+
+  it('cancels the reminder when follow-up is no longer required or has been scheduled', async () => {
+    await seedJob();
+    await db
+      .collection(APPOINTMENTS_COLLECTION)
+      .doc('appointment_001')
+      .update({ status: 'completed' });
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
+      idempotencyKey: FOLLOW_UP_KEY,
+      appointmentStatus: 'follow_up_required',
+      followUpSourceId: 'appointment_001',
+      startsAt: '2030-02-01T04:15:00.000Z'
+    });
+    await processor.processDue(NOW);
+    expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(true);
+
+    for (const projectionStatus of [
+      'follow_up_not_required',
+      'follow_up_scheduled'
+    ]) {
+      await db
+        .collection(OUTBOX_COLLECTION)
+        .doc(`outbox_${projectionStatus}`)
+        .set({
+          appointmentId: 'appointment_001',
+          appointmentStatus: projectionStatus,
+          followUpSourceId: 'appointment_001',
+          idempotencyKey: FOLLOW_UP_KEY,
+          type: 'calendar_projection_requested',
+          status: 'pending',
+          attempts: 0
+        });
+      await processor.processDue(later(1));
+      expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
+
+      if (projectionStatus === 'follow_up_not_required') {
+        await db
+          .collection(OUTBOX_COLLECTION)
+          .doc('outbox_restore_follow_up')
+          .set({
+            appointmentId: 'appointment_001',
+            appointmentStatus: 'follow_up_required',
+            followUpSourceId: 'appointment_001',
+            startsAt: '2030-02-01T04:15:00.000Z',
+            idempotencyKey: FOLLOW_UP_KEY,
+            type: 'calendar_projection_requested',
+            status: 'pending',
+            attempts: 0
+          });
+        await processor.processDue(later(2));
+        expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(true);
+      }
+    }
   });
 
   it('uses the projected job key as a valid Calendar event ID', async () => {

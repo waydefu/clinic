@@ -14,12 +14,14 @@ Read in this order before changing a boundary or enabling a capability.
 | # | Document | Why |
 | --- | --- | --- |
 | 0 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
-| 1 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme: architecture, phases, data model, privacy and the plan-versus-implementation gap register |
-| 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
-| 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
-| 4 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
-| 5 | [Open decisions](product/open-decisions.md) | Historical decision context (superseded for active tracking) |
-| 6 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
+| 1 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
+| 2 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
+| 3 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
+| 4 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
+| 5 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
+| 6 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
+| 7 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
+| 8 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
 
 ## 2. Decisions and approval packets
 
@@ -45,6 +47,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Synthetic Web modular architecture](architecture/synthetic-web-modular-architecture.md) — browser module boundaries and how they are later replaced by the real API
 - [Calendar and database integration plan](architecture/calendar-and-database-integration-plan.md) — staged route from the browser prototype to Firestore and a Calendar projection, and which decision blocks each stage
 - [Calendar event ID and outbox key](architecture/calendar-event-id.md) — why the outbox key is base32hex, where it is generated, and what to check before changing it
+- [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) — architecture verdict, required changes, target containers, data model, transactions and migration boundaries
 
 ## 4. Building and testing
 
@@ -53,6 +56,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Test-only scheduling and follow-up workbench](product/test-only-scheduling-follow-up-workbench.md) — scope of the synthetic scheduling and follow-up surface
 - [Front-desk follow-up and patient UX spec (2026-07-23)](product/front-desk-followup-and-patient-ux-spec-2026-07-23.md) — the authoritative requirement list for the follow-up queue transform, today filter, past-slot rule, cancellation contact popup and the nav bell
 - [Test-only operations UI guide](design/test-only-operations-ui.md) — safety, accessibility and layout rules for the browser harness
+- [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) — work packages, decision gates, suggested sequence, acceptance criteria and rescoring checkpoints
 
 ## 5. Operations
 
@@ -74,6 +78,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-23 | [Enterprise production-readiness review](reviews/2026-07-23-enterprise-production-readiness-review.md) | Core architecture retained; production blocked pending Stage 0 hardening, D-001～D-011, auth/API, privacy, audit, IaC and release evidence |
 | 2026-07-23 | [Calendar-sync runbook rehearsal](reviews/calendar-sync-runbook-rehearsal-2026-07-23.md) | Failure → dead-letter → recovery rehearsed as an Emulator test; added `OutboxProcessor.requeue`; all four calendar prerequisites done |
 | 2026-07-22 | [Workbench tabs and calendar projection](reviews/workbench-tabs-and-calendar-projection-2026-07-22.md) | Tabbed workbench, in-place note editing, inline case assignment, calendar event ID bound to the appointment, patient/clinic calendar split |
 | 2026-07-22 | [UI theme, dialog and flow review](reviews/ui-theme-dialog-and-flow-review-2026-07-22.md) | Opaque nav, custom confirm dialog, patient back-flow, auto/light/warm/dark themes with AA contrast, standards sweep; calendar-test prerequisites documented |

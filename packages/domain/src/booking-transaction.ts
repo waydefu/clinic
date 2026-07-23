@@ -2,6 +2,11 @@ import {
   assertSlotBookable,
   assertWithinActiveBookingLimit
 } from './appointment-rules.js';
+import {
+  planAuditEvent,
+  type AuditContext,
+  type AuditEventV2
+} from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
@@ -32,13 +37,25 @@ export interface SlotSnapshot {
   readonly reservationId?: string;
 }
 
+export type PatientBookingGuardStatus = 'confirmed' | 'cancellation_requested';
+
+/**
+ * Snapshot of `patient_booking_guards/{patientId}`. Document existence is the
+ * explicit active-booking lock; terminal appointments do not retain a guard.
+ */
+export interface PatientBookingGuardSnapshot {
+  readonly activeAppointmentId: string;
+  readonly status: PatientBookingGuardStatus;
+  readonly updatedAt: string;
+}
+
 export interface BookingRequest {
   readonly appointmentId: string;
   readonly slotId: string;
   readonly patientId: string;
   readonly bookingKind: BookingKind;
   readonly itemId: string;
-  readonly actorId: string;
+  readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotencyKey: string;
 }
@@ -53,14 +70,6 @@ export interface PlannedAppointment {
   readonly status: 'confirmed';
   readonly createdAt: string;
   readonly updatedAt: string;
-}
-
-export interface PlannedAuditEvent {
-  readonly id: string;
-  readonly action: 'appointment_confirmed';
-  readonly appointmentId: string;
-  readonly actorId: string;
-  readonly occurredAt: string;
 }
 
 export interface PlannedOutboxJob {
@@ -86,7 +95,8 @@ export interface BookingPlan {
     readonly slotId: string;
     readonly reservationId: string;
   };
-  readonly auditEvent: PlannedAuditEvent;
+  readonly patientBookingGuard: PatientBookingGuardSnapshot;
+  readonly auditEvent: AuditEventV2;
   readonly outboxJob: PlannedOutboxJob;
   readonly idempotencyRecord: PlannedIdempotencyRecord;
 }
@@ -112,14 +122,14 @@ function assertUtcTimestamp(value: string, fieldName: string): void {
 /**
  * Decides the complete set of writes for one reservation.
  *
- * `activeBookingCount` is the number of the patient's own not-yet-finished
- * appointments, counted from data read inside the same transaction. Counting
- * it outside would reintroduce the race the transaction exists to prevent.
+ * `patientBookingGuard` is read from the patient's fixed guard document inside
+ * the same transaction. Every booking for one patient therefore contends on
+ * the same document even when requests target different slots.
  */
 export function planBooking(
   request: BookingRequest,
   slot: SlotSnapshot | undefined,
-  activeBookingCount: number
+  patientBookingGuard: PatientBookingGuardSnapshot | undefined
 ): BookingPlan {
   assertIdentifier(request.appointmentId, 'appointmentId');
   assertIdentifier(request.patientId, 'patientId');
@@ -136,7 +146,7 @@ export function planBooking(
     );
   }
   assertSlotBookable(slot, request.bookingKind);
-  assertWithinActiveBookingLimit(activeBookingCount);
+  assertWithinActiveBookingLimit(patientBookingGuard === undefined ? 0 : 1);
 
   const appointment: PlannedAppointment = {
     id: request.appointmentId,
@@ -156,13 +166,23 @@ export function planBooking(
       slotId: slot.id,
       reservationId: request.appointmentId
     },
-    auditEvent: {
-      id: `audit_${request.appointmentId}_confirmed`,
-      action: 'appointment_confirmed',
-      appointmentId: request.appointmentId,
-      actorId: request.actorId,
-      occurredAt: request.requestedAt
+    patientBookingGuard: {
+      activeAppointmentId: request.appointmentId,
+      status: 'confirmed',
+      updatedAt: request.requestedAt
     },
+    auditEvent: planAuditEvent({
+      eventId: `audit_${request.appointmentId}_confirmed`,
+      occurredAt: request.requestedAt,
+      action: 'appointment_confirmed',
+      resourceId: request.appointmentId,
+      before: null,
+      after: {
+        status: 'confirmed',
+        slotId: slot.id
+      },
+      context: request.audit
+    }),
     // The Calendar projection is only ever an intent recorded in the same
     // transaction. The worker performs the external effect afterwards.
     outboxJob: {

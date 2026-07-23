@@ -81,6 +81,7 @@ export const APPOINTMENT_ACTIONS = Object.freeze([
 export const APPOINTMENT_STATUS_LABELS = Object.freeze({
   confirmed: '預約成立',
   cancellation_requested: '取消待確認',
+  follow_up_required: '待安排回診',
   completed: '已完成到診',
   cancelled: '已取消',
   no_show: '未到'

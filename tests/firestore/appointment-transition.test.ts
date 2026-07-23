@@ -6,6 +6,7 @@ import {
   COLLECTIONS,
   FirestoreBookingRepository
 } from '../../apps/api/src/firestore/booking.repository.js';
+import { AuditEventV2Schema } from '../../packages/contracts/src/audit.js';
 import type { AppointmentTransition } from '@beauessence/domain';
 
 const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
@@ -49,6 +50,11 @@ async function seed(): Promise<void> {
     bookingKind: 'initial',
     status: 'confirmed'
   });
+  await db.collection(COLLECTIONS.patientBookingGuards).doc('patient_001').set({
+    activeAppointmentId: APPOINTMENT,
+    status: 'confirmed',
+    updatedAt: '2026-07-21T08:00:00.000Z'
+  });
 }
 
 const transition = (
@@ -58,7 +64,14 @@ const transition = (
   repository.transition({
     appointmentId: APPOINTMENT,
     transition: kind,
-    actorId: 'actor_front_desk_001',
+    audit: {
+      actorId: 'actor_front_desk_001',
+      actorRole: 'test_front_desk',
+      correlationId: `corr_${key}`,
+      source: 'api',
+      reasonCode: 'test_operator_action',
+      policyVersion: null
+    },
     requestedAt: NOW,
     idempotencyKey: key
   });
@@ -67,6 +80,11 @@ const appointmentState = async () =>
   (await db.collection(COLLECTIONS.appointments).doc(APPOINTMENT).get()).data();
 const slotState = async (id: string) =>
   (await db.collection(COLLECTIONS.slots).doc(id).get()).data();
+const patientGuardState = async () =>
+  await db
+    .collection(COLLECTIONS.patientBookingGuards)
+    .doc('patient_001')
+    .get();
 
 beforeAll(() => {
   if (emulatorHost === undefined)
@@ -93,6 +111,7 @@ describe('appointment transitions in a Firestore transaction', () => {
 
     expect((await appointmentState())?.['status']).toBe('cancelled');
     expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await patientGuardState()).exists).toBe(false);
   });
 
   it('marks no_show and returns the slot to the pool', async () => {
@@ -100,6 +119,7 @@ describe('appointment transitions in a Firestore transaction', () => {
 
     expect((await appointmentState())?.['status']).toBe('no_show');
     expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await patientGuardState()).exists).toBe(false);
   });
 
   // 完成到診是已經發生的事實，時段不該被別人搶走。
@@ -110,6 +130,7 @@ describe('appointment transitions in a Firestore transaction', () => {
     expect(appointment?.['status']).toBe('completed');
     expect(appointment?.['completedAt']).toBe(NOW);
     expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
+    expect((await patientGuardState()).exists).toBe(false);
   });
 
   it('keeps the slot reserved while a cancellation is only requested', async () => {
@@ -119,6 +140,11 @@ describe('appointment transitions in a Firestore transaction', () => {
       'cancellation_requested'
     );
     expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
+    expect((await patientGuardState()).data()).toMatchObject({
+      activeAppointmentId: APPOINTMENT,
+      status: 'cancellation_requested',
+      updatedAt: NOW
+    });
   });
 
   it('writes an audit event and an outbox job with every transition', async () => {
@@ -127,6 +153,29 @@ describe('appointment transitions in a Firestore transaction', () => {
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
     const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
     expect(audits.size).toBe(1);
+    expect(AuditEventV2Schema.parse(audits.docs[0]?.data())).toEqual({
+      eventId: 'audit_appointment_001_cancelled',
+      occurredAt: NOW,
+      actorId: 'actor_front_desk_001',
+      actorRole: 'test_front_desk',
+      action: 'appointment_cancelled',
+      resourceType: 'appointment',
+      resourceId: APPOINTMENT,
+      before: {
+        status: 'confirmed',
+        slotId: SLOT_A
+      },
+      after: {
+        status: 'cancelled',
+        slotId: SLOT_A
+      },
+      reasonCode: 'test_operator_action',
+      result: 'succeeded',
+      correlationId: 'corr_idem_cancel',
+      source: 'api',
+      policyVersion: null,
+      schemaVersion: 2
+    });
     expect(outbox.size).toBe(1);
     expect(outbox.docs[0]?.data()).toMatchObject({
       appointmentStatus: 'cancelled',
@@ -164,6 +213,19 @@ describe('appointment transitions in a Firestore transaction', () => {
     expect(settled.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
   });
+
+  it('never deletes a guard that points at another appointment', async () => {
+    await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc('patient_001')
+      .update({ activeAppointmentId: 'appointment_newer' });
+
+    await expect(transition('cancel')).rejects.toThrow(/guard/i);
+    expect((await patientGuardState()).data()?.['activeAppointmentId']).toBe(
+      'appointment_newer'
+    );
+    expect((await appointmentState())?.['status']).toBe('confirmed');
+  });
 });
 
 describe('reschedule in a Firestore transaction', () => {
@@ -171,7 +233,14 @@ describe('reschedule in a Firestore transaction', () => {
     repository.reschedule({
       appointmentId: APPOINTMENT,
       targetSlotId,
-      actorId: 'actor_front_desk_001',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: `corr_${key}`,
+        source: 'api',
+        reasonCode: 'test_operator_reschedule',
+        policyVersion: null
+      },
       requestedAt: NOW,
       idempotencyKey: key
     });
@@ -185,6 +254,28 @@ describe('reschedule in a Firestore transaction', () => {
     expect(appointment?.['status']).toBe('confirmed');
     expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
     expect((await slotState(SLOT_B))?.['reservationId']).toBe(APPOINTMENT);
+    expect((await patientGuardState()).data()).toMatchObject({
+      activeAppointmentId: APPOINTMENT,
+      status: 'confirmed',
+      updatedAt: NOW
+    });
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    expect(AuditEventV2Schema.parse(audits.docs[0]?.data())).toMatchObject({
+      action: 'appointment_rescheduled',
+      resourceId: APPOINTMENT,
+      before: {
+        status: 'confirmed',
+        slotId: SLOT_A
+      },
+      after: {
+        status: 'confirmed',
+        slotId: SLOT_B
+      },
+      reasonCode: 'test_operator_reschedule',
+      result: 'succeeded',
+      correlationId: 'corr_idem_reschedule',
+      schemaVersion: 2
+    });
   });
 
   it('restores a requested cancellation to confirmed', async () => {

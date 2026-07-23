@@ -72,7 +72,7 @@ Google 官方防重複的做法是由我們自行指定 event ID，這樣「後�
 | 編碼 | 邏輯鍵 UTF-8 → base32hex，小寫、無填充（`=` 不在允許字元內） |
 | 決定性 | 同一邏輯鍵永遠得到同一個 ID——冪等就靠這個性質，不得加入時間戳或隨機值 |
 | 可讀性 | `fromCalendarEventId` 可還原；`outbox_jobs` 另保有 `appointmentId`／`appointmentStatus` 明文欄位，人工追查優先看那裡 |
-| 粒度 | **一筆預約 = 一個事件**：`calendar_{appointmentId}`。改期是搬動、到診是更新、取消是刪除，都指向同一個 ID |
+| 粒度 | **一筆預約 = 一個事件**：`calendar_{appointmentId}`。改期是搬動；到診、取消、未到皆刪除同一個 ID |
 | 守門 | 產生時檢查長度；假日曆拒絕不合格式的 ID 並標記為**不可重試**（重試一百次格式還是錯的，那是死信） |
 
 ## 改動時要看哪裡
@@ -92,7 +92,10 @@ Google 官方防重複的做法是由我們自行指定 event ID，這樣「後�
 - 事件時間是回診**目標**時間，不是原就診時間。因此 outbox 工作可帶自己的
   `startsAt`，worker 優先用 `job.startsAt`，沒有才退回讀來源預約
   （`OutboxProcessor` 的 `startsAt` 判斷）。
-- 目標改成「目前無需回診」時，那筆回診投影會被移除。
+- 目標改成「目前無需回診」，或已建立正式回診預約時，會以同一個回診 event ID
+  排入 `cancel`，不能只刪除 outbox 工作紀錄。
+- 週檢視會直接投影尚未正式掛號的回診決定；正式回診預約建立後，由該預約自己的
+  日曆事件取代提醒，避免同一回診顯示兩次。
 
 ## 測試
 
@@ -110,8 +113,10 @@ worker 依**執行當下**的預約狀態決定動作，而不是工作排入時
 
 | 預約狀態 | action | 真實 Calendar 呼叫 | 特殊情形 |
 | --- | --- | --- | --- |
-| `confirmed`／`completed`／`cancellation_requested` | `upsert` | `events.insert`（自訂 ID）；回 **409 就改 `events.patch`** | 409 = 事件已存在 → **冪等成功**，不是失敗 |
-| `cancelled`／`no_show` | `cancel` | `events.delete` | 410／404 = 早就沒了 → **視為成功**，目標狀態已達成 |
+| 一般預約：`confirmed`／`cancellation_requested` | `upsert` | `events.insert`（自訂 ID）；回 **409 就改 `events.patch`** | 409 = 事件已存在 → **冪等成功**，不是失敗 |
+| 一般預約：`completed`／`cancelled`／`no_show` | `cancel` | `events.delete` | 410／404 = 早就沒了 → **視為成功**，目標狀態已達成 |
+| 回診提醒：`follow_up_required` | `upsert` | 使用獨立的回診 event ID | 來源預約此時雖是 `completed`，不得因此誤判為刪除 |
+| 回診提醒：`follow_up_not_required`／`follow_up_scheduled` | `cancel` | 刪除同一個回診 event ID | 正式回診預約另有自己的事件 |
 
 為什麼是 upsert 而不是分開的 create／update：worker 手上只有預約狀態，無法
 知道日曆那一側到底有沒有這個事件（Google 明說無法保證偵測 ID 衝突）。
@@ -147,7 +152,7 @@ worker 依**執行當下**的預約狀態決定動作，而不是工作排入時
 現在一筆預約固定一個事件：
 
 ```text
-新設計：建立 → 1 個事件；改期 → 1 個（搬時間）；到診 → 1 個（更新）；取消 → 0
+新設計：建立 → 1 個事件；改期 → 1 個（搬時間）；到診／取消／未到 → 0
 ```
 
 考慮過但未採用的替代方案：維持每狀態一鍵，改期時額外排一筆刪除舊事件的工作。

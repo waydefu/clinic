@@ -3,7 +3,7 @@ import {
   BOOKING_KIND_LABELS,
   SLOT_DURATION_MINUTES
 } from './constants.js';
-import { taipeiDate, taipeiMinutes } from './taipei-time.js';
+import { taipeiDate, taipeiIso, taipeiMinutes } from './taipei-time.js';
 import { escapeHtml } from './ui-format.js';
 
 /**
@@ -35,6 +35,31 @@ const WEEK_DAY_LABELS = [
 ];
 // 日曆只顯示尚未發生的預約；到診／取消／未到都已成事實，事件已從日曆刪除。
 const SHOWN_STATUSES = ['confirmed', 'cancellation_requested'];
+
+function followUpReminderEvents(state) {
+  return state.followUps.flatMap((decision) => {
+    if (
+      decision.status !== 'required' ||
+      decision.scheduledAppointmentId !== undefined ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(decision.dueDate ?? '') ||
+      !/^\d{2}:\d{2}$/.test(decision.dueTime ?? '')
+    )
+      return [];
+    const source = state.appointments.find(
+      (appointment) => appointment.id === decision.appointmentId
+    );
+    if (source === undefined) return [];
+    return [
+      {
+        ...source,
+        startsAt: taipeiIso(decision.dueDate, decision.dueTime),
+        bookingKind: 'follow_up',
+        itemLabel: '回診提醒',
+        status: 'follow_up_required'
+      }
+    ];
+  });
+}
 
 /**
  * 把同一天的預約排成「需要時才分欄」的視覺軌道。
@@ -179,9 +204,12 @@ export function renderWeekView(state, weekStart, todayDate) {
   const patientName = (id) =>
     state.patients.find((item) => item.id === id)?.name ?? id;
 
-  const shown = state.appointments.filter((item) =>
-    SHOWN_STATUSES.includes(item.status)
-  );
+  const shown = [
+    ...state.appointments.filter((item) =>
+      SHOWN_STATUSES.includes(item.status)
+    ),
+    ...followUpReminderEvents(state)
+  ];
 
   const header = days
     .map((date, index) => {

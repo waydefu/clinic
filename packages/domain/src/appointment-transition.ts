@@ -4,7 +4,17 @@ import {
   type AppointmentStatusValue,
   type AppointmentTransition
 } from './appointment-rules.js';
-import type { BookingKind, SlotSnapshot } from './booking-transaction.js';
+import {
+  planAuditEvent,
+  type AuditAction,
+  type AuditContext,
+  type AuditEventV2
+} from './audit.js';
+import type {
+  BookingKind,
+  PatientBookingGuardSnapshot,
+  SlotSnapshot
+} from './booking-transaction.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
@@ -28,7 +38,7 @@ export interface AppointmentSnapshot {
 export interface TransitionRequest {
   readonly appointmentId: string;
   readonly transition: AppointmentTransition;
-  readonly actorId: string;
+  readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotencyKey: string;
 }
@@ -36,17 +46,9 @@ export interface TransitionRequest {
 export interface RescheduleRequest {
   readonly appointmentId: string;
   readonly targetSlotId: string;
-  readonly actorId: string;
+  readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotencyKey: string;
-}
-
-export interface PlannedAuditEntry {
-  readonly id: string;
-  readonly action: string;
-  readonly appointmentId: string;
-  readonly actorId: string;
-  readonly occurredAt: string;
 }
 
 export interface PlannedOutboxEntry {
@@ -60,6 +62,16 @@ export interface PlannedOutboxEntry {
   readonly createdAt: string;
 }
 
+export type PlannedPatientBookingGuardMutation =
+  | {
+      readonly action: 'release';
+      readonly activeAppointmentId: string;
+    }
+  | {
+      readonly action: 'retain';
+      readonly guard: PatientBookingGuardSnapshot;
+    };
+
 export interface TransitionPlan {
   readonly appointmentId: string;
   readonly nextStatus: AppointmentStatusValue;
@@ -67,7 +79,8 @@ export interface TransitionPlan {
   readonly completedAt?: string;
   /** 需要釋出的時段；undefined 表示時段維持佔用。 */
   readonly releaseSlotId?: string;
-  readonly auditEvent: PlannedAuditEntry;
+  readonly patientBookingGuard: PlannedPatientBookingGuardMutation;
+  readonly auditEvent: AuditEventV2;
   readonly outboxJob: PlannedOutboxEntry;
   readonly idempotencyRecord: {
     readonly key: string;
@@ -83,7 +96,8 @@ export interface ReschedulePlan {
   readonly startsAt: string;
   readonly nextStatus: 'confirmed';
   readonly updatedAt: string;
-  readonly auditEvent: PlannedAuditEntry;
+  readonly patientBookingGuard: PlannedPatientBookingGuardMutation;
+  readonly auditEvent: AuditEventV2;
   readonly outboxJob: PlannedOutboxEntry;
   readonly idempotencyRecord: {
     readonly key: string;
@@ -92,7 +106,7 @@ export interface ReschedulePlan {
   };
 }
 
-const AUDIT_ACTIONS: Record<AppointmentTransition, string> = {
+const AUDIT_ACTIONS: Record<AppointmentTransition, AuditAction> = {
   request_cancellation: 'cancellation_requested',
   cancel: 'appointment_cancelled',
   complete: 'appointment_completed',
@@ -134,9 +148,22 @@ function outboxFor(
   };
 }
 
+function assertPatientBookingGuardOwnedBy(
+  appointment: AppointmentSnapshot,
+  guard: PatientBookingGuardSnapshot | undefined
+): asserts guard is PatientBookingGuardSnapshot {
+  if (guard === undefined || guard.activeAppointmentId !== appointment.id) {
+    throw new DomainError(
+      'PATIENT_BOOKING_GUARD_MISMATCH',
+      'The patient booking guard does not belong to the appointment.'
+    );
+  }
+}
+
 export function planTransition(
   request: TransitionRequest,
-  appointment: AppointmentSnapshot | undefined
+  appointment: AppointmentSnapshot | undefined,
+  patientBookingGuard: PatientBookingGuardSnapshot | undefined
 ): TransitionPlan {
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
 
@@ -147,6 +174,7 @@ export function planTransition(
     );
   }
   assertTransitionAllowed(request.transition, appointment.status);
+  assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
 
   const nextStatus = NEXT_STATUS[request.transition];
   // 取消與未到會把時段還給其他患者；提出取消只是等櫃台確認，完成到診則是
@@ -162,13 +190,35 @@ export function planTransition(
       ? { completedAt: request.requestedAt }
       : {}),
     ...(releasesSlot ? { releaseSlotId: appointment.slotId } : {}),
-    auditEvent: {
-      id: `audit_${appointment.id}_${nextStatus}`,
+    patientBookingGuard:
+      request.transition === 'request_cancellation'
+        ? {
+            action: 'retain',
+            guard: {
+              activeAppointmentId: appointment.id,
+              status: 'cancellation_requested',
+              updatedAt: request.requestedAt
+            }
+          }
+        : {
+            action: 'release',
+            activeAppointmentId: appointment.id
+          },
+    auditEvent: planAuditEvent({
+      eventId: `audit_${appointment.id}_${nextStatus}`,
+      occurredAt: request.requestedAt,
       action: AUDIT_ACTIONS[request.transition],
-      appointmentId: appointment.id,
-      actorId: request.actorId,
-      occurredAt: request.requestedAt
-    },
+      resourceId: appointment.id,
+      before: {
+        status: appointment.status,
+        slotId: appointment.slotId
+      },
+      after: {
+        status: nextStatus,
+        slotId: appointment.slotId
+      },
+      context: request.audit
+    }),
     outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt),
     idempotencyRecord: {
       key: request.idempotencyKey,
@@ -181,7 +231,8 @@ export function planTransition(
 export function planReschedule(
   request: RescheduleRequest,
   appointment: AppointmentSnapshot | undefined,
-  targetSlot: SlotSnapshot | undefined
+  targetSlot: SlotSnapshot | undefined,
+  patientBookingGuard: PatientBookingGuardSnapshot | undefined
 ): ReschedulePlan {
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
 
@@ -198,6 +249,7 @@ export function planReschedule(
     targetSlot,
     appointment.bookingKind
   );
+  assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
 
   return {
     appointmentId: appointment.id,
@@ -206,13 +258,29 @@ export function planReschedule(
     startsAt: targetSlot.startsAt,
     nextStatus: 'confirmed',
     updatedAt: request.requestedAt,
-    auditEvent: {
-      id: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
-      action: 'appointment_rescheduled',
-      appointmentId: appointment.id,
-      actorId: request.actorId,
-      occurredAt: request.requestedAt
+    patientBookingGuard: {
+      action: 'retain',
+      guard: {
+        activeAppointmentId: appointment.id,
+        status: 'confirmed',
+        updatedAt: request.requestedAt
+      }
     },
+    auditEvent: planAuditEvent({
+      eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
+      occurredAt: request.requestedAt,
+      action: 'appointment_rescheduled',
+      resourceId: appointment.id,
+      before: {
+        status: appointment.status,
+        slotId: appointment.slotId
+      },
+      after: {
+        status: 'confirmed',
+        slotId: targetSlot.id
+      },
+      context: request.audit
+    }),
     outboxJob: {
       ...outboxFor(appointment.id, 'confirmed', request.requestedAt),
       // 工作本身要能與原本的成立工作區分（否則會被視為同一筆而覆蓋），但

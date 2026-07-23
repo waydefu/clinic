@@ -26,6 +26,9 @@ export const MAX_BACKOFF_SECONDS = 3600;
 export interface OutboxJob {
   readonly id: string;
   readonly appointmentId: string;
+  readonly appointmentStatus?: string;
+  /** 存在時表示這是獨立的回診提醒投影，不是來源就診事件。 */
+  readonly followUpSourceId?: string;
   readonly idempotencyKey: string;
   readonly status: OutboxStatus;
   readonly attempts: number;

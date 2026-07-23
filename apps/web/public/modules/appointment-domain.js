@@ -46,6 +46,29 @@ function appendOutbox(state, appointment) {
   });
 }
 
+function replaceFollowUpProjection(
+  state,
+  appointmentId,
+  appointmentStatus,
+  startsAt
+) {
+  // 回診提醒使用獨立 event ID。瀏覽器預覽只保留同一來源的最新投影意圖，
+  // 避免調整日期後，舊的 pending 工作又把提醒搬回過期時間。
+  state.outboxJobs = state.outboxJobs.filter(
+    (job) => job.followUpSourceId !== appointmentId
+  );
+  state.outboxJobs.push({
+    id: `outbox_followup_${appointmentId}_${Date.now()}`,
+    type: 'calendar_projection_requested',
+    appointmentId,
+    appointmentStatus,
+    followUpSourceId: appointmentId,
+    ...(startsAt === undefined ? {} : { startsAt }),
+    idempotencyKey: calendarEventIdForFollowUp(appointmentId),
+    status: 'pending'
+  });
+}
+
 // 以下兩個函式是**合成示範**：工作臺不真的呼叫 Google。權威的重試、退避、
 // 死信與冪等在 apps/worker（Emulator 已驗證）；這裡只把操作者會用到的兩個
 // 動作畫出來——一次同步的成敗，以及死信的重新排入。
@@ -170,14 +193,16 @@ export function createBooking(state, input, actorId) {
   const patient = upsertPatient(state, patientDetails);
 
   let sourceFollowUp;
-  if (bookingKind === BOOKING_KINDS.FOLLOW_UP && input.origin === 'patient') {
-    sourceFollowUp = state.followUps.find(
-      (entry) =>
-        entry.patientId === patient.id &&
-        entry.status === 'required' &&
-        entry.scheduledAppointmentId === undefined
-    );
-    if (sourceFollowUp === undefined)
+  if (bookingKind === BOOKING_KINDS.FOLLOW_UP) {
+    sourceFollowUp = [...state.followUps]
+      .reverse()
+      .find(
+        (entry) =>
+          entry.patientId === patient.id &&
+          entry.status === 'required' &&
+          entry.scheduledAppointmentId === undefined
+      );
+    if (input.origin === 'patient' && sourceFollowUp === undefined)
       throw new Error('目前沒有已確認的回診安排，請聯絡櫃台。');
   }
 
@@ -203,8 +228,16 @@ export function createBooking(state, input, actorId) {
   };
   slot.reservationId = appointmentId;
   state.appointments.push(appointment);
-  if (sourceFollowUp !== undefined)
+  if (sourceFollowUp !== undefined) {
     sourceFollowUp.scheduledAppointmentId = appointmentId;
+    // 正式回診預約已有自己的日曆事件；移除先前「尚待安排」的提醒，避免同一
+    // 次回診在日曆上同時出現提醒與正式預約。
+    replaceFollowUpProjection(
+      state,
+      sourceFollowUp.appointmentId,
+      'follow_up_scheduled'
+    );
+  }
   appendAudit(state, 'appointment_confirmed', appointmentId, actorId);
   appendOutbox(state, appointment);
   state.sequence += 1;
@@ -348,6 +381,7 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   const existing = state.followUps.find(
     (item) => item.appointmentId === appointmentId
   );
+  const hadReminder = existing?.status === 'required';
   const next = {
     appointmentId,
     patientId: appointment.patientId,
@@ -363,27 +397,27 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
       : { scheduledAppointmentId: existing.scheduledAppointmentId })
   };
   if (existing === undefined) state.followUps.push(next);
-  else Object.assign(existing, next);
+  else {
+    Object.assign(existing, next);
+    if (status === 'not_required') {
+      delete existing.dueDate;
+      delete existing.dueTime;
+    }
+  }
   appendAudit(state, 'follow_up_decided', appointmentId, actorId);
 
   // 回診確認後「上日曆」：回診提醒是與原就診分開的另一個事件（見
-  // calendarEventIdForFollowUp）。每次記錄先移除同一來源的舊回診投影，
-  // 再依最新決定重建——需要回診就排一筆、改成不需要就不留。
-  state.outboxJobs = state.outboxJobs.filter(
-    (job) => job.followUpSourceId !== appointmentId
-  );
+  // calendarEventIdForFollowUp）。需要回診就 upsert；若原本有提醒而改成
+  // 不需要，則用同一 event ID 排入 cancel，不能只刪掉本機工作紀錄。
   if (status === 'required') {
-    state.outboxJobs.push({
-      id: `outbox_followup_${appointmentId}_${Date.now()}`,
-      type: 'calendar_projection_requested',
+    replaceFollowUpProjection(
+      state,
       appointmentId,
-      appointmentStatus: 'follow_up_required',
-      followUpSourceId: appointmentId,
-      startsAt: taipeiIso(dueDate, dueTime),
-      idempotencyKey: calendarEventIdForFollowUp(appointmentId),
-      status: 'pending'
-    });
-  }
+      'follow_up_required',
+      taipeiIso(dueDate, dueTime)
+    );
+  } else if (hadReminder)
+    replaceFollowUpProjection(state, appointmentId, 'follow_up_not_required');
   return next;
 }
 

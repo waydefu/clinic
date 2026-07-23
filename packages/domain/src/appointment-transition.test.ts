@@ -8,6 +8,7 @@ import {
   type AppointmentTransition
 } from './appointment-transition.js';
 import type { SlotSnapshot } from './booking-transaction.js';
+import type { PatientBookingGuardSnapshot } from './booking-transaction.js';
 import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
@@ -21,6 +22,21 @@ const appointment: AppointmentSnapshot = {
   status: 'confirmed'
 };
 
+const patientBookingGuard: PatientBookingGuardSnapshot = {
+  activeAppointmentId: appointment.id,
+  status: 'confirmed',
+  updatedAt: '2026-07-21T08:00:00.000Z'
+};
+
+const audit = {
+  actorId: 'actor_front_desk_001',
+  actorRole: 'test_front_desk',
+  correlationId: 'corr_transition_001',
+  source: 'api' as const,
+  reasonCode: 'test_operator_action',
+  policyVersion: null
+};
+
 const request = (
   transition: AppointmentTransition,
   overrides: Partial<AppointmentSnapshot> = {}
@@ -31,11 +47,12 @@ const request = (
         {
           appointmentId: 'appointment_001',
           transition,
-          actorId: 'actor_front_desk_001',
+          audit,
           requestedAt: NOW,
           idempotencyKey: `idem_${transition}`
         },
-        { ...appointment, ...overrides }
+        { ...appointment, ...overrides },
+        patientBookingGuard
       )
   }) as const;
 
@@ -63,7 +80,23 @@ describe('planTransition', () => {
     for (const [transition, status, action] of cases) {
       const plan = request(transition).plan();
       expect(plan.nextStatus).toBe(status);
-      expect(plan.auditEvent.action).toBe(action);
+      expect(plan.auditEvent).toMatchObject({
+        action,
+        actorId: audit.actorId,
+        actorRole: audit.actorRole,
+        resourceType: 'appointment',
+        resourceId: appointment.id,
+        before: {
+          status: appointment.status,
+          slotId: appointment.slotId
+        },
+        reasonCode: audit.reasonCode,
+        result: 'succeeded',
+        correlationId: audit.correlationId,
+        source: audit.source,
+        policyVersion: null,
+        schemaVersion: 2
+      });
     }
   });
 
@@ -81,6 +114,23 @@ describe('planTransition', () => {
   it('records completedAt only when completing', () => {
     expect(request('complete').plan().completedAt).toBe(NOW);
     expect(request('cancel').plan().completedAt).toBeUndefined();
+  });
+
+  it('retains the guard for a cancellation request and releases it for terminal states', () => {
+    expect(request('request_cancellation').plan().patientBookingGuard).toEqual({
+      action: 'retain',
+      guard: {
+        activeAppointmentId: appointment.id,
+        status: 'cancellation_requested',
+        updatedAt: NOW
+      }
+    });
+    for (const transition of ['cancel', 'complete', 'no_show'] as const) {
+      expect(request(transition).plan().patientBookingGuard).toEqual({
+        action: 'release',
+        activeAppointmentId: appointment.id
+      });
+    }
   });
 
   // 一筆預約 = 日曆上一個事件。每個狀態各自一個 ID 會讓改期留下殘影、
@@ -147,10 +197,11 @@ describe('planTransition', () => {
           {
             appointmentId: 'appointment_404',
             transition: 'cancel',
-            actorId: 'a',
+            audit: { ...audit, actorId: 'a' },
             requestedAt: NOW,
             idempotencyKey: 'k'
           },
+          undefined,
           undefined
         )
       )
@@ -172,12 +223,13 @@ describe('planReschedule', () => {
       {
         appointmentId: 'appointment_001',
         targetSlotId: slot?.id ?? 'missing',
-        actorId: 'actor_front_desk_001',
+        audit,
         requestedAt: NOW,
         idempotencyKey: 'idem_reschedule'
       },
       { ...appointment, ...patch },
-      slot
+      slot,
+      patientBookingGuard
     );
 
   it('swaps the slots and returns to confirmed', () => {
@@ -186,6 +238,14 @@ describe('planReschedule', () => {
     expect(plan.reserveSlotId).toBe(target.id);
     expect(plan.startsAt).toBe(target.startsAt);
     expect(plan.nextStatus).toBe('confirmed');
+    expect(plan.patientBookingGuard).toEqual({
+      action: 'retain',
+      guard: {
+        activeAppointmentId: appointment.id,
+        status: 'confirmed',
+        updatedAt: NOW
+      }
+    });
   });
 
   // 工作要能與原本的成立工作區分，否則會被當成同一筆而覆蓋；但日曆事件是
@@ -220,5 +280,27 @@ describe('planReschedule', () => {
       expect(codeOf(() => reschedule(target, { status }))).toBe(
         'TRANSITION_NOT_ALLOWED'
       );
+  });
+
+  it('rejects a missing or mismatched patient booking guard', () => {
+    const requestInput = {
+      appointmentId: appointment.id,
+      transition: 'cancel' as const,
+      audit,
+      requestedAt: NOW,
+      idempotencyKey: 'idem_guard'
+    };
+
+    expect(
+      codeOf(() => planTransition(requestInput, appointment, undefined))
+    ).toBe('PATIENT_BOOKING_GUARD_MISMATCH');
+    expect(
+      codeOf(() =>
+        planTransition(requestInput, appointment, {
+          ...patientBookingGuard,
+          activeAppointmentId: 'appointment_other'
+        })
+      )
+    ).toBe('PATIENT_BOOKING_GUARD_MISMATCH');
   });
 });

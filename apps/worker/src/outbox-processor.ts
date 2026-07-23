@@ -19,7 +19,8 @@ export const APPOINTMENTS_COLLECTION = 'appointments';
 
 /**
  * 日曆只留「尚未發生」的預約。已完成到診、已取消、未到都是已成事實，事件應該
- * 消失（`cancel`）；只有 confirmed／cancellation_requested 是 upsert。
+ * 消失（`cancel`）；confirmed／cancellation_requested 與待安排回診提醒是
+ * upsert。
  *
  * 用預約的**目前**狀態而不是工作建立時的狀態：工作可能等到退避結束才執行，
  * 期間預約已被取消或完成——這時再把事件寫回日曆就是錯的。
@@ -28,7 +29,9 @@ export const APPOINTMENTS_COLLECTION = 'appointments';
  * 落在回診目標日），由回診投影負責，不受這裡影響。
  */
 function actionForStatus(status: string): CalendarAction {
-  return status === 'confirmed' || status === 'cancellation_requested'
+  return status === 'confirmed' ||
+    status === 'cancellation_requested' ||
+    status === 'follow_up_required'
     ? 'upsert'
     : 'cancel';
 }
@@ -157,7 +160,15 @@ export class OutboxProcessor {
         .doc(job.appointmentId)
         .get();
 
-      const status = (appointment.data()?.['status'] as string) ?? 'unknown';
+      const appointmentStatus =
+        (appointment.data()?.['status'] as string) ?? 'unknown';
+      // 一般預約必須看執行當下的來源狀態，避免重試把已完成／取消的事件寫回。
+      // 回診提醒則是另一個 event ID，動作由該投影自己的狀態決定；來源預約本來
+      // 就必須是 completed，若誤用來源狀態會把新提醒當成 cancel。
+      const isFollowUpProjection = job.followUpSourceId !== undefined;
+      const projectionStatus = isFollowUpProjection
+        ? (job.appointmentStatus ?? 'unknown')
+        : appointmentStatus;
       // 事件自己的時間優先（回診提醒落在回診目標日期，不是原就診時間）；
       // 一般預約投影沒有 job.startsAt，退回讀來源預約的時間。
       const startsAt =
@@ -168,13 +179,15 @@ export class OutboxProcessor {
         // 手術種類與備註一律不得離開本系統（ADR-0002）。
         await this.calendar.project({
           idempotencyKey: job.idempotencyKey,
-          action: actionForStatus(status),
+          action: actionForStatus(projectionStatus),
           appointmentId: job.appointmentId,
-          appointmentStatus: status,
+          appointmentStatus: projectionStatus,
           startsAt,
           endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
           colorId: CLINIC_EVENT_COLOR_ID,
-          bookingKind: (appointment.data()?.['bookingKind'] as string) ?? ''
+          bookingKind: isFollowUpProjection
+            ? 'follow_up'
+            : ((appointment.data()?.['bookingKind'] as string) ?? '')
         });
         outcome = { kind: 'succeeded' };
       } catch (error) {

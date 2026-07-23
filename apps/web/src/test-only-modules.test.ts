@@ -24,7 +24,10 @@ import {
   scheduleImpact
 } from '../public/modules/schedule-engine.js';
 import { initialState } from '../public/modules/state-schema.js';
-import { layoutCalendarEvents } from '../public/modules/week-view.js';
+import {
+  layoutCalendarEvents,
+  renderWeekView
+} from '../public/modules/week-view.js';
 import { createAccount } from '../public/modules/workspace-domain.js';
 
 const PATIENT_A = {
@@ -497,6 +500,11 @@ describe('櫃台處置', () => {
     );
     // 目標時間換算成 Asia/Taipei 12:15 = 04:15Z。
     expect(followUpJobs[0].startsAt).toBe('2030-02-01T04:15:00.000Z');
+    const calendar = renderWeekView(state, '2030-01-28', '2030-01-28');
+    expect(calendar).toContain(`data-week-event="${appointment.id}"`);
+    expect(calendar).toContain('wv-follow-up');
+    expect(calendar).toContain('回診提醒');
+    expect(calendar).toContain('待安排回診');
 
     // 已完成到診＋需要回診 → 櫃台處理清單顯示「待安排回診」的回診版卡片。
     const queued = renderAppointments(state, {
@@ -520,8 +528,80 @@ describe('櫃台處置', () => {
       )
     ).toHaveLength(0);
     expect(
+      state.outboxJobs.filter(
+        (job: any) => job.appointmentStatus === 'follow_up_not_required'
+      )
+    ).toHaveLength(1);
+    expect(renderWeekView(state, '2030-01-28', '2030-01-28')).not.toContain(
+      `data-week-event="${appointment.id}"`
+    );
+    expect(
       renderAppointments(state, { status: 'all', kind: 'all', query: '' })
     ).not.toContain(appointment.id);
+  });
+
+  it('回診正式掛號後以新預約取代提醒，完成後仍可再安排下一次回診', () => {
+    const state: any = initialState();
+    const initialVisit = book(state);
+    transitionAppointment(
+      state,
+      initialVisit.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    recordFollowUp(
+      state,
+      initialVisit.id,
+      { status: 'required', dueDate: '2030-01-02', dueTime: '12:15', tags: [] },
+      'admin_test_001'
+    );
+
+    const followUpVisit = createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'follow_up').id,
+        patient: PATIENT_A,
+        bookingKind: 'follow_up',
+        itemId: 'service_snoring',
+        origin: 'patient'
+      },
+      'patient_test_001'
+    );
+
+    expect(
+      state.followUps.find(
+        (item: any) => item.appointmentId === initialVisit.id
+      )?.scheduledAppointmentId
+    ).toBe(followUpVisit.id);
+    const bookedCalendar = renderWeekView(state, '2029-12-31', '2029-12-31');
+    expect(bookedCalendar).not.toContain(
+      `data-week-event="${initialVisit.id}"`
+    );
+    expect(bookedCalendar).toContain(`data-week-event="${followUpVisit.id}"`);
+    expect(
+      state.outboxJobs.find(
+        (job: any) =>
+          job.followUpSourceId === initialVisit.id &&
+          job.appointmentStatus === 'follow_up_scheduled'
+      )
+    ).toBeDefined();
+
+    transitionAppointment(
+      state,
+      followUpVisit.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    recordFollowUp(
+      state,
+      followUpVisit.id,
+      { status: 'required', dueDate: '2030-01-09', dueTime: '12:15', tags: [] },
+      'admin_test_001'
+    );
+
+    const nextCalendar = renderWeekView(state, '2030-01-07', '2030-01-07');
+    expect(nextCalendar).toContain(`data-week-event="${followUpVisit.id}"`);
+    expect(nextCalendar).toContain('待安排回診');
   });
 
   it('缺 session 時回診版卡片不拋錯、且隱藏「調整回診」', () => {

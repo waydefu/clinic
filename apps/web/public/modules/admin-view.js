@@ -564,8 +564,10 @@ export function renderOutbox(state) {
     .map((job) => {
       const status = OUTBOX_STATUS[job.status] ?? OUTBOX_STATUS.pending;
       const kind =
-        job.appointmentStatus === 'follow_up_required'
-          ? '回診提醒'
+        job.followUpSourceId !== undefined
+          ? job.appointmentStatus === 'follow_up_required'
+            ? '建立／更新回診提醒'
+            : '移除回診提醒'
           : (APPOINTMENT_STATUS_LABELS[job.appointmentStatus] ??
             job.appointmentStatus);
       const requeued = job.requeuedBy

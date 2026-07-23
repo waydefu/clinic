@@ -1,4 +1,5 @@
 import { assertSlotBookable, assertWithinActiveBookingLimit } from './appointment-rules.js';
+import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 /** 同一人同時只能有一筆未結束的預約。 */
@@ -20,11 +21,11 @@ function assertUtcTimestamp(value, fieldName) {
 /**
  * Decides the complete set of writes for one reservation.
  *
- * `activeBookingCount` is the number of the patient's own not-yet-finished
- * appointments, counted from data read inside the same transaction. Counting
- * it outside would reintroduce the race the transaction exists to prevent.
+ * `patientBookingGuard` is read from the patient's fixed guard document inside
+ * the same transaction. Every booking for one patient therefore contends on
+ * the same document even when requests target different slots.
  */
-export function planBooking(request, slot, activeBookingCount) {
+export function planBooking(request, slot, patientBookingGuard) {
     assertIdentifier(request.appointmentId, 'appointmentId');
     assertIdentifier(request.patientId, 'patientId');
     assertIdentifier(request.idempotencyKey, 'idempotencyKey');
@@ -36,7 +37,7 @@ export function planBooking(request, slot, activeBookingCount) {
         throw new DomainError('INVALID_VALUE', 'The slot does not match the request.');
     }
     assertSlotBookable(slot, request.bookingKind);
-    assertWithinActiveBookingLimit(activeBookingCount);
+    assertWithinActiveBookingLimit(patientBookingGuard === undefined ? 0 : 1);
     const appointment = {
         id: request.appointmentId,
         slotId: slot.id,
@@ -54,13 +55,23 @@ export function planBooking(request, slot, activeBookingCount) {
             slotId: slot.id,
             reservationId: request.appointmentId
         },
-        auditEvent: {
-            id: `audit_${request.appointmentId}_confirmed`,
-            action: 'appointment_confirmed',
-            appointmentId: request.appointmentId,
-            actorId: request.actorId,
-            occurredAt: request.requestedAt
+        patientBookingGuard: {
+            activeAppointmentId: request.appointmentId,
+            status: 'confirmed',
+            updatedAt: request.requestedAt
         },
+        auditEvent: planAuditEvent({
+            eventId: `audit_${request.appointmentId}_confirmed`,
+            occurredAt: request.requestedAt,
+            action: 'appointment_confirmed',
+            resourceId: request.appointmentId,
+            before: null,
+            after: {
+                status: 'confirmed',
+                slotId: slot.id
+            },
+            context: request.audit
+        }),
         // The Calendar projection is only ever an intent recorded in the same
         // transaction. The worker performs the external effect afterwards.
         outboxJob: {

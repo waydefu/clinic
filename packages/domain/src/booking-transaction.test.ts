@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   planBooking,
   type BookingRequest,
+  type PatientBookingGuardSnapshot,
   type SlotSnapshot
 } from './booking-transaction.js';
 import {
@@ -18,7 +19,14 @@ const request: BookingRequest = {
   patientId: 'patient_001',
   bookingKind: 'initial',
   itemId: 'service_snoring',
-  actorId: 'actor_front_desk_001',
+  audit: {
+    actorId: 'actor_front_desk_001',
+    actorRole: 'test_front_desk',
+    correlationId: 'corr_booking_001',
+    source: 'api',
+    reasonCode: null,
+    policyVersion: null
+  },
   requestedAt: '2026-07-21T09:00:00.000Z',
   idempotencyKey: 'idem_001'
 };
@@ -27,6 +35,12 @@ const openSlot: SlotSnapshot = {
   id: 'slot_20300102_1200',
   kind: 'initial',
   startsAt: '2030-01-02T04:00:00.000Z'
+};
+
+const activeGuard: PatientBookingGuardSnapshot = {
+  activeAppointmentId: 'appointment_existing',
+  status: 'confirmed',
+  updatedAt: '2026-07-21T08:00:00.000Z'
 };
 
 const codeOf = (run: () => unknown): string => {
@@ -40,7 +54,7 @@ const codeOf = (run: () => unknown): string => {
 
 describe('planBooking', () => {
   it('plans every write the transaction must apply', () => {
-    const plan = planBooking(request, openSlot, 0);
+    const plan = planBooking(request, openSlot, undefined);
 
     expect(plan.appointment).toMatchObject({
       id: 'appointment_001',
@@ -52,7 +66,31 @@ describe('planBooking', () => {
       slotId: openSlot.id,
       reservationId: 'appointment_001'
     });
-    expect(plan.auditEvent.action).toBe('appointment_confirmed');
+    expect(plan.patientBookingGuard).toEqual({
+      activeAppointmentId: 'appointment_001',
+      status: 'confirmed',
+      updatedAt: request.requestedAt
+    });
+    expect(plan.auditEvent).toEqual({
+      eventId: 'audit_appointment_001_confirmed',
+      occurredAt: request.requestedAt,
+      actorId: 'actor_front_desk_001',
+      actorRole: 'test_front_desk',
+      action: 'appointment_confirmed',
+      resourceType: 'appointment',
+      resourceId: 'appointment_001',
+      before: null,
+      after: {
+        status: 'confirmed',
+        slotId: openSlot.id
+      },
+      reasonCode: null,
+      result: 'succeeded',
+      correlationId: 'corr_booking_001',
+      source: 'api',
+      policyVersion: null,
+      schemaVersion: 2
+    });
     expect(plan.outboxJob).toMatchObject({
       type: 'calendar_projection_requested',
       status: 'pending',
@@ -65,8 +103,8 @@ describe('planBooking', () => {
   });
 
   it('is a pure function of its inputs', () => {
-    const first = planBooking(request, openSlot, 0);
-    const second = planBooking(request, openSlot, 0);
+    const first = planBooking(request, openSlot, undefined);
+    const second = planBooking(request, openSlot, undefined);
     expect(second).toEqual(first);
     // The planner must not mutate what it was given, or a transaction retry
     // would run against altered inputs.
@@ -74,9 +112,9 @@ describe('planBooking', () => {
   });
 
   it('derives outbox and audit ids from the appointment so a retry cannot duplicate them', () => {
-    const plan = planBooking(request, openSlot, 0);
+    const plan = planBooking(request, openSlot, undefined);
     expect(plan.outboxJob.id).toContain('appointment_001');
-    expect(plan.auditEvent.id).toContain('appointment_001');
+    expect(plan.auditEvent.eventId).toContain('appointment_001');
     // 鍵是編碼後的 Calendar event ID；解回來才是可讀的邏輯鍵。
     expect(plan.outboxJob.idempotencyKey).toBe(
       calendarEventIdForAppointment('appointment_001')
@@ -88,41 +126,43 @@ describe('planBooking', () => {
   });
 
   it('rejects a missing slot', () => {
-    expect(codeOf(() => planBooking(request, undefined, 0))).toBe(
+    expect(codeOf(() => planBooking(request, undefined, undefined))).toBe(
       'SLOT_UNAVAILABLE'
     );
   });
 
   it('rejects an already reserved slot', () => {
     const taken = { ...openSlot, reservationId: 'appointment_000' };
-    expect(codeOf(() => planBooking(request, taken, 0))).toBe(
+    expect(codeOf(() => planBooking(request, taken, undefined))).toBe(
       'SLOT_UNAVAILABLE'
     );
   });
 
   it('rejects a slot belonging to the other booking grid', () => {
     const followUp: SlotSnapshot = { ...openSlot, kind: 'follow_up' };
-    expect(codeOf(() => planBooking(request, followUp, 0))).toBe(
+    expect(codeOf(() => planBooking(request, followUp, undefined))).toBe(
       'BOOKING_KIND_MISMATCH'
     );
   });
 
-  it('rejects a patient who already holds an active booking', () => {
-    expect(codeOf(() => planBooking(request, openSlot, 1))).toBe(
+  it('rejects a patient whose fixed guard already holds an active booking', () => {
+    expect(codeOf(() => planBooking(request, openSlot, activeGuard))).toBe(
       'DUPLICATE_ACTIVE_BOOKING'
     );
   });
 
   it('rejects malformed identifiers and timestamps', () => {
     expect(
-      codeOf(() => planBooking({ ...request, patientId: 'a b' }, openSlot, 0))
+      codeOf(() =>
+        planBooking({ ...request, patientId: 'a b' }, openSlot, undefined)
+      )
     ).toBe('INVALID_VALUE');
     expect(
       codeOf(() =>
         planBooking(
           { ...request, requestedAt: '2026-07-21T09:00:00+08:00' },
           openSlot,
-          0
+          undefined
         )
       )
     ).toBe('INVALID_TIMESTAMP');

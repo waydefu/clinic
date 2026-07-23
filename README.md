@@ -28,6 +28,13 @@ real patient data operationally.
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
 and what is blocked.
 
+The active construction baseline is the
+[production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
+plus the
+[production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md).
+Until the decision register changes, implementation is limited to their local,
+synthetic-only Stage 0 architecture-hardening work.
+
 ## Latest synthetic-UI refinement — 2026-07-23
 
 The operations workbench now keeps the large green introduction on the home
@@ -48,12 +55,21 @@ authorization, Firestore access or Calendar integration.
 ## Start here
 
 1. Read [AGENTS.md](AGENTS.md) for mandatory guardrails and task routing.
-2. Read the [enterprise project plan](docs/enterprise-appointment-project-plan.md)
-   for the whole programme, then the
-   [Phase 1 execution plan](docs/phase-1-execution-plan.md) for current scope.
-3. Use the [Phase 1 decision register](docs/product/phase-1-decision-register.md)
-   to record formal clinic approvals.
-4. Use [docs/README.md](docs/README.md) — the canonical index of every
+2. Read the [Roadmap](docs/roadmap.md) and
+   [Phase 1 execution plan](docs/phase-1-execution-plan.md) for the current
+   position, permitted work and prohibitions.
+3. Check the
+   [Phase 1 decision register](docs/product/phase-1-decision-register.md);
+   formal clinic approvals are recorded only there.
+4. Use the
+   [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
+   for technical boundaries and the
+   [production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md)
+   for implementation order.
+5. Read the
+   [enterprise readiness review](docs/reviews/2026-07-23-enterprise-production-readiness-review.md)
+   for the evidence baseline and unresolved findings.
+6. Use [docs/README.md](docs/README.md) — the canonical index of every
    architecture, approval, runbook and review document.
 
 ## Commands
@@ -79,6 +95,11 @@ browser holds its own state. See [apps/web/README.md](apps/web/README.md).
 Phase 1 does not authorise a booking route, a cloud Firebase backend or Google
 Calendar. The sole cloud exception is the recorded expiring static Hosting
 preview.
+
+The current authorised engineering entry is Stage 0: contract/domain
+alignment, an API application-boundary skeleton, the explicit patient booking
+guard, audit v2 and synthetic Emulator tests. It does not change any decision
+status or enable a route.
 
 The write path is built and proven, but **not routed**: reservation, all five
 transitions, reschedule, idempotency, audit, outbox and the retry/dead-letter

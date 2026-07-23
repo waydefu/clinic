@@ -420,6 +420,7 @@ details[open] > summary .workflow-summary-chevron {
   .filter-bar label:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
+  .filter-bar input,
   .filter-bar select {
     min-width: 0;
     width: 100%;

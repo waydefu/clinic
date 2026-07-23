@@ -1,8 +1,34 @@
 # 後續規劃書
 
 **撰寫日期：** 2026-07-21
+
+**整合更新：** 2026-07-23
+
 **目前狀態：** 瀏覽器原型功能完整、已部署到期預覽；Firestore 寫入路徑已在本機
 Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、無真實病患資料。
+
+> **目前施工入口：Stage 0 架構硬化。** 詳細順序與 gate 以
+> [正式化後續實作規劃書](product/production-readiness-delivery-plan-2026-07-23.md)
+> 為準；技術邊界以
+> [正式環境目標架構書](architecture/production-target-architecture-2026-07-23.md)
+> 為準。2026-07-21 以前的完成紀錄保留作歷史證據，不得取代最新施工順序。
+
+## 目前可直接動工
+
+全程限 local/Emulator/synthetic：
+
+1. 對齊 API contract、domain request 與目前核准的 synthetic 欄位。✅
+   2026-07-23 完成 appointment command 與 server context mapping。
+2. 建立 application service、auth context、authorization policy 與 repository
+   port 骨架，不接真實 IdP。✅ 2026-07-23 完成本機未掛路由骨架。
+3. 建立 `patient_booking_guards`，補同病患／不同 slots 的併發測試。✅
+   2026-07-23 完成 Emulator 8-slot 競態驗證。
+4. Audit v2 contract 與 transaction assertions。✅ 2026-07-23 完成；下一切片為
+   idempotency scope/request hash。
+5. 建立 worker correlation/metrics port 與 production CI skeleton。
+
+Booking route、cloud Firestore/Auth、Calendar projection、真實資料與 Terraform
+apply 仍依 D-001～D-011 對應 gate 保持關閉。
 
 ## 一、現在的實際位置
 
@@ -143,8 +169,8 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
 | B | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-006、D-010 |
-| C | Google 日曆投影（專用測試日曆） | D-009 |
-| D | 開始處理真實病患資料 | D-001～D-005、D-011 |
+| C | Stage B 上的 Google 日曆投影（專用測試日曆） | D-009，且 Stage B 完成 |
+| D | 公開預約與開始處理真實病患資料 | D-001～D-006、D-010、D-011 |
 
 三項決策的中文核准表已備妥，可直接交給診所填寫。
 
@@ -156,7 +182,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 | --- | --- | --- |
 | `robots` | `noindex, nofollow` | 患者端移除；工作臺維持 |
 | `og:url` / canonical | 指向 `beauessence.com.tw/booking` | 換成實際網域 |
-| `og:image` | 指向尚未存在的 `/og-booking.png` | 需製作分享圖 |
+| `og:image` | `/og-booking.png` 已存在 | 正式網域驗證分享預覽與快取 |
 | Cache-Control | 全站 `no-store` | hashed 檔名 + 長期快取 |
 | 預覽頻道 | 七天到期 | 改為正式 Hosting，並建立回滾流程 |
 | 環境標示 | `ONLINE PREVIEW` | 移除 |
@@ -174,26 +200,36 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 ✅ ① outbox 冪等鍵改為 base32hex（2026-07-22 完成）
 
-現在 ──► ② 接真實 Google Calendar ─────── 新功能
+現在 ──► Stage 0：contract / application boundary / patient guard / audit v2
               │
-              ├── D-006 + D-010 核准 ──► 階段 B：雲端 Firestore + 登入
-              │                                    │
-              │                                    ▼
-              └── D-009 核准 ──────────────► 階段 C：日曆投影
-                                                   │
-                                                   ▼
-                        D-001～D-005、D-011 核准 ──► 階段 D：真實資料上線
+              ├── D-006 + D-010 核准
+              ▼
+        Stage B：合成資料 Cloud Staging + 員工登入 + 正式 API
+              │
+              ├── D-009 核准
+              ▼
+        Stage C：專用測試日曆投影
+              │
+              ├── D-001～D-006、D-010、D-011 核准
+              ▼
+        Stage D：公開預約與真實資料
+              │
+              ├── D-007 + D-008 核准
+              ▼
+        個管／薪資正式化 ──► Production Go/No-Go
 ```
 
 ① 已完成：舊冪等鍵含底線、不符 Google 日曆的 base32hex 格式，直接用會被拒絕；
 現在鍵由 `packages/domain/src/calendar-event-id.ts` 統一產生並可還原追查。
-② 才需要 D-009 核准。
 
 技術項目與核准流程可以並行：技術面先把可靠性做完，診所同時走決策程序。等核准
 下來時，剩下的只是接線，而不是從頭建。
 
 ## 相關文件
 
+- [企業級上線前審查](reviews/2026-07-23-enterprise-production-readiness-review.md) — 目前評分、阻擋項與驗證證據
+- [正式環境目標架構](architecture/production-target-architecture-2026-07-23.md) — 保留與修改邊界、目標資料流、交易與資料模型
+- [正式化後續實作規劃](product/production-readiness-delivery-plan-2026-07-23.md) — Stage 0～6、決策 gate、驗收與重新評分點
 - [整合測試計畫](architecture/calendar-and-database-integration-plan.md) — 各階段的技術細節與驗收
 - [階段 B/C 核准請求](product/stage-b-c-approval-request.md) — 要交給診所的中文表
 - [企業級專案規劃書](enterprise-appointment-project-plan.md) — 完整架構、資料模型與 §5.3 落差追蹤

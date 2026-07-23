@@ -6,6 +6,7 @@ import {
   COLLECTIONS,
   FirestoreBookingRepository
 } from '../../apps/api/src/firestore/booking.repository.js';
+import { AuditEventV2Schema } from '../../packages/contracts/src/audit.js';
 import type { BookingRequest } from '@beauessence/domain';
 
 // The Emulator is disposable and never holds real data. `emulators:exec` sets
@@ -20,6 +21,10 @@ let repository: FirestoreBookingRepository;
 
 const SLOT_ID = 'slot_20300102_1200';
 const OTHER_SLOT_ID = 'slot_20300102_1230';
+const PATIENT_RACE_SLOT_IDS = Array.from(
+  { length: 8 },
+  (_, index) => `slot_patient_race_${index}`
+);
 
 function bookingRequest(
   overrides: Partial<BookingRequest> = {}
@@ -30,7 +35,14 @@ function bookingRequest(
     patientId: 'patient_001',
     bookingKind: 'initial',
     itemId: 'service_snoring',
-    actorId: 'actor_front_desk_001',
+    audit: {
+      actorId: 'actor_front_desk_001',
+      actorRole: 'test_front_desk',
+      correlationId: 'corr_booking_001',
+      source: 'api',
+      reasonCode: null,
+      policyVersion: null
+    },
     requestedAt: '2026-07-21T09:00:00.000Z',
     idempotencyKey: 'idem_001',
     ...overrides
@@ -57,6 +69,19 @@ async function seedSlots(): Promise<void> {
     kind: 'follow_up',
     startsAt: '2030-01-02T04:15:00.000Z'
   });
+  await Promise.all(
+    PATIENT_RACE_SLOT_IDS.map((slotId, index) =>
+      db
+        .collection(COLLECTIONS.slots)
+        .doc(slotId)
+        .set({
+          kind: 'initial',
+          startsAt: new Date(
+            Date.parse('2030-01-02T05:00:00.000Z') + index * 30 * 60 * 1000
+          ).toISOString()
+        })
+    )
+  );
 }
 
 beforeAll(() => {
@@ -91,6 +116,10 @@ describe('booking write path in a Firestore transaction', () => {
       .doc('appointment_001')
       .get();
     const slot = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    const patientGuard = await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc('patient_001')
+      .get();
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
     const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
 
@@ -100,7 +129,32 @@ describe('booking write path in a Firestore transaction', () => {
       startsAt: '2030-01-02T04:00:00.000Z'
     });
     expect(slot.data()?.['reservationId']).toBe('appointment_001');
+    expect(patientGuard.data()).toEqual({
+      activeAppointmentId: 'appointment_001',
+      status: 'confirmed',
+      updatedAt: '2026-07-21T09:00:00.000Z'
+    });
     expect(audits.size).toBe(1);
+    expect(AuditEventV2Schema.parse(audits.docs[0]?.data())).toEqual({
+      eventId: 'audit_appointment_001_confirmed',
+      occurredAt: '2026-07-21T09:00:00.000Z',
+      actorId: 'actor_front_desk_001',
+      actorRole: 'test_front_desk',
+      action: 'appointment_confirmed',
+      resourceType: 'appointment',
+      resourceId: 'appointment_001',
+      before: null,
+      after: {
+        status: 'confirmed',
+        slotId: SLOT_ID
+      },
+      reasonCode: null,
+      result: 'succeeded',
+      correlationId: 'corr_booking_001',
+      source: 'api',
+      policyVersion: null,
+      schemaVersion: 2
+    });
     expect(outbox.size).toBe(1);
     expect(outbox.docs[0]?.data()).toMatchObject({
       type: 'calendar_projection_requested',
@@ -133,8 +187,59 @@ describe('booking write path in a Firestore transaction', () => {
     // Nothing partial may survive a losing attempt.
     const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    const patientGuards = await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .get();
     expect(outbox.size).toBe(1);
     expect(audits.size).toBe(1);
+    expect(patientGuards.size).toBe(1);
+  });
+
+  it('allows only one concurrent booking by the same patient across different slots', async () => {
+    const attempts = PATIENT_RACE_SLOT_IDS.map((slotId, index) =>
+      repository.reserve(
+        bookingRequest({
+          appointmentId: `appointment_patient_race_${index}`,
+          slotId,
+          idempotencyKey: `idem_patient_race_${index}`
+        })
+      )
+    );
+
+    const settled = await Promise.allSettled(attempts);
+    expect(
+      settled.filter((entry) => entry.status === 'fulfilled')
+    ).toHaveLength(1);
+    expect(settled.filter((entry) => entry.status === 'rejected')).toHaveLength(
+      7
+    );
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    const patientGuards = await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .get();
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+    const idempotencyKeys = await db
+      .collection(COLLECTIONS.idempotencyKeys)
+      .get();
+    const reservedRaceSlots = (
+      await Promise.all(
+        PATIENT_RACE_SLOT_IDS.map((slotId) =>
+          db.collection(COLLECTIONS.slots).doc(slotId).get()
+        )
+      )
+    ).filter((slot) => slot.data()?.['reservationId'] !== undefined);
+
+    expect(appointments.size).toBe(1);
+    expect(patientGuards.size).toBe(1);
+    expect(patientGuards.docs[0]?.data()?.['activeAppointmentId']).toBe(
+      appointments.docs[0]?.id
+    );
+    expect(audits.size).toBe(1);
+    expect(outbox.size).toBe(1);
+    expect(idempotencyKeys.size).toBe(1);
+    expect(reservedRaceSlots).toHaveLength(1);
   });
 
   it('replays the same idempotency key instead of booking twice', async () => {
@@ -149,6 +254,32 @@ describe('booking write path in a Firestore transaction', () => {
     const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
     expect(appointments.size).toBe(1);
     expect(outbox.size).toBe(1);
+  });
+
+  it('never overwrites an existing audit event and rolls back every sibling write', async () => {
+    const auditRef = db
+      .collection(COLLECTIONS.auditEvents)
+      .doc('audit_appointment_001_confirmed');
+    await auditRef.set({ sentinel: 'existing_append_only_event' });
+
+    await expect(repository.reserve(bookingRequest())).rejects.toThrow();
+
+    expect((await auditRef.get()).data()).toEqual({
+      sentinel: 'existing_append_only_event'
+    });
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(0);
+    expect(
+      (await db.collection(COLLECTIONS.patientBookingGuards).get()).size
+    ).toBe(0);
+    expect((await db.collection(COLLECTIONS.outboxJobs).get()).size).toBe(0);
+    expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
+      0
+    );
+    expect(
+      (await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get()).data()?.[
+        'reservationId'
+      ]
+    ).toBeUndefined();
   });
 
   it('rejects a second active booking by the same patient', async () => {
@@ -166,14 +297,34 @@ describe('booking write path in a Firestore transaction', () => {
 
     const appointments = await db.collection(COLLECTIONS.appointments).get();
     expect(appointments.size).toBe(1);
+    expect(
+      (await db.collection(COLLECTIONS.patientBookingGuards).get()).size
+    ).toBe(1);
   });
 
   it('lets the patient book again once the first visit is finished', async () => {
     await repository.reserve(bookingRequest());
-    await db
-      .collection(COLLECTIONS.appointments)
-      .doc('appointment_001')
-      .update({ status: 'completed' });
+    await repository.transition({
+      appointmentId: 'appointment_001',
+      transition: 'complete',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_complete_001',
+        source: 'api',
+        reasonCode: 'test_visit_completed',
+        policyVersion: null
+      },
+      requestedAt: '2026-07-21T10:00:00.000Z',
+      idempotencyKey: 'idem_complete_001'
+    });
+
+    expect(
+      await db
+        .collection(COLLECTIONS.patientBookingGuards)
+        .doc('patient_001')
+        .get()
+    ).toMatchObject({ exists: false });
 
     const second = await repository.reserve(
       bookingRequest({
@@ -186,6 +337,14 @@ describe('booking write path in a Firestore transaction', () => {
     expect(second.replayed).toBe(false);
     const appointments = await db.collection(COLLECTIONS.appointments).get();
     expect(appointments.size).toBe(2);
+    expect(
+      (
+        await db
+          .collection(COLLECTIONS.patientBookingGuards)
+          .doc('patient_001')
+          .get()
+      ).data()?.['activeAppointmentId']
+    ).toBe('appointment_002');
   });
 
   it('rejects a slot from the other booking grid and writes nothing', async () => {

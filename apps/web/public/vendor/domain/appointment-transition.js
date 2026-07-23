@@ -1,4 +1,5 @@
 import { assertReschedulable, assertTransitionAllowed } from './appointment-rules.js';
+import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 const AUDIT_ACTIONS = {
@@ -32,12 +33,18 @@ function outboxFor(appointmentId, status, at) {
         createdAt: at
     };
 }
-export function planTransition(request, appointment) {
+function assertPatientBookingGuardOwnedBy(appointment, guard) {
+    if (guard === undefined || guard.activeAppointmentId !== appointment.id) {
+        throw new DomainError('PATIENT_BOOKING_GUARD_MISMATCH', 'The patient booking guard does not belong to the appointment.');
+    }
+}
+export function planTransition(request, appointment, patientBookingGuard) {
     assertUtcTimestamp(request.requestedAt, 'requestedAt');
     if (appointment === undefined) {
         throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
     }
     assertTransitionAllowed(request.transition, appointment.status);
+    assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
     const nextStatus = NEXT_STATUS[request.transition];
     // 取消與未到會把時段還給其他患者；提出取消只是等櫃台確認，完成到診則是
     // 已經發生的事實，兩者都不釋出時段。
@@ -50,13 +57,34 @@ export function planTransition(request, appointment) {
             ? { completedAt: request.requestedAt }
             : {}),
         ...(releasesSlot ? { releaseSlotId: appointment.slotId } : {}),
-        auditEvent: {
-            id: `audit_${appointment.id}_${nextStatus}`,
+        patientBookingGuard: request.transition === 'request_cancellation'
+            ? {
+                action: 'retain',
+                guard: {
+                    activeAppointmentId: appointment.id,
+                    status: 'cancellation_requested',
+                    updatedAt: request.requestedAt
+                }
+            }
+            : {
+                action: 'release',
+                activeAppointmentId: appointment.id
+            },
+        auditEvent: planAuditEvent({
+            eventId: `audit_${appointment.id}_${nextStatus}`,
+            occurredAt: request.requestedAt,
             action: AUDIT_ACTIONS[request.transition],
-            appointmentId: appointment.id,
-            actorId: request.actorId,
-            occurredAt: request.requestedAt
-        },
+            resourceId: appointment.id,
+            before: {
+                status: appointment.status,
+                slotId: appointment.slotId
+            },
+            after: {
+                status: nextStatus,
+                slotId: appointment.slotId
+            },
+            context: request.audit
+        }),
         outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt),
         idempotencyRecord: {
             key: request.idempotencyKey,
@@ -65,13 +93,14 @@ export function planTransition(request, appointment) {
         }
     };
 }
-export function planReschedule(request, appointment, targetSlot) {
+export function planReschedule(request, appointment, targetSlot, patientBookingGuard) {
     assertUtcTimestamp(request.requestedAt, 'requestedAt');
     if (appointment === undefined) {
         throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
     }
     // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。
     assertReschedulable(appointment.status, appointment.slotId, targetSlot, appointment.bookingKind);
+    assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
     return {
         appointmentId: appointment.id,
         releaseSlotId: appointment.slotId,
@@ -79,13 +108,29 @@ export function planReschedule(request, appointment, targetSlot) {
         startsAt: targetSlot.startsAt,
         nextStatus: 'confirmed',
         updatedAt: request.requestedAt,
-        auditEvent: {
-            id: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
-            action: 'appointment_rescheduled',
-            appointmentId: appointment.id,
-            actorId: request.actorId,
-            occurredAt: request.requestedAt
+        patientBookingGuard: {
+            action: 'retain',
+            guard: {
+                activeAppointmentId: appointment.id,
+                status: 'confirmed',
+                updatedAt: request.requestedAt
+            }
         },
+        auditEvent: planAuditEvent({
+            eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
+            occurredAt: request.requestedAt,
+            action: 'appointment_rescheduled',
+            resourceId: appointment.id,
+            before: {
+                status: appointment.status,
+                slotId: appointment.slotId
+            },
+            after: {
+                status: 'confirmed',
+                slotId: targetSlot.id
+            },
+            context: request.audit
+        }),
         outboxJob: {
             ...outboxFor(appointment.id, 'confirmed', request.requestedAt),
             // 工作本身要能與原本的成立工作區分（否則會被視為同一筆而覆蓋），但
