@@ -69,6 +69,21 @@ repository、worker、測試及大部分 UI 都能保留。
    executable schema。
 4. 刪除未核准欄位，不以「optional」規避 privacy decision。
 
+**Stage 0 實作狀態（2026-07-24）：contract 邊界已完成**
+
+- create appointment schema 已縮為 idempotency key、slot、service 與 booking kind；
+  strict schema 會拒絕 email、patient profile、patient ID、actor、role、client time、
+  privacy acceptance 與任意文字；
+- `AppointmentApplicationService.create` 將 server-verified opaque patient/actor
+  與 server-generated ID/time/correlation 映射為 `BookingRequest`；
+- ADR-0005 固定 patient intake／verification 與 appointment command 分離，實際
+  欄位、驗證、matching、merge 與 retention 仍依 D-001～D-003/D-006/D-011
+  保持 TBD；
+- API v1 文件已盤點 health、patient identity、appointment transitions、
+  reschedule、follow-up、schedule、case 與 payroll commands，以及完整 error code
+  與 HTTP/domain mapping。尚未核准的項目只列 inventory，不建立 executable
+  contract 或 route。
+
 ### ARCH-02：缺少 application 與正式 security boundary
 
 **現況**
@@ -95,6 +110,14 @@ Controller
 - application service：產生 ID/time、載入 policy version、呼叫 domain/repository；
 - repository port：定義 application 所需能力；
 - Firestore adapter：只有資料庫 I/O，不自行發明規則。
+
+**Stage 0 實作狀態（2026-07-23）：未掛路由骨架已完成**
+
+- `AuthenticationContext`、`AppointmentAuthorizationPolicy`、
+  `AppointmentRepositoryPort` 與 `AppointmentApplicationService` 已建立；
+- actor、role 與 verified patient 只能由 authentication context 傳入；
+- `AppModule` 仍只註冊 health controller；真 IdP、RBAC、resource scope、
+  rate limit、maintenance 與 HTTP error mapper 仍依決策 gate 保持未實作。
 
 ### ARCH-03：active-booking invariant 應改為明確 guard document
 

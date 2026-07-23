@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ApiErrorCodeSchema,
   ApiErrorResponseSchema,
   CreateAppointmentRequestSchema,
   HealthResponseSchema
@@ -68,5 +69,20 @@ describe('v1 API contracts', () => {
         }
       }).error.code
     ).toBe('VALIDATION_FAILED');
+  });
+
+  it('inventories every reserved v1 error code', () => {
+    expect(ApiErrorCodeSchema.options).toEqual([
+      'AUTHENTICATION_REQUIRED',
+      'AUTHORIZATION_DENIED',
+      'CONFLICT',
+      'IDEMPOTENCY_MISMATCH',
+      'INTERNAL_ERROR',
+      'NOT_FOUND',
+      'POLICY_ACCEPTANCE_REQUIRED',
+      'RATE_LIMITED',
+      'SERVICE_UNAVAILABLE',
+      'VALIDATION_FAILED'
+    ]);
   });
 });

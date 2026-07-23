@@ -41,6 +41,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0002 — Calendar is a projection, not the lock](adr/0002-calendar-is-a-projection-not-the-lock.md)
 - [ADR-0003 — direct Firestore client access is deny by default](adr/0003-firestore-direct-client-access-is-deny-by-default.md)
 - [ADR-0004 — the browser and the server share one compiled domain, with no bundler](adr/0004-browser-and-server-share-one-compiled-domain.md)
+- [ADR-0005 — patient intake/verification and appointment commands are separate](adr/0005-patient-intake-and-appointment-command-are-separate.md)
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
 - [API v1 contract baseline](architecture/api-v1-contract.md) — navigation layer for the schemas in `packages/contracts`
 - [Local Firestore baseline](architecture/firestore-local-baseline.md) — Emulator-only project and Rules baseline
@@ -78,6 +79,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-24 | [Stage 0 Checkpoint A architecture review](reviews/stage-0-checkpoint-a-2026-07-24.md) | Stage 0 architecture hardening passed; this is not a production rating and all D-001～D-011 gates remain pending |
 | 2026-07-23 | [Enterprise production-readiness review](reviews/2026-07-23-enterprise-production-readiness-review.md) | Core architecture retained; production blocked pending Stage 0 hardening, D-001～D-011, auth/API, privacy, audit, IaC and release evidence |
 | 2026-07-23 | [Calendar-sync runbook rehearsal](reviews/calendar-sync-runbook-rehearsal-2026-07-23.md) | Failure → dead-letter → recovery rehearsed as an Emulator test; added `OutboxProcessor.requeue`; all four calendar prerequisites done |
 | 2026-07-22 | [Workbench tabs and calendar projection](reviews/workbench-tabs-and-calendar-projection-2026-07-22.md) | Tabbed workbench, in-place note editing, inline case assignment, calendar event ID bound to the appointment, patient/clinic calendar split |

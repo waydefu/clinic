@@ -266,8 +266,8 @@ owner；決策能及時完成：
 
 ### Contract / Domain
 
-- [ ] command/response/error inventory
-- [ ] patient identity boundary
+- [x] command/response/error inventory（2026-07-24；inventory 完成，不代表 route 已啟用）
+- [x] patient identity boundary（ADR-0005；分界固定，驗證方案仍受決策 gate 阻擋）
 - [ ] transition/reschedule/follow-up/schedule contracts
 - [x] patient active-booking guard（2026-07-23 local/Emulator）
 - [x] audit v2（2026-07-23 local/Emulator）
@@ -277,10 +277,10 @@ owner；決策能及時完成：
 
 ### API / Security
 
-- [ ] auth context
+- [x] auth context（2026-07-23 Stage 0 interface；未接真 IdP）
 - [ ] RBAC + resource-scope policy
-- [ ] application services
-- [ ] repository ports/adapters
+- [x] application services（2026-07-23 unrouted create skeleton）
+- [x] repository ports/adapters（2026-07-23 local/Emulator）
 - [x] idempotency scope + request hash（2026-07-23 local/Emulator）
 - [ ] rate limit/anti-automation
 - [ ] maintenance gate
@@ -384,13 +384,16 @@ owner；決策能及時完成：
 
 1. 把本規劃與目標架構交由 technical owner 確認。
 2. 建立 D-006/D-010 決策會議，D-001～D-005/D-011 並行準備。
-3. 建立 contract inventory issue。
-4. 建立 patient identity boundary ADR，保持方案 TBD 至決策核准。
+3. ✅ 建立 command/response/error contract inventory
+   （2026-07-24；未核准 commands 只列 inventory，不建立 route）。
+4. ✅ 建立 patient identity boundary ADR
+   （ADR-0005；方案保持 TBD 至決策核准）。
 5. ✅ 實作 `patient_booking_guards` 與跨 slot concurrency test
    （2026-07-23，local/Emulator）。
 6. ✅ 實作 audit v2 contract 與 transaction assertions
    （2026-07-23，local/Emulator）。
-7. 建立 API application service/auth/policy/port skeleton。
+7. ✅ 建立 API application service/auth/policy/port skeleton
+   （2026-07-23；未掛 route、未接真 IdP）。
 8. 建立 staging IaC plan，只做 plan/review，不 apply。
 9. 建立 E2E/a11y/security CI skeleton。
 10. 完成 Checkpoint A 後再決定 Stage 2 開始日期。

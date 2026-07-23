@@ -52,6 +52,33 @@ the authenticated actor ID and opaque role, correlation ID and source. None is
 accepted from the appointment command. Reason code and policy version remain
 explicitly `null` until their decision owners approve real values.
 
+## Stage 0 command / response inventory
+
+Inventory means the boundary, owner and decision dependency are explicit. It
+does **not** mean every row has an executable schema or an enabled route.
+Only health is routed; create/cancellation schemas remain reserved.
+
+| Capability / command | Executable contract | Domain / application mapping | Current state and decision gate |
+| --- | --- | --- | --- |
+| Health query | `HealthResponseSchema` | `HealthController` | Routed; no patient data |
+| Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; fields, verification and matching remain TBD pending D-001～D-003, D-006, D-011 |
+| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; D-001～D-006, D-010, D-011 |
+| Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005/D-006 |
+| Confirm cancellation | None | Future staff application mapping → `TransitionRequest(cancel)` | Inventory only; D-005/D-006 |
+| Complete / no-show | None | Future staff application mapping → `TransitionRequest(complete/no_show)` | Inventory only; D-004/D-006 |
+| Reschedule | None | Future application mapping → `RescheduleRequest` | Inventory only; capacity/cancellation/roles pending D-004～D-006 |
+| Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification, fields and roles pending D-001～D-003/D-006 |
+| Follow-up decision | None | Browser-only synthetic behavior; follow-up domain contract required | Inventory only; D-004/D-006/D-007 |
+| Schedule draft / publish / rollback | None | Browser-only synthetic behavior; versioned schedule planner required | Inventory only; D-004/D-006/D-010 |
+| Case assignment / reassignment | None | Existing workload domain is not a persistence contract | Inventory only; D-006/D-007 |
+| Payroll close / adjustment | None | Existing deterministic credit rule is not a close API | Inventory only; D-006～D-008 |
+
+No controller may infer a missing schema from the browser implementation. A
+row moves from “inventory only” to executable only when its decision
+dependency is approved, strict request/response schemas exist, the domain
+invariant and application mapping are tested, and its authorization,
+idempotency, audit and error behavior are defined.
+
 ## Audit v2
 
 `AuditEventV2Schema` is an internal persistence/evidence contract rather than
@@ -84,3 +111,26 @@ All future errors use `ApiErrorResponseSchema`:
 
 `correlationId` is opaque and must never be a phone number, email address,
 calendar event ID, access token or patient identifier.
+
+### Reserved transport mapping
+
+This is the complete v1 error-code inventory. No appointment route currently
+emits it; future controllers must centralize this mapping and must not expose a
+domain message, stack trace, SDK error or identifier in `message`.
+
+| API code | HTTP | Source / domain mapping |
+| --- | ---: | --- |
+| `VALIDATION_FAILED` | 400 | Zod parse failure; `INVALID_TIMESTAMP`, `INVALID_VALUE` |
+| `AUTHENTICATION_REQUIRED` | 401 | Missing or invalid server authentication context |
+| `AUTHORIZATION_DENIED` | 403 | Policy denial; `COMPLETION_NOT_AUTHORIZED` |
+| `POLICY_ACCEPTANCE_REQUIRED` | 428 | Missing decision-approved policy acceptance |
+| `NOT_FOUND` | 404 | `APPOINTMENT_NOT_FOUND`, `SLOT_NOT_FOUND` after resource-scope policy |
+| `CONFLICT` | 409 | State/capacity/guard/assignment/payroll conflicts, including `APPOINTMENT_NOT_CONFIRMABLE`, `APPOINTMENT_NOT_CANCELLABLE`, `BOOKING_KIND_MISMATCH`, `CANCELLATION_WINDOW_CLOSED`, `DUPLICATE_ACTIVE_BOOKING`, `INVALID_ASSIGNMENT`, `PATIENT_BOOKING_GUARD_MISMATCH`, `PAYROLL_DUPLICATE_CREDIT`, `PAYROLL_NOT_ELIGIBLE`, `SLOT_UNAVAILABLE`, `TRANSITION_NOT_ALLOWED` |
+| `IDEMPOTENCY_MISMATCH` | 409 | `IDEMPOTENCY_KEY_REUSED` |
+| `RATE_LIMITED` | 429 | API rate-limit / anti-automation boundary |
+| `INTERNAL_ERROR` | 500 | Unexpected fault; generic safe message and server correlation only |
+| `SERVICE_UNAVAILABLE` | 503 | Maintenance gate or temporarily unavailable required dependency |
+
+Authentication and resource-scope checks happen before existence-sensitive
+mapping so that `NOT_FOUND` cannot become a patient or appointment enumeration
+oracle.
