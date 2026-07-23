@@ -177,7 +177,9 @@ const allowedControls = new Set([
   'release-version',
   'audit-filter',
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
-  'theme-picker'
+  'theme-picker',
+  // 2026-07-23：日曆投影死信補回的合成示範，不觸碰任何病患資料。
+  'outbox-fail-next'
 ]);
 for (const control of files.adminShell.matchAll(
   /<(?:input|select)\b[^>]*\bid="([^"]+)"[^>]*>/gi

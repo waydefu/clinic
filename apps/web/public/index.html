@@ -617,6 +617,25 @@
             </article>
             <article class="event-panel">
               <h3>日曆投影意圖</h3>
+              <p class="section-description">
+                合成示範：工作臺不真的呼叫 Google，權威的重試與死信在
+                <code>apps/worker</code>。此處示範操作者的死信補回入口。
+              </p>
+              <div class="outbox-toolbar">
+                <label class="switch-row"
+                  ><input
+                    id="outbox-fail-next"
+                    type="checkbox"
+                  />讓下次同步失敗</label
+                ><button
+                  id="outbox-simulate"
+                  class="button button-secondary"
+                  type="button"
+                >
+                  模擬一次日曆同步
+                </button>
+                <p id="outbox-form-status" class="form-status" hidden></p>
+              </div>
               <ol id="outbox-jobs" class="event-list"></ol>
             </article>
           </div>

@@ -42,6 +42,57 @@ function appendOutbox(state, appointment) {
   });
 }
 
+// 以下兩個函式是**合成示範**：工作臺不真的呼叫 Google。權威的重試、退避、
+// 死信與冪等在 apps/worker（Emulator 已驗證）；這裡只把操作者會用到的兩個
+// 動作畫出來——一次同步的成敗，以及死信的重新排入。
+export function simulateCalendarSync(state, fail, actorId) {
+  const pending = state.outboxJobs.filter((job) => job.status === 'pending');
+  if (pending.length === 0) throw new Error('目前沒有待同步的日曆投影工作。');
+  for (const job of pending) {
+    if (fail) {
+      job.status = 'dead_letter';
+      job.needsOperator = true;
+      job.lastError = '合成失敗：外部日曆連續失敗，已進入死信。';
+      appendAudit(
+        state,
+        'calendar_projection_dead_lettered',
+        job.appointmentId,
+        actorId
+      );
+    } else {
+      job.status = 'completed';
+      delete job.needsOperator;
+      delete job.lastError;
+      appendAudit(
+        state,
+        'calendar_projection_synced',
+        job.appointmentId,
+        actorId
+      );
+    }
+  }
+  return pending.length;
+}
+
+export function requeueOutboxJob(state, jobId, actorId) {
+  const job = state.outboxJobs.find((item) => item.id === jobId);
+  if (job === undefined) throw new Error('找不到這筆日曆投影工作。');
+  // 只作用於死信，對映 apps/worker 的 requeue：正在跑或已完成的工作不可人工插手。
+  if (job.status !== 'dead_letter')
+    throw new Error('只有死信工作可以重新排入。');
+  job.status = 'pending';
+  job.needsOperator = false;
+  job.requeuedBy = actorId;
+  job.requeuedAt = new Date().toISOString();
+  delete job.lastError;
+  appendAudit(
+    state,
+    'calendar_projection_requeued',
+    job.appointmentId,
+    actorId
+  );
+}
+
 function optionalNote(value) {
   const text = typeof value === 'string' ? value.trim() : '';
   if (text.length > MAX_NOTE_LENGTH)

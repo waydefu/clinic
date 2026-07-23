@@ -81,7 +81,7 @@ Google 官方防重複的做法是由我們自行指定 event ID，這樣「後�
 | --- | --- | --- |
 | 鍵的組成（例如加入診所 ID） | `calendar-event-id.ts` 的 `calendarEventIdForAppointment` | 既有事件的 ID 會改變＝日曆上會多出新事件、舊的變孤兒，需要遷移計畫 |
 | 新的投影種類（例如回診提醒另開一則） | 同上，新增一個具名函式 | 不要把狀態塞回既有函式，那會退回「每狀態一格」的錯誤 |
-| 真實 Calendar 用戶端 | `apps/worker/src/calendar-port.ts` 的新實作 | 「事件已存在」必須視為冪等成功，不可當失敗重試 |
+| 真實 Calendar 用戶端 | `apps/worker/src/google-calendar.ts`（已完成） | 憑證只走 env；「事件已存在」視為冪等成功；見 [go-live runbook](../runbooks/calendar-go-live.md) |
 
 ## 測試
 

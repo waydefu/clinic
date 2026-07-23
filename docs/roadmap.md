@@ -103,7 +103,13 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 [演練紀錄](reviews/calendar-sync-runbook-rehearsal-2026-07-23.md)）。
 
 **四項技術前置全部完成。** 改期舊事件殘影的缺口已用「鍵綁預約」一併解決。
-全部不需核准；D-009 核准後只剩換上真實 API 用戶端與憑證注入。
+
+**2026-07-23：真實 Google Calendar 用戶端已寫好**（`apps/worker/src/
+google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證只走 env、無則
+回退假日曆、事件欄位最小化，皆有單元測試。工作臺也加了操作者的死信補回入口
+（合成示範）。實際連線需專案負責人設定 Google Cloud 專案與服務帳號憑證——
+助理不建立也不能輸入憑證；步驟見
+[go-live runbook](runbooks/calendar-go-live.md)。
 
 ## 三、需要核准才能做的事
 

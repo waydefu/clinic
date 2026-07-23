@@ -42,6 +42,29 @@ infer an answer from an existing website, social message or Calendar event.
   deletion workflow, the published policy text and the real identity model
   remain `pending`, and no real patient data may be relied upon operationally.
 
+### Google Calendar test-integration authority - 2026-07-23
+
+- The project owner directed connecting the **real** Google Calendar API as a
+  test ("測試不審核" — a test, outside the formal review), and authorised
+  writing the real client for it.
+- Scope of what this authorises: the `GoogleCalendarClient` code
+  (`apps/worker/src/google-calendar.ts`), which reads its credentials only from
+  environment variables (`GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`)
+  and defaults to the in-memory fake when they are absent. Event content stays
+  minimised (clinic name, visit kind, time, address, appointment id — no
+  patient PII), enforced by a test.
+- What it does **not** do, and the standing limits that still apply:
+  - It does **not** approve D-009. D-009 (calendar owner, authorization model,
+    scopes, dedicated calendar, minimum event fields) remains `pending` for any
+    production use. This authority is a test integration only.
+  - The calendar id must point at a **dedicated test calendar**, never a
+    doctor's private or a production clinic calendar.
+  - No real patient data (D-001～D-003 still pending). The synthetic workbench
+    does not call Google at all; only the worker, run with the owner's own
+    credentials, would — and no service-account key is ever committed.
+  - The assistant did not and will not create the Google Cloud project or
+    generate/enter the credentials; that remains the owner's action.
+
 ### Synthetic online preview authority - 2026-07-21
 
 - The project owner explicitly requested a non-production real-device online

@@ -57,6 +57,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
+- [Calendar go-live runbook](runbooks/calendar-go-live.md) — who does what to wire the real Google Calendar test integration (credentials stay with the owner)
 - [Month close runbook](runbooks/month-close.md) — provisional list, review, approval and lock
 - [Month close specification](payroll/month-close-spec.md) — countable credit definition and uniqueness rules
 

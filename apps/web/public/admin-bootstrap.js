@@ -768,6 +768,40 @@ elements['audit-filter'].addEventListener('change', () => {
   );
 });
 
+// 日曆投影的合成示範：模擬一次同步（可設為失敗以產生死信）。
+elements['outbox-simulate'].addEventListener('click', async () => {
+  const fail = elements['outbox-fail-next'].checked;
+  try {
+    await post('/outbox/simulate', { fail });
+    elements['outbox-fail-next'].checked = false;
+    message(
+      fail
+        ? '已模擬同步失敗，工作進入死信，可在下方重新排入。'
+        : '已模擬同步成功。',
+      'success',
+      'outbox-form-status'
+    );
+  } catch (error) {
+    message(`未能模擬同步：${error.message}`, 'error', 'outbox-form-status');
+  }
+});
+
+// 死信補回入口：對映 apps/worker 的 requeue，只作用於死信。
+elements['outbox-jobs'].addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-outbox-requeue]');
+  if (button === null) return;
+  try {
+    await post('/outbox/requeue', { jobId: button.dataset.outboxRequeue });
+    message(
+      '死信已重新排入，狀態回到待同步。',
+      'success',
+      'outbox-form-status'
+    );
+  } catch (error) {
+    message(`未能重新排入：${error.message}`, 'error', 'outbox-form-status');
+  }
+});
+
 document.querySelector('.skip-link').addEventListener('click', (event) => {
   event.preventDefault();
   window.location.hash = 'main-content';

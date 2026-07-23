@@ -2,6 +2,8 @@ import {
   createBooking,
   recordFollowUp,
   rescheduleAppointment,
+  requeueOutboxJob,
+  simulateCalendarSync,
   sortedAppointments,
   transitionAppointment,
   updateAppointmentNotes
@@ -207,6 +209,12 @@ export async function stagingRequest(path, options = {}) {
   } else if (path === '/case-assignments') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_CASES);
     assignCaseManager(state, body.appointmentId, body.managerId, actor.id);
+  } else if (path === '/outbox/simulate') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
+    simulateCalendarSync(state, body.fail === true, actor.id);
+  } else if (path === '/outbox/requeue') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
+    requeueOutboxJob(state, body.jobId, actor.id);
   } else {
     throw new Error('找不到合成測試動作。');
   }

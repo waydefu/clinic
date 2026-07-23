@@ -412,3 +412,29 @@
   flex-wrap: wrap;
   gap: 0.6rem;
 }
+
+/* 日曆投影死信補回入口（稽核區的合成示範） */
+.outbox-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin: 0.6rem 0 0.9rem;
+}
+.outbox-toolbar .switch-row {
+  margin: 0;
+}
+.outbox-row {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+.outbox-row > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.outbox-row .button {
+  flex-shrink: 0;
+  margin-left: auto;
+}

@@ -34,7 +34,10 @@ const auditLabels = {
   account_status_changed: '變更帳號狀態',
   announcement_saved: '儲存公告',
   maintenance_saved: '儲存維護設定',
-  release_recorded: '新增發布紀錄'
+  release_recorded: '新增發布紀錄',
+  calendar_projection_synced: '日曆同步成功',
+  calendar_projection_dead_lettered: '日曆同步失敗（死信）',
+  calendar_projection_requeued: '死信重新排入'
 };
 
 const appointmentActions = new Set([
@@ -389,14 +392,40 @@ export function renderAudit(state, filter) {
     : '<li class="empty-event">尚無符合條件的稽核事件。</li>';
 }
 
+// 日曆投影工作的狀態呈現。這是**合成示範**：工作臺不真的呼叫 Google，
+// 權威的重試／退避／死信邏輯在 apps/worker（Emulator 已驗證）。這裡只把
+// 「操作者的死信補回入口」畫出來——列出工作、死信可一鍵重新排入。
+const OUTBOX_STATUS = {
+  pending: { label: '待同步', chip: 'is-reserved', dot: 'event-dot-neutral' },
+  completed: { label: '已同步', chip: 'is-available', dot: '' },
+  dead_letter: {
+    label: '死信 · 需人工',
+    chip: 'status-cancellation_requested',
+    dot: 'event-dot-neutral'
+  }
+};
+
 export function renderOutbox(state) {
-  return state.outboxJobs.length
-    ? [...state.outboxJobs]
-        .reverse()
-        .map(
-          (job) =>
-            `<li><span class="event-dot event-dot-neutral"></span><div><strong>${escapeHtml(APPOINTMENT_STATUS_LABELS[job.appointmentStatus] ?? job.appointmentStatus)}</strong><span>${escapeHtml(job.appointmentId)} · 日曆投影待處理</span></div></li>`
-        )
-        .join('')
-    : '<li class="empty-event">尚無日曆投影意圖。</li>';
+  if (state.outboxJobs.length === 0)
+    return '<li class="empty-event">尚無日曆投影意圖。</li>';
+  return [...state.outboxJobs]
+    .reverse()
+    .map((job) => {
+      const status = OUTBOX_STATUS[job.status] ?? OUTBOX_STATUS.pending;
+      const kind =
+        APPOINTMENT_STATUS_LABELS[job.appointmentStatus] ??
+        job.appointmentStatus;
+      const requeued = job.requeuedBy
+        ? `<span class="code">已由 ${escapeHtml(job.requeuedBy)} 重新排入</span>`
+        : '';
+      const action =
+        job.status === 'dead_letter'
+          ? `<button class="button button-tertiary" type="button" data-outbox-requeue="${escapeHtml(job.id)}">重新排入</button>`
+          : '';
+      const error = job.lastError
+        ? `<span class="code detail-line">${escapeHtml(job.lastError)}</span>`
+        : '';
+      return `<li class="outbox-row"><span class="event-dot ${status.dot}"></span><div><strong>${escapeHtml(kind)}</strong><span class="status-chip ${status.chip}">${status.label}</span><span class="code">${escapeHtml(job.appointmentId)}</span>${error}${requeued}</div>${action}</li>`;
+    })
+    .join('');
 }
