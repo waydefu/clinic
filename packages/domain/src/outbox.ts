@@ -31,6 +31,11 @@ export interface OutboxJob {
   readonly attempts: number;
   readonly nextAttemptAt?: string;
   readonly lastError?: string;
+  /**
+   * 事件自己的起始時刻，用於投影不落在來源預約時間的情況——例如**回診提醒**
+   * 落在回診目標日期，而非已完成就診的原時間。省略時 worker 退回讀來源預約。
+   */
+  readonly startsAt?: string;
 }
 
 export type AttemptOutcome =

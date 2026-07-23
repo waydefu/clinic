@@ -29,25 +29,33 @@ function resolvePanelId() {
   return panel !== null && isRestricted(panel) ? DEFAULT_PANEL : requested;
 }
 
-export function applyWorkspacePanel({ scroll = false } = {}) {
+export function applyWorkspacePanel({
+  scroll = false,
+  behavior = 'smooth'
+} = {}) {
   const activeId = resolvePanelId();
   for (const panel of panels())
     panel.hidden = panel.id !== activeId || isRestricted(panel);
+  for (const element of document.querySelectorAll('[data-overview-only]'))
+    element.hidden = activeId !== DEFAULT_PANEL;
   for (const link of document.querySelectorAll('[data-workspace-nav]')) {
     const selected = link.getAttribute('href') === `#${activeId}`;
     link.classList.toggle('is-active', selected);
     // 導覽列的「目前位置」用 aria-current，不能只靠顏色。
     if (selected) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
+    if (selected && scroll)
+      link.scrollIntoView({ behavior, block: 'nearest', inline: 'center' });
   }
   // 換頁後把焦點帶到該區標題，鍵盤與報讀使用者才不會停在導覽列上。
+  const activePanel = document.getElementById(activeId);
   const heading = document.getElementById(
-    document.getElementById(activeId)?.getAttribute('aria-labelledby') ?? ''
+    activePanel?.getAttribute('aria-labelledby') ?? ''
   );
   if (scroll && heading !== null) {
     heading.setAttribute('tabindex', '-1');
     heading.focus({ preventScroll: true });
-    heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    activePanel.scrollIntoView({ behavior, block: 'start' });
   }
   return activeId;
 }
@@ -57,4 +65,8 @@ export function initWorkspaceTabs() {
     applyWorkspacePanel({ scroll: true })
   );
   applyWorkspacePanel();
+  if (window.location.hash !== '')
+    window.requestAnimationFrame(() =>
+      applyWorkspacePanel({ scroll: true, behavior: 'auto' })
+    );
 }

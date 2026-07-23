@@ -152,7 +152,10 @@ export class OutboxProcessor {
         .get();
 
       const status = (appointment.data()?.['status'] as string) ?? 'unknown';
-      const startsAt = (appointment.data()?.['startsAt'] as string) ?? '';
+      // 事件自己的時間優先（回診提醒落在回診目標日期，不是原就診時間）；
+      // 一般預約投影沒有 job.startsAt，退回讀來源預約的時間。
+      const startsAt =
+        job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '';
       let outcome: AttemptOutcome;
       try {
         // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、

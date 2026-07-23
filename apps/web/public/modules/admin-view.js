@@ -4,6 +4,7 @@ import {
   BOOKING_KIND_LABELS,
   BOOKING_NOTE_TAGS,
   FOLLOW_UP_NOTE_TAGS,
+  PERMISSIONS,
   WEEKDAY_LABELS
 } from './constants.js';
 import { maskNationalId } from './patient-registry.js';
@@ -50,6 +51,14 @@ const appointmentActions = new Set([
   'appointment_rescheduled'
 ]);
 
+const statusIcons = {
+  confirmed: '&#10003;',
+  cancellation_requested: '!',
+  completed: '&#10003;',
+  cancelled: '&#8212;',
+  no_show: '&#9679;'
+};
+
 function patient(state, id) {
   return state.patients.find((item) => item.id === id);
 }
@@ -84,13 +93,50 @@ function actionEnabled(actionId, appointment) {
   }
 }
 
-function actionMenu(appointment, decided) {
-  const items = APPOINTMENT_ACTIONS.map((action) => {
-    const suffix =
-      action.id === 'follow_up_confirm' && decided ? '（已記錄）' : '';
-    return `<button type="button" data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}" ${actionEnabled(action.id, appointment) ? '' : 'disabled'}>${escapeHtml(action.label)}${suffix}</button>`;
-  }).join('');
-  return `<details class="action-menu"><summary>處置</summary><div class="action-menu-list">${items}</div></details>`;
+function primaryAction(appointment, decided, canManageFollowUp) {
+  let action;
+  if (appointment.status === 'confirmed')
+    action = {
+      id: 'complete',
+      label: '到診',
+      icon: '&#10003;',
+      className: 'appointment-arrival-button'
+    };
+  else if (appointment.status === 'cancellation_requested')
+    action = {
+      id: 'cancel',
+      label: '確認取消',
+      icon: '&#10005;',
+      className: 'appointment-cancel-button'
+    };
+  else if (appointment.status === 'completed' && canManageFollowUp)
+    action = {
+      id: 'follow_up_confirm',
+      label: decided ? '查看回診' : '記錄回診',
+      icon: '&#8635;',
+      className: 'appointment-follow-up-button'
+    };
+  if (action === undefined) return { id: undefined, html: '' };
+  return {
+    id: action.id,
+    html: `<button class="button appointment-primary-action ${action.className}" type="button" data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}"><span aria-hidden="true">${action.icon}</span>${escapeHtml(action.label)}</button>`
+  };
+}
+
+function actionMenu(appointment, primaryActionId) {
+  const items = APPOINTMENT_ACTIONS.filter(
+    (action) =>
+      action.id !== primaryActionId &&
+      action.id !== 'follow_up_confirm' &&
+      actionEnabled(action.id, appointment)
+  )
+    .map(
+      (action) =>
+        `<button type="button" data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(action.label)}</button>`
+    )
+    .join('');
+  if (items === '') return '';
+  return `<details class="action-menu"><summary><span class="action-menu-icon" aria-hidden="true">&#8942;</span><span>更多處置</span><span class="action-menu-chevron" aria-hidden="true">&#8964;</span></summary><div class="action-menu-list">${items}</div></details>`;
 }
 function managerLabel(state, id) {
   return state.caseManagers.find((item) => item.id === id)?.label ?? id;
@@ -201,16 +247,44 @@ function rescheduleOptions(state, appointment) {
 }
 
 export function renderAppointments(state, filters) {
-  const list = state.appointments.filter(
-    (item) =>
-      (filters.status === 'all' || item.status === filters.status) &&
+  const query = filters.query.trim().toLocaleLowerCase('zh-Hant');
+  const list = state.appointments.filter((item) => {
+    const record = patient(state, item.patientId);
+    const statusMatches =
+      filters.status === 'all' ||
+      item.status === filters.status ||
+      (filters.status === 'active' &&
+        ['confirmed', 'cancellation_requested'].includes(item.status));
+    const queryMatches =
+      query === '' ||
+      [
+        record?.name,
+        record?.phone,
+        item.id,
+        item.itemLabel,
+        BOOKING_KIND_LABELS[item.bookingKind]
+      ]
+        .filter((value) => value !== undefined)
+        .some((value) =>
+          String(value).toLocaleLowerCase('zh-Hant').includes(query)
+        );
+    return (
+      statusMatches &&
       (filters.kind === 'all' || item.bookingKind === filters.kind) &&
-      (filters.patientId === 'all' || item.patientId === filters.patientId)
-  );
+      (filters.patientId === 'all' || item.patientId === filters.patientId) &&
+      queryMatches
+    );
+  });
   if (list.length === 0)
-    return emptyState('沒有符合條件的預約', '可調整篩選或從上方建立預約。');
+    return emptyState(
+      '沒有符合條件的預約',
+      '可調整篩選，或展開下方「建立新預約」。'
+    );
 
   // state.appointments 已由 store 依看診時間排序（越接近現在越前面）。
+  const canManageFollowUp = state.session.permissions.includes(
+    PERMISSIONS.MANAGE_FOLLOW_UP
+  );
   return list
     .map((appointment) => {
       const notes = tagLabels(appointment.noteTags, BOOKING_NOTE_TAGS);
@@ -231,12 +305,13 @@ export function renderAppointments(state, filters) {
       // 選單外面直接可按；已取消／未到的預約不再開放修改。
       const editable = notesEditable(appointment);
       const notesControl = editable
-        ? `<button class="text-button" type="button" data-notes-toggle="${escapeHtml(appointment.id)}" aria-expanded="false">修改備註</button>`
+        ? `<button class="text-button appointment-note-button" type="button" data-notes-toggle="${escapeHtml(appointment.id)}" aria-expanded="false"><span aria-hidden="true">&#9998;</span>修改備註</button>`
         : '';
+      const primary = primaryAction(appointment, decided, canManageFollowUp);
       const notesForm = editable
         ? `<form class="notes-form" data-notes-form="${escapeHtml(appointment.id)}" hidden><fieldset class="tag-picker"><legend>備註（可複選）</legend>${renderTagPicker(appointment.noteTags ?? [], 'notes')}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(appointment.noteText ?? '')}"></label><div class="notes-form-actions"><button class="button button-primary" type="submit">儲存備註</button><button class="text-button" type="button" data-notes-cancel="${escapeHtml(appointment.id)}">取消</button></div></form>`
         : '';
-      return `<article class="appointment-card" data-appointment-card="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><p>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</p><span class="code detail-line">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')} · ${escapeHtml(appointment.id)}</span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${notesControl}${actionMenu(appointment, decided)}</div>${rescheduleForm}${notesForm}</article>`;
+      return `<article class="appointment-card" data-appointment-card="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></div><p class="appointment-time">${escapeHtml(formatFullDate(appointment.startsAt))}<strong>${escapeHtml(formatTime(appointment.startsAt))}</strong></p><span class="detail-line appointment-service">${escapeHtml(appointment.itemLabel ?? '')}<span aria-hidden="true">·</span><span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id)}</div>${rescheduleForm}${notesForm}</article>`;
     })
     .join('');
 }
@@ -316,6 +391,35 @@ export function renderFollowUps(state) {
       return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '需要回診' : '目前無需回診') : '待確認'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span></div><label>決定<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存逐筆決定</button></form>`;
     })
     .join('');
+}
+
+/**
+ * 已確認「需要回診」、但尚未安排下次門診的回診，顯示在櫃台處理清單。
+ *
+ * 這些回診決定完成後已「上日曆」（在日曆投影意圖產生一筆回診提醒），接著要
+ * 由櫃台安排實際時段——排好後 `scheduledAppointmentId` 會被填上，就從這裡消失。
+ * 空的時候回傳空字串，讓整個區塊隱藏。
+ */
+export function renderPendingFollowUps(state) {
+  const pending = state.followUps.filter(
+    (item) =>
+      item.status === 'required' && item.scheduledAppointmentId === undefined
+  );
+  if (pending.length === 0) return '';
+  const cards = pending
+    .map((followUp) => {
+      const notes = tagLabels(followUp.tags, FOLLOW_UP_NOTE_TAGS);
+      if (followUp.noteText) notes.push(followUp.noteText);
+      const noteRow =
+        notes.length === 0
+          ? ''
+          : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
+      const target =
+        `${followUp.dueDate ?? ''} ${followUp.dueTime ?? ''}`.trim();
+      return `<article class="appointment-card follow-up-pending" data-follow-up-pending="${escapeHtml(followUp.appointmentId)}"><div class="appointment-main"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, followUp.patientId))}</strong><span class="appointment-kind">回診</span></div><p class="appointment-time">目標 <strong>${escapeHtml(target)}</strong></p><span class="detail-line appointment-service">來源 <span class="code">${escapeHtml(followUp.appointmentId)}</span><span aria-hidden="true">·</span>已上日曆投影</span>${noteRow}</div></div></article>`;
+    })
+    .join('');
+  return `<div class="subsection-title list-section-heading"><div><p class="eyebrow">FOLLOW-UP QUEUE</p><h3>待安排回診（已上日曆）</h3></div><p class="section-description">回診已確認並送出日曆投影，請安排下次門診時段。</p></div><div class="card-list">${cards}</div>`;
 }
 
 export function renderCaseAssignments(state) {
@@ -413,8 +517,10 @@ export function renderOutbox(state) {
     .map((job) => {
       const status = OUTBOX_STATUS[job.status] ?? OUTBOX_STATUS.pending;
       const kind =
-        APPOINTMENT_STATUS_LABELS[job.appointmentStatus] ??
-        job.appointmentStatus;
+        job.appointmentStatus === 'follow_up_required'
+          ? '回診提醒'
+          : (APPOINTMENT_STATUS_LABELS[job.appointmentStatus] ??
+            job.appointmentStatus);
       const requeued = job.requeuedBy
         ? `<span class="code">已由 ${escapeHtml(job.requeuedBy)} 重新排入</span>`
         : '';

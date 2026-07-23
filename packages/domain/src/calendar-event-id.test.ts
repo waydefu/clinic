@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calendarEventIdForAppointment,
+  calendarEventIdForFollowUp,
   fromCalendarEventId,
   isCalendarEventId,
   toCalendarEventId
@@ -53,6 +54,16 @@ describe('Calendar event ID', () => {
     expect(
       fromCalendarEventId(calendarEventIdForAppointment('appointment_001'))
     ).toBe('calendar_appointment_001');
+  });
+
+  it('回診提醒與來源就診是不同的事件', () => {
+    const visit = calendarEventIdForAppointment('appointment_001');
+    const followUp = calendarEventIdForFollowUp('appointment_001');
+    expect(followUp).not.toBe(visit);
+    expect(isCalendarEventId(followUp)).toBe(true);
+    expect(fromCalendarEventId(followUp)).toBe(
+      'calendar_followup_appointment_001'
+    );
   });
 
   it('編碼為 RFC 4648 base32hex：對照已知向量', () => {

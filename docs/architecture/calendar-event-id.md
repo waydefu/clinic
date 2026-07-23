@@ -83,6 +83,17 @@ Google 官方防重複的做法是由我們自行指定 event ID，這樣「後�
 | 新的投影種類（例如回診提醒另開一則） | 同上，新增一個具名函式 | 不要把狀態塞回既有函式，那會退回「每狀態一格」的錯誤 |
 | 真實 Calendar 用戶端 | `apps/worker/src/google-calendar.ts`（已完成） | 憑證只走 env；「事件已存在」視為冪等成功；見 [go-live runbook](../runbooks/calendar-go-live.md) |
 
+### 回診提醒：一筆預約兩個事件（2026-07-23）
+
+回診確認為「需要回診」時，會為**回診提醒**另開一個事件，與來源就診分開：
+
+- 鑰匙用 `calendarEventIdForFollowUp(來源預約id)`（＝
+  `calendar_followup_{id}`），與就診的 `calendar_{id}` 不同。
+- 事件時間是回診**目標**時間，不是原就診時間。因此 outbox 工作可帶自己的
+  `startsAt`，worker 優先用 `job.startsAt`，沒有才退回讀來源預約
+  （`OutboxProcessor` 的 `startsAt` 判斷）。
+- 目標改成「目前無需回診」時，那筆回診投影會被移除。
+
 ## 測試
 
 - `packages/domain/src/calendar-event-id.test.ts`：字元集、長度、決定性、

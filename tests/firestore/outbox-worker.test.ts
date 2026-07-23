@@ -102,6 +102,20 @@ describe('outbox worker', () => {
     expect(event?.colorId).toBe(CLINIC_EVENT_COLOR_ID);
   });
 
+  // 回診提醒的投影落在回診目標時間，而非來源就診的原時間。
+  it('projects at the job own startsAt when present, not the appointment time', async () => {
+    await seedJob();
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_001')
+      .update({ startsAt: '2030-02-01T04:15:00.000Z' });
+    await processor.processDue(NOW);
+
+    const [event] = [...calendar.events.values()];
+    expect(event?.startsAt).toBe('2030-02-01T04:15:00.000Z');
+    expect(event?.endsAt).toBe('2030-02-01T05:15:00.000Z');
+  });
+
   it('uses the projected job key as a valid Calendar event ID', async () => {
     await seedJob();
     await processor.processDue(NOW);

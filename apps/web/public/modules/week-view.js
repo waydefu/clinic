@@ -1,12 +1,17 @@
-import { BOOKING_KIND_LABELS, TIME_ZONE } from './constants.js';
+import {
+  APPOINTMENT_STATUS_LABELS,
+  BOOKING_KIND_LABELS,
+  SLOT_DURATION_MINUTES
+} from './constants.js';
+import { taipeiDate, taipeiMinutes } from './taipei-time.js';
 import { escapeHtml } from './ui-format.js';
 
 /**
  * 預約的週檢視：左時間軸＋週一～週日七欄，事件依看診時間定位。
  *
  * 設計呼應診所的真實規則，而非通用日曆：
- *   - 初診（整點／30 分）與回診（15 分／45 分）**刻意共用時鐘**，是兩條並行的
- *     人力線，因此各佔半欄並排，一眼看出它們平行、不衝突。
+ *   - 初診（整點／30 分）與回診（15 分／45 分）共用時鐘；沒有時間交疊時使用
+ *     完整欄寬，真的交疊時才動態分欄，避免固定半欄造成資訊被截斷。
  *   - 週日、週一、週二預設休診，以斜線標示為不可預約。
  *   - 目前時間畫紅線——但只在顯示的那一週包含「今天」時。
  *
@@ -17,8 +22,7 @@ import { escapeHtml } from './ui-format.js';
 // 檢視自 10:00 到 21:00：涵蓋週六 10:00 開診到平日 20:00 掛號的一小時區塊。
 const VIEW_START_MIN = 10 * 60;
 const VIEW_END_MIN = 21 * 60;
-const PX_PER_MIN = 48 / 60; // 每小時 48px
-const EVENT_MINUTES = 50; // 事件顯示高度（視覺區塊，非掛號長度）
+const PX_PER_MIN = 78 / 60; // 每小時 78px，讓 30 分鐘事件可容納兩行資訊
 
 const WEEK_DAY_LABELS = [
   '週一',
@@ -31,25 +35,67 @@ const WEEK_DAY_LABELS = [
 ];
 const SHOWN_STATUSES = ['confirmed', 'cancellation_requested', 'completed'];
 
-function taipeiDate(iso) {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: TIME_ZONE
-  }).format(new Date(iso));
-}
+/**
+ * 把同一天的預約排成「需要時才分欄」的視覺軌道。
+ *
+ * 這只處理畫面空間，不改變初診／回診兩條人力線可同時服務的業務規則。
+ * 相鄰事件在前一筆結束時即可重新使用同一軌；連鎖交疊會保留同一組的欄數，
+ * 避免卡片寬度在同一碰撞群組中忽寬忽窄。
+ */
+export function layoutCalendarEvents(appointments) {
+  const ordered = appointments
+    .map((appointment) => {
+      const start = taipeiMinutes(appointment.startsAt);
+      return {
+        appointment,
+        start,
+        end: start + SLOT_DURATION_MINUTES
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.start - right.start ||
+        String(left.appointment.id).localeCompare(
+          String(right.appointment.id),
+          'zh-Hant'
+        )
+    );
 
-function taipeiMinutes(iso) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: TIME_ZONE
-  }).formatToParts(new Date(iso));
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
-  const minute = Number(parts.find((part) => part.type === 'minute')?.value);
-  return hour * 60 + minute;
+  const result = [];
+  let group = [];
+  let groupEnd = Number.NEGATIVE_INFINITY;
+
+  const flushGroup = () => {
+    if (group.length === 0) return;
+    const laneEnds = [];
+    const laidOut = group.map((entry) => {
+      let lane = laneEnds.findIndex((end) => end <= entry.start);
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(entry.end);
+      } else {
+        laneEnds[lane] = entry.end;
+      }
+      return { appointment: entry.appointment, lane };
+    });
+    const laneCount = Math.max(1, laneEnds.length);
+    result.push(
+      ...laidOut.map((entry) => ({
+        ...entry,
+        laneCount
+      }))
+    );
+    group = [];
+    groupEnd = Number.NEGATIVE_INFINITY;
+  };
+
+  for (const entry of ordered) {
+    if (group.length > 0 && entry.start >= groupEnd) flushGroup();
+    group.push(entry);
+    groupEnd = Math.max(groupEnd, entry.end);
+  }
+  flushGroup();
+  return result;
 }
 
 // 以 UTC 正午為錨點做日期運算，避開時區與 DST（台北無 DST）。
@@ -96,16 +142,26 @@ function hourAxis() {
   return rows.join('');
 }
 
-function eventBlock(appointment, patientName) {
+function eventBlock(layout, patientName) {
+  const { appointment, lane, laneCount } = layout;
   const start = taipeiMinutes(appointment.startsAt);
   if (start < VIEW_START_MIN || start >= VIEW_END_MIN) return '';
   const top = (start - VIEW_START_MIN) * PX_PER_MIN;
-  const height = EVENT_MINUTES * PX_PER_MIN - 2;
+  const height = SLOT_DURATION_MINUTES * PX_PER_MIN - 3;
+  const width = 100 / laneCount;
+  const left = lane * width;
   const kindClass =
     appointment.bookingKind === 'follow_up' ? 'wv-follow-up' : 'wv-initial';
+  const kindIcon =
+    appointment.bookingKind === 'follow_up' ? '&#8635;' : '&#10010;';
   const statusClass = `wv-status-${escapeHtml(appointment.status)}`;
+  const collisionClass = laneCount > 1 ? ' wv-event-collision' : '';
   const time = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
-  return `<button type="button" class="wv-event ${kindClass} ${statusClass}" data-top="${top}" data-height="${height}" data-week-event="${escapeHtml(appointment.id)}"><strong>${escapeHtml(patientName)}</strong><span>${time} · ${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></button>`;
+  const kind = BOOKING_KIND_LABELS[appointment.bookingKind] ?? '';
+  const item = appointment.itemLabel ?? '';
+  const status = APPOINTMENT_STATUS_LABELS[appointment.status] ?? '';
+  const fullLabel = `${patientName}，${time}，${kind}，${item}，${status}`;
+  return `<button type="button" class="wv-event ${kindClass} ${statusClass}${collisionClass}" data-top="${top}" data-height="${height}" data-left="${left}" data-width="${width}" data-week-event="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(fullLabel)}" title="${escapeHtml(fullLabel)}"><span class="wv-event-icon" aria-hidden="true">${kindIcon}</span><span class="wv-event-copy"><strong>${escapeHtml(patientName)}</strong><span>${time} · ${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button>`;
 }
 
 /**
@@ -146,9 +202,12 @@ export function renderWeekView(state, weekStart, todayDate) {
         );
       const events = closed
         ? '<span class="wv-closed-label">休診</span>'
-        : shown
-            .filter((item) => taipeiDate(item.startsAt) === date)
-            .map((item) => eventBlock(item, patientName(item.patientId)))
+        : layoutCalendarEvents(
+            shown.filter((item) => taipeiDate(item.startsAt) === date)
+          )
+            .map((layout) =>
+              eventBlock(layout, patientName(layout.appointment.patientId))
+            )
             .join('');
       let nowLine = '';
       if (date === todayDate) {
@@ -172,4 +231,8 @@ export function hydrateWeekView(root) {
     element.style.height = `${element.dataset.height}px`;
   for (const element of root.querySelectorAll('[data-top]'))
     element.style.top = `${element.dataset.top}px`;
+  for (const element of root.querySelectorAll('[data-left]'))
+    element.style.left = `calc(${element.dataset.left}% + 3px)`;
+  for (const element of root.querySelectorAll('[data-width]'))
+    element.style.width = `calc(${element.dataset.width}% - 6px)`;
 }

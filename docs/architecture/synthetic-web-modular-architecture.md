@@ -22,6 +22,8 @@
 | `modules/state-schema.js` | 合成 state schema、預設值與 localStorage | 替換成 versioned API DTO，不讓 UI 直接碰 Firestore |
 | `store.js` | command/query dispatcher | 替換成 `api-client.js`，保留相同 command 語意 |
 | `modules/workspace-tabs.js` | 工作臺分頁切換（一次只顯示一個工作區） | 正式版若改多頁路由，只換這一個檔 |
+| `modules/taipei-time.js` | Asia/Taipei 的日期／分鐘／ISO 換算單一來源 | 改時區或時間格式只改這裡；避免各檔重寫同一組 formatter（data clump） |
+| `modules/week-view.js` | 預約週檢視（動態分軌、休診斜線、目前時間線）；CSSOM 定位 | 正式版可沿用或換框架元件 |
 | `modules/admin-view.js` | 純 HTML renderer | 可沿用或替換為框架元件 |
 | `admin-bootstrap.js` | 管理者 UI controller 與事件協調 | 呼叫正式 API client |
 | `patient-app.js` | 患者四步驟流程與逐欄驗證 | Web／Android／iOS 共用 API contract |

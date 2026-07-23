@@ -11,12 +11,22 @@ import {
   assignCaseManager,
   buildWorkload
 } from '../public/modules/case-management.js';
+import { PERMISSIONS } from '../public/modules/constants.js';
+import {
+  renderAppointments,
+  renderPendingFollowUps
+} from '../public/modules/admin-view.js';
+import {
+  calendarEventIdForAppointment,
+  calendarEventIdForFollowUp
+} from '../public/vendor/domain/index.js';
 import {
   followUpDueTimes,
   generateSlots,
   scheduleImpact
 } from '../public/modules/schedule-engine.js';
 import { initialState } from '../public/modules/state-schema.js';
+import { layoutCalendarEvents } from '../public/modules/week-view.js';
 import { createAccount } from '../public/modules/workspace-domain.js';
 
 const PATIENT_A = {
@@ -33,6 +43,56 @@ const PATIENT_B = {
   nationalId: 'B287654321',
   hasNhiCard: false
 };
+
+describe('週曆事件排版', () => {
+  const event = (id: string, startsAt: string) => ({ id, startsAt });
+
+  it('沒有時間重疊時每筆事件使用完整欄寬', () => {
+    const result = layoutCalendarEvents([
+      event('appointment_001', '2030-01-02T04:00:00.000Z'),
+      event('appointment_002', '2030-01-02T04:30:00.000Z')
+    ]);
+
+    expect(result.map(({ lane, laneCount }: any) => [lane, laneCount])).toEqual(
+      [
+        [0, 1],
+        [0, 1]
+      ]
+    );
+  });
+
+  it('初診與回診時間交疊時才分成兩條視覺軌道', () => {
+    const result = layoutCalendarEvents([
+      event('appointment_001', '2030-01-02T04:00:00.000Z'),
+      event('appointment_002', '2030-01-02T04:15:00.000Z')
+    ]);
+
+    expect(result.map(({ lane, laneCount }: any) => [lane, laneCount])).toEqual(
+      [
+        [0, 2],
+        [1, 2]
+      ]
+    );
+  });
+
+  it('連鎖重疊群組維持穩定欄數，群組結束後恢復整欄', () => {
+    const result = layoutCalendarEvents([
+      event('appointment_001', '2030-01-02T04:00:00.000Z'),
+      event('appointment_002', '2030-01-02T04:15:00.000Z'),
+      event('appointment_003', '2030-01-02T04:30:00.000Z'),
+      event('appointment_004', '2030-01-02T05:00:00.000Z')
+    ]);
+
+    expect(result.map(({ lane, laneCount }: any) => [lane, laneCount])).toEqual(
+      [
+        [0, 2],
+        [1, 2],
+        [0, 2],
+        [0, 1]
+      ]
+    );
+  });
+});
 
 const localClock = (slot: { startsAt: string }) =>
   new Intl.DateTimeFormat('en-GB', {
@@ -400,6 +460,54 @@ describe('櫃台處置', () => {
     expect(decision.dueTime).toBe('12:15');
   });
 
+  it('確認需要回診會產生回診的日曆投影（上日曆），改成不需要則移除', () => {
+    const state = initialState();
+    const appointment = book(state);
+    transitionAppointment(
+      state,
+      appointment.id,
+      'complete',
+      'front_desk_test_001'
+    );
+
+    recordFollowUp(
+      state,
+      appointment.id,
+      { status: 'required', dueDate: '2030-02-01', dueTime: '12:15', tags: [] },
+      'admin_test_001'
+    );
+    const followUpJobs = state.outboxJobs.filter(
+      (job: any) => job.appointmentStatus === 'follow_up_required'
+    );
+    expect(followUpJobs).toHaveLength(1);
+    // 回診提醒是與原就診分開的事件：鑰匙必須不同。
+    const visitKey = calendarEventIdForAppointment(appointment.id);
+    expect(followUpJobs[0].idempotencyKey).not.toBe(visitKey);
+    expect(followUpJobs[0].idempotencyKey).toBe(
+      calendarEventIdForFollowUp(appointment.id)
+    );
+    // 目標時間換算成 Asia/Taipei 12:15 = 04:15Z。
+    expect(followUpJobs[0].startsAt).toBe('2030-02-01T04:15:00.000Z');
+
+    // 待安排回診會顯示在櫃台處理清單。
+    const queued = renderPendingFollowUps(state);
+    expect(queued).toContain('待安排回診');
+    expect(queued).toContain(appointment.id);
+
+    // 改成「目前無需回診」後，那筆回診投影應被移除。
+    recordFollowUp(
+      state,
+      appointment.id,
+      { status: 'not_required', tags: [] },
+      'admin_test_001'
+    );
+    expect(
+      state.outboxJobs.filter(
+        (job: any) => job.appointmentStatus === 'follow_up_required'
+      )
+    ).toHaveLength(0);
+  });
+
   it('回診目標日期未營業或時間不在回診網格時拒絕', () => {
     const state = initialState();
     const appointment = book(state);
@@ -481,6 +589,99 @@ describe('預約清單排序', () => {
       Date.parse('2031-01-01T00:00:00Z')
     );
     expect(afterwards[0].slotId).toBe(slots[4].id);
+  });
+});
+
+describe('櫃台預約清單介面', () => {
+  const filters = {
+    status: 'active',
+    kind: 'all',
+    patientId: 'all',
+    query: ''
+  };
+
+  it('成立中的預約直接顯示高頻到診按鈕，更多選單不放停用項目', () => {
+    const state: any = initialState();
+    state.session = {
+      account: state.workspace.accounts[0],
+      permissions: [PERMISSIONS.MANAGE_FOLLOW_UP]
+    };
+    createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemId: 'service_snoring'
+      },
+      'front_desk_test_001'
+    );
+
+    const html = renderAppointments(state, filters);
+
+    expect(html).toContain('appointment-arrival-button');
+    expect(html).toContain('data-appointment-action="complete"');
+    expect(html).toContain('更多處置');
+    expect(html).not.toContain('disabled');
+  });
+
+  it('完成到診後只有具回診權限者看得到記錄回診捷徑', () => {
+    const state: any = initialState();
+    const appointment = createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemId: 'service_snoring'
+      },
+      'front_desk_test_001'
+    );
+    transitionAppointment(
+      state,
+      appointment.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    const completedFilters = { ...filters, status: 'all' };
+
+    state.session = {
+      account: state.workspace.accounts[1],
+      permissions: []
+    };
+    expect(renderAppointments(state, completedFilters)).not.toContain(
+      'data-appointment-action="follow_up_confirm"'
+    );
+
+    state.session = {
+      account: state.workspace.accounts[0],
+      permissions: [PERMISSIONS.MANAGE_FOLLOW_UP]
+    };
+    expect(renderAppointments(state, completedFilters)).toContain(
+      'data-appointment-action="follow_up_confirm"'
+    );
+  });
+
+  it('可用患者姓名與電話快速搜尋', () => {
+    const state: any = initialState();
+    state.session = {
+      account: state.workspace.accounts[0],
+      permissions: [PERMISSIONS.MANAGE_FOLLOW_UP]
+    };
+    createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemId: 'service_snoring'
+      },
+      'front_desk_test_001'
+    );
+
+    expect(
+      renderAppointments(state, { ...filters, query: '091234' })
+    ).toContain('測試患者甲');
+    expect(
+      renderAppointments(state, { ...filters, query: '不存在' })
+    ).toContain('沒有符合條件的預約');
   });
 });
 

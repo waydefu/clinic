@@ -14,7 +14,11 @@ import {
 } from './domain-rules.js';
 import { identityKey, upsertPatient } from './patient-registry.js';
 import { followUpDueTimes } from './schedule-engine.js';
-import { calendarEventIdForAppointment } from '../vendor/domain/index.js';
+import { taipeiIso } from './taipei-time.js';
+import {
+  calendarEventIdForAppointment,
+  calendarEventIdForFollowUp
+} from '../vendor/domain/index.js';
 
 const MAX_NOTE_LENGTH = 120;
 const MAX_CERTIFICATE_COPIES = 10;
@@ -361,6 +365,25 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   if (existing === undefined) state.followUps.push(next);
   else Object.assign(existing, next);
   appendAudit(state, 'follow_up_decided', appointmentId, actorId);
+
+  // 回診確認後「上日曆」：回診提醒是與原就診分開的另一個事件（見
+  // calendarEventIdForFollowUp）。每次記錄先移除同一來源的舊回診投影，
+  // 再依最新決定重建——需要回診就排一筆、改成不需要就不留。
+  state.outboxJobs = state.outboxJobs.filter(
+    (job) => job.followUpSourceId !== appointmentId
+  );
+  if (status === 'required') {
+    state.outboxJobs.push({
+      id: `outbox_followup_${appointmentId}_${Date.now()}`,
+      type: 'calendar_projection_requested',
+      appointmentId,
+      appointmentStatus: 'follow_up_required',
+      followUpSourceId: appointmentId,
+      startsAt: taipeiIso(dueDate, dueTime),
+      idempotencyKey: calendarEventIdForFollowUp(appointmentId),
+      status: 'pending'
+    });
+  }
   return next;
 }
 

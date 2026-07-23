@@ -151,6 +151,8 @@ const allowedControls = new Set([
   'appointment-status-filter',
   'appointment-kind-filter',
   'appointment-patient-filter',
+  // 2026-07-23：只在已載入的清單內篩選姓名、電話或預約編號，不新增保存欄位。
+  'appointment-search',
   'blocked-initial',
   'blocked-follow-up',
   'weekday-0',
@@ -220,6 +222,17 @@ requireText(
   files.patientHtml,
   '只會保存在我這台裝置的瀏覽器',
   'Patient form no longer states where the data is stored.'
+);
+const localOnlyLinks =
+  files.patientHtml.match(/\bdata-local-only-link\b/g)?.length ?? 0;
+if (localOnlyLinks !== 2)
+  failures.push(
+    'Patient header and footer must both mark their workbench links as local-only.'
+  );
+requireText(
+  files.patientClient,
+  "document.querySelectorAll('[data-local-only-link]')",
+  'Online patient preview no longer hides every internal workbench link.'
 );
 requireText(
   files.adminView,

@@ -5,6 +5,7 @@ import {
   renderAudit,
   renderCaseAssignments,
   renderFollowUps,
+  renderPendingFollowUps,
   renderOutbox,
   renderReleases,
   renderSchedule,
@@ -16,6 +17,7 @@ import {
 import { confirmDialog } from './modules/confirm-dialog.js';
 import { WORKBENCH_PROCEDURES } from './modules/constants.js';
 import { followUpDueTimes } from './modules/schedule-engine.js';
+import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
 import {
   hydrateWeekView,
   renderWeekView,
@@ -39,32 +41,60 @@ const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element])
 );
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
+const mobileViewport = window.matchMedia('(max-width: 48rem)');
+
+function syncResponsiveDisclosures() {
+  const topbarTools = document.querySelector('.topbar-tools');
+  if (topbarTools !== null) topbarTools.open = !mobileViewport.matches;
+  if (elements['week-calendar-disclosure'] !== undefined)
+    elements['week-calendar-disclosure'].open = !mobileViewport.matches;
+}
+
+syncResponsiveDisclosures();
+mobileViewport.addEventListener('change', syncResponsiveDisclosures);
+
+// 預約工作區依現場頻率排列：先看週排程，再處理預約與回診；建立新預約收進
+// 漸進揭露區塊。保留既有節點與事件綁定，只調整 DOM 順序。
+const appointmentsHeading = document.querySelector(
+  '#appointments-section > .section-heading'
+);
+const calendarDisclosure = elements['week-calendar-disclosure'];
+const weekLegend = document.querySelector('.week-view-legend');
+const appointmentListHeading = elements['appointment-list-heading'];
+const appointmentFilters = elements['appointment-filters'];
+const followUpWorkflow = elements['follow-up-workflow'];
+if (
+  appointmentsHeading !== null &&
+  calendarDisclosure !== undefined &&
+  appointmentListHeading !== undefined &&
+  appointmentFilters !== undefined &&
+  followUpWorkflow !== undefined
+) {
+  appointmentsHeading.after(
+    calendarDisclosure,
+    appointmentListHeading,
+    appointmentFilters,
+    elements.appointments,
+    followUpWorkflow
+  );
+  const collisionHelp = weekLegend?.lastElementChild;
+  if (collisionHelp !== null && collisionHelp !== undefined)
+    collisionHelp.textContent =
+      '沒有時間衝突時顯示整格；重疊時才並排。點事件查看完整預約。';
+}
 
 let state;
-let filters = { status: 'all', kind: 'all', patientId: 'all' };
+let filters = {
+  status: 'active',
+  kind: 'all',
+  patientId: 'all',
+  query: ''
+};
 let slotKind = 'initial';
 let selectedSlotId;
 // 週檢視目前顯示的週一（YYYY-MM-DD）。undefined 時於首次 render 對齊到
 // 最早一筆預約／時段所在的週，讓合成的 2030 資料一進來就有內容可看。
 let weekStart;
-
-function todayTaipei() {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Taipei'
-  }).format(new Date());
-}
-
-function taipeiDateOf(iso) {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Taipei'
-  }).format(new Date(iso));
-}
 
 function renderWeek() {
   if (weekStart === undefined) {
@@ -72,12 +102,12 @@ function renderWeek() {
       [...state.appointments, ...state.slots].sort((a, b) =>
         (a.startsAt ?? '').localeCompare(b.startsAt ?? '')
       )[0]?.startsAt ?? new Date().toISOString();
-    weekStart = weekStartOf(taipeiDateOf(earliest));
+    weekStart = weekStartOf(taipeiDate(earliest));
   }
   elements['week-view'].innerHTML = renderWeekView(
     state,
     weekStart,
-    todayTaipei()
+    taipeiTodayDate()
   );
   hydrateWeekView(elements['week-view']);
   const end = new Date(`${weekStart}T12:00:00Z`);
@@ -147,6 +177,9 @@ function renderSession() {
   document.querySelectorAll('[data-admin-only]').forEach((element) => {
     element.dataset.restricted = String(!admin);
   });
+  document.querySelectorAll('[data-admin-content]').forEach((element) => {
+    element.hidden = !admin;
+  });
   applyWorkspacePanel();
 }
 
@@ -155,7 +188,16 @@ function renderFilters() {
     `<option value="all">全部患者</option>${options(state.patients, filters.patientId, (item) => item.name)}`;
   elements['appointment-status-filter'].value = filters.status;
   elements['appointment-kind-filter'].value = filters.kind;
+  elements['appointment-search'].value = filters.query;
   elements['slot-kind-filter'].value = slotKind;
+}
+
+function renderAppointmentList() {
+  elements.appointments.innerHTML = renderAppointments(state, filters);
+  const count = elements.appointments.querySelectorAll(
+    '[data-appointment-card]'
+  ).length;
+  elements['appointment-result-summary'].textContent = `${count} 筆結果`;
 }
 
 function renderSummary() {
@@ -231,7 +273,7 @@ function render() {
   renderBookingForm();
   elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
   renderWeek();
-  elements.appointments.innerHTML = renderAppointments(state, filters);
+  renderAppointmentList();
   elements['published-schedule'].innerHTML = renderSchedule(
     state.schedule,
     false
@@ -249,6 +291,7 @@ function render() {
   elements['publish-schedule'].disabled = !state.scheduleMeta.draftDirty;
   elements['discard-schedule'].disabled = !state.scheduleMeta.draftDirty;
   elements['follow-up-list'].innerHTML = renderFollowUps(state);
+  elements['pending-follow-ups'].innerHTML = renderPendingFollowUps(state);
   elements['case-assignment-list'].innerHTML = renderCaseAssignments(state);
   elements.workload.innerHTML = renderWorkload(state);
   elements['account-list'].innerHTML = renderAccounts(state.workspace);
@@ -258,6 +301,9 @@ function render() {
     elements['audit-filter'].value
   );
   elements['outbox-jobs'].innerHTML = renderOutbox(state);
+  // 某些 render helper 會依資料狀態更新 hidden；最後重新套用工作區可見性，
+  // 確保首頁專用的主視覺／公告不會在建立預約等重新渲染後跑到其他工作區。
+  applyWorkspacePanel();
 }
 
 async function updateDraft(mutator, text, anchorId) {
@@ -294,11 +340,29 @@ elements['reset-state'].addEventListener('click', async () => {
   )
     return;
   state = await stagingRequest('/reset', { method: 'POST', body: '{}' });
-  filters = { status: 'all', kind: 'all', patientId: 'all' };
+  filters = {
+    status: 'active',
+    kind: 'all',
+    patientId: 'all',
+    query: ''
+  };
   selectedSlotId = undefined;
   render();
   message('本機資料已清除。', 'success');
 });
+
+for (const shortcut of document.querySelectorAll('[data-booking-shortcut]')) {
+  shortcut.addEventListener('click', () => {
+    elements['booking-workflow'].open = true;
+    window.setTimeout(() => {
+      elements['booking-workflow'].scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+      elements['booking-workflow'].querySelector('summary')?.focus();
+    }, 0);
+  });
+}
 
 elements['slot-kind-filter'].addEventListener('change', () => {
   slotKind = elements['slot-kind-filter'].value;
@@ -325,7 +389,7 @@ function shiftWeek(days) {
 elements['week-prev'].addEventListener('click', () => shiftWeek(-7));
 elements['week-next'].addEventListener('click', () => shiftWeek(7));
 elements['week-today'].addEventListener('click', () => {
-  weekStart = weekStartOf(todayTaipei());
+  weekStart = weekStartOf(taipeiTodayDate());
   renderWeek();
 });
 
@@ -333,9 +397,22 @@ elements['week-today'].addEventListener('click', () => {
 elements['week-view'].addEventListener('click', (event) => {
   const button = event.target.closest('[data-week-event]');
   if (button === null) return;
-  const card = document.querySelector(
+  let card = document.querySelector(
     `[data-appointment-card="${button.dataset.weekEvent}"]`
   );
+  if (card === null) {
+    filters = {
+      status: 'all',
+      kind: 'all',
+      patientId: 'all',
+      query: ''
+    };
+    renderFilters();
+    renderAppointmentList();
+    card = document.querySelector(
+      `[data-appointment-card="${button.dataset.weekEvent}"]`
+    );
+  }
   if (card === null) return;
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   card.classList.add('is-flash');
@@ -344,15 +421,30 @@ elements['week-view'].addEventListener('click', (event) => {
 
 elements['appointment-status-filter'].addEventListener('change', () => {
   filters.status = elements['appointment-status-filter'].value;
-  elements.appointments.innerHTML = renderAppointments(state, filters);
+  renderAppointmentList();
 });
 elements['appointment-kind-filter'].addEventListener('change', () => {
   filters.kind = elements['appointment-kind-filter'].value;
-  elements.appointments.innerHTML = renderAppointments(state, filters);
+  renderAppointmentList();
 });
 elements['appointment-patient-filter'].addEventListener('change', () => {
   filters.patientId = elements['appointment-patient-filter'].value;
-  elements.appointments.innerHTML = renderAppointments(state, filters);
+  renderAppointmentList();
+});
+elements['appointment-search'].addEventListener('input', () => {
+  filters.query = elements['appointment-search'].value;
+  renderAppointmentList();
+});
+elements['appointment-filter-reset'].addEventListener('click', () => {
+  filters = {
+    status: 'active',
+    kind: 'all',
+    patientId: 'all',
+    query: ''
+  };
+  renderFilters();
+  renderAppointmentList();
+  elements['appointment-search'].focus();
 });
 
 elements.slots.addEventListener('click', (event) => {
@@ -403,13 +495,18 @@ elements['booking-form'].addEventListener('submit', async (event) => {
     selectedSlotId = undefined;
     elements['booking-form'].reset();
     render();
-    message(
+    const successMessage =
       created === undefined
-        ? '預約已建立，可於下方「預約清單」查看。'
-        : `預約已建立：${created.id} · ${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`,
-      'success',
-      'booking-form-status'
-    );
+        ? '預約已建立，可於「櫃台處理清單」查看。'
+        : `預約已建立：${created.id} · ${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`;
+    elements['booking-workflow'].open = false;
+    message(successMessage, 'success');
+    if (created !== undefined)
+      window.setTimeout(() => {
+        document
+          .querySelector(`[data-appointment-card="${created.id}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 0);
   } catch (error) {
     message(`未建立預約：${error.message}`, 'error', 'booking-form-status');
   }
@@ -440,14 +537,14 @@ elements.appointments.addEventListener('click', async (event) => {
   const questions = {
     cancel: '確認取消此預約並釋放時段？',
     no_show: '確認將此預約標記為未到？時段會釋放。',
-    complete: '確認此患者已完成到診？'
+    complete: '確認患者已到診並完成本次看診？完成後，管理者可接續記錄回診決定。'
   };
   const confirmed = await confirmDialog(questions[action], {
     danger: action !== 'complete',
     confirmLabel: {
       cancel: '取消預約',
       no_show: '標記未到',
-      complete: '完成到診'
+      complete: '確認到診'
     }[action]
   });
   if (!confirmed) return;
@@ -460,6 +557,12 @@ elements.appointments.addEventListener('click', async (event) => {
       complete: '到診已記錄，請接續處理回診與個管指派。'
     };
     message(done[action], 'success');
+    if (action === 'complete' && !elements['follow-up-workflow'].hidden) {
+      const followUpForm = document.querySelector(
+        `[data-follow-up-form="${id}"]`
+      );
+      followUpForm?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   } catch (error) {
     message(error.message, 'error');
   }

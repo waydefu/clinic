@@ -129,7 +129,7 @@ body {
     radial-gradient(circle at 94% -10%, var(--canvas-glow), transparent 30rem),
     linear-gradient(180deg, var(--canvas-top) 0, var(--canvas) 34rem);
   margin: 0;
-  min-width: 20rem;
+  min-width: 0;
 }
 button,
 a {
@@ -833,6 +833,9 @@ textarea {
 .booking-panel-heading {
   margin-bottom: 1.3rem;
 }
+.booking-panel-heading-spaced {
+  margin-top: 1.5rem;
+}
 .booking-panel-heading h2 {
   color: var(--forest-dark);
   font-size: var(--text-lg);
@@ -1368,6 +1371,9 @@ textarea {
     flex-wrap: wrap;
     padding-inline: 1rem;
   }
+  .patient-header {
+    position: static;
+  }
   .patient-nav {
     order: 3;
     overflow-x: auto;
@@ -1379,15 +1385,27 @@ textarea {
   #patient-main {
     padding: 1rem 1rem 3rem;
   }
+  .status-message {
+    position: static;
+  }
   .patient-hero {
     border-radius: 1.1rem;
     padding: 1.4rem;
   }
-  .booking-stepper strong {
-    display: none;
-  }
   .booking-stepper li {
+    flex-direction: column;
+    gap: 0.3rem;
     justify-content: center;
+    padding-inline: 0.2rem;
+    text-align: center;
+  }
+  .booking-stepper strong {
+    display: block;
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+  .booking-panel {
+    scroll-margin-top: 1rem;
   }
   .service-choice-grid,
   .booking-confirmation-grid,

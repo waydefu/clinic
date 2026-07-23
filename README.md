@@ -28,6 +28,23 @@ real patient data operationally.
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
 and what is blocked.
 
+## Latest synthetic-UI refinement — 2026-07-23
+
+The operations workbench now keeps the large green introduction on the home
+panel only and presents its daily shortcuts, appointment-note control and
+action menu as clear, touch-sized buttons with status icons. The appointment
+workspace keeps the week view at the top on desktop, then puts the front-desk
+queue before the progressively disclosed booking form. On mobile, settings and
+the week view start collapsed so the queue is immediately reachable. The
+high-frequency arrival action is a direct primary button; search covers patient
+name, phone and appointment ID, while only enabled secondary actions remain in
+“更多處置”. Successful booking returns the operator to the new queue card.
+Calendar events use the full day-column width when they do not overlap, and
+split into stable lanes only during a real time collision. Both pages reflow at
+320 CSS px without whole-page horizontal scrolling. This is a static,
+browser-local synthetic-UI refinement only: it does not change booking rules,
+authorization, Firestore access or Calendar integration.
+
 ## Start here
 
 1. Read [AGENTS.md](AGENTS.md) for mandatory guardrails and task routing.

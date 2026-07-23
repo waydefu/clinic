@@ -167,9 +167,20 @@ export function isCalendarEventId(value: unknown): boolean {
  * 併發也安全：worker 讀的是執行當下的預約狀態，兩筆工作不論誰先跑，寫出來
  * 的都是同一個正確結果。
  *
- * 若日後需要「一筆預約對應多個日曆事件」（例如回診提醒另開一則），請新增
- * 另一個具名函式（如 `calendarEventIdForReminder`），不要把狀態塞回這裡。
+ * 若需要「一筆預約對應多個日曆事件」，請新增另一個具名函式（如下方的回診
+ * 提醒），不要把狀態塞回這裡。
  */
 export function calendarEventIdForAppointment(appointmentId: string): string {
   return toCalendarEventId(`calendar_${appointmentId}`);
+}
+
+/**
+ * 回診提醒的 event ID：與**來源就診**同一筆預約，但**另開一個事件**。
+ *
+ * 回診是「未來要再來一次」的暫定安排，落在回診目標日期／時間，與已完成的原
+ * 就診是兩件事，因此鑰匙不同（`calendar_followup_{來源預約id}`）。這正是
+ * `calendarEventIdForAppointment` 註解預留的「一筆預約對應多個事件」情境。
+ */
+export function calendarEventIdForFollowUp(appointmentId: string): string {
+  return toCalendarEventId(`calendar_followup_${appointmentId}`);
 }

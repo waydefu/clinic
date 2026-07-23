@@ -509,6 +509,8 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
 if (isOnline) {
   document.querySelector('.environment-badge').lastChild.textContent =
     'ONLINE PREVIEW';
+  for (const link of document.querySelectorAll('[data-local-only-link]'))
+    link.setAttribute('hidden', '');
   elements['patient-env-boundary'].textContent =
     '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
 }
