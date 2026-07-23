@@ -1,4 +1,7 @@
-import { isCalendarEventId } from '@beauessence/domain';
+import {
+  isCalendarEventId,
+  type OutboxTraceContext
+} from '@beauessence/domain';
 
 /**
  * 外部日曆的邊界。
@@ -45,7 +48,7 @@ export function clinicEventEnd(startsAt: string): string {
   ).toISOString();
 }
 
-export interface CalendarProjectionRequest {
+export interface CalendarProjectionRequest extends OutboxTraceContext {
   /**
    * 固定的冪等鍵，直接作為 Google Calendar 的 event ID：同一鍵重送不得產生
    * 第二個事件。格式受限（base32hex），一律由

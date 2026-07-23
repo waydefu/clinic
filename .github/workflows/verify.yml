@@ -60,3 +60,33 @@ jobs:
       # 這個工作只使用本機 Emulator 與拋棄式的假 project ID，
       # 不會接觸任何雲端 Firebase 專案，也不需要任何憑證。
       - run: pnpm test:rules
+
+  supply-chain:
+    name: Tracked secrets、dependency audit 與 inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Stage 0 skeleton: high/critical advisories fail. Moderate advisories
+      # remain visible and require an owner before production policy is final.
+      - run: pnpm check:supply-chain
+
+      # This inventory is evidence for review, not yet a standards-compliant
+      # SBOM. The final SBOM/SAST/signing policy remains gated by D-010.
+      - run: pnpm list --recursive --depth Infinity --json > dependency-inventory.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-inventory
+          path: dependency-inventory.json
+          if-no-files-found: error

@@ -98,6 +98,8 @@ describe('planBooking', () => {
     });
     expect(plan.outboxJob).toMatchObject({
       type: 'calendar_projection_requested',
+      correlationId: 'corr_booking_001',
+      causationId: 'audit_appointment_001_confirmed',
       status: 'pending',
       attempts: 0
     });

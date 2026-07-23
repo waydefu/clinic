@@ -4,6 +4,20 @@ export const MAX_ATTEMPTS = 6;
 /** 指數退避的基數與上限，避免外部服務故障時把它打得更慘。 */
 export const BASE_BACKOFF_SECONDS = 30;
 export const MAX_BACKOFF_SECONDS = 3600;
+function assertOpaqueTraceId(value, fieldName, maxLength) {
+    if (typeof value !== 'string' ||
+        value.length < 1 ||
+        value.length > maxLength ||
+        !/^[A-Za-z0-9_-]+$/.test(value)) {
+        throw new DomainError('INVALID_VALUE', `${fieldName} must be an opaque identifier.`);
+    }
+}
+/** Runtime guard for persisted jobs before an external adapter is invoked. */
+export function assertOutboxTraceContext(context) {
+    assertOpaqueTraceId(context.correlationId, 'outbox.correlationId', 128);
+    // Causation names the Audit v2 event, whose executable contract allows 512.
+    assertOpaqueTraceId(context.causationId, 'outbox.causationId', 512);
+}
 export function backoffSeconds(attempts) {
     if (attempts < 1)
         throw new DomainError('INVALID_VALUE', 'attempts must be >= 1.');

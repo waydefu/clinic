@@ -16,6 +16,12 @@ import {
   OUTBOX_COLLECTION,
   OutboxProcessor
 } from '../../apps/worker/src/outbox-processor.js';
+import type {
+  CalendarAttemptMetric,
+  WorkerBatchMetric,
+  WorkerMetricsPort,
+  WorkerQueueSnapshotMetric
+} from '../../apps/worker/src/worker-observability.js';
 
 const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
 const projectId = 'beauessence-appointment-local';
@@ -24,6 +30,7 @@ let app: App;
 let db: Firestore;
 let calendar: InMemoryCalendar;
 let processor: OutboxProcessor;
+let metrics: RecordingMetrics;
 
 const NOW = '2026-07-21T09:00:00.000Z';
 const later = (seconds: number) =>
@@ -41,6 +48,24 @@ async function wipe(): Promise<void> {
 const CONFIRMED_KEY = calendarEventIdForAppointment('appointment_001');
 const FOLLOW_UP_KEY = calendarEventIdForFollowUp('appointment_001');
 
+class RecordingMetrics implements WorkerMetricsPort {
+  public readonly attempts: CalendarAttemptMetric[] = [];
+  public readonly batches: WorkerBatchMetric[] = [];
+  public readonly queueSnapshots: WorkerQueueSnapshotMetric[] = [];
+
+  public recordCalendarAttempt(metric: CalendarAttemptMetric): void {
+    this.attempts.push(metric);
+  }
+
+  public recordBatch(metric: WorkerBatchMetric): void {
+    this.batches.push(metric);
+  }
+
+  public recordQueueSnapshot(metric: WorkerQueueSnapshotMetric): void {
+    this.queueSnapshots.push(metric);
+  }
+}
+
 async function seedJob(id = 'outbox_001'): Promise<void> {
   await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
     status: 'confirmed',
@@ -54,6 +79,8 @@ async function seedJob(id = 'outbox_001'): Promise<void> {
   });
   await db.collection(OUTBOX_COLLECTION).doc(id).set({
     appointmentId: 'appointment_001',
+    correlationId: 'corr_outbox_001',
+    causationId: 'audit_appointment_001_confirmed',
     idempotencyKey: CONFIRMED_KEY,
     type: 'calendar_projection_requested',
     status: 'pending',
@@ -80,7 +107,8 @@ afterAll(async () => {
 beforeEach(async () => {
   await wipe();
   calendar = new InMemoryCalendar();
-  processor = new OutboxProcessor(db, calendar);
+  metrics = new RecordingMetrics();
+  processor = new OutboxProcessor(db, calendar, metrics);
 });
 
 describe('outbox worker', () => {
@@ -91,6 +119,27 @@ describe('outbox worker', () => {
     expect(summary).toMatchObject({ claimed: 1, completed: 1 });
     expect(calendar.events.size).toBe(1);
     expect((await jobState())?.['status']).toBe('completed');
+    expect([...calendar.events.values()][0]).toMatchObject({
+      correlationId: 'corr_outbox_001',
+      causationId: 'audit_appointment_001_confirmed'
+    });
+    expect(metrics.attempts).toEqual([
+      expect.objectContaining({
+        destination: 'calendar',
+        action: 'upsert',
+        result: 'completed',
+        retryable: null,
+        attempt: 1
+      })
+    ]);
+    expect(metrics.batches).toEqual([
+      expect.objectContaining({
+        claimed: 1,
+        completed: 1,
+        retried: 0,
+        deadLettered: 0
+      })
+    ]);
   });
 
   // 診所端的事件是一小時的看診區塊，與患者端「只標記開始時間」不同。
@@ -167,6 +216,8 @@ describe('outbox worker', () => {
         .doc(`outbox_${projectionStatus}`)
         .set({
           appointmentId: 'appointment_001',
+          correlationId: 'corr_follow_up_001',
+          causationId: `audit_${projectionStatus}`,
           appointmentStatus: projectionStatus,
           followUpSourceId: 'appointment_001',
           idempotencyKey: FOLLOW_UP_KEY,
@@ -183,6 +234,8 @@ describe('outbox worker', () => {
           .doc('outbox_restore_follow_up')
           .set({
             appointmentId: 'appointment_001',
+            correlationId: 'corr_follow_up_001',
+            causationId: 'audit_follow_up_required',
             appointmentStatus: 'follow_up_required',
             followUpSourceId: 'appointment_001',
             startsAt: '2030-02-01T04:15:00.000Z',
@@ -249,7 +302,7 @@ describe('outbox worker', () => {
     for (const status of ['cancelled', 'no_show']) {
       await wipe();
       calendar = new InMemoryCalendar();
-      processor = new OutboxProcessor(db, calendar);
+      processor = new OutboxProcessor(db, calendar, metrics);
 
       await seedJob();
       await processor.processDue(NOW);
@@ -260,13 +313,18 @@ describe('outbox worker', () => {
         .doc('appointment_001')
         .update({ status });
       // 這才是實際流程：狀態轉換排入一筆新工作，鍵仍是同一個事件。
-      await db.collection(OUTBOX_COLLECTION).doc(`outbox_002_${status}`).set({
-        appointmentId: 'appointment_001',
-        idempotencyKey: CONFIRMED_KEY,
-        type: 'calendar_projection_requested',
-        status: 'pending',
-        attempts: 0
-      });
+      await db
+        .collection(OUTBOX_COLLECTION)
+        .doc(`outbox_002_${status}`)
+        .set({
+          appointmentId: 'appointment_001',
+          correlationId: 'corr_outbox_001',
+          causationId: `audit_appointment_001_${status}`,
+          idempotencyKey: CONFIRMED_KEY,
+          type: 'calendar_projection_requested',
+          status: 'pending',
+          attempts: 0
+        });
       const summary = await processor.processDue(later(1));
 
       expect(summary).toMatchObject({ completed: 1 });
@@ -287,13 +345,18 @@ describe('outbox worker', () => {
         .collection(APPOINTMENTS_COLLECTION)
         .doc('appointment_001')
         .update({ status });
-      await db.collection(OUTBOX_COLLECTION).doc(jobId).set({
-        appointmentId: 'appointment_001',
-        idempotencyKey: CONFIRMED_KEY,
-        type: 'calendar_projection_requested',
-        status: 'pending',
-        attempts: 0
-      });
+      await db
+        .collection(OUTBOX_COLLECTION)
+        .doc(jobId)
+        .set({
+          appointmentId: 'appointment_001',
+          correlationId: 'corr_outbox_001',
+          causationId: `audit_${jobId}`,
+          idempotencyKey: CONFIRMED_KEY,
+          type: 'calendar_projection_requested',
+          status: 'pending',
+          attempts: 0
+        });
       await processor.processDue(later(clock));
       clock += 1;
     };
@@ -349,6 +412,11 @@ describe('outbox worker', () => {
 
     const summary = await processor.processDue(NOW);
     expect(summary).toMatchObject({ claimed: 1, retried: 1, completed: 0 });
+    expect(metrics.attempts[0]).toMatchObject({
+      result: 'retried',
+      retryable: true,
+      attempt: 1
+    });
 
     const state = await jobState();
     expect(state?.['status']).toBe('pending');
@@ -401,6 +469,65 @@ describe('outbox worker', () => {
     const state = await jobState();
     expect(state?.['attempts']).toBe(1);
     expect(state?.['status']).toBe('dead_letter');
+    expect(metrics.attempts[0]).toMatchObject({
+      result: 'dead_lettered',
+      retryable: false
+    });
+  });
+
+  it('dead-letters a job without valid trace context before external I/O', async () => {
+    await seedJob();
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_001')
+      .update({ correlationId: '' });
+
+    const summary = await processor.processDue(NOW);
+
+    expect(summary).toMatchObject({ claimed: 1, deadLettered: 1 });
+    expect(calendar.callCount).toBe(0);
+    expect((await jobState())?.['lastError']).toMatch(/correlationId/);
+    expect(metrics.attempts[0]).toMatchObject({
+      result: 'dead_lettered',
+      retryable: false
+    });
+  });
+
+  it('does not put identifiers or patient data into metric labels', async () => {
+    await seedJob();
+    await processor.processDue(NOW);
+
+    const recorded = JSON.stringify(metrics);
+    for (const forbidden of [
+      'appointment_001',
+      'patient_001',
+      'corr_outbox_001',
+      'audit_appointment_001_confirmed',
+      '王測試',
+      'A123456789'
+    ])
+      expect(recorded).not.toContain(forbidden);
+  });
+
+  it('keeps delivery successful when the metrics adapter throws', async () => {
+    await seedJob();
+    const throwingMetrics: WorkerMetricsPort = {
+      recordCalendarAttempt: () => {
+        throw new Error('metrics unavailable');
+      },
+      recordBatch: () => {
+        throw new Error('metrics unavailable');
+      },
+      recordQueueSnapshot: () => {
+        throw new Error('metrics unavailable');
+      }
+    };
+
+    const isolated = new OutboxProcessor(db, calendar, throwingMetrics);
+    await expect(isolated.processDue(NOW)).resolves.toMatchObject({
+      completed: 1
+    });
+    expect((await jobState())?.['status']).toBe('completed');
   });
 
   it('creates exactly one calendar event no matter how often it retries', async () => {

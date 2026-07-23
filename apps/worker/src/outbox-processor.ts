@@ -1,10 +1,13 @@
 import {
+  assertOutboxTraceContext,
   isDue,
   planOutboxAttempt,
+  DomainError,
   type AttemptOutcome,
   type OutboxJob
 } from '@beauessence/domain';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
+import { performance } from 'node:perf_hooks';
 
 import {
   CalendarError,
@@ -13,6 +16,10 @@ import {
   type CalendarAction,
   type CalendarPort
 } from './calendar-port.js';
+import {
+  NOOP_WORKER_METRICS,
+  type WorkerMetricsPort
+} from './worker-observability.js';
 
 export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
@@ -60,8 +67,22 @@ export interface ProcessSummary {
 export class OutboxProcessor {
   public constructor(
     private readonly db: Firestore,
-    private readonly calendar: CalendarPort
+    private readonly calendar: CalendarPort,
+    private readonly metrics: WorkerMetricsPort = NOOP_WORKER_METRICS
   ) {}
+
+  /**
+   * Observability must never change job delivery semantics. A metrics backend
+   * outage is handled by that adapter/platform, not by replaying an external
+   * Calendar effect.
+   */
+  private recordMetric(record: () => void): void {
+    try {
+      record();
+    } catch {
+      // Intentionally isolated from the outbox state machine.
+    }
+  }
 
   /** 以交易領取一筆到期工作並加上租約，回傳 undefined 表示沒有可做的事。 */
   private async claim(now: string): Promise<OutboxJob | undefined> {
@@ -145,6 +166,7 @@ export class OutboxProcessor {
     now = new Date().toISOString(),
     maxJobs = 50
   ): Promise<ProcessSummary> {
+    const batchStartedAt = performance.now();
     let claimed = 0;
     let completed = 0;
     let retried = 0;
@@ -173,14 +195,19 @@ export class OutboxProcessor {
       // 一般預約投影沒有 job.startsAt，退回讀來源預約的時間。
       const startsAt =
         job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '';
+      const action = actionForStatus(projectionStatus);
+      const attemptStartedAt = performance.now();
       let outcome: AttemptOutcome;
       try {
+        assertOutboxTraceContext(job);
         // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
         // 手術種類與備註一律不得離開本系統（ADR-0002）。
         await this.calendar.project({
           idempotencyKey: job.idempotencyKey,
-          action: actionForStatus(projectionStatus),
+          action,
           appointmentId: job.appointmentId,
+          correlationId: job.correlationId,
+          causationId: job.causationId,
           appointmentStatus: projectionStatus,
           startsAt,
           endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
@@ -194,17 +221,42 @@ export class OutboxProcessor {
         outcome = {
           kind: 'failed',
           reason: error instanceof Error ? error.message : 'Unknown failure.',
-          retryable: error instanceof CalendarError ? error.retryable : true
+          retryable:
+            error instanceof CalendarError
+              ? error.retryable
+              : !(error instanceof DomainError)
         };
       }
 
       const result = await this.settle(job, outcome, now);
+      this.recordMetric(() =>
+        this.metrics.recordCalendarAttempt({
+          destination: 'calendar',
+          action,
+          result:
+            result === 'deadLettered'
+              ? 'dead_lettered'
+              : result === 'retried'
+                ? 'retried'
+                : 'completed',
+          retryable: outcome.kind === 'failed' ? outcome.retryable : null,
+          attempt: job.attempts + 1,
+          latencyMs: Math.max(0, performance.now() - attemptStartedAt)
+        })
+      );
       if (result === 'completed') completed += 1;
       else if (result === 'retried') retried += 1;
       else deadLettered += 1;
     }
 
-    return { claimed, completed, retried, deadLettered };
+    const summary = { claimed, completed, retried, deadLettered };
+    this.recordMetric(() =>
+      this.metrics.recordBatch({
+        ...summary,
+        durationMs: Math.max(0, performance.now() - batchStartedAt)
+      })
+    );
+    return summary;
   }
 
   /** 後台的待處理清單：需要人工補救的死信。 */

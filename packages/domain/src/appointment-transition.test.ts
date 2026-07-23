@@ -104,6 +104,10 @@ describe('planTransition', () => {
         policyVersion: null,
         schemaVersion: 2
       });
+      expect(plan.outboxJob).toMatchObject({
+        correlationId: audit.correlationId,
+        causationId: plan.auditEvent.eventId
+      });
     }
   });
 
@@ -248,6 +252,10 @@ describe('planReschedule', () => {
     expect(plan.reserveSlotId).toBe(target.id);
     expect(plan.startsAt).toBe(target.startsAt);
     expect(plan.nextStatus).toBe('confirmed');
+    expect(plan.outboxJob).toMatchObject({
+      correlationId: audit.correlationId,
+      causationId: plan.auditEvent.eventId
+    });
     expect(plan.patientBookingGuard).toEqual({
       action: 'retain',
       guard: {

@@ -222,6 +222,19 @@ trigger/scheduler、queue SLO、trace、alert 與正式 service identity。retry
 - 每個 job 傳遞 correlation/causation ID；
 - dead-letter alert 與 runbook drill 成為 release gate。
 
+**Stage 0 實作狀態（2026-07-23）：ports 與 contract 已完成**
+
+- booking/transition/reschedule 建立 outbox 時沿用 server correlation ID，並以
+  同交易的 audit event ID 作 causation ID；
+- worker 在外部 I/O 前驗證 trace context；缺漏或非 opaque 值直接進死信，不會
+  呼叫 Calendar；
+- Calendar port 接收 trace context，但 Google event payload 不包含 trace ID；
+- `WorkerMetricsPort` 固定 Calendar attempt、batch、queue snapshot shape；metric
+  labels 不含 appointment/patient/trace ID，adapter 故障不改變 delivery；
+- full-jitter design 固定為 `uniform(0, min(cap, base × 2^(attempt-1)))`。目前純
+  domain 仍採 deterministic backoff；random source、runner、metrics backend、
+  queue aggregation、alerts 與 service identity 等 D-010/Stage 3 核准後接線。
+
 ### ARCH-08：production infrastructure 尚未形成 executable architecture
 
 **現況**

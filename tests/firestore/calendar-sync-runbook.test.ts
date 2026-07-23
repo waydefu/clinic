@@ -62,6 +62,8 @@ async function seed(): Promise<void> {
   });
   await db.collection(OUTBOX_COLLECTION).doc('outbox_001').set({
     appointmentId: 'appointment_001',
+    correlationId: 'corr_runbook_001',
+    causationId: 'audit_appointment_001_confirmed',
     idempotencyKey: KEY,
     type: 'calendar_projection_requested',
     status: 'pending',

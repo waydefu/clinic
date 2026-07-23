@@ -61,6 +61,8 @@ export interface PlannedOutboxEntry {
   readonly id: string;
   readonly type: 'calendar_projection_requested';
   readonly appointmentId: string;
+  readonly correlationId: string;
+  readonly causationId: string;
   readonly appointmentStatus: AppointmentStatusValue;
   readonly idempotencyKey: string;
   readonly status: 'pending';
@@ -130,12 +132,16 @@ function assertUtcTimestamp(value: string, fieldName: string): void {
 function outboxFor(
   appointmentId: string,
   status: AppointmentStatusValue,
-  at: string
+  at: string,
+  correlationId: string,
+  causationId: string
 ): PlannedOutboxEntry {
   return {
     id: `outbox_${appointmentId}_${status}`,
     type: 'calendar_projection_requested',
     appointmentId,
+    correlationId,
+    causationId,
     appointmentStatus: status,
     // 一筆預約一個日曆事件：每次狀態變化都是更新或刪除同一個事件，而不是
     // 再開一格。鍵的組成與編碼集中在 calendar-event-id.ts。
@@ -180,6 +186,21 @@ export function planTransition(
   // 已經發生的事實，兩者都不釋出時段。
   const releasesSlot =
     request.transition === 'cancel' || request.transition === 'no_show';
+  const auditEvent = planAuditEvent({
+    eventId: `audit_${appointment.id}_${nextStatus}`,
+    occurredAt: request.requestedAt,
+    action: AUDIT_ACTIONS[request.transition],
+    resourceId: appointment.id,
+    before: {
+      status: appointment.status,
+      slotId: appointment.slotId
+    },
+    after: {
+      status: nextStatus,
+      slotId: appointment.slotId
+    },
+    context: request.audit
+  });
 
   return {
     appointmentId: appointment.id,
@@ -203,22 +224,14 @@ export function planTransition(
             action: 'release',
             activeAppointmentId: appointment.id
           },
-    auditEvent: planAuditEvent({
-      eventId: `audit_${appointment.id}_${nextStatus}`,
-      occurredAt: request.requestedAt,
-      action: AUDIT_ACTIONS[request.transition],
-      resourceId: appointment.id,
-      before: {
-        status: appointment.status,
-        slotId: appointment.slotId
-      },
-      after: {
-        status: nextStatus,
-        slotId: appointment.slotId
-      },
-      context: request.audit
-    }),
-    outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt),
+    auditEvent,
+    outboxJob: outboxFor(
+      appointment.id,
+      nextStatus,
+      request.requestedAt,
+      request.audit.correlationId,
+      auditEvent.eventId
+    ),
     idempotencyRecord: planIdempotencyRecord(
       request.idempotency,
       appointment.id,
@@ -250,6 +263,21 @@ export function planReschedule(
     appointment.bookingKind
   );
   assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
+  const auditEvent = planAuditEvent({
+    eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
+    occurredAt: request.requestedAt,
+    action: 'appointment_rescheduled',
+    resourceId: appointment.id,
+    before: {
+      status: appointment.status,
+      slotId: appointment.slotId
+    },
+    after: {
+      status: 'confirmed',
+      slotId: targetSlot.id
+    },
+    context: request.audit
+  });
 
   return {
     appointmentId: appointment.id,
@@ -266,23 +294,15 @@ export function planReschedule(
         updatedAt: request.requestedAt
       }
     },
-    auditEvent: planAuditEvent({
-      eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
-      occurredAt: request.requestedAt,
-      action: 'appointment_rescheduled',
-      resourceId: appointment.id,
-      before: {
-        status: appointment.status,
-        slotId: appointment.slotId
-      },
-      after: {
-        status: 'confirmed',
-        slotId: targetSlot.id
-      },
-      context: request.audit
-    }),
+    auditEvent,
     outboxJob: {
-      ...outboxFor(appointment.id, 'confirmed', request.requestedAt),
+      ...outboxFor(
+        appointment.id,
+        'confirmed',
+        request.requestedAt,
+        request.audit.correlationId,
+        auditEvent.eventId
+      ),
       // 工作本身要能與原本的成立工作區分（否則會被視為同一筆而覆蓋），但
       // 日曆事件仍是同一個——改期是把事件搬到新時間，不是再開一格。
       id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`

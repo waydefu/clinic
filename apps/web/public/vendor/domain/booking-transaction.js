@@ -50,6 +50,18 @@ export function planBooking(request, slot, patientBookingGuard) {
         createdAt: request.requestedAt,
         updatedAt: request.requestedAt
     };
+    const auditEvent = planAuditEvent({
+        eventId: `audit_${request.appointmentId}_confirmed`,
+        occurredAt: request.requestedAt,
+        action: 'appointment_confirmed',
+        resourceId: request.appointmentId,
+        before: null,
+        after: {
+            status: 'confirmed',
+            slotId: slot.id
+        },
+        context: request.audit
+    });
     return {
         appointment,
         slotReservation: {
@@ -61,24 +73,15 @@ export function planBooking(request, slot, patientBookingGuard) {
             status: 'confirmed',
             updatedAt: request.requestedAt
         },
-        auditEvent: planAuditEvent({
-            eventId: `audit_${request.appointmentId}_confirmed`,
-            occurredAt: request.requestedAt,
-            action: 'appointment_confirmed',
-            resourceId: request.appointmentId,
-            before: null,
-            after: {
-                status: 'confirmed',
-                slotId: slot.id
-            },
-            context: request.audit
-        }),
+        auditEvent,
         // The Calendar projection is only ever an intent recorded in the same
         // transaction. The worker performs the external effect afterwards.
         outboxJob: {
             id: `outbox_${request.appointmentId}_confirmed`,
             type: 'calendar_projection_requested',
             appointmentId: request.appointmentId,
+            correlationId: request.audit.correlationId,
+            causationId: auditEvent.eventId,
             appointmentStatus: 'confirmed',
             // Calendar event ID 有嚴格字元限制，鍵一律由 calendar-event-id.ts 產生。
             // 一筆預約一個事件：後續的改期、到診、取消都指向同一個 ID。

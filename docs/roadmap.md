@@ -27,7 +27,11 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 5. Idempotency scope/request hash。✅ 2026-07-23 完成；以 actor＋operation
    scope＋raw key 的 SHA-256 作文件定位，record 綁 request hash 與 response
    reference；完全相同才 replay，不同內容回 `IDEMPOTENCY_KEY_REUSED`。
-6. 建立 worker correlation/metrics port 與 production CI skeleton。
+6. 建立 worker correlation/metrics port 與 production CI skeleton。✅
+   2026-07-23 完成；outbox trace context、低 cardinality metrics seam、
+   tracked-secret check、high/critical dependency gate 與 dependency inventory
+   artifact 均已進 CI。正式 metrics backend、alerts、SBOM/SAST 與 runner 仍受
+   D-010 gate 約束。
 
 Booking route、cloud Firestore/Auth、Calendar projection、真實資料與 Terraform
 apply 仍依 D-001～D-011 對應 gate 保持關閉。

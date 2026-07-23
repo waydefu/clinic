@@ -23,7 +23,14 @@ export const MAX_ATTEMPTS = 6;
 export const BASE_BACKOFF_SECONDS = 30;
 export const MAX_BACKOFF_SECONDS = 3600;
 
-export interface OutboxJob {
+export interface OutboxTraceContext {
+  /** Opaque request trace propagated from the API boundary. */
+  readonly correlationId: string;
+  /** Opaque audit/business event that caused this external-effect intent. */
+  readonly causationId: string;
+}
+
+export interface OutboxJob extends OutboxTraceContext {
   readonly id: string;
   readonly appointmentId: string;
   readonly appointmentStatus?: string;
@@ -39,6 +46,31 @@ export interface OutboxJob {
    * 落在回診目標日期，而非已完成就診的原時間。省略時 worker 退回讀來源預約。
    */
   readonly startsAt?: string;
+}
+
+function assertOpaqueTraceId(
+  value: unknown,
+  fieldName: string,
+  maxLength: number
+): void {
+  if (
+    typeof value !== 'string' ||
+    value.length < 1 ||
+    value.length > maxLength ||
+    !/^[A-Za-z0-9_-]+$/.test(value)
+  ) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      `${fieldName} must be an opaque identifier.`
+    );
+  }
+}
+
+/** Runtime guard for persisted jobs before an external adapter is invoked. */
+export function assertOutboxTraceContext(context: OutboxTraceContext): void {
+  assertOpaqueTraceId(context.correlationId, 'outbox.correlationId', 128);
+  // Causation names the Audit v2 event, whose executable contract allows 512.
+  assertOpaqueTraceId(context.causationId, 'outbox.causationId', 512);
 }
 
 export type AttemptOutcome =

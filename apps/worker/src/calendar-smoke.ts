@@ -34,6 +34,8 @@ async function main(): Promise<void> {
   const startsAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const base: CalendarProjectionRequest = {
     idempotencyKey: calendarEventIdForAppointment('smoke-test'),
+    correlationId: 'corr_calendar_smoke_test',
+    causationId: 'audit_calendar_smoke_test',
     action: 'upsert',
     appointmentId: 'smoke-test',
     appointmentStatus: 'confirmed',

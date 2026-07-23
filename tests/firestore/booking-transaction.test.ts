@@ -184,6 +184,8 @@ describe('booking write path in a Firestore transaction', () => {
     expect(outbox.size).toBe(1);
     expect(outbox.docs[0]?.data()).toMatchObject({
       type: 'calendar_projection_requested',
+      correlationId: 'corr_booking_001',
+      causationId: 'audit_appointment_001_confirmed',
       status: 'pending',
       attempts: 0
     });

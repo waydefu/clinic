@@ -20,11 +20,13 @@ function assertUtcTimestamp(value, fieldName) {
         throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
     }
 }
-function outboxFor(appointmentId, status, at) {
+function outboxFor(appointmentId, status, at, correlationId, causationId) {
     return {
         id: `outbox_${appointmentId}_${status}`,
         type: 'calendar_projection_requested',
         appointmentId,
+        correlationId,
+        causationId,
         appointmentStatus: status,
         // 一筆預約一個日曆事件：每次狀態變化都是更新或刪除同一個事件，而不是
         // 再開一格。鍵的組成與編碼集中在 calendar-event-id.ts。
@@ -51,6 +53,21 @@ export function planTransition(request, appointment, patientBookingGuard) {
     // 取消與未到會把時段還給其他患者；提出取消只是等櫃台確認，完成到診則是
     // 已經發生的事實，兩者都不釋出時段。
     const releasesSlot = request.transition === 'cancel' || request.transition === 'no_show';
+    const auditEvent = planAuditEvent({
+        eventId: `audit_${appointment.id}_${nextStatus}`,
+        occurredAt: request.requestedAt,
+        action: AUDIT_ACTIONS[request.transition],
+        resourceId: appointment.id,
+        before: {
+            status: appointment.status,
+            slotId: appointment.slotId
+        },
+        after: {
+            status: nextStatus,
+            slotId: appointment.slotId
+        },
+        context: request.audit
+    });
     return {
         appointmentId: appointment.id,
         nextStatus,
@@ -72,22 +89,8 @@ export function planTransition(request, appointment, patientBookingGuard) {
                 action: 'release',
                 activeAppointmentId: appointment.id
             },
-        auditEvent: planAuditEvent({
-            eventId: `audit_${appointment.id}_${nextStatus}`,
-            occurredAt: request.requestedAt,
-            action: AUDIT_ACTIONS[request.transition],
-            resourceId: appointment.id,
-            before: {
-                status: appointment.status,
-                slotId: appointment.slotId
-            },
-            after: {
-                status: nextStatus,
-                slotId: appointment.slotId
-            },
-            context: request.audit
-        }),
-        outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt),
+        auditEvent,
+        outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt, request.audit.correlationId, auditEvent.eventId),
         idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };
 }
@@ -100,6 +103,21 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
     // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。
     assertReschedulable(appointment.status, appointment.slotId, targetSlot, appointment.bookingKind);
     assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
+    const auditEvent = planAuditEvent({
+        eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
+        occurredAt: request.requestedAt,
+        action: 'appointment_rescheduled',
+        resourceId: appointment.id,
+        before: {
+            status: appointment.status,
+            slotId: appointment.slotId
+        },
+        after: {
+            status: 'confirmed',
+            slotId: targetSlot.id
+        },
+        context: request.audit
+    });
     return {
         appointmentId: appointment.id,
         releaseSlotId: appointment.slotId,
@@ -115,23 +133,9 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
                 updatedAt: request.requestedAt
             }
         },
-        auditEvent: planAuditEvent({
-            eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
-            occurredAt: request.requestedAt,
-            action: 'appointment_rescheduled',
-            resourceId: appointment.id,
-            before: {
-                status: appointment.status,
-                slotId: appointment.slotId
-            },
-            after: {
-                status: 'confirmed',
-                slotId: targetSlot.id
-            },
-            context: request.audit
-        }),
+        auditEvent,
         outboxJob: {
-            ...outboxFor(appointment.id, 'confirmed', request.requestedAt),
+            ...outboxFor(appointment.id, 'confirmed', request.requestedAt, request.audit.correlationId, auditEvent.eventId),
             // 工作本身要能與原本的成立工作區分（否則會被視為同一筆而覆蓋），但
             // 日曆事件仍是同一個——改期是把事件搬到新時間，不是再開一格。
             id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`

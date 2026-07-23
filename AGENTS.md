@@ -225,8 +225,9 @@ corepack pnpm --filter @beauessence/api dev
 ```
 
 - `pnpm verify` runs the structure check, UI guard, documentation check,
-  Prettier format check, ESLint, TypeScript builds and unit tests. CI runs the
-  same command plus `pnpm test:rules` on every push and pull request.
+  tracked-secret check, Prettier format check, ESLint, TypeScript builds and
+  unit tests. CI runs the same command plus `pnpm test:rules` and the Stage 0
+  high/critical dependency/inventory gate on every push and pull request.
 - ESLint covers correctness only; Prettier owns formatting. The type-aware
   rules matter most for `no-floating-promises`: a missing await in the booking
   or outbox paths fails silently.

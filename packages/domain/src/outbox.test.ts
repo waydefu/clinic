@@ -4,22 +4,47 @@ import {
   BASE_BACKOFF_SECONDS,
   MAX_ATTEMPTS,
   MAX_BACKOFF_SECONDS,
+  assertOutboxTraceContext,
   backoffSeconds,
   isDue,
   planOutboxAttempt,
-  type OutboxJob
+  type OutboxJob,
+  type OutboxTraceContext
 } from './outbox.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 
 const job: OutboxJob = {
   id: 'outbox_001',
   appointmentId: 'appointment_001',
+  correlationId: 'corr_outbox_001',
+  causationId: 'audit_appointment_001_confirmed',
   idempotencyKey: calendarEventIdForAppointment('appointment_001'),
   status: 'pending',
   attempts: 0
 };
 
 const NOW = '2026-07-21T09:00:00.000Z';
+
+describe('outbox trace context', () => {
+  it('requires opaque correlation and causation identifiers', () => {
+    expect(() => assertOutboxTraceContext(job)).not.toThrow();
+    expect(() =>
+      assertOutboxTraceContext({ ...job, correlationId: '' })
+    ).toThrow(/correlationId/);
+    expect(() =>
+      assertOutboxTraceContext({ ...job, causationId: 'patient/name' })
+    ).toThrow(/causationId/);
+    expect(() =>
+      assertOutboxTraceContext({ ...job, causationId: 'a'.repeat(512) })
+    ).not.toThrow();
+    expect(() =>
+      assertOutboxTraceContext({ ...job, causationId: 'a'.repeat(513) })
+    ).toThrow(/causationId/);
+    expect(() => assertOutboxTraceContext({} as OutboxTraceContext)).toThrow(
+      /correlationId/
+    );
+  });
+});
 
 describe('backoffSeconds', () => {
   it('doubles each attempt from the base', () => {

@@ -299,9 +299,10 @@ owner；決策能及時完成：
 ### Worker / Integrations
 
 - [ ] trigger/scheduler
-- [ ] jitter
-- [ ] correlation/causation
-- [ ] metrics/alerts
+- [ ] runtime jitter（Stage 0 full-jitter design 已固定）
+- [x] correlation/causation（2026-07-23 local/Emulator）
+- [x] metrics port（2026-07-23 local/Emulator）
+- [ ] metrics backend/alerts
 - [ ] reconciliation
 - [ ] dead-letter operator permissions
 - [ ] Calendar credential rotation
@@ -326,7 +327,8 @@ owner；決策能及時完成：
 - [ ] Playwright E2E
 - [ ] axe/screen-reader/forced-colors
 - [ ] Lighthouse budgets
-- [ ] secret/SAST/dependency/SBOM gates
+- [x] tracked-secret/high-critical dependency CI skeleton（2026-07-23）
+- [ ] SAST/final dependency policy/standards-compliant SBOM gates
 
 ## 6. Owner Matrix
 

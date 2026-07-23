@@ -188,6 +188,8 @@ describe('appointment transitions in a Firestore transaction', () => {
     expect(outbox.size).toBe(1);
     expect(outbox.docs[0]?.data()).toMatchObject({
       appointmentStatus: 'cancelled',
+      correlationId: 'corr_idem_cancel',
+      causationId: 'audit_appointment_001_cancelled',
       status: 'pending',
       attempts: 0
     });

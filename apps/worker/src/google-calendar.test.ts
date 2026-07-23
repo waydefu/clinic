@@ -14,6 +14,8 @@ const request = (
   overrides: Partial<CalendarProjectionRequest> = {}
 ): CalendarProjectionRequest => ({
   idempotencyKey: KEY,
+  correlationId: 'corr_calendar_001',
+  causationId: 'audit_appointment_001_confirmed',
   action: 'upsert',
   appointmentId: 'appointment_001',
   appointmentStatus: 'confirmed',
@@ -80,6 +82,8 @@ describe('GoogleCalendarClient', () => {
     expect(body.start.dateTime).toBe('2030-01-02T04:00:00.000Z');
     expect(body.end.dateTime).toBe('2030-01-02T05:00:00.000Z');
     expect(body.colorId).toBe('10');
+    expect(body).not.toHaveProperty('correlationId');
+    expect(body).not.toHaveProperty('causationId');
   });
 
   // ADR-0002：事件不得夾帶任何病患個資。
