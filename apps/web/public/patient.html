@@ -229,9 +229,12 @@
           aria-labelledby="slot-choice-heading"
         >
           <div class="booking-panel-heading">
-            <button class="text-button" type="button" data-booking-back="1">
-              ← 返回類型與項目
-            </button>
+            <div class="booking-back-row">
+              <button class="booking-back" type="button" data-booking-back="1">
+                <span class="back-arrow" aria-hidden="true">←</span
+                >返回類型與項目
+              </button>
+            </div>
             <p class="eyebrow">STEP 02</p>
             <h2 id="slot-choice-heading">選擇日期與時段</h2>
             <p id="slot-choice-description">所有時間均以 Asia/Taipei 顯示。</p>
@@ -263,12 +266,15 @@
           aria-labelledby="confirmation-heading"
         >
           <div class="booking-panel-heading">
-            <button class="text-button" type="button" data-booking-back="2">
-              ← 返回選擇時段
-            </button>
-            <button class="text-button" type="button" data-booking-back="1">
-              ← 重新選擇類型與項目
-            </button>
+            <div class="booking-back-row">
+              <button class="booking-back" type="button" data-booking-back="2">
+                <span class="back-arrow" aria-hidden="true">←</span>返回選擇時段
+              </button>
+              <button class="booking-back" type="button" data-booking-back="1">
+                <span class="back-arrow" aria-hidden="true">←</span
+                >重新選擇類型與項目
+              </button>
+            </div>
             <p class="eyebrow">STEP 03</p>
             <h2 id="confirmation-heading">填寫基本資料</h2>
             <p>

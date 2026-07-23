@@ -909,6 +909,47 @@ textarea {
   margin-bottom: 1rem;
   padding: 0;
 }
+/* 步驟返回鍵：原本用 .text-button（11px 純文字）太不明顯，改成有邊框、有點擊
+   區的幽靈按鈕，讓「回上一步」在每個步驟都看得見、按得到。 */
+.booking-back-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+}
+.booking-back {
+  align-items: center;
+  /* 用 tint 底色而非 --surface：面板本身就是 --surface，同色會讓按鈕融進背景，
+     只剩邊框可辨。tint ＋ accent 邊框讓「回上一步」在深淺兩色都明顯是顆按鈕。 */
+  background: var(--surface-tint);
+  border: 1.5px solid var(--line-accent);
+  border-radius: 999px;
+  color: var(--forest-dark);
+  display: inline-flex;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.4rem 0.9rem;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.booking-back:hover {
+  background: var(--surface);
+  border-color: var(--forest);
+}
+.booking-back:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 2px;
+}
+.booking-back .back-arrow {
+  font-size: 1.05em;
+  transition: transform 0.15s ease;
+}
+.booking-back:hover .back-arrow {
+  transform: translateX(-2px);
+}
 .slot-date-filter {
   align-items: center;
   display: flex;
