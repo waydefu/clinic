@@ -106,9 +106,12 @@ the answer, approval date and evidence in the table and template below.
   for static Firebase Hosting preview channels. No Firestore, Functions,
   Storage, Authentication, Calendar or other backend integration was enabled.
 - Preview channel `synthetic-review` uses browser-local synthetic state and is
-  publicly reachable to anyone with the URL. Redeployed 2026-07-24 after the
-  Stage 0 contract/transaction/worker hardening (same URL); it now expires on
-  2026-07-31 at 00:43 Asia/Taipei.
+  publicly reachable to anyone with the URL. Redeployed 2026-07-24 (same URL)
+  with the CSP `object-src` hardening, forced-colors support, the branded 404
+  and the synthetic account+password login gate; it now expires on 2026-07-31
+  at 02:30 Asia/Taipei. The workbench now opens on that synthetic login gate
+  (test credentials are shown on the page); it is a UX prototype, not a security
+  boundary, and does not change D-006. The patient page is unaffected.
 - This authorization does **not** approve D-001 through D-011, does not permit
   real data, and does not authorize a Firebase live-channel deployment.
 - Operating and deletion instructions are in
