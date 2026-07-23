@@ -1242,3 +1242,13 @@ details[open] > summary .workflow-summary-chevron {
   text-decoration: none;
   width: fit-content;
 }
+
+/* 高對比 / forced-colors：工作臺分頁的「目前分頁」底色會被系統抹掉，
+ * 改用 Highlight 外框保留狀態（另有 aria-current 作語意備援）。styles.css
+ * 已處理共用的焦點框與按鈕；這裡只補工作臺特有的導覽。 */
+@media (forced-colors: active) {
+  .workspace-nav a.is-active {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}

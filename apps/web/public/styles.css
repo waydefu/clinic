@@ -1767,3 +1767,43 @@ label.has-error input {
   margin: 0.6rem 0 0;
   padding: 0.55rem 0.8rem;
 }
+
+/* -----------------------------------------------------------------
+ * Windows 高對比 / forced-colors 模式。
+ *
+ * 系統會以自己的色盤覆寫我們的顏色，於是「只靠底色表達」的邊界、選取
+ * 狀態與焦點框都會消失。這裡用系統色（Highlight／ButtonText／GrayText）
+ * 把互動元件的形狀與狀態重新畫回來，確保高對比使用者仍看得見結構、
+ * 目前焦點與目前選擇。顏色以外的資訊（aria-current、文字）本就已備援，
+ * 這裡補的是視覺可辨識度。
+ * ----------------------------------------------------------------- */
+@media (forced-colors: active) {
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
+  /* 靠底色區分的按鈕，改用系統邊框保留形狀與可點區域。 */
+  .button,
+  .button-primary,
+  .button-secondary,
+  .button-tertiary {
+    border: 1px solid ButtonText;
+  }
+  button:disabled {
+    color: GrayText;
+    border-color: GrayText;
+  }
+  /* 選取狀態：底色被系統抹掉，改用 Highlight 外框標示。 */
+  .booking-stepper li.is-active,
+  .slot-chip.is-selected,
+  .service-choice.is-selected {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}

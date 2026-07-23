@@ -1,0 +1,148 @@
+/* 錯誤頁專用樣式（目前給 404）。
+ *
+ * 刻意自成一檔、不依賴 styles.css 的 token：錯誤頁要小、要能獨立呈現，
+ * 且在任何主題狀態下都成立。深淺色以 prefers-color-scheme 切換，不需
+ * theme.js。CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。 */
+
+:root {
+  --error-bg: #f5f7f5;
+  --error-surface: #ffffff;
+  --error-ink: #132a24;
+  --error-muted: #5d7068;
+  --error-line: #dbe5df;
+  --error-forest: #155c48;
+  --error-forest-dark: #0f4537;
+  --error-on-accent: #ffffff;
+  --error-focus: #e6a84b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --error-bg: #101714;
+    --error-surface: #17211d;
+    --error-ink: #e8f1ec;
+    --error-muted: #a7b8b0;
+    --error-line: #2b3a34;
+    --error-forest: #6cc0a2;
+    --error-forest-dark: #8ad2b6;
+    --error-on-accent: #0f1512;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.error-body {
+  align-items: center;
+  background: var(--error-bg);
+  color: var(--error-ink);
+  display: flex;
+  font-family:
+    'Noto Sans TC',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'Microsoft JhengHei',
+    sans-serif;
+  justify-content: center;
+  line-height: 1.6;
+  margin: 0;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.error-card {
+  background: var(--error-surface);
+  border: 1px solid var(--error-line);
+  border-radius: 1rem;
+  box-shadow: 0 1rem 2.75rem rgba(18, 52, 40, 0.08);
+  max-width: 34rem;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  width: 100%;
+}
+
+.error-brand {
+  color: var(--error-forest);
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.error-code {
+  color: var(--error-forest);
+  font-size: 4.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 0.5rem 0 0;
+}
+
+.error-title {
+  font-size: 1.44rem;
+  margin: 0.25rem 0 0;
+}
+
+.error-lead {
+  color: var(--error-muted);
+  margin: 0.75rem 0 0;
+}
+
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 1.75rem 0 0;
+}
+
+.error-button {
+  border: 1px solid var(--error-forest);
+  border-radius: 0.6rem;
+  color: var(--error-forest);
+  display: inline-block;
+  font-weight: 700;
+  min-height: 2.75rem;
+  padding: 0.7rem 1.25rem;
+  text-decoration: none;
+}
+
+.error-button-primary {
+  background: var(--error-forest);
+  color: var(--error-on-accent);
+}
+
+.error-button:hover {
+  border-color: var(--error-forest-dark);
+}
+
+.error-button:focus-visible {
+  outline: 3px solid var(--error-focus);
+  outline-offset: 3px;
+}
+
+.error-contact {
+  color: var(--error-muted);
+  font-size: 0.875rem;
+  margin: 1.75rem 0 0;
+}
+
+.error-contact a {
+  color: var(--error-forest);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (forced-colors: active) {
+  .error-card {
+    border: 1px solid CanvasText;
+  }
+  .error-button {
+    border: 1px solid ButtonText;
+  }
+  .error-button:focus-visible {
+    outline: 3px solid Highlight;
+  }
+}

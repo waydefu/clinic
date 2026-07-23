@@ -52,7 +52,7 @@ const server = createServer(async (request, response) => {
       // /admin-shell.html from this origin, and the v2 pages hold their
       // synthetic state in the browser rather than calling the API.
       'Content-Security-Policy':
-        "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+        "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
       'Content-Type': contentType,
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff'

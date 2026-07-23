@@ -20,6 +20,39 @@ infer an answer from an existing website, social message or Calendar event.
 
 ## Recorded inputs
 
+### Owner build directions, formal audit deferred to go-live - 2026-07-24
+
+The project owner reviewed the open decisions and directed that the team keep
+building and testing all functionality toward go-live now, and that the formal
+answers to D-001～D-011 be **audited together before go-live** rather than
+resolved individually today. The following are **build directions for the
+test/synthetic implementation only**; they do **not** change any decision status
+below to `approved`, and no real patient data may be relied upon.
+
+- **D-002 / D-003 (retention, deletion, policy text): 待定 (deferred).** No
+  change; remains `pending` for the pre-go-live audit.
+- **D-001 (data controller, privacy contact): 待定 (deferred).** No change;
+  remains `pending`.
+- **D-006 direction:** staff sign in with **account + password**, and the
+  **manager (管理者) may cancel/delete**. This records the intended shape for the
+  test build. D-006 stays `pending`: the identity provider, MFA, session policy,
+  full role/permission matrix and audit-retention answer are exactly what the
+  go-live audit must still settle, and none may be inferred from this note.
+- **D-009 direction:** use a **dedicated test calendar** for now, with the
+  **manager (管理者) as the responsible owner**. Consistent with the 2026-07-23
+  test-integration authority. D-009 stays `pending`: the production calendar,
+  authorization model, scopes and minimum event fields remain for the audit.
+- **CAL-001 (patient calendar export) decided:** the patient's downloaded
+  `.ics` stays a **single reminder time point** (start time only, day-before
+  alarm), which is what `modules/calendar-export.js` already implements
+  (2026-07-22 direction). The clinic-side one-hour projection is a separate
+  path. No further change required; covered by `calendar-export.test.ts`.
+
+Standing limits unchanged: `noindex`, synthetic data only, no cloud backend, no
+authenticated write endpoint and no real Calendar connection are enabled by this
+note. Changing a decision to `approved` still requires the named owner to record
+the answer, approval date and evidence in the table and template below.
+
 ### Patient identity fields in the preview - 2026-07-21
 
 - The project owner directed that the booking flow collect 姓名、電話、
