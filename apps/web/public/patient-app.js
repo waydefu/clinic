@@ -10,6 +10,7 @@ import {
 } from './modules/calendar-export.js';
 import { confirmDialog } from './modules/confirm-dialog.js';
 import { fieldErrors } from './modules/patient-registry.js';
+import { isUpcomingSlot } from './modules/schedule-engine.js';
 import {
   emptyState,
   escapeHtml,
@@ -167,7 +168,9 @@ function availableSlots() {
   return state.slots
     .filter(
       (slot) =>
-        slot.reservationId === undefined && slot.kind === selectedBookingType
+        slot.reservationId === undefined &&
+        slot.kind === selectedBookingType &&
+        isUpcomingSlot(slot)
     )
     .slice(0, 60);
 }

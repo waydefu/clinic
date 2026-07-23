@@ -31,6 +31,15 @@
             ><small>Appointment operations</small></span
           ></a
         >
+        <button
+          id="nav-bell"
+          class="nav-bell"
+          type="button"
+          aria-label="待辦提醒"
+        >
+          <span aria-hidden="true">&#128276;</span>
+          <span id="nav-bell-dot" class="nav-bell-dot" hidden></span>
+        </button>
         <details class="topbar-tools" open>
           <summary>
             <span aria-hidden="true">&#9881;</span><strong>工作臺設定</strong>
@@ -344,7 +353,6 @@
               高頻到診直接顯示；改期、取消與未到收在「更多處置」。
             </p>
           </div>
-          <div id="pending-follow-ups" aria-live="polite"></div>
           <div id="appointment-filters" class="filter-bar appointment-filters">
             <label
               >搜尋預約<input
@@ -356,6 +364,7 @@
             /></label>
             <label
               >狀態篩選<select id="appointment-status-filter">
+                <option value="today">當日初診／回診</option>
                 <option value="active">待處理</option>
                 <option value="all">全部狀態</option>
                 <option value="confirmed">預約成立</option>
@@ -369,10 +378,6 @@
                 <option value="all">全部掛號別</option>
                 <option value="initial">初診</option>
                 <option value="follow_up">回診</option>
-              </select></label
-            ><label
-              >患者篩選<select id="appointment-patient-filter">
-                <option value="all">全部患者</option>
               </select></label
             >
             <div class="filter-actions">

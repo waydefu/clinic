@@ -51,6 +51,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Phase 0 local development](phase-0-local-development.md) — what exists locally and how to verify it
 - [Test-only sandbox baseline](product/test-only-sandbox-baseline.md) — the authority and limits of the synthetic-only profile
 - [Test-only scheduling and follow-up workbench](product/test-only-scheduling-follow-up-workbench.md) — scope of the synthetic scheduling and follow-up surface
+- [Front-desk follow-up and patient UX spec (2026-07-23)](product/front-desk-followup-and-patient-ux-spec-2026-07-23.md) — the authoritative requirement list for the follow-up queue transform, today filter, past-slot rule, cancellation contact popup and the nav bell
 - [Test-only operations UI guide](design/test-only-operations-ui.md) — safety, accessibility and layout rules for the browser harness
 
 ## 5. Operations

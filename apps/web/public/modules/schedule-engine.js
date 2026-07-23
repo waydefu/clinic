@@ -197,6 +197,12 @@ export function generateSlots(schedule, existingSlots = [], options = {}) {
   );
 }
 
+// 只有尚未開始的時段可預約：現在 17:00 就不能約今天 16:00。同日過去的時段
+// 必須從可預約清單濾掉。時段時間帶 +08:00 偏移，直接以毫秒比較即可。
+export function isUpcomingSlot(slot, now = Date.now()) {
+  return Date.parse(slot.startsAt) > now;
+}
+
 // 回診「目標日期」當天可掛號的時間點，語意與時段產生完全一致：
 // 每週時段、加開／休診例外、固定不開放與 :15/:45 網格。
 // 未營業日回傳空陣列——呼叫端以此判斷該日期不可選。

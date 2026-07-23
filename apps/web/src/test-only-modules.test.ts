@@ -12,10 +12,7 @@ import {
   buildWorkload
 } from '../public/modules/case-management.js';
 import { PERMISSIONS } from '../public/modules/constants.js';
-import {
-  renderAppointments,
-  renderPendingFollowUps
-} from '../public/modules/admin-view.js';
+import { renderAppointments } from '../public/modules/admin-view.js';
 import {
   calendarEventIdForAppointment,
   calendarEventIdForFollowUp
@@ -23,6 +20,7 @@ import {
 import {
   followUpDueTimes,
   generateSlots,
+  isUpcomingSlot,
   scheduleImpact
 } from '../public/modules/schedule-engine.js';
 import { initialState } from '../public/modules/state-schema.js';
@@ -460,8 +458,19 @@ describe('櫃台處置', () => {
     expect(decision.dueTime).toBe('12:15');
   });
 
+  it('同日已過去的時段不可預約（5 點不能約 4 點）', () => {
+    const at = (iso: string) => ({ id: 's', kind: 'initial', startsAt: iso });
+    const now = Date.parse('2030-01-02T09:00:00.000Z');
+    expect(isUpcomingSlot(at('2030-01-02T08:00:00.000Z'), now)).toBe(false);
+    expect(isUpcomingSlot(at('2030-01-02T10:00:00.000Z'), now)).toBe(true);
+  });
+
   it('確認需要回診會產生回診的日曆投影（上日曆），改成不需要則移除', () => {
-    const state = initialState();
+    const state: any = initialState();
+    state.session = {
+      account: state.workspace.accounts[0],
+      permissions: [PERMISSIONS.MANAGE_FOLLOW_UP]
+    };
     const appointment = book(state);
     transitionAppointment(
       state,
@@ -489,12 +498,16 @@ describe('櫃台處置', () => {
     // 目標時間換算成 Asia/Taipei 12:15 = 04:15Z。
     expect(followUpJobs[0].startsAt).toBe('2030-02-01T04:15:00.000Z');
 
-    // 待安排回診會顯示在櫃台處理清單。
-    const queued = renderPendingFollowUps(state);
+    // 已完成到診＋需要回診 → 櫃台處理清單顯示「待安排回診」的回診版卡片。
+    const queued = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
     expect(queued).toContain('待安排回診');
     expect(queued).toContain(appointment.id);
 
-    // 改成「目前無需回診」後，那筆回診投影應被移除。
+    // 改成「目前無需回診」後，那筆回診投影應被移除，且不再出現在櫃台清單。
     recordFollowUp(
       state,
       appointment.id,
@@ -506,6 +519,9 @@ describe('櫃台處置', () => {
         (job: any) => job.appointmentStatus === 'follow_up_required'
       )
     ).toHaveLength(0);
+    expect(
+      renderAppointments(state, { status: 'all', kind: 'all', query: '' })
+    ).not.toContain(appointment.id);
   });
 
   it('回診目標日期未營業或時間不在回診網格時拒絕', () => {

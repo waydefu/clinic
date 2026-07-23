@@ -8,7 +8,8 @@ import {
   WEEKDAY_LABELS
 } from './constants.js';
 import { maskNationalId } from './patient-registry.js';
-import { followUpDueTimes } from './schedule-engine.js';
+import { followUpDueTimes, isUpcomingSlot } from './schedule-engine.js';
+import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
 import {
   emptyState,
   escapeHtml,
@@ -210,7 +211,10 @@ function notesEditable(appointment) {
 
 export function renderSlots(state, kind, selectedSlotId) {
   const slots = state.slots.filter(
-    (slot) => slot.reservationId === undefined && slot.kind === kind
+    (slot) =>
+      slot.reservationId === undefined &&
+      slot.kind === kind &&
+      isUpcomingSlot(slot)
   );
   if (slots.length === 0)
     return emptyState('目前沒有可預約時段', '請先由管理者發布新的排班草稿。');
@@ -233,7 +237,8 @@ function rescheduleOptions(state, appointment) {
     .filter(
       (slot) =>
         slot.reservationId === undefined &&
-        slot.kind === appointment.bookingKind
+        slot.kind === appointment.bookingKind &&
+        isUpcomingSlot(slot)
     )
     .slice(0, 24)
     .map(
@@ -246,47 +251,111 @@ function rescheduleOptions(state, appointment) {
     : options;
 }
 
+// 把每筆預約整理成「佇列項目」，把回診決定的影響一次算好：
+//   - 已完成到診 ＋ 需要回診（未安排）→ 回診版（模式 followup，效期＝回診目標）
+//   - 已完成到診 ＋ 不需要回診 → 排除（後續無動作）
+//   - 其餘 → 一般（效期＝看診時間）
+// 「效期」同時用於當日篩選與依日期排序，讓回診版依回診日排、而非原就診時間。
+function queueEntry(state, appointment) {
+  const decision = state.followUps.find(
+    (item) => item.appointmentId === appointment.id
+  );
+  if (appointment.status === 'completed' && decision?.status === 'required') {
+    if (decision.scheduledAppointmentId !== undefined) return undefined;
+    return {
+      appointment,
+      decision,
+      mode: 'followup',
+      effectiveStart: taipeiIso(decision.dueDate, decision.dueTime)
+    };
+  }
+  if (appointment.status === 'completed' && decision?.status === 'not_required')
+    return undefined;
+  return {
+    appointment,
+    decision,
+    mode: 'normal',
+    effectiveStart: appointment.startsAt
+  };
+}
+
+// 回診版卡片：已確認需要回診、尚未安排下次門診。主要時間顯示回診目標日
+// （＝日曆上的回診日）。「調整回診」把該筆重新放回逐筆回診確認可再改決定。
+function followUpQueueCard(state, entry) {
+  const { appointment, decision, effectiveStart } = entry;
+  const notes = tagLabels(decision.tags, FOLLOW_UP_NOTE_TAGS);
+  if (decision.noteText) notes.push(decision.noteText);
+  const noteRow =
+    notes.length === 0
+      ? ''
+      : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
+  const adjust = state.session.permissions.includes(
+    PERMISSIONS.MANAGE_FOLLOW_UP
+  )
+    ? `<button class="button appointment-primary-action appointment-follow-up-button" type="button" data-follow-up-edit="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#8635;</span>調整回診</button>`
+    : '';
+  return `<article class="appointment-card follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">回診</span></div><p class="appointment-time">${escapeHtml(formatFullDate(effectiveStart))}<strong>${escapeHtml(formatTime(effectiveStart))}</strong></p><span class="detail-line appointment-service">回診提醒已上日曆<span aria-hidden="true">·</span>來源 <span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${adjust}</div></article>`;
+}
+
 export function renderAppointments(state, filters) {
   const query = filters.query.trim().toLocaleLowerCase('zh-Hant');
-  const list = state.appointments.filter((item) => {
-    const record = patient(state, item.patientId);
-    const statusMatches =
-      filters.status === 'all' ||
-      item.status === filters.status ||
-      (filters.status === 'active' &&
-        ['confirmed', 'cancellation_requested'].includes(item.status));
-    const queryMatches =
-      query === '' ||
-      [
-        record?.name,
-        record?.phone,
-        item.id,
-        item.itemLabel,
-        BOOKING_KIND_LABELS[item.bookingKind]
-      ]
-        .filter((value) => value !== undefined)
-        .some((value) =>
-          String(value).toLocaleLowerCase('zh-Hant').includes(query)
-        );
-    return (
-      statusMatches &&
-      (filters.kind === 'all' || item.bookingKind === filters.kind) &&
-      (filters.patientId === 'all' || item.patientId === filters.patientId) &&
-      queryMatches
-    );
-  });
-  if (list.length === 0)
-    return emptyState(
-      '沒有符合條件的預約',
-      '可調整篩選，或展開下方「建立新預約」。'
+  const today = taipeiTodayDate();
+  const entries = state.appointments
+    .map((appointment) => queueEntry(state, appointment))
+    .filter((entry) => entry !== undefined)
+    .filter((entry) => {
+      const { appointment, mode, effectiveStart } = entry;
+      const record = patient(state, appointment.patientId);
+      const statusMatches =
+        filters.status === 'all' ||
+        appointment.status === filters.status ||
+        (filters.status === 'active' &&
+          ['confirmed', 'cancellation_requested'].includes(
+            appointment.status
+          )) ||
+        // 「當日」＝效期落在今天，初診與回診都算（回診版用回診目標日）。
+        (filters.status === 'today' && taipeiDate(effectiveStart) === today);
+      const kindMatches =
+        filters.kind === 'all' ||
+        // 回診版一律視為「回診」掛號別。
+        (mode === 'followup'
+          ? filters.kind === 'follow_up'
+          : appointment.bookingKind === filters.kind);
+      const queryMatches =
+        query === '' ||
+        [
+          record?.name,
+          record?.phone,
+          appointment.id,
+          appointment.itemLabel,
+          BOOKING_KIND_LABELS[appointment.bookingKind]
+        ]
+          .filter((value) => value !== undefined)
+          .some((value) =>
+            String(value).toLocaleLowerCase('zh-Hant').includes(query)
+          );
+      return statusMatches && kindMatches && queryMatches;
+    })
+    // 一律依效期（回診版用回診日）由近到遠排序。
+    .sort((left, right) =>
+      String(left.effectiveStart).localeCompare(String(right.effectiveStart))
     );
 
-  // state.appointments 已由 store 依看診時間排序（越接近現在越前面）。
+  if (entries.length === 0)
+    return emptyState(
+      filters.status === 'today' ? '今日尚無預約' : '沒有符合條件的預約',
+      filters.status === 'today'
+        ? '合成資料多在未來日期；改看「全部狀態」即可瀏覽。'
+        : '可調整篩選，或展開下方「建立新預約」。'
+    );
+
   const canManageFollowUp = state.session.permissions.includes(
     PERMISSIONS.MANAGE_FOLLOW_UP
   );
-  return list
-    .map((appointment) => {
+  return entries
+    .map((entry) => {
+      if (entry.mode === 'followup') return followUpQueueCard(state, entry);
+      const appointment = entry.appointment;
       const notes = tagLabels(appointment.noteTags, BOOKING_NOTE_TAGS);
       if (appointment.noteText) notes.push(appointment.noteText);
       const noteRow =
@@ -337,14 +406,19 @@ export function renderSchedule(schedule, editable) {
   return `<div class="schedule-display"><p class="code">TIME ZONE · ${escapeHtml(schedule.timeZone)}</p><div><h4>每週時段</h4><ul>${weekly}</ul></div><div><h4>日期例外</h4><ul>${exceptions}</ul></div><div><h4>固定不開放</h4><ul><li><strong>初診</strong><span>${escapeHtml((blocked.initial ?? []).join('、') || '無')}</span></li><li><strong>回診</strong><span>${escapeHtml((blocked.follow_up ?? []).join('、') || '無')}</span></li></ul></div></div>`;
 }
 
-export function renderFollowUps(state) {
+// 逐筆回診確認只列「尚未決定」的已完成到診——存檔後即從這裡消失。已決定者
+// 若要再改，透過櫃台清單回診版的「調整回診」把它放回 editingIds 暫時顯示。
+export function renderFollowUps(state, editingIds = new Set()) {
   const completed = state.appointments.filter(
-    (item) => item.status === 'completed'
+    (item) =>
+      item.status === 'completed' &&
+      (editingIds.has(item.id) ||
+        !state.followUps.some((entry) => entry.appointmentId === item.id))
   );
   if (completed.length === 0)
     return emptyState(
-      '尚無可判斷的到診紀錄',
-      '櫃台完成到診後，管理者才會在此逐筆確認。'
+      '沒有待確認的回診',
+      '完成到診後會在此逐筆確認；已決定者可從清單的回診版「調整回診」再改。'
     );
   return completed
     .map((appointment) => {
@@ -391,35 +465,6 @@ export function renderFollowUps(state) {
       return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '需要回診' : '目前無需回診') : '待確認'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span></div><label>決定<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存逐筆決定</button></form>`;
     })
     .join('');
-}
-
-/**
- * 已確認「需要回診」、但尚未安排下次門診的回診，顯示在櫃台處理清單。
- *
- * 這些回診決定完成後已「上日曆」（在日曆投影意圖產生一筆回診提醒），接著要
- * 由櫃台安排實際時段——排好後 `scheduledAppointmentId` 會被填上，就從這裡消失。
- * 空的時候回傳空字串，讓整個區塊隱藏。
- */
-export function renderPendingFollowUps(state) {
-  const pending = state.followUps.filter(
-    (item) =>
-      item.status === 'required' && item.scheduledAppointmentId === undefined
-  );
-  if (pending.length === 0) return '';
-  const cards = pending
-    .map((followUp) => {
-      const notes = tagLabels(followUp.tags, FOLLOW_UP_NOTE_TAGS);
-      if (followUp.noteText) notes.push(followUp.noteText);
-      const noteRow =
-        notes.length === 0
-          ? ''
-          : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
-      const target =
-        `${followUp.dueDate ?? ''} ${followUp.dueTime ?? ''}`.trim();
-      return `<article class="appointment-card follow-up-pending" data-follow-up-pending="${escapeHtml(followUp.appointmentId)}"><div class="appointment-main"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, followUp.patientId))}</strong><span class="appointment-kind">回診</span></div><p class="appointment-time">目標 <strong>${escapeHtml(target)}</strong></p><span class="detail-line appointment-service">來源 <span class="code">${escapeHtml(followUp.appointmentId)}</span><span aria-hidden="true">·</span>已上日曆投影</span>${noteRow}</div></div></article>`;
-    })
-    .join('');
-  return `<div class="subsection-title list-section-heading"><div><p class="eyebrow">FOLLOW-UP QUEUE</p><h3>待安排回診（已上日曆）</h3></div><p class="section-description">回診已確認並送出日曆投影，請安排下次門診時段。</p></div><div class="card-list">${cards}</div>`;
 }
 
 export function renderCaseAssignments(state) {

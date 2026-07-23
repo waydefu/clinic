@@ -18,13 +18,19 @@ export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
 
 /**
- * 已結束且不再佔用時段的預約，其日曆事件應該消失；其餘狀態都是 upsert。
+ * 日曆只留「尚未發生」的預約。已完成到診、已取消、未到都是已成事實，事件應該
+ * 消失（`cancel`）；只有 confirmed／cancellation_requested 是 upsert。
  *
  * 用預約的**目前**狀態而不是工作建立時的狀態：工作可能等到退避結束才執行，
- * 期間預約已被取消——這時再把事件寫回日曆就是錯的。
+ * 期間預約已被取消或完成——這時再把事件寫回日曆就是錯的。
+ *
+ * 到診刪除的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同 event id、
+ * 落在回診目標日），由回診投影負責，不受這裡影響。
  */
 function actionForStatus(status: string): CalendarAction {
-  return status === 'cancelled' || status === 'no_show' ? 'cancel' : 'upsert';
+  return status === 'confirmed' || status === 'cancellation_requested'
+    ? 'upsert'
+    : 'cancel';
 }
 
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */

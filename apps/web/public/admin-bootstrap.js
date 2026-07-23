@@ -5,7 +5,6 @@ import {
   renderAudit,
   renderCaseAssignments,
   renderFollowUps,
-  renderPendingFollowUps,
   renderOutbox,
   renderReleases,
   renderSchedule,
@@ -84,14 +83,11 @@ if (
 }
 
 let state;
-let filters = {
-  status: 'active',
-  kind: 'all',
-  patientId: 'all',
-  query: ''
-};
+let filters = { status: 'today', kind: 'all', query: '' };
 let slotKind = 'initial';
 let selectedSlotId;
+// 已決定回診但被「調整回診」重新開啟編輯的預約 id；讓它暫時回到逐筆回診確認。
+const editingFollowUps = new Set();
 // 週檢視目前顯示的週一（YYYY-MM-DD）。undefined 時於首次 render 對齊到
 // 最早一筆預約／時段所在的週，讓合成的 2030 資料一進來就有內容可看。
 let weekStart;
@@ -184,8 +180,6 @@ function renderSession() {
 }
 
 function renderFilters() {
-  elements['appointment-patient-filter'].innerHTML =
-    `<option value="all">全部患者</option>${options(state.patients, filters.patientId, (item) => item.name)}`;
   elements['appointment-status-filter'].value = filters.status;
   elements['appointment-kind-filter'].value = filters.kind;
   elements['appointment-search'].value = filters.query;
@@ -290,8 +284,10 @@ function render() {
     `status-chip ${state.scheduleMeta.draftDirty ? 'is-reserved' : 'is-available'}`;
   elements['publish-schedule'].disabled = !state.scheduleMeta.draftDirty;
   elements['discard-schedule'].disabled = !state.scheduleMeta.draftDirty;
-  elements['follow-up-list'].innerHTML = renderFollowUps(state);
-  elements['pending-follow-ups'].innerHTML = renderPendingFollowUps(state);
+  elements['follow-up-list'].innerHTML = renderFollowUps(
+    state,
+    editingFollowUps
+  );
   elements['case-assignment-list'].innerHTML = renderCaseAssignments(state);
   elements.workload.innerHTML = renderWorkload(state);
   elements['account-list'].innerHTML = renderAccounts(state.workspace);
@@ -301,10 +297,61 @@ function render() {
     elements['audit-filter'].value
   );
   elements['outbox-jobs'].innerHTML = renderOutbox(state);
+  syncBell();
   // 某些 render helper 會依資料狀態更新 hidden；最後重新套用工作區可見性，
   // 確保首頁專用的主視覺／公告不會在建立預約等重新渲染後跑到其他工作區。
   applyWorkspacePanel();
 }
+
+// 導覽鈴鐺：有「取消待確認」時亮紅點，提醒櫃台別忽略。點鈴鐺跳出患者聯絡
+// 資訊方便主動聯絡；本 session 出現新的取消請求時自動跳出一次。
+let lastCancellationCount = 0;
+function cancellationRequests() {
+  return state.appointments.filter(
+    (item) => item.status === 'cancellation_requested'
+  );
+}
+function syncBell() {
+  const pending = cancellationRequests();
+  elements['nav-bell-dot'].hidden = pending.length === 0;
+  elements['nav-bell'].classList.toggle('has-alert', pending.length > 0);
+  if (pending.length > lastCancellationCount) openBellDialog();
+  lastCancellationCount = pending.length;
+}
+let bellDialog;
+function openBellDialog() {
+  const pending = cancellationRequests();
+  if (pending.length === 0) return;
+  if (bellDialog === undefined) {
+    bellDialog = document.createElement('dialog');
+    bellDialog.className = 'confirm-dialog bell-dialog';
+    bellDialog.setAttribute('aria-label', '取消待確認提醒');
+    document.body.append(bellDialog);
+    bellDialog.addEventListener('click', (event) => {
+      if (event.target.closest('[data-bell-close]')) bellDialog.close();
+      else if (event.target.closest('[data-bell-goto]')) {
+        bellDialog.close();
+        filters = { status: 'cancellation_requested', kind: 'all', query: '' };
+        window.location.hash = 'appointments-section';
+        renderFilters();
+        renderAppointmentList();
+      }
+    });
+  }
+  const rows = pending
+    .map((item) => {
+      const person = state.patients.find((p) => p.id === item.patientId);
+      return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '—')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
+    })
+    .join('');
+  bellDialog.innerHTML = `<h2 class="confirm-dialog-title">取消待確認（${pending.length}）</h2><p class="confirm-dialog-message">患者已提出取消，請主動聯絡確認後於清單處置。</p><ul class="bell-list">${rows}</ul><div class="confirm-dialog-actions"><button class="button button-secondary" type="button" data-bell-close>稍後</button><button class="button button-primary" type="button" data-bell-goto>前往處理</button></div>`;
+  if (!bellDialog.open) bellDialog.showModal();
+}
+elements['nav-bell'].addEventListener('click', () => {
+  if (cancellationRequests().length === 0)
+    message('目前沒有待確認的取消請求。', 'info');
+  else openBellDialog();
+});
 
 async function updateDraft(mutator, text, anchorId) {
   const draft = structuredClone(state.scheduleDraft);
@@ -340,12 +387,7 @@ elements['reset-state'].addEventListener('click', async () => {
   )
     return;
   state = await stagingRequest('/reset', { method: 'POST', body: '{}' });
-  filters = {
-    status: 'active',
-    kind: 'all',
-    patientId: 'all',
-    query: ''
-  };
+  filters = { status: 'today', kind: 'all', query: '' };
   selectedSlotId = undefined;
   render();
   message('本機資料已清除。', 'success');
@@ -427,21 +469,12 @@ elements['appointment-kind-filter'].addEventListener('change', () => {
   filters.kind = elements['appointment-kind-filter'].value;
   renderAppointmentList();
 });
-elements['appointment-patient-filter'].addEventListener('change', () => {
-  filters.patientId = elements['appointment-patient-filter'].value;
-  renderAppointmentList();
-});
 elements['appointment-search'].addEventListener('input', () => {
   filters.query = elements['appointment-search'].value;
   renderAppointmentList();
 });
 elements['appointment-filter-reset'].addEventListener('click', () => {
-  filters = {
-    status: 'active',
-    kind: 'all',
-    patientId: 'all',
-    query: ''
-  };
+  filters = { status: 'today', kind: 'all', query: '' };
   renderFilters();
   renderAppointmentList();
   elements['appointment-search'].focus();
@@ -510,6 +543,19 @@ elements['booking-form'].addEventListener('submit', async (event) => {
   } catch (error) {
     message(`未建立預約：${error.message}`, 'error', 'booking-form-status');
   }
+});
+
+// 回診版卡片的「調整回診」：把該筆放回逐筆回診確認暫時顯示，捲過去可再改。
+elements.appointments.addEventListener('click', (event) => {
+  const edit = event.target.closest('[data-follow-up-edit]');
+  if (edit === null) return;
+  const id = edit.dataset.followUpEdit;
+  editingFollowUps.add(id);
+  render();
+  document
+    .querySelector(`[data-follow-up-form="${id}"]`)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  message('已重新開啟回診決定，調整後儲存即可。', 'info');
 });
 
 elements.appointments.addEventListener('click', async (event) => {
@@ -802,10 +848,14 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   const form = event.target.closest('[data-follow-up-form]');
   if (form === null) return;
   event.preventDefault();
+  const appointmentId = form.dataset.followUpForm;
   const data = new FormData(form);
+  // 決定存檔後即從逐筆回診確認消失（需要回診→清單回診版、不需要→移除）。
+  // 先移出編輯集合，post() 內部重繪就已反映；失敗時仍為未決定，照樣顯示。
+  editingFollowUps.delete(appointmentId);
   try {
     const managerId = data.get('managerId');
-    await post(`/follow-ups/${form.dataset.followUpForm}`, {
+    await post(`/follow-ups/${appointmentId}`, {
       status: data.get('status'),
       dueDate: data.get('dueDate'),
       dueTime: data.get('dueTime'),

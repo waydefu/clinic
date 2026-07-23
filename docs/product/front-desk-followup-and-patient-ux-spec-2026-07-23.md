@@ -1,0 +1,89 @@
+# 櫃台回診流程與患者頁 UX 規格（2026-07-23）
+
+**狀態：** ✅ 八項全部實作並實機驗證完成（2026-07-23）。此文件是權威需求清單。
+所有項目為專案負責人於 2026-07-23 指定，屬合成測試工作臺與患者頁的行為。
+
+實機驗證：預設當日＋空白引導、回診確認後表單消失＋佇列轉回診版（顯示回診日）、
+調整回診可再改、不需要回診則移除、到診後日曆事件刪除（Emulator）、過期時段不
+可預約（單元）、鈴鐺紅點＋新取消請求自動跳彈窗顯示聯絡電話＋前往處理。單元
+123 項、Emulator 45 項通過，0 console 錯誤。
+
+## 背景
+
+日曆整合的技術面已完成（真實 Google Calendar 用戶端、回診投影、死信補回、
+週檢視）。本輪聚焦櫃台回診工作流與患者頁的正確性與企業版 UX。
+
+## 需求清單（逐項）
+
+### 1. 到診確認後，日曆刪除該事件 ✅ 已實作
+
+- worker `actionForStatus`：`completed` → **`cancel`（刪除事件）**。日曆只留
+  尚未發生的預約（confirmed / cancellation_requested）。
+- 週檢視 `SHOWN_STATUSES` 移除 `completed`：已完成到診從行事曆格子消失。
+- Emulator 生命週期測試：complete 後日曆事件數為 **0**。
+- 註：完成若需要回診，另有回診提醒事件在回診目標日（見第 3 項）。
+
+### 2. 回診決定存檔後，逐筆回診確認表單消失
+
+- `renderFollowUps` 只列**尚未決定回診**的已完成到診。
+- 按「儲存逐筆決定」後，該筆從逐筆回診確認清單消失。
+- 已決定者若要再改，透過櫃台清單回診版卡片的「調整回診」重新開啟。
+
+### 3. 櫃台處理清單：已完成到診 → 回診版
+
+依回診決定改變已完成到診在清單的呈現：
+
+| 完成到診的回診狀態 | 在櫃台處理清單 |
+| --- | --- |
+| **未決定** | 保留「已完成到診」卡片（含「記錄回診」入口） |
+| **需要回診** | 轉為**回診版**：狀態改「待安排回診」，主要時間顯示**回診目標日期／時間**（＝日曆上回診日），並依該日期排序 |
+| **不需要回診** | 從清單**移除**（無後續動作） |
+
+- 清單一律**依日期排序**（回診版用回診目標日）。
+- 移除先前獨立的 `#pending-follow-ups` 區塊，整併進 `renderAppointments`。
+
+### 4. 預設篩選「當日」、移除患者篩選
+
+- 狀態篩選新增「當日」並設為**預設**：顯示今日的初診與回診患者。
+- **空白引導**：合成資料都在 2030、實際今天是 2026，故預設清單會空白；
+  空狀態需提供「改看全部狀態」一鍵切換。正式版此行為即正確（顯示今日）。
+- **移除患者篩選**下拉與其接線（`appointment-patient-filter`、`filters.patientId`）。
+
+### 5. 患者頁前後端優化
+
+- **同日不可預約已過去的時段**：例如現在 17:00 就不能約今天 16:00。患者端與
+  工作臺的時段清單都要過濾 `startsAt > now`。（合成資料在 2030 全未來，功能
+  正確但示範看不出差異。）
+- **正式企業版 UI/UX**：以現有 design token 與元件打磨患者頁。
+
+### 6. 患者提出取消 → 跳彈窗顯示聯絡資訊
+
+- 患者提出取消（`cancellation_requested`）時，櫃台端應跳出彈窗顯示該患者的
+  **個人聯絡資訊（電話等）**，方便主動聯絡。
+- 沿用自製 `confirmDialog` 風格；資訊只在櫃台端顯示，身分證仍遮罩。
+
+### 7. 導航列鈴鐺 ＋ 紅點提醒
+
+- 上方導覽／頁首加一個**小鈴鐺**，有待辦（取消待確認等）時顯示**紅點**。
+- 避免櫃台忽略取消請求等待辦。點鈴鐺可跳到對應待辦（如取消待確認）。
+
+### 8. 部署、更新 MD
+
+- 跑 `verify` + `test:rules` + 瀏覽器實測；更新相關 MD；commit；部署預覽頻道。
+
+## 已定的設計決定（2026-07-23，負責人回覆）
+
+- 未決定回診的已完成到診，**先保留「已完成到診」**（不隱藏）。
+- 「當日」預設**照實顯示今天 ＋ 空白引導**（不改成「今日與未來」）。
+
+## 實作落點速查
+
+| 需求 | 檔案 |
+| --- | --- |
+| 1 到診刪日曆 | `apps/worker/src/outbox-processor.ts`（actionForStatus）、`apps/web/public/modules/week-view.js`（SHOWN_STATUSES）、`tests/firestore/outbox-worker.test.ts` |
+| 2 表單消失 | `apps/web/public/modules/admin-view.js`（renderFollowUps） |
+| 3 回診版佇列 | `admin-view.js`（renderAppointments）、移除 renderPendingFollowUps 與 `#pending-follow-ups` |
+| 4 預設當日／移除患者篩選 | `admin-view.js`、`admin-bootstrap.js`、`index.html` |
+| 5 過期時段 | `patient-app.js`（availableSlots）、`admin-view.js`（renderSlots）；企業版 UX 於 `patient.html`/`styles.css` |
+| 6 取消聯絡彈窗 | `admin-bootstrap.js`（cancellation 流程）、`modules/confirm-dialog.js` 或新 dialog |
+| 7 鈴鐺紅點 | `index.html`（頁首）、`admin-bootstrap.js`、`workbench.css` |

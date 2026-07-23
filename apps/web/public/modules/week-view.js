@@ -33,7 +33,8 @@ const WEEK_DAY_LABELS = [
   '週六',
   '週日'
 ];
-const SHOWN_STATUSES = ['confirmed', 'cancellation_requested', 'completed'];
+// 日曆只顯示尚未發生的預約；到診／取消／未到都已成事實，事件已從日曆刪除。
+const SHOWN_STATUSES = ['confirmed', 'cancellation_requested'];
 
 /**
  * 把同一天的預約排成「需要時才分欄」的視覺軌道。
