@@ -230,6 +230,49 @@
           </div>
           <div id="slots" class="slot-grid" aria-live="polite"></div>
 
+          <div class="subsection-title week-view-heading">
+            <h3>本週預約</h3>
+            <div class="week-view-toolbar">
+              <button
+                id="week-prev"
+                class="icon-button"
+                type="button"
+                aria-label="上一週"
+              >
+                ‹
+              </button>
+              <button
+                id="week-today"
+                class="button button-secondary"
+                type="button"
+              >
+                本週
+              </button>
+              <button
+                id="week-next"
+                class="icon-button"
+                type="button"
+                aria-label="下一週"
+              >
+                ›
+              </button>
+              <span id="week-range" class="week-range"></span>
+            </div>
+          </div>
+          <div
+            id="week-view"
+            class="week-view"
+            aria-label="本週預約週檢視"
+          ></div>
+          <div class="week-view-legend">
+            <span><i class="wv-swatch wv-initial"></i>初診（整點／30 分）</span
+            ><span
+              ><i class="wv-swatch wv-follow-up"></i>回診（15 分／45 分）</span
+            ><span
+              >初診與回診並行兩條人力線，回診不佔初診量能。點事件可捲到下方清單。</span
+            >
+          </div>
+
           <h3 class="subsection-title">預約清單</h3>
           <div class="filter-bar">
             <label

@@ -17,6 +17,11 @@ import { confirmDialog } from './modules/confirm-dialog.js';
 import { WORKBENCH_PROCEDURES } from './modules/constants.js';
 import { followUpDueTimes } from './modules/schedule-engine.js';
 import {
+  hydrateWeekView,
+  renderWeekView,
+  weekStartOf
+} from './modules/week-view.js';
+import {
   applyWorkspacePanel,
   initWorkspaceTabs
 } from './modules/workspace-tabs.js';
@@ -39,6 +44,47 @@ let state;
 let filters = { status: 'all', kind: 'all', patientId: 'all' };
 let slotKind = 'initial';
 let selectedSlotId;
+// 週檢視目前顯示的週一（YYYY-MM-DD）。undefined 時於首次 render 對齊到
+// 最早一筆預約／時段所在的週，讓合成的 2030 資料一進來就有內容可看。
+let weekStart;
+
+function todayTaipei() {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Asia/Taipei'
+  }).format(new Date());
+}
+
+function taipeiDateOf(iso) {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Asia/Taipei'
+  }).format(new Date(iso));
+}
+
+function renderWeek() {
+  if (weekStart === undefined) {
+    const earliest =
+      [...state.appointments, ...state.slots].sort((a, b) =>
+        (a.startsAt ?? '').localeCompare(b.startsAt ?? '')
+      )[0]?.startsAt ?? new Date().toISOString();
+    weekStart = weekStartOf(taipeiDateOf(earliest));
+  }
+  elements['week-view'].innerHTML = renderWeekView(
+    state,
+    weekStart,
+    todayTaipei()
+  );
+  hydrateWeekView(elements['week-view']);
+  const end = new Date(`${weekStart}T12:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 6);
+  elements['week-range'].textContent =
+    `${weekStart} – ${end.toISOString().slice(0, 10)}`;
+}
 
 // 頂端 #status 是唯一的 aria-live 播報點；anchorId 則把同一句話放到剛按下的
 // 按鈕旁邊。長頁面上只寫頂端等於沒有回饋——操作者看不到成功或失敗的原因。
@@ -184,6 +230,7 @@ function render() {
   renderSummary();
   renderBookingForm();
   elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderWeek();
   elements.appointments.innerHTML = renderAppointments(state, filters);
   elements['published-schedule'].innerHTML = renderSchedule(
     state.schedule,
@@ -267,6 +314,32 @@ elements['booking-kind'].addEventListener('change', () => {
   selectedSlotId = undefined;
   elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
   renderBookingForm();
+});
+
+function shiftWeek(days) {
+  const date = new Date(`${weekStart}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  weekStart = date.toISOString().slice(0, 10);
+  renderWeek();
+}
+elements['week-prev'].addEventListener('click', () => shiftWeek(-7));
+elements['week-next'].addEventListener('click', () => shiftWeek(7));
+elements['week-today'].addEventListener('click', () => {
+  weekStart = weekStartOf(todayTaipei());
+  renderWeek();
+});
+
+// 點週檢視的事件 → 捲到下方預約清單的對應卡片並短暫highlight。
+elements['week-view'].addEventListener('click', (event) => {
+  const button = event.target.closest('[data-week-event]');
+  if (button === null) return;
+  const card = document.querySelector(
+    `[data-appointment-card="${button.dataset.weekEvent}"]`
+  );
+  if (card === null) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('is-flash');
+  window.setTimeout(() => card.classList.remove('is-flash'), 1600);
 });
 
 elements['appointment-status-filter'].addEventListener('change', () => {
