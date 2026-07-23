@@ -35,8 +35,10 @@ import {
 } from './modules/state-schema.js';
 import {
   addRelease,
+  authenticateAccount,
   createAccount,
   isMaintenanceActive,
+  logout,
   saveAnnouncement,
   saveMaintenance,
   switchAccount,
@@ -76,7 +78,8 @@ function snapshotState(state) {
     maintenanceActive: isMaintenanceActive(state.workspace.maintenance),
     session: {
       account: currentAccount(state),
-      permissions: permissionsFor(state)
+      permissions: permissionsFor(state),
+      authenticated: state.workspace.authenticated === true
     }
   });
 }
@@ -134,7 +137,17 @@ export async function stagingRequest(path, options = {}) {
   const state = loadState();
   const body = parseBody(options);
 
-  if (path === '/workspace/session') {
+  if (path === '/workspace/login') {
+    // 登入是進入工作臺的閘門，因此本身不要求權限（尚未有身分）。這是合成
+    // 原型、非安全邊界：驗證只比對這台裝置上的明碼帳密。
+    const account = authenticateAccount(state, body.username, body.password);
+    appendWorkspaceAudit(state, 'session_authenticated', account.id);
+  } else if (path === '/workspace/logout') {
+    const actor = currentAccount(state);
+    logout(state);
+    if (actor !== undefined)
+      appendWorkspaceAudit(state, 'session_logged_out', actor.id);
+  } else if (path === '/workspace/session') {
     switchAccount(state, body.accountId);
   } else if (path === '/workspace/accounts') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);

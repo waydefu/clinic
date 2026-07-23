@@ -88,6 +88,7 @@ const requiredPaths = [
   'apps/web/public/modules/ui-format.js',
   'apps/web/public/modules/admin-view.js',
   'apps/web/src/test-only-modules.test.ts',
+  'apps/web/src/test-only-auth.test.ts',
   'apps/web/package.json',
   'apps/web/server.mjs',
   'apps/web/public/index.html',

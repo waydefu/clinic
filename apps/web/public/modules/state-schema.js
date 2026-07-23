@@ -5,8 +5,8 @@ import {
 } from './constants.js';
 import { cloneSchedule, generateSlots } from './schedule-engine.js';
 
-export const storageKey = 'beauessence_synthetic_online_preview_v3';
-const SCHEMA_VERSION = 3;
+export const storageKey = 'beauessence_synthetic_online_preview_v4';
+const SCHEMA_VERSION = 4;
 
 // 營業時間：週三至週五 12:00–20:30，週六 10:00–18:00，週日至週二休診。
 function defaultSchedule() {
@@ -59,18 +59,27 @@ export function initialState() {
     patientSequence: 1,
     workspace: {
       currentAccountId: 'admin_test_001',
+      // 合成帳密登入原型：這不是安全邊界。帳密只存在這台裝置的瀏覽器、不加密、
+      // 明碼顯示在登入頁作為測試提示，正式版必須改為真 IdP＋雜湊憑證（見
+      // AUTH-001 與 D-006）。`authenticated` 只控制 UI 要顯示登入頁或工作臺，
+      // 權限仍由 currentAccountId 的角色決定，登出不等於伺服器端撤銷。
+      authenticated: false,
       accounts: [
         {
           id: 'admin_test_001',
           label: '測試管理者',
           role: 'admin',
-          status: 'active'
+          status: 'active',
+          username: 'admin',
+          password: 'beauessence-admin'
         },
         {
           id: 'front_desk_test_001',
           label: '測試櫃台 A',
           role: 'front_desk',
-          status: 'active'
+          status: 'active',
+          username: 'front',
+          password: 'beauessence-front'
         }
       ],
       accountSequence: 2,
@@ -121,7 +130,19 @@ export function isUsableState(state) {
 
   const workspace = state.workspace;
   if (workspace === null || typeof workspace !== 'object') return false;
+  if (typeof workspace.authenticated !== 'boolean') return false;
   if (!Array.isArray(workspace.accounts) || workspace.accounts.length === 0)
+    return false;
+  // Every synthetic account must carry login credentials, or the login gate
+  // would have no way to authenticate it. Missing credentials mean a stale
+  // pre-login-prototype blob, so discard it and re-seed.
+  if (
+    workspace.accounts.some(
+      (account) =>
+        typeof account?.username !== 'string' ||
+        typeof account?.password !== 'string'
+    )
+  )
     return false;
   if (!Array.isArray(workspace.releases)) return false;
   if (

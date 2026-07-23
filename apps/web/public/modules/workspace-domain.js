@@ -16,6 +16,28 @@ export function switchAccount(state, accountId) {
   if (account === undefined) throw new Error('找不到可登入的合成帳號。');
   state.workspace.currentAccountId = account.id;
 }
+
+// 合成帳密登入原型——**不是安全邊界**。密碼是明碼比對、只存在瀏覽器，登入
+// 只切換 UI 與 currentAccountId，權限仍由角色決定。正式版必須改為真 IdP、
+// 雜湊憑證與伺服器端 session（AUTH-001／D-006）。錯誤訊息刻意不分「帳號不存在」
+// 與「密碼錯誤」，避免變成帳號列舉的提示。
+export function authenticateAccount(state, username, password) {
+  const handle = typeof username === 'string' ? username.trim() : '';
+  const account = state.workspace.accounts.find(
+    (item) =>
+      item.status === 'active' &&
+      item.username === handle &&
+      item.password === password
+  );
+  if (account === undefined) throw new Error('帳號或密碼錯誤，或帳號已停用。');
+  state.workspace.currentAccountId = account.id;
+  state.workspace.authenticated = true;
+  return account;
+}
+
+export function logout(state) {
+  state.workspace.authenticated = false;
+}
 export function createAccount(state, input) {
   if (!Object.hasOwn(ROLE_LABELS, input.role))
     throw new Error('合成角色無效。');
@@ -25,11 +47,15 @@ export function createAccount(state, input) {
     throw new Error(`已有名稱為「${label}」的帳號，請改用其他標籤。`);
   const suffix = String(state.workspace.accountSequence).padStart(3, '0');
   const prefix = input.role === 'admin' ? 'admin' : 'front_desk';
+  // 合成帳密：新帳號也要能登入，因此一併帶可預期的測試帳密（明碼、僅供合成
+  // 展示，正式版改真 IdP）。帳號管理頁會顯示，方便測試切換不同角色登入。
   state.workspace.accounts.push({
     id: `${prefix}_test_${suffix}`,
     label,
     role: input.role,
-    status: 'active'
+    status: 'active',
+    username: `${prefix}${suffix}`,
+    password: `beauessence-${suffix}`
   });
   state.workspace.accountSequence += 1;
 }
