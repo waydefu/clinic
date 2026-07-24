@@ -307,7 +307,7 @@ function followUpQueueCard(state, entry, permissions) {
   // 回診版卡片同樣要能刪除：誤建的紀錄卡在回診佇列時，管理者需要清得掉。
   // 這張卡的來源預約已是 completed，其餘處置本來就不適用，選單實際上只會
   // 留下刪除。
-  return `<tr class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><td data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td data-label="掛號別"><span class="appointment-kind">回診</span></td><td data-label="療程">回診提醒已上日曆<span class="detail-line">來源 <span class="code">${escapeHtml(appointment.id)}</span></span></td><td data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td data-label="處置"><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></td></tr>`;
+  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診提醒已上日曆<span class="detail-line">來源 <span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></td></tr>`;
 }
 
 export function renderAppointments(state, filters) {
@@ -400,8 +400,8 @@ export function renderAppointments(state, filters) {
       const forms =
         rescheduleForm === '' && notesForm === ''
           ? ''
-          : `<tr class="appointment-forms" data-appointment-forms="${escapeHtml(appointment.id)}"><td colspan="6">${rescheduleForm}${notesForm}</td></tr>`;
-      return `<tr class="appointment-row" data-appointment-card="${escapeHtml(appointment.id)}"><td data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(appointment.startsAt))}</span><strong class="cell-time">${escapeHtml(formatTime(appointment.startsAt))}</strong></td><td data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td data-label="掛號別"><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></td><td data-label="療程">${escapeHtml(appointment.itemLabel ?? '')}<span class="detail-line"><span class="code">${escapeHtml(appointment.id)}</span></span></td><td data-label="狀態"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span>${noteRow}</td><td data-label="處置"><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div></td></tr>${forms}`;
+          : `<tr role="row" class="appointment-forms" data-appointment-forms="${escapeHtml(appointment.id)}"><td role="cell" colspan="6">${rescheduleForm}${notesForm}</td></tr>`;
+      return `<tr role="row" class="appointment-row" data-appointment-card="${escapeHtml(appointment.id)}"><td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(appointment.startsAt))}</span><strong class="cell-time">${escapeHtml(formatTime(appointment.startsAt))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></td><td role="cell" data-label="療程">${escapeHtml(appointment.itemLabel ?? '')}<span class="detail-line"><span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div></td></tr>${forms}`;
     })
     .join('');
 
@@ -411,7 +411,16 @@ export function renderAppointments(state, filters) {
   //
   // `<caption>` 給螢幕閱讀器交代這張表是什麼；視覺上的標題已經在表格外面，
   // 所以它只在無障礙樹裡存在。
-  return `<table class="data-table appointment-table"><caption>櫃台處理清單，依時間由近到遠排序</caption><thead><tr><th scope="col">時間</th><th scope="col">患者</th><th scope="col">掛號別</th><th scope="col">療程</th><th scope="col">狀態</th><th scope="col">處置</th></tr></thead><tbody>${rows}</tbody></table>`;
+  // ARIA role 看起來多餘，但它們是必要的：手機版把 table/tr/td 改成
+  // `display: block` 來堆疊，而**改變 display 會讓瀏覽器把表格語意從無障礙樹上
+  // 拿掉**（Adrian Roselli 記錄過，Firefox 至今仍會）。螢幕閱讀器因此不再把它
+  // 當表格，欄位與表頭的關聯整個消失。明確標上 role 就把語意釘回去。
+  // 對照表出自〈Tables, CSS Display Properties, and ARIA〉：table / rowgroup /
+  // row / columnheader / cell。
+  const columns = ['時間', '患者', '掛號別', '療程', '狀態', '處置']
+    .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
+    .join('');
+  return `<table class="data-table appointment-table" role="table"><caption>櫃台處理清單，依時間由近到遠排序</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
 export function renderSchedule(schedule, editable) {

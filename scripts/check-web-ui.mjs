@@ -35,6 +35,11 @@ function requireText(source, text, description) {
   if (!normalize(source).includes(normalize(text))) failures.push(description);
 }
 
+/** 反向守衛：某些寫法一旦回來就是退步，光要求正確寫法在場擋不住它。 */
+function refuseText(source, text, description) {
+  if (normalize(source).includes(normalize(text))) failures.push(description);
+}
+
 requireText(
   files.adminShell,
   'id="environment-label"',
@@ -105,10 +110,29 @@ requireText(
   "method === 'GET' && clientError.retryable",
   'API client no longer limits automatic retry to safe GET requests.'
 );
+// 忙碌狀態的正確表達方式。
+//
+// 這條規則原本要求按鈕上必須有 `aria-busy`，那是錯的：MDN 明載 `aria-busy` 是給
+// live region、複合元件與 feed 用的——語意是「這一塊正在改，先別唸」，因此會把
+// 該元素的子內容對輔助技術隱藏。設在按鈕上等於在忙碌期間讓按鈕失去名稱，而且
+// 螢幕閱讀器不會立即播報，只有重新聚焦時才帶得到。
+//
+// 改成守住真正有效的兩件事：按鈕換成忙碌文字（視覺與可及名稱），以及重複送出的
+// 程式閘門。公告責任在 `role="status"` 的狀態列。
 requireText(
   files.asyncAction,
-  "control.setAttribute('aria-busy', 'true')",
-  'Pending actions no longer expose aria-busy.'
+  'control.textContent = pendingLabel;',
+  'Pending actions no longer swap the control label, which is what actually communicates the busy state.'
+);
+requireText(
+  files.asyncAction,
+  "control?.dataset.busy === 'true'",
+  'Pending actions no longer guard against a second submission while one is in flight.'
+);
+refuseText(
+  files.asyncAction,
+  "setAttribute('aria-busy'",
+  'aria-busy is back on a control. It is a live-region/composite-widget state and it hides the element’s own children from assistive technology — see the comment in async-action.js.'
 );
 requireText(
   files.adminClient,

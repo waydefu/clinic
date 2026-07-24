@@ -655,7 +655,12 @@ details[open] > summary .workflow-summary-chevron {
 
 @media (max-width: 48rem) {
   /* 手機上表格改回堆疊：橫向捲動的資料表在手機上幾乎無法使用。每一格用
-     `data-label` 把欄位名帶回來，所以資訊沒有因為表頭消失而遺失。 */
+     `data-label` 把欄位名帶回來，所以資訊沒有因為表頭消失而遺失。
+
+     ::before 的欄位名對螢幕閱讀器是**重複**的——表格語意由標記上的 ARIA role
+     維持著，表頭關聯仍然成立，所以讀屏可能會唸到「時間 時間 08:30」。取捨是
+     刻意的：改用每格一個 aria-hidden 的 <span> 可以消除重複，但每列要多六個
+     節點。這一項列在人工無障礙測試 runbook 裡，等實機讀屏驗過再定案。 */
   #appointments {
     overflow-x: visible;
   }

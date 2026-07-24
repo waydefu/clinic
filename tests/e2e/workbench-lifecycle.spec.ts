@@ -12,11 +12,49 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await page.locator('#login-password').fill('beauessence-admin');
   const loginButton = page.locator('#login-view button[type="submit"]');
   await loginButton.click();
-  await expect(loginButton).toHaveText('登入中…');
-  await expect(loginButton).toHaveAttribute('aria-busy', 'true');
-  // 登入後閘門消失、工作臺出現。
+  // 這裡**不驗**「登入中…」那個瞬間狀態。`toHaveText` 是動作之後才開始輪詢，
+  // 若忙碌狀態在輪詢開始前就結束（本機動作往往如此），斷言永遠等不到——那正是
+  // 這個 helper 先前間歇性紅燈的原因。忙碌狀態改由下面的專屬測試以
+  // MutationObserver 確定性地觀察。
   await expect(page.locator('#login-view')).toBeHidden();
   await expect(page.locator('#logout')).toBeVisible();
+}
+
+/**
+ * 確定性地觀察一個瞬間狀態：在動作**之前**掛上 MutationObserver，記錄變更本身，
+ * 因此即使狀態只存在一個 tick 也抓得到。回傳期間出現過的按鈕文字。
+ */
+async function recordLabelsDuring(
+  page: Page,
+  selector: string,
+  act: () => Promise<void>
+): Promise<string[]> {
+  await page.evaluate((target) => {
+    const element = document.querySelector(target);
+    if (element === null) throw new Error(`找不到 ${target}`);
+    const seen: string[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          const text = node.textContent?.trim();
+          if (text !== undefined && text !== '') seen.push(text);
+        }
+      }
+    });
+    observer.observe(element, { childList: true, subtree: true });
+    Object.assign(window, { __labelSeen: seen, __labelObserver: observer });
+  }, selector);
+
+  await act();
+
+  return page.evaluate(() => {
+    const scope = window as unknown as {
+      __labelSeen: string[];
+      __labelObserver: MutationObserver;
+    };
+    scope.__labelObserver.disconnect();
+    return scope.__labelSeen;
+  });
 }
 
 async function createBooking(page: Page): Promise<void> {
@@ -32,16 +70,62 @@ async function createBooking(page: Page): Promise<void> {
   await page.locator('#booking-kind').selectOption('initial');
   // 選第一個可預約時段，再送出建立。
   await page.locator('#slots [data-select-slot]').first().click();
-  const submit = page.locator('#booking-form button[type="submit"]');
-  await submit.click();
-  await expect(submit).toHaveText('建立中…');
-  await expect(submit).toHaveAttribute('aria-busy', 'true');
+  await page.locator('#booking-form button[type="submit"]').click();
+  // 同上：只等最終狀態。建立成功的證據是清單多一筆，各測試自己驗。
+  await expect(page.locator('#booking-form-status')).toBeVisible();
 }
 
 // 合成資料是 2030 年，預設「當日」篩選看不到；切到「全部狀態」才會列出。
 async function showAllAppointments(page: Page): Promise<void> {
   await page.locator('#appointment-status-filter').selectOption('all');
 }
+
+test.describe('待處理狀態', () => {
+  test('送出期間按鈕會換成忙碌文字，且不設 aria-busy', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.locator('#login-account').fill('admin');
+    await page.locator('#login-password').fill('beauessence-admin');
+
+    const labels = await recordLabelsDuring(
+      page,
+      '#login-view button[type="submit"]',
+      async () => {
+        await page.locator('#login-view button[type="submit"]').click();
+        await expect(page.locator('#logout')).toBeVisible();
+      }
+    );
+
+    // 忙碌文字確實出現過——即使它只存在一瞬間。
+    expect(labels).toContain('登入中…');
+
+    // 按鈕不該帶 aria-busy：那是 live region／複合元件的屬性，會把元素自己的
+    // 子內容對輔助技術隱藏，等於在忙碌期間讓按鈕失去名稱。狀態改由
+    // role="status" 的狀態列公告。
+    await expect(page.locator('#status')).toHaveAttribute('role', 'status');
+    expect(
+      await page.locator('[aria-busy="true"]').count(),
+      '不應該有任何元素停在 aria-busy'
+    ).toBe(0);
+  });
+
+  test('結果清單不是 live region，避免整張表被重唸', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/#appointments-section');
+
+    // 清單內容整批換掉，若掛 aria-live，螢幕閱讀器會在每次篩選時把整張表逐列
+    // 重唸一次。變化由簡短的筆數摘要公告就夠了。
+    await expect(page.locator('#appointments')).not.toHaveAttribute(
+      'aria-live',
+      /.*/
+    );
+    await expect(page.locator('#appointment-result-summary')).toHaveAttribute(
+      'aria-live',
+      'polite'
+    );
+  });
+});
 
 test.describe('櫃台處理清單', () => {
   test('是一張欄位對齊的資料表，不是一疊卡片', async ({ page }) => {
@@ -78,6 +162,22 @@ test.describe('櫃台處理清單', () => {
 
     // 螢幕閱讀器要知道這張表是什麼；視覺標題在表格外面，所以用 caption。
     await expect(table.locator('caption')).toHaveText(/櫃台處理清單/);
+
+    // 表格語意必須用 ARIA role 明確標出來。手機版把 table/tr/td 改成
+    // `display: block` 來堆疊，而改變 display 會讓瀏覽器把表格語意從無障礙樹上
+    // 拿掉——沒有這些 role，螢幕閱讀器在手機上就不再把它當表格。
+    await expect(table).toHaveAttribute('role', 'table');
+    await expect(table.locator('thead')).toHaveAttribute('role', 'rowgroup');
+    await expect(table.locator('tbody')).toHaveAttribute('role', 'rowgroup');
+    await expect(rows.first()).toHaveAttribute('role', 'row');
+    await expect(rows.first().locator('td').first()).toHaveAttribute(
+      'role',
+      'cell'
+    );
+    await expect(table.locator('thead th').first()).toHaveAttribute(
+      'role',
+      'columnheader'
+    );
   });
 
   test('手機寬度改成堆疊，每格仍帶著欄位名', async ({ page }) => {

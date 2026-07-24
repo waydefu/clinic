@@ -27,10 +27,10 @@ test.describe('患者線上預約', () => {
     await page.locator('#patient-birth').fill('1990-05-20');
     await page.locator('#patient-national-id').fill('A123456789');
     await page.locator('#synthetic-confirmation').check();
-    const submit = page.locator('#confirm-patient-booking');
-    await submit.click();
-    await expect(submit).toHaveText('送出中…');
-    await expect(submit).toHaveAttribute('aria-busy', 'true');
+    await page.locator('#confirm-patient-booking').click();
+    // 不驗「送出中…」那個瞬間狀態：斷言是點擊之後才開始輪詢，本機動作往往在
+    // 輪詢開始前就結束了，於是變成間歇性紅燈。忙碌狀態的專屬測試在
+    // workbench-lifecycle.spec.ts，用 MutationObserver 確定性地觀察。
 
     // 步驟 4：完成畫面出現預約編號。
     await expect(page.locator('#booking-complete-heading')).toHaveText(

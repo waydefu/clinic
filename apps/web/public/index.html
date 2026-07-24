@@ -462,7 +462,11 @@
               </button>
             </div>
           </div>
-          <div id="appointments" class="card-list" aria-live="polite"></div>
+          <!-- 這個容器刻意**不是** live region。它的內容整批換掉，所以
+               aria-live 會讓螢幕閱讀器把整張表逐列重唸一次——在搜尋框裡每打一個
+               字就重唸一次結果集。變化由上方的 #appointment-result-summary
+               公告「N 筆結果」，使用者再自行瀏覽表格。 -->
+          <div id="appointments" class="card-list"></div>
 
           <section
             id="follow-up-workflow"

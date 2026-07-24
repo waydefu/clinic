@@ -174,7 +174,11 @@ describe('pending UI action', () => {
       textContent: '儲存中…',
       dataset: { busy: 'true' }
     });
-    expect(control.attribute('aria-busy')).toBe('true');
+    // 按鈕上**不該**有 aria-busy：那個屬性是給 live region、複合元件與 feed 的，
+    // 它的語意是「這一塊正在改，先別唸」，會把元素自己的子內容對輔助技術隱藏
+    // ——設在按鈕上等於在忙碌期間讓按鈕失去名稱。公告由 role="status" 的狀態列
+    // 負責。
+    expect(control.attribute('aria-busy')).toBeUndefined();
 
     release();
     await expect(resultPromise).resolves.toMatchObject({ ok: true });
@@ -183,7 +187,6 @@ describe('pending UI action', () => {
       textContent: '儲存',
       dataset: {}
     });
-    expect(control.attribute('aria-busy')).toBeUndefined();
   });
 
   it('offers explicit retry only when the client marks the failure retryable', async () => {
