@@ -34,11 +34,12 @@
 | 1 | Design Tokens 2.0（CSS） | **完成** `bc975be` |
 | 2 | 瑞士資訊骨架（Grid／Spacing／Type Scale） | **完成** `68fa08b` |
 | 3 | 工作臺卡片重構為資料表格 | **部分完成** `ff23a24`（見 §4） |
-| 4 | 首頁改為情境式指揮中心（資訊架構重構） | 未開始 |
+| 4 | 首頁改為情境式指揮中心（資訊架構重構） | **未開始**（已完成前期調查，見 §8） |
 | 5 | 品牌層（配色、香檳金、子集化中文字體） | 未開始 |
 | 6 | Motion System 與互動細節 | 未開始 |
 
-品牌資產（診所標誌、健保署署徽）已先行置入：`a36274e`。
+品牌資產（診所標誌、健保署署徽）已先行置入：`a36274e`。無障礙與效能的修正：
+`01bb7dd`、`d4fe827`。
 
 ## 3. 已完成的部分：接手前必須知道的規則
 
@@ -74,11 +75,35 @@
 
 ### 影像與樣式表預算
 
-`apps/web/performance-budget.json`。建置會壓縮 CSS（`minifyStylesheets`，用
-esbuild），所以**原始碼裡的註解不會出貨**——請放心把理由寫清楚，那是這個
-專案的慣例，不是負擔。
+`apps/web/performance-budget.json`。建置會壓縮 CSS **與 JS**（`minifyStylesheets`
+／`minifyModules`，用 esbuild），所以**原始碼裡的註解不會出貨**——請放心把理由
+寫清楚，那是這個專案的慣例，不是負擔。JS 只逐檔壓縮不 bundle：CSP 是
+`script-src 'self'`，產物必須維持一份份 ES module。
+
+省下來的額度沒有留成鬆弛，預算同步收緊過。`node scripts/check-performance-budget.mjs
+--report` 可以隨時印出逐頁明細。
 
 字型預算是 0 KiB，這是刻意的閘門：任何人加字型都會撞到它，變成一次正式決定。
+
+### 兩個「不要把它加回來」的決定
+
+這兩件事看起來像漏掉的，其實是刻意移除的，都有守衛擋著：
+
+1. **按鈕上沒有 `aria-busy`。** MDN 明載它是給 live region、複合元件與 feed 的
+   ——語意是「這一塊正在改，先別唸」，會**把該元素的子內容對輔助技術隱藏**，
+   等於在忙碌期間讓按鈕失去名稱；而且螢幕閱讀器不會立即播報，只有重新聚焦時
+   才帶得到。忙碌狀態由按鈕文字（視覺）與 `role="status"` 狀態列（輔助技術）
+   表達。`check:ui` 有一條 `refuseText` 擋它回來。
+2. **`#appointments` 不是 live region。** 它的內容整批換掉，掛 `aria-live` 會讓
+   螢幕閱讀器在每次篩選時把整張表逐列重唸——搜尋框每打一個字就重唸一次。變化
+   由 `#appointment-result-summary` 的「N 筆結果」公告。
+
+### 資料表格必須帶 ARIA role
+
+`.data-table` 的手機版用 `display: block` 堆疊，而**改變 display 會讓瀏覽器把
+表格語意從無障礙樹上拿掉**（Firefox 至今仍會）。因此標記上要明確寫
+`role="table" / rowgroup / row / columnheader / cell`。新增其他表格時照做，
+`tests/e2e/workbench-lifecycle.spec.ts` 有釘住這件事。
 
 ## 4. 階段 3 的實際範圍：**這裡是下一個人最需要注意的地方**
 
@@ -119,7 +144,7 @@ esbuild），所以**原始碼裡的註解不會出貨**——請放心把理由
 | `pnpm check:tokens` | 上面 §3 那一整份清單 |
 | `tests/e2e/theme.spec.ts` | 三主題必須產生**三種不同**的深底；深色亮度階層；品牌圖真的載入；標誌在深色下提亮 |
 | `tests/e2e/responsive.spec.ts` | 兩頁 × 9 個寬度（含每個斷點與其上方 1px、320px）不得出現水平捲軸 |
-| `tests/e2e/workbench-lifecycle.spec.ts` | 表格欄位對齊、表頭正確、手機堆疊仍帶欄位名 |
+| `tests/e2e/workbench-lifecycle.spec.ts` | 表格欄位對齊、表頭正確、ARIA role 齊全、手機堆疊仍帶欄位名；忙碌狀態不設 `aria-busy`；結果清單不是 live region |
 | `tests/e2e/accessibility.spec.ts` | axe 掃描無 serious/critical |
 | `pnpm check:perf` | 逐頁 gzip 傳輸量與請求數 |
 
@@ -129,13 +154,22 @@ esbuild），所以**原始碼裡的註解不會出貨**——請放心把理由
 
 ## 6. 已知問題
 
-- `tests/e2e/workbench-lifecycle.spec.ts` 的 `loginAsAdmin` 裡
-  `expect(loginButton).toHaveAttribute('aria-busy', 'true')` 是**競態**：忙碌狀態
-  可能在斷言執行前就清掉了。三次完整 e2e 跑出現過一次失敗。這是既有問題，不是
-  表格重構造成的，但會在 CI 間歇性紅燈，值得修。
+- **待實機螢幕閱讀器確認**（已寫進
+  [無障礙人工測試 runbook](../runbooks/manual-accessibility-test.md) §8-b）：手機版
+  表格的 `td::before` 欄位名，在表格語意已由 ARIA role 維持的情況下對讀屏是重複
+  的，可能唸成「時間 時間 08:30」。若確認干擾，改法是每格加 `aria-hidden` 的
+  `<span>` 取代 `::before`，代價是每列多六個節點。
+- **其他 `aria-live` 容器仍有同樣的問題**：`#task-list`、`#slots`、
+  `#follow-up-list`、`#workload` 都是整批置換內容的 live region，會被逐項重唸。
+  `#appointments` 已修，因為它本來就有一個簡短的筆數摘要可以接手公告；其餘四個
+  **沒有對應的摘要元素**，直接拿掉 aria-live 會讓「內容變了」這件事完全沒有
+  公告。正確做法是先給每個清單一個簡短摘要，再把 aria-live 移過去。
 - 患者頁仍有 50% 的可見文字在 14px（原本 69%）。剩下的多數是導覽、eyebrow、
   chip、步驟編號，該小；但值得再看一輪。
 - favicon 與 `og-booking.png` 還沒換成新標誌。
+- 環境：C 槽剩餘空間不足 2 GB，`firebase hosting:channel:deploy` 會在部署**成功
+  之後**以「There is not enough space on the disk.」回傳非零離開碼。用
+  `firebase hosting:channel:list` 確認實際結果。
 
 ## 7. 需要負責人決定的事
 
@@ -143,6 +177,50 @@ esbuild），所以**原始碼裡的註解不會出貨**——請放心把理由
   必須先做子集化並正式調整預算。
 - 香檳金的用量。原提案的規則是：只放 Logo 細節、品牌分隔線、少量圖示與高級療程
   標籤，**不可拿來表示狀態，也不要大量用於按鈕**。
+
+## 8. 階段 4 的前期調查（尚未動工）
+
+方向已確認但**沒有寫任何程式**。以下是給接手者的起點：
+
+### 業界共識
+
+2026 年營運 dashboard 的設計共識是「**每一個畫面對齊一個具體的營運決策**」，
+依急迫性組織，而不是把功能模組平均展示。
+
+### 現況的問題（已實際讀過程式）
+
+首頁目前是 `#overview` 裡的兩塊：
+
+1. `.summary-grid` — 四張等重的 `summary-card`（可預約時段／待處理預約／
+   已完成到診／個管月度患者），數字由 `renderSummary()` 填。
+2. `#task-list` — `renderTasks(state)` 產生四張固定的 task card（取消待確認／
+   回診尚未決定／個管尚未指派／日曆投影待處理）。
+
+**四張待辦卡永遠都在，數量為零也照顯示。** 於是「0 筆取消待確認」和「3 筆取消
+待確認」佔一樣大的版面，畫面沒辦法告訴任何人現在該做什麼——這就是「功能目錄」
+而非「工作臺」。
+
+### 建議的最小可行改法
+
+資料都已經有了，不需要新的 domain 邏輯：
+
+- 任務計數來源是 `buildOperationalTasks(state)`（`modules/case-management.js`），
+  已回傳四種待辦的清單／數量。
+- 「下一位」可由 `state.appointments` 篩 `confirmed` 且 `startsAt` 在現在之後，
+  取最早一筆；時間比較可沿用 `isUpcomingSlot` 的做法（`Date.parse` 毫秒比較，
+  時間字串自帶 +08:00 偏移）。
+
+三個原則：
+
+1. **數量為零的待辦不出現。**
+2. **依急迫性排序，最急的放大。** 急迫性＝「多久沒處理會造成傷害」：取消待確認
+   會卡住一個時段（別的患者訂不到），排最前；日曆同步只影響提醒，排最後。
+3. **一切正常時保持安靜**，而不是顯示四個綠色的零。
+
+另外建議新增「下一位」——那是櫃台最常問的問題，目前首頁完全沒有。
+
+**注意**：`#task-list` 目前是 `aria-live="polite"`，見 §6 的 live region 問題；
+改這一區時一併處理，讓摘要負責公告。
 
 ## 相關文件
 
