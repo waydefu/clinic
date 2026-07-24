@@ -33,6 +33,7 @@ const TYPE_SCALE = new Set([
 ]);
 
 const SPACING_GRID = new Set([
+  '0.125rem',
   '0.25rem',
   '0.5rem',
   '0.75rem',
@@ -40,17 +41,23 @@ const SPACING_GRID = new Set([
   '1.25rem',
   '1.5rem',
   '2rem',
-  '3rem'
+  '3rem',
+  '4rem'
 ]);
 
 const SPACING_PROPERTIES =
   /\b(?:gap|row-gap|column-gap|padding|padding-top|padding-right|padding-bottom|padding-left|padding-inline|padding-block|margin|margin-top|margin-right|margin-bottom|margin-left|margin-inline|margin-block): ([^;{}]+);/g;
 
-// 已知債務的上限。降低了就把數字調下來——這個數字只能往下走。
+// Design Tokens 2.0 之後這兩類都清零了，因此上限是 0——它們已經是硬性檢查，
+// 保留這個結構是為了萬一將來又要開一筆新債務時，有地方把它記下來而不是隱形。
 const CEILINGS = {
-  'font-size 字面值': 31,
-  間距字面值: 199
+  'font-size 字面值': 0,
+  間距字面值: 0
 };
+
+// `em` 字級是相對於父層文字的比例，語意跟字級尺度不同：`.back-arrow` 的箭頭與
+// `.slot-chip-mark` 的記號都要跟著所在文字縮放，換成 rem 會切斷那個關係。
+const RELATIVE_FONT_SIZE = /^[0-9.]+em$/;
 
 /** 取出所有 `:root...{ }` 區塊裡定義的自訂屬性。 */
 export function definedTokens(source) {
@@ -140,14 +147,37 @@ export function planTokenReview(sheets) {
         `${name}: 斷點 ${match[1]} 不在正式尺度（64rem／48rem／30rem）內`
       );
     }
+    for (const match of body.matchAll(/font-family: *([^;{}]+);/g)) {
+      if (match[1].includes('var(--font-')) continue;
+      violations.push(
+        `${name}: 寫死的字體堆疊——請用 --font-sans/serif/mono。先前有兩份不同的 mono 堆疊，其中一份漏了 SFMono-Regular`
+      );
+    }
+    // `prefers-reduced-motion` 區塊是把動效**關掉**的地方（慣用的
+    // `0.01ms !important`），時長 token 在那裡不適用。
+    const animated = body.replace(
+      /@media \(prefers-reduced-motion[^{]*\{[\s\S]*?\n\}/g,
+      ''
+    );
+    for (const match of animated.matchAll(
+      /(?:transition|animation)[^;{}]*?(\d+)ms/g
+    )) {
+      violations.push(
+        `${name}: 寫死的動效時長 ${match[1]}ms——請用 --motion-fast/base/slow`
+      );
+    }
 
     for (const match of body.matchAll(/font-size: *([^;{}]+);/g)) {
       const value = match[1].trim();
       if (value.includes('var(--text') || value.startsWith('clamp(')) continue;
+      if (RELATIVE_FONT_SIZE.test(value)) continue;
       if (TYPE_SCALE.has(value)) continue;
       debt['font-size 字面值'].push(`${name}: ${value}`);
     }
     for (const match of body.matchAll(SPACING_PROPERTIES)) {
+      // scroll-margin 不是版面間距，而是「固定表頭要讓開多少」，跟著表頭高度
+      // 走而不是跟著間距級數走，所以它有自己的 --scroll-anchor-offset。
+      if (match[0].includes('scroll-')) continue;
       const parts = match[1].trim().split(/\s+/);
       if (parts.some((part) => part.startsWith('var(') || part.includes('('))) {
         continue;

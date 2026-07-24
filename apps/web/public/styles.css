@@ -76,16 +76,20 @@
   --focus-ring: #e6a84b;
 
   /* ---------------------------------------------------------------
-   * 間距：4px 網格。
+   * 間距：4px 網格，十階，**沒有例外**。
    *
-   * 先前有 0 個間距 token 與 361 條手寫字面值，其中約 40 種不同的數字
-   * （0.35 / 0.42 / 0.56 / 0.65 / 0.85…）。沒有節奏可言，也沒辦法整批調整。
+   * 起點是 361 條手寫字面值、約 40 種不同的數字（0.35 / 0.42 / 0.56 / 0.65 /
+   * 0.85…）。那不是節奏，是每次寫版面時隨手挑的數字。上一版先把已經落在網格上
+   * 的 155 處換成 token（畫面零變化），剩下 199 處掛在 ratchet 上；這一版把它們
+   * 全部對齊，因此 `check:design-tokens` 的間距檢查從「只能減」改成「必須是零」。
    *
-   * 這一版**只把已經落在網格上的值換成 token**（數值完全相同，畫面零變化）。
-   * 仍在網格外的字面值由 `check:design-tokens` 逐一列出——那是一份待收斂清單，
-   * 不是可以忽略的雜訊。把它們對齊會改變版面節奏，屬於選定風格時的工作，
-   * 不該混在這次的地基修補裡。
+   * 對齊會讓部分間隙移動最多 2.4px。那是刻意的：瑞士式網格要成立，前提是所有
+   * 間距來自同一個級數，否則對齊只是看起來對齊。
+   *
+   * 4xs 是給光學微調用的（圖示與文字基線的補償之類），不是版面間距——版面上
+   * 任何看得出來的間隙都應該從 3xs 起跳。
    * --------------------------------------------------------------- */
+  --space-4xs: 0.125rem;
   --space-3xs: 0.25rem;
   --space-2xs: 0.5rem;
   --space-xs: 0.75rem;
@@ -94,6 +98,49 @@
   --space-lg: 1.5rem;
   --space-xl: 2rem;
   --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* ---------------------------------------------------------------
+   * 字體角色：三個角色，不是三個字體家族。
+   *
+   * serif 目前**刻意指向與 sans 相同的堆疊**。品牌層（階段 5）才會換成思源宋體，
+   * 而那一步會撞到 0 KiB 的字型預算，必須先做子集化並正式調整預算。先把角色
+   * 定義出來，是為了讓「哪些文字該用襯線」這個決定現在就寫進樣式表，而不是等
+   * 字體到位才回頭找。
+   *
+   * mono 給時間、預約編號、代碼——等寬讓櫃台可以垂直比對數字。先前有兩份不同的
+   * mono 堆疊（一份漏了 SFMono-Regular），在 macOS 上會落到不同字體。
+   * --------------------------------------------------------------- */
+  --font-sans:
+    'Noto Sans TC', 'Microsoft JhengHei', Inter, system-ui, sans-serif;
+  --font-serif:
+    'Noto Sans TC', 'Microsoft JhengHei', Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* ---------------------------------------------------------------
+   * 動效：三檔時長，對應三種變化幅度。
+   *
+   * 動效要解釋狀態變化，不是裝飾。時長按「使用者要重新定位多少視線」分：
+   * 按鈕變色不需要移動視線（fast），面板展開需要跟隨一段距離（base），
+   * 整個區域換掉需要重新找位置（slow）。
+   *
+   * 所有動效都必須在 `prefers-reduced-motion: reduce` 下停用——樣式表結尾已有
+   * 統一處理，新增動效不需要各自再寫一次。
+   * --------------------------------------------------------------- */
+  --motion-fast: 140ms;
+  --motion-base: 200ms;
+  --motion-slow: 280ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+
+  /* 控制項高度。md 是 44px，觸控目標的通用建議值（WCAG 2.2 的下限是 24px，
+     這裡取較嚴格的那個）；sm 只給密度高的工作臺內部控制項。 */
+  --control-height-sm: 2.25rem;
+  --control-height-md: 2.75rem;
+
+  /* 錨點捲動時要讓開的高度＝該頁固定表頭的高度。它跟著表頭走，不屬於間距級數，
+     所以是自己一個 token；工作臺的表頭較高，在 workbench.css 覆寫。 */
+  --scroll-anchor-offset: 7rem;
 
   /* 圓角：五階＋兩個特例。先前有 20 種以上，而且 rem 與 px 混用。 */
   --radius-xs: 0.25rem;
@@ -291,12 +338,12 @@ textarea:focus-visible {
   color: var(--on-accent);
   font-weight: var(--weight-bold);
   left: 1rem;
-  padding: 0.7rem 0.9rem;
+  padding: var(--space-xs) var(--space-sm);
   position: fixed;
   text-decoration: none;
   top: 0;
   transform: translateY(-130%);
-  transition: transform 150ms ease;
+  transition: transform var(--motion-fast) ease;
   z-index: 10;
 }
 .skip-link:focus-visible {
@@ -348,7 +395,7 @@ textarea:focus-visible {
   display: block;
   font-size: var(--text-micro);
   letter-spacing: 0.08em;
-  margin-top: 0.1rem;
+  margin-top: var(--space-4xs);
   text-transform: uppercase;
 }
 .topbar-actions {
@@ -366,9 +413,9 @@ textarea:focus-visible {
   display: inline-flex;
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  gap: 0.45rem;
+  gap: var(--space-2xs);
   letter-spacing: 0.075em;
-  padding: 0.5rem 0.7rem;
+  padding: var(--space-2xs) var(--space-xs);
 }
 .environment-badge span {
   background: var(--dot-live);
@@ -386,12 +433,12 @@ textarea:focus-visible {
   justify-content: center;
   /* 44px：WCAG 2.2 的下限是 24px，此處採用通用觸控目標建議值。 */
   min-height: 2.75rem;
-  padding: 0.65rem 1rem;
+  padding: var(--space-xs) var(--space-sm);
   transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 .button:not(:disabled):hover {
   transform: translateY(-1px);
@@ -460,7 +507,7 @@ textarea:focus-visible {
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
   letter-spacing: 0.11em;
-  margin: 0 0 0.55rem;
+  margin: 0 0 var(--space-2xs);
 }
 .hero-panel .eyebrow {
   color: var(--on-inverse-accent);
@@ -511,11 +558,11 @@ h3 {
   background: var(--surface-tint);
   border-radius: var(--radius-sm);
   color: var(--forest-dark);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-micro);
-  margin-bottom: 0.85rem;
+  margin-bottom: var(--space-sm);
   overflow-wrap: anywhere;
-  padding: 0.55rem 0.65rem;
+  padding: var(--space-2xs) var(--space-xs);
 }
 /* sticky：訊息在整頁任何捲動位置都要看得到，否則等於沒有回饋。 */
 .status-message {
@@ -541,7 +588,7 @@ h3 {
   content: '';
   flex: 0 0 auto;
   height: 0.48rem;
-  margin-right: 0.65rem;
+  margin-right: var(--space-xs);
   width: 0.48rem;
 }
 .status-message[data-state='success'] {
@@ -562,8 +609,8 @@ h3 {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  margin: 0.6rem 0 0;
-  padding: 0.6rem 0.8rem;
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-xs) var(--space-xs);
 }
 .form-status[data-state='success'] {
   background: var(--success-soft);
@@ -581,7 +628,7 @@ h3 {
 }
 .summary-grid {
   display: grid;
-  gap: 0.9rem;
+  gap: var(--space-sm);
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .summary-card {
@@ -589,7 +636,7 @@ h3 {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   min-height: 8.75rem;
-  padding: 1.1rem;
+  padding: var(--space-sm);
 }
 .summary-card strong {
   color: var(--forest-dark);
@@ -597,7 +644,7 @@ h3 {
   font-size: var(--text-2xl);
   letter-spacing: -0.06em;
   line-height: 1;
-  margin-bottom: 0.55rem;
+  margin-bottom: var(--space-2xs);
 }
 .workspace-section {
   margin-top: clamp(2.6rem, 5vw, 4.5rem);
@@ -606,7 +653,7 @@ h3 {
 .section-title {
   align-items: center;
   display: flex;
-  gap: 0.85rem;
+  gap: var(--space-sm);
 }
 .section-title .eyebrow {
   margin-bottom: var(--space-3xs);
@@ -623,8 +670,8 @@ h3 {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   display: grid;
-  gap: 0.8rem;
-  padding: 1.15rem;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
 }
 .control-card h3 {
   color: var(--forest-dark);
@@ -640,7 +687,7 @@ label {
   display: grid;
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  gap: 0.38rem;
+  gap: var(--space-2xs);
 }
 input,
 select {
@@ -650,7 +697,7 @@ select {
   color: var(--ink);
   font: inherit;
   min-height: 2.5rem;
-  padding: 0.45rem 0.55rem;
+  padding: var(--space-2xs) var(--space-2xs);
 }
 textarea {
   background: var(--surface);
@@ -659,7 +706,7 @@ textarea {
   color: var(--ink);
   font: inherit;
   line-height: 1.55;
-  padding: 0.55rem;
+  padding: var(--space-2xs);
   resize: vertical;
 }
 .schedule-display {
@@ -669,7 +716,7 @@ textarea {
   display: grid;
   gap: var(--space-sm);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 1rem 1.15rem;
+  padding: var(--space-sm) var(--space-sm);
 }
 .schedule-display .code {
   grid-column: 1 / -1;
@@ -681,7 +728,7 @@ textarea {
 }
 .schedule-display ul {
   display: grid;
-  gap: 0.45rem;
+  gap: var(--space-2xs);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -691,7 +738,7 @@ textarea {
   color: var(--ink-muted);
   display: flex;
   font-size: var(--text-micro);
-  gap: 0.65rem;
+  gap: var(--space-xs);
   justify-content: space-between;
 }
 .schedule-display li strong {
@@ -700,7 +747,7 @@ textarea {
 .follow-up-form {
   align-items: end;
   grid-template-columns: minmax(11rem, 1fr) minmax(11rem, 1fr) auto;
-  margin-top: 0.9rem;
+  margin-top: var(--space-sm);
 }
 [hidden] {
   display: none !important;
@@ -708,7 +755,7 @@ textarea {
 .weekday-picker {
   border: 0;
   display: grid;
-  gap: 0.45rem;
+  gap: var(--space-2xs);
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 0;
   padding: 0;
@@ -717,7 +764,7 @@ textarea {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  margin-bottom: 0.4rem;
+  margin-bottom: var(--space-2xs);
 }
 .weekday-picker label,
 .switch-row {
@@ -726,9 +773,9 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-2xs);
   min-height: 2.5rem;
-  padding: 0.45rem 0.55rem;
+  padding: var(--space-2xs) var(--space-2xs);
 }
 .weekday-picker input,
 .switch-row input {
@@ -741,7 +788,7 @@ textarea {
 }
 .account-list {
   display: grid;
-  gap: 0.65rem;
+  gap: var(--space-xs);
 }
 .account-row {
   align-items: center;
@@ -751,7 +798,7 @@ textarea {
   display: grid;
   gap: var(--space-xs);
   grid-template-columns: minmax(10rem, 1fr) auto auto auto;
-  padding: 0.75rem 0.85rem;
+  padding: var(--space-xs) var(--space-sm);
 }
 .account-row strong {
   display: block;
@@ -759,7 +806,7 @@ textarea {
 }
 .account-row .code {
   display: block;
-  margin: 0.2rem 0 0;
+  margin: var(--space-3xs) 0 0;
 }
 .account-row > span:not(.status-chip) {
   color: var(--ink-muted);
@@ -772,7 +819,7 @@ textarea {
 }
 .release-list {
   display: grid;
-  gap: 0.55rem;
+  gap: var(--space-2xs);
   margin-top: var(--space-sm);
 }
 .release-row {
@@ -782,12 +829,12 @@ textarea {
   border-radius: var(--radius-md);
   display: flex;
   gap: var(--space-xs);
-  padding: 0.7rem 0.8rem;
+  padding: var(--space-xs) var(--space-xs);
 }
 .release-row strong {
   display: block;
   font-size: var(--text-micro);
-  margin-bottom: 0.2rem;
+  margin-bottom: var(--space-3xs);
 }
 .release-row div span {
   color: var(--ink-muted);
@@ -837,11 +884,11 @@ textarea {
 .patient-announcement > div {
   align-items: center;
   display: flex;
-  gap: 0.8rem;
+  gap: var(--space-xs);
   justify-content: center;
   margin: 0 auto;
   max-width: 76rem;
-  padding: 0.7rem 1.5rem;
+  padding: var(--space-xs) var(--space-lg);
 }
 .patient-announcement strong {
   color: var(--on-inverse-accent);
@@ -853,7 +900,7 @@ textarea {
 #patient-main {
   margin: 0 auto;
   max-width: 76rem;
-  padding: 2rem 1.5rem 4rem;
+  padding: var(--space-xl) var(--space-lg) var(--space-3xl);
 }
 .patient-hero {
   align-items: center;
@@ -880,7 +927,7 @@ textarea {
 .patient-hero h1 {
   color: var(--forest-dark);
   font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
-  margin-bottom: 0.85rem;
+  margin-bottom: var(--space-sm);
 }
 .patient-hero > div > p:last-of-type {
   color: var(--ink-muted);
@@ -890,7 +937,7 @@ textarea {
 .patient-trust-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: var(--space-2xs);
 }
 .patient-trust-row span {
   background: var(--surface);
@@ -899,7 +946,7 @@ textarea {
   color: var(--forest-dark);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  padding: 0.45rem 0.65rem;
+  padding: var(--space-2xs) var(--space-xs);
 }
 .patient-contact-card {
   background: var(--surface);
@@ -908,7 +955,7 @@ textarea {
   box-shadow: var(--elevation-2);
   display: grid;
   gap: var(--space-2xs);
-  padding: 1.2rem;
+  padding: var(--space-md);
   position: relative;
   z-index: 1;
 }
@@ -926,7 +973,7 @@ textarea {
   gap: 0;
   grid-template-columns: repeat(4, 1fr);
   list-style: none;
-  margin: 2rem 0 1.2rem;
+  margin: var(--space-xl) 0 var(--space-md);
   padding: 0;
 }
 .booking-stepper li {
@@ -936,7 +983,7 @@ textarea {
   display: flex;
   font-size: var(--text-micro);
   gap: var(--space-2xs);
-  padding: 0 0.5rem 0.8rem;
+  padding: 0 var(--space-2xs) var(--space-xs);
 }
 .booking-stepper li span {
   align-items: center;
@@ -971,10 +1018,10 @@ textarea {
   box-shadow: var(--elevation-1);
   min-height: 22rem;
   padding: clamp(1.25rem, 3vw, 2.2rem);
-  scroll-margin-top: 7rem;
+  scroll-margin-top: var(--scroll-anchor-offset);
 }
 .booking-panel-heading {
-  margin-bottom: 1.3rem;
+  margin-bottom: var(--space-md);
 }
 .booking-panel-heading-spaced {
   margin-top: var(--space-lg);
@@ -1003,7 +1050,7 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 13rem;
-  padding: 1.2rem;
+  padding: var(--space-md);
   text-align: left;
 }
 .service-choice:hover {
@@ -1026,7 +1073,7 @@ textarea {
 .service-choice strong {
   color: var(--forest-dark);
   font-size: var(--text-md);
-  margin-bottom: 0.45rem;
+  margin-bottom: var(--space-2xs);
 }
 .service-choice > span:not(.service-icon) {
   color: var(--ink-muted);
@@ -1054,7 +1101,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2xs);
-  margin-bottom: 1.1rem;
+  margin-bottom: var(--space-sm);
 }
 .booking-back {
   align-items: center;
@@ -1067,9 +1114,9 @@ textarea {
   display: inline-flex;
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  gap: 0.4rem;
+  gap: var(--space-2xs);
   min-height: 40px;
-  padding: 0.4rem 0.9rem;
+  padding: var(--space-2xs) var(--space-sm);
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
@@ -1093,7 +1140,7 @@ textarea {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
+  gap: var(--space-xs);
   margin-bottom: var(--space-sm);
 }
 .slot-date-filter label {
@@ -1107,7 +1154,7 @@ textarea {
   color: var(--ink);
   font: inherit;
   min-height: 2.6rem;
-  padding: 0.35rem 0.65rem;
+  padding: var(--space-2xs) var(--space-xs);
 }
 .slot-date-filter input[type='date']:disabled {
   background: var(--surface-tint);
@@ -1118,7 +1165,7 @@ textarea {
 }
 .patient-slot-list {
   display: grid;
-  gap: 0.8rem;
+  gap: var(--space-xs);
   grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
 }
 .slot-load-more {
@@ -1146,7 +1193,7 @@ textarea {
 }
 .booking-summary dl {
   display: grid;
-  gap: 0.7rem;
+  gap: var(--space-xs);
   margin: var(--space-sm) 0 0;
 }
 .booking-summary dl div {
@@ -1155,7 +1202,7 @@ textarea {
   display: flex;
   gap: var(--space-sm);
   justify-content: space-between;
-  padding-bottom: 0.65rem;
+  padding-bottom: var(--space-xs);
 }
 .booking-summary dt {
   color: var(--ink-muted);
@@ -1175,13 +1222,13 @@ textarea {
   border-radius: var(--radius-sm);
   display: flex;
   font-size: var(--text-micro);
-  gap: 0.55rem;
+  gap: var(--space-2xs);
   line-height: 1.5;
   margin-top: auto;
-  padding: 0.7rem;
+  padding: var(--space-xs);
 }
 .consent-preview input {
-  margin-top: 0.15rem;
+  margin-top: var(--space-4xs);
   min-height: auto;
 }
 .booking-submit {
@@ -1215,10 +1262,10 @@ textarea {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   display: grid;
-  gap: 0.3rem;
-  margin: 0.6rem 0 1.2rem;
+  gap: var(--space-3xs);
+  margin: var(--space-xs) 0 var(--space-md);
   min-width: min(100%, 25rem);
-  padding: 0.9rem;
+  padding: var(--space-sm);
 }
 .booking-result span {
   color: var(--ink-muted);
@@ -1239,7 +1286,7 @@ textarea {
 }
 .patient-appointment-card > div {
   display: grid;
-  gap: 0.4rem;
+  gap: var(--space-2xs);
 }
 .patient-appointment-card > div > strong {
   color: var(--forest-dark);
@@ -1260,13 +1307,13 @@ textarea {
 }
 .patient-help-grid article > span {
   color: var(--forest);
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
 }
 .patient-help-grid strong {
   display: block;
-  margin: 0.6rem 0 0.35rem;
+  margin: var(--space-xs) 0 var(--space-2xs);
 }
 .patient-help-grid p {
   color: var(--ink-muted);
@@ -1281,7 +1328,7 @@ textarea {
   border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
-  margin: 5rem auto;
+  margin: var(--space-3xl) auto;
   max-width: 40rem;
   padding: var(--space-2xl) var(--space-xl);
   text-align: center;
@@ -1313,7 +1360,7 @@ textarea {
 }
 .patient-footer > div:first-child {
   display: grid;
-  gap: 0.2rem;
+  gap: var(--space-3xs);
 }
 .patient-footer span,
 .patient-footer a {
@@ -1334,7 +1381,7 @@ textarea {
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
   line-height: 1;
-  padding: 0.42rem 0.56rem;
+  padding: var(--space-2xs) var(--space-2xs);
   white-space: nowrap;
 }
 .status-chip.is-available,
@@ -1356,7 +1403,7 @@ textarea {
 }
 .card-list {
   display: grid;
-  gap: 0.8rem;
+  gap: var(--space-xs);
 }
 .appointment-card,
 .workload-card {
@@ -1364,7 +1411,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-1);
-  padding: 1rem 1.15rem;
+  padding: var(--space-sm) var(--space-sm);
 }
 .appointment-card {
   align-items: center;
@@ -1375,20 +1422,20 @@ textarea {
 .appointment-main {
   align-items: center;
   display: flex;
-  gap: 0.85rem;
+  gap: var(--space-sm);
   min-width: 0;
 }
 .code {
   color: var(--forest-dark);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-micro);
-  margin-bottom: 0.3rem;
+  margin-bottom: var(--space-3xs);
   overflow-wrap: anywhere;
 }
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: var(--space-2xs);
   justify-content: flex-end;
 }
 .workload-card {
@@ -1402,7 +1449,7 @@ textarea {
   display: block;
   font-size: var(--text-lg);
   letter-spacing: -0.04em;
-  margin-bottom: 0.45rem;
+  margin-bottom: var(--space-2xs);
 }
 .workload-overview strong span {
   font-size: var(--text-micro);
@@ -1415,7 +1462,7 @@ textarea {
 }
 .workload-breakdown {
   display: grid;
-  gap: 0.55rem;
+  gap: var(--space-2xs);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1427,15 +1474,15 @@ textarea {
   border-radius: var(--radius-sm);
   color: var(--ink-muted);
   display: flex;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-micro);
-  gap: 0.8rem;
+  gap: var(--space-xs);
   justify-content: space-between;
-  padding: 0.65rem 0.75rem;
+  padding: var(--space-xs) var(--space-xs);
 }
 .workload-breakdown strong {
   color: var(--forest-dark);
-  font-family: 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-micro);
   white-space: nowrap;
 }
@@ -1446,7 +1493,7 @@ textarea {
   border-radius: var(--radius-lg);
   color: var(--ink-muted);
   display: flex;
-  gap: 0.8rem;
+  gap: var(--space-xs);
   min-height: 6rem;
   padding: var(--space-sm);
 }
@@ -1475,11 +1522,11 @@ textarea {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  padding: 1.2rem;
+  padding: var(--space-md);
 }
 .event-list {
   display: grid;
-  gap: 0.85rem;
+  gap: var(--space-sm);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1487,14 +1534,14 @@ textarea {
 .event-list li {
   align-items: flex-start;
   display: flex;
-  gap: 0.65rem;
+  gap: var(--space-xs);
 }
 .event-dot {
   background: var(--forest);
   border-radius: var(--radius-circle);
   flex: 0 0 auto;
   height: 0.48rem;
-  margin-top: 0.34rem;
+  margin-top: var(--space-3xs);
   width: 0.48rem;
 }
 .event-dot-neutral {
@@ -1504,12 +1551,12 @@ textarea {
   color: var(--ink);
   display: block;
   font-size: var(--text-micro);
-  margin-bottom: 0.18rem;
+  margin-bottom: var(--space-4xs);
 }
 .event-list span {
   color: var(--ink-muted);
   display: block;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-micro);
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -1517,14 +1564,14 @@ textarea {
 .empty-event {
   color: var(--ink-muted);
   font-size: var(--text-micro);
-  padding: 0.35rem 0;
+  padding: var(--space-2xs) 0;
 }
 .app-footer {
   color: var(--ink-muted);
   display: flex;
   flex-wrap: wrap;
   font-size: var(--text-micro);
-  gap: 0.6rem 1.5rem;
+  gap: var(--space-xs) var(--space-lg);
   justify-content: space-between;
   padding: var(--space-xl) 0 var(--space-xs);
 }
@@ -1562,7 +1609,7 @@ textarea {
   }
   .hero-panel {
     border-radius: var(--radius-lg);
-    padding: 1.4rem;
+    padding: var(--space-lg);
   }
   .section-heading,
   .appointment-card {
@@ -1615,13 +1662,13 @@ textarea {
   .patient-hero {
     border-radius: var(--radius-lg);
     gap: var(--space-sm);
-    padding: 1.3rem;
+    padding: var(--space-md);
   }
   /* 首屏優先讓「開始預約」露出：手機版把 hero 壓成精簡標題帶——收起與步驟
      內容重複的長介紹段落、信任標籤，以及診所聯絡卡（地址與門診時間改由頁尾
      承接），讓步驟指示與預約操作盡早出現，不再被推到第二屏。 */
   .patient-hero {
-    gap: 0.6rem;
+    gap: var(--space-xs);
   }
   .patient-hero > div > p:last-of-type,
   .patient-trust-row,
@@ -1630,19 +1677,19 @@ textarea {
   }
   .patient-hero h1 {
     font-size: var(--text-2xl);
-    margin-bottom: 0.35rem;
+    margin-bottom: var(--space-2xs);
   }
   #patient-status.status-message {
-    margin: 0.4rem 0;
+    margin: var(--space-2xs) 0;
   }
   .booking-stepper {
-    margin: 0.9rem 0 0.8rem;
+    margin: var(--space-sm) 0 var(--space-xs);
   }
   .booking-stepper li {
     flex-direction: column;
-    gap: 0.3rem;
+    gap: var(--space-3xs);
     justify-content: center;
-    padding-inline: 0.2rem;
+    padding-inline: var(--space-3xs);
     text-align: center;
   }
   .booking-stepper strong {
@@ -1693,7 +1740,7 @@ textarea {
   .workload-breakdown li {
     align-items: flex-start;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: var(--space-3xs);
   }
   /* 48rem 斷點把這些容器設為 2 欄；到了手機寬度每欄只剩約 156px，
      裡面的表單欄位與統計數字塞不下就溢出容器（2026-07-22 實機回報）。
@@ -1715,8 +1762,8 @@ textarea {
   flex-wrap: wrap;
   gap: var(--space-2xs) var(--space-xs);
   align-items: baseline;
-  margin: 0 0 0.6rem;
-  padding-bottom: 0.4rem;
+  margin: 0 0 var(--space-xs);
+  padding-bottom: var(--space-2xs);
   border-bottom: 1px solid currentColor;
   font-size: var(--text-body);
 }
@@ -1736,8 +1783,8 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  padding: 0.6rem 0.5rem;
+  gap: var(--space-3xs);
+  padding: var(--space-xs) var(--space-2xs);
   border: 1px solid currentColor;
   border-radius: var(--radius-sm);
   background: none;
@@ -1768,7 +1815,7 @@ textarea {
   opacity: 0.8;
 }
 .required-mark {
-  margin-left: 0.15rem;
+  margin-left: var(--space-4xs);
   font-weight: var(--weight-bold);
 }
 .field-hint {
@@ -1779,7 +1826,7 @@ textarea {
 }
 .field-error {
   display: block;
-  margin-top: 0.3rem;
+  margin-top: var(--space-3xs);
   font-size: var(--text-micro);
   font-weight: var(--weight-medium);
 }
@@ -1836,8 +1883,8 @@ label.has-error input {
 }
 
 .inline-retry {
-  margin-inline-start: 0.65rem;
-  padding-block: 0.35rem;
+  margin-inline-start: var(--space-xs);
+  padding-block: var(--space-2xs);
   vertical-align: middle;
 }
 
@@ -1861,7 +1908,7 @@ label.has-error input {
 .confirm-dialog-title {
   font-size: var(--text-md);
   line-height: var(--leading-tight);
-  margin: 0 0 0.6rem;
+  margin: 0 0 var(--space-xs);
 }
 .confirm-dialog-message {
   color: var(--ink-muted);
@@ -1875,7 +1922,7 @@ label.has-error input {
 .confirm-dialog-reason {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-2xs);
   margin: 0 0 var(--space-md);
 }
 .confirm-dialog-reason select {
@@ -1884,12 +1931,12 @@ label.has-error input {
   border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
-  padding: 0.55rem 0.6rem;
+  padding: var(--space-2xs) var(--space-xs);
   width: 100%;
 }
 .confirm-dialog-actions {
   display: flex;
-  gap: 0.7rem;
+  gap: var(--space-xs);
   justify-content: flex-end;
 }
 .confirm-dialog .button-danger {
@@ -1914,7 +1961,7 @@ label.has-error input {
   display: inline-flex;
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  gap: 0.45rem;
+  gap: var(--space-2xs);
   white-space: nowrap;
 }
 .theme-picker-label select {
@@ -1928,8 +1975,8 @@ label.has-error input {
   color: var(--forest-dark);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  margin: 0.6rem 0 0;
-  padding: 0.55rem 0.8rem;
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-2xs) var(--space-xs);
 }
 
 /* -----------------------------------------------------------------
