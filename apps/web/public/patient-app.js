@@ -39,6 +39,9 @@ let completedAppointment;
 const SLOT_DAYS_PAGE = 5;
 let slotVisibleDays = SLOT_DAYS_PAGE;
 let slotDateFilter = '';
+// 診所資料（門診時段、公告）是非同步載入的。在它到達之前，選項可以先畫出來
+// 佔住版面，但**不能可按**：按下去會走進需要 state 的路徑。
+let dataReady = false;
 
 function myPatientId() {
   try {
@@ -204,7 +207,7 @@ function renderFollowUpChoice() {
 function renderServices() {
   elements['patient-services'].innerHTML = PATIENT_SERVICES.map(
     (service) =>
-      `<button class="service-choice${service.id === selectedServiceId ? ' is-selected' : ''}" type="button" data-service="${escapeHtml(service.id)}" aria-pressed="${service.id === selectedServiceId}"><strong>${escapeHtml(service.label)}</strong><span>${escapeHtml(service.note)}</span></button>`
+      `<button class="service-choice${service.id === selectedServiceId ? ' is-selected' : ''}" type="button" data-service="${escapeHtml(service.id)}" aria-pressed="${service.id === selectedServiceId}"${dataReady ? '' : ' disabled'}><strong>${escapeHtml(service.label)}</strong><span>${escapeHtml(service.note)}</span></button>`
   ).join('');
 }
 
@@ -214,6 +217,8 @@ function renderBookingTypeButtons() {
     const selected = button.dataset.bookingType === selectedBookingType;
     button.classList.toggle('is-selected', selected);
     button.setAttribute('aria-pressed', String(selected));
+    // 資料還沒到就按，處理器會去讀還不存在的時段。停用比讓它安靜失敗誠實。
+    button.disabled = !dataReady;
   });
 }
 
@@ -640,8 +645,16 @@ if (isOnline) {
     '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
 }
 
+// 不依賴資料的內容先畫（但停用）：看診項目與看診類型是常數，沒有理由等一次
+// 往返。等資料回來才畫，第一步的選項會在載入完成的那一刻突然長出來，把底下
+// 整段往下推——這正是效能預算裡 CLS 那條在量的東西（修正前實測 0.28，遠超
+// 0.1 的良好界線）。先畫佔住版面、載入完成才啟用，兩個問題一起解決。
+renderServices();
+renderBookingTypeButtons();
+
 try {
   state = await apiClient.request('/state');
+  dataReady = true;
   renderAll();
   // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。
   showStep(1, { focusHeading: false });
