@@ -272,12 +272,36 @@ async function collectFiles(root) {
   return files;
 }
 
+/**
+ * 壓縮樣式表，就地改寫檔案集合。
+ *
+ * 為什麼需要：這個專案的樣式表帶著大量說明「為什麼這樣寫」的註解，而先前的建置
+ * 把它們原封不動送給每一位訪客——patient.html 的樣式表因此吃掉 14.6 KiB 的
+ * 傳輸量，其中相當比例是中文註解。那等於在懲罰把理由寫清楚：註解愈完整，使用者
+ * 付的錢愈多。壓縮之後，原始碼保留全部理由，線上只送規則。
+ *
+ * 在 `planHashedBuild` **之前**執行，因此內容雜湊算的是實際出貨的位元組；
+ * planHashedBuild 本身維持純函式，測試仍可餵合成檔案集合。
+ */
+async function minifyStylesheets(files) {
+  const { transform } = await import('esbuild');
+  for (const [path, content] of files) {
+    if (extensionOf(path) !== '.css') continue;
+    const result = await transform(String(content), {
+      loader: 'css',
+      minify: true
+    });
+    files.set(path, result.code);
+  }
+}
+
 async function main() {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const publicDir = join(repoRoot, 'apps', 'web', 'public');
   const distDir = join(repoRoot, 'apps', 'web', 'dist');
 
   const files = await collectFiles(publicDir);
+  await minifyStylesheets(files);
   const { outputs, manifest } = planHashedBuild(files);
 
   await rm(distDir, { recursive: true, force: true });

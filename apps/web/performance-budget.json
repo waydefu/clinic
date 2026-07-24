@@ -4,16 +4,16 @@
     "resourceSizes": [
       { "resourceType": "document", "budget": 8 },
       { "resourceType": "script", "budget": 80 },
-      { "resourceType": "stylesheet", "budget": 14 },
-      { "resourceType": "image", "budget": 5 },
+      { "resourceType": "stylesheet", "budget": 10 },
+      { "resourceType": "image", "budget": 6 },
       { "resourceType": "font", "budget": 0 },
-      { "resourceType": "total", "budget": 100 }
+      { "resourceType": "total", "budget": 92 }
     ],
     "resourceCounts": [
       { "resourceType": "script", "budget": 38 },
       { "resourceType": "stylesheet", "budget": 2 },
-      { "resourceType": "image", "budget": 2 },
-      { "resourceType": "total", "budget": 44 }
+      { "resourceType": "image", "budget": 3 },
+      { "resourceType": "total", "budget": 45 }
     ],
     "timings": [
       { "metric": "first-contentful-paint", "budget": 1800 },
@@ -26,10 +26,10 @@
     "resourceSizes": [
       { "resourceType": "document", "budget": 10 },
       { "resourceType": "script", "budget": 100 },
-      { "resourceType": "stylesheet", "budget": 22 },
-      { "resourceType": "image", "budget": 5 },
+      { "resourceType": "stylesheet", "budget": 16 },
+      { "resourceType": "image", "budget": 4 },
       { "resourceType": "font", "budget": 0 },
-      { "resourceType": "total", "budget": 135 }
+      { "resourceType": "total", "budget": 115 }
     ],
     "resourceCounts": [
       { "resourceType": "script", "budget": 40 },
@@ -48,10 +48,10 @@
     "resourceSizes": [
       { "resourceType": "document", "budget": 3 },
       { "resourceType": "script", "budget": 0 },
-      { "resourceType": "stylesheet", "budget": 4 },
-      { "resourceType": "image", "budget": 2 },
+      { "resourceType": "stylesheet", "budget": 2 },
+      { "resourceType": "image", "budget": 1 },
       { "resourceType": "font", "budget": 0 },
-      { "resourceType": "total", "budget": 8 }
+      { "resourceType": "total", "budget": 4 }
     ],
     "resourceCounts": [
       { "resourceType": "script", "budget": 0 },

@@ -187,6 +187,17 @@
   --dot-live: #7ce0a9;
   --dot-neutral: #718d81;
 
+  /* 標誌是中明度的鼠尾草綠線稿，在淺色與護眼底上剛好；深色主題要提亮，否則會
+     沉進背景。用 token 而不是 `[data-theme='dark'] .brand-mark`，是為了維持
+     「:root 以外沒有任何主題選擇器」——換膚永遠只是換值。 */
+  --brand-mark-filter: none;
+
+  /* 官方標章的底板。**三個主題都是純白，這是刻意的**：健保署署徽的藍與綠是
+     規定的顏色，襯在深色或暖色底上會失真。它不是介面元素而是一枚憑證，所以
+     不參與換膚。放在這裡而不是直接寫死，是為了讓下一個人在 token 區就看到
+     這個決定，而不是在頁尾樣式裡撞見一個沒有理由的 #ffffff。 */
+  --official-mark-plate: #ffffff;
+
   /* ---------------------------------------------------------------
    * 斷點：只有三個，兩份樣式表共用。
    *
@@ -296,6 +307,7 @@
   --on-inverse-line: rgba(227, 236, 230, 0.14);
   --dot-live: #5cc39c;
   --dot-neutral: #55655c;
+  --brand-mark-filter: brightness(1.4) saturate(0.85);
   color-scheme: dark;
 }
 * {
@@ -368,22 +380,17 @@ textarea:focus-visible {
   gap: var(--space-xs);
   text-decoration: none;
 }
+/* 真正的品牌標誌。先前這裡是一個放著 ✦ 字元的漸層方塊——那是等標誌到位前的
+   替身，所以漸層、圓角與投影一起拿掉：標誌本身已經有形狀，再包一層容器只會
+   讓它看起來像被裝在盒子裡。
+   寬度交給 aspect-ratio 由高度推導，HTML 也寫了 width/height，避免圖片載入時
+   把旁邊的文字推開（CLS）。 */
 .brand-mark {
-  align-items: center;
-  background: linear-gradient(
-    145deg,
-    var(--accent-solid),
-    var(--accent-solid-soft)
-  );
-  border-radius: var(--radius-md) var(--radius-md) var(--radius-md)
-    var(--radius-xs);
-  box-shadow: var(--elevation-accent);
-  color: var(--on-accent);
-  display: inline-flex;
-  font-size: var(--text-md);
+  aspect-ratio: 57 / 80;
+  display: block;
+  filter: var(--brand-mark-filter);
   height: 2.5rem;
-  justify-content: center;
-  width: 2.5rem;
+  width: auto;
 }
 .brand strong {
   display: block;
@@ -1373,6 +1380,22 @@ textarea {
 }
 .patient-footer a {
   text-decoration: none;
+}
+/* 健保特約標章。官方標章放在白色底板上，不隨主題改色——署徽的藍與綠是規定的
+   顏色，襯在深色頁尾上會失真，而「跟著主題走」在這裡是錯的：它不是介面元素，
+   是一枚憑證。 */
+.patient-credentials {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2xs);
+}
+.patient-credentials img {
+  background: var(--official-mark-plate);
+  border-radius: var(--radius-circle);
+  display: block;
+  height: 2rem;
+  padding: var(--space-4xs);
+  width: 2rem;
 }
 .status-chip {
   align-items: center;

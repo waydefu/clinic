@@ -118,5 +118,16 @@ export default tseslint.config(
       'no-console': 'off',
       'no-implied-eval': 'error'
     }
+  },
+
+  // --- 在瀏覽器裡執行的建置腳本 ------------------------------------------
+  {
+    // build-brand-assets 用 Playwright 的 chromium 做影像裁切與 WebP 編碼
+    // （這台機器沒有 sharp 或 ImageMagick）。傳給 `page.evaluate()` 的函式在
+    // 瀏覽器分頁裡執行，因此檔案同時需要 node 與 browser 兩組全域變數。
+    files: ['scripts/build-brand-assets.mjs'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser }
+    }
   }
 );

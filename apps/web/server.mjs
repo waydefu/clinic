@@ -21,11 +21,15 @@ const publicDirectory = resolve(
   applicationRoot,
   servingDist ? 'dist' : 'public'
 );
+// 允許清單就是安全邊界：不在這裡的副檔名一律 404，所以新增資產型別要有意識地
+// 加進來，而不是靠猜測 MIME。
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
-  '.svg': 'image/svg+xml'
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+  '.png': 'image/png'
 };
 
 const server = createServer(async (request, response) => {

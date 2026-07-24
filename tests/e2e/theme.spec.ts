@@ -94,6 +94,34 @@ test.describe('三個主題', () => {
     expect(new Set(heroes.values()).size, `實際值：${painted}`).toBe(3);
   });
 
+  test('品牌標誌與健保標章都真的載入了', async ({ page }) => {
+    await applyTheme(page, '/patient.html', 'light');
+
+    // `complete` 對載入失敗的圖片一樣是 true——naturalWidth 才分得出「載到了」
+    // 與「路徑壞掉，瀏覽器安靜地放棄了」。後者在版面上只是少一塊，很容易出貨。
+    for (const selector of ['.brand-mark', '.patient-credentials img']) {
+      const natural = await page
+        .locator(selector)
+        .evaluate((element: HTMLImageElement) => element.naturalWidth);
+      expect(natural, `${selector} 沒有載入`).toBeGreaterThan(0);
+    }
+  });
+
+  test('品牌標誌在深色主題下會提亮', async ({ page }) => {
+    const filterFor = async (theme: string) => {
+      await applyTheme(page, '/patient.html', theme);
+      return page
+        .locator('.brand-mark')
+        .evaluate((element) => window.getComputedStyle(element).filter);
+    };
+
+    // 標誌是中明度的鼠尾草綠線稿。淺色與護眼底下不動它；深色底下若不提亮就會
+    // 沉進背景——那不會被對比檢查抓到，因為標誌不是文字。
+    expect(await filterFor('light')).toBe('none');
+    expect(await filterFor('warm')).toBe('none');
+    expect(await filterFor('dark')).not.toBe('none');
+  });
+
   test('深色主題的深底不會比內容卡片還亮', async ({ page }) => {
     await applyTheme(page, '/patient.html', 'dark');
 
