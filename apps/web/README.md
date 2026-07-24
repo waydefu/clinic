@@ -1,10 +1,13 @@
 # Web App
 
-目前只提供旗標啟用的本機測試網站，作為合成預約流程的實機瀏覽器驗證。
-它固定綁定 `127.0.0.1:3100`，不收集姓名、電話、Email 或醫療資料。
+目前提供本機測試網站與另行授權的到期靜態預覽，作為合成預約流程的實機
+瀏覽器驗證。患者表單可輸入核准的姓名、電話、生日與身分證欄位，但資料只留在
+訪客自己的瀏覽器；不得輸入或依賴真實病患資料。
 
 自 v2 模組化工作臺起，這些頁面把合成狀態放在瀏覽器 `localStorage`，**不呼叫
-任何 API**，因此只需要一個視窗：
+任何網路 API**，因此只需要一個視窗。patient/admin controller 統一經過
+`modules/api-client.js`，目前注入 `stagingRequest` 作 browser-local transport；
+短暫的合成延遲用來實際驗證 pending、disabled 與 `aria-busy`：
 
 ```powershell
 $env:TEST_ONLY_WEB_ENABLED='true'

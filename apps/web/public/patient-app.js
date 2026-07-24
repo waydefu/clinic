@@ -1,4 +1,3 @@
-import { stagingRequest } from './store.js';
 import {
   BOOKING_KIND_LABELS,
   PATIENT_SERVICES,
@@ -18,6 +17,8 @@ import {
   formatTime,
   groupSlotsByDate
 } from './modules/ui-format.js';
+import { apiClient } from './modules/api-client.js';
+import { runPendingAction } from './modules/async-action.js';
 
 const identityKeyStorage = 'beauessence_patient_last_identity';
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
@@ -57,7 +58,7 @@ function rememberPatient(patientId) {
 // 頂端 #patient-status 是唯一的 aria-live 播報點；anchorId 把同一句話放到
 // 送出鈕旁，避免使用者在表單位置看不到失敗原因。
 let inlineStatus;
-function message(text, tone = 'info', anchorId) {
+function message(text, tone = 'info', anchorId, retry) {
   elements['patient-status'].textContent = text;
   elements['patient-status'].dataset.state = tone;
   const target = anchorId === undefined ? undefined : elements[anchorId];
@@ -71,6 +72,49 @@ function message(text, tone = 'info', anchorId) {
     target.dataset.state = tone;
     target.hidden = false;
   }
+  const retryTarget = target ?? elements['patient-status'];
+  if (retry !== undefined) {
+    const retryButton = document.createElement('button');
+    retryButton.className = 'button button-tertiary inline-retry';
+    retryButton.type = 'button';
+    retryButton.textContent = '重試';
+    retryButton.addEventListener('click', async () => {
+      await retry();
+    });
+    retryTarget.append(' ', retryButton);
+  }
+}
+
+async function runUiAction({
+  control,
+  pendingLabel,
+  pendingMessage,
+  anchorId,
+  action,
+  onSuccess,
+  failureMessage = (error) => error.message
+}) {
+  if (pendingMessage !== undefined) message(pendingMessage, 'info', anchorId);
+  const outcome = await runPendingAction({ control, pendingLabel, action });
+  if (outcome.ok) {
+    await onSuccess(outcome.value);
+    return true;
+  }
+  const retry =
+    outcome.retry === undefined
+      ? undefined
+      : () =>
+          runUiAction({
+            control,
+            pendingLabel,
+            pendingMessage,
+            anchorId,
+            action,
+            onSuccess,
+            failureMessage
+          });
+  message(failureMessage(outcome.error), 'error', anchorId, retry);
+  return false;
 }
 
 function showStep(step, { focusHeading = true } = {}) {
@@ -483,58 +527,52 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
     return;
   }
 
-  // 送出期間必須有明確回饋。只把按鈕變灰不足以說明「系統正在處理」，
-  // 使用者會以為沒按到而重複點擊。
   const submitButton = elements['confirm-patient-booking'];
-  const submitLabel = submitButton.textContent;
-  submitButton.disabled = true;
-  submitButton.dataset.busy = 'true';
-  submitButton.textContent = '送出中…';
-  message('正在送出預約，請稍候。', 'info', 'patient-submit-status');
-  try {
-    state = await stagingRequest('/bookings', {
-      method: 'POST',
-      body: JSON.stringify({
-        slotId: selectedSlotId,
-        patient: patientInput(),
-        bookingKind: selectedBookingType,
-        itemId: selectedServiceId,
-        origin: 'patient'
-      })
-    });
-    // A cancelled or no-show appointment keeps its original slotId even after
-    // the slot is released, so matching on slotId alone can return somebody
-    // else's old record. Only the live reservation counts.
-    const appointment = state.appointments.find(
-      (item) => item.slotId === selectedSlotId && item.status === 'confirmed'
-    );
-    completedAppointmentId = appointment.id;
-    completedAppointment = {
-      id: appointment.id,
-      startsAt: appointment.startsAt,
-      kindLabel: BOOKING_KIND_LABELS[appointment.bookingKind]
-    };
-    elements['add-to-google-calendar'].href =
-      buildGoogleCalendarUrl(completedAppointment);
-    rememberPatient(appointment.patientId);
-    elements['booking-complete-mark'].textContent = '✓';
-    elements['booking-complete-eyebrow'].textContent = 'BOOKING COMPLETE';
-    elements['booking-complete-heading'].textContent = '預約已建立';
-    elements['booking-complete-description'].textContent =
-      '請於門診時間前十分鐘抵達櫃台。資料仍只保存在目前瀏覽器。';
-    elements['booking-result'].innerHTML =
-      `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`;
-    renderAll();
-    showStep(4);
-    message(`預約已建立：${appointment.id}。`, 'success');
-  } catch (error) {
-    // 失敗原因要出現在送出鈕旁；只寫在頁面頂端等於「按了沒反應」。
-    message(`未送出預約：${error.message}`, 'error', 'patient-submit-status');
-  } finally {
-    submitButton.disabled = false;
-    delete submitButton.dataset.busy;
-    submitButton.textContent = submitLabel;
-  }
+  await runUiAction({
+    control: submitButton,
+    pendingLabel: '送出中…',
+    pendingMessage: '正在送出預約，請稍候。',
+    anchorId: 'patient-submit-status',
+    action: () =>
+      apiClient.request('/bookings', {
+        method: 'POST',
+        body: JSON.stringify({
+          slotId: selectedSlotId,
+          patient: patientInput(),
+          bookingKind: selectedBookingType,
+          itemId: selectedServiceId,
+          origin: 'patient'
+        })
+      }),
+    onSuccess: (nextState) => {
+      state = nextState;
+      // A cancelled or no-show appointment keeps its original slotId even
+      // after release, so only the live reservation identifies this result.
+      const appointment = state.appointments.find(
+        (item) => item.slotId === selectedSlotId && item.status === 'confirmed'
+      );
+      completedAppointmentId = appointment.id;
+      completedAppointment = {
+        id: appointment.id,
+        startsAt: appointment.startsAt,
+        kindLabel: BOOKING_KIND_LABELS[appointment.bookingKind]
+      };
+      elements['add-to-google-calendar'].href =
+        buildGoogleCalendarUrl(completedAppointment);
+      rememberPatient(appointment.patientId);
+      elements['booking-complete-mark'].textContent = '✓';
+      elements['booking-complete-eyebrow'].textContent = 'BOOKING COMPLETE';
+      elements['booking-complete-heading'].textContent = '預約已建立';
+      elements['booking-complete-description'].textContent =
+        '請於門診時間前十分鐘抵達櫃台。資料仍只保存在目前瀏覽器。';
+      elements['booking-result'].innerHTML =
+        `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`;
+      renderAll();
+      showStep(4);
+      message(`預約已建立：${appointment.id}。`, 'success');
+    },
+    failureMessage: (error) => `未送出預約：${error.message}`
+  });
 });
 
 elements['add-to-calendar'].addEventListener('click', () => {
@@ -559,26 +597,32 @@ elements['patient-appointments'].addEventListener('click', async (event) => {
     }))
   )
     return;
-  try {
-    state = await stagingRequest(
-      `/bookings/${button.dataset.patientCancel}/cancellation`,
-      { method: 'POST', body: JSON.stringify({ origin: 'patient' }) }
-    );
-    if (button.dataset.patientCancel === completedAppointmentId) {
-      elements['booking-complete-mark'].textContent = '↻';
-      elements['booking-complete-eyebrow'].textContent =
-        'CANCELLATION REQUESTED';
-      elements['booking-complete-heading'].textContent = '取消要求已送出';
-      elements['booking-complete-description'].textContent =
-        '診所櫃台確認後才會釋放時段。';
-      elements['booking-result'].innerHTML =
-        `<strong>預約編號：${escapeHtml(completedAppointmentId)}</strong><span>狀態：取消待診所確認</span>`;
+  const appointmentId = button.dataset.patientCancel;
+  await runUiAction({
+    control: button,
+    pendingLabel: '送出中…',
+    pendingMessage: '正在送出取消要求，請稍候。',
+    action: () =>
+      apiClient.request(`/bookings/${appointmentId}/cancellation`, {
+        method: 'POST',
+        body: JSON.stringify({ origin: 'patient' })
+      }),
+    onSuccess: (nextState) => {
+      state = nextState;
+      if (appointmentId === completedAppointmentId) {
+        elements['booking-complete-mark'].textContent = '↻';
+        elements['booking-complete-eyebrow'].textContent =
+          'CANCELLATION REQUESTED';
+        elements['booking-complete-heading'].textContent = '取消要求已送出';
+        elements['booking-complete-description'].textContent =
+          '診所櫃台確認後才會釋放時段。';
+        elements['booking-result'].innerHTML =
+          `<strong>預約編號：${escapeHtml(completedAppointmentId)}</strong><span>狀態：取消待診所確認</span>`;
+      }
+      renderAppointments();
+      message('取消要求已記錄，等待櫃台確認。', 'success');
     }
-    renderAppointments();
-    message('取消要求已記錄，等待櫃台確認。', 'success');
-  } catch (error) {
-    message(error.message, 'error');
-  }
+  });
 });
 
 document.querySelector('.skip-link').addEventListener('click', (event) => {
@@ -597,7 +641,7 @@ if (isOnline) {
 }
 
 try {
-  state = await stagingRequest('/state');
+  state = await apiClient.request('/state');
   renderAll();
   // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。
   showStep(1, { focusHeading: false });

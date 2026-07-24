@@ -326,8 +326,13 @@ owner；決策能及時完成：
 
 ### Web / Quality
 
-- [ ] API client adapter
-- [ ] real loading/pending/error/retry states
+- [x] API client adapter seam（2026-07-24；patient/admin controller 只依賴
+      `modules/api-client.js`，目前注入 browser-local `stagingRequest` transport；
+      尚未建立 `/v1` route 或網路請求）
+- [ ] real loading/pending/error/retry states（2026-07-24 已完成登入、患者預約／
+      取消、staff 建立／狀態處置／改期／備註、回診、個管與排班發布的第一批；
+      GET 僅對 retryable error 自動重試一次，POST 永不自動重放；其餘低頻治理
+      commands 與真 HTTP timeout/offline/409/429 mapping 待後續）
 - [x] bundle/content hash/cache（2026-07-24；`scripts/build-web.mjs` 產出
       內容雜湊的 `apps/web/dist`，SCC 處理匯入循環，firebase 雜湊資產 immutable、
       HTML no-store，CSP 未放寬；`hosting.predeploy` 綁 `pnpm build`）

@@ -1700,6 +1700,12 @@ label.has-error input {
   cursor: progress;
 }
 
+.inline-retry {
+  margin-inline-start: 0.65rem;
+  padding-block: 0.35rem;
+  vertical-align: middle;
+}
+
 /* ---------------------------------------------------------------
  * 自製確認彈窗：原生 <dialog> + showModal，內建焦點陷阱與 Esc。
  * 取代 window.confirm 以維持版面語言與主題一致。

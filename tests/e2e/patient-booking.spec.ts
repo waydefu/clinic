@@ -27,7 +27,10 @@ test.describe('患者線上預約', () => {
     await page.locator('#patient-birth').fill('1990-05-20');
     await page.locator('#patient-national-id').fill('A123456789');
     await page.locator('#synthetic-confirmation').check();
-    await page.locator('#confirm-patient-booking').click();
+    const submit = page.locator('#confirm-patient-booking');
+    await submit.click();
+    await expect(submit).toHaveText('送出中…');
+    await expect(submit).toHaveAttribute('aria-busy', 'true');
 
     // 步驟 4：完成畫面出現預約編號。
     await expect(page.locator('#booking-complete-heading')).toHaveText(

@@ -1,4 +1,3 @@
-import { stagingRequest } from './store.js';
 import {
   renderAccounts,
   renderAppointments,
@@ -13,6 +12,8 @@ import {
   renderTasks,
   renderWorkload
 } from './modules/admin-view.js';
+import { apiClient } from './modules/api-client.js';
+import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
 import {
   DELETE_APPOINTMENT_REASONS,
@@ -128,7 +129,7 @@ function renderWeek() {
 // 頂端 #status 是唯一的 aria-live 播報點；anchorId 則把同一句話放到剛按下的
 // 按鈕旁邊。長頁面上只寫頂端等於沒有回饋——操作者看不到成功或失敗的原因。
 let inlineStatus;
-function message(text, tone = 'info', anchorId) {
+function message(text, tone = 'info', anchorId, retry) {
   elements.status.textContent = text;
   elements.status.dataset.state = tone;
   const target = anchorId === undefined ? undefined : elements[anchorId];
@@ -142,10 +143,53 @@ function message(text, tone = 'info', anchorId) {
     target.dataset.state = tone;
     target.hidden = false;
   }
+  const retryTarget = target ?? elements.status;
+  if (retry !== undefined) {
+    const retryButton = document.createElement('button');
+    retryButton.className = 'button button-tertiary inline-retry';
+    retryButton.type = 'button';
+    retryButton.textContent = '重試';
+    retryButton.addEventListener('click', async () => {
+      await retry();
+    });
+    retryTarget.append(' ', retryButton);
+  }
+}
+
+async function runUiAction({
+  control,
+  pendingLabel,
+  pendingMessage,
+  anchorId,
+  action,
+  onSuccess,
+  failureMessage = (error) => error.message
+}) {
+  if (pendingMessage !== undefined) message(pendingMessage, 'info', anchorId);
+  const outcome = await runPendingAction({ control, pendingLabel, action });
+  if (outcome.ok) {
+    await onSuccess(outcome.value);
+    return true;
+  }
+  const retry =
+    outcome.retry === undefined
+      ? undefined
+      : () =>
+          runUiAction({
+            control,
+            pendingLabel,
+            pendingMessage,
+            anchorId,
+            action,
+            onSuccess,
+            failureMessage
+          });
+  message(failureMessage(outcome.error), 'error', anchorId, retry);
+  return false;
 }
 
 async function post(path, body = {}) {
-  state = await stagingRequest(path, {
+  state = await apiClient.request(path, {
     method: 'POST',
     body: JSON.stringify(body)
   });
@@ -375,23 +419,31 @@ function parseTimeList(value) {
 
 elements['login-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
-  try {
-    await post('/workspace/login', {
-      username: elements['login-account'].value,
-      password: elements['login-password'].value
-    });
-    elements['login-password'].value = '';
-    elements['login-error'].hidden = true;
-    elements['login-error'].textContent = '';
-    message(`已登入為 ${state.session.account.label}。`, 'success');
-    elements['main-content'].focus({ preventScroll: true });
-  } catch (error) {
-    // 登入失敗把訊息就地顯示在登入表單旁（工作臺的 #status 這時是隱藏的）。
-    elements['login-error'].textContent = error.message;
-    elements['login-error'].hidden = false;
-    elements['login-password'].value = '';
-    elements['login-password'].focus();
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '登入中…',
+    anchorId: 'login-error',
+    action: () =>
+      post('/workspace/login', {
+        username: elements['login-account'].value,
+        password: elements['login-password'].value
+      }),
+    onSuccess: () => {
+      elements['login-password'].value = '';
+      elements['login-error'].hidden = true;
+      elements['login-error'].textContent = '';
+      message(`已登入為 ${state.session.account.label}。`, 'success');
+      elements['main-content'].focus({ preventScroll: true });
+    },
+    failureMessage: (error) => {
+      // 登入失敗把訊息就地顯示在登入表單旁（工作臺的 #status 這時隱藏）。
+      elements['login-error'].textContent = error.message;
+      elements['login-error'].hidden = false;
+      elements['login-password'].value = '';
+      elements['login-password'].focus();
+      return error.message;
+    }
+  });
 });
 
 elements['logout'].addEventListener('click', async () => {
@@ -412,7 +464,7 @@ elements['reset-state'].addEventListener('click', async () => {
     ))
   )
     return;
-  state = await stagingRequest('/reset', { method: 'POST', body: '{}' });
+  state = await apiClient.request('/reset', { method: 'POST', body: '{}' });
   filters = { status: 'today', kind: 'all', query: '' };
   selectedSlotId = undefined;
   render();
@@ -531,44 +583,50 @@ elements['booking-form'].addEventListener('submit', async (event) => {
     ...elements['booking-tags'].querySelectorAll('[data-booking-tag]:checked')
   ].map((item) => item.dataset.bookingTag);
   const bookedSlotId = selectedSlotId;
-  try {
-    await post('/bookings', {
-      slotId: bookedSlotId,
-      bookingKind: elements['booking-kind'].value,
-      itemId: elements['booking-item'].value,
-      noteTags,
-      noteText: elements['booking-note'].value,
-      patient: {
-        name: elements['booking-name'].value,
-        phone: elements['booking-phone'].value,
-        birthDate: elements['booking-birth'].value,
-        nationalId: elements['booking-national-id'].value,
-        hasNhiCard: elements['booking-nhi-card'].checked
-      },
-      origin: 'staff'
-    });
-    // 成功訊息要講清楚建立了哪一筆，操作者不必捲到預約清單才能確認。
-    const created = state.appointments.find(
-      (item) => item.slotId === bookedSlotId && item.status === 'confirmed'
-    );
-    selectedSlotId = undefined;
-    elements['booking-form'].reset();
-    render();
-    const successMessage =
-      created === undefined
-        ? '預約已建立，可於「櫃台處理清單」查看。'
-        : `預約已建立：${created.id} · ${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`;
-    elements['booking-workflow'].open = false;
-    message(successMessage, 'success');
-    if (created !== undefined)
-      window.setTimeout(() => {
-        document
-          .querySelector(`[data-appointment-card="${created.id}"]`)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 0);
-  } catch (error) {
-    message(`未建立預約：${error.message}`, 'error', 'booking-form-status');
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '建立中…',
+    pendingMessage: '正在建立預約，請稍候。',
+    anchorId: 'booking-form-status',
+    action: () =>
+      post('/bookings', {
+        slotId: bookedSlotId,
+        bookingKind: elements['booking-kind'].value,
+        itemId: elements['booking-item'].value,
+        noteTags,
+        noteText: elements['booking-note'].value,
+        patient: {
+          name: elements['booking-name'].value,
+          phone: elements['booking-phone'].value,
+          birthDate: elements['booking-birth'].value,
+          nationalId: elements['booking-national-id'].value,
+          hasNhiCard: elements['booking-nhi-card'].checked
+        },
+        origin: 'staff'
+      }),
+    onSuccess: () => {
+      // 成功訊息講清楚建立哪一筆，操作者不必捲到清單才能確認。
+      const created = state.appointments.find(
+        (item) => item.slotId === bookedSlotId && item.status === 'confirmed'
+      );
+      selectedSlotId = undefined;
+      elements['booking-form'].reset();
+      render();
+      const successMessage =
+        created === undefined
+          ? '預約已建立，可於「櫃台處理清單」查看。'
+          : `預約已建立：${created.id} · ${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`;
+      elements['booking-workflow'].open = false;
+      message(successMessage, 'success');
+      if (created !== undefined)
+        window.setTimeout(() => {
+          document
+            .querySelector(`[data-appointment-card="${created.id}"]`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 0);
+    },
+    failureMessage: (error) => `未建立預約：${error.message}`
+  });
 });
 
 // 回診版卡片的「調整回診」：把該筆放回逐筆回診確認暫時顯示，捲過去可再改。
@@ -617,12 +675,15 @@ elements.appointments.addEventListener('click', async (event) => {
       }
     );
     if (reasonCode === undefined) return;
-    try {
-      await post(`/bookings/${id}/delete`, { reasonCode });
-      message('預約紀錄已刪除，時段已釋放，稽核已留存。', 'success');
-    } catch (error) {
-      message(`未刪除：${error.message}`, 'error');
-    }
+    await runUiAction({
+      control: button,
+      pendingLabel: '刪除中…',
+      pendingMessage: '正在刪除預約紀錄，請稍候。',
+      action: () => post(`/bookings/${id}/delete`, { reasonCode }),
+      onSuccess: () =>
+        message('預約紀錄已刪除，時段已釋放，稽核已留存。', 'success'),
+      failureMessage: (error) => `未刪除：${error.message}`
+    });
     return;
   }
 
@@ -641,23 +702,26 @@ elements.appointments.addEventListener('click', async (event) => {
   });
   if (!confirmed) return;
   const paths = { cancel: 'cancel', no_show: 'no-show', complete: 'complete' };
-  try {
-    await post(`/bookings/${id}/${paths[action]}`);
-    const done = {
-      cancel: '預約已取消並釋放時段。',
-      no_show: '已標記未到並釋放時段。',
-      complete: '到診已記錄，請接續處理回診與個管指派。'
-    };
-    message(done[action], 'success');
-    if (action === 'complete' && !elements['follow-up-workflow'].hidden) {
-      const followUpForm = document.querySelector(
-        `[data-follow-up-form="${id}"]`
-      );
-      followUpForm?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  await runUiAction({
+    control: button,
+    pendingLabel: '處理中…',
+    pendingMessage: '正在更新預約狀態，請稍候。',
+    action: () => post(`/bookings/${id}/${paths[action]}`),
+    onSuccess: () => {
+      const done = {
+        cancel: '預約已取消並釋放時段。',
+        no_show: '已標記未到並釋放時段。',
+        complete: '到診已記錄，請接續處理回診與個管指派。'
+      };
+      message(done[action], 'success');
+      if (action === 'complete' && !elements['follow-up-workflow'].hidden) {
+        const followUpForm = document.querySelector(
+          `[data-follow-up-form="${id}"]`
+        );
+        followUpForm?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
-  } catch (error) {
-    message(error.message, 'error');
-  }
+  });
 });
 
 // 修改備註：展開／收合卡片內的表單。備註不改狀態也不動時段，因此不放進
@@ -681,15 +745,18 @@ elements.appointments.addEventListener('submit', async (event) => {
   if (notesForm !== null) {
     event.preventDefault();
     const data = new FormData(notesForm);
-    try {
-      await post(`/bookings/${notesForm.dataset.notesForm}/notes`, {
-        noteTags: data.getAll('noteTags'),
-        noteText: data.get('noteText')
-      });
-      message('備註已更新。', 'success');
-    } catch (error) {
-      message(`未更新備註：${error.message}`, 'error');
-    }
+    await runUiAction({
+      control: event.submitter,
+      pendingLabel: '儲存中…',
+      pendingMessage: '正在更新備註，請稍候。',
+      action: () =>
+        post(`/bookings/${notesForm.dataset.notesForm}/notes`, {
+          noteTags: data.getAll('noteTags'),
+          noteText: data.get('noteText')
+        }),
+      onSuccess: () => message('備註已更新。', 'success'),
+      failureMessage: (error) => `未更新備註：${error.message}`
+    });
     return;
   }
 
@@ -698,14 +765,16 @@ elements.appointments.addEventListener('submit', async (event) => {
   event.preventDefault();
   const slotId = new FormData(form).get('slotId');
   if (!slotId) return message('沒有可改期的時段。', 'error');
-  try {
-    await post(`/bookings/${form.dataset.rescheduleForm}/reschedule`, {
-      slotId
-    });
-    message('預約已改期。', 'success');
-  } catch (error) {
-    message(error.message, 'error');
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '改期中…',
+    pendingMessage: '正在改期，請稍候。',
+    action: () =>
+      post(`/bookings/${form.dataset.rescheduleForm}/reschedule`, {
+        slotId
+      }),
+    onSuccess: () => message('預約已改期。', 'success')
+  });
 });
 
 elements['weekly-form'].addEventListener('submit', async (event) => {
@@ -847,20 +916,24 @@ elements['publish-schedule'].addEventListener('click', async () => {
     ))
   )
     return;
-  try {
-    // 送出這個畫面所根據的版本。若另一個分頁已經發布過，store 會擋下來而不是
-    // 讓這一份默默覆蓋掉對方的排班。
-    await post('/schedule/publish', {
-      expectedVersion: state.scheduleMeta.publishedVersion
-    });
-    message(
-      '排班已發布，患者端可預約時段已同步更新。',
-      'success',
-      'schedule-toolbar-status'
-    );
-  } catch (error) {
-    message(`未發布：${error.message}`, 'error', 'schedule-toolbar-status');
-  }
+  await runUiAction({
+    control: elements['publish-schedule'],
+    pendingLabel: '發布中…',
+    pendingMessage: '正在發布排班，請稍候。',
+    anchorId: 'schedule-toolbar-status',
+    // 送出畫面所根據的版本；若另一分頁已發布，store 會擋下而不靜默覆蓋。
+    action: () =>
+      post('/schedule/publish', {
+        expectedVersion: state.scheduleMeta.publishedVersion
+      }),
+    onSuccess: () =>
+      message(
+        '排班已發布，患者端可預約時段已同步更新。',
+        'success',
+        'schedule-toolbar-status'
+      ),
+    failureMessage: (error) => `未發布：${error.message}`
+  });
 });
 
 elements['discard-schedule'].addEventListener('click', async () => {
@@ -903,28 +976,32 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   // 決定存檔後即從逐筆回診確認消失（需要回診→清單回診版、不需要→移除）。
   // 先移出編輯集合，post() 內部重繪就已反映；失敗時仍為未決定，照樣顯示。
   editingFollowUps.delete(appointmentId);
-  try {
-    const managerId = data.get('managerId');
-    await post(`/follow-ups/${appointmentId}`, {
-      status: data.get('status'),
-      dueDate: data.get('dueDate'),
-      dueTime: data.get('dueTime'),
-      tags: data.getAll('tags'),
-      noteText: data.get('noteText'),
-      certificateCopies: Number(data.get('certificateCopies') ?? 0),
-      managerId
-    });
-    if (data.get('status') === 'required') {
-      weekStart = weekStartOf(data.get('dueDate'));
-      renderWeek();
+  const managerId = data.get('managerId');
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '儲存中…',
+    pendingMessage: '正在儲存回診決定，請稍候。',
+    action: () =>
+      post(`/follow-ups/${appointmentId}`, {
+        status: data.get('status'),
+        dueDate: data.get('dueDate'),
+        dueTime: data.get('dueTime'),
+        tags: data.getAll('tags'),
+        noteText: data.get('noteText'),
+        certificateCopies: Number(data.get('certificateCopies') ?? 0),
+        managerId
+      }),
+    onSuccess: () => {
+      if (data.get('status') === 'required') {
+        weekStart = weekStartOf(data.get('dueDate'));
+        renderWeek();
+      }
+      message(
+        managerId ? '逐筆回診決定與個管指派已記錄。' : '逐筆回診決定已記錄。',
+        'success'
+      );
     }
-    message(
-      managerId ? '逐筆回診決定與個管指派已記錄。' : '逐筆回診決定已記錄。',
-      'success'
-    );
-  } catch (error) {
-    message(error.message, 'error');
-  }
+  });
 });
 
 elements['case-assignment-list'].addEventListener('submit', async (event) => {
@@ -932,15 +1009,18 @@ elements['case-assignment-list'].addEventListener('submit', async (event) => {
   if (form === null) return;
   event.preventDefault();
   const data = new FormData(form);
-  try {
-    await post('/case-assignments', {
-      appointmentId: form.dataset.caseForm,
-      managerId: data.get('managerId')
-    });
-    message('個管指派已更新，月度不重複患者統計已重新計算。', 'success');
-  } catch (error) {
-    message(error.message, 'error');
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '更新中…',
+    pendingMessage: '正在更新個管指派，請稍候。',
+    action: () =>
+      post('/case-assignments', {
+        appointmentId: form.dataset.caseForm,
+        managerId: data.get('managerId')
+      }),
+    onSuccess: () =>
+      message('個管指派已更新，月度不重複患者統計已重新計算。', 'success')
+  });
 });
 
 elements['account-form'].addEventListener('submit', async (event) => {
@@ -1091,7 +1171,7 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
 if (!isOnline) elements['environment-label'].textContent = 'LOCAL TEST ONLY';
 
 try {
-  state = await stagingRequest('/state');
+  state = await apiClient.request('/state');
   render();
   initWorkspaceTabs();
   if (state.session.authenticated === true)

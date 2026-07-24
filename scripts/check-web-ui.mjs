@@ -14,6 +14,8 @@ const paths = {
   cases: 'apps/web/public/modules/case-management.js',
   permissions: 'apps/web/public/modules/permissions.js',
   confirmDialog: 'apps/web/public/modules/confirm-dialog.js',
+  apiClient: 'apps/web/public/modules/api-client.js',
+  asyncAction: 'apps/web/public/modules/async-action.js',
   theme: 'apps/web/public/theme.js',
   css: 'apps/web/public/workbench.css'
 };
@@ -85,8 +87,28 @@ requireText(
 );
 requireText(
   files.adminClient,
-  "import { stagingRequest } from './store.js'",
-  'Admin client does not use the modular store.'
+  "import { apiClient } from './modules/api-client.js'",
+  'Admin client bypasses the API client adapter.'
+);
+requireText(
+  files.patientClient,
+  "import { apiClient } from './modules/api-client.js'",
+  'Patient client bypasses the API client adapter.'
+);
+requireText(
+  files.apiClient,
+  "import { stagingRequest } from '../store.js'",
+  'Synthetic API client is no longer backed by the modular store.'
+);
+requireText(
+  files.apiClient,
+  "method === 'GET' && clientError.retryable",
+  'API client no longer limits automatic retry to safe GET requests.'
+);
+requireText(
+  files.asyncAction,
+  "control.setAttribute('aria-busy', 'true')",
+  'Pending actions no longer expose aria-busy.'
 );
 requireText(
   files.adminClient,

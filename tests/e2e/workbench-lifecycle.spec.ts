@@ -10,7 +10,10 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await page.reload();
   await page.locator('#login-account').fill('admin');
   await page.locator('#login-password').fill('beauessence-admin');
-  await page.locator('#login-view button[type="submit"]').click();
+  const loginButton = page.locator('#login-view button[type="submit"]');
+  await loginButton.click();
+  await expect(loginButton).toHaveText('登入中…');
+  await expect(loginButton).toHaveAttribute('aria-busy', 'true');
   // 登入後閘門消失、工作臺出現。
   await expect(page.locator('#login-view')).toBeHidden();
   await expect(page.locator('#logout')).toBeVisible();
@@ -29,7 +32,10 @@ async function createBooking(page: Page): Promise<void> {
   await page.locator('#booking-kind').selectOption('initial');
   // 選第一個可預約時段，再送出建立。
   await page.locator('#slots [data-select-slot]').first().click();
-  await page.locator('#booking-form button[type="submit"]').click();
+  const submit = page.locator('#booking-form button[type="submit"]');
+  await submit.click();
+  await expect(submit).toHaveText('建立中…');
+  await expect(submit).toHaveAttribute('aria-busy', 'true');
 }
 
 // 合成資料是 2030 年，預設「當日」篩選看不到；切到「全部狀態」才會列出。
