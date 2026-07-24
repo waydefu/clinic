@@ -332,8 +332,11 @@ owner；決策能及時完成：
       內容雜湊的 `apps/web/dist`，SCC 處理匯入循環，firebase 雜湊資產 immutable、
       HTML no-store，CSP 未放寬；`hosting.predeploy` 綁 `pnpm build`）
 - [ ] staff auth route protection
-- [ ] Playwright E2E
-- [ ] axe/screen-reader/forced-colors
+- [x] Playwright E2E（2026-07-24；患者預約流程＋工作臺登入→建立→到診→回診
+      →刪除，跑在 content-hash 的 dist 上，CI verify.yml 新增 e2e job）
+- [x] axe（2026-07-24；患者頁、登入閘門、登入後預約清單皆掃 serious/critical＝0；
+      掃描過程抓到並修正三個真實對比／鍵盤違規：amber 文字、休診日表頭、週檢視
+      可聚焦）。screen-reader/forced-colors 人工測試仍待補
 - [ ] Lighthouse budgets
 - [x] tracked-secret/high-critical dependency CI skeleton（2026-07-23）
 - [ ] SAST/final dependency policy/standards-compliant SBOM gates

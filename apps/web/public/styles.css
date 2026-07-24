@@ -49,7 +49,11 @@
   --neutral-text: #65756d;
   --info-soft: #e8effd;
   --info-text: #315a9c;
-  --amber: #aa6c1b;
+  /* --amber is only ever a foreground text colour (chips, notices). Darkened
+     from #aa6c1b so amber-on-white clears WCAG AA (4.5:1): the login boundary
+     note sits on the white login card, and the old value measured 4.31:1.
+     Amber-on-amber-light pairings only gain contrast from this. */
+  --amber: #935b10;
   --amber-light: #fff4df;
   --danger: #a83737;
   --danger-light: #fff0f0;

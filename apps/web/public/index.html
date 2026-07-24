@@ -376,9 +376,14 @@
                 <span id="week-range" class="week-range"></span>
               </div>
             </div>
+            <!-- tabindex 讓這個可捲動區塊能被鍵盤聚焦後捲動（WCAG 2.1.1）；
+                 有 aria-label，聚焦時報讀器會讀出區塊名稱。role=group 表明它是
+                 一個具名的內容群組而非單純容器。 -->
             <div
               id="week-view"
               class="week-view"
+              role="group"
+              tabindex="0"
               aria-label="本週預約週檢視"
             ></div>
             <div class="week-view-legend">

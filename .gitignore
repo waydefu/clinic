@@ -27,6 +27,9 @@ backups/
 # Tooling
 .playwright-cli/
 output/playwright/
+# Playwright run artifacts
+test-results/
+playwright-report/
 .DS_Store
 Thumbs.db
 .idea/

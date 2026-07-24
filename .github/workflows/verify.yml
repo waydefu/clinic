@@ -61,6 +61,37 @@ jobs:
       # 不會接觸任何雲端 Firebase 專案，也不需要任何憑證。
       - run: pnpm test:rules
 
+  e2e:
+    name: Playwright E2E 與 axe 無障礙（跑在打包產物上）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 只裝這個工作需要的 Chromium 與其系統相依。
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # playwright.config 的 webServer 會先 build（含 content-hash 的 dist）再
+      # 以 WEB_ROOT=dist 啟動 server.mjs，因此 E2E 跑的是實際會部署的產物。
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
   supply-chain:
     name: Tracked secrets、dependency audit 與 inventory
     runs-on: ubuntu-latest

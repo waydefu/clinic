@@ -13,7 +13,8 @@
     "packages/**/*.ts",
     "tests/**/*.ts",
     "vitest.config.ts",
-    "vitest.rules.config.ts"
+    "vitest.rules.config.ts",
+    "playwright.config.ts"
   ],
   "exclude": ["**/dist/**", "**/node_modules/**"]
 }

@@ -150,6 +150,13 @@ requireText(
   ':focus-visible',
   'Modular admin CSS must preserve visible focus.'
 );
+// 週檢視是可捲動區塊，必須能被鍵盤聚焦後捲動（WCAG 2.1.1，axe 會擋）。
+// requireText 會先去掉所有空白再比對，所以這裡寫成單行即可。
+requireText(
+  files.adminShell,
+  'id="week-view" class="week-view" role="group" tabindex="0"',
+  'Week view must stay keyboard-focusable (role=group, tabindex=0).'
+);
 
 // 2026-07-21 決定（專案負責人）：預約流程改為收集姓名、電話、生日與身分證，
 // 公開預覽一併更新。因此這裡不再是「不得有任何輸入欄位」，而是「只允許清單內

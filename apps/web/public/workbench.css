@@ -682,7 +682,11 @@ details[open] > summary .workflow-summary-chevron {
   font-size: 0.72rem;
 }
 .wv-head-cell.wv-closed {
-  color: var(--blocked, var(--line-strong));
+  /* Was --line-strong (#c3d3ca), which measured 1.49:1 on the near-white
+     header — the weekday and date were effectively invisible. "Closed" is
+     already signalled by the diagonal-striped column below (.wv-col.wv-closed),
+     so the header text uses the readable muted ink and clears WCAG AA. */
+  color: var(--ink-muted);
 }
 .wv-head-cell.wv-today b {
   background: var(--forest);
