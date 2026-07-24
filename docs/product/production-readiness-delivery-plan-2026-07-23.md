@@ -278,8 +278,15 @@ owner；決策能及時完成：
 - [x] audit v2（2026-07-23 local/Emulator）
 - [x] schedule planner/version conflict（2026-07-24 `planSchedulePublication`，
       樂觀 `expectedVersion` 衝突偵測；瀏覽器多分頁亦走同一守衛）
-- [ ] case assignment effective periods
-- [ ] payroll close/adjustment
+- [x] case assignment effective periods（2026-07-24；`planCaseAssignment`
+      effective-dated，reassignment 收尾前段不覆寫，`assertConsistentAssignmentHistory`
+      守衛不重疊／單一開放期間；unrouted `AssignCaseManager*` schema。merge review
+      仍受 D-006/D-007 gate）
+- [x] payroll close/adjustment（2026-07-24；`planPayrollPeriodClose` 鎖定期間快照，
+      `planPayrollAdjustment` 鎖後只允許具理由調整、不得低於零；audit v2 加
+      `payroll_period_closed`/`payroll_adjustment_recorded`；unrouted
+      `ClosePayrollPeriod*`/`RecordPayrollAdjustment*` schema。財務規則版本與 lock
+      owner 仍受 D-006～D-008 gate）
 
 ### API / Security
 

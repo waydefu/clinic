@@ -15,10 +15,23 @@ export const AuditActionSchema = z.enum([
   'appointment_deleted',
   'follow_up_decided',
   // The only action whose resource is the schedule rather than an appointment.
-  'schedule_published'
+  'schedule_published',
+  // Effective-dated case-manager assignment; the resource is the patient it
+  // follows. A reassignment closes the prior period and never overwrites it.
+  'case_manager_assigned',
+  'case_manager_reassigned',
+  // Payroll governance; the resource is the period. An adjustment is the only
+  // action that changes a closed total, so it always carries a reasonCode.
+  'payroll_period_closed',
+  'payroll_adjustment_recorded'
 ]);
 
-export const AuditResourceTypeSchema = z.enum(['appointment', 'schedule']);
+export const AuditResourceTypeSchema = z.enum([
+  'appointment',
+  'schedule',
+  'case',
+  'payroll'
+]);
 
 export const AuditSourceSchema = z.enum(['api', 'system', 'worker']);
 
@@ -55,6 +68,28 @@ export const AuditFollowUpStateSchema = z
   .strict();
 
 /**
+ * The manager is an opaque staff identifier and the bounds are UTC instants;
+ * there is no field a patient name or contact could be written into. The
+ * patient the assignment follows is the event's resourceId, itself opaque.
+ */
+export const AuditCaseAssignmentStateSchema = z
+  .object({
+    managerId: OpaqueIdentifierSchema,
+    activeFrom: UtcIsoTimestampSchema,
+    activeUntil: UtcIsoTimestampSchema.nullable()
+  })
+  .strict();
+
+/** Period, lock status and headline credit count — the scale of a close or adjustment, nothing more. */
+export const AuditPayrollStateSchema = z
+  .object({
+    payrollPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+    status: z.enum(['open', 'locked']),
+    creditCount: z.number().int().min(0)
+  })
+  .strict();
+
+/**
  * Every branch is strict and narrow: there is no field in any of them that a
  * name, phone number, national ID or free-text note could be written into, so
  * audit cannot become a side channel for patient data.
@@ -62,7 +97,9 @@ export const AuditFollowUpStateSchema = z
 export const AuditResourceStateSchema = z.union([
   AuditAppointmentStateSchema,
   AuditScheduleStateSchema,
-  AuditFollowUpStateSchema
+  AuditFollowUpStateSchema,
+  AuditCaseAssignmentStateSchema,
+  AuditPayrollStateSchema
 ]);
 
 export const AuditEventV2Schema = z
@@ -96,7 +133,7 @@ export const AuditEventV2Schema = z
       });
     };
     const requireResourceType = (
-      expected: 'appointment' | 'schedule'
+      expected: 'appointment' | 'schedule' | 'case' | 'payroll'
     ): void => {
       if (event.resourceType !== expected) {
         issue(`${event.action} must use resourceType "${expected}".`, [
@@ -126,6 +163,28 @@ export const AuditEventV2Schema = z
     ): void => {
       if (!AuditFollowUpStateSchema.safeParse(state).success) {
         issue(`${event.action} requires follow-up ${field} state.`, [field]);
+      }
+    };
+    const requireCaseState = (
+      state: unknown,
+      field: 'before' | 'after'
+    ): void => {
+      if (!AuditCaseAssignmentStateSchema.safeParse(state).success) {
+        issue(`${event.action} requires case ${field} state.`, [field]);
+      }
+    };
+    const requirePayrollState = (
+      state: unknown,
+      field: 'before' | 'after',
+      lockStatus: 'open' | 'locked'
+    ): void => {
+      const parsed = AuditPayrollStateSchema.safeParse(state);
+      if (!parsed.success) {
+        issue(`${event.action} requires payroll ${field} state.`, [field]);
+        return;
+      }
+      if (parsed.data.status !== lockStatus) {
+        issue(`${event.action} ${field} state must be ${lockStatus}.`, [field]);
       }
     };
 
@@ -176,6 +235,35 @@ export const AuditEventV2Schema = z
         requireScheduleState(event.before, 'before');
         requireScheduleState(event.after, 'after');
         break;
+      case 'case_manager_assigned':
+        requireResourceType('case');
+        if (event.before !== null) {
+          issue('case_manager_assigned must have a null before state.', [
+            'before'
+          ]);
+        }
+        requireCaseState(event.after, 'after');
+        break;
+      case 'case_manager_reassigned':
+        requireResourceType('case');
+        requireCaseState(event.before, 'before');
+        requireCaseState(event.after, 'after');
+        break;
+      case 'payroll_period_closed':
+        requireResourceType('payroll');
+        requirePayrollState(event.before, 'before', 'open');
+        requirePayrollState(event.after, 'after', 'locked');
+        break;
+      case 'payroll_adjustment_recorded':
+        requireResourceType('payroll');
+        requirePayrollState(event.before, 'before', 'locked');
+        requirePayrollState(event.after, 'after', 'locked');
+        if (event.reasonCode === null) {
+          issue('payroll_adjustment_recorded requires a reasonCode.', [
+            'reasonCode'
+          ]);
+        }
+        break;
     }
   });
 
@@ -183,6 +271,10 @@ export type AuditAction = z.infer<typeof AuditActionSchema>;
 export type AuditAppointmentState = z.infer<typeof AuditAppointmentStateSchema>;
 export type AuditScheduleState = z.infer<typeof AuditScheduleStateSchema>;
 export type AuditFollowUpState = z.infer<typeof AuditFollowUpStateSchema>;
+export type AuditCaseAssignmentState = z.infer<
+  typeof AuditCaseAssignmentStateSchema
+>;
+export type AuditPayrollState = z.infer<typeof AuditPayrollStateSchema>;
 export type AuditResourceState = z.infer<typeof AuditResourceStateSchema>;
 export type AuditResourceType = z.infer<typeof AuditResourceTypeSchema>;
 export type AuditEventV2 = z.infer<typeof AuditEventV2Schema>;

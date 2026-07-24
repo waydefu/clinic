@@ -1,5 +1,17 @@
 import { assertUtcTimestamp, type Appointment } from './appointment.js';
+import {
+  planAuditEvent,
+  type AuditContext,
+  type AuditEventV2,
+  type AuditPayrollState
+} from './audit.js';
 import { DomainError } from './errors.js';
+import {
+  assertIdempotencyContext,
+  planIdempotencyRecord,
+  type IdempotencyContext,
+  type PlannedIdempotencyRecord
+} from './idempotency.js';
 // 診所的時區只定義一次，在排班網格那一側；薪資期間必須用同一個，否則跨月的
 // 到診會被算進不同的月份。
 import { TAIPEI_TIME_ZONE } from './schedule.js';
@@ -299,4 +311,238 @@ function assertOpaqueIdentifier(value: string, fieldName: string): void {
       `${fieldName} must be an opaque identifier.`
     );
   }
+}
+
+const PAYROLL_PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+function assertPayrollPeriod(value: string): void {
+  if (!PAYROLL_PERIOD_PATTERN.test(value)) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'payrollPeriod must use the YYYY-MM Taipei-period format.'
+    );
+  }
+}
+
+function assertCloseUtcTimestamp(value: string, fieldName: string): void {
+  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
+    throw new DomainError(
+      'INVALID_TIMESTAMP',
+      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
+    );
+  }
+}
+
+/**
+ * A locked snapshot of one manager's payroll period. Locking freezes the
+ * headline credit count; after that only a reasoned adjustment may move it, and
+ * the adjustment leaves the period locked. This is what makes a month close
+ * auditable — the total that was signed off stays recoverable even as late
+ * completions or reassignments arrive.
+ */
+export interface PayrollPeriodSnapshot {
+  readonly id: string;
+  readonly managerId: string;
+  readonly payrollPeriod: string;
+  readonly status: 'locked';
+  readonly creditCount: number;
+  readonly closedAt: string;
+  readonly lastAdjustedAt: string | null;
+}
+
+export interface PayrollPeriodCloseRequest {
+  readonly managerId: string;
+  readonly payrollPeriod: string;
+  readonly audit: AuditContext;
+  readonly requestedAt: string;
+  readonly idempotency: IdempotencyContext;
+}
+
+export interface PayrollPeriodClosePlan {
+  readonly snapshot: PayrollPeriodSnapshot;
+  readonly auditEvent: AuditEventV2;
+  readonly idempotencyRecord: PlannedIdempotencyRecord;
+}
+
+export interface PayrollAdjustmentRequest {
+  readonly managerId: string;
+  readonly payrollPeriod: string;
+  /** 對已鎖定 creditCount 的變動量；非零整數。`audit.reasonCode` 必填。 */
+  readonly delta: number;
+  readonly audit: AuditContext;
+  readonly requestedAt: string;
+  readonly idempotency: IdempotencyContext;
+}
+
+export type PayrollAdjustmentPlan = PayrollPeriodClosePlan;
+
+function payrollPeriodId(managerId: string, payrollPeriod: string): string {
+  return `payroll_${managerId}_${payrollPeriod}`;
+}
+
+function payrollState(
+  payrollPeriod: string,
+  status: 'open' | 'locked',
+  creditCount: number
+): AuditPayrollState {
+  return { payrollPeriod, status, creditCount };
+}
+
+/**
+ * Counts the unique credits for one manager and period. Credits that belong to
+ * a different manager or period are ignored rather than trusted, so a caller
+ * passing the whole ledger closes only the intended slice.
+ */
+function countManagerPeriodCredits(
+  credits: readonly PayrollCredit[],
+  managerId: string,
+  payrollPeriod: string
+): number {
+  const ids = new Set<string>();
+  for (const credit of credits) {
+    if (
+      credit.managerId !== managerId ||
+      credit.payrollPeriod !== payrollPeriod
+    ) {
+      continue;
+    }
+    assertStoredPayrollCredit(credit);
+    ids.add(credit.id);
+  }
+  return ids.size;
+}
+
+/**
+ * Plans a month close for one manager's period. `current` is the existing
+ * snapshot if the period was already locked; closing an already-locked period
+ * is a conflict, not a no-op, because a second close would silently replace the
+ * signed-off total.
+ */
+export function planPayrollPeriodClose(
+  request: PayrollPeriodCloseRequest,
+  credits: readonly PayrollCredit[],
+  current: PayrollPeriodSnapshot | undefined
+): PayrollPeriodClosePlan {
+  assertOpaqueIdentifier(request.managerId, 'managerId');
+  assertPayrollPeriod(request.payrollPeriod);
+  assertCloseUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertIdempotencyContext(request.idempotency, request.audit.actorId);
+
+  if (current !== undefined) {
+    throw new DomainError(
+      'PAYROLL_PERIOD_ALREADY_CLOSED',
+      `The payroll period ${request.payrollPeriod} is already closed.`
+    );
+  }
+
+  const creditCount = countManagerPeriodCredits(
+    credits,
+    request.managerId,
+    request.payrollPeriod
+  );
+  const id = payrollPeriodId(request.managerId, request.payrollPeriod);
+
+  return {
+    snapshot: {
+      id,
+      managerId: request.managerId,
+      payrollPeriod: request.payrollPeriod,
+      status: 'locked',
+      creditCount,
+      closedAt: request.requestedAt,
+      lastAdjustedAt: null
+    },
+    auditEvent: planAuditEvent({
+      eventId: `audit_payroll_close_${request.idempotency.recordId}`,
+      occurredAt: request.requestedAt,
+      action: 'payroll_period_closed',
+      resourceType: 'payroll',
+      resourceId: id,
+      before: payrollState(request.payrollPeriod, 'open', creditCount),
+      after: payrollState(request.payrollPeriod, 'locked', creditCount),
+      context: request.audit
+    }),
+    idempotencyRecord: planIdempotencyRecord(
+      request.idempotency,
+      id,
+      request.requestedAt,
+      'payroll_period'
+    )
+  };
+}
+
+/**
+ * Plans a reasoned adjustment to an already-closed period. It is refused unless
+ * the period is locked and the audit context carries a reason, because an
+ * adjustment is the only sanctioned way to change a signed-off total and the
+ * reason outlives the number it explains.
+ */
+export function planPayrollAdjustment(
+  request: PayrollAdjustmentRequest,
+  closed: PayrollPeriodSnapshot | undefined
+): PayrollAdjustmentPlan {
+  assertOpaqueIdentifier(request.managerId, 'managerId');
+  assertPayrollPeriod(request.payrollPeriod);
+  assertCloseUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertIdempotencyContext(request.idempotency, request.audit.actorId);
+
+  if (closed === undefined || closed.status !== 'locked') {
+    throw new DomainError(
+      'PAYROLL_PERIOD_NOT_CLOSED',
+      'Only a closed payroll period can carry an adjustment.'
+    );
+  }
+  if (
+    closed.managerId !== request.managerId ||
+    closed.payrollPeriod !== request.payrollPeriod
+  ) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The adjustment does not match the closed period it targets.'
+    );
+  }
+  if (request.audit.reasonCode === null) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'A payroll adjustment requires a reason code.'
+    );
+  }
+  if (!Number.isInteger(request.delta) || request.delta === 0) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'A payroll adjustment delta must be a non-zero whole number.'
+    );
+  }
+
+  const creditCount = closed.creditCount + request.delta;
+  if (creditCount < 0) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'A payroll adjustment must not drive the credit count below zero.'
+    );
+  }
+
+  return {
+    snapshot: {
+      ...closed,
+      creditCount,
+      lastAdjustedAt: request.requestedAt
+    },
+    auditEvent: planAuditEvent({
+      eventId: `audit_payroll_adjust_${request.idempotency.recordId}`,
+      occurredAt: request.requestedAt,
+      action: 'payroll_adjustment_recorded',
+      resourceType: 'payroll',
+      resourceId: closed.id,
+      before: payrollState(request.payrollPeriod, 'locked', closed.creditCount),
+      after: payrollState(request.payrollPeriod, 'locked', creditCount),
+      context: request.audit
+    }),
+    idempotencyRecord: planIdempotencyRecord(
+      request.idempotency,
+      closed.id,
+      request.requestedAt,
+      'payroll_period'
+    )
+  };
 }

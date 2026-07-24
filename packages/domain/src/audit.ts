@@ -18,7 +18,20 @@ export type AuditAction =
   | 'appointment_deleted'
   | 'follow_up_decided'
   /** Resource is the schedule, not an appointment; state is version + slot count. */
-  | 'schedule_published';
+  | 'schedule_published'
+  /**
+   * Case-manager assignment is effective-dated. A reassignment closes the
+   * previous period and opens a new one; it never overwrites history, so the
+   * two actions are distinct and the `case` resource is the patient it follows.
+   */
+  | 'case_manager_assigned'
+  | 'case_manager_reassigned'
+  /**
+   * Locking a payroll period freezes its snapshot; afterwards only a reasoned
+   * adjustment may change it. The resource is the period, not an appointment.
+   */
+  | 'payroll_period_closed'
+  | 'payroll_adjustment_recorded';
 
 export type AuditSource = 'api' | 'system' | 'worker';
 
@@ -26,8 +39,10 @@ export type AuditSource = 'api' | 'system' | 'worker';
  * What the event is about. Audit v2 originally modelled appointments only;
  * publishing a schedule is the first non-appointment write that has to be
  * explainable after the fact, so the resource is now named rather than assumed.
+ * `case` and `payroll` join it for the effective-dated assignment and the
+ * period-close/adjustment governance writes.
  */
-export type AuditResourceType = 'appointment' | 'schedule';
+export type AuditResourceType = 'appointment' | 'schedule' | 'case' | 'payroll';
 
 export interface AuditContext {
   readonly actorId: string;
@@ -60,11 +75,36 @@ export interface AuditFollowUpState {
 }
 
 /**
- * 稽核只記錄足以解釋一次變更的最小狀態。三種形狀都刻意窄——姓名、電話、
+ * 個管指派的前後狀態。managerId 是不透明的員工識別碼，activeFrom/activeUntil
+ * 為 UTC 時間點；沒有病患姓名或聯絡欄位可放進來。resourceId 記的是病患，本身
+ * 也是不透明識別碼。
+ */
+export interface AuditCaseAssignmentState {
+  readonly managerId: string;
+  readonly activeFrom: string;
+  readonly activeUntil: string | null;
+}
+
+/**
+ * 薪資期間的前後狀態。只記期間、鎖定與否與 credit 筆數，足以說明一次結算或
+ * 調整的規模，且不含任何病患或金額細節。
+ */
+export interface AuditPayrollState {
+  readonly payrollPeriod: string;
+  readonly status: 'open' | 'locked';
+  readonly creditCount: number;
+}
+
+/**
+ * 稽核只記錄足以解釋一次變更的最小狀態。每一種形狀都刻意窄——姓名、電話、
  * 身分證、備註都沒有欄位可以放進來，因此 PII 不可能經由稽核外流。
  */
 export type AuditResourceState =
-  AuditAppointmentState | AuditScheduleState | AuditFollowUpState;
+  | AuditAppointmentState
+  | AuditScheduleState
+  | AuditFollowUpState
+  | AuditCaseAssignmentState
+  | AuditPayrollState;
 
 export interface AuditEventV2 {
   readonly eventId: string;

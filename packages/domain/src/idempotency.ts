@@ -13,7 +13,8 @@ export interface IdempotencyContext {
  * reference has to name which one or a replay would resolve to the wrong kind
  * of resource.
  */
-export type IdempotencyResourceType = 'appointment' | 'schedule';
+export type IdempotencyResourceType =
+  'appointment' | 'schedule' | 'case_assignment' | 'payroll_period';
 
 export interface PlannedIdempotencyRecord {
   readonly actorId: string;

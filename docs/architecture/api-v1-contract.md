@@ -76,8 +76,8 @@ Only health is routed; create/cancellation schemas remain reserved.
 | Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification, fields and roles pending D-001～D-003/D-006 |
 | Follow-up decision | `RecordFollowUpRequestSchema` / `RecordFollowUpResponseSchema` | Future application mapping → `planFollowUpDecision` (validates the target against the published follow-up grid) | Unrouted Stage 0 schema; browser categories/tags have no approved domain/audit mapping yet, and they remain inventory-only with free-text note, certificate count and the case-manager shortcut pending D-001～D-003/D-007; route/roles pending D-004/D-006 |
 | Schedule publish | `PublishScheduleRequestSchema` / `PublishScheduleResponseSchema` | Future application mapping → `planSchedulePublication` (optimistic version check + orphan-appointment guard) | Unrouted Stage 0 schema; draft/rollback/diff and roles pending D-004/D-006/D-010 |
-| Case assignment / reassignment | None | Existing workload domain is not a persistence contract | Inventory only; D-006/D-007 |
-| Payroll close / adjustment | None | Existing deterministic credit rule is not a close API | Inventory only; D-006～D-008 |
+| Case assignment / reassignment | `AssignCaseManagerRequestSchema` / `AssignCaseManagerResponseSchema` | Future application mapping → `planCaseAssignment` (effective-dated; a reassignment closes the prior period and never overwrites it) | Unrouted Stage 0 schema; patient-merge review, effective-dating owner and roles pending D-006/D-007 |
+| Payroll close / adjustment | `ClosePayrollPeriodRequestSchema` / `RecordPayrollAdjustmentRequestSchema` / `PayrollPeriodSnapshotSchema` | Future application mapping → `planPayrollPeriodClose` + `planPayrollAdjustment` (lock the period, then only a reasoned adjustment moves it) | Unrouted Stage 0 schema; finance rule version, lock owner and roles pending D-006～D-008 |
 
 No controller may infer a missing schema from the browser implementation. A
 row moves from “inventory only” to executable only when its decision
@@ -131,7 +131,7 @@ domain message, stack trace, SDK error or identifier in `message`.
 | `AUTHORIZATION_DENIED` | 403 | Policy denial; `COMPLETION_NOT_AUTHORIZED` |
 | `POLICY_ACCEPTANCE_REQUIRED` | 428 | Missing decision-approved policy acceptance |
 | `NOT_FOUND` | 404 | `APPOINTMENT_NOT_FOUND`, `SLOT_NOT_FOUND` after resource-scope policy |
-| `CONFLICT` | 409 | State/capacity/guard/assignment/payroll conflicts, including `APPOINTMENT_NOT_CONFIRMABLE`, `APPOINTMENT_NOT_CANCELLABLE`, `BOOKING_KIND_MISMATCH`, `CANCELLATION_WINDOW_CLOSED`, `DUPLICATE_ACTIVE_BOOKING`, `INVALID_ASSIGNMENT`, `PATIENT_BOOKING_GUARD_MISMATCH`, `PAYROLL_DUPLICATE_CREDIT`, `PAYROLL_NOT_ELIGIBLE`, `SLOT_UNAVAILABLE`, `TRANSITION_NOT_ALLOWED` |
+| `CONFLICT` | 409 | State/capacity/guard/assignment/payroll conflicts, including `APPOINTMENT_NOT_CONFIRMABLE`, `APPOINTMENT_NOT_CANCELLABLE`, `BOOKING_KIND_MISMATCH`, `CANCELLATION_WINDOW_CLOSED`, `DUPLICATE_ACTIVE_BOOKING`, `INVALID_ASSIGNMENT`, `PATIENT_BOOKING_GUARD_MISMATCH`, `PAYROLL_DUPLICATE_CREDIT`, `PAYROLL_NOT_ELIGIBLE`, `PAYROLL_PERIOD_ALREADY_CLOSED`, `PAYROLL_PERIOD_NOT_CLOSED`, `SLOT_UNAVAILABLE`, `TRANSITION_NOT_ALLOWED` |
 | `IDEMPOTENCY_MISMATCH` | 409 | `IDEMPOTENCY_KEY_REUSED` |
 | `RATE_LIMITED` | 429 | API rate-limit / anti-automation boundary |
 | `INTERNAL_ERROR` | 500 | Unexpected fault; generic safe message and server correlation only |

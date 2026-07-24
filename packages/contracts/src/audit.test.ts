@@ -115,6 +115,86 @@ describe('AuditEventV2Schema', () => {
     ).toBe(false);
   });
 
+  it('enforces case-assignment resource and state branches', () => {
+    const assigned = {
+      ...EVENT,
+      eventId: 'audit_case_001',
+      action: 'case_manager_assigned',
+      resourceType: 'case',
+      resourceId: 'patient_001',
+      before: null,
+      after: {
+        managerId: 'manager_alpha',
+        activeFrom: '2026-07-01T00:00:00.000Z',
+        activeUntil: null
+      }
+    } as const;
+    const reassigned = {
+      ...assigned,
+      eventId: 'audit_case_002',
+      action: 'case_manager_reassigned',
+      before: {
+        managerId: 'manager_alpha',
+        activeFrom: '2026-07-01T00:00:00.000Z',
+        activeUntil: '2026-07-20T00:00:00.000Z'
+      }
+    } as const;
+
+    expect(AuditEventV2Schema.safeParse(assigned).success).toBe(true);
+    expect(AuditEventV2Schema.safeParse(reassigned).success).toBe(true);
+    // A first assignment cannot carry a before state.
+    expect(
+      AuditEventV2Schema.safeParse({ ...assigned, before: reassigned.before })
+        .success
+    ).toBe(false);
+    // The case resource type is mandatory for these actions.
+    expect(
+      AuditEventV2Schema.safeParse({ ...assigned, resourceType: 'appointment' })
+        .success
+    ).toBe(false);
+    // No patient contact field may ride along in the state.
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...assigned,
+        after: { ...assigned.after, fullName: '王小明' }
+      }).success
+    ).toBe(false);
+  });
+
+  it('enforces payroll close and adjustment branches', () => {
+    const closed = {
+      ...EVENT,
+      eventId: 'audit_payroll_close_001',
+      action: 'payroll_period_closed',
+      resourceType: 'payroll',
+      resourceId: 'payroll_manager_alpha_2026-08',
+      before: { payrollPeriod: '2026-08', status: 'open', creditCount: 2 },
+      after: { payrollPeriod: '2026-08', status: 'locked', creditCount: 2 }
+    } as const;
+    const adjusted = {
+      ...closed,
+      eventId: 'audit_payroll_adjust_001',
+      action: 'payroll_adjustment_recorded',
+      before: { payrollPeriod: '2026-08', status: 'locked', creditCount: 2 },
+      after: { payrollPeriod: '2026-08', status: 'locked', creditCount: 3 },
+      reasonCode: 'late_completion'
+    } as const;
+
+    expect(AuditEventV2Schema.safeParse(closed).success).toBe(true);
+    expect(AuditEventV2Schema.safeParse(adjusted).success).toBe(true);
+    // A close must move open -> locked.
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...closed,
+        before: { payrollPeriod: '2026-08', status: 'locked', creditCount: 2 }
+      }).success
+    ).toBe(false);
+    // An adjustment must carry a reason.
+    expect(
+      AuditEventV2Schema.safeParse({ ...adjusted, reasonCode: null }).success
+    ).toBe(false);
+  });
+
   it('rejects incomplete or legacy audit envelopes', () => {
     const { correlationId: _missing, ...withoutCorrelation } = EVENT;
     expect(AuditEventV2Schema.safeParse(withoutCorrelation).success).toBe(
