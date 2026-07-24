@@ -23,6 +23,21 @@
   --leading-tight: 1.3;
   --leading-display: 1.1;
 
+  /* ---------------------------------------------------------------
+   * 字重：只有三階。
+   *
+   * 先前有 400/600/640/650/700/720/750/760/800 共八階，但字體家族
+   * （'Noto Sans TC' 未載入 → 微軟正黑體）**只有 Regular 與 Bold 兩檔**，
+   * 所以 600 以上全部渲染成同一個粗體——640 與 760 在螢幕上毫無差別。
+   * 那是假的精緻，而且一旦改用可變字體，這八階會突然全部分岔。
+   *
+   * medium 這一階目前同樣會被對應到粗體，保留它是為了把「作者要的是中等
+   * 強調而不是最重」記錄下來；採用真正的字體家族時，只要改這一個值。
+   * --------------------------------------------------------------- */
+  --weight-regular: 400;
+  --weight-medium: 600;
+  --weight-bold: 700;
+
   --canvas: #f5f7f5;
   --canvas-top: #fbfcfb;
   --canvas-glow: rgba(204, 229, 216, 0.85);
@@ -59,7 +74,89 @@
   --danger-light: #fff0f0;
   --danger-line: #f0cbcb;
   --focus-ring: #e6a84b;
-  --shadow: 0 1rem 2.75rem rgba(18, 52, 40, 0.08);
+
+  /* ---------------------------------------------------------------
+   * 間距：4px 網格。
+   *
+   * 先前有 0 個間距 token 與 361 條手寫字面值，其中約 40 種不同的數字
+   * （0.35 / 0.42 / 0.56 / 0.65 / 0.85…）。沒有節奏可言，也沒辦法整批調整。
+   *
+   * 這一版**只把已經落在網格上的值換成 token**（數值完全相同，畫面零變化）。
+   * 仍在網格外的字面值由 `check:design-tokens` 逐一列出——那是一份待收斂清單，
+   * 不是可以忽略的雜訊。把它們對齊會改變版面節奏，屬於選定風格時的工作，
+   * 不該混在這次的地基修補裡。
+   * --------------------------------------------------------------- */
+  --space-3xs: 0.25rem;
+  --space-2xs: 0.5rem;
+  --space-xs: 0.75rem;
+  --space-sm: 1rem;
+  --space-md: 1.25rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* 圓角：五階＋兩個特例。先前有 20 種以上，而且 rem 與 px 混用。 */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.6rem;
+  --radius-md: 0.8rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* ---------------------------------------------------------------
+   * 深度：三階，**隨主題定義**。
+   *
+   * 先前 21 條 box-shadow 用了 21 種不重複的 rgba()，而且全部寫死成淺色主題
+   * 的綠調。深色主題下那些陰影幾乎看不見——深色介面本來就不靠投影分層，
+   * 硬套只會得到一片沒有層次的畫面。改成 token 之後，深色主題可以換成純黑
+   * 加大不透明度，護眼主題換成棕調。
+   * --------------------------------------------------------------- */
+  --elevation-1: 0 0.45rem 1rem rgba(20, 53, 41, 0.08);
+  --elevation-2: 0 0.8rem 1.8rem rgba(20, 53, 41, 0.12);
+  --elevation-3: 0 1.25rem 2.75rem rgba(16, 54, 42, 0.18);
+  /* 品牌色投影：只給實心綠底的元件，讓它看起來是發光而不是壓在紙上。 */
+  --elevation-accent: 0 0.35rem 0.8rem rgba(21, 92, 72, 0.18);
+
+  /* ---------------------------------------------------------------
+   * 反相區塊：hero、公告帶、頁尾、環境標籤——在任何主題下都是「深底淺字」。
+   *
+   * 這些底色先前是寫死的深綠，因此切到護眼或深色主題時完全不變：版面上最大
+   * 的一塊（hero）維持同一片綠，主題只換了一半。深底的**角色**不隨主題改變，
+   * 但它的**色溫與亮度**必須改：護眼要暖、深色要壓低亮度，否則在深色畫布上
+   * 會變成一塊發光的色塊。
+   *
+   * 淺字一律用 --on-inverse 系列，不要用 --ink：--ink 在深色主題會變亮色，
+   * 但在淺色主題是深色，套到深底上就看不見了。
+   * --------------------------------------------------------------- */
+  --surface-inverse: #123a31;
+  --surface-inverse-soft: #195b49;
+  --surface-inverse-strong: #327863;
+  --surface-inverse-deep: #122d26;
+  --on-inverse: #f4fff8;
+  --on-inverse-muted: #b9d1c4;
+  --on-inverse-accent: #aee5c9;
+  --on-inverse-line: rgba(236, 255, 245, 0.16);
+  --dot-live: #7ce0a9;
+  --dot-neutral: #718d81;
+
+  /* ---------------------------------------------------------------
+   * 斷點：只有三個，兩份樣式表共用。
+   *
+   *   64rem (1024px)  寬版 → 中版：多欄區塊收成較少欄
+   *   48rem ( 768px)  中版 → 手機：導覽列與工具列改直排、卡片滿版
+   *   30rem ( 480px)  小手機：剩下的 2 欄再收成 1 欄
+   *
+   * 先前 styles.css 用 62/44/30rem、workbench.css 用 70/48/44rem。兩套不同
+   * 的後果是實際的版面錯位：44–48rem 之間，workbench 已經把工具列拉成滿版，
+   * styles 卻還沒把 .topbar 轉成直排，於是那 4rem 寬度區間是個沒人設計過的
+   * 半成品狀態。
+   *
+   * CSS 自訂屬性**不能**用在 media query 條件裡（`@media (max-width: var(--bp))`
+   * 無效），所以這份尺度只能靠這段註解與 `check:design-tokens` 維持，
+   * 不能靠變數。改斷點時三個地方都要一起改。
+   * --------------------------------------------------------------- */
+
   background: var(--canvas);
   color: var(--ink);
   color-scheme: light;
@@ -89,7 +186,22 @@
   --amber-light: #f6ead1;
   --danger-light: #f8e7e2;
   --danger-line: #e5c1b8;
-  --shadow: 0 1rem 2.75rem rgba(74, 62, 36, 0.1);
+  /* 投影跟著紙感走：綠調換成棕調，否則暖白底上會出現一圈冷灰。 */
+  --elevation-1: 0 0.45rem 1rem rgba(74, 62, 36, 0.09);
+  --elevation-2: 0 0.8rem 1.8rem rgba(74, 62, 36, 0.13);
+  --elevation-3: 0 1.25rem 2.75rem rgba(74, 62, 36, 0.18);
+  --elevation-accent: 0 0.35rem 0.8rem rgba(77, 100, 64, 0.22);
+  /* 深底也要低藍光：綠往橄欖移，淺字換成暖白。 */
+  --surface-inverse: #26352a;
+  --surface-inverse-soft: #35482f;
+  --surface-inverse-strong: #4d6440;
+  --surface-inverse-deep: #232f26;
+  --on-inverse: #f8f4e8;
+  --on-inverse-muted: #cdd6bf;
+  --on-inverse-accent: #d3e3ba;
+  --on-inverse-line: rgba(248, 244, 232, 0.16);
+  --dot-live: #a7d98c;
+  --dot-neutral: #7f8b74;
 }
 /* 深色：綠灰基底，文字用亮色；實心綠底白字沿用，對比維持 WCAG AA。 */
 :root[data-theme='dark'] {
@@ -119,7 +231,24 @@
   --danger-light: #34201f;
   --danger-line: #5c3532;
   --focus-ring: #ecb662;
-  --shadow: 0 1rem 2.75rem rgba(0, 0, 0, 0.45);
+  /* 深色下投影要用純黑並加大不透明度，否則等於沒有分層。 */
+  --elevation-1: 0 0.45rem 1rem rgba(0, 0, 0, 0.35);
+  --elevation-2: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.45);
+  --elevation-3: 0 1.25rem 2.75rem rgba(0, 0, 0, 0.55);
+  --elevation-accent: 0 0.35rem 0.8rem rgba(0, 0, 0, 0.4);
+  /* 深色主題用亮度分層，亮度由低到高是：畫布 → 這些裝飾性深底 → 內容卡片
+     （--surface）。深底比畫布亮一點才有浮起來的層次，但**不可以亮過內容**，
+     否則 hero 與頁尾會比預約卡片更搶眼。`tests/e2e/theme.spec.ts` 釘住這個順序。 */
+  --surface-inverse: #14201b;
+  --surface-inverse-soft: #1b2e26;
+  --surface-inverse-strong: #26433a;
+  --surface-inverse-deep: #111a16;
+  --on-inverse: #e3ece6;
+  --on-inverse-muted: #9db0a6;
+  --on-inverse-accent: #7fd3ae;
+  --on-inverse-line: rgba(227, 236, 230, 0.14);
+  --dot-live: #5cc39c;
+  --dot-neutral: #55655c;
   color-scheme: dark;
 }
 * {
@@ -158,9 +287,9 @@ textarea:focus-visible {
 }
 .skip-link {
   background: var(--accent-solid-strong);
-  border-radius: 0 0 0.6rem 0.6rem;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   color: var(--on-accent);
-  font-weight: 750;
+  font-weight: var(--weight-bold);
   left: 1rem;
   padding: 0.7rem 0.9rem;
   position: fixed;
@@ -176,12 +305,12 @@ textarea:focus-visible {
 .app-shell {
   margin: 0 auto;
   max-width: 78rem;
-  padding: 1.25rem 1.5rem 2rem;
+  padding: var(--space-md) var(--space-lg) var(--space-xl);
 }
 .topbar {
   align-items: center;
   display: flex;
-  gap: 1.25rem;
+  gap: var(--space-md);
   justify-content: space-between;
   min-height: 4.75rem;
 }
@@ -189,7 +318,7 @@ textarea:focus-visible {
   align-items: center;
   color: inherit;
   display: inline-flex;
-  gap: 0.75rem;
+  gap: var(--space-xs);
   text-decoration: none;
 }
 .brand-mark {
@@ -199,8 +328,9 @@ textarea:focus-visible {
     var(--accent-solid),
     var(--accent-solid-soft)
   );
-  border-radius: 0.8rem 0.8rem 0.8rem 0.2rem;
-  box-shadow: 0 0.5rem 1rem rgba(21, 92, 72, 0.2);
+  border-radius: var(--radius-md) var(--radius-md) var(--radius-md)
+    var(--radius-xs);
+  box-shadow: var(--elevation-accent);
   color: var(--on-accent);
   display: inline-flex;
   font-size: var(--text-md);
@@ -225,34 +355,34 @@ textarea:focus-visible {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--space-xs);
   justify-content: flex-end;
 }
 .environment-badge {
   align-items: center;
-  background: #132a24;
-  border-radius: 999px;
-  color: #f5fff8;
+  background: var(--surface-inverse-deep);
+  border-radius: var(--radius-pill);
+  color: var(--on-inverse);
   display: inline-flex;
   font-size: var(--text-micro);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   gap: 0.45rem;
   letter-spacing: 0.075em;
   padding: 0.5rem 0.7rem;
 }
 .environment-badge span {
-  background: #7ce0a9;
-  border-radius: 50%;
-  box-shadow: 0 0 0 0.2rem rgba(124, 224, 169, 0.15);
+  background: var(--dot-live);
+  border-radius: var(--radius-circle);
+  box-shadow: 0 0 0 0.2rem rgb(from var(--dot-live) r g b / 0.15);
   height: 0.42rem;
   width: 0.42rem;
 }
 .button {
   align-items: center;
-  border-radius: 0.65rem;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   font-size: var(--text-micro);
-  font-weight: 760;
+  font-weight: var(--weight-bold);
   justify-content: center;
   /* 44px：WCAG 2.2 的下限是 24px，此處採用通用觸控目標建議值。 */
   min-height: 2.75rem;
@@ -268,7 +398,7 @@ textarea:focus-visible {
 }
 .button-primary {
   background: var(--accent-solid);
-  box-shadow: 0 0.35rem 0.8rem rgba(21, 92, 72, 0.15);
+  box-shadow: var(--elevation-accent);
   color: var(--on-accent);
 }
 .button-primary:not(:disabled):hover {
@@ -291,23 +421,28 @@ textarea:focus-visible {
   background: var(--surface-tint-strong);
 }
 .dashboard {
-  padding-top: 1.25rem;
+  padding-top: var(--space-md);
 }
 .hero-panel {
-  background: linear-gradient(125deg, #123a31 0%, #195b49 57%, #327863 100%);
-  border-radius: 1.5rem;
-  box-shadow: 0 1.25rem 2.75rem rgba(16, 54, 42, 0.18);
-  color: #f4fff8;
+  background: linear-gradient(
+    125deg,
+    var(--surface-inverse) 0%,
+    var(--surface-inverse-soft) 57%,
+    var(--surface-inverse-strong) 100%
+  );
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-3);
+  color: var(--on-inverse);
   display: grid;
-  gap: 2rem;
+  gap: var(--space-xl);
   grid-template-columns: minmax(0, 1.45fr) minmax(16rem, 0.7fr);
   overflow: hidden;
   padding: clamp(1.5rem, 4vw, 3.25rem);
   position: relative;
 }
 .hero-panel::after {
-  border: 1px solid rgba(236, 255, 245, 0.16);
-  border-radius: 999px;
+  border: 1px solid var(--on-inverse-line);
+  border-radius: var(--radius-pill);
   content: '';
   height: 20rem;
   position: absolute;
@@ -323,12 +458,12 @@ textarea:focus-visible {
 .eyebrow {
   color: var(--forest);
   font-size: var(--text-micro);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   letter-spacing: 0.11em;
   margin: 0 0 0.55rem;
 }
 .hero-panel .eyebrow {
-  color: #aee5c9;
+  color: var(--on-inverse-accent);
 }
 h1,
 h2,
@@ -340,7 +475,7 @@ h1 {
   font-size: clamp(var(--text-2xl), 4.5vw, var(--text-3xl));
   letter-spacing: -0.035em;
   line-height: 1.08;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-sm);
 }
 h2 {
   font-size: clamp(var(--text-md), 2vw, var(--text-lg));
@@ -354,17 +489,17 @@ h3 {
 .environment-card {
   align-self: end;
   background: var(--surface);
-  border-radius: 1rem;
-  box-shadow: 0 0.8rem 1.5rem rgba(6, 40, 29, 0.16);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-2);
   color: var(--ink);
-  padding: 1.25rem;
+  padding: var(--space-md);
 }
 .environment-card .eyebrow {
   color: var(--forest);
 }
 .environment-card h2 {
   font-size: var(--text-md);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-xs);
 }
 .environment-card > p:last-child {
   color: var(--ink-muted);
@@ -374,7 +509,7 @@ h3 {
 }
 .policy-code {
   background: var(--surface-tint);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
   color: var(--forest-dark);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: var(--text-micro);
@@ -387,22 +522,22 @@ h3 {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.75rem;
-  box-shadow: 0 0.45rem 1rem rgba(20, 53, 41, 0.08);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
   color: var(--ink-muted);
   display: flex;
   font-size: var(--text-micro);
-  font-weight: 650;
-  margin: 1.25rem 0;
+  font-weight: var(--weight-medium);
+  margin: var(--space-md) 0;
   min-height: 3.35rem;
-  padding: 0.75rem 1rem;
+  padding: var(--space-xs) var(--space-sm);
   position: sticky;
   top: 0.5rem;
   z-index: 7;
 }
 .status-message::before {
   background: var(--forest);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   content: '';
   flex: 0 0 auto;
   height: 0.48rem;
@@ -423,10 +558,10 @@ h3 {
 }
 /* 表單旁的就地回饋：同一句話除了頂端播報，也要出現在剛按下的按鈕旁。 */
 .form-status {
-  border-radius: 0.6rem;
+  border-radius: var(--radius-sm);
   color: var(--ink-muted);
   font-size: var(--text-micro);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   margin: 0.6rem 0 0;
   padding: 0.6rem 0.8rem;
 }
@@ -452,7 +587,7 @@ h3 {
 .summary-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   min-height: 8.75rem;
   padding: 1.1rem;
 }
@@ -474,19 +609,19 @@ h3 {
   gap: 0.85rem;
 }
 .section-title .eyebrow {
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-3xs);
 }
 .section-description,
 .slot-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
 }
 .control-card,
 .follow-up-form {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   display: grid;
   gap: 0.8rem;
   padding: 1.15rem;
@@ -504,14 +639,14 @@ label {
   color: var(--ink-muted);
   display: grid;
   font-size: var(--text-micro);
-  font-weight: 720;
+  font-weight: var(--weight-bold);
   gap: 0.38rem;
 }
 input,
 select {
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
   min-height: 2.5rem;
@@ -520,7 +655,7 @@ select {
 textarea {
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
   line-height: 1.55;
@@ -530,9 +665,9 @@ textarea {
 .schedule-display {
   background: var(--surface-soft);
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 1rem 1.15rem;
 }
@@ -542,7 +677,7 @@ textarea {
 }
 .schedule-display h3 {
   font-size: var(--text-micro);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2xs);
 }
 .schedule-display ul {
   display: grid;
@@ -581,7 +716,7 @@ textarea {
 .weekday-picker legend {
   color: var(--ink-muted);
   font-size: var(--text-micro);
-  font-weight: 720;
+  font-weight: var(--weight-bold);
   margin-bottom: 0.4rem;
 }
 .weekday-picker label,
@@ -589,7 +724,7 @@ textarea {
   align-items: center;
   background: var(--surface-soft);
   border: 1px solid var(--line);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-sm);
   display: flex;
   gap: 0.4rem;
   min-height: 2.5rem;
@@ -601,7 +736,7 @@ textarea {
 }
 .governance-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: minmax(16rem, 0.7fr) minmax(22rem, 1.3fr);
 }
 .account-list {
@@ -612,9 +747,9 @@ textarea {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.8rem;
+  border-radius: var(--radius-md);
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-xs);
   grid-template-columns: minmax(10rem, 1fr) auto auto auto;
   padding: 0.75rem 0.85rem;
 }
@@ -632,21 +767,21 @@ textarea {
 }
 .release-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .release-list {
   display: grid;
   gap: 0.55rem;
-  margin-top: 1rem;
+  margin-top: var(--space-sm);
 }
 .release-row {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-xs);
   padding: 0.7rem 0.8rem;
 }
 .release-row strong {
@@ -673,31 +808,31 @@ textarea {
 .patient-header-inner {
   align-items: center;
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-lg);
   justify-content: space-between;
   margin: 0 auto;
   max-width: 76rem;
   min-height: 4.8rem;
-  padding: 0.75rem 1.5rem;
+  padding: var(--space-xs) var(--space-lg);
 }
 .patient-nav {
   align-items: center;
   display: flex;
-  gap: 1.25rem;
+  gap: var(--space-md);
   margin-left: auto;
 }
 .patient-nav a {
   color: var(--ink-muted);
   font-size: var(--text-micro);
-  font-weight: 720;
+  font-weight: var(--weight-bold);
   text-decoration: none;
 }
 .patient-nav a:hover {
   color: var(--forest);
 }
 .patient-announcement {
-  background: #123a31;
-  color: #effff6;
+  background: var(--surface-inverse);
+  color: var(--on-inverse);
 }
 .patient-announcement > div {
   align-items: center;
@@ -709,7 +844,7 @@ textarea {
   padding: 0.7rem 1.5rem;
 }
 .patient-announcement strong {
-  color: #aee5c9;
+  color: var(--on-inverse-accent);
   font-size: var(--text-micro);
 }
 .patient-announcement span {
@@ -724,9 +859,9 @@ textarea {
   align-items: center;
   background: linear-gradient(135deg, var(--surface-soft), var(--surface-tint));
   border: 1px solid var(--line-strong);
-  border-radius: 1.6rem;
+  border-radius: var(--radius-xl);
   display: grid;
-  gap: 2rem;
+  gap: var(--space-xl);
   grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.65fr);
   overflow: hidden;
   padding: clamp(1.6rem, 4vw, 3.2rem);
@@ -734,7 +869,7 @@ textarea {
 }
 .patient-hero::after {
   border: 1px solid rgba(21, 92, 72, 0.12);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   content: '';
   height: 20rem;
   position: absolute;
@@ -760,19 +895,19 @@ textarea {
 .patient-trust-row span {
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--forest-dark);
   font-size: var(--text-micro);
-  font-weight: 720;
+  font-weight: var(--weight-bold);
   padding: 0.45rem 0.65rem;
 }
 .patient-contact-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1rem;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-2);
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2xs);
   padding: 1.2rem;
   position: relative;
   z-index: 1;
@@ -800,13 +935,13 @@ textarea {
   color: var(--ink-muted);
   display: flex;
   font-size: var(--text-micro);
-  gap: 0.5rem;
+  gap: var(--space-2xs);
   padding: 0 0.5rem 0.8rem;
 }
 .booking-stepper li span {
   align-items: center;
   background: var(--surface-tint);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   display: inline-flex;
   font-size: var(--text-micro);
   height: 1.7rem;
@@ -814,8 +949,8 @@ textarea {
   width: 1.7rem;
 }
 .booking-stepper li strong {
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
 }
 .booking-stepper li.is-active {
   border-color: var(--forest);
@@ -832,8 +967,8 @@ textarea {
 .booking-panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1.25rem;
-  box-shadow: 0 0.8rem 2rem rgba(20, 53, 41, 0.05);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-1);
   min-height: 22rem;
   padding: clamp(1.25rem, 3vw, 2.2rem);
   scroll-margin-top: 7rem;
@@ -842,12 +977,12 @@ textarea {
   margin-bottom: 1.3rem;
 }
 .booking-panel-heading-spaced {
-  margin-top: 1.5rem;
+  margin-top: var(--space-lg);
 }
 .booking-panel-heading h2 {
   color: var(--forest-dark);
   font-size: var(--text-lg);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2xs);
 }
 .booking-panel-heading > p:last-child {
   color: var(--ink-muted);
@@ -856,14 +991,14 @@ textarea {
 }
 .service-choice-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .service-choice {
   align-items: flex-start;
   background: var(--surface-soft);
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   color: var(--ink);
   display: flex;
   flex-direction: column;
@@ -879,13 +1014,13 @@ textarea {
 .service-icon {
   align-items: center;
   background: var(--forest-light);
-  border-radius: 0.7rem;
+  border-radius: var(--radius-md);
   color: var(--forest);
   display: inline-flex;
   font-size: var(--text-md);
   height: 2.5rem;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-sm);
   width: 2.5rem;
 }
 .service-choice strong {
@@ -901,16 +1036,16 @@ textarea {
 .service-choice small {
   color: var(--forest);
   font-size: var(--text-micro);
-  font-weight: 760;
+  font-weight: var(--weight-bold);
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: var(--space-sm);
 }
 .text-button {
   background: transparent;
   color: var(--forest);
   font-size: var(--text-micro);
-  font-weight: 760;
-  margin-bottom: 1rem;
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-sm);
   padding: 0;
 }
 /* 步驟返回鍵：原本用 .text-button（11px 純文字）太不明顯，改成有邊框、有點擊
@@ -918,7 +1053,7 @@ textarea {
 .booking-back-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2xs);
   margin-bottom: 1.1rem;
 }
 .booking-back {
@@ -927,11 +1062,11 @@ textarea {
      只剩邊框可辨。tint ＋ accent 邊框讓「回上一步」在深淺兩色都明顯是顆按鈕。 */
   background: var(--surface-tint);
   border: 1.5px solid var(--line-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--forest-dark);
   display: inline-flex;
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
   gap: 0.4rem;
   min-height: 40px;
   padding: 0.4rem 0.9rem;
@@ -959,16 +1094,16 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-sm);
 }
 .slot-date-filter label {
   color: var(--ink-muted);
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
 }
 .slot-date-filter input[type='date'] {
   border: 1px solid var(--line-strong);
-  border-radius: 0.6rem;
+  border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
   min-height: 2.6rem;
@@ -992,16 +1127,16 @@ textarea {
   border: 1px solid var(--line-strong);
   color: var(--forest-dark);
   display: inline-flex;
-  gap: 0.5rem;
+  gap: var(--space-2xs);
   justify-self: start;
 }
 .slot-load-more-count {
   color: var(--ink-muted);
-  font-weight: 640;
+  font-weight: var(--weight-medium);
 }
 .booking-confirmation-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
 }
 .booking-summary,
@@ -1012,13 +1147,13 @@ textarea {
 .booking-summary dl {
   display: grid;
   gap: 0.7rem;
-  margin: 1rem 0 0;
+  margin: var(--space-sm) 0 0;
 }
 .booking-summary dl div {
   align-items: baseline;
   border-bottom: 1px solid var(--line);
   display: flex;
-  gap: 1rem;
+  gap: var(--space-sm);
   justify-content: space-between;
   padding-bottom: 0.65rem;
 }
@@ -1029,7 +1164,7 @@ textarea {
 .booking-summary dd {
   color: var(--ink);
   font-size: var(--text-micro);
-  font-weight: 720;
+  font-weight: var(--weight-bold);
   margin: 0;
   text-align: right;
 }
@@ -1037,7 +1172,7 @@ textarea {
   align-items: flex-start;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: var(--radius-sm);
   display: flex;
   font-size: var(--text-micro);
   gap: 0.55rem;
@@ -1050,7 +1185,7 @@ textarea {
   min-height: auto;
 }
 .booking-submit {
-  margin-top: 1rem;
+  margin-top: var(--space-sm);
   min-width: 14rem;
 }
 .booking-complete {
@@ -1063,13 +1198,13 @@ textarea {
 .complete-mark {
   align-items: center;
   background: var(--accent-solid);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   color: var(--on-accent);
   display: flex;
   font-size: var(--text-lg);
   height: 4rem;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-sm);
   width: 4rem;
 }
 .booking-complete > p {
@@ -1078,7 +1213,7 @@ textarea {
 .booking-result {
   background: var(--surface-tint);
   border: 1px solid var(--line-strong);
-  border-radius: 0.8rem;
+  border-radius: var(--radius-md);
   display: grid;
   gap: 0.3rem;
   margin: 0.6rem 0 1.2rem;
@@ -1090,17 +1225,17 @@ textarea {
   font-size: var(--text-micro);
 }
 .patient-upcoming-section {
-  margin-top: 3rem;
+  margin-top: var(--space-2xl);
 }
 .patient-appointment-card {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.9rem;
+  border-radius: var(--radius-lg);
   display: flex;
-  gap: 1rem;
+  gap: var(--space-sm);
   justify-content: space-between;
-  padding: 1rem;
+  padding: var(--space-sm);
 }
 .patient-appointment-card > div {
   display: grid;
@@ -1112,22 +1247,22 @@ textarea {
 .patient-help-grid {
   border-top: 1px solid var(--line);
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: repeat(3, 1fr);
-  margin-top: 3rem;
-  padding-top: 2rem;
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-xl);
 }
 .patient-help-grid article {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.85rem;
-  padding: 1rem;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
 }
 .patient-help-grid article > span {
   color: var(--forest);
   font-family: ui-monospace, Consolas, monospace;
   font-size: var(--text-micro);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 .patient-help-grid strong {
   display: block;
@@ -1143,12 +1278,12 @@ textarea {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1.4rem;
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
   margin: 5rem auto;
   max-width: 40rem;
-  padding: 3rem 2rem;
+  padding: var(--space-2xl) var(--space-xl);
   text-align: center;
 }
 .maintenance-screen p {
@@ -1158,21 +1293,21 @@ textarea {
 .maintenance-icon {
   align-items: center;
   background: var(--amber-light);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   color: var(--amber);
   display: flex;
   font-size: var(--text-xl);
   height: 4rem;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-sm);
   width: 4rem;
 }
 .patient-footer {
   align-items: center;
-  background: #122d26;
-  color: #eaf8f0;
+  background: var(--surface-inverse-deep);
+  color: var(--on-inverse);
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-lg);
   justify-content: space-between;
   padding: 1.5rem max(1.5rem, calc((100vw - 73rem) / 2));
 }
@@ -1182,22 +1317,22 @@ textarea {
 }
 .patient-footer span,
 .patient-footer a {
-  color: #b9d1c4;
+  color: var(--on-inverse-muted);
   font-size: var(--text-micro);
 }
 .patient-footer > div:nth-child(2) {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-sm);
 }
 .patient-footer a {
   text-decoration: none;
 }
 .status-chip {
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   font-size: var(--text-micro);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   line-height: 1;
   padding: 0.42rem 0.56rem;
   white-space: nowrap;
@@ -1227,14 +1362,14 @@ textarea {
 .workload-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1rem;
-  box-shadow: 0 0.5rem 1.2rem rgba(20, 53, 41, 0.035);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
   padding: 1rem 1.15rem;
 }
 .appointment-card {
   align-items: center;
   display: flex;
-  gap: 1rem;
+  gap: var(--space-sm);
   justify-content: space-between;
 }
 .appointment-main {
@@ -1259,7 +1394,7 @@ textarea {
 .workload-card {
   align-items: center;
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: minmax(12rem, 0.85fr) minmax(17rem, 1.15fr);
 }
 .workload-overview strong {
@@ -1289,7 +1424,7 @@ textarea {
   align-items: center;
   background: var(--surface-soft);
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: var(--radius-sm);
   color: var(--ink-muted);
   display: flex;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -1308,12 +1443,12 @@ textarea {
   align-items: center;
   background: var(--surface-soft);
   border: 1px dashed var(--line-strong);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   color: var(--ink-muted);
   display: flex;
   gap: 0.8rem;
   min-height: 6rem;
-  padding: 1rem;
+  padding: var(--space-sm);
 }
 .empty-state-icon {
   color: var(--forest);
@@ -1324,7 +1459,7 @@ textarea {
   color: var(--ink);
   display: block;
   font-size: var(--text-micro);
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-3xs);
 }
 .empty-state p {
   font-size: var(--text-micro);
@@ -1333,13 +1468,13 @@ textarea {
 }
 .events-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-sm);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .event-panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   padding: 1.2rem;
 }
 .event-list {
@@ -1356,14 +1491,14 @@ textarea {
 }
 .event-dot {
   background: var(--forest);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   flex: 0 0 auto;
   height: 0.48rem;
   margin-top: 0.34rem;
   width: 0.48rem;
 }
 .event-dot-neutral {
-  background: #718d81;
+  background: var(--dot-neutral);
 }
 .event-list strong {
   color: var(--ink);
@@ -1391,9 +1526,9 @@ textarea {
   font-size: var(--text-micro);
   gap: 0.6rem 1.5rem;
   justify-content: space-between;
-  padding: 2rem 0 0.75rem;
+  padding: var(--space-xl) 0 var(--space-xs);
 }
-@media (max-width: 62rem) {
+@media (max-width: 64rem) {
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1413,20 +1548,20 @@ textarea {
     max-width: 30rem;
   }
 }
-@media (max-width: 44rem) {
+@media (max-width: 48rem) {
   .app-shell {
-    padding-inline: 1rem;
+    padding-inline: var(--space-sm);
   }
   .topbar {
     align-items: flex-start;
     flex-direction: column;
-    padding-bottom: 0.75rem;
+    padding-bottom: var(--space-xs);
   }
   .topbar-actions {
     justify-content: flex-start;
   }
   .hero-panel {
-    border-radius: 1.1rem;
+    border-radius: var(--radius-lg);
     padding: 1.4rem;
   }
   .section-heading,
@@ -1458,7 +1593,7 @@ textarea {
   .patient-header-inner {
     align-items: flex-start;
     flex-wrap: wrap;
-    padding-inline: 1rem;
+    padding-inline: var(--space-sm);
   }
   .patient-header {
     position: static;
@@ -1472,14 +1607,14 @@ textarea {
     margin-left: auto;
   }
   #patient-main {
-    padding: 1rem 1rem 3rem;
+    padding: var(--space-sm) var(--space-sm) var(--space-2xl);
   }
   .status-message {
     position: static;
   }
   .patient-hero {
-    border-radius: 1.1rem;
-    gap: 1rem;
+    border-radius: var(--radius-lg);
+    gap: var(--space-sm);
     padding: 1.3rem;
   }
   /* 首屏優先讓「開始預約」露出：手機版把 hero 壓成精簡標題帶——收起與步驟
@@ -1515,12 +1650,12 @@ textarea {
     line-height: 1.25;
   }
   .booking-stepper li span {
-    font-size: var(--text-sm);
+    font-size: var(--text-micro);
     height: 1.9rem;
     width: 1.9rem;
   }
   .booking-panel {
-    scroll-margin-top: 1rem;
+    scroll-margin-top: var(--space-sm);
   }
   .service-choice-grid,
   .booking-confirmation-grid,
@@ -1537,7 +1672,7 @@ textarea {
   .patient-footer {
     align-items: flex-start;
     flex-direction: column;
-    padding: 1.5rem 1rem;
+    padding: var(--space-lg) var(--space-sm);
   }
 }
 @media (max-width: 30rem) {
@@ -1560,7 +1695,7 @@ textarea {
     flex-direction: column;
     gap: 0.3rem;
   }
-  /* 44rem 斷點把這些容器設為 2 欄；到了手機寬度每欄只剩約 156px，
+  /* 48rem 斷點把這些容器設為 2 欄；到了手機寬度每欄只剩約 156px，
      裡面的表單欄位與統計數字塞不下就溢出容器（2026-07-22 實機回報）。
      週次選擇維持 2 欄——「週一」這種短標籤放得下。 */
   .workload-card,
@@ -1573,12 +1708,12 @@ textarea {
 
 /* ---- 時段選擇：依日期分組，時間以 chip 呈現 ---- */
 .slot-day {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-lg);
 }
 .slot-day-label {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
+  gap: var(--space-2xs) var(--space-xs);
   align-items: baseline;
   margin: 0 0 0.6rem;
   padding-bottom: 0.4rem;
@@ -1587,13 +1722,13 @@ textarea {
 }
 .slot-day-count {
   font-size: var(--text-micro);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   opacity: 0.7;
 }
 .slot-chip-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2xs);
 }
 .slot-chip {
   /* 44px 最小點擊區，符合行動裝置觸控建議 */
@@ -1604,7 +1739,7 @@ textarea {
   gap: 0.3rem;
   padding: 0.6rem 0.5rem;
   border: 1px solid currentColor;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: none;
   font: inherit;
   font-variant-numeric: tabular-nums;
@@ -1620,7 +1755,7 @@ textarea {
 .slot-chip.is-selected {
   /* 選取狀態同時用邊框粗細與勾號表示，不單靠顏色 */
   border-width: 3px;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 .slot-chip-mark {
   font-size: 0.85em;
@@ -1628,17 +1763,17 @@ textarea {
 
 /* ---- 表單：必填標示與逐欄位錯誤 ---- */
 .form-required-note {
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--space-xs);
   font-size: var(--text-micro);
   opacity: 0.8;
 }
 .required-mark {
   margin-left: 0.15rem;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 .field-hint {
   display: block;
-  margin-top: 0.25rem;
+  margin-top: var(--space-3xs);
   font-size: var(--text-micro);
   opacity: 0.75;
 }
@@ -1646,7 +1781,7 @@ textarea {
   display: block;
   margin-top: 0.3rem;
   font-size: var(--text-micro);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 .field-error::before {
   content: '⚠ ';
@@ -1659,7 +1794,7 @@ label.has-error input {
 /* 行內文字按鈕在觸控裝置上需要足夠的點擊區，而不只是文字高度 */
 .text-button {
   min-height: 44px;
-  padding-block: 0.5rem;
+  padding-block: var(--space-2xs);
 }
 
 /* ---------------------------------------------------------------
@@ -1675,7 +1810,7 @@ label.has-error input {
   border-width: 3px;
   background: var(--forest-light);
   color: var(--forest-dark);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 .service-choice {
   position: relative;
@@ -1685,7 +1820,7 @@ label.has-error input {
   position: absolute;
   top: 0.6rem;
   right: 0.75rem;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   color: var(--forest);
 }
 .service-choice:focus-visible,
@@ -1713,11 +1848,11 @@ label.has-error input {
 .confirm-dialog {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 1rem;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-2);
   color: var(--ink);
   max-width: 26rem;
-  padding: 1.5rem;
+  padding: var(--space-lg);
   width: calc(100vw - 2.5rem);
 }
 .confirm-dialog::backdrop {
@@ -1731,20 +1866,22 @@ label.has-error input {
 .confirm-dialog-message {
   color: var(--ink-muted);
   line-height: var(--leading-body);
-  margin: 0 0 1.25rem;
+  margin: 0 0 var(--space-md);
 }
-/* 需要理由的確認（刪除）多出來的欄位。訊息的下邊距在此情況下由本欄接手。 */
+/* 需要理由的確認（刪除）多出來的欄位。訊息的下邊距在此情況下由本欄接手。
+   字級刻意維持 --text-body（繼承）：這個 <label> 只包一個 <select>，而 select
+   用 `font: inherit`。表單控制項低於 16px 會讓 iOS Safari 在聚焦時自動縮放頁面，
+   所以這裡不縮小。 */
 .confirm-dialog-reason {
   display: flex;
   flex-direction: column;
-  font-size: var(--text-sm);
   gap: 0.35rem;
-  margin: 0 0 1.25rem;
+  margin: 0 0 var(--space-md);
 }
 .confirm-dialog-reason select {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.6rem;
+  border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
   padding: 0.55rem 0.6rem;
@@ -1776,7 +1913,7 @@ label.has-error input {
   color: var(--ink-muted);
   display: inline-flex;
   font-size: var(--text-micro);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   gap: 0.45rem;
   white-space: nowrap;
 }
@@ -1787,10 +1924,10 @@ label.has-error input {
 /* 第 2 步的目前選擇脈絡：選錯類型的人在這裡就能發現並返回重選。 */
 .booking-context {
   background: var(--surface-tint);
-  border-radius: 0.6rem;
+  border-radius: var(--radius-sm);
   color: var(--forest-dark);
   font-size: var(--text-micro);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   margin: 0.6rem 0 0;
   padding: 0.55rem 0.8rem;
 }
