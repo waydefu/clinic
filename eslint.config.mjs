@@ -25,6 +25,19 @@ export default tseslint.config(
 
   js.configs.recommended,
 
+  // --- 程式碼注入：SAST 的第一層，套用到所有檔案 ------------------------
+  // CodeQL（`.github/workflows/codeql.yml`）做的是跨檔案的污染追蹤；這裡擋的是
+  // 那些「一眼就該擋」的動態求值 sink。放在最前面且不限定 files，任何新加的
+  // 套件或腳本都自動受管，不會因為漏改設定而出現沒被檢查的角落。
+  {
+    rules: {
+      'no-eval': 'error',
+      'no-new-func': 'error',
+      'no-script-url': 'error',
+      'no-proto': 'error'
+    }
+  },
+
   // --- TypeScript：套用型別感知規則 -------------------------------------
   {
     files: ['**/*.ts'],
@@ -85,7 +98,10 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
       ],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
-      'no-console': ['error', { allow: ['warn', 'error'] }]
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+      // TypeScript 那側由 recommendedTypeChecked 的型別感知版本負責，
+      // 這裡是沒有型別資訊的原生 ESM。
+      'no-implied-eval': 'error'
     }
   },
 
@@ -99,7 +115,8 @@ export default tseslint.config(
     },
     rules: {
       // 檢查腳本本來就要向終端機回報結果。
-      'no-console': 'off'
+      'no-console': 'off',
+      'no-implied-eval': 'error'
     }
   }
 );

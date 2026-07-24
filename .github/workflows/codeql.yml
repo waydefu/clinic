@@ -1,0 +1,54 @@
+name: codeql
+
+# 靜態應用程式安全測試（SAST）。ESLint 擋的是單一檔案裡一眼可辨的注入 sink；
+# CodeQL 做的是跨檔案的資料流／污染追蹤——例如「使用者輸入是否在沒有經過
+# escapeHtml 的情況下流進 innerHTML」。這個平台的瀏覽器層大量使用樣板字串產生
+# HTML，正是這類分析最有價值的地方。
+#
+# **前提（未滿足時這個 workflow 不會產生任何結果）**：
+# 1. repository 必須推上 GitHub。本專案目前沒有 git remote，commit 全在本機。
+# 2. 私有 repository 需要 GitHub Advanced Security 授權；公開 repository 免費。
+#    是否採購、或是否把 repo 設為公開，是技術負責人的決定（與 D-010 同一批）。
+# 在那之前這個檔案是**已審視的設定**，不是已生效的把關；上線證據包必須附上
+# 實際的掃描結果，而不只是這個檔案的存在。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # 每週一 03:00 UTC 重掃：新的查詢規則會發現舊程式碼裡既有的問題，
+    # 只在 push 時掃會漏掉這一類。
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL（JavaScript／TypeScript 資料流分析）
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # 上傳掃描結果到 repository 的 Security 分頁。
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-extended 比預設多涵蓋較低信心但仍值得看的查詢；
+          # 這個專案處理個資，寧可多看幾筆也不要漏。
+          queries: security-extended
+
+      # 這個 workspace 沒有需要編譯才能分析的語言，JS/TS 走 CodeQL 的
+      # 自動建模即可，不必安裝相依。
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'

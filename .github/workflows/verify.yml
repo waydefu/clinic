@@ -108,16 +108,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Stage 0 skeleton: high/critical advisories fail. Moderate advisories
-      # remain visible and require an owner before production policy is final.
+      # Tracked secrets, high/critical advisories, and the CycloneDX 1.6 SBOM
+      # with its licence policy gate. Copyleft and unrecognised licences fail
+      # here; the reviewed exceptions are printed on every run so they cannot
+      # quietly become permanent. Moderate advisories remain visible and need an
+      # owner before the production policy is final.
       - run: pnpm check:supply-chain
-
-      # This inventory is evidence for review, not yet a standards-compliant
-      # SBOM. The final SBOM/SAST/signing policy remains gated by D-010.
-      - run: pnpm list --recursive --depth Infinity --json > dependency-inventory.json
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dependency-inventory
-          path: dependency-inventory.json
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
           if-no-files-found: error
+          retention-days: 90

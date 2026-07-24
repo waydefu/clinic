@@ -24,6 +24,11 @@ backups/
 *.xlsx
 *.sql
 
+# Supply-chain artifacts: regenerated from the lockfile, uploaded by CI as
+# release evidence. Committing them would only produce diff noise.
+sbom.cdx.json
+dependency-inventory.json
+
 # Tooling
 .playwright-cli/
 output/playwright/
