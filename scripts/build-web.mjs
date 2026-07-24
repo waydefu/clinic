@@ -295,6 +295,32 @@ async function minifyStylesheets(files) {
   }
 }
 
+/**
+ * 壓縮模組，就地改寫檔案集合。理由與樣式表相同：原始碼裡大量「為什麼這樣寫」的
+ * 中文註解不該由每位訪客付費下載。實測 gzip 後省下約 44%。
+ *
+ * **不做 bundling**，只逐檔壓縮：CSP 是 `script-src 'self'`，產物必須維持一份份
+ * 的 ES module，`planHashedBuild` 也還要靠 import 語句改寫成雜湊檔名。esbuild 在
+ * 非 bundle 模式下會原樣保留 `from"./x.js"`，改寫用的正規表示式吃得下。
+ *
+ * `keepNames` 是保險：壓縮會重新命名區域識別字，若有任何程式靠 `constructor.name`
+ * 或 `error.name` 判斷分支，改名就會靜默走錯。保留名稱只多一點點位元組。
+ */
+async function minifyModules(files) {
+  const { transform } = await import('esbuild');
+  for (const [path, content] of files) {
+    if (extensionOf(path) !== '.js') continue;
+    const result = await transform(String(content), {
+      loader: 'js',
+      format: 'esm',
+      target: 'es2022',
+      minify: true,
+      keepNames: true
+    });
+    files.set(path, result.code);
+  }
+}
+
 async function main() {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const publicDir = join(repoRoot, 'apps', 'web', 'public');
@@ -302,6 +328,7 @@ async function main() {
 
   const files = await collectFiles(publicDir);
   await minifyStylesheets(files);
+  await minifyModules(files);
   const { outputs, manifest } = planHashedBuild(files);
 
   await rm(distDir, { recursive: true, force: true });
