@@ -15,6 +15,7 @@
     "check:ui": "node scripts/check-web-ui.mjs",
     "check:docs": "node scripts/check-docs-links.mjs",
     "check:perf": "node scripts/check-performance-budget.mjs",
+    "check:tokens": "node scripts/check-design-tokens.mjs",
     "check:secrets": "node scripts/check-tracked-secrets.mjs",
     "sbom": "node scripts/generate-sbom.mjs",
     "check:supply-chain": "corepack pnpm run check:secrets && corepack pnpm audit --audit-level high && corepack pnpm run sbom",
@@ -27,7 +28,7 @@
     "test:rules": "node scripts/run-firestore-rules.mjs",
     "test:e2e": "playwright test",
     "serve:dist": "node apps/web/server.mjs",
-    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:ui && corepack pnpm run check:docs && corepack pnpm run check:secrets && corepack pnpm run check:format && corepack pnpm run check:lint && corepack pnpm run check:types && corepack pnpm run check:sync && corepack pnpm run check:perf && corepack pnpm run test:unit",
+    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:ui && corepack pnpm run check:tokens && corepack pnpm run check:docs && corepack pnpm run check:secrets && corepack pnpm run check:format && corepack pnpm run check:lint && corepack pnpm run check:types && corepack pnpm run check:sync && corepack pnpm run check:perf && corepack pnpm run test:unit",
     "check:lint": "eslint ."
   },
   "devDependencies": {

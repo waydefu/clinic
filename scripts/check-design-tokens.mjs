@@ -1,0 +1,233 @@
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import process from 'node:process';
+
+// 設計 token 的把關。
+//
+// 為什麼需要它：`--text-sm` 曾經被用了五次卻從未定義過。CSS 對這種錯誤是沉默的
+// ——整條宣告失效，字級默默退回繼承值，畫面看起來「差不多對」，沒有任何工具會
+// 抱怨。同樣沉默的還有：寫死的顏色（於是主題只換一半）、繞過字級尺度的字面值、
+// 兩份樣式表各用一套斷點。
+//
+// 這個腳本把上面每一類都變成建置失敗。
+//
+// 兩種嚴格度：
+//   - **硬性**：已經清零的類別（未定義 token、寫死色、字重、圓角、陰影、斷點）。
+//     再出現一個就紅。
+//   - **上限（ratchet）**：還有已知債務的類別（離開字級尺度的字面值、離開間距
+//     網格的字面值）。數量只能減不能增——把債務攤在檯面上，而不是假裝不存在。
+//     收斂它們會改變版面節奏，屬於選定視覺風格時的工作。
+
+const CANONICAL_BREAKPOINTS = new Set(['64rem', '48rem', '30rem']);
+
+// 字級尺度（styles.css 的 --text-* 實際值）加上少數合理的相對單位。
+const TYPE_SCALE = new Set([
+  '0.875rem',
+  '1rem',
+  '1.2rem',
+  '1.44rem',
+  '1.728rem',
+  '2.074rem',
+  '2.488rem'
+]);
+
+const SPACING_GRID = new Set([
+  '0.25rem',
+  '0.5rem',
+  '0.75rem',
+  '1rem',
+  '1.25rem',
+  '1.5rem',
+  '2rem',
+  '3rem'
+]);
+
+const SPACING_PROPERTIES =
+  /\b(?:gap|row-gap|column-gap|padding|padding-top|padding-right|padding-bottom|padding-left|padding-inline|padding-block|margin|margin-top|margin-right|margin-bottom|margin-left|margin-inline|margin-block): ([^;{}]+);/g;
+
+// 已知債務的上限。降低了就把數字調下來——這個數字只能往下走。
+const CEILINGS = {
+  'font-size 字面值': 31,
+  間距字面值: 199
+};
+
+/** 取出所有 `:root...{ }` 區塊裡定義的自訂屬性。 */
+export function definedTokens(source) {
+  const defined = new Set();
+  for (const block of source.matchAll(/:root[^{]*\{([\s\S]*?)\n\}/g)) {
+    for (const match of block[1].matchAll(/(--[a-z0-9-]+):/g)) {
+      defined.add(match[1]);
+    }
+  }
+  return defined;
+}
+
+/** 取出所有 `var(--x)` 的引用。 */
+export function usedTokens(source) {
+  return [...source.matchAll(/var\((--[a-z0-9-]+)/g)].map((match) => match[1]);
+}
+
+/** 註解裡的顏色與數字是說明，不是宣告——分析前一律先拿掉。 */
+export function withoutComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+/** `:root` 區塊以外的內容——寫死顏色只有在這裡才算違規。 */
+export function outsideRootBlocks(source) {
+  return source.replace(/:root[^{]*\{[\s\S]*?\n\}/g, '');
+}
+
+/**
+ * 純核心：給定每個樣式表的內容，回傳硬性違規與需要計數的債務。
+ *
+ * @param sheets Map<檔名, { source, scope }>，scope 是這個檔案可用的 token 集合
+ */
+export function planTokenReview(sheets) {
+  const violations = [];
+  const debt = { 'font-size 字面值': [], 間距字面值: [] };
+
+  for (const [name, { source: raw, scope, full }] of sheets) {
+    const source = withoutComments(raw);
+    const body = outsideRootBlocks(source);
+
+    for (const token of new Set(usedTokens(source))) {
+      if (!scope.has(token)) {
+        violations.push(`${name}: 使用了未定義的 ${token}——這條宣告會靜默失效`);
+      }
+    }
+
+    // error.css 是 404 頁的獨立樣式表：它刻意不載入 styles.css，也就沒有共用
+    // token 可用，因此只檢查「用了自己沒定義的東西」這一項。
+    if (!full) continue;
+
+    for (const match of body.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
+      violations.push(
+        `${name}: 寫死的顏色 ${match[0]}——主題切換不會影響它，請改用 token`
+      );
+    }
+    for (const match of body.matchAll(/font-weight: *([0-9]+)/g)) {
+      violations.push(
+        `${name}: 寫死的字重 ${match[1]}——請用 --weight-regular/medium/bold`
+      );
+    }
+    for (const match of body.matchAll(
+      /border-radius: *([^;{}]*[0-9][^;{}]*);/g
+    )) {
+      if (match[1].includes('var(--radius') || match[1].trim() === '0')
+        continue;
+      violations.push(
+        `${name}: 寫死的圓角 ${match[1].trim()}——請用 --radius-*`
+      );
+    }
+    for (const match of body.matchAll(/box-shadow: *([^;{}]+);/g)) {
+      const value = match[1].trim();
+      // inset 的內線與 keyframe 的焦點環是形狀而不是深度，不套 elevation。
+      if (
+        value.includes('var(--elevation') ||
+        value.includes('var(--dot-live)') ||
+        value.startsWith('inset') ||
+        value === 'none' ||
+        /^0 0 0 [0-9]/.test(value)
+      ) {
+        continue;
+      }
+      violations.push(`${name}: 寫死的陰影 ${value}——請用 --elevation-*`);
+    }
+    for (const match of source.matchAll(/@media \(max-width: ([^)]+)\)/g)) {
+      if (CANONICAL_BREAKPOINTS.has(match[1])) continue;
+      violations.push(
+        `${name}: 斷點 ${match[1]} 不在正式尺度（64rem／48rem／30rem）內`
+      );
+    }
+
+    for (const match of body.matchAll(/font-size: *([^;{}]+);/g)) {
+      const value = match[1].trim();
+      if (value.includes('var(--text') || value.startsWith('clamp(')) continue;
+      if (TYPE_SCALE.has(value)) continue;
+      debt['font-size 字面值'].push(`${name}: ${value}`);
+    }
+    for (const match of body.matchAll(SPACING_PROPERTIES)) {
+      const parts = match[1].trim().split(/\s+/);
+      if (parts.some((part) => part.startsWith('var(') || part.includes('('))) {
+        continue;
+      }
+      if (
+        parts.every(
+          (part) => part === '0' || part === 'auto' || SPACING_GRID.has(part)
+        )
+      ) {
+        continue;
+      }
+      debt['間距字面值'].push(`${name}: ${match[1].trim()}`);
+    }
+  }
+
+  return { violations, debt };
+}
+
+async function main() {
+  const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const publicDir = join(repoRoot, 'apps', 'web', 'public');
+  const read = (name) => readFile(join(publicDir, name), 'utf8');
+
+  const [styles, workbench, error] = await Promise.all([
+    read('styles.css'),
+    read('workbench.css'),
+    read('error.css')
+  ]);
+
+  const base = definedTokens(styles);
+  const sheets = new Map([
+    ['styles.css', { source: styles, scope: base, full: true }],
+    // workbench.css 永遠與 styles.css 一起載入，所以它看得到 base 的 token。
+    [
+      'workbench.css',
+      {
+        source: workbench,
+        scope: new Set([...base, ...definedTokens(workbench)]),
+        full: true
+      }
+    ],
+    // error.css 是 404 頁的獨立樣式表，不載入 styles.css——它只有自己的 token。
+    ['error.css', { source: error, scope: definedTokens(error), full: false }]
+  ]);
+
+  const { violations, debt } = planTokenReview(sheets);
+
+  let failed = false;
+  if (violations.length > 0) {
+    failed = true;
+    console.error('Design-token check failed:');
+    for (const violation of violations) console.error(`- ${violation}`);
+  }
+
+  for (const [label, entries] of Object.entries(debt)) {
+    const ceiling = CEILINGS[label];
+    const status = entries.length > ceiling ? '超過上限' : 'ok';
+    console.log(`${label}: ${entries.length} / 上限 ${ceiling}（${status}）`);
+    if (entries.length > ceiling) {
+      failed = true;
+      console.error(
+        `Design-token check failed: ${label} 增加了。上限是給既有債務用的，不是給新債務用的。`
+      );
+      for (const entry of entries.slice(0, 20)) console.error(`- ${entry}`);
+    } else if (entries.length < ceiling) {
+      console.log(
+        `  已低於上限，請把 scripts/check-design-tokens.mjs 的 CEILINGS 調成 ${entries.length}。`
+      );
+    }
+  }
+
+  if (failed) {
+    process.exitCode = 1;
+  } else {
+    console.log(
+      'Design-token check passed (未定義 token、寫死色、字重、圓角、陰影、斷點皆為零).'
+    );
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await main();
+}

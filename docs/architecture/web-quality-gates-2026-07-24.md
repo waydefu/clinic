@@ -11,6 +11,9 @@
 | 面向 | 把關方式 | 位置 | 阻斷 CI？ |
 | --- | --- | --- | --- |
 | 結構、UI 邊界、文件連結 | 腳本 | `scripts/check-*.mjs` | 是 |
+| 設計 token（未定義 token、寫死色、字重、圓角、陰影、斷點） | 腳本 | `scripts/check-design-tokens.mjs` | 是 |
+| 三主題覆蓋率與深色亮度階層 | Playwright | `tests/e2e/theme.spec.ts` | 是 |
+| 版面重排（WCAG 1.4.10） | Playwright | `tests/e2e/responsive.spec.ts` | 是 |
 | 格式與 lint | Prettier、ESLint | `eslint.config.mjs` | 是 |
 | 型別與單元測試 | tsc、Vitest | `verify` | 是 |
 | Firestore 交易／規則 | Emulator 測試 | `pnpm test:rules` | 是 |
@@ -91,6 +94,26 @@ CodeQL 尚未產生任何結果，前提有二：repository 要推上 GitHub（�
 remote，commit 全在本機）；私有 repository 需要 GitHub Advanced Security 授權，
 公開 repository 免費。採購或改為公開是技術負責人的決定，與 D-010 同一批。
 **上線證據包必須附實際掃描結果，而不只是這個設定檔的存在。**
+
+## 4-b. 設計 token
+
+`pnpm check:tokens` 把「樣式表裡沉默失效的東西」變成建置失敗。它存在的直接原因
+是一個實際發生過的缺陷：`--text-sm` 被用了五次，卻從來沒有定義過。CSS 對此完全
+沉默——整條宣告失效，字級默默退回繼承值，畫面看起來「差不多對」。
+
+硬性檢查（目前全部為零，再出現一個就紅）：
+
+| 類別 | 為什麼是錯的 |
+| --- | --- |
+| 未定義的 `var(--x)` | 宣告靜默失效 |
+| `:root` 之外的寫死顏色 | 主題切換不會影響它——三個主題只會覆蓋一半的頁面 |
+| 數字字重 | 先前有八階，但字體家族只有兩檔，六階在螢幕上完全一樣 |
+| 寫死的圓角／陰影 | 先前 20+ 種圓角、21 種不重複的 rgba 陰影 |
+| 非正式尺度的斷點 | 兩份樣式表曾各用一套，44–48rem 之間是沒人設計過的半成品狀態 |
+
+上限式檢查（ratchet，數量只能減不能增）：離開字級尺度的 `font-size` 字面值
+（31）與離開 4px 間距網格的字面值（199）。這些收斂會改變版面節奏，屬於選定視覺
+風格時的工作，所以現在只鎖住「不准變多」，並在每次執行時把數字印出來。
 
 ## 5. 無障礙的分工
 
