@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ApiClientError,
   asApiClientError,
-  createApiClient
+  createApiClient,
+  httpTransportError
 } from '../public/modules/api-client.js';
 import { runPendingAction } from '../public/modules/async-action.js';
 
@@ -74,6 +75,83 @@ describe('browser API client seam', () => {
       writeClient.request('/bookings', { method: 'POST' })
     ).rejects.toMatchObject({ retryable: true });
     expect(writeTransport).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('HTTP transport error mapping', () => {
+  it('maps statuses to the v1 envelope with correct retryability', () => {
+    expect(httpTransportError({ status: 409 })).toMatchObject({
+      code: 'CONFLICT',
+      retryable: false
+    });
+    expect(httpTransportError({ status: 429 })).toMatchObject({
+      code: 'RATE_LIMITED',
+      retryable: true
+    });
+    expect(httpTransportError({ status: 503 })).toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+      retryable: true
+    });
+    expect(httpTransportError({ status: 400 })).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      retryable: false
+    });
+  });
+
+  it('prefers a parsed body code and keeps the message resource-free', () => {
+    const error = httpTransportError({
+      status: 409,
+      code: 'IDEMPOTENCY_MISMATCH',
+      correlationId: 'corr_x1'
+    });
+    expect(error.code).toBe('IDEMPOTENCY_MISMATCH');
+    expect(error.correlationId).toBe('corr_x1');
+    // A safe message never carries a long identifier.
+    expect(error.message).not.toMatch(/[0-9]{6,}/);
+  });
+
+  it('auto-retries a 503 GET but surfaces a 503 POST for the user to retry', async () => {
+    const readTransport = vi
+      .fn()
+      .mockRejectedValueOnce(httpTransportError({ status: 503 }))
+      .mockResolvedValueOnce({ ok: true });
+    const readClient = createApiClient(readTransport, { readRetries: 1 });
+    await expect(readClient.request('/state')).resolves.toEqual({ ok: true });
+    expect(readTransport).toHaveBeenCalledTimes(2);
+
+    const writeTransport = vi
+      .fn()
+      .mockRejectedValue(httpTransportError({ status: 503 }));
+    const writeClient = createApiClient(writeTransport);
+    await expect(
+      writeClient.request('/bookings', { method: 'POST' })
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE', retryable: true });
+    expect(writeTransport).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces offline as a retryable failure without calling the transport', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    try {
+      const transport = vi.fn();
+      const client = createApiClient(transport, { readRetries: 0 });
+      await expect(
+        client.request('/bookings', { method: 'POST' })
+      ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE', retryable: true });
+      expect(transport).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('turns a hung transport into a retryable timeout', async () => {
+    const transport = vi.fn(() => new Promise(() => {}));
+    const client = createApiClient(transport, {
+      readRetries: 0,
+      timeoutMs: 10
+    });
+    await expect(
+      client.request('/bookings', { method: 'POST' })
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE', retryable: true });
   });
 });
 

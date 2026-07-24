@@ -345,10 +345,13 @@ owner；決策能及時完成：
 - [x] API client adapter seam（2026-07-24；patient/admin controller 只依賴
       `modules/api-client.js`，目前注入 browser-local `stagingRequest` transport；
       尚未建立 `/v1` route 或網路請求）
-- [ ] real loading/pending/error/retry states（2026-07-24 已完成登入、患者預約／
-      取消、staff 建立／狀態處置／改期／備註、回診、個管與排班發布的第一批；
-      GET 僅對 retryable error 自動重試一次，POST 永不自動重放；其餘低頻治理
-      commands 與真 HTTP timeout/offline/409/429 mapping 待後續）
+- [x] real loading/pending/error/retry states（2026-07-24 收尾；除第一批高頻指令外，
+      登出、帳號建立／停用、公告、維護、發布紀錄、排班草稿編輯／刪除／捨棄、
+      死信模擬／補回等低頻治理指令全部改走 `runUiAction`（pending/disabled/
+      `aria-busy`／可重試）；`api-client` 新增 HTTP status → v1 envelope 映射
+      （`httpTransportError`：409 不可重試、429/503 可重試、400/401/403/404 依碼），
+      並把 offline 與 timeout 轉為可重試的 `SERVICE_UNAVAILABLE`；GET 僅對 retryable
+      自動重試、POST 永不自動重放。transport 仍是 browser-local `stagingRequest`）
 - [x] bundle/content hash/cache（2026-07-24；`scripts/build-web.mjs` 產出
       內容雜湊的 `apps/web/dist`，SCC 處理匯入循環，firebase 雜湊資產 immutable、
       HTML no-store，CSP 未放寬；`hosting.predeploy` 綁 `pnpm build`）

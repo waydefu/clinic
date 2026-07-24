@@ -403,11 +403,23 @@ elements['nav-bell'].addEventListener('click', () => {
   else openBellDialog();
 });
 
-async function updateDraft(mutator, text, anchorId) {
+async function updateDraft(
+  mutator,
+  text,
+  anchorId,
+  control,
+  failurePrefix = '未套用'
+) {
   const draft = structuredClone(state.scheduleDraft);
   mutator(draft);
-  await post('/schedule/draft', draft);
-  message(text, 'success', anchorId);
+  return runUiAction({
+    control,
+    pendingLabel: '儲存中…',
+    anchorId,
+    action: () => post('/schedule/draft', draft),
+    onSuccess: () => message(text, 'success', anchorId),
+    failureMessage: (error) => `${failurePrefix}：${error.message}`
+  });
 }
 
 function parseTimeList(value) {
@@ -447,13 +459,15 @@ elements['login-form'].addEventListener('submit', async (event) => {
 });
 
 elements['logout'].addEventListener('click', async () => {
-  try {
-    await post('/workspace/logout');
-    elements['login-account'].focus();
-    message('已登出。', 'success');
-  } catch (error) {
-    message(error.message, 'error');
-  }
+  await runUiAction({
+    control: elements['logout'],
+    pendingLabel: '登出中…',
+    action: () => post('/workspace/logout'),
+    onSuccess: () => {
+      elements['login-account'].focus();
+      message('已登出。', 'success');
+    }
+  });
 });
 
 elements['reset-state'].addEventListener('click', async () => {
@@ -464,11 +478,19 @@ elements['reset-state'].addEventListener('click', async () => {
     ))
   )
     return;
-  state = await apiClient.request('/reset', { method: 'POST', body: '{}' });
-  filters = { status: 'today', kind: 'all', query: '' };
-  selectedSlotId = undefined;
-  render();
-  message('本機資料已清除。', 'success');
+  await runUiAction({
+    control: elements['reset-state'],
+    pendingLabel: '清除中…',
+    action: () => apiClient.request('/reset', { method: 'POST', body: '{}' }),
+    onSuccess: (fresh) => {
+      state = fresh;
+      filters = { status: 'today', kind: 'all', query: '' };
+      selectedSlotId = undefined;
+      render();
+      message('本機資料已清除。', 'success');
+    },
+    failureMessage: (error) => `未能清除：${error.message}`
+  });
 });
 
 for (const shortcut of document.querySelectorAll('[data-booking-shortcut]')) {
@@ -788,87 +810,77 @@ elements['weekly-form'].addEventListener('submit', async (event) => {
       'error',
       'weekly-form-status'
     );
-  try {
-    await updateDraft(
-      (draft) => {
-        for (const weekday of weekdays) {
-          let entry = draft.weeklyAvailability.find(
-            (item) => item.weekday === weekday
-          );
-          if (entry === undefined) {
-            entry = { weekday, intervals: [] };
-            draft.weeklyAvailability.push(entry);
-          }
-          entry.intervals.push({
-            startLocalTime: elements['weekly-start'].value,
-            endLocalTime: elements['weekly-end'].value
-          });
-          entry.intervals.sort((a, b) =>
-            a.startLocalTime.localeCompare(b.startLocalTime)
-          );
+  await updateDraft(
+    (draft) => {
+      for (const weekday of weekdays) {
+        let entry = draft.weeklyAvailability.find(
+          (item) => item.weekday === weekday
+        );
+        if (entry === undefined) {
+          entry = { weekday, intervals: [] };
+          draft.weeklyAvailability.push(entry);
         }
-        draft.weeklyAvailability.sort((a, b) => a.weekday - b.weekday);
-      },
-      `已為 ${weekdays.length} 個星期加入排班草稿。`,
-      'weekly-form-status'
-    );
-  } catch (error) {
-    message(`未加入草稿：${error.message}`, 'error', 'weekly-form-status');
-  }
+        entry.intervals.push({
+          startLocalTime: elements['weekly-start'].value,
+          endLocalTime: elements['weekly-end'].value
+        });
+        entry.intervals.sort((a, b) =>
+          a.startLocalTime.localeCompare(b.startLocalTime)
+        );
+      }
+      draft.weeklyAvailability.sort((a, b) => a.weekday - b.weekday);
+    },
+    `已為 ${weekdays.length} 個星期加入排班草稿。`,
+    'weekly-form-status',
+    event.submitter,
+    '未加入草稿'
+  );
 });
 
 elements['date-exception-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
-  try {
-    await updateDraft(
-      (draft) => {
-        const kind = elements['exception-kind'].value;
-        const entry = {
-          date: elements['exception-date'].value,
-          kind,
-          intervals:
-            kind === 'extra_open'
-              ? [
-                  {
-                    startLocalTime: elements['exception-start'].value,
-                    endLocalTime: elements['exception-end'].value
-                  }
-                ]
-              : []
-        };
-        draft.dateExceptions = [
-          ...draft.dateExceptions.filter((item) => item.date !== entry.date),
-          entry
-        ].sort((a, b) => a.date.localeCompare(b.date));
-      },
-      '日期例外已加入排班草稿。',
-      'date-exception-form-status'
-    );
-  } catch (error) {
-    message(
-      `未加入草稿：${error.message}`,
-      'error',
-      'date-exception-form-status'
-    );
-  }
+  await updateDraft(
+    (draft) => {
+      const kind = elements['exception-kind'].value;
+      const entry = {
+        date: elements['exception-date'].value,
+        kind,
+        intervals:
+          kind === 'extra_open'
+            ? [
+                {
+                  startLocalTime: elements['exception-start'].value,
+                  endLocalTime: elements['exception-end'].value
+                }
+              ]
+            : []
+      };
+      draft.dateExceptions = [
+        ...draft.dateExceptions.filter((item) => item.date !== entry.date),
+        entry
+      ].sort((a, b) => a.date.localeCompare(b.date));
+    },
+    '日期例外已加入排班草稿。',
+    'date-exception-form-status',
+    event.submitter,
+    '未加入草稿'
+  );
 });
 
 elements['blocked-times-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
-  try {
-    await updateDraft(
-      (draft) => {
-        draft.blockedTimes = {
-          initial: parseTimeList(elements['blocked-initial'].value),
-          follow_up: parseTimeList(elements['blocked-follow-up'].value)
-        };
-      },
-      '固定不開放時間已加入排班草稿。',
-      'blocked-times-form-status'
-    );
-  } catch (error) {
-    message(`未套用：${error.message}`, 'error', 'blocked-times-form-status');
-  }
+  await updateDraft(
+    (draft) => {
+      draft.blockedTimes = {
+        initial: parseTimeList(elements['blocked-initial'].value),
+        follow_up: parseTimeList(elements['blocked-follow-up'].value)
+      };
+    },
+    '固定不開放時間已加入排班草稿。',
+    'blocked-times-form-status',
+    event.submitter,
+    '未套用'
+  );
 });
 
 elements['draft-schedule'].addEventListener('click', async (event) => {
@@ -882,30 +894,27 @@ elements['draft-schedule'].addEventListener('click', async (event) => {
     }))
   )
     return;
-  try {
-    await updateDraft(
-      (draft) => {
-        if (weekly !== null) {
-          const [weekdayText, indexText] =
-            weekly.dataset.removeWeekly.split(':');
-          const entry = draft.weeklyAvailability.find(
-            (item) => item.weekday === Number(weekdayText)
-          );
-          entry.intervals.splice(Number(indexText), 1);
-          draft.weeklyAvailability = draft.weeklyAvailability.filter(
-            (item) => item.intervals.length > 0
-          );
-        } else
-          draft.dateExceptions = draft.dateExceptions.filter(
-            (item) => item.date !== exception.dataset.removeException
-          );
-      },
-      '排班草稿項目已刪除。',
-      'schedule-toolbar-status'
-    );
-  } catch (error) {
-    message(`未刪除：${error.message}`, 'error', 'schedule-toolbar-status');
-  }
+  await updateDraft(
+    (draft) => {
+      if (weekly !== null) {
+        const [weekdayText, indexText] = weekly.dataset.removeWeekly.split(':');
+        const entry = draft.weeklyAvailability.find(
+          (item) => item.weekday === Number(weekdayText)
+        );
+        entry.intervals.splice(Number(indexText), 1);
+        draft.weeklyAvailability = draft.weeklyAvailability.filter(
+          (item) => item.intervals.length > 0
+        );
+      } else
+        draft.dateExceptions = draft.dateExceptions.filter(
+          (item) => item.date !== exception.dataset.removeException
+        );
+    },
+    '排班草稿項目已刪除。',
+    'schedule-toolbar-status',
+    weekly ?? exception,
+    '未刪除'
+  );
 });
 
 elements['publish-schedule'].addEventListener('click', async () => {
@@ -944,8 +953,15 @@ elements['discard-schedule'].addEventListener('click', async () => {
     }))
   )
     return;
-  await post('/schedule/discard');
-  message('未發布排班變更已捨棄。', 'success', 'schedule-toolbar-status');
+  await runUiAction({
+    control: elements['discard-schedule'],
+    pendingLabel: '捨棄中…',
+    anchorId: 'schedule-toolbar-status',
+    action: () => post('/schedule/discard'),
+    onSuccess: () =>
+      message('未發布排班變更已捨棄。', 'success', 'schedule-toolbar-status'),
+    failureMessage: (error) => `未能捨棄：${error.message}`
+  });
 });
 
 // 目標日期改變時，重建當天的回診時間選單；未營業日直接標示，
@@ -1026,21 +1042,26 @@ elements['case-assignment-list'].addEventListener('submit', async (event) => {
 elements['account-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   const label = elements['account-label'].value;
-  try {
-    await post('/workspace/accounts', {
-      label,
-      role: elements['account-role'].value
-    });
-    // 成功即清空輸入，避免殘留的標籤被再按一次送出。
-    elements['account-form'].reset();
-    message(
-      `帳號「${label.trim()}」已建立。`,
-      'success',
-      'account-form-status'
-    );
-  } catch (error) {
-    message(`未建立帳號：${error.message}`, 'error', 'account-form-status');
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '建立中…',
+    anchorId: 'account-form-status',
+    action: () =>
+      post('/workspace/accounts', {
+        label,
+        role: elements['account-role'].value
+      }),
+    onSuccess: () => {
+      // 成功即清空輸入，避免殘留的標籤被再按一次送出。
+      elements['account-form'].reset();
+      message(
+        `帳號「${label.trim()}」已建立。`,
+        'success',
+        'account-form-status'
+      );
+    },
+    failureMessage: (error) => `未建立帳號：${error.message}`
+  });
 });
 
 elements['account-list'].addEventListener('click', async (event) => {
@@ -1052,26 +1073,31 @@ elements['account-list'].addEventListener('click', async (event) => {
     }))
   )
     return;
-  try {
-    await post(`/workspace/accounts/${button.dataset.accountToggle}/toggle`);
-    message('帳號狀態已更新。', 'success');
-  } catch (error) {
-    message(error.message, 'error');
-  }
+  await runUiAction({
+    control: button,
+    pendingLabel: '更新中…',
+    action: () =>
+      post(`/workspace/accounts/${button.dataset.accountToggle}/toggle`),
+    onSuccess: () => message('帳號狀態已更新。', 'success')
+  });
 });
 
 elements['announcement-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
-  try {
-    await post('/workspace/announcement', {
-      status: elements['announcement-status'].value,
-      title: elements['announcement-title'].value,
-      body: elements['announcement-body'].value
-    });
-    message('患者公告已儲存。', 'success', 'announcement-form-status');
-  } catch (error) {
-    message(`未儲存：${error.message}`, 'error', 'announcement-form-status');
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '儲存中…',
+    anchorId: 'announcement-form-status',
+    action: () =>
+      post('/workspace/announcement', {
+        status: elements['announcement-status'].value,
+        title: elements['announcement-title'].value,
+        body: elements['announcement-body'].value
+      }),
+    onSuccess: () =>
+      message('患者公告已儲存。', 'success', 'announcement-form-status'),
+    failureMessage: (error) => `未儲存：${error.message}`
+  });
 });
 
 elements['maintenance-form'].addEventListener('submit', async (event) => {
@@ -1084,41 +1110,49 @@ elements['maintenance-form'].addEventListener('submit', async (event) => {
     ))
   )
     return;
-  try {
-    await post('/workspace/maintenance', {
-      enabled: elements['maintenance-enabled'].checked,
-      title: elements['maintenance-title'].value,
-      body: elements['maintenance-body'].value,
-      startsAt: elements['maintenance-starts-at'].value,
-      resumeAt: elements['maintenance-resume-at'].value
-    });
-    message(
-      state.maintenanceActive
-        ? '患者端維護模式目前生效中。'
-        : '維護排程已儲存，目前尚未生效或已自動恢復。',
-      'success',
-      'maintenance-form-status'
-    );
-  } catch (error) {
-    message(`未套用：${error.message}`, 'error', 'maintenance-form-status');
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '套用中…',
+    anchorId: 'maintenance-form-status',
+    action: () =>
+      post('/workspace/maintenance', {
+        enabled: elements['maintenance-enabled'].checked,
+        title: elements['maintenance-title'].value,
+        body: elements['maintenance-body'].value,
+        startsAt: elements['maintenance-starts-at'].value,
+        resumeAt: elements['maintenance-resume-at'].value
+      }),
+    onSuccess: () =>
+      message(
+        state.maintenanceActive
+          ? '患者端維護模式目前生效中。'
+          : '維護排程已儲存，目前尚未生效或已自動恢復。',
+        'success',
+        'maintenance-form-status'
+      ),
+    failureMessage: (error) => `未套用：${error.message}`
+  });
 });
 
 elements['release-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
-  try {
-    await post('/workspace/releases', {
-      version: elements['release-version'].value,
-      summary: elements['release-summary'].value
-    });
-    message(
-      '發布紀錄已新增；未觸發真實部署。',
-      'success',
-      'release-form-status'
-    );
-  } catch (error) {
-    message(`未新增：${error.message}`, 'error', 'release-form-status');
-  }
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '新增中…',
+    anchorId: 'release-form-status',
+    action: () =>
+      post('/workspace/releases', {
+        version: elements['release-version'].value,
+        summary: elements['release-summary'].value
+      }),
+    onSuccess: () =>
+      message(
+        '發布紀錄已新增；未觸發真實部署。',
+        'success',
+        'release-form-status'
+      ),
+    failureMessage: (error) => `未新增：${error.message}`
+  });
 });
 
 elements['audit-filter'].addEventListener('change', () => {
@@ -1131,35 +1165,43 @@ elements['audit-filter'].addEventListener('change', () => {
 // 日曆投影的合成示範：模擬一次同步（可設為失敗以產生死信）。
 elements['outbox-simulate'].addEventListener('click', async () => {
   const fail = elements['outbox-fail-next'].checked;
-  try {
-    await post('/outbox/simulate', { fail });
-    elements['outbox-fail-next'].checked = false;
-    message(
-      fail
-        ? '已模擬同步失敗，工作進入死信，可在下方重新排入。'
-        : '已模擬同步成功。',
-      'success',
-      'outbox-form-status'
-    );
-  } catch (error) {
-    message(`未能模擬同步：${error.message}`, 'error', 'outbox-form-status');
-  }
+  await runUiAction({
+    control: elements['outbox-simulate'],
+    pendingLabel: '模擬中…',
+    anchorId: 'outbox-form-status',
+    action: () => post('/outbox/simulate', { fail }),
+    onSuccess: () => {
+      elements['outbox-fail-next'].checked = false;
+      message(
+        fail
+          ? '已模擬同步失敗，工作進入死信，可在下方重新排入。'
+          : '已模擬同步成功。',
+        'success',
+        'outbox-form-status'
+      );
+    },
+    failureMessage: (error) => `未能模擬同步：${error.message}`
+  });
 });
 
 // 死信補回入口：對映 apps/worker 的 requeue，只作用於死信。
 elements['outbox-jobs'].addEventListener('click', async (event) => {
   const button = event.target.closest('[data-outbox-requeue]');
   if (button === null) return;
-  try {
-    await post('/outbox/requeue', { jobId: button.dataset.outboxRequeue });
-    message(
-      '死信已重新排入，狀態回到待同步。',
-      'success',
-      'outbox-form-status'
-    );
-  } catch (error) {
-    message(`未能重新排入：${error.message}`, 'error', 'outbox-form-status');
-  }
+  await runUiAction({
+    control: button,
+    pendingLabel: '排入中…',
+    anchorId: 'outbox-form-status',
+    action: () =>
+      post('/outbox/requeue', { jobId: button.dataset.outboxRequeue }),
+    onSuccess: () =>
+      message(
+        '死信已重新排入，狀態回到待同步。',
+        'success',
+        'outbox-form-status'
+      ),
+    failureMessage: (error) => `未能重新排入：${error.message}`
+  });
 });
 
 document.querySelector('.skip-link').addEventListener('click', (event) => {
