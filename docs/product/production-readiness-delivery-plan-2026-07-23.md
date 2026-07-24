@@ -291,13 +291,22 @@ owner；決策能及時完成：
 ### API / Security
 
 - [x] auth context（2026-07-23 Stage 0 interface；未接真 IdP）
-- [ ] RBAC + resource-scope policy
+- [x] RBAC + resource-scope policy（2026-07-24；`platform/authorization/rbac.ts`
+      候選角色矩陣＋`evaluateAccess`：authenticated＋active＋role permits＋resource
+      scope；own_patient BOLA、assigned_patient 個管謂詞、denial 不洩漏存在性；
+      `createRbacAppointmentPolicy` 接上既有 appointment port。角色值仍是候選、
+      受 D-006 gate、未掛路由）
 - [x] application services（2026-07-23 unrouted create skeleton）
 - [x] repository ports/adapters（2026-07-23 local/Emulator）
 - [x] idempotency scope + request hash（2026-07-23 local/Emulator）
-- [ ] rate limit/anti-automation
-- [ ] maintenance gate
-- [ ] safe error/correlation mapping
+- [x] rate limit/anti-automation（2026-07-24；`FixedWindowRateLimiter` 介面＋
+      per-key 固定視窗、可注入時鐘，丟 `RATE_LIMITED`。生產共享儲存受 D-010 gate）
+- [x] maintenance gate（2026-07-24；`StaticMaintenanceGate` 丟 `SERVICE_UNAVAILABLE`；
+      生產共享旗標受 D-010 gate）
+- [x] safe error/correlation mapping（2026-07-24；`platform/errors/api-error.ts`
+      集中式 domain/Zod/platform error → v1 envelope，固定安全訊息不洩漏 domain
+      訊息／stack／識別碼，correlationId 非不透明即以 `unknown` 取代；
+      `DOMAIN_TO_API_CODE` 對 `DomainErrorCode` 窮盡）
 
 ### Data / Privacy
 

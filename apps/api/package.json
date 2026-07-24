@@ -15,7 +15,8 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-fastify": "^11.0.0",
     "firebase-admin": "^14.2.0",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

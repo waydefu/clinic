@@ -116,8 +116,15 @@ Controller
 - `AuthenticationContext`、`AppointmentAuthorizationPolicy`、
   `AppointmentRepositoryPort` 與 `AppointmentApplicationService` 已建立；
 - actor、role 與 verified patient 只能由 authentication context 傳入；
-- `AppModule` 仍只註冊 health controller；真 IdP、RBAC、resource scope、
-  rate limit、maintenance 與 HTTP error mapper 仍依決策 gate 保持未實作。
+- **2026-07-24 補上 `apps/api/src/platform` 未掛路由骨架**：`errors/api-error.ts`
+  集中式 error mapper（domain/Zod/platform → v1 envelope、安全訊息、不透明
+  correlationId 保護）、`authorization/rbac.ts` 候選角色矩陣與 `evaluateAccess`
+  （authenticated＋active＋role permits＋resource scope，denial 不洩漏存在性）、
+  `authorization/rbac-appointment-policy.ts` 接上既有 appointment port、
+  `runtime/maintenance-gate.ts` 與 `runtime/rate-limiter.ts` 介面；
+- `AppModule` 仍只註冊 health controller；真 IdP、D-006 核准的角色值、resource
+  scope 資料來源、共享 rate-limit／maintenance 儲存與 controller 接線仍依決策
+  gate 保持未啟用。
 
 ### ARCH-03：active-booking invariant 應改為明確 guard document
 
