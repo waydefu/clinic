@@ -48,14 +48,37 @@ export const RecordPayrollAdjustmentRequestSchema = z
   })
   .strict();
 
+/**
+ * The locked snapshot is written once. It carries no "last adjusted" field on
+ * purpose: a mutable field on an immutable record is what let an earlier version
+ * of the adjustment planner overwrite the signed-off total. Corrections live in
+ * `PayrollAdjustmentSchema` below, and the payable total is the snapshot plus
+ * that ledger.
+ */
 export const PayrollPeriodSnapshotSchema = z
   .object({
     managerId: OpaqueIdentifierSchema,
     payrollPeriod: PayrollPeriodSchema,
     status: z.literal('locked'),
     creditCount: z.number().int().min(0),
-    closedAt: UtcIsoTimestampSchema,
-    lastAdjustedAt: UtcIsoTimestampSchema.nullable()
+    closedAt: UtcIsoTimestampSchema
+  })
+  .strict();
+
+/** One append-only correction against a locked period. */
+export const PayrollAdjustmentSchema = z
+  .object({
+    periodId: OpaqueIdentifierSchema,
+    managerId: OpaqueIdentifierSchema,
+    payrollPeriod: PayrollPeriodSchema,
+    sequence: z.number().int().min(1),
+    delta: z
+      .number()
+      .int()
+      .refine((value) => value !== 0, 'must be non-zero'),
+    reasonCode: PayrollAdjustmentReasonSchema,
+    recordedAt: UtcIsoTimestampSchema,
+    resultingCreditCount: z.number().int().min(0)
   })
   .strict();
 
@@ -69,3 +92,4 @@ export type RecordPayrollAdjustmentRequest = z.infer<
   typeof RecordPayrollAdjustmentRequestSchema
 >;
 export type PayrollPeriodSnapshot = z.infer<typeof PayrollPeriodSnapshotSchema>;
+export type PayrollAdjustment = z.infer<typeof PayrollAdjustmentSchema>;

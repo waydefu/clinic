@@ -8,6 +8,7 @@ import type {
   ReservationResult
 } from './appointment.repository-port.js';
 import { createAppointmentIdempotency } from '../idempotency/appointment-idempotency.js';
+import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
 export interface AppointmentIdGenerator {
   next(): string;
@@ -21,9 +22,16 @@ export interface CorrelationIdGenerator {
   next(): string;
 }
 
-export class MissingVerifiedPatientError extends Error {
+/**
+ * Extends `AuthenticationRequiredError` rather than `Error` so the central
+ * mapper classifies it. As a plain Error it fell through to INTERNAL_ERROR, and
+ * a caller who simply had not proved who they were got a 500 that reads as
+ * "the server is broken" — the one response that tells them nothing about how
+ * to succeed, while also polluting the error rate with a client condition.
+ */
+export class MissingVerifiedPatientError extends AuthenticationRequiredError {
   public constructor() {
-    super('A server-verified patient identity is required.');
+    super();
     this.name = 'MissingVerifiedPatientError';
   }
 }

@@ -187,6 +187,22 @@ export const AuditEventV2Schema = z
         issue(`${event.action} ${field} state must be ${lockStatus}.`, [field]);
       }
     };
+    const isPayrollState = (
+      state: unknown
+    ): state is z.infer<typeof AuditPayrollStateSchema> =>
+      AuditPayrollStateSchema.safeParse(state).success;
+    const requireSamePayrollPeriod = (
+      before: unknown,
+      after: unknown
+    ): void => {
+      if (!isPayrollState(before) || !isPayrollState(after)) return;
+      if (before.payrollPeriod !== after.payrollPeriod) {
+        issue(
+          `${event.action} must describe one payroll period, not a move between two.`,
+          ['after', 'payrollPeriod']
+        );
+      }
+    };
 
     switch (event.action) {
       case 'appointment_confirmed':
@@ -249,15 +265,41 @@ export const AuditEventV2Schema = z
         requireCaseState(event.before, 'before');
         requireCaseState(event.after, 'after');
         break;
+      // Payroll events are money evidence, so the two states must be
+      // continuous, not merely well-shaped. Checking only the shape would accept
+      // a close whose before and after describe different periods, or one that
+      // silently changed the total it was supposed to be freezing.
       case 'payroll_period_closed':
         requireResourceType('payroll');
         requirePayrollState(event.before, 'before', 'open');
         requirePayrollState(event.after, 'after', 'locked');
+        requireSamePayrollPeriod(event.before, event.after);
+        if (
+          isPayrollState(event.before) &&
+          isPayrollState(event.after) &&
+          event.before.creditCount !== event.after.creditCount
+        ) {
+          issue(
+            'payroll_period_closed must freeze the credit count, not change it.',
+            ['after', 'creditCount']
+          );
+        }
         break;
       case 'payroll_adjustment_recorded':
         requireResourceType('payroll');
         requirePayrollState(event.before, 'before', 'locked');
         requirePayrollState(event.after, 'after', 'locked');
+        requireSamePayrollPeriod(event.before, event.after);
+        if (
+          isPayrollState(event.before) &&
+          isPayrollState(event.after) &&
+          event.before.creditCount === event.after.creditCount
+        ) {
+          issue('payroll_adjustment_recorded must change the credit count.', [
+            'after',
+            'creditCount'
+          ]);
+        }
         if (event.reasonCode === null) {
           issue('payroll_adjustment_recorded requires a reasonCode.', [
             'reasonCode'

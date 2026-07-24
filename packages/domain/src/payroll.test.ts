@@ -4,6 +4,8 @@ import {
   DomainError,
   createPayrollCredit,
   planPayrollAdjustment,
+  payrollTotalAfterAdjustments,
+  type PayrollAdjustment,
   planPayrollPeriodClose,
   summarizeMonthlyManagerWorkload,
   taipeiPayrollPeriod,
@@ -212,8 +214,7 @@ describe('payroll period close and adjustment', () => {
       payrollPeriod: '2026-08',
       status: 'locked',
       creditCount: 2,
-      closedAt: '2026-09-01T00:00:00.000Z',
-      lastAdjustedAt: null
+      closedAt: '2026-09-01T00:00:00.000Z'
     });
     expect(plan.auditEvent.action).toBe('payroll_period_closed');
     expect(plan.auditEvent.resourceType).toBe('payroll');
@@ -273,12 +274,13 @@ describe('payroll period close and adjustment', () => {
     );
   });
 
-  it('applies a reasoned adjustment and keeps the period locked', () => {
+  it('records an adjustment as a ledger entry and leaves the snapshot untouched', () => {
     const closed = planPayrollPeriodClose(
       closeRequest(),
       [creditFor('patient-001'), creditFor('patient-002')],
       undefined
     ).snapshot;
+    const frozen = structuredClone(closed);
 
     const plan = planPayrollAdjustment(
       {
@@ -292,9 +294,22 @@ describe('payroll period close and adjustment', () => {
       closed
     );
 
-    expect(plan.snapshot.status).toBe('locked');
-    expect(plan.snapshot.creditCount).toBe(3);
-    expect(plan.snapshot.lastAdjustedAt).toBe('2026-09-05T00:00:00.000Z');
+    // 月結規格要求鎖定後「不變更原始 credit 或歷史匯出」。快照必須逐欄位維持
+    // 原狀——先前的實作是 `{...closed, creditCount}`，寫回就覆寫了簽核過的總數。
+    expect(closed).toEqual(frozen);
+    expect(plan).not.toHaveProperty('snapshot');
+    expect(plan.adjustment).toEqual({
+      id: `payroll_adjustment_${HASH_B}`,
+      periodId: 'payroll_manager-001_2026-08',
+      managerId: 'manager-001',
+      payrollPeriod: '2026-08',
+      sequence: 1,
+      delta: 1,
+      reasonCode: 'late_completion',
+      recordedAt: '2026-09-05T00:00:00.000Z',
+      resultingCreditCount: 3
+    });
+    expect(payrollTotalAfterAdjustments(closed, [plan.adjustment])).toBe(3);
     expect(plan.auditEvent.action).toBe('payroll_adjustment_recorded');
     expect(plan.auditEvent.reasonCode).toBe('late_completion');
     expect(plan.auditEvent.before).toEqual({
@@ -361,5 +376,107 @@ describe('payroll period close and adjustment', () => {
         closed
       )
     ).toThrow(/below zero/);
+  });
+
+  it('numbers successive adjustments and accumulates onto the running total', () => {
+    const closed = planPayrollPeriodClose(
+      closeRequest(),
+      [creditFor('patient-001'), creditFor('patient-002')],
+      undefined
+    ).snapshot;
+
+    const first = planPayrollAdjustment(
+      {
+        managerId: 'manager-001',
+        payrollPeriod: '2026-08',
+        delta: 2,
+        audit: { ...CLOSE_AUDIT, reasonCode: 'late_completion' },
+        requestedAt: '2026-09-05T00:00:00.000Z',
+        idempotency: { ...CLOSE_IDEMPOTENCY, recordId: 'e'.repeat(64) }
+      },
+      closed
+    ).adjustment;
+
+    const second = planPayrollAdjustment(
+      {
+        managerId: 'manager-001',
+        payrollPeriod: '2026-08',
+        delta: -1,
+        audit: { ...CLOSE_AUDIT, reasonCode: 'correction' },
+        requestedAt: '2026-09-06T00:00:00.000Z',
+        idempotency: { ...CLOSE_IDEMPOTENCY, recordId: 'f'.repeat(64) }
+      },
+      closed,
+      [first]
+    ).adjustment;
+
+    expect(second.sequence).toBe(2);
+    expect(second.resultingCreditCount).toBe(3);
+    expect(payrollTotalAfterAdjustments(closed, [first, second])).toBe(3);
+    // 每一筆都獨立存在，第二筆沒有取代第一筆。
+    expect(first.resultingCreditCount).toBe(4);
+  });
+
+  it('refuses an adjustment dated before the close or before the previous one', () => {
+    const closed = planPayrollPeriodClose(
+      closeRequest(),
+      [creditFor('patient-001')],
+      undefined
+    ).snapshot;
+    const request = (requestedAt: string) => ({
+      managerId: 'manager-001',
+      payrollPeriod: '2026-08',
+      delta: 1,
+      audit: { ...CLOSE_AUDIT, reasonCode: 'correction' as const },
+      requestedAt,
+      idempotency: CLOSE_IDEMPOTENCY
+    });
+
+    expect(() =>
+      planPayrollAdjustment(request('2026-08-31T00:00:00.000Z'), closed)
+    ).toThrow(/predate the close/);
+
+    const first = planPayrollAdjustment(
+      request('2026-09-10T00:00:00.000Z'),
+      closed
+    ).adjustment;
+    expect(() =>
+      planPayrollAdjustment(request('2026-09-09T00:00:00.000Z'), closed, [
+        first
+      ])
+    ).toThrow(/predate the previous adjustment/);
+  });
+
+  it('refuses to read a ledger that is corrupt rather than returning a plausible total', () => {
+    const closed = planPayrollPeriodClose(
+      closeRequest(),
+      [creditFor('patient-001')],
+      undefined
+    ).snapshot;
+    const entry: PayrollAdjustment = {
+      id: 'payroll_adjustment_a',
+      periodId: closed.id,
+      managerId: 'manager-001',
+      payrollPeriod: '2026-08',
+      sequence: 1,
+      delta: 1,
+      reasonCode: 'correction',
+      recordedAt: '2026-09-05T00:00:00.000Z',
+      resultingCreditCount: 2
+    };
+
+    expect(() =>
+      payrollTotalAfterAdjustments(closed, [
+        { ...entry, payrollPeriod: '2026-07', periodId: 'payroll_other' }
+      ])
+    ).toThrow(/another payroll period/);
+    expect(() =>
+      payrollTotalAfterAdjustments(closed, [{ ...entry, sequence: 2 }])
+    ).toThrow(/gapless/);
+    expect(() =>
+      payrollTotalAfterAdjustments(closed, [
+        { ...entry, resultingCreditCount: 99 }
+      ])
+    ).toThrow(/running total/);
   });
 });

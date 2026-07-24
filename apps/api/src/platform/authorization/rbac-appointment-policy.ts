@@ -5,6 +5,7 @@ import {
   type CandidateRole,
   type ResourceScope
 } from './rbac.js';
+import { AuthorizationDeniedError } from '../errors/api-error.js';
 
 /**
  * Resolves the opaque, server-verified `actorRole` to a candidate role. This is
@@ -20,6 +21,23 @@ export type RoleResolver = (context: AuthenticationContext) => CandidateRole;
  * active because the session was validated upstream — the real disabled-account
  * signal arrives with the D-006 identity adapter.
  */
+/**
+ * A patient without a server-verified identity is refused, never widened to the
+ * clinic-wide scope. Falling through to `any` was fail-open: patients hold
+ * `create_appointment`, so the missing identity — the very thing that binds a
+ * booking to one person — became permission to book against anyone. The
+ * application service happens to reject this first today, but a policy is only
+ * worth having if it holds when reused on its own.
+ */
+function resolveScope(
+  role: CandidateRole,
+  verifiedPatientId: string | undefined
+): ResourceScope {
+  if (role !== 'patient') return { kind: 'any' };
+  if (verifiedPatientId === undefined) throw new AuthorizationDeniedError();
+  return { kind: 'own_patient', ownerPatientId: verifiedPatientId };
+}
+
 export function createRbacAppointmentPolicy(
   resolveRole: RoleResolver
 ): AppointmentAuthorizationPolicy {
@@ -30,10 +48,7 @@ export function createRbacAppointmentPolicy(
       // evaluateAccess into that rejection, preserving the original error type.
       return new Promise<void>((resolve) => {
         const role = resolveRole(context);
-        const scope: ResourceScope =
-          role === 'patient' && context.verifiedPatientId !== undefined
-            ? { kind: 'own_patient', ownerPatientId: context.verifiedPatientId }
-            : { kind: 'any' };
+        const scope = resolveScope(role, context.verifiedPatientId);
         evaluateAccess(context, {
           role,
           accountActive: true,

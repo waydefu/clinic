@@ -195,6 +195,56 @@ describe('AuditEventV2Schema', () => {
     ).toBe(false);
   });
 
+  it('requires payroll evidence to be continuous, not merely well-shaped', () => {
+    const closed = {
+      ...EVENT,
+      eventId: 'audit_payroll_close_002',
+      action: 'payroll_period_closed',
+      resourceType: 'payroll',
+      resourceId: 'payroll_manager_alpha_2026-08',
+      before: { payrollPeriod: '2026-08', status: 'open', creditCount: 2 },
+      after: { payrollPeriod: '2026-08', status: 'locked', creditCount: 2 }
+    } as const;
+    const adjusted = {
+      ...closed,
+      eventId: 'audit_payroll_adjust_002',
+      action: 'payroll_adjustment_recorded',
+      before: { payrollPeriod: '2026-08', status: 'locked', creditCount: 2 },
+      after: { payrollPeriod: '2026-08', status: 'locked', creditCount: 3 },
+      reasonCode: 'late_completion'
+    } as const;
+
+    // 一個事件只能描述一個薪資期間。前後期間不同的話，這筆證據講的是兩件事。
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...closed,
+        after: { payrollPeriod: '2026-09', status: 'locked', creditCount: 2 }
+      }).success
+    ).toBe(false);
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...adjusted,
+        after: { payrollPeriod: '2026-09', status: 'locked', creditCount: 3 }
+      }).success
+    ).toBe(false);
+
+    // 關帳是把總數凍結，不是改變它。
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...closed,
+        after: { payrollPeriod: '2026-08', status: 'locked', creditCount: 5 }
+      }).success
+    ).toBe(false);
+
+    // 反過來，沒有改變總數的 adjustment 沒有存在的理由。
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...adjusted,
+        after: { payrollPeriod: '2026-08', status: 'locked', creditCount: 2 }
+      }).success
+    ).toBe(false);
+  });
+
   it('rejects incomplete or legacy audit envelopes', () => {
     const { correlationId: _missing, ...withoutCorrelation } = EVENT;
     expect(AuditEventV2Schema.safeParse(withoutCorrelation).success).toBe(

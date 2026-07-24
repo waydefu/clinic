@@ -334,11 +334,19 @@ function assertCloseUtcTimestamp(value: string, fieldName: string): void {
 }
 
 /**
- * A locked snapshot of one manager's payroll period. Locking freezes the
- * headline credit count; after that only a reasoned adjustment may move it, and
- * the adjustment leaves the period locked. This is what makes a month close
- * auditable — the total that was signed off stays recoverable even as late
- * completions or reassignments arrive.
+ * A locked snapshot of one manager's payroll period.
+ *
+ * **This record is written once and never written again.** The month-close
+ * specification is explicit: locking "建立不可修改快照", and an error found after
+ * locking is corrected "以新 adjustment 修正，不變更原始 credit 或歷史匯出".
+ * A snapshot that could be edited would defeat the only thing it exists for —
+ * being able to say, later, exactly what was signed off and paid against.
+ *
+ * There is deliberately no `lastAdjustedAt` field. A mutable field on an
+ * immutable record is an invitation: the previous version of this type had one,
+ * and the adjustment planner duly spread the snapshot and overwrote both it and
+ * `creditCount`. The current total lives in the adjustment ledger instead —
+ * see `payrollTotalAfterAdjustments`.
  */
 export interface PayrollPeriodSnapshot {
   readonly id: string;
@@ -347,7 +355,27 @@ export interface PayrollPeriodSnapshot {
   readonly status: 'locked';
   readonly creditCount: number;
   readonly closedAt: string;
-  readonly lastAdjustedAt: string | null;
+}
+
+/**
+ * One append-only correction to a locked period. Adjustments never replace each
+ * other and never touch the snapshot; the payable total is the snapshot plus
+ * every adjustment in sequence, which is why each entry carries the total it
+ * produced — a reader can reconstruct any point in the history without replaying
+ * arithmetic, and a mismatch is detectable rather than silent.
+ */
+export interface PayrollAdjustment {
+  readonly id: string;
+  /** The locked snapshot this amends. */
+  readonly periodId: string;
+  readonly managerId: string;
+  readonly payrollPeriod: string;
+  /** 1-based position in the ledger for this period. */
+  readonly sequence: number;
+  readonly delta: number;
+  readonly reasonCode: string;
+  readonly recordedAt: string;
+  readonly resultingCreditCount: number;
 }
 
 export interface PayrollPeriodCloseRequest {
@@ -374,7 +402,58 @@ export interface PayrollAdjustmentRequest {
   readonly idempotency: IdempotencyContext;
 }
 
-export type PayrollAdjustmentPlan = PayrollPeriodClosePlan;
+export interface PayrollAdjustmentPlan {
+  readonly adjustment: PayrollAdjustment;
+  readonly auditEvent: AuditEventV2;
+  readonly idempotencyRecord: PlannedIdempotencyRecord;
+}
+
+/**
+ * The payable total for a locked period: the signed-off snapshot plus every
+ * adjustment against it. Callers must not add `delta`s themselves — the ledger
+ * is the authority, and reading it through one function is what stops a second,
+ * subtly different total appearing in a report.
+ *
+ * The ledger is verified rather than trusted: entries must belong to this
+ * period, be numbered 1..n without gaps, and carry the running total they
+ * claim. A ledger that fails any of those is a corrupted audit trail, and
+ * returning a plausible number from it would hide that.
+ */
+export function payrollTotalAfterAdjustments(
+  snapshot: PayrollPeriodSnapshot,
+  adjustments: readonly PayrollAdjustment[]
+): number {
+  const ordered = [...adjustments].sort((a, b) => a.sequence - b.sequence);
+  let total = snapshot.creditCount;
+
+  for (const [index, adjustment] of ordered.entries()) {
+    if (
+      adjustment.periodId !== snapshot.id ||
+      adjustment.managerId !== snapshot.managerId ||
+      adjustment.payrollPeriod !== snapshot.payrollPeriod
+    ) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The adjustment ledger contains an entry from another payroll period.'
+      );
+    }
+    if (adjustment.sequence !== index + 1) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The adjustment ledger is not a gapless sequence.'
+      );
+    }
+    total += adjustment.delta;
+    if (adjustment.resultingCreditCount !== total) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The adjustment ledger does not agree with its own running total.'
+      );
+    }
+  }
+
+  return total;
+}
 
 function payrollPeriodId(managerId: string, payrollPeriod: string): string {
   return `payroll_${managerId}_${payrollPeriod}`;
@@ -449,8 +528,7 @@ export function planPayrollPeriodClose(
       payrollPeriod: request.payrollPeriod,
       status: 'locked',
       creditCount,
-      closedAt: request.requestedAt,
-      lastAdjustedAt: null
+      closedAt: request.requestedAt
     },
     auditEvent: planAuditEvent({
       eventId: `audit_payroll_close_${request.idempotency.recordId}`,
@@ -476,10 +554,16 @@ export function planPayrollPeriodClose(
  * the period is locked and the audit context carries a reason, because an
  * adjustment is the only sanctioned way to change a signed-off total and the
  * reason outlives the number it explains.
+ *
+ * The plan produces a **new ledger entry**, never a modified snapshot. The
+ * existing ledger has to be passed in: without it there is no way to know the
+ * current total, no way to number the entry, and no way to refuse an adjustment
+ * dated before one that is already recorded.
  */
 export function planPayrollAdjustment(
   request: PayrollAdjustmentRequest,
-  closed: PayrollPeriodSnapshot | undefined
+  closed: PayrollPeriodSnapshot | undefined,
+  adjustments: readonly PayrollAdjustment[] = []
 ): PayrollAdjustmentPlan {
   assertOpaqueIdentifier(request.managerId, 'managerId');
   assertPayrollPeriod(request.payrollPeriod);
@@ -514,8 +598,32 @@ export function planPayrollAdjustment(
     );
   }
 
-  const creditCount = closed.creditCount + request.delta;
-  if (creditCount < 0) {
+  // Reads the ledger through the verifying accessor: a corrupted trail must
+  // stop the write, not be extended by it.
+  const previousCount = payrollTotalAfterAdjustments(closed, adjustments);
+  const ordered = [...adjustments].sort((a, b) => a.sequence - b.sequence);
+  const latest = ordered.at(-1);
+
+  // Time only moves forward. Without this an adjustment can be dated before the
+  // close it amends, or before an adjustment already in the ledger — and the
+  // audit trail then reads as though the correction preceded the thing it
+  // corrected.
+  const requestedAt = Date.parse(request.requestedAt);
+  if (requestedAt < Date.parse(closed.closedAt)) {
+    throw new DomainError(
+      'INVALID_TIMESTAMP',
+      'A payroll adjustment cannot predate the close it amends.'
+    );
+  }
+  if (latest !== undefined && requestedAt < Date.parse(latest.recordedAt)) {
+    throw new DomainError(
+      'INVALID_TIMESTAMP',
+      'A payroll adjustment cannot predate the previous adjustment.'
+    );
+  }
+
+  const resultingCreditCount = previousCount + request.delta;
+  if (resultingCreditCount < 0) {
     throw new DomainError(
       'INVALID_VALUE',
       'A payroll adjustment must not drive the credit count below zero.'
@@ -523,10 +631,16 @@ export function planPayrollAdjustment(
   }
 
   return {
-    snapshot: {
-      ...closed,
-      creditCount,
-      lastAdjustedAt: request.requestedAt
+    adjustment: {
+      id: `payroll_adjustment_${request.idempotency.recordId}`,
+      periodId: closed.id,
+      managerId: closed.managerId,
+      payrollPeriod: closed.payrollPeriod,
+      sequence: ordered.length + 1,
+      delta: request.delta,
+      reasonCode: request.audit.reasonCode,
+      recordedAt: request.requestedAt,
+      resultingCreditCount
     },
     auditEvent: planAuditEvent({
       eventId: `audit_payroll_adjust_${request.idempotency.recordId}`,
@@ -534,8 +648,12 @@ export function planPayrollAdjustment(
       action: 'payroll_adjustment_recorded',
       resourceType: 'payroll',
       resourceId: closed.id,
-      before: payrollState(request.payrollPeriod, 'locked', closed.creditCount),
-      after: payrollState(request.payrollPeriod, 'locked', creditCount),
+      before: payrollState(request.payrollPeriod, 'locked', previousCount),
+      after: payrollState(
+        request.payrollPeriod,
+        'locked',
+        resultingCreditCount
+      ),
       context: request.audit
     }),
     idempotencyRecord: planIdempotencyRecord(

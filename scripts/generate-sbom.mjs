@@ -43,13 +43,36 @@ const ALLOWED_LICENSES = new Set([
 // 已審視的例外：manifest 的授權欄位不是合法 SPDX 識別碼（或根本沒填），但套件
 // 本身是開發相依、不會出貨到患者或診所的執行環境。列在這裡的每一筆都會在每次
 // 執行時印出來，維持可見；正式上線前的法務簽核仍要逐筆確認（D-010 證據包）。
+//
+// **鍵是完整 purl（含版本），不是套件名稱。** 只用名稱查找的話，套件升到新版本
+// 時例外會自動延續——但被審視過的是舊版本的授權內容，新版本可能換了授權、也可能
+// 從 dev 相依變成 runtime 相依。那正是稽核最需要重新看一眼的時刻，卻會被靜靜放行。
+// 每一筆同時釘住預期的授權字串與預期的 scope：任何一項漂移就重新失敗，等待審視。
 const REVIEWED_EXCEPTIONS = new Map([
-  ['deep-freeze', 'manifest 寫 "public domain"，非 SPDX 識別碼；dev-only'],
   [
-    'url-template',
-    'manifest 寫 "BSD"，未指明第幾條款；dev-only（firebase-tools）'
+    'pkg:npm/deep-freeze@0.0.1',
+    {
+      license: 'public domain',
+      scope: 'optional',
+      note: 'manifest 寫 "public domain"，非 SPDX 識別碼；dev-only'
+    }
   ],
-  ['valid-url', 'manifest 沒有 license 欄位；dev-only（firebase-tools）']
+  [
+    'pkg:npm/url-template@2.0.8',
+    {
+      license: 'BSD',
+      scope: 'optional',
+      note: 'manifest 寫 "BSD"，未指明第幾條款；dev-only（firebase-tools）'
+    }
+  ],
+  [
+    'pkg:npm/valid-url@1.0.9',
+    {
+      license: '(未標示)',
+      scope: 'optional',
+      note: 'manifest 沒有 license 欄位；dev-only（firebase-tools）'
+    }
+  ]
 ]);
 
 /**
@@ -300,15 +323,37 @@ export function planLicenseReview(
         : (licenses[0].license?.id ?? licenses[0].expression);
     if (licenses.length > 0 && isLicenseAllowed(identifier, allowed)) continue;
 
-    const exception = exceptions.get(component.name);
+    const exception = exceptions.get(component.purl);
     if (exception !== undefined) {
-      accepted.push({ purl: component.purl, license: identifier, exception });
+      // 例外只在「當初被審視的那個版本、那個授權字串、那個 scope」成立。
+      const drift = [];
+      if (exception.license !== identifier) {
+        drift.push(`授權由 ${exception.license} 變成 ${identifier}`);
+      }
+      if (exception.scope !== component.scope) {
+        drift.push(`scope 由 ${exception.scope} 變成 ${component.scope}`);
+      }
+      if (drift.length === 0) {
+        accepted.push({
+          purl: component.purl,
+          license: identifier,
+          exception: exception.note
+        });
+        continue;
+      }
+      violations.push({
+        purl: component.purl,
+        license: identifier,
+        scope: component.scope,
+        reason: `已審視的例外已漂移（${drift.join('；')}），需重新審視`
+      });
       continue;
     }
     violations.push({
       purl: component.purl,
       license: identifier,
-      scope: component.scope
+      scope: component.scope,
+      reason: '不在允許清單，也沒有已審視的例外'
     });
   }
 
@@ -410,7 +455,7 @@ async function main() {
     console.error('License policy check failed:');
     for (const violation of violations) {
       console.error(
-        `- ${violation.purl}: ${violation.license} (scope: ${violation.scope})`
+        `- ${violation.purl}: ${violation.license} (scope: ${violation.scope}) — ${violation.reason}`
       );
     }
     console.error(

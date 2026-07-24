@@ -85,6 +85,7 @@ const requiredPaths = [
   'apps/api/src/platform/errors/api-error.ts',
   'apps/api/src/platform/authorization/rbac.ts',
   'apps/api/src/platform/authorization/rbac-appointment-policy.ts',
+  'apps/api/src/platform/authorization/rbac-appointment-policy.test.ts',
   'apps/api/src/platform/runtime/maintenance-gate.ts',
   'apps/api/src/platform/runtime/rate-limiter.ts',
   'apps/web/src/calendar-export.test.ts',

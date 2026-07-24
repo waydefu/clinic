@@ -166,6 +166,36 @@ function assertCloseUtcTimestamp(value, fieldName) {
         throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
     }
 }
+/**
+ * The payable total for a locked period: the signed-off snapshot plus every
+ * adjustment against it. Callers must not add `delta`s themselves — the ledger
+ * is the authority, and reading it through one function is what stops a second,
+ * subtly different total appearing in a report.
+ *
+ * The ledger is verified rather than trusted: entries must belong to this
+ * period, be numbered 1..n without gaps, and carry the running total they
+ * claim. A ledger that fails any of those is a corrupted audit trail, and
+ * returning a plausible number from it would hide that.
+ */
+export function payrollTotalAfterAdjustments(snapshot, adjustments) {
+    const ordered = [...adjustments].sort((a, b) => a.sequence - b.sequence);
+    let total = snapshot.creditCount;
+    for (const [index, adjustment] of ordered.entries()) {
+        if (adjustment.periodId !== snapshot.id ||
+            adjustment.managerId !== snapshot.managerId ||
+            adjustment.payrollPeriod !== snapshot.payrollPeriod) {
+            throw new DomainError('INVALID_VALUE', 'The adjustment ledger contains an entry from another payroll period.');
+        }
+        if (adjustment.sequence !== index + 1) {
+            throw new DomainError('INVALID_VALUE', 'The adjustment ledger is not a gapless sequence.');
+        }
+        total += adjustment.delta;
+        if (adjustment.resultingCreditCount !== total) {
+            throw new DomainError('INVALID_VALUE', 'The adjustment ledger does not agree with its own running total.');
+        }
+    }
+    return total;
+}
 function payrollPeriodId(managerId, payrollPeriod) {
     return `payroll_${managerId}_${payrollPeriod}`;
 }
@@ -212,8 +242,7 @@ export function planPayrollPeriodClose(request, credits, current) {
             payrollPeriod: request.payrollPeriod,
             status: 'locked',
             creditCount,
-            closedAt: request.requestedAt,
-            lastAdjustedAt: null
+            closedAt: request.requestedAt
         },
         auditEvent: planAuditEvent({
             eventId: `audit_payroll_close_${request.idempotency.recordId}`,
@@ -233,8 +262,13 @@ export function planPayrollPeriodClose(request, credits, current) {
  * the period is locked and the audit context carries a reason, because an
  * adjustment is the only sanctioned way to change a signed-off total and the
  * reason outlives the number it explains.
+ *
+ * The plan produces a **new ledger entry**, never a modified snapshot. The
+ * existing ledger has to be passed in: without it there is no way to know the
+ * current total, no way to number the entry, and no way to refuse an adjustment
+ * dated before one that is already recorded.
  */
-export function planPayrollAdjustment(request, closed) {
+export function planPayrollAdjustment(request, closed, adjustments = []) {
     assertOpaqueIdentifier(request.managerId, 'managerId');
     assertPayrollPeriod(request.payrollPeriod);
     assertCloseUtcTimestamp(request.requestedAt, 'requestedAt');
@@ -252,15 +286,37 @@ export function planPayrollAdjustment(request, closed) {
     if (!Number.isInteger(request.delta) || request.delta === 0) {
         throw new DomainError('INVALID_VALUE', 'A payroll adjustment delta must be a non-zero whole number.');
     }
-    const creditCount = closed.creditCount + request.delta;
-    if (creditCount < 0) {
+    // Reads the ledger through the verifying accessor: a corrupted trail must
+    // stop the write, not be extended by it.
+    const previousCount = payrollTotalAfterAdjustments(closed, adjustments);
+    const ordered = [...adjustments].sort((a, b) => a.sequence - b.sequence);
+    const latest = ordered.at(-1);
+    // Time only moves forward. Without this an adjustment can be dated before the
+    // close it amends, or before an adjustment already in the ledger — and the
+    // audit trail then reads as though the correction preceded the thing it
+    // corrected.
+    const requestedAt = Date.parse(request.requestedAt);
+    if (requestedAt < Date.parse(closed.closedAt)) {
+        throw new DomainError('INVALID_TIMESTAMP', 'A payroll adjustment cannot predate the close it amends.');
+    }
+    if (latest !== undefined && requestedAt < Date.parse(latest.recordedAt)) {
+        throw new DomainError('INVALID_TIMESTAMP', 'A payroll adjustment cannot predate the previous adjustment.');
+    }
+    const resultingCreditCount = previousCount + request.delta;
+    if (resultingCreditCount < 0) {
         throw new DomainError('INVALID_VALUE', 'A payroll adjustment must not drive the credit count below zero.');
     }
     return {
-        snapshot: {
-            ...closed,
-            creditCount,
-            lastAdjustedAt: request.requestedAt
+        adjustment: {
+            id: `payroll_adjustment_${request.idempotency.recordId}`,
+            periodId: closed.id,
+            managerId: closed.managerId,
+            payrollPeriod: closed.payrollPeriod,
+            sequence: ordered.length + 1,
+            delta: request.delta,
+            reasonCode: request.audit.reasonCode,
+            recordedAt: request.requestedAt,
+            resultingCreditCount
         },
         auditEvent: planAuditEvent({
             eventId: `audit_payroll_adjust_${request.idempotency.recordId}`,
@@ -268,8 +324,8 @@ export function planPayrollAdjustment(request, closed) {
             action: 'payroll_adjustment_recorded',
             resourceType: 'payroll',
             resourceId: closed.id,
-            before: payrollState(request.payrollPeriod, 'locked', closed.creditCount),
-            after: payrollState(request.payrollPeriod, 'locked', creditCount),
+            before: payrollState(request.payrollPeriod, 'locked', previousCount),
+            after: payrollState(request.payrollPeriod, 'locked', resultingCreditCount),
             context: request.audit
         }),
         idempotencyRecord: planIdempotencyRecord(request.idempotency, closed.id, request.requestedAt, 'payroll_period')

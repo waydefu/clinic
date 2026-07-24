@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ClosePayrollPeriodRequestSchema,
+  PayrollAdjustmentSchema,
   PayrollPeriodSnapshotSchema,
   RecordPayrollAdjustmentRequestSchema
 } from './payroll.js';
@@ -76,25 +77,61 @@ describe('RecordPayrollAdjustmentRequestSchema', () => {
 });
 
 describe('PayrollPeriodSnapshotSchema', () => {
-  it('is always locked and carries a nullable adjustment time', () => {
+  const snapshot = {
+    managerId: 'manager_alpha',
+    payrollPeriod: '2026-08',
+    status: 'locked',
+    creditCount: 3,
+    closedAt: '2026-09-01T00:00:00.000Z'
+  };
+
+  it('is always locked', () => {
+    expect(PayrollPeriodSnapshotSchema.safeParse(snapshot).success).toBe(true);
+    expect(
+      PayrollPeriodSnapshotSchema.safeParse({ ...snapshot, status: 'open' })
+        .success
+    ).toBe(false);
+  });
+
+  it('refuses a mutable adjustment field on the frozen snapshot', () => {
+    // 快照是寫一次就不再改的紀錄。`lastAdjustedAt` 這種欄位一旦存在，就等於邀請
+    // 別人去改它——先前的 adjustment 規劃程式正是這樣把簽核過的總數覆寫掉的。
     expect(
       PayrollPeriodSnapshotSchema.safeParse({
-        managerId: 'manager_alpha',
-        payrollPeriod: '2026-08',
-        status: 'locked',
-        creditCount: 3,
-        closedAt: '2026-09-01T00:00:00.000Z',
-        lastAdjustedAt: null
+        ...snapshot,
+        lastAdjustedAt: '2026-09-05T00:00:00.000Z'
       }).success
-    ).toBe(true);
+    ).toBe(false);
+  });
+});
+
+describe('PayrollAdjustmentSchema', () => {
+  const adjustment = {
+    periodId: 'payroll_manager_alpha_2026-08',
+    managerId: 'manager_alpha',
+    payrollPeriod: '2026-08',
+    sequence: 1,
+    delta: -1,
+    reasonCode: 'correction',
+    recordedAt: '2026-09-05T00:00:00.000Z',
+    resultingCreditCount: 2
+  };
+
+  it('accepts a signed non-zero delta with a running total', () => {
+    expect(PayrollAdjustmentSchema.safeParse(adjustment).success).toBe(true);
+  });
+
+  it('refuses a no-op delta, an unnumbered entry, or a negative total', () => {
     expect(
-      PayrollPeriodSnapshotSchema.safeParse({
-        managerId: 'manager_alpha',
-        payrollPeriod: '2026-08',
-        status: 'open',
-        creditCount: 3,
-        closedAt: '2026-09-01T00:00:00.000Z',
-        lastAdjustedAt: null
+      PayrollAdjustmentSchema.safeParse({ ...adjustment, delta: 0 }).success
+    ).toBe(false);
+    expect(
+      PayrollAdjustmentSchema.safeParse({ ...adjustment, sequence: 0 }).success
+    ).toBe(false);
+    expect(
+      PayrollAdjustmentSchema.safeParse({
+        ...adjustment,
+        resultingCreditCount: -1
       }).success
     ).toBe(false);
   });

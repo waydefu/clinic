@@ -14,6 +14,7 @@ import {
   ServiceUnavailableError,
   mapErrorToApiResponse
 } from './api-error.js';
+import { MissingVerifiedPatientError } from '../../appointments/appointment.application-service.js';
 
 const CORRELATION = 'corr_req_0001';
 
@@ -58,6 +59,18 @@ describe('mapErrorToApiResponse', () => {
     const mapped = mapErrorToApiResponse(new Error('boom'), CORRELATION);
     expect(mapped.status).toBe(500);
     expect(mapped.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('maps a missing verified patient identity to 401, not 500', () => {
+    // 缺少已驗證的患者身分是呼叫端的狀態，不是伺服器故障。這個錯誤先前繼承的是
+    // 一般 Error，於是落到「未知錯誤」那一支，回 500——對呼叫端毫無指引，還會
+    // 把用戶端狀況算進伺服器錯誤率裡。
+    const mapped = mapErrorToApiResponse(
+      new MissingVerifiedPatientError(),
+      CORRELATION
+    );
+    expect(mapped.status).toBe(401);
+    expect(mapped.body.error.code).toBe('AUTHENTICATION_REQUIRED');
   });
 
   it('never leaks the domain message into the response body', () => {

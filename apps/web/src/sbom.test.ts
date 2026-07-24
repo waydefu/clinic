@@ -241,9 +241,24 @@ describe('planLicenseReview', () => {
     ]);
   });
 
+  const reviewed = (overrides: Record<string, unknown> = {}) =>
+    new Map([
+      [
+        'pkg:npm/url-template@2.0.8',
+        {
+          // 這份 fixture 裡 url-template 是 googleapis 的傳遞相依，因此 scope 是
+          // required。真實專案的三筆例外都是 optional（dev-only）。
+          license: 'BSD',
+          scope: 'required',
+          note: 'manifest 只寫 BSD',
+          ...overrides
+        }
+      ]
+    ]);
+
   it('accepts a reviewed exception but keeps reporting it', () => {
     const { violations, accepted } = planLicenseReview(build(), {
-      exceptions: new Map([['url-template', 'dev-only；manifest 只寫 BSD']])
+      exceptions: reviewed()
     }) as {
       violations: unknown[];
       accepted: { purl: string; exception: string }[];
@@ -254,9 +269,44 @@ describe('planLicenseReview', () => {
       {
         purl: 'pkg:npm/url-template@2.0.8',
         license: 'BSD',
-        exception: 'dev-only；manifest 只寫 BSD'
+        exception: 'manifest 只寫 BSD'
       }
     ]);
+  });
+
+  it('stops honouring an exception once the package moves to a new version', () => {
+    // 例外綁的是被審視過的那一個版本。升版之後授權可能整個換掉，而稽核最需要
+    // 重新看一眼的時刻，正是這個時候——不能因為套件名稱一樣就自動延續。
+    const document = build();
+    const component = componentOf(document, 'url-template');
+    component.version = '3.0.0';
+    component.purl = 'pkg:npm/url-template@3.0.0';
+
+    const { violations, accepted } = planLicenseReview(document, {
+      exceptions: reviewed()
+    }) as { violations: { purl: string }[]; accepted: unknown[] };
+
+    expect(accepted).toEqual([]);
+    expect(violations.map((violation) => violation.purl)).toEqual([
+      'pkg:npm/url-template@3.0.0'
+    ]);
+  });
+
+  it('stops honouring an exception once the licence text or the scope drifts', () => {
+    const licenceDrift = planLicenseReview(build(), {
+      exceptions: reviewed({ license: 'BSD-3-Clause' })
+    }) as { violations: { reason: string }[] };
+    expect(licenceDrift.violations).toHaveLength(1);
+    expect(licenceDrift.violations[0]?.reason).toMatch(/授權由/);
+
+    // 任何 scope 變動都讓當初的審視失效。實務上最要緊的方向是 dev → runtime：
+    // 「反正只是開發相依、不會出貨」這個免責理由會在那一刻消失，而套件名稱完全
+    // 沒變，只查名稱的例外會一路放行到出貨。
+    const scopeDrift = planLicenseReview(build(), {
+      exceptions: reviewed({ scope: 'optional' })
+    }) as { violations: { reason: string }[] };
+    expect(scopeDrift.violations).toHaveLength(1);
+    expect(scopeDrift.violations[0]?.reason).toMatch(/scope 由/);
   });
 
   it('does not judge packages that are not installed on this platform', () => {

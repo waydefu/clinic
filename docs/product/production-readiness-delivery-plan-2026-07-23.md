@@ -287,6 +287,13 @@ owner；決策能及時完成：
       `payroll_period_closed`/`payroll_adjustment_recorded`；unrouted
       `ClosePayrollPeriod*`/`RecordPayrollAdjustment*` schema。財務規則版本與 lock
       owner 仍受 D-006～D-008 gate）
+  - 2026-07-24 外部複查（P1）修正：第一版的 `planPayrollAdjustment` 回傳
+    `{...closed, creditCount, lastAdjustedAt}`，沿用同一個 snapshot id——repository
+    只要照計畫寫回 `payroll_periods`，就會覆寫月結規格明定「不可修改」的快照。
+    已改為保留快照不動、產生 append-only 的 `PayrollAdjustment` ledger，總數由
+    `payrollTotalAfterAdjustments` 從 ledger 推導；同時補上時間單調性守衛
+    （adjustment 不得早於關帳或早於前一筆）。快照型別已移除 `lastAdjustedAt`
+    ——可變欄位放在不可變紀錄上，本身就是誘因。
 
 ### API / Security
 
@@ -296,6 +303,10 @@ owner；決策能及時完成：
       scope；own_patient BOLA、assigned_patient 個管謂詞、denial 不洩漏存在性；
       `createRbacAppointmentPolicy` 接上既有 appointment port。角色值仍是候選、
       受 D-006 gate、未掛路由）
+  - 2026-07-24 外部複查（P2）修正：`createRbacAppointmentPolicy` 在
+    `role === 'patient'` 但缺少 `verifiedPatientId` 時，會落到 `{ kind: 'any' }`
+    ——而 patient 本來就持有 `create_appointment`，於是 fail-open。已改為直接
+    拒絕，並補上 `rbac-appointment-policy.test.ts`（先前這個檔案沒有測試）。
 - [x] application services（2026-07-23 unrouted create skeleton）
 - [x] repository ports/adapters（2026-07-23 local/Emulator）
 - [x] idempotency scope + request hash（2026-07-23 local/Emulator）
@@ -387,6 +398,10 @@ owner；決策能及時完成：
       `no-eval`/`no-new-func`/`no-script-url`/`no-proto`/`no-implied-eval`；
       CodeQL workflow 已寫但**尚未生效**——需要 GitHub remote，私有 repo 另需
       Advanced Security 授權，屬 D-010 同批決定。上線證據包須附實際掃描結果）
+  - 2026-07-24 外部複查（P2）修正：授權例外原本只以套件名稱查找，套件升版、
+    授權內容改變、甚至由 dev 相依變成 runtime 相依都會被自動放行——而那正是稽核
+    最需要重看一眼的時刻。例外現在綁完整 purl（含版本）＋預期授權字串＋預期
+    scope，任何一項漂移就重新變成違規。
 
 ## 6. Owner Matrix
 
