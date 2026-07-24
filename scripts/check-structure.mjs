@@ -117,6 +117,7 @@ const requiredPaths = [
   'scripts/check-web-ui.mjs',
   'scripts/build-web.mjs',
   'scripts/build-brand-assets.mjs',
+  'docs/design/boutique-clinical-command-2026-07-25.md',
   'apps/web/brand-source/brand-lockup.png',
   'apps/web/brand-source/nhi-mark.png',
   'apps/web/public/assets/brand-mark.webp',

@@ -59,6 +59,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Test-only scheduling and follow-up workbench](product/test-only-scheduling-follow-up-workbench.md) — scope of the synthetic scheduling and follow-up surface
 - [Front-desk follow-up and patient UX spec (2026-07-23)](product/front-desk-followup-and-patient-ux-spec-2026-07-23.md) — the authoritative requirement list for the follow-up queue transform, today filter, past-slot rule, cancellation contact popup and the nav bell
 - [Test-only operations UI guide](design/test-only-operations-ui.md) — safety, accessibility and layout rules for the browser harness
+- [Boutique Clinical Command (2026-07-25)](design/boutique-clinical-command-2026-07-25.md) — the approved visual direction, the six-stage sequence, what is done, and the rules a new implementer must follow
 - [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) — work packages, decision gates, suggested sequence, acceptance criteria and rescoring checkpoints
 - [Web and supply-chain quality gates (2026-07-24)](architecture/web-quality-gates-2026-07-24.md) — which gate enforces what, the performance budget, the CycloneDX SBOM and licence policy, and the SAST layers
 - [Manual accessibility test runbook](runbooks/manual-accessibility-test.md) — the screen-reader, forced-colors, keyboard and zoom checks axe cannot make, with pass criteria and an evidence template
