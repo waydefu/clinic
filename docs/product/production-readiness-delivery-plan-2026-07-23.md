@@ -320,25 +320,35 @@ owner；決策能及時完成：
 
 ### Worker / Integrations
 
-- [ ] trigger/scheduler
+下列未勾選項目的**設計已於 2026-07-24 定案**（plan-only，見
+[worker 執行與對帳計畫](../architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md)）；
+勾選要等實際接線，受 D-009／D-010 gate。
+
+- [ ] trigger/scheduler — 設計：Cloud Scheduler 每分鐘拉取、批次 20、租約 120 秒、單實例
 - [ ] runtime jitter（Stage 0 full-jitter design 已固定）
 - [x] correlation/causation（2026-07-23 local/Emulator）
 - [x] metrics port（2026-07-23 local/Emulator）
-- [ ] metrics backend/alerts
-- [ ] reconciliation
-- [ ] dead-letter operator permissions
-- [ ] Calendar credential rotation
+- [ ] metrics backend/alerts — 設計：四條告警對應三個既有 metric＋死信，低基數為硬性要求
+- [ ] reconciliation — 設計：每日比對 `calendar_links` 與日曆，四類漂移，孤兒事件只告警不刪
+- [ ] dead-letter operator permissions — 設計：補回限管理者且必填理由，死信不得刪除
+- [ ] Calendar credential rotation — 設計：90 天，先加新版本再停用舊版本，煙霧測試由負責人執行
 
 ### Infrastructure / Operations
 
-- [ ] environment modules
-- [ ] service accounts/IAM
-- [ ] Secret Manager
-- [ ] Firestore indexes/backups/PITR
-- [ ] monitoring/logging/budget
-- [ ] deployment approval/rollback
-- [ ] RTO/RPO and restore drill
-- [ ] incident response
+下列未勾選項目的**設計已於 2026-07-24 定案**（plan-only，見
+[基礎設施與維運計畫](../architecture/infrastructure-and-operations-plan-2026-07-24.md)、
+[備份與還原 runbook](../runbooks/backup-and-restore.md)、
+[事故應變 runbook](../runbooks/incident-response.md)）；
+勾選要等實際建立資源，受 D-010 gate。**沒有執行任何 `terraform apply`。**
+
+- [ ] environment modules — 設計：三個分離 project、modules/environments 佈局、remote state、plan/apply 分離
+- [ ] service accounts/IAM — 設計：api/worker/deployer/terraform 四個帳號分離，禁 owner/editor，CI 走 Workload Identity Federation
+- [ ] Secret Manager — 設計：三個 secret、90/180 天輪替、先加後停
+- [ ] Firestore indexes/backups/PITR — 設計：每日備份保留 30 天、PITR 7 天、刪除保護、索引經 CI 部署
+- [ ] monitoring/logging/budget — 設計：四個 SLI 與建議 SLO、告警分兩級且每條都要有 runbook、日誌不得含患者識別、預算 50/80/100% 告警
+- [ ] deployment approval/rollback — 設計：production 需人工核准且核准者非提交者；資料變更不可回滾故一律走加欄位→雙寫→驗證→停用
+- [ ] RTO/RPO and restore drill — 設計：四種情境的建議 RTO/RPO（**待負責人核准**）、還原到新 database、V1～V6 驗證、每季演練
+- [ ] incident response — 設計：SEV1～4 分級、四個角色、隱私事故路徑（法定通報時限由法務依上線時有效法令認定）、無責備檢討
 
 ### Web / Quality
 
@@ -360,10 +370,23 @@ owner；決策能及時完成：
       →刪除，跑在 content-hash 的 dist 上，CI verify.yml 新增 e2e job）
 - [x] axe（2026-07-24；患者頁、登入閘門、登入後預約清單皆掃 serious/critical＝0；
       掃描過程抓到並修正三個真實對比／鍵盤違規：amber 文字、休診日表頭、週檢視
-      可聚焦）。screen-reader/forced-colors 人工測試仍待補
-- [ ] Lighthouse budgets
+      可聚焦）
+- [x] screen-reader/forced-colors 人工測試程序（2026-07-24；
+      [人工無障礙測試 runbook](../runbooks/manual-accessibility-test.md) 定義 A～D
+      四節腳本、通過條件與證據模板。**程序已定義，尚未執行**——第一次實測需要
+      NVDA/VoiceOver 與 Windows 對比佈景主題，屬人工作業）
+- [x] Lighthouse budgets（2026-07-24；`apps/web/performance-budget.json` 採
+      Lighthouse budget.json 格式。位元組由 `pnpm check:perf` 對 dist 靜態計算
+      （gzip 傳輸量，掛進 verify），時間由 `tests/e2e/performance.spec.ts` 實測
+      FCP/LCP/CLS，門檻取 Core Web Vitals 良好界線。字型預算訂為 0 KiB，
+      逼使字型成為一次刻意的決定）
 - [x] tracked-secret/high-critical dependency CI skeleton（2026-07-23）
-- [ ] SAST/final dependency policy/standards-compliant SBOM gates
+- [x] SAST/final dependency policy/standards-compliant SBOM gates（2026-07-24；
+      `pnpm sbom` 產 CycloneDX 1.6 並執行授權政策 gate（SPDX 運算式解析、強
+      copyleft 擋下、三筆 dev-only 已審視例外每次列印）；ESLint 加
+      `no-eval`/`no-new-func`/`no-script-url`/`no-proto`/`no-implied-eval`；
+      CodeQL workflow 已寫但**尚未生效**——需要 GitHub remote，私有 repo 另需
+      Advanced Security 授權，屬 D-010 同批決定。上線證據包須附實際掃描結果）
 
 ## 6. Owner Matrix
 

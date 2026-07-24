@@ -49,6 +49,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Calendar and database integration plan](architecture/calendar-and-database-integration-plan.md) — staged route from the browser prototype to Firestore and a Calendar projection, and which decision blocks each stage
 - [Calendar event ID and outbox key](architecture/calendar-event-id.md) — why the outbox key is base32hex, where it is generated, and what to check before changing it
 - [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) — architecture verdict, required changes, target containers, data model, transactions and migration boundaries
+- [Infrastructure and operations plan (2026-07-24)](architecture/infrastructure-and-operations-plan-2026-07-24.md) — plan-only environment split, Terraform layout, IAM, secrets, Firestore backup/PITR, monitoring, budget, deploy and rollback
+- [Worker runtime and reconciliation plan (2026-07-24)](architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md) — plan-only trigger design, at-least-once semantics, Calendar reconciliation, dead-letter operator permissions and credential rotation
 
 ## 4. Building and testing
 
@@ -58,12 +60,16 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Front-desk follow-up and patient UX spec (2026-07-23)](product/front-desk-followup-and-patient-ux-spec-2026-07-23.md) — the authoritative requirement list for the follow-up queue transform, today filter, past-slot rule, cancellation contact popup and the nav bell
 - [Test-only operations UI guide](design/test-only-operations-ui.md) — safety, accessibility and layout rules for the browser harness
 - [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) — work packages, decision gates, suggested sequence, acceptance criteria and rescoring checkpoints
+- [Web and supply-chain quality gates (2026-07-24)](architecture/web-quality-gates-2026-07-24.md) — which gate enforces what, the performance budget, the CycloneDX SBOM and licence policy, and the SAST layers
+- [Manual accessibility test runbook](runbooks/manual-accessibility-test.md) — the screen-reader, forced-colors, keyboard and zoom checks axe cannot make, with pass criteria and an evidence template
 
 ## 5. Operations
 
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
 - [Calendar go-live runbook](runbooks/calendar-go-live.md) — who does what to wire the real Google Calendar test integration (credentials stay with the owner)
+- [Backup and restore runbook](runbooks/backup-and-restore.md) — what is protected, proposed RTO/RPO targets, the restore procedure and the quarterly drill requirement
+- [Incident response runbook](runbooks/incident-response.md) — severity levels, roles, communication, the privacy-incident path and the postmortem template
 - [Month close runbook](runbooks/month-close.md) — provisional list, review, approval and lock
 - [Month close specification](payroll/month-close-spec.md) — countable credit definition and uniqueness rules
 

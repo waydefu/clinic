@@ -20,6 +20,14 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > axe、`apps/api/src/platform` 的集中式錯誤映射與候選 RBAC/rate-limit/maintenance
 > 骨架，以及低頻治理指令的 pending/error/retry 收尾與 api-client 的 HTTP/offline/
 > timeout 錯誤映射。以下清單中凡與這些重疊者，以 backlog 的最新狀態為準。
+>
+> **2026-07-24（同日稍晚）品質 gate 與維運設計。** 另補上：效能預算（Lighthouse
+> budget 格式，位元組靜態把關＋瀏覽器實測 FCP/LCP/CLS）、CycloneDX 1.6 SBOM 與
+> 授權政策 gate、CodeQL 與 ESLint 注入規則、人工無障礙測試 runbook，以及四份
+> plan-only 的維運設計（基礎設施與環境、worker 觸發與對帳、備份還原與 RTO/RPO、
+> 事故應變）。詳見[前端與供應鏈品質把關](architecture/web-quality-gates-2026-07-24.md)
+> 與[基礎設施與維運計畫](architecture/infrastructure-and-operations-plan-2026-07-24.md)。
+> **維運設計全部是文件，沒有建立任何雲端資源。**
 
 ## 目前可直接動工
 
@@ -143,8 +151,12 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 仍未處理：
 
 - 預約清單無分頁
-- `Noto Sans TC` 未實際載入，需決定載入或移除
+- `Noto Sans TC` 未實際載入，需決定載入或移除。**2026-07-24 起，
+  `apps/web/performance-budget.json` 的字型預算是 0 KiB**，因此「載入」這個選項
+  會撞到效能 gate，必須連同重量一起決定，不能悄悄加上去。
 - 櫃台高頻操作的鍵盤快捷鍵
+- 螢幕閱讀器與高對比的**人工實測**（程序已備妥，見
+  [人工無障礙測試 runbook](runbooks/manual-accessibility-test.md)，尚未執行）
 
 已完成（原列於「仍未處理」，2026-07-24 更新）：
 
