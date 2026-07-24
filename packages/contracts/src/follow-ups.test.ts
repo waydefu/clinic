@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  FollowUpCategorySchema,
   RecordFollowUpRequestSchema,
   RecordFollowUpResponseSchema
 } from './index.js';
@@ -15,8 +14,7 @@ describe('record follow-up command', () => {
         idempotencyKey: validKey,
         decision: 'required',
         dueDate: '2030-01-02',
-        dueTime: '12:15',
-        categories: ['nose_follow_up']
+        dueTime: '12:15'
       }).dueTime
     ).toBe('12:15');
   });
@@ -55,15 +53,11 @@ describe('record follow-up command', () => {
     ).toBe(false);
   });
 
-  // 回診類別是排程事實，不是臨床註記；自由文字沒有核准的分類（D-001～D-003），
-  // 因此契約裡沒有它的位置。
-  it('carries only closed follow-up categories and no free text', () => {
-    expect(FollowUpCategorySchema.options).toEqual([
-      'nose_follow_up',
-      'throat_follow_up',
-      'half_year_repair'
-    ]);
+  // 回診類別／標籤尚未完成 browser inventory 到 domain 的核准映射；與自由文字、
+  // 證明書、個管師等欄位一樣，不可先出現在 executable contract。
+  it('rejects browser-only categories and patient or clinical details', () => {
     for (const extraField of [
+      { categories: ['nose_follow_up'] },
       { noteText: '病患提到右側鼻塞加重' },
       { certificateCopies: 2 },
       { managerId: 'manager_001' },
@@ -77,6 +71,17 @@ describe('record follow-up command', () => {
           ...extraField
         }).success
       ).toBe(false);
+  });
+
+  it('rejects impossible calendar dates', () => {
+    expect(
+      RecordFollowUpRequestSchema.safeParse({
+        idempotencyKey: validKey,
+        decision: 'required',
+        dueDate: '2030-02-30',
+        dueTime: '12:15'
+      }).success
+    ).toBe(false);
   });
 
   it('returns the server-resolved instant, or null when none is needed', () => {
@@ -94,5 +99,12 @@ describe('record follow-up command', () => {
         dueAt: null
       }).dueAt
     ).toBeNull();
+    expect(
+      RecordFollowUpResponseSchema.safeParse({
+        appointmentId: 'appointment_001',
+        decision: 'required',
+        dueAt: 'sometime next week'
+      }).success
+    ).toBe(false);
   });
 });

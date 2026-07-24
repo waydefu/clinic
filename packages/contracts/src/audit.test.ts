@@ -61,6 +61,58 @@ describe('AuditEventV2Schema', () => {
         reasonCode: 'wrong patient 王小明'
       }).success
     ).toBe(false);
+    expect(
+      AuditEventV2Schema.safeParse({ ...deletion, reasonCode: null }).success
+    ).toBe(false);
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...deletion,
+        after: { status: 'cancelled', slotId: 'slot_001' }
+      }).success
+    ).toBe(false);
+  });
+
+  it('enforces action-specific resource and state branches', () => {
+    const scheduleEvent = {
+      ...EVENT,
+      eventId: 'audit_schedule_v1',
+      action: 'schedule_published',
+      resourceType: 'schedule',
+      resourceId: 'schedule',
+      before: { version: 0, slotCount: 0 },
+      after: { version: 1, slotCount: 12 }
+    } as const;
+    const followUpEvent = {
+      ...EVENT,
+      eventId: 'audit_appointment_001_follow_up',
+      action: 'follow_up_decided',
+      before: null,
+      after: {
+        followUpStatus: 'required',
+        dueAt: '2030-01-02T04:15:00.000Z'
+      }
+    } as const;
+
+    expect(AuditEventV2Schema.safeParse(scheduleEvent).success).toBe(true);
+    expect(AuditEventV2Schema.safeParse(followUpEvent).success).toBe(true);
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...scheduleEvent,
+        resourceType: 'appointment'
+      }).success
+    ).toBe(false);
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...scheduleEvent,
+        after: EVENT.after
+      }).success
+    ).toBe(false);
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...followUpEvent,
+        after: EVENT.after
+      }).success
+    ).toBe(false);
   });
 
   it('rejects incomplete or legacy audit envelopes', () => {

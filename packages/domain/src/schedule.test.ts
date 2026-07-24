@@ -119,6 +119,22 @@ describe('assertScheduleValid', () => {
     ).toBe('SCHEDULE_EXCEPTION_DUPLICATED');
   });
 
+  it('rejects impossible local dates in exceptions and slot generation', () => {
+    expect(
+      codeOf(() =>
+        assertScheduleValid({
+          ...schedule,
+          dateExceptions: [{ date: '2030-02-30', kind: 'closed' }]
+        })
+      )
+    ).toBe('SCHEDULE_EXCEPTION_DUPLICATED');
+    expect(
+      codeOf(() =>
+        planSlots(schedule, [], { startDate: '2030-02-30', dayCount: 1 })
+      )
+    ).toBe('INVALID_VALUE');
+  });
+
   it('rejects overlapping intervals on the same day', () => {
     expect(
       codeOf(() =>

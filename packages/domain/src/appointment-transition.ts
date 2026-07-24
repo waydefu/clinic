@@ -307,11 +307,16 @@ export function planDeletion(
       'Deleting an appointment requires a reason code.'
     );
   }
-  assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
-
   // 只有尚未結束的預約還佔著時段；取消／未到／完成到診早已釋出，再釋出一次
   // 會把後來訂走這格的人擠掉。
   const holdsSlot = OPEN_STATUSES.includes(appointment.status);
+  // 開放中的預約必須仍持有「一位病患一筆有效預約」guard；終局狀態在生命週期
+  // 轉換時已釋出，所以刪除 cancelled/completed/no_show 時不能再要求它存在。
+  // 回傳的 release mutation 仍指向被刪預約，repository 會以 activeAppointmentId
+  // 比對後才刪除，因此也不會誤刪病患後來建立的新 guard。
+  if (holdsSlot) {
+    assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
+  }
   const auditEvent = planAuditEvent({
     eventId: `audit_${appointment.id}_deleted`,
     occurredAt: request.requestedAt,

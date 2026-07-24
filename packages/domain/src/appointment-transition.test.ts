@@ -226,7 +226,7 @@ describe('planDeletion', () => {
   const remove = (
     patch: Partial<AppointmentSnapshot> = {},
     auditPatch: Partial<AuditContext> = {},
-    guard: PatientBookingGuardSnapshot | undefined = patientBookingGuard
+    guard: PatientBookingGuardSnapshot | null = patientBookingGuard
   ) =>
     planDeletion(
       {
@@ -239,7 +239,7 @@ describe('planDeletion', () => {
         }
       },
       { ...appointment, ...patch },
-      guard
+      guard ?? undefined
     );
 
   it('records the pre-delete state and no post state', () => {
@@ -265,8 +265,12 @@ describe('planDeletion', () => {
       'cancelled',
       'completed',
       'no_show'
-    ] as AppointmentStatusValue[])
-      expect(() => remove({ status })).not.toThrow();
+    ] as AppointmentStatusValue[]) {
+      const guard = ['confirmed', 'cancellation_requested'].includes(status)
+        ? patientBookingGuard
+        : null;
+      expect(() => remove({ status }, {}, guard)).not.toThrow();
+    }
   });
 
   // 已結束的預約早就把時段還出去了，再釋出一次會把後來訂走這格的人擠掉。
@@ -303,7 +307,7 @@ describe('planDeletion', () => {
     expect(plan.outboxJob.causationId).toBe(plan.auditEvent.eventId);
   });
 
-  it('rejects an unknown appointment or a guard that belongs elsewhere', () => {
+  it('rejects an unknown appointment or an open appointment with the wrong guard', () => {
     expect(
       codeOf(() =>
         planDeletion(
@@ -323,6 +327,22 @@ describe('planDeletion', () => {
         remove({}, {}, { ...patientBookingGuard, activeAppointmentId: 'other' })
       )
     ).toBe('PATIENT_BOOKING_GUARD_MISMATCH');
+    expect(codeOf(() => remove({}, {}, null))).toBe(
+      'PATIENT_BOOKING_GUARD_MISMATCH'
+    );
+  });
+
+  it('does not require or release a newer guard when deleting a closed appointment', () => {
+    const plan = remove(
+      { status: 'completed' },
+      {},
+      { ...patientBookingGuard, activeAppointmentId: 'appointment_newer' }
+    );
+
+    expect(plan.patientBookingGuard).toEqual({
+      action: 'release',
+      activeAppointmentId: appointment.id
+    });
   });
 });
 

@@ -83,7 +83,101 @@ export const AuditEventV2Schema = z
     policyVersion: OpaqueIdentifierSchema.nullable(),
     schemaVersion: z.literal(2)
   })
-  .strict();
+  .strict()
+  .superRefine((event, context) => {
+    const issue = (
+      message: string,
+      path: readonly (string | number)[]
+    ): void => {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message,
+        path: [...path]
+      });
+    };
+    const requireResourceType = (
+      expected: 'appointment' | 'schedule'
+    ): void => {
+      if (event.resourceType !== expected) {
+        issue(`${event.action} must use resourceType "${expected}".`, [
+          'resourceType'
+        ]);
+      }
+    };
+    const requireAppointmentState = (
+      state: unknown,
+      field: 'before' | 'after'
+    ): void => {
+      if (!AuditAppointmentStateSchema.safeParse(state).success) {
+        issue(`${event.action} requires appointment ${field} state.`, [field]);
+      }
+    };
+    const requireScheduleState = (
+      state: unknown,
+      field: 'before' | 'after'
+    ): void => {
+      if (!AuditScheduleStateSchema.safeParse(state).success) {
+        issue(`${event.action} requires schedule ${field} state.`, [field]);
+      }
+    };
+    const requireFollowUpState = (
+      state: unknown,
+      field: 'before' | 'after'
+    ): void => {
+      if (!AuditFollowUpStateSchema.safeParse(state).success) {
+        issue(`${event.action} requires follow-up ${field} state.`, [field]);
+      }
+    };
+
+    switch (event.action) {
+      case 'appointment_confirmed':
+        requireResourceType('appointment');
+        if (event.before !== null) {
+          issue('appointment_confirmed must have a null before state.', [
+            'before'
+          ]);
+        }
+        requireAppointmentState(event.after, 'after');
+        break;
+      case 'cancellation_requested':
+      case 'appointment_cancelled':
+      case 'appointment_completed':
+      case 'appointment_no_show':
+      case 'appointment_rescheduled':
+        requireResourceType('appointment');
+        requireAppointmentState(event.before, 'before');
+        requireAppointmentState(event.after, 'after');
+        break;
+      case 'appointment_deleted':
+        requireResourceType('appointment');
+        requireAppointmentState(event.before, 'before');
+        if (event.after !== null) {
+          issue('appointment_deleted must have a null after state.', ['after']);
+        }
+        if (event.reasonCode === null) {
+          issue('appointment_deleted requires a reasonCode.', ['reasonCode']);
+        }
+        break;
+      case 'follow_up_decided':
+        requireResourceType('appointment');
+        if (
+          event.before !== null &&
+          !AuditFollowUpStateSchema.safeParse(event.before).success
+        ) {
+          issue(
+            'follow_up_decided before state must be null or follow-up state.',
+            ['before']
+          );
+        }
+        requireFollowUpState(event.after, 'after');
+        break;
+      case 'schedule_published':
+        requireResourceType('schedule');
+        requireScheduleState(event.before, 'before');
+        requireScheduleState(event.after, 'after');
+        break;
+    }
+  });
 
 export type AuditAction = z.infer<typeof AuditActionSchema>;
 export type AuditAppointmentState = z.infer<typeof AuditAppointmentStateSchema>;

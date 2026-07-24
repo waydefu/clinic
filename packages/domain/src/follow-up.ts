@@ -11,7 +11,11 @@ import {
   type IdempotencyContext,
   type PlannedIdempotencyRecord
 } from './idempotency.js';
-import { followUpGridTimes, type Schedule } from './schedule.js';
+import {
+  followUpGridTimes,
+  isValidLocalDate,
+  type Schedule
+} from './schedule.js';
 
 /**
  * Whether a completed visit needs another one, as pure rules.
@@ -86,7 +90,6 @@ export interface FollowUpDecisionPlan {
   readonly idempotencyRecord: PlannedIdempotencyRecord;
 }
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const CLINIC_UTC_OFFSET = '+08:00';
 
@@ -101,6 +104,12 @@ function assertUtcTimestamp(value: string, fieldName: string): void {
 
 /** 台北的日期時間轉成 UTC 時間點；台灣無日光節約時間，偏移全年固定。 */
 export function taipeiInstant(date: string, time: string): string {
+  if (!isValidLocalDate(date) || !TIME_PATTERN.test(time)) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'Taipei wall-clock time must use a real date and HH:MM time.'
+    );
+  }
   return new Date(`${date}T${time}:00${CLINIC_UTC_OFFSET}`).toISOString();
 }
 
@@ -131,7 +140,7 @@ export function planFollowUpDecision(
   let dueAt: string | null = null;
   if (request.decision === 'required') {
     const { dueDate, dueTime } = request;
-    if (dueDate === undefined || !DATE_PATTERN.test(dueDate)) {
+    if (dueDate === undefined || !isValidLocalDate(dueDate)) {
       throw new DomainError(
         'INVALID_VALUE',
         'A required follow-up needs a target date.'
@@ -168,7 +177,7 @@ export function planFollowUpDecision(
   }
 
   const auditEvent = planAuditEvent({
-    eventId: `audit_${appointment.id}_follow_up`,
+    eventId: `audit_${appointment.id}_follow_up_${request.idempotency.recordId}`,
     occurredAt: request.requestedAt,
     action: 'follow_up_decided',
     resourceType: 'appointment',
@@ -189,7 +198,7 @@ export function planFollowUpDecision(
     decidedAt: request.requestedAt,
     auditEvent,
     outboxJob: {
-      id: `outbox_followup_${appointment.id}_${request.decision}`,
+      id: `outbox_followup_${appointment.id}_${request.decision}_${request.idempotency.recordId}`,
       type: 'calendar_projection_requested',
       appointmentId: appointment.id,
       followUpSourceId: appointment.id,

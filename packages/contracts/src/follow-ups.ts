@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-import { IdempotencyKeySchema, OpaqueIdentifierSchema } from './common.js';
+import {
+  IdempotencyKeySchema,
+  LocalDateSchema,
+  OpaqueIdentifierSchema,
+  UtcIsoTimestampSchema
+} from './common.js';
 
 /**
  * Recording whether a completed visit needs another one.
@@ -17,29 +22,16 @@ import { IdempotencyKeySchema, OpaqueIdentifierSchema } from './common.js';
  * server: a reminder must point at a moment a patient could actually book.
  */
 
-const LocalDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const LocalTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 
 export const FollowUpDecisionSchema = z.enum(['required', 'not_required']);
-
-/**
- * Closed set, matching the clinic's follow-up categories. A category is a
- * scheduling fact ("this is a nose follow-up"), not a clinical note, which is
- * why it can be carried while free text cannot.
- */
-export const FollowUpCategorySchema = z.enum([
-  'nose_follow_up',
-  'throat_follow_up',
-  'half_year_repair'
-]);
 
 export const RecordFollowUpRequestSchema = z
   .object({
     idempotencyKey: IdempotencyKeySchema,
     decision: FollowUpDecisionSchema,
     dueDate: LocalDateSchema.optional(),
-    dueTime: LocalTimeSchema.optional(),
-    categories: z.array(FollowUpCategorySchema).optional()
+    dueTime: LocalTimeSchema.optional()
   })
   .strict()
   // 「不需要回診」卻帶著目標時間，代表呼叫端狀態不一致。在邊界就擋下，
@@ -65,12 +57,11 @@ export const RecordFollowUpResponseSchema = z
     decision: FollowUpDecisionSchema,
     // Server-resolved UTC instant, so the client never has to do the Taipei
     // conversion that the reminder depends on.
-    dueAt: z.string().nullable()
+    dueAt: UtcIsoTimestampSchema.nullable()
   })
   .strict();
 
 export type FollowUpDecision = z.infer<typeof FollowUpDecisionSchema>;
-export type FollowUpCategory = z.infer<typeof FollowUpCategorySchema>;
 export type RecordFollowUpRequest = z.infer<typeof RecordFollowUpRequestSchema>;
 export type RecordFollowUpResponse = z.infer<
   typeof RecordFollowUpResponseSchema

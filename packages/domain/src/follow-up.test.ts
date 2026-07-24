@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuditContext } from './audit.js';
 import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
+import type { IdempotencyContext } from './idempotency.js';
 import {
   planFollowUpDecision,
   taipeiInstant,
@@ -62,7 +63,8 @@ const decide = (
     dueTime?: string;
   },
   source: FollowUpSourceSnapshot | undefined = appointment,
-  existing?: { decision: 'required' | 'not_required'; dueAt: string | null }
+  existing?: { decision: 'required' | 'not_required'; dueAt: string | null },
+  requestIdempotency: IdempotencyContext = idempotency
 ) =>
   planFollowUpDecision(
     {
@@ -70,7 +72,7 @@ const decide = (
       ...request,
       audit,
       requestedAt: NOW,
-      idempotency
+      idempotency: requestIdempotency
     },
     source,
     schedule,
@@ -129,6 +131,47 @@ describe('planFollowUpDecision', () => {
       before: { followUpStatus: 'required', dueAt: '2030-01-02T04:15:00.000Z' },
       after: { followUpStatus: 'not_required', dueAt: null }
     });
+  });
+
+  it('uses command-unique audit and outbox IDs while retaining one calendar event', () => {
+    const first = decide({
+      decision: 'required',
+      dueDate: '2030-01-02',
+      dueTime: '12:15'
+    });
+    const secondIdempotency = {
+      ...idempotency,
+      requestHash: 'c'.repeat(64),
+      recordId: 'd'.repeat(64)
+    };
+    const second = decide(
+      {
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:45'
+      },
+      appointment,
+      { decision: first.decision, dueAt: first.dueAt },
+      secondIdempotency
+    );
+
+    expect(second.auditEvent.eventId).not.toBe(first.auditEvent.eventId);
+    expect(second.outboxJob.id).not.toBe(first.outboxJob.id);
+    expect(second.outboxJob.idempotencyKey).toBe(
+      first.outboxJob.idempotencyKey
+    );
+    expect(
+      decide(
+        {
+          decision: 'required',
+          dueDate: '2030-01-02',
+          dueTime: '12:45'
+        },
+        appointment,
+        { decision: first.decision, dueAt: first.dueAt },
+        secondIdempotency
+      ).auditEvent.eventId
+    ).toBe(second.auditEvent.eventId);
   });
 
   // 決定回診是「這次看完之後」的判斷；還沒到診就先決定等於在結果出來前寫結論。
@@ -196,6 +239,15 @@ describe('planFollowUpDecision', () => {
     expect(
       codeOf(() => decide({ decision: 'not_required', dueDate: '2030-01-02' }))
     ).toBe('INVALID_VALUE');
+    expect(
+      codeOf(() =>
+        decide({
+          decision: 'required',
+          dueDate: '2030-02-30',
+          dueTime: '12:15'
+        })
+      )
+    ).toBe('INVALID_VALUE');
   });
 
   it('converts Taipei wall-clock time without a daylight-saving shift', () => {
@@ -205,6 +257,9 @@ describe('planFollowUpDecision', () => {
     );
     expect(taipeiInstant('2030-07-02', '12:15')).toBe(
       '2030-07-02T04:15:00.000Z'
+    );
+    expect(codeOf(() => taipeiInstant('2030-02-30', '12:15'))).toBe(
+      'INVALID_VALUE'
     );
   });
 });

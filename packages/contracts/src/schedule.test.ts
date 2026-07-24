@@ -25,6 +25,15 @@ describe('schedule contract', () => {
     expect(ScheduleSchema.parse(schedule)).toEqual(schedule);
   });
 
+  it('rejects an impossible date exception', () => {
+    expect(
+      ScheduleSchema.safeParse({
+        ...schedule,
+        dateExceptions: [{ date: '2030-02-30', kind: 'closed' }]
+      }).success
+    ).toBe(false);
+  });
+
   // 網格以台北時間定義，domain 也只接受這一個值；契約直接釘住，而不是收下一個
   // 之後才會被 planner 拒絕的時區。
   it('pins the schedule to the clinic time zone', () => {

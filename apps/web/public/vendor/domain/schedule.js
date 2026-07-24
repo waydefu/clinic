@@ -35,7 +35,30 @@ export const SLOT_MINUTE_MARKS = Object.freeze({
 });
 const BOOKING_KINDS = ['initial', 'follow_up'];
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+export function isValidLocalDate(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (match === null)
+        return false;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    const daysInMonth = [
+        31,
+        leapYear ? 29 : 28,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31
+    ];
+    return (month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1]);
+}
 /** 尚未結束、仍佔著時段的預約狀態。 */
 const OPEN_APPOINTMENT_STATUSES = ['confirmed', 'cancellation_requested'];
 // A defensive array check that returns a plain boolean. `Array.isArray` is a
@@ -127,7 +150,7 @@ export function assertScheduleValid(schedule) {
     }
     const dates = new Set();
     for (const entry of schedule.dateExceptions) {
-        if (!DATE_PATTERN.test(entry.date) || dates.has(entry.date)) {
+        if (!isValidLocalDate(entry.date) || dates.has(entry.date)) {
             throw new DomainError('SCHEDULE_EXCEPTION_DUPLICATED', 'A date exception is invalid or listed twice.');
         }
         dates.add(entry.date);
@@ -185,8 +208,8 @@ function marksWithin(interval, kind, blocked, duration) {
  */
 export function planSlots(schedule, existingSlots, options) {
     assertScheduleValid(schedule);
-    if (!DATE_PATTERN.test(options.startDate)) {
-        throw new DomainError('INVALID_VALUE', 'startDate must be YYYY-MM-DD.');
+    if (!isValidLocalDate(options.startDate)) {
+        throw new DomainError('INVALID_VALUE', 'startDate must be a real YYYY-MM-DD calendar date.');
     }
     if (!Number.isInteger(options.dayCount) || options.dayCount < 0) {
         throw new DomainError('INVALID_VALUE', 'dayCount must be a whole number.');
@@ -220,7 +243,7 @@ export function planSlots(schedule, existingSlots, options) {
  * 以此判斷該日期不可選。
  */
 export function followUpGridTimes(schedule, date) {
-    if (!DATE_PATTERN.test(date ?? ''))
+    if (!isValidLocalDate(date ?? ''))
         return [];
     assertScheduleValid(schedule);
     const blocked = blockedSetsOf(schedule).follow_up;

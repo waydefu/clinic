@@ -2,8 +2,7 @@ import { planAuditEvent } from './audit.js';
 import { calendarEventIdForFollowUp } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
-import { followUpGridTimes } from './schedule.js';
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+import { followUpGridTimes, isValidLocalDate } from './schedule.js';
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const CLINIC_UTC_OFFSET = '+08:00';
 function assertUtcTimestamp(value, fieldName) {
@@ -13,6 +12,9 @@ function assertUtcTimestamp(value, fieldName) {
 }
 /** 台北的日期時間轉成 UTC 時間點；台灣無日光節約時間，偏移全年固定。 */
 export function taipeiInstant(date, time) {
+    if (!isValidLocalDate(date) || !TIME_PATTERN.test(time)) {
+        throw new DomainError('INVALID_VALUE', 'Taipei wall-clock time must use a real date and HH:MM time.');
+    }
     return new Date(`${date}T${time}:00${CLINIC_UTC_OFFSET}`).toISOString();
 }
 export function planFollowUpDecision(request, appointment, schedule, existing) {
@@ -29,7 +31,7 @@ export function planFollowUpDecision(request, appointment, schedule, existing) {
     let dueAt = null;
     if (request.decision === 'required') {
         const { dueDate, dueTime } = request;
-        if (dueDate === undefined || !DATE_PATTERN.test(dueDate)) {
+        if (dueDate === undefined || !isValidLocalDate(dueDate)) {
             throw new DomainError('INVALID_VALUE', 'A required follow-up needs a target date.');
         }
         if (dueTime === undefined || !TIME_PATTERN.test(dueTime)) {
@@ -51,7 +53,7 @@ export function planFollowUpDecision(request, appointment, schedule, existing) {
         throw new DomainError('INVALID_VALUE', 'A follow-up that is not required must not carry a target time.');
     }
     const auditEvent = planAuditEvent({
-        eventId: `audit_${appointment.id}_follow_up`,
+        eventId: `audit_${appointment.id}_follow_up_${request.idempotency.recordId}`,
         occurredAt: request.requestedAt,
         action: 'follow_up_decided',
         resourceType: 'appointment',
@@ -70,7 +72,7 @@ export function planFollowUpDecision(request, appointment, schedule, existing) {
         decidedAt: request.requestedAt,
         auditEvent,
         outboxJob: {
-            id: `outbox_followup_${appointment.id}_${request.decision}`,
+            id: `outbox_followup_${appointment.id}_${request.decision}_${request.idempotency.recordId}`,
             type: 'calendar_projection_requested',
             appointmentId: appointment.id,
             followUpSourceId: appointment.id,

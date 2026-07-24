@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// E2E 跑在**打包後的最終產物**上（WEB_ROOT=dist），不是原始 public/：這樣測到的
-// 就是實際會部署的雜湊模組圖、CSP 與快取語意，而不是一份只有開發時存在的版本。
+// E2E 跑在**打包後的最終產物**上（WEB_ROOT=dist），不是原始 public/：這樣測到
+// 實際會部署的雜湊模組圖，test-only server 也模擬 Firebase 的 CSP 與快取語意。
 // webServer 的 command 會先 build 再啟動 server.mjs，所以 CI 只要一行 test:e2e。
 const PORT = 3210;
 
