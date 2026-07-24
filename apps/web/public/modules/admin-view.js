@@ -307,7 +307,7 @@ function followUpQueueCard(state, entry, permissions) {
   // 回診版卡片同樣要能刪除：誤建的紀錄卡在回診佇列時，管理者需要清得掉。
   // 這張卡的來源預約已是 completed，其餘處置本來就不適用，選單實際上只會
   // 留下刪除。
-  return `<article class="appointment-card follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">回診</span></div><p class="appointment-time">${escapeHtml(formatFullDate(effectiveStart))}<strong>${escapeHtml(formatTime(effectiveStart))}</strong></p><span class="detail-line appointment-service">回診提醒已上日曆<span aria-hidden="true">·</span>來源 <span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></article>`;
+  return `<tr class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><td data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td data-label="掛號別"><span class="appointment-kind">回診</span></td><td data-label="療程">回診提醒已上日曆<span class="detail-line">來源 <span class="code">${escapeHtml(appointment.id)}</span></span></td><td data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td data-label="處置"><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></td></tr>`;
 }
 
 export function renderAppointments(state, filters) {
@@ -366,7 +366,7 @@ export function renderAppointments(state, filters) {
   // 視為沒有任何權限：隱藏管理控制項，而不是整個清單拋錯。
   const permissions = state.session?.permissions ?? [];
   const canManageFollowUp = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP);
-  return entries
+  const rows = entries
     .map((entry) => {
       if (entry.mode === 'followup')
         return followUpQueueCard(state, entry, permissions);
@@ -395,9 +395,23 @@ export function renderAppointments(state, filters) {
       const notesForm = editable
         ? `<form class="notes-form" data-notes-form="${escapeHtml(appointment.id)}" hidden><fieldset class="tag-picker"><legend>備註（可複選）</legend>${renderTagPicker(appointment.noteTags ?? [], 'notes')}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(appointment.noteText ?? '')}"></label><div class="notes-form-actions"><button class="button button-primary" type="submit">儲存備註</button><button class="text-button" type="button" data-notes-cancel="${escapeHtml(appointment.id)}">取消</button></div></form>`
         : '';
-      return `<article class="appointment-card" data-appointment-card="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></div><p class="appointment-time">${escapeHtml(formatFullDate(appointment.startsAt))}<strong>${escapeHtml(formatTime(appointment.startsAt))}</strong></p><span class="detail-line appointment-service">${escapeHtml(appointment.itemLabel ?? '')}<span aria-hidden="true">·</span><span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div>${rescheduleForm}${notesForm}</article>`;
+      // 展開式的表單放在跨欄的第二列。只有真的有表單時才產生那一列——空的
+      // <tr> 在表格裡仍是一列，會在每筆預約之間留下一道看不出原因的縫。
+      const forms =
+        rescheduleForm === '' && notesForm === ''
+          ? ''
+          : `<tr class="appointment-forms" data-appointment-forms="${escapeHtml(appointment.id)}"><td colspan="6">${rescheduleForm}${notesForm}</td></tr>`;
+      return `<tr class="appointment-row" data-appointment-card="${escapeHtml(appointment.id)}"><td data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(appointment.startsAt))}</span><strong class="cell-time">${escapeHtml(formatTime(appointment.startsAt))}</strong></td><td data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td data-label="掛號別"><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></td><td data-label="療程">${escapeHtml(appointment.itemLabel ?? '')}<span class="detail-line"><span class="code">${escapeHtml(appointment.id)}</span></span></td><td data-label="狀態"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span>${noteRow}</td><td data-label="處置"><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div></td></tr>${forms}`;
     })
     .join('');
+
+  // 真正的表格，不是一疊卡片。櫃台在這裡做的事是掃描與比對——同一欄的時間、
+  // 姓名與狀態要能垂直對齊才快；卡片把每一筆都包成一個獨立區塊，一屏看得到的
+  // 筆數少，欄位也對不齊。
+  //
+  // `<caption>` 給螢幕閱讀器交代這張表是什麼；視覺上的標題已經在表格外面，
+  // 所以它只在無障礙樹裡存在。
+  return `<table class="data-table appointment-table"><caption>櫃台處理清單，依時間由近到遠排序</caption><thead><tr><th scope="col">時間</th><th scope="col">患者</th><th scope="col">掛號別</th><th scope="col">療程</th><th scope="col">狀態</th><th scope="col">處置</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 export function renderSchedule(schedule, editable) {

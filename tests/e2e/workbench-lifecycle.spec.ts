@@ -43,6 +43,64 @@ async function showAllAppointments(page: Page): Promise<void> {
   await page.locator('#appointment-status-filter').selectOption('all');
 }
 
+test.describe('櫃台處理清單', () => {
+  test('是一張欄位對齊的資料表，不是一疊卡片', async ({ page }) => {
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+
+    const table = page.locator('#appointments table.appointment-table');
+    await expect(table).toBeVisible();
+    await expect(table.locator('thead th')).toHaveText([
+      '時間',
+      '患者',
+      '掛號別',
+      '療程',
+      '狀態',
+      '處置'
+    ]);
+
+    // 表格存在的理由就是垂直對齊——同一欄在每一列的左緣要一致，否則櫃台沒辦法
+    // 靠掃描比對時間與姓名，那正是卡片做不到的事。
+    const rows = table.locator('tbody tr[data-appointment-card]');
+    const count = await rows.count();
+    expect(count).toBeGreaterThan(0);
+    if (count > 1) {
+      const lefts = async (index: number) =>
+        rows
+          .nth(index)
+          .locator('td')
+          .evaluateAll((cells) =>
+            cells.map((cell) => Math.round(cell.getBoundingClientRect().left))
+          );
+      expect(await lefts(0)).toEqual(await lefts(1));
+    }
+
+    // 螢幕閱讀器要知道這張表是什麼；視覺標題在表格外面，所以用 caption。
+    await expect(table.locator('caption')).toHaveText(/櫃台處理清單/);
+  });
+
+  test('手機寬度改成堆疊，每格仍帶著欄位名', async ({ page }) => {
+    // 先在桌機寬度登入並建資料：手機版把工具列收進 <details>，`loginAsAdmin`
+    // 等的 #logout 因此不可見。要驗的是表格的手機版版面，不是登入流程。
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+    await page.setViewportSize({ width: 390, height: 900 });
+
+    const firstCell = page
+      .locator('#appointments tbody tr[data-appointment-card] td')
+      .first();
+    // 表頭在手機上收起來，欄位名改由每一格的 ::before 帶出來——資訊不能因為
+    // 表頭消失就跟著不見。
+    await expect(firstCell).toHaveAttribute('data-label', '時間');
+    const label = await firstCell.evaluate(
+      (cell) => window.getComputedStyle(cell, '::before').content
+    );
+    expect(label).toContain('時間');
+  });
+});
+
 test.describe('工作臺預約生命週期', () => {
   test('登入→建立→到診→回診→刪除', async ({ page }) => {
     await loginAsAdmin(page);

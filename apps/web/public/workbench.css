@@ -573,6 +573,128 @@ details[open] > summary .workflow-summary-chevron {
   width: 100%;
   margin-top: var(--space-xs);
 }
+/* ---------------------------------------------------------------------------
+ * 資料表格。
+ *
+ * 櫃台清單先前是一疊卡片。卡片適合「一次看一件事」，但櫃台在這裡做的是掃描與
+ * 比對：找出下一位、看誰還沒到、確認同一時段有沒有撞號。那需要同一欄的資料垂直
+ * 對齊，而卡片把每一筆都包成獨立區塊——欄位對不齊，一屏看得到的筆數也少。
+ *
+ * 沒有投影、沒有大圓角：資料密集的介面靠細線分隔就夠，每列都浮起來只會讓眼睛
+ * 找不到落點。
+ * ------------------------------------------------------------------------- */
+.data-table {
+  border-collapse: collapse;
+  font-size: var(--text-micro);
+  width: 100%;
+}
+.data-table caption {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+.data-table th {
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  padding: var(--space-2xs) var(--space-xs);
+  text-align: left;
+  white-space: nowrap;
+}
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: var(--space-xs);
+  vertical-align: top;
+}
+.appointment-row:hover td {
+  background: var(--surface-soft);
+}
+/* 時間欄是掃描的起點，所以用等寬字讓數字逐位對齊。 */
+.appointment-table .cell-date {
+  color: var(--ink-muted);
+  display: block;
+}
+.appointment-table .cell-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-body);
+}
+.appointment-table td[data-label='時間'],
+.appointment-table td[data-label='掛號別'] {
+  white-space: nowrap;
+}
+.appointment-table .appointment-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  justify-content: flex-end;
+}
+/* 展開式表單那一列跨滿整張表，且沒有自己的內距——內距屬於表單本身。 */
+.appointment-forms > td {
+  padding: 0;
+}
+.appointment-forms .reschedule-form,
+.appointment-forms .notes-form {
+  padding: var(--space-xs);
+}
+
+@media (max-width: 64rem) {
+  /* 中等寬度先讓表格橫向捲動，而不是立刻拆成卡片：六欄在平板上還讀得完，
+     拆開反而變長。 */
+  #appointments {
+    overflow-x: auto;
+  }
+  .appointment-table {
+    min-width: 56rem;
+  }
+}
+
+@media (max-width: 48rem) {
+  /* 手機上表格改回堆疊：橫向捲動的資料表在手機上幾乎無法使用。每一格用
+     `data-label` 把欄位名帶回來，所以資訊沒有因為表頭消失而遺失。 */
+  #appointments {
+    overflow-x: visible;
+  }
+  .appointment-table,
+  .appointment-table tbody,
+  .appointment-table tr,
+  .appointment-table td {
+    display: block;
+    min-width: 0;
+    width: auto;
+  }
+  .appointment-table thead {
+    clip-path: inset(50%);
+    position: absolute;
+  }
+  .appointment-row {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-xs);
+    padding: var(--space-2xs);
+  }
+  .appointment-table td {
+    border: 0;
+    display: flex;
+    gap: var(--space-xs);
+    justify-content: space-between;
+    padding: var(--space-3xs) var(--space-2xs);
+  }
+  .appointment-table td::before {
+    color: var(--ink-muted);
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-weight: var(--weight-bold);
+  }
+  .appointment-table .appointment-controls {
+    justify-content: flex-start;
+  }
+}
+
 /* 依任務分組的欄位群。
    建立預約表單原本有 15 個欄位、只有一個 fieldset（備註標籤），其餘 14 個平鋪
    在一起——櫃台看到的是一片輸入框，沒有任何結構告訴他們「這幾格是同一件事」。
