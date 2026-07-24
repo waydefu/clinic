@@ -31,6 +31,7 @@ by a route yet**:
 | `POST /v1/appointments/{id}/cancellations` | `CancelAppointmentRequestSchema` | `CancelAppointmentResponseSchema` | Cancellation rule must be resolved server-side; no free-text reason is collected. |
 | `POST /v1/appointments/{id}/transitions` | `TransitionAppointmentRequestSchema` | `TransitionAppointmentResponseSchema` | Staff-only `confirm_cancellation`/`complete`/`no_show`; body carries only the key and action, and `STAFF_TRANSITION_TO_DOMAIN` maps each to the domain transition that `planTransition` authorizes. |
 | `POST /v1/appointments/{id}/reschedules` | `RescheduleAppointmentRequestSchema` | `RescheduleAppointmentResponseSchema` | Server resolves capacity, cancellation window and role; the appointment stays confirmed and the server returns authoritative start/end. |
+| `POST /v1/appointments/{id}/deletions` | `DeleteAppointmentRequestSchema` | `DeleteAppointmentResponseSchema` | Administrator-only record hygiene, not a lifecycle step: `planDeletion` releases the slot and patient booking guard and cancels the Calendar event. The reason comes from a closed list and is mandatory because the audit event outlives the record. Patient-initiated erasure is **not** this endpoint; it is a data-rights workflow gated on D-002. |
 
 `CreateAppointmentRequestSchema` is an appointment command only:
 `idempotencyKey`, `slotId`, `serviceId` and `bookingKind`. It deliberately
@@ -69,6 +70,7 @@ Only health is routed; create/cancellation schemas remain reserved.
 | Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; route/authorization pending D-005/D-006 |
 | Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; route/authorization pending D-004/D-006 |
 | Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | Future application mapping → `RescheduleRequest` | Unrouted Stage 0 schema; capacity/cancellation/roles pending D-004～D-006 |
+| Delete appointment record | `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Future staff application mapping → `DeleteAppointmentRequest` → `planDeletion` | Unrouted Stage 0 schema; administrator-only per the 2026-07-24 owner direction, but the role matrix and retention answer stay pending D-006/D-002 |
 | Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification, fields and roles pending D-001～D-003/D-006 |
 | Follow-up decision | None | Browser-only synthetic behavior; follow-up domain contract required | Inventory only; D-004/D-006/D-007 |
 | Schedule draft / publish / rollback | None | Browser-only synthetic behavior; versioned schedule planner required | Inventory only; D-004/D-006/D-010 |

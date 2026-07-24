@@ -1,5 +1,8 @@
 import { PERMISSIONS } from './constants.js';
 
+// 櫃台保有「取消」：取消是每天都在做的營運動作，收斂給管理者只會讓現場卡住。
+// 「刪除」則刻意只給管理者——它讓紀錄從營運清單消失，只留下稽核事件。這是
+// 2026-07-24 負責人方向對「管理者可取消／刪除」的實作判讀，仍待 D-006 稽核。
 const rolePermissions = Object.freeze({
   admin: new Set(Object.values(PERMISSIONS)),
   front_desk: new Set([

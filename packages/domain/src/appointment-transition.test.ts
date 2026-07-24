@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  planDeletion,
   planReschedule,
   planTransition,
   type AppointmentSnapshot,
   type AppointmentStatusValue,
   type AppointmentTransition
 } from './appointment-transition.js';
+import type { AuditContext } from './audit.js';
 import type { SlotSnapshot } from './booking-transaction.js';
 import type { PatientBookingGuardSnapshot } from './booking-transaction.js';
 import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
@@ -217,6 +219,110 @@ describe('planTransition', () => {
         )
       )
     ).toBe('APPOINTMENT_NOT_FOUND');
+  });
+});
+
+describe('planDeletion', () => {
+  const remove = (
+    patch: Partial<AppointmentSnapshot> = {},
+    auditPatch: Partial<AuditContext> = {},
+    guard: PatientBookingGuardSnapshot | undefined = patientBookingGuard
+  ) =>
+    planDeletion(
+      {
+        appointmentId: appointment.id,
+        audit: { ...audit, reasonCode: 'duplicate_record', ...auditPatch },
+        requestedAt: NOW,
+        idempotency: {
+          ...idempotencyFor(),
+          scope: `appointment:${appointment.id}:delete`
+        }
+      },
+      { ...appointment, ...patch },
+      guard
+    );
+
+  it('records the pre-delete state and no post state', () => {
+    const plan = remove();
+    expect(plan.deletedAt).toBe(NOW);
+    expect(plan.auditEvent).toMatchObject({
+      action: 'appointment_deleted',
+      resourceId: appointment.id,
+      before: { status: 'confirmed', slotId: appointment.slotId },
+      after: null,
+      reasonCode: 'duplicate_record',
+      result: 'succeeded',
+      schemaVersion: 2
+    });
+  });
+
+  // 刪除不是生命週期的一步，而是清掉本來就不該存在的紀錄，因此任何狀態都
+  // 可以刪——包含 planTransition 一律拒絕的三個終局狀態。
+  it('deletes from every status, including the ones no transition can leave', () => {
+    for (const status of [
+      'confirmed',
+      'cancellation_requested',
+      'cancelled',
+      'completed',
+      'no_show'
+    ] as AppointmentStatusValue[])
+      expect(() => remove({ status })).not.toThrow();
+  });
+
+  // 已結束的預約早就把時段還出去了，再釋出一次會把後來訂走這格的人擠掉。
+  it('releases the slot only while the appointment still holds one', () => {
+    expect(remove().releaseSlotId).toBe(appointment.slotId);
+    expect(remove({ status: 'cancellation_requested' }).releaseSlotId).toBe(
+      appointment.slotId
+    );
+    for (const status of ['cancelled', 'completed', 'no_show'] as const)
+      expect(remove({ status }).releaseSlotId).toBeUndefined();
+  });
+
+  it('always releases the patient booking guard', () => {
+    expect(remove().patientBookingGuard).toEqual({
+      action: 'release',
+      activeAppointmentId: appointment.id
+    });
+  });
+
+  // 紀錄消失後稽核事件是唯一證據，沒有理由的刪除等於無法複核。
+  it('refuses a deletion with no reason code', () => {
+    expect(codeOf(() => remove({}, { reasonCode: null }))).toBe(
+      'INVALID_VALUE'
+    );
+  });
+
+  it('cancels the same calendar event the appointment always used', () => {
+    const plan = remove();
+    expect(plan.outboxJob.appointmentStatus).toBe('deleted');
+    expect(isCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(true);
+    expect(fromCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(
+      'calendar_appointment_001'
+    );
+    expect(plan.outboxJob.causationId).toBe(plan.auditEvent.eventId);
+  });
+
+  it('rejects an unknown appointment or a guard that belongs elsewhere', () => {
+    expect(
+      codeOf(() =>
+        planDeletion(
+          {
+            appointmentId: 'appointment_404',
+            audit: { ...audit, reasonCode: 'duplicate_record' },
+            requestedAt: NOW,
+            idempotency: idempotencyFor()
+          },
+          undefined,
+          undefined
+        )
+      )
+    ).toBe('APPOINTMENT_NOT_FOUND');
+    expect(
+      codeOf(() =>
+        remove({}, {}, { ...patientBookingGuard, activeAppointmentId: 'other' })
+      )
+    ).toBe('PATIENT_BOOKING_GUARD_MISMATCH');
   });
 });
 

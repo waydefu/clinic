@@ -9,7 +9,13 @@ export type AuditAction =
   | 'appointment_cancelled'
   | 'appointment_completed'
   | 'appointment_no_show'
-  | 'appointment_rescheduled';
+  | 'appointment_rescheduled'
+  /**
+   * Deleting a record removes it from the operational view; the audit event is
+   * the only remaining trace, so it must survive the resource it describes.
+   * `after` is null for this action — there is no post-state to record.
+   */
+  | 'appointment_deleted';
 
 export type AuditSource = 'api' | 'system' | 'worker';
 

@@ -9,7 +9,10 @@ export const AuditActionSchema = z.enum([
   'appointment_cancelled',
   'appointment_completed',
   'appointment_no_show',
-  'appointment_rescheduled'
+  'appointment_rescheduled',
+  // Deletion removes the appointment, so this event is the only surviving
+  // record of it. `after` is null and `reasonCode` is never null for it.
+  'appointment_deleted'
 ]);
 
 export const AuditSourceSchema = z.enum(['api', 'system', 'worker']);

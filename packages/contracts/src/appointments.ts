@@ -115,6 +115,42 @@ export const RescheduleAppointmentResponseSchema = z
   })
   .strict();
 
+/**
+ * Why a record is being removed. A closed set rather than free text: the reason
+ * is written into an audit event that outlives the appointment, and free text
+ * there is both an unreviewable field and a place patient details would leak
+ * into. Patient-initiated erasure is deliberately absent — that is a data-rights
+ * workflow gated on D-002, not an operator's delete button.
+ */
+export const DeleteAppointmentReasonSchema = z.enum([
+  'duplicate_record',
+  'wrong_patient',
+  'created_in_error'
+]);
+
+/**
+ * Deletion is separated from `confirm_cancellation` on purpose. Cancelling
+ * records that a real booking will not happen and keeps the row; deleting says
+ * the row should never have existed and removes it. Only the audit event
+ * survives, which is why the reason is required rather than optional.
+ */
+export const DeleteAppointmentRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    reasonCode: DeleteAppointmentReasonSchema
+  })
+  .strict();
+
+export const DeleteAppointmentResponseSchema = z
+  .object({
+    appointmentId: OpaqueIdentifierSchema,
+    // There is no status left to report: the resource is gone. The response
+    // confirms the deletion and points at the audit event that replaced it.
+    deleted: z.literal(true),
+    auditEventId: OpaqueIdentifierSchema
+  })
+  .strict();
+
 export type CreateAppointmentRequest = z.infer<
   typeof CreateAppointmentRequestSchema
 >;
@@ -141,4 +177,13 @@ export type RescheduleAppointmentRequest = z.infer<
 >;
 export type RescheduleAppointmentResponse = z.infer<
   typeof RescheduleAppointmentResponseSchema
+>;
+export type DeleteAppointmentReason = z.infer<
+  typeof DeleteAppointmentReasonSchema
+>;
+export type DeleteAppointmentRequest = z.infer<
+  typeof DeleteAppointmentRequestSchema
+>;
+export type DeleteAppointmentResponse = z.infer<
+  typeof DeleteAppointmentResponseSchema
 >;

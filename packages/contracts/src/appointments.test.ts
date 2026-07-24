@@ -4,6 +4,9 @@ import {
   ApiErrorCodeSchema,
   ApiErrorResponseSchema,
   CreateAppointmentRequestSchema,
+  DeleteAppointmentReasonSchema,
+  DeleteAppointmentRequestSchema,
+  DeleteAppointmentResponseSchema,
   HealthResponseSchema,
   RescheduleAppointmentRequestSchema,
   RescheduleAppointmentResponseSchema,
@@ -170,6 +173,81 @@ describe('staff appointment transition command', () => {
       TransitionAppointmentResponseSchema.safeParse({
         appointmentId: 'appointment_001',
         status: 'confirmed'
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe('delete command', () => {
+  const validKey = 'delete_request_0001';
+
+  it('accepts only the idempotency key and a listed reason', () => {
+    expect(
+      DeleteAppointmentRequestSchema.parse({
+        idempotencyKey: validKey,
+        reasonCode: 'duplicate_record'
+      })
+    ).toEqual({ idempotencyKey: validKey, reasonCode: 'duplicate_record' });
+  });
+
+  // 理由會寫進比預約活得更久的稽核事件。自由文字既無法複核，也是病患資料
+  // 最容易滲進去的地方，因此是封閉清單。
+  it('refuses free text or an unlisted reason, and requires one at all', () => {
+    for (const reasonCode of [
+      'patient asked me to remove 王小明 booking',
+      'other',
+      'patient_request',
+      ''
+    ])
+      expect(
+        DeleteAppointmentRequestSchema.safeParse({
+          idempotencyKey: validKey,
+          reasonCode
+        }).success
+      ).toBe(false);
+    expect(
+      DeleteAppointmentRequestSchema.safeParse({ idempotencyKey: validKey })
+        .success
+    ).toBe(false);
+  });
+
+  // 患者主動要求刪除是 D-002 的資料權利流程，不是櫃台按鈕上的一個選項。
+  it('inventories the operator reasons and excludes data-rights erasure', () => {
+    expect(DeleteAppointmentReasonSchema.options).toEqual([
+      'duplicate_record',
+      'wrong_patient',
+      'created_in_error'
+    ]);
+  });
+
+  it.each(unapprovedFields)(
+    'rejects %s in a delete command',
+    (_caseName, extraField) => {
+      expect(
+        DeleteAppointmentRequestSchema.safeParse({
+          idempotencyKey: validKey,
+          reasonCode: 'duplicate_record',
+          ...extraField
+        }).success
+      ).toBe(false);
+    }
+  );
+
+  // 資源已經不存在，沒有狀態可回報；回應只確認刪除並指向取代它的稽核事件。
+  it('returns no status, only the audit event that replaced the record', () => {
+    expect(
+      DeleteAppointmentResponseSchema.parse({
+        appointmentId: 'appointment_001',
+        deleted: true,
+        auditEventId: 'audit_appointment_001_deleted'
+      }).deleted
+    ).toBe(true);
+    expect(
+      DeleteAppointmentResponseSchema.safeParse({
+        appointmentId: 'appointment_001',
+        deleted: true,
+        auditEventId: 'audit_appointment_001_deleted',
+        status: 'cancelled'
       }).success
     ).toBe(false);
   });

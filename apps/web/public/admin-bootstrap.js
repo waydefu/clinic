@@ -13,8 +13,11 @@ import {
   renderTasks,
   renderWorkload
 } from './modules/admin-view.js';
-import { confirmDialog } from './modules/confirm-dialog.js';
-import { WORKBENCH_PROCEDURES } from './modules/constants.js';
+import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
+import {
+  DELETE_APPOINTMENT_REASONS,
+  WORKBENCH_PROCEDURES
+} from './modules/constants.js';
 import { followUpDueTimes } from './modules/schedule-engine.js';
 import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
 import {
@@ -599,6 +602,26 @@ elements.appointments.addEventListener('click', async (event) => {
     if (form !== null) {
       form.hidden = !form.hidden;
       if (!form.hidden) form.querySelector('select')?.focus();
+    }
+    return;
+  }
+
+  // 刪除是唯一需要理由的處置：紀錄消失後，稽核事件是它存在過的唯一證據。
+  if (action === 'delete') {
+    const reasonCode = await confirmWithReason(
+      '確定刪除這筆預約紀錄？時段會釋放、日曆事件會移除，紀錄不會再出現在清單上（稽核仍會留下這次刪除）。此動作無法復原。',
+      {
+        reasons: DELETE_APPOINTMENT_REASONS,
+        label: '刪除理由',
+        confirmLabel: '刪除紀錄'
+      }
+    );
+    if (reasonCode === undefined) return;
+    try {
+      await post(`/bookings/${id}/delete`, { reasonCode });
+      message('預約紀錄已刪除，時段已釋放，稽核已留存。', 'success');
+    } catch (error) {
+      message(`未刪除：${error.message}`, 'error');
     }
     return;
   }

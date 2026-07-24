@@ -42,6 +42,27 @@ describe('AuditEventV2Schema', () => {
     ).toBe(false);
   });
 
+  // 刪除事件是那筆預約唯一留下來的東西：沒有後狀態，但必須留下刪除前的
+  // 狀態與理由，否則稽核只知道「有東西被刪了」。
+  it('carries a deletion as before-state plus reason, with no after-state', () => {
+    const deletion = {
+      ...EVENT,
+      eventId: 'audit_appointment_001_deleted',
+      action: 'appointment_deleted',
+      before: { status: 'confirmed', slotId: 'slot_001' },
+      after: null,
+      reasonCode: 'duplicate_record'
+    } as const;
+
+    expect(AuditEventV2Schema.parse(deletion)).toEqual(deletion);
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...deletion,
+        reasonCode: 'wrong patient 王小明'
+      }).success
+    ).toBe(false);
+  });
+
   it('rejects incomplete or legacy audit envelopes', () => {
     const { correlationId: _missing, ...withoutCorrelation } = EVENT;
     expect(AuditEventV2Schema.safeParse(withoutCorrelation).success).toBe(

@@ -269,6 +269,8 @@ owner；決策能及時完成：
 - [x] command/response/error inventory（2026-07-24；inventory 完成，不代表 route 已啟用）
 - [x] patient identity boundary（ADR-0005；分界固定，驗證方案仍受決策 gate 阻擋）
 - [x] transition/reschedule contracts（2026-07-24 unrouted strict schema + mapping/rejection tests）
+- [x] delete-appointment contract + `planDeletion`（2026-07-24；管理者限定、
+      理由封閉清單、audit v2 `after: null`；未掛路由）
 - [ ] follow-up/schedule contracts（尚無 domain planner，需獨立設計 pass）
 - [x] patient active-booking guard（2026-07-23 local/Emulator）
 - [x] audit v2（2026-07-23 local/Emulator）

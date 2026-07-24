@@ -1,5 +1,6 @@
 import {
   createBooking,
+  deleteAppointment,
   recordFollowUp,
   rescheduleAppointment,
   requeueOutboxJob,
@@ -202,6 +203,11 @@ export async function stagingRequest(path, options = {}) {
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/no-show$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
     transitionAppointment(state, path.split('/')[2], 'no_show', actor.id);
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/delete$/.test(path)) {
+    // 刪除只認管理者，且不接受 origin=patient 的旁路：患者端沒有刪除入口，
+    // 而 origin 是呼叫端自稱的，本來就不能當作授權依據（見 resolveActor）。
+    const actor = requirePermission(state, PERMISSIONS.DELETE_APPOINTMENT);
+    deleteAppointment(state, path.split('/')[2], body.reasonCode, actor.id);
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/reschedule$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
     rescheduleAppointment(state, path.split('/')[2], body.slotId, actor.id);

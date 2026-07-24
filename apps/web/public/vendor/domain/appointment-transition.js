@@ -1,4 +1,4 @@
-import { assertReschedulable, assertTransitionAllowed } from './appointment-rules.js';
+import { assertReschedulable, assertTransitionAllowed, OPEN_STATUSES } from './appointment-rules.js';
 import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
@@ -91,6 +91,55 @@ export function planTransition(request, appointment, patientBookingGuard) {
             },
         auditEvent,
         outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt, request.audit.correlationId, auditEvent.eventId),
+        idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
+    };
+}
+/**
+ * Plans the removal of an appointment record.
+ *
+ * There is deliberately no status guard: unlike a transition, deletion is not a
+ * step in the lifecycle, so every status is deletable. What the plan must get
+ * right instead is that nothing the row was holding is silently leaked — the
+ * slot and the patient booking guard are both released, and the Calendar event
+ * is cancelled rather than left orphaned on a doctor's calendar.
+ */
+export function planDeletion(request, appointment, patientBookingGuard) {
+    assertUtcTimestamp(request.requestedAt, 'requestedAt');
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
+    if (appointment === undefined) {
+        throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
+    }
+    if (request.audit.reasonCode === null) {
+        throw new DomainError('INVALID_VALUE', 'Deleting an appointment requires a reason code.');
+    }
+    assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
+    // 只有尚未結束的預約還佔著時段；取消／未到／完成到診早已釋出，再釋出一次
+    // 會把後來訂走這格的人擠掉。
+    const holdsSlot = OPEN_STATUSES.includes(appointment.status);
+    const auditEvent = planAuditEvent({
+        eventId: `audit_${appointment.id}_deleted`,
+        occurredAt: request.requestedAt,
+        action: 'appointment_deleted',
+        resourceId: appointment.id,
+        before: {
+            status: appointment.status,
+            slotId: appointment.slotId
+        },
+        // 刪除之後沒有後狀態可記；`before` 與 reasonCode 就是這筆紀錄存在過的
+        // 全部證據。
+        after: null,
+        context: request.audit
+    });
+    return {
+        appointmentId: appointment.id,
+        deletedAt: request.requestedAt,
+        ...(holdsSlot ? { releaseSlotId: appointment.slotId } : {}),
+        patientBookingGuard: {
+            action: 'release',
+            activeAppointmentId: appointment.id
+        },
+        auditEvent,
+        outboxJob: outboxFor(appointment.id, 'deleted', request.requestedAt, request.audit.correlationId, auditEvent.eventId),
         idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };
 }

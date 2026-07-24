@@ -49,6 +49,23 @@ describe('synthetic session resolution fails closed', () => {
     state.workspace.currentAccountId = 'front_desk_test_001';
     expect(hasPermission(state, MANAGE_ACCOUNTS)).toBe(false);
   });
+
+  // 2026-07-24 負責人方向（D-006）：櫃台保有日常的「取消」，但「刪除」讓紀錄
+  // 從營運清單消失，只留稽核，因此只給管理者。
+  it('separates the front desk cancel right from the administrator delete right', () => {
+    const state = initialState();
+
+    state.workspace.currentAccountId = 'front_desk_test_001';
+    expect(hasPermission(state, PERMISSIONS.CANCEL_BOOKING)).toBe(true);
+    expect(hasPermission(state, PERMISSIONS.DELETE_APPOINTMENT)).toBe(false);
+    expect(() =>
+      requirePermission(state, PERMISSIONS.DELETE_APPOINTMENT)
+    ).toThrow();
+
+    state.workspace.currentAccountId = 'admin_test_001';
+    expect(hasPermission(state, PERMISSIONS.CANCEL_BOOKING)).toBe(true);
+    expect(hasPermission(state, PERMISSIONS.DELETE_APPOINTMENT)).toBe(true);
+  });
 });
 
 describe('stored synthetic state is validated before use', () => {

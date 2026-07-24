@@ -128,6 +128,18 @@ requireText(
   'requirePermission',
   'Permission module is missing action enforcement.'
 );
+// 2026-07-24 負責人方向（D-006）：刪除只給管理者。路由的權限檢查與選單的
+// 權限過濾必須同時在位——只藏按鈕不是授權，只擋路由則會留下按了才失敗的入口。
+requireText(
+  files.store,
+  'PERMISSIONS.DELETE_APPOINTMENT',
+  'Store no longer enforces the administrator-only appointment deletion.'
+);
+requireText(
+  files.adminView,
+  'permissions.includes(action.permission)',
+  'Workbench action menu no longer filters processes by permission.'
+);
 requireText(
   files.css,
   '.workspace-nav',

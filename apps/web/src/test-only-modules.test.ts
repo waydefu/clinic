@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   activeBookingsFor,
   createBooking,
+  deleteAppointment,
   recordFollowUp,
   rescheduleAppointment,
   sortedAppointments,
@@ -684,6 +685,236 @@ describe('櫃台處置', () => {
         'a'
       )
     ).toThrow(/份數/);
+  });
+});
+
+describe('刪除預約紀錄', () => {
+  const book = (state: any, patient = PATIENT_A) =>
+    createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient,
+        itemId: 'service_snoring'
+      },
+      'front_desk_test_001'
+    );
+
+  it('移出清單、釋出時段，並在稽核留下理由與刪除前狀態', () => {
+    const state: any = initialState();
+    const appointment = book(state);
+
+    deleteAppointment(
+      state,
+      appointment.id,
+      'duplicate_record',
+      'admin_test_001'
+    );
+
+    expect(state.appointments).toHaveLength(0);
+    expect(
+      state.slots.find((item: any) => item.id === appointment.slotId)
+        .reservationId
+    ).toBeUndefined();
+    const event = state.auditEvents.at(-1);
+    expect(event).toMatchObject({
+      action: 'appointment_deleted',
+      appointmentId: appointment.id,
+      actorId: 'admin_test_001',
+      reasonCode: 'duplicate_record',
+      previousStatus: 'confirmed'
+    });
+  });
+
+  // 取消是「這筆預約不會發生」的事實，刪除是「這筆紀錄不該存在」。已取消的
+  // 預約早就把時段還出去了，刪除不得再動那一格——否則會擠掉後來訂走的人。
+  it('刪除已取消的紀錄不會搶走已被別人訂走的同一格', () => {
+    const state: any = initialState();
+    const first = book(state);
+    const slotId = first.slotId;
+    transitionAppointment(state, first.id, 'cancel', 'front_desk_test_001');
+    const second = createBooking(
+      state,
+      { slotId, patient: PATIENT_B, itemId: 'service_snoring' },
+      'front_desk_test_001'
+    );
+
+    deleteAppointment(state, first.id, 'created_in_error', 'admin_test_001');
+
+    expect(
+      state.slots.find((item: any) => item.id === slotId).reservationId
+    ).toBe(second.id);
+  });
+
+  it('拒絕未知的刪除理由與不存在的預約', () => {
+    const state: any = initialState();
+    const appointment = book(state);
+    expect(() =>
+      deleteAppointment(state, appointment.id, 'because', 'admin_test_001')
+    ).toThrow(/刪除理由/);
+    expect(() =>
+      deleteAppointment(state, appointment.id, undefined, 'admin_test_001')
+    ).toThrow(/刪除理由/);
+    expect(() =>
+      deleteAppointment(state, 'appointment_404', 'wrong_patient', 'admin')
+    ).toThrow(/找不到/);
+    expect(state.appointments).toHaveLength(1);
+  });
+
+  // 刪掉正式回診門診不等於病患不必回診，否則整個回診就此人間蒸發。
+  it('刪除回診門診會把來源回診放回待安排並讓提醒回到日曆', () => {
+    const state: any = initialState();
+    const initialVisit = book(state);
+    transitionAppointment(
+      state,
+      initialVisit.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    recordFollowUp(
+      state,
+      initialVisit.id,
+      { status: 'required', dueDate: '2030-01-02', dueTime: '12:15', tags: [] },
+      'admin_test_001'
+    );
+    const followUpVisit = createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'follow_up').id,
+        patient: PATIENT_A,
+        bookingKind: 'follow_up',
+        itemId: 'service_snoring',
+        origin: 'patient'
+      },
+      'patient_test_001'
+    );
+
+    deleteAppointment(
+      state,
+      followUpVisit.id,
+      'created_in_error',
+      'admin_test_001'
+    );
+
+    const source = state.followUps.find(
+      (item: any) => item.appointmentId === initialVisit.id
+    );
+    expect(source.scheduledAppointmentId).toBeUndefined();
+    const reminders = state.outboxJobs.filter(
+      (job: any) => job.followUpSourceId === initialVisit.id
+    );
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0]).toMatchObject({
+      appointmentStatus: 'follow_up_required',
+      startsAt: '2030-01-02T04:15:00.000Z'
+    });
+  });
+
+  it('刪除已決定回診的就診會一併收掉那筆回診提醒', () => {
+    const state: any = initialState();
+    const appointment = book(state);
+    transitionAppointment(
+      state,
+      appointment.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    recordFollowUp(
+      state,
+      appointment.id,
+      { status: 'required', dueDate: '2030-02-01', dueTime: '12:15', tags: [] },
+      'admin_test_001'
+    );
+
+    deleteAppointment(state, appointment.id, 'wrong_patient', 'admin_test_001');
+
+    expect(state.followUps).toHaveLength(0);
+    const reminders = state.outboxJobs.filter(
+      (job: any) => job.followUpSourceId === appointment.id
+    );
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0].appointmentStatus).toBe('follow_up_not_required');
+  });
+
+  // 尚未送出的投影意圖若留著，刪除後那些工作會把事件又建回日曆。
+  it('撤掉待送的投影並排入刪除事件，保留已完成的歷史', () => {
+    const state: any = initialState();
+    const appointment = book(state);
+    state.outboxJobs[0].status = 'completed';
+    rescheduleAppointment(
+      state,
+      appointment.id,
+      openSlot(state, 'initial').id,
+      'front_desk_test_001'
+    );
+
+    deleteAppointment(
+      state,
+      appointment.id,
+      'duplicate_record',
+      'admin_test_001'
+    );
+
+    const own = state.outboxJobs.filter(
+      (job: any) => job.appointmentId === appointment.id
+    );
+    expect(own.filter((job: any) => job.status === 'pending')).toHaveLength(1);
+    expect(own.at(-1)).toMatchObject({
+      appointmentStatus: 'deleted',
+      status: 'pending',
+      idempotencyKey: calendarEventIdForAppointment(appointment.id)
+    });
+    expect(own.filter((job: any) => job.status === 'completed')).toHaveLength(
+      1
+    );
+  });
+
+  it('撤銷個管指派，月度工作量不再計入', () => {
+    const state: any = initialState();
+    const appointment = book(state);
+    transitionAppointment(
+      state,
+      appointment.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    assignCaseManager(
+      state,
+      appointment.id,
+      'manager_test_001',
+      'admin_test_001'
+    );
+    expect(buildWorkload(state)).toHaveLength(1);
+
+    deleteAppointment(state, appointment.id, 'wrong_patient', 'admin_test_001');
+
+    expect(buildWorkload(state)).toHaveLength(0);
+    expect(state.caseAssignments[0]).toMatchObject({
+      status: 'revoked',
+      revokedBy: 'admin_test_001'
+    });
+  });
+
+  it('只有具刪除權限者看得到刪除入口', () => {
+    const state: any = initialState();
+    book(state);
+    const filters = { status: 'all', kind: 'all', query: '' };
+
+    state.session = {
+      account: state.workspace.accounts[1],
+      permissions: [PERMISSIONS.CREATE_BOOKING, PERMISSIONS.CANCEL_BOOKING]
+    };
+    expect(renderAppointments(state, filters)).not.toContain(
+      'data-appointment-action="delete"'
+    );
+
+    state.session = {
+      account: state.workspace.accounts[0],
+      permissions: [PERMISSIONS.DELETE_APPOINTMENT]
+    };
+    expect(renderAppointments(state, filters)).toContain(
+      'data-appointment-action="delete"'
+    );
   });
 });
 

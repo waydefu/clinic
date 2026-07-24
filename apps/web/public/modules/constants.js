@@ -69,13 +69,41 @@ export const FOLLOW_UP_NOTE_TAGS = Object.freeze([
   { id: 'half_year_repair', label: '半年修復' }
 ]);
 
-// 櫃台對一筆預約可執行的處置。
+export const PERMISSIONS = Object.freeze({
+  MANAGE_SCHEDULE: 'manage_schedule',
+  MANAGE_FOLLOW_UP: 'manage_follow_up',
+  MANAGE_CASES: 'manage_cases',
+  MANAGE_ACCOUNTS: 'manage_accounts',
+  MANAGE_COMMUNICATIONS: 'manage_communications',
+  CREATE_BOOKING: 'create_booking',
+  CANCEL_BOOKING: 'cancel_booking',
+  COMPLETE_VISIT: 'complete_visit',
+  // 2026-07-24 負責人方向（D-006）：管理者可刪除紀錄。刻意與 CANCEL_BOOKING
+  // 分開——取消是櫃台的日常動作，刪除會讓紀錄從營運清單消失，只留稽核。
+  DELETE_APPOINTMENT: 'delete_appointment'
+});
+
+// 櫃台對一筆預約可執行的處置。帶 permission 的項目只對具備該權限的帳號顯示。
 export const APPOINTMENT_ACTIONS = Object.freeze([
   { id: 'follow_up_confirm', label: '回診確認' },
   { id: 'reschedule', label: '改期' },
   { id: 'cancel', label: '取消' },
   { id: 'no_show', label: '未到' },
-  { id: 'complete', label: '到診' }
+  { id: 'complete', label: '到診' },
+  {
+    id: 'delete',
+    label: '刪除紀錄',
+    permission: PERMISSIONS.DELETE_APPOINTMENT
+  }
+]);
+
+// 刪除理由是封閉清單而非自由文字：理由會寫進比預約活得更久的稽核事件，
+// 自由文字既無法複核，也是病患資料最容易滲進去的地方。
+// 「患者要求刪除」刻意不在此列——那是 D-002 的資料權利流程，不是櫃台按鈕。
+export const DELETE_APPOINTMENT_REASONS = Object.freeze([
+  { id: 'duplicate_record', label: '重複建立的紀錄' },
+  { id: 'wrong_patient', label: '掛錯病患' },
+  { id: 'created_in_error', label: '誤建／測試資料' }
 ]);
 
 export const APPOINTMENT_STATUS_LABELS = Object.freeze({
@@ -90,17 +118,6 @@ export const APPOINTMENT_STATUS_LABELS = Object.freeze({
 export const ROLE_LABELS = Object.freeze({
   admin: '管理者',
   front_desk: '櫃台員工'
-});
-
-export const PERMISSIONS = Object.freeze({
-  MANAGE_SCHEDULE: 'manage_schedule',
-  MANAGE_FOLLOW_UP: 'manage_follow_up',
-  MANAGE_CASES: 'manage_cases',
-  MANAGE_ACCOUNTS: 'manage_accounts',
-  MANAGE_COMMUNICATIONS: 'manage_communications',
-  CREATE_BOOKING: 'create_booking',
-  CANCEL_BOOKING: 'cancel_booking',
-  COMPLETE_VISIT: 'complete_visit'
 });
 
 export const SYNTHETIC_CASE_MANAGERS = Object.freeze([

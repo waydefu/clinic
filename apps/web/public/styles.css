@@ -1723,6 +1723,23 @@ label.has-error input {
   line-height: var(--leading-body);
   margin: 0 0 1.25rem;
 }
+/* 需要理由的確認（刪除）多出來的欄位。訊息的下邊距在此情況下由本欄接手。 */
+.confirm-dialog-reason {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+  gap: 0.35rem;
+  margin: 0 0 1.25rem;
+}
+.confirm-dialog-reason select {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  color: var(--ink);
+  font: inherit;
+  padding: 0.55rem 0.6rem;
+  width: 100%;
+}
 .confirm-dialog-actions {
   display: flex;
   gap: 0.7rem;

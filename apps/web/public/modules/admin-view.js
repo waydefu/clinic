@@ -3,6 +3,7 @@ import {
   APPOINTMENT_STATUS_LABELS,
   BOOKING_KIND_LABELS,
   BOOKING_NOTE_TAGS,
+  DELETE_APPOINTMENT_REASONS,
   FOLLOW_UP_NOTE_TAGS,
   PERMISSIONS,
   WEEKDAY_LABELS
@@ -28,6 +29,7 @@ const auditLabels = {
   appointment_completed: '完成到診',
   appointment_no_show: '標記未到',
   appointment_rescheduled: '改期',
+  appointment_deleted: '刪除預約紀錄',
   follow_up_decided: '記錄回診決定',
   case_manager_assigned: '指派個管師',
   case_manager_reassigned: '改派個管師',
@@ -49,7 +51,8 @@ const appointmentActions = new Set([
   'appointment_cancelled',
   'appointment_completed',
   'appointment_no_show',
-  'appointment_rescheduled'
+  'appointment_rescheduled',
+  'appointment_deleted'
 ]);
 
 const statusIcons = {
@@ -89,6 +92,10 @@ function actionEnabled(actionId, appointment) {
       return appointment.status === 'completed';
     case 'complete':
       return appointment.status === 'confirmed';
+    // 刪除不是生命週期的一步，而是清掉本來就不該存在的紀錄，因此任何狀態
+    // 都可以刪；能不能刪由權限決定，不由狀態決定。
+    case 'delete':
+      return true;
     default:
       return active;
   }
@@ -124,16 +131,20 @@ function primaryAction(appointment, decided, canManageFollowUp) {
   };
 }
 
-function actionMenu(appointment, primaryActionId) {
+function actionMenu(appointment, primaryActionId, permissions) {
   const items = APPOINTMENT_ACTIONS.filter(
     (action) =>
       action.id !== primaryActionId &&
       action.id !== 'follow_up_confirm' &&
+      // 沒有權限的處置根本不出現在選單裡。這只是介面：store 每條路徑仍各自
+      // requirePermission，隱藏按鈕從來不是授權。
+      (action.permission === undefined ||
+        permissions.includes(action.permission)) &&
       actionEnabled(action.id, appointment)
   )
     .map(
       (action) =>
-        `<button type="button" data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(action.label)}</button>`
+        `<button type="button"${action.id === 'delete' ? ' class="danger-text"' : ''} data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(action.label)}</button>`
     )
     .join('');
   if (items === '') return '';
@@ -281,7 +292,7 @@ function queueEntry(state, appointment) {
 
 // 回診版卡片：已確認需要回診、尚未安排下次門診。主要時間顯示回診目標日
 // （＝日曆上的回診日）。「調整回診」把該筆重新放回逐筆回診確認可再改決定。
-function followUpQueueCard(state, entry) {
+function followUpQueueCard(state, entry, permissions) {
   const { appointment, decision, effectiveStart } = entry;
   const notes = tagLabels(decision.tags, FOLLOW_UP_NOTE_TAGS);
   if (decision.noteText) notes.push(decision.noteText);
@@ -290,12 +301,13 @@ function followUpQueueCard(state, entry) {
       ? ''
       : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
   // 缺 session 時（測試夾具、登入前）不顯示「調整回診」，而非拋錯。
-  const adjust =
-    (state.session?.permissions?.includes(PERMISSIONS.MANAGE_FOLLOW_UP) ??
-    false)
-      ? `<button class="button appointment-primary-action appointment-follow-up-button" type="button" data-follow-up-edit="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#8635;</span>調整回診</button>`
-      : '';
-  return `<article class="appointment-card follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">回診</span></div><p class="appointment-time">${escapeHtml(formatFullDate(effectiveStart))}<strong>${escapeHtml(formatTime(effectiveStart))}</strong></p><span class="detail-line appointment-service">回診提醒已上日曆<span aria-hidden="true">·</span>來源 <span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${adjust}</div></article>`;
+  const adjust = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP)
+    ? `<button class="button appointment-primary-action appointment-follow-up-button" type="button" data-follow-up-edit="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#8635;</span>調整回診</button>`
+    : '';
+  // 回診版卡片同樣要能刪除：誤建的紀錄卡在回診佇列時，管理者需要清得掉。
+  // 這張卡的來源預約已是 completed，其餘處置本來就不適用，選單實際上只會
+  // 留下刪除。
+  return `<article class="appointment-card follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">回診</span></div><p class="appointment-time">${escapeHtml(formatFullDate(effectiveStart))}<strong>${escapeHtml(formatTime(effectiveStart))}</strong></p><span class="detail-line appointment-service">回診提醒已上日曆<span aria-hidden="true">·</span>來源 <span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></article>`;
 }
 
 export function renderAppointments(state, filters) {
@@ -351,12 +363,13 @@ export function renderAppointments(state, filters) {
     );
 
   // session 可能還沒建立（測試夾具、登入前的初始畫面）。缺 session 時一律
-  // 視為沒有回診管理權限：隱藏回診卡的管理控制項，而不是整個清單拋錯。
-  const canManageFollowUp =
-    state.session?.permissions?.includes(PERMISSIONS.MANAGE_FOLLOW_UP) ?? false;
+  // 視為沒有任何權限：隱藏管理控制項，而不是整個清單拋錯。
+  const permissions = state.session?.permissions ?? [];
+  const canManageFollowUp = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP);
   return entries
     .map((entry) => {
-      if (entry.mode === 'followup') return followUpQueueCard(state, entry);
+      if (entry.mode === 'followup')
+        return followUpQueueCard(state, entry, permissions);
       const appointment = entry.appointment;
       const notes = tagLabels(appointment.noteTags, BOOKING_NOTE_TAGS);
       if (appointment.noteText) notes.push(appointment.noteText);
@@ -382,7 +395,7 @@ export function renderAppointments(state, filters) {
       const notesForm = editable
         ? `<form class="notes-form" data-notes-form="${escapeHtml(appointment.id)}" hidden><fieldset class="tag-picker"><legend>備註（可複選）</legend>${renderTagPicker(appointment.noteTags ?? [], 'notes')}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(appointment.noteText ?? '')}"></label><div class="notes-form-actions"><button class="button button-primary" type="submit">儲存備註</button><button class="text-button" type="button" data-notes-cancel="${escapeHtml(appointment.id)}">取消</button></div></form>`
         : '';
-      return `<article class="appointment-card" data-appointment-card="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></div><p class="appointment-time">${escapeHtml(formatFullDate(appointment.startsAt))}<strong>${escapeHtml(formatTime(appointment.startsAt))}</strong></p><span class="detail-line appointment-service">${escapeHtml(appointment.itemLabel ?? '')}<span aria-hidden="true">·</span><span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id)}</div>${rescheduleForm}${notesForm}</article>`;
+      return `<article class="appointment-card" data-appointment-card="${escapeHtml(appointment.id)}"><div class="appointment-main"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span><div class="appointment-content"><div class="appointment-title-row"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></div><p class="appointment-time">${escapeHtml(formatFullDate(appointment.startsAt))}<strong>${escapeHtml(formatTime(appointment.startsAt))}</strong></p><span class="detail-line appointment-service">${escapeHtml(appointment.itemLabel ?? '')}<span aria-hidden="true">·</span><span class="code">${escapeHtml(appointment.id)}</span></span>${detailRow(state, appointment.patientId)}${noteRow}</div></div><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div>${rescheduleForm}${notesForm}</article>`;
     })
     .join('');
 }
@@ -535,10 +548,18 @@ export function renderAudit(state, filter) {
   return events.length
     ? [...events]
         .reverse()
-        .map(
-          (event) =>
-            `<li><span class="event-dot"></span><div><strong>${escapeHtml(auditLabels[event.action] ?? event.action)}</strong><span>${escapeHtml(event.appointmentId)} · ${escapeHtml(formatDateTime(event.occurredAt))}</span></div></li>`
-        )
+        .map((event) => {
+          // 刪除的紀錄已經不在清單上了，稽核這一行就是它存在過的唯一證據，
+          // 因此理由與刪除前狀態要直接看得到，不能只留在資料裡。
+          const reason = DELETE_APPOINTMENT_REASONS.find(
+            (item) => item.id === event.reasonCode
+          );
+          const detail =
+            reason === undefined
+              ? ''
+              : `<span class="code detail-line">${escapeHtml(reason.label)}<span aria-hidden="true">·</span>刪除前狀態 ${escapeHtml(APPOINTMENT_STATUS_LABELS[event.previousStatus] ?? event.previousStatus ?? '未知')}</span>`;
+          return `<li><span class="event-dot"></span><div><strong>${escapeHtml(auditLabels[event.action] ?? event.action)}</strong><span>${escapeHtml(event.appointmentId)} · ${escapeHtml(formatDateTime(event.occurredAt))}</span>${detail}</div></li>`;
+        })
         .join('')
     : '<li class="empty-event">尚無符合條件的稽核事件。</li>';
 }
@@ -563,13 +584,17 @@ export function renderOutbox(state) {
     .reverse()
     .map((job) => {
       const status = OUTBOX_STATUS[job.status] ?? OUTBOX_STATUS.pending;
+      // 刪除沒有對應的預約狀態（那筆已經不存在），因此單獨命名。worker 對任何
+      // 非 upsert 狀態都是 cancel，所以這筆走的是移除事件。
       const kind =
         job.followUpSourceId !== undefined
           ? job.appointmentStatus === 'follow_up_required'
             ? '建立／更新回診提醒'
             : '移除回診提醒'
-          : (APPOINTMENT_STATUS_LABELS[job.appointmentStatus] ??
-            job.appointmentStatus);
+          : job.appointmentStatus === 'deleted'
+            ? '刪除紀錄並移除日曆事件'
+            : (APPOINTMENT_STATUS_LABELS[job.appointmentStatus] ??
+              job.appointmentStatus);
       const requeued = job.requeuedBy
         ? `<span class="code">已由 ${escapeHtml(job.requeuedBy)} 重新排入</span>`
         : '';

@@ -2,6 +2,7 @@ import {
   ACTIVE_BOOKING_STATUSES,
   BOOKING_KINDS,
   BOOKING_NOTE_TAGS,
+  DELETE_APPOINTMENT_REASONS,
   FOLLOW_UP_NOTE_TAGS,
   PATIENT_SERVICES,
   WORKBENCH_PROCEDURES
@@ -23,13 +24,14 @@ import {
 const MAX_NOTE_LENGTH = 120;
 const MAX_CERTIFICATE_COPIES = 10;
 
-function appendAudit(state, action, appointmentId, actorId) {
+function appendAudit(state, action, appointmentId, actorId, details = {}) {
   state.auditEvents.push({
     id: `audit_${appointmentId}_${action}_${Date.now()}`,
     action,
     appointmentId,
     actorId,
-    occurredAt: new Date().toISOString()
+    occurredAt: new Date().toISOString(),
+    ...details
   });
 }
 
@@ -316,6 +318,101 @@ export function rescheduleAppointment(
   appointment.updatedAt = new Date().toISOString();
   appendAudit(state, 'appointment_rescheduled', appointmentId, actorId);
   appendOutbox(state, appointment);
+  return appointment;
+}
+
+/**
+ * 刪除一筆預約紀錄（管理者限定，對映 domain 的 `planDeletion`）。
+ *
+ * 與「取消」的界線：取消是**已經發生的營運事實**——患者約了、後來不來了，
+ * 這筆必須留在清單上讓人看得到。刪除處理的是**本來就不該存在的紀錄**：重複
+ * 建立、掛錯病患、誤建的測試資料。因此刪除把預約移出營運清單，稽核事件卻永久
+ * 保留——誰在何時、以什麼理由刪掉哪一筆，仍然查得到。
+ *
+ * 理由是必填的：紀錄消失後，稽核事件是它存在過的唯一證據。
+ */
+export function deleteAppointment(state, appointmentId, reasonCode, actorId) {
+  const appointment = state.appointments.find(
+    (item) => item.id === appointmentId
+  );
+  if (appointment === undefined) throw new Error('找不到這筆預約。');
+  if (!DELETE_APPOINTMENT_REASONS.some((item) => item.id === reasonCode))
+    throw new Error('請選擇刪除理由。');
+
+  // 只有尚未結束的預約還佔著時段；取消／未到／完成到診早已釋出，再刪一次
+  // reservationId 會把後來訂走這格的人擠掉。
+  const slot = state.slots.find((item) => item.id === appointment.slotId);
+  if (slot?.reservationId === appointmentId) delete slot.reservationId;
+
+  // 這筆是某次回診決定安排出來的門診：刪掉它不等於病患不必回診，因此把來源
+  // 回診放回「待安排」並讓提醒重新上日曆，否則整個回診就此人間蒸發。
+  const source = state.followUps.find(
+    (item) => item.scheduledAppointmentId === appointmentId
+  );
+  if (source !== undefined) {
+    delete source.scheduledAppointmentId;
+    replaceFollowUpProjection(
+      state,
+      source.appointmentId,
+      'follow_up_required',
+      taipeiIso(source.dueDate, source.dueTime)
+    );
+  }
+
+  // 這筆自己的回診決定一併結束：來源就診都不在了，提醒沒有對象。用同一個
+  // event ID 排入取消，不能只刪掉本機工作紀錄（日曆那一側還留著事件）。
+  const decision = state.followUps.find(
+    (item) => item.appointmentId === appointmentId
+  );
+  if (decision !== undefined) {
+    state.followUps = state.followUps.filter(
+      (item) => item.appointmentId !== appointmentId
+    );
+    replaceFollowUpProjection(state, appointmentId, 'follow_up_not_required');
+  }
+
+  // 尚未送出的投影意圖必須先撤掉，否則刪除後那些 pending 工作又會把事件建
+  // 回日曆。已完成與死信的工作是歷史，保留。回診提醒的工作由上面兩段各自
+  // 處理，這裡以 followUpSourceId 排除。
+  state.outboxJobs = state.outboxJobs.filter(
+    (job) =>
+      !(
+        job.appointmentId === appointmentId &&
+        job.followUpSourceId === undefined &&
+        job.status === 'pending'
+      )
+  );
+  // worker 的 actionForStatus 對任何非 upsert 狀態一律回 cancel，因此
+  // 'deleted' 走的就是 events.delete；刪除不存在的事件（410／404）視為成功。
+  state.outboxJobs.push({
+    id: `outbox_${appointmentId}_deleted_${Date.now()}`,
+    type: 'calendar_projection_requested',
+    appointmentId,
+    appointmentStatus: 'deleted',
+    idempotencyKey: calendarEventIdForAppointment(appointmentId),
+    status: 'pending'
+  });
+
+  // 個管指派保留紀錄但撤銷：月度工作量不該再算這筆，稽核仍看得到曾指派給誰。
+  const now = new Date().toISOString();
+  for (const assignment of state.caseAssignments) {
+    if (
+      assignment.appointmentId === appointmentId &&
+      assignment.status === 'active'
+    ) {
+      assignment.status = 'revoked';
+      assignment.revokedAt = now;
+      assignment.revokedBy = actorId;
+    }
+  }
+
+  state.appointments = state.appointments.filter(
+    (item) => item.id !== appointmentId
+  );
+  appendAudit(state, 'appointment_deleted', appointmentId, actorId, {
+    reasonCode,
+    previousStatus: appointment.status
+  });
   return appointment;
 }
 

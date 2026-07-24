@@ -38,6 +38,17 @@ below to `approved`, and no real patient data may be relied upon.
   test build. D-006 stays `pending`: the identity provider, MFA, session policy,
   full role/permission matrix and audit-retention answer are exactly what the
   go-live audit must still settle, and none may be inferred from this note.
+  - Implementation reading of "cancel/delete" (2026-07-24, synthetic build):
+    the front desk **keeps** cancelling — it is a daily counter action, and
+    routing it through a manager would stall the front desk. **Deleting** is
+    administrator-only (`delete_appointment`), because it removes the record
+    from the operational list and leaves only the audit event. Deletion also
+    requires a reason from a closed list (`duplicate_record`, `wrong_patient`,
+    `created_in_error`), since the audit event outlives the record it explains.
+    Patient-initiated erasure is deliberately **not** one of those reasons: it
+    is a data-rights workflow gated on D-002. This split is a build decision
+    for the test system and is exactly the kind of detail the D-006 audit must
+    confirm or overturn.
 - **D-009 direction:** use a **dedicated test calendar** for now, with the
   **manager (管理者) as the responsible owner**. Consistent with the 2026-07-23
   test-integration authority. D-009 stays `pending`: the production calendar,

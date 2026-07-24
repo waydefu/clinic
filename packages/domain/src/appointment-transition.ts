@@ -1,6 +1,7 @@
 import {
   assertReschedulable,
   assertTransitionAllowed,
+  OPEN_STATUSES,
   type AppointmentStatusValue,
   type AppointmentTransition
 } from './appointment-rules.js';
@@ -57,13 +58,38 @@ export interface RescheduleRequest {
   readonly idempotency: IdempotencyContext;
 }
 
+/**
+ * Deleting an appointment is record hygiene, not a lifecycle step: it is for
+ * rows that should never have existed (duplicate entry, wrong patient, test
+ * data). Cancelling is the opposite — it records that a real booking will not
+ * happen and must stay visible.
+ *
+ * Because the row disappears, `audit.reasonCode` is mandatory here while it is
+ * nullable everywhere else: the audit event is the only surviving explanation.
+ * Who may delete is an authorization question and stays outside the domain
+ * (D-006).
+ */
+export interface DeleteAppointmentRequest {
+  readonly appointmentId: string;
+  readonly audit: AuditContext;
+  readonly requestedAt: string;
+  readonly idempotency: IdempotencyContext;
+}
+
+/**
+ * 投影工作攜帶的狀態。多數情況就是預約狀態，但刪除後預約已不存在，因此多一個
+ * `deleted`：worker 的 `actionForStatus` 對任何非 upsert 狀態一律回 `cancel`，
+ * 所以刪除走的就是 `events.delete`，且刪除不存在的事件視為成功。
+ */
+export type CalendarProjectionStatus = AppointmentStatusValue | 'deleted';
+
 export interface PlannedOutboxEntry {
   readonly id: string;
   readonly type: 'calendar_projection_requested';
   readonly appointmentId: string;
   readonly correlationId: string;
   readonly causationId: string;
-  readonly appointmentStatus: AppointmentStatusValue;
+  readonly appointmentStatus: CalendarProjectionStatus;
   readonly idempotencyKey: string;
   readonly status: 'pending';
   readonly attempts: 0;
@@ -86,6 +112,17 @@ export interface TransitionPlan {
   readonly updatedAt: string;
   readonly completedAt?: string;
   /** 需要釋出的時段；undefined 表示時段維持佔用。 */
+  readonly releaseSlotId?: string;
+  readonly patientBookingGuard: PlannedPatientBookingGuardMutation;
+  readonly auditEvent: AuditEventV2;
+  readonly outboxJob: PlannedOutboxEntry;
+  readonly idempotencyRecord: PlannedIdempotencyRecord;
+}
+
+export interface DeletionPlan {
+  readonly appointmentId: string;
+  readonly deletedAt: string;
+  /** 需要釋出的時段；已結束的預約早就釋出過，因此是 undefined。 */
   readonly releaseSlotId?: string;
   readonly patientBookingGuard: PlannedPatientBookingGuardMutation;
   readonly auditEvent: AuditEventV2;
@@ -131,7 +168,7 @@ function assertUtcTimestamp(value: string, fieldName: string): void {
 
 function outboxFor(
   appointmentId: string,
-  status: AppointmentStatusValue,
+  status: CalendarProjectionStatus,
   at: string,
   correlationId: string,
   causationId: string
@@ -228,6 +265,79 @@ export function planTransition(
     outboxJob: outboxFor(
       appointment.id,
       nextStatus,
+      request.requestedAt,
+      request.audit.correlationId,
+      auditEvent.eventId
+    ),
+    idempotencyRecord: planIdempotencyRecord(
+      request.idempotency,
+      appointment.id,
+      request.requestedAt
+    )
+  };
+}
+
+/**
+ * Plans the removal of an appointment record.
+ *
+ * There is deliberately no status guard: unlike a transition, deletion is not a
+ * step in the lifecycle, so every status is deletable. What the plan must get
+ * right instead is that nothing the row was holding is silently leaked — the
+ * slot and the patient booking guard are both released, and the Calendar event
+ * is cancelled rather than left orphaned on a doctor's calendar.
+ */
+export function planDeletion(
+  request: DeleteAppointmentRequest,
+  appointment: AppointmentSnapshot | undefined,
+  patientBookingGuard: PatientBookingGuardSnapshot | undefined
+): DeletionPlan {
+  assertUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertIdempotencyContext(request.idempotency, request.audit.actorId);
+
+  if (appointment === undefined) {
+    throw new DomainError(
+      'APPOINTMENT_NOT_FOUND',
+      'The appointment does not exist.'
+    );
+  }
+  if (request.audit.reasonCode === null) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'Deleting an appointment requires a reason code.'
+    );
+  }
+  assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
+
+  // 只有尚未結束的預約還佔著時段；取消／未到／完成到診早已釋出，再釋出一次
+  // 會把後來訂走這格的人擠掉。
+  const holdsSlot = OPEN_STATUSES.includes(appointment.status);
+  const auditEvent = planAuditEvent({
+    eventId: `audit_${appointment.id}_deleted`,
+    occurredAt: request.requestedAt,
+    action: 'appointment_deleted',
+    resourceId: appointment.id,
+    before: {
+      status: appointment.status,
+      slotId: appointment.slotId
+    },
+    // 刪除之後沒有後狀態可記；`before` 與 reasonCode 就是這筆紀錄存在過的
+    // 全部證據。
+    after: null,
+    context: request.audit
+  });
+
+  return {
+    appointmentId: appointment.id,
+    deletedAt: request.requestedAt,
+    ...(holdsSlot ? { releaseSlotId: appointment.slotId } : {}),
+    patientBookingGuard: {
+      action: 'release',
+      activeAppointmentId: appointment.id
+    },
+    auditEvent,
+    outboxJob: outboxFor(
+      appointment.id,
+      'deleted',
       request.requestedAt,
       request.audit.correlationId,
       auditEvent.eventId
