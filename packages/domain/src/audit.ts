@@ -15,9 +15,19 @@ export type AuditAction =
    * the only remaining trace, so it must survive the resource it describes.
    * `after` is null for this action — there is no post-state to record.
    */
-  | 'appointment_deleted';
+  | 'appointment_deleted'
+  | 'follow_up_decided'
+  /** Resource is the schedule, not an appointment; state is version + slot count. */
+  | 'schedule_published';
 
 export type AuditSource = 'api' | 'system' | 'worker';
+
+/**
+ * What the event is about. Audit v2 originally modelled appointments only;
+ * publishing a schedule is the first non-appointment write that has to be
+ * explainable after the fact, so the resource is now named rather than assumed.
+ */
+export type AuditResourceType = 'appointment' | 'schedule';
 
 export interface AuditContext {
   readonly actorId: string;
@@ -37,16 +47,35 @@ export interface AuditAppointmentState {
   readonly slotId: string;
 }
 
+/** 排班發布的前後狀態。版本與時段數足以說明「改了什麼規模」，且不含任何患者資料。 */
+export interface AuditScheduleState {
+  readonly version: number;
+  readonly slotCount: number;
+}
+
+/** 回診決定的前後狀態。`dueAt` 是 UTC 時間點，不需要也不得帶入病患資訊。 */
+export interface AuditFollowUpState {
+  readonly followUpStatus: 'required' | 'not_required';
+  readonly dueAt: string | null;
+}
+
+/**
+ * 稽核只記錄足以解釋一次變更的最小狀態。三種形狀都刻意窄——姓名、電話、
+ * 身分證、備註都沒有欄位可以放進來，因此 PII 不可能經由稽核外流。
+ */
+export type AuditResourceState =
+  AuditAppointmentState | AuditScheduleState | AuditFollowUpState;
+
 export interface AuditEventV2 {
   readonly eventId: string;
   readonly occurredAt: string;
   readonly actorId: string;
   readonly actorRole: string;
   readonly action: AuditAction;
-  readonly resourceType: 'appointment';
+  readonly resourceType: AuditResourceType;
   readonly resourceId: string;
-  readonly before: AuditAppointmentState | null;
-  readonly after: AuditAppointmentState | null;
+  readonly before: AuditResourceState | null;
+  readonly after: AuditResourceState | null;
   readonly reasonCode: string | null;
   readonly result: 'succeeded' | 'denied' | 'failed';
   readonly correlationId: string;
@@ -59,9 +88,10 @@ interface PlanAuditEventInput {
   readonly eventId: string;
   readonly occurredAt: string;
   readonly action: AuditAction;
+  readonly resourceType: AuditResourceType;
   readonly resourceId: string;
-  readonly before: AuditAppointmentState | null;
-  readonly after: AuditAppointmentState | null;
+  readonly before: AuditResourceState | null;
+  readonly after: AuditResourceState | null;
   readonly context: AuditContext;
 }
 
@@ -122,7 +152,7 @@ export function planAuditEvent(input: PlanAuditEventInput): AuditEventV2 {
     actorId: input.context.actorId,
     actorRole: input.context.actorRole,
     action: input.action,
-    resourceType: 'appointment',
+    resourceType: input.resourceType,
     resourceId: input.resourceId,
     before: input.before,
     after: input.after,

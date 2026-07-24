@@ -54,6 +54,7 @@ export function planBooking(request, slot, patientBookingGuard) {
         eventId: `audit_${request.appointmentId}_confirmed`,
         occurredAt: request.requestedAt,
         action: 'appointment_confirmed',
+        resourceType: 'appointment',
         resourceId: request.appointmentId,
         before: null,
         after: {

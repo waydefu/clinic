@@ -5,6 +5,8 @@ export * from './audit.js';
 export * from './booking-transaction.js';
 export * from './calendar-event-id.js';
 export * from './errors.js';
+export * from './follow-up.js';
 export * from './idempotency.js';
 export * from './outbox.js';
 export * from './payroll.js';
+export * from './schedule.js';

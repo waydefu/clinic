@@ -271,10 +271,13 @@ owner；決策能及時完成：
 - [x] transition/reschedule contracts（2026-07-24 unrouted strict schema + mapping/rejection tests）
 - [x] delete-appointment contract + `planDeletion`（2026-07-24；管理者限定、
       理由封閉清單、audit v2 `after: null`；未掛路由）
-- [ ] follow-up/schedule contracts（尚無 domain planner，需獨立設計 pass）
+- [x] follow-up/schedule contracts（2026-07-24；`planFollowUpDecision`＋
+      `planSchedulePublication` 進 domain，unrouted strict schema，回診網格
+      驗證與排班樂觀版本／孤兒預約守衛皆有測試）
 - [x] patient active-booking guard（2026-07-23 local/Emulator）
 - [x] audit v2（2026-07-23 local/Emulator）
-- [ ] schedule planner/version conflict
+- [x] schedule planner/version conflict（2026-07-24 `planSchedulePublication`，
+      樂觀 `expectedVersion` 衝突偵測；瀏覽器多分頁亦走同一守衛）
 - [ ] case assignment effective periods
 - [ ] payroll close/adjustment
 

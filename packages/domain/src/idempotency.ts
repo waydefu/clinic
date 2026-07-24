@@ -7,12 +7,20 @@ export interface IdempotencyContext {
   readonly recordId: string;
 }
 
+/**
+ * What a replayed request points back at. Appointments were the only writable
+ * resource when this was written; publishing a schedule is the second, and the
+ * reference has to name which one or a replay would resolve to the wrong kind
+ * of resource.
+ */
+export type IdempotencyResourceType = 'appointment' | 'schedule';
+
 export interface PlannedIdempotencyRecord {
   readonly actorId: string;
   readonly scope: string;
   readonly requestHash: string;
   readonly responseReference: {
-    readonly resourceType: 'appointment';
+    readonly resourceType: IdempotencyResourceType;
     readonly resourceId: string;
   };
   readonly recordedAt: string;
@@ -54,16 +62,17 @@ export function assertIdempotencyContext(
 
 export function planIdempotencyRecord(
   context: IdempotencyContext,
-  appointmentId: string,
-  recordedAt: string
+  resourceId: string,
+  recordedAt: string,
+  resourceType: IdempotencyResourceType = 'appointment'
 ): PlannedIdempotencyRecord {
   return {
     actorId: context.actorId,
     scope: context.scope,
     requestHash: context.requestHash,
     responseReference: {
-      resourceType: 'appointment',
-      resourceId: appointmentId
+      resourceType,
+      resourceId
     },
     recordedAt,
     schemaVersion: 1

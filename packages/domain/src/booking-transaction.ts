@@ -165,6 +165,7 @@ export function planBooking(
     eventId: `audit_${request.appointmentId}_confirmed`,
     occurredAt: request.requestedAt,
     action: 'appointment_confirmed',
+    resourceType: 'appointment',
     resourceId: request.appointmentId,
     before: null,
     after: {

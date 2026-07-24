@@ -17,14 +17,14 @@ export function assertIdempotencyContext(context, actorId) {
     assertSha256(context.requestHash, 'idempotency.requestHash');
     assertSha256(context.recordId, 'idempotency.recordId');
 }
-export function planIdempotencyRecord(context, appointmentId, recordedAt) {
+export function planIdempotencyRecord(context, resourceId, recordedAt, resourceType = 'appointment') {
     return {
         actorId: context.actorId,
         scope: context.scope,
         requestHash: context.requestHash,
         responseReference: {
-            resourceType: 'appointment',
-            resourceId: appointmentId
+            resourceType,
+            resourceId
         },
         recordedAt,
         schemaVersion: 1

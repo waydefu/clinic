@@ -38,7 +38,7 @@ export function planAuditEvent(input) {
         actorId: input.context.actorId,
         actorRole: input.context.actorRole,
         action: input.action,
-        resourceType: 'appointment',
+        resourceType: input.resourceType,
         resourceId: input.resourceId,
         before: input.before,
         after: input.after,

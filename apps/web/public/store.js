@@ -22,6 +22,7 @@ import {
 } from './modules/permissions.js';
 import {
   cloneSchedule,
+  ensureScheduleVersion,
   generateSlots,
   scheduleImpact,
   schedulesEqual,
@@ -103,8 +104,12 @@ function saveDraft(state, schedule) {
   );
 }
 
-function publishSchedule(state, actorId) {
+function publishSchedule(state, actorId, expectedVersion) {
   validateSchedule(state.scheduleDraft);
+  // 發布者以為自己接在哪一版之後。不符即代表另一個分頁先發布了，擋下而不是
+  // 覆蓋——排班是所有可預約時段的來源，靜默覆蓋會讓對方的變更消失無蹤。
+  if (expectedVersion !== undefined)
+    ensureScheduleVersion(expectedVersion, state.scheduleMeta);
   const candidate = generateSlots(state.scheduleDraft, state.slots);
   const impacted = scheduleImpact(state.appointments, candidate);
   if (impacted.length > 0) {
@@ -175,7 +180,7 @@ export async function stagingRequest(path, options = {}) {
     saveDraft(state, body);
   } else if (path === '/schedule/publish') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
-    publishSchedule(state, actor.id);
+    publishSchedule(state, actor.id, body.expectedVersion);
   } else if (path === '/schedule/discard') {
     requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
     state.scheduleDraft = cloneSchedule(state.schedule);

@@ -1,7 +1,9 @@
 import { assertUtcTimestamp } from './appointment.js';
 import { DomainError } from './errors.js';
+// 診所的時區只定義一次，在排班網格那一側；薪資期間必須用同一個，否則跨月的
+// 到診會被算進不同的月份。
+import { TAIPEI_TIME_ZONE } from './schedule.js';
 export const UNIQUE_PATIENT_COMPLETED_METRIC = 'unique_patient_completed';
-export const TAIPEI_TIME_ZONE = 'Asia/Taipei';
 /**
  * Produces the deterministic uniqueness key used by a Firestore transaction.
  * The caller must create this document atomically and treat an existing key as

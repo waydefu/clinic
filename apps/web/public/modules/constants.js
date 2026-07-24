@@ -6,10 +6,13 @@
 // 不涉及 CSP，且單一來源與防漂移的目的完全不受影響。
 export {
   ACTIVE_BOOKING_LIMIT,
-  ACTIVE_BOOKING_STATUSES
+  ACTIVE_BOOKING_STATUSES,
+  // 時區與掛號網格是診所規則，不是介面設定：兩邊各寫一份就會漂移，因此同樣
+  // 從編譯後的 domain 取得（ADR-0004）。
+  SLOT_DURATION_MINUTES,
+  SLOT_MINUTE_MARKS,
+  TAIPEI_TIME_ZONE as TIME_ZONE
 } from '../vendor/domain/index.js';
-
-export const TIME_ZONE = 'Asia/Taipei';
 
 // 診所對外資訊的單一來源。patient.html 的結構化資料與行事曆匯出都以此為準；
 // 修改時請一併更新 patient.html 內的 JSON-LD。
@@ -19,7 +22,6 @@ export const CLINIC = Object.freeze({
 });
 export const SYNTHETIC_WINDOW_START = '2030-01-01';
 export const SYNTHETIC_WINDOW_DAYS = 21;
-export const SLOT_DURATION_MINUTES = 30;
 
 // 初診走整點與半點，回診走 15 分與 45 分，兩種掛號各自成格。
 export const BOOKING_KINDS = Object.freeze({
@@ -30,11 +32,6 @@ export const BOOKING_KINDS = Object.freeze({
 export const BOOKING_KIND_LABELS = Object.freeze({
   initial: '初診',
   follow_up: '回診'
-});
-
-export const SLOT_MINUTE_MARKS = Object.freeze({
-  initial: [0, 30],
-  follow_up: [15, 45]
 });
 
 // 醫師固定行程，這些時間點不開放掛號。可在排班區自訂。

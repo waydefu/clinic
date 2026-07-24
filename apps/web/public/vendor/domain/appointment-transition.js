@@ -57,6 +57,7 @@ export function planTransition(request, appointment, patientBookingGuard) {
         eventId: `audit_${appointment.id}_${nextStatus}`,
         occurredAt: request.requestedAt,
         action: AUDIT_ACTIONS[request.transition],
+        resourceType: 'appointment',
         resourceId: appointment.id,
         before: {
             status: appointment.status,
@@ -120,6 +121,7 @@ export function planDeletion(request, appointment, patientBookingGuard) {
         eventId: `audit_${appointment.id}_deleted`,
         occurredAt: request.requestedAt,
         action: 'appointment_deleted',
+        resourceType: 'appointment',
         resourceId: appointment.id,
         before: {
             status: appointment.status,
@@ -156,6 +158,7 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
         eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
         occurredAt: request.requestedAt,
         action: 'appointment_rescheduled',
+        resourceType: 'appointment',
         resourceId: appointment.id,
         before: {
             status: appointment.status,

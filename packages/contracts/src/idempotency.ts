@@ -12,7 +12,9 @@ export const IdempotencyScopeSchema = z
 
 export const IdempotencyResponseReferenceSchema = z
   .object({
-    resourceType: z.literal('appointment'),
+    // A replay has to resolve to the same kind of resource it originally
+    // produced, so the reference names it rather than assuming appointment.
+    resourceType: z.enum(['appointment', 'schedule']),
     resourceId: OpaqueIdentifierSchema
   })
   .strict();

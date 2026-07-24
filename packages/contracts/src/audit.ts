@@ -12,8 +12,13 @@ export const AuditActionSchema = z.enum([
   'appointment_rescheduled',
   // Deletion removes the appointment, so this event is the only surviving
   // record of it. `after` is null and `reasonCode` is never null for it.
-  'appointment_deleted'
+  'appointment_deleted',
+  'follow_up_decided',
+  // The only action whose resource is the schedule rather than an appointment.
+  'schedule_published'
 ]);
+
+export const AuditResourceTypeSchema = z.enum(['appointment', 'schedule']);
 
 export const AuditSourceSchema = z.enum(['api', 'system', 'worker']);
 
@@ -34,6 +39,32 @@ export const AuditAppointmentStateSchema = z
   })
   .strict();
 
+/** Version and slot count explain the scale of a publication, and nothing else. */
+export const AuditScheduleStateSchema = z
+  .object({
+    version: z.number().int().min(0),
+    slotCount: z.number().int().min(0)
+  })
+  .strict();
+
+export const AuditFollowUpStateSchema = z
+  .object({
+    followUpStatus: z.enum(['required', 'not_required']),
+    dueAt: UtcIsoTimestampSchema.nullable()
+  })
+  .strict();
+
+/**
+ * Every branch is strict and narrow: there is no field in any of them that a
+ * name, phone number, national ID or free-text note could be written into, so
+ * audit cannot become a side channel for patient data.
+ */
+export const AuditResourceStateSchema = z.union([
+  AuditAppointmentStateSchema,
+  AuditScheduleStateSchema,
+  AuditFollowUpStateSchema
+]);
+
 export const AuditEventV2Schema = z
   .object({
     eventId: AuditEventIdentifierSchema,
@@ -41,10 +72,10 @@ export const AuditEventV2Schema = z
     actorId: OpaqueIdentifierSchema,
     actorRole: OpaqueIdentifierSchema,
     action: AuditActionSchema,
-    resourceType: z.literal('appointment'),
+    resourceType: AuditResourceTypeSchema,
     resourceId: OpaqueIdentifierSchema,
-    before: AuditAppointmentStateSchema.nullable(),
-    after: AuditAppointmentStateSchema.nullable(),
+    before: AuditResourceStateSchema.nullable(),
+    after: AuditResourceStateSchema.nullable(),
     reasonCode: OpaqueIdentifierSchema.nullable(),
     result: z.enum(['succeeded', 'denied', 'failed']),
     correlationId: OpaqueIdentifierSchema,
@@ -56,5 +87,9 @@ export const AuditEventV2Schema = z
 
 export type AuditAction = z.infer<typeof AuditActionSchema>;
 export type AuditAppointmentState = z.infer<typeof AuditAppointmentStateSchema>;
+export type AuditScheduleState = z.infer<typeof AuditScheduleStateSchema>;
+export type AuditFollowUpState = z.infer<typeof AuditFollowUpStateSchema>;
+export type AuditResourceState = z.infer<typeof AuditResourceStateSchema>;
+export type AuditResourceType = z.infer<typeof AuditResourceTypeSchema>;
 export type AuditEventV2 = z.infer<typeof AuditEventV2Schema>;
 export type AuditSource = z.infer<typeof AuditSourceSchema>;

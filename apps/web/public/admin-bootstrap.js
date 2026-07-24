@@ -848,7 +848,11 @@ elements['publish-schedule'].addEventListener('click', async () => {
   )
     return;
   try {
-    await post('/schedule/publish');
+    // 送出這個畫面所根據的版本。若另一個分頁已經發布過，store 會擋下來而不是
+    // 讓這一份默默覆蓋掉對方的排班。
+    await post('/schedule/publish', {
+      expectedVersion: state.scheduleMeta.publishedVersion
+    });
     message(
       '排班已發布，患者端可預約時段已同步更新。',
       'success',
