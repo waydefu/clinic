@@ -9,7 +9,8 @@
     "pnpm": "11.9.0"
   },
   "scripts": {
-    "build": "corepack pnpm --recursive --if-present run build && corepack pnpm run sync:domain",
+    "build": "corepack pnpm --recursive --if-present run build && corepack pnpm run sync:domain && corepack pnpm run build:web",
+    "build:web": "node scripts/build-web.mjs",
     "check:structure": "node scripts/check-structure.mjs",
     "check:ui": "node scripts/check-web-ui.mjs",
     "check:docs": "node scripts/check-docs-links.mjs",

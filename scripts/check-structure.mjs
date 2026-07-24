@@ -99,6 +99,7 @@ const requiredPaths = [
   'apps/web/public/patient.html',
   'apps/web/public/404.html',
   'scripts/check-web-ui.mjs',
+  'scripts/build-web.mjs',
   'apps/web/public/styles.css',
   'apps/web/public/error.css',
   'apps/web/public/favicon.svg',

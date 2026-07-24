@@ -21,6 +21,22 @@ firebase projects:list
 只能部署到名稱明確含 `staging` 的一森渼診所專用 Firebase 專案。不得部署到其他
 既有專案，也不得將 `.firebaserc` 的本機假 project ID 當作雲端目標。
 
+## 建置產物
+
+Hosting 的 `public` 指向 `apps/web/dist`（內容雜湊過的產物），而非原始的
+`apps/web/public`。`firebase.json` 的 `hosting.predeploy` 會在每次部署前自動跑
+`corepack pnpm run build`（編譯 domain → 同步 vendor → 產生 `dist`），因此部署的
+一定是最新建置，不會有手動漏跑的風險。要在本機預覽建置產物：
+
+```powershell
+$env:WEB_ROOT='dist'; $env:TEST_ONLY_WEB_ENABLED='true'; node apps/web/server.mjs
+```
+
+雜湊過的 `*.js`／`*.css` 以 `Cache-Control: public, max-age=31536000, immutable`
+長期快取（改一版就是新檔名）；HTML 進入點維持穩定檔名與 `no-store`，永遠抓到
+最新的雜湊參照。CSP 不因打包而放寬——產物仍是一份份 `script-src 'self'` 的
+ES module，只是檔名帶了雜湊。
+
 ## 建立／更新七天預覽
 
 ```powershell
@@ -39,8 +55,9 @@ firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-
 3. 患者端明確告知「資料只會保存在這台裝置的瀏覽器」，且工作臺清單顯示的身分證
    字號為遮罩形式（如 `A12****789`），不得完整外露。
 4. 排班、預約、取消、改期、未到、到診、回診確認與清除資料均只影響目前瀏覽器。
-5. 回應包含 CSP、`X-Robots-Tag: noindex`、`Referrer-Policy: no-referrer` 與
-   `Cache-Control: no-store`。
+5. HTML 進入點的回應包含 CSP、`X-Robots-Tag: noindex`、`Referrer-Policy:
+   no-referrer` 與 `Cache-Control: no-store`；雜湊過的 `*.js`／`*.css` 則回
+   `Cache-Control: ... immutable`，且沿用同一組 CSP 與安全標頭。
 6. 不存在對 API、Firestore、Calendar 或其他外部服務的網路要求。
 
 > 2026-07-21 起，患者端依專案負責人決定收集姓名、電話、生日與身分證字號。

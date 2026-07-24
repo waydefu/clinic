@@ -60,4 +60,28 @@ describe('hosting security headers', () => {
     expect(headerValue('Referrer-Policy')).toBe('no-referrer');
     expect(headerValue('X-Robots-Tag')).toContain('noindex');
   });
+
+  // HTML 進入點必須維持 no-store，永遠抓到最新的雜湊參照。
+  it('keeps html entry points on no-store via the catch-all block', () => {
+    expect(headerValue('Cache-Control')).toBe('no-store');
+  });
+
+  // 只有內容雜湊過的 js/css 可以永久 immutable 快取：改一版就是新檔名，舊快取
+  // 不可能回錯內容。這個區塊排在 '**' 之後，才能覆蓋掉上面的 no-store。
+  it('caches content-hashed assets immutably without weakening the catch-all', () => {
+    const blocks = firebaseConfig.hosting.headers;
+    const assetIndex = blocks.findIndex(
+      (entry: { source: string }) => entry.source === '**/*.@(js|css)'
+    );
+    const catchAllIndex = blocks.findIndex(
+      (entry: { source: string }) => entry.source === '**'
+    );
+    expect(assetIndex).toBeGreaterThan(catchAllIndex);
+
+    const cacheControl = blocks[assetIndex].headers.find(
+      (item: { key: string }) => item.key.toLowerCase() === 'cache-control'
+    );
+    expect(cacheControl.value).toContain('immutable');
+    expect(cacheControl.value).toContain('max-age=31536000');
+  });
 });

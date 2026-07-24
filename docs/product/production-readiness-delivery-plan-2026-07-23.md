@@ -328,7 +328,9 @@ owner；決策能及時完成：
 
 - [ ] API client adapter
 - [ ] real loading/pending/error/retry states
-- [ ] bundle/content hash/cache
+- [x] bundle/content hash/cache（2026-07-24；`scripts/build-web.mjs` 產出
+      內容雜湊的 `apps/web/dist`，SCC 處理匯入循環，firebase 雜湊資產 immutable、
+      HTML no-store，CSP 未放寬；`hosting.predeploy` 綁 `pnpm build`）
 - [ ] staff auth route protection
 - [ ] Playwright E2E
 - [ ] axe/screen-reader/forced-colors

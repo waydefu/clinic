@@ -13,7 +13,14 @@ if (process.env['TEST_ONLY_WEB_ENABLED'] !== 'true') {
 const host = '127.0.0.1';
 const port = Number(process.env['TEST_ONLY_WEB_PORT'] ?? '3100');
 const applicationRoot = fileURLToPath(new URL('.', import.meta.url));
-const publicDirectory = resolve(applicationRoot, 'public');
+// Serves the raw, unbundled public/ by default (直接檢視原始 ES module). Set
+// WEB_ROOT=dist to preview the content-hashed production build locally — same
+// no-store dev headers, just the built assets, so you can confirm the hashed
+// module graph resolves before deploying.
+const publicDirectory = resolve(
+  applicationRoot,
+  process.env['WEB_ROOT'] === 'dist' ? 'dist' : 'public'
+);
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
