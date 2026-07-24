@@ -13,6 +13,14 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > [正式環境目標架構書](architecture/production-target-architecture-2026-07-23.md)
 > 為準。2026-07-21 以前的完成紀錄保留作歷史證據，不得取代最新施工順序。
 
+> **2026-07-24 進度整合。** 本檔更新於 2026-07-23，其後的 Stage 0 內工作以
+> [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
+> 為權威紀錄，包含：管理者刪除預約、schedule/follow-up/case-assignment/payroll
+> 進 domain（含月結鎖定與具理由調整）、前端打包／內容雜湊 dist、Playwright E2E＋
+> axe、`apps/api/src/platform` 的集中式錯誤映射與候選 RBAC/rate-limit/maintenance
+> 骨架，以及低頻治理指令的 pending/error/retry 收尾與 api-client 的 HTTP/offline/
+> timeout 錯誤映射。以下清單中凡與這些重疊者，以 backlog 的最新狀態為準。
+
 ## 目前可直接動工
 
 全程限 local/Emulator/synthetic：
@@ -134,15 +142,19 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 
 仍未處理：
 
-- **前端打包／雜湊／快取（正式版建置階段）**：患者頁約 26 個模組請求、管理端
-  更多，本機首載約 1.65／2.3 秒。正式上線應導入打包、內容雜湊與長期快取。
-  目前 Phase 1 刻意維持 `public/` 不經建置的原生 ESM（見 ADR-0004 的取捨），
-  導入打包屬階段 B 的獨立變更，不與合成工作臺混做。
 - 預約清單無分頁
 - `Noto Sans TC` 未實際載入，需決定載入或移除
 - 櫃台高頻操作的鍵盤快捷鍵
-- 接上真後端前，所有按鈕需要 pending 狀態設計（目前同步 localStorage 感覺
-  不到延遲，階段 B 後沒有 pending 會重現「按了沒反應」）
+
+已完成（原列於「仍未處理」，2026-07-24 更新）：
+
+- ~~前端打包／雜湊／快取~~ ✅ `scripts/build-web.mjs` 產出內容雜湊的
+  `apps/web/dist`（雜湊資產 immutable、HTML no-store、CSP 未放寬），firebase
+  `public`→`dist`、`hosting.predeploy` 綁 `pnpm build`，E2E 亦跑在 dist 上。
+  Phase 1 的 `public/` 仍維持原生 ESM 供開發直接檢視（ADR-0004 取捨）。
+- ~~接上真後端前所有按鈕的 pending 狀態設計~~ ✅ 工作臺高頻與低頻治理指令
+  全走 `runUiAction`（pending/disabled/`aria-busy`／可重試）；`api-client` 注入
+  合成延遲，並把 HTTP status／offline／timeout 映射成對齊 v1 envelope 的錯誤。
 
 ### 6. 接日曆實測的技術前置 — 詳見[日曆整合計畫 §3.1](architecture/calendar-and-database-integration-plan.md)
 
