@@ -573,6 +573,30 @@ details[open] > summary .workflow-summary-chevron {
   width: 100%;
   margin-top: var(--space-xs);
 }
+/* 依任務分組的欄位群。
+   建立預約表單原本有 15 個欄位、只有一個 fieldset（備註標籤），其餘 14 個平鋪
+   在一起——櫃台看到的是一片輸入框，沒有任何結構告訴他們「這幾格是同一件事」。
+   分組同時是無障礙的事：`<legend>` 會被螢幕閱讀器當成群組脈絡朗讀，讓「姓名」
+   這種到處都有的標籤變成「患者資料：姓名」。
+   邊框刻意拿掉，改用 legend 加一條細分隔線——瑞士式的做法是靠對齊與留白分群，
+   不是靠盒子；表單裡再多幾個框只會讓輸入框自己更難被看見。 */
+.field-group {
+  border: 0;
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0 0 var(--space-sm);
+  min-width: 0;
+  padding: 0;
+}
+.field-group > legend {
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  padding: 0 0 var(--space-3xs);
+  width: 100%;
+}
 .booking-form .inline-fields {
   display: flex;
   flex-wrap: wrap;

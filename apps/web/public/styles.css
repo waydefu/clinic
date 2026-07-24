@@ -580,7 +580,8 @@ h3 {
   box-shadow: var(--elevation-1);
   color: var(--ink-muted);
   display: flex;
-  font-size: var(--text-micro);
+  /* 狀態訊息是要讀的句子，不是標籤。 */
+  font-size: var(--text-body);
   font-weight: var(--weight-medium);
   margin: var(--space-md) 0;
   min-height: 3.35rem;
@@ -611,10 +612,12 @@ h3 {
   background: var(--danger);
 }
 /* 表單旁的就地回饋：同一句話除了頂端播報，也要出現在剛按下的按鈕旁。 */
+/* 驗證訊息是使用者必須讀懂才能繼續的文字——擋住他們的東西不該是頁面上最小的
+   字。這條同時服務患者頁與工作臺，兩邊都成立。 */
 .form-status {
   border-radius: var(--radius-sm);
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   margin: var(--space-xs) 0 0;
   padding: var(--space-xs) var(--space-xs);
@@ -875,6 +878,30 @@ textarea {
   gap: var(--space-md);
   margin-left: auto;
 }
+/* 健保特約標章。放在頁首右上而不是頁尾——它是患者選診所時真的會找的資訊，
+   而幾乎沒有人會捲到頁尾去找。
+   官方標章襯在白色底板上，且三個主題都一樣：署徽的藍與綠是規定的顏色，
+   跟著主題改會失真。它不是介面元素，是一枚憑證。
+   可見標籤寫「健保門診」——法定全稱太長，在頁首會擠掉導覽；完整名稱放在
+   圖片的 alt 裡，所以螢幕閱讀器聽到的是正式用語，標籤本身則 aria-hidden，
+   避免同一件事被唸兩次。 */
+.patient-credentials {
+  align-items: center;
+  color: var(--ink-muted);
+  display: inline-flex;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  gap: var(--space-3xs);
+  white-space: nowrap;
+}
+.patient-credentials img {
+  background: var(--official-mark-plate);
+  border-radius: var(--radius-circle);
+  display: block;
+  height: 1.75rem;
+  padding: var(--space-4xs);
+  width: 1.75rem;
+}
 .patient-nav a {
   color: var(--ink-muted);
   font-size: var(--text-micro);
@@ -901,8 +928,9 @@ textarea {
   color: var(--on-inverse-accent);
   font-size: var(--text-micro);
 }
+/* 公告帶的內文——它在說明「資料只留在這台裝置」這種患者需要真正讀懂的事。 */
 .patient-announcement span {
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
 }
 #patient-main {
   margin: 0 auto;
@@ -970,9 +998,10 @@ textarea {
   color: var(--forest-dark);
   font-size: var(--text-md);
 }
+/* 地址與電話是患者真的會讀、甚至會抄下來的資訊。 */
 .patient-contact-card span {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   line-height: 1.55;
 }
 .booking-stepper {
@@ -1038,9 +1067,11 @@ textarea {
   font-size: var(--text-lg);
   margin-bottom: var(--space-2xs);
 }
+/* 步驟說明是正文，不是註腳。它在告訴使用者這一步要做什麼——那是頁面上少數
+   非讀不可的句子之一，卻和 eyebrow 標籤同樣大小。 */
 .booking-panel-heading > p:last-child {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   line-height: 1.65;
 }
 .service-choice-grid {
@@ -1082,9 +1113,11 @@ textarea {
   font-size: var(--text-md);
   margin-bottom: var(--space-2xs);
 }
+/* 療程選項的名稱是這張卡片的主體文字，`small` 才是它的補充。先前兩者同大小，
+   等於沒有主從。 */
 .service-choice > span:not(.service-icon) {
-  color: var(--ink-muted);
-  font-size: var(--text-micro);
+  color: var(--ink);
+  font-size: var(--text-body);
   line-height: 1.6;
 }
 .service-choice small {
@@ -1211,24 +1244,27 @@ textarea {
   justify-content: space-between;
   padding-bottom: var(--space-xs);
 }
+/* 確認摘要是整頁最重要的文字：使用者按下送出之前，唯一一次核對日期、時段與
+   療程的機會。它先前用的是最小字級。 */
 .booking-summary dt {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
 }
 .booking-summary dd {
   color: var(--ink);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   margin: 0;
   text-align: right;
 }
+/* 同意條款是法律文字。用最小字級呈現要人同意的東西，形式上就不對。 */
 .consent-preview {
   align-items: flex-start;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   display: flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   gap: var(--space-2xs);
   line-height: 1.5;
   margin-top: auto;
@@ -1276,7 +1312,7 @@ textarea {
 }
 .booking-result span {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
 }
 .patient-upcoming-section {
   margin-top: var(--space-2xl);
@@ -1324,7 +1360,7 @@ textarea {
 }
 .patient-help-grid p {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   line-height: 1.6;
   margin: 0;
 }
@@ -1380,22 +1416,6 @@ textarea {
 }
 .patient-footer a {
   text-decoration: none;
-}
-/* 健保特約標章。官方標章放在白色底板上，不隨主題改色——署徽的藍與綠是規定的
-   顏色，襯在深色頁尾上會失真，而「跟著主題走」在這裡是錯的：它不是介面元素，
-   是一枚憑證。 */
-.patient-credentials {
-  align-items: center;
-  display: flex;
-  gap: var(--space-2xs);
-}
-.patient-credentials img {
-  background: var(--official-mark-plate);
-  border-radius: var(--radius-circle);
-  display: block;
-  height: 2rem;
-  padding: var(--space-4xs);
-  width: 2rem;
 }
 .status-chip {
   align-items: center;
@@ -1532,7 +1552,7 @@ textarea {
   margin-bottom: var(--space-3xs);
 }
 .empty-state p {
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   line-height: 1.55;
   margin-bottom: 0;
 }

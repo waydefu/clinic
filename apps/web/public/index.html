@@ -261,52 +261,58 @@
             <div class="workflow-disclosure-body">
               <h3 class="subsection-title">預約資料</h3>
               <form id="booking-form" class="control-card booking-form">
-                <div class="inline-fields">
-                  <label
-                    >姓名<input
-                      id="booking-name"
-                      type="text"
-                      maxlength="30"
-                      autocomplete="off"
-                      required /></label
-                  ><label
-                    >電話<input
-                      id="booking-phone"
-                      type="tel"
-                      autocomplete="off"
-                      required
-                  /></label>
-                </div>
-                <div class="inline-fields">
-                  <label
-                    >生日（西元）<input
-                      id="booking-birth"
-                      type="date"
-                      autocomplete="off"
-                      required /></label
-                  ><label
-                    >身分證字號<input
-                      id="booking-national-id"
-                      type="text"
-                      maxlength="10"
-                      autocomplete="off"
-                      required
-                  /></label>
-                </div>
-                <div class="inline-fields">
-                  <label
-                    >掛號別<select id="booking-kind">
-                      <option value="initial">初診（整點／30 分）</option>
-                      <option value="follow_up">回診（15 分／45 分）</option>
-                    </select></label
-                  ><label>手術種類<select id="booking-item"></select></label>
-                </div>
-                <label class="switch-row"
-                  ><input
-                    id="booking-nhi-card"
-                    type="checkbox"
-                  />已帶健保卡</label
-                >
+                <fieldset class="field-group">
+                  <legend>患者資料</legend>
+                  <div class="inline-fields">
+                    <label
+                      >姓名<input
+                        id="booking-name"
+                        type="text"
+                        maxlength="30"
+                        autocomplete="off"
+                        required /></label
+                    ><label
+                      >電話<input
+                        id="booking-phone"
+                        type="tel"
+                        autocomplete="off"
+                        required
+                    /></label>
+                  </div>
+                  <div class="inline-fields">
+                    <label
+                      >生日（西元）<input
+                        id="booking-birth"
+                        type="date"
+                        autocomplete="off"
+                        required /></label
+                    ><label
+                      >身分證字號<input
+                        id="booking-national-id"
+                        type="text"
+                        maxlength="10"
+                        autocomplete="off"
+                        required
+                    /></label>
+                  </div>
+                </fieldset>
+                <fieldset class="field-group">
+                  <legend>掛號與療程</legend>
+                  <div class="inline-fields">
+                    <label
+                      >掛號別<select id="booking-kind">
+                        <option value="initial">初診（整點／30 分）</option>
+                        <option value="follow_up">回診（15 分／45 分）</option>
+                      </select></label
+                    ><label>手術種類<select id="booking-item"></select></label>
+                  </div>
+                  <label class="switch-row"
+                    ><input
+                      id="booking-nhi-card"
+                      type="checkbox"
+                    />已帶健保卡</label
+                  >
+                </fieldset>
                 <fieldset id="booking-tags" class="tag-picker">
                   <legend>備註（可複選）</legend>
                 </fieldset>

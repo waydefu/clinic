@@ -99,7 +99,10 @@ test.describe('三個主題', () => {
 
     // `complete` 對載入失敗的圖片一樣是 true——naturalWidth 才分得出「載到了」
     // 與「路徑壞掉，瀏覽器安靜地放棄了」。後者在版面上只是少一塊，很容易出貨。
-    for (const selector of ['.brand-mark', '.patient-credentials img']) {
+    for (const selector of [
+      '.brand-mark',
+      '.patient-header .patient-credentials img'
+    ]) {
       const natural = await page
         .locator(selector)
         .evaluate((element: HTMLImageElement) => element.naturalWidth);
