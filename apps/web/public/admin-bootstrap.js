@@ -1,4 +1,5 @@
 import {
+  DEFAULT_APPOINTMENT_SORT,
   renderAccounts,
   renderAppointments,
   renderAudit,
@@ -17,6 +18,7 @@ import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
 import {
   DELETE_APPOINTMENT_REASONS,
+  PERMISSIONS,
   WORKBENCH_PROCEDURES
 } from './modules/constants.js';
 import { followUpDueTimes } from './modules/schedule-engine.js';
@@ -98,6 +100,16 @@ if (
 
 let state;
 let filters = { status: 'today', kind: 'all', query: '' };
+// 櫃台清單目前的排序。預設「時間遞增」＝原本寫死的行為。
+let appointmentSort = { ...DEFAULT_APPOINTMENT_SORT };
+// 批次操作勾選中的預約 id。只存在於這一次瀏覽，不進 state、不落地。
+const selectedAppointments = new Set();
+// 每個批次處置允許的來源狀態，與 domain 的 planTransition 一致。批次不放寬
+// 任何規則——它只是把同一個處置連續套用在多筆上。
+const BATCH_ELIGIBLE_STATUS = {
+  cancel: ['confirmed', 'cancellation_requested'],
+  no_show: ['confirmed', 'cancellation_requested']
+};
 let slotKind = 'initial';
 let selectedSlotId;
 // 已決定回診但被「調整回診」重新開啟編輯的預約 id；讓它暫時回到逐筆回診確認。
@@ -236,11 +248,103 @@ function renderFilters() {
 }
 
 function renderAppointmentList() {
-  elements.appointments.innerHTML = renderAppointments(state, filters);
+  // 只留下畫得出來的選取：篩選換掉、或那筆已被處理掉之後，殘留的 id 會讓
+  // 「已選 3 筆」與畫面上看得到的東西對不起來。
+  const visible = new Set(
+    renderableAppointmentIds(state, filters).map((id) => id)
+  );
+  for (const id of [...selectedAppointments])
+    if (!visible.has(id)) selectedAppointments.delete(id);
+
+  elements.appointments.innerHTML = renderAppointments(
+    state,
+    filters,
+    appointmentSort,
+    selectedAppointments
+  );
   const count = elements.appointments.querySelectorAll(
     '[data-appointment-card]'
   ).length;
   elements['appointment-result-summary'].textContent = `${count} 筆結果`;
+  renderBatchBar();
+}
+
+/** 目前篩選條件下真的會被畫出來的預約 id。 */
+function renderableAppointmentIds(currentState, currentFilters) {
+  const markup = renderAppointments(
+    currentState,
+    currentFilters,
+    appointmentSort,
+    new Set()
+  );
+  return [...markup.matchAll(/data-appointment-card="([^"]+)"/g)].map(
+    (match) => match[1]
+  );
+}
+
+/**
+ * 批次操作列。
+ *
+ * 按鈕的啟用條件是「**每一筆**選取的預約都能執行這個處置」，而不是「有任何一筆
+ * 可以」——後者會讓使用者以為十筆都處理了，實際上只動到三筆。狀態不符時直接
+ * 停用並在摘要裡說明，不讓人按下去才發現失敗。
+ */
+function renderBatchBar() {
+  const bar = elements['appointment-batch-bar'];
+  const rows = [
+    ...elements.appointments.querySelectorAll('[data-appointment-select]')
+  ];
+  // 沒有任何可選的列時整條收起來，畫面上不留一條空工具列。
+  bar.hidden = rows.length === 0;
+  if (bar.hidden) return;
+
+  const selected = [...selectedAppointments];
+  const permissions = state.session?.permissions ?? [];
+  const statusOf = (id) =>
+    state.appointments.find((item) => item.id === id)?.status;
+  const eligible = (action) =>
+    selected.length > 0 &&
+    selected.every((id) =>
+      BATCH_ELIGIBLE_STATUS[action].includes(statusOf(id))
+    );
+
+  elements['appointment-selection-summary'].textContent =
+    selected.length === 0 ? '未選取任何預約' : `已選取 ${selected.length} 筆`;
+
+  for (const [action, key] of [
+    ['cancel', 'appointment-batch-cancel'],
+    ['no_show', 'appointment-batch-no-show']
+  ]) {
+    const button = elements[key];
+    // 沒有權限就整顆不出現，與單筆處置選單一致。
+    button.hidden = !permissions.includes(PERMISSIONS.CANCEL_BOOKING);
+    button.disabled = !eligible(action);
+  }
+
+  // 全選方塊的三態：全選、全不選、部分選取（indeterminate＝無障礙 API 的
+  // mixed）。indeterminate 只能用 JS 設，HTML 屬性沒有這個狀態。
+  const selectAll = elements['appointment-select-all'];
+  const allSelected = rows.length > 0 && selected.length === rows.length;
+  selectAll.checked = allSelected;
+  selectAll.indeterminate = selected.length > 0 && !allSelected;
+}
+
+/**
+ * 把某個清單的筆數寫進它的 live region 摘要。
+ *
+ * 數的是**已經畫在 DOM 上的東西**而不是 state，因為公告的目的就是描述使用者
+ * 眼前那份清單；兩者若因為篩選或權限而不一致，以畫面為準才不會誤導。
+ */
+function countSummary(summaryKey, listKey, selector, unit) {
+  const count = elements[listKey].querySelectorAll(selector).length;
+  elements[summaryKey].textContent = `${count} ${unit}`;
+}
+
+// 時段清單在四個地方重畫（首次 render、切換掛號別、選取時段、建立完成）。
+// 集中成一個函式，摘要才不會有某條路徑忘了更新。
+function renderSlotList() {
+  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  countSummary('slot-summary', 'slots', '[data-select-slot]', '個可預約時段');
 }
 
 function renderSummary() {
@@ -296,6 +400,12 @@ function renderCommunicationForms() {
   elements['maintenance-starts-at'].value = m.startsAt ?? '';
   elements['maintenance-resume-at'].value = m.resumeAt ?? '';
   elements['release-list'].innerHTML = renderReleases(state.workspace);
+  countSummary(
+    'release-list-summary',
+    'release-list',
+    '.release-row',
+    '筆發布紀錄'
+  );
 }
 
 function renderBlockedTimesForm() {
@@ -315,7 +425,7 @@ function render() {
   renderFilters();
   renderSummary();
   renderBookingForm();
-  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderSlotList();
   renderWeek();
   renderAppointmentList();
   elements['published-schedule'].innerHTML = renderSchedule(
@@ -341,6 +451,28 @@ function render() {
   elements['case-assignment-list'].innerHTML = renderCaseAssignments(state);
   elements.workload.innerHTML = renderWorkload(state);
   elements['account-list'].innerHTML = renderAccounts(state.workspace);
+  // 每個清單的內容都是整批置換，所以清單本身不是 live region；改由這些簡短的
+  // 摘要負責公告「變了、現在有幾筆」。詳見 index.html 裡 #appointments 上方的
+  // 說明。計數一律直接數 DOM，數字才不會和實際畫出來的東西分家。
+  countSummary(
+    'follow-up-summary',
+    'follow-up-list',
+    '[data-follow-up-form]',
+    '筆待確認'
+  );
+  countSummary(
+    'case-summary',
+    'case-assignment-list',
+    '[data-case-row]',
+    '筆個案'
+  );
+  countSummary('workload-summary', 'workload', '[data-workload-row]', '筆統計');
+  countSummary(
+    'account-summary',
+    'account-list',
+    '[data-account-row]',
+    '個帳號'
+  );
   renderCommunicationForms();
   elements['audit-events'].innerHTML = renderAudit(
     state,
@@ -510,7 +642,7 @@ elements['slot-kind-filter'].addEventListener('change', () => {
   slotKind = elements['slot-kind-filter'].value;
   elements['booking-kind'].value = slotKind;
   selectedSlotId = undefined;
-  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderSlotList();
   renderBookingForm();
 });
 
@@ -518,7 +650,7 @@ elements['booking-kind'].addEventListener('change', () => {
   slotKind = elements['booking-kind'].value;
   elements['slot-kind-filter'].value = slotKind;
   selectedSlotId = undefined;
-  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderSlotList();
   renderBookingForm();
 });
 
@@ -584,7 +716,7 @@ elements.slots.addEventListener('click', (event) => {
   const button = event.target.closest('[data-select-slot]');
   if (button === null) return;
   selectedSlotId = button.dataset.selectSlot;
-  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  renderSlotList();
   renderBookingForm();
   message(
     '已選擇時段，請確認上方預約資料後建立。',
@@ -652,6 +784,111 @@ elements['booking-form'].addEventListener('submit', async (event) => {
 });
 
 // 回診版卡片的「調整回診」：把該筆放回逐筆回診確認暫時顯示，捲過去可再改。
+// 欄位排序。點同一欄切換遞增／遞減，點另一欄則從遞增開始——遞增是「從頭看起」，
+// 換欄位時使用者要的幾乎都是這個。排序只影響呈現，不動任何資料。
+elements.appointments.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-sort-column]');
+  if (button === null) return;
+  const column = button.dataset.sortColumn;
+  appointmentSort =
+    appointmentSort.column === column
+      ? {
+          column,
+          direction:
+            appointmentSort.direction === 'ascending'
+              ? 'descending'
+              : 'ascending'
+        }
+      : { column, direction: 'ascending' };
+  renderAppointmentList();
+  // 重畫會換掉整個表頭，焦點會掉回 body。把焦點放回剛按的那一欄，鍵盤與螢幕
+  // 閱讀器使用者才能連續調整排序，而不是每按一次就要重新找位置。
+  elements.appointments
+    .querySelector(`[data-sort-column="${column}"]`)
+    ?.focus();
+});
+
+// 逐列勾選。只更新選取狀態與工具列，不重畫整張表——重畫會把焦點從剛勾的
+// 方塊上打掉，連續勾選就變得沒辦法用鍵盤完成。
+elements.appointments.addEventListener('change', (event) => {
+  const box = event.target.closest('[data-appointment-select]');
+  if (box === null) return;
+  const id = box.dataset.appointmentSelect;
+  if (box.checked) selectedAppointments.add(id);
+  else selectedAppointments.delete(id);
+  renderBatchBar();
+});
+
+elements['appointment-select-all'].addEventListener('change', (event) => {
+  const boxes = [
+    ...elements.appointments.querySelectorAll('[data-appointment-select]')
+  ];
+  selectedAppointments.clear();
+  for (const box of boxes) {
+    box.checked = event.target.checked;
+    if (event.target.checked)
+      selectedAppointments.add(box.dataset.appointmentSelect);
+  }
+  renderBatchBar();
+});
+
+elements['appointment-selection-clear'].addEventListener('click', () => {
+  selectedAppointments.clear();
+  renderAppointmentList();
+  message('已清除選取。', 'info');
+});
+
+// 批次處置。逐筆送出，而不是新增一條「批次」路徑：每一筆仍各自經過 domain
+// 的狀態守衛、冪等與稽核，批次只是連續呼叫同一個處置。
+const BATCH_LABELS = {
+  cancel: { verb: '確認取消', done: '已取消並釋放時段' },
+  no_show: { verb: '標記未到', done: '已標記未到並釋放時段' }
+};
+elements['appointment-batch-bar'].addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-batch-action]');
+  if (button === null) return;
+  const action = button.dataset.batchAction;
+  const ids = [...selectedAppointments];
+  if (ids.length === 0) return;
+  const { verb, done } = BATCH_LABELS[action];
+  const confirmed = await confirmDialog(
+    `確定將選取的 ${ids.length} 筆預約全部${verb}？時段會一併釋放，此動作會逐筆寫入稽核。`,
+    { danger: true, confirmLabel: `${verb} ${ids.length} 筆` }
+  );
+  if (!confirmed) return;
+
+  const paths = { cancel: 'cancel', no_show: 'no-show' };
+  const failures = [];
+  await runUiAction({
+    control: button,
+    pendingLabel: '處理中…',
+    pendingMessage: `正在${verb} ${ids.length} 筆預約，請稍候。`,
+    action: async () => {
+      for (const id of ids) {
+        try {
+          await post(`/bookings/${id}/${paths[action]}`);
+        } catch (error) {
+          // 一筆失敗不該讓其餘幾筆停下來，但也不能假裝全部成功——收集起來
+          // 一次照實回報。
+          failures.push(`${id}：${error.message}`);
+        }
+      }
+    },
+    onSuccess: () => {
+      selectedAppointments.clear();
+      renderAppointmentList();
+      if (failures.length === 0) {
+        message(`${ids.length} 筆${done}。`, 'success');
+        return;
+      }
+      message(
+        `${ids.length - failures.length} 筆${done}；${failures.length} 筆未處理（${failures.join('、')}）。`,
+        'error'
+      );
+    }
+  });
+});
+
 elements.appointments.addEventListener('click', (event) => {
   const edit = event.target.closest('[data-follow-up-edit]');
   if (edit === null) return;

@@ -253,7 +253,11 @@ const allowedControls = new Set([
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
   'theme-picker',
   // 2026-07-23：日曆投影死信補回的合成示範，不觸碰任何病患資料。
-  'outbox-fail-next'
+  'outbox-fail-next',
+  // 2026-07-25：櫃台清單的批次選取。只決定「哪幾列被勾起來」，本身不改任何
+  // 資料；真正的處置仍逐筆走既有的 /bookings/{id}/... 路徑，狀態守衛、權限與
+  // 稽核都不因為批次而放寬。
+  'appointment-select-all'
 ]);
 for (const control of files.adminShell.matchAll(
   /<(?:input|select)\b[^>]*\bid="([^"]+)"[^>]*>/gi
@@ -327,6 +331,28 @@ for (const key of ['adminClient', 'patientClient'])
     "from './modules/confirm-dialog.js'",
     `${key} must use the shared confirm dialog.`
   );
+
+// 重複的 id 在這個專案不是小瑕疵，是會壞掉的事：兩份客戶端都用
+// `Object.fromEntries(document.querySelectorAll('[id]'))` 建 elements 表，後出現
+// 的那個會直接蓋掉前一個，於是某個控制項被悄悄換成另一個元素——沒有錯誤訊息，
+// 只有讀到 undefined 的值或寫錯地方。2026-07-25 就發生過一次：新增的清單摘要
+// 用了 `release-summary`，撞到發布表單裡同名的 <textarea>。
+for (const [key, path] of [
+  ['adminShell', paths.adminShell],
+  ['patientHtml', paths.patientHtml]
+]) {
+  const ids = [...files[key].matchAll(/\sid="([^"]+)"/g)].map(
+    (match) => match[1]
+  );
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const id of ids) {
+    if (seen.has(id)) duplicates.add(id);
+    seen.add(id);
+  }
+  for (const id of duplicates)
+    failures.push(`${path} has a duplicate id="${id}".`);
+}
 
 if (failures.length > 0) {
   console.error('Modular test-only UI guard failed:');

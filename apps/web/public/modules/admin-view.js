@@ -160,6 +160,22 @@ function tagLabels(ids, catalogue) {
     .filter((label) => label !== undefined);
 }
 
+/**
+ * 每一列的選取方塊。
+ *
+ * 名稱必須逐列不同：螢幕閱讀器可以只在表單控制項之間跳，那時候看不到同一列的
+ * 其他格，一整排都叫「選取」的話根本分不出在勾誰。所以名稱帶上患者與時間。
+ * 「全選」則刻意放在表格**外面**的工具列，不放在這一欄的表頭——放進表頭會讓
+ * 它變成底下每一個選取方塊的欄位名，把每一列的名稱都汙染成「全選」。
+ */
+function selectCell(state, entry, selectedIds) {
+  const { appointment, effectiveStart } = entry;
+  const who = patientLabel(state, appointment.patientId);
+  const when = `${formatFullDate(effectiveStart)} ${formatTime(effectiveStart)}`;
+  const checked = selectedIds.has(appointment.id) ? ' checked' : '';
+  return `<td role="cell" data-label="選取"><input type="checkbox" class="row-select" data-appointment-select="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(`選取 ${who} ${when}`)}"${checked}></td>`;
+}
+
 export function renderTasks(state) {
   const tasks = [
     {
@@ -292,7 +308,7 @@ function queueEntry(state, appointment) {
 
 // 回診版卡片：已確認需要回診、尚未安排下次門診。主要時間顯示回診目標日
 // （＝日曆上的回診日）。「調整回診」把該筆重新放回逐筆回診確認可再改決定。
-function followUpQueueCard(state, entry, permissions) {
+function followUpQueueCard(state, entry, permissions, selectedIds) {
   const { appointment, decision, effectiveStart } = entry;
   const notes = tagLabels(decision.tags, FOLLOW_UP_NOTE_TAGS);
   if (decision.noteText) notes.push(decision.noteText);
@@ -307,10 +323,68 @@ function followUpQueueCard(state, entry, permissions) {
   // 回診版卡片同樣要能刪除：誤建的紀錄卡在回診佇列時，管理者需要清得掉。
   // 這張卡的來源預約已是 completed，其餘處置本來就不適用，選單實際上只會
   // 留下刪除。
-  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}"><td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診提醒已上日曆<span class="detail-line">來源 <span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></td></tr>`;
+  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診提醒已上日曆<span class="detail-line">來源 <span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></td></tr>`;
 }
 
-export function renderAppointments(state, filters) {
+// 櫃台清單的欄位定義。`sortKey` 有值的才可排序——「處置」是一堆按鈕，排它沒有
+// 意義。排序鍵回傳的字串一律用 zh-Hant 定序比較，中文才會照筆劃／注音排而不是
+// 照 UTF-16 碼位。
+const APPOINTMENT_COLUMNS = [
+  { label: '選取' },
+  { label: '時間', sortKey: 'time' },
+  { label: '患者', sortKey: 'patient' },
+  { label: '掛號別', sortKey: 'kind' },
+  { label: '療程', sortKey: 'item' },
+  { label: '狀態', sortKey: 'status' },
+  { label: '處置' }
+];
+
+export const DEFAULT_APPOINTMENT_SORT = {
+  column: 'time',
+  direction: 'ascending'
+};
+
+// 每一種排序鍵怎麼從佇列項目取出可比較的值。回診版（mode === 'followup'）的
+// 掛號別固定是「回診」、時間用回診目標日，與篩選那邊的規則保持一致。
+const SORT_VALUES = {
+  time: (state, entry) => String(entry.effectiveStart),
+  patient: (state, entry) =>
+    patientLabel(state, entry.appointment.patientId) ?? '',
+  kind: (state, entry) =>
+    entry.mode === 'followup'
+      ? '回診'
+      : (BOOKING_KIND_LABELS[entry.appointment.bookingKind] ?? ''),
+  item: (state, entry) => entry.appointment.itemLabel ?? '',
+  status: (state, entry) =>
+    entry.mode === 'followup'
+      ? '待安排回診'
+      : (APPOINTMENT_STATUS_LABELS[entry.appointment.status] ??
+        entry.appointment.status ??
+        '')
+};
+
+function compareEntries(state, sort) {
+  const read = SORT_VALUES[sort.column] ?? SORT_VALUES.time;
+  const sign = sort.direction === 'descending' ? -1 : 1;
+  return (left, right) => {
+    const result = read(state, left).localeCompare(
+      read(state, right),
+      'zh-Hant'
+    );
+    // 同值時一律回到時間先後，排序才是穩定的：否則每次重畫，同分的列可能換位。
+    if (result !== 0) return sign * result;
+    return String(left.effectiveStart).localeCompare(
+      String(right.effectiveStart)
+    );
+  };
+}
+
+export function renderAppointments(
+  state,
+  filters,
+  sort = DEFAULT_APPOINTMENT_SORT,
+  selectedIds = new Set()
+) {
   const query = filters.query.trim().toLocaleLowerCase('zh-Hant');
   const today = taipeiTodayDate();
   const entries = state.appointments
@@ -349,10 +423,8 @@ export function renderAppointments(state, filters) {
           );
       return statusMatches && kindMatches && queryMatches;
     })
-    // 一律依效期（回診版用回診日）由近到遠排序。
-    .sort((left, right) =>
-      String(left.effectiveStart).localeCompare(String(right.effectiveStart))
-    );
+    // 預設依效期（回診版用回診日）由近到遠；使用者點欄位標題可改。
+    .sort(compareEntries(state, sort));
 
   if (entries.length === 0)
     return emptyState(
@@ -369,7 +441,7 @@ export function renderAppointments(state, filters) {
   const rows = entries
     .map((entry) => {
       if (entry.mode === 'followup')
-        return followUpQueueCard(state, entry, permissions);
+        return followUpQueueCard(state, entry, permissions, selectedIds);
       const appointment = entry.appointment;
       const notes = tagLabels(appointment.noteTags, BOOKING_NOTE_TAGS);
       if (appointment.noteText) notes.push(appointment.noteText);
@@ -400,8 +472,8 @@ export function renderAppointments(state, filters) {
       const forms =
         rescheduleForm === '' && notesForm === ''
           ? ''
-          : `<tr role="row" class="appointment-forms" data-appointment-forms="${escapeHtml(appointment.id)}"><td role="cell" colspan="6">${rescheduleForm}${notesForm}</td></tr>`;
-      return `<tr role="row" class="appointment-row" data-appointment-card="${escapeHtml(appointment.id)}"><td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(appointment.startsAt))}</span><strong class="cell-time">${escapeHtml(formatTime(appointment.startsAt))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></td><td role="cell" data-label="療程">${escapeHtml(appointment.itemLabel ?? '')}<span class="detail-line"><span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div></td></tr>${forms}`;
+          : `<tr role="row" class="appointment-forms" data-appointment-forms="${escapeHtml(appointment.id)}"><td role="cell" colspan="7">${rescheduleForm}${notesForm}</td></tr>`;
+      return `<tr role="row" class="appointment-row" data-appointment-card="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(appointment.startsAt))}</span><strong class="cell-time">${escapeHtml(formatTime(appointment.startsAt))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></td><td role="cell" data-label="療程">${escapeHtml(appointment.itemLabel ?? '')}<span class="detail-line"><span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div></td></tr>${forms}`;
     })
     .join('');
 
@@ -417,10 +489,27 @@ export function renderAppointments(state, filters) {
   // 當表格，欄位與表頭的關聯整個消失。明確標上 role 就把語意釘回去。
   // 對照表出自〈Tables, CSS Display Properties, and ARIA〉：table / rowgroup /
   // row / columnheader / cell。
-  const columns = ['時間', '患者', '掛號別', '療程', '狀態', '處置']
-    .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
-    .join('');
-  return `<table class="data-table appointment-table" role="table"><caption>櫃台處理清單，依時間由近到遠排序</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
+  // 可排序的欄位照 WAI-ARIA APG 的 sortable table 做：`aria-sort` 掛在 `th` 上、
+  // 值只有 ascending／descending，**同一時間只有一欄**帶值（其餘不寫這個屬性）；
+  // 欄名包成 `<button>`，鍵盤操作就交給瀏覽器原生的按鈕行為，不必自己接鍵盤。
+  // 方向箭頭是純裝飾，設 aria-hidden 免得被讀進按鈕的可及名稱。
+  const columns = APPOINTMENT_COLUMNS.map(({ label, sortKey }) => {
+    if (sortKey === undefined)
+      return `<th scope="col" role="columnheader">${label}</th>`;
+    const active = sort.column === sortKey;
+    const ariaSort = active ? ` aria-sort="${sort.direction}"` : '';
+    const arrow = active
+      ? `<span class="sort-arrow" aria-hidden="true">${sort.direction === 'ascending' ? '&#9650;' : '&#9660;'}</span>`
+      : '';
+    return `<th scope="col" role="columnheader"${ariaSort}><button class="sort-button" type="button" data-sort-column="${escapeHtml(sortKey)}">${label}${arrow}</button></th>`;
+  }).join('');
+  // caption 在視覺上是隱藏的，所以順便在這裡把「怎麼改排序」講給螢幕閱讀器聽，
+  // 不必在每一顆欄名按鈕上重複一次。
+  const sorted = APPOINTMENT_COLUMNS.find(
+    (column) => column.sortKey === sort.column
+  );
+  const direction = sort.direction === 'ascending' ? '遞增' : '遞減';
+  return `<table class="data-table appointment-table" role="table"><caption>櫃台處理清單，目前依${escapeHtml(sorted?.label ?? '時間')}${direction}排序。點欄位標題可變更排序。</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
 // 排班的三段各自是一張小表。它們的欄位不同（星期／日期／掛號別），硬併成一張

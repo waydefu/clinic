@@ -341,7 +341,10 @@
                   </select></label
                 >
               </div>
-              <div id="slots" class="slot-grid" aria-live="polite"></div>
+              <p id="slot-summary" class="result-summary" aria-live="polite">
+                0 個可預約時段
+              </p>
+              <div id="slots" class="slot-grid"></div>
             </div>
           </details>
 
@@ -450,7 +453,10 @@
               </select></label
             >
             <div class="filter-actions">
-              <span id="appointment-result-summary" aria-live="polite"
+              <span
+                id="appointment-result-summary"
+                class="result-summary"
+                aria-live="polite"
                 >0 筆結果</span
               >
               <button
@@ -465,7 +471,61 @@
           <!-- 這個容器刻意**不是** live region。它的內容整批換掉，所以
                aria-live 會讓螢幕閱讀器把整張表逐列重唸一次——在搜尋框裡每打一個
                字就重唸一次結果集。變化由上方的 #appointment-result-summary
-               公告「N 筆結果」，使用者再自行瀏覽表格。 -->
+               公告「N 筆結果」，使用者再自行瀏覽表格。
+
+               全站的清單都照這個做法：aria-live 掛在簡短的 .result-summary 上，
+               不掛在清單容器本身。MDN 的 live region 指引也是這樣建議——用一句
+               精簡的狀態訊息，不要把大塊動態區域整個標成 live。 -->
+          <!-- 批次操作列。「全選」刻意放在表格**外面**：放進選取欄的表頭，它會
+               變成底下每一個選取方塊的欄位名，於是每一列都被唸成「全選」，
+               分不出在勾誰（Adrian Roselli 2025 記錄過這個陷阱）。
+               批次按鈕只在選取的每一列都能執行該處置時才啟用；權限與單筆處置
+               走同一組規則，store 端仍各自 requirePermission。 -->
+          <div
+            id="appointment-batch-bar"
+            class="batch-bar"
+            role="group"
+            aria-label="批次操作"
+            hidden
+          >
+            <label class="batch-select-all"
+              ><input
+                id="appointment-select-all"
+                type="checkbox"
+              />全選目前顯示的預約</label
+            >
+            <span
+              id="appointment-selection-summary"
+              class="result-summary"
+              aria-live="polite"
+              >未選取任何預約</span
+            >
+            <div class="batch-actions">
+              <button
+                id="appointment-batch-cancel"
+                class="button button-danger-outline"
+                type="button"
+                data-batch-action="cancel"
+              >
+                批次確認取消
+              </button>
+              <button
+                id="appointment-batch-no-show"
+                class="button button-secondary"
+                type="button"
+                data-batch-action="no_show"
+              >
+                批次標記未到
+              </button>
+              <button
+                id="appointment-selection-clear"
+                class="text-button"
+                type="button"
+              >
+                清除選取
+              </button>
+            </div>
+          </div>
           <div id="appointments" class="card-list"></div>
 
           <section
@@ -480,7 +540,10 @@
             <p class="section-description">
               系統不進行臨床推論，只記錄授權人員的明確決定。
             </p>
-            <div id="follow-up-list" class="card-list" aria-live="polite"></div>
+            <p id="follow-up-summary" class="result-summary" aria-live="polite">
+              0 筆待確認
+            </p>
+            <div id="follow-up-list" class="card-list"></div>
           </section>
         </section>
 
@@ -654,13 +717,15 @@
               完成到診後先指派個管師，再依月份計算不重複患者。
             </p>
           </div>
-          <div
-            id="case-assignment-list"
-            class="card-list"
-            aria-live="polite"
-          ></div>
+          <p id="case-summary" class="result-summary" aria-live="polite">
+            0 筆個案
+          </p>
+          <div id="case-assignment-list" class="card-list"></div>
           <h3 class="subsection-title">月度統計</h3>
-          <div id="workload" class="card-list" aria-live="polite"></div>
+          <p id="workload-summary" class="result-summary" aria-live="polite">
+            0 筆統計
+          </p>
+          <div id="workload" class="card-list"></div>
         </section>
 
         <section
@@ -698,11 +763,10 @@
               </button>
               <p id="account-form-status" class="form-status" hidden></p>
             </form>
-            <div
-              id="account-list"
-              class="account-list"
-              aria-live="polite"
-            ></div>
+            <p id="account-summary" class="result-summary" aria-live="polite">
+              0 個帳號
+            </p>
+            <div id="account-list"></div>
           </div>
         </section>
 
@@ -804,7 +868,14 @@
               <p id="release-form-status" class="form-status" hidden></p>
             </form>
           </div>
-          <div id="release-list" class="release-list" aria-live="polite"></div>
+          <p
+            id="release-list-summary"
+            class="result-summary"
+            aria-live="polite"
+          >
+            0 筆發布紀錄
+          </p>
+          <div id="release-list" class="release-list"></div>
         </section>
 
         <section

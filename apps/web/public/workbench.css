@@ -186,6 +186,54 @@
 .filter-actions .text-button {
   margin: 0;
 }
+/* 清單的筆數摘要。它同時是視覺資訊與 live region：清單本身整批置換，掛
+   aria-live 會讓螢幕閱讀器逐列重唸，所以由這一句短的代為公告。 */
+.result-summary {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--space-2xs);
+}
+/* 篩選列裡的那一個排在同一橫列上，不需要與下方清單的間距。 */
+.filter-actions .result-summary {
+  margin: 0;
+}
+
+/* 批次操作列。它是表格的工具列，所以貼著表格上緣、用比表面稍深的底色與表格
+   本身分開；沒有選取任何一筆時按鈕是停用的，整條仍留在原位，版面才不會在
+   勾第一筆的瞬間跳動。 */
+.batch-bar {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+}
+.batch-select-all {
+  align-items: center;
+  display: flex;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  gap: var(--space-3xs);
+}
+.batch-bar .result-summary {
+  margin: 0;
+}
+.batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin-left: auto;
+}
+/* 選取欄只放一個方塊，不需要跟著內容撐寬。 */
+.appointment-table td[data-label='選取'] {
+  white-space: nowrap;
+}
 .subsection-title {
   border-top: 1px solid var(--line);
   margin: var(--space-lg) 0 var(--space-sm);
@@ -610,6 +658,27 @@ details[open] > summary .workflow-summary-chevron {
   border-bottom: 1px solid var(--line);
   padding: var(--space-xs);
   vertical-align: top;
+}
+/* 可排序的欄名是一顆按鈕，但視覺上要維持表頭的樣子——把按鈕的預設外觀清掉，
+   只留下可點與焦點框。字級／字重／字距都繼承 th，兩種欄名才對得齊。 */
+.sort-button {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: var(--space-3xs);
+  letter-spacing: inherit;
+  padding: 0;
+}
+.sort-button:hover {
+  color: var(--ink);
+}
+.sort-arrow {
+  font-size: var(--text-micro);
+  line-height: 1;
 }
 /* 列的滑鼠停留回饋對所有資料表通用。展開式表單那一列（.appointment-forms）
    是上一筆的延伸、不是可掃描的資料列，所以排除在外。 */

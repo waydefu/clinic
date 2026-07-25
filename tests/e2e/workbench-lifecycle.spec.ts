@@ -57,22 +57,32 @@ async function recordLabelsDuring(
   });
 }
 
-async function createBooking(page: Page): Promise<void> {
+async function createBooking(
+  page: Page,
+  name = '測試患者甲',
+  phone = '0912345678',
+  nationalId = 'A123456789'
+): Promise<void> {
   await page.goto('/#appointments-section');
   // 建立預約的表單收在一個 <details> 裡，先展開。
   await page.locator('#booking-workflow').evaluate((element) => {
     (element as HTMLDetailsElement).open = true;
   });
-  await page.locator('#booking-name').fill('測試患者甲');
-  await page.locator('#booking-phone').fill('0912345678');
+  await page.locator('#booking-name').fill(name);
+  await page.locator('#booking-phone').fill(phone);
   await page.locator('#booking-birth').fill('1990-05-20');
-  await page.locator('#booking-national-id').fill('A123456789');
+  await page.locator('#booking-national-id').fill(nationalId);
   await page.locator('#booking-kind').selectOption('initial');
   // 選第一個可預約時段，再送出建立。
   await page.locator('#slots [data-select-slot]').first().click();
   await page.locator('#booking-form button[type="submit"]').click();
-  // 同上：只等最終狀態。建立成功的證據是清單多一筆，各測試自己驗。
-  await expect(page.locator('#booking-form-status')).toBeVisible();
+  // 等「預約已建立」這句真的出現，而不是只等表單狀態列現身。
+  //
+  // 成功處理器在收尾時會 `booking-workflow.open = false` 把建立表單收起來。
+  // 那一步發生在送出之後的非同步流程裡，所以太早返回的話，下一次呼叫這個
+  // helper 會先把表單打開、填到一半，才被前一筆的收尾關掉——症狀是後面的欄位
+  // 突然「不可見」。等到最終訊息出現，收尾就一定已經跑完了。
+  await expect(page.locator('#status')).toContainText('預約已建立');
 }
 
 // 合成資料是 2030 年，預設「當日」篩選看不到；切到「全部狀態」才會列出。
@@ -135,14 +145,20 @@ test.describe('櫃台處理清單', () => {
 
     const table = page.locator('#appointments table.appointment-table');
     await expect(table).toBeVisible();
-    await expect(table.locator('thead th')).toHaveText([
+    // 第一欄是批次選取。可排序的欄名帶著方向箭頭，所以用 toContainText 逐欄比對，
+    // 不比整串文字。
+    const headers = table.locator('thead th');
+    await expect(headers).toHaveCount(7);
+    for (const [index, label] of [
+      '選取',
       '時間',
       '患者',
       '掛號別',
       '療程',
       '狀態',
       '處置'
-    ]);
+    ].entries())
+      await expect(headers.nth(index)).toContainText(label);
 
     // 表格存在的理由就是垂直對齊——同一欄在每一列的左緣要一致，否則櫃台沒辦法
     // 靠掃描比對時間與姓名，那正是卡片做不到的事。
@@ -188,16 +204,129 @@ test.describe('櫃台處理清單', () => {
     await showAllAppointments(page);
     await page.setViewportSize({ width: 390, height: 900 });
 
-    const firstCell = page
+    // 第一欄是選取方塊，時間在第二欄。
+    const timeCell = page
       .locator('#appointments tbody tr[data-appointment-card] td')
-      .first();
+      .nth(1);
     // 表頭在手機上收起來，欄位名改由每一格的 ::before 帶出來——資訊不能因為
     // 表頭消失就跟著不見。
-    await expect(firstCell).toHaveAttribute('data-label', '時間');
-    const label = await firstCell.evaluate(
+    await expect(timeCell).toHaveAttribute('data-label', '時間');
+    const label = await timeCell.evaluate(
       (cell) => window.getComputedStyle(cell, '::before').content
     );
     expect(label).toContain('時間');
+  });
+});
+
+test.describe('欄位排序', () => {
+  test('依 APG：aria-sort 一次只有一欄，欄名是按鈕，可來回切換', async ({
+    page
+  }) => {
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+
+    const table = page.locator('#appointments table.appointment-table');
+    const sorted = table.locator('thead th[aria-sort]');
+    // 進場預設依時間遞增，而且**只有那一欄**帶 aria-sort。
+    await expect(sorted).toHaveCount(1);
+    await expect(sorted).toContainText('時間');
+    await expect(sorted).toHaveAttribute('aria-sort', 'ascending');
+
+    // 可排序的欄名要包成 button，鍵盤操作才由瀏覽器原生提供。
+    await expect(
+      table.locator('thead th button[data-sort-column]')
+    ).toHaveCount(5);
+
+    // 點另一欄：排序換過去，原本那欄不再帶 aria-sort（同時只有一欄）。
+    await table.locator('[data-sort-column="patient"]').click();
+    await expect(table.locator('thead th[aria-sort]')).toHaveCount(1);
+    await expect(table.locator('thead th[aria-sort]')).toContainText('患者');
+    await expect(table.locator('thead th[aria-sort]')).toHaveAttribute(
+      'aria-sort',
+      'ascending'
+    );
+
+    // 再點同一欄：切成遞減。
+    await table.locator('[data-sort-column="patient"]').click();
+    await expect(table.locator('thead th[aria-sort]')).toHaveAttribute(
+      'aria-sort',
+      'descending'
+    );
+
+    // 重畫會換掉整個表頭；焦點必須留在剛按的那一顆，否則鍵盤使用者每按一次
+    // 就得重新找位置。
+    await expect(table.locator('[data-sort-column="patient"]')).toBeFocused();
+  });
+});
+
+test.describe('批次選取與批次操作', () => {
+  test('全選在表格外、每列名稱各不相同、狀態不符時停用', async ({ page }) => {
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+
+    // 「全選」必須在表格外面。放進選取欄的表頭，它會變成底下每個選取方塊的
+    // 欄位名，於是每一列都被唸成「全選」。
+    await expect(
+      page.locator('#appointment-batch-bar #appointment-select-all')
+    ).toBeVisible();
+    await expect(
+      page.locator('table.appointment-table thead input[type="checkbox"]')
+    ).toHaveCount(0);
+
+    // 每一列的選取方塊都要有自己的名稱，且帶得出是誰。
+    const firstBox = page.locator('[data-appointment-select]').first();
+    await expect(firstBox).toHaveAttribute('aria-label', /選取 .+/);
+
+    // 沒選任何一筆時批次處置停用。
+    const batchNoShow = page.locator('#appointment-batch-no-show');
+    await expect(batchNoShow).toBeDisabled();
+
+    await firstBox.check();
+    await expect(page.locator('#appointment-selection-summary')).toHaveText(
+      '已選取 1 筆'
+    );
+    await expect(batchNoShow).toBeEnabled();
+
+    // 全選方塊在「部分選取」時要是 indeterminate（無障礙 API 的 mixed）。
+    // 這一筆是唯一一列，所以直接會是全選；改用兩列的情境在下一個測試裡。
+    await page.locator('#appointment-selection-clear').click();
+    await expect(page.locator('#appointment-selection-summary')).toHaveText(
+      '未選取任何預約'
+    );
+  });
+
+  test('批次標記未到只動選取的那幾筆，並照實回報筆數', async ({ page }) => {
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await createBooking(page, '測試患者乙', '0922333444', 'A222333444');
+    await showAllAppointments(page);
+
+    const boxes = page.locator('[data-appointment-select]');
+    await expect(boxes).toHaveCount(2);
+
+    // 只勾第一筆。
+    await boxes.first().check();
+    // 部分選取 → 全選方塊是 indeterminate。
+    expect(
+      await page
+        .locator('#appointment-select-all')
+        .evaluate((box) => (box as HTMLInputElement).indeterminate)
+    ).toBe(true);
+
+    await page.locator('#appointment-batch-no-show').click();
+    await page.locator('.confirm-dialog button.button-danger').click();
+
+    // 選到的那筆變成「未到」，另一筆完全沒被動到——批次不該波及沒勾的列。
+    await expect(page.locator('#status')).toContainText('1 筆已標記未到');
+    // 比對狀態欄裡的那顆 chip，不要整列比文字：「更多處置」選單裡也有一顆
+    // 叫「未到」的按鈕，整列比會把還沒處理的那一列也算進去。
+    const statusChips = page.locator(
+      'tr[data-appointment-card] td[data-label="狀態"] .status-chip'
+    );
+    await expect(statusChips.filter({ hasText: '未到' })).toHaveCount(1);
+    await expect(statusChips.filter({ hasText: '預約成立' })).toHaveCount(1);
   });
 });
 
