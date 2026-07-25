@@ -61,9 +61,36 @@ describe('hosting security headers', () => {
     expect(headerValue('X-Robots-Tag')).toContain('noindex');
   });
 
-  // HTML 進入點必須維持 no-store，永遠抓到最新的雜湊參照。
-  it('keeps html entry points on no-store via the catch-all block', () => {
-    expect(headerValue('Cache-Control')).toBe('no-store');
+  // 沒有跨來源彈窗，也不需要被別站當子資源載入，所以兩者都收到 same-origin。
+  it('isolates the browsing context and its resources cross-origin', () => {
+    expect(headerValue('Cross-Origin-Opener-Policy')).toBe('same-origin');
+    expect(headerValue('Cross-Origin-Resource-Policy')).toBe('same-origin');
+  });
+
+  // 處理健康資料的站台沒有理由預設參與 Privacy Sandbox 的任何一項。
+  it('opts out of device access and the Privacy Sandbox APIs', () => {
+    const policy = headerValue('Permissions-Policy');
+    for (const feature of [
+      'camera',
+      'microphone',
+      'geolocation',
+      'payment',
+      'browsing-topics',
+      'attribution-reporting',
+      'join-ad-interest-group',
+      'run-ad-auction'
+    ]) {
+      expect(policy).toContain(`${feature}=()`);
+    }
+  });
+
+  // HTML 進入點必須每次重新驗證，才會抓到最新的雜湊參照。
+  //
+  // 用 `no-cache` 而不是 `no-store`：兩者都保證重新驗證，但 `no-store` 額外
+  // 禁止任何快取保存回應，因此 Chrome 不會把頁面放進 back/forward cache。
+  // 上一頁會變成完整的重新載入而不是瞬間還原，白白犧牲一項實地效能指標。
+  it('revalidates html entry points without forfeiting the bfcache', () => {
+    expect(headerValue('Cache-Control')).toBe('no-cache');
   });
 
   // 只有內容雜湊過的 js/css 可以永久 immutable 快取：改一版就是新檔名，舊快取
@@ -83,5 +110,34 @@ describe('hosting security headers', () => {
     );
     expect(cacheControl.value).toContain('immutable');
     expect(cacheControl.value).toContain('max-age=31536000');
+  });
+});
+
+// `apps/web/server.mjs` 存在的理由，是在本機以與 Firebase Hosting 相同的安全與
+// 快取語意提供產物。兩份設定一旦漂移，本地與 E2E 測到的就不是會部署的東西——
+// 這正是先前 Permissions-Policy 少了 `payment=()` 卻沒有人發現的原因。
+describe('the local server mirrors the hosting headers', () => {
+  const server = readFileSync(
+    fileURLToPath(new URL('../server.mjs', import.meta.url)),
+    'utf8'
+  );
+
+  it.each([
+    'Content-Security-Policy',
+    'Cross-Origin-Opener-Policy',
+    'Cross-Origin-Resource-Policy',
+    'Permissions-Policy',
+    'Referrer-Policy',
+    'X-Content-Type-Options',
+    'X-Frame-Options',
+    'X-Robots-Tag'
+  ])('serves %s with the value firebase.json declares', (key) => {
+    // 原始碼裡的 header 常為了行寬而在冒號後折行，比對前先把換行與縮排收掉。
+    expect(server.replace(/\s*\n\s*/g, ' ')).toContain(headerValue(key));
+  });
+
+  it('serves html with the same revalidating cache policy', () => {
+    expect(server).toContain(`'${headerValue('Cache-Control')}'`);
+    expect(server).not.toContain("'no-store'");
   });
 });

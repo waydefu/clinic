@@ -57,10 +57,16 @@ const server = createServer(async (request, response) => {
 
   try {
     const content = await readFile(filePath);
+    // `no-cache` 而不是 `no-store`：兩者都保證每次都向伺服器重新驗證，但
+    // `no-store` 額外禁止把回應留在任何快取裡，因此 Chrome 不會把帶著它的頁面
+    // 放進 back/forward cache。上一頁因此變成一次完整的重新載入與重新啟動，
+    // 而 bfcache 還原在 Core Web Vitals 的實地資料裡是近乎瞬間的導覽。
+    // 實測（同一份 dist，只改這個標頭）：no-store 時上一頁重新下載 19,983
+    // bytes，no-cache 時 transferSize 為 0。
     const cacheControl =
       servingDist && /\.[a-f0-9]{10}\.(?:js|css)$/.test(relativePath)
         ? 'public, max-age=31536000, immutable'
-        : 'no-store';
+        : 'no-cache';
     response.writeHead(200, {
       'Cache-Control': cacheControl,
       // connect-src must include 'self': the modular admin bootstrap fetches
@@ -68,8 +74,17 @@ const server = createServer(async (request, response) => {
       // synthetic state in the browser rather than calling the API.
       'Content-Security-Policy':
         "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      // 沒有任何跨來源彈窗或被他站嵌入的需求，所以兩者都收到 same-origin：
+      // 前者切斷跨來源視窗對 window.opener 的存取，後者阻止其他站台把本站資源
+      // 當成子資源載入。
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Resource-Policy': 'same-origin',
       'Content-Type': contentType,
-      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+      // 必須與 firebase.json 逐字相同——這個 server 的存在意義就是在本機重現
+      // Hosting 的安全與快取語意，漂移等於測到的不是會部署的東西。
+      // Privacy Sandbox 的幾項一併關掉：處理健康資料的站台沒有理由預設參與。
+      'Permissions-Policy':
+        'camera=(), microphone=(), geolocation=(), payment=(), browsing-topics=(), attribution-reporting=(), join-ad-interest-group=(), run-ad-auction=()',
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
