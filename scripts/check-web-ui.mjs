@@ -72,17 +72,17 @@ requireText(
 );
 requireText(
   files.adminShell,
-  '排班草稿與發布',
+  '營業時間草稿與發布',
   'Admin shell is missing schedule draft/publish workflow.'
 );
 requireText(
   files.adminShell,
-  '逐筆回診確認',
+  '登錄回診指示',
   'Admin shell is missing per-appointment follow-up decisions.'
 );
 requireText(
   files.adminShell,
-  '個案指派與月度工作量',
+  '個管指派與工作量',
   'Admin shell is missing case assignment workflow.'
 );
 requireText(

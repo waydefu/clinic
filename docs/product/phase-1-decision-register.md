@@ -128,6 +128,23 @@ the answer, approval date and evidence in the table and template below.
 - Operating and deletion instructions are in
   `docs/runbooks/synthetic-online-preview.md`.
 
+### Synthetic front-desk capability baseline - 2026-07-25
+
+- The project owner directed completing and jointly accepting the corrective
+  role, responsive-header, notification and maintenance-mode batch while
+  leaving visual Phase 5 unchanged.
+- The synthetic front-desk role may create and process appointments, record a
+  doctor's follow-up decision, and make the first case-manager assignment.
+  Reassignment, business-hours governance, staff permissions, announcements,
+  maintenance controls, advanced settings, local-state reset and audit remain
+  supervisor-only.
+- The implementation must enforce those boundaries in the rendered DOM, hash
+  routing, UI action dispatch and synthetic store. Hiding a control alone is
+  not accepted as authorization.
+- This is a browser-local build and acceptance direction only. It does **not**
+  approve D-006, create a real identity or RBAC system, authorize a cloud
+  backend, permit real data, or change any D-001 through D-011 status.
+
 ### Test-only authority - 2026-07-20
 
 - The project owner authorised local synthetic testing while all formal
