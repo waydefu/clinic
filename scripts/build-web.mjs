@@ -12,9 +12,10 @@ import process from 'node:process';
 // 永遠不會回錯的內容。HTML 進入點維持穩定檔名與 no-store，永遠指向最新的雜湊
 // 資產。
 //
-// 這**不放寬 CSP**：不合併模組、不注入 inline script，仍是一份份 `script-src
-// 'self'` 的 ES module，只是檔名帶了雜湊。核心的純函式 `planHashedBuild` 不碰
-// I/O，單元測試直接餵它一組合成檔案來驗證雜湊、匯入改寫與 HTML 改寫。
+// 這**不放寬 CSP**：不注入 inline script，仍是一份份 `script-src 'self'` 的 ES
+// module，只是檔名帶了雜湊，並在 <head> 多了同源的 `modulepreload` 宣告。核心的
+// 純函式 `planHashedBuild` 不碰 I/O，單元測試直接餵它一組合成檔案來驗證雜湊、
+// 匯入改寫、HTML 改寫與 preload 注入。
 
 const HASHABLE = new Set(['.js', '.css']);
 const HTML_EXTENSION = '.html';
@@ -38,6 +39,10 @@ function hashedBasename(path, hash) {
 // 只改寫相對匯入（./ 或 ../）。shipped module 沒有裸名或 root-absolute 匯入，
 // 也沒有動態 import；驗證過的前提讓這個改寫可以只用正則而不必完整解析。
 const IMPORT_SPECIFIER = /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
+
+// HTML 進入點掛載模組的方式，以及注入 preload 的錨點。
+const MODULE_ENTRY = /<script\s+type="module"\s+src="(\/[^"]+\.js)"/g;
+const CLOSING_HEAD = /(?:(\r?\n)([ \t]*))?<\/head>/;
 
 function relativeSpecifiers(source) {
   const found = new Set();
@@ -222,8 +227,71 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
       }
     );
 
+  // 進入點模組的傳遞閉包，BFS 順序（相依先於它的相依）。
+  const moduleClosure = (entry) => {
+    const order = [];
+    const seen = new Set([entry]);
+    const queue = [entry];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      order.push(current);
+      for (const next of dependencies.get(current) ?? []) {
+        if (seen.has(next)) continue;
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+    return order;
+  };
+
+  /**
+   * 在 <head> 注入整個模組圖的 `modulepreload`。
+   *
+   * 為什麼需要：模組是逐檔出貨的（不做 bundling，刻意保留 dist 與 public 的逐檔
+   * 對應），而 `<script type="module">` 掛在 <body> 末端。瀏覽器因此只能一層一層
+   * 地發現相依——實測患者頁要 5 趟連續往返才把 31 個模組收齊，其中 18 個要到
+   * 第 4 趟才第一次被看到。手機上這是開機前先付掉的純延遲。
+   *
+   * `modulepreload` 把整張圖在解析 <head> 時就一次宣告完，往返從 5 趟壓成 1 趟。
+   * 這不放寬 CSP：preload 的來源仍受 `script-src 'self'` 管轄，且注入的是同源的
+   * 雜湊檔名。
+   *
+   * 進入點自己也列入：它的 <script> 標籤在 <body> 末端，早一點開始抓沒有壞處，
+   * 而且 module map 會去重，不會下載兩次。
+   */
+  const withModulePreloads = (rewritten, source) => {
+    const preloaded = new Set();
+    for (const match of source.matchAll(MODULE_ENTRY)) {
+      const entry = match[1].slice(1);
+      if (!files.has(entry)) continue;
+      for (const path of moduleClosure(entry)) preloaded.add(path);
+    }
+    if (preloaded.size === 0) return rewritten;
+
+    const links = [...preloaded].map(
+      (path) => `<link rel="modulepreload" href="${servedUrl.get(path)}" />`
+    );
+    const closingHead = CLOSING_HEAD.exec(rewritten);
+    if (closingHead === null) {
+      throw new Error(
+        'An HTML entry point declares a module script but has no </head> to preload into.'
+      );
+    }
+    // 縮排跟著 </head> 走，讓產物仍然讀得下去——dist 被 .prettierignore 排除，
+    // 沒有排版器會來收拾。
+    const [whole, newline = '', indent = ''] = closingHead;
+    return rewritten.replace(
+      whole,
+      links.map((link) => `${newline}${indent}  ${link}`).join('') + whole
+    );
+  };
+
   for (const path of htmlPaths) {
-    outputs.set(path, rewriteHtmlReferences(String(files.get(path))));
+    const source = String(files.get(path));
+    outputs.set(
+      path,
+      withModulePreloads(rewriteHtmlReferences(source), source)
+    );
     manifest.set(path, path);
   }
   for (const path of otherPaths) {
@@ -299,9 +367,19 @@ async function minifyStylesheets(files) {
  * 壓縮模組，就地改寫檔案集合。理由與樣式表相同：原始碼裡大量「為什麼這樣寫」的
  * 中文註解不該由每位訪客付費下載。實測 gzip 後省下約 44%。
  *
- * **不做 bundling**，只逐檔壓縮：CSP 是 `script-src 'self'`，產物必須維持一份份
- * 的 ES module，`planHashedBuild` 也還要靠 import 語句改寫成雜湊檔名。esbuild 在
- * 非 bundle 模式下會原樣保留 `from"./x.js"`，改寫用的正規表示式吃得下。
+ * **不做 bundling**，只逐檔壓縮。理由是**逐檔可讀性**：dist 必須與 public 逐檔
+ * 對應，出貨的程式碼才能被讀、被對照原始碼檢查（2026-07-26 決策，見
+ * `docs/product/phase-1-decision-register.md`）。
+ *
+ * 先前這裡寫的理由是「CSP 是 `script-src 'self'`，產物必須維持一份份的 ES
+ * module」——**那是錯的**。CSP 管的是腳本的來源與是否 inline，不是檔案數量；
+ * 一支同源的 bundle 完全符合 `script-src 'self'`。決定本身不變，但理由要說真話，
+ * 否則下一個讀到的人會以為那是硬性限制而不再重新評估。
+ *
+ * 代價是模組圖靠瀏覽器逐層發現會產生往返瀑布，這由 `planHashedBuild` 注入的
+ * `modulepreload` 攤平。`planHashedBuild` 也還要靠 import 語句改寫成雜湊檔名，
+ * 而 esbuild 在非 bundle 模式下會原樣保留 `from"./x.js"`，改寫用的正規表示式
+ * 吃得下。
  *
  * `keepNames` 是保險：壓縮會重新命名區域識別字，若有任何程式靠 `constructor.name`
  * 或 `error.name` 判斷分支，改名就會靜默走錯。保留名稱只多一點點位元組。

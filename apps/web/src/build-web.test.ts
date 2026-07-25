@@ -11,10 +11,14 @@ function sampleFiles(): Files {
   return new Map<string, string>([
     [
       'index.html',
-      '<link rel="stylesheet" href="/styles.css" />' +
-        '<link rel="icon" href="/favicon.svg" />' +
-        '<a href="/patient.html">x</a><a href="#top">y</a>' +
-        '<script type="module" src="/app.js"></script>'
+      '<head>\n' +
+        '    <link rel="stylesheet" href="/styles.css" />\n' +
+        '    <link rel="icon" href="/favicon.svg" />\n' +
+        '  </head>\n' +
+        '  <body>\n' +
+        '    <a href="/patient.html">x</a><a href="#top">y</a>\n' +
+        '    <script type="module" src="/app.js"></script>\n' +
+        '  </body>'
     ],
     ['styles.css', ':root{color:green}'],
     ['app.js', "import { greet } from './modules/greet.js';\ngreet();\n"],
@@ -74,6 +78,59 @@ describe('planHashedBuild', () => {
     expect(html).toContain('href="/favicon.svg"');
     expect(html).toContain('href="/patient.html"');
     expect(html).toContain('href="#top"');
+  });
+
+  // 逐檔出貨（不 bundling）代表瀏覽器只能一層一層發現相依。preload 把整張圖
+  // 在解析 <head> 時就宣告完，往返從「圖的深度」壓成 1 趟。漏掉任何一個檔案
+  // 就等於那一層又要多一趟。
+  it('preloads the whole module graph of every entry point in the head', () => {
+    const { outputs, manifest } = planHashedBuild(sampleFiles());
+    const html = outputs.get('index.html') as string;
+
+    for (const source of ['app.js', 'modules/greet.js', 'modules/name.js']) {
+      expect(html).toContain(
+        `<link rel="modulepreload" href="/${manifest.get(source)}" />`
+      );
+    }
+    // In <head>, not appended somewhere later: a preload discovered after the
+    // body has been parsed buys nothing.
+    expect(html.indexOf('modulepreload')).toBeLessThan(html.indexOf('</head>'));
+    // Only modules. The stylesheet has its own <link rel="stylesheet"> and the
+    // image is not part of the module graph.
+    expect(html).not.toContain(
+      `<link rel="modulepreload" href="/${manifest.get('styles.css')}" />`
+    );
+    expect(html).not.toContain('modulepreload" href="/favicon.svg"');
+  });
+
+  it('preloads the hashed name, so a preload can never miss the served file', () => {
+    const { outputs, manifest } = planHashedBuild(sampleFiles());
+    const html = outputs.get('index.html') as string;
+
+    for (const match of html.matchAll(
+      /<link rel="modulepreload" href="\/([^"]+)" \/>/g
+    ))
+      expect(outputs.has(match[1] as string)).toBe(true);
+    // And the source names never leak into the output.
+    expect(html).not.toContain('href="/app.js"');
+    expect(manifest.get('app.js')).not.toBe('app.js');
+  });
+
+  // 一個宣告了模組卻沒有 </head> 的進入點會靜默失去整層 preload。建置期爆炸
+  // 好過在使用者的瀏覽器裡多付一趟往返。
+  it('refuses to build an entry point that declares a module but has no head', () => {
+    const headless = sampleFiles();
+    headless.set('index.html', '<script type="module" src="/app.js"></script>');
+
+    expect(() => planHashedBuild(headless)).toThrow(/no <\/head>/);
+  });
+
+  it('leaves an html file with no module script alone', () => {
+    const files = sampleFiles();
+    files.set('404.html', '<head>\n  </head>\n  <body>gone</body>');
+    const { outputs } = planHashedBuild(files);
+
+    expect(outputs.get('404.html')).not.toContain('modulepreload');
   });
 
   it('is deterministic across runs', () => {

@@ -19,7 +19,7 @@ import { taipeiIso } from './taipei-time.js';
 import {
   calendarEventIdForAppointment,
   calendarEventIdForFollowUp
-} from '../vendor/domain/index.js';
+} from '../vendor/domain/calendar-event-id.js';
 
 const MAX_NOTE_LENGTH = 120;
 const MAX_CERTIFICATE_COPIES = 10;

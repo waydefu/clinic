@@ -10,9 +10,9 @@ import {
   assertReschedulable,
   assertSlotBookable,
   assertTransitionAllowed,
-  assertWithinActiveBookingLimit,
-  DomainError
-} from '../vendor/domain/index.js';
+  assertWithinActiveBookingLimit
+} from '../vendor/domain/appointment-rules.js';
+import { DomainError } from '../vendor/domain/errors.js';
 
 const MESSAGES = {
   SLOT_UNAVAILABLE: '此時段已無法預約。',

@@ -4,15 +4,22 @@
 // 直接用相對路徑而非 import map 的裸名：import map 是 inline script，會被本
 // 專案的 CSP（script-src 'self'，無 unsafe-inline）擋掉，實機驗證過。相對路徑
 // 不涉及 CSP，且單一來源與防漂移的目的完全不受影響。
+//
+// 指向**實際檔案**而不是 vendor/domain/index.js。那個 barrel 是 `export *` ×
+// 13，而瀏覽器不做 bundling（刻意保留逐檔可讀性），所以經過 barrel 就等於把
+// 薪資、個管、outbox 等患者頁用不到的模組全部下載一遍。深層匯入把 vendor 的
+// 傳遞閉包從 13 個檔案縮到 7 個。
 export {
   ACTIVE_BOOKING_LIMIT,
-  ACTIVE_BOOKING_STATUSES,
-  // 時區與掛號網格是診所規則，不是介面設定：兩邊各寫一份就會漂移，因此同樣
-  // 從編譯後的 domain 取得（ADR-0004）。
+  ACTIVE_BOOKING_STATUSES
+} from '../vendor/domain/booking-transaction.js';
+// 時區與掛號網格是診所規則，不是介面設定：兩邊各寫一份就會漂移，因此同樣
+// 從編譯後的 domain 取得（ADR-0004）。
+export {
   SLOT_DURATION_MINUTES,
   SLOT_MINUTE_MARKS,
   TAIPEI_TIME_ZONE as TIME_ZONE
-} from '../vendor/domain/index.js';
+} from '../vendor/domain/schedule.js';
 
 // 診所對外資訊的單一來源。patient.html 的結構化資料與行事曆匯出都以此為準；
 // 修改時請一併更新 patient.html 內的 JSON-LD。

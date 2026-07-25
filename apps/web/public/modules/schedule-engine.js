@@ -9,14 +9,14 @@
 // 與 domain-rules.js 同一個做法：措辭留在邊界，規則留在領域套件。在這之前，
 // 患者看到的可預約時間與未來 API 會核可的時間是兩份各自實作的診所政策。
 import { SYNTHETIC_WINDOW_DAYS, SYNTHETIC_WINDOW_START } from './constants.js';
+import { DomainError } from '../vendor/domain/errors.js';
 import {
   assertScheduleValid,
   assertScheduleVersionMatches,
-  DomainError,
   followUpGridTimes,
   planSlots,
   scheduleImpact as domainScheduleImpact
-} from '../vendor/domain/index.js';
+} from '../vendor/domain/schedule.js';
 
 const MESSAGES = {
   INVALID_VALUE: '營業時間設定無效：請確認時間為 HH:MM，且開始早於結束。',
