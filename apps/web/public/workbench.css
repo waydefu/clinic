@@ -1,8 +1,23 @@
 .app-shell-wide {
   max-width: 92rem;
 }
+.topbar {
+  display: grid;
+  grid-template-columns: minmax(12rem, auto) minmax(9rem, 1fr) auto;
+}
+.topbar-context {
+  justify-self: center;
+}
+.topbar-command {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2xs);
+  justify-self: end;
+  min-width: 0;
+  position: relative;
+}
 .topbar-tools {
-  margin-left: auto;
+  margin-left: 0;
 }
 .topbar-tools > summary {
   display: none;
@@ -485,15 +500,33 @@ details[open] > summary .workflow-summary-chevron {
 }
 @media (max-width: 48rem) {
   .topbar {
-    align-items: flex-start;
+    align-items: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-bottom: var(--space-xs);
+  }
+  .topbar-context {
+    display: none;
+  }
+  .topbar-command {
+    align-self: start;
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .brand {
+    grid-column: 1;
+    grid-row: 1;
   }
   .topbar-actions {
     align-items: stretch;
-    width: 100%;
+    width: min(20rem, calc(100vw - 2 * var(--space-sm)));
   }
   .topbar-tools {
     margin-left: 0;
-    width: 100%;
+    position: relative;
+    width: auto;
   }
   .topbar-tools > summary {
     background: var(--surface);
@@ -501,17 +534,28 @@ details[open] > summary .workflow-summary-chevron {
     border-radius: var(--radius-md);
     display: flex;
     justify-content: center;
-    padding: var(--space-xs) var(--space-sm);
+    min-height: 2.75rem;
+    padding: var(--space-2xs);
+    width: 2.75rem;
+  }
+  .topbar-tools > summary strong {
+    display: none;
   }
   .topbar-tools[open] > summary {
     background: var(--forest-light);
     color: var(--forest-dark);
   }
   .topbar-tools > .topbar-actions {
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    margin-top: var(--space-xs);
+    box-shadow: var(--elevation-2);
+    margin-top: var(--space-2xs);
     padding: var(--space-xs);
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 18;
   }
   .session-picker {
     align-items: stretch;
@@ -611,6 +655,33 @@ details[open] > summary .workflow-summary-chevron {
   .calendar-disclosure .week-view,
   .calendar-disclosure .week-view-legend {
     margin-inline: var(--space-xs);
+  }
+}
+/* 200% 文字縮放時 320px 視窗等同極窄內容欄：保留可辨識的標誌與兩個
+   44px 以上操作目標，收起重複字標，並允許設定選單在 popover 內縮排。 */
+@media (max-width: 30rem) {
+  .app-shell {
+    padding-inline: var(--space-2xs);
+  }
+  .topbar .brand > span {
+    display: none;
+  }
+  .compact-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .compact-hero > * {
+    min-width: 0;
+  }
+  .compact-hero :is(h1, h2, p, li, span) {
+    overflow-wrap: anywhere;
+  }
+  .status-chip {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .session-picker select {
+    min-width: 0;
+    width: 100%;
   }
 }
 
@@ -1549,7 +1620,10 @@ details[open] > summary .workflow-summary-chevron {
   border-left: 0.28rem solid var(--info-text);
 }
 
-/* 導覽鈴鐺與紅點提醒 */
+/* 導覽鈴鐺與紅點提醒。popover 絕對定位，所以開關不會把 header 撐高。 */
+.notification-center {
+  position: relative;
+}
 .nav-bell {
   align-items: center;
   background: transparent;
@@ -1557,11 +1631,11 @@ details[open] > summary .workflow-summary-chevron {
   color: var(--ink-muted);
   display: inline-flex;
   font-size: var(--text-md);
-  height: 2.5rem;
+  height: 2.75rem;
   justify-content: center;
-  margin-left: auto;
+  margin-left: 0;
   position: relative;
-  width: 2.5rem;
+  width: 2.75rem;
 }
 .nav-bell:hover,
 .nav-bell.has-alert {
@@ -1577,7 +1651,37 @@ details[open] > summary .workflow-summary-chevron {
   top: 0.3rem;
   width: 0.7rem;
 }
-.bell-dialog .bell-list {
+.notification-popover {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  max-height: min(32rem, calc(100vh - 6rem));
+  overflow-y: auto;
+  padding: var(--space-sm);
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-2xs));
+  width: min(24rem, calc(100vw - 2 * var(--space-sm)));
+  z-index: 20;
+}
+.notification-heading-row {
+  align-items: center;
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
+}
+.notification-heading-row h2,
+.notification-popover > p {
+  margin-bottom: 0;
+}
+.notification-popover > p {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  margin-bottom: var(--space-xs);
+}
+.notification-popover .bell-list {
   display: grid;
   gap: var(--space-xs);
   list-style: none;
@@ -1598,6 +1702,35 @@ details[open] > summary .workflow-summary-chevron {
   font-weight: var(--weight-bold);
   text-decoration: none;
   width: fit-content;
+}
+.advanced-settings {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-lg);
+}
+.advanced-settings > summary {
+  cursor: pointer;
+  font-weight: var(--weight-bold);
+  min-height: 2.75rem;
+  padding: var(--space-sm);
+}
+.danger-zone {
+  border-top: 1px solid var(--danger-line);
+  padding: var(--space-sm);
+}
+.danger-zone h3 {
+  color: var(--danger);
+}
+.danger-zone p,
+.read-only-field,
+.field-hint {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+}
+.read-only-field {
+  display: grid;
+  gap: var(--space-4xs);
 }
 
 /* 高對比 / forced-colors：工作臺分頁的「目前分頁」底色會被系統抹掉，

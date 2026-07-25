@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta
       name="description"
-      content="一森渼診所預約營運工作臺：預約、回診、排班與個管的內部作業介面。"
+      content="一森渼診所預約營運工作臺：預約、回診、營業時間與個管的內部作業介面。"
     />
     <meta name="theme-color" content="#155c48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -62,9 +62,7 @@
         <div class="login-hint">
           <p><strong>測試帳號（合成、非機密）</strong></p>
           <ul>
-            <li>
-              管理者：<code>admin</code> ／ <code>beauessence-admin</code>
-            </li>
+            <li>主管：<code>admin</code> ／ <code>beauessence-admin</code></li>
             <li>櫃台：<code>front</code> ／ <code>beauessence-front</code></li>
           </ul>
           <p class="login-boundary">
@@ -92,54 +90,84 @@
             ><small>Appointment operations</small></span
           ></a
         >
-        <button
-          id="nav-bell"
-          class="nav-bell"
-          type="button"
-          aria-label="待辦提醒"
-        >
-          <span aria-hidden="true">&#128276;</span>
-          <span id="nav-bell-dot" class="nav-bell-dot" hidden></span>
-        </button>
-        <details class="topbar-tools" open>
-          <summary>
-            <span aria-hidden="true">&#9881;</span><strong>工作臺設定</strong>
-          </summary>
-          <div class="topbar-actions">
-            <span class="environment-badge"
-              ><span></span><b id="environment-label">ONLINE PREVIEW</b></span
-            ><button id="logout" class="button button-secondary" type="button">
-              登出</button
-            ><label class="session-picker theme-picker-label"
-              >主題<select id="theme-picker" aria-label="顯示主題">
-                <option value="auto">跟隨系統</option>
-                <option value="light">淺色</option>
-                <option value="warm">護眼</option>
-                <option value="dark">深色</option>
-              </select></label
-            ><a class="button button-secondary" href="/patient.html"
-              >患者預約頁</a
-            ><button
-              id="reset-state"
-              class="button button-danger-outline"
+        <div class="topbar-context">
+          <span class="environment-badge"
+            ><span></span><b id="environment-label">ONLINE PREVIEW</b></span
+          >
+        </div>
+        <div class="topbar-command">
+          <div class="notification-center">
+            <button
+              id="nav-bell"
+              class="nav-bell"
               type="button"
+              aria-label="通知，沒有未讀"
+              aria-expanded="false"
+              aria-controls="notification-popover"
             >
-              清除本機資料
+              <span aria-hidden="true">&#128276;</span>
+              <span id="nav-bell-dot" class="nav-bell-dot" hidden></span>
             </button>
+            <div
+              id="notification-popover"
+              class="notification-popover"
+              aria-labelledby="notification-heading"
+              hidden
+            >
+              <div class="notification-heading-row">
+                <h2 id="notification-heading">通知</h2>
+                <button
+                  id="notification-close"
+                  class="icon-button"
+                  type="button"
+                  aria-label="關閉通知"
+                >
+                  ×
+                </button>
+              </div>
+              <p id="notification-summary">目前沒有待確認的取消請求。</p>
+              <ul id="notification-list" class="bell-list"></ul>
+              <a
+                id="notification-goto"
+                class="button button-primary"
+                href="#appointments-section"
+                hidden
+                >前往處理</a
+              >
+            </div>
           </div>
-        </details>
+          <details class="topbar-tools" open>
+            <summary aria-label="開啟工作臺設定">
+              <span aria-hidden="true">&#9881;</span><strong>工作臺設定</strong>
+            </summary>
+            <div class="topbar-actions">
+              <button id="logout" class="button button-secondary" type="button">
+                登出</button
+              ><label class="session-picker theme-picker-label"
+                >主題<select id="theme-picker" aria-label="顯示主題">
+                  <option value="auto">跟隨系統</option>
+                  <option value="light">淺色</option>
+                  <option value="warm">護眼</option>
+                  <option value="dark">深色</option>
+                </select></label
+              ><a class="button button-secondary" href="/patient.html"
+                >患者預約頁</a
+              >
+            </div>
+          </details>
+        </div>
       </header>
       <nav class="workspace-nav" aria-label="管理工作臺導覽">
         <a href="#overview" data-workspace-nav>營運首頁</a
         ><a href="#appointments-section" data-workspace-nav>預約與回診</a
         ><a href="#schedule-section" data-workspace-nav data-admin-nav
-          >排班管理</a
-        ><a href="#case-section" data-workspace-nav data-admin-nav>個案管理</a
+          >營業時間</a
+        ><a href="#case-section" data-workspace-nav>個管指派</a
         ><a href="#accounts-section" data-workspace-nav data-admin-nav
           >員工權限</a
         ><a href="#communications-section" data-workspace-nav data-admin-nav
           >患者端與系統</a
-        ><a href="#audit-section" data-workspace-nav>稽核紀錄</a>
+        ><a href="#audit-section" data-workspace-nav data-admin-nav>稽核紀錄</a>
       </nav>
       <main id="main-content" class="dashboard" tabindex="-1">
         <section
@@ -151,7 +179,7 @@
             <p class="eyebrow">BEAU ESSENCE · OPERATIONS</p>
             <h1 id="workspace-title">預約營運工作臺</h1>
             <p>
-              依照「今日待辦 → 預約與回診 → 排班 → 個管 →
+              依照「今日待辦 → 預約與回診 → 營業時間 → 個管 →
               系統治理」完成診所日常工作。
             </p>
             <ul class="safety-list" aria-label="測試安全界線">
@@ -165,7 +193,7 @@
             <h2 id="current-account-label">載入中</h2>
             <p id="current-account-boundary">這不是正式 Authentication。</p>
             <span id="schedule-version-chip" class="status-chip is-available"
-              >排班版本載入中</span
+              >營業時間版本載入中</span
             >
           </aside>
         </section>
@@ -264,7 +292,7 @@
               <h2 id="appointments-heading">預約與回診管理</h2>
             </div>
             <p class="section-description">
-              櫃台與管理者共同使用的日常工作區；建立預約、處置到診、確認回診都在這裡。
+              櫃台與主管共同使用的日常工作區；建立預約、處置到診、登錄醫師回診指示都在這裡。
             </p>
           </div>
 
@@ -323,13 +351,15 @@
                         <option value="initial">初診（整點／30 分）</option>
                         <option value="follow_up">回診（15 分／45 分）</option>
                       </select></label
-                    ><label>手術種類<select id="booking-item"></select></label>
+                    ><label
+                      >療程／看診項目<select id="booking-item"></select
+                    ></label>
                   </div>
                   <label class="switch-row"
                     ><input
                       id="booking-nhi-card"
                       type="checkbox"
-                    />已帶健保卡</label
+                    />預計攜帶健保卡</label
                   >
                 </fieldset>
                 <fieldset id="booking-tags" class="tag-picker">
@@ -550,14 +580,13 @@
           <section
             id="follow-up-workflow"
             class="follow-up-workflow"
-            data-admin-content
             aria-labelledby="follow-up-workflow-heading"
           >
             <h3 id="follow-up-workflow-heading" class="subsection-title">
-              逐筆回診確認
+              登錄回診指示
             </h3>
             <p class="section-description">
-              系統不進行臨床推論，只記錄授權人員的明確決定。
+              櫃台僅依醫師指示設定回診；回診決定者與資料登錄者會分開顯示。
             </p>
             <p id="follow-up-summary" class="result-summary" aria-live="polite">
               0 筆待確認
@@ -576,7 +605,7 @@
           <div class="section-heading">
             <div>
               <p class="eyebrow">SCHEDULE</p>
-              <h2 id="schedule-heading">排班草稿與發布</h2>
+              <h2 id="schedule-heading">營業時間草稿與發布</h2>
             </div>
             <p class="section-description">
               修改先進入草稿；發布後才會改變患者可預約時段。
@@ -596,7 +625,7 @@
               class="button button-primary"
               type="button"
             >
-              檢查並發布排班
+              檢查並發布營業時間
             </button>
             <p id="schedule-toolbar-status" class="form-status" hidden></p>
           </div>
@@ -652,7 +681,7 @@
                 /></label>
               </div>
               <button class="button button-primary" type="submit">
-                加入排班草稿
+                加入營業時間草稿
               </button>
               <p id="weekly-form-status" class="form-status" hidden></p>
             </form>
@@ -710,7 +739,7 @@
           </div>
           <div class="schedule-comparison">
             <article>
-              <h3>已發布排班</h3>
+              <h3>已發布營業時間</h3>
               <div id="published-schedule"></div>
             </article>
             <article>
@@ -725,12 +754,11 @@
           class="workspace-section"
           data-workspace-panel
           aria-labelledby="case-heading"
-          data-admin-only
         >
           <div class="section-heading">
             <div>
               <p class="eyebrow">CASE MANAGEMENT</p>
-              <h2 id="case-heading">個案指派與月度工作量</h2>
+              <h2 id="case-heading">個管指派與工作量</h2>
             </div>
             <p class="section-description">
               完成到診後先指派個管師，再依月份計算不重複患者。
@@ -775,7 +803,7 @@
               ><label
                 >角色<select id="account-role">
                   <option value="front_desk">櫃台員工</option>
-                  <option value="admin">管理者</option>
+                  <option value="admin">主管</option>
                 </select></label
               ><button class="button button-primary" type="submit">
                 建立帳號
@@ -895,6 +923,22 @@
             0 筆發布紀錄
           </p>
           <div id="release-list" class="release-list"></div>
+          <details class="advanced-settings">
+            <summary>測試資料／進階設定</summary>
+            <div class="danger-zone">
+              <h3>危險區域</h3>
+              <p>
+                只用於合成測試。清除後，這個瀏覽器內的預約、患者、營業時間草稿與操作紀錄都會重設。
+              </p>
+              <button
+                id="reset-state"
+                class="button button-danger-outline"
+                type="button"
+              >
+                清除全部本機測試資料
+              </button>
+            </div>
+          </details>
         </section>
 
         <section
@@ -902,6 +946,7 @@
           class="workspace-section"
           data-workspace-panel
           aria-labelledby="audit-heading"
+          data-admin-only
         >
           <div class="section-heading">
             <div>
@@ -917,7 +962,7 @@
               >稽核篩選<select id="audit-filter">
                 <option value="all">全部事件</option>
                 <option value="appointment">預約事件</option>
-                <option value="schedule">排班事件</option>
+                <option value="schedule">營業時間事件</option>
                 <option value="governance">治理事件</option>
               </select></label
             >
