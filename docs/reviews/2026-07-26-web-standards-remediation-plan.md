@@ -1072,6 +1072,11 @@ corepack pnpm test:e2e
 | 2026-07-26 | B2 | 完成。HTML 改 `no-cache` | `curl -I` 確認 `/patient.html` → `no-cache`，雜湊資產仍為 `immutable` |
 | 2026-07-26 | C1 | 完成。補 COOP／CORP | `curl -I` 確認兩者皆為 `same-origin` |
 | 2026-07-26 | C3 | 完成。兩份設定對齊並退出 Privacy Sandbox | 新增「本地 server 必須逐字複製 firebase.json 標頭」的測試，漂移下次會直接被擋 |
+| 2026-07-26 | E1 | 完成。佇列不再有排隊死角 | 領取改為兩個各自排序的查詢（到期 pending 依 `nextAttemptAt`、租約過期 in_progress 依 `leaseExpiresAt`）；三條建立路徑與 `requeue` 一律寫入 `nextAttemptAt`。新增兩項 Emulator 測試：到期工作排在 20 筆退避工作之後仍會被領取、多筆到期時最早的先做 |
+| 2026-07-26 | E2 | 完成。租約從領取當下起算 | `processDue` 的 `now` 改為批次起點，`at()` 以起點加實際經過時間推得此刻；租約與結算各自取時刻。新增測試：同一批內先後結算的兩筆，`settledAt` 必須不同 |
+| 2026-07-26 | B1 | 完成。JS 失效不再是白畫面 | 兩個進入點加 `<noscript>`；患者頁給出電話（`tel:` 連結）、地址與門診時間，門診時間不再是永遠的「讀取中」。`tests/e2e/no-script.spec.ts` 以 `javaScriptEnabled: false` 守住 |
+| 2026-07-26 | G1 | 完成。幽靈捲軸消失 | `.week-view` 明確宣告 `overflow-y: hidden`，並以 `padding-bottom` 讓水平捲軸有地方站。CSS 規範與實測一致（MDN：一軸非 visible／clip 時，另一軸的 visible 計算成 auto） |
+| 2026-07-26 | G2 | 完成。手機不再橫捲 2.5 個螢幕 | 新增 `renderAgendaView`，與網格共用 `weekModel()`；依 `matchMedia('(max-width: 48rem)')` 擇一渲染。實測 375px 下 `scrollWidth === clientWidth`（先前 832 vs 331），事件高度 59px，`aria-label` 與網格一致 |
 
 ## 這一輪的取捨與副作用
 
@@ -1080,20 +1085,36 @@ corepack pnpm test:e2e
   以 `Set` 計算閉包，已確認不會重複計數），而是 preload 清單本身的真實成本：
   用約 0.4 KiB 換掉 4 趟連續往返（行動網路上約 400ms）。進入點總量 75.8 KiB／
   預算 90 KiB，仍有餘裕。**這是刻意放寬，不是為了讓紅燈變綠。**
-- **E1、E2（outbox head-of-line blocking 與租約）與 B1（JS 失效時的白畫面）
-  尚未修復**，仍是目前最高優先的兩項。業主指定先做效能與零散小項。
-- B3（`/booking`）、C2（Trusted Types）、C4、D2、E5、E6、F1 未動工。
-- **G1、G2 於 2026-07-26 由業主實機操作後新增**（批次 7），已完成診斷與規劃、
-  尚未實作。G1 的成因已量測確認：`overflow-x: auto` 讓 `overflow-y` 從 `visible`
-  被計算成 `auto`，水平捲軸再吃掉 13px 高度而長出一條只能捲 13px 的垂直捲軸。
-  G2 的量測是 375px 下容器可視 331px、內容需要 832px。
+- **`nextAttemptAt` 成為 outbox 工作的必填欄位。** Firestore 的文件明確指出
+  「`orderBy()` 也會過濾欄位是否存在，結果不會包含缺少該欄位的文件」，而不等式
+  篩選隱含以該欄位排序。所以 E1 的查詢一旦上線，缺這個欄位的工作不是被排到後面
+  ——是**整個看不見**。三條建立路徑與 `requeue` 都已補上；目前沒有任何雲端資料庫，
+  所以不需要回填，但這件事必須在第一次部署前確認。
+- **`requeue` 多了可注入的 `now`。** 先前它用系統時鐘蓋 `requeuedAt`，在
+  `nextAttemptAt` 只是「有沒有這個欄位」時不影響行為；改成範圍查詢之後，補救
+  動作會依賴「系統時鐘與 worker 的 now 剛好同步」這個沒人保證的前提。
+- **索引檔無法在本機驗證。** `firestore.indexes.json` 已宣告 E1 需要的兩個複合
+  索引，但**測試通過不代表索引正確**：Firestore Emulator 不強制複合索引——我餵給
+  它一份刻意寫壞的索引檔，它照樣啟動、測試照樣全綠。真正的驗證要對真實專案做，
+  而那被 D-010 擋著。第一次雲端部署前必須人工複查這兩個索引定義。
+- **`/index.html` 的 document 預算 10 → 11 KiB**（見上）。
+- B3（`/booking`）、C2（Trusted Types）、C4、D2、E5、E6、F1 未動工。**D2 已升為
+  必要**（X1 否決的後果），是這批未完成項目中最該先做的。
 
 ## 這一輪的驗收
 
 ```
 corepack pnpm verify   → 通過（38 個測試檔、438 項；先前 36 檔、389 項）
-corepack pnpm test:e2e → 通過（73 項，含補上 WCAG 2.2 後的 axe 掃描）
+corepack pnpm test:rules → 通過（61 項；先前 60 項）
+corepack pnpm test:e2e → 通過（81 項；先前 73 項）
 ```
 
 E2E 第一次執行時 Playwright 沿用了先前留下的舊 server 行程（`reuseExistingServer`），
 因此標頭改動並未真的被測到；殺掉行程後重跑一次才是上面的結果。
+
+## 剩下的優先順序
+
+1. **D2**（效能閘門守住模組數與往返深度）——X1 否決後升為必要，且沒有它，A1／A2
+   的成果沒有任何東西擋著它長回去。
+2. **B3**（`/booking`）——決策已定，路徑錯了現在就 404。
+3. C2（Trusted Types，分兩步）、C4、E5、E6、F1。
