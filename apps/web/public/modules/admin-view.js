@@ -173,7 +173,10 @@ function selectCell(state, entry, selectedIds) {
   const who = patientLabel(state, appointment.patientId);
   const when = `${formatFullDate(effectiveStart)} ${formatTime(effectiveStart)}`;
   const checked = selectedIds.has(appointment.id) ? ' checked' : '';
-  return `<td role="cell" data-label="選取"><input type="checkbox" class="row-select" data-appointment-select="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(`選取 ${who} ${when}`)}"${checked}></td>`;
+  // 方塊包在 `<label>` 裡，讓整格都是點擊區——20px 的方塊在一整片列裡仍然不好
+  // 命中，而 padding 對 checkbox 這種取代元素不可靠。`aria-label` 仍決定可及
+  // 名稱，label 只負責把可點面積撐大。
+  return `<td role="cell" data-label="選取"><label class="row-select-hit"><input type="checkbox" class="row-select" data-appointment-select="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(`選取 ${who} ${when}`)}"${checked}></label></td>`;
 }
 
 /**

@@ -92,6 +92,12 @@
   padding: var(--space-xs) var(--space-sm);
   position: sticky;
   top: 4.1rem;
+  /* 文字是**就地換掉**的，所以「它剛剛變了」沒有任何位置線索。用底色與文字色的
+     漸變（效果類，fast）帶出那個變化——這不是裝飾，是唯一的視覺提示。 */
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
   z-index: 7;
 }
 .status-banner::before {
@@ -101,6 +107,7 @@
   flex: 0 0 auto;
   height: 0.48rem;
   margin-right: var(--space-xs);
+  transition: background var(--motion-fast) var(--ease-standard);
   width: 0.48rem;
 }
 .status-banner[data-state='success'] {
@@ -336,8 +343,21 @@
   margin-left: auto;
 }
 /* 選取欄只放一個方塊，不需要跟著內容撐寬。 */
+/* 選取欄：方塊 20px，但整格都是點擊區——在一整片列裡要能「大概點到那一格」就
+   選得起來，而不是必須命中那個小方塊。 */
 .appointment-table td[data-label='選取'] {
+  text-align: center;
   white-space: nowrap;
+}
+/* 可點面積：方塊視覺上是 20px，但這個 label 撐到 44px 見方（WCAG 2.5.8 的
+   目標尺寸），所以「大概點到那一格」就選得起來。 */
+.row-select-hit {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-block-size: var(--control-height-md);
+  min-inline-size: var(--control-height-md);
 }
 .subsection-title {
   border-top: 1px solid var(--line);
@@ -414,7 +434,7 @@
 .workflow-summary-chevron {
   font-size: var(--text-md);
   margin-left: auto;
-  transition: transform var(--motion-fast) ease;
+  transition: transform var(--motion-fast) var(--ease-standard);
 }
 details[open] > summary .workflow-summary-chevron {
   transform: rotate(180deg);
@@ -1273,16 +1293,45 @@ details[open] > summary .workflow-summary-chevron {
 .wv-swatch.wv-follow-up {
   background: var(--info-text);
 }
-.appointment-card.is-flash {
-  animation: card-flash var(--motion-slow) var(--ease-decelerate);
+/* 「你剛才點的是這一列」。
+ *
+ * 從週檢視點事件、或處置完成後捲到某一筆時，畫面會跳到清單的中間——沒有這個提示
+ * 的話，使用者得自己在一整片列裡找出哪一列才是剛才那筆。
+ *
+ * 這段先前是壞的：選擇器寫 `.appointment-card`，但階段 3 把卡片改成表格之後，
+ * 列的 class 變成 `.appointment-row`（`appointment-card` 只剩下 data 屬性名），
+ * 於是動畫從那時起就沒有再播過，而且不會有任何錯誤。
+ *
+ * 另外原本動的是 `box-shadow`——那在 `<tr>` 上多數瀏覽器根本不繪製。改成動
+ * 背景色，那是表格列唯一可靠的著色方式。
+ */
+.appointment-row.is-flash > td {
+  animation: row-flash var(--motion-attention) var(--ease-decelerate);
 }
-@keyframes card-flash {
+@keyframes row-flash {
   0%,
   100% {
-    box-shadow: none;
+    background: transparent;
   }
-  20% {
-    box-shadow: 0 0 0 2px var(--forest);
+  8%,
+  55% {
+    background: var(--forest-light);
+  }
+}
+/* reduced-motion 下全域會把動畫時長壓成 0.01ms，等於看不到閃動——但「哪一列」
+   這個**資訊**不能跟著消失。所以改用靜態底色：class 在的期間（JS 1600ms 後移除）
+   那一列就是有顏色的，只是不會動。 */
+@media (prefers-reduced-motion: reduce) {
+  .appointment-row.is-flash > td {
+    /* 明確關掉動畫，而不是靠全域那條 `animation-duration: 0.01ms`。
+       那條只是把動畫壓到極短，動畫**仍然在跑**——於是這一列在那一瞬間會停在
+       keyframe 0%（透明），靜態底色反而被蓋掉。要的是「不要動、但要看得到」，
+       所以直接 none。 */
+    animation: none;
+    /* 用 `background-color` 長寫法而不是 `background` 簡寫：簡寫裡含 var() 會走
+       pending-substitution，實測在建置壓縮後的產物上算不出顏色（public 版正常、
+       dist 版變透明），長寫法沒有這個問題。 */
+    background-color: var(--forest-light);
   }
 }
 
@@ -1507,8 +1556,8 @@ details[open] > summary .workflow-summary-chevron {
   min-height: 2.2rem;
   padding: var(--space-3xs) var(--space-2xs);
   transition:
-    filter var(--motion-fast) ease,
-    transform var(--motion-fast) ease;
+    filter var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
   z-index: 1;
 }
 .wv-event:hover {
@@ -1724,25 +1773,70 @@ details[open] > summary .workflow-summary-chevron {
 
 /* 合成帳密登入頁（非安全邊界）。沿用 styles.css 的 token，因此深淺色與工作臺
  * 一致；欄位與提示都自成一張置中卡片，登入後由 JS 換成工作臺。 */
+/* 登入頁。
+ * 這是使用者看到的第一個畫面，先前只是「白卡片放在預設畫布上」——沒有任何品牌
+ * 訊號，看起來像半成品。改成與 hero 同一套反相深底：診所的墨綠，深色與護眼主題
+ * 各自換值（`--surface-inverse*` 本來就隨主題定義，所以三個主題都會跟著變）。
+ *
+ * 全部用既有 token 與 CSS 漸層做出來——不加圖片、不加字型，字型預算維持 0 KiB。
+ */
 .login-view {
   align-items: center;
+  background:
+    radial-gradient(
+      120% 90% at 15% 0%,
+      var(--surface-inverse-strong),
+      transparent 60%
+    ),
+    linear-gradient(
+      160deg,
+      var(--surface-inverse-soft),
+      var(--surface-inverse-deep)
+    );
   display: flex;
   justify-content: center;
   min-height: 100vh;
+  overflow: clip;
   padding: var(--space-lg);
+  position: relative;
+}
+/* 香檳金的裝飾弧線——與患者 hero 同一個手法，屬核准的品牌裝飾位置。它不承載
+   任何資訊，forced-colors 下一併收起（見 styles.css 的高對比區塊）。 */
+.login-view::after {
+  border: 1px solid var(--brand-metallic-on-inverse);
+  border-radius: var(--radius-circle);
+  content: '';
+  height: 40rem;
+  opacity: 0.35;
+  pointer-events: none;
+  position: absolute;
+  right: -14rem;
+  top: -16rem;
+  width: 40rem;
 }
 .login-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--elevation-2);
+  border-radius: var(--radius-xl);
+  /* 卡片浮在深底上，用最重的一階陰影把層次拉開。 */
+  box-shadow: var(--elevation-3);
   max-width: 26rem;
   padding: var(--space-xl);
+  position: relative;
   width: 100%;
+  z-index: 1;
+}
+/* 標誌讓登入頁一眼認得出是誰的系統——先前只有一行文字。 */
+.login-mark {
+  display: block;
+  height: 3.5rem;
+  margin-bottom: var(--space-xs);
+  width: auto;
 }
 .login-brand {
   color: var(--forest);
   font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
   margin: 0;
 }
 .login-view h1 {

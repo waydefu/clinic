@@ -157,9 +157,29 @@
    * 所有動效都必須在 `prefers-reduced-motion: reduce` 下停用——樣式表結尾已有
    * 統一處理，新增動效不需要各自再寫一次。
    * --------------------------------------------------------------- */
+  /* 三檔時長對應三種「使用者要重新定位多少視線」：
+   *
+   *   fast (140ms)  **效果類**——只換顏色或透明度，元素沒有移動，眼睛不必跟。
+   *                 hover、focus、狀態色切換。
+   *   base (200ms)  **空間類**——元素移動或展開，眼睛要跟著走一小段。
+   *   slow (280ms)  **大範圍**——彈窗進場、整區換掉，需要重新找位置。
+   *
+   * 這個「效果 vs 空間」的分法出自 Material 3 的 motion 分類；把顏色動畫拉到跟
+   * 位移一樣長只會讓介面感覺鈍。
+   *
+   * 風格採 IBM Carbon 所謂的 **productive**（而非 expressive）：快、克制、不
+   * overshoot、不回彈。理由是這是一個資料密集的營運工具——櫃台整天在掃描表格，
+   * 任何彈跳都會拖慢視線。**動效只用來解釋狀態變化，不做裝飾。**
+   *
+   * 超過約 200ms 的動效會被感知成「刻意的移動」，因此必須支援 reduced-motion；
+   * 樣式表結尾已統一處理（transition 與 animation 都關），新增動效不必各自再寫。
+   */
   --motion-fast: 140ms;
   --motion-base: 200ms;
   --motion-slow: 280ms;
+  /* 「這一列剛剛變了」的提示要停留得夠久才看得到，所以它不屬於上面的互動級距。
+     與 admin-bootstrap.js 移除 `is-flash` 的計時器是同一個值。 */
+  --motion-attention: 1600ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0, 1);
 
@@ -424,7 +444,7 @@ textarea:focus-visible {
   text-decoration: none;
   top: 0;
   transform: translateY(-130%);
-  transition: transform var(--motion-fast) ease;
+  transition: transform var(--motion-fast) var(--ease-standard);
   z-index: 10;
 }
 .skip-link:focus-visible {
@@ -514,10 +534,10 @@ textarea:focus-visible {
   min-height: 2.75rem;
   padding: var(--space-xs) var(--space-sm);
   transition:
-    background-color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease,
-    box-shadow var(--motion-fast) ease,
-    transform var(--motion-fast) ease;
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 .button:not(:disabled):hover {
   transform: translateY(-1px);
@@ -818,7 +838,10 @@ label {
   font-weight: var(--weight-bold);
   gap: var(--space-2xs);
 }
-input,
+/* 文字類輸入與下拉。**必須排除 checkbox／radio**：它們不是可輸入的框，硬套
+   邊框、底色、內距與 44px 最小高度會把方塊拉成 20×44 的長條，看起來像壞掉。
+   它們自己的尺寸與品牌色在下面的 `input[type='checkbox']` 區塊處理。 */
+input:not([type='checkbox']):not([type='radio']),
 select {
   background: var(--surface);
   border: 1px solid var(--line-strong);
@@ -1189,6 +1212,10 @@ textarea {
   gap: var(--space-sm);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+/* 服務選項（初診／回診）。
+   `min-height` 先前是 13rem（208px）——裡面只有圖示＋標題＋一行說明＋一行備註，
+   實際內容約 130px，於是每張卡下半部是一大塊空白，兩張並排就吃掉大半個首屏。
+   改成用 gap 撐開內容、不再硬撐高度；卡片仍遠大於 44px 觸控目標。 */
 .service-choice {
   align-items: flex-start;
   background: var(--surface-soft);
@@ -1197,8 +1224,8 @@ textarea {
   color: var(--ink);
   display: flex;
   flex-direction: column;
-  min-height: 13rem;
-  padding: var(--space-md);
+  gap: var(--space-2xs);
+  padding: var(--space-sm);
   text-align: left;
 }
 .service-choice:hover {
@@ -1289,8 +1316,8 @@ textarea {
   min-height: var(--control-height-md);
   padding: var(--space-2xs) var(--space-sm);
   transition:
-    background-color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease;
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
 .booking-back:hover {
   background: var(--surface);
@@ -1302,7 +1329,7 @@ textarea {
 }
 .booking-back .back-arrow {
   font-size: 1.05em;
-  transition: transform var(--motion-fast) ease;
+  transition: transform var(--motion-fast) var(--ease-standard);
 }
 .booking-back:hover .back-arrow {
   transform: translateX(-2px);
@@ -1599,6 +1626,40 @@ textarea {
 /* 只給輔助技術的文字：留在無障礙樹上，但不佔版面。用 clip-path 收成 1×1 而不是
    display:none／visibility:hidden——後兩者會把元素**從無障礙樹上拿掉**，那就
    連螢幕閱讀器也讀不到了。與 .data-table caption 用同一套做法。 */
+/* -----------------------------------------------------------------
+ * 核取方塊與單選鈕。
+ *
+ * 先前完全沒有樣式，等於用瀏覽器預設的 ~13px——在資料密集的表格裡非常難點中，
+ * 也遠低於 WCAG 2.5.8 的目標尺寸建議。
+ *
+ * 刻意**不自製**外觀（`appearance: none` + 自畫勾）：批次選取靠原生的
+ * `indeterminate`（無障礙 API 的 mixed）表達「部分選取」，自製方塊會把那個狀態
+ * 一起弄丟，而它是沒辦法用 CSS 補回來的。改用 `accent-color` 換品牌色 ——
+ * 原生語意、原生鍵盤行為全部保留。
+ * ----------------------------------------------------------------- */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--forest);
+  block-size: 1.25rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+  inline-size: 1.25rem;
+  margin: 0;
+}
+/* 表格裡的選取欄：方塊本身 20px，但整格都是點擊區，實際目標遠大於 44px。
+   格子用 flex 置中，避免方塊貼在角落。 */
+.data-table td[data-label='選取'] {
+  cursor: pointer;
+}
+.data-table td[data-label='選取'] .row-select {
+  margin-block: var(--space-3xs);
+}
+/* 標籤與方塊之間要有間距，且整個 label 可點——文字也是點擊區的一部分。 */
+label:has(> input[type='checkbox']),
+label:has(> input[type='radio']) {
+  cursor: pointer;
+}
+
 .visually-hidden {
   clip-path: inset(50%);
   height: 1px;
@@ -2023,8 +2084,28 @@ label.has-error input {
   padding: var(--space-lg);
   width: calc(100vw - 2.5rem);
 }
+/* 彈窗進場：淡入＋非常小幅的上移。
+   它要解釋的是「這是一層疊在畫面上的東西，等你回答」——所以有位移（空間類，
+   用 base），但幅度刻意小（4px）。確認彈窗常常帶著破壞性動作，不該讓它彈跳、
+   也不該慢到擋住反應。退場不做動畫：`<dialog>` 一旦 close 就從流程移除，硬要
+   做退場得延遲關閉，那會讓連續操作變鈍。 */
+.confirm-dialog[open] {
+  animation: dialog-enter var(--motion-base) var(--ease-decelerate);
+}
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
 .confirm-dialog::backdrop {
   background: rgba(9, 18, 14, 0.55);
+  animation: backdrop-enter var(--motion-fast) var(--ease-standard);
+}
+@keyframes backdrop-enter {
+  from {
+    opacity: 0;
+  }
 }
 .confirm-dialog-title {
   font-size: var(--text-md);
@@ -2145,7 +2226,8 @@ label.has-error input {
      它們重畫成系統色——香檳金的細線會變成一條 CanvasText 的實線，於是畫面上多出
      幾條又粗又沒有意義的高對比線，反而干擾真正需要被看見的結構與狀態。 */
   .eyebrow-brand::after,
-  .patient-hero::after {
+  .patient-hero::after,
+  .login-view::after {
     display: none;
   }
 }

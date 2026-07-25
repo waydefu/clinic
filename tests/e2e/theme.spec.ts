@@ -284,3 +284,145 @@ test.describe('品牌層（香檳金與系統字體）', () => {
     ).toHaveLength(0);
   });
 });
+
+// 階段 6：Motion System。
+//
+// 風格是 IBM Carbon 所謂的 **productive**——快、克制、不 overshoot。這是資料密集
+// 的營運工具，櫃台整天在掃描表格，任何彈跳都會拖慢視線。動效**只用來解釋狀態
+// 變化**，不做裝飾。
+test.describe('動效系統', () => {
+  test.describe('一般情況（未要求減少動效）', () => {
+    test('處置後那一列會閃一下，讓人知道剛才動的是哪一筆', async ({ page }) => {
+      // 用 emulateMedia 明確設定，不靠 test.use()——實測後者在這個設定檔下
+      // **沒有生效**（頁面裡量到的 matchMedia 仍是 false），測試會因此驗錯前提。
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await applyTheme(page, '/', 'light');
+      await page.locator('#login-account').fill('admin');
+      await page.locator('#login-password').fill('beauessence-admin');
+      await page.locator('#login-view button[type="submit"]').click();
+      await expect(page.locator('#logout')).toBeVisible();
+
+      await page.goto('/#appointments-section');
+      await page.locator('#booking-workflow').evaluate((element) => {
+        (element as HTMLDetailsElement).open = true;
+      });
+      await page.locator('#booking-name').fill('動效測試');
+      await page.locator('#booking-phone').fill('0912345678');
+      await page.locator('#booking-birth').fill('1990-05-20');
+      await page.locator('#booking-national-id').fill('A123456789');
+      await page.locator('#booking-kind').selectOption('initial');
+      await page.locator('#slots [data-select-slot]').first().click();
+      await page.locator('#booking-form button[type="submit"]').click();
+      await expect(page.locator('#status')).toContainText('預約已建立');
+      await page.locator('#appointment-status-filter').selectOption('all');
+
+      const row = page.locator('.appointment-row').first();
+      // 這段先前是壞的：CSS 選擇器停在 `.appointment-card`，但階段 3 之後列的
+      // class 是 `.appointment-row`，於是動畫再也沒播過，而且不會報錯。
+      const animations = await row.evaluate((element) => {
+        element.classList.add('is-flash');
+        const cell = element.querySelector('td');
+        return cell === null
+          ? []
+          : cell.getAnimations().map((animation) => ({
+              name: (animation as CSSAnimation).animationName,
+              duration: Number(animation.effect?.getTiming().duration ?? 0)
+            }));
+      });
+
+      expect(
+        animations.map((animation) => animation.name),
+        '列變更提示沒有播放——選擇器可能又跟標記脫節了'
+      ).toContain('row-flash');
+      // 停留要夠久才看得到；與 admin-bootstrap.js 移除 class 的計時器同值。
+      expect(animations[0]?.duration).toBe(1600);
+    });
+
+    test('緩動一律來自 token，維持同一種個性', async ({ page }) => {
+      await applyTheme(page, '/patient.html', 'light');
+      const easings = await page.evaluate(() => {
+        const found = new Set<string>();
+        for (const sheet of document.styleSheets) {
+          let rules: CSSRuleList;
+          try {
+            rules = sheet.cssRules;
+          } catch {
+            continue;
+          }
+          for (const rule of rules) {
+            const style = (rule as CSSStyleRule).style;
+            if (style === undefined) continue;
+            for (const property of [
+              'transitionTimingFunction',
+              'animationTimingFunction'
+            ]) {
+              const value = style[property as 'transitionTimingFunction'];
+              if (value !== undefined && value !== '') found.add(value);
+            }
+          }
+        }
+        return [...found];
+      });
+
+      // `ease`／`ease-in-out`／`linear` 是**另一套曲線**；混用會讓動效的個性不一致。
+      // 系統只有 --ease-standard 與 --ease-decelerate 兩條。
+      const literals = easings.filter((value) =>
+        /^(ease|ease-in|ease-out|ease-in-out|linear)$/.test(value.trim())
+      );
+      expect(literals, `樣式表裡有寫死的緩動：${literals.join(', ')}`).toEqual(
+        []
+      );
+    });
+  });
+
+  test.describe('要求減少動效時', () => {
+    test('動效關掉，但「哪一列變了」這個資訊不能跟著消失', async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await applyTheme(page, '/', 'light');
+      await page.locator('#login-account').fill('admin');
+      await page.locator('#login-password').fill('beauessence-admin');
+      await page.locator('#login-view button[type="submit"]').click();
+      await expect(page.locator('#logout')).toBeVisible();
+
+      await page.goto('/#appointments-section');
+      await page.locator('#booking-workflow').evaluate((element) => {
+        (element as HTMLDetailsElement).open = true;
+      });
+      await page.locator('#booking-name').fill('動效測試');
+      await page.locator('#booking-phone').fill('0912345678');
+      await page.locator('#booking-birth').fill('1990-05-20');
+      await page.locator('#booking-national-id').fill('A123456789');
+      await page.locator('#booking-kind').selectOption('initial');
+      await page.locator('#slots [data-select-slot]').first().click();
+      await page.locator('#booking-form button[type="submit"]').click();
+      await expect(page.locator('#status')).toContainText('預約已建立');
+      await page.locator('#appointment-status-filter').selectOption('all');
+
+      await page
+        .locator('.appointment-row')
+        .first()
+        .evaluate((element) => element.classList.add('is-flash'));
+      // 加上 class 之後要讓瀏覽器重算一次樣式再讀。在同一個 tick 裡讀
+      // `backgroundColor` 會拿到還沒套用的值（`animation-name` 這種會即時反映、
+      // 顏色卻不會），先前就是因此誤判成「reduced-motion 下沒有標示」。
+      await page.waitForTimeout(120);
+
+      const cellBackground = await page
+        .locator('.appointment-row')
+        .first()
+        .evaluate((element) => {
+          const cell = element.querySelector('td');
+          return cell === null
+            ? ''
+            : window.getComputedStyle(cell).backgroundColor;
+        });
+
+      // 全域的 reduced-motion 規則把動畫壓成 0.01ms，等於看不到閃動。所以這裡改用
+      // **靜態底色**——不會動，但「是這一列」仍然看得出來。
+      expect(
+        cellBackground,
+        'reduced-motion 下那一列必須仍然有可見的標示'
+      ).not.toBe('rgba(0, 0, 0, 0)');
+    });
+  });
+});

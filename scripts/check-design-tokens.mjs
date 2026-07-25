@@ -204,6 +204,25 @@ export function planTokenReview(sheets) {
         `${name}: 寫死的動效時長 ${match[1]}ms——請用 --motion-fast/base/slow`
       );
     }
+    // 緩動曲線也必須來自 token。`ease`／`ease-in-out`／`linear` 這些關鍵字看起來
+    // 無害，但它們是**另一套曲線**——同一個介面裡混用，動效的「個性」就不一致了。
+    // 這個系統採 Carbon 所謂的 productive 風格（快、克制、不回彈），只有
+    // --ease-standard 與 --ease-decelerate 兩條曲線。
+    for (const match of animated.matchAll(
+      /(?:transition|animation): *([^;{}]+);/g
+    )) {
+      const value = match[1];
+      // 先把 `var(--ease-standard)` 這類整段拿掉再檢查——否則 token 名字裡的
+      // 「ease」會被誤判成寫死的關鍵字。
+      const withoutTokens = value.replace(/var\([^)]*\)/g, '');
+      if (
+        !/\b(?:ease|ease-in|ease-out|ease-in-out|linear)\b/.test(withoutTokens)
+      )
+        continue;
+      violations.push(
+        `${name}: 寫死的緩動 \`${value.trim().replace(/\s+/g, ' ')}\`——請用 --ease-standard/decelerate`
+      );
+    }
 
     for (const match of body.matchAll(/font-size: *([^;{}]+);/g)) {
       const value = match[1].trim();
