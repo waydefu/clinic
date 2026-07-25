@@ -26,6 +26,7 @@ import { followUpDueTimes } from './modules/schedule-engine.js';
 import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
 import {
   hydrateWeekView,
+  renderAgendaView,
   renderWeekView,
   weekStartOf
 } from './modules/week-view.js';
@@ -137,6 +138,11 @@ const editingFollowUps = new Set();
 // 最早一筆預約／時段所在的週，讓合成的 2030 資料一進來就有內容可看。
 let weekStart;
 
+// 手機用行程表、桌機用時間網格。48rem 與 workbench.css 的斷點是同一個數字，
+// 改其中一個就要改另一個——CSS 自訂屬性不能用在 media query 條件裡，所以這份
+// 對應只能靠註解維持。
+const compactCalendar = window.matchMedia('(max-width: 48rem)');
+
 function renderWeek() {
   if (weekStart === undefined) {
     const earliest =
@@ -145,17 +151,24 @@ function renderWeek() {
       )[0]?.startsAt ?? new Date().toISOString();
     weekStart = weekStartOf(taipeiDate(earliest));
   }
-  elements['week-view'].innerHTML = renderWeekView(
-    state,
-    weekStart,
-    taipeiTodayDate()
-  );
+  // 依寬度擇一渲染，**不是**兩份都畫再用 CSS 藏一份。兩份都在 DOM 裡的話，
+  // 同一筆預約會有兩個 data-week-event 按鈕：下方的點擊處理器會抓到兩個，
+  // 讀螢幕也會唸到兩個同名按鈕。斷點與 workbench.css 的 48rem 一致。
+  elements['week-view'].innerHTML = (
+    compactCalendar.matches ? renderAgendaView : renderWeekView
+  )(state, weekStart, taipeiTodayDate());
   hydrateWeekView(elements['week-view']);
   const end = new Date(`${weekStart}T12:00:00Z`);
   end.setUTCDate(end.getUTCDate() + 6);
   elements['week-range'].textContent =
     `${weekStart} – ${end.toISOString().slice(0, 10)}`;
 }
+
+// 轉向或拉動視窗會跨過斷點，此時要換成另一種檢視。只在 weekStart 已決定
+// （日曆已渲染過）時才重畫，避免在初始化之前搶跑。
+compactCalendar.addEventListener('change', () => {
+  if (weekStart !== undefined) renderWeek();
+});
 
 // 頂端 #status 是唯一的 aria-live 播報點；anchorId 則把同一句話放到剛按下的
 // 按鈕旁邊。長頁面上只寫頂端等於沒有回饋——操作者看不到成功或失敗的原因。

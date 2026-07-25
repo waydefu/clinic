@@ -1174,11 +1174,32 @@ details[open] > summary .workflow-summary-chevron {
   font-size: var(--text-body);
   font-weight: var(--weight-bold);
 }
+/* overflow-y 必須明確寫出來，不能只宣告 overflow-x。
+ *
+ * CSS 規定：兩軸只要有一軸不是 visible／clip，另一軸的 visible 就會被**計算成
+ * auto**。所以先前只寫 `overflow-x: auto`，這個容器就順帶拿到了一條沒人要的
+ * 垂直捲軸，而且它會長出來：水平捲軸佔掉內容盒約 13px 高度 → 內容因此垂直溢位
+ * 13px → 垂直捲軸出現。實測 clientHeight 1189 / scrollHeight 1202，兩個寬度
+ * 都一樣。
+ *
+ * 那條捲軸捲到底也看不到任何新東西，卻會把游標停在日曆上時的滾輪與觸控手勢
+ * 吃掉，頁面得先空轉那 13px 才會動。網格高度本來就是依營業時段算好後直接設定
+ * 的，容器永遠裝得下，垂直方向從來不需要捲動。
+ *
+ * 用 hidden 而不是 clip：hidden 仍允許程式化捲動，鍵盤焦點移到畫面外的事件時
+ * scrollIntoView 還能運作；clip 連那個都會擋掉。
+ *
+ * padding-bottom 是給水平捲軸站的位置：傳統捲軸大約 13–15px，留一格 space-2xs
+ * （8px）加上網格本身的下緣餘裕就足以蓋住，被 hidden 裁掉的因此是這塊留白而不是
+ * 網格最後一列。用 overlay 捲軸的平台（macOS）捲軸不佔空間，這裡只是一點點
+ * 下緣留白。 */
 .week-view {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-xs);
   overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--space-2xs);
 }
 /* flex 而非 grid：欄位事件是絕對定位、不計入內容高度，grid 的 auto row 會把
    整列撐不起來（塌成 0）；flex 項目則會確實套用明確的 height。 */
@@ -1335,6 +1356,105 @@ details[open] > summary .workflow-summary-chevron {
   top: -3px;
   width: 8px;
 }
+
+/* 行動版行程表。只往下捲，沒有時間軸，因此也沒有任何橫向捲動。
+   左側日期欄固定寬度，右側事件往下疊；日期只在群組標題出現一次。 */
+.wv-agenda {
+  display: grid;
+  gap: var(--space-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wv-agenda-day {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--space-2xs);
+  grid-template-columns: 3.25rem 1fr;
+  padding-top: var(--space-xs);
+}
+.wv-agenda-day:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.wv-agenda-date {
+  color: var(--ink-muted);
+  display: grid;
+  font-size: var(--text-body);
+  justify-items: center;
+  line-height: 1.2;
+}
+.wv-agenda-date b {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+.wv-agenda-day.wv-today .wv-agenda-date b {
+  background: var(--forest);
+  border-radius: var(--radius-pill);
+  color: var(--on-accent);
+  min-width: 1.75rem;
+  padding: var(--space-4xs) var(--space-3xs);
+  text-align: center;
+}
+.wv-agenda-events {
+  display: grid;
+  gap: var(--space-3xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wv-agenda-empty {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  padding: var(--space-2xs) 0;
+}
+/* 事件是按鈕，點了會捲到下方對應的處置卡片，與網格檢視同一個行為。
+   min-height 維持全站 44px 的可點面積標準。 */
+.wv-agenda-event {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--forest);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-2xs);
+  min-height: 2.75rem;
+  padding: var(--space-2xs);
+  text-align: left;
+  width: 100%;
+}
+.wv-agenda-time {
+  color: var(--ink-muted);
+  flex: 0 0 auto;
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+}
+.wv-agenda-copy {
+  display: grid;
+  min-width: 0;
+}
+.wv-agenda-copy strong {
+  font-size: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wv-agenda-copy > span {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wv-agenda-event.wv-follow-up {
+  border-left-color: var(--info-text);
+}
+.wv-agenda-event.wv-status-cancellation_requested {
+  border-left-color: var(--danger);
+}
+
 .week-view-legend {
   color: var(--ink-muted);
   display: flex;

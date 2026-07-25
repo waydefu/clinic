@@ -207,7 +207,14 @@ function eventBlock(layout, patientName) {
  * @param weekStart 週一的 YYYY-MM-DD
  * @param todayDate 今天的台北日期（YYYY-MM-DD），用來畫紅線；可省略
  */
-export function renderWeekView(state, weekStart, todayDate) {
+/**
+ * 兩種檢視共用的資料準備。
+ *
+ * 網格與行程表只是同一份事實的兩種畫法，篩選規則必須只有一份。各自複製一份
+ * 「哪些預約要顯示、哪些日子要出現」正是兩邊開始悄悄不一致的起點——手機看得到
+ * 的預約桌機看不到，會比兩邊都少一個檢視更糟。
+ */
+function weekModel(state, weekStart) {
   const days = Array.from({ length: 7 }, (_, index) =>
     addDays(weekStart, index)
   );
@@ -238,6 +245,12 @@ export function renderWeekView(state, weekStart, todayDate) {
         !isClosed(state.schedule, date) ||
         shown.some((item) => taipeiDate(item.startsAt) === date)
     );
+
+  return { visibleDays, shown, patientName };
+}
+
+export function renderWeekView(state, weekStart, todayDate) {
+  const { visibleDays, shown, patientName } = weekModel(state, weekStart);
 
   if (visibleDays.length === 0)
     return '<p class="wv-empty">這一週沒有門診日。可在排班管理加開日期。</p>';
@@ -283,8 +296,64 @@ export function renderWeekView(state, weekStart, todayDate) {
 }
 
 /**
+ * 行動版的行程表檢視。
+ *
+ * 為什麼手機不能用網格：時間網格需要七個並排的欄位，實測 375px 螢幕上容器只有
+ * 331px 可用，而內容需要 832px——要橫向捲過 2.5 個螢幕才看得完一週，而且時間軸
+ * 不是 sticky，一橫捲就看不到那是幾點。這不是調欄寬能解決的，是**檢視型態**在
+ * 這個尺寸上選錯了。
+ *
+ * 行程表放棄時間軸，改成依日期分組的垂直清單：只往下捲、沒有橫向捲動、日期只在
+ * 群組標題出現一次。代價是失去「時段有多空」的視覺感，但手機上的使用情境是查
+ * 「今天還有誰」，不是排整週的班——排班在桌機做。
+ *
+ * 沒有絕對定位，所以不需要 hydrateWeekView，也就沒有任何行內樣式要套。
+ */
+export function renderAgendaView(state, weekStart, todayDate) {
+  const { visibleDays, shown, patientName } = weekModel(state, weekStart);
+
+  if (visibleDays.length === 0)
+    return '<p class="wv-empty">這一週沒有門診日。可在排班管理加開日期。</p>';
+
+  const days = visibleDays.map(({ date, label }) => {
+    const closed = isClosed(state.schedule, date);
+    const today = date === todayDate;
+    const events = shown
+      .filter((item) => taipeiDate(item.startsAt) === date)
+      .sort((left, right) => left.startsAt.localeCompare(right.startsAt));
+
+    const rows =
+      events.length === 0
+        ? `<li class="wv-agenda-empty">${closed ? '休診' : '尚無預約'}</li>`
+        : events
+            .map((appointment) => {
+              const name = patientName(appointment.patientId);
+              const minutes = taipeiMinutes(appointment.startsAt);
+              const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+              const kind = BOOKING_KIND_LABELS[appointment.bookingKind] ?? '';
+              const item = appointment.itemLabel ?? '';
+              const status =
+                APPOINTMENT_STATUS_LABELS[appointment.status] ?? '';
+              const kindClass =
+                appointment.bookingKind === 'follow_up'
+                  ? 'wv-follow-up'
+                  : 'wv-initial';
+              // 與網格檢視同一句完整標籤：兩種畫法，讀螢幕聽到的內容要一致。
+              const fullLabel = `${name}，${time}，${kind}，${item}，${status}`;
+              return `<li><button type="button" class="wv-agenda-event ${kindClass} wv-status-${escapeHtml(appointment.status)}" data-week-event="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(fullLabel)}"><span class="wv-agenda-time">${time}</span><span class="wv-agenda-copy"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button></li>`;
+            })
+            .join('');
+
+    return `<li class="wv-agenda-day${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><div class="wv-agenda-date"><span>${label}</span><b>${date.slice(8)}</b></div><ul class="wv-agenda-events">${rows}</ul></li>`;
+  });
+
+  return `<ol class="wv-agenda">${days.join('')}</ol>`;
+}
+
+/**
  * 把 data-top／data-height 套成實際樣式（CSSOM，不受 CSP 的 style-src 限制）。
- * 於 renderWeekView 的 HTML 插入 DOM 後呼叫。
+ * 於 renderWeekView 的 HTML 插入 DOM 後呼叫。行程表沒有絕對定位，呼叫它是無害的
+ * no-op。
  */
 export function hydrateWeekView(root) {
   for (const element of root.querySelectorAll('[data-height]'))
