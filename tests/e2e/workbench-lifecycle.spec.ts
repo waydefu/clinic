@@ -90,6 +90,103 @@ async function showAllAppointments(page: Page): Promise<void> {
   await page.locator('#appointment-status-filter').selectOption('all');
 }
 
+// 階段 4：首頁從「功能目錄」改成「情境式指揮中心」。這一組驗的是三條原則本身
+// ——零筆不出現、依急迫性排序、全部清空時保持安靜——而不是某一張卡片的文案。
+test.describe('營運首頁指揮中心', () => {
+  test('沒有待辦時保持安靜，不顯示一排零', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/#overview');
+
+    // 先前這裡永遠有四張卡片，數量為零也照顯示——於是「0 筆」和「3 筆」佔一樣
+    // 大的版面，畫面沒辦法告訴任何人現在該做什麼。
+    await expect(page.locator('#task-list .task-card')).toHaveCount(0);
+    await expect(page.locator('.tasks-clear')).toContainText('沒有待辦');
+    await expect(page.locator('#task-summary')).toHaveText('目前沒有待辦事項');
+    await expect(page.locator('#next-up')).toContainText(
+      '沒有已確認的後續預約'
+    );
+  });
+
+  test('待辦依急迫性排序，零筆的不出現，最急的放大', async ({ page }) => {
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+    // 完成到診會同時產生「回診尚未決定」與「個管尚未指派」兩類待辦。
+    await page
+      .locator('[data-appointment-card]')
+      .first()
+      .locator('[data-appointment-action="complete"]')
+      .click();
+    await page.locator('.confirm-dialog button.button-primary').click();
+    await expect(page.locator('#status')).toContainText('到診已記錄');
+
+    await page.goto('/#overview');
+    const cards = page.locator('#task-list .task-card');
+    await expect(cards.first()).toContainText('回診尚未決定');
+
+    // 「取消待確認」是零筆，所以整張卡不該存在——這正是階段 4 的重點。
+    await expect(
+      page.locator('#task-list .task-card', { hasText: '取消待確認' })
+    ).toHaveCount(0);
+
+    // 最急的那一件放大成整列，讓版面自己說出「先處理這個」。
+    const lead = page.locator('#task-list .task-card.task-lead');
+    await expect(lead).toHaveCount(1);
+    await expect(lead).toContainText('回診尚未決定');
+    const [leadWidth, gridWidth] = await Promise.all([
+      lead.evaluate((el) => Math.round(el.getBoundingClientRect().width)),
+      page
+        .locator('#task-list')
+        .evaluate((el) => Math.round(el.getBoundingClientRect().width))
+    ]);
+    expect(leadWidth).toBe(gridWidth);
+
+    // 每張卡都要說明「為什麼要處理」，否則排序的理由只存在於程式碼裡。
+    await expect(lead.locator('.task-why')).not.toBeEmpty();
+  });
+
+  test('下一位只看已確認且還沒到的最早一筆', async ({ page }) => {
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await page.goto('/#overview');
+
+    // 「下一位」是櫃台整天問最多次的問題，先前首頁完全沒有。
+    await expect(page.locator('#next-up')).toContainText('測試患者甲');
+    await expect(page.locator('#next-up .next-up-time strong')).not.toBeEmpty();
+
+    // 完成到診之後那一筆就不再是「下一位」——它已經不是 confirmed 了。
+    await page.goto('/#appointments-section');
+    await showAllAppointments(page);
+    await page
+      .locator('[data-appointment-card]')
+      .first()
+      .locator('[data-appointment-action="complete"]')
+      .click();
+    await page.locator('.confirm-dialog button.button-primary').click();
+    await expect(page.locator('#status')).toContainText('到診已記錄');
+
+    await page.goto('/#overview');
+    await expect(page.locator('#next-up')).toContainText(
+      '沒有已確認的後續預約'
+    );
+  });
+
+  test('待辦清單不是 live region，由摘要公告件數', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/#overview');
+    // 整批置換的容器掛 aria-live 會被螢幕閱讀器逐項重唸。全站一致：live 掛在
+    // 簡短摘要上。
+    await expect(page.locator('#task-list')).not.toHaveAttribute(
+      'aria-live',
+      /.*/
+    );
+    await expect(page.locator('#task-summary')).toHaveAttribute(
+      'aria-live',
+      'polite'
+    );
+  });
+});
+
 test.describe('待處理狀態', () => {
   test('送出期間按鈕會換成忙碌文字，且不設 aria-busy', async ({ page }) => {
     await page.goto('/');

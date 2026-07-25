@@ -1444,6 +1444,17 @@ textarea {
   gap: var(--space-2xs);
   justify-content: flex-end;
 }
+/* 只給輔助技術的文字：留在無障礙樹上，但不佔版面。用 clip-path 收成 1×1 而不是
+   display:none／visibility:hidden——後兩者會把元素**從無障礙樹上拿掉**，那就
+   連螢幕閱讀器也讀不到了。與 .data-table caption 用同一套做法。 */
+.visually-hidden {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
 .empty-state {
   align-items: center;
   background: var(--surface-soft);

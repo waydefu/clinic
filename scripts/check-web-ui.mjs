@@ -332,6 +332,27 @@ for (const key of ['adminClient', 'patientClient'])
     `${key} must use the shared confirm dialog.`
   );
 
+// 整批置換內容的清單容器**不得**是 live region。掛上去的話，螢幕閱讀器會在每次
+// 重畫時把整份清單逐項重唸——搜尋框每打一個字就重唸一次結果集。正確做法是給一個
+// 簡短的 .result-summary 並把 aria-live 掛在那上面（MDN 的 live region 指引也是
+// 這樣建議）。2026-07-25 全站統一，這條擋它回來。
+for (const id of [
+  'appointments',
+  'task-list',
+  'slots',
+  'follow-up-list',
+  'case-assignment-list',
+  'workload',
+  'account-list',
+  'release-list'
+]) {
+  const container = new RegExp(`id="${id}"[^>]*aria-live`, 'i');
+  if (container.test(files.adminShell.replace(/\s+/g, ' ')))
+    failures.push(
+      `#${id} must not be a live region; announce changes with a short .result-summary instead.`
+    );
+}
+
 // 重複的 id 在這個專案不是小瑕疵，是會壞掉的事：兩份客戶端都用
 // `Object.fromEntries(document.querySelectorAll('[id]'))` 建 elements 表，後出現
 // 的那個會直接蓋掉前一個，於是某個控制項被悄悄換成另一個元素——沒有錯誤訊息，

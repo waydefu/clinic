@@ -133,31 +133,112 @@
 .summary-card a:hover {
   text-decoration: underline;
 }
+/* 情境式指揮中心（階段 4）。
+   左邊固定是「下一位」——櫃台整天問最多次的問題；右邊是依急迫性排序的待辦。
+   待辦數量會變（零筆的不出現），所以右欄用自動高度的堆疊，不是固定四格。 */
+.command-grid {
+  display: grid;
+  gap: var(--space-sm);
+  grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+  margin-top: var(--space-sm);
+}
+.next-up {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
+  padding: var(--space-sm);
+}
+.next-up-time {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin: 0 0 var(--space-2xs);
+}
+.next-up-time strong {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  letter-spacing: -0.02em;
+}
+.next-up-time span,
+.next-up-patient span {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+}
+.next-up-patient {
+  display: grid;
+  gap: var(--space-4xs);
+  margin: 0 0 var(--space-xs);
+}
+.next-up-empty {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  margin: 0;
+}
+.task-column {
+  min-width: 0;
+}
 .task-grid {
   display: grid;
   gap: var(--space-xs);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: var(--space-sm);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .task-card {
-  align-items: center;
+  align-items: baseline;
   background: var(--surface);
   border: 1px solid var(--line);
   border-left: 0.28rem solid var(--line-strong);
   border-radius: var(--radius-md);
   color: inherit;
-  display: flex;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-sm);
+  display: grid;
+  gap: var(--space-3xs) var(--space-xs);
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: var(--space-sm);
   text-decoration: none;
 }
 .task-card strong {
   font-size: var(--text-md);
+  grid-row: span 2;
 }
 .task-card span {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
+}
+/* 「為什麼要處理」用一般字重，與標題分層；它是解釋，不是標籤。 */
+.task-card .task-why {
+  font-weight: var(--weight-regular);
+}
+/* 最急的那一件放大成整列，讓版面自己說出「先處理這個」。 */
+.task-card.task-lead {
+  grid-column: 1 / -1;
+}
+.task-card.task-lead strong {
+  font-size: var(--text-lg);
+}
+/* 全部清空時只留一句話，而不是四個綠色的零。 */
+.tasks-clear {
+  align-items: center;
+  color: var(--ink-muted);
+  display: flex;
+  font-size: var(--text-micro);
+  gap: var(--space-2xs);
+  margin: 0;
+}
+.tasks-clear-icon {
+  color: var(--forest);
+}
+
+@media (max-width: 64rem) {
+  .command-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 48rem) {
+  .task-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .filter-bar {
   align-items: end;

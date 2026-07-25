@@ -5,6 +5,7 @@ import {
   renderAudit,
   renderCaseAssignments,
   renderFollowUps,
+  renderNextUp,
   renderOutbox,
   renderReleases,
   renderSchedule,
@@ -363,6 +364,12 @@ function renderSummary() {
     state.workload.reduce((sum, item) => sum + item.uniquePatientCount, 0)
   );
   elements['task-list'].innerHTML = renderTasks(state);
+  elements['next-up'].innerHTML = renderNextUp(state);
+  // 待辦件數是「有幾種待辦還沒清掉」，不是總筆數——首頁要回答的是「還有幾件事
+  // 要處理」。零筆的待辦本來就不會出現，所以直接數卡片。
+  const openTasks = elements['task-list'].querySelectorAll('.task-card').length;
+  elements['task-summary'].textContent =
+    openTasks === 0 ? '目前沒有待辦事項' : `${openTasks} 類待辦需要處理`;
   elements['schedule-version-chip'].textContent =
     `已發布排班 v${state.scheduleMeta.publishedVersion}`;
 }

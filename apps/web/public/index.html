@@ -230,7 +230,26 @@
               >
             </article>
           </div>
-          <div id="task-list" class="task-grid" aria-live="polite"></div>
+          <!-- 情境式指揮中心（階段 4）：先回答「現在最該處理什麼」與「下一位是
+               誰」，而不是把功能模組平均展示。待辦數量為零時不出現，全部為零
+               時只留一句話。
+               #task-list 與其他清單一樣不是 live region——整批置換的容器掛
+               aria-live 會被逐項重唸，改由 #task-summary 公告件數。 -->
+          <div class="command-grid">
+            <aside
+              id="next-up"
+              class="next-up"
+              aria-labelledby="next-up-heading"
+            >
+              <h3 id="next-up-heading" class="visually-hidden">下一位</h3>
+            </aside>
+            <div class="task-column">
+              <p id="task-summary" class="result-summary" aria-live="polite">
+                目前沒有待辦事項
+              </p>
+              <div id="task-list" class="task-grid"></div>
+            </div>
+          </div>
         </section>
 
         <section

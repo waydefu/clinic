@@ -176,39 +176,99 @@ function selectCell(state, entry, selectedIds) {
   return `<td role="cell" data-label="選取"><input type="checkbox" class="row-select" data-appointment-select="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(`選取 ${who} ${when}`)}"${checked}></td>`;
 }
 
+/**
+ * 首頁的待辦，依**急迫性**排序。
+ *
+ * 急迫性的定義是「多久沒處理會造成傷害」，不是「哪個功能比較重要」：
+ *
+ *  1. 取消待確認——沒處理就一直佔著時段，別的患者訂不到。傷害每分鐘都在累積。
+ *  2. 回診尚未決定——患者離開診所前應該知道下次何時回來，拖過今天就得再聯絡。
+ *  3. 個管尚未指派——影響的是月度統計與後續追蹤，可以晚一點。
+ *  4. 日曆投影待處理——只影響提醒事件，患者的預約本身不受影響，排最後。
+ *
+ * 三條原則（見設計文件 §8）：數量為零的待辦**不出現**；最急的那一張放大；
+ * 全部為零時保持安靜，而不是顯示四個綠色的零。
+ */
+const OPERATIONAL_TASKS = [
+  {
+    key: 'cancellationRequests',
+    title: '取消待確認',
+    why: '未確認前時段仍被佔用，其他患者訂不到',
+    href: '#appointments-section',
+    tone: 'danger'
+  },
+  {
+    key: 'pendingFollowUps',
+    title: '回診尚未決定',
+    why: '患者離開前應知道下次回診時間',
+    href: '#appointments-section',
+    tone: 'warning'
+  },
+  {
+    key: 'pendingCaseAssignments',
+    title: '個管尚未指派',
+    why: '影響月度統計與後續追蹤',
+    href: '#case-section',
+    tone: 'warning'
+  },
+  {
+    key: 'outboxPending',
+    title: '日曆投影待處理',
+    why: '只影響提醒事件，預約本身不受影響',
+    href: '#audit-section',
+    tone: 'neutral'
+  }
+];
+
+function taskCount(tasks, key) {
+  const value = tasks[key];
+  return Array.isArray(value) ? value.length : (value ?? 0);
+}
+
 export function renderTasks(state) {
-  const tasks = [
-    {
-      count: state.tasks.cancellationRequests.length,
-      title: '取消待確認',
-      href: '#appointments-section',
-      tone: 'danger'
-    },
-    {
-      count: state.tasks.pendingFollowUps.length,
-      title: '回診尚未決定',
-      href: '#appointments-section',
-      tone: 'warning'
-    },
-    {
-      count: state.tasks.pendingCaseAssignments.length,
-      title: '個管尚未指派',
-      href: '#case-section',
-      tone: 'warning'
-    },
-    {
-      count: state.tasks.outboxPending,
-      title: '日曆投影待處理',
-      href: '#audit-section',
-      tone: 'neutral'
-    }
-  ];
-  return tasks
+  const pending = OPERATIONAL_TASKS.map((task) => ({
+    ...task,
+    count: taskCount(state.tasks, task.key)
+  })).filter((task) => task.count > 0);
+
+  // 一切正常時保持安靜。四個綠色的零跟三筆待辦佔一樣大的版面，等於什麼都
+  // 沒說；這裡改成一句話講完，把注意力留給真的需要處理的事。
+  if (pending.length === 0)
+    return `<p class="tasks-clear"><span class="tasks-clear-icon" aria-hidden="true">&#10003;</span>目前沒有待辦事項。</p>`;
+
+  return pending
     .map(
-      (task) =>
-        `<a class="task-card task-${task.tone}" href="${task.href}"><strong>${task.count}</strong><span>${task.title}</span></a>`
+      (task, index) =>
+        `<a class="task-card task-${task.tone}${index === 0 ? ' task-lead' : ''}" href="${task.href}"><strong>${task.count}</strong><span class="task-title">${escapeHtml(task.title)}</span><span class="task-why">${escapeHtml(task.why)}</span></a>`
     )
     .join('');
+}
+
+/**
+ * 「下一位」。
+ *
+ * 這是櫃台整天問最多次的問題，而先前首頁完全沒有。取的是**還沒到的、已確認**
+ * 的最早一筆；時間字串自帶 +08:00 偏移，所以直接用毫秒比較就好（與
+ * `isUpcomingSlot` 同一個做法），不必自己拆時區。
+ */
+export function renderNextUp(state, now = Date.now()) {
+  const next = state.appointments
+    .filter(
+      (item) => item.status === 'confirmed' && Date.parse(item.startsAt) > now
+    )
+    .sort(
+      (left, right) => Date.parse(left.startsAt) - Date.parse(right.startsAt)
+    )[0];
+
+  if (next === undefined)
+    return '<p class="next-up-empty">目前沒有已確認的後續預約。</p>';
+
+  const record = patient(state, next.patientId);
+  const phone =
+    record?.phone === undefined
+      ? ''
+      : `<span class="code">${escapeHtml(record.phone)}</span>`;
+  return `<p class="eyebrow">NEXT UP · 下一位</p><p class="next-up-time"><strong>${escapeHtml(formatTime(next.startsAt))}</strong><span>${escapeHtml(formatFullDate(next.startsAt))}</span></p><p class="next-up-patient"><strong>${escapeHtml(patientLabel(state, next.patientId))}</strong><span>${escapeHtml(BOOKING_KIND_LABELS[next.bookingKind] ?? '')}${next.itemLabel ? ` · ${escapeHtml(next.itemLabel)}` : ''}</span>${phone}</p><a class="summary-action" href="#appointments-section"><span class="summary-action-icon" aria-hidden="true">&#8594;</span>前往處理清單</a>`;
 }
 
 /**
