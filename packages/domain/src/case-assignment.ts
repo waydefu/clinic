@@ -12,6 +12,7 @@ import {
   type PlannedIdempotencyRecord
 } from './idempotency.js';
 import type { ActiveCaseAssignment } from './payroll.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 /**
  * Who is the case manager for a patient, as pure rules.
@@ -54,15 +55,6 @@ export interface CaseAssignmentPlan {
   readonly openedPeriod: CaseAssignmentPeriod;
   readonly auditEvent: AuditEventV2;
   readonly idempotencyRecord: PlannedIdempotencyRecord;
-}
-
-function assertUtcTimestamp(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
-    );
-  }
 }
 
 function assertOpaqueIdentifier(value: string, fieldName: string): void {

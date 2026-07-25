@@ -24,6 +24,7 @@ import {
   type IdempotencyContext,
   type PlannedIdempotencyRecord
 } from './idempotency.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 export type { AppointmentStatusValue, AppointmentTransition };
 
@@ -156,15 +157,6 @@ const NEXT_STATUS: Record<AppointmentTransition, AppointmentStatusValue> = {
   complete: 'completed',
   no_show: 'no_show'
 };
-
-function assertUtcTimestamp(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
-    );
-  }
-}
 
 function outboxFor(
   appointmentId: string,

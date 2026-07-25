@@ -16,6 +16,7 @@ import {
   isValidLocalDate,
   type Schedule
 } from './schedule.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 /**
  * Whether a completed visit needs another one, as pure rules.
@@ -92,15 +93,6 @@ export interface FollowUpDecisionPlan {
 
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const CLINIC_UTC_OFFSET = '+08:00';
-
-function assertUtcTimestamp(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
-    );
-  }
-}
 
 /** 台北的日期時間轉成 UTC 時間點；台灣無日光節約時間，偏移全年固定。 */
 export function taipeiInstant(date: string, time: string): string {

@@ -15,6 +15,7 @@ import {
   type IdempotencyContext,
   type PlannedIdempotencyRecord
 } from './idempotency.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 /**
  * The I/O-free core of the booking write path.
@@ -108,15 +109,6 @@ function assertIdentifier(value: string, fieldName: string): void {
     throw new DomainError(
       'INVALID_VALUE',
       `${fieldName} must be an opaque identifier.`
-    );
-  }
-}
-
-function assertUtcTimestamp(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
     );
   }
 }

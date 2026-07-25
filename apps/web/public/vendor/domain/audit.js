@@ -1,4 +1,5 @@
 import { DomainError } from './errors.js';
+import { assertUtcTimestamp } from './timestamp.js';
 export const AUDIT_SCHEMA_VERSION = 2;
 function assertOpaqueIdentifier(value, fieldName) {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
@@ -14,11 +15,6 @@ function assertNullableOpaqueIdentifier(value, fieldName) {
     if (value !== null)
         assertOpaqueIdentifier(value, fieldName);
 }
-function assertUtcTimestamp(value) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', 'audit.occurredAt must be a valid UTC ISO-8601 timestamp.');
-    }
-}
 /**
  * Produces the strict, privacy-minimised v2 event written in the same
  * transaction as its appointment mutation.
@@ -31,7 +27,7 @@ export function planAuditEvent(input) {
     assertOpaqueIdentifier(input.context.correlationId, 'audit.correlationId');
     assertNullableOpaqueIdentifier(input.context.reasonCode, 'audit.reasonCode');
     assertNullableOpaqueIdentifier(input.context.policyVersion, 'audit.policyVersion');
-    assertUtcTimestamp(input.occurredAt);
+    assertUtcTimestamp(input.occurredAt, 'audit.occurredAt');
     return {
         eventId: input.eventId,
         occurredAt: input.occurredAt,

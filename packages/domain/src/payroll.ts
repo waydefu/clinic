@@ -1,4 +1,4 @@
-import { assertUtcTimestamp, type Appointment } from './appointment.js';
+import type { Appointment } from './appointment.js';
 import {
   planAuditEvent,
   type AuditContext,
@@ -15,6 +15,7 @@ import {
 // 診所的時區只定義一次，在排班網格那一側；薪資期間必須用同一個，否則跨月的
 // 到診會被算進不同的月份。
 import { TAIPEI_TIME_ZONE } from './schedule.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 export const UNIQUE_PATIENT_COMPLETED_METRIC = 'unique_patient_completed';
 

@@ -1,11 +1,7 @@
 import { planAuditEvent } from './audit.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
-function assertUtcTimestamp(value, fieldName) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
-    }
-}
+import { assertUtcTimestamp } from './timestamp.js';
 function assertOpaqueIdentifier(value, fieldName) {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
         throw new DomainError('INVALID_VALUE', `${fieldName} must be an opaque identifier.`);

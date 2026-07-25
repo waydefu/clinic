@@ -1,4 +1,5 @@
 import { DomainError } from './errors.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 export type AppointmentStatus =
   | 'confirmed'
@@ -108,15 +109,6 @@ export function markAppointmentCompleted(
     completedAt,
     updatedAt: completedAt
   };
-}
-
-export function assertUtcTimestamp(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
-    );
-  }
 }
 
 function assertTimestampRange(

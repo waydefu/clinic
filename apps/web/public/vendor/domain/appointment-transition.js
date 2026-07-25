@@ -3,6 +3,7 @@ import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
+import { assertUtcTimestamp } from './timestamp.js';
 const AUDIT_ACTIONS = {
     request_cancellation: 'cancellation_requested',
     cancel: 'appointment_cancelled',
@@ -15,11 +16,6 @@ const NEXT_STATUS = {
     complete: 'completed',
     no_show: 'no_show'
 };
-function assertUtcTimestamp(value, fieldName) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
-    }
-}
 function outboxFor(appointmentId, status, at, correlationId, causationId) {
     return {
         id: `outbox_${appointmentId}_${status}`,

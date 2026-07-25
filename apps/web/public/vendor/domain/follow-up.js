@@ -3,13 +3,9 @@ import { calendarEventIdForFollowUp } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
 import { followUpGridTimes, isValidLocalDate } from './schedule.js';
+import { assertUtcTimestamp } from './timestamp.js';
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const CLINIC_UTC_OFFSET = '+08:00';
-function assertUtcTimestamp(value, fieldName) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
-    }
-}
 /** 台北的日期時間轉成 UTC 時間點；台灣無日光節約時間，偏移全年固定。 */
 export function taipeiInstant(date, time) {
     if (!isValidLocalDate(date) || !TIME_PATTERN.test(time)) {

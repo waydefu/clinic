@@ -3,6 +3,7 @@ import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
+import { assertUtcTimestamp } from './timestamp.js';
 /** 同一人同時只能有一筆未結束的預約。 */
 export const ACTIVE_BOOKING_LIMIT = 1;
 export const ACTIVE_BOOKING_STATUSES = [
@@ -12,11 +13,6 @@ export const ACTIVE_BOOKING_STATUSES = [
 function assertIdentifier(value, fieldName) {
     if (!/^[A-Za-z0-9_:-]{1,128}$/.test(value)) {
         throw new DomainError('INVALID_VALUE', `${fieldName} must be an opaque identifier.`);
-    }
-}
-function assertUtcTimestamp(value, fieldName) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
     }
 }
 /**
