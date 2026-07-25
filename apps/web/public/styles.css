@@ -1237,13 +1237,34 @@ textarea {
   margin-top: auto;
   padding-top: var(--space-sm);
 }
+/* 次要動作鍵（清除選取、清除篩選、修改備註…）。
+   **它必須看起來像按鈕**，而不只是一段變色的文字。先前是
+   `background: transparent; padding: 0`，於是「清除選取」在畫面上與旁邊的說明
+   文字沒有任何形狀差異——使用者回報「不知道那是按鈕」。NN/g 的〈Making
+   Clickable Elements Recognizable〉講的就是這件事：扁平化之後，互動元素仍必須
+   靠**形狀**（邊框、底色、內距）與靜態文字區分，光靠顏色不夠。
+   這裡用「幽靈按鈕」——有邊框與內距、底色留白，強度低於主要／次要按鈕，但形狀
+   明確。與 `.booking-back-row` 先前為了同一個理由做的處理一致。 */
 .text-button {
+  align-items: center;
   background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
   color: var(--forest);
+  display: inline-flex;
   font-size: var(--text-body);
   font-weight: var(--weight-bold);
+  gap: var(--space-3xs);
+  justify-content: center;
   margin-bottom: var(--space-sm);
-  padding: 0;
+  /* 44px 是觸控目標下限，同時讓幽靈按鈕有實體感 */
+  min-height: var(--control-height-md);
+  padding: var(--space-2xs) var(--space-xs);
+}
+.text-button:hover {
+  background: var(--forest-light);
+  border-color: var(--forest);
+  color: var(--forest-dark);
 }
 /* 步驟返回鍵：原本用 .text-button（11px 純文字）太不明顯，改成有邊框、有點擊
    區的幽靈按鈕，讓「回上一步」在每個步驟都看得見、按得到。 */
@@ -1524,8 +1545,12 @@ textarea {
   display: flex;
   gap: var(--space-sm);
 }
+/* 頁尾連結**保留底線**。它們是散在文字裡的行內連結，不像導覽列那樣靠位置就能
+   看出可點——拿掉底線之後，唯一的線索只剩顏色，而那不夠（WCAG 1.4.1，也是
+   NN/g 對行內連結的建議）。先前這裡是 `text-decoration: none`。 */
 .patient-footer a {
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 .status-chip {
   align-items: center;
@@ -1938,12 +1963,6 @@ textarea {
 label.has-error input {
   border-width: 2px;
   outline: 1px solid currentColor;
-}
-
-/* 行內文字按鈕在觸控裝置上需要足夠的點擊區，而不只是文字高度 */
-.text-button {
-  min-height: 44px;
-  padding-block: var(--space-2xs);
 }
 
 /* ---------------------------------------------------------------

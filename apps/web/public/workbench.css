@@ -315,7 +315,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs);
-  margin-bottom: var(--space-xs);
+  /* 上下都給：只宣告單邊時，與上方同樣只宣告單邊的容器會貼在一起。 */
+  margin-block: var(--space-xs);
   padding: var(--space-2xs) var(--space-xs);
 }
 .batch-select-all {
@@ -358,12 +359,16 @@
 }
 
 /* 低頻建檔流程使用漸進揭露，避免大量欄位與時段把櫃台處理清單推到折線下方。 */
+/* 漸進揭露區塊（建立新預約）。
+   上下都要留白：先前只有 `margin-top`，於是它與緊接在下方的批次操作列（只有
+   `margin-bottom`）之間是**零間距**，兩個獨立的容器看起來黏成一塊。相鄰元素各自
+   只宣告單邊 margin 時就會這樣——兩邊都給，靠 margin collapse 取較大值即可。 */
 .workflow-disclosure {
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-1);
-  margin-top: var(--space-lg);
+  margin-block: var(--space-lg);
   overflow: clip;
 }
 .workflow-disclosure > summary,
@@ -1156,14 +1161,24 @@ details[open] > summary .workflow-summary-chevron {
 .wv-col:last-child {
   border-right: 0;
 }
+/* 休診日現在預設**不出現**在週檢視裡（見 week-view.js 的 visibleDays），所以這個
+   網底只會落在「排班說休診、但那天其實有預約」的例外欄位上——保留它是為了讓那種
+   不一致一眼看得出來。網底刻意比先前淡：它是註記，不是主角。 */
 .wv-col.wv-closed {
   background: repeating-linear-gradient(
     45deg,
     transparent,
-    transparent 7px,
-    var(--surface-soft) 7px,
-    var(--surface-soft) 14px
+    transparent 9px,
+    var(--surface-soft) 9px,
+    var(--surface-soft) 12px
   );
+}
+.wv-empty {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  margin: 0;
+  padding: var(--space-md);
+  text-align: center;
 }
 .wv-closed-label {
   color: var(--ink-muted);
@@ -1272,7 +1287,12 @@ details[open] > summary .workflow-summary-chevron {
 }
 
 /* 讓日常處置在高密度預約畫面中保持清楚的視覺層級與 44px 點擊面積。 */
-.summary-card .summary-action {
+/* 卡片上的行動入口。
+   選擇器**刻意不綁 `.summary-card`**：先前寫成 `.summary-card .summary-action`，
+   於是「下一位」面板裡同樣掛 `.summary-action` 的「前往處理清單」完全沒吃到樣式，
+   在畫面上變成一條裸連結，看不出是按鈕。元件樣式跟著 class 走，不跟著它剛好被
+   放在哪個容器裡走——否則同一個 class 在不同位置會長得不一樣，而且不會報錯。 */
+.summary-action {
   align-items: center;
   background: var(--forest-light);
   border: 1px solid color-mix(in srgb, var(--forest) 24%, var(--line));
@@ -1286,11 +1306,11 @@ details[open] > summary .workflow-summary-chevron {
   padding: var(--space-2xs) var(--space-xs);
   text-decoration: none;
 }
-.summary-card .summary-action:hover {
+.summary-action:hover {
   background: var(--surface-tint-strong);
   text-decoration: none;
 }
-.summary-card .summary-action:focus-visible,
+.summary-action:focus-visible,
 .wv-event:focus-visible {
   outline: 3px solid var(--forest);
   outline-offset: 3px;
@@ -1307,30 +1327,6 @@ details[open] > summary .workflow-summary-chevron {
   width: 1.35rem;
 }
 
-.appointment-card {
-  border-left: 0.3rem solid var(--forest);
-  gap: var(--space-md);
-  padding: var(--space-sm) var(--space-md);
-}
-.appointment-main {
-  align-items: flex-start;
-}
-.appointment-content {
-  display: grid;
-  gap: var(--space-3xs);
-  min-width: 0;
-}
-.appointment-title-row {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2xs);
-}
-.appointment-title-row > strong {
-  color: var(--forest-dark);
-  font-size: var(--text-md);
-  line-height: 1.25;
-}
 .appointment-kind {
   background: var(--surface-tint);
   border: 1px solid var(--line);
@@ -1339,31 +1335,6 @@ details[open] > summary .workflow-summary-chevron {
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
   padding: var(--space-3xs) var(--space-2xs);
-}
-.appointment-main .appointment-time {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  font-size: var(--text-body);
-  gap: var(--space-2xs);
-  margin: 0;
-}
-.appointment-time > strong {
-  color: var(--forest-dark);
-  font-size: var(--text-md);
-}
-.appointment-service {
-  align-items: center;
-  color: var(--ink-muted);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  gap: var(--space-2xs);
-}
-.appointment-main .detail-line {
-  font-size: var(--text-body);
-  line-height: 1.55;
 }
 .status-chip {
   gap: var(--space-3xs);
@@ -1612,15 +1583,6 @@ details[open] > summary .workflow-summary-chevron {
   .appointment-card {
     padding: var(--space-sm);
   }
-  .appointment-main {
-    width: 100%;
-  }
-  .appointment-main > .status-chip {
-    flex: 0 0 auto;
-  }
-  .appointment-content {
-    width: 100%;
-  }
 }
 
 /* 待安排回診卡：與一般預約卡同底，加左緣強調與淡背景區分。 */
@@ -1633,9 +1595,12 @@ details[open] > summary .workflow-summary-chevron {
 .notification-center {
   position: relative;
 }
+/* 通知鈴鐺是純圖示按鈕，所以更需要一個看得見的容器：先前是完全透明、沒有邊框，
+   在深色 header 上只剩一個浮著的圖示，看不出是可以按的控制項。 */
 .nav-bell {
   align-items: center;
-  background: transparent;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--ink-muted);
   display: inline-flex;
@@ -1645,6 +1610,11 @@ details[open] > summary .workflow-summary-chevron {
   margin-left: 0;
   position: relative;
   width: 2.75rem;
+}
+.nav-bell:hover {
+  background: var(--forest-light);
+  border-color: var(--forest);
+  color: var(--forest-dark);
 }
 .nav-bell:hover,
 .nav-bell.has-alert {

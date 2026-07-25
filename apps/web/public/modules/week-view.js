@@ -22,7 +22,17 @@ import { escapeHtml } from './ui-format.js';
 // 檢視自 10:00 到 21:00：涵蓋週六 10:00 開診到平日 20:00 掛號的一小時區塊。
 const VIEW_START_MIN = 10 * 60;
 const VIEW_END_MIN = 21 * 60;
-const PX_PER_MIN = 78 / 60; // 每小時 78px，讓 30 分鐘事件可容納兩行資訊
+// 每小時 102px。這個數字是**量出來的，不是估的**：一個 30 分鐘事件的方塊高度是
+// `SLOT_DURATION_MINUTES * PX_PER_MIN - 3`，而方塊裡要放兩行（患者姓名＋時間·
+// 掛號別·療程）加上下各 4px 內距——實測內容需要 46px。
+//
+// 先前是 78px/小時 → 方塊只有 36px，於是第二行被 `overflow: hidden` 從中間切掉
+// （2026-07-25 使用者截圖回報「字被切割」）。註解當時寫著「讓 30 分鐘事件可容納
+// 兩行資訊」，但數字從來沒有真的滿足過那個意圖。
+//
+// 102px → 方塊 48px，比需要的 46px 多 2px 餘裕。改字級或行高時請重新量一次：
+// `tests/e2e/workbench-lifecycle.spec.ts` 有一條斷言會在再次被切到時變紅。
+const PX_PER_MIN = 102 / 60;
 
 const WEEK_DAY_LABELS = [
   '週一',
@@ -211,18 +221,39 @@ export function renderWeekView(state, weekStart, todayDate) {
     ...followUpReminderEvents(state)
   ];
 
-  const header = days
-    .map((date, index) => {
+  // 只顯示「有門診的日子」。
+  //
+  // 先前七天全部畫出來，休診日整欄鋪滿 45° 斜線——一週有三天休診，於是畫面近一半
+  // 是網底，反而把真正要看的門診日擠窄、也擋住視線（2026-07-25 使用者回報）。
+  //
+  // `isClosed` 對 `extra_open` 例外回傳 false，所以**加開的日子仍然會出現**，
+  // 正是「有加開再放進去」。
+  //
+  // 但有一條防線：**只要那天有預約，就一定要顯示**，即使排班說它休診。資料不能
+  // 因為設定改了就從畫面上消失——那會讓人以為預約不見了。
+  const visibleDays = days
+    .map((date, index) => ({ date, label: WEEK_DAY_LABELS[index] }))
+    .filter(
+      ({ date }) =>
+        !isClosed(state.schedule, date) ||
+        shown.some((item) => taipeiDate(item.startsAt) === date)
+    );
+
+  if (visibleDays.length === 0)
+    return '<p class="wv-empty">這一週沒有門診日。可在排班管理加開日期。</p>';
+
+  const header = visibleDays
+    .map(({ date, label }) => {
       const dayNumber = date.slice(8);
       const closed = isClosed(state.schedule, date);
       const today = date === todayDate;
-      return `<div class="wv-head-cell${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><span>${WEEK_DAY_LABELS[index]}</span>${today ? `<b>${dayNumber}</b>` : dayNumber}</div>`;
+      return `<div class="wv-head-cell${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><span>${label}</span>${today ? `<b>${dayNumber}</b>` : dayNumber}</div>`;
     })
     .join('');
 
   const gridHeight = (VIEW_END_MIN - VIEW_START_MIN) * PX_PER_MIN;
-  const columns = days
-    .map((date) => {
+  const columns = visibleDays
+    .map(({ date }) => {
       const closed = isClosed(state.schedule, date);
       const lines = [];
       for (let minute = VIEW_START_MIN; minute < VIEW_END_MIN; minute += 30)
