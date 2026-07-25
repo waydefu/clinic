@@ -154,6 +154,32 @@ remote，commit 全在本機）；私有 repository 需要 GitHub Advanced Secur
 （31）與離開 4px 間距網格的字面值（199）。這些收斂會改變版面節奏，屬於選定視覺
 風格時的工作，所以現在只鎖住「不准變多」，並在每次執行時把數字印出來。
 
+## 3-b. 相依修補與已審視的 audit 例外
+
+`pnpm audit --audit-level high` 是 `check:supply-chain` 的一部分，會擋 CI。它查的是
+**線上的 advisory 資料庫**，所以就算一行程式都沒改，它也可能某天開始變紅——這是
+刻意的，不是雜訊。
+
+修補一律寫進版控（`pnpm-workspace.yaml` 的 `overrides`），不靠「本機剛好裝到新版」：
+
+| 套件 | 問題 | 處置 |
+| --- | --- | --- |
+| `find-my-way` ≤9.6.0 | HTTP/2 DDoS。路徑 `apps/api > @nestjs/platform-fastify > fastify` | override 到 `^9.6.1`（實際解析為 9.7.0） |
+| `brace-expansion` ≤5.0.7 | 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg） | 5.x 那條線 override 到 `^5.0.8` |
+
+**一筆已審視的例外**（`auditConfig.ignoreGhsas`）：同一個 GHSA 仍會標記
+`brace-expansion@1.1.16` 與 `2.1.2`，但那兩個**已經是各自 major 上最新的維護版**
+（dist-tag `maintenance-v1`／`maintenance-v2`）；advisory 的 patched 只寫
+`>=5.0.8`，於是每一個較舊的 major 都被算進去，即使那條線根本沒有別的版本可升。
+硬鎖到 5.x 會直接壞掉：`minimatch@3` 要 `^1`、`minimatch@5`／`6` 要 `^2`。殘留路徑
+是 `firebase-admin > … > glob > minimatch`（apps/api 目前未部署）與
+`firebase-tools > minimatch`（CLI，不出貨），而攻擊面是「把攻擊者控制的 glob 字串
+丟進去展開」——這兩條路徑都不會。**解除條件寫在 `pnpm-workspace.yaml` 的註解裡。**
+
+`pnpm audit` 會把它算成 `1 ignored` 印出來，所以這個例外不會安靜地爛掉。
+
+**上線證據包必須附一次沒有任何 ignore 的完整 audit 輸出**，並逐筆說明當時的狀態。
+
 ## 4-c. 標記與無障礙結構（`pnpm check:ui`）
 
 這個守衛擋的是「HTML 看起來對、但語意或接線是壞的」那一類——axe 與單元測試都不會

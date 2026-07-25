@@ -5,3 +5,36 @@ allowBuilds:
   '@firebase/util': true
   esbuild: true
   protobufjs: true
+
+# 安全性修補：把有 advisory 的傳遞相依鎖到已修補的版本。
+#
+# 兩筆都是**同一個 major 內的 patch**，所以不會改變任何 API；上游把版本帶上來
+# 之後這裡就可以刪掉。`pnpm audit --audit-level high` 是 check:supply-chain 的
+# 一部分，CI 會擋，所以修補要留在版控裡而不是靠本機安裝的時機。
+#
+#   find-my-way    <=9.6.0  HTTP/2 DDoS（GHSA 見 advisory）
+#                  路徑：apps/api > @nestjs/platform-fastify > fastify
+#   brace-expansion <=5.0.7 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg）
+#                  路徑：eslint > minimatch（dev-only）
+#                  只鎖 5.x：同時安裝的 1.1.x／2.1.x 是 firebase-tools 的相依，
+#                  跨 major 硬鎖會直接讓 minimatch@3 壞掉。
+overrides:
+  find-my-way: '^9.6.1'
+  brace-expansion@^5: '^5.0.8'
+
+# 已審視的 audit 例外。**這不是「關掉警告」，是「查過而且沒有可用的修補」**，
+# 每次 upstream 有動作都要重新檢查。
+#
+# GHSA-mh99-v99m-4gvg（brace-expansion，不受限展開導致 OOM）
+#   上面的 override 已經把 5.x 那條線升到 5.0.8。剩下被標記的是 1.1.16 與
+#   2.1.2——而它們**已經是各自 major 上最新的維護版**（dist-tag maintenance-v1
+#   ／maintenance-v2）；advisory 的 patched 只寫 `>=5.0.8`，所以 npm audit 會把
+#   每一個較舊的 major 都算進去，即使那條線沒有別的版本可升。
+#   硬鎖到 5.x 會直接壞掉：minimatch@3 要 ^1、minimatch@5／6 要 ^2。
+#   殘留路徑：firebase-admin > … > glob > minimatch（apps/api 目前未部署、只有
+#   /v1/health）與 firebase-tools > minimatch（CLI，不出貨）。攻擊面是「把攻擊者
+#   控制的 glob 字串丟進去展開」，這兩條路徑都不會。
+#   **解除條件**：1.x／2.x 出現修補版，或這些相依改用已修補的 minimatch。
+auditConfig:
+  ignoreGhsas:
+    - GHSA-mh99-v99m-4gvg
