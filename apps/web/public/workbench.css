@@ -53,11 +53,14 @@
   z-index: 8;
 }
 .workspace-nav a {
+  align-items: center;
   border-radius: var(--radius-sm);
   color: var(--ink-muted);
+  display: inline-flex;
   flex: 0 0 auto;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
+  min-height: var(--control-height-md);
   padding: var(--space-xs) var(--space-xs);
   text-decoration: none;
 }
@@ -82,7 +85,7 @@
   box-shadow: var(--elevation-1);
   color: var(--ink-muted);
   display: flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   margin: var(--space-xs) 0 var(--space-sm);
   min-height: 2.9rem;
@@ -119,12 +122,12 @@
   align-items: center;
   color: var(--ink-muted);
   display: flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   gap: var(--space-2xs);
 }
 .session-picker select {
-  min-height: 2.7rem;
+  min-height: var(--control-height-md);
   min-width: 12rem;
 }
 .button-danger-outline {
@@ -141,7 +144,7 @@
 }
 .summary-card a {
   color: var(--forest);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   text-decoration: none;
 }
@@ -179,7 +182,12 @@
 .next-up-time span,
 .next-up-patient span {
   color: var(--ink-muted);
+}
+.next-up-time span {
   font-size: var(--text-micro);
+}
+.next-up-patient span {
+  font-size: var(--text-body);
 }
 .next-up-patient {
   display: grid;
@@ -188,7 +196,7 @@
 }
 .next-up-empty {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   margin: 0;
 }
 .task-column {
@@ -218,7 +226,7 @@
 }
 .task-card span {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
 }
 /* 「為什麼要處理」用一般字重，與標題分層；它是解釋，不是標籤。 */
@@ -237,7 +245,7 @@
   align-items: center;
   color: var(--ink-muted);
   display: flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   gap: var(--space-2xs);
   margin: 0;
 }
@@ -274,7 +282,7 @@
   color: var(--ink-muted);
   display: flex;
   flex: 0 0 auto;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   gap: var(--space-xs);
   margin-left: auto;
@@ -286,7 +294,7 @@
    aria-live 會讓螢幕閱讀器逐列重唸，所以由這一句短的代為公告。 */
 .result-summary {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-label);
   margin: 0 0 var(--space-2xs);
@@ -313,7 +321,7 @@
 .batch-select-all {
   align-items: center;
   display: flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   gap: var(--space-3xs);
 }
@@ -384,7 +392,7 @@
 .workflow-disclosure > summary small,
 .calendar-disclosure > summary small {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
 }
 .workflow-summary-icon {
   align-items: center;
@@ -695,7 +703,7 @@ details[open] > summary .workflow-summary-chevron {
   padding: var(--space-2xs) var(--space-sm);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   white-space: nowrap;
 }
 .action-menu > summary::-webkit-details-marker {
@@ -751,7 +759,7 @@ details[open] > summary .workflow-summary-chevron {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2xs);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
 }
 .note-row {
   display: flex;
@@ -785,7 +793,8 @@ details[open] > summary .workflow-summary-chevron {
  * ------------------------------------------------------------------------- */
 .data-table {
   border-collapse: collapse;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
   width: 100%;
 }
 .data-table caption {
@@ -799,7 +808,7 @@ details[open] > summary .workflow-summary-chevron {
 .data-table th {
   border-bottom: 1px solid var(--line-strong);
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-label);
   padding: var(--space-2xs) var(--space-xs);
@@ -988,7 +997,7 @@ details[open] > summary .workflow-summary-chevron {
 .field-group > legend {
   border-bottom: 1px solid var(--line);
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-label);
   padding: 0 0 var(--space-3xs);
@@ -1073,7 +1082,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .week-range {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
 }
 .week-view {
@@ -1095,7 +1104,7 @@ details[open] > summary .workflow-summary-chevron {
 .wv-head-cell {
   color: var(--ink-muted);
   flex: 1 1 0;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   min-width: 5.5rem;
   padding: var(--space-2xs) var(--space-3xs);
@@ -1103,7 +1112,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .wv-head-cell span {
   display: block;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
 }
 .wv-head-cell.wv-closed {
   /* Was --line-strong (#c3d3ca), which measured 1.49:1 on the near-white
@@ -1132,7 +1141,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .wv-hour {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   padding-right: var(--space-2xs);
   position: absolute;
   right: 0;
@@ -1158,7 +1167,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .wv-closed-label {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   left: 50%;
   position: absolute;
@@ -1231,7 +1240,7 @@ details[open] > summary .workflow-summary-chevron {
   color: var(--ink-muted);
   display: flex;
   flex-wrap: wrap;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   gap: var(--space-sm);
   margin-bottom: var(--space-sm);
 }
@@ -1250,7 +1259,7 @@ details[open] > summary .workflow-summary-chevron {
   background: var(--info-text);
 }
 .appointment-card.is-flash {
-  animation: card-flash 1.6s ease;
+  animation: card-flash var(--motion-slow) var(--ease-decelerate);
 }
 @keyframes card-flash {
   0%,
@@ -1270,7 +1279,7 @@ details[open] > summary .workflow-summary-chevron {
   border-radius: var(--radius-sm);
   color: var(--forest-dark);
   display: inline-flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   gap: var(--space-2xs);
   min-height: 2.75rem;
@@ -1348,12 +1357,12 @@ details[open] > summary .workflow-summary-chevron {
   color: var(--ink-muted);
   display: flex;
   flex-wrap: wrap;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   gap: var(--space-2xs);
 }
 .appointment-main .detail-line {
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   line-height: 1.55;
 }
 .status-chip {
@@ -1435,7 +1444,7 @@ details[open] > summary .workflow-summary-chevron {
   border-radius: var(--radius-sm);
   color: var(--forest-dark);
   display: inline-flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   gap: var(--space-2xs);
   justify-content: center;
   margin: 0;
@@ -1453,7 +1462,7 @@ details[open] > summary .workflow-summary-chevron {
   border-radius: var(--radius-sm);
   color: var(--on-accent);
   display: flex;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   gap: var(--space-2xs);
   justify-content: center;
@@ -1479,7 +1488,7 @@ details[open] > summary .workflow-summary-chevron {
   padding: var(--space-2xs);
 }
 .action-menu-list button {
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   min-height: 2.6rem;
   padding: var(--space-2xs) var(--space-xs);
@@ -1500,19 +1509,19 @@ details[open] > summary .workflow-summary-chevron {
 }
 .wv-head-cell {
   background: var(--surface-soft);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   min-width: 6.85rem;
   padding: var(--space-xs) var(--space-2xs);
 }
 .wv-head-cell span {
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   letter-spacing: var(--tracking-wide);
 }
 .wv-col {
   min-width: 6.85rem;
 }
 .wv-hour {
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   font-weight: var(--weight-bold);
   padding-right: var(--space-2xs);
 }
@@ -1576,7 +1585,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .week-view-legend {
   align-items: center;
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   gap: var(--space-xs) var(--space-md);
 }
 .wv-swatch {
@@ -1678,7 +1687,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .notification-popover > p {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   margin-bottom: var(--space-xs);
 }
 .notification-popover .bell-list {
@@ -1726,7 +1735,7 @@ details[open] > summary .workflow-summary-chevron {
 .read-only-field,
 .field-hint {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
 }
 .read-only-field {
   display: grid;
@@ -1803,7 +1812,7 @@ details[open] > summary .workflow-summary-chevron {
 .login-hint {
   border-top: 1px solid var(--line);
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+  font-size: var(--text-body);
   margin-top: var(--space-lg);
   padding-top: var(--space-sm);
 }

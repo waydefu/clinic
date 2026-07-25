@@ -52,6 +52,12 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > 功能與品質，**不變更階段 5 的視覺範圍或決策狀態**；仍限 local／synthetic，
 > 不代表 D-006 核准。
 >
+> **2026-07-25 桌機可讀性批次。** 依最新使用回饋與 WCAG 2.2／USWDS／GOV.UK
+> typography 基準，將兩端的必讀與可操作文字提升到 16px，14px 只留給代碼、徽標、
+> chip 與緊湊週曆事件；導覽與主要控制項採 44px 點擊高度，長說明限制 68ch，
+> reduced-motion 同時停用 transition 與 animation。保留系統字體與 0 KiB 字型
+> 預算，並新增 computed font-size／target height E2E 守衛。
+>
 > 同批的無障礙修正：全站清單容器不再是 `aria-live` region（整批置換的內容會被
 > 螢幕閱讀器逐項重唸），改由簡短摘要公告筆數；`check:ui` 新增兩條守衛——清單不得
 > 掛 aria-live、HTML 不得有重複 id（兩份客戶端都用 `querySelectorAll('[id]')`

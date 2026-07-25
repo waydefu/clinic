@@ -21,8 +21,10 @@
 
 > **營運工作臺以效率為主，患者預約頁才承擔品牌與情緒。**
 
-兩個頁面**刻意不統一密度**。工作臺資料維持 14px、患者頁正文提升到 16px。看到
-兩邊字級不同不是漏改，那是方向本身。
+兩個頁面**刻意不統一密度**，但 2026-07-25 的桌機可讀性回饋重新畫清楚了下限：
+工作臺的導覽、狀態、篩選、表格資料、表單與操作文字，以及患者頁所有必讀／可操作
+文字都使用 16px；14px 只留給 eyebrow、代碼、徽標、chip 與緊湊週曆事件等次要
+資訊。兩端密度仍不同，但不再用縮小高頻資訊來換密度。
 
 ## 2. 實施順序（負責人指定）
 
@@ -36,7 +38,7 @@
 | 3 | 工作臺卡片重構為資料表格 | **完成** `bab9768`（表格）＋`2a4b944`（排序、批次操作） |
 | 4 | 首頁改為情境式指揮中心（資訊架構重構） | **完成**（見 §8） |
 | 5 | 品牌層（配色、香檳金、系統字體排版） | **完成**（見 §10） |
-| 6 | Motion System 與互動細節 | 未開始 **←下一位從這裡開始**，起點見 §9 |
+| 6 | Motion System 與互動細節 | 基礎守衛已補；完整階段未開始，起點見 §9 |
 
 品牌資產（診所標誌、健保署署徽）已先行置入：`a36274e`。無障礙與效能的修正：
 `01bb7dd`、`d4fe827`。
@@ -222,8 +224,9 @@ UTF-16 碼位；同值時一律回到時間先後，否則每次重畫同分的�
   的 `.result-summary`（短句、`aria-live="polite"`）公告「N 筆」。MDN 的 live
   region 指引也是這個做法：用一句精簡的狀態訊息，不要把大塊動態區域整個標成
   live。`check:ui` 有一條守衛擋它回來。
-- 患者頁仍有 50% 的可見文字在 14px（原本 69%）。剩下的多數是導覽、eyebrow、
-  chip、步驟編號，該小；但值得再看一輪。
+- ~~患者頁仍有過多 14px 可見文字~~ **已於 2026-07-25 依語意重分級**：導覽、
+  步驟名稱、表單標籤／提示／錯誤、日期篩選、互動文字與頁尾資訊提升到 16px；
+  14px 只保留 eyebrow、代碼、徽標、chip、步驟編號與日期筆數等次要資訊。
 - favicon 與 `og-booking.png` 還沒換成新標誌。
 - 環境：C 槽剩餘空間不足 2 GB，`firebase hosting:channel:deploy` 會在部署**成功
   之後**以「There is not enough space on the disk.」回傳非零離開碼。用
@@ -247,7 +250,8 @@ UTF-16 碼位；同值時一律回到時間先後，否則每次重畫同分的�
 ### 階段 6：Motion System
 
 `--motion-fast/base/slow` 與兩個 easing 在階段 1 就定義好了，目前只有少數
-transition 用到。要點：
+transition 用到。2026-07-25 的可讀性批次先把既有定位 flash 收回 motion token，
+並補齊 reduced-motion 對 animation 的停用；完整的狀態轉場設計仍未開始。要點：
 
 - `check:tokens` 已經禁止寫死動效時長，所以新增動效只能用 token。
 - `prefers-reduced-motion` 區塊裡的 `0.01ms` 是**關閉動效**、不是調時長，是刻意
@@ -398,6 +402,41 @@ forced-colors 下，兩個純裝飾的金色點綴（`.eyebrow-brand::after`、
 
 CSS gzip **+0.25 KiB**（styles +0.23、error +0.02、workbench ±0）。
 字型請求 **0**，字型傳輸量 **0 KiB**。
+
+## 11. 2026-07-25 桌機可讀性與互動尺寸批次
+
+### 權威基準與取捨
+
+- 以 [W3C WCAG 2.2](https://www.w3.org/TR/WCAG22/) 為合規基準，特別核對
+  1.4.3 對比、1.4.4 文字放大 200%、1.4.10 重排、2.4.11 焦點不被遮住與
+  2.5.8 目標尺寸。WCAG 沒有規定正文必須是 16px；本次 16px 下限來自繁中桌機
+  使用回饋與本系統既有 body scale，合規仍由縮放、重排、對比與焦點測試證明。
+- 長說明依
+  [U.S. Web Design System Typography](https://designsystem.digital.gov/components/typography/)
+  的 45–90 字元、約 66 字元目標，限制為 `68ch`，並維持至少 1.5 的正文行高。
+- 字級只使用既有 rem type scale，符合
+  [GOV.UK Design System type scale](https://design-system.service.gov.uk/styles/type-scale/)
+  對相對單位、固定尺度與一致垂直節奏的做法；沒有新增任何字型或外部請求。
+
+### 實作界線
+
+- 工作臺：導覽、全域回饋、session 選擇、待辦說明、篩選與結果摘要、批次選取、
+  資料表與表頭、表單群組、週曆表頭／時間軸／圖例、通知與登入提示改為 16px。
+  週曆事件、代碼、chip、圖示與日期中繼資訊保留 14px，避免時間軸失去掃描密度。
+- 患者端：導覽、按鈕、步驟名稱、日期篩選、表單標籤／提示／錯誤、頁尾資訊改為
+  16px；主要連結、select、input、返回鍵與時段按鈕採 44px 高度。
+- 共用：資料表使用正文行高；主要說明限制 `68ch`；`prefers-reduced-motion`
+  同時關閉 transition 與 animation。
+- E2E 新增 `typography.spec.ts`，直接檢查兩端代表性文字的 computed font-size 與
+  導覽／主題控制項的 44px 目標高度；原有 responsive suite 持續覆蓋
+  1280／1025／1024／769／768／481／480／390／320px。
+
+### 驗證結果
+
+- `corepack pnpm verify`：通過；36 個測試檔、389 項單元測試全數通過，並包含格式、
+  lint、TypeScript、文件連結、secret、domain sync、design token 與效能預算。
+- `corepack pnpm test:e2e`：67/67 通過；包含新增字級守衛、320px／200% 文字重排、
+  axe、三主題對比、效能、角色邊界與完整預約生命週期。
 
 ## 相關文件
 
