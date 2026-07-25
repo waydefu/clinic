@@ -67,7 +67,7 @@ export function initialState() {
       accounts: [
         {
           id: 'admin_test_001',
-          label: '測試管理者',
+          label: '測試主管',
           role: 'admin',
           status: 'active',
           username: 'admin',

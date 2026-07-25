@@ -11,7 +11,7 @@ import {
 } from '../public/modules/workspace-domain.js';
 
 // 合成帳密登入原型：不是安全邊界，只是把工作臺的角色切換換成帳密登入的 UX。
-// 這裡釘住登入的行為與「權限不因登入狀態改變」這條刻意的界線。
+// 這裡釘住登入的行為，以及登出後權限必須立即歸零。
 describe('synthetic workbench login', () => {
   it('starts logged out but with a seeded current account', () => {
     const state = initialState();
@@ -56,18 +56,17 @@ describe('synthetic workbench login', () => {
     ).toThrow();
   });
 
-  it('logs out without dropping the resolved account or its permissions', () => {
+  it('logs out and immediately drops every capability', () => {
     const state = initialState();
     authenticateAccount(state, 'admin', 'beauessence-admin');
     logout(state);
     expect(state.workspace.authenticated).toBe(false);
-    // 登出只切 UI；權限仍由角色決定（原型非安全邊界，AUTH-001）。
-    expect(permissionsFor(state)).toContain(PERMISSIONS.MANAGE_ACCOUNTS);
+    expect(permissionsFor(state)).toEqual([]);
   });
 
-  it('keeps permissions tied to the role, not the login flag', () => {
+  it('requires both an authenticated session and a permitted role', () => {
     const loggedOut = initialState();
-    expect(permissionsFor(loggedOut)).toContain(PERMISSIONS.MANAGE_ACCOUNTS);
+    expect(permissionsFor(loggedOut)).toEqual([]);
 
     const frontDesk = initialState();
     authenticateAccount(frontDesk, 'front', 'beauessence-front');
@@ -75,6 +74,9 @@ describe('synthetic workbench login', () => {
     expect(permissionsFor(frontDesk)).not.toContain(
       PERMISSIONS.MANAGE_ACCOUNTS
     );
+    expect(permissionsFor(frontDesk)).toContain(PERMISSIONS.MANAGE_FOLLOW_UP);
+    expect(permissionsFor(frontDesk)).toContain(PERMISSIONS.ASSIGN_CASE);
+    expect(permissionsFor(frontDesk)).not.toContain(PERMISSIONS.REASSIGN_CASE);
   });
 
   it('lets a newly created synthetic account log in with its generated credentials', () => {

@@ -35,6 +35,8 @@ export function assignCaseManager(state, appointmentId, managerId, actorId) {
       ruleVersion: 'synthetic-v1'
     });
   else {
+    // 權限層會把首次指派與改派分開；domain helper 仍負責維持單一 active
+    // assignment，避免任何呼叫端自行改陣列。
     existing.managerId = managerId;
     existing.assignedAt = now;
     existing.assignedBy = actorId;

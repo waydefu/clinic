@@ -49,6 +49,24 @@ const elements = Object.fromEntries(
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
 const mobileViewport = window.matchMedia('(max-width: 48rem)');
 const appShell = document.querySelector('.app-shell');
+const restrictedDom = [
+  ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
+];
+
+function isAdminSession() {
+  return (
+    state?.session?.authenticated === true &&
+    state.session.account?.role === 'admin'
+  );
+}
+
+// 櫃台登入時直接把主管導覽與工作區移出 document，而不是只套 hidden。節點的
+// event listener 會隨頁面 reload 重建；角色切換與登出都採 reload，避免前一個
+// session 的治理表單、篩選或通知殘留在下一個 session。
+function enforceRoleDomBoundary() {
+  if (!state.session.authenticated || isAdminSession()) return;
+  for (const element of restrictedDom) element.remove();
+}
 
 // 合成登入閘門：未登入時只顯示登入頁，登入後才顯示工作臺。這是 UX 原型、
 // 不是安全邊界——權限仍由帳號角色決定，`state` 也已在瀏覽器內，登出不等於
@@ -202,11 +220,57 @@ async function runUiAction({
 }
 
 async function post(path, body = {}) {
+  const requiredPermission = (() => {
+    if (path === '/reset') return PERMISSIONS.MANAGE_SYSTEM;
+    if (path.startsWith('/schedule/')) return PERMISSIONS.MANAGE_SCHEDULE;
+    if (
+      path === '/workspace/accounts' ||
+      /\/workspace\/accounts\/.+\/toggle$/.test(path)
+    )
+      return PERMISSIONS.MANAGE_ACCOUNTS;
+    if (
+      [
+        '/workspace/announcement',
+        '/workspace/maintenance',
+        '/workspace/releases',
+        '/outbox/simulate',
+        '/outbox/requeue'
+      ].includes(path)
+    )
+      return PERMISSIONS.MANAGE_COMMUNICATIONS;
+    if (path.startsWith('/follow-ups/')) return PERMISSIONS.MANAGE_FOLLOW_UP;
+    if (path === '/case-assignments') {
+      const assigned = state.caseAssignments.some(
+        (item) =>
+          item.appointmentId === body.appointmentId && item.status === 'active'
+      );
+      return assigned ? PERMISSIONS.REASSIGN_CASE : PERMISSIONS.ASSIGN_CASE;
+    }
+    if (path === '/bookings') return PERMISSIONS.CREATE_BOOKING;
+    if (/\/bookings\/.+\/(reschedule|notes)$/.test(path))
+      return PERMISSIONS.CREATE_BOOKING;
+    if (/\/bookings\/.+\/delete$/.test(path))
+      return PERMISSIONS.DELETE_APPOINTMENT;
+    if (/\/bookings\/.+\/(cancel|no-show|complete)$/.test(path))
+      return path.endsWith('/cancel')
+        ? PERMISSIONS.CANCEL_BOOKING
+        : PERMISSIONS.COMPLETE_VISIT;
+    return undefined;
+  })();
+  if (
+    requiredPermission !== undefined &&
+    !state.session.permissions.includes(requiredPermission)
+  )
+    throw new Error('目前合成帳號沒有執行此動作的權限。');
+
   state = await apiClient.request(path, {
     method: 'POST',
     body: JSON.stringify(body)
   });
-  render();
+  if (!['/workspace/logout', '/reset'].includes(path)) {
+    enforceRoleDomBoundary();
+    render();
+  }
   return state;
 }
 
@@ -224,20 +288,8 @@ function renderSession() {
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
     state.session.account.role === 'admin'
-      ? '可設定排班、回診、個管、帳號與系統治理。'
-      : '只保留預約、取消、改期與到診處置的日常權限。';
-  const admin = state.session.account.role === 'admin';
-  // 導覽連結直接隱藏；工作區只標記「被權限擋下」，實際的 hidden 由分頁模組
-  // 統一決定——兩邊各自寫 hidden 會互相蓋掉（櫃台切到排班會看到空白頁）。
-  document.querySelectorAll('[data-admin-nav]').forEach((element) => {
-    element.hidden = !admin;
-  });
-  document.querySelectorAll('[data-admin-only]').forEach((element) => {
-    element.dataset.restricted = String(!admin);
-  });
-  document.querySelectorAll('[data-admin-content]').forEach((element) => {
-    element.hidden = !admin;
-  });
+      ? '可設定營業時間、改派個管、帳號與系統治理。'
+      : '可處理預約、到診、登錄回診指示與首次個管指派。';
   applyWorkspacePanel();
 }
 
@@ -371,7 +423,7 @@ function renderSummary() {
   elements['task-summary'].textContent =
     openTasks === 0 ? '目前沒有待辦事項' : `${openTasks} 類待辦需要處理`;
   elements['schedule-version-chip'].textContent =
-    `已發布排班 v${state.scheduleMeta.publishedVersion}`;
+    `已發布營業時間 v${state.scheduleMeta.publishedVersion}`;
 }
 
 function renderBookingForm() {
@@ -397,6 +449,7 @@ function renderCommunicationForms() {
     a.status === 'published'
       ? `<strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.body)}</span>`
       : '';
+  if (!isAdminSession()) return;
   elements['announcement-status'].value = a.status;
   elements['announcement-title'].value = a.title;
   elements['announcement-body'].value = a.body;
@@ -435,29 +488,12 @@ function render() {
   renderSlotList();
   renderWeek();
   renderAppointmentList();
-  elements['published-schedule'].innerHTML = renderSchedule(
-    state.schedule,
-    false
-  );
-  elements['draft-schedule'].innerHTML = renderSchedule(
-    state.scheduleDraft,
-    true
-  );
-  renderBlockedTimesForm();
-  elements['schedule-draft-status'].textContent = state.scheduleMeta.draftDirty
-    ? '有未發布變更'
-    : '草稿與發布版本一致';
-  elements['schedule-draft-status'].className =
-    `status-chip ${state.scheduleMeta.draftDirty ? 'is-reserved' : 'is-available'}`;
-  elements['publish-schedule'].disabled = !state.scheduleMeta.draftDirty;
-  elements['discard-schedule'].disabled = !state.scheduleMeta.draftDirty;
   elements['follow-up-list'].innerHTML = renderFollowUps(
     state,
     editingFollowUps
   );
   elements['case-assignment-list'].innerHTML = renderCaseAssignments(state);
   elements.workload.innerHTML = renderWorkload(state);
-  elements['account-list'].innerHTML = renderAccounts(state.workspace);
   // 每個清單的內容都是整批置換，所以清單本身不是 live region；改由這些簡短的
   // 摘要負責公告「變了、現在有幾筆」。詳見 index.html 裡 #appointments 上方的
   // 說明。計數一律直接數 DOM，數字才不會和實際畫出來的東西分家。
@@ -474,72 +510,106 @@ function render() {
     '筆個案'
   );
   countSummary('workload-summary', 'workload', '[data-workload-row]', '筆統計');
-  countSummary(
-    'account-summary',
-    'account-list',
-    '[data-account-row]',
-    '個帳號'
-  );
   renderCommunicationForms();
-  elements['audit-events'].innerHTML = renderAudit(
-    state,
-    elements['audit-filter'].value
-  );
-  elements['outbox-jobs'].innerHTML = renderOutbox(state);
+  if (isAdminSession()) {
+    elements['published-schedule'].innerHTML = renderSchedule(
+      state.schedule,
+      false
+    );
+    elements['draft-schedule'].innerHTML = renderSchedule(
+      state.scheduleDraft,
+      true
+    );
+    renderBlockedTimesForm();
+    elements['schedule-draft-status'].textContent = state.scheduleMeta
+      .draftDirty
+      ? '有未發布變更'
+      : '草稿與發布版本一致';
+    elements['schedule-draft-status'].className =
+      `status-chip ${state.scheduleMeta.draftDirty ? 'is-reserved' : 'is-available'}`;
+    elements['publish-schedule'].disabled = !state.scheduleMeta.draftDirty;
+    elements['discard-schedule'].disabled = !state.scheduleMeta.draftDirty;
+    elements['account-list'].innerHTML = renderAccounts(state.workspace);
+    countSummary(
+      'account-summary',
+      'account-list',
+      '[data-account-row]',
+      '個帳號'
+    );
+    elements['audit-events'].innerHTML = renderAudit(
+      state,
+      elements['audit-filter'].value
+    );
+    elements['outbox-jobs'].innerHTML = renderOutbox(state);
+  }
   syncBell();
   // 某些 render helper 會依資料狀態更新 hidden；最後重新套用工作區可見性，
   // 確保首頁專用的主視覺／公告不會在建立預約等重新渲染後跑到其他工作區。
   applyWorkspacePanel();
 }
 
-// 導覽鈴鐺：有「取消待確認」時亮紅點，提醒櫃台別忽略。點鈴鐺跳出患者聯絡
-// 資訊方便主動聯絡；本 session 出現新的取消請求時自動跳出一次。
-let lastCancellationCount = 0;
+// 導覽鈴鐺：有「取消待確認」時亮紅點，提醒櫃台別忽略。清單是一般 popover，
+// 不掛 aria-live、不使用 modal dialog，也不改變 header 高度。
 function cancellationRequests() {
   return state.appointments.filter(
     (item) => item.status === 'cancellation_requested'
   );
 }
+
+function setNotificationOpen(open, { returnFocus = false } = {}) {
+  elements['notification-popover'].hidden = !open;
+  elements['nav-bell'].setAttribute('aria-expanded', String(open));
+  if (!open && returnFocus) elements['nav-bell'].focus();
+}
+
 function syncBell() {
   const pending = cancellationRequests();
   elements['nav-bell-dot'].hidden = pending.length === 0;
   elements['nav-bell'].classList.toggle('has-alert', pending.length > 0);
-  if (pending.length > lastCancellationCount) openBellDialog();
-  lastCancellationCount = pending.length;
-}
-let bellDialog;
-function openBellDialog() {
-  const pending = cancellationRequests();
-  if (pending.length === 0) return;
-  if (bellDialog === undefined) {
-    bellDialog = document.createElement('dialog');
-    bellDialog.className = 'confirm-dialog bell-dialog';
-    bellDialog.setAttribute('aria-label', '取消待確認提醒');
-    document.body.append(bellDialog);
-    bellDialog.addEventListener('click', (event) => {
-      if (event.target.closest('[data-bell-close]')) bellDialog.close();
-      else if (event.target.closest('[data-bell-goto]')) {
-        bellDialog.close();
-        filters = { status: 'cancellation_requested', kind: 'all', query: '' };
-        window.location.hash = 'appointments-section';
-        renderFilters();
-        renderAppointmentList();
-      }
-    });
-  }
-  const rows = pending
+  elements['nav-bell'].setAttribute(
+    'aria-label',
+    pending.length === 0 ? '通知，沒有未讀' : `通知，${pending.length} 筆未讀`
+  );
+  elements['notification-summary'].textContent =
+    pending.length === 0
+      ? '目前沒有待確認的取消請求。'
+      : `${pending.length} 筆取消要求待聯絡確認。`;
+  elements['notification-list'].innerHTML = pending
     .map((item) => {
       const person = state.patients.find((p) => p.id === item.patientId);
       return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '—')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
     })
     .join('');
-  bellDialog.innerHTML = `<h2 class="confirm-dialog-title">取消待確認（${pending.length}）</h2><p class="confirm-dialog-message">患者已提出取消，請主動聯絡確認後於清單處置。</p><ul class="bell-list">${rows}</ul><div class="confirm-dialog-actions"><button class="button button-secondary" type="button" data-bell-close>稍後</button><button class="button button-primary" type="button" data-bell-goto>前往處理</button></div>`;
-  if (!bellDialog.open) bellDialog.showModal();
+  elements['notification-goto'].hidden = pending.length === 0;
+  if (pending.length === 0) setNotificationOpen(false);
 }
+
 elements['nav-bell'].addEventListener('click', () => {
-  if (cancellationRequests().length === 0)
-    message('目前沒有待確認的取消請求。', 'info');
-  else openBellDialog();
+  const opening = elements['notification-popover'].hidden;
+  setNotificationOpen(opening);
+  if (opening) elements['notification-close'].focus();
+});
+elements['notification-close'].addEventListener('click', () =>
+  setNotificationOpen(false, { returnFocus: true })
+);
+elements['notification-goto'].addEventListener('click', () => {
+  filters = { status: 'cancellation_requested', kind: 'all', query: '' };
+  setNotificationOpen(false);
+  renderFilters();
+  renderAppointmentList();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !elements['notification-popover'].hidden) {
+    event.preventDefault();
+    setNotificationOpen(false, { returnFocus: true });
+  }
+});
+document.addEventListener('pointerdown', (event) => {
+  if (
+    !elements['notification-popover'].hidden &&
+    event.target.closest('.notification-center') === null
+  )
+    setNotificationOpen(false);
 });
 
 async function updateDraft(
@@ -583,6 +653,7 @@ elements['login-form'].addEventListener('submit', async (event) => {
       elements['login-password'].value = '';
       elements['login-error'].hidden = true;
       elements['login-error'].textContent = '';
+      window.location.hash = 'overview';
       message(`已登入為 ${state.session.account.label}。`, 'success');
       elements['main-content'].focus({ preventScroll: true });
     },
@@ -603,8 +674,8 @@ elements['logout'].addEventListener('click', async () => {
     pendingLabel: '登出中…',
     action: () => post('/workspace/logout'),
     onSuccess: () => {
-      elements['login-account'].focus();
-      message('已登出。', 'success');
+      window.location.hash = 'overview';
+      window.location.reload();
     }
   });
 });
@@ -612,22 +683,16 @@ elements['logout'].addEventListener('click', async () => {
 elements['reset-state'].addEventListener('click', async () => {
   if (
     !(await confirmDialog(
-      '確定清除目前瀏覽器保存的全部預約與患者資料？此動作無法復原。',
-      { danger: true, confirmLabel: '清除資料' }
+      '你即將清除這個瀏覽器內的全部合成測試資料，包含預約、患者、營業時間草稿與操作紀錄。此動作無法復原；確定繼續？',
+      { danger: true, confirmLabel: '清除全部測試資料' }
     ))
   )
     return;
   await runUiAction({
     control: elements['reset-state'],
     pendingLabel: '清除中…',
-    action: () => apiClient.request('/reset', { method: 'POST', body: '{}' }),
-    onSuccess: (fresh) => {
-      state = fresh;
-      filters = { status: 'today', kind: 'all', query: '' };
-      selectedSlotId = undefined;
-      render();
-      message('本機資料已清除。', 'success');
-    },
+    action: () => post('/reset'),
+    onSuccess: () => window.location.reload(),
     failureMessage: (error) => `未能清除：${error.message}`
   });
 });
@@ -905,7 +970,7 @@ elements.appointments.addEventListener('click', (event) => {
   document
     .querySelector(`[data-follow-up-form="${id}"]`)
     ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  message('已重新開啟回診決定，調整後儲存即可。', 'info');
+  message('已重新開啟回診指示，依醫師指示調整後儲存即可。', 'info');
 });
 
 elements.appointments.addEventListener('click', async (event) => {
@@ -918,7 +983,7 @@ elements.appointments.addEventListener('click', async (event) => {
     document
       .querySelector(`[data-follow-up-form="${id}"]`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    message('請於下方「逐筆回診確認」記錄決定。', 'info');
+    message('請於下方「登錄回診指示」依醫師指示設定回診。', 'info');
     return;
   }
   if (action === 'reschedule') {
@@ -956,7 +1021,8 @@ elements.appointments.addEventListener('click', async (event) => {
   const questions = {
     cancel: '確認取消此預約並釋放時段？',
     no_show: '確認將此預約標記為未到？時段會釋放。',
-    complete: '確認患者已到診並完成本次看診？完成後，管理者可接續記錄回診決定。'
+    complete:
+      '確認患者已到診並完成本次看診？完成後，可依醫師指示登錄回診並首次指派個管師。'
   };
   const confirmed = await confirmDialog(questions[action], {
     danger: action !== 'complete',
@@ -1074,7 +1140,7 @@ elements['weekly-form'].addEventListener('submit', async (event) => {
       }
       draft.weeklyAvailability.sort((a, b) => a.weekday - b.weekday);
     },
-    `已為 ${weekdays.length} 個星期加入排班草稿。`,
+    `已為 ${weekdays.length} 個星期加入營業時間草稿。`,
     'weekly-form-status',
     event.submitter,
     '未加入草稿'
@@ -1104,7 +1170,7 @@ elements['date-exception-form'].addEventListener('submit', async (event) => {
         entry
       ].sort((a, b) => a.date.localeCompare(b.date));
     },
-    '日期例外已加入排班草稿。',
+    '日期例外已加入營業時間草稿。',
     'date-exception-form-status',
     event.submitter,
     '未加入草稿'
@@ -1120,7 +1186,7 @@ elements['blocked-times-form'].addEventListener('submit', async (event) => {
         follow_up: parseTimeList(elements['blocked-follow-up'].value)
       };
     },
-    '固定不開放時間已加入排班草稿。',
+    '固定不開放時間已加入營業時間草稿。',
     'blocked-times-form-status',
     event.submitter,
     '未套用'
@@ -1132,7 +1198,7 @@ elements['draft-schedule'].addEventListener('click', async (event) => {
   const exception = event.target.closest('[data-remove-exception]');
   if (weekly === null && exception === null) return;
   if (
-    !(await confirmDialog('確定從排班草稿刪除此設定？', {
+    !(await confirmDialog('確定從營業時間草稿刪除此設定？', {
       danger: true,
       confirmLabel: '刪除'
     }))
@@ -1154,7 +1220,7 @@ elements['draft-schedule'].addEventListener('click', async (event) => {
           (item) => item.date !== exception.dataset.removeException
         );
     },
-    '排班草稿項目已刪除。',
+    '營業時間草稿項目已刪除。',
     'schedule-toolbar-status',
     weekly ?? exception,
     '未刪除'
@@ -1165,14 +1231,14 @@ elements['publish-schedule'].addEventListener('click', async () => {
   if (
     !(await confirmDialog(
       '發布後將重新產生患者可預約時段。系統會阻擋影響既有預約的變更，是否繼續？',
-      { confirmLabel: '發布排班' }
+      { confirmLabel: '發布營業時間' }
     ))
   )
     return;
   await runUiAction({
     control: elements['publish-schedule'],
     pendingLabel: '發布中…',
-    pendingMessage: '正在發布排班，請稍候。',
+    pendingMessage: '正在發布營業時間，請稍候。',
     anchorId: 'schedule-toolbar-status',
     // 送出畫面所根據的版本；若另一分頁已發布，store 會擋下而不靜默覆蓋。
     action: () =>
@@ -1181,7 +1247,7 @@ elements['publish-schedule'].addEventListener('click', async () => {
       }),
     onSuccess: () =>
       message(
-        '排班已發布，患者端可預約時段已同步更新。',
+        '營業時間已發布，患者端可預約時段已同步更新。',
         'success',
         'schedule-toolbar-status'
       ),
@@ -1191,7 +1257,7 @@ elements['publish-schedule'].addEventListener('click', async () => {
 
 elements['discard-schedule'].addEventListener('click', async () => {
   if (
-    !(await confirmDialog('確定捨棄所有未發布的排班變更？', {
+    !(await confirmDialog('確定捨棄所有未發布的營業時間變更？', {
       danger: true,
       confirmLabel: '捨棄草稿'
     }))
@@ -1203,7 +1269,11 @@ elements['discard-schedule'].addEventListener('click', async () => {
     anchorId: 'schedule-toolbar-status',
     action: () => post('/schedule/discard'),
     onSuccess: () =>
-      message('未發布排班變更已捨棄。', 'success', 'schedule-toolbar-status'),
+      message(
+        '未發布營業時間變更已捨棄。',
+        'success',
+        'schedule-toolbar-status'
+      ),
     failureMessage: (error) => `未能捨棄：${error.message}`
   });
 });
@@ -1240,7 +1310,7 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   await runUiAction({
     control: event.submitter,
     pendingLabel: '儲存中…',
-    pendingMessage: '正在儲存回診決定，請稍候。',
+    pendingMessage: '正在儲存回診指示，請稍候。',
     action: () =>
       post(`/follow-ups/${appointmentId}`, {
         status: data.get('status'),
@@ -1257,7 +1327,7 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
         renderWeek();
       }
       message(
-        managerId ? '逐筆回診決定與個管指派已記錄。' : '逐筆回診決定已記錄。',
+        managerId ? '回診指示與個管指派已登錄。' : '回診指示已登錄。',
         'success'
       );
     }
@@ -1458,9 +1528,18 @@ if (!isOnline) elements['environment-label'].textContent = 'LOCAL TEST ONLY';
 
 try {
   state = await apiClient.request('/state');
+  enforceRoleDomBoundary();
+  let accessDenied = false;
+  initWorkspaceTabs({
+    onDenied: () => {
+      accessDenied = true;
+      message('你目前沒有權限開啟這個主管工作區，已返回營運首頁。', 'error');
+      elements.status.setAttribute('tabindex', '-1');
+      elements.status.focus({ preventScroll: true });
+    }
+  });
   render();
-  initWorkspaceTabs();
-  if (state.session.authenticated === true)
+  if (state.session.authenticated === true && !accessDenied)
     message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
   else elements['login-account'].focus();
 } catch (error) {

@@ -47,6 +47,7 @@ describe('synthetic session resolution fails closed', () => {
   it('never grants front desk an administrator-only permission', () => {
     const state = initialState();
     state.workspace.currentAccountId = 'front_desk_test_001';
+    state.workspace.authenticated = true;
     expect(hasPermission(state, MANAGE_ACCOUNTS)).toBe(false);
   });
 
@@ -54,6 +55,7 @@ describe('synthetic session resolution fails closed', () => {
   // 從營運清單消失，只留稽核，因此只給管理者。
   it('separates the front desk cancel right from the administrator delete right', () => {
     const state = initialState();
+    state.workspace.authenticated = true;
 
     state.workspace.currentAccountId = 'front_desk_test_001';
     expect(hasPermission(state, PERMISSIONS.CANCEL_BOOKING)).toBe(true);

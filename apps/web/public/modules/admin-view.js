@@ -30,10 +30,10 @@ const auditLabels = {
   appointment_no_show: '標記未到',
   appointment_rescheduled: '改期',
   appointment_deleted: '刪除預約紀錄',
-  follow_up_decided: '記錄回診決定',
+  follow_up_decided: '登錄回診指示',
   case_manager_assigned: '指派個管師',
   case_manager_reassigned: '改派個管師',
-  schedule_published: '發布排班',
+  schedule_published: '發布營業時間',
   account_created: '建立帳號',
   account_status_changed: '變更帳號狀態',
   announcement_saved: '儲存公告',
@@ -75,7 +75,7 @@ function patientLabel(state, id) {
 function patientDetail(state, id) {
   const record = patient(state, id);
   if (record === undefined) return escapeHtml(id);
-  return `${escapeHtml(record.phone)} · ${escapeHtml(record.birthDate)} · ${escapeHtml(maskNationalId(record.nationalId))} · 健保卡${record.hasNhiCard ? '已帶' : '未帶'}`;
+  return `${escapeHtml(record.phone)} · ${escapeHtml(record.birthDate)} · ${escapeHtml(maskNationalId(record.nationalId))} · 健保卡：${record.hasNhiCard ? '預計攜帶' : '未登記攜帶'}`;
 }
 
 function detailRow(state, id) {
@@ -120,7 +120,7 @@ function primaryAction(appointment, decided, canManageFollowUp) {
   else if (appointment.status === 'completed' && canManageFollowUp)
     action = {
       id: 'follow_up_confirm',
-      label: decided ? '查看回診' : '記錄回診',
+      label: decided ? '查看回診指示' : '登錄回診指示',
       icon: '&#8635;',
       className: 'appointment-follow-up-button'
     };
@@ -226,10 +226,16 @@ function taskCount(tasks, key) {
 }
 
 export function renderTasks(state) {
+  const canViewGovernance =
+    state.session?.permissions?.includes(PERMISSIONS.MANAGE_COMMUNICATIONS) ??
+    false;
   const pending = OPERATIONAL_TASKS.map((task) => ({
     ...task,
     count: taskCount(state.tasks, task.key)
-  })).filter((task) => task.count > 0);
+  })).filter(
+    (task) =>
+      task.count > 0 && (task.key !== 'outboxPending' || canViewGovernance)
+  );
 
   // 一切正常時保持安靜。四個綠色的零跟三筆待辦佔一樣大的版面，等於什麼都
   // 沒說；這裡改成一句話講完，把注意力留給真的需要處理的事。
@@ -304,7 +310,7 @@ export function renderSlots(state, kind, selectedSlotId) {
       isUpcomingSlot(slot)
   );
   if (slots.length === 0)
-    return emptyState('目前沒有可預約時段', '請先由管理者發布新的排班草稿。');
+    return emptyState('目前沒有可預約時段', '請先由主管發布新的營業時間草稿。');
 
   return groupSlotsByDate(slots.slice(0, 60))
     .map((group) => {
@@ -661,7 +667,7 @@ export function renderFollowUps(state, editingIds = new Set()) {
             )
             .join('')
         : '<option value="">當天未營業</option>';
-      // 個管指派在這裡是「順手做完」的捷徑，與「個案管理」分頁用的是同一個
+      // 個管指派在這裡是「順手做完」的捷徑，與「個管指派」分頁用的是同一個
       // domain 函式與同一組稽核事件；留空表示暫不指派，不會清掉既有指派。
       const assignment = state.caseAssignments.find(
         (item) =>
@@ -674,8 +680,24 @@ export function renderFollowUps(state, editingIds = new Set()) {
             `<option value="${escapeHtml(manager.id)}" ${assignment?.managerId === manager.id ? 'selected' : ''}>${escapeHtml(manager.label)}</option>`
         )
         .join('');
-      const managerField = `<label>個案管理師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前：${escapeHtml(managerLabel(state, assignment.managerId))}` : '完成到診後可在此或「個案管理」分頁指派'}</span></label>`;
-      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '需要回診' : '目前無需回診') : '待確認'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span></div><label>決定<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存逐筆決定</button></form>`;
+      const permissions = state.session?.permissions ?? [];
+      const canAssign = permissions.includes(PERMISSIONS.ASSIGN_CASE);
+      const canReassign = permissions.includes(PERMISSIONS.REASSIGN_CASE);
+      const canEditManager =
+        (assignment === undefined && canAssign) ||
+        (assignment !== undefined && canReassign);
+      const managerField = canEditManager
+        ? `<label>個管師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前個管師：${escapeHtml(managerLabel(state, assignment.managerId))}` : '可在此首次指派，後續改派限主管'}</span></label>`
+        : `<div class="read-only-field"><span>目前個管師</span><strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong></div>`;
+      const recordedBy =
+        decision === undefined
+          ? '尚未登錄'
+          : (state.workspace.accounts.find(
+              (account) =>
+                account.id ===
+                (decision.followUpRecordedBy ?? decision.decidedBy)
+            )?.label ?? '合成帳號');
+      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><label>醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存回診指示</button></form>`;
     })
     .join('');
 }
@@ -709,13 +731,25 @@ export function renderCaseAssignments(state) {
       // 那時候看不到欄位表頭，所以名稱裡帶上患者，才知道改的是誰。
       const who = patientLabel(state, appointment.patientId);
       const formId = `case-form-${appointment.id}`;
-      return `<tr role="row" class="case-row" data-case-row="${escapeHtml(appointment.id)}"><td role="cell" data-label="狀態"><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span></td><td role="cell" data-label="患者"><strong>${escapeHtml(who)}</strong><span class="code detail-line">${escapeHtml(appointment.id)}</span></td><td role="cell" data-label="個案管理師"><form class="case-form" id="${escapeHtml(formId)}" data-case-form="${escapeHtml(appointment.id)}"><select name="managerId" aria-label="${escapeHtml(`${who} 的個案管理師`)}">${managers}</select></form></td><td role="cell" data-label="操作"><button class="button button-primary" type="submit" form="${escapeHtml(formId)}">${assignment ? '改派個管師' : '指派個管師'}</button></td></tr>`;
+      const permissions = state.session?.permissions ?? [];
+      const canEdit =
+        (assignment === undefined &&
+          permissions.includes(PERMISSIONS.ASSIGN_CASE)) ||
+        (assignment !== undefined &&
+          permissions.includes(PERMISSIONS.REASSIGN_CASE));
+      const managerCell = canEdit
+        ? `<form class="case-form" id="${escapeHtml(formId)}" data-case-form="${escapeHtml(appointment.id)}"><select name="managerId" aria-label="${escapeHtml(`${who} 的個管師`)}">${managers}</select></form>`
+        : `<strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong>`;
+      const actionCell = canEdit
+        ? `<button class="button button-primary" type="submit" form="${escapeHtml(formId)}">${assignment ? '改派個管師' : '指派個管師'}</button>`
+        : '<span class="field-hint">改派限主管</span>';
+      return `<tr role="row" class="case-row" data-case-row="${escapeHtml(appointment.id)}"><td role="cell" data-label="狀態"><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span></td><td role="cell" data-label="患者"><strong>${escapeHtml(who)}</strong><span class="code detail-line">${escapeHtml(appointment.id)}</span></td><td role="cell" data-label="個管師">${managerCell}</td><td role="cell" data-label="操作">${actionCell}</td></tr>`;
     })
     .join('');
-  const columns = ['狀態', '患者', '個案管理師', '操作']
+  const columns = ['狀態', '患者', '個管師', '操作']
     .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
     .join('');
-  return `<table class="data-table case-table" role="table"><caption>完成到診的個案與個管師指派狀態</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
+  return `<table class="data-table case-table" role="table"><caption>完成到診的患者與個管師指派狀態；首次指派可由櫃台處理，改派限主管</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
 // 月度統計本來就是數字表：同一欄的數字要能上下比對（誰帶的患者多、哪一期

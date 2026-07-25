@@ -13,6 +13,13 @@
 // 邏輯搶同一個 hidden 屬性（櫃台帳號切過去會被導回營運首頁）。
 
 const DEFAULT_PANEL = 'overview';
+const ADMIN_PANEL_IDS = new Set([
+  'schedule-section',
+  'accounts-section',
+  'communications-section',
+  'audit-section'
+]);
+let deniedHandler;
 
 const panels = () => [...document.querySelectorAll('[data-workspace-panel]')];
 const isRestricted = (panel) => panel.dataset.restricted === 'true';
@@ -24,9 +31,19 @@ function panelIdFromHash() {
 
 /** 目前應顯示的分頁；被權限擋下時退回營運首頁。 */
 function resolvePanelId() {
+  const raw = window.location.hash.replace('#', '');
   const requested = panelIdFromHash();
+  if (raw !== '' && requested === DEFAULT_PANEL && ADMIN_PANEL_IDS.has(raw)) {
+    window.history.replaceState(null, '', `#${DEFAULT_PANEL}`);
+    deniedHandler?.();
+  }
   const panel = document.getElementById(requested);
-  return panel !== null && isRestricted(panel) ? DEFAULT_PANEL : requested;
+  if (panel !== null && isRestricted(panel)) {
+    window.history.replaceState(null, '', `#${DEFAULT_PANEL}`);
+    deniedHandler?.();
+    return DEFAULT_PANEL;
+  }
+  return requested;
 }
 
 export function applyWorkspacePanel({
@@ -60,7 +77,8 @@ export function applyWorkspacePanel({
   return activeId;
 }
 
-export function initWorkspaceTabs() {
+export function initWorkspaceTabs({ onDenied } = {}) {
+  deniedHandler = onDenied;
   window.addEventListener('hashchange', () =>
     applyWorkspacePanel({ scroll: true })
   );

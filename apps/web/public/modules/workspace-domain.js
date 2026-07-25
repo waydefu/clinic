@@ -74,7 +74,7 @@ export function toggleAccount(state, accountId) {
       (item) => item.role === 'admin' && item.status === 'active'
     );
     if (active.length <= 1)
-      throw new Error('至少必須保留一個啟用中的合成管理者。');
+      throw new Error('至少必須保留一個啟用中的合成主管。');
   }
   account.status = account.status === 'active' ? 'disabled' : 'active';
 }

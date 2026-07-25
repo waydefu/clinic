@@ -46,7 +46,7 @@ export const PATIENT_SERVICES = Object.freeze([
   { id: 'service_aesthetic', label: '醫美', note: '依療程進度' }
 ]);
 
-// 工作臺建立預約時登記的手術種類。
+// 工作臺建立預約時登記的療程／看診項目。
 export const WORKBENCH_PROCEDURES = Object.freeze([
   { id: 'procedure_septum', label: '鼻中膈彎曲' },
   { id: 'procedure_turbinate', label: '下鼻甲' },
@@ -69,9 +69,12 @@ export const FOLLOW_UP_NOTE_TAGS = Object.freeze([
 export const PERMISSIONS = Object.freeze({
   MANAGE_SCHEDULE: 'manage_schedule',
   MANAGE_FOLLOW_UP: 'manage_follow_up',
+  ASSIGN_CASE: 'assign_case',
+  REASSIGN_CASE: 'reassign_case',
   MANAGE_CASES: 'manage_cases',
   MANAGE_ACCOUNTS: 'manage_accounts',
   MANAGE_COMMUNICATIONS: 'manage_communications',
+  MANAGE_SYSTEM: 'manage_system',
   CREATE_BOOKING: 'create_booking',
   CANCEL_BOOKING: 'cancel_booking',
   COMPLETE_VISIT: 'complete_visit',
@@ -113,7 +116,7 @@ export const APPOINTMENT_STATUS_LABELS = Object.freeze({
 });
 
 export const ROLE_LABELS = Object.freeze({
-  admin: '管理者',
+  admin: '主管',
   front_desk: '櫃台員工'
 });
 

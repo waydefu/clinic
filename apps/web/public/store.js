@@ -43,7 +43,6 @@ import {
   logout,
   saveAnnouncement,
   saveMaintenance,
-  switchAccount,
   toggleAccount
 } from './modules/workspace-domain.js';
 
@@ -114,7 +113,7 @@ function publishSchedule(state, actorId, expectedVersion) {
   const impacted = scheduleImpact(state.appointments, candidate);
   if (impacted.length > 0) {
     throw new Error(
-      `排班發布會影響 ${impacted.length} 筆尚未結束的合成預約，請先處理預約。`
+      `營業時間發布會影響 ${impacted.length} 筆尚未結束的合成預約，請先處理預約。`
     );
   }
   state.schedule = cloneSchedule(state.scheduleDraft);
@@ -138,12 +137,17 @@ export async function stagingRequest(path, options = {}) {
   if (method === 'GET' && path === '/workspace')
     return workspaceState(loadState());
   if (method !== 'POST') throw new Error('線上合成預覽只允許 GET 與 POST。');
-  if (path === '/reset') return snapshotState(resetState());
 
   const state = loadState();
   const body = parseBody(options);
 
-  if (path === '/workspace/login') {
+  if (path === '/reset') {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_SYSTEM);
+    const fresh = resetState();
+    appendWorkspaceAudit(fresh, 'local_state_reset', actor.id);
+    saveState(fresh);
+    return snapshotState(fresh);
+  } else if (path === '/workspace/login') {
     // 登入是進入工作臺的閘門，因此本身不要求權限（尚未有身分）。這是合成
     // 原型、非安全邊界：驗證只比對這台裝置上的明碼帳密。
     const account = authenticateAccount(state, body.username, body.password);
@@ -153,8 +157,6 @@ export async function stagingRequest(path, options = {}) {
     logout(state);
     if (actor !== undefined)
       appendWorkspaceAudit(state, 'session_logged_out', actor.id);
-  } else if (path === '/workspace/session') {
-    switchAccount(state, body.accountId);
   } else if (path === '/workspace/accounts') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);
     createAccount(state, body);
@@ -186,6 +188,11 @@ export async function stagingRequest(path, options = {}) {
     state.scheduleDraft = cloneSchedule(state.schedule);
     state.scheduleMeta.draftDirty = false;
   } else if (path === '/bookings') {
+    if (
+      body.origin === 'patient' &&
+      isMaintenanceActive(state.workspace.maintenance)
+    )
+      throw new Error('預約系統維護中，目前無法送出預約。');
     createBooking(
       state,
       body,
@@ -227,11 +234,27 @@ export async function stagingRequest(path, options = {}) {
     // 回診卡上的個管欄位只是捷徑，仍必須各自通過個管權限——在別的表單裡
     // 順手做，不代表可以繞過該動作的授權。留空表示不變更現有指派。
     if (typeof body.managerId === 'string' && body.managerId !== '') {
-      const caseActor = requirePermission(state, PERMISSIONS.MANAGE_CASES);
+      const hasActiveAssignment = state.caseAssignments.some(
+        (item) =>
+          item.appointmentId === appointmentId && item.status === 'active'
+      );
+      const caseActor = requirePermission(
+        state,
+        hasActiveAssignment
+          ? PERMISSIONS.REASSIGN_CASE
+          : PERMISSIONS.ASSIGN_CASE
+      );
       assignCaseManager(state, appointmentId, body.managerId, caseActor.id);
     }
   } else if (path === '/case-assignments') {
-    const actor = requirePermission(state, PERMISSIONS.MANAGE_CASES);
+    const hasActiveAssignment = state.caseAssignments.some(
+      (item) =>
+        item.appointmentId === body.appointmentId && item.status === 'active'
+    );
+    const actor = requirePermission(
+      state,
+      hasActiveAssignment ? PERMISSIONS.REASSIGN_CASE : PERMISSIONS.ASSIGN_CASE
+    );
     assignCaseManager(state, body.appointmentId, body.managerId, actor.id);
   } else if (path === '/outbox/simulate') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);

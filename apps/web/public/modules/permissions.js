@@ -8,7 +8,9 @@ const rolePermissions = Object.freeze({
   front_desk: new Set([
     PERMISSIONS.CREATE_BOOKING,
     PERMISSIONS.CANCEL_BOOKING,
-    PERMISSIONS.COMPLETE_VISIT
+    PERMISSIONS.COMPLETE_VISIT,
+    PERMISSIONS.MANAGE_FOLLOW_UP,
+    PERMISSIONS.ASSIGN_CASE
   ])
 });
 
@@ -25,6 +27,7 @@ export function currentAccount(state) {
 }
 
 export function permissionsFor(state) {
+  if (state.workspace.authenticated !== true) return [];
   const account = currentAccount(state);
   return account === undefined
     ? []
@@ -32,6 +35,7 @@ export function permissionsFor(state) {
 }
 
 export function hasPermission(state, permission) {
+  if (state.workspace.authenticated !== true) return false;
   const account = currentAccount(state);
   return (
     account !== undefined &&
@@ -40,6 +44,9 @@ export function hasPermission(state, permission) {
 }
 
 export function requirePermission(state, permission) {
+  if (state.workspace.authenticated !== true) {
+    throw new Error('請先登入後再操作。');
+  }
   if (!hasPermission(state, permission)) {
     throw new Error('目前合成帳號沒有執行此動作的權限。');
   }

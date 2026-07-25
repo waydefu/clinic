@@ -451,7 +451,7 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
     (item) => item.id === appointmentId
   );
   if (appointment === undefined || appointment.status !== 'completed')
-    throw new Error('只有已完成到診可記錄回診決定。');
+    throw new Error('只有已完成到診可登錄醫師回診指示。');
 
   const status = input?.status;
   if (!['required', 'not_required'].includes(status))
@@ -487,6 +487,11 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
     tags,
     noteText,
     certificateCopies: copies,
+    // `followUpDecisionBy` 說明臨床決定來源；操作者只是把醫師指示轉錄進系統。
+    // 舊的 decidedBy/decidedAt 暫留相容既有合成資料，UI 與稽核改讀明確欄位。
+    followUpDecisionBy: 'doctor_instruction',
+    followUpRecordedBy: actorId,
+    followUpRecordedAt: now,
     decidedBy: actorId,
     decidedAt: now,
     ...(existing?.scheduledAppointmentId === undefined
