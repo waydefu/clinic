@@ -668,7 +668,6 @@ h3 {
 .section-title .eyebrow {
   margin-bottom: var(--space-3xs);
 }
-.section-description,
 .slot-grid {
   display: grid;
   gap: var(--space-sm);
@@ -1657,8 +1656,12 @@ textarea {
     text-align: center;
   }
   .booking-stepper strong {
-    display: block;
+    display: none;
     line-height: 1.25;
+  }
+  .booking-stepper li.is-active strong {
+    display: block;
+    overflow-wrap: anywhere;
   }
   .booking-stepper li span {
     font-size: var(--text-micro);
@@ -1685,6 +1688,9 @@ textarea {
     flex-direction: column;
     padding: var(--space-lg) var(--space-sm);
   }
+  .developer-tools {
+    width: 100%;
+  }
 }
 @media (max-width: 30rem) {
   .summary-grid {
@@ -1709,6 +1715,16 @@ textarea {
   .governance-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.developer-tools > summary {
+  color: inherit;
+  cursor: pointer;
+  font-weight: var(--weight-bold);
+}
+.developer-tools > a {
+  display: inline-block;
+  margin-top: var(--space-2xs);
 }
 
 /* ---- 時段選擇：依日期分組，時間以 chip 呈現 ---- */

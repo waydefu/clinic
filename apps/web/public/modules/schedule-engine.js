@@ -19,16 +19,16 @@ import {
 } from '../vendor/domain/index.js';
 
 const MESSAGES = {
-  INVALID_VALUE: '排班設定無效：請確認時間為 HH:MM，且開始早於結束。',
+  INVALID_VALUE: '營業時間設定無效：請確認時間為 HH:MM，且開始早於結束。',
   SCHEDULE_INTERVALS_OVERLAP: '同一天的時段不可重疊。',
   SCHEDULE_WEEKDAY_DUPLICATED: '星期設定重複或無效。',
   SCHEDULE_EXCEPTION_DUPLICATED: '日期例外重複或無效。',
   BLOCKED_TIME_OFF_GRID:
     '固定不開放時間必須落在該掛號別的時間點：初診為整點或 30 分，回診為 15 分或 45 分。',
   SCHEDULE_VERSION_CONFLICT:
-    '排班已被其他管理者更新，請重新載入後再發布，以免覆蓋對方的變更。',
+    '營業時間已被其他主管更新，請重新載入後再發布，以免覆蓋對方的變更。',
   SCHEDULE_ORPHANS_APPOINTMENTS:
-    '這份排班會讓尚未結束的預約失去時段，請先處理那些預約。'
+    '這份營業時間會讓尚未結束的預約失去時段，請先處理那些預約。'
 };
 
 function localize(run) {

@@ -42,6 +42,8 @@ let slotDateFilter = '';
 // 診所資料（門診時段、公告）是非同步載入的。在它到達之前，選項可以先畫出來
 // 佔住版面，但**不能可按**：按下去會走進需要 state 的路徑。
 let dataReady = false;
+let maintenanceWasActive = false;
+let maintenanceResumeTimer;
 
 function myPatientId() {
   try {
@@ -184,16 +186,45 @@ function renderWorkspace() {
     a.status === 'published'
       ? `<div><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.body)}</span></div>`
       : '';
-  elements['patient-maintenance'].hidden = !state.maintenanceActive;
-  elements['patient-booking-app'].hidden = state.maintenanceActive;
-  if (state.maintenanceActive) {
+  const active = state.maintenanceActive === true;
+  elements['patient-maintenance'].hidden = !active;
+  elements['patient-booking-app'].hidden = active;
+  if (active) {
+    elements['patient-booking-app'].setAttribute('inert', '');
+    elements['patient-booking-app'].setAttribute('aria-hidden', 'true');
     const m = state.workspace.maintenance;
     elements['maintenance-page-title'].textContent = m.title;
     elements['maintenance-page-body'].textContent = m.body;
     elements['maintenance-page-resume'].textContent = m.resumeAt
       ? `預計恢復：${m.resumeAt.replace('T', ' ')}（Asia/Taipei）`
       : '恢復時間尚待診所確認。';
+    if (!maintenanceWasActive) {
+      elements['maintenance-page-title'].setAttribute('tabindex', '-1');
+      elements['maintenance-page-title'].focus({ preventScroll: true });
+    }
+  } else {
+    elements['patient-booking-app'].removeAttribute('inert');
+    elements['patient-booking-app'].removeAttribute('aria-hidden');
   }
+  maintenanceWasActive = active;
+  scheduleMaintenanceResume();
+}
+
+function scheduleMaintenanceResume() {
+  if (maintenanceResumeTimer !== undefined)
+    window.clearTimeout(maintenanceResumeTimer);
+  maintenanceResumeTimer = undefined;
+  const resumeAt = state.workspace.maintenance.resumeAt;
+  if (!state.maintenanceActive || !resumeAt) return;
+  const delay = new Date(`${resumeAt}:00+08:00`).getTime() - Date.now();
+  if (!Number.isFinite(delay) || delay <= 0) return;
+  maintenanceResumeTimer = window.setTimeout(
+    async () => {
+      state = await apiClient.request('/state');
+      renderAll();
+    },
+    Math.min(delay + 50, 2_147_000_000)
+  );
 }
 
 function renderFollowUpChoice() {
@@ -286,7 +317,7 @@ function renderSlots() {
   if (groups.length === 0) {
     elements['patient-slots'].innerHTML = emptyState(
       '目前沒有可預約時段',
-      '診所發布新的排班後，時段會自動更新。'
+      '診所發布新的營業時間後，時段會自動更新。'
     );
     return;
   }
@@ -409,6 +440,9 @@ function renderAppointments() {
 function renderAll() {
   renderWorkspace();
   renderHours();
+  // 維護期間不重畫或重新初始化實際流程；若使用者正在填表，由 inert + hidden
+  // 完整隔離並保留原狀，直到自動恢復或另一分頁解除維護後再繼續。
+  if (state.maintenanceActive) return;
   renderFollowUpChoice();
   renderBookingTypeButtons();
   renderServices();
@@ -636,6 +670,14 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
   elements['patient-main'].focus({ preventScroll: true });
 });
 
+window.addEventListener('storage', async (event) => {
+  if (event.key !== 'beauessence_synthetic_online_preview_v4') return;
+  state = await apiClient.request('/state');
+  renderAll();
+  if (state.maintenanceActive)
+    message('預約系統已進入維護，請稍後再試。', 'info');
+});
+
 if (isOnline) {
   document.querySelector('.environment-badge').lastChild.textContent =
     'ONLINE PREVIEW';
@@ -657,8 +699,10 @@ try {
   dataReady = true;
   renderAll();
   // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。
-  showStep(1, { focusHeading: false });
-  message('已載入診所發布的門診時段。', 'success');
+  if (!state.maintenanceActive) {
+    showStep(1, { focusHeading: false });
+    message('已載入診所發布的門診時段。', 'success');
+  }
 } catch (error) {
   message(
     error instanceof Error ? error.message : '無法載入預約資料。',

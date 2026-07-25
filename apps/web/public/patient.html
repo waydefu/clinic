@@ -151,7 +151,7 @@
         <a class="button button-secondary" href="/patient.html">重新整理狀態</a>
       </section>
 
-      <div id="patient-booking-app">
+      <div id="patient-booking-app" hidden>
         <section class="patient-hero" aria-labelledby="patient-title">
           <div>
             <p class="eyebrow">BEAU ESSENCE · ONLINE BOOKING</p>
@@ -161,8 +161,7 @@
               Asia/Taipei 顯示。
             </p>
             <div class="patient-trust-row">
-              <span>✓ 台北時區</span><span>✓ 行動裝置友善</span
-              ><span>✓ 可返回修改</span>
+              <span>✓ 台北時區</span><span>✓ 可返回修改</span>
             </div>
           </div>
           <aside class="patient-contact-card">
@@ -183,15 +182,17 @@
 
         <ol class="booking-stepper" aria-label="預約步驟">
           <li class="is-active" data-step-indicator="1">
-            <span>1</span><strong>類型與項目</strong>
+            <span aria-hidden="true">1</span><strong>類型與項目</strong>
           </li>
           <li data-step-indicator="2">
-            <span>2</span><strong>日期時段</strong>
+            <span aria-hidden="true">2</span><strong>日期時段</strong>
           </li>
           <li data-step-indicator="3">
-            <span>3</span><strong>基本資料</strong>
+            <span aria-hidden="true">3</span><strong>基本資料</strong>
           </li>
-          <li data-step-indicator="4"><span>4</span><strong>完成</strong></li>
+          <li data-step-indicator="4">
+            <span aria-hidden="true">4</span><strong>完成</strong>
+          </li>
         </ol>
 
         <section
@@ -510,8 +511,11 @@
         ><span id="patient-hours-footer">門診時間讀取中</span>
       </div>
       <div>
-        <a href="#patient-help">預約須知</a
-        ><a href="/" data-local-only-link>開發工作臺</a>
+        <a href="#patient-help">預約須知</a>
+        <details class="developer-tools" data-local-only-link>
+          <summary>開發工具</summary>
+          <a href="/">開發工作臺</a>
+        </details>
       </div>
       <span id="patient-env-boundary">資料只保存在本機瀏覽器</span>
     </footer>
