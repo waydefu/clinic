@@ -20,6 +20,38 @@ infer an answer from an existing website, social message or Calendar event.
 
 ## Recorded inputs
 
+### Web-standards audit directions - 2026-07-26
+
+The 2026-07-26 web-standards audit raised two questions it refused to answer by
+guessing. The project owner answered both. These are **build directions for the
+synthetic/test implementation**; neither changes a decision status to
+`approved`.
+
+- **D-011 direction (booking-site URL): `/booking`.** The patient booking page
+  is to be served at `/booking`, which is what `patient.html` already claims in
+  its `canonical` and `og:url`. Today the deployed path is `/patient.html` and
+  `firebase.json` has no `rewrites`, so the advertised URL 404s — that is the
+  defect this direction closes. **D-011 stays `pending`**: the accessibility and
+  language needs and the manual-booking fallback are untouched, and the
+  registered domain itself is still to be confirmed before go-live.
+  `beauessence.com.tw` is only what the markup currently claims; it was not
+  inferred from any external source and must be confirmed by the clinic.
+- **Build strategy (per-entry bundling): declined. Readability wins.** The audit
+  proposed bundling each entry point into one file, which would cut the patient
+  page from 31 module requests to 2. The owner declined: `dist/` must stay
+  traceable to `public/` file by file so the shipped code can still be read and
+  checked against source. The consequence is recorded deliberately —
+  `<link rel="modulepreload">` is now the **permanent** answer to the request
+  waterfall, not a stopgap, and the module count must be held by a gate so it
+  cannot quietly regress.
+  - Correction of record: `scripts/build-web.mjs` justified not bundling with
+    "CSP is `script-src 'self'`, so the output must stay one file per module".
+    That reason is **wrong** — CSP constrains a script's origin and whether it is
+    inline, not how many files there are; a single same-origin bundle satisfies
+    `script-src 'self'`. The decision stands on the readability grounds above,
+    and the comment is to be corrected to say so rather than left asserting a
+    constraint that does not exist.
+
 ### Owner build directions, formal audit deferred to go-live - 2026-07-24
 
 The project owner reviewed the open decisions and directed that the team keep
