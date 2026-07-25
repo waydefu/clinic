@@ -8,13 +8,22 @@ import { expect, test, type Page } from '@playwright/test';
 // minor / moderate 仍會列出供人審視，但不阻斷 CI，避免把關卡變成噪音。
 const BLOCKING_IMPACTS = new Set(['serious', 'critical']);
 
+// 涵蓋到 WCAG 2.2 AA。2.2 自 2023 年起就是 W3C Recommendation，是現行標準。
+//
+// 先前這裡只列到 wcag21aa，等於 axe 的 `target-size`（SC 2.5.8，只掛在
+// wcag22aa 標籤下）從來沒有被執行過——目標尺寸這一整類問題不會被任何自動檢查
+// 看到。補上之後現況仍然零違規，所以這是白拿的一層保護，不是放寬。
+const STANDARD_TAGS = [
+  'wcag2a',
+  'wcag2aa',
+  'wcag21a',
+  'wcag21aa',
+  'wcag22a',
+  'wcag22aa'
+];
+
 async function scan(page: Page, context?: string) {
-  const builder = new AxeBuilder({ page }).withTags([
-    'wcag2a',
-    'wcag2aa',
-    'wcag21a',
-    'wcag21aa'
-  ]);
+  const builder = new AxeBuilder({ page }).withTags(STANDARD_TAGS);
   const results = await builder.analyze();
   const blocking = results.violations.filter((violation) =>
     BLOCKING_IMPACTS.has(violation.impact ?? '')
