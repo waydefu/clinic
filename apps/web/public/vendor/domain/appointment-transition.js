@@ -29,7 +29,8 @@ function outboxFor(appointmentId, status, at, correlationId, causationId) {
         idempotencyKey: calendarEventIdForAppointment(appointmentId),
         status: 'pending',
         attempts: 0,
-        createdAt: at
+        createdAt: at,
+        nextAttemptAt: at
     };
 }
 function assertPatientBookingGuardOwnedBy(appointment, guard) {

@@ -82,7 +82,8 @@ export function planFollowUpDecision(request, appointment, schedule, existing) {
             idempotencyKey: calendarEventIdForFollowUp(appointment.id),
             status: 'pending',
             attempts: 0,
-            createdAt: request.requestedAt
+            createdAt: request.requestedAt,
+            nextAttemptAt: request.requestedAt
         },
         idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };

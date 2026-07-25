@@ -67,7 +67,9 @@ async function seed(): Promise<void> {
     idempotencyKey: KEY,
     type: 'calendar_projection_requested',
     status: 'pending',
-    attempts: 0
+    attempts: 0,
+    // 領取是 nextAttemptAt <= now 的範圍查詢；缺欄位的文件查不到。
+    nextAttemptAt: NOW
   });
 }
 
@@ -118,9 +120,11 @@ describe('runbook 演練：日曆同步失敗 → 死信 → 補回', () => {
 
     // ---- 步驟 3：排除根因（日曆恢復），操作者以相同鍵重送 ----
     // 不呼叫 failNextAfterWrite → 日曆恢復正常。
+    // 操作者的動作時間與 worker 用的是同一個邏輯時鐘，補救才不依賴系統時鐘同步。
     const requeued = await processor.requeue(
       'outbox_001',
-      'operator_admin_001'
+      'operator_admin_001',
+      clock
     );
     expect(requeued).toBe(true);
 
@@ -148,7 +152,7 @@ describe('runbook 演練：日曆同步失敗 → 死信 → 補回', () => {
     }
     expect((await jobState())?.['status']).toBe('dead_letter');
 
-    await processor.requeue('outbox_001', 'operator_admin_001');
+    await processor.requeue('outbox_001', 'operator_admin_001', clock);
     // 日曆已恢復；即使把工作重跑很多輪，也只會有一個事件。
     for (let round = 0; round < 100; round += 1)
       await processor.processDue(later(3600 * (200 + round)));

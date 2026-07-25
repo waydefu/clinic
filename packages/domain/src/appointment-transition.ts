@@ -95,6 +95,8 @@ export interface PlannedOutboxEntry {
   readonly status: 'pending';
   readonly attempts: 0;
   readonly createdAt: string;
+  /** 立即到期。worker 以 nextAttemptAt <= now 查詢，缺欄位的工作查不到。 */
+  readonly nextAttemptAt: string;
 }
 
 export type PlannedPatientBookingGuardMutation =
@@ -177,7 +179,8 @@ function outboxFor(
     idempotencyKey: calendarEventIdForAppointment(appointmentId),
     status: 'pending',
     attempts: 0,
-    createdAt: at
+    createdAt: at,
+    nextAttemptAt: at
   };
 }
 

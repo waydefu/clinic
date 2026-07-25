@@ -39,6 +39,16 @@ export interface OutboxJob extends OutboxTraceContext {
   readonly idempotencyKey: string;
   readonly status: OutboxStatus;
   readonly attempts: number;
+  /**
+   * 這筆工作最早可以被領取的時刻。
+   *
+   * 建立時就等於 `createdAt`（立即到期），而不是留空。worker 以
+   * `nextAttemptAt <= now` 的範圍查詢挑出到期工作，而 Firestore 的範圍查詢
+   * **不會回傳缺少該欄位的文件**——留空的工作會直接從佇列裡消失。
+   *
+   * 仍宣告為選填，是為了讓 `isDue` 能容忍任何早於這個約定寫入的文件；新的寫入
+   * 路徑一律帶值。
+   */
   readonly nextAttemptAt?: string;
   readonly lastError?: string;
   /**

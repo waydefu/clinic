@@ -73,6 +73,8 @@ export interface PlannedFollowUpProjection {
   readonly status: 'pending';
   readonly attempts: 0;
   readonly createdAt: string;
+  /** 立即到期。worker 以 nextAttemptAt <= now 查詢，缺欄位的工作查不到。 */
+  readonly nextAttemptAt: string;
 }
 
 export interface FollowUpDecisionPlan {
@@ -205,7 +207,8 @@ export function planFollowUpDecision(
       idempotencyKey: calendarEventIdForFollowUp(appointment.id),
       status: 'pending',
       attempts: 0,
-      createdAt: request.requestedAt
+      createdAt: request.requestedAt,
+      nextAttemptAt: request.requestedAt
     },
     idempotencyRecord: planIdempotencyRecord(
       request.idempotency,

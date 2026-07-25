@@ -84,7 +84,11 @@ async function seedJob(id = 'outbox_001'): Promise<void> {
     idempotencyKey: CONFIRMED_KEY,
     type: 'calendar_projection_requested',
     status: 'pending',
-    attempts: 0
+    attempts: 0,
+    // 領取是 `nextAttemptAt <= now` 的範圍查詢，而範圍查詢不回傳缺少該欄位的
+    // 文件。領域的三條建立路徑都會寫入這個欄位（等於 createdAt，立即到期），
+    // 種子必須跟著寫，否則測到的就不是正式路徑會產生的形狀。
+    nextAttemptAt: NOW
   });
 }
 
@@ -223,7 +227,8 @@ describe('outbox worker', () => {
           idempotencyKey: FOLLOW_UP_KEY,
           type: 'calendar_projection_requested',
           status: 'pending',
-          attempts: 0
+          attempts: 0,
+          nextAttemptAt: NOW
         });
       await processor.processDue(later(1));
       expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
@@ -242,7 +247,8 @@ describe('outbox worker', () => {
             idempotencyKey: FOLLOW_UP_KEY,
             type: 'calendar_projection_requested',
             status: 'pending',
-            attempts: 0
+            attempts: 0,
+            nextAttemptAt: NOW
           });
         await processor.processDue(later(2));
         expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(true);
@@ -323,7 +329,8 @@ describe('outbox worker', () => {
           idempotencyKey: CONFIRMED_KEY,
           type: 'calendar_projection_requested',
           status: 'pending',
-          attempts: 0
+          attempts: 0,
+          nextAttemptAt: NOW
         });
       const summary = await processor.processDue(later(1));
 
@@ -355,7 +362,8 @@ describe('outbox worker', () => {
           idempotencyKey: CONFIRMED_KEY,
           type: 'calendar_projection_requested',
           status: 'pending',
-          attempts: 0
+          attempts: 0,
+          nextAttemptAt: NOW
         });
       await processor.processDue(later(clock));
       clock += 1;
@@ -582,5 +590,103 @@ describe('outbox worker', () => {
     const summary = await processor.processDue(NOW);
     expect(summary.claimed).toBe(0);
     expect(calendar.events.size).toBe(0);
+  });
+
+  // 佇列不得有排隊順序上的死角。
+  //
+  // 先前的領取查詢是 `where('status','in',['pending','in_progress']).limit(20)`
+  // 且**沒有 orderBy**，所以拿到的是文件 ID 順序的前 20 筆。只要那 20 筆都還在
+  // 退避中，claim 就回 undefined、processDue 直接收工——文件 ID 排在後面、其實
+  // 早就到期的工作整輪都碰不到。退避上限是一小時，所以一筆該立刻送出的日曆
+  // 同步可能被卡一小時。
+  //
+  // 這個測試刻意把到期的那一筆放在文件 ID 的最後面。
+  it('claims a due job that sorts behind a full page of backing-off jobs', async () => {
+    // 到期的那一筆，文件 ID 以 zz 開頭，保證排在全部退避工作之後。
+    await seedJob('outbox_zz_due');
+    // 20 筆都在退避中，且文件 ID 全部排在到期那筆之前。
+    for (let index = 0; index < 20; index += 1) {
+      await db
+        .collection(OUTBOX_COLLECTION)
+        .doc(`outbox_backoff_${String(index).padStart(2, '0')}`)
+        .set({
+          appointmentId: 'appointment_001',
+          correlationId: 'corr_outbox_001',
+          causationId: `audit_backoff_${index}`,
+          idempotencyKey: CONFIRMED_KEY,
+          type: 'calendar_projection_requested',
+          status: 'pending',
+          attempts: 1,
+          nextAttemptAt: later(3600) // 一小時後才輪到它們
+        });
+    }
+    const summary = await processor.processDue(NOW);
+
+    expect(summary.claimed).toBeGreaterThan(0);
+    expect((await jobState('outbox_zz_due'))?.['status']).toBe('completed');
+    // 還在退避中的工作不該被碰。
+    expect((await jobState('outbox_backoff_00'))?.['status']).toBe('pending');
+    expect((await jobState('outbox_backoff_19'))?.['status']).toBe('pending');
+  });
+
+  // 租約要從「真正領到這一筆」的時刻起算，不是從批次起點。
+  //
+  // 一批最多 50 筆、每筆都要打一次外部日曆，整批跑得比 LEASE_SECONDS（120 秒）
+  // 還久是常態。先前整批共用同一個 now，後段領到的工作在領到的當下租約就已經
+  // 過期，另一個 worker 可以同時領走同一筆。
+  //
+  // 這裡讓日曆每次呼叫都慢一點，於是同一批內先後領取的兩筆工作，租約到期時間
+  // 必須不同——相同就代表時間又被凍住了。
+  it('starts each lease when the job is claimed, not when the batch began', async () => {
+    await seedJob('outbox_a');
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_b').set({
+      appointmentId: 'appointment_001',
+      correlationId: 'corr_outbox_001',
+      causationId: 'audit_b',
+      idempotencyKey: CONFIRMED_KEY,
+      type: 'calendar_projection_requested',
+      status: 'pending',
+      attempts: 0,
+      nextAttemptAt: NOW
+    });
+    // 讓兩筆工作都失敗，結算後才留得下 nextAttemptAt 供比較。
+    calendar.failNext(2);
+
+    await processor.processDue(NOW);
+
+    const first = (await jobState('outbox_a'))?.['settledAt'] as string;
+    const second = (await jobState('outbox_b'))?.['settledAt'] as string;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    // 時間有往前走：兩筆的結算時刻不同，而且都不早於批次起點。
+    expect(Date.parse(second)).toBeGreaterThan(Date.parse(first));
+    expect(Date.parse(first)).toBeGreaterThanOrEqual(Date.parse(NOW));
+  });
+
+  // 到期時間最早的先做。退避是為了讓外部服務喘息，不是重新排序佇列。
+  it('claims due jobs oldest deadline first', async () => {
+    await seedJob('outbox_zz_late');
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_zz_late').update({
+      nextAttemptAt: NOW,
+      causationId: 'audit_late'
+    });
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_aa_early')
+      .set({
+        appointmentId: 'appointment_001',
+        correlationId: 'corr_outbox_001',
+        causationId: 'audit_early',
+        idempotencyKey: CONFIRMED_KEY,
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: later(-600) // 十分鐘前就該做了
+      });
+
+    await processor.processDue(NOW, 1); // 只准做一筆
+
+    expect((await jobState('outbox_aa_early'))?.['status']).toBe('completed');
+    expect((await jobState('outbox_zz_late'))?.['status']).toBe('pending');
   });
 });
