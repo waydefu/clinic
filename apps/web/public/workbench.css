@@ -125,6 +125,55 @@
 .schedule-toolbar .form-status {
   flex-basis: 100%;
 }
+/* 三步驟說明：把「草稿→比較→發布」的關係寫在畫面上，而不是讓人自己推。 */
+.schedule-steps {
+  display: grid;
+  gap: var(--space-xs);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0 0 var(--space-sm);
+  padding: 0;
+}
+.schedule-steps li {
+  border-left: 0.28rem solid var(--line-strong);
+  display: grid;
+  gap: var(--space-4xs);
+  padding-left: var(--space-xs);
+}
+.schedule-steps strong {
+  font-size: var(--text-body);
+}
+.schedule-steps span {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+}
+.schedule-state {
+  margin: 0 0 var(--space-sm);
+}
+/* 草稿面板用虛線框與「尚未生效」的語氣和已發布區分——兩欄長得一樣的話，
+   使用者分不出哪一邊是患者真正看到的。 */
+.schedule-draft-panel {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
+}
+.schedule-comparison h4 {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin: 0 0 var(--space-2xs);
+}
+.schedule-panel-note {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-regular);
+}
+@media (max-width: 48rem) {
+  .schedule-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .session-picker {
   align-items: center;
   color: var(--ink-muted);
@@ -911,11 +960,26 @@ details[open] > summary .workflow-summary-chevron {
 .appointment-table td[data-label='掛號別'] {
   white-space: nowrap;
 }
+/* 處置欄：所有動作**排在同一行、不換行**。
+   先前是 `flex-wrap: wrap`，欄寬不夠時「到診／修改備註」留在第一行、「更多處置」
+   掉到第二行，整列被撐高又對不齊，下拉打開還會壓到下一列（2026-07-25 截圖回報）。
+   `width: 1%` + `nowrap` 是表格的慣用寫法：讓這一欄縮到剛好容納內容，多餘的寬度
+   還給「療程」「患者」那些真的需要空間的欄位。 */
+.appointment-table td[data-label='處置'] {
+  inline-size: 1%;
+  white-space: nowrap;
+}
 .appointment-table .appointment-controls {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2xs);
   justify-content: flex-end;
+}
+/* 表格裡的動作鍵比一般按鈕緊一點：這裡一列最多會有三個動作，用一般內距會把
+   處置欄撐得比資料欄還寬。高度仍維持 44px 觸控目標。 */
+.appointment-table .appointment-controls .button,
+.appointment-table .appointment-controls .action-menu > summary {
+  padding-inline: var(--space-xs);
 }
 /* 展開式表單那一列跨滿整張表，且沒有自己的內距——內距屬於表單本身。 */
 .appointment-forms > td {

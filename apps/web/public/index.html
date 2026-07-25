@@ -113,7 +113,25 @@
               aria-expanded="false"
               aria-controls="notification-popover"
             >
-              <span aria-hidden="true">&#128276;</span>
+              <!-- 線稿鈴鐺，不用 emoji：🔔 是彩色字符，顏色由字型決定（多數平台
+                   是黃色），既不隨主題變，也和介面的墨綠色系打架。inline SVG 用
+                   currentColor，三個主題都跟著文字色走。 -->
+              <svg
+                class="nav-bell-icon"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+              </svg>
               <span id="nav-bell-dot" class="nav-bell-dot" hidden></span>
             </button>
             <div
@@ -619,24 +637,29 @@
               修改先進入草稿；發布後才會改變患者可預約時段。
             </p>
           </div>
-          <div class="schedule-toolbar">
+          <!-- 三步驟動線：① 這裡先說明狀態 → ② 下面編輯草稿 → ③ 最後在「比較並
+               發布」區看差異、按發布。發布鍵刻意**不放在最上面**：把動作和它影響
+               的東西分開放，使用者按下去之前看不到會發生什麼（Drupal 的草稿／
+               發布 UX 討論記錄過同一個問題）。 -->
+          <ol class="schedule-steps">
+            <li>
+              <strong>① 編輯草稿</strong
+              ><span>改動只進草稿，患者看到的仍是已發布版本。</span>
+            </li>
+            <li>
+              <strong>② 比較差異</strong
+              ><span>確認草稿與已發布版本的不同。</span>
+            </li>
+            <li>
+              <strong>③ 發布</strong
+              ><span>發布後才會改變患者可預約的時段。</span>
+            </li>
+          </ol>
+          <p class="schedule-state">
             <span id="schedule-draft-status" class="status-chip"
               >沒有未發布變更</span
-            ><button
-              id="discard-schedule"
-              class="button button-secondary"
-              type="button"
             >
-              捨棄草稿</button
-            ><button
-              id="publish-schedule"
-              class="button button-primary"
-              type="button"
-            >
-              檢查並發布營業時間
-            </button>
-            <p id="schedule-toolbar-status" class="form-status" hidden></p>
-          </div>
+          </p>
           <div class="schedule-controls">
             <form id="weekly-form" class="control-card">
               <h3>批次加入每週時段</h3>
@@ -745,15 +768,38 @@
               <p id="blocked-times-form-status" class="form-status" hidden></p>
             </form>
           </div>
+          <h3 class="subsection-title">③ 比較並發布</h3>
           <div class="schedule-comparison">
             <article>
-              <h3>已發布營業時間</h3>
+              <h4>
+                已發布<span class="schedule-panel-note">患者現在看到的</span>
+              </h4>
               <div id="published-schedule"></div>
             </article>
-            <article>
-              <h3>目前草稿</h3>
+            <article class="schedule-draft-panel">
+              <h4>
+                目前草稿<span class="schedule-panel-note">發布後才會生效</span>
+              </h4>
               <div id="draft-schedule"></div>
             </article>
+          </div>
+          <!-- 發布鍵就放在比較的正下方：要決定「發不發布」，眼睛必須先看得到
+               差在哪裡。 -->
+          <div class="schedule-toolbar">
+            <button
+              id="discard-schedule"
+              class="button button-secondary"
+              type="button"
+            >
+              捨棄草稿</button
+            ><button
+              id="publish-schedule"
+              class="button button-primary"
+              type="button"
+            >
+              發布這份草稿
+            </button>
+            <p id="schedule-toolbar-status" class="form-status" hidden></p>
           </div>
         </section>
 
@@ -818,10 +864,15 @@
               </button>
               <p id="account-form-status" class="form-status" hidden></p>
             </form>
-            <p id="account-summary" class="result-summary" aria-live="polite">
-              0 個帳號
-            </p>
-            <div id="account-list"></div>
+            <!-- 摘要與清單必須包在同一個容器裡：`.governance-grid` 是兩欄格線，
+                 三個直接子元素會讓表格被擠到第二列第一欄，右邊留下一大片空白
+                 （2026-07-25 截圖回報）。 -->
+            <div class="governance-list">
+              <p id="account-summary" class="result-summary" aria-live="polite">
+                0 個帳號
+              </p>
+              <div id="account-list"></div>
+            </div>
           </div>
         </section>
 

@@ -973,6 +973,90 @@ elements.appointments.addEventListener('click', (event) => {
   message('已重新開啟回診指示，依醫師指示調整後儲存即可。', 'info');
 });
 
+/**
+ * 「確認回診」＝現在就替這位患者約下一次。
+ *
+ * 不新增任何 domain 路徑：它只是把建立預約的表單**預先填好**（患者資料、掛號別
+ * 選回診、日期跳到回診目標日），送出後仍走既有的 `/bookings`。domain 會自動把
+ * 這筆新預約與來源回診連起來（`scheduledAppointmentId`），移除「尚待安排」的
+ * 日曆提醒，這一列也就從佇列消失。
+ *
+ * **回診可以發生很多次**：那筆新預約完成到診後會再登錄一次回診指示，如此循環。
+ */
+elements.appointments.addEventListener('click', (event) => {
+  const book = event.target.closest('[data-follow-up-book]');
+  if (book === null) return;
+  const sourceId = book.dataset.followUpBook;
+  const decision = state.followUps.find(
+    (item) => item.appointmentId === sourceId
+  );
+  const source = state.appointments.find((item) => item.id === sourceId);
+  if (decision === undefined || source === undefined) return;
+  const record = state.patients.find((item) => item.id === source.patientId);
+
+  elements['booking-workflow'].open = true;
+  slotKind = 'follow_up';
+  elements['booking-kind'].value = 'follow_up';
+  // 時段類型的下拉也要跟著切，否則清單已經換成回診時段、選單卻還顯示「初診」，
+  // 櫃台會以為自己在挑初診的格子。
+  elements['slot-kind-filter'].value = 'follow_up';
+  if (record !== undefined) {
+    elements['booking-name'].value = record.name;
+    elements['booking-phone'].value = record.phone;
+    elements['booking-birth'].value = record.birthDate;
+    elements['booking-national-id'].value = record.nationalId;
+    elements['booking-nhi-card'].checked = record.hasNhiCard === true;
+  }
+  // 時段清單跳到回診目標日，櫃台不必自己翻頁找。
+  selectedSlotId = undefined;
+  renderSlotList();
+  renderBookingForm();
+  elements['booking-workflow'].scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
+  message(
+    `已帶入 ${record?.name ?? sourceId} 的回診資料，請選擇 ${decision.dueDate} 附近的時段後送出。`,
+    'info'
+  );
+});
+
+/**
+ * 「取消回診」＝這位患者不用回來了。
+ *
+ * 走的是既有的回診指示路徑、把狀態記成 `not_required`，因此**日曆上的回診提醒
+ * 會一併移除**（domain 的 replaceFollowUpProjection）。到診紀錄本身留著。
+ *
+ * 這裡刻意不是「刪除紀錄」——刪除會把整筆已完成的看診事實清掉、只留稽核，用它
+ * 來表達「不用回診」是錯的。
+ */
+elements.appointments.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-follow-up-cancel]');
+  if (button === null) return;
+  const id = button.dataset.followUpCancel;
+  const confirmed = await confirmDialog(
+    '確定取消這筆回診安排？日曆上的回診提醒會一併移除，已完成的到診紀錄仍會保留。',
+    { danger: true, confirmLabel: '取消回診' }
+  );
+  if (!confirmed) return;
+  const decision = state.followUps.find((item) => item.appointmentId === id);
+  await runUiAction({
+    control: button,
+    pendingLabel: '取消中…',
+    pendingMessage: '正在取消回診安排，請稍候。',
+    action: () =>
+      post(`/follow-ups/${id}`, {
+        status: 'not_required',
+        // 保留原本的備註與診斷書份數，只改「需不需要回診」這一件事。
+        tags: decision?.tags ?? [],
+        noteText: decision?.noteText ?? '',
+        certificateCopies: decision?.certificateCopies ?? 0
+      }),
+    onSuccess: () => message('回診已取消，日曆上的回診提醒已移除。', 'success'),
+    failureMessage: (error) => `未取消：${error.message}`
+  });
+});
+
 elements.appointments.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-appointment-action]');
   if (button === null) return;

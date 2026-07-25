@@ -938,6 +938,11 @@ textarea {
   gap: var(--space-sm);
   grid-template-columns: minmax(16rem, 0.7fr) minmax(22rem, 1.3fr);
 }
+/* 格線的第二欄：摘要與清單是**一格**，不是兩格。少了這一層的話，摘要會自己佔掉
+   第二欄、清單被擠到第二列第一欄，右邊留下一整片空白。 */
+.governance-list {
+  min-width: 0;
+}
 /* 員工帳號改成資料表（見 admin-view.renderAccounts）。共用樣式在 workbench.css
    的 .data-table；容器是塊級、表本身 width:100%，欄少內容短，平板寬度排得下，
    不需要橫向捲動容器。這裡只補兩個表格專屬的細節。 */

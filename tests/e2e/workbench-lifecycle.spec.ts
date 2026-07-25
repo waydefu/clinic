@@ -578,9 +578,27 @@ test.describe('工作臺預約生命週期', () => {
     const followUpCard = page.locator('[data-follow-up-pending]').first();
     await expect(followUpCard).toBeVisible();
 
-    // 刪除（管理者限定）：從卡片的「更多處置」選單開啟，理由彈窗選理由後確認。
-    await followUpCard.locator('summary').click();
-    await followUpCard.locator('[data-appointment-action="delete"]').click();
+    // 這一列只有三個動作、**沒有下拉選單、也沒有「刪除紀錄」**：刪除是清掉整筆
+    // 看診事實，拿它表達「不用回診了」是錯的。要撤銷回診請用「取消回診」。
+    await expect(followUpCard.locator('.action-menu')).toHaveCount(0);
+    await expect(
+      followUpCard.locator('[data-appointment-action="delete"]')
+    ).toHaveCount(0);
+
+    // 取消回診：回診需求撤銷、日曆提醒移除，但**已完成的到診紀錄要留著**。
+    await followUpCard.locator('[data-follow-up-cancel]').click();
+    await page.locator('.confirm-dialog button.button-danger').click();
+    await expect(page.locator('#status')).toContainText('回診已取消');
+    await expect(page.locator('[data-follow-up-pending]')).toHaveCount(0);
+
+    const completedRow = page.locator('[data-appointment-card]').first();
+    await expect(completedRow).toContainText('已完成到診');
+
+    // 刪除（管理者限定）仍在。已完成的預約只剩「刪除紀錄」一個次要處置，因此它
+    // **直接是一顆按鈕、不再包在「更多處置」下拉裡**——把唯一的選項藏起來只是多
+    // 一次點擊。
+    await expect(completedRow.locator('.action-menu')).toHaveCount(0);
+    await completedRow.locator('[data-appointment-action="delete"]').click();
     const dialog = page.locator('.confirm-dialog');
     await expect(dialog.locator('.confirm-dialog-reason')).toBeVisible();
     await dialog.locator('select').selectOption('wrong_patient');

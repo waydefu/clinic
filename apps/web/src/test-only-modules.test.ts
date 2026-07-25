@@ -536,9 +536,22 @@ describe('櫃台處置', () => {
     expect(renderWeekView(state, '2030-01-28', '2030-01-28')).not.toContain(
       `data-week-event="${appointment.id}"`
     );
-    expect(
-      renderAppointments(state, { status: 'all', kind: 'all', query: '' })
-    ).not.toContain(appointment.id);
+
+    // 2026-07-25 行為變更：改成「目前無需回診」之後，**回診**要消失，但那筆
+    // 已完成的看診紀錄要留著。
+    //
+    // 先前這裡整筆從清單移除（理由是「後續無動作」），代價是一次真實發生過的
+    // 看診從畫面上徹底消失——連切到「全部狀態」都找不回來，管理者也就再也無法
+    // 刪除誤建的紀錄。日常畫面不受影響：預設的「當日」「待處理」篩選本來就不
+    // 列出已完成的預約。
+    const afterCancel = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+    expect(afterCancel).toContain(appointment.id);
+    expect(afterCancel).toContain('已完成到診');
+    expect(afterCancel).not.toContain('待安排回診');
   });
 
   it('回診正式掛號後以新預約取代提醒，完成後仍可再安排下一次回診', () => {

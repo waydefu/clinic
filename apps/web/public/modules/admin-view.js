@@ -141,14 +141,21 @@ function actionMenu(appointment, primaryActionId, permissions) {
       (action.permission === undefined ||
         permissions.includes(action.permission)) &&
       actionEnabled(action.id, appointment)
-  )
+  );
+  if (items.length === 0) return '';
+  // 只剩一個選項時不要包成下拉選單：把一個動作藏在「更多處置」後面，等於多一次
+  // 點擊卻沒有換到任何整理效果，使用者也看不出裡面有什麼。直接攤平成按鈕。
+  if (items.length === 1) {
+    const action = items[0];
+    return `<button class="button button-tertiary${action.id === 'delete' ? ' danger-text' : ''}" type="button" data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(action.label)}</button>`;
+  }
+  const list = items
     .map(
       (action) =>
         `<button type="button"${action.id === 'delete' ? ' class="danger-text"' : ''} data-appointment-action="${escapeHtml(action.id)}" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(action.label)}</button>`
     )
     .join('');
-  if (items === '') return '';
-  return `<details class="action-menu"><summary><span class="action-menu-icon" aria-hidden="true">&#8942;</span><span>更多處置</span><span class="action-menu-chevron" aria-hidden="true">&#8964;</span></summary><div class="action-menu-list">${items}</div></details>`;
+  return `<details class="action-menu"><summary><span class="action-menu-icon" aria-hidden="true">&#8942;</span><span>更多處置</span><span class="action-menu-chevron" aria-hidden="true">&#8964;</span></summary><div class="action-menu-list">${list}</div></details>`;
 }
 function managerLabel(state, id) {
   return state.caseManagers.find((item) => item.id === id)?.label ?? id;
@@ -349,8 +356,12 @@ function rescheduleOptions(state, appointment) {
 
 // 把每筆預約整理成「佇列項目」，把回診決定的影響一次算好：
 //   - 已完成到診 ＋ 需要回診（未安排）→ 回診版（模式 followup，效期＝回診目標）
-//   - 已完成到診 ＋ 不需要回診 → 排除（後續無動作）
 //   - 其餘 → 一般（效期＝看診時間）
+//
+// 「已完成到診＋不需要回診」先前是**整筆排除**的，理由是「後續無動作」。但那讓
+// 一筆真實發生過的看診從清單上完全消失——連切到「全部狀態」都找不回來，管理者
+// 也就沒有辦法再刪除誤建的紀錄。現在它留在清單上（顯示為「已完成到診」），只是
+// 預設的「當日」「待處理」篩選本來就不會列出已完成的預約，所以日常畫面不受影響。
 // 「效期」同時用於當日篩選與依日期排序，讓回診版依回診日排、而非原就診時間。
 function queueEntry(state, appointment) {
   const decision = state.followUps.find(
@@ -365,8 +376,6 @@ function queueEntry(state, appointment) {
       effectiveStart: taipeiIso(decision.dueDate, decision.dueTime)
     };
   }
-  if (appointment.status === 'completed' && decision?.status === 'not_required')
-    return undefined;
   return {
     appointment,
     decision,
@@ -385,14 +394,29 @@ function followUpQueueCard(state, entry, permissions, selectedIds) {
     notes.length === 0
       ? ''
       : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
-  // 缺 session 時（測試夾具、登入前）不顯示「調整回診」，而非拋錯。
-  const adjust = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP)
+  // 待安排回診這一列的三個動作，對應櫃台真正會做的三件事：
+  //
+  //   確認回診  患者要約下一次了 → 帶著資料跳到建立預約（掛號別已選回診、
+  //             日期已填回診目標日）。**回診可以發生很多次**：那筆新預約完成
+  //             到診後又會再登錄一次回診指示，如此循環。
+  //   調整回診  醫師改了指示 → 放回逐筆登錄再改一次。
+  //   取消回診  不用回來了 → 走 `not_required`，**日曆上的回診提醒會一併移除**。
+  //
+  // 先前這裡只有「調整回診」＋選單裡一個「刪除紀錄」。刪除是清掉整筆到診紀錄
+  // （只留稽核），拿它當「不用回診了」用是錯的——那會連同已完成的看診事實一起
+  // 消失。取消回診只撤銷回診需求，到診紀錄留著。
+  const canManage = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP);
+  // 缺 session 時（測試夾具、登入前）不顯示這些動作，而非拋錯。
+  const adjust = canManage
     ? `<button class="button appointment-primary-action appointment-follow-up-button" type="button" data-follow-up-edit="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#8635;</span>調整回診</button>`
     : '';
-  // 回診版卡片同樣要能刪除：誤建的紀錄卡在回診佇列時，管理者需要清得掉。
-  // 這張卡的來源預約已是 completed，其餘處置本來就不適用，選單實際上只會
-  // 留下刪除。
-  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診提醒已上日曆<span class="detail-line">來源 <span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${adjust}${actionMenu(appointment, undefined, permissions)}</div></td></tr>`;
+  const confirmFollowUp = canManage
+    ? `<button class="button button-primary appointment-primary-action" type="button" data-follow-up-book="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#10003;</span>確認回診</button>`
+    : '';
+  const cancelFollowUp = canManage
+    ? `<button class="button button-danger-outline" type="button" data-follow-up-cancel="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#10005;</span>取消回診</button>`
+    : '';
+  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診提醒已上日曆<span class="detail-line">來源 <span class="code">${escapeHtml(appointment.id)}</span></span></td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${confirmFollowUp}${adjust}${cancelFollowUp}</div></td></tr>`;
 }
 
 // 櫃台清單的欄位定義。`sortKey` 有值的才可排序——「處置」是一堆按鈕，排它沒有
