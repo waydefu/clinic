@@ -796,31 +796,14 @@ textarea {
   gap: var(--space-sm);
   grid-template-columns: minmax(16rem, 0.7fr) minmax(22rem, 1.3fr);
 }
-.account-list {
-  display: grid;
-  gap: var(--space-xs);
-}
-.account-row {
-  align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  display: grid;
-  gap: var(--space-xs);
-  grid-template-columns: minmax(10rem, 1fr) auto auto auto;
-  padding: var(--space-xs) var(--space-sm);
-}
-.account-row strong {
-  display: block;
-  font-size: var(--text-micro);
-}
-.account-row .code {
-  display: block;
-  margin: var(--space-3xs) 0 0;
-}
-.account-row > span:not(.status-chip) {
+/* 員工帳號改成資料表（見 admin-view.renderAccounts）。共用樣式在 workbench.css
+   的 .data-table；容器是塊級、表本身 width:100%，欄少內容短，平板寬度排得下，
+   不需要橫向捲動容器。這裡只補兩個表格專屬的細節。 */
+.account-table td[data-label='帳號'] .code {
   color: var(--ink-muted);
-  font-size: var(--text-micro);
+}
+.account-table td[data-label='操作'] {
+  white-space: nowrap;
 }
 .release-grid {
   display: grid;
@@ -1448,26 +1431,6 @@ textarea {
   display: grid;
   gap: var(--space-xs);
 }
-.appointment-card,
-.workload-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--elevation-1);
-  padding: var(--space-sm) var(--space-sm);
-}
-.appointment-card {
-  align-items: center;
-  display: flex;
-  gap: var(--space-sm);
-  justify-content: space-between;
-}
-.appointment-main {
-  align-items: center;
-  display: flex;
-  gap: var(--space-sm);
-  min-width: 0;
-}
 .code {
   color: var(--forest-dark);
   font-family: var(--font-mono);
@@ -1480,54 +1443,6 @@ textarea {
   flex-wrap: wrap;
   gap: var(--space-2xs);
   justify-content: flex-end;
-}
-.workload-card {
-  align-items: center;
-  display: grid;
-  gap: var(--space-sm);
-  grid-template-columns: minmax(12rem, 0.85fr) minmax(17rem, 1.15fr);
-}
-.workload-overview strong {
-  color: var(--forest-dark);
-  display: block;
-  font-size: var(--text-lg);
-  letter-spacing: -0.04em;
-  margin-bottom: var(--space-2xs);
-}
-.workload-overview strong span {
-  font-size: var(--text-micro);
-  letter-spacing: 0;
-}
-.workload-overview > p:last-child {
-  color: var(--ink-muted);
-  font-size: var(--text-micro);
-  margin-bottom: 0;
-}
-.workload-breakdown {
-  display: grid;
-  gap: var(--space-2xs);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.workload-breakdown li {
-  align-items: center;
-  background: var(--surface-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--ink-muted);
-  display: flex;
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  gap: var(--space-xs);
-  justify-content: space-between;
-  padding: var(--space-xs) var(--space-xs);
-}
-.workload-breakdown strong {
-  color: var(--forest-dark);
-  font-family: var(--font-sans);
-  font-size: var(--text-micro);
-  white-space: nowrap;
 }
 .empty-state {
   align-items: center;
@@ -1669,16 +1584,11 @@ textarea {
   .actions .button {
     flex: 1 1 9rem;
   }
-  .workload-card,
   .events-grid,
   .schedule-display,
   .governance-grid,
   .weekday-picker {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .account-row {
-    align-items: flex-start;
-    grid-template-columns: 1fr auto;
   }
   .patient-header-inner {
     align-items: flex-start;
@@ -1780,15 +1690,9 @@ textarea {
   .topbar-actions .button {
     width: 100%;
   }
-  .workload-breakdown li {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--space-3xs);
-  }
   /* 48rem 斷點把這些容器設為 2 欄；到了手機寬度每欄只剩約 156px，
      裡面的表單欄位與統計數字塞不下就溢出容器（2026-07-22 實機回報）。
      週次選擇維持 2 欄——「週一」這種短標籤放得下。 */
-  .workload-card,
   .events-grid,
   .schedule-display,
   .governance-grid {

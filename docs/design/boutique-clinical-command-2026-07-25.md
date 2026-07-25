@@ -33,8 +33,8 @@
 | --- | --- | --- |
 | 1 | Design Tokens 2.0（CSS） | **完成** `bc975be` |
 | 2 | 瑞士資訊骨架（Grid／Spacing／Type Scale） | **完成** `68fa08b` |
-| 3 | 工作臺卡片重構為資料表格 | **部分完成** `ff23a24`（見 §4） |
-| 4 | 首頁改為情境式指揮中心（資訊架構重構） | **未開始**（已完成前期調查，見 §8） |
+| 3 | 工作臺卡片重構為資料表格 | **表格轉換完成**；排序與批次操作未做（見 §4） |
+| 4 | 首頁改為情境式指揮中心（資訊架構重構） | **未開始**（已完成前期調查，見 §8）**←下一位從這裡開始** |
 | 5 | 品牌層（配色、香檳金、子集化中文字體） | 未開始 |
 | 6 | Motion System 與互動細節 | 未開始 |
 
@@ -105,24 +105,40 @@
 `role="table" / rowgroup / row / columnheader / cell`。新增其他表格時照做，
 `tests/e2e/workbench-lifecycle.spec.ts` 有釘住這件事。
 
-## 4. 階段 3 的實際範圍：**這裡是下一個人最需要注意的地方**
+## 4. 階段 3 的實際範圍
 
-已完成的只有**櫃台處理清單**（`renderAppointments`）。它現在是
-`<table class="data-table appointment-table">`。
+### 表格轉換：全部完成
 
-**尚未轉成表格**的區塊，全部還是卡片或清單：
+| 區塊 | 函式 | 表格 | caption |
+| --- | --- | --- | --- |
+| 櫃台處理清單 | `renderAppointments` | `.appointment-table` | 櫃台處理清單… |
+| 排班管理 | `renderSchedule` | `.schedule-table` ×3 | 每週時段／日期例外／固定不開放 |
+| 個案管理 | `renderCaseAssignments` | `.case-table` | 完成到診的個案… |
+| 月度統計 | `renderWorkload` | `.workload-table` | 個管師月度工作量… |
+| 員工權限 | `renderAccounts` | `.account-table` | 員工帳號與權限… |
+| 稽核紀錄 | `renderAudit` | `.audit-table` | 稽核事件… |
 
-- 排班管理（`renderSchedule`）
-- 個案管理
-- 員工權限
-- 稽核紀錄
+`renderOutbox`（日曆投影意圖）**刻意維持清單**：它每一列的形狀不規則（錯誤訊息、
+重新排入按鈕、補回者），欄位對不齊，做成表格只會多出一堆空格。
 
-`.data-table` 的樣式已經寫好且通用，接手時可以直接套用；`workbench.css` 裡
-`.data-table` 那一段的手機堆疊處理（`data-label` + `::before`）也是通用的。
+轉換時同步做掉的三件事，接手時請沿用：
 
-**階段 3 還缺的功能**（原提案有列，這次沒做）：
+1. **手機堆疊改成 `.data-table` 通用**。先前那一段綁在 `.appointment-table` 上，
+   新表格套不到。現在新增任何 `.data-table` 都自動有堆疊、`data-label` 欄位名與
+   每列一張卡片的外觀。
+2. **收起來的 `thead` 要真的縮成 1×1**。原本只有 `clip-path` + `position:
+   absolute`，版面上仍保有「所有欄名並排」的寬度，個案管理分頁因此在 375px 多出
+   31px 的水平捲軸。已改成與 `caption` 相同的隱藏方式，並加了逐分頁量測的迴歸
+   測試。
+3. **`<form>` 不能包住 `<tr>`**——HTML 剖析器會把它丟到表格外面。個管指派的做法
+   是：表單放在「個案管理師」那一格，送出鈕放在「操作」格、用 `form="<id>"`
+   屬性關聯回去。這個關聯壞掉時按鈕會完全沒反應且不報錯，所以 e2e 直接驗它送不
+   送得出去。
 
-- 欄位排序
+### 階段 3 還缺的功能（原提案有列，仍未做）
+
+- 欄位排序（做的話請用 `aria-sort`，值只有 `ascending`／`descending`／`none`，
+  且**同一時間只有一欄**帶非 none 的值）
 - 批次選取與批次操作
 - 展開細節列（目前只有改期／備註表單會展開）
 
@@ -144,7 +160,7 @@
 | `pnpm check:tokens` | 上面 §3 那一整份清單 |
 | `tests/e2e/theme.spec.ts` | 三主題必須產生**三種不同**的深底；深色亮度階層；品牌圖真的載入；標誌在深色下提亮 |
 | `tests/e2e/responsive.spec.ts` | 兩頁 × 9 個寬度（含每個斷點與其上方 1px、320px）不得出現水平捲軸 |
-| `tests/e2e/workbench-lifecycle.spec.ts` | 表格欄位對齊、表頭正確、ARIA role 齊全、手機堆疊仍帶欄位名；忙碌狀態不設 `aria-busy`；結果清單不是 live region |
+| `tests/e2e/workbench-lifecycle.spec.ts` | 表格欄位對齊、表頭正確、ARIA role 齊全、手機堆疊仍帶欄位名；六張表都有 caption 與完整 role；已發布排班沒有操作欄；個管指派的跨格 `form` 關聯送得出去；**每個工作區在 375px 都不得有水平捲軸**；忙碌狀態不設 `aria-busy`；結果清單不是 live region |
 | `tests/e2e/accessibility.spec.ts` | axe 掃描無 serious/critical |
 | `pnpm check:perf` | 逐頁 gzip 傳輸量與請求數 |
 
@@ -158,12 +174,19 @@
   [無障礙人工測試 runbook](../runbooks/manual-accessibility-test.md) §8-b）：手機版
   表格的 `td::before` 欄位名，在表格語意已由 ARIA role 維持的情況下對讀屏是重複
   的，可能唸成「時間 時間 08:30」。若確認干擾，改法是每格加 `aria-hidden` 的
-  `<span>` 取代 `::before`，代價是每列多六個節點。
-- **其他 `aria-live` 容器仍有同樣的問題**：`#task-list`、`#slots`、
-  `#follow-up-list`、`#workload` 都是整批置換內容的 live region，會被逐項重唸。
-  `#appointments` 已修，因為它本來就有一個簡短的筆數摘要可以接手公告；其餘四個
+  `<span>` 取代 `::before`，代價是每列多幾個節點。**這件事現在影響六張表，不再
+  只有櫃台清單**，所以實機驗證的價值比先前高。
+- **其他 `aria-live` 容器仍有同樣的問題，而且階段 3 之後更嚴重**：
+  `#task-list`、`#slots`、`#follow-up-list`、`#workload`、`#case-assignment-list`、
+  `#account-list`、`#release-list` 都是整批置換內容的 live region，會被逐項重唸。
+  `#appointments` 已修，因為它本來就有一個簡短的筆數摘要可以接手公告；其餘
   **沒有對應的摘要元素**，直接拿掉 aria-live 會讓「內容變了」這件事完全沒有
   公告。正確做法是先給每個清單一個簡短摘要，再把 aria-live 移過去。
+
+  **這是目前最值得先處理的無障礙缺陷**：其中三個容器（`#workload`、
+  `#case-assignment-list`、`#account-list`）現在裝的是**整張表格**，重唸一次的
+  長度比原本的卡片更長。轉表格沒有製造這個問題（aria-live 本來就在），但把它
+  放大了。
 - 患者頁仍有 50% 的可見文字在 14px（原本 69%）。剩下的多數是導覽、eyebrow、
   chip、步驟編號，該小；但值得再看一輪。
 - favicon 與 `og-booking.png` 還沒換成新標誌。

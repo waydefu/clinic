@@ -611,8 +611,37 @@ details[open] > summary .workflow-summary-chevron {
   padding: var(--space-xs);
   vertical-align: top;
 }
-.appointment-row:hover td {
+/* 列的滑鼠停留回饋對所有資料表通用。展開式表單那一列（.appointment-forms）
+   是上一筆的延伸、不是可掃描的資料列，所以排除在外。 */
+.data-table tbody > tr:not(.appointment-forms):hover > td {
   background: var(--surface-soft);
+}
+/* 數字欄靠右、等寬：統計表的用途就是上下比大小，個位數對齊才看得出差異。
+   表頭也要一起靠右，否則欄名與數字各走各的。 */
+.data-table .numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+/* 跨欄的「目前沒有資料」那一格：它不是一筆資料，所以置中、用弱化的字色，
+   不做成看起來可以點的資料列。 */
+.data-table .empty-cell {
+  color: var(--ink-muted);
+  text-align: center;
+}
+/* 列內的表單（個管指派）只是控制項的容器，不該再撐出自己的間距。 */
+.data-table td > form {
+  margin: 0;
+}
+/* 手機上每一格是 flex（欄名 + 內容），select 的預設 min-width 是內容寬度，
+   不讓它縮就會把整列推出畫面。 */
+.data-table td select {
+  max-width: 100%;
+  min-width: 0;
+}
+.data-table td > form {
+  min-width: 0;
 }
 /* 時間欄是掃描的起點，所以用等寬字讓數字逐位對齊。 */
 .appointment-table .cell-date {
@@ -643,8 +672,9 @@ details[open] > summary .workflow-summary-chevron {
 }
 
 @media (max-width: 64rem) {
-  /* 中等寬度先讓表格橫向捲動，而不是立刻拆成卡片：六欄在平板上還讀得完，
-     拆開反而變長。 */
+  /* 中等寬度先讓寬表橫向捲動，而不是立刻拆成卡片：六欄在平板上還讀得完，
+     拆開反而變長。只有欄數多、放不下的表需要這個（目前是櫃台處理清單）；
+     欄數少的表在這個寬度本來就排得下，不必給 min-width。 */
   #appointments {
     overflow-x: auto;
   }
@@ -654,46 +684,65 @@ details[open] > summary .workflow-summary-chevron {
 }
 
 @media (max-width: 48rem) {
-  /* 手機上表格改回堆疊：橫向捲動的資料表在手機上幾乎無法使用。每一格用
-     `data-label` 把欄位名帶回來，所以資訊沒有因為表頭消失而遺失。
+  /* 手機上所有資料表都改回堆疊：橫向捲動的資料表在手機上幾乎無法使用。這一段
+     對每一張 .data-table 通用，新增表格會自動套用——每一格用 `data-label` 把
+     欄位名帶回來（見下方 td[data-label]::before），所以資訊沒有因為表頭消失
+     而遺失。
 
      ::before 的欄位名對螢幕閱讀器是**重複**的——表格語意由標記上的 ARIA role
      維持著，表頭關聯仍然成立，所以讀屏可能會唸到「時間 時間 08:30」。取捨是
-     刻意的：改用每格一個 aria-hidden 的 <span> 可以消除重複，但每列要多六個
+     刻意的：改用每格一個 aria-hidden 的 <span> 可以消除重複，但每列要多幾個
      節點。這一項列在人工無障礙測試 runbook 裡，等實機讀屏驗過再定案。 */
   #appointments {
     overflow-x: visible;
   }
-  .appointment-table,
-  .appointment-table tbody,
-  .appointment-table tr,
-  .appointment-table td {
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
     display: block;
     min-width: 0;
     width: auto;
   }
-  .appointment-table thead {
+  /* 表頭要真的收成 1×1：只給 clip-path + absolute 的話，它在版面上仍保有
+     原本的寬度（欄名全部並排），會把文件撐出水平捲軸——手機上的個案管理表
+     就是這樣多出 31px 的。這裡與 .data-table caption 用同一套隱藏方式。 */
+  .data-table thead {
     clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
     position: absolute;
+    white-space: nowrap;
+    width: 1px;
   }
-  .appointment-row {
+  /* 每一列在手機上變成一張卡片，用細框把相鄰兩筆分開。 */
+  .data-table tbody > tr {
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     margin-bottom: var(--space-xs);
     padding: var(--space-2xs);
   }
-  .appointment-table td {
+  .data-table td {
     border: 0;
     display: flex;
     gap: var(--space-xs);
     justify-content: space-between;
     padding: var(--space-3xs) var(--space-2xs);
   }
-  .appointment-table td::before {
+  /* 只有帶欄位名的格子才補 ::before；跨欄的展開列（colspan、無 data-label）
+     不硬塞一個空標籤。 */
+  .data-table td[data-label]::before {
     color: var(--ink-muted);
     content: attr(data-label);
     flex: 0 0 auto;
     font-weight: var(--weight-bold);
+  }
+  /* 展開式表單那一列是上一筆的延伸，不自成一張卡片，也不吃內距——內距屬於
+     表單本身。 */
+  .data-table tbody > tr.appointment-forms {
+    border: 0;
+    margin: 0;
+    padding: 0;
   }
   .appointment-table .appointment-controls {
     justify-content: flex-start;

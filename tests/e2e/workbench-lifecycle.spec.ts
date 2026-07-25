@@ -201,6 +201,125 @@ test.describe('櫃台處理清單', () => {
   });
 });
 
+// 階段 3 把其餘四區也改成資料表。這一組驗的是「每一張表都照同一套規則做」，
+// 而不是逐張重驗欄位內容——欄名會隨營運需求調整，結構規則不會。
+test.describe('工作臺其餘資料表', () => {
+  // 每張表的：所在分頁、選擇器、caption 關鍵字、第一欄的欄位名。
+  const TABLES = [
+    [
+      '#schedule-section',
+      '#published-schedule table.schedule-table',
+      '每週固定看診時段',
+      '星期'
+    ],
+    [
+      '#accounts-section',
+      '#account-list table.account-table',
+      '員工帳號',
+      '帳號'
+    ],
+    ['#audit-section', '#audit-events table.audit-table', '稽核事件', '事件']
+  ] as const;
+
+  for (const [panel, selector, caption, firstLabel] of TABLES) {
+    test(`${selector} 是帶完整表格語意的資料表`, async ({ page }) => {
+      await loginAsAdmin(page);
+      await page.goto(`/${panel}`);
+
+      const table = page.locator(selector).first();
+      await expect(table).toBeVisible();
+
+      // 手機版用 display:block 堆疊，會讓瀏覽器把表格語意從無障礙樹拿掉，
+      // 所以 role 必須明確寫出來——這是整組表格共用的規則。
+      await expect(table).toHaveAttribute('role', 'table');
+      await expect(table.locator('thead')).toHaveAttribute('role', 'rowgroup');
+      await expect(table.locator('tbody')).toHaveAttribute('role', 'rowgroup');
+      await expect(table.locator('caption')).toContainText(caption);
+      await expect(table.locator('thead th').first()).toHaveAttribute(
+        'role',
+        'columnheader'
+      );
+
+      const firstCell = table.locator('tbody tr td').first();
+      await expect(firstCell).toHaveAttribute('role', 'cell');
+      // 表頭在手機上收起來，欄位名靠每一格的 data-label 帶回來。
+      await expect(firstCell).toHaveAttribute('data-label', firstLabel);
+    });
+  }
+
+  test('已發布排班沒有操作欄，草稿才有', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/#schedule-section');
+
+    // 只有草稿能改。不可編輯的版本留一個空的「操作」欄，會讓人以為功能壞了。
+    await expect(
+      page.locator('#published-schedule table').first().locator('thead th')
+    ).toHaveText(['星期', '時段']);
+    await expect(
+      page.locator('#draft-schedule table').first().locator('thead th')
+    ).toHaveText(['星期', '時段', '操作']);
+  });
+
+  test('個管指派：送出鈕與表單不同格，仍然送得出去', async ({ page }) => {
+    await loginAsAdmin(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+    // 先完成到診，個案才會出現在指派表裡。
+    await page
+      .locator('[data-appointment-card]')
+      .first()
+      .locator('[data-appointment-action="complete"]')
+      .click();
+    await page.locator('.confirm-dialog button.button-primary').click();
+
+    await page.goto('/#case-section');
+    const row = page
+      .locator('#case-assignment-list tbody tr[data-case-row]')
+      .first();
+    await expect(row).toBeVisible();
+    await expect(row.locator('.status-chip')).toHaveText('待指派');
+
+    // `<form>` 不能包住 `<tr>`，所以表單放在「個案管理師」那一格，送出鈕靠
+    // form 屬性從「操作」格關聯回去。這個關聯壞掉的話按鈕會完全沒反應，
+    // 而且不會有任何錯誤訊息——所以這裡直接驗它有沒有真的送出。
+    await row.locator('button[type="submit"][form]').click();
+    await expect(row.locator('.status-chip')).toHaveText('已指派');
+
+    // 指派完成會重算月度統計，數字欄靠右對齊才比得動。
+    const workload = page.locator('#workload table.workload-table');
+    await expect(workload).toBeVisible();
+    await expect(workload.locator('tbody tr')).toHaveCount(1);
+    await expect(workload.locator('td.numeric').first()).toHaveCSS(
+      'text-align',
+      'right'
+    );
+  });
+
+  test('手機寬度下每個工作區都不產生水平捲軸', async ({ page }) => {
+    // 迴歸測試：收起來的 thead 原本只設了 clip-path 與 absolute，沒有縮成 1×1，
+    // 因此仍以「所有欄名並排」的寬度佔著版面，把個案管理分頁撐出 31px 的水平
+    // 捲軸。資料表是分頁內容，responsive.spec.ts 只量得到登入後的預設分頁，
+    // 所以這裡逐一切過每一個工作區。
+    await loginAsAdmin(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+
+    for (const panel of [
+      '#schedule-section',
+      '#case-section',
+      '#accounts-section',
+      '#audit-section'
+    ]) {
+      await page.goto(`/${panel}`);
+      await expect(page.locator(panel)).toBeVisible();
+      const overflow = await page.evaluate(() => {
+        const root = document.documentElement;
+        return root.scrollWidth - root.clientWidth;
+      });
+      expect(overflow, `${panel} 不應該有水平捲軸`).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 test.describe('工作臺預約生命週期', () => {
   test('登入→建立→到診→回診→刪除', async ({ page }) => {
     await loginAsAdmin(page);

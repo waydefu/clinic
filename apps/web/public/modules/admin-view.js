@@ -423,25 +423,51 @@ export function renderAppointments(state, filters) {
   return `<table class="data-table appointment-table" role="table"><caption>櫃台處理清單，依時間由近到遠排序</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
+// 排班的三段各自是一張小表。它們的欄位不同（星期／日期／掛號別），硬併成一張
+// 會逼出一堆空格，所以維持三張，共用 .data-table 的樣式與手機堆疊。
+//
+// 已發布版與草稿版用的是同一個函式，差別只有 `editable`：草稿才有刪除按鈕。
+// 因此「操作」欄只在可編輯時才存在——不可編輯時留一欄空白會讓兩邊看起來像
+// 少了東西。
+function scheduleTable(caption, columns, rows, emptyText) {
+  const head = columns
+    .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
+    .join('');
+  const body =
+    rows === ''
+      ? `<tr role="row"><td role="cell" colspan="${columns.length}" class="empty-cell">${escapeHtml(emptyText)}</td></tr>`
+      : rows;
+  return `<table class="data-table schedule-table" role="table"><caption>${escapeHtml(caption)}</caption><thead role="rowgroup"><tr role="row">${head}</tr></thead><tbody role="rowgroup">${body}</tbody></table>`;
+}
+
 export function renderSchedule(schedule, editable) {
-  const weekly =
-    schedule.weeklyAvailability
-      .flatMap((entry) =>
-        entry.intervals.map(
-          (interval, index) =>
-            `<li><strong>${WEEKDAY_LABELS[entry.weekday]}</strong><span>${escapeHtml(interval.startLocalTime)}–${escapeHtml(interval.endLocalTime)}</span>${editable ? `<button class="text-button danger-text" type="button" data-remove-weekly="${entry.weekday}:${index}">刪除時段</button>` : ''}</li>`
-        )
+  const label = editable ? '草稿' : '已發布';
+  const actionColumn = editable ? ['操作'] : [];
+  const weekly = schedule.weeklyAvailability
+    .flatMap((entry) =>
+      entry.intervals.map(
+        (interval, index) =>
+          `<tr role="row" data-weekly-row="${entry.weekday}:${index}"><td role="cell" data-label="星期"><strong>${WEEKDAY_LABELS[entry.weekday]}</strong></td><td role="cell" data-label="時段"><span class="code">${escapeHtml(interval.startLocalTime)}–${escapeHtml(interval.endLocalTime)}</span></td>${editable ? `<td role="cell" data-label="操作"><button class="text-button danger-text" type="button" data-remove-weekly="${entry.weekday}:${index}">刪除時段</button></td>` : ''}</tr>`
       )
-      .join('') || '<li>尚未設定每週時段。</li>';
-  const exceptions =
-    schedule.dateExceptions
-      .map(
-        (entry) =>
-          `<li><strong>${escapeHtml(entry.date)}</strong><span>${entry.kind === 'closed' ? '休診' : `加開 ${entry.intervals.map((item) => `${escapeHtml(item.startLocalTime)}–${escapeHtml(item.endLocalTime)}`).join('、')}`}</span>${editable ? `<button class="text-button danger-text" type="button" data-remove-exception="${escapeHtml(entry.date)}">刪除例外</button>` : ''}</li>`
-      )
-      .join('') || '<li>尚無日期例外。</li>';
+    )
+    .join('');
+  const exceptions = schedule.dateExceptions
+    .map(
+      (entry) =>
+        `<tr role="row" data-exception-row="${escapeHtml(entry.date)}"><td role="cell" data-label="日期"><strong>${escapeHtml(entry.date)}</strong></td><td role="cell" data-label="內容">${entry.kind === 'closed' ? '休診' : `加開 ${entry.intervals.map((item) => `${escapeHtml(item.startLocalTime)}–${escapeHtml(item.endLocalTime)}`).join('、')}`}</td>${editable ? `<td role="cell" data-label="操作"><button class="text-button danger-text" type="button" data-remove-exception="${escapeHtml(entry.date)}">刪除例外</button></td>` : ''}</tr>`
+    )
+    .join('');
   const blocked = schedule.blockedTimes ?? { initial: [], follow_up: [] };
-  return `<div class="schedule-display"><p class="code">TIME ZONE · ${escapeHtml(schedule.timeZone)}</p><div><h4>每週時段</h4><ul>${weekly}</ul></div><div><h4>日期例外</h4><ul>${exceptions}</ul></div><div><h4>固定不開放</h4><ul><li><strong>初診</strong><span>${escapeHtml((blocked.initial ?? []).join('、') || '無')}</span></li><li><strong>回診</strong><span>${escapeHtml((blocked.follow_up ?? []).join('、') || '無')}</span></li></ul></div></div>`;
+  const blockedRows = [
+    ['初診', blocked.initial ?? []],
+    ['回診', blocked.follow_up ?? []]
+  ]
+    .map(
+      ([kind, times]) =>
+        `<tr role="row"><td role="cell" data-label="掛號別"><strong>${kind}</strong></td><td role="cell" data-label="不開放時間"><span class="code">${escapeHtml(times.join('、') || '無')}</span></td></tr>`
+    )
+    .join('');
+  return `<div class="schedule-display"><p class="code">TIME ZONE · ${escapeHtml(schedule.timeZone)}</p><div><h4>每週時段</h4>${scheduleTable(`${label}的每週固定看診時段`, ['星期', '時段', ...actionColumn], weekly, '尚未設定每週時段。')}</div><div><h4>日期例外</h4>${scheduleTable(`${label}的日期例外：休診與加開`, ['日期', '內容', ...actionColumn], exceptions, '尚無日期例外。')}</div><div><h4>固定不開放</h4>${scheduleTable(`${label}的固定不開放時間`, ['掛號別', '不開放時間'], blockedRows, '無')}</div></div>`;
 }
 
 // 逐筆回診確認只列「尚未決定」的已完成到診——存檔後即從這裡消失。已決定者
@@ -505,13 +531,19 @@ export function renderFollowUps(state, editingIds = new Set()) {
     .join('');
 }
 
+// 個管指派同樣是掃描工作：管理者要一眼看出「誰還沒指派」。表格把狀態與患者
+// 對齊成兩欄，比一疊卡片快得多。
+//
+// 每一列的指派表單放在最後一格裡——`<form>` 不能包住 `<tr>`（HTML 剖析器會把它
+// 丟出表格外），但放進 `<td>` 完全合法，`data-case-form` 的 submit 事件委派因此
+// 一行都不用改。
 export function renderCaseAssignments(state) {
   const completed = state.appointments.filter(
     (item) => item.status === 'completed'
   );
   if (completed.length === 0)
     return emptyState('尚無待指派個案', '完成到診後才會出現個管指派工作。');
-  return completed
+  const rows = completed
     .map((appointment) => {
       const assignment = state.caseAssignments.find(
         (item) =>
@@ -524,29 +556,59 @@ export function renderCaseAssignments(state) {
             `<option value="${escapeHtml(manager.id)}" ${assignment?.managerId === manager.id ? 'selected' : ''}>${escapeHtml(manager.label)}</option>`
         )
         .join('');
-      return `<form class="decision-card" data-case-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)}</span></div><label>個案管理師<select name="managerId">${managers}</select></label><button class="button button-primary" type="submit">${assignment ? '改派個管師' : '指派個管師'}</button></form>`;
+      // 每一列的控制項都需要自己的名稱：螢幕閱讀器可以逐一跳過表單控制項，
+      // 那時候看不到欄位表頭，所以名稱裡帶上患者，才知道改的是誰。
+      const who = patientLabel(state, appointment.patientId);
+      const formId = `case-form-${appointment.id}`;
+      return `<tr role="row" class="case-row" data-case-row="${escapeHtml(appointment.id)}"><td role="cell" data-label="狀態"><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span></td><td role="cell" data-label="患者"><strong>${escapeHtml(who)}</strong><span class="code detail-line">${escapeHtml(appointment.id)}</span></td><td role="cell" data-label="個案管理師"><form class="case-form" id="${escapeHtml(formId)}" data-case-form="${escapeHtml(appointment.id)}"><select name="managerId" aria-label="${escapeHtml(`${who} 的個案管理師`)}">${managers}</select></form></td><td role="cell" data-label="操作"><button class="button button-primary" type="submit" form="${escapeHtml(formId)}">${assignment ? '改派個管師' : '指派個管師'}</button></td></tr>`;
     })
     .join('');
+  const columns = ['狀態', '患者', '個案管理師', '操作']
+    .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
+    .join('');
+  return `<table class="data-table case-table" role="table"><caption>完成到診的個案與個管師指派狀態</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
+// 月度統計本來就是數字表：同一欄的數字要能上下比對（誰帶的患者多、哪一期
+// 到診次數掉下來），卡片做不到這件事。數字欄靠右對齊、用等寬字，讓位數對齊。
 export function renderWorkload(state) {
   if (state.workload.length === 0)
     return emptyState('尚無月度工作量', '完成到診並指派個管師後才會產生統計。');
-  return state.workload
+  const rows = state.workload
     .map(
       (entry) =>
-        `<article class="workload-card"><div class="workload-overview"><p class="code">${escapeHtml(managerLabel(state, entry.managerId))} · ${escapeHtml(entry.payrollPeriod)}</p><strong>${entry.uniquePatientCount} <span>位不重複患者</span></strong><p>${entry.visitCount} 次完成到診 · ${entry.creditCount} 筆 credit</p></div><ul class="workload-breakdown"><li><span>completed_unique_patient / synthetic-v1</span><strong>${entry.uniquePatientCount} 位</strong></li></ul></article>`
+        `<tr role="row" class="workload-row" data-workload-row="${escapeHtml(`${entry.managerId}:${entry.payrollPeriod}`)}"><td role="cell" data-label="個管師"><strong>${escapeHtml(managerLabel(state, entry.managerId))}</strong></td><td role="cell" data-label="期間"><span class="code">${escapeHtml(entry.payrollPeriod)}</span></td><td role="cell" data-label="不重複患者" class="numeric">${entry.uniquePatientCount}</td><td role="cell" data-label="完成到診" class="numeric">${entry.visitCount}</td><td role="cell" data-label="Credit" class="numeric">${entry.creditCount}</td></tr>`
     )
     .join('');
+  const columns = [
+    ['個管師', ''],
+    ['期間', ''],
+    ['不重複患者', ' class="numeric"'],
+    ['完成到診', ' class="numeric"'],
+    ['Credit', ' class="numeric"']
+  ]
+    .map(
+      ([label, cls]) =>
+        `<th scope="col" role="columnheader"${cls}>${label}</th>`
+    )
+    .join('');
+  return `<table class="data-table workload-table" role="table"><caption>個管師月度工作量：不重複患者、完成到診次數與 credit（計算規則 completed_unique_patient / synthetic-v1）</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
+// 員工權限清單也是一張資料表，不是一疊卡片：管理者在這裡掃描「誰是管理者、
+// 誰被停用」，同一欄要垂直對齊才快。識別放在 data-account-row 上，事件仍掛在
+// 按鈕的 data-account-toggle——測試與事件委派都不去選 tr/td。
 export function renderAccounts(workspace) {
-  return workspace.accounts
-    .map(
-      (account) =>
-        `<article class="account-row"><div><strong>${escapeHtml(account.label)}</strong><span class="code">${escapeHtml(account.id)}</span></div><span class="status-chip ${account.status === 'active' ? 'is-available' : 'is-reserved'}">${account.status === 'active' ? '啟用' : '停用'}</span><span>${escapeHtml(roleLabel(account.role))}</span><button class="button button-tertiary" type="button" data-account-toggle="${escapeHtml(account.id)}">${account.status === 'active' ? '停用' : '恢復'}</button></article>`
-    )
+  const columns = ['帳號', '角色', '狀態', '操作']
+    .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
     .join('');
+  const rows = workspace.accounts
+    .map((account) => {
+      const active = account.status === 'active';
+      return `<tr role="row" class="account-row" data-account-row="${escapeHtml(account.id)}"><td role="cell" data-label="帳號"><strong>${escapeHtml(account.label)}</strong><span class="code detail-line">${escapeHtml(account.id)}</span></td><td role="cell" data-label="角色">${escapeHtml(roleLabel(account.role))}</td><td role="cell" data-label="狀態"><span class="status-chip ${active ? 'is-available' : 'is-reserved'}">${active ? '啟用' : '停用'}</span></td><td role="cell" data-label="操作"><button class="button button-tertiary" type="button" data-account-toggle="${escapeHtml(account.id)}">${active ? '停用' : '恢復'}</button></td></tr>`;
+    })
+    .join('');
+  return `<table class="data-table account-table" role="table"><caption>員工帳號與權限，含啟用狀態</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
 export function renderReleases(workspace) {
@@ -568,23 +630,30 @@ export function renderAudit(state, filter) {
       event.action !== 'schedule_published'
     );
   });
-  return events.length
-    ? [...events]
-        .reverse()
-        .map((event) => {
-          // 刪除的紀錄已經不在清單上了，稽核這一行就是它存在過的唯一證據，
-          // 因此理由與刪除前狀態要直接看得到，不能只留在資料裡。
-          const reason = DELETE_APPOINTMENT_REASONS.find(
-            (item) => item.id === event.reasonCode
-          );
-          const detail =
-            reason === undefined
-              ? ''
-              : `<span class="code detail-line">${escapeHtml(reason.label)}<span aria-hidden="true">·</span>刪除前狀態 ${escapeHtml(APPOINTMENT_STATUS_LABELS[event.previousStatus] ?? event.previousStatus ?? '未知')}</span>`;
-          return `<li><span class="event-dot"></span><div><strong>${escapeHtml(auditLabels[event.action] ?? event.action)}</strong><span>${escapeHtml(event.appointmentId)} · ${escapeHtml(formatDateTime(event.occurredAt))}</span>${detail}</div></li>`;
-        })
-        .join('')
-    : '<li class="empty-event">尚無符合條件的稽核事件。</li>';
+  if (events.length === 0)
+    return '<p class="empty-event">尚無符合條件的稽核事件。</p>';
+  // 稽核是「查證」用的：讀的人要沿著同一欄比對時間、找出某個對象的所有動作。
+  // 時間軸把三種資訊擠在一行，對不齊也篩不動，所以這裡也是資料表。最新的在
+  // 最上面（reverse），與先前的時間軸一致。
+  const rows = [...events]
+    .reverse()
+    .map((event) => {
+      // 刪除的紀錄已經不在清單上了，稽核這一行就是它存在過的唯一證據，
+      // 因此理由與刪除前狀態要直接看得到，不能只留在資料裡。
+      const reason = DELETE_APPOINTMENT_REASONS.find(
+        (item) => item.id === event.reasonCode
+      );
+      const detail =
+        reason === undefined
+          ? ''
+          : `${escapeHtml(reason.label)}<span class="code detail-line">刪除前狀態 ${escapeHtml(APPOINTMENT_STATUS_LABELS[event.previousStatus] ?? event.previousStatus ?? '未知')}</span>`;
+      return `<tr role="row" class="audit-row" data-audit-row="${escapeHtml(event.appointmentId)}"><td role="cell" data-label="事件"><span class="event-dot" aria-hidden="true"></span><strong>${escapeHtml(auditLabels[event.action] ?? event.action)}</strong></td><td role="cell" data-label="對象"><span class="code">${escapeHtml(event.appointmentId)}</span></td><td role="cell" data-label="時間">${escapeHtml(formatDateTime(event.occurredAt))}</td><td role="cell" data-label="詳情">${detail}</td></tr>`;
+    })
+    .join('');
+  const columns = ['事件', '對象', '時間', '詳情']
+    .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
+    .join('');
+  return `<table class="data-table audit-table" role="table"><caption>稽核事件，最新的在最前面</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
 }
 
 // 日曆投影工作的狀態呈現。這是**合成示範**：工作臺不真的呼叫 Google，
