@@ -28,10 +28,40 @@ export class FixedWindowRateLimiter implements RateLimiter {
     private readonly clock: Clock = { now: () => Date.now() }
   ) {}
 
+  private lastSweptAt = Number.NEGATIVE_INFINITY;
+
+  /**
+   * Drops windows that have already expired.
+   *
+   * Without this the map only ever grows: every key seen once and never again
+   * keeps its entry for the life of the process. The key is derived from the
+   * caller, so a rotating or unauthenticated caller is enough to grow it without
+   * bound — a slow memory-exhaustion path rather than a rate limit.
+   *
+   * Swept lazily on write rather than on a timer, because a timer would make the
+   * limiter depend on wall-clock scheduling and the injected clock exists
+   * precisely so anti-automation tests stay deterministic.
+   *
+   * At most one sweep per window, not one per new key. Sweeping on every new key
+   * would make a burst of N distinct keys cost O(N²) — trading unbounded memory
+   * for unbounded CPU against the same attacker. Rate-limiting the sweep itself
+   * makes the amortised cost O(1) per request and bounds the map to the keys
+   * seen within roughly the last two windows, which is the working set the
+   * limiter needs anyway.
+   */
+  private sweepExpired(now: number): void {
+    if (now - this.lastSweptAt < this.windowMs) return;
+    this.lastSweptAt = now;
+    for (const [key, window] of this.windows) {
+      if (now - window.windowStart >= this.windowMs) this.windows.delete(key);
+    }
+  }
+
   public assertWithinLimit(key: string): void {
     const now = this.clock.now();
     const current = this.windows.get(key);
     if (current === undefined || now - current.windowStart >= this.windowMs) {
+      this.sweepExpired(now);
       this.windows.set(key, { count: 1, windowStart: now });
       return;
     }
@@ -39,5 +69,10 @@ export class FixedWindowRateLimiter implements RateLimiter {
       throw new RateLimitedError();
     }
     current.count += 1;
+  }
+
+  /** Live window count. Exposed so a test can prove the map does not grow. */
+  public get trackedKeyCount(): number {
+    return this.windows.size;
   }
 }
