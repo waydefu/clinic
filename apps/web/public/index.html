@@ -19,6 +19,22 @@
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳至主要內容</a>
+    <!-- JavaScript 沒有執行時唯一會顯示的內容。登入閘門與工作臺一開始都是
+         hidden，由模組載入後才顯示，所以少了 JS 這一頁原本是全白——沒有任何
+         說明，也看不出是壞了還是還在載。 -->
+    <noscript>
+      <section class="noscript-fallback" aria-labelledby="noscript-heading">
+        <h1 id="noscript-heading">工作臺無法載入</h1>
+        <p>
+          營運工作臺需要 JavaScript 才能執行。您的瀏覽器可能停用了
+          JavaScript，或頁面資源未能完整載入。
+        </p>
+        <p>
+          請確認瀏覽器設定後重新整理。若重新整理仍是這個畫面，代表資源載入失敗，
+          請聯絡系統維護人員，不要改用其他裝置重複建立同一筆預約。
+        </p>
+      </section>
+    </noscript>
     <!-- 合成帳密登入閘門。這不是安全邊界：帳密只比對本機瀏覽器內的合成資料，
          登入後才顯示工作臺。正式版需改為真實身分驗證（AUTH-001／D-006）。 -->
     <main

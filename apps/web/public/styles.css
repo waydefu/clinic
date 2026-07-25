@@ -1555,6 +1555,47 @@ textarea {
   margin-bottom: var(--space-sm);
   width: 4rem;
 }
+/* JavaScript 未執行時的後備。
+ *
+ * 這不只是「使用者關掉 JS」的邊緣情境：預約頁的內容全部由模組產生，任何一支
+ * 模組載入失敗（訊號不穩、快取毒化、資產遺失）都會得到同一個結果。先前那個
+ * 結果是一片空白，連診所電話都沒有——對一個門診預約頁來說，這是最不能接受的
+ * 失敗方式。沿用維護畫面的版型，因為兩者要傳達的事情是同一件：現在無法線上
+ * 操作，請改用這個方式聯絡我們。 */
+.noscript-fallback {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: var(--space-2xl) auto;
+  max-width: 40rem;
+  padding: var(--space-2xl) var(--space-xl);
+  text-align: center;
+}
+.noscript-fallback p {
+  color: var(--ink-muted);
+  line-height: 1.7;
+  margin: 0;
+}
+.noscript-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  justify-content: center;
+}
+/* 電話是這個畫面唯一的行動點，因此比照主要按鈕的可點面積（44px）。 */
+.noscript-contact a {
+  align-items: center;
+  color: var(--forest-dark);
+  display: inline-flex;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  min-height: 2.75rem;
+  padding: var(--space-3xs) var(--space-2xs);
+}
 .patient-footer {
   align-items: center;
   background: var(--surface-inverse-deep);

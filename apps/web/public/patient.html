@@ -137,6 +137,27 @@
     ></aside>
 
     <main id="patient-main" tabindex="-1">
+      <!-- JavaScript 沒有執行時唯一會顯示的內容。整個預約流程都由模組產生，
+           所以任何一支模組沒載進來，畫面就只剩這一塊——它必須自己說得完整，
+           而且一定要帶電話。門診時間與下方 JSON-LD、meta description 是同一份
+           資訊的三個副本，改門診時間時三處都要一起改。 -->
+      <noscript>
+        <section class="noscript-fallback" aria-labelledby="noscript-heading">
+          <h1 id="noscript-heading">線上預約暫時無法顯示</h1>
+          <p>
+            這個頁面需要 JavaScript 才能顯示預約流程。您的瀏覽器可能停用了
+            JavaScript，或頁面資源未能完整載入。
+          </p>
+          <p><strong>請直接來電，由櫃台為您安排時段：</strong></p>
+          <p class="noscript-contact">
+            <a href="tel:+886225771314">02-2577-1314</a
+            ><a href="tel:+886800000913">0800-000-913（免付費）</a>
+          </p>
+          <p>一森渼診所｜臺北市松山區光復北路112號2樓</p>
+          <p>門診時間：週三至週五 12:00–20:30；週六 10:00–18:00</p>
+        </section>
+      </noscript>
+
       <section
         id="patient-maintenance"
         class="maintenance-screen"
@@ -167,7 +188,9 @@
           <aside class="patient-contact-card">
             <p class="eyebrow">CLINIC</p>
             <strong>一森渼診所</strong><span>臺北市松山區光復北路112號2樓</span
-            ><span id="patient-hours-summary">門診時間讀取中</span>
+            ><span id="patient-hours-summary"
+              >門診時間：週三至週五 12:00–20:30；週六 10:00–18:00</span
+            >
           </aside>
         </section>
 
@@ -510,7 +533,9 @@
     <footer class="patient-footer">
       <div>
         <strong>一森渼診所</strong><span>臺北市松山區光復北路112號2樓</span
-        ><span id="patient-hours-footer">門診時間讀取中</span>
+        ><span id="patient-hours-footer"
+          >門診時間：週三至週五 12:00–20:30；週六 10:00–18:00</span
+        >
       </div>
       <div>
         <a href="#patient-help">預約須知</a>
