@@ -153,6 +153,44 @@ export function planTokenReview(sheets) {
         `${name}: 寫死的字體堆疊——請用 --font-sans/serif/mono。先前有兩份不同的 mono 堆疊，其中一份漏了 SFMono-Regular`
       );
     }
+    // 字距是階段 5 拿來做層次的主要工具之一（不下載字型，就只剩字級／字重／
+    // 字距／留白）。起點是十種彼此無關的字面值，所以收斂成 --tracking-* 之後
+    // 直接鎖死。`inherit` 是刻意的：排序按鈕要沿用表頭的字距。
+    for (const match of body.matchAll(/letter-spacing: *([^;{}]+);/g)) {
+      const value = match[1].trim();
+      if (value.includes('var(--tracking-') || value === 'inherit') continue;
+      violations.push(
+        `${name}: 寫死的字距 ${value}——請用 --tracking-display/tight/wide/label/eyebrow`
+      );
+    }
+
+    // 香檳金（Brand Decorative Accent）只能是裝飾，永遠不能承載狀態或互動語意。
+    // 這條守衛擋的是「哪天有人覺得金色好看，就拿去當 hover／選取／badge」——
+    // 那一刻它就從品牌裝飾變成了狀態色，而使用者會開始以為金色有意義。
+    // 狀態一律走 --forest／--amber／--danger／--info-text 等 semantic token。
+    for (const rule of body.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const [, selector, declarations] = rule;
+      if (!declarations.includes('var(--brand-metallic')) continue;
+      const forbidden = [
+        [':hover', 'hover 是互動回饋'],
+        [':focus', '焦點必須用 --focus-ring'],
+        [':active', 'active 是互動狀態'],
+        ['[aria-current', 'aria-current 是「目前位置」狀態'],
+        ['.is-active', '選取／啟用狀態'],
+        ['.is-selected', '選取狀態'],
+        ['status-chip', '狀態標籤'],
+        ['button', '按鈕是操作，不是裝飾'],
+        ['checkbox', '表單控制項'],
+        ['sort-', '排序是狀態'],
+        ['badge', '徽章通常表示狀態']
+      ];
+      for (const [needle, why] of forbidden) {
+        if (!selector.includes(needle)) continue;
+        violations.push(
+          `${name}: 香檳金出現在 \`${selector.trim()}\`——${why}。Brand Decorative Accent 只能是裝飾，不得承載狀態或互動語意`
+        );
+      }
+    }
     // `prefers-reduced-motion` 區塊是把動效**關掉**的地方（慣用的
     // `0.01ms !important`），時長 token 在那裡不適用。
     const animated = body.replace(

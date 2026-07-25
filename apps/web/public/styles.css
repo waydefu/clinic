@@ -21,7 +21,25 @@
   /* 行高：正文 1.5–1.65，標題隨字級變大而收緊（WCAG 1.4.12 要求 ≥1.5×）。 */
   --leading-body: 1.6;
   --leading-tight: 1.3;
-  --leading-display: 1.1;
+  --leading-display: 1.15;
+
+  /* ---------------------------------------------------------------
+   * 字距：五階。這是階段 5 用來做出「精品感」的主要工具之一——不下載任何字型的
+   * 前提下，層次只能靠字級、字重、字距與留白。
+   *
+   * 起點是十種散落的字面值（-0.06 / -0.035 / -0.02 / 0.025 / 0.03 / 0.06 /
+   * 0.075 / 0.08 / 0.11 …），彼此沒有關係，只是每次寫元件時憑感覺挑的。
+   *
+   * 規則很簡單，照「字級」與「是不是全大寫」走：
+   *   - 字級越大，字距越要收（大字之間的空隙看起來本來就比較大）
+   *   - 全大寫的拉丁文字沒有小寫字母的高低差，必須放寬才讀得動
+   *   - **中文正文一律不加字距**：漢字是等寬方塊，加了字距只會讓詞與詞黏不起來
+   * --------------------------------------------------------------- */
+  --tracking-display: -0.035em;
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.03em;
+  --tracking-label: 0.06em;
+  --tracking-eyebrow: 0.1em;
 
   /* ---------------------------------------------------------------
    * 字重：只有三階。
@@ -101,21 +119,33 @@
   --space-3xl: 4rem;
 
   /* ---------------------------------------------------------------
-   * 字體角色：三個角色，不是三個字體家族。
+   * 字體角色：三個角色，不是三個字體家族。**一個字型檔都不下載。**
    *
-   * serif 目前**刻意指向與 sans 相同的堆疊**。品牌層（階段 5）才會換成思源宋體，
-   * 而那一步會撞到 0 KiB 的字型預算，必須先做子集化並正式調整預算。先把角色
-   * 定義出來，是為了讓「哪些文字該用襯線」這個決定現在就寫進樣式表，而不是等
-   * 字體到位才回頭找。
+   * 2026-07-25 負責人拍板：不載入任何中文網頁字型，字型預算維持 0 KiB。
+   * 因此這三個堆疊都只列**使用者裝置本機可能已經有的**字體，不得新增
+   * @font-face、preload 或 preconnect。'Noto Sans TC' 留在清單裡只是「本機剛好
+   * 裝了就用」的 fallback，不是下載目標。
+   *
+   * 排序的理由：先中文系統字，再拉丁系統字，最後才是泛型。先前的堆疊少了
+   * **PingFang TC**，於是 macOS／iOS 上整條鏈是 Noto Sans TC（多數人沒裝）→
+   * Microsoft JhengHei（Mac 上沒有）→ Inter（沒裝）→ system-ui，等於把 Apple
+   * 裝置上最好的中文字體跳過去。補上它是這一階段對「精品感」最有效的一步，
+   * 而且零位元組成本。
+   *
+   * serif **刻意指向 sans**。不載入字型就沒有可用的中文襯線體，而用 CSS 去
+   * 模擬襯線（合成粗體、變形）只會讓中文字形變形。角色留著，是為了記錄「這裡
+   * 作者要的是襯線」；若日後決定載入宋體，只要改這一個值。
    *
    * mono 給時間、預約編號、代碼——等寬讓櫃台可以垂直比對數字。先前有兩份不同的
    * mono 堆疊（一份漏了 SFMono-Regular），在 macOS 上會落到不同字體。
    * --------------------------------------------------------------- */
   --font-sans:
-    'Noto Sans TC', 'Microsoft JhengHei', Inter, system-ui, sans-serif;
-  --font-serif:
-    'Noto Sans TC', 'Microsoft JhengHei', Inter, system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+    'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', system-ui,
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'Cascadia Mono', 'Roboto Mono', Consolas,
+    monospace;
 
   /* ---------------------------------------------------------------
    * 動效：三檔時長，對應三種變化幅度。
@@ -187,6 +217,33 @@
   --dot-live: #7ce0a9;
   --dot-neutral: #718d81;
 
+  /* ---------------------------------------------------------------
+   * Brand Decorative Accent（香檳金）。
+   *
+   * **語意界線是這組 token 最重要的事**：它只代表品牌與質感，永遠不代表成功、
+   * 警告、錯誤、資訊、選取、啟用、停用、焦點、待處理、優先級、可點擊或系統
+   * 健康。狀態一律走既有的 semantic token（--forest／--amber／--danger／
+   * --info-text…）。名稱刻意叫 metallic 而不是 gold-500 之類的色階名，就是為了
+   * 讓人在用它之前先想一下「這裡是裝飾還是狀態」。
+   *
+   * 四個角色，分開的理由都是實測出來的（不是照抄提案值）：
+   *
+   *   text        會被讀的金色文字。必須在 surface、canvas **與 metallic-surface
+   *               三種底上都過 AA 4.5:1**。提案的 #826b45 在金色 chip 上只有
+   *               4.36:1，所以往下壓到 #75603c（最差 5.16:1）。
+   *   on-inverse  深綠 hero 上的金。同一支 text 金在 hero 上只有 2.47:1——深底
+   *               需要的是**亮**金，不是同一支。這一格先前不存在，是實測才發現的。
+   *   line        純裝飾的細分隔線與小點綴，**不承載任何資訊**。因此不適用
+   *               1.4.11 的 3:1（該條針對「理解內容所必需」的非文字元素）。
+   *               它永遠不是唯一的分隔手段——結構分隔仍由 --line 與留白負責，
+   *               所以在 forced-colors 下整條消失也不影響任何資訊或功能。
+   *   surface     極淺的金色底，只給非狀態型的精品療程標籤。
+   * --------------------------------------------------------------- */
+  --brand-metallic-text: #75603c;
+  --brand-metallic-on-inverse: #d6c199;
+  --brand-metallic-line: #b79b6b;
+  --brand-metallic-surface: #f3ede2;
+
   /* 標誌是中明度的鼠尾草綠線稿，在淺色與護眼底上剛好；深色主題要提亮，否則會
      沉進背景。用 token 而不是 `[data-theme='dark'] .brand-mark`，是為了維持
      「:root 以外沒有任何主題選擇器」——換膚永遠只是換值。 */
@@ -218,8 +275,9 @@
   background: var(--canvas);
   color: var(--ink);
   color-scheme: light;
-  font-family:
-    'Noto Sans TC', 'Microsoft JhengHei', Inter, system-ui, sans-serif;
+  /* 全站的預設字體就是 sans 角色本身。先前這裡把堆疊又寫了一次，於是同一份
+     清單存在兩處——改其中一處另一處就會默默不同步。 */
+  font-family: var(--font-sans);
 }
 /* 護眼暖色：整體移向低藍光的紙感暖白，品牌綠維持辨識。 */
 :root[data-theme='warm'] {
@@ -260,6 +318,11 @@
   --on-inverse-line: rgba(248, 244, 232, 0.16);
   --dot-live: #a7d98c;
   --dot-neutral: #7f8b74;
+  /* 香檳金在暖白紙感上要跟著移暖一點，否則會偏冷、看起來像沒調過。
+     文字金同樣以「金字疊在金底」為最嚴格條件實測：#725e3c 最差 4.97:1。 */
+  --brand-metallic-text: #725e3c;
+  --brand-metallic-line: #aa8e5d;
+  --brand-metallic-surface: #eee5d5;
 }
 /* 深色：綠灰基底，文字用亮色；實心綠底白字沿用，對比維持 WCAG AA。 */
 :root[data-theme='dark'] {
@@ -307,6 +370,12 @@
   --on-inverse-line: rgba(227, 236, 230, 0.14);
   --dot-live: #5cc39c;
   --dot-neutral: #55655c;
+  /* 深色主題的金必須整個翻過來：深底上要用**亮**金當文字，暗金只能當線。
+     直接沿用淺色值會得到 2.5:1 的一團泥。金底改成極低不透明度的疊色，
+     而不是一塊實心金——深色介面上大面積金會變成刺眼的黃斑。 */
+  --brand-metallic-text: #d6c199;
+  --brand-metallic-line: #a98e60;
+  --brand-metallic-surface: rgb(214 193 153 / 8%);
   --brand-mark-filter: brightness(1.4) saturate(0.85);
   color-scheme: dark;
 }
@@ -361,6 +430,7 @@ textarea:focus-visible {
 .skip-link:focus-visible {
   transform: translateY(0);
 }
+
 .app-shell {
   margin: 0 auto;
   max-width: 78rem;
@@ -395,13 +465,15 @@ textarea:focus-visible {
 .brand strong {
   display: block;
   font-size: var(--text-body);
-  letter-spacing: 0.025em;
+  letter-spacing: var(--tracking-wide);
 }
+/* 標誌旁的英文小字是「Logo 的細節」，屬香檳金的核准位置之一。它是裝飾性的
+   副標，真正的識別是旁邊的中文字標與標誌本身——金色在這裡消失也不影響辨識。 */
 .brand small {
-  color: var(--ink-muted);
+  color: var(--brand-metallic-text);
   display: block;
   font-size: var(--text-micro);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-eyebrow);
   margin-top: var(--space-4xs);
   text-transform: uppercase;
 }
@@ -421,7 +493,7 @@ textarea:focus-visible {
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
   gap: var(--space-2xs);
-  letter-spacing: 0.075em;
+  letter-spacing: var(--tracking-eyebrow);
   padding: var(--space-2xs) var(--space-xs);
 }
 .environment-badge span {
@@ -513,11 +585,50 @@ textarea:focus-visible {
   color: var(--forest);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.11em;
+  letter-spacing: var(--tracking-eyebrow);
   margin: 0 0 var(--space-2xs);
+}
+
+/* -----------------------------------------------------------------
+ * Brand Decorative Accent 的用法（階段 5）。
+ *
+ * 香檳金只出現在**品牌**的位置，數量刻意極少：工作臺一個畫面最多三個小焦點、
+ * 患者端可以多一點但仍不得與主要 CTA 競爭。
+ *
+ * 最重要的一條：`.eyebrow` 是全站所有區段標籤共用的樣式（STEP 01、
+ * MY BOOKINGS、DAILY OVERVIEW、CASE MANAGEMENT…）。**不能**把 .eyebrow 整個改成
+ * 金色——那會讓金色變成「標籤色」，也就開始承載語意，違反「金色永遠只是裝飾」。
+ * 因此另開一個 `.eyebrow-brand` 修飾詞，只掛在真正講品牌的那幾個眉題上。
+ *
+ * 這一段必須緊接在 `.eyebrow` **之後**：兩者權重相同（0,1,0），靠順序決勝。
+ * 放在前面的話 `.eyebrow` 的綠色會蓋掉金色，而且沒有任何錯誤訊息。
+ * ----------------------------------------------------------------- */
+.eyebrow-brand {
+  align-items: center;
+  color: var(--brand-metallic-text);
+  display: flex;
+  gap: var(--space-2xs);
+}
+/* 品牌短分隔線：純裝飾，不承載任何資訊。結構上的分隔仍由 --line 與留白負責，
+   所以在 forced-colors 下它整條消失也不會有人少讀到東西。 */
+.eyebrow-brand::after {
+  background: var(--brand-metallic-line);
+  content: '';
+  flex: 0 1 2.5rem;
+  height: 1px;
 }
 .hero-panel .eyebrow {
   color: var(--on-inverse-accent);
+}
+/* 深底上的品牌眉題：**文字不改成金色**。hero 是三段漸層，最亮的那一段
+   （--surface-inverse-strong）配文字金只有 2.99:1，配亮金也只有 2.99:1——
+   眉題實際落在最暗的那一端，但那是版面決定的，不該把可讀性押在版面不會變上。
+   所以文字維持原本就過關的 --on-inverse-accent，品牌感交給那條純裝飾的短線。 */
+.hero-panel .eyebrow-brand {
+  color: var(--on-inverse-accent);
+}
+.hero-panel .eyebrow-brand::after {
+  background: var(--brand-metallic-on-inverse);
 }
 h1,
 h2,
@@ -525,19 +636,26 @@ h3,
 p {
   margin-top: 0;
 }
+/* 標題階層：字級、字距、行高三者一起動，不是只把字放大。
+   `serif` 角色目前指向 sans（不下載中文襯線體），所以層次靠字距收緊與行高，
+   而不是靠換字體——中文沒有可用的系統襯線體時，硬模擬只會讓字形變形。 */
 h1 {
+  font-family: var(--font-serif);
   font-size: clamp(var(--text-2xl), 4.5vw, var(--text-3xl));
-  letter-spacing: -0.035em;
-  line-height: 1.08;
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-display);
   margin-bottom: var(--space-sm);
 }
 h2 {
+  font-family: var(--font-serif);
   font-size: clamp(var(--text-md), 2vw, var(--text-lg));
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
   margin-bottom: 0;
 }
 h3 {
   font-size: var(--text-body);
+  line-height: var(--leading-tight);
   margin-bottom: 0;
 }
 .environment-card {
@@ -652,7 +770,7 @@ h3 {
   color: var(--forest-dark);
   display: block;
   font-size: var(--text-2xl);
-  letter-spacing: -0.06em;
+  letter-spacing: var(--tracking-display);
   line-height: 1;
   margin-bottom: var(--space-2xs);
 }
@@ -931,11 +1049,15 @@ textarea {
   padding: clamp(1.6rem, 4vw, 3.2rem);
   position: relative;
 }
+/* Hero 右上角那圈細線是純裝飾（核准位置：患者端 Hero 的非功能性標記）。
+   先前是寫死的半透明綠，改用香檳金的線色——它不承載任何資訊，被 forced-colors
+   拿掉也不影響理解。 */
 .patient-hero::after {
-  border: 1px solid rgba(21, 92, 72, 0.12);
+  border: 1px solid var(--brand-metallic-line);
   border-radius: var(--radius-circle);
   content: '';
   height: 20rem;
+  opacity: 0.55;
   position: absolute;
   right: -10rem;
   top: -12rem;
@@ -1990,5 +2112,13 @@ label.has-error input {
   .service-choice.is-selected {
     outline: 2px solid Highlight;
     outline-offset: 2px;
+  }
+  /* 純裝飾的品牌點綴直接收起來。
+     它們**不承載任何資訊**，所以拿掉不影響理解；但如果留著，forced-colors 會把
+     它們重畫成系統色——香檳金的細線會變成一條 CanvasText 的實線，於是畫面上多出
+     幾條又粗又沒有意義的高對比線，反而干擾真正需要被看見的結構與狀態。 */
+  .eyebrow-brand::after,
+  .patient-hero::after {
+    display: none;
   }
 }

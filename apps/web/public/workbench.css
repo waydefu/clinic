@@ -174,7 +174,7 @@
 .next-up-time strong {
   font-family: var(--font-mono);
   font-size: var(--text-lg);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 .next-up-time span,
 .next-up-patient span {
@@ -288,7 +288,7 @@
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   margin: 0 0 var(--space-2xs);
 }
 /* 篩選列裡的那一個排在同一橫列上，不需要與下方清單的間距。 */
@@ -801,7 +801,7 @@ details[open] > summary .workflow-summary-chevron {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   padding: var(--space-2xs) var(--space-xs);
   text-align: left;
   white-space: nowrap;
@@ -990,7 +990,7 @@ details[open] > summary .workflow-summary-chevron {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   padding: 0 0 var(--space-3xs);
   width: 100%;
 }
@@ -1506,7 +1506,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .wv-head-cell span {
   font-size: var(--text-micro);
-  letter-spacing: 0.03em;
+  letter-spacing: var(--tracking-wide);
 }
 .wv-col {
   min-width: 6.85rem;

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-public",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "process.env.TEST_ONLY_WEB_ENABLED='true';import('./apps/web/server.mjs')"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "web-dist",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "process.env.TEST_ONLY_WEB_ENABLED='true';process.env.WEB_ROOT='dist';import('./apps/web/server.mjs')"
+      ],
+      "port": 3100
+    }
+  ]
+}

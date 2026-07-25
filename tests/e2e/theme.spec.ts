@@ -158,3 +158,129 @@ test.describe('三個主題', () => {
     expect(footerLuminance).toBeLessThan(surfaceLuminance);
   });
 });
+
+// 階段 5：品牌層。這一組驗的是三條**最容易安靜壞掉**的界線。
+test.describe('品牌層（香檳金與系統字體）', () => {
+  test('一個字型檔都不下載，字型請求為零', async ({ page }) => {
+    const fontRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        request.resourceType() === 'font' ||
+        /\.(woff2?|ttf|otf)(\?|$)/i.test(url) ||
+        /fonts\.(googleapis|gstatic)\.com|use\.typekit\.net/i.test(url)
+      )
+        fontRequests.push(url);
+    });
+
+    for (const url of ['/patient.html', '/']) {
+      await page.goto(url);
+      await page.waitForLoadState('networkidle');
+    }
+
+    // 負責人 2026-07-25 拍板：不載入任何中文字型，預算永遠 0 KiB。
+    expect(
+      fontRequests,
+      `不應有任何字型請求：${fontRequests.join(', ')}`
+    ).toHaveLength(0);
+
+    // 標記裡也不該出現為字型而設的 preload／preconnect。
+    const fontHints = await page
+      .locator('link[rel="preload"][as="font"], link[rel="preconnect"]')
+      .count();
+    expect(fontHints).toBe(0);
+  });
+
+  test('香檳金三個主題各自不同，且品牌眉題真的是金色', async ({ page }) => {
+    const seen = new Map<string, string>();
+
+    for (const theme of THEMES) {
+      await applyTheme(page, '/patient.html', theme);
+
+      const token = await page
+        .locator('body')
+        .evaluate((element) =>
+          window
+            .getComputedStyle(element)
+            .getPropertyValue('--brand-metallic-text')
+            .trim()
+        );
+      seen.set(theme, token);
+
+      // 品牌眉題必須真的拿到金色。`.eyebrow-brand` 與 `.eyebrow` 權重相同，
+      // 靠**順序**決勝：若有人把它移到 `.eyebrow` 前面，綠色會蓋掉金色，而且
+      // 完全沒有錯誤訊息。這一條就是釘住那個。
+      // 患者頁有兩個品牌眉題（hero 與預約完成頁），這裡量 hero 那一個。
+      const eyebrow = await paintedStyle(page, '.patient-hero .eyebrow-brand');
+
+      // hero 是漸層，所以 `backgroundColor` 是透明的——直接拿它比會被當成黑色，
+      // 量出一個假的 3.5:1。要比的是漸層**每一個色停**，而且以最差的那個為準：
+      // 文字會落在漸層的哪一段是版面決定的，不該把可讀性押在版面不會變上。
+      const stops = await page
+        .locator('.patient-hero')
+        .evaluate((element) =>
+          (
+            window
+              .getComputedStyle(element)
+              .backgroundImage.match(/rgba?\([^)]+\)/g) ?? []
+          ).slice()
+        );
+      expect(stops.length, 'hero 應該是漸層').toBeGreaterThan(1);
+
+      for (const stop of stops)
+        expect(
+          contrast(eyebrow.color, stop),
+          `${theme}：品牌眉題對 hero 漸層色停 ${stop} 的對比不足`
+        ).toBeGreaterThanOrEqual(4.5);
+    }
+
+    // 三個主題必須是三個不同的金——直接沿用淺色值在深色底上只有 2.5:1。
+    const painted = [...seen]
+      .map(([theme, gold]) => `${theme}=${gold}`)
+      .join(', ');
+    expect(new Set(seen.values()).size, `三主題的金色重複了：${painted}`).toBe(
+      3
+    );
+  });
+
+  test('香檳金不得出現在狀態或互動元件上', async ({ page }) => {
+    await applyTheme(page, '/patient.html', 'light');
+
+    const leaked = await page.evaluate(() => {
+      const root = window.getComputedStyle(document.documentElement);
+      const gold = [
+        '--brand-metallic-text',
+        '--brand-metallic-line',
+        '--brand-metallic-on-inverse',
+        '--brand-metallic-surface'
+      ].map((t) => root.getPropertyValue(t).trim().toLowerCase());
+      const toHex = (value: string) => {
+        const parts = value.match(/[\d.]+/g);
+        return parts === null
+          ? value
+          : `#${parts
+              .slice(0, 3)
+              .map((p) => Math.round(Number(p)).toString(16).padStart(2, '0'))
+              .join('')}`;
+      };
+      // 這些元件一旦帶上金色，金色就從裝飾變成了狀態。
+      const guarded =
+        'button, .button, a[href], input, .status-chip, .booking-stepper li';
+      const hits: string[] = [];
+      for (const element of document.querySelectorAll(guarded)) {
+        const style = window.getComputedStyle(element);
+        for (const property of ['color', 'backgroundColor', 'borderTopColor'])
+          if (gold.includes(toHex(style[property as 'color'])))
+            hits.push(
+              `${element.tagName.toLowerCase()}.${String(element.className).trim().split(/\s+/)[0]} [${property}]`
+            );
+      }
+      return hits;
+    });
+
+    expect(
+      leaked,
+      `香檳金洩漏到互動或狀態元件：${leaked.join(', ')}`
+    ).toHaveLength(0);
+  });
+});
