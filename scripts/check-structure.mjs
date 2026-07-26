@@ -160,7 +160,11 @@ const requiredPaths = [
   'apps/api/unrouted-inventory.json',
   'packages/domain/src/patient-identity.ts',
   'packages/domain/src/patient-identity.test.ts',
-  'docs/reviews/2026-07-26-full-project-audit.md'
+  'docs/reviews/2026-07-26-full-project-audit.md',
+  // 檢索與收錄：兩份檔案與 patient.html 的 canonical 由 check:ui 綁在一起。
+  'apps/web/public/robots.txt',
+  'apps/web/public/sitemap.xml',
+  'docs/reviews/2026-07-27-seo-baseline.md'
 ];
 
 const missing = [];

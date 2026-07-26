@@ -1,0 +1,18 @@
+# 一森渼診所線上預約
+#
+# 這份檔案只在預約系統**自己就是一個站台**時生效（現在的預覽頻道就是）。
+# 等 /booking 併進 beauessence.com.tw 之後，robots.txt 由官網那一側擁有，
+# 屆時要把下面的 Sitemap 行併進官網既有的 robots.txt，而不是蓋掉它。
+#
+# 預覽頻道刻意允許檢索：不索引是靠 HTTP 標頭 `X-Robots-Tag: noindex` 達成的，
+# 而搜尋引擎必須**檢索得到**那個標頭才會知道不要收錄。用 Disallow 擋住反而會
+# 讓已經收錄的網址永遠留在索引裡。
+
+User-agent: *
+Allow: /booking
+Allow: /patient.html
+
+# 營運工作臺不是給大眾看的頁面。它另有 noindex，這裡只是第二層。
+Disallow: /index.html
+
+Sitemap: https://beauessence.com.tw/sitemap.xml

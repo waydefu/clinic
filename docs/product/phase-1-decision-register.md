@@ -22,6 +22,73 @@ infer an answer from an existing website, social message or Calendar event.
 
 ## Recorded inputs
 
+### Owner answers to the 2026-07-27 requirements questionnaire
+
+The assistant put 30 questions to the project owner in plain language. These are
+**answers of record**; each one still leaves its decision `pending` unless the
+row above says otherwise, because several depend on facts nobody has confirmed
+yet (a privacy email, the production domain, Workspace availability).
+
+**Clinic facts (verified against two independent public sources, not assumed):**
+registered name 一森渼診所 (listed as 不分科), address 臺北市松山區光復北路 112
+號 2 樓, phone 02-2577-1314 with toll-free 0800-000-913, opening hours
+**Wed–Fri 12:00–20:00 and Sat 10:00–18:00**, closed Sun/Mon/Tue. A web search
+summary that claimed Mon–Fri 11:00–20:00 belonged to a **different clinic**
+(一森診所, Shilin, neurology) and was discarded. **No public email address
+exists**, which is why the privacy contact below is a phone number.
+
+- **D-001/D-003 privacy contact: the clinic phone, for now.** Recorded as
+  temporary. A phone-only channel means every rights request has to be written
+  down by hand to be auditable; an email address remains the preferred answer
+  before real patient data is collected.
+- **D-002 retention: delete booking data two years after the visit.** Deletion
+  may be performed by administrators only, and must record a reason.
+- **D-002 third parties: Google only** (Calendar and cloud) at this stage.
+- **D-010 data region: Taiwan (`asia-east1`).**
+- **D-004 services: 止鼾 (40–60 minutes) and 醫美 (duration follows the treatment
+  plan)**, with the final scope agreed with the patient at the visit. One patient
+  per slot. Booking horizon 60 days (provisional). Closed days follow the
+  published hours plus national holidays.
+- **D-005: patients may cancel up to 24 hours before**; after that it is a phone
+  call. No-shows are recorded, not charged.
+- **D-006: Google sign-in plus a self-hosted account option** (the clinic has no
+  Google Workspace yet). Roles gain **醫師** alongside administrator and front
+  desk. Completing a visit stays with front desk and administrators. **Deleting
+  a booking may be delegated to the front desk behind a password the
+  administrator sets — multiple passwords, each switchable on or off.** Audit
+  retention five years.
+- **D-007/D-008: make the authority configurable rather than fixed.** Front desk
+  and administrators may both assign a case manager; only administrators may
+  reassign; both capabilities need an on/off switch in account management. The
+  payroll metric is likewise administrator-defined. Only administrators approve
+  changes after a period is locked.
+- **D-009: the clinic's shared calendar in production, a dedicated test calendar
+  for now.** Event contents stay minimal (clinic, booking type, time).
+- **D-010: the administrator and the developer own the Cloud project.** RPO one
+  hour, RTO four hours. Incident contact: wayde.fu@gmail.com / 0983317651.
+- **D-011: an English version is required** (Beau Essence Clinic), and a phone
+  number must stay visible for people who do not book online.
+
+### Fonts: system stack retained - 2026-07-27
+
+**Decision: do not load a Chinese webfont.** The zero-kilobyte font budget is
+therefore a **decision, not an unfinished task** — a subset Chinese face still
+costs several hundred kilobytes against a 58 KB page, and the cost lands hardest
+on a phone outside on mobile data. Typography keeps using the system stack, and
+`tests/e2e/theme.spec.ts` already pins "not a single font file is downloaded".
+
+### Opening hours corrected to 20:00 - 2026-07-27
+
+The schedule closed at **20:30** while the clinic's own website publishes
+**20:00**. The owner confirmed 20:00 is correct, so `defaultSchedule`, the
+structured data and the three prose copies now all say 12:00–20:00, and
+Wednesday generates 13 初診 / 12 回診 slots (last starts 19:30 and 19:15).
+
+The drift check that caught the prose copies did **not** cover the JSON-LD
+numbers, because those use `"opens"/"closes"` rather than the `12:00–20:00`
+human form — the structured data could have kept publishing 20:30 to Google
+with every check green. That gap is now closed too.
+
 ### D-012 NHI mark: knowingly retained on the synthetic preview - 2026-07-26
 
 The 2026-07-26 full-project audit found that the patient page displays the NHI

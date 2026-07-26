@@ -50,6 +50,61 @@ describe('planHashedBuild', () => {
     expect([...outputs.keys()]).toContain('index.html');
   });
 
+  // 「上線忘了拿掉 noindex」是最常見也最安靜的一種 SEO 事故：網站永遠不進索引，
+  // 沒有錯誤、沒有告警，通常幾個月後才有人問「怎麼都搜不到」。原始碼因此永遠
+  // 保持 noindex（預設安全），只有明確設 WEB_PUBLIC_INDEXABLE=true 才放行。
+  describe('WEB_PUBLIC_INDEXABLE', () => {
+    const NOINDEX = '<meta name="robots" content="noindex, nofollow" />';
+    const CANONICAL =
+      '<link rel="canonical" href="https://beauessence.com.tw/booking" />';
+
+    function pages(patientHead = `${NOINDEX}\n    ${CANONICAL}`): Files {
+      const files = sampleFiles();
+      files.set('patient.html', `<head>\n    ${patientHead}\n  </head>`);
+      files.set('index.html', `<head>\n    ${NOINDEX}\n  </head>`);
+      return files;
+    }
+
+    const build = (files: Files, value?: string) => {
+      const previous = process.env.WEB_PUBLIC_INDEXABLE;
+      if (value === undefined) delete process.env.WEB_PUBLIC_INDEXABLE;
+      else process.env.WEB_PUBLIC_INDEXABLE = value;
+      try {
+        return planHashedBuild(files);
+      } finally {
+        if (previous === undefined) delete process.env.WEB_PUBLIC_INDEXABLE;
+        else process.env.WEB_PUBLIC_INDEXABLE = previous;
+      }
+    };
+
+    it('預設不放行：預覽站的每一頁都留著 noindex', () => {
+      const { outputs } = build(pages());
+      expect(outputs.get('patient.html')).toContain('name="robots"');
+      expect(outputs.get('index.html')).toContain('name="robots"');
+    });
+
+    it('只有 "true" 這個值算數，避免 "1"／"yes" 這種近似值意外放行', () => {
+      for (const value of ['1', 'yes', 'TRUE', ''])
+        expect(build(pages(), value).outputs.get('patient.html')).toContain(
+          'name="robots"'
+        );
+    });
+
+    it('放行時只開患者頁，工作臺永遠不進索引', () => {
+      const { outputs } = build(pages(), 'true');
+      expect(outputs.get('patient.html')).not.toContain('name="robots"');
+      expect(outputs.get('index.html')).toContain('name="robots"');
+    });
+
+    it('沒有絕對 canonical 就拒絕放行，否則權重會灑在任何指得到它的網址上', () => {
+      expect(() => build(pages(NOINDEX), 'true')).toThrow(/canonical/);
+    });
+
+    it('robots meta 被手動刪掉時要爆炸，而不是安靜地當作已經放行', () => {
+      expect(() => build(pages(CANONICAL), 'true')).toThrow(/no <meta/);
+    });
+  });
+
   it('rewrites each relative import to its dependency hashed name', () => {
     const { outputs, manifest } = planHashedBuild(sampleFiles());
 

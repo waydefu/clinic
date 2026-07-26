@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  只列出正式對外的預約頁，網址與 patient.html 的 rel="canonical" 必須一致
+  （scripts/check-web-ui.mjs 會比對；不一致等於叫搜尋引擎收錄一個和正規網址
+  不同的位址，權重會被拆成兩份）。
+
+  工作臺與 404 不列入：sitemap 是「請收錄這些」的清單，不是網站目錄。
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://beauessence.com.tw/booking</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

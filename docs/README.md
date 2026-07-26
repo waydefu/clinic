@@ -91,6 +91,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-27 | [Booking-page SEO baseline](reviews/2026-07-27-seo-baseline.md) | What search engines can see today, the release switch that stops a forgotten `noindex` from hiding the site, and the honest list of what is not done |
 | 2026-07-26 | [Full-project audit and follow-up](reviews/2026-07-26-full-project-audit.md) | Whole-repo audit: no P0/P1 defect; exposure and compliance findings raised, three of them fixed (two-tier audit gate, patient identity moved into the domain, `check:architecture`); NHI-mark permission and branch protection remain owner decisions |
 | 2026-07-26 | [Local operations and logical-restore rehearsal](reviews/2026-07-26-local-operations-rehearsal.md) | Emulator V1–V5 and Calendar companion V6 passed; cloud backup/PITR, IAM, alerts, contacts and RTO/RPO remain explicitly unverified |
 | 2026-07-26 | [2026 web-standards audit and remediation](reviews/2026-07-26-web-standards-remediation-plan.md) | 2026 standards sweep and 19 UI/UX remediations completed; limitations and decision boundaries retained |

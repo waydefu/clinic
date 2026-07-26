@@ -8,7 +8,7 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta
       name="description"
-      content="一森渼診所線上門診預約。可自行選擇初診或回診時段，門診時間週三至週五 12:00–20:30、週六 10:00–18:00。"
+      content="一森渼診所線上門診預約。可自行選擇初診或回診時段，門診時間週三至週五 12:00–20:00、週六 10:00–18:00。"
     />
     <meta name="theme-color" content="#155c48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -48,13 +48,20 @@
           "addressCountry": "TW"
         },
         "telephone": "+886-2-2577-1314",
-        "medicalSpecialty": "Otolaryngologic",
+        "availableService": [
+          {
+            "@type": "MedicalProcedure",
+            "name": "止鼾治療",
+            "procedureType": "https://schema.org/NoninvasiveProcedure"
+          },
+          { "@type": "MedicalProcedure", "name": "醫學美容" }
+        ],
         "openingHoursSpecification": [
           {
             "@type": "OpeningHoursSpecification",
             "dayOfWeek": ["Wednesday", "Thursday", "Friday"],
             "opens": "12:00",
-            "closes": "20:30"
+            "closes": "20:00"
           },
           {
             "@type": "OpeningHoursSpecification",
@@ -151,7 +158,7 @@
             ><a href="tel:+886800000913">0800-000-913（免付費）</a>
           </p>
           <p>一森渼診所｜臺北市松山區光復北路112號2樓</p>
-          <p>門診時間：週三至週五 12:00–20:30；週六 10:00–18:00</p>
+          <p>門診時間：週三至週五 12:00–20:00；週六 10:00–18:00</p>
         </section>
       </noscript>
 
@@ -186,7 +193,7 @@
             <p class="eyebrow">CLINIC</p>
             <strong>一森渼診所</strong><span>臺北市松山區光復北路112號2樓</span
             ><span id="patient-hours-summary"
-              >門診時間：週三至週五 12:00–20:30；週六 10:00–18:00</span
+              >門診時間：週三至週五 12:00–20:00；週六 10:00–18:00</span
             >
           </aside>
         </section>
@@ -541,7 +548,7 @@
       <div>
         <strong>一森渼診所</strong><span>臺北市松山區光復北路112號2樓</span
         ><span id="patient-hours-footer"
-          >門診時間：週三至週五 12:00–20:30；週六 10:00–18:00</span
+          >門診時間：週三至週五 12:00–20:00；週六 10:00–18:00</span
         >
       </div>
       <div>

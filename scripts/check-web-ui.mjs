@@ -21,7 +21,9 @@ const paths = {
   css: 'apps/web/public/workbench.css',
   // 患者頁與工作臺共用 styles.css。先前這份檔案完全不在守衛範圍內，於是
   // 2026-07-26 修掉工作臺「手機隱藏英文副標」之後，患者頁那一份原封不動地留著。
-  patientCss: 'apps/web/public/styles.css'
+  patientCss: 'apps/web/public/styles.css',
+  robots: 'apps/web/public/robots.txt',
+  sitemap: 'apps/web/public/sitemap.xml'
 };
 const entries = await Promise.all(
   Object.entries(paths).map(async ([key, path]) => [
@@ -442,6 +444,38 @@ if (scheduleHours.length === 0) {
       );
     }
   }
+  // 結構化資料是**第四份**同樣的時間，而且形狀不同：`"opens": "12:00"` 配
+  // `"closes": "20:00"`，不是給人看的 `12:00–20:00`。上面那兩條字面比對因此
+  // 完全掃不到它——JSON-LD 可以停在舊時間而檢查全綠。
+  //
+  // 這一份漂移的後果比其他三份嚴重：Google 直接把 openingHoursSpecification
+  // 顯示在搜尋結果與地圖上，患者會照著一個沒有人在看診的時間到診所。
+  const structuredHours = [
+    ...files.patientHtml.matchAll(
+      /"opens":\s*"(\d{2}:\d{2})",\s*"closes":\s*"(\d{2}:\d{2})"/g
+    )
+  ].map((match) => `${match[1]}–${match[2]}`);
+
+  if (structuredHours.length === 0) {
+    failures.push(
+      'patient.html has no openingHoursSpecification with opens/closes; the structured-data drift check cannot run.'
+    );
+  }
+  for (const hours of new Set(structuredHours)) {
+    if (!scheduleHours.includes(hours)) {
+      failures.push(
+        `patient.html structured data publishes ${hours} to search engines, which no weeklyAvailability interval in state-schema.js provides.`
+      );
+    }
+  }
+  for (const hours of new Set(scheduleHours)) {
+    if (!structuredHours.includes(hours)) {
+      failures.push(
+        `state-schema.js opens ${hours} but patient.html structured data never declares it, so search results will understate the clinic's hours.`
+      );
+    }
+  }
+
   // 反向也要成立：patient.html 不得宣傳一個排班裡沒有的時段。
   const advertised = new Set(
     (files.patientHtml.match(/\d{2}:\d{2}–\d{2}:\d{2}/g) ?? []).map(String)
@@ -453,6 +487,32 @@ if (scheduleHours.length === 0) {
       );
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// sitemap 的網址必須就是 patient.html 宣告的正規網址。
+//
+// 兩者不一致時不會有任何錯誤：搜尋引擎照樣收下 sitemap，然後發現它指的網址
+// 自己宣告正規網址是別人，於是那一筆的權重被拆開或直接丟掉。這是那種「設定
+// 看起來都有做」卻沒有效果的典型。
+const canonicalMatch = files.patientHtml.match(
+  /<link\s+rel="canonical"\s+href="([^"]+)"/i
+);
+const sitemapLoc = files.sitemap.match(/<loc>([^<]+)<\/loc>/i);
+
+if (canonicalMatch === null) {
+  failures.push('patient.html has no rel="canonical".');
+} else if (sitemapLoc === null) {
+  failures.push('sitemap.xml has no <loc>.');
+} else if (canonicalMatch[1] !== sitemapLoc[1]) {
+  failures.push(
+    `sitemap.xml lists ${sitemapLoc[1]} but patient.html declares ${canonicalMatch[1]} as canonical; search engines will discard one of them.`
+  );
+}
+
+// robots.txt 必須指向 sitemap，否則 sitemap 只有手動送交才會被發現。
+if (!files.robots.includes('Sitemap:')) {
+  failures.push('robots.txt does not point to a Sitemap.');
 }
 
 if (failures.length > 0) {

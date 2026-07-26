@@ -15,15 +15,15 @@ function defaultSchedule() {
     weeklyAvailability: [
       {
         weekday: 3,
-        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:30' }]
+        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:00' }]
       },
       {
         weekday: 4,
-        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:30' }]
+        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:00' }]
       },
       {
         weekday: 5,
-        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:30' }]
+        intervals: [{ startLocalTime: '12:00', endLocalTime: '20:00' }]
       },
       {
         weekday: 6,

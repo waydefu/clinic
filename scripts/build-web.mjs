@@ -286,11 +286,43 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
     );
   };
 
+  // 上線那天最典型的一個災難：預覽站的 `noindex` 被原封不動帶到正式站，網站
+  // 從此不出現在 Google，而且**沒有任何錯誤訊息**——通常要好幾個月後才有人發現
+  // 「怎麼都搜不到我們」。
+  //
+  // 所以不要靠「記得刪掉」。原始碼永遠保持 noindex（預設安全），要發正式站時
+  // 設 `WEB_PUBLIC_INDEXABLE=true`，由建置**移除**那一行；而且只有患者預約頁
+  // 會被放行，工作臺與 404 永遠 noindex——那兩個頁面被索引才是真的出事。
+  const indexable = process.env.WEB_PUBLIC_INDEXABLE === 'true';
+  const INDEXABLE_PAGES = new Set(['patient.html']);
+  const ROBOTS_META = /\s*<meta\s+name="robots"[^>]*>/i;
+
+  const publishIndexable = (path, html) => {
+    if (!indexable || !INDEXABLE_PAGES.has(path)) return html;
+    if (!ROBOTS_META.test(html)) {
+      throw new Error(
+        `WEB_PUBLIC_INDEXABLE=true but ${path} has no <meta name="robots"> to remove. ` +
+          '請確認那一行還在——它是預設安全的來源，不該被手動刪掉。'
+      );
+    }
+    // canonical 是放行的前提：讓一個沒有正規網址的頁面進索引，等於把權重灑在
+    // 任何指得到它的網址上。
+    if (!/<link\s+rel="canonical"\s+href="https:\/\//i.test(html)) {
+      throw new Error(
+        `${path} has no absolute rel="canonical", so it must not be published as indexable.`
+      );
+    }
+    return html.replace(ROBOTS_META, '');
+  };
+
   for (const path of htmlPaths) {
     const source = String(files.get(path));
     outputs.set(
       path,
-      withModulePreloads(rewriteHtmlReferences(source), source)
+      publishIndexable(
+        path,
+        withModulePreloads(rewriteHtmlReferences(source), source)
+      )
     );
     manifest.set(path, path);
   }

@@ -123,18 +123,23 @@ describe('門診時段', () => {
     expect(onDate(state, '20300108')).toHaveLength(0);
   });
 
-  it('週三 12:00–20:30 產生初診 14 格、回診 13 格', () => {
+  // 收診時間以**官網公告**為準：週三～週五 12:00–20:00（2026-07-27 負責人確認，
+  // 先前程式排到 20:30）。門診窗是「最後一格必須在收診前結束」，所以最後一格
+  // 初診 19:30、回診 19:15——不是 20:00 開始再看到 20:30。
+  it('週三 12:00–20:00 產生初診 13 格、回診 12 格', () => {
     const state = initialState();
     const wednesday = onDate(state, '20300102');
     const initial = wednesday.filter((slot: any) => slot.kind === 'initial');
     const followUp = wednesday.filter((slot: any) => slot.kind === 'follow_up');
 
-    expect(initial).toHaveLength(14);
-    expect(followUp).toHaveLength(13);
+    // 初診 12:00 起每 30 分一格到 19:30 共 16 格，扣掉 13:00／15:00／17:00 三個
+    // 醫師固定行程 = 13；回診 12:15 起到 19:15 共 15 格，扣掉三個 = 12。
+    expect(initial).toHaveLength(13);
+    expect(followUp).toHaveLength(12);
     expect(localClock(initial[0])).toBe('12:00');
-    expect(localClock(initial.at(-1))).toBe('20:00');
+    expect(localClock(initial.at(-1))).toBe('19:30');
     expect(localClock(followUp[0])).toBe('12:15');
-    expect(localClock(followUp.at(-1))).toBe('19:45');
+    expect(localClock(followUp.at(-1))).toBe('19:15');
   });
 
   it('週六 10:00–18:00 產生初診 13 格、回診 12 格', () => {
@@ -173,7 +178,7 @@ describe('門診時段', () => {
 
   it('回診目標時間依日期產生：營業日給 :15/:45 網格、未營業日為空', () => {
     const state = initialState();
-    // 2030-01-02 週三 12:00–20:30：第一格 12:15、跳過固定不開放的 13:15。
+    // 2030-01-02 週三 12:00–20:00：第一格 12:15、跳過固定不開放的 13:15。
     const wednesday = followUpDueTimes(state.schedule, '2030-01-02');
     expect(wednesday[0]).toBe('12:15');
     expect(wednesday).not.toContain('13:15');
