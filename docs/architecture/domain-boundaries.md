@@ -24,6 +24,19 @@ Web / 社群 / 未來 App
 8. 所有時間以 UTC 寫入，顯示與薪資月份以 `Asia/Taipei` 決定。
 9. 不以姓名自動合併病患；任何病患合併與案件改派都需人工授權及稽核。
 
+## 哪一層擁有哪一條規則
+
+| 規則 | 唯一來源 | 其他層只能 |
+| --- | --- | --- |
+| 患者身分格式、正規化、比對鍵、身分證遮罩 | `packages/domain/src/patient-identity.ts` | 匯入。瀏覽器走 vendored 副本，只負責把 `{ field, code }` 翻成中文 |
+| 時區常數與時段規則 | `packages/domain/src/schedule.ts` | 匯入。瀏覽器的時間格式化一律經 `modules/taipei-time.js` |
+| 預約狀態轉移與守衛 | `packages/domain/src/appointment-*.ts` | 匯入 |
+| 線路格式（wire schema） | `packages/contracts` | 只依賴 zod，不得反向依賴 domain |
+
+**這張表由 `pnpm check:architecture` 強制執行**，不是慣例：它檢查依賴方向、
+擋下瀏覽器重寫 domain 規則，並要求 domain 每個原因代碼都有對應的介面訊息。
+規則的由來見 [2026-07-26 全專案審查](../reviews/2026-07-26-full-project-audit.md)。
+
 ## 核心資料關係
 
 ```text

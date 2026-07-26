@@ -153,7 +153,14 @@ const requiredPaths = [
   '.github/workflows/verify.yml',
   'scripts/run-firestore-rules.mjs',
   'scripts/run-firestore-vitest.mjs',
-  'scripts/cleanup-local-firestore-emulator.ps1'
+  'scripts/cleanup-local-firestore-emulator.ps1',
+  // 架構把關：依賴方向、未接線清單、domain 規則單一來源，以及分支保護查核。
+  'scripts/check-architecture.mjs',
+  'scripts/check-branch-protection.mjs',
+  'apps/api/unrouted-inventory.json',
+  'packages/domain/src/patient-identity.ts',
+  'packages/domain/src/patient-identity.test.ts',
+  'docs/reviews/2026-07-26-full-project-audit.md'
 ];
 
 const missing = [];

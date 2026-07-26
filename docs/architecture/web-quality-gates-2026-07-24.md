@@ -23,7 +23,10 @@
 | 頁面重量 | 靜態預算 | `scripts/check-performance-budget.mjs` | 是 |
 | 首屏時間與版面位移 | 瀏覽器實測 | `tests/e2e/performance.spec.ts` | 是 |
 | 已提交的密鑰 | 腳本 | `scripts/check-tracked-secrets.mjs` | 是 |
-| 相依漏洞 | `pnpm audit` | `check:supply-chain` | 是（high／critical） |
+| 相依漏洞（出貨面） | `pnpm audit --prod` | `audit:prod` | 是（**moderate 起**） |
+| 相依漏洞（含 dev 工具鏈） | `pnpm audit` | `audit:all` | 是（high／critical） |
+| 依賴方向、未接線清單、domain 規則單一來源 | 腳本 | `scripts/check-architecture.mjs` | 是 |
+| 分支保護含 `evidence` | 腳本（需 token） | `scripts/check-branch-protection.mjs` | 否——不在 `verify`，無 token 時回離開碼 2 |
 | SBOM 與授權政策 | CycloneDX 產生器 | `scripts/generate-sbom.mjs` | 是 |
 | SAST（跨檔案資料流） | CodeQL | `.github/workflows/codeql.yml` | 設定完成；遠端執行結果須以 run 證據確認，見 §4 |
 
@@ -159,9 +162,21 @@ job summary。**上線證據包必須附實際 run 與掃描結果，而不只�
 
 ## 3-b. 相依修補與已審視的 audit 例外
 
-`pnpm audit --audit-level high` 是 `check:supply-chain` 的一部分，會擋 CI。它查的是
-**線上的 advisory 資料庫**，所以就算一行程式都沒改，它也可能某天開始變紅——這是
-刻意的，不是雜訊。
+`check:supply-chain` 依序跑**兩層** audit，會擋 CI。它查的是**線上的 advisory
+資料庫**，所以就算一行程式都沒改，它也可能某天開始變紅——這是刻意的，不是雜訊。
+
+| 指令 | 範圍 | 門檻 |
+| --- | --- | --- |
+| `audit:prod` | `--prod`，只看會出貨的相依 | **moderate 就擋** |
+| `audit:all` | 全部，含 dev 工具鏈 | high／critical 才擋 |
+
+**為什麼分兩層**（2026-07-26 決定）：把全部拉到 moderate，會被 firebase-tools
+（CLI，不出貨）的傳遞相依長期壓在紅燈，最後一定演變成整條 audit 被關掉或被
+ignore 洗到失效；維持單一 high 則相反——**出貨程式**多一筆 moderate 也不會有人
+發現。分層之後，「哪一種漏洞會擋下發布」是寫在指令裡、可被檢驗的決定。
+
+現況：`audit:prod` 只剩下面那筆已審視的 high 例外；三筆 moderate 全部落在
+firebase-tools 這條 CLI 線上，逐筆覆核與解除條件記在 `pnpm-workspace.yaml`。
 
 修補一律寫進版控（`pnpm-workspace.yaml` 的 `overrides`），不靠「本機剛好裝到新版」：
 

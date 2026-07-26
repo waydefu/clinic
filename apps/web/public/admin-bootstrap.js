@@ -455,7 +455,10 @@ function renderBookingForm() {
   elements['booking-slot-hint'].textContent =
     slot === undefined
       ? '請先於下方「可預約時段」選擇一個時間點。'
-      : `已選擇時段：${new Date(slot.startsAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`;
+      : // 走共用的格式化器：時區與格式只有 taipei-time／ui-format 一個來源，
+        // 這裡先前自己拼 `toLocaleString('zh-TW', { timeZone: … })`，於是同一個
+        // 時間在櫃台的兩處顯示成兩種樣子。
+        `已選擇時段：${formatFullDate(slot.startsAt)} ${formatTime(slot.startsAt)}`;
 }
 
 function renderCommunicationForms() {
