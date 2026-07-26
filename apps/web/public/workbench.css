@@ -37,6 +37,13 @@
   outline-offset: 0.28rem;
 }
 /* 不透明底：半透明會讓 hero 文字透出來疊在導覽列上（2026-07-22 截圖回報）。 */
+/* 導覽在手機放不下七個工作區，會橫向捲動——實測 375px 下只看得到前三個，
+   「個管指派」「員工權限」「患者端與系統」「稽核紀錄」全在畫面外，而且最後一個
+   還被切在半個字上。沒有任何提示的話，使用者合理地會以為工作臺只有三個區塊。
+
+   scroll-snap 讓每次滑動停在完整的項目上，不會停在半個字；右緣的淡出遮罩（在
+   手機斷點裡）代表「後面還有」。用 proximity 而非 mandatory：mandatory 會在
+   使用者只想微調位置時把畫面搶回去。 */
 .workspace-nav {
   align-items: center;
   background: var(--surface);
@@ -49,8 +56,17 @@
   overflow-x: auto;
   padding: var(--space-2xs);
   position: sticky;
+  scroll-snap-type: x proximity;
   top: 0.5rem;
   z-index: 8;
+  /* 捲軸本身在手機是覆蓋式的，佔不到空間，但露出來會壓在項目上。 */
+  scrollbar-width: none;
+}
+.workspace-nav::-webkit-scrollbar {
+  display: none;
+}
+.workspace-nav a {
+  scroll-snap-align: start;
 }
 .workspace-nav a {
   align-items: center;
@@ -647,9 +663,19 @@ details[open] > summary .workflow-summary-chevron {
   .session-picker select {
     width: 100%;
   }
+  /* 右緣淡出：被硬切的邊看起來像「就這樣了」，淡出的邊看起來像「還有」。
+     只在手機加，因為桌機放得下七項、不會捲動，那裡加遮罩反而像顯示錯誤。
+     已知取捨：捲到最右端時遮罩仍在（純 CSS 讀不到捲動位置）。相較於完全沒有
+     提示，這個代價可以接受。 */
   .workspace-nav {
     border-radius: var(--radius-sm);
     margin-inline: calc(var(--space-3xs) * -1);
+    mask-image: linear-gradient(
+      to right,
+      currentColor 0,
+      currentColor calc(100% - 2rem),
+      transparent 100%
+    );
     top: 0;
   }
   .status-banner {
@@ -1041,12 +1067,27 @@ details[open] > summary .workflow-summary-chevron {
     margin-bottom: var(--space-xs);
     padding: var(--space-2xs);
   }
+  /* 儲存格必須可以換行。
+
+     不換行時，同一格裡的長短內容會互相擠壓：預約清單的「患者」格放著姓名與
+     一整串「電話 · 生日 · 身分證 · 健保卡」，後者把姓名壓到 27px，於是
+     「陳測試」被排成一字一行的直書（2026-07-26 實測）。姓名是櫃台掃描清單時
+     第一個要看的欄位，直書等於讓那一欄不能用。
+
+     換行之後，被擠的內容會落到下一行而不是被壓扁。 */
   .data-table td {
     border: 0;
     display: flex;
-    gap: var(--space-xs);
+    flex-wrap: wrap;
+    gap: var(--space-3xs) var(--space-xs);
     justify-content: space-between;
     padding: var(--space-3xs) var(--space-2xs);
+  }
+  /* 中日韓文字沒有詞界，寬度不足時可以在**任何**字之間斷行——所以壓縮的後果
+     不是省略號，而是一字一行。姓名寧可換行，也不要被壓成直書。 */
+  .data-table td > strong {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
   /* 只有帶欄位名的格子才補 ::before；跨欄的展開列（colspan、無 data-label）
      不硬塞一個空標籤。 */
@@ -1063,8 +1104,27 @@ details[open] > summary .workflow-summary-chevron {
     margin: 0;
     padding: 0;
   }
+  /* 處置鍵在手機必須換行。
+
+     桌機版把它設成 `flex-wrap: nowrap`（見上方 .appointment-table
+     .appointment-controls），因為表格裡一列最多三個動作，不換行才不會把處置欄
+     撐得比資料欄還寬。但那個規則在手機同樣生效，而一列三個鍵（✓到診、
+     ✎修改備註、⋮更多處置）需要 427px——實測在 375px 螢幕上把**整個頁面**推出
+     52px 的水平捲軸，展開「更多處置」時變成 112px，320px 時 107px。
+
+     先前這個斷點只覆寫了 justify-content，沒有把 nowrap 收回來。 */
   .appointment-table .appointment-controls {
+    flex-wrap: wrap;
     justify-content: flex-start;
+  }
+  /* 換行之後每個鍵各佔一列，觸控目標比擠成一排更穩，也不會出現半個鍵。 */
+  .appointment-table .appointment-controls > * {
+    flex: 1 1 auto;
+  }
+  /* 彈出選單靠右對齊自己的觸發器；觸發器換行後可能貼著左緣，此時 right: 0
+     會讓選單向左溢出。限制寬度並允許它向右展開。 */
+  .appointment-table .action-menu-list {
+    max-width: calc(100vw - 2 * var(--space-sm));
   }
 }
 
@@ -1691,10 +1751,13 @@ details[open] > summary .workflow-summary-chevron {
   min-width: 11.5rem;
   padding: var(--space-2xs);
 }
+/* 2.6rem＝41.6px，比全站其他控制項的 2.75rem（44px）矮一截。這不是無障礙違規
+   ——WCAG 2.2 SC 2.5.8（AA）要求的是 24×24——但這些是取消、未到、刪除紀錄這類
+   不可逆的處置，沒有理由做得比其他按鈕更難按。對齊全站標準。 */
 .action-menu-list button {
   font-size: var(--text-body);
   font-weight: var(--weight-bold);
-  min-height: 2.6rem;
+  min-height: 2.75rem;
   padding: var(--space-2xs) var(--space-xs);
 }
 

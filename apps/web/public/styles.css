@@ -1876,6 +1876,40 @@ label:has(> input[type='radio']) {
   .patient-header .environment-badge {
     margin-left: auto;
   }
+  /* 首屏留給預約流程，不要留給頁首。
+
+     實測 375×812：頁首 260px、導覽 44px、公告 64px、hero 132px、步驟列 89px
+     ——患者要捲到 651px（螢幕的 80%）才看得到第一個問題「這次是初診還是回診？」。
+     320×568 更誇張，光頁首就吃掉 46%。原因是品牌、健保標章、主題選單、環境徽章
+     各自佔一整列。
+
+     健保標章與主題選單在手機縮到同一列：兩者都不是預約流程的一部分。標章仍然
+     看得見（那是資訊），主題選單仍然可用（那是偏好），只是不再各佔一列。 */
+  .patient-credentials {
+    gap: var(--space-3xs);
+  }
+  .patient-credentials img {
+    height: 2rem;
+    width: 2rem;
+  }
+  .patient-credentials > span {
+    font-size: var(--text-body);
+  }
+  /* 主題選單與健保標章併到同一列的右側。 */
+  .patient-header-inner .theme-picker-label {
+    margin-left: auto;
+  }
+  /* 品牌下方的英文副標在手機收起來。它是裝飾，而診所名稱才是資訊；收掉之後
+     品牌列騰出的寬度剛好讓環境徽章併上來，省掉一整列。 */
+  .patient-header .brand small {
+    display: none;
+  }
+  /* 環境徽章縮小並併到品牌那一列。它必須留著——這是測試預覽，使用者需要知道
+     ——但它不需要獨佔一整列。 */
+  .patient-header .environment-badge {
+    font-size: var(--text-micro);
+    padding: var(--space-4xs) var(--space-2xs);
+  }
   #patient-main {
     padding: var(--space-sm) var(--space-sm) var(--space-2xl);
   }
@@ -1919,9 +1953,20 @@ label:has(> input[type='radio']) {
     display: none;
     line-height: 1.25;
   }
+  /* 只有目前步驟顯示文字，所以把寬度讓給它：其餘三步只是圓圈，不需要等分版面。
+
+     先前這裡是 `overflow-wrap: anywhere`，而中文可以在任何字之間斷行——
+     「類型與項目」因此被排成「類型與項／目」，最後一個字自己一行。字數多一個
+     就會發生，不是邊界情況。 */
+  .booking-stepper li.is-active {
+    flex: 1 1 auto;
+  }
+  .booking-stepper li:not(.is-active) {
+    flex: 0 0 auto;
+  }
   .booking-stepper li.is-active strong {
     display: block;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
   .booking-stepper li span {
     font-size: var(--text-micro);
