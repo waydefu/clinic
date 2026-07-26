@@ -58,7 +58,11 @@ describe('planHashedBuild', () => {
     const CANONICAL =
       '<link rel="canonical" href="https://beauessence.com.tw/booking" />';
 
-    function pages(patientHead = `${NOINDEX}\n    ${CANONICAL}`): Files {
+    const TITLE = '<title>線上預約｜一森渼診所</title>';
+
+    function pages(
+      patientHead = `${NOINDEX}\n    ${CANONICAL}\n    ${TITLE}`
+    ): Files {
       const files = sampleFiles();
       files.set('patient.html', `<head>\n    ${patientHead}\n  </head>`);
       files.set('index.html', `<head>\n    ${NOINDEX}\n  </head>`);
@@ -97,11 +101,38 @@ describe('planHashedBuild', () => {
     });
 
     it('沒有絕對 canonical 就拒絕放行，否則權重會灑在任何指得到它的網址上', () => {
-      expect(() => build(pages(NOINDEX), 'true')).toThrow(/canonical/);
+      expect(() => build(pages(`${NOINDEX}\n    ${TITLE}`), 'true')).toThrow(
+        /canonical/
+      );
     });
 
     it('robots meta 被手動刪掉時要爆炸，而不是安靜地當作已經放行', () => {
-      expect(() => build(pages(CANONICAL), 'true')).toThrow(/no <meta/);
+      expect(() => build(pages(`${CANONICAL}\n    ${TITLE}`), 'true')).toThrow(
+        /no <meta/
+      );
+    });
+
+    // 業主看到的通常是分頁標題、書籤與截圖，不是頁面上的徽章，所以「測試用」
+    // 要出現在 <title>。它與 noindex 綁同一個開關，不可能只拿掉一半。
+    it('預覽建置在標題標上【測試用】', () => {
+      const { outputs } = build(pages());
+      expect(outputs.get('patient.html')).toContain('<title>【測試用】');
+    });
+
+    it('正式建置的標題乾淨，不會把測試字樣帶上線', () => {
+      const { outputs } = build(pages(), 'true');
+      expect(outputs.get('patient.html')).not.toContain('測試用');
+    });
+
+    it('已經寫了測試字樣的標題不重複標記', () => {
+      const files = pages();
+      files.set(
+        'patient.html',
+        `<head>\n    ${NOINDEX}\n    ${CANONICAL}\n    <title>測試站</title>\n  </head>`
+      );
+      expect(build(files).outputs.get('patient.html')).toContain(
+        '<title>測試站</title>'
+      );
     });
   });
 

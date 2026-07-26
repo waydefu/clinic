@@ -164,7 +164,10 @@ const requiredPaths = [
   // 檢索與收錄：兩份檔案與 patient.html 的 canonical 由 check:ui 綁在一起。
   'apps/web/public/robots.txt',
   'apps/web/public/sitemap.xml',
-  'docs/reviews/2026-07-27-seo-baseline.md'
+  'docs/reviews/2026-07-27-seo-baseline.md',
+  // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
+  'apps/web/public/privacy.html',
+  'apps/web/public/privacy.css'
 ];
 
 const missing = [];

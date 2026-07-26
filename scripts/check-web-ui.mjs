@@ -23,7 +23,8 @@ const paths = {
   // 2026-07-26 修掉工作臺「手機隱藏英文副標」之後，患者頁那一份原封不動地留著。
   patientCss: 'apps/web/public/styles.css',
   robots: 'apps/web/public/robots.txt',
-  sitemap: 'apps/web/public/sitemap.xml'
+  sitemap: 'apps/web/public/sitemap.xml',
+  privacyHtml: 'apps/web/public/privacy.html'
 };
 const entries = await Promise.all(
   Object.entries(paths).map(async ([key, path]) => [
@@ -495,19 +496,50 @@ if (scheduleHours.length === 0) {
 // 兩者不一致時不會有任何錯誤：搜尋引擎照樣收下 sitemap，然後發現它指的網址
 // 自己宣告正規網址是別人，於是那一筆的權重被拆開或直接丟掉。這是那種「設定
 // 看起來都有做」卻沒有效果的典型。
-const canonicalMatch = files.patientHtml.match(
-  /<link\s+rel="canonical"\s+href="([^"]+)"/i
-);
-const sitemapLoc = files.sitemap.match(/<loc>([^<]+)<\/loc>/i);
+const canonicalOf = (source, label) => {
+  const match = source.match(/<link\s+rel="canonical"\s+href="([^"]+)"/i);
+  if (match === null) {
+    failures.push(`${label} has no rel="canonical".`);
+    return undefined;
+  }
+  return match[1];
+};
 
-if (canonicalMatch === null) {
-  failures.push('patient.html has no rel="canonical".');
-} else if (sitemapLoc === null) {
+// 每一個對外頁面都必須在 sitemap 裡，而且用的是它自己宣告的正規網址。
+const publicPages = [
+  {
+    canonical: canonicalOf(files.patientHtml, 'patient.html'),
+    label: '預約頁'
+  },
+  {
+    canonical: canonicalOf(files.privacyHtml, 'privacy.html'),
+    label: '隱私權政策'
+  }
+];
+const sitemapLocations = [
+  ...files.sitemap.matchAll(/<loc>([^<]+)<\/loc>/gi)
+].map((match) => match[1]);
+
+if (sitemapLocations.length === 0) {
   failures.push('sitemap.xml has no <loc>.');
-} else if (canonicalMatch[1] !== sitemapLoc[1]) {
-  failures.push(
-    `sitemap.xml lists ${sitemapLoc[1]} but patient.html declares ${canonicalMatch[1]} as canonical; search engines will discard one of them.`
-  );
+}
+for (const { canonical, label } of publicPages) {
+  if (canonical !== undefined && !sitemapLocations.includes(canonical)) {
+    failures.push(
+      `sitemap.xml does not list ${canonical} (${label}), so that page relies on being discovered by luck.`
+    );
+  }
+}
+// 反向：sitemap 不得列出沒有任何頁面宣告為正規網址的位址。
+const canonicals = publicPages
+  .map((page) => page.canonical)
+  .filter((value) => value !== undefined);
+for (const location of sitemapLocations) {
+  if (!canonicals.includes(location)) {
+    failures.push(
+      `sitemap.xml lists ${location}, which no page declares as its canonical; search engines will discard it.`
+    );
+  }
 }
 
 // robots.txt 必須指向 sitemap，否則 sitemap 只有手動送交才會被發現。

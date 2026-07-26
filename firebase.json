@@ -4,9 +4,13 @@
     "predeploy": ["corepack pnpm run build"],
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "redirects": [
-      { "source": "/patient.html", "destination": "/booking", "type": 301 }
+      { "source": "/patient.html", "destination": "/booking", "type": 301 },
+      { "source": "/privacy.html", "destination": "/privacy", "type": 301 }
     ],
-    "rewrites": [{ "source": "/booking", "destination": "/patient.html" }],
+    "rewrites": [
+      { "source": "/booking", "destination": "/patient.html" },
+      { "source": "/privacy", "destination": "/privacy.html" }
+    ],
     "headers": [
       {
         "source": "**",

@@ -36,9 +36,12 @@ const contentTypes = {
   '.png': 'image/png'
 };
 
-// 對外網址與實體檔名。canonical 與 og:url 都指向 /booking，所以它必須真的可用。
-const BOOKING_PATH = '/booking';
-const BOOKING_FILE = 'patient.html';
+// 對外網址與實體檔名。canonical 與 og:url 指向這些網址，所以它們必須真的可用。
+// 一頁一列，避免再出現「新增一個對外頁面卻忘了在這裡開路」的落差。
+const PRETTY_PATHS = new Map([
+  ['/booking', 'patient.html'],
+  ['/privacy', 'privacy.html']
+]);
 
 const server = createServer(async (request, response) => {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -54,13 +57,16 @@ const server = createServer(async (request, response) => {
   //
   // 順序與 Firebase Hosting 相同：先 redirects，再 rewrites。因此 /patient.html
   // 會 301 到 /booking，而 /booking 是內部取檔、不會再回到 redirect，沒有迴圈。
-  if (pathname === `/${BOOKING_FILE}`) {
-    response.writeHead(301, { Location: BOOKING_PATH }).end();
+  const redirectTarget = [...PRETTY_PATHS].find(
+    ([, file]) => pathname === `/${file}`
+  );
+  if (redirectTarget !== undefined) {
+    response.writeHead(301, { Location: redirectTarget[0] }).end();
     return;
   }
 
-  const requestedPath =
-    pathname === BOOKING_PATH ? `/${BOOKING_FILE}` : pathname;
+  const rewritten = PRETTY_PATHS.get(pathname);
+  const requestedPath = rewritten === undefined ? pathname : `/${rewritten}`;
   const relativePath =
     requestedPath === '/' ? 'index.html' : requestedPath.slice(1);
   const filePath = resolve(publicDirectory, relativePath);

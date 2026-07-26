@@ -60,6 +60,11 @@ firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-
    no-referrer` 與 `Cache-Control: no-cache`；雜湊過的 `*.js`／`*.css` 則回
    `Cache-Control: ... immutable`，且沿用同一組 CSP 與安全標頭。
 6. 不存在對 API、Firestore、Calendar 或其他外部服務的網路要求。
+7. 瀏覽器分頁標題為 `【測試用】…`。這個標記由 `WEB_PUBLIC_INDEXABLE` 控制，與
+   `noindex` 是同一個開關——**標題乾淨卻仍在預覽頻道上，代表有人用正式參數建置
+   了測試站**，應停止驗收並重建。
+8. `/privacy` 可開啟，且頁面最上方明白說明「目前是測試版本、資料不會傳送到診所」
+   與「本文為草稿」。給業主檢視前務必確認這兩塊仍在。
 
 部署完成後用實際 URL 產生可機讀證據；腳本只接受專用 staging project 的
 `synthetic-review` preview hostname，避免誤驗 live 或其他專案：

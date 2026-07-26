@@ -193,9 +193,12 @@ describe('the shipped performance budget', () => {
   ) as BudgetEntry[];
 
   it('gives every shipped page a total-weight ceiling', () => {
+    // 每一個會出貨的 HTML 進入點都必須在這裡：沒有預算的頁面 check:perf 會直接
+    // fail，所以這張清單同時也是「新增對外頁面時不要忘了訂上限」的提醒。
     expect(budgets.map((budget) => budget.path)).toEqual([
       '/patient.html',
       '/index.html',
+      '/privacy.html',
       '/404.html'
     ]);
     for (const budget of budgets) {

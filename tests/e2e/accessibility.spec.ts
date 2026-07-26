@@ -50,6 +50,16 @@ test.describe('無障礙掃描', () => {
     await scan(page, '患者預約頁');
   });
 
+  // 隱私權政策是對外的法律文件，而且是長文——它比任何頁面更可能被放大檢視、
+  // 被報讀器逐段聽完，所以同樣要掃。
+  test('隱私權政策頁沒有 serious/critical 違規', async ({ page }) => {
+    await page.goto('/privacy');
+    await expect(
+      page.getByRole('heading', { level: 1, name: /隱私權政策/ })
+    ).toBeVisible();
+    await scan(page, '隱私權政策頁');
+  });
+
   test('工作臺登入閘門沒有 serious/critical 違規', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => window.localStorage.clear());

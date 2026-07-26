@@ -29,7 +29,8 @@
 | robots.txt | 允許檢索、指向 sitemap、擋掉工作臺 | `check:ui` 要求 `Sitemap:` |
 | 社群分享預覽 | og:title/description/image（1200×630）、Twitter card | — |
 | 語言標示 | `<html lang="zh-Hant">` | — |
-| 網址結構 | `/booking`；舊的 `/patient.html` 301 導向 | `verify:preview` |
+| 網址結構 | `/booking`、`/privacy`；`.html` 版本一律 301 導向 | `verify:preview`＋e2e |
+| 隱私權政策頁 | `/privacy`，含個資法第 8 條要求的告知事項 | `privacy-policy.spec.ts` |
 | 行動裝置 | 9 種寬度無水平捲軸、觸控目標 ≥44px | `responsive.spec.ts` |
 | 核心網頁指標 | CLS 0.048、整頁 gzip 58 KB、零字型下載 | `check:perf`＋`performance.spec.ts` |
 | 無障礙 | axe serious/critical = 0 | `accessibility.spec.ts` |
@@ -51,7 +52,12 @@ Google，通常幾個月後才有人發現。
 - 放行前會檢查該頁有絕對 `rel="canonical"`，沒有就**讓建置失敗**；
 - 若 `noindex` 那一行被手動刪掉，建置也失敗——避免「以為已經放行」。
 
-五項行為都有單元測試釘住，包含「只有字串 `true` 算數」（`1`／`yes`／`TRUE`
+同一個開關也負責**測試版本的標示**：預覽建置會把 `<title>` 標成
+`【測試用】…`，正式建置則移除。業主看到的往往是分頁標題、書籤與截圖，不是頁面
+上的徽章；而綁在同一個開關上，就不可能發生「拿掉了 noindex 卻忘了拿掉測試字樣」
+或反過來的情況。
+
+八項行為都有單元測試釘住，包含「只有字串 `true` 算數」（`1`／`yes`／`TRUE`
 都不放行），以免近似值意外把測試站送進索引。
 
 ## 4. 還沒做的（誠實清單）

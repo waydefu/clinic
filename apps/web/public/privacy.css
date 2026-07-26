@@ -1,0 +1,223 @@
+/* 隱私權政策頁專用樣式。
+ *
+ * 與 error.css 同樣自成一檔、不依賴 styles.css 的 token：這是一份長文件，
+ * 需要的是閱讀性而不是預約流程的元件；獨立之後它也不會把預約頁的樣式表預算
+ * 吃掉。深淺色以 prefers-color-scheme 切換，不需要 theme.js——本頁沒有任何
+ * 指令碼。CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。
+ *
+ * 排版取捨：正文 65 字元寬（長文的可讀行長），行高 1.8（中文字距較密，
+ * 比英文長文需要更多行距），標題與段落之間留出明確層級，讓人能用掃的找到
+ * 「我的權利」那一節。 */
+
+:root {
+  --policy-bg: #f5f7f5;
+  --policy-surface: #ffffff;
+  --policy-ink: #132a24;
+  --policy-muted: #5d7068;
+  --policy-line: #dbe5df;
+  --policy-forest: #155c48;
+  --policy-notice-bg: #eef4f1;
+  --policy-notice-strong-bg: #fdf4e3;
+  --policy-notice-strong-line: #d9a441;
+  --policy-focus: #b9822a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --policy-bg: #101714;
+    --policy-surface: #17211d;
+    --policy-ink: #e8f1ec;
+    --policy-muted: #a7b8b0;
+    --policy-line: #2b3a34;
+    --policy-forest: #6cc0a2;
+    --policy-notice-bg: #1b2723;
+    --policy-notice-strong-bg: #2a2115;
+    --policy-notice-strong-line: #d9a441;
+    --policy-focus: #e6a84b;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.policy-body {
+  background: var(--policy-bg);
+  color: var(--policy-ink);
+  font-family:
+    'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0;
+  padding: 0 16px 48px;
+}
+
+/* 跳到主要內容：只有鍵盤聚焦時才出現。長文件尤其需要它。 */
+.policy-skip {
+  background: var(--policy-forest);
+  color: var(--policy-surface);
+  left: 16px;
+  padding: 12px 16px;
+  position: absolute;
+  top: -100px;
+  transition: top 120ms ease;
+  z-index: 2;
+}
+
+.policy-skip:focus {
+  top: 16px;
+}
+
+.policy-header,
+.policy-main,
+.policy-footer {
+  margin: 0 auto;
+  max-width: 42rem;
+}
+
+.policy-header {
+  border-bottom: 1px solid var(--policy-line);
+  padding: 32px 0 16px;
+}
+
+.policy-brand {
+  color: var(--policy-forest);
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.policy-brand-en {
+  color: var(--policy-muted);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  margin: 4px 0 0;
+}
+
+.policy-title {
+  font-size: 28px;
+  line-height: 1.4;
+  margin: 32px 0 16px;
+}
+
+.policy-meta {
+  border: 1px solid var(--policy-line);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0 0 32px;
+  padding: 16px;
+}
+
+.policy-meta div {
+  min-width: 0;
+}
+
+.policy-meta dt {
+  color: var(--policy-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.policy-meta dd {
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 0;
+}
+
+.policy-notice {
+  background: var(--policy-notice-bg);
+  border-left: 4px solid var(--policy-forest);
+  border-radius: 4px;
+  margin: 0 0 24px;
+  padding: 16px 20px;
+}
+
+/* 「這是測試版本」比其他任何一段都重要：讀者可能正打算把真實資料填進去。 */
+.policy-notice-strong {
+  background: var(--policy-notice-strong-bg);
+  border-left-color: var(--policy-notice-strong-line);
+}
+
+.policy-notice h2 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+
+.policy-notice p {
+  margin: 0 0 8px;
+}
+
+.policy-notice p:last-child {
+  margin-bottom: 0;
+}
+
+.policy-main section {
+  border-top: 1px solid var(--policy-line);
+  margin-top: 32px;
+  padding-top: 24px;
+}
+
+.policy-main h2 {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+
+.policy-main p,
+.policy-main li {
+  margin: 0 0 12px;
+}
+
+.policy-main ul {
+  margin: 0 0 12px;
+  padding-left: 24px;
+}
+
+.policy-definitions dt {
+  color: var(--policy-forest);
+  font-weight: 700;
+  margin-top: 16px;
+}
+
+.policy-definitions dd {
+  margin: 4px 0 0;
+}
+
+/* 「這一項還沒定案」的說明。刻意不做成警告色：它是誠實揭露，不是錯誤。 */
+.policy-pending {
+  color: var(--policy-muted);
+  font-size: 14px;
+}
+
+.policy-footer {
+  border-top: 1px solid var(--policy-line);
+  color: var(--policy-muted);
+  font-size: 14px;
+  margin-top: 48px;
+  padding-top: 24px;
+}
+
+.policy-footer p {
+  margin: 0 0 8px;
+}
+
+a {
+  color: var(--policy-forest);
+}
+
+a:focus-visible {
+  outline: 3px solid var(--policy-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 30rem) {
+  .policy-title {
+    font-size: 24px;
+  }
+
+  .policy-meta {
+    gap: 16px;
+  }
+}
