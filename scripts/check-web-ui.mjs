@@ -17,6 +17,7 @@ const paths = {
   apiClient: 'apps/web/public/modules/api-client.js',
   asyncAction: 'apps/web/public/modules/async-action.js',
   theme: 'apps/web/public/theme.js',
+  stateSchema: 'apps/web/public/modules/state-schema.js',
   css: 'apps/web/public/workbench.css'
 };
 const entries = await Promise.all(
@@ -373,6 +374,48 @@ for (const [key, path] of [
   }
   for (const id of duplicates)
     failures.push(`${path} has a duplicate id="${id}".`);
+}
+
+// ---------------------------------------------------------------------------
+// 門診時間不得在 patient.html 與 defaultSchedule 之間漂移。
+//
+// 同一組時間在 patient.html 出現三次：JSON-LD 的 openingHoursSpecification、
+// meta description，以及 <noscript> 後備與頁尾的靜態文字。這三份**無法消除**：
+// 結構化資料要機器讀的形狀，後備要的是 JS 沒跑也看得到的字。真正的來源是
+// state-schema.js 的 defaultSchedule。
+//
+// 所以不硬合併，改成讓漂移在 CI 就被抓到。先前這件事只靠註解裡的一句「修改時
+// 請一併更新」，而那種約定遲早會有人漏掉——漏掉的後果是診所對外公告的門診時間
+// 與系統實際開放的時段不一致。
+const scheduleHours = [
+  ...files.stateSchema.matchAll(
+    /startLocalTime:\s*'(\d{2}:\d{2})',\s*endLocalTime:\s*'(\d{2}:\d{2})'/g
+  )
+].map((match) => `${match[1]}–${match[2]}`);
+
+if (scheduleHours.length === 0) {
+  failures.push(
+    'Could not read any weeklyAvailability interval from state-schema.js; the opening-hours drift check cannot run.'
+  );
+} else {
+  for (const hours of new Set(scheduleHours)) {
+    if (!files.patientHtml.includes(hours)) {
+      failures.push(
+        `patient.html does not mention the ${hours} opening hours declared in state-schema.js defaultSchedule.`
+      );
+    }
+  }
+  // 反向也要成立：patient.html 不得宣傳一個排班裡沒有的時段。
+  const advertised = new Set(
+    (files.patientHtml.match(/\d{2}:\d{2}–\d{2}:\d{2}/g) ?? []).map(String)
+  );
+  for (const hours of advertised) {
+    if (!scheduleHours.includes(hours)) {
+      failures.push(
+        `patient.html advertises ${hours}, which no weeklyAvailability interval in state-schema.js provides.`
+      );
+    }
+  }
 }
 
 if (failures.length > 0) {
