@@ -95,8 +95,12 @@ const server = createServer(async (request, response) => {
       // connect-src must include 'self': the modular admin bootstrap fetches
       // /admin-shell.html from this origin, and the v2 pages hold their
       // synthetic state in the browser rather than calling the API.
+      // `require-trusted-types-for 'script'`：寫進 innerHTML 的字串一律要先經過
+      // Trusted Types policy，否則瀏覽器直接丟 TypeError。modules/trusted-html.js
+      // 註冊 default policy，於是既有的 29 處指派全部流經那裡的結構檢查。
+      // 導入前先以 report-only 跑過兩個進入點的完整 render 路徑，違規為 0。
       'Content-Security-Policy':
-        "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+        "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'",
       // 沒有任何跨來源彈窗或被他站嵌入的需求，所以兩者都收到 same-origin：
       // 前者切斷跨來源視窗對 window.opener 的存取，後者阻止其他站台把本站資源
       // 當成子資源載入。

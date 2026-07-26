@@ -41,7 +41,10 @@ describe('hosting security headers', () => {
       "object-src 'none'",
       "base-uri 'none'",
       "frame-ancestors 'none'",
-      "form-action 'self'"
+      "form-action 'self'",
+      // 把「記得呼叫 escapeHtml」從紀律變成瀏覽器強制的機制：寫進 innerHTML 的
+      // 字串一律要先經過 Trusted Types policy，否則直接 TypeError。
+      "require-trusted-types-for 'script'"
     ]) {
       expect(directives).toContain(directive);
     }
