@@ -261,6 +261,47 @@ test.describe('患者預約頁手機版', () => {
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 
+  // 導覽先前寫死 width: 100%，於是它必定獨佔一列、環境徽章也只能再排一列，
+  // 導覽右邊與徽章左邊各留下一塊空白（2026-07-26 線上實機回報「留白過多」）。
+  test('導覽與環境徽章放得下時併成同一列', async ({ page }) => {
+    await page.goto('/booking');
+    // 線上站是用 hidden 屬性收掉 local-only 連結的（patient-app.js 的 isOnline
+    // 分支），這裡用同一個機制模擬同一個狀態，而不是假造別的東西。
+    await page
+      .locator('.patient-nav [data-local-only-link]')
+      .evaluate((el) => el.setAttribute('hidden', ''));
+
+    const layout = await page
+      .locator('.patient-header-inner')
+      .evaluate((inner) => {
+        const box = (selector: string) => {
+          const el = inner.querySelector(selector) as HTMLElement;
+          const rect = el.getBoundingClientRect();
+          return { y: rect.y, height: rect.height, right: rect.right };
+        };
+        const innerRect = inner.getBoundingClientRect();
+        return {
+          nav: box('.patient-nav'),
+          badge: box('.environment-badge'),
+          contentRight:
+            innerRect.right - parseFloat(getComputedStyle(inner).paddingRight),
+          headerHeight: (
+            inner.closest('.patient-header') as HTMLElement
+          ).getBoundingClientRect().height
+        };
+      });
+
+    // 同一列：兩者的垂直中心對齊（徽章 22px、導覽 44px，靠 align-self 置中）。
+    const navCentre = layout.nav.y + layout.nav.height / 2;
+    const badgeCentre = layout.badge.y + layout.badge.height / 2;
+    expect(Math.abs(navCentre - badgeCentre)).toBeLessThan(2);
+    // 徽章靠右填掉導覽右邊的空白。
+    expect(Math.abs(layout.badge.right - layout.contentRight)).toBeLessThan(2);
+    // 併列前 212px、併列後 162px；門檻取兩者之間才擋得住舊版面回來。
+    expect(layout.headerHeight).toBeLessThan(185);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
   // 「類型與項目」先前因為 overflow-wrap: anywhere 被排成「類型與項／目」，
   // 最後一個字自己一行。中文可以在任何字之間斷行，所以這不是邊界情況。
   test('步驟標籤不得把最後一個字擠到第二行', async ({ page }) => {

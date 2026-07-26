@@ -31,7 +31,10 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > 英文在空間不足時換行，並縮小與右側通知／設定控制項之間的欄距。**患者頁的那一
 > 份同時修掉**：`check-web-ui.mjs` 先前只讀 `workbench.css`，共用的 `styles.css`
 > 完全不在守衛範圍內，所以同一個 `display: none` 留在對外頁面上。守衛已擴及
-> `styles.css`，頁首則以 `row-gap` 12px 吸收多出來的一列，頁首 248→212px。
+> `styles.css`，頁首則以 `row-gap` 12px 吸收多出來的一列，頁首 248→212px。接著
+> 依線上回報收掉頁首留白：導覽不再寫死 `width: 100%`，改由 flex 決定與環境徽章
+> 併列（線上兩個連結時併列，本機三個連結或 320px 時換列，導覽永不橫捲），欄距與
+> 內距同步收緊。線上頁首 212→162px，患者看到第一個問題由 502→452px。
 >
 > **2026-07-26 證據與維運收斂。** `verify` workflow 新增最終 evidence job，
 > 把 verify／Firestore Rules／E2E／supply-chain 四個結果綁定 commit SHA 與 run；

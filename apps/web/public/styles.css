@@ -1873,22 +1873,35 @@ label:has(> input[type='radio']) {
     align-items: flex-start;
     flex-wrap: wrap;
     padding-inline: var(--space-sm);
-    /* 手機把這一列折成四列（品牌／標章＋主題／環境徽章／導覽），桌機的 24px
-       gap 於是變成 72px 的垂直留白，比任何一列的內容都高。橫向維持 24px 讓
-       同一列的群組分得開，縱向收到 12px——首屏的高度要花在預約流程上。 */
-    column-gap: var(--space-lg);
-    row-gap: var(--space-xs);
+    /* 手機把這一列折成多列，桌機的 24px gap 於是變成幾十 px 的垂直留白，比任何
+       一列的內容都高。縱向收到 8px；橫向收到 12px——不只是為了緊湊，343px 的可用
+       寬度下這 12px 決定了導覽與環境徽章能不能併成同一列（見下方 .patient-nav）。 */
+    column-gap: var(--space-xs);
+    row-gap: var(--space-2xs);
+    padding-block: var(--space-2xs);
   }
   .patient-header {
     position: static;
   }
+  /* 導覽先前寫死 width: 100%，於是它一定獨佔一列，環境徽章也只能自己再排一列
+     ——導覽右邊與徽章左邊各留下一塊什麼都沒有的空白。改成自然寬度後由 flex 決定：
+     線上站的導覽只有兩個連結（內部工作臺是 local-only）148px＋徽章 171px＋12px
+     欄距＝331px，塞得進 343px 就併成同一列；本機三個連結 228px＋175px 放不下，
+     自己掉回兩列。`flex-shrink: 0` 是關鍵——寧可換列，也不要把導覽壓到要橫捲。 */
   .patient-nav {
-    order: 3;
+    flex: 0 0 auto;
+    max-width: 100%;
+    order: 2;
     overflow-x: auto;
-    width: 100%;
+    width: auto;
   }
+  /* 徽章排在導覽之後並靠右：併列時它填掉導覽右邊的空白，單獨一列時維持原本的
+     右對齊。徽章只有 22px 高、導覽是 44px 的觸控列，容器又是 align-items:
+     flex-start，所以併列時要自己置中，否則兩者中心線差 11px、看起來沒有對齊。 */
   .patient-header .environment-badge {
+    align-self: center;
     margin-left: auto;
+    order: 3;
   }
   /* 首屏留給預約流程，不要留給頁首。
 
