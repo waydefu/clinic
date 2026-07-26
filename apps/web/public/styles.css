@@ -1873,6 +1873,11 @@ label:has(> input[type='radio']) {
     align-items: flex-start;
     flex-wrap: wrap;
     padding-inline: var(--space-sm);
+    /* 手機把這一列折成四列（品牌／標章＋主題／環境徽章／導覽），桌機的 24px
+       gap 於是變成 72px 的垂直留白，比任何一列的內容都高。橫向維持 24px 讓
+       同一列的群組分得開，縱向收到 12px——首屏的高度要花在預約流程上。 */
+    column-gap: var(--space-lg);
+    row-gap: var(--space-xs);
   }
   .patient-header {
     position: static;
@@ -1908,10 +1913,17 @@ label:has(> input[type='radio']) {
   .patient-header-inner .theme-picker-label {
     margin-left: auto;
   }
-  /* 品牌下方的英文副標在手機收起來。它是裝飾，而診所名稱才是資訊；收掉之後
-     品牌列騰出的寬度剛好讓環境徽章併上來，省掉一整列。 */
+  /* 品牌下方的英文副標**不收起來**。它跟中文字標一起構成品牌識別，患者頁是對外
+     的那一面，少掉英文名等於小螢幕上的品牌只剩一半；而且它疊在標誌的 40px 高度
+     之內，並不會讓頁首長高。先前用 display:none 換來的是寬度（好讓環境徽章併上
+     品牌列），代價下得太重：改成允許品牌區縮排、副標必要時換行，環境徽章放不下
+     時自己換一列。 */
+  .patient-header .brand,
+  .patient-header .brand > span {
+    min-width: 0;
+  }
   .patient-header .brand small {
-    display: none;
+    overflow-wrap: anywhere;
   }
   /* 環境徽章縮小並併到品牌那一列。它必須留著——這是測試預覽，使用者需要知道
      ——但它不需要獨佔一整列。 */

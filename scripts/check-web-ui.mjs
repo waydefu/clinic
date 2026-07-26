@@ -18,7 +18,10 @@ const paths = {
   asyncAction: 'apps/web/public/modules/async-action.js',
   theme: 'apps/web/public/theme.js',
   stateSchema: 'apps/web/public/modules/state-schema.js',
-  css: 'apps/web/public/workbench.css'
+  css: 'apps/web/public/workbench.css',
+  // 患者頁與工作臺共用 styles.css。先前這份檔案完全不在守衛範圍內，於是
+  // 2026-07-26 修掉工作臺「手機隱藏英文副標」之後，患者頁那一份原封不動地留著。
+  patientCss: 'apps/web/public/styles.css'
 };
 const entries = await Promise.all(
   Object.entries(paths).map(async ([key, path]) => [
@@ -213,6 +216,23 @@ refuseText(
   files.css,
   '.topbar .brand small { display: none; }',
   'Small-screen workbench CSS hides the English brand subtitle.'
+);
+// 患者頁是對外的那一面，同一條規則更嚴格地適用。兩份客戶端的品牌列各有一套
+// 手機樣式，所以守衛也要各有一條——只釘工作臺那一份擋不住這一份。
+requireText(
+  files.patientCss,
+  '.patient-header .brand small { overflow-wrap: anywhere; }',
+  'Small-screen patient CSS must allow the English brand subtitle to wrap.'
+);
+refuseText(
+  files.patientCss,
+  '.patient-header .brand small { display: none; }',
+  'Small-screen patient CSS hides the English brand subtitle.'
+);
+refuseText(
+  files.patientCss,
+  '.patient-header .brand > span { display: none; }',
+  'Small-screen patient CSS hides the clinic name together with the subtitle.'
 );
 // 週檢視是可捲動區塊，必須能被鍵盤聚焦後捲動（WCAG 2.1.1，axe 會擋）。
 // requireText 會先去掉所有空白再比對，所以這裡寫成單行即可。

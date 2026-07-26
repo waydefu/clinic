@@ -245,6 +245,22 @@ test.describe('患者預約頁手機版', () => {
     expect(contentTop).toBeLessThan(viewportHeight * 0.72);
   });
 
+  // 英文副標先前在 48rem 以下被 display:none 收掉，患者頁的品牌在手機上因此只剩
+  // 中文——而患者頁正是對外的那一面。它疊在標誌的 40px 高度之內，本來就不需要用
+  // 「藏起來」去換版面空間。
+  test('品牌的英文副標在手機仍然看得見', async ({ page }) => {
+    await page.goto('/booking');
+    const subtitle = page.locator('.patient-header .brand small');
+    await expect(subtitle).toBeVisible();
+    await expect(subtitle).toHaveText('Beau Essence Appointment');
+
+    const box = await subtitle.boundingBox();
+    // 一行約 14px。0 高度代表又被收掉了，過高代表被擠成逐字換行。
+    expect(box?.height ?? 0).toBeGreaterThan(8);
+    expect(box?.height ?? 0).toBeLessThan(48);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
   // 「類型與項目」先前因為 overflow-wrap: anywhere 被排成「類型與項／目」，
   // 最後一個字自己一行。中文可以在任何字之間斷行，所以這不是邊界情況。
   test('步驟標籤不得把最後一個字擠到第二行', async ({ page }) => {
@@ -313,6 +329,23 @@ test.describe('患者預約頁手機版', () => {
     expect(Math.max(...inputWidths) - Math.min(...inputWidths)).toBeLessThan(2);
     for (const widths of inputAndLabelWidths)
       expect(widths.input).toBeGreaterThan(widths.label - 2);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+});
+
+test.describe('患者預約頁在最窄的常見螢幕', () => {
+  test.use({ viewport: NARROW });
+
+  // 320px 是英文副標唯一真的可能放不下的寬度。它必須靠換行解決，而不是靠
+  // 消失，而且換行不得把頁面推出水平捲軸。
+  test('320px 下英文副標換行而不是消失', async ({ page }) => {
+    await page.goto('/booking');
+    const subtitle = page.locator('.patient-header .brand small');
+    await expect(subtitle).toBeVisible();
+
+    const box = await subtitle.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThan(8);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(320);
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 });
