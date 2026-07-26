@@ -789,14 +789,21 @@ details[open] > summary .workflow-summary-chevron {
     margin-inline: var(--space-xs);
   }
 }
-/* 200% 文字縮放時 320px 視窗等同極窄內容欄：保留可辨識的標誌與兩個
-   44px 以上操作目標，收起重複字標，並允許設定選單在 popover 內縮排。 */
+/* 200% 文字縮放時 320px 視窗等同極窄內容欄：保留標誌、診所名稱、英文副標與兩個
+   44px 以上操作目標。品牌文字可縮排換行，設定選單則留在 popover 內。 */
 @media (max-width: 30rem) {
   .app-shell {
     padding-inline: var(--space-2xs);
   }
+  .topbar {
+    column-gap: var(--space-xs);
+  }
+  .topbar .brand,
   .topbar .brand > span {
-    display: none;
+    min-width: 0;
+  }
+  .topbar .brand small {
+    overflow-wrap: anywhere;
   }
   .compact-hero {
     grid-template-columns: minmax(0, 1fr);

@@ -197,6 +197,23 @@ requireText(
   ':focus-visible',
   'Modular admin CSS must preserve visible focus.'
 );
+// 小手機仍要完整保留中英文品牌名稱。品牌區可縮排、英文副標可換行，但不能靠
+// display:none 解決空間，否則使用者無法辨識診所或失去原有的英文品牌資訊。
+requireText(
+  files.css,
+  '.topbar .brand small { overflow-wrap: anywhere; }',
+  'Small-screen workbench CSS must allow the English brand subtitle to wrap.'
+);
+refuseText(
+  files.css,
+  '.topbar .brand > span { display: none; }',
+  'Small-screen workbench CSS hides the clinic name together with the subtitle.'
+);
+refuseText(
+  files.css,
+  '.topbar .brand small { display: none; }',
+  'Small-screen workbench CSS hides the English brand subtitle.'
+);
 // 週檢視是可捲動區塊，必須能被鍵盤聚焦後捲動（WCAG 2.1.1，axe 會擋）。
 // requireText 會先去掉所有空白再比對，所以這裡寫成單行即可。
 requireText(

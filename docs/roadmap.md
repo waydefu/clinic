@@ -27,6 +27,8 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > 批次動作同列；排班起訖時間並排滿寬。患者端必填星號與欄名同列、紅色但不只靠
 > 顏色，姓名／電話／生日／身分證四欄全寬等寬。`mobile-layout.spec.ts` 由 8 增至
 > 12 項，以瀏覽器幾何量測守住 320／375px reflow、viewport 邊界與 44px 操作高度。
+> 工作臺的極窄版頁首也不再隱藏整個品牌文字區；中文診所名稱與英文副標都會保留，
+> 英文在空間不足時換行，並縮小與右側通知／設定控制項之間的欄距。
 >
 > **2026-07-26 證據與維運收斂。** `verify` workflow 新增最終 evidence job，
 > 把 verify／Firestore Rules／E2E／supply-chain 四個結果綁定 commit SHA 與 run；
