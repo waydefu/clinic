@@ -62,7 +62,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Boutique Clinical Command (2026-07-25)](design/boutique-clinical-command-2026-07-25.md) — the approved visual direction, the six-stage sequence, what is done, and the rules a new implementer must follow
 - [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) — work packages, decision gates, suggested sequence, acceptance criteria and rescoring checkpoints
 - [Web and supply-chain quality gates (2026-07-24)](architecture/web-quality-gates-2026-07-24.md) — which gate enforces what, the performance budget, the CycloneDX SBOM and licence policy, and the SAST layers
-- [2026 web-standards remediation plan (2026-07-26)](reviews/2026-07-26-web-standards-remediation-plan.md) — the audit findings turned into self-contained task cards another implementer can execute, with evidence, acceptance commands and the two items that need a decision first
+- [2026 web-standards audit and remediation (2026-07-26)](reviews/2026-07-26-web-standards-remediation-plan.md) — what the audit found, the two decisions it forced, all 19 fixes with their evidence, and the costs and limitations discovered while making them
 - [Manual accessibility test runbook](runbooks/manual-accessibility-test.md) — the screen-reader, forced-colors, keyboard and zoom checks axe cannot make, with pass criteria and an evidence template
 
 ## 5. Operations
