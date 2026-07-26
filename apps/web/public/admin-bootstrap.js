@@ -627,6 +627,14 @@ document.addEventListener('pointerdown', (event) => {
   )
     setNotificationOpen(false);
 });
+document.addEventListener('focusin', (event) => {
+  if (
+    !elements['notification-popover'].hidden &&
+    !elements['notification-popover'].contains(event.target) &&
+    event.target !== elements['nav-bell']
+  )
+    setNotificationOpen(false);
+});
 
 async function updateDraft(
   mutator,

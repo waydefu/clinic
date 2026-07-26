@@ -2,7 +2,7 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-07-25
+**整合更新：** 2026-07-26
 
 **目前狀態：** 瀏覽器原型功能完整、已部署到期預覽；Firestore 寫入路徑已在本機
 Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、無真實病患資料。
@@ -20,6 +20,13 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > axe、`apps/api/src/platform` 的集中式錯誤映射與候選 RBAC/rate-limit/maintenance
 > 骨架，以及低頻治理指令的 pending/error/retry 收尾與 api-client 的 HTTP/offline/
 > timeout 錯誤映射。以下清單中凡與這些重疊者，以 backlog 的最新狀態為準。
+>
+> **2026-07-26 截圖複查與行動版格線修復。** 通知面板固定於手機 viewport 安全
+> 內距並補 dialog／離焦收合；預約篩選改為搜尋全寬＋兩個下拉並排；處置卡改成主要
+> 動作全寬、兩個次要動作並排，並修掉未回報的桌機 `inline-size: 1%` 遺留；三個
+> 批次動作同列；排班起訖時間並排滿寬。患者端必填星號與欄名同列、紅色但不只靠
+> 顏色，姓名／電話／生日／身分證四欄全寬等寬。`mobile-layout.spec.ts` 由 8 增至
+> 12 項，以瀏覽器幾何量測守住 320／375px reflow、viewport 邊界與 44px 操作高度。
 >
 > **2026-07-24（同日稍晚）品質 gate 與維運設計。** 另補上：效能預算（Lighthouse
 > budget 格式，位元組靜態把關＋瀏覽器實測 FCP/LCP/CLS）、CycloneDX 1.6 SBOM 與

@@ -88,6 +88,40 @@ X1 的否決有一個必須寫下來的後果：**`modulepreload` 因此是永�
 較嚴標準。那些按鈕**沒有違反 WCAG**，只是不符合自家慣例——仍然值得對齊，但不該
 被說成無障礙缺陷。
 
+## 截圖複查與表單修復（同日第三輪）
+
+第二批實機截圖指出的不是單一元件美化，而是五種可重複出現的格線／定位缺陷；逐一
+追到 CSS 根因後，也多找出兩項截圖沒有直接標出的問題：
+
+| 畫面 | 根因 | 修正與回歸守衛 |
+| --- | --- | --- |
+| 手機通知左側被截、標題不見 | 面板以 `right: 0` 對齊靠右鈴鐺，面板寬度大於鈴鐺右側可用空間 | ≤48rem 改為固定在 viewport 安全內距；補 `role="dialog"`、開啟聚焦關閉鍵、Esc／點外／焦點離開收合 |
+| 預約篩選第三欄右側留白 | 「最後一個奇數子項目」選擇器失效：結果／清除列是第四個子項目 | 搜尋全寬，狀態與掛號別並排，結果與清除維持同列 |
+| 卡片處置全部逐列堆疊 | 手機仍繼承全域 `flex-basis: 10rem`；**另發現處置儲存格仍繼承桌機 `inline-size: 1%`** | 手機取消 1% 欄寬；主要動作全寬，兩個次要動作並排 |
+| 批次操作呈兩列且清除按鈕落單 | `flex-wrap` 依文字固有寬度換行，沒有工具列格線 | 三個動作使用等寬三欄，375px 同列且每項維持 44px 高 |
+| 每週起訖欄位只佔左半 | `.inline-fields` 只定義於建立預約表單，排班表單沒有佈局規則 | 排班起訖使用兩欄格線，原生 time input `min-width: 0; width: 100%` |
+| 患者必填星號各自換行 | `label` 是 grid；文字節點、星號與 input 被當成三個格項 | 欄名與星號包成 `.field-label`；紅色星號仍配合表單頂端文字說明與原生 `required` |
+| 患者生日欄位比其他欄短 | 原生 `date` input 保留 intrinsic width | 四個病患資料 input 全部跟隨 label 滿寬；375px 幾何量測同寬 |
+
+採用的權威基線：
+
+- [WCAG 2.2 Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)：
+  320 CSS px 不得因二維捲動造成資訊或功能損失。
+- [WCAG 2.2 Target Size (Minimum)](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)：
+  AA 最低 24×24 CSS px；本專案對主要控制項繼續採更嚴的 44px 慣例。
+- [WCAG 2.2 Focus Not Obscured (Minimum)](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html)：
+  浮層不得完全遮住鍵盤焦點；非 modal 通知在焦點離開時收合。
+- [W3C WAI 表單標籤](https://www.w3.org/WAI/tutorials/forms/labels/)與
+  [H90 必填欄位技術](https://www.w3.org/WAI/WCAG22/Techniques/html/H90.html)：
+  可見標籤需與控制項保持清楚關係，必填符號必須在 label 內，並在首次使用前說明。
+- [USWDS Form](https://designsystem.digital.gov/components/form/)：
+  必填欄使用紅色星號、表單頂端文字解釋與 HTML `required` 三層訊號；不得只靠顏色。
+- [USWDS Button Group](https://designsystem.digital.gov/components/button-group/)：
+  相關動作應形成可辨識的群組；此處以等寬格線維持操作順序與觸控面積。
+
+`mobile-layout.spec.ts` 從 8 項增為 12 項，直接量測 viewport 邊界、格線列位置、欄位
+寬度與 44px 控制高度，不以「CSS 裡有某條規則」代替瀏覽器實際結果。
+
 順帶做的三項清理：
 
 - 四份互相矛盾的 E2E `login` helper 收斂成一份（其中一份在手機寬度必定逾時）。
@@ -99,7 +133,7 @@ X1 的否決有一個必須寫下來的後果：**`modulepreload` 因此是永�
 ```
 corepack pnpm verify     → 通過（39 個測試檔、469 項；稽核前 36 檔、389 項）
 corepack pnpm test:rules → 通過（61 項；稽核前 60 項）
-corepack pnpm test:e2e   → 通過（90 項；稽核前 73 項）
+corepack pnpm test:e2e   → 通過（94 項；截圖複查前 90 項、稽核前 73 項）
 ```
 
 ## 代價與已知限制
@@ -127,8 +161,9 @@ corepack pnpm test:e2e   → 通過（90 項；稽核前 73 項）
 - **三筆 moderate advisory 刻意不鎖**（`@opentelemetry/core`、`@hono/node-server`、
   `tar`）。它們只存在於 firebase-tools 這條 CLI 線上：不打包、不出貨、不處理外部
   輸入。硬鎖跨 major 的傳遞相依風險更高。解除條件記在 `pnpm-workspace.yaml`。
-- **CI 從未真的執行過。** 這個 repository 沒有 git remote，所以 `verify.yml` 與
-  `codeql.yml` 的價值目前是「設定正確」，不是「把關生效」。
+- **本機通過不等於遠端 CI 已驗證這次提交。** Repository 現在已有 `origin`；
+  `verify.yml` 與 `codeql.yml` 仍要在本次提交 push 後確認成功，才能把遠端 gate
+  算進本次證據。
 
 ## 後續工作
 
@@ -141,4 +176,5 @@ corepack pnpm test:e2e   → 通過（90 項；稽核前 73 項）
    缺 `nextAttemptAt` 的舊資料。
 3. **確認正式網域**，然後把 `patient.html` 的 `canonical`／`og:url` 與 `noindex`
    一起處理。
-4. 推上 git remote，讓 `verify.yml` 與 `codeql.yml` 真的開始跑。
+4. Push 本次提交後確認 `verify.yml` 與 `codeql.yml` 成功；本機驗證不能取代遠端
+   branch protection。

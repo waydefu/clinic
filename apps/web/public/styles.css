@@ -824,6 +824,15 @@ h3 {
 .control-card h3 {
   color: var(--forest-dark);
 }
+.schedule-controls .inline-fields {
+  display: grid;
+  gap: var(--space-xs);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.schedule-controls .inline-fields input {
+  min-width: 0;
+  width: 100%;
+}
 .control-card > p {
   color: var(--ink-muted);
   font-size: var(--text-body);
@@ -2094,8 +2103,26 @@ label:has(> input[type='radio']) {
   opacity: 0.8;
 }
 .required-mark {
+  color: var(--danger);
   margin-left: var(--space-4xs);
   font-weight: var(--weight-bold);
+}
+.field-label {
+  align-items: baseline;
+  display: flex;
+  width: fit-content;
+}
+.patient-form-grid {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.patient-form-grid > label {
+  min-width: 0;
+}
+.patient-form-grid > label:not(.consent-preview) > input {
+  min-width: 0;
+  width: 100%;
 }
 .field-hint {
   display: block;

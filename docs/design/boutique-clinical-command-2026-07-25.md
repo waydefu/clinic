@@ -579,6 +579,35 @@ keyframe 0%（透明），等於提示消失。所以列變更提示在 reduced-
   `indeterminate`），外層 `<label>` 把可點區撐到 44px。
 - 患者頁 `.service-choice` 的 `min-height: 13rem`，但內容只有約 130px。
 
+## 14. 2026-07-26 行動版格線與患者表單複查
+
+最新實機截圖確認，上一輪「不溢出」只是最低線，資訊仍可能在沒有整頁捲軸的情況下
+被壓縮、留洞或無謂堆高。本輪把手機資訊密度固定成以下元件規則：
+
+- 通知面板在 ≤48rem 不再對齊鈴鐺，而是固定於 viewport 左右安全內距；保持非
+  modal，開啟聚焦關閉鍵，Esc／點外／焦點離開皆可收合。
+- 預約篩選為「搜尋全寬 → 狀態／掛號別兩欄 → 結果／清除同列」。
+- 預約卡處置為「主要動作全寬 → 兩個次要動作兩欄」；手機必須取消桌機處置欄的
+  `inline-size: 1%`，否則格線仍會被壓成圖示寬。
+- 批次取消／未到／清除選取固定在同一個三欄動作群組；文字可在各按鈕內換行，但
+  三個控制項不得掉成上下兩列，且高度不得低於 44px。
+- 排班表單的開始／結束時間使用同一列兩欄，兩個原生 time input 等寬滿版。
+- 患者姓名、電話、生日與身分證使用同一個單欄格線；欄名與紅色 `*` 包在同一個
+  `.field-label`，四個 input 全寬。星號仍在 `<label>` 內，且表單頂端先解釋含義；
+  HTML `required` 承擔程式可判定的必填狀態。
+
+依據是
+[WCAG 2.2 Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)、
+[Focus Not Obscured](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html)、
+[W3C WAI 表單標籤](https://www.w3.org/WAI/tutorials/forms/labels/)、
+[H90 必填欄位技術](https://www.w3.org/WAI/WCAG22/Techniques/html/H90.html)與
+[USWDS 表單必填欄位指引](https://designsystem.digital.gov/components/form/)。
+WCAG 2.5.8 的 AA 下限仍是 24×24 CSS px；44px 是本專案為高頻觸控操作採用的較嚴
+慣例，不把它錯稱為 WCAG AA 要求。
+
+`tests/e2e/mobile-layout.spec.ts` 以 375×812 與 320×568 的真實 computed layout
+量測上述規則，並逐一切換六個工作區與患者預約前三步檢查整頁 reflow。
+
 ## 相關文件
 
 - [Roadmap](../roadmap.md) — 專案整體狀態

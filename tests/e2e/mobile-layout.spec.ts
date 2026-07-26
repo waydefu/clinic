@@ -73,6 +73,110 @@ test.describe('工作臺手機版版面', () => {
     expect(box?.width ?? 0).toBeGreaterThan(40);
   });
 
+  test('篩選、卡片處置與批次操作使用緊湊但可點擊的格線', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await page.goto('/#appointments-section');
+    await page.locator('#appointment-status-filter').selectOption('all');
+    await expect(page.locator('[data-appointment-card]').first()).toBeVisible();
+
+    const filterBoxes = await page
+      .locator('.appointment-filters > label')
+      .evaluateAll((labels) =>
+        labels.map((label) => {
+          const box = label.getBoundingClientRect();
+          return { x: box.x, y: box.y, width: box.width };
+        })
+      );
+    expect(filterBoxes).toHaveLength(3);
+    expect(filterBoxes[0].width).toBeGreaterThan(filterBoxes[1].width * 1.8);
+    expect(Math.abs(filterBoxes[1].y - filterBoxes[2].y)).toBeLessThan(2);
+    expect(Math.abs(filterBoxes[1].width - filterBoxes[2].width)).toBeLessThan(
+      2
+    );
+
+    const controls = page
+      .locator('[data-appointment-card] .appointment-controls')
+      .first();
+    const actionBoxes = await controls
+      .locator(':scope > *')
+      .evaluateAll((items) =>
+        items.map((item) => {
+          const box = item.getBoundingClientRect();
+          return { y: box.y, width: box.width };
+        })
+      );
+    expect(actionBoxes).toHaveLength(3);
+    expect(actionBoxes[0].width).toBeGreaterThan(actionBoxes[1].width * 1.8);
+    expect(Math.abs(actionBoxes[1].y - actionBoxes[2].y)).toBeLessThan(2);
+
+    await page.locator('.row-select').first().check();
+    await expect(page.locator('#appointment-batch-bar')).toBeVisible();
+    const batchActionBoxes = await page
+      .locator('.batch-actions > *')
+      .evaluateAll((items) =>
+        items.map((item) => {
+          const box = item.getBoundingClientRect();
+          return { y: box.y, height: box.height };
+        })
+      );
+    expect(
+      Math.max(...batchActionBoxes.map(({ y }) => y)) -
+        Math.min(...batchActionBoxes.map(({ y }) => y))
+    ).toBeLessThan(2);
+    expect(
+      Math.min(...batchActionBoxes.map(({ height }) => height))
+    ).toBeGreaterThanOrEqual(44);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('每週時段的開始與結束欄位並排填滿表單', async ({ page }) => {
+    await login(page);
+    await page.goto('/#schedule-section');
+    await expect(page.locator('#weekly-form')).toBeVisible();
+
+    const group = page.locator('#weekly-form .inline-fields');
+    const groupBox = await group.boundingBox();
+    const inputBoxes = await group.locator('input').evaluateAll((inputs) =>
+      inputs.map((input) => {
+        const box = input.getBoundingClientRect();
+        return { y: box.y, width: box.width };
+      })
+    );
+    expect(inputBoxes).toHaveLength(2);
+    expect(Math.abs(inputBoxes[0].y - inputBoxes[1].y)).toBeLessThan(2);
+    expect(Math.abs(inputBoxes[0].width - inputBoxes[1].width)).toBeLessThan(2);
+    expect(inputBoxes[0].width).toBeGreaterThan((groupBox?.width ?? 0) * 0.4);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('通知面板完整留在視窗內，離開面板即收合', async ({ page }) => {
+    await login(page);
+    const bell = page.locator('#nav-bell');
+    const popover = page.locator('#notification-popover');
+
+    await bell.click();
+    await expect(popover).toBeVisible();
+    await expect(popover).toHaveAttribute('role', 'dialog');
+    await expect(page.locator('#notification-heading')).toBeVisible();
+    await expect(page.locator('#notification-close')).toBeFocused();
+
+    const box = await popover.boundingBox();
+    const viewport = page.viewportSize();
+    expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+      viewport?.width ?? 0
+    );
+    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(
+      viewport?.height ?? 0
+    );
+
+    await page.locator('.workspace-nav a').first().focus();
+    await expect(popover).toBeHidden();
+    await expect(bell).toHaveAttribute('aria-expanded', 'false');
+  });
+
   test('每個工作區在 375px 都不產生水平捲軸', async ({ page }) => {
     await login(page);
     await createBooking(page);
@@ -164,6 +268,52 @@ test.describe('患者預約頁手機版', () => {
     await page.locator('[data-patient-slot]').first().click();
     await expect(page.locator('#patient-name')).toBeVisible();
     expect(await pageOverflow(page), 'step 3').toBeLessThanOrEqual(1);
+  });
+
+  test('必填星號緊跟欄名，四個資料欄位維持同寬', async ({ page }) => {
+    await page.goto('/booking');
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('[data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await expect(page.locator('#patient-name')).toBeVisible();
+
+    const labels = page.locator(
+      '.patient-form-grid > label:not(.consent-preview)'
+    );
+    await expect(labels).toHaveCount(4);
+    const labelRows = await labels.locator('.field-label').evaluateAll((rows) =>
+      rows.map((row) => {
+        const mark = row.querySelector('.required-mark');
+        const box = row.getBoundingClientRect();
+        const markBox = mark?.getBoundingClientRect();
+        return {
+          display: getComputedStyle(row).display,
+          height: box.height,
+          markY: markBox?.y ?? -1,
+          rowY: box.y
+        };
+      })
+    );
+    for (const row of labelRows) {
+      expect(row.display).toBe('flex');
+      expect(row.height).toBeLessThan(32);
+      expect(Math.abs(row.markY - row.rowY)).toBeLessThan(4);
+    }
+
+    const inputAndLabelWidths = await labels.evaluateAll((items) =>
+      items.map((label) => {
+        const input = label.querySelector('input');
+        return {
+          input: input?.getBoundingClientRect().width ?? 0,
+          label: label.getBoundingClientRect().width
+        };
+      })
+    );
+    const inputWidths = inputAndLabelWidths.map((item) => item.input);
+    expect(Math.max(...inputWidths) - Math.min(...inputWidths)).toBeLessThan(2);
+    for (const widths of inputAndLabelWidths)
+      expect(widths.input).toBeGreaterThan(widths.label - 2);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 });
 
