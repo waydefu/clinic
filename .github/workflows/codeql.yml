@@ -38,9 +38,9 @@ jobs:
       # 上傳掃描結果到 repository 的 Security 分頁。
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@4187e74d05793876e9989daffde9c3e66b4acd07 # v3
         with:
           languages: javascript-typescript
           # security-extended 比預設多涵蓋較低信心但仍值得看的查詢；
@@ -49,6 +49,6 @@ jobs:
 
       # 這個 workspace 沒有需要編譯才能分析的語言，JS/TS 走 CodeQL 的
       # 自動建模即可，不必安裝相依。
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@4187e74d05793876e9989daffde9c3e66b4acd07 # v3
         with:
           category: '/language:javascript-typescript'

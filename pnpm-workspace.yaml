@@ -18,9 +18,15 @@ allowBuilds:
 #                  路徑：eslint > minimatch（dev-only）
 #                  只鎖 5.x：同時安裝的 1.1.x／2.1.x 是 firebase-tools 的相依，
 #                  跨 major 硬鎖會直接讓 minimatch@3 壞掉。
+#   uuid           <11.1.1
+#                  路徑：apps/api、apps/worker > firebase-admin >
+#                  @google-cloud/storage > gaxios／teeny-request > uuid
+#                  **這是四筆 moderate 裡唯一進到出貨程式的**——另外三筆只經由
+#                  firebase-tools（CLI）。同 major 內的 patch，鎖了不改任何 API。
 overrides:
   find-my-way: '^9.6.1'
   brace-expansion@^5: '^5.0.8'
+  uuid: '>=11.1.1'
 
 # 已審視的 audit 例外。**這不是「關掉警告」，是「查過而且沒有可用的修補」**，
 # 每次 upstream 有動作都要重新檢查。
@@ -35,6 +41,19 @@ overrides:
 #   /v1/health）與 firebase-tools > minimatch（CLI，不出貨）。攻擊面是「把攻擊者
 #   控制的 glob 字串丟進去展開」，這兩條路徑都不會。
 #   **解除條件**：1.x／2.x 出現修補版，或這些相依改用已修補的 minimatch。
+#
+# 以下三筆 moderate（2026-07-26 覆核）**刻意不鎖**，因為它們只存在於
+# firebase-tools 這條 CLI 相依線上：CLI 不會被打包、不會出貨、也不處理任何來自
+# 使用者的輸入。硬鎖跨 major 的傳遞相依，風險比 advisory 本身高。
+# `--audit-level high` 因此不會擋，但它們仍然是「查過」而不是「沒看到」。
+#
+#   @opentelemetry/core  <2.8.0   路徑：firebase-tools > @google-cloud/pubsub
+#   @hono/node-server    <2.0.5   路徑：firebase-tools > @modelcontextprotocol/sdk
+#   tar                  <=7.5.20 路徑：firebase-tools（直接）與 > superstatic >
+#                                 re2 > node-gyp > tar
+#
+#   **解除條件**：升級 firebase-tools 到把這三條線都帶上來的版本後，重跑
+#   `pnpm audit` 確認歸零，並刪掉這段註解。三者都不需要 override。
 auditConfig:
   ignoreGhsas:
     - GHSA-mh99-v99m-4gvg
