@@ -57,7 +57,7 @@ test.describe('三個主題', () => {
     const footers = new Map<string, string>();
 
     for (const theme of THEMES) {
-      await applyTheme(page, '/patient.html', theme);
+      await applyTheme(page, '/booking', theme);
       const footer = await paintedStyle(page, '.patient-footer');
       footers.set(theme, footer.background);
 
@@ -95,7 +95,7 @@ test.describe('三個主題', () => {
   });
 
   test('品牌標誌與健保標章都真的載入了', async ({ page }) => {
-    await applyTheme(page, '/patient.html', 'light');
+    await applyTheme(page, '/booking', 'light');
 
     // `complete` 對載入失敗的圖片一樣是 true——naturalWidth 才分得出「載到了」
     // 與「路徑壞掉，瀏覽器安靜地放棄了」。後者在版面上只是少一塊，很容易出貨。
@@ -112,7 +112,7 @@ test.describe('三個主題', () => {
 
   test('品牌標誌在深色主題下會提亮', async ({ page }) => {
     const filterFor = async (theme: string) => {
-      await applyTheme(page, '/patient.html', theme);
+      await applyTheme(page, '/booking', theme);
       return page
         .locator('.brand-mark')
         .evaluate((element) => window.getComputedStyle(element).filter);
@@ -126,7 +126,7 @@ test.describe('三個主題', () => {
   });
 
   test('深色主題的深底不會比內容卡片還亮', async ({ page }) => {
-    await applyTheme(page, '/patient.html', 'dark');
+    await applyTheme(page, '/booking', 'dark');
 
     const luminanceOfToken = (token: string) =>
       page.locator('body').evaluate((element, name) => {
@@ -173,7 +173,7 @@ test.describe('品牌層（香檳金與系統字體）', () => {
         fontRequests.push(url);
     });
 
-    for (const url of ['/patient.html', '/']) {
+    for (const url of ['/booking', '/']) {
       await page.goto(url);
       await page.waitForLoadState('networkidle');
     }
@@ -195,7 +195,7 @@ test.describe('品牌層（香檳金與系統字體）', () => {
     const seen = new Map<string, string>();
 
     for (const theme of THEMES) {
-      await applyTheme(page, '/patient.html', theme);
+      await applyTheme(page, '/booking', theme);
 
       const token = await page
         .locator('body')
@@ -244,7 +244,7 @@ test.describe('品牌層（香檳金與系統字體）', () => {
   });
 
   test('香檳金不得出現在狀態或互動元件上', async ({ page }) => {
-    await applyTheme(page, '/patient.html', 'light');
+    await applyTheme(page, '/booking', 'light');
 
     const leaked = await page.evaluate(() => {
       const root = window.getComputedStyle(document.documentElement);
@@ -339,7 +339,7 @@ test.describe('動效系統', () => {
     });
 
     test('緩動一律來自 token，維持同一種個性', async ({ page }) => {
-      await applyTheme(page, '/patient.html', 'light');
+      await applyTheme(page, '/booking', 'light');
       const easings = await page.evaluate(() => {
         const found = new Set<string>();
         for (const sheet of document.styleSheets) {

@@ -45,7 +45,7 @@ async function scan(page: Page, context?: string) {
 
 test.describe('無障礙掃描', () => {
   test('患者預約頁沒有 serious/critical 違規', async ({ page }) => {
-    await page.goto('/patient.html');
+    await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
     await scan(page, '患者預約頁');
   });

@@ -85,12 +85,22 @@ describe('planBudgetReport', () => {
   });
 
   it('counts a link to another page as navigation, not as a subresource', () => {
-    const result = report(sampleFiles());
+    const files = sampleFiles();
+    // 對外網址可以沒有副檔名（/booking 由 Hosting rewrite 對應到 patient.html）。
+    // 那仍然是導覽，不是這一頁要下載的東西。
+    files.set(
+      'index.html',
+      `${files.get('index.html') ?? ''}<a href="/booking">預約</a>`
+    );
+    const result = report(files);
 
     // index.html 連到 patient.html，但那是導覽，不該把患者頁的重量算進來。
     expect(entryOf(result, '/index.html').resources).not.toContain(
       'patient.html'
     );
+    expect(entryOf(result, '/index.html').resources).not.toContain('booking');
+    // 而且不得因此被誤判成「參照了不存在的資源」。
+    expect(result.violations).toEqual([]);
     expect(entryOf(result, '/patient.html').resources).toEqual([
       'patient.html',
       'styles.css'

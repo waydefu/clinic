@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('患者線上預約', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/patient.html');
+    await page.goto('/booking');
     // 每個測試各自的 context 已是乾淨的 localStorage；仍明確清一次並重載，
     // 讓合成資料回到出廠狀態，測試互不影響。
     await page.evaluate(() => window.localStorage.clear());

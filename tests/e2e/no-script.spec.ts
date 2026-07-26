@@ -13,7 +13,7 @@ test.use({ javaScriptEnabled: false });
 
 test.describe('JavaScript 未執行時的後備', () => {
   test('患者預約頁仍然給得出電話、地址與門診時間', async ({ page }) => {
-    await page.goto('/patient.html');
+    await page.goto('/booking');
 
     // 電話是這個畫面唯一的行動點，必須真的可以撥。
     await expect(
@@ -34,12 +34,21 @@ test.describe('JavaScript 未執行時的後備', () => {
   // 永遠不會結束的載入狀態，比沒有還糟。現在靜態內容就是真的時間，JS 只負責
   // 更新它。
   test('門診時間不是一個永遠不會結束的讀取中', async ({ page }) => {
-    await page.goto('/patient.html');
+    await page.goto('/booking');
 
     await expect(page.locator('#patient-hours-footer')).not.toHaveText(
       /讀取中/
     );
     await expect(page.locator('#patient-hours-footer')).toContainText('12:00');
+  });
+
+  // canonical 與 og:url 都宣告 /booking，所以那個網址必須真的可用，而舊路徑要
+  // 導過去而不是留下第二份同樣的內容。
+  test('/patient.html 會 301 導向對外網址 /booking', async ({ page }) => {
+    const response = await page.goto('/patient.html');
+
+    expect(new URL(page.url()).pathname).toBe('/booking');
+    expect(response?.status()).toBe(200);
   });
 
   test('工作臺說明自己為什麼是空的，而不是留一片空白', async ({ page }) => {

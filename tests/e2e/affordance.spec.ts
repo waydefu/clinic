@@ -90,7 +90,7 @@ function skipSelectorsFor() {
 
 test.describe('可點擊性（affordance）', () => {
   test('患者頁的互動元素都看得出可以按', async ({ page }) => {
-    await page.goto('/patient.html');
+    await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
 
     const offenders = await affordanceReport(page);

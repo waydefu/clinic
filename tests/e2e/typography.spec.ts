@@ -11,7 +11,7 @@ test.describe('readable operational typography', () => {
     page
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/patient.html');
+    await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
 
     const navigationLink = page.locator('.patient-nav a').first();

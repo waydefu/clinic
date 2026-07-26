@@ -40,7 +40,7 @@ test.describe('版面重排', () => {
   for (const width of WIDTHS) {
     test(`患者頁在 ${width}px 不出現水平捲軸`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto('/patient.html');
+      await page.goto('/booking');
       await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
 
       const result = await horizontalOverflow(page);

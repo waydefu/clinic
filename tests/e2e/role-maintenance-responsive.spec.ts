@@ -288,7 +288,7 @@ test.describe('患者端維護隔離', () => {
         resumeAt: ''
       })
     });
-    await page.goto('/patient.html');
+    await page.goto('/booking');
   });
 
   test('維護啟用時工作流程 inert，焦點在維護標題', async ({ page }) => {
@@ -343,7 +343,7 @@ test.describe('患者端維護隔離', () => {
 test.describe('患者端行動版', () => {
   test('四步驟只標一個目前步驟，裝飾數字不重複報讀', async ({ page }) => {
     await resetBrowserState(page);
-    await page.goto('/patient.html');
+    await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
 
     await expect(
@@ -358,7 +358,7 @@ test.describe('患者端行動版', () => {
 
   test('常見手機直向與橫向都可重排', async ({ page }) => {
     await resetBrowserState(page);
-    await page.goto('/patient.html');
+    await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
     const sizes = [
       { width: 320, height: 568 },

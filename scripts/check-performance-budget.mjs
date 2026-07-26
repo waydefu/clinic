@@ -64,8 +64,15 @@ function referencesOf(path, content) {
   if (extension === '.html') {
     for (const match of source.matchAll(HTML_REFERENCE)) {
       const target = match[1].slice(1);
-      // 指向其他頁面的連結是導覽，不是這一頁的子資源。
-      if (extensionOf(target) === '.html') continue;
+      // 導覽不是子資源。兩種形式都要排除：指向另一個頁面（document），以及
+      // 沒有副檔名而認不出型別的對外網址（other）。
+      //
+      // 先前只排除前者，於是 `/booking` 這種**沒有副檔名**的網址被當成缺失的
+      // 資源而讓 gate 紅燈——它其實是導覽目標，由 Hosting 的 rewrite 對應到
+      // patient.html。改成型別判斷之後，指向不存在的 .js／.css／圖片仍然會被
+      // 抓出來，那才是這個檢查真正要守的東西。
+      const type = resourceTypeOf(target);
+      if (type === 'document' || type === 'other') continue;
       found.add(target);
     }
   } else if (extension === '.js') {

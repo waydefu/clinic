@@ -32,6 +32,10 @@ const contentTypes = {
   '.png': 'image/png'
 };
 
+// 對外網址與實體檔名。canonical 與 og:url 都指向 /booking，所以它必須真的可用。
+const BOOKING_PATH = '/booking';
+const BOOKING_FILE = 'patient.html';
+
 const server = createServer(async (request, response) => {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.writeHead(405, { Allow: 'GET, HEAD' }).end();
@@ -39,7 +43,22 @@ const server = createServer(async (request, response) => {
   }
 
   const pathname = new URL(request.url ?? '/', `http://${host}`).pathname;
-  const relativePath = pathname === '/' ? 'index.html' : pathname.slice(1);
+
+  // 對外的預約頁網址是 /booking（2026-07-26 決策），實體檔名仍是 patient.html。
+  // 這兩條規則必須與 firebase.json 的 redirects／rewrites 逐字對應——E2E 跑在這個
+  // server 上，兩邊不一致就等於沒有測到真正會部署的行為。
+  //
+  // 順序與 Firebase Hosting 相同：先 redirects，再 rewrites。因此 /patient.html
+  // 會 301 到 /booking，而 /booking 是內部取檔、不會再回到 redirect，沒有迴圈。
+  if (pathname === `/${BOOKING_FILE}`) {
+    response.writeHead(301, { Location: BOOKING_PATH }).end();
+    return;
+  }
+
+  const requestedPath =
+    pathname === BOOKING_PATH ? `/${BOOKING_FILE}` : pathname;
+  const relativePath =
+    requestedPath === '/' ? 'index.html' : requestedPath.slice(1);
   const filePath = resolve(publicDirectory, relativePath);
   if (
     !filePath.startsWith(`${publicDirectory}${sep}`) &&

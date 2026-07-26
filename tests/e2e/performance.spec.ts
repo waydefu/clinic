@@ -30,10 +30,11 @@ const budgets = JSON.parse(
   )
 ) as BudgetEntry[];
 
-// 預算檔以「產物檔名」定位頁面；index.html 對外的網址是 `/`。
+// 預算檔以「產物檔名」定位頁面，對外網址則另有其事：index.html 是 `/`，
+// patient.html 由 /booking 提供（firebase.json 的 rewrite，server.mjs 同步實作）。
 const URL_BY_BUDGET_PATH = new Map([
   ['/index.html', '/'],
-  ['/patient.html', '/patient.html']
+  ['/patient.html', '/booking']
 ]);
 
 declare global {
