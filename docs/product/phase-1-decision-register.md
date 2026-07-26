@@ -17,8 +17,64 @@ infer an answer from an existing website, social message or Calendar event.
 | D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending | Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | pending | Cloud deployment |
 | D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending | Public booking UX |
+| D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
+| D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
 
 ## Recorded inputs
+
+### D-012 NHI mark: knowingly retained on the synthetic preview - 2026-07-26
+
+The 2026-07-26 full-project audit found that the patient page displays the NHI
+contracted-institution mark on a publicly reachable preview whose title says
+測試版本, and that no document or decision had ever covered the **permission** to
+do so — every existing mention treated the mark as an image-budget and
+rendering problem. The mark is a registered trademark; the Ministry of Health
+and Welfare states that misuse carries liability, and the NHIA publishes usage
+notes.
+
+**Owner decision: keep it, risk accepted (option C of three offered).** The
+alternatives were to confirm against the NHIA usage notes, or to strip the mark
+from the preview and restore it at go-live.
+
+What this decision **is**: the owner reviewed the exposure and chose to leave the
+mark in place on the expiring synthetic-review channel.
+
+What it is **not**: a confirmation that the usage complies with the NHIA notes.
+Nobody has checked them against this use. That check is still owed before the
+mark appears on the production domain, and D-012 must be revisited then — the
+`approved` status above is scoped to the preview channel only.
+
+Why the residual risk is small in the meantime: the channel expires in seven
+days, carries `X-Robots-Tag: noindex`, and is reachable only by someone given the
+link. No asset was changed by this decision.
+
+### D-013 Branch protection: required check plus an admin bypass - 2026-07-26
+
+The same audit found that `verify.yml` runs on every push and that the
+`evidence` job is built to fail whenever any upstream job fails — but nothing
+proved GitHub was configured to **require** it, and the assistant could not read
+that setting (no `gh`, no token). A gate nobody requires is a display.
+
+**Owner decision: require the check, but keep the administrator bypass.**
+
+- Required status check on `main`: **`Verification evidence`** — the job's
+  `name:`, not its id `evidence`. GitHub's status-check context uses the display
+  name; configuring the id would silently require a check that never reports.
+- "Do not allow bypassing the above settings" stays **unchecked**, so the owner
+  can still push straight to `main` without a pull request.
+- **Any tool acting with the owner's credentials inherits that bypass** — this
+  was an explicit requirement so that assistants other than the one that set it
+  up keep working. A tool that authenticates as its own GitHub App or a
+  fine-grained token under a different identity would be blocked and would have
+  to be added to the bypass list deliberately.
+
+**The consequence, stated plainly:** direct pushes by the owner (and by any
+assistant using those credentials) are **not** gated by CI. For that path the
+real protection is running `corepack pnpm verify` before pushing, which is
+convention, not enforcement. The required check protects collaborators and
+future pull requests. Verify the setting with
+`corepack pnpm run check:branch-protection` (needs a token with
+`administration:read`); with no token it exits 2, never 0.
 
 ### Web-standards audit directions - 2026-07-26
 
