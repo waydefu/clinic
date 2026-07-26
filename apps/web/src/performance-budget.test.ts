@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error — the budget script is plain ESM with no type declarations.
-import { planBudgetReport } from '../../../scripts/check-performance-budget.mjs';
+import {
+  moduleGraphDepth,
+  planBudgetReport
+} from '../../../scripts/check-performance-budget.mjs';
 
 type Files = Map<string, string>;
 
@@ -11,6 +14,7 @@ interface BudgetEntry {
   resourceSizes?: { resourceType: string; budget: number }[];
   resourceCounts?: { resourceType: string; budget: number }[];
   timings?: { metric: string; budget: number }[];
+  moduleGraph?: { maxDiscoveryDepth: number };
 }
 
 interface Report {
@@ -211,5 +215,69 @@ describe('the shipped performance budget', () => {
         'cumulative-layout-shift'
       ]);
     }
+  });
+
+  // per-entry bundling 已否決（逐檔可讀性優先），所以 modulepreload 是請求瀑布的
+  // 永久解法，不是過渡手段。既然沒有後續改動會再壓低請求數，深度就必須有閘門。
+  it('requires both module entry points to be one round trip deep', () => {
+    for (const path of ['/patient.html', '/index.html']) {
+      const entry = budgets.find((budget) => budget.path === path);
+      expect(entry?.moduleGraph?.maxDiscoveryDepth).toBe(1);
+    }
+  });
+});
+
+// 往返深度是位元組與請求數都看不見的那一維：31 個模組分 5 波與分 1 波下載，
+// 位元組一樣、請求數一樣，但前者先付掉 4 趟 RTT 才開始執行。
+describe('moduleGraphDepth', () => {
+  function graphFiles(preloads: string[]): Files {
+    return new Map<string, string>([
+      [
+        'index.html',
+        `<head>${preloads
+          .map((href) => `<link rel="modulepreload" href="${href}" />`)
+          .join('')}</head>` +
+          '<body><script type="module" src="/app.js"></script></body>'
+      ],
+      ['app.js', "import './mid.js';\n"],
+      ['mid.js', "import './leaf.js';\n"],
+      ['leaf.js', 'export const leaf = 1;\n']
+    ]);
+  }
+
+  it('reports the natural depth when nothing is preloaded', () => {
+    const graph = moduleGraphDepth('index.html', graphFiles([]));
+    // app（script 標籤）→ mid → leaf：三趟連續往返。
+    expect(graph.maxDepth).toBe(3);
+    expect(graph.unpreloaded).toEqual(['leaf.js', 'mid.js']);
+  });
+
+  it('collapses to one round trip once the whole graph is declared', () => {
+    const graph = moduleGraphDepth(
+      'index.html',
+      graphFiles(['/app.js', '/mid.js', '/leaf.js'])
+    );
+    expect(graph.maxDepth).toBe(1);
+    expect(graph.unpreloaded).toEqual([]);
+    expect(graph.moduleCount).toBe(3);
+  });
+
+  // 漏掉一個就退回兩趟——這正是這個檢查要抓的迴歸形狀。
+  it('names the modules a missing preload pushed into a second trip', () => {
+    const graph = moduleGraphDepth(
+      'index.html',
+      graphFiles(['/app.js', '/mid.js'])
+    );
+    expect(graph.maxDepth).toBe(2);
+    expect(graph.unpreloaded).toEqual(['leaf.js']);
+  });
+
+  it('reports depth zero for a page with no modules at all', () => {
+    const graph = moduleGraphDepth(
+      '404.html',
+      new Map([['404.html', '<head></head><body>gone</body>']])
+    );
+    expect(graph.maxDepth).toBe(0);
+    expect(graph.moduleCount).toBe(0);
   });
 });

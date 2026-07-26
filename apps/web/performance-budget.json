@@ -58,7 +58,10 @@
         "metric": "cumulative-layout-shift",
         "budget": 0.1
       }
-    ]
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
   },
   {
     "path": "/index.html",
@@ -119,7 +122,10 @@
         "metric": "cumulative-layout-shift",
         "budget": 0.1
       }
-    ]
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
   },
   {
     "path": "/404.html",
@@ -166,6 +172,9 @@
         "resourceType": "total",
         "budget": 5
       }
-    ]
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 0
+    }
   }
 ]

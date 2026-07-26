@@ -87,6 +87,69 @@ function referencesOf(path, content) {
   return [...found];
 }
 
+// 進入點掛載模組的方式，以及 build 注入的 preload 宣告。
+const MODULE_SCRIPT = /<script\s+type="module"\s+src="(\/[^"]+\.js)"/g;
+const MODULE_PRELOAD = /<link\s+rel="modulepreload"\s+href="(\/[^"]+)"/g;
+
+/**
+ * 一個進入點的模組圖有多深——也就是瀏覽器要跑幾趟連續往返才把程式碼收齊。
+ *
+ * 為什麼要量這個：位元組與請求數都看不見它。31 個模組分 5 波下載與分 1 波下載，
+ * 位元組完全一樣、請求數完全一樣，但前者在行動網路上先付掉 4 趟 RTT 才開始執行。
+ * 這正是 2026-07-26 稽核抓到的問題，而當時的預算全部是綠的。
+ *
+ * 深度 1 ＝ 解析 <head> 當下就能發現全部模組。`<link rel="modulepreload">` 讓
+ * 整張圖在深度 1 就被宣告完；少宣告一個，那一個就退到它匯入者的下一層。
+ *
+ * 這也是為什麼這個檢查是**必要**而不是選配：per-entry bundling 已於 2026-07-26
+ * 否決（逐檔可讀性優先），所以不會有後續改動來壓低請求數。preload 是永久解法，
+ * 而永久解法需要一個閘門守著。
+ */
+export function moduleGraphDepth(entryPath, files) {
+  const html = String(files.get(entryPath) ?? '');
+  const entryModules = [...html.matchAll(MODULE_SCRIPT)].map((match) =>
+    match[1].slice(1)
+  );
+  const preloaded = [...html.matchAll(MODULE_PRELOAD)].map((match) =>
+    match[1].slice(1)
+  );
+
+  const depth = new Map();
+  const queue = [];
+  // HTML 直接宣告的（script 標籤與 preload）都在第一趟就被發現。
+  for (const path of [...entryModules, ...preloaded]) {
+    if (!files.has(path) || depth.has(path)) continue;
+    depth.set(path, 1);
+    queue.push(path);
+  }
+  while (queue.length > 0) {
+    const path = queue.shift();
+    for (const target of referencesOf(path, files.get(path))) {
+      if (!files.has(target)) continue;
+      const next = depth.get(path) + 1;
+      if (depth.has(target) && depth.get(target) <= next) continue;
+      depth.set(target, next);
+      queue.push(target);
+    }
+  }
+
+  const reachable = [...depth.keys()].filter(
+    (path) => extensionOf(path) === '.js'
+  );
+  return {
+    maxDepth: reachable.reduce(
+      (max, path) => Math.max(max, depth.get(path)),
+      0
+    ),
+    moduleCount: reachable.length,
+    // 被匯入卻沒有 preload 宣告的模組：每一個都讓深度多一層。
+    unpreloaded: reachable
+      .filter((path) => !preloaded.includes(path))
+      .filter((path) => !entryModules.includes(path))
+      .sort()
+  };
+}
+
 /**
  * 純核心：把「dist 檔案集合」＋「預算」算成每個進入點的資源摘要與違規清單。
  * 沒有 I/O，單元測試直接餵合成檔案集合。
@@ -145,6 +208,7 @@ export function planBudgetReport(
       missing,
       sizes,
       counts,
+      moduleGraph: moduleGraphDepth(entryPath, files),
       budget: budgetFor(entryPath)
     };
   });
@@ -175,6 +239,21 @@ export function planBudgetReport(
       if (actual > budget) {
         violations.push(
           `${entry.path}: ${resourceType} 請求數 ${actual} 超過預算 ${budget}`
+        );
+      }
+    }
+    // 往返深度：位元組與請求數都看不見它，但它決定「多久之後才開始執行」。
+    const depthBudget = entry.budget.moduleGraph?.maxDiscoveryDepth;
+    if (depthBudget !== undefined) {
+      const { maxDepth, unpreloaded } = entry.moduleGraph;
+      if (maxDepth > depthBudget) {
+        violations.push(
+          `${entry.path}: 模組圖往返深度 ${maxDepth} 超過預算 ${depthBudget}（少了 ${unpreloaded.length} 個 modulepreload：${unpreloaded.slice(0, 3).join('、')}${unpreloaded.length > 3 ? '…' : ''}）`
+        );
+      } else if (unpreloaded.length > 0) {
+        // 深度還沒惡化，但已經有模組沒被宣告——下一個相依就會把它推到第二趟。
+        violations.push(
+          `${entry.path}: ${unpreloaded.length} 個模組沒有 modulepreload 宣告（${unpreloaded.slice(0, 3).join('、')}${unpreloaded.length > 3 ? '…' : ''}）`
         );
       }
     }
