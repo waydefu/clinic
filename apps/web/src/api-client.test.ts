@@ -153,6 +153,69 @@ describe('HTTP transport error mapping', () => {
       client.request('/bookings', { method: 'POST' })
     ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE', retryable: true });
   });
+
+  // 逾時要真的**取消**請求，不能只是不再等它。合成 transport 在本機所以看不出
+  // 差別，但換成 fetch 之後，掛住的請求會一直佔著瀏覽器對同一來源的連線額度
+  // （HTTP/1.1 只有 6 條），幾個卡住就整站停擺。
+  it('hands the transport a signal that aborts when the deadline passes', async () => {
+    let observed: AbortSignal | undefined;
+    const transport = vi.fn(
+      (_path: string, options?: { signal?: AbortSignal }) => {
+        observed = options?.signal;
+        return new Promise(() => {});
+      }
+    );
+    const client = createApiClient(transport, {
+      readRetries: 0,
+      timeoutMs: 10
+    });
+
+    await expect(client.request('/slots')).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE'
+    });
+    expect(observed).toBeInstanceOf(AbortSignal);
+    expect(observed?.aborted).toBe(true);
+  });
+
+  // 使用者主動取消不是失敗：不要包成可重試的錯誤，更不要自動重打。
+  it('lets a caller cancellation through instead of retrying it', async () => {
+    const controller = new AbortController();
+    const transport = vi.fn(() => new Promise(() => {}));
+    const client = createApiClient(transport, {
+      readRetries: 3,
+      timeoutMs: 0
+    });
+
+    const pending = client.request('/slots', { signal: controller.signal });
+    controller.abort();
+
+    await expect(pending).rejects.toThrow();
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
+
+  // 每次嘗試都要新的 signal。AbortSignal.timeout() 一旦觸發就永遠是 aborted，
+  // 沿用同一個會讓第二次重試在送出前就被中止。
+  it('gives every retry a fresh deadline', async () => {
+    let calls = 0;
+    // 這個替身要在**呼叫當下**檢查 signal，所以必須是真的函式，
+    // 不能用 mockRejectedValueOnce。
+    const transport = vi.fn(
+      async (_path: string, options?: { signal?: AbortSignal }) => {
+        calls += 1;
+        expect(options?.signal?.aborted).toBe(false);
+        await Promise.resolve();
+        if (calls === 1) throw httpTransportError({ status: 503 });
+        return { ok: true };
+      }
+    );
+    const client = createApiClient(transport, {
+      readRetries: 1,
+      timeoutMs: 5_000
+    });
+
+    await expect(client.request('/slots')).resolves.toEqual({ ok: true });
+    expect(transport).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('pending UI action', () => {

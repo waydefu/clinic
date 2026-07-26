@@ -23,10 +23,14 @@ const publicDirectory = resolve(
 );
 // 允許清單就是安全邊界：不在這裡的副檔名一律 404，所以新增資產型別要有意識地
 // 加進來，而不是靠猜測 MIME。
+// `.json` 在列表裡，是因為 dist 真的有 JSON（vendor/domain/manifest.json），而
+// Firebase Hosting 會照常提供它。少了這一筆，本地一律 404 而線上 200——這個
+// server 存在的意義就是重現會部署的行為，這種落差正是它該消除的東西。
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
   '.png': 'image/png'

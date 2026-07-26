@@ -416,9 +416,13 @@ async function main() {
     await writeFile(absolute, content);
   }
   // 供操作者對照 source → 雜湊產物；runtime 不需要（參照已直接改寫進檔案）。
+  //
+  // 寫在 dist **之外**：出貨的目錄只該包含瀏覽器真的會請求的東西。這份對照表
+  // 是給人看的建置證據，把它放進 dist 等於對外公開一份完整的原始檔名清單，
+  // 卻沒有任何一行程式會去讀它。
   const manifestObject = Object.fromEntries([...manifest.entries()].sort());
   await writeFile(
-    join(distDir, 'asset-manifest.json'),
+    join(repoRoot, 'apps', 'web', 'asset-manifest.json'),
     `${JSON.stringify(manifestObject, null, 2)}\n`,
     'utf8'
   );

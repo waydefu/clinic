@@ -39,3 +39,6 @@ playwright-report/
 Thumbs.db
 .idea/
 .vscode/
+
+# 建置證據：source → 雜湊產物的對照表。給操作者看的，不出貨也不進版控。
+apps/web/asset-manifest.json

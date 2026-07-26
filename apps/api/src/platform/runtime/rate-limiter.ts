@@ -66,7 +66,10 @@ export class FixedWindowRateLimiter implements RateLimiter {
       return;
     }
     if (current.count >= this.maxRequests) {
-      throw new RateLimitedError();
+      // 這個視窗還剩多久才重開。固定視窗算得出確切時間，所以 429 可以直接回答
+      // 「該等多久」，而不是丟一個「太快了」讓呼叫端自己猜。
+      const remainingMs = current.windowStart + this.windowMs - now;
+      throw new RateLimitedError(remainingMs / 1000);
     }
     current.count += 1;
   }

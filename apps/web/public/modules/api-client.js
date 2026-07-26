@@ -154,24 +154,74 @@ function wait(milliseconds) {
   return new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
 }
 
-function withTimeout(promise, timeoutMs) {
-  if (timeoutMs <= 0) return promise;
-  return new Promise((resolve, reject) => {
-    const timer = globalThis.setTimeout(
-      () => reject(new TransportTimeoutError()),
-      timeoutMs
-    );
-    promise.then(
-      (value) => {
-        globalThis.clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        globalThis.clearTimeout(timer);
-        reject(error);
+// 重試退避的基數與上限。與 packages/domain 的 outbox 同一個想法，只是尺度小得多
+// ——這裡是使用者正在等畫面，不是背景工作。
+const RETRY_BASE_DELAY_MS = 250;
+const RETRY_MAX_DELAY_MS = 2_000;
+
+/**
+ * 第 n 次重試前要等多久：指數退避，並乘上一個隨機因子。
+ *
+ * 抖動不是裝飾。多個分頁（或同一診所的多台機器）常常在同一個網路事件下一起
+ * 失敗，沒有抖動就會在同一毫秒一起回來，把剛恢復的服務再壓垮一次。
+ */
+function retryDelayMs(attempt) {
+  const backoff = Math.min(
+    RETRY_MAX_DELAY_MS,
+    RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)
+  );
+  return backoff * (0.5 + Math.random() * 0.5);
+}
+
+/**
+ * 逾時要能真的**取消**請求，不能只是不再等它。
+ *
+ * 先前這裡是手刻的 promise race：時間到就 reject，但底層請求照樣跑完。合成
+ * transport 在瀏覽器本機，所以沒有實害；換成真正的 fetch 之後，一個掛住的請求
+ * 會一直佔著瀏覽器對同一來源的連線額度（HTTP/1.1 只有 6 條），幾個卡住就整站
+ * 停擺——而這段程式碼存在的理由，就是讓 /v1 換上來時 UI 已經有逾時語意。
+ *
+ * `AbortSignal.timeout()` 產生的 signal 會傳給 transport，fetch 收到就會中止
+ * 連線。`AbortSignal.any()` 把它與呼叫端自己的取消訊號合併，兩者任一觸發都算數
+ * ——例如使用者離開畫面時取消尚未完成的讀取。兩個 API 都是 baseline 可用。
+ */
+function timeoutSignal(timeoutMs, callerSignal) {
+  if (timeoutMs <= 0) return callerSignal;
+  const deadline = AbortSignal.timeout(timeoutMs);
+  return callerSignal === undefined
+    ? deadline
+    : AbortSignal.any([deadline, callerSignal]);
+}
+
+// AbortSignal.timeout() 中止時丟的是 TimeoutError；呼叫端主動取消則是 AbortError。
+// 兩者要分開：前者是「太慢了，可以重試」，後者是「使用者不要了，別再打」。
+function isTimeoutAbort(error) {
+  return error instanceof DOMException && error.name === 'TimeoutError';
+}
+
+/**
+ * 讓呼叫端在 signal 觸發的當下就拿到結果，不必等 transport 自己收手。
+ *
+ * 為什麼傳了 signal 還要這一層：`signal` 是**請求給** transport 的取消，能不能
+ * 生效取決於 transport 有沒有理它。fetch 會理，但合成 transport、測試替身或任何
+ * 寫壞的實作可能不會——那樣 UI 就會永遠停在載入中。這兩件事各自負責不同的失敗：
+ * signal 真的中止連線、把連線額度還回去；這裡的競賽則保證**呼叫端一定會得到
+ * 答案**，與 transport 的行為無關。
+ */
+function settleWithSignal(promise, signal) {
+  if (signal === undefined) return promise;
+  return Promise.race([
+    promise,
+    new Promise((_resolve, reject) => {
+      if (signal.aborted) {
+        reject(signal.reason);
+        return;
       }
-    );
-  });
+      signal.addEventListener('abort', () => reject(signal.reason), {
+        once: true
+      });
+    })
+  ]);
 }
 
 /**
@@ -201,19 +251,30 @@ export function createApiClient(
         if (isOffline()) {
           clientError = offlineError();
         } else {
+          // 每次嘗試都要新的 signal：AbortSignal.timeout() 一旦觸發就永遠是
+          // aborted，沿用同一個會讓重試在送出前就被中止。
+          const signal = timeoutSignal(timeoutMs, options.signal);
           try {
-            return await withTimeout(transport(path, options), timeoutMs);
+            return await settleWithSignal(
+              transport(path, { ...options, signal }),
+              signal
+            );
           } catch (error) {
-            clientError =
-              error instanceof TransportTimeoutError
-                ? timeoutError()
-                : asApiClientError(error);
+            if (error instanceof TransportTimeoutError || isTimeoutAbort(error))
+              clientError = timeoutError();
+            // 呼叫端主動取消不是失敗，原樣往外丟，不要包成可重試的錯誤，
+            // 更不要重試——使用者已經表示不需要這個結果了。
+            else if (options.signal?.aborted === true) throw error;
+            else clientError = asApiClientError(error);
           }
         }
         const canRetry =
           method === 'GET' && clientError.retryable && attempt < readRetries;
         if (!canRetry) throw clientError;
         attempt += 1;
+        // 立刻重打等於在對方喘不過氣時補一刀。指數退避加上抖動，讓同時失敗的
+        // 多個分頁不會又在同一刻一起回來。
+        await wait(retryDelayMs(attempt));
       }
     }
   });

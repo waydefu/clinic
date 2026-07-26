@@ -48,9 +48,17 @@ export class PolicyAcceptanceRequiredError extends PlatformError {
   }
 }
 
+/**
+ * Carries how long the caller should wait, so the 429 can answer the question
+ * it raises. A response that says "too fast" without saying "for how long"
+ * leaves the client guessing, and a guessing client retries too early — which
+ * is exactly the load the limit exists to prevent.
+ *
+ * The limiter knows this: a fixed window closes at a known instant.
+ */
 export class RateLimitedError extends PlatformError {
   public readonly apiCode = 'RATE_LIMITED' as const;
-  public constructor() {
+  public constructor(public readonly retryAfterSeconds?: number) {
     super('The request was rate limited.');
     this.name = 'RateLimitedError';
   }
@@ -58,7 +66,7 @@ export class RateLimitedError extends PlatformError {
 
 export class ServiceUnavailableError extends PlatformError {
   public readonly apiCode = 'SERVICE_UNAVAILABLE' as const;
-  public constructor() {
+  public constructor(public readonly retryAfterSeconds?: number) {
     super('A required dependency is temporarily unavailable.');
     this.name = 'ServiceUnavailableError';
   }
@@ -135,6 +143,29 @@ const OPAQUE_CORRELATION = /^[A-Za-z0-9_-]{1,128}$/;
 export interface MappedApiError {
   readonly status: number;
   readonly body: ApiErrorResponse;
+  /**
+   * Response headers this failure requires. Kept beside the status rather than
+   * left to each controller: `Retry-After` is part of what a 429 or 503 *means*,
+   * so a controller that forgets it produces a technically valid but unusable
+   * response, and nothing would catch that.
+   */
+  readonly headers: Readonly<Record<string, string>>;
+}
+
+/**
+ * RFC 9110 allows Retry-After as either a delay in seconds or an HTTP date.
+ * Seconds is the right choice here: it needs no clock agreement between server
+ * and client, and the limiter already computes a duration rather than a moment.
+ */
+function retryAfterHeader(error: unknown): Record<string, string> {
+  const seconds =
+    error instanceof RateLimitedError ||
+    error instanceof ServiceUnavailableError
+      ? error.retryAfterSeconds
+      : undefined;
+  if (seconds === undefined || !Number.isFinite(seconds)) return {};
+  // 至少 1 秒：Retry-After: 0 等於邀請客戶端立刻重打，那就不是退避。
+  return { 'Retry-After': String(Math.max(1, Math.ceil(seconds))) };
 }
 
 function classify(error: unknown): ApiErrorCode {
@@ -162,6 +193,7 @@ export function mapErrorToApiResponse(
   const code = classify(error);
   return {
     status: HTTP_STATUS_BY_API_CODE[code] ?? 500,
+    headers: retryAfterHeader(error),
     body: {
       error: {
         code,

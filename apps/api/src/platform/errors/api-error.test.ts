@@ -94,6 +94,54 @@ describe('mapErrorToApiResponse', () => {
     expect(mapped.body.error.correlationId).toBe('unknown');
   });
 
+  // 429 說「太快了」卻不說「該等多久」，等於把退避的責任丟回給呼叫端去猜；
+  // 猜錯就是太早重試，而那正是這個限制想擋掉的負載。瀏覽器端的 api-client
+  // 也早就假設這個標頭存在了。
+  describe('Retry-After', () => {
+    it('tells a rate-limited caller how long to wait', () => {
+      const mapped = mapErrorToApiResponse(
+        new RateLimitedError(42.3),
+        CORRELATION
+      );
+
+      expect(mapped.status).toBe(429);
+      // 秒數而非 HTTP date：不需要兩端時鐘一致。無條件進位，免得客戶端剛好
+      // 在視窗重開前一刻回來。
+      expect(mapped.headers['Retry-After']).toBe('43');
+    });
+
+    it('never invites an immediate retry', () => {
+      const mapped = mapErrorToApiResponse(
+        new RateLimitedError(0.2),
+        CORRELATION
+      );
+      expect(mapped.headers['Retry-After']).toBe('1');
+    });
+
+    it('applies to 503 as well, since it raises the same question', () => {
+      const mapped = mapErrorToApiResponse(
+        new ServiceUnavailableError(30),
+        CORRELATION
+      );
+      expect(mapped.status).toBe(503);
+      expect(mapped.headers['Retry-After']).toBe('30');
+    });
+
+    // 不知道要等多久時就不要編一個數字出來——沒有標頭比錯的標頭好。
+    it('omits the header when the wait is unknown', () => {
+      expect(
+        mapErrorToApiResponse(new RateLimitedError(), CORRELATION).headers
+      ).toEqual({});
+    });
+
+    it('adds no headers to failures that are not about waiting', () => {
+      expect(
+        mapErrorToApiResponse(new AuthenticationRequiredError(), CORRELATION)
+          .headers
+      ).toEqual({});
+    });
+  });
+
   it('always produces a body that satisfies the v1 error envelope', () => {
     const errors: unknown[] = [
       z.string().safeParse(1).error,
