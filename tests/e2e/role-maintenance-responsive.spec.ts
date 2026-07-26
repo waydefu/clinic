@@ -1,15 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
-async function login(page: Page, role: 'admin' | 'front'): Promise<void> {
-  await page.goto('/');
-  await page.locator('#login-account').fill(role);
-  await page
-    .locator('#login-password')
-    .fill(role === 'admin' ? 'beauessence-admin' : 'beauessence-front');
-  await page.locator('#login-submit').click();
-  await expect(page.locator('#login-view')).toBeHidden();
-}
+import { login } from './support/workbench.js';
 
+// 這份 spec 自己決定何時清空瀏覽器狀態，所以下面每個 login 都帶 `fresh: false`。
+// 角色邊界的測試會先以 admin 建好資料、登出、再以 front 登入——登入時順手清掉
+// localStorage 等於把前置資料一起抹掉，斷言就會找不到那筆預約。
 async function resetBrowserState(page: Page): Promise<void> {
   await page.goto('/');
   await page.evaluate(() => window.localStorage.clear());
@@ -64,7 +59,7 @@ test.describe('角色邊界', () => {
   });
 
   test('櫃台的受限導覽與治理資料不留在文件 DOM', async ({ page }) => {
-    await login(page, 'front');
+    await login(page, 'front', { fresh: false });
 
     await expect(page.locator('[data-admin-nav]')).toHaveCount(0);
     await expect(page.locator('[data-admin-only]')).toHaveCount(0);
@@ -73,7 +68,7 @@ test.describe('角色邊界', () => {
   });
 
   test('櫃台輸入管理區 hash 會導回首頁並取得拒絕訊息焦點', async ({ page }) => {
-    await login(page, 'front');
+    await login(page, 'front', { fresh: false });
     await page.goto('/#accounts-section');
 
     await expect(page).toHaveURL(/#overview$/);
@@ -84,7 +79,7 @@ test.describe('角色邊界', () => {
   });
 
   test('櫃台直接呼叫重設動作仍會被拒絕', async ({ page }) => {
-    await login(page, 'front');
+    await login(page, 'front', { fresh: false });
 
     const result = await callSyntheticStore<string>(page, '/reset', {
       method: 'POST',
@@ -98,11 +93,11 @@ test.describe('角色邊界', () => {
   });
 
   test('櫃台可登錄回診與首次指派，但不能改派', async ({ page }) => {
-    await login(page, 'admin');
+    await login(page, 'admin', { fresh: false });
     const appointmentId = await createCompletedVisit(page);
     await page.locator('#logout').click();
     await expect(page.locator('#login-view')).toBeVisible();
-    await login(page, 'front');
+    await login(page, 'front', { fresh: false });
 
     await page.goto('/#appointments-section');
     const followUp = page.locator(`[data-follow-up-form="${appointmentId}"]`);
@@ -138,7 +133,7 @@ test.describe('行動版 header 與重排', () => {
 
   test('390px 的品牌、通知與選單在同一列', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await login(page, 'admin');
+    await login(page, 'admin', { fresh: false });
 
     const positions = await page.evaluate(() => {
       const brand = document.querySelector('.brand')?.getBoundingClientRect();
@@ -164,7 +159,7 @@ test.describe('行動版 header 與重排', () => {
 
   test('320px、200% 文字仍沒有頁面水平捲動', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
-    await login(page, 'admin');
+    await login(page, 'admin', { fresh: false });
     await page.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });
@@ -201,7 +196,7 @@ test.describe('行動版 header 與重排', () => {
   test('通知 popover 不撐高 header，Esc 關閉並把焦點還給鈴鐺', async ({
     page
   }) => {
-    await login(page, 'admin');
+    await login(page, 'admin', { fresh: false });
     await page.goto('/#appointments-section');
     await page.locator('#booking-workflow').evaluate((element) => {
       (element as HTMLDetailsElement).open = true;
@@ -251,7 +246,7 @@ test.describe('行動版 header 與重排', () => {
   });
 
   test('常見手機直向與橫向都不產生頁面水平捲動', async ({ page }) => {
-    await login(page, 'admin');
+    await login(page, 'admin', { fresh: false });
     const sizes = [
       { width: 320, height: 568 },
       { width: 360, height: 800 },
@@ -282,7 +277,7 @@ test.describe('行動版 header 與重排', () => {
 test.describe('患者端維護隔離', () => {
   test.beforeEach(async ({ page }) => {
     await resetBrowserState(page);
-    await login(page, 'admin');
+    await login(page, 'admin', { fresh: false });
     await callSyntheticStore(page, '/workspace/maintenance', {
       method: 'POST',
       body: JSON.stringify({
@@ -395,7 +390,7 @@ test.describe('患者端行動版', () => {
 test.describe('介面術語', () => {
   test('工作臺不再顯示舊稱', async ({ page }) => {
     await resetBrowserState(page);
-    await login(page, 'admin');
+    await login(page, 'admin', { fresh: false });
     const visibleCopy = await page.evaluate(() => document.body.textContent);
 
     for (const obsolete of [

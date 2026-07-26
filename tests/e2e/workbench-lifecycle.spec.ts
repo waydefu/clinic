@@ -1,24 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+  createBooking,
+  login,
+  showAllAppointments
+} from './support/workbench.js';
+
 // 工作臺的完整生命週期：登入 → 建立 → 到診 → 回診 → 刪除，跑在打包後的產物上。
 // 這條路徑同時覆蓋這個 session 新做的兩件事——管理者限定的刪除（含理由彈窗）
 // 與登入閘門——確保它們在真瀏覽器裡真的接得起來，而不只是單元測試裡的函式。
-
-async function loginAsAdmin(page: Page): Promise<void> {
-  await page.goto('/');
-  await page.evaluate(() => window.localStorage.clear());
-  await page.reload();
-  await page.locator('#login-account').fill('admin');
-  await page.locator('#login-password').fill('beauessence-admin');
-  const loginButton = page.locator('#login-view button[type="submit"]');
-  await loginButton.click();
-  // 這裡**不驗**「登入中…」那個瞬間狀態。`toHaveText` 是動作之後才開始輪詢，
-  // 若忙碌狀態在輪詢開始前就結束（本機動作往往如此），斷言永遠等不到——那正是
-  // 這個 helper 先前間歇性紅燈的原因。忙碌狀態改由下面的專屬測試以
-  // MutationObserver 確定性地觀察。
-  await expect(page.locator('#login-view')).toBeHidden();
-  await expect(page.locator('#logout')).toBeVisible();
-}
 
 /**
  * 確定性地觀察一個瞬間狀態：在動作**之前**掛上 MutationObserver，記錄變更本身，
@@ -57,44 +47,11 @@ async function recordLabelsDuring(
   });
 }
 
-async function createBooking(
-  page: Page,
-  name = '測試患者甲',
-  phone = '0912345678',
-  nationalId = 'A123456789'
-): Promise<void> {
-  await page.goto('/#appointments-section');
-  // 建立預約的表單收在一個 <details> 裡，先展開。
-  await page.locator('#booking-workflow').evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
-  await page.locator('#booking-name').fill(name);
-  await page.locator('#booking-phone').fill(phone);
-  await page.locator('#booking-birth').fill('1990-05-20');
-  await page.locator('#booking-national-id').fill(nationalId);
-  await page.locator('#booking-kind').selectOption('initial');
-  // 選第一個可預約時段，再送出建立。
-  await page.locator('#slots [data-select-slot]').first().click();
-  await page.locator('#booking-form button[type="submit"]').click();
-  // 等「預約已建立」這句真的出現，而不是只等表單狀態列現身。
-  //
-  // 成功處理器在收尾時會 `booking-workflow.open = false` 把建立表單收起來。
-  // 那一步發生在送出之後的非同步流程裡，所以太早返回的話，下一次呼叫這個
-  // helper 會先把表單打開、填到一半，才被前一筆的收尾關掉——症狀是後面的欄位
-  // 突然「不可見」。等到最終訊息出現，收尾就一定已經跑完了。
-  await expect(page.locator('#status')).toContainText('預約已建立');
-}
-
-// 合成資料是 2030 年，預設「當日」篩選看不到；切到「全部狀態」才會列出。
-async function showAllAppointments(page: Page): Promise<void> {
-  await page.locator('#appointment-status-filter').selectOption('all');
-}
-
 // 階段 4：首頁從「功能目錄」改成「情境式指揮中心」。這一組驗的是三條原則本身
 // ——零筆不出現、依急迫性排序、全部清空時保持安靜——而不是某一張卡片的文案。
 test.describe('營運首頁指揮中心', () => {
   test('沒有待辦時保持安靜，不顯示一排零', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await page.goto('/#overview');
 
     // 先前這裡永遠有四張卡片，數量為零也照顯示——於是「0 筆」和「3 筆」佔一樣
@@ -108,7 +65,7 @@ test.describe('營運首頁指揮中心', () => {
   });
 
   test('待辦依急迫性排序，零筆的不出現，最急的放大', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await showAllAppointments(page);
     // 完成到診會同時產生「回診尚未決定」與「個管尚未指派」兩類待辦。
@@ -146,7 +103,7 @@ test.describe('營運首頁指揮中心', () => {
   });
 
   test('下一位只看已確認且還沒到的最早一筆', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await page.goto('/#overview');
 
@@ -172,7 +129,7 @@ test.describe('營運首頁指揮中心', () => {
   });
 
   test('待辦清單不是 live region，由摘要公告件數', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await page.goto('/#overview');
     // 整批置換的容器掛 aria-live 會被螢幕閱讀器逐項重唸。全站一致：live 掛在
     // 簡短摘要上。
@@ -218,7 +175,7 @@ test.describe('待處理狀態', () => {
   });
 
   test('結果清單不是 live region，避免整張表被重唸', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await page.goto('/#appointments-section');
 
     // 清單內容整批換掉，若掛 aria-live，螢幕閱讀器會在每次篩選時把整張表逐列
@@ -236,7 +193,7 @@ test.describe('待處理狀態', () => {
 
 test.describe('櫃台處理清單', () => {
   test('是一張欄位對齊的資料表，不是一疊卡片', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await showAllAppointments(page);
 
@@ -296,7 +253,7 @@ test.describe('櫃台處理清單', () => {
   test('手機寬度改成堆疊，每格仍帶著欄位名', async ({ page }) => {
     // 先在桌機寬度登入並建資料：手機版把工具列收進 <details>，`loginAsAdmin`
     // 等的 #logout 因此不可見。要驗的是表格的手機版版面，不是登入流程。
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await showAllAppointments(page);
     await page.setViewportSize({ width: 390, height: 900 });
@@ -319,7 +276,7 @@ test.describe('欄位排序', () => {
   test('依 APG：aria-sort 一次只有一欄，欄名是按鈕，可來回切換', async ({
     page
   }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await showAllAppointments(page);
 
@@ -359,7 +316,7 @@ test.describe('欄位排序', () => {
 
 test.describe('批次選取與批次操作', () => {
   test('全選在表格外、每列名稱各不相同、狀態不符時停用', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await showAllAppointments(page);
 
@@ -395,9 +352,13 @@ test.describe('批次選取與批次操作', () => {
   });
 
   test('批次標記未到只動選取的那幾筆，並照實回報筆數', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
-    await createBooking(page, '測試患者乙', '0922333444', 'A222333444');
+    await createBooking(page, {
+      name: '測試患者乙',
+      phone: '0922333444',
+      nationalId: 'A222333444'
+    });
     await showAllAppointments(page);
 
     const boxes = page.locator('[data-appointment-select]');
@@ -449,7 +410,7 @@ test.describe('工作臺其餘資料表', () => {
 
   for (const [panel, selector, caption, firstLabel] of TABLES) {
     test(`${selector} 是帶完整表格語意的資料表`, async ({ page }) => {
-      await loginAsAdmin(page);
+      await login(page);
       await page.goto(`/${panel}`);
 
       const table = page.locator(selector).first();
@@ -474,7 +435,7 @@ test.describe('工作臺其餘資料表', () => {
   }
 
   test('已發布排班沒有操作欄，草稿才有', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await page.goto('/#schedule-section');
 
     // 只有草稿能改。不可編輯的版本留一個空的「操作」欄，會讓人以為功能壞了。
@@ -487,7 +448,7 @@ test.describe('工作臺其餘資料表', () => {
   });
 
   test('個管指派：送出鈕與表單不同格，仍然送得出去', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await showAllAppointments(page);
     // 先完成到診，個案才會出現在指派表裡。
@@ -526,7 +487,7 @@ test.describe('工作臺其餘資料表', () => {
     // 因此仍以「所有欄名並排」的寬度佔著版面，把個案管理分頁撐出 31px 的水平
     // 捲軸。資料表是分頁內容，responsive.spec.ts 只量得到登入後的預設分頁，
     // 所以這裡逐一切過每一個工作區。
-    await loginAsAdmin(page);
+    await login(page);
     await page.setViewportSize({ width: 375, height: 812 });
 
     for (const panel of [
@@ -548,7 +509,7 @@ test.describe('工作臺其餘資料表', () => {
 
 test.describe('工作臺預約生命週期', () => {
   test('登入→建立→到診→回診→刪除', async ({ page }) => {
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await showAllAppointments(page);
 
@@ -610,7 +571,7 @@ test.describe('工作臺預約生命週期', () => {
 
   test('櫃台帳號看不到刪除入口', async ({ page }) => {
     // 先以管理者建立一筆，再以櫃台登入檢查刪除入口缺席。
-    await loginAsAdmin(page);
+    await login(page);
     await createBooking(page);
     await page.locator('#logout').click();
 

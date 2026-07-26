@@ -1,17 +1,9 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+
+import { login } from './support/workbench.js';
 
 async function targetHeight(locator: Locator) {
   return locator.evaluate((element) => element.getBoundingClientRect().height);
-}
-
-async function loginAsAdmin(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => window.localStorage.clear());
-  await page.reload();
-  await page.locator('#login-account').fill('admin');
-  await page.locator('#login-password').fill('beauessence-admin');
-  await page.locator('#login-view button[type="submit"]').click();
-  await expect(page.locator('#workspace-title')).toBeVisible();
 }
 
 test.describe('readable operational typography', () => {
@@ -47,7 +39,7 @@ test.describe('readable operational typography', () => {
     page
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await loginAsAdmin(page);
+    await login(page);
 
     const appointmentsLink = page.locator(
       '.workspace-nav a[href="#appointments-section"]'
