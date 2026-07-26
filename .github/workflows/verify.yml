@@ -130,3 +130,37 @@ jobs:
           path: sbom.cdx.json
           if-no-files-found: error
           retention-days: 90
+
+  evidence:
+    name: Verification evidence
+    if: ${{ always() }}
+    needs: [verify, rules, e2e, supply-chain]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      # The final gate binds every required result to the exact commit and run.
+      # It writes the evidence even when an upstream job fails, then fails this
+      # job so branch protection can use one stable required check.
+      - name: Generate commit-bound verification evidence
+        env:
+          CI_EVIDENCE_VERIFY_RESULT: ${{ needs.verify.result }}
+          CI_EVIDENCE_RULES_RESULT: ${{ needs.rules.result }}
+          CI_EVIDENCE_E2E_RESULT: ${{ needs.e2e.result }}
+          CI_EVIDENCE_SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
+        run: node scripts/generate-ci-evidence.mjs
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ !cancelled() }}
+        with:
+          name: verification-evidence
+          path: |
+            output/evidence/ci-verification.json
+            output/evidence/ci-verification.md
+          if-no-files-found: error
+          retention-days: 90

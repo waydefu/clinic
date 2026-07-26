@@ -33,8 +33,9 @@ $env:WEB_ROOT='dist'; $env:TEST_ONLY_WEB_ENABLED='true'; node apps/web/server.mj
 ```
 
 雜湊過的 `*.js`／`*.css` 以 `Cache-Control: public, max-age=31536000, immutable`
-長期快取（改一版就是新檔名）；HTML 進入點維持穩定檔名與 `no-store`，永遠抓到
-最新的雜湊參照。CSP 不因打包而放寬——產物仍是一份份 `script-src 'self'` 的
+長期快取（改一版就是新檔名）；HTML 進入點維持穩定檔名與 `no-cache`，每次重用前
+都會向 Hosting 驗證，再取得最新的雜湊參照。CSP 不因打包而放寬——產物仍是一份份
+`script-src 'self'` 的
 ES module，只是檔名帶了雜湊。
 
 ## 建立／更新七天預覽
@@ -51,14 +52,24 @@ firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-
 1. 首頁顯示 `ONLINE PREVIEW`，並說明網址持有人皆可存取。
 2. 患者端只出現已核准的欄位：姓名、電話、生日、身分證字號、健保卡與確認勾選。
    出現任何其他資料輸入欄位即為異常，應停止測試並回頭確認
-   `scripts/check-test-only-ui-v2.mjs` 的允許清單。
+   `scripts/check-web-ui.mjs` 的允許清單。
 3. 患者端明確告知「資料只會保存在這台裝置的瀏覽器」，且工作臺清單顯示的身分證
    字號為遮罩形式（如 `A12****789`），不得完整外露。
 4. 排班、預約、取消、改期、未到、到診、回診確認與清除資料均只影響目前瀏覽器。
 5. HTML 進入點的回應包含 CSP、`X-Robots-Tag: noindex`、`Referrer-Policy:
-   no-referrer` 與 `Cache-Control: no-store`；雜湊過的 `*.js`／`*.css` 則回
+   no-referrer` 與 `Cache-Control: no-cache`；雜湊過的 `*.js`／`*.css` 則回
    `Cache-Control: ... immutable`，且沿用同一組 CSP 與安全標頭。
 6. 不存在對 API、Firestore、Calendar 或其他外部服務的網路要求。
+
+部署完成後用實際 URL 產生可機讀證據；腳本只接受專用 staging project 的
+`synthetic-review` preview hostname，避免誤驗 live 或其他專案：
+
+```powershell
+corepack pnpm verify:preview -- https://beauessence-clinic-staging--synthetic-review-[random].web.app
+```
+
+結果寫入 git 忽略的 `output/evidence/preview-deployment.json` 與 `.md`，包含
+commit SHA、時間、URL、安全標頭、內容標記、雜湊資產與 cache policy。
 
 > 2026-07-21 起，患者端依專案負責人決定收集姓名、電話、生日與身分證字號。
 > 這些值只存在測試者自己的瀏覽器，不會傳送或保存於診所。決定與其緩解措施記錄

@@ -24,6 +24,7 @@
     "check:types": "corepack pnpm run build",
     "sync:domain": "node scripts/sync-domain-vendor.mjs",
     "check:sync": "node scripts/sync-domain-vendor.mjs --check",
+    "verify:preview": "node scripts/verify-preview-deployment.mjs",
     "format": "prettier --write .",
     "test:unit": "vitest run --exclude tests/firestore/**",
     "test:rules": "node scripts/run-firestore-rules.mjs",

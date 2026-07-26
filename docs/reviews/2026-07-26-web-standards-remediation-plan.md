@@ -136,6 +136,19 @@ corepack pnpm test:rules → 通過（61 項；稽核前 60 項）
 corepack pnpm test:e2e   → 通過（94 項；截圖複查前 90 項、稽核前 73 項）
 ```
 
+同日以新增的部署驗證器檢查現行 Hosting preview：
+
+```text
+URL       https://beauessence-clinic-staging--synthetic-review-gpt86j36.web.app/
+commit    9690e4674ed1f196a844b9cbea4ed80b0268ade8
+time      2026-07-26T08:48:08.330Z
+result    395 / 395 checks passed
+```
+
+這份證據驗的是當時已部署的 UI commit，包括兩個 HTML 入口、synthetic-only
+內容標記、安全標頭、同源內容雜湊資產與 immutable cache policy；它不是正式環境
+證據，也不涵蓋本紀錄後來新增的文件／CI 腳本 commit。
+
 ## 代價與已知限制
 
 這一節比上面的表格重要：它記的是「做了之後才知道的事」。

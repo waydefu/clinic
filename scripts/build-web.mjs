@@ -7,9 +7,9 @@ import process from 'node:process';
 // 把 apps/web/public 產出成內容雜湊過的 apps/web/dist。
 //
 // 為什麼要打包／雜湊：Phase 1 刻意讓 public/ 維持未打包的原始 ES module，方便
-// 直接檢視，並靠 `Cache-Control: no-store` 保證預覽永遠是最新的。要讓靜態資產
+// 直接檢視，並靠 `Cache-Control: no-cache` 讓穩定入口每次重用前重新驗證。要讓靜態資產
 // 能長期快取（immutable），檔名就必須帶內容雜湊——改一版就是新網址，舊快取
-// 永遠不會回錯的內容。HTML 進入點維持穩定檔名與 no-store，永遠指向最新的雜湊
+// 永遠不會回錯的內容。HTML 進入點維持穩定檔名與 no-cache，永遠指向最新的雜湊
 // 資產。
 //
 // 這**不放寬 CSP**：不注入 inline script，仍是一份份 `script-src 'self'` 的 ES

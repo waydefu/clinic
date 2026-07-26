@@ -9,7 +9,13 @@ const vitestEntryPoint = fileURLToPath(
 
 const child = spawn(
   process.execPath,
-  [vitestEntryPoint, 'run', '--config', 'vitest.rules.config.ts'],
+  [
+    vitestEntryPoint,
+    'run',
+    '--config',
+    'vitest.rules.config.ts',
+    ...process.argv.slice(2)
+  ],
   { cwd: workspaceRoot, stdio: 'inherit' }
 );
 

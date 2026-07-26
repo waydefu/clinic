@@ -32,6 +32,8 @@ dependency-inventory.json
 # Tooling
 .playwright-cli/
 output/playwright/
+# Machine-readable verification evidence is generated per run/deployment.
+output/evidence/
 # Playwright run artifacts
 test-results/
 playwright-report/

@@ -7,21 +7,25 @@ document only has to be registered in one place.
 Adding a document means: create it, add it to the right section below, and add
 it to `scripts/check-structure.mjs` if it must never be deleted.
 
+How to distinguish current authority, dated evidence, drafts and superseded
+material is defined in [Document lifecycle and evidence rules](document-lifecycle.md).
+
 ## 1. Start here
 
 Read in this order before changing a boundary or enabling a capability.
 
 | # | Document | Why |
 | --- | --- | --- |
-| 0 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
-| 1 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
-| 2 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
-| 3 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
-| 4 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
-| 5 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
-| 6 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
-| 7 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
-| 8 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
+| 0 | [Document lifecycle and evidence rules](document-lifecycle.md) | How to tell current authority from dated evidence, plan-only material and superseded history |
+| 1 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
+| 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
+| 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
+| 4 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
+| 5 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
+| 6 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
+| 7 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
+| 8 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
+| 9 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
 
 ## 2. Decisions and approval packets
 
@@ -87,6 +91,8 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-26 | [Local operations and logical-restore rehearsal](reviews/2026-07-26-local-operations-rehearsal.md) | Emulator V1–V5 and Calendar companion V6 passed; cloud backup/PITR, IAM, alerts, contacts and RTO/RPO remain explicitly unverified |
+| 2026-07-26 | [2026 web-standards audit and remediation](reviews/2026-07-26-web-standards-remediation-plan.md) | 2026 standards sweep and 19 UI/UX remediations completed; limitations and decision boundaries retained |
 | 2026-07-24 | [Stage 0 Checkpoint A architecture review](reviews/stage-0-checkpoint-a-2026-07-24.md) | Stage 0 architecture hardening passed; this is not a production rating and all D-001～D-011 gates remain pending |
 | 2026-07-23 | [Enterprise production-readiness review](reviews/2026-07-23-enterprise-production-readiness-review.md) | Core architecture retained; production blocked pending Stage 0 hardening, D-001～D-011, auth/API, privacy, audit, IaC and release evidence |
 | 2026-07-23 | [Calendar-sync runbook rehearsal](reviews/calendar-sync-runbook-rehearsal-2026-07-23.md) | Failure → dead-letter → recovery rehearsed as an Emulator test; added `OutboxProcessor.requeue`; all four calendar prerequisites done |

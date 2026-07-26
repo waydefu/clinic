@@ -25,7 +25,7 @@
 | 已提交的密鑰 | 腳本 | `scripts/check-tracked-secrets.mjs` | 是 |
 | 相依漏洞 | `pnpm audit` | `check:supply-chain` | 是（high／critical） |
 | SBOM 與授權政策 | CycloneDX 產生器 | `scripts/generate-sbom.mjs` | 是 |
-| SAST（跨檔案資料流） | CodeQL | `.github/workflows/codeql.yml` | **尚未生效**，見 §4 |
+| SAST（跨檔案資料流） | CodeQL | `.github/workflows/codeql.yml` | 設定完成；遠端執行結果須以 run 證據確認，見 §4 |
 
 ## 2. 效能預算
 
@@ -44,8 +44,8 @@
   本機現值——共用 CI runner 的時間本來就會抖動，貼著現值訂只會製造假紅燈。這個
   測試要抓的是「有人讓首屏慢了一個數量級」。
 
-目前值（2026-07-25，gzip）：患者頁 87.1 KiB／37 個請求，工作臺 107.5 KiB／
-39 個請求，404 頁 1.9 KiB。預算大約留 20% 餘裕。
+目前值（2026-07-26，gzip）：患者頁 53.5 KiB／32 個請求，工作臺 77.9 KiB／
+34 個請求，404 頁 1.9 KiB。預算仍保留 runner 與小幅內容變動的餘裕。
 
 2026-07-25 有兩項變動：
 
@@ -63,9 +63,11 @@
   | 患者頁總計 | 94.9 KiB | **58.6 KiB** |
   | 工作臺總計 | 117.6 KiB | **74.7 KiB** |
 
-  JS **不做 bundling**，只逐檔壓縮：CSP 是 `script-src 'self'`，產物必須維持
-  一份份的 ES module，內容雜湊也還要靠 import 語句改寫。另外開了 `keepNames`
-  ——若有程式靠 `constructor.name` 或 `error.name` 判斷分支，改名會靜默走錯。
+  JS **不做 bundling**，只逐檔壓縮，理由是保留 `public/` → `dist/` 的逐檔可讀
+  對應；這是可稽核性決定，不是 CSP 限制（同源 bundle 也符合
+  `script-src 'self'`）。內容雜湊靠 import 語句改寫，模組發現瀑布則由
+  `modulepreload` 攤平。另外開了 `keepNames`——若有程式靠 `constructor.name`
+  或 `error.name` 判斷分支，改名會靜默走錯。
 
   省下來的額度沒有留成鬆弛：預算同步收緊（患者頁 script 80→50、總計 100→70；
   工作臺 script 100→64、總計 135→90）。
@@ -124,15 +126,16 @@ purl，不受影響。若之後需要完整相依圖，來源要改成鎖檔。
 1. **ESLint（已生效）**：`no-eval`／`no-new-func`／`no-script-url`／`no-proto`
    套用到所有檔案，`no-implied-eval` 在 JS 側明示、TS 側由型別感知版本涵蓋。
    擋的是單一檔案裡一眼可辨的動態求值 sink。
-2. **CodeQL（設定已審視，尚未生效）**：`.github/workflows/codeql.yml`，
+2. **CodeQL（設定完成，遠端狀態需看實際 run）**：`.github/workflows/codeql.yml`，
    `javascript-typescript` ＋ `security-extended`。它做的是跨檔案污染追蹤——例如
    「使用者輸入是否在沒有經過 `escapeHtml` 的情況下流進 `innerHTML`」，正是這個
    平台（瀏覽器層大量用樣板字串產生 HTML）最需要的分析。
 
-CodeQL 尚未產生任何結果，前提有二：repository 要推上 GitHub（目前沒有 git
-remote，commit 全在本機）；私有 repository 需要 GitHub Advanced Security 授權，
-公開 repository 免費。採購或改為公開是技術負責人的決定，與 D-010 同一批。
-**上線證據包必須附實際掃描結果，而不只是這個設定檔的存在。**
+Repository 已有 GitHub remote，workflow 會在 push／pull request／每週排程執行。
+但私有 repository 是否能寫入 code-scanning results 仍取決於 repository 方案與
+GitHub Advanced Security 權限；本機無法由 YAML 推論遠端是否成功。workflow 會在
+每次 run 產生綁定 commit SHA 的 `codeql-verification-evidence` artifact（90 天）與
+job summary。**上線證據包必須附實際 run 與掃描結果，而不只是設定檔的存在。**
 
 ## 4-b. 設計 token
 

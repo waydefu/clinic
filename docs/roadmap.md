@@ -28,6 +28,14 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > 顏色，姓名／電話／生日／身分證四欄全寬等寬。`mobile-layout.spec.ts` 由 8 增至
 > 12 項，以瀏覽器幾何量測守住 320／375px reflow、viewport 邊界與 44px 操作高度。
 >
+> **2026-07-26 證據與維運收斂。** `verify` workflow 新增最終 evidence job，
+> 把 verify／Firestore Rules／E2E／supply-chain 四個結果綁定 commit SHA 與 run；
+> CodeQL 另產生 commit-bound artifact，預覽部署可用 `pnpm verify:preview` 驗證
+> 專用 staging hostname、安全標頭、內容與 immutable 雜湊資產。文件新增生命週期
+> 守衛，防止 dated review／archive 被誤當現行權威。Firestore Emulator 已完成
+> 還原到獨立 named database 的 V1～V5 技術演練，Calendar V6 companion 亦通過；
+> cloud backup／PITR、IAM、告警、真人 tabletop 與 RTO／RPO 仍保持未驗證。
+>
 > **2026-07-24（同日稍晚）品質 gate 與維運設計。** 另補上：效能預算（Lighthouse
 > budget 格式，位元組靜態把關＋瀏覽器實測 FCP/LCP/CLS）、CycloneDX 1.6 SBOM 與
 > 授權政策 gate、CodeQL 與 ESLint 注入規則、人工無障礙測試 runbook，以及四份
