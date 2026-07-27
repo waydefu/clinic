@@ -723,11 +723,15 @@ details[open] > summary .workflow-summary-chevron {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
   }
+  /* 欄數由可用空間決定，不是寫死三欄（介面規則書 R-5）。
+     先前 `repeat(3, minmax(0, 1fr))` 在 390px 把三顆按鈕各壓到 103px，於是
+     「批次確認取消」這種六個字的標籤被折成兩行——那正是 R-4 要擋的。
+     `auto-fit` + 9rem 下限讓它在放不下時自己收成兩欄或一欄，標籤保持單行。 */
   .batch-actions {
     display: grid;
     gap: var(--space-3xs);
     grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     margin-left: 0;
     width: 100%;
   }
@@ -983,6 +987,14 @@ details[open] > summary .workflow-summary-chevron {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   text-align: right;
+  white-space: nowrap;
+}
+/* 操作欄的按鈕標籤不得逐字斷行（介面規則書 R-4）。
+   表格是 auto layout，欄寬會跟著內容長，所以 nowrap 不會把版面撐破；反之若
+   不寫，窄欄會把標籤折斷——實測「刪除時段」在 102px 的欄裡被折成兩行，按鈕
+   高度變成 69px。手機版整列改為堆疊、每格滿寬，同樣不受影響。 */
+.data-table .button,
+.data-table .text-button {
   white-space: nowrap;
 }
 /* 跨欄的「目前沒有資料」那一格：它不是一筆資料，所以置中、用弱化的字色，

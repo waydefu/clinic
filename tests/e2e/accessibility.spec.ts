@@ -10,9 +10,9 @@ const BLOCKING_IMPACTS = new Set(['serious', 'critical']);
 
 // 涵蓋到 WCAG 2.2 AA。2.2 自 2023 年起就是 W3C Recommendation，是現行標準。
 //
-// 先前這裡只列到 wcag21aa，等於 axe 的 `target-size`（SC 2.5.8，只掛在
-// wcag22aa 標籤下）從來沒有被執行過——目標尺寸這一整類問題不會被任何自動檢查
-// 看到。補上之後現況仍然零違規，所以這是白拿的一層保護，不是放寬。
+// 只加 wcag22aa 標籤仍不會執行 `target-size`：axe-core 4.12 將該規則預設停用。
+// `scan` 必須另外明確啟用它，否則註解與規則書雖然都聲稱有量 24px，實際掃描卻
+// 完全沒跑。該規則的 impact 是 serious，因此違規會被下方的 gate 擋住。
 const STANDARD_TAGS = [
   'wcag2a',
   'wcag2aa',
@@ -23,7 +23,11 @@ const STANDARD_TAGS = [
 ];
 
 async function scan(page: Page, context?: string) {
-  const builder = new AxeBuilder({ page }).withTags(STANDARD_TAGS);
+  const builder = new AxeBuilder({ page }).withTags(STANDARD_TAGS).options({
+    rules: {
+      'target-size': { enabled: true }
+    }
+  });
   const results = await builder.analyze();
   const blocking = results.violations.filter((violation) =>
     BLOCKING_IMPACTS.has(violation.impact ?? '')

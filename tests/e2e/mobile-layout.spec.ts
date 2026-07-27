@@ -112,21 +112,50 @@ test.describe('工作臺手機版版面', () => {
 
     await page.locator('.row-select').first().check();
     await expect(page.locator('#appointment-batch-bar')).toBeVisible();
-    const batchActionBoxes = await page
+
+    // 這裡先前要求三顆批次按鈕**必須在同一列**。那個要求在 390px 是做不到的：
+    // 三欄各只剩 103px，而「批次確認取消」六個中文字要 96px＋內距，於是標籤被
+    // 折成兩行（實測按鈕高度 42px 的文字範圍）。介面規則書 R-4 不准逐字斷行，
+    // R-5 也明說空間不足時**應該**換行——所以該改的是這條斷言，不是版面。
+    //
+    // 現在要求的是：標籤維持單行、觸控目標仍 ≥44px、同一列的按鈕等寬、頁面不
+    // 溢出。欄數由 `auto-fit` 依可用空間決定。
+    const batchActions = await page
       .locator('.batch-actions > *')
       .evaluateAll((items) =>
         items.map((item) => {
           const box = item.getBoundingClientRect();
-          return { y: box.y, height: box.height };
+          const range = document.createRange();
+          range.selectNodeContents(item);
+          const rects = [...range.getClientRects()];
+          const extent =
+            rects.length === 0
+              ? 0
+              : Math.max(...rects.map((rect) => rect.bottom)) -
+                Math.min(...rects.map((rect) => rect.top));
+          const fontSize = Number.parseFloat(
+            window.getComputedStyle(item).fontSize
+          );
+          return {
+            y: Math.round(box.y),
+            width: Math.round(box.width),
+            height: box.height,
+            wrapped: extent > fontSize * 2
+          };
         })
       );
+
+    expect(batchActions.every((item) => !item.wrapped)).toBe(true);
     expect(
-      Math.max(...batchActionBoxes.map(({ y }) => y)) -
-        Math.min(...batchActionBoxes.map(({ y }) => y))
-    ).toBeLessThan(2);
-    expect(
-      Math.min(...batchActionBoxes.map(({ height }) => height))
+      Math.min(...batchActions.map(({ height }) => height))
     ).toBeGreaterThanOrEqual(44);
+    // 同一列的按鈕等寬（grid 的欄是均分的）。
+    for (const row of new Set(batchActions.map(({ y }) => y))) {
+      const widths = batchActions
+        .filter((item) => item.y === row)
+        .map(({ width }) => width);
+      expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(2);
+    }
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 

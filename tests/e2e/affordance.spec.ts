@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { createBooking, login, showAllAppointments } from './support/workbench';
+
 // 互動元素必須「看得出來可以按」。
 //
 // 這一組測試來自 2026-07-25 的實際回饋：「清除選取」與「前往處理清單」在畫面上
@@ -18,6 +20,66 @@ import { expect, test, type Page } from '@playwright/test';
 
 /** 導覽列裡的連結靠**位置**表達可點擊，依 NN/g 不需要額外的底線或框。 */
 const POSITIONALLY_SIGNALLED = ['nav', '.workspace-nav', '.patient-nav'];
+
+const WORKSPACES = [
+  '#overview',
+  '#appointments-section',
+  '#schedule-section',
+  '#case-section',
+  '#accounts-section',
+  '#communications-section',
+  '#audit-section'
+];
+
+/**
+ * 找出被逐字斷行的短標籤（介面規則書 R-4）。
+ *
+ * **不能用 `getClientRects().length` 判斷行數**：一個含圖示 `<span>` 的按鈕，
+ * 圖示與文字各自是一個 inline box，同一行也會回傳好幾個 rect。先前這裡就是這樣
+ * 寫的，掃工作臺時對「→建立預約」這種按鈕全部誤判（實測 3 個 rect、卻只有一行）。
+ *
+ * 正確的判準是**垂直範圍**：一行的高度約 1.3–1.5 倍字級，超過 2 倍才是真的換了行。
+ */
+const wrapScanSource = () => {
+  const offenders: string[] = [];
+  for (const element of document.querySelectorAll<HTMLElement>(
+    'a[href], button'
+  )) {
+    const box = element.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) continue;
+    const text = element.textContent?.trim() ?? '';
+    // 只看短標籤：長句本來就該換行。
+    if (text.length === 0 || text.length > 8 || /\s/.test(text)) continue;
+    // 行文中的連結要跟著句子換行——那是正常的。這裡管的是**獨立的控制項**
+    // （導覽、頁尾、按鈕）：它們自己就是一個東西，被拆開就只是壞掉。
+    const parent = element.parentElement;
+    const isInlineInProse =
+      parent !== null &&
+      [...parent.childNodes].some(
+        (node) =>
+          node !== element &&
+          node.nodeType === Node.TEXT_NODE &&
+          (node.textContent ?? '').trim().length > 0
+      );
+    if (isInlineInProse) continue;
+
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const rects = [...range.getClientRects()];
+    if (rects.length === 0) continue;
+    const extent =
+      Math.max(...rects.map((rect) => rect.bottom)) -
+      Math.min(...rects.map((rect) => rect.top));
+    const fontSize = Number.parseFloat(
+      window.getComputedStyle(element).fontSize
+    );
+    if (extent > fontSize * 2)
+      offenders.push(
+        `「${text}」→ 垂直範圍 ${Math.round(extent)}px（字級 ${fontSize}px）`
+      );
+  }
+  return offenders;
+};
 
 async function affordanceReport(page: Page) {
   return page.evaluate((skipSelectors) => {
@@ -88,6 +150,75 @@ function skipSelectorsFor() {
   return POSITIONALLY_SIGNALLED;
 }
 
+/**
+ * 找出「明明放得下卻分成多列」的動作群組（介面規則書 R-5）。
+ *
+ * 只看真正的一列控制項：flex／grid 容器，且**每個子元素本身就是**可點元素。
+ * 內容區塊（標題、說明、選項卡）本來就該直排，不在此列。
+ *
+ * 需要多寬的量法是把容器複製成 `width: max-content` 的單列再量——不能用現在
+ * 排出來的寬度，因為 `flex-direction: column` 下子元素會被拉滿寬，看起來永遠
+ * 「放不下」，正好把要抓的那種情況放過去。
+ */
+const stackScanSource = () => {
+  const rowsOf = (boxes: DOMRect[]) => {
+    const sorted = [...boxes].sort((left, right) => left.top - right.top);
+    if (sorted.length === 0) return 0;
+    let count = 1;
+    let bottom = sorted[0].bottom;
+    for (const box of sorted.slice(1)) {
+      if (box.top >= bottom) {
+        count += 1;
+        bottom = box.bottom;
+      } else {
+        bottom = Math.max(bottom, box.bottom);
+      }
+    }
+    return count;
+  };
+
+  const offenders: string[] = [];
+  for (const container of document.querySelectorAll<HTMLElement>('*')) {
+    const style = window.getComputedStyle(container);
+    if (!['flex', 'inline-flex', 'grid', 'inline-grid'].includes(style.display))
+      continue;
+    const children = [...container.children].filter((child) => {
+      const box = child.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    });
+    if (children.length < 2 || children.length > 5) continue;
+    if (!children.every((child) => child.matches('button, a[href]'))) continue;
+
+    const boxes = children.map((child) => child.getBoundingClientRect());
+    if (rowsOf(boxes) < 2) continue;
+
+    const available =
+      container.clientWidth -
+      Number.parseFloat(style.paddingLeft) -
+      Number.parseFloat(style.paddingRight);
+    const probe = container.cloneNode(true) as HTMLElement;
+    probe.style.cssText += `;position:absolute;visibility:hidden;left:-9999px;top:0;width:max-content;max-width:none;flex-direction:row;flex-wrap:nowrap;`;
+    container.parentElement?.append(probe);
+    const needed = probe.scrollWidth;
+    probe.remove();
+
+    if (needed <= available) {
+      const name = `${container.tagName.toLowerCase()}${
+        container.id ? `#${container.id}` : ''
+      }${
+        typeof container.className === 'string' &&
+        container.className.trim() !== ''
+          ? `.${container.className.trim().split(/\s+/).join('.')}`
+          : ''
+      }`;
+      offenders.push(
+        `${name} — ${rowsOf(boxes)} 列，單列只需 ${Math.round(needed)}px，可用 ${Math.round(available)}px`
+      );
+    }
+  }
+  return offenders;
+};
+
 test.describe('可點擊性（affordance）', () => {
   test('患者頁的互動元素都看得出可以按', async ({ page }) => {
     await page.goto('/booking');
@@ -147,44 +278,11 @@ test.describe('可點擊性（affordance）', () => {
   // 比一個詞還窄就只能逐字斷。這條掃全站可見的可點元素，量的是**實際排出來的
   // 行數**，所以不論成因是哪一種都抓得到。
   test('可點擊的短標籤不會被逐字斷成好幾行', async ({ page }) => {
-    for (const path of ['/booking', '/privacy']) {
-      await page.goto(path);
-      for (const width of [1280, 900, 768, 480, 390, 320]) {
-        await page.setViewportSize({ width, height: 800 });
-        const broken = await page.evaluate(() => {
-          const offenders: string[] = [];
-          for (const element of document.querySelectorAll<HTMLElement>(
-            'a[href], button'
-          )) {
-            const box = element.getBoundingClientRect();
-            if (box.width === 0 || box.height === 0) continue;
-            const text = element.textContent?.trim() ?? '';
-            // 只看短標籤：長句本來就該換行。
-            if (text.length === 0 || text.length > 8 || /\s/.test(text))
-              continue;
-            // 行文中的連結要跟著句子換行——那是正常的。這裡管的是**獨立的控制
-            // 項**（導覽、頁尾、按鈕）：它們自己就是一個東西，被拆開就只是壞掉。
-            // 判準是父層有沒有其他實際文字圍著它。
-            const parent = element.parentElement;
-            const isInlineInProse =
-              parent !== null &&
-              [...parent.childNodes].some(
-                (node) =>
-                  node !== element &&
-                  node.nodeType === Node.TEXT_NODE &&
-                  (node.textContent ?? '').trim().length > 0
-              );
-            if (isInlineInProse) continue;
-            const range = document.createRange();
-            range.selectNodeContents(element);
-            // 一個短標籤排出兩行以上，就是被硬斷了。
-            if (range.getClientRects().length > 1)
-              offenders.push(
-                `「${text}」→ ${range.getClientRects().length} 行`
-              );
-          }
-          return offenders;
-        });
+    for (const width of [1280, 1024, 900, 768, 480, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const path of ['/booking', '/privacy']) {
+        await page.goto(path);
+        const broken = await page.evaluate(wrapScanSource);
         expect(
           broken,
           `${path} @ ${width}px 有標籤被逐字斷行：\n${broken.join('\n')}`
@@ -193,42 +291,63 @@ test.describe('可點擊性（affordance）', () => {
     }
   });
 
-  // R-5（介面規則書）：有橫向空間就不要上下堆疊。
+  // 工作臺是每天用最久的畫面，而且它的控制項最多、標籤最長。要看到批次列與
+  // 逐筆處置，必須先登入並讓清單真的有資料。
+  test('工作臺的短標籤也不會被逐字斷行', async ({ page }) => {
+    await login(page, 'admin');
+    await createBooking(page, { name: '斷行掃描' });
+    await showAllAppointments(page);
+    // 批次列只在有選取時出現。
+    await page.locator('[data-appointment-select]').first().check();
+
+    for (const width of [1280, 1024, 900, 768, 480, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const hash of WORKSPACES) {
+        await page.goto(`/${hash}`);
+        // 收合區塊裡的控制項一樣要檢查。
+        await page.evaluate(() => {
+          for (const details of document.querySelectorAll('details'))
+            details.open = true;
+        });
+        const broken = await page.evaluate(wrapScanSource);
+        expect(
+          broken,
+          `${hash} @ ${width}px 有標籤被逐字斷行：\n${broken.join('\n')}`
+        ).toEqual([]);
+      }
+    }
+  });
+
+  // R-5：動作排列依優先級、風險與可用空間決定。
   //
-  // 白白的縱向堆疊會把首屏推走——這個專案量過，頁首多一列就讓患者看到第一個
-  // 問題的位置往下掉 50px。桌機寬度下，一組 2–3 顆的動作必須在同一列。
-  test('同一組動作在放得下時必須並排', async ({ page }) => {
-    const groups = [
-      { path: '/privacy', selector: '.policy-agree-actions' },
-      { path: '/privacy', selector: '.policy-header' }
-    ];
-    for (const { path, selector } of groups) {
-      await page.goto(path);
-      await page.setViewportSize({ width: 1280, height: 800 });
-      const rows = await page.locator(selector).evaluate((container) => {
-        const boxes = [...container.children]
-          .map((child) => child.getBoundingClientRect())
-          .filter((box) => box.width > 0 && box.height > 0)
-          .sort((left, right) => left.top - right.top);
-        if (boxes.length === 0) return 0;
-        // 不能用「上緣相同」判斷同一列：`align-items: center` 下高度不同的項目
-        // 上緣本來就不一樣。用**垂直範圍有沒有重疊**才是同一列的正確定義。
-        let count = 1;
-        let bottom = boxes[0].bottom;
-        for (const box of boxes.slice(1)) {
-          if (box.top >= bottom) {
-            count += 1;
-            bottom = box.bottom;
-          } else {
-            bottom = Math.max(bottom, box.bottom);
-          }
-        }
-        return count;
+  // 規則**不是**「一律並排」——空間不足、標籤較長、主要 CTA 需要全寬、要把破壞性
+  // 動作分開，都是正當的堆疊理由。所以測試不能斷言「只能有一列」，那會逼出錯誤
+  // 的版面。這裡量的是**無理由的堆疊**：把同一組動作攤成單列去量它需要多寬，
+  // 若明明塞得進現有寬度卻仍然分成多列，那就是沒有理由的。
+  test('寬畫面不得出現無理由的堆疊', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await page.goto('/privacy');
+    expect(await page.evaluate(stackScanSource)).toEqual([]);
+
+    await page.goto('/booking');
+    expect(await page.evaluate(stackScanSource)).toEqual([]);
+
+    await login(page, 'admin', { fresh: false });
+    await createBooking(page, { name: '堆疊掃描' });
+    await showAllAppointments(page);
+    await page.locator('[data-appointment-select]').first().check();
+    for (const hash of WORKSPACES) {
+      await page.goto(`/${hash}`);
+      await page.evaluate(() => {
+        for (const details of document.querySelectorAll('details'))
+          details.open = true;
       });
+      const offenders = await page.evaluate(stackScanSource);
       expect(
-        rows,
-        `${path} 的 ${selector} 在 1280px 下排成 ${rows} 列，但空間放得下一列`
-      ).toBe(1);
+        offenders,
+        `${hash} 有動作群組在 1280px 下無理由堆疊：\n${offenders.join('\n')}`
+      ).toEqual([]);
     }
   });
 
