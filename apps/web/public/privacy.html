@@ -20,8 +20,24 @@
     <a class="policy-skip" href="#policy-main">跳到主要內容</a>
 
     <header class="policy-header">
-      <p class="policy-brand">一森渼診所</p>
-      <p class="policy-brand-en">BEAU ESSENCE</p>
+      <!-- 沿用 `brand` 這個 class：標誌本身就是「回首頁」，是網頁上最強的既有
+           慣例之一，不需要再框一個按鈕外觀（affordance 掃描依這個 class 豁免）。 -->
+      <a class="brand policy-brand-link" href="/booking">
+        <img
+          class="policy-brand-mark"
+          src="/assets/brand-mark.webp"
+          alt=""
+          width="57"
+          height="80"
+          decoding="async"
+        />
+        <span>
+          <strong class="policy-brand">一森渼診所</strong>
+          <small class="policy-brand-en">Beau Essence Clinic</small>
+        </span>
+      </a>
+      <!-- 一鍵到底：這是一份長文件，同意鍵在最後面。純錨點，本頁不需要指令碼。 -->
+      <a class="policy-jump" href="#policy-agree">直接跳到同意</a>
     </header>
 
     <main class="policy-main" id="policy-main">
@@ -47,8 +63,9 @@
           <strong>目前尚未發生</strong>，本政策是為正式上線預先公告。
         </p>
         <p>
-          若您要真的預約門診，請致電
-          <a href="tel:+886225771314">02-2577-1314</a>。
+          若您要真的預約門診，請用診所官網的
+          <a href="https://beauessence.com.tw/reservations/">線上諮詢預約</a
+          >，或致電 <a href="tel:+886225771314">02-2577-1314</a>。
         </p>
       </aside>
 
@@ -165,12 +182,36 @@
           確認。
         </p>
       </section>
+      <!-- 同意與返回。
+           `?consent=1` 讓預約頁把同意勾選框打勾並公告一句——本頁刻意沒有任何
+           指令碼（見 head 的註解與 e2e），所以狀態只能靠網址帶回去。旗標不含
+           任何個人資料，且回到預約頁後勾選框是**看得見地**被勾起來，使用者仍
+           可以取消勾選。 -->
+      <section
+        class="policy-agree"
+        id="policy-agree"
+        aria-labelledby="policy-agree-title"
+      >
+        <h2 id="policy-agree-title">閱讀完了嗎？</h2>
+        <p>
+          同意後會回到預約表單，並自動勾選「個人資料蒐集告知」的同意項目；您隨時
+          可以取消勾選。
+        </p>
+        <div class="policy-agree-actions">
+          <a class="button button-primary" href="/booking?consent=1"
+            >我同意，回到預約</a
+          >
+          <a class="button button-secondary" href="/booking"
+            >先不同意，回預約</a
+          >
+        </div>
+      </section>
     </main>
 
     <footer class="policy-footer">
       <p>一森渼診所｜臺北市松山區光復北路 112 號 2 樓</p>
       <p>
-        <a href="/booking">回到線上預約</a>
+        <a href="tel:+886225771314">02-2577-1314</a>
       </p>
     </footer>
   </body>

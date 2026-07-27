@@ -21,11 +21,13 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
     await page.locator('[data-patient-slot]').first().click();
 
-    // 步驟 3：填基本資料並勾選「資料只留在本機」的確認。
+    // 步驟 3：填基本資料，並勾選兩個各自獨立的確認——個資蒐集告知的同意，以及
+    // 「資料只留在本機」。兩者是不同的事，所以是兩個勾選框而不是一個。
     await page.locator('#patient-name').fill('測試患者甲');
     await page.locator('#patient-phone').fill('0912345678');
     await page.locator('#patient-birth').fill('1990-05-20');
     await page.locator('#patient-national-id').fill('A123456789');
+    await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await page.locator('#confirm-patient-booking').click();
     // 不驗「送出中…」那個瞬間狀態：斷言是點擊之後才開始輪詢，本機動作往往在
@@ -48,6 +50,9 @@ test.describe('患者線上預約', () => {
     await page.locator('#patient-phone').fill('0922333444');
     await page.locator('#patient-birth').fill('1985-11-02');
     await page.locator('#patient-national-id').fill('B287654321');
+    // 個資同意要先勾起來，才驗得到「本機保存確認」這一條——兩個確認各自報錯，
+    // 而個資同意排在前面。只留一個沒勾，才知道報的是不是對的那一句。
+    await page.locator('#privacy-consent').check();
     // 故意不勾 synthetic-confirmation。
     await page.locator('#confirm-patient-booking').click();
 

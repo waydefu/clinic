@@ -92,6 +92,94 @@ test.describe('隱私權政策頁', () => {
     expect(linkBox!.y).toBeLessThan(submitBox!.y);
   });
 
+  // 個資法要的是「蒐集**前**告知」。連結不夠——多數人不會點。所以摘要要攤在
+  // 送出鈕上方，而全文要能就地展開，不必放棄填到一半的表單。
+  test.describe('表單裡的告知摘要', () => {
+    async function reachDetailsStep(page: import('@playwright/test').Page) {
+      await page.goto('/booking');
+      await page.evaluate(() => window.localStorage.clear());
+      await page.reload();
+      await page.locator('[data-booking-type="initial"]').click();
+      await page.locator('#patient-services [data-service]').first().click();
+      await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
+      await page.locator('[data-patient-slot]').first().click();
+    }
+
+    test('六項事實在送出鈕之前就看得到', async ({ page }) => {
+      await reachDetailsStep(page);
+      const notice = page.locator('.privacy-notice');
+      await expect(notice).toBeVisible();
+      for (const fact of [
+        '一森渼診所',
+        '門診預約',
+        '身分證統一編號',
+        '看診後兩年',
+        'Google',
+        '02-2577-1314'
+      ])
+        await expect(notice).toContainText(fact);
+
+      const noticeBox = await notice.boundingBox();
+      const submitBox = await page
+        .locator('#confirm-patient-booking')
+        .boundingBox();
+      expect(noticeBox!.y).toBeLessThan(submitBox!.y);
+    });
+
+    test('沒有勾同意就送不出去，而且說得出少了什麼', async ({ page }) => {
+      await reachDetailsStep(page);
+      await page.locator('#patient-name').fill('告知測試');
+      await page.locator('#patient-phone').fill('0912345678');
+      await page.locator('#patient-birth').fill('1990-05-20');
+      await page.locator('#patient-national-id').fill('A123456789');
+      await page.locator('#synthetic-confirmation').check();
+      await page.locator('#confirm-patient-booking').click();
+
+      await expect(page.locator('#privacy-consent-error')).toBeVisible();
+      await expect(page.locator('#privacy-consent-error')).toContainText(
+        '個人資料蒐集告知'
+      );
+      // 勾了才送得出去。
+      await page.locator('#privacy-consent').check();
+      await page.locator('#confirm-patient-booking').click();
+      await expect(page.locator('#booking-complete-heading')).toHaveText(
+        '預約已建立'
+      );
+    });
+
+    test('全文就地展開，內容是政策頁本人而不是另一份抄本', async ({ page }) => {
+      await reachDetailsStep(page);
+      // 從未開啟前，對話框不得出現在畫面上（display 寫在基礎選擇器上會壞掉）。
+      await expect(page.locator('.policy-dialog')).toBeHidden();
+
+      await page.locator('#open-privacy-policy').click();
+      const body = page.locator('.policy-dialog-body');
+      await expect(body).toBeVisible();
+      // 取自 /privacy 的實際段落，抄一份在預約頁裡不會有這些。
+      await expect(body).toContainText('五、您可以行使的權利');
+      await expect(body).toContainText('六、不提供個人資料的影響');
+      // 彈窗自己有標題，內文的 h1 要拿掉避免重複報讀。
+      await expect(body.locator('h1')).toHaveCount(0);
+
+      // 關掉之後回到原本填到一半的表單，資料還在。
+      await page.locator('.policy-dialog-actions button').click();
+      await expect(page.locator('.policy-dialog')).toBeHidden();
+      await expect(page.locator('#patient-name')).toBeVisible();
+    });
+
+    test('取不到全文時給的是另一條看得到全文的路，不是一句抱歉', async ({
+      page
+    }) => {
+      await reachDetailsStep(page);
+      // 讓 /privacy 這一次請求失敗，模擬離線或部署缺檔。
+      await page.route('**/privacy', (route) => route.abort());
+      await page.locator('#open-privacy-policy').click();
+      const fallback = page.locator('.policy-dialog-fallback');
+      await expect(fallback).toBeVisible();
+      await expect(fallback.locator('a')).toHaveAttribute('href', '/privacy');
+    });
+  });
+
   test('本頁不載入任何指令碼，也不下載字型', async ({ page }) => {
     const scripts: string[] = [];
     const fonts: string[] = [];

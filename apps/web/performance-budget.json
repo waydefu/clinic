@@ -144,7 +144,7 @@
       },
       {
         "resourceType": "image",
-        "budget": 1
+        "budget": 3
       },
       {
         "resourceType": "font",
@@ -152,7 +152,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 7
+        "budget": 8
       }
     ],
     "resourceCounts": [
@@ -166,11 +166,11 @@
       },
       {
         "resourceType": "image",
-        "budget": 1
+        "budget": 2
       },
       {
         "resourceType": "total",
-        "budget": 4
+        "budget": 5
       }
     ],
     "moduleGraph": {

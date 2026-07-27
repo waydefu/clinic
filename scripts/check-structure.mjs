@@ -167,7 +167,10 @@ const requiredPaths = [
   'docs/reviews/2026-07-27-seo-baseline.md',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
-  'apps/web/public/privacy.css'
+  'apps/web/public/privacy.css',
+  'apps/web/public/modules/policy-dialog.js',
+  // 介面規則書：改規則要連同對應的測試一起改，所以它必須是被釘住的檔案。
+  'docs/design/ui-ux-rules.md'
 ];
 
 const missing = [];

@@ -345,7 +345,11 @@ const allowedPatientControls = new Set([
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
   'theme-picker',
   // 2026-07-23：時段清單的日期跳轉，只是檢視用篩選，不收集任何患者資料。
-  'patient-slot-date'
+  'patient-slot-date',
+  // 2026-07-27：個資法第 8 條的同意勾選。它不收集資料，而是記錄「已被告知」；
+  // 與既有的 synthetic-confirmation 分開，因為那是「測試版本資料留在本機」的
+  // 確認，兩者是不同的事，合併會讓人不知道自己同意了什麼。
+  'privacy-consent'
 ]);
 for (const control of files.patientHtml.matchAll(
   /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"[^>]*>/gi
@@ -509,6 +513,61 @@ if (scheduleHours.length === 0) {
 }
 
 // ---------------------------------------------------------------------------
+// 個資告知必須在「蒐集當下」看得到，而不是只有頁尾一個連結。
+//
+// 這三條釘住的是**告知的位置與可及性**：摘要區在表單裡、有獨立的同意勾選、
+// 全文可以就地展開。改版時最容易發生的退步是「把摘要拿掉只留連結」——那在
+// 法律上與沒有告知幾乎沒有差別。
+requireText(
+  files.patientHtml,
+  'id="privacy-notice-heading"',
+  'The booking form no longer shows the data-collection notice where the patient is about to hand over their data.'
+);
+requireText(
+  files.patientHtml,
+  'id="privacy-consent"',
+  'The booking form has no separate consent checkbox for the data-collection notice.'
+);
+requireText(
+  files.patientClient,
+  "elements['privacy-consent'].checked",
+  'Submitting a booking no longer requires the data-collection consent.'
+);
+requireText(
+  files.patientClient,
+  "import { openPolicyDialog } from './modules/policy-dialog.js'",
+  'The booking form can no longer open the full policy in place, so reading it means abandoning a half-filled form.'
+);
+// 政策頁沒有指令碼，所以「我同意」只能靠網址把狀態帶回預約頁。
+requireText(
+  files.privacyHtml,
+  'href="/booking?consent=1"',
+  'The policy page has no way back to the booking form that carries the consent, so reading it to the end costs the reader the checkbox anyway.'
+);
+requireText(
+  files.patientClient,
+  "url.searchParams.get('consent')",
+  'The booking page ignores the consent flag the policy page sends back.'
+);
+// 讀完必須把旗標從網址抹掉，否則重新整理或把連結分享出去都會自帶同意。
+requireText(
+  files.patientClient,
+  "url.searchParams.delete('consent')",
+  'The consent flag is left in the URL, so a refreshed or shared link silently consents on someone else’s behalf.'
+);
+// 儲存鍵只能有一份來源。抄成字面值時，SCHEMA_VERSION 一改就靜默失去跨分頁同步
+// ——沒有錯誤、沒有紅字（v4→v5 當下就發生過）。
+for (const [name, source] of [
+  ['patient-app.js', files.patientClient],
+  ['admin-bootstrap.js', files.adminClient]
+]) {
+  if (/'beauessence_synthetic_online_preview_v\d+'/.test(source)) {
+    failures.push(
+      `${name} hard-codes the storage key instead of importing it; it will silently stop matching when the schema version changes.`
+    );
+  }
+}
+
 // sitemap 的網址必須就是 patient.html 宣告的正規網址。
 //
 // 兩者不一致時不會有任何錯誤：搜尋引擎照樣收下 sitemap，然後發現它指的網址

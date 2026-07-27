@@ -1001,9 +1001,14 @@ textarea {
   top: 0;
   z-index: 8;
 }
+/* 頁首必須能**在項目之間**換行。
+   導覽名稱依 R-4 不可逐字斷行，所以放不下時只剩兩條路：整組換到下一列，或是
+   把頁面撐出水平捲軸。後者違反 WCAG 1.4.10 Reflow，所以選前者——`flex-wrap`
+   讓它只在真的放不下時才換列，符合 R-5「有空間就並排」。 */
 .patient-header-inner {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-lg);
   justify-content: space-between;
   margin: 0 auto;
@@ -1041,6 +1046,10 @@ textarea {
   padding: var(--space-4xs);
   width: 1.75rem;
 }
+/* 導覽名稱不得被斷在字與字之間。
+   中文沒有空格，容器一窄就會逐字換行——實測 900px 時「線上預約」「預約須知」
+   「內部工作臺」三個都排成兩行（2026-07-27 由 affordance 的斷行測試抓到）。
+   寧可整個導覽換列或橫捲，也不要把一個詞拆開。 */
 .patient-nav a {
   align-items: center;
   color: var(--ink-muted);
@@ -1049,6 +1058,7 @@ textarea {
   font-weight: var(--weight-bold);
   min-height: var(--control-height-md);
   text-decoration: none;
+  white-space: nowrap;
 }
 .patient-nav a:hover {
   color: var(--forest);
@@ -1623,14 +1633,38 @@ textarea {
   color: var(--on-inverse-muted);
   font-size: var(--text-body);
 }
+/* 連結列不得被壓縮。
+   `.patient-footer` 是 space-between 的 flex，左邊那格放的是地址那種長字串；
+   flex 項目預設可以縮到比內容還窄，於是右邊這格被擠到比一個連結還窄，中文就
+   一個字一行地直排下來（2026-07-27 實機回報）。`flex-shrink: 0` 讓它守住自己的
+   內容寬度，`flex-wrap` 則保留窄螢幕換行的餘地。 */
 .patient-footer > div:nth-child(2) {
   display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
-/* 頁尾連結**保留底線**。它們是散在文字裡的行內連結，不像導覽列那樣靠位置就能
-   看出可點——拿掉底線之後，唯一的線索只剩顏色，而那不夠（WCAG 1.4.1，也是
-   NN/g 對行內連結的建議）。先前這裡是 `text-decoration: none`。 */
-.patient-footer a {
+/* 頁尾的「預約須知」「隱私權政策」是**獨立的入口**，不是散在句子裡的連結，
+   所以依介面規則書 R-1／R-2 做成按鈕外觀：14px 的底線文字太小、太難辨認是不是
+   可以按的（2026-07-27 實機回報）。語意仍是 `<a>`——它們是導覽，不是動作。
+   R-4：名稱不得被斷在字與字之間。 */
+.patient-footer > div:nth-child(2) a {
+  align-items: center;
+  border: 1px solid var(--on-inverse-muted);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.patient-footer > div:nth-child(2) a:hover {
+  border-color: var(--on-inverse);
+  color: var(--on-inverse);
+}
+/* 電話等行文中的連結保留底線：那是 NN/g 對行內連結的建議，也符合 R-2 的
+   第三項豁免。 */
+.patient-footer > div:first-child a {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -2211,6 +2245,166 @@ label.has-error input {
   margin-inline-start: var(--space-xs);
   padding-block: var(--space-2xs);
   vertical-align: middle;
+}
+
+/* ---------------------------------------------------------------
+ * 個人資料蒐集告知（表單內的摘要區）
+ *
+ * 這一塊要「明顯但不驚嚇」：它是法律告知，不是警告。因此用中性的表面色與
+ * 一道香檳金的左緣，與危險紅、狀態綠都區分開；六項事實排成定義清單，讓人
+ * 可以用掃的找到「保存多久」「給誰」，而不是讀一段話。
+ * --------------------------------------------------------------- */
+.privacy-notice {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid var(--brand-metallic-line);
+  border-radius: var(--radius-md);
+  margin: var(--space-md) 0 var(--space-sm);
+  padding: var(--space-md);
+}
+.privacy-notice-title {
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  margin: 0 0 var(--space-sm);
+}
+/* 兩欄：標籤窄而固定，內容自己換行。窄螢幕折成單欄，標籤仍在內容之上，
+   維持「這是什麼 → 是什麼」的閱讀順序。 */
+.privacy-notice-facts {
+  display: grid;
+  gap: var(--space-2xs) var(--space-sm);
+  margin: 0;
+}
+.privacy-notice-facts > div {
+  display: grid;
+  gap: var(--space-4xs) var(--space-sm);
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+}
+.privacy-notice-facts dt {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+}
+.privacy-notice-facts dd {
+  font-size: var(--text-micro);
+  line-height: var(--leading-body);
+  margin: 0;
+}
+.privacy-notice-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-block-start: var(--space-sm);
+}
+.privacy-notice-link {
+  font-size: var(--text-micro);
+}
+@media (max-width: 30rem) {
+  .privacy-notice-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------
+ * 政策全文彈窗：長文閱讀，不是確認框，所以更寬、可捲動、按鈕只有「關閉」。
+ * --------------------------------------------------------------- */
+.policy-dialog {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-2);
+  color: var(--ink);
+  max-height: min(80vh, 44rem);
+  max-width: 40rem;
+  padding: var(--space-lg);
+  width: calc(100vw - 2.5rem);
+}
+/* `display` **只能**掛在 [open] 上。瀏覽器是用 `dialog:not([open]){display:none}`
+   把關閉的對話框藏起來的，在基礎選擇器上寫 display:flex 會蓋掉那一條，於是一個
+   從未被開啟的對話框會直接躺在頁面上。 */
+.policy-dialog[open] {
+  animation: dialog-enter var(--motion-base) var(--ease-decelerate);
+  display: flex;
+  flex-direction: column;
+}
+.policy-dialog::backdrop {
+  background: rgba(9, 18, 14, 0.55);
+  animation: backdrop-enter var(--motion-fast) var(--ease-standard);
+}
+.policy-dialog-title {
+  font-size: var(--text-md);
+  line-height: var(--leading-tight);
+  margin: 0 0 var(--space-sm);
+}
+/* 內文自己捲，標題與關閉鈕固定——長文最怕的是為了按關閉還要捲回頂端。 */
+.policy-dialog-body {
+  border-block: 1px solid var(--line);
+  flex: 1 1 auto;
+  line-height: var(--leading-body);
+  min-height: 0;
+  overflow-y: auto;
+  padding-block: var(--space-sm);
+}
+.policy-dialog-body h2 {
+  font-size: var(--text-body);
+  margin: var(--space-md) 0 var(--space-2xs);
+}
+.policy-dialog-body p,
+.policy-dialog-body li,
+.policy-dialog-body dd {
+  font-size: var(--text-micro);
+  margin: 0 0 var(--space-2xs);
+}
+.policy-dialog-body dt {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  margin-block-start: var(--space-xs);
+}
+.policy-dialog-body dl,
+.policy-dialog-body ul {
+  margin: 0 0 var(--space-xs);
+}
+/* 取回的內容帶著政策頁自己的 class，但那一頁的樣式表（privacy.css）不會載進
+   預約頁——若不管它，最該被看到的「這是測試版本」會退化成一段普通文字。這裡
+   只重建**層級**（強調塊、版本列），不重建整份版面。 */
+.policy-dialog-body .policy-meta {
+  color: var(--ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+}
+.policy-dialog-body .policy-meta dt {
+  margin-block-start: 0;
+}
+.policy-dialog-body .policy-notice {
+  background: var(--surface-soft);
+  border-inline-start: 3px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin: 0 0 var(--space-sm);
+  padding: var(--space-sm);
+}
+.policy-dialog-body .policy-notice h2 {
+  margin-block-start: 0;
+}
+/* 「現在是測試版本」用香檳金標記：讀者可能正打算把真實資料填進去。 */
+.policy-dialog-body .policy-notice-strong {
+  border-inline-start-color: var(--brand-metallic-line);
+}
+.policy-dialog-body .policy-pending {
+  color: var(--ink-muted);
+}
+
+.policy-dialog-fallback {
+  font-size: var(--text-micro);
+  padding-block: var(--space-sm);
+}
+.policy-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-start: var(--space-md);
 }
 
 /* ---------------------------------------------------------------

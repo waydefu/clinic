@@ -11,8 +11,10 @@ import {
   downloadIcs
 } from './modules/calendar-export.js';
 import { confirmDialog } from './modules/confirm-dialog.js';
+import { openPolicyDialog } from './modules/policy-dialog.js';
 import { fieldErrors } from './modules/patient-registry.js';
 import { isUpcomingSlot } from './modules/schedule-engine.js';
+import { storageKey } from './modules/state-schema.js';
 import {
   emptyState,
   escapeHtml,
@@ -519,9 +521,43 @@ elements['patient-slot-date-clear'].addEventListener('click', () => {
 for (const field of [
   ...formFields,
   'patient-nhi-card',
-  'synthetic-confirmation'
+  'synthetic-confirmation',
+  'privacy-consent'
 ])
   elements[field].addEventListener('input', updateSubmitState);
+
+elements['open-privacy-policy'].addEventListener('click', () => {
+  void openPolicyDialog();
+});
+
+// 從政策頁按「我同意，回到預約」回來時帶著 ?consent=1。
+//
+// 政策頁刻意沒有任何指令碼（它是一份法律文件，越少東西越好），所以狀態只能靠
+// 網址帶回來。這不是替使用者做決定：勾選是**看得見地**被打勾，而且隨時可以取消
+// ——與親手勾一次的結果完全相同。旗標本身不含任何個人資料。
+//
+// 讀完就把它從網址上抹掉：留著會讓「重新整理」或分享出去的連結永遠自帶同意，
+// 那才是真的替別人決定。
+function applyConsentFromUrl() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('consent') !== '1') return;
+  elements['privacy-consent'].checked = true;
+  elements['privacy-consent-error'].hidden = true;
+  url.searchParams.delete('consent');
+  window.history.replaceState(
+    {},
+    '',
+    `${url.pathname}${url.search}${url.hash}`
+  );
+  message('已記錄您對個人資料蒐集告知的同意。', 'success');
+}
+elements['privacy-consent'].addEventListener('change', () => {
+  if (elements['privacy-consent'].checked) {
+    elements['privacy-consent-error'].hidden = true;
+    elements['privacy-consent-error'].textContent = '';
+  }
+  updateSubmitState();
+});
 elements['synthetic-confirmation'].addEventListener('change', () => {
   if (elements['synthetic-confirmation'].checked) {
     elements['synthetic-confirmation-error'].hidden = true;
@@ -550,6 +586,20 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     message(
       '尚未送出：有欄位需要修正，請看欄位下方的提示。',
+      'error',
+      'patient-submit-status'
+    );
+    return;
+  }
+  // 個資同意先擋：它是法律上的前提，測試版本的資料保存確認是另一件事。兩者
+  // 分開勾，也分開報錯——合成一句話會讓人不知道自己少同意了什麼。
+  if (!elements['privacy-consent'].checked) {
+    elements['privacy-consent-error'].textContent =
+      '請勾選此項才能送出：閱讀並同意個人資料蒐集告知。';
+    elements['privacy-consent-error'].hidden = false;
+    elements['privacy-consent'].focus();
+    message(
+      '尚未送出：請先閱讀並同意個人資料蒐集告知。',
       'error',
       'patient-submit-status'
     );
@@ -673,8 +723,11 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
   elements['patient-main'].focus({ preventScroll: true });
 });
 
+// 鍵名從 state-schema 匯入，不再抄一份字串：SCHEMA_VERSION 一改，抄本就會對不
+// 上，而症狀是「另一個分頁改了資料這裡卻不更新」——沒有錯誤、沒有紅字，只是靜
+// 靜地不同步（v4→v5 當下就發生了）。
 window.addEventListener('storage', async (event) => {
-  if (event.key !== 'beauessence_synthetic_online_preview_v4') return;
+  if (event.key !== storageKey) return;
   state = await apiClient.request('/state');
   renderAll();
   if (state.maintenanceActive)
@@ -705,6 +758,9 @@ try {
   if (!state.maintenanceActive) {
     showStep(1, { focusHeading: false });
     message('已載入診所發布的門診時段。', 'success');
+    // 放在載入成功之後：`?consent=1` 的公告要蓋掉上面那句，否則使用者從政策頁
+    // 回來只會看到「已載入門診時段」，不知道自己的同意有沒有被記到。
+    applyConsentFromUrl();
   }
 } catch (error) {
   message(

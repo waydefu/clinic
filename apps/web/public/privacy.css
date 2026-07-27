@@ -78,22 +78,68 @@
 }
 
 .policy-header {
+  align-items: center;
   border-bottom: 1px solid var(--policy-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
   padding: 32px 0 16px;
+}
+
+/* 標誌與中英名稱一起連回預約頁——與預約頁的頁首同一組資產、同一個行為。 */
+.policy-brand-link {
+  align-items: center;
+  color: inherit;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.policy-brand-mark {
+  height: 40px;
+  width: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* 標誌不是文字，對比檢查看不到它變暗，深色底下要提亮。 */
+  .policy-brand-mark {
+    filter: brightness(1.4) saturate(0.85);
+  }
 }
 
 .policy-brand {
   color: var(--policy-forest);
+  display: block;
   font-size: 20px;
   font-weight: 700;
-  margin: 0;
 }
 
 .policy-brand-en {
   color: var(--policy-muted);
+  display: block;
   font-size: 12px;
   letter-spacing: 0.18em;
-  margin: 4px 0 0;
+  margin-block-start: 2px;
+}
+
+/* 跳到同意：是一個動作，不是一段行文裡的連結，所以給它邊框與 44px 的可點高度
+   ——不要讓「可以按的東西」只剩底線當線索。 */
+.policy-jump {
+  align-items: center;
+  border: 1px solid var(--policy-line);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 0 16px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.policy-jump:hover {
+  border-color: var(--policy-forest);
 }
 
 .policy-title {
@@ -189,6 +235,62 @@
 .policy-pending {
   color: var(--policy-muted);
   font-size: 14px;
+}
+
+/* 同意區。長文的終點要看得出「這裡是要做決定的地方」，所以給它自己的表面色
+   與明確的按鈕，而不是又一段底線文字。 */
+.policy-agree {
+  background: var(--policy-notice-bg);
+  border: 1px solid var(--policy-line);
+  border-radius: 8px;
+  margin-top: 32px;
+  padding: 24px;
+  /* 從頂端的錨點跳下來時，標題不要貼齊視窗邊緣。 */
+  scroll-margin-top: 16px;
+}
+
+.policy-agree h2 {
+  margin: 0 0 8px;
+}
+
+.policy-agree p {
+  margin: 0 0 16px;
+}
+
+.policy-agree-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 這一頁沒有載入 styles.css，因此 .button 要自己定義一份最小的。 */
+.policy-agree .button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  display: inline-flex;
+  font: inherit;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.policy-agree .button-primary {
+  background: var(--policy-forest);
+  color: var(--policy-surface);
+}
+
+.policy-agree .button-secondary {
+  border-color: var(--policy-line);
+  color: var(--policy-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .policy-agree .button-primary {
+    color: #0f1512;
+  }
 }
 
 .policy-footer {
