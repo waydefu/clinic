@@ -123,7 +123,10 @@ WCAG 2.5.8 的 Inline、Equivalent、Spacing、User agent control 與 Essential 
 **依據：** WCAG 2.5.8／2.5.5、Apple HIG Accessibility／Buttons。
 
 **驗證：** `typography.spec.ts`、`mobile-layout.spec.ts`；axe 的 `target-size` 規則
-必須**明確啟用**，因為 axe-core 4.12 預設將它停用。
+必須**明確啟用**，因為 axe-core 4.12 預設將它停用。24px 由 axe 把關，**44px 由
+`affordance.spec.ts`「患者端的可點目標在手機寬度達到 44px」逐一掃描**——它量的是
+可點擊方框（含內距），並依 Inline 例外略過句子裡的連結。加入這條掃描時抓到兩個：
+標誌連結 280×41、政策頁頁尾的電話 90×20。
 
 ### R-4　短標籤不得逐字斷行；長標籤必須能正常換行
 
@@ -201,6 +204,10 @@ WCAG 明定的最小字級。
 `inputmode`；WAI-ARIA APG names；Baymard mobile forms。
 
 **驗證：** `check:ui`、axe、表單 E2E；iOS／Android 實機打開每種鍵盤與 autofill。
+
+`check:ui` 逐欄釘住患者表單的 autocomplete token（`name`／`tel`／`bday`，身分證
+為具名決定的 `off`）。**自造 token 不會報錯、只會被瀏覽器忽略**，畫面上完全看不
+出差別，所以這是必須由掃描而非目視把關的一項。
 
 ### R-8　驗證時機與錯誤訊息
 

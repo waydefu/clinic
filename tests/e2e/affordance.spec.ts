@@ -21,6 +21,14 @@ import { createBooking, login, showAllAppointments } from './support/workbench';
 /** 導覽列裡的連結靠**位置**表達可點擊，依 NN/g 不需要額外的底線或框。 */
 const POSITIONALLY_SIGNALLED = ['nav', '.workspace-nav', '.patient-nav'];
 
+/** 診所官網的路由。四類頁面各取一條：首頁、醫師、醫師個人、鼻功能療程。 */
+const CLINIC_ROUTES = [
+  '/clinic',
+  '/clinic/doctors',
+  '/clinic/doctors/yan-cheng-an',
+  '/clinic/nasal/snoring-five-in-one'
+];
+
 const WORKSPACES = [
   '#overview',
   '#appointments-section',
@@ -41,13 +49,40 @@ const WORKSPACES = [
  * 正確的判準是**垂直範圍**：一行的高度約 1.3–1.5 倍字級，超過 2 倍才是真的換了行。
  */
 const wrapScanSource = () => {
+  // 只取**看得見**的文字節點。
+  //
+  // 視覺隱藏的文字（`position:absolute; width:1px; overflow:hidden` 那一組）雖然
+  // 沒有被畫出來，`getClientRects()` 仍會回傳它裡面文字的 rect——而且是正常大小
+  // 的 rect，不是 1px，所以濾 rect 尺寸沒有用。診所官網的漢堡鈕就是這樣：可見的
+  // 是圖示，「選單」兩個字是給報讀器的，卻讓整顆按鈕被誤判成換了行。
+  const visibleTextNodes = (element: HTMLElement) => {
+    const nodes: Text[] = [];
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if ((node.textContent ?? '').trim() === '') continue;
+      const host = node.parentElement;
+      if (host === null) continue;
+      if (host.clientWidth <= 1 || host.clientHeight <= 1) continue;
+      nodes.push(node);
+    }
+    return nodes;
+  };
+
   const offenders: string[] = [];
   for (const element of document.querySelectorAll<HTMLElement>(
     'a[href], button'
   )) {
     const box = element.getBoundingClientRect();
     if (box.width === 0 || box.height === 0) continue;
-    const text = element.textContent?.trim() ?? '';
+    const visible = visibleTextNodes(element);
+    // 用空白接起來，不是直接串接：分開的文字節點代表分開的內容（標題＋註解，
+    // 例如「醫美」與「依療程進度」）。串成一坨會讓它看起來像一個七字的短標籤，
+    // 於是「本來就該分行的兩段話」被誤判成逐字斷行。
+    const text = visible
+      .map((node) => node.textContent?.trim() ?? '')
+      .join(' ')
+      .trim();
     // 只看短標籤：長句本來就該換行。
     if (text.length === 0 || text.length > 8 || /\s/.test(text)) continue;
     // 行文中的連結要跟著句子換行——那是正常的。這裡管的是**獨立的控制項**
@@ -63,9 +98,11 @@ const wrapScanSource = () => {
       );
     if (isInlineInProse) continue;
 
-    const range = document.createRange();
-    range.selectNodeContents(element);
-    const rects = [...range.getClientRects()];
+    const rects = visible.flatMap((node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return [...range.getClientRects()];
+    });
     if (rects.length === 0) continue;
     const extent =
       Math.max(...rects.map((rect) => rect.bottom)) -
@@ -81,8 +118,25 @@ const wrapScanSource = () => {
   return offenders;
 };
 
+// 「延展連結」（stretched link）：連結用一個 `::after` 覆蓋整張卡片，於是命中區
+// 是卡片而不是那幾個字。這是卡片式版面的標準做法，但它讓**元素自己的方框不能
+// 代表真正的目標**——量錯了會同時誤判 R-2（形狀在卡片上）與 R-3（尺寸是卡片
+// 的）。每個掃描各自帶一份 `effectiveTarget`：`page.evaluate` 的函式是序列化後
+// 送進瀏覽器執行的，抓不到這個檔案裡的其他變數。
 async function affordanceReport(page: Page) {
   return page.evaluate((skipSelectors) => {
+    const effectiveTarget = (element: HTMLElement): HTMLElement => {
+      const after = window.getComputedStyle(element, '::after');
+      const stretched =
+        after.position === 'absolute' &&
+        after.top === '0px' &&
+        after.right === '0px' &&
+        after.bottom === '0px' &&
+        after.left === '0px';
+      const host = element.offsetParent;
+      return stretched && host instanceof HTMLElement ? host : element;
+    };
+
     const parseRgb = (value: string) => {
       const parts = value.match(/[\d.]+/g);
       return parts === null
@@ -113,7 +167,8 @@ async function affordanceReport(page: Page) {
       // 按鈕外觀。它已經有圖像形狀，加框反而會讓 header 變得吵。
       if (element.classList.contains('brand')) continue;
 
-      const style = window.getComputedStyle(element);
+      // 延展連結的形狀在它覆蓋的那張卡片上，不在文字本身。
+      const style = window.getComputedStyle(effectiveTarget(element));
 
       const hasBorder =
         ['borderTopWidth', 'borderBottomWidth'].some(
@@ -180,8 +235,15 @@ const stackScanSource = () => {
   const offenders: string[] = [];
   for (const container of document.querySelectorAll<HTMLElement>('*')) {
     const style = window.getComputedStyle(container);
-    if (!['flex', 'inline-flex', 'grid', 'inline-grid'].includes(style.display))
-      continue;
+    // **只看 flex row。**
+    //
+    // grid 的欄數是設計者明寫的決定（`grid-template-columns`），「幾欄」本身就是
+    // 答案、不是意外；而且下面 `width: max-content` 的量法對 grid 無效——
+    // flex-direction／flex-wrap 覆寫不影響 grid，複製品仍維持同樣欄數，量出來的
+    // 數字偏小而誤判。實測診所官網的 hero 主題列與頁尾社群列都是 grid，兩者都被
+    // 誤報過（4 顆 199px 的晶片本來就塞不進 429px）。grid 交由 R-5 的人工判定。
+    if (!['flex', 'inline-flex'].includes(style.display)) continue;
+    if (style.flexDirection !== 'row') continue;
     const children = [...container.children].filter((child) => {
       const box = child.getBoundingClientRect();
       return box.width > 0 && box.height > 0;
@@ -271,6 +333,19 @@ test.describe('可點擊性（affordance）', () => {
     ).toEqual([]);
   });
 
+  // 診所官網（2026-07-27 併入）。它進了無障礙、重排、預算與 check:ui，唯獨漏了
+  // 這一組——規則書 R-7 的第 1 項就是「加進 affordance 掃描」，所以補上。
+  test('診所官網的互動元素都看得出可以按', async ({ page }) => {
+    for (const path of CLINIC_ROUTES) {
+      await page.goto(path);
+      const offenders = await affordanceReport(page);
+      expect(
+        offenders,
+        `${path} 有互動元素只剩文字顏色：\n${offenders.join('\n')}`
+      ).toEqual([]);
+    }
+  });
+
   // 可按的東西，它的字不能被逐字斷行。
   //
   // 2026-07-27 實機回報：頁尾的「預約須知」「隱私權政策」被擠成一個字一行的
@@ -280,7 +355,7 @@ test.describe('可點擊性（affordance）', () => {
   test('可點擊的短標籤不會被逐字斷成好幾行', async ({ page }) => {
     for (const width of [1280, 1024, 900, 768, 480, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const path of ['/booking', '/privacy']) {
+      for (const path of ['/booking', '/privacy', ...CLINIC_ROUTES]) {
         await page.goto(path);
         const broken = await page.evaluate(wrapScanSource);
         expect(
@@ -333,6 +408,15 @@ test.describe('可點擊性（affordance）', () => {
     await page.goto('/booking');
     expect(await page.evaluate(stackScanSource)).toEqual([]);
 
+    for (const path of CLINIC_ROUTES) {
+      await page.goto(path);
+      const offenders = await page.evaluate(stackScanSource);
+      expect(
+        offenders,
+        `${path} 有動作群組在 1280px 下無理由堆疊：\n${offenders.join('\n')}`
+      ).toEqual([]);
+    }
+
     await login(page, 'admin', { fresh: false });
     await createBooking(page, { name: '堆疊掃描' });
     await showAllAppointments(page);
@@ -348,6 +432,89 @@ test.describe('可點擊性（affordance）', () => {
         offenders,
         `${hash} 有動作群組在 1280px 下無理由堆疊：\n${offenders.join('\n')}`
       ).toEqual([]);
+    }
+  });
+
+  // R-3：患者端與行動版的可點目標至少 44×44 CSS px。
+  //
+  // axe 只查 WCAG 2.2 SC 2.5.8 的 24×24（AA 下限）。44px 是本專案自己訂的較嚴
+  // 門檻，理由是現場多半單手持手機，所以要另外掃。量的是**可點擊的方框**（含
+  // 內距），不是圖示大小——規則書明說 icon 可以小，但它的可點區不行。
+  //
+  // 依 SC 2.5.8 的 Inline 例外，句子裡的連結不在此限：它們的尺寸受行高約束，
+  // 硬撐大反而會破壞內文排版。
+  test('患者端的可點目標在手機寬度達到 44px', async ({ page }) => {
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      for (const path of ['/booking', '/privacy', ...CLINIC_ROUTES]) {
+        await page.goto(path);
+        const small = await page.evaluate(() => {
+          const effectiveTarget = (element: HTMLElement): HTMLElement => {
+            const after = window.getComputedStyle(element, '::after');
+            const stretched =
+              after.position === 'absolute' &&
+              after.top === '0px' &&
+              after.right === '0px' &&
+              after.bottom === '0px' &&
+              after.left === '0px';
+            const host = element.offsetParent;
+            return stretched && host instanceof HTMLElement ? host : element;
+          };
+
+          // SC 2.5.8 的 Equivalent 例外：同一張卡片裡若已有另一個指向同一位址、
+          // 且尺寸達標的控制項，這一個就不必自己達標。診所官網的卡片正是如此
+          // ——標題是延展連結（整張卡片），「了解更多」是同一個目的地的重複入口。
+          const hasEquivalent = (element: HTMLElement) => {
+            const href = element.getAttribute('href');
+            if (href === null) return false;
+            const scope = element.closest('article, li, .clinic-card-grid > *');
+            if (scope === null) return false;
+            return [...scope.querySelectorAll<HTMLElement>('a[href]')].some(
+              (other) => {
+                if (other === element) return false;
+                if (other.getAttribute('href') !== href) return false;
+                const box = effectiveTarget(other).getBoundingClientRect();
+                return box.width >= 44 && box.height >= 44;
+              }
+            );
+          };
+
+          const offenders: string[] = [];
+          for (const element of document.querySelectorAll<HTMLElement>(
+            'button, a[href], [role="button"], select'
+          )) {
+            const box = effectiveTarget(element).getBoundingClientRect();
+            if (box.width === 0 || box.height === 0) continue;
+            if (element.classList.contains('skip-link')) continue;
+            if (hasEquivalent(element)) continue;
+            // Inline 例外：句子裡的連結。
+            const parent = element.parentElement;
+            if (
+              parent !== null &&
+              [...parent.childNodes].some(
+                (node) =>
+                  node !== element &&
+                  node.nodeType === Node.TEXT_NODE &&
+                  (node.textContent ?? '').trim().length > 0
+              )
+            )
+              continue;
+            if (box.width < 44 || box.height < 44)
+              offenders.push(
+                `${element.tagName.toLowerCase()}${
+                  element.id ? `#${element.id}` : ''
+                } 「${element.textContent?.trim().slice(0, 12)}」→ ${Math.round(
+                  box.width
+                )}×${Math.round(box.height)}`
+              );
+          }
+          return offenders;
+        });
+        expect(
+          small,
+          `${path} @ ${width}px 有可點目標小於 44×44：\n${small.join('\n')}`
+        ).toEqual([]);
+      }
     }
   });
 

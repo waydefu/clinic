@@ -348,8 +348,12 @@ a {
   font-size: clamp(1rem, 1.6vw, 1.12rem);
 }
 
+/* 兩顆 CTA 在放得下時並排，放不下就換列——不是壓縮。
+   先前是 nowrap，於是 320px 下兩顆一起擠進 272px，「認識鼻功能醫學」七個字被
+   折成兩行（介面規則書 R-4 禁止；R-5 也明說空間不足時應該換行而不是硬塞）。 */
 .clinic-home-hero__actions {
   display: flex;
+  flex-wrap: wrap;
   margin-top: 2rem;
   gap: 0.75rem;
 }
@@ -626,6 +630,17 @@ a {
   letter-spacing: 0.04em;
 }
 
+/* 整張卡片就是連結（stretched link）。
+   這裡原本只有 `content: ''`——覆蓋層從來沒有被定位，所以整個模式其實沒有生效：
+   可點的只有標題那幾個字（實測 390px 下 119×21），既不到 44px 的觸控目標，卡片
+   本身的邊框與陰影也沒能替它表達「可以按」。補上定位之後，命中區就是整張卡片，
+   R-2 由卡片的表面負責、R-3 由卡片的尺寸負責。
+   `position: relative` 掛在卡片上，覆蓋層才知道要撐滿誰。 */
+.clinic-service-card,
+.clinic-doctor-card {
+  position: relative;
+}
+
 .clinic-service-card h3 a,
 .clinic-doctor-card h3 a {
   text-decoration: none;
@@ -634,6 +649,8 @@ a {
 .clinic-service-card h3 a::after,
 .clinic-doctor-card h3 a::after {
   content: '';
+  position: absolute;
+  inset: 0;
 }
 
 .clinic-service-card__body > p:not(.clinic-eyebrow),
@@ -644,11 +661,16 @@ a {
   font-size: 0.9rem;
 }
 
+/* 文字型 CTA。它是獨立的入口（不是句子裡的連結），所以吃 R-3 的 44px 下限——
+   實測「安排門診評估」原本只有 104×21。用 inline-flex 撐高，底線與字級不變。 */
 .clinic-text-link {
   color: var(--clinic-green);
   font-size: 0.9rem;
   font-weight: 750;
   text-underline-offset: 0.3rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
 }
 
 .clinic-text-link::after {
@@ -730,9 +752,14 @@ a {
   gap: 0.55rem;
 }
 
+/* 麵包屑是導覽入口，不是句子裡的連結，所以沒有 SC 2.5.8 的 Inline 例外。
+   先前實測 48×18——連 AA 的 24×24 都不到，更別說本專案的 44px。 */
 .clinic-breadcrumb a {
   color: var(--clinic-green);
   text-underline-offset: 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
 }
 
 .clinic-doctor-profile {
@@ -1006,9 +1033,17 @@ a {
   gap: 0.4rem;
 }
 
+/* 頁尾的每一個連結都是獨立的入口——電話會被按下去撥號、社群與隱私權說明會被
+   點開，它們不是句子裡的連結，所以吃介面規則書 R-3 的 44px 觸控目標下限。
+   實測先前只有 20–24px 高（電話 358×20、社群 35×24、隱私權說明 60×16）。
+   用 inline-flex 撐高而不是加 padding：後者會把頁尾的行距一起撐開。 */
 .clinic-footer a {
   color: inherit;
   text-underline-offset: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
 }
 
 .clinic-footer__brand img {
@@ -1229,7 +1264,10 @@ a {
   }
 
   .clinic-home-hero__actions .clinic-button {
-    flex: 1;
+    /* `flex: 1` 的 basis 是 0，兩顆會被強制均分——於是不管容器多窄都「放得下」，
+       字只好自己折。改成 basis auto：先用內容寬度排，真的放不下才由上面的
+       `flex-wrap` 換列（R-4／R-5）。 */
+    flex: 1 1 auto;
   }
 
   .clinic-home-hero__visual {

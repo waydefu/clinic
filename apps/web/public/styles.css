@@ -463,11 +463,14 @@ textarea:focus-visible {
   justify-content: space-between;
   min-height: 4.75rem;
 }
+/* 標誌是「回首頁」的連結，所以它也是一個可點目標，要吃 R-3 的 44px 下限。
+   先前實測 280×41——寬度綽綽有餘，高度差 3px。 */
 .brand {
   align-items: center;
   color: inherit;
   display: inline-flex;
   gap: var(--space-xs);
+  min-height: var(--control-height-md);
   text-decoration: none;
 }
 /* 真正的品牌標誌。先前這裡是一個放著 ✦ 字元的漸層方塊——那是等標誌到位前的

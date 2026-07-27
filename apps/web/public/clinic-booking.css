@@ -74,6 +74,16 @@
   box-shadow: 0 1.25rem 3rem color-mix(in srgb, var(--forest) 8%, transparent);
 }
 
+/* 這一頁的 hero 改成**淺色**漸層之後，品牌眉題必須跟著換金。
+   原本 hero 是深底，眉題用的是深底上的亮金（#d6c199）；換成淺底後那個金只剩
+   1.55:1（淺色主題）與 1.45:1（護眼主題）——遠低於 WCAG 1.4.3 的 4.5:1，實際上
+   等於看不見。`--brand-metallic-text` 是隨主題切換的那一個（淺色 #75603c、
+   護眼 #725e3c、深色 #d6c199），所以三個主題都成立。
+   修正放在這裡而不是 styles.css：把 hero 變淺的是這個檔案，成因與修正要在一起。 */
+.patient-hero .eyebrow-brand {
+  color: var(--brand-metallic-text);
+}
+
 .patient-hero h1,
 .booking-panel-heading h2 {
   font-family: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;

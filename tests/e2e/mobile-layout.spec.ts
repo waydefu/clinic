@@ -262,9 +262,17 @@ test.describe('患者預約頁手機版', () => {
     const headerHeight = await page
       .locator('.patient-header')
       .evaluate((el) => el.getBoundingClientRect().height);
-    // 修好前 260px（32%），修好後 201px（25%）。門檻設在兩者之間，這條斷言才
-    // 真的擋得住那個版面回來。
-    expect(headerHeight).toBeLessThan(viewportHeight * 0.28);
+    // 上限由 28% 調到 30%（2026-07-27）。
+    //
+    // 理由不是「測不過就放寬」：預約頁在 2026-07-27 併入診所官網之後，頁首多了
+    // 站台層級的導覽（診所首頁／醫師團隊／線上預約），導覽因此獨佔一列、環境
+    // 徽章再一列，實測 235px（29%）。那是**產品決定的成本**——把預約頁接回官網
+    // 就要有回得去的路。
+    //
+    // 真正該守住的是下面那條「患者多快看到第一個問題」：它仍在 65%，遠優於
+    // 門檻。若哪天要把頁首壓回 25%，正確做法是像官網那樣改成漢堡選單，而不是
+    // 把導覽藏起來（R-2／R-4）。
+    expect(headerHeight).toBeLessThan(viewportHeight * 0.3);
 
     // 真正重要的是「患者要捲多久才看得到第一個問題」。修好前 651px（螢幕的
     // 80%），修好後 592px（73%）。
@@ -281,7 +289,10 @@ test.describe('患者預約頁手機版', () => {
     await page.goto('/booking');
     const subtitle = page.locator('.patient-header .brand small');
     await expect(subtitle).toBeVisible();
-    await expect(subtitle).toHaveText('Beau Essence Appointment');
+    // 只釘品牌名，不釘後面那個字。副標在 2026-07-27 併站時由
+    // 「Beau Essence Appointment」改成「Beau Essence Clinic」——那是文案決定，
+    // 這條測試要擋的是**副標整個消失**，不是文案不准改。
+    await expect(subtitle).toContainText('Beau Essence');
 
     const box = await subtitle.boundingBox();
     // 一行約 14px。0 高度代表又被收掉了，過高代表被擠成逐字換行。
@@ -290,9 +301,14 @@ test.describe('患者預約頁手機版', () => {
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 
-  // 導覽先前寫死 width: 100%，於是它必定獨佔一列、環境徽章也只能再排一列，
-  // 導覽右邊與徽章左邊各留下一塊空白（2026-07-26 線上實機回報「留白過多」）。
-  test('導覽與環境徽章放得下時併成同一列', async ({ page }) => {
+  // 這條原本要求導覽與環境徽章**併成同一列**——那是 2026-07-26 修掉「留白過多」
+  // 時的正確目標：當時線上只有兩個導覽項（148px），加徽章 171px 塞得進 343px。
+  //
+  // 2026-07-27 併站之後導覽變成三項（診所首頁／醫師團隊／線上預約），單是導覽
+  // 就佔滿整列，併列在數學上已經不可能。依 R-5，空間不足時換列是**正確**的排法，
+  // 所以改成守住換列之後仍然成立的三件事：徽章靠右、導覽不逐字斷行、頁面不溢出。
+  // 併列的目標本身留在註解裡，是為了說明門檻為什麼從 185px 變成現在這樣。
+  test('導覽放不下時，環境徽章換列並維持靠右', async ({ page }) => {
     await page.goto('/booking');
     // 線上站是用 hidden 屬性收掉 local-only 連結的（patient-app.js 的 isOnline
     // 分支），這裡用同一個機制模擬同一個狀態，而不是假造別的東西。
@@ -320,14 +336,15 @@ test.describe('患者預約頁手機版', () => {
         };
       });
 
-    // 同一列：兩者的垂直中心對齊（徽章 22px、導覽 44px，靠 align-self 置中）。
+    // 徽章換到自己那一列（不再與導覽同列），但仍然靠右——不能變成孤零零地
+    // 貼在左邊，那正是當初「留白過多」的樣子。
     const navCentre = layout.nav.y + layout.nav.height / 2;
     const badgeCentre = layout.badge.y + layout.badge.height / 2;
-    expect(Math.abs(navCentre - badgeCentre)).toBeLessThan(2);
-    // 徽章靠右填掉導覽右邊的空白。
+    expect(Math.abs(navCentre - badgeCentre)).toBeGreaterThan(2);
     expect(Math.abs(layout.badge.right - layout.contentRight)).toBeLessThan(2);
-    // 併列前 212px、併列後 162px；門檻取兩者之間才擋得住舊版面回來。
-    expect(layout.headerHeight).toBeLessThan(185);
+    // 頁首總高仍要受控：三列（品牌／標章＋主題／導覽）＋徽章列，實測 235px。
+    // 門檻留 20px 餘裕，再多一列就會被擋下來。
+    expect(layout.headerHeight).toBeLessThan(255);
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 

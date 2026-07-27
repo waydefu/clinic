@@ -216,15 +216,23 @@ test.describe('品牌層（香檳金與系統字體）', () => {
       // hero 是漸層，所以 `backgroundColor` 是透明的——直接拿它比會被當成黑色，
       // 量出一個假的 3.5:1。要比的是漸層**每一個色停**，而且以最差的那個為準：
       // 文字會落在漸層的哪一段是版面決定的，不該把可讀性押在版面不會變上。
-      const stops = await page
-        .locator('.patient-hero')
-        .evaluate((element) =>
-          (
-            window
-              .getComputedStyle(element)
-              .backgroundImage.match(/rgba?\([^)]+\)/g) ?? []
-          ).slice()
-        );
+      const stops = await page.locator('.patient-hero').evaluate((element) =>
+        (
+          window
+            .getComputedStyle(element)
+            .backgroundImage.match(/rgba?\([^)]+\)/g) ?? []
+        ).filter((stop) => {
+          // **完全透明的色停要排除。**
+          //
+          // 漸層常以 `transparent` 收尾（計算後是 `rgba(0, 0, 0, 0)`），那不是
+          // 一個背景色——那一段看到的是它底下的圖層。把它當色停比，等於拿黑色
+          // 去比，會量出一個假的 3.5:1；這正是本函式上方註解在講的同一個陷阱，
+          // 只是換成從色停進來的（2026-07-27 診所版 hero 改成含 transparent 的
+          // 漸層後才浮現）。
+          const parts = stop.match(/[\d.]+/g) ?? [];
+          return parts.length < 4 || Number(parts[3]) > 0;
+        })
+      );
       expect(stops.length, 'hero 應該是漸層').toBeGreaterThan(1);
 
       for (const stop of stops)

@@ -513,6 +513,42 @@ if (scheduleHours.length === 0) {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// R-7：個人資料欄位要用**標準的** autocomplete token。
+//
+// 為什麼是規則而不是偏好：token 正確時，瀏覽器與密碼管理器能自動填入，行動裝置
+// 上少打十幾個字；token 自造（例如 `autocomplete="patient-name"`）時，瀏覽器只當
+// 它是未知值而忽略，**畫面上完全看不出差別**——這正是會靜默退步的那種設定。
+// WCAG 1.3.5 Identify Input Purpose 也要求用規範裡的名稱。
+//
+// 身分證欄位刻意是 `off`：那是共用機台上不該被自動填入的欄位（見政策頁）。這是
+// 走過例外程序的具名決定，不是漏寫。
+const AUTOCOMPLETE_EXPECTED = {
+  'patient-name': 'name',
+  'patient-phone': 'tel',
+  'patient-birth': 'bday',
+  'patient-national-id': 'off'
+};
+for (const [id, token] of Object.entries(AUTOCOMPLETE_EXPECTED)) {
+  const field = files.patientHtml.match(
+    new RegExp(`<input[^>]*\\bid="${id}"[^>]*>`, 'i')
+  );
+  if (field === null) {
+    failures.push(`patient.html no longer has the ${id} field.`);
+    continue;
+  }
+  const declared = field[0].match(/\bautocomplete="([^"]*)"/i);
+  if (declared === null) {
+    failures.push(
+      `${id} has no autocomplete token, so browsers and password managers cannot fill it and WCAG 1.3.5 is not met.`
+    );
+  } else if (declared[1] !== token) {
+    failures.push(
+      `${id} declares autocomplete="${declared[1]}" but must be "${token}"; a non-standard token is silently ignored by browsers.`
+    );
+  }
+}
+
 // 個資告知必須在「蒐集當下」看得到，而不是只有頁尾一個連結。
 //
 // 這三條釘住的是**告知的位置與可及性**：摘要區在表單裡、有獨立的同意勾選、

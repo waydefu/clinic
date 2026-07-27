@@ -305,6 +305,14 @@
   margin: 0 0 8px;
 }
 
+/* 頁尾的電話是獨立的一行、而且是真的會被按下去撥號的目標，所以吃 R-3 的
+   44px 下限（實測先前只有 90×20）。它不是句子裡的連結，沒有 Inline 例外。 */
+.policy-footer a {
+  align-items: center;
+  display: inline-flex;
+  min-height: 44px;
+}
+
 a {
   color: var(--policy-forest);
 }
