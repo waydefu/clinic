@@ -1,6 +1,9 @@
 # 2026-07-27 業主需求批次：理解與規劃
 
-**狀態：** 規劃中，尚未動工　**來源：** 業主 2026-07-27 口頭需求，由負責人轉述
+**狀態：** 實作中（批次 1 已完成）　**來源：** 業主 2026-07-27 口頭需求，由負責人轉述
+
+**負責人 2026-07-27 指示的本次範圍：批次 1–5。** 批次 6（官網 C1／C2）維持
+待辦，因為 C2 需要先確認官網圖片的授權歸屬。
 
 ## 背景
 
@@ -223,16 +226,23 @@ commit**——批與批之間的風險差距太大，混在一起會讓回滾變
 
 ### 批次 1：低風險介面（可當天完成）
 
-- [ ] P1 初診／回診按鈕移除內部說明兩行，只留圖示＋名稱（`patient.html:236-255`）
-- [ ] P1b 回診狀態文字移到按鈕外（原 `#follow-up-choice-status` 在 `<small>` 內）
-- [ ] P3 精簡 STEP 01 說明句（`patient.html:231-235`）
-- [ ] P4 項目區下方加「健保門診」說明行（`patient.html:257-266` 之後）
-- [ ] P8 健保卡勾選下方加「無健保卡全自費」（`patient.html:427-432`）
-- [ ] P12 完成畫面加「若未加入日曆，將不會再有額外通知」（`patient.html:540` 之後；
-      注意取消路徑也會改寫同一批 id，見 `patient-app.js:704-713`）
-- [ ] W6 `procedure_turbinate` 拆為 RF／電燒兩筆（`modules/constants.js:57-62`）
-- [ ] C3 止鼾頁加 SnoreLab 官方連結（先到 snorelab.com 確認商店網址）
-- [ ] 跑驗收 → 提交 → 部署
+**已完成 2026-07-27。**
+
+- [x] P1 初診／回診按鈕移除內部說明兩行，只留圖示＋名稱（`patient.html:236-255`）
+- [x] P1b 回診狀態文字移到按鈕外（原 `#follow-up-choice-status` 在 `<small>` 內）。
+      按鈕改以 `aria-describedby` 指向它，報讀器才聽得到「為什麼現在不能選回診」
+- [x] P3 精簡 STEP 01 說明句（`patient.html:231-235`）
+- [x] P4 項目區下方加「健保門診」說明行（`patient.html:257-266` 之後）
+- [x] P8 健保卡勾選下方加「無健保卡全自費」（`patient.html:427-432`）
+- [x] P12 完成畫面加「若未加入日曆，將不會再有額外通知」。取消路徑會把那句話
+      收起來（同一批 id），並有 e2e 釘住兩種狀態
+- [x] W6 `procedure_turbinate` 拆為 `procedure_turbinate_rf`／
+      `procedure_turbinate_cautery` 兩筆（`modules/constants.js`）
+- [x] C3 止鼾頁加 SnoreLab 官方連結。三個網址（官網、App Store、Google Play）
+      於 2026-07-27 自 snorelab.com 首頁的下載按鈕實際讀出，並以單元測試釘住
+      主機名單與「非本診所服務、非診斷工具」的措辭
+- [x] 跑驗收（verify 綠 516 單元；affordance／accessibility／clinic-site／
+      patient-booking e2e 綠）→ 提交
 
 ### 批次 2：患者表單
 

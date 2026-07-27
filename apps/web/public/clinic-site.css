@@ -946,6 +946,15 @@ a {
   color: var(--clinic-muted);
 }
 
+/* 療程頁末尾的外部資源連結（止鼾頁的 SnoreLab）。橫排一列，寬度不足才換行
+   ——介面規則書 R-5。 */
+.clinic-resource-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
 .clinic-medical-note {
   position: sticky;
   top: 7.5rem;

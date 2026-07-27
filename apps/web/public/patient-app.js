@@ -232,12 +232,14 @@ function scheduleMaintenanceResume() {
   );
 }
 
+// 回診狀態自 2026-07-27 起顯示在按鈕**外面**（P1b）。因此這句話必須自己說得
+// 完整——先前它是 `<small>` 夾在按鈕裡，靠位置就知道在講回診。
 function renderFollowUpChoice() {
   const followUp = latestFollowUp();
   elements['follow-up-choice-status'].textContent =
     followUp === undefined
-      ? '尚待醫師確認回診'
-      : `已確認需回診 · 建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}`;
+      ? '回診狀態：尚待醫師確認。醫師登錄回診指示後，這裡才會開放回診。'
+      : `回診狀態：已確認需回診 · 建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}`;
 }
 
 function renderServices() {
@@ -657,6 +659,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
       elements['booking-complete-heading'].textContent = '預約已建立';
       elements['booking-complete-description'].textContent =
         '請於門診時間前十分鐘抵達櫃台。資料仍只保存在目前瀏覽器。';
+      elements['booking-complete-reminder'].hidden = false;
       elements['booking-result'].innerHTML =
         `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`;
       renderAll();
@@ -708,6 +711,9 @@ elements['patient-appointments'].addEventListener('click', async (event) => {
         elements['booking-complete-heading'].textContent = '取消要求已送出';
         elements['booking-complete-description'].textContent =
           '診所櫃台確認後才會釋放時段。';
+        // 已提出取消就沒有門診可提醒了，行事曆警語必須跟著收起來，
+        // 否則畫面會同時說「取消要求已送出」與「記得加入行事曆」。
+        elements['booking-complete-reminder'].hidden = true;
         elements['booking-result'].innerHTML =
           `<strong>預約編號：${escapeHtml(completedAppointmentId)}</strong><span>狀態：取消待診所確認</span>`;
       }

@@ -34,6 +34,16 @@ function link(label, href, className) {
   return element('a', { className, text: label, attrs: { href } }, []);
 }
 
+// 離站連結一律新分頁開啟，並補上 `rel`。`noopener` 是安全性（被開啟的頁面拿不到
+// window.opener），`noreferrer` 是不把患者正在看哪一個療程頁洩漏給第三方網站。
+function externalLink(label, href, className) {
+  return element('a', {
+    className,
+    text: label,
+    attrs: { href, target: '_blank', rel: 'noopener noreferrer' }
+  });
+}
+
 function image(src, alt, className, loading = 'lazy') {
   return element('img', {
     className,
@@ -364,6 +374,26 @@ function renderDoctor(doctor) {
   );
 }
 
+/** 療程頁末尾的外部資源區（目前只有止鼾頁的 SnoreLab）。 */
+function resourceSection(resources) {
+  const actions = element('div', { className: 'clinic-resource-actions' });
+  for (const item of resources.links) {
+    actions.append(
+      externalLink(
+        item.label,
+        item.href,
+        'clinic-button clinic-button--outline'
+      )
+    );
+  }
+  return element('section', { className: 'clinic-resource' }, [
+    element('p', { className: 'clinic-eyebrow', text: resources.eyebrow }),
+    element('h2', { text: resources.heading }),
+    ...resources.paragraphs.map((text) => element('p', { text })),
+    actions
+  ]);
+}
+
 function listFrom(items) {
   const list = element('ul', { className: 'clinic-content-list' });
   for (const item of items) list.append(element('li', { text: item }));
@@ -386,6 +416,7 @@ function renderService(service) {
     if (section.bullets) sectionNode.append(listFrom(section.bullets));
     content.append(sectionNode);
   }
+  if (service.resources) content.append(resourceSection(service.resources));
 
   main.replaceChildren(
     element(

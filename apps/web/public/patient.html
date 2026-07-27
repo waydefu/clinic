@@ -228,31 +228,38 @@
           data-booking-step="1"
           aria-labelledby="booking-type-heading"
         >
+          <!-- 掛號別的時間規則（整點／30 分 對 15 分／45 分）刻意不寫在這裡：
+               這一步只要選「初診還是回診」，時間規則到第二步選時段時才有用，
+               由 #slot-choice-description 依所選類型講一次。 -->
           <div class="booking-panel-heading">
             <p class="eyebrow">STEP 01</p>
             <h2 id="booking-type-heading">這次是初診還是回診？</h2>
-            <p>初診開放整點與 30 分，回診開放 15 分與 45 分。</p>
           </div>
+          <!-- 按鈕內只留圖示與名稱。說明與回診狀態移到按鈕外（下方那一行）：
+               留在按鈕裡會讓兩張卡佔掉大半個首屏，而且回診狀態是**會變的**資訊，
+               放在按鈕的可及名稱裡等於每次更新都改掉按鈕叫什麼。 -->
           <div class="service-choice-grid">
             <button
-              class="service-choice"
+              class="service-choice service-choice-compact"
               type="button"
               data-booking-type="initial"
             >
               <span class="service-icon" aria-hidden="true">＋</span
-              ><strong>初診</strong><span>第一次安排門診時段</span
-              ><small>不需要回診確認</small>
+              ><strong>初診</strong>
             </button>
             <button
-              class="service-choice"
+              class="service-choice service-choice-compact"
               type="button"
               data-booking-type="follow_up"
+              aria-describedby="follow-up-choice-status"
             >
               <span class="service-icon" aria-hidden="true">↻</span
-              ><strong>回診</strong><span>依醫師確認的回診安排</span
-              ><small id="follow-up-choice-status">讀取回診狀態中</small>
+              ><strong>回診</strong>
             </button>
           </div>
+          <p id="follow-up-choice-status" class="field-hint booking-type-hint">
+            讀取回診狀態中
+          </p>
 
           <div class="booking-panel-heading booking-panel-heading-spaced">
             <h2 id="service-choice-heading">看診項目</h2>
@@ -264,6 +271,11 @@
             role="group"
             aria-labelledby="service-choice-heading"
           ></div>
+          <!-- D-g（業主 2026-07-27）：選項本身不變，只在下方說明本院為健保特約
+               機構。健保特約身分已於 2026-07-27 以健保署特約醫事機構查詢平台核實。 -->
+          <p class="field-hint booking-service-hint">
+            本診所為全民健康保險特約醫事服務機構，門診看診依健保規定辦理；自費項目由醫師於門診時說明。
+          </p>
         </section>
 
         <section
@@ -428,8 +440,15 @@
                   ><input
                     id="patient-nhi-card"
                     type="checkbox"
+                    aria-describedby="patient-nhi-card-hint"
                   />本次會攜帶健保卡
                 </label>
+                <!-- P8（業主 2026-07-27）：沒帶卡的後果要在勾選當下就講清楚，
+                     不是到了櫃台才知道。說明掛在勾選框的 aria-describedby 上，
+                     所以報讀器讀到那個勾選框時也會帶到這一句。 -->
+                <p id="patient-nhi-card-hint" class="field-hint">
+                  未攜帶健保卡者，本次看診須全額自費。
+                </p>
                 <label class="consent-preview"
                   ><input
                     id="synthetic-confirmation"
@@ -538,6 +557,12 @@
             這筆資料只存在目前瀏覽器，未連線診所、日曆或通知服務。
           </p>
           <div id="booking-result" class="booking-result"></div>
+          <!-- P12（業主 2026-07-27）：系統不寄簡訊、不寄信、不推播——加入行事曆
+               是患者唯一會拿到的提醒。這句話在取消要求送出後會被隱藏
+               （見 patient-app.js 的取消處理），因為那時已經沒有門診可提醒。 -->
+          <p id="booking-complete-reminder" class="booking-complete-reminder">
+            若未加入行事曆，系統不會再發出任何提醒。
+          </p>
           <div class="actions">
             <button
               class="button button-primary"

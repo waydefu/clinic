@@ -54,9 +54,15 @@ export const PATIENT_SERVICES = Object.freeze([
 ]);
 
 // 工作臺建立預約時登記的療程／看診項目。
+//
+// 2026-07-27（W6，業主）：下鼻甲由一筆拆成 RF 與電燒兩筆。兩者是不同的術式，
+// 合成一個項目會讓排程與統計看不出實際做了哪一種。舊 id `procedure_turbinate`
+// 直接消失而非保留別名——Phase 1 沒有任何持久化的真實資料，唯一的資料在使用者
+// 瀏覽器的合成狀態裡，保留一個沒人會再選的 id 只會讓清單越長越髒。
 export const WORKBENCH_PROCEDURES = Object.freeze([
   { id: 'procedure_septum', label: '鼻中膈彎曲' },
-  { id: 'procedure_turbinate', label: '下鼻甲' },
+  { id: 'procedure_turbinate_rf', label: '下鼻甲 RF' },
+  { id: 'procedure_turbinate_cautery', label: '下鼻甲電燒' },
   { id: 'procedure_posterior_nasal_nerve', label: '後鼻神經阻斷' },
   { id: 'procedure_soft_palate', label: '軟顎懸壅垂' }
 ]);

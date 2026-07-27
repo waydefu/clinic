@@ -42,6 +42,56 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('#booking-result')).toContainText('appointment_');
   });
 
+  // P12（業主 2026-07-27）：加入行事曆是患者唯一會拿到的提醒，所以完成畫面要
+  // 明講「沒加就不會再有提醒」。但**提出取消之後那句話必須消失**——已經沒有門診
+  // 可以提醒了，留著會讓同一個畫面同時說「取消要求已送出」與「記得加入行事曆」。
+  // 取消路徑改寫的是同一批 id，所以這一段特別容易在改版時被漏掉。
+  test('完成畫面說明沒有其他提醒管道，提出取消後收起那句話', async ({
+    page
+  }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('測試患者丙');
+    await page.locator('#patient-phone').fill('0933444555');
+    await page.locator('#patient-birth').fill('1978-03-09');
+    await page.locator('#patient-national-id').fill('C123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await page.locator('#confirm-patient-booking').click();
+
+    await expect(page.locator('#booking-complete-reminder')).toBeVisible();
+    await expect(page.locator('#booking-complete-reminder')).toContainText(
+      '不會再發出任何提醒'
+    );
+
+    await page.locator('[data-patient-cancel]').first().click();
+    await page.locator('.confirm-dialog button.button-primary').click();
+
+    await expect(page.locator('#booking-complete-heading')).toHaveText(
+      '取消要求已送出'
+    );
+    await expect(page.locator('#booking-complete-reminder')).toBeHidden();
+  });
+
+  // P1b：回診狀態自 2026-07-27 起顯示在按鈕**外**。留在按鈕裡的話，這段會變的
+  // 文字會成為按鈕可及名稱的一部分，等於每次狀態更新都在改「這顆按鈕叫什麼」。
+  test('回診狀態顯示在掛號別按鈕之外', async ({ page }) => {
+    const status = page.locator('#follow-up-choice-status');
+    await expect(status).toBeVisible();
+    await expect(status).toContainText('回診狀態');
+    expect(
+      await status.evaluate(
+        (element) => element.closest('[data-booking-type]') !== null
+      ),
+      '#follow-up-choice-status 又被放回掛號別按鈕裡了'
+    ).toBe(false);
+    // 但按鈕仍必須指得到它，否則報讀器聽不到「為什麼現在不能選回診」。
+    await expect(
+      page.locator('[data-booking-type="follow_up"]')
+    ).toHaveAttribute('aria-describedby', 'follow-up-choice-status');
+  });
+
   test('未勾選本機保存確認時擋下送出並說明原因', async ({ page }) => {
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('#patient-services [data-service]').first().click();

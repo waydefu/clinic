@@ -1291,6 +1291,28 @@ textarea {
   margin-top: auto;
   padding-top: var(--space-sm);
 }
+/* 掛號別（初診／回診）的精簡版：只有圖示與名稱兩個元素。
+   兩個元素**橫排**而不是上下疊——介面規則書 R-5：有橫向空間就不要往下堆。
+   直排版留給看診項目卡（名稱＋說明兩行文字，本來就該直排）。 */
+.service-choice-compact {
+  align-items: center;
+  flex-direction: row;
+  gap: var(--space-xs);
+}
+.service-choice-compact .service-icon {
+  flex: none;
+  margin-bottom: 0;
+}
+.service-choice-compact strong {
+  margin-bottom: 0;
+}
+/* 掛號別與看診項目下方的區塊說明。它們補充的是**整個區塊**而不是某一個欄位，
+   所以比 .field-hint 的預設多一點上緣距離，並限制行長。 */
+.booking-type-hint,
+.booking-service-hint {
+  margin-top: var(--space-xs);
+  max-width: 68ch;
+}
 /* 次要動作鍵（清除選取、清除篩選、修改備註…）。
    **它必須看起來像按鈕**，而不只是一段變色的文字。先前是
    `background: transparent; padding: 0`，於是「清除選取」在畫面上與旁邊的說明
@@ -1484,6 +1506,14 @@ textarea {
 }
 .booking-complete > p {
   color: var(--ink-muted);
+}
+/* 「沒加行事曆就不會再有提醒」是完成畫面上唯一具**後果**的句子，不能跟旁邊的
+   說明一樣淡。選擇器要帶上 .booking-complete 才蓋得過上面那條（同為 0,1,1）。 */
+.booking-complete > .booking-complete-reminder {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+  margin-bottom: var(--space-xs);
+  max-width: 40ch;
 }
 .booking-result {
   background: var(--surface-tint);
