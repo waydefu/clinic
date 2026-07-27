@@ -7,6 +7,7 @@ import {
   renderAppointments,
   renderAudit,
   renderCaseAssignments,
+  renderDelegations,
   renderFollowUps,
   renderNextUp,
   renderOutbox,
@@ -273,9 +274,13 @@ async function post(path, body = {}) {
         : PERMISSIONS.COMPLETE_VISIT;
     return undefined;
   })();
+  // 送出前的自我檢查（省一次註定失敗的往返）。**被委派的權限也算數**——否則
+  // 這一層會在請求還沒離開畫面前就擋掉櫃台的刪除，授權碼永遠沒有機會被驗證。
+  // 這裡放行不等於授權：store 仍會逐條 requirePermissionOrDelegation。
   if (
     requiredPermission !== undefined &&
-    !state.session.permissions.includes(requiredPermission)
+    !state.session.permissions.includes(requiredPermission) &&
+    !(state.session.delegatable ?? []).includes(requiredPermission)
   )
     throw new Error('目前合成帳號沒有執行此動作的權限。');
 
@@ -554,6 +559,13 @@ function render() {
       'account-list',
       '[data-account-row]',
       '個帳號'
+    );
+    elements['delegation-list'].innerHTML = renderDelegations(state.workspace);
+    countSummary(
+      'delegation-summary',
+      'delegation-list',
+      '[data-authorization-row]',
+      '組授權碼'
     );
     elements['audit-events'].innerHTML = renderAudit(
       state,
@@ -1108,20 +1120,31 @@ elements.appointments.addEventListener('click', async (event) => {
 
   // 刪除是唯一需要理由的處置：紀錄消失後，稽核事件是它存在過的唯一證據。
   if (action === 'delete') {
-    const reasonCode = await confirmWithReason(
+    // 管理者天生就能刪，不必輸入授權碼；櫃台是被委派的，同一步要出示授權碼。
+    const needsAuthorization = (state.session?.delegatable ?? []).includes(
+      PERMISSIONS.DELETE_APPOINTMENT
+    );
+    const answer = await confirmWithReason(
       '確定刪除這筆預約紀錄？時段會釋放、日曆事件會移除，紀錄不會再出現在清單上（稽核仍會留下這次刪除）。此動作無法復原。',
       {
         reasons: DELETE_APPOINTMENT_REASONS,
         label: '刪除理由',
-        confirmLabel: '刪除紀錄'
+        confirmLabel: '刪除紀錄',
+        ...(needsAuthorization
+          ? { secret: { label: '管理者提供的授權碼' } }
+          : {})
       }
     );
-    if (reasonCode === undefined) return;
+    if (answer === undefined) return;
     await runUiAction({
       control: button,
       pendingLabel: '刪除中…',
       pendingMessage: '正在刪除預約紀錄，請稍候。',
-      action: () => post(`/bookings/${id}/delete`, { reasonCode }),
+      action: () =>
+        post(`/bookings/${id}/delete`, {
+          reasonCode: answer.reasonCode,
+          authorizationSecret: answer.secret
+        }),
       onSuccess: () =>
         message('預約紀錄已刪除，時段已釋放，稽核已留存。', 'success'),
       failureMessage: (error) => `未刪除：${error.message}`
@@ -1504,6 +1527,75 @@ elements['account-list'].addEventListener('click', async (event) => {
     action: () =>
       post(`/workspace/accounts/${button.dataset.accountToggle}/toggle`),
     onSuccess: () => message('帳號狀態已更新。', 'success')
+  });
+});
+
+elements['delegation-form'].addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const label = elements['delegation-label'].value;
+  await runUiAction({
+    control: event.submitter,
+    pendingLabel: '新增中…',
+    anchorId: 'delegation-form-status',
+    action: () =>
+      post('/workspace/delegations', {
+        permission: PERMISSIONS.DELETE_APPOINTMENT,
+        label,
+        secret: elements['delegation-secret'].value
+      }),
+    onSuccess: () => {
+      // 一定要清空：授權碼留在輸入框裡，下一個走過來的人就看得到（即使是
+      // password 欄位，複製貼上與開發者工具都拿得到）。
+      elements['delegation-form'].reset();
+      message(
+        `授權碼「${label.trim()}」已新增並啟用。`,
+        'success',
+        'delegation-form-status'
+      );
+    },
+    failureMessage: (error) => `未新增授權碼：${error.message}`
+  });
+});
+
+elements['delegation-list'].addEventListener('click', async (event) => {
+  const delegationToggle = event.target.closest('[data-delegation-toggle]');
+  if (delegationToggle !== null) {
+    const permission = delegationToggle.dataset.delegationToggle;
+    if (
+      !(await confirmDialog(
+        '確定變更這項委派的開關？關閉後櫃台將無法刪除預約，已設定的授權碼會保留。',
+        { confirmLabel: '變更委派' }
+      ))
+    )
+      return;
+    await runUiAction({
+      control: delegationToggle,
+      pendingLabel: '更新中…',
+      action: () => post(`/workspace/delegations/${permission}/toggle`),
+      onSuccess: () => message('委派設定已更新。', 'success')
+    });
+    return;
+  }
+
+  const authorizationToggle = event.target.closest(
+    '[data-authorization-toggle]'
+  );
+  if (authorizationToggle === null) return;
+  if (
+    !(await confirmDialog(
+      '確定變更這組授權碼的啟用狀態？停用後，使用這組授權碼的人會立即無法刪除預約。',
+      { confirmLabel: '變更狀態' }
+    ))
+  )
+    return;
+  await runUiAction({
+    control: authorizationToggle,
+    pendingLabel: '更新中…',
+    action: () =>
+      post(
+        `/workspace/delegations/${authorizationToggle.dataset.delegation}/authorizations/${authorizationToggle.dataset.authorizationToggle}/toggle`
+      ),
+    onSuccess: () => message('授權碼狀態已更新。', 'success')
   });
 });
 

@@ -529,7 +529,12 @@ export function renderAppointments(
 
   // session 可能還沒建立（測試夾具、登入前的初始畫面）。缺 session 時一律
   // 視為沒有任何權限：隱藏管理控制項，而不是整個清單拋錯。
-  const permissions = state.session?.permissions ?? [];
+  // 被委派的權限也要讓入口出現，否則櫃台連「出示授權碼」的機會都沒有。入口
+  // 出現不等於授權：送出時仍要通過 requirePermissionOrDelegation。
+  const permissions = [
+    ...(state.session?.permissions ?? []),
+    ...(state.session?.delegatable ?? [])
+  ];
   const canManageFollowUp = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP);
   const rows = entries
     .map((entry) => {
@@ -819,6 +824,38 @@ export function renderAccounts(workspace) {
     })
     .join('');
   return `<table class="data-table account-table" role="table"><caption>員工帳號與權限，含啟用狀態</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table>`;
+}
+
+/**
+ * 權限委派與授權碼清單。
+ *
+ * **授權碼本身永遠不出現在畫面上**，連管理者也一樣：這台機器旁邊會站著患者，
+ * 而且畫面會被截圖與投影。管理者需要的是「有哪幾組、還開著嗎」，不是把密碼
+ * 重看一次；忘記了就停用舊的、新增一組。
+ */
+export function renderDelegations(workspace) {
+  const delegations = workspace.delegations ?? [];
+  if (delegations.length === 0)
+    return emptyState('沒有可委派的動作', '目前沒有設定任何權限委派。');
+
+  return delegations
+    .map((delegation) => {
+      const rows =
+        delegation.authorizations.length === 0
+          ? `<tr role="row"><td role="cell" colspan="3">尚未新增授權碼。未新增之前，即使開啟委派，櫃台仍然無法刪除。</td></tr>`
+          : delegation.authorizations
+              .map((authorization) => {
+                const enabled = authorization.enabled === true;
+                return `<tr role="row" data-authorization-row="${escapeHtml(authorization.id)}"><td role="cell" data-label="名稱">${escapeHtml(authorization.label)}</td><td role="cell" data-label="狀態"><span class="status-chip ${enabled ? 'status-completed' : 'status-cancelled'}">${enabled ? '啟用中' : '已停用'}</span></td><td role="cell" data-label="操作"><button class="button button-tertiary" type="button" data-authorization-toggle="${escapeHtml(authorization.id)}" data-delegation="${escapeHtml(delegation.permission)}">${enabled ? '停用' : '啟用'}</button></td></tr>`;
+              })
+              .join('');
+      const on = delegation.enabled === true;
+      const columns = ['名稱', '狀態', '操作']
+        .map((label) => `<th scope="col" role="columnheader">${label}</th>`)
+        .join('');
+      return `<div class="delegation-block"><p class="result-summary"><span class="status-chip ${on ? 'status-completed' : 'status-cancelled'}">${on ? '委派已開啟' : '委派已關閉'}</span> 共 ${delegation.authorizations.length} 組授權碼</p><button class="button button-secondary" type="button" data-delegation-toggle="${escapeHtml(delegation.permission)}">${on ? '關閉委派' : '開啟委派'}</button><table class="data-table authorization-table" role="table"><caption>刪除預約的授權碼與啟用狀態；授權碼本身不顯示</caption><thead role="rowgroup"><tr role="row">${columns}</tr></thead><tbody role="rowgroup">${rows}</tbody></table></div>`;
+    })
+    .join('');
 }
 
 export function renderReleases(workspace) {

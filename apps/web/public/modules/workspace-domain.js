@@ -1,3 +1,4 @@
+import { assertAuthorizationShape } from '../vendor/domain/delegated-authorization.js';
 import { ROLE_LABELS } from './constants.js';
 import { currentAccount } from './permissions.js';
 function safeText(value, label, maximum) {
@@ -59,6 +60,65 @@ export function createAccount(state, input) {
   });
   state.workspace.accountSequence += 1;
 }
+function findDelegation(state, permission) {
+  const delegation = (state.workspace.delegations ?? []).find(
+    (item) => item.permission === permission
+  );
+  if (delegation === undefined) throw new Error('找不到這項授權設定。');
+  return delegation;
+}
+
+/**
+ * 新增一組授權碼。
+ *
+ * 格式規則在 domain（`assertAuthorizationShape`）；這裡只處理狀態與「名稱不可
+ * 重複」——名稱是稽核紀錄裡唯一認得出是哪一組的東西，兩組同名等於分不出來。
+ */
+export function saveDelegationAuthorization(state, input) {
+  const delegation = findDelegation(state, input?.permission);
+  const { label, secret } = assertAuthorizationShape(
+    input?.label,
+    input?.secret
+  );
+  if (delegation.authorizations.some((item) => item.label === label))
+    throw new Error(`已有名稱為「${label}」的授權碼，請改用其他名稱。`);
+  // 同一組授權碼給兩個名字，撤銷其中一個時另一個還能用，等於撤銷失效。
+  if (delegation.authorizations.some((item) => item.secret === secret))
+    throw new Error('這組授權碼已經存在，請改用不同的授權碼。');
+
+  const suffix = String(state.workspace.authorizationSequence ?? 1).padStart(
+    3,
+    '0'
+  );
+  delegation.authorizations.push({
+    id: `auth_${suffix}`,
+    label,
+    secret,
+    enabled: true
+  });
+  state.workspace.authorizationSequence =
+    (state.workspace.authorizationSequence ?? 1) + 1;
+}
+
+/** 整項委派的總開關。關掉時保留授權碼，之後再開不必重設。 */
+export function toggleDelegation(state, permission) {
+  const delegation = findDelegation(state, permission);
+  delegation.enabled = !delegation.enabled;
+}
+
+export function toggleDelegationAuthorization(
+  state,
+  permission,
+  authorizationId
+) {
+  const delegation = findDelegation(state, permission);
+  const authorization = delegation.authorizations.find(
+    (item) => item.id === authorizationId
+  );
+  if (authorization === undefined) throw new Error('找不到這組授權碼。');
+  authorization.enabled = !authorization.enabled;
+}
+
 export function toggleAccount(state, accountId) {
   const account = state.workspace.accounts.find(
     (item) => item.id === accountId

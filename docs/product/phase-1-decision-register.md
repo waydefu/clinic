@@ -69,6 +69,42 @@ exists**, which is why the privacy contact below is a phone number.
 - **D-011: an English version is required** (Beau Essence Clinic), and a phone
   number must stay visible for people who do not book online.
 
+### D-006 partial: deletion delegated to the front desk behind a passcode - 2026-07-27
+
+Deleting a booking was administrator-only. The owner's answer was that the front
+desk needs it in the moment, but behind a passcode the administrator sets, with
+**several passcodes that can each be switched off independently**. Several is
+the point: when one person leaves or one code is seen over a shoulder, that code
+is revoked without changing everyone else's.
+
+Implemented as a **delegation**, not as a permission move. `front_desk` still
+does not hold `delete_appointment`; the delegation is a second, separate path
+that requires presenting an enabled authorization. Keeping them apart means the
+audit trail always distinguishes "this role has it" from "this person was
+authorised this once" — moving the permission into the role would have erased
+that distinction permanently.
+
+Rules live in `packages/domain/src/delegated-authorization.ts` so that when real
+authentication arrives (D-006), only the comparison changes, not the judgement.
+Decisions worth keeping:
+
+- **A disabled authorization is indistinguishable from one that never existed.**
+  Reporting "that code is disabled" would confirm to a revoked holder that their
+  code was real. Matching happens only within the enabled set.
+- **"No authorization configured" and "wrong passcode" are different messages.**
+  The first means go and find the administrator; the second means you mistyped.
+  Merging them strands the front desk without knowing who to ask.
+- **Defaults are off, with no authorizations.** Shipping a default passcode would
+  mean the delegation was never really a decision anyone made.
+- **The audit records which authorization was used — never the passcode.** Audit
+  events get exported, printed and forwarded.
+- **The passcode is never displayed back**, not even to administrators. The
+  screen is beside patients and gets screenshotted; if it is forgotten, disable
+  it and add another.
+
+**Still not a security boundary.** Comparison is plaintext in the browser, same
+class as the synthetic login (AUTH-001). D-006 remains `pending`.
+
 ### Fonts: system stack retained - 2026-07-27
 
 **Decision: do not load a Chinese webfont.** The zero-kilobyte font budget is

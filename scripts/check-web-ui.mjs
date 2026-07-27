@@ -193,6 +193,20 @@ requireText(
   'permissions.includes(action.permission)',
   'Workbench action menu no longer filters processes by permission.'
 );
+// 2026-07-27：權限有兩種來源——角色天生的，與憑授權碼委派的。**每一個依權限
+// 過濾的地方都必須同時看兩種**，否則會出現「入口看得到、按下去卻在送出前就被
+// 自己擋掉」。這正是委派刪除第一次實作時踩到的：送出前的自我檢查只讀
+// session.permissions，請求根本沒離開畫面，授權碼永遠沒機會被驗證。
+requireText(
+  files.adminClient,
+  '!(state.session.delegatable ?? []).includes(requiredPermission)',
+  'The workbench pre-flight permission check ignores delegated permissions, so a delegated action is rejected before its authorization can be presented.'
+);
+requireText(
+  files.adminView,
+  '...(state.session?.delegatable ?? [])',
+  'The workbench action list ignores delegated permissions, so the delegated entry point never appears.'
+);
 requireText(
   files.css,
   '.workspace-nav',
@@ -298,7 +312,11 @@ const allowedControls = new Set([
   // 2026-07-25：櫃台清單的批次選取。只決定「哪幾列被勾起來」，本身不改任何
   // 資料；真正的處置仍逐筆走既有的 /bookings/{id}/... 路徑，狀態守衛、權限與
   // 稽核都不因為批次而放寬。
-  'appointment-select-all'
+  'appointment-select-all',
+  // 2026-07-27：把刪除預約委派給櫃台用的授權碼。管理者自訂名稱與授權碼，不觸碰
+  // 任何患者資料；授權碼只寫進本機狀態，且**不會**回填到畫面或稽核紀錄上。
+  'delegation-label',
+  'delegation-secret'
 ]);
 for (const control of files.adminShell.matchAll(
   /<(?:input|select)\b[^>]*\bid="([^"]+)"[^>]*>/gi

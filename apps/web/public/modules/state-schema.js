@@ -5,8 +5,8 @@ import {
 } from './constants.js';
 import { cloneSchedule, generateSlots } from './schedule-engine.js';
 
-export const storageKey = 'beauessence_synthetic_online_preview_v4';
-const SCHEMA_VERSION = 4;
+export const storageKey = 'beauessence_synthetic_online_preview_v5';
+const SCHEMA_VERSION = 5;
 
 // 營業時間：週三至週五 12:00–20:30，週六 10:00–18:00，週日至週二休診。
 function defaultSchedule() {
@@ -83,6 +83,19 @@ export function initialState() {
         }
       ],
       accountSequence: 2,
+      // 權限委派（2026-07-27 負責人：刪除可授權給櫃台，管理者自訂多組授權碼、
+      // 可個別開關）。**預設是關的、且一組授權碼都沒有**——委派要是一件管理者
+      // 明確做過的事，不是開箱就生效的預設值；出貨時附一組預設密碼，等於沒有
+      // 授權這件事。規則在 packages/domain 的 delegated-authorization。
+      delegations: [
+        {
+          permission: 'delete_appointment',
+          delegatedToRole: 'front_desk',
+          enabled: false,
+          authorizations: []
+        }
+      ],
+      authorizationSequence: 1,
       announcement: {
         status: 'published',
         title: '線上預約測試中',
@@ -145,6 +158,26 @@ export function isUsableState(state) {
   )
     return false;
   if (!Array.isArray(workspace.releases)) return false;
+  // 委派設定被改壞時必須整份丟掉重建，不能「當作沒有委派」繼續跑：那會讓一個
+  // 被停用的授權在下一次載入後悄悄變成可用（少了 enabled 欄位就沒有東西擋它）。
+  if (!Array.isArray(workspace.delegations)) return false;
+  if (
+    workspace.delegations.some(
+      (delegation) =>
+        typeof delegation?.permission !== 'string' ||
+        typeof delegation?.delegatedToRole !== 'string' ||
+        typeof delegation?.enabled !== 'boolean' ||
+        !Array.isArray(delegation?.authorizations) ||
+        delegation.authorizations.some(
+          (authorization) =>
+            typeof authorization?.id !== 'string' ||
+            typeof authorization?.label !== 'string' ||
+            typeof authorization?.secret !== 'string' ||
+            typeof authorization?.enabled !== 'boolean'
+        )
+    )
+  )
+    return false;
   if (
     workspace.announcement === null ||
     typeof workspace.announcement !== 'object'

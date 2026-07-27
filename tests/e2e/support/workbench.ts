@@ -75,6 +75,32 @@ export async function createBooking(
   await expect(page.locator('#status')).toContainText('預約已建立');
 }
 
+/** 合成狀態在瀏覽器裡的鍵。改版時 state-schema.js 與這裡要一起改。 */
+export const STORAGE_KEY = 'beauessence_synthetic_online_preview_v5';
+
+/**
+ * 換一個角色登入，**保留目前的合成狀態**。
+ *
+ * 直接把 `authenticated` 設回 false 再重載，而不是按 `#logout`：登出按鈕在窄
+ * 視窗下會被摺進工作臺設定裡，用它當步驟會讓測試在某些斷點下無故逾時（登入
+ * 訊號當初就是為此收斂的）。換角色是**測試的前置動作**、不是被驗證的行為，
+ * 所以取最不易碎的做法；登出本身另有測試。
+ */
+export async function switchRole(
+  page: Page,
+  role: WorkbenchRole
+): Promise<void> {
+  await page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    if (raw === null) return;
+    const state = JSON.parse(raw);
+    state.workspace.authenticated = false;
+    window.localStorage.setItem(key, JSON.stringify(state));
+  }, STORAGE_KEY);
+  await page.reload();
+  await login(page, role, { fresh: false });
+}
+
 /** 展開一個 <details>。工作臺把多數工作區收在裡面，測試要先打開才看得到內容。 */
 export async function openDisclosure(
   page: Page,

@@ -7,6 +7,8 @@ let confirmButton;
 let cancelButton;
 let reasonField;
 let reasonSelect;
+let secretField;
+let secretInput;
 // 目前這次詢問的 resolve。按鈕點擊當下就 settle，不等 close 事件——
 // close 事件在背景分頁可能被延後派發；Esc 關閉仍由 close 事件補接。
 let settle;
@@ -66,8 +68,21 @@ function ensureDialog() {
     settleOnce(dialog.returnValue === 'confirm')
   );
 
+  // 被委派的動作要在同一步輸入授權碼。與理由一樣的理由：事後補問等於允許
+  // 未經授權的動作先發生。用 type="password" 讓現場輸入時不會被旁邊的人看到，
+  // 並關掉自動填入——這是共用機台上的操作，不該被瀏覽器記住。
+  secretField = document.createElement('label');
+  // 與理由欄分開的 class：兩者共用外觀，但**選取器必須分得開**——共用同一個
+  // class 會讓既有測試的 `.confirm-dialog-reason` 一次選到兩個元素而失效。
+  secretField.className = 'confirm-dialog-secret';
+  secretInput = document.createElement('input');
+  secretInput.type = 'password';
+  secretInput.autocomplete = 'off';
+  secretField.append(secretInput);
+  secretField.hidden = true;
+
   actions.append(cancelButton, confirmButton);
-  dialog.append(title, messageNode, reasonField, actions);
+  dialog.append(title, messageNode, reasonField, secretField, actions);
   document.body.append(dialog);
 }
 
@@ -94,17 +109,24 @@ export function confirmDialog(message, { danger = false, confirmLabel } = {}) {
 }
 
 /**
- * 需要記錄理由的確認。回傳所選理由代碼，取消則回傳 undefined。
+ * 需要記錄理由的確認。回傳 `{ reasonCode, secret }`，取消則回傳 undefined。
  *
  * 為什麼理由必須在確認的同一步收集：它會寫進比資源本身活得更久的稽核事件。
- * 事後補問等於允許沒有理由的刪除先發生。
+ * 事後補問等於允許沒有理由的刪除先發生。授權碼（若這次動作需要）同理。
  */
 export function confirmWithReason(
   message,
-  { reasons, label = '理由', danger = true, confirmLabel } = {}
+  { reasons, label = '理由', danger = true, confirmLabel, secret } = {}
 ) {
   ensureDialog();
   reasonField.hidden = false;
+  secretField.hidden = secret === undefined;
+  secretInput.value = '';
+  if (secret !== undefined) {
+    if (secretField.firstChild === secretInput)
+      secretField.prepend(document.createTextNode(secret.label));
+    else secretField.firstChild.textContent = secret.label;
+  }
   // <label> 的文字節點在 <select> 之前，重複開啟時只換文字、不重建節點。
   if (reasonField.firstChild === reasonSelect)
     reasonField.prepend(document.createTextNode(label));
@@ -118,6 +140,8 @@ export function confirmWithReason(
     })
   );
   return open(message, { danger, confirmLabel }).then((confirmed) =>
-    confirmed ? reasonSelect.value : undefined
+    confirmed
+      ? { reasonCode: reasonSelect.value, secret: secretInput.value }
+      : undefined
   );
 }

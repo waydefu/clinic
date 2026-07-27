@@ -889,6 +889,48 @@
               <div id="account-list"></div>
             </div>
           </div>
+
+          <!-- 權限委派：把某項只屬於管理者的動作，憑授權碼開放給其他角色。
+               授權碼可以有多組並各自開關——一支被看到、一位離職，停掉那一組
+               就好，不必換掉全部人的。 -->
+          <div class="governance-grid">
+            <form id="delegation-form" class="control-card">
+              <h3>刪除預約的授權碼</h3>
+              <p class="field-hint">
+                櫃台預設不能刪除預約。開啟後，櫃台每次刪除都必須輸入下列其中一組
+                授權碼，稽核會記錄用了哪一組。
+              </p>
+              <label
+                >授權碼名稱<input
+                  id="delegation-label"
+                  type="text"
+                  maxlength="30"
+                  required
+              /></label>
+              <label
+                >授權碼<input
+                  id="delegation-secret"
+                  type="password"
+                  autocomplete="off"
+                  minlength="6"
+                  required
+              /></label>
+              <button class="button button-primary" type="submit">
+                新增授權碼
+              </button>
+              <p id="delegation-form-status" class="form-status" hidden></p>
+            </form>
+            <div class="governance-list">
+              <p
+                id="delegation-summary"
+                class="result-summary"
+                aria-live="polite"
+              >
+                尚未設定
+              </p>
+              <div id="delegation-list"></div>
+            </div>
+          </div>
         </section>
 
         <section

@@ -331,7 +331,13 @@ export function rescheduleAppointment(
  *
  * 理由是必填的：紀錄消失後，稽核事件是它存在過的唯一證據。
  */
-export function deleteAppointment(state, appointmentId, reasonCode, actorId) {
+export function deleteAppointment(
+  state,
+  appointmentId,
+  reasonCode,
+  actorId,
+  delegation
+) {
   const appointment = state.appointments.find(
     (item) => item.id === appointmentId
   );
@@ -409,9 +415,18 @@ export function deleteAppointment(state, appointmentId, reasonCode, actorId) {
   state.appointments = state.appointments.filter(
     (item) => item.id !== appointmentId
   );
+  // 被授權執行時，稽核要看得出「這不是他本來就能做的事」——留下用了哪一組
+  // 授權碼（名稱與 id，永不留授權碼本身）。管理者自己動手則沒有這一段。
   appendAudit(state, 'appointment_deleted', appointmentId, actorId, {
     reasonCode,
-    previousStatus: appointment.status
+    previousStatus: appointment.status,
+    ...(delegation === undefined
+      ? {}
+      : {
+          delegatedPermission: delegation.permission,
+          authorizationId: delegation.authorizationId,
+          authorizationLabel: delegation.authorizationLabel
+        })
   });
   return appointment;
 }

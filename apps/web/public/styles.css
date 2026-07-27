@@ -2264,13 +2264,15 @@ label.has-error input {
    字級刻意維持 --text-body（繼承）：這個 <label> 只包一個 <select>，而 select
    用 `font: inherit`。表單控制項低於 16px 會讓 iOS Safari 在聚焦時自動縮放頁面，
    所以這裡不縮小。 */
-.confirm-dialog-reason {
+.confirm-dialog-reason,
+.confirm-dialog-secret {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
   margin: 0 0 var(--space-md);
 }
-.confirm-dialog-reason select {
+.confirm-dialog-reason select,
+.confirm-dialog-secret input {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);

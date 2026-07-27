@@ -16,9 +16,11 @@ import {
 } from './modules/case-management.js';
 import { PERMISSIONS } from './modules/constants.js';
 import {
+  canUseDelegation,
   currentAccount,
   permissionsFor,
-  requirePermission
+  requirePermission,
+  requirePermissionOrDelegation
 } from './modules/permissions.js';
 import {
   cloneSchedule,
@@ -42,8 +44,11 @@ import {
   isMaintenanceActive,
   logout,
   saveAnnouncement,
+  saveDelegationAuthorization,
   saveMaintenance,
-  toggleAccount
+  toggleAccount,
+  toggleDelegation,
+  toggleDelegationAuthorization
 } from './modules/workspace-domain.js';
 
 export { storageKey };
@@ -80,6 +85,12 @@ function snapshotState(state) {
     session: {
       account: currentAccount(state),
       permissions: permissionsFor(state),
+      // 這個角色天生沒有、但目前可以憑授權碼取得的權限。介面靠它決定要不要
+      // 顯示入口與要不要問授權碼；**它不是授權本身**，真正的把關在
+      // requirePermissionOrDelegation，繞過畫面直接送出仍然會被擋。
+      delegatable: Object.values(PERMISSIONS).filter((permission) =>
+        canUseDelegation(state, permission)
+      ),
       authenticated: state.workspace.authenticated === true
     }
   });
@@ -165,6 +176,25 @@ export async function stagingRequest(path, options = {}) {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);
     toggleAccount(state, path.split('/')[3]);
     appendWorkspaceAudit(state, 'account_status_changed', actor.id);
+  } else if (path === '/workspace/delegations') {
+    // 委派設定屬於帳號與權限管理，因此沿用 MANAGE_ACCOUNTS：能決定誰有帳號的
+    // 人，才有資格決定要不要把刪除授權出去。
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);
+    saveDelegationAuthorization(state, body);
+    appendWorkspaceAudit(state, 'delegation_authorization_added', actor.id);
+  } else if (/^\/workspace\/delegations\/[A-Za-z0-9_-]+\/toggle$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);
+    toggleDelegation(state, path.split('/')[3]);
+    appendWorkspaceAudit(state, 'delegation_toggled', actor.id);
+  } else if (
+    /^\/workspace\/delegations\/[A-Za-z0-9_-]+\/authorizations\/[A-Za-z0-9_-]+\/toggle$/.test(
+      path
+    )
+  ) {
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_ACCOUNTS);
+    const parts = path.split('/');
+    toggleDelegationAuthorization(state, parts[3], parts[5]);
+    appendWorkspaceAudit(state, 'delegation_authorization_toggled', actor.id);
   } else if (path === '/workspace/announcement') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
     saveAnnouncement(state, body);
@@ -216,10 +246,21 @@ export async function stagingRequest(path, options = {}) {
     const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
     transitionAppointment(state, path.split('/')[2], 'no_show', actor.id);
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/delete$/.test(path)) {
-    // 刪除只認管理者，且不接受 origin=patient 的旁路：患者端沒有刪除入口，
-    // 而 origin 是呼叫端自稱的，本來就不能當作授權依據（見 resolveActor）。
-    const actor = requirePermission(state, PERMISSIONS.DELETE_APPOINTMENT);
-    deleteAppointment(state, path.split('/')[2], body.reasonCode, actor.id);
+    // 刪除天生只認管理者；櫃台要走委派並帶授權碼（2026-07-27 負責人方向）。
+    // 不接受 origin=patient 的旁路：患者端沒有刪除入口，而 origin 是呼叫端
+    // 自稱的，本來就不能當作授權依據（見 resolveActor）。
+    const { actor, delegation } = requirePermissionOrDelegation(
+      state,
+      PERMISSIONS.DELETE_APPOINTMENT,
+      body.authorizationSecret
+    );
+    deleteAppointment(
+      state,
+      path.split('/')[2],
+      body.reasonCode,
+      actor.id,
+      delegation
+    );
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/reschedule$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
     rescheduleAppointment(state, path.split('/')[2], body.slotId, actor.id);
