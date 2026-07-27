@@ -1,0 +1,65 @@
+import { expect, test } from '@playwright/test';
+
+const CLINIC_ROUTES = [
+  ['/clinic', /從順暢呼吸開始/],
+  ['/clinic/doctors', '醫師團隊'],
+  ['/clinic/doctors/yan-cheng-an', '顏正安 院長'],
+  ['/clinic/doctors/yang-sheng-feng', '楊昇峯 醫師'],
+  ['/clinic/nasal/snoring-five-in-one', '止鼾五合一'],
+  ['/clinic/nasal/inferior-turbinate-surgery', '下鼻甲手術'],
+  ['/clinic/nasal/septoplasty', '鼻中隔手術'],
+  ['/clinic/nasal/snore-relief-mouthguard', '止鼾好眠牙套']
+] as const;
+
+test.describe('診所網站整合', () => {
+  for (const [path, heading] of CLINIC_ROUTES) {
+    test(`${path} 可閱讀並能前往既有預約流程`, async ({ page }) => {
+      await page.goto(path);
+
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading);
+      await expect(
+        page
+          .getByRole('link', {
+            name: /線上預約|預約諮詢|預約門診|預約專業評估/
+          })
+          .first()
+      ).toHaveAttribute('href', '/booking');
+      await expect(page).toHaveTitle(/^【測試用】/);
+    });
+  }
+
+  test('首頁只呈現醫師與鼻功能醫學的指定內容範圍', async ({ page }) => {
+    await page.goto('/clinic');
+
+    await expect(page.locator('.clinic-service-card')).toHaveCount(4);
+    await expect(page.locator('.clinic-doctor-card')).toHaveCount(2);
+    await expect(
+      page.getByRole('navigation', { name: '診所網站導覽' })
+    ).not.toContainText(/微整形|整形手術|光電注射/);
+  });
+
+  test('行動選單可開啟並用 Escape 關閉', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/clinic');
+
+    const menu = page.getByRole('button', { name: '選單' });
+    await menu.click();
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+    await expect(
+      page.getByRole('navigation', { name: '診所網站導覽' })
+    ).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('首頁預約按鈕接回患者預約頁', async ({ page }) => {
+    await page.goto('/clinic');
+    await page.getByRole('link', { name: '線上預約' }).last().click();
+
+    await expect(page).toHaveURL('/booking');
+    await expect(
+      page.getByRole('heading', { level: 1, name: '確認您的門診時段' })
+    ).toBeVisible();
+  });
+});

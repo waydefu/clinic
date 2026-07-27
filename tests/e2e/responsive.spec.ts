@@ -38,6 +38,22 @@ async function horizontalOverflow(page: Page) {
 
 test.describe('版面重排', () => {
   for (const width of WIDTHS) {
+    test(`診所頁在 ${width}px 不出現水平捲軸`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/clinic');
+      await expect(
+        page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
+      ).toBeVisible();
+
+      const result = await horizontalOverflow(page);
+      expect(
+        result.scrollWidth,
+        `溢出元素：${result.overflowing.join(', ')}`
+      ).toBeLessThanOrEqual(result.clientWidth + 1);
+    });
+  }
+
+  for (const width of WIDTHS) {
     test(`患者頁在 ${width}px 不出現水平捲軸`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/booking');

@@ -35,6 +35,21 @@ plus the
 Until the decision register changes, implementation is limited to their local,
 synthetic-only Stage 0 architecture-hardening work.
 
+## Clinic website integration — 2026-07-27
+
+The expiring synthetic preview now includes a responsive clinic website at
+`/clinic`, two medical-team profiles and four nasal-functional-medicine pages.
+Plastic-surgery and injectable/medical-aesthetic category pages are excluded.
+Every clinic appointment call to action enters the existing `/booking` flow,
+and the booking header links back to the clinic site. The two surfaces share
+the same white, mist-green and deep-forest visual direction.
+
+This is still a static, noindex preview. Clinic information pages collect
+nothing; the patient form remains browser-local and must not receive real
+patient data. See the
+[clinic website and booking integration record](docs/design/clinic-site-integration-2026-07-27.md)
+for the route map, content boundary and implementation structure.
+
 ## Latest synthetic-UI refinement — 2026-07-23
 
 The operations workbench now keeps the large green introduction on the home
@@ -89,6 +104,13 @@ Firebase project.
 
 To see the pages, start the local site — no API window is needed, because the
 browser holds its own state. See [apps/web/README.md](apps/web/README.md).
+
+The public-facing preview entry points are:
+
+- `/clinic` — clinic home, medical team and nasal-functional-medicine pages;
+- `/booking` — the existing synthetic patient appointment flow; and
+- `/` — the local operations workbench, hidden from the online patient
+  navigation.
 
 ## Phase 1 gate
 

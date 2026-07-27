@@ -1,0 +1,141 @@
+/*
+ * 診所網站與患者預約的視覺橋接層。
+ * 保留 styles.css 的設計 token、主題與所有流程狀態，只調整患者端呈現。
+ */
+.patient-body {
+  background:
+    radial-gradient(circle at 85% 8%, var(--surface-tint), transparent 28rem),
+    var(--surface-soft);
+}
+
+.patient-header {
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: 0 0.55rem 1.8rem color-mix(in srgb, var(--forest) 7%, transparent);
+  backdrop-filter: blur(1rem);
+}
+
+.patient-header-inner {
+  min-height: 5.5rem;
+  gap: var(--space-md);
+}
+
+.patient-header .brand {
+  color: var(--forest-dark);
+  text-decoration: none;
+}
+
+.patient-header .brand strong {
+  font-family: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
+  letter-spacing: 0.08em;
+}
+
+.patient-header .brand small {
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+}
+
+.patient-nav a {
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-xs);
+}
+
+.patient-nav {
+  gap: var(--space-2xs);
+}
+
+.patient-nav a:hover {
+  background: var(--surface-tint);
+}
+
+.patient-nav a[aria-current='page'] {
+  color: var(--on-accent);
+  background: var(--accent-solid);
+}
+
+.patient-announcement {
+  color: var(--forest-dark);
+  background: var(--surface-tint);
+  border-bottom: 1px solid var(--line);
+}
+
+.patient-announcement strong {
+  color: var(--forest);
+}
+
+.patient-hero {
+  background:
+    radial-gradient(
+      circle at 92% 4%,
+      color-mix(in srgb, var(--surface) 82%, transparent),
+      transparent 17rem
+    ),
+    linear-gradient(135deg, var(--surface-tint), var(--surface-soft));
+  border-color: var(--line);
+  box-shadow: 0 1.25rem 3rem color-mix(in srgb, var(--forest) 8%, transparent);
+}
+
+.patient-hero h1,
+.booking-panel-heading h2 {
+  font-family: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
+  letter-spacing: 0.035em;
+}
+
+.patient-contact-card,
+.booking-panel {
+  border-color: var(--line);
+  box-shadow: 0 1rem 2.75rem color-mix(in srgb, var(--forest) 7%, transparent);
+}
+
+.booking-stepper {
+  padding: var(--space-xs);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.booking-stepper li {
+  padding-top: var(--space-xs);
+}
+
+.service-choice {
+  background: var(--surface);
+  box-shadow: 0 0.45rem 1.4rem color-mix(in srgb, var(--forest) 5%, transparent);
+}
+
+.service-choice:hover,
+.service-choice.is-selected {
+  background: var(--surface-tint);
+  box-shadow: 0 0.85rem 2rem color-mix(in srgb, var(--forest) 9%, transparent);
+}
+
+.patient-footer {
+  background: var(--surface-inverse-deep);
+}
+
+@media (max-width: 62rem) {
+  .patient-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: var(--space-3xs);
+  }
+}
+
+@media (max-width: 48rem) {
+  .patient-header-inner {
+    min-height: 4.5rem;
+  }
+
+  .patient-nav {
+    gap: var(--space-2xs);
+  }
+}
+
+@media (forced-colors: active) {
+  .patient-header,
+  .patient-contact-card,
+  .booking-panel,
+  .service-choice {
+    box-shadow: none;
+  }
+}

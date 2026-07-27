@@ -128,6 +128,70 @@
     }
   },
   {
+    "path": "/clinic.html",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 12
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 7
+      },
+      {
+        "resourceType": "image",
+        "budget": 560
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 580
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 3
+      },
+      {
+        "resourceType": "total",
+        "budget": 7
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
     "path": "/privacy.html",
     "resourceSizes": [
       {

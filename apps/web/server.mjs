@@ -31,6 +31,8 @@ const contentTypes = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
   '.png': 'image/png'
@@ -40,7 +42,15 @@ const contentTypes = {
 // 一頁一列，避免再出現「新增一個對外頁面卻忘了在這裡開路」的落差。
 const PRETTY_PATHS = new Map([
   ['/booking', 'patient.html'],
-  ['/privacy', 'privacy.html']
+  ['/privacy', 'privacy.html'],
+  ['/clinic', 'clinic.html'],
+  ['/clinic/doctors', 'clinic.html'],
+  ['/clinic/doctors/yan-cheng-an', 'clinic.html'],
+  ['/clinic/doctors/yang-sheng-feng', 'clinic.html'],
+  ['/clinic/nasal/snoring-five-in-one', 'clinic.html'],
+  ['/clinic/nasal/inferior-turbinate-surgery', 'clinic.html'],
+  ['/clinic/nasal/septoplasty', 'clinic.html'],
+  ['/clinic/nasal/snore-relief-mouthguard', 'clinic.html']
 ]);
 
 const server = createServer(async (request, response) => {

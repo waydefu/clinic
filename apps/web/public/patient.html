@@ -85,6 +85,7 @@
       }
     </script>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/clinic-booking.css" />
     <!-- 同步載入：首次繪製前套用主題，避免閃爍（CSP 禁 inline script）。 -->
     <script src="/theme.js"></script>
   </head>
@@ -92,7 +93,7 @@
     <a class="skip-link" href="#patient-main">跳至預約內容</a>
     <header class="patient-header">
       <div class="patient-header-inner">
-        <a class="brand" href="/booking" aria-label="一森渼診所線上預約首頁"
+        <a class="brand" href="/clinic" aria-label="一森渼診所首頁"
           ><img
             class="brand-mark"
             src="/assets/brand-mark.webp"
@@ -101,13 +102,12 @@
             height="80"
             decoding="async"
           /><span
-            ><strong>一森渼診所</strong
-            ><small>Beau Essence Appointment</small></span
+            ><strong>一森渼診所</strong><small>Beau Essence Clinic</small></span
           ></a
         >
         <nav class="patient-nav" aria-label="預約網站導覽">
-          <a href="#booking-start">線上預約</a
-          ><a href="#patient-help">預約須知</a
+          <a href="/clinic">診所首頁</a><a href="/clinic/doctors">醫師團隊</a
+          ><a href="#booking-start" aria-current="page">線上預約</a
           ><a href="/" data-local-only-link>內部工作臺</a>
         </nav>
         <span class="patient-credentials">
@@ -614,6 +614,7 @@
         >
       </div>
       <div>
+        <a href="/clinic">診所首頁</a>
         <a href="#patient-help">預約須知</a>
         <a href="/privacy">隱私權政策</a>
         <details class="developer-tools" data-local-only-link>

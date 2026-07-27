@@ -48,6 +48,22 @@ async function scan(page: Page, context?: string) {
 }
 
 test.describe('無障礙掃描', () => {
+  test('診所首頁沒有 serious/critical 違規', async ({ page }) => {
+    await page.goto('/clinic');
+    await expect(
+      page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
+    ).toBeVisible();
+    await scan(page, '診所首頁');
+  });
+
+  test('鼻功能醫學內頁沒有 serious/critical 違規', async ({ page }) => {
+    await page.goto('/clinic/nasal/septoplasty');
+    await expect(
+      page.getByRole('heading', { level: 1, name: '鼻中隔手術' })
+    ).toBeVisible();
+    await scan(page, '鼻功能醫學內頁');
+  });
+
   test('患者預約頁沒有 serious/critical 違規', async ({ page }) => {
     await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();

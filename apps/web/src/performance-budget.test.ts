@@ -198,6 +198,7 @@ describe('the shipped performance budget', () => {
     expect(budgets.map((budget) => budget.path)).toEqual([
       '/patient.html',
       '/index.html',
+      '/clinic.html',
       '/privacy.html',
       '/404.html'
     ]);
@@ -220,7 +221,7 @@ describe('the shipped performance budget', () => {
   });
 
   it('carries the timing budgets the browser test enforces', () => {
-    for (const path of ['/patient.html', '/index.html']) {
+    for (const path of ['/patient.html', '/index.html', '/clinic.html']) {
       const timings = budgets.find((budget) => budget.path === path)?.timings;
       expect(timings?.map((timing) => timing.metric)).toEqual([
         'first-contentful-paint',
@@ -232,8 +233,8 @@ describe('the shipped performance budget', () => {
 
   // per-entry bundling 已否決（逐檔可讀性優先），所以 modulepreload 是請求瀑布的
   // 永久解法，不是過渡手段。既然沒有後續改動會再壓低請求數，深度就必須有閘門。
-  it('requires both module entry points to be one round trip deep', () => {
-    for (const path of ['/patient.html', '/index.html']) {
+  it('requires every module entry point to be one round trip deep', () => {
+    for (const path of ['/patient.html', '/index.html', '/clinic.html']) {
       const entry = budgets.find((budget) => budget.path === path);
       expect(entry?.moduleGraph?.maxDiscoveryDepth).toBe(1);
     }
