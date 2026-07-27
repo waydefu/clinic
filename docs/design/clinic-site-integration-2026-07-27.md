@@ -93,5 +93,5 @@ recorded privacy, policy, identity and production gates are approved.
 
 The code-level contract is pinned by
 `apps/web/src/clinic-site.test.ts`. The full repository verification, browser
-checks, Firebase preview URL, expiry and commit are recorded in the dated
-delivery review after deployment.
+checks, Firebase preview URL, expiry and commit are recorded in the
+[dated delivery review](../reviews/2026-07-27-clinic-site-integration-delivery.md).

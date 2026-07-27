@@ -172,6 +172,7 @@ const requiredPaths = [
   'apps/web/public/robots.txt',
   'apps/web/public/sitemap.xml',
   'docs/reviews/2026-07-27-seo-baseline.md',
+  'docs/reviews/2026-07-27-clinic-site-integration-delivery.md',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
   'apps/web/public/privacy.css',
