@@ -1,5 +1,30 @@
 import { expect, test } from '@playwright/test';
 
+import { STORAGE_KEY, login } from './support/workbench';
+
+/**
+ * 送出預約並等到它**真的**建立完成。
+ *
+ * 不能等 `#booking-complete-heading` 的文字：「預約已建立」同時是 patient.html
+ * 裡那個標題的**靜態預設值**，所以那個斷言在按下送出的瞬間就通過了，之後的
+ * 步驟會跑在還沒寫進 localStorage 的狀態上（2026-07-27 實際踩到：讀出來是 null）。
+ * `#booking-result` 的預約編號是成功處理器才填的，那才是真的訊號。
+ */
+async function submitBooking(page: import('@playwright/test').Page) {
+  await page.locator('#confirm-patient-booking').click();
+  await expect(page.locator('#booking-result')).toContainText('appointment_');
+}
+
+/** 讀出瀏覽器裡的合成狀態。斷言「送出去的東西真的存下來了」時用。 */
+async function syntheticState(page: import('@playwright/test').Page) {
+  return JSON.parse(
+    await page.evaluate(
+      (key) => window.localStorage.getItem(key) ?? 'null',
+      STORAGE_KEY
+    )
+  );
+}
+
 // 患者端完整預約流程，跑在打包後的最終產物上。這是唯一一條真正走完四步驟精靈
 // 的路徑，證明合成建立預約在真瀏覽器裡從頭到尾可用，而不只是單元層的函式。
 
@@ -58,7 +83,7 @@ test.describe('患者線上預約', () => {
     await page.locator('#patient-national-id').fill('C123456789');
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
-    await page.locator('#confirm-patient-booking').click();
+    await submitBooking(page);
 
     await expect(page.locator('#booking-complete-reminder')).toBeVisible();
     await expect(page.locator('#booking-complete-reminder')).toContainText(
@@ -110,5 +135,135 @@ test.describe('患者線上預約', () => {
     // 沒有前進到完成步驟——步驟 4 面板維持隱藏（其標題文字是靜態預設，不能
     // 拿它判斷是否完成）。
     await expect(page.locator('[data-booking-step="4"]')).toBeHidden();
+  });
+
+  // P7／P9（業主 2026-07-27）：患者自述的備註、需求標籤與訊息來源。
+  test('備註、需求與來源標籤會跟著預約一起存下來', async ({ page }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('測試患者丁');
+    await page.locator('#patient-phone').fill('0955666777');
+    await page.locator('#patient-birth').fill('1992-08-14');
+    await page.locator('#patient-national-id').fill('D123456789');
+
+    await page.locator('[data-request-tag="same_day_procedure"]').check();
+    await page.locator('[data-source-tag="friend_referral"]').check();
+    await expect(page.locator('#patient-referrer-field')).toBeVisible();
+    await page.locator('#patient-referrer').fill('王小明');
+    await page.locator('#patient-note').fill('曾經做過鼻中膈手術。');
+
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    const state = await syntheticState(page);
+    const appointment = state.appointments.at(-1);
+    expect(appointment.requestTags).toEqual(['same_day_procedure']);
+    expect(appointment.sourceTags).toEqual(['friend_referral']);
+    expect(appointment.referrerName).toBe('王小明');
+    // 患者自述與櫃台的營運備註是**兩個欄位**：合成一個的話，櫃台一按「修改備註」
+    // 就會把患者寫的話覆蓋掉，而且沒有任何痕跡。
+    expect(appointment.patientNote).toBe('曾經做過鼻中膈手術。');
+    expect(appointment.noteText).toBe('');
+  });
+
+  // 介紹人是**第三人**的姓名，那個人不在現場也沒有被告知。取消勾選之後欄位收起
+  // 來，但值如果留在 DOM 裡仍會被一起送出——畫面上看不到的資料照樣離開了表單。
+  test('取消勾選介紹管道時，介紹人姓名不會偷偷跟著送出', async ({ page }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('測試患者戊');
+    await page.locator('#patient-phone').fill('0966777888');
+    await page.locator('#patient-birth').fill('1988-01-30');
+    await page.locator('#patient-national-id').fill('E123456789');
+
+    await page.locator('[data-source-tag="staff_referral"]').check();
+    await page.locator('#patient-referrer').fill('不該被送出的名字');
+    await page.locator('[data-source-tag="staff_referral"]').uncheck();
+    await expect(page.locator('#patient-referrer-field')).toBeHidden();
+    await expect(page.locator('#patient-referrer')).toHaveValue('');
+
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    const state = await syntheticState(page);
+    const appointment = state.appointments.at(-1);
+    expect(appointment.referrerName).toBeUndefined();
+    expect(JSON.stringify(state)).not.toContain('不該被送出的名字');
+  });
+});
+
+// P2（業主 2026-07-27）：醫師已登錄回診指示後，這位患者這一次要走的是回診，
+// 初診鍵停用並說明原因。走的是真的路徑——患者自己約一次、櫃台標到診並登錄回診
+// ——而不是捏造一筆 followUps 進去，否則測到的只是自己寫的假資料形狀。
+test.describe('已確認回診時的掛號別', () => {
+  test('初診鍵停用，並在按鈕外說明為什麼', async ({ page }) => {
+    await page.goto('/booking');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('回診測試');
+    await page.locator('#patient-phone').fill('0977888999');
+    await page.locator('#patient-birth').fill('1975-06-11');
+    await page.locator('#patient-national-id').fill('F123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    // 櫃台端：標成到診，再登錄「需要回診」。用的是工作臺實際會走的兩條路徑，
+    // 權限也照常檢查——所以必須先登入（保留剛才那筆合成狀態）。
+    await login(page, 'admin', { fresh: false });
+    const recorded = await page.evaluate(async () => {
+      const storeUrl = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .find((name) => /\/store\.[a-f0-9]+\.js$/.test(name));
+      if (storeUrl === undefined)
+        throw new Error('找不到打包後的 synthetic store module。');
+      const { stagingRequest } = await import(storeUrl);
+      const state = await stagingRequest('/state');
+      const appointment = state.appointments.at(-1);
+      await stagingRequest(`/bookings/${appointment.id}/complete`, {
+        method: 'POST',
+        body: '{}'
+      });
+      // 回診網格只開每小時 :15 與 :45，所以目標時間直接取一個真的空回診時段，
+      // 而不是自己湊一個時間字串。
+      const slot = state.slots.find(
+        (item) => item.kind === 'follow_up' && item.reservationId === undefined
+      );
+      const taipei = new Date(
+        new Date(slot.startsAt).getTime() + 8 * 60 * 60 * 1000
+      ).toISOString();
+      await stagingRequest(`/follow-ups/${appointment.id}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          status: 'required',
+          dueDate: taipei.slice(0, 10),
+          dueTime: taipei.slice(11, 16)
+        })
+      });
+      return taipei.slice(0, 10);
+    });
+    expect(recorded).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    await page.goto('/booking');
+    await expect(page.locator('[data-booking-type="follow_up"]')).toBeEnabled();
+    await expect(page.locator('[data-booking-type="initial"]')).toBeDisabled();
+    // 停用的按鈕不會自己說明原因，說明在兩顆按鈕共用的那一行上，而兩顆都以
+    // aria-describedby 指向它。
+    await expect(page.locator('#follow-up-choice-status')).toContainText(
+      '初診暫不開放'
+    );
+    // 停用之後選取狀態也要跟著換掉，否則畫面停在一個按不到的選擇上。
+    await expect(
+      page.locator('[data-booking-type="follow_up"]')
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });

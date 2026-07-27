@@ -122,7 +122,11 @@
   background: var(--surface-inverse-deep);
 }
 
-@media (max-width: 62rem) {
+/* 平板寬度：導覽項放不進品牌那一列，改成獨佔一列並允許局部橫捲。
+   更窄時（48rem 以下）導覽整個收進漢堡選單，由 styles.css 接手。
+   斷點原本是 62rem——不在正式尺度（64／48／30rem）內，而且 `check:tokens`
+   當時根本沒有掃這份檔案（見 2026-07-27 自動檢查缺口 F-2）。 */
+@media (max-width: 64rem) {
   .patient-nav {
     order: 3;
     width: 100%;

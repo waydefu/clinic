@@ -105,7 +105,19 @@
             ><strong>一森渼診所</strong><small>Beau Essence Clinic</small></span
           ></a
         >
-        <nav class="patient-nav" aria-label="預約網站導覽">
+        <!-- P13（負責人 2026-07-27 核可）：窄螢幕把站台導覽收成漢堡選單。
+             併站後頁首多了三到四個站台連結，在 375px 上獨佔一列、佔掉首屏 29%。
+             做法比照 /clinic 既有的 .clinic-menu-button，但標籤**看得見**——
+             純圖示的漢堡需要使用者先認得那個符號（NN/g）。 -->
+        <button
+          class="patient-menu-button"
+          type="button"
+          aria-expanded="false"
+          aria-controls="patient-nav"
+        >
+          <span class="patient-menu-icon" aria-hidden="true"></span>選單
+        </button>
+        <nav id="patient-nav" class="patient-nav" aria-label="預約網站導覽">
           <a href="/clinic">診所首頁</a><a href="/clinic/doctors">醫師團隊</a
           ><a href="#booking-start" aria-current="page">線上預約</a
           ><a href="/" data-local-only-link>內部工作臺</a>
@@ -243,6 +255,7 @@
               class="service-choice service-choice-compact"
               type="button"
               data-booking-type="initial"
+              aria-describedby="follow-up-choice-status"
             >
               <span class="service-icon" aria-hidden="true">＋</span
               ><strong>初診</strong>
@@ -449,6 +462,70 @@
                 <p id="patient-nhi-card-hint" class="field-hint">
                   未攜帶健保卡者，本次看診須全額自費。
                 </p>
+
+                <!-- P9（業主 2026-07-27）：兩組可複選標籤。
+                     選項由 modules/constants.js 產生，本身不帶 id——一頁上兩組
+                     標籤若各自給 id 會撞名，而兩份客戶端都用
+                     `Object.fromEntries(querySelectorAll('[id]'))` 建 elements
+                     表，撞名會靜默覆蓋掉控制項。 -->
+                <fieldset class="patient-fieldset">
+                  <legend>這次門診的需求（可複選，選填）</legend>
+                  <div
+                    id="patient-request-tags"
+                    class="tag-picker"
+                    role="group"
+                  ></div>
+                </fieldset>
+
+                <fieldset class="patient-fieldset">
+                  <legend>如何得知診所訊息（可複選，選填）</legend>
+                  <div
+                    id="patient-source-tags"
+                    class="tag-picker"
+                    role="group"
+                  ></div>
+                  <!-- 介紹人欄位只在勾了親友介紹或員工介紹時出現：沒有人介紹卻
+                       擺著一個「介紹人」欄位，等於在問一個不存在的問題。 -->
+                  <label id="patient-referrer-field" hidden
+                    ><span class="field-label">介紹人姓名</span>
+                    <input
+                      id="patient-referrer"
+                      type="text"
+                      maxlength="30"
+                      autocomplete="off"
+                      aria-describedby="patient-referrer-hint"
+                    />
+                    <span id="patient-referrer-hint" class="field-hint"
+                      >方便診所向介紹您的親友或同仁致意；不填也不影響預約。</span
+                    >
+                  </label>
+                </fieldset>
+
+                <!-- P7（業主 2026-07-27）：患者自己的備註。與櫃台的營運備註分開
+                     存成 `patientNote`，否則櫃台修改備註時會把患者寫的話蓋掉，
+                     而且沒有任何痕跡。上限 120 字，與工作臺的 noteText 一致。 -->
+                <label
+                  ><span class="field-label">想先告訴診所的事（選填）</span>
+                  <textarea
+                    id="patient-note"
+                    rows="3"
+                    maxlength="120"
+                    autocomplete="off"
+                    aria-describedby="patient-note-hint"
+                  ></textarea>
+                  <span id="patient-note-hint" class="field-hint"
+                    >最多 120 字。急事或需要即時回覆，請改用
+                    <a
+                      class="patient-line-link"
+                      href="https://lin.ee/nMf1Bvo"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >診所 LINE</a
+                    >
+                    或來電 02-2577-1314。</span
+                  >
+                </label>
+
                 <label class="consent-preview"
                   ><input
                     id="synthetic-confirmation"
@@ -462,66 +539,33 @@
                     hidden
                   ></span>
                 </label>
-                <!-- 個資法第 8 條要的是「蒐集**前**告知」，所以摘要直接攤在
-                     送出鈕上方，而不是只放一個多數人不會點的連結。全文由
-                     policy-dialog 就地展開，不必離開填到一半的表單。 -->
-                <section
-                  class="privacy-notice"
-                  aria-labelledby="privacy-notice-heading"
-                >
-                  <h3 id="privacy-notice-heading" class="privacy-notice-title">
-                    個人資料蒐集告知
-                  </h3>
-                  <dl class="privacy-notice-facts">
-                    <div>
-                      <dt>蒐集者</dt>
-                      <dd>一森渼診所</dd>
-                    </div>
-                    <div>
-                      <dt>目的</dt>
-                      <dd>門診預約、到診確認與回診安排</dd>
-                    </div>
-                    <div>
-                      <dt>項目</dt>
-                      <dd>姓名、電話、生日、身分證統一編號</dd>
-                    </div>
-                    <div>
-                      <dt>保存</dt>
-                      <dd>看診後兩年，期滿刪除</dd>
-                    </div>
-                    <div>
-                      <dt>提供對象</dt>
-                      <dd>僅 Google（雲端與行事曆）；行事曆不含姓名與身分證</dd>
-                    </div>
-                    <div>
-                      <dt>行使權利</dt>
-                      <dd>查詢、更正、刪除等請致電 02-2577-1314</dd>
-                    </div>
-                  </dl>
-                  <div class="privacy-notice-actions">
-                    <button
-                      class="button button-tertiary"
-                      type="button"
-                      id="open-privacy-policy"
-                    >
-                      查看完整內容
-                    </button>
-                    <a href="/privacy" class="privacy-notice-link"
-                      >另開政策頁</a
-                    >
-                  </div>
-                </section>
-                <label class="consent-preview"
+                <!-- P6（業主 2026-07-27）：告知改為一行勾選＋行內入口。
+                     業主要的是「不要把打電話刪資料寫得太突出」——**呈現**可以
+                     低調，內容不行：個資法第 8 條要求蒐集前告知蒐集者、目的、
+                     類別、期間地區對象方式、當事人權利**及行使方式**與不提供
+                     的影響。所以那個行內入口打開的是 /privacy 的**全文**（由
+                     policy-dialog 就地取回），不是另一份摘要——兩份文件必然漂移。
+                     它是真的 <a href="/privacy">：沒有 JavaScript 時仍是一條
+                     走得到告知的路；有 JavaScript 時才攔下來就地展開，不必放棄
+                     填到一半的表單。風險由資料控制者（診所）承擔，已記入決策紀錄。 -->
+                <label class="consent-preview consent-inline"
                   ><input
                     id="privacy-consent"
                     type="checkbox"
                     aria-describedby="privacy-consent-error"
-                  />我已閱讀上方告知，同意診所依上述目的蒐集與使用我的個人資料。
-                  <span
-                    id="privacy-consent-error"
-                    class="field-error"
-                    role="alert"
-                    hidden
+                  /><span
+                    >我已閱讀並同意<a
+                      id="open-privacy-policy"
+                      class="inline-policy-link"
+                      href="/privacy"
+                      >個人資料蒐集告知</a
+                    >，同意診所依其中所述目的蒐集與使用我的個人資料。
+                    <span
+                      id="privacy-consent-error"
+                      class="field-error"
+                      role="alert"
+                      hidden
+                    ></span
                   ></span>
                 </label>
               </div>

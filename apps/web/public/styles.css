@@ -1025,6 +1025,33 @@ textarea {
   gap: var(--space-md);
   margin-left: auto;
 }
+/* P13（2026-07-27）：窄螢幕的漢堡選單。寬螢幕不顯示，導覽照常並排。
+   標籤「選單」看得見而不是只有圖示——純圖示的漢堡要求使用者先認得那個符號。
+   圖示用三段線性漸層畫，不用 box-shadow：陰影一律走 --elevation-*（check:tokens
+   會擋），而這三條線是圖形不是深度。 */
+.patient-menu-button {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  display: none;
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  gap: var(--space-2xs);
+  justify-content: center;
+  min-height: var(--control-height-md);
+  padding: var(--space-2xs) var(--space-xs);
+}
+.patient-menu-icon {
+  background:
+    linear-gradient(currentcolor, currentcolor) top / 100% 0.12rem no-repeat,
+    linear-gradient(currentcolor, currentcolor) center / 100% 0.12rem no-repeat,
+    linear-gradient(currentcolor, currentcolor) bottom / 100% 0.12rem no-repeat;
+  display: block;
+  height: 0.8rem;
+  width: 1.1rem;
+}
 /* 健保特約標章。放在頁首右上而不是頁尾——它是患者選診所時真的會找的資訊，
    而幾乎沒有人會捲到頁尾去找。
    官方標章襯在白色底板上，且三個主題都一樣：署徽的藍與綠是規定的顏色，
@@ -1950,21 +1977,31 @@ label:has(> input[type='radio']) {
   .patient-header {
     position: static;
   }
-  /* 導覽先前寫死 width: 100%，於是它一定獨佔一列，環境徽章也只能自己再排一列
-     ——導覽右邊與徽章左邊各留下一塊什麼都沒有的空白。改成自然寬度後由 flex 決定：
-     線上站的導覽只有兩個連結（內部工作臺是 local-only）148px＋徽章 171px＋12px
-     欄距＝331px，塞得進 343px 就併成同一列；本機三個連結 228px＋175px 放不下，
-     自己掉回兩列。`flex-shrink: 0` 是關鍵——寧可換列，也不要把導覽壓到要橫捲。 */
-  .patient-nav {
-    flex: 0 0 auto;
+  /* P13（2026-07-27，負責人核可）：導覽收進漢堡選單。
+     先前導覽是常駐的一整列（44px 的觸控列），加上環境徽章那一列，頁首在 375px
+     實測 235px、佔首屏 29%——而首屏該給的是預約流程。
+     收起來**不等於藏起來**（R-2／R-4）：漢堡是看得見、有形狀、帶文字標籤的按鈕，
+     展開後是全寬直排的完整導覽，內容一個都沒少。 */
+  /* 選擇器帶上 .patient-header：clinic-booking.css 在這份之後載入，也有一條
+     裸的 `.patient-nav`（平板寬度的橫捲列）。同分時後者會贏，於是這裡的 order
+     與寬度會被它蓋掉——2026-07-27 實測過一次。 */
+  .patient-header .patient-nav {
+    display: none;
+    flex-direction: column;
     max-width: 100%;
-    order: 2;
-    overflow-x: auto;
-    width: auto;
+    order: 4;
+    width: 100%;
   }
-  /* 徽章排在導覽之後並靠右：併列時它填掉導覽右邊的空白，單獨一列時維持原本的
-     右對齊。徽章只有 22px 高、導覽是 44px 的觸控列，容器又是 align-items:
-     flex-start，所以併列時要自己置中，否則兩者中心線差 11px、看起來沒有對齊。 */
+  .patient-header .patient-nav.is-open {
+    display: flex;
+  }
+  .patient-menu-button {
+    display: inline-flex;
+    order: 2;
+  }
+  /* 徽章排在漢堡之後並靠右：兩者併成同一列。徽章只有 22px 高、漢堡是 44px 的
+     觸控目標，容器又是 align-items: flex-start，所以徽章要自己置中，否則兩者
+     中心線差 11px、看起來沒有對齊。 */
   .patient-header .environment-badge {
     align-self: center;
     margin-left: auto;
@@ -2222,6 +2259,29 @@ label:has(> input[type='radio']) {
   font-size: var(--text-body);
   opacity: 0.75;
 }
+/* 可複選標籤。原本只在 workbench.css，患者頁載不到——2026-07-27 患者端也要用
+   同一組樣式（P9b），因此移到共用樣式表。工作臺仍同時載入這兩份，行為不變。 */
+.tag-picker {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: var(--space-2xs) 0;
+  padding: var(--space-xs) var(--space-xs);
+}
+.tag-option {
+  align-items: center;
+  display: inline-flex;
+  font-size: var(--text-body);
+  gap: var(--space-2xs);
+}
+/* 觸控目標只在患者頁放大：勾選方塊本身約 16px，把整個 <label> 撐到 44px 高才
+   符合介面規則書 R-3（患者端主要操作自願採用 44×44）。工作臺是桌機為主、標籤
+   密度高的畫面，維持原本的緊湊排列。 */
+.patient-body .tag-option {
+  min-height: var(--control-height-md);
+}
 .field-error {
   display: block;
   margin-top: var(--space-3xs);
@@ -2287,56 +2347,48 @@ label.has-error input {
  * 一道香檳金的左緣，與危險紅、狀態綠都區分開；六項事實排成定義清單，讓人
  * 可以用掃的找到「保存多久」「給誰」，而不是讀一段話。
  * --------------------------------------------------------------- */
-.privacy-notice {
-  background: var(--surface-soft);
+/* 個資告知的入口（2026-07-27 起是一行勾選＋句中連結，見 patient.html 的註解）。
+   句中連結**必須有底線**：它是唯一的入口，只靠顏色區分不到（WCAG 1.4.1，
+   介面規則書 R-2；affordance 掃描也是以「有沒有形狀」在量）。 */
+.consent-inline {
+  align-items: flex-start;
+}
+.inline-policy-link {
+  color: var(--forest);
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.inline-policy-link:hover {
+  color: var(--forest-dark);
+}
+/* 患者自述欄位的分組。<fieldset> 的預設邊框在這個介面裡太重，改用與其他欄位
+   一致的細線，legend 則維持原生位置——它是這一組的名稱，報讀器靠它說明
+   「接下來這些勾選框是在問什麼」。 */
+.patient-fieldset {
   border: 1px solid var(--line);
-  border-inline-start: 3px solid var(--brand-metallic-line);
-  border-radius: var(--radius-md);
-  margin: var(--space-md) 0 var(--space-sm);
-  padding: var(--space-md);
-}
-.privacy-notice-title {
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-wide);
-  margin: 0 0 var(--space-sm);
-}
-/* 兩欄：標籤窄而固定，內容自己換行。窄螢幕折成單欄，標籤仍在內容之上，
-   維持「這是什麼 → 是什麼」的閱讀順序。 */
-.privacy-notice-facts {
-  display: grid;
-  gap: var(--space-2xs) var(--space-sm);
+  border-radius: var(--radius-sm);
   margin: 0;
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
 }
-.privacy-notice-facts > div {
-  display: grid;
-  gap: var(--space-4xs) var(--space-sm);
-  grid-template-columns: 5.5rem minmax(0, 1fr);
-}
-.privacy-notice-facts dt {
+.patient-fieldset > legend {
   color: var(--ink-muted);
   font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-label);
+  padding-inline: var(--space-3xs);
 }
-.privacy-notice-facts dd {
-  font-size: var(--text-micro);
-  line-height: var(--leading-body);
+/* 分組裡的標籤清單不需要再一層外框——fieldset 已經是那個框了。 */
+.patient-fieldset .tag-picker {
+  border: 0;
   margin: 0;
+  padding: 0;
 }
-.privacy-notice-actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-block-start: var(--space-sm);
-}
-.privacy-notice-link {
-  font-size: var(--text-micro);
-}
-@media (max-width: 30rem) {
-  .privacy-notice-facts > div {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.patient-line-link {
+  color: var(--forest);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 /* ---------------------------------------------------------------

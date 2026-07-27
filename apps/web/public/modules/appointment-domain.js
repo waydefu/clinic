@@ -4,7 +4,10 @@ import {
   BOOKING_NOTE_TAGS,
   DELETE_APPOINTMENT_REASONS,
   FOLLOW_UP_NOTE_TAGS,
+  PATIENT_REQUEST_TAGS,
   PATIENT_SERVICES,
+  PATIENT_SOURCE_TAGS,
+  SOURCE_TAGS_NEEDING_REFERRER,
   WORKBENCH_PROCEDURES
 } from './constants.js';
 import {
@@ -139,6 +142,19 @@ function selectedTags(value, allowed, label) {
   return [...new Set(value)];
 }
 
+// 介紹人姓名是**第三人**的個資：那個人並不在現場，也沒有被告知。因此只在真的
+// 勾了「親友介紹／員工介紹」時才收，其餘一律丟掉——不是丟錯誤，因為使用者可能
+// 只是先勾後取消，而畫面上那個欄位當下已經收起來了。
+function referrerName(value, sourceTags) {
+  const needed = sourceTags.some((tag) =>
+    SOURCE_TAGS_NEEDING_REFERRER.includes(tag)
+  );
+  if (!needed) return '';
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (text.length > 30) throw new Error('介紹人姓名不可超過 30 個字元。');
+  return text;
+}
+
 function certificateCopies(value) {
   if (value === undefined || value === '' || value === null) return 0;
   const copies = Number(value);
@@ -183,6 +199,21 @@ export function createBooking(state, input, actorId) {
   const item = resolveItem(input.itemId);
   const noteTags = selectedTags(input.noteTags, BOOKING_NOTE_TAGS, '備註');
   const noteText = optionalNote(input.noteText);
+  // 患者自述的三組欄位（2026-07-27 P7／P9）。與櫃台的 noteTags／noteText
+  // **分開存**：合成同一欄的話，櫃台一按「修改備註」就會把患者寫的話覆蓋掉，
+  // 而且沒有任何痕跡。稽核上也分不出哪一句是誰說的。
+  const requestTags = selectedTags(
+    input.requestTags,
+    PATIENT_REQUEST_TAGS,
+    '門診需求'
+  );
+  const sourceTags = selectedTags(
+    input.sourceTags,
+    PATIENT_SOURCE_TAGS,
+    '訊息來源'
+  );
+  const referrer = referrerName(input.referrerName, sourceTags);
+  const patientNote = optionalNote(input.patientNote);
 
   // Check the duplicate limit against the submitted identity before the
   // patient record is created, so a repeat attempt cannot slip through by
@@ -221,6 +252,12 @@ export function createBooking(state, input, actorId) {
     itemLabel: item.label,
     noteTags,
     noteText,
+    // 空值不寫進紀錄：多數預約不會用到這幾欄，寫一堆空字串只會讓合成狀態變胖，
+    // 也讓「有沒有填」在讀取端變成兩種寫法（`=== ''` 與 `=== undefined`）。
+    ...(requestTags.length > 0 ? { requestTags } : {}),
+    ...(sourceTags.length > 0 ? { sourceTags } : {}),
+    ...(referrer === '' ? {} : { referrerName: referrer }),
+    ...(patientNote === '' ? {} : { patientNote }),
     status: 'confirmed',
     createdAt: now,
     updatedAt: now,

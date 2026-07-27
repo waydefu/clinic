@@ -349,7 +349,13 @@ const allowedPatientControls = new Set([
   // 2026-07-27：個資法第 8 條的同意勾選。它不收集資料，而是記錄「已被告知」；
   // 與既有的 synthetic-confirmation 分開，因為那是「測試版本資料留在本機」的
   // 確認，兩者是不同的事，合併會讓人不知道自己同意了什麼。
-  'privacy-consent'
+  'privacy-consent',
+  // 2026-07-27（P7）：患者自己的備註，上限 120 字。存成 appointment.patientNote，
+  // 與櫃台的 noteText 分開——否則櫃台一按「修改備註」就會把患者寫的話蓋掉。
+  'patient-note',
+  // 2026-07-27（P9）：介紹人姓名。**這是第三人的個資**，所以只在勾了親友介紹
+  // 或員工介紹時才出現，取消勾選時由 patient-app.js 清空，後端也只在需要時才收。
+  'patient-referrer'
 ]);
 for (const control of files.patientHtml.matchAll(
   /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"[^>]*>/gi
@@ -551,19 +557,32 @@ for (const [id, token] of Object.entries(AUTOCOMPLETE_EXPECTED)) {
 
 // 個資告知必須在「蒐集當下」看得到，而不是只有頁尾一個連結。
 //
-// 這三條釘住的是**告知的位置與可及性**：摘要區在表單裡、有獨立的同意勾選、
-// 全文可以就地展開。改版時最容易發生的退步是「把摘要拿掉只留連結」——那在
-// 法律上與沒有告知幾乎沒有差別。
-requireText(
-  files.patientHtml,
-  'id="privacy-notice-heading"',
-  'The booking form no longer shows the data-collection notice where the patient is about to hand over their data.'
-);
+// 2026-07-27（P6）：呈現由「攤開的六項摘要」改為一行勾選＋句中入口。**業主要的
+// 是低調，不是省略**，所以守衛跟著改成釘住三件仍然必須成立的事：
+//   1. 表單裡有獨立的同意勾選（不與「資料留在本機」合併）；
+//   2. 入口就在那句話裡，而且是真的 `<a href="/privacy">`——沒有 JavaScript 時
+//      仍走得到完整告知（先前那顆 <button> 在無腳本時完全沒有替代路徑）；
+//   3. 有腳本時就地展開全文，讀完不必放棄填到一半的表單。
+// 換成摘要式或只留頁尾連結都會讓這裡紅。
 requireText(
   files.patientHtml,
   'id="privacy-consent"',
   'The booking form has no separate consent checkbox for the data-collection notice.'
 );
+{
+  const consentEntry = files.patientHtml
+    .replace(/\s+/g, ' ')
+    .match(/<a[^>]*id="open-privacy-policy"[^>]*>/i);
+  if (consentEntry === null) {
+    failures.push(
+      'The consent line has no #open-privacy-policy entry point, so the notice is only reachable from the footer.'
+    );
+  } else if (!/href="\/privacy"/i.test(consentEntry[0])) {
+    failures.push(
+      'The consent entry point is not a real link to /privacy, so with JavaScript unavailable there is no route to the notice at all.'
+    );
+  }
+}
 requireText(
   files.patientClient,
   "elements['privacy-consent'].checked",
@@ -573,6 +592,14 @@ requireText(
   files.patientClient,
   "import { openPolicyDialog } from './modules/policy-dialog.js'",
   'The booking form can no longer open the full policy in place, so reading it means abandoning a half-filled form.'
+);
+// 介紹人是**第三人**的姓名，那個人不在現場、也沒有被告知。取消勾選「親友介紹」
+// 之後欄位會收起來，但輸入過的名字如果留在 DOM 裡仍會被一起送出——畫面上看不到
+// 的資料照樣離開了表單。收起來的同時必須清空。
+requireText(
+  files.patientClient,
+  "if (!needed) elements['patient-referrer'].value = '';",
+  'The referrer field keeps a third party’s name after the referral option is unticked, so a name the patient no longer offers is still submitted.'
 );
 // 政策頁沒有指令碼，所以「我同意」只能靠網址把狀態帶回預約頁。
 requireText(

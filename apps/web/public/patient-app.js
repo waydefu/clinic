@@ -3,9 +3,13 @@
 import './modules/trusted-html.js';
 import {
   BOOKING_KIND_LABELS,
+  PATIENT_REQUEST_TAGS,
   PATIENT_SERVICES,
+  PATIENT_SOURCE_TAGS,
+  SOURCE_TAGS_NEEDING_REFERRER,
   WEEKDAY_LABELS
 } from './modules/constants.js';
+import { renderTagOptions } from './modules/tag-picker.js';
 import {
   buildGoogleCalendarUrl,
   downloadIcs
@@ -234,12 +238,15 @@ function scheduleMaintenanceResume() {
 
 // 回診狀態自 2026-07-27 起顯示在按鈕**外面**（P1b）。因此這句話必須自己說得
 // 完整——先前它是 `<small>` 夾在按鈕裡，靠位置就知道在講回診。
+//
+// 兩顆按鈕都以 aria-describedby 指向它，所以這一句同時要交代「為什麼現在不能
+// 選回診」與「為什麼現在不能選初診」（P2）。
 function renderFollowUpChoice() {
   const followUp = latestFollowUp();
   elements['follow-up-choice-status'].textContent =
     followUp === undefined
       ? '回診狀態：尚待醫師確認。醫師登錄回診指示後，這裡才會開放回診。'
-      : `回診狀態：已確認需回診 · 建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}`;
+      : `回診狀態：醫師已登錄回診指示（建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}），這次請改約回診；初診暫不開放。`;
 }
 
 function renderServices() {
@@ -249,15 +256,76 @@ function renderServices() {
   ).join('');
 }
 
+// P2（業主 2026-07-27）：醫師已登錄回診指示時，這位患者這一次要走的是回診，
+// 初診鍵停用。讀法採規劃文件的「A 為主」：判準是 `latestFollowUp()` 有值，
+// 而不是「已經訂到回診時段」——後者由既有的 ensureWithinActiveBookingLimit 擋。
+//
+// 停用之後還要把已選類型換掉，否則畫面停在一個按不到的選擇上：使用者按下看診
+// 項目時會拿到初診的時段，而初診那顆是灰的。
+function bookingTypeAvailability() {
+  // 這個函式會在**資料到達之前**被呼叫一次：第一次繪製刻意先把常數內容畫出來
+  // 佔住版面（見檔案末端關於 CLS 的註解）。此時 `state` 還是 undefined，而
+  // `latestFollowUp()` 會去讀 `state.followUps`——對回訪的患者（本機已記著
+  // patientId）那是一個會炸掉整個模組初始化的存取，症狀是「頁面看起來畫好了，
+  // 但所有按鈕都沒有反應」。兩顆按鈕在 dataReady 之前本來就一律停用，所以這裡
+  // 回什麼都不影響使用者。
+  if (state === undefined) return { initial: true, follow_up: true };
+  const hasFollowUp = latestFollowUp() !== undefined;
+  return { initial: !hasFollowUp, follow_up: hasFollowUp };
+}
+
+function syncSelectedBookingType() {
+  if (!dataReady) return;
+  const available = bookingTypeAvailability();
+  if (available[selectedBookingType]) return;
+  const fallback = Object.keys(available).find((kind) => available[kind]);
+  if (fallback !== undefined) selectedBookingType = fallback;
+}
+
 // 選取狀態不能只靠顏色：is-selected 之外同步 aria-pressed。
 function renderBookingTypeButtons() {
+  const available = bookingTypeAvailability();
   document.querySelectorAll('[data-booking-type]').forEach((button) => {
-    const selected = button.dataset.bookingType === selectedBookingType;
+    const kind = button.dataset.bookingType;
+    const selected = kind === selectedBookingType;
     button.classList.toggle('is-selected', selected);
     button.setAttribute('aria-pressed', String(selected));
     // 資料還沒到就按，處理器會去讀還不存在的時段。停用比讓它安靜失敗誠實。
-    button.disabled = !dataReady;
+    // 資料到齊後改由回診狀態決定：兩顆之中永遠只有一顆可按，理由寫在
+    // #follow-up-choice-status，兩顆都以 aria-describedby 指向它。
+    button.disabled = !dataReady || !available[kind];
   });
+}
+
+// P9：兩組可複選標籤。選項是常數，畫一次就好——它們不隨診所資料變動，
+// 而且重畫會清掉使用者已經勾好的選擇。
+function renderPatientTags() {
+  elements['patient-request-tags'].innerHTML = renderTagOptions(
+    PATIENT_REQUEST_TAGS,
+    [],
+    { data: 'data-request-tag' }
+  );
+  elements['patient-source-tags'].innerHTML = renderTagOptions(
+    PATIENT_SOURCE_TAGS,
+    [],
+    { data: 'data-source-tag' }
+  );
+}
+
+function checkedTagIds(containerId, attribute) {
+  return [
+    ...elements[containerId].querySelectorAll(`[${attribute}]:checked`)
+  ].map((input) => input.getAttribute(attribute));
+}
+
+// 介紹人欄位只在真的有人介紹時出現。收起來時一併清空：留著上一次輸入的名字，
+// 使用者取消勾選之後仍會被送出去，那是他沒有同意提供的第三人姓名。
+function syncReferrerField() {
+  const needed = checkedTagIds('patient-source-tags', 'data-source-tag').some(
+    (id) => SOURCE_TAGS_NEEDING_REFERRER.includes(id)
+  );
+  elements['patient-referrer-field'].hidden = !needed;
+  if (!needed) elements['patient-referrer'].value = '';
 }
 
 function availableSlots() {
@@ -451,6 +519,7 @@ function renderAll() {
   // 完整隔離並保留原狀，直到自動恢復或另一分頁解除維護後再繼續。
   if (state.maintenanceActive) return;
   renderFollowUpChoice();
+  syncSelectedBookingType();
   renderBookingTypeButtons();
   renderServices();
   renderSlots();
@@ -528,8 +597,47 @@ for (const field of [
 ])
   elements[field].addEventListener('input', updateSubmitState);
 
-elements['open-privacy-policy'].addEventListener('click', () => {
+// 告知入口是真的 `<a href="/privacy">`：沒有 JavaScript 時它仍然是一條走得到
+// 完整告知的路（個資法要的是蒐集**前**告知，不是「有腳本才告知」）。有腳本時
+// 才攔下來就地展開，讓讀完的人回到填到一半的表單。
+// 修飾鍵與中鍵不攔：使用者要另開分頁是他的選擇。
+elements['open-privacy-policy'].addEventListener('click', (event) => {
+  if (
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  )
+    return;
+  event.preventDefault();
   void openPolicyDialog();
+});
+
+// P9：勾選來源標籤時同步介紹人欄位的顯示。
+elements['patient-source-tags'].addEventListener('change', syncReferrerField);
+
+// P13：窄螢幕的漢堡選單。開合狀態由 aria-expanded 與 class 同時表達——前者給
+// 輔助技術，後者給 CSS。點連結或按 Escape 都要收起來，否則導航之後（同頁錨點）
+// 選單會留在畫面上蓋住內容。
+const menuButton = document.querySelector('.patient-menu-button');
+function closePatientMenu() {
+  menuButton.setAttribute('aria-expanded', 'false');
+  elements['patient-nav'].classList.remove('is-open');
+}
+menuButton.addEventListener('click', () => {
+  const open = menuButton.getAttribute('aria-expanded') === 'true';
+  menuButton.setAttribute('aria-expanded', String(!open));
+  elements['patient-nav'].classList.toggle('is-open', !open);
+});
+elements['patient-nav'].addEventListener('click', (event) => {
+  if (event.target.closest('a') !== null) closePatientMenu();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  if (menuButton.getAttribute('aria-expanded') !== 'true') return;
+  closePatientMenu();
+  menuButton.focus();
 });
 
 // 從政策頁按「我同意，回到預約」回來時帶著 ?consent=1。
@@ -635,6 +743,15 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
           patient: patientInput(),
           bookingKind: selectedBookingType,
           itemId: selectedServiceId,
+          // 患者自述的欄位（P7／P9）。與櫃台的 noteTags／noteText 分開送，
+          // 由 appointment-domain 各自驗證各自的清單。
+          requestTags: checkedTagIds(
+            'patient-request-tags',
+            'data-request-tag'
+          ),
+          sourceTags: checkedTagIds('patient-source-tags', 'data-source-tag'),
+          referrerName: elements['patient-referrer'].value,
+          patientNote: elements['patient-note'].value,
           origin: 'patient'
         })
       }),
@@ -755,6 +872,9 @@ if (isOnline) {
 // 0.1 的良好界線）。先畫佔住版面、載入完成才啟用，兩個問題一起解決。
 renderServices();
 renderBookingTypeButtons();
+// 標籤是常數，只畫一次：重畫會清掉使用者已經勾好的選擇。
+renderPatientTags();
+syncReferrerField();
 
 try {
   state = await apiClient.request('/state');

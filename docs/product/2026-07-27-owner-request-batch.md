@@ -246,21 +246,30 @@ commit**——批與批之間的風險差距太大，混在一起會讓回滾變
 
 ### 批次 2：患者表單
 
-- [ ] P6 `.privacy-notice` 區塊改為一行勾選＋行內連結（參考業主截圖樣式）
-- [ ] P6b 更新 `check-web-ui.mjs` 的個資告知釘選（目前要求 `privacy-notice-heading`）
-- [ ] P6c 同一個變更更新介面規則書與 `privacy-policy.spec.ts` 的對應斷言
-- [ ] P7 新增 `#patient-note`（≤120 字）＋ LINE 連結（`lin.ee/nMf1Bvo`）
-- [ ] P9 新增「如何得知診所訊息」複選＋介紹人欄（比照 `renderTagPicker`，
-      但該函式硬寫 `BOOKING_NOTE_TAGS`，需加第三個參數）
-- [ ] P9b `.tag-picker`／`.tag-option` 樣式目前只在 `workbench.css`，患者頁載不到，
-      需搬到共用的 `styles.css`
-- [ ] P2 已確認回診時停用初診鍵並說明原因
-- [ ] 新增欄位逐一登記進 `check-web-ui.mjs` 的患者控制項允許清單
-- [ ] **P13 預約頁頁首改漢堡選單**（2026-07-27 負責人核可）。併站後頁首多了站台導覽，
-      手機上佔首屏 29%（235px）。比照 `/clinic` 既有的 `.clinic-menu-button` 做法：
-      窄寬度收成漢堡，展開為選單。做完後 `mobile-layout.spec.ts` 的頁首上限應可從
-      30% 收回 25% 左右——**收緊門檻要與實作同一個變更**，並更新該處註解
-- [ ] 跑驗收（含 affordance 四項掃描）→ 提交 → 部署
+**已完成 2026-07-27。**
+
+- [x] P6 `.privacy-notice` 區塊改為一行勾選＋句中入口。入口是真的
+      `<a href="/privacy">`：沒有 JavaScript 時仍走得到完整告知（先前那顆
+      `<button>` 在無腳本時完全沒有替代路徑）
+- [x] P6b 更新 `check-web-ui.mjs` 的個資告知釘選：改為要求「獨立同意勾選」＋
+      「入口是真連結」
+- [x] P6c 同一個變更更新介面規則書（R-22 的具名決定）與 `privacy-policy.spec.ts`
+      ——六項事實改由入口展開全文時**必須**仍找得到，那條斷言就是釘這件事
+- [x] P7 新增 `#patient-note`（≤120 字）＋ LINE 連結（`lin.ee/nMf1Bvo`）。存成
+      `patientNote`，與櫃台的 `noteText` **分開**，否則櫃台改備註會蓋掉患者寫的話
+- [x] P9 新增「如何得知診所訊息」複選＋介紹人欄，另加「這次門診的需求」複選
+- [x] P9b `.tag-picker`／`.tag-option` 由 `workbench.css` 搬到共用的 `styles.css`；
+      標籤標記抽成 `modules/tag-picker.js`（患者頁不能匯入 54 KB 的 admin-view）
+- [x] P2 已確認回診時停用初診鍵並說明原因。**實作時抓到一個真缺陷**：
+      `renderBookingTypeButtons()` 在資料到達前會先跑一次，而新的判斷會去讀
+      `state.followUps`——對本機已記著 patientId 的回訪患者，那是一個會炸掉整個
+      模組初始化的存取（症狀是「畫面看起來好了，但所有按鈕都沒反應」）
+- [x] 新增欄位逐一登記進 `check-web-ui.mjs` 的患者控制項允許清單；標籤選項刻意
+      不給 id（一頁兩組標籤會撞名，而兩份客戶端都用
+      `Object.fromEntries(querySelectorAll('[id]'))` 建表，撞名會靜默覆蓋）
+- [x] **P13 預約頁頁首改漢堡選單**。頁首 235px → **167px**，
+      `mobile-layout.spec.ts` 的上限同步由 30% 收到 **25%**
+- [x] 跑驗收（verify 綠 518 單元、Playwright 全套綠 149）→ 提交
 
 ### 批次 3：識別模型（動 domain）
 

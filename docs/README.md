@@ -94,6 +94,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-27 | [Automated-check gaps and remediation](reviews/2026-07-27-automated-check-gaps.md) | Five gaps in the gates themselves — shipped HTML comments, three unscanned stylesheets, JS-injected inputs outside the allowlist, five copies of the public-page list, and budget changes with no recorded reason — each written down before being fixed |
 | 2026-07-27 | [Clinic website integration delivery](reviews/2026-07-27-clinic-site-integration-delivery.md) | Clinic, doctor and nasal-function pages integrated with `/booking`; repository, browser and 439-check online-preview evidence passed on the expiring `synthetic-review` channel |
 | 2026-07-27 | [Booking-page SEO baseline](reviews/2026-07-27-seo-baseline.md) | What search engines can see today, the release switch that stops a forgotten `noindex` from hiding the site, and the honest list of what is not done |
 | 2026-07-26 | [Full-project audit and follow-up](reviews/2026-07-26-full-project-audit.md) | Whole-repo audit: no P0/P1 defect; exposure and compliance findings raised, three of them fixed (two-tier audit gate, patient identity moved into the domain, `check:architecture`); NHI-mark permission and branch protection remain owner decisions |

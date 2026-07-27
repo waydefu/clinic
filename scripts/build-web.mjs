@@ -215,6 +215,20 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
     }
   }
 
+  /**
+   * 移除 HTML 註解。
+   *
+   * 這個專案的註解密度很高，而且是刻意的：規則與理由寫在它們生效的地方旁邊。
+   * 但那些字對瀏覽器毫無用處，卻是**每一次載入**都要傳的位元組。2026-07-25 已經
+   * 修過同一類問題的 CSS 版本（當時發現建置把樣式表註解原封不動出貨），HTML 這
+   * 一份那次沒有一起處理，也沒有任何檢查會指出它——直到 2026-07-27 加了幾段說明
+   * 就撞破 document 預算，才被 `check:perf` 逼出來。
+   *
+   * 只拿掉註解，**不動空白、不動屬性引號**：那類「壓縮」讓產物幾乎無法與原始碼
+   * 比對，而省下的量遠小於它帶來的除錯成本。`<!doctype html>` 不是註解，不受影響。
+   */
+  const stripHtmlComments = (html) => html.replace(/<!--[\s\S]*?-->/g, '');
+
   // HTML 是穩定進入點：改寫它對 js/css 的 root-absolute 參照，其餘（HTML 內部
   // 連結、圖片、錨點）原封不動。
   const rewriteHtmlReferences = (html) =>
@@ -336,7 +350,10 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
         path,
         publishIndexable(
           path,
-          withModulePreloads(rewriteHtmlReferences(source), source)
+          withModulePreloads(
+            rewriteHtmlReferences(stripHtmlComments(source)),
+            source
+          )
         )
       )
     );

@@ -77,10 +77,10 @@ test.describe('隱私權政策頁', () => {
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
     await page.locator('[data-patient-slot]').first().click();
 
-    const consentLink = page
-      .locator('a[href="/privacy"]:below(:text("我了解此頁為測試版本"))')
-      .first();
+    const consentLink = page.locator('#open-privacy-policy');
     await expect(consentLink).toBeVisible();
+    // 入口必須是真的連結：沒有 JavaScript 時它是唯一走得到完整告知的路。
+    await expect(consentLink).toHaveAttribute('href', '/privacy');
 
     // 順序也要對：告知在送出鈕之上，不是送出之後才補一句。
     const linkBox = await consentLink.boundingBox();
@@ -92,9 +92,13 @@ test.describe('隱私權政策頁', () => {
     expect(linkBox!.y).toBeLessThan(submitBox!.y);
   });
 
-  // 個資法要的是「蒐集**前**告知」。連結不夠——多數人不會點。所以摘要要攤在
-  // 送出鈕上方，而全文要能就地展開，不必放棄填到一半的表單。
-  test.describe('表單裡的告知摘要', () => {
+  // 個資法要的是「蒐集**前**告知」。
+  //
+  // 2026-07-27（P6，業主）：呈現由攤開的六項摘要改為一行勾選＋句中入口。**低調的
+  // 是版面，不是內容**——六件事現在由那個入口一次展開全文，而不是再抄一份摘要在
+  // 表單裡（法律文件抄兩份必然漂移）。所以這一組測試改成驗三件事：入口在送出鈕
+  // 之上、勾選是獨立的一項、展開的是政策頁本人。
+  test.describe('表單裡的告知入口', () => {
     async function reachDetailsStep(page: import('@playwright/test').Page) {
       await page.goto('/booking');
       await page.evaluate(() => window.localStorage.clear());
@@ -105,25 +109,43 @@ test.describe('隱私權政策頁', () => {
       await page.locator('[data-patient-slot]').first().click();
     }
 
-    test('六項事實在送出鈕之前就看得到', async ({ page }) => {
+    test('同意勾選與告知入口都在送出鈕之前', async ({ page }) => {
       await reachDetailsStep(page);
-      const notice = page.locator('.privacy-notice');
-      await expect(notice).toBeVisible();
-      for (const fact of [
-        '一森渼診所',
-        '門診預約',
-        '身分證統一編號',
-        '看診後兩年',
-        'Google',
-        '02-2577-1314'
-      ])
-        await expect(notice).toContainText(fact);
+      const consent = page.locator('#privacy-consent');
+      const entry = page.locator('#open-privacy-policy');
+      await expect(consent).toBeVisible();
+      await expect(entry).toBeVisible();
 
-      const noticeBox = await notice.boundingBox();
+      // 入口必須在那句話**裡面**，不是另外一顆按鈕或頁尾連結。
+      const insideConsentLine = await entry.evaluate(
+        (element) =>
+          element.closest('label')?.querySelector('#privacy-consent') !== null
+      );
+      expect(insideConsentLine).toBe(true);
+
+      const consentBox = await consent.boundingBox();
       const submitBox = await page
         .locator('#confirm-patient-booking')
         .boundingBox();
-      expect(noticeBox!.y).toBeLessThan(submitBox!.y);
+      expect(consentBox!.y).toBeLessThan(submitBox!.y);
+    });
+
+    // 摘要不再攤在表單上，所以那六件事**必須**在展開的全文裡找得到——否則這次
+    // 改版就是把告知從「低調」變成「沒有」。
+    test('六項事實仍然找得到，只是改由入口一次展開', async ({ page }) => {
+      await reachDetailsStep(page);
+      await page.locator('#open-privacy-policy').click();
+      const body = page.locator('.policy-dialog-body');
+      await expect(body).toBeVisible();
+      for (const fact of [
+        '一森渼診所',
+        '蒐集目的',
+        '個人資料類別',
+        '利用的期間、地區、對象與方式',
+        '您可以行使的權利',
+        '不提供個人資料的影響'
+      ])
+        await expect(body).toContainText(fact);
     });
 
     test('沒有勾同意就送不出去，而且說得出少了什麼', async ({ page }) => {

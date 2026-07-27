@@ -881,21 +881,8 @@ details[open] > summary .workflow-summary-chevron {
   outline: 2px solid currentColor;
   outline-offset: -2px;
 }
-.tag-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin: var(--space-2xs) 0;
-  padding: var(--space-xs) var(--space-xs);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-.tag-option {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2xs);
-  font-size: var(--text-body);
-}
+/* `.tag-picker` 與 `.tag-option` 自 2026-07-27 起搬到 styles.css：患者頁也要用
+   同一組樣式，而它不載入 workbench.css。 */
 .note-row {
   display: flex;
   flex-wrap: wrap;

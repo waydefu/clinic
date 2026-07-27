@@ -9,6 +9,7 @@ import {
   WEEKDAY_LABELS
 } from './constants.js';
 import { maskNationalId } from './patient-registry.js';
+import { renderTagOptions } from './tag-picker.js';
 import { followUpDueTimes, isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
 import {
@@ -294,14 +295,11 @@ export function renderNextUp(state, now = Date.now()) {
  * 逐一讀取；卡片內的修改備註表單走原生 FormData，因此需要 `name`。
  */
 export function renderTagPicker(selected = [], scope = 'booking') {
-  const attribute =
-    scope === 'notes'
-      ? `name="noteTags" value="__ID__"`
-      : `data-booking-tag="__ID__"`;
-  return BOOKING_NOTE_TAGS.map(
-    (tag) =>
-      `<label class="tag-option"><input type="checkbox" ${attribute.replace('__ID__', escapeHtml(tag.id))} ${selected.includes(tag.id) ? 'checked' : ''} />${escapeHtml(tag.label)}</label>`
-  ).join('');
+  return renderTagOptions(
+    BOOKING_NOTE_TAGS,
+    selected,
+    scope === 'notes' ? { name: 'noteTags' } : { data: 'data-booking-tag' }
+  );
 }
 
 // 備註可改的狀態，與 updateAppointmentNotes 的規則一致：已取消或未到的

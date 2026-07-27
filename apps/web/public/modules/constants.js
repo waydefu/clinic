@@ -73,6 +73,37 @@ export const BOOKING_NOTE_TAGS = Object.freeze([
   { id: 'long_distance', label: '遠距離' }
 ]);
 
+// 患者自己在預約時勾的請求。與上面的 BOOKING_NOTE_TAGS **刻意分開**：那一組是
+// 櫃台的營運註記詞彙（誰當天到、誰是國外客），由櫃台判斷後填寫；這一組是患者
+// 對這次門診說的話。合成一份會讓稽核分不出「櫃台認定」與「患者自述」。
+export const PATIENT_REQUEST_TAGS = Object.freeze([
+  { id: 'same_day_procedure', label: '希望當日接受手術' },
+  { id: 'foreign_national', label: '外籍人士' }
+]);
+
+// 紙本初診基本資料表第五列「如何得知診所訊息」（20260514 版）。複選。
+// 親友介紹與員工介紹要能填介紹人姓名，因此另外標記。
+export const PATIENT_SOURCE_TAGS = Object.freeze([
+  { id: 'web_search', label: '網路搜尋' },
+  { id: 'official_site', label: '診所官網' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'facebook', label: 'Facebook' },
+  { id: 'forum', label: '論壇' },
+  { id: 'threads', label: 'Threads' },
+  { id: 'passing_by', label: '路過' },
+  { id: 'friend_referral', label: '親友介紹', needsReferrer: true },
+  { id: 'staff_referral', label: '員工介紹', needsReferrer: true },
+  { id: 'other', label: '其他' }
+]);
+
+// 需要另外填介紹人姓名的來源。從清單推導而不是再抄一份 id：抄本會在有人新增
+// 第三種介紹管道時默默不同步，而症狀是「勾了卻沒有欄位可填」。
+export const SOURCE_TAGS_NEEDING_REFERRER = Object.freeze(
+  PATIENT_SOURCE_TAGS.filter((tag) => tag.needsReferrer === true).map(
+    (tag) => tag.id
+  )
+);
+
 export const FOLLOW_UP_NOTE_TAGS = Object.freeze([
   { id: 'nose_follow_up', label: '鼻回' },
   { id: 'throat_follow_up', label: '喉回' },

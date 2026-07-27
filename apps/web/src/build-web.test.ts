@@ -50,6 +50,42 @@ describe('planHashedBuild', () => {
     expect([...outputs.keys()]).toContain('index.html');
   });
 
+  // 註解是寫給讀原始碼的人的，不是寫給瀏覽器的。
+  //
+  // 這個專案的註解密度很高，而且刻意如此；但 2026-07-27 之前建置只壓 CSS 與 JS，
+  // HTML 註解被原封不動送給每一位訪客——實測患者頁的 document 有 2.3 KiB（gzip 後）
+  // 是註解。更糟的是它製造了一個錯誤的取捨：多寫一段說明就會撞到效能預算。
+  describe('HTML 註解', () => {
+    it('不出貨到 dist', () => {
+      const files = sampleFiles();
+      files.set(
+        'index.html',
+        '<!doctype html>\n<!-- 這一段是寫給維護者的 -->\n' +
+          '<head>\n  <title>x</title>\n</head>\n<body><p>內容</p></body>'
+      );
+      const { outputs } = planHashedBuild(files);
+      const html = String(outputs.get('index.html'));
+      expect(html).not.toContain('<!--');
+      expect(html).not.toContain('這一段是寫給維護者的');
+      // 只拿掉註解：doctype 與真正的內容一個字都不能少。
+      expect(html).toContain('<!doctype html>');
+      expect(html).toContain('<p>內容</p>');
+    });
+
+    it('不動到 JSON-LD 這種內容像標記的區塊', () => {
+      const files = sampleFiles();
+      files.set(
+        'index.html',
+        '<head>\n<script type="application/ld+json">\n' +
+          '{ "@type": "MedicalClinic", "name": "一森渼診所" }\n' +
+          '</script>\n</head>\n<body></body>'
+      );
+      const html = String(planHashedBuild(files).outputs.get('index.html'));
+      expect(html).toContain('"@type": "MedicalClinic"');
+      expect(html).toContain('一森渼診所');
+    });
+  });
+
   // 「上線忘了拿掉 noindex」是最常見也最安靜的一種 SEO 事故：網站永遠不進索引，
   // 沒有錯誤、沒有告警，通常幾個月後才有人問「怎麼都搜不到」。原始碼因此永遠
   // 保持 noindex（預設安全），只有明確設 WEB_PUBLIC_INDEXABLE=true 才放行。

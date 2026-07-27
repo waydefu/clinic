@@ -262,17 +262,15 @@ test.describe('患者預約頁手機版', () => {
     const headerHeight = await page
       .locator('.patient-header')
       .evaluate((el) => el.getBoundingClientRect().height);
-    // 上限由 28% 調到 30%（2026-07-27）。
+    // 上限 28% → 30%（2026-07-27 併站）→ **25%（2026-07-27 P13）**。
     //
-    // 理由不是「測不過就放寬」：預約頁在 2026-07-27 併入診所官網之後，頁首多了
-    // 站台層級的導覽（診所首頁／醫師團隊／線上預約），導覽因此獨佔一列、環境
-    // 徽章再一列，實測 235px（29%）。那是**產品決定的成本**——把預約頁接回官網
-    // 就要有回得去的路。
+    // 併站時導覽獨佔一列、環境徽章再一列，實測 235px（29%），門檻因此暫時放到
+    // 30%，並在註解裡記下「正確做法是改成漢堡選單」。P13 就是把那件事做掉：
+    // 導覽收進帶文字標籤的漢堡按鈕（不是藏起來——展開後內容一個都沒少），
+    // 徽章與漢堡併成同一列，於是那一整列 44px 回到了預約流程。
     //
-    // 真正該守住的是下面那條「患者多快看到第一個問題」：它仍在 65%，遠優於
-    // 門檻。若哪天要把頁首壓回 25%，正確做法是像官網那樣改成漢堡選單，而不是
-    // 把導覽藏起來（R-2／R-4）。
-    expect(headerHeight).toBeLessThan(viewportHeight * 0.3);
+    // 門檻跟著實作在**同一個變更**收緊，不是放著等下次順便。
+    expect(headerHeight).toBeLessThan(viewportHeight * 0.25);
 
     // 真正重要的是「患者要捲多久才看得到第一個問題」。修好前 651px（螢幕的
     // 80%），修好後 592px（73%）。
@@ -301,22 +299,20 @@ test.describe('患者預約頁手機版', () => {
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 
-  // 這條原本要求導覽與環境徽章**併成同一列**——那是 2026-07-26 修掉「留白過多」
-  // 時的正確目標：當時線上只有兩個導覽項（148px），加徽章 171px 塞得進 343px。
+  // P13（2026-07-27）：導覽在手機收進漢堡選單。
   //
-  // 2026-07-27 併站之後導覽變成三項（診所首頁／醫師團隊／線上預約），單是導覽
-  // 就佔滿整列，併列在數學上已經不可能。依 R-5，空間不足時換列是**正確**的排法，
-  // 所以改成守住換列之後仍然成立的三件事：徽章靠右、導覽不逐字斷行、頁面不溢出。
-  // 併列的目標本身留在註解裡，是為了說明門檻為什麼從 185px 變成現在這樣。
-  test('導覽放不下時，環境徽章換列並維持靠右', async ({ page }) => {
+  // 這條的前身要求「導覽與環境徽章併成同一列」，而併站後導覽三項就佔滿整列，
+  // 那個目標在數學上已經不可能。現在改成守住漢堡真正該成立的四件事：
+  // 收起時導覽不佔版面、漢堡與徽章併成一列且徽章靠右、**展開後導覽項一個不少**
+  // （R-13：主要功能不得因螢幕窄而消失），以及展開時頁面仍不橫捲。
+  test('手機把導覽收進漢堡，展開後項目一個不少', async ({ page }) => {
     await page.goto('/booking');
-    // 線上站是用 hidden 屬性收掉 local-only 連結的（patient-app.js 的 isOnline
-    // 分支），這裡用同一個機制模擬同一個狀態，而不是假造別的東西。
-    await page
-      .locator('.patient-nav [data-local-only-link]')
-      .evaluate((el) => el.setAttribute('hidden', ''));
+    const menuButton = page.locator('.patient-menu-button');
+    const nav = page.locator('#patient-nav');
+    await expect(menuButton).toBeVisible();
+    await expect(nav).toBeHidden();
 
-    const layout = await page
+    const collapsed = await page
       .locator('.patient-header-inner')
       .evaluate((inner) => {
         const box = (selector: string) => {
@@ -326,7 +322,7 @@ test.describe('患者預約頁手機版', () => {
         };
         const innerRect = inner.getBoundingClientRect();
         return {
-          nav: box('.patient-nav'),
+          menu: box('.patient-menu-button'),
           badge: box('.environment-badge'),
           contentRight:
             innerRect.right - parseFloat(getComputedStyle(inner).paddingRight),
@@ -336,16 +332,33 @@ test.describe('患者預約頁手機版', () => {
         };
       });
 
-    // 徽章換到自己那一列（不再與導覽同列），但仍然靠右——不能變成孤零零地
-    // 貼在左邊，那正是當初「留白過多」的樣子。
-    const navCentre = layout.nav.y + layout.nav.height / 2;
-    const badgeCentre = layout.badge.y + layout.badge.height / 2;
-    expect(Math.abs(navCentre - badgeCentre)).toBeGreaterThan(2);
-    expect(Math.abs(layout.badge.right - layout.contentRight)).toBeLessThan(2);
-    // 頁首總高仍要受控：三列（品牌／標章＋主題／導覽）＋徽章列，實測 235px。
-    // 門檻留 20px 餘裕，再多一列就會被擋下來。
-    expect(layout.headerHeight).toBeLessThan(255);
+    // 徽章仍然靠右——不能變成孤零零地貼在左邊，那正是 2026-07-26 修過的
+    // 「留白過多」的樣子。**不要求它與漢堡同列**：375px 下實測是品牌＋標章、
+    // 主題選單＋漢堡、徽章三列，那是 flex 依內容寬度算出來的結果（R-5 允許
+    // 空間不足時換列），硬要併列只能靠縮字或藏東西。
+    expect(
+      Math.abs(collapsed.badge.right - collapsed.contentRight)
+    ).toBeLessThan(2);
+    // 收起導覽那一列（44px）之後，頁首從 235px 掉到 167px。門檻留餘裕，
+    // 再長回一列就會被擋下來。
+    expect(collapsed.headerHeight).toBeLessThan(200);
+
+    // 漢堡本身要是達標的觸控目標（R-3，患者端 44×44）。
+    const menuBox = await menuButton.boundingBox();
+    expect(menuBox!.height).toBeGreaterThanOrEqual(44);
+    expect(menuBox!.width).toBeGreaterThanOrEqual(44);
+
+    // 展開後導覽項一個不少，且狀態要讓輔助技術讀得到。
+    await menuButton.click();
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(nav).toBeVisible();
+    await expect(nav.locator('a')).toHaveCount(4);
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+
+    // Escape 收起來，焦點回到漢堡（R-12）。
+    await page.keyboard.press('Escape');
+    await expect(nav).toBeHidden();
+    await expect(menuButton).toBeFocused();
   });
 
   // 「類型與項目」先前因為 overflow-wrap: anywhere 被排成「類型與項／目」，
@@ -380,8 +393,12 @@ test.describe('患者預約頁手機版', () => {
     await page.locator('[data-patient-slot]').first().click();
     await expect(page.locator('#patient-name')).toBeVisible();
 
+    // 只量**必填的**四個身分欄位。表單自 2026-07-27 起還有選填的備註（textarea）
+    // 與標籤分組，它們沒有星號、形狀也不同——用 `:not(.consent-preview)` 會把它們
+    // 一起撈進來，於是這條測試會因為「新增了一個選填欄位」而紅，卻與它要守的事
+    // （星號位置與四欄同寬）完全無關。
     const labels = page.locator(
-      '.patient-form-grid > label:not(.consent-preview)'
+      '.patient-form-grid > label:has(.required-mark)'
     );
     await expect(labels).toHaveCount(4);
     const labelRows = await labels.locator('.field-label').evaluateAll((rows) =>
