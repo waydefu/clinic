@@ -695,7 +695,10 @@ export function renderFollowUps(state, editingIds = new Set()) {
         firstId === undefined
           ? undefined
           : `${firstId.slice(5, 9)}-${firstId.slice(9, 11)}-${firstId.slice(11, 13)}`;
-      const dueDate = decision?.dueDate ?? firstFollowUpDate ?? '2030-01-16';
+      // 完全沒有回診時段時（排班全關）退回今天：任何寫死的日期遲早會變成過去，
+      // 而 2026-07-27 之前那個 2030-01-16 已經是「合成視窗固定在 2030」時代的遺物。
+      const dueDate =
+        decision?.dueDate ?? firstFollowUpDate ?? taipeiTodayDate();
       const dueTimes = followUpDueTimes(state.schedule, dueDate);
       const dueTimeOptions = dueTimes.length
         ? dueTimes

@@ -8,7 +8,8 @@
 //
 // 與 domain-rules.js 同一個做法：措辭留在邊界，規則留在領域套件。在這之前，
 // 患者看到的可預約時間與未來 API 會核可的時間是兩份各自實作的診所政策。
-import { SYNTHETIC_WINDOW_DAYS, SYNTHETIC_WINDOW_START } from './constants.js';
+import { SYNTHETIC_WINDOW_DAYS } from './constants.js';
+import { taipeiTodayDate } from './taipei-time.js';
 import { DomainError } from '../vendor/domain/errors.js';
 import {
   assertScheduleValid,
@@ -51,13 +52,26 @@ export function validateSchedule(schedule) {
 }
 
 /**
- * 合成原型的時段產生。日期視窗是原型專屬的設定（固定的 2030 合成週期），
- * 不是診所規則，因此留在這一層而不是領域套件。
+ * 合成資料視窗的起點：**台北的今天**（P5，業主 2026-07-27）。
+ *
+ * 每次呼叫重算，不是模組載入時算一次——後者會讓開著過夜的分頁停在昨天。
+ * 這是原型專屬的設定，不是診所規則，所以留在這一層而不是領域套件。
+ *
+ * **已知限制**：時段只在建立初始狀態與發布排班時產生。一位訪客的瀏覽器裡若留著
+ * 一個月前的合成狀態，視窗不會自己往前滾，他會看到「目前沒有可預約時段」。
+ * 對一個七天到期的預覽頻道而言可以接受；真正的服務由後端依當下時間產生時段。
+ */
+export function syntheticWindowStart() {
+  return taipeiTodayDate();
+}
+
+/**
+ * 合成原型的時段產生。
  */
 export function generateSlots(schedule, existingSlots = [], options = {}) {
   return localize(() =>
     planSlots(schedule, existingSlots, {
-      startDate: options.startDate ?? SYNTHETIC_WINDOW_START,
+      startDate: options.startDate ?? syntheticWindowStart(),
       dayCount: options.dayCount ?? SYNTHETIC_WINDOW_DAYS,
       ...(options.durationMinutes === undefined
         ? {}

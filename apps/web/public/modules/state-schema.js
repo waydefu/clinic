@@ -5,8 +5,12 @@ import {
 } from './constants.js';
 import { cloneSchedule, generateSlots } from './schedule-engine.js';
 
-export const storageKey = 'beauessence_synthetic_online_preview_v5';
-const SCHEMA_VERSION = 5;
+// v5 → v6（2026-07-27，P5）：可預約視窗由寫死的 2030 改為「今天起算 30 天」。
+// **必須換鍵**，不能只改產生規則：留在瀏覽器裡的舊狀態帶著 2030 年的時段，
+// 它們是「未來」，所以不會被過期篩選掉——回訪的訪客會看到一整排 2030 年的日期，
+// 而且看不出哪裡不對。換鍵讓他們拿到一份新的合成資料。
+export const storageKey = 'beauessence_synthetic_online_preview_v6';
+const SCHEMA_VERSION = 6;
 
 // 營業時間：週三至週五 12:00–20:30，週六 10:00–18:00，週日至週二休診。
 function defaultSchedule() {
@@ -107,7 +111,9 @@ export function initialState() {
         title: '預約系統維護中',
         body: '請稍後再回來，造成不便敬請見諒。',
         startsAt: '',
-        resumeAt: '2030-01-02T12:00'
+        // 維護預設是關閉的，這只是表單的初值。留空比留一個寫死的日期誠實——
+        // 任何寫死的日期遲早會變成過去，看起來像「已經過期的維護公告」。
+        resumeAt: ''
       },
       releases: [
         {

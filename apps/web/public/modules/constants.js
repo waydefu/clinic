@@ -27,8 +27,15 @@ export const CLINIC = Object.freeze({
   name: '一森渼診所',
   address: '臺北市松山區光復北路112號2樓'
 });
-export const SYNTHETIC_WINDOW_START = '2030-01-01';
-export const SYNTHETIC_WINDOW_DAYS = 21;
+// 合成資料的可預約視窗：**由今天起算**一個月（P5，業主 2026-07-27）。
+//
+// 先前是寫死的 2030-01-01 起 21 天。那讓每一份合成資料都落在一個沒有人會遇到
+// 的年份——好處是測試容易，代價是業主看預覽時看到的日期與現實無關，而
+// 「當日」篩選永遠是空的。錨點改成今天之後，日期會跟著真實時間走。
+//
+// 起點是**函式**而不是常數：模組載入的那一刻算一次會讓開著一整天的分頁停在
+// 昨天。呼叫端每次產生時段時重算。
+export const SYNTHETIC_WINDOW_DAYS = 30;
 
 // 初診走整點與半點，回診走 15 分與 45 分，兩種掛號各自成格。
 export const BOOKING_KINDS = Object.freeze({

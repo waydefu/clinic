@@ -139,7 +139,7 @@ let selectedSlotId;
 // 已決定回診但被「調整回診」重新開啟編輯的預約 id；讓它暫時回到逐筆回診確認。
 const editingFollowUps = new Set();
 // 週檢視目前顯示的週一（YYYY-MM-DD）。undefined 時於首次 render 對齊到
-// 最早一筆預約／時段所在的週，讓合成的 2030 資料一進來就有內容可看。
+// 最早一筆預約／時段所在的週，讓合成資料一進來就有內容可看。
 let weekStart;
 
 // 手機用行程表、桌機用時間網格。48rem 與 workbench.css 的斷點是同一個數字，

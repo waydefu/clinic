@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   activeBookingsFor,
   createBooking,
@@ -30,6 +30,26 @@ import {
   renderWeekView
 } from '../public/modules/week-view.js';
 import { createAccount } from '../public/modules/workspace-domain.js';
+
+// 合成資料的可預約視窗自 2026-07-27 起由**今天**起算（P5，業主要求）。
+//
+// 這份測試裡有二十幾個 `slot_20300102_*`、`2030-01-02` 之類的字串。把它們逐一
+// 改寫成「今天 + n 天」的計算式，會讓每一行都失去它現在帶著的資訊——讀的人
+// 一眼就知道 01-02 是週三、01-06 是週日，換成算式之後那些都要重新推導。
+//
+// 所以改成把時鐘凍住。凍在 2030-01-01（週二，診所休診），視窗的第一個門診日
+// 因此是 01-02 週三——與先前寫死 `SYNTHETIC_WINDOW_START = '2030-01-01'` 的
+// 結果完全相同，那些日期於是重新變成確定的值，而且仍然是「相對於今天」算出來的。
+//
+// 「視窗真的跟著今天走」由本檔最後那一組測試以兩個不同的時鐘各驗一次。
+const FROZEN_NOW = new Date('2030-01-01T00:00:00+08:00');
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(FROZEN_NOW);
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 const PATIENT_A = {
   name: '測試患者甲',
@@ -1099,5 +1119,51 @@ describe('個管月度工作量', () => {
       visitCount: 2,
       creditCount: 2
     });
+  });
+});
+
+// P5（業主 2026-07-27）：可預約時段改為「當日起一個月內」。
+//
+// 上面每一組測試都跑在凍住的 2030-01-01 上，所以它們證明的是「視窗的內容正確」，
+// 不是「視窗跟著今天走」。這一組換兩個完全不同的時鐘各驗一次——那才是這次改動
+// 真正要保證的事：先前是寫死的 2030-01-01，任何時鐘下都會產生同一批日期。
+describe('可預約視窗跟著今天走', () => {
+  const dayNumber = (slotId: string) => Number(slotId.slice(5, 13));
+  const asNumber = (isoDate: string) => Number(isoDate.replaceAll('-', ''));
+  // 日期加減一律在 UTC 上做。用 `+08:00` 建立再 `toISOString()` 會先倒回 UTC，
+  // 於是每一次換算都少八小時——跨月時就會差一天（實測 2031-03-05 + 29 被算成
+  // 04-02 而不是 04-03）。這裡只是在數日子，時區不該參與。
+  const plusDays = (isoDate: string, days: number) =>
+    new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+
+  afterAll(() => {
+    vi.setSystemTime(FROZEN_NOW);
+  });
+
+  for (const today of ['2031-03-05', '2032-11-20']) {
+    it(`${today} 產生的時段落在當天起 30 天內`, () => {
+      vi.setSystemTime(new Date(`${today}T09:00:00+08:00`));
+      const state = initialState();
+      const days = state.slots.map((slot) => dayNumber(slot.id));
+
+      expect(days.length).toBeGreaterThan(0);
+      // 一格都不在今天之前——那是「已經過去的時段」，患者不該看到。
+      expect(Math.min(...days)).toBeGreaterThanOrEqual(asNumber(today));
+      // 也不超過視窗長度。29 是「今天算第一天」的第 30 天。
+      expect(Math.max(...days)).toBeLessThanOrEqual(
+        asNumber(plusDays(today, 29))
+      );
+    });
+  }
+
+  it('視窗長度是 30 天，不是先前的 21 天', () => {
+    vi.setSystemTime(new Date('2031-03-05T09:00:00+08:00'));
+    const days = new Set(
+      initialState().slots.map((slot) => slot.id.slice(5, 13))
+    );
+    // 每週開週三至週六四天，30 天大約 17 個門診日；21 天只會有 12 個左右。
+    expect(days.size).toBeGreaterThan(14);
   });
 });

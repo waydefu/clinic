@@ -218,9 +218,9 @@ test.describe('工作臺手機版版面', () => {
       '#audit-section'
     ]) {
       await page.goto(`/${panel}`);
-      // 合成資料是 2030 年，預設的「當日」篩選看不到它。不切成「全部狀態」的話，
-      // 預約清單是空的——而空清單本來就不會溢出，這一輪就白跑了。既有測試漏掉
-      // 這個面板的原因之一正是這個。
+      // 建立的預約多半不落在今天（診所週日至週二休診），預設的「當日」篩選
+      // 看不到它。不切成「全部狀態」的話預約清單是空的——而空清單本來就不會
+      // 溢出，這一輪就白跑了。既有測試漏掉這個面板的原因之一正是這個。
       if (panel === '#appointments-section') {
         await page.locator('#appointment-status-filter').selectOption('all');
         await expect(

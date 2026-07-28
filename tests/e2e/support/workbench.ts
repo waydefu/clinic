@@ -76,7 +76,7 @@ export async function createBooking(
 }
 
 /** 合成狀態在瀏覽器裡的鍵。改版時 state-schema.js 與這裡要一起改。 */
-export const STORAGE_KEY = 'beauessence_synthetic_online_preview_v5';
+export const STORAGE_KEY = 'beauessence_synthetic_online_preview_v6';
 
 /**
  * 換一個角色登入，**保留目前的合成狀態**。
@@ -111,7 +111,13 @@ export async function openDisclosure(
   });
 }
 
-/** 合成資料是 2030 年，預設的「當日」篩選看不到；切到「全部狀態」才會列出。 */
+/**
+ * 切到「全部狀態」。
+ *
+ * `createBooking` 選的是第一個可預約時段，而診所週日至週二休診——所以那一筆
+ * 多半不落在今天，預設的「當日」篩選看不到它。（2026-07-27 之前的理由是合成
+ * 資料固定在 2030 年；視窗改成從今天起算之後，理由換了，結論一樣。）
+ */
 export async function showAllAppointments(page: Page): Promise<void> {
   await page.locator('#appointment-status-filter').selectOption('all');
 }
