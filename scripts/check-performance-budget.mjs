@@ -233,6 +233,20 @@ export function planBudgetReport(
       );
       continue;
     }
+    // 2026-07-27（自動檢查缺口 F-5）：每個進入點都要說明它的數字是怎麼來的。
+    //
+    // 「預算調高必須留下理由與實測」先前只寫在 web-quality-gates 的表格裡，靠人
+    // 記得去補。於是「改一個數字讓 CI 變綠」與「說明為什麼」之間沒有任何強制
+    // 關係。這一條不能阻止有人隨手寫一句話，但它讓兩件事變成同一個動作，而且
+    // 會出現在 code review 的 diff 裡。
+    if (
+      typeof entry.budget.justification !== 'string' ||
+      entry.budget.justification.trim() === ''
+    ) {
+      violations.push(
+        `${entry.path}: 預算沒有 justification。請寫明這些數字是怎麼來的（實測值？刻意的上限？調整過的理由？）。`
+      );
+    }
     for (const { resourceType, budget } of entry.budget.resourceSizes ?? []) {
       const actualKib = (entry.sizes.get(resourceType) ?? 0) / KIB;
       if (actualKib > budget) {

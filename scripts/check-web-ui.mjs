@@ -22,6 +22,7 @@ const paths = {
   // 患者頁與工作臺共用 styles.css。先前這份檔案完全不在守衛範圍內，於是
   // 2026-07-26 修掉工作臺「手機隱藏英文副標」之後，患者頁那一份原封不動地留著。
   patientCss: 'apps/web/public/styles.css',
+  tagPicker: 'apps/web/public/modules/tag-picker.js',
   robots: 'apps/web/public/robots.txt',
   sitemap: 'apps/web/public/sitemap.xml',
   privacyHtml: 'apps/web/public/privacy.html'
@@ -371,6 +372,58 @@ for (const control of files.patientHtml.matchAll(
   if (!allowedPatientControls.has(control[1]))
     failures.push(`Unexpected patient data input: ${control[1]}.`);
 }
+// ---------------------------------------------------------------------------
+// JS 注入的輸入欄位也要受管（2026-07-27，自動檢查缺口 F-3）。
+//
+// 上面那兩份允許清單是用正規式掃 HTML 的**字面標記**。由客戶端寫進 `innerHTML`
+// 的輸入欄位，它們一個都看不到——而那正是這個專案畫清單的預設做法。於是
+// 「新增任何欄位都必須是刻意的決定」這條規則只對寫在 HTML 裡的欄位成立，
+// 一段 `innerHTML` 就能繞過整個把關。
+//
+// 兩條規則：
+//   1. 注入的 `<input>` **不得帶 id**。id 是全域唯一的，而兩份客戶端都用
+//      `Object.fromEntries(querySelectorAll('[id]'))` 建 elements 表——撞名會
+//      靜默覆蓋掉控制項（2026-07-25 已經發生過一次）。
+//   2. 每個注入的 `<input>` 必須有可辨識的繫結（`name` 或 `data-*`），否則它的
+//      值沒有任何辦法被讀出來，那是一個看得到卻收不到的欄位。
+const INJECTED_INPUT_SOURCES = {
+  'patient-app.js': files.patientClient,
+  'admin-bootstrap.js': files.adminClient,
+  'modules/admin-view.js': files.adminView,
+  'modules/tag-picker.js': files.tagPicker,
+  'modules/confirm-dialog.js': files.confirmDialog
+};
+for (const [name, source] of Object.entries(INJECTED_INPUT_SOURCES)) {
+  for (const match of source.matchAll(/<input\b[^>]*>/gi)) {
+    const tag = match[0];
+    if (/\bid=/.test(tag))
+      failures.push(
+        `${name} injects an <input> carrying an id. Ids are global, and both clients build their element map from every [id] — a collision silently replaces a control.`
+      );
+    // 繫結由呼叫端插進來的（`${attributeFor(...)}`）不在這一條的範圍內——
+    // 那個字串在這裡還不存在。tag-picker 是唯一這樣做的地方，而它產生的繫結
+    // 由下面的允許清單逐一登記。
+    if (!tag.includes('${') && !/\b(?:name|data-[a-z-]+)=/.test(tag))
+      failures.push(
+        `${name} injects an <input> with no name or data-* binding, so nothing can read its value: ${tag.slice(0, 60)}…`
+      );
+  }
+}
+
+// 患者頁注入的標籤繫結必須逐一登記，與 HTML 欄位同一個標準：新增一組患者端
+// 可勾的東西是一個決定，不是一次 render 的副作用。
+const allowedPatientBindings = new Set([
+  // 2026-07-27（P9）：這次門診的需求，以及如何得知診所訊息。
+  'data-request-tag',
+  'data-source-tag'
+]);
+for (const match of files.patientClient.matchAll(/data:\s*'(data-[a-z-]+)'/g)) {
+  if (!allowedPatientBindings.has(match[1]))
+    failures.push(
+      `Unregistered injected patient control binding: ${match[1]}. Register it here and say what it collects.`
+    );
+}
+
 // The patient page must keep telling visitors where their data goes, and the
 // list must never render an unmasked national ID.
 requireText(

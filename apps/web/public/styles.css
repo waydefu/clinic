@@ -143,6 +143,13 @@
     'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', system-ui,
     -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: var(--font-sans);
+  /* 標題用的中文襯線堆疊。
+     它與 `--font-serif` 分開是有原因的：`--font-serif` 是設計文件階段 5 預留的
+     「品牌襯線」，而那一階段還沒開始，所以它仍指向 sans；把它直接改掉會讓所有
+     已經用它的地方一起變樣。這一個則是**現況的單一來源**——clinic-booking.css
+     早就把這個堆疊寫死在三個選擇器上（2026-07-27 的 F-2 掃描才看得到）。
+     全部是系統已安裝的字體，一個字型檔都不下載，字型預算維持 0 KiB。 */
+  --font-serif-tc: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
   --font-mono:
     ui-monospace, SFMono-Regular, 'Cascadia Mono', 'Roboto Mono', Consolas,
     monospace;

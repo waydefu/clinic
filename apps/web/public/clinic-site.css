@@ -1375,7 +1375,10 @@ a {
   }
 }
 
-@media (max-width: 28rem) {
+/* 斷點對齊正式尺度（64／48／30rem）。原本是 28rem——比 30rem 只窄 32px，
+   卻讓官網在 448–480px 之間與其他頁面在不同的地方重排。2026-07-27 的
+   自動檢查缺口 F-2 把 clinic-site.css 納入掃描後才看得到它。 */
+@media (max-width: 30rem) {
   .clinic-brand img {
     width: 8.75rem;
   }

@@ -1,0 +1,45 @@
+{
+  "why": "對外頁面的單一來源（2026-07-27，自動檢查缺口 F-4）。介面規則書 §4.1 早就寫著這份清單應該收斂成一份 machine-readable inventory，先前它散在五個地方各抄一份：兩支 e2e 的路由陣列、效能預算、本機 server 的 PRETTY_PATHS、firebase.json 的 rewrites。漏掉其中一份不會有任何錯誤——那一類掃描只是安靜地不涵蓋新頁面（2026-07-27 併站時 /clinic 漏掉 affordance 掃描就是這樣，當時靠人工複查才發現）。`pnpm check:pages` 比對這份清單與每一份抄本；抄本本身不強行合併（e2e 與建置腳本各有各的載入方式），但不一致會紅。",
+  "pages": [
+    {
+      "route": "/",
+      "entry": "index.html",
+      "audience": "staff",
+      "indexable": false,
+      "scans": ["axe", "responsive", "affordance"],
+      "note": "營運工作臺。永遠不對外索引，也沒有 pretty URL——它就是根目錄。"
+    },
+    {
+      "route": "/booking",
+      "entry": "patient.html",
+      "audience": "public",
+      "indexable": true,
+      "scans": ["axe", "responsive", "affordance", "mobile-layout"],
+      "note": "患者預約流程，對外的主要頁面。"
+    },
+    {
+      "route": "/privacy",
+      "entry": "privacy.html",
+      "audience": "public",
+      "indexable": true,
+      "scans": ["axe", "affordance"],
+      "note": "個資法第 8 條的告知頁。刻意零指令碼、零字型，因此不進 responsive 矩陣（它沒有任何會重排的元件），但仍要掃 axe 與可點擊性。"
+    },
+    {
+      "route": "/clinic",
+      "entry": "clinic.html",
+      "audience": "public",
+      "indexable": false,
+      "scans": ["axe", "responsive", "affordance"],
+      "note": "診所官網首頁。其餘七條 /clinic/** 路由由 clinic-content.js 的 CLINIC_ROUTES 產生，共用同一個 entry。"
+    },
+    {
+      "route": "/404",
+      "entry": "404.html",
+      "audience": "public",
+      "indexable": false,
+      "scans": [],
+      "note": "Firebase Hosting 依慣例自動供應 404.html，沒有 pretty URL 也沒有 rewrite。不進掃描矩陣：它是靜態的一句話加一個連結，且無法用一般路由到達。"
+    }
+  ]
+}

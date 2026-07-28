@@ -10,7 +10,7 @@
 
 .patient-header {
   background: color-mix(in srgb, var(--surface) 96%, transparent);
-  box-shadow: 0 0.55rem 1.8rem color-mix(in srgb, var(--forest) 7%, transparent);
+  box-shadow: var(--elevation-1);
   backdrop-filter: blur(1rem);
 }
 
@@ -25,13 +25,13 @@
 }
 
 .patient-header .brand strong {
-  font-family: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
-  letter-spacing: 0.08em;
+  font-family: var(--font-serif-tc);
+  letter-spacing: var(--tracking-eyebrow);
 }
 
 .patient-header .brand small {
   color: var(--ink-muted);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-eyebrow);
 }
 
 .patient-nav a {
@@ -71,7 +71,7 @@
     ),
     linear-gradient(135deg, var(--surface-tint), var(--surface-soft));
   border-color: var(--line);
-  box-shadow: 0 1.25rem 3rem color-mix(in srgb, var(--forest) 8%, transparent);
+  box-shadow: var(--elevation-2);
 }
 
 /* 這一頁的 hero 改成**淺色**漸層之後，品牌眉題必須跟著換金。
@@ -86,14 +86,14 @@
 
 .patient-hero h1,
 .booking-panel-heading h2 {
-  font-family: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
-  letter-spacing: 0.035em;
+  font-family: var(--font-serif-tc);
+  letter-spacing: var(--tracking-wide);
 }
 
 .patient-contact-card,
 .booking-panel {
   border-color: var(--line);
-  box-shadow: 0 1rem 2.75rem color-mix(in srgb, var(--forest) 7%, transparent);
+  box-shadow: var(--elevation-2);
 }
 
 .booking-stepper {
@@ -109,13 +109,13 @@
 
 .service-choice {
   background: var(--surface);
-  box-shadow: 0 0.45rem 1.4rem color-mix(in srgb, var(--forest) 5%, transparent);
+  box-shadow: var(--elevation-1);
 }
 
 .service-choice:hover,
 .service-choice.is-selected {
   background: var(--surface-tint);
-  box-shadow: 0 0.85rem 2rem color-mix(in srgb, var(--forest) 9%, transparent);
+  box-shadow: var(--elevation-2);
 }
 
 .patient-footer {

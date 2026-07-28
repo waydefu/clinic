@@ -94,7 +94,7 @@ export function planTokenReview(sheets) {
   const violations = [];
   const debt = { 'font-size 字面值': [], 間距字面值: [] };
 
-  for (const [name, { source: raw, scope, full }] of sheets) {
+  for (const [name, { source: raw, scope, full, breakpoints }] of sheets) {
     const source = withoutComments(raw);
     const body = outsideRootBlocks(source);
 
@@ -104,8 +104,19 @@ export function planTokenReview(sheets) {
       }
     }
 
-    // error.css 是 404 頁的獨立樣式表：它刻意不載入 styles.css，也就沒有共用
-    // token 可用，因此只檢查「用了自己沒定義的東西」這一項。
+    // 斷點尺度與「用的是哪一套 token」無關：一份樣式表就算自成系統，它的斷點
+    // 仍然必須與其他頁面對齊，否則同一個瀏覽器寬度下兩頁會在不同的地方重排。
+    if (!full && breakpoints === true) {
+      for (const match of source.matchAll(/@media \(max-width: ([^)]+)\)/g)) {
+        if (CANONICAL_BREAKPOINTS.has(match[1])) continue;
+        violations.push(
+          `${name}: 斷點 ${match[1]} 不在正式尺度（64rem／48rem／30rem）內`
+        );
+      }
+    }
+
+    // 自成一頁、不載入共用樣式表的檔案（404、隱私權政策、診所官網）沒有共用
+    // token 可用，因此只跑上面那些與系統無關的檢查。
     if (!full) continue;
 
     for (const match of body.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
@@ -258,26 +269,55 @@ async function main() {
   const publicDir = join(repoRoot, 'apps', 'web', 'public');
   const read = (name) => readFile(join(publicDir, name), 'utf8');
 
-  const [styles, workbench, error] = await Promise.all([
-    read('styles.css'),
-    read('workbench.css'),
-    read('error.css')
-  ]);
+  // 2026-07-27（自動檢查缺口 F-2）：先前只掃三份，而 public/ 裡有六份樣式表。
+  // 沒被掃到的那三份可以隨便寫死色、斷點、字重而這支腳本照樣印「全部為零」——
+  // 一個只涵蓋一半的檢查比沒有檢查更容易誤導。實際上 clinic-booking.css 當時
+  // 就有一個範圍外的斷點（62rem）。
+  const [styles, workbench, error, clinicBooking, clinicSite, privacy] =
+    await Promise.all([
+      read('styles.css'),
+      read('workbench.css'),
+      read('error.css'),
+      read('clinic-booking.css'),
+      read('clinic-site.css'),
+      read('privacy.css')
+    ]);
 
   const base = definedTokens(styles);
+  const withBase = (source) => new Set([...base, ...definedTokens(source)]);
   const sheets = new Map([
     ['styles.css', { source: styles, scope: base, full: true }],
     // workbench.css 永遠與 styles.css 一起載入，所以它看得到 base 的 token。
     [
       'workbench.css',
-      {
-        source: workbench,
-        scope: new Set([...base, ...definedTokens(workbench)]),
-        full: true
-      }
+      { source: workbench, scope: withBase(workbench), full: true }
     ],
-    // error.css 是 404 頁的獨立樣式表，不載入 styles.css——它只有自己的 token。
-    ['error.css', { source: error, scope: definedTokens(error), full: false }]
+    // clinic-booking.css 同樣與 styles.css 一起載入（患者頁的視覺橋接層）。
+    [
+      'clinic-booking.css',
+      { source: clinicBooking, scope: withBase(clinicBooking), full: true }
+    ],
+    // error.css 與 privacy.css 是自成一頁的獨立樣式表，不載入 styles.css
+    // ——它們只有自己的 token，所以只檢查「用了自己沒定義的東西」。
+    ['error.css', { source: error, scope: definedTokens(error), full: false }],
+    [
+      'privacy.css',
+      { source: privacy, scope: definedTokens(privacy), full: false }
+    ],
+    // clinic-site.css 是**另一套** token 系統（`--clinic-*`：白／霧綠／深林），
+    // 與工作臺的設計 token 無關，也刻意不共用——診所官網要能獨立換皮。
+    // 全套規則套上去會產生數百筆噪音（它自己就是一套完整的樣式系統），所以只
+    // 套用兩條與「系統是哪一套」無關的規則：未定義的 token，以及斷點尺度。
+    // **解除條件**：若哪天官網併進共用 token 系統，把 `full` 改成 true 並清乾淨。
+    [
+      'clinic-site.css',
+      {
+        source: clinicSite,
+        scope: definedTokens(clinicSite),
+        full: false,
+        breakpoints: true
+      }
+    ]
   ]);
 
   const { violations, debt } = planTokenReview(sheets);

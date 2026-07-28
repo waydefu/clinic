@@ -178,7 +178,11 @@ const requiredPaths = [
   'apps/web/public/privacy.css',
   'apps/web/public/modules/policy-dialog.js',
   // 介面規則書：改規則要連同對應的測試一起改，所以它必須是被釘住的檔案。
-  'docs/design/ui-ux-rules.md'
+  'docs/design/ui-ux-rules.md',
+  // 對外頁面的單一來源與比對它的守衛（2026-07-27，自動檢查缺口 F-4）。
+  'apps/web/public-pages.json',
+  'scripts/check-public-pages.mjs',
+  'docs/reviews/2026-07-27-automated-check-gaps.md'
 ];
 
 const missing = [];

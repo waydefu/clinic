@@ -11,6 +11,7 @@ type Files = Map<string, string>;
 
 interface BudgetEntry {
   path: string;
+  justification?: string;
   resourceSizes?: { resourceType: string; budget: number }[];
   resourceCounts?: { resourceType: string; budget: number }[];
   timings?: { metric: string; budget: number }[];
@@ -54,7 +55,11 @@ const rawBytes = {
 };
 
 const generousBudget: BudgetEntry[] = [
-  { path: '*', resourceSizes: [{ resourceType: 'total', budget: 1024 }] }
+  {
+    path: '*',
+    justification: '測試夾具',
+    resourceSizes: [{ resourceType: 'total', budget: 1024 }]
+  }
 ];
 
 function report(files: Files, budgets: BudgetEntry[] = generousBudget): Report {
@@ -138,9 +143,10 @@ describe('planBudgetReport', () => {
     const { violations } = report(files, [
       {
         path: '/index.html',
+        justification: '測試夾具',
         resourceSizes: [{ resourceType: 'script', budget: 1 }]
       },
-      { path: '*', resourceSizes: [] }
+      { path: '*', justification: '測試夾具', resourceSizes: [] }
     ]);
 
     expect(violations).toHaveLength(1);
@@ -153,6 +159,7 @@ describe('planBudgetReport', () => {
     const { violations } = report(sampleFiles(), [
       {
         path: '*',
+        justification: '測試夾具',
         resourceCounts: [{ resourceType: 'script', budget: 1 }]
       }
     ]);
@@ -162,9 +169,32 @@ describe('planBudgetReport', () => {
     ]);
   });
 
+  // 2026-07-27（自動檢查缺口 F-5）：「預算調高必須留下理由與實測」先前只寫在
+  // 品質把關文件的表格裡，靠人記得去補。於是「改一個數字讓 CI 變綠」與「說明
+  // 為什麼」之間沒有任何強制關係。
+  it('fails a budget that does not say where its numbers came from', () => {
+    const { violations } = report(sampleFiles(), [
+      { path: '*', resourceSizes: [{ resourceType: 'total', budget: 1024 }] }
+    ]);
+
+    expect(violations).toEqual([
+      expect.stringContaining('/index.html: 預算沒有 justification'),
+      expect.stringContaining('/patient.html: 預算沒有 justification')
+    ]);
+  });
+
+  it('rejects a blank justification, not just a missing one', () => {
+    const { violations } = report(sampleFiles(), [
+      { path: '*', justification: '   ', resourceSizes: [] }
+    ]);
+
+    expect(violations).toHaveLength(2);
+    expect(violations[0]).toContain('預算沒有 justification');
+  });
+
   it('fails a page that has no budget rather than passing it silently', () => {
     const { violations } = report(sampleFiles(), [
-      { path: '/index.html', resourceSizes: [] }
+      { path: '/index.html', justification: '測試夾具', resourceSizes: [] }
     ]);
 
     expect(violations).toEqual([
@@ -206,6 +236,8 @@ describe('the shipped performance budget', () => {
       expect(budget.resourceSizes?.map((size) => size.resourceType)).toContain(
         'total'
       );
+      // 每個數字都要說得出它是怎麼來的（F-5）。
+      expect(budget.justification?.trim()).toBeTruthy();
     }
   });
 

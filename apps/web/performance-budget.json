@@ -1,6 +1,7 @@
 [
   {
     "path": "/patient.html",
+    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -65,6 +66,7 @@
   },
   {
     "path": "/index.html",
+    "justification": "內部工作臺，只有員工在用，因此比患者頁寬鬆。document 10 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 9.2 KiB 加餘裕；script 64／stylesheet 16 反映它比患者頁多出的排班、個管與稽核介面。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -129,6 +131,7 @@
   },
   {
     "path": "/clinic.html",
+    "justification": "診所官網。image 560 KiB 是**現況的上限而不是目標**：既有素材約 2.2 MB 未最佳化，再加圖前必須先壓縮（見 2026-07-27 業主需求批次的 C2）。其餘欄位是實測值加餘裕。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -193,6 +196,7 @@
   },
   {
     "path": "/privacy.html",
+    "justification": "法律文件頁，刻意零指令碼、零字型（privacy-policy.spec.ts 有斷言釘住）。document 4 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 3.2 KiB 加餘裕。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -243,6 +247,7 @@
   },
   {
     "path": "/404.html",
+    "justification": "品牌化的 404，自成一檔。document 2 KiB 是實測 0.7 KiB 加足夠餘裕；script 0 是刻意的——這一頁不需要任何指令碼。",
     "resourceSizes": [
       {
         "resourceType": "document",

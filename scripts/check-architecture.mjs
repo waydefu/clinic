@@ -284,6 +284,31 @@ if (codeBlock === null) {
   }
 }
 
+// 2026-07-27（自動檢查缺口 F-6）：**欄位**也要有翻譯，不只是原因代碼。
+//
+// 上面那一段只比對代碼。2026-07-27 新增 `passportNumber` 與 `identityDocument`
+// 兩個欄位時，它們用的都是既有的代碼（`format`／`required`），所以那條守衛一聲
+// 都沒吭——而少了 `identityDocument.required` 這一句，外籍患者會看到一句通用的
+// 「這個欄位的格式不正確」，完全不知道自己該填護照。
+const fieldBlock = identitySource.match(
+  /export type PatientIdentityField =([\s\S]*?);/
+);
+if (fieldBlock === null) {
+  fail(
+    'duplicated-rule',
+    '在 patient-identity.ts 找不到 PatientIdentityField，這條守衛已經失效。'
+  );
+} else {
+  for (const match of fieldBlock[1].matchAll(/'([A-Za-z]+)'/g)) {
+    const field = match[1];
+    if (!new RegExp(`'${field}\\.[a-z_]+':`).test(registrySource))
+      fail(
+        'duplicated-rule',
+        `domain 的欄位 '${field}' 在 patient-registry.js 的 MESSAGES 裡沒有任何一句中文訊息，它的錯誤會退回一句通用的「格式不正確」。`
+      );
+  }
+}
+
 // --- 回報 ---------------------------------------------------------------
 if (failures.length > 0) {
   console.error('Architecture check failed:');
