@@ -10,11 +10,11 @@
 | 欄位              | 值                                                                     |
 | ----------------- | ---------------------------------------------------------------------- |
 | 分支              | `main`                                                                 |
-| 部署的 commit     | `a9a2811`（本檔與 `verify:preview` 修正之後另有一筆文件 commit）        |
+| 部署的 commit     | `3c31351`（本檔所在的 commit；頻道已重新部署以對齊）                    |
 | Firebase 專案     | `beauessence-clinic-staging`                                           |
 | Hosting 頻道      | `synthetic-review`                                                     |
 | 預覽網址          | `https://beauessence-clinic-staging--synthetic-review-gpt86j36.web.app` |
-| 到期              | 2026-08-04 12:36 Asia/Taipei                                           |
+| 到期              | 2026-08-04 12:43 Asia/Taipei                                           |
 | Live 頻道         | 未部署                                                                 |
 
 ## 交付範圍
