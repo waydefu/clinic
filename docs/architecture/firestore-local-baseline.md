@@ -1,9 +1,11 @@
 # Local Firestore Baseline
 
-Phase 0 uses only Firebase Local Emulator Suite with the safe fake project ID
-`beauessence-appointment-local`.  It is not a Firebase project to create,
-deploy or connect to.  No production credentials, service-account files,
-patient data, Google Calendar access or NAS shares are used.
+The local Firestore verification baseline established in Stage 0 uses only
+Firebase Local Emulator Suite with the safe fake project ID
+`beauessence-appointment-local`. It remains the Stage 1 local test boundary and
+is not a Firebase project to create, deploy or connect to. No production
+credentials, service-account files, patient data, Google Calendar access or
+NAS shares are used.
 
 ## Security posture
 
@@ -43,8 +45,8 @@ pnpm install --frozen-lockfile
 pnpm test:rules
 ```
 
-The first emulator run may download local emulator binaries.  It requires Java
-11 or later, and writes only disposable emulator data.  Do not start an
+The first emulator run may download local emulator binaries. Use JDK 21 to
+match CI; the run writes only disposable emulator data. Do not start an
 emulator with an import or export directory containing real clinic data.
 
 On Windows, `pnpm test:rules` uses a small cleanup launcher because Firebase

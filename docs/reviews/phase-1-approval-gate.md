@@ -1,10 +1,14 @@
 # Phase 1 Approval Gate
 
-**Current status:** The synthetic test-only checkpoint is verified; no formal
-clinic decision is approved yet. This document is the single start/stop
-dashboard for Phase 1. It does not replace the dated approval record in the
-decision register. See the [test-only checkpoint](phase-1-test-only-checkpoint-2026-07-20.md)
-for evidence and limitations.
+**Current status (2026-07-28):** Stage 0／Checkpoint A is complete and the
+project is in Stage 1 owner decisions. D-001 through D-011 in this dashboard
+remain pending; D-012 and D-013 have separate scoped approvals recorded in the
+decision register. This document is the single start/stop dashboard for Phase
+1 and does not replace that dated approval record. See the
+[test-only checkpoint](phase-1-test-only-checkpoint-2026-07-20.md) for the
+original evidence and the
+[current UI baseline](ui-visual-baseline-2026-07-28.md) for current synthetic
+preview scope.
 
 ## Non-negotiable state
 
@@ -15,9 +19,10 @@ for evidence and limitations.
 - A `pending` decision blocks every capability named in its “unlocks” column.
   Do not work around a pending business decision with a source-code default.
 - The documented [synthetic test-only profile](../product/test-only-sandbox-baseline.md)
-  is the narrow exception: it permits pure in-memory tests and a double-gated
-  loopback browser harness with opaque IDs, never a public route, production
-  configuration or external effect.
+  and separately recorded preview authorization are the narrow exceptions:
+  they permit browser-local synthetic state in local testing and an expiring,
+  `noindex` static Hosting preview. They never permit real data, a booking API,
+  cloud backend, production configuration or external operational effect.
 
 ## Decision dashboard
 
@@ -39,16 +44,17 @@ for evidence and limitations.
 
 ```text
 D-001, D-002, D-003 ─┐
-D-004, D-005, D-006 ─┼─> local-only booking transaction + authorization tests
+D-004, D-005, D-006 ─┼─> policy-backed contract/authorization design
                       │
 D-007, D-008 ─────────┼─> local-only case/payroll tests
                       │
 D-009, D-010, D-011 ──┴─> integration/launch review (never direct deployment)
 ```
 
-The first policy-backed local-only appointment write-path test requires D-001
-through D-006. The explicit synthetic-only profile may test a pure in-memory
-model before that, but it does not establish policy-backed behaviour.
+The Stage 0 synthetic appointment write-path tests are already complete, but
+they do not establish policy-backed behaviour. D-001 through D-006 are still
+required before the corresponding production contract, intake, cancellation
+and authorization values can be treated as approved.
 Case/payroll tests additionally require D-007 and D-008. Cloud or Calendar work
 needs the relevant integration decisions **and** a separately approved change
 plan; it is never unlocked merely by completing this document.
@@ -79,6 +85,8 @@ For every row, the decision register must include:
 The source of truth for status is
 [`../product/phase-1-decision-register.md`](../product/phase-1-decision-register.md).
 When the clinic approves a decision, update that register first, then make only
-the corresponding local-only implementation change and tests. Before approval,
-the only permitted code path is the explicitly documented synthetic-only
-profile; it must not infer or set a clinic answer.
+the corresponding implementation change and tests. D-006 and D-010 together
+unlock Stage 2 cloud staging with synthetic data; D-009 then gates Stage 3
+Calendar projection. Before approval, the only permitted operational path is
+the explicitly documented synthetic-only profile and expiring static preview;
+neither may infer or set a clinic answer.

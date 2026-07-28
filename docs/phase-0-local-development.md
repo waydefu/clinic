@@ -34,6 +34,13 @@ pnpm test:rules
 The repository is designed to be used from different computers. Switch
 machines only at a Git boundary:
 
+> **Do not use a package command as a status check.** For a progress audit,
+> inspect Git history, remote refs and the current roadmap only. Before running
+> `pnpm`, confirm this is the intended clean clone, `corepack` and the pinned
+> Node version are installed, and dependencies were intentionally provisioned
+> on this computer. If `node_modules` is absent or incomplete, stop instead of
+> letting pnpm implicitly rebuild it.
+
 1. On the current computer, review `git status`, commit the intended source and
    documentation changes, record `git branch --show-current`, and push that
    exact branch with `git push -u origin <branch>`.

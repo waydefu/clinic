@@ -54,7 +54,7 @@ outbox_jobs.idempotencyKey = base32hex 字串        （Firestore，交易內寫
 apps/worker → CalendarPort.project({ idempotencyKey, ... })
         │            ↑ 假日曆會拒絕不合格式的 ID（不可重試 → 死信）
         ▼
-Google Calendar event ID（階段 C 才真正送出）
+Google Calendar event ID（目前 Stage 3 才真正送出）
 ```
 
 ## 為什麼要編碼

@@ -100,6 +100,28 @@ dated baseline, not a substitute for the live decision register.
 
 ## Agent operating discipline
 
+### Read-only status checks and dependency rebuilds
+
+A request to inspect progress, confirm a commit or plan next work is read-only.
+For that kind of request, use Git status/history, remote refs and the current
+documents. Do **not** run `pnpm`, `corepack`, install, build, Emulator,
+Playwright or package scripts merely to confirm status.
+
+Before any explicitly requested local verification, first confirm that the
+repository is the intended clean clone and that `corepack`, the pinned Node
+version and its dependencies are already available. If `node_modules` is
+missing or incomplete, or `corepack` is unavailable, report the environment
+prerequisite and stop. pnpm may start an implicit install when a package script
+finds an incomplete dependency tree; that rebuild must never be a side effect
+of a read-only inspection.
+
+If the workspace was copied between computers or drives, shows dubious Git
+ownership, or contains links to an old path, preserve any source changes and
+use the documented fresh HTTPS clone procedure. Do not attempt an automatic
+dependency repair. Delete only the confirmed repository-local `node_modules`
+when the user explicitly authorises cleanup; never delete a shared pnpm store
+or Playwright cache.
+
 ### Codebase Memory MCP
 
 When a `Codebase-memory-mcp` (or equivalent repository-memory tool) is

@@ -20,7 +20,7 @@
 | `modules/case-management.js` | 個管清單投影；指派／改派與工作量規則來自 `packages/domain/case-assignment` | 正式版由 API 保存有效期間，月結鎖定由 API 管理 |
 | `modules/workspace-domain.js` | 合成帳號、公告、維護排程與發布紀錄 | 正式 IAM、CMS 與 deployment service adapter |
 | `modules/state-schema.js` | 合成 state schema、預設值與 localStorage | 替換成 versioned API DTO，不讓 UI 直接碰 Firestore |
-| `store.js` | browser-local synthetic command/query transport | 正式版不由 controller 直接匯入；只作 `api-client.js` 的 Stage 0 transport |
+| `store.js` | browser-local synthetic command/query transport | 正式版不由 controller 直接匯入；目前只作 `api-client.js` 的合成 transport |
 | `modules/api-client.js` | 可注入 transport、標準錯誤 metadata、安全 GET retry；POST 不自動重放 | 注入 HTTPS `/v1` transport，保留 controller request 語意 |
 | `modules/async-action.js` | pending 文案、disabled／重複送出守衛與明確 retry handoff；狀態由 `role="status"` 公告，按鈕不設 `aria-busy` | 正式 API client 沿用；只有 server 標為 retryable 才顯示重試 |
 | `modules/workspace-tabs.js` | 工作臺分頁切換（一次只顯示一個工作區） | 正式版若改多頁路由，只換這一個檔 |

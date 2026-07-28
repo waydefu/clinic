@@ -1,6 +1,6 @@
 # ADR-0003: Direct Firestore Client Access Is Deny by Default
 
-Status: Accepted for Phase 0  
+Status: Accepted in Stage 0 and remains in force
 Date: 2026-07-20
 
 ## Context

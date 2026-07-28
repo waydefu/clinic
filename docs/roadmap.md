@@ -46,7 +46,9 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > **2026-07-27 隱私權告知與 SEO 基礎**（[SEO 基準](reviews/2026-07-27-seo-baseline.md)）：
 > 新增 `/privacy`，涵蓋個資法第 8 條要求的告知事項，連結放在填寫資料那一步而非
 > 只在頁尾；頁面同時聲明「目前為測試版本、資料不會傳到診所」與「本文為草稿」。
-> 收診時間依官網更正為 20:00。SEO 補上 `robots.txt`／`sitemap.xml`、以
+> 當時先把錯誤的 20:30 收診時間更正為 20:00；2026-07-28 重查後發現官網的完整
+> 每週時段仍與合成預覽衝突，正式值已回到 D-004 待決策。SEO 補上
+> `robots.txt`／`sitemap.xml`、以
 > `availableService` 取代錯誤的科別標示，並把「是否可被索引」與「標題是否標
 > 【測試用】」收斂成同一個 `WEB_PUBLIC_INDEXABLE` 建置開關。
 >
@@ -55,12 +57,8 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > 身分模型從瀏覽器搬進 `packages/domain`（順帶修掉「1990-02-31 通過驗證」的日期
 > 溢位缺陷）；新增 `check:architecture` 守住依賴方向、未接線清單與 domain 規則
 > 單一來源，並當場抓到 `admin-bootstrap.js` 繞過共用時間格式化器。署徽使用權與
-> 分支保護實際狀態需負責人決定，見稽核紀錄第 4 節。
->
-> `styles.css`，頁首則以 `row-gap` 12px 吸收多出來的一列，頁首 248→212px。接著
-> 依線上回報收掉頁首留白：導覽不再寫死 `width: 100%`，改由 flex 決定與環境徽章
-> 併列（線上兩個連結時併列，本機三個連結或 320px 時換列，導覽永不橫捲），欄距與
-> 內距同步收緊。線上頁首 212→162px，患者看到第一個問題由 502→452px。
+> 分支保護在該次稽核仍待決策；兩者後續分別以 D-012（preview scope）與 D-013
+> 記錄核准，見決策登錄。
 >
 > **2026-07-26 證據與維運收斂。** `verify` workflow 新增最終 evidence job，
 > 把 verify／Firestore Rules／E2E／supply-chain 四個結果綁定 commit SHA 與 run；

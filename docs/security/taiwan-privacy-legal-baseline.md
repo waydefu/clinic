@@ -1,6 +1,6 @@
 # Taiwan Privacy Legal Baseline — Phase 1
 
-**Research status:** Project design baseline, checked on 2026-07-20. It is
+**Research status:** Project design baseline, re-checked on 2026-07-28. It is
 not legal advice or a substitute for the clinic's legal review. It covers the
 local-only appointment platform design, not an electronic medical-record
 system.
@@ -24,12 +24,23 @@ records, medical information and health examinations are special-category data
 under PDPA Article 6. PDPA Article 5 also requires collection, processing and
 use to stay necessary and reasonably related to a specific purpose.
 
-Phase 1 therefore limits a booking request to the minimum approved appointment
-fields: patient name, contact method, selected service/resource, selected time,
-and booking/cancellation state. Do not collect free-text symptoms, diagnosis,
-medical history, photographs, national ID numbers or payment-card data in this
-platform. An appointment itself can still be sensitive in practice, so apply
-the same least-privilege and audit controls throughout.
+The current browser-local synthetic preview is a narrow test exception, not a
+production data decision. Under the owner's recorded synthetic authority it
+accepts name, phone, birth month/day with optional year, national ID/new
+resident ID or passport, NHI-card intent, selected service/time, approved
+request/source tags, an optional referrer name in specific paths and a short
+note. It does not transmit those values to the clinic, and real data remains
+prohibited. This field list must not be copied into a backend or treated as a
+lawful-basis decision.
+
+The production field inventory remains pending D-001 through D-003, D-006 and
+D-011. Each field needs a recorded purpose, necessity, legal basis, notice,
+access scope and retention rule. Request tags or free text may imply health or
+medical information, a national ID is a high-risk identifier, and a referrer
+name is third-party personal data; each needs separate review. Do not add
+symptoms, diagnosis, medical history, photographs or payment-card data without
+a separate approved scope. An appointment itself can still be sensitive in
+practice, so apply the same least-privilege and audit controls throughout.
 
 If a future scope needs medical information, diagnosis, treatment notes or
 documents, stop and obtain a separate legal/medical-record review. A privacy
@@ -129,8 +140,10 @@ mechanisms) become a separate release gate.
 1. Approve D-001 through D-003, including the exact controller name, privacy
    contact, retention schedule, deletion exceptions, policy version and
    publication record.
-2. Approve D-009 and D-010 before any vendor, Firebase, Calendar or NAS
+2. Approve D-009 and D-010 before any real-data cloud/backend, Calendar or NAS
    connection, including processor terms, locations, access scope, logs,
-   backup/restore and incident contacts.
+   backup/restore and incident contacts. The already-authorised static,
+   synthetic-only Hosting preview is the documented exception; it is not
+   authority to create a backend or send data to the clinic.
 3. Have the clinic's legal/privacy owner confirm this baseline against the law
    in force on the actual launch date.

@@ -1,7 +1,8 @@
 # Google Calendar 與資料庫整合測試計畫
 
-**狀態：** 階段 A 已完成；接日曆實測的技術前置清單見第 3.1 節。
-撰寫於 2026-07-21，更新於 2026-07-22。
+**狀態：** 舊稱階段 A 的本機基線與 Calendar 技術前置均已完成；目前為整體交付
+Stage 1 owner decisions。舊稱階段 B／C 分別對應目前 Stage 2／Stage 3。
+撰寫於 2026-07-21，更新於 2026-07-28。
 **前提：** 本計畫不自行核准任何 D-001～D-011 決策，也不改變目前
 「僅瀏覽器狀態、無雲端後端」的事實。
 
@@ -29,8 +30,9 @@ Calendar 是投影，不是可用性的來源。
 
 ## 2. 有利條件與最大風險
 
-**有利**：領域規則已經是純函式且與 I/O 分離（`apps/web/public/modules/`），
-時段鎖定、狀態機、防重複與回診規則都有測試。移植時搬的是規則，不是重寫。
+**有利**：領域規則已經是純函式且與 I/O 分離，權威來源在
+`packages/domain`，瀏覽器使用經雜湊校驗的 vendored 副本。時段鎖定、狀態機、
+防重複與回診規則都有測試；後續接線沿用這些規則，不從瀏覽器另抄一套。
 
 **最大風險**：目前預約流程收集姓名、電話、生日（月日必填、年份選填）、
 身分證／居留證或護照、健保卡攜帶意向、患者備註，以及本次門診與來源標籤。
@@ -87,7 +89,7 @@ Calendar 是投影，不是可用性的來源。
 [ADR-0004](../adr/0004-browser-and-server-share-one-compiled-domain.md)。
 原「兩套實作漂移」的風險已消除。
 
-### 3.1 接日曆實測的技術前置（不需核准、可立即做）
+### 3.1 接日曆實測的技術前置 — **已完成**
 
 依 roadmap 的順序，接上真實 Google Calendar 之前必須先完成。**四項技術前置
 全部完成**（截至 2026-07-23，單元 106 項、Emulator 44 項通過）：
@@ -118,30 +120,33 @@ Calendar 是投影，不是可用性的來源。
    同一把鑰匙）。證據見
    [Runbook 演練紀錄](../reviews/calendar-sync-runbook-rehearsal-2026-07-23.md)。
 
-四項完成後，D-009 一核准（日曆擁有者、授權模型、scope、專用測試日曆），
-剩下的就只是把假服務換成真實 API 用戶端與憑證注入。
+`GoogleCalendarClient` 與設定解析也已存在並有單元測試，但目前沒有憑證、部署的
+worker runner 或實際 Calendar 連線。D-009 核准日曆擁有者、授權模型、scope 與
+專用測試日曆後，仍需在 Stage 3 依已核准的 D-010 環境建立 Secret Manager 注入、
+執行身分、監控、停用與回復流程；不能再把剩餘工作描述成只換一個 client。
 
-**阻擋決策**：無（合成資料、無雲端）。這是**現在就可以做**的部分。
-
-### 階段 B：staging 專案的雲端 Firestore（仍為合成資料）
+### 舊稱階段 B／目前 Stage 2：staging 專案的雲端 Firestore（仍為合成資料）
 
 **阻擋決策**：D-006（身分與角色）、D-010（環境、IAM、備份、監控）。
 
-- 在 `beauessence-clinic-staging` 啟用 Firestore，位置選 `asia-east1`。
-- 啟用 Firebase Auth，工作臺改為真實登入；目前的「角色模擬器」退場。
-  現有 `permissions.js` 的角色矩陣成為伺服器端授權的規格來源。
+- D-010 核准後，在**與靜態 preview 隔離**的 staging project 啟用 Firestore；
+  project ID 與位置依核准紀錄建立。`beauessence-clinic-staging` 與 `asia-east1`
+  目前都只是候選值，不得由文件直接建立資源。
+- 依 D-006 核准的 identity provider 啟用員工登入，讓目前的角色模擬器退場。
+  `permissions.js` 只反映合成介面的候選能力，不能取代正式伺服器端角色矩陣。
 - Rules 維持預設拒絕；所有存取經 API 的服務帳號。
 - 保留一鍵清除合成資料的能力。
 
 **驗收**：未登入者無法呼叫任何寫入端點；櫃台角色無法執行管理者動作（伺服器端
 拒絕，不只是隱藏畫面）；稽核事件包含真實的操作者身分。
 
-### 階段 C：Google Calendar 投影（合成日曆）
+### 舊稱階段 C／目前 Stage 3：Google Calendar 投影（合成日曆）
 
 **阻擋決策**：D-009（日曆擁有者、授權模型、scope、事件欄位）。
 
 - 建立**專用的測試日曆**，與任何醫師私人日曆分離。
-- `apps/worker` 消費 `outbox_jobs`：建立、改期、取消對應的事件。
+- 以已核准的執行身分部署 `apps/worker` runner，消費 `outbox_jobs`：建立、改期、
+  取消對應的事件。`GoogleCalendarClient` 已有程式碼與單元測試，但尚未部署或連線。
 - 每筆預約使用固定的 Calendar Event ID 作為冪等鍵，重試不得產生重複事件。
 - 事件內容只放預約編號與掛號別。**不得放入**姓名、電話、身分證、健保卡、
   手術種類、備註標籤或回診項目——這些都足以揭露就醫關聯。
@@ -164,7 +169,7 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 | --- | --- | --- |
 | `patients[]` | `patients` | 身分證字號需決定是否雜湊後另存；不得以姓名自動合併 |
 | `slots[]` | `slots` | 文件 ID 用 `{resourceId}_{startAt}`，天然唯一鍵 |
-| `appointments[]` | `appointments` | 已含 `bookingKind`、`itemId`、`noteTags` |
+| `appointments[]` | `appointments` | 瀏覽器目前含 `bookingKind`、複數 `itemIds`、`noteTags`；正式 contract/domain 仍是單一 `serviceId`/`itemId`，須由 D-004 決定單項或多項後一起對齊 |
 | `followUps[]` | `follow_ups` | 已含 `tags` 與 `certificateCopies` |
 | `caseAssignments[]` | `case_assignments` | 需補 `effectiveFrom/To` 以支援改派歷程 |
 | `auditEvents[]` | `audit_events` | 不可覆寫；需補 before/after 摘要 |
@@ -174,10 +179,12 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 
 規劃書第 6.1 節另列出 `payroll_*` 與 `privacy_*` 系列，於階段 D 前補齊。
 
-## 5. 建議順序
+## 5. 目前建議順序
 
-階段 A 不需要任何核准也不碰真實資料，卻能驗證整個架構最容易出錯的部分
-（交易、冪等、outbox）。**建議先做階段 A**，其餘等對應決策核准。
+舊稱階段 A 的交易、冪等、outbox 與 Calendar client 技術基線都已完成。現在先在
+Stage 1 完成 owner decisions；其中 D-006 與 D-010 兩者核准後才能進 Stage 2
+合成資料 cloud staging，D-009 核准後才進 Stage 3 專用測試日曆。D-001～D-005、
+D-006、D-010、D-011 未完成前，不得開放真實資料的公開預約路徑。
 
 ## 6. 明確不做的事
 

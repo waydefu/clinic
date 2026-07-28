@@ -34,13 +34,18 @@ The assistant put 30 questions to the project owner in plain language. These are
 row above says otherwise, because several depend on facts nobody has confirmed
 yet (a privacy email, the production domain, Workspace availability).
 
-**Clinic facts (verified against two independent public sources, not assumed):**
-registered name 一森渼診所 (listed as 不分科), address 臺北市松山區光復北路 112
-號 2 樓, phone 02-2577-1314 with toll-free 0800-000-913, opening hours
-**Wed–Fri 12:00–20:00 and Sat 10:00–18:00**, closed Sun/Mon/Tue. A web search
-summary that claimed Mon–Fri 11:00–20:00 belonged to a **different clinic**
-(一森診所, Shilin, neurology) and was discarded. **No public email address
-exists**, which is why the privacy contact below is a phone number.
+**Clinic facts re-checked on 2026-07-28:** the official clinic site matches
+the name 一森渼診所, address 臺北市松山區光復北路 112 號 2 樓, phone
+02-2577-1314 and toll-free 0800-000-913. Its current
+[reservations page](https://beauessence.com.tw/reservations/) publishes
+**Mon–Fri 11:00–20:00 and Sat 11:00–16:00**. That conflicts with the recorded
+owner answer and current synthetic code, which use **Wed–Fri 12:00–20:00 and
+Sat 10:00–18:00**, closed Sun/Mon/Tue. The earlier claim that the official
+schedule belonged to a different clinic was incorrect. Treat the owner answer
+as synthetic build direction only; D-004 remains pending until the clinic
+operations owner confirms which schedule is current and whether the official
+site needs correction. **No public email address was found**, which is why the
+temporary privacy-contact input below uses the clinic phone.
 
 - **D-001/D-003 privacy contact: the clinic phone, for now.** Recorded as
   temporary. A phone-only channel means every rights request has to be written
@@ -54,6 +59,11 @@ exists**, which is why the privacy contact below is a phone number.
   plan)**, with the final scope agreed with the patient at the visit. One patient
   per slot. Booking horizon 60 days (provisional). Closed days follow the
   published hours plus national holidays.
+- **D-004 booking multiplicity is unresolved.** The current browser prototype
+  allows multiple `itemIds`, while the executable API contract/domain accepts
+  one `serviceId`/`itemId`. The operations owner must approve whether one
+  appointment contains exactly one or multiple services before the routed
+  contract, persistence and idempotency model are changed.
 - **D-005: patients may cancel up to 24 hours before**; after that it is a phone
   call. No-shows are recorded, not charged.
 - **D-006: Google sign-in plus a self-hosted account option** (the clinic has no
@@ -118,14 +128,19 @@ costs several hundred kilobytes against a 58 KB page, and the cost lands hardest
 on a phone outside on mobile data. Typography keeps using the system stack, and
 `tests/e2e/theme.spec.ts` already pins "not a single font file is downloaded".
 
-### Opening hours corrected to 20:00 - 2026-07-27
+### Opening hours conflict discovered - updated 2026-07-28
 
-The schedule closed at **20:30** while the clinic's own website publishes
-**20:00**. The owner confirmed 20:00 is the authority. The current
-`defaultSchedule`, structured data and clinic prose use 12:00–20:00, and
-Wednesday generates 13 初診 / 12 回診 slots (last starts 19:30 and 19:15).
-Any remaining `20:30` comment, seed or new-draft default is stale implementation
-data and must be corrected rather than treated as a competing clinic decision.
+The obsolete **20:30** synthetic closing time was correctly removed after the
+owner confirmed a 20:00 weekday close. The current `defaultSchedule`,
+structured data and clinic prose use Wed–Fri 12:00–20:00 and Sat
+10:00–18:00; Wednesday generates 13 初診 / 12 回診 slots (last starts 19:30
+and 19:15).
+
+However, the clinic's official reservations page was re-checked on 2026-07-28
+and currently publishes Mon–Fri 11:00–20:00 and Sat 11:00–16:00. Therefore the
+synthetic schedule is not production authority. D-004 must resolve the weekly
+days, start/end times and whether the website or prototype should be updated.
+Any `20:30` value remains stale under either candidate schedule.
 
 The drift check that caught the prose copies did **not** cover the JSON-LD
 numbers, because those use `"opens"/"closes"` rather than the `12:00–20:00`
@@ -387,11 +402,11 @@ must not be used as the current field list or matching-key definition.
 
 ### D-001 - 2026-07-20 — historical input, superseded in part
 
-The bullets below preserve the 2026-07-20 research/input record. Its clinic
-hours and privacy-contact interpretation were superseded by the 2026-07-27
-owner-answer block at the top of this register: current hours are Wed–Fri
-12:00–20:00 and Sat 10:00–18:00, and the clinic phone is the temporary
-privacy-contact answer for now. The decision itself remains `pending`.
+The bullets below preserve the 2026-07-20 research/input record. The clinic
+phone remains the temporary privacy-contact input, but the 2026-07-28 re-check
+shows that the official hours in this historical block still appear on the
+clinic's own site and conflict with the synthetic build direction. D-004 must
+resolve the schedule; D-001 remains `pending`.
 
 - Clinic name supplied by the project owner: 一森渼診所
 - Address supplied by the project owner: 10560臺北市松山區復勢里光復北路112號2樓

@@ -105,6 +105,14 @@ corepack pnpm test:e2e
 corepack pnpm capture:ui
 ```
 
+These are explicit setup and verification commands, not progress-inspection
+commands. To confirm project status, read Git history/remote refs and the
+current roadmap first. Do not run pnpm merely to produce a status report. If
+`node_modules` is absent or incomplete, or `corepack` is unavailable, stop and
+fix the machine setup deliberately; pnpm can otherwise begin an implicit
+dependency install. On a copied or moved workspace, use the fresh-clone
+procedure below before running any package command.
+
 Before changing computers, commit the intended changes, record the exact branch
 name and push that branch:
 

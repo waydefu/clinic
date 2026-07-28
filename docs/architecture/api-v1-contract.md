@@ -1,7 +1,8 @@
 # API v1 Contract Baseline
 
-Status: Phase 0 baseline.  This file is the human navigation layer for the
-executable schemas in `packages/contracts`.
+Status: Stage 0 baseline completed; current delivery stage is Stage 1. This
+file is the human navigation layer for the executable schemas in
+`packages/contracts`, and only the health endpoint is routed.
 
 ## Boundary
 
@@ -14,7 +15,7 @@ executable schemas in `packages/contracts`.
   schema validation, idempotency handling and an audit event before it is
   declared ready.
 
-## Phase 0 endpoint
+## Current routed endpoint
 
 | Method | Path | Contract | Purpose |
 | --- | --- | --- | --- |
@@ -41,12 +42,20 @@ omits the patient profile, email, actor, role, patient ID, client timestamp,
 policy version, medical notes, diagnosis, uploaded images, social-message
 transcripts and arbitrary free text.
 
+The current browser-local synthetic prototype supports multiple selected
+items as `itemIds`. The executable appointment contract and domain transaction
+still accept one `serviceId`/`itemId`. This is an explicit D-004 contract gap,
+not an instruction to infer the production model from the browser: before a
+booking route is registered, the clinic operations owner must approve whether
+one appointment can contain one or multiple services, and then the contract,
+domain, idempotency key, persistence model and UI must be aligned together.
+
 Patient intake and verification remain a separate decision-gated boundary.
 The application service accepts only a server-produced authentication context
 and maps its verified opaque patient ID and actor ID, plus a server-generated
 appointment ID and UTC timestamp, into the domain `BookingRequest`. D-001
-through D-006 must be approved before a real intake/authentication adapter or
-booking route is enabled.
+through D-006, D-010 and D-011 must be approved before a real
+intake/authentication adapter or public booking route is enabled.
 
 The Stage 0 application service, authorization policy and repository port are
 present under `apps/api/src/appointments`, but they are intentionally not
@@ -57,7 +66,7 @@ the authenticated actor ID and opaque role, correlation ID and source. None is
 accepted from the appointment command. Reason code and policy version remain
 explicitly `null` until their decision owners approve real values.
 
-## Stage 0 command / response inventory
+## Completed Stage 0 command / response inventory
 
 Inventory means the boundary, owner and decision dependency are explicit. It
 does **not** mean every row has an executable schema or an enabled route.
@@ -67,7 +76,7 @@ Only health is routed; create/cancellation schemas remain reserved.
 | --- | --- | --- | --- |
 | Health query | `HealthResponseSchema` | `HealthController` | Routed; no patient data |
 | Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; fields, verification and matching remain TBD pending D-001～D-003, D-006, D-011 |
-| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; D-001～D-006, D-010, D-011 |
+| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; single-service contract conflicts with the browser's synthetic multi-item model and needs D-004, then D-001～D-006, D-010 and D-011 |
 | Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005/D-006 |
 | Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; route/authorization pending D-005/D-006 |
 | Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; route/authorization pending D-004/D-006 |
