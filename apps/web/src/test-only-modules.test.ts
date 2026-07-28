@@ -29,7 +29,7 @@ import {
   isUpcomingSlot,
   scheduleImpact
 } from '../public/modules/schedule-engine.js';
-import { initialState } from '../public/modules/state-schema.js';
+import { initialState, isUsableState } from '../public/modules/state-schema.js';
 import {
   layoutCalendarEvents,
   renderWeekView
@@ -70,6 +70,25 @@ const PATIENT_B = {
   nationalId: 'B287654321',
   hasNhiCard: false
 };
+
+describe('合成狀態的隱私證據邊界', () => {
+  it('不保存不存在的正式政策版本或接受紀錄', () => {
+    const state = initialState();
+    expect(state).not.toHaveProperty('policyVersion');
+    expect(JSON.stringify(state)).not.toMatch(
+      /privacy-v\d|policyAcceptance|consent/i
+    );
+  });
+
+  it('拒絕同版本卻夾帶舊政策版本欄位的瀏覽器狀態', () => {
+    expect(
+      isUsableState({
+        ...initialState(),
+        policyVersion: 'privacy-v1'
+      })
+    ).toBe(false);
+  });
+});
 
 describe('週曆事件排版', () => {
   const event = (id: string, startsAt: string) => ({ id, startsAt });
@@ -1339,6 +1358,30 @@ describe('工作臺批次的新行為', () => {
       expect(html).toContain('A12****789');
       expect(html).toContain('intake-print-only');
       expect(html).toContain('A123456789');
+    });
+
+    it('護照號碼同樣只在合成列印層顯示完整值', () => {
+      const state = initialState();
+      const appointment = createBooking(
+        state,
+        {
+          slotId: openSlot(state, 'initial').id,
+          patient: {
+            ...PATIENT_A,
+            nationalId: '',
+            passportNumber: 'P12345678'
+          },
+          itemIds: ['service_snoring']
+        },
+        'admin_test_001'
+      );
+      const html = sheetFor(state, appointment.id);
+      expect(html).toContain(
+        '<span class="intake-screen-only">P12****678</span>'
+      );
+      expect(html).toContain(
+        '<span class="intake-print-only">P12345678（護照）</span>'
+      );
     });
 
     // CSP 是 style-src 'self'：style 屬性會被整個擋掉，寬度必須走 class。

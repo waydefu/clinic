@@ -108,9 +108,8 @@ const server = createServer(async (request, response) => {
         : 'no-cache';
     response.writeHead(200, {
       'Cache-Control': cacheControl,
-      // connect-src must include 'self': the modular admin bootstrap fetches
-      // /admin-shell.html from this origin, and the v2 pages hold their
-      // synthetic state in the browser rather than calling the API.
+      // connect-src 必須保留 'self'：預約頁會從同源 `/privacy` 載入告知草稿，
+      // 目前工作臺與預約流程的業務資料仍只在瀏覽器，不會連到遠端 API。
       // `require-trusted-types-for 'script'`：寫進 innerHTML 的字串一律要先經過
       // Trusted Types policy，否則瀏覽器直接丟 TypeError。modules/trusted-html.js
       // 註冊 default policy，於是既有的 29 處指派全部流經那裡的結構檢查。

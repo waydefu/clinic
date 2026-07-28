@@ -68,6 +68,25 @@ test.describe('版面重排', () => {
   }
 
   for (const width of WIDTHS) {
+    test(`隱私告知草稿在 ${width}px 不出現水平捲軸`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/privacy');
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: /隱私權政策與個人資料蒐集告知草稿/
+        })
+      ).toBeVisible();
+
+      const result = await horizontalOverflow(page);
+      expect(
+        result.scrollWidth,
+        `溢出元素：${result.overflowing.join(', ')}`
+      ).toBeLessThanOrEqual(result.clientWidth + 1);
+    });
+  }
+
+  for (const width of WIDTHS) {
     test(`工作臺在 ${width}px 不出現水平捲軸`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/');

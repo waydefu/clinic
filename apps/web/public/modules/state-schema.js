@@ -5,14 +5,23 @@ import {
 } from './constants.js';
 import { cloneSchedule, generateSlots } from './schedule-engine.js';
 
-// v5 → v6（2026-07-27，P5）：可預約視窗由寫死的 2030 改為「今天起算 30 天」。
-// **必須換鍵**，不能只改產生規則：留在瀏覽器裡的舊狀態帶著 2030 年的時段，
-// 它們是「未來」，所以不會被過期篩選掉——回訪的訪客會看到一整排 2030 年的日期，
-// 而且看不出哪裡不對。換鍵讓他們拿到一份新的合成資料。
-export const storageKey = 'beauessence_synthetic_online_preview_v6';
-const SCHEMA_VERSION = 6;
+// v6 → v7（2026-07-28）：移除會讓人誤以為瀏覽器保存正式政策版本的
+// `policyVersion`。這個合成流程只有 UI-only「已閱讀告知草稿」gate，沒有政策版本、
+// 顯示時間或接受證據；換鍵才能讓已存在的 v6 localStorage 一併淘汰舊欄位。
+export const storageKey = 'beauessence_synthetic_online_preview_v7';
+const SCHEMA_VERSION = 7;
+// 只清理由本應用歷史版本建立過的精確鍵名，不掃整個 localStorage，也不碰主題或
+// 同 origin 其他用途的資料。v1～v6 可由 Git 歷史逐一核對。
+const LEGACY_STORAGE_KEYS = Object.freeze([
+  'beauessence_synthetic_online_preview_v1',
+  'beauessence_synthetic_online_preview_v2',
+  'beauessence_synthetic_online_preview_v3',
+  'beauessence_synthetic_online_preview_v4',
+  'beauessence_synthetic_online_preview_v5',
+  'beauessence_synthetic_online_preview_v6'
+]);
 
-// 營業時間：週三至週五 12:00–20:30，週六 10:00–18:00，週日至週二休診。
+// 營業時間：週三至週五 12:00–20:00，週六 10:00–18:00，週日至週二休診。
 function defaultSchedule() {
   return {
     timeZone: TIME_ZONE,
@@ -43,7 +52,6 @@ export function initialState() {
   const schedule = defaultSchedule();
   return {
     schemaVersion: SCHEMA_VERSION,
-    policyVersion: 'privacy-v1',
     patients: [],
     caseManagers: structuredClone(SYNTHETIC_CASE_MANAGERS),
     schedule,
@@ -51,7 +59,7 @@ export function initialState() {
     scheduleMeta: {
       publishedVersion: 1,
       draftDirty: false,
-      publishedAt: '2026-07-21T00:00:00.000Z'
+      publishedAt: '2026-07-28T00:00:00.000Z'
     },
     slots: generateSlots(schedule),
     appointments: [],
@@ -104,7 +112,7 @@ export function initialState() {
         status: 'published',
         title: '線上預約測試中',
         body: '目前為測試版本，輸入的資料只會留在您這台裝置的瀏覽器。',
-        updatedAt: '2026-07-21T00:00:00.000Z'
+        updatedAt: '2026-07-28T00:00:00.000Z'
       },
       maintenance: {
         enabled: false,
@@ -118,9 +126,9 @@ export function initialState() {
       releases: [
         {
           id: 'release_test_001',
-          version: 'preview-3.0',
-          summary: '初診／回診分流掛號、門診時段、備註標籤與病患資料欄位',
-          publishedAt: '2026-07-21T00:00:00.000Z'
+          version: 'preview-6.0',
+          summary: '診所官網、預約欄位、隱私告知草稿、角色委派與個管工作量',
+          publishedAt: '2026-07-28T00:00:00.000Z'
         }
       ]
     }
@@ -145,6 +153,7 @@ const REQUIRED_ARRAYS = [
 export function isUsableState(state) {
   if (state === null || typeof state !== 'object') return false;
   if (state.schemaVersion !== SCHEMA_VERSION) return false;
+  if ('policyVersion' in state) return false;
   if (REQUIRED_ARRAYS.some((key) => !Array.isArray(state[key]))) return false;
 
   const workspace = state.workspace;
@@ -207,8 +216,13 @@ export function isUsableState(state) {
   return state.schedule !== undefined && state.scheduleDraft !== undefined;
 }
 
+function removeLegacyState() {
+  for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key);
+}
+
 export function loadState() {
   try {
+    removeLegacyState();
     const value = localStorage.getItem(storageKey);
     if (value === null) return initialState();
     const stored = JSON.parse(value);
@@ -219,11 +233,13 @@ export function loadState() {
 }
 
 export function saveState(state) {
+  removeLegacyState();
   localStorage.setItem(storageKey, JSON.stringify(state));
   return structuredClone(state);
 }
 
 export function resetState() {
+  removeLegacyState();
   localStorage.removeItem(storageKey);
   return initialState();
 }

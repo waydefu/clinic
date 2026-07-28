@@ -3,6 +3,9 @@
 > Historical local-only checkpoint. The later, separately authorised static
 > Hosting preview is recorded in
 > [`phase-1-synthetic-online-preview-checkpoint-2026-07-21.md`](phase-1-synthetic-online-preview-checkpoint-2026-07-21.md).
+> The current visual baseline is recorded in
+> [`ui-visual-baseline-2026-07-28.md`](ui-visual-baseline-2026-07-28.md); this
+> checkpoint and its image remain historical evidence only.
 
 ## Result
 
@@ -29,10 +32,11 @@ project, Calendar call, NAS connection or real data.
 - A headed local-browser run at `http://127.0.0.1:3100/` created a synthetic
   reservation, recorded an authorised completion, created and cancelled a
   second reservation, then reset all in-memory state. The clean reload and
-  subsequent flow emitted no browser-console errors. This viewport evidence is
-  retained locally at
-  [`../../output/playwright/test-only-booking-flow-2026-07-20.png`](../../output/playwright/test-only-booking-flow-2026-07-20.png)
-  and is deliberately ignored by version control.
+  subsequent flow emitted no browser-console errors. This historical viewport
+  evidence is retained at
+  [`assets/test-only-booking-flow-2026-07-20.png`](assets/test-only-booking-flow-2026-07-20.png)
+  alongside this checkpoint. This repository asset records the 2026-07-20
+  checkpoint and is not the current booking UI baseline.
 - `corepack pnpm check:ui` now guards the professional test dashboard against
   non-loopback endpoints and data input controls, and requires visible local
   boundaries, landmarks, live updates and keyboard focus treatment. A headed

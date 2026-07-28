@@ -83,23 +83,35 @@ for (const entry of budgets) {
       }).observe({ type: 'layout-shift', buffered: true });
     });
 
-    await page.goto(url, { waitUntil: 'load' });
-    // 讓最後一批 LCP 候選與載入後的版面位移有時間被記錄下來。刻意不用
-    // `networkidle`：那個條件在平行執行時不保證會出現，會把效能測試變成
-    // 不穩定的逾時來源，而它要量的東西在 load 之後就已經確定了。
-    await page.waitForTimeout(1000);
+    const measure = async () => {
+      await page.goto(url, { waitUntil: 'load' });
+      // 讓最後一批 LCP 候選與載入後的版面位移有時間被記錄下來。刻意不用
+      // `networkidle`：那個條件在平行執行時不保證會出現，會把效能測試變成
+      // 不穩定的逾時來源，而它要量的東西在 load 之後就已經確定了。
+      await page.waitForTimeout(1000);
 
-    const measured = await page.evaluate(() => ({
-      firstContentfulPaint:
-        performance
-          .getEntriesByType('paint')
-          .find((observed) => observed.name === 'first-contentful-paint')
-          ?.startTime ?? 0,
-      largestContentfulPaint:
-        window.__perfMetrics?.largestContentfulPaint ?? Number.NaN,
-      cumulativeLayoutShift:
-        window.__perfMetrics?.cumulativeLayoutShift ?? Number.NaN
-    }));
+      return page.evaluate(() => ({
+        firstContentfulPaint:
+          performance
+            .getEntriesByType('paint')
+            .find((observed) => observed.name === 'first-contentful-paint')
+            ?.startTime ?? 0,
+        largestContentfulPaint:
+          window.__perfMetrics?.largestContentfulPaint ?? Number.NaN,
+        cumulativeLayoutShift:
+          window.__perfMetrics?.cumulativeLayoutShift ?? Number.NaN
+      }));
+    };
+
+    let measured = await measure();
+    // Chromium 的第一次冷啟動偶爾不會送出 buffered paint observer event。
+    // 只有在「指標根本沒量到」時重載一次；第二次仍為 0，照樣由下方斷言判定失敗。
+    if (
+      measured.firstContentfulPaint === 0 ||
+      measured.largestContentfulPaint === 0
+    ) {
+      measured = await measure();
+    }
 
     // 量到 0 代表指標沒被記錄到（觀察器沒裝上或頁面沒畫出東西），
     // 那是測試壞了而不是效能好，必須失敗而不是靜靜通過。

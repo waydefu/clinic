@@ -2168,8 +2168,8 @@ details[open] > summary .workflow-summary-chevron {
 .intake-blank-full {
   width: 100%;
 }
-/* 身分證字號：螢幕遮罩、列印完整。紙本是要歸檔的病歷，需要完整號碼；
-   櫃台螢幕則會被下一位患者看到。 */
+/* 合成報到單：螢幕遮罩、列印完整，只驗證 2026-07-27 指定版面。
+   不代表正式必要性或權限已核准；D-002、D-006 仍 pending。 */
 .intake-print-only {
   display: none;
 }

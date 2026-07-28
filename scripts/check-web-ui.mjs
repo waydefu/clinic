@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import process from 'node:process';
 
 // 工作臺的標記自 2026-07-21 起直接寫在 index.html，不再有獨立的 shell 檔。
@@ -25,7 +26,9 @@ const paths = {
   tagPicker: 'apps/web/public/modules/tag-picker.js',
   robots: 'apps/web/public/robots.txt',
   sitemap: 'apps/web/public/sitemap.xml',
-  privacyHtml: 'apps/web/public/privacy.html'
+  privacyHtml: 'apps/web/public/privacy.html',
+  workbenchSupport: 'tests/e2e/support/workbench.ts',
+  ogMetadata: 'apps/web/brand-source/og-booking.metadata.json'
 };
 const entries = await Promise.all(
   Object.entries(paths).map(async ([key, path]) => [
@@ -47,6 +50,68 @@ function requireText(source, text, description) {
 function refuseText(source, text, description) {
   if (normalize(source).includes(normalize(text))) failures.push(description);
 }
+
+// 合成狀態換 schema 時，測試 helper 的跨角色切換也必須跟著換鍵；否則測試會直接
+// 操作一個不存在的 localStorage 項目，而看起來只像「重新登入後資料不見了」。
+const storageKey = files.stateSchema.match(
+  /export const storageKey = '([^']+)'/
+)?.[1];
+if (storageKey === undefined) {
+  failures.push('state-schema.js no longer exports a readable storageKey.');
+} else if (
+  !files.workbenchSupport.includes(`export const STORAGE_KEY = '${storageKey}'`)
+) {
+  failures.push(
+    `The E2E workbench helper does not use the current synthetic storage key (${storageKey}).`
+  );
+}
+refuseText(
+  files.stateSchema,
+  'policyVersion:',
+  'The browser-local synthetic state again stores a formal policy version even though no formal acceptance evidence exists.'
+);
+requireText(
+  files.stateSchema,
+  "if ('policyVersion' in state) return false;",
+  'Current-schema browser state no longer rejects a stale formal policy-version field.'
+);
+for (let version = 1; version <= 6; version += 1) {
+  requireText(
+    files.stateSchema,
+    `'beauessence_synthetic_online_preview_v${version}'`,
+    `The controlled legacy-state cleanup no longer includes synthetic schema v${version}.`
+  );
+}
+if ((files.stateSchema.match(/removeLegacyState\(\);/g) ?? []).length < 3) {
+  failures.push(
+    'Legacy synthetic state is not cleaned on all load/save/reset paths.'
+  );
+}
+refuseText(
+  files.stateSchema,
+  'localStorage.clear()',
+  'Synthetic schema cleanup must not erase unrelated same-origin localStorage.'
+);
+requireText(
+  files.adminShell,
+  'id="weekly-end" type="time" value="20:00"',
+  'The schedule editor no longer defaults to the approved 20:00 closing time.'
+);
+refuseText(
+  files.adminShell,
+  'id="weekly-end" type="time" value="20:30"',
+  'The obsolete 20:30 closing-time default returned to the schedule editor.'
+);
+requireText(
+  files.stateSchema,
+  "version: 'preview-6.0'",
+  'The seeded release record no longer describes the current synthetic preview generation.'
+);
+requireText(
+  files.adminShell,
+  'id="release-version" type="text" maxlength="24" value="preview-6.1"',
+  'The release form again suggests an obsolete preview generation.'
+);
 
 requireText(
   files.adminShell,
@@ -260,9 +325,10 @@ requireText(
   'Week view must stay keyboard-focusable (role=group, tabindex=0).'
 );
 
-// 2026-07-21 決定（專案負責人）：預約流程改為收集姓名、電話、生日與身分證，
-// 公開預覽一併更新。因此這裡不再是「不得有任何輸入欄位」，而是「只允許清單內
-// 的欄位」——新增任何欄位都必須是刻意的決定，並回頭確認 D-001～D-003。
+// 2026-07-21 首次取得合成測試授權，允許姓名、電話、生日與身分證；2026-07-27
+// 再依業主要求擴充護照、年份選填、患者備註、健保卡攜帶意向、門診／來源標籤
+// 與條件式介紹人。公開預覽一併更新。這不是 D-001～D-003 的正式核准；這裡只
+// 維護合成測試允許清單，新增任何欄位都必須是刻意決定並回頭確認決策 gate。
 const allowedControls = new Set([
   // 合成帳密登入閘門的欄位（browser-local、非安全邊界）。
   'login-account',
@@ -355,9 +421,9 @@ const allowedPatientControls = new Set([
   'theme-picker',
   // 2026-07-23：時段清單的日期跳轉，只是檢視用篩選，不收集任何患者資料。
   'patient-slot-date',
-  // 2026-07-27：個資法第 8 條的同意勾選。它不收集資料，而是記錄「已被告知」；
-  // 與既有的 synthetic-confirmation 分開，因為那是「測試版本資料留在本機」的
-  // 確認，兩者是不同的事，合併會讓人不知道自己同意了什麼。
+  // 2026-07-28：保留既有技術 id，但語意是 UI-only「已閱讀告知草稿」gate。
+  // 瀏覽器不保存政策版本、顯示時間或接受紀錄，所以不得稱為正式同意或告知證據。
+  // 與 synthetic-confirmation 分開，因為後者是「測試資料留在本機」確認。
   'privacy-consent',
   // 2026-07-27（P7）：患者自己的備註，上限 120 字。存成 appointment.patientNote，
   // 與櫃台的 noteText 分開——否則櫃台一按「修改備註」就會把患者寫的話蓋掉。
@@ -447,7 +513,7 @@ requireText(
 requireText(
   files.adminView,
   'maskIdentityDocument',
-  'Workbench must render every patient identity document masked, whichever kind it is.'
+  'Workbench screen/list rendering no longer uses the shared identity-document mask.'
 );
 const combinedClient = `${files.adminClient}\n${files.patientClient}\n${files.store}\n${files.domainRules}\n${files.schedule}\n${files.cases}\n${files.confirmDialog}\n${files.theme}`;
 const externalUrls = combinedClient.match(/https?:\/\/[^'"\s`]+/g) ?? [];
@@ -523,6 +589,67 @@ const scheduleHours = [
     /startLocalTime:\s*'(\d{2}:\d{2})',\s*endLocalTime:\s*'(\d{2}:\d{2})'/g
   )
 ].map((match) => `${match[1]}–${match[2]}`);
+const ogMetadata = JSON.parse(files.ogMetadata);
+const expectedOgAsset = 'apps/web/public/og-booking.png';
+if (ogMetadata.asset !== expectedOgAsset) {
+  failures.push(
+    `The Open Graph source contract must point to ${expectedOgAsset}, not ${ogMetadata.asset}.`
+  );
+}
+if (ogMetadata.width !== 1200 || ogMetadata.height !== 630) {
+  failures.push(
+    'The Open Graph source contract must retain the declared 1200×630 dimensions.'
+  );
+}
+const expectedOgHours = '週三至週五 12:00–20:00 · 週六 10:00–18:00';
+if (ogMetadata.clinicHours !== expectedOgHours) {
+  failures.push(
+    `The Open Graph source contract must declare the current clinic hours exactly: ${expectedOgHours}.`
+  );
+}
+for (const [marker, description] of [
+  [
+    '<meta property="og:image" content="/og-booking.png" />',
+    'patient.html no longer publishes the reviewed Open Graph image'
+  ],
+  [
+    '<meta property="og:image:width" content="1200" />',
+    'patient.html no longer declares the Open Graph image width'
+  ],
+  [
+    '<meta property="og:image:height" content="630" />',
+    'patient.html no longer declares the Open Graph image height'
+  ],
+  [
+    '<meta name="twitter:image" content="/og-booking.png" />',
+    'patient.html Twitter metadata no longer uses the reviewed Open Graph image'
+  ]
+])
+  requireText(files.patientHtml, marker, description);
+const ogImage = await readFile(expectedOgAsset);
+const pngSignature = '89504e470d0a1a0a';
+if (ogImage.subarray(0, 8).toString('hex') !== pngSignature) {
+  failures.push('og-booking.png is not a valid PNG asset.');
+} else {
+  const actualWidth = ogImage.readUInt32BE(16);
+  const actualHeight = ogImage.readUInt32BE(20);
+  if (
+    actualWidth !== ogMetadata.width ||
+    actualHeight !== ogMetadata.height ||
+    actualWidth !== 1200 ||
+    actualHeight !== 630
+  ) {
+    failures.push(
+      `og-booking.png is ${actualWidth}×${actualHeight}, but its source contract and social metadata require 1200×630.`
+    );
+  }
+}
+const actualOgHash = createHash('sha256').update(ogImage).digest('hex');
+if (actualOgHash !== ogMetadata.sha256) {
+  failures.push(
+    'og-booking.png changed without updating its reviewed source metadata and SHA-256.'
+  );
+}
 
 if (scheduleHours.length === 0) {
   failures.push(
@@ -533,6 +660,11 @@ if (scheduleHours.length === 0) {
     if (!files.patientHtml.includes(hours)) {
       failures.push(
         `patient.html does not mention the ${hours} opening hours declared in state-schema.js defaultSchedule.`
+      );
+    }
+    if (!ogMetadata.clinicHours.includes(hours)) {
+      failures.push(
+        `The Open Graph source contract does not include the ${hours} interval declared by state-schema.js.`
       );
     }
   }
@@ -630,7 +762,7 @@ for (const [id, token] of Object.entries(AUTOCOMPLETE_EXPECTED)) {
 //
 // 2026-07-27（P6）：呈現由「攤開的六項摘要」改為一行勾選＋句中入口。**業主要的
 // 是低調，不是省略**，所以守衛跟著改成釘住三件仍然必須成立的事：
-//   1. 表單裡有獨立的同意勾選（不與「資料留在本機」合併）；
+//   1. 表單裡有獨立的「已閱讀草稿」勾選（不與「資料留在本機」合併）；
 //   2. 入口就在那句話裡，而且是真的 `<a href="/privacy">`——沒有 JavaScript 時
 //      仍走得到完整告知（先前那顆 <button> 在無腳本時完全沒有替代路徑）；
 //   3. 有腳本時就地展開全文，讀完不必放棄填到一半的表單。
@@ -638,27 +770,55 @@ for (const [id, token] of Object.entries(AUTOCOMPLETE_EXPECTED)) {
 requireText(
   files.patientHtml,
   'id="privacy-consent"',
-  'The booking form has no separate consent checkbox for the data-collection notice.'
+  'The booking form has no separate draft-notice read gate.'
 );
 {
-  const consentEntry = files.patientHtml
+  const noticeEntry = files.patientHtml
     .replace(/\s+/g, ' ')
     .match(/<a[^>]*id="open-privacy-policy"[^>]*>/i);
-  if (consentEntry === null) {
+  if (noticeEntry === null) {
     failures.push(
-      'The consent line has no #open-privacy-policy entry point, so the notice is only reachable from the footer.'
+      'The draft-notice line has no #open-privacy-policy entry point, so the notice is only reachable from the footer.'
     );
-  } else if (!/href="\/privacy"/i.test(consentEntry[0])) {
+  } else if (!/href="\/privacy"/i.test(noticeEntry[0])) {
     failures.push(
-      'The consent entry point is not a real link to /privacy, so with JavaScript unavailable there is no route to the notice at all.'
+      'The draft-notice entry point is not a real link to /privacy, so with JavaScript unavailable there is no route to the notice at all.'
     );
   }
 }
 requireText(
   files.patientClient,
   "elements['privacy-consent'].checked",
-  'Submitting a booking no longer requires the data-collection consent.'
+  'Submitting a booking no longer requires the test-only draft-notice read gate.'
 );
+{
+  const noticeLabel = files.patientHtml.match(
+    /<label\b[^>]*class="consent-preview consent-inline"[^>]*>[\s\S]*?<\/label>/i
+  );
+  if (noticeLabel === null) {
+    failures.push(
+      'The booking form has no user-visible label for the draft-notice read gate.'
+    );
+  } else {
+    for (const marker of [
+      '我已閱讀',
+      '個人資料蒐集告知草稿',
+      '這是測試用閱讀確認',
+      '不會建立正式同意紀錄'
+    ])
+      requireText(
+        noticeLabel[0],
+        marker,
+        `The draft-notice label no longer says: ${marker}`
+      );
+    for (const misleading of ['我已閱讀並同意', '同意診所依其中所述目的'])
+      refuseText(
+        noticeLabel[0],
+        misleading,
+        `The UI-only read gate again presents itself as formal consent: ${misleading}`
+      );
+  }
+}
 requireText(
   files.patientClient,
   "import { openPolicyDialog } from './modules/policy-dialog.js'",
@@ -672,22 +832,152 @@ requireText(
   "if (!needed) elements['patient-referrer'].value = '';",
   'The referrer field keeps a third party’s name after the referral option is unticked, so a name the patient no longer offers is still submitted.'
 );
-// 政策頁沒有指令碼，所以「我同意」只能靠網址把狀態帶回預約頁。
+const privacyCategories = files.privacyHtml.match(
+  /<section\b[^>]*aria-labelledby="s3"[^>]*>([\s\S]*?)<\/section>/i
+);
+if (privacyCategories === null) {
+  failures.push(
+    'The privacy draft has no dedicated personal-data categories section.'
+  );
+} else {
+  for (const marker of [
+    '<li>姓名</li>',
+    '<li>聯絡電話</li>',
+    '出生月、日（西元年份選填）',
+    '國民身分證統一編號或居留證號',
+    '勾選「外籍人士」時改填護照號碼',
+    '本次是否預計攜帶健保卡',
+    '本次門診需求標籤',
+    '得知診所的來源',
+    '介紹人姓名',
+    '簡短備註',
+    '預約與到診紀錄',
+    '時段',
+    '看診類型',
+    '看診項目',
+    '狀態異動',
+    'D-002',
+    'D-006'
+  ])
+    requireText(
+      privacyCategories[1],
+      marker,
+      `The privacy categories section no longer discloses: ${marker}.`
+    );
+}
+const privacyUseDraft = files.privacyHtml.match(
+  /<section\b[^>]*aria-labelledby="s4"[^>]*>([\s\S]*?)<\/section>/i
+);
+if (privacyUseDraft === null) {
+  failures.push(
+    'The privacy draft has no dedicated period/region/recipient section.'
+  );
+} else {
+  for (const marker of [
+    '以下「兩年」、「asia-east1」與「Google」均為待核准草案',
+    '草案：自蒐集之日起至該次看診後<strong>兩年</strong>',
+    '草案：中華民國（臺灣）；雲端服務預計設定在臺灣（asia-east1）',
+    '草案：本診所的醫療與行政人員；以及預計提供雲端與行事曆服務的 Google'
+  ])
+    requireText(
+      privacyUseDraft[1],
+      marker,
+      `The privacy use section no longer keeps this proposal explicitly draft: ${marker}`
+    );
+}
+const patientInputPayload = files.patientClient.match(
+  /function patientInput\(\)\s*\{([\s\S]*?)\n\}/
+);
+if (patientInputPayload === null) {
+  failures.push('The patient identity/contact payload builder is missing.');
+} else {
+  for (const payloadField of [
+    'name:',
+    'phone:',
+    'birthDate:',
+    'nationalId:',
+    'passportNumber:',
+    'hasNhiCard:'
+  ])
+    requireText(
+      patientInputPayload[1],
+      payloadField,
+      `The patient identity/contact payload no longer carries: ${payloadField}`
+    );
+}
+const bookingPayload = files.patientClient.match(
+  /body:\s*JSON\.stringify\(\{([\s\S]*?)origin:\s*'patient'[\s\S]*?\}\)/
+);
+if (bookingPayload === null) {
+  failures.push('The patient booking payload is missing.');
+} else {
+  for (const payloadField of [
+    'slotId:',
+    'patient:',
+    'bookingKind:',
+    'itemIds:',
+    'requestTags:',
+    'sourceTags:',
+    'referrerName:',
+    'patientNote:'
+  ])
+    requireText(
+      bookingPayload[1],
+      payloadField,
+      `The patient booking payload no longer carries: ${payloadField}`
+    );
+}
+// 政策頁沒有指令碼，所以 UI-only「已閱讀草稿」只能靠網址把狀態帶回預約頁。
 requireText(
   files.privacyHtml,
-  'href="/booking?consent=1"',
-  'The policy page has no way back to the booking form that carries the consent, so reading it to the end costs the reader the checkbox anyway.'
+  'href="/booking?notice-read=1"',
+  'The policy page has no way back to the booking form that carries the UI-only read state.'
 );
 requireText(
+  files.patientClient,
+  "url.searchParams.get('notice-read')",
+  'The booking page ignores the draft-notice read flag the policy page sends back.'
+);
+// 讀完必須把旗標從網址抹掉，否則重新整理或分享連結都會自帶已讀狀態。
+requireText(
+  files.patientClient,
+  "url.searchParams.delete('notice-read')",
+  'The read flag is left in the URL, so a refreshed or shared link silently prechecks the draft-notice gate.'
+);
+refuseText(
   files.patientClient,
   "url.searchParams.get('consent')",
-  'The booking page ignores the consent flag the policy page sends back.'
+  'The obsolete consent URL flag returned; this UI stores only a test-only read state.'
 );
-// 讀完必須把旗標從網址抹掉，否則重新整理或把連結分享出去都會自帶同意。
-requireText(
+refuseText(
+  files.privacyHtml,
+  'href="/booking?consent=1"',
+  'The policy draft again labels its return state as consent.'
+);
+refuseText(
   files.patientClient,
-  "url.searchParams.delete('consent')",
-  'The consent flag is left in the URL, so a refreshed or shared link silently consents on someone else’s behalf.'
+  '已記錄您對個人資料蒐集告知的同意',
+  'The UI again claims that formal consent was recorded even though no acceptance evidence is stored.'
+);
+requireText(
+  files.apiClient,
+  '需要先完成經核准的隱私告知流程才能繼續',
+  'The shared API error no longer keeps the pending privacy flow neutral.'
+);
+refuseText(
+  files.apiClient,
+  '需要先同意最新的隱私政策才能繼續',
+  'The shared API error again claims that a current policy consent exists.'
+);
+requireText(
+  files.adminClient,
+  "if (action === 'print_intake')",
+  'The synthetic intake-print action is missing.'
+);
+requireText(
+  files.adminClient,
+  "sheet.innerHTML = '';",
+  'The intake print leaves a complete identity document in the DOM after printing.'
 );
 // 儲存鍵只能有一份來源。抄成字面值時，SCHEMA_VERSION 一改就靜默失去跨分頁同步
 // ——沒有錯誤、沒有紅字（v4→v5 當下就發生過）。

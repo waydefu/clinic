@@ -1,5 +1,9 @@
 # Phase 1 Synthetic Case-Manager Workload Checkpoint — 2026-07-20
 
+> Historical local-only checkpoint. The current visual baseline is recorded in
+> [`ui-visual-baseline-2026-07-28.md`](ui-visual-baseline-2026-07-28.md); this
+> checkpoint and its image remain historical evidence only.
+
 ## Purpose
 
 This checkpoint tests only the reporting primitive needed to answer: “how
@@ -43,6 +47,7 @@ authorised staff report.
 - A headed loopback browser run completed two synthetic appointments for the
   same synthetic patient. The visible workload remained one distinct patient
   and one synthetic credit, with no patient identifier or compensation amount.
-- The local visual evidence is retained at
-  [`../../output/playwright/test-only-case-manager-workload-summary-2026-07-20.png`](../../output/playwright/test-only-case-manager-workload-summary-2026-07-20.png)
-  and is deliberately ignored by version control.
+- The historical visual evidence is retained at
+  [`assets/test-only-case-manager-workload-summary-2026-07-20.png`](assets/test-only-case-manager-workload-summary-2026-07-20.png)
+  alongside this checkpoint. This repository asset records the 2026-07-20
+  checkpoint and is not the current workbench UI baseline.

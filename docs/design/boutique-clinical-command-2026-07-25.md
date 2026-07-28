@@ -3,6 +3,9 @@
 這份文件是視覺改造的**單一交接點**。接手的人只要讀這一份，就知道方向是什麼、
 已經做到哪裡、下一步要做什麼、以及哪些事情不能碰。
 
+> **2026-07-28 現況註記：** 六個階段均已完成。本文中原本寫於階段 5／6
+> 開始前的接手計畫已標成歷史內容，現況以 §10、§11、§14 與目前程式碼為準。
+
 ## 1. 方向與由來
 
 負責人於 2026-07-25 採用「精品醫療營運指揮臺」，這是一個**混合方案**而不是單一
@@ -73,14 +76,16 @@
 那個關係）與 `prefers-reduced-motion` 區塊裡的 `0.01ms`（那是把動效關掉，不是
 調時長）。
 
-### 已定義但尚未使用的 token
+### 階段完成後的 token 現況
 
-階段 5、6 會用到，現在就定義好是為了讓決定只做一次：
+本段原本是階段 5／6 開始前的接手計畫，已由 §10、§11 的完成紀錄取代：
 
-- `--font-serif` **目前指向與 sans 相同的堆疊**。階段 5 才換成思源宋體，而那一步
-  會撞到 0 KiB 的字型預算。
-- `--motion-fast/base/slow` 與兩個 easing：已定義，只有少數 transition 用到。
-- `--control-height-sm/md`。
+- 營運工作臺的 `--font-serif` 維持指向 `--font-sans`，不下載中文字型。公開診所／
+  預約頁另以 `--font-serif-tc` 使用本機系統襯線堆疊，同樣不產生字型請求。
+- Motion System 已完成；`--motion-fast/base` 與 easing 已用於狀態、彈窗與互動，
+  `--motion-slow` 保留給大範圍狀態替換。reduced-motion 仍須保留靜態資訊。
+- `--control-height-md` 已廣泛用於 44px 控制項；`--control-height-sm` 是同一尺度中
+  尚未啟用的保留值。
 
 ### 影像與樣式表預算
 
@@ -227,31 +232,30 @@ UTF-16 碼位；同值時一律回到時間先後，否則每次重畫同分的�
 - ~~患者頁仍有過多 14px 可見文字~~ **已於 2026-07-25 依語意重分級**：導覽、
   步驟名稱、表單標籤／提示／錯誤、日期篩選、互動文字與頁尾資訊提升到 16px；
   14px 只保留 eyebrow、代碼、徽標、chip、步驟編號與日期筆數等次要資訊。
-- favicon 與 `og-booking.png` 還沒換成新標誌。
-- 環境：C 槽剩餘空間不足 2 GB，`firebase hosting:channel:deploy` 會在部署**成功
-  之後**以「There is not enough space on the disk.」回傳非零離開碼。用
-  `firebase hosting:channel:list` 確認實際結果。
+- ~~favicon 與 `og-booking.png` 還沒換成新標誌。~~ **2026-07-28 已更新：**兩者均已
+  換成現行品牌資產。
+- **2026-07-25 歷史環境註記：**當時 C 槽不足 2 GB，曾使
+  `firebase hosting:channel:deploy` 在部署成功後因磁碟空間回傳非零離開碼。
+  **2026-07-28 現況：**C 槽實測可用 121.26 GB，已不是目前 blocker。
 
 ## 7. 負責人已拍板的品牌決策（2026-07-25）
 
 - **不載入任何中文字型，字型預算永遠是 0 KiB。** 不得新增 Google／Adobe Fonts、
   思源黑體／宋體、任何 `.woff/.woff2/.ttf/.otf`，也不得為字型加 `preload` 或
-  `preconnect`。理由是量級：思源宋體子集化後仍有數百 KiB，**遠大於整個患者頁目前
-  的 59 KiB**——那不是「加一個字體」，是把頁面重量翻好幾倍。
-  - 因此 `--font-serif` **永久指向 `--font-sans`**。沒有可用的中文系統襯線體時，
-    不要用 CSS 去模擬襯線（合成粗體、`transform`）——那只會讓漢字字形變形。
+  `preconnect`。理由是量級：思源宋體子集化後仍有數百 KiB，遠大於頁面字型預算；
+  現行各資產上限以 `apps/web/performance-budget.json` 為準，不在本文件抄寫會漂移的
+  當下 bundle 大小。
+  - 營運工作臺的 `--font-serif` **永久指向 `--font-sans`**；公開診所／預約頁可用
+    `--font-serif-tc` 呼叫訪客裝置既有的 CJK 襯線體，但不得下載字型。找不到適合的
+    系統襯線體時，不要用 CSS 合成粗體或 `transform` 模擬——那只會讓漢字字形變形。
   - 層次改由字級、字重、**字距**與留白承擔，見 §10。
 - **香檳金＝Brand Decorative Accent。** 只代表品牌與質感，**永遠不代表**成功、
   警告、錯誤、資訊、選取、啟用、停用、焦點、待處理、優先級、可點擊或系統健康。
   狀態一律走既有的 semantic token。用量與允許位置見 §10。
 
-## 9. 階段 6 的接手起點
+### 已取代的階段 6 接手筆記（歷史）
 
-### 階段 6：Motion System
-
-`--motion-fast/base/slow` 與兩個 easing 在階段 1 就定義好了，目前只有少數
-transition 用到。2026-07-25 的可讀性批次先把既有定位 flash 收回 motion token，
-並補齊 reduced-motion 對 animation 的停用；完整的狀態轉場設計仍未開始。要點：
+以下是階段 6 開始前的 invariant；「尚未開始」的舊計畫已由 §11 的完成實作取代：
 
 - `check:tokens` 已經禁止寫死動效時長，所以新增動效只能用 token。
 - `prefers-reduced-motion` 區塊裡的 `0.01ms` 是**關閉動效**、不是調時長，是刻意
@@ -307,10 +311,15 @@ transition 用到。2026-07-25 的可讀性批次先把既有定位 flash 收回
   'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', system-ui,
   -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 --font-serif: var(--font-sans);
+--font-serif-tc: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
 --font-mono:
   ui-monospace, SFMono-Regular, 'Cascadia Mono', 'Roboto Mono', Consolas,
   monospace;
 ```
+
+`--font-serif-tc` 只供公開診所／預約頁的品牌標題使用；它只查找訪客裝置現有字型，
+不載入遠端或倉庫字型，因此不改變 0 KiB 字型預算。營運工作臺仍使用
+`--font-serif: var(--font-sans)`。
 
 **這一階段對「精品感」最有效的一步是補上 `PingFang TC`，而且成本是零。** 先前的
 堆疊沒有它，於是 macOS／iOS 上整條鏈是 Noto Sans TC（多數人沒裝）→ Microsoft
@@ -581,7 +590,7 @@ keyframe 0%（透明），等於提示消失。所以列變更提示在 reduced-
 
 ## 14. 2026-07-26 行動版格線與患者表單複查
 
-最新實機截圖確認，上一輪「不溢出」只是最低線，資訊仍可能在沒有整頁捲軸的情況下
+2026-07-26 當時的實機截圖確認，上一輪「不溢出」只是最低線，資訊仍可能在沒有整頁捲軸的情況下
 被壓縮、留洞或無謂堆高。本輪把手機資訊密度固定成以下元件規則：
 
 - 通知面板在 ≤48rem 不再對齊鈴鐺，而是固定於 viewport 左右安全內距；保持非
@@ -609,9 +618,10 @@ keyframe 0%（透明），等於提示消失。所以列變更提示在 reduced-
 - 批次取消／未到／清除選取固定在同一個三欄動作群組；文字可在各按鈕內換行，但
   三個控制項不得掉成上下兩列，且高度不得低於 44px。
 - 排班表單的開始／結束時間使用同一列兩欄，兩個原生 time input 等寬滿版。
-- 患者姓名、電話、生日與身分證使用同一個單欄格線；欄名與紅色 `*` 包在同一個
-  `.field-label`，四個 input 全寬。星號仍在 `<label>` 內，且表單頂端先解釋含義；
-  HTML `required` 承擔程式可判定的必填狀態。
+- 患者姓名、電話、生日三格（月、日必填；年份選填）與證件欄使用單欄格線；勾選
+  「外籍人士」後會清空並收起身分證／居留證欄，改顯示護照欄。欄名與紅色 `*`
+  包在同一個 `.field-label`，可見的 input 全寬；星號仍在 `<label>` 內，且表單
+  頂端先解釋含義，HTML `required` 承擔程式可判定的必填狀態。
 
 依據是
 [WCAG 2.2 Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)、

@@ -2,6 +2,9 @@
 
 狀態：Proposed  
 日期：2026-07-23  
+進度註記：Stage 0／Checkpoint A 已於 2026-07-24 完成；目前為 Stage 1 owner
+decisions，D-006 與 D-010 阻擋 Stage 2 cloud staging。
+
 適用範圍：一森渼診所預約平台從合成 preview 過渡至 staging 與 production  
 配套規劃：[正式化後續實作規劃書](../product/production-readiness-delivery-plan-2026-07-23.md)
 
@@ -31,25 +34,27 @@ repository、worker、測試及大部分 UI 都能保留。
 
 | 區域 | 判定 | 處理方式 |
 | --- | --- | --- |
-| `packages/domain` 純規則與 planner | 保留 | 擴充 schedule、patient identity、case、audit contract；不得加入 SDK/I/O |
-| `packages/contracts` 的 Zod schema | 保留機制、重整內容 | 先解決與目前患者欄位、domain request、所有狀態轉換的落差 |
+| `packages/domain` 純規則與 planner | 保留 | Stage 0 已擴充 schedule、patient identity、case、audit 與 payroll；production mapping 仍不得加入 SDK/I/O |
+| `packages/contracts` 的 Zod schema | 保留機制、持續版本化 | Stage 0 strict command inventory、mapping 與 rejection tests 已完成；route 與正式 identity 仍受決策 gate |
 | `apps/api` NestJS/Fastify | 保留 | 新增 identity、application service、policy guard、controller、error mapping |
-| `FirestoreBookingRepository` | 保留 adapter 思路 | 以 port 隔離；加入 patient active-booking guard 與完整 audit writes |
+| `FirestoreBookingRepository` | 保留 adapter 思路 | port、patient active-booking guard 與 audit v2 writes 已完成 local/Emulator；正式 persistence 仍未路由 |
 | `apps/worker` outbox + Calendar port | 保留 | 補正式 runner、trigger、jitter、metrics、trace、service identity |
 | Firestore direct deny rules | 保留 | production 仍 deny client；API Admin SDK 由 IAM 控制 |
 | `apps/web` UI | 大部分保留 | `stagingRequest` 換成 versioned API client；角色模擬與 PII localStorage 退場 |
-| domain vendor sync | preview 保留 | production web build 改 bundle、content hash、immutable cache |
+| domain vendor sync | preview 保留 | vendor hash guard 與 content-hash dist build 已完成；production route ready 後換 versioned API client |
 | `infra/terraform` | 必須建立 | 加 dev/staging/prod、IAM、runtime、Secret Manager、monitoring、budget |
 
 ## 2. 必須修改的架構問題
 
-### ARCH-01：API contract、domain request 與 preview 欄位尚未對齊
+### ARCH-01：API contract、domain request 與 preview 欄位對齊
 
-**現況**
+**2026-07-23 檢視時現況（歷史基線；以下 Stage 0 狀態優先）**
 
 - `CreateAppointmentRequestSchema` 收 `fullName`、E.164 mobile、optional email 與
   privacy acceptance。
-- preview 收姓名、電話、生日、身分證、健保卡狀態，沒有 email。
+- preview 收姓名、電話、生日（月日必填、年份選填）、身分證／居留證或護照、
+  健保卡攜帶意向、患者備註、本次門診與來源標籤，以及條件式選填介紹人姓名；
+  沒有 email、LineID 或性別。
 - `BookingRequest` 只接收既有 `patientId`；尚未定義公開患者如何被驗證、建立或
   連結至 `patientId`。
 - contract 只有 create/cancel，domain 已有 request cancellation、cancel、
@@ -84,9 +89,9 @@ repository、worker、測試及大部分 UI 都能保留。
   與 HTTP/domain mapping。尚未核准的項目只列 inventory，不建立 executable
   contract 或 route。
 
-### ARCH-02：缺少 application 與正式 security boundary
+### ARCH-02：application 與正式 security boundary
 
-**現況**
+**2026-07-23 檢視時現況（歷史基線；未掛路由骨架其後已完成）**
 
 `apps/api` 只有 health controller；repository 直接接受已組好的 domain request，
 尚無正式 actor、clock、ID、policy、rate limit、correlation ID 與 authorization
@@ -128,7 +133,7 @@ Controller
 
 ### ARCH-03：active-booking invariant 應改為明確 guard document
 
-**檢視時現況**
+**檢視時現況（歷史基線；已被下方 Stage 0 完成狀態取代）**
 
 repository 以 transaction query 計算同病患的 active appointments。Firestore
 交易提供 serializable isolation，但目前測試只覆蓋：
@@ -170,7 +175,7 @@ guard、appointment、slot、audit、outbox、idempotency 不得出現部分寫�
 
 ### ARCH-04：audit contract 不足以支援正式稽核
 
-**現況**
+**檢視時現況（歷史基線；已被下方 Stage 0 完成狀態取代）**
 
 主要欄位只有 `id/action/appointmentId/actorId/occurredAt`；preview audit 可由
 localStorage 修改或清除。
@@ -204,28 +209,34 @@ result, correlationId, source, policyVersion, schemaVersion
 - Emulator assertions 驗證完整 v2 envelope、狀態前後值、PII allowlist、冪等重放
   與 append-only 衝突的零部分寫入。
 
-### ARCH-05：排班、患者、個管規則仍部分只存在 browser modules
+### ARCH-05：排班、患者、個管規則的 domain extraction
 
-**現況**
+**2026-07-23 檢視時現況（歷史基線）**
 
 appointment 核心規則已收斂至 `packages/domain`，但 schedule publish、
 patient identity、case assignment、workspace governance 仍以 browser module
 為主。
 
-**修改順序**
+**目前實作狀態與剩餘邊界（2026-07-28）**
 
-1. `schedule-engine` 的 validate/impact/version invariant 移至 domain；
-2. patient identity 正規化與 opaque identifier mapping 移至受保護 application
-   module；raw national ID 不作 document ID；
-3. case assignment/effective period/merge review 移至 domain；
-4. UI 只保留 rendering、input hint 與 error-code 翻譯。
+1. schedule validate/impact/version invariant 已在 `packages/domain/src/schedule.ts`；
+   browser `schedule-engine` 匯入 vendored domain，只保留合成視窗參數與中文錯誤。
+2. patient identity 格式、正規化、matching key 與遮罩已在
+   `packages/domain/src/patient-identity.ts`；browser wrapper 匯入 vendored domain。
+3. case assignment effective-period planner 與一致性守衛已進 domain，strict
+   contract 亦已建立；synthetic workbench adapter 仍是 browser-local，merge review
+   與 production mapping 受 D-006/D-007 gate。
+4. workspace governance 仍只服務 synthetic browser；正式角色、resource scope、
+   route 與 persistence 必須等待 D-006/D-010，不得把 UI 模擬當正式授權。
 
 ### ARCH-06：preview 的 raw identity key 不得移植至 production
 
-**現況**
+**目前 synthetic preview 狀態**
 
-preview 使用完整身分證或電話+生日作 identity key，整份 state 存 localStorage。
-這在目前明示的 synthetic preview authority 內可用，但不能作正式身分模型。
+preview 接受身分證／居留證或護照，matching key 優先使用身分證／居留證，其次
+護照，最後才是電話＋生日；生日年份缺席時會把姓名納入 fallback，避免同電話同月日
+被誤合併。整份 state 仍存 `localStorage`。這只在明示的 synthetic preview
+authority 內可用，不能作正式身分模型，也不代表 D-001～D-003/D-006 已核准。
 
 **修改**
 
@@ -283,16 +294,21 @@ trigger/scheduler、queue SLO、trace、alert 與正式 service identity。retry
 
 具體 project、region、runtime、owner 與 cost policy 由 D-010 核准。
 
-### ARCH-09：production Web 與 CI gate 尚未完成
+### ARCH-09：production Web 與 CI gate
 
 **修改**
 
-- production build 使用 bundle + content hash；
-- HTML revalidate、hashed assets immutable；
+- production build 延續已核准的 per-file minify + content hash + import rewrite，
+  並用 `modulepreload` 攤平模組往返；不做 per-entry bundling，除非新決策重開；
+- 穩定 HTML 使用 `Cache-Control: no-cache`，hashed assets immutable；
 - staff 與 patient surface 採不同 index/auth/cache policy；
 - CI 加 browser E2E、API negative test、axe、Lighthouse budget、dependency、
   secret、SAST、SBOM；
 - staging 與 production headers/robots/canonical 分離。
+
+目前 per-file dist、modulepreload、immutable assets、Playwright/axe/performance/
+supply-chain gates 已完成；仍缺 connected-cloud、正式 auth route、人工 a11y 與
+production operations evidence。
 
 ## 3. 目標容器架構
 
@@ -561,11 +577,11 @@ logs 不得包含姓名、電話、身分證、生日、醫療備註、token 或
 | `stagingRequest` | 實作相同 command 語意的 `api-client` | HTTPS `/v1` |
 | local account switch | staging test identities | IdP + server auth context |
 | localStorage patient/state | synthetic-only 保留至 API ready | server DTO + minimal session state |
-| browser schedule publish | domain extraction + API contract | versioned Firestore transaction |
-| browser audit | 擴充 audit schema | append-only audit collection |
+| browser schedule publish | domain planner + unrouted API contract 已完成 | versioned Firestore transaction |
+| browser audit | audit v2 schema／transaction assertions 已完成 | append-only audit collection + approved retention/access |
 | repository-only | application service + ports | routed authenticated API |
 | manual worker test | staging trigger + metrics | production worker SLO |
-| raw ESM/no-store | production build pipeline | hashed immutable assets |
+| raw ESM／穩定 HTML no-cache | per-file minify + content hash + modulepreload 已完成 | production cache、release 與 rollback policy |
 
 不要做 big-bang migration。每個 module 以 contract-compatible adapter 替換，
 並在同一組 synthetic acceptance tests 下比較 preview adapter 與 API adapter。

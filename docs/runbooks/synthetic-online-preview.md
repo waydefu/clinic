@@ -50,11 +50,12 @@ firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-
 ## 驗收
 
 1. 首頁顯示 `ONLINE PREVIEW`，並說明網址持有人皆可存取。
-2. 患者端只出現已核准的欄位：姓名、電話、生日、身分證字號、健保卡與確認勾選。
-   出現任何其他資料輸入欄位即為異常，應停止測試並回頭確認
-   `scripts/check-web-ui.mjs` 的允許清單。
-3. 患者端明確告知「資料只會保存在這台裝置的瀏覽器」，且工作臺清單顯示的身分證
-   字號為遮罩形式（如 `A12****789`），不得完整外露。
+2. 患者端只出現合成測試允許清單內的欄位：姓名、電話、生日（月日必填、年份選填）、
+   身分證／居留證或護照、健保卡攜帶意向、本次門診與來源標籤、條件式介紹人
+   姓名、120 字患者備註及確認勾選。LineID、性別或任何其他資料欄位都屬異常；
+   應停止測試並回頭確認 `scripts/check-web-ui.mjs` 的允許清單。
+3. 患者端明確告知「資料只會保存在這台裝置的瀏覽器」，且工作臺清單顯示的
+   身分證、居留證或護照為遮罩形式（如 `A12****789`），不得完整外露。
 4. 排班、預約、取消、改期、未到、到診、回診確認與清除資料均只影響目前瀏覽器。
 5. HTML 進入點的回應包含 CSP、`X-Robots-Tag: noindex`、`Referrer-Policy:
    no-referrer` 與 `Cache-Control: no-cache`；雜湊過的 `*.js`／`*.css` 則回
@@ -76,9 +77,11 @@ corepack pnpm verify:preview -- https://beauessence-clinic-staging--synthetic-re
 結果寫入 git 忽略的 `output/evidence/preview-deployment.json` 與 `.md`，包含
 commit SHA、時間、URL、安全標頭、內容標記、雜湊資產與 cache policy。
 
-> 2026-07-21 起，患者端依專案負責人決定收集姓名、電話、生日與身分證字號。
-> 這些值只存在測試者自己的瀏覽器，不會傳送或保存於診所。決定與其緩解措施記錄
-> 於 [決策登錄](../product/phase-1-decision-register.md)；D-001～D-003 仍為 pending，
+> 2026-07-21 首次取得合成測試授權，允許姓名、電話、生日與身分證；2026-07-27
+> 依業主要求擴充為上述測試允許清單。這些值只存在測試者自己的瀏覽器，不會傳送
+> 或保存於診所。
+> 決定與其緩解措施記錄於
+> [決策登錄](../product/phase-1-decision-register.md)；D-001～D-003 仍為 pending，
 > 因此**不得以此預覽蒐集真實病患資料作為營運用途**。
 
 ## 下架

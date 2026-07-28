@@ -14,6 +14,9 @@
 > 為準，現況證據見
 > [企業級上線前審查](reviews/2026-07-23-enterprise-production-readiness-review.md)。
 > 三者均不自行核准 D-001～D-011。
+>
+> **2026-07-28 進度註記：** Stage 0／Checkpoint A 已完成；目前為 Stage 1 owner
+> decisions。D-006 與 D-010 仍為 `pending`，因此 Stage 2 cloud staging 不得開始。
 
 ## 1. 執行摘要
 
@@ -51,8 +54,8 @@ NAS 或任何真實病患／薪資資料連線，也未部署 Hosting live chann
 會回退為管理者（已改為 fail-closed），以及本機測試網站的 CSP 擋掉自己的管理
 介面（已修正並實機驗證）。
 
-工程基礎設施仍有已知缺口，見 §5.3。這些缺口不影響目前的合成測試，但在 Phase 1.5
-正式加固前必須補齊。
+工程基礎設施仍有已知缺口，見 §5.3。這些缺口不影響目前的合成測試，但必須依
+delivery-plan 的後續 stage 與 decision gates 補齊。
 
 ---
 
@@ -184,20 +187,20 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 
 採 monorepo，所有服務使用 TypeScript；禁止把業務規則散落於前端、LINE webhook 與日曆腳本。
 
-目標結構如下。`狀態` 欄反映 2026-07-21 的實際程式庫，避免規劃書被誤讀為
-「已經做到」：
+目標結構如下。`狀態` 欄更新至 2026-07-28；dated reviews 仍保留各自日期的
+歷史狀態，不以本表回寫：
 
 | 路徑 | 用途 | 狀態 |
 |---|---|---|
 | `apps/web/` | 病患預約站與管理後台 | 合成測試介面已建立；正式預約站未建立 |
 | `apps/api/` | NestJS API、認證、權限與 OpenAPI | 只暴露 `/v1/health`；預約寫入路徑有 repository 與 Emulator 測試，依 Phase 1 gate 尚未開為路由 |
 | `apps/worker/` | Calendar、Email、社群等背景工作 | outbox 處理器已實作：租約領取、指數退避、死信；外部服務以 port 隔離 |
-| `packages/domain/` | 預約狀態機、時段規則、純商業邏輯 | 已建立並有測試；建立、五種轉換、改期與 outbox 重試皆為 I/O-free 的純決策 |
+| `packages/domain/` | 預約狀態機、時段規則、純商業邏輯 | 已建立並有測試；預約、排班、患者身分、個管、回診、月結／調整與 outbox 規則皆有 I/O-free planner |
 | `packages/contracts/` | Zod schema、OpenAPI 型別、錯誤碼 | 已建立 |
 | `packages/config/` | 安全設定解析與本機預設值 | 已建立 |
 | `packages/ui/` | 共用 UI 元件與設計 token | 尚未建立；目前樣式集中於 `apps/web/public` |
 | `infra/terraform/` | 雲端資源、IAM、監控、環境配置 | 僅有 README，尚未撰寫 |
-| `tests/` | 跨套件與 Emulator Rules 測試 | 已建立 |
+| `tests/` | 跨套件、Emulator Rules 與瀏覽器端到端測試 | 已建立；Playwright 跑打包後網站，Rules 跑一次性本機 Emulator |
 | `scripts/` | 結構、UI 邊界與 Emulator 檢查腳本 | 已建立 |
 | `docs/adr/`、`docs/runbooks/` | 架構決策與維運手冊 | 已建立 |
 
@@ -217,8 +220,10 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 ### 5.3 規劃與實作落差追蹤
 
 規劃書與程式庫容易隨時間脫節。本節記錄兩者目前的差距，每次階段檢查時更新。
+Stage 0／Checkpoint A 已於 2026-07-24 通過；目前是 Stage 1 owner decisions，
+D-006 與 D-010 都仍為 `pending`，因此 Stage 2 cloud staging 尚未開始。
 
-**目前已自動化（`corepack pnpm verify` 一次執行）**
+**目前已自動化的 gates（依下列命令分開執行）**
 
 | 檢查 | 內容 |
 |---|---|
@@ -230,7 +235,9 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 | 型別與建置 | 各 TypeScript 專案 |
 | 單元測試 | 領域規則、契約、API 與瀏覽器模組 |
 | Rules 測試 | `corepack pnpm test:rules`，本機 Emulator 驗證交易、冪等、outbox 與預設拒絕 |
-| **CI** | **`.github/workflows/verify.yml`，於 push 與 PR 執行上列全部檢查** |
+| 瀏覽器 E2E | `corepack pnpm test:e2e`，Playwright 驗證打包後網站、響應式版面、a11y 與主要流程 |
+| Supply chain | SBOM、授權政策、tracked-secret、dependency 與本機 SAST gates |
+| **CI** | **`.github/workflows/verify.yml`，於 push 與 PR 執行 verify、Rules、E2E 與 supply-chain jobs** |
 
 Lint 只負責正確性，排版交給 Prettier，兩者不重疊。型別感知規則中最重要的是
 `no-floating-promises`：本專案的預約寫入、outbox 重試與瀏覽器互動全是非同步，
@@ -246,14 +253,17 @@ Lint 只負責正確性，排版交給 Prettier，兩者不重疊。型別感知
 | ~~無 CI~~ | 已於 2026-07-21 補齊 | ✅ |
 | ~~無 ESLint~~ | 已於 2026-07-21 補齊 | ✅ |
 | ~~`apps/worker/` 僅有 README~~ | outbox 處理器已實作並以 Emulator 驗證 | ✅ |
-| **瀏覽器與伺服器是兩份領域規則** | `apps/web/public/modules/` 與 `packages/domain/` 各自實作同一套規則，會隨時間漂移 | **目前最大的技術債**；需 `apps/web` 導入建置流程 |
-| 無 API contract test 與端對端測試 | §5.2 已列為 PR 門檻，但尚未建立 | 啟用正式寫入路徑前 |
-| 無 remote repository | 版本控制只存在單一台機器，無異地備援 | 儘早 |
+| ~~瀏覽器與伺服器是兩份領域規則~~ | ADR-0004、vendored compiled domain 與 `check:sync` 已收斂 appointment、schedule、patient identity 等共用規則 | ✅ |
+| ~~無 API contract test 與端對端測試~~ | strict contract/mapping tests 與打包後 Playwright E2E 已建立並進 CI | ✅ |
+| ~~無 remote repository~~ | 已有 HTTPS GitHub origin `https://github.com/waydefu/clinic.git`；跨電腦以 branch push／fresh clone 或 `fetch`＋`pull --ff-only` 交接 | ✅ |
+| Stage 1 owner decisions 尚未完成 | D-006、D-010 仍 pending，不能建立身分邊界、IAM 或 cloud staging | **目前 gate；Stage 2 前** |
+| production worker runner／觀測尚未接線 | 本機 processor、ports 與 plan 已有；trigger、共享 metrics、alerts、service identity 受 D-010 gate | Stage 3 前 |
 | `infra/terraform/` 僅有 README | 雲端資源為 Phase 1 完成標準的一部分 | 依 Phase 1 排程 |
 | OpenAPI 文件尚未產生 | 契約目前以 `packages/contracts` 的 TypeScript 型別為準 | 對外提供 API 前 |
 
-這些缺口都不影響目前「僅合成資料、無雲端後端」的範圍，但屬於 Phase 1.5
-「正式商用加固」完成標準的前置條件。
+已解決列保留用來說明原始落差如何收斂；未解決列不影響目前「僅合成資料、無雲端
+後端」的範圍，但都是後續 stage 的前置條件，不得因已有 GitHub remote 或綠色
+local/CI gates 就視為 cloud staging 已核准。
 
 ---
 

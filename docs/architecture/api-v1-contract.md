@@ -129,7 +129,7 @@ domain message, stack trace, SDK error or identifier in `message`.
 | `VALIDATION_FAILED` | 400 | Zod parse failure; `INVALID_TIMESTAMP`, `INVALID_VALUE` |
 | `AUTHENTICATION_REQUIRED` | 401 | Missing or invalid server authentication context |
 | `AUTHORIZATION_DENIED` | 403 | Policy denial; `COMPLETION_NOT_AUTHORIZED` |
-| `POLICY_ACCEPTANCE_REQUIRED` | 428 | Missing decision-approved policy acceptance |
+| `POLICY_ACCEPTANCE_REQUIRED` | 428 | Missing decision-approved privacy-notice / acceptance flow |
 | `NOT_FOUND` | 404 | `APPOINTMENT_NOT_FOUND`, `SLOT_NOT_FOUND` after resource-scope policy |
 | `CONFLICT` | 409 | State/capacity/guard/assignment/payroll conflicts, including `APPOINTMENT_NOT_CONFIRMABLE`, `APPOINTMENT_NOT_CANCELLABLE`, `BOOKING_KIND_MISMATCH`, `CANCELLATION_WINDOW_CLOSED`, `DUPLICATE_ACTIVE_BOOKING`, `INVALID_ASSIGNMENT`, `PATIENT_BOOKING_GUARD_MISMATCH`, `PAYROLL_DUPLICATE_CREDIT`, `PAYROLL_NOT_ELIGIBLE`, `PAYROLL_PERIOD_ALREADY_CLOSED`, `PAYROLL_PERIOD_NOT_CLOSED`, `SLOT_UNAVAILABLE`, `TRANSITION_NOT_ALLOWED` |
 | `IDEMPOTENCY_MISMATCH` | 409 | `IDEMPOTENCY_KEY_REUSED` |

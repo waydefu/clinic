@@ -29,7 +29,7 @@ function ensureDialog() {
   const heading = document.createElement('h2');
   heading.id = 'policy-dialog-title';
   heading.className = 'policy-dialog-title';
-  heading.textContent = '隱私權政策與個人資料蒐集告知';
+  heading.textContent = '隱私權政策與個人資料蒐集告知草稿';
 
   bodyNode = document.createElement('div');
   bodyNode.className = 'policy-dialog-body';

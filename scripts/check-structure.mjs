@@ -1,4 +1,5 @@
-import { access } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { access, readFile, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import process from 'node:process';
 
@@ -129,9 +130,12 @@ const requiredPaths = [
   'docs/design/clinic-site-integration-2026-07-27.md',
   'apps/web/brand-source/brand-lockup.png',
   'apps/web/brand-source/nhi-mark.png',
+  'apps/web/brand-source/og-booking.metadata.json',
   'apps/web/public/assets/brand-mark.webp',
   'apps/web/public/assets/nhi-mark.webp',
   'playwright.config.ts',
+  'playwright.screenshots.config.ts',
+  'tests/ui-screenshots/current-ui.spec.ts',
   'tests/e2e/patient-booking.spec.ts',
   'tests/e2e/clinic-site.spec.ts',
   'tests/e2e/workbench-lifecycle.spec.ts',
@@ -173,6 +177,8 @@ const requiredPaths = [
   'apps/web/public/sitemap.xml',
   'docs/reviews/2026-07-27-seo-baseline.md',
   'docs/reviews/2026-07-27-clinic-site-integration-delivery.md',
+  'docs/reviews/ui-visual-baseline-2026-07-28.md',
+  'docs/reviews/assets/ui-visual-baseline-2026-07-28/manifest.json',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
   'apps/web/public/privacy.css',
@@ -202,4 +208,300 @@ if (missing.length > 0) {
   console.log(
     `Structure check passed (${requiredPaths.length} required files).`
   );
+}
+
+// UI 參考圖是 dated evidence，不是跨 OS 的像素 golden；但 manifest、每張圖與其
+// metadata 必須一起存在且 hash 相符。否則文件仍有連結、實際證據卻已被換掉或漏掉，
+// `check:docs` 只會看到「檔名還在」而無法察覺。
+const visualBaselineDirectory =
+  'docs/reviews/assets/ui-visual-baseline-2026-07-28';
+const visualBaselineErrors = [];
+try {
+  const manifest = JSON.parse(
+    await readFile(`${visualBaselineDirectory}/manifest.json`, 'utf8')
+  );
+  if (manifest.schemaVersion !== 1)
+    visualBaselineErrors.push('visual manifest schemaVersion must be 1');
+  if (manifest.sourceRevision !== 'commit-containing-this-manifest')
+    visualBaselineErrors.push(
+      'visual manifest must use the non-self-referential containing-commit marker'
+    );
+  if (
+    manifest.captureDate !== '2026-07-28' ||
+    Number.isNaN(Date.parse(manifest.fixedTime))
+  )
+    visualBaselineErrors.push(
+      'visual manifest must retain its capture date and parseable fixed application time'
+    );
+  if (manifest.referenceOnly !== true || manifest.crossOsPixelGate !== false)
+    visualBaselineErrors.push(
+      'visual manifest must identify these images as reference-only, not a cross-OS pixel gate'
+    );
+  if (
+    !Array.isArray(manifest.captureNormalization) ||
+    manifest.captureNormalization.length < 2
+  )
+    visualBaselineErrors.push(
+      'visual manifest must disclose full-page capture normalization'
+    );
+  for (const field of [
+    'os.platform',
+    'os.release',
+    'os.architecture',
+    'browser.name',
+    'browser.version',
+    'playwright',
+    'locale',
+    'timezone',
+    'theme',
+    'reducedMotion'
+  ]) {
+    const value = field
+      .split('.')
+      .reduce((current, key) => current?.[key], manifest.environment);
+    if (typeof value !== 'string' || value.length === 0)
+      visualBaselineErrors.push(
+        `visual manifest is missing environment field ${field}`
+      );
+  }
+  if (
+    manifest.environment?.workers !== 1 ||
+    manifest.environment?.serverPort !== 3211
+  )
+    visualBaselineErrors.push(
+      'visual manifest must retain its single-worker local capture environment'
+    );
+  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 10) {
+    visualBaselineErrors.push(
+      'visual manifest must declare exactly the ten reviewed current UI captures'
+    );
+  } else {
+    const requiredScenarios = [
+      {
+        file: 'clinic--home--desktop-1280x900--light.png',
+        route: '/clinic',
+        role: 'public',
+        state: 'default',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'clinic--home--phone-375x812--light.png',
+        route: '/clinic',
+        role: 'public',
+        state: 'default',
+        width: 375,
+        height: 812
+      },
+      {
+        file: 'booking--step-1--desktop-1280x900--light.png',
+        route: '/booking',
+        role: 'public',
+        state: 'step-1-empty',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'booking--step-3-filled--phone-375x812--light.png',
+        route: '/booking',
+        role: 'public',
+        state: 'step-3-filled-synthetic',
+        width: 375,
+        height: 812
+      },
+      {
+        file: 'booking--step-3-filled--stress-320x568--light.png',
+        route: '/booking',
+        role: 'public',
+        state: 'step-3-filled-synthetic-low-width-height-stress',
+        width: 320,
+        height: 568
+      },
+      {
+        file: 'workbench--login--desktop-1280x900--light.png',
+        route: '/',
+        role: 'unauthenticated',
+        state: 'clean-login-gate',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'workbench--appointments-populated--desktop-1280x900--light.png',
+        route: '/#appointments-section',
+        role: 'admin',
+        state: 'one-confirmed-synthetic-appointment',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'workbench--appointments-populated--phone-375x812--light.png',
+        route: '/#appointments-section',
+        role: 'admin',
+        state: 'one-confirmed-synthetic-appointment',
+        width: 375,
+        height: 812
+      },
+      {
+        file: 'workbench--case-assigned-workload--desktop-1280x900--light.png',
+        route: '/#case-section',
+        role: 'admin',
+        state: 'one-completed-visit-assigned-manager_test_001',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'privacy--draft-notice--phone-375x812--light.png',
+        route: '/privacy',
+        role: 'public',
+        state: 'test-only-draft-notice',
+        width: 375,
+        height: 812
+      }
+    ];
+    for (const scenario of requiredScenarios) {
+      const matchingCapture = manifest.captures.find(
+        (capture) =>
+          capture.file === scenario.file &&
+          capture.route === scenario.route &&
+          capture.role === scenario.role &&
+          capture.state === scenario.state &&
+          capture.viewport?.width === scenario.width &&
+          capture.viewport?.height === scenario.height
+      );
+      if (matchingCapture === undefined)
+        visualBaselineErrors.push(
+          `visual manifest is missing required scenario ${scenario.file}`
+        );
+    }
+
+    const declaredFiles = manifest.captures
+      .map((capture) => capture.file)
+      .sort();
+    const actualFiles = (await readdir(visualBaselineDirectory))
+      .filter((file) => file.endsWith('.png'))
+      .sort();
+    if (JSON.stringify(declaredFiles) !== JSON.stringify(actualFiles))
+      visualBaselineErrors.push(
+        'visual baseline PNG set does not exactly match manifest.captures'
+      );
+
+    for (const capture of manifest.captures) {
+      if (!/^[a-z0-9][a-z0-9.-]*\.png$/.test(capture.file)) {
+        visualBaselineErrors.push(
+          `visual capture has an unsafe or non-canonical filename: ${capture.file}`
+        );
+        continue;
+      }
+      for (const field of ['route', 'role', 'state', 'captureKind', 'sha256']) {
+        if (typeof capture[field] !== 'string' || capture[field].length === 0)
+          visualBaselineErrors.push(
+            `${capture.file} is missing manifest field ${field}`
+          );
+      }
+      if (
+        !Number.isInteger(capture.viewport?.width) ||
+        !Number.isInteger(capture.viewport?.height) ||
+        capture.deviceScaleFactor !== 1
+      )
+        visualBaselineErrors.push(
+          `${capture.file} has incomplete viewport/DPR metadata`
+        );
+      if (capture.captureKind !== 'reference-full-page')
+        visualBaselineErrors.push(
+          `${capture.file} has an unexpected capture kind`
+        );
+      if (
+        capture.consoleCounts?.errors !== 0 ||
+        capture.consoleCounts?.warnings !== 0
+      )
+        visualBaselineErrors.push(
+          `${capture.file} was captured with console errors or warnings`
+        );
+
+      const bytes = await readFile(
+        `${visualBaselineDirectory}/${capture.file}`
+      );
+      const actualHash = createHash('sha256').update(bytes).digest('hex');
+      if (actualHash !== capture.sha256)
+        visualBaselineErrors.push(
+          `${capture.file} SHA-256 does not match the manifest`
+        );
+      if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+        visualBaselineErrors.push(`${capture.file} is not a PNG`);
+      } else {
+        const width = bytes.readUInt32BE(16);
+        const height = bytes.readUInt32BE(20);
+        if (width !== capture.viewport.width)
+          visualBaselineErrors.push(
+            `${capture.file} width ${width} does not match its viewport ${capture.viewport.width}`
+          );
+        if (height < capture.viewport.height)
+          visualBaselineErrors.push(
+            `${capture.file} is shorter than its declared viewport`
+          );
+      }
+    }
+  }
+} catch (error) {
+  visualBaselineErrors.push(
+    `could not validate the UI visual baseline: ${error instanceof Error ? error.message : String(error)}`
+  );
+}
+
+if (visualBaselineErrors.length > 0) {
+  console.error('UI visual baseline evidence check failed:');
+  for (const error of visualBaselineErrors) console.error(`- ${error}`);
+  process.exitCode = 1;
+} else {
+  console.log('UI visual baseline evidence check passed (10 reference PNGs).');
+}
+
+const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+const verifyScript = packageJson.scripts?.verify ?? '';
+const captureConfigCommand = 'corepack pnpm run check:capture-config';
+const checkTypesCommand = 'corepack pnpm run check:types';
+const checkLintCommand = 'corepack pnpm run check:lint';
+const captureConfigIndex = verifyScript.indexOf(captureConfigCommand);
+const checkTypesIndex = verifyScript.indexOf(checkTypesCommand);
+const checkLintIndex = verifyScript.indexOf(checkLintCommand);
+const verifyOrderErrors = [];
+
+if (captureConfigIndex < 0) {
+  verifyOrderErrors.push(`verify must include "${captureConfigCommand}"`);
+}
+if (checkTypesIndex < 0) {
+  verifyOrderErrors.push(`verify must include "${checkTypesCommand}"`);
+}
+if (checkLintIndex < 0) {
+  verifyOrderErrors.push(`verify must include "${checkLintCommand}"`);
+}
+if (
+  checkTypesIndex >= 0 &&
+  checkLintIndex >= 0 &&
+  checkTypesIndex > checkLintIndex
+) {
+  verifyOrderErrors.push(
+    'verify must build workspace types before running type-aware ESLint'
+  );
+}
+if (packageJson.scripts?.['check:types'] !== 'corepack pnpm run build') {
+  verifyOrderErrors.push(
+    'check:types must build the workspace packages that provide dist/*.d.ts'
+  );
+}
+if (
+  packageJson.scripts?.['check:capture-config'] !==
+  'tsc --noEmit --skipLibCheck --module ESNext --moduleResolution Bundler --target ES2022 --types node playwright.screenshots.config.ts'
+) {
+  verifyOrderErrors.push(
+    'check:capture-config must type-check the dedicated Playwright capture config'
+  );
+}
+
+if (verifyOrderErrors.length > 0) {
+  console.error('Invalid clean-clone verify prerequisites:');
+  for (const error of verifyOrderErrors) console.error(`- ${error}`);
+  process.exitCode = 1;
+} else {
+  console.log('Clean-clone verify ordering check passed.');
 }

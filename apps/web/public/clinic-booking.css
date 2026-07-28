@@ -2,6 +2,10 @@
  * 診所網站與患者預約的視覺橋接層。
  * 保留 styles.css 的設計 token、主題與所有流程狀態，只調整患者端呈現。
  */
+:root {
+  --patient-header-height: 5.5rem;
+}
+
 .patient-body {
   background:
     radial-gradient(circle at 85% 8%, var(--surface-tint), transparent 28rem),
@@ -15,8 +19,19 @@
 }
 
 .patient-header-inner {
-  min-height: 5.5rem;
+  min-height: var(--patient-header-height);
   gap: var(--space-md);
+}
+
+#patient-main {
+  /*
+   * The booking app stays hidden until local maintenance state is resolved.
+   * Reserve the remaining viewport in that brief interval so the visible
+   * footer is not pushed out of the first frame when JavaScript reveals the
+   * full booking flow.
+   */
+  min-height: calc(100vh - var(--patient-header-height));
+  min-height: calc(100dvh - var(--patient-header-height));
 }
 
 .patient-header .brand {
@@ -136,8 +151,12 @@
 }
 
 @media (max-width: 48rem) {
+  .patient-body {
+    --patient-header-height: 4.5rem;
+  }
+
   .patient-header-inner {
-    min-height: 4.5rem;
+    min-height: var(--patient-header-height);
   }
 
   .patient-nav {

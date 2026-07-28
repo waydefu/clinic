@@ -10,11 +10,14 @@ register.
 
 ## Hard boundaries
 
-1. **Superseded on 2026-07-21 for the patient booking form.** The project owner
-   directed that the form collect name, phone, birth date and national ID, and
-   that the public preview carry those fields. Those values stay in the
-   visitor's own browser `localStorage`; nothing is transmitted to or
-   stored by the clinic. See the decision register for the mitigations.
+1. **Superseded on 2026-07-21 and supplemented by the recorded 2026-07-27 owner
+   batch for the patient booking form.** The synthetic form may collect name,
+   phone, birth date with an optional year, national ID or passport, NHI-card
+   intent, a short patient note, the approved request/source tags and a
+   conditional optional referrer name. It does not collect LineID or gender.
+   Those values stay in the visitor's own browser `localStorage`; nothing is
+   transmitted to or stored by the clinic. See the decision register and
+   owner-batch delivery record for the mitigations.
    Everywhere else — staff accounts, announcements, audit records, outbox jobs
    and the calendar projection — opaque identifiers remain mandatory, and no
    real staff member or calendar entry may be used.
@@ -44,7 +47,8 @@ register.
 
 | Concern | Test-only value | Deliberate limitation |
 | --- | --- | --- |
-| Policy acceptance | `privacy-v1` at a fixed UTC timestamp | Not a published policy or real consent |
+| Domain/contract fixture policy acceptance | `privacy-v1` at a fixed UTC timestamp | Fixture-only contract coverage; not a published policy or real consent |
+| Browser notice gate | UI-only “draft read” checkbox; no policy ID, display time or acceptance record is stored | Not evidence of notice or consent; D-003 remains pending |
 | Service | `service_test_consult` | Not a clinic service catalogue |
 | Resource and slot | `resource_test_a`, one 30-minute UTC slot | Capacity, schedule and blackout policy remain unresolved |
 | Cancellation cutoff | 24 hours before the synthetic slot | Not a clinic cancellation rule |
@@ -54,7 +58,7 @@ register.
 | Workload report | `manager_test_001`, unique completed synthetic patients and rule `v1` | No wage amount, assignment policy, month-close authority or real payroll; D-007 and D-008 remain policy-gated |
 | Scheduling workbench | In-memory `Asia/Taipei` weekly intervals plus `closed` / `extra_open` date exceptions | No clinic timetable, capacity decision, calendar projection or persistent configuration; D-004 remains policy-gated |
 | Follow-up decision | Explicit staff decision, optional target date, multi-select follow-up tags and a certificate count | No clinical inference; the system never decides on its own |
-| Patient booking form | Name, phone, birth date, national ID and NHI card, held only in the visitor's browser; national IDs render masked | Not patient authentication, not a lawful basis, and not permission to rely on real data operationally; D-001～D-003 remain policy-gated |
+| Patient booking form | Name, phone, birth date (optional year), national ID or passport, NHI-card intent, short note, approved request/source tags and a conditional optional referrer name, held only in the visitor's browser; screen/list views mask identity documents, while the synthetic intake print can show the full test value; no LineID or gender | Not patient authentication, not a lawful basis, and not permission to rely on real data operationally; D-001～D-003 and D-006 remain policy-gated |
 
 ## Test objectives
 

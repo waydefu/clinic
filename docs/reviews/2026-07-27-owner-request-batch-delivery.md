@@ -90,4 +90,5 @@ Firebase 回報無法把頻道網域同步到 Firebase Authentication——**預
 值存在訪客自己的瀏覽器裡，**不得輸入真實患者資料**。沒有啟用任何正式 Hosting
 release、Firestore 路徑、身分驗證、Calendar 整合或對外的患者資料傳輸。
 
-D-001～D-013 全部維持 pending；本次交付不改變任何一項決策的狀態。
+D-001～D-011 維持 pending；D-012／D-013 的既有核准狀態不變。本次交付不改變任何一項
+決策的狀態。

@@ -2,6 +2,9 @@
 
 狀態：Proposed  
 日期：2026-07-23  
+目前 checkpoint：Stage 0／Checkpoint A 已於 2026-07-24 通過；目前進行 Stage 1
+owner decisions，D-006 與 D-010 仍阻擋 Stage 2。
+
 架構依據：[正式環境目標架構書](../architecture/production-target-architecture-2026-07-23.md)  
 決策依據：[Phase 1 決策登錄](phase-1-decision-register.md)
 
@@ -22,19 +25,25 @@ staging 與 production 候選。它不自行核准 D-001～D-011，也不授權�
 - deny-by-default Rules；
 - worker lease、retry、dead-letter、requeue；
 - Calendar port、Google client、冪等 event ID 與 no-PII tests；
-- CI 的 structure/docs/format/lint/types/unit/Emulator tests；
+- strict contract inventory/mapping、application/auth boundary skeleton、
+  patient booking guard、audit v2；
+- schedule、patient identity、case assignment 與 payroll 的 domain planners；
+- CI 的 structure/docs/format/lint/types/unit/Emulator/Playwright E2E、
+  axe、performance、SBOM、license 與本機 SAST gates；
+- per-file minify/content-hash/modulepreload dist 與 immutable hashed assets；
 - expiring static synthetic preview。
 
 尚未完成：
 
-- D-001～D-011 正式核准；
+- Stage 1 中仍為 `pending` 的 owner decisions 與具名核准證據；
 - identity provider、MFA、session、server authorization；
 - routed Booking API 與 patient identity flow；
 - production Firestore model、retention/deletion；
-- versioned schedule publish；
-- 完整 audit；
+- versioned schedule 的 production persistence／route；
+- audit 的正式 retention、access、export 與 production persistence；
 - executable IaC、backup/restore、monitoring；
-- production E2E/a11y/performance/security gates。
+- connected-cloud／production operational evidence、人工 screen-reader／
+  forced-colors 實測與 go-live sign-off。
 
 ### 1.2 規劃原則
 
@@ -44,28 +53,30 @@ staging 與 production 候選。它不自行核准 D-001～D-011，也不授權�
 4. 每階段都可回滾，且有明確驗收與重新評分點。
 5. 未核准政策只記 dependency，不以程式預設值代替。
 
-## 2. 優先修改建議
+## 2. 優先順序與目前剩餘工作
 
 | 優先 | 項目 | 原因 | 產出 |
 | --- | --- | --- | --- |
-| 1 | 對齊 API contract / domain / UI | 目前 patient payload 與 appointment request 不一致 | versioned contract + mapping tests |
-| 2 | 建立 application/auth boundary | route 不能直接接 repository | controller/service/policy/port skeleton |
-| 3 | patient active-booking guard | 把跨 slot 唯一性變成明確 document contention | guard model + concurrency test |
-| 4 | 擴充 audit schema | 正式稽核不能只留 action/actor/time | audit contract + transaction assertions |
-| 5 | domain 化 schedule/patient/case rules | 避免正式 API 重寫 browser 規則 | pure planners + tests |
-| 6 | worker runner/observability | 現在只有核心處理器，沒有 production 操作面 | trigger、jitter、metrics、alerts |
-| 7 | IaC 與環境隔離 | 沒有可重現 staging/production | reviewed Terraform modules |
-| 8 | production CI gates | 現有測試未涵蓋 browser/API/ops | E2E/a11y/perf/security pipeline |
+| 1 | 對齊 API contract / domain / UI | **Stage 0 已完成** strict inventory、mapping 與 rejection tests；正式 identity flow 仍受 D-001～D-003/D-006/D-011 gate | 維護 versioned contracts；決策後補 identity contract |
+| 2 | 建立 application/auth boundary | **未掛路由 skeleton 已完成**；真 IdP、角色與 resource scope 仍受 D-006 gate | D-006 後接 controller/session/policy persistence |
+| 3 | patient active-booking guard | **已完成**明確 document contention 與跨 slot Emulator race | 維持 guard transaction regression |
+| 4 | 擴充 audit schema | **audit v2 與 transaction assertions 已完成**；retention/access/export 仍待 D-002/D-006 | production append-only persistence + approved operations |
+| 5 | domain 化 schedule/patient/case rules | 核心 planners 已進 domain；synthetic adapters 仍 browser-local，merge／正式 mapping 受 gate | 決策後接 application/repository adapters |
+| 6 | worker runner/observability | processor、trace/metrics ports 與 plan 已有；production trigger、backend、alerts、identity 未接 | D-010 後接 runner；D-009 後接 test Calendar |
+| 7 | IaC 與環境隔離 | 目前只有 plan／README，沒有可重現 staging/production | D-010 後建立 reviewed Terraform modules |
+| 8 | production quality evidence | Playwright、axe、performance、SBOM、license、SAST 已自動化；尚缺 connected-cloud、人工 a11y 與 ops 演練 | environment-bound evidence + owner sign-off |
 
 ## 3. 階段與 Gate
 
 ### Stage 0：架構硬化與 contract 收斂
 
-**可立即進行；全程 local/Emulator/synthetic。**
+**狀態：已完成；Checkpoint A 於 2026-07-24 通過。** 本段保存原始工作與驗收，
+不是目前待辦。完成證據見
+[Stage 0 Checkpoint A](../reviews/stage-0-checkpoint-a-2026-07-24.md)。
 
-建議工期：1～2 個工程週。
+原建議工期：1～2 個工程週。
 
-工作：
+已完成工作：
 
 1. 建立完整 command/error contract inventory。
 2. 移除未核准的 optional email contract，或以明確 decision dependency 封鎖。
@@ -86,11 +97,12 @@ staging 與 production 候選。它不自行核准 D-001～D-011，也不授權�
 - 同 slot 與同 patient 跨 slot 競態皆只有一筆成功；
 - 既有 verify/rules 全通過。
 
-**Checkpoint A：架構重新檢查，不做 production 評分。**
+**Checkpoint A：已通過；這是架構重新檢查，不是 production 評分或 route 授權。**
 
 ### Stage 1：決策與治理核准
 
-**可與 Stage 0 並行；由具名 owner 完成。**
+**狀態：目前進行中；由具名 owner 完成。** Stage 0 已結束，不再把其完成清單當成
+現在施工入口。
 
 工期：取決於診所、法律、資安與營運決策，不列入工程承諾。
 
@@ -247,6 +259,9 @@ No-Go：
 
 ## 4. 建議時程
 
+下表是 2026-07-23 的相對工程量估算，不是目前日曆進度；Stage 0 已完成，現在停在
+Stage 1，後續週次要從必要決策實際核准後重新排定。
+
 假設一位主要 full-stack 工程師，另有兼任 cloud/security、QA/a11y 與診所決策
 owner；決策能及時完成：
 
@@ -368,14 +383,17 @@ owner；決策能及時完成：
       尚未建立 `/v1` route 或網路請求）
 - [x] real loading/pending/error/retry states（2026-07-24 收尾；除第一批高頻指令外，
       登出、帳號建立／停用、公告、維護、發布紀錄、排班草稿編輯／刪除／捨棄、
-      死信模擬／補回等低頻治理指令全部改走 `runUiAction`（pending/disabled/
-      `aria-busy`／可重試）；`api-client` 新增 HTTP status → v1 envelope 映射
+      死信模擬／補回等低頻治理指令全部改走 `runUiAction`（pending label、
+      disabled、就地 status／retry；按鈕不宣告 `aria-busy`）；`api-client` 新增
+      HTTP status → v1 envelope 映射
       （`httpTransportError`：409 不可重試、429/503 可重試、400/401/403/404 依碼），
       並把 offline 與 timeout 轉為可重試的 `SERVICE_UNAVAILABLE`；GET 僅對 retryable
       自動重試、POST 永不自動重放。transport 仍是 browser-local `stagingRequest`）
-- [x] bundle/content hash/cache（2026-07-24；`scripts/build-web.mjs` 產出
-      內容雜湊的 `apps/web/dist`，SCC 處理匯入循環，firebase 雜湊資產 immutable、
-      HTML no-store，CSP 未放寬；`hosting.predeploy` 綁 `pnpm build`）
+- [x] per-file minify/content hash/modulepreload/cache（2026-07-24 起；
+      `scripts/build-web.mjs` 逐檔壓縮 JS/CSS、改寫 content-hashed import graph，
+      並注入 `modulepreload`；firebase 雜湊資產 immutable、穩定 HTML
+      `no-cache`，CSP 未放寬；`hosting.predeploy` 綁 `pnpm build`。per-entry
+      bundling 已由 owner 拒絕，除非新決策重開）
 - [ ] staff auth route protection
 - [x] Playwright E2E（2026-07-24；患者預約流程＋工作臺登入→建立→到診→回診
       →刪除，跑在 content-hash 的 dist 上，CI verify.yml 新增 e2e job）
@@ -396,8 +414,10 @@ owner；決策能及時完成：
       `pnpm sbom` 產 CycloneDX 1.6 並執行授權政策 gate（SPDX 運算式解析、強
       copyleft 擋下、三筆 dev-only 已審視例外每次列印）；ESLint 加
       `no-eval`/`no-new-func`/`no-script-url`/`no-proto`/`no-implied-eval`；
-      CodeQL workflow 已寫但**尚未生效**——需要 GitHub remote，私有 repo 另需
-      Advanced Security 授權，屬 D-010 同批決定。上線證據包須附實際掃描結果）
+      CodeQL workflow 已寫，repository 也已有 GitHub remote；workflow 會隨
+      push／pull request／排程執行，但目前文件證據仍不能確認此私有 repository
+      的 code-scanning upload／Security 頁面權限是否成功。該遠端結果與所需方案
+      必須在 D-010／上線證據包中驗證，不得再把「缺 remote」列為原因）
   - 2026-07-24 外部複查（P2）修正：授權例外原本只以套件名稱查找，套件升版、
     授權內容改變、甚至由 dev 相依變成 runtime 相依都會被自動放行——而那正是稽核
     最需要重看一眼的時刻。例外現在綁完整 purl（含版本）＋預期授權字串＋預期
@@ -467,6 +487,9 @@ owner；決策能及時完成：
    （2026-07-23，local/Emulator）。
 7. ✅ 建立 API application service/auth/policy/port skeleton
    （2026-07-23；未掛 route、未接真 IdP）。
-8. 建立 staging IaC plan，只做 plan/review，不 apply。
-9. 建立 E2E/a11y/security CI skeleton。
-10. 完成 Checkpoint A 後再決定 Stage 2 開始日期。
+8. ✅ staging IaC、worker、backup/restore 與 incident plan 已於 2026-07-24
+   文件化；仍是 plan-only，未 apply。
+9. ✅ E2E／axe／performance／supply-chain／SAST CI gates 已建立；人工 a11y 與
+   connected-cloud evidence 尚未執行。
+10. ✅ Checkpoint A 已於 2026-07-24 通過；現在先完成 Stage 1，且 D-006、D-010
+    都核准後才能決定 Stage 2 開始日期。

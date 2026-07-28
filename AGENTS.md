@@ -6,11 +6,13 @@ Hosting preview project (`beauessence-clinic-staging`) but no cloud backend,
 real clinic data, active Google Calendar integration or NAS connection.
 
 The 2026-07-23 enterprise review confirmed that the API-only, pure-domain,
-transactional outbox architecture can be retained. The current implementation
-entry point is **Stage 0 architecture hardening only**: local contracts,
+transactional outbox architecture can be retained. Stage 0 architecture
+hardening and Checkpoint A were completed on 2026-07-24: local contracts,
 application-boundary skeletons, patient booking guards, audit v2 and synthetic
-Emulator tests. Cloud staging, routed booking, production Calendar and real
-patient data remain decision-gated.
+Emulator evidence are in place. The project is now at **Stage 1 owner decisions
+and governance approval**. D-006 and D-010 must both be approved before Stage 2
+cloud staging; routed booking, production Calendar and real patient data remain
+separately decision-gated.
 
 ## Non-negotiable safety boundaries
 
@@ -53,20 +55,34 @@ do not rely on a copy of it elsewhere.
 
 ## Current implementation entry point
 
-Until the decision register changes, work starts at Stage 0 of the
-production-readiness delivery plan.
+Stage 0 and Checkpoint A are complete. The current delivery-plan position is
+Stage 1: named clinic, privacy, security, operations and technical owners must
+turn recorded inputs into explicit approvals or deferrals in the decision
+register. Stage 1 is a governance gate, not authority to connect a backend or
+enable a route.
 
-### May implement now
+### Completed Stage 0 baseline
 
-1. Align executable API contracts with domain requests and approved synthetic
-   fields; do not keep an unapproved field merely because it is optional.
-2. Add API application-service, authentication-context, authorization-policy
-   and repository-port interfaces without connecting a real identity provider.
-3. Add `patient_booking_guards` so concurrent bookings for the same patient and
+1. Executable API contracts align with domain requests and the approved
+   synthetic field boundary.
+2. API application-service, authentication-context, authorization-policy and
+   repository-port interfaces exist without a real identity provider or route.
+3. `patient_booking_guards` make concurrent bookings for the same patient and
    different slots contend on one explicit document.
-4. Add the corresponding Emulator race test and extend audit to the v2 contract.
-5. Add idempotency scope/request-hash design, worker correlation/metrics ports
-   and local-only CI scaffolding.
+4. Emulator race evidence and the audit v2 transaction contract are complete.
+5. Idempotency scope/request hashing, worker correlation/metrics ports and the
+   local/CI quality gates are established.
+
+### May proceed during Stage 1
+
+- Record owner answers, approval evidence, residual questions and explicit
+  decision status in the decision register and approval packets.
+- Maintain or correct the existing local/synthetic implementation without
+  expanding its approved fields, roles, external effects or data authority.
+- Keep the expiring static preview, documentation, tests and security gates
+  accurate under their existing authority.
+- Prepare reviewed, plan-only Stage 2 changes; do not create or apply cloud
+  resources while D-006 or D-010 is pending.
 
 ### Must remain disabled
 
@@ -197,10 +213,15 @@ lines.
    loopback browser harness, including a non-monetary manager-workload report.
    The separately recorded 2026-07-21 authority also permits an expiring static
    Hosting preview holding its state in the visitor's own browser, never a
-   cloud backend. The same authority allows the patient form to collect name,
-   phone, birth date and national ID; every other field still needs a decision.
-3. Confirm the delivery-plan stage. While decisions remain pending, only the
-   Stage 0 work listed above may proceed.
+   cloud backend. As supplemented by the recorded 2026-07-27 owner batch, that
+   authority allows the synthetic patient form to collect name, phone, birth
+   date with an optional year, national ID or passport, NHI-card intent, a short
+   patient note, the approved request/source tags and a conditional optional
+   referrer name. It does not authorise LineID, gender or any other field.
+3. Confirm the delivery-plan stage. Stage 0 is complete; while Stage 1
+   decisions remain pending, proceed only with the policy-neutral maintenance,
+   decision work and documented synthetic-preview scope listed above. D-006 and
+   D-010 both block Stage 2.
 4. Update executable contract and domain first, then application service,
    repository adapter, worker or web edge.
 5. Add focused tests using synthetic opaque identifiers only. Booking changes
@@ -221,13 +242,16 @@ corepack pnpm check:ui
 corepack pnpm format
 corepack pnpm verify
 corepack pnpm test:rules
+corepack pnpm test:e2e
+corepack pnpm check:supply-chain
 corepack pnpm --filter @beauessence/api dev
 ```
 
 - `pnpm verify` runs the structure check, UI guard, documentation check,
   tracked-secret check, Prettier format check, ESLint, TypeScript builds and
-  unit tests. CI runs the same command plus `pnpm test:rules` and the Stage 0
-  high/critical dependency/inventory gate on every push and pull request.
+  unit tests. CI runs the same command plus `pnpm test:rules`, Playwright E2E,
+  dependency audits, SBOM/license policy and commit-bound evidence on every push
+  and pull request.
 - ESLint covers correctness only; Prettier owns formatting. The type-aware
   rules matter most for `no-floating-promises`: a missing await in the booking
   or outbox paths fails silently.
@@ -247,9 +271,10 @@ corepack pnpm --filter @beauessence/api dev
 Phase 1 may create local-only contracts, domain rules, guards and tests. It may
 not enable a booking write endpoint until its privacy, appointment-policy and
 identity/role decisions are approved and the local transaction, idempotency,
-audit/outbox and Rules tests pass. Stage 0 additionally requires the explicit
+audit/outbox and Rules tests pass. Stage 0 already established the explicit
 patient booking guard, the same-patient/different-slot race test, audit v2 and
-an application boundary before cloud staging can be proposed.
+an application boundary. Stage 2 cloud staging still requires explicit D-006
+and D-010 approval; completed technical prerequisites do not bypass them.
 
 ## Before production data
 

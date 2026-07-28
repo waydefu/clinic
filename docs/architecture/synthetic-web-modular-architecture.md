@@ -12,17 +12,17 @@
 | --- | --- | --- |
 | `modules/constants.js` | 時區、掛號別、時段格、服務與手術項目、標籤、角色與權限 | 由 contracts/config 提供版本化設定 |
 | `modules/permissions.js` | 目前帳號、角色權限集合與動作授權 | 正式版由 API middleware／policy engine 執行 |
-| `modules/schedule-engine.js` | 排班驗證、有效區間、時段產生與發布影響 | 移至 `packages/domain`，API 交易發布版本 |
+| `modules/schedule-engine.js` | 瀏覽器端排班投影、時段產生與發布影響；共享 invariant 來自 `packages/domain/schedule` | 正式版由 API 交易發布版本，瀏覽器只保留呈現轉換 |
 | `modules/appointment-domain.js` | 建立、取消、改期、未到、到診、逐筆回診與 audit/outbox 意圖；規則來自共用斷言 | 移至 API transaction；規則已與伺服器共用 |
 | `modules/domain-rules.js` | 呼叫 `packages/domain` 的共用斷言，並把錯誤碼翻成中文訊息 | 正式版由 API 回傳錯誤碼，前端做 i18n |
-| `modules/patient-registry.js` | 患者資料驗證、身分比對與身分證遮罩 | 移至 domain；正式版由 API 驗證 |
+| `modules/patient-registry.js` | browser-local 患者登錄 facade；識別驗證、比對與遮罩規則來自 `packages/domain/patient-identity` | 正式版由 API 驗證與保存，瀏覽器不保有 identity registry |
 | `modules/calendar-export.js` | `.ics` 與 Google 日曆連結 | 純前端，正式版沿用 |
-| `modules/case-management.js` | 個管指派、月度不重複患者與待辦 | 移至 domain；月結鎖定由 API 管理 |
+| `modules/case-management.js` | 個管清單投影；指派／改派與工作量規則來自 `packages/domain/case-assignment` | 正式版由 API 保存有效期間，月結鎖定由 API 管理 |
 | `modules/workspace-domain.js` | 合成帳號、公告、維護排程與發布紀錄 | 正式 IAM、CMS 與 deployment service adapter |
 | `modules/state-schema.js` | 合成 state schema、預設值與 localStorage | 替換成 versioned API DTO，不讓 UI 直接碰 Firestore |
 | `store.js` | browser-local synthetic command/query transport | 正式版不由 controller 直接匯入；只作 `api-client.js` 的 Stage 0 transport |
 | `modules/api-client.js` | 可注入 transport、標準錯誤 metadata、安全 GET retry；POST 不自動重放 | 注入 HTTPS `/v1` transport，保留 controller request 語意 |
-| `modules/async-action.js` | pending、disabled、`aria-busy` 與明確 retry handoff | 正式 API client 沿用；只有 server 標為 retryable 才顯示重試 |
+| `modules/async-action.js` | pending 文案、disabled／重複送出守衛與明確 retry handoff；狀態由 `role="status"` 公告，按鈕不設 `aria-busy` | 正式 API client 沿用；只有 server 標為 retryable 才顯示重試 |
 | `modules/workspace-tabs.js` | 工作臺分頁切換（一次只顯示一個工作區） | 正式版若改多頁路由，只換這一個檔 |
 | `modules/taipei-time.js` | Asia/Taipei 的日期／分鐘／ISO 換算單一來源 | 改時區或時間格式只改這裡；避免各檔重寫同一組 formatter（data clump） |
 | `modules/week-view.js` | 預約週檢視（動態分軌、休診斜線、目前時間線）；CSSOM 定位 | 正式版可沿用或換框架元件 |
@@ -96,5 +96,9 @@ apps/worker → Calendar / notification / NAS projection
 - 改個管統計：先讀 `case-management.js` 與 `docs/payroll/month-close-spec.md`。
 - 改角色：先讀 `permissions.js`，不可只隱藏 HTML。
 - 改管理頁：`index.html` 管語意結構、`admin-view.js` 管 rendering、`admin-bootstrap.js` 管事件。
-- 改患者頁：欄位採允許清單（`scripts/check-web-ui.mjs`）。姓名、電話、生日與身分證已於 2026-07-21 核准收集；**新增任何其他欄位**（Email、病情、付款等）仍須先取得隱私與資料最小化決策。
+- 改患者頁：欄位採允許清單（`scripts/check-web-ui.mjs`）。2026-07-21 首次核准
+  姓名、電話、生日與身分證；2026-07-27 擴充為姓名、電話、生日（月日必填、
+  年份選填）、身分證／居留證或護照、健保卡攜帶意向、患者備註，以及本次門診
+  與來源標籤。**新增任何其他欄位**（Email、LineID、性別、付款等）仍須先取得
+  隱私與資料最小化決策。
 - 改領域規則：只改 `packages/domain/src/appointment-rules.ts`，再 `pnpm build` 同步 vendor；瀏覽器透過 `modules/domain-rules.js` 呼叫同一份，不需要（也不應）另寫一份。

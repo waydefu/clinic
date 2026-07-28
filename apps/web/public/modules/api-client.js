@@ -1,7 +1,7 @@
 import { stagingRequest } from '../store.js';
 
 // localStorage 本身幾乎同步；保留短暫延遲，才能在合成環境實際看見並測試未來
-// HTTPS 請求一定會經過的 pending/disabled/aria-busy 狀態。
+// HTTPS 請求一定會經過的 pending label、disabled 防重送與狀態列公告。
 const DEFAULT_SYNTHETIC_LATENCY_MS = 300;
 
 // 合成 transport 幾乎瞬時，這個逾時對它不會觸發；它固定的是「一個慢到掛住的
@@ -20,7 +20,7 @@ const SAFE_MESSAGE_BY_CODE = Object.freeze({
   AUTHENTICATION_REQUIRED: '請先登入後再操作。',
   AUTHORIZATION_DENIED: '您沒有執行這項操作的權限。',
   NOT_FOUND: '找不到指定的資料。',
-  POLICY_ACCEPTANCE_REQUIRED: '需要先同意最新的隱私政策才能繼續。',
+  POLICY_ACCEPTANCE_REQUIRED: '需要先完成經核准的隱私告知流程才能繼續。',
   CONFLICT: '資料狀態已變更，請重新整理後再試。',
   IDEMPOTENCY_MISMATCH: '這個請求代碼已用於不同的內容，請以新的請求重試。',
   RATE_LIMITED: '操作過於頻繁，請稍後再試。',

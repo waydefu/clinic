@@ -719,26 +719,28 @@ document.addEventListener('keydown', (event) => {
   menuButton.focus();
 });
 
-// 從政策頁按「我同意，回到預約」回來時帶著 ?consent=1。
+// 從政策頁按「已閱讀草稿，回到預約」回來時帶著 ?notice-read=1。
 //
-// 政策頁刻意沒有任何指令碼（它是一份法律文件，越少東西越好），所以狀態只能靠
-// 網址帶回來。這不是替使用者做決定：勾選是**看得見地**被打勾，而且隨時可以取消
-// ——與親手勾一次的結果完全相同。旗標本身不含任何個人資料。
+// 政策頁刻意沒有任何指令碼，所以 UI 閱讀狀態只能靠網址帶回來。勾選是**看得見
+// 地**被打勾，而且隨時可以取消。旗標本身不含任何個人資料，也不是正式同意或
+// 告知證據；目前沒有保存政策版本、顯示時間或接受紀錄。
 //
-// 讀完就把它從網址上抹掉：留著會讓「重新整理」或分享出去的連結永遠自帶同意，
-// 那才是真的替別人決定。
-function applyConsentFromUrl() {
+// 讀完就把它從網址上抹掉：留著會讓重新整理或分享出去的連結永遠自帶已讀狀態。
+function applyNoticeReadFromUrl() {
   const url = new URL(window.location.href);
-  if (url.searchParams.get('consent') !== '1') return;
+  if (url.searchParams.get('notice-read') !== '1') return;
   elements['privacy-consent'].checked = true;
   elements['privacy-consent-error'].hidden = true;
-  url.searchParams.delete('consent');
+  url.searchParams.delete('notice-read');
   window.history.replaceState(
     {},
     '',
     `${url.pathname}${url.search}${url.hash}`
   );
-  message('已記錄您對個人資料蒐集告知的同意。', 'success');
+  message(
+    '已套用測試用的「已閱讀草稿」勾選；系統未保存正式同意紀錄。',
+    'success'
+  );
 }
 elements['privacy-consent'].addEventListener('change', () => {
   if (elements['privacy-consent'].checked) {
@@ -780,15 +782,15 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
     );
     return;
   }
-  // 個資同意先擋：它是法律上的前提，測試版本的資料保存確認是另一件事。兩者
-  // 分開勾，也分開報錯——合成一句話會讓人不知道自己少同意了什麼。
+  // 告知草稿的 UI 閱讀 gate 與「測試資料留在本機」確認是兩件事，分開勾也
+  // 分開報錯。正式政策版本、法律依據與接受證據仍待 D-003。
   if (!elements['privacy-consent'].checked) {
     elements['privacy-consent-error'].textContent =
-      '請勾選此項才能送出：閱讀並同意個人資料蒐集告知。';
+      '請先閱讀個人資料蒐集告知草稿並勾選確認。';
     elements['privacy-consent-error'].hidden = false;
     elements['privacy-consent'].focus();
     message(
-      '尚未送出：請先閱讀並同意個人資料蒐集告知。',
+      '尚未送出：請先閱讀個人資料蒐集告知草稿並勾選確認。',
       'error',
       'patient-submit-status'
     );
@@ -966,9 +968,9 @@ try {
   if (!state.maintenanceActive) {
     showStep(1, { focusHeading: false });
     message('已載入診所發布的門診時段。', 'success');
-    // 放在載入成功之後：`?consent=1` 的公告要蓋掉上面那句，否則使用者從政策頁
-    // 回來只會看到「已載入門診時段」，不知道自己的同意有沒有被記到。
-    applyConsentFromUrl();
+    // 放在載入成功之後：`?notice-read=1` 的公告要蓋掉上面那句，讓使用者知道
+    // 已套用測試用閱讀確認，同時明說系統沒有保存正式同意紀錄。
+    applyNoticeReadFromUrl();
   }
 } catch (error) {
   message(

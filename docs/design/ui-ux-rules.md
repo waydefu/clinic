@@ -1,6 +1,6 @@
 # 介面規則書
 
-**版本：** 2026-07-27（2026 官方資料複核版）
+**版本：** 2026-07-28（2026 官方資料複核與視覺證據版）
 
 **狀態：** 生效中
 
@@ -454,13 +454,16 @@ WAI-ARIA APG names。
 #### R-22 的具名決定（2026-07-27 業主需求批次）
 
 **告知的呈現可以低調，內容不可以省略。** 業主要求個資告知「不要那麼突出」。表單裡
-的六項事實摘要因此收成一行勾選＋句中入口；入口是真的 `<a href="/privacy">`，沒有
-JavaScript 時仍走得到完整告知，有 JavaScript 時才就地展開全文。個資法第 8 條要求
+的六項事實摘要因此收成一行閱讀確認＋句中入口；入口是真的
+`<a href="/privacy">`，沒有 JavaScript 時仍走得到完整告知，有 JavaScript 時才
+就地展開全文。個資法第 8 條要求
 告知的六件事（蒐集者、目的、類別、期間地區對象方式、當事人權利**及行使方式**、
 不提供的影響）一件都沒有拿掉，只是改由那個入口一次呈現，不再抄一份摘要在表單裡
 ——法律文件抄兩份必然漂移。**風險由資料控制者（診所）承擔**，正式文字仍屬 D-003。
-`check:ui` 釘住「有獨立同意勾選」與「入口是真連結」，`privacy-policy.spec.ts` 釘住
-「入口在送出鈕之上」與「展開的是政策頁本人」。
+`check:ui` 釘住「有獨立的已閱讀草稿確認」與「入口是真連結」，
+`privacy-policy.spec.ts` 釘住「入口在送出鈕之上」與「展開的是政策頁本人」。
+目前瀏覽器不保存政策 ID、顯示時間或接受紀錄，因此這只是測試用 UI gate，不得
+描述為正式同意或告知證據；正式流程仍屬 D-003。
 
 **新增的四類欄位都是選填，且各有理由。** 依 R-22 第一條，新增欄位要走 gate：
 
@@ -603,6 +606,33 @@ responsive、affordance、performance 與 SEO 測試共同讀取。完成前，�
 - loading、成功、部分成功、失敗、重試、逾時、離線、維護；
 - 200% 字體、深色、護眼、forced-colors、reduced-motion。
 
+### 5.5 可重現 UI 截圖與視覺證據
+
+截圖是**有日期的人工複核證據**，不是 UI 的真相來源，也不得單獨當成跨 OS 的像素
+gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 seed／狀態與凍結時間；
+不得帶入真實患者資料，也不得直接把開發伺服器的偶發狀態當基線。
+
+- 代表路由以桌機 `1280×900` 與手機 `375×812` 覆蓋；至少一個 critical flow 另有
+  `320×568` 低寬低高壓力圖。這是代表性矩陣，不要求每個 route × role × state ×
+  viewport 的笛卡兒積。
+- 每組證據須附 manifest，至少記錄 `captureDate`、`fixedTime`、環境（OS、瀏覽器與
+  Playwright 版本、locale、timezone、theme、reduced-motion）、route、role、state、
+  viewport、DPR、console errors／warnings 與影像 SHA-256。若沒有實際擷取 timestamp，
+  不得用固定時間冒充。
+- `sourceRevision` 使用 `commit-containing-this-manifest`；包含 manifest 的 commit
+  自身即建立版本綁定。同一個 commit 不可能在 manifest 內先寫出自己的 hash，因此
+  不要求 self-referential commit SHA，也不在 manifest 記錄擷取工作樹的 dirty 狀態。
+- 系統字型會讓不同 OS 的字形與換行產生合理差異；一般截圖只供人工比對。若日後要
+  啟用像素 gate，必須固定 OS、瀏覽器、字型映像與渲染版本，或按 OS 分開維護
+  snapshot。
+- 截圖不能取代語意／accessible-name、axe、鍵盤、幾何與 reflow、焦點、螢幕閱讀器
+  及效能測試；影像看起來正確，不代表流程或可及性正確。
+
+現行基線是
+[2026-07-28 UI 視覺基準](../reviews/ui-visual-baseline-2026-07-28.md)與其 manifest：
+共 10 張 reference-only PNG，含一張 `320×568` critical-flow 壓力圖。它們是人工
+跨電腦複核的參考證據，不是跨 OS 像素 golden；更早的日期截圖仍只算歷史證據。
+
 ## 6. 例外處理
 
 任何例外必須同時具備：
@@ -615,7 +645,7 @@ responsive、affordance、performance 與 SEO 測試共同讀取。完成前，�
 
 例外不得降低患者安全、資料隱私、基本鍵盤操作或完成預約的能力。
 
-## 7. 2026-07-27 複核後修正
+## 7. 2026-07-27～2026-07-28 複核後修正
 
 1. **修正 R-5：** 「有空間一律並排」改為按優先級、風險、標籤與容器空間決定；
    滿寬 CTA 與安全分隔不再被錯判。
@@ -627,6 +657,8 @@ responsive、affordance、performance 與 SEO 測試共同讀取。完成前，�
 6. **補上完整 UX：** 表單、錯誤、等待、破壞性動作、焦點、dialog、live region、
    複雜表格、登入、隱私與 Core Web Vitals。
 7. **校正合規說法：** WCAG 2.2 AA 工程基線、台灣標章與 WCAG 3.0 草案分開處理。
+8. **補上視覺證據規格：** 固定合成狀態、時間、尺寸與環境 metadata；歷史截圖不再
+   被誤認為跨平台像素 gate 或現行 UI 基線。
 
 ## 8. 參考資料
 

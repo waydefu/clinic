@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "captureDate": "2026-07-28",
+  "fixedTime": "2026-07-29T01:00:00.000Z",
+  "sourceRevision": "commit-containing-this-manifest",
+  "referenceOnly": true,
+  "crossOsPixelGate": false,
+  "captureNormalization": [
+    "Non-focused skip links are hidden to avoid Chromium full-page stitching artifacts.",
+    "Sticky headers, navigation and status regions are rendered in document flow; their runtime behavior remains covered by E2E tests."
+  ],
+  "environment": {
+    "os": {
+      "platform": "win32",
+      "release": "10.0.22631",
+      "architecture": "x64"
+    },
+    "browser": {
+      "name": "chromium",
+      "version": "149.0.7827.55"
+    },
+    "playwright": "1.61.1",
+    "locale": "zh-TW",
+    "timezone": "Asia/Taipei",
+    "theme": "light",
+    "reducedMotion": "reduce",
+    "workers": 1,
+    "serverPort": 3211
+  },
+  "captures": [
+    {
+      "file": "clinic--home--desktop-1280x900--light.png",
+      "route": "/clinic",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "default",
+      "captureKind": "reference-full-page",
+      "sha256": "088b427c99adb6a1c8dcf24cd2cdda42efd40ff00e525a9bfeeff9ef22d3cf61",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "clinic--home--phone-375x812--light.png",
+      "route": "/clinic",
+      "role": "public",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "default",
+      "captureKind": "reference-full-page",
+      "sha256": "c57c9e1728f19b0344a7728b3fc36fbe121096715aea21aad958316d62e18f5d",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-1--desktop-1280x900--light.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-1-empty",
+      "captureKind": "reference-full-page",
+      "sha256": "9c83e3cd51ea46b0efdc33ce15d6f6249ad3dce5f13ad909ba3294c39c925b9b",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-3-filled--phone-375x812--light.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-3-filled-synthetic",
+      "captureKind": "reference-full-page",
+      "sha256": "0b1b3d0c715e9f762ba9e52e7b820ecb4a896c31c8eae018c991e8f4b4011b25",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-3-filled--stress-320x568--light.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-3-filled-synthetic-low-width-height-stress",
+      "captureKind": "reference-full-page",
+      "sha256": "4be4dbe2bef0a690a85ec15aae6c6bf30bdeaddfa8aaab68aeb2647309719327",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--login--desktop-1280x900--light.png",
+      "route": "/",
+      "role": "unauthenticated",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "clean-login-gate",
+      "captureKind": "reference-full-page",
+      "sha256": "2df12ee188f344a12825f3953b39ed22e0fba87dbbe5ba28b457bc071cbcda15",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--appointments-populated--desktop-1280x900--light.png",
+      "route": "/#appointments-section",
+      "role": "admin",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "one-confirmed-synthetic-appointment",
+      "captureKind": "reference-full-page",
+      "sha256": "b1e2370615873dd487e96b99f09f85c6ff761e662a9209487e09d316bdf8527c",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--appointments-populated--phone-375x812--light.png",
+      "route": "/#appointments-section",
+      "role": "admin",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "one-confirmed-synthetic-appointment",
+      "captureKind": "reference-full-page",
+      "sha256": "7d326a8457dea39c20dd3676531ba38c90cceb6920cf4edf5b6c4b1c7518d47e",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--case-assigned-workload--desktop-1280x900--light.png",
+      "route": "/#case-section",
+      "role": "admin",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "one-completed-visit-assigned-manager_test_001",
+      "captureKind": "reference-full-page",
+      "sha256": "0d5ee81340905e0561179d0480b10eb76a8dc340940eaa1b65283ef0ea18ab70",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "privacy--draft-notice--phone-375x812--light.png",
+      "route": "/privacy",
+      "role": "public",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "test-only-draft-notice",
+      "captureKind": "reference-full-page",
+      "sha256": "7b64992bad6271c1465e8455f0ecd91fbd9706e712002d650d0178f232c275ff",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    }
+  ]
+}

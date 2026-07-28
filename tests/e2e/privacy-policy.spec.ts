@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 import { fillBirthDate, submitBooking } from './support/patient';
+import { STORAGE_KEY } from './support/workbench';
 
-// 個資法第 8 條要求「蒐集前告知」五件事。這支測試把那五件事釘成頁面必須成立的
+// 個資法第 8 條要求「蒐集前告知」六項事項。這支測試把六項事項釘成頁面必須成立的
 // 內容，而不是靠人記得——政策頁最常見的退步不是寫錯，是改版時整段被刪掉。
 //
 // 這裡驗的是「該說的有沒有說」與「找不找得到」，不是法律用語是否精確；文字本身
@@ -26,7 +27,7 @@ test.describe('隱私權政策頁', () => {
     expect(direct.headers()['location']).toBe('/privacy');
   });
 
-  test('個資法第 8 條要求告知的五件事都在頁面上', async ({ page }) => {
+  test('個資法第 8 條要求告知的六項事項都在頁面上', async ({ page }) => {
     await page.goto('/privacy');
     const body = page.locator('body');
 
@@ -40,19 +41,52 @@ test.describe('隱私權政策頁', () => {
     // 「不提供的影響」也是第 8 條列舉的事項之一。
     await expect(body).toContainText('不提供個人資料的影響');
 
-    // 權利要能真的行使：必須留下一個可用的聯絡管道。
+    // 草稿至少要列出候選聯絡管道，並在頁面明說正式窗口仍待 D-001。
     await expect(
       page.locator('a[href="tel:+886225771314"]').first()
     ).toBeVisible();
+    await expect(body).toContainText(/正式\s*窗口須待 D-001 核准/);
   });
 
-  test('保存期限與提供對象寫的是實際設定，不是空話', async ({ page }) => {
+  test('保存期限與提供對象明確標示為待核准草案', async ({ page }) => {
     await page.goto('/privacy');
-    const body = page.locator('body');
-    await expect(body).toContainText('兩年');
-    await expect(body).toContainText('Google');
+    const section = page.locator('section[aria-labelledby="s4"]');
+    await expect(section).toContainText(
+      '「兩年」、「asia-east1」與「Google」均為待核准草案'
+    );
+    const definitions = section.locator('dd');
+    await expect(definitions.nth(0)).toContainText('草案');
+    await expect(definitions.nth(0)).toContainText('兩年');
+    await expect(definitions.nth(1)).toContainText('草案');
+    await expect(definitions.nth(1)).toContainText('asia-east1');
+    await expect(definitions.nth(2)).toContainText('草案');
+    await expect(definitions.nth(2)).toContainText('Google');
     // 日曆投影刻意不含 PII，這一點必須對患者說清楚。
-    await expect(body).toContainText('不含您的姓名');
+    await expect(section).toContainText('不含您的姓名');
+  });
+
+  test('蒐集類別與目前合成表單欄位一致', async ({ page }) => {
+    await page.goto('/privacy');
+    const categories = page.locator('section[aria-labelledby="s3"]');
+    for (const field of [
+      '姓名',
+      '聯絡電話',
+      '出生月、日（西元年份選填）',
+      '國民身分證統一編號或居留證號',
+      '勾選「外籍人士」時改填護照號碼',
+      '本次是否預計攜帶健保卡',
+      '本次門診需求標籤',
+      '得知診所的來源',
+      '介紹人姓名',
+      '簡短備註',
+      '時段',
+      '看診類型',
+      '看診項目',
+      '狀態異動'
+    ])
+      await expect(categories).toContainText(field);
+    await expect(categories).toContainText('D-002');
+    await expect(categories).toContainText('D-006');
   });
 
   // 目前資料根本沒有離開裝置。若政策頁講得像診所已經在蒐集，那是反向的不實陳述。
@@ -79,19 +113,83 @@ test.describe('隱私權政策頁', () => {
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
     await page.locator('[data-patient-slot]').first().click();
 
-    const consentLink = page.locator('#open-privacy-policy');
-    await expect(consentLink).toBeVisible();
+    const noticeLink = page.locator('#open-privacy-policy');
+    await expect(noticeLink).toBeVisible();
     // 入口必須是真的連結：沒有 JavaScript 時它是唯一走得到完整告知的路。
-    await expect(consentLink).toHaveAttribute('href', '/privacy');
+    await expect(noticeLink).toHaveAttribute('href', '/privacy');
 
     // 順序也要對：告知在送出鈕之上，不是送出之後才補一句。
-    const linkBox = await consentLink.boundingBox();
+    const linkBox = await noticeLink.boundingBox();
     const submitBox = await page
       .locator('#confirm-patient-booking')
       .boundingBox();
     expect(linkBox).not.toBeNull();
     expect(submitBox).not.toBeNull();
     expect(linkBox!.y).toBeLessThan(submitBox!.y);
+  });
+
+  test('政策頁返程只套用測試用已讀狀態，不冒充正式同意紀錄', async ({
+    page
+  }) => {
+    await page.goto('/privacy');
+    const returnLink = page.locator('a[href="/booking?notice-read=1"]');
+    await expect(returnLink).toHaveText('已閱讀草稿，回到預約');
+    await expect(page.locator('body')).toContainText('不會保存政策版本');
+
+    await returnLink.click();
+    await expect(page).toHaveURL(/\/booking$/);
+    await expect(page.locator('#privacy-consent')).toBeChecked();
+    await expect(page.locator('#patient-status')).toContainText(
+      '系統未保存正式同意紀錄'
+    );
+    const beforeToggle = await page.evaluate(() =>
+      Object.fromEntries(Object.entries(window.localStorage))
+    );
+    await page.locator('#privacy-consent').evaluate((element) => {
+      const input = element as HTMLInputElement;
+      input.checked = false;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.checked = true;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const afterToggle = await page.evaluate(() =>
+      Object.fromEntries(Object.entries(window.localStorage))
+    );
+    expect(afterToggle).toEqual(beforeToggle);
+    expect(JSON.stringify(afterToggle)).not.toMatch(
+      /privacy-v\d|policyAcceptance|consent/i
+    );
+  });
+
+  test('載入 v7 時清除所有舊版合成狀態與其政策版本殘留', async ({ page }) => {
+    await page.goto('/booking');
+    await page.evaluate(() => {
+      window.localStorage.clear();
+      for (let version = 1; version <= 6; version += 1) {
+        window.localStorage.setItem(
+          `beauessence_synthetic_online_preview_v${version}`,
+          JSON.stringify({
+            schemaVersion: version,
+            policyVersion: 'privacy-v1',
+            syntheticResidue: true
+          })
+        );
+      }
+    });
+
+    await page.reload();
+    await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
+    const persisted = await page.evaluate(() =>
+      Object.fromEntries(Object.entries(window.localStorage))
+    );
+    for (let version = 1; version <= 6; version += 1) {
+      expect(persisted).not.toHaveProperty(
+        `beauessence_synthetic_online_preview_v${version}`
+      );
+    }
+    expect(JSON.stringify(persisted)).not.toMatch(
+      /privacy-v\d|policyVersion|syntheticResidue/i
+    );
   });
 
   // 個資法要的是「蒐集**前**告知」。
@@ -111,12 +209,18 @@ test.describe('隱私權政策頁', () => {
       await page.locator('[data-patient-slot]').first().click();
     }
 
-    test('同意勾選與告知入口都在送出鈕之前', async ({ page }) => {
+    test('已閱讀草稿勾選與告知入口都在送出鈕之前', async ({ page }) => {
       await reachDetailsStep(page);
-      const consent = page.locator('#privacy-consent');
+      const noticeRead = page.locator('#privacy-consent');
       const entry = page.locator('#open-privacy-policy');
-      await expect(consent).toBeVisible();
+      const label = page.locator('label:has(#privacy-consent)');
+      await expect(noticeRead).toBeVisible();
       await expect(entry).toBeVisible();
+      await expect(label).toContainText('個人資料蒐集告知草稿');
+      await expect(label).toContainText('測試用閱讀確認');
+      await expect(label).toContainText('不會建立正式同意紀錄');
+      await expect(label).not.toContainText('我已閱讀並同意');
+      await expect(label).not.toContainText('同意診所依其中所述目的');
 
       // 入口必須在那句話**裡面**，不是另外一顆按鈕或頁尾連結。
       const insideConsentLine = await entry.evaluate(
@@ -125,11 +229,11 @@ test.describe('隱私權政策頁', () => {
       );
       expect(insideConsentLine).toBe(true);
 
-      const consentBox = await consent.boundingBox();
+      const noticeReadBox = await noticeRead.boundingBox();
       const submitBox = await page
         .locator('#confirm-patient-booking')
         .boundingBox();
-      expect(consentBox!.y).toBeLessThan(submitBox!.y);
+      expect(noticeReadBox!.y).toBeLessThan(submitBox!.y);
     });
 
     // 摘要不再攤在表單上，所以那六件事**必須**在展開的全文裡找得到——否則這次
@@ -150,7 +254,9 @@ test.describe('隱私權政策頁', () => {
         await expect(body).toContainText(fact);
     });
 
-    test('沒有勾同意就送不出去，而且說得出少了什麼', async ({ page }) => {
+    test('沒有確認已閱讀草稿就送不出去，而且說得出少了什麼', async ({
+      page
+    }) => {
       await reachDetailsStep(page);
       await page.locator('#patient-name').fill('告知測試');
       await page.locator('#patient-phone').fill('0912345678');
@@ -163,9 +269,21 @@ test.describe('隱私權政策頁', () => {
       await expect(page.locator('#privacy-consent-error')).toContainText(
         '個人資料蒐集告知'
       );
-      // 勾了才送得出去。
+      // 確認已閱讀草稿後才送得出去；這不是正式同意紀錄。
       await page.locator('#privacy-consent').check();
       await submitBooking(page);
+
+      // 真的執行一次會寫入 localStorage 的預約後，資料裡仍不得憑空出現政策版本或
+      // 接受證據。只測勾選前後不變還不夠，因為初始狀態本身也可能藏著舊欄位。
+      const persistedState = await page.evaluate((key) => {
+        const value = window.localStorage.getItem(key);
+        return value === null ? null : JSON.parse(value);
+      }, STORAGE_KEY);
+      expect(persistedState).not.toBeNull();
+      expect(persistedState).not.toHaveProperty('policyVersion');
+      expect(JSON.stringify(persistedState)).not.toMatch(
+        /privacy-v\d|policyAcceptance|consent/i
+      );
     });
 
     test('全文就地展開，內容是政策頁本人而不是另一份抄本', async ({ page }) => {

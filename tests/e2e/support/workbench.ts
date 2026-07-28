@@ -79,7 +79,7 @@ export async function createBooking(
 }
 
 /** 合成狀態在瀏覽器裡的鍵。改版時 state-schema.js 與這裡要一起改。 */
-export const STORAGE_KEY = 'beauessence_synthetic_online_preview_v6';
+export const STORAGE_KEY = 'beauessence_synthetic_online_preview_v7';
 
 /**
  * 換一個角色登入，**保留目前的合成狀態**。

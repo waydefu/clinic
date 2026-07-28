@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "asset": "apps/web/public/og-booking.png",
+  "width": 1200,
+  "height": 630,
+  "clinicHours": "週三至週五 12:00–20:00 · 週六 10:00–18:00",
+  "sha256": "aa887520ea64c0deebf61eb1f6717b9ca46d0d5c6011872669fbadc92cc16dad",
+  "provenance": "2026-07-28 ImageGen text correction, normalized to the declared Open Graph dimensions"
+}

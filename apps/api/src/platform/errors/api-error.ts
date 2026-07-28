@@ -43,7 +43,7 @@ export class AuthorizationDeniedError extends PlatformError {
 export class PolicyAcceptanceRequiredError extends PlatformError {
   public readonly apiCode = 'POLICY_ACCEPTANCE_REQUIRED' as const;
   public constructor() {
-    super('An approved policy acceptance is required.');
+    super('An approved privacy-notice flow is required.');
     this.name = 'PolicyAcceptanceRequiredError';
   }
 }
@@ -131,7 +131,7 @@ export const SAFE_MESSAGE_BY_API_CODE: Record<ApiErrorCode, string> = {
   AUTHENTICATION_REQUIRED: '請先登入後再操作。',
   AUTHORIZATION_DENIED: '您沒有執行這項操作的權限。',
   NOT_FOUND: '找不到指定的資料。',
-  POLICY_ACCEPTANCE_REQUIRED: '需要先同意最新的隱私政策才能繼續。',
+  POLICY_ACCEPTANCE_REQUIRED: '需要先完成經核准的隱私告知流程才能繼續。',
   CONFLICT: '資料狀態已變更，請重新整理後再試。',
   IDEMPOTENCY_MISMATCH: '這個請求代碼已用於不同的內容，請以新的請求重試。',
   RATE_LIMITED: '操作過於頻繁，請稍後再試。',

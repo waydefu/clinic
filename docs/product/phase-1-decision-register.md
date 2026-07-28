@@ -4,6 +4,11 @@ Status values: `pending`, `approved`, `deferred`. A decision is `approved`
 only after the named clinic owner records the answer and approval date. Do not
 infer an answer from an existing website, social message or Calendar event.
 
+Current delivery position: Stage 0／Checkpoint A passed on 2026-07-24. The
+project is now at Stage 1 owner decisions. D-006 and D-010 remain `pending` and
+therefore block Stage 2 cloud staging; recorded questionnaire answers do not
+change that status without the named approval evidence.
+
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |
 | D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending | Published privacy policy |
@@ -116,9 +121,11 @@ on a phone outside on mobile data. Typography keeps using the system stack, and
 ### Opening hours corrected to 20:00 - 2026-07-27
 
 The schedule closed at **20:30** while the clinic's own website publishes
-**20:00**. The owner confirmed 20:00 is correct, so `defaultSchedule`, the
-structured data and the three prose copies now all say 12:00–20:00, and
+**20:00**. The owner confirmed 20:00 is the authority. The current
+`defaultSchedule`, structured data and clinic prose use 12:00–20:00, and
 Wednesday generates 13 初診 / 12 回診 slots (last starts 19:30 and 19:15).
+Any remaining `20:30` comment, seed or new-draft default is stale implementation
+data and must be corrected rather than treated as a competing clinic decision.
 
 The drift check that caught the prose copies did **not** cover the JSON-LD
 numbers, because those use `"opens"/"closes"` rather than the `12:00–20:00`
@@ -188,11 +195,12 @@ synthetic/test implementation**; neither changes a decision status to
 
 - **D-011 direction (booking-site URL): `/booking`.** The patient booking page
   is to be served at `/booking`, which is what `patient.html` already claims in
-  its `canonical` and `og:url`. Today the deployed path is `/patient.html` and
-  `firebase.json` has no `rewrites`, so the advertised URL 404s — that is the
-  defect this direction closes. **D-011 stays `pending`**: the accessibility and
-  language needs and the manual-booking fallback are untouched, and the
-  registered domain itself is still to be confirmed before go-live.
+  its `canonical` and `og:url`. **Historical audit finding, now resolved:** on
+  2026-07-26 the deployed path was `/patient.html` and the advertised URL
+  404ed. On 2026-07-28 `/booking` was rechecked as HTTP 200 with `no-cache` and
+  `noindex`. **D-011 stays `pending`**: the accessibility and language needs and
+  the manual-booking fallback are untouched, and the registered domain itself
+  is still to be confirmed before go-live.
   `beauessence.com.tw` is only what the markup currently claims; it was not
   inferred from any external source and must be confirmed by the clinic.
 - **Build strategy (per-entry bundling): declined. Readability wins.** The audit
@@ -255,7 +263,28 @@ authenticated write endpoint and no real Calendar connection are enabled by this
 note. Changing a decision to `approved` still requires the named owner to record
 the answer, approval date and evidence in the table and template below.
 
-### Patient identity fields in the preview - 2026-07-21
+### Current synthetic patient identity scope - 2026-07-27
+
+The 2026-07-27 owner batch superseded the narrower 2026-07-21 field shape for
+the synthetic preview. The current allowlist is name, phone, birth month/day
+with optional year, national ID/new resident ID or passport, NHI-card intent, a
+short patient note, approved request/source tags and a conditional optional
+referrer name. LineID and gender are not collected. Screen/list views mask the
+identity document; the explicitly synthetic intake print may show the full test
+value.
+
+The matching-key priority is national ID/new resident ID, then passport, then
+phone plus birth date. When the birth year is absent, the normalized name is
+also included so two people sharing a phone and month/day are not silently
+merged. This remains browser-local synthetic behavior, not an approved
+production identity model or patient authentication; D-001～D-003 and D-006
+remain `pending`.
+
+### Patient identity fields in the preview - 2026-07-21 — historical, superseded
+
+The bullets below preserve the original 2026-07-21 authority. They were
+superseded for current synthetic behavior by the 2026-07-27 scope above and
+must not be used as the current field list or matching-key definition.
 
 - The project owner directed that the booking flow collect 姓名、電話、
   生日（西元）、身分證字號 and 有無健保卡, and that the public preview be
@@ -300,20 +329,30 @@ the answer, approval date and evidence in the table and template below.
   - The assistant did not and will not create the Google Cloud project or
     generate/enter the credentials; that remains the owner's action.
 
-### Synthetic online preview authority - 2026-07-21
+### Synthetic online preview authority - 2026-07-21; deployment status updated 2026-07-27
 
 - The project owner explicitly requested a non-production real-device online
   test version.
 - A separate Firebase project, `beauessence-clinic-staging`, was created only
   for static Firebase Hosting preview channels. No Firestore, Functions,
   Storage, Authentication, Calendar or other backend integration was enabled.
+- **Current deployment record:** the same `synthetic-review` channel was
+  redeployed on 2026-07-27 from commit `3c31351` and expires on 2026-08-04 at
+  12:43 Asia/Taipei. On 2026-07-28 at 17:18 Asia/Taipei, `/`, `/booking`,
+  `/privacy` and `/clinic` were rechecked as HTTP 200 with stable HTML
+  `no-cache` and the preview still `noindex`. This supersedes the earlier path
+  and operational expiry below; see
+  `docs/reviews/2026-07-27-owner-request-batch-delivery.md` and
+  `docs/reviews/ui-visual-baseline-2026-07-28.md`.
 - Preview channel `synthetic-review` uses browser-local synthetic state and is
-  publicly reachable to anyone with the URL. Redeployed 2026-07-24 (same URL)
-  with the CSP `object-src` hardening, forced-colors support, the branded 404
-  and the synthetic account+password login gate; it now expires on 2026-07-31
-  at 02:30 Asia/Taipei. The workbench now opens on that synthetic login gate
-  (test credentials are shown on the page); it is a UX prototype, not a security
-  boundary, and does not change D-006. The patient page is unaffected.
+  publicly reachable to anyone with the URL. **Historical deployment record,
+  superseded by the 2026-07-27 deployment above:** it was redeployed on
+  2026-07-24 (same URL) with the CSP `object-src` hardening, forced-colors
+  support, the branded 404 and the synthetic account+password login gate, with
+  an expiry of 2026-07-31 at 02:30 Asia/Taipei. The workbench opens on that
+  synthetic login gate (test credentials are shown on the page); it is a UX
+  prototype, not a security boundary, and does not change D-006. The patient
+  page is unaffected.
 - This authorization does **not** approve D-001 through D-011, does not permit
   real data, and does not authorize a Firebase live-channel deployment.
 - Operating and deletion instructions are in
@@ -346,7 +385,13 @@ the answer, approval date and evidence in the table and template below.
 - The test profile cannot collect real data, expose an API route, create a
   cloud project or call an external service.
 
-### D-001 - 2026-07-20
+### D-001 - 2026-07-20 — historical input, superseded in part
+
+The bullets below preserve the 2026-07-20 research/input record. Its clinic
+hours and privacy-contact interpretation were superseded by the 2026-07-27
+owner-answer block at the top of this register: current hours are Wed–Fri
+12:00–20:00 and Sat 10:00–18:00, and the clinic phone is the temporary
+privacy-contact answer for now. The decision itself remains `pending`.
 
 - Clinic name supplied by the project owner: 一森渼診所
 - Address supplied by the project owner: 10560臺北市松山區復勢里光復北路112號2樓

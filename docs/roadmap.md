@@ -2,18 +2,21 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-07-27
+**整合更新：** 2026-07-28
 
 **目前狀態：** 瀏覽器原型功能完整、已部署到期預覽；Firestore 寫入路徑已在本機
-Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、無真實病患資料。
+Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner decisions；
+尚無雲端後端、無 Authentication、無日曆連線、無真實病患資料。
 
-> **目前施工入口：Stage 0 架構硬化。** 詳細順序與 gate 以
+> **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
+> 2026-07-24 完成；D-006 與 D-010 兩者都核准後，才能進 Stage 2 cloud staging。
+> 詳細順序與 gate 以
 > [正式化後續實作規劃書](product/production-readiness-delivery-plan-2026-07-23.md)
 > 為準；技術邊界以
 > [正式環境目標架構書](architecture/production-target-architecture-2026-07-23.md)
-> 為準。2026-07-21 以前的完成紀錄保留作歷史證據，不得取代最新施工順序。
+> 為準。既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
 
-> **2026-07-24 進度整合。** 本檔更新於 2026-07-23，其後的 Stage 0 內工作以
+> **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
 > 為權威紀錄，包含：管理者刪除預約、schedule/follow-up/case-assignment/payroll
 > 進 domain（含月結鎖定與具理由調整）、前端打包／內容雜湊 dist、Playwright E2E＋
@@ -25,7 +28,7 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > 內距並補 dialog／離焦收合；預約篩選改為搜尋全寬＋兩個下拉並排；處置卡改成主要
 > 動作全寬、兩個次要動作並排，並修掉未回報的桌機 `inline-size: 1%` 遺留；三個
 > 批次動作同列；排班起訖時間並排滿寬。患者端必填星號與欄名同列、紅色但不只靠
-> 顏色，姓名／電話／生日／身分證四欄全寬等寬。`mobile-layout.spec.ts` 由 8 增至
+> 顏色，當時的姓名／電話／生日／身分證四欄全寬等寬。`mobile-layout.spec.ts` 由 8 增至
 > 12 項，以瀏覽器幾何量測守住 320／375px reflow、viewport 邊界與 44px 操作高度。
 > 工作臺的極窄版頁首也不再隱藏整個品牌文字區；中文診所名稱與英文副標都會保留，
 > 英文在空間不足時換行，並縮小與右側通知／設定控制項之間的欄距。**患者頁的那一
@@ -35,6 +38,10 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > 自訂的授權碼才能刪除，授權碼可多組、可個別停用；規則進 `packages/domain` 的
 > `delegated-authorization`。角色權限表**沒有**改動——委派是另一條路徑，稽核因此
 > 永遠分得出「這個角色本來就能做」與「這次是被授權的」。仍非安全邊界（D-006）。
+>
+> 上述 2026-07-26 四欄描述只保存當日截圖基線；患者欄位已被 2026-07-27 owner
+> batch 取代為生日年份選填、身分證／居留證或護照、健保卡攜帶意向、患者備註、
+> 核准的門診／來源標籤與條件式選填介紹人姓名。LineID 與性別仍不收集。
 >
 > **2026-07-27 隱私權告知與 SEO 基礎**（[SEO 基準](reviews/2026-07-27-seo-baseline.md)）：
 > 新增 `/privacy`，涵蓋個資法第 8 條要求的告知事項，連結放在填寫資料那一步而非
@@ -137,9 +144,10 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 > `pnpm check:tokens` 與兩個 e2e（主題覆蓋率、版面重排）把這些釘住。
 > **這是地基不是風格**——視覺方向本身仍待負責人選定。
 
-## 目前可直接動工
+## Stage 0 已完成的施工基線
 
-全程限 local/Emulator/synthetic：
+下列項目全程限 local/Emulator/synthetic，並已通過 2026-07-24 Checkpoint A。它們
+是完成證據，不是目前待辦；目前工作位置是 Stage 1 owner decisions：
 
 1. 對齊 API contract、domain request 與目前核准的 synthetic 欄位。✅
    2026-07-23 完成 appointment command 與 server context mapping。
@@ -154,16 +162,19 @@ Emulator 驗證；尚無雲端後端、無 Authentication、無日曆連線、�
 6. 建立 worker correlation/metrics port 與 production CI skeleton。✅
    2026-07-23 完成；outbox trace context、低 cardinality metrics seam、
    tracked-secret check、high/critical dependency gate 與 dependency inventory
-   artifact 均已進 CI。正式 metrics backend、alerts、SBOM/SAST 與 runner 仍受
-   D-010 gate 約束。
+   artifact 均已進 CI。SBOM、授權政策與本機 SAST gate 已於 2026-07-24 補齊；
+   正式 metrics backend、alerts 與 runner 仍受 D-010 gate 約束。
 
-Booking route、cloud Firestore/Auth、Calendar projection、真實資料與 Terraform
-apply 仍依 D-001～D-011 對應 gate 保持關閉。
+Stage 1 可進行 owner answer／evidence／approval 登錄與既有 synthetic scope 的
+維護。Booking route、cloud Firestore/Auth、Calendar projection、真實資料與
+Terraform apply 仍依 D-001～D-011 對應 gate 保持關閉；D-006、D-010 明確阻擋
+Stage 2。
 
 ## 一、現在的實際位置
 
 | 面向 | 狀態 |
 | --- | --- |
+| Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006、D-010 阻擋 Stage 2** |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
@@ -175,26 +186,27 @@ apply 仍依 D-001～D-011 對應 gate 保持關閉。
 | 真實病患資料 | **未處理，且不得處理** |
 
 自動化把關：`corepack pnpm verify`（結構、UI 邊界、文件、格式、lint、型別與
-單元測試）與 `corepack pnpm test:rules`（Emulator）。兩者都在 CI 於每次 push
-與 PR 執行。
+單元測試）、`corepack pnpm test:rules`（Emulator）與 `corepack pnpm test:e2e`
+（打包後瀏覽器流程）。三者都在 CI 於每次 push 與 PR 執行。
 
-## 二、不需要任何核准就能做的事
+## 二、已完成的 local／synthetic 工作
 
-這些不碰真實資料、不碰雲端，可立即進行。**建議依序執行。**
+這些項目不碰真實資料、不碰雲端，已依序完成。以下保留原始問題與驗收目的，供
+維護與回歸使用。
 
 ### 1. outbox worker 的重試與死信（`apps/worker`）— ✅ 已完成 2026-07-21
 
-目前 `apps/worker` 只有 README。日曆整合的可靠性其實**不在日曆那一側，而在
-worker**：指數退避、最大重試次數、死信佇列、後台可見的待處理清單、人工補救。
-這些全部可以在本機用假的外部服務驗證，等 D-009 核准時只要換掉最後一哩。
+實作前 `apps/worker` 只有 README；本項已補齊租約、指數退避、最大重試、死信、
+補回與操作者可見的待處理流程，並在本機以假的外部服務驗證。正式 runner、
+trigger、metrics backend 與 alerts 仍等待 D-010，Calendar 接線另等待 D-009。
 
 驗收：外部服務連續失敗 N 次後進入死信；恢復後可安全補回；重試 100 次仍只產生
 一個事件。
 
 ### 2. 把改期、取消、到診、未到也納入交易路徑 — ✅ 已完成 2026-07-21
 
-階段 A 只做了「建立預約」。其餘四種狀態轉換同樣需要交易、冪等與 outbox，
-規則已存在於瀏覽器模組，移植即可。
+本項開始前，階段 A 只做了「建立預約」。其餘狀態轉換現已納入交易、冪等、
+audit 與 outbox，且由共用 domain planner 驗證；這段保留為歷史問題說明。
 
 ### 3. 收斂兩份規則 — ✅ 已完成（2026-07-22）
 
@@ -210,14 +222,16 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 - vendor 同步 + 雜湊防漂移（`check:sync`）納入 `verify` 與 CI。
 - 相對路徑載入而非 import map：後者是 inline script，會被 CSP 擋掉（實機發現）。
 
-無新依賴、`public/` 保留存檔即生效、Hosting 部署不變。bundler 能額外帶來的
-打包與 hashed 檔名屬於效能最佳化，與規則漂移無關，留到正式化階段評估。
+無新依賴、`public/` 保留存檔即生效、Hosting 部署不變。後續已決定不做 per-entry
+bundling：現行永久策略是每檔 minify、content hash、匯入路徑改寫與
+`modulepreload`，保留 `public/` 到 `dist/` 的逐檔可追查性。若要改成 bundle，
+必須以新決策重開，不能當作一般最佳化悄悄導入。
 
 ### 4. CI 與 ESLint — ✅ 已完成 2026-07-21
 
-`verify` 與 `test:rules` 目前全靠人工在本機執行。規劃書 §5.2 要求「PR 必須
-通過」，但沒有 CI 就沒有強制力。同時補 ESLint（目前只有格式化，沒有正確性
-檢查）。
+本項開始前，`verify` 與 `test:rules` 全靠人工在本機執行，且只有格式化、沒有
+ESLint 正確性檢查。現在 `verify`、Rules、Playwright E2E 與 supply-chain gates
+都由 GitHub Actions 執行；直接使用管理者 bypass 時仍須在推送前自行跑完整 gate。
 
 ### 5. 剩餘的 UI／UX 項目
 
@@ -259,22 +273,24 @@ worker**：指數退避、最大重試次數、死信佇列、後台可見的待
 仍未處理：
 
 - 預約清單無分頁
-- `Noto Sans TC` 未實際載入，需決定載入或移除。**2026-07-24 起，
-  `apps/web/performance-budget.json` 的字型預算是 0 KiB**，因此「載入」這個選項
-  會撞到效能 gate，必須連同重量一起決定，不能悄悄加上去。
 - 櫃台高頻操作的鍵盤快捷鍵
 - 螢幕閱讀器與高對比的**人工實測**（程序已備妥，見
   [人工無障礙測試 runbook](runbooks/manual-accessibility-test.md)，尚未執行）
 
 已完成（原列於「仍未處理」，2026-07-24 更新）：
 
-- ~~前端打包／雜湊／快取~~ ✅ `scripts/build-web.mjs` 產出內容雜湊的
-  `apps/web/dist`（雜湊資產 immutable、HTML no-store、CSP 未放寬），firebase
-  `public`→`dist`、`hosting.predeploy` 綁 `pnpm build`，E2E 亦跑在 dist 上。
-  Phase 1 的 `public/` 仍維持原生 ESM 供開發直接檢視（ADR-0004 取捨）。
+- ~~`Noto Sans TC` 載入決定~~ ✅ 2026-07-25 定案不載入任何中文字型；中文使用系統
+  字型，`apps/web/performance-budget.json` 的字型預算維持 0 KiB。
+- ~~前端逐檔 minify／雜湊／預載／快取~~ ✅ `scripts/build-web.mjs` 以 per-file
+  minify、content hash、匯入路徑改寫與 `modulepreload` 產出
+  `apps/web/dist`；雜湊資產 immutable，穩定 HTML 為 `no-cache`，CSP 未放寬。
+  firebase `public`→`dist`、`hosting.predeploy` 綁 `pnpm build`，E2E 亦跑在 dist
+  上。Phase 1 的 `public/` 仍維持原生 ESM 供開發直接檢視；per-entry bundling
+  已被拒絕，除非新決策重開。
 - ~~接上真後端前所有按鈕的 pending 狀態設計~~ ✅ 工作臺高頻與低頻治理指令
-  全走 `runUiAction`（pending/disabled/`aria-busy`／可重試）；`api-client` 注入
-  合成延遲，並把 HTTP status／offline／timeout 映射成對齊 v1 envelope 的錯誤。
+  全走 `runUiAction`（pending label、disabled、就地 status 與可重試）；按鈕不宣告
+  `aria-busy`。`api-client` 注入合成延遲，並把 HTTP status／offline／timeout
+  映射成對齊 v1 envelope 的錯誤。
 
 ### 6. 接日曆實測的技術前置 — 詳見[日曆整合計畫 §3.1](architecture/calendar-and-database-integration-plan.md)
 
@@ -306,9 +322,9 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
-| B | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-006、D-010 |
-| C | Stage B 上的 Google 日曆投影（專用測試日曆） | D-009，且 Stage B 完成 |
-| D | 公開預約與開始處理真實病患資料 | D-001～D-006、D-010、D-011 |
+| Stage 2（舊稱 B） | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-006、D-010 |
+| Stage 3（舊稱 C） | Stage 2 上的 Google 日曆投影（專用測試日曆） | D-009，且 Stage 2 完成 |
+| Stage 4（舊稱 D） | 公開預約與開始處理真實病患資料 | D-001～D-006、D-010、D-011 |
 
 三項決策的中文核准表已備妥，可直接交給診所填寫。
 
@@ -321,7 +337,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 | `robots` | `noindex, nofollow` | 患者端移除；工作臺維持 |
 | `og:url` / canonical | 指向 `beauessence.com.tw/booking` | 換成實際網域 |
 | `og:image` | `/og-booking.png` 已存在 | 正式網域驗證分享預覽與快取 |
-| Cache-Control | 全站 `no-store` | hashed 檔名 + 長期快取 |
+| Cache-Control | 穩定 HTML `no-cache`；內容雜湊資產 immutable | 正式網域再次驗證快取與回滾 |
 | 預覽頻道 | 七天到期 | 改為正式 Hosting，並建立回滾流程 |
 | 環境標示 | `ONLINE PREVIEW` | 移除 |
 | 資料保存告知 | 「只保存在本機瀏覽器」 | 依核准後的隱私政策改寫 |
@@ -338,23 +354,25 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 ✅ ① outbox 冪等鍵改為 base32hex（2026-07-22 完成）
 
-現在 ──► Stage 0：contract / application boundary / patient guard / audit v2
+✅ Stage 0：contract / application boundary / patient guard / audit v2
+              │
+現在 ──► Stage 1：owner decisions / governance approvals
               │
               ├── D-006 + D-010 核准
               ▼
-        Stage B：合成資料 Cloud Staging + 員工登入 + 正式 API
+        Stage 2：合成資料 Cloud Staging + 員工登入 + 正式 API
               │
               ├── D-009 核准
               ▼
-        Stage C：專用測試日曆投影
+        Stage 3：專用測試日曆投影
               │
               ├── D-001～D-006、D-010、D-011 核准
               ▼
-        Stage D：公開預約與真實資料
+        Stage 4：公開預約與真實資料
               │
               ├── D-007 + D-008 核准
               ▼
-        個管／薪資正式化 ──► Production Go/No-Go
+        Stage 5：個管／薪資正式化 ──► Stage 6 Production Go/No-Go
 ```
 
 ① 已完成：舊冪等鍵含底線、不符 Google 日曆的 base32hex 格式，直接用會被拒絕；
@@ -365,7 +383,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 ## 相關文件
 
-- [企業級上線前審查](reviews/2026-07-23-enterprise-production-readiness-review.md) — 目前評分、阻擋項與驗證證據
+- [企業級上線前審查](reviews/2026-07-23-enterprise-production-readiness-review.md) — 2026-07-23 的歷史評分、當時阻擋項與驗證證據
 - [正式環境目標架構](architecture/production-target-architecture-2026-07-23.md) — 保留與修改邊界、目標資料流、交易與資料模型
 - [正式化後續實作規劃](product/production-readiness-delivery-plan-2026-07-23.md) — Stage 0～6、決策 gate、驗收與重新評分點
 - [整合測試計畫](architecture/calendar-and-database-integration-plan.md) — 各階段的技術細節與驗收

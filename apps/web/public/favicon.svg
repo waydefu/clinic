@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Test only">
-  <rect width="64" height="64" rx="16" fill="#14532d"/>
-  <path d="M32 15v34M15 32h34" stroke="#ecfdf5" stroke-width="8" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="一森渼診所">
+  <rect width="64" height="64" rx="16" fill="#f4f1ea"/>
+  <path d="M18 7c2 17 8 26 20 36 6 5 6 10-2 16" fill="none" stroke="#72786f" stroke-width="4" stroke-linecap="round"/>
+  <path d="M17 40c10-1 18 3 21 12M19 40c3-7 7-11 12-14" fill="none" stroke="#72786f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M15 35c-5-1-8-4-9-9 6 0 10 3 11 8M24 32c-4-5-4-10-1-14 5 4 6 9 3 14M31 39c1-6 5-10 10-11 0 6-3 10-9 13M23 46c-6 1-11-1-14-5 6-2 11 0 14 4M31 50c-5 3-10 3-14 0 4-4 9-5 14-2" fill="#9bc7a4"/>
 </svg>

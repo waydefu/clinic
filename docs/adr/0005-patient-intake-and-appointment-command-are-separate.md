@@ -5,10 +5,12 @@
 
 ## 背景
 
-公開預約畫面目前在 synthetic-only 瀏覽器狀態中收集姓名、電話、生日、身分證與
-健保卡狀態；正式 domain `BookingRequest` 則只接受 opaque `patientId`。若把兩者
-直接合併成一個 API request，controller、通路 adapter 與 domain 會各自猜測如何
-建立或比對病患，也會讓未核准的個資欄位繞過 D-001～D-003、D-006 與 D-011。
+公開預約畫面目前在 synthetic-only 瀏覽器狀態中收集姓名、電話、生日（月日
+必填、年份選填）、身分證／居留證或護照、健保卡攜帶意向、患者備註，以及本次
+門診與來源標籤；正式 domain `BookingRequest` 則只接受 opaque `patientId`。若把
+兩者直接合併成一個 API request，controller、通路 adapter 與 domain 會各自猜測
+如何建立或比對病患，也會讓未核准的個資欄位繞過 D-001～D-003、D-006 與
+D-011。
 
 Stage 0 可以固定技術邊界，但不能替診所決定合法依據、必填欄位、本人驗證方法、
 重複病患處理、保存期限、角色權限或公開通路。

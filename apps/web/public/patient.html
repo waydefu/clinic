@@ -612,7 +612,7 @@
                     hidden
                   ></span>
                 </label>
-                <!-- P6（業主 2026-07-27）：告知改為一行勾選＋行內入口。
+                <!-- P6（業主 2026-07-27）：告知改為一行閱讀確認＋行內入口。
                      業主要的是「不要把打電話刪資料寫得太突出」——**呈現**可以
                      低調，內容不行：個資法第 8 條要求蒐集前告知蒐集者、目的、
                      類別、期間地區對象方式、當事人權利**及行使方式**與不提供
@@ -620,19 +620,21 @@
                      policy-dialog 就地取回），不是另一份摘要——兩份文件必然漂移。
                      它是真的 <a href="/privacy">：沒有 JavaScript 時仍是一條
                      走得到告知的路；有 JavaScript 時才攔下來就地展開，不必放棄
-                     填到一半的表單。風險由資料控制者（診所）承擔，已記入決策紀錄。 -->
+                     填到一半的表單。D-003 尚未核准，而且目前不保存政策版本、
+                     顯示時間或接受紀錄，所以這只能叫測試用閱讀 gate，不能稱為
+                     正式同意或告知證據。 -->
                 <label class="consent-preview consent-inline"
                   ><input
                     id="privacy-consent"
                     type="checkbox"
                     aria-describedby="privacy-consent-error"
                   /><span
-                    >我已閱讀並同意<a
+                    >我已閱讀<a
                       id="open-privacy-policy"
                       class="inline-policy-link"
                       href="/privacy"
-                      >個人資料蒐集告知</a
-                    >，同意診所依其中所述目的蒐集與使用我的個人資料。
+                      >個人資料蒐集告知草稿</a
+                    >，並了解這是測試用閱讀確認，不會建立正式同意紀錄。
                     <span
                       id="privacy-consent-error"
                       class="field-error"

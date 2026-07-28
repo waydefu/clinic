@@ -22,8 +22,8 @@
       "entry": "privacy.html",
       "audience": "public",
       "indexable": true,
-      "scans": ["axe", "affordance"],
-      "note": "個資法第 8 條的告知頁。刻意零指令碼、零字型，因此不進 responsive 矩陣（它沒有任何會重排的元件），但仍要掃 axe 與可點擊性。"
+      "scans": ["axe", "responsive", "affordance"],
+      "note": "個資法第 8 條的告知草稿頁。即使零指令碼、零字型，長篇法務文字與定義清單仍須通過 320px～桌面寬度的 reflow 掃描。"
     },
     {
       "route": "/clinic",
