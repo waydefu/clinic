@@ -3,7 +3,8 @@
 狀態：Proposed  
 日期：2026-07-23  
 進度註記：Stage 0／Checkpoint A 已於 2026-07-24 完成；目前為 Stage 1 owner
-decisions，D-006 與 D-010 阻擋 Stage 2 cloud staging。
+decisions。D-010 target architecture/SLO 已於 2026-07-28 核准；D-006 仍阻擋
+Stage 2 cloud staging，且尚未建立任何 cloud 資源或復原證據。
 
 適用範圍：一森渼診所預約平台從合成 preview 過渡至 staging 與 production  
 配套規劃：[正式化後續實作規劃書](../product/production-readiness-delivery-plan-2026-07-23.md)
@@ -227,7 +228,8 @@ patient identity、case assignment、workspace governance 仍以 browser module
    contract 亦已建立；synthetic workbench adapter 仍是 browser-local，merge review
    與 production mapping 受 D-006/D-007 gate。
 4. workspace governance 仍只服務 synthetic browser；正式角色、resource scope、
-   route 與 persistence 必須等待 D-006/D-010，不得把 UI 模擬當正式授權。
+   route 與 persistence 必須等待 D-006 與受審查的 Stage 2 change plan，不得把
+   D-010 target 核准或 UI 模擬當成部署／正式授權。
 
 ### ARCH-06：preview 的 raw identity key 不得移植至 production
 
@@ -274,7 +276,8 @@ trigger/scheduler、queue SLO、trace、alert 與正式 service identity。retry
   labels 不含 appointment/patient/trace ID，adapter 故障不改變 delivery；
 - full-jitter design 固定為 `uniform(0, min(cap, base × 2^(attempt-1)))`。目前純
   domain 仍採 deterministic backoff；random source、runner、metrics backend、
-  queue aggregation、alerts 與 service identity 等 D-010/Stage 3 核准後接線。
+  queue aggregation、alerts 與 service identity 依已核准的 D-010 target 在
+  Stage 2／3 change plan 中接線。
 
 ### ARCH-08：production infrastructure 尚未形成 executable architecture
 
@@ -292,7 +295,9 @@ trigger/scheduler、queue SLO、trace、alert 與正式 service identity。retry
 - deployment identity、approval、rollback；
 - tfstate 使用受控 remote backend，不進 repository。
 
-具體 project、region、runtime、owner 與 cost policy 由 D-010 核准。
+D-010 已核准診所擁有權、`asia-east1` primary region 與 RPO 1 小時／RTO 4 小時
+target；具體 project ID、跨 project／region 復原、runtime、alert owner 與 cost
+policy 必須在 Stage 2 change plan 中落實與驗證。
 
 ### ARCH-09：production Web 與 CI gate
 

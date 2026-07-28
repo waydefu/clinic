@@ -3,7 +3,8 @@
 狀態：Proposed  
 日期：2026-07-23  
 目前 checkpoint：Stage 0／Checkpoint A 已於 2026-07-24 通過；目前進行 Stage 1
-owner decisions，D-006 與 D-010 仍阻擋 Stage 2。
+owner decisions。D-010 target architecture/SLO 已於 2026-07-28 核准；D-006 仍
+阻擋 Stage 2，且 D-010 核准不等於已有部署或復原證據。
 
 架構依據：[正式環境目標架構書](../architecture/production-target-architecture-2026-07-23.md)  
 決策依據：[Phase 1 決策登錄](phase-1-decision-register.md)
@@ -62,8 +63,8 @@ staging 與 production 候選。它不自行核准 D-001～D-011，也不授權�
 | 3 | patient active-booking guard | **已完成**明確 document contention 與跨 slot Emulator race | 維持 guard transaction regression |
 | 4 | 擴充 audit schema | **audit v2 與 transaction assertions 已完成**；retention/access/export 仍待 D-002/D-006 | production append-only persistence + approved operations |
 | 5 | domain 化 schedule/patient/case rules | 核心 planners 已進 domain；synthetic adapters 仍 browser-local，merge／正式 mapping 受 gate | 決策後接 application/repository adapters |
-| 6 | worker runner/observability | processor、trace/metrics ports 與 plan 已有；production trigger、backend、alerts、identity 未接 | D-010 後接 runner；D-009 後接 test Calendar |
-| 7 | IaC 與環境隔離 | 目前只有 plan／README，沒有可重現 staging/production | D-010 後建立 reviewed Terraform modules |
+| 6 | worker runner/observability | processor、trace/metrics ports 與 plan 已有；production trigger、backend、alerts、identity 未接 | 依已核准 D-010 target 完成 change review 後接 runner；D-009 後接 test Calendar |
+| 7 | IaC 與環境隔離 | 目前只有 plan／README，沒有可重現 staging/production | 依已核准 D-010 target 建立並審查 Terraform modules |
 | 8 | production quality evidence | Playwright、axe、performance、SBOM、license、SAST 已自動化；尚缺 connected-cloud、人工 a11y 與 ops 演練 | environment-bound evidence + owner sign-off |
 
 ## 3. 階段與 Gate
@@ -108,7 +109,7 @@ staging 與 production 候選。它不自行核准 D-001～D-011，也不授權�
 
 | Gate | 決策 | 解除的工作 |
 | --- | --- | --- |
-| B | D-006、D-010 | cloud staging、staff login、IAM、backup/monitoring |
+| B | D-006＋Stage 2 change review（D-010 target 已核准） | cloud staging、staff login、IAM、backup/monitoring |
 | C | D-009 | 專用 test Calendar integration |
 | D | D-001～D-005、D-011 | public booking 與真實患者資料 |
 | E | D-007、D-008 | case assignment 與 payroll persistence |
@@ -123,7 +124,7 @@ staging 與 production 候選。它不自行核准 D-001～D-011，也不授權�
 
 ### Stage 2：合成資料 Cloud Staging
 
-前置：D-006、D-010 approved。  
+前置：D-006 approved，並依已核准的 D-010 target 完成 Stage 2 change review。
 建議工期：2～3 個工程週。
 
 工作：
@@ -326,9 +327,10 @@ owner；決策能及時完成：
 - [x] repository ports/adapters（2026-07-23 local/Emulator）
 - [x] idempotency scope + request hash（2026-07-23 local/Emulator）
 - [x] rate limit/anti-automation（2026-07-24；`FixedWindowRateLimiter` 介面＋
-      per-key 固定視窗、可注入時鐘，丟 `RATE_LIMITED`。生產共享儲存受 D-010 gate）
+      per-key 固定視窗、可注入時鐘，丟 `RATE_LIMITED`。生產共享儲存須依已核准
+      D-010 target 完成 Stage 2 change review）
 - [x] maintenance gate（2026-07-24；`StaticMaintenanceGate` 丟 `SERVICE_UNAVAILABLE`；
-      生產共享旗標受 D-010 gate）
+      生產共享旗標須依已核准 D-010 target 完成 Stage 2 change review）
 - [x] safe error/correlation mapping（2026-07-24；`platform/errors/api-error.ts`
       集中式 domain/Zod/platform error → v1 envelope，固定安全訊息不洩漏 domain
       訊息／stack／識別碼，correlationId 非不透明即以 `unknown` 取代；
@@ -348,7 +350,8 @@ owner；決策能及時完成：
 
 下列未勾選項目的**設計已於 2026-07-24 定案**（plan-only，見
 [worker 執行與對帳計畫](../architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md)）；
-勾選要等實際接線，受 D-009／D-010 gate。
+勾選要等實際接線；runner 與監控須依已核准 D-010 target 完成變更審查，
+Calendar 接線另受 D-009 gate。
 
 - [ ] trigger/scheduler — 設計：Cloud Scheduler 每分鐘拉取、批次 20、租約 120 秒、單實例
 - [ ] runtime jitter（Stage 0 full-jitter design 已固定）
@@ -365,7 +368,8 @@ owner；決策能及時完成：
 [基礎設施與維運計畫](../architecture/infrastructure-and-operations-plan-2026-07-24.md)、
 [備份與還原 runbook](../runbooks/backup-and-restore.md)、
 [事故應變 runbook](../runbooks/incident-response.md)）；
-勾選要等實際建立資源，受 D-010 gate。**沒有執行任何 `terraform apply`。**
+勾選要等依已核准 D-010 target 完成 Stage 2 change review 並實際建立資源。
+**沒有執行任何 `terraform apply`。**
 
 - [ ] environment modules — 設計：三個分離 project、modules/environments 佈局、remote state、plan/apply 分離
 - [ ] service accounts/IAM — 設計：api/worker/deployer/terraform 四個帳號分離，禁 owner/editor，CI 走 Workload Identity Federation
@@ -417,7 +421,7 @@ owner；決策能及時完成：
       CodeQL workflow 已寫，repository 也已有 GitHub remote；workflow 會隨
       push／pull request／排程執行，但目前文件證據仍不能確認此私有 repository
       的 code-scanning upload／Security 頁面權限是否成功。該遠端結果與所需方案
-      必須在 D-010／上線證據包中驗證，不得再把「缺 remote」列為原因）
+      必須在 Stage 2／上線證據包中驗證，不得再把「缺 remote」列為原因）
   - 2026-07-24 外部複查（P2）修正：授權例外原本只以套件名稱查找，套件升版、
     授權內容改變、甚至由 dev 相依變成 runtime 相依都會被自動放行——而那正是稽核
     最需要重看一眼的時刻。例外現在綁完整 purl（含版本）＋預期授權字串＋預期
@@ -476,7 +480,8 @@ owner；決策能及時完成：
 ## 9. 接下來十個動作
 
 1. 把本規劃與目標架構交由 technical owner 確認。
-2. 建立 D-006/D-010 決策會議，D-001～D-005/D-011 並行準備。
+2. 完成 D-006 的 MFA／session／稽核刪除邊界；D-010 已核准 target，
+   D-001～D-005/D-011 並行準備。
 3. ✅ 建立 command/response/error contract inventory
    （2026-07-24；未核准 commands 只列 inventory，不建立 route）。
 4. ✅ 建立 patient identity boundary ADR
@@ -491,5 +496,5 @@ owner；決策能及時完成：
    文件化；仍是 plan-only，未 apply。
 9. ✅ E2E／axe／performance／supply-chain／SAST CI gates 已建立；人工 a11y 與
    connected-cloud evidence 尚未執行。
-10. ✅ Checkpoint A 已於 2026-07-24 通過；現在先完成 Stage 1，且 D-006、D-010
-    都核准後才能決定 Stage 2 開始日期。
+10. ✅ Checkpoint A 已於 2026-07-24 通過；D-010 target 已於 2026-07-28 核准。
+    D-006 核准且 Stage 2 change plan 完成審查後，才能決定 Stage 2 開始日期。

@@ -19,7 +19,8 @@ worker 消費 `outbox_jobs`，把預約投影到外部日曆。三件事刻意�
 
 外部日曆以 `CalendarPort` 介面隔離；本機預設使用 `InMemoryCalendar`。Google
 client 已有可測試 adapter，但沒有憑證時不會對外呼叫；部署 runner、trigger 與
-真實 Calendar 仍受 D-009/D-010 gate 約束。
+真實 Calendar 仍須依已核准的 D-010 target 完成 Stage 2 change review，並受
+D-009 Calendar 核准 gate 約束。
 
 每筆 job 都帶 opaque `correlationId` 與 `causationId`。processor 在任何外部呼叫
 前驗證兩者，再傳給 port 作 trace context；Google event payload 明確排除這兩個

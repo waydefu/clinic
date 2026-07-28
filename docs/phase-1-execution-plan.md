@@ -16,8 +16,9 @@ Stage 0 of the
 using the boundaries in the
 [production target architecture](architecture/production-target-architecture-2026-07-23.md),
 completed Checkpoint A on 2026-07-24. The active gate is now Stage 1 owner
-decisions and governance approval. D-006 and D-010 must both be approved before
-Stage 2 cloud staging. This status does not itself change D-001～D-011.
+decisions and governance approval. D-010 target architecture/SLO was approved
+on 2026-07-28; D-006 still blocks Stage 2 cloud staging. The target approval is
+not deployment authority and does not itself create any cloud resource.
 
 ## Workstreams
 
@@ -46,7 +47,7 @@ Stage 2 cloud staging. This status does not itself change D-001～D-011.
   Emulator evidence without enabling a route.
 - Prepare decision packets, record named-owner evidence and keep plan-only
   Stage 2 designs current. No cloud resource may be created or applied while
-  D-006 or D-010 remains pending.
+  D-006 remains pending or before a separately reviewed Stage 2 change plan.
 - Deploy the documented static synthetic site to the expiring
   `synthetic-review` channel of `beauessence-clinic-staging`; it must use only
   browser-local synthetic state and follow the online-preview runbook.
@@ -91,7 +92,8 @@ The project is in Stage 1, the decision-and-governance portion of Phase 1. Stage
 alignment, application-boundary interfaces, `patient_booking_guards`, audit v2
 and synthetic tests have executable evidence. No booking write endpoint may be
 enabled until every relevant blocking decision is approved, and D-006 plus
-D-010 explicitly block Stage 2 cloud staging.
+D-010 are Stage 2 prerequisites. D-010 is now approved as a target; D-006 still
+blocks Stage 2 cloud staging.
 The test-only profile may exercise pure local domain transitions with synthetic
 IDs, including its documented synthetic manager-workload aggregation, but it
 is not a route, assignment rule, compensation policy or production capability.

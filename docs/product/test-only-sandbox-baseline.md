@@ -5,8 +5,10 @@ formal approvals remain blank.
 
 **Status:** Local synthetic-test profile only. It is not a clinic policy,
 privacy policy, service catalogue, compensation rule, operating procedure or
-production approval. D-001 through D-011 remain `pending` in the decision
-register.
+production approval. D-010 target architecture/SLO was approved on 2026-07-28;
+the remaining D-001 through D-009 and D-011 decisions keep their current status
+in the decision register. This sandbox still receives no new Cloud authority
+from the D-010 target approval.
 
 ## Hard boundaries
 

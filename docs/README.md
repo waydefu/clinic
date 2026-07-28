@@ -34,7 +34,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Phase 1 decision register](product/phase-1-decision-register.md) — the live status of every decision
 - [2026-07-27 owner request batch](product/2026-07-27-owner-request-batch.md) — the 19 owner requests of 2026-07-27 turned into scoped items, the decisions already taken, the paper intake form they map onto, and a batched execution sheet
 - [Phase 1 Chinese approval checklist](product/phase-1-chinese-approval-checklist.md) — D-001…D-006, D-011 in the clinic's working language
-- [Stage B/C approval request](product/stage-b-c-approval-request.md) — D-006, D-010 and D-009 consolidated into one sheet, being the only decisions that block cloud Firestore and the Calendar projection
+- [Stage B/C approval request](product/stage-b-c-approval-request.md) — D-006, D-010 and D-009 consolidated into one sheet; D-010 target is approved, D-006 still blocks cloud staging and D-009 blocks the Calendar projection
 - [Appointment operations approval packet](product/phase-1-appointment-operations-approval-packet.md) — service catalogue, slots, cancellation and no-show policy
 - [Case management and payroll approval packet](product/phase-1-case-management-payroll-approval-packet.md) — D-007, D-008 assignment and compensation basis
 - [Integration and launch approval packet](product/phase-1-integration-launch-approval-packet.md) — D-009…D-011 Calendar, social channels and launch

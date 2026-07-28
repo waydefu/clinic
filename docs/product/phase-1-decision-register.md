@@ -5,22 +5,24 @@ only after the named clinic owner records the answer and approval date. Do not
 infer an answer from an existing website, social message or Calendar event.
 
 Current delivery position: Stage 0／Checkpoint A passed on 2026-07-24. The
-project is now at Stage 1 owner decisions. D-006 and D-010 remain `pending` and
-therefore block Stage 2 cloud staging; recorded questionnaire answers do not
-change that status without the named approval evidence.
+project is now at Stage 1 owner decisions. D-010 infrastructure ownership,
+region and resilience targets were approved on 2026-07-28; D-006 remains
+`pending` and therefore still blocks Stage 2 cloud staging. D-010 approval
+defines the required target and does not itself create a project, deploy a
+backend or prove that the RPO/RTO has been achieved.
 
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |
 | D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending | Published privacy policy |
 | D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending | Collecting patient data |
 | D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending | Privacy acceptance or public booking |
-| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending | Slot reservation |
+| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (hours and multi-service direction recorded 2026-07-28) | Slot reservation |
 | D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending | Cancellation route or notice |
-| D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | pending | Authenticated write endpoint |
+| D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | pending (direction confirmed; controls/retention clarification incomplete) | Authenticated write endpoint |
 | D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending | Payroll-credit persistence |
 | D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending | Calendar integration review |
-| D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | pending | Cloud deployment |
+| D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
 | D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending | Public booking UX |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
@@ -41,10 +43,11 @@ the name 一森渼診所, address 臺北市松山區光復北路 112 號 2 樓, 
 **Mon–Fri 11:00–20:00 and Sat 11:00–16:00**. That conflicts with the recorded
 owner answer and current synthetic code, which use **Wed–Fri 12:00–20:00 and
 Sat 10:00–18:00**, closed Sun/Mon/Tue. The earlier claim that the official
-schedule belonged to a different clinic was incorrect. Treat the owner answer
-as synthetic build direction only; D-004 remains pending until the clinic
-operations owner confirms which schedule is current and whether the official
-site needs correction. **No public email address was found**, which is why the
+schedule belonged to a different clinic was incorrect. On 2026-07-28 the
+project owner selected the latter schedule as the formal operating direction;
+the official site is now the stale surface that must be corrected. D-004 still
+needs executable duration/capacity/resource answers before the whole decision
+can be approved. **No public email address was found**, which is why the
 temporary privacy-contact input below uses the clinic phone.
 
 - **D-001/D-003 privacy contact: the clinic phone, for now.** Recorded as
@@ -59,19 +62,26 @@ temporary privacy-contact input below uses the clinic phone.
   plan)**, with the final scope agreed with the patient at the visit. One patient
   per slot. Booking horizon 60 days (provisional). Closed days follow the
   published hours plus national holidays.
-- **D-004 booking multiplicity is unresolved.** The current browser prototype
-  allows multiple `itemIds`, while the executable API contract/domain accepts
-  one `serviceId`/`itemId`. The operations owner must approve whether one
-  appointment contains exactly one or multiple services before the routed
-  contract, persistence and idempotency model are changed.
+- **D-004 booking multiplicity: multiple services are allowed in one formal
+  appointment** (owner answer, 2026-07-28). The browser already uses multiple
+  `itemIds`, while the executable API contract/domain still accepts one
+  `serviceId`/`itemId`; the routed contract, persistence and idempotency model
+  must move together. The duration answer is not executable yet: 止鼾 is a
+  40–60 minute range and 醫美 follows treatment progress, so combined duration,
+  overlap and capacity rules still need one exact answer.
 - **D-005: patients may cancel up to 24 hours before**; after that it is a phone
   call. No-shows are recorded, not charged.
 - **D-006: Google sign-in plus a self-hosted account option** (the clinic has no
   Google Workspace yet). Roles gain **醫師** alongside administrator and front
   desk. Completing a visit stays with front desk and administrators. **Deleting
   a booking may be delegated to the front desk behind a password the
-  administrator sets — multiple passwords, each switchable on or off.** Audit
-  retention five years.
+  administrator sets — multiple passwords, each switchable on or off.** The
+  owner confirmed this direction on 2026-07-28 and replaced the earlier
+  five-year audit candidate with “unlimited; administrator self-deletes.” That
+  phrase is not yet executable: it must clarify whether administrators delete
+  appointment records while audit remains append-only, or may delete audit
+  evidence itself. Staff MFA and session limits also remain unanswered, so
+  D-006 stays `pending`.
 - **D-007/D-008: make the authority configurable rather than fixed.** Front desk
   and administrators may both assign a case manager; only administrators may
   reassign; both capabilities need an on/off switch in account management. The
@@ -79,8 +89,13 @@ temporary privacy-contact input below uses the clinic phone.
   changes after a period is locked.
 - **D-009: the clinic's shared calendar in production, a dedicated test calendar
   for now.** Event contents stay minimal (clinic, booking type, time).
-- **D-010: the administrator and the developer own the Cloud project.** RPO one
-  hour, RTO four hours. Incident contact: wayde.fu@gmail.com / 0983317651.
+- **D-010 approved target (2026-07-28):** the clinic is the legal and billing
+  owner of Cloud projects; administrator and developer roles hold governed IAM
+  access; the primary region is `asia-east1`; RPO is one hour and RTO is four
+  hours, including whole-project and regional failures. Incident contact:
+  wayde.fu@gmail.com / 0983317651. This approval requires the Stage 2 design to
+  close the current single-region/cross-project recovery gap; it is not evidence
+  that backups, failover, alerts or a restore drill already exist.
 - **D-011: an English version is required** (Beau Essence Clinic), and a phone
   number must stay visible for people who do not book online.
 
@@ -128,7 +143,7 @@ costs several hundred kilobytes against a 58 KB page, and the cost lands hardest
 on a phone outside on mobile data. Typography keeps using the system stack, and
 `tests/e2e/theme.spec.ts` already pins "not a single font file is downloaded".
 
-### Opening hours conflict discovered - updated 2026-07-28
+### Opening hours selected; official site correction required - 2026-07-28
 
 The obsolete **20:30** synthetic closing time was correctly removed after the
 owner confirmed a 20:00 weekday close. The current `defaultSchedule`,
@@ -136,11 +151,27 @@ structured data and clinic prose use Wed–Fri 12:00–20:00 and Sat
 10:00–18:00; Wednesday generates 13 初診 / 12 回診 slots (last starts 19:30
 and 19:15).
 
-However, the clinic's official reservations page was re-checked on 2026-07-28
-and currently publishes Mon–Fri 11:00–20:00 and Sat 11:00–16:00. Therefore the
-synthetic schedule is not production authority. D-004 must resolve the weekly
-days, start/end times and whether the website or prototype should be updated.
-Any `20:30` value remains stale under either candidate schedule.
+The clinic's official reservations page was re-checked on 2026-07-28 and still
+publishes Mon–Fri 11:00–20:00 and Sat 11:00–16:00. The owner then selected
+**Wed–Fri 12:00–20:00 and Sat 10:00–18:00** as the formal operating schedule.
+The repository already matches that answer; the official site must be corrected
+through its own controlled content process. D-004 remains pending only for the
+remaining executable service-duration, combined-capacity, resource, horizon and
+blackout details. Any `20:30` value remains stale.
+
+### D-010 infrastructure and resilience target approved - 2026-07-28
+
+The owner approved the clinic as legal/billing owner of the Cloud projects,
+governed IAM access for administrator and developer roles, `asia-east1` as the
+primary region, and RPO one hour／RTO four hours for database, whole-project and
+regional failures.
+
+This is a **target approval, not implementation evidence**. The current plan is
+single-region, no cloud project/backend has been created, and no cross-project
+or cross-region restore has been exercised. Stage 2 must produce a reviewed
+change plan that identifies separated environments, least-privilege roles,
+alert recipients, backup/failover mechanisms, cost and a drill capable of
+demonstrating the target. D-006 still blocks the start of Stage 2.
 
 The drift check that caught the prose copies did **not** cover the JSON-LD
 numbers, because those use `"opens"/"closes"` rather than the `12:00–20:00`
@@ -405,8 +436,8 @@ must not be used as the current field list or matching-key definition.
 The bullets below preserve the 2026-07-20 research/input record. The clinic
 phone remains the temporary privacy-contact input, but the 2026-07-28 re-check
 shows that the official hours in this historical block still appear on the
-clinic's own site and conflict with the synthetic build direction. D-004 must
-resolve the schedule; D-001 remains `pending`.
+clinic's own site. The owner selected the repository schedule later on
+2026-07-28, so the official site now needs correction. D-001 remains `pending`.
 
 - Clinic name supplied by the project owner: 一森渼診所
 - Address supplied by the project owner: 10560臺北市松山區復勢里光復北路112號2樓

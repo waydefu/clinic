@@ -9,7 +9,8 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 尚無雲端後端、無 Authentication、無日曆連線、無真實病患資料。
 
 > **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
-> 2026-07-24 完成；D-006 與 D-010 兩者都核准後，才能進 Stage 2 cloud staging。
+> 2026-07-24 完成；D-010 target 已於 2026-07-28 核准，D-006 仍阻擋 Stage 2
+> cloud staging。D-010 核准不等於已有部署或復原證據。
 > 詳細順序與 gate 以
 > [正式化後續實作規劃書](product/production-readiness-delivery-plan-2026-07-23.md)
 > 為準；技術邊界以
@@ -161,18 +162,19 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
    2026-07-23 完成；outbox trace context、低 cardinality metrics seam、
    tracked-secret check、high/critical dependency gate 與 dependency inventory
    artifact 均已進 CI。SBOM、授權政策與本機 SAST gate 已於 2026-07-24 補齊；
-   正式 metrics backend、alerts 與 runner 仍受 D-010 gate 約束。
+   正式 metrics backend、alerts 與 runner 須依已核准的 D-010 target 完成 Stage 2
+   change review、建立與驗證。
 
 Stage 1 可進行 owner answer／evidence／approval 登錄與既有 synthetic scope 的
 維護。Booking route、cloud Firestore/Auth、Calendar projection、真實資料與
-Terraform apply 仍依 D-001～D-011 對應 gate 保持關閉；D-006、D-010 明確阻擋
-Stage 2。
+Terraform apply 仍依 D-001～D-011 對應 gate 保持關閉；D-010 target 已核准，
+D-006 與 Stage 2 change review 仍阻擋實際 cloud staging。
 
 ## 一、現在的實際位置
 
 | 面向 | 狀態 |
 | --- | --- |
-| Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006、D-010 阻擋 Stage 2** |
+| Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-010 target 已核准，D-006 仍阻擋 Stage 2** |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
@@ -196,7 +198,8 @@ Stage 2。
 
 實作前 `apps/worker` 只有 README；本項已補齊租約、指數退避、最大重試、死信、
 補回與操作者可見的待處理流程，並在本機以假的外部服務驗證。正式 runner、
-trigger、metrics backend 與 alerts 仍等待 D-010，Calendar 接線另等待 D-009。
+trigger、metrics backend 與 alerts 須依已核准 D-010 target 完成 Stage 2 change
+review，Calendar 接線另等待 D-009。
 
 驗收：外部服務連續失敗 N 次後進入死信；恢復後可安全補回；重試 100 次仍只產生
 一個事件。
@@ -320,7 +323,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
-| Stage 2（舊稱 B） | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-006、D-010 |
+| Stage 2（舊稱 B） | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-010 target 已核准；仍需 D-006＋change review |
 | Stage 3（舊稱 C） | Stage 2 上的 Google 日曆投影（專用測試日曆） | D-009，且 Stage 2 完成 |
 | Stage 4（舊稱 D） | 公開預約與開始處理真實病患資料 | D-001～D-006、D-010、D-011 |
 
@@ -356,7 +359,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
               │
 現在 ──► Stage 1：owner decisions / governance approvals
               │
-              ├── D-006 + D-010 核准
+              ├── D-010 ✅；D-006 + change review
               ▼
         Stage 2：合成資料 Cloud Staging + 員工登入 + 正式 API
               │

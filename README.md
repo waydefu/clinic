@@ -37,9 +37,10 @@ The active technical baseline is the
 plus the
 [production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md).
 Stage 0 architecture hardening and Checkpoint A are complete. The current gate
-is Stage 1 owner decisions and governance approval. D-006 and D-010 must both
-be approved before Stage 2 cloud staging; the existing local, synthetic-only
-implementation may be maintained but does not authorise a route or cloud
+is Stage 1 owner decisions and governance approval. D-010 target
+architecture/SLO was approved on 2026-07-28; D-006 still blocks Stage 2 cloud
+staging. The D-010 answer does not itself authorise deployment, and the existing
+local, synthetic-only implementation does not authorise a route or cloud
 backend.
 
 ## Clinic website integration — 2026-07-27
@@ -65,7 +66,8 @@ reproducible reference is the
 ten named desktop/mobile screenshots with a hash manifest, fixed synthetic
 state and a documented capture environment. It confirms Stage 0/Checkpoint A
 has passed, Stage 1 owner decisions are current, `/v1/health` remains the only
-routed API controller, and D-006 plus D-010 still block Stage 2.
+routed API controller, and D-006 still blocks Stage 2 after D-010 target
+approval.
 
 At 2026-07-28 17:18 Asia/Taipei, the deployed preview routes `/`, `/booking`,
 `/privacy` and `/clinic` all returned HTTP 200 with stable HTML set to
@@ -182,8 +184,9 @@ Stage 0 completed contract/domain alignment, the API application-boundary
 skeleton, the explicit patient booking guard, audit v2 and synthetic Emulator
 tests; Checkpoint A passed on 2026-07-24. The project is now at Stage 1, where
 named owners must approve or defer the recorded policy and governance inputs.
-D-006 and D-010 remain pending and therefore block Stage 2 cloud staging. None
-of this changes a decision status or enables a route.
+D-010 target architecture/SLO is approved; D-006 remains pending and therefore
+still blocks Stage 2 cloud staging. None of this enables a route or authorises
+a cloud deployment.
 
 The write path is built and proven, but **not routed**: reservation, all five
 transitions, reschedule, idempotency, audit, outbox and the retry/dead-letter

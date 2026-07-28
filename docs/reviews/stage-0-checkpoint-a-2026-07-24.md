@@ -1,5 +1,11 @@
 # Stage 0 Checkpoint A 架構複查
 
+> **文件生命週期註記（2026-07-28）：** 本文保留 2026-07-24 Checkpoint A
+> 當時的決策狀態作為歷史證據。其後 D-010 target architecture/SLO 已核准，
+> D-004 已確認部分營運方向；現行狀態以
+> [決策登錄](../product/phase-1-decision-register.md) 與
+> [roadmap](../roadmap.md) 為準。
+
 - 複查日期：2026-07-24（Asia/Taipei）
 - 實作範圍：`c5e0ac9`、`823d47c`、`429cbd0` 與本複查所補的 contract/ADR 證據
 - 前次基準：[2026-07-23 企業級上線前審查](2026-07-23-enterprise-production-readiness-review.md)

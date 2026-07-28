@@ -7,6 +7,9 @@
 不新增任何政策；填寫後請同步登錄
 [決策登錄](phase-1-decision-register.md)。
 
+**2026-07-28 更新：** D-010 target architecture/SLO 已核准；D-006 仍待 MFA、
+session 與 audit deletion 邊界，D-009 仍待核准。本文件因此尚未整體完成。
+
 **現行階段對照（2026-07-28）：** 本文件沿用早期 A／B／C／D 名稱；A 已併入並
 完成於 Stage 0，B 對應 Stage 2 cloud staging，C 對應 Stage 3 專用測試日曆，
 D 對應 Stage 4 真實資料。專案目前在 Stage 1 owner decisions。
@@ -16,7 +19,7 @@ D 對應 Stage 4 真實資料。專案目前在 Stage 1 owner decisions。
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
 | A | 本機 Emulator 的交易、冪等、outbox | 無 — **已於 2026-07-21 完成** |
-| **B** | staging 雲端 Firestore + 員工登入（仍為測試資料） | **D-006、D-010** |
+| **B** | staging 雲端 Firestore + 員工登入（仍為測試資料） | **D-010 target 已核准；仍待 D-006＋change review** |
 | **C** | Google 日曆投影（專用測試日曆） | **D-009** |
 | D | 開始處理真實病患資料 | D-001～D-005、D-011（本文件不涵蓋） |
 
@@ -56,24 +59,28 @@ provider、MFA、session、角色矩陣與委派控制。
 
 ## D-010｜Firebase、環境與維運責任
 
+**決策狀態：target architecture/SLO 已於 2026-07-28 核准；尚未部署或驗證。**
+
 **核准責任人：** 技術負責人＋資安負責人（所有權部分由診所負責人）
 **為什麼擋住階段 B：** 這決定資料放哪裡、誰有權限、壞掉怎麼救。
 
 | 項目 | 核准答案 | 核准者 |
 | --- | --- | --- |
-| 環境分離 | `dev / staging / production；各自獨立帳務與資料` | |
-| Firebase／Google Cloud 所有權 | `[法人／持有角色；不可填帳密]` | |
-| Firestore 資料位置與跨境評估 | `[記錄輸入：asia-east1；待隱私／資安核准]` | |
+| 環境分離 | `✅ dev / staging / production；各自獨立帳務與資料；實際 project ID 待 Stage 2 change plan` | `業主 2026-07-28` |
+| Firebase／Google Cloud 所有權 | `✅ 診所為法定／帳務擁有者；管理者＋開發者持受治理 IAM，不得填入帳密` | `業主 2026-07-28` |
+| Firestore 資料位置與跨境評估 | `✅ primary region asia-east1；正式資料仍需 D-002` | `業主 2026-07-28` |
 | IAM 與管理者帳號 | `[最小角色、MFA、定期覆核]` | |
 | 服務帳號、Secret Manager 與輪替 | `[最小權限與輪替流程]` | |
-| 備份、還原演練與保存 | `[記錄輸入：RPO 1 小時／RTO 4 小時；待頻率、責任人與核准證據]` | |
+| 備份、還原演練與保存 | `✅ target RPO 1 小時／RTO 4 小時，適用 database、whole-project、regional failure；待實作與演練證據` | `業主 2026-07-28` |
 | 日誌、監控、告警與值班 | `[範圍、接收者、升級流程]` | |
 | 個資事件應變與對外聯繫 | `[runbook、聯絡角色、法律覆核]` | |
 | IaC、部署與回滾核准 | `[CI/CD、變更審核、回滾擁有者]` | |
 
-2026-07-27 已記錄但尚未核准的候選值：`asia-east1`、管理者與開發者共同持有
-Cloud project、RPO 1 小時、RTO 4 小時。仍須補最小 IAM、法人所有權、備份／PITR
-實作、監控告警、事件聯絡角色與復原演練頻率，並由具名責任人核准。
+2026-07-28 核准值：診所是 Cloud project 的法定／帳務擁有者，管理者與開發者
+持受治理的 IAM 權限，primary region 為 `asia-east1`，RPO 1 小時／RTO 4 小時
+適用 database、whole-project 與 regional failure。仍須在 Stage 2 change plan
+補最小 IAM、MFA、跨 project／region 復原、備份／PITR、監控告警、事件聯絡角色、
+成本與演練；target 核准不是達標證據。
 
 ```text
 核准內容／附件位置：

@@ -127,11 +127,14 @@ worker runner 或實際 Calendar 連線。D-009 核准日曆擁有者、授權�
 
 ### 舊稱階段 B／目前 Stage 2：staging 專案的雲端 Firestore（仍為合成資料）
 
-**阻擋決策**：D-006（身分與角色）、D-010（環境、IAM、備份、監控）。
+**目前阻擋**：D-006（MFA、session、稽核刪除邊界）與 Stage 2 change review。
+D-010 的環境、主要區域及 RPO／RTO target 已於 2026-07-28 核准，但實際 IAM、
+備份、監控與跨區復原尚未建立或驗證。
 
-- D-010 核准後，在**與靜態 preview 隔離**的 staging project 啟用 Firestore；
-  project ID 與位置依核准紀錄建立。`beauessence-clinic-staging` 與 `asia-east1`
-  目前都只是候選值，不得由文件直接建立資源。
+- D-006 核准且 Stage 2 change plan 通過審查後，在**與靜態 preview 隔離**的
+  staging project 啟用 Firestore；主要區域使用已核准的 `asia-east1`，實際
+  project ID、IAM、復原與監控設定仍須由變更紀錄明確列出，不得只靠文件直接
+  建立資源。
 - 依 D-006 核准的 identity provider 啟用員工登入，讓目前的角色模擬器退場。
   `permissions.js` 只反映合成介面的候選能力，不能取代正式伺服器端角色矩陣。
 - Rules 維持預設拒絕；所有存取經 API 的服務帳號。
@@ -169,7 +172,7 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 | --- | --- | --- |
 | `patients[]` | `patients` | 身分證字號需決定是否雜湊後另存；不得以姓名自動合併 |
 | `slots[]` | `slots` | 文件 ID 用 `{resourceId}_{startAt}`，天然唯一鍵 |
-| `appointments[]` | `appointments` | 瀏覽器目前含 `bookingKind`、複數 `itemIds`、`noteTags`；正式 contract/domain 仍是單一 `serviceId`/`itemId`，須由 D-004 決定單項或多項後一起對齊 |
+| `appointments[]` | `appointments` | 瀏覽器目前含 `bookingKind`、複數 `itemIds`、`noteTags`；2026-07-28 已確認正式預約亦可多項，正式 contract/domain 的單一 `serviceId`/`itemId` 須在 D-004 精確時長／容量完成後一起對齊 |
 | `followUps[]` | `follow_ups` | 已含 `tags` 與 `certificateCopies` |
 | `caseAssignments[]` | `case_assignments` | 需補 `effectiveFrom/To` 以支援改派歷程 |
 | `auditEvents[]` | `audit_events` | 不可覆寫；需補 before/after 摘要 |
@@ -181,10 +184,10 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 
 ## 5. 目前建議順序
 
-舊稱階段 A 的交易、冪等、outbox 與 Calendar client 技術基線都已完成。現在先在
-Stage 1 完成 owner decisions；其中 D-006 與 D-010 兩者核准後才能進 Stage 2
-合成資料 cloud staging，D-009 核准後才進 Stage 3 專用測試日曆。D-001～D-005、
-D-006、D-010、D-011 未完成前，不得開放真實資料的公開預約路徑。
+舊稱階段 A 的交易、冪等、outbox 與 Calendar client 技術基線都已完成。D-010
+target 已於 2026-07-28 核准；D-006 與 Stage 2 change review 完成後才能進合成資料
+cloud staging，D-009 核准後才進 Stage 3 專用測試日曆。D-001～D-005、D-006、
+D-011 未完成前，不得開放真實資料的公開預約路徑。
 
 ## 6. 明確不做的事
 

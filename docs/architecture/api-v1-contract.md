@@ -44,11 +44,11 @@ transcripts and arbitrary free text.
 
 The current browser-local synthetic prototype supports multiple selected
 items as `itemIds`. The executable appointment contract and domain transaction
-still accept one `serviceId`/`itemId`. This is an explicit D-004 contract gap,
-not an instruction to infer the production model from the browser: before a
-booking route is registered, the clinic operations owner must approve whether
-one appointment can contain one or multiple services, and then the contract,
-domain, idempotency key, persistence model and UI must be aligned together.
+still accept one `serviceId`/`itemId`. On 2026-07-28 the owner confirmed that
+the formal appointment model also allows multiple services. Before a booking
+route is registered, the remaining D-004 duration/capacity rule must become
+executable, then the contract, domain, idempotency key, persistence model and
+UI must be aligned together.
 
 Patient intake and verification remain a separate decision-gated boundary.
 The application service accepts only a server-produced authentication context
@@ -76,7 +76,7 @@ Only health is routed; create/cancellation schemas remain reserved.
 | --- | --- | --- | --- |
 | Health query | `HealthResponseSchema` | `HealthController` | Routed; no patient data |
 | Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; fields, verification and matching remain TBD pending D-001～D-003, D-006, D-011 |
-| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; single-service contract conflicts with the browser's synthetic multi-item model and needs D-004, then D-001～D-006, D-010 and D-011 |
+| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; formal multi-service direction is recorded, but the single-service contract and exact duration/capacity rule still need D-004 implementation, then D-001～D-006, D-010 and D-011 |
 | Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005/D-006 |
 | Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; route/authorization pending D-005/D-006 |
 | Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; route/authorization pending D-004/D-006 |

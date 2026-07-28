@@ -16,7 +16,8 @@
 > 三者均不自行核准 D-001～D-011。
 >
 > **2026-07-28 進度註記：** Stage 0／Checkpoint A 已完成；目前為 Stage 1 owner
-> decisions。D-006 與 D-010 仍為 `pending`，因此 Stage 2 cloud staging 不得開始。
+> decisions。D-010 target architecture/SLO 已核准；D-006 仍為 `pending`，因此
+> Stage 2 cloud staging 不得開始。
 > 本文下方的 Next.js、Firebase Auth／Google Workspace、`asia-east1`、Email
 > 驗證與精確欄位流程是早期 programme 提案，不是現行實作或已核准選型；遇到衝突
 > 時以執行計畫、決策登錄、API contract 與現行隱私文件為準。
@@ -224,7 +225,8 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 
 規劃書與程式庫容易隨時間脫節。本節記錄兩者目前的差距，每次階段檢查時更新。
 Stage 0／Checkpoint A 已於 2026-07-24 通過；目前是 Stage 1 owner decisions，
-D-006 與 D-010 都仍為 `pending`，因此 Stage 2 cloud staging 尚未開始。
+D-010 target 已核准但尚未實作／驗證；D-006 仍為 `pending`，因此 Stage 2 cloud
+staging 尚未開始。
 
 **目前已自動化的 gates（依下列命令分開執行）**
 
@@ -259,8 +261,8 @@ Lint 只負責正確性，排版交給 Prettier，兩者不重疊。型別感知
 | ~~瀏覽器與伺服器是兩份領域規則~~ | ADR-0004、vendored compiled domain 與 `check:sync` 已收斂 appointment、schedule、patient identity 等共用規則 | ✅ |
 | ~~無 API contract test 與端對端測試~~ | strict contract/mapping tests 與打包後 Playwright E2E 已建立並進 CI | ✅ |
 | ~~無 remote repository~~ | 已有 HTTPS GitHub origin `https://github.com/waydefu/clinic.git`；跨電腦以 branch push／fresh clone 或 `fetch`＋`pull --ff-only` 交接 | ✅ |
-| Stage 1 owner decisions 尚未完成 | D-006、D-010 仍 pending，不能建立身分邊界、IAM 或 cloud staging | **目前 gate；Stage 2 前** |
-| production worker runner／觀測尚未接線 | 本機 processor、ports 與 plan 已有；trigger、共享 metrics、alerts、service identity 受 D-010 gate | Stage 3 前 |
+| Stage 1 owner decisions 尚未完成 | D-010 target 已核准；D-006 與 Stage 2 change review 尚未完成，不能建立身分邊界或 cloud staging | **目前 gate；Stage 2 前** |
+| production worker runner／觀測尚未接線 | 本機 processor、ports 與 plan 已有；trigger、共享 metrics、alerts、service identity 依 D-010 target 在 Stage 2／3 落實 | Stage 3 前 |
 | `infra/terraform/` 僅有 README | 雲端資源為 Phase 1 完成標準的一部分 | 依 Phase 1 排程 |
 | OpenAPI 文件尚未產生 | 契約目前以 `packages/contracts` 的 TypeScript 型別為準 | 對外提供 API 前 |
 
@@ -346,11 +348,12 @@ Google Calendar 呼叫絕不放在 Transaction 內。Firestore Transaction 可�
 正式環境需設定自動備份、復原演練與保留期限；Firestore 的備份/還原類功能須以已啟用計費的專案規劃，不可假設免費層即可滿足企業復原需求。
 
 早期提案的營運目標是 RPO 24 小時／RTO 4 小時。2026-07-27 業主問卷把候選值
-改為 **RPO 1 小時／RTO 4 小時**；D-010 仍為 `pending`，所以兩者都不是已核准
-SLA。正式值需連同備份／PITR 設計、責任人與演練頻率一起核准：
+改為 **RPO 1 小時／RTO 4 小時**，並於 2026-07-28 核准適用 database、
+whole-project 與 regional failure。這是 target SLA，不是已達成證據；備份／PITR、
+跨 project／region 復原、責任人與演練頻率仍須在 Stage 2 change plan 落實：
 
-- **RPO：** 記錄候選值 1 小時。
-- **RTO：** 營運時間內 4 小時恢復預約服務。
+- **RPO：** 核准 target 1 小時。
+- **RTO：** 核准 target 4 小時恢復預約服務。
 - **復原演練：** 每半年至少一次，含日曆同步與取消流程驗證。
 
 ---

@@ -7,9 +7,10 @@
 ARCH-08（「production infrastructure 尚未形成 executable architecture」）展開成
 可審查的設計：環境怎麼切、Terraform 怎麼組、權限怎麼給、備份與監控怎麼定。
 
-**它不解除任何 gate。** 具體的 project ID、region、runtime、owner 與成本政策由
-**D-010** 核准；在那之前，本文件的作用是讓核准會議有東西可看，而不是讓工程師
-先去開資源。
+**它不自行解除 deployment gate。** D-010 已於 2026-07-28 核准診所所有權、
+`asia-east1` primary region 與 RPO 1 小時／RTO 4 小時 target（含 project／region
+failure）。具體 project ID、runtime、跨區復原、alert owner 與成本政策仍須進
+Stage 2 change plan；D-006 未核准前不得開資源。
 
 ## 1. 環境模型
 
@@ -26,9 +27,9 @@ ARCH-08（「production infrastructure 尚未形成 executable architecture」�
 Console 上把兩個環境看錯。目前的 `beauessence-clinic-staging` 只用於合成預覽
 Hosting，不是本文件所指的 staging 應用環境。
 
-**region**：建議 `asia-east1`（台灣），理由是延遲與資料落地位置。跨境傳輸的
-法遵判斷屬 D-001～D-003，本文件不代為決定；若法務要求資料留在境內，這個選擇
-就是硬性條件而不是效能偏好。
+**primary region**：D-010 已核准 `asia-east1`（台灣）。跨境傳輸與正式資料的
+法遵判斷仍屬 D-001～D-003；此外，D-010 的 regional-failure RPO/RTO target
+要求 Stage 2 另設可驗證的跨區／替代區復原路徑，不能只部署單區後宣稱達標。
 
 ## 2. Terraform 佈局
 
