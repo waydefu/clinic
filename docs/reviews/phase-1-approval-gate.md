@@ -3,8 +3,10 @@
 **Current status (2026-07-28):** Stage 0／Checkpoint A is complete and the
 project is in Stage 1 owner decisions. D-010 target architecture/SLO is now
 approved; D-004 has recorded hours/multi-service direction but remains pending,
-and D-006 remains the Stage 2 blocker. D-012 and D-013 have separate scoped
-approvals recorded in the decision register. This document is the single
+and D-006 remains the Stage 2 blocker after its permanent-audit boundary was
+approved. D-012 and D-013 have separate scoped approvals recorded in the
+decision register. D-014～D-016 gate a separate Expansion S and do not change
+the current Phase 1 sequence. This document is the single
 start/stop dashboard for Phase 1 and does not replace that dated approval
 record. See the
 [test-only checkpoint](phase-1-test-only-checkpoint-2026-07-20.md) for the
@@ -42,6 +44,18 @@ preview scope.
 | Cloud | D-010 environments/IAM/backups/monitoring — **target approved 2026-07-28** | Technical + security | [Integration packet](../product/phase-1-integration-launch-approval-packet.md#d-010--firebase環境與維運責任) | Reviewed infrastructure/change plan; no deployment from target approval alone |
 | Public UX | D-011 URL/accessibility/manual fallback | Operations | [Integration packet](../product/phase-1-integration-launch-approval-packet.md#d-011--公開預約網站與人工備援) | Public UX specification and fallback design |
 
+## Expansion S dashboard
+
+The
+[surgery, follow-up, payment and settlement expansion plan](../product/2026-07-28-surgery-follow-up-expansion-plan.md)
+is plan-only and does not enlarge the Phase 1 release automatically.
+
+| Gate | Decision | Owner | Unlocks after approval |
+| --- | --- | --- | --- |
+| Clinical | D-014 surgical/clinical record boundary | Medical + privacy/legal | Surgery, anesthesia and clinical follow-up persistence |
+| Finance | D-015 payment/refund/accounting ledger | Finance/accounting + clinic | Persisted patient money and settlement source transactions |
+| Calendar inbound | D-016 matching/review/conflict/delete semantics | Clinic + security + operations | Calendar-to-system change candidates and review flow |
+
 ## Approval sequence
 
 ```text
@@ -51,6 +65,8 @@ D-004, D-005, D-006 ─┼─> policy-backed contract/authorization design
 D-007, D-008 ─────────┼─> local-only case/payroll tests
                       │
 D-009, D-010, D-011 ──┴─> integration/launch review (never direct deployment)
+
+D-014, D-015, D-016 ─────> separate Expansion S only
 ```
 
 The Stage 0 synthetic appointment write-path tests are already complete, but
@@ -81,6 +97,7 @@ For every row, the decision register must include:
 | D-004 to D-006 | Reservation success/conflict, cancellation cutoff, idempotency, unauthorized role and direct-Firestore-denial Emulator tests |
 | D-007 to D-008 | Assignment/reassignment audit, one-credit uniqueness, Taipei monthly cutoff, lock and adjustment tests |
 | D-009 to D-011 | Calendar outbox/idempotency and failure-runbook drills; infrastructure review, rollback plan and accessibility review |
+| D-014 to D-016 | Clinical correction/retention and field-scope tests; immutable payment/refund/settlement ledger tests; Calendar inbound renewal/410/review/conflict rehearsal |
 
 ## Source of truth and next action
 
@@ -92,4 +109,5 @@ recorded; D-006 plus a reviewed change plan now unlock Stage 2 cloud staging
 with synthetic data. D-009 then gates Stage 3 Calendar projection. Before those
 gates, the only permitted operational path is the explicitly documented
 synthetic-only profile and expiring static preview; neither may infer or set a
-clinic answer.
+clinic answer. Expansion S remains plan-only until its existing and new
+decisions are separately approved.

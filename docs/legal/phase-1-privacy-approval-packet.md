@@ -53,6 +53,13 @@ data indefinitely by default.
 No vendor may receive real data until its row is approved. Google Calendar must
 remain a zero-PII projection even when it is approved.
 
+The separate
+[Expansion S plan](../product/2026-07-28-surgery-follow-up-expansion-plan.md)
+adds surgery/anesthesia/clinical follow-up and payment/refund/settlement
+categories. They are not covered by a future booking-data approval alone:
+D-014/D-015 require a new field inventory, purpose, retention, correction,
+export, role-scope and vendor review before any real record is stored.
+
 | Vendor / system | Role | Data categories | Processing location / cross-border assessment | Contract, access and deletion evidence | Status |
 | --- | --- | --- | --- | --- | --- |
 | Firebase / selected cloud project | `[processor role]` | `[minimum categories]` | `[not selected]` | `[not approved]` | Pending |

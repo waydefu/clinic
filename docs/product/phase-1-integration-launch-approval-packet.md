@@ -25,6 +25,13 @@
 Calendar 不是可用時段權威來源。即使同步失敗，已成立的預約仍由平台的伺服器
 交易與稽核狀態決定；不得由櫃檯直接在 Calendar 建立未連結的預約。
 
+**Expansion S 註記（2026-07-28）：** 業主提出 Calendar 直接新增／修改／刪除後
+回到系統的需求。這不改變 D-009 先核准 outbound projection 的順序，也不撤銷
+Calendar 非權威來源的 ADR。Inbound 另受 D-016 約束；建議做法是 watch＋
+incremental sync 後產生待審核 change candidate，未知病患或刪除事件都不得自動
+改寫系統。完整規劃見
+[Expansion S plan](2026-07-28-surgery-follow-up-expansion-plan.md#6-google-calendar保留系統權威雙向採審核佇列)。
+
 ## D-010 — Firebase、環境與維運責任
 
 **決策狀態：** target architecture/SLO 已於 2026-07-28 核准；本表的實作、

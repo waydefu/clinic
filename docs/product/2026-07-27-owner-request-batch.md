@@ -18,8 +18,10 @@
 
 另外有一項**不是待辦、但接手時要知道**的事：多項目預約（W5）目前只在瀏覽器原型
 成立，`packages/domain` 的 `planBooking` 與 `packages/contracts` 的線路 schema 仍
-是單一 `itemId`／`serviceId`。2026-07-28 業主已確認正式預約也允許多項；待 D-004
-把精確時長／容量補齊後，須一起對齊 API、domain、持久化與冪等模型。
+是單一 `itemId`／`serviceId`。2026-07-28 業主已確認正式預約也允許多項、止鼾採
+40～60 分鐘變動時長、醫美維持依療程進度；待 D-004 把可選刻度、合併計算與容量
+補齊後，須一起對齊 API、domain、持久化與冪等模型。手術、回診、付款與雙向
+Calendar 則另見 [Expansion S 規劃](2026-07-28-surgery-follow-up-expansion-plan.md)。
 
 動工前請先讀 [自動檢查的缺口盤點與修復](../reviews/2026-07-27-automated-check-gaps.md)：
 `verify` 在 2026-07-27 多了 `check:pages`（對外頁面清單），`check:tokens` 的涵蓋
@@ -375,8 +377,9 @@ commit**——批與批之間的風險差距太大，混在一起會讓回滾變
 
 1. **契約缺口（W5）**：`packages/domain` 的 `planBooking` 與 `packages/contracts`
    的線路 schema 仍是單一 `itemId`／`serviceId`。那兩者都還沒接線、也還沒核准，
-   所以這次只改瀏覽器原型。2026-07-28 已確認正式預約亦為多項；待 D-004 補齊
-   精確時長／容量後，再一起修改 API、domain、持久化與冪等模型。程式裡
+   所以這次只改瀏覽器原型。2026-07-28 已確認正式預約亦為多項、止鼾採 40～60
+   分鐘變動時長、醫美維持依療程進度；待 D-004 補齊可選刻度、合併計算與容量後，
+   再一起修改 API、domain、持久化與冪等模型。程式裡
    `resolveItems()` 的註解也記了這一點。
 2. **列印頁沒有收 LineID 與性別**：W7 的「線上收哪些」表列了這兩個選填欄位，
    但批次 2 的執行單沒有它們，所以沒有實作。列印頁把它們當成未收集欄位留白，

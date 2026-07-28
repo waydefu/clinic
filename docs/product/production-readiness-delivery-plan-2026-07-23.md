@@ -13,6 +13,11 @@ owner decisions。D-010 target architecture/SLO 已於 2026-07-28 核准；D-006
 staging 與 production 候選。它不自行核准 D-001～D-011，也不授權真實資料、
 雲端資源或 production deployment。
 
+2026-07-28 新增的手術、臨床時間軸、付款／結算與 Calendar inbound 不直接插入
+本 Stage 0～6 critical path；它們位於獨立
+[Expansion S plan](2026-07-28-surgery-follow-up-expansion-plan.md)，並受 D-014～
+D-016 及原有對應 gate 約束。
+
 ## 1. 目標與判定
 
 ### 1.1 目前進度
@@ -480,7 +485,8 @@ Calendar 接線另受 D-009 gate。
 ## 9. 接下來十個動作
 
 1. 把本規劃與目標架構交由 technical owner 確認。
-2. 完成 D-006 的 MFA／session／稽核刪除邊界；D-010 已核准 target，
+2. 完成 D-006 的 MFA／session／授權碼安全控制；稽核刪除邊界與 D-010 target
+   已核准，
    D-001～D-005/D-011 並行準備。
 3. ✅ 建立 command/response/error contract inventory
    （2026-07-24；未核准 commands 只列 inventory，不建立 route）。

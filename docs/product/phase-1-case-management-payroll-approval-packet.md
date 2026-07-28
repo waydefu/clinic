@@ -75,6 +75,21 @@
 覆核者、調整原因與時間。報表不得以可下載的檔案不必要地包含電話、電子郵件
 或醫療資訊。
 
+### 2026-07-28 Expansion S 結算輸入
+
+業主新增醫師、個管／諮詢師與客服三種人員結算，並提出以
+`病患實際已付款 − 已退款` 作為百分比結算基礎。這是
+[Expansion S plan](2026-07-28-surgery-follow-up-expansion-plan.md)的候選規則，
+不是本包已核准的 payroll credit 變更。
+
+正式化前須共同關閉 D-008 與 D-015：
+
+- 病患 payment/refund ledger 與 staff settlement ledger 必須分開；
+- 固定金額、手術總價百分比、實收百分比與人工輸入各自的適用條件；
+- 折扣、退款、爭議、稅務／會計調整與 late payment 如何影響結算；
+- 醫師／個管／客服只能讀本人結算，會計／管理者的全院權限與櫃檯例外；
+- period lock 後只新增 adjustment，不覆寫原金額或來源交易。
+
 ## 合併核准紀錄
 
 ```text

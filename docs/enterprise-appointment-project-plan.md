@@ -18,6 +18,9 @@
 > **2026-07-28 進度註記：** Stage 0／Checkpoint A 已完成；目前為 Stage 1 owner
 > decisions。D-010 target architecture/SLO 已核准；D-006 仍為 `pending`，因此
 > Stage 2 cloud staging 不得開始。
+> 2026-07-28 新增的手術、臨床時間軸、付款／結算與 Calendar inbound 需求已另列為
+> [Expansion S plan](product/2026-07-28-surgery-follow-up-expansion-plan.md)；
+> 它不修改本文的首期範圍，也不代表 D-014～D-016 已核准。
 > 本文下方的 Next.js、Firebase Auth／Google Workspace、`asia-east1`、Email
 > 驗證與精確欄位流程是早期 programme 提案，不是現行實作或已核准選型；遇到衝突
 > 時以執行計畫、決策登錄、API contract 與現行隱私文件為準。
@@ -29,6 +32,11 @@
 本專案建立獨立的預約子站，例如 `book.beauessence.com.tw`。病患在網站直接選擇服務、醫師/資源、日期與時段；系統以 Firestore 的原子交易保留時段，再非同步且可重試地同步至 Google Calendar。取消預約也由同一套流程處理。Google Calendar 是櫃台的工作檢視與同步目標，不作為防止雙約的唯一資料來源。
 
 首期不使用簡訊通知、不處理病歷、診斷、付款或病患影像。先完成可靠的網頁預約、取消、後台、日曆同步，以及「看診完成後指派個案管理師、月度案件統計與薪資計算單位匯出」，再逐步接入 LINE、Messenger、Instagram、原生 App 與 NAS。
+
+2026-07-28 業主提出手術排程、麻醉／臨床回診、病患付款、三方人員結算與 Google
+Calendar 反向同步。這些需求已納入獨立 Expansion S，不推翻上述首期切分；先重用
+Phase 1 的 identity、API、audit、transaction/outbox 基礎，再由 D-014～D-016
+分別關閉醫療、財務與 inbound Calendar 風險。
 
 **核心原則：**
 

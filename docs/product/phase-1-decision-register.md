@@ -9,23 +9,28 @@ project is now at Stage 1 owner decisions. D-010 infrastructure ownership,
 region and resilience targets were approved on 2026-07-28; D-006 remains
 `pending` and therefore still blocks Stage 2 cloud staging. D-010 approval
 defines the required target and does not itself create a project, deploy a
-backend or prove that the RPO/RTO has been achieved.
+backend or prove that the RPO/RTO has been achieved. D-014～D-016 track the
+separate surgery/clinical/finance/Calendar-inbound expansion and do not change
+the current Phase 1 gate.
 
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |
 | D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending | Published privacy policy |
 | D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending | Collecting patient data |
 | D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending | Privacy acceptance or public booking |
-| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (hours and multi-service direction recorded 2026-07-28) | Slot reservation |
+| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (hours, multi-service and variable-duration direction recorded 2026-07-28) | Slot reservation |
 | D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending | Cancellation route or notice |
-| D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | pending (direction confirmed; controls/retention clarification incomplete) | Authenticated write endpoint |
+| D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | pending (permanent append-only audit boundary approved; security controls incomplete) | Authenticated write endpoint |
 | D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending | Payroll-credit persistence |
-| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending | Calendar integration review |
+| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending | Outbound Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
 | D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending | Public booking UX |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
+| D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (expansion input recorded 2026-07-28) | Storing surgery, anesthesia or clinical follow-up data |
+| D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending (expansion input recorded 2026-07-28) | Persisting money or settlement amounts |
+| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending (review-queue design proposed 2026-07-28) | Calendar-to-system writes |
 
 ## Recorded inputs
 
@@ -66,9 +71,12 @@ temporary privacy-contact input below uses the clinic phone.
   appointment** (owner answer, 2026-07-28). The browser already uses multiple
   `itemIds`, while the executable API contract/domain still accepts one
   `serviceId`/`itemId`; the routed contract, persistence and idempotency model
-  must move together. The duration answer is not executable yet: 止鼾 is a
-  40–60 minute range and 醫美 follows treatment progress, so combined duration,
-  overlap and capacity rules still need one exact answer.
+  must move together. On 2026-07-28 the owner explicitly retained 止鼾 as a
+  **40–60 minute multi-duration** service rather than forcing a fixed 60-minute
+  block, and retained 醫美 as “依療程進度”. The data model may therefore support
+  duration choices/ranges, but each actual reservation still needs a concrete
+  `endsAt`. The allowed 止鼾 increments, the 醫美 estimate and combined
+  sequential/parallel/buffer rules remain unanswered.
 - **D-005: patients may cancel up to 24 hours before**; after that it is a phone
   call. No-shows are recorded, not charged.
 - **D-006: Google sign-in plus a self-hosted account option** (the clinic has no
@@ -77,11 +85,11 @@ temporary privacy-contact input below uses the clinic phone.
   a booking may be delegated to the front desk behind a password the
   administrator sets — multiple passwords, each switchable on or off.** The
   owner confirmed this direction on 2026-07-28 and replaced the earlier
-  five-year audit candidate with “unlimited; administrator self-deletes.” That
-  phrase is not yet executable: it must clarify whether administrators delete
-  appointment records while audit remains append-only, or may delete audit
-  evidence itself. Staff MFA and session limits also remain unanswered, so
-  D-006 stays `pending`.
+  five-year audit candidate with “unlimited; administrator self-deletes.” The
+  owner then clarified on 2026-07-28 that administrators may delete qualifying
+  appointment records, while audit is permanent, append-only and cannot be
+  deleted by any role. Staff MFA/session and authorization-code controls still
+  lack an explicit approval, so D-006 stays `pending`.
 - **D-007/D-008: make the authority configurable rather than fixed.** Front desk
   and administrators may both assign a case manager; only administrators may
   reassign; both capabilities need an on/off switch in account management. The
@@ -135,6 +143,22 @@ Decisions worth keeping:
 **Still not a security boundary.** Comparison is plaintext in the browser, same
 class as the synthetic login (AUTH-001). D-006 remains `pending`.
 
+### D-006 audit deletion boundary approved - 2026-07-28
+
+The owner approved the safe interpretation of “unlimited; administrator
+self-deletes”:
+
+- an administrator may delete an appointment only through the separately
+  authorised delete command and its closed reason codes;
+- the resulting audit event outlives the appointment;
+- audit storage is permanent and append-only;
+- administrators, developers, service accounts and every other role are denied
+  audit deletion.
+
+This closes the audit-deletion ambiguity, not all of D-006. The proposed staff
+MFA, TOTP, session and authorization-code controls still need an explicit
+approval before D-006 can move to `approved`.
+
 ### Fonts: system stack retained - 2026-07-27
 
 **Decision: do not load a Chinese webfont.** The zero-kilobyte font budget is
@@ -172,6 +196,18 @@ or cross-region restore has been exercised. Stage 2 must produce a reviewed
 change plan that identifies separated environments, least-privilege roles,
 alert recipients, backup/failover mechanisms, cost and a drill capable of
 demonstrating the target. D-006 still blocks the start of Stage 2.
+
+### Expansion S: surgery, follow-up, payment and Calendar inbound - 2026-07-28
+
+The owner supplied a detailed surgery scheduling and follow-up workflow covering
+patient timelines, four calendar event types, surgery resources, anesthesia,
+payments, refunds, role-scoped views and staff settlement. It is normalized in
+the
+[Expansion S plan](2026-07-28-surgery-follow-up-expansion-plan.md).
+
+The input does not silently expand Phase 1. D-014 gates clinical/surgical
+records, D-015 gates persisted money, and D-016 gates Calendar-to-system writes.
+The accepted ADR remains that Calendar is not the appointment/capacity lock.
 
 The drift check that caught the prose copies did **not** cover the JSON-LD
 numbers, because those use `"opens"/"closes"` rather than the `12:00–20:00`
@@ -278,11 +314,11 @@ below to `approved`, and no real patient data may be relied upon.
   change; remains `pending` for the pre-go-live audit.
 - **D-001 (data controller, privacy contact): 待定 (deferred).** No change;
   remains `pending`.
-- **D-006 direction:** staff sign in with **account + password**, and the
+- **D-006 direction at that time:** staff sign in with **account + password**, and the
   **manager (管理者) may cancel/delete**. This records the intended shape for the
-  test build. D-006 stays `pending`: the identity provider, MFA, session policy,
-  full role/permission matrix and audit-retention answer are exactly what the
-  go-live audit must still settle, and none may be inferred from this note.
+  test build. The audit-retention ambiguity was superseded by the 2026-07-28
+  permanent append-only decision above. Identity provider, MFA, session policy
+  and the full role/permission matrix still keep D-006 `pending`.
   - Implementation reading of "cancel/delete" (2026-07-24, synthetic build):
     the front desk **keeps** cancelling — it is a daily counter action, and
     routing it through a manager would stall the front desk. **Deleting** is

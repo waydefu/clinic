@@ -92,6 +92,9 @@ enable a route.
 - Cloud Firestore or Authentication before D-006 and an approved Stage 2 change
   plan; the recorded D-010 target alone is not deployment authority.
 - Calendar test projection before D-009.
+- Surgery/anesthesia/clinical-record persistence, patient money or staff
+  settlement amounts before D-014/D-015 and their existing privacy/access
+  gates; Calendar-to-system writes before D-016.
 - Public booking or real patient data before D-001 through D-006, D-010 and
   D-011.
 - Case/payroll persistence before D-007 and D-008.
@@ -223,6 +226,7 @@ lines.
 | Loopback test UI | `docs/design/test-only-operations-ui.md` | Keyboard flow, responsive layout and synthetic-only display |
 | Temporary online synthetic preview | `docs/runbooks/synthetic-online-preview.md` | Hosting preview only, separate staging project, browser-only synthetic state |
 | Availability, exceptions or follow-up | `docs/product/test-only-scheduling-follow-up-workbench.md` | D-004～D-006, explicit clinical/staff decision and synthetic-only scope |
+| Surgery, clinical timeline, payment/settlement or Calendar inbound | `docs/product/2026-07-28-surgery-follow-up-expansion-plan.md` | Expansion S is plan-only; use D-014～D-016 plus the existing mapped gates, never infer a route from the owner intake |
 | Monthly close or compensation | Payroll spec + close runbook | Taipei cutoff, immutable lock, adjustment/audit |
 | Cloud runtime, IAM, backup or monitoring | Delivery plan Stage 2 + approved D-010 target | Reviewed IaC/change plan only; never apply before Stage 2 authority |
 | Replacing browser-local state | Synthetic Web architecture | Contract-compatible API client; no direct Firestore path |

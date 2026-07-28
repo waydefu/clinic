@@ -51,4 +51,4 @@ CI artifact 或把摘要登記到新的 dated review。
 - workflow 設定存在不等於 GitHub run 成功；CodeQL 是否可用仍要看實際 repository
   權限／方案。
 - 自動 axe 成功不等於螢幕閱讀器、強制色彩及人工鍵盤驗收成功。
-- D-001～D-011 只有[決策登錄](product/phase-1-decision-register.md)能關閉。
+- 所有 D-series 決策只有[決策登錄](product/phase-1-decision-register.md)能關閉。

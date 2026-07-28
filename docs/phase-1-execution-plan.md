@@ -48,6 +48,10 @@ not deployment authority and does not itself create any cloud resource.
 - Prepare decision packets, record named-owner evidence and keep plan-only
   Stage 2 designs current. No cloud resource may be created or applied while
   D-006 remains pending or before a separately reviewed Stage 2 change plan.
+- Maintain the
+  [Expansion S plan](product/2026-07-28-surgery-follow-up-expansion-plan.md)
+  as requirements/decision work only. Do not add surgery, clinical, money or
+  Calendar-inbound routes before D-014～D-016 and their mapped existing gates.
 - Deploy the documented static synthetic site to the expiring
   `synthetic-review` channel of `beauessence-clinic-staging`; it must use only
   browser-local synthetic state and follow the online-preview runbook.

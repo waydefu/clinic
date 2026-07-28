@@ -7,21 +7,22 @@
 
 > **同日後續決策註記：** 截圖本身是決策回覆前的像素證據；下方進度表已同步成
 > 回覆後狀態。業主已核准 D-010 target architecture/SLO，並確認 D-004 的正式
-> 營業時間與多項服務方向；D-006 仍 pending，最新狀態以決策登錄與 roadmap 為準。
+> 營業時間、多項服務與變動時長方向；D-006 的永久 audit 邊界已核准，但 MFA、
+> session 與授權碼安全控制仍 pending，最新狀態以決策登錄與 roadmap 為準。
 
 ## 1. 已核實的目前進度
 
 | 項目 | 2026-07-28 現況 | 依據／限制 |
 | --- | --- | --- |
 | Delivery stage | **Stage 0 architecture hardening 與 Checkpoint A 已通過；目前在 Stage 1 owner decisions** | [Stage 0 Checkpoint A](stage-0-checkpoint-a-2026-07-24.md) |
-| 決策 gate | D-010 target 已核准；D-006 與 Stage 2 change review 仍阻擋 cloud staging。D-004 已確認正式時段與多項服務方向，但精確時長／容量規則仍待答覆 | [decision register](../product/phase-1-decision-register.md) |
+| 決策 gate | D-010 target 已核准；D-006 的 MFA／session／授權碼控制與 Stage 2 change review 仍阻擋 cloud staging。D-004 已確認正式時段、多項服務與變動時長方向，但可選刻度、合併計算與容量規則仍待答覆 | [decision register](../product/phase-1-decision-register.md) |
 | API | 可路由 controller 只有 `/v1/health`；appointment application/repository 仍未掛路由 | `apps/api/src/app.module.ts`、`apps/api/src/health.controller.ts` |
 | 資料與整合 | 工作臺與預約仍是 browser-local 合成資料；沒有真 IdP、cloud Firestore booking route、Calendar、LINE、Meta 或 NAS 寫入 | 不得把 UI 角色切換或綠色測試當成 production security |
 | Git 移機 | `main` 使用 HTTPS remote `https://github.com/waydefu/clinic.git`；本基準以「包含本 manifest 的 commit」綁定 | manifest 不寫自身 commit hash，避免不可能的 self-reference |
 | 到期預覽 | 2026-07-28 17:18 Asia/Taipei 複查 `/`、`/booking`、`/privacy`、`/clinic` 均 HTTP 200、`no-cache`、`noindex`；文件記錄到期為 2026-08-04 12:43 | 這是 2026-07-27 已部署版本，不代表本文件所在 commit 已重新部署，也未部署 live channel |
 
-因此下一步不是直接啟用後端：先完成 D-006 的剩餘身分與稽核邊界，再依已核准的
-D-010 target 提出 Stage 2 cloud foundation／staff identity change plan。現階段可
+因此下一步不是直接啟用後端：先完成 D-006 的 MFA、session 與授權碼安全控制，再
+依已核准的 D-010 target 提出 Stage 2 cloud foundation／staff identity change plan。現階段可
 安全維護的仍是 local、Emulator、synthetic UI、文件、測試與不啟用新能力的設計。
 
 ## 2. 現行參考畫面

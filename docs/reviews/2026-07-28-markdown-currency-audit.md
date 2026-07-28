@@ -23,7 +23,8 @@ dated review 與 archive 原則上保留當時證據，只在其內容可能被�
    contracts 與 Calendar client 不等於已連線或已部署。
 3. 把瀏覽器複數 `itemIds` 與正式 contract/domain 單一
    `serviceId`/`itemId` 的落差列入 D-004；同日稍後業主確認正式預約也允許多項，
-   剩餘 gate 是精確時長／容量與一致的 contract/domain/persistence 實作。
+   同日再確認止鼾維持 40～60 分鐘多時長、醫美依療程進度；剩餘 gate 是可選刻度、
+   合併計算、容量與一致的 contract/domain/persistence 實作。
 4. 重查
    [診所官方預約頁](https://beauessence.com.tw/reservations/)後，記錄官網
    「週一至週五 11:00–20:00、週六 11:00–16:00」與合成預覽
@@ -51,5 +52,6 @@ dated review 與 archive 原則上保留當時證據，只在其內容可能被�
 - `apps/api` 仍只路由 `GET /v1/health`。
 - 2026-07-27 的 Hosting preview 是 static、synthetic-only、`noindex` 的 dated
   deployment；本次文件變更不代表重新部署。
-- D-004 已確認營業時間與多項服務方向，仍缺精確 duration/capacity；下一個
-  blocking decision 是 D-006 的 MFA/session 與 audit deletion 邊界。
+- D-004 已確認營業時間、多項服務與 variable-duration 方向，仍缺可選刻度、
+  合併計算與 capacity；D-006 的 audit deletion 邊界已關閉，下一個 blocking
+  decision 是 MFA/session 與授權碼安全控制。

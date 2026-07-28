@@ -22,6 +22,13 @@ client 已有可測試 adapter，但沒有憑證時不會對外呼叫；部署 r
 真實 Calendar 仍須依已核准的 D-010 target 完成 Stage 2 change review，並受
 D-009 Calendar 核准 gate 約束。
 
+本 worker 目前只有 system-to-Calendar projection。2026-07-28 提出的 Calendar
+反向同步位於
+[Expansion S](../../docs/product/2026-07-28-surgery-follow-up-expansion-plan.md)；
+D-016 核准前不得新增 watch receiver、sync token store 或
+Calendar-to-appointment write path。即使日後核准，也先產生待審核 change
+candidate，不讓 Calendar 成為容量鎖。
+
 每筆 job 都帶 opaque `correlationId` 與 `causationId`。processor 在任何外部呼叫
 前驗證兩者，再傳給 port 作 trace context；Google event payload 明確排除這兩個
 欄位。`WorkerMetricsPort` 提供低 cardinality 的 Calendar attempt、batch 與 queue

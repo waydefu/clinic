@@ -3,7 +3,7 @@
 **狀態：** 舊稱階段 A 的本機基線與 Calendar 技術前置均已完成；目前為整體交付
 Stage 1 owner decisions。舊稱階段 B／C 分別對應目前 Stage 2／Stage 3。
 撰寫於 2026-07-21，更新於 2026-07-28。
-**前提：** 本計畫不自行核准任何 D-001～D-011 決策，也不改變目前
+**前提：** 本計畫不自行核准任何 D-series 決策，也不改變目前
 「僅瀏覽器狀態、無雲端後端」的事實。
 
 ## 1. 目前位置與目標位置
@@ -127,7 +127,7 @@ worker runner 或實際 Calendar 連線。D-009 核准日曆擁有者、授權�
 
 ### 舊稱階段 B／目前 Stage 2：staging 專案的雲端 Firestore（仍為合成資料）
 
-**目前阻擋**：D-006（MFA、session、稽核刪除邊界）與 Stage 2 change review。
+**目前阻擋**：D-006（MFA、session、授權碼安全控制）與 Stage 2 change review。
 D-010 的環境、主要區域及 RPO／RTO target 已於 2026-07-28 核准，但實際 IAM、
 備份、監控與跨區復原尚未建立或驗證。
 
@@ -172,7 +172,7 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 | --- | --- | --- |
 | `patients[]` | `patients` | 身分證字號需決定是否雜湊後另存；不得以姓名自動合併 |
 | `slots[]` | `slots` | 文件 ID 用 `{resourceId}_{startAt}`，天然唯一鍵 |
-| `appointments[]` | `appointments` | 瀏覽器目前含 `bookingKind`、複數 `itemIds`、`noteTags`；2026-07-28 已確認正式預約亦可多項，正式 contract/domain 的單一 `serviceId`/`itemId` 須在 D-004 精確時長／容量完成後一起對齊 |
+| `appointments[]` | `appointments` | 瀏覽器目前含 `bookingKind`、複數 `itemIds`、`noteTags`；2026-07-28 已確認正式預約亦可多項、止鼾 40～60 分鐘、醫美依療程進度，正式 contract/domain 的單一 `serviceId`/`itemId` 須在 D-004 可選刻度、合併計算與容量規則完成後一起對齊 |
 | `followUps[]` | `follow_ups` | 已含 `tags` 與 `certificateCopies` |
 | `caseAssignments[]` | `case_assignments` | 需補 `effectiveFrom/To` 以支援改派歷程 |
 | `auditEvents[]` | `audit_events` | 不可覆寫；需補 before/after 摘要 |
@@ -188,6 +188,12 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 target 已於 2026-07-28 核准；D-006 與 Stage 2 change review 完成後才能進合成資料
 cloud staging，D-009 核准後才進 Stage 3 專用測試日曆。D-001～D-005、D-006、
 D-011 未完成前，不得開放真實資料的公開預約路徑。
+
+2026-07-28 業主提出 Google Calendar 直接新增／修改／刪除後回到系統的需求。該
+能力位於獨立 [Expansion S plan](../product/2026-07-28-surgery-follow-up-expansion-plan.md)
+的 S5，不改變 Stage 3 先完成 outbound-only projection 的順序。D-016 核准前不建立
+watch receiver 或 Calendar-to-system write path；核准後也只能先產生待審核 change
+candidate，Calendar 仍不是容量鎖。
 
 ## 6. 明確不做的事
 

@@ -69,6 +69,13 @@ has passed, Stage 1 owner decisions are current, `/v1/health` remains the only
 routed API controller, and D-006 still blocks Stage 2 after D-010 target
 approval.
 
+The 2026-07-28 owner input for surgery scheduling, clinical follow-up, patient
+payments, staff settlement and Calendar inbound edits is tracked separately in
+the
+[Expansion S plan](docs/product/2026-07-28-surgery-follow-up-expansion-plan.md).
+It is plan-only, adds D-014～D-016 gates and does not enlarge the current Phase
+1 release or enable any route.
+
 At 2026-07-28 17:18 Asia/Taipei, the deployed preview routes `/`, `/booking`,
 `/privacy` and `/clinic` all returned HTTP 200 with stable HTML set to
 `no-cache` and the preview kept `noindex`. The recorded channel expiry remains

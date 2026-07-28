@@ -128,6 +128,12 @@ medical-record system, the stricter electronic-medical-record requirements
 (including access control, encryption, backup and recorded management
 mechanisms) become a separate release gate.
 
+The 2026-07-28 surgery/clinical timeline expansion is therefore plan-only under
+D-014. Payment/refund and staff-settlement amounts are separately gated by
+D-015. Neither scope may inherit the booking-data approval automatically; see
+the
+[Expansion S plan](../product/2026-07-28-surgery-follow-up-expansion-plan.md).
+
 ## Official sources used
 
 - [Personal Data Protection Act — effective version](https://law.moj.gov.tw/LawClass/LawOldVer.aspx?pcode=I0050021): Articles 2, 3, 5–8, 10–13, 19–21 and 27.
@@ -147,3 +153,6 @@ mechanisms) become a separate release gate.
    authority to create a backend or send data to the clinic.
 3. Have the clinic's legal/privacy owner confirm this baseline against the law
    in force on the actual launch date.
+4. Before Expansion S stores surgery, anesthesia, clinical follow-up or money,
+   approve D-014/D-015 and update the field inventory, retention, correction,
+   export, accounting and role-scope evidence.

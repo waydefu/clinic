@@ -11,6 +11,9 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
 > 2026-07-24 完成；D-010 target 已於 2026-07-28 核准，D-006 仍阻擋 Stage 2
 > cloud staging。D-010 核准不等於已有部署或復原證據。
+> 2026-07-28 的手術／回診／付款／結算需求已納入獨立
+> [Expansion S plan](product/2026-07-28-surgery-follow-up-expansion-plan.md)；
+> 目前只做規劃與決策登錄，不改變 Phase 1 stage 或啟用範圍。
 > 詳細順序與 gate 以
 > [正式化後續實作規劃書](product/production-readiness-delivery-plan-2026-07-23.md)
 > 為準；技術邊界以
@@ -326,6 +329,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 | Stage 2（舊稱 B） | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-010 target 已核准；仍需 D-006＋change review |
 | Stage 3（舊稱 C） | Stage 2 上的 Google 日曆投影（專用測試日曆） | D-009，且 Stage 2 完成 |
 | Stage 4（舊稱 D） | 公開預約與開始處理真實病患資料 | D-001～D-006、D-010、D-011 |
+| Expansion S | 手術／臨床時間軸、付款／結算、Calendar inbound | 既有相關 gate＋D-014～D-016；不自動納入 Phase 1 release |
 
 三項決策的中文核准表已備妥，可直接交給診所填寫。
 
@@ -374,6 +378,9 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
               ├── D-007 + D-008 核准
               ▼
         Stage 5：個管／薪資正式化 ──► Stage 6 Production Go/No-Go
+
+Expansion S（獨立）：手術／臨床／付款／Calendar inbound
+              └── 先完成 D-014～D-016 與各自既有 gate，再決定 release
 ```
 
 ① 已完成：舊冪等鍵含底線、不符 Google 日曆的 base32hex 格式，直接用會被拒絕；
@@ -388,6 +395,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 - [正式環境目標架構](architecture/production-target-architecture-2026-07-23.md) — 保留與修改邊界、目標資料流、交易與資料模型
 - [正式化後續實作規劃](product/production-readiness-delivery-plan-2026-07-23.md) — Stage 0～6、決策 gate、驗收與重新評分點
 - [整合測試計畫](architecture/calendar-and-database-integration-plan.md) — 各階段的技術細節與驗收
+- [Expansion S 規劃](product/2026-07-28-surgery-follow-up-expansion-plan.md) — 手術、臨床時間軸、付款／結算與 Calendar inbound 的獨立分階段規劃
 - [階段 B/C 核准請求](product/stage-b-c-approval-request.md) — 要交給診所的中文表
 - [企業級專案規劃書](enterprise-appointment-project-plan.md) — 完整架構、資料模型與 §5.3 落差追蹤
 - [UI/UX 基線](design/test-only-operations-ui.md) — 不得回退的介面規則

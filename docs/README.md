@@ -19,7 +19,7 @@ Read in this order before changing a boundary or enabling a capability.
 | 0 | [Document lifecycle and evidence rules](document-lifecycle.md) | How to tell current authority from dated evidence, plan-only material and superseded history |
 | 1 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
 | 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
-| 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Which of D-001…D-011 are approved; nothing policy-dependent may be built ahead of these |
+| 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Live status of all D-series decisions, including the separate D-014～D-016 expansion gates; nothing policy-dependent may be built ahead of them |
 | 4 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
 | 5 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
 | 6 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
@@ -33,6 +33,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Phase 1 decision register](product/phase-1-decision-register.md) — the live status of every decision
 - [2026-07-27 owner request batch](product/2026-07-27-owner-request-batch.md) — the 19 owner requests of 2026-07-27 turned into scoped items, the decisions already taken, the paper intake form they map onto, and a batched execution sheet
+- [Surgery, follow-up, payment and settlement expansion plan (2026-07-28)](product/2026-07-28-surgery-follow-up-expansion-plan.md) — plan-only normalization of the owner-provided surgery workflow into a separate Expansion S track, including Calendar inbound review, clinical/financial data boundaries and D-014～D-016
 - [Phase 1 Chinese approval checklist](product/phase-1-chinese-approval-checklist.md) — D-001…D-006, D-011 in the clinic's working language
 - [Stage B/C approval request](product/stage-b-c-approval-request.md) — D-006, D-010 and D-009 consolidated into one sheet; D-010 target is approved, D-006 still blocks cloud staging and D-009 blocks the Calendar projection
 - [Appointment operations approval packet](product/phase-1-appointment-operations-approval-packet.md) — service catalogue, slots, cancellation and no-show policy
