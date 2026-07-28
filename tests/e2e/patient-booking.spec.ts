@@ -1,19 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { fillBirthDate, submitBooking } from './support/patient';
 import { STORAGE_KEY, login } from './support/workbench';
-
-/**
- * 送出預約並等到它**真的**建立完成。
- *
- * 不能等 `#booking-complete-heading` 的文字：「預約已建立」同時是 patient.html
- * 裡那個標題的**靜態預設值**，所以那個斷言在按下送出的瞬間就通過了，之後的
- * 步驟會跑在還沒寫進 localStorage 的狀態上（2026-07-27 實際踩到：讀出來是 null）。
- * `#booking-result` 的預約編號是成功處理器才填的，那才是真的訊號。
- */
-async function submitBooking(page: import('@playwright/test').Page) {
-  await page.locator('#confirm-patient-booking').click();
-  await expect(page.locator('#booking-result')).toContainText('appointment_');
-}
 
 /** 讀出瀏覽器裡的合成狀態。斷言「送出去的東西真的存下來了」時用。 */
 async function syntheticState(page: import('@playwright/test').Page) {
@@ -50,7 +38,7 @@ test.describe('患者線上預約', () => {
     // 「資料只留在本機」。兩者是不同的事，所以是兩個勾選框而不是一個。
     await page.locator('#patient-name').fill('測試患者甲');
     await page.locator('#patient-phone').fill('0912345678');
-    await page.locator('#patient-birth').fill('1990-05-20');
+    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
     await page.locator('#patient-national-id').fill('A123456789');
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
@@ -79,7 +67,7 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('測試患者丙');
     await page.locator('#patient-phone').fill('0933444555');
-    await page.locator('#patient-birth').fill('1978-03-09');
+    await fillBirthDate(page, { year: '1978', month: '03', day: '09' });
     await page.locator('#patient-national-id').fill('C123456789');
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
@@ -123,7 +111,7 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('測試患者乙');
     await page.locator('#patient-phone').fill('0922333444');
-    await page.locator('#patient-birth').fill('1985-11-02');
+    await fillBirthDate(page, { year: '1985', month: '11', day: '02' });
     await page.locator('#patient-national-id').fill('B287654321');
     // 個資同意要先勾起來，才驗得到「本機保存確認」這一條——兩個確認各自報錯，
     // 而個資同意排在前面。只留一個沒勾，才知道報的是不是對的那一句。
@@ -144,7 +132,7 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('測試患者丁');
     await page.locator('#patient-phone').fill('0955666777');
-    await page.locator('#patient-birth').fill('1992-08-14');
+    await fillBirthDate(page, { year: '1992', month: '08', day: '14' });
     await page.locator('#patient-national-id').fill('D123456789');
 
     await page.locator('[data-request-tag="same_day_procedure"]').check();
@@ -176,7 +164,7 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('測試患者戊');
     await page.locator('#patient-phone').fill('0966777888');
-    await page.locator('#patient-birth').fill('1988-01-30');
+    await fillBirthDate(page, { year: '1988', month: '01', day: '30' });
     await page.locator('#patient-national-id').fill('E123456789');
 
     await page.locator('[data-source-tag="staff_referral"]').check();
@@ -196,6 +184,69 @@ test.describe('患者線上預約', () => {
   });
 });
 
+// P10／P11（業主 2026-07-27）：生日年份選填，外籍患者改填護照。
+test.describe('身分欄位', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/booking');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+  });
+
+  test('不填年份也能預約，存下來的是省略年份的形式', async ({ page }) => {
+    await page.locator('#patient-name').fill('無年份');
+    await page.locator('#patient-phone').fill('0911222333');
+    await fillBirthDate(page, { month: '5', day: '20' });
+    await page.locator('#patient-national-id').fill('G123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    const state = await syntheticState(page);
+    // `--MM-DD` 是 XSD gMonthDay：一眼看得出年份是刻意沒有的，而不是被截斷。
+    // 個位數的月與日由介面補零，不是丟給 domain 處理。
+    expect(state.patients.at(-1).birthDate).toBe('--05-20');
+  });
+
+  test('勾選外籍人士就改問護照，身分證欄連值一起收起來', async ({ page }) => {
+    await page.locator('#patient-national-id').fill('H123456789');
+    await page.locator('[data-request-tag="foreign_national"]').check();
+
+    await expect(page.locator('#patient-national-id-field')).toBeHidden();
+    await expect(page.locator('#patient-passport-field')).toBeVisible();
+    // 收起來但還留著值的欄位照樣會被送出去——那是身分識別資料。
+    await expect(page.locator('#patient-national-id')).toHaveValue('');
+
+    await page.locator('#patient-name').fill('外籍患者');
+    await page.locator('#patient-phone').fill('0922111000');
+    await fillBirthDate(page, { year: '1985', month: '11', day: '02' });
+    await page.locator('#patient-passport').fill('AB1234567');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    const patient = (await syntheticState(page)).patients.at(-1);
+    expect(patient.passportNumber).toBe('AB1234567');
+    expect(patient.nationalId).toBe('');
+  });
+
+  test('兩種證件都沒填時，錯誤要同時指出兩條路', async ({ page }) => {
+    await page.locator('#patient-name').fill('缺證件');
+    await page.locator('#patient-phone').fill('0933000111');
+    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await page.locator('#confirm-patient-booking').click();
+
+    const error = page.locator('#patient-national-id-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText('外籍人士');
+    await expect(page.locator('[data-booking-step="4"]')).toBeHidden();
+  });
+});
+
 // P2（業主 2026-07-27）：醫師已登錄回診指示後，這位患者這一次要走的是回診，
 // 初診鍵停用並說明原因。走的是真的路徑——患者自己約一次、櫃台標到診並登錄回診
 // ——而不是捏造一筆 followUps 進去，否則測到的只是自己寫的假資料形狀。
@@ -210,7 +261,7 @@ test.describe('已確認回診時的掛號別', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('回診測試');
     await page.locator('#patient-phone').fill('0977888999');
-    await page.locator('#patient-birth').fill('1975-06-11');
+    await fillBirthDate(page, { year: '1975', month: '06', day: '11' });
     await page.locator('#patient-national-id').fill('F123456789');
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();

@@ -273,15 +273,25 @@ commit**——批與批之間的風險差距太大，混在一起會讓回滾變
 
 ### 批次 3：識別模型（動 domain）
 
-- [ ] P11 生日拆三格，年份選填（`autocomplete` 改 `bday-day/bday-month/bday-year`）
-- [ ] P10 身分證／護照擇一，外籍勾選時才顯示護照欄
-- [ ] 改 `packages/domain/src/patient-identity.ts`：放寬日期規則、新增護照、調整
-      `patientIdentityKey` 優先序（身分證 → 護照 → `phone|完整生日`）
-- [ ] 補 `packages/domain/src/patient-identity.test.ts`：無年份不得合併不同人
-- [ ] `pnpm --filter @beauessence/domain build` → `pnpm sync:domain` → 連 vendor 與
+**已完成 2026-07-27。**
+
+- [x] P11 生日拆三格，年份選填。年份缺席時存 `--MM-DD`（XSD `gMonthDay`）；
+      裸的 `MM-DD` 刻意拒絕，因為那個字串沒有人分得出是不是被截斷的。
+      規則書 R-7 已加上這條具名例外
+- [x] P10 身分證／護照擇一，勾「外籍人士」時才顯示護照欄，切換時另一欄連值一起
+      清空。**順帶修正**：身分證第二碼由 `[12]` 擴為 `[1289]`——2021-01 起的新式
+      居留證與國民身分證同形狀，第二碼是 8 或 9
+- [x] 改 `packages/domain/src/patient-identity.ts`：放寬日期規則、新增護照、
+      `patientIdentityKey` 優先序改為身分證 → 護照 → `phone|生日`；新增
+      `birthDateHasYear` 與 `maskIdentityDocument`
+- [x] 補 `patient-identity.test.ts`：無年份時同電話同月日的兩個人**不得**被合併
+      （加入姓名），同一個人重複填寫仍是同一個鍵，有年份時鍵完全不變
+- [x] `pnpm --filter @beauessence/domain build` → `pnpm sync:domain` → vendor 與
       manifest 一起提交
-- [ ] 更新 `check-web-ui.mjs` 的 autocomplete 釘選
-- [ ] 跑驗收 → 提交 → 部署
+- [x] 更新 `check-web-ui.mjs` 的 autocomplete 釘選（`bday-year/month/day`）與
+      `check-architecture.mjs` 的重複規則比對字串（原本的字面值已經對不上新規則，
+      那條守衛會安靜地不再守住任何東西）
+- [x] 跑驗收（verify 綠 532 單元、Playwright 全套綠 152）→ 提交
 
 ### 批次 4：時間窗（單獨一批）
 

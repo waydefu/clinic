@@ -328,6 +328,18 @@ function syncReferrerField() {
   if (!needed) elements['patient-referrer'].value = '';
 }
 
+// P10：身分證與護照擇一，畫面上一次只出現一個。`required` 跟著搬——留在收起來
+// 的那一欄上，瀏覽器會拒絕送出一個使用者根本看不到的欄位（而且不會說是哪一個）。
+function syncIdentityDocumentField() {
+  const foreign = isForeignNational();
+  elements['patient-national-id-field'].hidden = foreign;
+  elements['patient-passport-field'].hidden = !foreign;
+  elements['patient-national-id'].required = !foreign;
+  elements['patient-passport'].required = foreign;
+  if (foreign) elements['patient-national-id'].value = '';
+  else elements['patient-passport'].value = '';
+}
+
 function availableSlots() {
   return state.slots
     .filter(
@@ -435,45 +447,105 @@ function renderConfirmation() {
 const formFields = [
   'patient-name',
   'patient-phone',
-  'patient-birth',
-  'patient-national-id'
+  'patient-birth-year',
+  'patient-birth-month',
+  'patient-birth-day',
+  'patient-national-id',
+  'patient-passport'
 ];
 
+/** 勾了「外籍人士」就改填護照。這是 PATIENT_REQUEST_TAGS 的其中一個選項。 */
+function isForeignNational() {
+  return checkedTagIds('patient-request-tags', 'data-request-tag').includes(
+    'foreign_national'
+  );
+}
+
+// 三格拼回 domain 認得的字串。月與日補零，年份留白就走 `--MM-DD`（XSD gMonthDay）。
+// 填了一半（只有月或只有日）一律回空字串，讓 domain 報 `required`——那比「格式
+// 不正確」誠實：使用者沒有填錯，是還沒填完。
+function birthDateValue() {
+  const pad = (value) => (value.length === 1 ? `0${value}` : value);
+  const year = elements['patient-birth-year'].value.trim();
+  const month = elements['patient-birth-month'].value.trim();
+  const day = elements['patient-birth-day'].value.trim();
+  if (month === '' || day === '') return '';
+  const monthDay = `${pad(month)}-${pad(day)}`;
+  return year === '' ? `--${monthDay}` : `${year}-${monthDay}`;
+}
+
 function patientInput() {
+  const foreign = isForeignNational();
   return {
     name: elements['patient-name'].value,
     phone: elements['patient-phone'].value,
-    birthDate: elements['patient-birth'].value,
-    nationalId: elements['patient-national-id'].value,
+    birthDate: birthDateValue(),
+    // 只送使用者看得到的那一欄。另一欄即使還留著上一次的輸入，也不該跟著出去。
+    nationalId: foreign ? '' : elements['patient-national-id'].value,
+    passportNumber: foreign ? elements['patient-passport'].value : '',
     hasNhiCard: elements['patient-nhi-card'].checked
   };
 }
 
-const fieldToId = {
-  name: 'patient-name',
-  phone: 'patient-phone',
-  birthDate: 'patient-birth',
-  nationalId: 'patient-national-id'
+// domain 的欄位名 → 畫面上「該把錯誤放哪裡、焦點帶到哪裡」。
+// 生日拆成三格之後，錯誤訊息仍然只有一則（那是一個邏輯資料），掛在分組下方；
+// 焦點帶到月份，因為那是必填的第一格。
+const FIELD_UI = {
+  name: { input: 'patient-name', error: 'patient-name-error' },
+  phone: { input: 'patient-phone', error: 'patient-phone-error' },
+  birthDate: { input: 'patient-birth-month', error: 'patient-birth-error' }
 };
+
+// 證件那三個欄位名（身分證／護照／兩者皆空）都指向**目前看得到的那一欄**。
+// 對著使用者根本沒顯示的欄位報錯，等於告訴他去修一個不存在的東西。
+function documentUi() {
+  return isForeignNational()
+    ? { input: 'patient-passport', error: 'patient-passport-error' }
+    : { input: 'patient-national-id', error: 'patient-national-id-error' };
+}
+
+function fieldUi(field) {
+  return FIELD_UI[field] ?? documentUi();
+}
 
 // 只對「使用者已經離開過」的欄位顯示錯誤，避免一進表單就滿江紅。
 const touched = new Set();
 
 function showFieldErrors(only = touched) {
   const errors = fieldErrors(patientInput());
-  for (const [field, id] of Object.entries(fieldToId)) {
-    const input = elements[id];
-    const hint = elements[`${id}-error`];
-    const problem = only.has(id) ? errors[field] : undefined;
-    hint.textContent = problem ?? '';
-    hint.hidden = problem === undefined;
-    input.setAttribute(
-      'aria-invalid',
-      problem === undefined ? 'false' : 'true'
-    );
-    input
-      .closest('label')
-      ?.classList.toggle('has-error', problem !== undefined);
+  // 先清空所有錯誤位置再逐一填：證件欄會依「外籍人士」切換，只更新目前這一欄
+  // 會把另一欄上一輪的紅字留在畫面上。
+  for (const id of [
+    'patient-name-error',
+    'patient-phone-error',
+    'patient-birth-error',
+    'patient-national-id-error',
+    'patient-passport-error'
+  ]) {
+    elements[id].textContent = '';
+    elements[id].hidden = true;
+  }
+  for (const id of formFields) {
+    elements[id].setAttribute('aria-invalid', 'false');
+    elements[id].closest('label')?.classList.remove('has-error');
+  }
+
+  for (const [field, message] of Object.entries(errors)) {
+    const ui = fieldUi(field);
+    // 三格生日只要有一格被造訪過，就算這個邏輯欄位已經被造訪。
+    const seen =
+      field === 'birthDate'
+        ? [
+            'patient-birth-year',
+            'patient-birth-month',
+            'patient-birth-day'
+          ].some((id) => only.has(id))
+        : only.has(ui.input);
+    if (!seen) continue;
+    elements[ui.error].textContent = message;
+    elements[ui.error].hidden = false;
+    elements[ui.input].setAttribute('aria-invalid', 'true');
+    elements[ui.input].closest('label')?.classList.add('has-error');
   }
   return errors;
 }
@@ -617,6 +689,13 @@ elements['open-privacy-policy'].addEventListener('click', (event) => {
 // P9：勾選來源標籤時同步介紹人欄位的顯示。
 elements['patient-source-tags'].addEventListener('change', syncReferrerField);
 
+// P10：勾選「外籍人士」時改問護照。切換時把另一欄清空——留著上一次的輸入，
+// 使用者換回來時會看到一個他以為已經刪掉的號碼，而那是身分識別資料。
+elements['patient-request-tags'].addEventListener('change', () => {
+  syncIdentityDocumentField();
+  updateSubmitState();
+});
+
 // P13：窄螢幕的漢堡選單。開合狀態由 aria-expanded 與 class 同時表達——前者給
 // 輔助技術，後者給 CSS。點連結或按 Escape 都要收起來，否則導航之後（同頁錨點）
 // 選單會留在畫面上蓋住內容。
@@ -687,11 +766,11 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
   // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
   for (const field of formFields) touched.add(field);
   const errors = showFieldErrors();
-  const firstProblem = Object.keys(fieldToId).find(
-    (field) => errors[field] !== undefined
-  );
+  // fieldErrors 依欄位在表單上的順序建出來（domain 保證這個順序），所以第一個
+  // 鍵就是使用者往下讀時第一個會遇到的問題。
+  const [firstProblem] = Object.keys(errors);
   if (firstProblem !== undefined) {
-    const target = elements[fieldToId[firstProblem]];
+    const target = elements[fieldUi(firstProblem).input];
     target.focus();
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     message(
@@ -875,6 +954,7 @@ renderBookingTypeButtons();
 // 標籤是常數，只畫一次：重畫會清掉使用者已經勾好的選擇。
 renderPatientTags();
 syncReferrerField();
+syncIdentityDocumentField();
 
 try {
   state = await apiClient.request('/state');

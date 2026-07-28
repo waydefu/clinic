@@ -11,13 +11,15 @@
 // 保存期限、法律依據與正式的身分模型仍是 D-001…D-003，這裡不決定。
 
 import {
+  birthDateHasYear,
+  maskIdentityDocument,
   maskNationalId,
   normalisePatientIdentity,
   patientIdentityIssues,
   patientIdentityKey
 } from '../vendor/domain/patient-identity.js';
 
-export { maskNationalId };
+export { birthDateHasYear, maskIdentityDocument, maskNationalId };
 
 /** 身分比對鍵。名稱維持 `identityKey`，呼叫端與既有測試都用這個名字。 */
 export const identityKey = patientIdentityKey;
@@ -31,14 +33,20 @@ const MESSAGES = {
   'name.format': '姓名請控制在 30 字以內。',
   'phone.required': '請填寫聯絡電話。',
   'phone.format': '請填寫 8–20 位的數字電話，例如 0912345678。',
-  'birthDate.required': '請填寫生日。',
-  'birthDate.format': '生日請以西元年月日填寫，例如 1990-05-20。',
+  'birthDate.required': '請填寫出生的月份與日期。',
+  'birthDate.format':
+    '出生月份與日期請填數字；年份若要填，請填西元四位數，例如 1990。',
   'birthDate.not_a_calendar_date': '生日不是有效的日期。',
-  'birthDate.out_of_supported_range': '生日請填西元年。',
+  'birthDate.out_of_supported_range': '生日的西元年請填 1900 之後。',
   'birthDate.in_the_future': '生日不可晚於今天。',
   'nationalId.required': '請填寫身分證字號。',
   'nationalId.format':
-    '身分證字號格式為 1 個英文字母加 9 位數字，例如 A123456789。'
+    '身分證字號為 1 個英文字母加 9 位數字（例如 A123456789）；居留證第二碼為 8 或 9。',
+  'passportNumber.format': '護照號碼請填 6 至 12 位的英文字母或數字。',
+  // 兩種證件都空時，問題不在其中任何一欄，而是在兩者之間——訊息因此要同時
+  // 指出兩條路，否則外籍患者只會看到「請填身分證字號」而不知道自己該填護照。
+  'identityDocument.required':
+    '請填寫身分證字號；外籍人士請勾選「外籍人士」後填寫護照號碼。'
 };
 
 function messageFor(issue) {

@@ -8,7 +8,7 @@ import {
   PERMISSIONS,
   WEEKDAY_LABELS
 } from './constants.js';
-import { maskNationalId } from './patient-registry.js';
+import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
 import { followUpDueTimes, isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
@@ -76,7 +76,15 @@ function patientLabel(state, id) {
 function patientDetail(state, id) {
   const record = patient(state, id);
   if (record === undefined) return escapeHtml(id);
-  return `${escapeHtml(record.phone)} · ${escapeHtml(record.birthDate)} · ${escapeHtml(maskNationalId(record.nationalId))} · 健保卡：${record.hasNhiCard ? '預計攜帶' : '未登記攜帶'}`;
+  // 生日的年份自 2026-07-27 起是選填，沒填時值長 `--05-20`（XSD gMonthDay）。
+  // 直接印出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20（未填年）」，
+  // 讓「沒有年份」看起來是一個事實而不是一個錯誤。
+  const birth = birthDateHasYear(record.birthDate)
+    ? record.birthDate
+    : `${record.birthDate.slice(2).replace('-', '/')}（未填年）`;
+  // 遮罩走 domain 的統一入口：外籍患者給的是護照，這裡不能因為身分證欄是空的
+  // 就顯示破折號——那看起來像資料缺漏，而不是換了一種證件。
+  return `${escapeHtml(record.phone)} · ${escapeHtml(birth)} · ${escapeHtml(maskIdentityDocument(record))} · 健保卡：${record.hasNhiCard ? '預計攜帶' : '未登記攜帶'}`;
 }
 
 function detailRow(state, id) {

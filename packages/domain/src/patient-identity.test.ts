@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DomainError } from './errors.js';
 import {
+  maskIdentityDocument,
   maskNationalId,
   normalisePatientIdentity,
   patientIdentityIssues,
@@ -34,7 +35,9 @@ describe('patientIdentityIssues', () => {
       { field: 'name', code: 'required' },
       { field: 'phone', code: 'required' },
       { field: 'birthDate', code: 'required' },
-      { field: 'nationalId', code: 'required' }
+      // 兩種證件都空時，問題不屬於其中任何一欄——介面要說的是「請填其中一個」，
+      // 而不是對著使用者根本沒看到的那一欄報錯。
+      { field: 'identityDocument', code: 'required' }
     ]);
   });
 
@@ -81,13 +84,78 @@ describe('patientIdentityIssues', () => {
     ).toEqual([{ field: 'birthDate', code: 'format' }]);
   });
 
-  it('身分證字號第二碼只接受 1 或 2', () => {
-    expect(
-      patientIdentityIssues({ ...VALID, nationalId: 'A323456789' }, NOW)
-    ).toEqual([{ field: 'nationalId', code: 'format' }]);
-    expect(
-      patientIdentityIssues({ ...VALID, nationalId: 'A223456789' }, NOW)
-    ).toEqual([]);
+  it('身分證第二碼接受 1／2，居留證接受 8／9，其餘不收', () => {
+    for (const nationalId of ['A123456789', 'A223456789'])
+      expect(patientIdentityIssues({ ...VALID, nationalId }, NOW)).toEqual([]);
+    // 2021-01 起的新式外來人口統一證號與國民身分證同形狀，第二碼是 8 或 9。
+    for (const nationalId of ['A812345678', 'A912345678'])
+      expect(patientIdentityIssues({ ...VALID, nationalId }, NOW)).toEqual([]);
+    for (const nationalId of ['A323456789', 'AB12345678'])
+      expect(patientIdentityIssues({ ...VALID, nationalId }, NOW)).toEqual([
+        { field: 'nationalId', code: 'format' }
+      ]);
+  });
+
+  // 2026-07-27（P11，業主）：生日的年份改為選填。
+  describe('省略年份的生日', () => {
+    const noYear = { ...VALID, birthDate: '--05-20' };
+
+    it('接受 --MM-DD，並且不再套用年份才有的兩條規則', () => {
+      expect(patientIdentityIssues(noYear, NOW)).toEqual([]);
+      // 沒有年份就沒有「早於 1900」與「晚於今天」可言。
+      expect(
+        patientIdentityIssues({ ...VALID, birthDate: '--12-31' }, NOW)
+      ).toEqual([]);
+    });
+
+    it('2 月 29 日不因為沒有年份而被擋下來', () => {
+      expect(
+        patientIdentityIssues({ ...VALID, birthDate: '--02-29' }, NOW)
+      ).toEqual([]);
+    });
+
+    it('日曆上不存在的月日仍然擋下來', () => {
+      expect(
+        patientIdentityIssues({ ...VALID, birthDate: '--02-31' }, NOW)
+      ).toEqual([{ field: 'birthDate', code: 'not_a_calendar_date' }]);
+      expect(
+        patientIdentityIssues({ ...VALID, birthDate: '--13-01' }, NOW)
+      ).toEqual([{ field: 'birthDate', code: 'not_a_calendar_date' }]);
+    });
+
+    it('裸的 MM-DD 不算數：那個字串沒有人分得出是不是被截斷的', () => {
+      expect(
+        patientIdentityIssues({ ...VALID, birthDate: '05-20' }, NOW)
+      ).toEqual([{ field: 'birthDate', code: 'format' }]);
+    });
+  });
+
+  // 2026-07-27（P10，業主）：外籍患者改填護照。
+  describe('身分證與護照擇一', () => {
+    const foreign = {
+      ...VALID,
+      nationalId: '',
+      passportNumber: 'AB1234567'
+    };
+
+    it('只有護照也算完整', () => {
+      expect(patientIdentityIssues(foreign, NOW)).toEqual([]);
+    });
+
+    it('兩個都給不算錯——櫃台核對雙證件時就會兩個都有', () => {
+      expect(
+        patientIdentityIssues({ ...VALID, passportNumber: 'AB1234567' }, NOW)
+      ).toEqual([]);
+    });
+
+    it('護照格式刻意寬鬆，但空白與符號仍然擋下來', () => {
+      expect(
+        patientIdentityIssues({ ...foreign, passportNumber: 'A1' }, NOW)
+      ).toEqual([{ field: 'passportNumber', code: 'format' }]);
+      expect(
+        patientIdentityIssues({ ...foreign, passportNumber: 'AB 123 456' }, NOW)
+      ).toEqual([{ field: 'passportNumber', code: 'format' }]);
+    });
   });
 
   it('姓名以字元數計算，不因表情符號的編碼長度誤判', () => {
@@ -149,7 +217,17 @@ describe('patientIdentityKey', () => {
     );
   });
 
-  it('沒有身分證字號時退回電話與生日的組合', () => {
+  it('沒有身分證字號時改用護照，優先序在電話生日之前', () => {
+    expect(
+      patientIdentityKey({
+        passportNumber: 'ab1234567',
+        phone: '0912345678',
+        birthDate: '1990-05-20'
+      })
+    ).toBe('passport:AB1234567');
+  });
+
+  it('兩種證件都沒有時退回電話與生日的組合', () => {
     expect(
       patientIdentityKey({ phone: '0912345678', birthDate: '1990-05-20' })
     ).toBe('contact:0912345678|1990-05-20');
@@ -159,6 +237,54 @@ describe('patientIdentityKey', () => {
     expect(patientIdentityKey({ nationalId: 'A123456789' })).not.toBe(
       patientIdentityKey({ nationalId: 'B123456789' })
     );
+  });
+
+  // 這是年份改為選填之後最危險的一個後果：同住的家人共用一支電話，而同月同日生
+  // 並不罕見。兩件事湊在一起，先前的鍵會把兩個人合併成一個人——症狀是其中一位
+  // 被系統告知「您已有一筆未完成的預約」，而他自己根本沒約過。
+  it('沒有年份時，同電話同月日的兩個人不得被合併', () => {
+    const shared = { phone: '0912345678', birthDate: '--05-20' };
+    expect(patientIdentityKey({ ...shared, name: '王小明' })).not.toBe(
+      patientIdentityKey({ ...shared, name: '王大明' })
+    );
+  });
+
+  it('沒有年份時，同一個人重複填寫仍然是同一個鍵', () => {
+    const person = {
+      phone: '0912345678',
+      birthDate: '--05-20',
+      name: '王小明'
+    };
+    expect(patientIdentityKey(person)).toBe(patientIdentityKey({ ...person }));
+  });
+
+  it('有年份時維持原本的鍵，不因為新規則而改變既有比對結果', () => {
+    expect(
+      patientIdentityKey({
+        phone: '0912345678',
+        birthDate: '1990-05-20',
+        name: '王小明'
+      })
+    ).toBe('contact:0912345678|1990-05-20');
+  });
+});
+
+describe('maskIdentityDocument', () => {
+  it('有身分證就遮身分證', () => {
+    expect(maskIdentityDocument({ nationalId: 'A123456789' })).toBe(
+      'A12****789'
+    );
+  });
+
+  // 外籍患者在清單上不該顯示破折號——那看起來像資料缺漏，而不是換了一種證件。
+  it('沒有身分證時改遮護照', () => {
+    expect(
+      maskIdentityDocument({ nationalId: '', passportNumber: 'AB1234567' })
+    ).toBe('AB1****567');
+  });
+
+  it('兩個都沒有時才是破折號', () => {
+    expect(maskIdentityDocument({})).toBe('——');
   });
 });
 

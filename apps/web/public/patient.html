@@ -404,27 +404,82 @@
                     hidden
                   ></span>
                 </label>
-                <label
-                  ><span class="field-label"
-                    >生日（西元）<span class="required-mark" aria-hidden="true"
-                      >*</span
-                    ></span
-                  >
-                  <input
-                    id="patient-birth"
-                    type="date"
-                    autocomplete="bday"
-                    required
-                    aria-describedby="patient-birth-error"
-                  />
+                <!-- P11（業主 2026-07-27）：生日拆成三格，年份選填。
+                     介面規則書 R-7 的預設是「一個邏輯資料一個欄位」，日期是
+                     具名的例外：它是三個獨立的數字，而 `<input type="date">`
+                     沒有辦法表達「年份可以不填」。做法比照 GOV.UK 的 date input
+                     ——`<fieldset>`＋`<legend>` 分組、逐格 label、
+                     `bday-year/month/day` 這三個標準 autocomplete token。
+                     欄位順序用台灣慣用的年月日，與紙本初診表一致。 -->
+                <fieldset class="patient-fieldset date-fieldset">
+                  <legend class="field-legend">
+                    <span class="field-label"
+                      >生日<span class="required-mark" aria-hidden="true"
+                        >*</span
+                      ></span
+                    >
+                  </legend>
+                  <p id="patient-birth-hint" class="field-hint">
+                    年份可以不填；月與日必填。
+                  </p>
+                  <div class="date-input">
+                    <label
+                      ><span>西元年（選填）</span>
+                      <input
+                        id="patient-birth-year"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="4"
+                        autocomplete="bday-year"
+                        aria-describedby="patient-birth-hint patient-birth-error"
+                      />
+                    </label>
+                    <label
+                      ><span>月</span>
+                      <input
+                        id="patient-birth-month"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        autocomplete="bday-month"
+                        required
+                        aria-describedby="patient-birth-error"
+                      />
+                    </label>
+                    <label
+                      ><span>日</span>
+                      <input
+                        id="patient-birth-day"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        autocomplete="bday-day"
+                        required
+                        aria-describedby="patient-birth-error"
+                      />
+                    </label>
+                  </div>
                   <span
                     id="patient-birth-error"
                     class="field-error"
                     role="alert"
                     hidden
                   ></span>
-                </label>
-                <label
+                </fieldset>
+
+                <!-- P9／P10：「關於這次門診」放在證件欄**之前**，因為勾選
+                     「外籍人士」會決定下面要填身分證還是護照。控制項排在它影響
+                     的欄位後面，等於要使用者先回答再回頭改。 -->
+                <fieldset class="patient-fieldset">
+                  <legend>關於這次門診（可複選，選填）</legend>
+                  <div
+                    id="patient-request-tags"
+                    class="tag-picker"
+                    role="group"
+                  ></div>
+                </fieldset>
+
+                <label id="patient-national-id-field"
                   ><span class="field-label"
                     >身分證字號<span class="required-mark" aria-hidden="true"
                       >*</span
@@ -440,10 +495,37 @@
                     aria-describedby="patient-national-id-error patient-national-id-hint"
                   />
                   <span id="patient-national-id-hint" class="field-hint"
-                    >1 個英文字母加 9 位數字，例如 A123456789</span
+                    >1 個英文字母加 9 位數字，例如
+                    A123456789。居留證同一種格式， 第二碼是 8 或 9。</span
                   >
                   <span
                     id="patient-national-id-error"
+                    class="field-error"
+                    role="alert"
+                    hidden
+                  ></span>
+                </label>
+                <!-- 護照欄只在勾選「外籍人士」時出現，並在取消勾選時清空：
+                     收起來但仍帶著值的欄位照樣會被送出去。 -->
+                <label id="patient-passport-field" hidden
+                  ><span class="field-label"
+                    >護照號碼<span class="required-mark" aria-hidden="true"
+                      >*</span
+                    ></span
+                  >
+                  <input
+                    id="patient-passport"
+                    type="text"
+                    maxlength="12"
+                    autocapitalize="characters"
+                    autocomplete="off"
+                    aria-describedby="patient-passport-error patient-passport-hint"
+                  />
+                  <span id="patient-passport-hint" class="field-hint"
+                    >請填護照上的號碼，6 至 12 位英文字母或數字。</span
+                  >
+                  <span
+                    id="patient-passport-error"
                     class="field-error"
                     role="alert"
                     hidden
@@ -463,20 +545,11 @@
                   未攜帶健保卡者，本次看診須全額自費。
                 </p>
 
-                <!-- P9（業主 2026-07-27）：兩組可複選標籤。
+                <!-- P9（業主 2026-07-27）：可複選標籤。
                      選項由 modules/constants.js 產生，本身不帶 id——一頁上兩組
                      標籤若各自給 id 會撞名，而兩份客戶端都用
                      `Object.fromEntries(querySelectorAll('[id]'))` 建 elements
                      表，撞名會靜默覆蓋掉控制項。 -->
-                <fieldset class="patient-fieldset">
-                  <legend>這次門診的需求（可複選，選填）</legend>
-                  <div
-                    id="patient-request-tags"
-                    class="tag-picker"
-                    role="group"
-                  ></div>
-                </fieldset>
-
                 <fieldset class="patient-fieldset">
                   <legend>如何得知診所訊息（可複選，選填）</legend>
                   <div

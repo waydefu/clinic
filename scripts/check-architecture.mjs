@@ -237,10 +237,13 @@ const FORBIDDEN_IN_BROWSER = [
       '格式化一律走 modules/taipei-time.js，否則同一個時間會在不同畫面長得不一樣。'
   },
   {
-    pattern: /\[12\]\[0-9\]\{8\}|\[A-Za-z\]\[12\]/,
+    // 2026-07-27：身分證的第二碼由 `[12]` 擴為 `[1289]`（新式居留證），
+    // 並新增護照格式。守衛的字面比對要跟著改，否則它會安靜地不再守住任何東西。
+    pattern: /\[1289\]\[0-9\]\{8\}|\[A-Za-z\]\[1289\]|\[A-Za-z0-9\]\{6,12\}/,
     detail:
-      '重寫了身分證字號的格式規則。那條規則在 packages/domain 的 patient-identity，' +
-      '瀏覽器只能從 vendor/domain 匯入——否則 API 上線時會有兩份互相漂移的定義。'
+      '重寫了身分證字號或護照的格式規則。那些規則在 packages/domain 的 ' +
+      'patient-identity，瀏覽器只能從 vendor/domain 匯入——否則 API 上線時會有' +
+      '兩份互相漂移的定義。'
   }
 ];
 

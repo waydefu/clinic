@@ -284,8 +284,14 @@ describe('預約建立', () => {
     const cases: [Record<string, unknown>, RegExp][] = [
       [{ name: '' }, /姓名/],
       [{ phone: 'abc' }, /電話/],
-      [{ birthDate: '90-05-20' }, /生日/],
-      [{ nationalId: 'X999' }, /身分證/]
+      // 2026-07-27 起生日的年份選填，訊息因此改談「出生月份與日期」——
+      // 三格的表單裡「生日格式不正確」不會告訴使用者是哪一格出了問題。
+      [{ birthDate: '90-05-20' }, /出生月份與日期/],
+      [{ birthDate: '--02-31' }, /有效的日期/],
+      [{ nationalId: 'X999' }, /身分證/],
+      [{ nationalId: '', passportNumber: 'A1' }, /護照號碼/],
+      // 兩種證件都空：訊息要同時指出兩條路，否則外籍患者只會被叫去填身分證。
+      [{ nationalId: '' }, /外籍人士/]
     ];
     for (const [patch, message] of cases) {
       expect(() =>

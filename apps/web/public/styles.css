@@ -2372,11 +2372,17 @@ label.has-error input {
   min-width: 0;
   padding: var(--space-xs) var(--space-sm) var(--space-sm);
 }
-.patient-fieldset > legend {
+/* 分組名稱預設是小字淡色（它在說「接下來這幾個勾選是在問什麼」）。
+   帶 .field-legend 的那一種例外：那是一個**必填欄位**的名稱，要與其他欄位的
+   標籤長得一樣，所以不套這組樣式。 */
+.patient-fieldset > legend:not(.field-legend) {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-label);
+  padding-inline: var(--space-3xs);
+}
+.patient-fieldset > legend.field-legend {
   padding-inline: var(--space-3xs);
 }
 /* 分組裡的標籤清單不需要再一層外框——fieldset 已經是那個框了。 */
@@ -2389,6 +2395,27 @@ label.has-error input {
   color: var(--forest);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+/* 生日的三格（GOV.UK date input）。年份四位、月日各兩位，欄寬跟著內容走而不是
+   一律等寬——等寬會讓兩位數的月份欄看起來還能再填兩個字。 */
+.date-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.date-input label {
+  display: grid;
+  gap: var(--space-4xs);
+}
+.date-input span {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+}
+.date-input input {
+  width: 5.5rem;
+}
+.date-input label:first-child input {
+  width: 7rem;
 }
 
 /* ---------------------------------------------------------------

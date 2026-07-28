@@ -386,21 +386,22 @@ test.describe('患者預約頁手機版', () => {
     expect(await pageOverflow(page), 'step 3').toBeLessThanOrEqual(1);
   });
 
-  test('必填星號緊跟欄名，四個資料欄位維持同寬', async ({ page }) => {
+  test('必填星號緊跟欄名，資料欄位維持同寬', async ({ page }) => {
     await page.goto('/booking');
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('[data-service]').first().click();
     await page.locator('[data-patient-slot]').first().click();
     await expect(page.locator('#patient-name')).toBeVisible();
 
-    // 只量**必填的**四個身分欄位。表單自 2026-07-27 起還有選填的備註（textarea）
-    // 與標籤分組，它們沒有星號、形狀也不同——用 `:not(.consent-preview)` 會把它們
-    // 一起撈進來，於是這條測試會因為「新增了一個選填欄位」而紅，卻與它要守的事
-    // （星號位置與四欄同寬）完全無關。
+    // 只量**目前看得到的必填**身分欄位。表單自 2026-07-27 起還有選填的備註
+    // （textarea）、標籤分組，以及一個平時收起來的護照欄——用
+    // `:not(.consent-preview)` 會把它們一起撈進來，於是這條測試會因為「新增了一個
+    // 選填欄位」而紅，卻與它要守的事（星號位置與各欄同寬）完全無關。
+    // 生日已改成 <fieldset> 三格，不在這一組裡；它有自己的欄寬規則。
     const labels = page.locator(
-      '.patient-form-grid > label:has(.required-mark)'
+      '.patient-form-grid > label:has(.required-mark):not([hidden])'
     );
-    await expect(labels).toHaveCount(4);
+    await expect(labels).toHaveCount(3);
     const labelRows = await labels.locator('.field-label').evaluateAll((rows) =>
       rows.map((row) => {
         const mark = row.querySelector('.required-mark');

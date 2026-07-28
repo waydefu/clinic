@@ -338,8 +338,15 @@ for (const control of files.adminShell.matchAll(
 const allowedPatientControls = new Set([
   'patient-name',
   'patient-phone',
-  'patient-birth',
+  // 2026-07-27（P11）：生日拆成三格，年份選填。日期是 R-7「一個資料一個欄位」
+  // 的具名例外——它是三個獨立的數字，而 <input type="date"> 無法表達「年可不填」。
+  'patient-birth-year',
+  'patient-birth-month',
+  'patient-birth-day',
   'patient-national-id',
+  // 2026-07-27（P10）：外籍患者改填護照。與身分證**擇一**，畫面上一次只出現
+  // 一個，切換時另一欄連值一起清空。
+  'patient-passport',
   'patient-nhi-card',
   'synthetic-confirmation',
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
@@ -381,10 +388,12 @@ requireText(
   "document.querySelectorAll('[data-local-only-link]')",
   'Online patient preview no longer hides every internal workbench link.'
 );
+// 2026-07-27：改釘 `maskIdentityDocument`。外籍患者給的是護照，只遮身分證那一欄
+// 會讓他們的識別碼要嘛整串裸露、要嘛顯示成破折號（看起來像資料缺漏）。
 requireText(
   files.adminView,
-  'maskNationalId',
-  'Workbench must render masked national IDs.'
+  'maskIdentityDocument',
+  'Workbench must render every patient identity document masked, whichever kind it is.'
 );
 const combinedClient = `${files.adminClient}\n${files.patientClient}\n${files.store}\n${files.domainRules}\n${files.schedule}\n${files.cases}\n${files.confirmDialog}\n${files.theme}`;
 const externalUrls = combinedClient.match(/https?:\/\/[^'"\s`]+/g) ?? [];
@@ -529,11 +538,19 @@ if (scheduleHours.length === 0) {
 //
 // 身分證欄位刻意是 `off`：那是共用機台上不該被自動填入的欄位（見政策頁）。這是
 // 走過例外程序的具名決定，不是漏寫。
+//
+// 2026-07-27：生日拆成三格之後，token 也必須跟著拆——`bday` 是給單一日期欄位
+// 的，套在三格上瀏覽器一格都填不了。`bday-year`／`bday-month`／`bday-day` 是
+// 規範裡就有的名稱，GOV.UK 的 date input 也是這樣用。護照與身分證同樣是共用
+// 機台上不該被自動填入的欄位，一樣走具名決定的 `off`。
 const AUTOCOMPLETE_EXPECTED = {
   'patient-name': 'name',
   'patient-phone': 'tel',
-  'patient-birth': 'bday',
-  'patient-national-id': 'off'
+  'patient-birth-year': 'bday-year',
+  'patient-birth-month': 'bday-month',
+  'patient-birth-day': 'bday-day',
+  'patient-national-id': 'off',
+  'patient-passport': 'off'
 };
 for (const [id, token] of Object.entries(AUTOCOMPLETE_EXPECTED)) {
   const field = files.patientHtml.match(

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { fillBirthDate, submitBooking } from './support/patient';
+
 // 個資法第 8 條要求「蒐集前告知」五件事。這支測試把那五件事釘成頁面必須成立的
 // 內容，而不是靠人記得——政策頁最常見的退步不是寫錯，是改版時整段被刪掉。
 //
@@ -152,7 +154,7 @@ test.describe('隱私權政策頁', () => {
       await reachDetailsStep(page);
       await page.locator('#patient-name').fill('告知測試');
       await page.locator('#patient-phone').fill('0912345678');
-      await page.locator('#patient-birth').fill('1990-05-20');
+      await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
       await page.locator('#patient-national-id').fill('A123456789');
       await page.locator('#synthetic-confirmation').check();
       await page.locator('#confirm-patient-booking').click();
@@ -163,10 +165,7 @@ test.describe('隱私權政策頁', () => {
       );
       // 勾了才送得出去。
       await page.locator('#privacy-consent').check();
-      await page.locator('#confirm-patient-booking').click();
-      await expect(page.locator('#booking-complete-heading')).toHaveText(
-        '預約已建立'
-      );
+      await submitBooking(page);
     });
 
     test('全文就地展開，內容是政策頁本人而不是另一份抄本', async ({ page }) => {
