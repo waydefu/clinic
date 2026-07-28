@@ -10,10 +10,15 @@ import {
 } from '../public/modules/appointment-domain.js';
 import {
   assignCaseManager,
-  buildWorkload
+  buildOperationalTasks,
+  buildWorkload,
+  overdueAppointments
 } from '../public/modules/case-management.js';
 import { PERMISSIONS } from '../public/modules/constants.js';
-import { renderAppointments } from '../public/modules/admin-view.js';
+import {
+  renderAppointments,
+  renderIntakeSheet
+} from '../public/modules/admin-view.js';
 import {
   calendarEventIdForAppointment,
   calendarEventIdForFollowUp
@@ -233,7 +238,7 @@ describe('門診時段', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient: PATIENT_A,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'admin_test_001'
     );
@@ -268,7 +273,7 @@ describe('預約建立', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient: PATIENT_A,
-        itemId: 'procedure_septum',
+        itemIds: ['procedure_septum'],
         noteTags: ['same_day', 'overseas'],
         noteText: '需要輪椅'
       },
@@ -290,7 +295,7 @@ describe('預約建立', () => {
         {
           slotId: openSlot(state, 'follow_up').id,
           patient: PATIENT_A,
-          itemId: 'service_snoring',
+          itemIds: ['service_snoring'],
           bookingKind: 'initial'
         },
         'admin_test_001'
@@ -320,7 +325,7 @@ describe('預約建立', () => {
           {
             slotId,
             patient: { ...PATIENT_A, ...patch },
-            itemId: 'service_snoring'
+            itemIds: ['service_snoring']
           },
           'admin_test_001'
         )
@@ -335,7 +340,7 @@ describe('預約建立', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient: PATIENT_A,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'admin_test_001'
     );
@@ -346,7 +351,7 @@ describe('預約建立', () => {
         {
           slotId: openSlot(state, 'initial').id,
           patient: PATIENT_A,
-          itemId: 'service_snoring'
+          itemIds: ['service_snoring']
         },
         'admin_test_001'
       )
@@ -358,7 +363,7 @@ describe('預約建立', () => {
         {
           slotId: openSlot(state, 'initial').id,
           patient: PATIENT_B,
-          itemId: 'service_aesthetic'
+          itemIds: ['service_aesthetic']
         },
         'admin_test_001'
       )
@@ -372,7 +377,7 @@ describe('預約建立', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient: PATIENT_A,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'admin_test_001'
     );
@@ -390,7 +395,7 @@ describe('預約建立', () => {
         {
           slotId: openSlot(state, 'initial').id,
           patient: PATIENT_A,
-          itemId: 'service_snoring'
+          itemIds: ['service_snoring']
         },
         'admin_test_001'
       )
@@ -405,7 +410,7 @@ describe('櫃台處置', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'front_desk_test_001'
     );
@@ -607,7 +612,7 @@ describe('櫃台處置', () => {
         slotId: openSlot(state, 'follow_up').id,
         patient: PATIENT_A,
         bookingKind: 'follow_up',
-        itemId: 'service_snoring',
+        itemIds: ['service_snoring'],
         origin: 'patient'
       },
       'patient_test_001'
@@ -739,7 +744,7 @@ describe('刪除預約紀錄', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'front_desk_test_001'
     );
@@ -779,7 +784,7 @@ describe('刪除預約紀錄', () => {
     transitionAppointment(state, first.id, 'cancel', 'front_desk_test_001');
     const second = createBooking(
       state,
-      { slotId, patient: PATIENT_B, itemId: 'service_snoring' },
+      { slotId, patient: PATIENT_B, itemIds: ['service_snoring'] },
       'front_desk_test_001'
     );
 
@@ -827,7 +832,7 @@ describe('刪除預約紀錄', () => {
         slotId: openSlot(state, 'follow_up').id,
         patient: PATIENT_A,
         bookingKind: 'follow_up',
-        itemId: 'service_snoring',
+        itemIds: ['service_snoring'],
         origin: 'patient'
       },
       'patient_test_001'
@@ -968,12 +973,12 @@ describe('預約清單排序', () => {
     const slots = state.slots.filter((item: any) => item.kind === 'initial');
     createBooking(
       state,
-      { slotId: slots[4].id, patient: PATIENT_A, itemId: 'service_snoring' },
+      { slotId: slots[4].id, patient: PATIENT_A, itemIds: ['service_snoring'] },
       'admin_test_001'
     );
     createBooking(
       state,
-      { slotId: slots[1].id, patient: PATIENT_B, itemId: 'service_snoring' },
+      { slotId: slots[1].id, patient: PATIENT_B, itemIds: ['service_snoring'] },
       'admin_test_001'
     );
 
@@ -1011,7 +1016,7 @@ describe('櫃台預約清單介面', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient: PATIENT_A,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'front_desk_test_001'
     );
@@ -1031,7 +1036,7 @@ describe('櫃台預約清單介面', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient: PATIENT_A,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'front_desk_test_001'
     );
@@ -1071,7 +1076,7 @@ describe('櫃台預約清單介面', () => {
       {
         slotId: openSlot(state, 'initial').id,
         patient: PATIENT_A,
-        itemId: 'service_snoring'
+        itemIds: ['service_snoring']
       },
       'front_desk_test_001'
     );
@@ -1094,7 +1099,7 @@ describe('個管月度工作量', () => {
         {
           slotId: openSlot(state, 'initial').id,
           patient,
-          itemId: 'service_snoring'
+          itemIds: ['service_snoring']
         },
         'admin_test_001'
       );
@@ -1165,5 +1170,182 @@ describe('可預約視窗跟著今天走', () => {
     );
     // 每週開週三至週六四天，30 天大約 17 個門診日；21 天只會有 12 個左右。
     expect(days.size).toBeGreaterThan(14);
+  });
+});
+
+// 2026-07-27 業主需求批次 5（工作臺）。
+describe('工作臺批次的新行為', () => {
+  const bookOne = (state: any, itemIds: string[]) =>
+    createBooking(
+      state,
+      { slotId: openSlot(state, 'initial').id, patient: PATIENT_A, itemIds },
+      'admin_test_001'
+    );
+
+  // W5：療程可複選。
+  it('登記多個療程，標籤是所有項目串起來的快照', () => {
+    const state = initialState();
+    const appointment = bookOne(state, [
+      'procedure_turbinate_rf',
+      'procedure_septum'
+    ]);
+    expect(appointment.itemIds).toEqual([
+      'procedure_turbinate_rf',
+      'procedure_septum'
+    ]);
+    expect(appointment.itemLabel).toBe('下鼻甲 RF、鼻中膈彎曲');
+  });
+
+  it('重複的項目只算一次，空清單與未定義的 id 都拒絕', () => {
+    const state = initialState();
+    expect(
+      bookOne(state, ['service_snoring', 'service_snoring']).itemIds
+    ).toEqual(['service_snoring']);
+    expect(() => bookOne(initialState(), [])).toThrow(/看診項目/);
+    expect(() => bookOne(initialState(), ['not_a_real_item'])).toThrow(
+      /看診項目/
+    );
+  });
+
+  // W3：到診但忘了帶健保卡。
+  it('忘記帶卡記在這一筆預約上，不動患者的「預計攜帶」', () => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    transitionAppointment(
+      state,
+      appointment.id,
+      'complete_without_card',
+      'front_desk_test_001'
+    );
+    expect(appointment.status).toBe('completed');
+    expect(appointment.nhiCardMissing).toBe(true);
+    // PATIENT_A 的 hasNhiCard 是 true，那是「這位患者預計會帶卡」的長期屬性。
+    // 這一次忘了帶不該把它改掉，否則下一次預約會顯示他沒有健保卡。
+    expect(state.patients.at(-1).hasNhiCard).toBe(true);
+    expect(
+      state.auditEvents.some(
+        (event: any) =>
+          event.action === 'appointment_completed_without_nhi_card'
+      )
+    ).toBe(true);
+  });
+
+  it('一般到診不宣稱任何關於健保卡的事', () => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    transitionAppointment(
+      state,
+      appointment.id,
+      'complete',
+      'front_desk_test_001'
+    );
+    // 不是 false，是**沒有回答**：櫃台沒有被問過這個問題。
+    expect(appointment.nhiCardMissing).toBeUndefined();
+  });
+
+  // W4：病歷號碼。
+  it('病歷號碼存在患者身上，跟著回診指示一起送出', () => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    transitionAppointment(state, appointment.id, 'complete', 'admin_test_001');
+    recordFollowUp(
+      state,
+      appointment.id,
+      {
+        status: 'not_required',
+        tags: [],
+        medicalRecordNumber: '  A-00123  '
+      },
+      'admin_test_001'
+    );
+    // 前後空白去掉，其餘原樣保留：那是診所自編的號碼，沒有格式可驗。
+    expect(state.patients.at(-1).medicalRecordNumber).toBe('A-00123');
+  });
+
+  it('病歷號碼可以用來搜尋預約', () => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    transitionAppointment(state, appointment.id, 'complete', 'admin_test_001');
+    recordFollowUp(
+      state,
+      appointment.id,
+      { status: 'not_required', tags: [], medicalRecordNumber: 'MR-777' },
+      'admin_test_001'
+    );
+    const html = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: 'mr-777'
+    });
+    expect(html).toContain(appointment.id);
+    expect(
+      renderAppointments(state, {
+        status: 'all',
+        kind: 'all',
+        query: 'mr-888'
+      })
+    ).not.toContain(appointment.id);
+  });
+
+  // W2：已過時未處理。
+  it('過看診時間十分鐘仍未處理才算過時', () => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    const startsAt = Date.parse(appointment.startsAt);
+    // 剛過時間、還沒到十分鐘：不算。
+    expect(overdueAppointments(state, startsAt + 5 * 60_000)).toEqual([]);
+    expect(overdueAppointments(state, startsAt + 11 * 60_000)).toEqual([
+      appointment.id
+    ]);
+    // 已處理的就不再是待辦，不管過了多久。
+    transitionAppointment(state, appointment.id, 'complete', 'admin_test_001');
+    expect(overdueAppointments(state, startsAt + 60 * 60_000)).toEqual([]);
+  });
+
+  it('過時的預約會進首頁待辦', () => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    const tasks = buildOperationalTasks(
+      state,
+      Date.parse(appointment.startsAt) + 11 * 60_000
+    );
+    expect(tasks.overdueArrivals).toEqual([appointment.id]);
+  });
+
+  // W7：初診資料列印頁。
+  describe('初診基本資料列印頁', () => {
+    const sheetFor = (state: any, appointmentId: string) =>
+      renderIntakeSheet(state, appointmentId);
+
+    it('印出已有的資料，沒收集的欄位留空白底線', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      const html = sheetFor(state, appointment.id);
+      expect(html).toContain('測試患者甲');
+      expect(html).toContain('0912345678');
+      // 住址、職業、聯絡人等刻意不線上收集：留白給櫃台或患者手寫，
+      // 不印「未填」——紙上要看得出「這裡等著被寫」。
+      expect(html).toContain('住址');
+      expect(html).toContain('intake-blank');
+      expect(html).not.toContain('未填');
+    });
+
+    it('身分證字號在畫面上遮罩、列印時完整', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      const html = sheetFor(state, appointment.id);
+      // 兩個值都在 DOM 裡，由 @media print 切換哪一個顯示。
+      expect(html).toContain('intake-screen-only');
+      expect(html).toContain('A12****789');
+      expect(html).toContain('intake-print-only');
+      expect(html).toContain('A123456789');
+    });
+
+    // CSP 是 style-src 'self'：style 屬性會被整個擋掉，寬度必須走 class。
+    it('不含任何 inline style 屬性', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      expect(sheetFor(state, appointment.id)).not.toMatch(/\sstyle="/);
+    });
   });
 });

@@ -70,6 +70,9 @@ export async function createBooking(
   await page.locator('#booking-birth').fill(birth);
   await page.locator('#booking-national-id').fill(nationalId);
   await page.locator('#booking-kind').selectOption('initial');
+  // 療程自 2026-07-27 起是可複選（W5），而且**至少要一項**。先前是 `<select>`，
+  // 永遠有一個預設值，所以這個 helper 從來不必碰它。
+  await page.locator('#booking-items [data-booking-item]').first().check();
   await page.locator('#slots [data-select-slot]').first().click();
   await page.locator('#booking-form button[type="submit"]').click();
   await expect(page.locator('#status')).toContainText('預約已建立');

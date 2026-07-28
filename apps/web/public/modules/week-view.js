@@ -178,6 +178,22 @@ function hourAxis() {
   return rows.join('');
 }
 
+/**
+ * 依**看診項目**決定事件的底色（W1，業主 2026-07-27）。
+ *
+ * 分工：掛號別（初診／回診）決定邊框與圖示，項目決定底色。這樣一格事件同時
+ * 回答兩個問題，而且兩者用的是不同的視覺通道。
+ *
+ * **顏色不是唯一線索**（WCAG 1.4.1）：底色為醫美的事件，`aria-label` 與可見的
+ * 第二行文字裡本來就帶著項目名稱（「王小明，14:00，初診，醫美，預約成立」），
+ * 所以看不出顏色差別的人一樣讀得到那是什麼。`itemLabel` 是複選後以「、」串起來
+ * 的字串，只要其中一項是醫美就整格上醫美色——那是排程上真正要注意的那一項。
+ */
+function itemToneClass(appointment) {
+  const ids = appointment.itemIds ?? [];
+  return ids.includes('service_aesthetic') ? 'wv-item-aesthetic' : '';
+}
+
 function eventBlock(layout, patientName) {
   const { appointment, lane, laneCount } = layout;
   const start = taipeiMinutes(appointment.startsAt);
@@ -191,13 +207,14 @@ function eventBlock(layout, patientName) {
   const kindIcon =
     appointment.bookingKind === 'follow_up' ? '&#8635;' : '&#10010;';
   const statusClass = `wv-status-${escapeHtml(appointment.status)}`;
+  const itemClass = itemToneClass(appointment);
   const collisionClass = laneCount > 1 ? ' wv-event-collision' : '';
   const time = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
   const kind = BOOKING_KIND_LABELS[appointment.bookingKind] ?? '';
   const item = appointment.itemLabel ?? '';
   const status = APPOINTMENT_STATUS_LABELS[appointment.status] ?? '';
   const fullLabel = `${patientName}，${time}，${kind}，${item}，${status}`;
-  return `<button type="button" class="wv-event ${kindClass} ${statusClass}${collisionClass}" data-top="${top}" data-height="${height}" data-left="${left}" data-width="${width}" data-week-event="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(fullLabel)}" title="${escapeHtml(fullLabel)}"><span class="wv-event-icon" aria-hidden="true">${kindIcon}</span><span class="wv-event-copy"><strong>${escapeHtml(patientName)}</strong><span>${time} · ${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button>`;
+  return `<button type="button" class="wv-event ${kindClass} ${itemClass} ${statusClass}${collisionClass}" data-top="${top}" data-height="${height}" data-left="${left}" data-width="${width}" data-week-event="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(fullLabel)}" title="${escapeHtml(fullLabel)}"><span class="wv-event-icon" aria-hidden="true">${kindIcon}</span><span class="wv-event-copy"><strong>${escapeHtml(patientName)}</strong><span>${time} · ${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button>`;
 }
 
 /**
@@ -340,7 +357,7 @@ export function renderAgendaView(state, weekStart, todayDate) {
                   : 'wv-initial';
               // 與網格檢視同一句完整標籤：兩種畫法，讀螢幕聽到的內容要一致。
               const fullLabel = `${name}，${time}，${kind}，${item}，${status}`;
-              return `<li><button type="button" class="wv-agenda-event ${kindClass} wv-status-${escapeHtml(appointment.status)}" data-week-event="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(fullLabel)}"><span class="wv-agenda-time">${time}</span><span class="wv-agenda-copy"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button></li>`;
+              return `<li><button type="button" class="wv-agenda-event ${kindClass} ${itemToneClass(appointment)} wv-status-${escapeHtml(appointment.status)}" data-week-event="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(fullLabel)}"><span class="wv-agenda-time">${time}</span><span class="wv-agenda-copy"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button></li>`;
             })
             .join('');
 

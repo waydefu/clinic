@@ -141,6 +141,15 @@ export const APPOINTMENT_ACTIONS = Object.freeze([
   { id: 'cancel', label: '取消' },
   { id: 'no_show', label: '未到' },
   { id: 'complete', label: '到診' },
+  // W3（業主 2026-07-27）：到診但忘了帶健保卡。
+  //
+  // 它是**這一次**的事實，記在預約上（`nhiCardMissing`），不是把患者的
+  // `hasNhiCard` 改掉——那一欄的語意是「這位患者預計會帶卡」，是一個長期的
+  // 屬性。用這次的意外覆蓋它，下一次預約就會顯示他沒有健保卡。
+  { id: 'complete_without_card', label: '到診（忘記帶健保卡）' },
+  // W7（業主 2026-07-27）：把線上填過的資料印在紙本初診表的大框裡，其餘欄位
+  // 留白讓患者到診時手寫。這是一張**排版頁**，不是電子病歷——不儲存任何病歷內容。
+  { id: 'print_intake', label: '列印初診基本資料' },
   {
     id: 'delete',
     label: '刪除紀錄',

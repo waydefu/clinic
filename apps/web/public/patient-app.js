@@ -821,7 +821,9 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
           slotId: selectedSlotId,
           patient: patientInput(),
           bookingKind: selectedBookingType,
-          itemId: selectedServiceId,
+          // 患者端一次只選一個項目（那一步是兩張大卡片，不是清單）；工作臺的
+          // 建立表單才是可複選的（W5）。送出的形狀一致，都是陣列。
+          itemIds: [selectedServiceId],
           // 患者自述的欄位（P7／P9）。與櫃台的 noteTags／noteText 分開送，
           // 由 appointment-domain 各自驗證各自的清單。
           requestTags: checkedTagIds(

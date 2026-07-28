@@ -1421,6 +1421,14 @@ details[open] > summary .workflow-summary-chevron {
   border-color: var(--info-text);
   color: var(--info-text);
 }
+/* W1（2026-07-27）：**掛號別決定邊框與圖示，項目決定底色。**
+   兩個問題各用一個視覺通道，一格事件同時答得出來。
+   醫美用香檳色系的柔和底——它是這裡唯一的自費項目，排程與備料都不同。
+   顏色不是唯一線索：事件的可見文字與 aria-label 本來就帶著項目名稱。 */
+.wv-event.wv-item-aesthetic {
+  background: var(--amber-light);
+  color: var(--amber);
+}
 .wv-event.wv-status-cancellation_requested {
   opacity: 0.6;
   text-decoration: line-through;
@@ -1541,6 +1549,9 @@ details[open] > summary .workflow-summary-chevron {
 .wv-agenda-event.wv-follow-up {
   border-left-color: var(--info-text);
 }
+.wv-agenda-event.wv-item-aesthetic {
+  background: var(--amber-light);
+}
 .wv-agenda-event.wv-status-cancellation_requested {
   border-left-color: var(--danger);
 }
@@ -1566,6 +1577,18 @@ details[open] > summary .workflow-summary-chevron {
 }
 .wv-swatch.wv-follow-up {
   background: var(--info-text);
+}
+.wv-swatch.wv-item-aesthetic {
+  background: var(--amber-light);
+  border: 1px solid var(--amber);
+}
+/* 鈴鐺自 2026-07-27 起有兩種通知，每一列因此要寫出自己的原因。
+   排序位置不是任何人讀得到的線索。 */
+.bell-reason {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
 }
 /* 「你剛才點的是這一列」。
  *
@@ -2071,6 +2094,109 @@ details[open] > summary .workflow-summary-chevron {
   gap: var(--space-4xs);
 }
 
+/* ---------------------------------------------------------------------------
+ * 初診基本資料的列印版面（W7，2026-07-27）。
+ *
+ * 只用 `@media print`，不引入任何列印函式庫。版面依業主提供的紙本初診表
+ * （20260514 版）最上面那個大框排列：表頭三欄，其下依紙本順序逐列。
+ *
+ * 螢幕上這一塊是隱藏的（`hidden` 屬性），只有按下列印時才短暫填入內容。
+ * 列印時反過來：整個工作臺收起來，只留這一張。
+ * ------------------------------------------------------------------------- */
+.intake-sheet {
+  color: var(--ink);
+  font-size: var(--text-body);
+}
+.intake-head {
+  border-bottom: 2px solid var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-2xs);
+}
+.intake-note {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+}
+.intake-grid {
+  display: grid;
+  gap: var(--space-2xs);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.intake-cell {
+  border: 1px solid var(--line-strong);
+  display: grid;
+  gap: var(--space-4xs);
+  min-height: 3rem;
+  padding: var(--space-2xs) var(--space-xs);
+}
+.intake-cell[data-span='2'] {
+  grid-column: span 2;
+}
+.intake-cell[data-span='3'] {
+  grid-column: span 3;
+}
+.intake-cell[data-span='4'] {
+  grid-column: span 4;
+}
+.intake-label {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+}
+.intake-value {
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+/* 空白欄位輸出**底線**而不是「未填」：紙上要看得出「這裡等著被寫」。 */
+.intake-blank {
+  border-bottom: 1px solid var(--ink-muted);
+  display: inline-block;
+  vertical-align: baseline;
+}
+.intake-blank-xs {
+  width: 1.5rem;
+}
+.intake-blank-sm {
+  width: 4rem;
+}
+.intake-blank-md {
+  width: 10rem;
+}
+.intake-blank-full {
+  width: 100%;
+}
+/* 身分證字號：螢幕遮罩、列印完整。紙本是要歸檔的病歷，需要完整號碼；
+   櫃台螢幕則會被下一位患者看到。 */
+.intake-print-only {
+  display: none;
+}
+
+@media print {
+  /* 列印時只留這一張表。用 `visibility` 而不是 `display: none` 收掉其餘內容
+     會留下空白頁，所以直接不顯示。 */
+  body > *:not(.intake-print) {
+    display: none !important;
+  }
+  .intake-print[hidden] {
+    display: none;
+  }
+  .intake-print {
+    display: block;
+  }
+  .intake-screen-only {
+    display: none;
+  }
+  .intake-print-only {
+    display: inline;
+  }
+  .intake-cell {
+    break-inside: avoid;
+  }
+}
+
 /* 高對比 / forced-colors：工作臺分頁的「目前分頁」底色會被系統抹掉，
  * 改用 Highlight 外框保留狀態（另有 aria-current 作語意備援）。styles.css
  * 已處理共用的焦點框與按鈕；這裡只補工作臺特有的導覽。 */
@@ -2078,6 +2204,12 @@ details[open] > summary .workflow-summary-chevron {
   .workspace-nav a.is-active {
     outline: 2px solid Highlight;
     outline-offset: -2px;
+  }
+  /* 高對比下系統會把所有底色抹成同一個顏色，「項目＝底色」這條線索因此消失。
+     那沒關係——項目名稱本來就寫在事件的可見文字與 aria-label 裡（WCAG 1.4.1
+     要求的正是「顏色不是唯一線索」）。這裡只確保色塊圖例不會變成看不見的方塊。 */
+  .wv-swatch {
+    border: 1px solid CanvasText;
   }
 }
 

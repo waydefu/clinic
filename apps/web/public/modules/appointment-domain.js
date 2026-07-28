@@ -155,6 +155,27 @@ function referrerName(value, sourceTags) {
   return text;
 }
 
+/**
+ * 病歷號碼（W4，業主 2026-07-27）。
+ *
+ * 2026-07-27 與負責人確認過它究竟是什麼：**診所自己編的流水號**。不是健保署
+ * 核發的（健保署發的是醫事機構代碼與健保卡卡號，識別病人用身分證字號），也不是
+ * 健保卡上的卡號。醫療法與施行細則只規定病歷要記什麼、保存多久，**沒有規定編號
+ * 方式**，所以編碼規則由各院所自訂。
+ *
+ * 實作上的兩個結論：
+ *   1. 它就是一段文字，**沒有格式可驗，也不該自作聰明去驗**——猜錯規則的後果是
+ *      拒絕診所自己的號碼；
+ *   2. 它不是從健保卡抄來的敏感識別碼，所以清單上**不遮罩**（與身分證不同）。
+ *
+ * 長度上限純粹是防呆，不是規則。
+ */
+function medicalRecordNumber(value) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (text.length > 20) throw new Error('病歷號碼不可超過 20 個字元。');
+  return text;
+}
+
 function certificateCopies(value) {
   if (value === undefined || value === '' || value === null) return 0;
   const copies = Number(value);
@@ -167,11 +188,33 @@ function certificateCopies(value) {
   return copies;
 }
 
-function resolveItem(input) {
+// 一次門診最多登記幾個項目。上限存在的理由不是規則，是防呆：沒有上限的話，
+// 一個壞掉的呼叫端可以送進上千個 id，而畫面上那一格會變成一整段文字。
+const MAX_ITEMS = 6;
+
+/**
+ * 看診項目（W5，業主 2026-07-27：可複選）。
+ *
+ * 輸入是 **id 陣列**，不再是單一 id。存下來的是 `itemIds` 加上一份 `itemLabel`
+ * 快照——後者是顯示、搜尋與排序的單一來源，順序跟著選取順序走。
+ *
+ * **已知的契約缺口**：`packages/domain` 的 `planBooking` 與 `packages/contracts`
+ * 的線路 schema 目前仍是單一 `itemId`（那兩者都還沒接線、也還沒核准）。真的要
+ * 接 API 時必須一起改成複數，否則多項目的預約在 API 上表達不出來。這一點記在
+ * docs/product/2026-07-27-owner-request-batch.md。
+ */
+function resolveItems(input) {
   const catalogue = [...PATIENT_SERVICES, ...WORKBENCH_PROCEDURES];
-  const item = catalogue.find((entry) => entry.id === input);
-  if (item === undefined) throw new Error('請選擇看診項目。');
-  return item;
+  if (!Array.isArray(input)) throw new Error('請選擇看診項目。');
+  const unique = [...new Set(input)];
+  if (unique.length === 0) throw new Error('請選擇看診項目。');
+  if (unique.length > MAX_ITEMS)
+    throw new Error(`看診項目最多 ${MAX_ITEMS} 項。`);
+  return unique.map((id) => {
+    const item = catalogue.find((entry) => entry.id === id);
+    if (item === undefined) throw new Error('請選擇看診項目。');
+    return item;
+  });
 }
 
 export function activeBookingsFor(state, patient) {
@@ -196,7 +239,7 @@ export function createBooking(state, input, actorId) {
   // 時段可預約與掛號別相符：規則由共用斷言決定（ADR-0004）。
   ensureSlotBookable(slot, bookingKind);
 
-  const item = resolveItem(input.itemId);
+  const items = resolveItems(input.itemIds);
   const noteTags = selectedTags(input.noteTags, BOOKING_NOTE_TAGS, '備註');
   const noteText = optionalNote(input.noteText);
   // 患者自述的三組欄位（2026-07-27 P7／P9）。與櫃台的 noteTags／noteText
@@ -248,8 +291,10 @@ export function createBooking(state, input, actorId) {
     startsAt: slot.startsAt,
     patientId: patient.id,
     bookingKind,
-    itemId: item.id,
-    itemLabel: item.label,
+    itemIds: items.map((item) => item.id),
+    // 顯示、搜尋與排序都讀這一份快照，不是每次重新查表：項目清單改名之後，
+    // 已經發生的預約仍應顯示當時登記的名稱。
+    itemLabel: items.map((item) => item.label).join('、'),
     noteTags,
     noteText,
     // 空值不寫進紀錄：多數預約不會用到這幾欄，寫一堆空字串只會讓合成狀態變胖，
@@ -291,29 +336,43 @@ export function transitionAppointment(state, appointmentId, action, actorId) {
   const slot = state.slots.find((item) => item.id === appointment.slotId);
   const now = new Date().toISOString();
 
+  // 「到診」有兩個入口：一般到診，以及到診但忘了帶健保卡（W3）。兩者是**同一個
+  // 狀態轉換**，差別只在多記一個這一次的事實，所以動作名對映到同一個 transition。
   const TRANSITIONS = {
     request_cancellation: 'request_cancellation',
     cancel: 'cancel',
     complete: 'complete',
+    complete_without_card: 'complete',
     no_show: 'no_show'
   };
-  if (TRANSITIONS[action] === undefined) throw new Error('不支援的預約動作。');
+  const transition = TRANSITIONS[action];
+  if (transition === undefined) throw new Error('不支援的預約動作。');
 
   // 是否允許這個轉換由共用斷言決定（ADR-0004）。之後的狀態寫入、時段釋出
   // 與稽核是瀏覽器端的機制，維持原樣。
-  ensureTransitionAllowed(action, appointment.status);
+  ensureTransitionAllowed(transition, appointment.status);
 
-  if (action === 'request_cancellation') {
+  if (transition === 'request_cancellation') {
     appointment.status = 'cancellation_requested';
     appendAudit(state, 'cancellation_requested', appointmentId, actorId);
-  } else if (action === 'cancel') {
+  } else if (transition === 'cancel') {
     appointment.status = 'cancelled';
     if (slot?.reservationId === appointmentId) delete slot.reservationId;
     appendAudit(state, 'appointment_cancelled', appointmentId, actorId);
-  } else if (action === 'complete') {
+  } else if (transition === 'complete') {
     appointment.status = 'completed';
     appointment.completedAt = now;
-    appendAudit(state, 'appointment_completed', appointmentId, actorId);
+    // 只在真的忘了帶卡時寫這個旗標。一般到診**不**寫 `nhiCardMissing: false`：
+    // 那會宣稱一件櫃台沒有回答過的事（他可能根本沒有健保身分）。
+    if (action === 'complete_without_card') appointment.nhiCardMissing = true;
+    appendAudit(
+      state,
+      action === 'complete_without_card'
+        ? 'appointment_completed_without_nhi_card'
+        : 'appointment_completed',
+      appointmentId,
+      actorId
+    );
   } else {
     appointment.status = 'no_show';
     if (slot?.reservationId === appointmentId) delete slot.reservationId;
@@ -525,6 +584,19 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   const tags = selectedTags(input?.tags, FOLLOW_UP_NOTE_TAGS, '回診項目');
   const noteText = optionalNote(input?.noteText);
   const copies = certificateCopies(input?.certificateCopies);
+
+  // 病歷號碼掛在**患者**身上，不是這一筆預約：它是那個人在這家診所的號碼，
+  // 回診時是同一個。表單放在回診卡上，因為那是櫃台第一次真的拿到號碼的時機
+  // （患者已經到診、病歷已經開出來了）。
+  if (input?.medicalRecordNumber !== undefined) {
+    const record = state.patients.find(
+      (item) => item.id === appointment.patientId
+    );
+    if (record !== undefined)
+      record.medicalRecordNumber = medicalRecordNumber(
+        input.medicalRecordNumber
+      );
+  }
 
   const now = new Date().toISOString();
   const existing = state.followUps.find(

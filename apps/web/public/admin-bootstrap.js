@@ -9,6 +9,7 @@ import {
   renderCaseAssignments,
   renderDelegations,
   renderFollowUps,
+  renderIntakeSheet,
   renderNextUp,
   renderOutbox,
   renderReleases,
@@ -26,6 +27,8 @@ import {
   PERMISSIONS,
   WORKBENCH_PROCEDURES
 } from './modules/constants.js';
+import { overdueAppointments } from './modules/case-management.js';
+import { renderTagOptions } from './modules/tag-picker.js';
 import { followUpDueTimes } from './modules/schedule-engine.js';
 import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
 import {
@@ -268,7 +271,11 @@ async function post(path, body = {}) {
       return PERMISSIONS.CREATE_BOOKING;
     if (/\/bookings\/.+\/delete$/.test(path))
       return PERMISSIONS.DELETE_APPOINTMENT;
-    if (/\/bookings\/.+\/(cancel|no-show|complete)$/.test(path))
+    if (
+      /\/bookings\/.+\/(cancel|no-show|complete|complete-without-card)$/.test(
+        path
+      )
+    )
       return path.endsWith('/cancel')
         ? PERMISSIONS.CANCEL_BOOKING
         : PERMISSIONS.COMPLETE_VISIT;
@@ -293,15 +300,6 @@ async function post(path, body = {}) {
     render();
   }
   return state;
-}
-
-function options(items, selectedId, label) {
-  return items
-    .map(
-      (item) =>
-        `<option value="${escapeHtml(item.id)}" ${item.id === selectedId ? 'selected' : ''}>${escapeHtml(label(item))}</option>`
-    )
-    .join('');
 }
 
 function renderSession() {
@@ -448,11 +446,10 @@ function renderSummary() {
 }
 
 function renderBookingForm() {
-  if (elements['booking-item'].innerHTML === '')
-    elements['booking-item'].innerHTML = options(
-      WORKBENCH_PROCEDURES,
-      undefined,
-      (item) => item.label
+  if (elements['booking-items'].querySelector('label') === null)
+    elements['booking-items'].insertAdjacentHTML(
+      'beforeend',
+      renderTagOptions(WORKBENCH_PROCEDURES, [], { data: 'data-booking-item' })
     );
   if (elements['booking-tags'].querySelector('label') === null)
     elements['booking-tags'].insertAdjacentHTML('beforeend', renderTagPicker());
@@ -579,11 +576,35 @@ function render() {
   applyWorkspacePanel();
 }
 
-// 導覽鈴鐺：有「取消待確認」時亮紅點，提醒櫃台別忽略。清單是一般 popover，
-// 不掛 aria-live、不使用 modal dialog，也不改變 header 高度。
-function cancellationRequests() {
-  return state.appointments.filter(
-    (item) => item.status === 'cancellation_requested'
+// 導覽鈴鐺：有「取消待確認」或「已過時未處理」時亮紅點，提醒櫃台別忽略。
+// 清單是一般 popover，不掛 aria-live、不使用 modal dialog，也不改變 header 高度。
+//
+// D-f（業主 2026-07-27）：過時未到**併入現有鈴鐺**，不新增第二個彈窗——櫃台已經
+// 有一個要看的地方，再加一個只會讓兩個都被忽略。
+const OVERDUE_REASON = '已過時未處理';
+
+function bellItems() {
+  const overdue = new Set(overdueAppointments(state));
+  return (
+    state.appointments
+      .filter(
+        (item) =>
+          item.status === 'cancellation_requested' || overdue.has(item.id)
+      )
+      .map((item) => ({
+        appointment: item,
+        reason: overdue.has(item.id) ? OVERDUE_REASON : '取消待確認'
+      }))
+      // 過時的排前面：那是現場正在發生的事。
+      .sort((left, right) =>
+        left.reason === right.reason
+          ? String(left.appointment.startsAt).localeCompare(
+              String(right.appointment.startsAt)
+            )
+          : left.reason === OVERDUE_REASON
+            ? -1
+            : 1
+      )
   );
 }
 
@@ -594,26 +615,50 @@ function setNotificationOpen(open, { returnFocus = false } = {}) {
 }
 
 function syncBell() {
-  const pending = cancellationRequests();
+  const pending = bellItems();
   elements['nav-bell-dot'].hidden = pending.length === 0;
   elements['nav-bell'].classList.toggle('has-alert', pending.length > 0);
   elements['nav-bell'].setAttribute(
     'aria-label',
     pending.length === 0 ? '通知，沒有未讀' : `通知，${pending.length} 筆未讀`
   );
+  const overdueCount = pending.filter(
+    (entry) => entry.reason === OVERDUE_REASON
+  ).length;
+  const cancelCount = pending.length - overdueCount;
   elements['notification-summary'].textContent =
     pending.length === 0
-      ? '目前沒有待確認的取消請求。'
-      : `${pending.length} 筆取消要求待聯絡確認。`;
+      ? '目前沒有待處理的通知。'
+      : `${[
+          overdueCount > 0 ? `${overdueCount} 筆已過時未處理` : '',
+          cancelCount > 0 ? `${cancelCount} 筆取消要求待聯絡確認` : ''
+        ]
+          .filter((part) => part !== '')
+          .join('；')}。`;
   elements['notification-list'].innerHTML = pending
-    .map((item) => {
+    .map(({ appointment: item, reason }) => {
       const person = state.patients.find((p) => p.id === item.patientId);
-      return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '—')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
+      // 原因要寫出來。清單裡現在有兩種通知，而「排在前面」不是任何人讀得到的線索。
+      return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '—')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
     })
     .join('');
   elements['notification-goto'].hidden = pending.length === 0;
   if (pending.length === 0) setNotificationOpen(false);
 }
+
+// 「已過時未處理」是**時間**造成的狀態改變：沒有任何使用者動作會觸發它，櫃台
+// 開著同一個畫面，某一筆預約會在某一分鐘自己變成待處理。所以這裡需要一個計時器
+// ——這是全站唯一一個。
+//
+// 每分鐘一次而不是每秒：門檻是十分鐘，一分鐘的解析度綽綽有餘，而每秒重畫會在
+// 一台整天開著的櫃台機器上白白燒電。而且**只更新鈴鐺與首頁待辦**，不重畫整張
+// 清單——重畫會把使用者正在展開的改期或備註表單收起來。
+const OVERDUE_POLL_MS = 60_000;
+window.setInterval(() => {
+  if (state === undefined) return;
+  syncBell();
+  renderSummary();
+}, OVERDUE_POLL_MS);
 
 elements['nav-bell'].addEventListener('click', () => {
   const opening = elements['notification-popover'].hidden;
@@ -624,7 +669,14 @@ elements['notification-close'].addEventListener('click', () =>
   setNotificationOpen(false, { returnFocus: true })
 );
 elements['notification-goto'].addEventListener('click', () => {
-  filters = { status: 'cancellation_requested', kind: 'all', query: '' };
+  // 鈴鐺自 2026-07-27 起有兩種通知。只篩「取消待確認」會把剛剛在鈴鐺裡看到的
+  // 過時未處理那幾筆藏起來——按下「前往處理」卻找不到那一筆，是最糟的結果。
+  const hasOverdue = overdueAppointments(state).length > 0;
+  filters = {
+    status: hasOverdue ? 'all' : 'cancellation_requested',
+    kind: 'all',
+    query: ''
+  };
   setNotificationOpen(false);
   renderFilters();
   renderAppointmentList();
@@ -847,6 +899,17 @@ elements['booking-form'].addEventListener('submit', async (event) => {
   const noteTags = [
     ...elements['booking-tags'].querySelectorAll('[data-booking-tag]:checked')
   ].map((item) => item.dataset.bookingTag);
+  const itemIds = [
+    ...elements['booking-items'].querySelectorAll('[data-booking-item]:checked')
+  ].map((item) => item.dataset.bookingItem);
+  // 在送出之前先講清楚，而不是讓 store 丟一句「請選擇看診項目」——那句話會出現
+  // 在表單狀態列上，但使用者要往回捲才看得到自己漏了哪一組勾選。
+  if (itemIds.length === 0)
+    return message(
+      '尚未建立：請至少勾選一個療程／看診項目。',
+      'error',
+      'booking-form-status'
+    );
   const bookedSlotId = selectedSlotId;
   await runUiAction({
     control: event.submitter,
@@ -857,7 +920,7 @@ elements['booking-form'].addEventListener('submit', async (event) => {
       post('/bookings', {
         slotId: bookedSlotId,
         bookingKind: elements['booking-kind'].value,
-        itemId: elements['booking-item'].value,
+        itemIds,
         noteTags,
         noteText: elements['booking-note'].value,
         patient: {
@@ -1118,6 +1181,22 @@ elements.appointments.addEventListener('click', async (event) => {
     return;
   }
 
+  // W7：列印初診基本資料。不改任何狀態、不寫稽核——它只是把已有的資料排版。
+  // 內容用完就清掉：那張表上有完整的身分證字號，沒有理由讓它留在 DOM 裡等著
+  // 被下一個看螢幕的人捲到。
+  if (action === 'print_intake') {
+    const sheet = elements['intake-print'];
+    sheet.innerHTML = renderIntakeSheet(state, id);
+    sheet.hidden = false;
+    sheet.removeAttribute('aria-hidden');
+    window.print();
+    sheet.hidden = true;
+    sheet.setAttribute('aria-hidden', 'true');
+    sheet.innerHTML = '';
+    message('已送出列印。未填的欄位請於到診時手寫補齊。', 'success');
+    return;
+  }
+
   // 刪除是唯一需要理由的處置：紀錄消失後，稽核事件是它存在過的唯一證據。
   if (action === 'delete') {
     // 管理者天生就能刪，不必輸入授權碼；櫃台是被委派的，同一步要出示授權碼。
@@ -1152,22 +1231,31 @@ elements.appointments.addEventListener('click', async (event) => {
     return;
   }
 
+  const completing = action.startsWith('complete');
   const questions = {
     cancel: '確認取消此預約並釋放時段？',
     no_show: '確認將此預約標記為未到？時段會釋放。',
     complete:
-      '確認患者已到診並完成本次看診？完成後，可依醫師指示登錄回診並首次指派個管師。'
+      '確認患者已到診並完成本次看診？完成後，可依醫師指示登錄回診並首次指派個管師。',
+    complete_without_card:
+      '確認患者已到診，但本次未攜帶健保卡？這只記錄這一次的情況，不會改變患者「預計攜帶健保卡」的登記。'
   };
   const confirmed = await confirmDialog(questions[action], {
-    danger: action !== 'complete',
+    danger: !completing,
     confirmLabel: {
       cancel: '取消預約',
       no_show: '標記未到',
-      complete: '確認到診'
+      complete: '確認到診',
+      complete_without_card: '確認到診（未帶卡）'
     }[action]
   });
   if (!confirmed) return;
-  const paths = { cancel: 'cancel', no_show: 'no-show', complete: 'complete' };
+  const paths = {
+    cancel: 'cancel',
+    no_show: 'no-show',
+    complete: 'complete',
+    complete_without_card: 'complete-without-card'
+  };
   await runUiAction({
     control: button,
     pendingLabel: '處理中…',
@@ -1177,10 +1265,12 @@ elements.appointments.addEventListener('click', async (event) => {
       const done = {
         cancel: '預約已取消並釋放時段。',
         no_show: '已標記未到並釋放時段。',
-        complete: '到診已記錄，請接續處理回診與個管指派。'
+        complete: '到診已記錄，請接續處理回診與個管指派。',
+        complete_without_card:
+          '到診已記錄，並註記本次未攜帶健保卡。請接續處理回診與個管指派。'
       };
       message(done[action], 'success');
-      if (action === 'complete' && !elements['follow-up-workflow'].hidden) {
+      if (completing && !elements['follow-up-workflow'].hidden) {
         const followUpForm = document.querySelector(
           `[data-follow-up-form="${id}"]`
         );
@@ -1453,6 +1543,8 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
         tags: data.getAll('tags'),
         noteText: data.get('noteText'),
         certificateCopies: Number(data.get('certificateCopies') ?? 0),
+        // W4：病歷號碼掛在患者身上，順著這張表單一起送。
+        medicalRecordNumber: data.get('medicalRecordNumber') ?? '',
         managerId
       }),
     onSuccess: () => {

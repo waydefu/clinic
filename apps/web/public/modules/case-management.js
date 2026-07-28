@@ -95,7 +95,32 @@ export function buildWorkload(state) {
   }));
 }
 
-export function buildOperationalTasks(state) {
+/**
+ * 已過時卻還沒處理的預約（W2，業主 2026-07-27）。
+ *
+ * 判準：看診時間已經過去超過 `OVERDUE_MINUTES` 分鐘，狀態卻還停在「預約成立」
+ * ——櫃台既沒按到診、也沒標未到。這種列會在清單裡一路往下沉（排序是依時間），
+ * 於是安靜地被忘掉，而它代表的是一個站在門口或根本沒出現的人。
+ *
+ * 十分鐘是業主給的數字，不是規則推導出來的：太短會在患者剛遲到時就吵，太長就
+ * 失去提醒的意義。
+ *
+ * `now` 是參數而不是 `Date.now()`：這是一個**會隨時間改變答案**的函式，
+ * 呼叫端（store 的快照）必須能在測試裡釘住它。
+ */
+const OVERDUE_MINUTES = 10;
+
+export function overdueAppointments(state, now = Date.now()) {
+  const threshold = now - OVERDUE_MINUTES * 60_000;
+  return state.appointments
+    .filter(
+      (item) =>
+        item.status === 'confirmed' && Date.parse(item.startsAt) < threshold
+    )
+    .map((item) => item.id);
+}
+
+export function buildOperationalTasks(state, now = Date.now()) {
   const assigned = new Set(
     state.caseAssignments
       .filter((item) => item.status === 'active')
@@ -103,6 +128,7 @@ export function buildOperationalTasks(state) {
   );
   const decided = new Set(state.followUps.map((item) => item.appointmentId));
   return {
+    overdueArrivals: overdueAppointments(state, now),
     pendingCaseAssignments: state.appointments
       .filter((item) => item.status === 'completed' && !assigned.has(item.id))
       .map((item) => item.id),

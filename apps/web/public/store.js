@@ -242,6 +242,16 @@ export async function stagingRequest(path, options = {}) {
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/complete$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
     transitionAppointment(state, path.split('/')[2], 'complete', actor.id);
+    // 到診但忘了帶健保卡（W3）。與一般到診同一個權限、同一個狀態轉換，只多記
+    // 一個這一次的事實；獨立的路徑是為了讓稽核分得出兩者。
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/complete-without-card$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
+    transitionAppointment(
+      state,
+      path.split('/')[2],
+      'complete_without_card',
+      actor.id
+    );
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/no-show$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
     transitionAppointment(state, path.split('/')[2], 'no_show', actor.id);

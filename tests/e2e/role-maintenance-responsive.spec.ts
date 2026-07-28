@@ -40,6 +40,8 @@ async function createCompletedVisit(page: Page): Promise<string> {
   await page.locator('#booking-phone').fill('0912345678');
   await page.locator('#booking-birth').fill('1990-05-20');
   await page.locator('#booking-national-id').fill('A123456789');
+  // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
+  await page.locator('#booking-items [data-booking-item]').first().check();
   await page.locator('#slots [data-select-slot]').first().click();
   await page.locator('#booking-form button[type="submit"]').click();
   await expect(page.locator('#status')).toContainText('預約已建立');
@@ -205,6 +207,8 @@ test.describe('行動版 header 與重排', () => {
     await page.locator('#booking-phone').fill('0912345678');
     await page.locator('#booking-birth').fill('1990-05-20');
     await page.locator('#booking-national-id').fill('A123456789');
+    // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
+    await page.locator('#booking-items [data-booking-item]').first().check();
     await page.locator('#slots [data-select-slot]').first().click();
     await page.locator('#booking-form button[type="submit"]').click();
     await expect(page.locator('#status')).toContainText('預約已建立');
@@ -319,7 +323,7 @@ test.describe('患者端維護隔離', () => {
           body: JSON.stringify({
             slotId: slot.id,
             bookingKind: 'initial',
-            itemId: 'service_snoring',
+            itemIds: ['service_snoring'],
             origin: 'patient',
             patient: {
               name: '合成患者',

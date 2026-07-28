@@ -5,6 +5,8 @@ import {
   BOOKING_NOTE_TAGS,
   DELETE_APPOINTMENT_REASONS,
   FOLLOW_UP_NOTE_TAGS,
+  PATIENT_REQUEST_TAGS,
+  PATIENT_SOURCE_TAGS,
   PERMISSIONS,
   WEEKDAY_LABELS
 } from './constants.js';
@@ -28,6 +30,7 @@ const auditLabels = {
   cancellation_requested: '提出取消',
   appointment_cancelled: '確認取消',
   appointment_completed: '完成到診',
+  appointment_completed_without_nhi_card: '完成到診（未帶健保卡）',
   appointment_no_show: '標記未到',
   appointment_rescheduled: '改期',
   appointment_deleted: '刪除預約紀錄',
@@ -51,6 +54,7 @@ const appointmentActions = new Set([
   'cancellation_requested',
   'appointment_cancelled',
   'appointment_completed',
+  'appointment_completed_without_nhi_card',
   'appointment_no_show',
   'appointment_rescheduled',
   'appointment_deleted'
@@ -84,7 +88,14 @@ function patientDetail(state, id) {
     : `${record.birthDate.slice(2).replace('-', '/')}（未填年）`;
   // 遮罩走 domain 的統一入口：外籍患者給的是護照，這裡不能因為身分證欄是空的
   // 就顯示破折號——那看起來像資料缺漏，而不是換了一種證件。
-  return `${escapeHtml(record.phone)} · ${escapeHtml(birth)} · ${escapeHtml(maskIdentityDocument(record))} · 健保卡：${record.hasNhiCard ? '預計攜帶' : '未登記攜帶'}`;
+  // 病歷號碼是診所自編的流水號，不是敏感識別碼，所以**不遮罩**（與身分證不同）。
+  // 沒有號碼時整段不出現，而不是印一個空欄位——櫃台看到的是「還沒開病歷」。
+  const chart =
+    record.medicalRecordNumber === undefined ||
+    record.medicalRecordNumber === ''
+      ? ''
+      : ` · 病歷 ${escapeHtml(record.medicalRecordNumber)}`;
+  return `${escapeHtml(record.phone)} · ${escapeHtml(birth)} · ${escapeHtml(maskIdentityDocument(record))}${chart} · 健保卡：${record.hasNhiCard ? '預計攜帶' : '未登記攜帶'}`;
 }
 
 function detailRow(state, id) {
@@ -100,7 +111,17 @@ function actionEnabled(actionId, appointment) {
     case 'follow_up_confirm':
       return appointment.status === 'completed';
     case 'complete':
+    case 'complete_without_card':
       return appointment.status === 'confirmed';
+    // 列印不改變任何狀態，只是把已有的資料排版印出來。
+    // 只在**看診發生之前**可用：那是一張初診資料表，用途是患者到診時拿著它把
+    // 其餘欄位手寫補齊。看診結束之後那張紙早就填完了，再印一張空的沒有意義
+    // ——而且會讓「已完成到診」那一列多出一個次要動作，把原本直接可按的
+    // 「刪除紀錄」推進下拉選單裡（那是刻意不要的，見 workbench-lifecycle 的斷言）。
+    case 'print_intake':
+      return ['confirmed', 'cancellation_requested'].includes(
+        appointment.status
+      );
     // 刪除不是生命週期的一步，而是清掉本來就不該存在的紀錄，因此任何狀態
     // 都可以刪；能不能刪由權限決定，不由狀態決定。
     case 'delete':
@@ -209,6 +230,17 @@ function selectCell(state, entry, selectedIds) {
  * 全部為零時保持安靜，而不是顯示四個綠色的零。
  */
 const OPERATIONAL_TASKS = [
+  // W2（業主 2026-07-27）：已過看診時間十分鐘、狀態仍停在「預約成立」。
+  // 排在最前面：那一列代表的是一個現在正站在門口、或根本沒出現的人，而清單
+  // 依時間排序會讓它一路往下沉、安靜地被忘掉。取消待確認雖然也在累積傷害，
+  // 但那是「時段被佔住」，比不上「有人在現場沒被處理」。
+  {
+    key: 'overdueArrivals',
+    title: '已過時未處理',
+    why: '已過看診時間十分鐘仍未按到診或未到',
+    href: '#appointments-section',
+    tone: 'danger'
+  },
   {
     key: 'cancellationRequests',
     title: '取消待確認',
@@ -512,6 +544,9 @@ export function renderAppointments(
         [
           record?.name,
           record?.phone,
+          // W4（業主 2026-07-27）：櫃台常常拿著紙本病歷來找那一筆預約，
+          // 所以病歷號碼要能直接搜。
+          record?.medicalRecordNumber,
           appointment.id,
           appointment.itemLabel,
           BOOKING_KIND_LABELS[appointment.bookingKind]
@@ -548,6 +583,18 @@ export function renderAppointments(
         return followUpQueueCard(state, entry, permissions, selectedIds);
       const appointment = entry.appointment;
       const notes = tagLabels(appointment.noteTags, BOOKING_NOTE_TAGS);
+      // W3：這一次忘了帶健保卡。它是預約層級的事實，與患者的「預計攜帶」分開，
+      // 所以顯示在這一列的備註區，而不是改寫患者那一行。
+      if (appointment.nhiCardMissing === true) notes.push('本次未帶健保卡');
+      // 患者自己在預約時寫的話與勾的標籤（P7／P9）。它們與櫃台的營運備註分開存，
+      // 但在同一個地方顯示——櫃台要看的是「這一筆有什麼要注意的」，不是誰寫的。
+      for (const label of tagLabels(
+        appointment.requestTags,
+        PATIENT_REQUEST_TAGS
+      ))
+        notes.push(label);
+      if (appointment.patientNote)
+        notes.push(`患者：${appointment.patientNote}`);
       if (appointment.noteText) notes.push(appointment.noteText);
       const noteRow =
         notes.length === 0
@@ -738,9 +785,109 @@ export function renderFollowUps(state, editingIds = new Set()) {
                 account.id ===
                 (decision.followUpRecordedBy ?? decision.decidedBy)
             )?.label ?? '合成帳號');
-      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><label>醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存回診指示</button></form>`;
+      // W4（業主 2026-07-27）：病歷號碼填在這裡。這是櫃台第一次真的拿得到號碼的
+      // 時機——患者已經到診、病歷已經開出來了。號碼掛在**患者**身上（回診時是
+      // 同一個），所以欄位的預設值讀的是患者紀錄，不是這一筆預約。
+      const chartNumber = patient(
+        state,
+        appointment.patientId
+      )?.medicalRecordNumber;
+      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><label>病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label>醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存回診指示</button></form>`;
     })
     .join('');
+}
+
+/**
+ * 初診基本資料列印頁（W7，業主 2026-07-27）。
+ *
+ * 它做的事只有一件：把**已經有的**資料排進紙本初診表最上面那個大框的版面，
+ * 其餘欄位輸出空白底線讓患者或櫃台到診時手寫。**不儲存任何病歷內容**——真正的
+ * 電子病歷受醫療法與《醫療機構電子病歷製作及管理辦法》規範，那是另一件事。
+ *
+ * 身分證字號在**畫面上遮罩、列印時完整**：紙本本來就要完整號碼（那是要歸檔的
+ * 病歷），但櫃台螢幕會被下一位患者看到。兩個值都在 DOM 裡，由 `@media print`
+ * 切換——這是刻意的，工作臺本來就是登入後的畫面，而建立預約的表單裡也有完整號碼。
+ *
+ * 沒有收集的欄位（住址、職業、婚姻、市話、聯絡人、LineID、性別、年齡）一律留白：
+ * 那是資料最小化的結果，不是漏印。空白底線讓紙上看得出「這裡要填」。
+ */
+// 空白底線用 class 決定寬度，**不能用 inline style 屬性**：CSP 是
+// `style-src 'self'`（無 'unsafe-inline'），style 屬性會被整個擋掉——屬性字串
+// 還在，但完全不生效（week-view 的定位當初就是為此改走 CSSOM）。
+function blankLine(size = 'md') {
+  return `<span class="intake-blank intake-blank-${size}"></span>`;
+}
+
+export function renderIntakeSheet(state, appointmentId) {
+  const appointment = state.appointments.find(
+    (item) => item.id === appointmentId
+  );
+  if (appointment === undefined) return '';
+  const record = patient(state, appointment.patientId) ?? {};
+  const assignment = state.caseAssignments.find(
+    (item) => item.appointmentId === appointmentId && item.status === 'active'
+  );
+
+  const birth = birthDateHasYear(record.birthDate)
+    ? `${record.birthDate.slice(0, 4)} 年 ${record.birthDate.slice(5, 7)} 月 ${record.birthDate.slice(8, 10)} 日`
+    : `${blankLine('sm')} 年 ${(record.birthDate ?? '').slice(2, 4)} 月 ${(record.birthDate ?? '').slice(5, 7)} 日`;
+
+  // 身分證：畫面遮罩、列印完整。兩個值都在，靠 @media print 換。
+  const document_ = record.nationalId
+    ? `<span class="intake-screen-only">${escapeHtml(maskIdentityDocument(record))}</span><span class="intake-print-only">${escapeHtml(record.nationalId)}</span>`
+    : record.passportNumber
+      ? `<span class="intake-screen-only">${escapeHtml(maskIdentityDocument(record))}</span><span class="intake-print-only">${escapeHtml(record.passportNumber)}（護照）</span>`
+      : blankLine();
+
+  const sources = tagLabels(appointment.sourceTags, PATIENT_SOURCE_TAGS);
+  const referral =
+    appointment.referrerName === undefined || appointment.referrerName === ''
+      ? ''
+      : `（介紹人：${escapeHtml(appointment.referrerName)}）`;
+
+  const cell = (label, value, span = 1) =>
+    `<div class="intake-cell" data-span="${span}"><span class="intake-label">${label}</span><span class="intake-value">${value}</span></div>`;
+
+  return `<div class="intake-sheet">
+    <header class="intake-head">
+      <strong>一森渼診所 · 初診基本資料</strong>
+      <span class="intake-note">線上已填的欄位已印出；空白處請於到診時填寫。</span>
+    </header>
+    <div class="intake-grid">
+      ${cell('病歷號碼', record.medicalRecordNumber ? escapeHtml(record.medicalRecordNumber) : blankLine('sm'))}
+      ${cell('初診日期', escapeHtml(formatFullDate(appointment.startsAt)))}
+      ${cell('管理師', assignment ? escapeHtml(managerLabel(state, assignment.managerId)) : blankLine('sm'))}
+      ${cell('姓名', record.name ? escapeHtml(record.name) : blankLine())}
+      ${cell('生日', birth)}
+      ${cell('年齡', blankLine('sm'))}
+      ${cell('性別', `${blankLine('xs')} 男 ／ ${blankLine('xs')} 女`)}
+      ${cell('身分證字號', document_)}
+      ${cell('手機', record.phone ? escapeHtml(record.phone) : blankLine())}
+      ${cell('市話', blankLine())}
+      ${cell('婚姻', `${blankLine('xs')} 已婚 ／ ${blankLine('xs')} 單身`)}
+      ${cell('住址', blankLine('full'), 3)}
+      ${cell('職業', blankLine())}
+      ${cell('聯絡人', blankLine())}
+      ${cell('聯絡人手機', blankLine())}
+      ${cell('關係', blankLine('sm'))}
+      ${cell('LineID', blankLine())}
+      ${cell(
+        '如何得知診所訊息',
+        sources.length === 0
+          ? blankLine('full')
+          : `${escapeHtml(sources.join('、'))}${referral}`,
+        4
+      )}
+      ${cell('本次看診項目', escapeHtml(appointment.itemLabel ?? ''), 2)}
+      ${cell(
+        '患者備註',
+        appointment.patientNote
+          ? escapeHtml(appointment.patientNote)
+          : blankLine('full'),
+        2
+      )}
+    </div>
+  </div>`;
 }
 
 // 個管指派同樣是掃描工作：管理者要一眼看出「誰還沒指派」。表格把狀態與患者

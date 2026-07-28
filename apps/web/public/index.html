@@ -96,6 +96,11 @@
         </div>
       </div>
     </main>
+    <!-- W7（2026-07-27）：初診基本資料的列印版面。
+         平時完全隱藏；按「列印初診基本資料」時填入內容並開啟列印。
+         它是工作臺內的一個區塊而不是獨立網址：那份資料只能在登入後看得到，
+         獨立的 HTML 進入點會被公開服務出去。 -->
+    <div id="intake-print" class="intake-print" hidden aria-hidden="true"></div>
     <div class="app-shell app-shell-wide" hidden>
       <header class="topbar">
         <a
@@ -386,22 +391,25 @@
                 </fieldset>
                 <fieldset class="field-group">
                   <legend>掛號與療程</legend>
-                  <div class="inline-fields">
-                    <label
-                      >掛號別<select id="booking-kind">
-                        <option value="initial">初診（整點／30 分）</option>
-                        <option value="follow_up">回診（15 分／45 分）</option>
-                      </select></label
-                    ><label
-                      >療程／看診項目<select id="booking-item"></select
-                    ></label>
-                  </div>
+                  <label
+                    >掛號別<select id="booking-kind">
+                      <option value="initial">初診（整點／30 分）</option>
+                      <option value="follow_up">回診（15 分／45 分）</option>
+                    </select></label
+                  >
                   <label class="switch-row"
                     ><input
                       id="booking-nhi-card"
                       type="checkbox"
                     />預計攜帶健保卡</label
                   >
+                </fieldset>
+                <!-- W5（業主 2026-07-27）：療程改可複選。一次門診處理兩項
+                     （例如下鼻甲＋鼻中膈）是常態，先前的單選逼櫃台只登記其中一項，
+                     另一項就從日曆、清單與統計上消失了。選項由 constants.js 產生，
+                     本身不帶 id（一頁上有兩組標籤，撞名會靜默覆蓋控制項）。 -->
+                <fieldset id="booking-items" class="tag-picker">
+                  <legend>療程／看診項目（可複選，至少一項）</legend>
                 </fieldset>
                 <fieldset id="booking-tags" class="tag-picker">
                   <legend>備註（可複選）</legend>
@@ -491,12 +499,18 @@
               tabindex="0"
               aria-label="本週預約週檢視"
             ></div>
+            <!-- W1（2026-07-27）：掛號別決定邊框與圖示，看診項目決定底色。
+                 圖例因此分成兩組——把兩種不同的意義混成一排色塊，等於要求
+                 使用者自己去猜哪一個色塊在講哪一件事。 -->
             <div class="week-view-legend">
               <span
                 ><i class="wv-swatch wv-initial"></i>初診（整點／30 分）</span
               ><span
                 ><i class="wv-swatch wv-follow-up"></i>回診（15 分／45
                 分）</span
+              ><span
+                ><i class="wv-swatch wv-item-aesthetic"></i>醫美（底色；項目名稱
+                同時寫在事件上）</span
               ><span
                 >初診與回診並行兩條人力線，回診不佔初診量能。點事件可捲到下方清單。</span
               >

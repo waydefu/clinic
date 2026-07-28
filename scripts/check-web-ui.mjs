@@ -272,7 +272,8 @@ const allowedControls = new Set([
   'booking-national-id',
   'booking-nhi-card',
   'booking-kind',
-  'booking-item',
+  // 2026-07-27（W5）：療程由 `<select id="booking-item">` 改為可複選的
+  // `<fieldset id="booking-items">`；選項是注入的 checkbox，刻意不帶 id。
   'booking-note',
   'slot-kind-filter',
   'appointment-status-filter',

@@ -319,6 +319,8 @@ test.describe('動效系統', () => {
       await page.locator('#booking-birth').fill('1990-05-20');
       await page.locator('#booking-national-id').fill('A123456789');
       await page.locator('#booking-kind').selectOption('initial');
+      // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
+      await page.locator('#booking-items [data-booking-item]').first().check();
       await page.locator('#slots [data-select-slot]').first().click();
       await page.locator('#booking-form button[type="submit"]').click();
       await expect(page.locator('#status')).toContainText('預約已建立');
@@ -401,6 +403,8 @@ test.describe('動效系統', () => {
       await page.locator('#booking-birth').fill('1990-05-20');
       await page.locator('#booking-national-id').fill('A123456789');
       await page.locator('#booking-kind').selectOption('initial');
+      // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
+      await page.locator('#booking-items [data-booking-item]').first().check();
       await page.locator('#slots [data-select-slot]').first().click();
       await page.locator('#booking-form button[type="submit"]').click();
       await expect(page.locator('#status')).toContainText('預約已建立');
