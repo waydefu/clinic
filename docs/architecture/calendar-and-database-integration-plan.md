@@ -106,8 +106,10 @@ Calendar 是投影，不是可用性的來源。
 2. **worker 的 Calendar adapter 先以假服務定型** — ✅ 已完成 2026-07-22。
    `calendar-port.ts` 具備：event ID 格式把關（不合格式＝不可重試）、
    `upsert`／`cancel` 兩種動作、409（事件已存在）與 410／404（早已刪除）
-   都視為冪等成功、依**執行當下**的預約狀態決定動作，以及診所端事件為
-   一小時區塊（`CLINIC_EVENT_MINUTES`）加品牌綠 `colorId`。細節見
+   都視為冪等成功、依**執行當下**的預約狀態決定動作，以及合成 fixture 的事件為
+   一小時區塊（`CLINIC_EVENT_MINUTES`）加品牌綠 `colorId`。這個 60 分鐘值不是
+   正式服務或實際療程時長；production projection 必須使用系統核准的 reservation
+   interval。細節見
    [日曆 event ID 與 outbox 冪等鍵](calendar-event-id.md)。
 3. **事件欄位最小化定型** — ✅ 已完成。事件內容只放預約編號、掛號別、時間與
    診所地址；Emulator 測試以斷言鎖住「不得出現姓名、電話、身分證、手術種類、
@@ -127,15 +129,19 @@ worker runner 或實際 Calendar 連線。D-009 核准日曆擁有者、授權�
 
 ### 舊稱階段 B／目前 Stage 2：staging 專案的雲端 Firestore（仍為合成資料）
 
-**目前阻擋**：D-006（MFA、session、授權碼安全控制）與 Stage 2 change review。
-D-010 的環境、主要區域及 RPO／RTO target 已於 2026-07-28 核准，但實際 IAM、
-備份、監控與跨區復原尚未建立或驗證。
+**目前阻擋**：Stage 2 change-plan review 與獨立 deployment authority。D-006
+（全員 MFA、自管帳號 TOTP、30m idle／8h absolute session、立即停權、授權碼
+雜湊／撤銷／錯誤限制、永久 audit）及 D-010 的環境、主要區域及 RPO／RTO target
+已於 2026-07-28 核准，但均尚未實作；實際 IAM、備份、監控與跨區復原也尚未建立
+或驗證。
 
-- D-006 核准且 Stage 2 change plan 通過審查後，在**與靜態 preview 隔離**的
+- Stage 2 change plan 與 deployment action 通過審查後，在**與靜態 preview 隔離**的
   staging project 啟用 Firestore；主要區域使用已核准的 `asia-east1`，實際
   project ID、IAM、復原與監控設定仍須由變更紀錄明確列出，不得只靠文件直接
   建立資源。
-- 依 D-006 核准的 identity provider 啟用員工登入，讓目前的角色模擬器退場。
+- 依 D-006 核准的 Google federated＋診所自管帳號模式啟用合成員工登入，並依
+  [Stage 2 change plan](stage-2-identity-and-cloud-change-plan-2026-07-28.md)
+  驗證 MFA、TOTP、session、revocation 與授權碼，讓目前的角色模擬器退場。
   `permissions.js` 只反映合成介面的候選能力，不能取代正式伺服器端角色矩陣。
 - Rules 維持預設拒絕；所有存取經 API 的服務帳號。
 - 保留一鍵清除合成資料的能力。
@@ -172,7 +178,8 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 | --- | --- | --- |
 | `patients[]` | `patients` | 身分證字號需決定是否雜湊後另存；不得以姓名自動合併 |
 | `slots[]` | `slots` | 文件 ID 用 `{resourceId}_{startAt}`，天然唯一鍵 |
-| `appointments[]` | `appointments` | 瀏覽器目前含 `bookingKind`、複數 `itemIds`、`noteTags`；2026-07-28 已確認正式預約亦可多項、止鼾 40～60 分鐘、醫美依療程進度，正式 contract/domain 的單一 `serviceId`/`itemId` 須在 D-004 可選刻度、合併計算與容量規則完成後一起對齊 |
+| `appointments[]` | `appointments` | 瀏覽器目前含 `bookingKind`、複數 `itemIds`、`noteTags`；2026-07-28 已確認正式預約亦可多項，且止鼾／醫美實際療程時長到診後形成、不寫死；正式 contract/domain 的單一 `serviceId`/`itemId` 須在 D-004 operational slot block、多服務占位、緩衝與容量規則完成後一起對齊 |
+| 無正式對應 | `encounters` | 分開保存 `actualStartedAt`／`actualEndedAt`；不得拿實際分鐘覆寫原 reservation interval |
 | `followUps[]` | `follow_ups` | 已含 `tags` 與 `certificateCopies` |
 | `caseAssignments[]` | `case_assignments` | 需補 `effectiveFrom/To` 以支援改派歷程 |
 | `auditEvents[]` | `audit_events` | 不可覆寫；需補 before/after 摘要 |
@@ -184,16 +191,18 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 
 ## 5. 目前建議順序
 
-舊稱階段 A 的交易、冪等、outbox 與 Calendar client 技術基線都已完成。D-010
-target 已於 2026-07-28 核准；D-006 與 Stage 2 change review 完成後才能進合成資料
-cloud staging，D-009 核准後才進 Stage 3 專用測試日曆。D-001～D-005、D-006、
-D-011 未完成前，不得開放真實資料的公開預約路徑。
+舊稱階段 A 的交易、冪等、outbox 與 Calendar client 技術基線都已完成。D-006／
+D-010 target 已於 2026-07-28 核准；Stage 2 change/deployment review 完成後才可
+進合成資料 cloud staging，D-009 核准後才進 Stage 3 專用測試日曆。D-001～
+D-005、D-011 未完成且 D-006 control 未有實作證據前，不得開放真實資料的公開
+預約路徑。
 
 2026-07-28 業主提出 Google Calendar 直接新增／修改／刪除後回到系統的需求。該
 能力位於獨立 [Expansion S plan](../product/2026-07-28-surgery-follow-up-expansion-plan.md)
 的 S5，不改變 Stage 3 先完成 outbound-only projection 的順序。D-016 核准前不建立
-watch receiver 或 Calendar-to-system write path；核准後也只能先產生待審核 change
-candidate，Calendar 仍不是容量鎖。
+watch receiver 或 Calendar-to-system write path。業主已確認 inbound 狀態要與
+工作臺同步，但尚未明確選 auto-apply 或 review queue；目前安全提案是先在工作臺
+產生待審核 change candidate，不將提案誤寫成已核准。Calendar 仍不是容量鎖。
 
 ## 6. 明確不做的事
 

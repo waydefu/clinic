@@ -16,8 +16,8 @@
 > 三者均不自行核准 D-001～D-011。
 >
 > **2026-07-28 進度註記：** Stage 0／Checkpoint A 已完成；目前為 Stage 1 owner
-> decisions。D-010 target architecture/SLO 已核准；D-006 仍為 `pending`，因此
-> Stage 2 cloud staging 不得開始。
+> decisions。D-010 target architecture/SLO 與 D-006 identity/security 已核准；
+> Stage 2 cloud staging 仍須完成獨立 change plan 審查與部署核准，不得直接開始。
 > 2026-07-28 新增的手術、臨床時間軸、付款／結算與 Calendar inbound 需求已另列為
 > [Expansion S plan](product/2026-07-28-surgery-follow-up-expansion-plan.md)；
 > 它不修改本文的首期範圍，也不代表 D-014～D-016 已核准。
@@ -55,9 +55,10 @@ Phase 0 已完成，Phase 1 目前為「決策待核准、僅限合成資料測�
 目前瀏覽器的 `localStorage`。未啟用雲端資料庫、後端、身分驗證、Google Calendar、
 NAS 或任何真實病患／薪資資料連線，也未部署 Hosting live channel。
 
-診所的 D-001～D-011 正式決策仍為待定。測試使用的服務、時段、取消期限與角色
-均為不可用於營運的合成 fixtures；正式開發與試營運前，須由診所依專案內的核准包
-填入實際答案、責任人與核准日期。
+診所的 D-006/D-010 已核准，其他 D-001～D-011 決策依決策登錄維持部分或
+pending。測試使用的服務、時段、取消期限與角色仍為不可用於營運的合成 fixtures；
+正式開發與試營運前，須依核准包與 Stage 2 change review 補齊答案、責任人、
+實作／部署核准與證據。
 
 2026-07-21 另完成一次程式庫全面檢查與修正，內容見
 [Codebase analysis and remediation](reviews/codebase-analysis-and-remediation-2026-07-21.md)。
@@ -122,7 +123,8 @@ delivery-plan 的後續 stage 與 decision gates 補齊。
 ### 3.3 櫃台與管理者
 
 - 以公司管理帳號登入後台，不與病患帳號混用。
-- 可查看日、週預約；管理班表、休診、封鎖時段與療程時長。
+- 可查看日、週預約；管理班表、休診、封鎖時段與 operational slot/capacity；
+  止鼾／醫美實際療程時長由 encounter 的開始／結束事實衍生，不寫死服務分鐘。
 - 可人工建立、改期、取消及標記未到；每次動作均有操作者、時間、前後狀態與原因。
 - 僅由後台或正式 API 改動預約。櫃台不應直接在 Google Calendar 新增、刪除或改期。
 
@@ -233,8 +235,8 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 
 規劃書與程式庫容易隨時間脫節。本節記錄兩者目前的差距，每次階段檢查時更新。
 Stage 0／Checkpoint A 已於 2026-07-24 通過；目前是 Stage 1 owner decisions，
-D-010 target 已核准但尚未實作／驗證；D-006 仍為 `pending`，因此 Stage 2 cloud
-staging 尚未開始。
+D-010 target 與 D-006 已核准但尚未實作／驗證；Stage 2 change plan 尚未取得
+獨立審查／部署核准，因此 cloud staging 尚未開始。
 
 **目前已自動化的 gates（依下列命令分開執行）**
 
@@ -269,7 +271,7 @@ Lint 只負責正確性，排版交給 Prettier，兩者不重疊。型別感知
 | ~~瀏覽器與伺服器是兩份領域規則~~ | ADR-0004、vendored compiled domain 與 `check:sync` 已收斂 appointment、schedule、patient identity 等共用規則 | ✅ |
 | ~~無 API contract test 與端對端測試~~ | strict contract/mapping tests 與打包後 Playwright E2E 已建立並進 CI | ✅ |
 | ~~無 remote repository~~ | 已有 HTTPS GitHub origin `https://github.com/waydefu/clinic.git`；跨電腦以 branch push／fresh clone 或 `fetch`＋`pull --ff-only` 交接 | ✅ |
-| Stage 1 owner decisions 尚未完成 | D-010 target 已核准；D-006 與 Stage 2 change review 尚未完成，不能建立身分邊界或 cloud staging | **目前 gate；Stage 2 前** |
+| Stage 1 owner decisions 尚未完成 | D-006/D-010 target 已核准；Stage 2 change review／deployment authority 尚未完成，不能建立身分邊界或 cloud staging | **目前 gate；Stage 2 前** |
 | production worker runner／觀測尚未接線 | 本機 processor、ports 與 plan 已有；trigger、共享 metrics、alerts、service identity 依 D-010 target 在 Stage 2／3 落實 | Stage 3 前 |
 | `infra/terraform/` 僅有 README | 雲端資源為 Phase 1 完成標準的一部分 | 依 Phase 1 排程 |
 | OpenAPI 文件尚未產生 | 契約目前以 `packages/contracts` 的 TypeScript 型別為準 | 對外提供 API 前 |
@@ -329,7 +331,10 @@ Google Calendar 呼叫絕不放在 Transaction 內。Firestore Transaction 可�
 ### 7.1 必要控制
 
 - 病患端：HTTPS、Content Security Policy、HTTP security headers、速率限制、人機驗證、App Check、短效取消 token。
-- 後台：Google Workspace/企業帳號登入、強制 MFA、角色權限（櫃台/主管/系統管理者）、閒置登出與完整稽核。
+- 後台：Google federated＋診所自管帳號、全員 MFA（自管帳號 TOTP）、30 分鐘
+  idle／8 小時 absolute session、停權後下一個 protected request 即拒絕、角色權限
+  （櫃台／醫師／管理者）與永久 append-only audit。實作依 D-006 核准值與 Stage 2
+  change plan，不以目前 role simulator 代替。
 - API：驗證 Firebase ID token、後端角色授權、Zod 欄位白名單、輸入驗證、重放防護與 per-IP/per-account 限流。
 - Firestore：預設拒絕；病患端不直接寫預約資料。注意伺服器 SDK 會繞過 Firestore Security Rules，因此 API 本身必須完成所有授權與驗證。
 - 機密：Secret Manager、服務帳號最小權限、定期輪替、禁止在 Git、瀏覽器、日曆描述或錯誤日誌留下機密與完整個資。
@@ -474,7 +479,8 @@ whole-project 與 regional failure。這是 target SLA，不是已達成證據�
 
 ## 11. 上線前必須確認的決策
 
-1. 可預約的服務、醫師、診間/設備、每種服務時長、緩衝時間與每日容量。
+1. 可預約的服務、醫師、診間／設備、operational slot 區間／占用、緩衝與每日
+   容量；止鼾／醫美實際時長不作預約時的固定服務值。
 2. 病患是否必須登入；首期建議 Email 驗證後預約，管理者採企業帳號登入。
 3. 取消、改期、候補、遲到與未到的作業規則。
 4. Google Calendar 是否允許櫃台直接人工編輯；建議首期否。

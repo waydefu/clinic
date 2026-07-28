@@ -10,7 +10,8 @@ ARCH-08（「production infrastructure 尚未形成 executable architecture」�
 **它不自行解除 deployment gate。** D-010 已於 2026-07-28 核准診所所有權、
 `asia-east1` primary region 與 RPO 1 小時／RTO 4 小時 target（含 project／region
 failure）。具體 project ID、runtime、跨區復原、alert owner 與成本政策仍須進
-Stage 2 change plan；D-006 未核准前不得開資源。
+Stage 2 change plan；D-006 已於 2026-07-28 核准，但在 change plan 與 deployment
+action 另行核准前仍不得開資源。
 
 ## 1. 環境模型
 
@@ -23,9 +24,10 @@ Stage 2 change plan；D-006 未核准前不得開資源。
 | `staging` | 決策核准前的驗證環境 | **只能合成** | CI（自動） |
 | `production` | 正式 | 真實患者資料 | CI，且需人工核准 |
 
-命名慣例（待 D-010 確認）：`beauessence-<env>`，資源名一律帶環境後綴，避免在
-Console 上把兩個環境看錯。目前的 `beauessence-clinic-staging` 只用於合成預覽
-Hosting，不是本文件所指的 staging 應用環境。
+命名慣例提案（待 Stage 2 change review）：`beauessence-<env>`，資源名一律帶
+環境後綴，避免在 Console 上把兩個環境看錯。目前的
+`beauessence-clinic-staging` 只用於合成預覽 Hosting，不是本文件所指的 staging
+應用環境。
 
 **primary region**：D-010 已核准 `asia-east1`（台灣）。跨境傳輸與正式資料的
 法遵判斷仍屬 D-001～D-003；此外，D-010 的 regional-failure RPO/RTO target
@@ -97,6 +99,7 @@ CI 用 **Workload Identity Federation**，不下載 service account 金鑰檔。
 | --- | --- | --- | --- |
 | `google-calendar-service-account` | 日曆服務帳戶 JSON | 90 天 | `worker-runtime` |
 | `idp-client-secret` | 員工登入的 IdP 憑證（D-006） | 90 天 | `api-runtime` |
+| `delegated-authorization-pepper` | 授權碼 KDF 的 optional pepper；hash/salt 仍存資料庫 | 依 Stage 2 security review | `api-runtime` only |
 | `notification-channel-token` | 告警通知管道 | 180 天 | `observability` |
 
 規則：
@@ -113,7 +116,7 @@ CI 用 **Workload Identity Federation**，不下載 service account 金鑰檔。
 
 | 項目 | 設計 |
 | --- | --- |
-| location | 與 project 同區（待 D-010／法遵確認） |
+| location | D-010 已核准 primary `asia-east1`；正式資料仍待 D-001～D-003 法遵／跨境確認 |
 | 索引 | 以檔案定義並經 CI 部署，不在 Console 手動加 |
 | 備份 | 每日排程備份，保留 30 天 |
 | PITR | 開啟，保留 7 天 |
@@ -176,8 +179,9 @@ production 部署需要人工核准（GitHub Environments 的 required reviewers
 | 項目 | 卡在 | 影響 |
 | --- | --- | --- |
 | project ID、region、帳務 | D-010 | 整份 Terraform 無法 apply |
-| IdP 選型、MFA、session 政策 | D-006 | `api-runtime` 的權限與 secret 清單 |
-| 資料保存期限 | D-001～D-003 | 備份保留期、日誌保留期、PITR 視窗 |
+| IdP、MFA、session、撤銷與授權碼政策 | D-006 已核准；實作參數依 Stage 2 change review | `api-runtime` 的權限、session state 與 secret 清單 |
+| 一般資料保存期限 | D-001～D-003 | 備份保留期、日誌保留期、PITR 視窗 |
+| Audit | D-006 已核准永久 append-only／任何角色不得修改刪除；D-002 仍決定查閱、匯出及可識別連結 | 專用 write path、delete deny、容量／成本與 pseudonymization |
 | 日曆正式接線 | D-009 | `worker-runtime` 的 secret 與告警 |
 | 成本上限與超支處置 | 技術負責人 | budget alert 門檻 |
 

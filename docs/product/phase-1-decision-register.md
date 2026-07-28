@@ -6,21 +6,22 @@ infer an answer from an existing website, social message or Calendar event.
 
 Current delivery position: Stage 0／Checkpoint A passed on 2026-07-24. The
 project is now at Stage 1 owner decisions. D-010 infrastructure ownership,
-region and resilience targets were approved on 2026-07-28; D-006 remains
-`pending` and therefore still blocks Stage 2 cloud staging. D-010 approval
-defines the required target and does not itself create a project, deploy a
-backend or prove that the RPO/RTO has been achieved. D-014～D-016 track the
-separate surgery/clinical/finance/Calendar-inbound expansion and do not change
-the current Phase 1 gate.
+region and resilience targets and D-006 identity/security controls were
+approved on 2026-07-28. The decision prerequisites for a Stage 2 proposal are
+therefore present, but cloud staging still requires a separately reviewed and
+explicitly authorised change plan; neither approval creates a project, deploys
+a backend or proves that the controls or RPO/RTO have been achieved. D-014～
+D-016 track the separate surgery/clinical/finance/Calendar-inbound expansion
+and do not change the current Phase 1 gate.
 
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |
 | D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending | Published privacy policy |
 | D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending | Collecting patient data |
 | D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending | Privacy acceptance or public booking |
-| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (hours, multi-service and variable-duration direction recorded 2026-07-28) | Slot reservation |
+| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (hours, multi-service and visit-time actual-duration direction recorded 2026-07-28) | Slot reservation |
 | D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending | Cancellation route or notice |
-| D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | pending (permanent append-only audit boundary approved; security controls incomplete) | Authenticated write endpoint |
+| D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | approved (2026-07-28; implementation evidence pending) | Authenticated write endpoint |
 | D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending | Payroll-credit persistence |
 | D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending | Outbound Calendar integration review |
@@ -30,7 +31,7 @@ the current Phase 1 gate.
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
 | D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (expansion input recorded 2026-07-28) | Storing surgery, anesthesia or clinical follow-up data |
 | D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending (expansion input recorded 2026-07-28) | Persisting money or settlement amounts |
-| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending (review-queue design proposed 2026-07-28) | Calendar-to-system writes |
+| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending (workbench synchronization direction recorded 2026-07-28; review semantics unresolved) | Calendar-to-system writes |
 
 ## Recorded inputs
 
@@ -63,33 +64,37 @@ temporary privacy-contact input below uses the clinic phone.
   may be performed by administrators only, and must record a reason.
 - **D-002 third parties: Google only** (Calendar and cloud) at this stage.
 - **D-010 data region: Taiwan (`asia-east1`).**
-- **D-004 services: 止鼾 (40–60 minutes) and 醫美 (duration follows the treatment
-  plan)**, with the final scope agreed with the patient at the visit. One patient
-  per slot. Booking horizon 60 days (provisional). Closed days follow the
+- **D-004 services: 止鼾 and 醫美 actual treatment duration is not fixed before
+  arrival**, with the final scope agreed with the patient at the visit. The
+  earlier 40–60-minute stop-snoring range is superseded as a formal scheduling
+  rule; neither service gets a catalogue duration, selectable duration
+  increment or auto-calculated treatment end. One patient per slot remains a
+  candidate. Booking horizon 60 days is provisional. Closed days follow the
   published hours plus national holidays.
 - **D-004 booking multiplicity: multiple services are allowed in one formal
   appointment** (owner answer, 2026-07-28). The browser already uses multiple
   `itemIds`, while the executable API contract/domain still accepts one
   `serviceId`/`itemId`; the routed contract, persistence and idempotency model
-  must move together. On 2026-07-28 the owner explicitly retained 止鼾 as a
-  **40–60 minute multi-duration** service rather than forcing a fixed 60-minute
-  block, and retained 醫美 as “依療程進度”. The data model may therefore support
-  duration choices/ranges, but each actual reservation still needs a concrete
-  `endsAt`. The allowed 止鼾 increments, the 醫美 estimate and combined
-  sequential/parallel/buffer rules remain unanswered.
+  must move together. Later on 2026-07-28 the owner clarified that the actual
+  duration of both 止鼾 and 醫美 is only known at the visit and must not be
+  hard-coded. Formal design must therefore separate the concrete operational
+  slot interval used for conflict/capacity control from
+  `actualStartedAt`／`actualEndedAt` encounter facts. Multi-service selection
+  does not auto-sum service durations. The published slot-block/capacity rule,
+  multi-service occupancy and buffer/overrun handling remain unanswered.
 - **D-005: patients may cancel up to 24 hours before**; after that it is a phone
   call. No-shows are recorded, not charged.
-- **D-006: Google sign-in plus a self-hosted account option** (the clinic has no
-  Google Workspace yet). Roles gain **醫師** alongside administrator and front
-  desk. Completing a visit stays with front desk and administrators. **Deleting
-  a booking may be delegated to the front desk behind a password the
-  administrator sets — multiple passwords, each switchable on or off.** The
-  owner confirmed this direction on 2026-07-28 and replaced the earlier
-  five-year audit candidate with “unlimited; administrator self-deletes.” The
-  owner then clarified on 2026-07-28 that administrators may delete qualifying
-  appointment records, while audit is permanent, append-only and cannot be
-  deleted by any role. Staff MFA/session and authorization-code controls still
-  lack an explicit approval, so D-006 stays `pending`.
+- **D-006 approved:** Google sign-in plus a clinic-managed local-account option
+  (the clinic has no Google Workspace yet). Roles gain **醫師** alongside
+  administrator and front desk. Completing a visit stays with front desk and
+  administrators. **Deleting a booking may be delegated to the front desk
+  behind multiple administrator-issued authorization codes that are hashed,
+  individually revocable and attempt-limited.** All staff require MFA; local
+  accounts use TOTP; idle timeout is 30 minutes and absolute session lifetime
+  is 8 hours; disabling an account must reject its next protected request.
+  Administrators may delete qualifying appointment records, while audit is
+  permanent, append-only and cannot be deleted by any role. Unspecified actions
+  and emergency access default to denied.
 - **D-007/D-008: make the authority configurable rather than fixed.** Front desk
   and administrators may both assign a case manager; only administrators may
   reassign; both capabilities need an on/off switch in account management. The
@@ -140,13 +145,15 @@ Decisions worth keeping:
   screen is beside patients and gets screenshotted; if it is forgotten, disable
   it and add another.
 
-**Still not a security boundary.** Comparison is plaintext in the browser, same
-class as the synthetic login (AUTH-001). D-006 remains `pending`.
+**The current browser implementation is still not a security boundary.**
+Comparison is plaintext in the synthetic browser, same class as the synthetic
+login (AUTH-001). The policy was later approved, but no production IdP,
+server-side hash comparison, session enforcement or authorization route exists.
 
-### D-006 audit deletion boundary approved - 2026-07-28
+### D-006 identity, security and audit boundary approved - 2026-07-28
 
-The owner approved the safe interpretation of “unlimited; administrator
-self-deletes”:
+The owner first approved the safe interpretation of “unlimited;
+administrator self-deletes”:
 
 - an administrator may delete an appointment only through the separately
   authorised delete command and its closed reason codes;
@@ -155,9 +162,27 @@ self-deletes”:
 - administrators, developers, service accounts and every other role are denied
   audit deletion.
 
-This closes the audit-deletion ambiguity, not all of D-006. The proposed staff
-MFA, TOTP, session and authorization-code controls still need an explicit
-approval before D-006 can move to `approved`.
+The owner then approved **all remaining D-006 controls**:
+
+- Google federated sign-in plus clinic-managed local accounts; credentials stay
+  in the approved IdP rather than application/Firestore documents;
+- staff roles include administrator, front desk and physician; front desk and
+  administrators may complete a visit, while unlisted actions are denied;
+- all staff must use MFA; local accounts use TOTP;
+- idle timeout is 30 minutes and absolute session lifetime is 8 hours;
+- disabling an account revokes its sessions and must reject the next protected
+  request, rather than waiting for a previously issued token to expire;
+- authorization codes are stored only through a salted memory-hard KDF,
+  individually revocable, never displayed again and retry-limited; repeated
+  failures lock delegation verification and produce audit;
+- no break-glass policy was included in the approval. The safe planning default
+  is therefore fail-closed until emergency access is separately decided.
+
+Implementation and test details are frozen in the
+[Stage 2 identity and cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md).
+D-006 is `approved`; this is a policy approval, not evidence that the current
+synthetic role switch, plaintext demonstration code or any cloud identity
+boundary satisfies it.
 
 ### Fonts: system stack retained - 2026-07-27
 
@@ -179,9 +204,12 @@ The clinic's official reservations page was re-checked on 2026-07-28 and still
 publishes Mon–Fri 11:00–20:00 and Sat 11:00–16:00. The owner then selected
 **Wed–Fri 12:00–20:00 and Sat 10:00–18:00** as the formal operating schedule.
 The repository already matches that answer; the official site must be corrected
-through its own controlled content process. D-004 remains pending only for the
-remaining executable service-duration, combined-capacity, resource, horizon and
-blackout details. Any `20:30` value remains stale.
+through its own controlled content process. D-004 no longer needs a
+service-derived duration: the owner has said that actual stop-snoring and
+aesthetic duration is known only at the visit and must not be hard-coded.
+D-004 remains pending for the operational slot-block/capacity, multi-service
+occupancy, resource, horizon, blackout and overrun rules. Any `20:30` value
+remains stale.
 
 ### D-010 infrastructure and resilience target approved - 2026-07-28
 
@@ -195,7 +223,9 @@ single-region, no cloud project/backend has been created, and no cross-project
 or cross-region restore has been exercised. Stage 2 must produce a reviewed
 change plan that identifies separated environments, least-privilege roles,
 alert recipients, backup/failover mechanisms, cost and a drill capable of
-demonstrating the target. D-006 still blocks the start of Stage 2.
+demonstrating the target. D-006 and D-010 decision prerequisites are now
+approved; a separately reviewed Stage 2 change plan and deployment approval
+still block any cloud action.
 
 ### Expansion S: surgery, follow-up, payment and Calendar inbound - 2026-07-28
 
@@ -207,7 +237,31 @@ the
 
 The input does not silently expand Phase 1. D-014 gates clinical/surgical
 records, D-015 gates persisted money, and D-016 gates Calendar-to-system writes.
-The accepted ADR remains that Calendar is not the appointment/capacity lock.
+The owner has required Google Calendar to synchronize with the workbench, but
+has not explicitly selected whether inbound changes auto-apply or enter a
+review queue; D-016 therefore remains pending. The accepted ADR remains that
+Calendar is not the appointment/capacity lock.
+
+### D-016 partial: Calendar must synchronize with the workbench - 2026-07-28
+
+The owner answered that Calendar inbound is to synchronize with the workbench.
+This records the required operator surface and convergence goal:
+
+- outbound states (`queued`, `synced`, `failed`) and inbound states
+  (`pending_review`, `conflict`, `approved`, `rejected`, `superseded`,
+  `sync_error`) belong in the workbench rather than a hidden worker-only log;
+- Calendar notifications wake an incremental sync; they do not identify a
+  specific event or directly mutate an appointment;
+- a re-sync may rebuild only the Calendar mirror/candidate store, never the
+  authoritative appointment, encounter, surgery or permanent audit stores;
+- every accepted external change must still execute a normal domain command,
+  recheck current resource conflicts and append audit.
+
+This does **not** close D-016. “Synchronize with the workbench” does not answer
+whether linked inbound edits may auto-apply, who reviews an unknown event, how a
+Google deletion maps to cancellation, conflict precedence or the candidate
+handling SLO. Until those are explicitly approved, the safe proposed behavior
+is a workbench review queue and no Calendar-to-system write path.
 
 The drift check that caught the prose copies did **not** cover the JSON-LD
 numbers, because those use `"opens"/"closes"` rather than the `12:00–20:00`
@@ -317,8 +371,10 @@ below to `approved`, and no real patient data may be relied upon.
 - **D-006 direction at that time:** staff sign in with **account + password**, and the
   **manager (管理者) may cancel/delete**. This records the intended shape for the
   test build. The audit-retention ambiguity was superseded by the 2026-07-28
-  permanent append-only decision above. Identity provider, MFA, session policy
-  and the full role/permission matrix still keep D-006 `pending`.
+  permanent append-only decision above; the identity, MFA, session, role and
+  authorization-code direction was then fully approved later on 2026-07-28.
+  The browser implementation described here remains synthetic evidence and
+  does not implement that approval.
   - Implementation reading of "cancel/delete" (2026-07-24, synthetic build):
     the front desk **keeps** cancelling — it is a daily counter action, and
     routing it through a manager would stall the front desk. **Deleting** is
@@ -328,8 +384,9 @@ below to `approved`, and no real patient data may be relied upon.
     `created_in_error`), since the audit event outlives the record it explains.
     Patient-initiated erasure is deliberately **not** one of those reasons: it
     is a data-rights workflow gated on D-002. This split is a build decision
-    for the test system and is exactly the kind of detail the D-006 audit must
-    confirm or overturn.
+    for the test system; the later 2026-07-28 D-006 approval confirmed
+    administrator delete and front-desk delegated delete, while D-005 still
+    owns cancellation and D-002 owns erasure.
 - **D-009 direction:** use a **dedicated test calendar** for now, with the
   **manager (管理者) as the responsible owner**. Consistent with the 2026-07-23
   test-integration authority. D-009 stays `pending`: the production calendar,
@@ -338,7 +395,9 @@ below to `approved`, and no real patient data may be relied upon.
   `.ics` stays a **single reminder time point** (start time only, day-before
   alarm), which is what `modules/calendar-export.js` already implements
   (2026-07-22 direction). The clinic-side one-hour projection is a separate
-  path. No further change required; covered by `calendar-export.test.ts`.
+  synthetic fixture, not a service or actual-treatment duration. No further
+  change to this historical fixture is required; covered by
+  `calendar-export.test.ts`.
 
 Standing limits unchanged: `noindex`, synthetic data only, no cloud backend, no
 authenticated write endpoint and no real Calendar connection are enabled by this
@@ -359,8 +418,9 @@ The matching-key priority is national ID/new resident ID, then passport, then
 phone plus birth date. When the birth year is absent, the normalized name is
 also included so two people sharing a phone and month/day are not silently
 merged. This remains browser-local synthetic behavior, not an approved
-production identity model or patient authentication; D-001～D-003 and D-006
-remain `pending`.
+production identity model or patient authentication; D-001～D-003／D-011
+patient-specific decisions remain `pending`, while approved D-006 staff controls
+are not implemented by this preview.
 
 ### Patient identity fields in the preview - 2026-07-21 — historical, superseded
 

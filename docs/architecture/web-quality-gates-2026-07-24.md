@@ -261,10 +261,10 @@ sortable table（`aria-sort` 只掛在當前排序欄的 `th`、欄名包成 `<b
 
 | 項目 | 為什麼還沒做 |
 | --- | --- |
-| Lighthouse CI 完整報告（含 SEO／best-practices 分數） | 需要在 CI 跑完整 Lighthouse；目前以預算檔＋實測指標覆蓋最關鍵的部分，等 runner 政策（D-010）定案再評估 |
-| 依賴簽章／來源證明（provenance、sigstore） | 需要 CI 身分與金鑰管理，屬 D-010 |
+| Lighthouse CI 完整報告（含 SEO／best-practices 分數） | 需要在 CI 跑完整 Lighthouse；目前以預算檔＋實測指標覆蓋最關鍵的部分；D-010 target 已核准，仍待 Stage 2 runner/change review |
+| 依賴簽章／來源證明（provenance、sigstore） | 需要 CI 身分與金鑰管理；D-010 target 已核准，實作仍待 Stage 2 change review |
 | 行動裝置螢幕閱讀器實測 | 需要實機，見 runbook §9 |
-| 負載／soak／交易競爭測試 | Stage 6 項目，需要 cloud staging（D-010） |
+| 負載／soak／交易競爭測試 | Stage 6 項目；D-010 target 已核准，仍須另行授權並建立 cloud staging |
 
 ## 相關文件
 

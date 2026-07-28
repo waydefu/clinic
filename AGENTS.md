@@ -11,9 +11,11 @@ hardening and Checkpoint A were completed on 2026-07-24: local contracts,
 application-boundary skeletons, patient booking guards, audit v2 and synthetic
 Emulator evidence are in place. The project is now at **Stage 1 owner decisions
 and governance approval**. D-010 target architecture/SLO was approved on
-2026-07-28; D-006 still blocks Stage 2 cloud staging. D-010 approval does not
-itself authorise `terraform apply` or prove the recovery target. Routed booking,
-production Calendar and real patient data remain separately decision-gated.
+2026-07-28, and D-006 identity/security was fully approved later that day.
+Stage 2 cloud staging still requires a separately reviewed and explicitly
+authorised change plan. Neither approval authorises `terraform apply` or proves
+the controls/recovery target. Routed booking, production Calendar and real
+patient data remain separately decision-gated.
 
 ## Non-negotiable safety boundaries
 
@@ -82,21 +84,23 @@ enable a route.
   expanding its approved fields, roles, external effects or data authority.
 - Keep the expiring static preview, documentation, tests and security gates
   accurate under their existing authority.
-- Prepare reviewed, plan-only Stage 2 changes; do not create or apply cloud
-  resources while D-006 is pending or without a separately reviewed Stage 2
-  change plan.
+- Prepare reviewed, plan-only Stage 2 changes from the approved D-006/D-010
+  targets; do not create or apply cloud resources without a separately reviewed
+  and explicitly authorised Stage 2 change plan.
 
 ### Must remain disabled
 
 - Any booking controller or public/staff write route.
-- Cloud Firestore or Authentication before D-006 and an approved Stage 2 change
-  plan; the recorded D-010 target alone is not deployment authority.
+- Cloud Firestore or Authentication without an approved Stage 2 change plan and
+  separate deployment authority; recorded D-006/D-010 decisions are not
+  deployment authority.
 - Calendar test projection before D-009.
 - Surgery/anesthesia/clinical-record persistence, patient money or staff
   settlement amounts before D-014/D-015 and their existing privacy/access
   gates; Calendar-to-system writes before D-016.
-- Public booking or real patient data before D-001 through D-006, D-010 and
-  D-011.
+- Public booking or real patient data before D-001 through D-005 and D-011 are
+  approved, the approved D-006 controls are implemented and verified, and the
+  D-010 cloud change has separate deployment authority.
 - Case/payroll persistence before D-007 and D-008.
 - Any Terraform apply, live-channel deployment or production credential use.
 
@@ -227,6 +231,7 @@ lines.
 | Temporary online synthetic preview | `docs/runbooks/synthetic-online-preview.md` | Hosting preview only, separate staging project, browser-only synthetic state |
 | Availability, exceptions or follow-up | `docs/product/test-only-scheduling-follow-up-workbench.md` | D-004～D-006, explicit clinical/staff decision and synthetic-only scope |
 | Surgery, clinical timeline, payment/settlement or Calendar inbound | `docs/product/2026-07-28-surgery-follow-up-expansion-plan.md` | Expansion S is plan-only; use D-014～D-016 plus the existing mapped gates, never infer a route from the owner intake |
+| Stage 2 identity, MFA, session, IAM or cloud foundation | `docs/architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md` | D-006/D-010 values are approved; plan-only until separate review and deployment authority |
 | Monthly close or compensation | Payroll spec + close runbook | Taipei cutoff, immutable lock, adjustment/audit |
 | Cloud runtime, IAM, backup or monitoring | Delivery plan Stage 2 + approved D-010 target | Reviewed IaC/change plan only; never apply before Stage 2 authority |
 | Replacing browser-local state | Synthetic Web architecture | Contract-compatible API client; no direct Firestore path |
@@ -249,8 +254,9 @@ lines.
    referrer name. It does not authorise LineID, gender or any other field.
 3. Confirm the delivery-plan stage. Stage 0 is complete; while Stage 1
    decisions remain pending, proceed only with the policy-neutral maintenance,
-   decision work and documented synthetic-preview scope listed above. D-010
-   target approval is recorded; D-006 still blocks Stage 2.
+   decision work and documented synthetic-preview scope listed above. D-006 and
+   D-010 target approvals are recorded; Stage 2 still needs its reviewed change
+   plan and separate deployment authority.
 4. Update executable contract and domain first, then application service,
    repository adapter, worker or web edge.
 5. Add focused tests using synthetic opaque identifiers only. Booking changes
@@ -302,9 +308,9 @@ not enable a booking write endpoint until its privacy, appointment-policy and
 identity/role decisions are approved and the local transaction, idempotency,
 audit/outbox and Rules tests pass. Stage 0 already established the explicit
 patient booking guard, the same-patient/different-slot race test, audit v2 and
-an application boundary. D-010 target approval is recorded, but Stage 2 cloud
-staging still requires explicit D-006 approval and a reviewed change plan;
-completed technical prerequisites do not bypass them.
+an application boundary. D-006/D-010 target approvals are recorded, but Stage 2
+cloud staging still requires a reviewed change plan and separate deployment
+authority; completed technical prerequisites do not bypass them.
 
 ## Before production data
 

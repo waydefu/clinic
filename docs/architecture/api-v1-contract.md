@@ -45,20 +45,23 @@ transcripts and arbitrary free text.
 The current browser-local synthetic prototype supports multiple selected
 items as `itemIds`. The executable appointment contract and domain transaction
 still accept one `serviceId`/`itemId`. On 2026-07-28 the owner confirmed that
-the formal appointment model also allows multiple services, retained 止鼾 as a
-40–60 minute multi-duration service and left 醫美 as “依療程進度”. Before a
-booking route is registered, every reservation must still resolve those inputs
-to a concrete interval. The allowed 止鼾 increments, the 醫美 estimate and
-combined sequential/parallel/buffer rule remain pending D-004; after they are
-approved, the contract, domain, idempotency key, persistence model and UI must
-be aligned together.
+the formal appointment model also allows multiple services, then clarified that
+the actual duration of both 止鼾 and 醫美 is known only at the visit and must
+not be hard-coded. Service selections therefore do not carry a fixed/range
+duration and are not auto-summed. Before a booking route is registered, each
+reservation must still reference a concrete operational slot interval from the
+published schedule; the encounter later records separate
+`actualStartedAt`／`actualEndedAt` facts. Slot-block/capacity, multi-service
+occupancy, buffer and overrun behavior remain pending D-004. Contract, domain,
+idempotency key, persistence and UI must move together after that decision.
 
 Patient intake and verification remain a separate decision-gated boundary.
 The application service accepts only a server-produced authentication context
 and maps its verified opaque patient ID and actor ID, plus a server-generated
 appointment ID and UTC timestamp, into the domain `BookingRequest`. D-001
-through D-006, D-010 and D-011 must be approved before a real
-intake/authentication adapter or public booking route is enabled.
+through D-005 and D-011 remain pending before a real intake adapter or public
+booking route is enabled. D-006/D-010 are approved policy targets but their
+identity/cloud controls are not implemented and create no route authority.
 
 The Stage 0 application service, authorization policy and repository port are
 present under `apps/api/src/appointments`, but they are intentionally not
@@ -78,21 +81,21 @@ Only health is routed; create/cancellation schemas remain reserved.
 | Capability / command | Executable contract | Domain / application mapping | Current state and decision gate |
 | --- | --- | --- | --- |
 | Health query | `HealthResponseSchema` | `HealthController` | Routed; no patient data |
-| Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; fields, verification and matching remain TBD pending D-001～D-003, D-006, D-011 |
-| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; formal multi-service direction is recorded, but the single-service contract and exact duration/capacity rule still need D-004 implementation, then D-001～D-006, D-010 and D-011 |
-| Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005/D-006 |
-| Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; route/authorization pending D-005/D-006 |
-| Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; route/authorization pending D-004/D-006 |
-| Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | Future application mapping → `RescheduleRequest` | Unrouted Stage 0 schema; capacity/cancellation/roles pending D-004～D-006 |
-| Delete appointment record | `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Future staff application mapping → `DeleteAppointmentRequest` → `planDeletion` | Unrouted Stage 0 schema; administrator may delete a qualifying appointment while the audit event remains permanent and undeletable; role/delegation controls remain pending D-006 and booking retention remains pending D-002 |
-| Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification, fields and roles pending D-001～D-003/D-006 |
-| Follow-up decision | `RecordFollowUpRequestSchema` / `RecordFollowUpResponseSchema` | Future application mapping → `planFollowUpDecision` (validates the target against the published follow-up grid) | Unrouted Stage 0 schema; browser categories/tags have no approved domain/audit mapping yet, and they remain inventory-only with free-text note, certificate count and the case-manager shortcut pending D-001～D-003/D-007; route/roles pending D-004/D-006 |
-| Schedule publish | `PublishScheduleRequestSchema` / `PublishScheduleResponseSchema` | Future application mapping → `planSchedulePublication` (optimistic version check + orphan-appointment guard) | Unrouted Stage 0 schema; draft/rollback/diff and roles pending D-004/D-006/D-010 |
-| Case assignment / reassignment | `AssignCaseManagerRequestSchema` / `AssignCaseManagerResponseSchema` | Future application mapping → `planCaseAssignment` (effective-dated; a reassignment closes the prior period and never overwrites it) | Unrouted Stage 0 schema; patient-merge review, effective-dating owner and roles pending D-006/D-007 |
-| Payroll close / adjustment | `ClosePayrollPeriodRequestSchema` / `RecordPayrollAdjustmentRequestSchema` / `PayrollPeriodSnapshotSchema` | Future application mapping → `planPayrollPeriodClose` + `planPayrollAdjustment` (lock the period; the snapshot is then frozen and reasoned adjustments accumulate in an append-only ledger) | Unrouted Stage 0 schema; finance rule version, lock owner and roles pending D-006～D-008 |
-| Surgery / encounter / clinical follow-up | None | Expansion S inventory only | No contract or route; fields, medical owner, correction and retention pending D-001～D-003/D-006/D-014 |
-| Patient payment / refund / staff settlement | None | Expansion S ledger inventory only | No contract or route; accounting authority, money invariants and field scopes pending D-006/D-008/D-015 |
-| Calendar inbound change candidate / review | None | Expansion S reconciliation inventory only | No inbound receiver or write path; matching, reviewer, conflict and delete semantics pending D-009/D-016 |
+| Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; patient fields, verification and matching remain TBD pending D-001～D-003/D-011; approved D-006 staff identity does not select patient identity |
+| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; formal multi-service/no-service-duration direction is recorded, but the single-service contract and slot/capacity rule still need D-004 implementation, then D-001～D-005/D-011 and reviewed D-006/D-010 implementation |
+| Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005; staff security baseline approved in D-006 but unimplemented |
+| Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; cancellation authority/rules remain D-005; staff session/RBAC must implement approved D-006 |
+| Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; D-006 approves complete for front desk/administrator, while no-show remains D-005 and slot behavior remains D-004 |
+| Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | Future application mapping → `RescheduleRequest` | Unrouted Stage 0 schema; capacity/cancellation pending D-004/D-005; staff session/RBAC must implement approved D-006 |
+| Delete appointment record | `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Future staff application mapping → `DeleteAppointmentRequest` → `planDeletion` | Unrouted Stage 0 schema; D-006 approves administrator delete/front-desk delegated code, hashed/revocable/attempt-limited controls and permanent undeletable audit; booking retention remains D-002 and implementation remains Stage 2 work |
+| Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification/fields remain D-001～D-003/D-014; approved D-006 baseline does not infer clinical field scope |
+| Follow-up decision | `RecordFollowUpRequestSchema` / `RecordFollowUpResponseSchema` | Future application mapping → `planFollowUpDecision` (validates the target against the published follow-up grid) | Unrouted Stage 0 schema; browser categories/tags have no approved domain/audit mapping yet, and they remain inventory-only with free-text note, certificate count and case-manager shortcut pending D-001～D-003/D-007/D-014; D-006 security baseline is approved but unimplemented |
+| Schedule publish | `PublishScheduleRequestSchema` / `PublishScheduleResponseSchema` | Future application mapping → `planSchedulePublication` (optimistic version check + orphan-appointment guard) | Unrouted Stage 0 schema; draft/rollback/diff and schedule authority remain D-004; D-006/D-010 targets are approved but unimplemented |
+| Case assignment / reassignment | `AssignCaseManagerRequestSchema` / `AssignCaseManagerResponseSchema` | Future application mapping → `planCaseAssignment` (effective-dated; a reassignment closes the prior period and never overwrites it) | Unrouted Stage 0 schema; patient-merge review, effective dating and action roles remain D-007; use approved D-006 security baseline |
+| Payroll close / adjustment | `ClosePayrollPeriodRequestSchema` / `RecordPayrollAdjustmentRequestSchema` / `PayrollPeriodSnapshotSchema` | Future application mapping → `planPayrollPeriodClose` + `planPayrollAdjustment` (lock the period; the snapshot is then frozen and reasoned adjustments accumulate in an append-only ledger) | Unrouted Stage 0 schema; finance rule version, lock owner and roles pending D-007/D-008; use approved D-006 security baseline |
+| Surgery / encounter / clinical follow-up | None | Expansion S inventory only | No contract or route; fields, medical owner, correction and retention pending D-001～D-003/D-014; use approved D-006 identity/session baseline |
+| Patient payment / refund / staff settlement | None | Expansion S ledger inventory only | No contract or route; accounting authority, money invariants and field scopes pending D-008/D-015; use approved D-006 identity/session baseline |
+| Calendar inbound change candidate / review | None | Expansion S reconciliation inventory only | No inbound receiver or write path; workbench synchronization direction recorded, but matching, reviewer, conflict, auto-apply/review and delete semantics remain pending D-009/D-016 |
 
 No controller may infer a missing schema from the browser implementation. A
 row moves from “inventory only” to executable only when its decision

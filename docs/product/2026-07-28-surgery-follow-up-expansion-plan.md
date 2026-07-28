@@ -5,8 +5,10 @@
 隱私、財務或 Google Calendar 雙向同步的核准，也不會建立 route、cloud resource、
 真實病患資料、付款或結算紀錄。
 
-**目前位置不變：** Stage 0／Checkpoint A 已完成，目前仍在 Stage 1。D-010 target
-已核准；D-006 仍阻擋 Stage 2。這份擴充規劃是獨立的 Expansion S 軌，不擴大目前
+**目前位置不變：** Stage 0／Checkpoint A 已完成，目前仍在 Stage 1。D-006 與
+D-010 target 已核准；Stage 2 下一個必要步驟是審查
+[身分與 Cloud Staging change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)，
+不是直接建立資源或改碼。這份擴充規劃是獨立的 Expansion S 軌，不擴大目前
 Phase 1 release scope，也不延後原預約平台的 Stage 2～6，除非業主日後明確把它
 納入同一 release。
 
@@ -31,18 +33,27 @@ Phase 1 release scope，也不延後原預約平台的 Stage 2～6，除非業�
 
 - 正式營業時間：週三至週五 12:00–20:00、週六 10:00–18:00。
 - 一筆正式預約可選多項服務。
-- 止鼾保留 **40–60 分鐘、支援多時長** 的需求，不改成固定 60 分鐘。
-- 醫美維持「依療程進度」的既有呈現方向。
+- 止鼾與醫美的實際療程時長都只在到診／執行後形成，不在服務目錄寫死固定分鐘、
+  40～60 range、可選級距或自動結束時間。先前 40～60 分鐘是已被本次回答取代的
+  規劃輸入。
 - 管理者可刪除符合限定理由的**預約紀錄**；audit 永久、append-only，任何角色
   都不能刪除 audit evidence。
+- D-006 全部核准：全員 MFA、自管帳號 TOTP、30 分鐘 idle、8 小時 absolute
+  session、停權後下一個 protected request 即拒絕，授權碼雜湊、可個別撤銷並
+  限制錯誤嘗試。
+- 任一部分超出正式營業時間的自訂手術時段只允許 `administrator` override，
+  且理由必填；不得用櫃檯權限或刪預約授權碼委派。休診日／國定假日是否也可
+  override 尚未由本次回答決定。
+- Google Calendar 的 inbound 狀態必須與工作臺同步；工作臺是操作與可見性入口。
 
 ### 尚未形成可執行規則
 
-- 止鼾的可選值是 40／50／60 分鐘、5 分鐘級距，或由櫃檯輸入 40～60 之間任意值。
-- 醫美在保留資源前仍須產生一個具體 `endsAt`；「依療程進度」本身無法做重疊檢查。
-- 多項服務的時間是相加、部分並行，或由櫃檯最後決定；也尚未核准緩衝時間。
-- MFA、session 與授權碼安全預設在業主訊息中沒有獨立的「是」，因此 D-006
-  仍不能改為 approved。
+- 預約時不使用服務時長，因此仍須決定 published slot block 的開始／結束、容量、
+  多服務占用一個或多個 slot、緩衝與現場超時如何處理。
+- 「到診才知道」只解除服務目錄的固定 duration，不解除預約時對醫師／診間／設備
+  的 operational interval lock。
+- Calendar 與工作臺同步的目標已確認，但 linked edit 是否自動套用、reviewer、
+  Google deletion 語意、衝突優先序與處理 SLO 尚未核准；D-016 保持 pending。
 
 ## 3. 需求如何對應現有系統
 
@@ -50,10 +61,10 @@ Phase 1 release scope，也不延後原預約平台的 Stage 2～6，除非業�
 | --- | --- | --- |
 | 病患完整時間軸 | patient、appointment、follow-up、case-assignment 的 ID 與歷程模型 | D-014 醫療／手術紀錄邊界；不可做成一筆可任意覆寫的大文件 |
 | 初診／醫美／回診／手術日曆 | 週檢視、事件文字＋色彩、Calendar outbox | 新事件類型、資源時長、顏色 token、無障礙 regression |
-| 手術排程與衝突 | slot transaction、schedule planner、patient active-booking guard | 醫師／手術室／病患三種資源鎖與可變長 interval |
+| 手術排程與衝突 | slot transaction、schedule planner、patient active-booking guard | 醫師／手術室／病患三種資源鎖、published slot block 與現場 actual interval 分離 |
 | 回診生命週期與次數 | follow-up planner、正式回診鏈、完成狀態 | 手術來源關聯、臨床內容分類；僅 `completed` 計數 |
-| Google 雙向同步 | outbound projection、固定 event ID、retry/dead-letter | D-016 inbound review、watch 續訂、sync token、410 full resync、衝突處理 |
-| 角色與欄位權限 | D-006、server-side action/resource scope 設計 | 新角色與 field projection；金額欄位不得只靠前端隱藏 |
+| Google 雙向同步 | outbound projection、固定 event ID、retry/dead-letter | 工作臺同步方向已確認；D-016 尚缺 inbound 套用／review、watch 續訂、sync token、410 full resync 與衝突規則 |
+| 角色與欄位權限 | D-006 已核准的 Phase 1 staff baseline、server-side action/resource scope 設計 | Expansion S 新角色與 field projection；金額欄位不得只靠前端隱藏 |
 | 付款／退款 | 尚無 ledger | D-015、不可變 money transaction、會計對帳與更正流程 |
 | 人員結算 | payroll credit／period lock／adjustment 基線 | D-008＋D-015；金額公式、稅務／會計來源與核准角色 |
 | 永久 audit | audit v2、同交易寫入 | Cloud append-only storage、查閱／匯出權限與容量成本 |
@@ -65,8 +76,8 @@ Phase 1 release scope，也不延後原預約平台的 Stage 2～6，除非業�
 | Aggregate／ledger | 保存內容 | 主要不變條件 |
 | --- | --- | --- |
 | `patients` | 最小身分與聯絡索引 | 不以姓名自動合併；合併需人工覆核與 lineage |
-| `appointments` | 預約時段、類型、服務、狀態 | 建立／改期用交易鎖資源；取消不等於刪除 |
-| `encounters` | 實際到診目的與完成時間 | 預約與實際到診分開；不得回寫竄改原預約歷史 |
+| `appointments` | operational slot 開始／結束、類型、複數服務、狀態 | slot interval 來自已發布排班而非服務分鐘；建立／改期用交易鎖資源；取消不等於刪除 |
+| `encounters` | 實際到診目的、`actualStartedAt`／`actualEndedAt` | 實際分鐘由兩個 timestamp 衍生；預約與實際到診分開，不回寫竄改原預約 interval |
 | `surgery_cases` | 手術項目、醫師、麻醉、預定／實際時間 | 臨床更正留版本；實際時間不可覆蓋預定時間 |
 | `follow_ups` | 來源就診、預約／完成／取消／未到狀態 | 只有 `completed` 計入已完成回診數 |
 | `case_assignments` | 個管／諮詢師的 effective-dated 指派 | 改派關閉舊期間並新增新期間，不覆寫歷史 |
@@ -134,7 +145,9 @@ initial_consultation / aesthetic_treatment / follow_up / examination / surgery
 
 - 週三至週五：12:00、14:00、16:00；
 - 週六：10:30、12:00、14:00；
-- 另允許具名權限的自訂開始／結束時間。
+- 另允許自訂開始／結束時間；營業時間內依排班權限，超出營業時間只允許
+  `administrator` override 且必填理由。Override 與時段變更須在同一 transaction
+  append actor、server time、原／新 interval 與理由；不可委派。
 
 模板不是實際可用性。建立或改期前必須用同一筆 server transaction 檢查：
 
@@ -144,9 +157,14 @@ initial_consultation / aesthetic_treatment / follow_up / examination / surgery
 - 營業時間、日期例外與具理由的 override；
 - 原時段釋放與新時段保留必須原子完成。
 
-每個可保留事件都必須先有具體 `startsAt`／`endsAt`。因此止鼾可以保留 duration
-range／多時長資料模型，醫美也可以顯示「依療程進度」，但在真正鎖容量時仍須由
-核准流程選出本次預估分鐘數。
+Override 只放行「營業時間」檢查，不放行手術醫師、手術室／設備或病患衝突，也
+不自動涵蓋整日休診或國定假日。
+
+每個可保留事件都仍須有 operational `startsAt`／`endsAt`，但它們來自已發布的
+slot block／具權限自訂時段，不由止鼾或醫美服務名稱推算。到診時只新增
+`actualStartedAt`，完成時新增 `actualEndedAt`；兩者才形成實際療程分鐘。實際值
+不得覆寫原預約 interval，也不得因多選服務自動相加。若現場超時，工作臺顯示
+resource overrun／conflict 供人工處理，但不竄改其他已成立預約。
 
 ### 回診生命週期
 
@@ -159,13 +177,14 @@ range／多時長資料模型，醫美也可以顯示「依療程進度」，但
 - 取消保留回診紀錄，只改生命週期狀態；
 - 完成回診後可再建立下一筆，形成初診／手術 → 回診 1 → 回診 2 的可追溯鏈。
 
-## 6. Google Calendar：保留系統權威，雙向採審核佇列
+## 6. Google Calendar：保留系統權威，雙向審核佇列提案
 
 現行 [ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md) 不撤銷：
 Firestore／domain transaction 仍是預約與資源容量的唯一權威。Outbound projection
 沿用固定 event ID、outbox、retry、dead-letter 與 reconciliation。
 
-業主要求的 inbound 同步規劃為未來 D-016 能力：
+業主已確認 inbound 必須與工作臺同步；下列是 D-016 未核准前的安全提案，不代表
+review queue 已獲核准：
 
 1. `events.watch` 通知只觸發「有變更」工作，不直接改 appointment；
 2. worker 使用保存的 `syncToken` 執行 incremental sync；
@@ -176,7 +195,14 @@ Firestore／domain transaction 仍是預約與資源容量的唯一權威。Outb
    姓名自動合併病患；
 6. Google 刪除事件只建立取消候選，不直接刪除或取消系統紀錄；具權限櫃檯／管理者
    核准後才走正式 cancellation command；
-7. 衝突、過期、權限不足或病患不明都留在 operator queue，不猜測結果。
+7. 衝突、過期、權限不足或病患不明都留在 operator queue，不猜測結果；
+8. 工作臺顯示 `pending_review`、`conflict`、`approved`、`rejected`、
+   `superseded`、`sync_error`，並同時顯示 outbound 的 `queued`、`synced`、
+   `failed`；同步不是只藏在 worker log；
+9. `410 Gone` 只重建 Calendar mirror 與 candidate，不清除 appointment、
+   surgery、encounter 或 audit；
+10. 工作臺核准候選時仍執行正式 domain command，重新檢查最新版本、權限、
+    營業時間與資源衝突；超出營業時間的手術只有管理者可核准且理由必填。
 
 Google 官方文件確認：
 
@@ -194,8 +220,9 @@ Google event 僅保存 opaque booking/event ID、事件類型、時間與最小�
 
 ## 7. RBAC 與欄位投影
 
-2026-07-28 文字檔提出以下**候選矩陣**，納入 D-006／D-007／D-008 審核，不因寫入
-本文就成為正式權限：
+2026-07-28 文字檔提出以下 **Expansion S 候選矩陣**。D-006 已核准 Phase 1 的
+administrator／front desk／physician 身分與安全基線，但下列臨床、金額與指派
+範圍仍受 D-007／D-008／D-014／D-015 審核，不因寫入本文就成為正式權限：
 
 | 角色 | 候選資料範圍 | 候選金額範圍 |
 | --- | --- | --- |
@@ -267,7 +294,7 @@ ledger 的捷徑。
 | 階段 | 內容 | 前置 gate | 完成證據 |
 | --- | --- | --- | --- |
 | **S0 現在** | 需求正規化、資料分類、command／event inventory、決策包 | 無；plan-only | 本文件、decision register、無 route／無真資料 |
-| **S1 領域基線** | surgery/encounter/payment/settlement 純 domain 與 synthetic tests | D-004、D-006、D-014／D-015 對應規則核准 | 狀態機、interval conflict、ledger、RBAC projection tests |
+| **S1 領域基線** | surgery/encounter/payment/settlement 純 domain 與 synthetic tests | D-004、D-014／D-015 對應規則核准；沿用已核准 D-006 安全不變條件 | 狀態機、interval conflict、ledger、RBAC projection tests |
 | **S2 合成手術排程** | 手術資源、到診目的、時間軸 projection | Stage 2 auth/API 完成；只用 synthetic data | 交易競態、改期釋放、patient/surgeon/room conflict E2E |
 | **S3 臨床時間軸** | 手術、麻醉、實際時間、回診鏈 | D-001～D-003、D-014；隱私／醫療責任核准 | 欄位 inventory、access log、correction、retention/DSR drill |
 | **S4 付款與結算** | payment ledger、refund、settlement、lock/adjustment | D-008、D-015；財務／會計核准 | 金額不變量、退款、period lock、field-level BOLA tests |
@@ -280,14 +307,14 @@ S3～S5 是否進同一個 production release，要在 S0 結束時另外做 rel
 
 | 決策 | 本次輸入 | 尚需回答 |
 | --- | --- | --- |
-| D-004 排程／容量 | 正式時段、多服務、止鼾 40–60 多時長、醫美依進度 | 止鼾級距、醫美本次預估時間、合併／並行／緩衝、手術 override |
-| D-006 身分／RBAC | 新角色與永久 audit 方向；預約可由管理者刪 | MFA/session/授權碼安全基準、具名角色矩陣與 break-glass |
+| D-004 排程／容量 | 正式時段、多服務；止鼾／醫美實際時長到診後記錄、不寫死；超時段手術限管理者＋理由 | published slot block、容量、多服務占用、緩衝／現場超時 |
+| D-006 身分／RBAC | **已核准** Google＋自管帳號、全員 MFA、自管帳號 TOTP、30m idle／8h absolute、立即停權、角色／委派、永久 audit | Phase 1 無剩餘 policy answer；實作與驗證依 Stage 2 change plan |
 | D-007 個管 | 病患以有效指派的個管／諮詢師為「自己」 | 多重有效指派、改派／代理／離職與 merge |
 | D-008 結算 | 三種角色分帳、實收基礎候選 | 正式公式、規則版本、lock owner、爭議與 adjustment |
 | D-009 Calendar | 需要 production shared calendar 與最小事件 | owner、OAuth／service identity、最小 scope、專用 calendar |
 | **D-014 臨床／手術紀錄** | 手術、麻醉、臨床回診與時間軸 | 法律／醫療紀錄邊界、owner、欄位、保存、更正與匯出 |
 | **D-015 付款／退款** | 總價、訂金、尾款、退款、欠款與結算來源 | 會計權威、付款／退款 reason、核准與對帳 |
-| **D-016 Calendar inbound** | Google 直接新增／修改／刪除需回到系統 | 是否採 review queue、允許 editor、衝突優先序、刪除語意與 SLO |
+| **D-016 Calendar inbound** | Google 直接新增／修改／刪除的狀態須同步到工作臺 | 是否採 review queue、允許 editor／reviewer、衝突優先序、刪除語意與 SLO |
 
 在上述決策關閉前，允許的工作只有文件、schema inventory、風險分析與不帶政策值的
 純設計；不得新增正式 route、真實 Calendar watch、臨床資料或付款資料。

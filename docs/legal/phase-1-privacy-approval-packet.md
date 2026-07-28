@@ -98,4 +98,5 @@ Required implementation follow-up:
 After all three decisions are formally approved, update the decision register,
 freeze the approved policy as `privacy-vN`, and create a local-only acceptance
 contract test. This still does **not** enable the booking endpoint: D-004 to
-D-006 remain required for appointment rules, roles and access control.
+D-005 remain required for appointment rules, while approved D-006 roles/access
+control still require Stage 2 implementation and verification.

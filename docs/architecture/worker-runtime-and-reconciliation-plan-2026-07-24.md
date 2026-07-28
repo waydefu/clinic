@@ -101,7 +101,9 @@ outbox 保證的是「我們送出了」，不是「它現在還在那裡」。�
 | 刪除死信 | **無人** | 死信不得刪除；處理完的狀態是「已補回」或「已由人工處置並註記」 |
 
 工作臺目前有的是合成示範（`outbox-fail-next` 與補回入口）。接上真實環境時，
-權限檢查走既有的 `PERMISSIONS` 模型，與管理者刪除預約同一套（D-006 方向）。
+權限檢查沿用已核准 D-006 的 server-side identity/session baseline，不使用既有
+browser `PERMISSIONS` 當安全邊界。死信 action 的角色仍須在 D-009／Stage 3
+operational review 明列。
 
 **死信不得刪除**這一條值得說明理由：能刪除，就會有人在慌張的時候用刪除讓紅色
 數字消失。留著並註記，才留得住「當時發生了什麼」。
@@ -142,7 +144,7 @@ outbox 保證的是「我們送出了」，不是「它現在還在那裡」。�
 | --- | --- |
 | 真實日曆連線 | D-009 |
 | Cloud Scheduler／Cloud Run／metrics backend | D-010 |
-| 死信操作者的正式權限矩陣 | D-006 |
+| 死信操作者的正式 action matrix | 已核准 D-006 安全基線＋D-009／Stage 3 operations review |
 | 對帳結果的保存期限 | D-001～D-003 |
 
 未涵蓋：其他 outbox adapter（Email／LINE／Meta）的觸發與對帳。它們的失敗語意

@@ -25,9 +25,9 @@ note, the approved request/source tags and a conditional optional referrer
 name. Those values stay in the visitor's own browser and are never transmitted
 to or stored by the clinic. Screen and list views mask identity documents; the
 synthetic intake print can show the complete test value for local verification.
-LineID and gender are not collected. D-001 through D-003 and D-006 remain
-pending, so the preview must not be relied on to collect real patient data
-operationally.
+LineID and gender are not collected. D-001 through D-003 remain pending; D-006
+is approved but not implemented. The preview must not be relied on to collect
+real patient data operationally.
 
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
 and what is blocked.
@@ -38,10 +38,10 @@ plus the
 [production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md).
 Stage 0 architecture hardening and Checkpoint A are complete. The current gate
 is Stage 1 owner decisions and governance approval. D-010 target
-architecture/SLO was approved on 2026-07-28; D-006 still blocks Stage 2 cloud
-staging. The D-010 answer does not itself authorise deployment, and the existing
-local, synthetic-only implementation does not authorise a route or cloud
-backend.
+architecture/SLO and D-006 identity/security were approved on 2026-07-28.
+Stage 2 cloud staging still requires a reviewed, explicitly authorised change
+plan. Those answers do not themselves authorise deployment, and the existing
+local, synthetic-only implementation does not authorise a route or cloud backend.
 
 ## Clinic website integration — 2026-07-27
 
@@ -66,8 +66,8 @@ reproducible reference is the
 ten named desktop/mobile screenshots with a hash manifest, fixed synthetic
 state and a documented capture environment. It confirms Stage 0/Checkpoint A
 has passed, Stage 1 owner decisions are current, `/v1/health` remains the only
-routed API controller, and D-006 still blocks Stage 2 after D-010 target
-approval.
+routed API controller, and Stage 2 still awaits reviewed change/deployment
+authority after D-006/D-010 approval.
 
 The 2026-07-28 owner input for surgery scheduling, clinical follow-up, patient
 payments, staff settlement and Calendar inbound edits is tracked separately in
@@ -75,6 +75,10 @@ the
 [Expansion S plan](docs/product/2026-07-28-surgery-follow-up-expansion-plan.md).
 It is plan-only, adds D-014～D-016 gates and does not enlarge the current Phase
 1 release or enable any route.
+
+The approved D-006 controls are translated into a plan-only
+[Stage 2 identity and cloud change plan](docs/architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md);
+no identity or cloud implementation has started.
 
 At 2026-07-28 17:18 Asia/Taipei, the deployed preview routes `/`, `/booking`,
 `/privacy` and `/clinic` all returned HTTP 200 with stable HTML set to
@@ -191,9 +195,10 @@ Stage 0 completed contract/domain alignment, the API application-boundary
 skeleton, the explicit patient booking guard, audit v2 and synthetic Emulator
 tests; Checkpoint A passed on 2026-07-24. The project is now at Stage 1, where
 named owners must approve or defer the recorded policy and governance inputs.
-D-010 target architecture/SLO is approved; D-006 remains pending and therefore
-still blocks Stage 2 cloud staging. None of this enables a route or authorises
-a cloud deployment.
+D-010 target architecture/SLO and D-006 identity/security are approved.
+Stage 2 cloud staging still requires a reviewed change plan plus separate
+deployment approval. None of this enables a route or authorises a cloud
+deployment.
 
 The write path is built and proven, but **not routed**: reservation, all five
 transitions, reschedule, idempotency, audit, outbox and the retry/dead-letter

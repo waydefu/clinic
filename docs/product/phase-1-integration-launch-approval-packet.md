@@ -1,8 +1,9 @@
 # Phase 1 整合與公開上線核准包
 
-**狀態：待核准。** 本文件覆蓋 D-009、D-010、D-011。它是外部整合與公開
-網站的先決條件，不會建立雲端專案、不會部署、不會取得 OAuth 權杖，也不會
-發送通知。
+**狀態：部分核准。** 本文件覆蓋 D-009、D-010、D-011；D-010 target
+architecture/SLO 已於 2026-07-28 核准，D-009 與 D-011 仍待核准。它是外部整合
+與公開網站的先決條件，不會建立雲端專案、不會部署、不會取得 OAuth 權杖，也
+不會發送通知。
 
 請先閱讀 [`../adr/0002-calendar-is-a-projection-not-the-lock.md`](../adr/0002-calendar-is-a-projection-not-the-lock.md)、
 [`../runbooks/calendar-sync-failure.md`](../runbooks/calendar-sync-failure.md) 與
@@ -27,10 +28,11 @@ Calendar 不是可用時段權威來源。即使同步失敗，已成立的預�
 
 **Expansion S 註記（2026-07-28）：** 業主提出 Calendar 直接新增／修改／刪除後
 回到系統的需求。這不改變 D-009 先核准 outbound projection 的順序，也不撤銷
-Calendar 非權威來源的 ADR。Inbound 另受 D-016 約束；建議做法是 watch＋
-incremental sync 後產生待審核 change candidate，未知病患或刪除事件都不得自動
-改寫系統。完整規劃見
-[Expansion S plan](2026-07-28-surgery-follow-up-expansion-plan.md#6-google-calendar保留系統權威雙向採審核佇列)。
+Calendar 非權威來源的 ADR。業主已確認 inbound 狀態須與工作臺同步，但尚未明確
+選 auto-apply 或 review queue，因此 D-016 維持 pending。安全提案是 watch＋
+incremental sync 後把 change candidate 顯示在工作臺，未知病患或刪除事件都不
+自動改寫系統；這仍是待核准提案。完整規劃見
+[Expansion S plan](2026-07-28-surgery-follow-up-expansion-plan.md#6-google-calendar保留系統權威雙向審核佇列提案)。
 
 ## D-010 — Firebase、環境與維運責任
 
@@ -62,7 +64,7 @@ incremental sync 後產生待審核 change candidate，未知病患或刪除事�
 | --- | --- | --- |
 | 對外網域與頁面擁有者 | `[網域、DNS／內容管理責任人]` | `[診所負責人]` |
 | 語言與可近用性需求 | `[記錄輸入：繁中＋英文 Beau Essence Clinic；須確認翻譯與鍵盤、對比、螢幕閱讀器需求]` | `[營運負責人]` |
-| 病患登入或驗證方式 | `[依 D-006]` | `[資安＋營運負責人]` |
+| 病患登入或驗證方式 | `[staff D-006 已核准；患者本人驗證仍依 D-001～D-003/D-011]` | `[資安＋營運負責人]` |
 | 預約可用服務與時段呈現 | `[依 D-004]` | `[營運負責人]` |
 | 隱私政策呈現與接受紀錄 | `[依 D-001～D-003]` | `[隱私負責人]` |
 | 取消與改期入口 | `[依 D-005]` | `[營運負責人]` |
@@ -91,6 +93,7 @@ Required implementation follow-up:
 
 ## 上線前的總門檻
 
-這三項核准不會單獨解除安全限制。公開預約仍必須同時完成 D-001～D-006，並通過
+這三項核准不會單獨解除安全限制。D-006 已核准但尚未實作；公開預約仍必須完成
+D-001～D-005、D-011，並通過 D-006 實作驗證及
 本機交易、冪等、授權、稽核、Firestore Rules、備份還原與 Calendar 失敗演練。
 實際雲端部署需要單獨的變更核准與回滾計畫。

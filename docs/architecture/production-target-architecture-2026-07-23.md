@@ -3,8 +3,9 @@
 狀態：Proposed  
 日期：2026-07-23  
 進度註記：Stage 0／Checkpoint A 已於 2026-07-24 完成；目前為 Stage 1 owner
-decisions。D-010 target architecture/SLO 已於 2026-07-28 核准；D-006 仍阻擋
-Stage 2 cloud staging，且尚未建立任何 cloud 資源或復原證據。
+decisions。D-010 target architecture/SLO 與 D-006 identity/security 已於
+2026-07-28 核准；Stage 2 仍須 change-plan review 與 deployment authority，且
+尚未建立任何 cloud 資源、身分控制或復原證據。
 
 適用範圍：一森渼診所預約平台從合成 preview 過渡至 staging 與 production  
 配套規劃：[正式化後續實作規劃書](../product/production-readiness-delivery-plan-2026-07-23.md)
@@ -68,7 +69,8 @@ repository、worker、測試及大部分 UI 都能保留。
 
 **修改**
 
-1. D-001～D-006 未核准前，不開 route。
+1. D-001～D-005、D-011 未核准且 D-006 control 未完成實作驗證前，不開 public
+   route；D-006 核准本身不建立 route authority。
 2. 先決定 public booking identity flow，再建立獨立的 patient intake／identity
    contract；appointment command 優先只傳 opaque `patientId`。
 3. contracts 補齊 command/response/error/version，所有 controller 只接受
@@ -83,7 +85,7 @@ repository、worker、測試及大部分 UI 都能保留。
 - `AppointmentApplicationService.create` 將 server-verified opaque patient/actor
   與 server-generated ID/time/correlation 映射為 `BookingRequest`；
 - ADR-0005 固定 patient intake／verification 與 appointment command 分離，實際
-  欄位、驗證、matching、merge 與 retention 仍依 D-001～D-003/D-006/D-011
+  欄位、驗證、matching、merge 與 retention 仍依 D-001～D-003/D-011
   保持 TBD；
 - API v1 文件已盤點 health、patient identity、appointment transitions、
   reschedule、follow-up、schedule、case 與 payroll commands，以及完整 error code
@@ -194,7 +196,9 @@ result, correlationId, source, policyVersion, schemaVersion
 - 與業務寫入同交易；
 - append-only，不提供一般 update/delete；
 - payload 去識別化，不複製不必要 PII；
-- retention、export、break-glass 與查看權限由 D-002/D-006 決定。
+- D-006 已固定永久 retention 與所有 application role 的 update/delete deny；
+  D-002 決定查閱／匯出、可識別連結與 pseudonymization。未核准 break-glass 前
+  fail closed。
 
 **Stage 0 實作狀態（2026-07-23）：已完成**
 
@@ -202,7 +206,8 @@ result, correlationId, source, policyVersion, schemaVersion
 - appointment `before/after` 僅允許 `status`、`slotId`；schema 會拒絕病患識別、
   聯絡資訊與任意文字。
 - actor、role、correlation、source 由 server-owned audit context 提供；request
-  body 不能覆寫。D-006 尚未核准，因此不預先枚舉正式診所角色。
+  body 不能覆寫。D-006 已核准 administrator／front desk／physician 最小 staff
+  baseline，但 executable claims mapping 仍未實作；Expansion 角色不得由此推定。
 - `reasonCode`、`policyVersion` 欄位必須存在但可為 `null`，直到對應決策核准，
   不以 synthetic 值冒充正式政策。
 - 建立、狀態轉換與改期在同一 Firestore transaction 使用 `create` append event；
@@ -226,10 +231,11 @@ patient identity、case assignment、workspace governance 仍以 browser module
    `packages/domain/src/patient-identity.ts`；browser wrapper 匯入 vendored domain。
 3. case assignment effective-period planner 與一致性守衛已進 domain，strict
    contract 亦已建立；synthetic workbench adapter 仍是 browser-local，merge review
-   與 production mapping 受 D-006/D-007 gate。
-4. workspace governance 仍只服務 synthetic browser；正式角色、resource scope、
-   route 與 persistence 必須等待 D-006 與受審查的 Stage 2 change plan，不得把
-   D-010 target 核准或 UI 模擬當成部署／正式授權。
+   與 production mapping 仍受 D-007 gate，並沿用已核准 D-006 安全基線。
+4. workspace governance 仍只服務 synthetic browser；D-006 角色／session
+   baseline 已核准，但正式 claims、resource scope、route 與 persistence 必須
+   等待受審查的 Stage 2 change plan 與 deployment authority，不得把 D-006／
+   D-010 核准或 UI 模擬當成實作／正式授權。
 
 ### ARCH-06：preview 的 raw identity key 不得移植至 production
 
@@ -238,14 +244,15 @@ patient identity、case assignment、workspace governance 仍以 browser module
 preview 接受身分證／居留證或護照，matching key 優先使用身分證／居留證，其次
 護照，最後才是電話＋生日；生日年份缺席時會把姓名納入 fallback，避免同電話同月日
 被誤合併。整份 state 仍存 `localStorage`。這只在明示的 synthetic preview
-authority 內可用，不能作正式身分模型，也不代表 D-001～D-003/D-006 已核准。
+authority 內可用，不能作正式身分模型，也不代表 D-001～D-003/D-011
+patient-specific 決策已核准；它也沒有實作已核准的 D-006 staff controls。
 
 **修改**
 
 - production document ID 一律 opaque；
 - raw national ID 不進 URL、document ID、log、correlation ID 或 idempotency key；
 - 是否儲存 national ID、是否使用 HMAC blind index、如何驗證本人及保存多久，
-  由 D-001～D-003/D-006 決定；
+  由 D-001～D-003/D-011 決定；
 - UI 不再持久化完整 patient state；只保存短期、非敏感的 view/session state。
 
 ### ARCH-07：worker 尚缺正式執行與觀測邊界
@@ -427,7 +434,7 @@ domain -----------------> nothing outside packages/domain
 | Collection | 用途 | 關鍵 invariant |
 | --- | --- | --- |
 | `patients` | opaque patient profile | 無 raw identity 作 document ID；merge 有 lineage |
-| `patient_identifiers` | 受限制的 identity mapping | 欄位、索引與保存依 D-001～D-003/D-006 |
+| `patient_identifiers` | 受限制的 identity mapping | 欄位、索引、patient verification 與保存依 D-001～D-003/D-011；存取沿用已核准 D-006 server security baseline |
 | `patient_booking_guards` | 每病患 active booking 唯一 guard | 同病患同時最多一筆 active |
 | `appointments` | 預約 source of truth | 狀態機、service/resource/rule version |
 | `slots` | 可預約容量 | slot/resource/start 唯一；transaction reservation |
@@ -523,20 +530,29 @@ pending -> in_progress (lease)
 ```text
 allow = authenticated
      && account active
+     && session not revoked
+     && idle age < 30 minutes
+     && absolute age < 8 hours
      && role permits action
      && resource scope permits target
      && policy conditions satisfied
 ```
 
-最低角色集合由 D-006 核准，候選包含：
+D-006 已核准 Phase 1 staff baseline：
 
-- Patient；
-- Front Desk；
-- Case Manager；
-- Manager；
-- System Admin；
-- Auditor；
-- Service Account。
+- `administrator`；
+- `front_desk`；
+- `physician`。
+
+Patient identity 另受 D-001～D-003/D-011；Case Manager、finance、clinical
+expansion 與 service-account action scopes 依 D-007／D-008／D-014／D-015 與
+Stage 2 technical review。未列 action 預設拒絕。
+
+所有 staff 強制 MFA，自管帳號使用 TOTP。Session 同時執行 30 分鐘 idle 與
+8 小時 absolute 上限；停用帳號完成後的下一個 protected request 必須檢查
+active/revoked state 並拒絕。授權碼只存安全 KDF 結果、可個別撤銷且限制錯誤
+嘗試。完整切片見
+[Stage 2 identity/cloud change plan](stage-2-identity-and-cloud-change-plan-2026-07-28.md)。
 
 UI 隱藏只改善體驗，不是控制。所有敏感 action 與 read query 都必須在 API
 重做授權；查詢結果亦需 server-side scope/filter/field projection。

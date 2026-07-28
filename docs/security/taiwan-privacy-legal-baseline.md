@@ -33,8 +33,10 @@ note. It does not transmit those values to the clinic, and real data remains
 prohibited. This field list must not be copied into a backend or treated as a
 lawful-basis decision.
 
-The production field inventory remains pending D-001 through D-003, D-006 and
-D-011. Each field needs a recorded purpose, necessity, legal basis, notice,
+The production field inventory remains pending D-001 through D-003 and D-011.
+D-006 now supplies the staff identity/session/audit baseline, but does not
+approve a patient field by itself. Each field still needs a recorded purpose,
+necessity, legal basis, notice,
 access scope and retention rule. Request tags or free text may imply health or
 medical information, a national ID is a high-risk identifier, and a referrer
 name is third-party personal data; each needs separate review. Do not add
@@ -120,6 +122,18 @@ improvement. The project must therefore retain RBAC, MFA for staff, server-side
 access only, encryption in transit, audit events, access-log review, backups,
 restore testing, vendor reviews and a tested incident runbook before production.
 
+The owner approved the D-006 minimum on 2026-07-28: Google federated plus
+clinic-managed local staff accounts, MFA for every staff member, TOTP for local
+accounts, 30-minute idle and 8-hour absolute session limits, and account disable
+that rejects the next protected request. Authorization codes for delegated
+appointment deletion are hashed, individually revocable and attempt-limited.
+Audit is permanent and append-only; no application role may alter or delete it.
+Firebase tokens are not accepted solely by signature after disable/revocation;
+the API must check active/revoked state for every protected request. These are
+approved targets, not evidence that the current synthetic browser implements
+them. See the
+[Stage 2 identity/cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md).
+
 The Medical Care Act separately protects information learned or held about a
 patient's condition or health. Limit access to case managers and other staff by
 role and purpose, and never expose patient data through Calendar, social
@@ -146,11 +160,13 @@ the
 1. Approve D-001 through D-003, including the exact controller name, privacy
    contact, retention schedule, deletion exceptions, policy version and
    publication record.
-2. Approve D-009 and D-010 before any real-data cloud/backend, Calendar or NAS
-   connection, including processor terms, locations, access scope, logs,
-   backup/restore and incident contacts. The already-authorised static,
-   synthetic-only Hosting preview is the documented exception; it is not
-   authority to create a backend or send data to the clinic.
+2. D-010 target architecture/SLO is approved, but any real-data cloud/backend,
+   Calendar or NAS connection still requires D-009 where applicable, a reviewed
+   cloud change and deployment authority, plus approved processor terms,
+   locations, access scope, logs, backup/restore and incident contacts. The
+   already-authorised static, synthetic-only Hosting preview is the documented
+   exception; it is not authority to create a backend or send data to the
+   clinic.
 3. Have the clinic's legal/privacy owner confirm this baseline against the law
    in force on the actual launch date.
 4. Before Expansion S stores surgery, anesthesia, clinical follow-up or money,

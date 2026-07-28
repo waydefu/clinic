@@ -3,8 +3,9 @@
 狀態：Proposed  
 日期：2026-07-23  
 目前 checkpoint：Stage 0／Checkpoint A 已於 2026-07-24 通過；目前進行 Stage 1
-owner decisions。D-010 target architecture/SLO 已於 2026-07-28 核准；D-006 仍
-阻擋 Stage 2，且 D-010 核准不等於已有部署或復原證據。
+owner decisions。D-010 target architecture/SLO 與 D-006 identity/security 已於
+2026-07-28 核准；Stage 2 仍待 change-plan review 與 deployment authority，且
+決策核准不等於已有實作、部署或復原證據。
 
 架構依據：[正式環境目標架構書](../architecture/production-target-architecture-2026-07-23.md)  
 決策依據：[Phase 1 決策登錄](phase-1-decision-register.md)
@@ -63,10 +64,10 @@ D-016 及原有對應 gate 約束。
 
 | 優先 | 項目 | 原因 | 產出 |
 | --- | --- | --- | --- |
-| 1 | 對齊 API contract / domain / UI | **Stage 0 已完成** strict inventory、mapping 與 rejection tests；正式 identity flow 仍受 D-001～D-003/D-006/D-011 gate | 維護 versioned contracts；決策後補 identity contract |
-| 2 | 建立 application/auth boundary | **未掛路由 skeleton 已完成**；真 IdP、角色與 resource scope 仍受 D-006 gate | D-006 後接 controller/session/policy persistence |
+| 1 | 對齊 API contract / domain / UI | **Stage 0 已完成** strict inventory、mapping 與 rejection tests；D-006 staff identity 已核准，患者 identity flow 仍受 D-001～D-003/D-011 gate | 維護 versioned contracts；依核准值規劃 staff identity contract |
+| 2 | 建立 application/auth boundary | **未掛路由 skeleton 已完成**；真 IdP、角色與 resource scope 尚未實作 | 依 D-006 與審查後 Stage 2 plan 接 controller/session/policy persistence |
 | 3 | patient active-booking guard | **已完成**明確 document contention 與跨 slot Emulator race | 維持 guard transaction regression |
-| 4 | 擴充 audit schema | **audit v2 與 transaction assertions 已完成**；retention/access/export 仍待 D-002/D-006 | production append-only persistence + approved operations |
+| 4 | 擴充 audit schema | **audit v2 與 transaction assertions 已完成**；永久 append-only/delete-deny 已由 D-006 核准，production access/export 與可識別連結仍待 D-002 | production append-only persistence + approved operations |
 | 5 | domain 化 schedule/patient/case rules | 核心 planners 已進 domain；synthetic adapters 仍 browser-local，merge／正式 mapping 受 gate | 決策後接 application/repository adapters |
 | 6 | worker runner/observability | processor、trace/metrics ports 與 plan 已有；production trigger、backend、alerts、identity 未接 | 依已核准 D-010 target 完成 change review 後接 runner；D-009 後接 test Calendar |
 | 7 | IaC 與環境隔離 | 目前只有 plan／README，沒有可重現 staging/production | 依已核准 D-010 target 建立並審查 Terraform modules |
@@ -114,7 +115,7 @@ D-016 及原有對應 gate 約束。
 
 | Gate | 決策 | 解除的工作 |
 | --- | --- | --- |
-| B | D-006＋Stage 2 change review（D-010 target 已核准） | cloud staging、staff login、IAM、backup/monitoring |
+| B | D-006/D-010 已核准；Stage 2 change review＋deployment authority | cloud staging、staff login、IAM、backup/monitoring |
 | C | D-009 | 專用 test Calendar integration |
 | D | D-001～D-005、D-011 | public booking 與真實患者資料 |
 | E | D-007、D-008 | case assignment 與 payroll persistence |
@@ -129,14 +130,18 @@ D-016 及原有對應 gate 約束。
 
 ### Stage 2：合成資料 Cloud Staging
 
-前置：D-006 approved，並依已核准的 D-010 target 完成 Stage 2 change review。
+前置：D-006/D-010 approved，並完成 Stage 2 change review 與獨立 deployment
+authority。
 建議工期：2～3 個工程週。
 
 工作：
 
 1. 建立隔離的 staging project、Firestore、runtime、service accounts。
 2. 建立 Terraform modules 與 remote state。
-3. 啟用核准的 IdP，建立 staff test identities、MFA/session policy。
+3. 依
+   [Stage 2 身分與 Cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
+   啟用核准的 IdP，以合成 staff 驗證 Google＋自管帳號、全員 MFA、自管帳號
+   TOTP、30 分鐘 idle／8 小時 absolute session 與停權撤銷。
 4. 完成 API auth/authz middleware 與 application services。
 5. 路由 staff-only booking/transition/reschedule endpoints。
 6. Web 的 role switch 改為登入；`stagingRequest` 換 `api-client`。
@@ -148,7 +153,7 @@ D-016 及原有對應 gate 約束。
 
 - 未登入 request 401；
 - 無權限 action 403，不能只靠 UI；
-- disabled account/session 立即失效；
+- disabled account/session 在停權完成後的下一個 protected request 即被拒絕；
 - direct Firestore read/write 拒絕；
 - staging 只含 synthetic data；
 - deploy/rollback 與 backup/restore smoke 成功。
@@ -302,12 +307,12 @@ owner；決策能及時完成：
 - [x] case assignment effective periods（2026-07-24；`planCaseAssignment`
       effective-dated，reassignment 收尾前段不覆寫，`assertConsistentAssignmentHistory`
       守衛不重疊／單一開放期間；unrouted `AssignCaseManager*` schema。merge review
-      仍受 D-006/D-007 gate）
+      使用已核准 D-006 安全基線；merge review／assignment rule 仍受 D-007 gate）
 - [x] payroll close/adjustment（2026-07-24；`planPayrollPeriodClose` 鎖定期間快照，
       `planPayrollAdjustment` 鎖後只允許具理由調整、不得低於零；audit v2 加
       `payroll_period_closed`/`payroll_adjustment_recorded`；unrouted
       `ClosePayrollPeriod*`/`RecordPayrollAdjustment*` schema。財務規則版本與 lock
-      owner 仍受 D-006～D-008 gate）
+      owner 仍受 D-007～D-008 gate；D-006 安全基線已核准）
   - 2026-07-24 外部複查（P1）修正：第一版的 `planPayrollAdjustment` 回傳
     `{...closed, creditCount, lastAdjustedAt}`，沿用同一個 snapshot id——repository
     只要照計畫寫回 `payroll_periods`，就會覆寫月結規格明定「不可修改」的快照。
@@ -322,8 +327,9 @@ owner；決策能及時完成：
 - [x] RBAC + resource-scope policy（2026-07-24；`platform/authorization/rbac.ts`
       候選角色矩陣＋`evaluateAccess`：authenticated＋active＋role permits＋resource
       scope；own_patient BOLA、assigned_patient 個管謂詞、denial 不洩漏存在性；
-      `createRbacAppointmentPolicy` 接上既有 appointment port。角色值仍是候選、
-      受 D-006 gate、未掛路由）
+      `createRbacAppointmentPolicy` 接上既有 appointment port。D-006 已核准
+      administrator／front desk／physician 的最小基線，但其餘角色值仍受各自
+      gate，且全部未掛路由）
   - 2026-07-24 外部複查（P2）修正：`createRbacAppointmentPolicy` 在
     `role === 'patient'` 但缺少 `verifiedPatientId` 時，會落到 `{ kind: 'any' }`
     ——而 patient 本來就持有 `create_appointment`，於是 fail-open。已改為直接
@@ -484,9 +490,10 @@ Calendar 接線另受 D-009 gate。
 
 ## 9. 接下來十個動作
 
-1. 把本規劃與目標架構交由 technical owner 確認。
-2. 完成 D-006 的 MFA／session／授權碼安全控制；稽核刪除邊界與 D-010 target
-   已核准，
+1. 把本規劃、目標架構與 Stage 2 identity/cloud change plan 交由 technical／
+   security owner 審查；本輪只規劃，不改碼、不 apply。
+2. D-006 MFA／session／授權碼／audit 與 D-010 target 已核准；把核准值轉成
+   environment、cost、IAM、recovery、test 與 rollback 證據清單，
    D-001～D-005/D-011 並行準備。
 3. ✅ 建立 command/response/error contract inventory
    （2026-07-24；未核准 commands 只列 inventory，不建立 route）。
@@ -502,5 +509,6 @@ Calendar 接線另受 D-009 gate。
    文件化；仍是 plan-only，未 apply。
 9. ✅ E2E／axe／performance／supply-chain／SAST CI gates 已建立；人工 a11y 與
    connected-cloud evidence 尚未執行。
-10. ✅ Checkpoint A 已於 2026-07-24 通過；D-010 target 已於 2026-07-28 核准。
-    D-006 核准且 Stage 2 change plan 完成審查後，才能決定 Stage 2 開始日期。
+10. ✅ Checkpoint A 已於 2026-07-24 通過；D-006/D-010 已於 2026-07-28 核准。
+    Stage 2 change plan 與 deployment action 另行核准後，才能決定 Stage 2
+    開始日期。

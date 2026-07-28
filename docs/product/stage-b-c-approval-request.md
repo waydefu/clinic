@@ -1,15 +1,15 @@
 # 階段 B 與 C 核准請求（D-006、D-010、D-009）
 
-**狀態：待核准。** 本文件把「接雲端資料庫」與「接 Google 日曆」實際卡住的三項
-決策集中成一份，供診所填寫。內容整理自
+**狀態：部分核准。** 本文件把「接雲端資料庫」與「接 Google 日曆」的決策集中
+成一份。內容整理自
 [中文核准清單](phase-1-chinese-approval-checklist.md) 與
 [整合與公開上線核准包](phase-1-integration-launch-approval-packet.md)，
 不新增任何政策；填寫後請同步登錄
 [決策登錄](phase-1-decision-register.md)。
 
-**2026-07-28 更新：** D-010 target architecture/SLO 已核准；D-006 已關閉 audit
-deletion ambiguity，仍待 MFA、session 與授權碼安全控制，D-009 仍待核准。本文件
-因此尚未整體完成。
+**2026-07-28 更新：** D-010 target architecture/SLO 與 D-006 identity/security
+已核准；D-009 仍待核准。Stage 2 仍須獨立 change-plan review 與 deployment
+authority，本文件因此尚未整體完成。
 
 **現行階段對照（2026-07-28）：** 本文件沿用早期 A／B／C／D 名稱；A 已併入並
 完成於 Stage 0，B 對應 Stage 2 cloud staging，C 對應 Stage 3 專用測試日曆，
@@ -20,34 +20,46 @@ D 對應 Stage 4 真實資料。專案目前在 Stage 1 owner decisions。
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
 | A | 本機 Emulator 的交易、冪等、outbox | 無 — **已於 2026-07-21 完成** |
-| **B** | staging 雲端 Firestore + 員工登入（仍為測試資料） | **D-010 target 已核准；仍待 D-006＋change review** |
+| **B** | staging 雲端 Firestore + 員工登入（仍為測試資料） | **D-006/D-010 已核准；仍待 change-plan review＋deployment authority** |
 | **C** | Google 日曆投影（專用測試日曆） | **D-009** |
 | D | 開始處理真實病患資料 | D-001～D-005、D-011（本文件不涵蓋） |
 
 階段 B 與 C **全程使用測試資料**，不處理真實病患資料，因此不需要 D-001～D-003。
-但 D-010 仍須完成資料位置、供應商與跨境治理審查；一旦要輸入真實病患資料，
-就必須先完成 D-001～D-003，否則不得進行。
+D-010 已核准 primary region 與 target SLO，但 Stage 2 change review 仍須完成
+供應商、成本、IAM、復原路徑與部署證據；一旦要輸入真實病患資料，就必須先完成
+D-001～D-003 的法遵／跨境治理，否則不得進行。
 
 ---
 
 ## D-006｜身分驗證、角色與寫入權限
 
+**決策狀態：已於 2026-07-28 核准；尚未實作或驗證。**
+
 **核准責任人：** 診所負責人＋資安負責人
-**為什麼擋住階段 B：** 目前工作臺的「操作帳號」只是畫面模擬，不是真的登入。
-要接雲端資料庫，就必須先確定誰能登入、誰能做什麼。
+**為什麼仍不能直接進階段 B：** 目前工作臺的「操作帳號」只是畫面模擬。政策值
+已核准，但真 IdP、server session、撤銷、hash、RBAC 與 cloud boundary 尚未實作，
+且 change/deployment action 尚未核准。
 
-- [ ] 核准患者、櫃檯、醫師、個案管理師、主管、系統服務帳號的登入與換機／停權流程。
-- [ ] 核准 MFA、session 時效、帳號建立、離職停權與緊急復原方式。
-- [ ] 核准各角色可建立、取消、改期、完成到診、標記未到、指派個管與檢視薪資的最小權限。
-- [ ] 指定誰可設定「是否需要回診」與回診目標日期；系統不得自行作臨床判斷。
-- [ ] 確認所有寫入經 API 驗證、授權、欄位驗證、冪等與稽核；前端不得直接寫入 Firestore。
-- [x] 業主 2026-07-28 核准：管理者可刪符合限定理由的預約；audit 永久、append-only，任何角色都不能刪除。查閱／匯出角色仍待完整矩陣。
-- [ ] 核准刪除預約是否可由管理者以可個別停用的授權碼委派給櫃檯，以及授權碼儲存、輪替、嘗試限制與稽核方式。
+- [x] 員工登入：Google federated sign-in＋診所自管帳號；credential 由核准 IdP
+      管理，不放入應用資料庫。
+- [x] Phase 1 staff roles：`administrator`、`front_desk`、`physician`；未明示
+      action 預設拒絕。個管／薪資／臨床／財務角色另依 D-007／D-008／D-014／
+      D-015。
+- [x] 全體員工 MFA；自管帳號 TOTP。Google 帳號若沒有可驗證的組織 MFA，仍須
+      應用層第二因子。
+- [x] Session：閒置 30 分鐘、絕對上限 8 小時；停用帳號完成後，下一個 protected
+      request 必須被拒絕。
+- [x] 完成到診：櫃檯與管理者；醫師不因新增角色自動取得其他 action。
+- [x] 所有正式寫入經 API 驗證、授權、欄位驗證、冪等與 audit；前端不得直接
+      寫入 Firestore。
+- [x] 管理者可依限定理由刪預約；audit 永久、append-only，任何角色不能修改或
+      刪除。
+- [x] 管理者可用多組授權碼委派櫃檯刪預約；授權碼只存安全 KDF 結果、可個別
+      撤銷、不回顯並限制錯誤嘗試。
 
-**已記錄但尚未完整核准的輸入，供核准時對照：** Google sign-in 加自架帳號選項、
-增加醫師角色，櫃檯／管理者可完成到診，管理者可用多組可個別停用的授權碼委派
-櫃檯刪除。2026-07-28 已核准「可刪預約、不可刪永久 audit」；仍須在核准紀錄中
-明確選定 MFA、session、完整角色矩陣、授權碼雜湊／輪替與嘗試限制。
+實作切片、provider 限制、待審查的錯誤上限／recovery 參數、驗收與回滾見
+[Stage 2 身分與 Cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)。
+未核准 recovery／break-glass 前 fail closed，不自行加入隱藏 bypass。
 
 ```text
 核准內容／附件位置：

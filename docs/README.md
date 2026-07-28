@@ -34,8 +34,9 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Phase 1 decision register](product/phase-1-decision-register.md) — the live status of every decision
 - [2026-07-27 owner request batch](product/2026-07-27-owner-request-batch.md) — the 19 owner requests of 2026-07-27 turned into scoped items, the decisions already taken, the paper intake form they map onto, and a batched execution sheet
 - [Surgery, follow-up, payment and settlement expansion plan (2026-07-28)](product/2026-07-28-surgery-follow-up-expansion-plan.md) — plan-only normalization of the owner-provided surgery workflow into a separate Expansion S track, including Calendar inbound review, clinical/financial data boundaries and D-014～D-016
+- [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
 - [Phase 1 Chinese approval checklist](product/phase-1-chinese-approval-checklist.md) — D-001…D-006, D-011 in the clinic's working language
-- [Stage B/C approval request](product/stage-b-c-approval-request.md) — D-006, D-010 and D-009 consolidated into one sheet; D-010 target is approved, D-006 still blocks cloud staging and D-009 blocks the Calendar projection
+- [Stage B/C approval request](product/stage-b-c-approval-request.md) — D-006, D-010 and D-009 consolidated into one sheet; D-006/D-010 are approved, while change/deployment review still gates cloud staging and D-009 gates the Calendar projection
 - [Appointment operations approval packet](product/phase-1-appointment-operations-approval-packet.md) — service catalogue, slots, cancellation and no-show policy
 - [Case management and payroll approval packet](product/phase-1-case-management-payroll-approval-packet.md) — D-007, D-008 assignment and compensation basis
 - [Integration and launch approval packet](product/phase-1-integration-launch-approval-packet.md) — D-009…D-011 Calendar, social channels and launch
@@ -96,7 +97,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
-| 2026-07-28 | [Markdown currency audit](reviews/2026-07-28-markdown-currency-audit.md) | All 85 pre-existing Markdown files scanned by lifecycle and stale-status terms; current authority reconciled for Stage 1, D-004 schedule/multi-service gaps, D-006 identity/roles, D-010 RTO/RPO, privacy scope and historical-evidence annotations |
+| 2026-07-28 | [Markdown currency audit](reviews/2026-07-28-markdown-currency-audit.md) | All pre-existing Markdown files scanned by lifecycle and stale-status terms; current authority reconciled for Stage 1, D-004 slot/multi-service gaps, approved D-006 identity/security, D-010 RTO/RPO, privacy scope and historical-evidence annotations |
 | 2026-07-28 | [Current UI visual baseline and progress](reviews/ui-visual-baseline-2026-07-28.md) | Stage 0/Checkpoint A and the current Stage 1 gate rechecked; ten reproducible desktop/mobile reference captures with fixed synthetic state, environment metadata, clean console and SHA-256 manifest |
 | 2026-07-27 | [Owner request batch 1–5 delivery](reviews/2026-07-27-owner-request-batch-delivery.md) | Seventeen of the nineteen owner requests delivered in five separate commits; verify green at 548 unit tests, 152 browser tests and 452/452 online-preview checks; six real defects found and fixed along the way, and what was deliberately left out |
 | 2026-07-27 | [Automated-check gaps and remediation](reviews/2026-07-27-automated-check-gaps.md) | Six gaps in the gates themselves — shipped HTML comments, three unscanned stylesheets, JS-injected inputs outside the allowlist, five copies of the public-page list, budget changes with no recorded reason, and missing field-level translation coverage — each written down before being fixed |

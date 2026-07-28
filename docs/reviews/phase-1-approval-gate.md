@@ -3,10 +3,11 @@
 **Current status (2026-07-28):** Stage 0／Checkpoint A is complete and the
 project is in Stage 1 owner decisions. D-010 target architecture/SLO is now
 approved; D-004 has recorded hours/multi-service direction but remains pending,
-and D-006 remains the Stage 2 blocker after its permanent-audit boundary was
-approved. D-012 and D-013 have separate scoped approvals recorded in the
-decision register. D-014～D-016 gate a separate Expansion S and do not change
-the current Phase 1 sequence. This document is the single
+D-006 identity/security is approved but unimplemented, and Stage 2 now awaits a
+reviewed change plan plus deployment authority. D-012 and D-013 have separate
+scoped approvals recorded in the decision register. D-014～D-016 gate a
+separate Expansion S and do not change the current Phase 1 sequence. This
+document is the single
 start/stop dashboard for Phase 1 and does not replace that dated approval
 record. See the
 [test-only checkpoint](phase-1-test-only-checkpoint-2026-07-20.md) for the
@@ -37,7 +38,7 @@ preview scope.
 | Privacy | D-003 final policy/version/publication | Clinic + privacy/legal | [Privacy packet](../legal/phase-1-privacy-approval-packet.md#d-003--published-policy-and-acceptance-record) | Versioned policy-acceptance contract design |
 | Booking | D-004 services, resources, slots | Operations | [Operations packet](../product/phase-1-appointment-operations-approval-packet.md#d-004--服務資源與可預約時段) | Availability model and reservation transaction tests |
 | Booking | D-005 cancellation/no-show/fees | Operations + legal | [Operations packet](../product/phase-1-appointment-operations-approval-packet.md#d-005--取消爽約與例外處理) | Cancellation path and rule-version tests |
-| Access | D-006 identity, staff roles, completion/audit | Clinic + security | [Operations packet](../product/phase-1-appointment-operations-approval-packet.md#d-006--身分角色與到診完成權限) | Authenticated API guards and completion authorization tests |
+| Access | D-006 identity, staff roles, completion/audit — **approved 2026-07-28** | Clinic + security | [Operations packet](../product/phase-1-appointment-operations-approval-packet.md#d-006--身分角色與到診完成權限) | Reviewed Stage 2 identity/session implementation; approval alone creates no route |
 | Case/payroll | D-007 assignment/reassignment | Case-management + operations | [Case/payroll packet](../product/phase-1-case-management-payroll-approval-packet.md#d-007--個案建立指派與改派) | Assignment/reassignment state model |
 | Case/payroll | D-008 payroll metric/month close | Finance + case-management | [Case/payroll packet](../product/phase-1-case-management-payroll-approval-packet.md#d-008--計薪案件月結與調整) | Credit, monthly lock and adjustment tests |
 | Integration | D-009 Calendar ownership/scopes/projection | Clinic + security | [Integration packet](../product/phase-1-integration-launch-approval-packet.md#d-009--google-calendar-整合準備) | Calendar integration review only; no production connection |
@@ -54,7 +55,7 @@ is plan-only and does not enlarge the Phase 1 release automatically.
 | --- | --- | --- | --- |
 | Clinical | D-014 surgical/clinical record boundary | Medical + privacy/legal | Surgery, anesthesia and clinical follow-up persistence |
 | Finance | D-015 payment/refund/accounting ledger | Finance/accounting + clinic | Persisted patient money and settlement source transactions |
-| Calendar inbound | D-016 matching/review/conflict/delete semantics | Clinic + security + operations | Calendar-to-system change candidates and review flow |
+| Calendar inbound | D-016 matching/review/conflict/delete semantics — workbench synchronization direction recorded | Clinic + security + operations | Calendar-to-system change candidates and review flow; D-016 remains pending |
 
 ## Approval sequence
 
@@ -70,9 +71,11 @@ D-014, D-015, D-016 ─────> separate Expansion S only
 ```
 
 The Stage 0 synthetic appointment write-path tests are already complete, but
-they do not establish policy-backed behaviour. D-001 through D-006 are still
-required before the corresponding production contract, intake, cancellation
-and authorization values can be treated as approved.
+they do not establish policy-backed behaviour. D-006 policy values are
+approved, while D-001 through D-005 remain required before their corresponding
+production contract, intake and cancellation values can be treated as
+approved. D-006 still requires implementation and verification before it is a
+security boundary.
 Case/payroll tests additionally require D-007 and D-008. Cloud or Calendar work
 needs the relevant integration decisions **and** a separately approved change
 plan; it is never unlocked merely by completing this document.
@@ -104,10 +107,11 @@ For every row, the decision register must include:
 The source of truth for status is
 [`../product/phase-1-decision-register.md`](../product/phase-1-decision-register.md).
 When the clinic approves a decision, update that register first, then make only
-the corresponding implementation change and tests. D-010 target approval is
-recorded; D-006 plus a reviewed change plan now unlock Stage 2 cloud staging
-with synthetic data. D-009 then gates Stage 3 Calendar projection. Before those
-gates, the only permitted operational path is the explicitly documented
+the corresponding implementation change and tests. D-006/D-010 approvals are
+recorded; the next step is review of the plan-only
+[Stage 2 identity/cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md),
+followed by a separate deployment decision. D-009 then gates Stage 3 Calendar
+projection. Before those gates, the only permitted operational path is the explicitly documented
 synthetic-only profile and expiring static preview; neither may infer or set a
 clinic answer. Expansion S remains plan-only until its existing and new
 decisions are separately approved.

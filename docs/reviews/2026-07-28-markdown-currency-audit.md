@@ -3,6 +3,13 @@
 **狀態：** 有日期的文件稽核證據。本文記錄本次檢查與修正，不取代
 `roadmap.md`、Phase 1 執行計畫、決策登錄、ADR 或 runbook。
 
+> **同日後續決策註記：** 本次掃描後，業主又核准完整 D-006 安全基線，並澄清
+> 止鼾／醫美實際療程時長到診後才形成、不寫死服務分鐘。下方「稽核當時」的
+> pending／40～60 描述保留為 dated evidence；現況以
+> [決策登錄](../product/phase-1-decision-register.md)、
+> [Stage 2 change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
+> 與 [Expansion S](../product/2026-07-28-surgery-follow-up-expansion-plan.md) 為準。
+
 ## 範圍與方法
 
 本次掃描修正前既有的 85 份 Markdown，依
@@ -46,12 +53,31 @@ dated review 與 archive 原則上保留當時證據，只在其內容可能被�
 ## 稽核後的單一現況
 
 - Stage 0／Checkpoint A 已完成；目前是 Stage 1。
-- D-010 target 已核准；D-006 與 Stage 2 change review 仍阻擋 cloud staging；
-  D-009 阻擋 Stage 3 Calendar。
+- D-010 target 與 D-006 identity/security 已核准；Stage 2 change/deployment
+  review 仍阻擋 cloud staging；D-009 阻擋 Stage 3 Calendar。
 - 沒有 cloud backend、Authentication、實際 Calendar 連線或真實患者資料。
 - `apps/api` 仍只路由 `GET /v1/health`。
 - 2026-07-27 的 Hosting preview 是 static、synthetic-only、`noindex` 的 dated
   deployment；本次文件變更不代表重新部署。
-- D-004 已確認營業時間、多項服務與 variable-duration 方向，仍缺可選刻度、
-  合併計算與 capacity；D-006 的 audit deletion 邊界已關閉，下一個 blocking
-  decision 是 MFA/session 與授權碼安全控制。
+- D-004 已確認營業時間、多項服務與「實際時長不寫死」方向，仍缺 operational
+  slot block、多服務占位、緩衝與 capacity；D-006 已完整核准但尚未實作，下一個
+  Stage 2 gate 是 change/deployment review。
+
+## 同日最終決策後補掃
+
+業主完成 D-006 最終核准與排程澄清後，再對 repository 內 88 份 Markdown 執行
+全文狀態掃描、link/index/lifecycle 檢查，並修正現行權威、核准包、架構計畫、
+runbook 與導航文件：
+
+- D-006／D-010 統一為「決策目標已核准，但控制／cloud 尚未實作或驗證」；
+- 止鼾與醫美統一為「預約時不寫死實際療程分鐘」，reservation operational
+  interval 與 encounter actual timestamps 分開；
+- 超出營業時間的自訂手術時段統一為 administrator-only override＋必填理由，
+  不委派且不繞過醫師／手術室／病患衝突；
+- Calendar inbound 僅把「須與工作臺同步」列為已記錄方向；auto-apply／review
+  queue 與 reviewer authority 未獲明確答案，D-016 仍為 `pending`；
+- 日期型 review 內的舊狀態保留為歷史證據，並以生命週期註記指回現行權威。
+
+本次是 plan-only 文件變更。`apps/web/public/modules/constants.js` 的舊
+「止鼾 40–60 分鐘」與 worker 的一小時合成 Calendar fixture 是已知後續實作落差，
+不是現行規則，也不是本次漏改；未取得改碼授權前不得動它們。

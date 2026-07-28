@@ -60,7 +60,7 @@ from the D-010 target approval.
 | Workload report | `manager_test_001`, unique completed synthetic patients and rule `v1` | No wage amount, assignment policy, month-close authority or real payroll; D-007 and D-008 remain policy-gated |
 | Scheduling workbench | In-memory `Asia/Taipei` weekly intervals plus `closed` / `extra_open` date exceptions | No clinic timetable, capacity decision, calendar projection or persistent configuration; D-004 remains policy-gated |
 | Follow-up decision | Explicit staff decision, optional target date, multi-select follow-up tags and a certificate count | No clinical inference; the system never decides on its own |
-| Patient booking form | Name, phone, birth date (optional year), national ID or passport, NHI-card intent, short note, approved request/source tags and a conditional optional referrer name, held only in the visitor's browser; screen/list views mask identity documents, while the synthetic intake print can show the full test value; no LineID or gender | Not patient authentication, not a lawful basis, and not permission to rely on real data operationally; D-001～D-003 and D-006 remain policy-gated |
+| Patient booking form | Name, phone, birth date (optional year), national ID or passport, NHI-card intent, short note, approved request/source tags and a conditional optional referrer name, held only in the visitor's browser; screen/list views mask identity documents, while the synthetic intake print can show the full test value; no LineID or gender | Not patient authentication, not a lawful basis, and not permission to rely on real data operationally; D-001～D-003/D-011 remain policy-gated, and approved D-006 staff controls are not implemented by this form |
 
 ## Test objectives
 

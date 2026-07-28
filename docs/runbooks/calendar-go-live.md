@@ -74,7 +74,9 @@ Remove-Item Env:GOOGLE_SERVICE_ACCOUNT_JSON, Env:GOOGLE_CALENDAR_ID
 
 在測試日曆上，用一筆合成預約走一輪：
 
-1. 建立 → 日曆出現一個事件（一小時、綠色、標題只有「診所名 掛號別」）。
+1. 建立 → 日曆出現一個事件（目前合成 fixture 為一小時、綠色、標題只有
+   「診所名 掛號別」）。此一小時不代表正式服務／實際療程時長；正式整合應投影
+   系統核准的 operational reservation interval。
 2. 改期 → **同一個事件**移到新時間，不新增第二個。
 3. 到診 → 事件內容更新，仍是同一個。
 4. 取消 → 事件消失。

@@ -1,6 +1,7 @@
 # ADR-0005：Patient intake／verification 與 appointment command 分離
 
-**狀態：** 已接受 Stage 0 邊界；身分驗證方案仍待決策
+**狀態：** 已接受 Stage 0 邊界；staff D-006 已核准，patient
+intake／verification 仍待 D-001～D-003／D-011
 **日期：** 2026-07-24
 
 ## 背景
@@ -9,8 +10,7 @@
 必填、年份選填）、身分證／居留證或護照、健保卡攜帶意向、患者備註，以及本次
 門診與來源標籤；正式 domain `BookingRequest` 則只接受 opaque `patientId`。若把
 兩者直接合併成一個 API request，controller、通路 adapter 與 domain 會各自猜測
-如何建立或比對病患，也會讓未核准的個資欄位繞過 D-001～D-003、D-006 與
-D-011。
+如何建立或比對病患，也會讓未核准的個資欄位繞過 D-001～D-003 與 D-011。
 
 Stage 0 可以固定技術邊界，但不能替診所決定合法依據、必填欄位、本人驗證方法、
 重複病患處理、保存期限、角色權限或公開通路。
@@ -27,8 +27,9 @@ decision-gated intake / identity verification
 ```
 
 1. Patient intake／verification 擁有病患欄位的收集、正規化、查找、建立、比對、
-   合併候選與驗證流程。它必須先取得 D-001～D-003、D-006、D-011 的核准，才可
-   定義 executable contract 或啟用 route。
+   合併候選與驗證流程。它必須先取得 D-001～D-003、D-011 的核准，且使用
+   已核准 D-006 server-side security baseline，才可定義 executable contract 或
+   啟用 route。
 2. Appointment command 只描述預約意圖：idempotency key、slot、service 與
    booking kind。它不接受姓名、電話、email、生日、身分證、健保卡資料、
    `patientId`、actor、role、policy version 或 client timestamp。
@@ -38,9 +39,10 @@ decision-gated intake / identity verification
    key、Calendar event ID 或社群／NAS connector 的 routing key。
 5. Web、未來 App、LINE、Meta 與 NAS adapter 都只能呼叫 API；不能自行建立
    `patientId`，也不能直接讀寫 Firestore。
-6. D-001～D-003、D-006、D-011 核准前，正式 intake schema、驗證因子、matching
+6. D-001～D-003、D-011 核准前，正式 intake schema、驗證因子、matching
    algorithm、merge policy、retention 與錯誤措辭全部維持 TBD；現有 preview
-   仍只可使用 synthetic browser-local data。
+   仍只可使用 synthetic browser-local data。D-006 已核准但尚未實作，不解除
+   這些 patient-specific gate。
 
 ## 不在本決定內
 
@@ -69,4 +71,4 @@ decision-gated intake / identity verification
 - **由 client 傳 `patientId`：** 拒絕。client 不能證明該識別碼屬於目前使用者，
   會形成 BOLA／IDOR 邊界缺口。
 - **現在先選定驗證方法：** 拒絕。缺少診所、法務、資安與營運的 D-001～D-003、
-  D-006、D-011 決策。
+  D-011 patient-specific 決策；D-006 staff baseline 不替它們作答。

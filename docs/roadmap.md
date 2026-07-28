@@ -9,8 +9,9 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 尚無雲端後端、無 Authentication、無日曆連線、無真實病患資料。
 
 > **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
-> 2026-07-24 完成；D-010 target 已於 2026-07-28 核准，D-006 仍阻擋 Stage 2
-> cloud staging。D-010 核准不等於已有部署或復原證據。
+> 2026-07-24 完成；D-010 target 與 D-006 identity/security 已於 2026-07-28
+> 核准。Stage 2 cloud staging 仍須獨立 change-plan review 與 deployment
+> authority；決策核准不等於已有實作、部署或復原證據。
 > 2026-07-28 的手術／回診／付款／結算需求已納入獨立
 > [Expansion S plan](product/2026-07-28-surgery-follow-up-expansion-plan.md)；
 > 目前只做規劃與決策登錄，不改變 Phase 1 stage 或啟用範圍。
@@ -41,7 +42,9 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > **2026-07-27 刪除預約委派給櫃台**（決策紀錄「D-006 partial」）：櫃台憑管理者
 > 自訂的授權碼才能刪除，授權碼可多組、可個別停用；規則進 `packages/domain` 的
 > `delegated-authorization`。角色權限表**沒有**改動——委派是另一條路徑，稽核因此
-> 永遠分得出「這個角色本來就能做」與「這次是被授權的」。仍非安全邊界（D-006）。
+> 永遠分得出「這個角色本來就能做」與「這次是被授權的」。2026-07-28 D-006
+> 已核准雜湊、個別撤銷與錯誤嘗試限制，但目前 plaintext browser demo 仍非安全
+> 邊界，不能當成已實作。
 >
 > 上述 2026-07-26 四欄描述只保存當日截圖基線；患者欄位已被 2026-07-27 owner
 > batch 取代為生日年份選填、身分證／居留證或護照、健保卡攜帶意向、患者備註、
@@ -170,14 +173,15 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 
 Stage 1 可進行 owner answer／evidence／approval 登錄與既有 synthetic scope 的
 維護。Booking route、cloud Firestore/Auth、Calendar projection、真實資料與
-Terraform apply 仍依 D-001～D-011 對應 gate 保持關閉；D-010 target 已核准，
-D-006 與 Stage 2 change review 仍阻擋實際 cloud staging。
+Terraform apply 仍依 D-001～D-011 對應 gate 保持關閉；D-006/D-010 target 已
+核准，Stage 2 change review 與獨立 deployment authority 仍阻擋實際 cloud
+staging。
 
 ## 一、現在的實際位置
 
 | 面向 | 狀態 |
 | --- | --- |
-| Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-010 target 已核准，D-006 仍阻擋 Stage 2** |
+| Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006/D-010 已核准，Stage 2 尚待 change/deployment review** |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
@@ -256,7 +260,8 @@ ESLint 正確性檢查。現在 `verify`、Rules、Playwright E2E 與 supply-cha
   備註；回診卡可順手指派個管師（與個案管理分頁同步、權限各自檢查）。
 - 手機版帳號治理與月度統計收成單欄，修掉欄位溢出容器。
 - 患者行事曆匯出改為只標記開始時間、綠色、前一天提醒；診所端投影定為
-  一小時區塊。
+  一小時區塊。這是當時的 synthetic fixture；2026-07-28 最終決策不把止鼾／醫美
+  實際療程時長寫死，正式投影須使用 operational reservation interval。
 
 **2026-07-23 已修**：
 
@@ -326,7 +331,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
-| Stage 2（舊稱 B） | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-010 target 已核准；仍需 D-006＋change review |
+| Stage 2（舊稱 B） | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-006/D-010 已核准；仍需 change-plan review＋deployment authority |
 | Stage 3（舊稱 C） | Stage 2 上的 Google 日曆投影（專用測試日曆） | D-009，且 Stage 2 完成 |
 | Stage 4（舊稱 D） | 公開預約與開始處理真實病患資料 | D-001～D-006、D-010、D-011 |
 | Expansion S | 手術／臨床時間軸、付款／結算、Calendar inbound | 既有相關 gate＋D-014～D-016；不自動納入 Phase 1 release |
@@ -363,7 +368,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
               │
 現在 ──► Stage 1：owner decisions / governance approvals
               │
-              ├── D-010 ✅；D-006 + change review
+              ├── D-006 ✅；D-010 ✅；change/deployment review
               ▼
         Stage 2：合成資料 Cloud Staging + 員工登入 + 正式 API
               │
@@ -395,6 +400,7 @@ Expansion S（獨立）：手術／臨床／付款／Calendar inbound
 - [正式環境目標架構](architecture/production-target-architecture-2026-07-23.md) — 保留與修改邊界、目標資料流、交易與資料模型
 - [正式化後續實作規劃](product/production-readiness-delivery-plan-2026-07-23.md) — Stage 0～6、決策 gate、驗收與重新評分點
 - [整合測試計畫](architecture/calendar-and-database-integration-plan.md) — 各階段的技術細節與驗收
+- [Stage 2 身分與 Cloud change plan](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — D-006/D-010 核准值的 plan-only 切片、驗收與回滾
 - [Expansion S 規劃](product/2026-07-28-surgery-follow-up-expansion-plan.md) — 手術、臨床時間軸、付款／結算與 Calendar inbound 的獨立分階段規劃
 - [階段 B/C 核准請求](product/stage-b-c-approval-request.md) — 要交給診所的中文表
 - [企業級專案規劃書](enterprise-appointment-project-plan.md) — 完整架構、資料模型與 §5.3 落差追蹤

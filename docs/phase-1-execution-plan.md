@@ -17,15 +17,17 @@ using the boundaries in the
 [production target architecture](architecture/production-target-architecture-2026-07-23.md),
 completed Checkpoint A on 2026-07-24. The active gate is now Stage 1 owner
 decisions and governance approval. D-010 target architecture/SLO was approved
-on 2026-07-28; D-006 still blocks Stage 2 cloud staging. The target approval is
-not deployment authority and does not itself create any cloud resource.
+on 2026-07-28, followed by full D-006 identity/security approval. The decision
+prerequisites for Stage 2 are present, but a separately reviewed change plan
+and deployment approval still gate cloud staging. Decision approval is not
+deployment authority and does not itself create any cloud resource.
 
 ## Workstreams
 
 | Stream | Deliverables | Blocking decisions |
 | --- | --- | --- |
 | Privacy and governance | Approved policy version, retention, data-controller/contact and vendor/data-region record | D-001 to D-003 |
-| Appointment policy | Service catalogue, resources, slot duration/capacity, booking horizon, cancellation/no-show policy | D-004, D-005 |
+| Appointment policy | Service catalogue, resources, operational slot/capacity, visit-time actual timestamps, booking horizon, cancellation/no-show policy | D-004, D-005 |
 | Identity and roles | Staff-role matrix, completion authority, audit ownership and retention | D-006 |
 | Booking transaction | Firestore document model, reservation transaction, idempotency, audit/outbox and local tests | D-004 to D-006 |
 | Case management | Assignment/reassignment flow, payroll metric/rule version and month-close review | D-007, D-008 |
@@ -45,9 +47,11 @@ not deployment authority and does not itself create any cloud resource.
 - Maintain the completed Stage 0 contracts, domain requests, disabled API
   application boundary, explicit patient booking guard, audit v2 and synthetic
   Emulator evidence without enabling a route.
-- Prepare decision packets, record named-owner evidence and keep plan-only
-  Stage 2 designs current. No cloud resource may be created or applied while
-  D-006 remains pending or before a separately reviewed Stage 2 change plan.
+- Prepare decision packets, record named-owner evidence and review the
+  plan-only
+  [Stage 2 identity/cloud change plan](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md).
+  No cloud resource may be created or applied before that plan and a separate
+  deployment action are explicitly approved.
 - Maintain the
   [Expansion S plan](product/2026-07-28-surgery-follow-up-expansion-plan.md)
   as requirements/decision work only. Do not add surgery, clinical, money or
@@ -96,8 +100,9 @@ The project is in Stage 1, the decision-and-governance portion of Phase 1. Stage
 alignment, application-boundary interfaces, `patient_booking_guards`, audit v2
 and synthetic tests have executable evidence. No booking write endpoint may be
 enabled until every relevant blocking decision is approved, and D-006 plus
-D-010 are Stage 2 prerequisites. D-010 is now approved as a target; D-006 still
-blocks Stage 2 cloud staging.
+D-010 are Stage 2 prerequisites. Both are now approved as targets; the reviewed
+change plan and separate deployment approval still block Stage 2 cloud
+staging.
 The test-only profile may exercise pure local domain transitions with synthetic
 IDs, including its documented synthetic manager-workload aggregation, but it
 is not a route, assignment rule, compensation policy or production capability.

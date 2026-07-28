@@ -26,8 +26,9 @@ D-009 Calendar 核准 gate 約束。
 反向同步位於
 [Expansion S](../../docs/product/2026-07-28-surgery-follow-up-expansion-plan.md)；
 D-016 核准前不得新增 watch receiver、sync token store 或
-Calendar-to-appointment write path。即使日後核准，也先產生待審核 change
-candidate，不讓 Calendar 成為容量鎖。
+Calendar-to-appointment write path。業主已確認 inbound 狀態要同步顯示於工作臺，
+但尚未明確核准 auto-apply 或 review queue；安全提案是先產生工作臺待審核 change
+candidate，不讓 Calendar 成為容量鎖，提案不得被當成已核准或已實作。
 
 每筆 job 都帶 opaque `correlationId` 與 `causationId`。processor 在任何外部呼叫
 前驗證兩者，再傳給 port 作 trace context；Google event payload 明確排除這兩個

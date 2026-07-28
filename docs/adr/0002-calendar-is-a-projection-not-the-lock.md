@@ -66,6 +66,9 @@ calendar_appointment_001
 - 首期櫃台不可直接以 Google Calendar 修改預約。
 - 日曆同步需有可重試工作、死信與人工補救 Runbook。
 - 若日後開放手動 Calendar 編輯，必須新增 watch 續訂、sync token 與定期完整核對。
+- 2026-07-28 業主確認 inbound 狀態須與工作臺同步；是否 auto-apply 或一律先
+  review 仍待 D-016。無論選哪一種，Calendar 都不能直接取得容量鎖或覆寫永久
+  audit。
 - outbox 的 `idempotencyKey` 必須可直接作為合法的 Calendar event ID。
 - 日曆事件內容維持最小化：只放預約編號、掛號別與時間。姓名、電話、身分證、
   手術種類與備註一律不得離開本系統，並已有測試持續驗證。

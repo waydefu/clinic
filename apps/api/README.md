@@ -14,5 +14,9 @@ validation, idempotency, transaction behavior and an audit event.
 The completed Stage 0 baseline includes an unrouted application-service
 boundary under `src/appointments`: a server-owned authentication context,
 authorization policy port, repository port and explicit contract-to-domain
-mapper. No real identity provider or role values are implemented while D-006
-is pending, and `AppModule` still registers only the health controller.
+mapper. D-006 identity/security policy is approved, but no real identity
+provider, session enforcement or production role mapping is implemented;
+`AppModule` still registers only the health controller. Any future work follows
+the plan-only
+[Stage 2 change plan](../../docs/architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
+and still requires separate change/deployment authority.
