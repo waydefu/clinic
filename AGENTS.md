@@ -40,6 +40,37 @@ patient data remain separately decision-gated.
    `synthetic-review` Hosting channel in `beauessence-clinic-staging`. Never
    deploy its live channel or enable a Firebase backend under this authority.
 
+## Repository publication boundary
+
+This access-restricted repository, `waydefu/clinic`, is the canonical project
+record. The public
+[`waydefu/appointment-platform-public`](https://github.com/waydefu/appointment-platform-public)
+repository is a separately curated, code-only reference with its own clean Git
+history. It is not a backup, fork, deployment target or source of project-stage
+authority.
+
+1. Never make the canonical repository public. Never copy or reuse its `.git`
+   directory, commits, branches, tags, pull-request metadata or other history
+   in the public mirror. There is no automatic synchronization.
+2. Move code to the public mirror only through an explicit allowlist export
+   into an isolated workspace. Exclude clinic and people content, brand assets,
+   portraits, screenshots, UI, internal governance/review/delivery documents,
+   deployment identifiers, private URLs, logs, credentials, personal data and
+   realistic identity fields.
+3. Apply an approved public delta to a fresh clone of the public mirror, inspect
+   every changed file, and scan both the candidate tree and the complete public
+   Git object/ref set for secrets, personal data and internal identifiers.
+4. Before a public pull request, run the public repository's tracked-secret and
+   public-safety checks, format/build/lint/tests, production and full dependency
+   audits, Gitleaks, TruffleHog and a second fresh-clone verification. Required
+   GitHub checks must pass before merge.
+5. Public availability does not grant an open-source licence, production
+   readiness, deployment authority or permission to use real data. A public
+   mirror change cannot alter this repository's Phase or D-series gates.
+
+The dated audit and repeatable release gate are recorded in
+`docs/reviews/2026-07-29-sanitized-public-mirror-publication.md`.
+
 ## Mandatory reading order
 
 1. `README.md`
@@ -157,6 +188,10 @@ available:
 
 ### “Grill me” decision challenge
 
+GRILL ME is a high-fit, manual decision-review technique for this project. It
+is not an always-on dependency and should not reopen an answer that is already
+recorded with an owner and evidence.
+
 Before implementing a choice that materially affects privacy, authentication,
 authorization, public API shape, data migration/deletion, external integration,
 cloud cost, deployment or rollback, challenge the requester with concise,
@@ -176,6 +211,19 @@ Do not interrogate the requester for an obvious, reversible, local-only change
 whose intent is already clear. Ask only questions whose answers would change
 the implementation. A policy-affecting answer must be recorded in the decision
 register before the corresponding behavior is enabled.
+
+### “PONYTAIL” simplification review
+
+PONYTAIL is only conditionally suitable. Use it as a one-time, human-reviewed
+simplification pass after correctness and security gates have passed, and only
+for low-risk local duplication, naming or control flow. It must not be an
+always-on hook, automatic rewrite or reason to reduce explicit evidence.
+
+Do not use PONYTAIL for personal-data/privacy boundaries, authentication,
+authorization or RBAC, Firestore Rules or transactions, idempotency, audit,
+outbox/retry semantics, payroll, backup/restore, incident response, IaC,
+deployment, legal text or governance decisions. In those areas, explicitness
+and reviewability take priority over fewer lines.
 
 ### Minimal safe change
 
@@ -212,6 +260,7 @@ lines.
 | `infra/terraform` | Reviewed cloud resources, IAM and deployment configuration | Live-state changes without a reviewed plan |
 | `tests` | Cross-package and Emulator Rules tests | Real data or real cloud projects |
 | `docs` | Decisions, ADRs, runbooks and implementation evidence | Runtime source of truth |
+| Public mirror | Explicitly allowlisted, sanitized code-only reference | Canonical source, private history, internal records or deployment authority |
 
 ## Task routing
 
@@ -236,6 +285,7 @@ lines.
 | Cloud runtime, IAM, backup or monitoring | Delivery plan Stage 2 + approved D-010 target | Reviewed IaC/change plan only; never apply before Stage 2 authority |
 | Replacing browser-local state | Synthetic Web architecture | Contract-compatible API client; no direct Firestore path |
 | NAS | New approved ADR | Least privilege, outbox and security review |
+| Sanitized public mirror | This publication boundary + `docs/reviews/2026-07-29-sanitized-public-mirror-publication.md` | Explicit allowlist, isolated export, full-history scans, fresh-clone verification and public PR checks |
 
 ## Required implementation sequence
 
@@ -257,16 +307,20 @@ lines.
    decision work and documented synthetic-preview scope listed above. D-006 and
    D-010 target approvals are recorded; Stage 2 still needs its reviewed change
    plan and separate deployment authority.
-4. Update executable contract and domain first, then application service,
+4. If the task publishes to the sanitized public mirror, stop using the normal
+   implementation path and follow the repository publication boundary above.
+   Never use a private-repository push, fork or history rewrite as the export
+   mechanism.
+5. Update executable contract and domain first, then application service,
    repository adapter, worker or web edge.
-5. Add focused tests using synthetic opaque identifiers only. Booking changes
+6. Add focused tests using synthetic opaque identifiers only. Booking changes
    must cover both same-slot contention and same-patient/different-slot
    contention through the explicit guard document.
-6. For each write path, prove authentication, authorization, validation,
+7. For each write path, prove authentication, authorization, validation,
    idempotency and audit behavior.
-7. For each external effect, prove queue/outbox, idempotency, retry,
+8. For each external effect, prove queue/outbox, idempotency, retry,
    dead-letter and runbook coverage.
-8. Run the smallest relevant test, then the Phase gate commands. Update the
+9. Run the smallest relevant test, then the Phase gate commands. Update the
    decision, architecture, plan and review evidence when a checkpoint closes.
 
 ## Current commands

@@ -43,6 +43,30 @@ Stage 2 cloud staging still requires a reviewed, explicitly authorised change
 plan. Those answers do not themselves authorise deployment, and the existing
 local, synthetic-only implementation does not authorise a route or cloud backend.
 
+## Repository publication boundary — 2026-07-29
+
+This access-restricted repository remains the canonical project record. The
+public
+[`appointment-platform-public`](https://github.com/waydefu/appointment-platform-public)
+repository is an independently curated, code-only reference with clean public
+history; it is not an automatic mirror, backup, release branch or deployment
+target.
+
+The public reference contains only an allowlisted appointment transaction
+boundary and synthetic tests. It deliberately excludes the clinic website and
+UI, brand and people assets, identity intake, scheduling/follow-up/payroll
+policy, internal governance and delivery records, deployment identifiers,
+private URLs, credentials, logs, personal data and the canonical Git history.
+Future updates must be exported without the private `.git` data, audited again,
+and merged through the public repository's required checks.
+
+Publication does not change the current Stage 1 status, close a D-series
+decision, authorise a backend or route, establish production readiness, or
+permit real data. The public reference is viewable but has no open-source
+licence. See the
+[sanitized public mirror publication record](docs/reviews/2026-07-29-sanitized-public-mirror-publication.md)
+for the initial audit evidence and repeatable update gate.
+
 ## Clinic website integration — 2026-07-27
 
 The expiring synthetic preview now includes a responsive clinic website at
@@ -90,7 +114,8 @@ live/production deployment.
 
 ## Start here
 
-1. Read [AGENTS.md](AGENTS.md) for mandatory guardrails and task routing.
+1. Read [AGENTS.md](AGENTS.md) for mandatory guardrails, task routing and the
+   private-to-public repository boundary.
 2. Read the [Roadmap](docs/roadmap.md) and
    [Phase 1 execution plan](docs/phase-1-execution-plan.md) for the current
    position, permitted work and prohibitions.
@@ -107,6 +132,9 @@ live/production deployment.
    for the evidence baseline and unresolved findings.
 6. Use [docs/README.md](docs/README.md) — the canonical index of every
    architecture, approval, runbook and review document.
+7. Before changing the public reference, read the
+   [sanitized public mirror publication record](docs/reviews/2026-07-29-sanitized-public-mirror-publication.md)
+   and repeat its release gate.
 
 ## Commands
 

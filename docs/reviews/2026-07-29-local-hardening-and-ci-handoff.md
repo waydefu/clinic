@@ -4,8 +4,12 @@
 
 The local hardening batch is implemented, committed, pushed and available in a
 draft pull request. The expiring synthetic Hosting preview is deployed and
-verified. GitHub CI is not green and its remaining repair is intentionally
-handed to the next implementer.
+verified. At handoff commit `47bc963`, GitHub CI was not green and the failures
+below were intentionally handed to the next implementer. Commit `fc62274`
+later applied the three repository-owned repairs; all five verify jobs passed.
+Private CodeQL still fails only when uploading SARIF because code scanning is
+not enabled for this private personal repository. That is a repository
+capability/policy blocker, not a reported code-scanning finding.
 
 This record does not grant cloud or production authority. The canonical
 [Stage 2 gate status](../architecture/stage-2-gate-status.json) remains:
@@ -21,13 +25,18 @@ This record does not grant cloud or production authority. The canonical
 | Repository | `waydefu/clinic` |
 | Branch | `agent/local-hardening-and-handoff` |
 | Baseline implementation commit | `40e62551e2de3f83140eb68b6b0830aeb47084b5` |
+| Handoff documentation commit | `47bc963c14e3f7336a6c58fabf15bf93c95113af` |
+| Repository-owned CI repair commit | `fc62274c47ebea35ab9e837fe77e271d4795c8d0` |
 | Draft pull request | <https://github.com/waydefu/clinic/pull/1> |
 | Failed verify run | <https://github.com/waydefu/clinic/actions/runs/30438179636> |
 | Failed CodeQL run | <https://github.com/waydefu/clinic/actions/runs/30438179512> |
+| Successful repair verify run | <https://github.com/waydefu/clinic/actions/runs/30440960771> |
+| Remaining CodeQL capability failure | <https://github.com/waydefu/clinic/actions/runs/30440960727> |
 
-The commit containing this document is the handoff-only follow-up to the
-baseline implementation commit. No partial CI repair is included in the
-handoff commit.
+The original handoff-only commit followed the baseline implementation commit
+and contained no partial CI repair. The later repair commit is recorded
+separately so the original failure evidence remains attributable to its actual
+time and commit.
 
 ## Delivered scope
 
@@ -80,14 +89,16 @@ state, so the warning did not invalidate the preview checks.
 No live Hosting release, Firestore, Functions, production API, authentication,
 Calendar integration or production deployment was performed.
 
-## CI failures handed to the next implementer
+## CI failures observed at handoff time
 
-The failures below are independent. `Verification evidence` is only the
-downstream summary of the verify, rules and E2E results.
+The failures below were independent at `47bc963`. The first three were fixed in
+`fc62274`; the fourth remains an administrator/capability decision.
+`Verification evidence` is only the downstream summary of the verify, rules and
+E2E results.
 
 ### 1. Unit test glob is expanded by the Linux shell
 
-The root script currently contains:
+At the baseline, the root script contained:
 
 ```json
 "test:unit": "vitest run --exclude tests/firestore/**"
@@ -101,11 +112,12 @@ found`. Use a cross-platform quoted argument, for example:
 "test:unit": "vitest run --exclude \"tests/firestore/**\""
 ```
 
-Then run `corepack pnpm verify` on Windows and the GitHub runner.
+Commit `fc62274` applied the quoted argument. The subsequent verify workflow
+passed.
 
 ### 2. Firestore job does not build workspace package entry points
 
-The clean runner calls `pnpm test:rules` before creating ignored
+At the baseline, the clean runner called `pnpm test:rules` before creating ignored
 `packages/contracts/dist` and `packages/domain/dist`. Vitest then reports:
 
 ```text
@@ -120,22 +132,21 @@ Add this step after `pnpm install --frozen-lockfile` in the `rules` job:
 ```
 
 The proposed command was validated locally before the Emulator suite passed
-6/6 files and 66/66 tests. The workflow edit itself was deliberately removed
-from this handoff commit so the next implementer owns and verifies the repair.
+6/6 files and 66/66 tests. It was deliberately absent from the handoff commit,
+then added by `fc62274`; the subsequent Firestore job passed.
 
 ### 3. Clinic skip link is 43 px high on the Linux Chromium runner
 
-The E2E run passed 174 tests and failed only:
+The baseline E2E run passed 174 tests and failed only:
 
 ```text
 /clinic @ 390px
 a "跳至主要內容" -> 128x43
 ```
 
-The enforced minimum is 44×44. Inspect `.clinic-skip-link` in
-`apps/web/public/clinic-site.css`; add an explicit 44 px minimum target without
-changing its off-screen-until-focused behavior, then rerun the focused test and
-the full E2E suite.
+The enforced minimum is 44×44. Commit `fc62274` added the explicit minimum
+without changing the off-screen-until-focused behavior; the subsequent
+Playwright job passed.
 
 ### 4. CodeQL cannot upload for this private repository
 
@@ -152,16 +163,18 @@ The repository is private and the workflow already requests
 required GitHub code-scanning/Advanced Security capability or approve a
 different evidence policy. Do not silently weaken or mark this gate successful.
 
-## Recommended next sequence
+## Outcome and remaining sequence
 
-1. Fix the unit-test quoting and the Firestore workspace build step.
-2. Fix and focus-test the 44 px clinic skip link.
-3. Resolve the private-repository CodeQL capability/policy with an
-   administrator.
-4. Push once, wait for all checks and keep the PR draft until green.
-5. Rerun `verify:preview` only if a shipped web asset changes.
-6. Merge only after review; do not treat merge or preview Hosting as production
-   approval.
+1. Completed in `fc62274`: fix the unit-test quoting and Firestore workspace
+   build step.
+2. Completed in `fc62274`: fix and verify the 44 px clinic skip link.
+3. Verified: all five jobs in the private repository's verify workflow passed.
+4. Still open: an administrator must resolve the private-repository CodeQL
+   capability/policy. Do not silently weaken or mark the gate successful.
+5. Keep the PR draft while the required CodeQL evidence is unavailable.
+6. Rerun `verify:preview` only if a shipped web asset changes.
+7. Merge only after review; do not treat merge, the synthetic preview or a
+   green public-mirror CodeQL run as production/private-repository approval.
 
 ## Local machine notes
 
