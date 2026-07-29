@@ -67,13 +67,26 @@ export interface CalendarProjectionRequest extends OutboxTraceContext {
   readonly colorId: string;
 }
 
+export interface CalendarProjectionOptions {
+  /**
+   * Maximum wall-clock budget remaining from the worker's current lease.
+   * Adapters must use the smaller of this value and their own configured limit.
+   */
+  readonly timeoutMs?: number;
+  /** Starts at the processor boundary so pre-adapter overhead also consumes it. */
+  readonly signal?: AbortSignal;
+}
+
 export interface CalendarPort {
   /**
    * 套用一次投影。實作必須以 idempotencyKey 去重，重試 N 次仍只有一個事件。
    *
    * 丟出的錯誤若帶 `retryable === false`，worker 會直接送進死信而不重試。
    */
-  project(request: CalendarProjectionRequest): Promise<void>;
+  project(
+    request: CalendarProjectionRequest,
+    options?: CalendarProjectionOptions
+  ): Promise<void>;
 }
 
 export class CalendarError extends Error {
@@ -130,7 +143,10 @@ export class InMemoryCalendar implements CalendarPort {
 
   // 這個假實作沒有真正的 I/O，因此不是 async function；回傳 Promise 是為了
   // 符合 CalendarPort 介面，讓 worker 的呼叫路徑與真實實作完全一致。
-  public project(request: CalendarProjectionRequest): Promise<void> {
+  public project(
+    request: CalendarProjectionRequest,
+    _options?: CalendarProjectionOptions
+  ): Promise<void> {
     this.callCount += 1;
     if (!isCalendarEventId(request.idempotencyKey))
       return Promise.reject(

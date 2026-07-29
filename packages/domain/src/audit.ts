@@ -48,8 +48,9 @@ export type AuditResourceType = 'appointment' | 'schedule' | 'case' | 'payroll';
 export interface AuditContext {
   readonly actorId: string;
   /**
-   * Opaque server-verified role identifier. D-006 still owns the real role
-   * values and permissions; the domain does not guess them.
+   * Opaque server-verified role identifier. D-006 approved the baseline role
+   * policy, but Stage 2 C2/C4 claims mapping and enforcement are not implemented;
+   * the domain deliberately does not guess provider-specific values.
    */
   readonly actorRole: string;
   readonly correlationId: string;

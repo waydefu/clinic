@@ -4,8 +4,9 @@
 日期：2026-07-23  
 目前 checkpoint：Stage 0／Checkpoint A 已於 2026-07-24 通過；目前進行 Stage 1
 owner decisions。D-010 target architecture/SLO 與 D-006 identity/security 已於
-2026-07-28 核准；Stage 2 仍待 change-plan review 與 deployment authority，且
-決策核准不等於已有實作、部署或復原證據。
+2026-07-28 核准；Stage 2 的 C1～C6 仍各待精確 request、change-plan review、
+deployment authority 與 apply approval，且決策核准不等於已有實作、部署或
+復原證據。C1 isolated foundation 不解鎖後續資源。
 
 架構依據：[正式環境目標架構書](../architecture/production-target-architecture-2026-07-23.md)  
 決策依據：[Phase 1 決策登錄](phase-1-decision-register.md)
@@ -69,8 +70,8 @@ D-016 及原有對應 gate 約束。
 | 3 | patient active-booking guard | **已完成**明確 document contention 與跨 slot Emulator race | 維持 guard transaction regression |
 | 4 | 擴充 audit schema | **audit v2 與 transaction assertions 已完成**；永久 append-only/delete-deny 已由 D-006 核准，production access/export 與可識別連結仍待 D-002 | production append-only persistence + approved operations |
 | 5 | domain 化 schedule/patient/case rules | 核心 planners 已進 domain；synthetic adapters 仍 browser-local，merge／正式 mapping 受 gate | 決策後接 application/repository adapters |
-| 6 | worker runner/observability | processor、trace/metrics ports 與 plan 已有；production trigger、backend、alerts、identity 未接 | 依已核准 D-010 target 完成 change review 後接 runner；D-009 後接 test Calendar |
-| 7 | IaC 與環境隔離 | 目前只有 plan／README，沒有可重現 staging/production | 依已核准 D-010 target 建立並審查 Terraform modules |
+| 6 | worker runner/observability | processor、trace/metrics ports 與 plan 已有；cloud trigger、backend、alerts、identity 未接 | D-010 target 已核准；仍待 C0 review、對應 C6／Stage 3 runtime slice authority 與 apply approval，test Calendar runner 另需 D-009；C1 本身不解鎖 runtime |
+| 7 | IaC 與環境隔離 | C0 logical manifest／IAM／cost／DR／evidence templates 已備妥；`infra/terraform` 仍只有 README，沒有可重現 staging/production | 依序完成 C0 owner review、C1 request packet、獨立 deployment authority；provider-backed plan/apply/evidence 只能在 authority 後產生 |
 | 8 | production quality evidence | Playwright、axe、performance、SBOM、license、SAST 已自動化；尚缺 connected-cloud、人工 a11y 與 ops 演練 | environment-bound evidence + owner sign-off |
 
 ## 3. 階段與 Gate
@@ -115,7 +116,7 @@ D-016 及原有對應 gate 約束。
 
 | Gate | 決策 | 解除的工作 |
 | --- | --- | --- |
-| B | D-006/D-010 已核准；Stage 2 change review＋deployment authority | cloud staging、staff login、IAM、backup/monitoring |
+| B | D-006/D-010 是前置；C0 plan-only review 後，每個 C1～C6 slice 各自提出精確 request、取得 deployment authority 與 apply approval | **只解除該次獲准 slice**；C1 僅 isolated foundation，不解鎖 IdP、Firestore、backup/PITR 或 application runtime |
 | C | D-009 | 專用 test Calendar integration |
 | D | D-001～D-005、D-011 | public booking 與真實患者資料 |
 | E | D-007、D-008 | case assignment 與 payroll persistence |
@@ -130,14 +131,29 @@ D-016 及原有對應 gate 約束。
 
 ### Stage 2：合成資料 Cloud Staging
 
-前置：D-006/D-010 approved，並完成 Stage 2 change review 與獨立 deployment
-authority。
+共同前置：D-006/D-010 approved 與 C0 review；之後每個 C1～C6 slice 仍各自
+需要精確 request、change review、deployment authority 與 apply approval。
 建議工期：2～3 個工程週。
+
+Stage 2 是 C1～C6 的總稱，不是一次授權全部資源。固定順序為：
+
+1. C0 只完成 plan-only review；
+2. C0 approved 後準備 C1-only request packet（精確範圍／排除項、Terraform source
+   proposal、決策級成本、operator／approver、兩階段 plan/apply gate、rollback）；
+3. request 獲得 authority 後才可連結 cloud、產生／審查 provider-backed plan；
+   plan 符合獲准 request 且 apply approver 再確認後才 apply，之後才收集 actual
+   IDs、plan hash、測試與 rollback evidence；
+4. C2～C6 依各自進入條件另行推進，不從 C1 authority 推定。
+
+**C1 isolated foundation 明確排除 Firestore database／API／database IAM、
+indexes、Rules、backup／PITR，也排除 Identity Platform、application runtime、
+Calendar 與 DR secondary。** Firestore 只可在後續 C5/C6 的獨立獲准 slice 建立。
 
 工作：
 
-1. 建立隔離的 staging project、Firestore、runtime、service accounts。
-2. 建立 Terraform modules 與 remote state。
+1. C1 只建立隔離的 staging project、remote state、最小 IAM／service identities、
+   空 Secret Manager 容器、baseline logging/monitoring 與 budget。
+2. 後續獨立 slice 才建立 Firestore、runtime 與其 Terraform modules。
 3. 依
    [Stage 2 身分與 Cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
    啟用核准的 IdP，以合成 staff 驗證 Google＋自管帳號、全員 MFA、自管帳號
@@ -339,9 +355,10 @@ owner；決策能及時完成：
 - [x] idempotency scope + request hash（2026-07-23 local/Emulator）
 - [x] rate limit/anti-automation（2026-07-24；`FixedWindowRateLimiter` 介面＋
       per-key 固定視窗、可注入時鐘，丟 `RATE_LIMITED`。生產共享儲存須依已核准
-      D-010 target 完成 Stage 2 change review）
+      D-010 target 取得對應 C4/C6 slice authority 與 apply approval）
 - [x] maintenance gate（2026-07-24；`StaticMaintenanceGate` 丟 `SERVICE_UNAVAILABLE`；
-      生產共享旗標須依已核准 D-010 target 完成 Stage 2 change review）
+      生產共享旗標須依已核准 D-010 target 取得對應 C6 slice authority 與 apply
+      approval）
 - [x] safe error/correlation mapping（2026-07-24；`platform/errors/api-error.ts`
       集中式 domain/Zod/platform error → v1 envelope，固定安全訊息不洩漏 domain
       訊息／stack／識別碼，correlationId 非不透明即以 `unknown` 取代；
@@ -349,7 +366,12 @@ owner；決策能及時完成：
 
 ### Data / Privacy
 
-- [ ] classification and field inventory
+- [x] synthetic／Emulator engineering classification and field inventory
+      （2026-07-29；見
+      [plan-only engineering inventory](../security/data-classification-and-field-inventory-2026-07-29.md)）
+- [ ] production field-by-field approval — 逐欄 purpose、legal basis、access、
+      retention、processor/location 與 owner approval 仍待 D-001～D-003／D-011；
+      plan-only 盤點不得冒充 production complete
 - [ ] policy versions/acceptances
 - [ ] patient identifier protection
 - [ ] retention/delete/anonymize/export
@@ -361,11 +383,15 @@ owner；決策能及時完成：
 
 下列未勾選項目的**設計已於 2026-07-24 定案**（plan-only，見
 [worker 執行與對帳計畫](../architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md)）；
-勾選要等實際接線；runner 與監控須依已核准 D-010 target 完成變更審查，
+勾選要等實際接線；D-010 target 已核准，但 C0 review、對應 C6／Stage 3 runtime
+slice 的獨立 authority 與 apply approval 尚未完成；C1 foundation 本身不解鎖
+runner 或監控；
 Calendar 接線另受 D-009 gate。
 
 - [ ] trigger/scheduler — 設計：Cloud Scheduler 每分鐘拉取、批次 20、租約 120 秒、單實例
-- [ ] runtime jitter（Stage 0 full-jitter design 已固定）
+- [x] runtime jitter（2026-07-29；`OutboxProcessor` 以可注入 random source 套用
+      full jitter，純 domain 保留 deterministic cap；同一 job 每批最多嘗試一次，
+      zero/invalid sample 與 retry timing 有 regression tests。Cloud runner 仍未部署）
 - [x] correlation/causation（2026-07-23 local/Emulator）
 - [x] metrics port（2026-07-23 local/Emulator）
 - [ ] metrics backend/alerts — 設計：四條告警對應三個既有 metric＋死信，低基數為硬性要求
@@ -379,7 +405,14 @@ Calendar 接線另受 D-009 gate。
 [基礎設施與維運計畫](../architecture/infrastructure-and-operations-plan-2026-07-24.md)、
 [備份與還原 runbook](../runbooks/backup-and-restore.md)、
 [事故應變 runbook](../runbooks/incident-response.md)）；
-勾選要等依已核准 D-010 target 完成 Stage 2 change review 並實際建立資源。
+2026-07-29 另補
+[C0 readiness artifacts](../architecture/stage-2-c0-readiness-artifacts-2026-07-29.md)
+的 logical manifest、IAM proposal、cost-input model、DR options 與 evidence／rollback
+模板。D-010 的 clinic ownership、`asia-east1` 與 RPO 1 小時／RTO 4 小時是已核准
+target；C0 owner review 與 C1 request packet 仍未完成，authority 尚未授予，
+Terraform plan 與 cloud 演練也未執行。正確順序是 C0 review → C1 request packet
+→ authority → provider-backed plan/apply/evidence；C1 本身不含 Firestore。
+勾選要等對應後續 slice 實際建立與驗證。
 **沒有執行任何 `terraform apply`。**
 
 - [ ] environment modules — 設計：三個分離 project、modules/environments 佈局、remote state、plan/apply 分離
@@ -388,7 +421,7 @@ Calendar 接線另受 D-009 gate。
 - [ ] Firestore indexes/backups/PITR — 設計：每日備份保留 30 天、PITR 7 天、刪除保護、索引經 CI 部署
 - [ ] monitoring/logging/budget — 設計：四個 SLI 與建議 SLO、告警分兩級且每條都要有 runbook、日誌不得含患者識別、預算 50/80/100% 告警
 - [ ] deployment approval/rollback — 設計：production 需人工核准且核准者非提交者；資料變更不可回滾故一律走加欄位→雙寫→驗證→停用
-- [ ] RTO/RPO and restore drill — 設計：四種情境的建議 RTO/RPO（**待負責人核准**）、還原到新 database、V1～V6 驗證、每季演練
+- [ ] RTO/RPO and restore drill — **RPO 1 小時／RTO 4 小時 target 已由 D-010 核准**，適用 database／whole-project／regional failure；secondary path 仍待 C0 選案，且尚無 cloud 還原、V1～V6、流量切換或達標證據
 - [ ] incident response — 設計：SEV1～4 分級、四個角色、隱私事故路徑（法定通報時限由法務依上線時有效法令認定）、無責備檢討
 
 ### Web / Quality
@@ -492,9 +525,12 @@ Calendar 接線另受 D-009 gate。
 
 1. 把本規劃、目標架構與 Stage 2 identity/cloud change plan 交由 technical／
    security owner 審查；本輪只規劃，不改碼、不 apply。
-2. D-006 MFA／session／授權碼／audit 與 D-010 target 已核准；把核准值轉成
-   environment、cost、IAM、recovery、test 與 rollback 證據清單，
-   D-001～D-005/D-011 並行準備。
+2. ✅ D-006 MFA／session／授權碼／audit 與 D-010 target 已轉成
+   [C0 readiness artifacts](../architecture/stage-2-c0-readiness-artifacts-2026-07-29.md)
+   的 environment manifest、cost input、IAM、DR options、test 與 rollback
+   proposal；具名 owner 值、C0 結論與 C1 request packet 仍 pending。C1 request
+   獲 authority 後才產生 provider-backed plan/apply／實測證據，且 C1 明確不含
+   Firestore。D-001～D-005/D-011 並行準備。
 3. ✅ 建立 command/response/error contract inventory
    （2026-07-24；未核准 commands 只列 inventory，不建立 route）。
 4. ✅ 建立 patient identity boundary ADR

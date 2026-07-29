@@ -57,6 +57,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Calendar event ID and outbox key](architecture/calendar-event-id.md) — why the outbox key is base32hex, where it is generated, and what to check before changing it
 - [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) — architecture verdict, required changes, target containers, data model, transactions and migration boundaries
 - [Infrastructure and operations plan (2026-07-24)](architecture/infrastructure-and-operations-plan-2026-07-24.md) — plan-only environment split, Terraform layout, IAM, secrets, Firestore backup/PITR, monitoring, budget, deploy and rollback
+- [Stage 2 C0 readiness artifacts (2026-07-29)](architecture/stage-2-c0-readiness-artifacts-2026-07-29.md) — proposal-ready／approval-pending logical resource manifest, Cloud IAM matrix, cost-input model, DR option analysis and test/rollback evidence template; no Terraform or cloud execution
+- [Stage 2 machine-readable gate status](architecture/stage-2-gate-status.json) — canonical C0 review plus separate C1～C6 deployment-authority and execution/evidence status consumed by architecture checks
 - [Worker runtime and reconciliation plan (2026-07-24)](architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md) — plan-only trigger design, at-least-once semantics, Calendar reconciliation, dead-letter operator permissions and credential rotation
 
 ## 4. Building and testing
@@ -80,7 +82,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
 - [Calendar go-live runbook](runbooks/calendar-go-live.md) — who does what to wire the real Google Calendar test integration (credentials stay with the owner)
-- [Backup and restore runbook](runbooks/backup-and-restore.md) — what is protected, proposed RTO/RPO targets, the restore procedure and the quarterly drill requirement
+- [Backup and restore runbook](runbooks/backup-and-restore.md) — what is protected, approved RTO/RPO targets whose capability remains unverified, the restore procedure and the quarterly drill requirement
 - [Incident response runbook](runbooks/incident-response.md) — severity levels, roles, communication, the privacy-incident path and the postmortem template
 - [Month close runbook](runbooks/month-close.md) — provisional list, review, approval and lock
 - [Month close specification](payroll/month-close-spec.md) — countable credit definition and uniqueness rules
@@ -88,6 +90,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 ## 6. Privacy, security and legal
 
 - [Taiwan privacy legal baseline](security/taiwan-privacy-legal-baseline.md) — statutory baseline for Phase 1 design
+- [Data classification and field inventory (2026-07-29)](security/data-classification-and-field-inventory-2026-07-29.md) — plan-only inventory of fields already present in the synthetic browser and local Emulator, conservative handling tiers and the blank approval worksheet; no production field or real-data flow is approved
 - [Privacy policy checklist](security/privacy-policy-checklist.md) — what a publishable policy must contain
 - [Privacy policy draft](legal/privacy-policy-draft.md) — draft text, not published and not a recorded consent
 

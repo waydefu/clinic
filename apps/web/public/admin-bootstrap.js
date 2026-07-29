@@ -2,6 +2,8 @@
 // 有機會寫 innerHTML 之前就註冊好。
 import './modules/trusted-html.js';
 import {
+  appointmentPage,
+  DEFAULT_APPOINTMENT_PAGE_SIZE,
   DEFAULT_APPOINTMENT_SORT,
   renderAccounts,
   renderAppointments,
@@ -104,19 +106,25 @@ const calendarDisclosure = elements['week-calendar-disclosure'];
 const weekLegend = document.querySelector('.week-view-legend');
 const appointmentListHeading = elements['appointment-list-heading'];
 const appointmentFilters = elements['appointment-filters'];
+const appointmentBatchBar = elements['appointment-batch-bar'];
+const appointmentPagination = elements['appointment-pagination'];
 const followUpWorkflow = elements['follow-up-workflow'];
 if (
   appointmentsHeading !== null &&
   calendarDisclosure !== undefined &&
   appointmentListHeading !== undefined &&
   appointmentFilters !== undefined &&
+  appointmentBatchBar !== undefined &&
+  appointmentPagination !== undefined &&
   followUpWorkflow !== undefined
 ) {
   appointmentsHeading.after(
     calendarDisclosure,
     appointmentListHeading,
     appointmentFilters,
+    appointmentBatchBar,
     elements.appointments,
+    appointmentPagination,
     followUpWorkflow
   );
   const collisionHelp = weekLegend?.lastElementChild;
@@ -129,7 +137,10 @@ let state;
 let filters = { status: 'today', kind: 'all', query: '' };
 // 櫃台清單目前的排序。預設「時間遞增」＝原本寫死的行為。
 let appointmentSort = { ...DEFAULT_APPOINTMENT_SORT };
-// 批次操作勾選中的預約 id。只存在於這一次瀏覽，不進 state、不落地。
+// 目前頁碼與固定頁面大小只影響呈現，不進 state、不落地。
+let appointmentPageNumber = 1;
+// 批次操作勾選中的預約 id。只存在於目前顯示頁；換頁、篩選或排序後會清掉
+// 不在新頁上的 id，避免畫面上五筆卻誤處理前一頁的預約。
 const selectedAppointments = new Set();
 // 每個批次處置允許的來源狀態，與 domain 的 planTransition 一致。批次不放寬
 // 任何規則——它只是把同一個處置連續套用在多筆上。
@@ -320,11 +331,16 @@ function renderFilters() {
 }
 
 function renderAppointmentList() {
-  // 只留下畫得出來的選取：篩選換掉、或那筆已被處理掉之後，殘留的 id 會讓
-  // 「已選 3 筆」與畫面上看得到的東西對不起來。
-  const visible = new Set(
-    renderableAppointmentIds(state, filters).map((id) => id)
-  );
+  const page = appointmentPage(state, filters, appointmentSort, {
+    page: appointmentPageNumber,
+    pageSize: DEFAULT_APPOINTMENT_PAGE_SIZE
+  });
+  // 最後一頁因資料異動而消失時，純分頁模型會把頁碼夾回仍存在的最後一頁。
+  appointmentPageNumber = page.page;
+
+  // 只留下本頁畫得出來的選取：換頁、篩選、排序或處理完成後，殘留的 id 會讓
+  // 「本頁已選 3 筆」與畫面上看得到的東西對不起來，也可能誤批次處理前一頁。
+  const visible = new Set(page.ids);
   for (const id of [...selectedAppointments])
     if (!visible.has(id)) selectedAppointments.delete(id);
 
@@ -332,25 +348,54 @@ function renderAppointmentList() {
     state,
     filters,
     appointmentSort,
-    selectedAppointments
+    selectedAppointments,
+    {
+      page: page.page,
+      pageSize: page.pageSize
+    }
   );
-  const count = elements.appointments.querySelectorAll(
-    '[data-appointment-card]'
-  ).length;
-  elements['appointment-result-summary'].textContent = `${count} 筆結果`;
+  elements['appointment-result-summary'].textContent =
+    `共 ${page.totalCount} 筆結果，本頁顯示 ${page.ids.length} 筆` +
+    `（第 ${page.page} 頁，共 ${page.totalPages} 頁）`;
+  elements['appointment-pagination'].hidden = page.totalCount === 0;
+  elements['appointment-page-status'].textContent =
+    `第 ${page.page} 頁，共 ${page.totalPages} 頁`;
+  elements['appointment-page-prev'].disabled = page.page <= 1;
+  elements['appointment-page-next'].disabled = page.page >= page.totalPages;
   renderBatchBar();
 }
 
-/** 目前篩選條件下真的會被畫出來的預約 id。 */
-function renderableAppointmentIds(currentState, currentFilters) {
-  const markup = renderAppointments(
-    currentState,
-    currentFilters,
-    appointmentSort,
-    new Set()
-  );
-  return [...markup.matchAll(/data-appointment-card="([^"]+)"/g)].map(
-    (match) => match[1]
+function resetAppointmentPage() {
+  appointmentPageNumber = 1;
+}
+
+/**
+ * 把清單切到某筆預約所在頁並回傳它的列。
+ *
+ * 週檢視事件可能被目前的狀態／掛號別／搜尋條件濾掉；與原行為一致，這時先回到
+ * 「全部」再找。差別是現在也會算出目標頁，不會只在第一頁找不到就放棄。
+ */
+function revealAppointmentCard(id, { resetFiltersIfMissing = false } = {}) {
+  let page = appointmentPage(state, filters, appointmentSort, {
+    page: appointmentPageNumber,
+    pageSize: DEFAULT_APPOINTMENT_PAGE_SIZE
+  });
+  let index = page.allIds.indexOf(id);
+  if (index === -1 && resetFiltersIfMissing) {
+    filters = { status: 'all', kind: 'all', query: '' };
+    renderFilters();
+    page = appointmentPage(state, filters, appointmentSort, {
+      page: 1,
+      pageSize: DEFAULT_APPOINTMENT_PAGE_SIZE
+    });
+    index = page.allIds.indexOf(id);
+  }
+  if (index === -1) return null;
+
+  appointmentPageNumber = Math.floor(index / DEFAULT_APPOINTMENT_PAGE_SIZE) + 1;
+  renderAppointmentList();
+  return elements.appointments.querySelector(
+    `[data-appointment-card="${CSS.escape(id)}"]`
   );
 }
 
@@ -370,7 +415,8 @@ function renderBatchBar() {
   bar.hidden = rows.length === 0;
   if (bar.hidden) return;
 
-  const selected = [...selectedAppointments];
+  const rowIds = new Set(rows.map((row) => row.dataset.appointmentSelect));
+  const selected = [...selectedAppointments].filter((id) => rowIds.has(id));
   const permissions = state.session?.permissions ?? [];
   const statusOf = (id) =>
     state.appointments.find((item) => item.id === id)?.status;
@@ -381,7 +427,9 @@ function renderBatchBar() {
     );
 
   elements['appointment-selection-summary'].textContent =
-    selected.length === 0 ? '未選取任何預約' : `已選取 ${selected.length} 筆`;
+    selected.length === 0
+      ? '未選取本頁任何預約'
+      : `本頁已選取 ${selected.length} 筆`;
 
   for (const [action, key] of [
     ['cancel', 'appointment-batch-cancel'],
@@ -679,12 +727,52 @@ elements['notification-goto'].addEventListener('click', () => {
   };
   setNotificationOpen(false);
   renderFilters();
+  resetAppointmentPage();
   renderAppointmentList();
 });
+
+function isEditableShortcutTarget(target) {
+  return (
+    target instanceof Element &&
+    target.closest(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
+    ) !== null
+  );
+}
+
+function focusAppointmentSearch() {
+  window.location.hash = 'appointments-section';
+  window.setTimeout(() => elements['appointment-search'].focus(), 0);
+}
+
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !elements['notification-popover'].hidden) {
     event.preventDefault();
     setNotificationOpen(false, { returnFocus: true });
+    return;
+  }
+  if (
+    event.defaultPrevented ||
+    event.repeat ||
+    state?.session?.authenticated !== true ||
+    isEditableShortcutTarget(event.target)
+  )
+    return;
+
+  if (event.key === '/' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    focusAppointmentSearch();
+    return;
+  }
+  if (
+    event.key.toLocaleLowerCase('en-US') === 'n' &&
+    event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey
+  ) {
+    event.preventDefault();
+    openBookingWorkflow({ focusFirstField: true });
   }
 });
 document.addEventListener('pointerdown', (event) => {
@@ -788,17 +876,23 @@ elements['reset-state'].addEventListener('click', async () => {
   });
 });
 
+function openBookingWorkflow({ focusFirstField = false } = {}) {
+  window.location.hash = 'appointments-section';
+  elements['booking-workflow'].open = true;
+  window.setTimeout(() => {
+    elements['booking-workflow'].scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+    const target = focusFirstField
+      ? elements['booking-name']
+      : elements['booking-workflow'].querySelector('summary');
+    target?.focus();
+  }, 0);
+}
+
 for (const shortcut of document.querySelectorAll('[data-booking-shortcut]')) {
-  shortcut.addEventListener('click', () => {
-    elements['booking-workflow'].open = true;
-    window.setTimeout(() => {
-      elements['booking-workflow'].scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-      elements['booking-workflow'].querySelector('summary')?.focus();
-    }, 0);
-  });
+  shortcut.addEventListener('click', () => openBookingWorkflow());
 }
 
 elements['slot-kind-filter'].addEventListener('change', () => {
@@ -834,22 +928,9 @@ elements['week-today'].addEventListener('click', () => {
 elements['week-view'].addEventListener('click', (event) => {
   const button = event.target.closest('[data-week-event]');
   if (button === null) return;
-  let card = document.querySelector(
-    `[data-appointment-card="${button.dataset.weekEvent}"]`
-  );
-  if (card === null) {
-    filters = {
-      status: 'all',
-      kind: 'all',
-      patientId: 'all',
-      query: ''
-    };
-    renderFilters();
-    renderAppointmentList();
-    card = document.querySelector(
-      `[data-appointment-card="${button.dataset.weekEvent}"]`
-    );
-  }
+  const card = revealAppointmentCard(button.dataset.weekEvent, {
+    resetFiltersIfMissing: true
+  });
   if (card === null) return;
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   card.classList.add('is-flash');
@@ -858,21 +939,33 @@ elements['week-view'].addEventListener('click', (event) => {
 
 elements['appointment-status-filter'].addEventListener('change', () => {
   filters.status = elements['appointment-status-filter'].value;
+  resetAppointmentPage();
   renderAppointmentList();
 });
 elements['appointment-kind-filter'].addEventListener('change', () => {
   filters.kind = elements['appointment-kind-filter'].value;
+  resetAppointmentPage();
   renderAppointmentList();
 });
 elements['appointment-search'].addEventListener('input', () => {
   filters.query = elements['appointment-search'].value;
+  resetAppointmentPage();
   renderAppointmentList();
 });
 elements['appointment-filter-reset'].addEventListener('click', () => {
   filters = { status: 'today', kind: 'all', query: '' };
   renderFilters();
+  resetAppointmentPage();
   renderAppointmentList();
   elements['appointment-search'].focus();
+});
+elements['appointment-page-prev'].addEventListener('click', () => {
+  appointmentPageNumber -= 1;
+  renderAppointmentList();
+});
+elements['appointment-page-next'].addEventListener('click', () => {
+  appointmentPageNumber += 1;
+  renderAppointmentList();
 });
 
 elements.slots.addEventListener('click', (event) => {
@@ -974,6 +1067,7 @@ elements.appointments.addEventListener('click', (event) => {
               : 'ascending'
         }
       : { column, direction: 'ascending' };
+  resetAppointmentPage();
   renderAppointmentList();
   // 重畫會換掉整個表頭，焦點會掉回 body。把焦點放回剛按的那一欄，鍵盤與螢幕
   // 閱讀器使用者才能連續調整排序，而不是每按一次就要重新找位置。

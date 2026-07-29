@@ -5,7 +5,10 @@
 **狀態：** cloud backup／PITR **尚未演練**。2026-07-26 已完成
 [Emulator 邏輯還原與事故技術演練](../reviews/2026-07-26-local-operations-rehearsal.md)，
 V1～V5 與 Calendar companion V6 通過；它不驗證真實備份、IAM、RTO／RPO 或流量
-切換。啟用 cloud staging（D-010）後仍須照本 runbook 做真實還原——
+切換。D-010 target 已核准，但 C0 review／C1 isolated-foundation authority 尚未
+完成；C1 明確不含 Firestore。只有後續 C5/C6 Firestore／runtime slice 各自取得
+獨立 authority、apply approval 並實際建立 cloud staging 後，才可照本 runbook
+做真實還原——
 **沒有演練過的備份不能算備份**。
 
 ## 1. 保護對象
@@ -30,7 +33,7 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 
 | 情境 | RPO（可接受的資料遺失） | RTO（可接受的中斷） | 依據 |
 | --- | --- | --- | --- |
-| 誤刪單筆／少量資料 | 0 | 1 小時 | PITR 可精確到操作前一刻 |
+| 誤刪單筆／少量資料 | **≤ 1 小時 target；不得寫 0** | **≤ 4 小時 target** | PITR 以分鐘粒度選 recovery point，但「有分鐘粒度」不等於零資料遺失；須記錄事故前最後可驗證資料時間與實際 RPO/RTO |
 | 整個 database 損壞 | 1 小時 | 4 小時 | PITR 視窗內還原 |
 | 整個 project 不可用 | **1 小時 target，目前設計未證明** | **4 小時 target，目前設計未證明** | 每日備份不足以單獨達標；須補跨 project 復原設計與演練 |
 | 區域性故障 | **1 小時 target，目前單區設計未達** | **4 小時 target，目前未定義路徑** | 目前是單區設計，見 §7 |
@@ -43,11 +46,14 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 
 | 項目 | 值 |
 | --- | --- |
-| 每日備份時間 | 離峰（建議 04:00 Asia/Taipei） |
+| 每日備份排程 | 每日一次；Firestore 會在每天不同時間執行，**不能指定固定 04:00**。須監控每日 backup 是否完成，而不是檢查一個不存在的固定執行時間 |
 | 備份保留 | 30 天 |
 | PITR | 開啟，保留 7 天 |
 | 備份位置 | 與 database 同區（跨境屬 D-001～D-003） |
 | 刪除保護 | database 開啟 |
+
+官方限制與 Terraform schedule shape 見
+[Firestore backups](https://cloud.google.com/firestore/docs/backups#create_and_manage_backup_schedules)。
 
 保留期限的最終值受**資料保存政策**（D-001～D-003）約束：備份保留超過政策規定的
 保存期限，等於用備份繞過了保存期限。這一點在 §5 另外處理。
@@ -126,7 +132,9 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 
 **每季一次**，並在下列時機額外執行：
 
-- 首次啟用 cloud staging 之後（D-010）；
+- 後續 C5/C6 Firestore／runtime slice 各自取得獨立 deployment authority 與
+  apply approval，並首次實際建立含 Firestore 的 cloud staging 之後；C1
+  isolated-foundation authority 本身不觸發此演練；
 - 正式上線前（列入證據包，Stage 6）；
 - 任何改動備份設定、資料模型或 PITR 視窗之後。
 
@@ -154,9 +162,10 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 
 ## 8. 尚未涵蓋
 
-- **跨區災難復原**：目前是單區設計；§2 記錄的整體 RTO 4 小時是核准 target，
-  區域故障的實際復原路徑仍未定義。D-010 已確認 target 也適用區域故障，因此
-  Stage 2 必須提出可達標的跨區／替代區設計、成本與演練，不再把它當可省略項。
+- **跨區災難復原**：目前是單區設計；§2 的 RPO 1 小時／RTO 4 小時是核准 target，
+  不是現有能力。四個候選與共同驗收欄位已列於
+  [C0 readiness artifacts §5](../architecture/stage-2-c0-readiness-artifacts-2026-07-29.md#5-disaster-recovery-option-analysis)，
+  但 secondary project/location、成本、跨境、routing 與實際演練仍 pending。
 - **備份加密金鑰的自管（CMEK）**：預設用平台管理的金鑰。改用自管金鑰會讓金鑰
   遺失等同資料遺失，需要先有金鑰管理程序。
 - **匯出到本地／NAS**：企業規劃書提過 NAS adapter，但把患者資料匯出到診所內部

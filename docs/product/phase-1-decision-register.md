@@ -455,10 +455,14 @@ must not be used as the current field list or matching-key definition.
   writing the real client for it.
 - Scope of what this authorises: the `GoogleCalendarClient` code
   (`apps/worker/src/google-calendar.ts`), which reads its credentials only from
-  environment variables (`GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`)
-  and defaults to the in-memory fake when they are absent. Event content stays
-  minimised (clinic name, visit kind, time, address, appointment id — no
-  patient PII), enforced by a test.
+  environment variables. It defaults to the in-memory fake only when the
+  integration is unconfigured/disabled. Since the 2026-07-29 fail-closed
+  hardening, a real test client additionally requires
+  `GOOGLE_CALENDAR_INTEGRATION_MODE=test` plus both `GOOGLE_CALENDAR_ID` and
+  `GOOGLE_SERVICE_ACCOUNT_JSON`; partial, unknown or credential-bearing
+  disabled configurations fail startup. Event content stays minimised (clinic
+  name, visit kind, time, address, appointment id — no patient PII), enforced
+  by a test.
 - What it does **not** do, and the standing limits that still apply:
   - It does **not** approve D-009. D-009 (calendar owner, authorization model,
     scopes, dedicated calendar, minimum event fields) remains `pending` for any

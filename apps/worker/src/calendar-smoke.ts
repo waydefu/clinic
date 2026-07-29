@@ -5,8 +5,8 @@
  *
  * 安全界線：
  * - 只建立並「隨即刪除」一筆合成、無 PII 的事件（標題僅診所名＋掛號別）。
- * - 未設定 `GOOGLE_CALENDAR_ID` / `GOOGLE_SERVICE_ACCOUNT_JSON` 時，
- *   `createCalendarPort` 會回退假日曆——此時腳本直接中止，不會對外呼叫。
+ * - 未設定 Calendar 整合時，`createCalendarPort` 會回退假日曆——此時腳本直接
+ *   中止，不會對外呼叫。半套設定則直接失敗，不偽裝成假日曆成功。
  * - 不印出金鑰內容；失敗只印錯誤訊息。
  *
  * 執行方式見 docs/runbooks/calendar-go-live.md 的「本機煙霧測試」。
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   if (port instanceof InMemoryCalendar) {
     console.error(
       '未偵測到 GOOGLE_CALENDAR_ID / GOOGLE_SERVICE_ACCOUNT_JSON，已回退假日曆。' +
-        '請先注入憑證再執行；未對外呼叫。'
+        '請先設定 GOOGLE_CALENDAR_INTEGRATION_MODE=test 並注入憑證；未對外呼叫。'
     );
     process.exitCode = 1;
     return;

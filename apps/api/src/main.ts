@@ -23,18 +23,29 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
  * The booking write path is not exposed yet (see the Phase 1 gate), so nothing
  * currently sets this flag. It stays because the guard must already be in place
  * on the day the first route lands, not added afterwards.
+ *
+ * A non-loopback bind also needs a separate, exact
+ * `ALLOW_NON_LOOPBACK_BIND=true` opt-in. That keeps an inherited or mistyped
+ * HOST from publishing even the health-only Stage 1 process. The opt-in never
+ * overrides the stricter unauthenticated-route rule.
  */
 export function resolveListenHost(
   environment: NodeJS.ProcessEnv = process.env
 ): string {
-  const host = environment['HOST'] ?? '127.0.0.1';
-  if (
-    environment['ALLOW_UNAUTHENTICATED_ROUTES'] === 'true' &&
-    !LOOPBACK_HOSTS.has(host)
-  ) {
+  const host = environment['HOST']?.trim() ?? '127.0.0.1';
+  if (host === '') throw new Error('HOST must not be empty.');
+
+  const isLoopback = LOOPBACK_HOSTS.has(host);
+  if (environment['ALLOW_UNAUTHENTICATED_ROUTES'] === 'true' && !isLoopback) {
     throw new Error(
       `Refusing to bind unauthenticated routes to non-loopback host "${host}". ` +
         'Unset HOST or unset ALLOW_UNAUTHENTICATED_ROUTES.'
+    );
+  }
+  if (!isLoopback && environment['ALLOW_NON_LOOPBACK_BIND'] !== 'true') {
+    throw new Error(
+      `Refusing to bind API to non-loopback host "${host}" without ` +
+        'ALLOW_NON_LOOPBACK_BIND=true.'
     );
   }
   return host;

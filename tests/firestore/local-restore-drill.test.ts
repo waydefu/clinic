@@ -14,10 +14,14 @@ import {
   createAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../../apps/api/src/idempotency/appointment-idempotency.js';
+import {
+  LOCAL_FIREBASE_PROJECT_ID,
+  requireLocalFirestoreEmulatorTarget
+} from '../../packages/config/src/index.js';
 import type { BookingRequest } from '@beauessence/domain';
 
-const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
-const projectId = 'beauessence-appointment-local';
+requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
+const projectId = LOCAL_FIREBASE_PROJECT_ID;
 const restoreDatabaseId = 'restore-drill';
 
 let app: App;
@@ -103,11 +107,6 @@ async function restoreLogicalSnapshot(
 }
 
 beforeAll(() => {
-  if (emulatorHost === undefined) {
-    throw new Error(
-      'FIRESTORE_EMULATOR_HOST is not set. Run this suite through pnpm test:rules.'
-    );
-  }
   app = initializeApp({ projectId }, `local-restore-${Date.now()}`);
   source = getFirestore(app);
   restored = getFirestore(app, restoreDatabaseId);

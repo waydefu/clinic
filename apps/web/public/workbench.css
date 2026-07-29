@@ -354,13 +354,16 @@
   color: var(--ink-muted);
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   font-size: var(--text-body);
   font-weight: var(--weight-bold);
   gap: var(--space-xs);
   margin-left: auto;
 }
 .filter-actions .text-button {
+  flex: 0 0 auto;
   margin: 0;
+  white-space: nowrap;
 }
 /* 清單的筆數摘要。它同時是視覺資訊與 live region：清單本身整批置換，掛
    aria-live 會讓螢幕閱讀器逐列重唸，所以由這一句短的代為公告。 */
@@ -373,6 +376,8 @@
 }
 /* 篩選列裡的那一個排在同一橫列上，不需要與下方清單的間距。 */
 .filter-actions .result-summary {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
 }
 
@@ -441,6 +446,36 @@
 .list-section-heading .section-description {
   max-width: 34rem;
   text-align: right;
+}
+.shortcut-hint {
+  color: var(--ink-muted);
+  display: block;
+  font-size: var(--text-micro);
+  margin-top: var(--space-3xs);
+}
+.shortcut-hint kbd {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-xs);
+  color: var(--ink);
+  font: inherit;
+  font-weight: var(--weight-bold);
+  padding: var(--space-4xs) var(--space-3xs);
+}
+.appointment-pagination {
+  align-items: center;
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: center;
+  margin-block: var(--space-sm) var(--space-md);
+}
+.pagination-status {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  min-inline-size: 9rem;
+  text-align: center;
 }
 
 /* 低頻建檔流程使用漸進揭露，避免大量欄位與時段把櫃台處理清單推到折線下方。 */
@@ -749,6 +784,15 @@ details[open] > summary .workflow-summary-chevron {
   .list-section-heading .section-description {
     text-align: left;
   }
+  .appointment-pagination {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .appointment-pagination .button {
+    justify-content: center;
+    min-width: 0;
+    white-space: nowrap;
+  }
   .decision-card {
     align-items: stretch;
     grid-template-columns: 1fr;
@@ -791,6 +835,27 @@ details[open] > summary .workflow-summary-chevron {
   .calendar-disclosure .week-view,
   .calendar-disclosure .week-view-legend {
     margin-inline: var(--space-xs);
+  }
+}
+
+@media (max-width: 30rem) {
+  /* 320～480px 不必硬擠兩顆 44px 按鈕與完整頁碼狀態。狀態獨占首列，
+     上／下一頁留在第二列等寬排列，按鈕文字不必靠逐字斷行硬塞。 */
+  .appointment-pagination {
+    grid-template-areas:
+      'status status'
+      'previous next';
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #appointment-page-prev {
+    grid-area: previous;
+  }
+  .appointment-pagination .pagination-status {
+    grid-area: status;
+    min-inline-size: 0;
+  }
+  #appointment-page-next {
+    grid-area: next;
   }
 }
 /* 200% 文字縮放時 320px 視窗等同極窄內容欄：保留標誌、診所名稱、英文副標與兩個
@@ -2169,7 +2234,7 @@ details[open] > summary .workflow-summary-chevron {
   width: 100%;
 }
 /* 合成報到單：螢幕遮罩、列印完整，只驗證 2026-07-27 指定版面。
-   不代表正式必要性或權限已核准；D-002、D-006 仍 pending。 */
+   正式必要性仍待 D-002；D-006 權限政策已核准，但 Stage 2 實作尚未完成。 */
 .intake-print-only {
   display: none;
 }

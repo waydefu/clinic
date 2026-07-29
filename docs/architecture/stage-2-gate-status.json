@@ -1,0 +1,25 @@
+{
+  "$comment": [
+    "Canonical machine-readable current status for Stage 2 architecture gates.",
+    "Narrative plans may explain these values, but scripts/check-architecture.mjs treats this file as the status source of truth.",
+    "stageSlices.C1 through C6 track post-authority plan/apply/test/rollback evidence separately from each slice's deploymentAuthorities entry.",
+    "Changing a value records status only; it never grants deployment authority or enables a route."
+  ],
+  "stageSlices": {
+    "C0": "revise",
+    "C1": "pending",
+    "C2": "pending",
+    "C3": "pending",
+    "C4": "pending",
+    "C5": "pending",
+    "C6": "pending"
+  },
+  "deploymentAuthorities": {
+    "C1": "not_granted",
+    "C2": "not_granted",
+    "C3": "not_granted",
+    "C4": "not_granted",
+    "C5": "not_granted",
+    "C6": "not_granted"
+  }
+}

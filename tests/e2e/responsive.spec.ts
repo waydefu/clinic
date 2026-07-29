@@ -1,5 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
+export const PUBLIC_PAGE_SCAN_ROUTES = [
+  '/',
+  '/booking',
+  '/privacy',
+  '/clinic'
+] as const;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
+  PUBLIC_PAGE_SCAN_ROUTES;
+
 // 版面在每個斷點都不得產生水平捲軸（WCAG 1.4.10 Reflow：320px 寬度下內容要能
 // 單欄重排）。
 //
@@ -36,14 +45,38 @@ async function horizontalOverflow(page: Page) {
   });
 }
 
-test.describe('版面重排', () => {
+for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
   for (const width of WIDTHS) {
-    test(`診所頁在 ${width}px 不出現水平捲軸`, async ({ page }) => {
+    test(`${route} 在 ${width}px 不出現水平捲軸`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto('/clinic');
-      await expect(
-        page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
-      ).toBeVisible();
+      await page.goto(route);
+
+      if (route === WORKBENCH_ROUTE) {
+        await page.evaluate(() => window.localStorage.clear());
+        await page.reload();
+        await page.locator('#login-account').fill('admin');
+        await page.locator('#login-password').fill('beauessence-admin');
+        await page.locator('#login-view button[type="submit"]').click();
+        // 手機寬度下工具列會收進 <details>，#logout 因此不可見——用登入閘門
+        // 是否消失來判斷登入成功，才是在每個寬度都成立的訊號。
+        await expect(page.locator('#login-view')).toBeHidden();
+        await expect(page.locator('#workspace-title')).toBeVisible();
+      } else if (route === BOOKING_ROUTE) {
+        await expect(
+          page.locator('[data-booking-type="initial"]')
+        ).toBeVisible();
+      } else if (route === PRIVACY_ROUTE) {
+        await expect(
+          page.getByRole('heading', {
+            level: 1,
+            name: /隱私權政策與個人資料蒐集告知草稿/
+          })
+        ).toBeVisible();
+      } else if (route === CLINIC_ROUTE) {
+        await expect(
+          page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
+        ).toBeVisible();
+      }
 
       const result = await horizontalOverflow(page);
       expect(
@@ -52,59 +85,4 @@ test.describe('版面重排', () => {
       ).toBeLessThanOrEqual(result.clientWidth + 1);
     });
   }
-
-  for (const width of WIDTHS) {
-    test(`患者頁在 ${width}px 不出現水平捲軸`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/booking');
-      await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
-
-      const result = await horizontalOverflow(page);
-      expect(
-        result.scrollWidth,
-        `溢出元素：${result.overflowing.join(', ')}`
-      ).toBeLessThanOrEqual(result.clientWidth + 1);
-    });
-  }
-
-  for (const width of WIDTHS) {
-    test(`隱私告知草稿在 ${width}px 不出現水平捲軸`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/privacy');
-      await expect(
-        page.getByRole('heading', {
-          level: 1,
-          name: /隱私權政策與個人資料蒐集告知草稿/
-        })
-      ).toBeVisible();
-
-      const result = await horizontalOverflow(page);
-      expect(
-        result.scrollWidth,
-        `溢出元素：${result.overflowing.join(', ')}`
-      ).toBeLessThanOrEqual(result.clientWidth + 1);
-    });
-  }
-
-  for (const width of WIDTHS) {
-    test(`工作臺在 ${width}px 不出現水平捲軸`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/');
-      await page.evaluate(() => window.localStorage.clear());
-      await page.reload();
-      await page.locator('#login-account').fill('admin');
-      await page.locator('#login-password').fill('beauessence-admin');
-      await page.locator('#login-view button[type="submit"]').click();
-      // 手機寬度下工具列會收進 <details>，#logout 因此不可見——用登入閘門
-      // 是否消失來判斷登入成功，才是在每個寬度都成立的訊號。
-      await expect(page.locator('#login-view')).toBeHidden();
-      await expect(page.locator('#workspace-title')).toBeVisible();
-
-      const result = await horizontalOverflow(page);
-      expect(
-        result.scrollWidth,
-        `溢出元素：${result.overflowing.join(', ')}`
-      ).toBeLessThanOrEqual(result.clientWidth + 1);
-    });
-  }
-});
+}

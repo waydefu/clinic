@@ -13,6 +13,12 @@ failure）。具體 project ID、runtime、跨區復原、alert owner 與成本�
 Stage 2 change plan；D-006 已於 2026-07-28 核准，但在 change plan 與 deployment
 action 另行核准前仍不得開資源。
 
+2026-07-29 的
+[C0 readiness artifacts](stage-2-c0-readiness-artifacts-2026-07-29.md) 已把
+logical resource manifest、IAM proposal、成本輸入、DR options 與 evidence／rollback
+模板補成 plan-only 附件；owner 值、方案選擇、Terraform plan、deployment authority
+與 connected-cloud evidence 仍未完成。
+
 ## 1. 環境模型
 
 三個**完全分離的 GCP project**，不是同一個 project 裡的三組資源。共用 project
@@ -21,10 +27,11 @@ action 另行核准前仍不得開資源。
 | 環境 | 用途 | 資料 | 誰能部署 |
 | --- | --- | --- | --- |
 | `dev` | 開發者自用、可隨時重建 | 合成 | 工程師自己 |
-| `staging` | 決策核准前的驗證環境 | **只能合成** | CI（自動） |
-| `production` | 正式 | 真實患者資料 | CI，且需人工核准 |
+| `staging` | 各自獲准 Stage 2 slice 的驗證環境 | **只能合成** | CI operator；每次 apply 另需具名 approver 與有效 change window |
+| `production` | 正式 | 真實患者資料 | CI；每次 apply 需具名 approver，另加 production release gate |
 
-命名慣例提案（待 Stage 2 change review）：`beauessence-<env>`，資源名一律帶
+命名慣例提案（待 C0 review 與對應 slice request 審查）：`beauessence-<env>`，
+資源名一律帶
 環境後綴，避免在 Console 上把兩個環境看錯。目前的
 `beauessence-clinic-staging` 只用於合成預覽 Hosting，不是本文件所指的 staging
 應用環境。
@@ -57,8 +64,10 @@ infra/terraform/
   模組，差異只在變數——否則 staging 驗過的東西不代表 production 也是那樣。
 - **remote state**：每個環境一個 GCS bucket（開啟版本控管與 uniform bucket-level
   access），state 加鎖。`.tfstate` 永遠不得進 repository。
-- **plan 與 apply 分離**：CI 對 PR 跑 `terraform plan` 並把輸出貼回 PR；`apply`
-  只在合併後、且 production 需要人工核准才執行。
+- **authority、plan 與 apply 分離**：任何 staging／production slice 都要先有精確
+  request、獨立 deployment authority 與有效 change window，CI 才能產生
+  provider-backed `terraform plan`。Plan 符合獲准範圍後，由具名 apply approver
+  再確認才可執行；production 另外需要 release gate，且核准者不得是提交者。
 - **不得手動改**：Console 上的手動修改會讓下一次 apply 把它抹掉或報 drift。
   Firestore Rules 與索引例外——它們走 Firebase CLI 的受審核 CI 流程部署
   （見 [Firestore 本機基線](firestore-local-baseline.md)）。
@@ -73,12 +82,22 @@ infra/terraform/
 
 | Service account | 用途 | 需要的權限（最小） |
 | --- | --- | --- |
-| `api-runtime` | Domain API | Firestore 讀寫（限應用集合）、寫稽核日誌、讀指定 secret |
-| `worker-runtime` | Outbox worker | Firestore 讀寫（限 outbox／calendar_links）、讀日曆憑證 secret |
+| `api-runtime` | Domain API | Firestore database entity operations 依 application adapter 使用；寫應用日誌／metric、讀指定 secret。collection/action 邊界由 server-side application path guard 與 negative test 守住 |
+| `worker-runtime` | Outbox worker（Stage 3／D-009 後才部署） | **現行 processor 會讀 `appointments`，並讀寫 `outbox_jobs`**；未來 reconciliation 才另需 `calendar_links`。D-009 後才讀日曆憑證 secret |
 | `deployer` | CI 部署 | Cloud Run deploy、Hosting deploy、**不得**有資料讀取權 |
 | `terraform` | 基礎設施 | 各資源的 admin，**限該環境的 project** |
 
 明確禁止：`roles/owner`、`roles/editor`，以及任何跨環境的權限繫結。
+
+Firestore server client／Admin SDK
+[會繞過 Firestore Security Rules](https://cloud.google.com/firestore/docs/security/rules-conditions)，
+而本計畫採用的 IAM condition 只把 principal 收斂到指定
+[database](https://cloud.google.com/firestore/docs/manage-databases#configure_per-database_access_permissions)；
+不得把上表描述成「Cloud IAM 已強制限制到某個 collection」。runtime identity
+一旦被接管，database-scope permission 是 residual risk。C1 IAM review 必須核對
+exact permission/custom role；C3～C6 另以 adapter path allowlist、server-side
+authorization、audit 與 allowed/denied tests 驗證。若 reviewer 不接受此 residual
+risk，須先提出額外隔離設計，不得靠錯誤的集合級 IAM 宣稱關閉。
 
 ### 3.2 CI 的身分
 
@@ -171,15 +190,18 @@ CI 用 **Workload Identity Federation**，不下載 service account 金鑰檔。
 都必須：先加欄位、雙寫、驗證、才停用舊欄位；每一步都能單獨回滾。「改欄位名稱」
 這種一步到位的做法在有真實患者資料之後一律禁止。
 
-production 部署需要人工核准（GitHub Environments 的 required reviewers），
-核准者不得是提交者本人。
+staging 與 production 的 provider-backed plan／apply 都受各自 slice authority、
+具名 apply approver 與 change window 約束；不能因合併 PR 自動 apply。Production
+另需 release gate（例如 GitHub Environments required reviewers），核准者不得是
+提交者本人。
 
 ## 8. 尚未決定 / 待核准
 
 | 項目 | 卡在 | 影響 |
 | --- | --- | --- |
-| project ID、region、帳務 | D-010 | 整份 Terraform 無法 apply |
-| IdP、MFA、session、撤銷與授權碼政策 | D-006 已核准；實作參數依 Stage 2 change review | `api-runtime` 的權限、session state 與 secret 清單 |
+| primary region | D-010 已核准 `asia-east1` | 固定進 resource manifest；不是未決欄位 |
+| project ID、parent organization/folder、billing link | D-010 已核准診所所有權；實際值仍待 C0 review、C1 request 與 authority | apply-ready Terraform 尚不能產生 |
+| IdP、MFA、session、撤銷與授權碼政策 | D-006 已核准；實作參數依對應 C2～C4 slice review／authority | `api-runtime` 的權限、session state 與 secret 清單 |
 | 一般資料保存期限 | D-001～D-003 | 備份保留期、日誌保留期、PITR 視窗 |
 | Audit | D-006 已核准永久 append-only／任何角色不得修改刪除；D-002 仍決定查閱、匯出及可識別連結 | 專用 write path、delete deny、容量／成本與 pseudonymization |
 | 日曆正式接線 | D-009 | `worker-runtime` 的 secret 與告警 |
@@ -187,8 +209,11 @@ production 部署需要人工核准（GitHub Environments 的 required reviewers
 
 ## 9. 這份計畫沒有涵蓋的
 
-- **災難復原的跨區設計**：單區 Firestore 已有 PITR 與備份；跨區複寫的成本與
-  複雜度，在診所規模下需要先看 RTO/RPO 的實際要求（見 backup runbook）再談。
+- **災難復原的最終選案與實作**：D-010 已核准 database／whole-project／regional
+  failure 均須達 RPO 1 小時／RTO 4 小時，因此跨 project／region 路徑不再是可省略
+  項。C0 readiness artifacts §5 已比較 same-location baseline、scheduled export、
+  application/outbox replica 與 multi-region options；secondary project/location、
+  成本、跨境與 routing 仍待具名核准，且尚無演練證據。
 - **WAF／DDoS**：目前只有應用層的 rate limit 骨架
   （`apps/api/src/platform/runtime/rate-limiter.ts`）。邊緣防護要等公開預約
   路由真的開啟（Stage 4）。

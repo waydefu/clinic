@@ -9,13 +9,19 @@ import {
 } from '@beauessence/domain';
 import {
   CLINIC_EVENT_COLOR_ID,
-  InMemoryCalendar
+  InMemoryCalendar,
+  type CalendarProjectionOptions,
+  type CalendarProjectionRequest
 } from '../../apps/worker/src/calendar-port.js';
 import {
   APPOINTMENTS_COLLECTION,
   OUTBOX_COLLECTION,
   OutboxProcessor
 } from '../../apps/worker/src/outbox-processor.js';
+import {
+  LOCAL_FIREBASE_PROJECT_ID,
+  requireLocalFirestoreEmulatorTarget
+} from '../../packages/config/src/index.js';
 import type {
   CalendarAttemptMetric,
   WorkerBatchMetric,
@@ -23,8 +29,8 @@ import type {
   WorkerQueueSnapshotMetric
 } from '../../apps/worker/src/worker-observability.js';
 
-const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
-const projectId = 'beauessence-appointment-local';
+requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
+const projectId = LOCAL_FIREBASE_PROJECT_ID;
 
 let app: App;
 let db: Firestore;
@@ -66,6 +72,24 @@ class RecordingMetrics implements WorkerMetricsPort {
   }
 }
 
+class RecordingDeadlineCalendar extends InMemoryCalendar {
+  public readonly projectionOptions: CalendarProjectionOptions[] = [];
+
+  public override project(
+    request: CalendarProjectionRequest,
+    options: CalendarProjectionOptions = {}
+  ): Promise<void> {
+    this.projectionOptions.push(options);
+    return super.project(request, options);
+  }
+}
+
+function monotonicTimeline(...values: number[]): () => number {
+  let index = 0;
+  const fallback = values.at(-1) ?? 0;
+  return () => values[index++] ?? fallback;
+}
+
 async function seedJob(id = 'outbox_001'): Promise<void> {
   await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
     status: 'confirmed',
@@ -92,14 +116,37 @@ async function seedJob(id = 'outbox_001'): Promise<void> {
   });
 }
 
+async function seedJobCopies(count: number): Promise<string[]> {
+  if (!Number.isSafeInteger(count) || count < 1)
+    throw new Error('count must be a positive integer');
+  const ids = Array.from(
+    { length: count },
+    (_, index) => `outbox_${String(index + 1).padStart(3, '0')}`
+  );
+  const firstId = ids[0];
+  if (firstId === undefined) throw new Error('missing first outbox id');
+  await seedJob(firstId);
+  const seed = (
+    await db.collection(OUTBOX_COLLECTION).doc(firstId).get()
+  ).data();
+  if (seed === undefined) throw new Error('missing seed outbox job');
+
+  const batch = db.batch();
+  for (const [index, id] of ids.slice(1).entries()) {
+    batch.set(db.collection(OUTBOX_COLLECTION).doc(id), {
+      ...seed,
+      correlationId: `corr_outbox_${String(index + 2).padStart(3, '0')}`,
+      causationId: `audit_outbox_${String(index + 2).padStart(3, '0')}`
+    });
+  }
+  await batch.commit();
+  return ids;
+}
+
 const jobState = async (id = 'outbox_001') =>
   (await db.collection(OUTBOX_COLLECTION).doc(id).get()).data();
 
 beforeAll(() => {
-  if (emulatorHost === undefined)
-    throw new Error(
-      'FIRESTORE_EMULATOR_HOST is not set. Run this suite through pnpm test:rules.'
-    );
   app = initializeApp({ projectId }, `worker-${Date.now()}`);
   db = getFirestore(app);
 });
@@ -112,7 +159,7 @@ beforeEach(async () => {
   await wipe();
   calendar = new InMemoryCalendar();
   metrics = new RecordingMetrics();
-  processor = new OutboxProcessor(db, calendar, metrics);
+  processor = new OutboxProcessor(db, calendar, metrics, () => 0.5);
 });
 
 describe('outbox worker', () => {
@@ -308,7 +355,7 @@ describe('outbox worker', () => {
     for (const status of ['cancelled', 'no_show']) {
       await wipe();
       calendar = new InMemoryCalendar();
-      processor = new OutboxProcessor(db, calendar, metrics);
+      processor = new OutboxProcessor(db, calendar, metrics, () => 0.5);
 
       await seedJob();
       await processor.processDue(NOW);
@@ -430,9 +477,52 @@ describe('outbox worker', () => {
     expect(state?.['status']).toBe('pending');
     expect(state?.['attempts']).toBe(1);
     expect(state?.['lastError']).toMatch(/Synthetic calendar failure/);
+    expect(
+      Date.parse(state?.['nextAttemptAt'] as string) -
+        Date.parse(state?.['settledAt'] as string)
+    ).toBe(15_000);
     expect(Date.parse(state?.['nextAttemptAt'] as string)).toBeGreaterThan(
       Date.parse(NOW)
     );
+  });
+
+  it('shortens the Calendar deadline by time already consumed after claim', async () => {
+    await seedJob();
+    const recordingCalendar = new RecordingDeadlineCalendar();
+    const delayedProcessor = new OutboxProcessor(
+      db,
+      recordingCalendar,
+      metrics,
+      () => 0.5,
+      monotonicTimeline(0, 0, 0, 30_000)
+    );
+
+    const summary = await delayedProcessor.processDue(NOW, 1);
+
+    expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+    expect(recordingCalendar.callCount).toBe(1);
+    expect(recordingCalendar.projectionOptions[0]?.timeoutMs).toBe(80_000);
+  });
+
+  it('does not call Calendar after the lease settlement margin is exhausted', async () => {
+    await seedJob();
+    const expiredCalendar = new RecordingDeadlineCalendar();
+    const delayedProcessor = new OutboxProcessor(
+      db,
+      expiredCalendar,
+      metrics,
+      () => 0.5,
+      monotonicTimeline(0, 0, 0, 115_000)
+    );
+
+    const summary = await delayedProcessor.processDue(NOW, 1);
+
+    expect(summary).toMatchObject({ claimed: 1, retried: 1, completed: 0 });
+    expect(expiredCalendar.callCount).toBe(0);
+    expect(expiredCalendar.projectionOptions).toEqual([]);
+    const state = await jobState();
+    expect(state?.['status']).toBe('pending');
+    expect(state?.['lastError']).toMatch(/no safe time remaining/u);
   });
 
   it('does not pick the job up again before its backoff has elapsed', async () => {
@@ -446,6 +536,39 @@ describe('outbox worker', () => {
     calendar.failNext(0);
     const afterBackoff = await processor.processDue(later(60));
     expect(afterBackoff).toMatchObject({ claimed: 1, completed: 1 });
+  });
+
+  it('attempts every due job only once per batch even when full jitter samples zero', async () => {
+    const ids = await seedJobCopies(21);
+    calendar.failNext(42);
+    const zeroJitter = new OutboxProcessor(db, calendar, metrics, () => 0);
+
+    const firstBatch = await zeroJitter.processDue(NOW);
+    expect(firstBatch).toMatchObject({ claimed: 21, retried: 21 });
+    expect(calendar.callCount).toBe(21);
+    const states = await Promise.all(ids.map((id) => jobState(id)));
+    expect(
+      states.every(
+        (state) => state?.['status'] === 'pending' && state?.['attempts'] === 1
+      )
+    ).toBe(true);
+  });
+
+  it('over-fetches past already-attempted candidates instead of hiding the next due job', async () => {
+    const ids = await seedJobCopies(21);
+    const nextId = ids[20];
+    if (nextId === undefined) throw new Error('missing 21st outbox id');
+    const alreadyAttempted = new Set(ids.slice(0, 20));
+    const candidates = await (
+      processor as unknown as {
+        dueCandidates(
+          now: string,
+          attempted: ReadonlySet<string>
+        ): Promise<Array<{ readonly id: string }>>;
+      }
+    ).dueCandidates(NOW, alreadyAttempted);
+
+    expect(candidates.map((candidate) => candidate.id)).toEqual([nextId]);
   });
 
   it('dead-letters after the attempt ceiling and flags it for an operator', async () => {

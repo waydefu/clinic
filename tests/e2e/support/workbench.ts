@@ -124,3 +124,48 @@ export async function openDisclosure(
 export async function showAllAppointments(page: Page): Promise<void> {
   await page.locator('#appointment-status-filter').selectOption('all');
 }
+
+/**
+ * 把已建立的第一筆預約複製成一組確定性的合成清單。
+ *
+ * 這是分頁／週曆定位的測試前置資料，不繞過任何被驗證的 UI 行為：先用
+ * `createBooking` 產生完整合法欄位，再只在 localStorage 擴充筆數。每筆相隔
+ * 15 分鐘，25 筆仍落在同一個工作日，週檢視可直接點第二頁的目標事件。
+ */
+export async function seedAppointmentCopies(
+  page: Page,
+  count = 25
+): Promise<string[]> {
+  const ids = await page.evaluate(
+    ({ key, total }) => {
+      const raw = window.localStorage.getItem(key);
+      if (raw === null) throw new Error('找不到合成工作臺狀態');
+      const state = JSON.parse(raw);
+      const source = state.appointments[0];
+      if (source === undefined) throw new Error('請先建立一筆預約');
+      // 固定從該門診日 10:00 起排；若沿用「現在之後的第一個時段」，下午執行
+      // 測試時第 25 筆可能超出週曆 21:00 的顯示範圍。
+      const start = Date.parse(
+        `${source.startsAt.slice(0, 10)}T10:00:00+08:00`
+      );
+      const nextIds = Array.from(
+        { length: total },
+        (_, index) =>
+          `appointment_pagination_${String(index + 1).padStart(3, '0')}`
+      );
+      state.appointments = nextIds.map((id, index) => ({
+        ...source,
+        id,
+        slotId: `slot_pagination_${String(index + 1).padStart(3, '0')}`,
+        startsAt: new Date(start + index * 15 * 60_000).toISOString()
+      }));
+      state.sequence = Math.max(state.sequence ?? 1, total + 1);
+      window.localStorage.setItem(key, JSON.stringify(state));
+      return nextIds;
+    },
+    { key: STORAGE_KEY, total: count }
+  );
+  await page.reload();
+  await expect(page.locator('#login-view')).toBeHidden();
+  return ids;
+}

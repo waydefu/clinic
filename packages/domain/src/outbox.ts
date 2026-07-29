@@ -101,10 +101,33 @@ export interface OutboxDecision {
 }
 
 export function backoffSeconds(attempts: number): number {
-  if (attempts < 1)
-    throw new DomainError('INVALID_VALUE', 'attempts must be >= 1.');
+  if (!Number.isInteger(attempts) || attempts < 1)
+    throw new DomainError(
+      'INVALID_VALUE',
+      'attempts must be a positive integer.'
+    );
   const raw = BASE_BACKOFF_SECONDS * 2 ** (attempts - 1);
   return Math.min(raw, MAX_BACKOFF_SECONDS);
+}
+
+/**
+ * Full-jitter delay for one retry.
+ *
+ * The caller supplies the random sample so this domain helper stays pure and
+ * deterministic under test. A one-millisecond floor prevents an exact zero
+ * sample from producing a tight retry loop; the worker also attempts each job
+ * at most once per batch.
+ */
+export function fullJitterBackoffMilliseconds(
+  attempts: number,
+  sample: number
+): number {
+  if (!Number.isFinite(sample) || sample < 0 || sample > 1)
+    throw new DomainError(
+      'INVALID_VALUE',
+      'full-jitter sample must be between 0 and 1.'
+    );
+  return Math.max(1, Math.floor(backoffSeconds(attempts) * 1000 * sample));
 }
 
 /** 只有 pending 且已到重試時間的工作可被取用。 */

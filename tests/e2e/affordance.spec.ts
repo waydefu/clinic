@@ -2,6 +2,15 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { createBooking, login, showAllAppointments } from './support/workbench';
 
+export const PUBLIC_PAGE_SCAN_ROUTES = [
+  '/',
+  '/booking',
+  '/privacy',
+  '/clinic'
+] as const;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
+  PUBLIC_PAGE_SCAN_ROUTES;
+
 // 互動元素必須「看得出來可以按」。
 //
 // 這一組測試來自 2026-07-25 的實際回饋：「清除選取」與「前往處理清單」在畫面上
@@ -23,7 +32,7 @@ const POSITIONALLY_SIGNALLED = ['nav', '.workspace-nav', '.patient-nav'];
 
 /** 診所官網的路由。四類頁面各取一條：首頁、醫師、醫師個人、鼻功能療程。 */
 const CLINIC_ROUTES = [
-  '/clinic',
+  CLINIC_ROUTE,
   '/clinic/doctors',
   '/clinic/doctors/yan-cheng-an',
   '/clinic/nasal/snoring-five-in-one'
@@ -281,20 +290,40 @@ const stackScanSource = () => {
   return offenders;
 };
 
-test.describe('可點擊性（affordance）', () => {
-  test('患者頁的互動元素都看得出可以按', async ({ page }) => {
-    await page.goto('/booking');
-    await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
+for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
+  test(`manifest public page 的互動元素都看得出可以按：${route}`, async ({
+    page
+  }) => {
+    await page.goto(route);
+
+    if (route === WORKBENCH_ROUTE) {
+      await page.evaluate(() => window.localStorage.clear());
+      await page.reload();
+      await page.locator('#login-account').fill('admin');
+      await page.locator('#login-password').fill('beauessence-admin');
+      await page.locator('#login-view button[type="submit"]').click();
+      await expect(page.locator('#logout')).toBeVisible();
+    } else if (route === BOOKING_ROUTE) {
+      await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
+    } else if (route === PRIVACY_ROUTE) {
+      await expect(page.locator('#policy-agree')).toBeAttached();
+    } else {
+      await expect(
+        page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
+      ).toBeVisible();
+    }
 
     const offenders = await affordanceReport(page);
     expect(
       offenders,
-      `這些互動元素只有文字顏色、沒有形狀：\n${offenders.join('\n')}`
+      `${route} 有互動元素只剩文字顏色：\n${offenders.join('\n')}`
     ).toEqual([]);
   });
+}
 
-  test('工作臺的互動元素都看得出可以按', async ({ page }) => {
-    await page.goto('/');
+test.describe('可點擊性（affordance）', () => {
+  test('工作臺每個工作區的互動元素都看得出可以按', async ({ page }) => {
+    await page.goto(WORKBENCH_ROUTE);
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.locator('#login-account').fill('admin');
@@ -311,7 +340,7 @@ test.describe('可點擊性（affordance）', () => {
       '#accounts-section',
       '#audit-section'
     ]) {
-      await page.goto(`/${hash}`);
+      await page.goto(`${WORKBENCH_ROUTE}${hash}`);
       const offenders = await affordanceReport(page);
       expect(
         offenders,
@@ -320,23 +349,11 @@ test.describe('可點擊性（affordance）', () => {
     }
   });
 
-  // 政策頁是自成一頁、不載入 styles.css 的第三個進入點。先前它底部只有一句
-  // 底線文字「回到線上預約」——那是這一整組測試在防的東西，只是它當時不在
-  // 掃描範圍內。新增對外頁面時，這個 describe 要一起加。
-  test('隱私權政策頁的互動元素都看得出可以按', async ({ page }) => {
-    await page.goto('/privacy');
-    await expect(page.locator('#policy-agree')).toBeAttached();
-    const offenders = await affordanceReport(page);
-    expect(
-      offenders,
-      `政策頁有互動元素只剩文字顏色：\n${offenders.join('\n')}`
-    ).toEqual([]);
-  });
-
   // 診所官網（2026-07-27 併入）。它進了無障礙、重排、預算與 check:ui，唯獨漏了
-  // 這一組——規則書 R-7 的第 1 項就是「加進 affordance 掃描」，所以補上。
-  test('診所官網的互動元素都看得出可以按', async ({ page }) => {
-    for (const path of CLINIC_ROUTES) {
+  // 這一組——規則書 R-7 的第 1 項就是「加進 affordance 掃描」。manifest loop
+  // 已掃首頁，這裡再補共享 shell 的代表性內頁。
+  test('診所官網內頁的互動元素都看得出可以按', async ({ page }) => {
+    for (const path of CLINIC_ROUTES.slice(1)) {
       await page.goto(path);
       const offenders = await affordanceReport(page);
       expect(
@@ -355,7 +372,7 @@ test.describe('可點擊性（affordance）', () => {
   test('可點擊的短標籤不會被逐字斷成好幾行', async ({ page }) => {
     for (const width of [1280, 1024, 900, 768, 480, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const path of ['/booking', '/privacy', ...CLINIC_ROUTES]) {
+      for (const path of [BOOKING_ROUTE, PRIVACY_ROUTE, ...CLINIC_ROUTES]) {
         await page.goto(path);
         const broken = await page.evaluate(wrapScanSource);
         expect(
@@ -378,7 +395,7 @@ test.describe('可點擊性（affordance）', () => {
     for (const width of [1280, 1024, 900, 768, 480, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       for (const hash of WORKSPACES) {
-        await page.goto(`/${hash}`);
+        await page.goto(`${WORKBENCH_ROUTE}${hash}`);
         // 收合區塊裡的控制項一樣要檢查。
         await page.evaluate(() => {
           for (const details of document.querySelectorAll('details'))
@@ -402,10 +419,10 @@ test.describe('可點擊性（affordance）', () => {
   test('寬畫面不得出現無理由的堆疊', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
 
-    await page.goto('/privacy');
+    await page.goto(PRIVACY_ROUTE);
     expect(await page.evaluate(stackScanSource)).toEqual([]);
 
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     expect(await page.evaluate(stackScanSource)).toEqual([]);
 
     for (const path of CLINIC_ROUTES) {
@@ -422,7 +439,7 @@ test.describe('可點擊性（affordance）', () => {
     await showAllAppointments(page);
     await page.locator('[data-appointment-select]').first().check();
     for (const hash of WORKSPACES) {
-      await page.goto(`/${hash}`);
+      await page.goto(`${WORKBENCH_ROUTE}${hash}`);
       await page.evaluate(() => {
         for (const details of document.querySelectorAll('details'))
           details.open = true;
@@ -446,7 +463,7 @@ test.describe('可點擊性（affordance）', () => {
   test('患者端的可點目標在手機寬度達到 44px', async ({ page }) => {
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
-      for (const path of ['/booking', '/privacy', ...CLINIC_ROUTES]) {
+      for (const path of [BOOKING_ROUTE, PRIVACY_ROUTE, ...CLINIC_ROUTES]) {
         await page.goto(path);
         const small = await page.evaluate(() => {
           const effectiveTarget = (element: HTMLElement): HTMLElement => {
@@ -519,14 +536,14 @@ test.describe('可點擊性（affordance）', () => {
   });
 
   test('同一個 class 在不同容器裡長得一樣', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(WORKBENCH_ROUTE);
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.locator('#login-account').fill('admin');
     await page.locator('#login-password').fill('beauessence-admin');
     await page.locator('#login-view button[type="submit"]').click();
     await expect(page.locator('#logout')).toBeVisible();
-    await page.goto('/#overview');
+    await page.goto(`${WORKBENCH_ROUTE}#overview`);
 
     // `.summary-action` 同時出現在統計卡與「下一位」面板。先前樣式被寫成
     // `.summary-card .summary-action`，於是後者完全沒有樣式——這條就是釘住它。

@@ -19,6 +19,57 @@ import process from 'node:process';
 
 const HASHABLE = new Set(['.js', '.css']);
 const HTML_EXTENSION = '.html';
+const PUBLIC_ENTRY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*\.html$/;
+
+/**
+ * public-pages.json owns the allowlist of pages that a formal build may make
+ * indexable. Keep this small validation here as well as in check:pages so a
+ * direct `pnpm build:web` fails closed instead of silently ignoring malformed
+ * metadata.
+ */
+export function indexableEntriesFromPublicPages(inventory) {
+  if (
+    typeof inventory !== 'object' ||
+    inventory === null ||
+    Array.isArray(inventory) ||
+    !Array.isArray(inventory.pages)
+  )
+    throw new Error('public-pages.json must contain a pages array.');
+
+  const entries = [];
+  const seen = new Set();
+  for (const [index, page] of inventory.pages.entries()) {
+    if (typeof page !== 'object' || page === null || Array.isArray(page))
+      throw new Error(`public-pages.json pages[${index}] must be an object.`);
+    if (
+      typeof page.entry !== 'string' ||
+      !PUBLIC_ENTRY_PATTERN.test(page.entry)
+    )
+      throw new Error(
+        `public-pages.json pages[${index}].entry must be a safe HTML entry filename.`
+      );
+    if (typeof page.indexable !== 'boolean')
+      throw new Error(
+        `public-pages.json pages[${index}].indexable must be boolean.`
+      );
+    if (seen.has(page.entry))
+      throw new Error(`public-pages.json repeats entry ${page.entry}.`);
+    seen.add(page.entry);
+    if (page.indexable) entries.push(page.entry);
+  }
+  return entries;
+}
+
+const PUBLIC_PAGE_INVENTORY = JSON.parse(
+  await readFile(
+    new URL('../apps/web/public-pages.json', import.meta.url),
+    'utf8'
+  )
+);
+export const PUBLIC_INDEXABLE_ENTRIES = Object.freeze(
+  indexableEntriesFromPublicPages(PUBLIC_PAGE_INVENTORY)
+);
+const PUBLIC_INDEXABLE_ENTRY_SET = new Set(PUBLIC_INDEXABLE_ENTRIES);
 
 function extensionOf(path) {
   const dot = path.lastIndexOf('.');
@@ -305,12 +356,10 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
   // 「怎麼都搜不到我們」。
   //
   // 所以不要靠「記得刪掉」。原始碼永遠保持 noindex（預設安全），要發正式站時
-  // 設 `WEB_PUBLIC_INDEXABLE=true`，由建置**移除**那一行；而且只有患者預約頁
-  // 會被放行，工作臺與 404 永遠 noindex——那兩個頁面被索引才是真的出事。
+  // 設 `WEB_PUBLIC_INDEXABLE=true`，由建置**移除**那一行；實際 allowlist 直接來自
+  // public-pages.json 的 indexable metadata。工作臺、clinic preview 與 404 目前
+  // 都是 false，不能因為這支建置腳本留著另一份過期陣列而意外被放行。
   const indexable = process.env.WEB_PUBLIC_INDEXABLE === 'true';
-  // 隱私權政策也要能被搜尋到：它是對外的法律文件，患者應該找得到，而且搜尋
-  // 引擎看得到一份完整的告知，對診所是加分不是風險。
-  const INDEXABLE_PAGES = new Set(['patient.html', 'privacy.html']);
   const ROBOTS_META = /\s*<meta\s+name="robots"[^>]*>/i;
 
   // 測試版本要在**名稱**上就看得出來：分享連結、瀏覽器分頁、書籤、螢幕截圖裡
@@ -318,14 +367,14 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
   // 與 noindex 綁在同一個開關：正式建置同時拿掉 noindex 與這個標記，不可能只
   // 拿掉一半。
   const markAsTest = (path, html) => {
-    if (indexable || !INDEXABLE_PAGES.has(path)) return html;
+    if (indexable || !PUBLIC_INDEXABLE_ENTRY_SET.has(path)) return html;
     return html.replace(/<title>([^<]*)<\/title>/, (whole, title) =>
       title.includes('測試') ? whole : `<title>【測試用】${title}</title>`
     );
   };
 
   const publishIndexable = (path, html) => {
-    if (!indexable || !INDEXABLE_PAGES.has(path)) return html;
+    if (!indexable || !PUBLIC_INDEXABLE_ENTRY_SET.has(path)) return html;
     if (!ROBOTS_META.test(html)) {
       throw new Error(
         `WEB_PUBLIC_INDEXABLE=true but ${path} has no <meta name="robots"> to remove. ` +

@@ -10,11 +10,15 @@ import {
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../../apps/api/src/idempotency/appointment-idempotency.js';
+import {
+  LOCAL_FIREBASE_PROJECT_ID,
+  requireLocalFirestoreEmulatorTarget
+} from '../../packages/config/src/index.js';
 import { AuditEventV2Schema } from '../../packages/contracts/src/audit.js';
 import type { AppointmentTransition } from '@beauessence/domain';
 
-const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
-const projectId = 'beauessence-appointment-local';
+requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
+const projectId = LOCAL_FIREBASE_PROJECT_ID;
 
 let app: App;
 let db: Firestore;
@@ -96,10 +100,6 @@ const patientGuardState = async () =>
     .get();
 
 beforeAll(() => {
-  if (emulatorHost === undefined)
-    throw new Error(
-      'FIRESTORE_EMULATOR_HOST is not set. Run this suite through pnpm test:rules.'
-    );
   app = initializeApp({ projectId }, `transition-${Date.now()}`);
   db = getFirestore(app);
   repository = new FirestoreBookingRepository(db);

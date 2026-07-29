@@ -7,19 +7,27 @@ import {
 /**
  * Role-based access control, as a reviewable candidate.
  *
- * D-006 owns the real role names, the permission matrix and the resource
- * scopes; none of the values here are approved. What this file fixes is the
+ * D-006 approved the administrator/front-desk/physician baseline, completion
+ * authority, deny-default and delegated deletion controls. This older
+ * candidate table is not that approval's Stage 2 C4 implementation evidence:
+ * its role names and extra case/payroll actions still need to be reconciled
+ * with D-006 and the pending D-007/D-008 decisions. What this file fixes is the
  * *shape* of the check the target architecture requires:
  *
  *   allow = authenticated && account active && role permits action
  *         && resource scope permits target
  *
  * Two properties matter and are tested. First, the opaque `actorRole` on the
- * authentication context is never guessed here — a future IdP adapter resolves
- * it to one of these candidate roles, and the resolver is the injected seam.
+ * authentication context is never guessed here — the future Stage 2 C2 IdP
+ * adapter resolves it to a reviewed role, and the resolver is the injected seam.
  * Second, access is decided from role and scope alone, never from whether the
  * target exists, so a denied caller cannot use the result to probe for real
  * patients or appointments (the NOT_FOUND enumeration oracle).
+ *
+ * `apps/api/unrouted-inventory.json` maps every Permission below to a
+ * capability-level gate. That gate is independent from this file's route
+ * reachability, so importing the evaluator for one approved action cannot
+ * silently discard D-004/D-005/D-007/D-008/D-014/D-015 blockers on another.
  */
 
 export type CandidateRole =
@@ -49,8 +57,10 @@ export type Permission =
 /**
  * Candidate permission matrix. Deliberately least-privilege: the front desk
  * runs the daily counter but cannot delete records or touch payroll; deletion
- * and payroll sit with the manager/admin; the auditor is read-only. This is the
- * exact table the D-006 audit must confirm or overturn.
+ * and payroll sit with the manager/admin; the auditor is read-only. D-006 no
+ * longer blocks policy selection, but this table predates the approved baseline
+ * and must not be treated as C4 evidence. Case and payroll rows remain subject
+ * to D-007 and D-008.
  */
 export const CANDIDATE_ROLE_PERMISSIONS: Record<
   CandidateRole,

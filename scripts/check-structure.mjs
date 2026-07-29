@@ -167,8 +167,10 @@ const requiredPaths = [
   'scripts/cleanup-local-firestore-emulator.ps1',
   // 架構把關：依賴方向、未接線清單、domain 規則單一來源，以及分支保護查核。
   'scripts/check-architecture.mjs',
+  'scripts/unrouted-inventory.mjs',
   'scripts/check-branch-protection.mjs',
   'apps/api/unrouted-inventory.json',
+  'apps/api/src/unrouted-inventory.test.ts',
   'packages/domain/src/patient-identity.ts',
   'packages/domain/src/patient-identity.test.ts',
   'docs/reviews/2026-07-26-full-project-audit.md',

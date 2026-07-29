@@ -14,6 +14,7 @@ const paths = {
   schedule: 'apps/web/public/modules/schedule-engine.js',
   cases: 'apps/web/public/modules/case-management.js',
   permissions: 'apps/web/public/modules/permissions.js',
+  constants: 'apps/web/public/modules/constants.js',
   confirmDialog: 'apps/web/public/modules/confirm-dialog.js',
   apiClient: 'apps/web/public/modules/api-client.js',
   asyncAction: 'apps/web/public/modules/async-action.js',
@@ -246,6 +247,16 @@ requireText(
   files.permissions,
   'requirePermission',
   'Permission module is missing action enforcement.'
+);
+requireText(
+  files.constants,
+  "{ id: 'service_snoring', label: '止鼾', note: '實際時間到診後確認' }",
+  'The stop-snoring service no longer says its actual duration is confirmed at the visit.'
+);
+refuseText(
+  files.constants,
+  "{ id: 'service_snoring', label: '止鼾', note: '40–60 分鐘' }",
+  'The superseded fixed 40–60 minute stop-snoring duration returned to the patient service list.'
 );
 // 2026-07-24 負責人方向（D-006）：刪除只給管理者。路由的權限檢查與選單的
 // 權限過濾必須同時在位——只藏按鈕不是授權，只擋路由則會留下按了才失敗的入口。

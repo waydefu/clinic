@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   createBooking,
   login,
+  seedAppointmentCopies,
   showAllAppointments
 } from './support/workbench.js';
 
@@ -314,6 +315,140 @@ test.describe('欄位排序', () => {
   });
 });
 
+test.describe('預約清單分頁', () => {
+  test('每頁 20 筆，總數與本頁筆數分開，換頁不保留前頁批次選取', async ({
+    page
+  }) => {
+    await login(page);
+    await createBooking(page);
+    await seedAppointmentCopies(page, 25);
+    await showAllAppointments(page);
+
+    const rows = page.locator('#appointments tbody tr[data-appointment-card]');
+    const status = page.locator('#appointment-page-status');
+    const previous = page.locator('#appointment-page-prev');
+    const next = page.locator('#appointment-page-next');
+
+    await expect(rows).toHaveCount(20);
+    await expect(page.locator('#appointment-result-summary')).toHaveText(
+      '共 25 筆結果，本頁顯示 20 筆（第 1 頁，共 2 頁）'
+    );
+    await expect(status).toHaveText('第 1 頁，共 2 頁');
+    await expect(previous).toBeDisabled();
+    await expect(next).toBeEnabled();
+
+    await page.locator('#appointment-select-all').check();
+    await expect(page.locator('#appointment-selection-summary')).toHaveText(
+      '本頁已選取 20 筆'
+    );
+
+    await next.click();
+    await expect(rows).toHaveCount(5);
+    await expect(page.locator('#appointment-result-summary')).toHaveText(
+      '共 25 筆結果，本頁顯示 5 筆（第 2 頁，共 2 頁）'
+    );
+    await expect(status).toHaveText('第 2 頁，共 2 頁');
+    await expect(previous).toBeEnabled();
+    await expect(next).toBeDisabled();
+    await expect(page.locator('#appointment-select-all')).not.toBeChecked();
+    await expect(page.locator('#appointment-selection-summary')).toHaveText(
+      '未選取本頁任何預約'
+    );
+  });
+
+  test('篩選、查詢與排序改變後都回到第 1 頁', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await seedAppointmentCopies(page, 25);
+    await showAllAppointments(page);
+
+    const status = page.locator('#appointment-page-status');
+    const next = page.locator('#appointment-page-next');
+    await next.click();
+    await expect(status).toHaveText('第 2 頁，共 2 頁');
+
+    await page.locator('#appointment-kind-filter').selectOption('initial');
+    await expect(status).toHaveText('第 1 頁，共 2 頁');
+
+    await next.click();
+    await page.locator('#appointment-search').fill('測試患者甲');
+    await expect(status).toHaveText('第 1 頁，共 2 頁');
+
+    await next.click();
+    await page.locator('[data-sort-column="patient"]').click();
+    await expect(status).toHaveText('第 1 頁，共 2 頁');
+  });
+});
+
+test.describe('櫃台快捷鍵', () => {
+  test('/ 聚焦搜尋，Alt+N 只開啟表單並聚焦第一欄', async ({ page }) => {
+    await login(page);
+    await page.goto('/#appointments-section');
+
+    await expect(page.locator('.shortcut-hint')).toContainText('鍵盤快捷鍵');
+
+    await page.locator('#appointment-filter-reset').focus();
+    await page.keyboard.press('/');
+    await expect(page.locator('#appointment-search')).toBeFocused();
+
+    // 搜尋框是可編輯欄位；Alt+N 在這裡不能搶走輸入焦點或展開建檔流程。
+    await page.keyboard.press('Alt+N');
+    await expect(page.locator('#appointment-search')).toBeFocused();
+    expect(
+      await page
+        .locator('#booking-workflow')
+        .evaluate((element) => (element as HTMLDetailsElement).open)
+    ).toBe(false);
+
+    await page.locator('#appointment-filter-reset').focus();
+    await page.keyboard.press('Alt+N');
+    await expect(page.locator('#booking-name')).toBeFocused();
+    expect(
+      await page
+        .locator('#booking-workflow')
+        .evaluate((element) => (element as HTMLDetailsElement).open)
+    ).toBe(true);
+    await expect(page.locator('[data-appointment-card]')).toHaveCount(0);
+
+    // 在 input 裡輸入斜線就是文字，不應重新導覽或移走焦點。
+    await page.locator('#booking-name').fill('');
+    await page.keyboard.press('/');
+    await expect(page.locator('#booking-name')).toHaveValue('/');
+    await expect(page.locator('#booking-name')).toBeFocused();
+  });
+
+  test('textarea、select 與 contenteditable 內不觸發 Alt+N', async ({
+    page
+  }) => {
+    await login(page);
+    await page.goto('/#communications-section');
+    await page.locator('#announcement-body').focus();
+    await page.keyboard.press('Alt+N');
+    await expect(page.locator('#announcement-body')).toBeFocused();
+
+    await page.goto('/#appointments-section');
+    await page.locator('#appointment-kind-filter').focus();
+    await page.keyboard.press('Alt+N');
+    await expect(page.locator('#appointment-kind-filter')).toBeFocused();
+
+    await page.locator('#booking-workflow').evaluate(() => {
+      const editable = document.createElement('div');
+      editable.id = 'shortcut-contenteditable-test';
+      editable.contentEditable = 'true';
+      editable.textContent = '測試輸入區';
+      document.body.append(editable);
+      editable.focus();
+    });
+    await page.keyboard.press('Alt+N');
+    await expect(page.locator('#shortcut-contenteditable-test')).toBeFocused();
+    expect(
+      await page
+        .locator('#booking-workflow')
+        .evaluate((element) => (element as HTMLDetailsElement).open)
+    ).toBe(false);
+  });
+});
+
 test.describe('批次選取與批次操作', () => {
   test('全選在表格外、每列名稱各不相同、狀態不符時停用', async ({ page }) => {
     await login(page);
@@ -339,7 +474,7 @@ test.describe('批次選取與批次操作', () => {
 
     await firstBox.check();
     await expect(page.locator('#appointment-selection-summary')).toHaveText(
-      '已選取 1 筆'
+      '本頁已選取 1 筆'
     );
     await expect(batchNoShow).toBeEnabled();
 
@@ -347,7 +482,7 @@ test.describe('批次選取與批次操作', () => {
     // 這一筆是唯一一列，所以直接會是全選；改用兩列的情境在下一個測試裡。
     await page.locator('#appointment-selection-clear').click();
     await expect(page.locator('#appointment-selection-summary')).toHaveText(
-      '未選取任何預約'
+      '未選取本頁任何預約'
     );
   });
 

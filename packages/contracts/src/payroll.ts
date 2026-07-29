@@ -13,8 +13,10 @@ import {
  * event that outlives the number it explains, exactly like a deletion reason.
  *
  * The wire is unrouted. `planPayrollPeriodClose` and `planPayrollAdjustment` are
- * the domain authority; these schemas only fix the boundary. Roles, the finance
- * rule version and the lock owner stay gated on D-006～D-008.
+ * the domain authority; these schemas only fix the boundary. D-006 approved the
+ * baseline staff roles, while server-side enforcement remains a Stage 2 C4
+ * task. The finance rule version and lock/adjustment authority remain gated on
+ * D-008 (with D-007 still owning case-assignment policy).
  */
 export const PayrollPeriodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 
