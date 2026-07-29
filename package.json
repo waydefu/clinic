@@ -32,7 +32,7 @@
     "check:sync": "node scripts/sync-domain-vendor.mjs --check",
     "verify:preview": "node scripts/verify-preview-deployment.mjs",
     "format": "prettier --write .",
-    "test:unit": "vitest run --exclude tests/firestore/**",
+    "test:unit": "vitest run --exclude \"tests/firestore/**\"",
     "test:rules": "node scripts/run-firestore-rules.mjs",
     "test:e2e": "playwright test",
     "capture:ui": "playwright test --config=playwright.screenshots.config.ts",

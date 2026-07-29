@@ -31,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      # 私有 repository 上傳 SARIF 前，CodeQL action 需要讀取 workflow run。
+      actions: read
       contents: read
       # 上傳掃描結果到 repository 的 Security 分頁。
       security-events: write
