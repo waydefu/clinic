@@ -80,12 +80,13 @@ The approved D-006 controls are translated into a plan-only
 [Stage 2 identity and cloud change plan](docs/architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md);
 no identity or cloud implementation has started.
 
-At 2026-07-28 17:18 Asia/Taipei, the deployed preview routes `/`, `/booking`,
-`/privacy` and `/clinic` all returned HTTP 200 with stable HTML set to
-`no-cache` and the preview kept `noindex`. The recorded channel expiry remains
-2026-08-04 12:43 Asia/Taipei. This is dated preview evidence, not proof that the
-current working tree is deployed or authority for real data, authentication,
-Firestore writes or Calendar integration.
+At 2026-07-29 17:06 Asia/Taipei, the `synthetic-review` channel was redeployed
+from commit `40e6255`; all 452 remote checks passed against
+`https://beauessence-clinic-staging--synthetic-review-gpt86j36.web.app`. The
+preview remains `noindex`, uses synthetic browser-local state only and expires
+on 2026-08-05 17:06 Asia/Taipei. This is dated preview evidence, not authority
+for real data, authentication, Firestore writes, Calendar integration or a
+live/production deployment.
 
 ## Start here
 

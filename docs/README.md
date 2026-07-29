@@ -100,6 +100,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-29 | [Local hardening and CI handoff](reviews/2026-07-29-local-hardening-and-ci-handoff.md) | Commit, PR, preview and local validation evidence; four independently diagnosed GitHub CI failures deliberately handed to the next implementer; production remains blocked |
 | 2026-07-28 | [Markdown currency audit](reviews/2026-07-28-markdown-currency-audit.md) | All pre-existing Markdown files scanned by lifecycle and stale-status terms; current authority reconciled for Stage 1, D-004 slot/multi-service gaps, approved D-006 identity/security, D-010 RTO/RPO, privacy scope and historical-evidence annotations |
 | 2026-07-28 | [Current UI visual baseline and progress](reviews/ui-visual-baseline-2026-07-28.md) | Stage 0/Checkpoint A and the current Stage 1 gate rechecked; ten reproducible desktop/mobile reference captures with fixed synthetic state, environment metadata, clean console and SHA-256 manifest |
 | 2026-07-27 | [Owner request batch 1–5 delivery](reviews/2026-07-27-owner-request-batch-delivery.md) | Seventeen of the nineteen owner requests delivered in five separate commits; verify green at 548 unit tests, 152 browser tests and 452/452 online-preview checks; six real defects found and fixed along the way, and what was deliberately left out |
