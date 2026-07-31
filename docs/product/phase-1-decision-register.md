@@ -330,6 +330,35 @@ deletion are disabled; pull-request reviews are not required by this rule.
 The authenticated `check:branch-protection` command returned success after the
 remote setting was applied.
 
+**SEC-02 and SEC-03 approved — 2026-08-01:** the repository owner approved both
+repository-security items and instructed that they be recorded on their behalf.
+
+```text
+Approval ID: SEC-02
+Answer: approved — a pinned Semgrep CE scan producing commit-bound JSON/SARIF, rule hashes and a summary artifact is accepted as the blocking SAST evidence while a private personal repository cannot upload code-scanning results.
+Approved by: repository owner, acting as both technical owner and security owner
+Approval date (Asia/Taipei): 2026-08-01
+Recorded by: assistant, at the owner's instruction. The owner gave the approval; the assistant is not an approver.
+Evidence: commit 007d808; `.github/workflows/sast.yml` with a pinned engine image and rule revision; `security/semgrep/` rule configs with positive/negative fixtures; `scripts/generate-sast-evidence.mjs` and its 13 tests.
+ENG-01 condition satisfied: the Semgrep rule tests run as the `rule_tests` step and are consumed as `SAST_RULE_TEST_OUTCOME`, where anything other than `success` classifies the evidence as `scanner-error`; the evidence-generator tests run inside `test:unit`, which `verify` and the required `Verification evidence` check both execute. Either failing turns the gate red.
+Scope and explicit exclusions: applies to the SAST evidence policy only. It does not approve any D-series decision, cloud resource, route, real data, or the public mirror. It does not assert that Semgrep CE is equivalent to CodeQL.
+Residual risk accepted: (1) Semgrep CE performs rule-based pattern matching, not CodeQL's cross-file taint analysis, so a class of data-flow defects remains undetected; re-evaluate before production. (2) Both required approver roles were signed by one person, so this decision received a single review rather than two independent ones.
+Follow-up implementation issue: re-evaluate the SAST engine when the repository becomes eligible for code-scanning upload, or before production go/no-go, whichever comes first.
+```
+
+```text
+Approval ID: SEC-03
+Answer: approved — the high `brace-expansion` advisory (GHSA-mh99-v99m-4gvg / CVE-2026-14257) is accepted as a time-bounded exception on its current limited paths.
+Approved by: repository owner, acting as both technical owner and security owner
+Approval date (Asia/Taipei): 2026-08-01
+Recorded by: assistant, at the owner's instruction. The owner gave the approval; the assistant is not an approver.
+Evidence: `security/audit-exceptions.json`; `scripts/check-audit-exceptions.mjs` prints the exception on every supply-chain run and fails once it expires.
+Scope and explicit exclusions: development-only resolution paths that are not reachable from a route and receive no attacker-supplied glob. It does not permit dismissing the Dependabot alert, adding further ignores, or extending the exception past its expiry without a new approval.
+Residual risk accepted: a denial-of-service vector remains present in development tooling until an upstream fix exists. Both approver roles were signed by one person.
+Expiry: 2026-08-31. Re-check on every dependency upgrade; remove the ignore once any parent package resolves to brace-expansion 5.x.
+Follow-up implementation issue: re-verify at each dependency upgrade and before the expiry date.
+```
+
 **Technical-owner engineering decisions — 2026-08-01:** the repository/technical
 owner approved four engineering-practice decisions raised through the AGENTS.md
 "Grill me" challenge. They are recorded here because each one changes how a gate

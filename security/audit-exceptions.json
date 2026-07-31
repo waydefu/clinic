@@ -8,9 +8,11 @@
       "package": "brace-expansion",
       "severity": "high",
       "approvalId": "SEC-03",
-      "approvalStatus": "pending",
-      "approvers": ["technical owner", "security owner"],
-      "approvedOn": null,
+      "approvalStatus": "approved",
+      "approvers": [
+        "repository owner, acting as both technical owner and security owner"
+      ],
+      "approvedOn": "2026-08-01",
       "expiresOn": "2026-08-31",
       "scope": "Development-only resolution paths. Not reachable from a route, and no attacker-supplied glob reaches the affected expansion.",
       "reason": "The affected older majors have no compatible published fix. The alternative is removing the parent packages, which would remove build and test tooling.",

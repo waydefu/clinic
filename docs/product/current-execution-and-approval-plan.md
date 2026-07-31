@@ -96,8 +96,8 @@ privacy、security、operations、technical owners 共同決定 Go／No-Go。
 | 核准項目 | 狀態 | 白話問題 | 建議方向 | 核准人 |
 | --- | --- | --- | --- | --- |
 | SEC-01 repository 位置 | **已決定** | 現在要不要把私有 repository 移到組織？ | 2026-07-31 業主方向為「目前不轉移」；維持個人私有 repository，未來再重評 | Repository owner |
-| SEC-02 私有 SAST 證據政策 | **待核准**（已依 ENG-01 追加驗收條件） | GitHub Security 頁面不能收 CodeQL 結果時，可否先以 Semgrep CE 專案規則的 JSON／SARIF＋摘要 artifact 作為阻斷證據？ | 接受固定版本、規則正反測試、rules hash 與 commit-bound artifact；任何 finding／掃描／解析／規則測試失敗仍阻斷；明確認知 CE 不是 CodeQL 跨檔案分析的等價替代，上線前重評。**ENG-01（2026-08-01）追加：Semgrep 規則測試與證據產生器測試必須都在阻斷式 gate 內執行，任一失敗即紅。** 追加原因是 2026-08-01 發現證據產生器的測試落後於實作，分類邏輯在修好前從未被驗證 | Technical owner＋security owner |
-| SEC-03 `brace-expansion` 暫時例外 | **待核准** | 舊 major 沒有相容修補時，是否接受目前限定路徑的暫時風險？ | 保持 alert 可見、不 dismiss；只接受目前 dev-only／未掛路由且不接收攻擊者 glob 的路徑，直到上游舊 major 修補或父套件可移到 5.x；每次升版重查 | Technical owner＋security owner |
+| SEC-02 私有 SAST 證據政策 | **已核准 2026-08-01**（含 ENG-01 追加條件；由業主一人兼任技術與資安負責人簽核，非兩組獨立審查） | GitHub Security 頁面不能收 CodeQL 結果時，可否先以 Semgrep CE 專案規則的 JSON／SARIF＋摘要 artifact 作為阻斷證據？ | 接受固定版本、規則正反測試、rules hash 與 commit-bound artifact；任何 finding／掃描／解析／規則測試失敗仍阻斷；明確認知 CE 不是 CodeQL 跨檔案分析的等價替代，上線前重評。**ENG-01（2026-08-01）追加：Semgrep 規則測試與證據產生器測試必須都在阻斷式 gate 內執行，任一失敗即紅。** 追加原因是 2026-08-01 發現證據產生器的測試落後於實作，分類邏輯在修好前從未被驗證 | Technical owner＋security owner |
+| SEC-03 `brace-expansion` 暫時例外 | **已核准 2026-08-01，2026-08-31 到期**（同上，單人核准） | 舊 major 沒有相容修補時，是否接受目前限定路徑的暫時風險？ | 保持 alert 可見、不 dismiss；只接受目前 dev-only／未掛路由且不接收攻擊者 glob 的路徑，直到上游舊 major 修補或父套件可移到 5.x；每次升版重查 | Technical owner＋security owner |
 
 ### B. Stage 1 決策
 
