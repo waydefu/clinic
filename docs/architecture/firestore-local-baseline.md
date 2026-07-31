@@ -40,6 +40,13 @@ The disposable Emulator suite also exercises the server repository:
 
 ## Commands
 
+Every mutating Firestore harness calls
+`requireLocalFirestoreEmulatorTarget()` **before** initializing a Firebase SDK.
+`FIRESTORE_EMULATOR_HOST` must therefore be set explicitly to
+`localhost:<port>`, `127.0.0.1:<port>` or `[::1]:<port>`. A missing, malformed
+or non-loopback target fails closed instead of silently selecting a default or
+contacting a cloud endpoint.
+
 ```powershell
 pnpm install --frozen-lockfile
 pnpm test:rules

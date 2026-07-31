@@ -1,6 +1,22 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+  createBooking,
+  login,
+  seedAppointmentCopies,
+  showAllAppointments
+} from './support/workbench.js';
+
+export const PUBLIC_PAGE_SCAN_ROUTES = [
+  '/',
+  '/booking',
+  '/privacy',
+  '/clinic'
+] as const;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
+  PUBLIC_PAGE_SCAN_ROUTES;
+
 // axe 無障礙掃描，跑在打包後的產物上。這是自動化能抓到的一部分 WCAG 問題
 // （對比、名稱、地標、表單標籤…）；它補足而非取代人工報讀器與鍵盤測試。
 //
@@ -47,61 +63,150 @@ async function scan(page: Page, context?: string) {
   ).toEqual([]);
 }
 
-test.describe('無障礙掃描', () => {
-  test('診所首頁沒有 serious/critical 違規', async ({ page }) => {
-    await page.goto('/clinic');
-    await expect(
-      page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
-    ).toBeVisible();
-    await scan(page, '診所首頁');
-  });
+for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
+  test(`manifest public page 沒有 serious/critical 違規：${route}`, async ({
+    page
+  }) => {
+    await page.goto(route);
 
+    if (route === WORKBENCH_ROUTE) {
+      await page.evaluate(() => window.localStorage.clear());
+      await page.reload();
+      await expect(page.locator('#login-account')).toBeVisible();
+    } else if (route === BOOKING_ROUTE) {
+      await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
+    } else if (route === PRIVACY_ROUTE) {
+      await expect(
+        page.getByRole('heading', { level: 1, name: /隱私權政策/ })
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
+      ).toBeVisible();
+    }
+
+    await scan(page, `manifest public page ${route}`);
+  });
+}
+
+test.describe('無障礙掃描', () => {
   test('鼻功能醫學內頁沒有 serious/critical 違規', async ({ page }) => {
-    await page.goto('/clinic/nasal/septoplasty');
+    await page.goto(`${CLINIC_ROUTE}/nasal/septoplasty`);
     await expect(
       page.getByRole('heading', { level: 1, name: '鼻中隔手術' })
     ).toBeVisible();
     await scan(page, '鼻功能醫學內頁');
   });
 
-  test('患者預約頁沒有 serious/critical 違規', async ({ page }) => {
-    await page.goto('/booking');
-    await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
-    await scan(page, '患者預約頁');
-  });
-
-  // 隱私權政策是對外的法律文件，而且是長文——它比任何頁面更可能被放大檢視、
-  // 被報讀器逐段聽完，所以同樣要掃。
-  test('隱私權政策頁沒有 serious/critical 違規', async ({ page }) => {
-    await page.goto('/privacy');
-    await expect(
-      page.getByRole('heading', { level: 1, name: /隱私權政策/ })
-    ).toBeVisible();
-    await scan(page, '隱私權政策頁');
-  });
-
-  test('工作臺登入閘門沒有 serious/critical 違規', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(() => window.localStorage.clear());
-    await page.reload();
-    await expect(page.locator('#login-account')).toBeVisible();
-    await scan(page, '工作臺登入閘門');
-  });
-
   test('工作臺登入後的預約清單沒有 serious/critical 違規', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(WORKBENCH_ROUTE);
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.locator('#login-account').fill('admin');
     await page.locator('#login-password').fill('beauessence-admin');
     await page.locator('#login-view button[type="submit"]').click();
     await expect(page.locator('#logout')).toBeVisible();
-    await page.goto('/#appointments-section');
+    await page.goto(`${WORKBENCH_ROUTE}#appointments-section`);
     // 展開建立預約的 <details>，讓掃描也涵蓋表單欄位。
     await page.locator('#booking-workflow').evaluate((element) => {
       (element as HTMLDetailsElement).open = true;
     });
     await expect(page.locator('#booking-form')).toBeVisible();
     await scan(page, '工作臺預約清單');
+  });
+
+  test('預約分頁有可及名稱、頁碼狀態且沒有 serious/critical 違規', async ({
+    page
+  }) => {
+    await login(page);
+    await createBooking(page);
+    await seedAppointmentCopies(page, 25);
+    await showAllAppointments(page);
+
+    const pagination = page.getByRole('navigation', {
+      name: '預約清單分頁'
+    });
+    await expect(pagination).toBeVisible();
+    await expect(
+      pagination.getByRole('button', { name: '上一頁預約' })
+    ).toBeDisabled();
+    await expect(
+      pagination.getByRole('button', { name: '下一頁預約' })
+    ).toBeEnabled();
+    await expect(page.locator('#appointment-page-status')).toHaveText(
+      '第 1 頁，共 2 頁'
+    );
+    await scan(page, '工作臺預約分頁');
+  });
+
+  test('forced-colors 模擬保留焦點、目前步驟、目前工作區與按鈕邊界', async ({
+    page
+  }) => {
+    await page.emulateMedia({ forcedColors: 'active' });
+    await page.goto(BOOKING_ROUTE);
+    await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => window.matchMedia('(forced-colors: active)').matches
+        )
+      )
+      .toBe(true);
+
+    const currentStep = page.locator(
+      '.booking-stepper li[aria-current="step"]'
+    );
+    const stepOutline = await currentStep.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        style: style.outlineStyle,
+        width: Number.parseFloat(style.outlineWidth)
+      };
+    });
+    expect(stepOutline.style).not.toBe('none');
+    expect(stepOutline.width).toBeGreaterThanOrEqual(2);
+
+    await page.keyboard.press('Tab');
+    const focusOutline = await page.evaluate(() => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return null;
+      const style = getComputedStyle(active);
+      return {
+        style: style.outlineStyle,
+        width: Number.parseFloat(style.outlineWidth)
+      };
+    });
+    expect(focusOutline).not.toBeNull();
+    expect(focusOutline?.style).not.toBe('none');
+    // Chromium may normalize the authored 3px system-color outline to 2px
+    // under forced colors; the invariant is that a visible outline survives.
+    expect(focusOutline?.width).toBeGreaterThanOrEqual(2);
+
+    await login(page);
+    await page.goto(`${WORKBENCH_ROUTE}#appointments-section`);
+    const currentWorkspace = page.locator(
+      '[data-workspace-nav][aria-current="page"]'
+    );
+    const workspaceOutline = await currentWorkspace.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        style: style.outlineStyle,
+        width: Number.parseFloat(style.outlineWidth)
+      };
+    });
+    expect(workspaceOutline.style).not.toBe('none');
+    expect(workspaceOutline.width).toBeGreaterThanOrEqual(2);
+
+    const buttonBorder = await page
+      .locator('#appointment-filter-reset')
+      .evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          style: style.borderTopStyle,
+          width: Number.parseFloat(style.borderTopWidth)
+        };
+      });
+    expect(buttonBorder.style).not.toBe('none');
+    expect(buttonBorder.width).toBeGreaterThanOrEqual(1);
   });
 });

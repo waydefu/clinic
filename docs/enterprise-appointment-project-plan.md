@@ -57,8 +57,8 @@ NAS 或任何真實病患／薪資資料連線，也未部署 Hosting live chann
 
 診所的 D-006/D-010 已核准，其他 D-001～D-011 決策依決策登錄維持部分或
 pending。測試使用的服務、時段、取消期限與角色仍為不可用於營運的合成 fixtures；
-正式開發與試營運前，須依核准包與 Stage 2 change review 補齊答案、責任人、
-實作／部署核准與證據。
+正式開發與試營運前，須依核准包及各自 Stage 2 slice 的 request／change review
+補齊答案、責任人、deployment authority、apply approval 與實作證據。
 
 2026-07-21 另完成一次程式庫全面檢查與修正，內容見
 [Codebase analysis and remediation](reviews/codebase-analysis-and-remediation-2026-07-21.md)。
@@ -271,7 +271,7 @@ Lint 只負責正確性，排版交給 Prettier，兩者不重疊。型別感知
 | ~~瀏覽器與伺服器是兩份領域規則~~ | ADR-0004、vendored compiled domain 與 `check:sync` 已收斂 appointment、schedule、patient identity 等共用規則 | ✅ |
 | ~~無 API contract test 與端對端測試~~ | strict contract/mapping tests 與打包後 Playwright E2E 已建立並進 CI | ✅ |
 | ~~無 remote repository~~ | 已有 HTTPS GitHub origin `https://github.com/waydefu/clinic.git`；跨電腦以 branch push／fresh clone 或 `fetch`＋`pull --ff-only` 交接 | ✅ |
-| Stage 1 owner decisions 尚未完成 | D-006/D-010 target 已核准；Stage 2 change review／deployment authority 尚未完成，不能建立身分邊界或 cloud staging | **目前 gate；Stage 2 前** |
+| Stage 1 owner decisions 尚未完成 | D-006/D-010 target 已核准；C0 review 與 C1～C6 各 slice 的 request／deployment authority／apply approval 尚未完成，只能依實際獲准 slice 建立 cloud staging；C1 不解鎖 IdP/Firestore/runtime | **目前 gate；Stage 2 前** |
 | production worker runner／觀測尚未接線 | 本機 processor、ports 與 plan 已有；trigger、共享 metrics、alerts、service identity 依 D-010 target 在 Stage 2／3 落實 | Stage 3 前 |
 | `infra/terraform/` 僅有 README | 雲端資源為 Phase 1 完成標準的一部分 | 依 Phase 1 排程 |
 | OpenAPI 文件尚未產生 | 契約目前以 `packages/contracts` 的 TypeScript 型別為準 | 對外提供 API 前 |

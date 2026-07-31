@@ -15,7 +15,9 @@ import {
  *
  * The wire is unrouted. `planCaseAssignment` is the domain authority for whether
  * a reassignment is allowed; this schema only fixes the request/response
- * boundary. Roles and the merge-review workflow stay gated on D-006/D-007.
+ * boundary. D-006 approved the baseline staff roles, but server-side role
+ * enforcement is still a Stage 2 C4 task; assignment authority and the
+ * merge-review workflow remain gated on D-007.
  */
 export const AssignCaseManagerRequestSchema = z
   .object({

@@ -27,8 +27,9 @@ import { assertUtcTimestamp } from './timestamp.js';
  *
  * Patient-merge review is deliberately not modelled here. Merging two patient
  * records depends on the patient identity model that ADR-0005 keeps TBD behind
- * D-001～D-003/D-006; inventing a merge rule now would be guessing a gated
- * policy. This file owns only the assignment period invariant.
+ * D-001～D-003 and on the still-pending D-007 merge-review policy. D-006
+ * approved staff identity controls, but does not answer patient matching or
+ * merge semantics. This file owns only the assignment period invariant.
  */
 
 /** 一段個管指派的有效期間。`activeUntil` 為 null 代表仍生效中。 */

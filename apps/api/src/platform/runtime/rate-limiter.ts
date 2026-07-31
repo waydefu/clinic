@@ -2,9 +2,11 @@ import { RateLimitedError } from '../errors/api-error.js';
 
 /**
  * The anti-automation boundary a controller consults per caller/action. The
- * production limiter is a shared store gated by D-010; this fixed-window,
- * in-memory one is per-process and only fixes the interface and the 429
- * mapping. The clock is injectable so anti-automation tests are deterministic.
+ * production limiter needs a shared store under the D-010 approved target, but
+ * C0 review, separate C1 deployment authority and C3/C4 security evidence are
+ * still unfinished. This fixed-window, in-memory version is per-process and
+ * only fixes the interface and the 429 mapping. The clock is injectable so
+ * anti-automation tests are deterministic.
  */
 export interface RateLimiter {
   assertWithinLimit(key: string): void;

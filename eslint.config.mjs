@@ -19,6 +19,10 @@ export default tseslint.config(
       'output/**',
       // packages/domain 的編譯產物，同步而來，不重複檢查。
       'apps/web/public/vendor/**',
+      // Semgrep 規則的正反測試檔。它們**必須**含有 eval、shell 注入等真正
+      // 危險的樣式，否則無法證明規則抓得到；那是測試資料，不是產品程式碼。
+      // 讓 ESLint 檢查它們只會逼人加 disable 註解，反而弱化規則測試本身。
+      'security/semgrep/**',
       'pnpm-lock.yaml'
     ]
   },
@@ -26,7 +30,7 @@ export default tseslint.config(
   js.configs.recommended,
 
   // --- 程式碼注入：SAST 的第一層，套用到所有檔案 ------------------------
-  // CodeQL（`.github/workflows/codeql.yml`）做的是跨檔案的污染追蹤；這裡擋的是
+  // Semgrep（`.github/workflows/sast.yml`）做的是規則式的樣式比對；這裡擋的是
   // 那些「一眼就該擋」的動態求值 sink。放在最前面且不限定 files，任何新加的
   // 套件或腳本都自動受管，不會因為漏改設定而出現沒被檢查的角落。
   {

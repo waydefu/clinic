@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { createBooking, login, openDisclosure } from './support/workbench.js';
 
+export const PUBLIC_PAGE_SCAN_ROUTES = ['/', '/booking'] as const;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
+
 // 手機版版面的迴歸守門員。
 //
 // 2026-07-26 的實機排查抓到兩個嚴重問題，而既有測試**兩個都沒抓到**，原因值得
@@ -24,6 +27,24 @@ async function pageOverflow(page: Page): Promise<number> {
   });
 }
 
+for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
+  test(`manifest public page 在手機寬度不產生水平捲軸：${route}`, async ({
+    page
+  }) => {
+    await page.setViewportSize(PHONE);
+    await page.goto(route);
+
+    if (route === WORKBENCH_ROUTE) {
+      await login(page);
+      await expect(page.locator('#workspace-title')).toBeVisible();
+    } else {
+      await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
+    }
+
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+}
+
 test.describe('工作臺手機版版面', () => {
   test.use({ viewport: PHONE });
 
@@ -32,7 +53,7 @@ test.describe('工作臺手機版版面', () => {
   test('有預約資料時，預約清單不得把頁面推出水平捲軸', async ({ page }) => {
     await login(page);
     await createBooking(page);
-    await page.goto('/#appointments-section');
+    await page.goto(`${WORKBENCH_ROUTE}#appointments-section`);
     await page.locator('#appointment-status-filter').selectOption('all');
     await expect(page.locator('[data-appointment-card]').first()).toBeVisible();
 
@@ -57,7 +78,7 @@ test.describe('工作臺手機版版面', () => {
   test('患者姓名不得被擠成一字一行', async ({ page }) => {
     await login(page);
     await createBooking(page, { name: '歐陽測試' });
-    await page.goto('/#appointments-section');
+    await page.goto(`${WORKBENCH_ROUTE}#appointments-section`);
     await page.locator('#appointment-status-filter').selectOption('all');
 
     const name = page
@@ -76,7 +97,7 @@ test.describe('工作臺手機版版面', () => {
   test('篩選、卡片處置與批次操作使用緊湊但可點擊的格線', async ({ page }) => {
     await login(page);
     await createBooking(page);
-    await page.goto('/#appointments-section');
+    await page.goto(`${WORKBENCH_ROUTE}#appointments-section`);
     await page.locator('#appointment-status-filter').selectOption('all');
     await expect(page.locator('[data-appointment-card]').first()).toBeVisible();
 
@@ -161,7 +182,7 @@ test.describe('工作臺手機版版面', () => {
 
   test('每週時段的開始與結束欄位並排填滿表單', async ({ page }) => {
     await login(page);
-    await page.goto('/#schedule-section');
+    await page.goto(`${WORKBENCH_ROUTE}#schedule-section`);
     await expect(page.locator('#weekly-form')).toBeVisible();
 
     const group = page.locator('#weekly-form .inline-fields');
@@ -217,7 +238,7 @@ test.describe('工作臺手機版版面', () => {
       '#accounts-section',
       '#audit-section'
     ]) {
-      await page.goto(`/${panel}`);
+      await page.goto(`${WORKBENCH_ROUTE}${panel}`);
       // 建立的預約多半不落在今天（診所週日至週二休診），預設的「當日」篩選
       // 看不到它。不切成「全部狀態」的話預約清單是空的——而空清單本來就不會
       // 溢出，這一輪就白跑了。既有測試漏掉這個面板的原因之一正是這個。
@@ -241,7 +262,7 @@ test.describe('工作臺在最窄的常見螢幕', () => {
   test('320px 下有資料的預約清單仍不溢出', async ({ page }) => {
     await login(page);
     await createBooking(page);
-    await page.goto('/#appointments-section');
+    await page.goto(`${WORKBENCH_ROUTE}#appointments-section`);
     await page.locator('#appointment-status-filter').selectOption('all');
     await expect(page.locator('[data-appointment-card]').first()).toBeVisible();
 
@@ -255,7 +276,7 @@ test.describe('患者預約頁手機版', () => {
   // 頁首先前把品牌、健保標章、主題選單、環境徽章各排一列，佔掉 260px；
   // 患者要捲到螢幕 80% 的位置才看得到第一個問題。
   test('頁首不得把第一個問題推到首屏之外', async ({ page }) => {
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
 
     const viewportHeight = page.viewportSize()?.height ?? 812;
@@ -284,7 +305,7 @@ test.describe('患者預約頁手機版', () => {
   // 中文——而患者頁正是對外的那一面。它疊在標誌的 40px 高度之內，本來就不需要用
   // 「藏起來」去換版面空間。
   test('品牌的英文副標在手機仍然看得見', async ({ page }) => {
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     const subtitle = page.locator('.patient-header .brand small');
     await expect(subtitle).toBeVisible();
     // 只釘品牌名，不釘後面那個字。副標在 2026-07-27 併站時由
@@ -306,7 +327,7 @@ test.describe('患者預約頁手機版', () => {
   // 收起時導覽不佔版面、漢堡與徽章併成一列且徽章靠右、**展開後導覽項一個不少**
   // （R-13：主要功能不得因螢幕窄而消失），以及展開時頁面仍不橫捲。
   test('手機把導覽收進漢堡，展開後項目一個不少', async ({ page }) => {
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     const menuButton = page.locator('.patient-menu-button');
     const nav = page.locator('#patient-nav');
     await expect(menuButton).toBeVisible();
@@ -364,7 +385,7 @@ test.describe('患者預約頁手機版', () => {
   // 「類型與項目」先前因為 overflow-wrap: anywhere 被排成「類型與項／目」，
   // 最後一個字自己一行。中文可以在任何字之間斷行，所以這不是邊界情況。
   test('步驟標籤不得把最後一個字擠到第二行', async ({ page }) => {
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     const label = page.locator('.booking-stepper li.is-active strong');
     await expect(label).toBeVisible();
 
@@ -373,7 +394,7 @@ test.describe('患者預約頁手機版', () => {
   });
 
   test('四個步驟在 375px 都不產生水平捲軸', async ({ page }) => {
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     expect(await pageOverflow(page), 'step 1').toBeLessThanOrEqual(1);
 
     await page.locator('[data-booking-type="initial"]').click();
@@ -387,7 +408,7 @@ test.describe('患者預約頁手機版', () => {
   });
 
   test('必填星號緊跟欄名，資料欄位維持同寬', async ({ page }) => {
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('[data-service]').first().click();
     await page.locator('[data-patient-slot]').first().click();
@@ -444,7 +465,7 @@ test.describe('患者預約頁在最窄的常見螢幕', () => {
   // 320px 是英文副標唯一真的可能放不下的寬度。它必須靠換行解決，而不是靠
   // 消失，而且換行不得把頁面推出水平捲軸。
   test('320px 下英文副標換行而不是消失', async ({ page }) => {
-    await page.goto('/booking');
+    await page.goto(BOOKING_ROUTE);
     const subtitle = page.locator('.patient-header .brand small');
     await expect(subtitle).toBeVisible();
 

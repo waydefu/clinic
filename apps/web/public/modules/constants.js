@@ -54,9 +54,10 @@ export const DEFAULT_BLOCKED_TIMES = Object.freeze({
   follow_up: ['13:15', '15:15', '17:15']
 });
 
-// 客戶端可自行選擇的項目。
+// 客戶端可自行選擇的項目。D-004 已記錄兩類服務的實際時間都要到診後確認，
+// 不能把預約格或先前的療程估時顯示成治療時間。
 export const PATIENT_SERVICES = Object.freeze([
-  { id: 'service_snoring', label: '止鼾', note: '40–60 分鐘' },
+  { id: 'service_snoring', label: '止鼾', note: '實際時間到診後確認' },
   { id: 'service_aesthetic', label: '醫美', note: '依療程進度' }
 ]);
 

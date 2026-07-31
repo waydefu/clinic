@@ -19,7 +19,9 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > [正式化後續實作規劃書](product/production-readiness-delivery-plan-2026-07-23.md)
 > 為準；技術邊界以
 > [正式環境目標架構書](architecture/production-target-architecture-2026-07-23.md)
-> 為準。既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
+> 為準。要直接查看白話順序與所有待核准項目，使用
+> [專案後續執行與核准清單](product/current-execution-and-approval-plan.md)。
+> 既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
 
 > **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
@@ -168,20 +170,24 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
    2026-07-23 完成；outbox trace context、低 cardinality metrics seam、
    tracked-secret check、high/critical dependency gate 與 dependency inventory
    artifact 均已進 CI。SBOM、授權政策與本機 SAST gate 已於 2026-07-24 補齊；
-   正式 metrics backend、alerts 與 runner 須依已核准的 D-010 target 完成 Stage 2
-   change review、建立與驗證。
+   正式 metrics backend、alerts 與 runner 須依已核准的 D-010 target，在對應
+   C6／Stage 3 slice 各自取得 authority 與 apply approval 後建立及驗證；C1
+   foundation 本身不解鎖。
 
 Stage 1 可進行 owner answer／evidence／approval 登錄與既有 synthetic scope 的
 維護。Booking route、cloud Firestore/Auth、Calendar projection、真實資料與
 Terraform apply 仍依 D-001～D-011 對應 gate 保持關閉；D-006/D-010 target 已
-核准，Stage 2 change review 與獨立 deployment authority 仍阻擋實際 cloud
-staging。
+核准，但 C0 review 與 C1～C6 每個 slice 各自的 request、deployment authority、
+apply approval 仍阻擋實際 cloud staging。C1 isolated foundation 不解鎖 IdP、
+Firestore、backup/PITR 或 runtime。
 
 ## 一、現在的實際位置
 
 | 面向 | 狀態 |
 | --- | --- |
 | Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006/D-010 已核准，Stage 2 尚待 change/deployment review** |
+| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-07-31 已在本 PR 修補 3 筆 moderate，default branch merge／重新分析前 alerts 仍會保持 open；1 筆 `brace-expansion` high 因舊 major 無相容發布版而維持可見，待 SEC-03 具名接受或上游修補 |
+| `main` 分支保護 | **2026-07-31 已實際套用並驗證**；strict required check 為 `Verification evidence`，force push／branch deletion 關閉，D-013 核准的管理者 bypass 保留 |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
@@ -204,9 +210,10 @@ staging。
 ### 1. outbox worker 的重試與死信（`apps/worker`）— ✅ 已完成 2026-07-21
 
 實作前 `apps/worker` 只有 README；本項已補齊租約、指數退避、最大重試、死信、
-補回與操作者可見的待處理流程，並在本機以假的外部服務驗證。正式 runner、
-trigger、metrics backend 與 alerts 須依已核准 D-010 target 完成 Stage 2 change
-review，Calendar 接線另等待 D-009。
+補回與操作者可見的待處理流程，並在本機以假的外部服務驗證。2026-07-29 再補
+可注入 random source 的 full jitter 與「同一 job 每批最多一次」防護。正式
+runner、trigger、metrics backend 與 alerts 須依已核准 D-010 target 完成 Stage 2
+change review，Calendar 接線另等待 D-009。
 
 驗收：外部服務連續失敗 N 次後進入死信；恢復後可安全補回；重試 100 次仍只產生
 一個事件。
@@ -281,10 +288,19 @@ ESLint 正確性檢查。現在 `verify`、Rules、Playwright E2E 與 supply-cha
 
 仍未處理：
 
-- 預約清單無分頁
-- 櫃台高頻操作的鍵盤快捷鍵
 - 螢幕閱讀器與高對比的**人工實測**（程序已備妥，見
   [人工無障礙測試 runbook](runbooks/manual-accessibility-test.md)，尚未執行）
+
+**2026-07-29 已修：**
+
+- 預約清單固定每頁 20 筆，總筆數／本頁筆數／頁碼分開呈現；篩選、搜尋、排序
+  會回第 1 頁，批次選取不跨頁殘留，週曆事件可切到目標所在頁。
+- 櫃台高頻快捷鍵加入 `/` 聚焦搜尋與 `Alt+N` 開啟新預約；輸入欄、文字區、
+  下拉選單與 contenteditable 內不攔截，並有 Playwright 鍵盤回歸測試。
+- 480px 的「清除篩選」與 320～480px 的分頁按鈕不再逐字斷行；窄版將頁碼狀態
+  獨占首列、上／下一頁等寬放在第二列。
+- 新增 Playwright `forcedColors: active` 自動預檢，釘住焦點框、目前步驟、目前
+  工作區與按鈕邊界；它只先抓 CSS 回歸，仍不取代上方尚待執行的人工高對比實測。
 
 已完成（原列於「仍未處理」，2026-07-24 更新）：
 
@@ -313,10 +329,12 @@ ESLint 正確性檢查。現在 `verify`、Rules、Playwright E2E 與 supply-cha
 **四項技術前置全部完成。** 改期舊事件殘影的缺口已用「鍵綁預約」一併解決。
 
 **2026-07-23：真實 Google Calendar 用戶端已寫好**（`apps/worker/src/
-google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證只走 env、無則
-回退假日曆、事件欄位最小化，皆有單元測試。工作臺也加了操作者的死信補回入口
-（合成示範）。實際連線需專案負責人設定 Google Cloud 專案與服務帳號憑證——
-助理不建立也不能輸入憑證；步驟見
+google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證只走 env；完全
+未設定時回退假日曆，2026-07-29 起則要求明確 `test` 模式與兩個 credential，
+半套／未知設定直接失敗。token endpoint 固定為 Google 官方位址，token shape 與
+事件欄位最小化皆有單元測試。工作臺也加了操作者的死信補回入口（合成示範）。
+實際連線需專案負責人設定 Google Cloud 專案與服務帳號憑證——助理不建立也不能
+輸入憑證；步驟見
 [go-live runbook](runbooks/calendar-go-live.md)。
 
 **2026-07-23（同日稍晚）：負責人已提供專用測試日曆 ID 與服務帳戶金鑰檔**
@@ -331,7 +349,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
-| Stage 2（舊稱 B） | staging 雲端 Firestore + 員工登入（仍為測試資料） | D-006/D-010 已核准；仍需 change-plan review＋deployment authority |
+| Stage 2（舊稱 B） | C1 isolated foundation 後，由 C2～C6 分別建立 IdP、Firestore 與 runtime（全程測試資料） | D-006/D-010 是前置；C0 review 後每個 slice 仍需獨立 request、deployment authority 與 apply approval |
 | Stage 3（舊稱 C） | Stage 2 上的 Google 日曆投影（專用測試日曆） | D-009，且 Stage 2 完成 |
 | Stage 4（舊稱 D） | 公開預約與開始處理真實病患資料 | D-001～D-006、D-010、D-011 |
 | Expansion S | 手術／臨床時間軸、付款／結算、Calendar inbound | 既有相關 gate＋D-014～D-016；不自動納入 Phase 1 release |

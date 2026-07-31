@@ -16,6 +16,8 @@ import {
 } from '../public/modules/case-management.js';
 import { PERMISSIONS } from '../public/modules/constants.js';
 import {
+  appointmentPage,
+  DEFAULT_APPOINTMENT_PAGE_SIZE,
   renderAppointments,
   renderIntakeSheet
 } from '../public/modules/admin-view.js';
@@ -1106,6 +1108,57 @@ describe('櫃台預約清單介面', () => {
     expect(
       renderAppointments(state, { ...filters, query: '不存在' })
     ).toContain('沒有符合條件的預約');
+  });
+
+  it('每頁固定顯示 20 筆，保留總結果與目標預約所在位置', () => {
+    const state: any = initialState();
+    state.patients = [
+      {
+        id: 'patient_pagination',
+        ...PATIENT_A
+      }
+    ];
+    state.appointments = Array.from({ length: 25 }, (_, index) => ({
+      id: `appointment_${String(index + 1).padStart(3, '0')}`,
+      patientId: 'patient_pagination',
+      slotId: `slot_pagination_${index + 1}`,
+      bookingKind: 'initial',
+      itemIds: ['service_snoring'],
+      itemLabel: '睡眠呼吸評估',
+      status: 'confirmed',
+      startsAt: new Date(
+        Date.parse('2030-01-02T01:00:00.000Z') + index * 60_000
+      ).toISOString()
+    }));
+    const allFilters = { ...filters, status: 'all' };
+
+    const first = appointmentPage(state, allFilters);
+    expect(first).toMatchObject({
+      page: 1,
+      pageSize: DEFAULT_APPOINTMENT_PAGE_SIZE,
+      totalCount: 25,
+      totalPages: 2
+    });
+    expect(first.ids).toHaveLength(20);
+    expect(first.ids[0]).toBe('appointment_001');
+    expect(first.ids[19]).toBe('appointment_020');
+
+    const second = appointmentPage(state, allFilters, undefined, { page: 2 });
+    expect(second.ids).toEqual([
+      'appointment_021',
+      'appointment_022',
+      'appointment_023',
+      'appointment_024',
+      'appointment_025'
+    ]);
+    expect(second.allIds.indexOf('appointment_025')).toBe(24);
+
+    const html = renderAppointments(state, allFilters, undefined, new Set(), {
+      page: 2
+    });
+    expect(html).toContain('data-appointment-card="appointment_021"');
+    expect(html).toContain('data-appointment-card="appointment_025"');
+    expect(html).not.toContain('data-appointment-card="appointment_020"');
   });
 });
 

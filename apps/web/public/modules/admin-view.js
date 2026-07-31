@@ -475,6 +475,11 @@ export const DEFAULT_APPOINTMENT_SORT = {
   direction: 'ascending'
 };
 
+// 固定每頁 20 筆，讓櫃台不用再多做一次「每頁筆數」選擇；同時保留 pageSize
+// 參數給純函式測試與未來真正有需求時擴充。清單本身只分頁呈現，不改 state，
+// 也不改任何預約資料合約。
+export const DEFAULT_APPOINTMENT_PAGE_SIZE = 20;
+
 // 每一種排序鍵怎麼從佇列項目取出可比較的值。回診版（mode === 'followup'）的
 // 掛號別固定是「回診」、時間用回診目標日，與篩選那邊的規則保持一致。
 const SORT_VALUES = {
@@ -510,57 +515,103 @@ function compareEntries(state, sort) {
   };
 }
 
+function appointmentEntries(state, filters, sort = DEFAULT_APPOINTMENT_SORT) {
+  const query = filters.query.trim().toLocaleLowerCase('zh-Hant');
+  const today = taipeiTodayDate();
+  return (
+    state.appointments
+      .map((appointment) => queueEntry(state, appointment))
+      .filter((entry) => entry !== undefined)
+      .filter((entry) => {
+        const { appointment, mode, effectiveStart } = entry;
+        const record = patient(state, appointment.patientId);
+        const statusMatches =
+          filters.status === 'all' ||
+          appointment.status === filters.status ||
+          (filters.status === 'active' &&
+            ['confirmed', 'cancellation_requested'].includes(
+              appointment.status
+            )) ||
+          // 「當日」＝效期落在今天，初診與回診都算（回診版用回診目標日）。
+          (filters.status === 'today' && taipeiDate(effectiveStart) === today);
+        const kindMatches =
+          filters.kind === 'all' ||
+          // 回診版一律視為「回診」掛號別。
+          (mode === 'followup'
+            ? filters.kind === 'follow_up'
+            : appointment.bookingKind === filters.kind);
+        const queryMatches =
+          query === '' ||
+          [
+            record?.name,
+            record?.phone,
+            // W4（業主 2026-07-27）：櫃台常常拿著紙本病歷來找那一筆預約，
+            // 所以病歷號碼要能直接搜。
+            record?.medicalRecordNumber,
+            appointment.id,
+            appointment.itemLabel,
+            BOOKING_KIND_LABELS[appointment.bookingKind]
+          ]
+            .filter((value) => value !== undefined)
+            .some((value) =>
+              String(value).toLocaleLowerCase('zh-Hant').includes(query)
+            );
+        return statusMatches && kindMatches && queryMatches;
+      })
+      // 預設依效期（回診版用回診日）由近到遠；使用者點欄位標題可改。
+      .sort(compareEntries(state, sort))
+  );
+}
+
+/**
+ * 櫃台清單的純分頁模型。
+ *
+ * `allIds` 讓週檢視可以算出目標預約在哪一頁，不需要先把整張表畫進字串再用
+ * 正規表示式反查。頁碼與 pageSize 都在這裡校正，資料被批次處理後即使最後一頁
+ * 消失，呼叫端重畫時也會安全回到仍存在的最後一頁。
+ */
+export function appointmentPage(
+  state,
+  filters,
+  sort = DEFAULT_APPOINTMENT_SORT,
+  { page = 1, pageSize = DEFAULT_APPOINTMENT_PAGE_SIZE } = {}
+) {
+  const allEntries = appointmentEntries(state, filters, sort);
+  const safePageSize =
+    Number.isSafeInteger(pageSize) && pageSize > 0
+      ? pageSize
+      : DEFAULT_APPOINTMENT_PAGE_SIZE;
+  const totalCount = allEntries.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / safePageSize));
+  const requestedPage = Number.isSafeInteger(page) ? page : 1;
+  const currentPage = Math.min(Math.max(requestedPage, 1), totalPages);
+  const startIndex = (currentPage - 1) * safePageSize;
+  const entries = allEntries.slice(startIndex, startIndex + safePageSize);
+
+  return {
+    entries,
+    ids: entries.map((entry) => entry.appointment.id),
+    allIds: allEntries.map((entry) => entry.appointment.id),
+    page: currentPage,
+    pageSize: safePageSize,
+    totalCount,
+    totalPages,
+    startIndex: totalCount === 0 ? 0 : startIndex,
+    endIndex: Math.min(startIndex + entries.length, totalCount)
+  };
+}
+
 export function renderAppointments(
   state,
   filters,
   sort = DEFAULT_APPOINTMENT_SORT,
-  selectedIds = new Set()
+  selectedIds = new Set(),
+  pagination = {}
 ) {
-  const query = filters.query.trim().toLocaleLowerCase('zh-Hant');
-  const today = taipeiTodayDate();
-  const entries = state.appointments
-    .map((appointment) => queueEntry(state, appointment))
-    .filter((entry) => entry !== undefined)
-    .filter((entry) => {
-      const { appointment, mode, effectiveStart } = entry;
-      const record = patient(state, appointment.patientId);
-      const statusMatches =
-        filters.status === 'all' ||
-        appointment.status === filters.status ||
-        (filters.status === 'active' &&
-          ['confirmed', 'cancellation_requested'].includes(
-            appointment.status
-          )) ||
-        // 「當日」＝效期落在今天，初診與回診都算（回診版用回診目標日）。
-        (filters.status === 'today' && taipeiDate(effectiveStart) === today);
-      const kindMatches =
-        filters.kind === 'all' ||
-        // 回診版一律視為「回診」掛號別。
-        (mode === 'followup'
-          ? filters.kind === 'follow_up'
-          : appointment.bookingKind === filters.kind);
-      const queryMatches =
-        query === '' ||
-        [
-          record?.name,
-          record?.phone,
-          // W4（業主 2026-07-27）：櫃台常常拿著紙本病歷來找那一筆預約，
-          // 所以病歷號碼要能直接搜。
-          record?.medicalRecordNumber,
-          appointment.id,
-          appointment.itemLabel,
-          BOOKING_KIND_LABELS[appointment.bookingKind]
-        ]
-          .filter((value) => value !== undefined)
-          .some((value) =>
-            String(value).toLocaleLowerCase('zh-Hant').includes(query)
-          );
-      return statusMatches && kindMatches && queryMatches;
-    })
-    // 預設依效期（回診版用回診日）由近到遠；使用者點欄位標題可改。
-    .sort(compareEntries(state, sort));
+  const page = appointmentPage(state, filters, sort, pagination);
+  const entries = page.entries;
 
-  if (entries.length === 0)
+  if (page.totalCount === 0)
     return emptyState(
       filters.status === 'today' ? '今日尚無預約' : '沒有符合條件的預約',
       filters.status === 'today'
@@ -806,7 +857,8 @@ export function renderFollowUps(state, editingIds = new Set()) {
  *
  * 身分證字號在**畫面上遮罩、列印時完整**，只為驗證 2026-07-27 業主指定的合成
  * 報到單版面。這不代表正式紙本必須收完整號碼，也不代表目前的瀏覽器內登入 gate
- * 已取得真實資料存取權；正式必要性、權限、列印與銷毀規則仍待 D-002、D-006。
+ * 已取得真實資料存取權；必要性、列印與銷毀規則仍待 D-002，D-006 核准的存取
+ * 控制則仍待 Stage 2 C2～C4 實作與驗證。
  * 兩個值都在 DOM 裡，由 `@media print` 切換，所以列印後必須立即清空容器。
  *
  * 沒有收集的欄位（住址、職業、婚姻、市話、聯絡人、LineID、性別、年齡）一律留白：

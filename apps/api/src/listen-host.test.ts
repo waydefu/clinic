@@ -18,12 +18,37 @@ describe('resolveListenHost', () => {
   it('refuses to publish unauthenticated routes to a network', () => {
     for (const host of ['0.0.0.0', '::', '192.168.1.10']) {
       expect(() =>
-        resolveListenHost({ ALLOW_UNAUTHENTICATED_ROUTES: 'true', HOST: host })
+        resolveListenHost({
+          ALLOW_NON_LOOPBACK_BIND: 'true',
+          ALLOW_UNAUTHENTICATED_ROUTES: 'true',
+          HOST: host
+        })
       ).toThrow(/non-loopback/);
     }
   });
 
-  it('leaves the host alone when no unauthenticated route is enabled', () => {
-    expect(resolveListenHost({ HOST: '0.0.0.0' })).toBe('0.0.0.0');
+  it('requires an explicit opt-in for any non-loopback bind', () => {
+    expect(() => resolveListenHost({ HOST: '0.0.0.0' })).toThrow(
+      /ALLOW_NON_LOOPBACK_BIND=true/u
+    );
+    expect(() =>
+      resolveListenHost({
+        ALLOW_NON_LOOPBACK_BIND: 'TRUE',
+        HOST: '0.0.0.0'
+      })
+    ).toThrow(/ALLOW_NON_LOOPBACK_BIND=true/u);
+    expect(
+      resolveListenHost({
+        ALLOW_NON_LOOPBACK_BIND: 'true',
+        HOST: '0.0.0.0'
+      })
+    ).toBe('0.0.0.0');
+  });
+
+  it('trims a configured host and refuses an empty value', () => {
+    expect(resolveListenHost({ HOST: ' localhost ' })).toBe('localhost');
+    expect(() => resolveListenHost({ HOST: '   ' })).toThrow(
+      /must not be empty/u
+    );
   });
 });

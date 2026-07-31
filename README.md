@@ -30,7 +30,10 @@ is approved but not implemented. The preview must not be relied on to collect
 real patient data operationally.
 
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
-and what is blocked.
+and what is blocked. The
+[current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
+puts the remaining repository, C0, D-series and C1～C6 approvals in one
+plain-language sequence.
 
 The active technical baseline is the
 [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
@@ -42,6 +45,47 @@ architecture/SLO and D-006 identity/security were approved on 2026-07-28.
 Stage 2 cloud staging still requires a reviewed, explicitly authorised change
 plan. Those answers do not themselves authorise deployment, and the existing
 local, synthetic-only implementation does not authorise a route or cloud backend.
+
+## Repository publication boundary — 2026-07-29
+
+This access-restricted repository remains the canonical project record. The
+public
+[`appointment-platform-public`](https://github.com/waydefu/appointment-platform-public)
+repository is an independently curated, code-only reference with clean public
+history; it is not an automatic mirror, backup, release branch or deployment
+target.
+
+The public reference contains only an allowlisted appointment transaction
+boundary and synthetic tests. It deliberately excludes the clinic website and
+UI, brand and people assets, identity intake, scheduling/follow-up/payroll
+policy, internal governance and delivery records, deployment identifiers,
+private URLs, credentials, logs, personal data and the canonical Git history.
+Future updates must be exported without the private `.git` data, audited again,
+and merged through the public repository's required checks.
+
+Publication does not change the current Stage 1 status, close a D-series
+decision, authorise a backend or route, establish production readiness, or
+permit real data. The public reference is viewable but has no open-source
+licence. See the
+[sanitized public mirror publication record](docs/reviews/2026-07-29-sanitized-public-mirror-publication.md)
+for the initial audit evidence and repeatable update gate.
+
+The private canonical repository enabled its dependency graph and Dependabot
+alerts on 2026-07-30. Automatic dependency submission, security/version update
+pull requests and grouped updates remain disabled. The initial inventory was
+four open development-scope alerts (one high and three moderate); none was
+dismissed or automatically changed. See the
+[private Dependabot alert enablement record](docs/reviews/2026-07-30-private-dependabot-alert-enablement.md)
+for the exact setting boundary and evidence.
+
+The 2026-07-31 repository-security batch prepares compatible fixes for all
+three moderate alerts. GitHub evaluates the default branch, so those alerts
+remain open until this branch is reviewed and merged. The remaining high
+`brace-expansion` alert is limited to older transitive majors with no compatible
+published fix; it stays visible pending named risk acceptance and an upstream
+upgrade path. `main` now has a strict required `Verification evidence` check,
+with force pushes and deletion disabled and the D-013 administrator bypass
+preserved.
 
 ## Clinic website integration — 2026-07-27
 
@@ -80,16 +124,18 @@ The approved D-006 controls are translated into a plan-only
 [Stage 2 identity and cloud change plan](docs/architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md);
 no identity or cloud implementation has started.
 
-At 2026-07-28 17:18 Asia/Taipei, the deployed preview routes `/`, `/booking`,
-`/privacy` and `/clinic` all returned HTTP 200 with stable HTML set to
-`no-cache` and the preview kept `noindex`. The recorded channel expiry remains
-2026-08-04 12:43 Asia/Taipei. This is dated preview evidence, not proof that the
-current working tree is deployed or authority for real data, authentication,
-Firestore writes or Calendar integration.
+At 2026-07-29 17:06 Asia/Taipei, the `synthetic-review` channel was redeployed
+from commit `40e6255`; all 452 remote checks passed against
+`https://beauessence-clinic-staging--synthetic-review-gpt86j36.web.app`. The
+preview remains `noindex`, uses synthetic browser-local state only and expires
+on 2026-08-05 17:06 Asia/Taipei. This is dated preview evidence, not authority
+for real data, authentication, Firestore writes, Calendar integration or a
+live/production deployment.
 
 ## Start here
 
-1. Read [AGENTS.md](AGENTS.md) for mandatory guardrails and task routing.
+1. Read [AGENTS.md](AGENTS.md) for mandatory guardrails, task routing and the
+   private-to-public repository boundary.
 2. Read the [Roadmap](docs/roadmap.md) and
    [Phase 1 execution plan](docs/phase-1-execution-plan.md) for the current
    position, permitted work and prohibitions.
@@ -97,15 +143,21 @@ Firestore writes or Calendar integration.
    [Phase 1 decision register](docs/product/phase-1-decision-register.md);
    formal clinic approvals are recorded only there.
 4. Use the
+   [current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
+   for the plain-language next-action order and the consolidated approval list.
+5. Use the
    [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
    for technical boundaries and the
    [production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md)
    for implementation order.
-5. Read the
+6. Read the
    [enterprise readiness review](docs/reviews/2026-07-23-enterprise-production-readiness-review.md)
    for the evidence baseline and unresolved findings.
-6. Use [docs/README.md](docs/README.md) — the canonical index of every
+7. Use [docs/README.md](docs/README.md) — the canonical index of every
    architecture, approval, runbook and review document.
+8. Before changing the public reference, read the
+   [sanitized public mirror publication record](docs/reviews/2026-07-29-sanitized-public-mirror-publication.md)
+   and repeat its release gate.
 
 ## Commands
 

@@ -322,6 +322,76 @@ future pull requests. Verify the setting with
 `corepack pnpm run check:branch-protection` (needs a token with
 `administration:read`); with no token it exits 2, never 0.
 
+**Execution evidence — 2026-07-31:** the classic branch-protection rule is now
+configured on `waydefu/clinic@main` with strict required status check
+`Verification evidence`. Administrator enforcement remains off, so the
+approved owner/administrator bypass is preserved. Force pushes and branch
+deletion are disabled; pull-request reviews are not required by this rule.
+The authenticated `check:branch-protection` command returned success after the
+remote setting was applied.
+
+**SEC-02 and SEC-03 approved — 2026-08-01:** the repository owner approved both
+repository-security items and instructed that they be recorded on their behalf.
+
+```text
+Approval ID: SEC-02
+Answer: approved — a pinned Semgrep CE scan producing commit-bound JSON/SARIF, rule hashes and a summary artifact is accepted as the blocking SAST evidence while a private personal repository cannot upload code-scanning results.
+Approved by: repository owner, acting as both technical owner and security owner
+Approval date (Asia/Taipei): 2026-08-01
+Recorded by: assistant, at the owner's instruction. The owner gave the approval; the assistant is not an approver.
+Evidence: commit 007d808; `.github/workflows/sast.yml` with a pinned engine image and rule revision; `security/semgrep/` rule configs with positive/negative fixtures; `scripts/generate-sast-evidence.mjs` and its 13 tests.
+ENG-01 condition satisfied: the Semgrep rule tests run as the `rule_tests` step and are consumed as `SAST_RULE_TEST_OUTCOME`, where anything other than `success` classifies the evidence as `scanner-error`; the evidence-generator tests run inside `test:unit`, which `verify` and the required `Verification evidence` check both execute. Either failing turns the gate red.
+Scope and explicit exclusions: applies to the SAST evidence policy only. It does not approve any D-series decision, cloud resource, route, real data, or the public mirror. It does not assert that Semgrep CE is equivalent to CodeQL.
+Residual risk accepted: (1) Semgrep CE performs rule-based pattern matching, not CodeQL's cross-file taint analysis, so a class of data-flow defects remains undetected; re-evaluate before production. (2) Both required approver roles were signed by one person, so this decision received a single review rather than two independent ones.
+Follow-up implementation issue: re-evaluate the SAST engine when the repository becomes eligible for code-scanning upload, or before production go/no-go, whichever comes first.
+```
+
+```text
+Approval ID: SEC-03
+Answer: approved — the high `brace-expansion` advisory (GHSA-mh99-v99m-4gvg / CVE-2026-14257) is accepted as a time-bounded exception on its current limited paths.
+Approved by: repository owner, acting as both technical owner and security owner
+Approval date (Asia/Taipei): 2026-08-01
+Recorded by: assistant, at the owner's instruction. The owner gave the approval; the assistant is not an approver.
+Evidence: `security/audit-exceptions.json`; `scripts/check-audit-exceptions.mjs` prints the exception on every supply-chain run and fails once it expires.
+Scope and explicit exclusions: development-only resolution paths that are not reachable from a route and receive no attacker-supplied glob. It does not permit dismissing the Dependabot alert, adding further ignores, or extending the exception past its expiry without a new approval.
+Residual risk accepted: a denial-of-service vector remains present in development tooling until an upstream fix exists. Both approver roles were signed by one person.
+Expiry: 2026-08-31. Re-check on every dependency upgrade; remove the ignore once any parent package resolves to brace-expansion 5.x.
+Follow-up implementation issue: re-verify at each dependency upgrade and before the expiry date.
+```
+
+**Technical-owner engineering decisions — 2026-08-01:** the repository/technical
+owner approved four engineering-practice decisions raised through the AGENTS.md
+"Grill me" challenge. They are recorded here because each one changes how a gate
+behaves or what a later approval must cover. **None of them approves SEC-02,
+SEC-03 or any D-series decision**, and none authorises cloud resources, routes or
+real data.
+
+| ID | Decision | Effect |
+| --- | --- | --- |
+| ENG-01 | SEC-02, when it is signed, must additionally require that the Semgrep rule tests and the evidence-generator tests both run inside the blocking gate, and that either one failing turns the gate red | Adds an acceptance condition to a still-pending approval |
+| ENG-02 | SEC-02 approval remains a prerequisite for merging the SAST change into `main`; the alternative of merging first with a non-blocking workflow was rejected | Merge stays blocked until SEC-02 is signed |
+| ENG-03 | The production data model uses store-generated document IDs. Any operational serial number the clinic needs is a separate field, never the document ID | Closes plan risk R3 (monotonically increasing IDs cause Firestore write hotspots) before it reaches an implementation slice |
+| ENG-04 | Every `auditConfig.ignoreGhsas` entry must carry a named approval ID and an expiry date in `security/audit-exceptions.json`, and the supply-chain gate must print each ignored advisory individually | Implemented as `check:audit-exceptions`; an unregistered, incomplete or expired exception now fails CI |
+
+```text
+Approval ID: ENG-01, ENG-02, ENG-03, ENG-04
+Answer: approved as written above
+Approved by: repository/technical owner
+Approval date (Asia/Taipei): 2026-08-01
+Evidence: scripts/check-audit-exceptions.mjs and its tests; docs/product/full-project-master-plan-2026-07-31.md §2.1 and §9
+Scope and explicit exclusions: engineering practice and gate behaviour only; excludes SEC-02, SEC-03, every D-series decision, cloud resources, routes and real data
+Residual risk accepted: ENG-03 is a design decision recorded ahead of implementation; it still needs an ADR when a persistence slice is built
+Follow-up implementation issue: ADR for the document-identifier scheme before C6
+```
+
+**Repository-hosting direction — 2026-07-31:** the repository owner directed
+that the access-restricted canonical repository remain in the current personal
+account for now and not be transferred to an organisation. This is a hosting
+direction, not an approval to weaken SAST. Private-personal CodeQL upload
+eligibility therefore remains a platform constraint; the proposed
+commit-bound SARIF/artifact evidence policy still requires technical/security
+approval before it replaces Security-tab upload evidence.
+
 ### Web-standards audit directions - 2026-07-26
 
 The 2026-07-26 web-standards audit raised two questions it refused to answer by
@@ -455,10 +525,14 @@ must not be used as the current field list or matching-key definition.
   writing the real client for it.
 - Scope of what this authorises: the `GoogleCalendarClient` code
   (`apps/worker/src/google-calendar.ts`), which reads its credentials only from
-  environment variables (`GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON`)
-  and defaults to the in-memory fake when they are absent. Event content stays
-  minimised (clinic name, visit kind, time, address, appointment id — no
-  patient PII), enforced by a test.
+  environment variables. It defaults to the in-memory fake only when the
+  integration is unconfigured/disabled. Since the 2026-07-29 fail-closed
+  hardening, a real test client additionally requires
+  `GOOGLE_CALENDAR_INTEGRATION_MODE=test` plus both `GOOGLE_CALENDAR_ID` and
+  `GOOGLE_SERVICE_ACCOUNT_JSON`; partial, unknown or credential-bearing
+  disabled configurations fail startup. Event content stays minimised (clinic
+  name, visit kind, time, address, appointment id — no patient PII), enforced
+  by a test.
 - What it does **not** do, and the standing limits that still apply:
   - It does **not** approve D-009. D-009 (calendar owner, authorization model,
     scopes, dedicated calendar, minimum event fields) remains `pending` for any

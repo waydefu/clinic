@@ -527,6 +527,10 @@
             </div>
             <p class="section-description">
               高頻到診直接顯示；改期、取消與未到收在「更多處置」。
+              <span class="shortcut-hint"
+                >鍵盤快捷鍵：<kbd>/</kbd> 搜尋、<kbd>Alt</kbd> +
+                <kbd>N</kbd> 建立新預約</span
+              >
             </p>
           </div>
           <div id="appointment-filters" class="filter-bar appointment-filters">
@@ -561,7 +565,7 @@
                 id="appointment-result-summary"
                 class="result-summary"
                 aria-live="polite"
-                >0 筆結果</span
+                >共 0 筆結果，本頁顯示 0 筆</span
               >
               <button
                 id="appointment-filter-reset"
@@ -596,13 +600,13 @@
               ><input
                 id="appointment-select-all"
                 type="checkbox"
-              />全選目前顯示的預約</label
+              />全選本頁顯示的預約</label
             >
             <span
               id="appointment-selection-summary"
               class="result-summary"
               aria-live="polite"
-              >未選取任何預約</span
+              >未選取本頁任何預約</span
             >
             <div class="batch-actions">
               <button
@@ -631,6 +635,34 @@
             </div>
           </div>
           <div id="appointments" class="card-list"></div>
+          <nav
+            id="appointment-pagination"
+            class="appointment-pagination"
+            aria-label="預約清單分頁"
+            hidden
+          >
+            <button
+              id="appointment-page-prev"
+              class="button button-secondary"
+              type="button"
+              aria-controls="appointments"
+              aria-label="上一頁預約"
+            >
+              上一頁
+            </button>
+            <span id="appointment-page-status" class="pagination-status"
+              >第 1 頁，共 1 頁</span
+            >
+            <button
+              id="appointment-page-next"
+              class="button button-secondary"
+              type="button"
+              aria-controls="appointments"
+              aria-label="下一頁預約"
+            >
+              下一頁
+            </button>
+          </nav>
 
           <section
             id="follow-up-workflow"

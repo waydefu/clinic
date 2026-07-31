@@ -10,8 +10,11 @@ import { ZodError } from 'zod';
  * and code only and emits a fixed, generic message per API code. The domain
  * message, the stack, any SDK error and any identifier stay on the server.
  *
- * No route emits this yet. The controllers that will are still gated (D-001～
- * D-006); this fixes the transport contract so they cannot each invent one.
+ * No route emits this yet. D-006 approved the identity/security policy, but the
+ * Stage 2 C0 review, separate C1 deployment authority and C2～C6 implementation
+ * evidence are unfinished; public/domain-specific routes also retain their own
+ * pending decisions. This mapper keeps those future controllers from each
+ * inventing an envelope.
  */
 
 /**

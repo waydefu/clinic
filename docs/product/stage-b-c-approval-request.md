@@ -7,9 +7,11 @@
 不新增任何政策；填寫後請同步登錄
 [決策登錄](phase-1-decision-register.md)。
 
-**2026-07-28 更新：** D-010 target architecture/SLO 與 D-006 identity/security
-已核准；D-009 仍待核准。Stage 2 仍須獨立 change-plan review 與 deployment
-authority，本文件因此尚未整體完成。
+**2026-07-29 更新：** D-010 target architecture/SLO 與 D-006 identity/security
+已核准；D-009 仍待核准。Stage 2 是 C1～C6 的 umbrella，每個 slice 仍須各自的
+精確 request、change-plan review、deployment authority 與 apply approval；C1
+isolated foundation 不含 IdP、Firestore、backup/PITR 或 runtime。本文件因此尚未
+整體完成。
 
 **現行階段對照（2026-07-28）：** 本文件沿用早期 A／B／C／D 名稱；A 已併入並
 完成於 Stage 0，B 對應 Stage 2 cloud staging，C 對應 Stage 3 專用測試日曆，
@@ -20,12 +22,13 @@ D 對應 Stage 4 真實資料。專案目前在 Stage 1 owner decisions。
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
 | A | 本機 Emulator 的交易、冪等、outbox | 無 — **已於 2026-07-21 完成** |
-| **B** | staging 雲端 Firestore + 員工登入（仍為測試資料） | **D-006/D-010 已核准；仍待 change-plan review＋deployment authority** |
+| **B** | Stage 2 合成 cloud staging umbrella：C1 isolated foundation，後續 C2～C6 才含 IdP、Firestore 與 runtime | **D-006/D-010 是前置；每個 slice 仍須各自 request、deployment authority 與 apply approval，C1 不解鎖後續資源** |
 | **C** | Google 日曆投影（專用測試日曆） | **D-009** |
 | D | 開始處理真實病患資料 | D-001～D-005、D-011（本文件不涵蓋） |
 
 階段 B 與 C **全程使用測試資料**，不處理真實病患資料，因此不需要 D-001～D-003。
-D-010 已核准 primary region 與 target SLO，但 Stage 2 change review 仍須完成
+D-010 已核准 primary region 與 target SLO，但每個 Stage 2 slice 的 change review
+與 authority 仍須完成
 供應商、成本、IAM、復原路徑與部署證據；一旦要輸入真實病患資料，就必須先完成
 D-001～D-003 的法遵／跨境治理，否則不得進行。
 

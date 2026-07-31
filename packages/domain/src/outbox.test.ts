@@ -6,6 +6,7 @@ import {
   MAX_BACKOFF_SECONDS,
   assertOutboxTraceContext,
   backoffSeconds,
+  fullJitterBackoffMilliseconds,
   isDue,
   planOutboxAttempt,
   type OutboxJob,
@@ -56,6 +57,37 @@ describe('backoffSeconds', () => {
   it('never exceeds the cap, so an outage is not made worse', () => {
     expect(backoffSeconds(20)).toBe(MAX_BACKOFF_SECONDS);
   });
+
+  it.each([0, -1, 1.5, Number.POSITIVE_INFINITY])(
+    'rejects an invalid attempt count (%s)',
+    (attempts) => {
+      expect(() => backoffSeconds(attempts)).toThrow(/positive integer/u);
+    }
+  );
+});
+
+describe('fullJitterBackoffMilliseconds', () => {
+  it('maps an injected sample across the current exponential cap', () => {
+    expect(fullJitterBackoffMilliseconds(1, 0)).toBe(1);
+    expect(fullJitterBackoffMilliseconds(1, 0.5)).toBe(
+      (BASE_BACKOFF_SECONDS * 1000) / 2
+    );
+    expect(fullJitterBackoffMilliseconds(1, 1)).toBe(
+      BASE_BACKOFF_SECONDS * 1000
+    );
+    expect(fullJitterBackoffMilliseconds(20, 1)).toBe(
+      MAX_BACKOFF_SECONDS * 1000
+    );
+  });
+
+  it.each([-0.01, 1.01, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects an invalid random sample (%s)',
+    (sample) => {
+      expect(() => fullJitterBackoffMilliseconds(1, sample)).toThrow(
+        /between 0 and 1/u
+      );
+    }
+  );
 });
 
 describe('isDue', () => {

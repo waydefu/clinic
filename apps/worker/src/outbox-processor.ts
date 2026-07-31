@@ -1,5 +1,6 @@
 import {
   assertOutboxTraceContext,
+  fullJitterBackoffMilliseconds,
   isDue,
   planOutboxAttempt,
   DomainError,
@@ -18,12 +19,17 @@ import {
   CLINIC_EVENT_COLOR_ID,
   clinicEventEnd,
   type CalendarAction,
+  type CalendarProjectionOptions,
   type CalendarPort
 } from './calendar-port.js';
 import {
   NOOP_WORKER_METRICS,
   type WorkerMetricsPort
 } from './worker-observability.js';
+import {
+  OUTBOX_LEASE_SECONDS,
+  OUTBOX_SETTLE_SAFETY_MARGIN_MS
+} from './worker-timing.js';
 
 export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
@@ -48,7 +54,7 @@ function actionForStatus(status: string): CalendarAction {
 }
 
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
-export const LEASE_SECONDS = 120;
+export const LEASE_SECONDS = OUTBOX_LEASE_SECONDS;
 
 /**
  * 每一輪查詢各取幾筆候選。查詢已依到期時間排序，所以這是「一次看多少」的
@@ -61,6 +67,10 @@ export interface ProcessSummary {
   readonly completed: number;
   readonly retried: number;
   readonly deadLettered: number;
+}
+
+interface ClaimedOutboxJob extends OutboxJob {
+  readonly leaseExpiresAt: string;
 }
 
 /**
@@ -78,7 +88,9 @@ export class OutboxProcessor {
   public constructor(
     private readonly db: Firestore,
     private readonly calendar: CalendarPort,
-    private readonly metrics: WorkerMetricsPort = NOOP_WORKER_METRICS
+    private readonly metrics: WorkerMetricsPort = NOOP_WORKER_METRICS,
+    private readonly random: () => number = Math.random,
+    private readonly monotonicNow: () => number = () => performance.now()
   ) {}
 
   /**
@@ -112,23 +124,31 @@ export class OutboxProcessor {
    * 現在的查詢把「到期」放進查詢條件本身，排序又保證最早到期的先被看到，
    * 因此不存在「前面幾筆擋住後面」的情況。
    */
-  private async dueCandidates(now: string): Promise<DocumentSnapshot[]> {
+  private async dueCandidates(
+    now: string,
+    alreadyAttempted: ReadonlySet<string>
+  ): Promise<DocumentSnapshot[]> {
     const collection = this.db.collection(OUTBOX_COLLECTION);
+    // Full jitter can legitimately produce a very short delay. Over-fetch by
+    // the number already attempted so those rows cannot hide later due work.
+    const queryLimit = CANDIDATE_LIMIT + alreadyAttempted.size;
     const [pending, expiredLease] = await Promise.all([
       collection
         .where('status', '==', 'pending')
         .where('nextAttemptAt', '<=', now)
         .orderBy('nextAttemptAt')
-        .limit(CANDIDATE_LIMIT)
+        .limit(queryLimit)
         .get(),
       collection
         .where('status', '==', 'in_progress')
         .where('leaseExpiresAt', '<=', now)
         .orderBy('leaseExpiresAt')
-        .limit(CANDIDATE_LIMIT)
+        .limit(queryLimit)
         .get()
     ]);
-    return [...pending.docs, ...expiredLease.docs];
+    return [...pending.docs, ...expiredLease.docs].filter(
+      (candidate) => !alreadyAttempted.has(candidate.id)
+    );
   }
 
   /**
@@ -140,9 +160,12 @@ export class OutboxProcessor {
    * 當下租約就已經過期，另一個 worker 可以同時領走同一筆——租約這個唯一的
    * 互斥手段就形同虛設。
    */
-  private async claim(at: () => string): Promise<OutboxJob | undefined> {
+  private async claim(
+    at: () => string,
+    alreadyAttempted: ReadonlySet<string>
+  ): Promise<ClaimedOutboxJob | undefined> {
     const now = at();
-    const candidates = await this.dueCandidates(now);
+    const candidates = await this.dueCandidates(now, alreadyAttempted);
 
     for (const candidate of candidates) {
       const claimed = await this.db.runTransaction(async (transaction) => {
@@ -166,13 +189,14 @@ export class OutboxProcessor {
         if (job.status === 'completed' || job.status === 'dead_letter')
           return undefined;
 
+        const leaseExpiresAt = new Date(
+          Date.parse(claimedAt) + LEASE_SECONDS * 1000
+        ).toISOString();
         transaction.update(reference, {
           status: 'in_progress',
-          leaseExpiresAt: new Date(
-            Date.parse(claimedAt) + LEASE_SECONDS * 1000
-          ).toISOString()
+          leaseExpiresAt
         });
-        return job;
+        return { ...job, leaseExpiresAt };
       });
 
       if (claimed !== undefined) return claimed;
@@ -192,6 +216,13 @@ export class OutboxProcessor {
       outcome,
       now
     );
+    const jitteredNextAttemptAt =
+      decision.status === 'pending' && decision.nextAttemptAt !== undefined
+        ? new Date(
+            Date.parse(now) +
+              fullJitterBackoffMilliseconds(decision.attempts, this.random())
+          ).toISOString()
+        : undefined;
 
     await this.db
       .collection(OUTBOX_COLLECTION)
@@ -201,9 +232,9 @@ export class OutboxProcessor {
         attempts: decision.attempts,
         needsOperator: decision.needsOperator,
         leaseExpiresAt: null,
-        ...(decision.nextAttemptAt === undefined
+        ...(jitteredNextAttemptAt === undefined
           ? {}
-          : { nextAttemptAt: decision.nextAttemptAt }),
+          : { nextAttemptAt: jitteredNextAttemptAt }),
         ...(decision.lastError === undefined
           ? {}
           : { lastError: decision.lastError }),
@@ -231,20 +262,22 @@ export class OutboxProcessor {
     now = new Date().toISOString(),
     maxJobs = 50
   ): Promise<ProcessSummary> {
-    const batchStartedAt = performance.now();
+    const batchStartedAt = this.monotonicNow();
     const batchInstantMs = Date.parse(now);
     const at = (): string =>
       new Date(
-        batchInstantMs + Math.max(0, performance.now() - batchStartedAt)
+        batchInstantMs + Math.max(0, this.monotonicNow() - batchStartedAt)
       ).toISOString();
     let claimed = 0;
     let completed = 0;
     let retried = 0;
     let deadLettered = 0;
+    const alreadyAttempted = new Set<string>();
 
     while (claimed < maxJobs) {
-      const job = await this.claim(at);
+      const job = await this.claim(at, alreadyAttempted);
       if (job === undefined) break;
+      alreadyAttempted.add(job.id);
       claimed += 1;
 
       const appointment = await this.db
@@ -266,26 +299,43 @@ export class OutboxProcessor {
       const startsAt =
         job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '';
       const action = actionForStatus(projectionStatus);
-      const attemptStartedAt = performance.now();
+      const attemptStartedAt = this.monotonicNow();
       let outcome: AttemptOutcome;
       try {
         assertOutboxTraceContext(job);
+        const projectionStartedAt = at();
+        const projectionTimeoutMs =
+          Date.parse(job.leaseExpiresAt) -
+          Date.parse(projectionStartedAt) -
+          OUTBOX_SETTLE_SAFETY_MARGIN_MS;
+        if (projectionTimeoutMs <= 0)
+          throw new CalendarError(
+            'Calendar projection skipped because the worker lease has no safe time remaining.',
+            true
+          );
+        const projectionOptions: CalendarProjectionOptions = {
+          timeoutMs: projectionTimeoutMs,
+          signal: AbortSignal.timeout(projectionTimeoutMs)
+        };
         // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
         // 手術種類與備註一律不得離開本系統（ADR-0002）。
-        await this.calendar.project({
-          idempotencyKey: job.idempotencyKey,
-          action,
-          appointmentId: job.appointmentId,
-          correlationId: job.correlationId,
-          causationId: job.causationId,
-          appointmentStatus: projectionStatus,
-          startsAt,
-          endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
-          colorId: CLINIC_EVENT_COLOR_ID,
-          bookingKind: isFollowUpProjection
-            ? 'follow_up'
-            : ((appointment.data()?.['bookingKind'] as string) ?? '')
-        });
+        await this.calendar.project(
+          {
+            idempotencyKey: job.idempotencyKey,
+            action,
+            appointmentId: job.appointmentId,
+            correlationId: job.correlationId,
+            causationId: job.causationId,
+            appointmentStatus: projectionStatus,
+            startsAt,
+            endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
+            colorId: CLINIC_EVENT_COLOR_ID,
+            bookingKind: isFollowUpProjection
+              ? 'follow_up'
+              : ((appointment.data()?.['bookingKind'] as string) ?? '')
+          },
+          projectionOptions
+        );
         outcome = { kind: 'succeeded' };
       } catch (error) {
         outcome = {
@@ -313,7 +363,7 @@ export class OutboxProcessor {
                 : 'completed',
           retryable: outcome.kind === 'failed' ? outcome.retryable : null,
           attempt: job.attempts + 1,
-          latencyMs: Math.max(0, performance.now() - attemptStartedAt)
+          latencyMs: Math.max(0, this.monotonicNow() - attemptStartedAt)
         })
       );
       if (result === 'completed') completed += 1;
@@ -325,7 +375,7 @@ export class OutboxProcessor {
     this.recordMetric(() =>
       this.metrics.recordBatch({
         ...summary,
-        durationMs: Math.max(0, performance.now() - batchStartedAt)
+        durationMs: Math.max(0, this.monotonicNow() - batchStartedAt)
       })
     );
     return summary;

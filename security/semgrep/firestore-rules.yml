@@ -1,0 +1,19 @@
+rules:
+  - id: clinic.firestore.unconditional-access
+    message: >-
+      Firestore access must deny by default and use an explicit authorization
+      predicate; an unconditional true rule exposes clinic data.
+    severity: ERROR
+    languages: [generic]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-284: Improper Access Control'
+      coverage: firestore-authorization
+      source: repository-owned
+    paths:
+      include:
+        - '*.rules'
+    pattern-regex: >-
+      (?m)^\s*allow\s+(?:read|write|create|update|delete)(?:\s*,\s*(?:read|write|create|update|delete))*\s*:\s*if\s+true\s*;

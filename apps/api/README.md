@@ -20,3 +20,8 @@ provider, session enforcement or production role mapping is implemented;
 the plan-only
 [Stage 2 change plan](../../docs/architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
 and still requires separate change/deployment authority.
+
+The process binds to `127.0.0.1` by default. Any non-loopback `HOST` requires
+the exact, separate `ALLOW_NON_LOOPBACK_BIND=true` opt-in. That opt-in never
+permits a non-loopback bind while `ALLOW_UNAUTHENTICATED_ROUTES=true`; an
+unauthenticated route remains loopback-only.

@@ -4,8 +4,10 @@
 日期：2026-07-23  
 進度註記：Stage 0／Checkpoint A 已於 2026-07-24 完成；目前為 Stage 1 owner
 decisions。D-010 target architecture/SLO 與 D-006 identity/security 已於
-2026-07-28 核准；Stage 2 仍須 change-plan review 與 deployment authority，且
-尚未建立任何 cloud 資源、身分控制或復原證據。
+2026-07-28 核准；Stage 2 的 C1～C6 仍各須精確 request、change-plan review、
+deployment authority 與 apply approval，且尚未建立任何 cloud 資源、身分控制
+或復原證據。C1 isolated foundation 不解鎖後續 IdP、Firestore、backup/PITR 或
+runtime slice。
 
 適用範圍：一森渼診所預約平台從合成 preview 過渡至 staging 與 production  
 配套規劃：[正式化後續實作規劃書](../product/production-readiness-delivery-plan-2026-07-23.md)
@@ -40,7 +42,7 @@ repository、worker、測試及大部分 UI 都能保留。
 | `packages/contracts` 的 Zod schema | 保留機制、持續版本化 | Stage 0 strict command inventory、mapping 與 rejection tests 已完成；route 與正式 identity 仍受決策 gate |
 | `apps/api` NestJS/Fastify | 保留 | 新增 identity、application service、policy guard、controller、error mapping |
 | `FirestoreBookingRepository` | 保留 adapter 思路 | port、patient active-booking guard 與 audit v2 writes 已完成 local/Emulator；正式 persistence 仍未路由 |
-| `apps/worker` outbox + Calendar port | 保留 | 補正式 runner、trigger、jitter、metrics、trace、service identity |
+| `apps/worker` outbox + Calendar port | 保留 | full jitter 已於 2026-07-29 補上；仍須正式 runner、trigger、metrics backend、trace backend、alert 與 service identity |
 | Firestore direct deny rules | 保留 | production 仍 deny client；API Admin SDK 由 IAM 控制 |
 | `apps/web` UI | 大部分保留 | `stagingRequest` 換成 versioned API client；角色模擬與 PII localStorage 退場 |
 | domain vendor sync | preview 保留 | vendor hash guard 與 content-hash dist build 已完成；production route ready 後換 versioned API client |
@@ -234,7 +236,8 @@ patient identity、case assignment、workspace governance 仍以 browser module
    與 production mapping 仍受 D-007 gate，並沿用已核准 D-006 安全基線。
 4. workspace governance 仍只服務 synthetic browser；D-006 角色／session
    baseline 已核准，但正式 claims、resource scope、route 與 persistence 必須
-   等待受審查的 Stage 2 change plan 與 deployment authority，不得把 D-006／
+   等待對應 Stage 2 slice 受審查的 change plan、deployment authority 與 apply
+   approval，不得把 D-006／
    D-010 核准或 UI 模擬當成實作／正式授權。
 
 ### ARCH-06：preview 的 raw identity key 不得移植至 production
@@ -260,8 +263,9 @@ patient-specific 決策已核准；它也沒有實作已核准的 D-006 staff co
 **現況**
 
 lease、retry、dead-letter、requeue 與 Calendar port 已完成，但沒有 production
-trigger/scheduler、queue SLO、trace、alert 與正式 service identity。retry 目前為
-確定性 exponential backoff，沒有 jitter。
+trigger/scheduler、queue SLO、trace backend、alert 與正式 service identity。
+2026-07-29 已在本機 processor 補上可注入 random source 的 full jitter；尚未有
+production runner／外部故障證據。
 
 **修改**
 
@@ -281,10 +285,11 @@ trigger/scheduler、queue SLO、trace、alert 與正式 service identity。retry
 - Calendar port 接收 trace context，但 Google event payload 不包含 trace ID；
 - `WorkerMetricsPort` 固定 Calendar attempt、batch、queue snapshot shape；metric
   labels 不含 appointment/patient/trace ID，adapter 故障不改變 delivery；
-- full-jitter design 固定為 `uniform(0, min(cap, base × 2^(attempt-1)))`。目前純
-  domain 仍採 deterministic backoff；random source、runner、metrics backend、
-  queue aggregation、alerts 與 service identity 依已核准的 D-010 target 在
-  Stage 2／3 change plan 中接線。
+- full-jitter design 固定為 `uniform(0, min(cap, base × 2^(attempt-1)))`。2026-07-29
+  已由 worker 對純 domain 的 deterministic cap 套用可注入 random source，且同一
+  job 每批最多嘗試一次，避免極短 jitter 在單批燒完 retry budget；production
+  runner、metrics backend、queue aggregation、alerts 與 service identity 仍依已
+  核准的 D-010 target 在 Stage 2／3 change plan 中接線。
 
 ### ARCH-08：production infrastructure 尚未形成 executable architecture
 

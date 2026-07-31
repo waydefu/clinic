@@ -46,6 +46,9 @@ Calendar 與公開寫入仍須各自通過 D-001～D-005、D-009、D-011 及部�
   明碼、hash、salt 或 pepper。
 - 錯誤嘗試必須受限制。精確計數鍵、等待、上限與解鎖方式是下方 Stage 2
   security parameter proposal，不把尚未由業主指定的數字誤記為 D-006 核准值。
+- D-006 核准的是可個別撤銷、attempt-limited 與永不回顯；**沒有核准授權碼的固定
+  有效期、到期時間或輪替週期**。若要加入 expiry，必須先作為下方安全參數提案
+  審查，不能把 30 分鐘 idle／8 小時 absolute 的已核准 session 到期值套到授權碼。
 - 不回覆「某組碼存在但已停用」等可枚舉資訊；錯誤、鎖定、解鎖、使用、撤銷都
   append audit。
 
@@ -92,6 +95,9 @@ Calendar 與公開寫入仍須各自通過 D-001～D-005、D-009、D-011 及部�
 - 採漸增等待，連續錯誤上限提議為 10 次；達上限後鎖住該操作者的委派驗證；
 - 解鎖提議只允許另一位具權限管理者重新啟用，或撤銷／換發授權碼；成功驗證後
   才重設連續錯誤計數；
+- 授權碼是否要有固定有效期、多久到期、到期後是否只能換發，以及定期輪替週期
+  都是待審查提案；目前已核准的 code-specific lifecycle 終止方式是管理者可個別
+  撤銷，重試失敗必須鎖住驗證，但鎖定／解鎖的精確參數仍待審查；
 - TOTP clock-skew／`adjacentIntervals` 不沿用未審查的 provider default，須以
   合成測試選出最小可用窗口；
 - MFA 遺失、recovery、重新綁定與 emergency access 另做具名流程。流程未核准前
@@ -102,10 +108,22 @@ Calendar 與公開寫入仍須各自通過 D-001～D-005、D-009、D-011 及部�
 
 ## 4. 建議變更切片
 
+順序是固定的：
+
+1. **C0 review：**只審 plan-only 設計、owner 值、成本輸入、風險與驗收條件；
+2. **C1 request prerequisites：**C0 核准後，準備限定 C1 foundation 的 request
+   packet，列明精確範圍／排除項、Terraform source proposal、決策級成本、具名
+   operator／approver、兩階段 plan/apply gate 與逐資源 rollback；這一步仍不連
+   cloud，也不把 provider-backed plan 或實測結果當成送件前證據；
+3. **post-authority evidence：**只有 C1 request 獲得明確 deployment authority
+   後，才可在獲准 window 連結目標、產生並審查 provider-backed Terraform plan；
+   plan 符合獲准 request 且 apply approver 再確認後才 apply，之後才填 actual IDs、
+   plan hash、apply／negative-test／rollback evidence。
+
 | 切片 | 只做什麼 | 明確不做什麼 | 進入條件 |
 | --- | --- | --- | --- |
 | C0 review | project、Identity Platform、成本、IAM、三種 failure class、rollback 與證據清單 | 不 apply | 本文件獲技術／資安審查 |
-| C1 isolated foundation | 建立獨立 staging project、Terraform state、最小 IAM、Secret Manager | 不建 production、不放真資料 | 單獨 deployment approval |
+| C1 isolated foundation | 建立獨立 staging project、Terraform state、最小 IAM、service identities、空 Secret Manager 容器、baseline logging/monitoring 與 budget | **不建立 Firestore database、Identity Platform、application runtime、production、真資料、Calendar 或 DR secondary** | C0 approved；C1 request packet 獨立審查並取得 deployment authority |
 | C2 staff identity | 合成 staff、Google＋local provider、email verification、MFA enrollment/recovery | 不接公開患者登入 | C1、IdP 成本與 recovery 核准 |
 | C3 server session | `httpOnly`／`Secure` cookie、CSRF、8 小時 absolute、30 分鐘 idle、logout | 不信任瀏覽器 role／timer | C2、threat model review |
 | C4 authorization | server-side RBAC、active account check、revocation、授權碼 KDF／限流 | 不以 UI 隱藏代替 403 | C3、角色/action fixture 核准 |
@@ -181,3 +199,98 @@ reviewer 不從此表推定，依其各自 decision gate。
 
 完成本計畫審查只代表可以另外提出 C1 deployment approval；不代表自動獲准建立
 雲端資源或改碼。
+
+## 9. C0 技術審查結果（2026-07-29）
+
+**結論：需補件，尚未通過 C0，也未授權 C1。** 本次只審查 repository 與 Google
+官方文件，沒有建立 project、啟用 API、查閱 Cloud Console、估用量、執行 Terraform
+或使用任何 credential。
+
+### 9.1 已確認
+
+- `asia-east1` 同時是 Firestore regional location 與 Cloud Run region，可作為已核准
+  的 primary；Firestore database location 建立後不能變更：
+  [Firestore locations](https://cloud.google.com/firestore/docs/locations)、
+  [Cloud Run locations](https://cloud.google.com/run/docs/locations)。
+- Firestore PITR 可保留最多 7 天、以分鐘粒度匯出歷史資料；啟用後才開始累積較長
+  的歷史窗口：
+  [Work with point-in-time recovery](https://cloud.google.com/firestore/docs/use-pitr)。
+- Identity Platform 的主要登入方式按 MAU 計價，實際 Cloud Run、Firestore、
+  Secret Manager、Logging、Monitoring、備份與網路用量仍須另做 staging 用量估算：
+  [Identity Platform pricing](https://cloud.google.com/identity-platform/pricing)。
+- 一般 Cloud Billing budget 預設只告警、不會自動停止用量或費用；因此不能把
+  50%／80%／100% 告警寫成硬性成本上限：
+  [Cloud Billing budgets](https://cloud.google.com/billing/docs/how-to/budgets)。
+
+### 9.2 仍阻擋 C0 的決策與設計選擇
+
+下列項目已有 plan-only 提案骨架，集中於
+[C0 readiness artifacts](stage-2-c0-readiness-artifacts-2026-07-29.md)，但 owner
+值、方案選擇與風險接受仍未完成；「有提案」不等於「已核准」。
+
+1. **Regional failure 路徑尚未成立。** Firestore backup 與來源 database 位於同一
+   location，且排程備份只能每日或每週、不能指定每日執行時間：
+   [Firestore backups](https://cloud.google.com/firestore/docs/backups)。因此現有
+   「每日備份＋PITR」可以處理誤刪或部分 database 損壞，但不能單獨證明
+   `asia-east1` 整區失效時仍符合 RPO 1 小時／RTO 4 小時。這是根據官方限制做出的
+   架構推論，不是已演練結果。
+2. **替代 project／location 與 DR option 未選定。** C0 readiness pack
+   [§5](stage-2-c0-readiness-artifacts-2026-07-29.md#5-disaster-recovery-option-analysis)
+   已比較 same-location baseline、scheduled export、application/outbox replica 與
+   multi-region 四案，也列出 secondary bootstrap、routing、完整性驗證及切回欄位；
+   technical/security owner 仍須選案、地區、成本與風險。Stage 2 可先用合成資料
+   演練；任何真實資料跨出台灣前仍須 D-001～D-003。
+3. **IAM proposal 已有，binding design 尚未核准。** C0 readiness pack
+   [§3](stage-2-c0-readiness-artifacts-2026-07-29.md#3-cloud-iam-matrix-proposal)
+   已列 human administrator、billing owner、Terraform／CI deployer、API runtime、
+   worker runtime、restore drill operator 與 fail-closed emergency access；仍缺
+   named principals、exact role/custom-role、JIT／覆核週期，以及 Firestore
+   database-scope residual risk 的接受或修正。不得以 project Owner／Editor 代替。
+4. **成本輸入模型已有，決策級試算尚未成立。** C0 readiness pack
+   [§4](stage-2-c0-readiness-artifacts-2026-07-29.md#4-cost-input-model) 已列服務、
+   用量與公式，但合成 staff 數、每月 request／read／write／storage、Cloud Run
+   min/max instance、單價查價日、月預算、告警接收者與 50%／80%／100% 處置仍為
+   `TBD`。未核准前不得用任意估值建立資源。
+5. **身分 recovery 與安全參數未核准。** 授權碼等待曲線／錯誤上限／解鎖／
+   expiry／rotation、TOTP clock-skew、MFA 遺失／重綁、雙人覆核與 break-glass
+   仍須技術／資安負責人具名核准；流程未完成時維持 fail closed。
+
+### 9.3 已完成的 plan-only 補件
+
+[C0 readiness artifacts](stage-2-c0-readiness-artifacts-2026-07-29.md) 已提供：
+
+- logical resource manifest（§2）；
+- Cloud IAM matrix proposal（§3）；
+- cost-input model（§4）；
+- DR option analysis（§5）；
+- test／rollback evidence template（§6）。
+
+這只關閉「附件不存在」的文件缺口。`infra/terraform` 目前仍正確地只有 README；
+C0 通過後，仍須依核准值凍結不含 secret 的 C1 request manifest、C1-only
+Terraform source proposal、決策級月成本、具名 operator／apply approver、兩階段
+plan/apply gate 與逐資源 rollback，再另行請求 C1 deployment authority。這些是
+**C1 request blocker**；actual project/resource ID、provider-backed Terraform
+plan/hash、apply log 與 connected-cloud test 結果則是 **post-authority evidence**，
+不得倒置成 C0 或 C1 request 的前置證據。
+
+### 9.4 C0 補件與簽核欄位
+
+```text
+技術審查負責人／日期：
+資安審查負責人／日期：
+帳務負責人與 staging 每月預算：
+主要告警接收角色／備援角色：
+secondary project／location 提案：
+regional failure 資料複本頻率與還原／切換設計：
+Logical resource manifest：C0 readiness artifacts §2（proposal ready）
+IAM matrix 附件：C0 readiness artifacts §3（proposal ready）
+MFA recovery／授權碼限流、解鎖、expiry／rotation 參數附件：
+成本輸入模型：C0 readiness artifacts §4（proposal ready；決策級試算 pending）
+DR option analysis：C0 readiness artifacts §5（proposal ready；選案 pending）
+測試／回滾證據模板：C0 readiness artifacts §6（proposal ready；實測 pending）
+C0 結論：approved / revise
+```
+
+只有上述欄位及附件完成、風險被接受或修正後，才能把 C0 標為 `approved`。C0
+核准仍只允許準備 C1 deployment request；不得據此連結 cloud、產生 provider-backed
+plan 或自行 apply。

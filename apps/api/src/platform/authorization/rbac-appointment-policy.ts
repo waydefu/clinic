@@ -9,8 +9,9 @@ import { AuthorizationDeniedError } from '../errors/api-error.js';
 
 /**
  * Resolves the opaque, server-verified `actorRole` to a candidate role. This is
- * the D-006 IdP adapter's job; injecting it keeps the RBAC layer from guessing
- * role values it is not allowed to define.
+ * the unimplemented Stage 2 C2 IdP adapter's job. D-006 approved the policy;
+ * injecting the resolver still keeps this layer from trusting request values
+ * or guessing how provider claims map to roles.
  */
 export type RoleResolver = (context: AuthenticationContext) => CandidateRole;
 
@@ -19,7 +20,8 @@ export type RoleResolver = (context: AuthenticationContext) => CandidateRole;
  * appointment authorization port. A patient may only create their own booking;
  * a staff role creates against the clinic-wide scope. The account is treated as
  * active because the session was validated upstream — the real disabled-account
- * signal arrives with the D-006 identity adapter.
+ * signal is approved by D-006 but only arrives after the C2/C3 identity and
+ * session implementation exists.
  */
 /**
  * A patient without a server-verified identity is refused, never widened to the

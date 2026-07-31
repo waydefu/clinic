@@ -3,6 +3,12 @@ import { dirname, join, posix, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
+import {
+  validateRbacPermissionCoverage,
+  validateReachableCapabilityBlockers,
+  validateUnroutedInventory
+} from './unrouted-inventory.mjs';
+
 // 架構守衛：把「哪一層可以依賴哪一層」「哪些程式刻意還沒接線」「哪些規則只能
 // 有一份」從口頭約定變成 CI 會擋的條件。
 //
@@ -145,12 +151,66 @@ for (const layer of LAYERS) {
 //
 // Phase 1 的閘門讓 apps/api 只掛 /v1/health，其餘寫入路徑刻意不接。問題不是它們
 // 存在，而是「存在但沒有人記得為什麼」——那正是死程式的定義。這條規則要求每個
-// 從 main.ts 走不到的檔案都必須列在 inventory 裡並寫明被哪個決策擋住；反過來，
-// 一旦某個檔案真的接上路由，它就必須從 inventory 移除，否則清單會變成謊言。
+// 從 main.ts 走不到的檔案都必須列在 inventory，並把「已核准的政策依據」和「尚未
+// 完成的切片／部署授權／待決決策」分開；RBAC action 另有不隨檔案可達性消失的
+// capability gate。反過來，一旦某個檔案真的接上路由，它就必須從 unrouted 清單
+// 移除，但 action-level gate 仍保留到對應決策與 Stage 真正完成。
 const apiSource = join(root, 'apps', 'api', 'src');
 const inventoryPath = join(root, 'apps', 'api', 'unrouted-inventory.json');
-const inventory = JSON.parse(await readFile(inventoryPath, 'utf8'));
-const declared = new Set(Object.keys(inventory.unrouted));
+const decisionRegisterPath = join(
+  root,
+  'docs',
+  'product',
+  'phase-1-decision-register.md'
+);
+const stageGateStatusPath = join(
+  root,
+  'docs',
+  'architecture',
+  'stage-2-gate-status.json'
+);
+let inventory;
+try {
+  inventory = JSON.parse(await readFile(inventoryPath, 'utf8'));
+} catch (error) {
+  fail(
+    'unrouted-inventory',
+    `apps/api/unrouted-inventory.json 不是有效 JSON：${error instanceof Error ? error.message : String(error)}`
+  );
+  inventory = {};
+}
+let stageGateStatus;
+try {
+  stageGateStatus = JSON.parse(await readFile(stageGateStatusPath, 'utf8'));
+} catch (error) {
+  fail(
+    'unrouted-inventory',
+    `docs/architecture/stage-2-gate-status.json 不是有效 JSON：${error instanceof Error ? error.message : String(error)}`
+  );
+  stageGateStatus = {};
+}
+const decisionRegisterSource = await readFile(decisionRegisterPath, 'utf8');
+for (const detail of validateUnroutedInventory(
+  inventory,
+  decisionRegisterSource,
+  stageGateStatus
+)) {
+  fail('unrouted-inventory', detail);
+}
+const rbacSource = await readFile(
+  join(apiSource, 'platform', 'authorization', 'rbac.ts'),
+  'utf8'
+);
+for (const detail of validateRbacPermissionCoverage(inventory, rbacSource)) {
+  fail('unrouted-inventory', detail);
+}
+const declaredEntries =
+  typeof inventory.unrouted === 'object' &&
+  inventory.unrouted !== null &&
+  !Array.isArray(inventory.unrouted)
+    ? inventory.unrouted
+    : {};
+const declared = new Set(Object.keys(declaredEntries));
 
 async function reachableFrom(entry) {
   const seen = new Set();
@@ -183,6 +243,20 @@ const apiFiles = await walk(
   apiSource,
   (file) => file.endsWith('.ts') && !file.endsWith('.test.ts')
 );
+const reachableApiSources = new Map();
+for (const file of apiFiles) {
+  if (!reachable.has(file)) continue;
+  reachableApiSources.set(
+    toPosix(relative(join(root, 'apps', 'api'), file)),
+    await readFile(file, 'utf8')
+  );
+}
+for (const detail of validateReachableCapabilityBlockers(
+  inventory,
+  reachableApiSources
+)) {
+  fail('capability-reachability', detail);
+}
 
 for (const file of apiFiles) {
   const key = toPosix(relative(join(root, 'apps', 'api'), file));
@@ -191,7 +265,7 @@ for (const file of apiFiles) {
     fail(
       'unrouted-inventory',
       `${repoPath(file)} 從 main.ts 走不到，也沒有列在 apps/api/unrouted-inventory.json。` +
-        ' 若是刻意不接線，請列入清單並寫明被哪個決策擋住；否則就是沒有人會執行到的死程式。'
+        ' 若是刻意不接線，請列入清單並分開記錄已核准政策與實際剩餘阻擋；否則就是沒有人會執行到的死程式。'
     );
   }
   if (isReachable && declared.has(key)) {
@@ -211,12 +285,6 @@ for (const key of declared) {
     fail(
       'unrouted-inventory',
       `unrouted-inventory.json 列了 ${key}，但這個檔案不存在。`
-    );
-  const blockedBy = inventory.unrouted[key]?.blockedBy;
-  if (typeof blockedBy !== 'string' || !/^D-0\d\d$/.test(blockedBy))
-    fail(
-      'unrouted-inventory',
-      `${key} 的 blockedBy 必須是決策編號（例如 D-006），目前是 ${JSON.stringify(blockedBy)}。`
     );
 }
 

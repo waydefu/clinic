@@ -175,6 +175,23 @@ job summary。**上線證據包必須附實際 run 與掃描結果，而不只�
 `check:supply-chain` 依序跑**兩層** audit，會擋 CI。它查的是**線上的 advisory
 資料庫**，所以就算一行程式都沒改，它也可能某天開始變紅——這是刻意的，不是雜訊。
 
+2026-07-30，私有 canonical repository `waydefu/clinic` 已啟用 dependency graph
+與 Dependabot alerts，初始顯示 4 筆 development-scope open alerts（1 high／3
+moderate）。Automatic dependency submission、malware alerts、security updates、
+grouped updates、version updates 與 self-hosted-runner support 均未一併開啟。
+Dependabot 是額外的持續可見性，不取代下面會阻斷 CI 的兩層 audit，也不會自動核准
+修補或例外；完整設定證據見
+[2026-07-30 啟用紀錄](../reviews/2026-07-30-private-dependabot-alert-enablement.md)。
+
+2026-07-31 的修補批次已將可相容處理的三筆 moderate 路徑升到安全版：
+`tar@7.5.22`、`@hono/node-server@2.0.12` 與
+`@opentelemetry/core@2.8.0`；同時把 `firebase-tools` 升到 `15.25.0`、
+`@modelcontextprotocol/sdk` 升到 `1.30.0`。`audit:prod`、`audit:all`、Firebase
+CLI／MCP 載入、Pub/Sub＋OpenTelemetry propagator 與 Hono public API smoke 均
+通過。OpenTelemetry 目前仍是精確的 cross-major override，因為父套件仍宣告
+`^1.30.1`；解除條件是 `@google-cloud/pubsub` 正式允許 2.8+ 後刪除 override，
+重建 lockfile 並重跑 supply-chain／Emulator gate。
+
 | 指令 | 範圍 | 門檻 |
 | --- | --- | --- |
 | `audit:prod` | `--prod`，只看會出貨的相依 | **moderate 就擋** |
@@ -185,8 +202,10 @@ job summary。**上線證據包必須附實際 run 與掃描結果，而不只�
 ignore 洗到失效；維持單一 high 則相反——**出貨程式**多一筆 moderate 也不會有人
 發現。分層之後，「哪一種漏洞會擋下發布」是寫在指令裡、可被檢驗的決定。
 
-現況：`audit:prod` 只剩下面那筆已審視的 high 例外；三筆 moderate 全部落在
-firebase-tools 這條 CLI 線上，逐筆覆核與解除條件記在 `pnpm-workspace.yaml`。
+現況：`audit:prod` 與 `audit:all` 除下面那筆具名 high 例外外均無 advisory；原本
+三筆 moderate 已不再出現在本批次 lockfile 的 audit 結果。Dependabot 是看 default
+branch，因此 PR 分支上的修補要等 merge 並重新分析後才會關閉 alert；不得把「已
+準備修補」寫成「GitHub alert 已關閉」。
 
 修補一律寫進版控（`pnpm-workspace.yaml` 的 `overrides`），不靠「本機剛好裝到新版」：
 
@@ -194,6 +213,9 @@ firebase-tools 這條 CLI 線上，逐筆覆核與解除條件記在 `pnpm-works
 | --- | --- | --- |
 | `find-my-way` ≤9.6.0 | HTTP/2 DDoS。路徑 `apps/api > @nestjs/platform-fastify > fastify` | override 到 `^9.6.1`（實際解析為 9.7.0） |
 | `brace-expansion` ≤5.0.7 | 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg） | 5.x 那條線 override 到 `^5.0.8` |
+| `tar` ≤7.5.20 | crafted archive member selection 可觸發 stack overflow；dev-only Firebase CLI 路徑 | 既有 7.x range 精確鎖到 `7.5.22` |
+| `@hono/node-server` <2.0.5 | Windows encoded-backslash path traversal；dev-only MCP SDK 路徑 | MCP SDK 升到 `1.30.0` 並精確鎖 `2.0.12` |
+| `@opentelemetry/core` <2.8.0 | W3C baggage propagation 可造成不受限記憶體配置；dev-only Pub/Sub 路徑 | 精確鎖 `2.8.0`；保留 cross-major removal condition |
 
 **一筆已審視的例外**（`auditConfig.ignoreGhsas`）：同一個 GHSA 仍會標記
 `brace-expansion@1.1.16` 與 `2.1.2`，但那兩個**已經是各自 major 上最新的維護版**
@@ -261,8 +283,8 @@ sortable table（`aria-sort` 只掛在當前排序欄的 `th`、欄名包成 `<b
 
 | 項目 | 為什麼還沒做 |
 | --- | --- |
-| Lighthouse CI 完整報告（含 SEO／best-practices 分數） | 需要在 CI 跑完整 Lighthouse；目前以預算檔＋實測指標覆蓋最關鍵的部分；D-010 target 已核准，仍待 Stage 2 runner/change review |
-| 依賴簽章／來源證明（provenance、sigstore） | 需要 CI 身分與金鑰管理；D-010 target 已核准，實作仍待 Stage 2 change review |
+| Lighthouse CI 完整報告（含 SEO／best-practices 分數） | 需要在 CI 跑完整 Lighthouse；目前以預算檔＋實測指標覆蓋最關鍵的部分；D-010 target 已核准，仍待對應 runner slice 的 request／authority／apply |
+| 依賴簽章／來源證明（provenance、sigstore） | 需要 CI 身分與金鑰管理；D-010 target 已核准，實作仍待對應 CI identity／provenance slice 的 request 與 authority |
 | 行動裝置螢幕閱讀器實測 | 需要實機，見 runbook §9 |
 | 負載／soak／交易競爭測試 | Stage 6 項目；D-010 target 已核准，仍須另行授權並建立 cloud staging |
 

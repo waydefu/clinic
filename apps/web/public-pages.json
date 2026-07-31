@@ -1,13 +1,17 @@
 {
-  "why": "對外頁面的單一來源（2026-07-27，自動檢查缺口 F-4）。介面規則書 §4.1 早就寫著這份清單應該收斂成一份 machine-readable inventory，先前它散在五個地方各抄一份：兩支 e2e 的路由陣列、效能預算、本機 server 的 PRETTY_PATHS、firebase.json 的 rewrites。漏掉其中一份不會有任何錯誤——那一類掃描只是安靜地不涵蓋新頁面（2026-07-27 併站時 /clinic 漏掉 affordance 掃描就是這樣，當時靠人工複查才發現）。`pnpm check:pages` 比對這份清單與每一份抄本；抄本本身不強行合併（e2e 與建置腳本各有各的載入方式），但不一致會紅。",
+  "why": "對外頁面的單一來源（2026-07-27，自動檢查缺口 F-4；2026-07-29 加入 fail-closed schema 與雙向 route gate）。介面規則書 §4.1 早就寫著這份清單應該收斂成一份 machine-readable inventory，先前它散在效能預算、本機 server 的 PRETTY_PATHS、firebase.json 的 redirects／rewrites、建置的 indexable allowlist 與 e2e 掃描範圍。漏掉或多留其中一份都不會有任何錯誤。`pnpm check:pages` 現在驗證欄位型別、唯一性、路徑格式，並雙向比對每一份仍有自己格式的抄本；build-web 直接由 indexable 欄位派生放行清單，各 scan spec 則以 TypeScript AST 可解析的 PUBLIC_PAGE_SCAN_ROUTES literal export 宣告實際覆蓋，註解中的 route 不算。合法的 entry redirect、資料驅動路由與共用 clinic shell 必須由 routing 明確建模，不再靠檢查器猜例外。",
   "pages": [
     {
       "route": "/",
       "entry": "index.html",
       "audience": "staff",
       "indexable": false,
-      "scans": ["axe", "responsive", "affordance"],
-      "note": "營運工作臺。永遠不對外索引，也沒有 pretty URL——它就是根目錄。"
+      "scans": ["axe", "responsive", "affordance", "mobile-layout"],
+      "note": "營運工作臺。永遠不對外索引，也沒有 pretty URL——它就是根目錄。",
+      "routing": {
+        "kind": "root",
+        "entryRedirect": null
+      }
     },
     {
       "route": "/booking",
@@ -15,7 +19,11 @@
       "audience": "public",
       "indexable": true,
       "scans": ["axe", "responsive", "affordance", "mobile-layout"],
-      "note": "患者預約流程，對外的主要頁面。"
+      "note": "患者預約流程，對外的主要頁面。",
+      "routing": {
+        "kind": "exact",
+        "entryRedirect": { "status": 301 }
+      }
     },
     {
       "route": "/privacy",
@@ -23,7 +31,11 @@
       "audience": "public",
       "indexable": true,
       "scans": ["axe", "responsive", "affordance"],
-      "note": "個資法第 8 條的告知草稿頁。即使零指令碼、零字型，長篇法務文字與定義清單仍須通過 320px～桌面寬度的 reflow 掃描。"
+      "note": "個資法第 8 條的告知草稿頁。即使零指令碼、零字型，長篇法務文字與定義清單仍須通過 320px～桌面寬度的 reflow 掃描。",
+      "routing": {
+        "kind": "exact",
+        "entryRedirect": { "status": 301 }
+      }
     },
     {
       "route": "/clinic",
@@ -31,7 +43,13 @@
       "audience": "public",
       "indexable": false,
       "scans": ["axe", "responsive", "affordance"],
-      "note": "診所官網首頁。其餘七條 /clinic/** 路由由 clinic-content.js 的 CLINIC_ROUTES 產生，共用同一個 entry。"
+      "note": "診所官網首頁。其餘七條 /clinic/** 路由由 clinic-content.js 的 CLINIC_ROUTES 產生，共用同一個 entry。",
+      "routing": {
+        "kind": "shared-shell",
+        "entryRedirect": { "status": 301 },
+        "dataRoutes": "CLINIC_ROUTES",
+        "hostingWildcard": "/clinic/**"
+      }
     },
     {
       "route": "/404",
@@ -39,7 +57,11 @@
       "audience": "public",
       "indexable": false,
       "scans": [],
-      "note": "Firebase Hosting 依慣例自動供應 404.html，沒有 pretty URL 也沒有 rewrite。不進掃描矩陣：它是靜態的一句話加一個連結，且無法用一般路由到達。"
+      "note": "Firebase Hosting 依慣例自動供應 404.html，沒有 pretty URL 也沒有 rewrite。不進掃描矩陣：它是靜態的一句話加一個連結，且無法用一般路由到達。",
+      "routing": {
+        "kind": "hosting-404",
+        "entryRedirect": null
+      }
     }
   ]
 }

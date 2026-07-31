@@ -127,9 +127,12 @@ worker runner 或實際 Calendar 連線。D-009 核准日曆擁有者、授權�
 專用測試日曆後，仍需在 Stage 3 依已核准的 D-010 環境建立 Secret Manager 注入、
 執行身分、監控、停用與回復流程；不能再把剩餘工作描述成只換一個 client。
 
-### 舊稱階段 B／目前 Stage 2：staging 專案的雲端 Firestore（仍為合成資料）
+### 舊稱階段 B／目前 Stage 2：分 slice 的合成 cloud staging
 
-**目前阻擋**：Stage 2 change-plan review 與獨立 deployment authority。D-006
+**目前阻擋**：C0 review，以及 C1～C6 每個 slice 各自的精確 request、
+change-plan review、deployment authority 與 apply approval。C1 isolated
+foundation 明確不含 IdP、Firestore、backup/PITR 或 runtime；Firestore 只能在
+後續 C5/C6 獨立獲准 slice 建立。D-006
 （全員 MFA、自管帳號 TOTP、30m idle／8h absolute session、立即停權、授權碼
 雜湊／撤銷／錯誤限制、永久 audit）及 D-010 的環境、主要區域及 RPO／RTO target
 已於 2026-07-28 核准，但均尚未實作；實際 IAM、備份、監控與跨區復原也尚未建立
@@ -192,8 +195,9 @@ D-001～D-003 核准、隱私政策發布、保存與刪除流程可執行、備
 ## 5. 目前建議順序
 
 舊稱階段 A 的交易、冪等、outbox 與 Calendar client 技術基線都已完成。D-006／
-D-010 target 已於 2026-07-28 核准；Stage 2 change/deployment review 完成後才可
-進合成資料 cloud staging，D-009 核准後才進 Stage 3 專用測試日曆。D-001～
+D-010 target 已於 2026-07-28 核准；C0 review 完成後仍須逐一取得各 Stage 2
+slice 的 authority／apply approval，才能依獲准範圍進合成 cloud staging；D-009
+核准且 Stage 3 runtime slice 另獲 authority 後，才進專用測試日曆。D-001～
 D-005、D-011 未完成且 D-006 control 未有實作證據前，不得開放真實資料的公開
 預約路徑。
 

@@ -4,11 +4,17 @@
 
 `apps/worker` 目前有的是**處理器**，不是**執行環境**：`OutboxProcessor` 已在
 Emulator 驗證過領取（帶租約的交易）、外部呼叫（交易外）、結算（依
-`planOutboxAttempt` 的純決策）三段分離，也有退避、死信與 `requeue`。缺的是
+`planOutboxAttempt` 的純決策）三段分離，也有退避、死信與 `requeue`。2026-07-29
+已對 deterministic backoff cap 套用可注入 random source 的 full jitter，並限制
+同一 job 每批最多嘗試一次；這是本機程式能力，不是 cloud runner 證據。缺的是
 「誰來按下開始」、「事件被人手動改掉之後怎麼發現」，以及「補回死信要什麼權限」。
 
-這份文件把那三件事展開成可審查的設計。實際接線受 **D-009**（日曆）與
-**D-010**（雲端環境）約束。
+這份文件把那三件事展開成可審查的設計。D-010 的 clinic ownership、
+`asia-east1` primary 與 RPO 1 小時／RTO 4 小時 target 已於 2026-07-28 核准，
+但 C0 review 與對應 C6／Stage 3 runtime slice 的獨立 request、deployment
+authority、apply approval、Terraform plan 及 cloud evidence 尚未完成；C1
+isolated-foundation authority 本身不解鎖 Cloud Run／Scheduler／metrics backend。
+實際 Calendar 接線另受 **D-009** 約束。
 
 ## 1. 觸發器：拉，不是推
 
@@ -138,12 +144,12 @@ operational review 明列。
 高基數標籤會讓監控成本爆炸，也會把識別資料洩漏到監控系統——那是一個沒有經過
 隱私評估的資料出口。
 
-## 6. 待核准與未涵蓋
+## 6. 待 gate 與未涵蓋
 
 | 項目 | 卡在 |
 | --- | --- |
 | 真實日曆連線 | D-009 |
-| Cloud Scheduler／Cloud Run／metrics backend | D-010 |
+| Cloud Scheduler／Cloud Run／metrics backend | D-010 target 已核准；仍卡 C0 review、對應 C6／Stage 3 runtime slice 的獨立 authority 與 apply approval；C1 foundation 本身不解鎖，Calendar runner 另卡 D-009 |
 | 死信操作者的正式 action matrix | 已核准 D-006 安全基線＋D-009／Stage 3 operations review |
 | 對帳結果的保存期限 | D-001～D-003 |
 
@@ -157,4 +163,5 @@ operational review 明列。
 - [日曆事件 ID 與 outbox key](calendar-event-id.md)
 - [日曆同步失敗 runbook](../runbooks/calendar-sync-failure.md) — 重試、死信與人工補救
 - [基礎設施與維運計畫](infrastructure-and-operations-plan-2026-07-24.md) — service account、secret 與告警管道
+- [Stage 2 C0 readiness artifacts](stage-2-c0-readiness-artifacts-2026-07-29.md) — logical manifest、IAM、成本、DR 與 evidence／rollback proposal；尚無 apply authority
 - [正式環境目標架構](production-target-architecture-2026-07-23.md) — ARCH-07 的原始落差描述

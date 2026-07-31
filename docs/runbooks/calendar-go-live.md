@@ -30,18 +30,37 @@ email**（可編輯權限）即可，不需要任何同意流程。若手邊已�
 
 ## 設定
 
-worker 執行環境需要兩個變數（**不要**寫進 `.env` 或提交任何金鑰檔）：
+worker 執行環境需要明確的測試模式與兩個 credential 變數（**不要**寫進 `.env`
+或提交任何金鑰檔）：
 
 ```bash
+# 僅允許 test；未設定或 disabled 時不連線。production 尚未開放
+GOOGLE_CALENDAR_INTEGRATION_MODE=test
 # 專用測試日曆的 ID（形如 xxxx@group.calendar.google.com）
 GOOGLE_CALENDAR_ID=...
 # 服務帳號 JSON 的完整內容（一行字串），由密鑰管理注入，不落地
 GOOGLE_SERVICE_ACCOUNT_JSON={"client_email":"...","private_key":"..."}
 ```
 
-`createCalendarPort()` 會在**兩者都齊備**時回傳真實用戶端；否則回退到假日曆，
-因此沒設憑證的環境不會意外對外呼叫。用戶端在啟動時就會驗證金鑰型別（必含
-`client_email` 與 `private_key`）——若誤放 OAuth 用戶端會直接被拒。
+`createCalendarPort()` 只會在模式明確為 `test` 且**兩個 credential 都齊備**時
+回傳真實用戶端。完全未設定時回退到假日曆；只設定一半、停用模式卻夾帶憑證，
+或使用未知模式時會直接啟動失敗，不把設定錯誤偽裝成成功。用戶端在啟動時驗證
+服務帳號 email、PKCS#8 private key、可選的 `type`，並把 token exchange 固定在
+Google 官方 endpoint；若誤放 OAuth 用戶端或不受信任的 `token_uri` 會直接被拒。
+
+## HTTP timeout 與重試邊界
+
+- token exchange 與 Calendar API 呼叫預設 30 秒中止；可注入的測試設定只接受
+  1～60,000 毫秒的整數。
+- 一次投影的 token、insert、409 patch 與 response body 共用總期限（預設 90 秒、
+  設定上限 110 秒）。Processor 還會依該 job 實際 `leaseExpiresAt` 再縮短，並
+  保留 10 秒給 Firestore 結算；安全餘裕已耗盡時不呼叫 Calendar，改排可重試。
+- 網路中斷／timeout、HTTP 408、429 與 5xx 視為暫時性，可交回 outbox 退避重試。
+- Calendar 的 403 只有本文明確標成 `userRateLimitExceeded`、
+  `rateLimitExceeded` 或 `quotaExceeded` 時才可重試；一般 400／401／403 與
+  其他 4xx 不重試，避免無效請求一直打外部服務。
+- 403 錯誤本文最多解析 65,536 個字元；adapter／網路的底層訊息不寫進 outbox
+  `lastError`，避免 URL 或供應商細節外洩。
 
 ## 本機煙霧測試（負責人執行）
 
@@ -56,6 +75,7 @@ PowerShell（把金鑰檔內容讀進 env，不落地、不入庫）：
 
 ```powershell
 corepack pnpm --filter @beauessence/worker build
+$env:GOOGLE_CALENDAR_INTEGRATION_MODE = 'test'
 $env:GOOGLE_CALENDAR_ID = '<你的測試日曆 ID>'
 $env:GOOGLE_SERVICE_ACCOUNT_JSON = Get-Content '<你的服務帳戶金鑰檔路徑>' -Raw
 node apps/worker/dist/calendar-smoke.js
@@ -64,7 +84,7 @@ node apps/worker/dist/calendar-smoke.js
 預期輸出兩個 ✓（建立、刪除）並印出完成訊息。跑完後清掉環境變數：
 
 ```powershell
-Remove-Item Env:GOOGLE_SERVICE_ACCOUNT_JSON, Env:GOOGLE_CALENDAR_ID
+Remove-Item Env:GOOGLE_SERVICE_ACCOUNT_JSON, Env:GOOGLE_CALENDAR_ID, Env:GOOGLE_CALENDAR_INTEGRATION_MODE
 ```
 
 > 界線：此測試只碰**測試日曆**與合成事件，**不代表** D-009 核准，也不允許連

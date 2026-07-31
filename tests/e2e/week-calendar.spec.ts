@@ -1,6 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createBooking, login, openDisclosure } from './support/workbench.js';
+import {
+  createBooking,
+  login,
+  openDisclosure,
+  seedAppointmentCopies,
+  showAllAppointments
+} from './support/workbench.js';
 
 // 週檢視的捲動語意與行動版形態。
 //
@@ -95,5 +101,32 @@ test.describe('桌機仍是時間網格', () => {
     await expect(host.locator('.wv-grid')).toBeVisible();
     await expect(host.locator('.wv-agenda')).toHaveCount(0);
     await expect(host.locator('[data-week-event]')).toHaveCount(1);
+  });
+
+  test('點第二頁的週事件會切到目標所在頁並顯示該列', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await login(page);
+    await createBooking(page);
+    const ids = await seedAppointmentCopies(page, 25);
+    await showAllAppointments(page);
+    await openCalendarPanel(page);
+
+    const targetId = ids.at(-1);
+    if (targetId === undefined) throw new Error('缺少分頁目標預約');
+    await expect(
+      page.locator(`[data-appointment-card="${targetId}"]`)
+    ).toHaveCount(0);
+
+    const event = page.locator(`#week-view [data-week-event="${targetId}"]`);
+    await expect(event).toHaveCount(1);
+    // 同一時段附近有多筆事件；直接觸發原生 click，避免測試本身受碰撞版面遮擋影響。
+    await event.evaluate((button) => (button as HTMLButtonElement).click());
+
+    await expect(page.locator('#appointment-page-status')).toHaveText(
+      '第 2 頁，共 2 頁'
+    );
+    await expect(
+      page.locator(`[data-appointment-card="${targetId}"]`)
+    ).toBeVisible();
   });
 });

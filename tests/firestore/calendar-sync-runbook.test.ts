@@ -12,6 +12,10 @@ import {
   OUTBOX_COLLECTION,
   OutboxProcessor
 } from '../../apps/worker/src/outbox-processor.js';
+import {
+  LOCAL_FIREBASE_PROJECT_ID,
+  requireLocalFirestoreEmulatorTarget
+} from '../../packages/config/src/index.js';
 
 /**
  * Runbook 演練：Google Calendar 同步失敗 → 死信 → 補回。
@@ -30,8 +34,8 @@ import {
  * 一個事件，而非兩個。
  */
 
-const emulatorHost = process.env['FIRESTORE_EMULATOR_HOST'];
-const projectId = 'beauessence-appointment-local';
+requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
+const projectId = LOCAL_FIREBASE_PROJECT_ID;
 
 let app: App;
 let db: Firestore;
@@ -74,10 +78,6 @@ async function seed(): Promise<void> {
 }
 
 beforeAll(() => {
-  if (emulatorHost === undefined)
-    throw new Error(
-      'FIRESTORE_EMULATOR_HOST is not set. Run this suite through pnpm test:rules.'
-    );
   app = initializeApp({ projectId }, `runbook-${Date.now()}`);
   db = getFirestore(app);
 });

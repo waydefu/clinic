@@ -40,6 +40,37 @@ patient data remain separately decision-gated.
    `synthetic-review` Hosting channel in `beauessence-clinic-staging`. Never
    deploy its live channel or enable a Firebase backend under this authority.
 
+## Repository publication boundary
+
+This access-restricted repository, `waydefu/clinic`, is the canonical project
+record. The public
+[`waydefu/appointment-platform-public`](https://github.com/waydefu/appointment-platform-public)
+repository is a separately curated, code-only reference with its own clean Git
+history. It is not a backup, fork, deployment target or source of project-stage
+authority.
+
+1. Never make the canonical repository public. Never copy or reuse its `.git`
+   directory, commits, branches, tags, pull-request metadata or other history
+   in the public mirror. There is no automatic synchronization.
+2. Move code to the public mirror only through an explicit allowlist export
+   into an isolated workspace. Exclude clinic and people content, brand assets,
+   portraits, screenshots, UI, internal governance/review/delivery documents,
+   deployment identifiers, private URLs, logs, credentials, personal data and
+   realistic identity fields.
+3. Apply an approved public delta to a fresh clone of the public mirror, inspect
+   every changed file, and scan both the candidate tree and the complete public
+   Git object/ref set for secrets, personal data and internal identifiers.
+4. Before a public pull request, run the public repository's tracked-secret and
+   public-safety checks, format/build/lint/tests, production and full dependency
+   audits, Gitleaks, TruffleHog and a second fresh-clone verification. Required
+   GitHub checks must pass before merge.
+5. Public availability does not grant an open-source licence, production
+   readiness, deployment authority or permission to use real data. A public
+   mirror change cannot alter this repository's Phase or D-series gates.
+
+The dated audit and repeatable release gate are recorded in
+`docs/reviews/2026-07-29-sanitized-public-mirror-publication.md`.
+
 ## Mandatory reading order
 
 1. `README.md`
@@ -55,6 +86,19 @@ patient data remain separately decision-gated.
 Then read the document that covers the boundary you are changing. `docs/README.md`
 is the canonical index of every document and the only list that is maintained;
 do not rely on a copy of it elsewhere.
+
+### Navigation shortcuts (2026-07-31)
+
+The seven documents above establish authority and boundaries. These four answer
+"what happens next, and how" without re-deriving it from the plan set. They are
+navigation aids, not additional authority: none of them approves anything.
+
+| Question | Document |
+| --- | --- |
+| What is still unapproved, in what order, and who signs it? | `docs/product/current-execution-and-approval-plan.md` |
+| What did the owner actually ask for, and is it built? | `docs/product/owner-requests-consolidated-2026-07-31.md` (OR-01…OR-69 with state and blocking decision) |
+| What are the maintainability, performance, identity, retention and sync targets, and where do the numbers come from? | `docs/product/full-project-master-plan-2026-07-31.md` |
+| What are the ordered steps, with prerequisite, action, acceptance evidence and rollback? | `docs/product/full-project-execution-book-2026-07-31.md` |
 
 ## Current implementation entry point
 
@@ -108,6 +152,26 @@ The review evidence is
 `docs/reviews/2026-07-23-enterprise-production-readiness-review.md`. It is a
 dated baseline, not a substitute for the live decision register.
 
+### Repository security posture — dated facts, not approvals
+
+These are recorded states of the repository itself. Read them before changing a
+gate, a workflow or a dependency; do not restate any of them as a decision that
+has already been approved.
+
+| Date | Fact | What it does **not** authorise |
+| --- | --- | --- |
+| 2026-07-30 | Dependency graph and Dependabot alerts enabled on `waydefu/clinic`; automatic submission, security/version/grouped updates stay disabled | It does not authorise automatic upgrade pull requests, alert dismissal or any exception |
+| 2026-07-31 | Branch protection applied and verified on `main`: strict required check `Verification evidence`, force push and deletion disabled, the D-013 administrator bypass preserved | Using the bypass still requires running the full gate manually |
+| 2026-07-31 | Owner direction: the access-restricted canonical repository stays in the current personal account and is not transferred to an organisation | It is a hosting direction, not permission to weaken SAST |
+| 2026-07-31 | The CodeQL workflow was replaced by a Semgrep CE workflow (`.github/workflows/sast.yml`, `scripts/generate-sast-evidence.mjs`, `security/semgrep/`) because a private personal repository cannot upload code-scanning results | **SEC-02 was approved on 2026-08-01** with the ENG-01 condition that the rule tests and the evidence-generator tests both sit inside the blocking gate. The approval covers the evidence policy only: Semgrep CE must still never be described as equivalent to CodeQL's cross-file taint analysis, and the engine is re-evaluated before production |
+| 2026-07-31 | One high `brace-expansion` alert (GHSA-mh99-v99m-4gvg / CVE-2026-14257, CVSS 7.5) has no compatible published fix in the affected older majors. `pnpm-workspace.yaml` already carries `auditConfig.ignoreGhsas` for it, so `audit:prod` and `audit:all` report "1 high (1 ignored)" and still pass | **SEC-03 was approved on 2026-08-01 and expires 2026-08-31.** Since ENG-04 every ignore must be registered in `security/audit-exceptions.json` with an approval ID and expiry; `check:audit-exceptions` prints each one and fails on an unregistered, incomplete or expired entry. The approval does not permit dismissing the Dependabot alert, adding further ignores, or extending the expiry without a new approval. Both approver roles were signed by one person, so this had a single review |
+
+When touching `security/semgrep/**`, `.github/workflows/sast.yml` or
+`scripts/generate-sast-evidence.mjs`, remember that the rule files are the
+scanner's own positive/negative test fixtures. They deliberately contain unsafe
+patterns and are excluded from ESLint; do not "fix" them, and do not weaken a
+rule to clear a finding.
+
 ## Agent operating discipline
 
 ### Read-only status checks and dependency rebuilds
@@ -157,6 +221,10 @@ available:
 
 ### “Grill me” decision challenge
 
+GRILL ME is a high-fit, manual decision-review technique for this project. It
+is not an always-on dependency and should not reopen an answer that is already
+recorded with an owner and evidence.
+
 Before implementing a choice that materially affects privacy, authentication,
 authorization, public API shape, data migration/deletion, external integration,
 cloud cost, deployment or rollback, challenge the requester with concise,
@@ -176,6 +244,19 @@ Do not interrogate the requester for an obvious, reversible, local-only change
 whose intent is already clear. Ask only questions whose answers would change
 the implementation. A policy-affecting answer must be recorded in the decision
 register before the corresponding behavior is enabled.
+
+### “PONYTAIL” simplification review
+
+PONYTAIL is only conditionally suitable. Use it as a one-time, human-reviewed
+simplification pass after correctness and security gates have passed, and only
+for low-risk local duplication, naming or control flow. It must not be an
+always-on hook, automatic rewrite or reason to reduce explicit evidence.
+
+Do not use PONYTAIL for personal-data/privacy boundaries, authentication,
+authorization or RBAC, Firestore Rules or transactions, idempotency, audit,
+outbox/retry semantics, payroll, backup/restore, incident response, IaC,
+deployment, legal text or governance decisions. In those areas, explicitness
+and reviewability take priority over fewer lines.
 
 ### Minimal safe change
 
@@ -212,6 +293,7 @@ lines.
 | `infra/terraform` | Reviewed cloud resources, IAM and deployment configuration | Live-state changes without a reviewed plan |
 | `tests` | Cross-package and Emulator Rules tests | Real data or real cloud projects |
 | `docs` | Decisions, ADRs, runbooks and implementation evidence | Runtime source of truth |
+| Public mirror | Explicitly allowlisted, sanitized code-only reference | Canonical source, private history, internal records or deployment authority |
 
 ## Task routing
 
@@ -236,6 +318,12 @@ lines.
 | Cloud runtime, IAM, backup or monitoring | Delivery plan Stage 2 + approved D-010 target | Reviewed IaC/change plan only; never apply before Stage 2 authority |
 | Replacing browser-local state | Synthetic Web architecture | Contract-compatible API client; no direct Firestore path |
 | NAS | New approved ADR | Least privilege, outbox and security review |
+| Sanitized public mirror | This publication boundary + `docs/reviews/2026-07-29-sanitized-public-mirror-publication.md` | Explicit allowlist, isolated export, full-history scans, fresh-clone verification and public PR checks |
+| An owner request you were handed verbatim | `docs/product/owner-requests-consolidated-2026-07-31.md` | Find its OR number first; most 2026-07-26～27 items are already built, and the unbuilt ones each name the decision blocking them |
+| A maintainability, performance, retention or session-parameter target | `docs/product/full-project-master-plan-2026-07-31.md` | Every number there cites its source; change the citation, not just the number |
+| Sequencing, acceptance evidence or rollback for any remaining stage | `docs/product/full-project-execution-book-2026-07-31.md` | A step without a rehearsed rollback is not ready to run |
+| A blocking check under `scripts/` | The script plus its test | Define behaviour for a clean tree, a dirty tree with deletions and a fresh clone; a gate that crashes reports a false failure |
+| SAST workflow, Semgrep rules or evidence generation | `.github/workflows/sast.yml` + `security/semgrep/` | Rule fixtures are intentionally unsafe and ESLint-excluded; SEC-02 is still pending, so do not describe the output as approved evidence |
 
 ## Required implementation sequence
 
@@ -257,16 +345,20 @@ lines.
    decision work and documented synthetic-preview scope listed above. D-006 and
    D-010 target approvals are recorded; Stage 2 still needs its reviewed change
    plan and separate deployment authority.
-4. Update executable contract and domain first, then application service,
+4. If the task publishes to the sanitized public mirror, stop using the normal
+   implementation path and follow the repository publication boundary above.
+   Never use a private-repository push, fork or history rewrite as the export
+   mechanism.
+5. Update executable contract and domain first, then application service,
    repository adapter, worker or web edge.
-5. Add focused tests using synthetic opaque identifiers only. Booking changes
+6. Add focused tests using synthetic opaque identifiers only. Booking changes
    must cover both same-slot contention and same-patient/different-slot
    contention through the explicit guard document.
-6. For each write path, prove authentication, authorization, validation,
+7. For each write path, prove authentication, authorization, validation,
    idempotency and audit behavior.
-7. For each external effect, prove queue/outbox, idempotency, retry,
+8. For each external effect, prove queue/outbox, idempotency, retry,
    dead-letter and runbook coverage.
-8. Run the smallest relevant test, then the Phase gate commands. Update the
+9. Run the smallest relevant test, then the Phase gate commands. Update the
    decision, architecture, plan and review evidence when a checkpoint closes.
 
 ## Current commands
@@ -279,6 +371,7 @@ corepack pnpm verify
 corepack pnpm test:rules
 corepack pnpm test:e2e
 corepack pnpm check:supply-chain
+corepack pnpm check:audit-exceptions
 corepack pnpm --filter @beauessence/api dev
 ```
 
@@ -287,6 +380,10 @@ corepack pnpm --filter @beauessence/api dev
   unit tests. CI runs the same command plus `pnpm test:rules`, Playwright E2E,
   dependency audits, SBOM/license policy and commit-bound evidence on every push
   and pull request.
+- `test:unit` also collects `scripts/**/*.test.mjs`, so a blocking check under
+  `scripts/` is covered by the same gate as product code. Treat those scripts as
+  product code: they decide what reaches `main`, and a crash in one of them
+  reports a false failure rather than a real finding.
 - ESLint covers correctness only; Prettier owns formatting. The type-aware
   rules matter most for `no-floating-promises`: a missing await in the booking
   or outbox paths fails silently.
@@ -298,6 +395,16 @@ corepack pnpm --filter @beauessence/api dev
 - `pnpm check:ui` prevents the test-only dashboard from losing its loopback,
   synthetic-only input, landmark, live-update and focus-visible safeguards.
 - `pnpm test:rules` uses only a disposable local Firestore Emulator.
+- **Windows path constraint for `test:rules`.** The Firestore Emulator JVM cannot
+  resolve a working directory containing non-ASCII characters on a non-UTF-8
+  system locale; it exits immediately with
+  `FileNotFoundException: <mangled path>\firestore.rules`. Verified on
+  2026-07-31: the same emulator, jar and rules file start successfully from an
+  ASCII path and fail from a path with CJK characters, and
+  `JAVA_TOOL_OPTIONS=-Dsun.jnu.encoding=UTF-8` does not fix it. Work from an
+  ASCII path, or map one with `subst` for the run and remove it afterwards. This
+  is a local environment constraint only; Linux CI is unaffected, and it is
+  never a reason to skip the gate or to call the rules untested.
 - Do not deploy, import, export or connect to Firebase cloud during Phase 1
   without an approved change record.
 
