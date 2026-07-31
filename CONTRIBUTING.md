@@ -7,6 +7,15 @@
 5. 涉及 `completed`、個管指派、`payroll_credit` 或月結鎖定的變更，必須包含重複計算、改派與鎖定後調整的測試。
 6. 外部副作用（Calendar、Email、LINE、Meta、NAS）只能由 Worker 執行，必須具備 idempotency key、重試、死信與人工補救文件。
 7. 不以免費額度、未記載的供應商行為或單一管理者帳號作為正式營運假設。
+8. `scripts/` 下的阻斷式檢查與其產生的證據，視同產品程式碼：新增或修改時必須一併
+   提供測試，並定義它在乾淨工作區、含刪除檔案的髒工作區與全新 clone 三種情境下的
+   行為。檢查腳本崩潰會被讀成「掃描失敗」而非真實發現，等於製造假紅燈；測試落後於
+   實作則會製造假綠燈。兩者都不可接受。
+9. 任何 `auditConfig.ignoreGhsas` 的忽略項目，必須同時登記在
+   `security/audit-exceptions.json`，並具備核准編號、核准狀態、到期日、適用範圍、
+   理由與解除條件。`corepack pnpm check:audit-exceptions` 會逐條印出被忽略的
+   advisory，並在未登記、欄位不全或已過期時擋下 CI。**綠燈只代表例外已被登記與
+   時限化，不代表風險已被具名接受**；具名接受仍記錄在決策登錄。
 
 ## 公開參考 repository
 

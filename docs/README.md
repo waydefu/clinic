@@ -20,19 +20,24 @@ Read in this order before changing a boundary or enabling a capability.
 | 1 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
 | 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
 | 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Live status of all D-series decisions, including the separate D-014～D-016 expansion gates; nothing policy-dependent may be built ahead of them |
-| 4 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
-| 5 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
-| 6 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
-| 7 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
-| 8 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
-| 9 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
+| 4 | [Current execution and approval plan](product/current-execution-and-approval-plan.md) | Plain-language ordered next steps plus the consolidated list of repository, C0, D-series and per-deployment approvals still required |
+| 5 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
+| 6 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
+| 7 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
+| 8 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
+| 9 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
+| 10 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
 
 ## 2. Decisions and approval packets
 
 Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Phase 1 decision register](product/phase-1-decision-register.md) — the live status of every decision
+- [Current execution and approval plan](product/current-execution-and-approval-plan.md) — the plain-language order of work and the consolidated approval checklist for repository security, C0, D-series and C1～C6 deployment slices
 - [2026-07-27 owner request batch](product/2026-07-27-owner-request-batch.md) — the 19 owner requests of 2026-07-27 turned into scoped items, the decisions already taken, the paper intake form they map onto, and a batched execution sheet
+- [Full-project master plan (2026-07-31)](product/full-project-master-plan-2026-07-31.md) — the single technical-strategy source for the rest of the project: the ISO/IEC 25010 maintainability model mapped onto this repository's gates, Core Web Vitals and human response-time budgets, Firestore hotspotting rules, the NIST SP 800-63B cross-check of the approved D-006 session values, Taiwanese sensitive-data and medical-record retention constraints, the Google Calendar sync design and low-traffic SLO alerting
+- [Full-project execution book (2026-07-31)](product/full-project-execution-book-2026-07-31.md) — the same plan turned into ordered steps, each with its prerequisite, action, acceptance evidence and rollback, from the current repository wrap-up through C0, C1～C6, Stage 3～6, Expansion S and the standing maintenance cadence
+- [Consolidated owner-request index (2026-07-31)](product/owner-requests-consolidated-2026-07-31.md) — every owner request from the 2026-07-26～28 desktop notes numbered OR-01…OR-69 with its current state, the four contradictions still needing an owner answer, and the decision blocking each unbuilt item
 - [Surgery, follow-up, payment and settlement expansion plan (2026-07-28)](product/2026-07-28-surgery-follow-up-expansion-plan.md) — plan-only normalization of the owner-provided surgery workflow into a separate Expansion S track, including Calendar inbound review, clinical/financial data boundaries and D-014～D-016
 - [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
 - [Phase 1 Chinese approval checklist](product/phase-1-chinese-approval-checklist.md) — D-001…D-006, D-011 in the clinic's working language
@@ -100,6 +105,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-07-30 | [Private repository Dependabot alert enablement](reviews/2026-07-30-private-dependabot-alert-enablement.md) | Dependency graph and Dependabot alerts enabled for `waydefu/clinic`; four initial development-scope alerts recorded, while automatic dependency submission and all automatic update modes remain disabled |
 | 2026-07-29 | [Sanitized public mirror publication](reviews/2026-07-29-sanitized-public-mirror-publication.md) | Private canonical repository retained; independent allowlisted code-only mirror published from clean history after secret, personal-data, internal-information, Git-history, dependency, test and fresh-clone gates |
 | 2026-07-29 | [Local hardening and CI handoff](reviews/2026-07-29-local-hardening-and-ci-handoff.md) | Commit, PR, preview and local validation evidence; the initial CI failures and later repo-owned repairs are annotated, private CodeQL upload remains capability-blocked, and production remains blocked |
 | 2026-07-28 | [Markdown currency audit](reviews/2026-07-28-markdown-currency-audit.md) | All pre-existing Markdown files scanned by lifecycle and stale-status terms; current authority reconciled for Stage 1, D-004 slot/multi-service gaps, approved D-006 identity/security, D-010 RTO/RPO, privacy scope and historical-evidence annotations |

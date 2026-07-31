@@ -11,6 +11,13 @@ Private CodeQL still fails only when uploading SARIF because code scanning is
 not enabled for this private personal repository. That is a repository
 capability/policy blocker, not a reported code-scanning finding.
 
+Post-handoff update: on 2026-07-30 the private repository's dependency graph
+and Dependabot alerts were enabled. Automatic update modes remain disabled and
+the initial four development-scope alerts remain open for separate review.
+See the
+[dated enablement record](2026-07-30-private-dependabot-alert-enablement.md).
+This does not resolve the separate CodeQL capability/policy blocker.
+
 This record does not grant cloud or production authority. The canonical
 [Stage 2 gate status](../architecture/stage-2-gate-status.json) remains:
 

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "note": "Every entry in pnpm-workspace.yaml auditConfig.ignoreGhsas must appear here with a named approval and an expiry. check:audit-exceptions blocks on an unregistered, incomplete or expired entry. An entry whose approval is still pending is printed as pending on every run; it does not become invisible.",
+  "exceptions": [
+    {
+      "ghsa": "GHSA-mh99-v99m-4gvg",
+      "cve": "CVE-2026-14257",
+      "package": "brace-expansion",
+      "severity": "high",
+      "approvalId": "SEC-03",
+      "approvalStatus": "pending",
+      "approvers": ["technical owner", "security owner"],
+      "approvedOn": null,
+      "expiresOn": "2026-08-31",
+      "scope": "Development-only resolution paths. Not reachable from a route, and no attacker-supplied glob reaches the affected expansion.",
+      "reason": "The affected older majors have no compatible published fix. The alternative is removing the parent packages, which would remove build and test tooling.",
+      "releaseCondition": "Remove this entry once the upstream older major publishes a fix, or once every parent package resolves to brace-expansion 5.x. Re-check on every dependency upgrade.",
+      "evidence": "docs/product/current-execution-and-approval-plan.md#a-repository-與安全證據"
+    }
+  ]
+}

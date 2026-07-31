@@ -30,7 +30,10 @@ is approved but not implemented. The preview must not be relied on to collect
 real patient data operationally.
 
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
-and what is blocked.
+and what is blocked. The
+[current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
+puts the remaining repository, C0, D-series and C1～C6 approvals in one
+plain-language sequence.
 
 The active technical baseline is the
 [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
@@ -66,6 +69,23 @@ permit real data. The public reference is viewable but has no open-source
 licence. See the
 [sanitized public mirror publication record](docs/reviews/2026-07-29-sanitized-public-mirror-publication.md)
 for the initial audit evidence and repeatable update gate.
+
+The private canonical repository enabled its dependency graph and Dependabot
+alerts on 2026-07-30. Automatic dependency submission, security/version update
+pull requests and grouped updates remain disabled. The initial inventory was
+four open development-scope alerts (one high and three moderate); none was
+dismissed or automatically changed. See the
+[private Dependabot alert enablement record](docs/reviews/2026-07-30-private-dependabot-alert-enablement.md)
+for the exact setting boundary and evidence.
+
+The 2026-07-31 repository-security batch prepares compatible fixes for all
+three moderate alerts. GitHub evaluates the default branch, so those alerts
+remain open until this branch is reviewed and merged. The remaining high
+`brace-expansion` alert is limited to older transitive majors with no compatible
+published fix; it stays visible pending named risk acceptance and an upstream
+upgrade path. `main` now has a strict required `Verification evidence` check,
+with force pushes and deletion disabled and the D-013 administrator bypass
+preserved.
 
 ## Clinic website integration — 2026-07-27
 
@@ -123,16 +143,19 @@ live/production deployment.
    [Phase 1 decision register](docs/product/phase-1-decision-register.md);
    formal clinic approvals are recorded only there.
 4. Use the
+   [current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
+   for the plain-language next-action order and the consolidated approval list.
+5. Use the
    [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
    for technical boundaries and the
    [production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md)
    for implementation order.
-5. Read the
+6. Read the
    [enterprise readiness review](docs/reviews/2026-07-23-enterprise-production-readiness-review.md)
    for the evidence baseline and unresolved findings.
-6. Use [docs/README.md](docs/README.md) — the canonical index of every
+7. Use [docs/README.md](docs/README.md) — the canonical index of every
    architecture, approval, runbook and review document.
-7. Before changing the public reference, read the
+8. Before changing the public reference, read the
    [sanitized public mirror publication record](docs/reviews/2026-07-29-sanitized-public-mirror-publication.md)
    and repeat its release gate.
 

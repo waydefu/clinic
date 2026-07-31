@@ -87,6 +87,19 @@ Then read the document that covers the boundary you are changing. `docs/README.m
 is the canonical index of every document and the only list that is maintained;
 do not rely on a copy of it elsewhere.
 
+### Navigation shortcuts (2026-07-31)
+
+The seven documents above establish authority and boundaries. These four answer
+"what happens next, and how" without re-deriving it from the plan set. They are
+navigation aids, not additional authority: none of them approves anything.
+
+| Question | Document |
+| --- | --- |
+| What is still unapproved, in what order, and who signs it? | `docs/product/current-execution-and-approval-plan.md` |
+| What did the owner actually ask for, and is it built? | `docs/product/owner-requests-consolidated-2026-07-31.md` (OR-01…OR-69 with state and blocking decision) |
+| What are the maintainability, performance, identity, retention and sync targets, and where do the numbers come from? | `docs/product/full-project-master-plan-2026-07-31.md` |
+| What are the ordered steps, with prerequisite, action, acceptance evidence and rollback? | `docs/product/full-project-execution-book-2026-07-31.md` |
+
 ## Current implementation entry point
 
 Stage 0 and Checkpoint A are complete. The current delivery-plan position is
@@ -138,6 +151,26 @@ enable a route.
 The review evidence is
 `docs/reviews/2026-07-23-enterprise-production-readiness-review.md`. It is a
 dated baseline, not a substitute for the live decision register.
+
+### Repository security posture — dated facts, not approvals
+
+These are recorded states of the repository itself. Read them before changing a
+gate, a workflow or a dependency; do not restate any of them as a decision that
+has already been approved.
+
+| Date | Fact | What it does **not** authorise |
+| --- | --- | --- |
+| 2026-07-30 | Dependency graph and Dependabot alerts enabled on `waydefu/clinic`; automatic submission, security/version/grouped updates stay disabled | It does not authorise automatic upgrade pull requests, alert dismissal or any exception |
+| 2026-07-31 | Branch protection applied and verified on `main`: strict required check `Verification evidence`, force push and deletion disabled, the D-013 administrator bypass preserved | Using the bypass still requires running the full gate manually |
+| 2026-07-31 | Owner direction: the access-restricted canonical repository stays in the current personal account and is not transferred to an organisation | It is a hosting direction, not permission to weaken SAST |
+| 2026-07-31 | The CodeQL workflow was replaced by a Semgrep CE workflow (`.github/workflows/sast.yml`, `scripts/generate-sast-evidence.mjs`, `security/semgrep/`) because a private personal repository cannot upload code-scanning results | **SEC-02 is still pending.** Until it is approved, Semgrep output is not an approved substitute for CodeQL evidence, and it must never be described as equivalent to CodeQL's cross-file analysis |
+| 2026-07-31 | One high `brace-expansion` alert (GHSA-mh99-v99m-4gvg / CVE-2026-14257, CVSS 7.5) has no compatible published fix in the affected older majors. `pnpm-workspace.yaml` already carries `auditConfig.ignoreGhsas` for it, so `audit:prod` and `audit:all` report "1 high (1 ignored)" and still pass | **SEC-03 is still pending.** A green supply-chain gate reflects a registered, time-bounded ignore, not an accepted risk. Since ENG-04 (2026-08-01) every ignore must also be registered in `security/audit-exceptions.json` with an approval ID and expiry; `check:audit-exceptions` prints each one and fails on an unregistered, incomplete or expired entry. Never dismiss the Dependabot alert to make a gate green |
+
+When touching `security/semgrep/**`, `.github/workflows/sast.yml` or
+`scripts/generate-sast-evidence.mjs`, remember that the rule files are the
+scanner's own positive/negative test fixtures. They deliberately contain unsafe
+patterns and are excluded from ESLint; do not "fix" them, and do not weaken a
+rule to clear a finding.
 
 ## Agent operating discipline
 
@@ -286,6 +319,11 @@ lines.
 | Replacing browser-local state | Synthetic Web architecture | Contract-compatible API client; no direct Firestore path |
 | NAS | New approved ADR | Least privilege, outbox and security review |
 | Sanitized public mirror | This publication boundary + `docs/reviews/2026-07-29-sanitized-public-mirror-publication.md` | Explicit allowlist, isolated export, full-history scans, fresh-clone verification and public PR checks |
+| An owner request you were handed verbatim | `docs/product/owner-requests-consolidated-2026-07-31.md` | Find its OR number first; most 2026-07-26～27 items are already built, and the unbuilt ones each name the decision blocking them |
+| A maintainability, performance, retention or session-parameter target | `docs/product/full-project-master-plan-2026-07-31.md` | Every number there cites its source; change the citation, not just the number |
+| Sequencing, acceptance evidence or rollback for any remaining stage | `docs/product/full-project-execution-book-2026-07-31.md` | A step without a rehearsed rollback is not ready to run |
+| A blocking check under `scripts/` | The script plus its test | Define behaviour for a clean tree, a dirty tree with deletions and a fresh clone; a gate that crashes reports a false failure |
+| SAST workflow, Semgrep rules or evidence generation | `.github/workflows/sast.yml` + `security/semgrep/` | Rule fixtures are intentionally unsafe and ESLint-excluded; SEC-02 is still pending, so do not describe the output as approved evidence |
 
 ## Required implementation sequence
 
@@ -333,6 +371,7 @@ corepack pnpm verify
 corepack pnpm test:rules
 corepack pnpm test:e2e
 corepack pnpm check:supply-chain
+corepack pnpm check:audit-exceptions
 corepack pnpm --filter @beauessence/api dev
 ```
 
@@ -341,6 +380,10 @@ corepack pnpm --filter @beauessence/api dev
   unit tests. CI runs the same command plus `pnpm test:rules`, Playwright E2E,
   dependency audits, SBOM/license policy and commit-bound evidence on every push
   and pull request.
+- `test:unit` also collects `scripts/**/*.test.mjs`, so a blocking check under
+  `scripts/` is covered by the same gate as product code. Treat those scripts as
+  product code: they decide what reaches `main`, and a crash in one of them
+  reports a false failure rather than a real finding.
 - ESLint covers correctness only; Prettier owns formatting. The type-aware
   rules matter most for `no-floating-promises`: a missing await in the booking
   or outbox paths fails silently.
@@ -352,6 +395,16 @@ corepack pnpm --filter @beauessence/api dev
 - `pnpm check:ui` prevents the test-only dashboard from losing its loopback,
   synthetic-only input, landmark, live-update and focus-visible safeguards.
 - `pnpm test:rules` uses only a disposable local Firestore Emulator.
+- **Windows path constraint for `test:rules`.** The Firestore Emulator JVM cannot
+  resolve a working directory containing non-ASCII characters on a non-UTF-8
+  system locale; it exits immediately with
+  `FileNotFoundException: <mangled path>\firestore.rules`. Verified on
+  2026-07-31: the same emulator, jar and rules file start successfully from an
+  ASCII path and fail from a path with CJK characters, and
+  `JAVA_TOOL_OPTIONS=-Dsun.jnu.encoding=UTF-8` does not fix it. Work from an
+  ASCII path, or map one with `subst` for the run and remove it afterwards. This
+  is a local environment constraint only; Linux CI is unaffected, and it is
+  never a reason to skip the gate or to call the rules untested.
 - Do not deploy, import, export or connect to Firebase cloud during Phase 1
   without an approved change record.
 

@@ -322,6 +322,47 @@ future pull requests. Verify the setting with
 `corepack pnpm run check:branch-protection` (needs a token with
 `administration:read`); with no token it exits 2, never 0.
 
+**Execution evidence — 2026-07-31:** the classic branch-protection rule is now
+configured on `waydefu/clinic@main` with strict required status check
+`Verification evidence`. Administrator enforcement remains off, so the
+approved owner/administrator bypass is preserved. Force pushes and branch
+deletion are disabled; pull-request reviews are not required by this rule.
+The authenticated `check:branch-protection` command returned success after the
+remote setting was applied.
+
+**Technical-owner engineering decisions — 2026-08-01:** the repository/technical
+owner approved four engineering-practice decisions raised through the AGENTS.md
+"Grill me" challenge. They are recorded here because each one changes how a gate
+behaves or what a later approval must cover. **None of them approves SEC-02,
+SEC-03 or any D-series decision**, and none authorises cloud resources, routes or
+real data.
+
+| ID | Decision | Effect |
+| --- | --- | --- |
+| ENG-01 | SEC-02, when it is signed, must additionally require that the Semgrep rule tests and the evidence-generator tests both run inside the blocking gate, and that either one failing turns the gate red | Adds an acceptance condition to a still-pending approval |
+| ENG-02 | SEC-02 approval remains a prerequisite for merging the SAST change into `main`; the alternative of merging first with a non-blocking workflow was rejected | Merge stays blocked until SEC-02 is signed |
+| ENG-03 | The production data model uses store-generated document IDs. Any operational serial number the clinic needs is a separate field, never the document ID | Closes plan risk R3 (monotonically increasing IDs cause Firestore write hotspots) before it reaches an implementation slice |
+| ENG-04 | Every `auditConfig.ignoreGhsas` entry must carry a named approval ID and an expiry date in `security/audit-exceptions.json`, and the supply-chain gate must print each ignored advisory individually | Implemented as `check:audit-exceptions`; an unregistered, incomplete or expired exception now fails CI |
+
+```text
+Approval ID: ENG-01, ENG-02, ENG-03, ENG-04
+Answer: approved as written above
+Approved by: repository/technical owner
+Approval date (Asia/Taipei): 2026-08-01
+Evidence: scripts/check-audit-exceptions.mjs and its tests; docs/product/full-project-master-plan-2026-07-31.md §2.1 and §9
+Scope and explicit exclusions: engineering practice and gate behaviour only; excludes SEC-02, SEC-03, every D-series decision, cloud resources, routes and real data
+Residual risk accepted: ENG-03 is a design decision recorded ahead of implementation; it still needs an ADR when a persistence slice is built
+Follow-up implementation issue: ADR for the document-identifier scheme before C6
+```
+
+**Repository-hosting direction — 2026-07-31:** the repository owner directed
+that the access-restricted canonical repository remain in the current personal
+account for now and not be transferred to an organisation. This is a hosting
+direction, not an approval to weaken SAST. Private-personal CodeQL upload
+eligibility therefore remains a platform constraint; the proposed
+commit-bound SARIF/artifact evidence policy still requires technical/security
+approval before it replaces Security-tab upload evidence.
+
 ### Web-standards audit directions - 2026-07-26
 
 The 2026-07-26 web-standards audit raised two questions it refused to answer by

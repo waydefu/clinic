@@ -42,14 +42,6 @@ const TARGETS = [
   }
 ];
 
-export function scaledSize(crop, targetHeight) {
-  const ratio = crop.width / crop.height;
-  return {
-    width: Math.round(targetHeight * ratio),
-    height: targetHeight
-  };
-}
-
 async function main() {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const sourceDir = join(repoRoot, 'apps', 'web', 'brand-source');

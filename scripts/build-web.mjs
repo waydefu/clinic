@@ -278,7 +278,8 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
    * 只拿掉註解，**不動空白、不動屬性引號**：那類「壓縮」讓產物幾乎無法與原始碼
    * 比對，而省下的量遠小於它帶來的除錯成本。`<!doctype html>` 不是註解，不受影響。
    */
-  const stripHtmlComments = (html) => html.replace(/<!--[\s\S]*?-->/g, '');
+  const htmlCommentPattern = new RegExp('<!--[\\s\\S]*?-->', 'g');
+  const stripHtmlComments = (html) => html.replace(htmlCommentPattern, '');
 
   // HTML 是穩定進入點：改寫它對 js/css 的 root-absolute 參照，其餘（HTML 內部
   // 連結、圖片、錨點）原封不動。

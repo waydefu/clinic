@@ -24,10 +24,22 @@ allowBuilds:
 #                  @google-cloud/storage > gaxios／teeny-request > uuid
 #                  **這是四筆 moderate 裡唯一進到出貨程式的**——另外三筆只經由
 #                  firebase-tools（CLI）。同 major 內的 patch，鎖了不改任何 API。
+#   @opentelemetry/core <2.8.0  baggage propagation 可能不受限配置記憶體
+#                  路徑：firebase-tools > @google-cloud/pubsub（dev-only）
+#                  Pub/Sub 5.3.1 只匯入 v2 保留的 W3CTraceContextPropagator；
+#                  精確鎖到第一個修補版，直到上游放寬目前的 ^1.30.1。
+#   tar            <=7.5.20 archive member selection 可觸發 stack overflow
+#                  所有路徑原本就接受 7.x patch，精確鎖到目前修補版 7.5.22。
+#   @hono/node-server <2.0.5 Windows encoded-backslash path traversal
+#                  先帶入已正式放寬 v2 range 的 MCP SDK 1.30.0，再鎖 Hono 2.0.12。
 overrides:
   find-my-way: '^9.6.1'
   brace-expansion@^5: '^5.0.8'
   uuid: '>=11.1.1'
+  '@opentelemetry/core': '2.8.0'
+  tar@^7: '7.5.22'
+  '@modelcontextprotocol/sdk': '1.30.0'
+  '@hono/node-server': '2.0.12'
 
 # 已審視的 audit 例外。**這不是「關掉警告」，是「查過而且沒有可用的修補」**，
 # 每次 upstream 有動作都要重新檢查。
@@ -53,19 +65,17 @@ overrides:
 # 維持單一 high 則相反——**出貨程式**多一筆 moderate 也不會有人發現。分成兩層
 # 之後，「哪一種漏洞會擋下發布」是一個寫在指令裡、可被檢驗的決定，而不是慣例。
 #
-# 以下三筆 moderate（2026-07-26 覆核）**刻意不鎖**，因為它們只存在於
-# firebase-tools 這條 CLI 相依線上：CLI 不會被打包、不會出貨、也不處理任何來自
-# 使用者的輸入。硬鎖跨 major 的傳遞相依，風險比 advisory 本身高。
-# 它們落在 audit:all（high 門檻）之下因此不擋，但仍然是「查過」而不是「沒看到」；
-# 只要其中任何一條哪天長進出貨相依，audit:prod 會立刻在 moderate 擋下來。
+# 2026-07-31 修補以下三筆 firebase-tools CLI 傳遞相依：
 #
-#   @opentelemetry/core  <2.8.0   路徑：firebase-tools > @google-cloud/pubsub
-#   @hono/node-server    <2.0.5   路徑：firebase-tools > @modelcontextprotocol/sdk
-#   tar                  <=7.5.20 路徑：firebase-tools（直接）與 > superstatic >
-#                                 re2 > node-gyp > tar
+#   @hono/node-server：@modelcontextprotocol/sdk 1.30.0 的正式 range 已放寬到
+#                      ^1.19.9 || ^2.0.5，因此可安全解析到 2.0.12。
+#   tar：firebase-tools 與 node-gyp 的既有 ^7 range 解析到 7.5.22。
+#   @opentelemetry/core：上游 @google-cloud/pubsub 5.3.1 尚限 ^1.30.1；先以上方
+#                        精確 override 使用第一個修補版 2.8.0。該父套件只使用
+#                        v2 仍公開的 W3CTraceContextPropagator。
 #
-#   **解除條件**：升級 firebase-tools 到把這三條線都帶上來的版本後，重跑
-#   `pnpm audit` 確認歸零，並刪掉這段註解。三者都不需要 override。
+# **解除條件**：各父套件的正常 range 已直接解析到上述安全版本後，逐條刪除
+# override，重建 lockfile 並重跑 supply-chain／Emulator gates。
 auditConfig:
   ignoreGhsas:
     - GHSA-mh99-v99m-4gvg

@@ -19,7 +19,9 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > [正式化後續實作規劃書](product/production-readiness-delivery-plan-2026-07-23.md)
 > 為準；技術邊界以
 > [正式環境目標架構書](architecture/production-target-architecture-2026-07-23.md)
-> 為準。既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
+> 為準。要直接查看白話順序與所有待核准項目，使用
+> [專案後續執行與核准清單](product/current-execution-and-approval-plan.md)。
+> 既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
 
 > **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
@@ -184,6 +186,8 @@ Firestore、backup/PITR 或 runtime。
 | 面向 | 狀態 |
 | --- | --- |
 | Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006/D-010 已核准，Stage 2 尚待 change/deployment review** |
+| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-07-31 已在本 PR 修補 3 筆 moderate，default branch merge／重新分析前 alerts 仍會保持 open；1 筆 `brace-expansion` high 因舊 major 無相容發布版而維持可見，待 SEC-03 具名接受或上游修補 |
+| `main` 分支保護 | **2026-07-31 已實際套用並驗證**；strict required check 為 `Verification evidence`，force push／branch deletion 關閉，D-013 核准的管理者 bypass 保留 |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
