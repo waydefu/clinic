@@ -1,0 +1,173 @@
+rules:
+  - id: clinic.javascript.dynamic-code-execution
+    message: >-
+      Dynamic JavaScript execution is prohibited. Keep code as data and use an
+      explicit parser or allowlisted dispatch table instead.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+      coverage: dynamic-code-execution
+      source: repository-owned
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: Function(...)
+      - pattern: $VM.runInContext(...)
+      - pattern: $VM.runInNewContext(...)
+      - pattern: $VM.runInThisContext(...)
+      - pattern: $VM.compileFunction(...)
+
+  - id: clinic.javascript.command-shell-execution
+    message: >-
+      Shell command execution is prohibited. Use spawn/spawnSync with a fixed
+      executable, an argument array, and shell disabled.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-78: Improper Neutralization of Special Elements used in an OS Command'
+      coverage: command-execution
+      source: repository-owned
+    pattern-either:
+      - pattern: child_process.exec(...)
+      - pattern: child_process.execSync(...)
+      - pattern: require("child_process").exec(...)
+      - pattern: require("child_process").execSync(...)
+      - pattern: require("node:child_process").exec(...)
+      - pattern: require("node:child_process").execSync(...)
+      - pattern: import { ..., exec, ... } from "child_process"
+      - pattern: import { ..., execSync, ... } from "child_process"
+      - pattern: import { ..., exec, ... } from "node:child_process"
+      - pattern: import { ..., execSync, ... } from "node:child_process"
+      - pattern: 'spawn(..., { ..., shell: true, ... })'
+      - pattern: 'spawnSync(..., { ..., shell: true, ... })'
+      - pattern: '$CHILD_PROCESS.spawn(..., { ..., shell: true, ... })'
+      - pattern: '$CHILD_PROCESS.spawnSync(..., { ..., shell: true, ... })'
+
+  - id: clinic.javascript.tls-verification-disabled
+    message: >-
+      TLS certificate verification must remain enabled. Configure a trusted CA
+      instead of disabling peer verification.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-295: Improper Certificate Validation'
+      coverage: tls-verification
+      source: repository-owned
+    pattern-either:
+      - pattern: '({ ..., rejectUnauthorized: false, ... })'
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+      - pattern: process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"
+
+  - id: clinic.javascript.weak-cryptography
+    message: >-
+      A weak or unauthenticated cryptographic primitive is prohibited. Use
+      SHA-256 or stronger and authenticated encryption from the Node crypto API.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-327: Use of a Broken or Risky Cryptographic Algorithm'
+        - 'CWE-328: Use of Weak Hash'
+      coverage: cryptography
+      source: repository-owned
+    pattern-either:
+      - pattern: $CRYPTO.createHash("md5")
+      - pattern: $CRYPTO.createHash("sha1")
+      - pattern: createHash("md5")
+      - pattern: createHash("sha1")
+      - pattern: $CRYPTO.createHmac("md5", ...)
+      - pattern: $CRYPTO.createHmac("sha1", ...)
+      - pattern: createHmac("md5", ...)
+      - pattern: createHmac("sha1", ...)
+      - pattern: $CRYPTO.createCipher(...)
+      - pattern: $CRYPTO.createDecipher(...)
+      - pattern: $CRYPTO.subtle.digest("SHA-1", ...)
+
+  - id: clinic.javascript.credentialed-wildcard-cors
+    message: >-
+      Credentialed CORS must use an explicit origin allowlist; a wildcard origin
+      cannot protect authenticated clinic data.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-942: Permissive Cross-domain Policy with Untrusted Domains'
+      coverage: cors
+      source: repository-owned
+    pattern-either:
+      - pattern: 'cors({ ..., origin: "*", ..., credentials: true, ... })'
+      - pattern: 'cors({ ..., credentials: true, ..., origin: "*", ... })'
+
+  - id: clinic.javascript.html-sink-outside-trusted-entrypoint
+    message: >-
+      HTML injection sinks are only allowed in the two audited browser
+      entrypoints that load the repository Trusted Types default policy before
+      application code.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-79: Improper Neutralization of Input During Web Page Generation'
+      coverage: trusted-types-html-sinks
+      source: repository-owned
+    paths:
+      exclude:
+        - /apps/web/public/admin-bootstrap.js
+        - /apps/web/public/patient-app.js
+    pattern-either:
+      - pattern: $ELEMENT.innerHTML = $HTML
+      - pattern: $ELEMENT.outerHTML = $HTML
+      - pattern: $ELEMENT.insertAdjacentHTML(...)
+      - pattern: document.write(...)
+      - pattern: document.writeln(...)
+
+  - id: clinic.javascript.unapproved-trusted-types-policy
+    message: >-
+      Do not create an additional Trusted Types policy. The single audited
+      default policy lives in apps/web/public/modules/trusted-html.js.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-79: Improper Neutralization of Input During Web Page Generation'
+      coverage: trusted-types-policy
+      source: repository-owned
+    paths:
+      exclude:
+        - /apps/web/public/modules/trusted-html.js
+    pattern: $TRUSTED_TYPES.createPolicy(...)
+
+  - id: clinic.javascript.jwt-none-algorithm
+    message: >-
+      JWTs must never allow the none algorithm. Use an explicit asymmetric
+      algorithm allowlist and verify the signature.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe:
+        - 'CWE-347: Improper Verification of Cryptographic Signature'
+      coverage: token-verification
+      source: repository-owned
+    pattern-either:
+      - pattern: '({ ..., algorithm: "none", ... })'
+      - pattern: '({ ..., algorithms: [..., "none", ...], ... })'

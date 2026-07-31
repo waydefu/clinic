@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /appointments/{appointmentId} {
+      // ruleid: clinic.firestore.unconditional-access
+      allow read, write: if true;
+
+      // ok: clinic.firestore.unconditional-access
+      allow create: if request.auth != null;
+
+      // ok: clinic.firestore.unconditional-access
+      allow update, delete: if false;
+    }
+  }
+}

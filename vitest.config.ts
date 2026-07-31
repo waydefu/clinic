@@ -13,7 +13,11 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['apps/*/src/**/*.test.ts', 'packages/*/src/**/*.test.ts'],
+    include: [
+      'apps/*/src/**/*.test.ts',
+      'packages/*/src/**/*.test.ts',
+      'scripts/**/*.test.mjs'
+    ],
     exclude: ['node_modules', 'dist'],
     pool: 'forks',
     maxWorkers: 1
