@@ -9,6 +9,10 @@
 [決策登錄](phase-1-decision-register.md)，核准順序查
 [後續執行與核准清單](current-execution-and-approval-plan.md)。
 
+**2026-08-01 查核更新：** Stage 0 已完成，現況是 Stage 1。以下 C0、C1～C6 與後續
+步驟仍是條件式執行書，不代表已取得 deployment authority、apply approval、真實資料或
+production 授權。官方基準與控制來源集中列於附錄 B。
+
 ## 0. 每一步的四個要素
 
 本書的每一個步驟都寫成同一種格式，缺一不可：
@@ -27,9 +31,11 @@
 
 ---
 
-## 階段 0：Repository 與品質收尾（現在就在這裡）
+## 階段 0：Repository 與品質收尾（已完成，保留作歷史證據索引）
 
-這一階段完全不碰雲端、不碰真實資料，是唯一目前可以動工的區塊。
+這一階段已完成並併入 `main`；結果見
+[Stage 0 交接紀錄](../reviews/2026-08-01-gate-script-test-coverage.md)。以下步驟保留用來說明
+既有證據鏈，不得把其中的舊指令、舊 commit 或舊核准狀態當成下一階段的執行授權。
 
 ### 步驟 0-1　完成 2026-07-31 安全批次的驗證
 
@@ -167,7 +173,8 @@
 3. staging 用量估算、容量、查價日期、月預算、50%／80%／100% 行動（預算金額由業主
    決定，見業主清單第 37–39 題）；
 4. DR 方案：備援專案與地點、複製頻率、切換方式、完整性驗證、failback owner；
-5. 身分安全參數（可直接引用規劃書 §4.1 的 NIST 對照表，不必重新爭論數值）；
+5. 身分安全參數（8 小時／30 分鐘維持 D-006；另由 security owner 決定是否加入抗釣魚
+   驗證選項，或明列不宣稱完整 NIST AAL2 對齊，見規劃書 §4.1）；
 6. 告警主要與備援接收者。
 
 ### 步驟 2-2　把結論由 `revise` 改為 `approved`
@@ -176,6 +183,26 @@
 - **驗收證據**：兩位 reviewer 的簽核與日期。
 - **回滾**：不適用（純文件決策，可再改為 revise）。
 
+### 步驟 2-3　凍結「核准基線」
+
+- **前置**：2-2 完成；決策登錄無互相矛盾的答案。
+- **動作**：建立日期化 approval snapshot，逐筆列出 D-series／C0 結論、核准人與日期、
+  適用範圍、明確排除項、剩餘風險、來源文件 commit；另列仍 pending 的決策，並把每筆
+  核准映射到允許建立的 C1～C6 切片。任何無法映射或互相矛盾項一律標成 blocker。
+- **驗收證據**：snapshot 的 PR／commit、兩位 reviewer 對「決策內容未被轉譯錯誤」的
+  確認、決策登錄與 snapshot 的自動或人工逐筆比對表。
+- **回滾**：snapshot 只可由新版取代，不覆寫舊版；結論回到 `revise` 時立即撤銷所有尚未
+  執行的切片 request／approval。
+
+### 步驟 2-4　只把 C1 標成 request-ready
+
+- **前置**：2-3 完成；C0 只核准計畫，尚未建立任何雲端資源。
+- **動作**：依 §10.2 建立 C1 deployment request，從 approval snapshot 引用允許範圍；
+  C2～C6 只保留候選順序，不可預先取得一張涵蓋全部切片的 apply approval。
+- **驗收證據**：C1 request 編號及 owner、operator、approver、成本、時間窗、資料分類、
+  停止條件、逐資源回滾皆完整。
+- **回滾**：撤銷 request；不應有任何雲端資源可清理。
+
 ---
 
 ## 階段 3：C1～C6 逐片建置
@@ -183,63 +210,130 @@
 每一片都要獨立備妥：**精確範圍、明確排除項、成本、執行人、核准人、時間窗、
 plan hash、逐資源回滾**。上一片的授權不會自動延伸到下一片。
 
-### 通用執行順序（每一片都一樣）
+### 3.1 通用執行順序（每一片都一樣）
 
-1. 寫 request（範圍 + 排除項 + 成本 + 回滾）；
-2. 取得 deployment authority；
-3. 跑 plan，記錄 plan hash；
-4. 取得 apply approval（人不同於 operator）；
-5. apply；
-6. 產出驗收證據；
-7. 更新決策登錄與 roadmap。
+| 關卡 | 動作 | 必備證據 |
+| --- | --- | --- |
+| Request | 依 §10.2 寫範圍、排除、資料分類、成本、owner、時窗、停止與逐資源回滾 | request 編號、approval snapshot commit |
+| Authority | 取得該切片 deployment authority | 核准人、時間、範圍、到期時間 |
+| Provider plan | 只在 authority 後連到目標；初始化受限 remote state，跑 provider-backed plan 與政策／成本檢查 | plan artifact、SHA-256、source commit、provider lock、state serial、project ID、預估差異 |
+| Apply approval | approver 審閱**同一 hash** 的 plan；operator 不得自批 | 核准紀錄及短時效 window |
+| Apply | 由核准的短期 WIF 身分執行；保存實際 diff，不在 log 顯示 secret | workflow run、actor、時間、actual resource IDs、artifact digest |
+| Verify／rollback | 跑正向、負向、告警、drift 與切片回滾演練；資料資源依核准方式 quarantine／restore／forward-fix | 實際數字、拒絕證據、drift=0 或已解釋、回滾耗時／結果 |
+| Stabilize／handoff | 維持核准觀察窗，交付 dashboard、runbook、主要／備援 owner | §10.5 營運交接、handoff commit |
 
-### C1　隔離 staging 地基
+Terraform state、plan 與 output 都視為敏感 artifact：只給最小必要人員、設定保存期、禁止
+貼進 PR／ticket。若 source commit、configuration、variables、provider lock、state serial、
+目標 project、執行 identity、成本或核准 window 任一改變，舊 plan 與 apply approval 立即
+失效，重新 plan／hash／審查。`terraform destroy` 不是通用回滾。
 
-- **動作**：專案、短期 CI 身分、空 secret 容器、log／monitoring／budget。
-- **明確不做**：Firestore、Identity Platform、API runtime、Calendar、DR secondary、production。
-- **驗收證據**：資源清單、預算告警實測（故意觸發一次 50% 告警並確認收得到）。
-- **回滾**：逐資源刪除腳本，且必須先驗證過。
+### 3.2 全階段停止條件
 
-### C2　合成員工身分
+任一切片出現下列情況即停止：plan 含 scope 外資源、production、非核准 location、過寬
+IAM、公開 Firestore／route 或 destructive change；secret 進入 state／log／artifact；實際
+成本超出核准容忍；主要或備援 owner 不在；負向測試、告警、drift 或回滾失敗；發現真實
+病患資料。保全證據、撤銷曝光或隔離資源，由 approver 決定回滾／forward-fix／另案處理，
+不得暫時關閉 MFA、revocation、authz 或 audit 讓測試變綠。
 
-- **動作**：合成帳號、email 驗證、MFA 與 recovery。
-- **驗收證據**：一次完整的「手機遺失 → 救回」演練紀錄。
-- **回滾**：停用 IdP 設定，刪除合成帳號。
+### 3.3 C1　隔離 staging 地基
 
-### C3　連線階段安全
+- **前置**：C0 approved、§2-3 snapshot 完成、C1 request 獨立取得 authority；具名
+  operator／approver、決策級成本、IAM、告警與 rollback 已核准。
+- **動作**：建立 clinic-owned staging project、受版本控管的 remote Terraform state、
+  最小 IAM／service identities、以 GitHub repo／branch／workflow 及數字 ID claim 限制的
+  WIF、空 Secret Manager 容器、baseline logging／monitoring／budget。stateful 資源開啟
+  可用的 deletion protection；不建立長期 service-account key。
+- **明確不做**：Firestore database／API／Rules／backup、Identity Platform、application
+  runtime、Calendar、DR secondary、production、真實資料、secret payload。
+- **驗收證據**：actual resource manifest；WIF 冒用、未核准 principal impersonation、
+  deployer 讀 secret payload／資料的拒絕測試；C1 排除資源的「不存在」清單；state 非公開、
+  versioning／權限證據；budget 與主要／備援通知管道的合成訊息演練。**不得為觸發 50%
+  門檻而故意產生費用**，也不得把 budget 寫成硬上限。
+- **回滾**：先撤銷 WIF／impersonation、停用 service identities、隔離 project，再依逐資源
+  計畫處理；保留 audit／state version。未經額外 cleanup authority 不刪 project 或 state。
 
-- **動作**：Secure cookie、CSRF、30 分鐘 idle、8 小時 absolute。
-- **驗收證據**：依 OWASP ASVS 逐條核對（token 不出現在 URL、驗證後換發、
-  登出後上一頁不可續用）；閒置逾時的實測時間戳。
-- **回滾**：還原設定版本。
+### 3.4 C2　合成員工身分
 
-### C4　伺服器端權限
+- **前置**：C1 G5 完成；IdP 成本、local／Google provider、email verification、TOTP
+  enrollment、遺失／重綁／recovery 與無 break-glass 預設流程已核准；C2 自有 request／plan／
+  approval。security owner 已決定抗釣魚選項，或明列不宣稱完整 NIST AAL2。
+- **動作**：只建立合成 staff 身分；設定 Google＋local provider、email verification、全員
+  MFA、TOTP 與已核准 recovery。recovery 不得比正常登入更弱，變更 factor 要重新驗證、通知、
+  audit 並撤銷既有 session。
+- **驗收證據**：verified／unverified email、MFA 缺失、錯誤 TOTP、clock-skew 邊界、重放、
+  遺失／重綁、停權、刪除合成帳號的正負案例；一次「裝置遺失 → 具名覆核 → 安全救回」演練；
+  對齊聲明／偏差決定連結。測試數與 actor／timestamp 齊備。
+- **回滾**：停止新登入、撤銷 session／factor、停用新增 provider，保留稽核後刪除合成帳號；
+  不回退成繞過 MFA 的帳號。
 
-- **動作**：RBAC、停權／撤銷、授權碼 KDF 與限流。
-- **驗收證據**：角色 × action 的 fixture 矩陣測試；**無權限者的 API 回應不含金額
-  欄位本身**（不是前端隱藏）。
-- **回滾**：回到前一版規則。
+### 3.5 C3　伺服器連線階段安全
 
-### C5　稽核
+- **前置**：C2 G5、threat model 與 C3 獨立授權完成；測試仍只用合成 staff。
+- **動作**：session secret 由伺服器簽發與驗證；cookie 設 `Secure`、`HttpOnly`、
+  `SameSite=Lax`／`Strict`、最小 domain／path，可行時 `__Host-`；POST／PUT 驗證 CSRF。
+  伺服器強制 30 分鐘 idle、8 小時 absolute、logout、停權／撤銷後下一個 protected request
+  拒絕；session secret 不進 URL 或 `localStorage`，登入後換發 session ID。
+- **驗收證據**：記錄 ASVS `v5.0.0` requirement ID 與結果；29:59／30:00、7:59:59／
+  8:00:00 邊界；logout、上一頁、重放、CSRF、cookie flags、session fixation、IdP session
+  尚存但 RP session 已逾時等負向測試。只改瀏覽器時鐘不得繞過伺服器逾時。
+- **回滾**：將 route 設為不可達或切回前一個已驗證、仍符合 D-006 的版本，撤銷受影響
+  session；不得以延長逾時或停用 CSRF 作回復。
 
-- **動作**：append-only audit、查閱投影、容量告警、deletion deny。
-- **驗收證據**：以管理者身分嘗試刪除稽核並被拒的紀錄。
-- **回滾**：稽核資料不可刪，回滾僅限於規則設定。
+### 3.6 C4　伺服器端權限
 
-### C6　合成 staging 端到端
+- **前置**：C3 G5；角色／action fixture、授權碼 KDF／限流／expiry／unlock 參數及 C4
+  request 已核准。
+- **動作**：伺服器端實作 default-deny RBAC、resource scope、active-account check、停權／
+  撤銷、memory-hard KDF、有限次數與逐步等待；每個 protected request 都重新套用權限與
+  account 狀態，不信任瀏覽器 role 或 timer。
+- **驗收證據**：`administrator`／`front_desk`／`physician` × action × resource 的 allow／deny
+  矩陣；跨角色、跨資源、停權中、撤銷後、錯誤／過期／重放授權碼、不同 IP 繞過限流等
+  負向案例。無權者的 API response **不含受限欄位本身**，不只是在 UI 隱藏。
+- **回滾**：route fail closed，回到前一個已驗證 policy／runtime revision並撤銷 session；
+  若任何 action fail-open，停止整個 Stage 2。
 
-- **動作**：staff-only 合成 API、Web 與端到端驗證。
-- **明確不做**：不開 public booking、不放真資料。
-- **驗收證據**：完整流程演練 + 效能量測（見階段 7）。
-- **前置提醒**：規劃書風險 R3（單調遞增 ID 造成寫入熱點）已由 ENG-03（2026-08-01）
-  定案為「使用資料庫產生的 document ID，營運連號另存欄位」。這一片之前必須完成
-  對應的 ADR 與實作，否則量到的效能數字沒有意義。
+### 3.7 C5　持久化與不可變稽核
+
+- **前置**：C4 G5；Firestore 所在地再次核對 D-010 `asia-east1`（建立後不可變）；資料庫、
+  PITR／backup／restore、Rules／IAM、D-002 access／export 與 C5 authority 皆已明列。C1 的
+  「Firestore 不存在」證據不可重用。
+- **動作**：建立核准範圍內的 Firestore；開 deletion protection、direct client deny、最小
+  database IAM；在同一 transaction 寫 domain change 與 append-only audit，建立查閱投影、
+  容量告警、永久 deletion deny。正式鍵採 database-generated document ID，營運連號另欄，
+  並先完成 ADR。若 backup／PITR 在本片 scope，依核准參數設定並 restore 到新 database。
+- **驗收證據**：location／database ID／deletion protection；web／mobile direct read-write
+  被拒；各 application role（含 administrator）update／delete audit 被拒；transaction 失敗
+  不留下半套資料；備份／PITR 的時間點、restore 新 database、筆數／checksum／index 驗證。
+  記錄「backup 與來源同 location，不證明 regional DR」。
+- **回滾**：先停止寫入並 quarantine；規則／程式可回前版，已寫 audit 不刪。資料錯誤採
+  restore 到新 database 或核准的 forward-fix，不把 database delete／in-place overwrite
+  當一般回滾。
+
+### 3.8 C6　合成 staging 端到端
+
+- **前置**：C1～C5 各自 G5 完成；C6 request、不可變 artifact digest、流量步驟、健康檢查、
+  schema 相容性、rollback revision 與觀察窗已核准。
+- **動作**：部署 staff-only synthetic API／Web 到 0% traffic 的 Cloud Run revision；先驗證
+  startup／readiness、migration compatibility 與 synthetic smoke，再依核准百分比逐段移轉
+  流量。維持前一個已驗證 revision 可回切；不開 public booking、不放真資料。
+- **驗收證據**：source commit、SBOM、image digest、revision ID、startup／readiness、每段
+  traffic 與觀察時間；完整 staff flow、權限／稽核／outbox、效能、積壓與告警實測；流量切回
+  舊 revision 後功能與資料完整。注意流量調整有傳播時間，in-flight request 可能完成。
+- **前置提醒**：ENG-03（2026-08-01）已定案 database-generated document ID；ADR 與 C5
+  實作未完成就不得做有意義的效能量測。
+- **回滾**：新 revision 先切 0%，流量回前一個已驗證 revision；若 schema 不相容，停止
+  寫入並執行預演過的 forward-fix／restore。不得只宣稱「revision 已回退」就算系統回滾。
 
 ---
 
 ## 階段 4：Stage 3 專用測試 Calendar
 
-- **前置**：Stage 2 完成 + D-009 核准。
+- **前置**：Stage 2 完成 + D-009 核准；D-009 明列事件可含欄位、Calendar owner、最小
+  OAuth scope、測試日曆、credential owner／rotation、輪詢頻率、配額／成本、刪除與事故處理。
+  本階段仍須比照 §3 另有 request、provider plan、apply approval、觀察與交接。
+- **動作**：建立專用測試 Calendar 與最小身分；Calendar 只是投影，預約容量／衝突仍由
+  本系統判斷。以 transactional outbox 發出冪等工作，保存 sync token，push 只作喚醒、
+  polling 作收斂；服務不在事件 description／attendees／extended properties 寫入未核准 PII。
 - **動作與驗收證據**（依 Google 官方同步模型，見規劃書 §6）：
 
 | 必測項目 | 通過標準 |
@@ -251,20 +345,40 @@ plan hash、逐資源回滾**。上一片的授權不會自動延伸到下一片
 | 推播不可靠的補償 | 關閉推播後，輪詢仍能在 SLO 內收斂 |
 | lost-ACK 冪等 | 同一事件重送 100 次只產生一筆 |
 | 死信與補回 | 連續失敗進死信、恢復後可安全補回 |
-| credential rotation | 換憑證後不中斷、舊憑證即刻失效 |
+| credential rotation | 新 secret version 指定版本小流量部署並驗證，之後停用舊版；觀察窗後才銷毀，流程可重入／回切 |
+| watch channel lifecycle | 記錄 resource ID、channel ID、expiration；續租失敗時 polling 仍收斂，舊 channel 可安全停止 |
+| 配額／退避 | 429／5xx 使用有上限的 exponential backoff＋jitter；重試不突破 idempotency |
+| 對帳 | 系統 source of truth 與 Calendar 投影可列出差異、補回並留下 audit |
 
-- **回滾**：撤銷 credential、停用 watch channel、清空測試日曆。
+- **停止條件**：事件出現未核准 PII、Calendar 回寫改變本系統容量、重送產生重複事件、
+  410 分支資料遺失、polling 無法在 SLO 內收斂，或舊 credential 尚未可回切。
+- **回滾**：停止 worker／watch channel，route 回前一版，切回已驗證 secret version，對帳
+  並清理**專用測試 Calendar**；撤銷 credential 前先確保沒有其他核准用途共用。
 
 ---
 
 ## 階段 5：Stage 4 公開預約與真實病患資料
 
-- **前置**：D-001～D-005、D-011 核准；D-006／D-010 實作證據齊備；Stage 2 完成。
-- **動作**：發布正式隱私政策（含版本識別）、建立權利請求與保存刪除流程、開放
-  public API、**把完整 PII 從 `localStorage` 移除**。
-- **驗收證據**：隱私政策版本紀錄；一次完整的「病患要求查閱／刪除」演練；
-  瀏覽器儲存內容的抽查證明不再含完整 PII。
-- **回滾**：關閉 public route，回到 staff-only。
+- **前置**：D-001～D-005、D-011 核准；D-006／D-010 實作證據齊備；Stage 2 完成；
+  privacy／legal owner 已依規劃書 §5.4 鎖定預計上線日的有效法規版本、診所／醫院辦法
+  適用性、受託處理與事件通知責任。真實資料 migration 與 public release 各自有核准。
+- **動作**：
+  1. 建立欄位級 data inventory：蒐集目的、類別、必要性、告知文字、利用期間／地區／
+     對象／方式、權利管道、owner、保存／刪除／備份例外；未映射欄位不得收集。
+  2. 發布版本化隱私告知並保存同意／告知版本；建立查詢、更正、停止、刪除、匯出、申訴、
+     事件通知與處理者管理 runbook，指定主要／備援人與時限。
+  3. **把完整 PII 從 `localStorage`、URL、analytics、error log、Calendar 與非必要 audit 移除**；
+     public API 加 rate limit、abuse control、idempotency、generic error 與 kill switch。
+  4. 資料變更採 expand → synthetic rehearsal → migrate → count／checksum／抽樣 → 切讀 →
+     觀察 → contract；不可逆 migration 與 public route 首次開放不得綁成一個步驟。
+- **驗收證據**：法規版本／適用性 memo；data inventory 與隱私告知逐欄 mapping；一輪
+  查閱／更正／停止／刪除演練及備份例外說明；處理者清單；事故桌上演練；browser／URL／
+  logs／analytics／Calendar 抽樣無未核准 PII；migration 前後筆數／checksum／失敗重跑；
+  public abuse、重送、kill switch 與 staff-only 回復實測。
+- **停止條件**：任何欄位無目的／保存依據、法規版本或適用性未定、權利請求無 owner、
+  處理者契約／責任不明、PII 出現在非核准位置、migration 無法重跑或 kill switch 失效。
+- **回滾**：先關閉 public route 回到 staff-only、停止新資料寫入並保全 audit；資料以預演
+  的向後相容路徑／restore／forward-fix 處理。關 route 不等於可以任意刪已蒐集資料。
 
 ---
 
@@ -273,25 +387,41 @@ plan hash、逐資源回滾**。上一片的授權不會自動延伸到下一片
 - **前置**：D-004、D-007、D-008 核准。
 - **動作**：versioned schedule、指派／改派、病患 merge review、薪資 rule version、
   月結 lock、append-only adjustment。
-- **驗收證據**：關帳後的調整必定留下理由與核准人；合併病患的覆核紀錄與還原演練。
+- **驗收證據**：每一版規則的生效日、核准人與回算差異；關帳後的調整必定留下理由、
+  核准人與前後金額；合併病患先預覽差異、雙人覆核並做還原演練；角色矩陣證明個管、
+  薪資與一般櫃檯欄位分離。
 - **回滾**：規則版本回退；已關帳資料不得直接改寫，只能以新增調整紀錄修正。
 
 ---
 
 ## 階段 7：Stage 6 Production Go／No-Go
 
-全部通過才由 clinic、privacy、security、operations、technical owners 共同決定。
+先設定 release freeze；production plan、image digest、migration、config／secret version 與
+runbook 在會前凍結。任何變更都使相關證據失效。全部通過後，才由 clinic、privacy、
+security、operations、technical owners 對**同一 release candidate**共同決定。
 
 | 關卡 | 通過標準 |
 | --- | --- |
 | 人工無障礙 | WCAG 2.2 AA 的人工驗證（自動掃描不足以證明，見規劃書 §5.3） |
 | 效能 | Core Web Vitals 第 75 百分位達標；操作回應符合 0.1／1／10 秒分級 |
 | 備份還原 | 實際還原一次並比對完整性 |
-| Regional failure | 依 C0 選定的 DR 方案實際演練 |
+| Database／project／regional failure | 依 C0 選定方案分開演練；記錄實際 recovery point、RPO、RTO、failback，不以同區 backup 代替 regional DR |
 | 事故桌上演練 | 含告警接收、升級與對外溝通 |
 | 負載與積壓 | 依 Firestore 500/50/5 規則暖機後量測，非全速冷打 |
-| Rollback | 每一片的回滾都實際跑過一次 |
-| 安全證據 | SAST、相依、SBOM、授權政策、稽核完整 |
+| Runtime／schema rollback | Cloud Run 流量回切與資料 schema 向前／向後相容均實測；不可只驗 revision |
+| 安全證據 | SAST、相依、SBOM、artifact digest、ASVS 版本化 control、授權負向矩陣、稽核完整、secret rotation |
+| 隱私／法遵 | 有效法規版本、適用性 memo、data inventory、告知／權利請求／事件流程與處理者清單均具名核准 |
+| 營運接手 | dashboard、告警主備、on-call／升級、供應商聯絡、成本處置、停機紙本／補登程序可執行 |
+| Change integrity | production plan hash、source commit、provider lock、state serial、image digest 與核准紀錄完全一致 |
+
+**No-Go／撤銷 Go：** 任一證據超過核准有效期、owner 缺席、plan 失效、重大弱點未處置、
+回滾／restore 未達標、未解 drift、真實 PII 邊界不明或告警收不到，一律 No-Go。Go 決定後
+若 release candidate 改變，必須重新評估受影響關卡。
+
+**上線與 hypercare：** 先 0% revision 驗證，再依核准比例移轉；每段觀察錯誤、延遲、
+積壓、auth denial、audit failure 與成本。指定 hypercare 結束條件與交接時間；在結束前
+technical／operations owner 不得同時離線。達停止門檻立即切回／關閉 public route並啟動
+事故流程。
 
 ---
 
@@ -318,40 +448,59 @@ plan hash、逐資源回滾**。上一片的授權不會自動延伸到下一片
 | --- | --- | --- |
 | **每次 PR** | `verify` 全綠；新頁面先進效能預算表；新欄位先過翻譯與欄位守衛 | 這三項都曾實際漏過 |
 | **每週** | 看 Dependabot 新警示；看死信佇列與 outbox 最舊未處理項目 | 相依漏洞是時間函數，不是程式碼函數 |
-| **每月** | 相依升級一輪；重查 SEC-03 例外是否已有修補版 | 例外必須有到期日，否則會變成永久 |
-| **每季** | 重跑一次全新 clone 驗證；覆核 IAM 權限；重評效能預算 | 防止只在既有環境能過的假綠燈 |
+| **每月** | 相依升級；重查安全例外；抽查 secret 指定版本／rotation；核對費用與 forecast | 例外與 credential 都必須有 owner、到期／輪替與回復路徑 |
+| **每季** | 全新 clone 驗證；覆核 IAM／WIF condition；restore smoke；權利請求與告警演練；重評效能預算 | 防止只在既有環境能過的假綠燈 |
+| **每半年** | database／project／regional recovery 與 failback 演練；適用法規與處理者清單重審 | backup 存在不等於在 RPO／RTO 內可恢復 |
 | **每次上游改版** | 重新確認 Core Web Vitals 門檻與 WCAG 版本 | 標準會演進（WCAG 2.2 已移除 4.1.1） |
 
 ---
 
 ## 階段 10：表單模板
 
-### 10.1 核准紀錄
+### 10.1 核准基線快照
 
 ```text
-決定編號：
-答案：
-核准人（姓名／職稱）：
-核准日期（Asia/Taipei）：
-依據文件或證據：
-適用範圍與明確排除項：
-接受的剩餘風險：
-後續實作追蹤項目：
+Snapshot ID／版本：
+來源文件 commit：
+建立人／建立時間（Asia/Taipei）：
+
+每筆決定：
+- 決定編號／答案：
+- 核准人（姓名／職稱）／日期：
+- 依據文件或證據：
+- 適用範圍／明確排除項：
+- 接受的剩餘風險：
+- 解鎖的切片／仍禁止的切片：
+
+仍 pending／互相矛盾的決定：
+Reviewer 1／日期：
+Reviewer 2／日期：
+被新版取代時的 successor snapshot：
 ```
 
 ### 10.2 部署申請（C1～C6 每一片一份）
 
 ```text
 切片編號：
+Request ID／approval snapshot commit：
 精確範圍：
 明確不做：
+資料分類（synthetic／個資／特種個資／財務／secret／metadata）：
+目標 environment／project／region：
 預估成本／月：
+單價查價日／幣別／稅匯率來源：
+成本容忍範圍與 50%／80%／100% 處置：
 執行人（operator）：
 核准人（approver，不得與 operator 同人）：
+主要／備援營運 owner：
 執行時間窗：
-plan hash：
+停止條件：
+Provider plan artifact／SHA-256：
+source commit／provider lock／state serial／target project／identity：
+Apply approval 人／時間／到期：
 逐資源回滾步驟：
 回滾已實測日期：
+證據保存位置／存取權／保存期限：
 ```
 
 ### 10.3 步驟完成紀錄
@@ -360,9 +509,16 @@ plan hash：
 步驟編號：
 前置是否齊備：
 實際執行指令／動作：
-驗收證據（連結或輸出）：
-執行人／日期：
+執行人／開始／結束時間：
+source commit／artifact digest／plan SHA-256：
+Actual resource／revision／secret version IDs：
+正向測試（數量／結果／證據）：
+負向測試（數量／結果／證據）：
+告警／成本／drift 結果：
+回滾或回復演練（觸發、耗時、結果）：
+觀察窗與退出指標：
 未完成的部分與原因：
+偏差／事故／剩餘風險與 owner：
 ```
 
 ### 10.4 階段交接紀錄（每個階段完成時必備）
@@ -398,9 +554,46 @@ record。範例見
 目前 Stage 位置是否改變：
 ```
 
+### 10.5 營運交接紀錄
+
+```text
+服務／切片／版本：
+目前流量／資料分類／公開程度：
+Dashboard／SLI／SLO：
+告警名稱、門檻、主要／備援接收者：
+日常檢查與頻率：
+常見故障與 runbook：
+停機、kill switch、rollback／restore／failback 步驟：
+Secret／certificate／WIF／IAM owner 與覆核日期：
+Backup／PITR／DR 最近實測日期與 RPO／RTO：
+費用基準、budget 與 50%／80%／100% 行動：
+供應商／privacy／security／technical 升級聯絡：
+已知限制／未處理風險／到期日：
+移交人／接手人／日期：
+接手人實際演練的項目與結果：
+```
+
+### 10.6 Production Go／No-Go 會議紀錄
+
+```text
+Release candidate commit／image digest／production plan SHA-256：
+Approval snapshot／決策版本：
+Release freeze 開始時間：
+每一道 §7 gate 的證據連結、執行日、有效期限：
+未關閉弱點／例外／drift／剩餘風險與接受人：
+Rollback target revision／schema 相容性／restore 證據：
+上線百分比、觀察窗、停止門檻、hypercare 時間：
+clinic owner：GO / NO-GO（簽名／時間）
+privacy owner：GO / NO-GO（簽名／時間）
+security owner：GO / NO-GO（簽名／時間）
+operations owner：GO / NO-GO（簽名／時間）
+technical owner：GO / NO-GO（簽名／時間）
+最終結論／限制／下一次重審條件：
+```
+
 ---
 
-## 附錄：常用指令
+## 附錄 A：Repository 常用指令
 
 ```bash
 corepack pnpm run verify
@@ -417,3 +610,22 @@ corepack pnpm run check:supply-chain
 ```bash
 corepack pnpm run test:e2e
 ```
+
+這些只驗 repository，不能替代 provider plan、connected-cloud 負向測試、restore、rollback、
+法遵適用性或 Go／No-Go 證據。
+
+## 附錄 B：官方與權威控制來源
+
+| 主題 | 來源 | 本執行書採用的控制 |
+| --- | --- | --- |
+| 身分／session | [NIST SP 800-63B-4 AAL](https://pages.nist.gov/800-63-4/sp800-63b/aal/)、[Session Management](https://pages.nist.gov/800-63-4/sp800-63b/session/) | 8h／30m 保留；AAL2 抗釣魚選項或偏差決定；cookie／CSRF／server timeout |
+| 應用安全驗收 | [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) | 固定使用穩定版 5.0.0 與 versioned requirement ID |
+| Firebase session | [Manage Session Cookies](https://firebase.google.com/docs/auth/admin/manage-cookies) | CSRF 保護、Secure／HttpOnly cookie、server verify／revocation |
+| Terraform／state | [Security best practices](https://docs.cloud.google.com/docs/terraform/best-practices/security)、[Structure](https://cloud.google.com/docs/terraform/best-practices/general-style-structure) | remote restricted state、secret 不入 state／log、pre-apply policy、post-apply audit、deletion protection |
+| CI cloud identity | [WIF for deployment pipelines](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines) | 短期憑證、attribute condition、數字 ID、repo／branch／workflow 限制 |
+| Runtime release | [Cloud Run rollout／rollback](https://docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration)、[Health checks](https://docs.cloud.google.com/run/docs/configuring/healthchecks) | 0% revision、health／smoke、分段流量、可回切 revision |
+| Firestore | [Locations](https://docs.cloud.google.com/firestore/native/docs/locations)、[Backups](https://docs.cloud.google.com/firestore/native/docs/backups)、[Export／import](https://docs.cloud.google.com/firestore/native/docs/manage-data/export-import) | location 建立後不可變、restore 到新 DB、同區 backup 非 regional DR、實測 RPO／RTO |
+| Secret rotation | [Secret Manager rotation recommendations](https://docs.cloud.google.com/secret-manager/docs/rotation-recommendations) | 指定 version、漸進驗證、先 disable 後 destroy、reentrant rotation |
+| 成本 | [Cloud Billing budgets](https://docs.cloud.google.com/billing/docs/how-to/budgets) | budget 是有延遲的告警，不是硬上限 |
+| 台灣個資 | [個資法第 8 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=8)、[第 11 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=11)、[第 12 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=12) | 告知、正確／更正／刪停、事故流程；上線日前鎖定實際生效版本 |
+| 醫療資料 | [醫療法第 70 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=L0020021&flno=70)、[衛福部醫院個資安全維護辦法](https://www.mohw.gov.tw/fp-18-54747-1.html) | 病歷保存與個資安全控制；辦法是否適用診所由 privacy／legal owner 判定 |

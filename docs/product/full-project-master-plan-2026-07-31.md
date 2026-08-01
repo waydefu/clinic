@@ -11,6 +11,11 @@ Stage 1 位置。
 [決策登錄](phase-1-decision-register.md)；業主原始需求見
 [業主需求彙整索引](owner-requests-consolidated-2026-07-31.md)。
 
+**2026-08-01 查核更新：** Stage 0 已完成；目前仍在 Stage 1，尚未取得任何 C1～C6
+雲端套用授權。本次依 NIST SP 800-63B-4、OWASP ASVS 5.0.0、Google Cloud／Firebase
+官方文件及全國法規資料庫補強「簽核後怎麼執行」。新增內容是**條件式控制與證據要求**，
+不把待決事項改寫成已核准，也不授權建立資源、花費或處理真實個資。
+
 ## 0. 為什麼要有這份文件
 
 專案已累積 20 份以上的規劃、審查與決策文件，各自正確但分散：架構在一份、交付
@@ -55,7 +60,7 @@ modifiability（可修改性）、testability（可測試性）**
 | Modularity | 改一個元件對其他元件影響最小 | `check:architecture` 強制三層相依方向；`packages/domain` 為預約規則單一來源，瀏覽器端只用 vendored 複本 | 手術／付款／結算尚無模組邊界設計，須在 Expansion S 動工前先定 |
 | Reusability | 資產可跨系統使用 | 預約規則同時服務工作臺與患者頁，不寫兩份 | 目前僅一個消費端類型（瀏覽器）；API 化後須驗證同一份規則能被伺服器端重用 |
 | Analysability | 能評估變更影響、能診斷失敗原因 | append-only audit 記錄操作者／時間／前後狀態；outbox 死信保留失敗個案 | audit 的「修改原因」目前只在刪除等特定動作必填，未涵蓋全部異動（見 OR-69） |
-| Modifiability | 改動不破壞品質 | 14 道 `verify` 檢查在每次 push 與 PR 執行；`main` 強制 `Verification evidence` | 檢查腳本自身缺乏測試——本次即因此漏掉一個 ENOENT 崩潰（見 §8.1） |
+| Modifiability | 改動不破壞品質 | 14 道 `verify` 檢查在每次 push 與 PR 執行；`main` 強制 `Verification evidence` | 檢查腳本自身缺乏測試——本次即因此漏掉一個 ENOENT 崩潰（見 §9.1） |
 | Testability | 能建立測試準則並執行 | 548+ 單元測試、152 項 E2E、Firestore rules 測試、10 張視覺基準 PNG | 手術／付款／結算尚無測試策略；金額計算需 property-based 測試而非只有樣例測試 |
 
 ### 2.1 把關本身的品質標準
@@ -156,31 +161,44 @@ Card 等人（1991）的實驗
 
 ### 4.1 已核准值與國際基準的對照
 
-D-006 已核准的參數與 **NIST SP 800-63B** 的 AAL2 要求完全一致：AAL2 規定
-延長使用的連線階段**每 12 小時**至少重新驗證一次（不論使用者是否活躍），且
-**閒置 30 分鐘**以上須重新驗證，達到任一上限即應登出
-（[NIST SP 800-63B §7.2](https://pages.nist.gov/800-63-3/sp800-63b.html)、
-[Session Management 實作資源](https://pages.nist.gov/800-63-3-Implementation-Resources/63B/Session/)）。
+D-006 的已核准值**維持不變**；但不能再宣稱「完全符合 NIST AAL2」。2025 年發布的
+**NIST SP 800-63B-4** 建議 AAL2 的整體重新驗證上限不超過 24 小時、閒置上限不超過
+1 小時，並要求 verifier 至少**提供一種抗網路釣魚的驗證選項**。TOTP 可作為 AAL2 的
+OTP 因子，但本身不是抗網路釣魚方法
+（[NIST AAL2 requirements](https://pages.nist.gov/800-63-4/sp800-63b/aal/)）。
 
-| 本專案已核准值（D-006） | NIST AAL2 要求 | 結論 |
+| 本專案已核准值（D-006） | NIST SP 800-63B-4 AAL2 | 結論 |
 | --- | --- | --- |
-| 8 小時 absolute session | ≤ 12 小時 | 嚴於基準，可 |
-| 30 分鐘 idle | ≤ 30 分鐘 | 等於基準 |
-| 全員 MFA、自管帳號 TOTP | AAL2 要求雙因子 | 相符 |
-| 停權後下一個 protected request 即拒絕 | 連線階段須可即時失效 | 相符 |
+| 8 小時 absolute session | 建議 ≤ 24 小時 | 時間上更嚴格 |
+| 30 分鐘 idle | 建議 ≤ 1 小時 | 時間上更嚴格 |
+| 全員 MFA、自管帳號 TOTP | 需兩個因子；verifier 另須提供至少一種抗釣魚選項 | **TOTP 可作第二因子，但不足以單獨支撐完整 AAL2 對齊聲明** |
+| 停權後下一個 protected request 即拒絕 | session host 必須執行逾時、失效與重新驗證 | 需由伺服器端負向測試證明 |
 
-這張表的用途是：C0 審查時不必重新爭論這些數字合不合理，只需確認實作是否符合。
+因此 C0／C2 必須由 security owner 書面選一項：加入 passkey／FIDO2 等抗釣魚選項；或
+明確記錄本專案**不宣稱完整符合 NIST AAL2**及其剩餘風險。這是新發現的標準差距，不得
+由實作者自行改寫 D-006。8 小時／30 分鐘本身不用重新爭論，但是否提出 AAL2 對齊聲明
+必須定案。
 
 ### 4.2 連線階段的實作要求
 
-依 **OWASP ASVS** 的連線階段管理要求
-（[ASVS V3 Session Management](https://github.com/OWASP/ASVS/blob/master/4.0/en/0x12-V3-Session-management.md)）：
+驗收基準改採目前穩定版 **OWASP ASVS 5.0.0**；證據須記錄版本及 requirement ID，避免
+未來 ASVS 改版後只留下無法重現的「已符合 ASVS」一句話
+（[OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/)）。
+同時依 NIST SP 800-63B-4 的 session 規範：
 
 - token 至少 64 bits 亂度，且由核可的密碼學演算法產生；
 - **絕不出現在 URL 參數**；
 - 驗證成功時必須換發新 token（防固定攻擊）；
-- cookie 必須帶 `Secure`；
+- cookie 使用 `Secure`、`HttpOnly`、`SameSite=Lax` 或 `Strict`、最小 host／path；可行時採
+  `__Host-` 前綴與 `Path=/`；
+- POST／PUT 必須驗證 CSRF 防護值，session secret 不得存於 `localStorage`；
 - 登出與逾時要真正失效，不能只靠前端跳轉——上一頁或下游系統不得能續用。
+
+Firebase session cookie 的有效期可設 5 分鐘至 2 週，但那只是產品允許範圍，**不會取代
+D-006 的 8 小時 absolute／30 分鐘 idle 與伺服器端撤銷檢查**。C3 必須對 29:59／30:00
+及 7:59:59／8:00:00 邊界做伺服器端測試
+（[Firebase session cookies](https://firebase.google.com/docs/auth/admin/manage-cookies)、
+[NIST session management](https://pages.nist.gov/800-63-4/sp800-63b/session/)）。
 
 ### 4.3 權限：後端拒絕，不是前端隱藏
 
@@ -223,6 +241,21 @@ D-006 已核准的參數與 **NIST SP 800-63B** 的 AAL2 要求完全一致：AA
 現況：E2E 已含六頁 axe 掃描、三主題與九個寬度的重排驗證。**自動掃描不等於符合
 AA**——新增的 2.2 準則（如焦點外觀、目標尺寸、一致的說明位置、避免重複輸入）
 多數需要人工驗證，這正是 Stage 6 列有「人工無障礙」關卡的原因。
+
+### 5.4 上線前的法規版本與適用性鎖定
+
+公開收集真實個資前，privacy／legal owner 必須產出一份日期化的適用性判定，至少涵蓋：
+
+1. 個資法第 8 條告知項目如何逐欄映射到隱私告知；
+2. 第 11 條正確性、更正、目的消失或期限屆滿後的刪除／停止處理流程；
+3. 第 12 條事故通知、通報、應變與紀錄保存，在**預計上線日實際生效版本**下的責任；
+4. 預約資料、病歷與稽核紀錄各自的保存依據、期間、刪除例外與備份處理；
+5. 受託處理者、跨境／跨區處理、資料主體權利、事件聯絡人與回覆時限。
+
+全國法規資料庫目前明示 2025 年個資法修正有部分條文施行日未定，因此規劃書只提供
+工程檢核，不替代法律意見，也不把尚未生效文字當成既有義務。衛福部的
+《醫院個人資料檔案安全維護計畫實施辦法》可作控制設計參考，但是否適用本診所須由
+privacy／legal owner 依機構類型書面判定，不得由工程人員推定。
 
 ---
 
@@ -290,22 +323,82 @@ outbox 待處理最舊項目年齡、死信數量、Calendar 同步落後時間�
 
 ---
 
-## 8. 本次規劃過程中發現的實際缺陷
+## 8. 簽核後的交付控制平面
 
-### 8.1 `check:secrets` 會在髒工作區崩潰（已修）
+簽核不是「可以直接執行」的同義詞。它只確定政策答案；任何雲端或資料變更仍須沿著
+以下控制鏈逐片前進。完整欄位與逐步動作見執行書 §3、§10。
+
+### 8.1 六道關卡
+
+| Gate | 必須回答的問題 | 最低證據 | 未通過時 |
+| --- | --- | --- | --- |
+| G0 核准基線 | 哪些決策已核准、版本是什麼、還有哪些矛盾 | 決策快照、核准人／日期、文件 commit、未決清單 | 不得建立切片 request |
+| G1 切片申請 | 這一片做什麼、不做什麼、誰執行、花多少 | scope、排除項、owner、時窗、成本、資料分類、回滾 | 不得產生 provider plan |
+| G2 計畫驗證 | 實際 provider plan 是否只包含核准範圍 | plan 檔及 SHA-256、provider lock、政策掃描、成本差異、state 基準 | 修正後重跑；舊 plan 作廢 |
+| G3 Apply 核准 | 核准者是否看過**同一份** plan | approver、operator、plan hash、到期時間、剩餘風險 | 不得 apply |
+| G4 套用與驗收 | 套用結果是否等於 plan，負向控制是否真的拒絕 | apply log、實際資源 ID、測試數、告警、drift、回滾結果 | 停止後續切片並回滾或隔離 |
+| G5 穩定與交接 | 新能力是否有人營運，證據是否可重現 | 觀察窗、dashboard、runbook、主要／備援 owner、handoff | 階段不算完成 |
+
+上一片的 G5 不會自動核准下一片的 G1。C1～C6 每一片都需要自己的 request、deployment
+authority、provider-backed plan、apply approval、驗收與交接。
+
+### 8.2 基礎設施與供應鏈硬規則
+
+依 Google Cloud 的 Terraform、IAM、Cloud Run、Firestore 與 Secret Manager 官方文件：
+
+- Terraform state 使用受限的遠端 backend；state、plan 與輸出都按敏感資料處理，不把
+  secret 值寫進 configuration、state、CI log 或 artifact。套用前跑政策檢查，套用後跑
+  持續稽核；stateful 資源預設 deletion protection。
+- CI 對 Google Cloud 採短期 Workload Identity Federation，不使用長期 service-account key。
+  attribute condition 必須限制 GitHub organization／repository／branch／workflow，能用數字
+  `*_id` claim 時不用可改名、可被重新註冊的名稱；IAM 不授權整個 identity pool。
+- Cloud Run 以不可變 artifact digest 建立無流量 revision，先過 startup／readiness 與 synthetic
+  smoke，再分段移轉流量。回滾是把流量切回已驗證 revision；資料 schema 必須向前／向後
+  相容，否則「程式回滾」不等於「系統回滾」。
+- Firestore location 在建立時即固定且不可變；建立前必須核對 D-010。啟用 deletion
+  protection、備份／PITR 與實際 restore 演練。官方 backup 與來源在同一 location，且
+  restore 會建立新 database，故**同區備份不是 regional DR**。
+- Secret Manager 版本不可變；production 不盲用 `latest`。輪替採「新增版本 → 指定版本
+  小流量部署 → 驗證 → 停用舊版 → 觀察後銷毀」，輪替工作需可重入，並有最小權限身分。
+- 一般 Cloud Billing budget 是告警，不是硬性支出上限，且資料有延遲。不得把收到預算
+  告警當作成本已被自動封頂的證據。
+
+### 8.3 Plan 有效性與停止條件
+
+下列任一變化都使既有 plan／apply approval 失效：base commit、Terraform configuration、
+variables、provider lock、state serial、目標 project、identity、成本或核准時間窗改變。必須
+重新產生 plan、重新計算 hash、重新審查；不得以「差異很小」沿用舊核准。
+
+遇到以下任一情況立即停止，不進下一片：plan 出現未列入 scope 的資源或刪除、敏感值進入
+log／artifact、實際成本超過核准容忍範圍、主要或備援 owner 不在場、負向測試失敗、告警
+收不到、drift 未解、回滾不可執行、真實個資誤入 synthetic 環境，或法規／決策版本有矛盾。
+停止後保全證據，由 approver 決定回滾、隔離或另開核准；operator 不得自行擴張權限處理。
+
+### 8.4 資料與 schema 變更順序
+
+所有不可逆資料變更採 expand／migrate／verify／contract：先加入向後相容欄位與讀寫路徑，
+以合成資料或遮罩副本排演並核對筆數／checksum，再切換讀取，觀察一個核准的穩定窗，最後
+才移除舊欄位。涉及真實資料時另需 D-series 授權、privacy／legal 判定、備份與 restore
+證據。禁止把 destructive migration 與新 runtime 首次上線放在同一個不可分割步驟。
+
+---
+
+## 9. 本次規劃過程中發現的實際缺陷
+
+### 9.1 `check:secrets` 會在髒工作區崩潰（已修）
 
 `git ls-files` 讀的是 index，會列出「已在版控、但工作區已刪除」的檔案；腳本直接
 `readFile` 該路徑會 ENOENT，讓整個 gate 以「掃描失敗」告終。這正是 §2.1 第 2 條的
 實例：**把關腳本自己沒有被測試**。修法是明確跳過並回報跳過數量，不靜默略過。
 
-### 8.2 由此得出的規劃結論
+### 9.2 由此得出的規劃結論
 
 `scripts/` 下每一支阻斷式檢查都應具備：(a) 至少一支測試；(b) 在髒工作區、
 淺複製與全新 clone 三種情境下的行為定義。目前只有 `generate-sast-evidence.mjs`
 有測試檔，其餘皆無，這是維護性的第一順位補強項。此規則已寫入
 [開發與交接規約](../../CONTRIBUTING.md) 第 8 條。
 
-### 8.3 SAST 證據產生器的測試從未通過（已修）
+### 9.3 SAST 證據產生器的測試從未通過（已修）
 
 `scripts/generate-sast-evidence.test.mjs` 使用的是舊的 `SAST_RULE_CONFIGS`，而
 `.github/workflows/sast.yml` 早已改為 `SAST_LOCAL_RULE_CONFIGS`、
@@ -321,7 +414,7 @@ outbox 待處理最舊項目年齡、死信數量、Calendar 同步落後時間�
 
 ---
 
-## 9. 風險登錄
+## 10. 風險登錄
 
 | # | 風險 | 影響 | 對策 | 現況 |
 | --- | --- | --- | --- | --- |
@@ -332,10 +425,17 @@ outbox 待處理最舊項目年齡、死信數量、Calendar 同步落後時間�
 | R5 | 低流量下照抄燃燒率告警 | 告警不會響 | 改絕對計數 | 設計已定 |
 | R6 | 效能預算在功能做完後才套 | 大幅重工 | 新頁面先進預算表 | 官網素材已踩到 |
 | R7 | 業主需求前後不一致 | 做錯方向 | 四項待確認已列表 | 待業主回覆 |
+| R8 | plan 與 apply 之間 configuration／state 已改變 | 套用未經核准的差異 | plan 有效性條件、hash 與短時窗；任何變更重審 | 控制已定，待 C1 證明 |
+| R9 | Terraform state／plan／CI artifact 洩露 secret 或敏感值 | 憑證或基礎設施資訊外洩 | 遠端受限 state、敏感 artifact、不得把 secret 寫入 state／log | 待 C1 實證 |
+| R10 | WIF 只按可改名的 repo claim 授權 | 名稱被接管後取得雲端權限 | 限制 issuer、數字 ID、repo、branch、workflow；不授權整 pool | 待 C1 實證 |
+| R11 | TOTP 被誤寫成完整 NIST AAL2 對齊 | 對外保證超過實際控制 | C0／C2 決定抗釣魚選項或明列不宣稱完整 AAL2 | **待 security owner** |
+| R12 | 把 Cloud Billing budget 當硬上限 | 異常費用未被自動阻止 | 告警 owner、停用 runbook、每日成本觀測；不宣稱自動封頂 | 待 C1 實證 |
+| R13 | Cloud Run revision 已回退但 schema 不相容 | 應用看似回滾、資料仍不可用 | expand／contract、雙向相容、資料回復演練 | 待 C6 實證 |
+| R14 | 以尚未生效修法或不適用醫院辦法當成診所義務 | 法遵缺口或錯誤承諾 | 上線日前由 privacy／legal owner 鎖定有效版本與適用性 | **待 D-001～D-003／D-011** |
 
 ---
 
-## 10. 引用來源
+## 11. 引用來源
 
 - [ISO/IEC 25010:2023 產品品質模型](https://www.iso.org/obp/ui/en/#!iso:std:78176:en)
 - [web.dev — Web Vitals](https://web.dev/articles/vitals)
@@ -343,9 +443,20 @@ outbox 待處理最舊項目年齡、死信數量、Calendar 同步落後時間�
 - [Nielsen Norman Group — Response Time Limits（Miller 1968；Card et al. 1991）](https://www.nngroup.com/articles/response-times-3-important-limits/)
 - [Firebase — Cloud Firestore 最佳實務](https://firebase.google.com/docs/firestore/best-practices)
 - [Firebase — Understand reads and writes at scale](https://firebase.google.com/docs/firestore/understand-reads-writes-scale)
-- [NIST SP 800-63B — Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
-- [NIST 800-63B 實作資源 — Session Management](https://pages.nist.gov/800-63-3-Implementation-Resources/63B/Session/)
-- [OWASP ASVS — V3 Session Management](https://github.com/OWASP/ASVS/blob/master/4.0/en/0x12-V3-Session-management.md)
+- [NIST SP 800-63B-4 — Authentication Assurance Levels](https://pages.nist.gov/800-63-4/sp800-63b/aal/)
+- [NIST SP 800-63B-4 — Session Management](https://pages.nist.gov/800-63-4/sp800-63b/session/)
+- [OWASP ASVS — current stable release](https://owasp.org/www-project-application-security-verification-standard/)
+- [Firebase — Manage Session Cookies](https://firebase.google.com/docs/auth/admin/manage-cookies)
+- [Google Cloud — Terraform security best practices](https://docs.cloud.google.com/docs/terraform/best-practices/security)
+- [Google Cloud — Terraform general style and structure](https://cloud.google.com/docs/terraform/best-practices/general-style-structure)
+- [Google Cloud IAM — Workload Identity Federation for deployment pipelines](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines)
+- [Google Cloud Run — Rollbacks, gradual rollouts and traffic migration](https://docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration)
+- [Google Cloud Run — Health checks](https://docs.cloud.google.com/run/docs/configuring/healthchecks)
+- [Google Cloud Firestore — Locations](https://docs.cloud.google.com/firestore/native/docs/locations)
+- [Google Cloud Firestore — Back up and restore data](https://docs.cloud.google.com/firestore/native/docs/backups)
+- [Google Cloud Firestore — Export and import data](https://docs.cloud.google.com/firestore/native/docs/manage-data/export-import)
+- [Google Cloud Secret Manager — Rotation recommendations](https://docs.cloud.google.com/secret-manager/docs/rotation-recommendations)
+- [Google Cloud Billing — Budgets and alerts](https://docs.cloud.google.com/billing/docs/how-to/budgets)
 - [W3C — What's New in WCAG 2.2](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/)
 - [W3C — WCAG 2.2 Recommendation](https://www.w3.org/TR/WCAG22/)
 - [Google Calendar API — Synchronize resources efficiently](https://developers.google.com/workspace/calendar/api/guides/sync)
@@ -355,7 +466,11 @@ outbox 待處理最舊項目年齡、死信數量、Calendar 同步落後時間�
 - [Google SRE Workbook — Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/)
 - [Google SRE Workbook — Error Budget Policy](https://sre.google/workbook/error-budget-policy/)
 - [全國法規資料庫 — 個人資料保護法第 6 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=6)
+- [全國法規資料庫 — 個人資料保護法第 8 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=8)
+- [全國法規資料庫 — 個人資料保護法第 11 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=11)
+- [全國法規資料庫 — 個人資料保護法第 12 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=12)
 - [全國法規資料庫 — 醫療法第 70 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=L0020021&flno=70)
+- [衛生福利部 — 醫院個人資料檔案安全維護計畫實施辦法](https://www.mohw.gov.tw/fp-18-54747-1.html)
 
 本專案既有的法規基線另見
 [台灣隱私法規基線](../security/taiwan-privacy-legal-baseline.md)。
