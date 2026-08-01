@@ -4,6 +4,11 @@ import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
 import {
+  forbiddenBrowserPatterns,
+  importSpecifiers,
+  layerViolations
+} from './architecture-rules.mjs';
+import {
   validateRbacPermissionCoverage,
   validateReachableCapabilityBlockers,
   validateUnroutedInventory
@@ -52,61 +57,6 @@ async function walk(directory, predicate) {
  *
  * 掃描時要認得字串邊界，否則 `'https://…'` 會被當成行註解的開頭而把後半截吃掉。
  */
-function stripComments(source) {
-  let output = '';
-  let index = 0;
-  let quote;
-  while (index < source.length) {
-    const character = source[index];
-    const next = source[index + 1];
-    if (quote !== undefined) {
-      output += character;
-      if (character === '\\') {
-        output += next ?? '';
-        index += 2;
-        continue;
-      }
-      if (character === quote) quote = undefined;
-      index += 1;
-      continue;
-    }
-    if (character === "'" || character === '"' || character === '`') {
-      quote = character;
-      output += character;
-      index += 1;
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      while (index < source.length && source[index] !== '\n') index += 1;
-      continue;
-    }
-    if (character === '/' && next === '*') {
-      index += 2;
-      while (
-        index < source.length &&
-        !(source[index] === '*' && source[index + 1] === '/')
-      )
-        index += 1;
-      index += 2;
-      continue;
-    }
-    output += character;
-    index += 1;
-  }
-  return output;
-}
-
-/** 靜態與動態匯入的模組指定字串。註解裡的字串不會匹配，因為要求前面是 from/import。 */
-function importSpecifiers(source) {
-  const found = [];
-  for (const match of source.matchAll(
-    /(?:^|[\s;{(])(?:import|export)\s[^'"()]*?from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)|^\s*import\s*['"]([^'"]+)['"]/gm
-  )) {
-    found.push(match[1] ?? match[2] ?? match[3]);
-  }
-  return found.filter((value) => value !== undefined);
-}
-
 // --- 規則 1：依賴方向 ----------------------------------------------------
 //
 // domain 是最內層，不可以認識任何外層；contracts 只依賴 zod；瀏覽器沒有打包器
@@ -136,14 +86,14 @@ const LAYERS = [
 ];
 
 for (const layer of LAYERS) {
-  for (const file of await walk(layer.directory, layer.match)) {
-    const source = await readFile(file, 'utf8');
-    for (const specifier of importSpecifiers(source)) {
-      const isRelative = specifier.startsWith('.') || specifier.startsWith('/');
-      if (isRelative) continue;
-      if (layer.allowedBare.includes(specifier)) continue;
-      fail('layering', `${repoPath(file)} 匯入了 '${specifier}'。${layer.why}`);
-    }
+  const files = await Promise.all(
+    (await walk(layer.directory, layer.match)).map(async (file) => ({
+      path: repoPath(file),
+      source: await readFile(file, 'utf8')
+    }))
+  );
+  for (const violation of layerViolations(layer, files)) {
+    fail('layering', violation.detail);
   }
 }
 
@@ -316,10 +266,9 @@ const FORBIDDEN_IN_BROWSER = [
 ];
 
 for (const file of browserFiles) {
-  const source = stripComments(await readFile(file, 'utf8'));
-  for (const { pattern, detail } of FORBIDDEN_IN_BROWSER) {
-    if (pattern.test(source))
-      fail('duplicated-rule', `${repoPath(file)}：${detail}`);
+  const source = await readFile(file, 'utf8');
+  for (const detail of forbiddenBrowserPatterns(source, FORBIDDEN_IN_BROWSER)) {
+    fail('duplicated-rule', `${repoPath(file)}：${detail}`);
   }
 }
 

@@ -2,6 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import process from 'node:process';
 
+import {
+  containsNormalized,
+  duplicateIds,
+  reviewInjectedInputs
+} from './web-ui-rules.mjs';
+
 // 工作臺的標記自 2026-07-21 起直接寫在 index.html，不再有獨立的 shell 檔。
 const paths = {
   adminShell: 'apps/web/public/index.html',
@@ -42,14 +48,13 @@ const failures = [];
 // Compare with whitespace removed. These assertions describe which construct
 // must exist, not how it is laid out; matching raw text would pin the sources
 // to one exact formatting and make them impossible to run a formatter over.
-const normalize = (value) => value.replace(/\s+/g, '');
 function requireText(source, text, description) {
-  if (!normalize(source).includes(normalize(text))) failures.push(description);
+  if (!containsNormalized(source, text)) failures.push(description);
 }
 
 /** 反向守衛：某些寫法一旦回來就是退步，光要求正確寫法在場擋不住它。 */
 function refuseText(source, text, description) {
-  if (normalize(source).includes(normalize(text))) failures.push(description);
+  if (containsNormalized(source, text)) failures.push(description);
 }
 
 // 合成狀態換 schema 時，測試 helper 的跨角色切換也必須跟著換鍵；否則測試會直接
@@ -470,21 +475,11 @@ const INJECTED_INPUT_SOURCES = {
   'modules/tag-picker.js': files.tagPicker,
   'modules/confirm-dialog.js': files.confirmDialog
 };
+// 繫結由呼叫端插進來的（`${attributeFor(...)}`）不在這一條的範圍內——那個字串
+// 在這裡還不存在。tag-picker 是唯一這樣做的地方，而它產生的繫結由下面的允許
+// 清單逐一登記。判斷本身在 web-ui-rules.mjs，那裡才測得到。
 for (const [name, source] of Object.entries(INJECTED_INPUT_SOURCES)) {
-  for (const match of source.matchAll(/<input\b[^>]*>/gi)) {
-    const tag = match[0];
-    if (/\bid=/.test(tag))
-      failures.push(
-        `${name} injects an <input> carrying an id. Ids are global, and both clients build their element map from every [id] — a collision silently replaces a control.`
-      );
-    // 繫結由呼叫端插進來的（`${attributeFor(...)}`）不在這一條的範圍內——
-    // 那個字串在這裡還不存在。tag-picker 是唯一這樣做的地方，而它產生的繫結
-    // 由下面的允許清單逐一登記。
-    if (!tag.includes('${') && !/\b(?:name|data-[a-z-]+)=/.test(tag))
-      failures.push(
-        `${name} injects an <input> with no name or data-* binding, so nothing can read its value: ${tag.slice(0, 60)}…`
-      );
-  }
+  failures.push(...reviewInjectedInputs(name, source));
 }
 
 // 患者頁注入的標籤繫結必須逐一登記，與 HTML 欄位同一個標準：新增一組患者端
@@ -571,16 +566,7 @@ for (const [key, path] of [
   ['adminShell', paths.adminShell],
   ['patientHtml', paths.patientHtml]
 ]) {
-  const ids = [...files[key].matchAll(/\sid="([^"]+)"/g)].map(
-    (match) => match[1]
-  );
-  const seen = new Set();
-  const duplicates = new Set();
-  for (const id of ids) {
-    if (seen.has(id)) duplicates.add(id);
-    seen.add(id);
-  }
-  for (const id of duplicates)
+  for (const id of duplicateIds(files[key]))
     failures.push(`${path} has a duplicate id="${id}".`);
 }
 

@@ -1065,7 +1065,14 @@ export function checkPublicPageConfiguration({
   };
 }
 
-async function repositoryInputs() {
+/**
+ * 這道 gate 的真實輸入。
+ *
+ * 匯出是為了讓測試能以「真實組態必須零失敗、逐一破壞後必須被抓到」的方式驗證
+ * `checkPublicPageConfiguration`——手寫 fixture 只能證明比對邏輯自洽，證明不了
+ * 它讀得懂這個 repository 現在的組態，而後者才是這道 gate 的用途。
+ */
+export async function repositoryInputs() {
   const scanSources = {};
   for (const [scan, path] of Object.entries(SCAN_SPECS))
     scanSources[scan] = await read(...path.split('/'));

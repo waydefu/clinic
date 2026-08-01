@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
+  checkPublicPageConfiguration,
   extractPrettyPaths,
-  extractPublicPageScanRoutes
+  extractPublicPageScanRoutes,
+  repositoryInputs
 } from './check-public-pages.mjs';
 
 // 這兩支是把關的資料來源：一支從 server.mjs 讀出實際生效的路由對應，一支從掃描
@@ -92,5 +94,102 @@ describe('scan-route extraction', () => {
 
     expect(routes).toEqual([]);
     expect(failures.length).toBeGreaterThan(0);
+  });
+});
+
+// 上面測的是兩支解析器。以下測整個組態比對——那才是這道 gate 的用途：證明對外
+// 頁面清單、效能預算、server 的 pretty-path、Firebase 的 rewrite/redirect 與各
+// 掃描矩陣彼此雙向一致。只用手寫 fixture 測，證明得了比對邏輯自洽，證明不了它
+// 讀得懂這個 repository 現在的組態。所以基準用真實輸入，再逐一破壞副本。
+
+describe('checkPublicPageConfiguration', () => {
+  let inputs;
+
+  beforeAll(async () => {
+    inputs = await repositoryInputs();
+  });
+
+  /** 從同一個已知良好的基準深拷貝，確保案例之間互不影響。 */
+  function mutate(change) {
+    const copy = {
+      ...inputs,
+      inventory: structuredClone(inputs.inventory),
+      budgets: structuredClone(inputs.budgets),
+      firebase: structuredClone(inputs.firebase),
+      scanSources: { ...inputs.scanSources },
+      dataRouteSources: { ...inputs.dataRouteSources }
+    };
+    change(copy);
+    return checkPublicPageConfiguration(copy);
+  }
+
+  it('accepts the repository as it currently stands', () => {
+    const result = checkPublicPageConfiguration(inputs);
+
+    expect(result.failures).toEqual([]);
+    expect(result.pageCount).toBeGreaterThan(0);
+    expect(result.dataRouteCount).toBeGreaterThan(0);
+  });
+
+  it('rejects an inventory that is not an object', () => {
+    expect(mutate((c) => (c.inventory = [])).failures.length).toBeGreaterThan(
+      0
+    );
+  });
+
+  it('rejects an empty page list', () => {
+    expect(
+      mutate((c) => (c.inventory.pages = [])).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('rejects an unknown top-level key in the inventory', () => {
+    expect(
+      mutate((c) => (c.inventory.extra = true)).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('rejects a route that is not an absolute lowercase path', () => {
+    expect(
+      mutate((c) => (c.inventory.pages[0].route = 'Booking/')).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  // 以下四條各對應一種「其中一邊改了、另一邊沒跟上」的情境。它們都不會讓建置
+  // 失敗，只會讓某個頁面存在卻沒被掃到，或被掃到卻其實不存在。
+  it('notices a server pretty-path mapping that drifted', () => {
+    expect(
+      mutate((c) => {
+        c.serverSource = c.serverSource.replace(
+          /\['\/[a-z-]+',/u,
+          "['/drifted',"
+        );
+      }).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('notices Firebase rewrites that no longer match the inventory', () => {
+    expect(
+      mutate((c) => {
+        c.firebase.hosting.rewrites = [];
+      }).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('notices a scan matrix that stopped covering its routes', () => {
+    expect(
+      mutate((c) => {
+        const [first] = Object.keys(c.scanSources);
+        c.scanSources[first] = 'export const nothing = [];';
+      }).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('notices a data-driven route source that lost its entries', () => {
+    expect(
+      mutate((c) => {
+        c.dataRouteSources.CLINIC_ROUTES = [];
+      }).failures.length
+    ).toBeGreaterThan(0);
   });
 });
