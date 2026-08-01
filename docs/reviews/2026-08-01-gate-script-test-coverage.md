@@ -1,6 +1,6 @@
 # 階段交接紀錄：把關腳本的測試覆蓋與階段 0 收尾 — 2026-08-01
 
-**狀態：已交付，尚未合併。步驟 0-6 明確未完成。**
+**狀態：階段 0 步驟 0-6 與 0-7 已交付。0-6 已公開發布並複驗；0-7 有兩支腳本明確未覆蓋。**
 本階段對應[全專案執行書](../product/full-project-execution-book-2026-07-31.md)的
 **階段 0 步驟 0-6 與 0-7**，是[前一份交接紀錄](2026-08-01-sast-migration-and-audit-governance-delivery.md)
 「下一位從這裡開始」的第 1、2 項。
@@ -124,7 +124,20 @@ AWS 憑證後仍被 `aws-access-token` 規則抓到，合成鍵則被正確豁�
 | 4 公開端 verify 與雙 audit | 15 檔 / **178 項測試**通過（發布時為 14 檔 / 164 項）；兩道 audit 皆無漏洞 |
 | 5 gitleaks／trufflehog／public-safety | gitleaks 0 筆；trufflehog 93 chunks、0 verified／0 unverified；public-safety 73 檔通過 |
 | 6 另一個乾淨目錄複驗 | commit `b77abf4`、tree `e3b5272` 與候選完全一致；只有一個分支、零 tag；掃描與檢查全部重跑通過 |
-| 7 公開推送 | **未執行，等候 owner 同意** |
+| 7 公開推送 | **已完成**。[PR #2](https://github.com/waydefu/appointment-platform-public/pull/2)，六項檢查全過（`Public verification`、`CodeQL`、Dependency audit、Dependency review、Quality and public-safety gates），squash merge 為 `f71643d`；分支依設定自動刪除 |
+| 8 記錄範圍或控制變更 | 無重大範圍或控制變更。未新增檔案類別、未調整任何 GitHub 保護設定、未變更 allowlist 邊界。公開端仍為 73 個追蹤檔、單一 `main` 分支 |
+
+#### 合併後複驗
+
+| 項目 | 結果 |
+| --- | --- |
+| 全新 clone HEAD | `f71643d`，3 個 commit，僅 `origin/main` |
+| 追蹤檔 | 73 |
+| gitleaks | 0 筆 |
+| trufflehog | 93 chunks，0 verified／0 unverified |
+| public-safety | 73 檔通過 |
+| 公開端 verify | 15 檔 / 178 項測試通過 |
+| commit 身分 | `wayde.fu <123912239+waydefu@users.noreply.github.com>`，符合 noreply 要求 |
 
 #### 第 3～5 步實際擋下的兩件事
 
@@ -177,12 +190,14 @@ firebase 設定等多份 fixture，尚未進行。
 
 | 順序 | 待辦 | 卡在哪 |
 | --- | --- | --- |
-| 1 | 安裝 gitleaks／trufflehog 後執行步驟 0-6 | 需 owner 對公開推送逐次同意 |
-| 2 | `check-architecture.mjs` 抽出純函式並補測試 | 純技術工作，無阻塞 |
-| 3 | `check-web-ui.mjs` 同上 | 檔案較大，建議先切出核心 review 函式 |
-| 4 | `checkPublicPageConfiguration` 的完整 fixture 測試 | 純技術工作 |
-| 5 | API 健康檢查測試的不穩定性 | 需決定拆執行序或標記追蹤 |
-| 6 | 回收兩份決定清單、召開 C0 | 需業主與各負責人 |
+| 1 | `check-architecture.mjs` 抽出純函式並補測試 | 純技術工作，無阻塞 |
+| 2 | `check-web-ui.mjs` 同上 | 1070 行，建議先切出核心 review 函式 |
+| 3 | `checkPublicPageConfiguration` 的完整 fixture 測試 | 純技術工作 |
+| 4 | 單元測試的收集時間（全批約 28 秒） | 與 `maxWorkers: 1` 的序列化取捨有關，需先量測再決定 |
+| 5 | 回收兩份決定清單、召開 C0 | **需業主與各負責人**，這是目前唯一擋住整個專案往前走的事 |
+
+**階段 0 至此結束。** 剩下的 1～4 項是可隨時進行的技術補強，不阻擋任何階段；
+第 5 項才是關鍵路徑。
 
 ## 7. 本階段記錄的決策
 
@@ -190,4 +205,5 @@ firebase 設定等多份 fixture，尚未進行。
 視同產品程式碼，須附測試並定義三種工作區情境的行為）。
 
 目前位置不變：**Stage 1**。本階段沒有建立任何雲端資源、沒有開啟任何路由、
-沒有接觸任何真實病患資料，也沒有進行任何公開發布。
+沒有接觸任何真實病患資料，也沒有進行任何雲端部署；唯一的公開發布是 §5.1
+記錄的受控公開鏡像同步。

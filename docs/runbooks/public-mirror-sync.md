@@ -94,7 +94,20 @@
    皆通過後 **squash merge**。**這一步每次都要取得 repository owner 明確同意。**
 8. 把重大範圍或控制變更記進新的日期化 review。
 
-### 4.1 掃描器
+### 4.1 公開端的合併規則（2026-08-01 查證）
+
+推送前先確認這幾項，免得做到一半才發現路走不通：
+
+| 項目 | 值 | 影響 |
+| --- | --- | --- |
+| 允許的合併方式 | **只有 squash** | 不能沿用私有端的 merge commit 做法 |
+| 需要的核准數 | **0**，且不要求 code owner review | 不會卡在需要第二個人；但這也表示**沒有第二雙眼睛**，逐行審查必須自己做確實 |
+| review thread resolution | 必須全部解決 | 有留言就要先處理 |
+| 必要檢查 | `Public verification`、`CodeQL` | 實際跑起來另有 Dependency audit、Dependency review、Quality and public-safety gates |
+| strict policy | 開啟 | 候選分支的 parent 必須是遠端 `main` 的現值，否則要先 rebase |
+| 合併後刪除分支 | 自動 | 不需另外清理 |
+
+### 4.2 掃描器
 
 | 工具 | 版本 | 取得方式 |
 | --- | --- | --- |
