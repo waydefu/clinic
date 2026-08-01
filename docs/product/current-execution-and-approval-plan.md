@@ -1,11 +1,13 @@
 # 專案後續執行與核准清單
 
 **狀態：現行權威／Stage 1／尚未授權雲端或真實資料。**  
-**最後更新：2026-07-31（Asia/Taipei）**
+**最後更新：2026-08-01（Asia/Taipei）**
 
 這份文件把後續工作收斂成一條可執行的路徑，並用白話列出需要業主、診所、法務、
 資安、營運或技術負責人核准的事項。細節仍以
 [決策登錄](phase-1-decision-register.md)、
+[全專案總體規劃書 §10](full-project-master-plan-2026-07-31.md)、
+[全專案執行書 §0.1](full-project-execution-book-2026-07-31.md)、
 [正式化後續實作規劃](production-readiness-delivery-plan-2026-07-23.md)與
 [Stage 2 change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
 為準；本文件不自行關閉任何 D-series 決策，也不授權 `terraform apply`、建立
@@ -13,31 +15,36 @@ Cloud／Firebase 資源、連接 Calendar 或處理真實病患資料。
 
 ## 一句話說明
 
-目前已經有可展示、可測試的預約系統；下一步是先把 repository 與安全證據收好，
-再由具名負責人決定資料、排班、登入、雲端費用和故障復原方式，最後才按切片建立
-只放合成資料的 staging。
+Stage 0 的 repository／安全證據已完成；現在同時走兩條不衝突的路：回收 39 題業主
+答案與完成 C0，以及處理 TW-01～TW-05 的 repository／測試／人工無障礙補強。
+C0 通過後才可逐片申請只放合成資料的 staging，後續再依決策走 Calendar、公開服務、
+排班／個管／薪資、Production 與獨立的 Expansion S。
 
 ## 固定執行順序
 
-### 0. Repository 與品質收尾
+### 0. Repository 與品質收尾（主要工作已完成）
 
-這一段可以在 Stage 1 進行，不會建立雲端後端或接觸真實資料。
+Stage 0 已合併，私有與公開端證據見
+[Stage 0 交接紀錄](../reviews/2026-08-01-gate-script-test-coverage.md)。仍有五個**不阻塞
+決策、但不得遺失**的技術工作包，可在 Stage 1 並行：
 
-1. 修補可安全升級的相依漏洞；沒有相容修補時，必須留下 dependency path、
-   reachability、解除條件與具名風險接受，不能直接忽略。
-2. 讓私有 repository 的 SAST 產生綁定 commit 的可下載結果；掃描、規則測試、
-   解析或證據產生失敗都必須紅。GitHub 方案不支援 Security 頁面上傳時，要把
-   「掃描結果」和「平台上傳能力」分開記錄，不能把上傳失敗說成程式漏洞，也不能
-   把沒掃描說成通過。
-3. `main` 要求 `Verification evidence`；管理者 bypass 依 D-013 保留，但使用
-   bypass 前仍須自行跑完整 gate。
-4. 清除只有在搜尋、建置、lint、型別與測試都能證明未使用的低風險殘留。不得藉
-   清理改寫交易、權限、稽核、Rules、outbox、部署或法律／治理邏輯。
-5. 完整驗證、commit、push，讓 GitHub Actions 對同一 commit 產生證據。
+1. TW-01：替 `check-architecture.mjs` 補核心邏輯自測。
+2. TW-02：拆分 `check-web-ui.mjs` 並補 permission／safety／a11y／DOM fixture。
+3. TW-03：補 `checkPublicPageConfiguration` 的完整組態 fixture。
+4. TW-04：量測 Vitest collect，並查清 API health test 批次逾時；不得只提高 timeout。
+5. TW-05：先在合成環境預演人工無障礙；Production 前對 release candidate 正式執行。
 
-### 1. 完成 C0 plan-only 審查
+每項的完成定義、回滾與證據格式以[執行書 §1A](full-project-execution-book-2026-07-31.md)
+為準。
 
-C0 只核准「未來要怎麼做」，不連 cloud、不建立資源。以下缺一不可：
+### 1. 回收全部決策並完成 C0 plan-only 審查
+
+先逐題回收業主決定清單 39 題與技術資安清單 T1～T21；其中 12 筆 pending D-series
+（D-001～D-005、D-007～D-009、D-011、D-014～D-016）必須各有具名答案、日期、
+適用範圍與排除項。OR-07、OR-22、OR-37 與多服務時長矛盾須由 owner 明確定案，不得由
+實作者用現況或多數決猜值。詳細分組與完成定義見執行書 §1。
+
+C0 只核准「未來要怎麼做」，不連 cloud、不建立資源。決策基線齊備後，以下缺一不可：
 
 1. 具名 technical reviewer、security reviewer、billing owner、主要與備援告警
    接收者。
@@ -65,29 +72,47 @@ operator、approver、兩階段 plan/apply gate 與逐資源 rollback。
 | C6 | staff-only 合成 staging API、Web 與端到端驗證 | C1～C5 證據＋C6 authority | 不開 public booking、不放真資料 |
 
 每一片只解除自己列明的工作；上一片的 authority 不會自動授權下一片。
+這一段同時承接 T18～T19 的實作證據；T20 要在 release candidate 的 GOV-08 重審，
+不能因 C1～C6 完成就自動關閉。
 
 ### 3. Stage 3：專用測試 Calendar
 
 先完成 Stage 2 並核准 D-009，才可接專用測試日曆。必須驗證最小 scope、事件無
 病患 PII、lost-ACK 冪等、重試／死信／補回、告警與 credential rotation。Google
 Calendar 仍只是投影，不是預約量能或衝突的 source of truth。
+這一段承接 T14～T17；Calendar request 與 C1～C6 分開核准。
 
 ### 4. Stage 4：公開預約與真實病患資料
 
 先核准 D-001～D-005、D-011，並完成已核准 D-006/D-010 的實作證據及 Stage 2。
 然後才能發布正式隱私政策、建立患者身分／權利請求／保存刪除流程、開 public API，
-並把完整 PII 從 `localStorage` 移除。
+並把完整 PII 從 `localStorage` 移除。診所官網另須完成 C1 業主實機接受、C2 圖片來源／
+授權證據與 WebP／responsive 壓縮，且維持 560 KiB／3 檔影像預算，才可併入 public release。
 
 ### 5. Stage 5：個管、排班與薪資正式化
 
-先核准 D-004、D-007、D-008，再接 versioned schedule、指派／改派、病患 merge
-review、薪資 rule version、月結 lock 與 append-only adjustment。
+先核准 D-004、D-007、D-008；若薪資／結算使用付款實收或退款資料，還須先關閉
+D-015 的財務權威邊界。再接 versioned schedule、指派／改派、病患 merge review、
+薪資 rule version、月結 lock 與 append-only adjustment。
 
 ### 6. Stage 6：Production Go／No-Go
 
 所有 release-scope 決策、前置 stage、人工無障礙、備份還原、regional failure、
 事故桌上演練、負載／積壓、rollback 與完整安全證據都通過後，才由 clinic、
 privacy、security、operations、technical owners 共同決定 Go／No-Go。
+
+### 7. Expansion S：手術、付款、結算與 Calendar inbound
+
+Expansion S 預設不插入 Phase 1 關鍵路徑。先完成 D-014～D-016 與獨立 scope decision，
+再依 S-00～S-07 執行：領域／安全基線、合成手術排程、臨床時間軸、付款退款 ledger、
+人員結算、Calendar inbound review、整合 Go／No-Go。每片仍需自己的 request、資料分類、
+負向測試、回滾與具名醫療／財務／隱私／資安簽核；詳見執行書 §8。
+
+### 8. 常態維運
+
+Repository gate 現在就按每次 PR／每月／每季節奏執行；cloud、Calendar、真資料與
+production 的告警、secret rotation、restore、DR、法規／vendor 重審，只在相應服務
+存在且完成營運交接後啟用。頻率與 owner 見執行書 §9。
 
 ## 需要核准的項目
 

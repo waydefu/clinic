@@ -48,6 +48,9 @@ test.describe('行動版週檢視', () => {
   test('手機改用行程表，且完全沒有水平捲動', async ({ page }) => {
     await login(page);
     await createBooking(page);
+    // 錨定到被渲染的那一週；打烊後 createBooking 會訂到下一個門診日，
+    // 那可能不在週檢視顯示的週內。理由見 seedAppointmentCopies 的註解。
+    await seedAppointmentCopies(page, 1);
     await openCalendarPanel(page);
 
     const host = page.locator('#week-view');
@@ -66,6 +69,9 @@ test.describe('行動版週檢視', () => {
   test('一筆預約只出現一個可點事件，不會兩種檢視都渲染', async ({ page }) => {
     await login(page);
     await createBooking(page);
+    // 錨定到被渲染的那一週；打烊後 createBooking 會訂到下一個門診日，
+    // 那可能不在週檢視顯示的週內。理由見 seedAppointmentCopies 的註解。
+    await seedAppointmentCopies(page, 1);
     await openCalendarPanel(page);
 
     const events = page.locator('#week-view [data-week-event]');
@@ -79,6 +85,9 @@ test.describe('行動版週檢視', () => {
   test('事件帶著與網格檢視相同的完整標籤', async ({ page }) => {
     await login(page);
     await createBooking(page);
+    // 錨定到被渲染的那一週；打烊後 createBooking 會訂到下一個門診日，
+    // 那可能不在週檢視顯示的週內。理由見 seedAppointmentCopies 的註解。
+    await seedAppointmentCopies(page, 1);
     await openCalendarPanel(page);
 
     const label = await page
@@ -95,6 +104,9 @@ test.describe('桌機仍是時間網格', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await login(page);
     await createBooking(page);
+    // 錨定到被渲染的那一週；打烊後 createBooking 會訂到下一個門診日，
+    // 那可能不在週檢視顯示的週內。理由見 seedAppointmentCopies 的註解。
+    await seedAppointmentCopies(page, 1);
     await openCalendarPanel(page);
 
     const host = page.locator('#week-view');

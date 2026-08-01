@@ -131,6 +131,13 @@ export async function showAllAppointments(page: Page): Promise<void> {
  * 這是分頁／週曆定位的測試前置資料，不繞過任何被驗證的 UI 行為：先用
  * `createBooking` 產生完整合法欄位，再只在 localStorage 擴充筆數。每筆相隔
  * 15 分鐘，25 筆仍落在同一個工作日，週檢視可直接點第二頁的目標事件。
+ *
+ * **錨定在「最早時段」那一天，不是預約自己那一天。** 週檢視顯示哪一週，是由
+ * `renderWeek()` 取「預約與時段中最早的那一筆」決定的；而 `createBooking` 點的
+ * 是「現在之後的第一個可選時段」。營業時間結束後，今天已無可選時段，預約會落到
+ * 下一個門診日——可能已經不在被渲染的那一週裡，於是整組日曆測試在打烊後全部
+ * 失敗（2026-08-01 週六 18:32 的 CI 即為此紅燈，而同日 14:54 是綠的）。
+ * 錨定到最早時段那一天可消除這個時鐘相依：那一天依定義必然落在被渲染的週內。
  */
 export async function seedAppointmentCopies(
   page: Page,
@@ -143,11 +150,19 @@ export async function seedAppointmentCopies(
       const state = JSON.parse(raw);
       const source = state.appointments[0];
       if (source === undefined) throw new Error('請先建立一筆預約');
+      const earliestSlot = [...state.slots].sort((left, right) =>
+        String(left.startsAt).localeCompare(String(right.startsAt))
+      )[0];
+      if (earliestSlot === undefined) throw new Error('合成狀態沒有任何時段');
+      // 以台北時區取該時段的日期；`startsAt` 是 UTC，直接 slice 會在跨日時取錯。
+      const anchorDay = new Date(
+        Date.parse(earliestSlot.startsAt) + 8 * 60 * 60_000
+      )
+        .toISOString()
+        .slice(0, 10);
       // 固定從該門診日 10:00 起排；若沿用「現在之後的第一個時段」，下午執行
       // 測試時第 25 筆可能超出週曆 21:00 的顯示範圍。
-      const start = Date.parse(
-        `${source.startsAt.slice(0, 10)}T10:00:00+08:00`
-      );
+      const start = Date.parse(`${anchorDay}T10:00:00+08:00`);
       const nextIds = Array.from(
         { length: total },
         (_, index) =>
