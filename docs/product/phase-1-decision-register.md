@@ -359,6 +359,25 @@ Expiry: 2026-08-31. Re-check on every dependency upgrade; remove the ignore once
 Follow-up implementation issue: re-verify at each dependency upgrade and before the expiry date.
 ```
 
+**SEC-03 released rather than renewed — 2026-08-01:** hours after SEC-03 was
+approved, the underlying advisory was revised (2026-07-31T19:37Z) to list a first
+patched version for every affected major: 1.1.17, 2.1.3, 3.0.3 and 5.0.8. The
+recorded release condition — "remove this entry once the upstream older major
+publishes a fix" — was therefore met, and the premise the approval rested on
+("the affected older majors have no compatible published fix") no longer held.
+
+The dependency is now pinned per major (`brace-expansion@^1: ^1.1.17`,
+`brace-expansion@^2: ^2.1.3`, alongside the existing `^5` pin) and resolves to
+1.1.18 / 2.1.4 / 5.0.8. The `auditConfig.ignoreGhsas` entry and the exception
+registry entry were both removed, so the repository now carries **no audit
+exceptions at all**.
+
+SEC-03 is therefore **resolved, not renewed**. The approval remains recorded as
+given, because it was correct on the facts available at the time; what changed is
+the upstream advisory. The correct end state for a time-bounded exception is
+removal, not extension, and that is what happened here — with three weeks left on
+the clock rather than at the expiry date.
+
 **Technical-owner engineering decisions — 2026-08-01:** the repository/technical
 owner approved four engineering-practice decisions raised through the AGENTS.md
 "Grill me" challenge. They are recorded here because each one changes how a gate

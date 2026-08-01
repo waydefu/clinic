@@ -135,9 +135,17 @@ java.io.FileNotFoundException: D:\????\beauessence-appointment-platform-fresh\fi
 條件「上游舊 major 發布修補後即移除」已經達成。目前 0 個 open alert 很可能只是重新
 分析前的暫時狀態。
 
-**建議處置（尚未執行，待核准）**：以 override 將 `brace-expansion` 拉到 `1.1.17` 與
-`2.1.3`，同時移除 `pnpm-workspace.yaml` 的 `auditConfig.ignoreGhsas` 條目與
-`security/audit-exceptions.json` 的登記，讓 SEC-03 從「已接受的風險」轉為「已解決」。
+**處置（2026-08-01 已核准並執行）**：改為逐 major 鎖定
+（`brace-expansion@^1: ^1.1.17`、`brace-expansion@^2: ^2.1.3`，保留既有的 `^5`），
+lockfile 重建後解析到 **1.1.18 / 2.1.4 / 5.0.8**；同時移除 `auditConfig.ignoreGhsas`
+條目與 `security/audit-exceptions.json` 的登記。
+
+**結果：本 repository 目前沒有任何 audit 例外。** `check:audit-exceptions` 的輸出
+由「1 筆例外」變成「沒有任何被忽略的 advisory」。
+
+SEC-03 因此是**解除，不是續期**。核准紀錄照原樣保留——它在當時已知的事實下是正確的，
+改變的是上游 advisory。一個有時限的例外，正確的結局是被移除而不是被延長；這次是在
+到期日前三週就結束，而不是拖到 8/31。
 
 ## 7. 本階段記錄的決策
 
@@ -155,11 +163,11 @@ SEC-02／SEC-03 由同一人兼任兩個核准角色，等於單次審查而非�
 
 | 順序 | 待辦 | 卡在哪 |
 | --- | --- | --- |
-| 1 | §6 的 `brace-expansion` 升版與例外移除 | 待核准，需新分支與新 PR |
-| 2 | 步驟 0-6：公開鏡像同步 | 需重跑完整 release gate，不會自動發生 |
-| 3 | 步驟 0-7：其餘把關腳本補測試 | 依 CONTRIBUTING 第 8 條，優先 `check-structure.mjs`、`check-docs-links.mjs` |
-| 4 | §4 最後一項：API 健康檢查測試的不穩定性 | 需決定拆執行序或標記追蹤 |
-| 5 | 回收兩份決定清單、召開 C0 | 需業主與各負責人 |
+| 1 | 步驟 0-6：公開鏡像同步 | 需重跑完整 release gate，不會自動發生 |
+| 2 | 步驟 0-7：其餘把關腳本補測試 | 依 CONTRIBUTING 第 8 條，優先 `check-structure.mjs`、`check-docs-links.mjs` |
+| 3 | §4 最後一項：API 健康檢查測試的不穩定性 | 需決定拆執行序或標記追蹤 |
+| 4 | 回收兩份決定清單、召開 C0 | 需業主與各負責人 |
+| 5 | 確認 GitHub 是否為 `brace-expansion` 重新開出警示 | advisory 修訂後的重新分析可能滯後；若出現新警示，確認它指向的版本並非已鎖定的 1.1.18／2.1.4 |
 
 目前位置不變：**Stage 1**。本階段沒有建立任何雲端資源、沒有開啟任何路由、沒有接觸
 任何真實病患資料。

@@ -15,10 +15,12 @@ allowBuilds:
 #
 #   find-my-way    <=9.6.0  HTTP/2 DDoS（GHSA 見 advisory）
 #                  路徑：apps/api > @nestjs/platform-fastify > fastify
-#   brace-expansion <=5.0.7 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg）
-#                  路徑：eslint > minimatch（dev-only）
-#                  只鎖 5.x：同時安裝的 1.1.x／2.1.x 是 firebase-tools 的相依，
-#                  跨 major 硬鎖會直接讓 minimatch@3 壞掉。
+#   brace-expansion 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg）
+#                  路徑：eslint > minimatch（dev-only）、firebase-admin／
+#                  firebase-tools > … > glob > minimatch
+#                  2026-07-31 advisory 修訂後，舊 major 各自有了修補版，因此改為
+#                  逐 major 鎖定而不是只鎖 5.x：minimatch@3 要 ^1、minimatch@5／6
+#                  要 ^2，跨 major 硬鎖會壞掉。
 #   uuid           <11.1.1
 #                  路徑：apps/api、apps/worker > firebase-admin >
 #                  @google-cloud/storage > gaxios／teeny-request > uuid
@@ -34,6 +36,8 @@ allowBuilds:
 #                  先帶入已正式放寬 v2 range 的 MCP SDK 1.30.0，再鎖 Hono 2.0.12。
 overrides:
   find-my-way: '^9.6.1'
+  brace-expansion@^1: '^1.1.17'
+  brace-expansion@^2: '^2.1.3'
   brace-expansion@^5: '^5.0.8'
   uuid: '>=11.1.1'
   '@opentelemetry/core': '2.8.0'
@@ -41,19 +45,11 @@ overrides:
   '@modelcontextprotocol/sdk': '1.30.0'
   '@hono/node-server': '2.0.12'
 
-# 已審視的 audit 例外。**這不是「關掉警告」，是「查過而且沒有可用的修補」**，
-# 每次 upstream 有動作都要重新檢查。
-#
-# GHSA-mh99-v99m-4gvg（brace-expansion，不受限展開導致 OOM）
-#   上面的 override 已經把 5.x 那條線升到 5.0.8。剩下被標記的是 1.1.16 與
-#   2.1.2——而它們**已經是各自 major 上最新的維護版**（dist-tag maintenance-v1
-#   ／maintenance-v2）；advisory 的 patched 只寫 `>=5.0.8`，所以 npm audit 會把
-#   每一個較舊的 major 都算進去，即使那條線沒有別的版本可升。
-#   硬鎖到 5.x 會直接壞掉：minimatch@3 要 ^1、minimatch@5／6 要 ^2。
-#   殘留路徑：firebase-admin > … > glob > minimatch（apps/api 目前未部署、只有
-#   /v1/health）與 firebase-tools > minimatch（CLI，不出貨）。攻擊面是「把攻擊者
-#   控制的 glob 字串丟進去展開」，這兩條路徑都不會。
-#   **解除條件**：1.x／2.x 出現修補版，或這些相依改用已修補的 minimatch。
+# 2026-08-01：本檔曾經有一筆 `auditConfig.ignoreGhsas` 例外
+# （GHSA-mh99-v99m-4gvg，SEC-03）。當時的解除條件寫的是「1.x／2.x 出現修補版」，
+# 而 advisory 在 2026-07-31T19:37Z 修訂後補上了各 major 的 patched 版本
+# （1.1.17／2.1.3／3.0.3／5.0.8）。條件既已成立，就把它修掉而不是續期——
+# **例外的正確結局是被移除，不是被延長**。目前沒有任何 audit 例外。
 #
 # 閘門分兩層（2026-07-26 決定，`check:supply-chain` 依序跑兩個指令）：
 #
@@ -76,6 +72,3 @@ overrides:
 #
 # **解除條件**：各父套件的正常 range 已直接解析到上述安全版本後，逐條刪除
 # override，重建 lockfile 並重跑 supply-chain／Emulator gates。
-auditConfig:
-  ignoreGhsas:
-    - GHSA-mh99-v99m-4gvg
