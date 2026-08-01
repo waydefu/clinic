@@ -322,6 +322,7 @@ lines.
 | An owner request you were handed verbatim | `docs/product/owner-requests-consolidated-2026-07-31.md` | Find its OR number first; most 2026-07-26～27 items are already built, and the unbuilt ones each name the decision blocking them |
 | A maintainability, performance, retention or session-parameter target | `docs/product/full-project-master-plan-2026-07-31.md` | Every number there cites its source; change the citation, not just the number |
 | Sequencing, acceptance evidence or rollback for any remaining stage | `docs/product/full-project-execution-book-2026-07-31.md` | A step without a rehearsed rollback is not ready to run |
+| Finishing a stage, or picking one up from someone else | `docs/reviews/` newest dated handoff record, indexed in `docs/README.md` | A stage is not complete until its handoff record exists. Write it with the §10.4 template in the execution book: real numbers rather than "passed", the defects you hit, and above all the things you did **not** do |
 | A blocking check under `scripts/` | The script plus its test | Define behaviour for a clean tree, a dirty tree with deletions and a fresh clone; a gate that crashes reports a false failure |
 | SAST workflow, Semgrep rules or evidence generation | `.github/workflows/sast.yml` + `security/semgrep/` | Rule fixtures are intentionally unsafe and ESLint-excluded; SEC-02 is still pending, so do not describe the output as approved evidence |
 
@@ -360,6 +361,12 @@ lines.
    dead-letter and runbook coverage.
 9. Run the smallest relevant test, then the Phase gate commands. Update the
    decision, architecture, plan and review evidence when a checkpoint closes.
+10. When a stage closes, write its dated handoff record into `docs/reviews/` and
+    index it in `docs/README.md` before calling the stage done. Use the §10.4
+    template in the execution book. Record the real numbers, the defects you
+    hit, the local environment traps, and everything you did **not** do — a
+    stage summary that only lists successes is not a handoff, and the next
+    person pays for it.
 
 ## Current commands
 
