@@ -84,6 +84,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 5. Operations
 
+- [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
 - [Calendar go-live runbook](runbooks/calendar-go-live.md) — who does what to wire the real Google Calendar test integration (credentials stay with the owner)

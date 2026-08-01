@@ -94,24 +94,57 @@
 日後真的混進金鑰時完全不被發現。allowlist 的範圍另以實測確認：植入一個真實形狀的
 AWS 憑證後仍被 `aws-access-token` 規則抓到，合成鍵則被正確豁免。
 
-**卡在哪：關卡第 1 步要求「定義檔案層級的 allowlist」，而那是範圍決定，不是技術
-判斷。** 自鏡像基準（私有 `0077528`）以來，私有版變動且鏡像存在同名路徑者共 9 個：
+**關卡第 1～6 步已完成，停在第 7 步等候 owner 同意公開推送。**
 
-| 路徑 | 判斷 |
+判斷依據已抽出寫成可重複執行的
+[公開鏡像同步 runbook](../runbooks/public-mirror-sync.md)，避免下次同步又要把
+「這個檔案該不該搬」重新推導一遍。
+
+#### 研究結果推翻了原本的假設
+
+原先以為要處理 9 個「私有版變動、鏡像同名」的檔案。實際查證後，其中大多數根本
+不是同步問題：
+
+| 原本的假設 | 實際情況 |
 | --- | --- |
-| `pnpm-lock.yaml` | **建議納入**——攜帶本輪的相依安全修補 |
-| `pnpm-workspace.yaml` | **建議納入**——同上，含 brace-expansion 逐 major 鎖定 |
-| `scripts/check-tracked-secrets.mjs` | **建議納入**——鏡像有同一支腳本，修的是會誤報掃描失敗的崩潰 |
-| `.github/workflows/codeql.yml` | **明確不同步刪除**。私有版刪掉它是因為個人私有 repo 無法上傳 code-scanning 結果；**公開 repo 沒有這個限制**，而且關卡第 7 步要求公開 PR 必須通過 `CodeQL`。這是私有與公開合理分歧的一處 |
-| `CONTRIBUTING.md` | 需裁決——新增的第 8～10 條有兩條是通用工程規則，第 10 條引用內部治理文件 |
-| `README.md` | 需裁決——鏡像的 README 是另行撰寫的去識別化版本 |
-| `eslint.config.mjs` | 需裁決——新增的忽略項指向鏡像不存在的 `security/semgrep/` |
-| `package.json` | 需裁決——新增 `check:audit-exceptions` 指令，但該腳本不在鏡像內 |
-| `vitest.config.ts` | 需裁決——新增的 `scripts/**/*.test.mjs` 只在鏡像也帶入那些測試時才有意義 |
+| 鏡像是私有版的去識別化副本 | 原始碼是，但 `README.md`／`CONTRIBUTING.md`／`SECURITY.md`／`NOTICE.md` 是**獨立撰寫的公開文件**，沒有「同步」這回事 |
+| 兩邊共用 `check-tracked-secrets.mjs` | **是兩套不同實作**，偵測器與結構都不同。鏡像那套有**同一個 ENOENT 崩潰缺陷** |
+| 需要把相依安全修補搬過去 | **完全不需要**。鏡像的 lockfile 只有 `brace-expansion@5.0.8`，另外三筆 advisory 都來自鏡像沒有的 `firebase-tools`；實測兩道 audit 皆為 `No known vulnerabilities found` |
 
-**解除條件**：owner 裁定 allowlist 範圍後，執行關卡第 2～6 步（全新 clone、逐行
-審查、公開檢查與建置、兩支掃描器對結果歷史、再 clone 複驗），最後第 7 步的公開
-推送仍須逐次取得 owner 同意。本階段**沒有進行任何公開發布**。
+因此實際 delta 縮小為四項：修掉鏡像自己那支腳本的崩潰、補上它的測試、讓測試被
+執行的設定、以及把由此得出的規則寫進公開端的 CONTRIBUTING。
+
+#### 各步驟結果
+
+| 步驟 | 結果 |
+| --- | --- |
+| 1 定義 allowlist | 4 個路徑，依 runbook §3 分類 |
+| 2 全新 clone 套用 delta | `sync/gate-script-hardening`，未觸碰私有 Git 物件 |
+| 3 逐行審查 | 通過。過程中揪出兩次問題，見下 |
+| 4 公開端 verify 與雙 audit | 15 檔 / **178 項測試**通過（發布時為 14 檔 / 164 項）；兩道 audit 皆無漏洞 |
+| 5 gitleaks／trufflehog／public-safety | gitleaks 0 筆；trufflehog 93 chunks、0 verified／0 unverified；public-safety 73 檔通過 |
+| 6 另一個乾淨目錄複驗 | commit `b77abf4`、tree `e3b5272` 與候選完全一致；只有一個分支、零 tag；掃描與檢查全部重跑通過 |
+| 7 公開推送 | **未執行，等候 owner 同意** |
+
+#### 第 3～5 步實際擋下的兩件事
+
+新增的測試檔第一版含有真實形狀的合成憑證（AWS access key、JWT、帶帳密的 URL、
+`password = "…"` 指派）。它們是測試資料，但**掃描器無法從外部分辨「合成」**：
+
+1. **gitleaks 抓到 3 筆**（AWS ×2、JWT）；
+2. 修掉後**公開端自己的 `check:secrets` 又抓到 2 筆**（credential-in-url、
+   credential-assignment）——公開端的偵測器比 gitleaks 更嚴。
+
+處置是把每一個 fixture 拆成片段組合，執行期才組回原值——這正是鏡像原本那支腳本
+用來避免掃到自己的手法。**沒有**把測試檔加進豁免清單：那會讓日後真的混進金鑰時
+完全不會被發現。
+
+其中 `credential-in-url` 需要多一輪才修好：只把使用者名稱做字串內插不夠，因為
+`${'user'}` 不含偵測器排除的任何字元，原始文字讀起來仍是一個完整的憑證 URL；必須
+把 `//` 拆開才行。這一點已寫進測試檔的註解，否則下一個人「順手整理」就會把它接回去。
+
+**解除條件**：第 7 步的公開推送需 owner 逐次同意。候選版本目前只存在於本機隔離
+目錄，**未推送、未發布**。
 
 ### 5.2 兩支腳本尚未覆蓋
 
@@ -128,10 +161,17 @@ AWS 憑證後仍被 `aws-access-token` 規則抓到，合成鍵則被正確豁�
 `checkPublicPageConfiguration` 的完整比對邏輯需要建構 inventory、budgets、
 firebase 設定等多份 fixture，尚未進行。
 
-### 5.4 沿用前一階段的未處理項
+### 5.4 API 健康檢查測試的偶發逾時：已處理，但理由與先前的判斷相反
 
-`apps/api/src/health.controller.test.ts` 在高負載批次中的偶發逾時仍未處理。
-本階段測試檔增加後，該執行序更長，建議提高優先度。
+前一份紀錄寫的是「**不應以調高 timeout 掩蓋**」。查證公開鏡像後這個判斷需要修正：
+鏡像在 2026-07-29 發布時就已經設了 `testTimeout: 10_000`，而私有端**從來沒有設過**
+這個值，一直沿用 vitest 的 5 秒預設。也就是說 5 秒不是刻意訂下的預算，只是沒人設過。
+
+加上該測試單獨執行只需 327 毫秒，撞到上限的是序列化 pool 下的 Nest 啟動時間而非
+測試本身變慢，因此對齊鏡像的 10 秒是修正落差，不是放寬標準。已設定並在
+`vitest.config.ts` 註明理由，避免日後被當成「為了讓測試變綠而調的數字」。
+
+**仍未處理**：收集時間偏長（本階段全批執行約 28 秒收集），那是獨立問題。
 
 ## 6. 下一位接手者從這裡開始
 
