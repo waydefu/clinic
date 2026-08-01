@@ -164,7 +164,7 @@ has already been approved.
 | 2026-07-31 | Branch protection applied and verified on `main`: strict required check `Verification evidence`, force push and deletion disabled, the D-013 administrator bypass preserved | Using the bypass still requires running the full gate manually |
 | 2026-07-31 | Owner direction: the access-restricted canonical repository stays in the current personal account and is not transferred to an organisation | It is a hosting direction, not permission to weaken SAST |
 | 2026-07-31 | The CodeQL workflow was replaced by a Semgrep CE workflow (`.github/workflows/sast.yml`, `scripts/generate-sast-evidence.mjs`, `security/semgrep/`) because a private personal repository cannot upload code-scanning results | **SEC-02 was approved on 2026-08-01** with the ENG-01 condition that the rule tests and the evidence-generator tests both sit inside the blocking gate. The approval covers the evidence policy only: Semgrep CE must still never be described as equivalent to CodeQL's cross-file taint analysis, and the engine is re-evaluated before production |
-| 2026-07-31 | One high `brace-expansion` alert (GHSA-mh99-v99m-4gvg / CVE-2026-14257, CVSS 7.5) has no compatible published fix in the affected older majors. `pnpm-workspace.yaml` already carries `auditConfig.ignoreGhsas` for it, so `audit:prod` and `audit:all` report "1 high (1 ignored)" and still pass | **SEC-03 was approved on 2026-08-01 and expires 2026-08-31.** Since ENG-04 every ignore must be registered in `security/audit-exceptions.json` with an approval ID and expiry; `check:audit-exceptions` prints each one and fails on an unregistered, incomplete or expired entry. The approval does not permit dismissing the Dependabot alert, adding further ignores, or extending the expiry without a new approval. Both approver roles were signed by one person, so this had a single review |
+| 2026-07-31 | One high `brace-expansion` alert (GHSA-mh99-v99m-4gvg / CVE-2026-14257, CVSS 7.5) has no compatible published fix in the affected older majors. `pnpm-workspace.yaml` already carries `auditConfig.ignoreGhsas` for it, so `audit:prod` and `audit:all` report "1 high (1 ignored)" and still pass | **SEC-03 was approved and then released on the same day (2026-08-01).** The advisory was revised at 2026-07-31T19:37Z to publish a first patched version per major, which met the recorded release condition, so the dependency is pinned per major and the ignore was removed instead of renewed. **The repository now carries no audit exceptions.** ENG-04 still governs any future one: it must be registered in `security/audit-exceptions.json` with an approval ID and expiry, and `check:audit-exceptions` fails on an unregistered, incomplete or expired entry. Never dismiss a Dependabot alert to make a gate green |
 
 When touching `security/semgrep/**`, `.github/workflows/sast.yml` or
 `scripts/generate-sast-evidence.mjs`, remember that the rule files are the
@@ -322,6 +322,7 @@ lines.
 | An owner request you were handed verbatim | `docs/product/owner-requests-consolidated-2026-07-31.md` | Find its OR number first; most 2026-07-26～27 items are already built, and the unbuilt ones each name the decision blocking them |
 | A maintainability, performance, retention or session-parameter target | `docs/product/full-project-master-plan-2026-07-31.md` | Every number there cites its source; change the citation, not just the number |
 | Sequencing, acceptance evidence or rollback for any remaining stage | `docs/product/full-project-execution-book-2026-07-31.md` | A step without a rehearsed rollback is not ready to run |
+| Finishing a stage, or picking one up from someone else | `docs/reviews/` newest dated handoff record, indexed in `docs/README.md` | A stage is not complete until its handoff record exists. Write it with the §10.4 template in the execution book: real numbers rather than "passed", the defects you hit, and above all the things you did **not** do |
 | A blocking check under `scripts/` | The script plus its test | Define behaviour for a clean tree, a dirty tree with deletions and a fresh clone; a gate that crashes reports a false failure |
 | SAST workflow, Semgrep rules or evidence generation | `.github/workflows/sast.yml` + `security/semgrep/` | Rule fixtures are intentionally unsafe and ESLint-excluded; SEC-02 is still pending, so do not describe the output as approved evidence |
 
@@ -360,6 +361,12 @@ lines.
    dead-letter and runbook coverage.
 9. Run the smallest relevant test, then the Phase gate commands. Update the
    decision, architecture, plan and review evidence when a checkpoint closes.
+10. When a stage closes, write its dated handoff record into `docs/reviews/` and
+    index it in `docs/README.md` before calling the stage done. Use the §10.4
+    template in the execution book. Record the real numbers, the defects you
+    hit, the local environment traps, and everything you did **not** do — a
+    stage summary that only lists successes is not a handoff, and the next
+    person pays for it.
 
 ## Current commands
 
