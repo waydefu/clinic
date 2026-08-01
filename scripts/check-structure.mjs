@@ -155,7 +155,12 @@ const requiredPaths = [
   'apps/web/public/styles.css',
   'apps/web/public/error.css',
   'apps/web/public/favicon.svg',
+  // 每一支阻斷式檢查與它的測試都要列在這裡。腳本被刪掉會被抓到，測試被刪掉也是
+  // ——少了測試的 gate 還會顯示綠燈，那比 gate 消失更難察覺（CONTRIBUTING 第 8 條）。
+  'scripts/check-structure.mjs',
+  'scripts/check-structure.test.mjs',
   'scripts/check-docs-links.mjs',
+  'scripts/check-docs-links.test.mjs',
   'scripts/generate-ci-evidence.mjs',
   'scripts/generate-sast-evidence.mjs',
   'scripts/generate-sast-evidence.test.mjs',
@@ -164,6 +169,13 @@ const requiredPaths = [
   'security/audit-exceptions.json',
   'scripts/verify-preview-deployment.mjs',
   'scripts/check-tracked-secrets.mjs',
+  'scripts/check-tracked-secrets.test.mjs',
+  'scripts/check-design-tokens.test.mjs',
+  'scripts/check-performance-budget.test.mjs',
+  'scripts/check-public-pages.test.mjs',
+  'scripts/check-branch-protection.test.mjs',
+  'scripts/generate-ci-evidence.test.mjs',
+  'scripts/generate-sbom.test.mjs',
   'scripts/sync-domain-vendor.mjs',
   'apps/web/public/vendor/domain/index.js',
   'apps/web/public/vendor/domain/manifest.json',
@@ -201,14 +213,29 @@ const requiredPaths = [
   'docs/reviews/2026-07-27-automated-check-gaps.md'
 ];
 
-const missing = [];
-for (const requiredPath of requiredPaths) {
-  try {
-    await access(requiredPath, constants.R_OK);
-  } catch {
-    missing.push(requiredPath);
-  }
+export { requiredPaths };
+
+// 匯出成純函式，讓這道 gate 自己也能被測試。它決定「刪掉某個把關檔案會不會被
+// 發現」，而一個沒有測試的把關檔案清單，本身就是它要防的那種漏洞。
+export function findMissingPaths({ paths, isReadable }) {
+  return paths.filter((candidate) => !isReadable(candidate));
 }
+
+const readable = new Set();
+await Promise.all(
+  requiredPaths.map(async (requiredPath) => {
+    try {
+      await access(requiredPath, constants.R_OK);
+      readable.add(requiredPath);
+    } catch {
+      /* absent or unreadable; reported below */
+    }
+  })
+);
+const missing = findMissingPaths({
+  paths: requiredPaths,
+  isReadable: (candidate) => readable.has(candidate)
+});
 
 if (missing.length > 0) {
   console.error('Missing required project files:');
@@ -466,47 +493,53 @@ if (visualBaselineErrors.length > 0) {
   console.log('UI visual baseline evidence check passed (10 reference PNGs).');
 }
 
-const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
-const verifyScript = packageJson.scripts?.verify ?? '';
-const captureConfigCommand = 'corepack pnpm run check:capture-config';
-const checkTypesCommand = 'corepack pnpm run check:types';
-const checkLintCommand = 'corepack pnpm run check:lint';
-const captureConfigIndex = verifyScript.indexOf(captureConfigCommand);
-const checkTypesIndex = verifyScript.indexOf(checkTypesCommand);
-const checkLintIndex = verifyScript.indexOf(checkLintCommand);
-const verifyOrderErrors = [];
+// 在全新 clone 上，型別感知的 ESLint 需要先有 workspace 的 dist/*.d.ts；順序寫反
+// 時 CI 不會壞在 lint，而是壞在一連串看不出原因的型別錯誤。這段規則因此比對的是
+// 指令字串本身，並且匯出以便測試。
+export const CAPTURE_CONFIG_COMMAND = 'corepack pnpm run check:capture-config';
+export const CHECK_TYPES_COMMAND = 'corepack pnpm run check:types';
+export const CHECK_LINT_COMMAND = 'corepack pnpm run check:lint';
+export const EXPECTED_CAPTURE_CONFIG_SCRIPT =
+  'tsc --noEmit --skipLibCheck --module ESNext --moduleResolution Bundler --target ES2022 --types node playwright.screenshots.config.ts';
 
-if (captureConfigIndex < 0) {
-  verifyOrderErrors.push(`verify must include "${captureConfigCommand}"`);
+export function reviewVerifyOrdering(packageJson) {
+  const verifyScript = packageJson.scripts?.verify ?? '';
+  const captureConfigIndex = verifyScript.indexOf(CAPTURE_CONFIG_COMMAND);
+  const checkTypesIndex = verifyScript.indexOf(CHECK_TYPES_COMMAND);
+  const checkLintIndex = verifyScript.indexOf(CHECK_LINT_COMMAND);
+  const errors = [];
+
+  if (captureConfigIndex < 0)
+    errors.push(`verify must include "${CAPTURE_CONFIG_COMMAND}"`);
+  if (checkTypesIndex < 0)
+    errors.push(`verify must include "${CHECK_TYPES_COMMAND}"`);
+  if (checkLintIndex < 0)
+    errors.push(`verify must include "${CHECK_LINT_COMMAND}"`);
+  if (
+    checkTypesIndex >= 0 &&
+    checkLintIndex >= 0 &&
+    checkTypesIndex > checkLintIndex
+  )
+    errors.push(
+      'verify must build workspace types before running type-aware ESLint'
+    );
+  if (packageJson.scripts?.['check:types'] !== 'corepack pnpm run build')
+    errors.push(
+      'check:types must build the workspace packages that provide dist/*.d.ts'
+    );
+  if (
+    packageJson.scripts?.['check:capture-config'] !==
+    EXPECTED_CAPTURE_CONFIG_SCRIPT
+  )
+    errors.push(
+      'check:capture-config must type-check the dedicated Playwright capture config'
+    );
+
+  return errors;
 }
-if (checkTypesIndex < 0) {
-  verifyOrderErrors.push(`verify must include "${checkTypesCommand}"`);
-}
-if (checkLintIndex < 0) {
-  verifyOrderErrors.push(`verify must include "${checkLintCommand}"`);
-}
-if (
-  checkTypesIndex >= 0 &&
-  checkLintIndex >= 0 &&
-  checkTypesIndex > checkLintIndex
-) {
-  verifyOrderErrors.push(
-    'verify must build workspace types before running type-aware ESLint'
-  );
-}
-if (packageJson.scripts?.['check:types'] !== 'corepack pnpm run build') {
-  verifyOrderErrors.push(
-    'check:types must build the workspace packages that provide dist/*.d.ts'
-  );
-}
-if (
-  packageJson.scripts?.['check:capture-config'] !==
-  'tsc --noEmit --skipLibCheck --module ESNext --moduleResolution Bundler --target ES2022 --types node playwright.screenshots.config.ts'
-) {
-  verifyOrderErrors.push(
-    'check:capture-config must type-check the dedicated Playwright capture config'
-  );
-}
+
+const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+const verifyOrderErrors = reviewVerifyOrdering(packageJson);
 
 if (verifyOrderErrors.length > 0) {
   console.error('Invalid clean-clone verify prerequisites:');
