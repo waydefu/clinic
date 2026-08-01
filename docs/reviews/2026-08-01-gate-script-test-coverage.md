@@ -72,18 +72,46 @@
 
 ## 5. 未完成事項
 
-### 5.1 步驟 0-6 公開鏡像同步：**停止，未執行**
+### 5.1 步驟 0-6 公開鏡像同步：**停在第 1 步，等候 allowlist 決定**
 
-發布關卡第 5 步要求對完整公開 Git 歷史執行 Gitleaks 與 TruffleHog。本機
-**兩者皆未安裝**。同一份關卡文件的結語是「若結果有疑義，停止發布並讓候選版本
-維持私有」——掃描器不存在不是疑義，是根本沒掃。在這種狀態下推送到公開
-repository，等於用一份跑不完的關卡掩護一次不可逆的公開發布。
+掃描器已依 owner 指示安裝並驗證：
 
-補充：本階段產出以內部文件為主，而鏡像明文排除內部治理／審查／交付文件，因此
-真正落在鏡像範圍內的只有 gate 腳本與相依升級。
+| 工具 | 版本 | 取得方式 |
+| --- | --- | --- |
+| gitleaks | 8.30.1 | winget `Gitleaks.Gitleaks` |
+| trufflehog | 3.96.0 | 官方 release v3.96.0，已比對發布的 SHA-256 checksum |
 
-**解除條件**：安裝兩個掃描器後完整執行八步關卡，最後的公開推送仍須逐次取得
-repository owner 同意；或由 owner 決定延後到有實質程式碼變更時一併進行。
+**私有 repository 的完整歷史掃描結果（2026-08-01）：**
+
+| 掃描 | 結果 |
+| --- | --- |
+| gitleaks（147 commits、4.16 MB） | 初次 4 筆，全為誤報；加設定後 **0 筆** |
+| trufflehog（4591 chunks、4.4 MB） | **0 verified、0 unverified** |
+
+那 4 筆誤報是 `generic-api-key` 規則把契約測試裡的合成冪等鍵
+（`payroll-close-key-NNNN`、`schedule_publish_NNNN`）當成 API 金鑰。新增的
+`gitleaks.toml` 以**值的樣式**而非路徑做 allowlist——路徑層級的整檔豁免會讓該檔
+日後真的混進金鑰時完全不被發現。allowlist 的範圍另以實測確認：植入一個真實形狀的
+AWS 憑證後仍被 `aws-access-token` 規則抓到，合成鍵則被正確豁免。
+
+**卡在哪：關卡第 1 步要求「定義檔案層級的 allowlist」，而那是範圍決定，不是技術
+判斷。** 自鏡像基準（私有 `0077528`）以來，私有版變動且鏡像存在同名路徑者共 9 個：
+
+| 路徑 | 判斷 |
+| --- | --- |
+| `pnpm-lock.yaml` | **建議納入**——攜帶本輪的相依安全修補 |
+| `pnpm-workspace.yaml` | **建議納入**——同上，含 brace-expansion 逐 major 鎖定 |
+| `scripts/check-tracked-secrets.mjs` | **建議納入**——鏡像有同一支腳本，修的是會誤報掃描失敗的崩潰 |
+| `.github/workflows/codeql.yml` | **明確不同步刪除**。私有版刪掉它是因為個人私有 repo 無法上傳 code-scanning 結果；**公開 repo 沒有這個限制**，而且關卡第 7 步要求公開 PR 必須通過 `CodeQL`。這是私有與公開合理分歧的一處 |
+| `CONTRIBUTING.md` | 需裁決——新增的第 8～10 條有兩條是通用工程規則，第 10 條引用內部治理文件 |
+| `README.md` | 需裁決——鏡像的 README 是另行撰寫的去識別化版本 |
+| `eslint.config.mjs` | 需裁決——新增的忽略項指向鏡像不存在的 `security/semgrep/` |
+| `package.json` | 需裁決——新增 `check:audit-exceptions` 指令，但該腳本不在鏡像內 |
+| `vitest.config.ts` | 需裁決——新增的 `scripts/**/*.test.mjs` 只在鏡像也帶入那些測試時才有意義 |
+
+**解除條件**：owner 裁定 allowlist 範圍後，執行關卡第 2～6 步（全新 clone、逐行
+審查、公開檢查與建置、兩支掃描器對結果歷史、再 clone 複驗），最後第 7 步的公開
+推送仍須逐次取得 owner 同意。本階段**沒有進行任何公開發布**。
 
 ### 5.2 兩支腳本尚未覆蓋
 
