@@ -1,0 +1,28 @@
+# gitleaks 設定。公開鏡像的發布關卡要求對完整 Git 歷史執行 gitleaks，因此這份
+# 設定是那道關卡的一部分，不是本機方便用的旁枝。
+#
+# 原則：**只允許具名、能解釋、有形狀的例外**。不使用路徑層級的整檔豁免——那會讓
+# 該檔案日後真的混進金鑰時完全不會被發現。這裡的 allowlist 比對的是「值本身的
+# 樣式」，一個真正的 AWS／GitHub／Google 憑證不會長成這些樣子。
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+單元測試裡的合成識別碼。gitleaks 的 generic-api-key 規則會對任何名稱含 key 的
+指派值告警，而本專案的契約測試大量使用冪等鍵——它們是測試資料，不是憑證：
+
+  packages/contracts/src/payroll.test.ts   payroll-close-key-NNNN
+  packages/contracts/src/schedule.test.ts  schedule_publish_NNNN
+
+這些值的形狀是固定的前綴加流水號，與任何真實憑證的字元集與長度都不同。若日後
+測試改用別的前綴，這裡必須一起更新——allowlist 沒有涵蓋到的新值會照常告警，
+那是刻意的。
+"""
+regexes = [
+  '''payroll-close-key-\d{4}''',
+  '''schedule_publish_\d{4}''',
+  '''schedule-publish-key-\d{4}''',
+  '''booking-idempotency-\d{4}'''
+]

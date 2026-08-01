@@ -84,6 +84,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 5. Operations
 
+- [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
 - [Calendar go-live runbook](runbooks/calendar-go-live.md) — who does what to wire the real Google Calendar test integration (credentials stay with the owner)
@@ -105,6 +106,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-08-01 | [Gate-script test coverage and stage 0 wrap-up](reviews/2026-08-01-gate-script-test-coverage.md) | Nine blocking checks under `scripts/` given tests (five refactored into pure functions first), every gate test registered in the structure check, and two pre-existing gaps closed; the public-mirror sync was stopped because Gitleaks and TruffleHog are not installed, and two scripts remain uncovered |
 | 2026-08-01 | [SAST migration, audit-exception governance and dependency patch delivery](reviews/2026-08-01-sast-migration-and-audit-governance-delivery.md) | Execution-book steps 0-1…0-5 delivered and merged as `f653535`; the CodeQL gate replaced by a commit-bound Semgrep scan, three moderate advisories closed, audit exceptions given named approvals and expiries, four defects found and fixed, and the `brace-expansion` advisory revision that invalidated SEC-03's premise recorded with a proposed remedy |
 | 2026-07-30 | [Private repository Dependabot alert enablement](reviews/2026-07-30-private-dependabot-alert-enablement.md) | Dependency graph and Dependabot alerts enabled for `waydefu/clinic`; four initial development-scope alerts recorded, while automatic dependency submission and all automatic update modes remain disabled |
 | 2026-07-29 | [Sanitized public mirror publication](reviews/2026-07-29-sanitized-public-mirror-publication.md) | Private canonical repository retained; independent allowlisted code-only mirror published from clean history after secret, personal-data, internal-information, Git-history, dependency, test and fresh-clone gates |

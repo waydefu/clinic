@@ -2,25 +2,30 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const forbiddenCredentialPath = [
+// 這支腳本決定「版控裡有沒有混進密鑰」，是 `check:supply-chain` 的第一道。
+// 判斷邏輯全部匯出且不碰檔案系統，因為它自己曾經在髒工作區崩潰，把「有人刪了
+// 檔案」誤報成「掃描失敗」——一個會假紅燈的 gate，最後會被當成雜訊繞過。
+
+export const forbiddenCredentialPath = [
   /(^|\/)\.env($|\.)/i,
   /\.(key|p12|pfx|pem)$/i,
   /(^|\/)[^/]*(credential|service[-_]?account|secret)[^/]*\.json$/i
 ];
 
-const tokenPatterns = [
+export const tokenPatterns = [
   ['AWS access key', /\bAKIA[0-9A-Z]{16}\b/g],
   ['Google API key', /\bAIza[0-9A-Za-z_-]{35}\b/g],
   ['GitHub token', /\bgh[pousr]_[A-Za-z0-9]{30,}\b/g],
   ['Slack token', /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/g]
 ];
 
-function isAllowedExamplePath(filePath) {
+export function isAllowedExamplePath(filePath) {
   return /(^|\/)\.env\.example$/i.test(filePath);
 }
 
-function hasPrivateKeyMaterial(content) {
+export function hasPrivateKeyMaterial(content) {
   const blocks = content.matchAll(
     /-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----([\s\S]*?)-----END (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/g
   );
@@ -33,53 +38,96 @@ function hasPrivateKeyMaterial(content) {
   return false;
 }
 
-const tracked = execFileSync('git', ['ls-files', '-z'], {
-  encoding: 'utf8'
-})
-  .split('\0')
-  .filter(Boolean);
-
-// `git ls-files` 讀的是 index，會列出「已在版控、但工作區已刪除」的檔案。
-// 掃描的對象是工作區內容，所以這些檔案沒有可掃的內容，直接讀會 ENOENT 讓
-// 整個 gate 崩掉——那會把「工作區有刪檔」誤報成掃描失敗。這裡明確跳過並回報
-// 數量，不靜默略過：跳過的檔案數必須看得見，才不會有人以為它們掃過了。
-const deletedInWorktree = [];
-const findings = [];
-for (const filePath of tracked) {
-  const normalizedPath = filePath.replaceAll(path.sep, '/');
-  if (!existsSync(filePath)) {
-    deletedInWorktree.push(normalizedPath);
-    continue;
-  }
+export function inspectPath(normalizedPath) {
   if (
     !isAllowedExamplePath(normalizedPath) &&
     forbiddenCredentialPath.some((pattern) => pattern.test(normalizedPath))
-  ) {
-    findings.push(`${normalizedPath}: credential-like file path`);
-    continue;
-  }
+  )
+    return `${normalizedPath}: credential-like file path`;
+  return null;
+}
 
-  const content = await readFile(filePath, 'utf8');
-  if (hasPrivateKeyMaterial(content)) {
+export function inspectContent(normalizedPath, content) {
+  const findings = [];
+  if (hasPrivateKeyMaterial(content))
     findings.push(`${normalizedPath}: private key material`);
-  }
   for (const [label, pattern] of tokenPatterns) {
     pattern.lastIndex = 0;
     if (pattern.test(content)) findings.push(`${normalizedPath}: ${label}`);
   }
+  return findings;
 }
 
-if (findings.length > 0) {
-  console.error('Tracked-secret check failed:');
-  for (const finding of findings) console.error(`- ${finding}`);
-  process.exitCode = 1;
-} else {
-  const scanned = tracked.length - deletedInWorktree.length;
+/**
+ * @param tracked Repository-relative paths from `git ls-files`.
+ * @param readSource (path) => string | null. Returning null means the file is
+ *   tracked but absent from the working tree, which is a deletion that has not
+ *   been committed yet — not a scan failure.
+ */
+export function scanTrackedFiles({ tracked, readSource }) {
+  const findings = [];
+  const deletedInWorktree = [];
+
+  for (const filePath of tracked) {
+    const normalizedPath = filePath.replaceAll(path.sep, '/');
+    const source = readSource(filePath);
+    if (source === null) {
+      deletedInWorktree.push(normalizedPath);
+      continue;
+    }
+
+    const pathFinding = inspectPath(normalizedPath);
+    if (pathFinding !== null) {
+      findings.push(pathFinding);
+      continue;
+    }
+
+    findings.push(...inspectContent(normalizedPath, source));
+  }
+
+  return {
+    findings,
+    deletedInWorktree,
+    scanned: tracked.length - deletedInWorktree.length
+  };
+}
+
+export function renderPassLine({ scanned, deletedInWorktree }) {
   const skipped =
     deletedInWorktree.length > 0
       ? `，跳過 ${deletedInWorktree.length} 個工作區已刪除的檔案（${deletedInWorktree.join('、')}）`
       : '';
-  console.log(
-    `Tracked-secret check passed (${scanned} tracked files${skipped}).`
-  );
+  return `Tracked-secret check passed (${scanned} tracked files${skipped}).`;
 }
+
+async function main() {
+  const tracked = execFileSync('git', ['ls-files', '-z'], {
+    encoding: 'utf8'
+  })
+    .split('\0')
+    .filter(Boolean);
+
+  const sources = new Map(
+    await Promise.all(
+      tracked.map(async (filePath) => [
+        filePath,
+        existsSync(filePath) ? await readFile(filePath, 'utf8') : null
+      ])
+    )
+  );
+
+  const result = scanTrackedFiles({
+    tracked,
+    readSource: (filePath) => sources.get(filePath) ?? null
+  });
+
+  if (result.findings.length > 0) {
+    console.error('Tracked-secret check failed:');
+    for (const finding of result.findings) console.error(`- ${finding}`);
+    process.exitCode = 1;
+  } else {
+    console.log(renderPassLine(result));
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) await main();
