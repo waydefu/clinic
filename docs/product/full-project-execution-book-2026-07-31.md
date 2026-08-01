@@ -9,9 +9,10 @@
 [決策登錄](phase-1-decision-register.md)，核准順序查
 [後續執行與核准清單](current-execution-and-approval-plan.md)。
 
-**2026-08-01 查核更新：** Stage 0 已完成，現況是 Stage 1。以下 C0、C1～C6 與後續
-步驟仍是條件式執行書，不代表已取得 deployment authority、apply approval、真實資料或
-production 授權。官方基準與控制來源集中列於附錄 B。
+**2026-08-01 查核更新：** Stage 0 已完成，現況是 Stage 1。本書已覆蓋治理、技術補強、
+C0／C1～C6、Calendar、公開服務、排班／個管／薪資、Production、Expansion S 與常態
+維運的全部已知待辦。以下仍是條件式執行書，不代表已取得 deployment authority、
+apply approval、真實資料或 production 授權。官方基準與控制來源集中列於附錄 B。
 
 ## 0. 每一步的四個要素
 
@@ -28,6 +29,28 @@ production 授權。官方基準與控制來源集中列於附錄 B。
 `docs/reviews/` 並登記到 `docs/README.md`。模板與必備段落見 §10.4。這是
 [開發與交接規約](../../CONTRIBUTING.md)第 10 條的要求：**沒有那份紀錄，該階段不算
 完成**——因為驗收證據散在終端機輸出與對話裡，換一個人就等於從零開始。
+
+### 0.1 全待辦狀態板
+
+詳細 work-package 定義與來源覆蓋見規劃書 §10；本表是執行時唯一狀態入口。每次 PR
+只更新受影響列，並附 decision／request／commit／evidence 連結。`DONE` 必須有證據，
+`DEFERRED` 必須有 owner、原因、排除的 release scope 與重審條件。
+
+| Work package | 目前狀態 | 下一動作 | 阻塞者 |
+| --- | --- | --- | --- |
+| GOV-01～06 全部業主／政策決定 | `WAITING_FOR_ANSWER` | 回收 39 題與 T14～T17 依賴答案，完成 §1-1～1-9 | clinic／operations／privacy／medical／finance／security |
+| GOV-07 C0（T6～T13、業主 37～39） | `REVISE` | 填 reviewers、IAM、成本、DR、安全參數、告警 | named reviewers／billing owner |
+| GOV-08 上線範圍重審（T20） | `NOT_DUE` | 到 release candidate 再重審 SEC-02、D-012、D-013、法規／vendor | release candidate |
+| TW-01～03 gate 自測 | `READY` | 依 §1A 分三個可回滾 PR | 無政策阻塞 |
+| TW-04 測試效能／穩定性 | `READY_TO_MEASURE` | 量 collect 並重現 API health test 批次逾時 | 無政策阻塞 |
+| TW-05 人工無障礙 | `READY_TO_REHEARSE` | 合成環境先跑；Go 前對 release candidate 正式跑 | accessibility reviewer／release candidate |
+| TW-06～07 多服務與完整 reason | `BLOCKED_BY_DECISION` | D-004／各資料域決策後進 OPS／S 切片 | GOV-03／04／06 |
+| C1～C6（T18～T19 實作證據） | `NOT_AUTHORISED` | GOV-07 後只先送 C1 request | C0＋per-slice authority |
+| CAL-01（T14～T17） | `BLOCKED` | C6＋D-009 後另送 request | GOV-05＋Stage 2 |
+| PUB-01～03、OPS-01～03 | `BLOCKED` | 對應 D-series、官網接受／授權與 Stage 2 證據完成後逐片執行 | GOV-02～05＋C2～C6 |
+| GO-01 | `NOT_DUE` | 所有 release-scope evidence 到齊後召開 | 五位 accountable owners |
+| S-00～S-07 Expansion S | `PLAN_ONLY` | 先完成 GOV-06 與獨立 release-scope decision | D-014～D-016、finance／medical／privacy |
+| 常態維運 | `PARTIAL` | repository 節奏現在執行；cloud／production 節奏在服務存在後啟用 | 各服務 G5 handoff |
 
 ---
 
@@ -117,14 +140,15 @@ production 授權。官方基準與控制來源集中列於附錄 B。
 - **驗收證據**：新的日期化 gate 紀錄。
 - **回滾**：撤下鏡像更新。
 
-### 步驟 0-7　補齊把關腳本自己的測試（維護性第一順位）
+### 步驟 0-7　補齊把關腳本自己的測試（Stage 0 主要完成；剩餘轉 TW-01～03）
 
 - **前置**：0-5 完成。
-- **動作**：為 `scripts/` 下每一支阻斷式檢查補測試，優先順序：
-  `check-tracked-secrets.mjs`（已出過事）→ `check-structure.mjs` →
-  `check-docs-links.mjs` → `check-public-pages.mjs` → 其餘。
-  每支至少覆蓋三種情境：正常、髒工作區（有刪除／新增未 commit）、全新 clone。
-- **驗收證據**：新測試檔與其在 `test:unit` 中的通過數增量。
+- **已完成**：高風險與可直接抽離的腳本已補測，Stage 0 因此可以結束。
+- **仍未完成**：`check-architecture.mjs`、`check-web-ui.mjs` 的核心邏輯自測，以及
+  `checkPublicPageConfiguration` 全組態 fixture。它們不阻擋 Stage 1，但必須依 §1A 的
+  TW-01～03 追蹤，不得在「Stage 0 已完成」後消失。
+- **共同驗收**：正常、髒工作區與全新 clone 三情境；正向／負向 fixture；測試在
+  `test:unit` 與阻斷 gate 內。
 - **回滾**：單獨 revert，不影響產品程式碼。
 
 ---
@@ -135,10 +159,13 @@ production 授權。官方基準與控制來源集中列於附錄 B。
 
 ### 步驟 1-1　送出兩份決定清單
 
+- **前置**：確認接收人、回覆截止日與各部門 accountable owner。
 - **動作**：把
   `業主決定事項清單-2026-07-31.docx`（39 題）與
-  `技術資安決定事項清單-2026-07-31.docx`（T1–T21、C1–C6）分別送出。
-- **驗收證據**：回填後的文件，每題都有核准人與日期。
+  `技術資安決定事項清單-2026-07-31.docx`（T1～T21、C1～C6）分別送出，建立逐題
+  tracker：answer／N/A／pending、owner、due date、decision ID、附件。
+- **驗收證據**：39 題與 T1～T21 全數出現在 tracker；沒有空白列被誤讀成同意。
+- **回滾**：收回錯誤版本並發新版；舊版保留 `superseded`，不覆寫簽核歷史。
 
 ### 步驟 1-2　優先追回四個矛盾點
 
@@ -152,13 +179,127 @@ production 授權。官方基準與控制來源集中列於附錄 B。
 | 3 | 重複預約上限幾次、依什麼判定同一人 | 有上限機制，數值未經核定 |
 | 4 | 手術自訂時段可否排在休診日／國定假日 | 未定義 |
 
-### 步驟 1-3　先簽掉不需診所端的兩項
+四項答案寫回 D-004／GOV-03；若答案仍不明確，相關功能標 `deferred`，不可用現行 UI
+或舊筆記代替。
 
-- **動作**：SEC-02（Semgrep 證據政策）與 SEC-03（`brace-expansion` 風險接受）由
-  technical owner + security owner 具名簽核。
-- **驗收證據**：依核准紀錄格式填寫的兩份紀錄。
-- **注意**：SEC-02 未簽而先合併 SAST 換方案，等於在沒有證據政策的情況下換掉把關
-  方式。步驟 0-5 因此把它列為前置。
+### 步驟 1-3　確認已完成的技術決定不再是假 blocker
+
+- **現況**：SEC-02 已核准並實作；SEC-03 的上游修補條件已成立、ignore 已移除；T1～T5
+  與 T21 已完成。這些不再列為 Stage 1 待簽。
+- **動作**：核對決策登錄、交接、GitHub evidence 與 dependency 狀態一致；只建立 GOV-08
+  的「上線前重評 Semgrep 能力差距」待辦，不重開已完成工作。
+- **驗收證據**：對應 decision／commit／CI／Dependabot 連結；目前 audit exception=0。
+- **回滾**：若證據互相矛盾，將該項標 `REOPENED`，不得悄悄改歷史結論。
+
+### 步驟 1-4　關閉隱私與資料治理（GOV-02／D-001～D-003）
+
+- **前置**：業主題 1～2、28～32 由 clinic、privacy/legal、operations 回覆。
+- **動作**：逐欄完成 controller／contact、notice version、rights request、retention／deletion、
+  backup exception、vendor／region／cross-border、DPA／subprocessor、incident owner。法規依
+  預計上線日的有效版本判定，Google DPA 的通知 email 與合約 owner 必須具名。
+- **驗收證據**：D-001～D-003 三筆獨立 approval；資料類別 × purpose × retention × vendor
+  mapping；法律適用性 memo。不得用一張「隱私同意」包辦三筆決策。
+- **回滾**：任一決策撤銷即停止 PUB-01／02 與真資料 migration；已蒐集資料依有效法律與
+  事故／權利流程處理，不直接刪除湮滅證據。
+
+### 步驟 1-5　關閉預約政策（GOV-03／D-004～D-005）
+
+- **前置**：步驟 1-2 四個矛盾有答案；operations／legal 可共同簽核。
+- **動作**：定案服務／多服務占位、醫師／診間／設備容量、published slot、horizon、
+  blackout、延誤、人工 override、取消／改期、no-show、費用／訂金與限制再預約。每個
+  數值都要附生效日、適用服務與例外角色。
+- **驗收證據**：D-004／D-005 approval；OR-07／22／37／48 closure；候選規則對現行
+  synthetic 行為的差異表與 migration 影響。
+- **回滾**：只可切回上一個已核准 policy version；不以硬改資料回復已發生預約。
+
+### 步驟 1-6　關閉個管與薪資（GOV-04／D-007～D-008）
+
+- **前置**：case-management、finance、operations owner 具名。
+- **動作**：定案指派／改派／代理／離職、merge reviewer／restore、completed 定義、計薪
+  source、rule version、生效日、period close、recompute／dispute 與 append-only adjustment。
+- **驗收證據**：D-007／D-008 approval；角色 × action × field 草案；薪資／結算是否適用
+  勞基法工資／出勤紀錄要求的 finance/legal memo。
+- **回滾**：決策撤回時不建 write path；已鎖 period 只以新 adjustment 修正。
+
+### 步驟 1-7　關閉 Calendar 與公開服務（GOV-05／D-009、D-011）
+
+- **前置**：業主題 3～5、33～34；clinic、security、operations 可簽核。
+- **動作**：定案 production shared calendar、credential owner／offboarding、最小 scope、事件
+  欄位、同步失敗 owner；正式 URL、語言、人工預約、患者本人驗證、停機／網路中斷備援。
+- **驗收證據**：D-009／D-011 approval；事件欄位 allowlist；人工電話／櫃檯流程桌上演練；
+  正式網域與 DNS／certificate owner。
+- **回滾**：Calendar 保持未接、public route 保留關閉；不可拿既有測試 calendar credential
+  當 production approval。
+
+### 步驟 1-8　關閉 Expansion S 決定（GOV-06／D-014～D-016）
+
+- **前置**：業主題 21～27、35～36；medical、privacy/legal、finance、clinic、security、
+  operations 具名參與。
+- **動作**：定案臨床／病歷邊界、medical owner、最小欄位、保存／更正／匯出；payment／
+  refund accounting source、對帳；settlement source；Calendar inbound reviewer、matching、
+  unknown／delete／conflict 語意與 SLO。另決定 S3～S6 是否同一 release。
+- **驗收證據**：D-014～D-016 approval；OR-40～61、OR-63～69 每項映射到 S-00～S-07
+  或具名 deferred；資料域與欄位權限不混用。
+- **回滾**：任何未定項只允許 plan-only／純 domain 無政策骨架；不得建立 route、真 Calendar
+  watch、臨床或金額資料。
+
+### 步驟 1-9　做決策完整性與相依審查
+
+- **前置**：1-1～1-8 已執行；可以有 `deferred`，不能有無 owner 的空白。
+- **動作**：以規劃書 §10.1 做 coverage review；逐筆比對 39 題、T1～T21、D-001～D-016、
+  OR-01～69 與 ENG backlog。對每個 release-scope 工作包標 `READY／BLOCKED／DEFERRED`。
+- **驗收證據**：零 unmapped open item、零互相矛盾 active answer；決策登錄 PR 與 reviewer
+  簽核。這一步完成後才進 C0 snapshot。
+- **回滾**：發現矛盾即回到對應 GOV 工作包，不以多數決或實作者猜測補值。
+
+---
+
+## 階段 1A：可與決策並行的技術補強
+
+這一軌不建立 cloud、不處理真資料、不寫入待決政策。每項獨立 PR，避免大型 refactor
+同時改變 gate 的判定結果。
+
+### 步驟 1A-1　TW-01 `check-architecture.mjs`
+
+- **動作**：先鎖既有輸入／輸出 golden fixtures，再抽 dependency-direction、allowlist、
+  unrouted inventory 的純函式；補正常、違規、髒工作區與全新 clone 測試。
+- **驗收證據**：改寫前後同一 fixture 結果一致；故意反轉相依方向會紅；完整 `verify`。
+- **回滾**：revert 單一 PR，原 CLI 行為恢復。
+
+### 步驟 1A-2　TW-02 `check-web-ui.mjs`
+
+- **前置**：先列出 1070 行內每一類 guard，避免重構漏規則。
+- **動作**：依 permissions、safety、accessibility、DOM／content 分離 pure review functions；
+  fixture 必須包含每一條 rule 的正反案例。
+- **驗收證據**：rule inventory 前後數量相同；每條至少一個會失敗的 mutation fixture；
+  UI、E2E 與 `verify` 全綠。
+- **回滾**：保留原 CLI adapter；pure function PR 可獨立 revert。
+
+### 步驟 1A-3　TW-03 public-page 完整組態測試
+
+- **動作**：建立 inventory、performance budgets、Firebase routes、server routes、scan matrix
+  的最小 fixture builder；測缺漏、額外、重複、pretty path 漂移與不一致。
+- **驗收證據**：`checkPublicPageConfiguration` 全分支 coverage；現有五 entry／八 route 通過。
+- **回滾**：只 revert 測試／抽函式，不調低 production guard。
+
+### 步驟 1A-4　TW-04 測試效能與穩定性
+
+- **動作**：固定機器／Node／Vitest／cold-warm 條件，各跑至少三次；分別量 transform、collect、
+  tests、environment／prepare。一次只改一個變因（pool、workers、test grouping、imports）。
+  同時在完整批次與受控 CPU／I/O 負載下重現 `apps/api` health test 曾發生的 5 秒逾時，
+  區分被測服務、測試隔離與 runner 排程的根因。
+- **驗收證據**：median／p95 before-after、55 檔／820 項一致、連跑與 flaky rate；health test
+  有可重現失敗與根因修復，或有足量長跑證明未再出現。若 collect 改法收益不足或不穩定，
+  就保留現況並結案為「不改」；不得只提高 timeout。
+- **回滾**：revert config；不得只提高 timeout 或刪測試換速度。
+
+### 步驟 1A-5　TW-05 人工無障礙
+
+- **動作**：先在合成 build 依既有 runbook 演練鍵盤、螢幕閱讀器、高對比、200%／400%、
+  focus、error／status、timeout／reauth；每項記 WCAG 2.2 SC、browser／OS／AT 版本。
+- **驗收證據**：缺陷單、修復 commit、同一場景重測。Go 前對 frozen release candidate
+  完整重跑；W3C Easy Checks 只能作初查，不宣稱等同完整 conformance evaluation。
+- **回滾**：文件／測試不適用；修復本身依 UI PR revert，但不能以 revert 恢復已知障礙後上線。
 
 ---
 
@@ -359,38 +500,99 @@ IAM、公開 Firestore／route 或 destructive change；secret 進入 state／lo
 
 ## 階段 5：Stage 4 公開預約與真實病患資料
 
-- **前置**：D-001～D-005、D-011 核准；D-006／D-010 實作證據齊備；Stage 2 完成；
-  privacy／legal owner 已依規劃書 §5.4 鎖定預計上線日的有效法規版本、診所／醫院辦法
-  適用性、受託處理與事件通知責任。真實資料 migration 與 public release 各自有核准。
-- **動作**：
-  1. 建立欄位級 data inventory：蒐集目的、類別、必要性、告知文字、利用期間／地區／
-     對象／方式、權利管道、owner、保存／刪除／備份例外；未映射欄位不得收集。
-  2. 發布版本化隱私告知並保存同意／告知版本；建立查詢、更正、停止、刪除、匯出、申訴、
-     事件通知與處理者管理 runbook，指定主要／備援人與時限。
-  3. **把完整 PII 從 `localStorage`、URL、analytics、error log、Calendar 與非必要 audit 移除**；
-     public API 加 rate limit、abuse control、idempotency、generic error 與 kill switch。
-  4. 資料變更採 expand → synthetic rehearsal → migrate → count／checksum／抽樣 → 切讀 →
-     觀察 → contract；不可逆 migration 與 public route 首次開放不得綁成一個步驟。
-- **驗收證據**：法規版本／適用性 memo；data inventory 與隱私告知逐欄 mapping；一輪
-  查閱／更正／停止／刪除演練及備份例外說明；處理者清單；事故桌上演練；browser／URL／
-  logs／analytics／Calendar 抽樣無未核准 PII；migration 前後筆數／checksum／失敗重跑；
-  public abuse、重送、kill switch 與 staff-only 回復實測。
-- **停止條件**：任何欄位無目的／保存依據、法規版本或適用性未定、權利請求無 owner、
-  處理者契約／責任不明、PII 出現在非核准位置、migration 無法重跑或 kill switch 失效。
-- **回滾**：先關閉 public route 回到 staff-only、停止新資料寫入並保全 audit；資料以預演
-  的向後相容路徑／restore／forward-fix 處理。關 route 不等於可以任意刪已蒐集資料。
+### 5.1 OPS-01　先正式化預約／排班規則
+
+- **前置**：D-004／D-005；TW-06 多服務 ADR；Stage 2 auth／database；仍只用合成資料。
+- **動作**：實作 versioned service catalog、published slot block、multi-service occupation、
+  practitioner／room／equipment capacity、horizon／blackout、delay、admin override、取消／改期／
+  no-show。Google Calendar 不參與容量鎖；寫入走 idempotent transaction。
+- **驗收證據**：每個已核准 rule 的 decision ID／effective date；boundary、property、競態、
+  blackout／DST／`Asia/Taipei`、override／reason、取消期限正負測試；舊 single-service 合成資料
+  的 expand／migrate／verify／contract rehearsal。
+- **回滾**：切回上一個 policy version；已成立預約不被無痕重算，差異進人工 review。
+
+### 5.2 PUB-01　建立隱私、供應商與資料生命週期
+
+- **前置**：D-001～D-003；privacy／legal owner 已依規劃書 §5.4 鎖定預計上線日的有效
+  法規版本、診所／醫院辦法適用性、受託處理與事件通知責任。
+- **動作**：建立欄位級 data inventory：蒐集目的、類別、必要性、告知文字、利用期間／
+  地區／對象／方式、權利管道、owner、保存／刪除／備份例外；維護 Google Cloud DPA、
+  subprocessor／location、notification email 與 contract owner。建立查詢、更正、停止、
+  刪除、匯出、申訴、事件通知與 processor management runbook。
+- **驗收證據**：data inventory × notice mapping；版本化政策與接受證據；DSR／retention／
+  deletion／backup exception、data incident、processor change 的桌上演練與實際 owner 回應。
+- **回滾**：政策未核准即不收資料；政策變更發新版，不覆寫舊版／同意歷史。
+
+### 5.3 PUB-02　患者身分、public API 與人工備援
+
+- **前置**：D-005／D-011、D-006／D-010 實作證據、5.1／5.2、獨立 public release request；
+  患者本人驗證方式已經 security／privacy／operations 核准。
+- **動作**：移除 `localStorage`、URL、analytics、error log、Calendar 與非必要 audit 的完整
+  PII；public API 加 rate／abuse、idempotency、generic error、bot／重送控制與 kill switch。
+  建立電話／櫃檯人工預約、離線紙本、恢復後補登／去重與通知流程；正式 URL／language／
+  DNS／certificate 依 D-011。
+- **驗收證據**：本人／冒用、重複送出、取消期限、rate／abuse、offline／補登、kill switch、
+  staff-only 回復；browser／URL／logs／analytics／Calendar 抽樣無未核准 PII。
+- **回滾**：先關 public route 回到 staff-only；保留權利／incident／audit 處理能力。
+
+### 5.4 PUB-03　診所官網實機接受與授權素材
+
+- **前置**：GOV-05／D-011；clinic content owner、圖片權利人／授權證據與可接受的實機驗收
+  裝置已具名。不得以「官網上看得到」推定可複製、改作或再散布。
+- **動作**：請業主在代表性桌機／手機接受 C1 的版面與內容邊界；對 C2 每張候選圖記來源、
+  權利基礎、允許用途／期限，再轉 WebP／responsive size。保持排除未核准醫美內容，先壓進
+  `/clinic.html` 560 KiB／3 檔影像預算；真的要改預算須另附量測與核准理由。
+- **驗收證據**：C1 具名實機接受；C2 asset manifest／授權附件／SHA-256；`check:perf`、SEO、
+  keyboard／screen-reader、responsive visual、broken-link 與已授權 preview 驗證全綠。
+- **回滾**：移除未核准素材並回前一個已接受版本；權利撤回或來源存疑立即停止散布，保留
+  處理紀錄但不繼續部署該檔。
+
+### 5.5 真資料 migration 與小流量釋出
+
+- **前置**：5.1～5.4 完成；migration 與 public release 分開核准；backup／restore 已實測。
+- **動作**：expand → synthetic rehearsal → 受控 migrate → count／checksum／抽樣 → 切讀 →
+  觀察 → contract；先內部／限定小流量，再按核准比例擴大。
+- **驗收證據**：migration 可重入、失敗 resume、前後筆數／checksum／抽樣、data owner signoff；
+  每段流量的錯誤／延遲／重複／abuse／告警／成本與使用者支援紀錄。
+- **停止條件**：任何欄位無 purpose／retention、法規或 DPA 未定、PII 出界、權利請求無
+  owner、migration 不可重跑、人工備援／kill switch 失效。
+- **回滾**：停止新寫入／流量、回向後相容 read path或 restore／forward-fix。關 route 不等於
+  可任意刪除已蒐集資料。
 
 ---
 
-## 階段 6：Stage 5 個管、排班與薪資
+## 階段 6：Stage 5 個管與薪資
 
-- **前置**：D-004、D-007、D-008 核准。
-- **動作**：versioned schedule、指派／改派、病患 merge review、薪資 rule version、
-  月結 lock、append-only adjustment。
-- **驗收證據**：每一版規則的生效日、核准人與回算差異；關帳後的調整必定留下理由、
-  核准人與前後金額；合併病患先預覽差異、雙人覆核並做還原演練；角色矩陣證明個管、
-  薪資與一般櫃檯欄位分離。
-- **回滾**：規則版本回退；已關帳資料不得直接改寫，只能以新增調整紀錄修正。
+### 6.1 OPS-02　個管指派、改派與 patient merge
+
+- **前置**：D-007、C4／C5、合成資料與獨立 request；醫療／財務欄位仍按 D-014／D-015
+  fail closed。
+- **動作**：實作 assignment lifecycle、未指派 queue／SLA、改派／代理／離職、resource
+  scope；merge 先候選比對與差異 preview，再由核准角色覆核，保留 source IDs 與可逆映射。
+- **驗收證據**：同一人／不同人 false-positive／false-negative fixtures、跨個管 BOLA、代理
+  到期、離職撤權、merge 雙人覆核與完整 restore；audit 含 actor、before／after、reason。
+- **回滾**：撤銷 route／policy；錯 merge 走預演的 restore command，不直接手改 documents。
+
+### 6.2 OPS-03　薪資 rule、月結與調整
+
+- **前置**：D-008；若計算引用 payment／refund，另需 D-015 與 S-04，否則明確排除金額；
+  finance/legal 已判定工資／出勤紀錄適用性。
+- **動作**：每筆 credit 綁 source event／assignment snapshot／rule version；period 依
+  `open → review → locked → adjustment_open` 前進。locked snapshot 不重算；錯誤只新增
+  adjustment／reason／approver。病患付款與人員結算使用不同資料域與欄位。
+- **驗收證據**：rule effective-date／backfill、取消／no-show／duplicate、rounding、period
+  close concurrency、recompute diff、dispute／adjustment、角色／欄位 BOLA；如適用，工資明細、
+  五年清冊與出勤至分鐘的保存／調閱流程演練。
+- **回滾**：未鎖期可切回前一版 rule並產生差異報告；已鎖期只追加 adjustment。
+
+### 6.3 TW-07　補齊所有異動理由與 correction inventory
+
+- **前置**：release scope 的 appointment／case／payroll 決策已定；Expansion 欄位可標 N/A。
+- **動作**：逐一列出改期、取消、改服務、換人、merge、金額、退款、結算、Calendar candidate
+  的 command；定義 reason 是否必填、actor、before／after、approval、correction／reversal。
+- **驗收證據**：OR-68／69 coverage=100%；每個 command 有 allow／deny／audit assertion；
+  任何資料域都沒有 generic update endpoint 可繞過 command。
+- **回滾**：route fail closed；不以移除 reason／audit 要求作回復。
 
 ---
 
@@ -429,14 +631,81 @@ technical／operations owner 不得同時離線。達停止門檻立即切回／
 
 **不得併入前述階段，除非業主明確決定合併。**
 
-- **前置**：D-008、D-009、D-014、D-015、D-016 全部核准。
-- **動工前必須先完成的設計工作**（規劃書 §2 缺口欄）：
-  1. 手術／付款／結算的模組邊界與相依方向，先過 `check:architecture`；
-  2. 金額計算的 property-based 測試策略（樣例測試不足以涵蓋退款與部分付款組合）；
-  3. 病患財務資料與人員結算資料的**欄位分離**設計（業主已明確要求不得共用欄位）；
-  4. 醫療欄位的保存年限設計，需分開處理預約資料與病歷（醫療法第 70 條：至少七年、
-     未成年至成年後再七年、人體試驗永久）。
-- **驗收證據**：每一項都要有獨立的設計文件與測試，不接受「跟著預約一起做完了」。
+### 8.1 S-00　凍結 Expansion release scope
+
+- **前置**：GOV-06；可以只核准部分 S 切片，不要求一次全做。
+- **動作**：把 OR-40～61、OR-63～69 映射到 S-01～S-07；列 data classification、domain
+  owner、角色／欄位、commands／events、依賴、明確排除、migration 與分批 release。S3～S6
+  是否同一 release 必須明確決定。
+- **驗收證據**：零 unmapped expansion item；每片 request／owner／decision／stop／rollback。
+- **回滾**：scope 變更發新版；未獲准項保持 plan-only。
+
+### 8.2 S-01　領域與安全基線
+
+- **前置**：D-004、D-014／D-015 中該 slice 必要的規則已核准；仍無 route／真資料。
+- **動作**：分開 `surgery`、`clinical timeline`、`payment ledger`、`staff settlement` 模組，
+  定義只可透過 command 改變的狀態機、interval conflict、money invariants、event／audit、
+  field projection。病患財務與人員結算不得共用欄位。
+- **驗收證據**：ADR／architecture gate、property-based／state-machine／RBAC projection tests；
+  no route、no persistence、no real data 證據。
+- **回滾**：revert pure-domain commit，不碰既有 Phase 1 資料。
+
+### 8.3 S-02　合成手術排程
+
+- **前置**：S-01、Stage 2 auth／API、D-004 surgery slot／休診 override 已定；只用 synthetic。
+- **動作**：實作週三～五／週六核准時段、自訂時段、surgeon／room／patient overlap、到診後
+  轉手術、檢查不建手術、改期釋放原時段；admin override 仍不可繞過資源衝突。
+- **驗收證據**：OR-40～50 mapping；同時預約競態、跨午夜／休診、override reason、改期／
+  取消／restore、顏色之外的文字辨識與 a11y E2E。
+- **回滾**：關閉 surgery route／feature flag，保留既有 Phase 1 appointment。
+
+### 8.4 S-03　臨床時間軸與回診
+
+- **前置**：D-001～D-003、D-014、S-02；medical／privacy owner 具名。
+- **動作**：只存核准的 surgery／anesthesia／actual time／follow-up 欄位；每筆有 accountable
+  medical owner、access log、correction／export／retention。回診只有 completed 才計數，
+  原事件保留，改期／取消不覆寫。
+- **驗收證據**：OR-51／52／60／61／68／69；field inventory、跨角色 BOLA、minimum-necessary
+  projection、correction、病歷／非病歷分流、retention／DSR／export drill。
+- **回滾**：停止新 clinical write、quarantine；correction／restore 不刪歷史。
+
+### 8.5 S-04　付款與退款 ledger
+
+- **前置**：D-015；accounting source／currency／rounding／refund／reconciliation owner 已定。
+- **動作**：append-only entries 表示 total approved price、deposit、balance、payment、refund；
+  derived balance／status 由 ledger 計算，不能手改狀態。每筆綁外部帳本 reference／reason／actor。
+- **驗收證據**：OR-53～55／57～60／66／68～69；decimal／rounding、partial／overpayment、
+  refund pending／complete、duplicate／idempotency、reconciliation、field-level BOLA property tests。
+- **回滾**：不刪 ledger；錯誤以 reversal／correction entry，必要時關閉 payment route。
+
+### 8.6 S-05　人員結算
+
+- **前置**：D-008、D-015、S-04；finance/legal 的工資／稅務／會計適用性 memo。
+- **動作**：consultant／physician／customer-service 分開 settlement；fixed／total-%／received-%／
+  manual 只啟用核准方法；rule version、source snapshot、lock／adjustment 與 patient payment
+  資料域分離。
+- **驗收證據**：OR-63～67；退款後 basis、三角色拆分、rounding、跨期、lock concurrency、
+  dispute／adjustment、self-only／finance-all／nurse-deny field BOLA。
+- **回滾**：已鎖 settlement 不重寫，只追加 adjustment；route 可關閉、ledger 保留。
+
+### 8.7 S-06　Google Calendar inbound review
+
+- **前置**：D-009／D-016、CAL-01 穩定、專用 Calendar／scope／reviewer／SLO 核准。
+- **動作**：watch＋incremental sync；unknown／modified／delete 轉 candidate，不直接改 system；
+  review command 重新檢查版本、角色、營業時間與衝突，留下 approved／rejected／superseded。
+  `410 Gone` 清 token 全量重同步；push 遺失由 polling／reconciliation 補回。
+- **驗收證據**：OR-43～45；channel renewal／expiration、sync-before-watch-response、410、lost／
+  duplicate notification、unknown／delete／conflict、RBAC／reason、SLO／DLQ／reconciliation drill。
+- **回滾**：停止 watch／worker，保留 outbound projection；未 review candidate 不影響正式預約。
+
+### 8.8 S-07　Expansion 整合與 Go／No-Go
+
+- **前置**：本次 scope 選中的 S-02～S-06 全部完成；未選項明確 deferred。
+- **動作**：依 §7 對 Expansion release candidate 重跑 security、privacy、medical、finance、
+  accessibility、migration、load、DR、rollback、operational handoff。
+- **驗收證據**：OR-40～69 coverage；各 data domain owner 聯合簽核；跨域查詢不洩露 medical／
+  payment／settlement 欄位；事故與錯 merge／refund／Calendar conflict 演練。
+- **回滾**：按 slice feature／route 關閉；資料域各自 correction／restore，不做跨域 destroy。
 
 ---
 
@@ -478,7 +747,7 @@ Reviewer 2／日期：
 被新版取代時的 successor snapshot：
 ```
 
-### 10.2 部署申請（C1～C6 每一片一份）
+### 10.2 外部狀態變更申請（C1～C6、Calendar、真資料與 production 每一片一份）
 
 ```text
 切片編號：
@@ -591,6 +860,30 @@ technical owner：GO / NO-GO（簽名／時間）
 最終結論／限制／下一次重審條件：
 ```
 
+### 10.7 全待辦 tracker
+
+`docs/product/` 中的實際 tracker 可使用下列欄位；§0.1 只保留管理摘要。任何新待辦先判斷
+是否已由既有 work package 覆蓋，避免替同一件事另開一張卡。
+
+```text
+Work-package ID：
+標題：
+來源編號（業主題號／D／T／OR／C／handoff）：
+Release scope（Phase 1／Expansion／BAU／deferred）：
+狀態（WAITING_FOR_ANSWER／READY／BLOCKED／NOT_AUTHORISED／IN_PROGRESS／DONE／DEFERRED）：
+Accountable owner／執行人／覆核人：
+前置決策／request／authority：
+相依 work package：
+目標完成日／重審日：
+明確範圍／排除項：
+目前 blocker／下一個具體動作：
+完成定義：
+commit／PR／CI／測試／演練／簽核證據：
+剩餘風險／接受人／到期日：
+successor／handoff：
+最後更新（Asia/Taipei）：
+```
+
 ---
 
 ## 附錄 A：Repository 常用指令
@@ -620,6 +913,7 @@ corepack pnpm run test:e2e
 | --- | --- | --- |
 | 身分／session | [NIST SP 800-63B-4 AAL](https://pages.nist.gov/800-63-4/sp800-63b/aal/)、[Session Management](https://pages.nist.gov/800-63-4/sp800-63b/session/) | 8h／30m 保留；AAL2 抗釣魚選項或偏差決定；cookie／CSRF／server timeout |
 | 應用安全驗收 | [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) | 固定使用穩定版 5.0.0 與 versioned requirement ID |
+| 安全開發生命週期 | [NIST SP 800-218 SSDF](https://csrc.nist.gov/pubs/sp/800/218/final) | 安全實務嵌入各切片；gate、供應鏈、缺陷與證據不留到上線前一次補 |
 | Firebase session | [Manage Session Cookies](https://firebase.google.com/docs/auth/admin/manage-cookies) | CSRF 保護、Secure／HttpOnly cookie、server verify／revocation |
 | Terraform／state | [Security best practices](https://docs.cloud.google.com/docs/terraform/best-practices/security)、[Structure](https://cloud.google.com/docs/terraform/best-practices/general-style-structure) | remote restricted state、secret 不入 state／log、pre-apply policy、post-apply audit、deletion protection |
 | CI cloud identity | [WIF for deployment pipelines](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines) | 短期憑證、attribute condition、數字 ID、repo／branch／workflow 限制 |
@@ -627,5 +921,8 @@ corepack pnpm run test:e2e
 | Firestore | [Locations](https://docs.cloud.google.com/firestore/native/docs/locations)、[Backups](https://docs.cloud.google.com/firestore/native/docs/backups)、[Export／import](https://docs.cloud.google.com/firestore/native/docs/manage-data/export-import) | location 建立後不可變、restore 到新 DB、同區 backup 非 regional DR、實測 RPO／RTO |
 | Secret rotation | [Secret Manager rotation recommendations](https://docs.cloud.google.com/secret-manager/docs/rotation-recommendations) | 指定 version、漸進驗證、先 disable 後 destroy、reentrant rotation |
 | 成本 | [Cloud Billing budgets](https://docs.cloud.google.com/billing/docs/how-to/budgets) | budget 是有延遲的告警，不是硬上限 |
+| 雲端處理者 | [Google Cloud Data Processing Addendum](https://cloud.google.com/terms/data-processing-addendum) | 簽約主體、subprocessor 通知、聯絡信箱、資料區域與變更重審均有 owner |
+| 無障礙 | [W3C WCAG 2.2 Quick Reference](https://www.w3.org/WAI/WCAG22/quickref/)、[WAI Easy Checks](https://www.w3.org/WAI/test-evaluate/preliminary/) | 自動檢查加人工鍵盤、縮放、高對比與螢幕閱讀器；留 AT／browser／SC／重測證據 |
 | 台灣個資 | [個資法第 8 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=8)、[第 11 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=11)、[第 12 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=12) | 告知、正確／更正／刪停、事故流程；上線日前鎖定實際生效版本 |
 | 醫療資料 | [醫療法第 70 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=L0020021&flno=70)、[衛福部醫院個資安全維護辦法](https://www.mohw.gov.tw/fp-18-54747-1.html) | 病歷保存與個資安全控制；辦法是否適用診所由 privacy／legal owner 判定 |
+| 工資／出勤 | [勞動基準法第 23 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=N0030001&flno=23)、[第 30 條](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=N0030001&flno=30) | 若 finance／legal 判定適用，工資明細／清冊與逐分鐘出勤紀錄依規保存五年；工程端不自行推定適用性 |
