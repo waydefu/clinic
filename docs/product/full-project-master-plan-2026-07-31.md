@@ -434,7 +434,7 @@ log／artifact、實際成本超過核准容忍範圍、主要或備援 owner �
 | 技術資安清單 T1～T21 | T1～T5、T21 已完成；T6～T13 是 C0；T14～T17 是 Calendar；T18～T19 是 Stage 2 實作；T20 是 production scope 重審 | GOV-07～GOV-08、C1～C6、CAL-01、GO-01 |
 | Decision register | 12 筆 pending：D-001～D-005、D-007～D-009、D-011、D-014～D-016；D-006／D-010 只缺實作證據 | GOV-02～GOV-07、C2～C6、PUB、OPS、CAL、S 系列 |
 | Owner requests OR-01～OR-69 | 未完成／部分完成：OR-07、OR-22、OR-37、OR-40～OR-61、OR-63～OR-69 | GOV-03、TW-06～07、OPS、CAL、S 系列 |
-| 2026-07-27 owner batch 6 | 官網 C1 尚待業主實機接受；C2 的 WebP 轉換與影像預算已於 2026-08-02 完成（2.2 MB → 129 KiB，預算改為 180 KiB／14 檔），**圖片授權仍未取得** | PUB-03 |
+| 2026-07-27 owner batch 6 | 官網 C1 尚待業主實機接受；**C2 已於 2026-08-02 全部解除**——WebP 轉換與影像預算完成（2.2 MB → 129 KiB，預算改為 180 KiB／14 檔），圖片授權確認為診所自有 | PUB-03 |
 | Stage 0 交接／§2.1 實測 | 兩支 gate 無自測、public-page 整體 fixture、單元測試收集時間、API health test 批次逾時 | TW-01～TW-04 |
 | Roadmap | 人工螢幕閱讀器與高對比驗證尚未執行 | TW-05、GO-01 |
 
@@ -489,7 +489,7 @@ TW-01～TW-05 可以與 Stage 1 決策並行；TW-06～TW-07 含政策值，必�
 | CAL-01 | Stage 3 outbound Calendar | C6＋GOV-05＋獨立 authority | 最小 scope／PII、outbox、syncToken／410、push＋poll、DLQ、rotation／reconciliation |
 | PUB-01 | Privacy／vendor／legal operating controls | GOV-02＋上線日法規版本 | data inventory、DPA／subprocessor owner、notice／consent、DSR、retention／deletion、incident drill |
 | PUB-02 | Patient identity／public API | GOV-03＋GOV-05＋PUB-01＋D-006／D-010 evidence | 本人驗證、rate／abuse／idempotency、PII 不進 localStorage／URL／log、kill switch |
-| PUB-03 | Clinic website acceptance／licensed media | GOV-05＋content／license owner | C1 實機接受；C2 素材來源與授權證據（manifest 已備、授權未取得）；WebP／responsive images 進 180 KiB／14 檔預算（2026-08-02 已達成）；SEO／a11y／visual／preview 驗收 |
+| PUB-03 | Clinic website acceptance／licensed media | GOV-05＋content／license owner | C1 實機接受（**未完成**）；C2 素材來源與授權證據（2026-08-02 完成，診所自有）；WebP／responsive images 進 180 KiB／14 檔預算（2026-08-02 已達成）；SEO／a11y／visual／preview 驗收 |
 | OPS-01 | 正式 slot／多服務／schedule | GOV-03＋TW-06 | versioned schedule、容量／resource conflict、blackout、delay／override、migration／E2E |
 | OPS-02 | Case management／merge | GOV-04＋C4／C5 | assignment lifecycle、代理／離職、merge preview／雙人覆核／restore、field scope |
 | OPS-03 | Payroll／period close | GOV-04＋D-015 邊界 | versioned rule、source snapshot、lock、append-only adjustment、recompute／dispute evidence |

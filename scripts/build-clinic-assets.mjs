@@ -285,14 +285,25 @@ async function main() {
 
   await browser.close();
 
-  // 授權狀態刻意不是這個腳本能填的欄位。素材推定取自 beauessence.com.tw（業主在
-  // 2026-07-27 需求批次 C2 指示「缺圖直接抓官網的」），但「診所擁有或已獲授權」
-  // 要業主具名確認，那是 C2 的另一個阻擋條件。這裡只負責把可驗證的部分——檔案、
-  // 位元組數與雜湊——固定下來，讓那份確認有對象可指。
+  // 授權不是這個腳本算得出來的東西，所以它是一組**寫死的宣告**，改動必須是一次
+  // 有名有據的決定，而不是跟著重跑而變。腳本負責的是可驗證的那一半——檔案、位元組
+  // 數與雜湊——讓這份宣告有明確的對象可指：`assets[].sha256` 就是被宣告的那幾張圖。
+  //
+  // 2026-08-02 之前這裡是 `pending-owner-confirmation`。C2 的兩個阻擋條件裡，壓縮
+  // 那一半由這支腳本解決，授權那一半只能由人回答；當天取得確認後改為 `owned`。
+  //
+  // 若日後換圖或加圖，**先確認新素材的權利基礎再改這裡**。沿用舊宣告涵蓋新檔案，
+  // 等於用一次舊的確認替沒有被確認過的東西背書。
   const manifest = {
     generatedBy: 'scripts/build-clinic-assets.mjs',
-    presumedOrigin: 'beauessence.com.tw',
-    licenceStatus: 'pending-owner-confirmation',
+    origin: 'beauessence.com.tw',
+    licenceStatus: 'owned',
+    licence: {
+      basis: '診所自有（自行拍攝或委製，著作權屬一森渼診所）',
+      confirmedBy: 'wayde.fu',
+      confirmedOn: '2026-08-02',
+      scope: '本 manifest 列出的素材，用於本專案的診所官網；無期限限制'
+    },
     totals: { sourceBytes, outputBytes },
     assets: entries
   };

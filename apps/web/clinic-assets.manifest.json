@@ -1,7 +1,13 @@
 {
   "generatedBy": "scripts/build-clinic-assets.mjs",
-  "presumedOrigin": "beauessence.com.tw",
-  "licenceStatus": "pending-owner-confirmation",
+  "origin": "beauessence.com.tw",
+  "licenceStatus": "owned",
+  "licence": {
+    "basis": "診所自有（自行拍攝或委製，著作權屬一森渼診所）",
+    "confirmedBy": "wayde.fu",
+    "confirmedOn": "2026-08-02",
+    "scope": "本 manifest 列出的素材，用於本專案的診所官網；無期限限制"
+  },
   "totals": {
     "sourceBytes": 2262683,
     "outputBytes": 132274

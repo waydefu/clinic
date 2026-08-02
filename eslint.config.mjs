@@ -19,6 +19,14 @@ export default tseslint.config(
       'output/**',
       // packages/domain 的編譯產物，同步而來，不重複檢查。
       'apps/web/public/vendor/**',
+      // Claude Code 的巢狀 worktree：同一個 repo 的另一個 checkout，剛好放在工作區
+      // 內部。它有自己的 node_modules，安裝失敗時型別解析不到，型別感知規則會炸出
+      // 幾百個與本工作區無關的錯誤（2026-08-02 實測 672 個，主工作區 0 個）。
+      //
+      // 注意上面那條 `apps/web/public/vendor/**` 錨定在根目錄，match 不到
+      // `.claude/worktrees/<name>/apps/web/public/vendor/`——`.prettierignore` 有
+      // 同一個洞，同日一起補。
+      '.claude/worktrees/**',
       // Semgrep 規則的正反測試檔。它們**必須**含有 eval、shell 注入等真正
       // 危險的樣式，否則無法證明規則抓得到；那是測試資料，不是產品程式碼。
       // 讓 ESLint 檢查它們只會逼人加 disable 註解，反而弱化規則測試本身。

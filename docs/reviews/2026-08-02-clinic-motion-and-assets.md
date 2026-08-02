@@ -57,6 +57,11 @@ opacity 的效果。** 原本用 `inset: -20%` 外擴再位移旋轉，視覺更
 
 每一張的來源檔、尺寸、位元組數與 SHA-256 記在 `apps/web/clinic-assets.manifest.json`。
 
+授權當天一併確認：**診所自有**（自行拍攝或委製），確認人 `wayde.fu`，範圍是 manifest
+列出的素材、用於本專案的診所官網、無期限限制。它是腳本裡**寫死的宣告**而不是計算結果
+——授權不是重跑一次就會改變的東西，改動必須是一次有名有據的決定。`assets[].sha256`
+界定了被宣告的是哪幾張圖，所以換圖或加圖時必須重新確認，舊宣告不涵蓋新素材。
+
 ## 4. `check:perf` 的盲點：JS 字串常數指到的圖是隱形的
 
 **發現方式：** 壓縮前跑 `check:perf --report`，`/clinic.html` 顯示 image 2 個
@@ -99,12 +104,36 @@ opacity 的效果。** 原本用 `inset: -20%` 外擴再位移旋轉，視覺更
 OR-07 由 ❓ 改為 ✅：**12:00–20:00**，2026-08-01 業主定案，較早筆記寫的 20:30 作廢。
 「需業主釐清的四件事」第 1 項標記已解決；D-004 的正式收錄仍待辦。
 
+## 8. 兩道 gate 對巢狀 worktree 是可見的，而且會假紅燈
+
+**發現方式：** 另一個 session 在 `.claude/worktrees/<name>/` 開了同一個 repo 的第二個
+checkout，之後主工作區的 `pnpm verify` 立刻變紅——先是 `check:format` 16 個違規，修掉
+後換 `check:lint` 672 個錯誤。**兩者在主工作區都是 0**，全部來自那個巢狀 checkout。
+
+**為什麼會發生：** 兩層原因疊在一起。
+
+1. `.claude/worktrees/` 只在 `.git/info/exclude` 裡，git 看不見它；但 **prettier 不讀
+   `.gitignore`**，eslint 也不讀，所以對這兩道 gate 它是可見的。
+2. 兩邊排除建置產物的樣式都**含斜線因而錨定在根目錄**——`.prettierignore` 的
+   `apps/web/public/vendor/` 與 eslint 的 `apps/web/public/vendor/**` 都 match 不到
+   `.claude/worktrees/<name>/apps/web/public/vendor/`。於是巢狀 checkout 裡的 vendor
+   產物被當成待檢查的原始碼。eslint 那 672 個錯誤更是雜訊中的雜訊：那個 worktree 的
+   `pnpm install` 撞到 Windows `EPERM`，`zod` 裝不起來，型別感知規則因此對每一個
+   schema 呼叫都報 `no-unsafe-*`。
+
+**後果：** 閘門報告的東西與作者的改動完全無關。這比綠燈失效更容易腐化紀律——紅燈
+如果經常是別人的事，下一步就是有人學會直接忽略它。第 4 節的毛病是綠燈沒有意義，
+這一節的毛病是紅燈沒有意義，兩者一樣糟。
+
+**修法：** `.prettierignore` 加 `.claude/worktrees/`，eslint 的 `ignores` 加
+`.claude/worktrees/**`。只排除 `worktrees/` 而不是整個 `.claude/`——`launch.json`
+等設定仍然要被檢查。`vitest.config.ts` 的 include（`apps/*/src/**`、
+`packages/*/src/**`、`scripts/**`）同樣錨定在開頭，所以測試那一關沒有這個洞，已確認。
+
 ## 沒有做的事
 
-- **C2 圖片授權**。素材推定取自 beauessence.com.tw（業主 2026-07-27 指示「缺圖直接
-  抓官網的」），但「診所擁有或已獲授權」要業主具名確認。manifest 的
-  `licenceStatus` 維持 `pending-owner-confirmation`，PUB-03 不因壓縮完成而前進。
 - **C1 業主實機接受**。技術結構已對齊，主觀驗收仍待業主在代表性桌機／手機確認。
+  C2 兩個條件解除後，這是 PUB-03 唯一還缺的東西。
 - **`og-booking.png`（806 KiB）沒有處理。** 它由 `<meta property="og:image">` 參照，
   不在任何頁面的預算閉包裡，也不會被一般訪客下載（只有社群平台的爬蟲抓）。這不是
   頁面重量問題，另案處理。

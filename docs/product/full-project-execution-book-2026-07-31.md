@@ -545,11 +545,12 @@ IAM、公開 Firestore／route 或 destructive change；secret 進入 state／lo
   **2026-08-02 已完成的部分**：12 張素材轉 WebP（2210 KiB → 129 KiB），原圖移到不出貨的
   `apps/web/clinic-source/`，預算改為 180 KiB／14 檔並在 `justification` 記下量測；
   `apps/web/clinic-assets.manifest.json` 記下每一張的來源檔、尺寸、位元組數與 SHA-256。
-  **未完成的是權利基礎**——manifest 的 `licenceStatus` 是 `pending-owner-confirmation`，
-  沒有它就沒有「來源、允許用途／期限」可填，PUB-03 不因壓縮完成而前進。
-- **驗收證據**：C1 具名實機接受；C2 asset manifest（已備）／授權附件／SHA-256（已備）；
-  `check:perf`（已綠）、SEO、keyboard／screen-reader、responsive visual、broken-link 與
-  已授權 preview 驗證全綠。
+  **權利基礎同日補齊**：確認為診所自有（自行拍攝或委製），確認人 `wayde.fu`，範圍是
+  manifest 列出的素材、用於本專案的診所官網、無期限限制，寫在 manifest 的 `licence`
+  區塊。C2 兩個條件都已解除；**PUB-03 剩下的是 C1 的實機接受**。
+- **驗收證據**：C1 具名實機接受（**未完成**）；C2 asset manifest／授權宣告／SHA-256
+  （2026-08-02 完成）；`check:perf`（已綠）、SEO、keyboard／screen-reader、responsive
+  visual、broken-link 與已授權 preview 驗證全綠。
 - **回滾**：移除未核准素材並回前一個已接受版本；權利撤回或來源存疑立即停止散布，保留
   處理紀錄但不繼續部署該檔。
 
