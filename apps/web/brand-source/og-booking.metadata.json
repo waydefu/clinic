@@ -1,9 +1,14 @@
 {
-  "schemaVersion": 1,
-  "asset": "apps/web/public/og-booking.png",
+  "schemaVersion": 2,
+  "asset": "apps/web/public/og-booking.jpg",
+  "source": "apps/web/brand-source/og-booking.png",
+  "generatedBy": "scripts/build-brand-assets.mjs",
   "width": 1200,
   "height": 630,
+  "maxBytes": 122880,
+  "maxBytesRationale": "實測 53.7 KiB 的兩倍出頭。這張圖不在任何頁面的傳輸預算裡（見 check-performance-budget.mjs 的 og:image 排除說明），所以上限守的不是頁面速度，而是「有人重新產圖之後體積失控卻沒人發現」——2026-07-28 的 ImageGen 修字就是這樣把它從約 100 KiB 變成 806 KiB，而當時沒有任何閘門看著它。餘裕留得寬是刻意的：換底圖或改字造成的正常波動不該紅燈，但同一類的十倍級迴歸一定擋得下來。",
   "clinicHours": "週三至週五 12:00–20:00 · 週六 10:00–18:00",
-  "sha256": "aa887520ea64c0deebf61eb1f6717b9ca46d0d5c6011872669fbadc92cc16dad",
-  "provenance": "2026-07-28 ImageGen text correction, normalized to the declared Open Graph dimensions"
+  "bytes": 54947,
+  "sha256": "3a769215f451e544156b839cca4ca33696e272a6c51b4968def6c8d6930bd184",
+  "provenance": "2026-07-28 ImageGen text correction, normalized to the declared Open Graph dimensions; 2026-08-02 re-encoded from that PNG to JPEG q0.9 and flattened onto the brand green (the PNG carried an unintended alpha channel, minimum alpha 220)"
 }

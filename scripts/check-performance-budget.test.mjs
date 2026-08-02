@@ -165,6 +165,39 @@ describe('budget report', () => {
     expect(report.violations.join('\n')).toContain('image');
   });
 
+  // 反面：OG 分享圖不是這一頁的子資源。訪客的瀏覽器從不請求它——抓它的是社群
+  // 平台的爬蟲，抓完快取在平台那邊。把它算進 image 桶會逼人為了沒有訪客下載的
+  // 位元組去調高一個面向訪客的預算，那個數字從此不代表任何事。
+  //
+  // 它的體積由 check-web-ui.mjs 依 og-booking.metadata.json 的 maxBytes 守。
+  // 完整理由見 check-performance-budget.mjs 裡 HTML_REFERENCE 底下的排除說明。
+  it('leaves a meta og:image out of the page transfer weight', () => {
+    const files = new Map([
+      [
+        'index.html',
+        `${html({ modules: ['a.js'] })}<meta property="og:image" content="/og-booking.jpg" />`
+      ],
+      ['a.js', 'export const a = 1;'],
+      ['og-booking.jpg', 'x'.repeat(60000)]
+    ]);
+
+    const report = planBudgetReport(
+      files,
+      [
+        {
+          path: '*',
+          justification: '實測值加兩成餘裕',
+          resourceSizes: [{ resourceType: 'image', budget: 1 }]
+        }
+      ],
+      rawSize
+    );
+
+    expect(report.entries[0].counts.get('image')).toBeUndefined();
+    expect(report.entries[0].resources).not.toContain('og-booking.jpg');
+    expect(report.violations).toEqual([]);
+  });
+
   // 反面：導覽目標不是子資源。`/booking` 由 Hosting rewrite 對應到別的頁面，
   // 把它當成缺失的資源會讓 gate 為了一個根本不存在的檔案而紅燈。
   it('ignores an extension-less route string in a script', () => {
