@@ -55,6 +55,17 @@ const IMPORT_SPECIFIER = /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
 // HTML 只用 root-absolute 參照子資源（build 會把它們改寫成雜湊檔名）。
 const HTML_REFERENCE = /\b(?:src|href)="(\/[^"#?]+)"/g;
 const CSS_REFERENCE = /url\(\s*['"]?(\/?[^'")]+)['"]?\s*\)/g;
+// 指令碼也會用字串常數指到圖片（`image: '/clinic-assets/doctor-yan.webp'`），而
+// 那不是匯入，走不到上面的傳遞閉包。
+//
+// 2026-08-02：官網 12 張素材裡有 9 張只被 JS 這樣參照，於是 1.7 MB 的下載量對這
+// 道預算完全隱形——`/clinic.html` 實際讓訪客下載 2.2 MB，gate 卻只看到 HTML 與
+// CSS 摸得到的 522 KiB，而且全綠。位元組沒有因為參照方式不同就變少。
+//
+// 只認**帶影像副檔名**的 root-absolute 路徑：`/booking`、`/clinic/doctors` 這種
+// 導覽字串沒有副檔名，不會被誤當成資源。
+const SCRIPT_ASSET_REFERENCE =
+  /(['"])(\/[^'"\s]+\.(?:png|jpe?g|gif|webp|avif|svg|ico))\1/g;
 
 function referencesOf(path, content) {
   const source = String(content);
@@ -78,6 +89,9 @@ function referencesOf(path, content) {
   } else if (extension === '.js') {
     for (const match of source.matchAll(IMPORT_SPECIFIER)) {
       found.add(posix.normalize(posix.join(posix.dirname(path), match[3])));
+    }
+    for (const match of source.matchAll(SCRIPT_ASSET_REFERENCE)) {
+      found.add(match[2].slice(1));
     }
   } else if (extension === '.css') {
     for (const match of source.matchAll(CSS_REFERENCE)) {

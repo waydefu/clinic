@@ -108,6 +108,8 @@
 | 2026-07-27 | `/index.html` document | 11 KiB | 12 KiB | 帳號區新增權限委派的表單與授權碼清單。工作臺是登入後的內部工具，且只有 document 這一項越線（11.2 KiB），指令碼與樣式表用量未變。 |
 | 2026-07-27 | `/privacy.html` | 新增 | 7 KiB total | 新的對外頁面。無指令碼、自成一份 3 KiB 的樣式表，實測 4.1 KiB。 |
 | 2026-07-27 | `/privacy.html` image／total | 1 KiB／1 檔／7 KiB | 3 KiB／2 檔／8 KiB | 頁首加入診所標誌（與預約頁同一份 2.4 KiB 的 WebP，多數訪客已在預約頁快取過）。實測 total 7.4 KiB。 |
+| 2026-08-01 | `/clinic.html` script／stylesheet | 12 KiB／7 KiB | 20 KiB／14 KiB | 首頁動效與門診時間／交通資訊補全，業主當日同意擴充首頁預算。動效限用 CSS transform／opacity，`cumulative-layout-shift` 維持 0.1 不放寬。（補記：這一列在當時的變更裡漏了，2026-08-02 補上。） |
+| 2026-08-02 | `/clinic.html` image／total | 560 KiB／3 檔／595 KiB | 180 KiB／14 檔／200 KiB | **這是調降，不是調高。** 12 張官網素材轉 WebP 後由 2210 KiB 降到 129 KiB，實測整頁 13 檔 127.3 KiB／total 146.3 KiB。檔數 3 → 14 是因為同日修好 `check:perf` 的盲點：它先前不追 JS 字串常數指到的圖，12 張裡有 9 張因此對預算隱形——那 1.7 MB 一直都會被下載。 |
 
 ## 3. SBOM 與授權政策
 

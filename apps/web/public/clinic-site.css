@@ -142,10 +142,16 @@ a {
 }
 
 .clinic-brand img {
-  /* 品牌圖標的比例是 420×131（約 3.2:1），先前固定 14rem 寬會在 5.5rem 高的
-     header 裡佔掉 4.4rem，視覺上壓過導覽。改為隨視窗收放，並在 header 收合後
-     再縮一階（見動效 4）。`height: auto` 搭配 HTML 上的 width/height 屬性，
-     讓瀏覽器在圖片載入前就保留正確空間——那是 CLS 預算能守住 0.1 的前提。 */
+  /* 品牌圖標是「鼻形側臉＋植物＋字標」的組合稿，比例 400×223（約 1.8:1）。
+     先前固定 14rem 寬會在 5.5rem 高的 header 裡壓過導覽，改為隨視窗收放，並在
+     header 收合後再縮一階（見動效 4）。`height: auto` 搭配 HTML 上的
+     width/height 屬性，讓瀏覽器在圖片載入前就保留正確空間——那是 CLS 預算能
+     守住 0.1 的前提。
+
+     2026-08-02：那組屬性原本寫 420×131（3.2:1），但檔案本身是 1.8:1，於是
+     載入前保留的是 200×62、載入後變成 200×112，每次進站都跳一次。轉 WebP 時
+     順手把屬性改成裁掉透明留白後的真實比例；版面本身沒有變，變的只是載入前
+     那一格佔位。 */
   width: clamp(9rem, 12vw, 12.5rem);
   height: auto;
   transform-origin: left center;
@@ -475,7 +481,7 @@ a {
   overflow: hidden;
   background:
     linear-gradient(rgb(237 245 240 / 90%), rgb(237 245 240 / 92%)),
-    url('/clinic-assets/soft-green-bg.png') center / cover;
+    url('/clinic-assets/soft-green-bg.webp') center / cover;
 }
 
 .clinic-care-section::before {
@@ -1541,9 +1547,18 @@ a {
   --clinic-motion-fast: 0.24s;
   --clinic-motion-base: 0.5s;
   --clinic-motion-slow: 0.8s;
-  /* 進場順序。clinic-site.js 會逐項覆寫成 0、1、2…；宣告在這裡是為了讓「沒有
-     JS 時延遲為零」成為一個寫出來的預設值，而不是靠每個 var() 的 fallback。 */
+  /* 以下全部由 clinic-site.js 逐項覆寫。宣告在這裡是為了讓「沒有 JS 時的狀態」
+     成為一個寫出來的預設值，而不是散落在每個 var() 的 fallback 裡——沒有宣告的
+     自訂屬性，整條宣告會靜默失效，而那正是最難察覺的一種壞法。 */
   --clinic-stagger: 0;
+  --clinic-cell: 0;
+  --clinic-word-index: 0;
+  /* 指標聚光燈的位置，預設落在卡片正中央。 */
+  --clinic-x: 50%;
+  --clinic-y: 50%;
+  /* 磁吸位移，預設不位移。 */
+  --clinic-magnet-x: 0;
+  --clinic-magnet-y: 0;
 }
 
 /* 1. Hero 分層進場 -------------------------------------------------------
@@ -1789,6 +1804,288 @@ a {
 }
 
 /* ==========================================================================
+   進階動效（15–24）
+   ==========================================================================
+
+   各取幾家把動效當成產品一部分的公司的一個做法，但一律改用**沒有 WebGL、沒有
+   動畫函式庫**的近似版本。這頁的 script 預算是 20 KiB gzip，Stripe 那套 minigl
+   光 shader 就吃掉一半。效果弱一些，成本是它的零頭。
+
+   共同限制沒有變：只動 transform 與 opacity、圖片不縮放不遮罩、
+   prefers-reduced-motion 一律關掉。 */
+
+/* 15. 流動的網格漸層（Stripe）------------------------------------------
+   Stripe 用 WebGL 疊多層漸層再混色。這裡用三個 radial-gradient 疊在一個絕對定位
+   的圖層上，靠 transform 緩慢位移做出流動感。圖層獨立於內容，不影響文字可讀性
+   也不參與版面計算。 */
+.clinic-home-hero__aurora {
+  position: absolute;
+  z-index: 0;
+  background:
+    radial-gradient(
+      35rem 25rem at 20% 30%,
+      rgb(57 116 97 / 22%),
+      transparent 70%
+    ),
+    radial-gradient(
+      30rem 22rem at 80% 20%,
+      rgb(142 170 156 / 26%),
+      transparent 70%
+    ),
+    radial-gradient(
+      28rem 28rem at 60% 80%,
+      rgb(23 79 66 / 16%),
+      transparent 70%
+    );
+  background-size: 200% 200%;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* **全檔唯一動 transform／opacity 以外屬性的效果**，而且是被守衛逼出來的。
+   原本寫的是 `inset: -20%` 加 transform 位移旋轉，視覺更飽滿；但那讓元素邊界
+   超出視窗，而 `responsive.spec.ts` 逐一量每個元素的 right 邊界——它量的正是
+   WCAG 1.4.10 Reflow 在意的事：版面不得被推寬。被 `overflow: hidden` 裁掉不算
+   數，那道守衛擋的是「有東西伸出去」而不是「捲軸有沒有出現」。
+   改成 `inset: 0` 加動 background-position：元素邊界永遠等於 hero，漸層在 200%
+   的畫布上游走。代價是這一層每幀重繪，所以只用在這個 22 秒的環境動畫，而且
+   減少動態時整個關掉。 */
+.clinic-motion .clinic-home-hero__aurora {
+  animation: clinic-aurora 22s var(--clinic-ease-in-out) infinite alternate;
+  will-change: background-position;
+}
+
+@keyframes clinic-aurora {
+  from {
+    background-position:
+      0% 0%,
+      100% 0%,
+      50% 100%;
+  }
+
+  to {
+    background-position:
+      100% 60%,
+      0% 40%,
+      20% 0%;
+  }
+}
+
+/* 16. 對角切邊（Stripe）--------------------------------------------------
+   Stripe 的招牌是整個容器 skewY(-12deg)。這裡只斜切**裝飾用的底色帶**，不斜切
+   內容——斜切內容會讓文字基線歪掉，也會把圖片切出斜角，違反「不可分割遮擋」。 */
+.clinic-care-section {
+  position: relative;
+  isolation: isolate;
+}
+
+.clinic-care-section::before {
+  position: absolute;
+  z-index: -1;
+  background: linear-gradient(160deg, var(--clinic-mist), transparent 60%);
+  content: '';
+  inset: -3rem 0;
+  transform: skewY(-2.5deg);
+}
+
+/* 17. Hero 捲離時的電影感退場（Apple）------------------------------------ */
+@supports (animation-timeline: view()) {
+  .clinic-motion .clinic-home-hero__copy {
+    animation: clinic-hero-exit linear both;
+    animation-timeline: view();
+    animation-range: exit 0% exit 90%;
+  }
+
+  @keyframes clinic-hero-exit {
+    to {
+      opacity: 0.25;
+      transform: translate3d(0, -2rem, 0) scale(0.96);
+    }
+  }
+}
+
+/* 18. 指標聚光燈（Linear）------------------------------------------------
+   座標由 JS 寫進 --clinic-x／--clinic-y，CSS 只負責畫。限定 `pointer: fine`：
+   觸控裝置沒有游標，留著只會在點擊後亮著不滅。 */
+@media (hover: hover) and (pointer: fine) {
+  .clinic-service-card,
+  .clinic-doctor-card,
+  .clinic-visit-card {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .clinic-service-card::before,
+  .clinic-doctor-card::before,
+  .clinic-visit-card::before {
+    position: absolute;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(
+      12rem 12rem at var(--clinic-x, 50%) var(--clinic-y, 50%),
+      rgb(57 116 97 / 10%),
+      transparent 70%
+    );
+    content: '';
+    inset: 0;
+    opacity: 0;
+    transition: opacity var(--clinic-motion-fast) var(--clinic-ease-out);
+  }
+
+  .clinic-service-card:hover::before,
+  .clinic-doctor-card:hover::before,
+  .clinic-visit-card:hover::before {
+    opacity: 1;
+  }
+}
+
+/* 19. 邊框流光（Vercel）--------------------------------------------------
+   用 conic-gradient 旋轉，而不是動 border-color——後者每一幀都會觸發重繪。 */
+@property --clinic-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@media (hover: hover) {
+  .clinic-button--outline {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .clinic-button--outline::before {
+    position: absolute;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--clinic-angle),
+      transparent 70%,
+      var(--clinic-sage) 85%,
+      transparent 100%
+    );
+    content: '';
+    inset: -1px;
+    opacity: 0;
+    transition: opacity var(--clinic-motion-fast) var(--clinic-ease-out);
+  }
+
+  .clinic-button--outline:hover::before {
+    animation: clinic-angle-spin 2.4s linear infinite;
+    opacity: 1;
+  }
+
+  @keyframes clinic-angle-spin {
+    to {
+      --clinic-angle: 360deg;
+    }
+  }
+}
+
+/* 20. 磁吸按鈕（Framer）--------------------------------------------------
+   位移上限壓在 0.25rem。再大就會變成「按鈕在躲我」而不是「按鈕在回應我」。 */
+@media (hover: hover) and (pointer: fine) {
+  .clinic-button--primary,
+  .clinic-header__booking {
+    transition: translate var(--clinic-motion-fast) var(--clinic-ease-out);
+    translate: var(--clinic-magnet-x, 0) var(--clinic-magnet-y, 0);
+  }
+}
+
+/* 21. 標題逐字浮現（Nike）------------------------------------------------
+   由 JS 把 h1 拆成一個字一個 span。`white-space: pre` 保住空白，否則拆完會黏成
+   一團。 */
+.clinic-word {
+  display: inline-block;
+  white-space: pre;
+}
+
+.clinic-motion .clinic-word {
+  animation: clinic-word-in 0.7s var(--clinic-ease-out) backwards;
+  animation-delay: calc(var(--clinic-word-index, 0) * 45ms + 120ms);
+}
+
+@keyframes clinic-word-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.6em, 0) rotate(2deg);
+  }
+}
+
+/* 22. 導覽聚光指示條 ----------------------------------------------------- */
+.clinic-navigation__list {
+  position: relative;
+}
+
+.clinic-nav-spotlight {
+  position: absolute;
+  z-index: -1;
+  height: 100%;
+  border-radius: 2rem;
+  background: var(--clinic-mist);
+  inset-block-start: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--clinic-motion-fast) var(--clinic-ease-out),
+    width var(--clinic-motion-fast) var(--clinic-ease-out),
+    opacity var(--clinic-motion-fast) var(--clinic-ease-out);
+}
+
+/* 23. 服務跑馬燈 ---------------------------------------------------------
+   hover 與 focus-within 都會暫停。WCAG 2.2.2 要求任何自動移動超過五秒的內容
+   都能被暫停，而鍵盤使用者 Tab 進去時同樣必須停。 */
+.clinic-ticker {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+}
+
+.clinic-ticker__track {
+  display: flex;
+  width: max-content;
+  gap: 3rem;
+}
+
+.clinic-motion .clinic-ticker__track {
+  animation: clinic-ticker 26s linear infinite;
+}
+
+.clinic-ticker:hover .clinic-ticker__track,
+.clinic-ticker:focus-within .clinic-ticker__track {
+  animation-play-state: paused;
+}
+
+@keyframes clinic-ticker {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* 24. 依欄位錯開的網格揭開 ----------------------------------------------- */
+.clinic-motion [data-reveal] .clinic-card-grid > *,
+.clinic-motion [data-reveal] .clinic-care-grid > *,
+.clinic-motion [data-reveal] .clinic-visit-grid > * {
+  opacity: 0;
+  transform: translate3d(0, 1.25rem, 0);
+  transition:
+    opacity var(--clinic-motion-base) var(--clinic-ease-out),
+    transform var(--clinic-motion-base) var(--clinic-ease-out);
+  transition-delay: calc(var(--clinic-cell, 0) * 80ms);
+}
+
+.clinic-motion [data-reveal].is-revealed .clinic-card-grid > *,
+.clinic-motion [data-reveal].is-revealed .clinic-care-grid > *,
+.clinic-motion [data-reveal].is-revealed .clinic-visit-grid > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* ==========================================================================
    減少動態
    ==========================================================================
    使用者在系統設定裡表達過偏好時，這裡把上面全部關掉——包含 `animation`，
@@ -1812,9 +2109,27 @@ a {
      閃一下。 */
   .clinic-motion [data-reveal],
   .clinic-motion [data-reveal] img,
-  .clinic-motion [data-reveal] .clinic-section-rule {
+  .clinic-motion [data-reveal] .clinic-section-rule,
+  .clinic-motion [data-reveal] .clinic-card-grid > *,
+  .clinic-motion [data-reveal] .clinic-care-grid > *,
+  .clinic-motion [data-reveal] .clinic-visit-grid > *,
+  .clinic-motion .clinic-word {
     opacity: 1;
     transform: none;
+  }
+
+  /* 無限循環的三個效果直接停住，而不是用 0.01ms 播完一輪——後者仍會閃一下，
+     而「閃一下」正是這個偏好最想避免的東西。 */
+  .clinic-motion .clinic-home-hero__aurora,
+  .clinic-motion .clinic-ticker__track,
+  .clinic-motion .clinic-home-hero__orb {
+    animation: none;
+  }
+
+  /* 磁吸位移歸零：那是跟著游標走的，不受 animation 開關影響。 */
+  .clinic-button--primary,
+  .clinic-header__booking {
+    translate: none;
   }
 
   .clinic-scroll-progress {

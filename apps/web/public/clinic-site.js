@@ -145,22 +145,22 @@ function renderHome() {
     {
       title: '傾聽',
       text: '先理解困擾與期待，再一起討論真正需要的治療。',
-      image: '/clinic-assets/care-listening.png'
+      image: '/clinic-assets/care-listening.webp'
     },
     {
       title: '治療',
       text: '以專業評估為基礎，清楚說明方案、限制與恢復過程。',
-      image: '/clinic-assets/care-treatment.png'
+      image: '/clinic-assets/care-treatment.webp'
     },
     {
       title: '環境',
       text: '從候診到術後照護，保留舒適、安定且具隱私的空間。',
-      image: '/clinic-assets/care-environment.png'
+      image: '/clinic-assets/care-environment.webp'
     },
     {
       title: '照護',
       text: '不只完成一次療程，也重視回診追蹤與長期健康。',
-      image: '/clinic-assets/care-aftercare.png'
+      image: '/clinic-assets/care-aftercare.webp'
     }
   ];
   const careGrid = element('div', { className: 'clinic-care-grid' });
@@ -778,10 +778,152 @@ function observeHeaderCondense() {
   ).observe(sentinel);
 }
 
+/**
+ * 把標題拆成一個字一個 span，讓它可以逐字浮現（動效 21）。
+ *
+ * 只拆一次，而且**保留原本的文字內容**：報讀器讀的是另外留的那份完整字串，
+ * 拆成 span 不影響它。整段一律走 `textContent` 與 `createElement`——把 HTML
+ * 字串指派給元素會帶進 XSS 風險，`clinic-site.test.ts` 用純文字比對釘住了這
+ * 一點。那道比對連註解都會掃到，所以這裡只能敘述它、不能寫出那個屬性名。
+ */
+function splitHeadingWords(root) {
+  const heading = root.querySelector('.clinic-home-hero__copy h1');
+  if (heading === null || heading.querySelector('.clinic-word') !== null)
+    return;
+
+  const text = heading.textContent ?? '';
+  const words = text.split(/(\s+)/u).filter(Boolean);
+  // 中文沒有空白分隔，`split` 會得到一整段。那種情況改成逐字拆。
+  const units = words.length > 1 ? words : [...text];
+
+  // 視覺層對報讀器隱藏，另外保留一份完整文字。
+  //
+  // 拆成一堆 `display: inline-block` 的 span 之後，可及名稱的計算會在每個
+  // inline-block 之間補一個空白——中文標題於是變成「從 順 暢 呼 吸 開 始」，
+  // 報讀器會逐字唸出主標題。那不是測試的怪癖，是真的聽不懂。
+  const visual = element('span', { attrs: { 'aria-hidden': 'true' } });
+  for (const [index, unit] of units.entries()) {
+    const span = element('span', { className: 'clinic-word', text: unit });
+    span.style.setProperty('--clinic-word-index', String(index));
+    visual.append(span);
+  }
+
+  heading.replaceChildren(
+    element('span', { className: 'visually-hidden', text }),
+    visual
+  );
+}
+
+/** Hero 的流動漸層圖層（動效 15）。裝飾用，對報讀器隱藏。 */
+function addAurora(root) {
+  const hero = root.querySelector('.clinic-home-hero');
+  if (hero === null || hero.querySelector('.clinic-home-hero__aurora') !== null)
+    return;
+  hero.prepend(
+    element('div', {
+      className: 'clinic-home-hero__aurora',
+      attrs: { 'aria-hidden': 'true' }
+    })
+  );
+}
+
+/**
+ * 指標聚光燈與磁吸（動效 18、20）。
+ *
+ * 只寫 CSS 自訂屬性，不直接改 style.transform——把「怎麼畫」留在 CSS，
+ * `prefers-reduced-motion` 才有辦法一次關掉全部。指標事件用 `pointermove`
+ * 而不是 `mousemove`，觸控筆與觸控都會走同一條路徑。
+ */
+function bindPointerEffects(root) {
+  const spotlightTargets = root.querySelectorAll(
+    '.clinic-service-card, .clinic-doctor-card, .clinic-visit-card'
+  );
+  for (const card of spotlightTargets) {
+    card.addEventListener('pointermove', (event) => {
+      const box = card.getBoundingClientRect();
+      card.style.setProperty(
+        '--clinic-x',
+        `${((event.clientX - box.left) / box.width) * 100}%`
+      );
+      card.style.setProperty(
+        '--clinic-y',
+        `${((event.clientY - box.top) / box.height) * 100}%`
+      );
+    });
+  }
+
+  const magnets = document.querySelectorAll(
+    '.clinic-button--primary, .clinic-header__booking'
+  );
+  for (const magnet of magnets) {
+    magnet.addEventListener('pointermove', (event) => {
+      const box = magnet.getBoundingClientRect();
+      // 上限 0.25rem。再大就變成按鈕在閃躲游標。
+      const limit = 4;
+      const x =
+        ((event.clientX - (box.left + box.width / 2)) / box.width) * limit;
+      const y =
+        ((event.clientY - (box.top + box.height / 2)) / box.height) * limit;
+      magnet.style.setProperty('--clinic-magnet-x', `${x.toFixed(2)}px`);
+      magnet.style.setProperty('--clinic-magnet-y', `${y.toFixed(2)}px`);
+    });
+    magnet.addEventListener('pointerleave', () => {
+      magnet.style.removeProperty('--clinic-magnet-x');
+      magnet.style.removeProperty('--clinic-magnet-y');
+    });
+  }
+}
+
+/** 導覽聚光指示條（動效 22）。 */
+function bindNavSpotlight() {
+  const list = navigation.querySelector('.clinic-navigation__list');
+  if (list === null || list.querySelector('.clinic-nav-spotlight') !== null)
+    return;
+
+  const spotlight = element('span', {
+    className: 'clinic-nav-spotlight',
+    attrs: { 'aria-hidden': 'true' }
+  });
+  list.append(spotlight);
+
+  const move = (target) => {
+    const listBox = list.getBoundingClientRect();
+    const box = target.getBoundingClientRect();
+    spotlight.style.width = `${box.width}px`;
+    spotlight.style.transform = `translate3d(${box.left - listBox.left}px, 0, 0)`;
+    spotlight.style.opacity = '1';
+  };
+
+  for (const anchor of list.querySelectorAll(':scope > li > a')) {
+    anchor.addEventListener('pointerenter', () => move(anchor));
+    // 鍵盤也要有：只綁 pointer 事件等於這個回饋對 Tab 使用者不存在。
+    anchor.addEventListener('focus', () => move(anchor));
+  }
+  list.addEventListener('pointerleave', () => {
+    spotlight.style.opacity = '0';
+  });
+}
+
+/** 網格逐格錯開（動效 24）。 */
+function indexGridCells(root) {
+  const grids = root.querySelectorAll(
+    '.clinic-card-grid, .clinic-care-grid, .clinic-visit-grid'
+  );
+  for (const grid of grids) {
+    for (const [index, cell] of [...grid.children].entries()) {
+      cell.style.setProperty('--clinic-cell', String(index));
+    }
+  }
+}
+
 function applyMotion() {
   const main = document.querySelector('#clinic-main');
   if (main === null) return;
+  addAurora(main);
+  splitHeadingWords(main);
   stageHero(main);
+  indexGridCells(main);
+  bindPointerEffects(main);
   observeReveals(main);
 }
 
@@ -793,5 +935,6 @@ function applyMotion() {
 enableMotion();
 observeHeaderCondense();
 renderNavigation();
+bindNavSpotlight();
 renderRoute();
 applyMotion();

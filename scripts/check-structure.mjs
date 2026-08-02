@@ -137,6 +137,12 @@ const requiredPaths = [
   'apps/web/brand-source/og-booking.metadata.json',
   'apps/web/public/assets/brand-mark.webp',
   'apps/web/public/assets/nhi-mark.webp',
+  // 官網素材與品牌資產同一套做法：未出貨的原圖留在 *-source/，出貨的 WebP 進
+  // 版控。manifest 記錄每一張的來源、尺寸與 SHA-256，是 C2 授權確認的對象。
+  'scripts/build-clinic-assets.mjs',
+  'apps/web/clinic-source/clinic-logo.png',
+  'apps/web/clinic-assets.manifest.json',
+  'apps/web/public/clinic-assets/clinic-logo.webp',
   'playwright.config.ts',
   'playwright.screenshots.config.ts',
   'tests/ui-screenshots/current-ui.spec.ts',

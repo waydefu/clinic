@@ -140,6 +140,44 @@ describe('budget report', () => {
     expect(JSON.stringify(report)).toContain('missing.js');
   });
 
+  // 2026-08-02：官網 12 張素材裡有 9 張只被 JS 用字串常數指到，那些位元組先前
+  // 對這道預算完全隱形——頁面下載 2.2 MB，gate 只看到 522 KiB 而且全綠。
+  it('counts an image that only a script references by string', () => {
+    const files = new Map([
+      ['index.html', html({ modules: ['a.js'] })],
+      ['a.js', "export const card = { image: '/clinic-assets/doctor.webp' };"],
+      ['clinic-assets/doctor.webp', 'x'.repeat(4096)]
+    ]);
+
+    const report = planBudgetReport(
+      files,
+      [
+        {
+          path: '*',
+          justification: '實測值加兩成餘裕',
+          resourceSizes: [{ resourceType: 'image', budget: 1 }]
+        }
+      ],
+      rawSize
+    );
+
+    expect(report.entries[0].counts.get('image')).toBe(1);
+    expect(report.violations.join('\n')).toContain('image');
+  });
+
+  // 反面：導覽目標不是子資源。`/booking` 由 Hosting rewrite 對應到別的頁面，
+  // 把它當成缺失的資源會讓 gate 為了一個根本不存在的檔案而紅燈。
+  it('ignores an extension-less route string in a script', () => {
+    const files = new Map([
+      ['index.html', html({ modules: ['a.js'] })],
+      ['a.js', "export const BOOKING_PATH = '/booking';"]
+    ]);
+
+    const report = planBudgetReport(files, budgets, rawSize);
+
+    expect(report.violations ?? []).toEqual([]);
+  });
+
   it('walks the transitive closure rather than only direct references', () => {
     const files = new Map([
       ['index.html', html({ modules: ['a.js'] })],

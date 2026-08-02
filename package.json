@@ -21,6 +21,7 @@
     "check:perf": "node scripts/check-performance-budget.mjs",
     "check:tokens": "node scripts/check-design-tokens.mjs",
     "build:brand": "node scripts/build-brand-assets.mjs",
+    "build:clinic-assets": "node scripts/build-clinic-assets.mjs",
     "check:secrets": "node scripts/check-tracked-secrets.mjs",
     "sbom": "node scripts/generate-sbom.mjs",
     "check:supply-chain": "corepack pnpm run check:secrets && corepack pnpm run check:audit-exceptions && corepack pnpm run audit:prod && corepack pnpm run audit:all && corepack pnpm run sbom",

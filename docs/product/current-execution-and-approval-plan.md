@@ -86,8 +86,9 @@ Calendar 仍只是投影，不是預約量能或衝突的 source of truth。
 
 先核准 D-001～D-005、D-011，並完成已核准 D-006/D-010 的實作證據及 Stage 2。
 然後才能發布正式隱私政策、建立患者身分／權利請求／保存刪除流程、開 public API，
-並把完整 PII 從 `localStorage` 移除。診所官網另須完成 C1 業主實機接受、C2 圖片來源／
-授權證據與 WebP／responsive 壓縮，且維持 560 KiB／3 檔影像預算，才可併入 public release。
+並把完整 PII 從 `localStorage` 移除。診所官網另須完成 C1 業主實機接受與 C2 圖片來源／
+授權證據，才可併入 public release；WebP／responsive 壓縮已於 2026-08-02 完成，影像預算
+同日改為 180 KiB／14 檔（實測 127.3 KiB／13 檔）。
 
 ### 5. Stage 5：個管、排班與薪資正式化
 

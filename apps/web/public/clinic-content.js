@@ -61,7 +61,7 @@ export const DOCTORS = [
     slug: 'yan-cheng-an',
     name: '顏正安 院長',
     title: '自體肋隆鼻權威',
-    image: '/clinic-assets/doctor-yan.png',
+    image: '/clinic-assets/doctor-yan.webp',
     imageAlt: '顏正安院長形象照',
     summary:
       '專注鼻部功能、結構與外觀的整合評估，依每位患者的鼻腔條件規劃治療方向。',
@@ -87,7 +87,7 @@ export const DOCTORS = [
     slug: 'yang-sheng-feng',
     name: '楊昇峯 醫師',
     title: '麻醉科主治醫師',
-    image: '/clinic-assets/doctor-yang.png',
+    image: '/clinic-assets/doctor-yang.webp',
     imageAlt: '楊昇峯醫師形象照',
     summary:
       '以完整術前評估與麻醉照護為核心，協助患者在治療過程中獲得穩定、安全的醫療照護。',
@@ -109,7 +109,7 @@ export const NASAL_SERVICES = [
     title: '止鼾五合一',
     eyebrow: 'SNORING CARE',
     subtitle: '從鼻腔結構、呼吸狀況到睡眠品質，一次完成整合評估。',
-    image: '/clinic-assets/service-snoring.png',
+    image: '/clinic-assets/service-snoring.webp',
     imageAlt: '止鼾五合一療程示意',
     intro:
       '打鼾可能來自鼻腔阻塞、軟組織震動或睡眠呼吸障礙。診所會先由耳鼻喉科醫師檢查鼻腔結構與呼吸狀況，再依個別原因提出合適的治療方向。',
@@ -176,7 +176,7 @@ export const NASAL_SERVICES = [
     title: '下鼻甲手術',
     eyebrow: 'NASAL AIRWAY',
     subtitle: '改善長期鼻塞，讓日常呼吸與睡眠更順暢。',
-    image: '/clinic-assets/service-turbinate.jpg',
+    image: '/clinic-assets/service-turbinate.webp',
     imageAlt: '下鼻甲手術治療示意',
     intro:
       '下鼻甲肥大會縮小鼻腔呼吸空間。若藥物治療效果有限，醫師可能依檢查結果評估是否以手術縮減肥厚組織，改善鼻塞、呼吸與睡眠品質。',
@@ -216,7 +216,7 @@ export const NASAL_SERVICES = [
     title: '鼻中隔手術',
     eyebrow: 'SEPTAL CARE',
     subtitle: '針對鼻中隔彎曲造成的結構性阻塞，重新找回通暢呼吸。',
-    image: '/clinic-assets/service-septoplasty.jpg',
+    image: '/clinic-assets/service-septoplasty.webp',
     imageAlt: '鼻中隔手術治療示意',
     intro:
       '鼻中隔是分隔左右鼻腔的結構。先天發育或外傷可能使鼻中隔偏曲；若造成長期鼻塞、反覆鼻竇問題、打鼾或睡眠品質下降，可由醫師評估是否需要矯正。',

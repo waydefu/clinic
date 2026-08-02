@@ -541,9 +541,15 @@ IAM、公開 Firestore／route 或 destructive change；secret 進入 state／lo
   裝置已具名。不得以「官網上看得到」推定可複製、改作或再散布。
 - **動作**：請業主在代表性桌機／手機接受 C1 的版面與內容邊界；對 C2 每張候選圖記來源、
   權利基礎、允許用途／期限，再轉 WebP／responsive size。保持排除未核准醫美內容，先壓進
-  `/clinic.html` 560 KiB／3 檔影像預算；真的要改預算須另附量測與核准理由。
-- **驗收證據**：C1 具名實機接受；C2 asset manifest／授權附件／SHA-256；`check:perf`、SEO、
-  keyboard／screen-reader、responsive visual、broken-link 與已授權 preview 驗證全綠。
+  `/clinic.html` 影像預算；真的要改預算須另附量測與核准理由。
+  **2026-08-02 已完成的部分**：12 張素材轉 WebP（2210 KiB → 129 KiB），原圖移到不出貨的
+  `apps/web/clinic-source/`，預算改為 180 KiB／14 檔並在 `justification` 記下量測；
+  `apps/web/clinic-assets.manifest.json` 記下每一張的來源檔、尺寸、位元組數與 SHA-256。
+  **未完成的是權利基礎**——manifest 的 `licenceStatus` 是 `pending-owner-confirmation`，
+  沒有它就沒有「來源、允許用途／期限」可填，PUB-03 不因壓縮完成而前進。
+- **驗收證據**：C1 具名實機接受；C2 asset manifest（已備）／授權附件／SHA-256（已備）；
+  `check:perf`（已綠）、SEO、keyboard／screen-reader、responsive visual、broken-link 與
+  已授權 preview 驗證全綠。
 - **回滾**：移除未核准素材並回前一個已接受版本；權利撤回或來源存疑立即停止散布，保留
   處理紀錄但不繼續部署該檔。
 
