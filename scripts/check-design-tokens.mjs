@@ -67,6 +67,13 @@ export function definedTokens(source) {
       defined.add(match[1]);
     }
   }
+  // `@property` 也是宣告，而且是**帶型別與 initial-value 的那一種**——沒有它
+  // 就無法對自訂屬性做動畫（瀏覽器不知道 `0deg` 到 `360deg` 之間要怎麼內插）。
+  // 只認 `:root` 會讓這個守衛把正確的現代寫法報成「未定義」，於是把人推回舊寫法，
+  // 或者更糟：在 `:root` 再寫一次同一個初始值，讓同一件事有兩個來源。
+  for (const match of source.matchAll(/@property\s+(--[a-z0-9-]+)/g)) {
+    defined.add(match[1]);
+  }
   return defined;
 }
 
