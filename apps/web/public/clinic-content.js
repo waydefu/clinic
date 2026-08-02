@@ -9,12 +9,22 @@ export const CLINIC = {
   tollFreeHref: 'tel:+886800000913',
   address: '臺北市松山區光復北路112號2樓',
   hours: ['週三至週五 12:00–20:00', '週六 10:00–18:00'],
+  // 社群連結一律使用**乾淨的正式網址**，不帶追蹤或介面參數。業主 2026-08-01
+  // 提供的原始連結各自帶了不該進版控的東西：
+  //   - LINE 帶 `openQrModal=true`，會強制彈出 QR code。手機使用者已經裝了
+  //     LINE，卻被要求掃自己螢幕上的 QR，等於多一道無意義的關卡。
+  //   - Instagram 帶 `igsh` 與 `utm_source=qr`，那是某一次 QR 分享的追蹤參數，
+  //     寫死在網站上會讓之後所有流量都被歸到那一次分享。
+  //   - Messenger 給的是 `messenger.com/login.php?next=…`，那是**登入牆**。改用
+  //     官方短網址 m.me/<page-id>，手機會直接開 App，桌機則落到同一個對話頁。
+  //     page id 575723225620285 就是從原連結的 next 參數裡取出來的。
   socialLinks: [
-    { label: 'LINE', href: 'https://lin.ee/nMf1Bvo' },
+    { label: 'LINE', href: 'https://page.line.me/821tzbtx' },
     {
       label: 'Instagram',
       href: 'https://www.instagram.com/beauessence.tw'
     },
+    { label: 'Messenger', href: 'https://m.me/575723225620285' },
     { label: 'Facebook', href: 'https://www.facebook.com/beauessencetaipei/' }
   ]
 };

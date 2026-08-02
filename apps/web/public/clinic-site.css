@@ -142,8 +142,14 @@ a {
 }
 
 .clinic-brand img {
-  width: min(100%, 14rem);
+  /* 品牌圖標的比例是 420×131（約 3.2:1），先前固定 14rem 寬會在 5.5rem 高的
+     header 裡佔掉 4.4rem，視覺上壓過導覽。改為隨視窗收放，並在 header 收合後
+     再縮一階（見動效 4）。`height: auto` 搭配 HTML 上的 width/height 屬性，
+     讓瀏覽器在圖片載入前就保留正確空間——那是 CLS 預算能守住 0.1 的前提。 */
+  width: clamp(9rem, 12vw, 12.5rem);
   height: auto;
+  transform-origin: left center;
+  transition: width 0.32s ease;
 }
 
 .clinic-navigation__list,
@@ -1397,6 +1403,397 @@ a {
   }
 }
 
+/* ==========================================================================
+   動效層
+   ==========================================================================
+
+   全部只動 `transform` 與 `opacity`。那兩個屬性由合成器處理，不觸發版面重算，
+   所以不會推高 cumulative-layout-shift——這頁的 CLS 預算是 0.1，而動效正是最
+   容易踩壞它的東西。任何會改變寬高、位置或字級的動畫都不在這裡。
+
+   捲動驅動的部分一律包在 `@supports` 裡。`animation-timeline` 至今仍不是
+   Baseline（Safari 支援不完整），而診所患者以 iPhone 為大宗；把它當主力等於
+   讓多數訪客看到一個沒有動效的版本。所以基準做法是 IntersectionObserver，
+   捲動時間軸只是額外加分。
+
+   進場一律是「已顯示 → 加動效」而不是「先隱藏 → 靠 JS 顯示」：JS 失效時內容
+   必須仍然看得到。`.clinic-motion` 由 clinic-site.js 加在 <html> 上，只有那個
+   類別存在時才會啟用隱藏後再進場的效果。 */
+
+/* 門診時間與交通 ---------------------------------------------------------- */
+.clinic-visit-grid {
+  display: grid;
+  margin-top: 3rem;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+}
+
+.clinic-visit-card {
+  padding: 2rem;
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius);
+  background: var(--clinic-white);
+}
+
+.clinic-visit-card h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--clinic-forest);
+}
+
+.clinic-visit-list {
+  padding: 0;
+  margin: 0 0 1.5rem;
+  list-style: none;
+}
+
+.clinic-visit-list li {
+  padding-block: 0.25rem;
+  border-bottom: 1px solid var(--clinic-line);
+  color: var(--clinic-muted);
+}
+
+/* 電話連結是這一區唯一會被按的東西，而全站的可點面積標準是 44×44。純文字連結
+   預設只有 24px 高——手機上要點中一組電話號碼會很吃力，而這正是最需要一次點中
+   的情境。`affordance.spec.ts` 在 390px 寬會逐一量測。 */
+.clinic-visit-list a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  color: var(--clinic-forest);
+}
+
+.clinic-visit-list li:last-child {
+  border-bottom: 0;
+}
+
+.clinic-visit-social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.clinic-social-chip {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--clinic-line);
+  border-radius: 2rem;
+  color: var(--clinic-forest);
+  text-decoration: none;
+  /* 全站 44px 可點面積標準；社群按鈕在手機上最容易被點錯。 */
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  transition:
+    background-color var(--clinic-motion-fast, 0.24s) ease,
+    border-color var(--clinic-motion-fast, 0.24s) ease;
+}
+
+.clinic-social-chip:hover,
+.clinic-social-chip:focus-visible {
+  border-color: var(--clinic-green);
+  background: var(--clinic-mist);
+}
+
+/* 常見問題 ---------------------------------------------------------------- */
+.clinic-faq-list {
+  display: grid;
+  margin-top: 3rem;
+  gap: 0.75rem;
+}
+
+.clinic-faq-item {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius);
+  background: var(--clinic-mist-soft);
+}
+
+.clinic-faq-item summary {
+  color: var(--clinic-forest);
+  cursor: pointer;
+  font-weight: 600;
+  /* 展開箭頭交給瀏覽器原生 marker，不自製——原生的在報讀器上會被念成
+     「已展開／已摺疊」，自製的圖示則需要額外的 aria 標註才等價。 */
+}
+
+.clinic-faq-item p {
+  margin-bottom: 0;
+  color: var(--clinic-muted);
+}
+
+/* header 收合的哨兵。高度 1px、不佔版面，只是給 IntersectionObserver 一個
+   「頁面是否還在最頂端」的觀測點。 */
+.clinic-header-sentinel {
+  height: 1px;
+}
+
+/* 區段分隔線。動效 11 會把它從左畫出。 */
+.clinic-section-rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: var(--clinic-line);
+}
+
+:root {
+  --clinic-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --clinic-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --clinic-motion-fast: 0.24s;
+  --clinic-motion-base: 0.5s;
+  --clinic-motion-slow: 0.8s;
+  /* 進場順序。clinic-site.js 會逐項覆寫成 0、1、2…；宣告在這裡是為了讓「沒有
+     JS 時延遲為零」成為一個寫出來的預設值，而不是靠每個 var() 的 fallback。 */
+  --clinic-stagger: 0;
+}
+
+/* 1. Hero 分層進場 -------------------------------------------------------
+   標題、說明與按鈕依序浮現，而不是同時出現。`--clinic-stagger` 由 JS 逐項設定，
+   預設 0 讓沒有 JS 時也不會卡在延遲上。 */
+.clinic-motion .clinic-home-hero__copy > *,
+.clinic-motion .clinic-home-hero__visual {
+  animation: clinic-rise var(--clinic-motion-slow) var(--clinic-ease-out)
+    backwards;
+  animation-delay: calc(var(--clinic-stagger, 0) * 90ms);
+}
+
+@keyframes clinic-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.5rem, 0);
+  }
+}
+
+/* 2. 區塊進場 -------------------------------------------------------------
+   由 IntersectionObserver 加上 `.is-revealed`。只觀察一次就取消觀察，避免
+   來回捲動時反覆播放——重複播放會讓長文閱讀變得很吵。 */
+.clinic-motion [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 1.75rem, 0);
+  transition:
+    opacity var(--clinic-motion-base) var(--clinic-ease-out),
+    transform var(--clinic-motion-base) var(--clinic-ease-out);
+  transition-delay: calc(var(--clinic-stagger, 0) * 70ms);
+}
+
+.clinic-motion [data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* 3. Header 收合 ---------------------------------------------------------
+   捲離頁首時加深陰影並縮短高度。用哨兵元素配 IntersectionObserver，不掛
+   scroll 監聽器——scroll 事件每幀都會觸發，是這類效果最常見的卡頓來源。 */
+.clinic-header {
+  transition:
+    min-height var(--clinic-motion-fast) var(--clinic-ease-out),
+    box-shadow var(--clinic-motion-fast) var(--clinic-ease-out);
+}
+
+.clinic-header.is-condensed {
+  box-shadow: 0 0.5rem 1.5rem rgb(22 72 58 / 8%);
+}
+
+.clinic-header.is-condensed .clinic-header__inner {
+  min-height: 4.5rem;
+}
+
+/* 4. 品牌圖標隨 header 收合再縮一階 */
+.clinic-header.is-condensed .clinic-brand img {
+  width: clamp(7.5rem, 9vw, 10rem);
+}
+
+/* 5. Hero 光暈緩慢浮動 ---------------------------------------------------
+   幅度刻意很小（0.5rem），要的是「畫面是活的」而不是「有東西在動」。 */
+.clinic-motion .clinic-home-hero__orb {
+  animation: clinic-float 9s var(--clinic-ease-in-out) infinite;
+}
+
+@keyframes clinic-float {
+  50% {
+    transform: translate3d(0, -0.5rem, 0);
+  }
+}
+
+/* 6. Hero 視覺視差（漸進增強） ------------------------------------------- */
+@supports (animation-timeline: view()) {
+  .clinic-motion .clinic-home-hero__visual {
+    animation: clinic-parallax linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 60%;
+  }
+
+  @keyframes clinic-parallax {
+    to {
+      transform: translate3d(0, -2rem, 0);
+    }
+  }
+}
+
+/* 7. 卡片浮起 -------------------------------------------------------------
+   限定 `hover: hover`。觸控裝置上 :hover 會在點擊後黏住，讓卡片停在抬起狀態，
+   看起來像壞掉。 */
+@media (hover: hover) {
+  .clinic-care-card,
+  .clinic-service-card,
+  .clinic-doctor-card {
+    transition:
+      transform var(--clinic-motion-fast) var(--clinic-ease-out),
+      box-shadow var(--clinic-motion-fast) var(--clinic-ease-out);
+  }
+
+  .clinic-care-card:hover,
+  .clinic-service-card:hover,
+  .clinic-doctor-card:hover {
+    box-shadow: var(--clinic-shadow);
+    transform: translate3d(0, -0.25rem, 0);
+  }
+}
+
+/* 8. 圖片揭開 -------------------------------------------------------------
+   只做淡入，**不做縮放也不做遮罩**。放大再縮回會在動畫期間讓圖片超出容器而被
+   裁掉一圈；clip-path 揭開則是直接遮住一部分。業主 2026-08-01 明確要求圖片
+   不可分割或遮擋，所以這裡只留不會動到構圖的淡入。 */
+.clinic-motion [data-reveal] img {
+  opacity: 0;
+  transition: opacity var(--clinic-motion-slow) var(--clinic-ease-out);
+}
+
+.clinic-motion [data-reveal].is-revealed img {
+  opacity: 1;
+}
+
+/* 9. 導覽底線展開 ---------------------------------------------------------
+   `scaleX` 的展開比 `width` 便宜，而且 `:focus-visible` 一併涵蓋——只做 hover
+   會讓鍵盤使用者完全看不到這個回饋。 */
+.clinic-navigation a::after {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--clinic-motion-fast) var(--clinic-ease-out);
+}
+
+.clinic-navigation a:hover::after,
+.clinic-navigation a:focus-visible::after,
+.clinic-navigation a[aria-current='page']::after {
+  transform: scaleX(1);
+}
+
+/* 10. 主要按鈕光澤掃過 ---------------------------------------------------- */
+.clinic-header__booking,
+.clinic-button--primary {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* 用 `::before` 而不是 `::after`。這個專案把「`::after` 且四邊 inset 為 0」當成
+   *延展連結*的特徵——`affordance.spec.ts` 看到那個形狀就會改去檢查父層有沒有
+   按鈕外觀，因為那代表連結覆蓋著整張卡片。裝飾用的覆蓋層如果也長這樣，守衛會
+   把按鈕誤判成「只剩文字顏色」。裝飾走 `::before`，延展連結才用 `::after`。 */
+.clinic-header__booking::before,
+.clinic-button--primary::before {
+  position: absolute;
+  z-index: -1;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgb(255 255 255 / 28%) 50%,
+    transparent 65%
+  );
+  content: '';
+  inset: 0;
+  transform: translate3d(-120%, 0, 0);
+  transition: transform var(--clinic-motion-slow) var(--clinic-ease-out);
+}
+
+@media (hover: hover) {
+  .clinic-header__booking:hover::before,
+  .clinic-button--primary:hover::before {
+    transform: translate3d(120%, 0, 0);
+  }
+}
+
+/* 11. 區段分隔線畫出 ------------------------------------------------------ */
+.clinic-motion [data-reveal] .clinic-section-rule {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--clinic-motion-slow) var(--clinic-ease-out);
+}
+
+.clinic-motion [data-reveal].is-revealed .clinic-section-rule {
+  transform: scaleX(1);
+}
+
+/* 12. 行動版選單展開 ------------------------------------------------------ */
+@media (width < 64rem) {
+  .clinic-navigation {
+    transform: translate3d(0, -0.5rem, 0);
+    opacity: 0;
+    transition:
+      opacity var(--clinic-motion-fast) var(--clinic-ease-out),
+      transform var(--clinic-motion-fast) var(--clinic-ease-out);
+  }
+
+  .clinic-navigation.is-open {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 13. 捲動進度條（漸進增強） ---------------------------------------------
+   沒有 `animation-timeline` 的瀏覽器不會看到這條線，而不是看到一條不動的線。 */
+.clinic-scroll-progress {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  display: none;
+  height: 0.125rem;
+  background: var(--clinic-green);
+  inset-inline: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+@supports (animation-timeline: scroll()) {
+  .clinic-motion .clinic-scroll-progress {
+    display: block;
+    animation: clinic-progress linear both;
+    animation-timeline: scroll();
+  }
+
+  @keyframes clinic-progress {
+    to {
+      transform: scaleX(1);
+    }
+  }
+}
+
+/* 14. 換頁轉場（漸進增強） ------------------------------------------------
+   由 clinic-site.js 在支援時以 `document.startViewTransition` 包住路由切換。 */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: clinic-fade-out var(--clinic-motion-fast) var(--clinic-ease-in-out)
+    both;
+}
+
+::view-transition-new(root) {
+  animation: clinic-rise var(--clinic-motion-base) var(--clinic-ease-out) both;
+}
+
+@keyframes clinic-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   減少動態
+   ==========================================================================
+   使用者在系統設定裡表達過偏好時，這裡把上面全部關掉——包含 `animation`，
+   先前只關了 `transition`，捲動驅動與無限循環的浮動都不受影響。 */
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -1406,6 +1803,21 @@ a {
   *::before,
   *::after {
     scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* 進場效果直接視為已完成，而不是用 0.01ms 播完——後者在某些瀏覽器上仍會
+     閃一下。 */
+  .clinic-motion [data-reveal],
+  .clinic-motion [data-reveal] img,
+  .clinic-motion [data-reveal] .clinic-section-rule {
+    opacity: 1;
+    transform: none;
+  }
+
+  .clinic-scroll-progress {
+    display: none;
   }
 }
