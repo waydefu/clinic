@@ -1,0 +1,161 @@
+{
+  "generatedBy": "scripts/build-clinic-assets.mjs",
+  "origin": "beauessence.com.tw",
+  "licenceStatus": "owned",
+  "licence": {
+    "basis": "診所自有（自行拍攝或委製，著作權屬一森渼診所）",
+    "confirmedBy": "wayde.fu",
+    "confirmedOn": "2026-08-02",
+    "scope": "本 manifest 列出的素材，用於本專案的診所官網；無期限限制"
+  },
+  "totals": {
+    "sourceBytes": 2262683,
+    "outputBytes": 132274
+  },
+  "assets": [
+    {
+      "output": "/clinic-assets/clinic-logo.webp",
+      "width": 400,
+      "height": 223,
+      "bytes": 12316,
+      "sha256": "d75608cda33fad2a83d5a67f5dddc78dcd71bbc880aefe8240b59a13a3ed27fe",
+      "source": {
+        "file": "apps/web/clinic-source/clinic-logo.png",
+        "bytes": 109669,
+        "sha256": "cda356f8f1ba409afac959aeab0ebbefc0719534f207d6a558e84f6b435aa288"
+      }
+    },
+    {
+      "output": "/clinic-assets/soft-green-bg.webp",
+      "width": 800,
+      "height": 555,
+      "bytes": 2886,
+      "sha256": "0f2af54beadbf8c0bbe264bf7e53a7fd819ca7fa7ae0f6275107fed9e60977a6",
+      "source": {
+        "file": "apps/web/clinic-source/soft-green-bg.png",
+        "bytes": 424903,
+        "sha256": "86df0dd8b065da587c8ce06bfa5cb9c64bb5f329987f526b6aadc3dc1244ee50"
+      }
+    },
+    {
+      "output": "/clinic-assets/doctor-yan.webp",
+      "width": 760,
+      "height": 798,
+      "bytes": 25336,
+      "sha256": "2ad8d264794a5f7343da35e13576e3173926f95420b9700a8bbbc1c08f0208f5",
+      "source": {
+        "file": "apps/web/clinic-source/doctor-yan.png",
+        "bytes": 316422,
+        "sha256": "2c0ec54261cc17cc7b02b1eff5614eb326dfb67e0b33b7ae01ee12ea06fbd47c"
+      }
+    },
+    {
+      "output": "/clinic-assets/doctor-yang.webp",
+      "width": 760,
+      "height": 798,
+      "bytes": 23236,
+      "sha256": "08d82dea869b851a0ba4e8238c140d47b84dcc783fd3a60e3ebd1639a1adcb45",
+      "source": {
+        "file": "apps/web/clinic-source/doctor-yang.png",
+        "bytes": 728319,
+        "sha256": "f1316bdc9adb80e9353f9cf673fef18075092af6c036db2d5e6881e05920f2b4"
+      }
+    },
+    {
+      "output": "/clinic-assets/service-snoring.webp",
+      "width": 375,
+      "height": 281,
+      "bytes": 8360,
+      "sha256": "b672f497d3db569722c39e024c95e9670181466238ca4a8e852e10ed6aa35e78",
+      "source": {
+        "file": "apps/web/clinic-source/service-snoring.png",
+        "bytes": 126746,
+        "sha256": "69d04feeab80a737cae8e44ebeba268328db3f7559e30da76f64737a68e1407e"
+      }
+    },
+    {
+      "output": "/clinic-assets/service-turbinate.webp",
+      "width": 540,
+      "height": 405,
+      "bytes": 14726,
+      "sha256": "de05ff6b03284bebd78fe743ff3ebc0df0c589b119daf1cf5275a9599848d4ce",
+      "source": {
+        "file": "apps/web/clinic-source/service-turbinate.jpg",
+        "bytes": 204155,
+        "sha256": "0166ed81572ca16aecf3fdbcbbc040b12c5bf8db8c2ad75e317ebd5c4246d457"
+      }
+    },
+    {
+      "output": "/clinic-assets/service-septoplasty.webp",
+      "width": 540,
+      "height": 405,
+      "bytes": 15154,
+      "sha256": "c22127f30e69bc6bbd002bd10d9d06f79a2aebb56262d7afb2e26a91cf4d4a21",
+      "source": {
+        "file": "apps/web/clinic-source/service-septoplasty.jpg",
+        "bytes": 236478,
+        "sha256": "5d004fc929ffc3f931e35b0a93f0cca166345f6860fc565ce4c70e3612f4b09a"
+      }
+    },
+    {
+      "output": "/clinic-assets/service-mouthguard.webp",
+      "width": 540,
+      "height": 405,
+      "bytes": 15786,
+      "sha256": "0a8134d49cc301f84520927d48a4ac6c2b9e4cfc36adb8320fad45eca0e85de3",
+      "source": {
+        "file": "apps/web/clinic-source/service-mouthguard.webp",
+        "bytes": 89956,
+        "sha256": "1625d9e0e3d63bfe59d2d4e9defd016528b7fec51d12bb07533c416f89b48377"
+      }
+    },
+    {
+      "output": "/clinic-assets/care-listening.webp",
+      "width": 132,
+      "height": 132,
+      "bytes": 4142,
+      "sha256": "6944e0bb33174e3f1b49450e10689f645e4f87fefdfd019592a6d1ae4b4d00ce",
+      "source": {
+        "file": "apps/web/clinic-source/care-listening.png",
+        "bytes": 7993,
+        "sha256": "32c0c90da144d5a8897e0b7828683962ef589e053988cc5ecc2945621e8bbde8"
+      }
+    },
+    {
+      "output": "/clinic-assets/care-treatment.webp",
+      "width": 132,
+      "height": 132,
+      "bytes": 3348,
+      "sha256": "cad10418106dc43b6f8496fba3bed1ea5d3dd0f46523b363ed3536435f0d940a",
+      "source": {
+        "file": "apps/web/clinic-source/care-treatment.png",
+        "bytes": 4698,
+        "sha256": "8de62c08cfe6d6322e732ebf6f876eaf842ae6fa84eb785ae18915c0debe1e9a"
+      }
+    },
+    {
+      "output": "/clinic-assets/care-environment.webp",
+      "width": 132,
+      "height": 132,
+      "bytes": 3640,
+      "sha256": "e012952d35fe9e6baa277ffa283f22619588130e2f8f5b69f3a81de4f58c2321",
+      "source": {
+        "file": "apps/web/clinic-source/care-environment.png",
+        "bytes": 6762,
+        "sha256": "f92b4e04c04342b5bedeab81c9326d29d316526ac6a1c9471e25944c8ddcb726"
+      }
+    },
+    {
+      "output": "/clinic-assets/care-aftercare.webp",
+      "width": 132,
+      "height": 132,
+      "bytes": 3344,
+      "sha256": "357a5456cd34d5358330982ced3e21d7184d4dff27e22996f61761c9d859ab2b",
+      "source": {
+        "file": "apps/web/clinic-source/care-aftercare.png",
+        "bytes": 6582,
+        "sha256": "c49db2a5060fade84bba3171804f85b305e016d047f4f09645647cc3d9cd1dbe"
+      }
+    }
+  ]
+}

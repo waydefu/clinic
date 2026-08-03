@@ -131,7 +131,7 @@
   },
   {
     "path": "/clinic.html",
-    "justification": "診所官網。image 560 KiB 是**現況的上限而不是目標**：既有素材約 2.2 MB 未最佳化，再加圖前必須先壓縮（見 2026-07-27 業主需求批次的 C2）。其餘欄位是實測值加餘裕。",
+    "justification": "診所官網。image 180 KiB／14 檔是 2026-08-02 把 12 張素材轉成 WebP 後的實測 127.3 KiB／13 檔加餘裕（原始素材 2.2 MB，見 2026-07-27 業主需求批次的 C2）。**檔數從 3 調到 14 不是放寬**：其中 9 張本來就會被下載，只是先前只有 JS 用字串常數指到它們，而預算的傳遞閉包看不見那種參照；同一天補上之後 gate 才第一次量到整頁的影像重量。script 20／stylesheet 14 是 2026-08-01 首頁動效與資訊補全後上調的（原為 12／7），業主當日同意擴充首頁預算；動效以 CSS transform／opacity 為主，cumulative-layout-shift 仍維持 0.1 不放寬——那是動效最容易踩壞的一項，放寬它等於讓這道預算失去意義。其餘欄位是實測值加餘裕。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -139,15 +139,15 @@
       },
       {
         "resourceType": "script",
-        "budget": 12
+        "budget": 20
       },
       {
         "resourceType": "stylesheet",
-        "budget": 7
+        "budget": 14
       },
       {
         "resourceType": "image",
-        "budget": 560
+        "budget": 180
       },
       {
         "resourceType": "font",
@@ -155,7 +155,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 580
+        "budget": 200
       }
     ],
     "resourceCounts": [
@@ -169,11 +169,11 @@
       },
       {
         "resourceType": "image",
-        "budget": 3
+        "budget": 14
       },
       {
         "resourceType": "total",
-        "budget": 7
+        "budget": 18
       }
     ],
     "timings": [

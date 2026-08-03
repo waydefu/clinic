@@ -23,6 +23,28 @@ describe('token extraction', () => {
     ]).toEqual(['--colour-ink', '--space-2']);
   });
 
+  // `@property` 是唯一能讓自訂屬性做動畫的宣告方式——沒有型別，瀏覽器不知道
+  // `0deg` 到 `360deg` 之間要怎麼內插。只認 `:root` 會把正確的現代寫法報成
+  // 「未定義」，把人推回舊寫法，或逼人在 `:root` 再寫一次同一個初始值。
+  it('collects tokens declared with @property', () => {
+    const source = [
+      '@property --clinic-angle {',
+      "  syntax: '<angle>';",
+      '  inherits: false;',
+      '  initial-value: 0deg;',
+      '}'
+    ].join('\n');
+    expect([...definedTokens(source)]).toEqual(['--clinic-angle']);
+  });
+
+  it('collects both :root and @property declarations together', () => {
+    const source = [
+      ':root {\n  --a: 1;\n}',
+      '@property --b {\n  syntax: "<number>";\n  inherits: false;\n  initial-value: 0;\n}'
+    ].join('\n\n');
+    expect([...definedTokens(source)].sort()).toEqual(['--a', '--b']);
+  });
+
   it('collects tokens referenced through var()', () => {
     expect(usedTokens('a { color: var(--colour-ink); }')).toEqual([
       '--colour-ink'

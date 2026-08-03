@@ -176,10 +176,29 @@ function renderWeek() {
     compactCalendar.matches ? renderAgendaView : renderWeekView
   )(state, weekStart, taipeiTodayDate());
   hydrateWeekView(elements['week-view']);
+  scrollWeekViewToNow();
   const end = new Date(`${weekStart}T12:00:00Z`);
   end.setUTCDate(end.getUTCDate() + 6);
   elements['week-range'].textContent =
     `${weekStart} – ${end.toISOString().slice(0, 10)}`;
+}
+
+/**
+ * 桌機的時間網格在容器內部捲動（workbench.css 的 R-20 區塊），所以要把「現在」
+ * 帶進視野——否則第一眼看到的是範圍最上緣，而平日 12:00 才開診，最上面那兩小時
+ * 只有週六用得到。
+ *
+ * **只在容器仍停在頂端時才捲**：使用者自己捲過之後，每次 state 變動（新增預約、
+ * 改狀態）都會重畫，這時把捲動位置搶回去等於把人踢回原點。
+ */
+function scrollWeekViewToNow() {
+  const view = elements['week-view'];
+  if (compactCalendar.matches || view.scrollTop !== 0) return;
+  const now = view.querySelector('.wv-now');
+  if (now === null) return;
+  // 放在約三分之一處而不是正中央：往下看「接下來還有誰」比往上回顧更常用。
+  const target = now.offsetTop - view.clientHeight / 3;
+  view.scrollTop = Math.max(0, target);
 }
 
 // 轉向或拉動視窗會跨過斷點，此時要換成另一種檢視。只在 weekStart 已決定

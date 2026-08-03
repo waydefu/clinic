@@ -9,12 +9,22 @@ export const CLINIC = {
   tollFreeHref: 'tel:+886800000913',
   address: '臺北市松山區光復北路112號2樓',
   hours: ['週三至週五 12:00–20:00', '週六 10:00–18:00'],
+  // 社群連結一律使用**乾淨的正式網址**，不帶追蹤或介面參數。業主 2026-08-01
+  // 提供的原始連結各自帶了不該進版控的東西：
+  //   - LINE 帶 `openQrModal=true`，會強制彈出 QR code。手機使用者已經裝了
+  //     LINE，卻被要求掃自己螢幕上的 QR，等於多一道無意義的關卡。
+  //   - Instagram 帶 `igsh` 與 `utm_source=qr`，那是某一次 QR 分享的追蹤參數，
+  //     寫死在網站上會讓之後所有流量都被歸到那一次分享。
+  //   - Messenger 給的是 `messenger.com/login.php?next=…`，那是**登入牆**。改用
+  //     官方短網址 m.me/<page-id>，手機會直接開 App，桌機則落到同一個對話頁。
+  //     page id 575723225620285 就是從原連結的 next 參數裡取出來的。
   socialLinks: [
-    { label: 'LINE', href: 'https://lin.ee/nMf1Bvo' },
+    { label: 'LINE', href: 'https://page.line.me/821tzbtx' },
     {
       label: 'Instagram',
       href: 'https://www.instagram.com/beauessence.tw'
     },
+    { label: 'Messenger', href: 'https://m.me/575723225620285' },
     { label: 'Facebook', href: 'https://www.facebook.com/beauessencetaipei/' }
   ]
 };
@@ -51,7 +61,7 @@ export const DOCTORS = [
     slug: 'yan-cheng-an',
     name: '顏正安 院長',
     title: '自體肋隆鼻權威',
-    image: '/clinic-assets/doctor-yan.png',
+    image: '/clinic-assets/doctor-yan.webp',
     imageAlt: '顏正安院長形象照',
     summary:
       '專注鼻部功能、結構與外觀的整合評估，依每位患者的鼻腔條件規劃治療方向。',
@@ -77,7 +87,7 @@ export const DOCTORS = [
     slug: 'yang-sheng-feng',
     name: '楊昇峯 醫師',
     title: '麻醉科主治醫師',
-    image: '/clinic-assets/doctor-yang.png',
+    image: '/clinic-assets/doctor-yang.webp',
     imageAlt: '楊昇峯醫師形象照',
     summary:
       '以完整術前評估與麻醉照護為核心，協助患者在治療過程中獲得穩定、安全的醫療照護。',
@@ -99,7 +109,7 @@ export const NASAL_SERVICES = [
     title: '止鼾五合一',
     eyebrow: 'SNORING CARE',
     subtitle: '從鼻腔結構、呼吸狀況到睡眠品質，一次完成整合評估。',
-    image: '/clinic-assets/service-snoring.png',
+    image: '/clinic-assets/service-snoring.webp',
     imageAlt: '止鼾五合一療程示意',
     intro:
       '打鼾可能來自鼻腔阻塞、軟組織震動或睡眠呼吸障礙。診所會先由耳鼻喉科醫師檢查鼻腔結構與呼吸狀況，再依個別原因提出合適的治療方向。',
@@ -166,7 +176,7 @@ export const NASAL_SERVICES = [
     title: '下鼻甲手術',
     eyebrow: 'NASAL AIRWAY',
     subtitle: '改善長期鼻塞，讓日常呼吸與睡眠更順暢。',
-    image: '/clinic-assets/service-turbinate.jpg',
+    image: '/clinic-assets/service-turbinate.webp',
     imageAlt: '下鼻甲手術治療示意',
     intro:
       '下鼻甲肥大會縮小鼻腔呼吸空間。若藥物治療效果有限，醫師可能依檢查結果評估是否以手術縮減肥厚組織，改善鼻塞、呼吸與睡眠品質。',
@@ -206,7 +216,7 @@ export const NASAL_SERVICES = [
     title: '鼻中隔手術',
     eyebrow: 'SEPTAL CARE',
     subtitle: '針對鼻中隔彎曲造成的結構性阻塞，重新找回通暢呼吸。',
-    image: '/clinic-assets/service-septoplasty.jpg',
+    image: '/clinic-assets/service-septoplasty.webp',
     imageAlt: '鼻中隔手術治療示意',
     intro:
       '鼻中隔是分隔左右鼻腔的結構。先天發育或外傷可能使鼻中隔偏曲；若造成長期鼻塞、反覆鼻竇問題、打鼾或睡眠品質下降，可由醫師評估是否需要矯正。',

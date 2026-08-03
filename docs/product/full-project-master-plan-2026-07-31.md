@@ -154,8 +154,9 @@ Card 等人（1991）的實驗
 ### 3.4 效能不是上線後才量
 
 效能預算（`check:perf`）已在 `verify` 中阻斷式執行，`/clinic.html` 的影像預算為
-560 KiB／3 檔。**Expansion S 的每一個新頁面都必須先進預算表再開發**，不能先做完
-再來減肥——這也是目前官網素材（約 2.2 MB 未最佳化）卡住的原因。
+180 KiB／14 檔（2026-08-02 由 560 KiB／3 檔調降）。**Expansion S 的每一個新頁面都
+必須先進預算表再開發**，不能先做完再來減肥——官網素材（原本約 2.2 MB 未最佳化）
+就是先做完再減肥的例子，2026-08-02 才壓到 129 KiB。
 
 ---
 
@@ -433,7 +434,7 @@ log／artifact、實際成本超過核准容忍範圍、主要或備援 owner �
 | 技術資安清單 T1～T21 | T1～T5、T21 已完成；T6～T13 是 C0；T14～T17 是 Calendar；T18～T19 是 Stage 2 實作；T20 是 production scope 重審 | GOV-07～GOV-08、C1～C6、CAL-01、GO-01 |
 | Decision register | 12 筆 pending：D-001～D-005、D-007～D-009、D-011、D-014～D-016；D-006／D-010 只缺實作證據 | GOV-02～GOV-07、C2～C6、PUB、OPS、CAL、S 系列 |
 | Owner requests OR-01～OR-69 | 未完成／部分完成：OR-07、OR-22、OR-37、OR-40～OR-61、OR-63～OR-69 | GOV-03、TW-06～07、OPS、CAL、S 系列 |
-| 2026-07-27 owner batch 6 | 官網 C1 尚待業主實機接受；C2 圖片授權、WebP 轉換與 560 KiB／3 檔預算尚未完成 | PUB-03 |
+| 2026-07-27 owner batch 6 | 官網 C1 尚待業主實機接受；**C2 已於 2026-08-02 全部解除**——WebP 轉換與影像預算完成（2.2 MB → 129 KiB，預算改為 180 KiB／14 檔），圖片授權確認為診所自有 | PUB-03 |
 | Stage 0 交接／§2.1 實測 | 兩支 gate 無自測、public-page 整體 fixture、單元測試收集時間、API health test 批次逾時 | TW-01～TW-04 |
 | Roadmap | 人工螢幕閱讀器與高對比驗證尚未執行 | TW-05、GO-01 |
 
@@ -488,7 +489,7 @@ TW-01～TW-05 可以與 Stage 1 決策並行；TW-06～TW-07 含政策值，必�
 | CAL-01 | Stage 3 outbound Calendar | C6＋GOV-05＋獨立 authority | 最小 scope／PII、outbox、syncToken／410、push＋poll、DLQ、rotation／reconciliation |
 | PUB-01 | Privacy／vendor／legal operating controls | GOV-02＋上線日法規版本 | data inventory、DPA／subprocessor owner、notice／consent、DSR、retention／deletion、incident drill |
 | PUB-02 | Patient identity／public API | GOV-03＋GOV-05＋PUB-01＋D-006／D-010 evidence | 本人驗證、rate／abuse／idempotency、PII 不進 localStorage／URL／log、kill switch |
-| PUB-03 | Clinic website acceptance／licensed media | GOV-05＋content／license owner | C1 實機接受；C2 素材來源與授權證據；WebP／responsive images 進 560 KiB／3 檔預算；SEO／a11y／visual／preview 驗收 |
+| PUB-03 | Clinic website acceptance／licensed media | GOV-05＋content／license owner | C1 實機接受（**未完成**）；C2 素材來源與授權證據（2026-08-02 完成，診所自有）；WebP／responsive images 進 180 KiB／14 檔預算（2026-08-02 已達成）；SEO／a11y／visual／preview 驗收 |
 | OPS-01 | 正式 slot／多服務／schedule | GOV-03＋TW-06 | versioned schedule、容量／resource conflict、blackout、delay／override、migration／E2E |
 | OPS-02 | Case management／merge | GOV-04＋C4／C5 | assignment lifecycle、代理／離職、merge preview／雙人覆核／restore、field scope |
 | OPS-03 | Payroll／period close | GOV-04＋D-015 邊界 | versioned rule、source snapshot、lock、append-only adjustment、recompute／dispute evidence |
