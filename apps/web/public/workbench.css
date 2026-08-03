@@ -1356,6 +1356,35 @@ details[open] > summary .workflow-summary-chevron {
   overflow-y: hidden;
   padding-bottom: var(--space-2xs);
 }
+
+/* 桌機的時間網格：限制容器高度，讓它在內部捲動（R-20）。
+   ≤48rem 是議程清單而不是網格（admin-bootstrap.js 依同一個斷點擇一渲染），
+   清單要跟著頁面自然流動，所以這一段刻意只在桌機生效。 */
+@media (min-width: 48.0625rem) {
+  /* 網格高度 = 時數 × 每小時像素，兩個因數都有下限（見 week-view.js），所以
+     只能限制容器。實測未限制時是 1122px——在 1366×768 的筆電上，連同摺疊區
+     共 1316px，是整個視窗高度的 1.7 倍，一週看不完還得捲兩次。
+
+     60vh 不是猜的：低於它就放不下一個完整的午診時段（12:00–16:00 需要 408px，
+     768px 螢幕的 60vh 是 460px）；高於它在筆電上就又開始把下方的預約清單推出
+     視窗。上限同時保留 1122px，避免大螢幕把每小時拉得比實際需要更高。 */
+  .week-view {
+    max-height: min(1122px, 60vh);
+    overflow-y: auto;
+  }
+
+  /* 日期表頭在捲動時保持可見。
+
+     這條在 `overflow-y: hidden` 之下是**沒有效果**的：sticky 黏的是最近的捲動
+     容器，而那時 .week-view 垂直方向根本不捲。上面開放垂直捲動之後它才生效。
+     表頭與網格在同一個容器裡，所以橫向捲動時兩者自動同步，不需要 JS 對齊。 */
+  .wv-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+}
 /* flex 而非 grid：欄位事件是絕對定位、不計入內容高度，grid 的 auto row 會把
    整列撐不起來（塌成 0）；flex 項目則會確實套用明確的 height。 */
 .wv-head {

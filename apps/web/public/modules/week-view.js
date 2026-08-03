@@ -19,9 +19,18 @@ import { escapeHtml } from './ui-format.js';
  * 捲到對應的卡片，讓視覺總覽與可操作清單分工。
  */
 
-// 檢視自 10:00 到 21:00：涵蓋週六 10:00 開診到平日 20:00 掛號的一小時區塊。
-const VIEW_START_MIN = 10 * 60;
-const VIEW_END_MIN = 21 * 60;
+// 檢視範圍由排班推導（介面規則 R-20），不寫死時刻。
+//
+// 先前是寫死的 10:00–21:00，註解說 21:00 是為了「涵蓋平日 20:00 掛號的一小時
+// 區塊」——但 `packages/domain` 的時段產生規定「一格必須完整落在營業時間內，
+// 末尾不能被切斷」，平日 12:00–20:00 的最後一格是 19:30 起、20:00 結束。
+// **20:00 開始的預約從來不存在**，那一小時永遠是空白。
+//
+// 比多畫一小時更麻煩的是它寫死：OR-07 才剛把收班時間定案，營業時間再改一次，
+// 這個檢視不會跟著動，只會再無聲地失準一次。
+//
+// 只有在完全推導不出範圍時（例如排班資料損壞）才退回這組保底值。
+const FALLBACK_WINDOW = { from: 10 * 60, to: 20 * 60 };
 // 每小時 102px。這個數字是**量出來的，不是估的**：一個 30 分鐘事件的方塊高度是
 // `SLOT_DURATION_MINUTES * PX_PER_MIN - 3`，而方塊裡要放兩行（患者姓名＋時間·
 // 掛號別·療程）加上下各 4px 內距——實測內容需要 46px。
@@ -164,15 +173,62 @@ function isClosed(schedule, dateText) {
   );
 }
 
+function clockMinutes(text) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(text ?? ''));
+  return match === null ? undefined : Number(match[1]) * 60 + Number(match[2]);
+}
+
+/** 某一天的營業時段。`extra_open` 例外自帶 intervals，優先於每週排班。 */
+function openIntervals(schedule, dateText) {
+  const exception = schedule.dateExceptions.find(
+    (entry) => entry.date === dateText
+  );
+  if (exception?.kind === 'closed') return [];
+  if (exception?.kind === 'extra_open') return exception.intervals ?? [];
+  const sunday0 = new Date(`${dateText}T12:00:00Z`).getUTCDay();
+  return (
+    schedule.weeklyAvailability.find((entry) => entry.weekday === sunday0)
+      ?.intervals ?? []
+  );
+}
+
+/**
+ * 這一週要畫的時間範圍：顯示中那幾天的營業時間，聯集已存在的預約。
+ *
+ * 為什麼要把預約也算進去：排班改了**不能讓既有預約從畫面上消失**——那會讓人
+ * 以為預約不見了。這與 `visibleDays` 保留「休診但有預約」那一天是同一條防線。
+ *
+ * 向外對齊到整點，因為時間軸每小時標一次；不對齊的話首尾會出現半格。
+ */
+function viewWindow(schedule, visibleDays, shown) {
+  let from = Infinity;
+  let to = -Infinity;
+  for (const { date } of visibleDays)
+    for (const interval of openIntervals(schedule, date)) {
+      const start = clockMinutes(interval.startLocalTime);
+      const end = clockMinutes(interval.endLocalTime);
+      if (start === undefined || end === undefined) continue;
+      from = Math.min(from, start);
+      to = Math.max(to, end);
+    }
+  for (const item of shown) {
+    const start = taipeiMinutes(item.startsAt);
+    from = Math.min(from, start);
+    to = Math.max(to, start + SLOT_DURATION_MINUTES);
+  }
+  if (from === Infinity || to <= from) return FALLBACK_WINDOW;
+  return { from: Math.floor(from / 60) * 60, to: Math.ceil(to / 60) * 60 };
+}
+
 // 位置以 data-top／data-height 傳遞，由 hydrateWeekView 用 CSSOM 套用。
 // 不能用 inline style 屬性：CSP 是 style-src 'self'（無 'unsafe-inline'），
 // 會把 style 屬性擋掉——屬性字串在、但完全不生效（實機驗證）。
-function hourAxis() {
+function hourAxis(range) {
   const rows = [];
-  for (let minute = VIEW_START_MIN; minute <= VIEW_END_MIN; minute += 60) {
+  for (let minute = range.from; minute <= range.to; minute += 60) {
     const label = `${String(Math.floor(minute / 60)).padStart(2, '0')}:00`;
     rows.push(
-      `<div class="wv-hour" data-top="${(minute - VIEW_START_MIN) * PX_PER_MIN}">${label}</div>`
+      `<div class="wv-hour" data-top="${(minute - range.from) * PX_PER_MIN}">${label}</div>`
     );
   }
   return rows.join('');
@@ -194,11 +250,13 @@ function itemToneClass(appointment) {
   return ids.includes('service_aesthetic') ? 'wv-item-aesthetic' : '';
 }
 
-function eventBlock(layout, patientName) {
+function eventBlock(layout, patientName, range) {
   const { appointment, lane, laneCount } = layout;
   const start = taipeiMinutes(appointment.startsAt);
-  if (start < VIEW_START_MIN || start >= VIEW_END_MIN) return '';
-  const top = (start - VIEW_START_MIN) * PX_PER_MIN;
+  // 範圍已由 viewWindow 涵蓋所有已存在的預約，所以正常情況下不會落在外面；
+  // 這道防線留著是因為「畫在格子外」比「沒畫」更難察覺。
+  if (start < range.from || start >= range.to) return '';
+  const top = (start - range.from) * PX_PER_MIN;
   const height = SLOT_DURATION_MINUTES * PX_PER_MIN - 3;
   const width = 100 / laneCount;
   const left = lane * width;
@@ -281,14 +339,15 @@ export function renderWeekView(state, weekStart, todayDate) {
     })
     .join('');
 
-  const gridHeight = (VIEW_END_MIN - VIEW_START_MIN) * PX_PER_MIN;
+  const range = viewWindow(state.schedule, visibleDays, shown);
+  const gridHeight = (range.to - range.from) * PX_PER_MIN;
   const columns = visibleDays
     .map(({ date }) => {
       const closed = isClosed(state.schedule, date);
       const lines = [];
-      for (let minute = VIEW_START_MIN; minute < VIEW_END_MIN; minute += 30)
+      for (let minute = range.from; minute < range.to; minute += 30)
         lines.push(
-          `<div class="wv-line${minute % 60 === 0 ? ' wv-line-hour' : ''}" data-top="${(minute - VIEW_START_MIN) * PX_PER_MIN}"></div>`
+          `<div class="wv-line${minute % 60 === 0 ? ' wv-line-hour' : ''}" data-top="${(minute - range.from) * PX_PER_MIN}"></div>`
         );
       const events = closed
         ? '<span class="wv-closed-label">休診</span>'
@@ -296,20 +355,24 @@ export function renderWeekView(state, weekStart, todayDate) {
             shown.filter((item) => taipeiDate(item.startsAt) === date)
           )
             .map((layout) =>
-              eventBlock(layout, patientName(layout.appointment.patientId))
+              eventBlock(
+                layout,
+                patientName(layout.appointment.patientId),
+                range
+              )
             )
             .join('');
       let nowLine = '';
       if (date === todayDate) {
         const nowMin = taipeiMinutes(new Date().toISOString());
-        if (nowMin >= VIEW_START_MIN && nowMin <= VIEW_END_MIN)
-          nowLine = `<div class="wv-now" data-top="${(nowMin - VIEW_START_MIN) * PX_PER_MIN}"></div>`;
+        if (nowMin >= range.from && nowMin <= range.to)
+          nowLine = `<div class="wv-now" data-top="${(nowMin - range.from) * PX_PER_MIN}"></div>`;
       }
       return `<div class="wv-col${closed ? ' wv-closed' : ''}" data-height="${gridHeight}">${lines.join('')}${nowLine}${events}</div>`;
     })
     .join('');
 
-  return `<div class="wv-head"><div class="wv-head-time"></div>${header}</div><div class="wv-grid"><div class="wv-axis" data-height="${gridHeight}">${hourAxis()}</div>${columns}</div>`;
+  return `<div class="wv-head"><div class="wv-head-time"></div>${header}</div><div class="wv-grid"><div class="wv-axis" data-height="${gridHeight}">${hourAxis(range)}</div>${columns}</div>`;
 }
 
 /**
