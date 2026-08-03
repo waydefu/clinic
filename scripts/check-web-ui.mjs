@@ -587,7 +587,7 @@ const scheduleHours = [
   )
 ].map((match) => `${match[1]}–${match[2]}`);
 const ogMetadata = JSON.parse(files.ogMetadata);
-const expectedOgAsset = 'apps/web/public/og-booking.png';
+const expectedOgAsset = 'apps/web/public/og-booking.jpg';
 if (ogMetadata.asset !== expectedOgAsset) {
   failures.push(
     `The Open Graph source contract must point to ${expectedOgAsset}, not ${ogMetadata.asset}.`
@@ -606,7 +606,7 @@ if (ogMetadata.clinicHours !== expectedOgHours) {
 }
 for (const [marker, description] of [
   [
-    '<meta property="og:image" content="/og-booking.png" />',
+    '<meta property="og:image" content="/og-booking.jpg" />',
     'patient.html no longer publishes the reviewed Open Graph image'
   ],
   [
@@ -618,33 +618,88 @@ for (const [marker, description] of [
     'patient.html no longer declares the Open Graph image height'
   ],
   [
-    '<meta name="twitter:image" content="/og-booking.png" />',
+    '<meta name="twitter:image" content="/og-booking.jpg" />',
     'patient.html Twitter metadata no longer uses the reviewed Open Graph image'
   ]
 ])
   requireText(files.patientHtml, marker, description);
+
+/**
+ * 從 JPEG 的 SOF 段讀出尺寸。
+ *
+ * 不能像 PNG 那樣讀固定偏移：PNG 的 IHDR 永遠在第 16 個位元組，JPEG 的尺寸卻在
+ * SOF 段裡，而它前面有幾個長度不一的段（APPn、DQT、註解…）要先跳過。
+ */
+function jpegDimensions(bytes) {
+  let offset = 2;
+  while (offset + 9 < bytes.length) {
+    if (bytes[offset] !== 0xff) return null;
+    const marker = bytes[offset + 1];
+    // SOFn 全部帶尺寸，但 0xC4（DHT）、0xC8（JPG）、0xCC（DAC）夾在同一段編號
+    // 裡卻不是 SOF，得排掉。
+    if (
+      marker >= 0xc0 &&
+      marker <= 0xcf &&
+      marker !== 0xc4 &&
+      marker !== 0xc8 &&
+      marker !== 0xcc
+    ) {
+      return {
+        height: bytes.readUInt16BE(offset + 5),
+        width: bytes.readUInt16BE(offset + 7)
+      };
+    }
+    offset += 2 + bytes.readUInt16BE(offset + 2);
+  }
+  return null;
+}
+
 const ogImage = await readFile(expectedOgAsset);
-const pngSignature = '89504e470d0a1a0a';
-if (ogImage.subarray(0, 8).toString('hex') !== pngSignature) {
-  failures.push('og-booking.png is not a valid PNG asset.');
+// JPEG 而不是 PNG：這張圖是平滑漸層加文字，PNG 對它毫無勝算——2026-08-02 實測用
+// canvas 重編 PNG 是 981 KiB，比當時出貨的 806 KiB 還大。改 JPEG 後 53.7 KiB。
+// 為什麼不是 WebP：分享圖的讀者是各家爬蟲，WebP 在那條路徑上支援不齊。
+if (ogImage.subarray(0, 3).toString('hex') !== 'ffd8ff') {
+  failures.push('og-booking.jpg is not a valid JPEG asset.');
 } else {
-  const actualWidth = ogImage.readUInt32BE(16);
-  const actualHeight = ogImage.readUInt32BE(20);
-  if (
-    actualWidth !== ogMetadata.width ||
-    actualHeight !== ogMetadata.height ||
-    actualWidth !== 1200 ||
-    actualHeight !== 630
+  const dimensions = jpegDimensions(ogImage);
+  if (dimensions === null) {
+    failures.push('og-booking.jpg has no readable JPEG frame header.');
+  } else if (
+    dimensions.width !== ogMetadata.width ||
+    dimensions.height !== ogMetadata.height ||
+    dimensions.width !== 1200 ||
+    dimensions.height !== 630
   ) {
     failures.push(
-      `og-booking.png is ${actualWidth}×${actualHeight}, but its source contract and social metadata require 1200×630.`
+      `og-booking.jpg is ${dimensions.width}×${dimensions.height}, but its source contract and social metadata require 1200×630.`
     );
   }
+}
+// 體積上限。這張圖**不在**任何頁面的效能預算裡，理由寫在
+// check-performance-budget.mjs 的 og:image 排除說明：訪客的瀏覽器從不請求它，
+// 把它算進 /patient.html 的 image 桶只會逼人調高一個面向訪客的數字。
+//
+// 但「不算進頁面重量」不等於「沒人看著」。2026-07-28 的 ImageGen 修字把這個檔案
+// 從約 100 KiB 變成 806 KiB，成為全專案最大的出貨檔，而且沒有任何閘門發現——
+// 這道上限就是補上那個缺口，擺在本來就管著這個檔案合約的地方。
+if (typeof ogMetadata.maxBytes !== 'number') {
+  failures.push(
+    'The Open Graph source contract must declare a maxBytes ceiling for the shipped asset.'
+  );
+} else if (ogImage.length > ogMetadata.maxBytes) {
+  failures.push(
+    `og-booking.jpg is ${(ogImage.length / 1024).toFixed(1)} KiB, over its ${(ogMetadata.maxBytes / 1024).toFixed(0)} KiB ceiling. Re-run \`corepack pnpm run build:brand\` rather than raising the ceiling.`
+  );
+}
+if (ogImage.length !== ogMetadata.bytes) {
+  failures.push(
+    `og-booking.jpg is ${ogImage.length} bytes, but its source contract records ${ogMetadata.bytes}.`
+  );
 }
 const actualOgHash = createHash('sha256').update(ogImage).digest('hex');
 if (actualOgHash !== ogMetadata.sha256) {
   failures.push(
-    'og-booking.png changed without updating its reviewed source metadata and SHA-256.'
+    'og-booking.jpg changed without updating its reviewed source metadata and SHA-256.'
   );
 }
 

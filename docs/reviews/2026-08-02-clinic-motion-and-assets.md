@@ -136,8 +136,14 @@ checkout，之後主工作區的 `pnpm verify` 立刻變紅——先是 `check:f
 
 - **C1 業主實機接受**。技術結構已對齊，主觀驗收仍待業主在代表性桌機／手機確認。
   C2 兩個條件解除後，這是 PUB-03 唯一還缺的東西。
-- **`og-booking.png`（806 KiB）沒有處理。** 它由 `<meta property="og:image">` 參照，
-  不在任何頁面的預算閉包裡，也不會被一般訪客下載（只有社群平台的爬蟲抓）。這不是
-  頁面重量問題，另案處理。
+- ~~**`og-booking.png`（806 KiB）沒有處理。**~~ **同日稍晚已處理，見
+  [web-quality-gates](../architecture/web-quality-gates-2026-07-24.md) 的
+  「Open Graph 分享圖」兩節。** 兩個問題分開結掉：**是否納入預算**——不納入，因為
+  訪客的瀏覽器從不請求它，算進 `image` 桶只會逼人調高一個面向訪客的數字；排除的
+  理由與那個判準寫進了 `check-performance-budget.mjs` 的註解，並有一支反面測試釘住。
+  這與第 8 節是同一個判準的兩面：**綠燈沒有意義**（第 4 節）與**紅燈沒有意義**
+  （第 8 節、以及把 OG 圖算進頁面預算）一樣糟。
+  **體積**——重編成 1200×630 JPEG，806 KiB → 53.7 KiB，上限改由 `check:ui` 依
+  `og-booking.metadata.json` 的 `maxBytes` 守。沒有任何一條預算數字因此變動。
 - **螢幕閱讀器實機驗證**。第 2 節的修法有單元測試釘住可及名稱，但實際聽起來如何仍
   需人工驗證（見 `docs/runbooks/manual-accessibility-test.md`）。

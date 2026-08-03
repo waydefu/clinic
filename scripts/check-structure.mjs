@@ -134,7 +134,11 @@ const requiredPaths = [
   'docs/design/clinic-site-integration-2026-07-27.md',
   'apps/web/brand-source/brand-lockup.png',
   'apps/web/brand-source/nhi-mark.png',
+  // OG 分享圖同一套做法：未出貨的原始 PNG 留在 brand-source/，出貨的是
+  // build:brand 產的 JPEG。少了原圖就無法重新產出，只能拿出貨檔再壓一次。
+  'apps/web/brand-source/og-booking.png',
   'apps/web/brand-source/og-booking.metadata.json',
+  'apps/web/public/og-booking.jpg',
   'apps/web/public/assets/brand-mark.webp',
   'apps/web/public/assets/nhi-mark.webp',
   // 官網素材與品牌資產同一套做法：未出貨的原圖留在 *-source/，出貨的 WebP 進

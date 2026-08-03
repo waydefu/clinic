@@ -364,7 +364,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 | --- | --- | --- |
 | `robots` | `noindex, nofollow` | 患者端移除；工作臺維持 |
 | `og:url` / canonical | 指向 `beauessence.com.tw/booking` | 換成實際網域 |
-| `og:image` | `/og-booking.png` 已存在 | 正式網域驗證分享預覽與快取 |
+| `og:image` | `/og-booking.jpg` 已存在（2026-08-02 由 806 KiB PNG 重編為 53.7 KiB JPEG；刻意不做內容雜湊，平台快取以 URL 為鍵） | 正式網域驗證分享預覽與快取 |
 | Cache-Control | 穩定 HTML `no-cache`；內容雜湊資產 immutable | 正式網域再次驗證快取與回滾 |
 | 預覽頻道 | 七天到期 | 改為正式 Hosting，並建立回滾流程 |
 | 環境標示 | `ONLINE PREVIEW` | 移除 |

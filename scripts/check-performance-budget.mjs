@@ -55,6 +55,39 @@ const IMPORT_SPECIFIER = /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
 // HTML 只用 root-absolute 參照子資源（build 會把它們改寫成雜湊檔名）。
 const HTML_REFERENCE = /\b(?:src|href)="(\/[^"#?]+)"/g;
 const CSS_REFERENCE = /url\(\s*['"]?(\/?[^'")]+)['"]?\s*\)/g;
+
+// `<meta property="og:image">` 刻意不在 HTML_REFERENCE 裡——`content=` 不是
+// `src`／`href`，所以 OG 圖永遠不會進入任何一頁的傳遞閉包。
+//
+// 這是**刻意的排除**，不是 `docs/reviews/2026-08-02-clinic-motion-and-assets.md`
+// 第 4 節那種盲點的另一個實例。兩者看起來很像——都是「一個出貨的檔案，沒有任何
+// 預算看得見它」——但差別在**誰下載它**。
+//
+// 這份預算量的是「訪客載入一頁時的傳輸重量」：document／script／stylesheet／
+// image／font 全都是瀏覽器為了把這一頁畫出來而抓的東西。OG 圖不在那條路徑上，
+// 它由 Facebook／LINE／X 的爬蟲在頁面之外抓，抓完快取在平台那邊，訪客的瀏覽器
+// 永遠不會請求它。第 4 節那 9 張圖則是每個訪客都真的下載——位元組不會因為參照
+// 方式不同就消失，那才是必須補進來的理由。
+//
+// 把它算進 `image` 會怎樣：`/patient.html` 的影像預算是 6 KiB，OG 圖一進來就爆，
+// 而唯一的解法是把一個**面向訪客**的數字調高到足以容納沒有訪客會下載的位元組，
+// 那個數字從此不代表任何事。第 4 節的毛病是綠燈沒有意義；這樣做是紅燈沒有意義，
+// 而紅燈沒有意義的下場是有人把預算調鬆，真正的迴歸跟著被蓋掉。
+//
+// 那為什麼不另開一個 resourceType（例如 `social-image`）？因為這份預算檔**刻意
+// 沿用 Lighthouse budget.json 的格式**（見檔首），而 Lighthouse 的 resourceType
+// 是封閉列舉；自創型別會讓這份檔案不再能餵進 Lighthouse CI。為了一個檔案放棄整份
+// 檔案的相容性，代價不對。何況這道預算的形狀是「從一個 HTML 進入點走傳遞閉包」，
+// 而 OG 圖是整個站台的社群識別，不屬於任何一頁的載入——就算給它專屬的桶子，掛在
+// entry point 底下仍然是歸錯類。
+//
+// 所以體積由 `check-web-ui.mjs` 守：那裡本來就管著這個檔案的合約（JPEG 簽章、
+// 1200×630、SHA-256 對上 `og-booking.metadata.json`），2026-08-02 再加一條位元組
+// 上限。迴歸照樣擋得住，只是擋在說得通的那道閘門——它當時是 806 KiB，全專案最大
+// 的出貨檔，而那正是沒有任何閘門看著它的結果。
+//
+// 順帶一提，不追這條參照不會讓打錯的路徑溜過去：`check-web-ui.mjs` 逐字比對
+// `<meta property="og:image" content="/og-booking.jpg" />` 並且真的去讀那個檔。
 // 指令碼也會用字串常數指到圖片（`image: '/clinic-assets/doctor-yan.webp'`），而
 // 那不是匯入，走不到上面的傳遞閉包。
 //
