@@ -27,6 +27,7 @@ Read in this order before changing a boundary or enabling a capability.
 | 8 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
 | 9 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
 | 10 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
+| 11 | [產品定位與長期方向](product/product-vision.md) | Plan-only product positioning, the roles it serves, the twelve core capabilities with what blocks each, and the current boundary that none of it may be read as built |
 
 ## 2. Decisions and approval packets
 
@@ -55,6 +56,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0004 — the browser and the server share one compiled domain, with no bundler](adr/0004-browser-and-server-share-one-compiled-domain.md)
 - [ADR-0005 — patient intake/verification and appointment commands are separate](adr/0005-patient-intake-and-appointment-command-are-separate.md)
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
+- [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
+- [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — plan-only; blocked by D-009/D-016 and requires a new ADR to supersede ADR-0002. Data model, inbound review queue, syncToken/410 rebuild, webhook renewal, conflict handling and the minimum-field privacy rule
 - [API v1 contract baseline](architecture/api-v1-contract.md) — navigation layer for the schemas in `packages/contracts`
 - [Local Firestore baseline](architecture/firestore-local-baseline.md) — Emulator-only project and Rules baseline
 - [Synthetic Web modular architecture](architecture/synthetic-web-modular-architecture.md) — browser module boundaries and how they are later replaced by the real API
@@ -76,6 +79,9 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Boutique Clinical Command (2026-07-25)](design/boutique-clinical-command-2026-07-25.md) — the approved visual direction, the six-stage sequence, what is done, and the rules a new implementer must follow
 - [Clinic website and booking integration (2026-07-27)](design/clinic-site-integration-2026-07-27.md) — clinic/doctor/nasal-function route scope, visual bridge to `/booking`, medical-content boundary and implementation structure
 - [介面規則書 (UI/UX rules)](design/ui-ux-rules.md) — **binding** rules on buttons versus links, clickable affordance, target size, label wrapping and when layouts may stack, each with its authority and the test that enforces it
+- [App Shell 與日程工作區重構規劃](design/ui-shell-and-scheduling-redesign-plan.md) — plan-only P1/P2 design: the global shell, navigation grouping that keeps visit types as event filters rather than top-level items, the scheduling workspace, event-type versus status tokens, and the five-step reversible page migration
+- [行動版 UX 規劃](design/mobile-ux-plan.md) — plan-only drawer navigation, day-list default, table-to-card rules, full-screen sheets and the six-viewport acceptance matrix
+- [測試策略](architecture/test-strategy.md) — the ten test layers with what does and does not exist, the six E2E groups and how they differ from the eight-group target, role direct-URL tests, and why automated axe never replaces the manual pass
 - [2026-07-28 UI visual baseline](reviews/ui-visual-baseline-2026-07-28.md) — current Stage/gate statement plus ten reproducible desktop/mobile reference captures and their manifest; reference evidence, not a cross-OS pixel gate
 - [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) — work packages, decision gates, suggested sequence, acceptance criteria and rescoring checkpoints
 - [Web and supply-chain quality gates (2026-07-24)](architecture/web-quality-gates-2026-07-24.md) — which gate enforces what, the performance budget, the CycloneDX SBOM and licence policy, and the SAST layers

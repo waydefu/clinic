@@ -35,6 +35,41 @@ and what is blocked. The
 puts the remaining repository, C0, D-series and C1～C6 approvals in one
 plain-language sequence.
 
+## Product capability roadmap — 2026-08-04
+
+The [P0～P7 product roadmap](docs/roadmap.md#產品能力-roadmapp0p7) records what the
+product is meant to become, on an axis separate from the Stage 0～6 governance
+track. Stage answers *what blocks this*; P answers *what gets built*. The two
+are orthogonal and their numbers must not be mixed — this repository already
+carries Phase 0/1, Stage 0～6, C0～C6 and Expansion S.
+
+**Two of the eight product phases can proceed today**; the other six are held by
+pending owner decisions rather than by engineering capacity.
+
+| | Phase | Blocked by |
+| --- | --- | --- |
+| ✅ | P0 role convergence and inventory | nothing — D-006 was approved 2026-07-28 |
+| ✅ | P1 App Shell and design tokens | nothing (front-end only) |
+| ⚠️ | P2 scheduling workspace | D-004 |
+| ❌ | P3 bidirectional Calendar sync | D-009, D-016, and a new ADR superseding ADR-0002 |
+| ❌ | P4 surgery and clinical resources | D-014, D-015 |
+| ❌ | P5 patient portal rebuild | D-001～D-003, D-005, D-011 |
+| ❌ | P6 multi-branch operations | needs a decision that does not exist yet |
+| ❌ | P7 LINE LIFF, PWA and apps | D-011 plus new decisions |
+
+Supporting plan-only documents:
+[product positioning](docs/product/product-vision.md),
+[RBAC matrix](docs/architecture/rbac-matrix.md),
+[App Shell and scheduling redesign](docs/design/ui-shell-and-scheduling-redesign-plan.md),
+[mobile UX](docs/design/mobile-ux-plan.md),
+[bidirectional Calendar sync](docs/architecture/calendar-bidirectional-sync-plan.md)
+and the [test strategy](docs/architecture/test-strategy.md).
+
+None of them changes the current Stage, closes a decision, authorises a route or
+permits real data. The product positioning is deliberately recorded as a nasal
+functional and sleep-breathing clinic rather than a medical-aesthetic one, which
+matches the content boundary the clinic site and its tests already enforce.
+
 The active technical baseline is the
 [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
 plus the
