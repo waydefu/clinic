@@ -412,8 +412,147 @@ Expansion S（獨立）：手術／臨床／付款／Calendar inbound
 技術項目與核准流程可以並行：技術面先把可靠性做完，診所同時走決策程序。等核准
 下來時，剩下的只是接線，而不是從頭建。
 
+## 產品能力 Roadmap（P0～P7）
+
+**新增 2026-08-04。狀態：plan-only。**
+
+本節是**產品能力**的分階段規劃，回答「要做出什麼」。它與上方的 Stage 0～6 是
+**兩個不同的軸**：Stage 是治理與部署權限的軸，回答「被什麼擋住」。兩者正交，
+不可互相取代，也不可混用編號。
+
+> **編號警告。** 這個 repository 已經有 Phase 0／1、Stage 0～6、C0～C6、Expansion S
+> 四套編號。產品階段一律使用 **P0～P7** 前綴，**不得**簡稱為「Phase 3」——那會與
+> 既有的 Phase 1 混淆。
+
+### 對照表
+
+| 產品階段 | 內容 | 對應治理 Stage | 阻擋決策 | 現在能做嗎 |
+| --- | --- | --- | --- | --- |
+| **P0** | 現況盤點與角色收斂 | Stage 1（現在） | 無 | ✅ **可以** |
+| **P1** | App Shell 與 Design System 擴充 | Stage 1 | 無 | ✅ **可以** |
+| **P2** | 日程管理工作區 | Stage 1→2 | D-004（slot／capacity） | ⚠️ 部分 |
+| **P3** | Google Calendar 雙向同步 | Stage 3＋Expansion S | D-009、D-016、須取代 ADR-0002 | ❌ |
+| **P4** | 手術與醫療資源管理 | Expansion S | D-014、D-015 | ❌ |
+| **P5** | 患者端重構 | Stage 4 | D-001～D-003、D-005、D-011 | ❌ |
+| **P6** | 多分院與進階營運 | 新 | 需新決策（尚未編號） | ❌ |
+| **P7** | 全通路與 App | 新 | D-011＋新決策 | ❌ |
+
+**八個階段中只有兩個現在能動。** 其餘六個卡在尚未核准的決策，不是卡在工程排期。
+這張表的價值在於讓「為什麼還沒開始」有一個具名的答案。
+
+### Now／Next／Later
+
+```text
+Now    P0 角色收斂 ＋ 現況盤點文件化
+       P1 App Shell 與 Design Token 擴充（純前端，不碰資料流）
+
+Next   P2 日程管理工作區（需 D-004 才能定案 slot 規則）
+       P5 患者端 Shell 分離（結構可先做，資料流受 D-001～D-003 擋）
+
+Later  P3 日曆雙向同步   ← D-009、D-016、ADR-0006
+       P4 手術與資源     ← D-014、D-015
+       P6 多分院         ← 需新決策
+       P7 LIFF／App／FCM ← D-011＋新決策
+```
+
+---
+
+### P0 — 現況盤點與角色收斂
+
+| 項目 | 內容 |
+| --- | --- |
+| **目標** | 讓文件與實作一致，並把三套互不相容的角色定義收斂成一套 |
+| **範圍** | 角色收斂、頁面地圖、RBAC 矩陣、Firestore／Functions／同步流程盤點、行動版與無障礙阻擋問題 |
+| **非範圍** | 不新增功能、不改 `packages/domain` 的預約規則、不建立任何雲端資源 |
+| **依賴** | 無。D-006 已於 2026-07-28 核准，角色收斂不需等新決策 |
+| **技術方案** | `packages/contracts` 匯出唯一 `Role` 型別；瀏覽器與伺服器都從它匯入；`check:architecture` 新增守衛禁止自行宣告角色字面值 |
+| **需修改模組** | `packages/contracts`、`apps/api/src/platform/authorization/rbac.ts`、`apps/web/public/modules/permissions.js`、`scripts/check-architecture.mjs` |
+| **資料模型變更** | 無（角色目前不持久化） |
+| **migration** | 瀏覽器 `admin` → `manager` 需要一次狀態遷移；`loadState` 已有「無法解析的 session 直接捨棄」的既有行為可沿用 |
+| **測試** | 五個角色各一組直連 URL 測試，納入 `e2e-auth-rbac` |
+| **驗收** | 見 [角色權限矩陣](architecture/rbac-matrix.md) §6 六項 |
+| **回滾** | 角色型別與守衛皆為新增，`git revert` 即可；無資料遷移不可逆 |
+| **風險** | 中。§7 有四個未解問題，回答前對應權限列不得實作 |
+| **完成定義** | 所有必要 CI 綠燈、五角色交叉測試通過、`rbac-matrix.md` 的未解問題已送交負責人 |
+
+**可執行的小任務：**
+
+1. `packages/contracts` 新增 `Role` 與 `Permission` 型別，含五個營運角色與三個系統角色。
+2. `rbac.ts` 改為從 contracts 匯入，移除本地 `CandidateRole` 宣告。
+3. `permissions.js` 改為從編譯後的 vendor 匯入同一份型別；`admin` 更名 `manager`。
+4. 新增 `consultant`、`physician` 兩個角色的空權限集合（先不授予任何權限）。
+5. `check-architecture.mjs` 新增守衛：禁止角色字串字面值出現在 contracts 以外。
+6. 撰寫五角色 × 各工作區的直連 URL 測試。
+7. 產出頁面地圖與 Firestore／Functions 盤點（文件，非程式）。
+8. 修正行動版剩餘的底部異常留白與水平 overflow。
+9. 把 `rbac-matrix.md` §7 的四個問題整理成負責人問卷。
+
+**不在 P0：** `read_payment`、`read_clinical_record` 等受 D-014／D-015 阻擋的權限，
+只在型別中宣告，不接線、不授予、`unrouted-inventory.json` 須登記對應 blocker。
+
+---
+
+### P1 — App Shell 與 Design System 擴充
+
+| 項目 | 內容 |
+| --- | --- |
+| **目標** | 統一整站框架與視覺語言，不改動核心資料流程 |
+| **範圍** | AppShell、側邊導覽、手機抽屜、全域搜尋位置、分院切換位置、同步狀態列、通知中心、事件類型與狀態 token |
+| **非範圍** | 不重做 Boutique Clinical Command 已完成的六階段；不新增 Button／Input／Table 等既有元件 |
+| **依賴** | P0 的角色收斂（導覽項需宣告 permission） |
+| **技術方案** | 新 Shell 與舊 header 以建置開關並存；新樣式全部加前綴命名空間 |
+| **需修改模組** | `apps/web/public/modules/workspace-tabs.js`、`styles.css`、`workbench.css`、`scripts/check-web-ui.mjs`、`scripts/check-design-tokens.mjs` |
+| **資料模型變更** | 無 |
+| **migration** | 五步漸進，見 [App Shell 規劃](design/ui-shell-and-scheduling-redesign-plan.md) §7。每一步可獨立回滾 |
+| **測試** | `e2e-ui`、`e2e-mobile`、`e2e-accessibility` 三組；視覺基線比對 |
+| **驗收** | 見 App Shell 規劃 §8 八項 |
+| **回滾** | 建置開關切回舊 Shell；舊 Shell 在全部頁面遷移完成前不移除 |
+| **風險** | 中。Shell 並存期間兩套樣式互相污染——以命名空間前綴與 `check:ui` 守衛緩解 |
+| **完成定義** | 所有主要頁面套用同一 Shell、320px 無雙向捲動、可切回舊版 |
+
+**可執行的小任務：**
+
+1. 擴充 design tokens：事件類型四色、狀態七色、Drawer／Sheet 規格、表格密度。
+2. `check:tokens` 新增守衛：事件類型色不得用於狀態元件，反之亦然。
+3. 建立 AppShell 骨架（header ＋ 側邊導覽），置於建置開關後方。
+4. 側邊導覽項宣告所需 permission，未授權不顯示。
+5. 加上 router guard：直連未授權工作區的 URL 被擋下。
+6. 手機抽屜導覽（焦點鎖定、`Escape` 關閉、遮罩不殘留）。
+7. SyncStatusBadge 元件（文字＋圖示，不只顏色）。
+8. 「今日工作臺」單頁試點切到新 Shell。
+9. 視覺基線重新擷取並比對。
+
+---
+
+### P2～P7 概要
+
+以下六個階段全部受決策阻擋，**目前只做規劃**。完整的目標／範圍／非範圍／依賴／
+技術方案／資料模型／migration／測試／驗收／回滾／風險，於對應決策核准後、進入該
+階段前補齊；提前寫死會在決策答案出來時全部作廢。
+
+| 階段 | 目標 | 關鍵資料模型變更 | 回滾策略 | 主要風險 |
+| --- | --- | --- | --- | --- |
+| **P2** 日程工作區 | 日曆成為主要營運工作區 | 無新增；篩選狀態進 URL | 新頁面與既有週曆並存，可直接下架 | 與既有週曆邏輯分歧 → 共用 `schedule-engine.js` |
+| **P3** 日曆雙向同步 | 系統與 Google 雙向一致 | 同步狀態子文件（十個欄位） | 關閉 inbound 即回到單向投影，營運資料不受影響 | **日曆共用者誤改造成預約異動** → inbound 一律待審 |
+| **P4** 手術與資源 | 手術、麻醉與資源排程 | 手術、資源、麻醉、款項（受 D-014／D-015） | 功能開關；取消不刪資料 | 臨床資料的 accountable owner 未定（D-014） |
+| **P5** 患者端重構 | 獨立 Patient Shell | 無 | 建置開關 | 與工作臺共用樣式導致內部欄位外洩 |
+| **P6** 多分院 | 多分院與跨分院排程 | **分院維度須進入既有全部集合** | 極難回滾 → 必須一次設計對 | 資料模型變更影響面最大 |
+| **P7** 全通路與 App | LIFF、PWA、App、FCM | 無（共用既有 API） | 通路各自可下架 | 各通路的權限模型必須共用 §RBAC，不可各自實作 |
+
+**P6 的警告值得單獨強調：** 加入分院維度會影響既有的每一個集合與每一條查詢。它是
+八個階段中唯一難以漸進回滾的，因此**不得在「先做個簡單版本」的心態下開始**。目前
+連「分院」的決策編號都還沒有，寫 schema 是猜。
+
+---
+
 ## 相關文件
 
+- [產品定位與長期方向](product/product-vision.md) — 2026-08-04 產品定位與核心能力盤點
+- [角色權限矩陣](architecture/rbac-matrix.md) — 三套角色定義的收斂提案與六個實施位置
+- [App Shell 與日程工作區重構規劃](design/ui-shell-and-scheduling-redesign-plan.md) — P1／P2 設計
+- [行動版 UX 規劃](design/mobile-ux-plan.md) — 導覽、卡片化與 viewport 驗收
+- [日曆雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — P3，須先取代 ADR-0002
+- [測試策略](architecture/test-strategy.md) — 十個測試層級與 E2E 分組
 - [企業級上線前審查](reviews/2026-07-23-enterprise-production-readiness-review.md) — 2026-07-23 的歷史評分、當時阻擋項與驗證證據
 - [正式環境目標架構](architecture/production-target-architecture-2026-07-23.md) — 保留與修改邊界、目標資料流、交易與資料模型
 - [正式化後續實作規劃](product/production-readiness-delivery-plan-2026-07-23.md) — Stage 0～6、決策 gate、驗收與重新評分點
