@@ -73,10 +73,35 @@ jobs:
       # 不會接觸任何雲端 Firebase 專案，也不需要任何憑證。
       - run: pnpm test:rules
 
+  # E2E 依「壞掉的時候你會想找誰」拆成數組平行執行，PR 上因此看到的是
+  # `e2e-auth-rbac`、`e2e-mobile` 這種名字，而不是一個要等二十分鐘才知道
+  # 是什麼壞掉的 `e2e`。
+  #
+  # 兩個組態決定了這次拆分有沒有意義，改動前請先讀懂：
+  #
+  # `fail-fast: false` — 預設的 true 會在第一組失敗時取消其餘各組，於是又回到
+  # 「只知道有東西壞了」的狀態。拆開的唯一理由就是要一次看完所有組的結果。
+  #
+  # artifact 名稱帶上組名 — upload-artifact v4 不允許同名 artifact，六組共用
+  # `playwright-report` 會讓後完成的組上傳失敗。
+  #
+  # 哪些 spec 屬於哪一組定義在 scripts/e2e-groups.mjs，不在這裡；`pnpm verify`
+  # 的 check:e2e-groups 會驗證下面這串組名與那份清單一致，且沒有任何 spec 沒被
+  # 分到組。少跑的測試看起來和通過一模一樣，所以那個 gate 是這次拆分的前提。
   e2e:
-    name: Playwright E2E 與 axe 無障礙（跑在打包產物上）
+    name: e2e-${{ matrix.group }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - auth-rbac
+          - appointments
+          - patient-portal
+          - mobile
+          - accessibility
+          - ui
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -94,12 +119,15 @@ jobs:
 
       # playwright.config 的 webServer 會先 build（含 content-hash 的 dist）再
       # 以 WEB_ROOT=dist 啟動 server.mjs，因此 E2E 跑的是實際會部署的產物。
-      - run: pnpm test:e2e
+      # 每一組都是獨立的 runner，所以各自 build 一次；這是換取「知道是哪一組壞掉」
+      # 的代價。
+      - name: Playwright E2E（${{ matrix.group }}）
+        run: pnpm test:e2e $(node scripts/e2e-groups.mjs --files ${{ matrix.group }})
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.group }}
           path: playwright-report/
           if-no-files-found: ignore
           retention-days: 7
@@ -137,6 +165,10 @@ jobs:
   evidence:
     name: Verification evidence
     if: ${{ always() }}
+    # `e2e` 是 matrix job，`needs.e2e.result` 會**彙總**全部組別：任何一組不是
+    # success，這裡拿到的就不是 success。因此拆分不影響證據的判斷，required job
+    # 清單維持四項，branch protection 也仍然只綁 `Verification evidence` 這一個
+    # check。要看是哪一組壞掉，看 PR 上的 `e2e-<group>`。
     needs: [verify, rules, e2e, supply-chain]
     runs-on: ubuntu-latest
     timeout-minutes: 5
