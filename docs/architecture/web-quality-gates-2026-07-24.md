@@ -261,31 +261,34 @@ CLI／MCP 載入、Pub/Sub＋OpenTelemetry propagator 與 Hono public API smoke 
 ignore 洗到失效；維持單一 high 則相反——**出貨程式**多一筆 moderate 也不會有人
 發現。分層之後，「哪一種漏洞會擋下發布」是寫在指令裡、可被檢驗的決定。
 
-現況：`audit:prod` 與 `audit:all` 除下面那筆具名 high 例外外均無 advisory；原本
-三筆 moderate 已不再出現在本批次 lockfile 的 audit 結果。Dependabot 是看 default
-branch，因此 PR 分支上的修補要等 merge 並重新分析後才會關閉 alert；不得把「已
-準備修補」寫成「GitHub alert 已關閉」。
+現況（2026-08-04 更新）：`audit:prod` 無任何 advisory；`audit:all` 剩 5 筆 moderate，
+全在 high 門檻之下，且**沒有任何 audit 例外**。Dependabot 是看 default branch，
+因此 PR 分支上的修補要等 merge 並重新分析後才會關閉 alert；不得把「已準備修補」
+寫成「GitHub alert 已關閉」。
 
 修補一律寫進版控（`pnpm-workspace.yaml` 的 `overrides`），不靠「本機剛好裝到新版」：
 
 | 套件 | 問題 | 處置 |
 | --- | --- | --- |
 | `find-my-way` ≤9.6.0 | HTTP/2 DDoS。路徑 `apps/api > @nestjs/platform-fastify > fastify` | override 到 `^9.6.1`（實際解析為 9.7.0） |
-| `brace-expansion` ≤5.0.7 | 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg） | 5.x 那條線 override 到 `^5.0.8` |
+| `brace-expansion` ≤5.0.7 | 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg） | 5.x 那條線 override 到 `^5.0.8`，2026-08-04 因下一列的續修提高到 `^5.0.9` |
+| `brace-expansion` <5.0.9 | 以不受限的中間陣列繞過 CVE-2026-14257 的緩解（GHSA-rgw5-rvv9-x895）。dev-only，路徑 `eslint > minimatch` | `^5` 那條線提高到 `^5.0.9`；1.x／2.x 不在此 advisory 範圍 |
+| `fast-uri` <3.1.5 與 <4.1.2 | backslash authority introducer 造成 host confusion（GHSA-7p8r-x3mc-p8w7）。**出貨面**，路徑 `apps/api > @nestjs/platform-fastify > fastify` | **兩個 major 同時中且樹上都在**，逐 major 鎖到 `^3.1.5` 與 `^4.1.2` |
+| `undici` ≥8.0.0 <8.9.0 | degenerate private cache directive 造成跨使用者資訊洩漏與 parse-time crash（GHSA-4cwx-7wf7-3272）。dev-only Firebase CLI 路徑 | 鎖 `^8` 那條線到 `^8.9.0`；樹上的 `undici@6` 不在範圍內 |
+| `ip-address` ≤10.3.0 | 前導零位元組被當十進位解析、resolver 當八進位，造成 SSRF 與信任邊界繞過（GHSA-mwp4-54f8-5fhr）。dev-only Firebase CLI 路徑 | 鎖 `^10` 那條線到 `^10.3.1`（實際解析為 10.4.0） |
 | `tar` ≤7.5.20 | crafted archive member selection 可觸發 stack overflow；dev-only Firebase CLI 路徑 | 既有 7.x range 精確鎖到 `7.5.22` |
 | `@hono/node-server` <2.0.5 | Windows encoded-backslash path traversal；dev-only MCP SDK 路徑 | MCP SDK 升到 `1.30.0` 並精確鎖 `2.0.12` |
 | `@opentelemetry/core` <2.8.0 | W3C baggage propagation 可造成不受限記憶體配置；dev-only Pub/Sub 路徑 | 精確鎖 `2.8.0`；保留 cross-major removal condition |
 
-**一筆已審視的例外**（`auditConfig.ignoreGhsas`）：同一個 GHSA 仍會標記
-`brace-expansion@1.1.16` 與 `2.1.2`，但那兩個**已經是各自 major 上最新的維護版**
-（dist-tag `maintenance-v1`／`maintenance-v2`）；advisory 的 patched 只寫
-`>=5.0.8`，於是每一個較舊的 major 都被算進去，即使那條線根本沒有別的版本可升。
-硬鎖到 5.x 會直接壞掉：`minimatch@3` 要 `^1`、`minimatch@5`／`6` 要 `^2`。殘留路徑
-是 `firebase-admin > … > glob > minimatch`（apps/api 目前未部署）與
-`firebase-tools > minimatch`（CLI，不出貨），而攻擊面是「把攻擊者控制的 glob 字串
-丟進去展開」——這兩條路徑都不會。**解除條件寫在 `pnpm-workspace.yaml` 的註解裡。**
+**目前沒有任何 audit 例外**（`auditConfig.ignoreGhsas` 為空）。上面那段文字在
+2026-08-04 之前描述了一筆 `brace-expansion` 的具名例外為現行狀態，但那筆例外在
+2026-08-01 就已經被移除——advisory 於 2026-07-31T19:37Z 修訂後補上了各 major 的
+patched 版本，解除條件成立，於是它被修掉而不是被續期。**例外的正確結局是被移除，
+不是被延長。** 完整脈絡保留在 `pnpm-workspace.yaml` 的註解裡。
 
-`pnpm audit` 會把它算成 `1 ignored` 印出來，所以這個例外不會安靜地爛掉。
+要新增例外時，`scripts/check-audit-exceptions.mjs` 會強制它帶核准編號、核准狀態與
+`YYYY-MM-DD` 到期日，並在到期後讓 gate 變紅。`pnpm audit` 也會把被忽略的筆數印成
+`N ignored`，所以例外不會安靜地爛掉。
 
 **上線證據包必須附一次沒有任何 ignore 的完整 audit 輸出**，並逐筆說明當時的狀態。
 

@@ -34,16 +34,47 @@ allowBuilds:
 #                  所有路徑原本就接受 7.x patch，精確鎖到目前修補版 7.5.22。
 #   @hono/node-server <2.0.5 Windows encoded-backslash path traversal
 #                  先帶入已正式放寬 v2 range 的 MCP SDK 1.30.0，再鎖 Hono 2.0.12。
+#   fast-uri       host confusion via backslash authority introducer
+#                  （GHSA-7p8r-x3mc-p8w7，high）
+#                  路徑：apps/api > @nestjs/platform-fastify > fastify >
+#                  @fastify/ajv-compiler > (ajv) > fast-uri，**出貨面**。
+#                  2026-08-04 新發布。**兩個 major 同時中**，而且樹上兩個都在：
+#                  3.1.4（@fastify/ajv-compiler ^3.0.0、ajv ^3.0.1）與
+#                  4.1.1（fast-json-stringify ^4.0.0）。advisory 分別列出
+#                  >=3.0.0 <3.1.5 → 3.1.5 與 >=4.0.0 <4.1.2 → 4.1.2，因此比照
+#                  brace-expansion 逐 major 鎖定。不可用無範圍的 `fast-uri: ^3.1.5`
+#                  ——那會把 fast-json-stringify 需要的 4.x 降級成 3.x。
+#                  兩筆都是同 major 內的 patch，且都落在父套件宣告的 range 內。
+#
+# 以下三筆是 2026-08-04 修掉 fast-uri 之後才浮現的：`check:supply-chain` 依序跑
+# audit:prod 再跑 audit:all，出貨面先失敗時 audit:all 根本沒機會執行，所以這三筆
+# dev 鏈的 high 一直被遮住。全部只經由 firebase-tools（CLI）與 eslint，不出貨。
+#
+#   undici         >=8.0.0 <8.9.0  degenerate private cache directive 造成跨使用者
+#                  資訊洩漏與 parse-time crash（GHSA-4cwx-7wf7-3272）
+#                  路徑：firebase-tools > superstatic > re2 > node-gyp > undici
+#                  樹上另有 undici@6.27.0，不在漏洞範圍，因此鎖 ^8 那一條線。
+#   ip-address     <=10.3.0  Address4 把前導零位元組當十進位解析，但 resolver 當
+#                  八進位，造成 SSRF 與信任邊界繞過（GHSA-mwp4-54f8-5fhr）
+#                  路徑：firebase-tools > @modelcontextprotocol/sdk >
+#                  express-rate-limit > ip-address，以及 > proxy-agent > socks
+#   brace-expansion >=4.0.0 <5.0.9  以不受限的中間陣列繞過 CVE-2026-14257 的緩解
+#                  （GHSA-rgw5-rvv9-x895）。**這是既有 ^5 override 的續修**——
+#                  原本鎖 ^5.0.8 已不足，改鎖 ^5.0.9。1.x／2.x 不在此次範圍內。
 overrides:
   find-my-way: '^9.6.1'
   brace-expansion@^1: '^1.1.17'
   brace-expansion@^2: '^2.1.3'
-  brace-expansion@^5: '^5.0.8'
+  brace-expansion@^5: '^5.0.9'
   uuid: '>=11.1.1'
   '@opentelemetry/core': '2.8.0'
   tar@^7: '7.5.22'
   '@modelcontextprotocol/sdk': '1.30.0'
   '@hono/node-server': '2.0.12'
+  fast-uri@^3: '^3.1.5'
+  fast-uri@^4: '^4.1.2'
+  undici@^8: '^8.9.0'
+  ip-address@^10: '^10.3.1'
 
 # 2026-08-01：本檔曾經有一筆 `auditConfig.ignoreGhsas` 例外
 # （GHSA-mh99-v99m-4gvg，SEC-03）。當時的解除條件寫的是「1.x／2.x 出現修補版」，
