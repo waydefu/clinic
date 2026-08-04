@@ -110,6 +110,17 @@ D-006 已核准。
 - artifact 名稱帶組名——upload-artifact v4 不接受同名 artifact，六組共用
   `playwright-report` 會讓後完成的組上傳失敗。
 
+### 2.7 所有釘住的 action 都以已棄用的 Node.js 20 為目標（未修）
+
+合併後在 `main` 的 CI log 看到，每個 job 都印出：`actions/checkout`、
+`actions/setup-node`、`actions/upload-artifact` 與 `pnpm/action-setup` 都 target
+Node.js 20，正被強制跑在 Node.js 24 上。
+
+目前是警告不是失敗。但 `verify.yml` 刻意以 **commit SHA** 釘版（理由見該檔頂端的
+註解區塊），所以當 GitHub 移除這層相容性時，這些釘住的 SHA 會**同時**讓所有
+workflow 失效。更新時必須依該註解的程序：改 SHA 並同步旁邊的版本註記，且
+annotated tag（`pnpm/action-setup`、`github/codeql-action`）要解參考到 commit。
+
 ---
 
 ## 3. 刻意不做的事
@@ -144,11 +155,15 @@ JVM 無法解析含中文的路徑，以 `subst` 對應磁碟機代號後執行�
 
 ## 5. 限制與未完成
 
-1. **#10 與 #8 已合併；本文件所在的 #9 於撰寫時尚未合併。** 實際合併順序為
-   #10（merge commit `9e573d5`）→ #8（`3acf80c`）→ #9。#8 與 #9 在 #10 合併前
-   都會因 supply-chain 而紅，#8 是 rebase 到含修補的 `main` 之後才轉綠，並在該
-   狀態下由 `Verification evidence` 通過。#9 的驗證證據來自其 PR 分支（已 rebase
-   到 `3acf80c`），不代表合併後 `main` 的狀態。
+1. **三個 PR 均已合併並在 `main` 上驗證通過。** 合併順序為 #10（merge commit
+   `9e573d5`）→ #8（`3acf80c`）→ #9（`166eff1`）。#8 與 #9 在 #10 合併前都會因
+   supply-chain 而紅，兩者都是 rebase 到含修補的 `main` 之後才轉綠。
+
+   本節原本記錄「證據來自 PR 分支，不代表合併後 `main` 的狀態」。該缺口已補上：
+   `main` 在 `3acf80c` 與 `166eff1` 兩次 `verify` workflow 皆為 **success**
+   （run `30888297937`、`30888703194`），六個 `e2e-*` 分組與
+   `Verification evidence` 全數通過。這段補記本身是在合併後才寫的，因此另立
+   PR，不改動上面各節在當日的敘述。
 2. **CodeQL 已於 2026-08-01 被 Semgrep 取代**，任何提到「修正 CodeQL 問題」的
    規劃都是基於過期資訊。
 3. **人工無障礙實測仍從未執行。** runbook 備妥但沒有人跑過；自動 axe 成功不等於
