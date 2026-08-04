@@ -18,6 +18,7 @@
     "check:pages": "node scripts/check-public-pages.mjs",
     "check:capture-config": "tsc --noEmit --skipLibCheck --module ESNext --moduleResolution Bundler --target ES2022 --types node playwright.screenshots.config.ts",
     "check:docs": "node scripts/check-docs-links.mjs",
+    "check:e2e-groups": "node scripts/e2e-groups.mjs",
     "check:perf": "node scripts/check-performance-budget.mjs",
     "check:tokens": "node scripts/check-design-tokens.mjs",
     "build:brand": "node scripts/build-brand-assets.mjs",
@@ -39,7 +40,7 @@
     "test:e2e": "playwright test",
     "capture:ui": "playwright test --config=playwright.screenshots.config.ts",
     "serve:dist": "node apps/web/server.mjs",
-    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:architecture && corepack pnpm run check:ui && corepack pnpm run check:pages && corepack pnpm run check:tokens && corepack pnpm run check:docs && corepack pnpm run check:secrets && corepack pnpm run check:format && corepack pnpm run check:capture-config && corepack pnpm run check:types && corepack pnpm run check:lint && corepack pnpm run check:sync && corepack pnpm run check:perf && corepack pnpm run test:unit",
+    "verify": "node scripts/check-structure.mjs && corepack pnpm run check:architecture && corepack pnpm run check:ui && corepack pnpm run check:pages && corepack pnpm run check:tokens && corepack pnpm run check:docs && corepack pnpm run check:e2e-groups && corepack pnpm run check:secrets && corepack pnpm run check:format && corepack pnpm run check:capture-config && corepack pnpm run check:types && corepack pnpm run check:lint && corepack pnpm run check:sync && corepack pnpm run check:perf && corepack pnpm run test:unit",
     "check:lint": "eslint ."
   },
   "devDependencies": {
