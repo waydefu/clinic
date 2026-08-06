@@ -124,6 +124,11 @@
   --clinic-text-xl: 1.728rem;
   --clinic-text-2xl: 2.074rem;
   --clinic-text-3xl: 2.488rem;
+  /* 官網比工作臺多兩階。行銷門面有 hero 大標，而共用尺度停在 3xl（39.8px）
+     是因為工作臺最大的字就是頁面標題——把 hero 壓到 39.8px 不是收斂尺度，
+     是重新設計。這兩階仍走同一個 1.2 比例，只是往上多走兩步。 */
+  --clinic-text-4xl: 2.986rem;
+  --clinic-text-5xl: 3.583rem;
 
   /* 語意層：右側全部指向上面已宣告的品牌原色，不新增顏色。
      分開命名是為了讓用處說出「這是什麼」而不是「這是哪個綠」。 */
@@ -490,7 +495,11 @@ a {
   margin: 0;
   color: var(--clinic-forest-deep);
   font-family: var(--clinic-font-serif-tc);
-  font-size: clamp(2.6rem, 4.6vw, 4rem);
+  font-size: clamp(
+    var(--clinic-text-3xl),
+    calc(var(--clinic-text-3xl) * 0.5 + 4.6vw),
+    var(--clinic-text-5xl)
+  );
   font-weight: var(--clinic-weight-medium);
   letter-spacing: var(--clinic-tracking-heading);
   line-height: 1.28;
@@ -500,7 +509,11 @@ a {
   max-width: 36rem;
   margin: 1.4rem 0 0;
   color: var(--clinic-muted);
-  font-size: clamp(1rem, 1.6vw, 1.12rem);
+  font-size: clamp(
+    var(--clinic-text-body),
+    calc(var(--clinic-text-body) * 0.5 + 1.6vw),
+    var(--clinic-text-md)
+  );
 }
 
 /* 兩顆 CTA 在放得下時並排，放不下就換列——不是壓縮。
@@ -609,7 +622,11 @@ a {
 .clinic-home-hero__orb strong {
   margin: 0.5rem 0;
   font-family: var(--clinic-font-serif-tc);
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-size: clamp(
+    var(--clinic-text-xl),
+    calc(var(--clinic-text-xl) * 0.5 + 4vw),
+    var(--clinic-text-4xl)
+  );
   font-weight: var(--clinic-weight-medium);
   letter-spacing: var(--clinic-tracking-label);
 }
@@ -719,7 +736,11 @@ a {
 }
 
 .clinic-section-heading h2 {
-  font-size: clamp(1.75rem, 4vw, 2.65rem);
+  font-size: clamp(
+    var(--clinic-text-xl),
+    calc(var(--clinic-text-xl) * 0.5 + 4vw),
+    var(--clinic-text-3xl)
+  );
 }
 
 .clinic-section-heading > p:last-child {
@@ -938,7 +959,11 @@ a {
 .clinic-page-hero h1,
 .clinic-service-hero h1,
 .clinic-doctor-profile h1 {
-  font-size: clamp(2.1rem, 5vw, 3.8rem);
+  font-size: clamp(
+    var(--clinic-text-2xl),
+    calc(var(--clinic-text-2xl) * 0.5 + 5vw),
+    var(--clinic-text-5xl)
+  );
 }
 
 .clinic-page-hero__inner > div > p:last-child {
@@ -1031,7 +1056,11 @@ a {
   margin: 0 0 1rem;
   color: var(--clinic-forest-deep);
   font-family: var(--clinic-font-serif-tc);
-  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-size: clamp(
+    var(--clinic-text-lg),
+    calc(var(--clinic-text-lg) * 0.5 + 3vw),
+    var(--clinic-text-xl)
+  );
 }
 
 .clinic-pill-list {
@@ -1096,7 +1125,11 @@ a {
 .clinic-service-hero__subtitle {
   margin: 0.65rem 0 1.15rem;
   color: var(--clinic-green);
-  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+  font-size: clamp(
+    var(--clinic-text-body),
+    calc(var(--clinic-text-body) * 0.5 + 2.2vw),
+    var(--clinic-text-md)
+  );
   font-weight: var(--clinic-weight-bold);
 }
 
@@ -1198,7 +1231,11 @@ a {
 
 .clinic-cta h2 {
   color: var(--clinic-white);
-  font-size: clamp(1.65rem, 3.5vw, 2.45rem);
+  font-size: clamp(
+    var(--clinic-text-xl),
+    calc(var(--clinic-text-xl) * 0.5 + 3.5vw),
+    var(--clinic-text-3xl)
+  );
 }
 
 .clinic-cta .clinic-eyebrow {
@@ -1317,7 +1354,11 @@ a {
 .clinic-noscript h1 {
   color: var(--clinic-forest-deep);
   font-family: var(--clinic-font-serif-tc);
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(
+    var(--clinic-text-2xl),
+    calc(var(--clinic-text-2xl) * 0.5 + 5vw),
+    var(--clinic-text-4xl)
+  );
 }
 
 .clinic-not-found p {

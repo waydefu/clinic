@@ -3,6 +3,8 @@ import {
   definedTokens,
   outsideRootBlocks,
   planTokenReview,
+  reviewFontSizeClamp,
+  splitArguments,
   usedTokens,
   withoutComments
 } from './check-design-tokens.mjs';
@@ -228,5 +230,68 @@ describe('token review', () => {
 
     expect(defined.has('--global')).toBe(true);
     expect(defined.has('--scoped')).toBe(false);
+  });
+
+  // 引數要按括號深度切，不能 `split(',')`——目標寫法本身就有巢狀 `calc()`。
+  it('splits function arguments by paren depth, not by comma', () => {
+    expect(splitArguments('var(--a), calc(var(--b) + 2vw), var(--c)')).toEqual([
+      'var(--a)',
+      'calc(var(--b) + 2vw)',
+      'var(--c)'
+    ]);
+
+    // 帶 fallback 的 var() 裡也有逗號。
+    expect(splitArguments('var(--a, 1rem), 2vw')).toEqual([
+      'var(--a, 1rem)',
+      '2vw'
+    ]);
+  });
+
+  describe('流體字級', () => {
+    // 先前只要包進 clamp() 就整條免檢，於是官網 18 個端點只有 1 個在尺度上，
+    // 而 gate 全綠。
+    it('accepts endpoints on the scale with a scalable preferred value', () => {
+      expect(
+        reviewFontSizeClamp(
+          'clamp(var(--text-2xl), calc(var(--text-2xl) * 0.5 + 2vw), var(--text-3xl))'
+        )
+      ).toBeNull();
+      // 字面值只要落在尺度上也算數。
+      expect(
+        reviewFontSizeClamp('clamp(1rem, calc(1rem + 1vw), 1.44rem)')
+      ).toBeNull();
+    });
+
+    it('rejects endpoints that are off the scale', () => {
+      expect(
+        reviewFontSizeClamp('clamp(2.6rem, calc(1rem + 4.6vw), 4rem)')
+      ).toContain('最小值');
+      expect(
+        reviewFontSizeClamp('clamp(var(--text-md), calc(1rem + 2vw), 2.65rem)')
+      ).toContain('最大值');
+    });
+
+    // W3C F94：純 viewport unit 當作主要的字級定義方式，文字可能無法隨使用者
+    // 的文字大小設定放大。要求的是「可縮放基底 ＋ 流體單位」，不是禁用 vw。
+    it('rejects a preferred value made only of viewport units', () => {
+      expect(
+        reviewFontSizeClamp('clamp(var(--text-2xl), 4.5vw, var(--text-3xl))')
+      ).toContain('SC 1.4.4');
+    });
+
+    it('rejects px in the preferred value', () => {
+      expect(
+        reviewFontSizeClamp(
+          'clamp(var(--text-md), calc(12px + 2vw), var(--text-lg))'
+        )
+      ).toContain('px');
+    });
+
+    // 解析不出來就失敗。沉默放行正是舊規則的問題。
+    it('fails closed when it cannot parse three arguments', () => {
+      expect(reviewFontSizeClamp('clamp(var(--text-md), 2vw)')).toContain(
+        '無法判定就不放行'
+      );
+    });
   });
 });

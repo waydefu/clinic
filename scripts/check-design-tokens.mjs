@@ -56,8 +56,9 @@ const SPACING_PROPERTIES =
 // 沒有列在這裡的樣式表，上限一律是 0。
 const CEILINGS = {
   'font-size 字面值': {
-    // 官網 9 個字級 clamp() 的端點還沒對齊尺度，見 Wave 3b。
-    'clinic-site.css': 9
+    // 2026-08-06 已清零：9 個字級 clamp 的端點全部對齊尺度。留著這個 0 是為了
+    // 讓下一筆債務有地方登記，而不是又長回隱形的樣子。
+    'clinic-site.css': 0
   },
   間距字面值: {
     // 官網的間距還沒對齊 4px 網格。收斂會改變版面節奏，分批進行。
@@ -149,6 +150,81 @@ export function usedTokens(source) {
 /** 註解裡的顏色與數字是說明，不是宣告——分析前一律先拿掉。 */
 export function withoutComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+/**
+ * 依**括號深度**切開函式引數。不能用 `value.split(',')`：目標寫法本身就有
+ * 巢狀函式（`clamp(var(--a), calc(var(--b) + 2vw), var(--c))`），逗號切割會在
+ * 第一個 `calc()` 裡切錯。帶 fallback 的 `var(--x, 1rem)`、巢狀 `min()`／
+ * `max()` 也是同樣的問題。
+ */
+export function splitArguments(value) {
+  const parts = [];
+  let depth = 0;
+  let current = '';
+  for (const character of value) {
+    if (character === '(') depth += 1;
+    else if (character === ')') depth -= 1;
+    if (character === ',' && depth === 0) {
+      parts.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += character;
+  }
+  if (current.trim() !== '') parts.push(current.trim());
+  return parts;
+}
+
+/** 這個值是不是「來自字級尺度」——token 或尺度上的字面值都算。 */
+function fromTypeScale(value) {
+  if (value.includes('var(--text') || value.includes('var(--clinic-text'))
+    return true;
+  return TYPE_SCALE.has(value.trim());
+}
+
+/**
+ * 流體字級的驗證。
+ *
+ * 先前這裡是 `if (value.startsWith('clamp(')) continue;`——**只要包進 clamp()
+ * 就完全免檢**。於是官網 9 個字級 clamp 的 18 個端點只有 1 個落在尺度上，
+ * 而 gate 全綠。把 `font-size` 字面值收到零卻放行 clamp，等於留一條合法繞道。
+ *
+ * 三項各有理由：
+ *   - min／max 是使用者實際會看到的兩端，必須來自尺度；
+ *   - preferred 不得只由 viewport unit 組成。以純 `vw` 作為主要的字級定義
+ *     方式，文字可能無法隨使用者的文字大小設定放大——W3C F94 把這類不正確
+ *     使用列為 SC 1.4.4 的常見失敗情況。**這不等於「含 vw 一律失敗」**，
+ *     所以要求的是「可縮放基底 ＋ 流體單位」而不是禁用 vw；
+ *   - 解析不出來就失敗。沉默放行正是舊規則的問題。
+ *
+ * @returns {string | null} 違規說明；合格回傳 null。
+ */
+export function reviewFontSizeClamp(value) {
+  const inner = value.trim().slice('clamp('.length, -1);
+  const parts = splitArguments(inner);
+  if (parts.length !== 3)
+    return `clamp() 解析不出三個引數（${parts.length} 個）——無法判定就不放行`;
+
+  const [minimum, preferred, maximum] = parts;
+  if (!fromTypeScale(minimum))
+    return `clamp() 的最小值 \`${minimum}\` 不在字級尺度上`;
+  if (!fromTypeScale(maximum))
+    return `clamp() 的最大值 \`${maximum}\` 不在字級尺度上`;
+
+  const scalable =
+    preferred.includes('var(--text') ||
+    preferred.includes('var(--clinic-text') ||
+    /[0-9.]+r?em\b/.test(preferred);
+  const fluid = /[0-9.]+(?:vw|vh|vmin|vmax)\b/.test(preferred);
+  if (!fluid)
+    return `clamp() 的中間值 \`${preferred}\` 沒有流體單位——那就不需要 clamp`;
+  if (!scalable)
+    return `clamp() 的中間值 \`${preferred}\` 只有 viewport 單位，缺少可隨文字設定縮放的基底（SC 1.4.4）`;
+  if (/[0-9.]+px\b/.test(preferred))
+    return `clamp() 的中間值 \`${preferred}\` 用了 px——字級不接受絕對單位`;
+
+  return null;
 }
 
 /** `:root` 區塊以外的內容——寫死顏色只有在這裡才算違規。 */
@@ -328,13 +404,18 @@ export function planTokenReview(sheets) {
     }
 
     for (const match of body.matchAll(/font-size: *([^;{}]+);/g)) {
-      const value = match[1].trim();
+      const value = match[1].trim().replace(/\s+/g, ' ');
+      // 流體字級要逐項驗證，**不能整條放行**——先前只要包進 clamp() 就免檢。
+      if (value.startsWith('clamp(')) {
+        const problem = reviewFontSizeClamp(value);
+        if (problem !== null) violations.push(`${name}: ${problem}`);
+        continue;
+      }
       // `--text-*` 是共用尺度；`--clinic-text-*` 是官網自己宣告的同一套級數
       // （`clinic.html` 不載入 styles.css，所以它不能引用共用的那份，但值逐階
       // 相同）。兩者都是「字級來自尺度」，判定上等價。
       if (value.includes('var(--text') || value.includes('var(--clinic-text'))
         continue;
-      if (value.startsWith('clamp(')) continue;
       if (RELATIVE_FONT_SIZE.test(value)) continue;
       if (TYPE_SCALE.has(value)) continue;
       debt['font-size 字面值'].push(`${name}: ${value}`);
