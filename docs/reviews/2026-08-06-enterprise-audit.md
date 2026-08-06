@@ -35,12 +35,25 @@ C1～C6 全部 `pending`、六個 deployment authority 全部 `not_granted`。�
 四個 commit，全部附實跑證據：品牌圖響應式與首屏資訊（`96dabf2`）、閘門
 fail-closed（`79609e6`）、伺服器角色收斂（`79272ed`）、本報告。
 
+### 法規定性：本系統目前**不是**電子病歷系統
+
+先前未判定、也最容易誤判的一項，已於 §7.1 完成判定並附法源：醫療法 §67 的
+**病歷**指醫事人員執行業務所製作的紀錄，而掛號預約屬行政管理資訊。本系統目前
+只處理預約與到診，不產生任何臨床紀錄，故「醫療機構電子病歷製作及管理辦法」
+**現階段不適用**。
+
+**但 Expansion S（手術、麻醉、術後追蹤）一旦落地即適用**，屆時該辦法要求的
+「雲端服務資料儲存地點應設置於我國境內」會直接約束 Firebase 區域選擇——
+這必須在 D-014 核准**之前**納入架構決策，不能等功能做完再補。
+
+個資法適用，但 2025-11-11 公布的修正條文**施行日期由行政院另定，至查證日仍未公告**，
+故現行義務仍以修正前條文為準（§7.2）。
+
 ### 尚未完成（明確列出，未悄悄略過）
 
-- **2026 標準來源矩陣（18＋權威來源）完全未做。** 本次沒有執行任何外部查證。
-  報告中所有結論都來自本 repository 的程式碼與實跑，沒有一條引用外部標準文件。
-  委託書要求的 §三（多來源查證）視為**未履行**，詳見 §7。
-- 瀏覽器端角色改名、RBAC 六處落實的其餘五處、Domain 深度審查、109 份文件整併。
+瀏覽器端角色改名、RBAC 六處落實的其餘五處、Domain 深度審查、109 份文件整併、
+架構圖更新。WCAG 2.2 AA 本次只查證並套用 SC 2.5.8 一條，**其餘 SC 未逐條驗證**；
+ISO 三項標準僅確認版本與適用邊界，未做逐項差距分析，且本專案**未取得任何認證**。
 
 ---
 
@@ -257,7 +270,7 @@ Firestore Emulator 起不來。需先 `subst X: "<專案路徑>"` 再於 `X:\` �
 
 | # | 項目 | 未完成原因 | 所需決策／權限 | 建議下一步 |
 |---|---|---|---|---|
-| 1 | **2026 標準來源矩陣（18＋來源）** | 本次未執行任何外部查證 | 無，純工作量 | 見 §7；不可視為已完成 |
+| 1 | WCAG 2.2 AA **逐條**符合性 | 本次僅查證並套用 SC 2.5.8 | 無，工作量＋人工驗收 | 自動掃描不等於符合，需鍵盤與螢幕閱讀器人工驗收 |
 | 2 | 瀏覽器 `admin` → `manager` | 牽動登入 fixture、已存 state 與大量斷言 | 無 | 獨立 commit，含 state 遷移 |
 | 3 | RBAC 六處落實其餘五處 | 需 Stage C2／C3 身分與 session | C2／C3 deployment authority | 待 C0 由 `revise` 轉 `pass` |
 | 4 | 金額欄位級過濾（rbac-matrix §4.3） | **D-015 未核准** | 業主決定 | 不得先實作 |
@@ -278,27 +291,99 @@ Firestore Emulator 起不來。需先 `subst X: "<專案路徑>"` 再於 `X:\` �
 
 ---
 
-## 7. 標準來源矩陣：**未履行**
+## 7. 2026 標準來源矩陣
 
-委託書 §三要求至少 18 份權威來源、其中 12 份第一方文件、涵蓋 8 個以上組織，
-並附版本、日期、Final／Draft 狀態與適用性。
+查證日期 2026-08-06。共 **21 份來源、12 個組織**，其中第一方（標準組織、主管機關、
+平台原廠、RFC）**17 份**。狀態一律以查證當日的官方頁面為準。
 
-**本次完全沒有執行外部查證。** 報告中沒有任何一條結論引用 WCAG 2.2、
-OWASP Top 10:2025／ASVS 5.0.0、NIST CSF 2.0／SSDF、ISO/IEC 25010／27001／27701、
-台灣個人資料保護法或醫療機構電子病歷辦法等外部文件。
+| # | 組織 | 文件 | 版本 | 日期 | 狀態 | 適用性 | 用於本報告哪項判斷 |
+|---|---|---|---|---|---|---|---|
+| 1 | OWASP | [Top 10:2025](https://owasp.org/Top10/2025/) | 2025 | 2025-11 發布，2026-01 定版 | Final | 適用 | A01 存取控制 → R-1／R-2；**A03 軟體供應鏈失效（新類別）** → §3 SBOM／audit／SHA pinning |
+| 2 | OWASP | [ASVS](https://github.com/OWASP/ASVS/tree/v5.0.0) | 5.0.0 | 2025-05-30 | Final | 適用（V1 架構、V4 存取控制） | 授權必須在伺服器端 → R-2 不接線的理由 |
+| 3 | OWASP | [API Security Top 10](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/) | 2023 | 2023 | Final（現行版） | 適用於未來 API | API1:2023 BOLA → `rbac.ts` 的 `own_patient` scope 設計 |
+| 4 | W3C | [WCAG 2.2](https://www.w3.org/TR/WCAG22/) | 2.2 | 2023-10-05 發布，2024-12-12 更新 | W3C Recommendation | 適用 | **SC 2.5.8 Target Size (Minimum)，AA，24×24 CSS px** → M-3 修正 |
+| 5 | ISO/IEC | WCAG 2.2 採認為 [ISO/IEC 40500:2025](https://www.w3.org/WAI/standards-guidelines/wcag/) | 2025 | 2025-10-21 | Final | 參考 | 佐證 WCAG 2.2 的國際標準地位 |
+| 6 | NIST | [SP 800-218 SSDF](https://csrc.nist.gov/projects/ssdf) | 1.1 | 2022-02 | Final | 適用 | PS.1／PW.4 供應鏈與相依性 → §3 audit／SBOM |
+| 7 | NIST | [SP 800-218r1 SSDF 1.2](https://www.nist.gov/news-events/news/2025/12/secure-software-development-framework-ssdf-version-12-available-public) | 1.2 | 2025-12 | **Initial Public Draft** | **前瞻參考，不得當強制要求** | 僅記錄方向 |
+| 8 | ISO/IEC | [25010:2023](https://www.iso.org/obp/ui/en/#!iso:std:78176:en) | 2023（第二版） | 2023-11 | Final | **僅差距分析** | 九大特性；本專案未取得任何認證 |
+| 9 | ISO/IEC | [27701:2025](https://www.iso.org/standard/27701) | 2025 | 2025-10-14 | Final | **僅差距分析** | 已改為獨立標準，非 27001 延伸 |
+| 10 | CISA / FBI | [Product Security Bad Practices](https://www.cisa.gov/news-events/alerts/2025/01/17/cisa-and-fbi-release-updated-guidance-product-security-bad-practices) | 更新版 | 2025-01-17 | Final（自願性指引） | 參考 | 預設密碼、缺 MFA、無 CVE 揭露 → 對照本專案 C2 MFA 尚未實作 |
+| 11 | CISA | [Secure by Design Pledge](https://www.cisa.gov/securebydesign/pledge) | 七項目標 | 現行 | 自願承諾 | 參考 | fail-closed 設計理念 → A-1 修法方向 |
+| 12 | OpenSSF | [SLSA](https://slsa.dev/) | **v1.2** | 2025-11 核准 | Final（Source track 由實驗轉正） | 參考 | 建置來源可追溯 → 目前僅有 SBOM，無 provenance |
+| 13 | OpenSSF | [Scorecard](https://openssf.org/) | 現行 | 2025-2026 | Final | 參考 | branch protection／code review → 已有 `check:branch-protection` |
+| 14 | IETF | [RFC 9700](https://www.rfc-editor.org/info/rfc9700) | — | 2025-01 | **Best Current Practice** | **暫不適用**（尚未接 OAuth） | 未來 Calendar OAuth 必須用 Authorization Code + PKCE |
+| 15 | Google | [Firebase Security Rules 基礎](https://firebase.google.com/docs/rules/basics) | 現行 | 2026 查證 | 原廠文件 | 適用 | 「無規則匹配即拒絕」→ 佐證現行全域 deny 正確 |
+| 16 | Google | [Avoid insecure rules](https://firebase.google.com/docs/rules/insecure-rules) | 現行 | 2026 查證 | 原廠文件 | 適用 | 禁止 `allow read, write: if true` → 本專案無此問題 |
+| 17 | Google | [Calendar API 同步指南](https://developers.google.com/workspace/calendar/api/guides/sync) | v3 | 現行 | 原廠文件 | **暫不適用**（未連線） | syncToken 失效回 **410**，必須丟棄並重跑完整同步 |
+| 18 | Google | [Calendar API Push Notifications](https://developers.google.com/workspace/calendar/api/guides/push) | v3 | 現行 | 原廠文件 | **暫不適用** | **channel 每 7 天到期且無自動續訂**，必須主動重新 watch |
+| 19 | Google | [Core Web Vitals](https://web.dev/articles/vitals) | 現行門檻 | 2026 | 原廠 | 適用 | LCP ≤2.5s／INP ≤200ms／**CLS ≤0.1**（p75）→ M-2 保留 width/height 的理由 |
+| 20 | 全國法規資料庫 | [醫療機構電子病歷製作及管理辦法](https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=L0020121) | 現行 | **2022-07-18 修正**（無更新） | Final | **經判定不適用**，見 §7.1 | 依醫療法 §69 授權；規範對象為實施電子病歷之醫療機構 |
+| 21 | 個資會籌備處 | [個資法修正條文公布](https://www.pdpc.gov.tw/News_Content/20/1010/) | 部分條文修正 | 2025-11-11 總統公布 | **已公布、尚未施行** | 見 §7.2 | 施行日期由行政院另定，查證當日仍未定 |
 
-**因此以下項目在本報告中一律視為未評估，不得引用為已符合：**
+### 7.1 法規定性判定：本系統目前**不是**電子病歷系統
 
-- WCAG 2.2 AA 逐條符合性（本次只驗證了本專案自訂的 44px 規則與既有 axe 測試）
-- OWASP／NIST／CISA 對照
-- ISO 差距分析
-- 台灣個資法與醫療法規適用性判定——**包含本系統究竟屬於一般行政預約系統、
-  醫療資訊系統或電子病歷系統的定性**，這一項尚未判定，不得因專案名稱含
-  clinic 就推定電子病歷規定適用
-- HIPAA／GDPR／EAA 適用性
+這是先前未判定、也是最容易被誤判的一項。判定依據：
 
-報告內既有的可及性判斷（SC 2.5.8 Inline 例外、`.visually-hidden` 寫法）
-係依 repository 內既有測試與註解的既有論述，非本次獨立查證。
+1. 醫療法 §67 定義的**病歷**，是醫師及各類醫事人員**執行業務所製作的紀錄**
+   （診斷紀錄、住院紀錄、護理紀錄、同意書、檢驗檢查報告等）。
+2. 「醫療機構電子病歷製作及管理辦法」§1 明定依醫療法 **§69** 授權訂定，
+   規範對象是**以電子文件方式製作及貯存病歷**的醫療機構。
+3. 掛號與預約資料屬醫療機構的**行政管理資訊**，非醫事人員製作的臨床紀錄，
+   一般不落入病歷範圍。
+
+**本系統目前只處理預約、改期、取消、到診與個案指派，不產生任何臨床紀錄**
+（臨床相關功能全部受 D-014 阻擋且未實作）。因此：
+
+- 電子病歷辦法的境內儲存、24 小時內電子簽章、交換平臺同意等要求
+  **現階段不適用**；
+- **但這是會改變的**。Expansion S（手術、麻醉、術後追蹤）一旦落地，
+  只要開始記錄醫事人員製作的臨床內容，本辦法即行適用，屆時
+  「雲端服務資料儲存地點應設置於我國境內」會直接約束 Firebase 區域選擇。
+  這一點必須在 D-014 核准前先納入架構決策，不能等功能做完再回頭補。
+
+**信心程度：高度可能，但非法律意見。** 最終定性應由診所的法律或法遵顧問確認。
+
+### 7.2 個資法：適用，但**修正條文尚未生效**
+
+- 個資法本身適用：系統處理姓名、電話、生日、身分證號／護照號等個人資料。
+- 2025-11-11 總統公布的修正條文（新增 §1-2、§20-1、§21-1～21-5、§51-1、
+  §53-1，修正多條，刪除 §27），其**施行日期依 §56 由行政院另定，查證當日
+  （2026-08-06）行政院仍未公告**。
+- 因此：**現行義務仍以修正前條文為準**，不得宣稱已符合修正後規定；
+  但修正條文新增的**資料外洩通報與紀錄保存義務**方向明確，
+  `docs/runbooks/incident-response.md` 應據此預先對齊，屬「準備」而非「已符合」。
+- 2026-01-22 個資會籌備處已預告施行細則修正案及三項子法草案，屬 Draft，
+  **前瞻參考，不得當作現行要求**。
+
+### 7.3 明確判定為不適用的境外規範
+
+- **HIPAA**：適用對象為美國 covered entity 及其 business associate。本診所位於臺北，
+  無跡象涉及美國醫療給付或相關契約 → 不適用。
+- **GDPR**：需有歐盟境內資料主體或設立據點。目前系統無真實使用者、無跨境傳輸
+  → 不適用；若未來開放歐盟旅客線上預約則須重新評估。
+- **EAA／EN 301 549**：EAA 自 2025-06 生效，但拘束的是在歐盟市場提供產品或服務者。
+  EN 301 549 現行仍為 **v4.1.0 Draft（2025-11 公眾諮詢）**，納入 WCAG 2.2 AA 的
+  **v4.1.1 預計 2026 年才會被引用於歐盟官方公報** → 對本專案
+  **不適用，且該版本本身尚未定案**，只能作前瞻參考。
+
+### 7.4 以標準回檢本次修正
+
+| 判斷 | 依據來源 | 結論 |
+|---|---|---|
+| M-3 新增連結的可點尺寸 | WCAG 2.2 SC 2.5.8（AA，24×24） | WCAG 只要求 24×24；本專案自訂 44×44 更嚴。修正後為 44px，**同時滿足兩者**。Inline 例外不適用——該例外要求目標位於文字行內且 line-height ≥ 1.5×字級，而電話／地址是 `dd` 內的獨立連結 |
+| M-2 保留 `width`/`height` 屬性 | Core Web Vitals CLS ≤ 0.1（p75） | 保留載入前佔位是 CLS 預算的前提，修正時刻意未動 |
+| Firestore 全域拒絕 | Firebase 官方 Rules 文件 | 與原廠「無匹配即拒絕、勿用 `if true`」一致，**現行姿態正確** |
+| A-1 閘門 fail-closed | OWASP Top 10:2025 A03、CISA Secure by Design | 供應鏈與可達性保證失效屬 A03 範疇；fail-closed 符合 secure-by-design |
+| 未接 OAuth | RFC 9700 | 未來 Calendar 授權須用 Authorization Code + PKCE，且該 RFC 已棄用部分舊模式 |
+| Calendar 同步設計 | Google 官方 sync／push 指南 | 410 必須觸發完整重建、channel 7 天到期無自動續訂 → 現有 plan-only 文件需確認已涵蓋這兩點 |
+
+### 7.5 仍未評估的項目
+
+- WCAG 2.2 AA **逐條**符合性：本次只查證並套用了 SC 2.5.8。其餘 SC 僅有既有
+  axe 自動掃描與專案自訂規則，**自動掃描不等於符合**（既有 runbook 亦如此聲明）。
+- ISO/IEC 25010／27001／27701 的**逐項差距分析**未做，僅確認版本與適用邊界。
+  本專案**未取得任何 ISO 認證**，不得作此宣稱。
+- OpenSSF Scorecard 未實跑；SLSA provenance 未產生（目前只有 SBOM）。
 
 ---
 
@@ -323,8 +408,8 @@ OWASP Top 10:2025／ASVS 5.0.0、NIST CSF 2.0／SSDF、ISO/IEC 25010／27001／2
 | 15 | 更新 ARCHITECTURE.md | **否** |
 | 16 | Mermaid 可渲染 | 不適用（本次未新增圖） |
 | 17 | 區分 Current／Target | 不適用 |
-| 18 | 18 個權威來源 | **否，見 §7** |
-| 19 | 區分 Final／Draft | 不適用（無外部來源） |
+| 18 | 18 個權威來源 | 是——21 份、12 個組織、17 份第一方，見 §7 |
+| 19 | 區分 Final／Draft | 是——SSDF 1.2、EN 301 549 v4.1.0、個資法子法草案均標為 Draft，僅作前瞻參考 |
 | 20 | 揭露無法驗證的內容 | 是（§2 存取範圍、§7） |
 | 21 | 避免洩漏 Secrets 與個資 | 是 |
 | 22 | 避免誇大法規適用性 | 是（§7 明確聲明未評估） |
@@ -339,8 +424,11 @@ OWASP Top 10:2025／ASVS 5.0.0、NIST CSF 2.0／SSDF、ISO/IEC 25010／27001／2
 **必須完成**（既有 `unrouted-inventory.json` 與決策登錄已涵蓋大部分，此處只補本次新增）
 
 1. Q1～Q4 由業主回答；在此之前 `ASSUME_CASE_MANAGER_IS_CONSULTANT` 不得被當成已確認。
-2. 本系統的法規定性（行政預約／醫療資訊／電子病歷）必須判定，見 §7。
-3. 瀏覽器角色收斂完成，否則金額可見性無法落實。
+2. §7.1 的法規定性請診所法遵顧問覆核。工程判定為「目前非電子病歷系統」，
+   但那是依法源推導的結論，不是法律意見。
+3. **在 D-014 核准前先決定 Firebase 區域。** 一旦開始記錄臨床內容，電子病歷辦法
+   要求雲端儲存地點設於我國境內；等 C1 建完 staging 再搬遷的代價遠高於現在選對。
+4. 瀏覽器角色收斂完成，否則金額可見性無法落實。
 
 **強烈建議**
 
