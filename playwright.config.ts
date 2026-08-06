@@ -19,7 +19,28 @@ export default defineConfig({
     locale: 'zh-TW',
     timezoneId: 'Asia/Taipei'
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // 兩個 project，但**不是**把每一支測試都跑兩遍。
+  //
+  // 2026-08-06 查到的缺口：先前只有 `Desktop Chrome` 一個 project，於是所有「手機
+  // 版」測試其實都是把桌機 Chrome 的視窗縮小——沒有 touch、沒有行動 UA、
+  // deviceScaleFactor 永遠是 1。直接後果是 clinic-site.css 裡五處
+  // `@media (hover: hover)` 的**無 hover 分支從來沒有被執行過**：真手機上那些
+  // 只在 hover 時出現的樣式到底怎麼表現，沒有任何測試看得到。
+  //
+  // 用 `testMatch` 把行動 project 限縮在 mobile 這一組（見 scripts/e2e-groups.mjs），
+  // 因此新增的執行量只有那兩支 spec，不是整套 191 個測試再跑一次。桌機專屬的
+  // 流程測試也不會在手機模擬下產生沒有意義的失敗。
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'mobile-device',
+      // 路徑分隔符錨定是必要的：沒有它，`responsive.spec.ts$` 也會吃到
+      // `role-maintenance-responsive.spec.ts`，把一支桌機流程測試拖進手機模擬跑，
+      // 然後在點不到的登出鈕上失敗。
+      testMatch: /[\\/](?:mobile-layout|responsive)\.spec\.ts$/,
+      use: { ...devices['Pixel 7'] }
+    }
+  ],
   webServer: {
     command: 'corepack pnpm run build && corepack pnpm run serve:dist',
     url: `http://127.0.0.1:${PORT}/`,

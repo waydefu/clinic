@@ -18,7 +18,11 @@ const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
 // 64/48/30rem 之後，這裡逐一量過每個斷點的上下緣。
 
 // 斷點本身，加上斷點正上方 1px（確認舊規則已經讓位）與常見裝置寬度。
-const WIDTHS = [1280, 1025, 1024, 769, 768, 481, 480, 390, 320];
+//
+// 2026-08-06 補 360 與 412：這兩個是 Android 最常見的兩種寬度，先前整段
+// 320–480 只量了 320 與 390 兩點，而該區間在 CSS 上只有一階斷點，任何
+// 「在 320 過、在 390 也過，中間卻壞掉」的版面都看不見。
+const WIDTHS = [1280, 1025, 1024, 769, 768, 481, 480, 412, 390, 360, 320];
 
 async function horizontalOverflow(page: Page) {
   return page.evaluate(() => {

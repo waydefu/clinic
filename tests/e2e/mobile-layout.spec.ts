@@ -497,3 +497,83 @@ test.describe('工作臺導覽的捲動提示', () => {
     expect(state.snap, '需要 scroll-snap 讓項目不會停在半個字').toContain('x');
   });
 });
+
+// 2026-08-06 手機版審查補上的三條。前兩條釘住的是實際量到的缺陷，第三條釘住
+// 修它時差點造成的回歸。
+test.describe('診所官網品牌標誌在手機不佔版面', () => {
+  // 為什麼用比例而不是絕對像素：標誌本來就該隨視窗收放，寫死像素等於把下一次
+  // 合理的尺寸調整也一起擋掉。真正不能接受的是「它吃掉半個畫面」。
+  //
+  // 修之前的實測值：頁尾標誌在**每一個**寬度都是 200px（三個 media query 只改
+  // grid-column，沒有一個覆寫寬度），於是 320px 上佔 62.5%；頁首標誌在
+  // 320–412 全段固定 140px，320px 上佔 43.8%。
+  for (const width of [320, 360, 390, 412]) {
+    test(`${width}px：頁首與頁尾標誌各自不超過三分之一版面寬`, async ({
+      page
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/clinic');
+
+      const ratios = await page.evaluate(() => {
+        const vw = document.documentElement.clientWidth;
+        const ratio = (selector: string) => {
+          const node = document.querySelector(selector);
+          if (node === null) return null;
+          return node.getBoundingClientRect().width / vw;
+        };
+        return {
+          header: ratio('.clinic-brand img'),
+          footer: ratio('.clinic-footer__brand img')
+        };
+      });
+
+      expect(ratios.header, '找不到頁首標誌').not.toBeNull();
+      expect(ratios.footer, '找不到頁尾標誌').not.toBeNull();
+      expect(ratios.header ?? 1).toBeLessThanOrEqual(1 / 3);
+      expect(ratios.footer ?? 1).toBeLessThanOrEqual(1 / 3);
+    });
+  }
+});
+
+test.describe('診所官網首屏帶得走實用資訊', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  // 修之前：門診時間與地址只存在於 y≈6240px 的「門診時間與交通」區塊與頁尾，
+  // 手機上要捲過約 11 個畫面才看得到。首屏只有標語、一句說明與兩顆按鈕。
+  test('門診時間、電話與地址不必捲動就看得到', async ({ page }) => {
+    await page.goto('/clinic');
+
+    const facts = page.locator('.clinic-hero-facts');
+    await expect(facts).toBeVisible();
+
+    const withinFold = await facts.evaluate(
+      (node) =>
+        node.getBoundingClientRect().top + window.scrollY <
+        document.documentElement.clientHeight
+    );
+    expect(withinFold, '首屏實用資訊被推到第一個畫面之外').toBe(true);
+
+    // 值必須與下方詳細區塊同源，否則兩處會各自漂移。
+    await expect(facts).toContainText('週三至週五');
+    await expect(facts).toContainText('02-2577-1314');
+    await expect(facts).toContainText('光復北路');
+  });
+
+  // 這一區的電話與地址是獨立連結，不在句子裡，因此不適用 SC 2.5.8 的 Inline
+  // 例外——加它們的當下就漏掉了這件事，affordance 那支測試當場轉紅。
+  test('首屏資訊裡的連結仍達 44px 可點高度', async ({ page }) => {
+    await page.goto('/clinic');
+
+    const heights = await page
+      .locator('.clinic-hero-fact a')
+      .evaluateAll((nodes) =>
+        nodes.map((node) => node.getBoundingClientRect().height)
+      );
+
+    expect(
+      heights.length,
+      '首屏資訊應該至少有電話與地址兩個連結'
+    ).toBeGreaterThanOrEqual(2);
+    for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
+  });
+});

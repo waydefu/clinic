@@ -86,6 +86,42 @@ function renderNavigation() {
   navigation.replaceChildren(list);
 }
 
+// 首屏實用資訊。2026-08-06 量到的問題：手機（320×568）上首頁總高 8550px，而
+// 「門診時間與交通」起點在 y≈6240px——患者要捲過約 11 個畫面才看得到門診時間、
+// 電話與地址，首屏只有標語、一句說明與兩顆按鈕。
+//
+// 這裡重新呈現的是同一組 `CLINIC` 常數，**沒有新增任何醫療或營運敘述**；完整版
+// （含休診日與 Google 地圖）仍以下方 #clinic-visit 為準，兩處同源所以不會分歧。
+function heroQuickFacts() {
+  return element(
+    'dl',
+    {
+      className: 'clinic-hero-facts',
+      attrs: { 'aria-label': '門診時間與聯絡資訊' }
+    },
+    [
+      element('div', { className: 'clinic-hero-fact' }, [
+        element('dt', { text: '門診時間' }),
+        element('dd', {}, [
+          element(
+            'ul',
+            { className: 'clinic-hero-fact__hours' },
+            CLINIC.hours.map((line) => element('li', { text: line }))
+          )
+        ])
+      ]),
+      element('div', { className: 'clinic-hero-fact' }, [
+        element('dt', { text: '電話' }),
+        element('dd', {}, [link(CLINIC.phoneDisplay, CLINIC.phoneHref)])
+      ]),
+      element('div', { className: 'clinic-hero-fact' }, [
+        element('dt', { text: '地址' }),
+        element('dd', {}, [link(CLINIC.address, '#clinic-visit')])
+      ])
+    ]
+  );
+}
+
 function renderHome() {
   const heroTopics = element('div', { className: 'clinic-home-hero__topics' });
   for (const service of NASAL_SERVICES) {
@@ -120,7 +156,8 @@ function renderHome() {
               'clinic-button clinic-button--light'
             ),
             bookingLink('線上預約')
-          ])
+          ]),
+          heroQuickFacts()
         ]),
         element(
           'div',

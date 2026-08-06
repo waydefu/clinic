@@ -371,6 +371,48 @@ a {
   gap: 0.75rem;
 }
 
+/* 首屏實用資訊。手機上「門診時間與交通」原本在 y≈6240px（約 11 個畫面之後），
+   這裡把同一組 CLINIC 常數提到首屏。用 `dl` 是因為它就是三組標籤／值；
+   `flex-wrap` 讓桌機一列排完、手機自然折成多列，不需要額外斷點。 */
+.clinic-hero-facts {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 2rem 0 0;
+  gap: 1.5rem;
+}
+
+.clinic-hero-fact dt {
+  color: var(--clinic-muted);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+}
+
+.clinic-hero-fact dd {
+  margin: 0.25rem 0 0;
+  color: var(--clinic-forest-deep);
+  font-size: 1rem;
+}
+
+.clinic-hero-fact__hours {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* 連結沿用內文色，只以底線表示可點——首屏這一區是資訊而不是行動呼籲，
+   用色塊會跟下面兩顆 CTA 搶視線。底線本身就是非顏色的可辨識訊號。
+   電話與地址是獨立連結（不在句子裡），因此不適用 SC 2.5.8 的 Inline 例外，
+   必須自己撐到規則書 R-3 的 44px 可點高度；`inline-flex` 讓可點區包含內距而
+   不是只有文字的行高。 */
+.clinic-hero-fact a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
 .clinic-home-hero__visual {
   position: relative;
   min-height: 27rem;
@@ -1069,7 +1111,12 @@ a {
 }
 
 .clinic-footer__brand img {
-  width: 12.5rem;
+  /* 2026-08-06：原本固定 12.5rem（200px），而下面三個 media query 只改
+     `grid-column`，沒有一個覆寫寬度——於是 320px 手機上這張純裝飾的頁尾標誌佔掉
+     62.5% 版面寬。改成隨視窗收放後，桌機維持原本的 200px（30vw 在 ≥42rem 就會
+     撞到上限），手機則降到約三成。與 header 一樣保留 HTML 的 width/height 屬性，
+     載入前的佔位比例不變，CLS 預算不受影響。 */
+  width: clamp(6.5rem, 30vw, 12.5rem);
   height: auto;
   padding: 0.45rem;
   background: rgb(255 255 255 / 92%);
@@ -1172,7 +1219,13 @@ a {
   }
 
   .clinic-brand img {
-    width: 10.5rem;
+    /* 2026-08-06：原本 ≤48rem 固定 10.5rem、≤30rem 再固定 8.75rem，於是 320～412px
+       這整段手機範圍全部卡在 140px——320px 上佔 43.8% 寬，同一列還要塞「選單」與
+       「線上預約」。改成隨視窗收放後整段手機區間穩定在約 26%。
+       上限取 9rem 是為了與桌機 `clamp(9rem, 12vw, 12.5rem)` 的下限接上：先前
+       768px 是 168px、1024px 反而縮到 144px，寬度愈大標誌愈小的反向跳動就出在
+       這裡。接上之後 320→768 單調遞增，768 之後交給桌機那條 clamp。 */
+    width: clamp(5.5rem, 26vw, 9rem);
   }
 
   .clinic-menu-button {
@@ -1392,9 +1445,8 @@ a {
    卻讓官網在 448–480px 之間與其他頁面在不同的地方重排。2026-07-27 的
    自動檢查缺口 F-2 把 clinic-site.css 納入掃描後才看得到它。 */
 @media (max-width: 30rem) {
-  .clinic-brand img {
-    width: 8.75rem;
-  }
+  /* 2026-08-06：這裡原本再固定一次 8.75rem。上面 ≤48rem 的 clamp 已經涵蓋整段
+     手機寬度且單調收放，再壓一個定值只會把 320～480 重新鎖死，故移除。 */
 
   .clinic-header__booking {
     padding-inline: 0.65rem;
