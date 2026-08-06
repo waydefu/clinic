@@ -15,7 +15,11 @@ proceed during Stage 1」的第二項：維護或修正既有的本機／合成�
 
 ## 分支／commit
 
-分支 `claude/audit-fix-docs-2026`，自 `2645b6c` 起七個 commit：
+分支 `claude/audit-fix-docs-2026`，PR
+[#13](https://github.com/waydefu/clinic/pull/13)（2026-08-06 開啟，尚未合併，
+無 merge commit）。
+
+本輪自 `2645b6c` 起九個 commit：
 
 | Commit | 內容 |
 | --- | --- |
@@ -26,8 +30,13 @@ proceed during Stage 1」的第二項：維護或修正既有的本機／合成�
 | `df72a27` | `clinic-site.css` 納入完整 token gate |
 | `e4dccd0` | 流體字級改為逐項驗證，取消 clamp 豁免 |
 | `80d9fcc` | 間距 ratchet 首批收斂 |
+| `e626483` | 三份既有設計文件同步 ＋ 本交接紀錄 |
+| `c317d53` | 視覺基線重拍為 2026-08-06 ＋ 記錄兩個順手發現的缺陷 |
 
-尚未合併，無 merge commit。
+**PR 的範圍比本輪大。** 這個分支在本輪開始前**已經有五個未合併的 commit**
+（`96dabf2`、`79609e6`、`79272ed`、`204f78b`、`2645b6c`：2026-08-06 企業級審查、
+伺服器角色收斂、可達性走查改 fail-closed、品牌標誌響應式、標準矩陣）。它們會跟著
+這個 PR 一起進 `main`，但**不屬於本文件描述的 UI 收斂**——review 時要分開看。
 
 ## 每道關卡的實際結果
 
@@ -39,7 +48,26 @@ proceed during Stage 1」的第二項：維護或修正既有的本機／合成�
 | `check:perf` | 通過。5 個進入點，預算**未調整** |
 | Playwright（本輪最大一次） | **195 passed**（typography／responsive／mobile-layout／affordance／axe／clinic-site／theme／clinic-motion） |
 | `check-design-tokens.test.mjs` | 23 passed（新增 6 個：括號配對 2、clamp 驗證 4） |
-| `capture:ui` | 可執行，console errors 0／warnings 0。**產物已還原，見未處理事項** |
+| `capture:ui` | 通過。10 張 PNG，每個情境 console errors 0／warnings 0。基線已重拍為 [2026-08-06](ui-visual-baseline-2026-08-06.md) |
+
+### CI（PR #13，commit `c317d53`）
+
+| Job | 結果 |
+| --- | --- |
+| 結構、文件、格式、lint、型別與單元測試 | pass（1m42s） |
+| Firestore Emulator（交易、冪等、outbox、預設拒絕） | pass（1m27s） |
+| Semgrep CE SAST | pass（2m54s） |
+| e2e-ui | pass（2m16s） |
+| e2e-accessibility | pass（1m52s） |
+| e2e-mobile | pass（4m14s） |
+| e2e-appointments | pass（3m49s） |
+| e2e-auth-rbac | pass（2m59s） |
+| e2e-patient-portal | pass（2m32s） |
+| Tracked secrets、dependency audit 與 inventory | **本文件寫入時仍在執行** |
+
+**最後一項的結果要自己去看，不要照抄這張表。** 供應鏈那道 gate（audit 加 SBOM）
+在本機與 CI 都偏慢，寫這份紀錄時已跑超過十分鐘還沒回。九綠一未完不等於十綠——
+合併前必須確認它。`main` 的 required check 是 `Verification evidence`（strict）。
 
 ### 收斂前後（瀏覽器 computed style 實測，非讀 CSS 推測）
 
