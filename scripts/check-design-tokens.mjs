@@ -48,22 +48,86 @@ const SPACING_GRID = new Set([
 const SPACING_PROPERTIES =
   /\b(?:gap|row-gap|column-gap|padding|padding-top|padding-right|padding-bottom|padding-left|padding-inline|padding-block|margin|margin-top|margin-right|margin-bottom|margin-left|margin-inline|margin-block): ([^;{}]+);/g;
 
-// Design Tokens 2.0 之後這兩類都清零了，因此上限是 0——它們已經是硬性檢查，
-// 保留這個結構是為了萬一將來又要開一筆新債務時，有地方把它記下來而不是隱形。
+// 上限**逐檔記帳**。先前是全域一個數字，那在只有一份樣式表有債務時還行，
+// 但 2026-08-06 把 clinic-site.css 納入全套檢查後就不行了：一個總數會讓
+// 「官網收掉一筆、styles.css 新增一筆」互相抵銷而總數不變，於是新債務隱形。
+// 債務是誰欠的就記在誰名下。
+//
+// 沒有列在這裡的樣式表，上限一律是 0。
 const CEILINGS = {
-  'font-size 字面值': 0,
-  間距字面值: 0
+  'font-size 字面值': {
+    // 官網 9 個字級 clamp() 的端點還沒對齊尺度，見 Wave 3b。
+    'clinic-site.css': 9
+  },
+  間距字面值: {
+    // 官網的間距還沒對齊 4px 網格。收斂會改變版面節奏，分批進行。
+    // 49 而不是 39：修好 outsideRootBlocks 的括號配對後，先前被吞掉的
+    // 48rem 媒體查詢區塊裡又露出 10 筆。
+    'clinic-site.css': 49
+  }
 };
+
+/** 某個標籤／樣式表的現行上限。沒登記過就是零。 */
+function ceilingFor(label, sheet) {
+  return CEILINGS[label]?.[sheet] ?? 0;
+}
 
 // `em` 字級是相對於父層文字的比例，語意跟字級尺度不同：`.back-arrow` 的箭頭與
 // `.slot-chip-mark` 的記號都要跟著所在文字縮放，換成 rem 會切斷那個關係。
 const RELATIVE_FONT_SIZE = /^[0-9.]+em$/;
 
-/** 取出所有 `:root...{ }` 區塊裡定義的自訂屬性。 */
+/**
+ * 找出每個 `:root` 區塊的範圍。**大括號要真的配對，不能靠縮排猜。**
+ *
+ * 先前 `definedTokens` 與 `outsideRootBlocks` 各自寫了一份
+ * `/:root[^{]*\{[\s\S]*?\n\}/`，它找的是「換行後頂格的 `}`」。`:root` 寫在檔案
+ * 最外層時碰巧成立，但**寫在 `@media` 裡就不成立**——那個 `:root` 的結尾是縮排
+ * 的 `  }`，比對不到，於是一路吃到整個 `@media` 區塊的結尾。
+ *
+ * 2026-08-06 實測這個 bug 吞掉的量：`clinic-site.css` 230 行／44 條 class 規則，
+ * `workbench.css` 114 行／27 條。那些規則裡的寫死顏色、字重、圓角、陰影、字距與
+ * 動效**從來沒有被檢查過**，而 gate 一直是綠的。兩份檔案都只是寫了
+ * `@media (max-width: 48rem) { :root { --shell: ...; } }` 這種完全正當的斷點覆寫。
+ *
+ * 兩個用途共用這一個掃描，邊界才只有一種說法。
+ *
+ * @returns {{ start: number, bodyStart: number, end: number }[]}
+ *   `start` 是 `:root` 的起點，`bodyStart` 是 `{` 之後，`end` 是配對 `}` 之後。
+ */
+export function rootBlockRanges(source) {
+  const opening = /:root[^{]*\{/g;
+  const ranges = [];
+  let match;
+  while ((match = opening.exec(source)) !== null) {
+    const bodyStart = opening.lastIndex;
+    let depth = 1;
+    let index = bodyStart;
+    while (index < source.length && depth > 0) {
+      const character = source[index];
+      if (character === '{') depth += 1;
+      else if (character === '}') depth -= 1;
+      index += 1;
+    }
+    ranges.push({ start: match.index, bodyStart, end: index });
+    opening.lastIndex = index;
+  }
+  return ranges;
+}
+
+/**
+ * 取出所有 `:root { }` 區塊裡定義的自訂屬性。
+ *
+ * 只認**真正的** `:root` 區塊。`.clinic-word { --clinic-word-index: 0; }` 這種
+ * 只在該選擇器內有效的區域性自訂屬性不算全域 token，否則「使用了未定義的
+ * token」那條守衛會跟著失準。
+ */
 export function definedTokens(source) {
   const defined = new Set();
-  for (const block of source.matchAll(/:root[^{]*\{([\s\S]*?)\n\}/g)) {
-    for (const match of block[1].matchAll(/(--[a-z0-9-]+):/g)) {
+  for (const { bodyStart, end } of rootBlockRanges(source)) {
+    // end 已越過配對的 `}`，body 要退一格。
+    for (const match of source
+      .slice(bodyStart, end - 1)
+      .matchAll(/(--[a-z0-9-]+):/g)) {
       defined.add(match[1]);
     }
   }
@@ -89,7 +153,13 @@ export function withoutComments(source) {
 
 /** `:root` 區塊以外的內容——寫死顏色只有在這裡才算違規。 */
 export function outsideRootBlocks(source) {
-  return source.replace(/:root[^{]*\{[\s\S]*?\n\}/g, '');
+  let result = '';
+  let copiedTo = 0;
+  for (const { start, end } of rootBlockRanges(source)) {
+    result += source.slice(copiedTo, start);
+    copiedTo = end;
+  }
+  return result + source.slice(copiedTo);
 }
 
 /**
@@ -139,7 +209,11 @@ export function planTokenReview(sheets) {
     for (const match of body.matchAll(
       /border-radius: *([^;{}]*[0-9][^;{}]*);/g
     )) {
-      if (match[1].includes('var(--radius') || match[1].trim() === '0')
+      if (
+        match[1].includes('var(--radius') ||
+        match[1].includes('var(--clinic-radius') ||
+        match[1].trim() === '0'
+      )
         continue;
       violations.push(
         `${name}: 寫死的圓角 ${match[1].trim()}——請用 --radius-*`
@@ -150,6 +224,8 @@ export function planTokenReview(sheets) {
       // inset 的內線與 keyframe 的焦點環是形狀而不是深度，不套 elevation。
       if (
         value.includes('var(--elevation') ||
+        value.includes('var(--clinic-elevation') ||
+        value.includes('var(--clinic-shadow') ||
         value.includes('var(--dot-live)') ||
         value.startsWith('inset') ||
         value === 'none' ||
@@ -166,7 +242,11 @@ export function planTokenReview(sheets) {
       );
     }
     for (const match of body.matchAll(/font-family: *([^;{}]+);/g)) {
-      if (match[1].includes('var(--font-')) continue;
+      if (
+        match[1].includes('var(--font-') ||
+        match[1].includes('var(--clinic-font-')
+      )
+        continue;
       violations.push(
         `${name}: 寫死的字體堆疊——請用 --font-sans/serif/mono。先前有兩份不同的 mono 堆疊，其中一份漏了 SFMono-Regular`
       );
@@ -176,7 +256,12 @@ export function planTokenReview(sheets) {
     // 直接鎖死。`inherit` 是刻意的：排序按鈕要沿用表頭的字距。
     for (const match of body.matchAll(/letter-spacing: *([^;{}]+);/g)) {
       const value = match[1].trim();
-      if (value.includes('var(--tracking-') || value === 'inherit') continue;
+      if (
+        value.includes('var(--tracking-') ||
+        value.includes('var(--clinic-tracking-') ||
+        value === 'inherit'
+      )
+        continue;
       violations.push(
         `${name}: 寫死的字距 ${value}——請用 --tracking-display/tight/wide/label/eyebrow`
       );
@@ -244,7 +329,12 @@ export function planTokenReview(sheets) {
 
     for (const match of body.matchAll(/font-size: *([^;{}]+);/g)) {
       const value = match[1].trim();
-      if (value.includes('var(--text') || value.startsWith('clamp(')) continue;
+      // `--text-*` 是共用尺度；`--clinic-text-*` 是官網自己宣告的同一套級數
+      // （`clinic.html` 不載入 styles.css，所以它不能引用共用的那份，但值逐階
+      // 相同）。兩者都是「字級來自尺度」，判定上等價。
+      if (value.includes('var(--text') || value.includes('var(--clinic-text'))
+        continue;
+      if (value.startsWith('clamp(')) continue;
       if (RELATIVE_FONT_SIZE.test(value)) continue;
       if (TYPE_SCALE.has(value)) continue;
       debt['font-size 字面值'].push(`${name}: ${value}`);
@@ -311,17 +401,23 @@ async function main() {
       'privacy.css',
       { source: privacy, scope: definedTokens(privacy), full: false }
     ],
-    // clinic-site.css 是**另一套** token 系統（`--clinic-*`：白／霧綠／深林），
-    // 與工作臺的設計 token 無關，也刻意不共用——診所官網要能獨立換皮。
-    // 全套規則套上去會產生數百筆噪音（它自己就是一套完整的樣式系統），所以只
-    // 套用兩條與「系統是哪一套」無關的規則：未定義的 token，以及斷點尺度。
-    // **解除條件**：若哪天官網併進共用 token 系統，把 `full` 改成 true 並清乾淨。
+    // clinic-site.css 仍是**另一套** token 系統（`--clinic-*`：白／霧綠／深林）
+    // ——`clinic.html` 只載入這一份樣式表，所以它用不到 `styles.css` 的 token，
+    // `scope` 因此維持只有它自己定義的那些。**但規則全套適用**。
+    //
+    // 2026-08-06 解除了先前的 `full: false`。當時的理由是「全套規則會產生數百筆
+    // 噪音」，代價是官網成了設計系統的化外之地：九條規則只跑兩條，於是 20 種
+    // 字級、六階字重（其中 650 與 750 完全看不出差別）、12 種圓角與 14 種動效
+    // 時長全部合法，而 CI 全綠。噪音是真的，但那是**債務的聲音**，不是規則的錯。
+    //
+    // 現在字重、顏色、陰影、字體堆疊、字距、動效時長與緩動都已收斂到零；
+    // 字級、間距與圓角的字面值掛在下面的 ratchet 上分批收。
     [
       'clinic-site.css',
       {
         source: clinicSite,
         scope: definedTokens(clinicSite),
-        full: false,
+        full: true,
         breakpoints: true
       }
     ]
@@ -337,19 +433,36 @@ async function main() {
   }
 
   for (const [label, entries] of Object.entries(debt)) {
-    const ceiling = CEILINGS[label];
-    const status = entries.length > ceiling ? '超過上限' : 'ok';
-    console.log(`${label}: ${entries.length} / 上限 ${ceiling}（${status}）`);
-    if (entries.length > ceiling) {
-      failed = true;
-      console.error(
-        `Design-token check failed: ${label} 增加了。上限是給既有債務用的，不是給新債務用的。`
-      );
-      for (const entry of entries.slice(0, 20)) console.error(`- ${entry}`);
-    } else if (entries.length < ceiling) {
+    // 逐檔記帳。entry 的格式是 `<檔名>: <值>`，所以檔名就在冒號前。
+    const bySheet = new Map();
+    for (const entry of entries) {
+      const sheet = entry.slice(0, entry.indexOf(':'));
+      if (!bySheet.has(sheet)) bySheet.set(sheet, []);
+      bySheet.get(sheet).push(entry);
+    }
+    // 上限降到零的樣式表也要出現在報表裡，否則「已經清乾淨了」看不出來。
+    for (const sheet of Object.keys(CEILINGS[label] ?? {}))
+      if (!bySheet.has(sheet)) bySheet.set(sheet, []);
+
+    for (const [sheet, sheetEntries] of [...bySheet].sort()) {
+      const ceiling = ceilingFor(label, sheet);
+      const count = sheetEntries.length;
+      const status = count > ceiling ? '超過上限' : 'ok';
       console.log(
-        `  已低於上限，請把 scripts/check-design-tokens.mjs 的 CEILINGS 調成 ${entries.length}。`
+        `${label}（${sheet}）: ${count} / 上限 ${ceiling}（${status}）`
       );
+      if (count > ceiling) {
+        failed = true;
+        console.error(
+          `Design-token check failed: ${sheet} 的${label}增加了。上限是給既有債務用的，不是給新債務用的。`
+        );
+        for (const entry of sheetEntries.slice(0, 20))
+          console.error(`- ${entry}`);
+      } else if (count < ceiling) {
+        console.log(
+          `  已低於上限，請把 scripts/check-design-tokens.mjs 的 CEILINGS['${label}']['${sheet}'] 調成 ${count}。`
+        );
+      }
     }
   }
 

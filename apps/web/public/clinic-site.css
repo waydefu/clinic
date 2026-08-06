@@ -13,8 +13,94 @@
   --clinic-shadow: 0 1.25rem 3.75rem rgb(22 72 58 / 10%);
   --clinic-radius: 1.25rem;
   --clinic-shell: min(73rem, calc(100% - 3rem));
-  font-family:
-    'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+
+  /* -----------------------------------------------------------------
+   * 深底上的文字色階。這六個值先前散在 `.clinic-footer`、`.clinic-cta` 與
+   * hero 的規則裡，各自寫死，於是「深底文字」這件事沒有單一來源。
+   *
+   * **刻意不合併成三階。** 它們的差異很小，但每一個都疊在不同的深底上，
+   * 合併會改變對比——那需要逐組重量 WCAG 比值，是獨立的一件事。這一步只做
+   * 「把值搬到可換膚的地方」，數量收斂留給後續（已記在交接紀錄）。
+   * ----------------------------------------------------------------- */
+  --clinic-forest-deepest: #0b3029;
+  --clinic-text-inverse-strong: #d4e2db;
+  --clinic-text-inverse: #d1dfd8;
+  --clinic-text-inverse-soft: #cce0d6;
+  --clinic-text-inverse-muted: #bad2c6;
+  --clinic-text-inverse-dim: #aabfb5;
+  --clinic-text-inverse-subtle: #8ca69a;
+
+  /* Hero 漸層的兩端。 */
+  --clinic-hero-gradient-from: #dfece4;
+  --clinic-hero-gradient-to: #f5f8f3;
+
+  /* -----------------------------------------------------------------
+   * 焦點環與預覽徽標的金色。
+   *
+   * 分成兩個 token 是因為它們的**語意不同**：焦點環是功能性顏色，必須對相鄰
+   * 顏色達 3:1（R-11）；徽標底色是裝飾。規則書 R-16 對共用系統的規定是
+   * 「品牌香檳金只作裝飾，不承載狀態、焦點、互動」，而官網這支金色目前正是
+   * 焦點環。命名先把兩者分開，**顏色值本身不動**；是否要讓焦點環改用非品牌色
+   * 需要先量對比再決定，已記在交接紀錄。
+   * ----------------------------------------------------------------- */
+  --clinic-focus-ring: #d49b45;
+  --clinic-badge-preview: #e6c483;
+
+  /* 遮罩用的不透明黑。它出現在 `mask-image` 的漸層停點裡，量的是**遮罩的
+     不透明度**而不是畫面上的顏色——沒有它，跑馬燈兩端的淡出會變成硬邊。 */
+  --clinic-mask-opaque: #000;
+
+  /* 陰影兩階。`--clinic-shadow` 是既有的大範圍柔和陰影（浮層用）。 */
+  --clinic-elevation-card: 0 0.8rem 2rem rgb(22 72 58 / 5%);
+  --clinic-elevation-header: 0 0.5rem 1.5rem rgb(22 72 58 / 8%);
+
+  /* -----------------------------------------------------------------
+   * 字體堆疊。**一個字型檔都不下載**（2026-07-25 負責人拍板的 0 KiB 預算），
+   * 只列使用者裝置本機可能已經有的字體。
+   *
+   * sans 的順序在 2026-08-06 修正過：先前是 `'Noto Sans TC'` 排第一，而多數
+   * 使用者沒有裝它，於是 macOS／iOS 上整條鏈會跳過 **PingFang TC**——那是
+   * Apple 裝置上最好的中文字體，而且已經在系統裡。改成與 `styles.css` 的
+   * `--font-sans` 同序，零位元組成本。
+   * ----------------------------------------------------------------- */
+  --clinic-font-sans:
+    'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', system-ui,
+    -apple-system, 'Segoe UI', sans-serif;
+  --clinic-font-serif-tc: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
+
+  /* -----------------------------------------------------------------
+   * 字重四階。起點是 500／600／650／700／750／800 六個值。
+   *
+   * 2026-08-06 用 canvas 量墨水量實測本機的字面分組（`font-synthesis: none`，
+   * 所以瀏覽器不會合成粗體）：
+   *
+   *   sans   400 | 500 | 600 = 650 = 700 = 750 | 800
+   *   serif  400 | 500 | 600 | 650 = 700 = 750 | 800
+   *
+   * 也就是說 **650 與 750 是真正的假階**——它們與 700 完全無法分辨，正是
+   * `styles.css` 註解說的「假的精緻」。但 500 與 800 **不是**假階，在這台
+   * 機器上各自是獨立字面，把它們合併進 medium／bold 會實際改變畫面。
+   *
+   * 所以這裡收掉假階、保留真階。**注意這是本機量測**：中文系統字體的字重
+   * 供應在 Windows／macOS／Android 之間不同，跨平台複核時要重量一次。
+   * ----------------------------------------------------------------- */
+  --clinic-weight-regular: 400;
+  --clinic-weight-medium: 500;
+  --clinic-weight-bold: 700;
+  --clinic-weight-heavy: 800;
+
+  /* -----------------------------------------------------------------
+   * 字距五階，收斂自八個彼此無關的字面值（0.02／0.04／0.05／0.055／0.08／
+   * 0.1／0.12／0.18em）。規則同共用系統：字級越大越收，全大寫拉丁字要放寬，
+   * 中文正文不加字距。最大位移 0.02em。
+   * ----------------------------------------------------------------- */
+  --clinic-tracking-tight: 0.02em;
+  --clinic-tracking-normal: 0.04em;
+  --clinic-tracking-heading: 0.05em;
+  --clinic-tracking-label: 0.1em;
+  --clinic-tracking-eyebrow: 0.18em;
+
+  font-family: var(--clinic-font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
@@ -50,11 +136,24 @@
   --clinic-action-primary: var(--clinic-forest);
   --clinic-action-primary-strong: var(--clinic-forest-deep);
 
-  /* 圓角級數：依元件層級分四階，取代先前 10 種彼此無關的散值。 */
+  /* -----------------------------------------------------------------
+   * 圓角。起點是 19 處、10 種彼此無關的值（0.5／0.55／0.65／0.8／1／1.25／
+   * 2rem／50%／99rem／兩組有機形狀）。
+   *
+   * 五階級數依元件層級分，值取自現況最接近的一階（最大位移 0.1rem）。
+   * **形狀類與級數分開**：`circle` 與兩個 organic 不是「比較大的圓角」，
+   * 它們是形狀本身——把有機形狀塞進級數，下一個人就會以為可以互換。
+   * ----------------------------------------------------------------- */
   --clinic-radius-sm: 0.5rem;
   --clinic-radius-md: 0.75rem;
-  --clinic-radius-lg: var(--clinic-radius);
+  --clinic-radius-lg: 1rem;
+  --clinic-radius-xl: var(--clinic-radius);
+  --clinic-radius-2xl: 2rem;
   --clinic-radius-pill: 99rem;
+  --clinic-radius-circle: 50%;
+  --clinic-radius-organic-arch: 52% 48% 1.5rem 1.5rem;
+  --clinic-radius-organic-dome: 12rem 12rem 1.5rem 1.5rem;
+  --clinic-radius-organic-dome-narrow: 8rem 8rem 1.25rem 1.25rem;
 }
 
 * {
@@ -92,7 +191,7 @@ a {
 }
 
 :focus-visible {
-  outline: 0.2rem solid #d49b45;
+  outline: 0.2rem solid var(--clinic-focus-ring);
   outline-offset: 0.2rem;
 }
 
@@ -117,9 +216,10 @@ a {
   padding: 0.7rem 1rem;
   color: var(--clinic-white);
   background: var(--clinic-forest);
-  border-radius: 0.5rem;
+  border-radius: var(--clinic-radius-sm);
   transform: translateY(-150%);
-  transition: transform 160ms ease;
+  transition: transform var(--clinic-duration-effect-fast)
+    var(--clinic-ease-out);
 }
 
 .clinic-skip-link:focus {
@@ -136,18 +236,18 @@ a {
   color: var(--clinic-white);
   background: var(--clinic-forest-deep);
   font-size: var(--clinic-text-body);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--clinic-tracking-normal);
   text-align: center;
 }
 
 .preview-boundary span {
   padding: 0.08rem 0.45rem;
   color: var(--clinic-forest-deep);
-  background: #e6c483;
-  border-radius: 99rem;
+  background: var(--clinic-badge-preview);
+  border-radius: var(--clinic-radius-pill);
   font-size: var(--clinic-text-micro);
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-weight: var(--clinic-weight-heavy);
+  letter-spacing: var(--clinic-tracking-label);
 }
 
 .clinic-shell {
@@ -193,7 +293,7 @@ a {
   width: clamp(9rem, 12vw, 12.5rem);
   height: auto;
   transform-origin: left center;
-  transition: width 0.32s ease;
+  transition: width var(--clinic-duration-effect-fast) var(--clinic-ease-out);
 }
 
 .clinic-navigation__list,
@@ -223,11 +323,11 @@ a {
   padding: 0.45rem 0.6rem;
   color: var(--clinic-ink);
   font-size: var(--clinic-text-body);
-  font-weight: 650;
+  font-weight: var(--clinic-weight-bold);
   text-decoration: none;
   transition:
-    color 160ms ease,
-    background 160ms ease;
+    color var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    background var(--clinic-duration-effect-swift) var(--clinic-ease-out);
 }
 
 .clinic-navigation a:hover,
@@ -255,14 +355,14 @@ a {
   visibility: hidden;
   background: var(--clinic-white);
   border: 1px solid var(--clinic-line);
-  border-radius: 0.8rem;
+  border-radius: var(--clinic-radius-md);
   box-shadow: var(--clinic-shadow);
   opacity: 0;
   transform: translate(-50%, 0.35rem);
   transition:
-    opacity 160ms ease,
-    transform 160ms ease,
-    visibility 160ms ease;
+    opacity var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    transform var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    visibility var(--clinic-duration-effect-swift) var(--clinic-ease-out);
 }
 
 .clinic-navigation li:hover > .clinic-navigation__submenu,
@@ -276,7 +376,7 @@ a {
   width: 100%;
   min-height: 2.5rem;
   padding-inline: 0.8rem;
-  border-radius: 0.5rem;
+  border-radius: var(--clinic-radius-sm);
   font-size: var(--clinic-text-body);
 }
 
@@ -296,17 +396,17 @@ a {
   justify-content: center;
   padding: 0.65rem 1.25rem;
   border: 1px solid transparent;
-  border-radius: 99rem;
-  font-weight: 750;
-  letter-spacing: 0.02em;
+  border-radius: var(--clinic-radius-pill);
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: var(--clinic-tracking-tight);
   line-height: 1.25;
   text-align: center;
   text-decoration: none;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
+    background var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    border-color var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    color var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    transform var(--clinic-duration-effect-swift) var(--clinic-ease-out);
 }
 
 .clinic-header__booking,
@@ -356,7 +456,11 @@ a {
       rgb(255 255 255 / 75%),
       transparent 30rem
     ),
-    linear-gradient(125deg, #dfece4, #f5f8f3);
+    linear-gradient(
+      125deg,
+      var(--clinic-hero-gradient-from),
+      var(--clinic-hero-gradient-to)
+    );
 }
 
 .clinic-home-hero::before {
@@ -366,7 +470,7 @@ a {
   width: 32rem;
   height: 32rem;
   border: 1px solid rgb(57 116 97 / 12%);
-  border-radius: 50%;
+  border-radius: var(--clinic-radius-circle);
   content: '';
 }
 
@@ -385,10 +489,10 @@ a {
 .clinic-home-hero__copy h1 {
   margin: 0;
   color: var(--clinic-forest-deep);
-  font-family: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
+  font-family: var(--clinic-font-serif-tc);
   font-size: clamp(2.6rem, 4.6vw, 4rem);
-  font-weight: 500;
-  letter-spacing: 0.055em;
+  font-weight: var(--clinic-weight-medium);
+  letter-spacing: var(--clinic-tracking-heading);
   line-height: 1.28;
 }
 
@@ -422,7 +526,7 @@ a {
 .clinic-hero-fact dt {
   color: var(--clinic-muted);
   font-size: var(--clinic-text-body);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--clinic-tracking-normal);
 }
 
 .clinic-hero-fact dd {
@@ -475,7 +579,7 @@ a {
     ),
     var(--clinic-forest);
   border: 0.6rem solid rgb(255 255 255 / 58%);
-  border-radius: 50%;
+  border-radius: var(--clinic-radius-circle);
   box-shadow: var(--clinic-shadow);
   text-align: center;
 }
@@ -484,7 +588,7 @@ a {
 .clinic-home-hero__orb::after {
   position: absolute;
   border: 1px solid rgb(57 116 97 / 25%);
-  border-radius: 50%;
+  border-radius: var(--clinic-radius-circle);
   content: '';
 }
 
@@ -498,21 +602,21 @@ a {
 
 .clinic-home-hero__orb span {
   font-size: var(--clinic-text-micro);
-  font-weight: 750;
-  letter-spacing: 0.18em;
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: var(--clinic-tracking-eyebrow);
 }
 
 .clinic-home-hero__orb strong {
   margin: 0.5rem 0;
-  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  font-family: var(--clinic-font-serif-tc);
   font-size: clamp(1.8rem, 4vw, 2.8rem);
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-weight: var(--clinic-weight-medium);
+  letter-spacing: var(--clinic-tracking-label);
 }
 
 .clinic-home-hero__orb small {
-  color: #cce0d6;
-  letter-spacing: 0.05em;
+  color: var(--clinic-text-inverse-soft);
+  letter-spacing: var(--clinic-tracking-heading);
   /* `<small>` 沒有自己的字級宣告時會落到瀏覽器預設的 `smaller`（約 0.83em），
      在這裡算出 13.33px——低於 R-6 的 14px 絕對下限。**沒有寫 CSS 的元素，
      token 檢查也看不到**：它讀的是宣告，沒有宣告就沒有東西可讀。這一類只有
@@ -530,7 +634,7 @@ a {
   padding: 0.75rem;
   background: rgb(255 255 255 / 90%);
   border: 1px solid rgb(255 255 255 / 88%);
-  border-radius: 1rem;
+  border-radius: var(--clinic-radius-lg);
   box-shadow: var(--clinic-shadow);
   /* 欄數由**放不放得下**決定，不由裝置寬度猜（R-5）。
      字級從 13.12px 提到 16px 之後，320px 下的兩欄各只有 127px，扣掉內距與箭頭
@@ -550,9 +654,9 @@ a {
   padding: 0.55rem 0.75rem;
   color: var(--clinic-forest);
   background: var(--clinic-mist);
-  border-radius: 0.65rem;
+  border-radius: var(--clinic-radius-md);
   font-size: var(--clinic-text-body);
-  font-weight: 750;
+  font-weight: var(--clinic-weight-bold);
   text-decoration: none;
 }
 
@@ -582,7 +686,7 @@ a {
   width: 24rem;
   height: 24rem;
   background: rgb(255 255 255 / 38%);
-  border-radius: 50%;
+  border-radius: var(--clinic-radius-circle);
   content: '';
 }
 
@@ -597,8 +701,8 @@ a {
   margin: 0 0 0.55rem;
   color: var(--clinic-green);
   font-size: var(--clinic-text-micro);
-  font-weight: 800;
-  letter-spacing: 0.18em;
+  font-weight: var(--clinic-weight-heavy);
+  letter-spacing: var(--clinic-tracking-eyebrow);
 }
 
 .clinic-section-heading h2,
@@ -608,9 +712,9 @@ a {
 .clinic-cta h2 {
   margin: 0;
   color: var(--clinic-forest-deep);
-  font-family: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-family: var(--clinic-font-serif-tc);
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: var(--clinic-tracking-heading);
   line-height: 1.35;
 }
 
@@ -639,8 +743,8 @@ a {
   border-radius: var(--clinic-radius);
   text-align: center;
   transition:
-    background 180ms ease,
-    transform 180ms ease;
+    background var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    transform var(--clinic-duration-effect-swift) var(--clinic-ease-out);
 }
 
 .clinic-care-card:hover {
@@ -658,7 +762,7 @@ a {
 .clinic-care-card h3 {
   margin: 0 0 0.6rem;
   color: var(--clinic-forest);
-  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  font-family: var(--clinic-font-serif-tc);
   font-size: var(--clinic-text-md);
 }
 
@@ -692,10 +796,10 @@ a {
   background: var(--clinic-white);
   border: 1px solid var(--clinic-line);
   border-radius: var(--clinic-radius);
-  box-shadow: 0 0.8rem 2rem rgb(22 72 58 / 5%);
+  box-shadow: var(--clinic-elevation-card);
   transition:
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    box-shadow var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    transform var(--clinic-duration-effect-swift) var(--clinic-ease-out);
 }
 
 .clinic-service-card:hover,
@@ -713,7 +817,8 @@ a {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  transition: transform 300ms ease;
+  transition: transform var(--clinic-duration-effect-fast)
+    var(--clinic-ease-out);
 }
 
 .clinic-service-card:hover .clinic-service-card__image {
@@ -729,9 +834,9 @@ a {
 .clinic-doctor-card h3 {
   margin: 0;
   color: var(--clinic-forest-deep);
-  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  font-family: var(--clinic-font-serif-tc);
   font-size: var(--clinic-text-lg);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--clinic-tracking-normal);
 }
 
 /* 整張卡片就是連結（stretched link）。
@@ -770,7 +875,7 @@ a {
 .clinic-text-link {
   color: var(--clinic-green);
   font-size: var(--clinic-text-body);
-  font-weight: 750;
+  font-weight: var(--clinic-weight-bold);
   text-underline-offset: 0.3rem;
   display: inline-flex;
   align-items: center;
@@ -883,7 +988,7 @@ a {
   max-height: 40rem;
   object-fit: cover;
   object-position: top;
-  border-radius: 12rem 12rem 1.5rem 1.5rem;
+  border-radius: var(--clinic-radius-organic-dome);
   box-shadow: var(--clinic-shadow);
 }
 
@@ -925,7 +1030,7 @@ a {
 .clinic-medical-note h2 {
   margin: 0 0 1rem;
   color: var(--clinic-forest-deep);
-  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  font-family: var(--clinic-font-serif-tc);
   font-size: clamp(1.4rem, 3vw, 1.9rem);
 }
 
@@ -942,9 +1047,9 @@ a {
   padding: 0.55rem 0.9rem;
   color: var(--clinic-forest);
   background: var(--clinic-mist);
-  border-radius: 99rem;
+  border-radius: var(--clinic-radius-pill);
   font-size: var(--clinic-text-body);
-  font-weight: 700;
+  font-weight: var(--clinic-weight-bold);
 }
 
 .clinic-content-list {
@@ -968,7 +1073,7 @@ a {
   width: 0.42rem;
   height: 0.42rem;
   background: var(--clinic-sage);
-  border-radius: 50%;
+  border-radius: var(--clinic-radius-circle);
   content: '';
 }
 
@@ -992,7 +1097,7 @@ a {
   margin: 0.65rem 0 1.15rem;
   color: var(--clinic-green);
   font-size: clamp(1.05rem, 2.2vw, 1.3rem);
-  font-weight: 700;
+  font-weight: var(--clinic-weight-bold);
 }
 
 .clinic-service-hero__copy
@@ -1006,7 +1111,7 @@ a {
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border: 0.65rem solid rgb(255 255 255 / 70%);
-  border-radius: 52% 48% 1.5rem 1.5rem;
+  border-radius: var(--clinic-radius-organic-arch);
   box-shadow: var(--clinic-shadow);
 }
 
@@ -1024,9 +1129,9 @@ a {
   color: var(--clinic-forest);
   background: rgb(255 255 255 / 78%);
   border: 1px solid var(--clinic-line);
-  border-radius: 0.55rem;
+  border-radius: var(--clinic-radius-sm);
   font-size: var(--clinic-text-body);
-  font-weight: 700;
+  font-weight: var(--clinic-weight-bold);
 }
 
 .clinic-content-grid {
@@ -1097,12 +1202,12 @@ a {
 }
 
 .clinic-cta .clinic-eyebrow {
-  color: #bad2c6;
+  color: var(--clinic-text-inverse-muted);
 }
 
 .clinic-cta__inner > div:first-child > p:last-child {
   margin: 0.8rem 0 0;
-  color: #d4e2db;
+  color: var(--clinic-text-inverse-strong);
 }
 
 .clinic-cta__actions {
@@ -1112,8 +1217,8 @@ a {
 }
 
 .clinic-footer {
-  color: #d1dfd8;
-  background: #0b3029;
+  color: var(--clinic-text-inverse);
+  background: var(--clinic-forest-deepest);
 }
 
 .clinic-footer__inner {
@@ -1129,13 +1234,13 @@ a {
   margin: 0 0 1rem;
   color: var(--clinic-white);
   font-size: var(--clinic-text-body);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--clinic-tracking-label);
 }
 
 .clinic-footer p,
 .clinic-footer address {
   margin: 0;
-  color: #aabfb5;
+  color: var(--clinic-text-inverse-dim);
   font-size: var(--clinic-text-body);
   font-style: normal;
 }
@@ -1169,7 +1274,7 @@ a {
   height: auto;
   padding: 0.45rem;
   background: rgb(255 255 255 / 92%);
-  border-radius: 0.55rem;
+  border-radius: var(--clinic-radius-sm);
 }
 
 .clinic-footer__brand p {
@@ -1181,7 +1286,7 @@ a {
   display: inline-block;
   margin-top: 0.8rem;
   color: var(--clinic-white);
-  font-weight: 700;
+  font-weight: var(--clinic-weight-bold);
 }
 
 .clinic-footer__legal {
@@ -1191,7 +1296,7 @@ a {
   align-items: center;
   margin-inline: auto;
   gap: 1rem 2rem;
-  color: #8ca69a;
+  color: var(--clinic-text-inverse-subtle);
   border-top: 1px solid rgb(255 255 255 / 10%);
   font-size: var(--clinic-text-body);
 }
@@ -1211,7 +1316,7 @@ a {
 .clinic-not-found h1,
 .clinic-noscript h1 {
   color: var(--clinic-forest-deep);
-  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  font-family: var(--clinic-font-serif-tc);
   font-size: clamp(2rem, 5vw, 3rem);
 }
 
@@ -1289,9 +1394,9 @@ a {
     color: var(--clinic-forest);
     background: transparent;
     border: 1px solid var(--clinic-line);
-    border-radius: 0.65rem;
+    border-radius: var(--clinic-radius-md);
     font-size: var(--clinic-text-body);
-    font-weight: 700;
+    font-weight: var(--clinic-weight-bold);
   }
 
   .clinic-menu-button span:first-child {
@@ -1342,7 +1447,7 @@ a {
     width: 100%;
     min-height: 2.9rem;
     padding-inline: 0.7rem;
-    border-radius: 0.5rem;
+    border-radius: var(--clinic-radius-sm);
     font-size: var(--clinic-text-body);
   }
 
@@ -1439,7 +1544,7 @@ a {
 
   .clinic-doctor-profile__image {
     max-height: 31rem;
-    border-radius: 8rem 8rem 1.25rem 1.25rem;
+    border-radius: var(--clinic-radius-organic-dome-narrow);
   }
 
   .clinic-service-hero__grid {
@@ -1586,7 +1691,7 @@ a {
 .clinic-social-chip {
   padding: 0.5rem 1rem;
   border: 1px solid var(--clinic-line);
-  border-radius: 2rem;
+  border-radius: var(--clinic-radius-2xl);
   color: var(--clinic-forest);
   text-decoration: none;
   /* 全站 44px 可點面積標準；社群按鈕在手機上最容易被點錯。 */
@@ -1594,8 +1699,8 @@ a {
   display: inline-flex;
   align-items: center;
   transition:
-    background-color var(--clinic-motion-fast, 0.24s) ease,
-    border-color var(--clinic-motion-fast, 0.24s) ease;
+    background-color var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+    border-color var(--clinic-duration-effect-fast) var(--clinic-ease-out);
 }
 
 .clinic-social-chip:hover,
@@ -1621,7 +1726,7 @@ a {
 .clinic-faq-item summary {
   color: var(--clinic-forest);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: var(--clinic-weight-bold);
   /* 展開箭頭交給瀏覽器原生 marker，不自製——原生的在報讀器上會被念成
      「已展開／已摺疊」，自製的圖示則需要額外的 aria 標註才等價。 */
 
@@ -1676,18 +1781,30 @@ a {
   --clinic-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --clinic-ease-linear: linear;
 
-  /* 互動時長三檔，依「使用者要重新定位多少視線」分（同 Material 3 的
-     效果類 vs 空間類）。 */
-  --clinic-duration-effect-fast: 0.2s;
-  --clinic-duration-spatial-base: 0.32s;
-  --clinic-duration-spatial-slow: 0.5s;
+  /* -----------------------------------------------------------------
+   * 互動時長三檔，依「使用者要重新定位多少視線」分（同 Material 3 的
+   * 效果類 vs 空間類）。
+   *
+   * **值取自現況，不是另訂一套。** 後三個數字就是先前的
+   * `--clinic-motion-fast/base/slow`，只是換成說得出用途的名字——重新定檔會
+   * 改變整站的動效節奏，那不是 token 收斂該做的事。
+   *
+   * `swift` 是收斂時才發現的第四檔：hover 回饋（導覽變色、卡片浮起、按鈕
+   * 底色）先前寫死成 160ms 與 180ms，比 0.24s 明顯快。把它們併進 fast 會讓
+   * 整站的滑鼠回饋一起變鈍，所以照實留成一檔，取兩者中較快的 160ms。
+   * ----------------------------------------------------------------- */
+  --clinic-duration-effect-swift: 0.16s;
+  --clinic-duration-effect-fast: 0.24s;
+  --clinic-duration-spatial-base: 0.5s;
+  --clinic-duration-spatial-slow: 0.8s;
 
   /* 用途型動畫時長。**週期各自不同是刻意的**——壓成同一個值會讓三層環境
      動畫被迫同步，反而生出原本沒有的節拍感。 */
+  --clinic-duration-word: 0.7s;
+  --clinic-duration-sheen: 2.4s;
   --clinic-duration-orb: 9s;
   --clinic-duration-aurora: 22s;
   --clinic-duration-ticker: 26s;
-  --clinic-duration-sheen: 2.4s;
 
   /* Stagger 步長。這些是 **delay 的乘數**，不是 duration——它們乘上
      `--clinic-stagger` / `--clinic-cell` / `--clinic-word-index` 得到每個元素
@@ -1696,11 +1813,8 @@ a {
   --clinic-stagger-block: 70ms;
   --clinic-stagger-cell: 80ms;
   --clinic-stagger-layer: 90ms;
-
-  /* 舊的三檔時長。仍有用處引用，收斂完成後移除。 */
-  --clinic-motion-fast: 0.24s;
-  --clinic-motion-base: 0.5s;
-  --clinic-motion-slow: 0.8s;
+  /* 逐字動畫在第一個字之前的起跑延遲，讓進場不與捲動同時發生。 */
+  --clinic-stagger-word-offset: 120ms;
   /* 以下全部由 clinic-site.js 逐項覆寫。宣告在這裡是為了讓「沒有 JS 時的狀態」
      成為一個寫出來的預設值，而不是散落在每個 var() 的 fallback 裡——沒有宣告的
      自訂屬性，整條宣告會靜默失效，而那正是最難察覺的一種壞法。 */
@@ -1720,9 +1834,9 @@ a {
    預設 0 讓沒有 JS 時也不會卡在延遲上。 */
 .clinic-motion .clinic-home-hero__copy > *,
 .clinic-motion .clinic-home-hero__visual {
-  animation: clinic-rise var(--clinic-motion-slow) var(--clinic-ease-out)
-    backwards;
-  animation-delay: calc(var(--clinic-stagger, 0) * 90ms);
+  animation: clinic-rise var(--clinic-duration-spatial-slow)
+    var(--clinic-ease-out) backwards;
+  animation-delay: calc(var(--clinic-stagger, 0) * var(--clinic-stagger-layer));
 }
 
 @keyframes clinic-rise {
@@ -1739,9 +1853,11 @@ a {
   opacity: 0;
   transform: translate3d(0, 1.75rem, 0);
   transition:
-    opacity var(--clinic-motion-base) var(--clinic-ease-out),
-    transform var(--clinic-motion-base) var(--clinic-ease-out);
-  transition-delay: calc(var(--clinic-stagger, 0) * 70ms);
+    opacity var(--clinic-duration-spatial-base) var(--clinic-ease-out),
+    transform var(--clinic-duration-spatial-base) var(--clinic-ease-out);
+  transition-delay: calc(
+    var(--clinic-stagger, 0) * var(--clinic-stagger-block)
+  );
 }
 
 .clinic-motion [data-reveal].is-revealed {
@@ -1754,12 +1870,12 @@ a {
    scroll 監聽器——scroll 事件每幀都會觸發，是這類效果最常見的卡頓來源。 */
 .clinic-header {
   transition:
-    min-height var(--clinic-motion-fast) var(--clinic-ease-out),
-    box-shadow var(--clinic-motion-fast) var(--clinic-ease-out);
+    min-height var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+    box-shadow var(--clinic-duration-effect-fast) var(--clinic-ease-out);
 }
 
 .clinic-header.is-condensed {
-  box-shadow: 0 0.5rem 1.5rem rgb(22 72 58 / 8%);
+  box-shadow: var(--clinic-elevation-header);
 }
 
 .clinic-header.is-condensed .clinic-header__inner {
@@ -1774,7 +1890,8 @@ a {
 /* 5. Hero 光暈緩慢浮動 ---------------------------------------------------
    幅度刻意很小（0.5rem），要的是「畫面是活的」而不是「有東西在動」。 */
 .clinic-motion .clinic-home-hero__orb {
-  animation: clinic-float 9s var(--clinic-ease-in-out) infinite;
+  animation: clinic-float var(--clinic-duration-orb) var(--clinic-ease-in-out)
+    infinite;
 }
 
 @keyframes clinic-float {
@@ -1786,7 +1903,7 @@ a {
 /* 6. Hero 視覺視差（漸進增強） ------------------------------------------- */
 @supports (animation-timeline: view()) {
   .clinic-motion .clinic-home-hero__visual {
-    animation: clinic-parallax linear both;
+    animation: clinic-parallax var(--clinic-ease-linear) both;
     animation-timeline: view();
     animation-range: entry 0% cover 60%;
   }
@@ -1806,8 +1923,8 @@ a {
   .clinic-service-card,
   .clinic-doctor-card {
     transition:
-      transform var(--clinic-motion-fast) var(--clinic-ease-out),
-      box-shadow var(--clinic-motion-fast) var(--clinic-ease-out);
+      transform var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+      box-shadow var(--clinic-duration-effect-fast) var(--clinic-ease-out);
   }
 
   .clinic-care-card:hover,
@@ -1824,7 +1941,7 @@ a {
    不可分割或遮擋，所以這裡只留不會動到構圖的淡入。 */
 .clinic-motion [data-reveal] img {
   opacity: 0;
-  transition: opacity var(--clinic-motion-slow) var(--clinic-ease-out);
+  transition: opacity var(--clinic-duration-spatial-slow) var(--clinic-ease-out);
 }
 
 .clinic-motion [data-reveal].is-revealed img {
@@ -1837,7 +1954,8 @@ a {
 .clinic-navigation a::after {
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform var(--clinic-motion-fast) var(--clinic-ease-out);
+  transition: transform var(--clinic-duration-effect-fast)
+    var(--clinic-ease-out);
 }
 
 .clinic-navigation a:hover::after,
@@ -1871,7 +1989,8 @@ a {
   content: '';
   inset: 0;
   transform: translate3d(-120%, 0, 0);
-  transition: transform var(--clinic-motion-slow) var(--clinic-ease-out);
+  transition: transform var(--clinic-duration-spatial-slow)
+    var(--clinic-ease-out);
 }
 
 @media (hover: hover) {
@@ -1885,7 +2004,8 @@ a {
 .clinic-motion [data-reveal] .clinic-section-rule {
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform var(--clinic-motion-slow) var(--clinic-ease-out);
+  transition: transform var(--clinic-duration-spatial-slow)
+    var(--clinic-ease-out);
 }
 
 .clinic-motion [data-reveal].is-revealed .clinic-section-rule {
@@ -1898,8 +2018,8 @@ a {
     transform: translate3d(0, -0.5rem, 0);
     opacity: 0;
     transition:
-      opacity var(--clinic-motion-fast) var(--clinic-ease-out),
-      transform var(--clinic-motion-fast) var(--clinic-ease-out);
+      opacity var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+      transform var(--clinic-duration-effect-fast) var(--clinic-ease-out);
   }
 
   .clinic-navigation.is-open {
@@ -1925,7 +2045,7 @@ a {
 @supports (animation-timeline: scroll()) {
   .clinic-motion .clinic-scroll-progress {
     display: block;
-    animation: clinic-progress linear both;
+    animation: clinic-progress var(--clinic-ease-linear) both;
     animation-timeline: scroll();
   }
 
@@ -1943,12 +2063,13 @@ a {
 }
 
 ::view-transition-old(root) {
-  animation: clinic-fade-out var(--clinic-motion-fast) var(--clinic-ease-in-out)
-    both;
+  animation: clinic-fade-out var(--clinic-duration-effect-fast)
+    var(--clinic-ease-in-out) both;
 }
 
 ::view-transition-new(root) {
-  animation: clinic-rise var(--clinic-motion-base) var(--clinic-ease-out) both;
+  animation: clinic-rise var(--clinic-duration-spatial-base)
+    var(--clinic-ease-out) both;
 }
 
 @keyframes clinic-fade-out {
@@ -2005,7 +2126,8 @@ a {
    的畫布上游走。代價是這一層每幀重繪，所以只用在這個 22 秒的環境動畫，而且
    減少動態時整個關掉。 */
 .clinic-motion .clinic-home-hero__aurora {
-  animation: clinic-aurora 22s var(--clinic-ease-in-out) infinite alternate;
+  animation: clinic-aurora var(--clinic-duration-aurora)
+    var(--clinic-ease-in-out) infinite alternate;
   will-change: background-position;
 }
 
@@ -2045,7 +2167,7 @@ a {
 /* 17. Hero 捲離時的電影感退場（Apple）------------------------------------ */
 @supports (animation-timeline: view()) {
   .clinic-motion .clinic-home-hero__copy {
-    animation: clinic-hero-exit linear both;
+    animation: clinic-hero-exit var(--clinic-ease-linear) both;
     animation-timeline: view();
     animation-range: exit 0% exit 90%;
   }
@@ -2083,7 +2205,8 @@ a {
     content: '';
     inset: 0;
     opacity: 0;
-    transition: opacity var(--clinic-motion-fast) var(--clinic-ease-out);
+    transition: opacity var(--clinic-duration-effect-fast)
+      var(--clinic-ease-out);
   }
 
   .clinic-service-card:hover::before,
@@ -2120,11 +2243,13 @@ a {
     content: '';
     inset: -1px;
     opacity: 0;
-    transition: opacity var(--clinic-motion-fast) var(--clinic-ease-out);
+    transition: opacity var(--clinic-duration-effect-fast)
+      var(--clinic-ease-out);
   }
 
   .clinic-button--outline:hover::before {
-    animation: clinic-angle-spin 2.4s linear infinite;
+    animation: clinic-angle-spin var(--clinic-duration-sheen)
+      var(--clinic-ease-linear) infinite;
     opacity: 1;
   }
 
@@ -2140,7 +2265,8 @@ a {
 @media (hover: hover) and (pointer: fine) {
   .clinic-button--primary,
   .clinic-header__booking {
-    transition: translate var(--clinic-motion-fast) var(--clinic-ease-out);
+    transition: translate var(--clinic-duration-effect-fast)
+      var(--clinic-ease-out);
     translate: var(--clinic-magnet-x, 0) var(--clinic-magnet-y, 0);
   }
 }
@@ -2154,8 +2280,12 @@ a {
 }
 
 .clinic-motion .clinic-word {
-  animation: clinic-word-in 0.7s var(--clinic-ease-out) backwards;
-  animation-delay: calc(var(--clinic-word-index, 0) * 45ms + 120ms);
+  animation: clinic-word-in var(--clinic-duration-word) var(--clinic-ease-out)
+    backwards;
+  animation-delay: calc(
+    var(--clinic-word-index, 0) * var(--clinic-stagger-word) +
+      var(--clinic-stagger-word-offset)
+  );
 }
 
 @keyframes clinic-word-in {
@@ -2174,15 +2304,15 @@ a {
   position: absolute;
   z-index: -1;
   height: 100%;
-  border-radius: 2rem;
+  border-radius: var(--clinic-radius-2xl);
   background: var(--clinic-mist);
   inset-block-start: 0;
   opacity: 0;
   pointer-events: none;
   transition:
-    transform var(--clinic-motion-fast) var(--clinic-ease-out),
-    width var(--clinic-motion-fast) var(--clinic-ease-out),
-    opacity var(--clinic-motion-fast) var(--clinic-ease-out);
+    transform var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+    width var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+    opacity var(--clinic-duration-effect-fast) var(--clinic-ease-out);
 }
 
 /* 23. 服務跑馬燈 ---------------------------------------------------------
@@ -2193,8 +2323,8 @@ a {
   mask-image: linear-gradient(
     90deg,
     transparent,
-    #000 8%,
-    #000 92%,
+    var(--clinic-mask-opaque) 8%,
+    var(--clinic-mask-opaque) 92%,
     transparent
   );
 }
@@ -2206,7 +2336,8 @@ a {
 }
 
 .clinic-motion .clinic-ticker__track {
-  animation: clinic-ticker 26s linear infinite;
+  animation: clinic-ticker var(--clinic-duration-ticker)
+    var(--clinic-ease-linear) infinite;
 }
 
 .clinic-ticker:hover .clinic-ticker__track,
@@ -2227,9 +2358,9 @@ a {
   opacity: 0;
   transform: translate3d(0, 1.25rem, 0);
   transition:
-    opacity var(--clinic-motion-base) var(--clinic-ease-out),
-    transform var(--clinic-motion-base) var(--clinic-ease-out);
-  transition-delay: calc(var(--clinic-cell, 0) * 80ms);
+    opacity var(--clinic-duration-spatial-base) var(--clinic-ease-out),
+    transform var(--clinic-duration-spatial-base) var(--clinic-ease-out);
+  transition-delay: calc(var(--clinic-cell, 0) * var(--clinic-stagger-cell));
 }
 
 .clinic-motion [data-reveal].is-revealed .clinic-card-grid > *,

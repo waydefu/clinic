@@ -182,4 +182,51 @@ describe('token review', () => {
 
     expect(review.violations.join('\n')).toContain('--standalone');
   });
+
+  // 2026-08-06 的迴歸：`:root` 區塊的結尾要靠**大括號配對**找，不能靠縮排。
+  //
+  // 先前 `definedTokens` 與 `outsideRootBlocks` 各自寫了一份找「換行後頂格的
+  // `}`」的 regex。`:root` 在最外層時碰巧成立，寫在 `@media` 裡就不成立——那個
+  // `:root` 的結尾是縮排的，於是 regex 一路吃到整個 `@media` 的結尾，把中間所有
+  // 規則當成 `:root` 的內容排除掉。實測吞掉 clinic-site.css 230 行／44 條 class
+  // 規則、workbench.css 114 行／27 條；那些規則裡的寫死值從來沒有被檢查過，
+  // 而 gate 一直是綠的。
+  it('finds the end of a :root block inside @media by matching braces', () => {
+    const source = [
+      '@media (max-width: 48rem) {',
+      '  :root {',
+      '    --shell: 100%;',
+      '  }',
+      '',
+      '  .card {',
+      '    font-weight: 650;',
+      '    color: #ff0000;',
+      '  }',
+      '}'
+    ].join('\n');
+
+    const body = outsideRootBlocks(source);
+    // 巢狀 `:root` 之後的規則必須留在 body 裡，否則它們永遠掃不到。
+    expect(body).toContain('font-weight: 650');
+    expect(body).toContain('#ff0000');
+    // 而 `:root` 自己的宣告仍要被排除，否則 token 定義會被當成違規。
+    expect(body).not.toContain('--shell');
+
+    const review = planTokenReview(
+      sheets([{ name: 'styles.css', source, full: true }])
+    );
+    expect(review.violations.join('\n')).toContain('650');
+    expect(review.violations.join('\n')).toContain('#ff0000');
+  });
+
+  // 區域性自訂屬性不是全域 token：`.word { --index: 0 }` 只在該選擇器內有效，
+  // 把它登記成全域會讓「使用了未定義的 token」這條守衛跟著失準。
+  it('does not treat scoped custom properties as global tokens', () => {
+    const defined = definedTokens(
+      ':root {\n  --global: 1;\n}\n\n.word {\n  --scoped: 0;\n}\n'
+    );
+
+    expect(defined.has('--global')).toBe(true);
+    expect(defined.has('--scoped')).toBe(false);
+  });
 });
