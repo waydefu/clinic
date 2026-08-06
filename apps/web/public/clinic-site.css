@@ -218,7 +218,7 @@ a {
   top: 0.75rem;
   left: 0.75rem;
   min-height: 2.75rem;
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   color: var(--clinic-white);
   background: var(--clinic-forest);
   border-radius: var(--clinic-radius-sm);
@@ -236,8 +236,8 @@ a {
   min-height: 2rem;
   align-items: center;
   justify-content: center;
-  gap: 0.7rem;
-  padding: 0.35rem 1rem;
+  gap: 0.75rem;
+  padding: 0.25rem 1rem;
   color: var(--clinic-white);
   background: var(--clinic-forest-deep);
   font-size: var(--clinic-text-body);
@@ -246,7 +246,7 @@ a {
 }
 
 .preview-boundary span {
-  padding: 0.08rem 0.45rem;
+  padding: 0.125rem 0.5rem;
   color: var(--clinic-forest-deep);
   background: var(--clinic-badge-preview);
   border-radius: var(--clinic-radius-pill);
@@ -325,7 +325,7 @@ a {
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
-  padding: 0.45rem 0.6rem;
+  padding: 0.5rem 0.5rem;
   color: var(--clinic-ink);
   font-size: var(--clinic-text-body);
   font-weight: var(--clinic-weight-bold);
@@ -380,7 +380,7 @@ a {
 .clinic-navigation__submenu a {
   width: 100%;
   min-height: 2.5rem;
-  padding-inline: 0.8rem;
+  padding-inline: 0.75rem;
   border-radius: var(--clinic-radius-sm);
   font-size: var(--clinic-text-body);
 }
@@ -399,7 +399,7 @@ a {
   min-height: 3rem;
   align-items: center;
   justify-content: center;
-  padding: 0.65rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   border: 1px solid transparent;
   border-radius: var(--clinic-radius-pill);
   font-weight: var(--clinic-weight-bold);
@@ -507,7 +507,7 @@ a {
 
 .clinic-home-hero__copy > p:not(.clinic-eyebrow) {
   max-width: 36rem;
-  margin: 1.4rem 0 0;
+  margin: 1.5rem 0 0;
   color: var(--clinic-muted);
   font-size: clamp(
     var(--clinic-text-body),
@@ -668,7 +668,7 @@ a {
   display: flex;
   min-height: 3.2rem;
   align-items: center;
-  padding: 0.55rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   color: var(--clinic-forest);
   background: var(--clinic-mist);
   border-radius: var(--clinic-radius-md);
@@ -715,7 +715,7 @@ a {
 }
 
 .clinic-eyebrow {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.5rem;
   color: var(--clinic-green);
   font-size: var(--clinic-text-micro);
   font-weight: var(--clinic-weight-heavy);
@@ -758,7 +758,7 @@ a {
 
 .clinic-care-card {
   min-height: 15rem;
-  padding: 2rem 1.4rem;
+  padding: 2rem 1.5rem;
   background: rgb(255 255 255 / 72%);
   border: 1px solid rgb(255 255 255 / 78%);
   border-radius: var(--clinic-radius);
@@ -781,7 +781,7 @@ a {
 }
 
 .clinic-care-card h3 {
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.5rem;
   color: var(--clinic-forest);
   font-family: var(--clinic-font-serif-tc);
   font-size: var(--clinic-text-md);
@@ -848,7 +848,7 @@ a {
 
 .clinic-service-card__body,
 .clinic-doctor-card__body {
-  padding: 1.45rem;
+  padding: 1.5rem;
 }
 
 .clinic-service-card h3,
@@ -886,7 +886,7 @@ a {
 .clinic-service-card__body > p:not(.clinic-eyebrow),
 .clinic-doctor-card__body > p:not(.clinic-eyebrow) {
   min-height: 4.6rem;
-  margin: 0.8rem 0 1.15rem;
+  margin: 0.75rem 0 1.25rem;
   color: var(--clinic-muted);
   font-size: var(--clinic-text-body);
 }
@@ -904,7 +904,7 @@ a {
 }
 
 .clinic-text-link::after {
-  margin-left: 0.4rem;
+  margin-left: 0.5rem;
   content: '→';
 }
 
@@ -967,13 +967,13 @@ a {
 }
 
 .clinic-page-hero__inner > div > p:last-child {
-  margin: 1.2rem 0 0;
+  margin: 1.25rem 0 0;
   color: var(--clinic-muted);
   font-size: var(--clinic-text-body);
 }
 
 .clinic-breadcrumb {
-  padding: 0.8rem 0;
+  padding: 0.75rem 0;
   color: var(--clinic-muted);
   background: var(--clinic-white);
   border-bottom: 1px solid var(--clinic-line);
@@ -983,7 +983,7 @@ a {
 .clinic-breadcrumb .clinic-shell {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.5rem;
 }
 
 /* 麵包屑是導覽入口，不是句子裡的連結，所以沒有 SC 2.5.8 的 Inline 例外。
@@ -1019,7 +1019,7 @@ a {
 
 .clinic-doctor-profile__intro > strong {
   display: block;
-  margin-top: 0.35rem;
+  margin-top: 0.25rem;
   color: var(--clinic-green);
   font-size: var(--clinic-text-body);
 }
@@ -1066,14 +1066,14 @@ a {
 .clinic-pill-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.75rem;
   padding: 0;
   margin: 0;
   list-style: none;
 }
 
 .clinic-pill-list li {
-  padding: 0.55rem 0.9rem;
+  padding: 0.5rem 1rem;
   color: var(--clinic-forest);
   background: var(--clinic-mist);
   border-radius: var(--clinic-radius-pill);
@@ -1085,13 +1085,13 @@ a {
   display: grid;
   padding: 0;
   margin: 0;
-  gap: 0.7rem;
+  gap: 0.75rem;
   list-style: none;
 }
 
 .clinic-content-list li {
   position: relative;
-  padding-left: 1.4rem;
+  padding-left: 1.5rem;
   color: var(--clinic-muted);
 }
 
@@ -1123,7 +1123,7 @@ a {
 }
 
 .clinic-service-hero__subtitle {
-  margin: 0.65rem 0 1.15rem;
+  margin: 0.75rem 0 1.25rem;
   color: var(--clinic-green);
   font-size: clamp(
     var(--clinic-text-body),
@@ -1151,14 +1151,14 @@ a {
 .clinic-highlight-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.5rem;
   padding: 0;
   margin: 0 0 2rem;
   list-style: none;
 }
 
 .clinic-highlight-list li {
-  padding: 0.4rem 0.7rem;
+  padding: 0.5rem 0.75rem;
   color: var(--clinic-forest);
   background: rgb(255 255 255 / 78%);
   border: 1px solid var(--clinic-line);
@@ -1243,7 +1243,7 @@ a {
 }
 
 .clinic-cta__inner > div:first-child > p:last-child {
-  margin: 0.8rem 0 0;
+  margin: 0.75rem 0 0;
   color: var(--clinic-text-inverse-strong);
 }
 
@@ -1285,7 +1285,7 @@ a {
 .clinic-footer address,
 .clinic-footer__social {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 /* 頁尾的每一個連結都是獨立的入口——電話會被按下去撥號、社群與隱私權說明會被
@@ -1309,7 +1309,7 @@ a {
      載入前的佔位比例不變，CLS 預算不受影響。 */
   width: clamp(6.5rem, 30vw, 12.5rem);
   height: auto;
-  padding: 0.45rem;
+  padding: 0.5rem;
   background: rgb(255 255 255 / 92%);
   border-radius: var(--clinic-radius-sm);
 }
@@ -1321,7 +1321,7 @@ a {
 
 .clinic-footer__booking {
   display: inline-block;
-  margin-top: 0.8rem;
+  margin-top: 0.75rem;
   color: var(--clinic-white);
   font-weight: var(--clinic-weight-bold);
 }
@@ -1376,7 +1376,7 @@ a {
   }
 
   .clinic-navigation a {
-    padding-inline: 0.4rem;
+    padding-inline: 0.5rem;
     font-size: var(--clinic-text-body);
   }
 
@@ -1410,7 +1410,7 @@ a {
   .clinic-header__inner {
     min-height: 4.5rem;
     grid-template-columns: 1fr auto auto;
-    gap: 0.65rem;
+    gap: 0.75rem;
   }
 
   .clinic-brand img {
@@ -1430,7 +1430,7 @@ a {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.05rem;
+    gap: 0.125rem;
     padding: 0.25rem;
     color: var(--clinic-forest);
     background: transparent;
@@ -1465,7 +1465,7 @@ a {
     left: 0;
     display: none;
     max-height: calc(100vh - 7rem);
-    padding: 0.65rem 1rem 1rem;
+    padding: 0.75rem 1rem 1rem;
     overflow-y: auto;
     background: var(--clinic-white);
     border-bottom: 1px solid var(--clinic-line);
@@ -1487,7 +1487,7 @@ a {
   .clinic-navigation a {
     width: 100%;
     min-height: 2.9rem;
-    padding-inline: 0.7rem;
+    padding-inline: 0.75rem;
     border-radius: var(--clinic-radius-sm);
     font-size: var(--clinic-text-body);
   }
@@ -1520,7 +1520,7 @@ a {
 
   .clinic-header__booking {
     min-height: 2.75rem;
-    padding-inline: 0.85rem;
+    padding-inline: 0.75rem;
     font-size: var(--clinic-text-body);
   }
 
@@ -1632,7 +1632,7 @@ a {
     align-items: flex-start;
     flex-direction: column;
     padding: 1.25rem 0;
-    gap: 0.35rem;
+    gap: 0.25rem;
   }
 }
 
@@ -1644,7 +1644,7 @@ a {
      手機寬度且單調收放，再壓一個定值只會把 320～480 重新鎖死，故移除。 */
 
   .clinic-header__booking {
-    padding-inline: 0.65rem;
+    padding-inline: 0.75rem;
   }
 
   .clinic-footer__inner {
