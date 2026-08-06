@@ -17,6 +17,44 @@
     'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+
+  /* -----------------------------------------------------------------
+   * 字級尺度（2026-08-06 併入）。
+   *
+   * `clinic.html` **只載入這一份樣式表**，不載入 `styles.css`，所以官網用不到
+   * `--text-*`——直接引用它會是一條靜默失效的宣告。因此這裡自己宣告一份，
+   * 但**數值刻意與 styles.css 的共用尺度逐階相同**（基準 16px、比例 1.2）。
+   * 前綴分開是載入邊界的結果，尺度一致才是重點：讀者不會因為換了一頁，
+   * 同樣的正文就變成另一個大小。
+   *
+   * 併入前這份樣式表有 14 種 rem 字面值加 9 個不受約束的 clamp()，實測在
+   * `/clinic` 算出 19 種字級，最小 9.92px——低於規則書 R-6 的 14px 絕對下限。
+   * `--clinic-text-micro` 同樣是刻意的下限：往下一階是 13.3px，讀不動。
+   * ----------------------------------------------------------------- */
+  --clinic-text-micro: 0.875rem;
+  --clinic-text-body: 1rem;
+  --clinic-text-md: 1.2rem;
+  --clinic-text-lg: 1.44rem;
+  --clinic-text-xl: 1.728rem;
+  --clinic-text-2xl: 2.074rem;
+  --clinic-text-3xl: 2.488rem;
+
+  /* 語意層：右側全部指向上面已宣告的品牌原色，不新增顏色。
+     分開命名是為了讓用處說出「這是什麼」而不是「這是哪個綠」。 */
+  --clinic-surface-canvas: var(--clinic-mist-soft);
+  --clinic-surface-default: var(--clinic-white);
+  --clinic-surface-subtle: var(--clinic-mist);
+  --clinic-text-primary: var(--clinic-ink);
+  --clinic-text-secondary: var(--clinic-muted);
+  --clinic-border-default: var(--clinic-line);
+  --clinic-action-primary: var(--clinic-forest);
+  --clinic-action-primary-strong: var(--clinic-forest-deep);
+
+  /* 圓角級數：依元件層級分四階，取代先前 10 種彼此無關的散值。 */
+  --clinic-radius-sm: 0.5rem;
+  --clinic-radius-md: 0.75rem;
+  --clinic-radius-lg: var(--clinic-radius);
+  --clinic-radius-pill: 99rem;
 }
 
 * {
@@ -1594,8 +1632,46 @@ a {
 }
 
 :root {
+  /* -----------------------------------------------------------------
+   * 緩動：三條核准曲線。
+   *
+   * `linear` 是 token 而不是「還沒收乾淨的關鍵字」——這份樣式表裡有兩類
+   * **非它不可**的用途，換成 ease 曲線是行為變更而不是重構：
+   *
+   *   1. 恆速循環：跑馬燈與邊框流光，換成 ease 會反覆加速減速；
+   *   2. scroll-driven：視差、捲動進度條、hero 退場。它們寫成
+   *      `animation: <name> linear both`，**不帶時長**，由捲動位置驅動，
+   *      用 ease 會讓動畫與手指脫節。
+   *
+   * 官網刻意與工作臺不同：工作臺是 Carbon 所謂的 productive（快、克制），
+   * 因為櫃台整天掃描表格；官網是行銷門面，慢一點才有餘裕感。
+   * ----------------------------------------------------------------- */
   --clinic-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --clinic-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --clinic-ease-linear: linear;
+
+  /* 互動時長三檔，依「使用者要重新定位多少視線」分（同 Material 3 的
+     效果類 vs 空間類）。 */
+  --clinic-duration-effect-fast: 0.2s;
+  --clinic-duration-spatial-base: 0.32s;
+  --clinic-duration-spatial-slow: 0.5s;
+
+  /* 用途型動畫時長。**週期各自不同是刻意的**——壓成同一個值會讓三層環境
+     動畫被迫同步，反而生出原本沒有的節拍感。 */
+  --clinic-duration-orb: 9s;
+  --clinic-duration-aurora: 22s;
+  --clinic-duration-ticker: 26s;
+  --clinic-duration-sheen: 2.4s;
+
+  /* Stagger 步長。這些是 **delay 的乘數**，不是 duration——它們乘上
+     `--clinic-stagger` / `--clinic-cell` / `--clinic-word-index` 得到每個元素
+     的延遲。誤當成時長套進上面三檔，逐字標題會從流暢浮現變成一個字一個字跳。 */
+  --clinic-stagger-word: 45ms;
+  --clinic-stagger-block: 70ms;
+  --clinic-stagger-cell: 80ms;
+  --clinic-stagger-layer: 90ms;
+
+  /* 舊的三檔時長。仍有用處引用，收斂完成後移除。 */
   --clinic-motion-fast: 0.24s;
   --clinic-motion-base: 0.5s;
   --clinic-motion-slow: 0.8s;
