@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
 import { createBooking, login, showAllAppointments } from './support/workbench';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
@@ -8,8 +9,7 @@ export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/privacy',
   '/clinic'
 ] as const;
-const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
-  PUBLIC_PAGE_SCAN_ROUTES;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
 // 互動元素必須「看得出來可以按」。
 //
@@ -30,13 +30,8 @@ const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
 /** 導覽列裡的連結靠**位置**表達可點擊，依 NN/g 不需要額外的底線或框。 */
 const POSITIONALLY_SIGNALLED = ['nav', '.workspace-nav', '.patient-nav'];
 
-/** 診所官網的路由。四類頁面各取一條：首頁、醫師、醫師個人、鼻功能療程。 */
-const CLINIC_ROUTES = [
-  CLINIC_ROUTE,
-  '/clinic/doctors',
-  '/clinic/doctors/yan-cheng-an',
-  '/clinic/nasal/snoring-five-in-one'
-];
+/** 診所官網的四類取樣。單一來源在 `support/clinic-routes`。 */
+const CLINIC_ROUTES = CLINIC_UI_SCAN_ROUTES;
 
 const WORKSPACES = [
   '#overview',
