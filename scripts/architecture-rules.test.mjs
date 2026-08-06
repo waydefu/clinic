@@ -4,6 +4,7 @@ import {
   importSpecifiers,
   isBareSpecifier,
   layerViolations,
+  opaqueDynamicImports,
   stripComments
 } from './architecture-rules.mjs';
 
@@ -146,5 +147,64 @@ describe('forbiddenBrowserPatterns', () => {
 
   it('returns nothing for clean source', () => {
     expect(forbiddenBrowserPatterns('export const a = 1;', rules)).toEqual([]);
+  });
+});
+
+// 2026-08-06 對抗測試的結果。可達性走訪是靜態比對，只認得字面值；當時在
+// `main.ts` 加一行計算後的 `import(target)`，`check:architecture` 依然全綠，而
+// 目標檔案仍列在 unrouted-inventory.json 裡宣稱「未接線」——實際上 `probe()`
+// 已經把它載進來了。整個「被決策擋住的能力到不了」的論述都靠這道走訪。
+//
+// 因此這裡釘住兩件事：能靜態解析的照常解析；不能解析的**必須被回報**，而不是
+// 安靜地當成沒有依賴。
+describe('opaqueDynamicImports', () => {
+  it('accepts the two forms the walk can actually resolve', () => {
+    expect(opaqueDynamicImports("await import('./a.js');")).toEqual([]);
+    expect(opaqueDynamicImports('await import(`./a.js`);')).toEqual([]);
+  });
+
+  // 這一條就是當時真的繞過去的那個寫法。
+  it('reports a computed specifier', () => {
+    const source = "const t = './a.js';\nawait import(t);";
+    expect(opaqueDynamicImports(source)).toHaveLength(1);
+  });
+
+  it('reports an interpolated template specifier', () => {
+    expect(opaqueDynamicImports('await import(`./${name}.js`);')).toHaveLength(
+      1
+    );
+  });
+
+  it('reports a concatenated specifier', () => {
+    expect(opaqueDynamicImports("await import('./a' + '.js');")).toHaveLength(
+      1
+    );
+  });
+
+  // `createRequire` 直接跳出 ESM 圖，走訪連一條邊都看不到。
+  it('reports createRequire', () => {
+    const source = 'const require = createRequire(import.meta.url);';
+    expect(opaqueDynamicImports(source)).toEqual(['createRequire(...)']);
+  });
+
+  // `import.meta` 是 `import` 後面接 `.`，不是呼叫，不該被誤判。
+  it('does not report import.meta on its own', () => {
+    expect(opaqueDynamicImports('const u = import.meta.url;')).toEqual([]);
+  });
+
+  // 註解裡示範「不要這樣寫」的那一行，不該讓 gate 變紅——否則作者只好刪掉說明。
+  it('ignores an occurrence that appears only in a comment', () => {
+    expect(opaqueDynamicImports('// 不要寫 import(target)\nx();')).toEqual([]);
+  });
+
+  it('returns nothing for a file with only static imports', () => {
+    expect(opaqueDynamicImports("import x from './a.js';")).toEqual([]);
+  });
+});
+
+// 無插值樣板字串是可以靜態解析的，走訪應該真的跟著走進去，而不是只「容忍」它。
+describe('importSpecifiers 對樣板字串', () => {
+  it('resolves a no-substitution template specifier', () => {
+    expect(importSpecifiers('await import(`./a.js`);')).toEqual(['./a.js']);
   });
 });
