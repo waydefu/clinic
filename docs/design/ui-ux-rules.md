@@ -682,9 +682,16 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
   及效能測試；影像看起來正確，不代表流程或可及性正確。
 
 現行基線是
-[2026-07-28 UI 視覺基準](../reviews/ui-visual-baseline-2026-07-28.md)與其 manifest：
+[2026-08-06 UI 視覺基準](../reviews/ui-visual-baseline-2026-08-06.md)與其 manifest：
 共 10 張 reference-only PNG，含一張 `320×568` critical-flow 壓力圖。它們是人工
-跨電腦複核的參考證據，不是跨 OS 像素 golden；更早的日期截圖仍只算歷史證據。
+跨電腦複核的參考證據，不是跨 OS 像素 golden；更早的日期截圖（含
+[2026-07-28 那批](../reviews/ui-visual-baseline-2026-07-28.md)）仍只算歷史證據。
+
+**重拍基線時，擷取日期在四個地方**：`current-ui.spec.ts` 的 `CAPTURE_DATE`、
+`check-structure.mjs` 的 required paths 與 `visualBaselineDirectory`、新的基準文件，
+以及本段的指向。`capture:ui` 會**就地覆寫** `CAPTURE_DATE` 指到的目錄——忘了改日期
+就跑，會把舊基線的圖換掉而 manifest 的 `captureDate` 不動，等於用固定時間冒充擷取
+時間，正是本節第二點禁止的事。跑之前先確認工作區乾淨，跑完看 `git status`。
 
 ## 6. 例外處理
 
