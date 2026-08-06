@@ -99,6 +99,30 @@ navigation aids, not additional authority: none of them approves anything.
 | What did the owner actually ask for, and is it built? | `docs/product/owner-requests-consolidated-2026-07-31.md` (OR-01…OR-69 with state and blocking decision) |
 | What are the maintainability, performance, identity, retention and sync targets, and where do the numbers come from? | `docs/product/full-project-master-plan-2026-07-31.md` |
 | What are the ordered steps, with prerequisite, action, acceptance evidence and rollback? | `docs/product/full-project-execution-book-2026-07-31.md` |
+| Which gates were adversarially tested, and what did they miss? | `docs/reviews/2026-08-06-enterprise-audit.md` |
+
+### Two facts from the 2026-08-06 audit that change how you work here
+
+**The reachability walk is now fail-closed, and that is deliberate.**
+`check:architecture` proves that decision-blocked capabilities cannot be
+reached, but it parses imports with a regex, so it only ever sees literal
+specifiers. A computed `import(target)` in `main.ts` was demonstrated to leave
+the gate green while the target module genuinely loaded at runtime and stayed
+declared "unrouted". The gate therefore rejects any module load it cannot
+statically resolve. If it blocks you, write a literal specifier and branch on
+literals — do not widen the rule, because the inventory's guarantee is exactly
+what the rule protects.
+
+**Roles have one source: `packages/domain/src/roles.ts`.** The repository
+previously held three incompatible role sets plus a fourth approved baseline.
+Do not add a role string literal anywhere else. Note the deliberate deviation
+from `docs/architecture/rbac-matrix.md` §6, which names `packages/contracts`:
+contracts has no delivery path to the browser, so the canonical set lives in
+`domain`, which is vendored under a sha256 manifest (ADR-0004). `physician`
+exists with an empty permission list on purpose — D-006 approved the role,
+D-014/D-015 still block everything it might do, and granting it any permission
+would decide clinical-record reach on the owner's behalf. The browser still
+uses the legacy `admin` code; that rename is outstanding.
 
 ## Current implementation entry point
 
