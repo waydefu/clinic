@@ -135,7 +135,7 @@ a {
   padding: 0.35rem 1rem;
   color: var(--clinic-white);
   background: var(--clinic-forest-deep);
-  font-size: 0.76rem;
+  font-size: var(--clinic-text-body);
   letter-spacing: 0.04em;
   text-align: center;
 }
@@ -145,7 +145,7 @@ a {
   color: var(--clinic-forest-deep);
   background: #e6c483;
   border-radius: 99rem;
-  font-size: 0.62rem;
+  font-size: var(--clinic-text-micro);
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -222,7 +222,7 @@ a {
   align-items: center;
   padding: 0.45rem 0.6rem;
   color: var(--clinic-ink);
-  font-size: 0.92rem;
+  font-size: var(--clinic-text-body);
   font-weight: 650;
   text-decoration: none;
   transition:
@@ -277,7 +277,7 @@ a {
   min-height: 2.5rem;
   padding-inline: 0.8rem;
   border-radius: 0.5rem;
-  font-size: 0.86rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-navigation__submenu a:hover {
@@ -421,14 +421,14 @@ a {
 
 .clinic-hero-fact dt {
   color: var(--clinic-muted);
-  font-size: 0.875rem;
+  font-size: var(--clinic-text-body);
   letter-spacing: 0.04em;
 }
 
 .clinic-hero-fact dd {
   margin: 0.25rem 0 0;
   color: var(--clinic-forest-deep);
-  font-size: 1rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-hero-fact__hours {
@@ -497,7 +497,7 @@ a {
 }
 
 .clinic-home-hero__orb span {
-  font-size: 0.72rem;
+  font-size: var(--clinic-text-micro);
   font-weight: 750;
   letter-spacing: 0.18em;
 }
@@ -513,6 +513,11 @@ a {
 .clinic-home-hero__orb small {
   color: #cce0d6;
   letter-spacing: 0.05em;
+  /* `<small>` 沒有自己的字級宣告時會落到瀏覽器預設的 `smaller`（約 0.83em），
+     在這裡算出 13.33px——低於 R-6 的 14px 絕對下限。**沒有寫 CSS 的元素，
+     token 檢查也看不到**：它讀的是宣告，沒有宣告就沒有東西可讀。這一類只有
+     量 computed style 的掃描抓得到。 */
+  font-size: var(--clinic-text-micro);
 }
 
 .clinic-home-hero__topics {
@@ -527,7 +532,13 @@ a {
   border: 1px solid rgb(255 255 255 / 88%);
   border-radius: 1rem;
   box-shadow: var(--clinic-shadow);
-  grid-template-columns: repeat(2, 1fr);
+  /* 欄數由**放不放得下**決定，不由裝置寬度猜（R-5）。
+     字級從 13.12px 提到 16px 之後，320px 下的兩欄各只有 127px，扣掉內距與箭頭
+     剩約 85px 的文字空間——「止鼾好眠牙套」六個字需要 96px，於是被折成兩行，
+     違反 R-4 的短標籤不得逐字斷行。
+     8.5rem 這個下限是量出來的：320px 的可用內寬 262px 放不下兩欄（→ 單欄），
+     375px 的 317px 放得下（→ 維持兩欄）。 */
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: 0.5rem;
   backdrop-filter: blur(0.75rem);
 }
@@ -540,7 +551,7 @@ a {
   color: var(--clinic-forest);
   background: var(--clinic-mist);
   border-radius: 0.65rem;
-  font-size: 0.82rem;
+  font-size: var(--clinic-text-body);
   font-weight: 750;
   text-decoration: none;
 }
@@ -585,7 +596,7 @@ a {
 .clinic-eyebrow {
   margin: 0 0 0.55rem;
   color: var(--clinic-green);
-  font-size: 0.72rem;
+  font-size: var(--clinic-text-micro);
   font-weight: 800;
   letter-spacing: 0.18em;
 }
@@ -610,7 +621,7 @@ a {
 .clinic-section-heading > p:last-child {
   margin: 1rem auto 0;
   color: var(--clinic-muted);
-  font-size: 1rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-care-grid {
@@ -648,13 +659,13 @@ a {
   margin: 0 0 0.6rem;
   color: var(--clinic-forest);
   font-family: 'Noto Serif TC', 'Songti TC', serif;
-  font-size: 1.25rem;
+  font-size: var(--clinic-text-md);
 }
 
 .clinic-care-card p {
   margin: 0;
   color: var(--clinic-muted);
-  font-size: 0.9rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-section {
@@ -719,7 +730,7 @@ a {
   margin: 0;
   color: var(--clinic-forest-deep);
   font-family: 'Noto Serif TC', 'Songti TC', serif;
-  font-size: 1.35rem;
+  font-size: var(--clinic-text-lg);
   letter-spacing: 0.04em;
 }
 
@@ -751,14 +762,14 @@ a {
   min-height: 4.6rem;
   margin: 0.8rem 0 1.15rem;
   color: var(--clinic-muted);
-  font-size: 0.9rem;
+  font-size: var(--clinic-text-body);
 }
 
 /* 文字型 CTA。它是獨立的入口（不是句子裡的連結），所以吃 R-3 的 44px 下限——
    實測「安排門診評估」原本只有 104×21。用 inline-flex 撐高，底線與字級不變。 */
 .clinic-text-link {
   color: var(--clinic-green);
-  font-size: 0.9rem;
+  font-size: var(--clinic-text-body);
   font-weight: 750;
   text-underline-offset: 0.3rem;
   display: inline-flex;
@@ -788,7 +799,7 @@ a {
   display: block;
   margin-top: 0.25rem;
   color: var(--clinic-green);
-  font-size: 0.88rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-section-action {
@@ -828,7 +839,7 @@ a {
 .clinic-page-hero__inner > div > p:last-child {
   margin: 1.2rem 0 0;
   color: var(--clinic-muted);
-  font-size: 1.05rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-breadcrumb {
@@ -836,7 +847,7 @@ a {
   color: var(--clinic-muted);
   background: var(--clinic-white);
   border-bottom: 1px solid var(--clinic-line);
-  font-size: 0.78rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-breadcrumb .clinic-shell {
@@ -880,14 +891,14 @@ a {
   display: block;
   margin-top: 0.35rem;
   color: var(--clinic-green);
-  font-size: 1rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-doctor-profile__intro > p:not(.clinic-eyebrow) {
   max-width: 38rem;
   margin: 1.5rem 0 2rem;
   color: var(--clinic-muted);
-  font-size: 1.05rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-doctor-details {
@@ -932,7 +943,7 @@ a {
   color: var(--clinic-forest);
   background: var(--clinic-mist);
   border-radius: 99rem;
-  font-size: 0.88rem;
+  font-size: var(--clinic-text-body);
   font-weight: 700;
 }
 
@@ -1014,7 +1025,7 @@ a {
   background: rgb(255 255 255 / 78%);
   border: 1px solid var(--clinic-line);
   border-radius: 0.55rem;
-  font-size: 0.82rem;
+  font-size: var(--clinic-text-body);
   font-weight: 700;
 }
 
@@ -1058,7 +1069,7 @@ a {
 
 .clinic-medical-note p:not(.clinic-eyebrow) {
   color: var(--clinic-muted);
-  font-size: 0.9rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-cta {
@@ -1117,7 +1128,7 @@ a {
 .clinic-footer h2 {
   margin: 0 0 1rem;
   color: var(--clinic-white);
-  font-size: 0.9rem;
+  font-size: var(--clinic-text-body);
   letter-spacing: 0.08em;
 }
 
@@ -1125,7 +1136,7 @@ a {
 .clinic-footer address {
   margin: 0;
   color: #aabfb5;
-  font-size: 0.85rem;
+  font-size: var(--clinic-text-body);
   font-style: normal;
 }
 
@@ -1182,7 +1193,7 @@ a {
   gap: 1rem 2rem;
   color: #8ca69a;
   border-top: 1px solid rgb(255 255 255 / 10%);
-  font-size: 0.72rem;
+  font-size: var(--clinic-text-body);
 }
 
 .clinic-footer__legal span:nth-child(2) {
@@ -1220,7 +1231,7 @@ a {
 
   .clinic-navigation a {
     padding-inline: 0.4rem;
-    font-size: 0.84rem;
+    font-size: var(--clinic-text-body);
   }
 
   .clinic-card-grid--services {
@@ -1247,7 +1258,7 @@ a {
 
   .preview-boundary {
     align-items: flex-start;
-    font-size: 0.68rem;
+    font-size: var(--clinic-text-body);
   }
 
   .clinic-header__inner {
@@ -1279,7 +1290,7 @@ a {
     background: transparent;
     border: 1px solid var(--clinic-line);
     border-radius: 0.65rem;
-    font-size: 0.62rem;
+    font-size: var(--clinic-text-body);
     font-weight: 700;
   }
 
@@ -1332,7 +1343,7 @@ a {
     min-height: 2.9rem;
     padding-inline: 0.7rem;
     border-radius: 0.5rem;
-    font-size: 0.94rem;
+    font-size: var(--clinic-text-body);
   }
 
   .clinic-navigation a[aria-current='page'] {
@@ -1358,13 +1369,13 @@ a {
   .clinic-navigation__submenu a {
     min-height: 2.5rem;
     color: var(--clinic-muted);
-    font-size: 0.84rem;
+    font-size: var(--clinic-text-body);
   }
 
   .clinic-header__booking {
     min-height: 2.75rem;
     padding-inline: 0.85rem;
-    font-size: 0.78rem;
+    font-size: var(--clinic-text-body);
   }
 
   .clinic-home-hero {
@@ -1535,6 +1546,9 @@ a {
   margin-top: 0;
   margin-bottom: 1rem;
   color: var(--clinic-forest);
+  /* 這三個標題先前沒有字級宣告，落到瀏覽器預設的 `1.17em` = 18.72px——一個不在
+     尺度上、也沒人選過的數字。改用 md 讓它與其他卡片標題同階。 */
+  font-size: var(--clinic-text-md);
 }
 
 .clinic-visit-list {

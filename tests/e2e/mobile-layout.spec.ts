@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes.js';
 import { createBooking, login, openDisclosure } from './support/workbench.js';
 
-export const PUBLIC_PAGE_SCAN_ROUTES = ['/', '/booking'] as const;
+export const PUBLIC_PAGE_SCAN_ROUTES = ['/', '/booking', '/clinic'] as const;
 const [WORKBENCH_ROUTE, BOOKING_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
 // 手機版版面的迴歸守門員。
@@ -37,11 +38,31 @@ for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
     if (route === WORKBENCH_ROUTE) {
       await login(page);
       await expect(page.locator('#workspace-title')).toBeVisible();
-    } else {
+    } else if (route === BOOKING_ROUTE) {
       await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
+    } else {
+      await expect(page.locator('h1')).toBeVisible();
     }
 
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+}
+
+// 官網先前完全不在這支 spec 裡（`PUBLIC_PAGE_SCAN_ROUTES` 只有 `/` 與
+// `/booking`），所以它的手機版從來沒有被這組守衛量過。內頁的版面組成與首頁不同
+// ——長文、圖片、麵包屑——因此四類取樣各跑一次，另加 320px 的低寬壓力。
+for (const route of CLINIC_UI_SCAN_ROUTES) {
+  test(`診所官網內頁在窄螢幕不產生水平捲軸：${route}`, async ({ page }) => {
+    for (const viewport of [PHONE, NARROW]) {
+      await page.setViewportSize(viewport);
+      await page.goto(route);
+      await expect(page.locator('h1')).toBeVisible();
+
+      expect(
+        await pageOverflow(page),
+        `${route} @ ${viewport.width}px 把頁面推出了水平捲軸`
+      ).toBeLessThanOrEqual(1);
+    }
   });
 }
 
