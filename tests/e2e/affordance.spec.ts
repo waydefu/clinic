@@ -455,6 +455,14 @@ test.describe('可點擊性（affordance）', () => {
   //
   // 依 SC 2.5.8 的 Inline 例外，句子裡的連結不在此限：它們的尺寸受行高約束，
   // 硬撐大反而會破壞內文排版。
+  //
+  // 2026-08-06：`summary` 是後補進選擇器的。先前的清單是
+  // `button, a[href], [role="button"], select`——`<summary>` 是**原生的**
+  // disclosure 控制項，可點、可聚焦、可用鍵盤操作，卻不在其中任何一類裡，
+  // 於是這條掃描看不到它。官網 FAQ 的四個 `<summary>` 因此長期停在 293×24：
+  // 通過 SC 2.5.8 的 24px AA 下限，但遠低於本專案自訂的 44px 行動門檻，
+  // 而且 CI 全綠。**掃描的選擇器就是它的涵蓋範圍**，漏一類元素等於那類元素
+  // 從來沒有被量過。
   test('患者端的可點目標在手機寬度達到 44px', async ({ page }) => {
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
@@ -493,7 +501,7 @@ test.describe('可點擊性（affordance）', () => {
 
           const offenders: string[] = [];
           for (const element of document.querySelectorAll<HTMLElement>(
-            'button, a[href], [role="button"], select'
+            'button, a[href], [role="button"], select, summary'
           )) {
             const box = effectiveTarget(element).getBoundingClientRect();
             if (box.width === 0 || box.height === 0) continue;

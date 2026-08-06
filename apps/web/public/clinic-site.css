@@ -1610,6 +1610,18 @@ a {
   font-weight: 600;
   /* 展開箭頭交給瀏覽器原生 marker，不自製——原生的在報讀器上會被念成
      「已展開／已摺疊」，自製的圖示則需要額外的 aria 標註才等價。 */
+
+  /* R-3 的 44px 行動門檻。這四個 FAQ 控制項在 375px 量到 293×24——通過 WCAG
+     2.5.8 的 24px AA 下限，但低於本專案自訂的行動門檻，而
+     `affordance.spec.ts` 的掃描選擇器（`button, a[href], [role="button"],
+     select`）不含 `summary`，所以從來沒有量到它們。
+
+     用內距撐開可點區，不改字級。**刻意不碰 `display`**：`<summary>` 預設是
+     `list-item`，改成 `flex` 或 `block` 會讓原生的展開 marker 消失——而上面
+     那段註解說的正是要留住它。少了 marker，這一行就只剩一句變色的文字，
+     連「可以展開」都看不出來（R-2）。 */
+  min-height: 2.75rem;
+  padding-block: 0.5rem;
 }
 
 .clinic-faq-item p {
