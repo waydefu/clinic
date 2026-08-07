@@ -12,5 +12,6 @@ export * from './idempotency.js';
 export * from './outbox.js';
 export * from './patient-identity.js';
 export * from './payroll.js';
+export * from './roles.js';
 export * from './schedule.js';
 export * from './timestamp.js';

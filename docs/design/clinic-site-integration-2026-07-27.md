@@ -67,6 +67,47 @@ WordPress runtime:
 
 No remote script, stylesheet, font or analytics dependency was introduced.
 
+### Structure and expression are governed differently (2026-08-06)
+
+The clinic site keeps its own `--clinic-*` token system, because
+`clinic.html` loads only `clinic-site.css` and cannot reference the shared
+tokens in `styles.css`. What changed is that the token gate now applies its
+full rule set to that file rather than two of nine rules.
+
+The split is deliberate:
+
+- **Structure** — type scale, weight, spacing, radius, touch targets, contrast.
+  These decide whether a patient can read and tap, so they follow the shared
+  system. The scale values are declared locally but are identical step for
+  step; the prefix differs because the load boundary does, not because the
+  sizes should. The site carries two steps above `3xl` that the workbench has
+  no use for, on the same 1.2 ratio, because a marketing hero compressed into
+  a page-title size is a redesign rather than convergence.
+- **Expression** — the white/mist/forest palette, the ambient motion, the
+  organic shapes. These stay, but as a named, gated token set instead of
+  scattered literals.
+
+Motion is where the two surfaces legitimately differ, and the difference is
+now written down rather than accidental. The workbench uses Carbon's
+*productive* timing because reception staff scan tables all day; the clinic
+site runs slower (`--clinic-duration-spatial-base` is 0.32s against the
+workbench's 0.2s) because a marketing front deserves some room. Ambient
+animations keep separate periods — orb 9s, aurora 22s, ticker 26s — because
+collapsing them to one value would force three layers into lockstep and
+invent a beat that was never there.
+
+`--clinic-ease-linear` is a real token, not an unconverted keyword. Constant
+velocity is required by the ticker and the border sheen, and the parallax,
+scroll-progress and hero-exit animations are scroll-driven: they carry no
+duration at all, and an easing curve would decouple them from the scroll
+position.
+
+Two items are recorded rather than changed, because both need a contrast
+measurement first: the focus ring uses the brand gold (`--clinic-focus-ring`),
+which R-16 reserves for decoration on the shared system; and six
+inverse-text shades on dark backgrounds are named but not yet collapsed into
+a scale.
+
 ## Medical-content boundary
 
 The service copy is a concise adaptation of the clinic's public patient

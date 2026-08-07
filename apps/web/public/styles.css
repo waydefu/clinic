@@ -671,14 +671,22 @@ p {
    而不是靠換字體——中文沒有可用的系統襯線體時，硬模擬只會讓字形變形。 */
 h1 {
   font-family: var(--font-serif);
-  font-size: clamp(var(--text-2xl), 4.5vw, var(--text-3xl));
+  font-size: clamp(
+    var(--text-2xl),
+    calc(var(--text-2xl) * 0.5 + 2.25vw),
+    var(--text-3xl)
+  );
   letter-spacing: var(--tracking-display);
   line-height: var(--leading-display);
   margin-bottom: var(--space-sm);
 }
 h2 {
   font-family: var(--font-serif);
-  font-size: clamp(var(--text-md), 2vw, var(--text-lg));
+  font-size: clamp(
+    var(--text-md),
+    calc(var(--text-md) * 0.5 + 1vw),
+    var(--text-lg)
+  );
   letter-spacing: var(--tracking-tight);
   line-height: var(--leading-tight);
   margin-bottom: 0;
@@ -1154,7 +1162,11 @@ textarea {
 }
 .patient-hero h1 {
   color: var(--forest-dark);
-  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
+  font-size: clamp(
+    var(--text-2xl),
+    calc(var(--text-2xl) * 0.5 + 2vw),
+    var(--text-3xl)
+  );
   margin-bottom: var(--space-sm);
 }
 .patient-hero > div > p:last-of-type {
@@ -2171,6 +2183,15 @@ label:has(> input[type='radio']) {
   color: inherit;
   cursor: pointer;
   font-weight: var(--weight-bold);
+  /* R-3 的 44px 行動門檻。`<summary>` 是原生 disclosure 控制項，但它既不是
+     `button` 也不是 `a[href]`，所以 2026-08-06 之前不在 `affordance.spec.ts`
+     的掃描選擇器裡——這一顆長期是 358×21。
+
+     用內距撐開可點區，不改字級。**刻意不碰 `display`**：`<summary>` 預設是
+     `list-item`，改成 `flex` 會讓原生的展開 marker 消失，那一行就只剩一句
+     粗體文字，看不出可以展開。 */
+  min-height: var(--control-height-md);
+  padding-block: var(--space-2xs);
 }
 .developer-tools > a {
   display: inline-block;

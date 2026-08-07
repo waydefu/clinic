@@ -128,6 +128,17 @@ WCAG 2.5.8 的 Inline、Equivalent、Spacing、User agent control 與 Essential 
 可點擊方框（含內距），並依 Inline 例外略過句子裡的連結。加入這條掃描時抓到兩個：
 標誌連結 280×41、政策頁頁尾的電話 90×20。
 
+**掃描的選擇器就是它的涵蓋範圍（2026-08-06）。** 那條掃描原本選
+`button, a[href], [role="button"], select`。`<summary>` 是**原生的** disclosure
+控制項——可點、可聚焦、可用鍵盤操作——卻不屬於其中任何一類，於是從來沒有被量過。
+補進去之後立刻抓到兩處長期存在的：官網 FAQ 的四個展開控制項 293×24，患者頁的
+「開發工具」368×21。兩者都通過 WCAG 2.5.8 的 24px AA 下限，都低於本專案的 44px
+行動門檻，而 CI 一直是綠的。
+
+修法是加內距，**不碰 `display`**：`<summary>` 預設是 `list-item`，改成 `flex` 或
+`block` 會讓原生的展開 marker 消失，那一行就只剩一句變色的文字，連「可以展開」
+都看不出來（R-2）。新增互動元素型別時，記得同步檢查這條掃描的選擇器。
+
 ### R-4　短標籤不得逐字斷行；長標籤必須能正常換行
 
 - 8 個中文字以內、沒有空格的獨立短標籤，正常狀態應維持單行。
@@ -174,6 +185,8 @@ WCAG 2.5.8 的 Inline、Equivalent、Spacing、User agent control 與 Essential 
 - 長文建議限制在約 32–40 個中文字寬；目前共用實作可用約 `68ch` 作保守上限。
 - 必須通過 200% 文字放大與 400% 頁面縮放對應的重排；不得禁止 pinch zoom。
 - 使用者覆寫行高、段距、字距與詞距時，不得遺失內容或功能。
+- **以上每一條都只管得到 HTML 文字。** 烘焙在圖片裡的字不會隨放大變大、量不到
+  computed style，也不會被這條規則的任何一道驗證抓到——見 [R-26](#r-26資訊不得只存在於圖片像素裡)。
 
 16px 表單控制項也能避免 iOS Safari 常見的聚焦自動放大；這是實務相容性門檻，不是
 WCAG 明定的最小字級。
@@ -183,6 +196,31 @@ WCAG 明定的最小字級。
 
 **驗證：** `check:tokens`、`typography.spec.ts`、`responsive.spec.ts`、人工文字間距
 與縮放測試。
+
+#### R-6 的涵蓋範圍修正（2026-08-06）
+
+這條規則寫著「至少 16px」「不得小於 14px」，但**診所官網從來沒有被量過**。
+`typography.spec.ts` 只 `goto('/booking')` 與工作臺，於是 `/clinic` 在 375px 有
+**32 處**文字低於 14px、最小 9.92px——包括手機唯一的導覽入口（「選單」9.92px）、
+全站主要轉換入口（「線上預約」12.48px）與「請勿輸入真實患者資料」這句安全警語
+（10.88px）。同一時間 `/booking` 與工作臺各只有 5–6 種字級且全部落在尺度上。
+規則沒有錯，**掃描的範圍就是規則的實際效力範圍**。
+
+現在補上的是兩層掃描，涵蓋官網四類代表性路由 × 1280／375px：
+
+1. **絕對下限**：所有可見、非裝飾文字 ≥14px；
+2. **語意門檻**：正文、導覽、控制項、聯絡資訊與安全警語 ≥16px。
+
+分兩層是因為 token 檢查擋不住「用了合法 token、但套在錯誤語意上」——把新的正文
+套上 `--clinic-text-micro`，token 檢查會放行，錯的是角色不是值。掃 computed style
+還能看到**完全沒有寫 CSS 的元素**：這次就抓到兩處落在瀏覽器預設值上
+（`.clinic-visit-card h3` 的 1.17em、hero `<small>` 的 `smaller`）。
+
+同時修掉一個**全專案**的字級缺口：`check:tokens` 先前對
+`font-size: clamp()` 無條件放行，只要包進 `clamp()` 就完全免檢。官網 18 個端點
+只有 1 個在尺度上，而 `styles.css` 有三處
+`clamp(var(--text-2xl), 4.5vw, var(--text-3xl))`——端點是 token，中間卻是純 `vw`，
+正是本條「流體字級必須混合 `rem`」禁止的寫法。現在三項逐項驗證，解析不出來就失敗。
 
 ### R-7　表單要有永久可見的標籤、說明與正確輸入目的
 
@@ -542,6 +580,30 @@ RUM；否則只使用不需在產品植入追蹤碼的 CrUX。未核准前不得
 
 **驗證：** 登入 E2E、密碼管理器／paste／OTP／timeout 人工測試。
 
+### R-26　資訊不得只存在於圖片像素裡
+
+- **承載資訊的文字一律用 HTML，不用圖片。** 例外只有兩個：品牌標誌（logotype），
+  以及使用者可自行調整呈現的文字圖。行銷素材、衛教資訊圖、流程圖、症狀清單
+  **都不屬於例外**——這些內容用 HTML 都做得出來，因此不符合 1.4.5 的 essential 定義。
+- 卡片與區塊的圖片只放**插圖、照片或圖形**，標題與說明由 HTML 的標題與內文承擔。
+  素材若是含文字的投影片，裁到只取插圖，不要把文字一起出貨。
+- 圖表、流程圖等 complex image 需要**短描述（`alt`）＋長描述**兩層；長描述應是頁面上
+  所有人都看得到的內容，不是只給輔助科技的隱藏文字。
+- 建置期若要裁切，主體不在中央就必須宣告明確的裁切框。
+  `build-clinic-assets.mjs` 的 `MAX_BLIND_DISCARD` 會擋下超過 12% 的盲目置中裁切。
+- 素材同一份內容有多個版本（桌機版／手機版）時，**它們會各自漂移而且沒有人會發現**。
+  這本身就是「不要把資訊放進圖片」的理由，不是「要記得同步兩份圖」的理由。
+
+**依據：** WCAG 2.2 SC 1.4.5（AA，images of text）、1.4.4（resize text）、
+1.4.10（reflow）、1.1.1；W3C WAI Complex Images 教學；GOV.UK Design System
+（「應避免使用含任何文字的圖片」）；Material Design 3 Cards（「不建議把文字或圖示
+疊在圖片上」）；Apple HIG Accessibility（支援放大至少 200%／Dynamic Type，
+烘焙在圖裡的字在任何放大設定下都不會變大）；MDN Responsive images
+（art direction 換的是圖檔本身，`object-fit` 只改顯示方式，兩者不同層次）。
+
+**驗證：** `build:clinic-assets` 的 fail-closed 門檻；四張療程卡逐張目視；
+200% 文字放大下資訊是否跟著放大；報讀器可達性。
+
 ## 4. 新頁面與新元件的完成定義
 
 ### 4.1 新增對外頁面
@@ -615,6 +677,36 @@ responsive、affordance、performance 與 SEO 測試共同讀取。完成前，�
 | 320×568 低高度          | header、sticky、dialog、最後一個欄位與送出鍵不互相遮擋 |
 | 弱網／離線              | 資料不丟失、不重複建立，錯誤有替代聯絡方式             |
 
+#### 狀態：External manual verification required（2026-08-07）
+
+上表**全部未執行**。這不是「不用做了」，也不是還排在誰的待辦清單上——狀態是：
+
+> **自動化能做的範圍已經做完；剩下的需要具備實體裝置與真人輔助科技環境的人員執行。
+> 它不再列為 Agent 可執行的 backlog，但仍屬發布前的人工驗收項目。**
+
+這樣寫的理由：把它掛在一般待辦清單上，每一輪都會有人（或有 agent）重新發現
+「找不到 iPhone」然後再記一次；把它劃掉又等於偷偷關閉一項真正的驗收要求。
+
+自動化到 2026-08-07 為止涵蓋到哪裡：
+
+| 維度 | 自動化狀態 |
+| --- | --- |
+| 版面重排 320–1280px | `responsive.spec.ts` 11 個寬度 |
+| 觸控目標 44px | `affordance.spec.ts`（含 `<summary>`） |
+| 行動版任務文字 | `mobile-layout.spec.ts`、`typography.spec.ts` |
+| 200% 文字放大 | `typography.spec.ts` 的兩層檢查（文件層溢位＋元素層裁切）。**是 proxy** |
+| 可及性樹結構 | axe ＋ `clinic-site.spec.ts` 的麵包屑斷言 ＋ `manual-accessibility-preconditions.spec.ts` |
+| WebKit 引擎 | `playwright.config.ts` 的 `webkit` project（限官網結構那一支） |
+
+自動化**涵蓋不到**、而上表要求的：真實軟鍵盤與它造成的 viewport 變化、
+OS 層 Dynamic Type／系統字級、瀏覽器 chrome 與位址列收合、safe area 與瀏海／
+動態島、旋轉、autofill、弱網、以及 VoiceOver／TalkBack 的實際播報。
+
+**Playwright WebKit 不能代替實體 iOS Safari。** 加上 `webkit` project 之後，
+引擎層的差異看得到了，但上面那一整排仍然一項都沒有覆蓋到。同理，device descriptor
+（`devices['iPhone 15']` 之類）換的是 viewport、UA 與 touch 能力，**不是引擎**，
+也不是作業系統。
+
 ### 5.4 每個流程都要有的資料狀態
 
 - 0 筆、1 筆、多筆、最大合理筆數；
@@ -646,9 +738,22 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
   及效能測試；影像看起來正確，不代表流程或可及性正確。
 
 現行基線是
-[2026-07-28 UI 視覺基準](../reviews/ui-visual-baseline-2026-07-28.md)與其 manifest：
+[2026-08-07 UI 視覺基準](../reviews/ui-visual-baseline-2026-08-07.md)與其 manifest：
 共 10 張 reference-only PNG，含一張 `320×568` critical-flow 壓力圖。它們是人工
-跨電腦複核的參考證據，不是跨 OS 像素 golden；更早的日期截圖仍只算歷史證據。
+跨電腦複核的參考證據，不是跨 OS 像素 golden；更早的日期截圖（含
+[2026-08-06](../reviews/ui-visual-baseline-2026-08-06.md) 與
+[2026-07-28](../reviews/ui-visual-baseline-2026-07-28.md) 兩批）仍只算歷史證據。
+
+**基線是 approval artifact，不是「最新的截圖」。** 重拍的流程是：先擷到新日期的
+目錄（舊目錄因此不會被動到）、與前一份逐張 diff、確認每一處差異都是預期的，
+最後才把 required paths 指過去。2026-08-07 這一輪就是靠這道流程擋下兩張被殘留
+`:hover` 污染的圖——細節見該份基準文件。
+
+**重拍基線時，擷取日期在四個地方**：`current-ui.spec.ts` 的 `CAPTURE_DATE`、
+`check-structure.mjs` 的 required paths 與 `visualBaselineDirectory`、新的基準文件，
+以及本段的指向。`capture:ui` 會**就地覆寫** `CAPTURE_DATE` 指到的目錄——忘了改日期
+就跑，會把舊基線的圖換掉而 manifest 的 `captureDate` 不動，等於用固定時間冒充擷取
+時間，正是本節第二點禁止的事。跑之前先確認工作區乾淨，跑完看 `git status`。
 
 ## 6. 例外處理
 
@@ -677,6 +782,71 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
 8. **補上視覺證據規格：** 固定合成狀態、時間、尺寸與環境 metadata；歷史截圖不再
    被誤認為跨平台像素 gate 或現行 UI 基線。
 
+## 7.1 2026-08-06 複核：規則有效，但診所官網不在量測範圍內
+
+這一輪沒有改任何規則的內容，改的是**規則實際管得到哪裡**。
+
+診所官網（`/clinic` 八條路由）在字級、字重、圓角與動效上全面偏離尺度，而 `/booking`
+與工作臺完全符合。差別不在寫的人，在於**五個涵蓋缺口讓官網不受檢查**：
+
+| 缺口 | 後果 |
+| --- | --- |
+| `check:tokens` 把 `clinic-site.css` 標為 `full: false` | 九條規則只跑兩條 |
+| `font-size: clamp()` 無條件放行 | **全專案**字級缺口，包進 clamp 就免檢 |
+| `typography.spec.ts` 不掃 `/clinic` | 16px 門檻從未量過官網 |
+| `mobile-layout.spec.ts` 只掃 `/` 與 `/booking` | 官網手機版沒有守衛 |
+| 44px 掃描選擇器不含 `<summary>` | 原生 disclosure 控制項從未被量 |
+
+另外修掉一個更早就存在、與官網無關的 gate 缺陷：`check-design-tokens.mjs` 找
+`:root` 區塊結尾時比對「換行後頂格的 `}`」，遇到寫在 `@media` 裡的 `:root` 就會
+一路吃到整個媒體查詢的結尾。實測吞掉 `clinic-site.css` 230 行／44 條 class 規則、
+`workbench.css` 114 行／27 條——**那些規則裡的寫死值從來沒有被檢查過，而 gate 一直
+是綠的**。現在改為大括號配對，並有迴歸測試釘住。
+
+收斂結果（實測 computed style，非讀 CSS 推測）：
+
+| 指標 | 前 | 後 |
+| --- | ---: | ---: |
+| `/clinic` 相異字級（1440px） | 20 | 6 |
+| `/clinic` 相異字級（375px） | 18 | 7 |
+| 低於 14px 的文字（375px） | 32 處 | 0 |
+| 字重階數 | 6（含兩個假階） | 4 |
+| 動效時長 | 14 種散值 | 4 互動＋5 用途＋4 stagger token |
+| 間距字面值 | 49 | 11（其餘掛 ratchet） |
+
+**這一輪學到的判準，比數字重要：** 一道 gate 的涵蓋範圍寫在它的選擇器、路由清單
+與豁免條件裡，不寫在它的名字裡。新增頁面、路由或互動元素型別時，要問的是「哪幾道
+掃描**宣告**涵蓋了它」，而不是「有沒有掃描跑過」。§4.1 的新頁面完成定義已經要求
+逐項登記，這次的五個缺口全部是那份清單沒涵蓋到的維度。
+
+## 7.2 2026-08-07 複核：規則管得到 CSS，管不到像素
+
+上一輪把官網的**字級**併回系統，結果是 `/clinic` 低於 14px 的文字歸零。但那次量的是
+**HTML 元素的 computed style**，而官網有一批文字根本不是 HTML——它烘焙在圖片裡。
+
+四張療程卡的素材是行銷投影片與資訊圖。`build-clinic-assets.mjs` 對它們套置中裁切，
+默默丟掉 25%～**63.4%** 的畫面：「止鼾好眠牙套」被切成「子眠牙套」，五個打鼾成因
+只剩中間一欄。**每一道 gate 都是綠的**——`check:tokens` 看 CSS、`typography.spec.ts`
+量 DOM、axe 掃可及性樹，沒有任何一道會打開 WebP 看裡面寫了什麼。
+
+這一輪新增 R-26，並把執行點放進建置腳本（`MAX_BLIND_DISCARD`，fail-closed）。
+處置分兩種，依素材性質決定：
+
+| 素材 | 性質 | 處置 |
+| --- | --- | --- |
+| 三張手術投影片 | 標題與內文**與卡片自己的 HTML 重複**，右側有可用插圖 | 裁到只取插圖，文字回歸 HTML |
+| 止鼾五合一資訊圖 | 整張都是資訊，無插圖可取 | 五個成因搬進 `NASAL_SERVICES` 成為真實文字 |
+
+**這一輪學到的判準：** 上一輪的結論是「gate 的涵蓋範圍寫在它的選擇器與豁免條件裡」。
+這一輪把它推進一層——**gate 的涵蓋範圍也寫在它讀的是哪一種資料**。量 computed style
+的掃描永遠看不到 alt 底下的像素；`alt="止鼾五合一療程示意"` 在任何自動化檢查眼中都是
+合格的替代文字，即使畫面上只剩一個症狀分類。新增素材時要問的是「這張圖裡有沒有字，
+那些字有沒有別的地方也寫著」，而不是「掃描有沒有跑過這條路由」。
+
+順帶記下一個工具面的陷阱：`gh pr checks` 會把 matrix fail-fast 取消掉的 job 顯示成
+`fail`、時間一律整齊的 15m01s。判讀 CI 紅燈要先用 `gh run view --json jobs` 分辨
+cancelled 與 failure。
+
 ## 8. 參考資料
 
 ### 官方與標準
@@ -701,6 +871,10 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
 - [web.dev — Optimize INP](https://web.dev/articles/optimize-inp)
 - [web.dev — Accessible responsive design](https://web.dev/articles/accessible-responsive-design)
 - [web.dev — Typography](https://web.dev/learn/design/typography)
+- [W3C — Understanding SC 1.4.5 Images of Text](https://www.w3.org/WAI/WCAG22/Understanding/images-of-text.html)
+- [W3C WAI — Complex Images tutorial](https://www.w3.org/WAI/tutorials/images/complex/)
+- [MDN — Responsive images（art direction）](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/Responsive_images)
+- [MDN — `<picture>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/picture)
 
 ### 權威實務與研究型設計系統
 
@@ -715,6 +889,8 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
 - [Baymard — Mobile form label position](https://baymard.com/blog/mobile-form-usability-label-position)
 - [Baymard — Inline form validation](https://baymard.com/blog/inline-form-validation)
 - [CSS-Tricks — 16px input text and iOS focus zoom](https://css-tricks.com/16px-or-larger-text-prevents-ios-form-zoom/)
+- [GOV.UK Design System — Images](https://design-system.service.gov.uk/styles/images/)
+- [Material Design 3 — Cards guidelines](https://m3.material.io/components/cards/guidelines)
 
 ### 專案內
 

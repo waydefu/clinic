@@ -6,7 +6,8 @@ import process from 'node:process';
 import {
   forbiddenBrowserPatterns,
   importSpecifiers,
-  layerViolations
+  layerViolations,
+  opaqueDynamicImports
 } from './architecture-rules.mjs';
 import {
   validateRbacPermissionCoverage,
@@ -206,6 +207,20 @@ for (const detail of validateReachableCapabilityBlockers(
   reachableApiSources
 )) {
   fail('capability-reachability', detail);
+}
+
+// 走訪看不透的載入，等於整份未接線清單失去意義——被宣告成「未接線」的檔案仍可
+// 能在執行期被載進來。2026-08-06 的對抗測試已實證這條路走得通，因此這裡 fail
+// closed：看不透就擋，由作者改成字面值指定字串。
+for (const file of apiFiles) {
+  for (const occurrence of opaqueDynamicImports(await readFile(file, 'utf8'))) {
+    fail(
+      'opaque-import',
+      `${repoPath(file)} 使用了可達性走訪無法解析的載入：${occurrence}。` +
+        ' 走訪只認得字面值指定字串；看不透的載入會讓 unrouted-inventory.json 對這個檔案的宣告失去保證。' +
+        " 請改成字面值（例如 import('./x.js')），需要條件載入時以字面值分支取代計算路徑。"
+    );
+  }
 }
 
 for (const file of apiFiles) {

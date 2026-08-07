@@ -59,6 +59,46 @@ function sectionHeading(eyebrow, heading, description) {
   ]);
 }
 
+/**
+ * 麵包屑。`items` 是 `{ label, href? }`，最後一項不帶 href 即當前頁。
+ *
+ * 2026-08-07 之前這裡是兩份逐字重複的 inline 程式碼（醫師個人頁與療程頁各一份），
+ * 而且三個地方偏離語意：外層是 `<div>` 不是 `<ol>`、當前頁沒有標記、分隔符 `/`
+ * 是**真實文字節點**所以會被讀出來。視覺看不出問題（五個項目量到的 top／bottom／
+ * height 完全一致），axe 也不檢查這三項——所以它撐了很久沒被發現。
+ *
+ * 分隔符改由 CSS `li:not(:last-child)::after` 產生，DOM 裡不再有那個節點。這是
+ * WAI-ARIA APG breadcrumb 的做法。**已知風險**：部分輔助科技會朗讀 CSS generated
+ * content。已列入人工 runbook §8-b 待實機確認；若確認會唸，改回
+ * `<span aria-hidden="true">`——不要改回沒有標記的文字節點。
+ *
+ * `aria-current="page"` 對「當前頁不是連結」的情況，APG 列為 optional（它的範例
+ * 把當前頁做成連結並標在連結上）。**本專案一律要求明示**，即使當前頁是非連結
+ * 元素——這是專案自訂的加嚴規則，讓輔助科技與自動化都有明確的判斷點。
+ */
+function breadcrumb(items) {
+  return element(
+    'nav',
+    { className: 'clinic-breadcrumb', attrs: { 'aria-label': '麵包屑' } },
+    [
+      element(
+        'ol',
+        { className: 'clinic-shell' },
+        items.map((item) =>
+          element('li', {}, [
+            item.href
+              ? link(item.label, item.href)
+              : element('span', {
+                  text: item.label,
+                  attrs: { 'aria-current': 'page' }
+                })
+          ])
+        )
+      )
+    ]
+  );
+}
+
 function bookingLink(label = '預約諮詢') {
   return link(label, BOOKING_PATH, 'clinic-button clinic-button--primary');
 }
@@ -84,6 +124,42 @@ function renderNavigation() {
     list.append(itemNode);
   }
   navigation.replaceChildren(list);
+}
+
+// 首屏實用資訊。2026-08-06 量到的問題：手機（320×568）上首頁總高 8550px，而
+// 「門診時間與交通」起點在 y≈6240px——患者要捲過約 11 個畫面才看得到門診時間、
+// 電話與地址，首屏只有標語、一句說明與兩顆按鈕。
+//
+// 這裡重新呈現的是同一組 `CLINIC` 常數，**沒有新增任何醫療或營運敘述**；完整版
+// （含休診日與 Google 地圖）仍以下方 #clinic-visit 為準，兩處同源所以不會分歧。
+function heroQuickFacts() {
+  return element(
+    'dl',
+    {
+      className: 'clinic-hero-facts',
+      attrs: { 'aria-label': '門診時間與聯絡資訊' }
+    },
+    [
+      element('div', { className: 'clinic-hero-fact' }, [
+        element('dt', { text: '門診時間' }),
+        element('dd', {}, [
+          element(
+            'ul',
+            { className: 'clinic-hero-fact__hours' },
+            CLINIC.hours.map((line) => element('li', { text: line }))
+          )
+        ])
+      ]),
+      element('div', { className: 'clinic-hero-fact' }, [
+        element('dt', { text: '電話' }),
+        element('dd', {}, [link(CLINIC.phoneDisplay, CLINIC.phoneHref)])
+      ]),
+      element('div', { className: 'clinic-hero-fact' }, [
+        element('dt', { text: '地址' }),
+        element('dd', {}, [link(CLINIC.address, '#clinic-visit')])
+      ])
+    ]
+  );
 }
 
 function renderHome() {
@@ -120,7 +196,8 @@ function renderHome() {
               'clinic-button clinic-button--light'
             ),
             bookingLink('線上預約')
-          ])
+          ]),
+          heroQuickFacts()
         ]),
         element(
           'div',
@@ -459,19 +536,11 @@ function renderDoctor(doctor) {
   }
 
   main.replaceChildren(
-    element(
-      'nav',
-      { className: 'clinic-breadcrumb', attrs: { 'aria-label': '麵包屑' } },
-      [
-        element('div', { className: 'clinic-shell' }, [
-          link('診所首頁', '/clinic'),
-          element('span', { text: '/' }),
-          link('醫師團隊', '/clinic/doctors'),
-          element('span', { text: '/' }),
-          element('span', { text: doctor.name })
-        ])
-      ]
-    ),
+    breadcrumb([
+      { label: '診所首頁', href: '/clinic' },
+      { label: '醫師團隊', href: '/clinic/doctors' },
+      { label: doctor.name }
+    ]),
     element('section', { className: 'clinic-doctor-profile' }, [
       element(
         'div',
@@ -547,19 +616,11 @@ function renderService(service) {
   if (service.resources) content.append(resourceSection(service.resources));
 
   main.replaceChildren(
-    element(
-      'nav',
-      { className: 'clinic-breadcrumb', attrs: { 'aria-label': '麵包屑' } },
-      [
-        element('div', { className: 'clinic-shell' }, [
-          link('診所首頁', '/clinic'),
-          element('span', { text: '/' }),
-          link('鼻功能醫學', '/clinic#nasal-services'),
-          element('span', { text: '/' }),
-          element('span', { text: service.title })
-        ])
-      ]
-    ),
+    breadcrumb([
+      { label: '診所首頁', href: '/clinic' },
+      { label: '鼻功能醫學', href: '/clinic#nasal-services' },
+      { label: service.title }
+    ]),
     element('section', { className: 'clinic-service-hero' }, [
       element('div', { className: 'clinic-shell clinic-service-hero__grid' }, [
         element('div', { className: 'clinic-service-hero__copy' }, [

@@ -214,8 +214,10 @@ const requiredPaths = [
   'apps/web/public/sitemap.xml',
   'docs/reviews/2026-07-27-seo-baseline.md',
   'docs/reviews/2026-07-27-clinic-site-integration-delivery.md',
-  'docs/reviews/ui-visual-baseline-2026-07-28.md',
-  'docs/reviews/assets/ui-visual-baseline-2026-07-28/manifest.json',
+  // 現行視覺基線。舊日期的目錄與文件保留作歷史證據，但釘住的是現行那一份；
+  // 日期見下方 visualBaselineDirectory 的註解。
+  'docs/reviews/ui-visual-baseline-2026-08-07.md',
+  'docs/reviews/assets/ui-visual-baseline-2026-08-07/manifest.json',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
   'apps/web/public/privacy.css',
@@ -265,8 +267,13 @@ if (missing.length > 0) {
 // UI 參考圖是 dated evidence，不是跨 OS 的像素 golden；但 manifest、每張圖與其
 // metadata 必須一起存在且 hash 相符。否則文件仍有連結、實際證據卻已被換掉或漏掉，
 // `check:docs` 只會看到「檔名還在」而無法察覺。
+// **這一行是本檔內唯一要改的地方。** 重拍基線時改這裡的日期，required paths 與
+// 下面的 captureDate 斷言都由它派生。先前日期各自寫死在三處，2026-08-06 重拍時
+// 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
+// 竄改，實際上是檢查器自己還停在舊日期。
 const visualBaselineDirectory =
-  'docs/reviews/assets/ui-visual-baseline-2026-07-28';
+  'docs/reviews/assets/ui-visual-baseline-2026-08-07';
+const visualBaselineDate = visualBaselineDirectory.slice(-'YYYY-MM-DD'.length);
 const visualBaselineErrors = [];
 try {
   const manifest = JSON.parse(
@@ -279,7 +286,7 @@ try {
       'visual manifest must use the non-self-referential containing-commit marker'
     );
   if (
-    manifest.captureDate !== '2026-07-28' ||
+    manifest.captureDate !== visualBaselineDate ||
     Number.isNaN(Date.parse(manifest.fixedTime))
   )
     visualBaselineErrors.push(

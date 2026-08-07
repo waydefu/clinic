@@ -14,7 +14,13 @@ import {
 
 const PORT = 3211;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const CAPTURE_DATE = '2026-07-28';
+// 擷取日期。**改這裡就要一起改 `outputDirectory`、`check-structure.mjs` 的
+// `visualBaselineDirectory` 與 required paths，以及介面規則書 §5.5 指向的現行基線。**
+// 舊日期的目錄與文件保留作歷史證據，不刪。
+const CAPTURE_DATE = '2026-08-07';
+// 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
+// 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
+// 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
 const FIXED_TIME = '2026-07-29T01:00:00.000Z';
 const LOCALE = 'zh-TW';
 const TIME_ZONE = 'Asia/Taipei';
@@ -45,7 +51,7 @@ const outputDirectory = join(
   'docs',
   'reviews',
   'assets',
-  'ui-visual-baseline-2026-07-28'
+  `ui-visual-baseline-${CAPTURE_DATE}`
 );
 const playwrightVersion = (
   JSON.parse(
@@ -358,6 +364,15 @@ async function captureScenario(
     await page.addStyleTag({
       url: `${BASE_URL}${NORMALIZATION_STYLESHEET_PATH}`
     });
+    // 把游標移開，否則 `scenario.prepare` 最後一次點擊的位置會留下 `:hover`，
+    // 而 hover 是有畫面的：`.button-primary:hover` 換成 `--accent-solid-strong`
+    // 並 `translateY(-1px)`。2026-08-07 重拍時實際踩到——工作臺手機版的「到診」
+    // 按鈕被拍成 `#0f4537`（hover）而不是 `#155c48`（預設），12457 個像素的差異
+    // 看起來像是有人改了顏色 token，其實只是游標停在那裡。
+    //
+    // 基線是 approval artifact，把可控的非決定性留在裡面，之後每一次 diff 都要
+    // 重新判斷一次「這是真的變更還是游標」。
+    await page.mouse.move(-10, -10);
     await settlePage(page);
     await assertNoHorizontalOverflow(page);
     assertConsoleClean(scenario.file, observed);

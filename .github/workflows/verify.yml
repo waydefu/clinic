@@ -114,8 +114,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # 只裝這個工作需要的 Chromium 與其系統相依。
-      - run: pnpm exec playwright install --with-deps chromium
+      # 只裝這個工作需要的瀏覽器與其系統相依。
+      #
+      # WebKit 只有 patient-portal 這一組用得到——playwright.config.ts 的
+      # webkit project 把 testMatch 收在 clinic-site.spec.ts，而那支屬於這一組。
+      # 其餘四組不下載它（約 59 MB ＋ 系統相依），六組都裝等於為了兩分鐘的
+      # 引擎覆蓋付六份下載。
+      - run: pnpm exec playwright install --with-deps chromium ${{ matrix.group == 'patient-portal' && 'webkit' || '' }}
 
       # playwright.config 的 webServer 會先 build（含 content-hash 的 dist）再
       # 以 WEB_ROOT=dist 啟動 server.mjs，因此 E2E 跑的是實際會部署的產物。

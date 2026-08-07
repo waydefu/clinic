@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
+
 const CLINIC_ROUTES = [
   ['/clinic', /從順暢呼吸開始/],
   ['/clinic/doctors', '醫師團隊'],
@@ -61,5 +63,48 @@ test.describe('診所網站整合', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: '確認您的門診時段' })
     ).toBeVisible();
+  });
+});
+
+// 麵包屑的語意。axe 不檢查這幾項——它看得到 `<nav>` 有名稱、連結有文字，
+// 但看不出外層該是 `<ol>`、當前頁該被標記、分隔符不該是真實文字節點。
+// 那三個偏離就是這樣撐了很久沒被發現的，所以這裡逐項釘住。
+//
+// 路由取樣 import 自 `support/clinic-routes.ts`，**不在這裡另開陣列**。
+test.describe('診所官網麵包屑語意', () => {
+  // 只有詳情頁有麵包屑，但斷言寫成「有的話就必須合格」——這樣日後在別的路由
+  // 加麵包屑，不必記得回來改這支測試。
+  for (const path of CLINIC_UI_SCAN_ROUTES) {
+    test(`${path} 的麵包屑（若有）是合格的清單`, async ({ page }) => {
+      await page.goto(path);
+
+      const nav = page.locator('nav.clinic-breadcrumb');
+      if ((await nav.count()) === 0) return;
+
+      // 外層是 `<ol>`：報讀器才會播報「清單，N 個項目」與目前位置。
+      await expect(nav.locator('> ol')).toHaveCount(1);
+      const items = nav.locator('ol > li');
+      expect(await items.count()).toBeGreaterThan(1);
+
+      // 當前頁明示 aria-current="page"。APG 對非連結的當前頁列為 optional，
+      // 本專案一律要求——這是專案加嚴規則，不是 APG 的硬性要求。
+      await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+      await expect(items.last().locator('[aria-current="page"]')).toHaveCount(
+        1
+      );
+
+      // 分隔符必須來自 CSS，不能是 DOM 裡的文字節點（那會被唸出來）。
+      await expect(nav).not.toContainText('/');
+    });
+  }
+
+  test('詳情頁確實有麵包屑', async ({ page }) => {
+    for (const path of [
+      '/clinic/doctors/yan-cheng-an',
+      '/clinic/nasal/snoring-five-in-one'
+    ]) {
+      await page.goto(path);
+      await expect(page.locator('nav.clinic-breadcrumb')).toHaveCount(1);
+    }
   });
 });

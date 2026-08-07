@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CLAMP_POLICIES,
   definedTokens,
   outsideRootBlocks,
   planTokenReview,
+  reviewClamp,
+  reviewFontSizeClamp,
+  splitArguments,
+  splitShorthand,
   usedTokens,
   withoutComments
 } from './check-design-tokens.mjs';
@@ -181,5 +186,197 @@ describe('token review', () => {
     );
 
     expect(review.violations.join('\n')).toContain('--standalone');
+  });
+
+  // 2026-08-06 的迴歸：`:root` 區塊的結尾要靠**大括號配對**找，不能靠縮排。
+  //
+  // 先前 `definedTokens` 與 `outsideRootBlocks` 各自寫了一份找「換行後頂格的
+  // `}`」的 regex。`:root` 在最外層時碰巧成立，寫在 `@media` 裡就不成立——那個
+  // `:root` 的結尾是縮排的，於是 regex 一路吃到整個 `@media` 的結尾，把中間所有
+  // 規則當成 `:root` 的內容排除掉。實測吞掉 clinic-site.css 230 行／44 條 class
+  // 規則、workbench.css 114 行／27 條；那些規則裡的寫死值從來沒有被檢查過，
+  // 而 gate 一直是綠的。
+  it('finds the end of a :root block inside @media by matching braces', () => {
+    const source = [
+      '@media (max-width: 48rem) {',
+      '  :root {',
+      '    --shell: 100%;',
+      '  }',
+      '',
+      '  .card {',
+      '    font-weight: 650;',
+      '    color: #ff0000;',
+      '  }',
+      '}'
+    ].join('\n');
+
+    const body = outsideRootBlocks(source);
+    // 巢狀 `:root` 之後的規則必須留在 body 裡，否則它們永遠掃不到。
+    expect(body).toContain('font-weight: 650');
+    expect(body).toContain('#ff0000');
+    // 而 `:root` 自己的宣告仍要被排除，否則 token 定義會被當成違規。
+    expect(body).not.toContain('--shell');
+
+    const review = planTokenReview(
+      sheets([{ name: 'styles.css', source, full: true }])
+    );
+    expect(review.violations.join('\n')).toContain('650');
+    expect(review.violations.join('\n')).toContain('#ff0000');
+  });
+
+  // 區域性自訂屬性不是全域 token：`.word { --index: 0 }` 只在該選擇器內有效，
+  // 把它登記成全域會讓「使用了未定義的 token」這條守衛跟著失準。
+  it('does not treat scoped custom properties as global tokens', () => {
+    const defined = definedTokens(
+      ':root {\n  --global: 1;\n}\n\n.word {\n  --scoped: 0;\n}\n'
+    );
+
+    expect(defined.has('--global')).toBe(true);
+    expect(defined.has('--scoped')).toBe(false);
+  });
+
+  // 引數要按括號深度切，不能 `split(',')`——目標寫法本身就有巢狀 `calc()`。
+  it('splits function arguments by paren depth, not by comma', () => {
+    expect(splitArguments('var(--a), calc(var(--b) + 2vw), var(--c)')).toEqual([
+      'var(--a)',
+      'calc(var(--b) + 2vw)',
+      'var(--c)'
+    ]);
+
+    // 帶 fallback 的 var() 裡也有逗號。
+    expect(splitArguments('var(--a, 1rem), 2vw')).toEqual([
+      'var(--a, 1rem)',
+      '2vw'
+    ]);
+  });
+
+  describe('流體字級', () => {
+    // 先前只要包進 clamp() 就整條免檢，於是官網 18 個端點只有 1 個在尺度上，
+    // 而 gate 全綠。
+    it('accepts endpoints on the scale with a scalable preferred value', () => {
+      expect(
+        reviewFontSizeClamp(
+          'clamp(var(--text-2xl), calc(var(--text-2xl) * 0.5 + 2vw), var(--text-3xl))'
+        )
+      ).toBeNull();
+      // 字面值只要落在尺度上也算數。
+      expect(
+        reviewFontSizeClamp('clamp(1rem, calc(1rem + 1vw), 1.44rem)')
+      ).toBeNull();
+    });
+
+    it('rejects endpoints that are off the scale', () => {
+      expect(
+        reviewFontSizeClamp('clamp(2.6rem, calc(1rem + 4.6vw), 4rem)')
+      ).toContain('最小值');
+      expect(
+        reviewFontSizeClamp('clamp(var(--text-md), calc(1rem + 2vw), 2.65rem)')
+      ).toContain('最大值');
+    });
+
+    // W3C F94：純 viewport unit 當作主要的字級定義方式，文字可能無法隨使用者
+    // 的文字大小設定放大。要求的是「可縮放基底 ＋ 流體單位」，不是禁用 vw。
+    it('rejects a preferred value made only of viewport units', () => {
+      expect(
+        reviewFontSizeClamp('clamp(var(--text-2xl), 4.5vw, var(--text-3xl))')
+      ).toContain('SC 1.4.4');
+    });
+
+    it('rejects px in the preferred value', () => {
+      expect(
+        reviewFontSizeClamp(
+          'clamp(var(--text-md), calc(12px + 2vw), var(--text-lg))'
+        )
+      ).toContain('px');
+    });
+
+    // 解析不出來就失敗。沉默放行正是舊規則的問題。
+    it('fails closed when it cannot parse three arguments', () => {
+      expect(reviewFontSizeClamp('clamp(var(--text-md), 2vw)')).toContain(
+        '無法判定就不放行'
+      );
+    });
+  });
+
+  // 2026-08-07：非字級的 clamp 先前走另一條豁免——間距檢查看到值裡有括號就
+  // 整條 `continue`，所以 28 處完全沒被檢查過。
+  describe('非字級的流體值', () => {
+    it('splits shorthands at paren depth zero', () => {
+      // `split(/\s+/)` 會把這個切成六塊碎片。
+      expect(splitShorthand('clamp(4rem, 8vw, 7rem) 0')).toEqual([
+        'clamp(4rem, 8vw, 7rem)',
+        '0'
+      ]);
+      expect(splitShorthand('0 auto clamp(2.5rem, 5vw, 4rem)')).toEqual([
+        '0',
+        'auto',
+        'clamp(2.5rem, 5vw, 4rem)'
+      ]);
+    });
+
+    // **間距與容器寬度沒有 SC 1.4.4 的文字縮放要求**，所以純 vw 的 preferred
+    // 完全合法。把字級那條規則套過來會逼人改掉正確的寫法。
+    it('accepts a pure viewport preferred value for spacing', () => {
+      const { violation } = reviewClamp(
+        'clamp(1rem, 2.5vw, 2rem)',
+        CLAMP_POLICIES.spacing
+      );
+      expect(violation).toBeNull();
+    });
+
+    it('rejects the same pure viewport preferred value for font-size', () => {
+      expect(reviewFontSizeClamp('clamp(1rem, 2.5vw, 1.44rem)')).toContain(
+        'SC 1.4.4'
+      );
+    });
+
+    it('records off-grid spacing endpoints as ratchet debt, not a violation', () => {
+      const { violation, debt } = reviewClamp(
+        'clamp(1.4rem, 3vw, 2.4rem)',
+        CLAMP_POLICIES.spacing
+      );
+      expect(violation).toBeNull();
+      expect(debt).toContain('最小值');
+      expect(debt).toContain('最大值');
+    });
+
+    it('accepts spacing endpoints that are on the grid', () => {
+      expect(
+        reviewClamp('clamp(1rem, 2.5vw, 2rem)', CLAMP_POLICIES.spacing).debt
+      ).toBeNull();
+      expect(
+        reviewClamp(
+          'clamp(var(--space-md), 2.5vw, var(--space-xl))',
+          CLAMP_POLICIES.spacing
+        ).debt
+      ).toBeNull();
+    });
+
+    // 容器寬度用自己的 policy。這個專案還沒有 layout token，所以端點一律記帳
+    // ——**不是**拿 SPACING_GRID 去比對。
+    it('never treats a layout endpoint as if it were on the spacing grid', () => {
+      const onSpacingGrid = 'clamp(1rem, 12vw, 2rem)';
+      expect(
+        reviewClamp(onSpacingGrid, CLAMP_POLICIES.spacing).debt
+      ).toBeNull();
+      expect(reviewClamp(onSpacingGrid, CLAMP_POLICIES.layout).debt).toContain(
+        'layout token'
+      );
+    });
+
+    it('fails closed for every category when it cannot parse', () => {
+      for (const policy of Object.values(CLAMP_POLICIES)) {
+        expect(reviewClamp('clamp(1rem, 2vw)', policy).violation).toContain(
+          '無法判定就不放行'
+        );
+      }
+    });
+
+    it('rejects a clamp with no fluid unit at all', () => {
+      expect(
+        reviewClamp('clamp(1rem, 1.5rem, 2rem)', CLAMP_POLICIES.spacing)
+          .violation
+      ).toContain('沒有流體單位');
+    });
   });
 });

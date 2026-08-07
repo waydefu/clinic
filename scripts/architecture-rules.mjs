@@ -70,11 +70,53 @@ export function stripComments(source) {
 export function importSpecifiers(source) {
   const found = [];
   for (const match of stripComments(source).matchAll(
-    /(?:^|[\s;{(])(?:import|export)\s[^'"()]*?from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)|^\s*import\s*['"]([^'"]+)['"]/gm
+    /(?:^|[\s;{(])(?:import|export)\s[^'"()]*?from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)|import\s*\(\s*`([^`$]+)`\s*\)|^\s*import\s*['"]([^'"]+)['"]/gm
   )) {
-    found.push(match[1] ?? match[2] ?? match[3]);
+    found.push(match[1] ?? match[2] ?? match[3] ?? match[4]);
   }
   return found.filter((value) => value !== undefined);
+}
+
+/**
+ * 走訪**看不透**的模組載入。
+ *
+ * `importSpecifiers` 是靜態比對，只認得字面值。這在 2026-08-06 的對抗測試裡被
+ * 證實可繞過：在 `main.ts` 加一行
+ *
+ *     const target = './appointments/appointment.application-service.js';
+ *     await import(target);
+ *
+ * 之後 `check:architecture` 依然全綠，而該檔案仍列在 `unrouted-inventory.json`
+ * 裡宣稱「未接線」——實測 `probe()` 確實把它載進來並取得三個匯出。整個專案
+ * 「被決策擋住的能力到不了」的論述就靠這道走訪，所以這是可達性分析的地基問題，
+ * 不是風格問題。
+ *
+ * 六個確認可繞過的向量：計算後的指定字串、帶插值的樣板字串、字串相接、
+ * `createRequire`、把 `import` 包成別名函式，以及無插值樣板字串（後者現在已由
+ * `importSpecifiers` 正常解析）。
+ *
+ * 修法不是去求值任意運算式——那等於實作一個直譯器，而且永遠追不完。改成**遇到
+ * 看不透的載入就失敗**：可達性分析不可靠的當下就停下來，由作者改成字面值。
+ * 這是 fail-closed，不是 best-effort。
+ */
+export function opaqueDynamicImports(source) {
+  const stripped = stripComments(source);
+  const found = [];
+  // `import.meta` 不會命中：那是 `import` 後面接 `.` 而不是 `(`。
+  for (const match of stripped.matchAll(/(?:^|[^\w.$])import\s*\(/g)) {
+    const rest = stripped.slice(match.index + match[0].length);
+    // 可靜態解析的兩種寫法：引號字面值，或無插值的樣板字串。
+    if (/^\s*(['"])[^'"]*\1\s*\)/.test(rest)) continue;
+    if (/^\s*`[^`$]*`\s*\)/.test(rest)) continue;
+    found.push(`import(${rest.split('\n')[0].slice(0, 48).trim()}`);
+  }
+  // `createRequire` 讓 CJS 解析繞過整個 ESM 圖，走訪完全看不到。
+  const createRequireCount = [...stripped.matchAll(/\bcreateRequire\s*\(/g)]
+    .length;
+  for (let index = 0; index < createRequireCount; index += 1) {
+    found.push('createRequire(...)');
+  }
+  return found;
 }
 
 /** 相對路徑（`.` 或 `/` 開頭）以外的都是裸名。 */

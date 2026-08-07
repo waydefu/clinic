@@ -42,7 +42,7 @@
       "entry": "clinic.html",
       "audience": "public",
       "indexable": false,
-      "scans": ["axe", "responsive", "affordance"],
+      "scans": ["axe", "responsive", "affordance", "mobile-layout"],
       "note": "診所官網首頁。其餘七條 /clinic/** 路由由 clinic-content.js 的 CLINIC_ROUTES 產生，共用同一個 entry。",
       "routing": {
         "kind": "shared-shell",

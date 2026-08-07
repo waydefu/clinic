@@ -9,8 +9,8 @@
     "scope": "本 manifest 列出的素材，用於本專案的診所官網；無期限限制"
   },
   "totals": {
-    "sourceBytes": 2262683,
-    "outputBytes": 132274
+    "sourceBytes": 2633640,
+    "outputBytes": 113862
   },
   "assets": [
     {
@@ -62,23 +62,11 @@
       }
     },
     {
-      "output": "/clinic-assets/service-snoring.webp",
-      "width": 375,
-      "height": 281,
-      "bytes": 8360,
-      "sha256": "b672f497d3db569722c39e024c95e9670181466238ca4a8e852e10ed6aa35e78",
-      "source": {
-        "file": "apps/web/clinic-source/service-snoring.png",
-        "bytes": 126746,
-        "sha256": "69d04feeab80a737cae8e44ebeba268328db3f7559e30da76f64737a68e1407e"
-      }
-    },
-    {
       "output": "/clinic-assets/service-turbinate.webp",
       "width": 540,
       "height": 405,
-      "bytes": 14726,
-      "sha256": "de05ff6b03284bebd78fe743ff3ebc0df0c589b119daf1cf5275a9599848d4ce",
+      "bytes": 4826,
+      "sha256": "2facd26d81cd1b28c8c28bc59b07a6d7a807f4719634b3d1f9c5662457ef5970",
       "source": {
         "file": "apps/web/clinic-source/service-turbinate.jpg",
         "bytes": 204155,
@@ -89,8 +77,8 @@
       "output": "/clinic-assets/service-septoplasty.webp",
       "width": 540,
       "height": 405,
-      "bytes": 15154,
-      "sha256": "c22127f30e69bc6bbd002bd10d9d06f79a2aebb56262d7afb2e26a91cf4d4a21",
+      "bytes": 12374,
+      "sha256": "437dcbb24b080669c9c2c409f8da5dcaa727597f02f3d10c9c53e66155b006cb",
       "source": {
         "file": "apps/web/clinic-source/service-septoplasty.jpg",
         "bytes": 236478,
@@ -101,12 +89,24 @@
       "output": "/clinic-assets/service-mouthguard.webp",
       "width": 540,
       "height": 405,
-      "bytes": 15786,
-      "sha256": "0a8134d49cc301f84520927d48a4ac6c2b9e4cfc36adb8320fad45eca0e85de3",
+      "bytes": 9572,
+      "sha256": "0336e510cebfa63f5eea67b4f88d6870e99e1899f541617613e2d1dc4c7a2a28",
       "source": {
         "file": "apps/web/clinic-source/service-mouthguard.webp",
         "bytes": 89956,
         "sha256": "1625d9e0e3d63bfe59d2d4e9defd016528b7fec51d12bb07533c416f89b48377"
+      }
+    },
+    {
+      "output": "/clinic-assets/service-snoring.webp",
+      "width": 540,
+      "height": 405,
+      "bytes": 8842,
+      "sha256": "13e09041abcb7f22754e1dfecb043d2af4517f3193f3d075e1167959e6f45f02",
+      "source": {
+        "file": "apps/web/clinic-source/service-snoring-symptoms.jpg",
+        "bytes": 497703,
+        "sha256": "9b29b1b85cdb0d1603298437c8c81a17612aa33556fa96b481fd28bf17d458ec"
       }
     },
     {

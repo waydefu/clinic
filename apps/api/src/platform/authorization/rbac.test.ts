@@ -88,7 +88,7 @@ describe('evaluateAccess', () => {
 
   it('scopes a case manager to assigned patients unless the role is broad', () => {
     const request: AccessRequest = {
-      role: 'case_manager',
+      role: 'consultant',
       accountActive: true,
       permission: 'assign_case_manager',
       scope: { kind: 'assigned_patient', patientId: 'patient_007' }

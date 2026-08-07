@@ -1,3 +1,5 @@
+import type { Role } from '@beauessence/domain';
+
 import type { AuthenticationContext } from '../../auth/authentication-context.js';
 import {
   AuthenticationRequiredError,
@@ -30,14 +32,16 @@ import {
  * silently discard D-004/D-005/D-007/D-008/D-014/D-015 blockers on another.
  */
 
-export type CandidateRole =
-  | 'patient'
-  | 'front_desk'
-  | 'case_manager'
-  | 'manager'
-  | 'system_admin'
-  | 'auditor'
-  | 'service_account';
+/**
+ * 2026-08-06 角色收斂（P0）：角色集合改由 `@beauessence/domain` 的 `Role` 定義，
+ * 這裡不再自己列一份。先前 repository 裡有三套互不相容的角色定義，而瀏覽器與
+ * 伺服器各持其一——那正是「金額只給該看的人」這類規則無法落實的根因。
+ *
+ * 兩處實質變動：`case_manager` 依 rbac-matrix.md §7 Q1 的假設收斂為
+ * `consultant`（假設集中在 domain 的 `ASSUME_CASE_MANAGER_IS_CONSULTANT`），
+ * 以及補上 D-006 已核准但從未實作的 `physician`。
+ */
+export type CandidateRole = Role;
 
 export type Permission =
   | 'create_appointment'
@@ -76,7 +80,12 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
     'update_appointment_notes',
     'decide_follow_up'
   ],
-  case_manager: ['assign_case_manager', 'decide_follow_up', 'read_audit'],
+  consultant: ['assign_case_manager', 'decide_follow_up', 'read_audit'],
+  // D-006 已核准 physician 的存在，但它能做什麼分屬 D-014（臨床紀錄）與
+  // D-015（金額）——兩者都尚未核准。角色先就位、權限保持空集合，是為了讓
+  // 「這個角色存在但還沒有被授權」與「這個角色不存在」在程式裡分得出來；
+  // 給它任何一項權限都等於替業主決定醫療紀錄的可及範圍。
+  physician: [],
   manager: [
     'create_appointment',
     'request_cancellation',

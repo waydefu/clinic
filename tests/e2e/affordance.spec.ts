@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
 import { createBooking, login, showAllAppointments } from './support/workbench';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
@@ -8,8 +9,7 @@ export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/privacy',
   '/clinic'
 ] as const;
-const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
-  PUBLIC_PAGE_SCAN_ROUTES;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
 // 互動元素必須「看得出來可以按」。
 //
@@ -30,13 +30,8 @@ const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
 /** 導覽列裡的連結靠**位置**表達可點擊，依 NN/g 不需要額外的底線或框。 */
 const POSITIONALLY_SIGNALLED = ['nav', '.workspace-nav', '.patient-nav'];
 
-/** 診所官網的路由。四類頁面各取一條：首頁、醫師、醫師個人、鼻功能療程。 */
-const CLINIC_ROUTES = [
-  CLINIC_ROUTE,
-  '/clinic/doctors',
-  '/clinic/doctors/yan-cheng-an',
-  '/clinic/nasal/snoring-five-in-one'
-];
+/** 診所官網的四類取樣。單一來源在 `support/clinic-routes`。 */
+const CLINIC_ROUTES = CLINIC_UI_SCAN_ROUTES;
 
 const WORKSPACES = [
   '#overview',
@@ -460,6 +455,14 @@ test.describe('可點擊性（affordance）', () => {
   //
   // 依 SC 2.5.8 的 Inline 例外，句子裡的連結不在此限：它們的尺寸受行高約束，
   // 硬撐大反而會破壞內文排版。
+  //
+  // 2026-08-06：`summary` 是後補進選擇器的。先前的清單是
+  // `button, a[href], [role="button"], select`——`<summary>` 是**原生的**
+  // disclosure 控制項，可點、可聚焦、可用鍵盤操作，卻不在其中任何一類裡，
+  // 於是這條掃描看不到它。官網 FAQ 的四個 `<summary>` 因此長期停在 293×24：
+  // 通過 SC 2.5.8 的 24px AA 下限，但遠低於本專案自訂的 44px 行動門檻，
+  // 而且 CI 全綠。**掃描的選擇器就是它的涵蓋範圍**，漏一類元素等於那類元素
+  // 從來沒有被量過。
   test('患者端的可點目標在手機寬度達到 44px', async ({ page }) => {
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
@@ -498,7 +501,7 @@ test.describe('可點擊性（affordance）', () => {
 
           const offenders: string[] = [];
           for (const element of document.querySelectorAll<HTMLElement>(
-            'button, a[href], [role="button"], select'
+            'button, a[href], [role="button"], select, summary'
           )) {
             const box = effectiveTarget(element).getBoundingClientRect();
             if (box.width === 0 || box.height === 0) continue;
