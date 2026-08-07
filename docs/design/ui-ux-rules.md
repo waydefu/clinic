@@ -677,6 +677,36 @@ responsive、affordance、performance 與 SEO 測試共同讀取。完成前，�
 | 320×568 低高度          | header、sticky、dialog、最後一個欄位與送出鍵不互相遮擋 |
 | 弱網／離線              | 資料不丟失、不重複建立，錯誤有替代聯絡方式             |
 
+#### 狀態：External manual verification required（2026-08-07）
+
+上表**全部未執行**。這不是「不用做了」，也不是還排在誰的待辦清單上——狀態是：
+
+> **自動化能做的範圍已經做完；剩下的需要具備實體裝置與真人輔助科技環境的人員執行。
+> 它不再列為 Agent 可執行的 backlog，但仍屬發布前的人工驗收項目。**
+
+這樣寫的理由：把它掛在一般待辦清單上，每一輪都會有人（或有 agent）重新發現
+「找不到 iPhone」然後再記一次；把它劃掉又等於偷偷關閉一項真正的驗收要求。
+
+自動化到 2026-08-07 為止涵蓋到哪裡：
+
+| 維度 | 自動化狀態 |
+| --- | --- |
+| 版面重排 320–1280px | `responsive.spec.ts` 11 個寬度 |
+| 觸控目標 44px | `affordance.spec.ts`（含 `<summary>`） |
+| 行動版任務文字 | `mobile-layout.spec.ts`、`typography.spec.ts` |
+| 200% 文字放大 | `typography.spec.ts` 的兩層檢查（文件層溢位＋元素層裁切）。**是 proxy** |
+| 可及性樹結構 | axe ＋ `clinic-site.spec.ts` 的麵包屑斷言 ＋ `manual-accessibility-preconditions.spec.ts` |
+| WebKit 引擎 | `playwright.config.ts` 的 `webkit` project（限官網結構那一支） |
+
+自動化**涵蓋不到**、而上表要求的：真實軟鍵盤與它造成的 viewport 變化、
+OS 層 Dynamic Type／系統字級、瀏覽器 chrome 與位址列收合、safe area 與瀏海／
+動態島、旋轉、autofill、弱網、以及 VoiceOver／TalkBack 的實際播報。
+
+**Playwright WebKit 不能代替實體 iOS Safari。** 加上 `webkit` project 之後，
+引擎層的差異看得到了，但上面那一整排仍然一項都沒有覆蓋到。同理，device descriptor
+（`devices['iPhone 15']` 之類）換的是 viewport、UA 與 touch 能力，**不是引擎**，
+也不是作業系統。
+
 ### 5.4 每個流程都要有的資料狀態
 
 - 0 筆、1 筆、多筆、最大合理筆數；
