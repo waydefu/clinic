@@ -980,10 +980,28 @@ a {
   font-size: var(--clinic-text-body);
 }
 
-.clinic-breadcrumb .clinic-shell {
+/* 麵包屑是 `<ol>`。清掉清單樣式，flex 掛在它自己身上而不是外層。 */
+.clinic-breadcrumb ol.clinic-shell {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clinic-breadcrumb li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 分隔符由 CSS 產生，不是 DOM 裡的文字節點——後者會被報讀器唸成「斜線」。
+   這是 WAI-ARIA APG breadcrumb 的做法。見 clinic-site.js 的 breadcrumb()
+   註解，那裡記了「部分輔助科技仍會朗讀 generated content」這個待實機確認項。 */
+.clinic-breadcrumb li:not(:last-child)::after {
+  content: '/';
+  color: var(--clinic-muted);
 }
 
 /* 麵包屑是導覽入口，不是句子裡的連結，所以沒有 SC 2.5.8 的 Inline 例外。
