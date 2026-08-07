@@ -48,6 +48,11 @@ const SPACING_GRID = new Set([
 const SPACING_PROPERTIES =
   /\b(?:gap|row-gap|column-gap|padding|padding-top|padding-right|padding-bottom|padding-left|padding-inline|padding-block|margin|margin-top|margin-right|margin-bottom|margin-left|margin-inline|margin-block): ([^;{}]+);/g;
 
+// 容器尺寸。**與間距分開**：`width` 的端點就算落在 4px 網格上，也不代表它是
+// `--space-*`——容器寬度與版面間距是兩種語意。目前只用來查 clamp 端點。
+const LAYOUT_PROPERTIES =
+  /\b(?:width|max-width|min-width|height|max-height|min-height|inline-size|block-size): ([^;{}]+);/g;
+
 // 上限**逐檔記帳**。先前是全域一個數字，那在只有一份樣式表有債務時還行，
 // 但 2026-08-06 把 clinic-site.css 納入全套檢查後就不行了：一個總數會讓
 // 「官網收掉一筆、styles.css 新增一筆」互相抵銷而總數不變，於是新債務隱形。
@@ -70,6 +75,31 @@ const CEILINGS = {
     //     大留白沒有對應的階，該補哪一階要先決定，不是逐條硬套。
     //   - 兩處 `margin: -1px` 是 1px 的邊框對齊修正，不是版面間距。
     'clinic-site.css': 11
+  },
+  '間距 clamp 端點': {
+    // 2026-08-07 首次納入檢查。先前 `parts.some(part => part.includes('('))`
+    // 讓任何含函式的間距值整條免檢——2026-08-06 修掉字級 clamp 之後，這是
+    // 剩下的另外半個盲點。
+    //
+    // 起始上限＝實測現況，所以規則進來的這個 commit 自身是綠的。端點多半是
+    // 1.4／1.6／2.2／2.5／3.5／5／6rem 這類值，離 SPACING_GRID 4–32px；
+    // 硬壓會改變版面呼吸感，與「間距字面值」剩下那 11 條是同一個問題：
+    // 網格在 1.5→2→3→4rem 之間跳得很開，官網的大留白沒有對應的階。
+    // **要收斂之前得先決定補哪一階，不是逐條硬套。**
+    'clinic-site.css': 16,
+    'styles.css': 4,
+    'workbench.css': 1
+  },
+  '容器 clamp 端點': {
+    // 2026-08-07 首次納入檢查。這四筆是品牌標誌與圖片的響應式寬度。
+    //
+    // **刻意與間距分開記帳。** 這四個端點（9／12.5／6.5／5.5／7.5／10rem）
+    // 雖然都落在 4px 網格上，但「能被 4 整除」不等於「它是 --space-*」——
+    // 容器寬度與版面間距是兩種語意。這個專案目前沒有 layout／container token，
+    // 所以沒有可以比對的尺度，端點一律先登記在檯面上。
+    // **不要為了讓這個數字歸零而把它們改成 --space-***，那會寫進一條語意不對
+    // 的規則；要收斂得先決定容器寬度的級數長什麼樣。
+    'clinic-site.css': 4
   }
 };
 
@@ -181,55 +211,169 @@ export function splitArguments(value) {
   return parts;
 }
 
-/** 這個值是不是「來自字級尺度」——token 或尺度上的字面值都算。 */
-function fromTypeScale(value) {
-  if (value.includes('var(--text') || value.includes('var(--clinic-text'))
-    return true;
-  return TYPE_SCALE.has(value.trim());
+const FLUID_UNIT = /[0-9.]+(?:vw|vh|vmin|vmax|cqw|cqi|cqb|cqh)\b/;
+
+/**
+ * 把 shorthand 依「括號深度為零處的空白」切開。
+ *
+ * `split(/\s+/)` 對 `padding: clamp(4rem, 8vw, 7rem) 0` 會切出六塊碎片，
+ * 因為 clamp 的引數之間有空白。這裡與 `splitArguments` 同一個道理，只是分隔符
+ * 從逗號換成空白。
+ */
+export function splitShorthand(value) {
+  const parts = [];
+  let depth = 0;
+  let current = '';
+  for (const character of value.trim()) {
+    if (character === '(') depth += 1;
+    else if (character === ')') depth -= 1;
+    if (/\s/.test(character) && depth === 0) {
+      if (current.trim() !== '') parts.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += character;
+  }
+  if (current.trim() !== '') parts.push(current.trim());
+  return parts;
 }
 
 /**
- * 流體字級的驗證。
+ * 三個 property group 各自的 clamp 政策。
  *
- * 先前這裡是 `if (value.startsWith('clamp(')) continue;`——**只要包進 clamp()
- * 就完全免檢**。於是官網 9 個字級 clamp 的 18 個端點只有 1 個落在尺度上，
- * 而 gate 全綠。把 `font-size` 字面值收到零卻放行 clamp，等於留一條合法繞道。
+ * **`reviewClamp()` 只共用語法解析與 fail-closed 行為**——拆出三個引數、拆不出來
+ * 就失敗。min／max 與 preferred 的合法性一律由這裡的 policy 決定，**三類不共用
+ * 同一套尺度，也不共用同一套 preferred-value 規則**。
  *
- * 三項各有理由：
- *   - min／max 是使用者實際會看到的兩端，必須來自尺度；
- *   - preferred 不得只由 viewport unit 組成。以純 `vw` 作為主要的字級定義
- *     方式，文字可能無法隨使用者的文字大小設定放大——W3C F94 把這類不正確
- *     使用列為 SC 1.4.4 的常見失敗情況。**這不等於「含 vw 一律失敗」**，
- *     所以要求的是「可縮放基底 ＋ 流體單位」而不是禁用 vw；
- *   - 解析不出來就失敗。沉默放行正是舊規則的問題。
+ * 為什麼不能共用：字級那條「preferred 必須有可縮放文字基底」來自 SC 1.4.4 的
+ * 文字縮放要求。間距與容器寬度**沒有**那個要求——把它套過去是憑空發明限制，
+ * 而且會逼人改掉 `padding: clamp(1rem, 4vw, 3rem)` 這種完全合法的寫法。
+ *
+ * 端點的尺度同理：`width` 的端點就算剛好能被 4 整除，也**不代表**它是
+ * `--space-*`。容器寬度與版面間距在語意上是兩回事，為了填掉一個舊盲點而把它們
+ * 併成同一條規則，比留著盲點更糟。
+ */
+export const CLAMP_POLICIES = {
+  fontSize: {
+    endpointScale: TYPE_SCALE,
+    endpointTokens: ['var(--text', 'var(--clinic-text'],
+    endpointName: '字級尺度',
+    requireFluidPreferred: true,
+    // 以下兩條**只有字級有**，理由是 SC 1.4.4：
+    requireScalableBase: true,
+    rejectAbsolutePreferred: true,
+    endpointsAreRatchetDebt: false
+  },
+  spacing: {
+    endpointScale: SPACING_GRID,
+    endpointTokens: ['var(--space'],
+    endpointName: '間距級數',
+    requireFluidPreferred: true,
+    requireScalableBase: false,
+    rejectAbsolutePreferred: false,
+    endpointsAreRatchetDebt: true
+  },
+  layout: {
+    // 這個專案目前**沒有** layout／container token，所以沒有可比對的尺度。
+    // 端點一律登記成 ratchet 債務，不假裝它們該用 --space-*。要收斂之前得先
+    // 決定容器寬度的級數長什麼樣，那是另一件事。
+    endpointScale: new Set(),
+    endpointTokens: ['var(--layout', 'var(--container', 'var(--shell'],
+    endpointName: 'layout token',
+    requireFluidPreferred: true,
+    requireScalableBase: false,
+    rejectAbsolutePreferred: false,
+    endpointsAreRatchetDebt: true
+  }
+};
+
+/** 端點是不是來自該類別自己的尺度——token 或尺度上的字面值都算。 */
+function onEndpointScale(value, policy) {
+  const trimmed = value.trim();
+  if (policy.endpointTokens.some((prefix) => trimmed.includes(prefix)))
+    return true;
+  return policy.endpointScale.has(trimmed);
+}
+
+/**
+ * `clamp()` 的驗證。
+ *
+ * 先前 `font-size` 這裡是 `if (value.startsWith('clamp(')) continue;`——**只要包進
+ * clamp() 就完全免檢**，於是官網 18 個端點只有 1 個在尺度上而 gate 全綠。
+ * 2026-08-06 修掉字級那條；2026-08-07 補上間距與 layout 兩類，非字級的 28 處
+ * 從此不再靠 `parts.some(part => part.includes('('))` 整條放行。
+ *
+ * @returns {{ violation: string | null, debt: string | null }}
+ *   `violation` 直接擋 CI；`debt` 進 ratchet 記帳。
+ */
+export function reviewClamp(value, policy) {
+  const inner = value.trim().slice('clamp('.length, -1);
+  const parts = splitArguments(inner);
+  if (parts.length !== 3) {
+    return {
+      violation: `clamp() 解析不出三個引數（${parts.length} 個）——無法判定就不放行`,
+      debt: null
+    };
+  }
+
+  const [minimum, preferred, maximum] = parts;
+
+  const offScale = [
+    ['最小值', minimum],
+    ['最大值', maximum]
+  ].filter(([, endpoint]) => !onEndpointScale(endpoint, policy));
+
+  // 端點：字級是硬性違規，間距與 layout 進 ratchet。
+  if (offScale.length > 0 && !policy.endpointsAreRatchetDebt) {
+    const [which, endpoint] = offScale[0];
+    return {
+      violation: `clamp() 的${which} \`${endpoint}\` 不在${policy.endpointName}上`,
+      debt: null
+    };
+  }
+
+  if (policy.requireFluidPreferred && !FLUID_UNIT.test(preferred)) {
+    return {
+      violation: `clamp() 的中間值 \`${preferred}\` 沒有流體單位——那就不需要 clamp`,
+      debt: null
+    };
+  }
+  if (
+    policy.requireScalableBase &&
+    !(
+      policy.endpointTokens.some((prefix) => preferred.includes(prefix)) ||
+      /[0-9.]+r?em\b/.test(preferred)
+    )
+  ) {
+    // W3C F94：純 viewport unit 當作主要的字級定義方式，文字可能無法隨使用者的
+    // 文字大小設定放大。要求的是「可縮放基底 ＋ 流體單位」，**不是禁用 vw**。
+    return {
+      violation: `clamp() 的中間值 \`${preferred}\` 只有 viewport 單位，缺少可隨文字設定縮放的基底（SC 1.4.4）`,
+      debt: null
+    };
+  }
+  if (policy.rejectAbsolutePreferred && /[0-9.]+px\b/.test(preferred)) {
+    return {
+      violation: `clamp() 的中間值 \`${preferred}\` 用了 px——字級不接受絕對單位`,
+      debt: null
+    };
+  }
+
+  if (offScale.length === 0) return { violation: null, debt: null };
+  return {
+    violation: null,
+    debt: `${offScale.map(([which, endpoint]) => `${which} \`${endpoint}\``).join('、')} 不在${policy.endpointName}上`
+  };
+}
+
+/**
+ * 流體字級的驗證。保留這個名字與「回傳字串或 null」的形狀，因為字級的端點是
+ * 硬性違規、沒有 ratchet 那一半。
  *
  * @returns {string | null} 違規說明；合格回傳 null。
  */
 export function reviewFontSizeClamp(value) {
-  const inner = value.trim().slice('clamp('.length, -1);
-  const parts = splitArguments(inner);
-  if (parts.length !== 3)
-    return `clamp() 解析不出三個引數（${parts.length} 個）——無法判定就不放行`;
-
-  const [minimum, preferred, maximum] = parts;
-  if (!fromTypeScale(minimum))
-    return `clamp() 的最小值 \`${minimum}\` 不在字級尺度上`;
-  if (!fromTypeScale(maximum))
-    return `clamp() 的最大值 \`${maximum}\` 不在字級尺度上`;
-
-  const scalable =
-    preferred.includes('var(--text') ||
-    preferred.includes('var(--clinic-text') ||
-    /[0-9.]+r?em\b/.test(preferred);
-  const fluid = /[0-9.]+(?:vw|vh|vmin|vmax)\b/.test(preferred);
-  if (!fluid)
-    return `clamp() 的中間值 \`${preferred}\` 沒有流體單位——那就不需要 clamp`;
-  if (!scalable)
-    return `clamp() 的中間值 \`${preferred}\` 只有 viewport 單位，缺少可隨文字設定縮放的基底（SC 1.4.4）`;
-  if (/[0-9.]+px\b/.test(preferred))
-    return `clamp() 的中間值 \`${preferred}\` 用了 px——字級不接受絕對單位`;
-
-  return null;
+  return reviewClamp(value, CLAMP_POLICIES.fontSize).violation;
 }
 
 /** `:root` 區塊以外的內容——寫死顏色只有在這裡才算違規。 */
@@ -250,7 +394,12 @@ export function outsideRootBlocks(source) {
  */
 export function planTokenReview(sheets) {
   const violations = [];
-  const debt = { 'font-size 字面值': [], 間距字面值: [] };
+  const debt = {
+    'font-size 字面值': [],
+    間距字面值: [],
+    '間距 clamp 端點': [],
+    '容器 clamp 端點': []
+  };
 
   for (const [name, { source: raw, scope, full, breakpoints }] of sheets) {
     const source = withoutComments(raw);
@@ -425,10 +574,45 @@ export function planTokenReview(sheets) {
       if (TYPE_SCALE.has(value)) continue;
       debt['font-size 字面值'].push(`${name}: ${value}`);
     }
+    // 容器尺寸的 clamp。**這不是完整的 layout token gate**——它只看 clamp()，
+    // 不查 `width: 100%` 之類的字面值。範圍刻意這麼窄：本輪要補的是「包進函式
+    // 就免檢」這個盲點，不是憑空發明一套容器寬度級數。
+    for (const match of body.matchAll(LAYOUT_PROPERTIES)) {
+      for (const part of splitShorthand(match[1])) {
+        if (!part.startsWith('clamp(')) continue;
+        const { violation, debt: endpointDebt } = reviewClamp(
+          part,
+          CLAMP_POLICIES.layout
+        );
+        if (violation !== null) violations.push(`${name}: ${violation}`);
+        else if (endpointDebt !== null)
+          debt['容器 clamp 端點'].push(`${name}: ${endpointDebt}`);
+      }
+    }
     for (const match of body.matchAll(SPACING_PROPERTIES)) {
       // scroll-margin 不是版面間距，而是「固定表頭要讓開多少」，跟著表頭高度
       // 走而不是跟著間距級數走，所以它有自己的 --scroll-anchor-offset。
       if (match[0].includes('scroll-')) continue;
+
+      // clamp() 要逐項驗證，不能跟著下面那條函式豁免一起整條放行——那正是
+      // 2026-08-06 修掉字級 clamp 之後還留著的另外半個盲點。
+      // **注意用 splitShorthand 而不是 split(/\s+/)**：`padding: clamp(a, b, c) 0`
+      // 的 clamp 內部有空白，用空白切會把它拆碎。
+      const shorthand = splitShorthand(match[1]);
+      if (shorthand.some((part) => part.startsWith('clamp('))) {
+        for (const part of shorthand) {
+          if (!part.startsWith('clamp(')) continue;
+          const { violation, debt: endpointDebt } = reviewClamp(
+            part,
+            CLAMP_POLICIES.spacing
+          );
+          if (violation !== null) violations.push(`${name}: ${violation}`);
+          else if (endpointDebt !== null)
+            debt['間距 clamp 端點'].push(`${name}: ${endpointDebt}`);
+        }
+        continue;
+      }
+
       const parts = match[1].trim().split(/\s+/);
       if (parts.some((part) => part.startsWith('var(') || part.includes('('))) {
         continue;
