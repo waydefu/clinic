@@ -185,6 +185,8 @@ WCAG 2.5.8 的 Inline、Equivalent、Spacing、User agent control 與 Essential 
 - 長文建議限制在約 32–40 個中文字寬；目前共用實作可用約 `68ch` 作保守上限。
 - 必須通過 200% 文字放大與 400% 頁面縮放對應的重排；不得禁止 pinch zoom。
 - 使用者覆寫行高、段距、字距與詞距時，不得遺失內容或功能。
+- **以上每一條都只管得到 HTML 文字。** 烘焙在圖片裡的字不會隨放大變大、量不到
+  computed style，也不會被這條規則的任何一道驗證抓到——見 [R-26](#r-26資訊不得只存在於圖片像素裡)。
 
 16px 表單控制項也能避免 iOS Safari 常見的聚焦自動放大；這是實務相容性門檻，不是
 WCAG 明定的最小字級。
@@ -578,6 +580,30 @@ RUM；否則只使用不需在產品植入追蹤碼的 CrUX。未核准前不得
 
 **驗證：** 登入 E2E、密碼管理器／paste／OTP／timeout 人工測試。
 
+### R-26　資訊不得只存在於圖片像素裡
+
+- **承載資訊的文字一律用 HTML，不用圖片。** 例外只有兩個：品牌標誌（logotype），
+  以及使用者可自行調整呈現的文字圖。行銷素材、衛教資訊圖、流程圖、症狀清單
+  **都不屬於例外**——這些內容用 HTML 都做得出來，因此不符合 1.4.5 的 essential 定義。
+- 卡片與區塊的圖片只放**插圖、照片或圖形**，標題與說明由 HTML 的標題與內文承擔。
+  素材若是含文字的投影片，裁到只取插圖，不要把文字一起出貨。
+- 圖表、流程圖等 complex image 需要**短描述（`alt`）＋長描述**兩層；長描述應是頁面上
+  所有人都看得到的內容，不是只給輔助科技的隱藏文字。
+- 建置期若要裁切，主體不在中央就必須宣告明確的裁切框。
+  `build-clinic-assets.mjs` 的 `MAX_BLIND_DISCARD` 會擋下超過 12% 的盲目置中裁切。
+- 素材同一份內容有多個版本（桌機版／手機版）時，**它們會各自漂移而且沒有人會發現**。
+  這本身就是「不要把資訊放進圖片」的理由，不是「要記得同步兩份圖」的理由。
+
+**依據：** WCAG 2.2 SC 1.4.5（AA，images of text）、1.4.4（resize text）、
+1.4.10（reflow）、1.1.1；W3C WAI Complex Images 教學；GOV.UK Design System
+（「應避免使用含任何文字的圖片」）；Material Design 3 Cards（「不建議把文字或圖示
+疊在圖片上」）；Apple HIG Accessibility（支援放大至少 200%／Dynamic Type，
+烘焙在圖裡的字在任何放大設定下都不會變大）；MDN Responsive images
+（art direction 換的是圖檔本身，`object-fit` 只改顯示方式，兩者不同層次）。
+
+**驗證：** `build:clinic-assets` 的 fail-closed 門檻；四張療程卡逐張目視；
+200% 文字放大下資訊是否跟著放大；報讀器可達性。
+
 ## 4. 新頁面與新元件的完成定義
 
 ### 4.1 新增對外頁面
@@ -757,6 +783,34 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
 掃描**宣告**涵蓋了它」，而不是「有沒有掃描跑過」。§4.1 的新頁面完成定義已經要求
 逐項登記，這次的五個缺口全部是那份清單沒涵蓋到的維度。
 
+## 7.2 2026-08-07 複核：規則管得到 CSS，管不到像素
+
+上一輪把官網的**字級**併回系統，結果是 `/clinic` 低於 14px 的文字歸零。但那次量的是
+**HTML 元素的 computed style**，而官網有一批文字根本不是 HTML——它烘焙在圖片裡。
+
+四張療程卡的素材是行銷投影片與資訊圖。`build-clinic-assets.mjs` 對它們套置中裁切，
+默默丟掉 25%～**63.4%** 的畫面：「止鼾好眠牙套」被切成「子眠牙套」，五個打鼾成因
+只剩中間一欄。**每一道 gate 都是綠的**——`check:tokens` 看 CSS、`typography.spec.ts`
+量 DOM、axe 掃可及性樹，沒有任何一道會打開 WebP 看裡面寫了什麼。
+
+這一輪新增 R-26，並把執行點放進建置腳本（`MAX_BLIND_DISCARD`，fail-closed）。
+處置分兩種，依素材性質決定：
+
+| 素材 | 性質 | 處置 |
+| --- | --- | --- |
+| 三張手術投影片 | 標題與內文**與卡片自己的 HTML 重複**，右側有可用插圖 | 裁到只取插圖，文字回歸 HTML |
+| 止鼾五合一資訊圖 | 整張都是資訊，無插圖可取 | 五個成因搬進 `NASAL_SERVICES` 成為真實文字 |
+
+**這一輪學到的判準：** 上一輪的結論是「gate 的涵蓋範圍寫在它的選擇器與豁免條件裡」。
+這一輪把它推進一層——**gate 的涵蓋範圍也寫在它讀的是哪一種資料**。量 computed style
+的掃描永遠看不到 alt 底下的像素；`alt="止鼾五合一療程示意"` 在任何自動化檢查眼中都是
+合格的替代文字，即使畫面上只剩一個症狀分類。新增素材時要問的是「這張圖裡有沒有字，
+那些字有沒有別的地方也寫著」，而不是「掃描有沒有跑過這條路由」。
+
+順帶記下一個工具面的陷阱：`gh pr checks` 會把 matrix fail-fast 取消掉的 job 顯示成
+`fail`、時間一律整齊的 15m01s。判讀 CI 紅燈要先用 `gh run view --json jobs` 分辨
+cancelled 與 failure。
+
 ## 8. 參考資料
 
 ### 官方與標準
@@ -781,6 +835,10 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
 - [web.dev — Optimize INP](https://web.dev/articles/optimize-inp)
 - [web.dev — Accessible responsive design](https://web.dev/articles/accessible-responsive-design)
 - [web.dev — Typography](https://web.dev/learn/design/typography)
+- [W3C — Understanding SC 1.4.5 Images of Text](https://www.w3.org/WAI/WCAG22/Understanding/images-of-text.html)
+- [W3C WAI — Complex Images tutorial](https://www.w3.org/WAI/tutorials/images/complex/)
+- [MDN — Responsive images（art direction）](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/Responsive_images)
+- [MDN — `<picture>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/picture)
 
 ### 權威實務與研究型設計系統
 
@@ -795,6 +853,8 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
 - [Baymard — Mobile form label position](https://baymard.com/blog/mobile-form-usability-label-position)
 - [Baymard — Inline form validation](https://baymard.com/blog/inline-form-validation)
 - [CSS-Tricks — 16px input text and iOS focus zoom](https://css-tricks.com/16px-or-larger-text-prevents-ios-form-zoom/)
+- [GOV.UK Design System — Images](https://design-system.service.gov.uk/styles/images/)
+- [Material Design 3 — Cards guidelines](https://m3.material.io/components/cards/guidelines)
 
 ### 專案內
 
