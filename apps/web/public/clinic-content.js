@@ -110,7 +110,7 @@ export const NASAL_SERVICES = [
     eyebrow: 'SNORING CARE',
     subtitle: '從鼻腔結構、呼吸狀況到睡眠品質，一次完成整合評估。',
     image: '/clinic-assets/service-snoring.webp',
-    imageAlt: '止鼾五合一療程示意',
+    imageAlt: '側躺睡眠時張口呼吸的示意插圖',
     intro:
       '打鼾可能來自鼻腔阻塞、軟組織震動或睡眠呼吸障礙。診所會先由耳鼻喉科醫師檢查鼻腔結構與呼吸狀況，再依個別原因提出合適的治療方向。',
     highlights: [
@@ -123,6 +123,27 @@ export const NASAL_SERVICES = [
         heading: '什麼是打鼾？',
         paragraphs: [
           '睡眠時上呼吸道變窄，氣流通過軟組織所產生的震動會形成鼾聲。若同時出現呼吸中止、夜間驚醒或白天嗜睡，可能與阻塞型睡眠呼吸中止症有關，建議進一步接受專業評估。'
+        ]
+      },
+      {
+        // 這五項原本只存在於 service-snoring.png 的像素裡（官網 2024/11 的資訊圖，
+        // sha256 69d04fee…1e407e）。2026-08-07 搬成文字：文案一字未改，順序依桌機版
+        // 原圖；該來源檔同日移除，內容以本段為準，原圖仍可由 git 歷史取回。
+        //
+        // 為什麼要搬：圖裡的字放大不會變大、報讀器讀不到、也複製不了（WCAG 2.2
+        // SC 1.4.5，這些內容用 HTML 完全可以呈現，因此不適用 essential 例外）。
+        // 而且官網的桌機版與手機版對這五項的編號順序**不一致**（2/3/4 互換），
+        // 兩份圖沒有任何機制會發現彼此分歧——圖片不是可維護的內容來源。
+        heading: '打鼾的五個常見成因',
+        paragraphs: [
+          '打鼾通常不是單一原因造成，下列因素常同時存在。實際情形仍需由醫師面診判斷。'
+        ],
+        bullets: [
+          '體重過重',
+          '鼻結構異常：鼻中膈彎曲、下鼻甲肥厚、過敏性鼻炎',
+          '咽喉結構異常：舌頭肥厚後傾、軟顎無力、懸壅垂過長',
+          '下巴短厚',
+          '生活習慣欠佳：抽菸、酒精'
         ]
       },
       {
@@ -177,7 +198,7 @@ export const NASAL_SERVICES = [
     eyebrow: 'NASAL AIRWAY',
     subtitle: '改善長期鼻塞，讓日常呼吸與睡眠更順暢。',
     image: '/clinic-assets/service-turbinate.webp',
-    imageAlt: '下鼻甲手術治療示意',
+    imageAlt: '鼻腔內部結構的示意插圖，標示下鼻甲位置',
     intro:
       '下鼻甲肥大會縮小鼻腔呼吸空間。若藥物治療效果有限，醫師可能依檢查結果評估是否以手術縮減肥厚組織，改善鼻塞、呼吸與睡眠品質。',
     highlights: ['傷口小', '療程時間短', '多數情況可當日返家'],
@@ -217,7 +238,7 @@ export const NASAL_SERVICES = [
     eyebrow: 'SEPTAL CARE',
     subtitle: '針對鼻中隔彎曲造成的結構性阻塞，重新找回通暢呼吸。',
     image: '/clinic-assets/service-septoplasty.webp',
-    imageAlt: '鼻中隔手術治療示意',
+    imageAlt: '兩人夜間安穩入睡的示意插圖',
     intro:
       '鼻中隔是分隔左右鼻腔的結構。先天發育或外傷可能使鼻中隔偏曲；若造成長期鼻塞、反覆鼻竇問題、打鼾或睡眠品質下降，可由醫師評估是否需要矯正。',
     highlights: ['改善結構性鼻塞', '兼顧鼻腔功能', '依個別彎曲程度規劃'],
@@ -254,7 +275,7 @@ export const NASAL_SERVICES = [
     eyebrow: 'SLEEP APPLIANCE',
     subtitle: '非侵入式睡眠輔具，經醫師評估後量身規劃。',
     image: '/clinic-assets/service-mouthguard.webp',
-    imageAlt: '止鼾好眠牙套示意',
+    imageAlt: '止鼾牙套裝在上下排牙齒上的器械示意插圖',
     intro:
       '止鼾牙套可在睡眠時讓下顎或舌頭維持較前方的位置，減少上呼吸道塌陷。是否適用仍需經醫師評估牙齒、顳顎關節、鼻呼吸與睡眠狀況。',
     highlights: ['非侵入式', '個別評估製作', '可攜帶且容易日常使用'],
