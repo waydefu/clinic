@@ -39,6 +39,23 @@ export default defineConfig({
       // 然後在點不到的登出鈕上失敗。
       testMatch: /[\\/](?:mobile-layout|responsive)\.spec\.ts$/,
       use: { ...devices['Pixel 7'] }
+    },
+    {
+      // WebKit 引擎覆蓋。**先前這裡完全沒有**：上面兩個 project 的
+      // `Desktop Chrome` 與 `Pixel 7` 都是 Chromium 的 device descriptor，
+      // 而 descriptor 與 engine 是兩件事——套上 iPhone descriptor 跑的仍然是
+      // Chromium。所以「沒有 WebKit 覆蓋」是這份設定的選擇，不是工具的限制。
+      //
+      // 只跑官網的結構那一支。字級與版面那支（typography）帶著工作臺的登入
+      // 流程，把整條 auth 拉進 WebKit 的代價與收穫不成比例；官網才是患者用
+      // iPhone 開的東西。比照 mobile-device 已有的 testMatch 收斂手法。
+      //
+      // **它不是實體 iOS Safari。** 涵蓋不到真實軟鍵盤、OS 層 Dynamic Type
+      // 與系統字級、瀏覽器 chrome、安全區域，以及平台輔助科技整合。
+      // 規則書 §5.3 的實體裝置矩陣不會因為這個 project 而被滿足。
+      name: 'webkit',
+      testMatch: /[\\/]clinic-site\.spec\.ts$/,
+      use: { ...devices['Desktop Safari'] }
     }
   ],
   webServer: {
