@@ -19,7 +19,7 @@ proceed during Stage 1」的第二項：維護或修正既有的本機／合成�
 [#13](https://github.com/waydefu/clinic/pull/13)（2026-08-06 開啟，尚未合併，
 無 merge commit）。
 
-本輪自 `2645b6c` 起九個 commit：
+本輪自 `2645b6c` 起十個 commit：
 
 | Commit | 內容 |
 | --- | --- |
@@ -32,6 +32,10 @@ proceed during Stage 1」的第二項：維護或修正既有的本機／合成�
 | `80d9fcc` | 間距 ratchet 首批收斂 |
 | `e626483` | 三份既有設計文件同步 ＋ 本交接紀錄 |
 | `c317d53` | 視覺基線重拍為 2026-08-06 ＋ 記錄兩個順手發現的缺陷 |
+| `aa243b2` | 本交接紀錄補上 PR、最後兩個 commit 與 CI |
+
+**最後一個帶程式碼的 commit 是 `c317d53`。** 之後的都只改本檔：`aa243b2`，以及補上
+CI 全綠結果的那一個（本文件最後一次更新，寫入時尚未有 SHA）。
 
 **PR 的範圍比本輪大。** 這個分支在本輪開始前**已經有五個未合併的 commit**
 （`96dabf2`、`79609e6`、`79272ed`、`204f78b`、`2645b6c`：2026-08-06 企業級審查、
@@ -50,24 +54,35 @@ proceed during Stage 1」的第二項：維護或修正既有的本機／合成�
 | `check-design-tokens.test.mjs` | 23 passed（新增 6 個：括號配對 2、clamp 驗證 4） |
 | `capture:ui` | 通過。10 張 PNG，每個情境 console errors 0／warnings 0。基線已重拍為 [2026-08-06](ui-visual-baseline-2026-08-06.md) |
 
-### CI（PR #13，commit `c317d53`）
+### CI（PR #13，commit `aa243b2`，run
+[31117400669](https://github.com/waydefu/clinic/actions/runs/31117400669)）
+
+`aa243b2` 只改本檔，非文件樹與 `c317d53` 完全相同，所以這也就是 `c317d53`
+的程式碼結果。
 
 | Job | 結果 |
 | --- | --- |
-| 結構、文件、格式、lint、型別與單元測試 | pass（1m42s） |
-| Firestore Emulator（交易、冪等、outbox、預設拒絕） | pass（1m27s） |
-| Semgrep CE SAST | pass（2m54s） |
-| e2e-ui | pass（2m16s） |
-| e2e-accessibility | pass（1m52s） |
-| e2e-mobile | pass（4m14s） |
-| e2e-appointments | pass（3m49s） |
+| 結構、文件、格式、lint、型別與單元測試 | pass（1m22s） |
+| Firestore Emulator（交易、冪等、outbox、預設拒絕） | pass（9m43s） |
+| Semgrep CE SAST | pass（5m33s） |
+| e2e-ui | pass（9m25s） |
+| e2e-accessibility | pass（1m57s） |
+| e2e-mobile | pass（3m55s） |
+| e2e-appointments | pass（6m2s） |
 | e2e-auth-rbac | pass（2m59s） |
-| e2e-patient-portal | pass（2m32s） |
-| Tracked secrets、dependency audit 與 inventory | **本文件寫入時仍在執行** |
+| e2e-patient-portal | pass（2m28s） |
+| Tracked secrets、dependency audit 與 inventory | pass（3m16s） |
+| `Verification evidence`（`main` 的 required check，strict） | pass（10s） |
 
-**最後一項的結果要自己去看，不要照抄這張表。** 供應鏈那道 gate（audit 加 SBOM）
-在本機與 CI 都偏慢，寫這份紀錄時已跑超過十分鐘還沒回。九綠一未完不等於十綠——
-合併前必須確認它。`main` 的 required check 是 `Verification evidence`（strict）。
+**十一綠**，包含先前兩輪一直沒跑完的供應鏈 gate（audit 加 SBOM）——它在本機與 CI
+都偏慢，前兩次分別是被新 commit 取消、被 fail-fast 波及，這次才第一次跑完。
+
+給下一位的提醒：這個 run 第一次是紅的，但紅在 GitHub 基礎設施而不是專案。
+`e2e-auth-rbac` 卡在 `Failed to resolve action download info. Error: Service
+Unavailable`，重試兩次都是 503，連 checkout 都沒到；matrix 的 fail-fast 接著把四個
+手足 job 和 `Verification evidence` 一起取消。而 `gh pr checks` 會把 cancelled 顯示成
+**fail**、時間一律是整齊的 15m01s。看到這個組合先用 `gh run view --json jobs` 分辨
+cancelled 與 failure，確認是基礎設施問題再 `gh run rerun --failed`，不要當成程式碼壞了。
 
 ### 收斂前後（瀏覽器 computed style 實測，非讀 CSS 推測）
 
