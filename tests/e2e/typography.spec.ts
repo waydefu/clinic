@@ -1,6 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes.js';
+import { CLIP_SCAN } from './support/clip-scan.js';
 import { login } from './support/workbench.js';
 
 async function targetHeight(locator: Locator) {
@@ -176,5 +177,63 @@ test.describe('readable operational typography', () => {
         ).toEqual([]);
       });
     }
+  }
+});
+
+test.describe('診所官網在 200% 文字放大下不損失內容', () => {
+  // 400% 頁面縮放的重排（SC 1.4.10）不在這裡重複做——1280px 的 400% 等於
+  // 320px viewport，`responsive.spec.ts` 的 320px 案例已經守住了。
+  for (const route of CLINIC_UI_SCAN_ROUTES) {
+    test(`${route} @ 200%`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(route);
+      await expect(page.locator('h1')).toBeVisible();
+
+      // 用 CSSOM 改根字級，不是 addStyleTag——這個 app 的 CSP 是
+      // `style-src 'self'`，注入 <style> 會被擋掉。改 element.style 走的是
+      // CSSOM，不受該指令限制。
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = '200%';
+      });
+      await page.waitForTimeout(200);
+
+      // A. 文件層：不得出現新的水平溢位。
+      const overflow = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth
+      }));
+      expect(
+        overflow.scrollWidth,
+        `${route} 在 200% 文字放大下出現水平溢位：${overflow.scrollWidth} > ${overflow.clientWidth}`
+      ).toBeLessThanOrEqual(overflow.clientWidth + 1);
+
+      // B. 元素層：承載文字的元素（或它的祖先）不得把文字切掉。
+      const clipped = await page.evaluate(CLIP_SCAN);
+      expect(
+        clipped,
+        `${route} 在 200% 文字放大下有文字被裁切：\n${(clipped as string[]).join('\n')}`
+      ).toEqual([]);
+
+      // C. 功能不得遺失。SC 1.4.4 講的是「損失內容**或功能**」——B 管內容，
+      // 這一段管功能：關鍵區域還在、主要轉換入口還看得見而且還按得到。
+      for (const selector of [
+        '.clinic-header',
+        '.clinic-breadcrumb',
+        '.clinic-footer'
+      ]) {
+        const region = page.locator(selector).first();
+        if ((await region.count()) === 0) continue;
+        await expect(region, `${selector} 在 200% 下消失了`).toBeVisible();
+      }
+
+      const cta = page.locator('a[href="/booking"]').first();
+      if ((await cta.count()) > 0) {
+        await expect(cta, '200% 下主要轉換入口不可見').toBeVisible();
+        expect(
+          await targetHeight(cta),
+          '200% 下主要轉換入口的觸控目標小於 44px'
+        ).toBeGreaterThanOrEqual(44);
+      }
+    });
   }
 });
