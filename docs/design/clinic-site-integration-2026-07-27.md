@@ -53,6 +53,11 @@ The public clinic shell contains a desktop and mobile navigation, breadcrumb
 navigation on detail pages, a safety-labelled preview boundary, contact
 details, clinic hours and direct booking links.
 
+The current homepage information architecture is recorded in the
+[2026-08-10 homepage handoff](../reviews/2026-08-10-clinic-homepage-restructure.md).
+Its `HOME_*` content is deliberately separated from the renderer, and the
+homepage only promotes nasal function, snoring and sleep-breathing care.
+
 ## Visual direction
 
 The source site's recognisable direction is retained without importing its
@@ -90,17 +95,14 @@ The split is deliberate:
 Motion is where the two surfaces legitimately differ, and the difference is
 now written down rather than accidental. The workbench uses Carbon's
 *productive* timing because reception staff scan tables all day; the clinic
-site runs slower (`--clinic-duration-spatial-base` is 0.32s against the
-workbench's 0.2s) because a marketing front deserves some room. Ambient
-animations keep separate periods — orb 9s, aurora 22s, ticker 26s — because
-collapsing them to one value would force three layers into lockstep and
-invent a beat that was never there.
+site runs slower because a public information page benefits from gentler
+spatial transitions. The 2026-08-10 homepage removed the orb, aurora and
+ticker—including their dead selectors and duration tokens—so the current
+homepage keeps only finite staged entrances and interaction feedback.
 
 `--clinic-ease-linear` is a real token, not an unconverted keyword. Constant
-velocity is required by the ticker and the border sheen, and the parallax,
-scroll-progress and hero-exit animations are scroll-driven: they carry no
-duration at all, and an easing curve would decouple them from the scroll
-position.
+velocity is still required by the border sheen and scroll-progress animation;
+an easing curve would decouple progress from the scroll position.
 
 Two items are recorded rather than changed, because both need a contrast
 measurement first: the focus ring uses the brand gold (`--clinic-focus-ring`),

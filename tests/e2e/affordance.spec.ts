@@ -304,7 +304,10 @@ for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
       await expect(page.locator('#policy-agree')).toBeAttached();
     } else {
       await expect(
-        page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
+        page.getByRole('heading', {
+          level: 1,
+          name: '今晚，不必再和呼吸拔河'
+        })
       ).toBeVisible();
     }
 

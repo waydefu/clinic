@@ -216,8 +216,9 @@ const requiredPaths = [
   'docs/reviews/2026-07-27-clinic-site-integration-delivery.md',
   // 現行視覺基線。舊日期的目錄與文件保留作歷史證據，但釘住的是現行那一份；
   // 日期見下方 visualBaselineDirectory 的註解。
-  'docs/reviews/ui-visual-baseline-2026-08-07.md',
-  'docs/reviews/assets/ui-visual-baseline-2026-08-07/manifest.json',
+  'docs/reviews/2026-08-10-clinic-homepage-restructure.md',
+  'docs/reviews/ui-visual-baseline-2026-08-10.md',
+  'docs/reviews/assets/ui-visual-baseline-2026-08-10/manifest.json',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
   'apps/web/public/privacy.css',
@@ -272,7 +273,7 @@ if (missing.length > 0) {
 // 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
 // 竄改，實際上是檢查器自己還停在舊日期。
 const visualBaselineDirectory =
-  'docs/reviews/assets/ui-visual-baseline-2026-08-07';
+  'docs/reviews/assets/ui-visual-baseline-2026-08-10';
 const visualBaselineDate = visualBaselineDirectory.slice(-'YYYY-MM-DD'.length);
 const visualBaselineErrors = [];
 try {

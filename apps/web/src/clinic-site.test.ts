@@ -3,8 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   BOOKING_PATH,
+  CLINIC,
   CLINIC_ROUTES,
   DOCTORS,
+  HOME_DOCTOR_PROFILES,
+  HOME_FAQS,
+  HOME_PAGE,
+  HOME_PROCESS_ITEMS,
+  HOME_SYMPTOMS,
   NASAL_SERVICES,
   NAVIGATION
 } from '../public/clinic-content.js';
@@ -41,7 +47,36 @@ describe('clinic website scope', () => {
       expect(service.intro.length).toBeGreaterThan(30);
       expect(service.sections.length).toBeGreaterThanOrEqual(3);
       expect(service.image).toMatch(/^\/clinic-assets\//);
+      const source = new URL(service.sourceUrl);
+      expect(source.protocol).toBe('https:');
+      expect(source.host).toBe('beauessence.com.tw');
     }
+  });
+
+  it('keeps homepage copy data-driven and limited to nasal and sleep care', () => {
+    const serviceSlugs = new Set(NASAL_SERVICES.map((service) => service.slug));
+    const doctorSlugs = new Set(DOCTORS.map((doctor) => doctor.slug));
+
+    expect(HOME_SYMPTOMS).toHaveLength(5);
+    expect(HOME_PROCESS_ITEMS).toHaveLength(4);
+    expect(HOME_FAQS).toHaveLength(4);
+    for (const symptom of HOME_SYMPTOMS) {
+      expect(serviceSlugs.has(symptom.slug)).toBe(true);
+    }
+    for (const profile of HOME_DOCTOR_PROFILES) {
+      expect(doctorSlugs.has(profile.slug)).toBe(true);
+    }
+
+    const homepageCopy = JSON.stringify({
+      HOME_PAGE,
+      HOME_SYMPTOMS,
+      HOME_PROCESS_ITEMS,
+      HOME_DOCTOR_PROFILES,
+      HOME_FAQS
+    });
+    expect(homepageCopy).not.toMatch(
+      /醫美|微整|整形美容|隆鼻|抽脂|玻尿酸|肉毒|雷射/u
+    );
   });
 
   // C3（業主 2026-07-27）：止鼾頁放 SnoreLab 的官方入口。
@@ -103,6 +138,41 @@ describe('clinic website scope', () => {
     expect(shell).toContain('href="/booking"');
     expect(renderer).toContain('BOOKING_PATH');
     expect(renderer).not.toMatch(/<form|innerHTML/);
+  });
+
+  it('keeps SEO metadata route-specific without enabling preview indexing', () => {
+    const shell = repoFile('apps/web/public/clinic.html');
+    const renderer = repoFile('apps/web/public/clinic-site.js');
+
+    expect(shell).toContain('name="robots" content="noindex, nofollow"');
+    expect(renderer).toContain("'og:title'");
+    expect(renderer).toContain("'twitter:card'");
+    expect(shell).toContain('"@type": "MedicalClinic"');
+    expect(shell).toContain('"@type": "OpeningHoursSpecification"');
+    expect(renderer).toContain('link[rel="canonical"]');
+  });
+
+  it('keeps static structured clinic data aligned with the content model', () => {
+    const shell = repoFile('apps/web/public/clinic.html');
+    const match = shell.match(
+      /<script id="clinic-structured-data" type="application\/ld\+json">([\s\S]*?)<\/script>/u
+    );
+    expect(match).not.toBeNull();
+
+    const structured = JSON.parse(match?.[1] ?? '{}');
+    expect(structured).toMatchObject({
+      '@context': 'https://schema.org',
+      '@type': 'MedicalClinic',
+      name: CLINIC.name,
+      alternateName: CLINIC.englishName,
+      telephone: CLINIC.phoneHref.replace('tel:', ''),
+      address: {
+        '@type': 'PostalAddress',
+        ...CLINIC.addressStructured
+      },
+      sameAs: CLINIC.socialLinks.map((item) => item.href)
+    });
+    expect(structured.openingHoursSpecification).toHaveLength(2);
   });
 });
 

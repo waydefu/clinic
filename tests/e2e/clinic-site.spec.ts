@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
 
 const CLINIC_ROUTES = [
-  ['/clinic', /從順暢呼吸開始/],
+  ['/clinic', '今晚，不必再和呼吸拔河'],
   ['/clinic/doctors', '醫師團隊'],
   ['/clinic/doctors/yan-cheng-an', '顏正安 院長'],
   ['/clinic/doctors/yang-sheng-feng', '楊昇峯 醫師'],
@@ -18,7 +18,11 @@ test.describe('診所網站整合', () => {
     test(`${path} 可閱讀並能前往既有預約流程`, async ({ page }) => {
       await page.goto(path);
 
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading);
+      // 首頁標題的視覺逐字動畫會保留一份報讀器專用完整字串；比可及名稱，
+      // 不用重複的 textContent 當成語意。
+      await expect(
+        page.getByRole('heading', { level: 1 })
+      ).toHaveAccessibleName(heading);
       await expect(
         page
           .getByRole('link', {
@@ -38,6 +42,26 @@ test.describe('診所網站整合', () => {
     await expect(
       page.getByRole('navigation', { name: '診所網站導覽' })
     ).not.toContainText(/微整形|整形手術|光電注射/);
+    await expect(page.locator('main')).not.toContainText(
+      /醫美|微整|隆鼻|抽脂|玻尿酸|肉毒|雷射/
+    );
+  });
+
+  test('症狀導覽更新可及狀態與對應衛教連結', async ({ page }) => {
+    await page.goto('/clinic');
+
+    const option = page.getByRole('button', {
+      name: '想了解非手術止鼾方式'
+    });
+    await option.click();
+
+    await expect(option).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.clinic-symptom-guidance')).toContainText(
+      '可以先了解：止鼾好眠牙套'
+    );
+    await expect(
+      page.getByRole('link', { name: '查看相關服務' })
+    ).toHaveAttribute('href', '/clinic/nasal/snore-relief-mouthguard');
   });
 
   test('行動選單可開啟並用 Escape 關閉', async ({ page }) => {
