@@ -16,6 +16,10 @@ SEO shell，沒有啟用真實患者資料、正式索引或任何醫美療程�
   gate 會拒絕醫美、微整、隆鼻、抽脂、玻尿酸、肉毒與雷射等詞進入 `HOME_*` 內容。
 - 四步驟評估流程、兩位醫療團隊、門診／交通、FAQ 與預約 CTA 都保留，但首頁醫師
   卡使用功能性評估文案，不顯示來源履歷中的醫美頭銜。
+- 首頁新增「測鼾聲 APP」區塊，提供 SnoreLab 的 App Store、Google Play 與官方網站
+  入口；它與止鼾療程頁共用 `SNORING_SELF_TRACKING`，並保留第三方、非診斷工具聲明。
+- Hero、症狀導覽、服務與醫師段落改用品牌 token 組成的靜態多層漸層；測鼾聲區塊使用
+  深綠品牌漸層。沒有新增動畫或背景圖片，文字對比與減少動態設定不受影響。
 
 ## 2. 內容與圖片來源
 
@@ -32,10 +36,16 @@ SEO shell，沒有啟用真實患者資料、正式索引或任何醫美療程�
 線上 WordPress 官網其他醫美內容、追蹤碼、遠端字型、外部 script 與未經核准的成效
 數字都沒有搬入專案。
 
+SnoreLab 官方網站、App Store 與 Google Play 三個入口於 2026-08-10 重新開啟確認；
+商店頁仍對應 SnoreLab，且官方資訊明示它是 iOS／Android 的鼾聲記錄應用程式。網站
+只描述自我記錄用途，並保留「第三方、非診斷工具、不能取代面診或睡眠檢查」界線。
+
 ## 3. 維護邊界
 
 - `clinic-content.js` 是首頁文案、症狀、流程、醫師首頁摘要、FAQ 與四項服務來源的
   單一資料層；`clinic-site.js` 只建立語意 DOM 與綁定互動。
+- SnoreLab 文案與三個外部網址只能修改 `SNORING_SELF_TRACKING`；首頁與止鼾療程頁不得
+  各自複製一份。外部網址仍須重新向官方來源核對，並維持 `noopener noreferrer`。
 - renderer 不使用 HTML 字串注入，維持 Trusted Types／CSP 邊界。
 - static JSON-LD 必須留在 `clinic.html`，因為目前 CSP 禁止 runtime 填入 inline
   script 內容；單元測試會解析它並與 `CLINIC` 的名稱、電話、地址與 `sameAs` 比對，
@@ -83,11 +93,13 @@ SEO shell，沒有啟用真實患者資料、正式索引或任何醫美療程�
 
 - `pnpm verify`：structure、architecture、UI、pages、tokens、docs、types、lint、sync、
   performance 全數通過；60 個 test files、958 個 unit tests 通過。
-- `clinic-site.spec.ts`：Chromium＋WebKit 共 34 個流程／語意／症狀互動測試通過。
+- `clinic-site.spec.ts`：Chromium＋WebKit 共 36 個流程／語意／症狀互動／官方下載入口測試通過。
 - `responsive.spec.ts`：Chromium＋Pixel 7 device profile 共 88 個 320～1280px 檢查通過。
 - `mobile-layout.spec.ts`：Chromium＋Pixel 7 device profile 共 56 個版面／可點面積檢查通過。
 - `/clinic` 的 axe serious／critical 違規為 0；首頁字級門檻、200% reflow、短標籤與
   motion checks 通過。WebKit 也另以 320px／375px、一般與 200% 字級確認無 overflow。
+- 本次同頁追加共執行 202 個相關端對端案例；201 個首次通過，唯一一次失敗是 Windows
+  socket `ERR_NO_BUFFER_SPACE`，非斷言失敗；該工作臺 375px 案例改以單一 worker 重跑後通過。
 
 現行畫面與完整驗證結果收在
 [2026-08-10 UI 視覺基準](ui-visual-baseline-2026-08-10.md)。舊的 2026-08-07 基準

@@ -12,7 +12,8 @@ import {
   HOME_PROCESS_ITEMS,
   HOME_SYMPTOMS,
   NASAL_SERVICES,
-  NAVIGATION
+  NAVIGATION,
+  SNORING_SELF_TRACKING
 } from '../public/clinic-content.js';
 
 const repoFile = (relativePath: string) =>
@@ -72,18 +73,20 @@ describe('clinic website scope', () => {
       HOME_SYMPTOMS,
       HOME_PROCESS_ITEMS,
       HOME_DOCTOR_PROFILES,
-      HOME_FAQS
+      HOME_FAQS,
+      SNORING_SELF_TRACKING
     });
     expect(homepageCopy).not.toMatch(
       /醫美|微整|整形美容|隆鼻|抽脂|玻尿酸|肉毒|雷射/u
     );
   });
 
-  // C3（業主 2026-07-27）：止鼾頁放 SnoreLab 的官方入口。
+  // C3（業主 2026-07-27）：首頁與止鼾頁放 SnoreLab 的官方入口。
   //
   // 這三個網址是當天從 snorelab.com 首頁的下載按鈕讀出來的實際 href，不是依商店
-  // 網址格式拼湊的。拼錯一個字母不會有任何錯誤訊息——只會把患者送到別人的 App，
-  // 所以主機名單寫死在測試裡，改網址就必須同時改這裡並重新確認一次來源。
+  // 網址格式拼湊的，並於 2026-08-10 加入首頁時重新開啟三頁確認。拼錯一個字母不會
+  // 有任何錯誤訊息——只會把患者送到別人的 App，所以主機名單寫死在測試裡，改網址
+  // 就必須同時改這裡並重新確認一次來源。
   type ServiceResources = {
     links?: { label: string; href: string }[];
     paragraphs?: string[];
@@ -96,6 +99,7 @@ describe('clinic website scope', () => {
       (service) => service.slug === 'snoring-five-in-one'
     );
     const resources = resourcesOf(snoring);
+    expect(resources).toBe(SNORING_SELF_TRACKING);
     expect(resources?.links).toHaveLength(3);
 
     const officialHosts = [

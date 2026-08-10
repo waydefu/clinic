@@ -47,6 +47,29 @@ test.describe('診所網站整合', () => {
     );
   });
 
+  test('首頁提供測鼾聲 App 的官方下載入口與第三方聲明', async ({ page }) => {
+    await page.goto('/clinic');
+
+    const section = page.locator('.clinic-snore-app');
+    await expect(section).toContainText('SnoreLab');
+    await expect(section).toContainText('不是診斷工具');
+    await expect(
+      section.getByRole('link', { name: 'App Store 下載' })
+    ).toHaveAttribute(
+      'href',
+      'https://apps.apple.com/us/app/snorelab-record-your-snoring/id529443604'
+    );
+    await expect(
+      section.getByRole('link', { name: 'Google Play 下載' })
+    ).toHaveAttribute(
+      'href',
+      'https://play.google.com/store/apps/details?id=com.snorelab.app'
+    );
+    await expect(
+      section.getByRole('link', { name: 'SnoreLab 官方網站' })
+    ).toHaveAttribute('href', 'https://www.snorelab.com');
+  });
+
   test('症狀導覽更新可及狀態與對應衛教連結', async ({ page }) => {
     await page.goto('/clinic');
 

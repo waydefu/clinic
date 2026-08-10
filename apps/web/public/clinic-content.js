@@ -213,6 +213,36 @@ export const DOCTORS = [
   }
 ];
 
+// C3（業主 2026-07-27）：首頁與止鼾頁共用同一份 SnoreLab 外部資源。
+//
+// 網址不是自行拼湊的：三個都是 2026-07-27 從 snorelab.com 首頁上的下載按鈕
+// 讀出來的實際 href，並於 2026-08-10 加入首頁時重新開啟官方網站與兩個商店頁確認。
+// 商店網址一旦猜錯，患者會被帶到別人的 App。
+//
+// 措辭刻意保守：它是第三方工具、不是診所的產品，也不是診斷依據。少了這一句，
+// 一個純粹的自我記錄 App 會被讀成診所推薦的醫療器材。
+export const SNORING_SELF_TRACKING = {
+  eyebrow: 'SELF-TRACKING',
+  heading: '想先了解自己的鼾聲？',
+  appLabel: '測鼾聲 APP',
+  downloadPrompt: '依手機系統選擇下載，或先查看 SnoreLab 官方網站。',
+  paragraphs: [
+    '門診時若能描述鼾聲的頻率與強度，評估會更有依據。SnoreLab 是常見的鼾聲錄音應用程式，可在自己的手機上錄下夜間鼾聲並留下紀錄，看診時提供給醫師參考。',
+    'SnoreLab 由第三方開發，並非本診所提供的產品或服務，也不是診斷工具；它的紀錄不能取代醫師面診或睡眠檢查。是否需要進一步檢查，仍以門診評估為準。'
+  ],
+  links: [
+    {
+      label: 'App Store 下載',
+      href: 'https://apps.apple.com/us/app/snorelab-record-your-snoring/id529443604'
+    },
+    {
+      label: 'Google Play 下載',
+      href: 'https://play.google.com/store/apps/details?id=com.snorelab.app'
+    },
+    { label: 'SnoreLab 官方網站', href: 'https://www.snorelab.com' }
+  ]
+};
+
 export const NASAL_SERVICES = [
   {
     slug: 'snoring-five-in-one',
@@ -276,32 +306,7 @@ export const NASAL_SERVICES = [
         ]
       }
     ],
-    // C3（業主 2026-07-27）：止鼾頁提供 SnoreLab 的官方入口。
-    //
-    // 網址不是自行拼湊的：三個都是 2026-07-27 從 snorelab.com 首頁上的下載按鈕
-    // 讀出來的實際 href。商店網址一旦猜錯，患者會被帶到別人的 App。
-    //
-    // 措辭刻意保守：它是第三方工具、不是診所的產品，也不是診斷依據。少了這一句，
-    // 一個純粹的自我記錄 App 會被讀成診所推薦的醫療器材。
-    resources: {
-      eyebrow: 'SELF-TRACKING',
-      heading: '想先了解自己的鼾聲？',
-      paragraphs: [
-        '門診時若能描述鼾聲的頻率與強度，評估會更有依據。SnoreLab 是常見的鼾聲錄音應用程式，可在自己的手機上錄下夜間鼾聲並留下紀錄，看診時提供給醫師參考。',
-        'SnoreLab 由第三方開發，並非本診所提供的產品或服務，也不是診斷工具；它的紀錄不能取代醫師面診或睡眠檢查。是否需要進一步檢查，仍以門診評估為準。'
-      ],
-      links: [
-        { label: 'SnoreLab 官方網站', href: 'https://www.snorelab.com' },
-        {
-          label: 'App Store 下載',
-          href: 'https://apps.apple.com/us/app/snorelab-record-your-snoring/id529443604'
-        },
-        {
-          label: 'Google Play 下載',
-          href: 'https://play.google.com/store/apps/details?id=com.snorelab.app'
-        }
-      ]
-    }
+    resources: SNORING_SELF_TRACKING
   },
   {
     slug: 'inferior-turbinate-surgery',

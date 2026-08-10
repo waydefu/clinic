@@ -8,7 +8,8 @@ import {
   HOME_PROCESS_ITEMS,
   HOME_SYMPTOMS,
   NASAL_SERVICES,
-  NAVIGATION
+  NAVIGATION,
+  SNORING_SELF_TRACKING
 } from './clinic-content.js';
 
 const main = document.querySelector('#clinic-main');
@@ -178,6 +179,68 @@ function homeDoctorCard(doctor, focus, summary) {
       link('認識醫師', `/clinic/doctors/${doctor.slug}`, 'clinic-text-link')
     ])
   ]);
+}
+
+/**
+ * 首頁的鼾聲自我記錄入口。文案與網址和止鼾療程頁共用同一份資料，避免兩個入口
+ * 在 App 商店網址更新後各自漂移。聲波只是裝飾，對輔助科技隱藏。
+ */
+function renderSnoringTrackerSection() {
+  const actions = element('div', { className: 'clinic-snore-app__actions' });
+  for (const item of SNORING_SELF_TRACKING.links) {
+    const isOfficialSite = item.label === 'SnoreLab 官方網站';
+    actions.append(
+      externalLink(
+        item.label,
+        item.href,
+        `clinic-button ${
+          isOfficialSite
+            ? 'clinic-button--outline-light'
+            : 'clinic-button--light'
+        }`
+      )
+    );
+  }
+
+  return element(
+    'section',
+    {
+      className: 'clinic-snore-app',
+      attrs: { 'aria-labelledby': 'clinic-snore-app-title' }
+    },
+    [
+      element('div', { className: 'clinic-shell clinic-snore-app__grid' }, [
+        element('div', { className: 'clinic-snore-app__copy' }, [
+          element('p', {
+            className: 'clinic-eyebrow',
+            text: SNORING_SELF_TRACKING.eyebrow
+          }),
+          element('h2', {
+            attrs: { id: 'clinic-snore-app-title' },
+            text: SNORING_SELF_TRACKING.heading
+          }),
+          element('p', { text: SNORING_SELF_TRACKING.paragraphs[0] }),
+          element('p', {
+            className: 'clinic-snore-app__note',
+            text: SNORING_SELF_TRACKING.paragraphs[1]
+          })
+        ]),
+        element('div', { className: 'clinic-snore-app__panel' }, [
+          element(
+            'div',
+            {
+              className: 'clinic-snore-app__signal',
+              attrs: { 'aria-hidden': 'true' }
+            },
+            Array.from({ length: 7 }, () => element('span'))
+          ),
+          element('h3', { text: SNORING_SELF_TRACKING.appLabel }),
+          element('p', { text: SNORING_SELF_TRACKING.downloadPrompt }),
+          actions
+        ])
+      ])
+    ]
+  );
 }
 
 function renderHome() {
@@ -420,11 +483,13 @@ function renderHome() {
 
   const visitSection = renderHomeVisitSection();
   const faqSection = renderHomeFaqSection();
+  const snoringTrackerSection = renderSnoringTrackerSection();
   const sections = [
     hero,
     symptomSection,
     services,
     processSection,
+    snoringTrackerSection,
     doctors,
     visitSection,
     faqSection,
