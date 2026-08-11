@@ -2,11 +2,14 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-07-28
+**整合更新：** 2026-08-11
 
-**目前狀態：** 瀏覽器原型功能完整、已部署到期預覽；Firestore 寫入路徑已在本機
-Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner decisions；
-尚無雲端後端、無 Authentication、無日曆連線、無真實病患資料。
+**目前狀態：** 既定中文 synthetic 瀏覽器流程已實作；這不包含 D-011 英文版，也不
+代表真人無障礙、production 或目前 HEAD 已重驗。最後有紀錄的 preview 已到
+2026-08-04 排定到期日，2026-08-11 遠端狀態未驗證。Firestore 寫入只有 dated 本機
+Emulator 證據，且同日稽核新確認三個 correctness 缺口。Stage 0／Checkpoint A 已通過，
+目前仍在 Stage 1 owner decisions；尚無 source-routed cloud backend、Authentication、
+日曆連線或真實病患資料 authority。
 
 > **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
 > 2026-07-24 完成；D-010 target 與 D-006 identity/security 已於 2026-07-28
@@ -22,6 +25,18 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > 為準。要直接查看白話順序與所有待核准項目，使用
 > [專案後續執行與核准清單](product/current-execution-and-approval-plan.md)。
 > 既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
+>
+> **2026-08-11 唯讀稽核新增的 current P0：** `DATA-R01` slot sentinel、`DATA-R02`
+> occurrence identity、`ARC-R01` lease fencing、`SCM-R05` 修綠 dependency audit
+> gate、`SCM-R01/02` SAST/runtime、`WEB-P0-01/02/03` privacy index/performance/axe。
+> 這些不是全面重開 Stage 0，但在對應 acceptance 前，不得接 booking/worker route 或
+> 宣稱相關 gate 完整。完整證據見
+> [現代化稽核](reviews/2026-08-11-enterprise-modernization-audit.md)。
+>
+> **順序注意：** `SCM-R05` 是 `SCM-R01` 的前置。稽核基準 `cf597af` 上唯一 required
+> 的 `Verification evidence` 目前是紅的（dependency audit 抓到 1 筆 high
+> `nanoid`），branch 無法 merge；aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」
+> 驗收分不出擋住 PR 的是 SAST 還是 audit。
 
 > **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
@@ -84,6 +99,10 @@ Emulator 驗證；Stage 0／Checkpoint A 已通過，目前在 Stage 1 owner dec
 > 事故應變）。詳見[前端與供應鏈品質把關](architecture/web-quality-gates-2026-07-24.md)
 > 與[基礎設施與維運計畫](architecture/infrastructure-and-operations-plan-2026-07-24.md)。
 > **維運設計全部是文件，沒有建立任何雲端資源。**
+>
+> **2026-08-11 supersession note：** 上述 CodeQL 敘述只保留當日歷史。CodeQL 已於
+> 2026-08-01 被 Semgrep CE 取代；SAST workflow 目前獨立執行，但未納唯一 required
+> `Verification evidence`。本次未重跑 gate，故 dated pass 不代表目前 HEAD。
 >
 > **2026-07-25 視覺方向定案：Boutique Clinical Command。** 完整方向、六階段順序、
 > 已完成範圍與接手須知集中在
@@ -183,16 +202,19 @@ Firestore、backup/PITR 或 runtime。
 
 ## 一、現在的實際位置
 
+> 下表的「完成／實機驗證」是既有 dated evidence 摘要；2026-08-11 未重新執行。
+> 新 release acceptance 必須引用同 commit 的結果。
+
 | 面向 | 狀態 |
 | --- | --- |
 | Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006/D-010 已核准，Stage 2 尚待 change/deployment review** |
-| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後 3 筆 moderate 已 fixed；`brace-expansion` high 於 advisory 修訂補上各 major 修補版後改為逐 major 鎖定（1.1.18／2.1.4／5.0.8），SEC-03 例外已解除。**目前無任何 audit 例外**，新增例外須依 ENG-04 登記核准編號與到期日 |
-| `main` 分支保護 | **2026-07-31 已實際套用並驗證**；strict required check 為 `Verification evidence`，force push／branch deletion 關閉，D-013 核准的管理者 bypass 保留 |
+| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後當時 3 筆 moderate 已 fixed，且 SEC-03 source audit 例外已解除。2026-08-11 14:32 +08:00 唯讀 API 另確認 `main` 有 9 筆 open development-scope alerts（8 medium、1 low）；同日讀取 PR #14 的 CI log 則顯示稽核基準 `cf597af` 的 `pnpm audit --audit-level high` 是 10 筆、含 1 筆 high（`postcss` 帶入的 `nanoid 3.3.16`），required `Verification evidence` 因此為紅、branch 無法 merge。「無 audit 例外」不等於「無遠端 alert」，兩個數字不一致時以 CI 為準；須由 `SCM-R05` 修綠並逐筆 triage，長期 SLA 為 `SCM-R04` |
+| `main` 分支保護 | **2026-08-11 14:32 +08:00 已唯讀驗證**；沒有 repository ruleset，strict required context 只有 `Verification evidence`，force push／branch deletion 關閉，`enforce_admins=false`、無 required review；Semgrep 尚未進 required aggregate，見 `SCM-R01` |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
 | 個管指派與月度工作量 | 完成（非金額） |
-| Firestore 交易、冪等、outbox | **本機 Emulator 已驗證**（建立、取消、到診、未到、改期、outbox 重試與死信），未對外開放端點 |
+| Firestore 交易、冪等、outbox | 有 dated Emulator 證據，但 2026-08-11 確認 slot release null sentinel、state-cycle occurrence ID、stale worker settle 未被既有測試涵蓋；`DATA-R01/02`、`ARC-R01` 前不得稱完整驗證，端點維持關閉 |
 | 雲端資料庫 | 未啟用 |
 | 身分驗證 | 未啟用（工作臺目前是角色模擬） |
 | Google 日曆 | 未連線 |
@@ -362,7 +384,7 @@ google-calendar.ts`，測試授權見決策登錄，非 D-009 核准）。憑證
 
 | 項目 | 現況 | 上線前 |
 | --- | --- | --- |
-| `robots` | `noindex, nofollow` | 患者端移除；工作臺維持 |
+| `robots`／indexability | 現有 global switch＋page inventory；privacy 草稿目前被標 indexable 且在 sitemap | 改 route-specific fail-closed：工作臺／404 永久 noindex；privacy 需 D-003＋policyVersion；booking／clinic 各有正式網域、內容與 release 核准；sitemap/robots/canonical 同來源驗證 |
 | `og:url` / canonical | 指向 `beauessence.com.tw/booking` | 換成實際網域 |
 | `og:image` | `/og-booking.jpg` 已存在（2026-08-02 由 806 KiB PNG 重編為 53.7 KiB JPEG；刻意不做內容雜湊，平台快取以 URL 為鍵） | 正式網域驗證分享預覽與快取 |
 | Cache-Control | 穩定 HTML `no-cache`；內容雜湊資產 immutable | 正式網域再次驗證快取與回滾 |
@@ -462,24 +484,24 @@ Later  P3 日曆雙向同步   ← D-009、D-016、ADR-0006
 | 項目 | 內容 |
 | --- | --- |
 | **目標** | 讓文件與實作一致，並把三套互不相容的角色定義收斂成一套 |
-| **範圍** | 角色收斂、頁面地圖、RBAC 矩陣、Firestore／Functions／同步流程盤點、行動版與無障礙阻擋問題 |
+| **範圍** | 角色收斂、頁面地圖、RBAC 矩陣、Firestore／Functions／同步流程盤點、行動版與無障礙阻擋問題，以及 SAST required-check、clinic timing、axe 全嚴重度 evidence、per-page indexability 真實性 |
 | **非範圍** | 不新增功能、不改 `packages/domain` 的預約規則、不建立任何雲端資源 |
 | **依賴** | 無。D-006 已於 2026-07-28 核准，角色收斂不需等新決策 |
-| **技術方案** | `packages/contracts` 匯出唯一 `Role` 型別；瀏覽器與伺服器都從它匯入；`check:architecture` 新增守衛禁止自行宣告角色字面值 |
+| **技術方案** | `packages/domain/src/roles.ts` 是 canonical role；API 從 domain 匯入，browser 使用雜湊驗證的 vendor mirror；legacy state 做 `admin→manager` migration，unknown fail-closed |
 | **需修改模組** | `packages/contracts`、`apps/api/src/platform/authorization/rbac.ts`、`apps/web/public/modules/permissions.js`、`scripts/check-architecture.mjs` |
 | **資料模型變更** | 無（角色目前不持久化） |
 | **migration** | 瀏覽器 `admin` → `manager` 需要一次狀態遷移；`loadState` 已有「無法解析的 session 直接捨棄」的既有行為可沿用 |
-| **測試** | 五個角色各一組直連 URL 測試，納入 `e2e-auth-rbac` |
+| **測試** | 五角色直連 URL；另補 unmapped timing fail-fast、axe 完整 artifact、privacy draft noindex/sitemap contract |
 | **驗收** | 見 [角色權限矩陣](architecture/rbac-matrix.md) §6 六項 |
 | **回滾** | 角色型別與守衛皆為新增，`git revert` 即可；無資料遷移不可逆 |
 | **風險** | 中。§7 有四個未解問題，回答前對應權限列不得實作 |
-| **完成定義** | 所有必要 CI 綠燈、五角色交叉測試通過、`rbac-matrix.md` 的未解問題已送交負責人 |
+| **完成定義** | 同 commit 必要 CI 綠燈、五角色交叉測試通過、未解問題送 owner，且上述四項文件宣稱與實際 gate 一致 |
 
 **可執行的小任務：**
 
-1. `packages/contracts` 新增 `Role` 與 `Permission` 型別，含五個營運角色與三個系統角色。
-2. `rbac.ts` 改為從 contracts 匯入，移除本地 `CandidateRole` 宣告。
-3. `permissions.js` 改為從編譯後的 vendor 匯入同一份型別；`admin` 更名 `manager`。
+1. 保持 `packages/domain/src/roles.ts` 為唯一 canonical role，修正任何新增漂移。
+2. 保持 `rbac.ts` 從 domain 匯入；後續工作是 Session、scope/query/field enforcement。
+3. `permissions.js` 使用 compiled vendor canonical values；preview state `admin` 遷移為 `manager`。
 4. 新增 `consultant`、`physician` 兩個角色的空權限集合（先不授予任何權限）。
 5. `check-architecture.mjs` 新增守衛：禁止角色字串字面值出現在 contracts 以外。
 6. 撰寫五角色 × 各工作區的直連 URL 測試。

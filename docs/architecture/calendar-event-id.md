@@ -1,6 +1,7 @@
 # 日曆 event ID 與 outbox 冪等鍵
 
-**狀態：** 已實作（2026-07-22）。適用於所有 Calendar 投影意圖。
+**狀態：** Stable Calendar projection ID 已實作（2026-07-22）；2026-08-11 稽核確認
+audit/outbox **occurrence identity** 仍有 `DATA-002` 缺口。兩者不得混為同一種 ID。
 
 這份文件是「哪裡改、為什麼這樣改」的導航圖。規則本身在
 [`packages/domain/src/calendar-event-id.ts`](../../packages/domain/src/calendar-event-id.ts)，
@@ -10,6 +11,12 @@
 
 outbox 工作的 `idempotencyKey` **就是** Google Calendar 的 event ID，因此必須
 符合 base32hex 格式；鍵一律由共用產生器產生，不得手寫字串。
+
+這個 stable projection key 只回答「外部 Calendar 上是哪一格」。每次已接受 command
+仍須有獨立、唯一的 audit event ID 與 outbox job occurrence ID；只有同一 idempotency
+record 的 exact replay 才能重用 occurrence。不得用 appointment＋結果狀態或 target slot
+當 occurrence ID，否則 `cancellation_requested → confirmed → cancellation_requested` 或
+A→B→A→B 會碰撞。修正與回返狀態 regression 由 `DATA-R02`／`ADR-NEW-02` 追蹤。
 
 ## 白話版：這到底在做什麼
 
@@ -74,6 +81,9 @@ Google 官方防重複的做法是由我們自行指定 event ID，這樣「後�
 | 可讀性 | `fromCalendarEventId` 可還原；`outbox_jobs` 另保有 `appointmentId`／`appointmentStatus` 明文欄位，人工追查優先看那裡 |
 | 粒度 | **一筆預約 = 一個事件**：`calendar_{appointmentId}`。改期是搬動；到診、取消、未到皆刪除同一個 ID |
 | 守門 | 產生時檢查長度；假日曆拒絕不合格式的 ID 並標記為**不可重試**（重試一百次格式還是錯的，那是死信） |
+
+上表的「一筆預約一個事件」只適用外部 projection。它不代表一筆預約只有一筆 audit
+或 outbox job；每次 command occurrence 必須可追溯且不可覆寫。
 
 ## 改動時要看哪裡
 

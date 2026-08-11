@@ -12,6 +12,11 @@ Firestore、Functions、Cloud Run、Google Calendar、LINE、Meta 或 NAS。不�
 
 ## 部署前檢查
 
+本 runbook 是操作程序，不是 standing deployment authority。最後有日期證據的
+`synthetic-review` 頻道排定於 2026-08-04 到期，2026-08-11 未驗證遠端現況。每次
+建立或更新都要先取得新的具名核准，記錄 exact commit、Firebase project、channel、
+expiry、operator 與 approver；舊授權或舊 URL 不可重用。
+
 ```powershell
 corepack pnpm verify
 firebase login:list
@@ -40,6 +45,8 @@ ES module，只是檔名帶了雜湊。
 
 ## 建立／更新七天預覽
 
+只有在上述 per-deploy approval 已記錄後才可執行：
+
 ```powershell
 firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-staging-project-id]
 ```
@@ -61,11 +68,11 @@ firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-
    no-referrer` 與 `Cache-Control: no-cache`；雜湊過的 `*.js`／`*.css` 則回
    `Cache-Control: ... immutable`，且沿用同一組 CSP 與安全標頭。
 6. 不存在對 API、Firestore、Calendar 或其他外部服務的網路要求。
-7. 瀏覽器分頁標題為 `【測試用】…`。這個標記由 `WEB_PUBLIC_INDEXABLE` 控制，與
-   `noindex` 是同一個開關——**標題乾淨卻仍在預覽頻道上，代表有人用正式參數建置
-   了測試站**，應停止驗收並重建。
-8. `/privacy` 可開啟，且頁面最上方明白說明「目前是測試版本、資料不會傳送到診所」
-   與「本文為草稿」。給業主檢視前務必確認這兩塊仍在。
+7. 瀏覽器分頁標題為 `【測試用】…`，且所有 preview route 維持 `noindex`。現有
+   `WEB_PUBLIC_INDEXABLE` 是全域開關，不能作為每頁法律／內容核准；正式參數出現在
+   preview 即停止驗收。直到 `WEB-P0-01` 完成，任何 route 的 index release 都禁止。
+8. `/privacy` 可開啟，明示測試版與草稿；同時必須有 meta/header `noindex` 且不得進
+   preview sitemap。D-003 final policy/policyVersion 前，不得因 global switch 被放行。
 
 部署完成後用實際 URL 產生可機讀證據；腳本只接受專用 staging project 的
 `synthetic-review` preview hostname，避免誤驗 live 或其他專案：

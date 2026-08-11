@@ -28,6 +28,7 @@ Read in this order before changing a boundary or enabling a capability.
 | 9 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
 | 10 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
 | 11 | [產品定位與長期方向](product/product-vision.md) | Plan-only product positioning, the roles it serves, the twelve core capabilities with what blocks each, and the current boundary that none of it may be read as built |
+| 12 | [2026-08-11 enterprise modernization audit](reviews/2026-08-11-enterprise-modernization-audit.md) | Read-only 20-section evidence: 47 issues, 29 capability decisions, 38 Roadmap items, limits and official sources; not implementation authority |
 
 ## 2. Decisions and approval packets
 
@@ -84,6 +85,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [行動版 UX 規劃](design/mobile-ux-plan.md) — plan-only drawer navigation, day-list default, table-to-card rules, full-screen sheets and the six-viewport acceptance matrix
 - [測試策略](architecture/test-strategy.md) — the ten test layers with what does and does not exist, the six E2E groups and how they differ from the eight-group target, role direct-URL tests, and why automated axe never replaces the manual pass
 - [2026-08-10 UI visual baseline](reviews/ui-visual-baseline-2026-08-10.md) — **the current baseline**: ten reproducible desktop/mobile reference captures after the clinic homepage restructure; only the two `/clinic` images changed and the other eight remain byte-identical to 2026-08-07
+- [2026-08-11 enterprise modernization audit](reviews/2026-08-11-enterprise-modernization-audit.md) — 20-section read-only narrative and decision index with stable IDs; the external Excel workbook is the required field-level evidence/matrix companion
+- [2026-08-11 enterprise modernization audit handoff](reviews/2026-08-11-enterprise-modernization-read-only-audit-handoff.md) — §10.4 handoff, artifact hashes, NOT_RUN/UNAVAILABLE gates, uncovered scope and authorised next Roadmap IDs
 - [2026-08-07 UI visual baseline](reviews/ui-visual-baseline-2026-08-07.md) — superseded, kept as history: treatment-card imagery reference set and the diff-before-accept pass that caught two hover-contaminated workbench captures
 - [2026-08-06 UI visual baseline](reviews/ui-visual-baseline-2026-08-06.md) — superseded, kept as history: ten reproducible desktop/mobile reference captures and their manifest, retaken after the clinic site joined the design system, plus the four places the capture date is hardcoded; reference evidence, not a cross-OS pixel gate
 - [2026-07-28 UI visual baseline](reviews/ui-visual-baseline-2026-07-28.md) — superseded on 2026-08-06, retained as historical evidence; its Stage/gate statement is of that date and its clinic-site captures predate the type-scale convergence
@@ -116,6 +119,8 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-08-11 | [企業級現代化唯讀稽核](reviews/2026-08-11-enterprise-modernization-audit.md) | 20 章 Markdown 敘事／索引；47 findings、29 capabilities、18 refactors、6 dead-code candidates、15 measurable optimizations、38 Roadmap items，87 option rows 與逐列完整欄位在外部 Excel。基準為 `cf597af`；未執行 package/browser/cloud gate，僅在發佈前唯讀查證 GitHub metadata，整體成熟度 2.50/5，所有實作等待具名 Roadmap ID |
+| 2026-08-11 | [企業級現代化稽核交接](reviews/2026-08-11-enterprise-modernization-read-only-audit-handoff.md) | 唯讀範圍、Word／Excel／Markdown SHA-256、PASS/NOT_RUN/UNAVAILABLE、八項最高風險 finding、未覆蓋範圍與下一步 `GOV-R01`／P0 IDs；Stage 位置與 deployment/real-data authority 均不變 |
 | 2026-08-10 | [診所首頁重構與 SEO 交接](reviews/2026-08-10-clinic-homepage-restructure.md) | `/clinic` 直接改為鼻功能、打鼾與睡眠呼吸的混合式首頁；固定圓球與其 dead CSS／動效移除，四項服務來源寫回資料模型，症狀導覽維持非診斷語氣。route-specific metadata、canonical、OG/Twitter 與 `MedicalClinic` JSON-LD 已接線；JSON-LD 有資料漂移測試。正式網域與發布核准前仍維持 noindex，人工報讀器與實體裝置仍是發布前外部驗收 |
 | 2026-08-10 | [UI 視覺基準](reviews/ui-visual-baseline-2026-08-10.md) | 十張 reference-only PNG 與 manifest；首頁兩張因完整重構而改變，預約三張、隱私一張與工作臺四張 SHA-256 完全相同。桌機／手機首頁經人工檢視，十個情境 console error／warning 均為 0 |
 | 2026-08-07 | [診所療程卡影像修復](reviews/2026-08-07-clinic-service-imagery.md) | 四張療程卡的圖在建置階段被置中裁切切掉內容，最嚴重一張丟 **63.4%**，「止鼾好眠牙套」被切成「子眠牙套」、五個打鼾成因只剩中間一欄。**每一道 gate 都是綠的**——`check:tokens` 讀 CSS、`typography.spec.ts` 量 computed style、axe 掃可及性樹，沒有一道會打開 WebP 看裡面寫了什麼，而 `alt="止鼾五合一療程示意"` 在自動化眼中完全合格。素材性質是根因：三張是行銷投影片（文字在左、插圖在右），一張是純資訊圖。處置分兩種——投影片裁到只取插圖（其標題與內文本來就與卡片的 `title`／`subtitle` 重複，且「好眠牙套」與 HTML 的「止鼾好眠牙套」不一致），資訊圖的五個成因搬進 `NASAL_SERVICES` 成為真實文字（文案未改，渲染器未改）。順帶查出官網同一份衛教內容的桌機版與手機版**編號順序互相矛盾**（2/3/4 互換），沒有任何機制會發現。新增 `MAX_BLIND_DISCARD = 0.12` fail-closed 門檻並做過注入測試；規則書新增 R-26。四張圖合計 −34%，影像預算未調整。**視覺基線的 `/clinic` 相關 PNG 現已與畫面不符**，重拍是獨立決定 |

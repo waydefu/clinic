@@ -1,8 +1,9 @@
 # 測試策略
 
-**狀態：** 現行權威（既有層級）＋ plan-only（尚未存在的分組與層級）。
+**狀態：** 現行策略權威；測試層級與 gate 規則屬現行規範。測試檔數、案例數及
+通過狀態只以同一 commit 的 CI 或日期化證據為準；尚未存在的分組與層級為 plan-only。
 
-**撰寫日期：** 2026-08-04
+**撰寫日期：** 2026-08-04；**修訂日期：** 2026-08-11（唯讀靜態查核，未重跑測試）
 
 本文件把既有的測試層級與 [前端與供應鏈品質把關](web-quality-gates-2026-07-24.md)
 所定義的 gate 整理成一份策略，並標示哪些層級尚未存在。
@@ -13,7 +14,7 @@
 
 | # | 層級 | 現況 | 執行方式 |
 | --- | --- | --- | --- |
-| 1 | Unit tests | ✅ 59 檔 915 測試 | `pnpm test:unit`（vitest） |
+| 1 | Unit tests | 已實作 Vitest suite；數量與通過狀態查同一 commit 的 CI／日期化證據 | `pnpm test:unit`（vitest） |
 | 2 | Firestore Emulator rules tests | ✅ | `pnpm test:rules`（需 JDK 21） |
 | 3 | Cloud Functions integration tests | ❌ **不存在** | 無 Functions 可測（只掛 `/v1/health`） |
 | 4 | Playwright desktop E2E | ✅ | `pnpm test:e2e` |
@@ -28,7 +29,7 @@
 C1～C6 slice 取得 deployment authority 之後才有意義。
 
 第 10 項的限制是刻意的：跨作業系統的像素比對會因字型渲染差異持續誤報，因此
-[2026-07-28 UI 視覺基線](../reviews/ui-visual-baseline-2026-07-28.md) 定位為
+[2026-08-10 UI 視覺基線](../reviews/ui-visual-baseline-2026-08-10.md) 定位為
 **參考證據**，不是阻擋性 gate。
 
 ---
@@ -40,16 +41,19 @@ C1～C6 slice 取得 deployment authority 之後才有意義。
 `e2e` 為 matrix job，PR 上呈現為六個獨立 check。分組定義的唯一真實來源是
 [`scripts/e2e-groups.mjs`](../../scripts/e2e-groups.mjs)。
 
-| 分組 | Spec | 測試數 |
-| --- | --- | --- |
-| `e2e-auth-rbac` | delegated-deletion、role-maintenance-responsive | 20 |
-| `e2e-appointments` | week-calendar、workbench-lifecycle | 32 |
-| `e2e-patient-portal` | clinic-site、patient-booking、privacy-policy | 35 |
-| `e2e-mobile` | mobile-layout、responsive | 53 |
-| `e2e-accessibility` | accessibility、manual-accessibility-preconditions、no-script | 17 |
-| `e2e-ui` | affordance、clinic-motion、performance、theme、typography | 34 |
+| 分組 | Spec |
+| --- | --- |
+| `e2e-auth-rbac` | delegated-deletion、role-maintenance-responsive |
+| `e2e-appointments` | week-calendar、workbench-lifecycle |
+| `e2e-patient-portal` | clinic-site、patient-booking、privacy-policy |
+| `e2e-mobile` | mobile-layout、responsive |
+| `e2e-accessibility` | accessibility、manual-accessibility-preconditions、no-script |
+| `e2e-ui` | affordance、clinic-motion、performance、theme、typography |
 
-合計 191，與拆分前相同。
+案例數不在策略文件硬編碼。分組成員的唯一真實來源是
+`scripts/e2e-groups.mjs`；案例數與通過狀態須查同一 commit 的 CI。2026-08-04 的
+191 項只屬分組建立時的歷史快照；2026-08-10 的 60 files／958 unit 與相關 E2E
+亦只屬該日證據，本次 2026-08-11 未重跑。
 
 ### 2.2 目標八組與現行六組的差異
 
@@ -98,14 +102,16 @@ C1～C6 slice 取得 deployment authority 之後才有意義。
 
 | 尺寸 | 現況 |
 | --- | --- |
-| 320 × 568 | ✅ 已測 |
-| 360 × 800 | ❌ 新增 |
-| 390 × 844 | ✅ 已測（診所官網） |
-| 412 × 915 | ❌ 新增 |
-| 430 × 932 | ❌ 新增 |
-| 768 × 1024 | ❌ 新增 |
+| 320 × 568 | 有精確窄版／壓力情境；本次未重跑 |
+| 360 × 800 | 有精確情境，但不是所有 route／行為 |
+| 390 × 844 | 有多個精確情境 |
+| 412 × 915 | 412px 寬度有掃描；未見完整精確 915px 高度矩陣 |
+| 430 × 932 | 精確尺寸只見角色維護情境，非全站矩陣 |
+| 768 × 1024 | 768px 寬度有掃描；未見完整 tablet/touch 情境 |
 
-六個尺寸全部納入 `e2e-mobile`。詳見 [行動版 UX 規劃](../design/mobile-ux-plan.md) §7。
+以上六個尺寸仍是目標矩陣；完成狀態須按 route、行為與裝置語意分開記錄。僅量到
+相同寬度不得宣稱精確 viewport 或實體平板已驗收。詳見
+[行動版 UX 規劃](../design/mobile-ux-plan.md) §7。
 
 ---
 
@@ -115,7 +121,7 @@ C1～C6 slice 取得 deployment authority 之後才有意義。
 
 | 層級 | 工具 | 現況 |
 | --- | --- | --- |
-| 自動掃描 | axe-core | ✅ 無 Critical／Serious |
+| 自動掃描 | axe-core | gate 僅阻擋 serious／critical；目前不保存或列出 moderate／minor；通過狀態須查 commit-bound evidence |
 | CSS 回歸預檢 | Playwright `forcedColors: active` | ✅ |
 | 人工實測 | 螢幕閱讀器、強制色彩、鍵盤、縮放 | ❌ **從未執行** |
 
@@ -134,10 +140,15 @@ C1～C6 slice 取得 deployment authority 之後才有意義。
 | `e2e-*`（6 個） | Playwright ＋ axe | ✔ |
 | `supply-chain` | tracked secrets、dependency audit、SBOM、授權政策 | ✔ |
 | `evidence` | 綁定 commit 的驗證證據 | ✔ **唯一的 branch protection required check** |
-| `sast`（獨立 workflow） | Semgrep | — |
+| `sast`（獨立 workflow） | Semgrep CE | ⚠️ finding／掃描／規則測試失敗會使該 workflow 變紅，但截至 2026-08-11 未納入唯一 required `Verification evidence`；merge-blocking 實作待補 |
 
-`evidence` 是 `main` 上唯一的 strict required check。它把上述四個 job 的結果綁定
-commit SHA 與 run，任一不是 success 就是 failure，包含「沒有回報結果」。
+`evidence` 是最近一次日期化證據中 `main` 的唯一 strict required check。它只把
+`verify`、`rules`、`e2e` 與 `supply-chain` 綁定 commit SHA；目前不含獨立的 SAST。
+在 branch protection 直接要求精確 SAST check，或 `Verification evidence` 消費同一
+commit 的 SAST 結果前，不得宣稱 SEC-02 已在 merge boundary 強制執行。2026-08-11
+14:32 +08:00 的唯讀 GitHub API 已確認 `main` 唯一 strict required context 是
+`Verification evidence`，且 PR #14 的獨立 Semgrep 綠燈不能使失敗的聚合 evidence
+通過；遠端設定不得由這份日期化證據推論為永久不變。
 
 **CodeQL 已於 2026-08-01 被 Semgrep 取代**，見
 [SAST 遷移紀錄](../reviews/2026-08-01-sast-migration-and-audit-governance-delivery.md)。
@@ -165,5 +176,5 @@ commit SHA 與 run，任一不是 success 就是 failure，包含「沒有回報
 - [角色權限矩陣](rbac-matrix.md) — 角色測試矩陣
 - [行動版 UX 規劃](../design/mobile-ux-plan.md) — viewport 驗收
 - [人工無障礙測試 runbook](../runbooks/manual-accessibility-test.md)
-- [2026-07-28 UI 視覺基線](../reviews/ui-visual-baseline-2026-07-28.md)
+- [2026-08-10 UI 視覺基線](../reviews/ui-visual-baseline-2026-08-10.md)
 - [2026-08-01 gate 覆蓋率檢討](../reviews/2026-08-01-gate-coverage-tw-01-05.md)

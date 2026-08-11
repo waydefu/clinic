@@ -27,7 +27,24 @@
 3. 已取代文件只可由「Superseded」索引，不得從現行操作步驟引用。
 4. `plan-only`、草稿、未演練及未接線必須直接寫在狀態或相鄰段落，不能藏在頁尾。
 5. 動態事實（測試數、部署網址、掃描結果、雲端設定）要附日期與可追溯來源；沒有
-   權限讀遠端結果時，寫「未確認」，不得由本機成功推論遠端成功。
+   權限讀遠端結果時，claim 寫 `UNVERIFIED`，不得由本機成功推論遠端成功。
+
+狀態語意不得混用：`NOT_RUN` 表示本輪有意未執行檢查；`UNAVAILABLE` 表示檢查所需的
+系統、權限、URL 或環境不可存取；`UNVERIFIED` 表示某一動態 claim 缺少足以支持它的
+同 commit／environment 證據。前兩者是 gate／attempt 狀態，後者是 claim／evidence
+狀態；不能用 `UNAVAILABLE` 暗示 claim 為真，也不能把 `UNVERIFIED` 當成 gate 通過。
+
+任何能力的狀態必須拆成四個互不替代的維度：
+
+1. **決策是否核准**；
+2. **是否完成實作**；
+3. **是否有同一 commit／environment 的驗證證據**；
+4. **是否取得部署或真實資料 authority**。
+
+例如「SEC-02 policy approved」不等於 SAST 已是 required merge check；「D-010 target
+approved」不等於已建立 cloud resource 或達成 RPO/RTO。動態陳述至少要記錄 `as-of`、
+commit／environment、涵蓋範圍、owner、evidence 及 expiry／next review。無法讀遠端時
+使用 `UNVERIFIED`，不能只寫「目前」或「已完成」。
 
 `scripts/check-docs-links.mjs` 會阻止斷鏈、漏登索引、review 漏放在證據區、archive
 漏放在 Superseded，以及已知的過期現況敘述重新出現。
@@ -37,7 +54,7 @@
 | 證據 | 產生方式 | 保存 |
 | --- | --- | --- |
 | CI 完整驗證 | `verify` workflow 的 `Verification evidence` job | GitHub artifact 90 天；同時寫 job summary |
-| CodeQL | `codeql` workflow 的 `codeql-verification-evidence` | GitHub artifact 90 天；finding 留在 code scanning |
+| Semgrep CE SAST | 獨立 `sast` workflow 的 commit-bound JSON／SARIF／summary | GitHub artifact 90 天；截至 2026-08-11 尚未被唯一 required `Verification evidence` 依賴，因此 workflow 綠／紅不等於 merge boundary 已強制 |
 | 合成預覽 | `pnpm verify:preview -- <preview-url>` | 本機 `output/evidence/`，依 review／交付需要另行保存 |
 
 證據 JSON 至少綁定 commit SHA、時間、執行／部署網址、必要檢查與結論。
@@ -48,7 +65,8 @@ CI artifact 或把摘要登記到新的 dated review。
 
 - Emulator 的邏輯還原演練不等於 cloud backup、PITR、IAM 或跨區災難復原成功。
 - preview 驗證不等於 production deployment，也不授權處理真實資料。
-- workflow 設定存在不等於 GitHub run 成功；CodeQL 是否可用仍要看實際 repository
-  權限／方案。
+- workflow 設定存在不等於 GitHub run 成功或 required。Semgrep CE 是規則式分析，
+  不等同 CodeQL 的跨檔 taint/data-flow；兩者是否可用、是否 required 仍須讀實際
+  repository 權限、ruleset 與同一 commit 的 run。
 - 自動 axe 成功不等於螢幕閱讀器、強制色彩及人工鍵盤驗收成功。
 - 所有 D-series 決策只有[決策登錄](product/phase-1-decision-register.md)能關閉。

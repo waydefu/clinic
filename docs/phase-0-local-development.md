@@ -36,16 +36,19 @@ machines only at a Git boundary:
 
 > **Do not use a package command as a status check.** For a progress audit,
 > inspect Git history, remote refs and the current roadmap only. Before running
-> `pnpm`, confirm this is the intended clean clone, `corepack` and the pinned
-> Node version are installed, and dependencies were intentionally provisioned
+> `pnpm`, confirm this is the intended clean clone, `corepack` and the exact
+> reviewed Node patch are installed, and dependencies were intentionally provisioned
 > on this computer. If `node_modules` is absent or incomplete, stop instead of
 > letting pnpm implicitly rebuild it.
 
 1. On the current computer, review `git status`, commit the intended source and
    documentation changes, record `git branch --show-current`, and push that
    exact branch with `git push -u origin <branch>`.
-2. On the next computer, install Git 2.x, Node `>=24.14.0 <25`, pnpm `11.9.0`
-   and JDK 21 before running any repository command. JDK 21 matches CI and is
+2. On the next computer, install Git 2.x, pnpm `11.9.0` and JDK 21 before
+   running any repository command. For the 2026-08-11 dated verification
+   baseline use Node `24.18.0`; the current engine range and floating CI major
+   do not enforce that security floor and are tracked by `SCM-R02`. After that
+   work lands, use its exact reviewed patch or runtime image digest. JDK 21 matches CI and is
    needed by the local Firestore Emulator. Close and reopen PowerShell after
    installation so the updated `PATH` and `JAVA_HOME` are loaded.
 3. Clone the branch pushed in step 1 into a folder owned by the next computer's

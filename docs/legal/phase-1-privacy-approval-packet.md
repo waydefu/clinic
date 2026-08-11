@@ -40,6 +40,13 @@ Complete each row with an approved retention rule. Distinguish live operational
 data, immutable audit evidence and de-identified statistics; do not retain all
 data indefinitely by default.
 
+Append-only integrity and retention are separate decisions. D-006 recorded that
+an audit event outlives a deleted appointment and cannot be altered by an
+operator; it did not finish D-002's decision on how long identifiers remain
+linkable. The approved answer must address pseudonymisation, legal hold,
+rights-request exceptions, deletion tombstones and deletion replay after a
+backup restore.
+
 | Data set | Approved purpose | Retention trigger and period | Deletion / de-identification action | Owner |
 | --- | --- | --- | --- | --- |
 | Booking and cancellation record | `[purpose]` | `[e.g. cancellation or scheduled visit date + approved period]` | `[action]` | `[role]` |
@@ -51,7 +58,10 @@ data indefinitely by default.
 ### Vendor and data-location record
 
 No vendor may receive real data until its row is approved. Google Calendar must
-remain a zero-PII projection even when it is approved.
+contain no direct identifiers or clinical content, but opaque appointment ID,
+visit time and location are still P2 linkable operational data. Do not call the
+projection “zero PII”; D-002/D-009 must approve processor role, location,
+least-privilege scope/ACL, retention/deletion, subprocessor and incident owner.
 
 The separate
 [Expansion S plan](../product/2026-07-28-surgery-follow-up-expansion-plan.md)
@@ -64,8 +74,13 @@ export, role-scope and vendor review before any real record is stored.
 | --- | --- | --- | --- | --- | --- |
 | Firebase / selected cloud project | `[processor role]` | `[minimum categories]` | `[not selected]` | `[not approved]` | Pending |
 | Website hosting | `[processor role]` | `[minimum categories]` | `[not selected]` | `[not approved]` | Pending |
-| Google Calendar | Operational projection only | No patient PII or medical data | `[not approved]` | `[scope and owner not approved]` | Pending |
+| Google Calendar | Operational projection only | No direct identifier/clinical content; P2 opaque appointment ID＋time＋location | `[not approved]` | `[scope, ACL, retention, deletion and owner not approved]` | Pending |
 | Future NAS | `[processor / internal system]` | `[not approved]` | `[not approved]` | `[new ADR required]` | Pending |
+
+Also record, before approval: browser localStorage/cookie purpose and expiry;
+telemetry/log/alert data categories; every subprocessor and processing region;
+security-incident notification responsibility/SLA; rights-request statutory
+time limits; deletion evidence; and the exact backup exception/replay process.
 
 ## D-003 — Published policy and acceptance record
 
