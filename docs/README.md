@@ -119,6 +119,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-08-17 | [業主決定對帳紀錄](reviews/2026-08-17-owner-decision-reconciliation.md) | 39 題業主答案（2026-08-16 回收）與 D-series／OR 的逐題對帳：4 項明確取代（取消期限、預約 horizon、英文版、production Calendar）、13 項新增輸入、5 項 deferred、2 項需專業審查。**沒有任何一項具備轉為 `approved` 的條件**——答案缺核准人、核准日期與適用範圍。同時記錄 PR #14 已合併（`22d0f4d`）、`SCM-R05` 仍未修、`main` 因此為紅。Stage 不變 |
 | 2026-08-11 | [企業級現代化唯讀稽核](reviews/2026-08-11-enterprise-modernization-audit.md) | 20 章 Markdown 敘事／索引；47 findings、29 capabilities、18 refactors、6 dead-code candidates、15 measurable optimizations、38 Roadmap items，87 option rows 與逐列完整欄位在外部 Excel。基準為 `cf597af`；未執行 package/browser/cloud gate，僅在發佈前唯讀查證 GitHub metadata，整體成熟度 2.50/5，所有實作等待具名 Roadmap ID |
 | 2026-08-11 | [企業級現代化稽核交接](reviews/2026-08-11-enterprise-modernization-read-only-audit-handoff.md) | 唯讀範圍、Word／Excel／Markdown SHA-256、PASS/NOT_RUN/UNAVAILABLE、八項最高風險 finding、未覆蓋範圍與下一步 `GOV-R01`／P0 IDs；Stage 位置與 deployment/real-data authority 均不變 |
 | 2026-08-10 | [診所首頁重構與 SEO 交接](reviews/2026-08-10-clinic-homepage-restructure.md) | `/clinic` 直接改為鼻功能、打鼾與睡眠呼吸的混合式首頁；固定圓球與其 dead CSS／動效移除，四項服務來源寫回資料模型，症狀導覽維持非診斷語氣。route-specific metadata、canonical、OG/Twitter 與 `MedicalClinic` JSON-LD 已接線；JSON-LD 有資料漂移測試。正式網域與發布核准前仍維持 noindex，人工報讀器與實體裝置仍是發布前外部驗收 |

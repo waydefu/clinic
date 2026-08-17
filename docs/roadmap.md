@@ -2,9 +2,15 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-08-11
+**整合更新：** 2026-08-17
 
-**目前狀態：** 既定中文 synthetic 瀏覽器流程已實作；這不包含 D-011 英文版，也不
+**39 題業主答案已於 2026-08-16 全數回收**，逐題對帳見
+[2026-08-17 對帳紀錄](reviews/2026-08-17-owner-decision-reconciliation.md)。答案是
+有記錄的業主輸入，**不是核准**（缺核准人、日期、範圍與排除項，D-001～D-003、D-014
+另缺專業審查），因此所有 D-series 狀態值不變。Stage 仍為 Stage 1。
+
+**目前狀態：** 既定中文 synthetic 瀏覽器流程已實作；**D-011 英文版已於 2026-08-16
+確認不做，不再是待辦需求**；本狀態也不
 代表真人無障礙、production 或目前 HEAD 已重驗。最後有紀錄的 preview 已到
 2026-08-04 排定到期日，2026-08-11 遠端狀態未驗證。Firestore 寫入只有 dated 本機
 Emulator 證據，且同日稽核新確認三個 correctness 缺口。Stage 0／Checkpoint A 已通過，
@@ -35,8 +41,11 @@ Emulator 證據，且同日稽核新確認三個 correctness 缺口。Stage 0／
 >
 > **順序注意：** `SCM-R05` 是 `SCM-R01` 的前置。稽核基準 `cf597af` 上唯一 required
 > 的 `Verification evidence` 目前是紅的（dependency audit 抓到 1 筆 high
-> `nanoid`），branch 無法 merge；aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」
-> 驗收分不出擋住 PR 的是 SAST 還是 audit。
+> `nanoid`）。**2026-08-17 更新：PR #14 已合併（`22d0f4d`），「branch 無法 merge」
+> 不再是現況；但 `SCM-R05` 仍未實作，紅燈已隨合併轉移到 `main`（`verify` run
+> `32014377238` failure，只有 supply-chain job 紅）。合併不是 `SCM-R05` 已完成的
+> 證據。** aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」驗收仍分不出擋住 PR 的是
+> SAST 還是 audit。
 
 > **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
