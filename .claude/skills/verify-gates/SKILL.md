@@ -53,15 +53,17 @@ evidence and costs the user real time.
 
 Run the narrow gates first — a fast failure is worth more than a slow one.
 
-## A red you did not cause
+## Is this red yours?
 
-`check:supply-chain` has a known pre-existing failure: the audit step reports a
-high advisory for `nanoid` reached through `postcss`, recorded as `SCM-006` in
-[the 2026-08-11 modernization audit](../../../docs/reviews/2026-08-11-enterprise-modernization-audit.md)
-and scheduled as `SCM-R05`. Confirm the pin is still what it was
-(`grep -n "nanoid@" pnpm-lock.yaml`) before reading that red as yours. Report it
-as a pre-existing `FAIL` with its ID — never as caused by your change, and never
-by relaxing the audit level or registering an exception to clear it.
+Before reporting a failure as caused by your change, check whether it was
+already failing. `git stash` is not the way to find out — run the same gate on
+`main`, or read the last CI run there.
+
+There is no known pre-existing red at the moment: `main` has been green on every
+job since `SCM-R05` closed `SCM-006` on 2026-08-17. If you find one anyway, it
+is new information — report it with its evidence rather than clearing it by
+relaxing a threshold, registering an audit exception or dismissing an alert.
+Those are the three moves the supply-chain rule exists to forbid.
 
 ## The one local trap
 

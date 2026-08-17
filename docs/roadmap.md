@@ -33,19 +33,23 @@ Emulator 證據，且同日稽核新確認三個 correctness 缺口。Stage 0／
 > 既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
 >
 > **2026-08-11 唯讀稽核新增的 current P0：** `DATA-R01` slot sentinel、`DATA-R02`
-> occurrence identity、`ARC-R01` lease fencing、`SCM-R05` 修綠 dependency audit
-> gate、`SCM-R01/02` SAST/runtime、`WEB-P0-01/02/03` privacy index/performance/axe。
+> occurrence identity、`ARC-R01` lease fencing、~~`SCM-R05` 修綠 dependency audit
+> gate~~（**2026-08-17 完成，見下**）、`SCM-R01/02` SAST/runtime、
+> `WEB-P0-01/02/03` privacy index/performance/axe。
 > 這些不是全面重開 Stage 0，但在對應 acceptance 前，不得接 booking/worker route 或
 > 宣稱相關 gate 完整。完整證據見
 > [現代化稽核](reviews/2026-08-11-enterprise-modernization-audit.md)。
 >
-> **順序注意：** `SCM-R05` 是 `SCM-R01` 的前置。稽核基準 `cf597af` 上唯一 required
-> 的 `Verification evidence` 目前是紅的（dependency audit 抓到 1 筆 high
-> `nanoid`）。**2026-08-17 更新：PR #14 已合併（`22d0f4d`），「branch 無法 merge」
-> 不再是現況；但 `SCM-R05` 仍未實作，紅燈已隨合併轉移到 `main`（`verify` run
-> `32014377238` failure，只有 supply-chain job 紅）。合併不是 `SCM-R05` 已完成的
-> 證據。** aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」驗收仍分不出擋住 PR 的是
-> SAST 還是 audit。
+> **順序注意（2026-08-17 更新）：`SCM-R05` 已完成，前置條件已滿足。**
+> PR #16（實作 `5c99b54`、merge `cf3b87b`）把 lockfile 的 `nanoid` 由 `3.3.16`
+> 提到 `3.3.18`，`SCM-006` 的那筆 high 消失。`main` 在 `b05da66` 的 `verify`
+> run `32027293936` **十個 job 全綠，含唯一 required 的 `Verification evidence`**。
+> 因此 aggregate 現在有乾淨基線，`SCM-R01` 的「故意失敗 PR」驗收才分得出擋住 PR
+> 的是 SAST 還是 dependency audit——**`SCM-R01` 現在可以開始，但尚未開始，也未完成。**
+>
+> 兩件不因此成立的事：(1) `SCM-R04` 未關閉——9 筆殘留 advisory（1 low／8 moderate，
+> 皆 dev 工具鏈）仍無 owner／理由／到期日；(2) 稽核對 `SCM-R05` 的驗收條文另含
+> 「逐筆 triage 殘留 alert」，該子句與 `SCM-R04` 範圍重疊且尚未完成，邊界待 owner 裁定。
 
 > **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
@@ -217,7 +221,7 @@ Firestore、backup/PITR 或 runtime。
 | 面向 | 狀態 |
 | --- | --- |
 | Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006/D-010 已核准，Stage 2 尚待 change/deployment review** |
-| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後當時 3 筆 moderate 已 fixed，且 SEC-03 source audit 例外已解除。2026-08-11 14:32 +08:00 唯讀 API 另確認 `main` 有 9 筆 open development-scope alerts（8 medium、1 low）；同日讀取 PR #14 的 CI log 則顯示稽核基準 `cf597af` 的 `pnpm audit --audit-level high` 是 10 筆、含 1 筆 high（`postcss` 帶入的 `nanoid 3.3.16`），required `Verification evidence` 因此為紅、branch 無法 merge。「無 audit 例外」不等於「無遠端 alert」，兩個數字不一致時以 CI 為準；須由 `SCM-R05` 修綠並逐筆 triage，長期 SLA 為 `SCM-R04`。**2026-08-17 於 commit `fc15bfd`（CI run `31994942617`）重新驗證：仍是 10 筆／1 high，且 advisory 門檻已由 `>=3.3.17` 上移為 `>=3.3.18`——`SCM-R05` 照舊值提版不會轉綠**。Dependabot 的數字當日在 repository 轉為公開前後大幅跳動（10 筆含 1 high → 8 筆不含 high → API 只回報 1 筆 open），同日 `corepack pnpm run audit:all` 實測仍是 10 筆含該 high。**兩者不一致時以 CI／實測為準的原則不變**；Dependabot 計數受 repository 可見性影響，不能用來宣稱 `SCM-006` 已解除 |
+| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後當時 3 筆 moderate 已 fixed，且 SEC-03 source audit 例外已解除。2026-08-11 14:32 +08:00 唯讀 API 另確認 `main` 有 9 筆 open development-scope alerts（8 medium、1 low）；同日讀取 PR #14 的 CI log 則顯示稽核基準 `cf597af` 的 `pnpm audit --audit-level high` 是 10 筆、含 1 筆 high（`postcss` 帶入的 `nanoid 3.3.16`），required `Verification evidence` 因此為紅、branch 無法 merge。「無 audit 例外」不等於「無遠端 alert」，兩個數字不一致時以 CI 為準；須由 `SCM-R05` 修綠並逐筆 triage，長期 SLA 為 `SCM-R04`。**2026-08-17 於 commit `fc15bfd`（CI run `31994942617`）重新驗證：仍是 10 筆／1 high，且 advisory 門檻已由 `>=3.3.17` 上移為 `>=3.3.18`——`SCM-R05` 照舊值提版不會轉綠**。Dependabot 的數字當日在 repository 轉為公開前後大幅跳動（10 筆含 1 high → 8 筆不含 high → API 只回報 1 筆 open），同日 `corepack pnpm run audit:all` 實測仍是 10 筆含該 high。**兩者不一致時以 CI／實測為準的原則不變**；Dependabot 計數受 repository 可見性影響，不能用來宣稱 `SCM-006` 已解除。**2026-08-17 稍後由 `SCM-R05`（PR #16、merge `cf3b87b`）解除：`nanoid` 提至 `3.3.18`，`audit:all` 由 10 筆／1 high 降為 9 筆／0 high，`main` 在 `b05da66`（run `32027293936`）全綠。上述紅燈敘述自此為歷史。** 殘留 9 筆的逐筆 triage 與長期 SLA 仍屬 `SCM-R04` |
 | `main` 分支保護 | **2026-08-11 14:32 +08:00 已唯讀驗證**；沒有 repository ruleset，strict required context 只有 `Verification evidence`，force push／branch deletion 關閉，`enforce_admins=false`、無 required review；Semgrep 尚未進 required aggregate，見 `SCM-R01` |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |

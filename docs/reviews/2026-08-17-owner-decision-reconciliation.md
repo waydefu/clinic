@@ -36,6 +36,7 @@ Doc（需登入）。若要作為正式核准依據，需由業主確認該匯�
 | `main` 目前 CI | **紅**：`verify` run `32014377238` failure | `gh run view` |
 | 紅在哪一項 | 只有 `Tracked secrets、dependency audit 與 inventory`，連帶 `Verification evidence`；其餘 9 個 job 全綠 | 同上 |
 | `SCM-R05` | **未實作**。`main` 的 `pnpm-lock.yaml` 仍為 `nanoid@3.3.16` | `git show origin/main:pnpm-lock.yaml` |
+| — | *(以上為本紀錄撰寫當時的觀察，數小時後由 PR #16 取代，見 §2.3)* | — |
 | Branch protection | strict required check 僅 `Verification evidence`；`enforce_admins=false`；無 required review；0 rulesets | `gh api .../branches/main/protection` |
 
 ### 2.1 PR #14 為何能在 required check 紅燈時合併——不得臆測
@@ -53,6 +54,18 @@ GitHub API 不提供 bypass 事件紀錄，因此**機制屬於證據支持的�
 1. PR #14 **已合併** → 現行文件不得再寫「該 branch 無法 merge」。
 2. `SCM-R05` **仍未修** → 合併**不構成** `SCM-R05` 已完成的證據。
 3. `main` 現在**繼承了紅燈** → 狀態不是變好，是紅燈換了位置。
+
+### 2.3 同日稍後被取代（2026-08-17）
+
+**上方 §2 全表與 §2.2 第 2、3 點記錄的是 PR #16 之前的狀態，保留為當時的觀察。**
+同日稍後 `SCM-R05` 完成（PR #16、實作 `5c99b54`、merge `cf3b87b`）：lockfile 的
+`nanoid` 由 `3.3.16` 提到 `3.3.18`，`SCM-006` 的 high 消失，`main` 在 `b05da66`
+（`verify` run `32027293936`）十個 job 全綠，含唯一 required 的
+`Verification evidence`。
+
+§2.2 第 2 點的推論本身仍然正確——**合併確實不構成修復的證據**；讓它成立的是後來
+那次獨立的 lockfile 變更，不是 PR #14 的合併。第 3 點的紅燈已於 `cf3b87b` 解除。
+本節其餘關於 39 題對帳的內容不受影響。
 
 ## 3. 為什麼沒有任何一項可以轉為 `approved`
 

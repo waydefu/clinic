@@ -39,19 +39,24 @@ TW-04 與 TW-05 自動前置條件已交付；原 TW 唯一未完成的是 TW-05
 鍵盤、forced-colors 與實體裝置驗收，先在 synthetic rehearsal 執行，Production 前再
 對 release candidate 留正式紀錄。
 
-2026-08-11 另確認需先處理 `DATA-R01`、`DATA-R02`、`ARC-R01`、`SCM-R05`、
-`SCM-R01/02`、`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是新的
+2026-08-11 另確認需先處理 `DATA-R01`、`DATA-R02`、`ARC-R01`、~~`SCM-R05`~~
+（**2026-08-17 已完成**）、`SCM-R01/02`、`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是新的
 current finding；在對應 acceptance 通過前，不得把 slot release、outbox
 ownership、SAST merge gate、privacy index、clinic timing 或完整 axe evidence
 寫成已驗證。
 
-其中 `SCM-R05` 最先做，也是 `SCM-R01` 的前置：dependency audit 抓到 1 筆 high
-`nanoid`，經 `postcss` 進入 dev 工具鏈，連帶讓唯一 required 的 `Verification evidence`
-變紅。**2026-08-17 更新：PR #14 已合併（merge commit `22d0f4d`），所以「該 branch
-無法 merge」不再是現況；但 `SCM-R05` 仍未實作，`main` 的 lockfile 仍是
-`nanoid@3.3.16`，`main` 自己的 `verify` run 因此是紅的。** 紅燈沒有消失，只是換到
-`main` 上。合併不構成 `SCM-R05` 已完成的證據。在它轉綠之前，不得把任何 CI gate
-描述成已通過。
+**`SCM-R05` 已於 2026-08-17 完成（PR #16、實作 `5c99b54`、merge `cf3b87b`）。**
+修法是把 lockfile 的 `nanoid` 由 `3.3.16` 提到 `3.3.18`——`postcss@8.5.20` 本就
+宣告 `^3.3.16`，因此不需要也沒有加任何 override。`SCM-006` 的那筆 high 消失，
+`main` 在 `b05da66`（`verify` run `32027293936`）**十個 job 全綠，含唯一 required
+的 `Verification evidence`**。
+
+因此目前這一路的下一個工程切片是 **`SCM-R01`**（把同 commit 的 Semgrep 結果納入
+required evidence），其前置已滿足但**尚未開始**。`DATA-R01`／`DATA-R02`／`ARC-R01`／
+`WEB-P0-01/02/03` 不受此影響，仍各自待處理。
+
+`SCM-R04` 未關閉：9 筆殘留 advisory（1 low／8 moderate，全在 dev 工具鏈）低於 `high`
+門檻、不擋 gate，但仍無 owner／理由／到期日。**gate 綠不等於 patch SLA 存在。**
 
 每項的完成定義、回滾與證據格式以[執行書 §1A](full-project-execution-book-2026-07-31.md)
 為準。
