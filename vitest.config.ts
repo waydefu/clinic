@@ -16,7 +16,10 @@ export default defineConfig({
     include: [
       'apps/*/src/**/*.test.ts',
       'packages/*/src/**/*.test.ts',
-      'scripts/**/*.test.mjs'
+      'scripts/**/*.test.mjs',
+      // The agent harness guard blocks deployment and history rewriting, so it
+      // is held to the same standard as the gates under scripts/.
+      '.claude/hooks/**/*.test.mjs'
     ],
     exclude: ['node_modules', 'dist'],
     // `forks` 保留行程隔離：`apps/api` 的測試會啟動 Nest，共用行程的 `threads`

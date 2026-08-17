@@ -1,6 +1,6 @@
 # Phase 1 Approval Gate
 
-**Current status (2026-07-28):** Stage 0／Checkpoint A is complete and the
+**Current status (2026-08-11 read-only reconciliation):** Stage 0／Checkpoint A is complete and the
 project is in Stage 1 owner decisions. D-010 target architecture/SLO is now
 approved; D-004 has recorded hours/multi-service direction but remains pending,
 D-006 identity/security is approved but unimplemented, and Stage 2 now awaits a
@@ -9,11 +9,15 @@ scoped approvals recorded in the decision register. D-014～D-016 gate a
 separate Expansion S and do not change the current Phase 1 sequence. This
 document is the single
 start/stop dashboard for Phase 1 and does not replace that dated approval
-record. See the
+record. The latest modernization audit added P0 correctness and gate-truthfulness
+work without changing Stage or granting authority. See the
 [test-only checkpoint](phase-1-test-only-checkpoint-2026-07-20.md) for the
 original evidence and the
-[current UI baseline](ui-visual-baseline-2026-07-28.md) for current synthetic
-preview scope.
+[current UI baseline](ui-visual-baseline-2026-08-10.md) for dated synthetic UI
+evidence and the
+[2026-08-11 audit](2026-08-11-enterprise-modernization-audit.md) for current
+limits and Roadmap IDs. The last recorded preview expiry was 2026-08-04;
+current remote availability is `UNVERIFIED`.
 
 ## Non-negotiable state
 
@@ -24,9 +28,10 @@ preview scope.
 - A `pending` decision blocks every capability named in its “unlocks” column.
   Do not work around a pending business decision with a source-code default.
 - The documented [synthetic test-only profile](../product/test-only-sandbox-baseline.md)
-  and separately recorded preview authorization are the narrow exceptions:
-  they permit browser-local synthetic state in local testing and an expiring,
-  `noindex` static Hosting preview. They never permit real data, a booking API,
+  and a freshly recorded per-deploy preview authorization are the narrow
+  exceptions. The 2026-07 preview authority is expired and not reusable. A new
+  approval may permit browser-local synthetic state in an exact-commit,
+  expiring `noindex` static channel. It never permits real data, a booking API,
   cloud backend, production configuration or external operational effect.
 
 ## Decision dashboard
@@ -70,8 +75,10 @@ D-009, D-010, D-011 ──┴─> integration/launch review (never direct deploy
 D-014, D-015, D-016 ─────> separate Expansion S only
 ```
 
-The Stage 0 synthetic appointment write-path tests are already complete, but
-they do not establish policy-backed behaviour. D-006 policy values are
+Stage 0 has dated synthetic appointment write-path evidence, but the 2026-08-11
+audit found untested slot-release/rebooking, cyclical occurrence-ID and stale
+worker-settle cases (`DATA-R01/02`, `ARC-R01`). Do not describe the write path
+as fully verified until those regressions pass. D-006 policy values are
 approved, while D-001 through D-005 remain required before their corresponding
 production contract, intake and cancellation values can be treated as
 approved. D-006 still requires implementation and verification before it is a
@@ -91,6 +98,10 @@ For every row, the decision register must include:
    change is required.
 5. A superseding record when the policy later changes; prior approvals must
    remain auditable.
+6. Four separate states: policy approval, implementation, same-commit/environment
+   verification, and deployment/real-data authority. One never implies another.
+7. Dynamic evidence metadata: as-of date, commit/environment, coverage, owner,
+   artifact/URL and expiry or next review. Unread remote state is `UNVERIFIED`.
 
 ## Required verification after each approval group
 
@@ -112,6 +123,6 @@ recorded; the next step is review of the plan-only
 [Stage 2 identity/cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md),
 followed by a separate deployment decision. D-009 then gates Stage 3 Calendar
 projection. Before those gates, the only permitted operational path is the explicitly documented
-synthetic-only profile and expiring static preview; neither may infer or set a
-clinic answer. Expansion S remains plan-only until its existing and new
+synthetic-only local profile. A static preview additionally needs fresh
+per-deploy authority; neither path may infer or set a clinic answer. Expansion S remains plan-only until its existing and new
 decisions are separately approved.

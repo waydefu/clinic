@@ -93,10 +93,12 @@ test.describe('補全的首頁資訊', () => {
     expect(joined).not.toContain('login.php');
   });
 
-  test('常見問題不對外承諾尚未核准的取消規則', async ({ page }) => {
+  test('常見問題維持衛教邊界且不承諾尚未核准的取消規則', async ({ page }) => {
     await page.goto('/clinic');
     const faq = page.locator('#clinic-faq');
-    await expect(faq).toContainText('取消與改期規則正在確認中');
+    await expect(faq).toContainText('打鼾一定需要手術嗎？');
+    await expect(faq).toContainText('需要先確認原因');
+    await expect(faq).toContainText('實際診斷與處理方向會由醫師面診後說明');
     // D-005 未核准前，頁面上不得出現具體的截止時間或費用。
     await expect(faq).not.toContainText('24 小時');
     await expect(faq).not.toContainText('收費');

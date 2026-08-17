@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isScannedMarkdown,
   linksIn,
+  MARKDOWN_GLOBS,
   resolveLink,
   reviewDocumentation,
   sectionText
@@ -189,6 +191,21 @@ describe('documentation gate', () => {
     expect(failures).toEqual([]);
   });
 
+  // 規則與 skill 會連到 docs/ 與 scripts/，但它們自己不必進索引。
+  it('checks links in the agent harness without demanding an index entry', () => {
+    const failures = review({
+      documents: [
+        [INDEX, index()],
+        ['.claude/rules/web-ui.md', '[rules](../../docs/design/ui-ux-rules.md)']
+      ],
+      fileExists: (candidate) => candidate !== 'docs/design/ui-ux-rules.md'
+    });
+
+    expect(failures).toEqual([
+      'Broken link in .claude/rules/web-ui.md: ../../docs/design/ui-ux-rules.md'
+    ]);
+  });
+
   // 過時宣稱的掃描目標可能是 docs/ 以外的檔案，例如建置腳本的註解。
   it('reports a stale claim found in a non-markdown source', () => {
     const failures = reviewDocumentation({
@@ -213,5 +230,29 @@ describe('documentation gate', () => {
     });
 
     expect(failures).toEqual([]);
+  });
+});
+
+// 檔案探索決定了「這道閘門看得見什麼」。看不見的檔案永遠是綠的，
+// 而那和通過長得一模一樣，所以兩個方向都要斷言。
+describe('which markdown the gate discovers', () => {
+  it('scans the harness explicitly, because **/*.md skips dot-directories', () => {
+    expect(MARKDOWN_GLOBS).toContain('.claude/**/*.md');
+    expect(isScannedMarkdown('.claude/rules/web-ui.md')).toBe(true);
+    expect(isScannedMarkdown('.claude/skills/verify-gates/SKILL.md')).toBe(
+      true
+    );
+    expect(isScannedMarkdown('docs/README.md')).toBe(true);
+  });
+
+  it('skips another session worktree, whose docs/ copy is not this tree', () => {
+    expect(isScannedMarkdown('.claude/worktrees/topic/docs/README.md')).toBe(
+      false
+    );
+    expect(isScannedMarkdown('.claude/worktrees/topic/AGENTS.md')).toBe(false);
+  });
+
+  it('skips dependencies', () => {
+    expect(isScannedMarkdown('node_modules/pkg/README.md')).toBe(false);
   });
 });

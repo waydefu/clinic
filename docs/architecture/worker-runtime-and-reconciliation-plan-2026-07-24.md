@@ -3,8 +3,10 @@
 **狀態：** **設計文件，未執行。** 沒有建立任何排程器、佇列或雲端服務。
 
 `apps/worker` 目前有的是**處理器**，不是**執行環境**：`OutboxProcessor` 已在
-Emulator 驗證過領取（帶租約的交易）、外部呼叫（交易外）、結算（依
-`planOutboxAttempt` 的純決策）三段分離，也有退避、死信與 `requeue`。2026-07-29
+Emulator 驗證過領取、外部呼叫（交易外）、結算三段分離，也有退避、死信與
+`requeue`。但 2026-08-11 靜態稽核確認現有 lease 只有 expiry，沒有 owner／generation
+fencing，settle 又是 unconditional update；A 過期、B 接手後 A 仍可能覆寫 B。
+既有測試只驗證預先過期可接手，沒有 dual-worker stale-settle case。2026-07-29
 已對 deterministic backoff cap 套用可注入 random source 的 full jitter，並限制
 同一 job 每批最多嘗試一次；這是本機程式能力，不是 cloud runner 證據。缺的是
 「誰來按下開始」、「事件被人手動改掉之後怎麼發現」，以及「補回死信要什麼權限」。
@@ -39,11 +41,13 @@ isolated-foundation authority 本身不解鎖 Cloud Run／Scheduler／metrics ba
 | 觸發間隔 | 60 秒 | 延遲與空轉成本的平衡 |
 | 每批筆數 | 20 | 一次執行在 Cloud Run 逾時內能穩定跑完 |
 | 租約 | 120 秒（`LEASE_SECONDS`，已實作） | 大於單筆最壞情況的外部呼叫時間 |
-| 併發實例 | 1 | 租約已能防重入，但單實例讓積壓與配額都好推理 |
+| 併發實例 | 1（暫時風險降低，不是 correctness proof） | 在 `ARC-R01` 完成 owner/token/generation 與 conditional settle 前不得多實例；平台 retry／重疊仍可能造成兩個執行者 |
 | 執行逾時 | 300 秒 | 遠大於一批的預期時間，避免半途被砍 |
 
-**併發實例維持 1 是刻意的。** 租約機制允許多實例，但在診所規模下，多實例帶來的
-是更難解釋的行為，不是更高的吞吐。要放大時，先看積壓指標再調，不要預先調。
+**併發實例維持 1 是刻意的暫時控制，但不能補掉 fencing。** Cloud Run retry、逾時與
+排程重疊仍可產生 stale worker。正式 runner 前，`ARC-R01` 必須加入 lease owner/token
+或 monotonic generation，所有 extend/settle 以 transaction compare-and-set 驗證目前
+owner；stale attempt 要被拒絕並計量。完成後若要放大，仍先以積壓與 quota 基線決定。
 
 ### 1.2 至少一次，而不是剛好一次
 
@@ -56,7 +60,8 @@ isolated-foundation authority 本身不解鎖 Cloud Run／Scheduler／metrics ba
 - 動作依預約**當下**的狀態決定，不是工作建立時的狀態——所以延遲執行也不會把
   已取消的預約寫回日曆。
 
-這三點都已經有 Emulator 測試覆蓋。觸發器只要不破壞它們，就不必額外去猜。
+Calendar effect 的冪等語意有 dated Emulator coverage；worker ownership 則尚未覆蓋
+stale settle。兩者不可合併宣稱為「至少一次已安全」。
 
 ## 2. 對帳（reconciliation）
 

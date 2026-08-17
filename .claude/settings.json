@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.local)",
+      "Read(secrets/**)",
+      "Read(**/service-account*.json)",
+      "Read(**/*credential*.json)",
+      "Read(*.pem)",
+      "Read(*.key)",
+      "Read(*.p12)",
+      "Read(*.pfx)",
+      "Read(exports/**)",
+      "Read(backups/**)",
+      "Read(*.csv)",
+      "Read(*.xlsx)",
+      "Read(*.sql)"
+    ],
+    "ask": [
+      "Bash(corepack pnpm install*)",
+      "Bash(pnpm install*)",
+      "Bash(npm install*)"
+    ],
+    "allow": [
+      "Bash(corepack pnpm verify)",
+      "Bash(corepack pnpm run verify)",
+      "Bash(corepack pnpm check*)",
+      "Bash(corepack pnpm run check*)",
+      "Bash(corepack pnpm test*)",
+      "Bash(corepack pnpm run test*)",
+      "Bash(corepack pnpm run build*)",
+      "Bash(corepack pnpm run sync:domain)",
+      "Bash(corepack pnpm exec vitest run *)",
+      "Bash(node scripts/*)",
+      "Bash(git worktree list*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-commands.mjs"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/docs-index-check.mjs"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/session-context.mjs"],
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

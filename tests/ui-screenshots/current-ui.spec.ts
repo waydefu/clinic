@@ -17,7 +17,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 // 擷取日期。**改這裡就要一起改 `outputDirectory`、`check-structure.mjs` 的
 // `visualBaselineDirectory` 與 required paths，以及介面規則書 §5.5 指向的現行基線。**
 // 舊日期的目錄與文件保留作歷史證據，不刪。
-const CAPTURE_DATE = '2026-08-07';
+const CAPTURE_DATE = '2026-08-10';
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
@@ -174,7 +174,7 @@ function assertConsoleClean(
 async function prepareClinicHome(page: Page): Promise<void> {
   await page.goto('/clinic');
   await expect(
-    page.getByRole('heading', { level: 1, name: /從順暢呼吸開始/ })
+    page.getByRole('heading', { level: 1, name: /今晚，不必再和呼吸拔河/ })
   ).toBeVisible();
 }
 

@@ -1,9 +1,13 @@
 # AI Navigation Map - Beau Essence Appointment Platform
 
 This is the mandatory orientation document for anyone changing this repository.
-The project is in Phase 1. It contains one separately authorized static Firebase
-Hosting preview project (`beauessence-clinic-staging`) but no cloud backend,
-real clinic data, active Google Calendar integration or NAS connection.
+The project is in Phase 1. The repository contains approved public clinic and
+doctor content, but no authorised operational patient, staff, clinical,
+payroll or payment records. A static Firebase Hosting preview was separately
+authorised in 2026-07 and its last recorded channel expiry was 2026-08-04; its
+current remote availability is unverified. The source tree has no routed cloud
+backend, active Google Calendar integration or NAS connection; this repository
+fact alone does not prove that no remote resource exists.
 
 The 2026-07-23 enterprise review confirmed that the API-only, pure-domain,
 transactional outbox architecture can be retained. Stage 0 architecture
@@ -36,9 +40,12 @@ patient data remain separately decision-gated.
    an auditable adjustment.
 7. Never implement unresolved policy by guessing. Record the answer and owner
    in `docs/product/phase-1-decision-register.md` first.
-8. The online synthetic preview may deploy only static files to the expiring
-   `synthetic-review` Hosting channel in `beauessence-clinic-staging`. Never
-   deploy its live channel or enable a Firebase backend under this authority.
+8. A synthetic preview deployment requires fresh, explicit authority for the
+   exact commit, project, channel and expiry. When authorised, it may deploy
+   only static files to the expiring `synthetic-review` channel in
+   `beauessence-clinic-staging`. The 2026-07 authority and expired channel are
+   not reusable standing authority. Never deploy the live channel or enable a
+   Firebase backend under preview authority.
 
 ## Repository publication boundary
 
@@ -100,6 +107,7 @@ navigation aids, not additional authority: none of them approves anything.
 | What are the maintainability, performance, identity, retention and sync targets, and where do the numbers come from? | `docs/product/full-project-master-plan-2026-07-31.md` |
 | What are the ordered steps, with prerequisite, action, acceptance evidence and rollback? | `docs/product/full-project-execution-book-2026-07-31.md` |
 | Which gates were adversarially tested, and what did they miss? | `docs/reviews/2026-08-06-enterprise-audit.md` |
+| What did the 2026-08-11 read-only modernization audit find, and which IDs gate implementation? | `docs/reviews/2026-08-11-enterprise-modernization-audit.md` and its handoff record |
 
 ### Two facts from the 2026-08-06 audit that change how you work here
 
@@ -187,8 +195,10 @@ has already been approved.
 | 2026-07-30 | Dependency graph and Dependabot alerts enabled on `waydefu/clinic`; automatic submission, security/version/grouped updates stay disabled | It does not authorise automatic upgrade pull requests, alert dismissal or any exception |
 | 2026-07-31 | Branch protection applied and verified on `main`: strict required check `Verification evidence`, force push and deletion disabled, the D-013 administrator bypass preserved | Using the bypass still requires running the full gate manually |
 | 2026-07-31 | Owner direction: the access-restricted canonical repository stays in the current personal account and is not transferred to an organisation | It is a hosting direction, not permission to weaken SAST |
-| 2026-07-31 | The CodeQL workflow was replaced by a Semgrep CE workflow (`.github/workflows/sast.yml`, `scripts/generate-sast-evidence.mjs`, `security/semgrep/`) because a private personal repository cannot upload code-scanning results | **SEC-02 was approved on 2026-08-01** with the ENG-01 condition that the rule tests and the evidence-generator tests both sit inside the blocking gate. The approval covers the evidence policy only: Semgrep CE must still never be described as equivalent to CodeQL's cross-file taint analysis, and the engine is re-evaluated before production |
+| 2026-07-31 | The CodeQL workflow was replaced by a Semgrep CE workflow (`.github/workflows/sast.yml`, `scripts/generate-sast-evidence.mjs`, `security/semgrep/`) because a private personal repository cannot upload code-scanning results | **SEC-02 policy was approved on 2026-08-01.** A 2026-08-11 static audit found that the sole required `Verification evidence` job does not depend on the separate SAST workflow. Until `SCM-R01` makes the same-commit SAST result required, describe the state as “approved policy; merge-blocking enforcement pending”, never as CodeQL-equivalent or currently enforced |
 | 2026-07-31 | One high `brace-expansion` alert (GHSA-mh99-v99m-4gvg / CVE-2026-14257, CVSS 7.5) has no compatible published fix in the affected older majors. `pnpm-workspace.yaml` already carries `auditConfig.ignoreGhsas` for it, so `audit:prod` and `audit:all` report "1 high (1 ignored)" and still pass | **SEC-03 was approved and then released on the same day (2026-08-01).** The advisory was revised at 2026-07-31T19:37Z to publish a first patched version per major, which met the recorded release condition, so the dependency is pinned per major and the ignore was removed instead of renewed. **The repository now carries no audit exceptions.** ENG-04 still governs any future one: it must be registered in `security/audit-exceptions.json` with an approval ID and expiry, and `check:audit-exceptions` fails on an unregistered, incomplete or expired entry. Never dismiss a Dependabot alert to make a gate green |
+| 2026-08-11 | Read-only GitHub API verification at 14:32 +08:00: `main` has no repository ruleset; its only strict required context is `Verification evidence`; `enforce_admins=false` and no required review is configured. Dependabot reports 9 open development-scope alerts (8 medium, 1 low) | This is a dated remote snapshot, not authority to change protection, dismiss alerts, merge PR #14 or describe the new documentation commit as passing before its own checks finish |
+| 2026-08-17 | **The dependency audit gate is red, and it is not yours.** `SCM-006`, re-verified on this date from the CI log of run `31994942617` on commit `fc15bfd`: `check:supply-chain` clears secrets, audit exceptions and `audit:prod` ("No known vulnerabilities found"), then `audit:all` reports `10 vulnerabilities found — 1 low \| 8 moderate \| 1 high`. The high is `nanoid` (`GHSA-2v37-7h3g-55p8`), reached only through dev tooling: `vitest > vite > postcss > nanoid`. **The advisory has been revised since the 2026-08-11 audit — the threshold is now `<3.3.18` vulnerable, `>=3.3.18` patched, not `3.3.17`.** `Verification evidence` aggregates the failure, so PR #14 cannot merge; every other job on that commit passed, including all six e2e groups and the independent Semgrep run | It does not authorise lowering `--audit-level`, registering an exception or dismissing an alert to clear it. The fix is `SCM-R05` (raise `nanoid` past the **current** threshold — the audit's recorded `>=3.3.17` target is now insufficient), which is the recorded prerequisite for `SCM-R01`. Until then, report this gate as a pre-existing `FAIL` with its ID rather than as caused by your change |
 
 When touching `security/semgrep/**`, `.github/workflows/sast.yml` or
 `scripts/generate-sast-evidence.mjs`, remember that the rule files are the
@@ -348,7 +358,8 @@ lines.
 | Sequencing, acceptance evidence or rollback for any remaining stage | `docs/product/full-project-execution-book-2026-07-31.md` | A step without a rehearsed rollback is not ready to run |
 | Finishing a stage, or picking one up from someone else | `docs/reviews/` newest dated handoff record, indexed in `docs/README.md` | A stage is not complete until its handoff record exists. Write it with the §10.4 template in the execution book: real numbers rather than "passed", the defects you hit, and above all the things you did **not** do |
 | A blocking check under `scripts/` | The script plus its test | Define behaviour for a clean tree, a dirty tree with deletions and a fresh clone; a gate that crashes reports a false failure |
-| SAST workflow, Semgrep rules or evidence generation | `.github/workflows/sast.yml` + `security/semgrep/` | Rule fixtures are intentionally unsafe and ESLint-excluded; SEC-02 is still pending, so do not describe the output as approved evidence |
+| SAST workflow, Semgrep rules or evidence generation | `.github/workflows/sast.yml` + `security/semgrep/` | Rule fixtures are intentionally unsafe and ESLint-excluded. SEC-02 policy is approved, but required-check enforcement is pending `SCM-R01`; do not describe a non-required workflow as a merge gate or as CodeQL-equivalent |
+| A named ID from the 2026-08-11 modernization audit, or any "fix all of these" set | `docs/reviews/2026-08-11-enterprise-modernization-audit.md` §6 issues and §14 Roadmap | The IDs carry prerequisites (`SCM-R01` needs `SCM-R05`) and each names its own rollback and acceptance. Close the declared set to exhaustion across as many pull requests as it needs — one PR per concern bounds the PR, not the closure — and search for siblings of every failure class you confirm |
 
 ## Required implementation sequence
 

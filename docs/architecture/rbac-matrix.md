@@ -1,6 +1,8 @@
 # 角色權限矩陣（RBAC Matrix）
 
-**狀態：** plan-only 收斂提案。**不是**已實作證據，也不關閉任何 D-series 決策。
+**狀態：** 現況 inventory＋plan-only 權限提案。Canonical role 集合已於 2026-08-06
+收斂到 domain；browser migration、正式 Session/RBAC/query/field enforcement 仍未完成。
+**不是** protected-route 實作證據，也不關閉任何 D-series 決策。
 
 **撰寫日期：** 2026-08-04
 
@@ -10,18 +12,20 @@
 
 ## 1. 為什麼需要這一份
 
-目前 repository 裡有**三套互不相容的角色定義**，而已核准的 D-006 基線是第四套。
-這不是文件落後於程式，是程式內部本身就分歧：
+2026-08-04 撰寫時 repository 有三套互不相容的角色。2026-08-06 已把 server canonical
+集合收斂到 `packages/domain/src/roles.ts`，API 從 `@beauessence/domain` 匯入；但 browser
+仍維持 legacy `admin/front_desk`，因此 migration 與安全 enforcement 尚未完成：
 
 | 來源 | 角色 | 數量 |
 | --- | --- | --- |
-| [`apps/web/public/modules/permissions.js`](../../apps/web/public/modules/permissions.js) | `admin`、`front_desk` | 2 |
-| [`apps/api/src/platform/authorization/rbac.ts`](../../apps/api/src/platform/authorization/rbac.ts) | `patient`、`front_desk`、`case_manager`、`manager`、`system_admin`、`auditor`、`service_account` | 7 |
+| [`packages/domain/src/roles.ts`](../../packages/domain/src/roles.ts) | `manager`、`front_desk`、`consultant`、`physician`、`patient`、`system_admin`、`auditor`、`service_account` | 8；canonical |
+| [`apps/api/src/platform/authorization/rbac.ts`](../../apps/api/src/platform/authorization/rbac.ts) | 從 domain 匯入 canonical `Role`；candidate permission table 未 routed | 8 |
+| [`apps/web/public/modules/permissions.js`](../../apps/web/public/modules/permissions.js) | `admin`、`front_desk` | 2；legacy 待遷移 |
 | D-006 核准基線（2026-07-28） | administrator／front-desk／**physician** | 3 |
 | 負責人 2026-08-04 需求 | 管理者、櫃檯、諮詢師、醫師、病患（＋未來護理師、麻醉、財務） | 5＋3 |
 
-**「醫師」與「諮詢師」在兩份程式碼裡都不存在**，儘管 D-006 核准的基線明確包含
-physician。`rbac.ts` 自己的檔頭註解已經承認這張表 predates D-006、需要重新對齊。
+`physician` 與 `consultant` 現已存在於 canonical type；`physician` 的 permission list
+刻意為空，因 D-014/D-015 尚未核准。存在角色代碼不等於授權任何臨床或付款 action。
 
 角色收斂是 App Shell（誰看得到哪個導覽項）、日程 Drawer（誰看得到金額）與患者端
 欄位過濾三者的共同前提。三套定義不收斂，這三塊都蓋在流沙上。
@@ -201,9 +205,10 @@ Rules 層的責任是「確保沒有人繞過 API」，不是複製一份角色�
 
 ## 6. 驗收條件
 
-1. `packages/contracts` 匯出唯一的 `Role` 型別，瀏覽器與伺服器都從它匯入；
-   `check:architecture` 新增守衛，禁止任何檔案自行宣告角色字串字面值。
-2. 瀏覽器 `permissions.js` 的 `rolePermissions` 由該共用型別推導，不再手寫。
+1. `packages/domain/src/roles.ts` 保持唯一 canonical `Role`；API 從 domain 匯入，browser
+   使用雜湊驗證的 compiled vendor mirror。不得另建 role 字串來源。
+2. 瀏覽器 `permissions.js` 的 legacy `admin/front_desk` 以 versioned state migration
+   收斂；`admin→manager`，未知角色 fail-closed，不以 browser role 作 server authority。
 3. 每個角色都有一支 `tests/e2e/auth-rbac` 分組下的直連 URL 測試：以該角色登入後
    直接輸入其他角色的工作區網址，必須被擋下且不洩漏資料。
 4. Firestore rules 測試維持預設拒絕全綠。

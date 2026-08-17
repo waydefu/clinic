@@ -1,7 +1,12 @@
 # 專案後續執行與核准清單
 
 **狀態：現行權威／Stage 1／尚未授權雲端或真實資料。**  
-**最後更新：2026-08-01（Asia/Taipei）**
+**最後更新：2026-08-11（Asia/Taipei）**
+
+**證據新鮮度：** 2026-08-11 為唯讀靜態盤點；未重跑 build、unit、Rules、E2E、
+browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史證據，不是目前 HEAD
+的執行證明。完整 finding 與 Roadmap ID 見
+[同日現代化稽核](../reviews/2026-08-11-enterprise-modernization-audit.md)。
 
 這份文件把後續工作收斂成一條可執行的路徑，並用白話列出需要業主、診所、法務、
 資安、營運或技術負責人核准的事項。細節仍以
@@ -15,24 +20,32 @@ Cloud／Firebase 資源、連接 Calendar 或處理真實病患資料。
 
 ## 一句話說明
 
-Stage 0 的 repository／安全證據已完成；現在同時走兩條不衝突的路：回收 39 題業主
-答案與完成 C0，以及處理 TW-01～TW-05 的 repository／測試／人工無障礙補強。
+Stage 0 的日期化 repository 證據已交付；現在同時走兩條不衝突的路：回收 39 題業主
+答案與完成 C0，以及處理 2026-08-11 新發現的 correctness／gate truthfulness P0。
+TW-01～TW-04 與 TW-05 自動前置條件已於 2026-08-01 交付，TW-05 真人驗收仍未完成。
 C0 通過後才可逐片申請只放合成資料的 staging，後續再依決策走 Calendar、公開服務、
 排班／個管／薪資、Production 與獨立的 Expansion S。
 
 ## 固定執行順序
 
-### 0. Repository 與品質收尾（主要工作已完成）
+### 0. Repository 與品質收尾
 
-Stage 0 已合併，私有與公開端證據見
-[Stage 0 交接紀錄](../reviews/2026-08-01-gate-script-test-coverage.md)。仍有五個**不阻塞
-決策、但不得遺失**的技術工作包，可在 Stage 1 並行：
+Stage 0 dated evidence 見
+[2026-08-01 gate coverage 交接](../reviews/2026-08-01-gate-coverage-tw-01-05.md)。TW-01～
+TW-04 與 TW-05 自動前置條件已交付；原 TW 唯一未完成的是 TW-05 真人螢幕閱讀器、
+鍵盤、forced-colors 與實體裝置驗收，先在 synthetic rehearsal 執行，Production 前再
+對 release candidate 留正式紀錄。
 
-1. TW-01：替 `check-architecture.mjs` 補核心邏輯自測。
-2. TW-02：拆分 `check-web-ui.mjs` 並補 permission／safety／a11y／DOM fixture。
-3. TW-03：補 `checkPublicPageConfiguration` 的完整組態 fixture。
-4. TW-04：量測 Vitest collect，並查清 API health test 批次逾時；不得只提高 timeout。
-5. TW-05：先在合成環境預演人工無障礙；Production 前對 release candidate 正式執行。
+2026-08-11 另確認需先處理 `DATA-R01`、`DATA-R02`、`ARC-R01`、`SCM-R05`、
+`SCM-R01/02`、`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是新的
+current finding；在對應 acceptance 通過前，不得把 slot release、outbox
+ownership、SAST merge gate、privacy index、clinic timing 或完整 axe evidence
+寫成已驗證。
+
+其中 `SCM-R05` 最先做，也是 `SCM-R01` 的前置：稽核基準 `cf597af` 上唯一 required
+的 `Verification evidence` 目前是紅的（dependency audit 抓到 1 筆 high `nanoid`，
+經 `postcss` 進入 dev 工具鏈），**該 branch 現在無法 merge**。在它轉綠之前，不得把
+任何 CI gate 描述成已通過。
 
 每項的完成定義、回滾與證據格式以[執行書 §1A](full-project-execution-book-2026-07-31.md)
 為準。
@@ -90,6 +103,11 @@ Calendar 仍只是投影，不是預約量能或衝突的 source of truth。
 public release；C2 已於 2026-08-02 全部完成——WebP／responsive 壓縮到位、影像預算改為
 180 KiB／14 檔（實測 127.3 KiB／13 檔），圖片來源與授權確認為診所自有。
 
+**2026-08-11 SEO／隱私 fail-closed 缺口：** `/privacy` 目前被 page inventory 標為
+indexable 且列於 sitemap，但頁面仍明示草稿未生效。任何
+`WEB_PUBLIC_INDEXABLE=true` 發布前必須改為 route-specific 核准；D-003 未核准時，
+privacy 草稿維持 noindex 並排除 sitemap。一個全域開關不得代替每頁發布核准。
+
 ### 5. Stage 5：個管、排班與薪資正式化
 
 先核准 D-004、D-007、D-008；若薪資／結算使用付款實收或退款資料，還須先關閉
@@ -122,7 +140,7 @@ production 的告警、secret rotation、restore、DR、法規／vendor 重審�
 | 核准項目 | 狀態 | 白話問題 | 建議方向 | 核准人 |
 | --- | --- | --- | --- | --- |
 | SEC-01 repository 位置 | **已決定** | 現在要不要把私有 repository 移到組織？ | 2026-07-31 業主方向為「目前不轉移」；維持個人私有 repository，未來再重評 | Repository owner |
-| SEC-02 私有 SAST 證據政策 | **已核准 2026-08-01**（含 ENG-01 追加條件；由業主一人兼任技術與資安負責人簽核，非兩組獨立審查） | GitHub Security 頁面不能收 CodeQL 結果時，可否先以 Semgrep CE 專案規則的 JSON／SARIF＋摘要 artifact 作為阻斷證據？ | 接受固定版本、規則正反測試、rules hash 與 commit-bound artifact；任何 finding／掃描／解析／規則測試失敗仍阻斷；明確認知 CE 不是 CodeQL 跨檔案分析的等價替代，上線前重評。**ENG-01（2026-08-01）追加：Semgrep 規則測試與證據產生器測試必須都在阻斷式 gate 內執行，任一失敗即紅。** 追加原因是 2026-08-01 發現證據產生器的測試落後於實作，分類邏輯在修好前從未被驗證 | Technical owner＋security owner |
+| SEC-02 私有 SAST 證據政策 | **政策已核准 2026-08-01；merge-blocking enforcement 待 `SCM-R01`**（單人兼任兩角色簽核） | GitHub Security 頁面不能收 CodeQL 結果時，可否以 Semgrep CE commit-bound artifact 作為阻斷證據？ | 政策接受 pinned engine、rules/fixtures/hash 與 artifact，且明確認知 CE 非 CodeQL 跨檔等價物。2026-08-11 14:32 +08:00 唯讀 API 確認 `main` 唯一 required context 是 `Verification evidence`，且它未依賴獨立 SAST workflow；在直接 require 精確 SAST check 或聚合同 commit SAST 前，不得稱 merge 已被強制 | Technical owner＋security owner |
 | SEC-03 `brace-expansion` 暫時例外 | **已解除 2026-08-01**（核准當日 advisory 修訂補上各 major 修補版，解除條件成立；已改為逐 major 鎖定並移除忽略設定，目前無任何 audit 例外） | 舊 major 沒有相容修補時，是否接受目前限定路徑的暫時風險？ | 保持 alert 可見、不 dismiss；只接受目前 dev-only／未掛路由且不接收攻擊者 glob 的路徑，直到上游舊 major 修補或父套件可移到 5.x；每次升版重查 | Technical owner＋security owner |
 
 ### B. Stage 1 決策

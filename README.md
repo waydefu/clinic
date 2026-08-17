@@ -113,35 +113,41 @@ dismissed or automatically changed. See the
 [private Dependabot alert enablement record](docs/reviews/2026-07-30-private-dependabot-alert-enablement.md)
 for the exact setting boundary and evidence.
 
-The 2026-07-31 repository-security batch prepares compatible fixes for all
-three moderate alerts. GitHub evaluates the default branch, so those alerts
-remain open until this branch is reviewed and merged. The remaining high
-`brace-expansion` alert is limited to older transitive majors with no compatible
-published fix; it stays visible pending named risk acceptance and an upstream
-upgrade path. `main` now has a strict required `Verification evidence` check,
-with force pushes and deletion disabled and the D-013 administrator bypass
-preserved.
+The 2026-08-01 repository-security delivery fixed the three recorded moderate
+advisories and pinned patched `brace-expansion` versions after its advisory was
+revised; the source tree carries no active audit exception. A read-only GitHub
+API check at 2026-08-11 14:32 +08:00 found **9 open development-scope
+Dependabot alerts** on `main` (8 medium, 1 low); this dated remote inventory is
+separate from source-tree audit exceptions and requires `SCM-R03` triage.
+`main` has no repository ruleset; branch protection has one strict required
+context, `Verification evidence`, with force pushes and deletion disabled,
+`enforce_admins=false`, and no required review. That required job does not
+depend on the separate Semgrep workflow, so SEC-02 is an approved policy with
+merge-blocking enforcement still pending `SCM-R01`.
 
 ## Clinic website integration — 2026-07-27
 
-The expiring synthetic preview now includes a responsive clinic website at
-`/clinic`, two medical-team profiles and four nasal-functional-medicine pages.
+The source implementation includes a responsive clinic website at `/clinic`,
+two medical-team profiles and four nasal-functional-medicine pages. Its last
+recorded synthetic preview channel expired on 2026-08-04; current Hosting
+availability was not verified in the 2026-08-11 audit.
 Plastic-surgery and injectable/medical-aesthetic category pages are excluded.
 Every clinic appointment call to action enters the existing `/booking` flow,
 and the booking header links back to the clinic site. The two surfaces share
 the same white, mist-green and deep-forest visual direction.
 
-This is still a static, noindex preview. Clinic information pages collect
-nothing; the patient form remains browser-local and must not receive real
-patient data. See the
+The authorised presentation remains static and noindex: clinic information
+pages collect nothing, while the patient form is browser-local and must not
+receive real patient data. This source fact does not assert that a preview is
+currently online. See the
 [clinic website and booking integration record](docs/design/clinic-site-integration-2026-07-27.md)
 for the route map, content boundary and implementation structure.
 
-## Current UI and delivery baseline — 2026-07-28
+## Current UI and delivery baseline — 2026-08-10
 
-The former “latest” 2026-07-23 UI paragraph is historical. The current,
-reproducible reference is the
-[2026-07-28 UI visual baseline](docs/reviews/ui-visual-baseline-2026-07-28.md):
+The former 2026-07-23 and 2026-07-28 UI paragraphs are historical; the latter
+remains a superseded reference only. The current reproducible reference is the
+[2026-08-10 UI visual baseline](docs/reviews/ui-visual-baseline-2026-08-10.md):
 ten named desktop/mobile screenshots with a hash manifest, fixed synthetic
 state and a documented capture environment. It confirms Stage 0/Checkpoint A
 has passed, Stage 1 owner decisions are current, `/v1/health` remains the only
@@ -222,8 +228,12 @@ git status
 git push -u origin $branch
 ```
 
-On the next computer, install Git 2.x, Node `>=24.14.0 <25`, pnpm `11.9.0`
-and JDK 21 before running the following commands. Close and reopen PowerShell
+On the next computer, install Git 2.x, pnpm `11.9.0` and JDK 21. For the dated
+2026-08-11 verification baseline use Node `24.18.0`; the repository engine
+range still admits older 24.x patches and CI still floats the major, which is a
+known release blocker tracked by `SCM-R02`, not a security floor. Once
+`SCM-R02` lands, use the exact patched Node version or image digest recorded by
+CI/runtime instead of copying this dated value. Close and reopen PowerShell
 after installation so the updated `PATH` and `JAVA_HOME` are loaded. Clone the
 branch that was just pushed into a folder owned by the current computer's user:
 

@@ -38,6 +38,24 @@ The disposable Emulator suite also exercises the server repository:
   conflict rolls back the appointment, slot, guard, outbox and idempotency
   writes together.
 
+### 2026-08-11 correctness correction
+
+The bullets above describe the intended invariant and dated Stage 0 coverage;
+they are not proof that every legal lifecycle is correct. A read-only audit
+confirmed two uncovered cases:
+
+- `booking.repository.ts` releases a slot by writing `reservationId: null`,
+  while `appointment-rules.ts` treats every value other than `undefined` as
+  reserved. The browser adapter deletes the property instead. Existing tests
+  assert the stored `null` but do not attempt to book that released slot again.
+- transition audit/outbox occurrence IDs are derived from resulting state or
+  target slot. A legal state cycle can therefore reuse an Audit v2 document ID;
+  the repository's create-only audit then rolls back the whole transaction.
+
+Until `DATA-R01` and `DATA-R02` pass release-after-rebook, repeated legal-cycle
+and contention regression tests, do not describe slot release or append-only
+occurrence identity as fully verified and do not route the adapter.
+
 ## Commands
 
 Every mutating Firestore harness calls

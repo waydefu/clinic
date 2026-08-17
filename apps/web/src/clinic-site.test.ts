@@ -3,10 +3,17 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   BOOKING_PATH,
+  CLINIC,
   CLINIC_ROUTES,
   DOCTORS,
+  HOME_DOCTOR_PROFILES,
+  HOME_FAQS,
+  HOME_PAGE,
+  HOME_PROCESS_ITEMS,
+  HOME_SYMPTOMS,
   NASAL_SERVICES,
-  NAVIGATION
+  NAVIGATION,
+  SNORING_SELF_TRACKING
 } from '../public/clinic-content.js';
 
 const repoFile = (relativePath: string) =>
@@ -41,14 +48,45 @@ describe('clinic website scope', () => {
       expect(service.intro.length).toBeGreaterThan(30);
       expect(service.sections.length).toBeGreaterThanOrEqual(3);
       expect(service.image).toMatch(/^\/clinic-assets\//);
+      const source = new URL(service.sourceUrl);
+      expect(source.protocol).toBe('https:');
+      expect(source.host).toBe('beauessence.com.tw');
     }
   });
 
-  // C3（業主 2026-07-27）：止鼾頁放 SnoreLab 的官方入口。
+  it('keeps homepage copy data-driven and limited to nasal and sleep care', () => {
+    const serviceSlugs = new Set(NASAL_SERVICES.map((service) => service.slug));
+    const doctorSlugs = new Set(DOCTORS.map((doctor) => doctor.slug));
+
+    expect(HOME_SYMPTOMS).toHaveLength(5);
+    expect(HOME_PROCESS_ITEMS).toHaveLength(4);
+    expect(HOME_FAQS).toHaveLength(4);
+    for (const symptom of HOME_SYMPTOMS) {
+      expect(serviceSlugs.has(symptom.slug)).toBe(true);
+    }
+    for (const profile of HOME_DOCTOR_PROFILES) {
+      expect(doctorSlugs.has(profile.slug)).toBe(true);
+    }
+
+    const homepageCopy = JSON.stringify({
+      HOME_PAGE,
+      HOME_SYMPTOMS,
+      HOME_PROCESS_ITEMS,
+      HOME_DOCTOR_PROFILES,
+      HOME_FAQS,
+      SNORING_SELF_TRACKING
+    });
+    expect(homepageCopy).not.toMatch(
+      /醫美|微整|整形美容|隆鼻|抽脂|玻尿酸|肉毒|雷射/u
+    );
+  });
+
+  // C3（業主 2026-07-27）：首頁與止鼾頁放 SnoreLab 的官方入口。
   //
   // 這三個網址是當天從 snorelab.com 首頁的下載按鈕讀出來的實際 href，不是依商店
-  // 網址格式拼湊的。拼錯一個字母不會有任何錯誤訊息——只會把患者送到別人的 App，
-  // 所以主機名單寫死在測試裡，改網址就必須同時改這裡並重新確認一次來源。
+  // 網址格式拼湊的，並於 2026-08-10 加入首頁時重新開啟三頁確認。拼錯一個字母不會
+  // 有任何錯誤訊息——只會把患者送到別人的 App，所以主機名單寫死在測試裡，改網址
+  // 就必須同時改這裡並重新確認一次來源。
   type ServiceResources = {
     links?: { label: string; href: string }[];
     paragraphs?: string[];
@@ -61,6 +99,7 @@ describe('clinic website scope', () => {
       (service) => service.slug === 'snoring-five-in-one'
     );
     const resources = resourcesOf(snoring);
+    expect(resources).toBe(SNORING_SELF_TRACKING);
     expect(resources?.links).toHaveLength(3);
 
     const officialHosts = [
@@ -103,6 +142,41 @@ describe('clinic website scope', () => {
     expect(shell).toContain('href="/booking"');
     expect(renderer).toContain('BOOKING_PATH');
     expect(renderer).not.toMatch(/<form|innerHTML/);
+  });
+
+  it('keeps SEO metadata route-specific without enabling preview indexing', () => {
+    const shell = repoFile('apps/web/public/clinic.html');
+    const renderer = repoFile('apps/web/public/clinic-site.js');
+
+    expect(shell).toContain('name="robots" content="noindex, nofollow"');
+    expect(renderer).toContain("'og:title'");
+    expect(renderer).toContain("'twitter:card'");
+    expect(shell).toContain('"@type": "MedicalClinic"');
+    expect(shell).toContain('"@type": "OpeningHoursSpecification"');
+    expect(renderer).toContain('link[rel="canonical"]');
+  });
+
+  it('keeps static structured clinic data aligned with the content model', () => {
+    const shell = repoFile('apps/web/public/clinic.html');
+    const match = shell.match(
+      /<script id="clinic-structured-data" type="application\/ld\+json">([\s\S]*?)<\/script>/u
+    );
+    expect(match).not.toBeNull();
+
+    const structured = JSON.parse(match?.[1] ?? '{}');
+    expect(structured).toMatchObject({
+      '@context': 'https://schema.org',
+      '@type': 'MedicalClinic',
+      name: CLINIC.name,
+      alternateName: CLINIC.englishName,
+      telephone: CLINIC.phoneHref.replace('tel:', ''),
+      address: {
+        '@type': 'PostalAddress',
+        ...CLINIC.addressStructured
+      },
+      sameAs: CLINIC.socialLinks.map((item) => item.href)
+    });
+    expect(structured.openingHoursSpecification).toHaveLength(2);
   });
 });
 

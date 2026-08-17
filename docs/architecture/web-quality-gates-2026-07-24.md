@@ -2,6 +2,10 @@
 
 **狀態：** Stage 0 內完成，未解除任何決策 gate。
 
+> **2026-08-11 實作查核更正：** 本次為唯讀靜態盤點，未重跑任何 gate。CodeQL 已被
+> Semgrep CE 取代；SAST required-check、clinic timing mapping 與 axe lower-severity
+> evidence 的限制依下文修正。歷史數字不得當作目前 HEAD 通過證據。
+
 這份文件說明「品質」在這個專案裡是怎麼被**強制**的：哪些由 CI 擋、哪些只能靠
 人工、哪些必須等決策核准。文件本身不是把關；把關是 `corepack pnpm verify`、
 `.github/workflows/` 與 runbook。
@@ -13,22 +17,22 @@
 | 結構、UI 邊界、文件連結 | 腳本 | `scripts/check-*.mjs` | 是 |
 | 設計 token（未定義 token、寫死色、字重、圓角、陰影、斷點） | 腳本 | `scripts/check-design-tokens.mjs` | 是 |
 | 三主題覆蓋率與深色亮度階層 | Playwright | `tests/e2e/theme.spec.ts` | 是 |
-| 版面重排（WCAG 1.4.10） | Playwright | `tests/e2e/responsive.spec.ts` | 是 |
+| 水平 overflow／reflow 回歸預檢（支援 WCAG 1.4.10，不等於完整符合性） | Playwright | `tests/e2e/responsive.spec.ts` | 是 |
 | 格式與 lint | Prettier、ESLint | `eslint.config.mjs` | 是 |
 | 型別與單元測試 | tsc、Vitest | `verify` | 是 |
 | Firestore 交易／規則 | Emulator 測試 | `pnpm test:rules` | 是 |
 | 端到端流程 | Playwright | `tests/e2e/` | 是 |
-| 無障礙（自動可判定） | axe-core | `tests/e2e/accessibility.spec.ts` | 是（serious／critical） |
+| 無障礙自動規則子集 | axe-core | `tests/e2e/accessibility.spec.ts` | 是（僅 serious／critical；moderate／minor 未留存，不等於 WCAG 完整符合） |
 | 無障礙（螢幕閱讀器、高對比） | 人工 | [人工無障礙測試 runbook](../runbooks/manual-accessibility-test.md) | 否——人工，需留紀錄 |
 | 頁面重量 | 靜態預算 | `scripts/check-performance-budget.mjs` | 是 |
-| 首屏時間與版面位移 | 瀏覽器實測 | `tests/e2e/performance.spec.ts` | 是 |
+| 合成首屏時間與版面位移 | 瀏覽器實測 | `tests/e2e/performance.spec.ts` | 部分：目前只映射 `/` 與 `/booking`；clinic timing 宣告會被略過 |
 | 已提交的密鑰 | 腳本 | `scripts/check-tracked-secrets.mjs` | 是 |
 | 相依漏洞（出貨面） | `pnpm audit --prod` | `audit:prod` | 是（**moderate 起**） |
 | 相依漏洞（含 dev 工具鏈） | `pnpm audit` | `audit:all` | 是（high／critical） |
 | 依賴方向、未接線清單、domain 規則單一來源 | 腳本 | `scripts/check-architecture.mjs` | 是 |
 | 分支保護含 `evidence` | 腳本（需 token） | `scripts/check-branch-protection.mjs` | 否——不在 `verify`，無 token 時回離開碼 2 |
 | SBOM 與授權政策 | CycloneDX 產生器 | `scripts/generate-sbom.mjs` | 是 |
-| SAST（跨檔案資料流） | CodeQL | `.github/workflows/codeql.yml` | 設定完成；遠端執行結果須以 run 證據確認，見 §4 |
+| SAST（規則式；非跨檔 data-flow 等價方案） | Semgrep CE | `.github/workflows/sast.yml` | workflow 會因 finding／scanner／rule test 失敗變紅；尚未納入唯一 required `Verification evidence` |
 
 ## 2. 效能預算
 
@@ -42,12 +46,14 @@
   `apps/web/dist` 靜態計算，走 HTML → CSS／JS → 相對匯入的傳遞閉包，**以 gzip
   後的大小**計——Hosting 對文字資產會壓縮，使用者下載的是壓縮後的量。這一半是
   確定性的：同樣的產物永遠得到同樣的數字，所以適合當硬性 gate。
-- **時間**（`timings`）由 `tests/e2e/performance.spec.ts` 在 Chromium 實測 FCP、
-  LCP 與 CLS。門檻取 Core Web Vitals 的「良好」界線（1.8s／2.5s／0.1），不是貼著
-  本機現值——共用 CI runner 的時間本來就會抖動，貼著現值訂只會製造假紅燈。這個
-  測試要抓的是「有人讓首屏慢了一個數量級」。
+- **時間**（`timings`）由 `tests/e2e/performance.spec.ts` 在 Chromium 量測，但只會
+  執行 `URL_BY_BUDGET_PATH` 有映射的項目。截至 2026-08-11，映射只含
+  `/index.html` 與 `/patient.html`；`/clinic.html` 的 timings 會被 `continue` 靜默
+  略過。FCP 是輔助 lab metric，LCP／CLS 才是 Core Web Vitals；目前也沒有 INP、
+  mobile timing 或 p75 真實使用者資料。這些門檻只能稱為 synthetic regression
+  guard，不是 Core Web Vitals field-data 達標證據。
 
-目前值（2026-07-26，gzip）：患者頁 53.5 KiB／32 個請求，工作臺 77.9 KiB／
+歷史量測快照（2026-07-26，gzip；不是目前 HEAD 基線）：患者頁 53.5 KiB／32 個請求，工作臺 77.9 KiB／
 34 個請求，404 頁 1.9 KiB。預算仍保留 runner 與小幅內容變動的餘裕。
 
 2026-07-25 有兩項變動：
@@ -174,9 +180,15 @@ Lighthouse `budget.json` 的格式以便日後直接餵進 Lighthouse CI，而 L
 artifact），取代先前只有我們自己看得懂的 `dependency-inventory.json`。每個元件
 都有 purl，可直接餵給漏洞比對與授權稽核工具。
 
+這是目前實作格式，不是 2026-08-11 的正式規格終態：CycloneDX 目前 formal 版本為
+1.7。現有 artifact 只保留 90 日、未綁 deploy artifact digest，也沒有 provenance、
+signature 或 dependency-completeness 聲明；不得把它單獨稱為 release assurance。
+
 同一個腳本同時是**授權 gate**：
 
-- 允許清單只收寬鬆授權；強 copyleft（GPL／AGPL）不得進入相依樹，需法務判斷。
+- 允許清單是本 repository 經審視的政策，不可統稱全部為 permissive；例如
+  MPL-2.0 是 weak copyleft。GPL／AGPL 或未知義務不得直接進入相依樹，任何例外都要
+  有 owner、法務核准、適用 scope、理由與 expiry。
 - SPDX 運算式是**被解析的**，不是字串比對：`(MIT OR CC0-1.0)` 會通過，
   `MIT AND GPL-3.0-only` 不會，看不懂的字串一律不通過。
 - 沒有宣告授權、或宣告了非 SPDX 字串的套件，必須列入 `REVIEWED_EXCEPTIONS`
@@ -193,21 +205,23 @@ purl，不受影響。若之後需要完整相依圖，來源要改成鎖檔。
 
 ## 4. SAST
 
-分兩層：
+分兩層，另有一個尚未補完的 required-check 邊界：
 
-1. **ESLint（已生效）**：`no-eval`／`no-new-func`／`no-script-url`／`no-proto`
-   套用到所有檔案，`no-implied-eval` 在 JS 側明示、TS 側由型別感知版本涵蓋。
-   擋的是單一檔案裡一眼可辨的動態求值 sink。
-2. **CodeQL（設定完成，遠端狀態需看實際 run）**：`.github/workflows/codeql.yml`，
-   `javascript-typescript` ＋ `security-extended`。它做的是跨檔案污染追蹤——例如
-   「使用者輸入是否在沒有經過 `escapeHtml` 的情況下流進 `innerHTML`」，正是這個
-   平台（瀏覽器層大量用樣板字串產生 HTML）最需要的分析。
+1. **ESLint**：阻擋單檔可判定的動態求值與危險語法。
+2. **Semgrep CE**：使用固定 engine image、固定 upstream rules revision、
+   repository-owned rules 與正反 fixture，產出同一 commit 的 JSON／SARIF／summary
+   artifact。它是規則式分析，**不等同 CodeQL 的跨檔 taint/data-flow**。
+3. **Required-check 限制（2026-08-11）**：`.github/workflows/sast.yml` 是獨立
+   workflow；唯一 required `Verification evidence` 只依賴 `verify`、`rules`、
+   `e2e` 與 `supply-chain`。因此 SEC-02 政策已核准，但 merge-blocking enforcement
+   尚未被證明；`SCM-R01` 必須讓精確、同 commit 的 SAST 結果成為 required。
+4. **`SCM-R01` 的前置是 `SCM-R05`**：`supply-chain` 目前在稽核基準 `cf597af` 就是
+   紅的（見 §3 的 `nanoid` high），連帶讓 `Verification evidence` 變紅。aggregate
+   沒先轉綠，`SCM-R01` 的「故意失敗 PR」驗收就分不出擋住 PR 的是 SAST 還是
+   dependency audit，等於驗不出 required boundary。
 
-Repository 已有 GitHub remote，workflow 會在 push／pull request／每週排程執行。
-但私有 repository 是否能寫入 code-scanning results 仍取決於 repository 方案與
-GitHub Advanced Security 權限；本機無法由 YAML 推論遠端是否成功。workflow 會在
-每次 run 產生綁定 commit SHA 的 `codeql-verification-evidence` artifact（90 天）與
-job summary。**上線證據包必須附實際 run 與掃描結果，而不只是設定檔的存在。**
+上線證據包仍須附實際 run、commit SHA、掃描結果與 artifact；YAML 存在、獨立 workflow
+變紅或本機掃描成功，都不能單獨證明 branch merge 被阻擋。
 
 ## 4-b. 設計 token
 
@@ -241,6 +255,39 @@ grouped updates、version updates 與 self-hosted-runner support 均未一併開
 Dependabot 是額外的持續可見性，不取代下面會阻斷 CI 的兩層 audit，也不會自動核准
 修補或例外；完整設定證據見
 [2026-07-30 啟用紀錄](../reviews/2026-07-30-private-dependabot-alert-enablement.md)。
+
+**2026-08-11 14:32 +08:00 遠端唯讀快照：** GitHub Dependabot API 對 `main`
+回報 9 筆 open development-scope alerts（8 medium、1 low）。這不推翻
+2026-08-01 當時批次已修補的史實，也不能由「source tree 沒有 audit exception」推論
+遠端沒有新 alert。Draft PR #14 的 `Tracked secrets、dependency audit 與 inventory`
+及 required `Verification evidence` 在稽核基準 `cf597af` 為失敗；本次沒有重跑或
+修改 dependency。
+
+**失敗原因（同日唯讀讀取 Actions log）：** `corepack pnpm audit --audit-level high`
+回報 `10 vulnerabilities found — 1 low | 8 moderate | 1 high`；該筆 high 是
+`nanoid`（vulnerable `<3.3.17`、patched `>=3.3.17`、`GHSA-2v37-7h3g-55p8`），經
+`postcss@8.5.20` 進入 dev 工具鏈，`audit:prod` 那一層仍是 0 筆。Dependabot 的 9 筆
+不含 high，與 CI 的 10 筆不一致——以 CI 為準。後續依 `SCM-R05` 修綠並逐筆核對
+affected path、reachability、patched version、owner 與 SLA；長期 patch SLA 與
+automated update 為 `SCM-R04`。`SCM-R03` 是密鑰掃描（Gitleaks），與本節無關。
+
+**2026-08-17 重新驗證（commit `fc15bfd`、CI run `31994942617`）：** 同一筆 high 仍在，
+數字仍是 `10 vulnerabilities found — 1 low | 8 moderate | 1 high`，`audit:prod` 仍是
+0 筆。兩點與上述 2026-08-11 讀數不同，**上面那段保留為當日快照，不回頭改寫**：
+
+1. **advisory 門檻已上移。** 現在是 vulnerable `<3.3.18`、patched `>=3.3.18`。
+   `SCM-R05` 若照原記的 `>=3.3.17` 提版，gate 不會轉綠。
+2. **相依路徑以 CI 輸出為準為 `vitest > vite > postcss > nanoid`**（三條，含
+   `@vitest/mocker` 與 `vite-node` 分支），仍全部落在 dev 工具鏈，因此
+   `audit:prod` 乾淨、只有 `audit:all` 紅。
+
+同一次 run 的其餘 job 全綠（六組 e2e、Rules、結構/文件/格式/lint/型別/單元測試，
+以及獨立的 Semgrep workflow）；紅的只有 supply-chain 與它連帶的
+`Verification evidence`。這是有日期的證據，不構成任何核准。
+
+Detection 也不等於 patch management。正式維護須有具名 owner，並以 Critical
+24～48 小時、High 7 日、Moderate 30 日內完成修補或風險判斷為初始 SLA；逾期只能
+使用具 owner／expiry 的例外，不能只保留一個 alert。
 
 2026-07-31 的修補批次已將可相容處理的三筆 moderate 路徑升到安全版：
 `tar@7.5.22`、`@hono/node-server@2.0.12` 與
@@ -291,6 +338,11 @@ patched 版本，解除條件成立，於是它被修掉而不是被續期。**�
 `N ignored`，所以例外不會安靜地爛掉。
 
 **上線證據包必須附一次沒有任何 ignore 的完整 audit 輸出**，並逐筆說明當時的狀態。
+
+`scripts/check-tracked-secrets.mjs` 只掃目前 tracked tree 與有限 pattern，不涵蓋完整
+Git history、所有 provider token 格式或已刪 object。Canonical repository 須另以 pinned
+scanner 執行 PR diff/tree 與受控 full-history scan；fixture 必須合成，輸出不得包含
+secret 原文。管理者 bypass push 也不得被描述為已受 required gate 強制。
 
 ## 4-c. 標記與無障礙結構（`pnpm check:ui`）
 
@@ -345,7 +397,7 @@ sortable table（`aria-sort` 只掛在當前排序欄的 `th`、欄名包成 `<b
 
 | 項目 | 為什麼還沒做 |
 | --- | --- |
-| Lighthouse CI 完整報告（含 SEO／best-practices 分數） | 需要在 CI 跑完整 Lighthouse；目前以預算檔＋實測指標覆蓋最關鍵的部分；D-010 target 已核准，仍待對應 runner slice 的 request／authority／apply |
+| Lighthouse CI 完整報告與真實使用者 CWV | 目前只有靜態資源預算，以及 `/`、`/booking` 的 FCP／LCP／CLS synthetic gate；clinic timing mapping、INP 與 p75 RUM 尚未涵蓋。D-010 target 已核准，仍待 runner／RUM 對應 authority |
 | 依賴簽章／來源證明（provenance、sigstore） | 需要 CI 身分與金鑰管理；D-010 target 已核准，實作仍待對應 CI identity／provenance slice 的 request 與 authority |
 | 行動裝置螢幕閱讀器實測 | 需要實機，見 runbook §9 |
 | 負載／soak／交易競爭測試 | Stage 6 項目；D-010 target 已核准，仍須另行授權並建立 cloud staging |

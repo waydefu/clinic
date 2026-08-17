@@ -451,81 +451,6 @@ a {
   background: var(--clinic-white);
 }
 
-.clinic-home-hero {
-  position: relative;
-  padding: clamp(4rem, 8vw, 7rem) 0;
-  overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 83% 5%,
-      rgb(255 255 255 / 75%),
-      transparent 30rem
-    ),
-    linear-gradient(
-      125deg,
-      var(--clinic-hero-gradient-from),
-      var(--clinic-hero-gradient-to)
-    );
-}
-
-.clinic-home-hero::before {
-  position: absolute;
-  top: -13rem;
-  left: -10rem;
-  width: 32rem;
-  height: 32rem;
-  border: 1px solid rgb(57 116 97 / 12%);
-  border-radius: var(--clinic-radius-circle);
-  content: '';
-}
-
-.clinic-home-hero__grid {
-  position: relative;
-  display: grid;
-  align-items: center;
-  grid-template-columns: minmax(0, 1.2fr) minmax(24rem, 0.8fr);
-  gap: clamp(3rem, 7vw, 6rem);
-}
-
-.clinic-home-hero__copy {
-  max-width: 43rem;
-}
-
-.clinic-home-hero__copy h1 {
-  margin: 0;
-  color: var(--clinic-forest-deep);
-  font-family: var(--clinic-font-serif-tc);
-  font-size: clamp(
-    var(--clinic-text-3xl),
-    calc(var(--clinic-text-3xl) * 0.5 + 4.6vw),
-    var(--clinic-text-5xl)
-  );
-  font-weight: var(--clinic-weight-medium);
-  letter-spacing: var(--clinic-tracking-heading);
-  line-height: 1.28;
-}
-
-.clinic-home-hero__copy > p:not(.clinic-eyebrow) {
-  max-width: 36rem;
-  margin: 1.5rem 0 0;
-  color: var(--clinic-muted);
-  font-size: clamp(
-    var(--clinic-text-body),
-    calc(var(--clinic-text-body) * 0.5 + 1.6vw),
-    var(--clinic-text-md)
-  );
-}
-
-/* 兩顆 CTA 在放得下時並排，放不下就換列——不是壓縮。
-   先前是 nowrap，於是 320px 下兩顆一起擠進 272px，「認識鼻功能醫學」七個字被
-   折成兩行（介面規則書 R-4 禁止；R-5 也明說空間不足時應該換行而不是硬塞）。 */
-.clinic-home-hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  margin-top: 2rem;
-  gap: 0.75rem;
-}
-
 /* 首屏實用資訊。手機上「門診時間與交通」原本在 y≈6240px（約 11 個畫面之後），
    這裡把同一組 CLINIC 常數提到首屏。用 `dl` 是因為它就是三組標籤／值；
    `flex-wrap` 讓桌機一列排完、手機自然折成多列，不需要額外斷點。 */
@@ -568,145 +493,6 @@ a {
   text-underline-offset: 0.25rem;
 }
 
-.clinic-home-hero__visual {
-  position: relative;
-  min-height: 27rem;
-}
-
-.clinic-home-hero__orb {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  width: min(100%, 26rem);
-  aspect-ratio: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--clinic-white);
-  background:
-    radial-gradient(
-      circle at 35% 28%,
-      rgb(255 255 255 / 16%),
-      transparent 8rem
-    ),
-    var(--clinic-forest);
-  border: 0.6rem solid rgb(255 255 255 / 58%);
-  border-radius: var(--clinic-radius-circle);
-  box-shadow: var(--clinic-shadow);
-  text-align: center;
-}
-
-.clinic-home-hero__orb::before,
-.clinic-home-hero__orb::after {
-  position: absolute;
-  border: 1px solid rgb(57 116 97 / 25%);
-  border-radius: var(--clinic-radius-circle);
-  content: '';
-}
-
-.clinic-home-hero__orb::before {
-  inset: -1.7rem;
-}
-
-.clinic-home-hero__orb::after {
-  inset: -3.5rem;
-}
-
-.clinic-home-hero__orb span {
-  font-size: var(--clinic-text-micro);
-  font-weight: var(--clinic-weight-bold);
-  letter-spacing: var(--clinic-tracking-eyebrow);
-}
-
-.clinic-home-hero__orb strong {
-  margin: 0.5rem 0;
-  font-family: var(--clinic-font-serif-tc);
-  font-size: clamp(
-    var(--clinic-text-xl),
-    calc(var(--clinic-text-xl) * 0.5 + 4vw),
-    var(--clinic-text-4xl)
-  );
-  font-weight: var(--clinic-weight-medium);
-  letter-spacing: var(--clinic-tracking-label);
-}
-
-.clinic-home-hero__orb small {
-  color: var(--clinic-text-inverse-soft);
-  letter-spacing: var(--clinic-tracking-heading);
-  /* `<small>` 沒有自己的字級宣告時會落到瀏覽器預設的 `smaller`（約 0.83em），
-     在這裡算出 13.33px——低於 R-6 的 14px 絕對下限。**沒有寫 CSS 的元素，
-     token 檢查也看不到**：它讀的是宣告，沒有宣告就沒有東西可讀。這一類只有
-     量 computed style 的掃描抓得到。 */
-  font-size: var(--clinic-text-micro);
-}
-
-.clinic-home-hero__topics {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1;
-  display: grid;
-  padding: 0.75rem;
-  background: rgb(255 255 255 / 90%);
-  border: 1px solid rgb(255 255 255 / 88%);
-  border-radius: var(--clinic-radius-lg);
-  box-shadow: var(--clinic-shadow);
-  /* 欄數由**放不放得下**決定，不由裝置寬度猜（R-5）。
-     字級從 13.12px 提到 16px 之後，320px 下的兩欄各只有 127px，扣掉內距與箭頭
-     剩約 85px 的文字空間——「止鼾好眠牙套」六個字需要 96px，於是被折成兩行，
-     違反 R-4 的短標籤不得逐字斷行。
-     8.5rem 這個下限是量出來的：320px 的可用內寬 262px 放不下兩欄（→ 單欄），
-     375px 的 317px 放得下（→ 維持兩欄）。 */
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
-  gap: 0.5rem;
-  backdrop-filter: blur(0.75rem);
-}
-
-.clinic-hero-topic {
-  display: flex;
-  min-height: 3.2rem;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  color: var(--clinic-forest);
-  background: var(--clinic-mist);
-  border-radius: var(--clinic-radius-md);
-  font-size: var(--clinic-text-body);
-  font-weight: var(--clinic-weight-bold);
-  text-decoration: none;
-}
-
-.clinic-hero-topic::after {
-  margin-left: auto;
-  content: '→';
-}
-
-.clinic-hero-topic:hover {
-  color: var(--clinic-white);
-  background: var(--clinic-forest);
-}
-
-.clinic-care-section {
-  position: relative;
-  padding: clamp(4.5rem, 8vw, 7.5rem) 0;
-  overflow: hidden;
-  background:
-    linear-gradient(rgb(237 245 240 / 90%), rgb(237 245 240 / 92%)),
-    url('/clinic-assets/soft-green-bg.webp') center / cover;
-}
-
-.clinic-care-section::before {
-  position: absolute;
-  top: 2rem;
-  right: -8rem;
-  width: 24rem;
-  height: 24rem;
-  background: rgb(255 255 255 / 38%);
-  border-radius: var(--clinic-radius-circle);
-  content: '';
-}
-
 .clinic-section-heading {
   position: relative;
   max-width: 43rem;
@@ -745,50 +531,6 @@ a {
 
 .clinic-section-heading > p:last-child {
   margin: 1rem auto 0;
-  color: var(--clinic-muted);
-  font-size: var(--clinic-text-body);
-}
-
-.clinic-care-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-}
-
-.clinic-care-card {
-  min-height: 15rem;
-  padding: 2rem 1.5rem;
-  background: rgb(255 255 255 / 72%);
-  border: 1px solid rgb(255 255 255 / 78%);
-  border-radius: var(--clinic-radius);
-  text-align: center;
-  transition:
-    background var(--clinic-duration-effect-swift) var(--clinic-ease-out),
-    transform var(--clinic-duration-effect-swift) var(--clinic-ease-out);
-}
-
-.clinic-care-card:hover {
-  background: var(--clinic-white);
-  transform: translateY(-0.25rem);
-}
-
-.clinic-care-card__icon {
-  width: 4.1rem;
-  height: 4.1rem;
-  margin: 0 auto 1.25rem;
-  object-fit: contain;
-}
-
-.clinic-care-card h3 {
-  margin: 0 0 0.5rem;
-  color: var(--clinic-forest);
-  font-family: var(--clinic-font-serif-tc);
-  font-size: var(--clinic-text-md);
-}
-
-.clinic-care-card p {
-  margin: 0;
   color: var(--clinic-muted);
   font-size: var(--clinic-text-body);
 }
@@ -1402,10 +1144,6 @@ a {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .clinic-care-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .clinic-footer__inner {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -1542,47 +1280,12 @@ a {
     font-size: var(--clinic-text-body);
   }
 
-  .clinic-home-hero {
-    padding: 3.5rem 0;
-  }
-
-  .clinic-home-hero__grid {
-    grid-template-columns: 1fr;
-    gap: 2.5rem;
-  }
-
-  .clinic-home-hero__actions .clinic-button {
-    /* `flex: 1` 的 basis 是 0，兩顆會被強制均分——於是不管容器多窄都「放得下」，
-       字只好自己折。改成 basis auto：先用內容寬度排，真的放不下才由上面的
-       `flex-wrap` 換列（R-4／R-5）。 */
-    flex: 1 1 auto;
-  }
-
-  .clinic-home-hero__visual {
-    min-height: 24rem;
-  }
-
-  .clinic-home-hero__orb {
-    right: 50%;
-    width: min(21rem, calc(100vw - 3rem));
-    transform: translateX(50%);
-  }
-
-  .clinic-home-hero__topics {
-    bottom: 0;
-  }
-
-  .clinic-care-grid,
   .clinic-card-grid--services,
   .clinic-card-grid--doctors,
   .clinic-doctor-details,
   .clinic-service-hero__grid,
   .clinic-content-grid {
     grid-template-columns: 1fr;
-  }
-
-  .clinic-care-card {
-    min-height: auto;
   }
 
   .clinic-card-grid--doctors {
@@ -1696,10 +1399,13 @@ a {
   display: grid;
   margin-top: 3rem;
   gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  /* `min(100%, …)` keeps cards inside the viewport when users zoom text to
+     200%. A fixed 17rem minimum becomes 544px at that setting. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
 }
 
 .clinic-visit-card {
+  min-width: 0;
   padding: 2rem;
   border: 1px solid var(--clinic-line);
   border-radius: var(--clinic-radius);
@@ -1748,6 +1454,7 @@ a {
 }
 
 .clinic-social-chip {
+  max-width: 100%;
   padding: 0.5rem 1rem;
   border: 1px solid var(--clinic-line);
   border-radius: var(--clinic-radius-2xl);
@@ -1757,6 +1464,7 @@ a {
   min-height: 2.75rem;
   display: inline-flex;
   align-items: center;
+  overflow-wrap: anywhere;
   transition:
     background-color var(--clinic-duration-effect-fast) var(--clinic-ease-out),
     border-color var(--clinic-duration-effect-fast) var(--clinic-ease-out);
@@ -1857,13 +1565,9 @@ a {
   --clinic-duration-spatial-base: 0.5s;
   --clinic-duration-spatial-slow: 0.8s;
 
-  /* 用途型動畫時長。**週期各自不同是刻意的**——壓成同一個值會讓三層環境
-     動畫被迫同步，反而生出原本沒有的節拍感。 */
+  /* 用途型動畫時長。 */
   --clinic-duration-word: 0.7s;
   --clinic-duration-sheen: 2.4s;
-  --clinic-duration-orb: 9s;
-  --clinic-duration-aurora: 22s;
-  --clinic-duration-ticker: 26s;
 
   /* Stagger 步長。這些是 **delay 的乘數**，不是 duration——它們乘上
      `--clinic-stagger` / `--clinic-cell` / `--clinic-word-index` 得到每個元素
@@ -1886,16 +1590,6 @@ a {
   /* 磁吸位移，預設不位移。 */
   --clinic-magnet-x: 0;
   --clinic-magnet-y: 0;
-}
-
-/* 1. Hero 分層進場 -------------------------------------------------------
-   標題、說明與按鈕依序浮現，而不是同時出現。`--clinic-stagger` 由 JS 逐項設定，
-   預設 0 讓沒有 JS 時也不會卡在延遲上。 */
-.clinic-motion .clinic-home-hero__copy > *,
-.clinic-motion .clinic-home-hero__visual {
-  animation: clinic-rise var(--clinic-duration-spatial-slow)
-    var(--clinic-ease-out) backwards;
-  animation-delay: calc(var(--clinic-stagger, 0) * var(--clinic-stagger-layer));
 }
 
 @keyframes clinic-rise {
@@ -1946,39 +1640,10 @@ a {
   width: clamp(7.5rem, 9vw, 10rem);
 }
 
-/* 5. Hero 光暈緩慢浮動 ---------------------------------------------------
-   幅度刻意很小（0.5rem），要的是「畫面是活的」而不是「有東西在動」。 */
-.clinic-motion .clinic-home-hero__orb {
-  animation: clinic-float var(--clinic-duration-orb) var(--clinic-ease-in-out)
-    infinite;
-}
-
-@keyframes clinic-float {
-  50% {
-    transform: translate3d(0, -0.5rem, 0);
-  }
-}
-
-/* 6. Hero 視覺視差（漸進增強） ------------------------------------------- */
-@supports (animation-timeline: view()) {
-  .clinic-motion .clinic-home-hero__visual {
-    animation: clinic-parallax var(--clinic-ease-linear) both;
-    animation-timeline: view();
-    animation-range: entry 0% cover 60%;
-  }
-
-  @keyframes clinic-parallax {
-    to {
-      transform: translate3d(0, -2rem, 0);
-    }
-  }
-}
-
 /* 7. 卡片浮起 -------------------------------------------------------------
    限定 `hover: hover`。觸控裝置上 :hover 會在點擊後黏住，讓卡片停在抬起狀態，
    看起來像壞掉。 */
 @media (hover: hover) {
-  .clinic-care-card,
   .clinic-service-card,
   .clinic-doctor-card {
     transition:
@@ -1986,7 +1651,6 @@ a {
       box-shadow var(--clinic-duration-effect-fast) var(--clinic-ease-out);
   }
 
-  .clinic-care-card:hover,
   .clinic-service-card:hover,
   .clinic-doctor-card:hover {
     box-shadow: var(--clinic-shadow);
@@ -2138,7 +1802,7 @@ a {
 }
 
 /* ==========================================================================
-   進階動效（15–24）
+   保留的進階動效
    ==========================================================================
 
    各取幾家把動效當成產品一部分的公司的一個做法，但一律改用**沒有 WebGL、沒有
@@ -2147,97 +1811,6 @@ a {
 
    共同限制沒有變：只動 transform 與 opacity、圖片不縮放不遮罩、
    prefers-reduced-motion 一律關掉。 */
-
-/* 15. 流動的網格漸層（Stripe）------------------------------------------
-   Stripe 用 WebGL 疊多層漸層再混色。這裡用三個 radial-gradient 疊在一個絕對定位
-   的圖層上，靠 transform 緩慢位移做出流動感。圖層獨立於內容，不影響文字可讀性
-   也不參與版面計算。 */
-.clinic-home-hero__aurora {
-  position: absolute;
-  z-index: 0;
-  background:
-    radial-gradient(
-      35rem 25rem at 20% 30%,
-      rgb(57 116 97 / 22%),
-      transparent 70%
-    ),
-    radial-gradient(
-      30rem 22rem at 80% 20%,
-      rgb(142 170 156 / 26%),
-      transparent 70%
-    ),
-    radial-gradient(
-      28rem 28rem at 60% 80%,
-      rgb(23 79 66 / 16%),
-      transparent 70%
-    );
-  background-size: 200% 200%;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* **全檔唯一動 transform／opacity 以外屬性的效果**，而且是被守衛逼出來的。
-   原本寫的是 `inset: -20%` 加 transform 位移旋轉，視覺更飽滿；但那讓元素邊界
-   超出視窗，而 `responsive.spec.ts` 逐一量每個元素的 right 邊界——它量的正是
-   WCAG 1.4.10 Reflow 在意的事：版面不得被推寬。被 `overflow: hidden` 裁掉不算
-   數，那道守衛擋的是「有東西伸出去」而不是「捲軸有沒有出現」。
-   改成 `inset: 0` 加動 background-position：元素邊界永遠等於 hero，漸層在 200%
-   的畫布上游走。代價是這一層每幀重繪，所以只用在這個 22 秒的環境動畫，而且
-   減少動態時整個關掉。 */
-.clinic-motion .clinic-home-hero__aurora {
-  animation: clinic-aurora var(--clinic-duration-aurora)
-    var(--clinic-ease-in-out) infinite alternate;
-  will-change: background-position;
-}
-
-@keyframes clinic-aurora {
-  from {
-    background-position:
-      0% 0%,
-      100% 0%,
-      50% 100%;
-  }
-
-  to {
-    background-position:
-      100% 60%,
-      0% 40%,
-      20% 0%;
-  }
-}
-
-/* 16. 對角切邊（Stripe）--------------------------------------------------
-   Stripe 的招牌是整個容器 skewY(-12deg)。這裡只斜切**裝飾用的底色帶**，不斜切
-   內容——斜切內容會讓文字基線歪掉，也會把圖片切出斜角，違反「不可分割遮擋」。 */
-.clinic-care-section {
-  position: relative;
-  isolation: isolate;
-}
-
-.clinic-care-section::before {
-  position: absolute;
-  z-index: -1;
-  background: linear-gradient(160deg, var(--clinic-mist), transparent 60%);
-  content: '';
-  inset: -3rem 0;
-  transform: skewY(-2.5deg);
-}
-
-/* 17. Hero 捲離時的電影感退場（Apple）------------------------------------ */
-@supports (animation-timeline: view()) {
-  .clinic-motion .clinic-home-hero__copy {
-    animation: clinic-hero-exit var(--clinic-ease-linear) both;
-    animation-timeline: view();
-    animation-range: exit 0% exit 90%;
-  }
-
-  @keyframes clinic-hero-exit {
-    to {
-      opacity: 0.25;
-      transform: translate3d(0, -2rem, 0) scale(0.96);
-    }
-  }
-}
 
 /* 18. 指標聚光燈（Linear）------------------------------------------------
    座標由 JS 寫進 --clinic-x／--clinic-y，CSS 只負責畫。限定 `pointer: fine`：
@@ -2374,45 +1947,8 @@ a {
     opacity var(--clinic-duration-effect-fast) var(--clinic-ease-out);
 }
 
-/* 23. 服務跑馬燈 ---------------------------------------------------------
-   hover 與 focus-within 都會暫停。WCAG 2.2.2 要求任何自動移動超過五秒的內容
-   都能被暫停，而鍵盤使用者 Tab 進去時同樣必須停。 */
-.clinic-ticker {
-  overflow: hidden;
-  mask-image: linear-gradient(
-    90deg,
-    transparent,
-    var(--clinic-mask-opaque) 8%,
-    var(--clinic-mask-opaque) 92%,
-    transparent
-  );
-}
-
-.clinic-ticker__track {
-  display: flex;
-  width: max-content;
-  gap: 3rem;
-}
-
-.clinic-motion .clinic-ticker__track {
-  animation: clinic-ticker var(--clinic-duration-ticker)
-    var(--clinic-ease-linear) infinite;
-}
-
-.clinic-ticker:hover .clinic-ticker__track,
-.clinic-ticker:focus-within .clinic-ticker__track {
-  animation-play-state: paused;
-}
-
-@keyframes clinic-ticker {
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
 /* 24. 依欄位錯開的網格揭開 ----------------------------------------------- */
 .clinic-motion [data-reveal] .clinic-card-grid > *,
-.clinic-motion [data-reveal] .clinic-care-grid > *,
 .clinic-motion [data-reveal] .clinic-visit-grid > * {
   opacity: 0;
   transform: translate3d(0, 1.25rem, 0);
@@ -2423,7 +1959,6 @@ a {
 }
 
 .clinic-motion [data-reveal].is-revealed .clinic-card-grid > *,
-.clinic-motion [data-reveal].is-revealed .clinic-care-grid > *,
 .clinic-motion [data-reveal].is-revealed .clinic-visit-grid > * {
   opacity: 1;
   transform: none;
@@ -2455,19 +1990,10 @@ a {
   .clinic-motion [data-reveal] img,
   .clinic-motion [data-reveal] .clinic-section-rule,
   .clinic-motion [data-reveal] .clinic-card-grid > *,
-  .clinic-motion [data-reveal] .clinic-care-grid > *,
   .clinic-motion [data-reveal] .clinic-visit-grid > *,
   .clinic-motion .clinic-word {
     opacity: 1;
     transform: none;
-  }
-
-  /* 無限循環的三個效果直接停住，而不是用 0.01ms 播完一輪——後者仍會閃一下，
-     而「閃一下」正是這個偏好最想避免的東西。 */
-  .clinic-motion .clinic-home-hero__aurora,
-  .clinic-motion .clinic-ticker__track,
-  .clinic-motion .clinic-home-hero__orb {
-    animation: none;
   }
 
   /* 磁吸位移歸零：那是跟著游標走的，不受 animation 開關影響。 */
@@ -2478,5 +2004,561 @@ a {
 
   .clinic-scroll-progress {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   Homepage 2026-08 hybrid direction
+   Task-first hero + symptom guide + assessment process. The visual frame owns
+   its layout; no animated transform is used for responsive centering.
+   ========================================================================== */
+
+.clinic-hybrid-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 4rem 0;
+  background:
+    radial-gradient(
+      circle at 78% 8%,
+      color-mix(in srgb, var(--clinic-white) 78%, transparent) 0,
+      transparent 24rem
+    ),
+    radial-gradient(
+      circle at 7% 90%,
+      color-mix(in srgb, var(--clinic-green) 12%, transparent) 0,
+      transparent 26rem
+    ),
+    linear-gradient(
+      135deg,
+      var(--clinic-hero-gradient-to),
+      var(--clinic-hero-gradient-from)
+    );
+}
+
+.clinic-hybrid-hero::before {
+  position: absolute;
+  inset: 2rem 0 auto;
+  height: 1px;
+  background: var(--clinic-line);
+  content: '';
+}
+
+.clinic-hybrid-hero__grid {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  gap: 4rem;
+}
+
+.clinic-hybrid-hero__copy {
+  min-width: 0;
+  max-width: 43rem;
+}
+
+.clinic-hybrid-hero__copy h1 {
+  max-width: 11em;
+  margin: 0;
+  color: var(--clinic-forest-deep);
+  font-family: var(--clinic-font-serif-tc);
+  font-size: clamp(
+    var(--clinic-text-3xl),
+    calc(var(--clinic-text-3xl) * 0.5 + 4.6vw),
+    var(--clinic-text-5xl)
+  );
+  font-weight: var(--clinic-weight-medium);
+  letter-spacing: var(--clinic-tracking-heading);
+  line-height: 1.24;
+  text-wrap: balance;
+}
+
+.clinic-hybrid-hero__copy > p:not(.clinic-eyebrow) {
+  max-width: 37rem;
+  margin: 1.5rem 0 0;
+  color: var(--clinic-muted);
+  font-size: var(--clinic-text-md);
+}
+
+.clinic-hybrid-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+  gap: 0.75rem;
+}
+
+.clinic-hybrid-hero__visual {
+  min-width: 0;
+}
+
+.clinic-hybrid-hero__media {
+  position: relative;
+  overflow: hidden;
+  background: var(--clinic-white);
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius-organic-dome);
+  box-shadow: var(--clinic-shadow);
+}
+
+.clinic-hybrid-hero__image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.clinic-hybrid-hero__caption {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  min-height: 55%;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 4rem 1.5rem 1.5rem;
+  color: var(--clinic-white);
+  background: linear-gradient(
+    transparent,
+    color-mix(in srgb, var(--clinic-forest-deep) 94%, transparent)
+  );
+}
+
+.clinic-hybrid-hero__caption span {
+  font-size: var(--clinic-text-micro);
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: var(--clinic-tracking-label);
+}
+
+.clinic-hybrid-hero__caption strong {
+  margin-top: 0.5rem;
+  font-family: var(--clinic-font-serif-tc);
+  font-size: var(--clinic-text-xl);
+  font-weight: var(--clinic-weight-medium);
+  line-height: 1.45;
+}
+
+.clinic-hybrid-hero__topics {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 1rem 0 0;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.clinic-hybrid-hero__topics li {
+  padding: 0.5rem 0.75rem;
+  color: var(--clinic-forest);
+  background: var(--clinic-white);
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius-pill);
+  font-size: var(--clinic-text-body);
+  font-weight: var(--clinic-weight-bold);
+}
+
+.clinic-symptom-section,
+.clinic-home-process {
+  padding: 4rem 0;
+  scroll-margin-top: 4rem;
+}
+
+.clinic-symptom-section {
+  background:
+    radial-gradient(
+      circle at 8% 0,
+      color-mix(in srgb, var(--clinic-white) 72%, transparent) 0,
+      transparent 24rem
+    ),
+    linear-gradient(145deg, var(--clinic-mist), var(--clinic-mist-soft));
+}
+
+.clinic-symptom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+}
+
+.clinic-symptom-button {
+  min-height: 5rem;
+  padding: 1rem;
+  color: var(--clinic-forest-deep);
+  background: var(--clinic-white);
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius-lg);
+  font-weight: var(--clinic-weight-bold);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+    background var(--clinic-duration-effect-fast) var(--clinic-ease-out),
+    border-color var(--clinic-duration-effect-fast) var(--clinic-ease-out);
+}
+
+.clinic-symptom-button:hover {
+  border-color: var(--clinic-green);
+}
+
+.clinic-symptom-button[aria-pressed='true'] {
+  color: var(--clinic-white);
+  background: var(--clinic-forest);
+  border-color: var(--clinic-forest);
+}
+
+.clinic-symptom-guidance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  margin-top: 1rem;
+  gap: 1.25rem;
+  background: var(--clinic-white);
+  border-left: 0.3rem solid var(--clinic-green);
+  border-radius: var(--clinic-radius-md);
+  box-shadow: var(--clinic-elevation-card);
+}
+
+.clinic-symptom-guidance__copy {
+  min-width: 0;
+}
+
+.clinic-symptom-guidance strong {
+  color: var(--clinic-forest-deep);
+  font-family: var(--clinic-font-serif-tc);
+  font-size: var(--clinic-text-md);
+}
+
+.clinic-symptom-guidance p {
+  margin: 0.5rem 0 0;
+  color: var(--clinic-muted);
+}
+
+.clinic-symptom-guidance .clinic-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.clinic-home-services .clinic-card-grid--services {
+  max-width: 60rem;
+  margin-inline: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.clinic-home-services {
+  background:
+    radial-gradient(
+      circle at 92% 12%,
+      color-mix(in srgb, var(--clinic-green) 9%, transparent) 0,
+      transparent 28rem
+    ),
+    linear-gradient(180deg, var(--clinic-white), var(--clinic-mist-soft));
+}
+
+.clinic-home-services .clinic-service-card.is-recommended {
+  border-color: var(--clinic-green);
+  outline: 0.15rem solid var(--clinic-green);
+  outline-offset: 0.15rem;
+}
+
+.clinic-home-process {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--clinic-mist) 92%, transparent),
+      color-mix(in srgb, var(--clinic-mist) 96%, transparent)
+    ),
+    url('/clinic-assets/soft-green-bg.webp') center / cover;
+}
+
+.clinic-home-process__list {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  counter-reset: clinic-home-step;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+}
+
+.clinic-home-process__list li {
+  position: relative;
+  min-width: 0;
+  padding: 2rem 1.25rem 0 0;
+  border-top: 1px solid var(--clinic-sage);
+  counter-increment: clinic-home-step;
+}
+
+.clinic-home-process__list li::before {
+  position: absolute;
+  top: -1.1rem;
+  left: 0;
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  color: var(--clinic-white);
+  background: var(--clinic-forest);
+  border-radius: var(--clinic-radius-circle);
+  content: counter(clinic-home-step);
+  font-size: var(--clinic-text-micro);
+  font-weight: var(--clinic-weight-bold);
+  place-items: center;
+}
+
+.clinic-home-process__list h3 {
+  margin: 0 0 0.5rem;
+  color: var(--clinic-forest-deep);
+  font-family: var(--clinic-font-serif-tc);
+  font-size: var(--clinic-text-md);
+}
+
+.clinic-home-process__list p {
+  margin: 0;
+  color: var(--clinic-muted);
+}
+
+.clinic-snore-app {
+  position: relative;
+  overflow: hidden;
+  padding: 4rem 0;
+  color: var(--clinic-white);
+  background:
+    radial-gradient(
+      circle at 86% 20%,
+      color-mix(in srgb, var(--clinic-white) 16%, transparent) 0,
+      transparent 20rem
+    ),
+    radial-gradient(
+      circle at 4% 100%,
+      color-mix(in srgb, var(--clinic-sage) 32%, transparent) 0,
+      transparent 26rem
+    ),
+    linear-gradient(
+      135deg,
+      var(--clinic-forest-deepest),
+      var(--clinic-forest) 55%,
+      var(--clinic-green)
+    );
+}
+
+.clinic-snore-app__grid {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+  gap: 4rem;
+}
+
+.clinic-snore-app__copy {
+  min-width: 0;
+  max-width: 43rem;
+}
+
+.clinic-snore-app .clinic-eyebrow {
+  color: var(--clinic-text-inverse-strong);
+}
+
+.clinic-snore-app__copy h2 {
+  margin: 0;
+  color: var(--clinic-white);
+  font-family: var(--clinic-font-serif-tc);
+  font-size: clamp(
+    var(--clinic-text-2xl),
+    calc(var(--clinic-text-2xl) * 0.5 + 3vw),
+    var(--clinic-text-4xl)
+  );
+  font-weight: var(--clinic-weight-medium);
+  letter-spacing: var(--clinic-tracking-heading);
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.clinic-snore-app__copy > p:not(.clinic-eyebrow) {
+  margin: 1.5rem 0 0;
+  color: var(--clinic-text-inverse);
+  font-size: var(--clinic-text-md);
+}
+
+.clinic-snore-app__copy > .clinic-snore-app__note {
+  color: var(--clinic-text-inverse-muted);
+  font-size: var(--clinic-text-body);
+}
+
+.clinic-snore-app__panel {
+  min-width: 0;
+  padding: 2rem;
+  background: color-mix(in srgb, var(--clinic-white) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--clinic-white) 30%, transparent);
+  border-radius: var(--clinic-radius-lg);
+}
+
+.clinic-snore-app__signal {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.clinic-snore-app__signal span {
+  width: 0.4rem;
+  height: 1.5rem;
+  background: var(--clinic-text-inverse-strong);
+  border-radius: var(--clinic-radius-pill);
+}
+
+.clinic-snore-app__signal span:nth-child(2),
+.clinic-snore-app__signal span:nth-child(6) {
+  height: 2.5rem;
+}
+
+.clinic-snore-app__signal span:nth-child(3),
+.clinic-snore-app__signal span:nth-child(5) {
+  height: 3.5rem;
+}
+
+.clinic-snore-app__signal span:nth-child(4) {
+  height: 5rem;
+}
+
+.clinic-snore-app__panel h3 {
+  margin: 1rem 0 0;
+  color: var(--clinic-white);
+  font-family: var(--clinic-font-serif-tc);
+  font-size: var(--clinic-text-xl);
+  text-align: center;
+}
+
+.clinic-snore-app__panel > p {
+  margin: 0.5rem 0 0;
+  color: var(--clinic-text-inverse-soft);
+  text-align: center;
+}
+
+.clinic-snore-app__actions {
+  display: grid;
+  margin-top: 1.5rem;
+  gap: 0.75rem;
+}
+
+.clinic-snore-app__actions .clinic-button {
+  width: 100%;
+}
+
+.clinic-home-doctors {
+  background:
+    radial-gradient(
+      circle at 14% 16%,
+      color-mix(in srgb, var(--clinic-green) 8%, transparent) 0,
+      transparent 26rem
+    ),
+    linear-gradient(160deg, var(--clinic-mist-soft), var(--clinic-white));
+}
+
+.clinic-home-doctor-grid {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.clinic-home-doctor-grid .clinic-doctor-card__image {
+  object-position: center top;
+}
+
+.clinic-doctor-card__body > .clinic-home-doctor__focus {
+  min-height: 0;
+  margin: 0.75rem 0 0;
+  color: var(--clinic-green);
+  font-weight: var(--clinic-weight-bold);
+}
+
+.clinic-doctor-card__body > .clinic-home-doctor__focus + p {
+  min-height: 0;
+  margin: 0.5rem 0 1rem;
+}
+
+.clinic-motion .clinic-hybrid-hero__copy > *,
+.clinic-motion .clinic-hybrid-hero__visual {
+  animation: clinic-rise var(--clinic-duration-spatial-slow)
+    var(--clinic-ease-out) backwards;
+  animation-delay: calc(var(--clinic-stagger, 0) * var(--clinic-stagger-layer));
+}
+
+@media (max-width: 64rem) {
+  .clinic-hybrid-hero__grid {
+    gap: 3rem;
+    grid-template-columns: minmax(0, 1.05fr) minmax(18rem, 0.95fr);
+  }
+}
+
+@media (max-width: 48rem) {
+  .clinic-hybrid-hero,
+  .clinic-symptom-section,
+  .clinic-home-process,
+  .clinic-snore-app {
+    padding: 4rem 0;
+  }
+
+  .clinic-hybrid-hero__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-hybrid-hero__visual {
+    max-width: 34rem;
+    margin-inline: auto;
+  }
+
+  .clinic-home-services .clinic-card-grid--services {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-home-process__list {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-snore-app__grid {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .clinic-snore-app__copy {
+    max-width: none;
+  }
+
+  .clinic-home-process__list li {
+    padding: 0 0 2rem 2rem;
+    border-top: 0;
+    border-left: 1px solid var(--clinic-sage);
+  }
+
+  .clinic-home-process__list li::before {
+    top: 0;
+    left: -1.1rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  .clinic-hybrid-hero__copy h1 {
+    font-size: var(--clinic-text-3xl);
+  }
+
+  .clinic-hybrid-hero__copy > p:not(.clinic-eyebrow) {
+    font-size: var(--clinic-text-body);
+  }
+
+  .clinic-hybrid-hero__actions .clinic-button,
+  .clinic-symptom-guidance .clinic-button {
+    width: 100%;
+  }
+
+  .clinic-symptom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-symptom-guidance {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clinic-hybrid-hero__caption {
+    padding: 4rem 1rem 1rem;
+  }
+
+  .clinic-hybrid-hero__caption strong {
+    font-size: var(--clinic-text-md);
   }
 }

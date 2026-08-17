@@ -8,6 +8,12 @@ export const CLINIC = {
   tollFreeDisplay: '0800-000-913',
   tollFreeHref: 'tel:+886800000913',
   address: '臺北市松山區光復北路112號2樓',
+  addressStructured: {
+    streetAddress: '光復北路112號2樓',
+    addressLocality: '松山區',
+    addressRegion: '臺北市',
+    addressCountry: 'TW'
+  },
   hours: ['週三至週五 12:00–20:00', '週六 10:00–18:00'],
   // 社群連結一律使用**乾淨的正式網址**，不帶追蹤或介面參數。業主 2026-08-01
   // 提供的原始連結各自帶了不該進版控的東西：
@@ -53,6 +59,110 @@ export const NAVIGATION = [
         href: '/clinic/nasal/snore-relief-mouthguard'
       }
     ]
+  }
+];
+
+// 首頁文案與互動資料集中在這裡；renderer 只負責建立語意結構與綁定事件。
+// 文案範圍只允許鼻功能、打鼾與睡眠呼吸，避免官網其他科別內容誤入首頁。
+export const HOME_PAGE = {
+  seoTitle: '鼻功能與睡眠呼吸照護',
+  seoDescription:
+    '一森渼診所提供鼻塞、打鼾、鼻中隔與睡眠呼吸相關評估及線上預約資訊。',
+  heroEyebrow: 'FUNCTION · BREATH · SLEEP',
+  heroTitle: '今晚，不必再和呼吸拔河',
+  heroDescription:
+    '針對鼻塞、打鼾與睡眠呼吸困擾，先了解症狀與鼻腔結構，再由醫師一起說明適合的照護方向。',
+  heroImage: '/clinic-assets/service-snoring.webp',
+  heroImageAlt: '睡眠時張口呼吸的示意插圖',
+  heroCaption: '從原因開始，找回安穩呼吸',
+  heroTopics: ['鼻腔結構評估', '打鼾原因評估', '睡眠呼吸照護']
+};
+
+export const HOME_SYMPTOMS = [
+  {
+    label: '鼻子常常塞住',
+    slug: 'inferior-turbinate-surgery',
+    title: '可以先了解：下鼻甲手術',
+    description: '協助了解鼻腔空間、下鼻甲肥厚與長期鼻塞的評估方向。'
+  },
+  {
+    label: '睡覺容易打鼾',
+    slug: 'snoring-five-in-one',
+    title: '可以先了解：止鼾五合一',
+    description: '從鼻腔結構、呼吸狀況與睡眠困擾一起了解可能原因。'
+  },
+  {
+    label: '睡醒仍覺得疲累',
+    slug: 'snoring-five-in-one',
+    title: '可以先了解：止鼾五合一',
+    description: '白天疲累可能有不同原因，建議先記錄睡眠狀況並接受專業評估。'
+  },
+  {
+    label: '想了解非手術止鼾方式',
+    slug: 'snore-relief-mouthguard',
+    title: '可以先了解：止鼾好眠牙套',
+    description: '經過牙齒、顳顎關節、鼻呼吸與睡眠狀況評估後，再確認是否適用。'
+  },
+  {
+    label: '曾被建議矯正鼻中隔',
+    slug: 'septoplasty',
+    title: '可以先了解：鼻中隔手術',
+    description: '了解鼻中隔偏曲可能造成的影響、檢查方式與處理流程。'
+  }
+];
+
+export const HOME_PROCESS_ITEMS = [
+  {
+    title: '說明困擾',
+    description: '從鼻塞、鼾聲、夜間呼吸與日間精神狀況開始。'
+  },
+  {
+    title: '醫師檢查',
+    description: '依症狀了解鼻腔、鼻中隔與下鼻甲等結構狀況。'
+  },
+  {
+    title: '比較選項',
+    description: '說明可行方式、限制、注意事項與可能的恢復過程。'
+  },
+  {
+    title: '共同決定',
+    description: '依檢查結果、生活需求與個人狀況安排後續計畫。'
+  }
+];
+
+export const HOME_DOCTOR_PROFILES = [
+  {
+    slug: 'yan-cheng-an',
+    focus: '鼻功能與鼻腔結構評估',
+    summary: '聚焦鼻腔結構、鼻中隔與鼻甲等功能性問題，依檢查結果說明治療方向。'
+  },
+  {
+    slug: 'yang-sheng-feng',
+    focus: '麻醉評估與手術照護',
+    summary: '從術前評估到術中與術後恢復，協助維持穩定、安全的醫療照護。'
+  }
+];
+
+export const HOME_FAQS = [
+  {
+    question: '我不知道自己適合哪一項服務，可以先預約嗎？',
+    answer:
+      '可以。預約時先描述目前最主要的困擾，實際診斷與處理方向會由醫師面診後說明。'
+  },
+  {
+    question: '打鼾一定需要手術嗎？',
+    answer:
+      '不一定。打鼾可能與鼻腔結構、軟組織或睡眠呼吸問題有關，需要先確認原因，再比較可能的處理方式。'
+  },
+  {
+    question: '第一次就診需要準備什麼？',
+    answer:
+      '請攜帶健保卡；若有正在使用的藥物、過去檢查、睡眠紀錄或手術資料，也建議一併帶來。'
+  },
+  {
+    question: '可以線上預約嗎？',
+    answer:
+      '可以，線上預約開放當日起一個月內的時段。不方便使用網路時，也可以直接來電由櫃檯協助登記。'
   }
 ];
 
@@ -103,12 +213,43 @@ export const DOCTORS = [
   }
 ];
 
+// C3（業主 2026-07-27）：首頁與止鼾頁共用同一份 SnoreLab 外部資源。
+//
+// 網址不是自行拼湊的：三個都是 2026-07-27 從 snorelab.com 首頁上的下載按鈕
+// 讀出來的實際 href，並於 2026-08-10 加入首頁時重新開啟官方網站與兩個商店頁確認。
+// 商店網址一旦猜錯，患者會被帶到別人的 App。
+//
+// 措辭刻意保守：它是第三方工具、不是診所的產品，也不是診斷依據。少了這一句，
+// 一個純粹的自我記錄 App 會被讀成診所推薦的醫療器材。
+export const SNORING_SELF_TRACKING = {
+  eyebrow: 'SELF-TRACKING',
+  heading: '想先了解自己的鼾聲？',
+  appLabel: '測鼾聲 APP',
+  downloadPrompt: '依手機系統選擇下載，或先查看 SnoreLab 官方網站。',
+  paragraphs: [
+    '門診時若能描述鼾聲的頻率與強度，評估會更有依據。SnoreLab 是常見的鼾聲錄音應用程式，可在自己的手機上錄下夜間鼾聲並留下紀錄，看診時提供給醫師參考。',
+    'SnoreLab 由第三方開發，並非本診所提供的產品或服務，也不是診斷工具；它的紀錄不能取代醫師面診或睡眠檢查。是否需要進一步檢查，仍以門診評估為準。'
+  ],
+  links: [
+    {
+      label: 'App Store 下載',
+      href: 'https://apps.apple.com/us/app/snorelab-record-your-snoring/id529443604'
+    },
+    {
+      label: 'Google Play 下載',
+      href: 'https://play.google.com/store/apps/details?id=com.snorelab.app'
+    },
+    { label: 'SnoreLab 官方網站', href: 'https://www.snorelab.com' }
+  ]
+};
+
 export const NASAL_SERVICES = [
   {
     slug: 'snoring-five-in-one',
     title: '止鼾五合一',
     eyebrow: 'SNORING CARE',
     subtitle: '從鼻腔結構、呼吸狀況到睡眠品質，一次完成整合評估。',
+    sourceUrl: 'https://beauessence.com.tw/snoring-solution-five-in-one/',
     image: '/clinic-assets/service-snoring.webp',
     imageAlt: '側躺睡眠時張口呼吸的示意插圖',
     intro:
@@ -165,38 +306,14 @@ export const NASAL_SERVICES = [
         ]
       }
     ],
-    // C3（業主 2026-07-27）：止鼾頁提供 SnoreLab 的官方入口。
-    //
-    // 網址不是自行拼湊的：三個都是 2026-07-27 從 snorelab.com 首頁上的下載按鈕
-    // 讀出來的實際 href。商店網址一旦猜錯，患者會被帶到別人的 App。
-    //
-    // 措辭刻意保守：它是第三方工具、不是診所的產品，也不是診斷依據。少了這一句，
-    // 一個純粹的自我記錄 App 會被讀成診所推薦的醫療器材。
-    resources: {
-      eyebrow: 'SELF-TRACKING',
-      heading: '想先了解自己的鼾聲？',
-      paragraphs: [
-        '門診時若能描述鼾聲的頻率與強度，評估會更有依據。SnoreLab 是常見的鼾聲錄音應用程式，可在自己的手機上錄下夜間鼾聲並留下紀錄，看診時提供給醫師參考。',
-        'SnoreLab 由第三方開發，並非本診所提供的產品或服務，也不是診斷工具；它的紀錄不能取代醫師面診或睡眠檢查。是否需要進一步檢查，仍以門診評估為準。'
-      ],
-      links: [
-        { label: 'SnoreLab 官方網站', href: 'https://www.snorelab.com' },
-        {
-          label: 'App Store 下載',
-          href: 'https://apps.apple.com/us/app/snorelab-record-your-snoring/id529443604'
-        },
-        {
-          label: 'Google Play 下載',
-          href: 'https://play.google.com/store/apps/details?id=com.snorelab.app'
-        }
-      ]
-    }
+    resources: SNORING_SELF_TRACKING
   },
   {
     slug: 'inferior-turbinate-surgery',
     title: '下鼻甲手術',
     eyebrow: 'NASAL AIRWAY',
     subtitle: '改善長期鼻塞，讓日常呼吸與睡眠更順暢。',
+    sourceUrl: 'https://beauessence.com.tw/inferior-turbinate-surgery/',
     image: '/clinic-assets/service-turbinate.webp',
     imageAlt: '鼻腔內部結構的示意插圖，標示下鼻甲位置',
     intro:
@@ -237,6 +354,7 @@ export const NASAL_SERVICES = [
     title: '鼻中隔手術',
     eyebrow: 'SEPTAL CARE',
     subtitle: '針對鼻中隔彎曲造成的結構性阻塞，重新找回通暢呼吸。',
+    sourceUrl: 'https://beauessence.com.tw/septoplasty/',
     image: '/clinic-assets/service-septoplasty.webp',
     imageAlt: '兩人夜間安穩入睡的示意插圖',
     intro:
@@ -274,6 +392,7 @@ export const NASAL_SERVICES = [
     title: '止鼾好眠牙套',
     eyebrow: 'SLEEP APPLIANCE',
     subtitle: '非侵入式睡眠輔具，經醫師評估後量身規劃。',
+    sourceUrl: 'https://beauessence.com.tw/snore-relief-sleep-mouthguard/',
     image: '/clinic-assets/service-mouthguard.webp',
     imageAlt: '止鼾牙套裝在上下排牙齒上的器械示意插圖',
     intro:

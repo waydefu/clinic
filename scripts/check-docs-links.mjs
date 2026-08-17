@@ -20,6 +20,23 @@ export const INDEX = 'docs/README.md';
 
 export const LIVE_REVIEW_EXCEPTION = 'docs/reviews/phase-1-approval-gate.md';
 
+// `**/*.md` does not match a dot-directory, so the agent harness under
+// `.claude/` needs its own pass. Its rules and skills link into `docs/` and
+// `scripts/`; without this the harness is the one place in the repository where
+// renaming a document breaks a reference and no gate notices.
+export const MARKDOWN_GLOBS = ['**/*.md', '.claude/**/*.md'];
+
+// `.claude/worktrees/<name>/` is another session's checkout of this same
+// repository, carrying a full second copy of `docs/`. Scanning it would report
+// another agent's tree as findings against this one — the same false red that
+// `.prettierignore` records for 2026-08-02, where all 16 violations came from a
+// parallel checkout.
+export function isScannedMarkdown(file) {
+  if (file.includes('node_modules')) return false;
+  if (file.startsWith('.claude/worktrees/')) return false;
+  return true;
+}
+
 export const STALE_CLAIMS = [
   [
     'docs/architecture/web-quality-gates-2026-07-24.md',
@@ -143,11 +160,11 @@ export function reviewDocumentation({
 }
 
 async function main() {
-  const markdownFiles = [];
-  for await (const entry of glob('**/*.md', { cwd: process.cwd() })) {
-    if (entry.includes('node_modules')) continue;
-    markdownFiles.push(entry.split(sep).join('/'));
-  }
+  const discovered = new Set();
+  for (const pattern of MARKDOWN_GLOBS)
+    for await (const entry of glob(pattern, { cwd: process.cwd() }))
+      discovered.add(entry.split(sep).join('/'));
+  const markdownFiles = [...discovered].filter(isScannedMarkdown);
 
   const documents = new Map(
     await Promise.all(

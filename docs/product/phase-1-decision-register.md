@@ -184,6 +184,14 @@ D-006 is `approved`; this is a policy approval, not evidence that the current
 synthetic role switch, plaintext demonstration code or any cloud identity
 boundary satisfies it.
 
+**Retention clarification required by D-002 (2026-08-11 audit):** append-only
+integrity means an authorised event cannot be edited or silently deleted; it
+does not by itself authorise indefinite linkability to a patient. D-002 must
+still decide retention, pseudonymisation, legal hold, rights-request handling,
+deletion tombstones and restore-time deletion replay. Until then, “permanent”
+is the recorded D-006 integrity direction, not a completed privacy/legal
+retention determination or production implementation.
+
 ### Fonts: system stack retained - 2026-07-27
 
 **Decision: do not load a Chinese webfont.** The zero-kilobyte font budget is
@@ -346,6 +354,20 @@ Residual risk accepted: (1) Semgrep CE performs rule-based pattern matching, not
 Follow-up implementation issue: re-evaluate the SAST engine when the repository becomes eligible for code-scanning upload, or before production go/no-go, whichever comes first.
 ```
 
+**Implementation verification correction — 2026-08-11 (read-only audit):**
+the SEC-02 approval and ENG-01 policy intent remain unchanged. However, the
+claim that either SAST-side failure blocks merging is not proved at the current
+branch-protection boundary. `.github/workflows/sast.yml` is independent, while
+the sole required `Verification evidence` job depends only on `verify`,
+`rules`, `e2e` and `supply-chain`. Until branch protection requires the exact
+SAST check or `Verification evidence` consumes a same-commit SAST result,
+record SEC-02 as **approved policy; merge-blocking implementation evidence
+pending (`SCM-R01`)**. This correction does not rewrite who approved the policy
+or what they approved. A read-only GitHub API check at 2026-08-11 14:32 +08:00
+subsequently confirmed that `main` has no repository ruleset and requires only
+`Verification evidence`; PR #14 showed the independent Semgrep check green while
+the required aggregate was red. No remote setting was changed.
+
 ```text
 Approval ID: SEC-03
 Answer: approved — the high `brace-expansion` advisory (GHSA-mh99-v99m-4gvg / CVE-2026-14257) is accepted as a time-bounded exception on its current limited paths.
@@ -387,8 +409,8 @@ real data.
 
 | ID | Decision | Effect |
 | --- | --- | --- |
-| ENG-01 | SEC-02, when it is signed, must additionally require that the Semgrep rule tests and the evidence-generator tests both run inside the blocking gate, and that either one failing turns the gate red | Adds an acceptance condition to a still-pending approval |
-| ENG-02 | SEC-02 approval remains a prerequisite for merging the SAST change into `main`; the alternative of merging first with a non-blocking workflow was rejected | Merge stays blocked until SEC-02 is signed |
+| ENG-01 | SEC-02 must require the Semgrep rule tests and evidence-generator tests inside the blocking gate, with either failure red | Incorporated into approved SEC-02; required-check enforcement remains pending the 2026-08-11 correction |
+| ENG-02 | SEC-02 approval was a prerequisite for merging the SAST change; a deliberately non-blocking interim workflow was rejected | Approval was satisfied 2026-08-01; this does not prove the current separate SAST workflow is a required merge check |
 | ENG-03 | The production data model uses store-generated document IDs. Any operational serial number the clinic needs is a separate field, never the document ID | Closes plan risk R3 (monotonically increasing IDs cause Firestore write hotspots) before it reaches an implementation slice |
 | ENG-04 | Every `auditConfig.ignoreGhsas` entry must carry a named approval ID and an expiry date in `security/audit-exceptions.json`, and the supply-chain gate must print each ignored advisory individually | Implemented as `check:audit-exceptions`; an unregistered, incomplete or expired exception now fails CI |
 
@@ -406,10 +428,11 @@ Follow-up implementation issue: ADR for the document-identifier scheme before C6
 **Repository-hosting direction — 2026-07-31:** the repository owner directed
 that the access-restricted canonical repository remain in the current personal
 account for now and not be transferred to an organisation. This is a hosting
-direction, not an approval to weaken SAST. Private-personal CodeQL upload
-eligibility therefore remains a platform constraint; the proposed
-commit-bound SARIF/artifact evidence policy still requires technical/security
-approval before it replaces Security-tab upload evidence.
+direction, not an approval to weaken SAST. Private-personal code-scanning upload
+eligibility remains a platform constraint. SEC-02 approved commit-bound Semgrep
+CE artifacts as interim evidence, subject to its residual risks and
+pre-production re-evaluation; that approval does not prove required-check
+enforcement. See the 2026-08-11 correction above.
 
 ### Web-standards audit directions - 2026-07-26
 
@@ -571,12 +594,15 @@ must not be used as the current field list or matching-key definition.
 - A separate Firebase project, `beauessence-clinic-staging`, was created only
   for static Firebase Hosting preview channels. No Firestore, Functions,
   Storage, Authentication, Calendar or other backend integration was enabled.
-- **Current deployment record:** the same `synthetic-review` channel was
-  redeployed on 2026-07-27 from commit `3c31351` and expires on 2026-08-04 at
+- **Historical deployment record; scheduled expiry has passed and current
+  availability was not reverified in the 2026-08-11 read-only audit:** the same
+  `synthetic-review` channel was redeployed on 2026-07-27 from commit `3c31351`
+  and was scheduled to expire on 2026-08-04 at
   12:43 Asia/Taipei. On 2026-07-28 at 17:18 Asia/Taipei, `/`, `/booking`,
   `/privacy` and `/clinic` were rechecked as HTTP 200 with stable HTML
   `no-cache` and the preview still `noindex`. This supersedes the earlier path
-  and operational expiry below; see
+  and operational expiry below. Any redeploy needs fresh authority for the
+  exact commit/project/channel/expiry; see
   `docs/reviews/2026-07-27-owner-request-batch-delivery.md` and
   `docs/reviews/ui-visual-baseline-2026-07-28.md`.
 - Preview channel `synthetic-review` uses browser-local synthetic state and is
