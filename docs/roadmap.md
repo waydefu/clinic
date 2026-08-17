@@ -208,7 +208,7 @@ Firestore、backup/PITR 或 runtime。
 | 面向 | 狀態 |
 | --- | --- |
 | Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006/D-010 已核准，Stage 2 尚待 change/deployment review** |
-| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後當時 3 筆 moderate 已 fixed，且 SEC-03 source audit 例外已解除。2026-08-11 14:32 +08:00 唯讀 API 另確認 `main` 有 9 筆 open development-scope alerts（8 medium、1 low）；同日讀取 PR #14 的 CI log 則顯示稽核基準 `cf597af` 的 `pnpm audit --audit-level high` 是 10 筆、含 1 筆 high（`postcss` 帶入的 `nanoid 3.3.16`），required `Verification evidence` 因此為紅、branch 無法 merge。「無 audit 例外」不等於「無遠端 alert」，兩個數字不一致時以 CI 為準；須由 `SCM-R05` 修綠並逐筆 triage，長期 SLA 為 `SCM-R04` |
+| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後當時 3 筆 moderate 已 fixed，且 SEC-03 source audit 例外已解除。2026-08-11 14:32 +08:00 唯讀 API 另確認 `main` 有 9 筆 open development-scope alerts（8 medium、1 low）；同日讀取 PR #14 的 CI log 則顯示稽核基準 `cf597af` 的 `pnpm audit --audit-level high` 是 10 筆、含 1 筆 high（`postcss` 帶入的 `nanoid 3.3.16`），required `Verification evidence` 因此為紅、branch 無法 merge。「無 audit 例外」不等於「無遠端 alert」，兩個數字不一致時以 CI 為準；須由 `SCM-R05` 修綠並逐筆 triage，長期 SLA 為 `SCM-R04`。**2026-08-17 於 commit `fc15bfd`（CI run `31994942617`）重新驗證：仍是 10 筆／1 high，且 advisory 門檻已由 `>=3.3.17` 上移為 `>=3.3.18`——`SCM-R05` 照舊值提版不會轉綠**；同日 push 時 GitHub 回報 Dependabot 也已改為 10 筆（1 high、8 moderate、1 low），與 CI 一致，先前的不一致消失 |
 | `main` 分支保護 | **2026-08-11 14:32 +08:00 已唯讀驗證**；沒有 repository ruleset，strict required context 只有 `Verification evidence`，force push／branch deletion 關閉，`enforce_admins=false`、無 required review；Semgrep 尚未進 required aggregate，見 `SCM-R01` |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |

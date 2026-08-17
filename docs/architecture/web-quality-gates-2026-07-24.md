@@ -271,6 +271,20 @@ Dependabot 是額外的持續可見性，不取代下面會阻斷 CI 的兩層 a
 affected path、reachability、patched version、owner 與 SLA；長期 patch SLA 與
 automated update 為 `SCM-R04`。`SCM-R03` 是密鑰掃描（Gitleaks），與本節無關。
 
+**2026-08-17 重新驗證（commit `fc15bfd`、CI run `31994942617`）：** 同一筆 high 仍在，
+數字仍是 `10 vulnerabilities found — 1 low | 8 moderate | 1 high`，`audit:prod` 仍是
+0 筆。兩點與上述 2026-08-11 讀數不同，**上面那段保留為當日快照，不回頭改寫**：
+
+1. **advisory 門檻已上移。** 現在是 vulnerable `<3.3.18`、patched `>=3.3.18`。
+   `SCM-R05` 若照原記的 `>=3.3.17` 提版，gate 不會轉綠。
+2. **相依路徑以 CI 輸出為準為 `vitest > vite > postcss > nanoid`**（三條，含
+   `@vitest/mocker` 與 `vite-node` 分支），仍全部落在 dev 工具鏈，因此
+   `audit:prod` 乾淨、只有 `audit:all` 紅。
+
+同一次 run 的其餘 job 全綠（六組 e2e、Rules、結構/文件/格式/lint/型別/單元測試，
+以及獨立的 Semgrep workflow）；紅的只有 supply-chain 與它連帶的
+`Verification evidence`。這是有日期的證據，不構成任何核准。
+
 Detection 也不等於 patch management。正式維護須有具名 owner，並以 Critical
 24～48 小時、High 7 日、Moderate 30 日內完成修補或風險判斷為初始 SLA；逾期只能
 使用具 owner／expiry 的例外，不能只保留一個 alert。
