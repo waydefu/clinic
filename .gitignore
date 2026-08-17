@@ -29,6 +29,11 @@ backups/
 sbom.cdx.json
 dependency-inventory.json
 
+# Agent harness: worktrees are per-machine checkouts, and settings.local.json is
+# personal. The rest of .claude/ is shared configuration and stays tracked.
+.claude/worktrees/
+.claude/settings.local.json
+
 # Tooling
 .playwright-cli/
 output/playwright/
