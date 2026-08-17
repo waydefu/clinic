@@ -61,7 +61,27 @@ open regardless of the owner's operational direction.
 
 ## Repository publication boundary
 
-This access-restricted repository, `waydefu/clinic`, is the canonical project
+> **2026-08-17 — the canonical repository is now public.** Verified by API:
+> `waydefu/clinic` returns `visibility: public`. The owner made the change
+> deliberately and confirmed it should stand, on the assessment that what is
+> currently in the repository is publishable. **Rule 1 below therefore no longer
+> describes the state of the world**; it is kept because the rest of the section
+> — the export discipline, the scanning requirements, the fact that public
+> visibility grants no licence, deployment authority or permission to use real
+> data — still governs, and because retiring a boundary is an owner decision
+> that has not been recorded as such.
+>
+> What this changes for you in practice: **anything committed here is publicly
+> visible immediately, including the full 214-commit history.** The repository
+> currently carries the clinic's identity and address, the clinic phone, one
+> personal mobile and one personal email in the D-010 incident-contact record,
+> two named individuals in the decision register, two real staff photographs,
+> and the complete governance record — including the unfixed `SCM-006` finding
+> and the `enforce_admins=false` protection state. Treat every future commit as
+> a publication, and raise anything that would add personal data rather than
+> committing it silently.
+
+This repository, `waydefu/clinic`, is the canonical project
 record. The public
 [`waydefu/appointment-platform-public`](https://github.com/waydefu/appointment-platform-public)
 repository is a separately curated, code-only reference with its own clean Git

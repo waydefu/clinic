@@ -139,11 +139,25 @@ All 39 questions came back answered. The full question-by-question
 reconciliation, including which earlier answers these supersede, is
 [the 2026-08-17 reconciliation record](../reviews/2026-08-17-owner-decision-reconciliation.md).
 
-**None of these answers is an approval.** The answer sheet's own approval
-format requires a named approver, an approval date in Asia/Taipei, the scope
-and explicit exclusions, the accepted residual risk and a follow-up item. The
-returned sheet carries the answer column only. Every decision below therefore
-stays `pending` or `deferred`; what changed is that the input now exists.
+**Attribution (recorded 2026-08-17):** the technical owner states that the
+answers were filled in by the clinic owner and dated **2026-08-16**. Two of the
+approval format's fields are therefore satisfied — approver and approval date.
+
+**They are still not approvals.** Three things are missing, and they are
+missing for different reasons:
+
+1. **Co-approvers.** The owner column below is not "clinic owner" alone for
+   most rows. D-002/D-003 need the privacy/legal owner, D-005 the legal owner,
+   D-009/D-016 the security owner, D-014 the medical **and** privacy/legal
+   owners. The clinic owner's answer does not stand in for them.
+2. **Scope, explicit exclusions and accepted residual risk** are not recorded
+   for any of the 39, and the answer sheet requires all three.
+3. **Several answers do not cover the question asked** — backups, the Google
+   processor agreement and the budget-threshold actions are each half-answered
+   (see the bullets below).
+
+Every decision below therefore stays `pending` or `deferred`. What changed is
+that the input now exists and is attributed.
 
 - **D-001/D-003 rights requests:** the clinic's responsible person and Mr. Yan
   are the named contacts, reached on the clinic phone, with designated staff
