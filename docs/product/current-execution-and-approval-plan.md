@@ -20,8 +20,11 @@ Cloud／Firebase 資源、連接 Calendar 或處理真實病患資料。
 
 ## 一句話說明
 
-Stage 0 的日期化 repository 證據已交付；現在同時走兩條不衝突的路：回收 39 題業主
-答案與完成 C0，以及處理 2026-08-11 新發現的 correctness／gate truthfulness P0。
+Stage 0 的日期化 repository 證據已交付。**39 題業主答案已於 2026-08-16 全數回收**
+（逐題對帳見 [2026-08-17 對帳紀錄](../reviews/2026-08-17-owner-decision-reconciliation.md)），
+因此第 1 條路已由「回收答案」前進到「核准資格補齊」——答案缺核准人、核准日期、適用
+範圍與排除項，以及 legal／privacy／medical 專業審查，補齊後才談 C0 closure。第 2 條
+路仍是 2026-08-11 新發現的 correctness／gate truthfulness P0。
 TW-01～TW-04 與 TW-05 自動前置條件已於 2026-08-01 交付，TW-05 真人驗收仍未完成。
 C0 通過後才可逐片申請只放合成資料的 staging，後續再依決策走 Calendar、公開服務、
 排班／個管／薪資、Production 與獨立的 Expansion S。
@@ -42,19 +45,23 @@ current finding；在對應 acceptance 通過前，不得把 slot release、outb
 ownership、SAST merge gate、privacy index、clinic timing 或完整 axe evidence
 寫成已驗證。
 
-其中 `SCM-R05` 最先做，也是 `SCM-R01` 的前置：稽核基準 `cf597af` 上唯一 required
-的 `Verification evidence` 目前是紅的（dependency audit 抓到 1 筆 high `nanoid`，
-經 `postcss` 進入 dev 工具鏈），**該 branch 現在無法 merge**。在它轉綠之前，不得把
-任何 CI gate 描述成已通過。
+其中 `SCM-R05` 最先做，也是 `SCM-R01` 的前置：dependency audit 抓到 1 筆 high
+`nanoid`，經 `postcss` 進入 dev 工具鏈，連帶讓唯一 required 的 `Verification evidence`
+變紅。**2026-08-17 更新：PR #14 已合併（merge commit `22d0f4d`），所以「該 branch
+無法 merge」不再是現況；但 `SCM-R05` 仍未實作，`main` 的 lockfile 仍是
+`nanoid@3.3.16`，`main` 自己的 `verify` run 因此是紅的。** 紅燈沒有消失，只是換到
+`main` 上。合併不構成 `SCM-R05` 已完成的證據。在它轉綠之前，不得把任何 CI gate
+描述成已通過。
 
 每項的完成定義、回滾與證據格式以[執行書 §1A](full-project-execution-book-2026-07-31.md)
 為準。
 
 ### 1. 回收全部決策並完成 C0 plan-only 審查
 
-先逐題回收業主決定清單 39 題與技術資安清單 T1～T21；其中 12 筆 pending D-series
-（D-001～D-005、D-007～D-009、D-011、D-014～D-016）必須各有具名答案、日期、
-適用範圍與排除項。OR-07、OR-22、OR-37 與多服務時長矛盾須由 owner 明確定案，不得由
+業主決定清單 39 題已於 2026-08-16 全數回收；技術資安清單 T1～T21 仍待回收。12 筆
+pending D-series（D-001～D-005、D-007～D-009、D-011、D-014～D-016）現在都有具名
+答案，但**仍缺日期、適用範圍與排除項**，D-001～D-003 與 D-014 另缺專業審查，因此
+全數維持 `pending`；D-008／D-015 的財務子項由業主指示 `deferred`。OR-07、OR-22、OR-37 與多服務時長矛盾須由 owner 明確定案，不得由
 實作者用現況或多數決猜值。詳細分組與完成定義見執行書 §1。
 
 C0 只核准「未來要怎麼做」，不連 cloud、不建立資源。決策基線齊備後，以下缺一不可：
@@ -151,11 +158,11 @@ production 的告警、secret rotation、restore、DR、法規／vendor 重審�
 | D-002 | 保存、刪除、查閱／匯出、供應商與資料區域 | 預約資料留多久、誰能刪、Google 會處理哪些資料、備份如何跟著刪除政策？ | Privacy/legal＋operations |
 | D-003 | 最終隱私政策版本與發布流程 | 哪一版文字正式生效？誰核准、如何保留舊版與同意證據？ | Clinic＋privacy/legal |
 | D-004 | 服務、資源、slot／容量、horizon、blackout、overrun | 同一時間到底能收幾人、多服務怎麼佔容量、延誤怎麼處理？ | Clinic operations |
-| D-005 | 取消、逾時、no-show 與費用 | 24 小時內如何處理、誰能取消、未到是否收費？ | Operations＋legal |
+| D-005 | 取消、逾時、no-show 與費用 | 當日 10:00 後如何處理、誰能代為取消、3 次爽約限制多久？ | Operations＋legal |
 | D-007 | 個管指派、改派、merge review 與例外 | 誰能指派／改派？同一病患重複資料由誰確認合併？ | Case management＋operations |
 | D-008 | 薪資規則、月結 owner、覆核與調整 | 怎麼算、誰關帳、關帳後誰能用什麼理由調整？ | Finance＋case management |
 | D-009 | Calendar owner、calendar、scope、欄位與失敗責任 | 用哪本專用日曆、誰管 credential、事件允許放什麼、同步失敗誰處理？ | Clinic＋security |
-| D-011 | 正式 URL、語言／無障礙與人工預約備援 | 正式網址是什麼、英文版做到哪裡、不會用網路的人打哪支電話？ | Clinic operations |
+| D-011 | 正式 URL、無障礙與人工預約備援 | 正式網址是什麼？（英文版已於 2026-08-16 確認不做） | Clinic operations |
 | D-014 | 手術／臨床紀錄邊界 | 哪些是正式醫療紀錄、由哪位 medical owner 負責、保存／更正／匯出多久？ | Medical＋privacy/legal |
 | D-015 | 付款／退款／結算權威 | 哪一套帳是錢的 source of truth、誰對帳、員工結算依什麼資料？ | Finance/accounting＋clinic |
 | D-016 | Calendar inbound review | 外部修改要自動套用還是先審？誰審未知事件、刪除與衝突怎麼處理、多久要收斂？ | Clinic＋security＋operations |

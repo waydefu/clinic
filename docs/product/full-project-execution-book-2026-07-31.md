@@ -38,7 +38,7 @@ apply approval、真實資料或 production 授權。官方基準與控制來源
 
 | Work package | 目前狀態 | 下一動作 | 阻塞者 |
 | --- | --- | --- | --- |
-| GOV-01～06 全部業主／政策決定 | `WAITING_FOR_ANSWER` | 回收 39 題與 T14～T17 依賴答案，完成 §1-1～1-9 | clinic／operations／privacy／medical／finance／security |
+| GOV-01～06 全部業主／政策決定 | `ANSWERS_RECEIVED`（2026-08-16，39 題全數回收）；核准資格未達 | 補齊每題的核准人、核准日期、適用範圍與排除項；取得 legal／privacy／medical 審查；回收 T14～T17；完成 §1-1～1-9 | clinic／operations／privacy／medical／finance／security |
 | GOV-07 C0（T6～T13、業主 37～39） | `REVISE` | 填 reviewers、IAM、成本、DR、安全參數、告警 | named reviewers／billing owner |
 | GOV-08 上線範圍重審（T20） | `NOT_DUE` | 到 release candidate 再重審 SEC-02、D-012、D-013、法規／vendor | release candidate |
 | TW-01～03 gate 自測 | `READY` | 依 §1A 分三個可回滾 PR | 無政策阻塞 |

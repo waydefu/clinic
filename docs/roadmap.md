@@ -2,9 +2,15 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-08-11
+**整合更新：** 2026-08-17
 
-**目前狀態：** 既定中文 synthetic 瀏覽器流程已實作；這不包含 D-011 英文版，也不
+**39 題業主答案已於 2026-08-16 全數回收**，逐題對帳見
+[2026-08-17 對帳紀錄](reviews/2026-08-17-owner-decision-reconciliation.md)。答案是
+有記錄的業主輸入，**不是核准**（缺核准人、日期、範圍與排除項，D-001～D-003、D-014
+另缺專業審查），因此所有 D-series 狀態值不變。Stage 仍為 Stage 1。
+
+**目前狀態：** 既定中文 synthetic 瀏覽器流程已實作；**D-011 英文版已於 2026-08-16
+確認不做，不再是待辦需求**；本狀態也不
 代表真人無障礙、production 或目前 HEAD 已重驗。最後有紀錄的 preview 已到
 2026-08-04 排定到期日，2026-08-11 遠端狀態未驗證。Firestore 寫入只有 dated 本機
 Emulator 證據，且同日稽核新確認三個 correctness 缺口。Stage 0／Checkpoint A 已通過，
@@ -35,8 +41,11 @@ Emulator 證據，且同日稽核新確認三個 correctness 缺口。Stage 0／
 >
 > **順序注意：** `SCM-R05` 是 `SCM-R01` 的前置。稽核基準 `cf597af` 上唯一 required
 > 的 `Verification evidence` 目前是紅的（dependency audit 抓到 1 筆 high
-> `nanoid`），branch 無法 merge；aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」
-> 驗收分不出擋住 PR 的是 SAST 還是 audit。
+> `nanoid`）。**2026-08-17 更新：PR #14 已合併（`22d0f4d`），「branch 無法 merge」
+> 不再是現況；但 `SCM-R05` 仍未實作，紅燈已隨合併轉移到 `main`（`verify` run
+> `32014377238` failure，只有 supply-chain job 紅）。合併不是 `SCM-R05` 已完成的
+> 證據。** aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」驗收仍分不出擋住 PR 的是
+> SAST 還是 audit。
 
 > **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
@@ -208,7 +217,7 @@ Firestore、backup/PITR 或 runtime。
 | 面向 | 狀態 |
 | --- | --- |
 | Delivery plan | **Stage 0／Checkpoint A 已完成；目前 Stage 1 owner decisions；D-006/D-010 已核准，Stage 2 尚待 change/deployment review** |
-| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後當時 3 筆 moderate 已 fixed，且 SEC-03 source audit 例外已解除。2026-08-11 14:32 +08:00 唯讀 API 另確認 `main` 有 9 筆 open development-scope alerts（8 medium、1 low）；同日讀取 PR #14 的 CI log 則顯示稽核基準 `cf597af` 的 `pnpm audit --audit-level high` 是 10 筆、含 1 筆 high（`postcss` 帶入的 `nanoid 3.3.16`），required `Verification evidence` 因此為紅、branch 無法 merge。「無 audit 例外」不等於「無遠端 alert」，兩個數字不一致時以 CI 為準；須由 `SCM-R05` 修綠並逐筆 triage，長期 SLA 為 `SCM-R04`。**2026-08-17 於 commit `fc15bfd`（CI run `31994942617`）重新驗證：仍是 10 筆／1 high，且 advisory 門檻已由 `>=3.3.17` 上移為 `>=3.3.18`——`SCM-R05` 照舊值提版不會轉綠**；同日 push 時 GitHub 回報 Dependabot 也已改為 10 筆（1 high、8 moderate、1 low），與 CI 一致，先前的不一致消失 |
+| 私有 repository 相依風險可見性 | **2026-07-30 已啟用 dependency graph 與 Dependabot alerts**；2026-08-01 合併後當時 3 筆 moderate 已 fixed，且 SEC-03 source audit 例外已解除。2026-08-11 14:32 +08:00 唯讀 API 另確認 `main` 有 9 筆 open development-scope alerts（8 medium、1 low）；同日讀取 PR #14 的 CI log 則顯示稽核基準 `cf597af` 的 `pnpm audit --audit-level high` 是 10 筆、含 1 筆 high（`postcss` 帶入的 `nanoid 3.3.16`），required `Verification evidence` 因此為紅、branch 無法 merge。「無 audit 例外」不等於「無遠端 alert」，兩個數字不一致時以 CI 為準；須由 `SCM-R05` 修綠並逐筆 triage，長期 SLA 為 `SCM-R04`。**2026-08-17 於 commit `fc15bfd`（CI run `31994942617`）重新驗證：仍是 10 筆／1 high，且 advisory 門檻已由 `>=3.3.17` 上移為 `>=3.3.18`——`SCM-R05` 照舊值提版不會轉綠**。Dependabot 的數字當日在 repository 轉為公開前後大幅跳動（10 筆含 1 high → 8 筆不含 high → API 只回報 1 筆 open），同日 `corepack pnpm run audit:all` 實測仍是 10 筆含該 high。**兩者不一致時以 CI／實測為準的原則不變**；Dependabot 計數受 repository 可見性影響，不能用來宣稱 `SCM-006` 已解除 |
 | `main` 分支保護 | **2026-08-11 14:32 +08:00 已唯讀驗證**；沒有 repository ruleset，strict required context 只有 `Verification evidence`，force push／branch deletion 關閉，`enforce_admins=false`、無 required review；Semgrep 尚未進 required aggregate，見 `SCM-R01` |
 | 預約流程（初診／回診分流、備註、回診確認、櫃台處置） | 完成，實機驗證 |
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |

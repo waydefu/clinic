@@ -14,24 +14,33 @@ a backend or proves that the controls or RPO/RTO have been achieved. D-014～
 D-016 track the separate surgery/clinical/finance/Calendar-inbound expansion
 and do not change the current Phase 1 gate.
 
+**All 39 owner questions came back answered on 2026-08-16**, and the
+question-by-question reconciliation is
+[the 2026-08-17 record](../reviews/2026-08-17-owner-decision-reconciliation.md).
+The answers are recorded input, not approval: the sheet carries answers without
+the named approver, approval date, scope and exclusions its own approval format
+requires, so every status below is unchanged in value. The next gate is approval
+qualification — collecting that missing metadata and the legal, privacy and
+medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
+
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |
-| D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending | Published privacy policy |
-| D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending | Collecting patient data |
-| D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending | Privacy acceptance or public booking |
-| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (hours, multi-service and visit-time actual-duration direction recorded 2026-07-28) | Slot reservation |
-| D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending | Cancellation route or notice |
+| D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16) | Published privacy policy |
+| D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending (owner input recorded 2026-08-16; backup-deletion semantics and the Google processor agreement remain unanswered) | Collecting patient data |
+| D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16; final text, version ID and publication approval outstanding) | Privacy acceptance or public booking |
+| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: capacity 1, booking horizon 1 month; earlier 60-day provisional horizon superseded) | Slot reservation |
+| D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending (superseding owner direction recorded 2026-08-16: cutoff is 10:00 on the appointment day; the earlier 24-hour rule is superseded) | Cancellation route or notice |
 | D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | approved (2026-07-28; implementation evidence pending) | Authenticated write endpoint |
-| D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending | Assignment write path |
-| D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending | Payroll-credit persistence |
-| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending | Outbound Calendar integration review |
+| D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending (owner input recorded 2026-08-16) | Assignment write path |
+| D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending; period-close and adjustment sub-items deferred (owner direction recorded 2026-08-16) | Payroll-credit persistence |
+| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending (superseding owner direction recorded 2026-08-16: a dedicated calendar, not the clinic's shared one; the request to add the service item conflicts with minimal event contents and needs privacy classification) | Outbound Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
-| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending | Public booking UX |
+| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: no English version; the production URL is still undecided) | Public booking UX |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
-| D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (expansion input recorded 2026-07-28) | Storing surgery, anesthesia or clinical follow-up data |
-| D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending (expansion input recorded 2026-07-28) | Persisting money or settlement amounts |
-| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending (workbench synchronization direction recorded 2026-07-28; review semantics unresolved) | Calendar-to-system writes |
+| D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (owner operational direction recorded 2026-08-16; the legal/medical classification still requires named professional review) | Storing surgery, anesthesia or clinical follow-up data |
+| D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending; ledger, refund and settlement sub-items deferred (owner direction recorded 2026-08-16) | Persisting money or settlement amounts |
+| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending (owner input recorded 2026-08-16: manual review, system is authoritative, 30-minute target; reviewer role and matching identity unresolved) | Calendar-to-system writes |
 
 ## Recorded inputs
 
@@ -69,8 +78,11 @@ temporary privacy-contact input below uses the clinic phone.
   earlier 40–60-minute stop-snoring range is superseded as a formal scheduling
   rule; neither service gets a catalogue duration, selectable duration
   increment or auto-calculated treatment end. One patient per slot remains a
-  candidate. Booking horizon 60 days is provisional. Closed days follow the
-  published hours plus national holidays.
+  candidate. ~~Booking horizon 60 days is provisional.~~ **Superseded
+  2026-08-16: the booking horizon is 1 month, with 2 months reconsidered only
+  after operations stabilise.** One patient per slot is likewise no longer a
+  candidate — the 2026-08-16 answer sets concurrent capacity to 1. Closed days
+  follow the published hours plus national holidays.
 - **D-004 booking multiplicity: multiple services are allowed in one formal
   appointment** (owner answer, 2026-07-28). The browser already uses multiple
   `itemIds`, while the executable API contract/domain still accepts one
@@ -82,8 +94,11 @@ temporary privacy-contact input below uses the clinic phone.
   `actualStartedAt`／`actualEndedAt` encounter facts. Multi-service selection
   does not auto-sum service durations. The published slot-block/capacity rule,
   multi-service occupancy and buffer/overrun handling remain unanswered.
-- **D-005: patients may cancel up to 24 hours before**; after that it is a phone
-  call. No-shows are recorded, not charged.
+- ~~**D-005: patients may cancel up to 24 hours before**~~; after that it is a
+  phone call. No-shows are recorded, not charged. **Superseded 2026-08-16: the
+  patient self-cancellation cutoff is 10:00 on the appointment day.** After the
+  cutoff it remains a phone call, no-shows are still not charged, and three
+  no-shows now restrict future booking.
 - **D-006 approved:** Google sign-in plus a clinic-managed local-account option
   (the clinic has no Google Workspace yet). Roles gain **醫師** alongside
   administrator and front desk. Completing a visit stays with front desk and
@@ -100,8 +115,12 @@ temporary privacy-contact input below uses the clinic phone.
   reassign; both capabilities need an on/off switch in account management. The
   payroll metric is likewise administrator-defined. Only administrators approve
   changes after a period is locked.
-- **D-009: the clinic's shared calendar in production, a dedicated test calendar
-  for now.** Event contents stay minimal (clinic, booking type, time).
+- ~~**D-009: the clinic's shared calendar in production**~~, a dedicated test
+  calendar for now. Event contents stay minimal (clinic, booking type, time).
+  **Superseded 2026-08-16: production uses a separate, dedicated calendar, not
+  the clinic's existing shared one.** The same answer set also asks for the
+  service item to appear on the event, which is in tension with minimal event
+  contents and must not be implemented before D-009 classifies that field.
 - **D-010 approved target (2026-07-28):** the clinic is the legal and billing
   owner of Cloud projects; administrator and developer roles hold governed IAM
   access; the primary region is `asia-east1`; RPO is one hour and RTO is four
@@ -109,8 +128,97 @@ temporary privacy-contact input below uses the clinic phone.
   wayde.fu@gmail.com / 0983317651. This approval requires the Stage 2 design to
   close the current single-region/cross-project recovery gap; it is not evidence
   that backups, failover, alerts or a restore drill already exist.
-- **D-011: an English version is required** (Beau Essence Clinic), and a phone
-  number must stay visible for people who do not book online.
+- ~~**D-011: an English version is required** (Beau Essence Clinic)~~, and a
+  phone number must stay visible for people who do not book online.
+  **Superseded 2026-08-16: no English version is required.** The visible manual
+  fallback number is confirmed as 02-2577-1314.
+
+### Owner answers to the 39-question decision list - 2026-08-16
+
+All 39 questions came back answered. The full question-by-question
+reconciliation, including which earlier answers these supersede, is
+[the 2026-08-17 reconciliation record](../reviews/2026-08-17-owner-decision-reconciliation.md).
+
+**Attribution (recorded 2026-08-17):** the technical owner states that the
+answers were filled in by the clinic owner and dated **2026-08-16**. Two of the
+approval format's fields are therefore satisfied — approver and approval date.
+
+**They are still not approvals.** Three things are missing, and they are
+missing for different reasons:
+
+1. **Co-approvers.** The owner column below is not "clinic owner" alone for
+   most rows. D-002/D-003 need the privacy/legal owner, D-005 the legal owner,
+   D-009/D-016 the security owner, D-014 the medical **and** privacy/legal
+   owners. The clinic owner's answer does not stand in for them.
+2. **Scope, explicit exclusions and accepted residual risk** are not recorded
+   for any of the 39, and the answer sheet requires all three.
+3. **Several answers do not cover the question asked** — backups, the Google
+   processor agreement and the budget-threshold actions are each half-answered
+   (see the bullets below).
+
+Every decision below therefore stays `pending` or `deferred`. What changed is
+that the input now exists and is attributed.
+
+- **D-001/D-003 rights requests:** the clinic's responsible person and Mr. Yan
+  are the named contacts, reached on the clinic phone, with designated staff
+  performing additions, corrections and deletions. The privacy policy is signed
+  off by the responsible person; superseded policy versions and consent records
+  are kept for 2 years. A patient's request for a copy of their own data is
+  answered within 1 week. The phone-only channel still has to be made auditable,
+  and the delivery format is unspecified.
+- **D-002 retention and deletion:** booking data is kept 2 years, confirming the
+  earlier answer. Deletion is owned by the clinic's responsible person and
+  leaves a system deletion record. **The question asked whether backups are
+  deleted with the primary copy; the answer addresses the system only, so backup
+  deletion, restore-replay and legal hold remain unanswered.**
+- **D-002/D-010 region: Taiwan**, consistent with the recorded `asia-east1`.
+- **D-002/D-009 Google as processor:** the answer permits authorising users on
+  Google Calendar. **It does not answer whether a data-processing agreement is
+  required**, which was the second half of the question.
+- **D-004 scheduling:** concurrent capacity is 1; multiple services occupy one
+  fixed booking time and durations are not summed; the horizon is 1 month;
+  Sunday, Monday and Tuesday are closed and the responsible person may close a
+  day; a running-late clinic is adjusted manually by the front desk. The
+  operational slot interval, the resource model behind the capacity of 1, buffer
+  and overrun handling and blackout semantics are still unanswered.
+- **D-005 cancellation:** patients may cancel until 10:00 on the appointment day;
+  after that they phone in; no-show carries no fee; three no-shows restrict
+  future booking. How long the restriction lasts, who may override or reset it,
+  and how emergencies are handled are not answered.
+- **D-007 case management:** assignment is manual, a supervisor may reassign, and
+  the patient is not notified. `王小姐` reviews duplicate-patient merges. Merge
+  rollback, mistaken-merge recovery and merge evidence remain open, and
+  "supervisor" has not been mapped onto the existing `administrator` role.
+- **D-008/D-015 finance:** performance and commission are based on the
+  transaction amount. Period close, post-lock adjustment, the authoritative money
+  ledger, refunds and the staff-settlement source are all **deferred** by owner
+  direction. Nothing here authorises persisting money or settlement amounts.
+- **D-009/D-016 Calendar:** production uses a separate dedicated calendar;
+  inbound Calendar edits and deletions go to manual review; on conflict the
+  system is authoritative with a 30-minute target. The owner also asks for the
+  service item on the event. Reviewer role, matching identity, delete semantics
+  and the privacy classification of event contents are unresolved, and no
+  Calendar connection is authorised.
+- **D-011 public booking:** the production booking URL is to sit under the
+  existing site pending discussion with the server vendor; no English version;
+  the manual fallback number is 02-2577-1314.
+- **D-012 NHI mark:** the owner wants the mark on the formal website. The
+  existing approval still covers the synthetic preview only; production use is
+  recorded as owner intent, not as an enlarged approval.
+- **D-014 surgery and clinical data — operational direction, not a legal
+  classification.** The owner's direction is that the system retains only the
+  surgery name, keeps it for six months, accepts correction requests by phone or
+  email, and that the stored item is intended as operational
+  scheduling/follow-up information rather than a full clinical chart. **Whether
+  these records are legally medical records under the Medical Care Act is not
+  settled by this answer** and remains subject to named medical, privacy and
+  legal review. Do not implement clinical persistence on the strength of it.
+- **D-010/C0 cost:** the clinic and its responsible person own the cloud bill;
+  the staging budget ceiling is NT$2,000 per month; budget alerts go to `王小姐`
+  with the responsible person copied. **The question also asked what action to
+  take at 50%, 80% and 100%; only the recipients were answered, so C0 cost
+  governance is still incomplete** — an alert with no agreed action is not a
+  control.
 
 ### D-006 partial: deletion delegated to the front desk behind a passcode - 2026-07-27
 
