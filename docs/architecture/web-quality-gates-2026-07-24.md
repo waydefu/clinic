@@ -215,10 +215,12 @@ purl，不受影響。若之後需要完整相依圖，來源要改成鎖檔。
    workflow；唯一 required `Verification evidence` 只依賴 `verify`、`rules`、
    `e2e` 與 `supply-chain`。因此 SEC-02 政策已核准，但 merge-blocking enforcement
    尚未被證明；`SCM-R01` 必須讓精確、同 commit 的 SAST 結果成為 required。
-4. **`SCM-R01` 的前置是 `SCM-R05`**：`supply-chain` 目前在稽核基準 `cf597af` 就是
-   紅的（見 §3 的 `nanoid` high），連帶讓 `Verification evidence` 變紅。aggregate
-   沒先轉綠，`SCM-R01` 的「故意失敗 PR」驗收就分不出擋住 PR 的是 SAST 還是
-   dependency audit，等於驗不出 required boundary。
+4. **`SCM-R01` 的前置是 `SCM-R05`——該前置已於 2026-08-17 滿足。** 稽核基準
+   `cf597af` 當時的 `supply-chain` 是紅的（見 §3 的 `nanoid` high），連帶讓
+   `Verification evidence` 變紅；aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」
+   驗收就分不出擋住 PR 的是 SAST 還是 dependency audit。`SCM-R05`（PR #16、merge
+   `cf3b87b`）已把 `nanoid` 提到 `3.3.18`，`main` 在 `b05da66` 全綠，**該驗收方法
+   現在才成立**。`SCM-R01` 因此可以開始，但尚未開始。
 
 上線證據包仍須附實際 run、commit SHA、掃描結果與 artifact；YAML 存在、獨立 workflow
 變紅或本機掃描成功，都不能單獨證明 branch merge 被阻擋。
@@ -277,6 +279,13 @@ automated update 為 `SCM-R04`。`SCM-R03` 是密鑰掃描（Gitleaks），與�
 
 1. **advisory 門檻已上移。** 現在是 vulnerable `<3.3.18`、patched `>=3.3.18`。
    `SCM-R05` 若照原記的 `>=3.3.17` 提版，gate 不會轉綠。
+
+**2026-08-17 稍後解除：** `SCM-R05`（PR #16、實作 `5c99b54`、merge `cf3b87b`）把
+lockfile 的 `nanoid` 提到 `3.3.18`。`audit:all` 由 10 筆／1 high 變為 9 筆／0 high，
+`audit:prod` 維持 0，`main` 在 `b05da66`（run `32027293936`）十個 job 全綠。
+**上方兩段 2026-08-11 與 2026-08-17 的紅燈觀察自此為歷史證據，不再是現況。**
+殘留 9 筆（`hono`／`postcss`／`re2`／`undici`，經 `firebase-tools` 與 `vite`）低於
+`high` 門檻、不擋 gate，其 owner／理由／到期日仍屬 `SCM-R04`。
 2. **相依路徑以 CI 輸出為準為 `vitest > vite > postcss > nanoid`**（三條，含
    `@vitest/mocker` 與 `vite-node` 分支），仍全部落在 dev 工具鏈，因此
    `audit:prod` 乾淨、只有 `audit:all` 紅。
