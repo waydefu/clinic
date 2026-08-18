@@ -50,7 +50,8 @@ describe('required project files', () => {
       'scripts/check-audit-exceptions.mjs',
       'scripts/generate-sast-evidence.mjs',
       'security/audit-exceptions.json',
-      '.github/workflows/sast.yml'
+      '.github/workflows/sast.yml',
+      '.github/workflows/sast-scan.yml'
     ])
       expect(requiredPaths).toContain(gate);
   });

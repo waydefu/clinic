@@ -1,0 +1,211 @@
+name: sast-scan
+
+# GitHub code-scanning upload is unavailable for the current private personal
+# repository without GitHub Code Security. That platform capability is
+# independent from whether a scanner actually ran successfully.
+#
+# This workflow therefore runs Semgrep Community Edition as the blocking SAST
+# gate with repository-owned rules plus a reviewed high/medium-confidence
+# upstream allowlist. It retains complete, commit-bound JSON/SARIF evidence as
+# a workflow artifact. It does not upload SARIF to GitHub code scanning and
+# does not claim that Semgrep CE is equivalent to CodeQL’s cross-file analysis.
+#
+# 這裡是 Semgrep CE 掃描的**唯一實作**，以 `workflow_call` 對外提供。
+#
+# 它被抽出來的原因只有一個：GitHub Actions 的 `needs` 不跨 workflow。SAST 留在
+# 獨立 workflow 時，required 的 `Verification evidence` 拿不到它的結果，紅的 SAST
+# 因此擋不住合併——那正是 `SCM-R01` 要關掉的缺口。把實作放進可重用 workflow 後：
+#
+#   * `verify.yml` 以 `uses: ./.github/workflows/sast-scan.yml` 在**同一個 run**
+#     內呼叫它，`evidence` job 於是能用原生的 `needs` 取得它的結論；
+#   * `sast.yml` 以同一份實作跑每週排程與手動觸發，掃描邏輯只有這一份。
+#
+# **同 commit 的保證來自本地路徑的呼叫方式。** `./` 開頭的 reusable workflow 一律
+# 取自呼叫端所在的那個 commit，被呼叫 workflow 內的 `github` context（含
+# `github.sha`）也繼承呼叫端的 run。因此這裡 checkout 到的、掃描的、寫進證據的，
+# 必然是同一個候選 commit——不需要查詢「最近一次成功的 SAST run」，也就沒有舊結果
+# 冒充新 commit 的競態。
+#
+# 呼叫端不必只信任這段註解：下面兩個 output 把掃描自報的 commit 與結論送回去，
+# `scripts/generate-ci-evidence.mjs` 會拿它和候選 commit 對照後寫進證據檔。
+on:
+  workflow_call:
+    outputs:
+      conclusion:
+        description: The SAST evidence conclusion for the scanned commit.
+        value: ${{ jobs.analyze.outputs.conclusion }}
+      commit:
+        description: The commit the SAST evidence was generated for.
+        value: ${{ jobs.analyze.outputs.commit }}
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Semgrep CE SAST（可稽核、會阻斷）
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # 這兩個值由 `generate-sast-evidence.mjs` 寫進 $GITHUB_OUTPUT，來源是它剛產出的
+    # 證據檔本身，不是 workflow 另外回填的字串。job 失敗時 GitHub 不會傳遞 output，
+    # 呼叫端因此收到空值——那同樣會被判為不符，方向是 fail-closed。
+    outputs:
+      conclusion: ${{ steps.evidence.outputs.conclusion }}
+      commit: ${{ steps.evidence.outputs.commit }}
+    steps:
+      - name: Check out the analyzed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out the pinned Semgrep Community Edition rules
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: semgrep/semgrep-rules
+          ref: 40b8c63f75dc7c22c8a77482d73bfb864b146f7e
+          path: .semgrep-rules
+          persist-credentials: false
+
+      - name: Test repository-owned Semgrep rules
+        id: rule_tests
+        shell: bash
+        env:
+          SEMGREP_IMAGE: semgrep/semgrep:1.171.0@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8
+        run: |
+          mkdir -p output/evidence
+          docker run --rm \
+            --network none \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/tmp \
+            --env LANG=C.UTF-8 \
+            --env LC_ALL=C.UTF-8 \
+            --env PYTHONUTF8=1 \
+            --env PYTHONIOENCODING=utf-8 \
+            "$SEMGREP_IMAGE" \
+            semgrep --version > output/evidence/semgrep-version.txt
+          set +e
+          set -o pipefail
+          docker run --rm \
+            --network none \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/tmp \
+            --env LANG=C.UTF-8 \
+            --env LC_ALL=C.UTF-8 \
+            --env PYTHONUTF8=1 \
+            --env PYTHONIOENCODING=utf-8 \
+            --volume "$GITHUB_WORKSPACE:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            semgrep --test security/semgrep \
+            2>&1 | tee output/evidence/semgrep-rule-tests.txt
+          test_exit_code=${PIPESTATUS[0]}
+          set +o pipefail
+          set -e
+          printf '%s\n' "$test_exit_code" > output/evidence/semgrep-rule-test-exit-code.txt
+          exit "$test_exit_code"
+
+      # --error makes findings exit 1. --strict makes parse/config warnings
+      # fail rather than quietly reducing scan coverage. Exit codes >=2 are
+      # scanner/configuration failures. The step preserves the exact code
+      # before returning it, so both findings and scanner failures stay red.
+      - name: Run Semgrep CE
+        id: semgrep
+        shell: bash
+        env:
+          # The tag documents the human-readable version and the digest makes
+          # the executable image immutable.
+          SEMGREP_IMAGE: semgrep/semgrep:1.171.0@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8
+        run: |
+          mkdir -p output/evidence
+
+          mapfile -t upstream_rules < security/semgrep/upstream-rules.txt
+          if [[ "${#upstream_rules[@]}" -ne 68 ]]; then
+            echo "Expected 68 pinned upstream rule files; found ${#upstream_rules[@]}." >&2
+            exit 2
+          fi
+          if ! printf '%s\n' "${upstream_rules[@]}" | LC_ALL=C sort -cu; then
+            echo "The upstream Semgrep rule manifest must be sorted and unique." >&2
+            exit 2
+          fi
+
+          config_args=(
+            --config security/semgrep/clinic-javascript.yml
+            --config security/semgrep/firestore-rules.yml
+          )
+          for relative_rule in "${upstream_rules[@]}"; do
+            if [[ ! "$relative_rule" =~ ^(javascript|typescript)/[A-Za-z0-9._/-]+\.ya?ml$ ]] ||
+              [[ "$relative_rule" == *".."* ]]; then
+              echo "Unsafe upstream rule path: $relative_rule" >&2
+              exit 2
+            fi
+            absolute_rule=".semgrep-rules/$relative_rule"
+            if [[ ! -f "$absolute_rule" ]]; then
+              echo "Pinned upstream rule is missing: $relative_rule" >&2
+              exit 2
+            fi
+            config_args+=(--config "$absolute_rule")
+          done
+
+          set +e
+          docker run --rm \
+            --network none \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/tmp \
+            --env LANG=C.UTF-8 \
+            --env LC_ALL=C.UTF-8 \
+            --env PYTHONUTF8=1 \
+            --env PYTHONIOENCODING=utf-8 \
+            --volume "$GITHUB_WORKSPACE:/src" \
+            --workdir /src \
+            "$SEMGREP_IMAGE" \
+            semgrep scan \
+            "${config_args[@]}" \
+            --oss-only \
+            --metrics off \
+            --disable-version-check \
+            --strict \
+            --error \
+            --dataflow-traces \
+            --json-output output/evidence/semgrep-results.json \
+            --sarif-output output/evidence/semgrep-results.sarif \
+            --exclude .semgrep-rules \
+            --exclude .pnpm-store \
+            --exclude node_modules \
+            --exclude apps/web/dist \
+            --exclude apps/web/public/vendor \
+            --exclude output \
+            --exclude playwright-report \
+            --exclude security/semgrep/clinic-javascript.js \
+            --exclude security/semgrep/firestore-rules.rules \
+            --exclude test-results \
+            .
+          scan_exit_code=$?
+          set -e
+          printf '%s\n' "$scan_exit_code" > output/evidence/semgrep-exit-code.txt
+          exit "$scan_exit_code"
+
+      - name: Generate and enforce commit-bound SAST evidence
+        id: evidence
+        if: ${{ always() }}
+        env:
+          SAST_SCAN_OUTCOME: ${{ steps.semgrep.outcome }}
+          SAST_RULE_TEST_OUTCOME: ${{ steps.rule_tests.outcome }}
+          SAST_ENGINE_IMAGE: semgrep/semgrep:1.171.0@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8
+          SAST_RULES_REPOSITORY: semgrep/semgrep-rules
+          SAST_RULES_REVISION: 40b8c63f75dc7c22c8a77482d73bfb864b146f7e
+          SAST_LOCAL_RULE_CONFIGS: security/semgrep/clinic-javascript.yml,security/semgrep/firestore-rules.yml
+          SAST_UPSTREAM_RULE_MANIFEST: security/semgrep/upstream-rules.txt
+          SAST_UPSTREAM_RULE_ROOT: .semgrep-rules
+          SAST_EXPECTED_UPSTREAM_RULE_COUNT: 68
+          SAST_CONFIGURED_RULE_COUNT: 82
+          GITHUB_CODE_SCANNING_UPLOAD_STATUS: unavailable-private-personal-repository
+        run: node scripts/generate-sast-evidence.mjs
+
+      - name: Upload SAST results and verification evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: sast-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: output/evidence/
+          if-no-files-found: error
+          retention-days: 90

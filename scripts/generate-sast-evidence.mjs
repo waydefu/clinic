@@ -418,6 +418,24 @@ export function renderSastEvidenceSummary(evidence) {
   ].join('\n');
 }
 
+// GITHUB_OUTPUT 是一個逐行 `key=value` 的檔案，呼叫端（`verify.yml` 的 evidence
+// job）就是靠它拿到「這次掃描自報的 commit」。值來自剛產出的證據物件，不是 workflow
+// 另外回填的字串，所以證據檔與 output 不可能各說各話。
+//
+// 只放行不會改變行結構的字元：帶換行的值可以偽造出額外的 output。runner 給的
+// GITHUB_SHA 目前不可能長成那樣，但這支腳本產出的是阻斷合併的證據，它的輸出格式
+// 不該建立在「上游一定乾淨」之上。不合格就降級成 unknown，而呼叫端對不上候選
+// commit 就會判失敗——方向是 fail-closed。
+export function renderStepOutputs(evidence) {
+  const safe = (value) =>
+    /^[A-Za-z0-9._:-]+$/u.test(String(value)) ? String(value) : 'unknown';
+  return [
+    `conclusion=${safe(evidence.conclusion)}`,
+    `commit=${safe(evidence.commit)}`,
+    ''
+  ].join('\n');
+}
+
 async function readOptional(path) {
   try {
     return await readFile(path, 'utf8');
@@ -479,6 +497,13 @@ async function runCli() {
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     await writeFile(process.env.GITHUB_STEP_SUMMARY, summary, {
+      encoding: 'utf8',
+      flag: 'a'
+    });
+  }
+
+  if (process.env.GITHUB_OUTPUT) {
+    await writeFile(process.env.GITHUB_OUTPUT, renderStepOutputs(evidence), {
       encoding: 'utf8',
       flag: 'a'
     });
