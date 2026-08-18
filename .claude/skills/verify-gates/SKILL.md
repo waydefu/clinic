@@ -48,7 +48,7 @@ evidence and costs the user real time.
 | `scripts/**` | `corepack pnpm run test:unit` (it collects `scripts/**/*.test.mjs`) plus the gate you changed |
 | `docs/**`, any `*.md` | `corepack pnpm run check:docs` |
 | `package.json`, `pnpm-workspace.yaml`, lockfile | `corepack pnpm run check:supply-chain` |
-| `.github/workflows/**`, `security/**` | `corepack pnpm run check:structure` and read the workflow diff for unpinned actions |
+| `.github/workflows/**`, `security/**` | `corepack pnpm run check:structure` and read the workflow diff for unpinned actions. If you touched the `sast` job, `sast-scan.yml` or the `evidence` job’s `needs`, you changed the merge gate — prove it with an intentional-failure pull request, not by reading the YAML |
 | Broad or uncertain | `corepack pnpm verify` (the full local gate) |
 
 Run the narrow gates first — a fast failure is worth more than a slow one.

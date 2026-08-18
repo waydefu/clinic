@@ -32,7 +32,7 @@
 | 依賴方向、未接線清單、domain 規則單一來源 | 腳本 | `scripts/check-architecture.mjs` | 是 |
 | 分支保護含 `evidence` | 腳本（需 token） | `scripts/check-branch-protection.mjs` | 否——不在 `verify`，無 token 時回離開碼 2 |
 | SBOM 與授權政策 | CycloneDX 產生器 | `scripts/generate-sbom.mjs` | 是 |
-| SAST（規則式；非跨檔 data-flow 等價方案） | Semgrep CE | `.github/workflows/sast.yml` | workflow 會因 finding／scanner／rule test 失敗變紅；尚未納入唯一 required `Verification evidence` |
+| SAST（規則式；非跨檔 data-flow 等價方案） | Semgrep CE | `.github/workflows/sast-scan.yml`（`workflow_call` 實作）；由 `verify.yml` 的 `sast` job 呼叫，`sast.yml` 另作每週排程／手動包裝 | finding／scanner／rule test 失敗會讓該 job 變紅，**並自 2026-08-18（`SCM-R01`）起連帶讓唯一 required 的 `Verification evidence` 變紅** |
 
 ## 2. 效能預算
 
@@ -211,19 +211,32 @@ purl，不受影響。若之後需要完整相依圖，來源要改成鎖檔。
 2. **Semgrep CE**：使用固定 engine image、固定 upstream rules revision、
    repository-owned rules 與正反 fixture，產出同一 commit 的 JSON／SARIF／summary
    artifact。它是規則式分析，**不等同 CodeQL 的跨檔 taint/data-flow**。
-3. **Required-check 限制（2026-08-11）**：`.github/workflows/sast.yml` 是獨立
-   workflow；唯一 required `Verification evidence` 只依賴 `verify`、`rules`、
-   `e2e` 與 `supply-chain`。因此 SEC-02 政策已核准，但 merge-blocking enforcement
-   尚未被證明；`SCM-R01` 必須讓精確、同 commit 的 SAST 結果成為 required。
+3. ~~**Required-check 限制（2026-08-11）**~~：`.github/workflows/sast.yml` 當時是
+   獨立 workflow；唯一 required `Verification evidence` 只依賴 `verify`、`rules`、
+   `e2e` 與 `supply-chain`。SEC-02 政策已核准，但 merge-blocking enforcement 未被
+   證明。**這個限制已於 2026-08-18 由 `SCM-R01` 解除，見下方第 5 點。**
 4. **`SCM-R01` 的前置是 `SCM-R05`——該前置已於 2026-08-17 滿足。** 稽核基準
    `cf597af` 當時的 `supply-chain` 是紅的（見 §3 的 `nanoid` high），連帶讓
    `Verification evidence` 變紅；aggregate 沒先轉綠，`SCM-R01` 的「故意失敗 PR」
    驗收就分不出擋住 PR 的是 SAST 還是 dependency audit。`SCM-R05`（PR #16、merge
    `cf3b87b`）已把 `nanoid` 提到 `3.3.18`，`main` 在 `b05da66` 全綠，**該驗收方法
-   現在才成立**。`SCM-R01` 因此可以開始，但尚未開始。
+   因此才成立**。
+5. **`SCM-R01` 已於 2026-08-18 完成，同 commit 的 Semgrep 結果現在會擋下合併。**
+   GitHub Actions 沒有跨 workflow 的 `needs`，所以掃描實作抽成
+   `.github/workflows/sast-scan.yml`（`workflow_call`），`verify.yml` 在同一個 run
+   內以 `sast` job 呼叫它，`evidence` 的 `needs` 因此含 `sast`。同 commit 由呼叫方式
+   保證：`./` 開頭的 reusable workflow 一定取自呼叫端的 commit；證據檔另外記錄掃描
+   自報的 commit，對不上就判 failure。
 
-上線證據包仍須附實際 run、commit SHA、掃描結果與 artifact；YAML 存在、獨立 workflow
-變紅或本機掃描成功，都不能單獨證明 branch merge 被阻擋。
+   驗收是行為的，不是文字的。對照組 PR #18（候選 `351e4034`、run `32100761005`）
+   十一個 job 全綠、Semgrep 0 findings；故意失敗的 PR #19（候選 `d49330c8`、run
+   `32101192719`）以既有規則 `clinic.javascript.weak-cryptography` 產出 1 筆
+   blocking finding，`sast` 與 `Verification evidence` 同時變紅，其餘十個 job 全綠，
+   `mergeStateStatus=BLOCKED`，未使用 admin bypass，該 PR 已關閉未合併。
+   branch protection 未變動——required context 仍只有 `Verification evidence`。
+
+上線證據包仍須附實際 run、commit SHA、掃描結果與 artifact；YAML 存在或本機掃描成功，
+都不能單獨證明 branch merge 被阻擋——那要靠故意失敗 PR 上的 required check 實際變紅。
 
 ## 4-b. 設計 token
 

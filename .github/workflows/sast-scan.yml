@@ -47,8 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # 這兩個值由 `generate-sast-evidence.mjs` 寫進 $GITHUB_OUTPUT，來源是它剛產出的
-    # 證據檔本身，不是 workflow 另外回填的字串。job 失敗時 GitHub 不會傳遞 output，
-    # 呼叫端因此收到空值——那同樣會被判為不符，方向是 fail-closed。
+    # 證據檔本身，不是 workflow 另外回填的字串。因此掃描失敗時呼叫端拿到的仍是
+    # 「這次掃的是哪個 commit」，紅燈的證據也指名得出對象。
+    #
+    # 被跳過、或在寫出 output 之前就中斷時則是空值。呼叫端把空值判為不符——拿不到
+    # 就不算數，不是預設通過。
     outputs:
       conclusion: ${{ steps.evidence.outputs.conclusion }}
       commit: ${{ steps.evidence.outputs.commit }}

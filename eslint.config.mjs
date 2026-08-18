@@ -38,7 +38,7 @@ export default tseslint.config(
   js.configs.recommended,
 
   // --- 程式碼注入：SAST 的第一層，套用到所有檔案 ------------------------
-  // Semgrep（`.github/workflows/sast.yml`）做的是規則式的樣式比對；這裡擋的是
+  // Semgrep（`.github/workflows/sast-scan.yml`）做的是規則式的樣式比對；這裡擋的是
   // 那些「一眼就該擋」的動態求值 sink。放在最前面且不限定 files，任何新加的
   // 套件或腳本都自動受管，不會因為漏改設定而出現沒被檢查的角落。
   {

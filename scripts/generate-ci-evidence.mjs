@@ -31,8 +31,9 @@ export function createCiEvidence({ env = {}, now = new Date() } = {}) {
     result: env[variable] ?? 'missing'
   }));
   const commit = env.GITHUB_SHA ?? 'unknown';
-  // 空字串代表被呼叫的 SAST workflow 沒有回傳 output——job 失敗、被取消或被跳過時
-  // 都是如此。那和「回報了別的 commit」一樣不可接受，因此收斂成同一種結果。
+  // 空字串代表被呼叫的 SAST workflow 根本沒回傳 output（被跳過，或在寫出之前就
+  // 中斷）。失敗的掃描仍會回報它掃了哪個 commit，那是刻意的——紅燈也要指名得出
+  // 對象。拿不到值與「回報了別的 commit」一樣不可接受，因此收斂成同一種結果。
   const sastReportedCommit = env.CI_EVIDENCE_SAST_COMMIT || 'missing';
   const sastCommitMatchesCandidate =
     commit !== 'unknown' && sastReportedCommit === commit;

@@ -46,8 +46,18 @@ A gate decides what reaches `main`. Treat everything here as product code.
 - `Verification evidence` is the single required check and aggregates the matrix
   jobs. `e2e` runs `fail-fast: false` and per-group artifact names on purpose —
   reverting either returns CI to "something broke, unknown what".
-- The SAST workflow is **not** currently a required check. Describe it as
-  "approved policy, merge-blocking enforcement pending", never as enforced.
+- **SAST is part of that aggregate since `SCM-R01` (2026-08-18).** Actions has no
+  cross-workflow `needs`, so the scan lives in `sast-scan.yml` as a `workflow_call`
+  workflow, `verify.yml` invokes it as the `sast` job in the same run, and
+  `evidence` needs it. Same-commit is a property of the call: a `./`-prefixed
+  reusable workflow comes from the caller’s commit. `sast.yml` is now only the
+  weekly/manual wrapper over the same implementation — do not give it back its
+  `push`/`pull_request` triggers, that scans each commit twice and puts a second,
+  non-required SAST result next to the one that actually blocks.
+- Changing any of that changes the merge gate. Re-prove it the way it was proven:
+  an intentional-failure pull request that trips an existing rule, showing `sast`
+  **and** `Verification evidence` red on the same commit while everything else is
+  green. A YAML diff that looks right is not evidence.
 
 ## Semgrep rule files are fixtures
 

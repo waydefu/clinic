@@ -212,8 +212,9 @@ jobs:
           CI_EVIDENCE_E2E_RESULT: ${{ needs.e2e.result }}
           CI_EVIDENCE_SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
           CI_EVIDENCE_SAST_RESULT: ${{ needs.sast.result }}
-          # 掃描自報的 commit。成功時它必須等於這個 run 的候選 commit，證據才算
-          # 同 commit；job 失敗時 GitHub 不傳遞 output，這裡會是空值而判為不符。
+          # 掃描自報的 commit。它必須等於這個 run 的候選 commit，證據才算同 commit。
+          # 失敗的掃描同樣會回報它掃了誰，所以紅燈指名得出對象；真正拿不到值的情況
+          # （被跳過、提早中斷）是空字串，而空字串判為不符。
           CI_EVIDENCE_SAST_COMMIT: ${{ needs.sast.outputs.commit }}
         run: node scripts/generate-ci-evidence.mjs
 

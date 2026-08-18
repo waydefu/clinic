@@ -476,6 +476,32 @@ subsequently confirmed that `main` has no repository ruleset and requires only
 `Verification evidence`; PR #14 showed the independent Semgrep check green while
 the required aggregate was red. No remote setting was changed.
 
+**Implementation evidence supplied — 2026-08-18 (`SCM-R01`):** the pending
+condition above is now met, and SEC-02 should be recorded as **approved policy
+with demonstrated merge-blocking enforcement**. `Verification evidence` consumes
+a same-commit SAST result: the scan moved to
+`.github/workflows/sast-scan.yml` (`workflow_call`), `verify.yml` calls it as the
+`sast` job inside the same run, and the `evidence` job needs it, so all five
+required results are bound to one candidate commit. The evidence artifact also
+records the commit the scan named and fails when it differs from the candidate.
+
+The proof is behavioural. PR #18 (implementation `373757c`, candidate
+`351e403484fcb0d80356b973eefd494363d8ef13`, run `32100761005`) passed all eleven
+jobs with Semgrep reporting 0 findings across 173 files. PR #19 added one
+synthetic file tripping the existing repository-owned rule
+`clinic.javascript.weak-cryptography`; on candidate
+`d49330c83e56264e123a718a3619070557d0226c` (run `32101192719`) the `sast` job and
+`Verification evidence` both went red while the other ten jobs stayed green,
+GitHub reported `mergeStateStatus=BLOCKED`, no administrator bypass was used, and
+the pull request was closed unmerged. No branch-protection setting was changed —
+the required context is still exactly `Verification evidence`.
+
+What this does not change: the recorded residual risks stand. Semgrep CE remains
+rule-based rather than CodeQL cross-file taint analysis, code-scanning upload is
+still unavailable, and both approver roles were still signed by one person. The
+D-013 administrator bypass is also untouched, so this enforces the protected
+merge path and nothing else.
+
 ```text
 Approval ID: SEC-03
 Answer: approved — the high `brace-expansion` advisory (GHSA-mh99-v99m-4gvg / CVE-2026-14257) is accepted as a time-bounded exception on its current limited paths.

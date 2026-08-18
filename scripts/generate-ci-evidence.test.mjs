@@ -122,7 +122,8 @@ describe('same-commit SAST binding', () => {
     expect(evidence.sast.commitMatchesCandidate).toBe(false);
   });
 
-  // job 失敗、被取消或被跳過時，GitHub 不傳遞它的 output，呼叫端收到的是空字串。
+  // 被跳過、或在寫出 output 之前就中斷時，呼叫端收到的是空字串。（失敗的掃描則仍會
+  // 回報它掃的 commit——2026-08-18 的 SCM-R01 故意失敗驗收實測如此。）
   it('fails when the SAST workflow returned an empty commit output', () => {
     const evidence = evidenceFor({
       ...runContext,

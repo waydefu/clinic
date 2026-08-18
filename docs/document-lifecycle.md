@@ -54,7 +54,7 @@ commit／environment、涵蓋範圍、owner、evidence 及 expiry／next review�
 | 證據 | 產生方式 | 保存 |
 | --- | --- | --- |
 | CI 完整驗證 | `verify` workflow 的 `Verification evidence` job | GitHub artifact 90 天；同時寫 job summary |
-| Semgrep CE SAST | 獨立 `sast` workflow 的 commit-bound JSON／SARIF／summary | GitHub artifact 90 天；截至 2026-08-11 尚未被唯一 required `Verification evidence` 依賴，因此 workflow 綠／紅不等於 merge boundary 已強制 |
+| Semgrep CE SAST | `sast-scan.yml` 的 commit-bound JSON／SARIF／summary（由 `verify` workflow 的 `sast` job 在同一個 run 內產生；每週排程與手動觸發走 `sast.yml`） | GitHub artifact 90 天；**自 2026-08-18（`SCM-R01`）起被唯一 required 的 `Verification evidence` 依賴**，紅的 SAST 會擋下合併 |
 | 合成預覽 | `pnpm verify:preview -- <preview-url>` | 本機 `output/evidence/`，依 review／交付需要另行保存 |
 
 證據 JSON 至少綁定 commit SHA、時間、執行／部署網址、必要檢查與結論。

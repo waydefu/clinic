@@ -40,7 +40,8 @@ TW-04 與 TW-05 自動前置條件已交付；原 TW 唯一未完成的是 TW-05
 對 release candidate 留正式紀錄。
 
 2026-08-11 另確認需先處理 `DATA-R01`、`DATA-R02`、`ARC-R01`、~~`SCM-R05`~~
-（**2026-08-17 已完成**）、`SCM-R01/02`、`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是新的
+（**2026-08-17 已完成**）、~~`SCM-R01`~~（**2026-08-18 已完成**）、`SCM-R02`、
+`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是新的
 current finding；在對應 acceptance 通過前，不得把 slot release、outbox
 ownership、SAST merge gate、privacy index、clinic timing 或完整 axe evidence
 寫成已驗證。
@@ -51,9 +52,17 @@ ownership、SAST merge gate、privacy index、clinic timing 或完整 axe eviden
 `main` 在 `b05da66`（`verify` run `32027293936`）**十個 job 全綠，含唯一 required
 的 `Verification evidence`**。
 
-因此目前這一路的下一個工程切片是 **`SCM-R01`**（把同 commit 的 Semgrep 結果納入
-required evidence），其前置已滿足但**尚未開始**。`DATA-R01`／`DATA-R02`／`ARC-R01`／
-`WEB-P0-01/02/03` 不受此影響，仍各自待處理。
+**`SCM-R01` 已於 2026-08-18 完成（PR #18、實作 `373757c`）。** 掃描實作抽成
+`.github/workflows/sast-scan.yml`（`workflow_call`），`verify.yml` 在同一個 run 內以
+`sast` job 呼叫，`Verification evidence` 的必要 job 由四項變五項並綁定同一個 commit。
+對照組（候選 `351e4034`、run `32100761005`）十一個 job 全綠；故意失敗的 PR #19
+（候選 `d49330c8`、run `32101192719`）讓 `sast` 與 `Verification evidence` 同時變紅、
+其餘全綠、`mergeStateStatus=BLOCKED`、未用 admin bypass，已關閉未合併。
+branch protection 未變動。
+
+因此這一路的下一個工程切片是 **`SCM-R02`**（runtime 安全：CSP／security headers／
+API runtime 防護），它與 `SCM-R01`／`SCM-R05` 無相依。`DATA-R01`／`DATA-R02`／
+`ARC-R01`／`WEB-P0-01/02/03` 不受此影響，仍各自待處理。
 
 `SCM-R04` 未關閉：9 筆殘留 advisory（1 low／8 moderate，全在 dev 工具鏈）低於 `high`
 門檻、不擋 gate，但仍無 owner／理由／到期日。**gate 綠不等於 patch SLA 存在。**
@@ -152,7 +161,7 @@ production 的告警、secret rotation、restore、DR、法規／vendor 重審�
 | 核准項目 | 狀態 | 白話問題 | 建議方向 | 核准人 |
 | --- | --- | --- | --- | --- |
 | SEC-01 repository 位置 | **已決定** | 現在要不要把私有 repository 移到組織？ | 2026-07-31 業主方向為「目前不轉移」；維持個人私有 repository，未來再重評 | Repository owner |
-| SEC-02 私有 SAST 證據政策 | **政策已核准 2026-08-01；merge-blocking enforcement 待 `SCM-R01`**（單人兼任兩角色簽核） | GitHub Security 頁面不能收 CodeQL 結果時，可否以 Semgrep CE commit-bound artifact 作為阻斷證據？ | 政策接受 pinned engine、rules/fixtures/hash 與 artifact，且明確認知 CE 非 CodeQL 跨檔等價物。2026-08-11 14:32 +08:00 唯讀 API 確認 `main` 唯一 required context 是 `Verification evidence`，且它未依賴獨立 SAST workflow；在直接 require 精確 SAST check 或聚合同 commit SAST 前，不得稱 merge 已被強制 | Technical owner＋security owner |
+| SEC-02 私有 SAST 證據政策 | **政策已核准 2026-08-01；merge-blocking enforcement 已於 2026-08-18 由 `SCM-R01` 實作並以故意失敗 PR 驗證**（單人兼任兩角色簽核） | GitHub Security 頁面不能收 CodeQL 結果時，可否以 Semgrep CE commit-bound artifact 作為阻斷證據？ | 政策接受 pinned engine、rules/fixtures/hash 與 artifact，且明確認知 CE 非 CodeQL 跨檔等價物。2026-08-11 的唯讀快照顯示唯一 required context `Verification evidence` 未依賴獨立 SAST workflow；`SCM-R01`（2026-08-18）讓它在同一個 run 內聚合同 commit 的 SAST 結果，PR #19 的故意失敗驗收證明紅的 SAST 會擋下合併。**「非 CodeQL 等價物」這一句不因此改變。** | Technical owner＋security owner |
 | SEC-03 `brace-expansion` 暫時例外 | **已解除 2026-08-01**（核准當日 advisory 修訂補上各 major 修補版，解除條件成立；已改為逐 major 鎖定並移除忽略設定，目前無任何 audit 例外） | 舊 major 沒有相容修補時，是否接受目前限定路徑的暫時風險？ | 保持 alert 可見、不 dismiss；只接受目前 dev-only／未掛路由且不接收攻擊者 glob 的路徑，直到上游舊 major 修補或父套件可移到 5.x；每次升版重查 | Technical owner＋security owner |
 
 ### B. Stage 1 決策
