@@ -23,7 +23,7 @@ export const REQUIRED_JOBS = [
 ];
 
 export const safeMarkdown = (value) =>
-  String(value).replaceAll('|', '\|').replaceAll('\n', ' ');
+  String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
 
 export function createCiEvidence({ env = {}, now = new Date() } = {}) {
   const jobs = REQUIRED_JOBS.map(([name, variable]) => ({
