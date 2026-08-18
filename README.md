@@ -121,9 +121,12 @@ Dependabot alerts** on `main` (8 medium, 1 low); this dated remote inventory is
 separate from source-tree audit exceptions and requires `SCM-R03` triage.
 `main` has no repository ruleset; branch protection has one strict required
 context, `Verification evidence`, with force pushes and deletion disabled,
-`enforce_admins=false`, and no required review. That required job does not
-depend on the separate Semgrep workflow, so SEC-02 is an approved policy with
-merge-blocking enforcement still pending `SCM-R01`.
+`enforce_admins=false`, and no required review. Since `SCM-R01` on 2026-08-18
+that required job aggregates five results, Semgrep CE among them, all bound to
+the same candidate commit — so SEC-02 is an approved policy whose merge-blocking
+enforcement has been demonstrated: an intentional-failure pull request turned
+`Verification evidence` red and was blocked. Semgrep CE is still not represented
+as equivalent to CodeQL cross-file analysis.
 
 ## Clinic website integration — 2026-07-27
 

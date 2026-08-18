@@ -116,8 +116,11 @@ apply approval、真實資料或 production 授權。官方基準與控制來源
 ### 步驟 0-4　push 並取得 CI 對同一 commit 的證據
 
 - **前置**：0-3 完成。
-- **動作**：push 分支，開 PR，等 `Verification evidence` 與 `sast.yml` 在 GitHub 上
-  對**同一個 commit** 跑完。
+- **動作**：push 分支，開 PR，等 `Verification evidence` 在 GitHub 上跑完。自
+  2026-08-18（`SCM-R01`）起 Semgrep 就在同一個 run 裡（job 名稱
+  `sast / Semgrep CE SAST（可稽核、會阻斷）`），**不再需要另外等一個 `sast`
+  workflow**——那份 workflow 現在只負責每週排程與手動觸發。同 commit 是這個拓撲
+  的性質，不需要人工核對兩個 run 的 SHA。
 - **驗收證據**：CI run 連結 + commit hash + 可下載的 SAST 產出檔。
 - **回滾**：關閉 PR，分支保留。
 

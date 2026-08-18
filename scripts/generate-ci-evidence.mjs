@@ -7,12 +7,19 @@ import { fileURLToPath } from 'node:url';
 // 是對的：**任何一個必要 job 不是 success，結論就是 failure**——包括「沒有回報
 // 結果」。一個把 missing 當成通過的證據產生器，會讓被跳過的 job 看起來像跑過。
 // 因此純邏輯全部匯出，可在沒有 CI 環境的情況下測試。
+//
+// `SCM-R01` 起 `sast` 也是必要 job，而它多帶一個條件：**掃描自報的 commit 必須等於
+// 這個 run 的候選 commit**。同 run 執行這件事在架構上已經成立（`verify.yml` 以本地
+// 路徑呼叫可重用 workflow，那一定是同一個 commit），但「成立」和「被記錄下來」是兩
+// 件事——稽核讀的是證據檔，不是 workflow 的註解。對不上就是 failure，理由與缺少結果
+// 相同：一份不能指名 commit 的掃描結果，證明不了這個 commit 被掃過。
 
 export const REQUIRED_JOBS = [
   ['verify', 'CI_EVIDENCE_VERIFY_RESULT'],
   ['rules', 'CI_EVIDENCE_RULES_RESULT'],
   ['e2e', 'CI_EVIDENCE_E2E_RESULT'],
-  ['supply-chain', 'CI_EVIDENCE_SUPPLY_CHAIN_RESULT']
+  ['supply-chain', 'CI_EVIDENCE_SUPPLY_CHAIN_RESULT'],
+  ['sast', 'CI_EVIDENCE_SAST_RESULT']
 ];
 
 export const safeMarkdown = (value) =>
@@ -23,17 +30,27 @@ export function createCiEvidence({ env = {}, now = new Date() } = {}) {
     name,
     result: env[variable] ?? 'missing'
   }));
-  const passed = jobs.every(({ result }) => result === 'success');
+  const commit = env.GITHUB_SHA ?? 'unknown';
+  // 空字串代表被呼叫的 SAST workflow 根本沒回傳 output（被跳過，或在寫出之前就
+  // 中斷）。失敗的掃描仍會回報它掃了哪個 commit，那是刻意的——紅燈也要指名得出
+  // 對象。拿不到值與「回報了別的 commit」一樣不可接受，因此收斂成同一種結果。
+  const sastReportedCommit = env.CI_EVIDENCE_SAST_COMMIT || 'missing';
+  const sastCommitMatchesCandidate =
+    commit !== 'unknown' && sastReportedCommit === commit;
+  const passed =
+    jobs.every(({ result }) => result === 'success') &&
+    sastCommitMatchesCandidate;
   const serverUrl = env.GITHUB_SERVER_URL ?? 'https://github.com';
   const repository = env.GITHUB_REPOSITORY ?? 'unknown/unknown';
   const runId = env.GITHUB_RUN_ID ?? 'unknown';
 
   return {
-    schemaVersion: 1,
+    // 2：新增 `sast` 必要 job 與它的 commit 綁定欄位（`SCM-R01`）。
+    schemaVersion: 2,
     kind: 'ci-verification',
     generatedAt: now.toISOString(),
     repository,
-    commit: env.GITHUB_SHA ?? 'unknown',
+    commit,
     ref: env.GITHUB_REF ?? 'unknown',
     event: env.GITHUB_EVENT_NAME ?? 'unknown',
     workflow: env.GITHUB_WORKFLOW ?? 'verify',
@@ -46,12 +63,19 @@ export function createCiEvidence({ env = {}, now = new Date() } = {}) {
           : `${serverUrl}/${repository}/actions/runs/${runId}`
     },
     requiredJobs: jobs,
+    sast: {
+      reportedCommit: sastReportedCommit,
+      commitMatchesCandidate: sastCommitMatchesCandidate
+    },
     conclusion: passed ? 'success' : 'failure'
   };
 }
 
 export function renderCiEvidenceSummary(evidence) {
   const passed = evidence.conclusion === 'success';
+  const everyJobPassed = evidence.requiredJobs.every(
+    ({ result }) => result === 'success'
+  );
   return [
     '# Verification evidence',
     '',
@@ -62,6 +86,13 @@ export function renderCiEvidenceSummary(evidence) {
     evidence.run.url === null
       ? '- Run: unavailable'
       : `- Run: ${evidence.run.url}`,
+    `- SAST evidence commit: \`${safeMarkdown(
+      evidence.sast.reportedCommit
+    )}\` (${
+      evidence.sast.commitMatchesCandidate
+        ? 'matches this candidate commit'
+        : 'does not match this candidate commit'
+    })`,
     `- Generated: ${evidence.generatedAt}`,
     '',
     '| Required job | Result |',
@@ -72,8 +103,10 @@ export function renderCiEvidenceSummary(evidence) {
     ),
     '',
     passed
-      ? 'All required verification jobs completed successfully.'
-      : 'At least one required verification job did not complete successfully.',
+      ? 'All required verification jobs completed successfully, and the SAST evidence names this exact commit.'
+      : everyJobPassed
+        ? 'Every required job reported success, but the SAST evidence does not name this commit, so this run is not accepted.'
+        : 'At least one required verification job did not complete successfully.',
     ''
   ].join('\n');
 }

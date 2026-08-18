@@ -162,6 +162,7 @@ const requiredPaths = [
   'scripts/check-design-tokens.mjs',
   'scripts/generate-sbom.mjs',
   '.github/workflows/sast.yml',
+  '.github/workflows/sast-scan.yml',
   'apps/web/public/styles.css',
   'apps/web/public/error.css',
   'apps/web/public/favicon.svg',

@@ -5,11 +5,14 @@ import {
   safeMarkdown
 } from './generate-ci-evidence.mjs';
 
+const CANDIDATE_COMMIT = '0123456789abcdef';
+
 const allGreen = {
   CI_EVIDENCE_VERIFY_RESULT: 'success',
   CI_EVIDENCE_RULES_RESULT: 'success',
   CI_EVIDENCE_E2E_RESULT: 'success',
-  CI_EVIDENCE_SUPPLY_CHAIN_RESULT: 'success'
+  CI_EVIDENCE_SUPPLY_CHAIN_RESULT: 'success',
+  CI_EVIDENCE_SAST_RESULT: 'success'
 };
 
 const runContext = {
@@ -17,9 +20,12 @@ const runContext = {
   GITHUB_REPOSITORY: 'waydefu/clinic',
   GITHUB_RUN_ID: '12345',
   GITHUB_RUN_ATTEMPT: '1',
-  GITHUB_SHA: '0123456789abcdef',
+  GITHUB_SHA: CANDIDATE_COMMIT,
   GITHUB_REF: 'refs/heads/main',
-  GITHUB_EVENT_NAME: 'push'
+  GITHUB_EVENT_NAME: 'push',
+  // 被呼叫的 SAST workflow 回報它掃的是哪一個 commit。綠燈的前提是它等於上面那個
+  // 候選 commit。
+  CI_EVIDENCE_SAST_COMMIT: CANDIDATE_COMMIT
 };
 
 const evidenceFor = (env) =>
@@ -36,7 +42,8 @@ describe('required job evaluation', () => {
     'CI_EVIDENCE_VERIFY_RESULT',
     'CI_EVIDENCE_RULES_RESULT',
     'CI_EVIDENCE_E2E_RESULT',
-    'CI_EVIDENCE_SUPPLY_CHAIN_RESULT'
+    'CI_EVIDENCE_SUPPLY_CHAIN_RESULT',
+    'CI_EVIDENCE_SAST_RESULT'
   ])('concludes failure when %s failed', (variable) => {
     expect(
       evidenceFor({ ...runContext, ...allGreen, [variable]: 'failure' })
@@ -58,6 +65,20 @@ describe('required job evaluation', () => {
     }
   );
 
+  // SAST 是 `SCM-R01` 新加的第五項，同一條規則對它一樣適用：被跳過的掃描不是通過。
+  it.each(['cancelled', 'skipped', ''])(
+    'treats the non-success SAST result %s as failure',
+    (result) => {
+      expect(
+        evidenceFor({
+          ...runContext,
+          ...allGreen,
+          CI_EVIDENCE_SAST_RESULT: result
+        }).conclusion
+      ).toBe('failure');
+    }
+  );
+
   it('records a job that reported nothing as missing rather than assuming it passed', () => {
     const evidence = evidenceFor(runContext);
 
@@ -66,16 +87,79 @@ describe('required job evaluation', () => {
       'missing',
       'missing',
       'missing',
+      'missing',
       'missing'
     ]);
   });
 
-  it('keeps all four required jobs in the evidence', () => {
+  it('keeps all five required jobs in the evidence', () => {
     expect(
       evidenceFor({ ...runContext, ...allGreen }).requiredJobs.map(
         (job) => job.name
       )
-    ).toEqual(['verify', 'rules', 'e2e', 'supply-chain']);
+    ).toEqual(['verify', 'rules', 'e2e', 'supply-chain', 'sast']);
+  });
+});
+
+// `SCM-R01` 的整個重點：required evidence 消費的必須是**這一個 commit** 的 SAST
+// 結果。job 回綠但指向別的 commit，證明的是別的東西。
+describe('same-commit SAST binding', () => {
+  it('records the commit the SAST evidence named and that it matches', () => {
+    expect(evidenceFor({ ...runContext, ...allGreen }).sast).toEqual({
+      reportedCommit: CANDIDATE_COMMIT,
+      commitMatchesCandidate: true
+    });
+  });
+
+  it('fails when the SAST evidence names a different commit', () => {
+    const evidence = evidenceFor({
+      ...runContext,
+      ...allGreen,
+      CI_EVIDENCE_SAST_COMMIT: 'fedcba9876543210'
+    });
+
+    expect(evidence.conclusion).toBe('failure');
+    expect(evidence.sast.commitMatchesCandidate).toBe(false);
+  });
+
+  // 被跳過、或在寫出 output 之前就中斷時，呼叫端收到的是空字串。（失敗的掃描則仍會
+  // 回報它掃的 commit——2026-08-18 的 SCM-R01 故意失敗驗收實測如此。）
+  it('fails when the SAST workflow returned an empty commit output', () => {
+    const evidence = evidenceFor({
+      ...runContext,
+      ...allGreen,
+      CI_EVIDENCE_SAST_COMMIT: ''
+    });
+
+    expect(evidence.conclusion).toBe('failure');
+    expect(evidence.sast).toEqual({
+      reportedCommit: 'missing',
+      commitMatchesCandidate: false
+    });
+  });
+
+  it('fails when the SAST workflow returned no commit output at all', () => {
+    const env = { ...runContext, ...allGreen };
+    delete env.CI_EVIDENCE_SAST_COMMIT;
+    const evidence = evidenceFor(env);
+
+    expect(evidence.conclusion).toBe('failure');
+    expect(evidence.sast).toEqual({
+      reportedCommit: 'missing',
+      commitMatchesCandidate: false
+    });
+  });
+
+  // 兩邊都是 unknown 不是「相符」，那是兩邊都不知道自己在驗哪個 commit。
+  it('does not treat two unknown commits as a match', () => {
+    const env = { ...runContext, ...allGreen };
+    delete env.GITHUB_SHA;
+    env.CI_EVIDENCE_SAST_COMMIT = 'unknown';
+    const evidence = evidenceFor(env);
+
+    expect(evidence.commit).toBe('unknown');
+    expect(evidence.conclusion).toBe('failure');
+    expect(evidence.sast.commitMatchesCandidate).toBe(false);
   });
 });
 
@@ -83,7 +167,7 @@ describe('run identification', () => {
   it('binds the evidence to the commit and run that produced it', () => {
     const evidence = evidenceFor({ ...runContext, ...allGreen });
 
-    expect(evidence.commit).toBe('0123456789abcdef');
+    expect(evidence.commit).toBe(CANDIDATE_COMMIT);
     expect(evidence.run.url).toBe(
       'https://github.com/waydefu/clinic/actions/runs/12345'
     );
@@ -105,8 +189,14 @@ describe('summary rendering', () => {
 
     expect(summary).toContain('Conclusion: **success**');
     expect(summary).toContain('| supply-chain | success |');
+    expect(summary).toContain('| sast | success |');
     expect(summary).toContain(
-      'All required verification jobs completed successfully.'
+      '- SAST evidence commit: `' +
+        CANDIDATE_COMMIT +
+        '` (matches this candidate commit)'
+    );
+    expect(summary).toContain(
+      'All required verification jobs completed successfully, and the SAST evidence names this exact commit.'
     );
   });
 
@@ -122,6 +212,25 @@ describe('summary rendering', () => {
     expect(summary).toContain('Conclusion: **failure**');
     expect(summary).toContain(
       'At least one required verification job did not complete successfully.'
+    );
+  });
+
+  // 全綠但 commit 對不上，講成「有 job 沒跑完」會把讀者指向錯的地方。
+  it('names the commit mismatch rather than blaming a job that passed', () => {
+    const summary = renderCiEvidenceSummary(
+      evidenceFor({
+        ...runContext,
+        ...allGreen,
+        CI_EVIDENCE_SAST_COMMIT: 'fedcba9876543210'
+      })
+    );
+
+    expect(summary).toContain('Conclusion: **failure**');
+    expect(summary).toContain(
+      '- SAST evidence commit: `fedcba9876543210` (does not match this candidate commit)'
+    );
+    expect(summary).toContain(
+      'Every required job reported success, but the SAST evidence does not name this commit, so this run is not accepted.'
     );
   });
 

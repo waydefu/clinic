@@ -139,16 +139,21 @@ C1～C6 slice 取得 deployment authority 之後才有意義。
 | `rules` | Firestore Emulator | ✔ |
 | `e2e-*`（6 個） | Playwright ＋ axe | ✔ |
 | `supply-chain` | tracked secrets、dependency audit、SBOM、授權政策 | ✔ |
-| `evidence` | 綁定 commit 的驗證證據 | ✔ **唯一的 branch protection required check** |
-| `sast`（獨立 workflow） | Semgrep CE | ⚠️ finding／掃描／規則測試失敗會使該 workflow 變紅，但截至 2026-08-11 未納入唯一 required `Verification evidence`；merge-blocking 實作待補 |
+| `sast`（呼叫 `sast-scan.yml` 的可重用 workflow） | Semgrep CE | ✔ finding／掃描器／規則測試失敗都會變紅 |
+| `evidence` | 綁定 commit 的驗證證據 | ✔ **唯一的 branch protection required check**，彙總上面五項 |
 
-`evidence` 是最近一次日期化證據中 `main` 的唯一 strict required check。它只把
-`verify`、`rules`、`e2e` 與 `supply-chain` 綁定 commit SHA；目前不含獨立的 SAST。
-在 branch protection 直接要求精確 SAST check，或 `Verification evidence` 消費同一
-commit 的 SAST 結果前，不得宣稱 SEC-02 已在 merge boundary 強制執行。2026-08-11
-14:32 +08:00 的唯讀 GitHub API 已確認 `main` 唯一 strict required context 是
-`Verification evidence`，且 PR #14 的獨立 Semgrep 綠燈不能使失敗的聚合 evidence
-通過；遠端設定不得由這份日期化證據推論為永久不變。
+`evidence` 是 `main` 的唯一 strict required check。**自 2026-08-18（`SCM-R01`）起它
+綁定五項**：`verify`、`rules`、`e2e`、`supply-chain` 與 `sast`，全部繫在同一個
+commit SHA 上。SAST 的實作在 `.github/workflows/sast-scan.yml`（`workflow_call`），
+由 `verify.yml` 在同一個 run 內呼叫——GitHub Actions 沒有跨 workflow 的 `needs`，
+那正是先前拿不到 SAST 結果的原因。
+
+驗收是行為的：故意失敗的 PR #19（候選 `d49330c8`、run `32101192719`）讓 `sast` 與
+`Verification evidence` 在同一個 commit 上同時變紅，其餘十個 job 全綠，PR 被
+branch protection 擋下且未使用 admin bypass。對照組 PR #18（候選 `351e4034`、run
+`32100761005`）全綠。2026-08-11 的唯讀快照（唯一 required context 是
+`Verification evidence`、PR #14 的獨立 Semgrep 綠燈不能救紅的聚合）仍然成立且未變動；
+遠端設定不得由任何一份日期化證據推論為永久不變。
 
 **CodeQL 已於 2026-08-01 被 Semgrep 取代**，見
 [SAST 遷移紀錄](../reviews/2026-08-01-sast-migration-and-audit-governance-delivery.md)。

@@ -167,14 +167,32 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  # SCM-R01：SAST 必須和其他必要 job 在**同一個 run** 內執行，`needs` 才拿得到它的
+  # 結果——GitHub Actions 沒有跨 workflow 的 `needs`。掃描實作因此抽成可重用
+  # workflow，由這裡呼叫；`sast.yml` 用同一份實作跑每週排程與手動觸發，Semgrep 的
+  # 定義只有一份。
+  #
+  # 同 commit 由呼叫方式保證，不是靠約定：`./` 開頭的 reusable workflow 一定取自
+  # 呼叫端所在的 commit，被呼叫 workflow 內的 `github.sha` 就是這個 run 的候選
+  # commit。沒有分支頭替換、沒有「最近一次成功的 SAST」查詢，也就沒有舊結果冒充新
+  # commit 的競態。
+  #
+  # PR 上仍看得到獨立的 SAST 結果，名稱是 `sast / Semgrep CE SAST（可稽核、會阻斷）`，
+  # artifact 與 SARIF/JSON 證據照舊。
+  sast:
+    uses: ./.github/workflows/sast-scan.yml
+
   evidence:
     name: Verification evidence
     if: ${{ always() }}
     # `e2e` 是 matrix job，`needs.e2e.result` 會**彙總**全部組別：任何一組不是
-    # success，這裡拿到的就不是 success。因此拆分不影響證據的判斷，required job
-    # 清單維持四項，branch protection 也仍然只綁 `Verification evidence` 這一個
-    # check。要看是哪一組壞掉，看 PR 上的 `e2e-<group>`。
-    needs: [verify, rules, e2e, supply-chain]
+    # success，這裡拿到的就不是 success。`sast` 是呼叫可重用 workflow 的 job，
+    # `needs.sast.result` 同樣是被呼叫 workflow 的整體結論。因此不論拆成幾組或幾層，
+    # 證據的判斷不變，branch protection 也仍然只綁 `Verification evidence` 這一個
+    # check。要看是哪一組壞掉，看 PR 上的 `e2e-<group>` 或 `sast / …`。
+    #
+    # required job 清單自 `SCM-R01` 起是五項——第五項是 `sast`。
+    needs: [verify, rules, e2e, supply-chain, sast]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -193,6 +211,11 @@ jobs:
           CI_EVIDENCE_RULES_RESULT: ${{ needs.rules.result }}
           CI_EVIDENCE_E2E_RESULT: ${{ needs.e2e.result }}
           CI_EVIDENCE_SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
+          CI_EVIDENCE_SAST_RESULT: ${{ needs.sast.result }}
+          # 掃描自報的 commit。它必須等於這個 run 的候選 commit，證據才算同 commit。
+          # 失敗的掃描同樣會回報它掃了誰，所以紅燈指名得出對象；真正拿不到值的情況
+          # （被跳過、提早中斷）是空字串，而空字串判為不符。
+          CI_EVIDENCE_SAST_COMMIT: ${{ needs.sast.outputs.commit }}
         run: node scripts/generate-ci-evidence.mjs
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

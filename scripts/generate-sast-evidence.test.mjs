@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   createSastEvidence,
-  renderSastEvidenceSummary
+  renderSastEvidenceSummary,
+  renderStepOutputs
 } from './generate-sast-evidence.mjs';
 
-// 這些常數必須與 `.github/workflows/sast.yml` 傳進來的環境變數同名。測試曾經
+// 這些常數必須與 `.github/workflows/sast-scan.yml` 傳進來的環境變數同名（`SCM-R01`
+// 起掃描實作在那份可重用 workflow，`sast.yml` 只是它的排程包裝）。測試曾經
 // 落後於實作（用的是已被拆成 local／upstream 兩組的舊 `SAST_RULE_CONFIGS`），
 // 結果每一個案例都停在 `invalid-evidence`，等於規則證據的分類邏輯完全沒有被
 // 驗證過。名稱若再次改動，這裡要一起改，不能只改 workflow。
@@ -311,5 +313,50 @@ describe('commit-bound SAST evidence', () => {
       'GitHub code-scanning upload: `unavailable-private-personal-repository` (not attempted)'
     );
     expect(summary).toContain('not represented as equivalent to CodeQL');
+  });
+});
+
+// `SCM-R01`：這份證據不只寫成檔案，還要把「掃的是哪一個 commit」交回呼叫端的
+// `Verification evidence`。輸出格式錯了，required aggregate 就對不上候選 commit，
+// 而那正是這個 gate 唯一要證明的事。
+describe('step outputs handed back to the calling workflow', () => {
+  it('emits the conclusion and the commit the evidence was generated for', () => {
+    const evidence = buildEvidence({
+      env: { ...baseEnvironment, SAST_SCAN_OUTCOME: 'success' },
+      jsonRaw: semgrepJson(),
+      sarifRaw: semgrepSarif(),
+      exitCodeRaw: '0',
+      versionRaw: '1.171.0'
+    });
+
+    expect(renderStepOutputs(evidence)).toBe(
+      'conclusion=success\ncommit=0123456789abcdef\n'
+    );
+  });
+
+  it('hands back the failure conclusion with the same commit', () => {
+    const evidence = buildEvidence({
+      env: { ...baseEnvironment, SAST_SCAN_OUTCOME: 'failure' },
+      jsonRaw: semgrepJson({ results: [{ check_id: 'clinic.example' }] }),
+      sarifRaw: semgrepSarif([{ level: 'error' }]),
+      exitCodeRaw: '1',
+      versionRaw: '1.171.0'
+    });
+
+    expect(evidence.conclusion).toBe('failure');
+    expect(renderStepOutputs(evidence)).toBe(
+      'conclusion=failure\ncommit=0123456789abcdef\n'
+    );
+  });
+
+  // GITHUB_OUTPUT 是逐行 `key=value`。值裡的換行能偽造出額外的 output，所以不合格
+  // 的值降級成 unknown；呼叫端會因此對不上候選 commit 而判失敗，方向是 fail-closed。
+  it('refuses to emit a value that could forge another output line', () => {
+    expect(
+      renderStepOutputs({
+        conclusion: 'success',
+        commit: 'abc\nconclusion=success'
+      })
+    ).toBe('conclusion=success\ncommit=unknown\n');
   });
 });
