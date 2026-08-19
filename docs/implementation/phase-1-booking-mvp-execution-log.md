@@ -198,7 +198,7 @@
 ### BOOK-MVP-003-A: Frozen Capability Reachability & Dependency Inventory (Corrected)
 
 #### Before
-- **Timestamp:** 2026-08-19 22:00 (Asia/Taipei)
+- **Timestamp:** 2026-08-19 (Asia/Taipei; exact start time not recorded)
 - **Branch:** `agent/book-mvp-003-a-inventory`
 - **HEAD SHA:** `1a253a8b56bc8d4f55bf228b0e96e4f73842edc3` (origin/main, PR #20 merged)
 - **目的:** 全面盤點第一階段凍結能力的可達性、依賴關係與共用模組，修正先前報告錯誤假設，產出可施工的隔離策略。
@@ -266,7 +266,7 @@
   3. **角色敘述最終修正：**
      - canonical `roles.ts` **沒有** `case_manager` role——不在 `OPERATIONAL_ROLES`，也不在 `SYSTEM_ROLES`
      - `case_manager` 僅為 `LEGACY_ROLE_ALIASES` 條件式 alias → `consultant`（受 `ASSUME_CASE_MANAGER_IS_CONSULTANT = true` 控制）
-     - **consultant candidate permissions 並非 `[]`**：`front_desk`（含 consultant 權限列）已含 `PERMISSIONS.ASSIGN_CASE`
+     - **consultant candidate permissions 並非 `[]`**：API side 的 candidate 權限為 `assign_case_manager`/`decide_follow_up`/`read_audit`（apps/api/src/platform/authorization/rbac.ts:83）。**注意：這與 browser 端 `front_desk` 的 `PERMISSIONS.ASSIGN_CASE`（permissions.js:23）是兩套不同 permission model**——browser 用 `ASSIGN_CASE`/`REASSIGN_CASE` 字串化旗標，API 用能力字串；前者不代表後者，不得寫成「front_desk 含 consultant 權限列」。
      - 刪除「保留空權限 case_manager 或移除？」類型的 user decision——沒有這個角色可選
      - 003-B **不修改** `roles.ts`、browser `permissions.js`、API `rbac.ts`
   4. **Feature flag 決策已核定：** 使用獨立 `apps/web/public/modules/capability-flags.js`（不放 `constants.js`）。Flags default=false、fail-closed；禁止 query/localStorage/window/runtime override。
