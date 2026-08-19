@@ -14,6 +14,7 @@ import {
   buildOperationalTasks,
   buildWorkload
 } from './modules/case-management.js';
+import { CASE_MANAGEMENT_ENABLED } from './modules/capability-flags.js';
 import { PERMISSIONS } from './modules/constants.js';
 import {
   canUseDelegation,
@@ -279,6 +280,13 @@ export async function stagingRequest(path, options = {}) {
     const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
     updateAppointmentNotes(state, path.split('/')[2], body, actor.id);
   } else if (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)) {
+    // BOOK-MVP-003-B：個管指派是 Phase 1 凍結能力。回診指示本身仍正常，但
+    // 「順手」在回診表單裡帶上 managerId 的個管 side effect 必須在寫入前
+    // fail closed——在 recordFollowUp 之後才擋會留下「回診成功、個管失敗」的
+    // 半完成狀態。因此檢查放在任何 mutation 之前，拒絕時 state 完全不變。
+    if (!CASE_MANAGEMENT_ENABLED && typeof body.managerId === 'string' && body.managerId !== '') {
+      throw new Error('個管指派功能已凍結，無法在回診指示中指派個管師。');
+    }
     const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
     const appointmentId = path.split('/')[2];
     recordFollowUp(state, appointmentId, body, actor.id);
@@ -298,6 +306,9 @@ export async function stagingRequest(path, options = {}) {
       assignCaseManager(state, appointmentId, body.managerId, caseActor.id);
     }
   } else if (path === '/case-assignments') {
+    if (!CASE_MANAGEMENT_ENABLED) {
+      throw new Error('個管指派功能已凍結，無法指派個管師。');
+    }
     const hasActiveAssignment = state.caseAssignments.some(
       (item) =>
         item.appointmentId === body.appointmentId && item.status === 'active'

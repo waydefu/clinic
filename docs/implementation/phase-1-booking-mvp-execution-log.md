@@ -365,5 +365,29 @@
   - `check:clinic-freeze`: PASS (30 檔)
 - **CI Status:** `NOT RUN / NOT AVAILABLE`（本機驗證通過）
 - **Result:** PASS
-- **Commit SHA:** 待已達時程後記錄
-- **Rollback:** `git revert <003-B-1 commit sha>`
+- **Commit SHA:** `6e3f9b7`（`feat(scope): BOOK-MVP-003-B add frozen capability gates`）
+- **Rollback:** `git revert 6e3f9b7`
+
+### BOOK-MVP-003-B-2: Runtime Mutation Isolation (store.js)
+
+#### Before
+- **Timestamp:** 2026-08-19 (Asia/Taipei; exact start time not recorded)
+- **Branch:** `agent/book-mvp-003-b-isolation`
+- **Baseline SHA:** `6e3f9b7`（003-B-1 完成後）
+- **Objective:** 在合成 API 層 fail-closed 阻斷 case-management mutation，且維持回診指示本身不受影響。
+- **Scope:** 僅修改 `apps/web/public/store.js` 兩條 mutation path。
+- **Non-Scope:** 不修改 `case-management.js` domain、不修改權限模型、不修改其他 path。
+
+#### During
+- `stagingRequest` 新增 `CASE_MANAGEMENT_ENABLED` 匯入。
+- `POST /case-assignments`：在 `requirePermission` 之前加 `if (!CASE_MANAGEMENT_ENABLED) throw new Error('個管指派功能已凍結，無法指派個管師。')`。
+- `POST /follow-ups/:id`：**在任何 mutation 之前**檢查——`!CASE_MANAGEMENT_ENABLED && managerId 為非空字串` 即 throw，避免「回診成功、個管半失敗」的非原子狀態；正常 follow-up（無 managerId）流程完全不受影響。
+
+#### After
+- **Tests:**
+  - `check:lint`: PASS
+  - `test:unit`: PASS (62 檔, 1029 測試)
+- **CI Status:** `NOT RUN / NOT AVAILABLE`
+- **Result:** PASS
+- **Commit SHA:** 待記錄
+- **Rollback:** `git revert <003-B-2 commit sha>`
