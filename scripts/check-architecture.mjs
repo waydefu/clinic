@@ -341,6 +341,71 @@ if (fieldBlock === null) {
   }
 }
 
+// --- 規則 4：凍結能力隔離（BOOK-MVP-003-B）--------------------------------
+//
+// Phase 1 的個管指派與月度工作量是凍結能力，唯一開關在 capability-flags.js。
+// 這條規則補的是 check:ui 看不到的保證：check:ui 只能驗證 index.html 沒有寫出
+// 特定的入口文案，驗不了「其他瀏覽器模組又偷偷把凍結工作區的路由 id 撿起來」。
+// 因此這裡對整個 apps/web/public 掃描：任何引用凍結工作區路由 id（#case-section）
+// 的瀏覽器檔案，都必須在同一份檔案裡檢查對應的旗標——引用者既然知道這條路線，
+// 就必須知道並執行隔離；做不到的引用就是一個新的未受保護入口。多個能力共用
+// 同一個工作區時，只要其中一個旗標仍然凍結，路由就仍視為凍結。
+const capabilityFlagsSource = await readFile(
+  join(webPublic, 'modules', 'capability-flags.js'),
+  'utf8'
+);
+const DECLARED_FLAGS = [
+  'CASE_MANAGEMENT_ENABLED',
+  'PAYROLL_WORKLOAD_ENABLED'
+];
+for (const flag of DECLARED_FLAGS) {
+  if (!new RegExp(`const ${flag}\\s*=\\s*(true|false);`).test(capabilityFlagsSource)) {
+    fail(
+      'frozen-capability',
+      `capability-flags.js 沒有以字面值布林宣告 ${flag}。` +
+        ' 旗標必須以 const + 字面值的形式存在，守衛才能靜態驗證；' +
+        ' 不允許任何執行期覆寫或計算值。'
+    );
+  }
+}
+const FROZEN_ROUTES = [
+  {
+    routeId: 'case-section',
+    flags: ['CASE_MANAGEMENT_ENABLED', 'PAYROLL_WORKLOAD_ENABLED']
+  }
+];
+const flagFileKey = repoPath(join(webPublic, 'modules', 'capability-flags.js'));
+for (const route of FROZEN_ROUTES) {
+  const frozen = route.flags.some(
+    (flag) =>
+      new RegExp(`const ${flag}\\s*=\\s*false;`).test(capabilityFlagsSource)
+  );
+  if (!frozen) continue;
+  for (const file of browserFiles) {
+    const source = await readFile(file, 'utf8');
+    if (!source.includes(route.routeId)) continue;
+    const isFlagFile = repoPath(file) === flagFileKey;
+    const referencesFlag = route.flags.some((flag) => source.includes(flag));
+    if (!isFlagFile && !referencesFlag) {
+      fail(
+        'frozen-capability',
+        `${repoPath(file)} 引用了凍結工作區 '${route.routeId}'，` +
+          `但沒有在同一份檔案裡檢查任何旗標（${route.flags.join(' / ')}）。` +
+          ' 凍結能力不允許未受旗標保護的入口引用；請移除該引用，或補上旗標守衛。'
+      );
+    }
+  }
+  const adminShellSource = await readFile(join(webPublic, 'index.html'), 'utf8');
+  if (adminShellSource.includes(`href="#${route.routeId}"`) ||
+      adminShellSource.includes(`id="${route.routeId}"`)) {
+    fail(
+      'frozen-capability',
+      `index.html 仍含有凍結工作區 '${route.routeId}' 的靜態入口。` +
+        ' 凍結能力可在旗標關閉時不保有任何架構入口，請移除該 entry point。'
+    );
+  }
+}
+
 // --- 回報 ---------------------------------------------------------------
 if (failures.length > 0) {
   console.error('Architecture check failed:');
