@@ -50,7 +50,9 @@ const failures = [];
 // 是自己猜狀態，否則「旗標切回 true」時架構要的內容會被守衛反向擋著。語法也只容
 // 許字面值 true/false，與該模組「default false、fail-closed、無 override」的承諾一致。
 const caseManagementEnabled =
-  /const CASE_MANAGEMENT_ENABLED = (true|false)/.exec(files.capabilityFlags)?.[1];
+  /const CASE_MANAGEMENT_ENABLED = (true|false)/.exec(
+    files.capabilityFlags
+  )?.[1];
 if (caseManagementEnabled === undefined) {
   failures.push(
     'capability-flags.js does not declare CASE_MANAGEMENT_ENABLED as a boolean literal.'

@@ -511,3 +511,36 @@
 - **Result:** PASS
 - **Commit SHA:** `3b4da19`（`feat(scope): BOOK-MVP-003-B add frozen capability reachability guard`）
 - **Rollback:** `git revert 3b4da19`
+
+### BOOK-MVP-003-B-6: PR #22 Review Findings
+
+#### Before
+- **Timestamp:** 2026-08-20（Asia/Taipei）
+- **Branch:** `agent/book-mvp-003-b-isolation`
+- **Baseline SHA:** `0d41081`（006 完成、PR #22 已開）
+- **Trigger:** PR #22 CI 第一個 job（verify）紅燈——`prettier --check` 報 6 個檔案格式不合規；review 另指出四個 findings：改寫 2026-08-10 dated visual baseline 證據、frozen-capability 守衛只憑 `source.includes(flag)`、PR body 宣稱 synthetic data model／state projection 全部移除（與「domain／state 保留」的實際邊界不符）。
+- **Objective:** 只修 review findings，不新增功能、不重新設計 BOOK-MVP-003-B。
+- **Scope:** Prettier 修正、baseline 證據還原＋另立新基線、check-architecture 規則 4 強化、PR body 修正。
+- **Non-Scope:** 不修改 domain／contracts／RBAC／worker／clinic、不修改 performance threshold、不開始 BOOK-MVP-004。
+
+#### During
+1. **Prettier（6 檔）**：`apps/web/public/index.html`、`modules/capability-flags.js`、`store.js`、`scripts/check-architecture.mjs`、`scripts/check-web-ui.mjs`、`tests/e2e/workbench-lifecycle.spec.ts` 以 `prettier --write` 修正，皆為純格式（補檔尾換行、拆過長條件式、單行合併）。
+2. **恢復 2026-08-10 dated evidence**：`ui-visual-baseline-2026-08-10.md`、`manifest.json`、`workbench--case-assigned-workload--desktop-1280x900--light.png` 從 `origin/main` 原樣還原（十張 PNG、含 case-assigned-workload，逐位元組未動）。
+3. **新現行基線 2026-08-20**：`current-ui.spec.ts` 的 `CAPTURE_DATE` 改為 2026-08-20；`capture:ui` 新擷九張 PNG＋manifest 到 `docs/reviews/assets/ui-visual-baseline-2026-08-20/`；新增 `docs/reviews/ui-visual-baseline-2026-08-20.md`；`check-structure.mjs` 的 `visualBaselineDirectory` 與 required paths 改釘 08-20（08-10 兩份文件＋manifest 仍列為 required）；docs/README.md 索引與 ui-ux-rules.md §5.5 同步指到 08-20。九張圖與 08-10 逐張 SHA 全不同——環境從 Windows 11（10.0.22631）換成 Windows 10（10.0.19045），系統字型渲染差異，documented 為預期環境差異。
+4. **check-architecture 規則 4 強化**：比對前先 `stripComments`（註解裡的旗標名稱不算守衛）；新增純函式 `hasFailClosedCapabilityGuard`（architecture-rules.mjs），對三個實際邊界檔案（`workspace-tabs.js`、`store.js`、`admin-view.js`）要求真的 fail-closed 分支——`!FLAG`（mutation guard、凍結時不渲染 return ''）或 `FLAG ?`（FROZEN_PANEL_IDS 三元）；`??` nullish 不算分支。其他引用檔案維持「程式碼裡檢查旗標」要求。
+5. **測試新增 8 筆**：architecture-rules.test.mjs 補 `hasFailClosedCapabilityGuard` 正／反面案例（negated、ternary、bare name、comment-only、string literal、nullish coalescing、多旗標 any-of、route-owner 同型寫法），35→43。
+6. **PR body 修正**：刪除「synthetic data model／state projection 全部移除」宣稱，改為 domain／state preserved；UI／route／render／mutation isolated。
+
+#### After
+- **Tests:**
+  - `pnpm verify`：全部 PASS，唯一失敗是既有 `check:perf` `/patient.html` 7.0 KiB vs 7 KiB budget（2026-08-10 起已存在於 main；patient.html 最後一次更動為 main 的 `6e0713f`；依 review 指示不修、不改 threshold）
+  - `check:structure`: PASS（218 files；現行基線 2026-08-20 九張；2026-08-10 十張 dated evidence 原樣保留）
+  - `check:docs`: PASS（134 files）
+  - `check:architecture`: PASS（規則 4 強化後，三個邊界檔案以 fail-closed 分支通過）
+  - `test:unit`: PASS（62 files、1037 tests，含 architecture-rules 43 筆）
+  - `check:format`: PASS
+  - `capture:ui`（2026-08-20）: PASS——九個情境 console error／warning 均為 0、無水平 overflow
+- **CI Status:** 重新 push 後觀察 PR #22 required CI
+- **Result:** PASS
+- **Commit SHA:** 預期新增一筆 fix commit（繼 `0d41081` 之後）
+- **Rollback:** `git revert <fix commit>`（fix 只動守衛與證據，不觸凍結能力邊界）

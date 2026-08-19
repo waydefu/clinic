@@ -160,3 +160,29 @@ export function forbiddenBrowserPatterns(source, rules) {
     .filter(({ pattern }) => pattern.test(stripped))
     .map(({ detail }) => detail);
 }
+
+/**
+ * 判斷瀏覽器檔案是否對凍結能力提供 **fail-closed** 守衛。
+ *
+ * BOOK-MVP-003-B 檢討後的規則：光是「同一份檔案裡出現旗標名稱」不能證明有守衛
+ * ——註解提一句、字串裡拼一次都算「出現」。fail-closed 的意思是旗標為 false 時
+ * 行為被擋住，所以守衛必須是**否定形式**的執行期判斷：
+ *
+ * - `!FLAG`：旗標關閉時進入阻擋分支（store.js 的 mutation guard、admin-view.js
+ *   的「凍結時不渲染」return ''）；
+ * - `FLAG ?`：三元判斷，旗標關閉時走「不啟用」分支（workspace-tabs.js 的
+ *   `FROZEN_PANEL_IDS`）。
+ *
+ * 比對前先剝註解，註解裡的旗標名稱不算守衛。`flags` 是同一個路由共用的旗標清單；
+ * 只要其中一個旗標有 fail-closed 判斷即視為合格，與 check-architecture 的
+ * 「多個能力共用同一工作區」判定一致。
+ */
+export function hasFailClosedCapabilityGuard(source, flags) {
+  const stripped = stripComments(source);
+  return flags.some((flag) => {
+    const negated = new RegExp(`!\\s*${flag}\\b`);
+    // `??`（nullish coalescing）不是分支判斷，用負向 lookahead 排除。
+    const ternary = new RegExp(`\\b${flag}\\s*\\?(?!\\?)`);
+    return negated.test(stripped) || ternary.test(stripped);
+  });
+}

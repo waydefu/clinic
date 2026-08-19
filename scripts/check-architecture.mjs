@@ -5,9 +5,11 @@ import process from 'node:process';
 
 import {
   forbiddenBrowserPatterns,
+  hasFailClosedCapabilityGuard,
   importSpecifiers,
   layerViolations,
-  opaqueDynamicImports
+  opaqueDynamicImports,
+  stripComments
 } from './architecture-rules.mjs';
 import {
   validateRbacPermissionCoverage,
@@ -350,16 +352,22 @@ if (fieldBlock === null) {
 // 的瀏覽器檔案，都必須在同一份檔案裡檢查對應的旗標——引用者既然知道這條路線，
 // 就必須知道並執行隔離；做不到的引用就是一個新的未受保護入口。多個能力共用
 // 同一個工作區時，只要其中一個旗標仍然凍結，路由就仍視為凍結。
+//
+// 2026-08-20 檢討（PR #22 review）：只引用旗標名稱不能證明有守衛——註解裡提一句
+// 也算「引用」。因此比對前先剝註解；而三個實際邊界檔案（選單／路由
+// workspace-tabs.js、狀態與 mutation store.js、渲染 admin-view.js）必須有真的
+// fail-closed 分支（`!FLAG` 或 `FLAG ?`），旗標為 false 時行為才真的會被擋住。
 const capabilityFlagsSource = await readFile(
   join(webPublic, 'modules', 'capability-flags.js'),
   'utf8'
 );
-const DECLARED_FLAGS = [
-  'CASE_MANAGEMENT_ENABLED',
-  'PAYROLL_WORKLOAD_ENABLED'
-];
+const DECLARED_FLAGS = ['CASE_MANAGEMENT_ENABLED', 'PAYROLL_WORKLOAD_ENABLED'];
 for (const flag of DECLARED_FLAGS) {
-  if (!new RegExp(`const ${flag}\\s*=\\s*(true|false);`).test(capabilityFlagsSource)) {
+  if (
+    !new RegExp(`const ${flag}\\s*=\\s*(true|false);`).test(
+      capabilityFlagsSource
+    )
+  ) {
     fail(
       'frozen-capability',
       `capability-flags.js 沒有以字面值布林宣告 ${flag}。` +
@@ -375,29 +383,53 @@ const FROZEN_ROUTES = [
   }
 ];
 const flagFileKey = repoPath(join(webPublic, 'modules', 'capability-flags.js'));
+// 這三個檔案是凍結能力的實際邊界：導覽與深連結、狀態寫入、畫面渲染。它們光是
+// 出現旗標名稱還不夠，必須有真的分支——否則旗標開關不會影響任何行為。
+const FAIL_CLOSED_REQUIRED_FILES = new Set([
+  repoPath(join(webPublic, 'store.js')),
+  repoPath(join(webPublic, 'modules', 'workspace-tabs.js')),
+  repoPath(join(webPublic, 'modules', 'admin-view.js'))
+]);
 for (const route of FROZEN_ROUTES) {
-  const frozen = route.flags.some(
-    (flag) =>
-      new RegExp(`const ${flag}\\s*=\\s*false;`).test(capabilityFlagsSource)
+  const frozen = route.flags.some((flag) =>
+    new RegExp(`const ${flag}\\s*=\\s*false;`).test(capabilityFlagsSource)
   );
   if (!frozen) continue;
   for (const file of browserFiles) {
     const source = await readFile(file, 'utf8');
-    if (!source.includes(route.routeId)) continue;
-    const isFlagFile = repoPath(file) === flagFileKey;
-    const referencesFlag = route.flags.some((flag) => source.includes(flag));
-    if (!isFlagFile && !referencesFlag) {
+    const key = repoPath(file);
+    if (!stripComments(source).includes(route.routeId)) continue;
+    const isFlagFile = key === flagFileKey;
+    if (isFlagFile) continue;
+    const referencesFlag = route.flags.some((flag) =>
+      stripComments(source).includes(flag)
+    );
+    if (FAIL_CLOSED_REQUIRED_FILES.has(key)) {
+      if (!hasFailClosedCapabilityGuard(source, route.flags)) {
+        fail(
+          'frozen-capability',
+          `${key} 是凍結能力 '${route.routeId}' 的邊界檔案，` +
+            `但沒有 fail-closed 守衛（${route.flags.join(' / ')} 的 !FLAG 或 FLAG ? 分支）。` +
+            ' 註解或字串裡的旗標名稱不算守衛；旗標為 false 時行為必須真的被擋住。'
+        );
+      }
+    } else if (!referencesFlag) {
       fail(
         'frozen-capability',
-        `${repoPath(file)} 引用了凍結工作區 '${route.routeId}'，` +
-          `但沒有在同一份檔案裡檢查任何旗標（${route.flags.join(' / ')}）。` +
+        `${key} 引用了凍結工作區 '${route.routeId}'，` +
+          `但在程式碼（不含註解）裡沒有檢查任何旗標（${route.flags.join(' / ')}）。` +
           ' 凍結能力不允許未受旗標保護的入口引用；請移除該引用，或補上旗標守衛。'
       );
     }
   }
-  const adminShellSource = await readFile(join(webPublic, 'index.html'), 'utf8');
-  if (adminShellSource.includes(`href="#${route.routeId}"`) ||
-      adminShellSource.includes(`id="${route.routeId}"`)) {
+  const adminShellSource = await readFile(
+    join(webPublic, 'index.html'),
+    'utf8'
+  );
+  if (
+    adminShellSource.includes(`href="#${route.routeId}"`) ||
+    adminShellSource.includes(`id="${route.routeId}"`)
+  ) {
     fail(
       'frozen-capability',
       `index.html 仍含有凍結工作區 '${route.routeId}' 的靜態入口。` +

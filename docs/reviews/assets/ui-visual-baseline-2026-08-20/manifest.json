@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "captureDate": "2026-08-10",
+  "captureDate": "2026-08-20",
   "fixedTime": "2026-07-29T01:00:00.000Z",
   "sourceRevision": "commit-containing-this-manifest",
   "referenceOnly": true,
@@ -12,7 +12,7 @@
   "environment": {
     "os": {
       "platform": "win32",
-      "release": "10.0.22631",
+      "release": "10.0.19045",
       "architecture": "x64"
     },
     "browser": {
@@ -39,7 +39,7 @@
       "deviceScaleFactor": 1,
       "state": "default",
       "captureKind": "reference-full-page",
-      "sha256": "204af3238d90fca90ac6b98e5584bdf1ef6d23ce66a7a1a266cce056e67ec781",
+      "sha256": "5b302a06a2d5875375bfb00dae4f50e7a60f5976ae4d22b8f73330224877a792",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -56,7 +56,7 @@
       "deviceScaleFactor": 1,
       "state": "default",
       "captureKind": "reference-full-page",
-      "sha256": "aa49e229ab0252d374476a56f6ca435b78c55135ba483b40489020a8e3fb9be3",
+      "sha256": "6cfb6ef85a41be9dda59ae5f7d5cbb24dd244b114f895c53bfac86ddf7e38396",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -73,7 +73,7 @@
       "deviceScaleFactor": 1,
       "state": "step-1-empty",
       "captureKind": "reference-full-page",
-      "sha256": "066662049910bad93e8b9637e9056efb7f1ee94a7cd39987a044e0ca0fb9f104",
+      "sha256": "b582e5685fcff17e9124b4d42ba52524f2501c9cb6a4f69a66b63fc7d7dd7cf5",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -90,7 +90,7 @@
       "deviceScaleFactor": 1,
       "state": "step-3-filled-synthetic",
       "captureKind": "reference-full-page",
-      "sha256": "5a630cb9e25247d10e84753dd4d1d1f39330e2f16ac1f7af79e472e8fff28e25",
+      "sha256": "802acba0c21459c890f62c04819f478989b1571b6130c424e0ee538cef3b41ea",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -107,7 +107,7 @@
       "deviceScaleFactor": 1,
       "state": "step-3-filled-synthetic-low-width-height-stress",
       "captureKind": "reference-full-page",
-      "sha256": "e415be39390ca3485f9c47ef40442bb9b4f5f801fa2672e068d973061234556e",
+      "sha256": "0dbf39ebeb6b88a08ae731a55e6fa38e5b2dec1e7d4b68356f97543f280d202d",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -124,7 +124,7 @@
       "deviceScaleFactor": 1,
       "state": "clean-login-gate",
       "captureKind": "reference-full-page",
-      "sha256": "2df12ee188f344a12825f3953b39ed22e0fba87dbbe5ba28b457bc071cbcda15",
+      "sha256": "33475bf1c420ac3284a806def37ff84cab0017bfc6f292362a92bf3f8626410b",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -141,7 +141,7 @@
       "deviceScaleFactor": 1,
       "state": "one-confirmed-synthetic-appointment",
       "captureKind": "reference-full-page",
-      "sha256": "6543d3818c5dde360b6aef2930485b41f83860af1eda504c49169691cc7350f7",
+      "sha256": "6e52313937872bc51bf3e1ebd2415ae2960d78da94d7b84494283bd746d5bc50",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -158,24 +158,7 @@
       "deviceScaleFactor": 1,
       "state": "one-confirmed-synthetic-appointment",
       "captureKind": "reference-full-page",
-      "sha256": "943ecb0be00c2a14d5d1a661a66d1edf6247d52e23c612b540e45b5bdd20866a",
-      "consoleCounts": {
-        "errors": 0,
-        "warnings": 0
-      }
-    },
-    {
-      "file": "workbench--case-assigned-workload--desktop-1280x900--light.png",
-      "route": "/#case-section",
-      "role": "admin",
-      "viewport": {
-        "width": 1280,
-        "height": 900
-      },
-      "deviceScaleFactor": 1,
-      "state": "one-completed-visit-assigned-manager_test_001",
-      "captureKind": "reference-full-page",
-      "sha256": "d20ab738a3ae464f2bb860f7aa085a0641ab3fd3c1a790e896af1343bc47be3e",
+      "sha256": "663bc73c2daaa773a04f5cb9c45df13122269df674e2630a68ec7a1e7b115870",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0
@@ -192,7 +175,7 @@
       "deviceScaleFactor": 1,
       "state": "test-only-draft-notice",
       "captureKind": "reference-full-page",
-      "sha256": "7b64992bad6271c1465e8455f0ecd91fbd9706e712002d650d0178f232c275ff",
+      "sha256": "b8f7934b971e5ce2e896960a48b9b88d8db77170356e55b887ce7dcc45840082",
       "consoleCounts": {
         "errors": 0,
         "warnings": 0

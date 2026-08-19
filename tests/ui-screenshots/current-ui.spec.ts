@@ -15,9 +15,11 @@ import {
 const PORT = 3211;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 // 擷取日期。**改這裡就要一起改 `outputDirectory`、`check-structure.mjs` 的
-// `visualBaselineDirectory` 與 required paths，以及介面規則書 §5.5 指向的現行基線。**
-// 舊日期的目錄與文件保留作歷史證據，不刪。
-const CAPTURE_DATE = '2026-08-10';
+// `visualBaselineDirectory` 與 required paths、docs/README.md，以及介面規則書
+// §5.5 指向的現行基線。** 舊日期的目錄與文件保留作歷史證據，不刪。
+// BOOK-MVP-003-B：2026-08-10 證據原樣保留（含 case-assigned-workload 那張），
+// 凍結後的現行基線另開 2026-08-20 的目錄與文件，不覆寫舊日期證據。
+const CAPTURE_DATE = '2026-08-20';
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。

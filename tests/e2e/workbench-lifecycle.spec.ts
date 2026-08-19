@@ -613,7 +613,9 @@ test.describe('工作臺其餘資料表', () => {
     ).toHaveText(['星期', '時段', '操作']);
   });
 
-  test('個管指派已凍結：無 UI 入口、mutation 拒絕且狀態不變', async ({ page }) => {
+  test('個管指派已凍結：無 UI 入口、mutation 拒絕且狀態不變', async ({
+    page
+  }) => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);

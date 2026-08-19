@@ -284,7 +284,11 @@ export async function stagingRequest(path, options = {}) {
     // 「順手」在回診表單裡帶上 managerId 的個管 side effect 必須在寫入前
     // fail closed——在 recordFollowUp 之後才擋會留下「回診成功、個管失敗」的
     // 半完成狀態。因此檢查放在任何 mutation 之前，拒絕時 state 完全不變。
-    if (!CASE_MANAGEMENT_ENABLED && typeof body.managerId === 'string' && body.managerId !== '') {
+    if (
+      !CASE_MANAGEMENT_ENABLED &&
+      typeof body.managerId === 'string' &&
+      body.managerId !== ''
+    ) {
       throw new Error('個管指派功能已凍結，無法在回診指示中指派個管師。');
     }
     const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);

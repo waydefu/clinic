@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   forbiddenBrowserPatterns,
+  hasFailClosedCapabilityGuard,
   importSpecifiers,
   isBareSpecifier,
   layerViolations,
@@ -206,5 +207,85 @@ describe('opaqueDynamicImports', () => {
 describe('importSpecifiers 對樣板字串', () => {
   it('resolves a no-substitution template specifier', () => {
     expect(importSpecifiers('await import(`./a.js`);')).toEqual(['./a.js']);
+  });
+});
+
+// BOOK-MVP-003-B 的守衛不是「檔案裡出現旗標名稱」，而是「旗標為 false 時行為真的
+// 被擋住」的 fail-closed 分支。以下案例對準「守衛還在、但已經不守了」的各種形式。
+describe('hasFailClosedCapabilityGuard', () => {
+  const flags = ['CASE_MANAGEMENT_ENABLED'];
+
+  it('accepts a negated runtime guard', () => {
+    expect(
+      hasFailClosedCapabilityGuard(
+        'if (!CASE_MANAGEMENT_ENABLED) return "";',
+        flags
+      )
+    ).toBe(true);
+  });
+
+  it('accepts a ternary that branches on the flag', () => {
+    expect(
+      hasFailClosedCapabilityGuard(
+        'const ids = CASE_MANAGEMENT_ENABLED ? [] : ["case-section"];',
+        flags
+      )
+    ).toBe(true);
+  });
+
+  it('rejects a bare name reference with no branch', () => {
+    expect(
+      hasFailClosedCapabilityGuard(
+        'const enabled = CASE_MANAGEMENT_ENABLED;',
+        flags
+      )
+    ).toBe(false);
+  });
+
+  it('rejects a comment-only mention (comments are stripped first)', () => {
+    expect(
+      hasFailClosedCapabilityGuard(
+        '// 凍結時不顯示（CASE_MANAGEMENT_ENABLED 為 false）\nrender()',
+        flags
+      )
+    ).toBe(false);
+  });
+
+  it('rejects a mention inside a string literal', () => {
+    expect(
+      hasFailClosedCapabilityGuard(
+        `const message = 'CASE_MANAGEMENT_ENABLED';`,
+        flags
+      )
+    ).toBe(false);
+  });
+
+  // 空值合併 `??` 不是分支判斷，不能當成守衛。
+  it('rejects nullish coalescing on the flag', () => {
+    expect(
+      hasFailClosedCapabilityGuard(
+        'const v = CASE_MANAGEMENT_ENABLED ?? false;',
+        flags
+      )
+    ).toBe(false);
+  });
+
+  it('accepts when any of several flags has a fail-closed branch', () => {
+    expect(
+      hasFailClosedCapabilityGuard(
+        'if (!PAYROLL_WORKLOAD_ENABLED) return "";',
+        ['CASE_MANAGEMENT_ENABLED', 'PAYROLL_WORKLOAD_ENABLED']
+      )
+    ).toBe(true);
+  });
+
+  it('accepts a guard reusing the same condition the route owner uses', () => {
+    // 與 workspace-tabs.js 相同的寫法：集合由旗標的布林值決定。
+    expect(
+      hasFailClosedCapabilityGuard(
+        'new Set(CASE_MANAGEMENT_ENABLED ? [] : ["case-section"])',
+        flags
+      )
+    ).toBe(true);
   });
 });

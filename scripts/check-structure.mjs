@@ -219,10 +219,13 @@ const requiredPaths = [
   'docs/reviews/2026-07-27-seo-baseline.md',
   'docs/reviews/2026-07-27-clinic-site-integration-delivery.md',
   // 現行視覺基線。舊日期的目錄與文件保留作歷史證據，但釘住的是現行那一份；
-  // 日期見下方 visualBaselineDirectory 的註解。
+  // 日期見下方 visualBaselineDirectory 的註解。BOOK-MVP-003-B：2026-08-10 的
+  // dated evidence 原樣保留，凍結後的現行基線是 2026-08-20。
   'docs/reviews/2026-08-10-clinic-homepage-restructure.md',
   'docs/reviews/ui-visual-baseline-2026-08-10.md',
   'docs/reviews/assets/ui-visual-baseline-2026-08-10/manifest.json',
+  'docs/reviews/ui-visual-baseline-2026-08-20.md',
+  'docs/reviews/assets/ui-visual-baseline-2026-08-20/manifest.json',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
   'apps/web/public/privacy.css',
@@ -276,8 +279,10 @@ if (missing.length > 0) {
 // 下面的 captureDate 斷言都由它派生。先前日期各自寫死在三處，2026-08-06 重拍時
 // 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
 // 竄改，實際上是檢查器自己還停在舊日期。
+// BOOK-MVP-003-B：凍結能力隔離後的現行基線是 2026-08-20；2026-08-10（含
+// case-assigned-workload）原樣保留為 dated evidence，不得改寫。
 const visualBaselineDirectory =
-  'docs/reviews/assets/ui-visual-baseline-2026-08-10';
+  'docs/reviews/assets/ui-visual-baseline-2026-08-20';
 const visualBaselineDate = visualBaselineDirectory.slice(-'YYYY-MM-DD'.length);
 const visualBaselineErrors = [];
 try {
