@@ -8,7 +8,7 @@
 
 **與前一版的關係：** [2026-08-07 基準](ui-visual-baseline-2026-08-07.md)及更早版本
 完整保留為歷史證據。現行基線是本文件；`check-structure.mjs` 只釘住本批 manifest
-與十張 PNG。
+與九張 PNG。
 
 ## 1. 為什麼重拍
 
@@ -27,7 +27,7 @@
 | 結果 | 檔案 | 判定 |
 | --- | --- | --- |
 | 尺寸與內容改變 | `clinic--home--desktop`、`clinic--home--phone` | **預期**：首頁完整重構與同 PR 的測鼾聲入口；全頁高度分別 5681→7250、9706→11470 |
-| SHA-256 完全相同 | `/booking` 三張、`/privacy` 一張、工作臺四張 | **通過**：變更沒有外溢到預約、隱私或營運工作臺 |
+| SHA-256 完全相同 | `/booking` 三張、`/privacy` 一張、工作臺三張 | **通過**：變更沒有外溢到預約、隱私或營運工作臺 |
 
 兩張首頁圖經人工檢視，桌機為雙欄 hero／雙欄服務卡，手機為自然單欄；官網插圖沒有
 失真、截斷文字或被固定圓形遮罩裁掉。標題使用 balanced wrapping，沒有單一中文字
@@ -40,7 +40,7 @@
 
 ![診所首頁手機參考](assets/ui-visual-baseline-2026-08-10/clinic--home--phone-375x812--light.png)
 
-完整集合（10 張）：
+完整集合（9 張）：
 
 | Route／角色／狀態 | Viewport | 參考圖 |
 | --- | ---: | --- |
@@ -52,7 +52,6 @@
 | `/`／未登入／login gate | 1280×900 | [workbench login desktop](assets/ui-visual-baseline-2026-08-10/workbench--login--desktop-1280x900--light.png) |
 | `/#appointments-section`／admin／一筆合成預約 | 1280×900 | [appointments desktop](assets/ui-visual-baseline-2026-08-10/workbench--appointments-populated--desktop-1280x900--light.png) |
 | `/#appointments-section`／admin／一筆合成預約 | 375×812 | [appointments phone](assets/ui-visual-baseline-2026-08-10/workbench--appointments-populated--phone-375x812--light.png) |
-| `/#case-section`／admin／到診、已指派個管 | 1280×900 | [case workload desktop](assets/ui-visual-baseline-2026-08-10/workbench--case-assigned-workload--desktop-1280x900--light.png) |
 | `/privacy`／public／未核准告知草稿 | 375×812 | [privacy draft phone](assets/ui-visual-baseline-2026-08-10/privacy--draft-notice--phone-375x812--light.png) |
 
 ## 4. 可重現條件
@@ -64,7 +63,7 @@
 - theme／motion：light／reduced；DPR 1；workers 1；server `127.0.0.1:3211`
 - 截圖前移開游標、清空 local storage、完成 image decode、font ready、network idle
   與兩個 animation frames。
-- 每個情境都驗證無水平 overflow、console error 或 warning；本批十個情境的兩者均為 0。
+- 每個情境都驗證無水平 overflow、console error 或 warning；本批九個情境的兩者均為 0。
 
 完整環境、狀態與每張 PNG 的 SHA-256 在
 [manifest.json](assets/ui-visual-baseline-2026-08-10/manifest.json)。結構 gate 只驗證 manifest

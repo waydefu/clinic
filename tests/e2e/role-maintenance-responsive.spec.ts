@@ -94,26 +94,26 @@ test.describe('角色邊界', () => {
     expect(result).toContain('權限');
   });
 
-  test('櫃台可登錄回診與首次指派，但不能改派', async ({ page }) => {
+  test('櫃台可登錄回診，但凍結的個管指派直接呼叫也會被拒', async ({ page }) => {
     await login(page, 'admin', { fresh: false });
     const appointmentId = await createCompletedVisit(page);
     await page.locator('#logout').click();
     await expect(page.locator('#login-view')).toBeVisible();
     await login(page, 'front', { fresh: false });
 
+    // 回診指示本身不受凍結影響——沒有 managerId 的正常路徑照常。
     await page.goto('/#appointments-section');
     const followUp = page.locator(`[data-follow-up-form="${appointmentId}"]`);
     await expect(followUp).toBeVisible();
     await followUp.locator('button[type="submit"]').click();
     await expect(page.locator('#status')).toContainText('回診指示已登錄');
 
-    await page.goto('/#case-section');
-    const row = page.locator(`[data-case-row="${appointmentId}"]`);
-    await expect(row.locator('[data-case-form]')).toBeVisible();
-    await row.locator('button[type="submit"]').click();
-    await expect(row.locator('.status-chip')).toHaveText('已指派');
-    await expect(row).toContainText('改派限主管');
+    // 個管指派是凍結能力：不分角色，UI 入口與節點都不存在。
+    await expect(page.locator('#case-section')).toHaveCount(0);
+    await expect(page.locator('[data-admin-nav]')).toHaveCount(0);
 
+    // 直接呼叫 POST /case-assignments 也打不穿：flag=false 時在權限檢查之前
+    // 就會被擋下（回的是「凍結」而不是「權限」）。
     const result = await callSyntheticStore<string>(page, '/case-assignments', {
       method: 'POST',
       body: JSON.stringify({
@@ -124,7 +124,7 @@ test.describe('角色邊界', () => {
       () => 'allowed',
       (error: unknown) => (error instanceof Error ? error.message : 'denied')
     );
-    expect(result).toContain('權限');
+    expect(result).toContain('凍結');
   });
 });
 

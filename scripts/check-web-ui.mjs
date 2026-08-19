@@ -31,6 +31,7 @@ const paths = {
   // 2026-07-26 修掉工作臺「手機隱藏英文副標」之後，患者頁那一份原封不動地留著。
   patientCss: 'apps/web/public/styles.css',
   tagPicker: 'apps/web/public/modules/tag-picker.js',
+  capabilityFlags: 'apps/web/public/modules/capability-flags.js',
   robots: 'apps/web/public/robots.txt',
   sitemap: 'apps/web/public/sitemap.xml',
   privacyHtml: 'apps/web/public/privacy.html',
@@ -45,6 +46,33 @@ const entries = await Promise.all(
 );
 const files = Object.fromEntries(entries);
 const failures = [];
+// BOOK-MVP-003-B：凍結能力的唯一開關在 capability-flags.js。守衛必須讀它而不
+// 是自己猜狀態，否則「旗標切回 true」時架構要的內容會被守衛反向擋著。語法也只容
+// 許字面值 true/false，與該模組「default false、fail-closed、無 override」的承諾一致。
+const caseManagementEnabled =
+  /const CASE_MANAGEMENT_ENABLED = (true|false)/.exec(files.capabilityFlags)?.[1];
+if (caseManagementEnabled === undefined) {
+  failures.push(
+    'capability-flags.js does not declare CASE_MANAGEMENT_ENABLED as a boolean literal.'
+  );
+} else if (caseManagementEnabled === 'true') {
+  requireText(
+    files.adminShell,
+    '個管指派與工作量',
+    'Admin shell is missing case assignment workflow.'
+  );
+} else {
+  refuseText(
+    files.adminShell,
+    '個管指派與工作量',
+    'Admin shell advertises the frozen case assignment workflow.'
+  );
+  requireText(
+    files.store,
+    '個管指派功能已凍結',
+    'Store case-assignment mutation is missing its frozen guard.'
+  );
+}
 // Compare with whitespace removed. These assertions describe which construct
 // must exist, not how it is laid out; matching raw text would pin the sources
 // to one exact formatting and make them impossible to run a formatter over.
@@ -158,11 +186,6 @@ requireText(
   files.adminShell,
   '登錄回診指示',
   'Admin shell is missing per-appointment follow-up decisions.'
-);
-requireText(
-  files.adminShell,
-  '個管指派與工作量',
-  'Admin shell is missing case assignment workflow.'
 );
 requireText(
   files.adminShell,

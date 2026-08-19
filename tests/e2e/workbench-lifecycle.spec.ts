@@ -7,9 +7,39 @@ import {
   showAllAppointments
 } from './support/workbench.js';
 
+/** synthetic store `/state` 裡 isolate 凍結能力測想要的欄位。 */
+interface StateShape {
+  caseAssignments: unknown[];
+  followUps: unknown[];
+}
+
 // 工作臺的完整生命週期：登入 → 建立 → 到診 → 回診 → 刪除，跑在打包後的產物上。
 // 這條路徑同時覆蓋這個 session 新做的兩件事——管理者限定的刪除（含理由彈窗）
 // 與登入閘門——確保它們在真瀏覽器裡真的接得起來，而不只是單元測試裡的函式。
+
+/**
+ * 直接呼叫打包後的 synthetic store，繞過 UI。犁出凍結能力的 mutation 守衛時
+ * 需要在關閉旗標下驗證「拒絕且狀態不變」，這不是操作者會做的事，不該走表單。
+ */
+async function callSyntheticStore<T>(
+  page: Page,
+  path: string,
+  options?: { method?: string; body?: string }
+): Promise<T> {
+  return page.evaluate(
+    async ({ requestPath, requestOptions }) => {
+      const storeUrl = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .find((name) => /\/store\.[a-f0-9]+\.js$/.test(name));
+      if (storeUrl === undefined)
+        throw new Error('找不到打包後的 synthetic store module。');
+      const { stagingRequest } = await import(storeUrl);
+      return stagingRequest(requestPath, requestOptions);
+    },
+    { requestPath: path, requestOptions: options }
+  );
+}
 
 /**
  * 確定性地觀察一個瞬間狀態：在動作**之前**掛上 MutationObserver，記錄變更本身，
@@ -69,7 +99,8 @@ test.describe('營運首頁指揮中心', () => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
-    // 完成到診會同時產生「回診尚未決定」與「個管尚未指派」兩類待辦。
+    // 完成到診會產生「回診尚未決定」待辦；「個管尚未指派」是凍結能力的動態
+    // 入口，capability flag=false 時不產生（BOOK-MVP-003-B）。
     await page
       .locator('[data-appointment-card]')
       .first()
@@ -582,39 +613,74 @@ test.describe('工作臺其餘資料表', () => {
     ).toHaveText(['星期', '時段', '操作']);
   });
 
-  test('個管指派：送出鈕與表單不同格，仍然送得出去', async ({ page }) => {
+  test('個管指派已凍結：無 UI 入口、mutation 拒絕且狀態不變', async ({ page }) => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
-    // 先完成到診，個案才會出現在指派表裡。
+    // 凍結的是個管指派，不是業務本身——到診仍可正常完成。
     await page
       .locator('[data-appointment-card]')
       .first()
       .locator('[data-appointment-action="complete"]')
       .click();
     await page.locator('.confirm-dialog button.button-primary').click();
+    await expect(page.locator('#status')).toContainText('到診已記錄');
 
-    await page.goto('/#case-section');
-    const row = page
-      .locator('#case-assignment-list tbody tr[data-case-row]')
-      .first();
-    await expect(row).toBeVisible();
-    await expect(row.locator('.status-chip')).toHaveText('待指派');
+    // 1. 凍結能力不能留任何 discoverable 的入口：靜態架構入口已從 index.html
+    //    移除，動態 task（pendingCaseAssignments）在旗標關閉時不產生。
+    await expect(
+      page.locator('.workspace-nav a[href="#case-section"]')
+    ).toHaveCount(0);
+    await expect(page.locator('#case-section')).toHaveCount(0);
+    await page.goto('/#overview');
+    await expect(
+      page.locator('#task-list .task-card', { hasText: '個管尚未指派' })
+    ).toHaveCount(0);
 
-    // `<form>` 不能包住 `<tr>`，所以表單放在「個案管理師」那一格，送出鈕靠
-    // form 屬性從「操作」格關聯回去。這個關聯壞掉的話按鈕會完全沒反應，
-    // 而且不會有任何錯誤訊息——所以這裡直接驗它有沒有真的送出。
-    await row.locator('button[type="submit"][form]').click();
-    await expect(row.locator('.status-chip')).toHaveText('已指派');
+    const appointmentId = await page
+      .locator('[data-appointment-card]')
+      .first()
+      .getAttribute('data-appointment-card');
+    if (appointmentId === null) throw new Error('預約缺少 synthetic id。');
 
-    // 指派完成會重算月度統計，數字欄靠右對齊才比得動。
-    const workload = page.locator('#workload table.workload-table');
-    await expect(workload).toBeVisible();
-    await expect(workload.locator('tbody tr')).toHaveCount(1);
-    await expect(workload.locator('td.numeric').first()).toHaveCSS(
-      'text-align',
-      'right'
-    );
+    const deny = (result: unknown) =>
+      result instanceof Error ? result.message : 'allowed';
+
+    // 2. 直接呼叫合成 API 也打不穿：POST /case-assignments 在 flag=false 時
+    //    於權限檢查之前拒絕，且 state 完全不變。
+    const stateBefore = await callSyntheticStore<StateShape>(page, '/state');
+    const caseAssignmentDenied = await callSyntheticStore<unknown>(
+      page,
+      '/case-assignments',
+      {
+        method: 'POST',
+        body: JSON.stringify({ appointmentId, managerId: 'manager_test_001' })
+      }
+    ).then(deny, deny);
+    expect(caseAssignmentDenied).toContain('凍結');
+
+    // 3. 回診指示順帶夾帶 managerId 的 side effect 同樣被擋在任何寫入之前——
+    //    recordFollowUp 根本不會執行，不會留下「回診成功、個管失敗」的半完成
+    //    狀態。
+    const followUpDenied = await callSyntheticStore<unknown>(
+      page,
+      `/follow-ups/${appointmentId}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          status: 'required',
+          managerId: 'manager_test_001'
+        })
+      }
+    ).then(deny, deny);
+    expect(followUpDenied).toContain('凍結');
+
+    const stateAfter = await callSyntheticStore<StateShape>(page, '/state');
+    expect(stateAfter.caseAssignments).toHaveLength(0);
+    expect(stateAfter.followUps).toHaveLength(0);
+    // 與嘗試前的 state 逐欄比對（被拒的 mutation 不得有 side effect）。
+    expect(stateAfter.caseAssignments).toEqual(stateBefore.caseAssignments);
+    expect(stateAfter.followUps).toEqual(stateBefore.followUps);
   });
 
   test('手機寬度下每個工作區都不產生水平捲軸', async ({ page }) => {
@@ -627,7 +693,6 @@ test.describe('工作臺其餘資料表', () => {
 
     for (const panel of [
       '#schedule-section',
-      '#case-section',
       '#accounts-section',
       '#audit-section'
     ]) {

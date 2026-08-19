@@ -11,6 +11,10 @@ import {
   WEEKDAY_LABELS
 } from './constants.js';
 import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
+import {
+  CASE_MANAGEMENT_ENABLED,
+  PAYROLL_WORKLOAD_ENABLED
+} from './capability-flags.js';
 import { renderTagOptions } from './tag-picker.js';
 import { followUpDueTimes, isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
@@ -280,13 +284,16 @@ export function renderTasks(state) {
   const canViewGovernance =
     state.session?.permissions?.includes(PERMISSIONS.MANAGE_COMMUNICATIONS) ??
     false;
-  const pending = OPERATIONAL_TASKS.map((task) => ({
-    ...task,
-    count: taskCount(state.tasks, task.key)
-  })).filter(
-    (task) =>
-      task.count > 0 && (task.key !== 'outboxPending' || canViewGovernance)
-  );
+  const pending = OPERATIONAL_TASKS.filter(
+    // BOOK-MVP-003-B：個管待辦是凍結能力的動態入口，凍結時不得產生「個管尚未
+    // 指派」task；其餘待辦（過時、取消、回診、日曆預售）照常。
+    (task) => task.key !== 'pendingCaseAssignments' || CASE_MANAGEMENT_ENABLED
+  )
+    .map((task) => ({ ...task, count: taskCount(state.tasks, task.key) }))
+    .filter(
+      (task) =>
+        task.count > 0 && (task.key !== 'outboxPending' || canViewGovernance)
+    );
 
   // 一切正常時保持安靜。四個綠色的零跟三筆待辦佔一樣大的版面，等於什麼都
   // 沒說；這裡改成一句話講完，把注意力留給真的需要處理的事。
@@ -825,9 +832,14 @@ export function renderFollowUps(state, editingIds = new Set()) {
       const canEditManager =
         (assignment === undefined && canAssign) ||
         (assignment !== undefined && canReassign);
-      const managerField = canEditManager
-        ? `<label>個管師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前個管師：${escapeHtml(managerLabel(state, assignment.managerId))}` : '可在此首次指派，後續改派限主管'}</span></label>`
-        : `<div class="read-only-field"><span>目前個管師</span><strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong></div>`;
+      // BOOK-MVP-003-B：個管指派是凍結能力。凍結時回診卡完全不渲染個管下拉或
+      // 唯讀指派欄，只留下正常回診欄位——既沒有 discoverable 的指派入口，也
+      // 不會在送表單時帶出 managerId。
+      const managerField = CASE_MANAGEMENT_ENABLED
+        ? canEditManager
+          ? `<label>個管師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前個管師：${escapeHtml(managerLabel(state, assignment.managerId))}` : '可在此首次指派，後續改派限主管'}</span></label>`
+          : `<div class="read-only-field"><span>目前個管師</span><strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong></div>`
+        : '';
       const recordedBy =
         decision === undefined
           ? '尚未登錄'
@@ -950,6 +962,9 @@ export function renderIntakeSheet(state, appointmentId) {
 // 丟出表格外），但放進 `<td>` 完全合法，`data-case-form` 的 submit 事件委派因此
 // 一行都不用改。
 export function renderCaseAssignments(state) {
+  // BOOK-MVP-003-B：個管指派為凍結能力，渲染層 fail-closed——即使節點意外殘留，
+  // 也不產出任何個管指派 UI。
+  if (!CASE_MANAGEMENT_ENABLED) return '';
   const completed = state.appointments.filter(
     (item) => item.status === 'completed'
   );
@@ -996,6 +1011,8 @@ export function renderCaseAssignments(state) {
 // 月度統計本來就是數字表：同一欄的數字要能上下比對（誰帶的患者多、哪一期
 // 到診次數掉下來），卡片做不到這件事。數字欄靠右對齊、用等寬字，讓位數對齊。
 export function renderWorkload(state) {
+  // BOOK-MVP-003-B：月度工作量為凍結能力（PAYROLL_WORKLOAD），渲染層 fail-closed。
+  if (!PAYROLL_WORKLOAD_ENABLED) return '';
   if (state.workload.length === 0)
     return emptyState('尚無月度工作量', '完成到診並指派個管師後才會產生統計。');
   const rows = state.workload

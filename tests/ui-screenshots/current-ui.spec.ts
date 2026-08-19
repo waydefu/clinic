@@ -221,26 +221,6 @@ async function prepareAppointments(page: Page): Promise<void> {
   await expect(page.locator('[data-appointment-card]').first()).toBeVisible();
 }
 
-async function prepareAssignedCaseWorkload(page: Page): Promise<void> {
-  await login(page, 'admin', { fresh: false });
-  await createBooking(page);
-  await showAllAppointments(page);
-
-  const appointment = page.locator('[data-appointment-card]').first();
-  await appointment.locator('[data-appointment-action="complete"]').click();
-  await page.locator('.confirm-dialog button.button-primary').click();
-  await expect(page.locator('#status')).toContainText('到診已記錄');
-
-  await page.goto('/#case-section');
-  const row = page
-    .locator('#case-assignment-list tbody tr[data-case-row]')
-    .first();
-  await expect(row).toBeVisible();
-  await row.locator('button[type="submit"][form]').click();
-  await expect(row.locator('.status-chip')).toHaveText('已指派');
-  await expect(page.locator('#workload table.workload-table')).toBeVisible();
-}
-
 async function preparePrivacy(page: Page): Promise<void> {
   await page.goto('/privacy');
   await expect(
@@ -313,14 +293,6 @@ const scenarios: Scenario[] = [
     viewport: PHONE,
     state: 'one-confirmed-synthetic-appointment',
     prepare: prepareAppointments
-  },
-  {
-    file: 'workbench--case-assigned-workload--desktop-1280x900--light.png',
-    route: '/#case-section',
-    role: 'admin',
-    viewport: DESKTOP,
-    state: 'one-completed-visit-assigned-manager_test_001',
-    prepare: prepareAssignedCaseWorkload
   },
   {
     file: 'privacy--draft-notice--phone-375x812--light.png',

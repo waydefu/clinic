@@ -165,23 +165,6 @@
       }
     },
     {
-      "file": "workbench--case-assigned-workload--desktop-1280x900--light.png",
-      "route": "/#case-section",
-      "role": "admin",
-      "viewport": {
-        "width": 1280,
-        "height": 900
-      },
-      "deviceScaleFactor": 1,
-      "state": "one-completed-visit-assigned-manager_test_001",
-      "captureKind": "reference-full-page",
-      "sha256": "d20ab738a3ae464f2bb860f7aa085a0641ab3fd3c1a790e896af1343bc47be3e",
-      "consoleCounts": {
-        "errors": 0,
-        "warnings": 0
-      }
-    },
-    {
       "file": "privacy--draft-notice--phone-375x812--light.png",
       "route": "/privacy",
       "role": "public",

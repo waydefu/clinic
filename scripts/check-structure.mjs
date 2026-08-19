@@ -335,9 +335,9 @@ try {
     visualBaselineErrors.push(
       'visual manifest must retain its single-worker local capture environment'
     );
-  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 10) {
+  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 9) {
     visualBaselineErrors.push(
-      'visual manifest must declare exactly the ten reviewed current UI captures'
+      'visual manifest must declare exactly the nine reviewed current UI captures'
     );
   } else {
     const requiredScenarios = [
@@ -404,14 +404,6 @@ try {
         state: 'one-confirmed-synthetic-appointment',
         width: 375,
         height: 812
-      },
-      {
-        file: 'workbench--case-assigned-workload--desktop-1280x900--light.png',
-        route: '/#case-section',
-        role: 'admin',
-        state: 'one-completed-visit-assigned-manager_test_001',
-        width: 1280,
-        height: 900
       },
       {
         file: 'privacy--draft-notice--phone-375x812--light.png',
@@ -517,7 +509,7 @@ if (visualBaselineErrors.length > 0) {
   for (const error of visualBaselineErrors) console.error(`- ${error}`);
   process.exitCode = 1;
 } else {
-  console.log('UI visual baseline evidence check passed (10 reference PNGs).');
+  console.log('UI visual baseline evidence check passed (9 reference PNGs).');
 }
 
 // 在全新 clone 上，型別感知的 ESLint 需要先有 workspace 的 dist/*.d.ts；順序寫反
