@@ -27,6 +27,7 @@ const requiredPaths = [
   'docs/architecture/firestore-local-baseline.md',
   'docs/phase-0-local-development.md',
   'docs/phase-1-execution-plan.md',
+  'docs/implementation/phase-1-booking-mvp-execution-log.md',
   'docs/legal/privacy-policy-draft.md',
   'docs/design/test-only-operations-ui.md',
   'docs/legal/phase-1-privacy-approval-packet.md',
