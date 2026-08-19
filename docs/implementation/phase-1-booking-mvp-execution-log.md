@@ -334,3 +334,36 @@
   - **CI Status:** `NOT RUN / NOT AVAILABLE` (本機驗證通過，未 push)
 
 - **最終狀態:** **READY FOR FINAL REVIEW** (Inventory 完成並已依 review 修正；003-B 未核准，不施工)
+
+---
+
+## BOOK-MVP-003-B: Frozen Capability Isolation (Case Management / Payroll Workload)
+
+### BOOK-MVP-003-B-1: Capability Gate Foundation
+
+#### Before
+- **Timestamp:** 2026-08-19 (Asia/Taipei; exact start time not recorded)
+- **Branch:** `agent/book-mvp-003-b-isolation`
+- **Baseline SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282` (origin/main, PR #21 merged)
+- **Objective:** 建立 frozen capability 旗標的單一來源，Phase 1 只存在「預設關閉」一種狀態。
+- **Scope:** 新增 `apps/web/public/modules/capability-flags.js`。
+- **Non-Scope:** 不修改任何 UI / runtime 行為；不修改 `constants.js`；不建立任何執行期覆寫管道。
+
+#### During
+- 新增 `apps/web/public/modules/capability-flags.js`：
+  - `CASE_MANAGEMENT_ENABLED = false`
+  - `PAYROLL_WORKLOAD_ENABLED = false`
+  - 具名 `export`、模組層級 `const`（不可重新賦值）；僅設定了 fail-closed 值。
+  - 無 query / localStorage / window / import.meta.env / 遠端 config / feature-flag UI。
+
+#### After
+- **Tests:**
+  - `check:lint`: PASS
+  - `test:unit`: PASS (62 檔, 1029 測試)
+  - `check:structure`: PASS (216 檔; visual baseline 10 PNG)
+  - `check:architecture`: PASS (3 層、11 筆、單一來源)
+  - `check:clinic-freeze`: PASS (30 檔)
+- **CI Status:** `NOT RUN / NOT AVAILABLE`（本機驗證通過）
+- **Result:** PASS
+- **Commit SHA:** 待已達時程後記錄
+- **Rollback:** `git revert <003-B-1 commit sha>`
