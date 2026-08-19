@@ -185,8 +185,10 @@
   - `scripts/check-structure.mjs` (更新 requiredPaths)
   - `package.json` (更新 scripts)
   - `docs/implementation/phase-1-booking-mvp-execution-log.md` (更新)
+- **Commit SHA:** `6043951a8cf9726075de011bd38dd4fcbfc3c49e` (`test(guard): BOOK-MVP-002 establish clinic homepage freeze guard`)
 - **測試指令:** `corepack pnpm run check:clinic-freeze; corepack pnpm run check:structure; corepack pnpm run test:unit`
 - **測試結果:** PASS (check:clinic-freeze 30 檔通過, check:structure 216 檔通過, test:unit 62 檔 1029 測試全過)
 - **CI Status:** `NOT RUN / NOT AVAILABLE` (本機驗證通過；本步驟產物尚未推送到 remote/PR，待 GitHub Actions 執行後記錄正式 CI Evidence)
+- **Rollback 指令:** `git revert 6043951a8cf9726075de011bd38dd4fcbfc3c49e`
 - **CLINIC HOMEPAGE CHANGED:** **NO** (30 個首頁相關檔案無任何位元組修改)
 - **最終狀態:** **PASS**
