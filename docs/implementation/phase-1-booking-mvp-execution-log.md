@@ -389,5 +389,125 @@
   - `test:unit`: PASS (62 檔, 1029 測試)
 - **CI Status:** `NOT RUN / NOT AVAILABLE`
 - **Result:** PASS
-- **Commit SHA:** 待記錄
-- **Rollback:** `git revert <003-B-2 commit sha>`
+- **Commit SHA:** `0a54a24`（`feat(scope): BOOK-MVP-003-B isolate case/payroll mutations`）
+- **Rollback:** `git revert 0a54a24`
+
+### BOOK-MVP-003-B-3: UI Isolation (index.html / admin-view.js / admin-bootstrap.js)
+
+#### Before
+- **Timestamp:** 2026-08-19 (Asia/Taipei; exact start time not recorded)
+- **Branch:** `agent/book-mvp-003-b-isolation`
+- **Baseline SHA:** `0a54a24`（003-B-2 完成後）
+- **Objective:** 把凍結能力的動態與靜態 UI 入口全部隔離：flag=false 時不得有可發現的
+  個管指派／月度工作量入口，也不准在渲染層產生任何個管 UI。
+- **Scope:** 僅修改 `apps/web/public/index.html`、`modules/admin-view.js`、
+  `admin-bootstrap.js`、`modules/workspace-tabs.js` 以外的守衛與測試（見 003-B-4）。
+- **Non-Scope:** 不修改權限模型、不修改 `case-management.js` domain、不修改 API。
+
+#### During
+- `index.html`：移除 workspace nav「個管指派」、overview 摘要卡「查看個管」與「查看
+  統計」、整個 `<section id="case-section">` 區塊；meta description 與首頁說明文案
+  同步移除「個管」。
+- `admin-view.js`：匯入 `CASE_MANAGEMENT_ENABLED`／`PAYROLL_WORKLOAD_ENABLED`。
+  - `renderTasks`：旗標關閉時濾掉 `pendingCaseAssignments` 動態 task（其餘待辦照常）。
+  - `renderFollowUps`：旗標關閉時完全不渲染個管下拉/唯讀欄（不提供 discoverable
+    入口，也不會在送表單時帶出 managerId）。
+  - `renderCaseAssignments`／`renderWorkload`：fail-closed——旗標關閉時立即 return ''。
+- `admin-bootstrap.js`：`#case-section` 等節點已移除，所有對該節點的存取與事件綁定
+  改為先檢查節點存在（避免誤觸不存在節點）。
+- **測試更新：** 移除此前依賴個管 UI 的測試，改為凍結行為測試：
+  - `workbench-lifecycle.spec.ts`：新測試驗證「無 UI 入口、mutation 拒絕且狀態不變」
+    （POST /case-assignments 與 /follow-ups/:id＋managerId 都回「凍結」且 state 完全
+    不變）。
+  - `role-maintenance-responsive.spec.ts`：櫃台可照常登錄回診；個管節點不存在；
+    POST /case-assignments 回「凍結」（不是「權限」）。
+  - `affordance.spec.ts`／`mobile-layout.spec.ts`：工作區掃描清單移除 `#case-section`。
+  - `current-ui.spec.ts`：移除 case-assigned-workload 截圖情境；視覺基線減為 9 張
+    （manifest、PNG、check-structure required scenarios、`ui-visual-baseline-2026-08-10.md`
+    、`ui-ux-rules.md` §5.5 同步更新）。
+  - `check-web-ui.mjs`：守衛改為讀取 capability-flags.js——旗標 false 時要求 admin
+    shell **不得**出現「個管指派與工作量」文案、store 必須含凍結守衛文案。
+
+#### After
+- **Tests:**
+  - `check:structure`: PASS (216 檔; visual baseline 9 PNG)
+  - `check:lint`: PASS
+  - `check:docs`: PASS (133 檔)
+  - `check:ui`: PASS
+  - `check:clinic-freeze`: PASS (30 檔)
+  - `check:architecture`: PASS
+  - `check:types`：PASS（build 成功）
+  - `test:unit`: PASS (62 檔, 1029 測試)
+  - `test:e2e`（targeted）：PASS——affordance、role-maintenance、workbench-lifecycle
+    47 筆 chromium + mobile-layout 28 筆 mobile-device 全綠
+  - `check:perf`：`/patient.html` document 7.0 KiB vs 預算 7 KiB 超標——確認為基線既存
+    （stash 後於 baseline 重跑同為失敗），非本 slice 引入。
+- **CI Status:** `NOT RUN / NOT AVAILABLE`（未 push）
+- **Result:** PASS
+- **Commit SHA:** `5baab61`（`feat(scope): BOOK-MVP-003-B isolate frozen case/payroll UI`）
+- **Rollback:** `git revert 5baab61`
+
+### BOOK-MVP-003-B-4: Route Guard (workspace-tabs.js)
+
+#### Before
+- **Timestamp:** 2026-08-19 (Asia/Taipei; exact start time not recorded)
+- **Branch:** `agent/book-mvp-003-b-isolation`
+- **Baseline SHA:** `5baab61`（003-B-3 完成後）
+- **Objective:** 凍結能力深連結不得殘留——直接以 `#case-section` 開頁要導回 `#overview`，
+  且不顯示權限類型的拒絕訊息（不是「沒有權限」）。
+- **Scope:** 僅修改 `apps/web/public/modules/workspace-tabs.js`。
+- **Non-Scope:** 不修改權限模型、不建立新的權限訊息。
+
+#### During
+- 匯入 `CASE_MANAGEMENT_ENABLED`，建立 `FROZEN_PANEL_IDS`（旗標為 true 時集合為空，
+  隔離與旗標狀態耦合，能力恢復時路由自然回歸）。
+- `resolvePanelId`：`raw` hash 命中凍結工作區時，`replaceState` 改寫為
+  `#overview` 並直接回傳 `DEFAULT_PANEL`——刻意不走 `deniedHandler`，因為凍結不是
+  權限拒絕。
+- 檔頭註解內的深連結範例由「#case-section」改為「#schedule-section」。
+- **測試：** `workbench-lifecycle.spec.ts` 凍結測試新增第 1b 步——`goto('/#case-section')`
+  後 URL 回到 `#overview` 且 overview 標題可見。
+
+#### After
+- **Tests:**
+  - `check:lint`: PASS
+  - `check:ui`: PASS
+  - `check:architecture`: PASS
+  - `test:e2e`（targeted）：PASS——workbench-lifecycle.spec.ts 23 筆 chromium 全綠
+    （含新加的 #case-section 深連結導回 #overview 斷言）
+- **CI Status:** `NOT RUN / NOT AVAILABLE`
+- **Result:** PASS
+- **Commit SHA:** `0c0e80a`（`feat(scope): BOOK-MVP-003-B add frozen workspace route guard`）
+- **Rollback:** `git revert 0c0e80a`
+
+### BOOK-MVP-003-B-5: Architecture Reachability Guard (check-architecture.mjs)
+
+#### Before
+- **Timestamp:** 2026-08-19 (Asia/Taipei; exact start time not recorded)
+- **Branch:** `agent/book-mvp-003-b-isolation`
+- **Baseline SHA:** `0c0e80a`（003-B-4 完成後）
+- **Objective:** 把「凍結工作區不得有未受旗標保護的入口」從 check:ui 的單一入口檢查
+  擴成對整個 `apps/web/public` 的靜態可達性守衛。
+- **Scope:** 僅修改 `scripts/check-architecture.mjs`。
+- **Non-Scope:** 不修改 check:ui（兩道守衛互補，不互相取代）。
+
+#### During
+- 新增規則 4「frozen-capability」：
+  1. `capability-flags.js` 必須以字面值布林宣告 `CASE_MANAGEMENT_ENABLED` 與
+     `PAYROLL_WORKLOAD_ENABLED`。
+  2. 旗標為 false 時，任何瀏覽器檔案引用凍結工作區路由 id（`case-section`）都必須
+     在同一份檔案裡引用對應旗標；未受旗標保護的引用即為新入口，擋下。
+  3. 旗標為 false 時，`index.html` 不得含有該工作區的 `href` 或 `id` 靜態入口。
+- 守衛本身（capability-flags.js）豁免於規則 2 的旗標引用要求。
+- 以 theme.js 暫時插入未受保護的 `case-section` 引用做負面驗證，確認守衛確實觸發，
+  隨即還原。
+
+#### After
+- **Tests:**
+  - `check:architecture`: PASS（含負面目測驗證）
+  - `check:lint`: PASS
+  - `check:ui`: PASS
+- **CI Status:** `NOT RUN / NOT AVAILABLE`
+- **Result:** PASS
+- **Commit SHA:** `3b4da19`（`feat(scope): BOOK-MVP-003-B add frozen capability reachability guard`）
+- **Rollback:** `git revert 3b4da19`
