@@ -192,3 +192,116 @@
 - **Rollback 指令:** `git revert 6043951a8cf9726075de011bd38dd4fcbfc3c49e`
 - **CLINIC HOMEPAGE CHANGED:** **NO** (30 個首頁相關檔案無任何位元組修改)
 - **最終狀態:** **PASS**
+
+---
+
+### BOOK-MVP-003-A: Frozen Capability Reachability & Dependency Inventory (Corrected)
+
+#### Before
+- **Timestamp:** 2026-08-19 22:00 (Asia/Taipei)
+- **Branch:** `agent/book-mvp-003-a-inventory`
+- **HEAD SHA:** `1a253a8b56bc8d4f55bf228b0e96e4f73842edc3` (origin/main, PR #20 merged)
+- **目的:** 全面盤點第一階段凍結能力的可達性、依賴關係與共用模組，修正先前報告錯誤假設，產出可施工的隔離策略。
+- **Scope:** 僅限架構分析、搜尋、依賴圖建立、文件更新。**嚴禁修改 runtime 代碼**。
+- **Explicit Non-Scope:** 不修改 `packages/domain`、`packages/contracts`、`apps/api`、`apps/worker`、`apps/web` runtime 代碼；不修改 Firestore rules、CI workflow、Production config。
+- **修正目標 (Review 要求):**
+  1. 重查 Canonical Role Model (`packages/domain/src/roles.ts`)
+  2. 檢查 `store.js` mutation reachability
+  3. 盤點 Overview 所有 `#case-section` entry points
+  4. 移除 `permissions.js` 施工假設錯誤
+  5. 補充 execution-log、tests、commit SHA
+- **Acceptance Criteria:**
+  1. 修正後的 Reachability Matrix 與 Dependency Matrix 經交叉驗證
+  2. 所有矛盾點（Authority Conflict）已記錄並標註
+  3. `check:clinic-freeze`、`check:structure`、`check:docs` 全綠
+  4. Execution log 記錄完整 Before/During/After
+- **Rollback Plan:** `git revert <commit-sha>` 還原文件更新
+
+#### During
+- **Canonical Role Model 驗證 (`packages/domain/src/roles.ts`):**
+  - `OPERATIONAL_ROLES`: `['manager', 'front_desk', 'consultant', 'physician', 'patient']` (5 角色)
+  - `SYSTEM_ROLES`: `['system_admin', 'auditor', 'service_account']` (3 角色)
+  - `ASSUME_CASE_MANAGER_IS_CONSULTANT = true` — **未決假設**，受 rbac-matrix.md §7 Q1 阻擋
+  - `LEGACY_ROLE_ALIASES`: `admin` → `manager`；`case_manager` → `consultant` (條件式，依賴上述假設)
+  - **關鍵發現**: 瀏覽器端仍使用 legacy `admin` 代碼，未遷移至 `manager`；`case_manager` 不在 `OPERATIONAL_ROLES` 中，僅透過 alias 映射
+
+- **Store.js Mutation Reachability (`apps/web/public/store.js`):**
+  - Import: `assignCaseManager`, `buildOperationalTasks`, `buildWorkload` from `case-management.js`
+  - `stagingRequest` handler 含路徑:
+    - `/follow-ups/...` → 呼叫 `assignCaseManager` (需 `PERMISSIONS.ASSIGN_CASE` / `REASSIGN_CASE`)
+    - `/case-assignments` → 呼叫 `assignCaseManager` (需 `PERMISSIONS.ASSIGN_CASE` / `REASSIGN_CASE`)
+  - **結論**: Frozen capabilities (CASE_MANAGEMENT) **可透過合成 API 觸發狀態變更**，權限檢查在 `permissions.js` 的 `requirePermission`
+
+- **Overview #case-section Entry Points (`apps/web/public/index.html`):**
+  1. Line 211: Nav link `<a href="#case-section" data-workspace-nav>個管指派</a>` — **無 `data-admin-only`，全角色可見**
+  2. Line 292: Summary card "個管月度患者" → `<a class="summary-action" href="#case-section">查看個管</a>`
+  3. Line 300: Summary card "已完成到診" → `<a class="summary-action" href="#case-section">查看個管</a>`
+  4. Line 864: Section `<section id="case-section" ...>` — **無 `data-admin-only`**
+  - **風險**: 櫃台角色 (`front_desk`) 可直接導航至個管區，D-007 仍 `pending`
+
+- **Permissions.js 施工假設修正:**
+  - **錯誤假設**: 先前報告稱 `permissions.js` 需修改或加旗標
+  - **事實**: `permissions.js` 的 `rolePermissions` 已將 `PERMISSIONS.ASSIGN_CASE` 賦予 `front_desk` (line 23)
+  - **結論**: 權限模型**已允許櫃台指派個管**，無需修改 `permissions.js`；隔離需在 **UI/路由層** 透過 capability flag + route guard 實現
+
+- **Admin-view.js 渲染邏輯確認:**
+  - `renderCaseAssignments`: 檢查 `permissions.includes(PERMISSIONS.ASSIGN_CASE)` / `REASSIGN_CASE` (lines 976-980) — 前台可編輯
+  - `renderWorkload`: **無權限檢查**，直接渲染統計表
+  - Caption 註記 "首次指派可由櫃台處理，改派限主管" 僅為文案，程式碼未強制
+
+- **Unrouted Inventory 交叉驗證 (`apps/api/unrouted-inventory.json`):**
+  - `case_assignment`: `remainingBlockers` 含 `D-007` (決策未核定) + `C0`～`C6` (Stage 2 slices)
+  - `payroll_and_settlement`: `remainingBlockers` 含 `D-008`、`D-015` + `C0`～`C6`
+  - 確認：API 層已完全阻斷，僅瀏覽器合成層可達
+
+#### After
+- **修正後的 Reachability Matrix 關鍵更新:**
+
+| Capability | UI Entry | Direct Route | Handler | Reachability | 修正說明 |
+|------------|----------|--------------|---------|--------------|----------|
+| CASE_MANAGEMENT | Nav + 2 Summary cards + Section | `/#case-section` (hash) | `store.js` → `assignCaseManager` | **REACHABLE** (含 mutation) | 前台權限已含 `ASSIGN_CASE`，非僅管理者 |
+| PAYROLL (workload) | Same route | Same | `renderWorkload` (無權限檢查) | **REACHABLE** (read-only) | 統計表對所有角色可見 |
+| PAYROLL (close/adjust) | None | None | RBAC permissions only | **PLAN_ONLY** | API unrouted，無 UI |
+| SURGERY/CLINICAL | None | None | None | **PLAN_ONLY** | Expansion S，純決策層 |
+
+- **修正後的 Shared Dependency 分類:**
+
+| Module | Classification | 理由 |
+|--------|---------------|------|
+| `patient-identity.ts` | **FOUNDATION** | Booking + Case 共用患者比對 |
+| `schedule.ts` | **FOUNDATION** | Booking 時段 + Case 完成時間推算 |
+| `roles.ts` | **FOUNDATION** | Canonical role source (ADR-0004) |
+| `audit.ts` / `idempotency.ts` | **FOUNDATION** | 所有寫入路徑共用 |
+| `case-assignment.ts` | **FROZEN_FEATURE** | Domain logic 保留，僅封入口 |
+| `payroll.ts` | **FROZEN_FEATURE** | Domain logic 保留，僅封入口 |
+
+- **High-Risk Shared Dependency 修正:**
+  - `case_manager` role: **不存在於 `roles.ts`**，僅透過 `LEGACY_ROLE_ALIASES` 映射到 `consultant` (受假設控制)
+  - `front_desk` 已有 `ASSIGN_CASE` 權限 — **非施工假設，而是現況**
+
+- **Proposed 003-B Isolation Strategy 修正:**
+  - **不修改 `permissions.js`** (已符合現況)
+  - **不修改 `roles.ts`** (Canonical source，凍結)
+  - 隔離點遷移至: `workspace-tabs.js` (route guard) + `admin-view.js` (render guard) + `constants.js` (capability flags)
+  - 新增架構測試: `check-architecture.mjs` 驗證 frozen capabilities 在 flag=false 時不可達
+
+- **Files Expected to Change (003-B 修正版):**
+  - `apps/web/public/index.html` — 加 `data-frozen-capability="case-management"` 於 #case-section
+  - `apps/web/public/modules/workspace-tabs.js` — Route guard 檢查 `CASE_MANAGEMENT_ENABLED`
+  - `apps/web/public/modules/admin-view.js` — `renderCaseAssignments`/`renderWorkload` 加旗標檢查
+  - `apps/web/public/modules/constants.js` — 新增 `CASE_MANAGEMENT_ENABLED = false`, `PAYROLL_WORKLOAD_ENABLED = false`
+  - `scripts/check-architecture.mjs` — 新增 frozen capability reachability guard
+  - `tests/e2e/workbench-lifecycle.spec.ts` — 測試旗標關閉時導向行為
+
+- **Files That Must Not Change (新增):**
+  - `apps/web/public/modules/permissions.js` — **不修改**，權限模型為現況
+  - `packages/domain/src/roles.ts` — **不修改**，Canonical role source
+
+- **驗證結果:**
+  - `check:clinic-freeze`: PASS (30 檔)
+  - `check:structure`: PASS (216 檔)
+  - `check:docs`: PASS (133 檔)
+  - `test:unit`: PASS (62 檔, 1029 測試)
+  - **CI Status:** `NOT RUN / NOT AVAILABLE` (本機驗證通過)
+
+- **最終狀態:** **PASS** (Inventory 完成，待 003-B 核准施工)
