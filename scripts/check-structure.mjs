@@ -27,6 +27,7 @@ const requiredPaths = [
   'docs/architecture/firestore-local-baseline.md',
   'docs/phase-0-local-development.md',
   'docs/phase-1-execution-plan.md',
+  'docs/implementation/phase-1-booking-mvp-execution-log.md',
   'docs/legal/privacy-policy-draft.md',
   'docs/design/test-only-operations-ui.md',
   'docs/legal/phase-1-privacy-approval-packet.md',
@@ -168,6 +169,8 @@ const requiredPaths = [
   'apps/web/public/favicon.svg',
   // 每一支阻斷式檢查與它的測試都要列在這裡。腳本被刪掉會被抓到，測試被刪掉也是
   // ——少了測試的 gate 還會顯示綠燈，那比 gate 消失更難察覺（CONTRIBUTING 第 8 條）。
+  'scripts/check-clinic-freeze.mjs',
+  'scripts/check-clinic-freeze.test.mjs',
   'scripts/check-structure.mjs',
   'scripts/check-structure.test.mjs',
   'scripts/check-docs-links.mjs',
