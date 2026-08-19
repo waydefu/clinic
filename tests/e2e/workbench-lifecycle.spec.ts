@@ -637,6 +637,11 @@ test.describe('工作臺其餘資料表', () => {
       page.locator('#task-list .task-card', { hasText: '個管尚未指派' })
     ).toHaveCount(0);
 
+    // 1b. 直接 hash 深連結到凍結工作區會被 route guard 導回 #overview。
+    await page.goto('/#case-section');
+    await expect(page).toHaveURL(/#overview$/);
+    await expect(page.locator('#overview-heading')).toBeVisible();
+
     const appointmentId = await page
       .locator('[data-appointment-card]')
       .first()
