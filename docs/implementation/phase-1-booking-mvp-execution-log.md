@@ -254,6 +254,24 @@
   - `payroll_and_settlement`: `remainingBlockers` 含 `D-008`、`D-015` + `C0`～`C6`
   - 確認：API 層已完全阻斷，僅瀏覽器合成層可達
 
+- **Final Review Correction (2026-08-19):**
+  1. **`store.js` 是 003-B 施工對象，不得遺漏。** 兩個實際 mutation 路徑需 fail-closed guards：
+     - `POST /case-assignments`（store.js:300-309，`requirePermission` ASSIGN_CASE / REASSIGN_CASE → `assignCaseManager`）
+     - `POST /follow-ups/:id` 且 `body.managerId` 為非空字串時（store.js:287-299）——回診記錄**順帶**觸發 case-assignment side effect
+  2. **`index.html` 是 003-B 施工對象。** 靜態 `#case-section` entry points 不得只留給 route guard redirect，需與動態入口一起隔離：
+     - workspace nav「個管指派」（index.html:211）
+     - overview summary card「查看個管」（index.html:292）
+     - overview summary card「查看統計」（index.html:300）
+     - admin-view.js 動態 task `pendingCaseAssignments`（admin-view.js:259-264，href `#case-section`）
+  3. **角色敘述最終修正：**
+     - canonical `roles.ts` **沒有** `case_manager` role——不在 `OPERATIONAL_ROLES`，也不在 `SYSTEM_ROLES`
+     - `case_manager` 僅為 `LEGACY_ROLE_ALIASES` 條件式 alias → `consultant`（受 `ASSUME_CASE_MANAGER_IS_CONSULTANT = true` 控制）
+     - **consultant candidate permissions 並非 `[]`**：`front_desk`（含 consultant 權限列）已含 `PERMISSIONS.ASSIGN_CASE`
+     - 刪除「保留空權限 case_manager 或移除？」類型的 user decision——沒有這個角色可選
+     - 003-B **不修改** `roles.ts`、browser `permissions.js`、API `rbac.ts`
+  4. **Feature flag 決策已核定：** 使用獨立 `apps/web/public/modules/capability-flags.js`（不放 `constants.js`）。Flags default=false、fail-closed；禁止 query/localStorage/window/runtime override。
+  5. **003-B tests 必須加入 mutation bypass negative tests**（見 After）。
+
 #### After
 - **修正後的 Reachability Matrix 關鍵更新:**
 
@@ -282,26 +300,37 @@
 - **Proposed 003-B Isolation Strategy 修正:**
   - **不修改 `permissions.js`** (已符合現況)
   - **不修改 `roles.ts`** (Canonical source，凍結)
-  - 隔離點遷移至: `workspace-tabs.js` (route guard) + `admin-view.js` (render guard) + `constants.js` (capability flags)
+  - **不修改 API `rbac.ts`**
+  - 隔離點遷移至: `capability-flags.js` (獨立旗標檔，已核定) + `workspace-tabs.js` (route guard) + `admin-view.js` (render guard) + `store.js` (fail-closed mutation guards) + `index.html` (靜態 entry points 移除)
   - 新增架構測試: `check-architecture.mjs` 驗證 frozen capabilities 在 flag=false 時不可達
 
 - **Files Expected to Change (003-B 修正版):**
-  - `apps/web/public/index.html` — 加 `data-frozen-capability="case-management"` 於 #case-section
-  - `apps/web/public/modules/workspace-tabs.js` — Route guard 檢查 `CASE_MANAGEMENT_ENABLED`
-  - `apps/web/public/modules/admin-view.js` — `renderCaseAssignments`/`renderWorkload` 加旗標檢查
-  - `apps/web/public/modules/constants.js` — 新增 `CASE_MANAGEMENT_ENABLED = false`, `PAYROLL_WORKLOAD_ENABLED = false`
+  - `apps/web/public/modules/capability-flags.js` — **新增**，`CASE_MANAGEMENT_ENABLED = false`、`PAYROLL_WORKLOAD_ENABLED = false`（default false、fail-closed、無 override）
+  - `apps/web/public/modules/workspace-tabs.js` — Route guard 檢查旗標，`#case-section` direct hash 導回 `#overview`
+  - `apps/web/public/modules/admin-view.js` — `renderCaseAssignments`/`renderWorkload` 旗標檢查；動態 `pendingCaseAssignments` task 移除
+  - `apps/web/public/store.js` — `POST /case-assignments` 與 `/follow-ups/:id`+`managerId` 的 fail-closed mutation guards（flag=false 時拒絕且 state 不變）
+  - `apps/web/public/index.html` — 移除 workspace nav「個管指派」、overview「查看個管」「查看統計」三處靜態 entry points（與動態 task 一起隔離，不採 redirect 殘留）
   - `scripts/check-architecture.mjs` — 新增 frozen capability reachability guard
-  - `tests/e2e/workbench-lifecycle.spec.ts` — 測試旗標關閉時導向行為
+  - `tests/e2e/workbench-lifecycle.spec.ts` — 旗標關閉行為測試 + mutation bypass negative tests
+
+- **003-B Required Mutation Bypass Negative Tests:**
+  1. `POST /case-assignments` 在 flag=false 必須拒絕且 state 不變
+  2. `POST /follow-ups/:id` 帶 `managerId` 不得繞過 freeze（不得產生 case-assignment）
+  3. 正常 follow-up 不帶 `managerId` 仍正常
+  4. Booking create/reschedule/cancel/complete 不受影響
+  5. `#case-section` direct hash 導回 `#overview`
+  6. 所有 static/dynamic frozen UI entries 不可 discoverable
 
 - **Files That Must Not Change (新增):**
   - `apps/web/public/modules/permissions.js` — **不修改**，權限模型為現況
   - `packages/domain/src/roles.ts` — **不修改**，Canonical role source
+  - `apps/api/src/platform/authorization/rbac.ts` — **不修改**
 
 - **驗證結果:**
   - `check:clinic-freeze`: PASS (30 檔)
   - `check:structure`: PASS (216 檔)
   - `check:docs`: PASS (133 檔)
   - `test:unit`: PASS (62 檔, 1029 測試)
-  - **CI Status:** `NOT RUN / NOT AVAILABLE` (本機驗證通過)
+  - **CI Status:** `NOT RUN / NOT AVAILABLE` (本機驗證通過，未 push)
 
-- **最終狀態:** **PASS** (Inventory 完成，待 003-B 核准施工)
+- **最終狀態:** **READY FOR FINAL REVIEW** (Inventory 完成並已依 review 修正；003-B 未核准，不施工)
