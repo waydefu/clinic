@@ -471,3 +471,40 @@
 - **PERFORMANCE BUDGET CHANGED:** **NO**。
 - **BOOK-MVP-004 STARTED:** **NO**。
 - **Phase-B Implementation Status:** **PASS — REMOTE CI GREEN; FINAL EVIDENCE HEAD CI PENDING**。
+
+---
+
+### BOOK-MVP-003-B-REDO-C: Workbench UI, Route & Projection Isolation
+
+#### Before
+- **Timestamp:** 2026-08-20 14:01:33 +08:00 (Asia/Taipei).
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `e0f8cfb67551db0ddad7bf8236915a3cd61e92ae`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`；GitHub remote main 與 local `origin/main` 一致。
+- **Objective:** 完成 Phase 1 workbench 的 frozen Case/Payroll discoverability、direct route、render/projection 與 dependency-topology isolation，同時維持 Phase B mutation boundary、normal follow-up 與全部 Booking/排班能力。
+- **003-A Refinement:** 003-A 所提 `capability-flags.js` 的治理意圖保留，但 PR #22 已證明 shared `store.js` import workbench-only flag 會污染 patient static graph。本 redo 改採 `apps/web/public/modules/workbench-scope-policy.js`：source-controlled、fail-closed、無 query/localStorage/window/remote override，只能從 workbench modules 可達，且不得由 `store.js` 或 patient graph 可達。
+- **Scope:**
+  1. 移除 active HTML 的 Case nav、Case summary shortcut、Payroll workload summary 與 `#case-section` panel；保留 Booking completed summary並導向 Booking/Follow-up workspace。
+  2. `#case-section` direct hash deterministic replace 至 `#overview`，不顯示 authorization error。
+  3. Active operational tasks 只排除 `pendingCaseAssignments`，保留 `overdueArrivals`、`pendingFollowUps`、`cancellationRequests`、`outboxPending` 及既有 governance visibility。
+  4. Follow-up form、intake sheet 與 active bootstrap 不 render/submit assigned-manager或Payroll projection；normal follow-up fields、audit/outbox semantics維持。
+  5. Preserved `renderCaseAssignments`／`renderWorkload` functions 本身亦 fail closed；Case/Payroll domain/helpers/contracts/tests不刪除。
+  6. Static topology guard證明 patient graph及shared store均到不了workbench policy；behavioral unit/E2E證明task/render/route/UI行為，避免以註解或decoy string通過。
+- **Candidate Files:**
+  - `apps/web/public/index.html`
+  - `apps/web/public/admin-bootstrap.js`
+  - `apps/web/public/modules/admin-view.js`
+  - `apps/web/public/modules/workspace-tabs.js`
+  - `apps/web/public/modules/workbench-scope-policy.js`（new）
+  - `scripts/check-architecture.mjs`
+  - `apps/web/src/workbench-scope-policy.test.ts`（new focused behavioral/topology coverage）
+  - targeted existing E2E specs under `tests/e2e/` for exact selector absence、safe direct route、normal follow-up、responsive/affordance matrices
+  - dated visual/evidence files only after the exact runtime head is verified；2026-08-10 and earlier evidence remain immutable
+  - this execution log for After evidence
+- **Must Not Change:** `apps/web/public/store.js` Phase-B boundary、patient HTML/app/api-client、`permissions.js`、canonical roles、API RBAC、Case/Payroll domain/contracts、worker、30 frozen clinic files、performance budget/checker、workflows、Firebase/Terraform/Calendar runtime、lockfiles。
+- **Acceptance Criteria:** frozen selectors absent from active DOM/accessibility tree；`#case-section` → `#overview` without permission error；render outputs contain no Case manager/Payroll/pending Case projection；four legitimate operational task categories retained；normal follow-up and Booking lifecycle green；patient graph excludes policy；clinic 30/30 and performance green；all required CI and Verification evidence green。
+- **Test Plan:** focused Vitest for immutable policy、task projection、safe route resolution、follow-up/intake/frozen renderer outputs；E2E exact selector and deep-link assertions plus existing Booking/role/mobile/accessibility suites；GitHub-hosted full verify、Firestore、supply chain、SAST and Verification evidence are acceptance authority。
+- **Rollback Plan:** Before、runtime/tests、visual/evidence commits separately `git revert`；never amend/rebase/force push；Phase B/store and frozen implementation remain intact。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-004 STARTED:** **NO**。
