@@ -608,3 +608,41 @@
 - **PERFORMANCE BUDGET CHANGED:** **NO**。
 - **WORKFLOW CHANGED:** **NO**。
 - **BOOK-MVP-005 STARTED:** **NO**。
+- **Final Evidence Head:** commit `dfa1562d665d43f2ee6478dadc6d0e47ea604b8d`，GitHub-hosted run [`32341926443`](https://github.com/waydefu/clinic/actions/runs/32341926443) 11/11 jobs PASS；core `96342601952`、Verification evidence `96343211153` 均為 `success`。BOOK-MVP-004 至此完成。
+
+---
+
+### BOOK-MVP-005: Website Vendor Evaluation Package
+
+#### Before
+- **Timestamp:** 2026-08-20 15:04:40 +08:00 (Asia/Taipei)。
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `dfa1562d665d43f2ee6478dadc6d0e47ea604b8d`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- **Prerequisite:** BOOK-MVP-004 final evidence run `32341926443` 全綠。
+- **Objective:** 交付不需整份 repository 即可評估的網站廠商文件，說明官網 `/reservations/` 目標、API-only／Widget + API／iframe fallback 模型、current preview 限制、responsive／accessibility／host-page responsibilities 與資料/API boundary；不宣稱 production API 已存在。
+- **Scope:** 建立 `docs/integration/booking-web-vendor-evaluation.md`；部署前 URL 必須精確標成 `PENDING DEPLOYMENT`，成功驗證後才換成當期 URL。推薦 Widget + API；current Firebase preview 的 `X-Frame-Options: DENY` 與 `frame-ancestors 'none'` 明確禁止直接 iframe。
+- **Candidate Files:** `docs/integration/booking-web-vendor-evaluation.md`、`docs/README.md`、本 execution log；BOOK-MVP-006 的 payload report 作同一 vendor-handoff slice 的量化 companion。
+- **Must Not Change:** runtime、`/clinic` 30 frozen files、production API/backend、Firestore/Calendar/LINE/Meta/NAS、Firebase/Terraform、credentials、real data、performance budget/checker semantics、workflow、lockfiles。
+- **Acceptance:** docs links/index/lifecycle、format 與 full GitHub required checks 綠；document 不含 secret、credential、service account、production Firebase config、real PII、full repo archive 或 stale preview URL。
+- **Rollback:** 每個 slice 以 `git revert <sha>` 回復；不 rewrite shared history。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-006 STARTED:** **NO**。
+
+### BOOK-MVP-006: Frontend Asset / Payload Report
+
+#### Before
+- **Timestamp:** 2026-08-20 15:04:40 +08:00 (Asia/Taipei)。
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `dfa1562d665d43f2ee6478dadc6d0e47ea604b8d`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- **Objective:** 由 authoritative GitHub Linux build 量測 `/booking`、`/clinic` 與 workbench 的 document／JS／CSS／image／total transfer、resource counts、content hashing、cache behavior 與可支援的 compression evidence，分離廠商數字與內部 budget evidence。
+- **Measurement Plan:** 使用既有 `scripts/check-performance-budget.mjs --report` 對 CI 產生的 `apps/web/dist` 印出 deterministic gzip closure；如需讓該既有 report mode 在 CI log 可見，只暫時調整 package command 的 output mode，量測後回復，絕不改演算法、budget、threshold 或 workflow。Brotli 只在 repository tooling 對同一 dist 有 authoritative output 時列數字，否則明確記錄 `NOT MEASURED`。
+- **Candidate Files:** `package.json`（temporary report-output switch，final net change 必須為 zero）、`docs/integration/booking-frontend-payload-report.md`、`docs/README.md`、本 execution log。
+- **Must Not Change:** `apps/web/performance-budget.json`、`scripts/check-performance-budget.mjs` semantics、runtime、clinic、patient content、workflow、lockfiles、production config。
+- **Acceptance:** authoritative run 產生 exact entry measurements且所有現行 budgets PASS；final docs-only HEAD 再全綠。任何超標視為 regression，不以放寬 budget/checker 解決。
+- **Rollback:** measurement/output、report/evidence commits 各自 `git revert <sha>`；不 amend/rebase/force push。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-007 STARTED:** **NO**。
