@@ -66,11 +66,11 @@ test.describe('患者線上預約', () => {
 
     const headerBoundary = page.locator('.patient-header .environment-badge');
     await expect(headerBoundary).toBeVisible();
-    await expect(headerBoundary).toContainText('勿填真實患者資料');
-    const footerBoundary = page.locator('#patient-env-boundary');
-    await expect(footerBoundary).toBeVisible();
-    await expect(footerBoundary).toContainText('勿填真實患者或健康資料');
-    await expect(footerBoundary).toContainText('只存本機瀏覽器');
+    await expect(headerBoundary).toContainText('LOCAL TEST ONLY');
+    const dataBoundary = page.locator('.patient-help-grid article').first();
+    await expect(dataBoundary).toBeVisible();
+    await expect(dataBoundary).toContainText('勿填真實患者或健康資料');
+    await expect(dataBoundary).toContainText('測試資料只存本機瀏覽器');
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       'content',
       'noindex, nofollow'
