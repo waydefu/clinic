@@ -158,7 +158,7 @@ export async function stagingRequest(path, options = {}) {
     path === '/case-assignments' ||
     (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path) &&
       typeof body.managerId === 'string' &&
-      body.managerId.trim() !== '')
+      body.managerId !== '')
   )
     throw new Error('個案管理功能目前未開放。');
 

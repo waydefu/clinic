@@ -65,6 +65,7 @@ function memoryStorage(): Storage {
 
 function seedCompletedAppointment() {
   const state = initialState();
+  state.workspace.authenticated = true;
   state.patients.push({
     id: 'patient_test_frozen_boundary',
     name: '合成測試患者'
