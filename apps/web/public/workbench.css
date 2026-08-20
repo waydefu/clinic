@@ -613,6 +613,30 @@ details[open] > summary .workflow-summary-chevron {
 .decision-card label {
   min-width: 0;
 }
+.follow-up-decision-card {
+  align-items: start;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.follow-up-context {
+  grid-column: 1 / -1;
+}
+.follow-up-field,
+.follow-up-tags {
+  align-self: stretch;
+}
+.follow-up-manager,
+.follow-up-tags,
+.follow-up-note {
+  grid-column: span 2;
+}
+.follow-up-submit {
+  align-self: end;
+  justify-self: stretch;
+}
+.case-form select {
+  min-width: 10rem;
+  width: 100%;
+}
 .status-cancellation_requested {
   background: var(--amber-light);
   color: var(--amber);
@@ -629,6 +653,12 @@ details[open] > summary .workflow-summary-chevron {
   }
   .decision-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .follow-up-context,
+  .follow-up-manager,
+  .follow-up-tags,
+  .follow-up-note {
+    grid-column: 1 / -1;
   }
 }
 @media (max-width: 48rem) {
@@ -796,6 +826,12 @@ details[open] > summary .workflow-summary-chevron {
   .decision-card {
     align-items: stretch;
     grid-template-columns: 1fr;
+  }
+  .follow-up-decision-card > * {
+    grid-column: 1;
+  }
+  .follow-up-submit {
+    width: 100%;
   }
   .schedule-display li {
     grid-template-columns: 1fr auto;

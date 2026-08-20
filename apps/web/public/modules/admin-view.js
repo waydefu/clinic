@@ -835,8 +835,8 @@ export function renderFollowUps(state, editingIds = new Set()) {
           (assignment === undefined && canAssign) ||
           (assignment !== undefined && canReassign);
         managerField = canEditManager
-          ? `<label>個管師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前個管師：${escapeHtml(managerLabel(state, assignment.managerId))}` : '可在此首次指派，後續改派限主管'}</span></label>`
-          : `<div class="read-only-field"><span>目前個管師</span><strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong></div>`;
+          ? `<label class="follow-up-field follow-up-manager">個管師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前個管師：${escapeHtml(managerLabel(state, assignment.managerId))}` : '可在此首次指派，後續改派限主管'}</span></label>`
+          : `<div class="read-only-field follow-up-field follow-up-manager"><span>目前個管師</span><strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong></div>`;
       }
       const recordedBy =
         decision === undefined
@@ -853,7 +853,7 @@ export function renderFollowUps(state, editingIds = new Set()) {
         state,
         appointment.patientId
       )?.medicalRecordNumber;
-      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><label>病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label>醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存回診指示</button></form>`;
+      return `<form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label class="follow-up-field follow-up-date">目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label class="follow-up-field follow-up-time">目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></form>`;
     })
     .join('');
 }
@@ -965,8 +965,8 @@ export function renderIntakeSheet(state, appointmentId) {
 // 對齊成兩欄，比一疊卡片快得多。
 //
 // 每一列的指派表單放在最後一格裡——`<form>` 不能包住 `<tr>`（HTML 剖析器會把它
-// 丟出表格外），但放進 `<td>` 完全合法。Phase 1 未接線此 preserved renderer；未來
-// 重新啟用仍須同時恢復經 review 的事件邊界與 mutation authority。
+// 丟出表格外），但放進 `<td>` 完全合法。此 preserved renderer 現僅依 owner 核准的
+// synthetic workbench scope 接線；這不代表 Case 已取得 production authority。
 export function renderCaseAssignments(state) {
   if (!isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')) return '';
   const completed = state.appointments.filter(

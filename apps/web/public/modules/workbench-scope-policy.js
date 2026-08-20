@@ -4,7 +4,7 @@
 // together with its UI, route, mutation, tests, and authority evidence.
 
 export const WORKBENCH_CAPABILITIES = Object.freeze({
-  CASE_MANAGEMENT: false,
+  CASE_MANAGEMENT: true,
   PAYROLL_WORKLOAD: false
 });
 

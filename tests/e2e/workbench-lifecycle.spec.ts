@@ -70,7 +70,7 @@ test.describe('營運首頁指揮中心', () => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
-    // 完成到診會產生合法的「回診尚未決定」待辦；frozen Case task 不得投影。
+    // 完成到診會同時產生合法的回診與 Case 待辦；Payroll 仍不進任務模型。
     await page
       .locator('[data-appointment-card]')
       .first()
@@ -84,7 +84,7 @@ test.describe('營運首頁指揮中心', () => {
     await expect(cards.first()).toContainText('回診尚未決定');
     await expect(
       page.locator('#task-list .task-card', { hasText: '個管尚未指派' })
-    ).toHaveCount(0);
+    ).toHaveCount(1);
 
     // 「取消待確認」是零筆，所以整張卡不該存在——這正是階段 4 的重點。
     await expect(
@@ -586,24 +586,24 @@ test.describe('工作臺其餘資料表', () => {
     ).toHaveText(['星期', '時段', '操作']);
   });
 
-  test('frozen Case/Payroll UI 不可發現且 direct route 安全返回首頁', async ({
+  test('Case UI 可發現且 direct route 可達，Payroll UI 仍不可發現', async ({
     page
   }) => {
     await login(page);
     await expect(
       page.locator('.workspace-nav a[href="#case-section"]')
-    ).toHaveCount(0);
+    ).toHaveCount(1);
     await expect(
       page.locator('#overview .summary-action[href="#case-section"]')
-    ).toHaveCount(0);
-    await expect(page.locator('#case-section')).toHaveCount(0);
-    await expect(page.locator('#case-assignment-list')).toHaveCount(0);
+    ).toHaveCount(1);
+    await expect(page.locator('#case-section')).toHaveCount(1);
+    await expect(page.locator('#case-assignment-list')).toHaveCount(1);
     await expect(page.locator('#workload-count')).toHaveCount(0);
     await expect(page.locator('#workload')).toHaveCount(0);
 
     await page.goto('/#case-section');
-    await expect(page).toHaveURL(/#overview$/);
-    await expect(page.locator('#overview')).toBeVisible();
+    await expect(page).toHaveURL(/#case-section$/);
+    await expect(page.locator('#case-section')).toBeVisible();
     await expect(page.locator('#status')).not.toContainText('權限');
   });
 
@@ -617,6 +617,7 @@ test.describe('工作臺其餘資料表', () => {
 
     for (const panel of [
       '#schedule-section',
+      '#case-section',
       '#accounts-section',
       '#audit-section'
     ]) {

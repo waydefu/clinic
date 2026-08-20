@@ -94,9 +94,7 @@ test.describe('角色邊界', () => {
     expect(result).toContain('權限');
   });
 
-  test('櫃台可登錄正常回診，並可在 UI 啟用前使用已授權的首次 Case 指派 boundary', async ({
-    page
-  }) => {
+  test('櫃台可在回診流程首次指派 Case，但不能直接改派', async ({ page }) => {
     await login(page, 'admin', { fresh: false });
     const appointmentId = await createCompletedVisit(page);
     await page.locator('#logout').click();
@@ -106,23 +104,34 @@ test.describe('角色邊界', () => {
     await page.goto('/#appointments-section');
     const followUp = page.locator(`[data-follow-up-form="${appointmentId}"]`);
     await expect(followUp).toBeVisible();
-    await expect(followUp.locator('select[name="managerId"]')).toHaveCount(0);
+    await followUp
+      .locator('select[name="managerId"]')
+      .selectOption('manager_test_002');
     await followUp.locator('button[type="submit"]').click();
-    await expect(page.locator('#status')).toContainText('回診指示已登錄');
-    await expect(page.locator('#case-section')).toHaveCount(0);
+    await expect(page.locator('#status')).toContainText(
+      '回診指示與個管指派已登錄'
+    );
+    await page.goto('/#case-section');
+    await expect(page.locator('#case-section')).toBeVisible();
+    await expect(
+      page.locator(`[data-case-row="${appointmentId}"]`)
+    ).toContainText('合成個管師 B');
 
-    const state = await callSyntheticStore<{
-      caseAssignments: Array<{ appointmentId: string; managerId: string }>;
-    }>(page, '/case-assignments', {
+    const result = await callSyntheticStore<string>(page, '/case-assignments', {
       method: 'POST',
       body: JSON.stringify({
         appointmentId,
-        managerId: 'manager_test_002'
+        managerId: 'manager_test_001'
       })
-    });
-    expect(state.caseAssignments).toContainEqual(
-      expect.objectContaining({ appointmentId, managerId: 'manager_test_002' })
+    }).then(
+      () => 'allowed',
+      (error: unknown) => (error instanceof Error ? error.message : 'denied')
     );
+    expect(result).toContain('權限');
+    await page.reload();
+    await expect(
+      page.locator(`[data-case-row="${appointmentId}"]`)
+    ).toContainText('合成個管師 B');
   });
 });
 

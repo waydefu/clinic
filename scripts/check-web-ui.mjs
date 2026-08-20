@@ -164,14 +164,18 @@ requireText(
 for (const selector of [
   'href="#case-section"',
   'id="case-section"',
-  'id="case-assignment-list"',
-  'id="workload-count"',
-  'id="workload"'
+  'id="case-assignment-list"'
 ])
+  requireText(
+    files.adminShell,
+    selector,
+    `Owner-approved Case selector is missing from the active admin shell: ${selector}`
+  );
+for (const selector of ['id="workload-count"', 'id="workload"'])
   refuseText(
     files.adminShell,
     selector,
-    `Case presentation must remain hidden until its complete UI slice; frozen selector: ${selector}`
+    `Frozen Payroll selector remains discoverable in the active admin shell: ${selector}`
   );
 requireText(
   files.workspaceTabs,
@@ -180,8 +184,8 @@ requireText(
 );
 requireText(
   files.workbenchScope,
-  'CASE_MANAGEMENT: false',
-  'Case presentation is enabled before its complete UI slice.'
+  'CASE_MANAGEMENT: true',
+  'Owner-approved synthetic Case Management is not enabled in source.'
 );
 requireText(
   files.workbenchScope,
