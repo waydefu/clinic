@@ -64,7 +64,7 @@
 | **BOOK-MVP-006** | Frontend Assets Payload Report | 量測 JS/CSS/Assets 原始、gzip、brotli 大小並記錄報告 | **PASS** |
 | **BOOK-MVP-007** | Calendar Alignment (Spec & Governance) | 規格層對齊 Outbound 狀態與 Inbound 待審衝突流程（無 code 回寫） | **PASS** |
 | **BOOK-MVP-008** | Documentation & Authority Sync | 同步更新 `AGENTS.md`、`README.md`、`roadmap.md` 等權威文件 | **PASS** |
-| **BOOK-MVP-009** | Full Verification & Evidence Gate | 執行全套靜態檢查、單元測試、Emulator Rules 與 E2E 驗證 | IN PROGRESS — CANDIDATE CI PENDING |
+| **BOOK-MVP-009** | Full Verification & Evidence Gate | 執行全套靜態檢查、單元測試、Emulator Rules 與 E2E 驗證 | **PASS — CANDIDATE C FROZEN** |
 
 ---
 
@@ -764,3 +764,36 @@
 - **REAL DATA USED:** **NO**。
 - **LIVE HOSTING DEPLOYED:** **NO**。
 - **BOOK-MVP-009 Status:** **IN PROGRESS — CANDIDATE CI PENDING**。
+
+#### After — exact deployment candidate C
+- **Status:** **PASS — SAME-SHA FULL VERIFICATION GREEN; CANDIDATE FROZEN**。
+- **C:** `7e0add8079b37da2e1c11ef4f59660554b9b66d8` (`docs(index): register owner handoff as review evidence`)。
+- **Scope:** C包含全部 deployable runtime、BOOK-MVP-003～008 accepted changes、pre-deployment vendor package、payload report與 owner handoff；preview URL/expiry仍正確保持 `PENDING DEPLOYMENT`。C之後不得改 runtime，除非 online verification證明 genuine defect並重走 C2 full-CI/authority流程。
+- **Candidate Run:** [`32345967000`](https://github.com/waydefu/clinic/actions/runs/32345967000) on exact C，11/11 jobs `success`。
+- **Core Evidence:** job `96354679186`；structure 216 files、clinic freeze 30 files、architecture、UI、public pages、design tokens、docs 136 files、format、types/build、lint、sync/domain、performance 5 entrypoints與 unit 64 files／1042 tests全部 PASS。
+- **Other Jobs:** Firestore `96354679022`、patient portal `96354679159`、supply-chain `96354679167`、SAST `96354679265`、mobile `96354679277`、appointments `96354679303`、UI E2E `96354679309`、accessibility `96354679335`、auth/RBAC `96354679379`、Verification evidence `96355327716`全部 `success`。
+- **Failure Disposition:** first freeze attempt `3e5a7aafbc9e644f6aa731662c90bfd1c563c29b` failed only because the new dated review was indexed outside `docs/README.md` Review record；`7e0add8` moved that same link into the required lifecycle section，沒有 runtime change。Failed SHA不是 C。
+- **BOOK-MVP-009 Status:** **PASS**。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **LIVE HOSTING DEPLOYED:** **NO**。
+- **Rollback:** `git revert 7e0add8`、`git revert 3e5a7aa`；其餘 logical slices依本 log反向 revert，不 rewrite history。
+
+### PRE-DEPLOYMENT AUTHORITY RECORD D — exact candidate C
+
+- **Recorded At:** 2026-08-20 15:55:33 +08:00 (Asia/Taipei)。
+- **Exact Deploy Commit:** `7e0add8079b37da2e1c11ef4f59660554b9b66d8` (**C**)；deployment必須 checkout/build C，不得 build本 docs-only D。
+- **Candidate Acceptance:** run [`32345967000`](https://github.com/waydefu/clinic/actions/runs/32345967000) 11/11 PASS，Verification evidence `96355327716` PASS。
+- **Firebase Project:** `beauessence-clinic-staging`（project number `781119800251`；`firebase projects:list`於本次 read-only查證可見）。
+- **Hosting Channel:** `synthetic-review`。
+- **Requested Expiry:** `7d`。
+- **Purpose:** website Vendor + Owner synthetic preview evaluation／UI/UX acceptance。
+- **Approver:** project owner；本 session於 2026-08-20明確授權一次 expiring synthetic Hosting preview deployment。
+- **Operator:** `wayde.fu@gmail.com`；Firebase CLI `15.18.0` 的 `firebase login:list`於本次確認登入，`firebase projects:list`確認 operator可見 exact staging project。
+- **Canonical Command:** `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+- **Permitted Resource:** **Firebase Hosting preview channel ONLY**。
+- **Prohibited:** live Hosting、Firestore、Functions、Storage、Cloud Run、Authentication activation、Calendar、LINE／Meta／NAS、production backend、real data。
+- **Data Boundary:** synthetic browser-local data only；**NO REAL DATA**。
+- **D Scope:** 本 record的 commit只可修改本 execution log；D相對 C不得有 runtime/test/config/workflow/lockfile差異。D push後須 full GitHub CI 11/11 GREEN，之後仍從 detached exact C執行 runbook。
+- **Deployment Status:** **NOT STARTED — D CI PENDING**。
+- **Rollback:** authority commit以 `git revert <D-sha>`回復；尚未部署任何 cloud resource。
