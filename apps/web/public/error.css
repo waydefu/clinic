@@ -1,10 +1,22 @@
 /* 錯誤頁專用樣式（目前給 404）。
  *
  * 刻意自成一檔、不依賴 styles.css 的 token：錯誤頁要小、要能獨立呈現，
- * 且在任何主題狀態下都成立。深淺色以 prefers-color-scheme 切換，不需
- * theme.js。CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。 */
+ * 且在任何主題狀態下都成立。共用 theme.js 只設定 data-theme，本檔仍自足。
+ * CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。 */
 
 :root {
+  --error-bg: #f5efe3;
+  --error-surface: #fffdf6;
+  --error-ink: #2c2b22;
+  --error-muted: #6b675a;
+  --error-line: #e2dac7;
+  --error-forest: #36533a;
+  --error-forest-dark: #263d2a;
+  --error-on-accent: #ffffff;
+  --error-focus: #b9822a;
+}
+
+:root[data-theme='light'] {
   --error-bg: #f5f7f5;
   --error-surface: #ffffff;
   --error-ink: #132a24;
@@ -16,17 +28,15 @@
   --error-focus: #e6a84b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --error-bg: #101714;
-    --error-surface: #17211d;
-    --error-ink: #e8f1ec;
-    --error-muted: #a7b8b0;
-    --error-line: #2b3a34;
-    --error-forest: #6cc0a2;
-    --error-forest-dark: #8ad2b6;
-    --error-on-accent: #0f1512;
-  }
+:root[data-theme='dark'] {
+  --error-bg: #101714;
+  --error-surface: #17211d;
+  --error-ink: #e8f1ec;
+  --error-muted: #a7b8b0;
+  --error-line: #2b3a34;
+  --error-forest: #6cc0a2;
+  --error-forest-dark: #8ad2b6;
+  --error-on-accent: #0f1512;
 }
 
 *,

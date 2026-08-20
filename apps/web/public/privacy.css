@@ -2,14 +2,27 @@
  *
  * 與 error.css 同樣自成一檔、不依賴 styles.css 的 token：這是一份長文件，
  * 需要的是閱讀性而不是預約流程的元件；獨立之後它也不會把預約頁的樣式表預算
- * 吃掉。深淺色以 prefers-color-scheme 切換，不需要 theme.js——本頁沒有任何
- * 指令碼。CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。
+ * 吃掉。共用 theme.js 只設定 data-theme，本檔仍自足且不複製任何切換邏輯。
+ * CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。
  *
  * 排版取捨：正文 65 字元寬（長文的可讀行長），行高 1.8（中文字距較密，
  * 比英文長文需要更多行距），標題與段落之間留出明確層級，讓人能用掃的找到
  * 「我的權利」那一節。 */
 
 :root {
+  --policy-bg: #f5efe3;
+  --policy-surface: #fffdf6;
+  --policy-ink: #2c2b22;
+  --policy-muted: #6b675a;
+  --policy-line: #e2dac7;
+  --policy-forest: #36533a;
+  --policy-notice-bg: #f0e9d8;
+  --policy-notice-strong-bg: #f6ead1;
+  --policy-notice-strong-line: #b9822a;
+  --policy-focus: #9a6a20;
+}
+
+:root[data-theme='light'] {
   --policy-bg: #f5f7f5;
   --policy-surface: #ffffff;
   --policy-ink: #132a24;
@@ -22,19 +35,17 @@
   --policy-focus: #b9822a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --policy-bg: #101714;
-    --policy-surface: #17211d;
-    --policy-ink: #e8f1ec;
-    --policy-muted: #a7b8b0;
-    --policy-line: #2b3a34;
-    --policy-forest: #6cc0a2;
-    --policy-notice-bg: #1b2723;
-    --policy-notice-strong-bg: #2a2115;
-    --policy-notice-strong-line: #d9a441;
-    --policy-focus: #e6a84b;
-  }
+:root[data-theme='dark'] {
+  --policy-bg: #101714;
+  --policy-surface: #17211d;
+  --policy-ink: #e8f1ec;
+  --policy-muted: #a7b8b0;
+  --policy-line: #2b3a34;
+  --policy-forest: #6cc0a2;
+  --policy-notice-bg: #1b2723;
+  --policy-notice-strong-bg: #2a2115;
+  --policy-notice-strong-line: #d9a441;
+  --policy-focus: #e6a84b;
 }
 
 *,
@@ -102,11 +113,9 @@
   width: auto;
 }
 
-@media (prefers-color-scheme: dark) {
-  /* 標誌不是文字，對比檢查看不到它變暗，深色底下要提亮。 */
-  .policy-brand-mark {
-    filter: brightness(1.4) saturate(0.85);
-  }
+/* 標誌不是文字，對比檢查看不到它變暗，深色底下要提亮。 */
+:root[data-theme='dark'] .policy-brand-mark {
+  filter: brightness(1.4) saturate(0.85);
 }
 
 .policy-brand {
@@ -287,10 +296,8 @@
   color: var(--policy-ink);
 }
 
-@media (prefers-color-scheme: dark) {
-  .policy-agree .button-primary {
-    color: #0f1512;
-  }
+:root[data-theme='dark'] .policy-agree .button-primary {
+  color: #0f1512;
 }
 
 .policy-footer {

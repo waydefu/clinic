@@ -7,9 +7,10 @@
     <meta name="theme-color" content="#155c48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>找不到頁面｜一森渼診所</title>
-    <!-- 自成一頁的錯誤頁：CSP 禁 inline style／script，樣式走外部 error.css，
-         深淺色以 prefers-color-scheme 處理，不依賴 theme.js。 -->
+    <!-- 錯誤頁維持獨立樣式表；共用 theme.js 讓它跟隨使用者已選的顯示偏好，
+         fresh browser 則使用護眼暖色。 -->
     <link rel="stylesheet" href="/error.css" />
+    <script src="/theme.js"></script>
   </head>
   <body class="error-body">
     <main class="error-card" id="error-main">
