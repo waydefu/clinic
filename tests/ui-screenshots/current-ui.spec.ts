@@ -9,6 +9,8 @@ import { fillBirthDate } from '../e2e/support/patient.js';
 import {
   createBooking,
   login,
+  openDisclosure,
+  seedAppointmentCopies,
   showAllAppointments
 } from '../e2e/support/workbench.js';
 
@@ -17,14 +19,14 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 // 擷取日期。**改這裡就要一起改 `outputDirectory`、`check-structure.mjs` 的
 // `visualBaselineDirectory` 與 required paths，以及介面規則書 §5.5 指向的現行基線。**
 // 舊日期的目錄與文件保留作歷史證據，不刪。
-const CAPTURE_DATE = '2026-08-10';
+const CAPTURE_DATE = '2026-08-20';
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
 const FIXED_TIME = '2026-07-29T01:00:00.000Z';
 const LOCALE = 'zh-TW';
 const TIME_ZONE = 'Asia/Taipei';
-const THEME = 'light';
+const THEME = 'warm';
 const DEVICE_SCALE_FACTOR = 1;
 const SOURCE_REVISION = 'commit-containing-this-manifest';
 const NORMALIZATION_STYLESHEET_PATH =
@@ -79,7 +81,7 @@ type CaptureEntry = {
   viewport: Viewport;
   deviceScaleFactor: number;
   state: string;
-  captureKind: 'reference-full-page';
+  captureKind: 'reference-full-page' | 'reference-viewport';
   sha256: string;
   consoleCounts: ConsoleCounts;
 };
@@ -90,12 +92,12 @@ type Scenario = {
   role: string;
   viewport: Viewport;
   state: string;
+  fullPage?: boolean;
   prepare: (page: Page) => Promise<void>;
 };
 
 const DESKTOP = { width: 1280, height: 900 };
 const PHONE = { width: 375, height: 812 };
-const STRESS_PHONE = { width: 320, height: 568 };
 
 function observeConsole(page: Page) {
   const errors: string[] = [];
@@ -171,17 +173,28 @@ function assertConsoleClean(
   expect(observed.warnings, `${file}: console warnings`).toEqual([]);
 }
 
-async function prepareClinicHome(page: Page): Promise<void> {
-  await page.goto('/clinic');
-  await expect(
-    page.getByRole('heading', { level: 1, name: /今晚，不必再和呼吸拔河/ })
-  ).toBeVisible();
-}
-
 async function prepareBookingStepOne(page: Page): Promise<void> {
   await page.goto('/booking');
   await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
   await expect(page.locator('[data-booking-step="1"]')).toBeVisible();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.locator('#patient-title')).toBeVisible();
+  await expect(page.locator('#patient-hours-summary')).toBeVisible();
+  await expect(page.locator('.patient-header .brand')).toHaveAttribute(
+    'href',
+    '/booking'
+  );
+  await expect(page.locator('a[href="/clinic"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/clinic/doctors"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/"]')).toHaveCount(0);
+}
+
+async function prepareBookingStepTwo(page: Page): Promise<void> {
+  await prepareBookingStepOne(page);
+  await page.locator('[data-booking-type="initial"]').click();
+  await page.locator('#patient-services [data-service]').first().click();
+  await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
+  await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
 }
 
 async function prepareFilledBookingDetails(page: Page): Promise<void> {
@@ -209,19 +222,25 @@ async function prepareFilledBookingDetails(page: Page): Promise<void> {
   await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
 }
 
-async function prepareWorkbenchLogin(page: Page): Promise<void> {
-  await expect(page.locator('#login-view')).toBeVisible();
-  await expect(page.locator('#login-account')).toBeVisible();
+async function prepareCalendarEmpty(page: Page): Promise<void> {
+  await login(page, 'admin', { fresh: false });
+  await page.goto('/#appointments-section');
+  await openDisclosure(page, '#week-calendar-disclosure');
+  await expect(page.locator('.wv-session-table')).toBeVisible();
+  await expect(page.locator('#week-view [data-week-event]')).toHaveCount(0);
 }
 
-async function prepareAppointments(page: Page): Promise<void> {
+async function prepareCalendarEvents(page: Page): Promise<void> {
   await login(page, 'admin', { fresh: false });
   await createBooking(page);
-  await showAllAppointments(page);
-  await expect(page.locator('[data-appointment-card]').first()).toBeVisible();
+  await seedAppointmentCopies(page, 3);
+  await page.goto('/#appointments-section');
+  await openDisclosure(page, '#week-calendar-disclosure');
+  await expect(page.locator('.wv-session-table')).toBeVisible();
+  await expect(page.locator('#week-view [data-week-event]')).toHaveCount(3);
 }
 
-async function prepareAssignedCaseWorkload(page: Page): Promise<void> {
+async function prepareFollowUpWithCase(page: Page): Promise<void> {
   await login(page, 'admin', { fresh: false });
   await createBooking(page);
   await showAllAppointments(page);
@@ -230,105 +249,112 @@ async function prepareAssignedCaseWorkload(page: Page): Promise<void> {
   await appointment.locator('[data-appointment-action="complete"]').click();
   await page.locator('.confirm-dialog button.button-primary').click();
   await expect(page.locator('#status')).toContainText('到診已記錄');
-
-  await page.goto('/#case-section');
-  const row = page
-    .locator('#case-assignment-list tbody tr[data-case-row]')
-    .first();
-  await expect(row).toBeVisible();
-  await row.locator('button[type="submit"][form]').click();
-  await expect(row.locator('.status-chip')).toHaveText('已指派');
-  await expect(page.locator('#workload table.workload-table')).toBeVisible();
+  const form = page.locator('#follow-up-list [data-follow-up-form]').first();
+  await expect(form).toBeVisible();
+  await expect(form.locator('select[name="managerId"]')).toBeVisible();
 }
 
-async function preparePrivacy(page: Page): Promise<void> {
-  await page.goto('/privacy');
-  await expect(
-    page.getByRole('heading', { level: 1, name: /隱私權政策/ })
-  ).toBeVisible();
-  await expect(page.locator('.policy-notice-strong')).toBeVisible();
+async function preparePrivacyDialog(page: Page): Promise<void> {
+  await prepareFilledBookingDetails(page);
+  await page.locator('#open-privacy-policy').click();
+  await expect(page.locator('.policy-dialog')).toBeVisible();
+}
+
+async function preparePrivacyReturn(page: Page): Promise<void> {
+  await preparePrivacyDialog(page);
+  await page
+    .locator('.policy-dialog-body')
+    .evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await page.locator('.policy-dialog a[href="/booking?notice-read=1"]').click();
+  await expect(page.locator('.policy-dialog')).toBeHidden();
+  await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
+  await expect(page.locator('#patient-name')).toHaveValue('合成截圖患者甲');
+  await expect(page.locator('#privacy-consent')).toBeChecked();
+  await expect(page.locator('#open-privacy-policy')).toBeFocused();
 }
 
 const scenarios: Scenario[] = [
   {
-    file: 'clinic--home--desktop-1280x900--light.png',
-    route: '/clinic',
-    role: 'public',
+    file: 'workbench--weekly-calendar-empty--desktop-1280x900--warm.png',
+    route: '/#appointments-section',
+    role: 'admin',
     viewport: DESKTOP,
-    state: 'default',
-    prepare: prepareClinicHome
+    state: 'schedule-derived-sessions-no-events',
+    prepare: prepareCalendarEmpty
   },
   {
-    file: 'clinic--home--phone-375x812--light.png',
-    route: '/clinic',
-    role: 'public',
+    file: 'workbench--weekly-calendar-events--desktop-1280x900--warm.png',
+    route: '/#appointments-section',
+    role: 'admin',
+    viewport: DESKTOP,
+    state: 'three-actual-synthetic-events',
+    prepare: prepareCalendarEvents
+  },
+  {
+    file: 'workbench--follow-up-case--desktop-1280x900--warm.png',
+    route: '/#appointments-section',
+    role: 'admin',
+    viewport: DESKTOP,
+    state: 'completed-visit-follow-up-with-case-manager-field',
+    prepare: prepareFollowUpWithCase
+  },
+  {
+    file: 'workbench--follow-up-case--phone-375x812--warm.png',
+    route: '/#appointments-section',
+    role: 'admin',
     viewport: PHONE,
-    state: 'default',
-    prepare: prepareClinicHome
+    state: 'completed-visit-follow-up-with-case-manager-field',
+    prepare: prepareFollowUpWithCase
   },
   {
-    file: 'booking--step-1--desktop-1280x900--light.png',
+    file: 'booking--step-1-true-top--desktop-1280x900--warm.png',
     route: '/booking',
     role: 'public',
     viewport: DESKTOP,
-    state: 'step-1-empty',
+    state: 'step-1-true-page-top-booking-only-header',
+    fullPage: false,
     prepare: prepareBookingStepOne
   },
   {
-    file: 'booking--step-3-filled--phone-375x812--light.png',
+    file: 'booking--step-2--desktop-1280x900--warm.png',
     route: '/booking',
     role: 'public',
-    viewport: PHONE,
-    state: 'step-3-filled-synthetic',
+    viewport: DESKTOP,
+    state: 'step-2-with-persistent-summary',
+    prepare: prepareBookingStepTwo
+  },
+  {
+    file: 'booking--step-3--desktop-1280x900--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: DESKTOP,
+    state: 'step-3-filled-with-persistent-summary',
     prepare: prepareFilledBookingDetails
   },
   {
-    file: 'booking--step-3-filled--stress-320x568--light.png',
+    file: 'booking--step-3--phone-375x812--warm.png',
     route: '/booking',
     role: 'public',
-    viewport: STRESS_PHONE,
-    state: 'step-3-filled-synthetic-low-width-height-stress',
+    viewport: PHONE,
+    state: 'step-3-filled-with-stacked-summary',
     prepare: prepareFilledBookingDetails
   },
   {
-    file: 'workbench--login--desktop-1280x900--light.png',
-    route: '/',
-    role: 'unauthenticated',
-    viewport: DESKTOP,
-    state: 'clean-login-gate',
-    prepare: prepareWorkbenchLogin
-  },
-  {
-    file: 'workbench--appointments-populated--desktop-1280x900--light.png',
-    route: '/#appointments-section',
-    role: 'admin',
-    viewport: DESKTOP,
-    state: 'one-confirmed-synthetic-appointment',
-    prepare: prepareAppointments
-  },
-  {
-    file: 'workbench--appointments-populated--phone-375x812--light.png',
-    route: '/#appointments-section',
-    role: 'admin',
-    viewport: PHONE,
-    state: 'one-confirmed-synthetic-appointment',
-    prepare: prepareAppointments
-  },
-  {
-    file: 'workbench--case-assigned-workload--desktop-1280x900--light.png',
-    route: '/#case-section',
-    role: 'admin',
-    viewport: DESKTOP,
-    state: 'one-completed-visit-assigned-manager_test_001',
-    prepare: prepareAssignedCaseWorkload
-  },
-  {
-    file: 'privacy--draft-notice--phone-375x812--light.png',
-    route: '/privacy',
+    file: 'booking--privacy-dialog-step-3--desktop-1280x900--warm.png',
+    route: '/booking',
     role: 'public',
-    viewport: PHONE,
-    state: 'test-only-draft-notice',
-    prepare: preparePrivacy
+    viewport: DESKTOP,
+    state: 'step-3-filled-policy-dialog-open',
+    fullPage: false,
+    prepare: preparePrivacyDialog
+  },
+  {
+    file: 'booking--privacy-return-step-3--desktop-1280x900--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: DESKTOP,
+    state: 'step-3-preserved-after-policy-return',
+    prepare: preparePrivacyReturn
   }
 ];
 
@@ -378,9 +404,13 @@ async function captureScenario(
     assertConsoleClean(scenario.file, observed);
 
     const outputPath = join(outputDirectory, scenario.file);
+    const captureKind =
+      scenario.fullPage === false
+        ? 'reference-viewport'
+        : 'reference-full-page';
     await page.screenshot({
       path: outputPath,
-      fullPage: true,
+      fullPage: scenario.fullPage ?? true,
       animations: 'disabled',
       caret: 'hide',
       scale: 'css'
@@ -396,7 +426,7 @@ async function captureScenario(
       viewport: scenario.viewport,
       deviceScaleFactor: DEVICE_SCALE_FACTOR,
       state: scenario.state,
-      captureKind: 'reference-full-page',
+      captureKind,
       sha256: createHash('sha256').update(bytes).digest('hex'),
       consoleCounts: {
         errors: observed.errors.length,
