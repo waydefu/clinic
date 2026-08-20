@@ -404,3 +404,32 @@
 - **Deviations:** Phase A 的 local clean build、patient module graph measurement 與 package gates 維持 `NOT_RUN (ENVIRONMENT)`；其 acceptance 已由上述 exact-head remote clean CI 取代，不修改先前紀錄。
 - **Rollback:** `git revert <remote-baseline-evidence-commit-sha>`；不 amend、不 rebase、不改寫既有 Phase-A commits。
 - **New Phase-A Status:** **PASS — REMOTE CI BASELINE ESTABLISHED**。
+
+---
+
+### BOOK-MVP-003-B-REDO-B: Frozen Case Mutation Isolation
+
+#### Before
+- **Timestamp:** 2026-08-20 13:13:39 +08:00 (Asia/Taipei).
+- **Branch:** `agent/book-mvp-003-b-redo`。
+- **HEAD SHA:** `1ae05b4d4b2c7993d58f0c6f30b6b7588b99e3f8`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- **Objective:** 將 synthetic store 的兩條 frozen Case mutation path 改為 source-controlled、unconditional、fail-closed compatibility boundaries，同時保留不帶 Case assignment intent 的正常 follow-up。
+- **Scope:** `POST /case-assignments`；`POST /follow-ups/:id` 且 `managerId` 為 trimmed non-empty string；直接 behavioral Vitest 證明 rejection 先於 `recordFollowUp`、`assignCaseManager`、audit/outbox/state mutation 與 `saveState`。
+- **Explicit Non-Scope:** UI discoverability、hash route、renderer、workbench scope policy、capability flag、patient source、permissions/RBAC、Case/Payroll domain/contracts、worker、clinic、performance budget/checker、workflow、Firebase/Terraform/Calendar 與 BOOK-MVP-004；Phase C 不開始。
+- **Candidate Files:**
+  - `apps/web/public/store.js` — 在 shared store 內以無額外 import 的 source-controlled boundary 先行拒絕 frozen Case intent，並移除變成未使用的 `assignCaseManager` named import；保留 `buildOperationalTasks` 與 `buildWorkload`。
+  - `apps/web/src/frozen-capability-boundary.test.ts` — 新增 focused behavioral test；現有 `test-only-modules.test.ts` 是 domain/helper 大型集合，沒有 store command seam，故不把 mutation-boundary integration assertions 混入該檔。測試使用 repository dependency Vitest 的 ESM mock/spy 包住原實作，並以受控 `localStorage` 驗證 persisted state。
+  - `docs/implementation/phase-1-booking-mvp-execution-log.md` — Before/After 與 remote CI evidence。
+- **Mutation Invariants:**
+  1. `/case-assignments` 在 permission resolution、`assignCaseManager`、audit mutation、`saveState` 前拒絕。
+  2. follow-up 的 `managerId` 為 trimmed non-empty string 時，在 `recordFollowUp`、Case permission/assignment、audit、outbox、patient/appointment mutation 與 `saveState` 前拒絕；whitespace-only 不可繞過。
+  3. `managerId` absent、`undefined` 或 `''` 維持 normal follow-up；既有 audit/outbox semantics 不被 freeze 破壞。
+  4. Rejection 同時證明 forbidden functions 未呼叫，以及 persisted/in-memory relevant state collections 無變更；不以 source regex 取代 behavioral proof。
+  5. `store.js` 不新增 workbench-only module edge、query/localStorage/window/remote capability override。
+- **Test Plan:** focused unit cases涵蓋 `/case-assignments`、non-empty/whitespace `managerId` rejection、absent/empty `managerId` success、function call spies、persisted-state equality、followUps/caseAssignments/auditEvents/outboxJobs/appointments/patients invariants；GitHub-hosted `pnpm verify`、all E2E groups、Firestore Emulator、clinic freeze、Semgrep、Verification evidence 與 `check:perf` 為 acceptance authority。
+- **Remote CI Acceptance Plan:** 先讓此 docs-only Before head 全綠；runtime/test commit 推送後再逐 job 檢查；implementation evidence commit 的 final head 再全綠。任何紅燈依 introduced/transient/proven-baseline/unknown 分類，未通過不得進下一 slice。
+- **Rollback Plan:** Before record、implementation/test、After evidence 各自用 `git revert <commit-sha>` 回退；不 amend、不 rebase、不 force push、不刪除 frozen implementation。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **BOOK-MVP-004 STARTED:** **NO**。
