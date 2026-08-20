@@ -59,4 +59,3 @@
 [synthetic preview runbook](../runbooks/synthetic-online-preview.md#下架)刪除
 `synthetic-review` channel。Git 程式與文件只能使用 `git revert`，不改寫
 shared history。
-

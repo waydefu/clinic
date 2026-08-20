@@ -63,4 +63,3 @@ fail closed；2026-08-10 與更早批次保留為當時的 historical evidence�
 初始自動捲動或 clinic／internal navigation；Step 2／3 摘要與手機排版正常；
 privacy dialog 關閉後回到原 Step 3 且輸入內容保留。未發現需要改動 runtime
 的視覺缺陷。
-
