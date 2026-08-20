@@ -41,6 +41,7 @@ const FULL_PAGE_CAPTURE_STYLE = `
   }
   .clinic-header,
   .patient-header,
+  .booking-summary,
   .workspace-nav,
   .status-banner,
   .status-message {
@@ -455,7 +456,7 @@ test('capture the current synthetic UI reference set', async ({ browser }) => {
     crossOsPixelGate: false,
     captureNormalization: [
       'Non-focused skip links are hidden to avoid Chromium full-page stitching artifacts.',
-      'Sticky headers, navigation and status regions are rendered in document flow; their runtime behavior remains covered by E2E tests.'
+      'Sticky headers, navigation, booking summary and status regions are rendered in document flow; their runtime behavior remains covered by E2E tests.'
     ],
     environment: {
       os: {
