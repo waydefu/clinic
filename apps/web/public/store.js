@@ -10,7 +10,6 @@ import {
   updateAppointmentNotes
 } from './modules/appointment-domain.js';
 import {
-  assignCaseManager,
   buildOperationalTasks,
   buildWorkload
 } from './modules/case-management.js';
@@ -152,6 +151,17 @@ export async function stagingRequest(path, options = {}) {
   const state = loadState();
   const body = parseBody(options);
 
+  // Case Management is preserved in the domain, but it is outside the Phase 1
+  // runtime scope. Reject the two compatibility paths before either the
+  // follow-up or case-assignment commands can mutate request-local state.
+  if (
+    path === '/case-assignments' ||
+    (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path) &&
+      typeof body.managerId === 'string' &&
+      body.managerId.trim() !== '')
+  )
+    throw new Error('個案管理功能目前未開放。');
+
   if (path === '/reset') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_SYSTEM);
     const fresh = resetState();
@@ -282,31 +292,6 @@ export async function stagingRequest(path, options = {}) {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
     const appointmentId = path.split('/')[2];
     recordFollowUp(state, appointmentId, body, actor.id);
-    // 回診卡上的個管欄位只是捷徑，仍必須各自通過個管權限——在別的表單裡
-    // 順手做，不代表可以繞過該動作的授權。留空表示不變更現有指派。
-    if (typeof body.managerId === 'string' && body.managerId !== '') {
-      const hasActiveAssignment = state.caseAssignments.some(
-        (item) =>
-          item.appointmentId === appointmentId && item.status === 'active'
-      );
-      const caseActor = requirePermission(
-        state,
-        hasActiveAssignment
-          ? PERMISSIONS.REASSIGN_CASE
-          : PERMISSIONS.ASSIGN_CASE
-      );
-      assignCaseManager(state, appointmentId, body.managerId, caseActor.id);
-    }
-  } else if (path === '/case-assignments') {
-    const hasActiveAssignment = state.caseAssignments.some(
-      (item) =>
-        item.appointmentId === body.appointmentId && item.status === 'active'
-    );
-    const actor = requirePermission(
-      state,
-      hasActiveAssignment ? PERMISSIONS.REASSIGN_CASE : PERMISSIONS.ASSIGN_CASE
-    );
-    assignCaseManager(state, body.appointmentId, body.managerId, actor.id);
   } else if (path === '/outbox/simulate') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
     simulateCalendarSync(state, body.fail === true, actor.id);
