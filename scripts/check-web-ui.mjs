@@ -527,6 +527,16 @@ requireText(
   '只會保存在我這台裝置的瀏覽器',
   'Patient form no longer states where the data is stored.'
 );
+requireText(
+  files.patientHtml,
+  'id="patient-preview-boundary"',
+  'Patient preview boundary is no longer a static, source-controlled surface.'
+);
+requireText(
+  files.patientHtml,
+  '請勿輸入任何真實患者、健康資訊或第三人資料',
+  'Patient preview no longer warns against real patient or health data.'
+);
 const localOnlyLinks =
   files.patientHtml.match(/\bdata-local-only-link\b/g)?.length ?? 0;
 if (localOnlyLinks !== 2)

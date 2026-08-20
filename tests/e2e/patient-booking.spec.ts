@@ -55,6 +55,164 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('#booking-result')).toContainText('appointment_');
   });
 
+  test('固定顯示合成資料邊界，鍵盤可完成預約與取消且不發出後端請求', async ({
+    page
+  }) => {
+    const requests: Array<{ method: string; url: string }> = [];
+    page.on('request', (request) => {
+      requests.push({ method: request.method(), url: request.url() });
+    });
+    await page.reload();
+
+    const boundary = page.locator('#patient-preview-boundary');
+    await expect(boundary).toBeVisible();
+    await expect(boundary).toContainText(
+      '請勿輸入任何真實患者、健康資訊或第三人資料'
+    );
+    await expect(boundary).toContainText('只保存在目前瀏覽器');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'noindex, nofollow'
+    );
+
+    const approvedFields = await page
+      .locator(
+        '#patient-booking-form input[id], #patient-booking-form textarea[id]'
+      )
+      .evaluateAll((fields) => fields.map((field) => field.id).sort());
+    expect(approvedFields).toEqual(
+      [
+        'patient-birth-day',
+        'patient-birth-month',
+        'patient-birth-year',
+        'patient-name',
+        'patient-national-id',
+        'patient-nhi-card',
+        'patient-note',
+        'patient-passport',
+        'patient-phone',
+        'patient-referrer',
+        'privacy-consent',
+        'synthetic-confirmation'
+      ].sort()
+    );
+
+    const origin = new URL(page.url()).origin;
+    expect(
+      requests.filter((request) => new URL(request.url).origin !== origin)
+    ).toEqual([]);
+    expect(requests.filter((request) => request.method !== 'GET')).toEqual([]);
+    requests.length = 0;
+
+    await page.locator('[data-booking-type="initial"]').focus();
+    await page.keyboard.press('Enter');
+    await page.locator('#patient-services [data-service]').first().focus();
+    await page.keyboard.press('Enter');
+    await page.locator('[data-patient-slot]').first().focus();
+    await page.keyboard.press('Enter');
+    await page.locator('#patient-name').fill('鍵盤合成患者');
+    await page.locator('#patient-phone').fill('0900111222');
+    await fillBirthDate(page, { year: '1991', month: '04', day: '18' });
+    await page.locator('#patient-national-id').fill('G123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    await expect(page.locator('#booking-complete-heading')).toHaveText(
+      '預約已建立'
+    );
+    const persisted = await syntheticState(page);
+    expect(persisted.appointments.at(-1)).toMatchObject({
+      status: 'confirmed',
+      bookingKind: 'initial'
+    });
+
+    await page.locator('[data-patient-cancel]').first().click();
+    await page.locator('.confirm-dialog button.button-primary').click();
+    await expect(page.locator('#booking-complete-heading')).toHaveText(
+      '取消要求已送出'
+    );
+    expect((await syntheticState(page)).appointments.at(-1).status).toBe(
+      'cancellation_requested'
+    );
+    expect(requests, '建立與取消只能使用瀏覽器內的 synthetic store').toEqual(
+      []
+    );
+  });
+
+  test('同一時段的第二筆預約在寫入前被拒絕', async ({ page }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('時段衝突患者甲');
+    await page.locator('#patient-phone').fill('0900222333');
+    await fillBirthDate(page, { year: '1986', month: '09', day: '07' });
+    await page.locator('#patient-national-id').fill('H123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    const result = await page.evaluate(async (key) => {
+      const storeUrl = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .find((name) => /\/store\.[a-f0-9]+\.js$/.test(name));
+      if (storeUrl === undefined)
+        throw new Error('找不到打包後的 synthetic store module。');
+      const { stagingRequest } = await import(storeUrl);
+      const before = await stagingRequest('/state');
+      const appointment = before.appointments.at(-1);
+      const persistedBefore = window.localStorage.getItem(key);
+      let message = '';
+      try {
+        await stagingRequest('/bookings', {
+          method: 'POST',
+          body: JSON.stringify({
+            slotId: appointment.slotId,
+            bookingKind: appointment.bookingKind,
+            itemIds: appointment.itemIds,
+            origin: 'patient',
+            patient: {
+              name: '時段衝突患者乙',
+              phone: '0900333444',
+              birthDate: '1987-10-08',
+              nationalId: 'I123456789',
+              hasNhiCard: false
+            }
+          })
+        });
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      const after = await stagingRequest('/state');
+      const slot = after.slots.find((item) => item.id === appointment.slotId);
+      return {
+        message,
+        persistedUnchanged:
+          window.localStorage.getItem(key) === persistedBefore,
+        beforeCounts: {
+          appointments: before.appointments.length,
+          patients: before.patients.length,
+          auditEvents: before.auditEvents.length,
+          outboxJobs: before.outboxJobs.length
+        },
+        afterCounts: {
+          appointments: after.appointments.length,
+          patients: after.patients.length,
+          auditEvents: after.auditEvents.length,
+          outboxJobs: after.outboxJobs.length
+        },
+        reservationId: slot?.reservationId,
+        appointmentId: appointment.id
+      };
+    }, STORAGE_KEY);
+
+    expect(result.message).toContain('此時段已無法預約');
+    expect(result.persistedUnchanged).toBe(true);
+    expect(result.afterCounts).toEqual(result.beforeCounts);
+    expect(result.reservationId).toBe(result.appointmentId);
+  });
+
   // P12（業主 2026-07-27）：加入行事曆是患者唯一會拿到的提醒，所以完成畫面要
   // 明講「沒加就不會再有提醒」。但**提出取消之後那句話必須消失**——已經沒有門診
   // 可以提醒了，留著會讓同一個畫面同時說「取消要求已送出」與「記得加入行事曆」。

@@ -1129,6 +1129,21 @@ textarea {
 .patient-announcement span {
   font-size: var(--text-body);
 }
+.patient-preview-boundary {
+  align-items: center;
+  background: var(--amber-light);
+  color: var(--ink);
+  display: flex;
+  font-size: var(--text-body);
+  gap: var(--space-xs);
+  justify-content: center;
+  padding: var(--space-xs) var(--space-lg);
+  text-align: center;
+}
+.patient-preview-boundary strong {
+  color: var(--danger);
+  flex: none;
+}
 #patient-main {
   margin: 0 auto;
   max-width: 76rem;

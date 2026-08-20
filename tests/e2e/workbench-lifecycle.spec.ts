@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import {
+  STORAGE_KEY,
   createBooking,
   login,
   seedAppointmentCopies,
@@ -631,6 +632,119 @@ test.describe('工作臺其餘資料表', () => {
 });
 
 test.describe('工作臺預約生命週期', () => {
+  test('改期釋放原時段、占用新時段並留下 audit/outbox', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+
+    const before = await page.evaluate((key) => {
+      const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+      const appointment = state.appointments.at(-1);
+      return {
+        appointmentId: appointment.id,
+        originalSlotId: appointment.slotId,
+        auditCount: state.auditEvents.length,
+        outboxCount: state.outboxJobs.length
+      };
+    }, STORAGE_KEY);
+    const card = page.locator(
+      `[data-appointment-card="${before.appointmentId}"]`
+    );
+    await card.locator('summary').click();
+    await card.locator('[data-appointment-action="reschedule"]').click();
+
+    const form = page.locator(
+      `[data-reschedule-form="${before.appointmentId}"]`
+    );
+    await expect(form).toBeVisible();
+    const targetSlotId = await form
+      .locator('select[name="slotId"]')
+      .inputValue();
+    expect(targetSlotId).not.toBe('');
+    expect(targetSlotId).not.toBe(before.originalSlotId);
+    await form.locator('button[type="submit"]').click();
+    await expect(page.locator('#status')).toContainText('預約已改期');
+
+    const after = await page.evaluate(
+      ({ appointmentId, key, originalSlotId, targetSlotId }) => {
+        const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+        return {
+          appointment: state.appointments.find(
+            (item) => item.id === appointmentId
+          ),
+          originalReservation: state.slots.find(
+            (item) => item.id === originalSlotId
+          )?.reservationId,
+          targetReservation: state.slots.find(
+            (item) => item.id === targetSlotId
+          )?.reservationId,
+          auditEvents: state.auditEvents,
+          outboxJobs: state.outboxJobs
+        };
+      },
+      {
+        appointmentId: before.appointmentId,
+        key: STORAGE_KEY,
+        originalSlotId: before.originalSlotId,
+        targetSlotId
+      }
+    );
+
+    expect(after.appointment).toMatchObject({
+      id: before.appointmentId,
+      slotId: targetSlotId,
+      status: 'confirmed'
+    });
+    expect(after.originalReservation).toBeUndefined();
+    expect(after.targetReservation).toBe(before.appointmentId);
+    expect(after.auditEvents).toHaveLength(before.auditCount + 1);
+    expect(after.auditEvents.at(-1)).toMatchObject({
+      action: 'appointment_rescheduled',
+      appointmentId: before.appointmentId
+    });
+    expect(after.outboxJobs).toHaveLength(before.outboxCount + 1);
+    expect(after.outboxJobs.at(-1)).toMatchObject({
+      type: 'calendar_projection_requested',
+      appointmentId: before.appointmentId,
+      status: 'pending'
+    });
+  });
+
+  test('初診資料在螢幕上遮罩身分證，完整值只存在列印層', async ({ page }) => {
+    await login(page);
+    await createBooking(page, { nationalId: 'A123456789' });
+    await showAllAppointments(page);
+
+    await page.evaluate(() => {
+      window.print = () => {
+        const screen = document.querySelector('.intake-screen-only');
+        const print = document.querySelector('.intake-print-only');
+        if (screen === null || print === null)
+          throw new Error('找不到初診資料的螢幕／列印身分欄。');
+        (window as any).__intakeIdentityCapture = {
+          screenText: screen.textContent,
+          printText: print.textContent,
+          screenDisplay: getComputedStyle(screen).display,
+          printDisplay: getComputedStyle(print).display
+        };
+      };
+    });
+
+    const card = page.locator('[data-appointment-card]').first();
+    await card.locator('summary').click();
+    await card.locator('[data-appointment-action="print_intake"]').click();
+    const capture = await page.evaluate(
+      () => (window as any).__intakeIdentityCapture
+    );
+
+    expect(capture).toMatchObject({
+      screenText: 'A12****789',
+      printText: 'A123456789',
+      printDisplay: 'none'
+    });
+    expect(capture.screenDisplay).not.toBe('none');
+  });
+
   test('登入→建立→到診→回診→刪除', async ({ page }) => {
     await login(page);
     await createBooking(page);
