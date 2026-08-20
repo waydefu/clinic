@@ -94,7 +94,7 @@ test.describe('角色邊界', () => {
     expect(result).toContain('權限');
   });
 
-  test('櫃台可登錄正常回診，Case UI 隔離且 mutation boundary 仍凍結', async ({
+  test('櫃台可登錄正常回診，並可在 UI 啟用前使用已授權的首次 Case 指派 boundary', async ({
     page
   }) => {
     await login(page, 'admin', { fresh: false });
@@ -111,17 +111,18 @@ test.describe('角色邊界', () => {
     await expect(page.locator('#status')).toContainText('回診指示已登錄');
     await expect(page.locator('#case-section')).toHaveCount(0);
 
-    const result = await callSyntheticStore<string>(page, '/case-assignments', {
+    const state = await callSyntheticStore<{
+      caseAssignments: Array<{ appointmentId: string; managerId: string }>;
+    }>(page, '/case-assignments', {
       method: 'POST',
       body: JSON.stringify({
         appointmentId,
         managerId: 'manager_test_002'
       })
-    }).then(
-      () => 'allowed',
-      (error: unknown) => (error instanceof Error ? error.message : 'denied')
+    });
+    expect(state.caseAssignments).toContainEqual(
+      expect.objectContaining({ appointmentId, managerId: 'manager_test_002' })
     );
-    expect(result).toContain('個案管理功能目前未開放');
   });
 });
 

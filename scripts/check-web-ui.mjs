@@ -161,11 +161,17 @@ requireText(
   '登錄回診指示',
   'Admin shell is missing per-appointment follow-up decisions.'
 );
-for (const selector of ['id="workload-count"', 'id="workload"'])
+for (const selector of [
+  'href="#case-section"',
+  'id="case-section"',
+  'id="case-assignment-list"',
+  'id="workload-count"',
+  'id="workload"'
+])
   refuseText(
     files.adminShell,
     selector,
-    `Frozen Payroll selector remains discoverable in the active admin shell: ${selector}`
+    `Case presentation must remain hidden until its complete UI slice; frozen selector: ${selector}`
   );
 requireText(
   files.workspaceTabs,
@@ -174,8 +180,8 @@ requireText(
 );
 requireText(
   files.workbenchScope,
-  'CASE_MANAGEMENT: true',
-  'Owner-approved synthetic Case Management is not enabled in source.'
+  'CASE_MANAGEMENT: false',
+  'Case presentation is enabled before its complete UI slice.'
 );
 requireText(
   files.workbenchScope,
