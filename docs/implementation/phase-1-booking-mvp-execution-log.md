@@ -795,5 +795,31 @@
 - **Prohibited:** live Hosting、Firestore、Functions、Storage、Cloud Run、Authentication activation、Calendar、LINE／Meta／NAS、production backend、real data。
 - **Data Boundary:** synthetic browser-local data only；**NO REAL DATA**。
 - **D Scope:** 本 record的 commit只可修改本 execution log；D相對 C不得有 runtime/test/config/workflow/lockfile差異。D push後須 full GitHub CI 11/11 GREEN，之後仍從 detached exact C執行 runbook。
-- **Deployment Status:** **NOT STARTED — D CI PENDING**。
-- **Rollback:** authority commit以 `git revert <D-sha>`回復；尚未部署任何 cloud resource。
+- **Deployment Status:** **BLOCKED — PREDEPLOY ENVIRONMENT; EXACT C NOT PUBLISHED**。詳見下方 Attempt 1。
+- **Rollback:** authority commit以 `git revert <D-sha>`回復；這不會回復 Firebase CLI在失敗 predeploy前已更新的 preview-channel expiry metadata，該 partial effect另由下方 remote audit記錄。
+
+#### After — authority record D
+- **D:** `f2d0f6735311b709b06e8e2f7a7264f021d7bf7b` (`docs(governance): authorize exact candidate C preview`)；相對 C只修改本 execution log。
+- **Remote Acceptance:** run [`32346355049`](https://github.com/waydefu/clinic/actions/runs/32346355049) 11/11 PASS；core `96355823165`、supply-chain `96355823401`、auth/RBAC `96355823452`、mobile `96355823477`、appointments `96355823583`、SAST `96355823600`、Firestore `96355823613`、accessibility `96355823655`、UI `96355823684`、patient portal `96355823704`、Verification evidence `96356470043`全部 `success`。
+- **Authority Gate:** **PASS**；deploy target仍是 exact C `7e0add8079b37da2e1c11ef4f59660554b9b66d8`，不是 D。
+
+### SYNTHETIC PREVIEW DEPLOYMENT ATTEMPT 1 — ENVIRONMENT BLOCKED
+
+- **Attempted At:** 2026-08-20 16:02 +08:00 (Asia/Taipei)。
+- **Exact Source:** clean detached worktree at candidate C `7e0add8079b37da2e1c11ef4f59660554b9b66d8`；`git status --short` empty。
+- **Dependency Proof:** reused an existing pnpm 11.9.0 installation whose repository lockfile and `node_modules/.pnpm/lock.yaml` both equal candidate lock SHA-256 `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`；TypeScript/ESLint resolved and the previously blocked axe LICENSE exists。沒有使用 PR #22 source或 dist。
+- **Operator/Target Proof:** Firebase CLI `15.18.0`，operator `wayde.fu@gmail.com`；`firebase login:list`／`projects:list`確認 exact project `beauessence-clinic-staging`（number `781119800251`）。
+- **Command:** canonical `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`；只指定 Hosting preview channel。
+- **Failure:** canonical `firebase.json` predeploy `corepack pnpm run build`在 build/upload前以 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`中止；detached junction的 absolute pnpm virtual-store path不被接受，pnpm要求 purge/install。依 owner low-resource-host policy，未設 `CI=true`、未關 `confirmModulesPurge`、未 purge／install／repair、未移除 predeploy，且未重試相同 deploy command。
+- **Remote Effect Audit:** `firebase hosting:channel:list --json`顯示 C **沒有**新 release；channel仍指向 2026-08-19 release/version `4e3488c61dc64188`。Firebase在 predeploy失敗前把既有 `synthetic-review` channel metadata的 `updateTime`／`expireTime`更新為 `2026-08-20T08:02:43.287030164Z`／`2026-08-27T08:02:43.287030164Z`。這是已獲准 preview channel的 expiry metadata partial effect；不是 C content、不是 live或 backend deploy。
+- **Delivery Consequence:** 舊 release與其 URL不是本次 C，不得交付、重用或宣稱 verified；vendor/owner canonical docs保持 `PENDING DEPLOYMENT`。`verify:preview` **NOT RUN**，因為沒有新的 exact-C URL。
+- **Hosted Alternative Audit:** `gh codespace list`沒有既有 hosted environment；未建立新的付費 Codespace，也未搬運 Firebase refresh token／credential。Repository沒有 authorized deploy workflow，且依指示未修改 CI。
+- **Required Unblock:** 提供一個 clean remote/hosted exact-C environment，可按 lockfile安裝並安全使用已授權 Firebase operator；或 owner先建立/指定等價 deploy host。之後須重新確認 C、operator、project，執行同一 canonical command並完成 `verify:preview`。
+- **Deployment Status:** **BLOCKED — CLEAN EXECUTION ENVIRONMENT REQUIRED**。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **AUTHORIZED PREVIEW CHANNEL METADATA TOUCHED:** **YES — EXPIRY ONLY; CONTENT NOT UPDATED**。
+- **LIVE HOSTING DEPLOYED:** **NO**。
+- **BACKEND/FIRESTORE/FUNCTIONS/CALENDAR DEPLOYED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **BOOK-MVP-005 Status:** **IN PROGRESS — VERIFIED EXACT-C URL STILL PENDING**。
+- **BOOK-MVP-009 Status:** **PASS — C REMAINS VALID/FROZEN**。
