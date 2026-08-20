@@ -1298,20 +1298,13 @@ textarea {
   font-size: var(--text-body);
   margin: 0;
 }
-.booking-summary-clinic {
+.booking-summary-hours {
   border-top: 1px solid var(--line);
-  display: grid;
-  gap: var(--space-3xs);
-  margin-top: var(--space-md);
-  padding-top: var(--space-sm);
-}
-.booking-summary-clinic strong {
-  color: var(--forest-dark);
-}
-.booking-summary-clinic span {
   color: var(--ink-muted);
   font-size: var(--text-body);
   line-height: 1.55;
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
 }
 .booking-panel-heading {
   margin-bottom: var(--space-md);

@@ -184,7 +184,7 @@ function latestFollowUp() {
     );
 }
 
-function renderHours() {
+function clinicHoursSummary() {
   const lines = [...state.schedule.weeklyAvailability]
     .sort((left, right) => left.weekday - right.weekday)
     .map(
@@ -195,10 +195,14 @@ function renderHours() {
           )
           .join('、')}`
     );
-  const summary =
-    lines.length > 0 ? `門診時間：${lines.join('；')}` : '目前未開放門診時間';
+  return lines.length > 0
+    ? `門診時間：${lines.join('；')}`
+    : '目前未開放門診時間';
+}
+
+function renderHours() {
+  const summary = clinicHoursSummary();
   elements['patient-hours-summary'].textContent = summary;
-  elements['patient-hours-booking'].textContent = summary;
   // 頁尾也顯示門診時間：手機版 hero 會收起聯絡卡，時間資訊改由頁尾承接。
   if (elements['patient-hours-footer'] !== undefined)
     elements['patient-hours-footer'].textContent = summary;
@@ -454,8 +458,7 @@ function selectedService() {
 
 function renderBookingSummary() {
   const stepLabels = ['類型與項目', '日期時段', '基本資料', '完成'];
-  elements['booking-summary-step'].textContent =
-    `目前步驟 ${activeBookingStep}／4 · ${stepLabels[activeBookingStep - 1]}`;
+  const stepLabel = `目前步驟 ${activeBookingStep}／4 · ${stepLabels[activeBookingStep - 1]}`;
   const slot = state?.slots.find((item) => item.id === selectedSlotId);
   const service = selectedService();
   const rows = [
@@ -464,12 +467,14 @@ function renderBookingSummary() {
     ['日期', slot === undefined ? '尚未選擇' : formatFullDate(slot.startsAt)],
     ['時間', slot === undefined ? '尚未選擇' : formatTime(slot.startsAt)]
   ];
-  elements['patient-booking-summary'].innerHTML = rows
+  const details = rows
     .map(
       ([label, value]) =>
         `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
     )
     .join('');
+  elements['booking-summary'].innerHTML =
+    `<h2>預約資訊</h2><p id="booking-summary-step" class="booking-summary-step">${escapeHtml(stepLabel)}</p><dl id="patient-booking-summary">${details}</dl><p class="booking-summary-hours">${escapeHtml(clinicHoursSummary())}</p>`;
 }
 
 function renderConfirmation() {
