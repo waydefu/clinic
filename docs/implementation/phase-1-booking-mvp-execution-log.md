@@ -433,3 +433,41 @@
 - **PRODUCTION RESOURCE TOUCHED:** **NO**。
 - **REAL DATA USED:** **NO**。
 - **BOOK-MVP-004 STARTED:** **NO**。
+
+#### During
+- `apps/web/public/store.js` 在 command dispatch 前加入 unconditional frozen Case compatibility boundary：`/case-assignments` 一律拒絕；`/follow-ups/:id` 的 `managerId` 為任何非空字串（包含 whitespace-only）時拒絕。兩者都先於 permission resolution、`recordFollowUp`、`assignCaseManager` 與 `saveState`。
+- 移除 shared store 已不再使用的 `assignCaseManager` named import；保留 `buildOperationalTasks`、`buildWorkload` 與全部 frozen Case/Payroll domain implementation。
+- 新增 `apps/web/src/frozen-capability-boundary.test.ts`，用 Vitest ESM spies 包住原本的 `recordFollowUp`、`assignCaseManager`、`loadState`、`saveState`；同時比對 request-local relevant state 與 persisted localStorage，避免「throw before save 但已局部 mutation」的假綠燈。
+- 正常 follow-up 覆蓋 `managerId` absent、`undefined`（JSON boundary 正規化為 absent）與 `''`；成功時驗證 follow-up、audit 與 outbox semantics，且 Case assignment 不發生。
+- 既有 `tests/e2e/workbench-lifecycle.spec.ts` 與 `tests/e2e/role-maintenance-responsive.spec.ts` 原先仍斷言 Case assignment 成功；Phase B boundary 生效後更新為驗證 submit 確實抵達 store、收到 frozen error、status 仍為「待指派」。UI discoverability/route/render 尚未修改，留待 Phase C+ owner authorization。
+- **CI Finding / Fix History:**
+  1. Run `32335268644`：新增 test 未符合 Prettier；以 `d211fe7c56b2ed1d60fb9d671f9ee2597ab01e39` 機械排版修正，未 amend。
+  2. Run `32335417123`：test seed 未登入，且 whitespace-only 被錯誤當成 empty；以 `b797224df5326b076d607ff09c8a37e5eb97ce8c` 修正 authenticated seed 與 non-empty intent semantics。
+  3. Run `32335597629`：core verify/perf 已綠，但兩個 E2E 仍期待舊 Case success；Semgrep strict mode 對 `importOriginal<typeof import(...)>()` partial parse 並以 exit 3 阻斷。以 `5ddd80e7c1cc7685664997e73edd935c78db1073` 更新 test-only assertions，並改用 tests 已允許的 `any` 讓 SAST 完整解析；未修改 Semgrep、workflow 或 acceptance gate。
+
+#### After
+- **Timestamp:** 2026-08-20 13:36:07 +08:00 (Asia/Taipei).
+- **Accepted Implementation Head:** `5ddd80e7c1cc7685664997e73edd935c78db1073`。
+- **Primary Runtime Commit:** `6bc70ab3107abacb3aa0b77f746479b33dbaa3d3` (`fix(scope): fail closed frozen case mutations`)；後續 `d211fe7`、`b797224`、`5ddd80e` 均為不改寫歷史的 introduced-finding fixes。
+- **Changed Files:**
+  - `apps/web/public/store.js`
+  - `apps/web/src/frozen-capability-boundary.test.ts`
+  - `tests/e2e/role-maintenance-responsive.spec.ts`（CI-proven stale Case-success assertion correction）
+  - `tests/e2e/workbench-lifecycle.spec.ts`（CI-proven stale Case-success assertion correction）
+- **Behavior:** `/case-assignments` rejected before assignment/audit/save；follow-up + non-empty/whitespace `managerId` rejected before follow-up/Case/audit/outbox/save；follow-up without Case intent remains successful。
+- **Workflow Run:** [32335991462](https://github.com/waydefu/clinic/actions/runs/32335991462) — accepted implementation head `success`。
+- **Repository Verify:** PASS — structure 216、clinic freeze、architecture、UI guard、docs、format、types、lint、sync、clean build 全部通過。
+- **Unit:** PASS — 63 test files / 1035 tests；focused boundary 6 cases PASS；existing Case/Payroll domain/contracts tests preserved and PASS。
+- **Performance:** `check:perf` PASS — 5 entry points gzip budgets；沒有新增 workbench policy module 或 patient module edge，budget/checker/threshold 未變更。
+- **E2E:** PASS — appointments、auth-rbac、mobile、patient-portal、UI、accessibility 全部 `success`。
+- **Firestore / Supply Chain / SAST:** Firestore Emulator PASS；tracked secrets/dependency audit/inventory PASS；Semgrep CE SAST PASS（0 blocking findings，commit-bound evidence generated）。
+- **Verification Evidence:** PASS — job `96326044096`。
+- **Deviations:** 因 remote CI 證明兩個既有 E2E assertions 與新 frozen boundary 衝突，Phase B test-only scope 擴至上述兩個 canonical specs；未擴張 runtime scope。所有 introduced failures 均記錄並以 forward commits 修正。
+- **Rollback Plan:** 依反向順序執行 `git revert 5ddd80e7c1cc7685664997e73edd935c78db1073 b797224df5326b076d607ff09c8a37e5eb97ce8c d211fe7c56b2ed1d60fb9d671f9ee2597ab01e39 6bc70ab3107abacb3aa0b77f746479b33dbaa3d3`；不 rewrite shared history。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **PATIENT SOURCE CHANGED:** **NO**。
+- **PERFORMANCE BUDGET CHANGED:** **NO**。
+- **BOOK-MVP-004 STARTED:** **NO**。
+- **Phase-B Implementation Status:** **PASS — REMOTE CI GREEN; FINAL EVIDENCE HEAD CI PENDING**。
