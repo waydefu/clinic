@@ -386,3 +386,21 @@
 - **PRODUCTION RESOURCE TOUCHED:** **NO**。
 - **REAL DATA USED:** **NO**。
 - **最終狀態:** **BLOCKED (ENVIRONMENT)**。
+
+#### Remote CI Supersession
+- **Timestamp:** 2026-08-20 (Asia/Taipei; GitHub Actions run completed on the same date).
+- **Previous Local Result:** **BLOCKED — ENVIRONMENT**。保留上述 Windows `ERR_PNPM_EPERM` 歷史，不回寫成成功，也不把該主機視為 acceptance authority。
+- **New Acceptance Method:** GitHub-hosted clean CI；本機僅負責 source inspection、small edits、Git diff 與 commits。
+- **Reason:** local Windows dependency installation is not treated as the acceptance environment；Linux GitHub-hosted runner 對 redo branch 的 exact Phase-A-only head 執行 frozen install 與完整 required verification。
+- **PR:** [#23](https://github.com/waydefu/clinic/pull/23)（Draft；`main` ← `agent/book-mvp-003-b-redo`；DO NOT MERGE）。
+- **Remote Branch Head:** `cccb1b22e7a7d8f9b590884c1356f56f2ef982c7`。
+- **Workflow Run:** [32334272601](https://github.com/waydefu/clinic/actions/runs/32334272601) — `success`。
+- **Repository Verify:** PASS；structure 216 required files、docs 132 files、format、lint、types、architecture、UI、pages、tokens、secrets、sync 與 clean build 均通過。
+- **Unit:** PASS — 62 test files / 1029 tests；既有 `case-assignment`、`payroll` domain/contracts tests 仍通過。
+- **Performance:** `check:perf` PASS — 5 entry points 的 gzip transfer budgets 全部通過；此結果是 PR #22 patient document regression 的 authoritative pre-implementation comparison baseline。
+- **Clinic Freeze:** PASS — 30 frozen files verified。
+- **Required Jobs:** core verify、tracked secrets/dependency audit/inventory、Firestore Emulator、e2e-auth-rbac、e2e-mobile、e2e-appointments、e2e-ui、e2e-accessibility、e2e-patient-portal、Semgrep CE SAST 全部 `success`。
+- **Verification Evidence:** PASS — commit-bound evidence job `96321124912` 為 `success`。
+- **Deviations:** Phase A 的 local clean build、patient module graph measurement 與 package gates 維持 `NOT_RUN (ENVIRONMENT)`；其 acceptance 已由上述 exact-head remote clean CI 取代，不修改先前紀錄。
+- **Rollback:** `git revert <remote-baseline-evidence-commit-sha>`；不 amend、不 rebase、不改寫既有 Phase-A commits。
+- **New Phase-A Status:** **PASS — REMOTE CI BASELINE ESTABLISHED**。
