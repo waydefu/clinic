@@ -508,3 +508,37 @@
 - **REAL DATA USED:** **NO**。
 - **CLINIC CHANGED:** **NO**。
 - **BOOK-MVP-004 STARTED:** **NO**。
+
+#### During
+- Added import-free `workbench-scope-policy.js` with immutable `CASE_MANAGEMENT=false` and `PAYROLL_WORKLOAD=false`; it reads no query、window、browser storage or remote config。
+- Removed active Case nav/summary/panel and Payroll workload summary from `index.html`; kept the completed-visit Booking summary and redirected it to `#appointments-section`。
+- `workspace-tabs.js` now resolves the frozen `#case-section` deep link through the pure scope policy and uses `history.replaceState` to reach `#overview` without invoking the authorization-denied handler。
+- Active `renderTasks` filters only `pendingCaseAssignments`; overdue arrival、cancellation request、pending follow-up and governance-visible outbox tasks remain。Normal follow-up no longer renders/submits `managerId`; intake no longer projects assigned manager。Preserved Case/Payroll renderers return an empty projection while frozen。
+- Removed active bootstrap Case/Payroll DOM writes and Case form event wiring；Phase-B `store.js` fail-closed compatibility boundary was not modified。
+- Added topology reachability based on actual literal ESM edges。The guard proves both patient-app graph and shared store graph cannot reach workbench policy, while active workbench must reach it；comments and decoy strings are covered by the pure graph unit test。
+- Updated `check:ui` from the stale requirement that Case UI exist to exact active-shell selector refusals；the same guard still requires the frozen store compatibility boundary and preserved Case workload helper。
+- Updated focused Vitest and canonical E2E assertions for exact selector absence、safe route、normal follow-up、four retained task categories、responsive panels and direct mutation rejection。
+- The current visual-capture source still references the immutable 2026-08-10 historical baseline；none of that dated document、manifest or its ten PNG files was edited or removed。This slice uses executable DOM、responsive、affordance and accessibility evidence for the new workbench state；fresh online owner/vendor visual review is recorded only after the exact candidate preview deployment。
+- **Introduced CI Finding:** run `32338902193` reached structure、architecture and UI PASS but core stopped at Prettier for six new/edited files；classified `INTRODUCED — FORMAT ONLY`。Used an already-installed repository-external Prettier 3.9.5 binary only for mechanical formatting（no local install/pnpm repair），committed forward as `08fb7ea`；no gate or runtime behavior changed。
+
+#### After
+- **Timestamp:** 2026-08-20 14:23:32 +08:00 (Asia/Taipei).
+- **Accepted Implementation Head:** `08fb7ea590753319956651695d4ab39e91d37c60`。
+- **Runtime Commit:** `dfed3188a653ff0e4e7b54280af5ae69d3a592a0` (`fix(scope): isolate frozen workbench surfaces`)；format-only follow-up `08fb7ea590753319956651695d4ab39e91d37c60`。
+- **Workflow Run:** [32339100657](https://github.com/waydefu/clinic/actions/runs/32339100657) — `success`。
+- **Repository Verify:** PASS — structure 216、docs、format、types、lint、sync、public pages、tokens、architecture、UI、clean build all green。
+- **Unit:** PASS — 64 test files / 1042 tests；scope policy/render/topology tests and Phase-B mutation boundary tests green；Case/Payroll domain/contracts tests preserved。
+- **Behavioral E2E:** PASS — appointments、UI、auth/RBAC、mobile、accessibility、patient portal；exact frozen selector absence、`#case-section` → `#overview` and normal follow-up verified。
+- **Performance:** PASS — 5 entry points gzip budgets；patient static graph cannot reach workbench policy；patient source and budget unchanged。
+- **Clinic Freeze:** PASS — 30 frozen files verified；historical dated visual evidence unchanged。
+- **Firestore / Supply Chain / SAST:** all PASS；SAST job `96334395345`。
+- **Verification Evidence:** PASS — job `96334943338`。
+- **Changed Scope:** active workbench HTML/bootstrap/view/navigation、source-controlled workbench-only policy、architecture/UI gates and directly related unit/E2E assertions；one synthetic release-summary string removed the frozen feature advertisement。No permissions/RBAC/domain/contracts/patient/clinic/budget/workflow/config change。
+- **Rollback Plan:** `git revert 08fb7ea590753319956651695d4ab39e91d37c60 dfed3188a653ff0e4e7b54280af5ae69d3a592a0`，then append superseding governance evidence；Phase B rollback remains separate。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **PATIENT SOURCE CHANGED:** **NO**。
+- **PERFORMANCE BUDGET CHANGED:** **NO**。
+- **BOOK-MVP-004 STARTED:** **NO**。
+- **BOOK-MVP-003-B Status:** **PASS — IMPLEMENTATION CI GREEN; FINAL EVIDENCE HEAD CI PENDING**。
