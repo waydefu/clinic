@@ -542,3 +542,42 @@
 - **PERFORMANCE BUDGET CHANGED:** **NO**。
 - **BOOK-MVP-004 STARTED:** **NO**。
 - **BOOK-MVP-003-B Status:** **PASS — IMPLEMENTATION CI GREEN; FINAL EVIDENCE HEAD CI PENDING**。
+
+#### Final evidence head
+- **Evidence Commit:** `4c0da1f5564cacf697a04e4965d087e425ab5597` (`docs(governance): record BOOK-MVP-003-B redo isolation evidence`)。
+- **Workflow Run:** [32339663962](https://github.com/waydefu/clinic/actions/runs/32339663962) — exact evidence head `success`。
+- **Required Jobs:** repository verify、Firestore Emulator、auth/RBAC、appointments、UI、mobile、patient portal、accessibility、supply chain／secrets、Semgrep SAST 與 Verification evidence 全部 `success`。
+- **Core Evidence:** structure 216、docs 132、public-page inventory、architecture、UI、format、types、lint、clean build、5 entry performance budgets、64 test files / 1042 tests 全部 PASS。
+- **Verification Evidence:** job `96336612889` PASS。
+- **BOOK-MVP-003-B Status:** **PASS — FINAL EVIDENCE HEAD CI GREEN**。
+
+---
+
+### BOOK-MVP-004: Booking Preview Independent Validation
+
+#### Before
+- **Timestamp:** 2026-08-20 14:33:34 +08:00 (Asia/Taipei).
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `4c0da1f5564cacf697a04e4965d087e425ab5597`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- **Prerequisite:** BOOK-MVP-003-B final evidence run `32339663962` 全綠；Case/Payroll frozen boundary、normal follow-up、patient graph、performance 與 clinic 30-file freeze 均維持 PASS。
+- **Objective:** 以打包後真瀏覽器行為獨立驗證 `/booking` 的 synthetic-only 流程、安全邊界、responsive／keyboard／accessibility 基準，以及與 staff workbench 共用的 create／conflict／reschedule／cancel／masked-identity lifecycle；不把 preview 改成 production。
+- **Inspection Finding:** 現有 `/booking` 已顯示測試版本及 browser-local storage 說明，`/privacy` 亦有真實資料禁令；但 `/booking` 本身缺少不可由工作臺公告覆寫的明確「請勿輸入真實患者資料」靜態警語。這是 BOOK-MVP-004 acceptance gap，將以最小、永遠可見的 patient-only boundary 補齊。
+- **Scope:**
+  1. 在 `/booking` active DOM 加入 static synthetic-only／real-data prohibition／browser-local boundary；不得依賴可編輯 announcement、query、storage 或 remote config。
+  2. Behavioral E2E 證明初始載入、精確 PII 類型欄位、create/current/cancel、reserved-slot conflict fail-closed、staff reschedule、screen identity masking、keyboard/focus 與零 API／Firestore／Calendar／LINE／Meta／NAS request。
+  3. 以既有 manifest-driven responsive、axe、noindex/security、privacy、performance 與 clinic freeze gates 作獨立 cross-check，建立 dated validation evidence；不重寫歷史 review。
+- **Candidate Files:**
+  - `apps/web/public/patient.html` — static preview boundary only。
+  - `apps/web/public/styles.css` — minimal patient boundary presentation；不得改 clinic stylesheet。
+  - `scripts/check-web-ui.mjs` — source invariant for the non-overridable warning and existing exact field allowlist。
+  - `tests/e2e/patient-booking.spec.ts` — preview boundary、PII、create/current/cancel、conflict and network-isolation behavior。
+  - `tests/e2e/workbench-lifecycle.spec.ts` — staff reschedule and masked screen projection behavior。
+  - `docs/reviews/2026-08-20-booking-preview-independent-validation.md` — dated validation crosswalk/evidence。
+  - `docs/README.md` and this execution log — lifecycle/index/evidence registration。
+- **Must Not Change:** `/clinic` 30 frozen files、patient data model/approved fields、store mutation semantics、Case/Payroll domains/contracts、permissions/RBAC、API/worker、Firestore Rules、Firebase/Terraform/Calendar runtime、performance budget/checker、workflow、lockfiles、historical dated evidence。
+- **Acceptance Plan:** lightweight local syntax/diff review only；implementation push 後以 GitHub-hosted full verify、all E2E、Firestore、SAST、performance、clinic freeze與 Verification evidence驗收；After evidence commit 的新 HEAD 再全綠才開始 BOOK-MVP-005。
+- **Rollback Plan:** Before、runtime/tests/validation evidence、After evidence 各自 `git revert <sha>`；不得 amend/rebase/force push。若 warning 或 tests 造成 introduced regression，只修 current slice，不放寬 gate。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-005 STARTED:** **NO**。
