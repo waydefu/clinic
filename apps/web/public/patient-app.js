@@ -744,29 +744,6 @@ elements['patient-request-tags'].addEventListener('change', () => {
   updateSubmitState();
 });
 
-// P13：窄螢幕的漢堡選單。開合狀態由 aria-expanded 與 class 同時表達——前者給
-// 輔助技術，後者給 CSS。點連結或按 Escape 都要收起來，否則導航之後（同頁錨點）
-// 選單會留在畫面上蓋住內容。
-const menuButton = document.querySelector('.patient-menu-button');
-function closePatientMenu() {
-  menuButton.setAttribute('aria-expanded', 'false');
-  elements['patient-nav'].classList.remove('is-open');
-}
-menuButton.addEventListener('click', () => {
-  const open = menuButton.getAttribute('aria-expanded') === 'true';
-  menuButton.setAttribute('aria-expanded', String(!open));
-  elements['patient-nav'].classList.toggle('is-open', !open);
-});
-elements['patient-nav'].addEventListener('click', (event) => {
-  if (event.target.closest('a') !== null) closePatientMenu();
-});
-document.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape') return;
-  if (menuButton.getAttribute('aria-expanded') !== 'true') return;
-  closePatientMenu();
-  menuButton.focus();
-});
-
 // 從政策頁按「已閱讀草稿，回到預約」回來時帶著 ?notice-read=1。
 //
 // 政策頁刻意沒有任何指令碼，所以 UI 閱讀狀態只能靠網址帶回來。勾選是**看得見
@@ -991,8 +968,6 @@ window.addEventListener('storage', async (event) => {
 if (isOnline) {
   document.querySelector('.environment-badge').lastChild.textContent =
     'ONLINE PREVIEW';
-  for (const link of document.querySelectorAll('[data-local-only-link]'))
-    link.setAttribute('hidden', '');
   elements['patient-env-boundary'].textContent =
     '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
 }

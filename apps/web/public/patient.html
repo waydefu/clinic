@@ -96,7 +96,7 @@
     <a class="skip-link" href="#patient-main">跳至預約內容</a>
     <header class="patient-header">
       <div class="patient-header-inner">
-        <a class="brand" href="/clinic" aria-label="一森渼診所首頁"
+        <a class="brand" href="/booking" aria-label="一森渼線上預約首頁"
           ><img
             class="brand-mark"
             src="/assets/brand-mark.webp"
@@ -108,23 +108,6 @@
             ><strong>一森渼診所</strong><small>Beau Essence Clinic</small></span
           ></a
         >
-        <!-- P13（負責人 2026-07-27 核可）：窄螢幕把站台導覽收成漢堡選單。
-             併站後頁首多了三到四個站台連結，在 375px 上獨佔一列、佔掉首屏 29%。
-             做法比照 /clinic 既有的 .clinic-menu-button，但標籤**看得見**——
-             純圖示的漢堡需要使用者先認得那個符號（NN/g）。 -->
-        <button
-          class="patient-menu-button"
-          type="button"
-          aria-expanded="false"
-          aria-controls="patient-nav"
-        >
-          <span class="patient-menu-icon" aria-hidden="true"></span>選單
-        </button>
-        <nav id="patient-nav" class="patient-nav" aria-label="預約網站導覽">
-          <a href="/clinic">診所首頁</a><a href="/clinic/doctors">醫師團隊</a
-          ><a href="#booking-start" aria-current="page">線上預約</a
-          ><a href="/" data-local-only-link>內部工作臺</a>
-        </nav>
         <span class="patient-credentials">
           <img
             src="/assets/nhi-mark.webp"
@@ -775,13 +758,8 @@
         >
       </div>
       <div>
-        <a href="/clinic">診所首頁</a>
         <a href="#patient-help">預約須知</a>
         <a href="/privacy">隱私權政策</a>
-        <details class="developer-tools" data-local-only-link>
-          <summary>開發工具</summary>
-          <a href="/">開發工作臺</a>
-        </details>
       </div>
       <span id="patient-env-boundary">資料只保存在本機瀏覽器</span>
     </footer>

@@ -551,17 +551,20 @@ requireText(
   '勿填真實患者或健康資料；測試資料只存本機瀏覽器。',
   'Patient preview no longer warns against real patient or health data.'
 );
-const localOnlyLinks =
-  files.patientHtml.match(/\bdata-local-only-link\b/g)?.length ?? 0;
-if (localOnlyLinks !== 2)
-  failures.push(
-    'Patient header and footer must both mark their workbench links as local-only.'
-  );
 requireText(
-  files.patientClient,
-  "document.querySelectorAll('[data-local-only-link]')",
-  'Online patient preview no longer hides every internal workbench link.'
+  files.patientHtml,
+  'class="brand" href="/booking"',
+  'Patient brand no longer returns to the self-contained booking surface.'
 );
+for (const href of ['/clinic', '/clinic/doctors', '/']) {
+  const escaped = href.replaceAll('/', '\\/');
+  if (
+    new RegExp(`<a\\b[^>]*\\bhref=["']${escaped}["']`).test(files.patientHtml)
+  )
+    failures.push(
+      `Patient booking surface must not advertise the frozen/internal route ${href}.`
+    );
+}
 // 2026-07-27：改釘 `maskIdentityDocument`。外籍患者給的是護照，只遮身分證那一欄
 // 會讓他們的識別碼要嘛整串裸露、要嘛顯示成破折號（看起來像資料缺漏）。
 requireText(

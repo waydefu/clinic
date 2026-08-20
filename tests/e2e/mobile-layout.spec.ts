@@ -340,66 +340,18 @@ test.describe('患者預約頁手機版', () => {
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 
-  // P13（2026-07-27）：導覽在手機收進漢堡選單。
-  //
-  // 這條的前身要求「導覽與環境徽章併成同一列」，而併站後導覽三項就佔滿整列，
-  // 那個目標在數學上已經不可能。現在改成守住漢堡真正該成立的四件事：
-  // 收起時導覽不佔版面、漢堡與徽章併成一列且徽章靠右、**展開後導覽項一個不少**
-  // （R-13：主要功能不得因螢幕窄而消失），以及展開時頁面仍不橫捲。
-  test('手機把導覽收進漢堡，展開後項目一個不少', async ({ page }) => {
+  test('booking-only 頁首不暴露診所、醫師或工作臺導覽', async ({ page }) => {
     await page.goto(BOOKING_ROUTE);
-    const menuButton = page.locator('.patient-menu-button');
-    const nav = page.locator('#patient-nav');
-    await expect(menuButton).toBeVisible();
-    await expect(nav).toBeHidden();
-
-    const collapsed = await page
-      .locator('.patient-header-inner')
-      .evaluate((inner) => {
-        const box = (selector: string) => {
-          const el = inner.querySelector(selector) as HTMLElement;
-          const rect = el.getBoundingClientRect();
-          return { y: rect.y, height: rect.height, right: rect.right };
-        };
-        const innerRect = inner.getBoundingClientRect();
-        return {
-          menu: box('.patient-menu-button'),
-          badge: box('.environment-badge'),
-          contentRight:
-            innerRect.right - parseFloat(getComputedStyle(inner).paddingRight),
-          headerHeight: (
-            inner.closest('.patient-header') as HTMLElement
-          ).getBoundingClientRect().height
-        };
-      });
-
-    // 徽章仍然靠右——不能變成孤零零地貼在左邊，那正是 2026-07-26 修過的
-    // 「留白過多」的樣子。**不要求它與漢堡同列**：375px 下實測是品牌＋標章、
-    // 主題選單＋漢堡、徽章三列，那是 flex 依內容寬度算出來的結果（R-5 允許
-    // 空間不足時換列），硬要併列只能靠縮字或藏東西。
-    expect(
-      Math.abs(collapsed.badge.right - collapsed.contentRight)
-    ).toBeLessThan(2);
-    // 收起導覽那一列（44px）之後，頁首從 235px 掉到 167px。門檻留餘裕，
-    // 再長回一列就會被擋下來。
-    expect(collapsed.headerHeight).toBeLessThan(200);
-
-    // 漢堡本身要是達標的觸控目標（R-3，患者端 44×44）。
-    const menuBox = await menuButton.boundingBox();
-    expect(menuBox!.height).toBeGreaterThanOrEqual(44);
-    expect(menuBox!.width).toBeGreaterThanOrEqual(44);
-
-    // 展開後導覽項一個不少，且狀態要讓輔助技術讀得到。
-    await menuButton.click();
-    await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
-    await expect(nav).toBeVisible();
-    await expect(nav.locator('a')).toHaveCount(4);
+    await expect(page.locator('.patient-header .brand')).toHaveAttribute(
+      'href',
+      '/booking'
+    );
+    await expect(page.locator('.patient-menu-button')).toHaveCount(0);
+    await expect(page.locator('#patient-nav')).toHaveCount(0);
+    await expect(page.locator('a[href="/clinic"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/clinic/doctors"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/"]')).toHaveCount(0);
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
-
-    // Escape 收起來，焦點回到漢堡（R-12）。
-    await page.keyboard.press('Escape');
-    await expect(nav).toBeHidden();
-    await expect(menuButton).toBeFocused();
   });
 
   // 「類型與項目」先前因為 overflow-wrap: anywhere 被排成「類型與項／目」，
