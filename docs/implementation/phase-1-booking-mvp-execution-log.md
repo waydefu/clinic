@@ -660,6 +660,45 @@
 - **REAL DATA USED:** **NO**。
 - **CLINIC CHANGED:** **NO**。
 - **BOOK-MVP-007 STARTED:** **NO**。
+- **Final Evidence Head:** commit `7e1e3a86a20a138bb223425d15d707908658d011`，run [`32343468738`](https://github.com/waydefu/clinic/actions/runs/32343468738) 11/11 PASS；core `96347125758`、Verification evidence `96347763847` 均 `success`。BOOK-MVP-006 至此完成；BOOK-MVP-005 保持 pre-deployment URL gate。
+
+---
+
+### BOOK-MVP-007: Calendar Alignment (Spec & Governance)
+
+#### Before
+- **Timestamp:** 2026-08-20 15:23:38 +08:00 (Asia/Taipei)。
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `7e1e3a86a20a138bb223425d15d707908658d011`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- **Prerequisite:** BOOK-MVP-005/006 final evidence run `32343468738` 11/11 PASS。
+- **Objective:** 只在 spec/governance 層對齊 accepted ADR-0002、2026-08-16 recorded owner input 與仍 pending 的 D-009/D-016：system/domain state 永遠是 authority，Calendar 僅為 projection/operational view，outbound 走 transaction → outbox → worker，inbound 只能 proposed candidate/manual-review queue且不得自動 mutation。
+- **Verified Drift:** plan-only bidirectional document、README/roadmap cross-reference與 decision-register 的 2026-07-28 paragraph仍把「須取代 ADR-0002」或「auto-apply vs review 未選」寫成 current；但 live D-016 row/2026-08-16 input已指定 manual review＋system authoritative（reviewer identity/matching/delete semantics仍未解）。修正不得把 input 升格 approval。
+- **Candidate Files:** `docs/adr/0002-calendar-is-a-projection-not-the-lock.md`、`docs/architecture/calendar-bidirectional-sync-plan.md`、`docs/product/phase-1-decision-register.md`、`docs/product/current-execution-and-approval-plan.md`、`README.md`、`docs/roadmap.md`、`docs/README.md`、本 execution log。
+- **Must Not Change:** Calendar/API/worker/runtime code、credentials、Firebase/Terraform、production resource、real Calendar/data、D-series status、dated review evidence。
+- **Acceptance:** current documents agree that manual-review candidate ingestion preserves ADR-0002 authority；任何 future auto-apply/co-authority design才需要 superseding ADR；D-009/D-016保持 pending，且不存在 implementation/deployment claim。Full GitHub required checks green。
+- **Rollback:** docs slice以 `git revert <sha>` 回復；不 rewrite history。
+- **CALENDAR CONNECTED:** **NO**。
+- **WORKER DEPLOYED:** **NO**。
+- **CREDENTIAL ADDED/USED:** **NO**。
+- **REAL CALENDAR DATA USED:** **NO**。
+- **BOOK-MVP-008 STARTED:** **NO**。
+
+### BOOK-MVP-008: Documentation & Authority Sync
+
+#### Before
+- **Timestamp:** 2026-08-20 15:23:38 +08:00 (Asia/Taipei)。
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `7e1e3a86a20a138bb223425d15d707908658d011`。
+- **Objective:** 在 implementation truth 已知後同步 live authority/navigation：BOOK-MVP-003/004/006已 PASS、005待 verified deploy URL、007為 docs-only alignment；保留 Stage 1、pending decisions、synthetic-only/no-production boundary，不重寫 dated evidence。
+- **Mandatory Review Set:** `AGENTS.md`、`README.md`、`docs/roadmap.md`、`docs/phase-1-execution-plan.md`、`docs/product/phase-1-decision-register.md`、本 execution log、`docs/README.md`；另以 current execution plan消除 D-016 stale question。
+- **Patient Identity Correction:** execution log現有「Booking + Case 共用患者比對」過強；改為 Booking/API foundation，可能與 future Case matching/merge有關，但 current frozen Case domain不直接依賴 patient-identity。只修 live ledger wording，不改 historical review。
+- **Candidate Files:** 上述 live documents only；若檢查後 statement仍 current則不為了湊數改檔。
+- **Must Not Change:** dated review evidence、runtime/tests、clinic、roles/permissions/RBAC、domain/contracts、budget/checker、workflow、lockfiles、decision status或 owner-input authority level。
+- **Acceptance:** authority/status/boundary/cross-links一致，docs lifecycle/index/links/format/full CI全綠；沒有 owner direction被轉為 formal approval。
+- **Rollback:** docs sync/evidence commit各自 `git revert <sha>`。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-009 STARTED:** **NO**。
 
 #### During
 - **Measurement Instrumentation:** commit `934b683f96317efc3295625834942532fbc15e1b` temporarily added the existing `--report` output mode to `check:perf`; no algorithm/budget/threshold/workflow change。
