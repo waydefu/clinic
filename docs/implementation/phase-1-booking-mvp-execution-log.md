@@ -60,8 +60,8 @@
 | **BOOK-MVP-002** | Clinic Homepage Freeze Guard | 建立 `/clinic` 靜態檔案清單防護測試與零回歸驗證 | **PASS** |
 | **BOOK-MVP-003** | Frozen Modules Isolation | 對個管、薪資、手術擴充設置 disabled-by-default 與邊界防護 | **PASS** |
 | **BOOK-MVP-004** | Booking Preview Independent Validation | 驗證 `/booking` 流程、Synthetic PII 邊界與無障礙／響應式基準 | **PASS** |
-| **BOOK-MVP-005** | Web Vendor Evaluation Package | 撰寫 `docs/integration/booking-web-vendor-evaluation.md` 評估包 | PENDING |
-| **BOOK-MVP-006** | Frontend Assets Payload Report | 量測 JS/CSS/Assets 原始、gzip、brotli 大小並記錄報告 | PENDING |
+| **BOOK-MVP-005** | Web Vendor Evaluation Package | 撰寫 `docs/integration/booking-web-vendor-evaluation.md` 評估包 | IN PROGRESS — DEPLOYED URL PENDING |
+| **BOOK-MVP-006** | Frontend Assets Payload Report | 量測 JS/CSS/Assets 原始、gzip、brotli 大小並記錄報告 | **PASS** |
 | **BOOK-MVP-007** | Calendar Alignment (Spec & Governance) | 規格層對齊 Outbound 狀態與 Inbound 待審衝突流程（無 code 回寫） | PENDING |
 | **BOOK-MVP-008** | Documentation & Authority Sync | 同步更新 `AGENTS.md`、`README.md`、`roadmap.md` 等權威文件 | PENDING |
 | **BOOK-MVP-009** | Full Verification & Evidence Gate | 執行全套靜態檢查、單元測試、Emulator Rules 與 E2E 驗證 | PENDING |
@@ -630,6 +630,20 @@
 - **CLINIC CHANGED:** **NO**。
 - **BOOK-MVP-006 STARTED:** **NO**。
 
+#### After — pre-deployment package
+- **Status:** **PASS — PRE-DEPLOYMENT VENDOR PACKAGE READY; VERIFIED URL PENDING DEPLOYMENT**。
+- **Delivery Commit:** `ea1cfcd1eeb5c0bbccef86ccdb0ab459920c2d13`。
+- **Document:** `docs/integration/booking-web-vendor-evaluation.md`；廠商不需 repository 即可評估 official `/reservations/` journey、Widget + API recommendation、API-only alternative、iframe fallback、host/responsive/accessibility/error responsibilities 與 data boundary。
+- **Preview Truth:** URL/expiry 均保持 `PENDING DEPLOYMENT`；current preview 明確為 browser-local synthetic/noindex/no-real-data，未宣稱 production API active。
+- **iframe Truth:** 明載 current `X-Frame-Options: DENY` 與 CSP `frame-ancestors 'none'`，禁止直接 iframe；fallback 需 dedicated surface 和獨立 security acceptance。
+- **Remote Acceptance:** run [`32343091379`](https://github.com/waydefu/clinic/actions/runs/32343091379) @ `ea1cfcd1eeb5c0bbccef86ccdb0ab459920c2d13`，11/11 jobs PASS；core `96345973181`、Firestore `96345973515`、supply-chain `96345973340`、六組 E2E `96345973259`／`96345973324`／`96345973344`／`96345973355`／`96345973443`／`96345973479`、SAST `96345973469`、Verification evidence `96346763581` 全部 `success`。
+- **Completion Gate Remaining:** authorized deploy 後將 verified URL/expiry 寫回同一 canonical document並再跑 final CI；完成前 BOOK-MVP-005 不標 final PASS。
+- **Rollback:** `git revert ea1cfcd`；Before/evidence 另以其 commit revert，不 rewrite history。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-006 STARTED:** **YES — COUPLED VENDOR HANDOFF SLICE**。
+
 ### BOOK-MVP-006: Frontend Asset / Payload Report
 
 #### Before
@@ -642,6 +656,27 @@
 - **Must Not Change:** `apps/web/performance-budget.json`、`scripts/check-performance-budget.mjs` semantics、runtime、clinic、patient content、workflow、lockfiles、production config。
 - **Acceptance:** authoritative run 產生 exact entry measurements且所有現行 budgets PASS；final docs-only HEAD 再全綠。任何超標視為 regression，不以放寬 budget/checker 解決。
 - **Rollback:** measurement/output、report/evidence commits 各自 `git revert <sha>`；不 amend/rebase/force push。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-007 STARTED:** **NO**。
+
+#### During
+- **Measurement Instrumentation:** commit `934b683f96317efc3295625834942532fbc15e1b` temporarily added the existing `--report` output mode to `check:perf`; no algorithm/budget/threshold/workflow change。
+- **Authoritative Measurement:** run [`32342667289`](https://github.com/waydefu/clinic/actions/runs/32342667289) 11/11 PASS；core job `96344741075` built 76 files / 52 content-hashed and printed exact gzip entry closures；Verification evidence `96345329499` PASS。
+- **Instrumentation Removal:** delivery commit `ea1cfcd1eeb5c0bbccef86ccdb0ab459920c2d13` restored the original package command；final net package/runtime change versus pre-measurement head is zero。
+
+#### After
+- **Status:** **PASS — AUTHORITATIVE PAYLOAD REPORT DELIVERED**。
+- **Document:** `docs/integration/booking-frontend-payload-report.md`。
+- **Vendor Gzip Totals:** `/booking` 62.6 KiB / 37 resources；`/clinic` 118.1 KiB / 13 resources；workbench 86.1 KiB / 38 resources。
+- **Booking Breakdown:** document 7.0 KiB、31 scripts 41.2 KiB、2 stylesheets 9.0 KiB、3 images 5.3 KiB；total budget 70 KiB PASS。
+- **Clinic Breakdown:** document 2.0 KiB、2 scripts 13.0 KiB、1 stylesheet 7.4 KiB、9 images 95.7 KiB；total budget 200 KiB PASS；frozen files 未改。
+- **Workbench Breakdown:** document 9.3 KiB、33 scripts 59.2 KiB、2 stylesheets 15.0 KiB、2 images 2.6 KiB；total budget 90 KiB PASS。
+- **Compression/Cache:** gzip 為 authority；Brotli 明確 `NOT MEASURED`（repository gate 不輸出，不以 local estimate 替代）；HTML `no-cache`、hashed JS/CSS one-year `immutable`、其他 assets 維持 global `no-cache`。
+- **Implementation Acceptance:** run [`32343091379`](https://github.com/waydefu/clinic/actions/runs/32343091379) @ `ea1cfcd1eeb5c0bbccef86ccdb0ab459920c2d13` 11/11 PASS，含 performance、clinic freeze、all E2E、Firestore、SAST、supply-chain 與 Verification evidence。
+- **Budget/Checker/Workflow Change:** **NO** final net change。
+- **Rollback:** slice reverse order為 `git revert ea1cfcd`、`git revert 934b683`、`git revert 320e423`；後續 After-evidence commit 另行 revert。
 - **PRODUCTION RESOURCE TOUCHED:** **NO**。
 - **REAL DATA USED:** **NO**。
 - **CLINIC CHANGED:** **NO**。
