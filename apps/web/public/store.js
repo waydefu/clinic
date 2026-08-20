@@ -10,6 +10,7 @@ import {
   updateAppointmentNotes
 } from './modules/appointment-domain.js';
 import {
+  assignCaseManager,
   buildOperationalTasks,
   buildWorkload
 } from './modules/case-management.js';
@@ -141,6 +142,30 @@ function parseBody(options) {
   return options.body === undefined ? {} : JSON.parse(options.body);
 }
 
+function requestedCaseManagerId(body, { required = false } = {}) {
+  if (typeof body.managerId !== 'string') {
+    if (required) throw new Error('請選擇可用的合成個管師。');
+    return undefined;
+  }
+  if (body.managerId === '') {
+    if (required) throw new Error('請選擇可用的合成個管師。');
+    return undefined;
+  }
+  const managerId = body.managerId.trim();
+  if (managerId === '') throw new Error('個管師不可只填空白。');
+  return managerId;
+}
+
+function authorizeCaseAssignment(state, appointmentId) {
+  const hasActiveAssignment = state.caseAssignments.some(
+    (item) => item.appointmentId === appointmentId && item.status === 'active'
+  );
+  return requirePermission(
+    state,
+    hasActiveAssignment ? PERMISSIONS.REASSIGN_CASE : PERMISSIONS.ASSIGN_CASE
+  );
+}
+
 export async function stagingRequest(path, options = {}) {
   const method = options.method ?? 'GET';
   if (method === 'GET' && path === '/state') return snapshotState(loadState());
@@ -150,17 +175,6 @@ export async function stagingRequest(path, options = {}) {
 
   const state = loadState();
   const body = parseBody(options);
-
-  // Case Management is preserved in the domain, but it is outside the Phase 1
-  // runtime scope. Reject the two compatibility paths before either the
-  // follow-up or case-assignment commands can mutate request-local state.
-  if (
-    path === '/case-assignments' ||
-    (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path) &&
-      typeof body.managerId === 'string' &&
-      body.managerId !== '')
-  )
-    throw new Error('個案管理功能目前未開放。');
 
   if (path === '/reset') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_SYSTEM);
@@ -289,9 +303,23 @@ export async function stagingRequest(path, options = {}) {
     const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
     updateAppointmentNotes(state, path.split('/')[2], body, actor.id);
   } else if (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)) {
-    const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
     const appointmentId = path.split('/')[2];
+    const managerId = requestedCaseManagerId(body);
+    // Case authorization must complete before recordFollowUp mutates request-
+    // local state. A denied reassignment therefore cannot leave a partial
+    // follow-up, audit event, outbox job, or persisted save behind.
+    const caseActor =
+      managerId === undefined
+        ? undefined
+        : authorizeCaseAssignment(state, appointmentId);
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
     recordFollowUp(state, appointmentId, body, actor.id);
+    if (managerId !== undefined)
+      assignCaseManager(state, appointmentId, managerId, caseActor.id);
+  } else if (path === '/case-assignments') {
+    const managerId = requestedCaseManagerId(body, { required: true });
+    const actor = authorizeCaseAssignment(state, body.appointmentId);
+    assignCaseManager(state, body.appointmentId, managerId, actor.id);
   } else if (path === '/outbox/simulate') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
     simulateCalendarSync(state, body.fail === true, actor.id);

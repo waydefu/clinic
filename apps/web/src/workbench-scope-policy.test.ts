@@ -68,14 +68,14 @@ function completedState() {
 }
 
 describe('Phase 1 workbench scope policy', () => {
-  it('is immutable and fail closed for Case and Payroll', () => {
+  it('enables only owner-scoped Case while Payroll stays fail closed', () => {
     expect(Object.isFrozen(WORKBENCH_CAPABILITIES)).toBe(true);
-    expect(isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')).toBe(false);
+    expect(isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')).toBe(true);
     expect(isWorkbenchCapabilityEnabled('PAYROLL_WORKLOAD')).toBe(false);
     expect(isWorkbenchCapabilityEnabled('UNKNOWN_CAPABILITY')).toBe(false);
   });
 
-  it('removes only the frozen operational task category', () => {
+  it('keeps the Case task category while Payroll remains outside the task model', () => {
     const tasks = [
       { key: 'overdueArrivals' },
       { key: 'cancellationRequests' },
@@ -88,17 +88,19 @@ describe('Phase 1 workbench scope policy', () => {
       'overdueArrivals',
       'cancellationRequests',
       'pendingFollowUps',
+      'pendingCaseAssignments',
       'outboxPending'
     ]);
   });
 
-  it('resolves the frozen deep link to overview as a scope redirect', () => {
+  it('resolves the enabled Case deep link without a scope redirect', () => {
     expect(
       resolveScopedWorkbenchPanel('case-section', [
         'overview',
-        'appointments-section'
+        'appointments-section',
+        'case-section'
       ])
-    ).toEqual({ panelId: 'overview', scopeRedirected: true });
+    ).toEqual({ panelId: 'case-section', scopeRedirected: false });
     expect(
       resolveScopedWorkbenchPanel('appointments-section', [
         'overview',
@@ -110,34 +112,34 @@ describe('Phase 1 workbench scope policy', () => {
     });
   });
 
-  it('keeps Booking tasks while removing pending Case presentation', () => {
+  it('keeps Booking tasks and restores pending Case presentation', () => {
     const html = renderTasks(completedState());
     expect(html).toContain('已過時未處理');
     expect(html).toContain('取消待確認');
     expect(html).toContain('回診尚未決定');
     expect(html).toContain('日曆投影待處理');
-    expect(html).not.toContain('個管尚未指派');
-    expect(html).not.toContain('#case-section');
+    expect(html).toContain('個管尚未指派');
+    expect(html).toContain('#case-section');
   });
 
-  it('renders normal follow-up without Case manager affordances', () => {
+  it('renders the permitted Case manager affordance in follow-up', () => {
     const html = renderFollowUps(completedState());
     expect(html).toContain('data-follow-up-form');
     expect(html).toContain('儲存回診指示');
-    expect(html).not.toContain('name="managerId"');
-    expect(html).not.toContain('個管師');
-    expect(html).not.toContain('合成個管師 A');
+    expect(html).toContain('name="managerId"');
+    expect(html).toContain('個管師');
+    expect(html).toContain('合成個管師 A');
   });
 
-  it('fails closed for preserved Case/Payroll renderers and intake projection', () => {
+  it('restores Case projections while Payroll renderer remains frozen', () => {
     const state = completedState();
-    expect(renderCaseAssignments(state)).toBe('');
+    expect(renderCaseAssignments(state)).toContain('data-case-row');
     expect(renderWorkload(state)).toBe('');
-    expect(
-      renderIntakeSheet(state, 'appointment_scope_test_001')
-    ).not.toContain('管理師');
-    expect(
-      renderIntakeSheet(state, 'appointment_scope_test_001')
-    ).not.toContain('合成個管師 A');
+    expect(renderIntakeSheet(state, 'appointment_scope_test_001')).toContain(
+      '管理師'
+    );
+    expect(renderIntakeSheet(state, 'appointment_scope_test_001')).toContain(
+      '合成個管師 A'
+    );
   });
 });

@@ -56,9 +56,16 @@ function memoryStorage(): Storage {
   };
 }
 
-function seedCompletedAppointment() {
+function seedCompletedAppointment({
+  accountId = 'admin_test_001',
+  activeManagerId
+}: {
+  accountId?: string;
+  activeManagerId?: string;
+} = {}) {
   const state = initialState();
   state.workspace.authenticated = true;
+  state.workspace.currentAccountId = accountId;
   state.patients.push({
     id: 'patient_test_frozen_boundary',
     name: '合成測試患者'
@@ -66,8 +73,21 @@ function seedCompletedAppointment() {
   state.appointments.push({
     id: 'appointment_test_frozen_boundary',
     patientId: 'patient_test_frozen_boundary',
-    status: 'completed'
+    status: 'completed',
+    completedAt: '2030-01-01T04:00:00.000Z',
+    updatedAt: '2030-01-01T04:00:00.000Z'
   });
+  if (activeManagerId !== undefined)
+    state.caseAssignments.push({
+      id: 'case_assignment_test_boundary',
+      appointmentId: 'appointment_test_frozen_boundary',
+      patientId: 'patient_test_frozen_boundary',
+      managerId: activeManagerId,
+      status: 'active',
+      assignedAt: '2030-01-01T00:00:00.000Z',
+      assignedBy: 'admin_test_001',
+      ruleVersion: 'synthetic-v1'
+    });
   localStorage.setItem(storageKey, JSON.stringify(state));
   return state;
 }
@@ -96,7 +116,7 @@ function loadedRequestState() {
   >;
 }
 
-function expectFrozenRejectionWasPreMutation(
+function expectRejectionWasPreMutation(
   beforePersisted: string,
   beforeState: ReturnType<typeof relevantState>
 ) {
@@ -119,38 +139,116 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('Phase 1 frozen Case mutation boundary', () => {
-  it('rejects /case-assignments before any mutation', async () => {
-    const seeded = seedCompletedAppointment();
+describe('Owner-scoped synthetic Case mutation boundary', () => {
+  it('allows front desk initial /case-assignments and saves once', async () => {
+    seedCompletedAppointment({ accountId: 'front_desk_test_001' });
+
+    await expect(
+      post('/case-assignments', {
+        appointmentId: 'appointment_test_frozen_boundary',
+        managerId: 'manager_test_001'
+      })
+    ).resolves.toBeDefined();
+
+    const persisted = JSON.parse(localStorage.getItem(storageKey)!);
+    expect(mutationSpies.recordFollowUp).not.toHaveBeenCalled();
+    expect(mutationSpies.assignCaseManager).toHaveBeenCalledOnce();
+    expect(mutationSpies.saveState).toHaveBeenCalledOnce();
+    expect(persisted.caseAssignments).toHaveLength(1);
+    expect(persisted.caseAssignments[0].managerId).toBe('manager_test_001');
+    expect(persisted.auditEvents.at(-1)?.action).toBe('case_manager_assigned');
+  });
+
+  it('rejects front desk reassignment before any mutation', async () => {
+    const seeded = seedCompletedAppointment({
+      accountId: 'front_desk_test_001',
+      activeManagerId: 'manager_test_001'
+    });
     const beforePersisted = localStorage.getItem(storageKey)!;
     const beforeState = relevantState(seeded);
 
     await expect(
       post('/case-assignments', {
         appointmentId: 'appointment_test_frozen_boundary',
-        managerId: 'case_manager_test_001'
+        managerId: 'manager_test_002'
       })
-    ).rejects.toThrow('個案管理功能目前未開放。');
+    ).rejects.toThrow('目前合成帳號沒有執行此動作的權限。');
 
-    expectFrozenRejectionWasPreMutation(beforePersisted, beforeState);
+    expectRejectionWasPreMutation(beforePersisted, beforeState);
   });
 
-  it('rejects follow-up managerId before any mutation', async () => {
-    const seeded = seedCompletedAppointment();
+  it('allows admin reassignment with the preserved audit vocabulary', async () => {
+    seedCompletedAppointment({ activeManagerId: 'manager_test_001' });
+
+    await expect(
+      post('/case-assignments', {
+        appointmentId: 'appointment_test_frozen_boundary',
+        managerId: 'manager_test_002'
+      })
+    ).resolves.toBeDefined();
+
+    const persisted = JSON.parse(localStorage.getItem(storageKey)!);
+    expect(mutationSpies.assignCaseManager).toHaveBeenCalledOnce();
+    expect(mutationSpies.saveState).toHaveBeenCalledOnce();
+    expect(persisted.caseAssignments).toHaveLength(1);
+    expect(persisted.caseAssignments[0].managerId).toBe('manager_test_002');
+    expect(persisted.auditEvents.at(-1)?.action).toBe(
+      'case_manager_reassigned'
+    );
+  });
+
+  it('rejects follow-up reassignment before recordFollowUp when Case permission fails', async () => {
+    const seeded = seedCompletedAppointment({
+      accountId: 'front_desk_test_001',
+      activeManagerId: 'manager_test_001'
+    });
     const beforePersisted = localStorage.getItem(storageKey)!;
     const beforeState = relevantState(seeded);
 
     await expect(
       post('/follow-ups/appointment_test_frozen_boundary', {
         status: 'not_required',
-        managerId: 'case_manager_test_001'
+        managerId: 'manager_test_002'
       })
-    ).rejects.toThrow('個案管理功能目前未開放。');
+    ).rejects.toThrow('目前合成帳號沒有執行此動作的權限。');
 
-    expectFrozenRejectionWasPreMutation(beforePersisted, beforeState);
+    expectRejectionWasPreMutation(beforePersisted, beforeState);
   });
 
-  it('rejects whitespace-only managerId', async () => {
+  it('records follow-up then Case assignment and saves once after authorization', async () => {
+    const seeded = seedCompletedAppointment({
+      accountId: 'front_desk_test_001'
+    });
+
+    await expect(
+      post('/follow-ups/appointment_test_frozen_boundary', {
+        status: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15',
+        tags: [],
+        noteText: '',
+        certificateCopies: 0,
+        managerId: 'manager_test_001'
+      })
+    ).resolves.toBeDefined();
+
+    const persisted = JSON.parse(localStorage.getItem(storageKey)!);
+    expect(mutationSpies.recordFollowUp).toHaveBeenCalledOnce();
+    expect(mutationSpies.assignCaseManager).toHaveBeenCalledOnce();
+    expect(mutationSpies.saveState).toHaveBeenCalledOnce();
+    expect(
+      mutationSpies.recordFollowUp.mock.invocationCallOrder[0]
+    ).toBeLessThan(mutationSpies.assignCaseManager.mock.invocationCallOrder[0]);
+    expect(
+      mutationSpies.assignCaseManager.mock.invocationCallOrder[0]
+    ).toBeLessThan(mutationSpies.saveState.mock.invocationCallOrder[0]);
+    expect(persisted.followUps).toHaveLength(1);
+    expect(persisted.caseAssignments).toHaveLength(1);
+    expect(persisted.auditEvents).toHaveLength(seeded.auditEvents.length + 2);
+    expect(persisted.outboxJobs).toHaveLength(seeded.outboxJobs.length + 1);
+  });
+
+  it('rejects whitespace-only managerId before any mutation', async () => {
     const seeded = seedCompletedAppointment();
     const beforePersisted = localStorage.getItem(storageKey)!;
     const beforeState = relevantState(seeded);
@@ -160,9 +258,9 @@ describe('Phase 1 frozen Case mutation boundary', () => {
         status: 'not_required',
         managerId: '   '
       })
-    ).rejects.toThrow('個案管理功能目前未開放。');
+    ).rejects.toThrow('個管師不可只填空白。');
 
-    expectFrozenRejectionWasPreMutation(beforePersisted, beforeState);
+    expectRejectionWasPreMutation(beforePersisted, beforeState);
   });
 
   it.each([
