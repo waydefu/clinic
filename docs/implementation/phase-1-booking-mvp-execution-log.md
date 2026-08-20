@@ -878,3 +878,81 @@
 - **GOOGLE CALENDAR CONNECTED:** **NO**。
 - **PAYROLL REACTIVATED:** **NO**。
 - **NEW C2 FROZEN:** **NO — IMPLEMENTATION NOT STARTED**。
+
+### OWNER ACCEPTANCE REFINEMENT — IMPLEMENTATION AND PRE-C2 EVIDENCE
+
+- **Status:** **IMPLEMENTATION PASS; PRE-DEPLOYMENT EVIDENCE IN PROGRESS**。上方 BEFORE
+  record 的 `IMPLEMENTATION NOT STARTED` 是開工當下的歷史狀態，不改寫；本節接續記錄實際結果。
+- **Warm Theme Slice:** `1e3258a`、`a75425e`、`74e89b8`；GitHub run
+  [`32356734975`](https://github.com/waydefu/clinic/actions/runs/32356734975) 全綠。
+  Active non-frozen surfaces 預設 warm，clinic frozen files 未改。
+- **Case Slice:** `be4eef2`、`d4619bc`、`0374ffa`；GitHub run
+  [`32358394801`](https://github.com/waydefu/clinic/actions/runs/32358394801) 全綠。
+  `CASE_MANAGEMENT` 僅在 synthetic workbench 恢復 discoverability、route、render 與受限
+  mutation；`/case-assignments` 按 existing assignment 選擇 `ASSIGN_CASE` 或
+  `REASSIGN_CASE`。Follow-up 的 semantic non-empty `managerId` 先做 Case action
+  authorization，再做 `MANAGE_FOLLOW_UP`，然後才可 `recordFollowUp`／
+  `assignCaseManager`，且只 save 一次。Denial 沒有局部 state／audit／outbox
+  或 persisted-state 寫入。`PAYROLL_WORKLOAD` 仍 fail closed。
+- **Weekly Calendar Slice:** `732489c`；GitHub run
+  [`32359148847`](https://github.com/waydefu/clinic/actions/runs/32359148847) 全綠。
+  週曆僅將 business hours、date exceptions、closures 投影為 schedule sessions，
+  並呈現 actual synthetic appointments；empty state 不生成假 event cards。
+  沒有 Google Calendar API、credential、worker 或 inbound sync。
+- **Booking Context / Scroll Slice:** `6a816e6` 的第一次 run
+  [`32359898488`](https://github.com/waydefu/clinic/actions/runs/32359898488) 只因
+  `/patient.html` document 7.1 KiB 超過 7 KiB 失敗，正確分類為 introduced regression；
+  沒有放寬 budget、更改 checker 或刪除 patient content。`c3a8ca8` 在不新增
+  module edge 的情況下收旂，GitHub run
+  [`32360319826`](https://github.com/waydefu/clinic/actions/runs/32360319826) 全綠含
+  `check:perf`。結果為 true page top、無 initial auto-scroll，Step 2／3 顯示
+  actual selected context。
+- **Privacy Preservation Slice:** `0676aad`；GitHub run
+  [`32360711873`](https://github.com/waydefu/clinic/actions/runs/32360711873) 全綠。
+  Privacy 以 imported dialog 顯示，關閉後保留 Step 3、輸入、read status 與 focus，
+  不導頁、不重建 application state。
+- **Vendor Booking-only Slice:** `9ee84af06ea18b651d03b8292424de0d0d5dad18`；
+  GitHub run [`32361248890`](https://github.com/waydefu/clinic/actions/runs/32361248890)
+  全綠。`/booking` header 不含 `/clinic`、doctor、root workbench 或 internal
+  navigation；vendor evaluation 只交付 `/booking`，目標為 official
+  `/reservations/`。
+- **Architecture / Guard Proof:** `scripts/check-architecture.mjs` 建立 actual static ESM
+  graph，證明 patient／store 不可達 workbench-only scope policy，而 workbench 可達；
+  `scripts/check-web-ui.mjs` 釘住 Case selectors 與 `CASE_MANAGEMENT=true`，同時要求
+  Payroll selectors 缺席與 `PAYROLL_WORKLOAD=false`。Focused unit／E2E 直接測
+  pre-mutation/no-partial-write、permission ordering、route/UI/render、privacy state、
+  actual-event calendar 與 booking-only links；不只依賴 source string／regex。
+- **Visual Evidence:** `c8e860f`新增 exact 10-scenario capture definition；第一批
+  run [`32361769888`](https://github.com/waydefu/clinic/actions/runs/32361769888)
+  雖完成 artifact，人工檢視發現 full-page sticky summary stitching artifact，因此
+  **REJECTED AS EVIDENCE** 且未寫入 repository。`8376f58` 只修正 capture-only
+  normalization；GitHub capture run
+  [`32361992728`](https://github.com/waydefu/clinic/actions/runs/32361992728) job
+  `96403401959` 產生第二批，10 張已逐張人工檢視、console errors／warnings
+  均為 0。同 source 一般 PR run
+  [`32361996691`](https://github.com/waydefu/clinic/actions/runs/32361996691)
+  required jobs 與 Verification evidence 全綠。2026-08-10 與更早 visual evidence
+  未修改。
+- **Capture Workflow Disposition:** 因 local Windows 不是 acceptance runner，擷取期間曾在
+  `verify.yml` 建立僅 `workflow_dispatch` 才可用的一次性 GitHub-hosted capture job；
+  artifact 完成後該 workflow diff 已在 C2 前移除。Final branch 的 workflow 必須與
+  `origin/main` 一致。
+- **Current Pre-C2 Docs:** 新增 `ui-visual-baseline-2026-08-20.md` 與新日期資產
+  目錄；owner／vendor 文件現先標示 exact C2 URL／expiry 為
+  `PENDING DEPLOYMENT`；新增 owner-refinement synthetic-preview deployment record，
+  不改寫舊 candidate C 部署紀錄。
+- **C2 Freeze Gate:** 本 pre-deployment evidence commit 必須在 PR #23 的 core verify、
+  performance、clinic 30-file freeze、unit、all E2E、Firestore、supply-chain、SAST
+  與 Verification evidence 全綠後，才可凍結該 exact SHA 為 **C2**。
+  部署只能來自 exact C2，不是後續 docs HEAD。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **PATIENT MODULE EDGE ADDED TO WORKBENCH POLICY:** **NO**。
+- **PERFORMANCE BUDGET CHANGED:** **NO**。
+- **GOOGLE CALENDAR CONNECTED:** **NO**。
+- **PAYROLL REACTIVATED:** **NO**。
+- **BOOK-MVP-004+ NEW WORK STARTED:** **NO**。
+- **NEW C2 FROZEN:** **NO — SAME-SHA CI PENDING**。
+- **Rollback:** 各個 implementation／test／evidence commit 分別 `git revert <sha>`；
+  禁止 amend、rebase、reset、force push。

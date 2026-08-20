@@ -6,14 +6,16 @@ The production user journey is intended to remain on the clinic's official
 website:
 
 - Official reservations page: <https://beauessence.com.tw/reservations/>
-- Current synthetic preview route: `/booking`
-- Verified preview URL:
-  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>
-- Preview expiry: **2026-08-27 16:37:05 Asia/Taipei**
-  (`2026-08-27T08:37:05.942064109Z`)
-- Deployed candidate:
-  `7e0add8079b37da2e1c11ef4f59660554b9b66d8`
-- Verification: **PASS — 463/463 repository-defined online checks**
+- Vendor evaluation route: `/booking` **only**
+- Current owner-refinement preview URL: **PENDING C2 DEPLOYMENT**
+- Current preview expiry: **PENDING C2 DEPLOYMENT**
+- Exact deployed C2: **PENDING C2 DEPLOYMENT**
+- Online verification: **PENDING C2 DEPLOYMENT**
+
+The earlier candidate C (`7e0add8079b37da2e1c11ef4f59660554b9b66d8`)
+and its 2026-08-20 preview remain historical deployment evidence. Its URL must
+not be presented as the current vendor handoff because the owner subsequently
+requested the C2 refinement.
 
 The preview is for layout, interaction and technical evaluation only. It is
 `noindex`, uses synthetic browser-local state and must never receive real
@@ -42,21 +44,22 @@ integration shape; it does not hand over a live API or production credential.
 
 ## 3. Preview evaluation
 
-Use only the verified URL and expiry recorded above. The relevant routes are:
+Do not start vendor evaluation until the exact-C2 URL and expiry above replace
+the pending markers. The vendor-facing route is only:
 
-- `/booking` — patient Booking Preview.
-- `/` — synthetic staff workbench used to check the shared booking lifecycle.
-- `/privacy` — draft, test-only privacy page.
-- `/clinic` — frozen reference surface; it is not part of the vendor change
-  scope.
+- `/booking` — patient Booking Preview and the source reference for the future
+  official `/reservations/` surface.
+
+The synthetic staff workbench, Case workflow, doctor pages, clinic pages and
+other internal or public repository routes are not part of this vendor
+evaluation package. `/clinic` remains frozen and must not be used as an active
+handoff route.
 
 Expected preview markers:
 
 - `LOCAL TEST ONLY` on `/booking` and a warning not to enter real patient or
   health data.
-- `ONLINE PREVIEW` on the workbench and a warning that anyone with the URL can
-  access it.
-- `noindex` response/meta policy on every preview route.
+- `noindex` response/meta policy on the preview.
 - Data isolated to the current browser. Different browsers do not share state;
   clearing site data resets it.
 

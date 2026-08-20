@@ -1,8 +1,43 @@
 # Booking MVP 業主驗收與交付審查 — 2026-08-20
 
-**狀態：READY FOR OWNER TESTING。** Exact candidate
-`7e0add8079b37da2e1c11ef4f59660554b9b66d8` 已部署並通過 463/463 線上檢查。
+**現行狀態：PENDING C2 DEPLOYMENT。** 業主已審閱先前 candidate C，並要求
+在同一 PR #23 完成 final owner refinement。先前 exact candidate
+`7e0add8079b37da2e1c11ef4f59660554b9b66d8`、463/463 線上檢查與其 preview
+仍是有效 historical evidence，但不是現行交付候選，也不得作為新的廠商
+或業主驗收網址。現行 C2 URL、expiry 與 online verification 在 exact-C2
+部署完成前保持 **PENDING DEPLOYMENT**。
+
 這不是正式上線核准，也不得用來處理真實病患、職員、薪資、醫療或 Calendar 資料。
+
+## C2 final owner refinement 現行交付邊界
+
+- Active non-frozen surfaces 預設為 warm theme；`/clinic` 與 doctor surfaces 仍維持
+  frozen 30-file baseline，本輪沒有改動。
+- Case Management 只在 synthetic workbench 恢復 UI、route、render 與受權限保護的
+  mutation。寫入前先驗證 `ASSIGN_CASE`／`REASSIGN_CASE`，拒絕不得產生局部
+  follow-up、Case、audit、outbox 或 persisted-state 寫入。這不是 D-007
+  production approval。
+- Payroll／Commission 仍 frozen，不可 discover、navigate、render 或 mutate；保留
+  domain、contracts 與 tests。
+- 工作臺週曆只由營業時間、日期例外、休診與真實合成 appointments 衍生，
+  沒有虛構 event cards。這是 internal schedule view，不是 Google Calendar
+  integration。
+- `/booking` 從 true page top 開始，沒有初始自動捲動；Step 2／3 持續顯示已選
+  真實 context；privacy dialog 關閉後保留 Step 3、輸入、已閱狀態與焦點。
+- 網站廠商交付只有 `/booking`，目標是官網 `/reservations/`。Booking header 不暴露
+  `/clinic`、doctor 或 staff workbench navigation；其他 repository routes 不屬廠商
+  evaluation scope。
+- [2026-08-20 新視覺基準](ui-visual-baseline-2026-08-20.md) 含 10 張逐張人工檢視
+  的 GitHub-hosted 截圖；2026-08-10 與更早證據未改寫。
+- 本輪未使用真實資料、未啟用 production backend／Firestore browser access、
+  未連接 Google Calendar／LINE／Meta／NAS，也未改變 performance budget。
+
+現行建議是等待 exact C2 full GitHub CI、合成 preview 部署與 online/browser
+驗證完成，再使用本文件將記錄的新 URL 驗收。
+
+## 先前 candidate C 交付紀錄（historical）
+
+> 以下內容記錄 owner refinement 以前的 exact-C 狀態；不是現行 C2 驗收指示。
 
 ## 業主需要知道的 11 件事
 
