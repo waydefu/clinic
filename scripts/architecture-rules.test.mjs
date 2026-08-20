@@ -78,7 +78,7 @@ describe('reachableRelativeModules', () => {
         [
           "import './modules/api-client.js';",
           "// import './modules/workbench-scope-policy.js';",
-          "const decoy = \"import './modules/workbench-scope-policy.js'\";"
+          'const decoy = "import \'./modules/workbench-scope-policy.js\'";'
         ].join('\n')
       ],
       [

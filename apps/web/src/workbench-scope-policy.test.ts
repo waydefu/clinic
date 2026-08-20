@@ -133,11 +133,11 @@ describe('Phase 1 workbench scope policy', () => {
     const state = completedState();
     expect(renderCaseAssignments(state)).toBe('');
     expect(renderWorkload(state)).toBe('');
-    expect(renderIntakeSheet(state, 'appointment_scope_test_001')).not.toContain(
-      '管理師'
-    );
-    expect(renderIntakeSheet(state, 'appointment_scope_test_001')).not.toContain(
-      '合成個管師 A'
-    );
+    expect(
+      renderIntakeSheet(state, 'appointment_scope_test_001')
+    ).not.toContain('管理師');
+    expect(
+      renderIntakeSheet(state, 'appointment_scope_test_001')
+    ).not.toContain('合成個管師 A');
   });
 });

@@ -287,13 +287,15 @@ export function renderTasks(state) {
   const canViewGovernance =
     state.session?.permissions?.includes(PERMISSIONS.MANAGE_COMMUNICATIONS) ??
     false;
-  const pending = activeOperationalTasks(OPERATIONAL_TASKS).map((task) => ({
-    ...task,
-    count: taskCount(state.tasks, task.key)
-  })).filter(
-    (task) =>
-      task.count > 0 && (task.key !== 'outboxPending' || canViewGovernance)
-  );
+  const pending = activeOperationalTasks(OPERATIONAL_TASKS)
+    .map((task) => ({
+      ...task,
+      count: taskCount(state.tasks, task.key)
+    }))
+    .filter(
+      (task) =>
+        task.count > 0 && (task.key !== 'outboxPending' || canViewGovernance)
+    );
 
   // 一切正常時保持安靜。四個綠色的零跟三筆待辦佔一樣大的版面，等於什麼都
   // 沒說；這裡改成一句話講完，把注意力留給真的需要處理的事。

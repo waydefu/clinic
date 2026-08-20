@@ -23,18 +23,13 @@ export function isWorkbenchCapabilityEnabled(capability) {
 export function activeOperationalTasks(tasks) {
   return tasks.filter((task) => {
     const capability = TASK_CAPABILITIES[task.key];
-    return (
-      capability === undefined || isWorkbenchCapabilityEnabled(capability)
-    );
+    return capability === undefined || isWorkbenchCapabilityEnabled(capability);
   });
 }
 
 export function resolveScopedWorkbenchPanel(requestedId, availablePanelIds) {
   const capability = PANEL_CAPABILITIES[requestedId];
-  if (
-    capability !== undefined &&
-    !isWorkbenchCapabilityEnabled(capability)
-  ) {
+  if (capability !== undefined && !isWorkbenchCapabilityEnabled(capability)) {
     return { panelId: DEFAULT_PANEL, scopeRedirected: true };
   }
   return {

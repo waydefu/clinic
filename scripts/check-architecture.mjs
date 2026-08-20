@@ -278,8 +278,7 @@ const browserFiles = allBrowserFiles.filter(
 // PR #22 證明 shared store 多一條 workbench-only import 會經
 // patient-app -> api-client -> store 進入 patient document preload graph。
 // 這裡走真正的 literal ESM edges；註解或只含 policy 名稱的 decoy 字串都不算。
-const workbenchPolicyPath =
-  'apps/web/public/modules/workbench-scope-policy.js';
+const workbenchPolicyPath = 'apps/web/public/modules/workbench-scope-policy.js';
 const patientGraph = reachableRelativeModules(
   'apps/web/public/patient-app.js',
   browserSources

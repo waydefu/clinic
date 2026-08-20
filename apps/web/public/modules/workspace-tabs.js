@@ -29,11 +29,10 @@ const isRestricted = (panel) => panel.dataset.restricted === 'true';
 /** 目前應顯示的分頁；被權限擋下時退回營運首頁。 */
 function resolvePanelId() {
   const raw = window.location.hash.replace('#', '');
-  const { panelId: requested, scopeRedirected } =
-    resolveScopedWorkbenchPanel(
-      raw,
-      panels().map((panel) => panel.id)
-    );
+  const { panelId: requested, scopeRedirected } = resolveScopedWorkbenchPanel(
+    raw,
+    panels().map((panel) => panel.id)
+  );
   if (scopeRedirected) {
     window.history.replaceState(null, '', `#${DEFAULT_PANEL}`);
     return DEFAULT_PANEL;
