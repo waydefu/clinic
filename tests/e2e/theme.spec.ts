@@ -14,15 +14,13 @@ type Rgb = { r: number; g: number; b: number };
 const THEMES = ['light', 'warm', 'dark'] as const;
 
 test.describe('護眼暖色預設與顯式偏好', () => {
-  test('fresh browser 的 active surfaces 都以 warm 呈現', async ({
-    page
-  }) => {
+  test('fresh browser 的 active surfaces 都以 warm 呈現', async ({ page }) => {
     await page.goto('/booking');
     await page.evaluate(() =>
       window.localStorage.removeItem('beauessence_theme')
     );
 
-    for (const url of ['/', '/booking', '/privacy', '/404']) {
+    for (const url of ['/', '/booking', '/privacy', '/404.html']) {
       await page.goto(url);
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'warm');
     }
@@ -46,9 +44,7 @@ test.describe('護眼暖色預設與顯式偏好', () => {
       await expect(page.locator('#theme-picker')).toHaveValue(preference);
       await expect
         .poll(() =>
-          page.evaluate(() =>
-            window.localStorage.getItem('beauessence_theme')
-          )
+          page.evaluate(() => window.localStorage.getItem('beauessence_theme'))
         )
         .toBe(preference);
     }
@@ -60,7 +56,7 @@ test.describe('護眼暖色預設與顯式偏好', () => {
     await page.goto('/booking');
     await page.locator('#theme-picker').selectOption('dark');
 
-    for (const url of ['/privacy', '/404']) {
+    for (const url of ['/privacy', '/404.html']) {
       await page.goto(url);
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     }
