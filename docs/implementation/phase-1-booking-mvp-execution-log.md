@@ -62,9 +62,9 @@
 | **BOOK-MVP-004** | Booking Preview Independent Validation | 驗證 `/booking` 流程、Synthetic PII 邊界與無障礙／響應式基準 | **PASS** |
 | **BOOK-MVP-005** | Web Vendor Evaluation Package | 撰寫 `docs/integration/booking-web-vendor-evaluation.md` 評估包 | IN PROGRESS — DEPLOYED URL PENDING |
 | **BOOK-MVP-006** | Frontend Assets Payload Report | 量測 JS/CSS/Assets 原始、gzip、brotli 大小並記錄報告 | **PASS** |
-| **BOOK-MVP-007** | Calendar Alignment (Spec & Governance) | 規格層對齊 Outbound 狀態與 Inbound 待審衝突流程（無 code 回寫） | PENDING |
-| **BOOK-MVP-008** | Documentation & Authority Sync | 同步更新 `AGENTS.md`、`README.md`、`roadmap.md` 等權威文件 | PENDING |
-| **BOOK-MVP-009** | Full Verification & Evidence Gate | 執行全套靜態檢查、單元測試、Emulator Rules 與 E2E 驗證 | PENDING |
+| **BOOK-MVP-007** | Calendar Alignment (Spec & Governance) | 規格層對齊 Outbound 狀態與 Inbound 待審衝突流程（無 code 回寫） | **PASS** |
+| **BOOK-MVP-008** | Documentation & Authority Sync | 同步更新 `AGENTS.md`、`README.md`、`roadmap.md` 等權威文件 | **PASS** |
+| **BOOK-MVP-009** | Full Verification & Evidence Gate | 執行全套靜態檢查、單元測試、Emulator Rules 與 E2E 驗證 | IN PROGRESS — CANDIDATE CI PENDING |
 
 ---
 
@@ -743,3 +743,24 @@
 - **CLINIC CHANGED:** **NO**。
 - **BOOK-MVP-009 STARTED:** **NO**。
 - **Completion Gate:** 修正 ordering 後的新 HEAD仍須 full GitHub CI 11/11 PASS；通過前不開始 BOOK-MVP-009。
+
+---
+
+### BOOK-MVP-009: Final Full Verification & Candidate Freeze
+
+#### Before
+- **Timestamp:** 2026-08-20 15:46:24 +08:00 (Asia/Taipei)。
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `4cb094e631018ad03ebc6ab8c974502d8839262a`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- **Prerequisite:** BOOK-MVP-007/008 corrected final evidence run [`32345057004`](https://github.com/waydefu/clinic/actions/runs/32345057004) 11/11 PASS；core `96352063018`、Firestore `96352063222`、SAST `96352063104`、Verification evidence `96352714431`均 `success`。
+- **Objective:** 建立 concise Traditional Chinese owner handoff，凍結 deployable runtime與全部 pre-deployment vendor/owner docs，並在同一 candidate SHA執行 repository-required full GitHub verification。該 commit全綠後即為 exact deployment candidate C。
+- **Candidate Files:** `docs/reviews/2026-08-20-booking-mvp-owner-acceptance.md`、`docs/README.md`、本 execution log；不再修改 runtime。
+- **Candidate Truth:** Owner document的 preview URL/expiry保持 `PENDING DEPLOYMENT`；C只含部署前 truth。C綠燈後由獨立 docs-only authority commit D記錄 C的 exact SHA、operator、project、channel與 expiry，再從 exact C build/deploy。
+- **Must Not Change:** runtime/tests、clinic frozen files、patient/workbench module graph、roles/permissions/RBAC、Case/Payroll domain/contracts、budget/checker、workflow、lockfiles、Firebase/Terraform/Calendar config、dated evidence。
+- **Required Same-SHA Gate:** verify（structure/docs/format/lint/types/build/sync/domain/perf/unit/architecture/UI/public pages/design tokens/clinic freeze）＋Firestore Emulator＋全部 required E2E（accessibility/appointments/auth-RBAC/mobile/patient portal/UI）＋supply-chain/secrets＋SAST＋Verification evidence全部 GREEN。
+- **Acceptance:** candidate commit 11/11 jobs PASS且 `check:perf`／clinic 30-file freeze PASS；branch delta/self-review無 scope creep、secret、real PII、production config、Calendar implementation或 historical evidence rewrite。之後記錄 `C = <exact SHA>`，runtime即 frozen。
+- **Rollback:** candidate docs commit用 `git revert <sha>`；003～008各 logical slice沿 execution log反向 `git revert`，不 rebase/reset/force push。Preview尚未部署，無 cloud rollback。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **LIVE HOSTING DEPLOYED:** **NO**。
+- **BOOK-MVP-009 Status:** **IN PROGRESS — CANDIDATE CI PENDING**。
