@@ -179,7 +179,7 @@ production 的告警、secret rotation、restore、DR、法規／vendor 重審�
 | D-011 | 正式 URL、無障礙與人工預約備援 | 正式網址是什麼？（英文版已於 2026-08-16 確認不做） | Clinic operations |
 | D-014 | 手術／臨床紀錄邊界 | 哪些是正式醫療紀錄、由哪位 medical owner 負責、保存／更正／匯出多久？ | Medical＋privacy/legal |
 | D-015 | 付款／退款／結算權威 | 哪一套帳是錢的 source of truth、誰對帳、員工結算依什麼資料？ | Finance/accounting＋clinic |
-| D-016 | Calendar inbound review | 外部修改要自動套用還是先審？誰審未知事件、刪除與衝突怎麼處理、多久要收斂？ | Clinic＋security＋operations |
+| D-016 | Calendar inbound review | 2026-08-16 已輸入「先人工審、系統權威、30 分鐘目標」；仍須核准誰審、如何 matching、刪除語意、scope 與 exclusions | Clinic＋security＋operations |
 
 D-006 與 D-010 已核准的是目標；仍須 C0 與各切片 deployment authority 才能實作。
 D-012 只核准合成 preview 上的健保署署徽；production domain 前要重評。D-013 已

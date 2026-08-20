@@ -52,8 +52,10 @@ Phase 1 release scope，也不延後原預約平台的 Stage 2～6，除非業�
   多服務占用一個或多個 slot、緩衝與現場超時如何處理。
 - 「到診才知道」只解除服務目錄的固定 duration，不解除預約時對醫師／診間／設備
   的 operational interval lock。
-- Calendar 與工作臺同步的目標已確認，但 linked edit 是否自動套用、reviewer、
-  Google deletion 語意、衝突優先序與處理 SLO 尚未核准；D-016 保持 pending。
+- Calendar 與工作臺同步的目標已確認；2026-08-16 input 已選擇 manual review＋
+  system authoritative，不自動套用 linked edit。reviewer identity、matching、
+  Google deletion 語意、衝突優先序、approval metadata 與處理 SLO 尚未核准；
+  D-016 保持 pending。
 
 ## 3. 需求如何對應現有系統
 
@@ -314,7 +316,7 @@ S3～S5 是否進同一個 production release，要在 S0 結束時另外做 rel
 | D-009 Calendar | 需要 production shared calendar 與最小事件 | owner、OAuth／service identity、最小 scope、專用 calendar |
 | **D-014 臨床／手術紀錄** | 手術、麻醉、臨床回診與時間軸 | 法律／醫療紀錄邊界、owner、欄位、保存、更正與匯出 |
 | **D-015 付款／退款** | 總價、訂金、尾款、退款、欠款與結算來源 | 會計權威、付款／退款 reason、核准與對帳 |
-| **D-016 Calendar inbound** | Google 直接新增／修改／刪除的狀態須同步到工作臺 | 是否採 review queue、允許 editor／reviewer、衝突優先序、刪除語意與 SLO |
+| **D-016 Calendar inbound** | Google 直接新增／修改／刪除的狀態須同步到工作臺；2026-08-16 input 選擇 manual review＋system authoritative | reviewer identity、matching、approval metadata、衝突優先序、刪除語意與 SLO |
 
 在上述決策關閉前，允許的工作只有文件、schema inventory、風險分析與不帶政策值的
 純設計；不得新增正式 route、真實 Calendar watch、臨床資料或付款資料。

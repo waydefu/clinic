@@ -11,7 +11,7 @@
 依據 2026-08-19 專案負責人指示，本輪施工確立並強制執行以下核心原則：
 
 1. **Calendar 現況定性**：Outbound Google Calendar「本機架構與 Client 已完成，尚無真實 Calendar 連線、部署 Worker 與 Production 驗證」。
-2. **Calendar 雙向同步邊界 (BOOK-MVP-007)**：現階段僅允許 Calendar 雙向同步的規格／治理／文件對齊；ADR-0006 未接受、D-009/D-016 未核准前，**嚴禁實作任何 inbound webhook、syncToken 輪詢、API route 或回寫邏輯**。
+2. **Calendar inbound review 邊界 (BOOK-MVP-007)**：現階段僅允許 manual-review／system-authoritative 規格、治理與文件對齊；accepted ADR-0002 保持有效，D-009/D-016 未核准前，**嚴禁實作任何 inbound webhook、syncToken 輪詢、API route 或回寫邏輯**。任何 future Calendar co-authority 提案才須先用新 ADR 明確取代 ADR-0002。
 3. **診所首頁 `/clinic` 絕對凍結**：`/clinic` 實際 HTML / CSS / JS / assets 全面 Freeze；允許新增或修改純 regression / freeze guard 測試，但**絕不得改變首頁 baseline 或任何外觀與邏輯**。
 4. **統一 Step ID 與追蹤對照**：BOOK-MVP-001 ～ 009 統一編號，禁止編號漂移。每個 Step 獨立記錄 Before / During / After，獨立 Commit；PR 依邏輯單元整合。
 5. **Booking Preview 網址宣告**：Booking Preview 尚無有效遠端 URL，廠商評估文件（Vendor Package）標示為 `PENDING DEPLOYMENT`，**嚴禁引用已過期或未經授權的舊 URL**。待取得本次明確部署授權並完成部署後，方得寫入實際 URL 與到期日。
@@ -286,7 +286,7 @@
 
 | Module | Classification | 理由 |
 |--------|---------------|------|
-| `patient-identity.ts` | **FOUNDATION** | Booking + Case 共用患者比對 |
+| `patient-identity.ts` | **FOUNDATION** | Booking/API foundation；可能與 future Case matching/merge 有關，但 current frozen Case domain 不直接依賴 |
 | `schedule.ts` | **FOUNDATION** | Booking 時段 + Case 完成時間推算 |
 | `roles.ts` | **FOUNDATION** | Canonical role source (ADR-0004) |
 | `audit.ts` / `idempotency.ts` | **FOUNDATION** | 所有寫入路徑共用 |
@@ -673,7 +673,7 @@
 - **Prerequisite:** BOOK-MVP-005/006 final evidence run `32343468738` 11/11 PASS。
 - **Objective:** 只在 spec/governance 層對齊 accepted ADR-0002、2026-08-16 recorded owner input 與仍 pending 的 D-009/D-016：system/domain state 永遠是 authority，Calendar 僅為 projection/operational view，outbound 走 transaction → outbox → worker，inbound 只能 proposed candidate/manual-review queue且不得自動 mutation。
 - **Verified Drift:** plan-only bidirectional document、README/roadmap cross-reference與 decision-register 的 2026-07-28 paragraph仍把「須取代 ADR-0002」或「auto-apply vs review 未選」寫成 current；但 live D-016 row/2026-08-16 input已指定 manual review＋system authoritative（reviewer identity/matching/delete semantics仍未解）。修正不得把 input 升格 approval。
-- **Candidate Files:** `docs/adr/0002-calendar-is-a-projection-not-the-lock.md`、`docs/architecture/calendar-bidirectional-sync-plan.md`、`docs/product/phase-1-decision-register.md`、`docs/product/current-execution-and-approval-plan.md`、`README.md`、`docs/roadmap.md`、`docs/README.md`、本 execution log。
+- **Candidate Files:** `docs/adr/0002-calendar-is-a-projection-not-the-lock.md`、兩份 Calendar integration/bidirectional architecture plan、`docs/architecture/api-v1-contract.md`、Expansion S plan、integration approval packet、`docs/product/phase-1-decision-register.md`、`docs/product/current-execution-and-approval-plan.md`、`README.md`、`docs/roadmap.md`、`docs/README.md`、本 execution log；後四份補讀檔案皆是 drift search 直接命中的 live binding/navigation 文件，不擴張到無關 docs。
 - **Must Not Change:** Calendar/API/worker/runtime code、credentials、Firebase/Terraform、production resource、real Calendar/data、D-series status、dated review evidence。
 - **Acceptance:** current documents agree that manual-review candidate ingestion preserves ADR-0002 authority；任何 future auto-apply/co-authority design才需要 superseding ADR；D-009/D-016保持 pending，且不存在 implementation/deployment claim。Full GitHub required checks green。
 - **Rollback:** docs slice以 `git revert <sha>` 回復；不 rewrite history。

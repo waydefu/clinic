@@ -10,10 +10,12 @@
 另缺專業審查），因此所有 D-series 狀態值不變。Stage 仍為 Stage 1。
 
 **目前狀態：** 既定中文 synthetic 瀏覽器流程已實作；**D-011 英文版已於 2026-08-16
-確認不做，不再是待辦需求**；本狀態也不
-代表真人無障礙、production 或目前 HEAD 已重驗。最後有紀錄的 preview 已到
-2026-08-04 排定到期日，2026-08-11 遠端狀態未驗證。Firestore 寫入只有 dated 本機
-Emulator 證據，且同日稽核新確認三個 correctness 缺口。Stage 0／Checkpoint A 已通過，
+確認不做，不再是待辦需求**。2026-08-20 的 PR #23 已用 current branch HEAD 重新通過
+完整 GitHub required checks（BOOK-MVP-003／004／006 PASS；005 待新 preview URL）；
+這仍不代表真人輔具驗收、merge 或 production。最後有紀錄的 preview 已到
+2026-08-04 排定到期日，2026-08-11 遠端狀態未驗證。Firestore 仍只允許
+Emulator／synthetic；先前三個 correctness 缺口已補齊，PR #23 當前同 commit 的
+GitHub Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 目前仍在 Stage 1 owner decisions；尚無 source-routed cloud backend、Authentication、
 日曆連線或真實病患資料 authority。
 
@@ -243,7 +245,7 @@ Firestore、backup/PITR 或 runtime。
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
 | 個管指派與月度工作量 | 完成（非金額） |
-| Firestore 交易、冪等、outbox | 有 dated Emulator 證據，但 2026-08-11 確認 slot release null sentinel、state-cycle occurrence ID、stale worker settle 未被既有測試涵蓋；`DATA-R01/02`、`ARC-R01` 前不得稱完整驗證，端點維持關閉 |
+| Firestore 交易、冪等、outbox | 僅限 Emulator／synthetic；先前 slot release null sentinel、state-cycle occurrence ID、stale worker settle 缺口已由 `DATA-R01/02`、`ARC-R01` 補齊，PR #23 當前同 commit 的 GitHub Firestore Emulator job 亦通過；未連 cloud backend，端點維持關閉 |
 | 雲端資料庫 | 未啟用 |
 | 身分驗證 | 未啟用（工作臺目前是角色模擬） |
 | Google 日曆 | 未連線 |
@@ -482,7 +484,7 @@ Expansion S（獨立）：手術／臨床／付款／Calendar inbound
 | **P0** | 現況盤點與角色收斂 | Stage 1（現在） | 無 | ✅ **可以** |
 | **P1** | App Shell 與 Design System 擴充 | Stage 1 | 無 | ✅ **可以** |
 | **P2** | 日程管理工作區 | Stage 1→2 | D-004（slot／capacity） | ⚠️ 部分 |
-| **P3** | Google Calendar 雙向同步 | Stage 3＋Expansion S | D-009、D-016、須取代 ADR-0002 | ❌ |
+| **P3** | Google Calendar inbound review／同步 | Stage 3＋Expansion S | D-009、D-016；manual-review/system-authority design須遵守 ADR-0002，只有 co-authority 才需新 ADR 取代 | ❌ |
 | **P4** | 手術與醫療資源管理 | Expansion S | D-014、D-015 | ❌ |
 | **P5** | 患者端重構 | Stage 4 | D-001～D-003、D-005、D-011 | ❌ |
 | **P6** | 多分院與進階營運 | 新 | 需新決策（尚未編號） | ❌ |
@@ -500,7 +502,7 @@ Now    P0 角色收斂 ＋ 現況盤點文件化
 Next   P2 日程管理工作區（需 D-004 才能定案 slot 規則）
        P5 患者端 Shell 分離（結構可先做，資料流受 D-001～D-003 擋）
 
-Later  P3 日曆雙向同步   ← D-009、D-016、ADR-0006
+Later  P3 日曆 inbound review／同步 ← D-009、D-016；ADR-0002保持 authority
        P4 手術與資源     ← D-014、D-015
        P6 多分院         ← 需新決策
        P7 LIFF／App／FCM ← D-011＋新決策
@@ -602,7 +604,7 @@ Later  P3 日曆雙向同步   ← D-009、D-016、ADR-0006
 - [角色權限矩陣](architecture/rbac-matrix.md) — 三套角色定義的收斂提案與六個實施位置
 - [App Shell 與日程工作區重構規劃](design/ui-shell-and-scheduling-redesign-plan.md) — P1／P2 設計
 - [行動版 UX 規劃](design/mobile-ux-plan.md) — 導覽、卡片化與 viewport 驗收
-- [日曆雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — P3，須先取代 ADR-0002
+- [日曆雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — P3 plan-only；manual-review candidate queue須遵守 ADR-0002，任何 co-authority 提案才需新 ADR 取代
 - [測試策略](architecture/test-strategy.md) — 十個測試層級與 E2E 分組
 - [企業級上線前審查](reviews/2026-07-23-enterprise-production-readiness-review.md) — 2026-07-23 的歷史評分、當時阻擋項與驗證證據
 - [正式環境目標架構](architecture/production-target-architecture-2026-07-23.md) — 保留與修改邊界、目標資料流、交易與資料模型

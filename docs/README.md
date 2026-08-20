@@ -58,7 +58,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0005 — patient intake/verification and appointment commands are separate](adr/0005-patient-intake-and-appointment-command-are-separate.md)
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
 - [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
-- [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — plan-only; blocked by D-009/D-016 and requires a new ADR to supersede ADR-0002. Data model, inbound review queue, syncToken/410 rebuild, webhook renewal, conflict handling and the minimum-field privacy rule
+- [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — plan-only and blocked by D-009/D-016; the manual-review candidate model preserves accepted ADR-0002, while any future Calendar co-authority design would require a superseding ADR. Covers the proposed isolated review queue, syncToken/410 rebuild, webhook renewal, conflict handling and minimum-field privacy rule
 - [API v1 contract baseline](architecture/api-v1-contract.md) — navigation layer for the schemas in `packages/contracts`
 - [Local Firestore baseline](architecture/firestore-local-baseline.md) — Emulator-only project and Rules baseline
 - [Synthetic Web modular architecture](architecture/synthetic-web-modular-architecture.md) — browser module boundaries and how they are later replaced by the real API

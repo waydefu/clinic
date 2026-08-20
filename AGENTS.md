@@ -33,6 +33,13 @@ owner statement as settled, and never restate an answer as a legal, medical or
 security approval — D-014's clinical-record classification in particular is still
 open regardless of the owner's operational direction.
 
+The current BOOK-MVP convergence checkpoint is PR #23 (2026-08-20):
+BOOK-MVP-003 frozen Case/Payroll runtime isolation, BOOK-MVP-004 synthetic
+Booking Preview validation and BOOK-MVP-006 payload evidence are green;
+BOOK-MVP-005 still awaits the freshly verified preview URL, and BOOK-MVP-007 is
+spec/governance only. This branch is not merged and does not alter Stage 1,
+production authority, real-data prohibitions or any pending D-series status.
+
 ## Non-negotiable safety boundaries
 
 1. Never use, create, paste, log, test with or export real patient, payroll,

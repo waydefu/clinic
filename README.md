@@ -29,6 +29,14 @@ LineID and gender are not collected. D-001 through D-003 remain pending; D-006
 is approved but not implemented. The preview must not be relied on to collect
 real patient data operationally.
 
+**Booking MVP convergence checkpoint (2026-08-20, PR #23):** frozen Case and
+Payroll runtime isolation (BOOK-MVP-003), independent synthetic Booking Preview
+validation (004) and the authoritative payload report (006) are green on all
+required GitHub jobs. The website-vendor package (005) is ready except for the
+fresh deployed URL/expiry; Calendar alignment (007) is documentation only.
+This unmerged branch checkpoint does not change Stage 1, approve a D-series
+item, enable a production backend or authorise real data.
+
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
 and what is blocked. The
 [current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
@@ -51,7 +59,7 @@ pending owner decisions rather than by engineering capacity.
 | ✅ | P0 role convergence and inventory | nothing — D-006 was approved 2026-07-28 |
 | ✅ | P1 App Shell and design tokens | nothing (front-end only) |
 | ⚠️ | P2 scheduling workspace | D-004 |
-| ❌ | P3 bidirectional Calendar sync | D-009, D-016, and a new ADR superseding ADR-0002 |
+| ❌ | P3 Calendar inbound review/sync | D-009 and D-016; ADR-0002 remains authoritative unless a future co-authority design explicitly supersedes it |
 | ❌ | P4 surgery and clinical resources | D-014, D-015 |
 | ❌ | P5 patient portal rebuild | D-001～D-003, D-005, D-011 |
 | ❌ | P6 multi-branch operations | needs a decision that does not exist yet |

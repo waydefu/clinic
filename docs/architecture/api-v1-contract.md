@@ -95,7 +95,7 @@ Only health is routed; create/cancellation schemas remain reserved.
 | Payroll close / adjustment | `ClosePayrollPeriodRequestSchema` / `RecordPayrollAdjustmentRequestSchema` / `PayrollPeriodSnapshotSchema` | Future application mapping → `planPayrollPeriodClose` + `planPayrollAdjustment` (lock the period; the snapshot is then frozen and reasoned adjustments accumulate in an append-only ledger) | Unrouted Stage 0 schema; finance rule version, lock owner and roles pending D-007/D-008; use approved D-006 security baseline |
 | Surgery / encounter / clinical follow-up | None | Expansion S inventory only | No contract or route; fields, medical owner, correction and retention pending D-001～D-003/D-014; use approved D-006 identity/session baseline |
 | Patient payment / refund / staff settlement | None | Expansion S ledger inventory only | No contract or route; accounting authority, money invariants and field scopes pending D-008/D-015; use approved D-006 identity/session baseline |
-| Calendar inbound change candidate / review | None | Expansion S reconciliation inventory only | No inbound receiver or write path; workbench synchronization direction recorded, but matching, reviewer, conflict, auto-apply/review and delete semantics remain pending D-009/D-016 |
+| Calendar inbound change candidate / review | None | Expansion S reconciliation inventory only | No inbound receiver or write path; 2026-08-16 input selects manual review with the system authoritative, while matching, reviewer identity, conflict, delete semantics and approval metadata remain pending D-009/D-016 |
 
 No controller may infer a missing schema from the browser implementation. A
 row moves from “inventory only” to executable only when its decision
