@@ -334,3 +334,55 @@
   - **CI Status:** `NOT RUN / NOT AVAILABLE` (本機驗證通過，未 push)
 
 - **最終狀態:** **READY FOR FINAL REVIEW** (Inventory 完成並已依 review 修正；003-B 未核准，不施工)
+
+---
+
+### BOOK-MVP-003-B-REDO-A: Clean Baseline & Dependency Proof
+
+#### Before
+- **Timestamp:** 2026-08-20 12:46:25 +08:00 (Asia/Taipei)
+- **Branch:** `agent/book-mvp-003-b-redo`
+- **Baseline HEAD:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`
+- **origin/main:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`（`git fetch origin` 成功後確認）
+- **Worktree:** `F:\診所專案\clinic-book-mvp-003-b-redo`（獨立 clean worktree；不使用既有 dirty/rejected checkout）
+- **目的:** 在任何 runtime 變更前，建立 BOOK-MVP-003-B REDO 的完整 clean-main gate、patient static module graph、build/performance 與 current-main mutation ordering 證據。
+- **Scope:** 僅執行 authoritative baseline gates、clean build、patient dependency/performance measurement、`store.js` current-main 行為證明，以及本 execution log 的 Phase A evidence。
+- **Explicit Non-Scope:** 不修改 runtime、UI、route、renderer、domain、contracts、permissions、RBAC、patient sources、performance budget/checker、clinic、CI、Firebase、Terraform、worker 或 Calendar；不 push、不開 PR、不開始 Phase B 前的 runtime 施工。
+- **Planned Files:** `docs/implementation/phase-1-booking-mvp-execution-log.md`（Phase A 唯一允許修改的檔案）。
+- **PR #22 Boundary:** PR #22 尚未 merge，且不是本 redo 的 implementation source；本 worktree 只從 verified `origin/main` 建立，不 cherry-pick、不複製其 code 或 branch state。
+- **風險:** Windows/CJK worktree 的工具鏈相容性、clean worktree 尚未安裝 dependencies、baseline gate 或 performance 若在 current main 失敗；任何失敗均須分類為 `ENVIRONMENT`、`REMOTE/LOCAL DRIFT`、`ACTUAL MAIN FAILURE` 或 `UNKNOWN`，不得順手修 unrelated issue。
+- **Acceptance Criteria:**
+  1. Worktree clean，branch/HEAD/origin/main 全部符合已驗證基準。
+  2. 指定 baseline gates 與完整 `corepack pnpm verify` 全部 PASS。
+  3. clean build 與 `check:perf` PASS，並記錄 patient document/resource/module graph 基準。
+  4. 證明 current main 的兩條 Case mutation path、normal follow-up 分離與 `saveState` ordering。
+  5. Phase A 只變更 execution log，`git diff --check` 與 docs checks PASS。
+- **Tests:** `check:clinic-freeze`、`check:structure`、`check:architecture`、`check:ui`、`check:docs`、`check:format`、`check:types`、`check:lint`、`check:perf`、`test:unit`、完整 `verify`，以及 clean build/report/module graph evidence。
+- **Rollback Plan:** Phase A evidence commit 以 `git revert <phase-a-commit-sha>` 還原；不 amend、不 rebase、不改寫歷史。
+
+#### During
+- `git fetch origin` 成功；local `origin/main` 與 fetched remote main 均為 `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- 確認 local/remote 均不存在 `agent/book-mvp-003-b-redo` 後，從 verified `origin/main` 建立獨立 worktree；branch、HEAD 與 `origin/main` 全部吻合，source worktree clean。
+- 工具版本：Node `v24.15.0`、Corepack `0.34.6`、pnpm `11.9.0`；初始 `node_modules` 不存在，`pnpm-lock.yaml` 存在。
+- 執行 `corepack pnpm install --frozen-lockfile`；lockfile 驗證與 resolution 通過，但在從 repository-external pnpm store 複製 `@axe-core/playwright` 的 `LICENSE` 至 worktree-local temporary package path 時失敗：
+  - error: `[ERR_PNPM_EPERM] [importPackage ...] EPERM: operation not permitted, copyfile ...`
+  - exit code: `1`
+  - 安裝留下不完整、untracked/ignored 的 worktree-local `node_modules`。
+- 依 `AGENTS.md` 的 dependency rebuild 規則與本 slice stop condition，不刪除、不修復、不重試不完整 dependency tree；未執行任何 baseline package gate，未開始 runtime implementation。
+
+#### After
+- **Timestamp:** 2026-08-20 12:51:19 +08:00 (Asia/Taipei)
+- **實際修改檔案:** `docs/implementation/phase-1-booking-mvp-execution-log.md` only。
+- **Deviations:** 完整 baseline gates、clean build、patient module graph measurement 與 critical-main runtime proof 均因 dependency installation prerequisite 失敗而 `NOT_RUN`；Phase B `NOT_STARTED`。
+- **Failure Classification:** **ENVIRONMENT** — Windows filesystem denied a package-store `copyfile` during frozen-lockfile installation；沒有 remote/local drift 證據，也尚未執行 gate，故不可分類為 actual main failure。
+- **Tests / Results:**
+  - `git diff --check`: PASS。
+  - `check:clinic-freeze`, `check:structure`, `check:architecture`, `check:ui`, `check:docs`, `check:format`, `check:types`, `check:lint`, `check:perf`, `test:unit`, `verify`: **NOT_RUN (blocked before gates)**。
+  - patient build/module/performance baseline: **NOT_RUN**。
+- **Failure/Fix Evidence:** 未嘗試 fix；未刪除 `node_modules`、未改 lockfile、未修改 runtime。需要 owner 明確授權 dependency cleanup/retry 或提供已驗證可用的 clean dependency environment 後再續 Phase A。
+- **Commit SHA:** 待 Phase A governance commit 建立後，以後續 docs-only evidence commit 記錄；不 amend。
+- **Rollback:** `git revert <phase-a-governance-commit-sha>`；worktree-local incomplete `node_modules` 不納入 Git，不在本 slice 自動刪除。
+- **CLINIC HOMEPAGE CHANGED:** **NO**。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **最終狀態:** **BLOCKED (ENVIRONMENT)**。
