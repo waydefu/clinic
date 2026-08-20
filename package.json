@@ -20,7 +20,7 @@
     "check:capture-config": "tsc --noEmit --skipLibCheck --module ESNext --moduleResolution Bundler --target ES2022 --types node playwright.screenshots.config.ts",
     "check:docs": "node scripts/check-docs-links.mjs",
     "check:e2e-groups": "node scripts/e2e-groups.mjs",
-    "check:perf": "node scripts/check-performance-budget.mjs --report",
+    "check:perf": "node scripts/check-performance-budget.mjs",
     "check:tokens": "node scripts/check-design-tokens.mjs",
     "build:brand": "node scripts/build-brand-assets.mjs",
     "build:clinic-assets": "node scripts/build-clinic-assets.mjs",
