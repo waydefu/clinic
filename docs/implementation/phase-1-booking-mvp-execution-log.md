@@ -92,12 +92,12 @@
 - **Test Plan:** 執行 `corepack pnpm run check:docs` 與 `corepack pnpm run check:structure`。
 - **Rollback Plan:** `git revert <commit-sha>` 或刪除新建文件並還原 `docs/README.md`。
 
-#### During
+#### During — BOOK-MVP-006 payload measurement
 - 實際執行：建立 `docs/implementation/` 目錄，撰寫 `phase-1-booking-mvp-execution-log.md`。
 - 將本文件註冊至 `docs/README.md`。
 - 檢查文件連結與結構檢查腳本相容性。
 
-#### After
+#### After — BOOK-MVP-006 payload measurement
 - **實際修改檔案:**
   - `docs/implementation/phase-1-booking-mvp-execution-log.md`
   - `docs/README.md`
@@ -660,6 +660,29 @@
 - **REAL DATA USED:** **NO**。
 - **CLINIC CHANGED:** **NO**。
 - **BOOK-MVP-007 STARTED:** **NO**。
+
+#### After — BOOK-MVP-007 Calendar alignment
+- **Status:** **PASS — SPEC/GOVERNANCE ALIGNMENT ACCEPTED BY REMOTE CI**。
+- **Implementation Commit:** `269c283dfb680d45805031c207dbcc3d58b42ff0` (`docs(governance): align Calendar and BOOK-MVP authority`)。
+- **Authority Result:** accepted ADR-0002 remains authoritative；system/domain state是唯一 booking／availability／capacity authority，Calendar只可作 projection／operational view。Outbound仍是 transaction → outbox → worker；inbound只可作隔離 candidate/manual-review proposal，不得自動 mutation。
+- **Decision Result:** 2026-08-16 manual-review＋system-authoritative input已同步到 live plans/contracts，但沒有升格 formal approval；D-009、D-016保持 `pending`，reviewer identity、matching、delete semantics、scope/exclusions、approval metadata與 SLO仍是 gate。
+- **Remote Acceptance:** run [`32344628527`](https://github.com/waydefu/clinic/actions/runs/32344628527) @ `269c283dfb680d45805031c207dbcc3d58b42ff0` 11/11 PASS；core `96350640878`、Firestore `96350640801`、supply-chain `96350640602`、auth/RBAC `96350640751`、mobile `96350640791`、appointments `96350640813`、patient portal `96350640858`、accessibility `96350640861`、UI `96350640876`、SAST `96350640760`、Verification evidence `96351261166`均 `success`。
+- **Runtime/Route/Worker/Credential Change:** **NO**。
+- **CALENDAR CONNECTED:** **NO**。
+- **REAL CALENDAR DATA USED:** **NO**。
+- **Rollback:** `git revert 269c283`；本 After evidence commit另行 revert，不 rewrite history。
+
+#### After — BOOK-MVP-008 authority sync
+- **Status:** **PASS — LIVE AUTHORITY/NAVIGATION SYNCHRONIZED**。
+- **Reviewed/Changed:** mandatory seven-file review完成；只修 genuine live drift並追讀直接命中的 Calendar binding/navigation docs。Dated review/visual evidence未改，D-series status未改。
+- **Patient Identity Result:** `patient-identity.ts`正確記為 Booking/API foundation；可能與 future Case matching/merge相關，但 current frozen Case domain不直接依賴。
+- **Current Truth:** BOOK-MVP-003／004／006 PASS；BOOK-MVP-005仍待 verified deployed URL/expiry；BOOK-MVP-007只完成 spec/governance。Stage 1、synthetic-only、no-production、no-real-data邊界不變。
+- **Remote Acceptance:** 同一 implementation run [`32344628527`](https://github.com/waydefu/clinic/actions/runs/32344628527) 11/11 PASS，包含 docs/links/format、architecture/UI checks、performance、clinic freeze、unit、all E2E、Firestore、SAST及 Verification evidence。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-009 STARTED:** **NO**。
+- **Completion Gate:** 本 After-evidence docs-only commit的新 HEAD仍須 full GitHub CI 11/11 PASS；通過前不開始 BOOK-MVP-009。
 - **Final Evidence Head:** commit `7e1e3a86a20a138bb223425d15d707908658d011`，run [`32343468738`](https://github.com/waydefu/clinic/actions/runs/32343468738) 11/11 PASS；core `96347125758`、Verification evidence `96347763847` 均 `success`。BOOK-MVP-006 至此完成；BOOK-MVP-005 保持 pre-deployment URL gate。
 
 ---
