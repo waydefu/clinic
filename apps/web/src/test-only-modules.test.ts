@@ -140,6 +140,39 @@ describe('週曆事件排版', () => {
       ]
     );
   });
+
+  it('桌機 matrix 由排班 session 推導，空 cell 不製造事件占位', () => {
+    const html = renderWeekView(initialState(), '2029-12-31', '2029-12-31');
+
+    expect(html).toContain('class="wv-session-table"');
+    expect(html).toContain('data-week-session="600-1080"');
+    expect(html).toContain('10:00–18:00');
+    expect(html).toContain('data-week-session="720-1200"');
+    expect(html).toContain('12:00–20:00');
+    expect(html).not.toContain('data-week-event');
+    expect(html).not.toContain('尚無預約');
+    expect(html).not.toContain('data-top');
+    expect(html).not.toContain('wv-axis');
+  });
+
+  it('排班外仍存在的預約保留在例外列，不因 session 改版消失', () => {
+    const state: any = initialState();
+    state.patients.push({ id: 'patient_outside', name: '排班外患者' });
+    state.appointments.push({
+      id: 'appointment_outside',
+      patientId: 'patient_outside',
+      startsAt: '2029-12-31T04:00:00.000Z',
+      bookingKind: 'initial',
+      itemIds: ['service_snoring'],
+      itemLabel: '睡眠呼吸中止症',
+      status: 'confirmed'
+    });
+
+    const html = renderWeekView(state, '2029-12-31', '2029-12-31');
+    expect(html).toContain('data-week-session="outside"');
+    expect(html).toContain('排班外');
+    expect(html).toContain('data-week-event="appointment_outside"');
+  });
 });
 
 const localClock = (slot: { startsAt: string }) =>
