@@ -58,8 +58,8 @@
 | :--- | :--- | :--- | :--- |
 | **BOOK-MVP-001** | Scope Lock & Ledger Initialization | 建立施工日誌、鎖定第一階段範疇、同步 `docs/README.md` | **PASS** |
 | **BOOK-MVP-002** | Clinic Homepage Freeze Guard | 建立 `/clinic` 靜態檔案清單防護測試與零回歸驗證 | **PASS** |
-| **BOOK-MVP-003** | Frozen Modules Isolation | 對個管、薪資、手術擴充設置 disabled-by-default 與邊界防護 | PENDING |
-| **BOOK-MVP-004** | Booking Preview Independent Validation | 驗證 `/booking` 流程、Synthetic PII 邊界與無障礙／響應式基準 | PENDING |
+| **BOOK-MVP-003** | Frozen Modules Isolation | 對個管、薪資、手術擴充設置 disabled-by-default 與邊界防護 | **PASS** |
+| **BOOK-MVP-004** | Booking Preview Independent Validation | 驗證 `/booking` 流程、Synthetic PII 邊界與無障礙／響應式基準 | **PASS** |
 | **BOOK-MVP-005** | Web Vendor Evaluation Package | 撰寫 `docs/integration/booking-web-vendor-evaluation.md` 評估包 | PENDING |
 | **BOOK-MVP-006** | Frontend Assets Payload Report | 量測 JS/CSS/Assets 原始、gzip、brotli 大小並記錄報告 | PENDING |
 | **BOOK-MVP-007** | Calendar Alignment (Spec & Governance) | 規格層對齊 Outbound 狀態與 Inbound 待審衝突流程（無 code 回寫） | PENDING |
@@ -580,4 +580,31 @@
 - **PRODUCTION RESOURCE TOUCHED:** **NO**。
 - **REAL DATA USED:** **NO**。
 - **CLINIC CHANGED:** **NO**。
+- **BOOK-MVP-005 STARTED:** **NO**。
+
+#### During
+- **Implementation Commits:** `809331407ab80271fb32c815ec342ceda3afb8af`（behavioral boundary tests and initial warning）、`bb2c5d42739c07f243153312902c216da5a9e906`（mobile/keyboard correction and warning consolidation）、`ba39690af1bfb201b5970e20afde53655f86c30f`（accepted document-envelope correction）。
+- **Introduced Finding 1:** run `32340933231` 以 `/patient.html` performance、mobile 首題位置與 keyboard interaction 三個獨立 gate 擋下 standalone warning panel；分類為 branch-introduced，未放寬 gate。
+- **Introduced Finding 2:** run `32341224942` 的 mobile／patient E2E 已綠，但 core 仍以 `/patient.html` document budget 擋下重複警語；分類為 branch-introduced，未修改 patient content 以外架構、budget、checker 或 workflow。
+- **Accepted Design:** real-data prohibition 收斂至既有且 always-visible 的「資料保存」card；保留 `LOCAL TEST ONLY` header、field allowlist、patient module graph 與所有 budget。鍵盤測試改為對真實 element 發送 `Enter`，不以 synthetic event 假設瀏覽器行為。
+
+#### After
+- **Timestamp:** 2026-08-20 (Asia/Taipei)。
+- **Status:** **PASS — INDEPENDENT VALIDATION GREEN**。
+- **Accepted Implementation SHA:** `ba39690af1bfb201b5970e20afde53655f86c30f`。
+- **Changed Runtime/Test Files:** `apps/web/public/patient.html`、`scripts/check-web-ui.mjs`、`tests/e2e/patient-booking.spec.ts`、`tests/e2e/workbench-lifecycle.spec.ts`；`styles.css` 最終無 net change。
+- **Dated Evidence:** `docs/reviews/2026-08-20-booking-preview-independent-validation.md`，並在 `docs/README.md` newest-first 註冊；歷史 baseline 未改寫。
+- **Behavioral Result:** synthetic create/current/cancel、reserved-slot conflict no-write、staff reschedule slot transfer、screen identity masking、keyboard/focus、responsive/accessibility 全數 PASS；初始 static load 後 create/cancel 為零 browser network request。
+- **Persisted-State Result:** conflict rejection 後 serialized localStorage 不變，appointments／patients／auditEvents／outboxJobs counts 不變，原 reservation 保留。
+- **Remote Acceptance:** GitHub-hosted run [`32341449657`](https://github.com/waydefu/clinic/actions/runs/32341449657) @ `ba39690af1bfb201b5970e20afde53655f86c30f`，11/11 jobs `success`。
+- **Core Verify:** job `96341222556`；structure 216、docs 132、clinic freeze 30/30、architecture、UI、format、types、lint、clean build、5 entry performance budgets、64 test files / 1042 tests 全部 PASS。
+- **Required Jobs:** Firestore `96341222586`、supply-chain/secrets `96341222747`、accessibility `96341222777`、mobile `96341222781`、appointments `96341222799`、patient portal `96341222803`、SAST `96341222873`、UI `96341222880`、auth/RBAC `96341222885`、Verification evidence `96341791420` 全部 PASS。
+- **Performance:** **PASS**；`/patient.html` unchanged 7 KiB budget 內，未新增 patient→workbench policy edge，未改 budget/checker/threshold。
+- **Rollback:** 依 `ba39690` → `bb2c5d4` → `8093314` 順序各自 `git revert`；本 After/evidence commit 亦獨立 revert，禁止重寫 shared history。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **PATIENT DATA MODEL CHANGED:** **NO**。
+- **PERFORMANCE BUDGET CHANGED:** **NO**。
+- **WORKFLOW CHANGED:** **NO**。
 - **BOOK-MVP-005 STARTED:** **NO**。
