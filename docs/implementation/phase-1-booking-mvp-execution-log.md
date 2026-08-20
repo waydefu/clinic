@@ -380,8 +380,8 @@
   - `check:clinic-freeze`, `check:structure`, `check:architecture`, `check:ui`, `check:docs`, `check:format`, `check:types`, `check:lint`, `check:perf`, `test:unit`, `verify`: **NOT_RUN (blocked before gates)**。
   - patient build/module/performance baseline: **NOT_RUN**。
 - **Failure/Fix Evidence:** 未嘗試 fix；未刪除 `node_modules`、未改 lockfile、未修改 runtime。需要 owner 明確授權 dependency cleanup/retry 或提供已驗證可用的 clean dependency environment 後再續 Phase A。
-- **Commit SHA:** 待 Phase A governance commit 建立後，以後續 docs-only evidence commit 記錄；不 amend。
-- **Rollback:** `git revert <phase-a-governance-commit-sha>`；worktree-local incomplete `node_modules` 不納入 Git，不在本 slice 自動刪除。
+- **Commit SHA:** `4fbd8b6ede52dcd6cbdedfbb0aa9d6f6e611955d` (`docs(governance): record BOOK-MVP-003-B redo baseline`)。
+- **Rollback:** `git revert 4fbd8b6ede52dcd6cbdedfbb0aa9d6f6e611955d`；worktree-local incomplete `node_modules` 不納入 Git，不在本 slice 自動刪除。
 - **CLINIC HOMEPAGE CHANGED:** **NO**。
 - **PRODUCTION RESOURCE TOUCHED:** **NO**。
 - **REAL DATA USED:** **NO**。
