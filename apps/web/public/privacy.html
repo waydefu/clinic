@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="warm">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -12,10 +12,9 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="canonical" href="https://beauessence.com.tw/privacy" />
     <title>隱私權政策與個資告知草稿｜一森渼診所</title>
-    <!-- 長文維持獨立樣式表；共用 theme.js 只負責在首次繪製前套用使用者已選的
-         顯示偏好，fresh browser 則使用護眼暖色。 -->
+    <!-- 長文維持獨立樣式表與零 script budget；static data-theme 讓這個 utility
+         surface 使用護眼暖色，不複製主應用的切換邏輯。 -->
     <link rel="stylesheet" href="/privacy.css" />
-    <script src="/theme.js"></script>
   </head>
   <body class="policy-body">
     <a class="policy-skip" href="#policy-main">跳到主要內容</a>

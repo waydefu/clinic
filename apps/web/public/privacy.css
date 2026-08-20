@@ -2,8 +2,8 @@
  *
  * 與 error.css 同樣自成一檔、不依賴 styles.css 的 token：這是一份長文件，
  * 需要的是閱讀性而不是預約流程的元件；獨立之後它也不會把預約頁的樣式表預算
- * 吃掉。共用 theme.js 只設定 data-theme，本檔仍自足且不複製任何切換邏輯。
- * CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。
+ * 吃掉。頁面以 static data-theme 使用暖色，不複製主應用的切換邏輯，也維持
+ * 零 script budget。CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。
  *
  * 排版取捨：正文 65 字元寬（長文的可讀行長），行高 1.8（中文字距較密，
  * 比英文長文需要更多行距），標題與段落之間留出明確層級，讓人能用掃的找到

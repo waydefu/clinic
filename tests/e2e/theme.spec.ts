@@ -50,16 +50,13 @@ test.describe('護眼暖色預設與顯式偏好', () => {
     }
   });
 
-  test('utility surfaces respect a saved explicit preference', async ({
+  test('另一個 shared-theme surface respect a saved explicit preference', async ({
     page
   }) => {
     await page.goto('/booking');
     await page.locator('#theme-picker').selectOption('dark');
-
-    for (const url of ['/privacy', '/404.html']) {
-      await page.goto(url);
-      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    }
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 });
 

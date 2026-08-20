@@ -319,7 +319,7 @@ test.describe('隱私權政策頁', () => {
     });
   });
 
-  test('本頁只載入共用主題指令碼，且不下載字型', async ({ page }) => {
+  test('本頁維持零指令碼與零字型下載', async ({ page }) => {
     const scripts: string[] = [];
     const fonts: string[] = [];
     page.on('request', (request) => {
@@ -330,8 +330,7 @@ test.describe('隱私權政策頁', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: /隱私權政策/ })
     ).toBeVisible();
-    expect(scripts).toHaveLength(1);
-    expect(new URL(scripts[0]).pathname).toBe('/theme.js');
+    expect(scripts).toEqual([]);
     expect(fonts).toEqual([]);
   });
 });

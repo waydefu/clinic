@@ -1,8 +1,8 @@
 /* 錯誤頁專用樣式（目前給 404）。
  *
  * 刻意自成一檔、不依賴 styles.css 的 token：錯誤頁要小、要能獨立呈現，
- * 且在任何主題狀態下都成立。共用 theme.js 只設定 data-theme，本檔仍自足。
- * CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。 */
+ * 且在任何主題狀態下都成立。頁面以 static data-theme 使用暖色並維持零 script
+ * budget。CSP 為 style-src 'self'，因此樣式一律外部檔、無 inline。 */
 
 :root {
   --error-bg: #f5efe3;
