@@ -723,7 +723,15 @@ elements['open-privacy-policy'].addEventListener('click', (event) => {
   )
     return;
   event.preventDefault();
-  void openPolicyDialog();
+  void openPolicyDialog({
+    onRead: () => {
+      elements['privacy-consent'].checked = true;
+      elements['privacy-consent-error'].hidden = true;
+      elements['privacy-consent-error'].textContent = '';
+      updateSubmitState();
+      message('已標記為讀過告知草稿；系統未保存正式同意紀錄。', 'success');
+    }
+  });
 });
 
 // P9：勾選來源標籤時同步介紹人欄位的顯示。
