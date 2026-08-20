@@ -8,26 +8,19 @@ const mutationSpies = vi.hoisted(() => ({
 }));
 
 vi.mock('../public/modules/appointment-domain.js', async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import('../public/modules/appointment-domain.js')
-    >();
+  const actual: any = await importOriginal();
   mutationSpies.recordFollowUp.mockImplementation(actual.recordFollowUp);
   return { ...actual, recordFollowUp: mutationSpies.recordFollowUp };
 });
 
 vi.mock('../public/modules/case-management.js', async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import('../public/modules/case-management.js')
-    >();
+  const actual: any = await importOriginal();
   mutationSpies.assignCaseManager.mockImplementation(actual.assignCaseManager);
   return { ...actual, assignCaseManager: mutationSpies.assignCaseManager };
 });
 
 vi.mock('../public/modules/state-schema.js', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../public/modules/state-schema.js')>();
+  const actual: any = await importOriginal();
   mutationSpies.loadState.mockImplementation(actual.loadState);
   mutationSpies.saveState.mockImplementation(actual.saveState);
   return {

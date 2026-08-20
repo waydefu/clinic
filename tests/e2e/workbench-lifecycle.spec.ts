@@ -582,7 +582,7 @@ test.describe('工作臺其餘資料表', () => {
     ).toHaveText(['星期', '時段', '操作']);
   });
 
-  test('個管指派：送出鈕與表單不同格，仍然送得出去', async ({ page }) => {
+  test('個管指派：送出鈕會觸發 frozen boundary', async ({ page }) => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
@@ -601,20 +601,13 @@ test.describe('工作臺其餘資料表', () => {
     await expect(row).toBeVisible();
     await expect(row.locator('.status-chip')).toHaveText('待指派');
 
-    // `<form>` 不能包住 `<tr>`，所以表單放在「個案管理師」那一格，送出鈕靠
-    // form 屬性從「操作」格關聯回去。這個關聯壞掉的話按鈕會完全沒反應，
-    // 而且不會有任何錯誤訊息——所以這裡直接驗它有沒有真的送出。
+    // `<form>` 不能包住 `<tr>`，所以送出鈕靠 form 屬性從操作格關聯回去。
+    // Phase B 仍保留相容入口；收到 frozen error 證明按鈕真的送達 store boundary。
     await row.locator('button[type="submit"][form]').click();
-    await expect(row.locator('.status-chip')).toHaveText('已指派');
-
-    // 指派完成會重算月度統計，數字欄靠右對齊才比得動。
-    const workload = page.locator('#workload table.workload-table');
-    await expect(workload).toBeVisible();
-    await expect(workload.locator('tbody tr')).toHaveCount(1);
-    await expect(workload.locator('td.numeric').first()).toHaveCSS(
-      'text-align',
-      'right'
+    await expect(page.locator('#status')).toContainText(
+      '個案管理功能目前未開放'
     );
+    await expect(row.locator('.status-chip')).toHaveText('待指派');
   });
 
   test('手機寬度下每個工作區都不產生水平捲軸', async ({ page }) => {

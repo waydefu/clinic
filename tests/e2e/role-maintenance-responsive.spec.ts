@@ -94,7 +94,7 @@ test.describe('角色邊界', () => {
     expect(result).toContain('權限');
   });
 
-  test('櫃台可登錄回診與首次指派，但不能改派', async ({ page }) => {
+  test('櫃台可登錄正常回診，但個管指派已凍結', async ({ page }) => {
     await login(page, 'admin', { fresh: false });
     const appointmentId = await createCompletedVisit(page);
     await page.locator('#logout').click();
@@ -111,8 +111,10 @@ test.describe('角色邊界', () => {
     const row = page.locator(`[data-case-row="${appointmentId}"]`);
     await expect(row.locator('[data-case-form]')).toBeVisible();
     await row.locator('button[type="submit"]').click();
-    await expect(row.locator('.status-chip')).toHaveText('已指派');
-    await expect(row).toContainText('改派限主管');
+    await expect(page.locator('#status')).toContainText(
+      '個案管理功能目前未開放'
+    );
+    await expect(row.locator('.status-chip')).toHaveText('待指派');
 
     const result = await callSyntheticStore<string>(page, '/case-assignments', {
       method: 'POST',
@@ -124,7 +126,7 @@ test.describe('角色邊界', () => {
       () => 'allowed',
       (error: unknown) => (error instanceof Error ? error.message : 'denied')
     );
-    expect(result).toContain('權限');
+    expect(result).toContain('個案管理功能目前未開放');
   });
 });
 
