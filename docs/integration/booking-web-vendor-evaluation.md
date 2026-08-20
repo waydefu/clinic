@@ -7,10 +7,12 @@ website:
 
 - Official reservations page: <https://beauessence.com.tw/reservations/>
 - Vendor evaluation route: `/booking` **only**
-- Current owner-refinement preview URL: **PENDING C2 DEPLOYMENT**
-- Current preview expiry: **PENDING C2 DEPLOYMENT**
-- Exact deployed C2: **PENDING C2 DEPLOYMENT**
-- Online verification: **PENDING C2 DEPLOYMENT**
+- Current owner-refinement preview URL:
+  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>
+- Current preview expiry: **2026-08-27 19:20:16 Asia/Taipei**
+  (`2026-08-27T11:20:16.755922478Z`)
+- Exact deployed C2: `091ce0f732b32ad064d3694a26a219cc6e3687fe`
+- Online verification: **PASS — 463/463 repository-defined checks**
 
 The earlier candidate C (`7e0add8079b37da2e1c11ef4f59660554b9b66d8`)
 and its 2026-08-20 preview remain historical deployment evidence. Its URL must
@@ -44,8 +46,7 @@ integration shape; it does not hand over a live API or production credential.
 
 ## 3. Preview evaluation
 
-Do not start vendor evaluation until the exact-C2 URL and expiry above replace
-the pending markers. The vendor-facing route is only:
+Use only the exact-C2 URL and expiry above. The vendor-facing route is only:
 
 - `/booking` — patient Booking Preview and the source reference for the future
   official `/reservations/` surface.

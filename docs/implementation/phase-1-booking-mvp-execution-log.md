@@ -956,3 +956,80 @@
 - **NEW C2 FROZEN:** **NO — SAME-SHA CI PENDING**。
 - **Rollback:** 各個 implementation／test／evidence commit 分別 `git revert <sha>`；
   禁止 amend、rebase、reset、force push。
+
+### OWNER ACCEPTANCE REFINEMENT — EXACT C2 FREEZE AND SYNTHETIC PREVIEW
+
+- **C2:** `091ce0f732b32ad064d3694a26a219cc6e3687fe`
+  (`style(docs): normalize refinement evidence endings`)。C2 包含全部 refinement runtime、
+  tests／guards、pre-deployment owner／vendor docs 與 2026-08-20 新視覺證據；
+  臨時 capture workflow 已移除，C2 的 `.github/workflows/verify.yml` 與
+  `origin/main` 相同。
+- **Remote Main:** 凍結與部署前以 GitHub API 再查仍為
+  `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。沒有 rebase、reset、
+  cherry-pick PR #22 或部署較後 docs HEAD。
+- **C2 Full CI:** run
+  [`32362982753`](https://github.com/waydefu/clinic/actions/runs/32362982753)
+  11/11 `success`；core `96406359507`、UI E2E `96406359547`、accessibility
+  `96406359601`、Firestore `96406359670`、appointments `96406359717`、mobile
+  `96406359738`、patient portal `96406359770`、supply-chain `96406359779`、
+  auth/RBAC `96406359903`、SAST `96406360016`、Verification evidence
+  `96407043254` 全部通過。
+- **Core Detail:** structure 216 files、visual baseline 10 PNGs、clinic freeze 30 files、
+  architecture／UI／public pages／design tokens／docs／format／types／lint／sync／
+  performance 5 entrypoints 全 PASS；unit 64 files／1047 tests PASS，含 preserved
+  `case-assignment.test.ts` 與 `payroll.test.ts`。Performance budget／checker／threshold
+  未改。
+- **Independent Diff Review:** Case authorization 先於 `recordFollowUp`／
+  `assignCaseManager`／audit／outbox／`saveState`；Payroll policy 仍 `false`；patient／store
+  module graph 不可達 workbench policy；週曆只使用 schedule 與 actual
+  appointments；booking 無 initial scroll／clinic-internal header links，privacy 保留
+  Step 3 state/focus。Workflow、lockfile、Firebase／Terraform config、RBAC／roles、
+  Case／Payroll domain、old visual evidence 與 clinic frozen files均無 C2 branch delta。
+- **Exact Deploy Worktree:**
+  `F:\診所專案\tmp\book-mvp-c2-deploy-091ce0f` detached at exact C2；build／deploy／
+  online verification 前後 `git status --short` 無 tracked modification。Source lockfile
+  與 reused installed pnpm lock SHA-256 均為
+  `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`。
+- **Operator / Target:** `wayde.fu@gmail.com`；Firebase CLI `15.18.0`；project
+  `beauessence-clinic-staging` (number `781119800251`)；Hosting preview channel
+  `synthetic-review`；requested expiry `7d`。
+- **Execution:** 只在 deployment process 設定 `CI=true`，執行 unchanged canonical
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+  `firebase.json` predeploy `corepack pnpm run build` 保持啟用，完成 dependency
+  reconciliation、workspace build、18 domain vendor file sync 與 76-file／52-hashed-file
+  web build；沒有改 lockfile／config、替換 dist 或跳過 predeploy。
+- **Hosting Result:** **PASS**。Release `1787224877406000`，version
+  `5690ed4534b5a567` (`FINALIZED`)，release time `2026-08-20T11:21:17.406Z`
+  (19:21:17 Asia/Taipei)。Firebase Authentication channel-domain sync warning 另行記錄；
+  Authentication 未啟用或修改，Hosting release 已完成。
+- **Preview:**
+  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；
+  absolute expiry `2026-08-27T11:20:16.755922478Z`
+  (19:20:16 Asia/Taipei)。
+- **Online Verification:** exact-C2 worktree 以 process-scoped `CI=true` 執行
+  `corepack pnpm verify:preview -- <url>`，於 `2026-08-20T11:22:14.397Z`
+  取得 **463/463 PASS**，evidence commit 為 exact C2。檢查 deployed workbench／
+  booking HTML、staging host、security／noindex headers、HTML no-cache、hashed
+  assets 與 immutable caching。
+- **Interactive Browser Limitation:** in-app browser control 在導航前連續三次因
+  `failed to write kernel assets: path not found` 中止，包含先開 Codex browser
+  tab 後的重試；web open 也被該 service 的 URL safety layer 拒絕。這是
+  browser-tool environment limitation，不是 preview failure。依 owner 本機禁令
+  沒有改跑本機 Playwright；此項不宣稱 PASS，並在 owner／deployment
+  review 保留。Interactive／visual evidence 由 exact-C2 required E2E 與同一
+  unchanged runtime 的 10 張 GitHub-hosted 人工檢視截圖支撐。
+- **Dated Evidence:**
+  `docs/reviews/2026-08-20-booking-mvp-owner-refinement-synthetic-preview-deployment.md`；
+  先前 candidate C deployment 與 2026-08-10／更早 visual evidence 未改寫。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **AUTHORIZED SYNTHETIC HOSTING PREVIEW TOUCHED:** **YES — EXACT C2 RELEASE ONLY**。
+- **LIVE HOSTING DEPLOYED:** **NO**。
+- **BACKEND/FIRESTORE/FUNCTIONS/STORAGE/CLOUD RUN DEPLOYED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **GOOGLE CALENDAR CONNECTED:** **NO**。
+- **PAYROLL REACTIVATED:** **NO**。
+- **PR #23 MERGED:** **NO**。
+- **Rollback:** preview 自動到期；需要提前下架時依 runbook 刪除
+  `synthetic-review` channel。C2 與 post-deployment docs 分別 `git revert <sha>`；
+  不 rebase／reset／force push。

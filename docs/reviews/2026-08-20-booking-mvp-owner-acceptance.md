@@ -1,11 +1,19 @@
 # Booking MVP 業主驗收與交付審查 — 2026-08-20
 
-**現行狀態：PENDING C2 DEPLOYMENT。** 業主已審閱先前 candidate C，並要求
-在同一 PR #23 完成 final owner refinement。先前 exact candidate
-`7e0add8079b37da2e1c11ef4f59660554b9b66d8`、463/463 線上檢查與其 preview
-仍是有效 historical evidence，但不是現行交付候選，也不得作為新的廠商
-或業主驗收網址。現行 C2 URL、expiry 與 online verification 在 exact-C2
-部署完成前保持 **PENDING DEPLOYMENT**。
+**現行狀態：READY FOR OWNER FINAL ACCEPTANCE。** Exact candidate C2
+`091ce0f732b32ad064d3694a26a219cc6e3687fe` 的 GitHub run
+[`32362982753`](https://github.com/waydefu/clinic/actions/runs/32362982753) 11/11 jobs
+全綠，已部署到 expiring `synthetic-review` Hosting channel，並由 exact-C2
+worktree 通過 463/463 repository-defined online checks。
+
+驗收網址：
+<https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；絕對到期時間是
+**2026-08-27 19:20:16 Asia/Taipei**
+(`2026-08-27T11:20:16.755922478Z`)。
+
+業主已審閱的先前 candidate C
+`7e0add8079b37da2e1c11ef4f59660554b9b66d8`、其 463/463 線上檢查與 preview
+仍是有效 historical evidence，但不再是現行交付候選。
 
 這不是正式上線核准，也不得用來處理真實病患、職員、薪資、醫療或 Calendar 資料。
 
@@ -32,8 +40,12 @@
 - 本輪未使用真實資料、未啟用 production backend／Firestore browser access、
   未連接 Google Calendar／LINE／Meta／NAS，也未改變 performance budget。
 
-現行建議是等待 exact C2 full GitHub CI、合成 preview 部署與 online/browser
-驗證完成，再使用本文件將記錄的新 URL 驗收。
+現行建議是使用上方 exact-C2 URL 在桌面與手機完成 final owner
+acceptance。Canonical online verifier 已 463/463 PASS；本 session 的 in-app browser
+control 因本機 kernel asset path 不存在，在打開頁面前三次失敗，因此沒有
+宣稱另一次部署後互動式 browser pass。沒有改用被禁止的本機 Playwright；
+互動與視覺證據來自 exact-C2 full E2E 與同一 runtime 的 10 張 GitHub-hosted
+視覺基準。
 
 ## 先前 candidate C 交付紀錄（historical）
 
