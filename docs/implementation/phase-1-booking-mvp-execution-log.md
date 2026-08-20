@@ -851,3 +851,30 @@
 - **BOOK-MVP-008:** **PASS**。
 - **BOOK-MVP-009:** **PASS — C REMAINS FROZEN**。
 - **Rollback:** preview自動到期；需要提前下架時依 `docs/runbooks/synthetic-online-preview.md#下架`刪除 `synthetic-review` channel。Post-deployment docs commit、D與各 logical slice分別用 `git revert`；不 rebase/reset/force push。
+
+---
+
+### OWNER ACCEPTANCE REFINEMENT — NEW C2 BEFORE RECORD
+
+- **Timestamp:** 2026-08-20 17:43:47 +08:00 (Asia/Taipei)。
+- **Branch / HEAD:** `agent/book-mvp-003-b-redo` @ `7b3e8a33ddf68d33f942599ebf674d7aaee2c1c1`。
+- **Base Main SHA:** `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`；remote main在本輪開始時未前進。
+- **Authority Change:** owner完成已部署 C的體驗審查後，要求在同一 PR #23進行最終 UX/scope refinement。先前 C `7e0add8079b37da2e1c11ef4f59660554b9b66d8`、其 full-CI與 preview deployment仍是有效 historical evidence，但不再是本輪最終交付候選；本輪必須建立、驗證並部署新的 exact candidate **C2**。
+- **Case Reconciliation:** 先前「Phase 1 synthetic workbench完全 freeze `CASE_MANAGEMENT`」被本次 owner direction局部 supersede：只在 synthetic workbench恢復 Case assignment/read-render-mutation reachability，並以 current `ASSIGN_CASE`／`REASSIGN_CASE`權限、pre-mutation authorization、single-save與 no-partial-write invariants實作。這不是 D-007全域 production approval；`PAYROLL_WORKLOAD`仍 frozen，Case domain/contracts/audit vocabulary保留。
+- **Objective:** active non-frozen surfaces預設暖色；恢復正確授權的 Case workflow；把 staff週曆改為真實 schedule-derived compact sessions；移除 booking初始自動捲動並保留每步 context；privacy modal返回時保留 Step 3/state/focus；vendor-facing booking header不暴露 clinic/internal navigation；以 behavioral/architecture/accessibility/performance/full-CI與新 dated visual evidence證明結果。
+- **Scope:** `apps/web/public/theme.js`與 active-surface theme tests；synthetic workbench scope policy、store Case mutation boundary、Case/follow-up UI與 weekly calendar；patient booking layout/scroll/privacy-return/vendor navigation；focused unit/E2E/architecture guards；new dated visual evidence、owner/vendor/execution evidence及 PR #23 current truth。
+- **Non-Scope:** `/clinic`與 doctor frozen HTML/CSS/JS/assets/content/layout/SEO/brand；Payroll renderer/mutation；roles、browser permission vocabulary、API RBAC、Case/Payroll domain/contracts；production backend/data/credentials；Firestore direct browser access；Google Calendar implementation/connection；LINE/Meta/NAS；live Hosting；performance budget/checker/threshold；workflow/lockfiles；PR #22；merge。
+- **Candidate Runtime Files:** `apps/web/public/theme.js`、`apps/web/public/store.js`、`apps/web/public/index.html`、`apps/web/public/styles.css`、`apps/web/public/admin-bootstrap.js`、`apps/web/public/modules/workbench-scope-policy.js`、`apps/web/public/modules/admin-view.js`、`apps/web/public/modules/week-view.js`、`apps/web/public/patient.html`、`apps/web/public/patient-app.js`、`apps/web/public/modules/policy-dialog.js`、`apps/web/public/privacy.html`、`apps/web/public/privacy.css`；任何額外 runtime檔須先以 actual dependency證明必要性。
+- **Candidate Test/Guard Files:** existing focused tests under `apps/web/src` and `tests/e2e` for scope policy、frozen boundary、theme、week calendar、patient booking、privacy、workbench lifecycle/accessibility，以及 `scripts/check-architecture.mjs`、`scripts/check-web-ui.mjs`、`scripts/check-public-pages.mjs` only where actual boundary evidence requires updates。
+- **Mutation Invariants:** `/case-assignments`先判斷 active assignment並 require `ASSIGN_CASE`或`REASSIGN_CASE`，再呼叫 preserved `assignCaseManager`；follow-up含 semantic non-empty `managerId`時先完成 Case action authorization、再完成 `MANAGE_FOLLOW_UP` authorization，之後才可 `recordFollowUp`／`assignCaseManager`，正常 request boundary只 save一次。任何 denial或 invalid whitespace manager intent都不得改 followUps、caseAssignments、auditEvents、outboxJobs、appointments、patient state或 persisted state，亦不得到達 `saveState`。
+- **UI/Data Invariants:** Case只在 synthetic workbench恢復；Payroll保持不可 discover/navigate/render/mutate。週曆只由 business hours/date exceptions/closures/actual appointments衍生，不建立假 event cards。Booking context只顯示 actual selection/state；privacy imported dialog不得導頁或重建 application state。Patient static graph不得新增 workbench-only policy edge。
+- **Acceptance Strategy:** autonomous gated slices A–J；每個 meaningful runtime slice各自 commit、normal push並檢查 PR #23全部 GitHub-hosted jobs。Full acceptance包含 core verify、structure/docs/format/lint/types/build/unit/performance/architecture/UI/public pages/design tokens/clinic freeze、Firestore Emulator、all required E2E、supply-chain/secrets、SAST與 Verification evidence。
+- **Visual Evidence Strategy:** 只新增新的 dated baseline（至少 owner指定的10個 desktop/mobile/flow scenarios）；不得修改、刪除或重新解釋2026-08-10及更早的 historical evidence。
+- **Candidate/Deployment Strategy:** runtime與pre-deployment evidence完成且 exact SHA full-CI綠後凍結為 **C2**；另立 docs-only authority record後，僅以 process-scoped `CI=true`和 unchanged canonical Firebase predeploy從 exact C2部署到 `beauessence-clinic-staging`／`synthetic-review`、expiry `7d`，再跑 `verify:preview`。不得部署較後的 docs HEAD。
+- **Rollback:** 每個 logical slice及其 evidence commit各自以 `git revert <sha>`反向回復；preview自動到期或依既有 runbook提前刪除 channel。禁止 amend/rebase/reset/force push/history rewrite。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **GOOGLE CALENDAR CONNECTED:** **NO**。
+- **PAYROLL REACTIVATED:** **NO**。
+- **NEW C2 FROZEN:** **NO — IMPLEMENTATION NOT STARTED**。
