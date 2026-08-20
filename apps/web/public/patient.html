@@ -237,6 +237,23 @@
           </li>
         </ol>
 
+        <aside
+          class="booking-summary"
+          aria-labelledby="booking-summary-heading"
+        >
+          <p class="eyebrow">BOOKING CONTEXT</p>
+          <h2 id="booking-summary-heading">預約資訊</h2>
+          <p id="booking-summary-step" class="booking-summary-step"></p>
+          <dl id="patient-booking-summary"></dl>
+          <div class="booking-summary-clinic">
+            <strong>一森渼診所</strong>
+            <span>臺北市松山區光復北路112號2樓</span>
+            <span id="patient-hours-booking"
+              >門診時間：週三至週五 12:00–20:00；週六 10:00–18:00</span
+            >
+          </div>
+        </aside>
+
         <section
           id="booking-start"
           class="booking-panel"
@@ -357,10 +374,6 @@
                不用瀏覽器一次只報一欄的原生氣泡。包 form 讓欄位內按 Enter 可送出。 -->
           <form id="patient-booking-form" novalidate>
             <div class="booking-confirmation-grid">
-              <article
-                class="booking-summary"
-                id="patient-booking-summary"
-              ></article>
               <p class="form-required-note">
                 標示 <span class="required-mark" aria-hidden="true">*</span>
                 的欄位為必填。

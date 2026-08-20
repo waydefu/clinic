@@ -43,6 +43,7 @@ let selectedServiceId;
 let selectedSlotId;
 let completedAppointmentId;
 let completedAppointment;
+let activeBookingStep = 1;
 // 時段清單一次只展開幾天，避免一口氣塞滿整月；可按「顯示更多日期」加載，
 // 或用日期選擇器直接跳到某一天。切換看診類型時重置。
 const SLOT_DAYS_PAGE = 5;
@@ -131,7 +132,8 @@ async function runUiAction({
   return false;
 }
 
-function showStep(step, { focusHeading = true } = {}) {
+function showStep(step, { focusHeading = true, scroll = true } = {}) {
+  activeBookingStep = step;
   panels.forEach((panel) => {
     panel.hidden = Number(panel.dataset.bookingStep) !== step;
   });
@@ -144,7 +146,20 @@ function showStep(step, { focusHeading = true } = {}) {
     else indicator.removeAttribute('aria-current');
   });
   const panel = document.querySelector(`[data-booking-step="${step}"]`);
-  panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  renderBookingSummary();
+  if (scroll && panel !== null) {
+    const bounds = panel.getBoundingClientRect();
+    const outsideUsefulViewport =
+      bounds.top < 0 || bounds.top > window.innerHeight * 0.72;
+    if (outsideUsefulViewport) {
+      panel.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+        block: 'start'
+      });
+    }
+  }
   if (!focusHeading || panel === null) return;
   // 換步驟後把鍵盤焦點帶到新步驟的標題，鍵盤與報讀使用者才不會停在原地。
   const heading = document.getElementById(
@@ -183,6 +198,7 @@ function renderHours() {
   const summary =
     lines.length > 0 ? `門診時間：${lines.join('；')}` : '目前未開放門診時間';
   elements['patient-hours-summary'].textContent = summary;
+  elements['patient-hours-booking'].textContent = summary;
   // 頁尾也顯示門診時間：手機版 hero 會收起聯絡卡，時間資訊改由頁尾承接。
   if (elements['patient-hours-footer'] !== undefined)
     elements['patient-hours-footer'].textContent = summary;
@@ -359,6 +375,7 @@ function renderBookingContext() {
   const service = selectedService();
   elements['booking-context'].textContent =
     `目前選擇：${BOOKING_KIND_LABELS[selectedBookingType]}${service ? ` · ${service.label}` : ''}。選錯了嗎？可按上方「返回類型與項目」重選。`;
+  renderBookingSummary();
 }
 
 function renderDayGroup(group) {
@@ -435,12 +452,30 @@ function selectedService() {
   return PATIENT_SERVICES.find((service) => service.id === selectedServiceId);
 }
 
+function renderBookingSummary() {
+  const stepLabels = ['類型與項目', '日期時段', '基本資料', '完成'];
+  elements['booking-summary-step'].textContent =
+    `目前步驟 ${activeBookingStep}／4 · ${stepLabels[activeBookingStep - 1]}`;
+  const slot = state?.slots.find((item) => item.id === selectedSlotId);
+  const service = selectedService();
+  const rows = [
+    ['掛號別', BOOKING_KIND_LABELS[selectedBookingType]],
+    ['看診項目', service?.label ?? '尚未選擇'],
+    ['日期', slot === undefined ? '尚未選擇' : formatFullDate(slot.startsAt)],
+    ['時間', slot === undefined ? '尚未選擇' : formatTime(slot.startsAt)]
+  ];
+  elements['patient-booking-summary'].innerHTML = rows
+    .map(
+      ([label, value]) =>
+        `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
+    )
+    .join('');
+}
+
 function renderConfirmation() {
   const slot = state.slots.find((item) => item.id === selectedSlotId);
   if (slot === undefined) return;
-  const service = selectedService();
-  elements['patient-booking-summary'].innerHTML =
-    `<p class="eyebrow">APPOINTMENT SUMMARY</p><h3>${escapeHtml(BOOKING_KIND_LABELS[selectedBookingType])}</h3><dl><div><dt>項目</dt><dd>${escapeHtml(service?.label ?? '—')}${service ? `（${escapeHtml(service.note)}）` : ''}</dd></div><div><dt>日期</dt><dd>${escapeHtml(formatFullDate(slot.startsAt))}</dd></div><div><dt>時間</dt><dd>${escapeHtml(formatTime(slot.startsAt))}</dd></div><div><dt>地點</dt><dd>一森渼診所</dd></div></dl>`;
+  renderBookingSummary();
   updateSubmitState();
 }
 
@@ -966,7 +1001,7 @@ try {
   renderAll();
   // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。
   if (!state.maintenanceActive) {
-    showStep(1, { focusHeading: false });
+    showStep(1, { focusHeading: false, scroll: false });
     message('已載入診所發布的門診時段。', 'success');
     // 放在載入成功之後：`?notice-read=1` 的公告要蓋掉上面那句，讓使用者知道
     // 已套用測試用閱讀確認，同時明說系統沒有保存正式同意紀錄。

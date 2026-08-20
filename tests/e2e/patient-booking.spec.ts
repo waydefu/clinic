@@ -25,6 +25,35 @@ test.describe('患者線上預約', () => {
     await page.reload();
   });
 
+  test('初次載入停在頁首，預約摘要隨四步驟的真實選擇更新', async ({ page }) => {
+    await expect(page.locator('#patient-title')).toBeVisible();
+    await expect(page.locator('#patient-hours-summary')).toBeVisible();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+    const summary = page.locator('#patient-booking-app > .booking-summary');
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText('初診');
+    await expect(summary).toContainText('尚未選擇');
+
+    const service = page.locator('#patient-services [data-service]').first();
+    const serviceLabel = await service.locator('strong').textContent();
+    await service.click();
+    await expect(summary).toContainText(serviceLabel ?? '');
+    await expect(page.locator('#booking-summary-step')).toContainText(
+      '目前步驟 2／4'
+    );
+
+    const slot = page.locator('[data-patient-slot]').first();
+    const slotTime = await slot.textContent();
+    await slot.click();
+    await expect(page.locator('#booking-summary-step')).toContainText(
+      '目前步驟 3／4'
+    );
+    await expect(summary).toContainText((slotTime ?? '').replace('✓', ''));
+    await expect(summary).not.toContainText('日期尚未選擇');
+    await expect(summary).not.toContainText('時間尚未選擇');
+  });
+
   test('走完四步驟並建立一筆初診預約', async ({ page }) => {
     // 步驟 1：選初診，再選第一個看診項目（選項目會前進到步驟 2）。
     await page.locator('[data-booking-type="initial"]').click();
@@ -53,6 +82,12 @@ test.describe('患者線上預約', () => {
     );
     await expect(page.locator('#booking-result')).toContainText('預約編號');
     await expect(page.locator('#booking-result')).toContainText('appointment_');
+    await expect(page.locator('#booking-summary-step')).toContainText(
+      '目前步驟 4／4'
+    );
+    await expect(
+      page.locator('#patient-booking-app > .booking-summary')
+    ).not.toContainText('尚未選擇');
   });
 
   test('固定顯示合成資料邊界，鍵盤可完成預約與取消且不發出後端請求', async ({

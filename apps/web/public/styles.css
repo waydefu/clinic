@@ -1261,6 +1261,58 @@ textarea {
   padding: clamp(1.25rem, 3vw, 2.2rem);
   scroll-margin-top: var(--scroll-anchor-offset);
 }
+#patient-booking-app:not([hidden]) {
+  display: grid;
+  gap: 0 var(--space-md);
+  grid-template-columns: minmax(16rem, 0.34fr) minmax(0, 1fr);
+}
+.patient-hero,
+#patient-status,
+.booking-stepper,
+.patient-upcoming-section,
+.patient-help-grid {
+  grid-column: 1 / -1;
+}
+.booking-summary {
+  background: var(--surface-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-1);
+  grid-column: 1;
+  padding: var(--space-md);
+  position: sticky;
+  top: calc(var(--scroll-anchor-offset) + var(--space-xs));
+}
+.booking-panel {
+  grid-column: 2;
+  min-width: 0;
+}
+.booking-summary h2 {
+  color: var(--forest-dark);
+  font-family: var(--font-serif-tc);
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-2xs);
+}
+.booking-summary-step {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  margin: 0;
+}
+.booking-summary-clinic {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--space-3xs);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+}
+.booking-summary-clinic strong {
+  color: var(--forest-dark);
+}
+.booking-summary-clinic span {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
 .booking-panel-heading {
   margin-bottom: var(--space-md);
 }
@@ -1477,19 +1529,21 @@ textarea {
 .booking-confirmation-grid {
   display: grid;
   gap: var(--space-sm);
-  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
+  grid-template-columns: 1fr;
 }
 .booking-summary,
 .booking-summary h3 {
   color: var(--forest-dark);
   font-size: var(--text-md);
 }
-.booking-summary dl {
+.booking-summary dl,
+#patient-booking-summary {
   display: grid;
   gap: var(--space-xs);
   margin: var(--space-sm) 0 0;
 }
-.booking-summary dl div {
+.booking-summary dl div,
+#patient-booking-summary div {
   align-items: baseline;
   border-bottom: 1px solid var(--line);
   display: flex;
@@ -2137,6 +2191,17 @@ label:has(> input[type='radio']) {
   .booking-confirmation-grid,
   .patient-help-grid {
     grid-template-columns: 1fr;
+  }
+  #patient-booking-app:not([hidden]) {
+    grid-template-columns: 1fr;
+  }
+  .booking-summary,
+  .booking-panel {
+    grid-column: 1;
+  }
+  .booking-summary {
+    margin-bottom: var(--space-sm);
+    position: static;
   }
   .patient-appointment-card {
     align-items: flex-start;
