@@ -64,12 +64,13 @@ test.describe('患者線上預約', () => {
     });
     await page.reload();
 
-    const boundary = page.locator('#patient-preview-boundary');
-    await expect(boundary).toBeVisible();
-    await expect(boundary).toContainText(
-      '請勿輸入任何真實患者、健康資訊或第三人資料'
-    );
-    await expect(boundary).toContainText('只保存在目前瀏覽器');
+    const headerBoundary = page.locator('.patient-header .environment-badge');
+    await expect(headerBoundary).toBeVisible();
+    await expect(headerBoundary).toContainText('勿填真實患者資料');
+    const footerBoundary = page.locator('#patient-env-boundary');
+    await expect(footerBoundary).toBeVisible();
+    await expect(footerBoundary).toContainText('勿填真實患者或健康資料');
+    await expect(footerBoundary).toContainText('只存本機瀏覽器');
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       'content',
       'noindex, nofollow'
@@ -104,12 +105,14 @@ test.describe('患者線上預約', () => {
     expect(requests.filter((request) => request.method !== 'GET')).toEqual([]);
     requests.length = 0;
 
-    await page.locator('[data-booking-type="initial"]').focus();
-    await page.keyboard.press('Enter');
-    await page.locator('#patient-services [data-service]').first().focus();
-    await page.keyboard.press('Enter');
-    await page.locator('[data-patient-slot]').first().focus();
-    await page.keyboard.press('Enter');
+    await page.locator('[data-booking-type="initial"]').press('Enter');
+    await page
+      .locator('#patient-services [data-service]')
+      .first()
+      .press('Enter');
+    await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
+    await page.locator('[data-patient-slot]').first().press('Enter');
+    await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
     await page.locator('#patient-name').fill('鍵盤合成患者');
     await page.locator('#patient-phone').fill('0900111222');
     await fillBirthDate(page, { year: '1991', month: '04', day: '18' });

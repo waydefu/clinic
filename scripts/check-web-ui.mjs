@@ -529,13 +529,13 @@ requireText(
 );
 requireText(
   files.patientHtml,
-  'id="patient-preview-boundary"',
-  'Patient preview boundary is no longer a static, source-controlled surface.'
+  '測試預覽｜勿填真實患者資料',
+  'Patient header no longer identifies the test-only real-data boundary.'
 );
 requireText(
   files.patientHtml,
-  '請勿輸入任何真實患者、健康資訊或第三人資料',
-  'Patient preview no longer warns against real patient or health data.'
+  '勿填真實患者或健康資料｜只存本機瀏覽器',
+  'Patient footer no longer warns against real patient or health data.'
 );
 const localOnlyLinks =
   files.patientHtml.match(/\bdata-local-only-link\b/g)?.length ?? 0;
