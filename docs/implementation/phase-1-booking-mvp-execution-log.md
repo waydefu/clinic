@@ -14,7 +14,7 @@
 2. **Calendar inbound review 邊界 (BOOK-MVP-007)**：現階段僅允許 manual-review／system-authoritative 規格、治理與文件對齊；accepted ADR-0002 保持有效，D-009/D-016 未核准前，**嚴禁實作任何 inbound webhook、syncToken 輪詢、API route 或回寫邏輯**。任何 future Calendar co-authority 提案才須先用新 ADR 明確取代 ADR-0002。
 3. **診所首頁 `/clinic` 絕對凍結**：`/clinic` 實際 HTML / CSS / JS / assets 全面 Freeze；允許新增或修改純 regression / freeze guard 測試，但**絕不得改變首頁 baseline 或任何外觀與邏輯**。
 4. **統一 Step ID 與追蹤對照**：BOOK-MVP-001 ～ 009 統一編號，禁止編號漂移。每個 Step 獨立記錄 Before / During / After，獨立 Commit；PR 依邏輯單元整合。
-5. **Booking Preview 網址宣告**：Booking Preview 尚無有效遠端 URL，廠商評估文件（Vendor Package）標示為 `PENDING DEPLOYMENT`，**嚴禁引用已過期或未經授權的舊 URL**。待取得本次明確部署授權並完成部署後，方得寫入實際 URL 與到期日。
+5. **Booking Preview 網址宣告**：Booking Preview 尚無有效遠端 URL，廠商評估文件（Vendor Package）標示為 `PENDING DEPLOYMENT`，**嚴禁引用已過期或未經授權的舊 URL**。待取得本次明確部署授權並完成部署後，方得寫入實際 URL 與到期日。**2026-08-20 supersession：** exact candidate C 經獨立授權部署並通過 463/463 線上檢查後，此 gate 已履行；current URL／expiry 見 BOOK-MVP-005 package 與下方 Attempt 2。
 6. **Preview 個資欄位定性**：Preview 表單「包含 PII 類型欄位，但只能使用 Synthetic Data，嚴禁輸入任何真實患者資料」。
 
 ---
@@ -60,7 +60,7 @@
 | **BOOK-MVP-002** | Clinic Homepage Freeze Guard | 建立 `/clinic` 靜態檔案清單防護測試與零回歸驗證 | **PASS** |
 | **BOOK-MVP-003** | Frozen Modules Isolation | 對個管、薪資、手術擴充設置 disabled-by-default 與邊界防護 | **PASS** |
 | **BOOK-MVP-004** | Booking Preview Independent Validation | 驗證 `/booking` 流程、Synthetic PII 邊界與無障礙／響應式基準 | **PASS** |
-| **BOOK-MVP-005** | Web Vendor Evaluation Package | 撰寫 `docs/integration/booking-web-vendor-evaluation.md` 評估包 | IN PROGRESS — DEPLOYED URL PENDING |
+| **BOOK-MVP-005** | Web Vendor Evaluation Package | 撰寫 `docs/integration/booking-web-vendor-evaluation.md` 評估包 | **PASS** |
 | **BOOK-MVP-006** | Frontend Assets Payload Report | 量測 JS/CSS/Assets 原始、gzip、brotli 大小並記錄報告 | **PASS** |
 | **BOOK-MVP-007** | Calendar Alignment (Spec & Governance) | 規格層對齊 Outbound 狀態與 Inbound 待審衝突流程（無 code 回寫） | **PASS** |
 | **BOOK-MVP-008** | Documentation & Authority Sync | 同步更新 `AGENTS.md`、`README.md`、`roadmap.md` 等權威文件 | **PASS** |
@@ -823,3 +823,31 @@
 - **REAL DATA USED:** **NO**。
 - **BOOK-MVP-005 Status:** **IN PROGRESS — VERIFIED EXACT-C URL STILL PENDING**。
 - **BOOK-MVP-009 Status:** **PASS — C REMAINS VALID/FROZEN**。
+
+### SYNTHETIC PREVIEW DEPLOYMENT ATTEMPT 2 — OWNER-AUTHORIZED `CI=true` RESOLUTION
+
+- **Resolution Authority:** owner於 2026-08-20完成前次 blocker review，確認 candidate C未被拒絕，並只針對 exact-C non-interactive deploy／canonical predeploy明確授權一次 process-scoped `CI=true` retry；未授權 `confirmModulesPurge=false`或任何 repository config/source/history變更。
+- **Previous Status Preserved:** Attempt 1 的 `BLOCKED — ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`與 expiry-only partial effect保留如上；本紀錄不把先前正確 stop改寫成成功。
+- **Exact Source:** clean detached worktree @ `7e0add8079b37da2e1c11ef4f59660554b9b66d8`（C）；retry前、canonical build後與 `verify:preview`後 `git status --short`均無 tracked modification。未部署 PR HEAD、D、main或 PR #22。
+- **Operator / Target:** `wayde.fu@gmail.com`；project `beauessence-clinic-staging`（number `781119800251`）；Hosting preview channel `synthetic-review`；requested expiry `7d`。
+- **Execution:** 只在 deployment process設定 `CI=true`，執行 unchanged canonical `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。`firebase.json` predeploy `corepack pnpm run build`保持啟用，完成 dependency reconciliation、workspace build、18 domain vendor file sync與 76-file hashed web dist；沒有跳過 predeploy、替換 dist、修改 lockfile／package／Firebase config或持久化環境設定。
+- **Result:** **PASS — EXACT C CONTENT UPLOADED AND RELEASED**。Release `1787215117437000`，version `461a8ca164840843`（`FINALIZED`），release time `2026-08-20T08:38:37.437Z`（16:38:37 Asia/Taipei）。Firebase Authentication channel-domain sync warning另行記錄；Authentication不在 authority內且未啟用，Hosting release本身完成。
+- **Preview:** <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；absolute expiry `2026-08-27T08:37:05.942064109Z`（16:37:05 Asia/Taipei）。同一 channel URL先前指向舊 release；本次只在新 release/version與 embedded exact-C marker均被查證後才成為 current delivery URL。
+- **Online Verification:** process-scoped `CI=true`下執行 `corepack pnpm verify:preview -- <current-url>`，於 `2026-08-20T08:39:00.239Z`取得 **463/463 PASS**；commit marker為 C。涵蓋 `/booking`、`/clinic`、`/privacy`、workbench、security/noindex headers、HTML no-cache、hashed JS/CSS immutable cache、synthetic/local-browser/masked-identity與 no-backend／Firestore／Calendar／LINE／Meta／NAS boundary。
+- **Dated Evidence:** `docs/reviews/2026-08-20-booking-mvp-synthetic-preview-deployment.md`；historical 2026-07/08 deployment與 visual evidence未修改。
+- **Delivery Result:** vendor package與 owner package已寫入 verified URL、expiry、C與驗收說明；**BOOK-MVP-005 PASS**，vendor handoff READY，owner acceptance READY FOR OWNER TESTING。
+- **Final Documentation Gate:** 本 post-deployment docs commit push後，新的 PR #23 HEAD仍須所有 required GitHub jobs與 Verification evidence GREEN；candidate-C run不能替代這個 final-head gate。
+- **LIVE HOSTING DEPLOYED:** **NO**。
+- **BACKEND/FIRESTORE/FUNCTIONS/STORAGE/CLOUD RUN DEPLOYED:** **NO**。
+- **CALENDAR CONNECTED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO**。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **BOOK-MVP-003:** **PASS**。
+- **BOOK-MVP-004:** **PASS**。
+- **BOOK-MVP-005:** **PASS**。
+- **BOOK-MVP-006:** **PASS**。
+- **BOOK-MVP-007:** **PASS — SPEC/GOVERNANCE ONLY**。
+- **BOOK-MVP-008:** **PASS**。
+- **BOOK-MVP-009:** **PASS — C REMAINS FROZEN**。
+- **Rollback:** preview自動到期；需要提前下架時依 `docs/runbooks/synthetic-online-preview.md#下架`刪除 `synthetic-review` channel。Post-deployment docs commit、D與各 logical slice分別用 `git revert`；不 rebase/reset/force push。

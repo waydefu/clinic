@@ -7,13 +7,21 @@ website:
 
 - Official reservations page: <https://beauessence.com.tw/reservations/>
 - Current synthetic preview route: `/booking`
-- Preview URL: **PENDING DEPLOYMENT**
-- Preview expiry: **PENDING DEPLOYMENT** (the authorized preview will expire
-  after seven days)
+- Verified preview URL:
+  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>
+- Preview expiry: **2026-08-27 16:37:05 Asia/Taipei**
+  (`2026-08-27T08:37:05.942064109Z`)
+- Deployed candidate:
+  `7e0add8079b37da2e1c11ef4f59660554b9b66d8`
+- Verification: **PASS — 463/463 repository-defined online checks**
 
 The preview is for layout, interaction and technical evaluation only. It is
 `noindex`, uses synthetic browser-local state and must never receive real
 patient or health data.
+
+> **SYNTHETIC TEST ONLY — DO NOT ENTER REAL PATIENT DATA.** The link is public
+> to anyone who has it and expires automatically; it is not a production
+> booking service.
 
 ## 2. Recommended integration
 
@@ -34,8 +42,7 @@ integration shape; it does not hand over a live API or production credential.
 
 ## 3. Preview evaluation
 
-Use the current preview only after the verified URL replaces `PENDING
-DEPLOYMENT`. The relevant routes are:
+Use only the verified URL and expiry recorded above. The relevant routes are:
 
 - `/booking` — patient Booking Preview.
 - `/` — synthetic staff workbench used to check the shared booking lifecycle.

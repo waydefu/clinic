@@ -2,7 +2,7 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-08-17
+**整合更新：** 2026-08-20
 
 **39 題業主答案已於 2026-08-16 全數回收**，逐題對帳見
 [2026-08-17 對帳紀錄](reviews/2026-08-17-owner-decision-reconciliation.md)。答案是
@@ -11,11 +11,11 @@
 
 **目前狀態：** 既定中文 synthetic 瀏覽器流程已實作；**D-011 英文版已於 2026-08-16
 確認不做，不再是待辦需求**。2026-08-20 的 PR #23 已用 current branch HEAD 重新通過
-完整 GitHub required checks（BOOK-MVP-003／004／006 PASS；005 待新 preview URL）；
-這仍不代表真人輔具驗收、merge 或 production。最後有紀錄的 preview 已到
-2026-08-04 排定到期日，2026-08-11 遠端狀態未驗證。Firestore 仍只允許
-Emulator／synthetic；先前三個 correctness 缺口已補齊，PR #23 當前同 commit 的
-GitHub Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
+完整 GitHub required checks；BOOK-MVP-003～009 均 PASS（007 僅為 spec/governance）。
+Exact candidate `7e0add8` 的 `synthetic-review` preview 已驗證 463/463，排定於
+2026-08-27 到期。這仍不代表真人輔具驗收、merge 或 production。Firestore 仍只允許
+Emulator／synthetic；先前三個 correctness 缺口已補齊，PR #23 同 commit 的 GitHub
+Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 目前仍在 Stage 1 owner decisions；尚無 source-routed cloud backend、Authentication、
 日曆連線或真實病患資料 authority。
 

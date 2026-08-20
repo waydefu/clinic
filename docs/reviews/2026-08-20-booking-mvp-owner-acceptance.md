@@ -1,7 +1,8 @@
 # Booking MVP 業主驗收與交付審查 — 2026-08-20
 
-**狀態：** 部署前候選版；合成預覽網址與到期日待本次授權部署後補入。這不是正式
-上線核准，也不得用來處理真實病患、職員、薪資、醫療或 Calendar 資料。
+**狀態：READY FOR OWNER TESTING。** Exact candidate
+`7e0add8079b37da2e1c11ef4f59660554b9b66d8` 已部署並通過 463/463 線上檢查。
+這不是正式上線核准，也不得用來處理真實病患、職員、薪資、醫療或 Calendar 資料。
 
 ## 業主需要知道的 11 件事
 
@@ -10,7 +11,7 @@
    fail closed，但原有 domain／contract／tests 均保留（Freeze != Delete）。另完成
    Booking Preview 獨立驗證、網站廠商評估包、前端傳輸量報告、Calendar 規格對齊
    與 live 文件同步。
-2. **現在業主可以實際測什麼？** 待下方新預覽網址補入後，可用全合成資料測
+2. **現在業主可以實際測什麼？** 使用下方已驗證網址，可用全合成資料測
    `/booking` 建立、查看目前預約、改期與取消；在工作臺測清單／搜尋／篩選、狀態、
    排班、營業時間／例外／休診、時段與一般回診追蹤。建議各測一次桌面與手機版。
 3. **哪些功能仍刻意凍結？** Case Management、Payroll／Commission、手術／臨床
@@ -26,19 +27,24 @@
    現行權威仍是 system/domain；Calendar 只可作 projection／operational view，outbound
    必須走 transaction → outbox → worker。Inbound 目前只有人工審查候選佇列規格，
    不得自動修改系統；D-009／D-016 仍 pending。
-7. **網站廠商接下來拿到什麼？** 一份不需整包 repository 的
+7. **網站廠商接下來拿到什麼？** 已可交付一份不需整包 repository 的
    [整合評估包](../integration/booking-web-vendor-evaluation.md)與
    [payload 報告](../integration/booking-frontend-payload-report.md)，包含官方
    `/reservations/` 目標、推薦 Widget + API 模式、API-only 替代、responsive／
    accessibility／error responsibilities，以及 current preview 不可直接 iframe 的限制。
-8. **測試結果是否全部通過？** 候選凍結前的同 commit GitHub run
-   [32345057004](https://github.com/waydefu/clinic/actions/runs/32345057004) 已 11/11
+8. **測試結果是否全部通過？** Exact candidate C 的 GitHub run
+   [32345967000](https://github.com/waydefu/clinic/actions/runs/32345967000) 已 11/11
    jobs PASS（含 verify/performance/clinic freeze、unit、全部 E2E、Firestore Emulator、
-   supply-chain、SAST 與 Verification evidence）。最終候選 C、授權紀錄 D、部署後文件
-   head 仍各自必須同 SHA 全綠，才可結案。
-9. **預覽網址與到期日？** `PENDING DEPLOYMENT`。只允許部署到
-   `beauessence-clinic-staging` 的 `synthetic-review` Hosting preview channel，期限
-   7 天；部署與線上驗證通過後才會以 Firebase 新網址及絕對到期時間取代本行。
+   supply-chain、SAST 與 Verification evidence）；授權紀錄 D 的 run
+   [32346355049](https://github.com/waydefu/clinic/actions/runs/32346355049) 亦 11/11 PASS。
+   部署後 `verify:preview` 為 463/463 PASS；本文件所在 final docs HEAD 仍須通過
+   GitHub required checks 才可供 merge review。
+9. **預覽網址與到期日？**
+   <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；到期時間為
+   **2026-08-27 16:37:05 Asia/Taipei**
+   (`2026-08-27T08:37:05.942064109Z`)。這是 `beauessence-clinic-staging` 的
+   `synthetic-review` Hosting preview channel；部署內容是 exact candidate C，不是
+   PR #23 的 docs-only current HEAD。
 10. **如果要回復，如何 rollback？** 程式與文件以 `git revert` 逐一回復，不改寫
     shared history；預覽會自動到期，也可依
     [preview runbook](../runbooks/synthetic-online-preview.md#下架)刪除該 preview channel。
@@ -52,7 +58,9 @@
 
 ## 建議驗收順序
 
-1. 手機（約 375px）與桌面各完成一筆全合成 `/booking` 預約，確認警語、欄位、
+1. 開啟
+   <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；手機（約
+   375px）與桌面各完成一筆全合成 `/booking` 預約，確認警語、欄位、
    錯誤提示、目前預約、改期與取消。
 2. 工作臺以合成角色確認預約清單／搜尋／篩選、狀態、排班、日期例外、休診、時段
    與一般 follow-up；確認看不到 Case／Payroll entry，直接舊 hash 會安全回到 overview。

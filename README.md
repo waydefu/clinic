@@ -31,11 +31,12 @@ real patient data operationally.
 
 **Booking MVP convergence checkpoint (2026-08-20, PR #23):** frozen Case and
 Payroll runtime isolation (BOOK-MVP-003), independent synthetic Booking Preview
-validation (004) and the authoritative payload report (006) are green on all
-required GitHub jobs. The website-vendor package (005) is ready except for the
-fresh deployed URL/expiry; Calendar alignment (007) is documentation only.
-This unmerged branch checkpoint does not change Stage 1, approve a D-series
-item, enable a production backend or authorise real data.
+validation (004), the verified website-vendor package (005) and the
+authoritative payload report (006) are green. Exact candidate `7e0add8` is
+available on the expiring, `noindex` synthetic preview until 2026-08-27;
+Calendar alignment (007) is documentation only. This unmerged branch checkpoint
+does not change Stage 1, approve a D-series item, enable a production backend or
+authorise real data.
 
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
 and what is blocked. The
@@ -139,9 +140,9 @@ as equivalent to CodeQL cross-file analysis.
 ## Clinic website integration — 2026-07-27
 
 The source implementation includes a responsive clinic website at `/clinic`,
-two medical-team profiles and four nasal-functional-medicine pages. Its last
-recorded synthetic preview channel expired on 2026-08-04; current Hosting
-availability was not verified in the 2026-08-11 audit.
+two medical-team profiles and four nasal-functional-medicine pages. A new
+exact-commit synthetic preview was separately authorised and verified on
+2026-08-20; it is scheduled to expire on 2026-08-27.
 Plastic-surgery and injectable/medical-aesthetic category pages are excluded.
 Every clinic appointment call to action enters the existing `/booking` flow,
 and the booking header links back to the clinic site. The two surfaces share
@@ -149,8 +150,8 @@ the same white, mist-green and deep-forest visual direction.
 
 The authorised presentation remains static and noindex: clinic information
 pages collect nothing, while the patient form is browser-local and must not
-receive real patient data. This source fact does not assert that a preview is
-currently online. See the
+receive real patient data. Preview availability grants no production or
+real-data authority. See the
 [clinic website and booking integration record](docs/design/clinic-site-integration-2026-07-27.md)
 for the route map, content boundary and implementation structure.
 
