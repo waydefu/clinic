@@ -19,6 +19,8 @@ const paths = {
   adminView: 'apps/web/public/modules/admin-view.js',
   schedule: 'apps/web/public/modules/schedule-engine.js',
   cases: 'apps/web/public/modules/case-management.js',
+  workbenchScope: 'apps/web/public/modules/workbench-scope-policy.js',
+  workspaceTabs: 'apps/web/public/modules/workspace-tabs.js',
   permissions: 'apps/web/public/modules/permissions.js',
   constants: 'apps/web/public/modules/constants.js',
   confirmDialog: 'apps/web/public/modules/confirm-dialog.js',
@@ -159,10 +161,32 @@ requireText(
   '登錄回診指示',
   'Admin shell is missing per-appointment follow-up decisions.'
 );
+for (const selector of [
+  'href="#case-section"',
+  'id="case-section"',
+  'id="case-assignment-list"',
+  'id="workload-count"',
+  'id="workload"'
+])
+  refuseText(
+    files.adminShell,
+    selector,
+    `Frozen Case/Payroll selector remains discoverable in the active admin shell: ${selector}`
+  );
 requireText(
-  files.adminShell,
-  '個管指派與工作量',
-  'Admin shell is missing case assignment workflow.'
+  files.workspaceTabs,
+  "from './workbench-scope-policy.js'",
+  'Workspace hash navigation no longer applies the Phase 1 scope policy.'
+);
+requireText(
+  files.workbenchScope,
+  'CASE_MANAGEMENT: false',
+  'Case Management is not fail closed in the workbench scope policy.'
+);
+requireText(
+  files.workbenchScope,
+  'PAYROLL_WORKLOAD: false',
+  'Payroll workload is not fail closed in the workbench scope policy.'
 );
 requireText(
   files.adminShell,
@@ -236,7 +260,7 @@ requireText(
 requireText(
   files.store,
   "path==='/case-assignments'",
-  'Store is missing case-manager assignment.'
+  'Store is missing the frozen case-manager compatibility boundary.'
 );
 requireText(
   files.schedule,

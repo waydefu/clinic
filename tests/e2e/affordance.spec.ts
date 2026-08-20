@@ -37,7 +37,6 @@ const WORKSPACES = [
   '#overview',
   '#appointments-section',
   '#schedule-section',
-  '#case-section',
   '#accounts-section',
   '#communications-section',
   '#audit-section'
@@ -334,7 +333,6 @@ test.describe('可點擊性（affordance）', () => {
       '#overview',
       '#appointments-section',
       '#schedule-section',
-      '#case-section',
       '#accounts-section',
       '#audit-section'
     ]) {

@@ -8,7 +8,6 @@ import {
   renderAccounts,
   renderAppointments,
   renderAudit,
-  renderCaseAssignments,
   renderDelegations,
   renderFollowUps,
   renderIntakeSheet,
@@ -18,8 +17,7 @@ import {
   renderSchedule,
   renderSlots,
   renderTagPicker,
-  renderTasks,
-  renderWorkload
+  renderTasks
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
 import { runPendingAction } from './modules/async-action.js';
@@ -337,8 +335,8 @@ function renderSession() {
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
     state.session.account.role === 'admin'
-      ? '可設定營業時間、改派個管、帳號與系統治理。'
-      : '可處理預約、到診、登錄回診指示與首次個管指派。';
+      ? '可設定營業時間、帳號與系統治理。'
+      : '可處理預約、到診與登錄回診指示。';
   applyWorkspacePanel();
 }
 
@@ -498,9 +496,6 @@ function renderSummary() {
   elements['completed-count'].textContent = String(
     state.appointments.filter((item) => item.status === 'completed').length
   );
-  elements['workload-count'].textContent = String(
-    state.workload.reduce((sum, item) => sum + item.uniquePatientCount, 0)
-  );
   elements['task-list'].innerHTML = renderTasks(state);
   elements['next-up'].innerHTML = renderNextUp(state);
   // 待辦件數是「有幾種待辦還沒清掉」，不是總筆數——首頁要回答的是「還有幾件事
@@ -580,8 +575,6 @@ function render() {
     state,
     editingFollowUps
   );
-  elements['case-assignment-list'].innerHTML = renderCaseAssignments(state);
-  elements.workload.innerHTML = renderWorkload(state);
   // 每個清單的內容都是整批置換，所以清單本身不是 live region；改由這些簡短的
   // 摘要負責公告「變了、現在有幾筆」。詳見 index.html 裡 #appointments 上方的
   // 說明。計數一律直接數 DOM，數字才不會和實際畫出來的東西分家。
@@ -591,13 +584,6 @@ function render() {
     '[data-follow-up-form]',
     '筆待確認'
   );
-  countSummary(
-    'case-summary',
-    'case-assignment-list',
-    '[data-case-row]',
-    '筆個案'
-  );
-  countSummary('workload-summary', 'workload', '[data-workload-row]', '筆統計');
   renderCommunicationForms();
   if (isAdminSession()) {
     elements['published-schedule'].innerHTML = renderSchedule(
@@ -1348,8 +1334,7 @@ elements.appointments.addEventListener('click', async (event) => {
   const questions = {
     cancel: '確認取消此預約並釋放時段？',
     no_show: '確認將此預約標記為未到？時段會釋放。',
-    complete:
-      '確認患者已到診並完成本次看診？完成後，可依醫師指示登錄回診並首次指派個管師。',
+    complete: '確認患者已到診並完成本次看診？完成後可登錄回診指示。',
     complete_without_card:
       '確認患者已到診，但本次未攜帶健保卡？這只記錄這一次的情況，不會改變患者「預計攜帶健保卡」的登記。'
   };
@@ -1378,9 +1363,9 @@ elements.appointments.addEventListener('click', async (event) => {
       const done = {
         cancel: '預約已取消並釋放時段。',
         no_show: '已標記未到並釋放時段。',
-        complete: '到診已記錄，請接續處理回診與個管指派。',
+        complete: '到診已記錄，請接續處理回診指示。',
         complete_without_card:
-          '到診已記錄，並註記本次未攜帶健保卡。請接續處理回診與個管指派。'
+          '到診已記錄，並註記本次未攜帶健保卡。請接續處理回診指示。'
       };
       message(done[action], 'success');
       if (completing && !elements['follow-up-workflow'].hidden) {
@@ -1643,7 +1628,6 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   // 決定存檔後即從逐筆回診確認消失（需要回診→清單回診版、不需要→移除）。
   // 先移出編輯集合，post() 內部重繪就已反映；失敗時仍為未決定，照樣顯示。
   editingFollowUps.delete(appointmentId);
-  const managerId = data.get('managerId');
   await runUiAction({
     control: event.submitter,
     pendingLabel: '儲存中…',
@@ -1657,38 +1641,15 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
         noteText: data.get('noteText'),
         certificateCopies: Number(data.get('certificateCopies') ?? 0),
         // W4：病歷號碼掛在患者身上，順著這張表單一起送。
-        medicalRecordNumber: data.get('medicalRecordNumber') ?? '',
-        managerId
+        medicalRecordNumber: data.get('medicalRecordNumber') ?? ''
       }),
     onSuccess: () => {
       if (data.get('status') === 'required') {
         weekStart = weekStartOf(data.get('dueDate'));
         renderWeek();
       }
-      message(
-        managerId ? '回診指示與個管指派已登錄。' : '回診指示已登錄。',
-        'success'
-      );
+      message('回診指示已登錄。', 'success');
     }
-  });
-});
-
-elements['case-assignment-list'].addEventListener('submit', async (event) => {
-  const form = event.target.closest('[data-case-form]');
-  if (form === null) return;
-  event.preventDefault();
-  const data = new FormData(form);
-  await runUiAction({
-    control: event.submitter,
-    pendingLabel: '更新中…',
-    pendingMessage: '正在更新個管指派，請稍候。',
-    action: () =>
-      post('/case-assignments', {
-        appointmentId: form.dataset.caseForm,
-        managerId: data.get('managerId')
-      }),
-    onSuccess: () =>
-      message('個管指派已更新，月度不重複患者統計已重新計算。', 'success')
   });
 });
 

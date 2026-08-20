@@ -255,7 +255,6 @@ test.describe('工作臺手機版版面', () => {
       '#overview',
       '#appointments-section',
       '#schedule-section',
-      '#case-section',
       '#accounts-section',
       '#audit-section'
     ]) {

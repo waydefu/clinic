@@ -94,7 +94,9 @@ test.describe('角色邊界', () => {
     expect(result).toContain('權限');
   });
 
-  test('櫃台可登錄正常回診，但個管指派已凍結', async ({ page }) => {
+  test('櫃台可登錄正常回診，Case UI 隔離且 mutation boundary 仍凍結', async ({
+    page
+  }) => {
     await login(page, 'admin', { fresh: false });
     const appointmentId = await createCompletedVisit(page);
     await page.locator('#logout').click();
@@ -104,17 +106,10 @@ test.describe('角色邊界', () => {
     await page.goto('/#appointments-section');
     const followUp = page.locator(`[data-follow-up-form="${appointmentId}"]`);
     await expect(followUp).toBeVisible();
+    await expect(followUp.locator('select[name="managerId"]')).toHaveCount(0);
     await followUp.locator('button[type="submit"]').click();
     await expect(page.locator('#status')).toContainText('回診指示已登錄');
-
-    await page.goto('/#case-section');
-    const row = page.locator(`[data-case-row="${appointmentId}"]`);
-    await expect(row.locator('[data-case-form]')).toBeVisible();
-    await row.locator('button[type="submit"]').click();
-    await expect(page.locator('#status')).toContainText(
-      '個案管理功能目前未開放'
-    );
-    await expect(row.locator('.status-chip')).toHaveText('待指派');
+    await expect(page.locator('#case-section')).toHaveCount(0);
 
     const result = await callSyntheticStore<string>(page, '/case-assignments', {
       method: 'POST',

@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta
       name="description"
-      content="一森渼診所預約營運工作臺：預約、回診、營業時間與個管的內部作業介面。"
+      content="一森渼診所預約營運工作臺：預約、回診與營業時間的內部作業介面。"
     />
     <meta name="theme-color" content="#155c48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -208,7 +208,6 @@
         ><a href="#appointments-section" data-workspace-nav>預約與回診</a
         ><a href="#schedule-section" data-workspace-nav data-admin-nav
           >營業時間</a
-        ><a href="#case-section" data-workspace-nav>個管指派</a
         ><a href="#accounts-section" data-workspace-nav data-admin-nav
           >員工權限</a
         ><a href="#communications-section" data-workspace-nav data-admin-nav
@@ -225,7 +224,7 @@
             <p class="eyebrow eyebrow-brand">BEAU ESSENCE · OPERATIONS</p>
             <h1 id="workspace-title">預約營運工作臺</h1>
             <p>
-              依照「今日待辦 → 預約與回診 → 營業時間 → 個管 →
+              依照「今日待辦 → 預約與回診 → 營業時間 →
               系統治理」完成診所日常工作。
             </p>
             <ul class="safety-list" aria-label="測試安全界線">
@@ -289,18 +288,10 @@
             </article>
             <article class="summary-card">
               <span>已完成到診</span><strong id="completed-count">0</strong
-              ><a class="summary-action" href="#case-section"
+              ><a class="summary-action" href="#appointments-section"
                 ><span class="summary-action-icon" aria-hidden="true"
                   >&#9783;</span
-                >查看個管</a
-              >
-            </article>
-            <article class="summary-card">
-              <span>個管月度患者</span><strong id="workload-count">0</strong
-              ><a class="summary-action" href="#case-section"
-                ><span class="summary-action-icon" aria-hidden="true"
-                  >&#9632;</span
-                >查看統計</a
+                >查看回診</a
               >
             </article>
           </div>
@@ -858,32 +849,6 @@
             </button>
             <p id="schedule-toolbar-status" class="form-status" hidden></p>
           </div>
-        </section>
-
-        <section
-          id="case-section"
-          class="workspace-section"
-          data-workspace-panel
-          aria-labelledby="case-heading"
-        >
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">CASE MANAGEMENT</p>
-              <h2 id="case-heading">個管指派與工作量</h2>
-            </div>
-            <p class="section-description">
-              完成到診後先指派個管師，再依月份計算不重複患者。
-            </p>
-          </div>
-          <p id="case-summary" class="result-summary" aria-live="polite">
-            0 筆個案
-          </p>
-          <div id="case-assignment-list" class="card-list"></div>
-          <h3 class="subsection-title">月度統計</h3>
-          <p id="workload-summary" class="result-summary" aria-live="polite">
-            0 筆統計
-          </p>
-          <div id="workload" class="card-list"></div>
         </section>
 
         <section

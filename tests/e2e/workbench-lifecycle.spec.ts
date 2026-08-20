@@ -69,7 +69,7 @@ test.describe('營運首頁指揮中心', () => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
-    // 完成到診會同時產生「回診尚未決定」與「個管尚未指派」兩類待辦。
+    // 完成到診會產生合法的「回診尚未決定」待辦；frozen Case task 不得投影。
     await page
       .locator('[data-appointment-card]')
       .first()
@@ -81,6 +81,9 @@ test.describe('營運首頁指揮中心', () => {
     await page.goto('/#overview');
     const cards = page.locator('#task-list .task-card');
     await expect(cards.first()).toContainText('回診尚未決定');
+    await expect(
+      page.locator('#task-list .task-card', { hasText: '個管尚未指派' })
+    ).toHaveCount(0);
 
     // 「取消待確認」是零筆，所以整張卡不該存在——這正是階段 4 的重點。
     await expect(
@@ -582,32 +585,25 @@ test.describe('工作臺其餘資料表', () => {
     ).toHaveText(['星期', '時段', '操作']);
   });
 
-  test('個管指派：送出鈕會觸發 frozen boundary', async ({ page }) => {
+  test('frozen Case/Payroll UI 不可發現且 direct route 安全返回首頁', async ({
+    page
+  }) => {
     await login(page);
-    await createBooking(page);
-    await showAllAppointments(page);
-    // 先完成到診，個案才會出現在指派表裡。
-    await page
-      .locator('[data-appointment-card]')
-      .first()
-      .locator('[data-appointment-action="complete"]')
-      .click();
-    await page.locator('.confirm-dialog button.button-primary').click();
+    await expect(
+      page.locator('.workspace-nav a[href="#case-section"]')
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#overview .summary-action[href="#case-section"]')
+    ).toHaveCount(0);
+    await expect(page.locator('#case-section')).toHaveCount(0);
+    await expect(page.locator('#case-assignment-list')).toHaveCount(0);
+    await expect(page.locator('#workload-count')).toHaveCount(0);
+    await expect(page.locator('#workload')).toHaveCount(0);
 
     await page.goto('/#case-section');
-    const row = page
-      .locator('#case-assignment-list tbody tr[data-case-row]')
-      .first();
-    await expect(row).toBeVisible();
-    await expect(row.locator('.status-chip')).toHaveText('待指派');
-
-    // `<form>` 不能包住 `<tr>`，所以送出鈕靠 form 屬性從操作格關聯回去。
-    // Phase B 仍保留相容入口；收到 frozen error 證明按鈕真的送達 store boundary。
-    await row.locator('button[type="submit"][form]').click();
-    await expect(page.locator('#status')).toContainText(
-      '個案管理功能目前未開放'
-    );
-    await expect(row.locator('.status-chip')).toHaveText('待指派');
+    await expect(page).toHaveURL(/#overview$/);
+    await expect(page.locator('#overview')).toBeVisible();
+    await expect(page.locator('#status')).not.toContainText('權限');
   });
 
   test('手機寬度下每個工作區都不產生水平捲軸', async ({ page }) => {
@@ -620,7 +616,6 @@ test.describe('工作臺其餘資料表', () => {
 
     for (const panel of [
       '#schedule-section',
-      '#case-section',
       '#accounts-section',
       '#audit-section'
     ]) {
