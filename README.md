@@ -29,14 +29,16 @@ LineID and gender are not collected. D-001 through D-003 remain pending; D-006
 is approved but not implemented. The preview must not be relied on to collect
 real patient data operationally.
 
-**Booking MVP convergence checkpoint (2026-08-20, PR #23):** frozen Case and
-Payroll runtime isolation (BOOK-MVP-003), independent synthetic Booking Preview
-validation (004), the verified website-vendor package (005) and the
-authoritative payload report (006) are green. Exact candidate `7e0add8` is
-available on the expiring, `noindex` synthetic preview until 2026-08-27;
-Calendar alignment (007) is documentation only. This unmerged branch checkpoint
-does not change Stage 1, approve a D-series item, enable a production backend or
-authorise real data.
+**Booking MVP final UI checkpoint (2026-08-22, PR #23):** exact C3
+`d9b6965c0e3ae62df33e89744f12c6d7fcc16480` passed all 11 required GitHub jobs,
+was deployed only to the expiring `noindex` `synthetic-review` channel and
+passed 474/474 online checks. It contains the corrected synthetic Case form and
+date-column calendar, a three-step patient flow, dual-field booking lookup and
+the synthetic `>20 minutes` self-cancel boundary. The preview expires
+2026-08-29 13:08 Asia/Taipei. Payroll remains frozen and Calendar alignment
+(007) remains documentation only. This unmerged branch checkpoint does not
+change Stage 1, approve D-005 or any other D-series item, enable a production
+backend or authorise real data.
 
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
 and what is blocked. The
@@ -141,8 +143,8 @@ as equivalent to CodeQL cross-file analysis.
 
 The source implementation includes a responsive clinic website at `/clinic`,
 two medical-team profiles and four nasal-functional-medicine pages. A new
-exact-commit synthetic preview was separately authorised and verified on
-2026-08-20; it is scheduled to expire on 2026-08-27.
+exact-C3 synthetic preview was separately authorised and verified on
+2026-08-22; it is scheduled to expire on 2026-08-29 13:08 Asia/Taipei.
 Plastic-surgery and injectable/medical-aesthetic category pages are excluded.
 Every clinic appointment call to action enters the existing `/booking` flow,
 and the booking header links back to the clinic site. The two surfaces share
@@ -155,16 +157,16 @@ real-data authority. See the
 [clinic website and booking integration record](docs/design/clinic-site-integration-2026-07-27.md)
 for the route map, content boundary and implementation structure.
 
-## Current UI and delivery baseline — 2026-08-10
+## Current UI and delivery baseline — 2026-08-22
 
-The former 2026-07-23 and 2026-07-28 UI paragraphs are historical; the latter
-remains a superseded reference only. The current reproducible reference is the
-[2026-08-10 UI visual baseline](docs/reviews/ui-visual-baseline-2026-08-10.md):
-ten named desktop/mobile screenshots with a hash manifest, fixed synthetic
-state and a documented capture environment. It confirms Stage 0/Checkpoint A
-has passed, Stage 1 owner decisions are current, `/v1/health` remains the only
-routed API controller, and Stage 2 still awaits reviewed change/deployment
-authority after D-006/D-010 approval.
+Earlier UI paragraphs and dated screenshot sets remain historical reference
+only. The current reproducible reference is the
+[2026-08-22 UI visual baseline](docs/reviews/ui-visual-baseline-2026-08-22.md):
+13 named desktop/mobile screenshots with a hash manifest, fixed synthetic state
+and a documented capture environment. It covers the final workbench calendar
+and Case layout, booking Steps 1–3, privacy dialog, dual-field lookup,
+cancellation confirmation/telephone fallback and success result. It does not
+change the Stage 1 decision gate, route a production API or authorise real data.
 
 The 2026-07-28 owner input for surgery scheduling, clinical follow-up, patient
 payments, staff settlement and Calendar inbound edits is tracked separately in

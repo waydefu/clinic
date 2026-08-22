@@ -1164,3 +1164,52 @@
 - **DEPLOYMENT EXECUTED:** **NO — AUTHORITY RECORDED, EXECUTION PENDING**。
 - **REAL DATA AUTHORIZED:** **NO**。
 - **PR #23 MERGED:** **NO**。
+
+## BOOK-MVP FINAL UI CORRECTION / C3 — DEPLOYMENT AND ONLINE VERIFICATION (2026-08-22)
+
+- **Pre-Deploy Authority Gate:** docs-only authority commit
+  `9b0e9344f0cd0b552a149855258b6bfbc0852c40` 的 GitHub run
+  [`32553336099`](https://github.com/waydefu/clinic/actions/runs/32553336099) 11/11
+  `success`。部署內容仍固定為 exact C3，不是 authority commit。
+- **Exact Deploy Worktree:** `F:\診所專案\tmp\book-mvp-c3-deploy-d9b6965` detached at
+  `d9b6965c0e3ae62df33e89744f12c6d7fcc16480`；部署前後 HEAD 不變、tracked status clean。
+  Repository lock 與 installed pnpm lock SHA-256 均為
+  `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`。
+- **Canonical Predeploy:** `firebase.json` 未改，保留 `corepack pnpm run build`；frozen-lock
+  dependency reconciliation、workspace build、18 domain vendor files sync 與 web build 完成，
+  結果為 77 files／53 content-hashed files。
+- **Execution:** operator `wayde.fu@gmail.com`，Firebase CLI `15.18.0`；只在 process scope
+  設定 `CI=true` 並執行
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+- **Hosting Result:** **PASS**。Release `1787375393029000`，version
+  `58e6d865767e79cf` (`FINALIZED`)，release time `2026-08-22T05:09:53.029Z`
+  (13:09:53 Asia/Taipei)。Authentication channel-domain add／sync warning 保留；
+  Authentication 沒有啟用或修改，Hosting release 已成功。
+- **Preview:**
+  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；absolute expiry
+  `2026-08-29T05:08:05.084059718Z` (13:08:05 Asia/Taipei)。
+- **Online Verification:** 同一 exact-C3 worktree 在 `2026-08-22T05:10:28.095Z` 執行
+  `corepack pnpm verify:preview -- <url>`，取得 **474/474 PASS**，evidence commit 等於 C3。
+  覆蓋 exact marker、routes、staging containment、security／noindex／cache headers、HTML
+  no-cache、40 個唯一 hashed JS／CSS assets 與 immutable caching。
+- **Hosted Browser Evidence:** candidate C3 required E2E 在 run `32553136689` 全綠；同一
+  runtime 的 13 張 GitHub-hosted Chromium captures 逐張人工檢視，覆蓋三步驟 booking、
+  Step 1 clinic info、Step 2 single active date、Step 3 two-column／mobile stack、privacy、
+  dual-field lookup、21／20／19-minute cancel boundary、success、Case 與七欄週曆。
+- **Dated Evidence:**
+  `docs/reviews/2026-08-22-booking-mvp-final-ui-synthetic-preview-deployment.md`；owner handoff
+  與 vendor current package 均指向 exact C3 URL／expiry。C／C2 evidence 保持歷史原文。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **AUTHORIZED SYNTHETIC HOSTING PREVIEW TOUCHED:** **YES — EXACT C3 RELEASE ONLY**。
+- **LIVE HOSTING DEPLOYED:** **NO**。
+- **BACKEND/FIRESTORE/FUNCTIONS/STORAGE/CLOUD RUN/AUTH DEPLOYED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO — 30/30 FROZEN**。
+- **GOOGLE CALENDAR CONNECTED:** **NO**。
+- **PAYROLL REACTIVATED:** **NO**。
+- **D-005 PRODUCTION CANCELLATION POLICY APPROVED:** **NO — REMAINS PENDING**。
+- **PR #23 MERGED:** **NO**。
+- **Final Gate:** post-deployment current docs 與 PR #23 說明完成後，新的 PR HEAD 必須再通過
+  11/11 required jobs，含 Verification evidence；通過前不宣稱 final merge-ready。
+- **Rollback:** preview 自動到期或依 runbook 提前刪除 `synthetic-review` channel；source
+  及 docs 用 `git revert`，不改寫 shared history。沒有 backend／schema／real-data rollback。

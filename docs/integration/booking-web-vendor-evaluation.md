@@ -7,17 +7,17 @@ website:
 
 - Official reservations page: <https://beauessence.com.tw/reservations/>
 - Vendor evaluation route: `/booking` **only**
-- Current owner-refinement preview URL:
+- Current final-owner-acceptance preview URL:
   <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>
-- Current preview expiry: **2026-08-27 19:20:16 Asia/Taipei**
-  (`2026-08-27T11:20:16.755922478Z`)
-- Exact deployed C2: `091ce0f732b32ad064d3694a26a219cc6e3687fe`
-- Online verification: **PASS — 463/463 repository-defined checks**
+- Current preview expiry: **2026-08-29 13:08:05 Asia/Taipei**
+  (`2026-08-29T05:08:05.084059718Z`)
+- Exact deployed C3: `d9b6965c0e3ae62df33e89744f12c6d7fcc16480`
+- Online verification: **PASS — 474/474 repository-defined checks**
 
 The earlier candidate C (`7e0add8079b37da2e1c11ef4f59660554b9b66d8`)
-and its 2026-08-20 preview remain historical deployment evidence. Its URL must
-not be presented as the current vendor handoff because the owner subsequently
-requested the C2 refinement.
+and C2 (`091ce0f732b32ad064d3694a26a219cc6e3687fe`) deployments remain
+historical evidence. Their releases and expiry records must not be presented as
+the current vendor handoff because C3 supersedes their UI behavior.
 
 The preview is for layout, interaction and technical evaluation only. It is
 `noindex`, uses synthetic browser-local state and must never receive real
@@ -46,10 +46,24 @@ integration shape; it does not hand over a live API or production credential.
 
 ## 3. Preview evaluation
 
-Use only the exact-C2 URL and expiry above. The vendor-facing route is only:
+Use only the exact-C3 URL and expiry above. The vendor-facing route is only:
 
 - `/booking` — patient Booking Preview and the source reference for the future
   official `/reservations/` surface.
+
+The reference interaction is a three-step flow: type and service, one active
+date with that date's slots, then two semantically grouped patient-information
+sections. Success is a result after Step 3, not a fourth step. The separate
+query/cancel dialog requires phone plus birth date or identity-document number
+plus birth date; it does not support one-field lookup. In this synthetic MVP,
+direct self-cancellation is available only when the appointment is strictly
+more than 20 minutes away. At 20 minutes or less it offers the clinic's
+canonical telephone fallback, `02-2577-1314`.
+
+These interactions are evaluation behavior, not an approved production policy
+or API contract. D-005 remains pending, and the production implementation must
+obtain the clinic's approved cancellation window, identity controls, server
+time and audited API transition before release.
 
 The synthetic staff workbench, Case workflow, doctor pages, clinic pages and
 other internal or public repository routes are not part of this vendor
