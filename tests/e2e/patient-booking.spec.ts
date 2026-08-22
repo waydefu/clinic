@@ -24,6 +24,19 @@ async function lookupBooking(
   await expect(page.locator('.booking-lookup-card')).toBeVisible();
 }
 
+/** 讓需要走完取消流程的案例不受 CI 實際執行時刻影響。 */
+async function makeLatestBookingSelfCancellable(
+  page: import('@playwright/test').Page
+) {
+  await page.evaluate((key) => {
+    const next = JSON.parse(localStorage.getItem(key) ?? 'null');
+    next.appointments.at(-1).startsAt = new Date(
+      Date.now() + 24 * 60 * 60_000
+    ).toISOString();
+    localStorage.setItem(key, JSON.stringify(next));
+  }, STORAGE_KEY);
+}
+
 // 患者端完整預約流程，跑在打包後的最終產物上。三個輸入步驟完成後顯示結果，
 // 結果本身不是第四步。
 
@@ -173,6 +186,7 @@ test.describe('患者線上預約', () => {
       bookingKind: 'initial'
     });
 
+    await makeLatestBookingSelfCancellable(page);
     await lookupBooking(page, {
       phone: '0900111222',
       birthDate: '1991-04-18'
@@ -406,6 +420,7 @@ test.describe('患者線上預約', () => {
       '不會再發出任何提醒'
     );
 
+    await makeLatestBookingSelfCancellable(page);
     await lookupBooking(page, {
       phone: '0933444555',
       birthDate: '1978-03-09'
