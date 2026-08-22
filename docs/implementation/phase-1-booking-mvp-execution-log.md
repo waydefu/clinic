@@ -1033,3 +1033,43 @@
 - **Rollback:** preview 自動到期；需要提前下架時依 runbook 刪除
   `synthetic-review` channel。C2 與 post-deployment docs 分別 `git revert <sha>`；
   不 rebase／reset／force push。
+
+## BOOK-MVP FINAL UI CORRECTION / C3 — BEFORE IMPLEMENTATION (2026-08-22)
+
+- **Branch / PR:** `agent/book-mvp-003-b-redo`；PR #23 保持 open、未合併。PR #22
+  已確認為 closed、未合併，沒有 cherry-pick、rebase 或重開。
+- **Starting HEAD:** `8d19adffa9f37b8cb059e42cb31789cf68a0ef4e`；remote main
+  `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`；worktree clean。
+- **Objective:** 完成既有 booking MVP 的最終合成 UI correction：Case 回診表單桌機欄位
+  排列、日期欄週曆、病人端三步驟與獨立「查詢／取消預約」，再以同一 exact SHA
+  全綠 CI 凍結 C3，僅部署授權的 staging Hosting preview。
+- **Owner Decisions Applied to Synthetic MVP:** 病人端改為三個輸入步驟，成功為結果而非
+  Step 4；查詢須以「電話＋生日」或「身分證／居留證／護照號碼＋生日」雙欄位驗證；
+  自助取消只在距預約時間**嚴格大於 20 分鐘**時直接進入既有 canonical
+  `cancelled` transition，等於 20 分鐘、19 分鐘或已過期皆拒絕並顯示診所電話。
+- **Production Decision Boundary:** 上述 20 分鐘規則只屬 synthetic/local browser MVP；
+  D-005 正式取消窗口仍為 pending，決策登錄中既有的「當日 10:00 前」輸入不改寫、
+  不宣稱正式核准。D-007、D-008 與其他 production decisions 亦保持原狀。
+- **In Scope:** `apps/web` 呈現與 browser-local store、既有 appointment state machine
+  的 patient self-cancel adapter、focused unit/E2E/architecture/UI/performance guards、
+  2026-08-22 新視覺證據、owner/vendor/execution/deployment docs 與 PR #23 說明。
+- **Explicitly Out of Scope:** production backend／Firestore／Functions／Storage／Cloud Run、
+  live Hosting、真實患者資料、Google Calendar、LINE/Meta integration、Payroll、
+  BOOK-MVP-004+、30 個 clinic frozen files、CI workflow 或效能門檻放寬、PR merge。
+- **Invariant / Risk Controls:** Case 權限檢查仍先於 mutation，失敗不得 partial write；
+  Payroll 維持 fail closed；patient graph 不可達 workbench-only policy；拒絕或重複取消
+  不得改 appointment、slot、audit、outbox 或 persisted state；成功取消只儲存一次並
+  釋放 reservation；服務端時間不足或不可確認時 fail closed。
+- **Planned Evidence:** structure／architecture／UI／public-page／format／type／lint／sync／
+  performance、focused and full unit、browser-local E2E（desktop/mobile、privacy、theme、
+  lookup/cancel boundary）、a11y、Firestore／appointments／supply-chain／SAST、clinic
+  30/30 freeze；新 13-scenario captures 逐張人工檢視。
+- **Deployment Gate:** 只有 exact prospective C3 的全部 required GitHub CI 同 SHA 全綠，
+  並另行記錄 C3 deployment authority 後，才可由 exact C3 detached worktree 執行未更動的
+  canonical predeploy，部署到 `beauessence-clinic-staging` 的 `synthetic-review` 7d
+  preview；`CI=true` 只限該 process。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **NEW C3 FROZEN:** **NO — IMPLEMENTATION AND SAME-SHA CI PENDING**。
+- **Rollback:** 每一個 logical slice 使用獨立 commit，必要時 `git revert <sha>`；禁止
+  amend、rebase、reset、force push。preview 可等待到期或依 runbook 提前刪除 channel。
