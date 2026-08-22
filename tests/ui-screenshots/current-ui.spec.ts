@@ -17,10 +17,9 @@ import {
 
 const PORT = 3211;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-// 擷取日期。**改這裡就要一起改 `outputDirectory`、`check-structure.mjs` 的
-// `visualBaselineDirectory` 與 required paths，以及介面規則書 §5.5 指向的現行基線。**
-// 舊日期的目錄與文件保留作歷史證據，不刪。
+// C4 使用新的 evidence id；同一天的 C3 目錄仍是 immutable historical evidence。
 const CAPTURE_DATE = '2026-08-22';
+const EVIDENCE_ID = `ui-visual-c4-${CAPTURE_DATE}`;
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
@@ -54,7 +53,7 @@ const outputDirectory = join(
   'docs',
   'reviews',
   'assets',
-  `ui-visual-baseline-${CAPTURE_DATE}`
+  EVIDENCE_ID
 );
 const playwrightVersion = (
   JSON.parse(
@@ -196,6 +195,44 @@ async function prepareBookingStepTwo(page: Page): Promise<void> {
   await page.locator('#patient-services [data-service]').first().click();
   await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
   await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
+  await expect(page.locator('#patient-hero')).toBeHidden();
+  expect(
+    await page.locator('#patient-slot-months [role="tab"]').count()
+  ).toBeGreaterThanOrEqual(2);
+}
+
+async function prepareBookingTimeGroups(page: Page): Promise<void> {
+  await prepareBookingStepTwo(page);
+  let foundFullSaturday = false;
+  const months = page.locator('#patient-slot-months [role="tab"]');
+  for (
+    let monthIndex = 0;
+    monthIndex < (await months.count());
+    monthIndex += 1
+  ) {
+    await months.nth(monthIndex).click();
+    const saturdays = page.locator('#patient-slot-dates [role="tab"]', {
+      hasText: '週六'
+    });
+    for (
+      let dateIndex = 0;
+      dateIndex < (await saturdays.count());
+      dateIndex += 1
+    ) {
+      await saturdays.nth(dateIndex).click();
+      if ((await page.locator('.slot-period h4').count()) === 3) {
+        foundFullSaturday = true;
+        break;
+      }
+    }
+    if (foundFullSaturday) break;
+  }
+  expect(foundFullSaturday).toBe(true);
+  await expect(page.locator('.slot-period h4')).toHaveText([
+    '上午',
+    '中午',
+    '晚間'
+  ]);
 }
 
 async function prepareFilledBookingDetails(page: Page): Promise<void> {
@@ -285,6 +322,54 @@ async function prepareCalendarEvents(page: Page): Promise<void> {
   await expect(page.locator('#week-view [data-week-event]')).toHaveCount(3);
 }
 
+async function prepareCalendarOpenedException(page: Page): Promise<void> {
+  await login(page, 'admin', { fresh: false });
+  const expected = await page.evaluate((key) => {
+    const state = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const firstSlot = [...state.slots].sort((left, right) =>
+      String(left.startsAt).localeCompare(String(right.startsAt))
+    )[0];
+    const taipeiDate = new Date(
+      Date.parse(firstSlot.startsAt) + 8 * 60 * 60_000
+    )
+      .toISOString()
+      .slice(0, 10);
+    const anchor = new Date(`${taipeiDate}T12:00:00Z`);
+    const weekStart = new Date(
+      anchor.getTime() - anchor.getUTCDay() * 24 * 60 * 60_000
+    );
+    const dateAt = (offset: number) =>
+      new Date(weekStart.getTime() + offset * 24 * 60 * 60_000)
+        .toISOString()
+        .slice(0, 10);
+    const openedDate = dateAt(1);
+    const closedDate = dateAt(4);
+    state.schedule.dateExceptions = [
+      ...state.schedule.dateExceptions.filter(
+        (entry) => ![openedDate, closedDate].includes(entry.date)
+      ),
+      {
+        date: openedDate,
+        kind: 'extra_open',
+        intervals: [{ startLocalTime: '09:00', endLocalTime: '12:00' }]
+      },
+      { date: closedDate, kind: 'closed', intervals: [] }
+    ];
+    localStorage.setItem(key, JSON.stringify(state));
+    return { openedDate, closedDate };
+  }, STORAGE_KEY);
+  await page.reload();
+  await page.goto('/#appointments-section');
+  await openDisclosure(page, '#week-calendar-disclosure');
+  const calendar = page.locator('.wv-date-table');
+  await expect(calendar).toBeVisible();
+  await expect(calendar.locator('thead th')).toHaveCount(4);
+  await expect(calendar.locator('.wv-extra-open')).toContainText('加開');
+  await expect(calendar.locator('.wv-extra-open')).toContainText('09:00–12:00');
+  await expect(calendar).toContainText(expected.openedDate.slice(5));
+  await expect(calendar).not.toContainText(expected.closedDate.slice(5));
+}
+
 async function prepareFollowUpWithCase(page: Page): Promise<void> {
   await login(page, 'admin', { fresh: false });
   await createBooking(page);
@@ -311,8 +396,16 @@ const scenarios: Scenario[] = [
     route: '/#appointments-section',
     role: 'admin',
     viewport: DESKTOP,
-    state: 'seven-date-columns-no-events',
+    state: 'four-open-date-columns-no-events',
     prepare: prepareCalendarEmpty
+  },
+  {
+    file: 'workbench--weekly-calendar-opened-exception--desktop-1280x900--warm.png',
+    route: '/#appointments-section',
+    role: 'admin',
+    viewport: DESKTOP,
+    state: 'normally-closed-Monday-opened-and-Thursday-closed',
+    prepare: prepareCalendarOpenedException
   },
   {
     file: 'workbench--weekly-calendar-events--desktop-1280x900--warm.png',
@@ -352,7 +445,23 @@ const scenarios: Scenario[] = [
     route: '/booking',
     role: 'public',
     viewport: DESKTOP,
-    state: 'step-2-single-active-date-full-width',
+    state: 'step-2-month-navigation-available-dates',
+    prepare: prepareBookingStepTwo
+  },
+  {
+    file: 'booking--step-2-time-groups--desktop-1280x900--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: DESKTOP,
+    state: 'step-2-morning-midday-evening-columns',
+    prepare: prepareBookingTimeGroups
+  },
+  {
+    file: 'booking--step-2--phone-375x812--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: PHONE,
+    state: 'step-2-contained-month-and-date-navigation',
     prepare: prepareBookingStepTwo
   },
   {
@@ -399,11 +508,11 @@ const scenarios: Scenario[] = [
     prepare: prepareEligibleCancellation
   },
   {
-    file: 'booking--cancellation-phone-fallback--phone-375x812--warm.png',
+    file: 'booking--cancellation-phone-social-fallback--phone-375x812--warm.png',
     route: '/booking',
     role: 'public',
     viewport: PHONE,
-    state: '19-minutes-no-self-cancel-click-to-call',
+    state: '19-minutes-phone-primary-and-four-social-links',
     fullPage: false,
     prepare: prepareCancellationPhoneFallback
   },
