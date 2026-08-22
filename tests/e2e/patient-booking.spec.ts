@@ -171,13 +171,7 @@ test.describe('患者線上預約', () => {
 
     const contactLinks = page.locator('.patient-contact-link');
     await expect(contactLinks).toHaveCount(5);
-    await expect(contactLinks).toHaveText([
-      '02-2577-1314',
-      'LINE',
-      'Instagram',
-      'Messenger',
-      'Facebook'
-    ]);
+    await expect(contactLinks.first()).toHaveText('02-2577-1314');
     await expect(contactLinks.nth(1)).toHaveAttribute(
       'href',
       'https://page.line.me/821tzbtx'
@@ -187,18 +181,28 @@ test.describe('患者線上預約', () => {
       '.patient-contact-socials .patient-contact-link'
     );
     await expect(socialLinks).toHaveCount(4);
+    expect(
+      await socialLinks.evaluateAll((links) =>
+        links.map((link) => ({
+          ariaLabel: link.getAttribute('aria-label'),
+          title: link.getAttribute('title')
+        }))
+      )
+    ).toEqual([
+      { ariaLabel: 'LINE', title: 'LINE' },
+      { ariaLabel: 'Instagram', title: 'Instagram' },
+      { ariaLabel: 'Messenger', title: 'Messenger' },
+      { ariaLabel: 'Facebook', title: 'Facebook' }
+    ]);
+    await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+      'data-contact-layout',
+      'compact'
+    );
     const socialBox = await socialLinks.first().boundingBox();
     expect(
       Math.abs((socialBox?.width ?? 0) - (socialBox?.height ?? 0))
     ).toBeLessThan(2);
-    const tooltip = socialLinks.first().locator('.patient-contact-tooltip');
-    await expect(tooltip).toHaveCSS('opacity', '0');
     await socialLinks.first().hover();
-    await expect(tooltip).toHaveCSS('opacity', '1');
-    await socialLinks.nth(1).focus();
-    await expect(
-      socialLinks.nth(1).locator('.patient-contact-tooltip')
-    ).toHaveCSS('opacity', '1');
 
     // 步驟 3：填基本資料，並勾選兩個各自獨立的確認——測試用的告知草稿已讀，
     // 以及「資料只留在本機」。前者不會建立正式同意紀錄。

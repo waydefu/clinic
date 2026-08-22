@@ -397,6 +397,11 @@ test.describe('患者預約頁手機版', () => {
     const socialLinks = page.locator(
       '.patient-contact-socials .patient-contact-link'
     );
+    expect(
+      await socialLinks.evaluateAll((links) =>
+        links.map((link) => link.getAttribute('aria-label'))
+      )
+    ).toEqual(['LINE', 'Instagram', 'Messenger', 'Facebook']);
     const socialBoxes = await socialLinks.evaluateAll((links) =>
       links.map((link) => {
         const box = link.getBoundingClientRect();
@@ -409,9 +414,23 @@ test.describe('患者預約頁手機版', () => {
         () => matchMedia('(hover: hover) and (pointer: fine)').matches
       )
     ) {
+      await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+        'data-contact-layout',
+        'compact'
+      );
       for (const box of socialBoxes)
         expect(Math.abs(box.width - box.height)).toBeLessThan(2);
     } else {
+      await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+        'data-contact-layout',
+        'labeled'
+      );
+      await expect(socialLinks).toHaveText([
+        'LINE',
+        'Instagram',
+        'Messenger',
+        'Facebook'
+      ]);
       expect(Math.abs(socialBoxes[0].y - socialBoxes[1].y)).toBeLessThan(2);
       expect(Math.abs(socialBoxes[2].y - socialBoxes[3].y)).toBeLessThan(2);
       expect(

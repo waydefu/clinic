@@ -375,15 +375,35 @@ const patientContactIcons = Object.freeze({
     '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M13.5 20v-7h2.4l.4-3h-2.8V8.5c0-.9.3-1.5 1.6-1.5h1.4V4.3c-.5-.1-1.3-.2-2.2-.2-2.3 0-3.8 1.4-3.8 4V10H8v3h2.5v7"/></svg>'
 });
 
+function patientContactIcon(label, { round = false } = {}) {
+  const icon = patientContactIcons[label] ?? '';
+  if (!round) return icon;
+  return icon
+    .replace(
+      'viewBox="0 0 24 24" width="20" height="20"',
+      'viewBox="-12 -12 48 48" width="48" height="48"'
+    )
+    .replace('stroke="currentColor"', 'stroke="var(--forest-dark)"')
+    .replace(
+      'aria-hidden="true">',
+      'aria-hidden="true"><circle cx="12" cy="12" r="23" fill="var(--surface)" stroke="var(--line-strong)"/>'
+    );
+}
+
 function renderPatientContactLinks() {
+  const compact = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const socialLinks = CLINIC.socialLinks
-    .map(
-      ({ label, href }) =>
-        `<a class="button button-secondary patient-contact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${escapeHtml(label)}">${patientContactIcons[label] ?? ''}<span class="patient-contact-tooltip">${escapeHtml(label)}</span></a>`
+    .map(({ label, href }) =>
+      compact
+        ? `<a class="brand patient-contact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${patientContactIcon(label, { round: true })}</a>`
+        : `<a class="button button-secondary patient-contact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${escapeHtml(label)}">${patientContactIcon(label)}&nbsp;<span>${escapeHtml(label)}</span></a>`
     )
     .join('');
+  const socialLayout = compact
+    ? 'booking-social-fallback patient-contact-socials'
+    : 'patient-contact-grid patient-contact-socials';
   elements['patient-contact-options'].innerHTML =
-    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><a class="button button-primary patient-contact-link patient-contact-phone" href="${escapeHtml(CLINIC.phoneHref)}">${patientContactIcons['電話']}&nbsp;<span>${escapeHtml(CLINIC.phoneDisplay)}</span></a><span>其他聯絡方式</span><div class="booking-social-fallback patient-contact-socials" aria-label="其他聯絡方式">${socialLinks}</div>`;
+    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><a class="button button-primary patient-contact-link patient-contact-phone" href="${escapeHtml(CLINIC.phoneHref)}">${patientContactIcon('電話')}&nbsp;<span>${escapeHtml(CLINIC.phoneDisplay)}</span></a><span>其他聯絡方式</span><div class="${socialLayout}" data-contact-layout="${compact ? 'compact' : 'labeled'}" aria-label="其他聯絡方式">${socialLinks}</div>`;
 }
 
 function checkedTagIds(containerId, attribute) {
