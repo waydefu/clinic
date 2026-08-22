@@ -390,6 +390,10 @@ test.describe('患者預約頁手機版', () => {
     await expect(page.locator('.patient-header')).toBeHidden();
     await expect(page.locator('.patient-announcement')).toBeHidden();
     await expect(page.locator('.booking-stepper')).toBeHidden();
+    await expect(page.locator('.patient-contact-link')).toHaveCount(5);
+    await expect(
+      page.locator('.patient-contact-link', { hasText: '02-2577-1314' })
+    ).toHaveAttribute('href', 'tel:+886225771314');
     expect(await pageOverflow(page), 'step 3').toBeLessThanOrEqual(1);
   });
 

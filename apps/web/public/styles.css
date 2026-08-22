@@ -1614,6 +1614,72 @@ textarea {
   gap: var(--space-xs);
   min-width: 0;
 }
+.patient-contact-options {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+}
+.patient-contact-options-copy {
+  display: grid;
+  gap: var(--space-4xs);
+}
+.patient-contact-options-copy strong {
+  color: var(--forest-dark);
+}
+.patient-contact-options-copy span {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+}
+.patient-contact-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+.patient-contact-link {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--forest-dark);
+  display: inline-flex;
+  flex: 1 1 auto;
+  font-weight: var(--weight-bold);
+  gap: var(--space-3xs);
+  justify-content: center;
+  min-height: var(--control-height-md);
+  padding: var(--space-2xs) var(--space-xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.patient-contact-link:hover {
+  background: var(--forest-light);
+  border-color: var(--forest);
+}
+.patient-contact-link:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.patient-contact-link.is-primary {
+  background: var(--forest-light);
+  border-color: var(--forest);
+}
+.patient-contact-link svg {
+  fill: none;
+  flex: none;
+  height: var(--space-md);
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: var(--space-md);
+}
+.patient-contact-link .patient-contact-icon-fill {
+  fill: currentColor;
+  stroke: none;
+}
 /* 同意條款是法律文字。用最小字級呈現要人同意的東西，形式上就不對。 */
 .consent-preview {
   align-items: flex-start;
