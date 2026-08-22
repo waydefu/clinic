@@ -2106,15 +2106,11 @@ details[open] > summary .workflow-summary-chevron {
   letter-spacing: var(--tracking-wide);
 }
 .wv-date-head span em {
-  border: 1px solid var(--line-accent);
-  border-radius: var(--radius-pill);
   color: var(--forest-dark);
-  display: inline-block;
   font-size: var(--text-micro);
   font-style: normal;
-  letter-spacing: normal;
+  letter-spacing: var(--tracking-label);
   margin-inline-start: var(--space-3xs);
-  padding: 0 var(--space-3xs);
 }
 .wv-date-head b {
   display: inline-block;

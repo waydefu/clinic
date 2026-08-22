@@ -25,7 +25,27 @@ export {
 // 修改時請一併更新 patient.html 內的 JSON-LD。
 export const CLINIC = Object.freeze({
   name: '一森渼診所',
-  address: '臺北市松山區光復北路112號2樓'
+  address: '臺北市松山區光復北路112號2樓',
+  phoneDisplay: '02-2577-1314',
+  phoneHref: 'tel:+886225771314',
+  socialLinks: Object.freeze([
+    Object.freeze({
+      label: 'LINE',
+      href: 'https://page.line.me/821tzbtx'
+    }),
+    Object.freeze({
+      label: 'Instagram',
+      href: 'https://www.instagram.com/beauessence.tw'
+    }),
+    Object.freeze({
+      label: 'Messenger',
+      href: 'https://m.me/575723225620285'
+    }),
+    Object.freeze({
+      label: 'Facebook',
+      href: 'https://www.facebook.com/beauessencetaipei/'
+    })
+  ])
 });
 // 合成資料的可預約視窗：**由台北今天起算 60 個日曆日**（C4，業主 2026-08-22）。
 //

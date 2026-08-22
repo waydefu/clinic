@@ -14,7 +14,11 @@ import {
   buildWorkload,
   overdueAppointments
 } from '../public/modules/case-management.js';
-import { PERMISSIONS } from '../public/modules/constants.js';
+import { CLINIC as CANONICAL_CLINIC } from '../public/clinic-content.js';
+import {
+  CLINIC as BOOKING_CLINIC,
+  PERMISSIONS
+} from '../public/modules/constants.js';
 import {
   appointmentPage,
   DEFAULT_APPOINTMENT_PAGE_SIZE,
@@ -62,6 +66,14 @@ beforeAll(() => {
 });
 afterAll(() => {
   vi.useRealTimers();
+});
+
+describe('預約聯絡資料', () => {
+  it('與 frozen clinic canonical contact source 完全一致', () => {
+    expect(BOOKING_CLINIC.phoneDisplay).toBe(CANONICAL_CLINIC.phoneDisplay);
+    expect(BOOKING_CLINIC.phoneHref).toBe(CANONICAL_CLINIC.phoneHref);
+    expect(BOOKING_CLINIC.socialLinks).toEqual(CANONICAL_CLINIC.socialLinks);
+  });
 });
 
 const PATIENT_A = {

@@ -1,9 +1,9 @@
 // Trusted Types 的 default policy。必須第一個匯入：它要在任何模組
 // 有機會寫 innerHTML 之前就註冊好。
 import './modules/trusted-html.js';
-import { CLINIC } from './clinic-content.js';
 import {
   BOOKING_KIND_LABELS,
+  CLINIC,
   PATIENT_REQUEST_TAGS,
   PATIENT_SERVICES,
   PATIENT_SOURCE_TAGS,
