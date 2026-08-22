@@ -1147,7 +1147,7 @@ textarea {
   gap: var(--space-sm);
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
-  padding: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
   position: relative;
 }
 /* Hero 右上角那圈細線是純裝飾（核准位置：患者端 Hero 的非功能性標記）。
@@ -1171,7 +1171,17 @@ textarea {
     calc(var(--text-2xl) * 0.5 + 2vw),
     var(--text-3xl)
   );
-  margin-bottom: var(--space-sm);
+  margin: 0;
+}
+.patient-preview-warning {
+  background: var(--surface-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-2xs) var(--space-xs);
 }
 .patient-hero > div > p:last-of-type {
   color: var(--ink-muted);
@@ -1218,7 +1228,7 @@ textarea {
   gap: 0;
   grid-template-columns: repeat(3, 1fr);
   list-style: none;
-  margin: var(--space-xl) 0 var(--space-md);
+  margin: var(--space-md) 0 var(--space-sm);
   padding: 0;
 }
 .booking-stepper li {
@@ -1261,7 +1271,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   box-shadow: var(--elevation-1);
-  min-height: 22rem;
+  min-height: 0;
   padding: clamp(1.25rem, 3vw, 2.2rem);
   scroll-margin-top: var(--scroll-anchor-offset);
 }
@@ -1276,40 +1286,23 @@ textarea {
 .booking-panel {
   grid-column: 1 / -1;
 }
-.booking-summary {
-  background: var(--surface-tint);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-1);
-  grid-column: 1;
-  padding: var(--space-md);
-  position: sticky;
-  top: calc(var(--scroll-anchor-offset) + var(--space-xs));
-}
 .booking-panel {
   min-width: 0;
 }
-.booking-summary h2 {
-  color: var(--forest-dark);
-  font-family: var(--font-serif-tc);
-  font-size: var(--text-lg);
-  margin-bottom: var(--space-2xs);
-}
-.booking-summary-step {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  margin: 0;
-}
-.booking-summary-hours {
-  border-top: 1px solid var(--line);
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  line-height: 1.55;
-  margin-top: var(--space-md);
-  padding-top: var(--space-sm);
-}
 .booking-panel-heading {
   margin-bottom: var(--space-md);
+}
+.booking-panel-heading-inline {
+  align-items: start;
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.booking-panel-heading-inline .booking-back-row {
+  margin-bottom: 0;
+}
+.booking-panel-title {
+  min-width: 0;
 }
 .booking-panel-heading-spaced {
   margin-top: var(--space-lg);
@@ -1321,7 +1314,8 @@ textarea {
 }
 /* 步驟說明是正文，不是註腳。它在告訴使用者這一步要做什麼——那是頁面上少數
    非讀不可的句子之一，卻和 eyebrow 標籤同樣大小。 */
-.booking-panel-heading > p:last-child {
+.booking-panel-heading > p:last-child,
+.booking-panel-title > p:last-child {
   color: var(--ink-muted);
   font-size: var(--text-body);
   line-height: 1.65;
@@ -1513,12 +1507,36 @@ textarea {
   transform: translateX(-2px);
 }
 .patient-slot-dates {
-  display: flex;
+  display: grid;
   gap: var(--space-2xs);
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
   margin-bottom: var(--space-sm);
-  overflow-x: auto;
+  overflow-x: visible;
   padding-bottom: var(--space-2xs);
   scrollbar-gutter: stable;
+}
+.patient-slot-months {
+  display: flex;
+  gap: var(--space-2xs);
+  margin-bottom: var(--space-xs);
+  overflow-x: auto;
+  padding-bottom: var(--space-2xs);
+}
+.patient-slot-month {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  flex: 0 0 auto;
+  font-size: var(--text-body);
+  min-height: var(--control-height-md);
+  padding: var(--space-2xs) var(--space-sm);
+}
+.patient-slot-month[aria-selected='true'] {
+  background: var(--forest-light);
+  border-color: var(--forest);
+  color: var(--forest-dark);
+  font-weight: var(--weight-bold);
 }
 .patient-slot-date {
   align-items: flex-start;
@@ -1527,10 +1545,9 @@ textarea {
   border-radius: var(--radius-md);
   color: var(--ink);
   display: grid;
-  flex: 0 0 auto;
   font-size: var(--text-body);
   min-height: var(--control-height-md);
-  min-width: 8.5rem;
+  min-width: 0;
   padding: var(--space-xs);
   text-align: left;
 }
@@ -1556,20 +1573,21 @@ textarea {
 .patient-slot-list {
   display: grid;
   gap: var(--space-xs);
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
 }
-.slot-load-more {
+.slot-period {
   align-self: start;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  color: var(--forest-dark);
-  display: inline-flex;
+  display: grid;
   gap: var(--space-2xs);
-  justify-self: start;
 }
-.slot-load-more-count {
-  color: var(--ink-muted);
-  font-weight: var(--weight-medium);
+.slot-period + .slot-period {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: var(--space-sm);
+}
+.slot-period h4 {
+  color: var(--forest-dark);
+  font-size: var(--text-body);
+  margin: 0;
 }
 .booking-confirmation-grid {
   display: grid;
@@ -1595,39 +1613,6 @@ textarea {
   display: grid;
   gap: var(--space-xs);
   min-width: 0;
-}
-.booking-summary,
-.booking-summary h3 {
-  color: var(--forest-dark);
-  font-size: var(--text-md);
-}
-.booking-summary dl,
-#patient-booking-summary {
-  display: grid;
-  gap: var(--space-xs);
-  margin: var(--space-sm) 0 0;
-}
-.booking-summary dl div,
-#patient-booking-summary div {
-  align-items: baseline;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  gap: var(--space-sm);
-  justify-content: space-between;
-  padding-bottom: var(--space-xs);
-}
-/* 確認摘要是整頁最重要的文字：使用者按下送出之前，唯一一次核對日期、時段與
-   療程的機會。它先前用的是最小字級。 */
-.booking-summary dt {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-}
-.booking-summary dd {
-  color: var(--ink);
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  margin: 0;
-  text-align: right;
 }
 /* 同意條款是法律文字。用最小字級呈現要人同意的東西，形式上就不對。 */
 .consent-preview {
@@ -1767,54 +1752,32 @@ textarea {
   color: var(--forest-dark);
   font-weight: var(--weight-bold);
 }
-.patient-upcoming-section {
-  margin-top: var(--space-2xl);
-}
-.patient-appointment-card {
-  align-items: center;
+.booking-cancel-contact {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  display: flex;
-  gap: var(--space-sm);
-  justify-content: space-between;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
   padding: var(--space-sm);
 }
-.patient-appointment-card > div {
-  display: grid;
+.booking-cancel-contact > .booking-phone-fallback {
+  color: var(--on-accent);
+  justify-self: start;
+  margin-top: 0;
+}
+.booking-social-fallback {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2xs);
 }
-.patient-appointment-card > div > strong {
-  color: var(--forest-dark);
-}
-.patient-help-grid {
-  border-top: 1px solid var(--line);
+.patient-contact-grid {
   display: grid;
-  gap: var(--space-sm);
-  grid-template-columns: repeat(3, 1fr);
-  margin-top: var(--space-2xl);
-  padding-top: var(--space-xl);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.patient-help-grid article {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm);
-}
-.patient-help-grid article > span {
-  color: var(--forest);
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-bold);
-}
-.patient-help-grid strong {
-  display: block;
-  margin: var(--space-xs) 0 var(--space-2xs);
-}
-.patient-help-grid p {
+.booking-cancel-contact p {
   color: var(--ink-muted);
   font-size: var(--text-body);
-  line-height: 1.6;
   margin: 0;
 }
 .maintenance-screen {
@@ -2188,6 +2151,17 @@ label:has(> input[type='radio']) {
   .patient-header {
     position: static;
   }
+  /* 手機版的第二、三步只保留當下操作。頁首偏好／查詢、測試公告與步驟列都已在
+     第一步看過，而且新步驟本身有標題與返回鍵；繼續佔著首屏只會把日期與表單往下
+     推。桌機空間足夠，維持原樣。 */
+  .patient-body:is([data-booking-flow-step='2'], [data-booking-flow-step='3'])
+    .patient-header,
+  .patient-body:is([data-booking-flow-step='2'], [data-booking-flow-step='3'])
+    .patient-announcement,
+  .patient-body:is([data-booking-flow-step='2'], [data-booking-flow-step='3'])
+    .booking-stepper {
+    display: none;
+  }
   /* P13（2026-07-27，負責人核可）：導覽收進漢堡選單。
      先前導覽是常駐的一整列（44px 的觸控列），加上環境徽章那一列，頁首在 375px
      實測 235px、佔首屏 29%——而首屏該給的是預約流程。
@@ -2270,6 +2244,12 @@ label:has(> input[type='radio']) {
   #patient-main {
     padding: var(--space-sm) var(--space-sm) var(--space-2xl);
   }
+  .booking-panel-heading-inline {
+    display: block;
+  }
+  .booking-panel-heading-inline .booking-back-row {
+    margin-bottom: var(--space-sm);
+  }
   .status-message {
     position: static;
   }
@@ -2310,7 +2290,7 @@ label:has(> input[type='radio']) {
     display: none;
     line-height: 1.25;
   }
-  /* 只有目前步驟顯示文字，所以把寬度讓給它：其餘三步只是圓圈，不需要等分版面。
+  /* 只有目前步驟顯示文字，所以把寬度讓給它：其餘兩步只是圓圈，不需要等分版面。
 
      先前這裡是 `overflow-wrap: anywhere`，而中文可以在任何字之間斷行——
      「類型與項目」因此被排成「類型與項／目」，最後一個字自己一行。字數多一個
@@ -2335,29 +2315,35 @@ label:has(> input[type='radio']) {
   }
   .service-choice-grid,
   .booking-confirmation-grid,
-  .patient-help-grid,
   .patient-form-grid,
   .booking-step-one-grid,
   .booking-lookup-form {
     grid-template-columns: 1fr;
   }
+  .patient-slot-dates {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .patient-slot-date {
+    flex: 0 0 auto;
+    min-width: 8.5rem;
+  }
+  .patient-slot-list {
+    grid-template-columns: 1fr;
+  }
+  .slot-period + .slot-period {
+    border-inline-start: 0;
+    border-top: 1px solid var(--line);
+    margin-top: var(--space-xs);
+    padding-inline-start: 0;
+    padding-top: var(--space-sm);
+  }
   #patient-booking-app:not([hidden]) {
     grid-template-columns: 1fr;
   }
-  .booking-summary,
   .booking-panel {
     grid-column: 1;
-  }
-  .booking-summary {
-    margin-bottom: var(--space-sm);
-    position: static;
-  }
-  .patient-appointment-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .patient-appointment-card .button {
-    width: 100%;
   }
   .patient-footer {
     align-items: flex-start;
@@ -2444,7 +2430,7 @@ label:has(> input[type='radio']) {
   justify-content: center;
   gap: var(--space-3xs);
   padding: var(--space-xs) var(--space-2xs);
-  border: 1px solid currentColor;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: none;
   font: inherit;

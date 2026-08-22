@@ -372,10 +372,73 @@ test.describe('患者預約頁手機版', () => {
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('[data-service]').first().click();
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-booking-flow-step',
+      '2'
+    );
+    await expect(page.locator('.patient-header')).toBeHidden();
+    await expect(page.locator('.patient-announcement')).toBeHidden();
+    await expect(page.locator('.booking-stepper')).toBeHidden();
     expect(await pageOverflow(page), 'step 2').toBeLessThanOrEqual(1);
 
     await page.locator('[data-patient-slot]').first().click();
     await expect(page.locator('#patient-name')).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-booking-flow-step',
+      '3'
+    );
+    await expect(page.locator('.patient-header')).toBeHidden();
+    await expect(page.locator('.patient-announcement')).toBeHidden();
+    await expect(page.locator('.booking-stepper')).toBeHidden();
+    await expect(page.locator('.patient-contact-link')).toHaveCount(5);
+    await expect(
+      page.locator('.patient-contact-link', { hasText: '02-2577-1314' })
+    ).toHaveAttribute('href', 'tel:+886225771314');
+    const socialLinks = page.locator(
+      '.patient-contact-socials .patient-contact-link'
+    );
+    expect(
+      await socialLinks.evaluateAll((links) =>
+        links.map((link) => link.getAttribute('aria-label'))
+      )
+    ).toEqual(['LINE', 'Instagram', 'Messenger', 'Facebook']);
+    const socialBoxes = await socialLinks.evaluateAll((links) =>
+      links.map((link) => {
+        const box = link.getBoundingClientRect();
+        return { height: box.height, width: box.width, x: box.x, y: box.y };
+      })
+    );
+    expect(socialBoxes).toHaveLength(4);
+    if (
+      await page.evaluate(
+        () => matchMedia('(hover: hover) and (pointer: fine)').matches
+      )
+    ) {
+      await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+        'data-contact-layout',
+        'compact'
+      );
+      for (const box of socialBoxes)
+        expect(Math.abs(box.width - box.height)).toBeLessThan(2);
+    } else {
+      await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+        'data-contact-layout',
+        'labeled'
+      );
+      await expect(socialLinks).toHaveText([
+        'LINE',
+        'Instagram',
+        'Messenger',
+        'Facebook'
+      ]);
+      expect(Math.abs(socialBoxes[0].y - socialBoxes[1].y)).toBeLessThan(2);
+      expect(Math.abs(socialBoxes[2].y - socialBoxes[3].y)).toBeLessThan(2);
+      expect(
+        Math.abs(socialBoxes[0].width - socialBoxes[1].width)
+      ).toBeLessThan(2);
+      for (const box of socialBoxes)
+        expect(box.height).toBeGreaterThanOrEqual(44);
+    }
     expect(await pageOverflow(page), 'step 3').toBeLessThanOrEqual(1);
   });
 

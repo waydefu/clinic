@@ -3,6 +3,7 @@
 import './modules/trusted-html.js';
 import {
   BOOKING_KIND_LABELS,
+  CLINIC,
   PATIENT_REQUEST_TAGS,
   PATIENT_SERVICES,
   PATIENT_SOURCE_TAGS,
@@ -49,6 +50,7 @@ let selectedSlotId;
 let completedAppointmentId;
 let completedAppointment;
 let activeSlotDate;
+let activeSlotMonth;
 let bookingLookupMode = 'phone';
 let managedAppointments = [];
 let lastLookupVerification;
@@ -138,6 +140,12 @@ async function runUiAction({
 
 function showStep(step, { focusHeading = true, scroll = true } = {}) {
   bookingResultPanel.hidden = true;
+  document.body.dataset.bookingFlowStep = String(step);
+  elements['patient-hero'].hidden = step !== 1;
+  elements['patient-preview-warning'].hidden = step !== 1;
+  // 第二、三步已經由步驟標題與就地錯誤提供視覺回饋；頂端 aria-live 留在
+  // 無障礙樹中播報即可，不再用兩條重複訊息把主要操作往下推。
+  elements['patient-status'].classList.toggle('visually-hidden', step !== 1);
   panels.forEach((panel) => {
     panel.hidden = Number(panel.dataset.bookingStep) !== step;
   });
@@ -175,6 +183,7 @@ function showStep(step, { focusHeading = true, scroll = true } = {}) {
 }
 
 function showBookingResult() {
+  elements['patient-hero'].hidden = true;
   panels.forEach((panel) => {
     panel.hidden = true;
   });
@@ -355,6 +364,48 @@ function renderPatientTags() {
   );
 }
 
+const patientContactIcons = Object.freeze({
+  電話: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h3l1.5 4-2 1.5a15 15 0 0 0 6 6l1.5-2 4 1.5v3a4 4 0 0 1-4 4C9.3 20.2 3.8 14.7 3 7a4 4 0 0 1 4-4Z"/></svg>',
+  LINE: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5c0 4.1-3.8 7.5-8.5 7.5-.8 0-1.7-.1-2.4-.3L5 21l1.2-3.5C4.2 16.1 3 13.9 3 11.5 3 7.4 6.8 4 11.5 4S20 7.4 20 11.5Z"/><path d="M7.5 10v3h1.7m1-3v3m1.2-3v3m0-3 2 3v-3m1.2 0h2v3h-2m0-1.5h1.6"/></svg>',
+  Instagram:
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>',
+  Messenger:
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L4 21l1.2-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="m8 14 3-3 2 2 3-3"/></svg>',
+  Facebook:
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M13.5 20v-7h2.4l.4-3h-2.8V8.5c0-.9.3-1.5 1.6-1.5h1.4V4.3c-.5-.1-1.3-.2-2.2-.2-2.3 0-3.8 1.4-3.8 4V10H8v3h2.5v7"/></svg>'
+});
+
+function patientContactIcon(label, { round = false } = {}) {
+  const icon = patientContactIcons[label] ?? '';
+  if (!round) return icon;
+  return icon
+    .replace(
+      'viewBox="0 0 24 24" width="20" height="20"',
+      'viewBox="-12 -12 48 48" width="48" height="48"'
+    )
+    .replace('stroke="currentColor"', 'stroke="var(--forest-dark)"')
+    .replace(
+      'aria-hidden="true">',
+      'aria-hidden="true"><circle cx="12" cy="12" r="23" fill="var(--surface)" stroke="var(--line-strong)"/>'
+    );
+}
+
+function renderPatientContactLinks() {
+  const compact = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const socialLinks = CLINIC.socialLinks
+    .map(({ label, href }) =>
+      compact
+        ? `<a class="brand patient-contact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${patientContactIcon(label, { round: true })}</a>`
+        : `<a class="button button-secondary patient-contact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${escapeHtml(label)}">${patientContactIcon(label)}&nbsp;<span>${escapeHtml(label)}</span></a>`
+    )
+    .join('');
+  const socialLayout = compact
+    ? 'booking-social-fallback patient-contact-socials'
+    : 'patient-contact-grid patient-contact-socials';
+  elements['patient-contact-options'].innerHTML =
+    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><a class="button button-primary patient-contact-link patient-contact-phone" href="${escapeHtml(CLINIC.phoneHref)}">${patientContactIcon('電話')}&nbsp;<span>${escapeHtml(CLINIC.phoneDisplay)}</span></a><span>其他聯絡方式</span><div class="${socialLayout}" data-contact-layout="${compact ? 'compact' : 'labeled'}" aria-label="其他聯絡方式">${socialLinks}</div>`;
+}
+
 function checkedTagIds(containerId, attribute) {
   return [
     ...elements[containerId].querySelectorAll(`[${attribute}]:checked`)
@@ -405,13 +456,40 @@ function renderBookingContext() {
 }
 
 function renderDayGroup(group) {
-  const buttons = group.slots
-    .map((slot) => {
-      const selected = slot.id === selectedSlotId;
-      return `<button class="slot-chip${selected ? ' is-selected' : ''}" type="button" data-patient-slot="${escapeHtml(slot.id)}" aria-pressed="${selected}">${escapeHtml(formatTime(slot.startsAt))}${selected ? '<span class="slot-chip-mark" aria-hidden="true">✓</span>' : ''}</button>`;
+  const periods = [
+    { label: '上午', accepts: (hour) => hour < 12 },
+    { label: '中午', accepts: (hour) => hour >= 12 && hour < 17 },
+    { label: '晚間', accepts: (hour) => hour >= 17 }
+  ];
+  return periods
+    .map(({ label, accepts }) => {
+      const slots = group.slots.filter((slot) =>
+        accepts(Number(formatTime(slot.startsAt).slice(0, 2)))
+      );
+      if (slots.length === 0) return '';
+      const buttons = slots
+        .map((slot) => {
+          const selected = slot.id === selectedSlotId;
+          return `<button class="slot-chip${selected ? ' is-selected' : ''}" type="button" data-patient-slot="${escapeHtml(slot.id)}" aria-pressed="${selected}">${escapeHtml(formatTime(slot.startsAt))}${selected ? '<span class="slot-chip-mark" aria-hidden="true">✓</span>' : ''}</button>`;
+        })
+        .join('');
+      return `<section class="slot-period" aria-label="${label}時段"><h4>${label}</h4><div class="slot-chip-row">${buttons}</div></section>`;
     })
     .join('');
-  return `<div class="slot-chip-row">${buttons}</div>`;
+}
+
+function monthLabel(monthKey) {
+  const [year, month] = monthKey.split('-');
+  return `${year} 年 ${Number(month)} 月`;
+}
+
+function compactDateLabel(dateKey) {
+  const [, month, day] = dateKey.split('-');
+  const weekday = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
+  return {
+    weekday: WEEKDAY_LABELS[weekday],
+    date: `${Number(month)}/${Number(day)}`
+  };
 }
 
 function renderSlots() {
@@ -426,6 +504,8 @@ function renderSlots() {
 
   if (groups.length === 0) {
     activeSlotDate = undefined;
+    activeSlotMonth = undefined;
+    elements['patient-slot-months'].replaceChildren();
     elements['patient-slot-dates'].replaceChildren();
     elements['active-slot-date-label'].textContent = '目前沒有可預約日期';
     elements['patient-slots'].innerHTML = emptyState(
@@ -435,12 +515,25 @@ function renderSlots() {
     return;
   }
 
-  if (!groups.some((group) => group.key === activeSlotDate))
-    activeSlotDate = groups[0].key;
-  elements['patient-slot-dates'].innerHTML = groups
+  const months = [...new Set(groups.map((group) => group.key.slice(0, 7)))];
+  if (!months.includes(activeSlotMonth))
+    activeSlotMonth = activeSlotDate?.slice(0, 7) ?? months[0];
+  const monthGroups = groups.filter((group) =>
+    group.key.startsWith(activeSlotMonth)
+  );
+  if (!monthGroups.some((group) => group.key === activeSlotDate))
+    activeSlotDate = monthGroups[0].key;
+  elements['patient-slot-months'].innerHTML = months
+    .map((month) => {
+      const selected = month === activeSlotMonth;
+      return `<button class="patient-slot-month" type="button" role="tab" data-slot-month="${escapeHtml(month)}" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}">${escapeHtml(monthLabel(month))}</button>`;
+    })
+    .join('');
+  elements['patient-slot-dates'].innerHTML = monthGroups
     .map((group) => {
       const selected = group.key === activeSlotDate;
-      return `<button class="patient-slot-date" type="button" role="tab" data-slot-date="${escapeHtml(group.key)}" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}"><strong>${escapeHtml(group.label)}</strong><small>${group.slots.length} 個時段${selected ? ' · ✓ 已選' : ''}</small></button>`;
+      const label = compactDateLabel(group.key);
+      return `<button class="patient-slot-date" type="button" role="tab" data-slot-date="${escapeHtml(group.key)}" aria-label="${escapeHtml(group.label)}，${group.slots.length} 個時段" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}"><strong>${escapeHtml(label.weekday)}</strong><span>${escapeHtml(label.date)}</span><small>${group.slots.length} 個時段${selected ? ' · ✓ 已選' : ''}</small></button>`;
     })
     .join('');
   const active = groups.find((group) => group.key === activeSlotDate);
@@ -606,6 +699,7 @@ document.querySelectorAll('[data-booking-type]').forEach((button) =>
     selectedBookingType = type;
     // 換看診類型等於換一批時段，回到該類型的第一個可預約日期。
     activeSlotDate = undefined;
+    activeSlotMonth = undefined;
     renderBookingTypeButtons();
     renderSlots();
     message(
@@ -649,6 +743,14 @@ elements['patient-slot-dates'].addEventListener('click', (event) => {
   renderSlots();
 });
 
+elements['patient-slot-months'].addEventListener('click', (event) => {
+  const button = event.target.closest('[data-slot-month]');
+  if (button === null) return;
+  activeSlotMonth = button.dataset.slotMonth;
+  activeSlotDate = undefined;
+  renderSlots();
+});
+
 elements['patient-slot-dates'].addEventListener('keydown', (event) => {
   if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
   const tabs = [
@@ -663,6 +765,24 @@ elements['patient-slot-dates'].addEventListener('keydown', (event) => {
   renderSlots();
   elements['patient-slot-dates']
     .querySelector(`[data-slot-date="${activeSlotDate}"]`)
+    ?.focus();
+});
+
+elements['patient-slot-months'].addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+  const tabs = [
+    ...elements['patient-slot-months'].querySelectorAll('[data-slot-month]')
+  ];
+  const current = tabs.indexOf(document.activeElement);
+  if (current === -1) return;
+  event.preventDefault();
+  const offset = event.key === 'ArrowRight' ? 1 : -1;
+  const target = tabs[(current + offset + tabs.length) % tabs.length];
+  activeSlotMonth = target.dataset.slotMonth;
+  activeSlotDate = undefined;
+  renderSlots();
+  elements['patient-slot-months']
+    .querySelector(`[data-slot-month="${activeSlotMonth}"]`)
     ?.focus();
 });
 
@@ -866,13 +986,23 @@ elements['add-to-calendar'].addEventListener('click', () => {
   message('行事曆檔案已下載，開啟後即可加入。', 'success');
 });
 
-elements['book-another'].addEventListener('click', () => {
+function restartBooking() {
+  elements['patient-booking-form'].reset();
+  touched.clear();
+  selectedBookingType = 'initial';
   selectedSlotId = undefined;
   selectedServiceId = undefined;
   activeSlotDate = undefined;
-  renderServices();
+  activeSlotMonth = undefined;
+  syncSelectedBookingType();
+  syncReferrerField();
+  syncIdentityDocumentField();
+  renderAll();
   showStep(1);
-});
+}
+
+elements['book-another'].addEventListener('click', restartBooking);
+elements['booking-restart'].addEventListener('click', restartBooking);
 
 function lookupVerification() {
   return {
@@ -908,11 +1038,21 @@ function renderManagedAppointments() {
       const action = eligibility.allowed
         ? `<button class="button button-primary" type="button" data-managed-cancel="${escapeHtml(appointment.id)}">取消這筆預約</button>`
         : ['phone_required', 'time_unavailable'].includes(eligibility.code)
-          ? '<a class="button button-secondary booking-phone-fallback" href="tel:+886225771314">請來電 02-2577-1314</a>'
+          ? cancellationContactFallback()
           : '';
       return `<article class="booking-lookup-card"><div class="booking-lookup-card-heading"><strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(status)}</span></div><span>${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel)}</span><span class="code">預約末碼 ${escapeHtml(appointment.id.slice(-4))}</span>${action}</article>`;
     })
     .join('');
+}
+
+function cancellationContactFallback() {
+  const social = CLINIC.socialLinks
+    .map(
+      ({ label, href }) =>
+        `<a class="button button-tertiary" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
+    )
+    .join('');
+  return `<div class="booking-cancel-contact"><strong>距離預約時間不足 20 分鐘，如需取消或更改，建議直接來電診所。</strong><a class="button button-primary booking-phone-fallback" href="${escapeHtml(CLINIC.phoneHref)}">立即撥打 ${escapeHtml(CLINIC.phoneDisplay)}</a><span>其他聯絡方式：</span><div class="booking-social-fallback" aria-label="其他聯絡方式">${social}</div><p class="booking-contact-disclaimer">社群訊息不保證即時回覆；急件請直接來電。以上連結會開啟外部網站，且不會自動取消預約。</p></div>`;
 }
 
 function openBookingManagement(trigger) {
@@ -1076,6 +1216,7 @@ renderServices();
 renderBookingTypeButtons();
 // 標籤是常數，只畫一次：重畫會清掉使用者已經勾好的選擇。
 renderPatientTags();
+renderPatientContactLinks();
 syncReferrerField();
 syncIdentityDocumentField();
 

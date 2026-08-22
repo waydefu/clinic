@@ -1213,3 +1213,200 @@
   11/11 required jobs，含 Verification evidence；通過前不宣稱 final merge-ready。
 - **Rollback:** preview 自動到期或依 runbook 提前刪除 `synthetic-review` channel；source
   及 docs 用 `git revert`，不改寫 shared history。沒有 backend／schema／real-data rollback。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — BEFORE IMPLEMENTATION (2026-08-22)
+
+- **Merged Baseline:** PR #23 已於 `2026-08-22T05:41:02Z` 合併；merge commit
+  `5df89f0ef75ebe8cf63277d982b9c7330b0e5104`，PR final head
+  `0b98f821b41cc000b51e0b8967d84ca2fa2d84d2`。本輪 fetch 後確認 remote `main`
+  正好是該 merge commit，沒有 post-merge commit。
+- **Branch / Worktree:** `agent/booking-final-c4-vendor-handoff`，由上述 current
+  `origin/main` 建立 clean worktree；C3 `d9b6965c0e3ae62df33e89744f12c6d7fcc16480`
+  與其 preview／13 張視覺證據保持 immutable historical evidence。
+- **Objective:** 完成業主最終 booking／workbench 修正、電話與 canonical 社群取消
+  fallback、網站廠商 Widget + API + DNS handoff、CAL-PILOT-001 readiness-only 文件、
+  fresh 15+ scenario visual evidence、exact-C4 full CI、7d synthetic Hosting preview、
+  online verification 與 open／unmerged PR #24。
+- **Synthetic Owner Acceptance:** C4 的可預約範圍為 Asia/Taipei 今日起 60 個日曆日；
+  synthetic patient direct cancel 仍採 strictly greater than 20 minutes。兩者只屬本輪
+  synthetic owner acceptance，不把 D-004／D-005 production decision 改為 approved。
+- **Booking UI Scope:** compact Step-1-only hero、thin preview warning、三步驟 stepper、
+  Step 2 month/date navigation 與上午／中午／晚間分組、Step 3 單一返回與重新開始、
+  success result、雙欄位 lookup 與完整 late-cancel contact fallback。
+- **Workbench Scope:** 週檢視只顯示正常開放日與明示加開例外；明示休診日移除；
+  header 顯示 hours／加開，body 只顯示按時間排序的 actual appointments。既有 Case
+  三列 layout 與 permission-before-mutation／no-partial-write invariants 保持不變；
+  Payroll 繼續 frozen。
+- **Vendor Scope:** `/booking` only；official route
+  `https://beauessence.com.tw/reservations/`；推薦 Widget + API；未啟用的 future API
+  target `https://api.beauessence.com.tw` 與 optional booking host
+  `https://book.beauessence.com.tw` 只文件化 responsibility／DNS／TLS／future CORS，
+  本輪不得設定 DNS 或 CORS。
+- **Calendar Scope:** 只新增 `docs/integration/google-calendar-pilot-readiness.md`。
+  CAL-PILOT-001 在 separate authorization 前停止；不得讀取或修改原診所 Calendar、
+  不連接 private test Calendar、不建立 OAuth credential、不使用任何真實 event／ID／
+  screenshot，不部署 worker／webhook／sync route。
+- **Deployment Authority Boundary:** owner 本輪只授權 current C4 exact SHA 在 same-SHA
+  full CI 綠後，以獨立 docs-only authority record 固定 exact commit、operator、project
+  `beauessence-clinic-staging`、Hosting preview channel `synthetic-review`、expiry `7d`；
+  部署只可來自 clean detached exact-C4 worktree，process-scoped `CI=true` 可用。
+- **Prohibited:** merge PR #24、live Hosting、Firestore／Functions／Storage／Cloud Run／
+  Authentication、production backend／credential／data、Calendar／LINE／Meta API 或
+  webhook、DNS／CORS mutation、30 frozen clinic files、Payroll reactivation、old evidence
+  rewrite、workflow／performance gate weakening。
+- **Required Evidence:** focused unit／E2E、full repository verify、Firestore Emulator、
+  all required browser suites、accessibility、performance、supply-chain／secrets、SAST、
+  commit-bound Verification evidence；fresh 15+ scenario baseline 人工逐張檢視；exact-C4
+  preview `verify:preview`；post-deploy final-head CI。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CALENDAR CONNECTED:** **NO**。
+- **DNS / CORS CHANGED:** **NO**。
+- **PR #24 MERGED:** **NO**。
+- **NEW C4 FROZEN:** **NO — IMPLEMENTATION NOT STARTED**。
+- **Rollback:** logical runtime／test／docs commits 分別 `git revert <sha>`；preview 自動到期
+  或依 runbook 提前刪除 channel。禁止 amend、rebase、reset、force push。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — AFTER IMPLEMENTATION, BEFORE CANDIDATE FREEZE (2026-08-22)
+
+- **Runtime Result:** `/booking` large hero 只在 Step 1；三步驟 stepper 不新增 success
+  step；Step 2 使用 month navigation、可用日期與非空的上午／中午／晚間分組；Step 3
+  只有單一返回與 `重新開始`，資料依「本人基本資料／本次門診補充」收斂。成功為 Step 3
+  後的 result。synthetic warning 持續可見。
+- **Command Boundary:** browser-local create 與 reschedule adapter 均使用 Asia/Taipei
+  trusted application date 驗證今日起 60 個日曆日範圍；直接繞過 UI 的 command 亦拒絕
+  第 60 天以外時段。此規則不核准 D-004 production horizon。
+- **Lookup / Cancel:** 維持電話＋生日或證件＋生日的雙欄位查詢；`>20 minutes` 才能
+  direct self-cancel，`<=20 minutes` 以 `02-2577-1314` 為 primary，並顯示 frozen clinic
+  content 中相同的 LINE／Instagram／Messenger／Facebook。文案明示社群非即時且不會
+  自動取消；D-005 仍 pending。
+- **Workbench Result:** desktop week 只渲染實際正常開放日；`extra_open` 以 `加開` 與
+  hours 加入，明示 `closed` 正常日移除；body／mobile agenda 只渲染 actual appointments，
+  follow-up reminder 不冒充 Calendar event。Case 三列與 mobile stack 保持；Payroll 未接線。
+- **Frozen / Architecture Boundaries:** 30/30 clinic files byte-identical；patient dependency
+  graph 不可達 workbench-only policy；Case permission-before-mutation／no-partial-write、
+  browser-only synthetic store、no-backend／no-real-data invariants 全部保持。
+- **Logical Commits:** `77cdbd2` owner UI corrections；`1a537e6` warning copy；`19369f4`／
+  `982e09d` follow-up event boundary tests；`bee0dd5`／`da6a60f`／`7c757ee`／`9578386`
+  payload/style convergence；`c2e75ad` 的 frozen-file touch 由 `2b30021` 完整復原；
+  `8cc12c8`／`553cc50`／`6bd7b04` month/date acceptance；`11cc861` capture matrix；
+  `97e3803` balanced layouts；`5089cd9` phone CTA contrast；後續 commits 記錄 visual、
+  CAL-PILOT-001、vendor 與 formatting evidence。
+- **Visual Evidence:** `docs/reviews/assets/ui-visual-c4-2026-08-22/` 新增 16 張、沒有
+  覆寫 C3。固定 Chromium／warm／zh-TW／Asia-Taipei／reduced-motion／DPR 1；manifest
+  綁定每張 SHA-256，16/16 console error／warning 均為 0。逐張人工檢視涵蓋 Step 1、
+  Step 2 month／period／mobile、Step 3 desktop／mobile、success、lookup、eligible cancel、
+  late phone/social fallback、normal／exception／populated week、Case desktop／mobile、privacy，
+  未見 unintended clipping、overlap、dead space 或 page overflow。
+- **Local Acceptance:** full unit **1057/1057**；packaged Chromium＋mobile-device E2E
+  **314/314**，包含 patient、60-day bypass、cancel contacts、four-open-day／exception calendar、
+  accessibility、responsive、privacy、roles、Case。此 Windows host 沒有 Playwright WebKit
+  executable，故 18 個 WebKit clinic-only cases 是 local tool unavailable，不是 runtime
+  failure；final GitHub same-SHA CI 必須安裝並通過它們。structure、docs、format、lint、
+  types/build、capture config、sync 18/18、architecture、UI、public pages、tokens、secrets、
+  performance 與 clinic freeze 皆 local PASS。
+- **Performance:** packaged dist 為 77 files／53 content-hashed files；`/booking` gzip
+  closure 38 resources／66.6 KiB（document 7.0、script 44.8、CSS 9.5、image 5.3），仍低於
+  unchanged 70 KiB／38-resource budgets。`/index.html` 88.9 KiB／39 resources，仍低於
+  unchanged 90 KiB／46-resource budgets；沒有調高門檻。
+- **Vendor Package:** official route、Widget + API、future API/optional booking hostname 與
+  DNS／TLS／CORS responsibility matrix 已完成；C4 URL／expiry／exact SHA 保持 `PENDING`，
+  直到 exact-C4 same-SHA CI 與 online verification 完成，C3 URL 不再標為 current。
+- **CAL-PILOT-001:** readiness 文件已固定 source reader `calendar.events.readonly`、separate
+  test writer、private test Calendar、allowlist-only mapping、no write-back、cleanup 與 explicit
+  STOP。**本輪沒有建立或使用 credential、Calendar ID、event data 或連線。**
+- **Deployment State:** **NOT DEPLOYED**。下一步是 push/open PR #24、取得 prospective C4
+  same-SHA 全 required CI 綠、凍結 exact C4，再以 docs-only commit 記錄 deployment authority。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CALENDAR CONNECTED / ORIGINAL ACCESSED:** **NO / NO**。
+- **DNS / CORS CHANGED:** **NO**。
+- **PR #24 MERGED:** **NO**。
+- **NEW C4 FROZEN:** **NO — FINAL SAME-SHA GITHUB CI PENDING**。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — EXACT DEPLOYMENT AUTHORITY (2026-08-22)
+
+- **Candidate C4:** `b3bc47721aaf2ca8de89ed62159dd7461d0eae30`。本 SHA 包含
+  final runtime、tests、16-scenario evidence、vendor package 與 CAL-PILOT-001 stop-line；
+  相對 `origin/main` 的 `.github/workflows/verify.yml` diff 為 zero。
+- **Same-SHA Acceptance:** GitHub run
+  [`32561071094`](https://github.com/waydefu/clinic/actions/runs/32561071094) 的 11/11 jobs
+  `success`，包含 core verify、Firestore Emulator、六組 E2E（patient portal 含 WebKit）、
+  supply-chain／secrets、SAST 與 commit-bound Verification evidence。remote branch、local C4
+  均為上述 SHA；remote main 仍為 `5df89f0ef75ebe8cf63277d982b9c7330b0e5104`。
+- **Owner Authorization:** 本輪指令明確授權**一次** exact-C4 refreshed synthetic Hosting
+  preview，目的只限 website vendor `/booking` evaluation 與 owner final review。
+- **Exact Target:** Firebase project `beauessence-clinic-staging`（project number
+  `781119800251`，state `ACTIVE`）；Hosting preview channel `synthetic-review`；requested
+  expiry `7d`。
+- **Operator:** Firebase CLI `15.18.0`；`firebase login:list` 確認為
+  `wayde.fu@gmail.com`。
+- **Allowed Action:** 只能從 clean detached worktree 的 exact C4 執行 repository canonical
+  predeploy，再執行
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+  process-scoped `CI=true` 只可用於 non-interactive dependency／build／deploy／verify。
+- **Prohibited:** 部署本 docs authority commit、live Hosting、Firestore／Functions／Storage／
+  Cloud Run／Authentication、Calendar access／credential／test Calendar、DNS／CORS、LINE／
+  Meta API、production backend／credential／data、real patient／staff／clinical／payroll data。
+- **Post-Deploy Gate:** 從同一 exact-C4 worktree 對 returned current URL 執行 canonical
+  `verify:preview`，必須通過 evidence marker、routes、headers、noindex、cache、hashed assets
+  與 synthetic/no-backend boundary；失敗不得手改 dist，須修 source 並凍結新 candidate。
+- **Authority Record Isolation:** 本段只修改 execution log；authority commit push 後也須
+  11/11 CI 綠，但不會被部署，避免 self-referential SHA。實際部署內容固定為 exact C4。
+- **NEW C4 FROZEN:** **YES — EXACT C4 SAME-SHA 11/11 GREEN**。
+- **DEPLOYMENT EXECUTED:** **NO — AUTHORITY RECORDED, EXECUTION PENDING**。
+- **REAL DATA AUTHORIZED:** **NO**。
+- **CALENDAR ACCESS AUTHORIZED:** **NO**。
+- **PR #24 MERGED:** **NO**。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — DEPLOYMENT AND ONLINE VERIFICATION (2026-08-22)
+
+- **Authority Gate:** docs-only authority commit
+  `1997a5988514aecf74311efeee74064a20e0ef42` 的 GitHub run
+  [`32561272179`](https://github.com/waydefu/clinic/actions/runs/32561272179) 11/11
+  `success`。實際部署內容仍固定為 exact C4
+  `b3bc47721aaf2ca8de89ed62159dd7461d0eae30`。
+- **Exact Worktree / Lock:** successful deploy worktree
+  `F:\診所專案\tmp\booking-c4-deploy-ready-b3bc477` detached at exact C4；build／deploy／
+  online verify 前後 tracked status clean。repository 與 established complete dependency
+  environment 的 lock SHA-256 均為
+  `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`。
+- **Windows Dependency Handling:** 第一個 fresh exact-C4 worktree 的 frozen install 在
+  cached `@axe-core/playwright` licence copy 34/861 時遇 Windows `EPERM`，因此未拿來部署。
+  successful worktree 使用 lock-identical complete dependency environment；process-only
+  `PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false` 只阻止 pnpm 11 嘗試 purge external junction，
+  沒有改 repository／lock／gate。
+- **Canonical Predeploy:** 未修改 `firebase.json`，canonical `corepack pnpm run build` 仍
+  執行 workspace builds、18 vendored domain file sync，產生 77 files／53 content-hashed。
+- **Execution:** operator `wayde.fu@gmail.com`，Firebase CLI `15.18.0`；只在 process
+  scope 設 `CI=true` 並執行
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+- **Hosting Result:** **PASS**。Release `1787386261863000`，version
+  `11f4ad12b13c1512` (`FINALIZED`)，release time `2026-08-22T08:11:01.863Z`
+  (16:11:01 Asia/Taipei)。Authentication channel-domain add／sync warning 保留；
+  Authentication 沒有啟用或修改。
+- **Preview:**
+  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；absolute expiry
+  `2026-08-29T08:10:26.405373913Z` (16:10:26 Asia/Taipei)。
+- **Online Verification:** 同一 exact-C4 worktree 在 `2026-08-22T08:11:22.996Z` 執行
+  canonical `verify:preview`，取得 **474/474 PASS**，evidence commit 等於 C4；驗證 routes、
+  staging containment、exact marker、security／noindex／cache headers 與 40 個 unique hashed
+  JS／CSS assets。
+- **Dated Evidence:**
+  `docs/reviews/2026-08-22-booking-final-c4-synthetic-preview-deployment.md`；C4 owner
+  acceptance、vendor package、payload report 均改指 exact C4。C3 documents／images 不修改，
+  只在 index 標為 historical。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **AUTHORIZED SYNTHETIC HOSTING PREVIEW TOUCHED:** **YES — EXACT C4 RELEASE ONLY**。
+- **LIVE HOSTING / BACKEND / AUTH / DNS / CORS CHANGED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO — 30/30 FROZEN**。
+- **GOOGLE CALENDAR CONNECTED / ORIGINAL ACCESSED:** **NO / NO**。
+- **TEST CALENDAR CONNECTED / CREDENTIALS USED:** **NO / NO**。
+- **PAYROLL REACTIVATED:** **NO**。
+- **D-004 / D-005 PRODUCTION RULES APPROVED:** **NO — BOTH REMAIN PENDING**。
+- **PR #24 MERGED:** **NO**。
+- **Final Gate:** 本 post-deploy docs HEAD push 後仍須 11/11 required jobs 與 commit-bound
+  Verification evidence 全綠，且 PR 保持 open／not merged，才可宣稱 merge-ready。
+- **Rollback:** preview 自動到期或依 runbook 提前刪除 `synthetic-review`；source／docs 用
+  `git revert`。沒有 backend／schema／real-data rollback。

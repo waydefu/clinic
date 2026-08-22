@@ -25,9 +25,29 @@ export {
 // 修改時請一併更新 patient.html 內的 JSON-LD。
 export const CLINIC = Object.freeze({
   name: '一森渼診所',
-  address: '臺北市松山區光復北路112號2樓'
+  address: '臺北市松山區光復北路112號2樓',
+  phoneDisplay: '02-2577-1314',
+  phoneHref: 'tel:+886225771314',
+  socialLinks: Object.freeze([
+    Object.freeze({
+      label: 'LINE',
+      href: 'https://page.line.me/821tzbtx'
+    }),
+    Object.freeze({
+      label: 'Instagram',
+      href: 'https://www.instagram.com/beauessence.tw'
+    }),
+    Object.freeze({
+      label: 'Messenger',
+      href: 'https://m.me/575723225620285'
+    }),
+    Object.freeze({
+      label: 'Facebook',
+      href: 'https://www.facebook.com/beauessencetaipei/'
+    })
+  ])
 });
-// 合成資料的可預約視窗：**由今天起算**一個月（P5，業主 2026-07-27）。
+// 合成資料的可預約視窗：**由台北今天起算 60 個日曆日**（C4，業主 2026-08-22）。
 //
 // 先前是寫死的 2030-01-01 起 21 天。那讓每一份合成資料都落在一個沒有人會遇到
 // 的年份——好處是測試容易，代價是業主看預覽時看到的日期與現實無關，而
@@ -35,7 +55,7 @@ export const CLINIC = Object.freeze({
 //
 // 起點是**函式**而不是常數：模組載入的那一刻算一次會讓開著一整天的分頁停在
 // 昨天。呼叫端每次產生時段時重算。
-export const SYNTHETIC_WINDOW_DAYS = 30;
+export const SYNTHETIC_WINDOW_DAYS = 60;
 
 // 初診走整點與半點，回診走 15 分與 45 分，兩種掛號各自成格。
 export const BOOKING_KINDS = Object.freeze({

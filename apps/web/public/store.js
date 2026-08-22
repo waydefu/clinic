@@ -23,6 +23,7 @@ import {
   requirePermissionOrDelegation
 } from './modules/permissions.js';
 import {
+  assertWithinSyntheticBookingWindow,
   cloneSchedule,
   ensureScheduleVersion,
   generateSlots,
@@ -278,6 +279,9 @@ export async function stagingRequest(path, options = {}) {
       isMaintenanceActive(state.workspace.maintenance)
     )
       throw new Error('預約系統維護中，目前無法送出預約。');
+    const selectedSlot = state.slots.find((slot) => slot.id === body.slotId);
+    if (selectedSlot !== undefined)
+      assertWithinSyntheticBookingWindow(selectedSlot);
     createBooking(
       state,
       body,
@@ -328,6 +332,9 @@ export async function stagingRequest(path, options = {}) {
     );
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/reschedule$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
+    const selectedSlot = state.slots.find((slot) => slot.id === body.slotId);
+    if (selectedSlot !== undefined)
+      assertWithinSyntheticBookingWindow(selectedSlot);
     rescheduleAppointment(state, path.split('/')[2], body.slotId, actor.id);
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/notes$/.test(path)) {
     // 備註是櫃台的營運註記，沿用建立預約的權限，不需要管理者。

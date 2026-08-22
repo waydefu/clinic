@@ -89,7 +89,7 @@ const CEILINGS = {
     // 網格在 1.5→2→3→4rem 之間跳得很開，官網的大留白沒有對應的階。
     // **要收斂之前得先決定補哪一階，不是逐條硬套。**
     'clinic-site.css': 13,
-    'styles.css': 4,
+    'styles.css': 3,
     'workbench.css': 1
   },
   '容器 clamp 端點': {

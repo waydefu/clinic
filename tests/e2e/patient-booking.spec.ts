@@ -63,6 +63,34 @@ test.describe('患者線上預約', () => {
     const service = page.locator('#patient-services [data-service]').first();
     await service.click();
     await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
+    await expect(page.locator('#patient-hero')).toBeHidden();
+    await expect(page.locator('.patient-header')).toBeVisible();
+    await expect(page.locator('.booking-stepper')).toBeVisible();
+    await expect(page.locator('#patient-preview-warning')).toBeHidden();
+    await expect(page.locator('#patient-status')).toHaveClass(
+      /visually-hidden/
+    );
+    expect(
+      await page.locator('[data-booking-step="2"]').evaluate((panel) => {
+        const actions = panel.querySelector('.booking-back-row');
+        const title = panel.querySelector('.booking-panel-title');
+        return {
+          display: getComputedStyle(
+            panel.querySelector('.booking-panel-heading')!
+          ).display,
+          topDifference: Math.abs(
+            actions!.getBoundingClientRect().top -
+              title!.getBoundingClientRect().top
+          )
+        };
+      })
+    ).toEqual({ display: 'grid', topDifference: 0 });
+    expect(
+      await page.locator('#patient-slot-months [role="tab"]').count()
+    ).toBeGreaterThanOrEqual(2);
+    await expect(
+      page.locator('#patient-slot-months [aria-selected="true"]')
+    ).toHaveCount(1);
     await expect(
       page.locator('#patient-slot-dates [role="tab"]')
     ).not.toHaveCount(0);
@@ -70,9 +98,63 @@ test.describe('患者線上預約', () => {
       page.locator('#patient-slot-dates [aria-selected="true"]')
     ).toHaveCount(1);
 
+    let foundFullSaturday = false;
+    for (
+      let index = 0;
+      index < (await page.locator('#patient-slot-months [role="tab"]').count());
+      index += 1
+    ) {
+      await page
+        .locator('#patient-slot-months [role="tab"]')
+        .nth(index)
+        .click();
+      const saturdayDates = page.locator('#patient-slot-dates [role="tab"]', {
+        hasText: '週六'
+      });
+      for (
+        let dateIndex = 0;
+        dateIndex < (await saturdayDates.count());
+        dateIndex += 1
+      ) {
+        await saturdayDates.nth(dateIndex).click();
+        if ((await page.locator('.slot-period h4').count()) === 3) {
+          foundFullSaturday = true;
+          break;
+        }
+      }
+      if (foundFullSaturday) break;
+    }
+    expect(foundFullSaturday).toBe(true);
+    await expect(page.locator('.slot-period h4')).toHaveText([
+      '上午',
+      '中午',
+      '晚間'
+    ]);
     const slot = page.locator('[data-patient-slot]').first();
     await slot.click();
     await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
+    await expect(page.locator('#patient-hero')).toBeHidden();
+    await expect(page.locator('#patient-preview-warning')).toBeHidden();
+    await expect(page.locator('#patient-status')).toHaveClass(
+      /visually-hidden/
+    );
+    expect(
+      await page.locator('[data-booking-step="3"]').evaluate((panel) => {
+        const actions = panel.querySelector('.booking-back-row');
+        const title = panel.querySelector('.booking-panel-title');
+        return {
+          display: getComputedStyle(
+            panel.querySelector('.booking-panel-heading')!
+          ).display,
+          topDifference: Math.abs(
+            actions!.getBoundingClientRect().top -
+              title!.getBoundingClientRect().top
+          )
+        };
+      })
+    ).toEqual({ display: 'grid', topDifference: 0 });
+    await expect(page.getByRole('button', { name: '上一步' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: '重新開始' })).toBeVisible();
     await expect(page.locator('.patient-form-section')).toHaveCount(2);
     await expect(page.locator('#patient-identity-heading')).toBeVisible();
     await expect(page.locator('#visit-supplement-heading')).toBeVisible();
@@ -86,6 +168,41 @@ test.describe('患者線上預約', () => {
     // 步驟 2：選第一個可預約時段（選時段會前進到步驟 3）。
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
     await page.locator('[data-patient-slot]').first().click();
+
+    const contactLinks = page.locator('.patient-contact-link');
+    await expect(contactLinks).toHaveCount(5);
+    await expect(contactLinks.first()).toHaveText('02-2577-1314');
+    await expect(contactLinks.nth(1)).toHaveAttribute(
+      'href',
+      'https://page.line.me/821tzbtx'
+    );
+
+    const socialLinks = page.locator(
+      '.patient-contact-socials .patient-contact-link'
+    );
+    await expect(socialLinks).toHaveCount(4);
+    expect(
+      await socialLinks.evaluateAll((links) =>
+        links.map((link) => ({
+          ariaLabel: link.getAttribute('aria-label'),
+          title: link.getAttribute('title')
+        }))
+      )
+    ).toEqual([
+      { ariaLabel: 'LINE', title: 'LINE' },
+      { ariaLabel: 'Instagram', title: 'Instagram' },
+      { ariaLabel: 'Messenger', title: 'Messenger' },
+      { ariaLabel: 'Facebook', title: 'Facebook' }
+    ]);
+    await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+      'data-contact-layout',
+      'compact'
+    );
+    const socialBox = await socialLinks.first().boundingBox();
+    expect(
+      Math.abs((socialBox?.width ?? 0) - (socialBox?.height ?? 0))
+    ).toBeLessThan(2);
+    await socialLinks.first().hover();
 
     // 步驟 3：填基本資料，並勾選兩個各自獨立的確認——測試用的告知草稿已讀，
     // 以及「資料只留在本機」。前者不會建立正式同意紀錄。
@@ -109,6 +226,21 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('[data-booking-result]')).toBeVisible();
     await expect(page.locator('[data-step-indicator]')).toHaveCount(3);
     await expect(page.locator('[data-booking-step="4"]')).toHaveCount(0);
+  });
+
+  test('步驟三可重新開始並清除已選內容', async ({ page }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    const service = page.locator('#patient-services [data-service]').first();
+    await service.click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('不應保留');
+
+    await page.getByRole('button', { name: '重新開始' }).click();
+
+    await expect(page.locator('[data-booking-step="1"]')).toBeVisible();
+    await expect(page.locator('#patient-hero')).toBeVisible();
+    await expect(service).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#patient-name')).toHaveValue('');
   });
 
   test('固定顯示合成資料邊界，鍵盤可完成預約與取消且不發出後端請求', async ({
@@ -288,6 +420,77 @@ test.describe('患者線上預約', () => {
     expect(result.reservationId).toBe(result.appointmentId);
   });
 
+  test('直接合成指令也不能建立第 60 天以外的預約', async ({ page }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('邊界測試患者');
+    await page.locator('#patient-phone').fill('0900555666');
+    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
+    await page.locator('#patient-national-id').fill('L123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    const result = await page.evaluate(async (key) => {
+      const storeUrl = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .find((name) => /\/store\.[a-f0-9]+\.js$/.test(name));
+      if (storeUrl === undefined) throw new Error('找不到 synthetic store。');
+      const { stagingRequest } = await import(storeUrl);
+      const state = await stagingRequest('/state');
+      const appointment = state.appointments.at(-1);
+      const sourceSlot = state.slots.find(
+        (slot) => slot.id === appointment.slotId
+      );
+      const now = new Date(Date.now() + 8 * 60 * 60_000);
+      const outsideDate = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 60)
+      )
+        .toISOString()
+        .slice(0, 10);
+      const outsideSlot = {
+        ...sourceSlot,
+        id: 'slot_c4_outside_horizon',
+        startsAt: new Date(`${outsideDate}T12:00:00+08:00`).toISOString(),
+        reservationId: undefined
+      };
+      const persisted = JSON.parse(localStorage.getItem(key) ?? 'null');
+      persisted.slots.push(outsideSlot);
+      localStorage.setItem(key, JSON.stringify(persisted));
+      const before = localStorage.getItem(key);
+      let message = '';
+      try {
+        await stagingRequest('/bookings', {
+          method: 'POST',
+          body: JSON.stringify({
+            slotId: outsideSlot.id,
+            bookingKind: appointment.bookingKind,
+            itemIds: appointment.itemIds,
+            origin: 'patient',
+            patient: {
+              name: '越界測試患者',
+              phone: '0900777888',
+              birthDate: '1991-06-21',
+              nationalId: 'M123456789',
+              hasNhiCard: false
+            }
+          })
+        });
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      return {
+        message,
+        unchanged: before === localStorage.getItem(key)
+      };
+    }, STORAGE_KEY);
+
+    expect(result.message).toContain('60 天預約範圍');
+    expect(result.unchanged).toBe(true);
+  });
+
   test('查詢要求雙欄位、錯誤身分只回通用失敗，證件＋生日可作後備', async ({
     page
   }) => {
@@ -332,7 +535,7 @@ test.describe('患者線上預約', () => {
     );
   });
 
-  test('距預約 19 分鐘拒絕自助取消並提供診所電話，拒絕不改狀態', async ({
+  test('距預約 19 分鐘拒絕自助取消並提供電話與完整社群聯絡，拒絕不改狀態', async ({
     page
   }) => {
     await page.locator('[data-booking-type="initial"]').click();
@@ -361,6 +564,28 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('.booking-phone-fallback')).toHaveAttribute(
       'href',
       'tel:+886225771314'
+    );
+    await expect(page.locator('.booking-phone-fallback')).toHaveText(
+      '立即撥打 02-2577-1314'
+    );
+    await expect(page.getByRole('link', { name: 'LINE' })).toHaveAttribute(
+      'href',
+      'https://page.line.me/821tzbtx'
+    );
+    await expect(page.getByRole('link', { name: 'Instagram' })).toHaveAttribute(
+      'href',
+      'https://www.instagram.com/beauessence.tw'
+    );
+    await expect(page.getByRole('link', { name: 'Messenger' })).toHaveAttribute(
+      'href',
+      'https://m.me/575723225620285'
+    );
+    await expect(page.getByRole('link', { name: 'Facebook' })).toHaveAttribute(
+      'href',
+      'https://www.facebook.com/beauessencetaipei/'
+    );
+    await expect(page.locator('.booking-contact-disclaimer')).toContainText(
+      '社群訊息不保證即時回覆'
     );
 
     const denial = await page.evaluate(async (key) => {
