@@ -390,12 +390,14 @@ function renderPatientContactLinks() {
     }))
   ];
 
-  elements['patient-contact-links'].innerHTML = contacts
+  const links = contacts
     .map(
       ({ label, href, detail, external }) =>
         `<a class="patient-contact-link${label === '電話' ? ' is-primary' : ''}" href="${escapeHtml(href)}"${external ? ' target="_blank" rel="noreferrer"' : ''}>${patientContactIcons[label] ?? ''}<span>${escapeHtml(detail)}</span></a>`
     )
     .join('');
+  elements['patient-contact-options'].innerHTML =
+    `<div class="patient-contact-options-copy"><strong>需要其他協助？</strong><span>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</span></div><div class="patient-contact-links">${links}</div>`;
 }
 
 function checkedTagIds(containerId, attribute) {
