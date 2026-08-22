@@ -2105,13 +2105,6 @@ details[open] > summary .workflow-summary-chevron {
   display: block;
   letter-spacing: var(--tracking-wide);
 }
-.wv-date-head span em {
-  color: var(--forest-dark);
-  font-size: var(--text-micro);
-  font-style: normal;
-  letter-spacing: var(--tracking-label);
-  margin-inline-start: var(--space-3xs);
-}
 .wv-date-head b {
   display: inline-block;
   margin-top: var(--space-4xs);
@@ -2146,15 +2139,6 @@ details[open] > summary .workflow-summary-chevron {
 .wv-date-cell .wv-event + .wv-event {
   margin-top: var(--space-2xs);
 }
-.wv-agenda-day.wv-extra-open .wv-agenda-date {
-  background: var(--forest-light);
-}
-.wv-agenda-date small {
-  color: var(--ink-muted);
-  font-size: var(--text-micro);
-  grid-column: 1 / -1;
-}
-
 @media (max-width: 48rem) {
   .appointment-controls {
     align-items: stretch;

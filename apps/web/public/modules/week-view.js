@@ -223,7 +223,7 @@ export function renderWeekView(state, weekStart, todayDate) {
             `${escapeHtml(interval.startLocalTime)}–${escapeHtml(interval.endLocalTime)}`
         )
         .join('、');
-      return `<th scope="col" class="wv-date-head${extraOpen ? ' wv-extra-open' : ''}${today ? ' wv-today' : ''}"><span>${label}${extraOpen ? '<em>加開</em>' : ''}</span><b>${date.slice(5)}</b><small>${hours}</small></th>`;
+      return `<th scope="col" class="wv-date-head${extraOpen ? ' wv-extra-open' : ''}${today ? ' wv-today' : ''}"><span>${label}</span><b>${date.slice(5)}</b><small>${extraOpen ? '加開 · ' : ''}${hours}</small></th>`;
     })
     .join('');
   const cells = visibleDays
