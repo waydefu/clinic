@@ -108,7 +108,7 @@ test.describe('診所網站整合', () => {
 
     await expect(page).toHaveURL('/booking');
     await expect(
-      page.getByRole('heading', { level: 1, name: '確認您的門診時段' })
+      page.getByRole('heading', { level: 1, name: '線上門診預約' })
     ).toBeVisible();
   });
 });

@@ -365,7 +365,7 @@ test.describe('患者預約頁手機版', () => {
     expect(box?.height ?? 0).toBeLessThan(32);
   });
 
-  test('四個步驟在 375px 都不產生水平捲軸', async ({ page }) => {
+  test('三個步驟在 375px 都不產生水平捲軸', async ({ page }) => {
     await page.goto(BOOKING_ROUTE);
     expect(await pageOverflow(page), 'step 1').toBeLessThanOrEqual(1);
 
@@ -392,7 +392,7 @@ test.describe('患者預約頁手機版', () => {
     // 選填欄位」而紅，卻與它要守的事（星號位置與各欄同寬）完全無關。
     // 生日已改成 <fieldset> 三格，不在這一組裡；它有自己的欄寬規則。
     const labels = page.locator(
-      '.patient-form-grid > label:has(.required-mark):not([hidden])'
+      '.patient-form-section-fields > label:has(.required-mark):not([hidden])'
     );
     await expect(labels).toHaveCount(3);
     const labelRows = await labels.locator('.field-label').evaluateAll((rows) =>

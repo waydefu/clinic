@@ -2229,20 +2229,22 @@ label:has(> input[type='radio']) {
      看得見（那是資訊），主題選單仍然可用（那是偏好），只是不再各佔一列。 */
   .patient-credentials {
     gap: var(--space-3xs);
+    order: 2;
   }
   .patient-credentials img {
     height: 2rem;
     width: 2rem;
   }
   .patient-credentials > span {
-    font-size: var(--text-body);
+    display: none;
   }
   /* 主題選單與健保標章併到同一列的右側。 */
   .patient-header-inner .theme-picker-label {
     margin-left: auto;
+    order: 5;
   }
   .patient-management-open {
-    order: 2;
+    order: 4;
   }
   /* 品牌下方的英文副標**不收起來**。它跟中文字標一起構成品牌識別，患者頁是對外
      的那一面，少掉英文名等於小螢幕上的品牌只剩一半；而且它疊在標誌的 40px 高度
@@ -2252,6 +2254,9 @@ label:has(> input[type='radio']) {
   .patient-header .brand,
   .patient-header .brand > span {
     min-width: 0;
+  }
+  .patient-header .brand {
+    order: 1;
   }
   .patient-header .brand small {
     overflow-wrap: anywhere;
