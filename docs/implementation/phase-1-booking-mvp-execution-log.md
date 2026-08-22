@@ -1130,3 +1130,37 @@
 - **PR #23 MERGED:** **NO**。
 - **Rollback:** runtime／tests／evidence 依上述 logical commits 逐一 `git revert <sha>`；
   不 amend、rebase、reset 或 force push。尚無 C3 cloud release 需要 rollback。
+
+## BOOK-MVP FINAL UI CORRECTION / C3 — EXACT DEPLOYMENT AUTHORITY (2026-08-22)
+
+- **Candidate C3:** `d9b6965c0e3ae62df33e89744f12c6d7fcc16480`。本 SHA 包含最終
+  runtime、tests、13-scenario visual evidence 與 standard workflow；相對
+  `origin/main` 的 `.github/workflows/verify.yml` diff 為 zero。
+- **Same-SHA Acceptance:** GitHub run
+  [`32553136689`](https://github.com/waydefu/clinic/actions/runs/32553136689) 的 11/11 jobs
+  `success`，包含 core verify、Firestore Emulator、全部六組 E2E、supply-chain／secrets、
+  SAST 與 commit-bound Verification evidence。remote branch 與 local C3 SHA 相同；
+  remote main 仍為 `3a3b7859e0a46c0549d3d1d4c7f32293c1cd9282`。
+- **Owner Authorization:** 本輪 2026-08-22 指令明確授權**一次** C3 refreshed synthetic
+  preview，目的只限 final owner acceptance 與 website vendor `/booking` evaluation。
+- **Exact Target:** Firebase project `beauessence-clinic-staging`（project number
+  `781119800251`）；Hosting preview channel `synthetic-review`；requested expiry `7d`。
+- **Operator:** Firebase CLI `firebase login:list` 確認為 `wayde.fu@gmail.com`；project
+  inventory 確認 target 是 active 的 BeauEssence Clinic Staging 專案。
+- **Allowed Action:** 只能從 clean detached worktree 的 exact C3 執行未修改的 canonical
+  predeploy，再執行
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+  process-scoped `CI=true` 僅在 non-interactive install／build／deploy／online verify 使用。
+- **Prohibited:** live Hosting、Firestore／Functions／Storage／Cloud Run／Authentication
+  deploy 或啟用、Calendar／LINE／Meta／NAS 連線、production credential、真實患者／職員／
+  薪資／醫療資料，以及部署 docs authority commit 本身。
+- **Post-Deploy Gate:** 從同一 exact-C3 worktree 執行
+  `corepack pnpm verify:preview -- <returned-current-url>`；必須驗證 embedded C3 marker、routes、
+  headers、noindex、cache、hashed assets 與 synthetic/no-backend boundary。失敗即使 C3
+  invalid，禁止手改 dist；需修 source、凍結新 candidate、重走 authority。
+- **Authority Record Isolation:** 本段的 commit 只修改 execution log，且在部署前 push；
+  它不是 deployed content，避免 self-referential SHA。實際部署內容固定為上列 exact C3。
+- **NEW C3 FROZEN:** **YES — EXACT C3 SAME-SHA 11/11 GREEN**。
+- **DEPLOYMENT EXECUTED:** **NO — AUTHORITY RECORDED, EXECUTION PENDING**。
+- **REAL DATA AUTHORIZED:** **NO**。
+- **PR #23 MERGED:** **NO**。
