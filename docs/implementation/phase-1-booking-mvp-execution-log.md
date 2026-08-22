@@ -1213,3 +1213,56 @@
   11/11 required jobs，含 Verification evidence；通過前不宣稱 final merge-ready。
 - **Rollback:** preview 自動到期或依 runbook 提前刪除 `synthetic-review` channel；source
   及 docs 用 `git revert`，不改寫 shared history。沒有 backend／schema／real-data rollback。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — BEFORE IMPLEMENTATION (2026-08-22)
+
+- **Merged Baseline:** PR #23 已於 `2026-08-22T05:41:02Z` 合併；merge commit
+  `5df89f0ef75ebe8cf63277d982b9c7330b0e5104`，PR final head
+  `0b98f821b41cc000b51e0b8967d84ca2fa2d84d2`。本輪 fetch 後確認 remote `main`
+  正好是該 merge commit，沒有 post-merge commit。
+- **Branch / Worktree:** `agent/booking-final-c4-vendor-handoff`，由上述 current
+  `origin/main` 建立 clean worktree；C3 `d9b6965c0e3ae62df33e89744f12c6d7fcc16480`
+  與其 preview／13 張視覺證據保持 immutable historical evidence。
+- **Objective:** 完成業主最終 booking／workbench 修正、電話與 canonical 社群取消
+  fallback、網站廠商 Widget + API + DNS handoff、CAL-PILOT-001 readiness-only 文件、
+  fresh 15+ scenario visual evidence、exact-C4 full CI、7d synthetic Hosting preview、
+  online verification 與 open／unmerged PR #24。
+- **Synthetic Owner Acceptance:** C4 的可預約範圍為 Asia/Taipei 今日起 60 個日曆日；
+  synthetic patient direct cancel 仍採 strictly greater than 20 minutes。兩者只屬本輪
+  synthetic owner acceptance，不把 D-004／D-005 production decision 改為 approved。
+- **Booking UI Scope:** compact Step-1-only hero、thin preview warning、三步驟 stepper、
+  Step 2 month/date navigation 與上午／中午／晚間分組、Step 3 單一返回與重新開始、
+  success result、雙欄位 lookup 與完整 late-cancel contact fallback。
+- **Workbench Scope:** 週檢視只顯示正常開放日與明示加開例外；明示休診日移除；
+  header 顯示 hours／加開，body 只顯示按時間排序的 actual appointments。既有 Case
+  三列 layout 與 permission-before-mutation／no-partial-write invariants 保持不變；
+  Payroll 繼續 frozen。
+- **Vendor Scope:** `/booking` only；official route
+  `https://beauessence.com.tw/reservations/`；推薦 Widget + API；未啟用的 future API
+  target `https://api.beauessence.com.tw` 與 optional booking host
+  `https://book.beauessence.com.tw` 只文件化 responsibility／DNS／TLS／future CORS，
+  本輪不得設定 DNS 或 CORS。
+- **Calendar Scope:** 只新增 `docs/integration/google-calendar-pilot-readiness.md`。
+  CAL-PILOT-001 在 separate authorization 前停止；不得讀取或修改原診所 Calendar、
+  不連接 private test Calendar、不建立 OAuth credential、不使用任何真實 event／ID／
+  screenshot，不部署 worker／webhook／sync route。
+- **Deployment Authority Boundary:** owner 本輪只授權 current C4 exact SHA 在 same-SHA
+  full CI 綠後，以獨立 docs-only authority record 固定 exact commit、operator、project
+  `beauessence-clinic-staging`、Hosting preview channel `synthetic-review`、expiry `7d`；
+  部署只可來自 clean detached exact-C4 worktree，process-scoped `CI=true` 可用。
+- **Prohibited:** merge PR #24、live Hosting、Firestore／Functions／Storage／Cloud Run／
+  Authentication、production backend／credential／data、Calendar／LINE／Meta API 或
+  webhook、DNS／CORS mutation、30 frozen clinic files、Payroll reactivation、old evidence
+  rewrite、workflow／performance gate weakening。
+- **Required Evidence:** focused unit／E2E、full repository verify、Firestore Emulator、
+  all required browser suites、accessibility、performance、supply-chain／secrets、SAST、
+  commit-bound Verification evidence；fresh 15+ scenario baseline 人工逐張檢視；exact-C4
+  preview `verify:preview`；post-deploy final-head CI。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CALENDAR CONNECTED:** **NO**。
+- **DNS / CORS CHANGED:** **NO**。
+- **PR #24 MERGED:** **NO**。
+- **NEW C4 FROZEN:** **NO — IMPLEMENTATION NOT STARTED**。
+- **Rollback:** logical runtime／test／docs commits 分別 `git revert <sha>`；preview 自動到期
+  或依 runbook 提前刪除 channel。禁止 amend、rebase、reset、force push。
