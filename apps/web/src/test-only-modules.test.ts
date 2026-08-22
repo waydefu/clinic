@@ -37,6 +37,11 @@ import {
   renderWeekView
 } from '../public/modules/week-view.js';
 import { createAccount } from '../public/modules/workspace-domain.js';
+import {
+  cancelPatientAppointment,
+  lookupPatientAppointments,
+  patientCancellationEligibility
+} from '../public/modules/patient-booking-management.js';
 
 // 合成資料的可預約視窗自 2026-07-27 起由**今天**起算（P5，業主要求）。
 //
@@ -141,21 +146,22 @@ describe('週曆事件排版', () => {
     );
   });
 
-  it('桌機 matrix 由排班 session 推導，空 cell 不製造事件占位', () => {
+  it('桌機以七個日期欄呈現，營業時間只在表頭且空 cell 不製造事件占位', () => {
     const html = renderWeekView(initialState(), '2029-12-31', '2029-12-31');
 
-    expect(html).toContain('class="wv-session-table"');
-    expect(html).toContain('data-week-session="600-1080"');
+    expect(html).toContain('class="wv-date-table"');
+    expect(html.match(/class="wv-date-head/g)).toHaveLength(7);
     expect(html).toContain('10:00–18:00');
-    expect(html).toContain('data-week-session="720-1200"');
     expect(html).toContain('12:00–20:00');
+    expect(html).toContain('休診');
+    expect(html).not.toContain('data-week-session');
     expect(html).not.toContain('data-week-event');
     expect(html).not.toContain('尚無預約');
     expect(html).not.toContain('data-top');
     expect(html).not.toContain('wv-axis');
   });
 
-  it('排班外仍存在的預約保留在例外列，不因 session 改版消失', () => {
+  it('排班外仍存在的預約保留在原日期欄，不因排班改版消失', () => {
     const state: any = initialState();
     state.patients.push({ id: 'patient_outside', name: '排班外患者' });
     state.appointments.push({
@@ -169,9 +175,138 @@ describe('週曆事件排版', () => {
     });
 
     const html = renderWeekView(state, '2029-12-31', '2029-12-31');
-    expect(html).toContain('data-week-session="outside"');
-    expect(html).toContain('排班外');
     expect(html).toContain('data-week-event="appointment_outside"');
+  });
+});
+
+describe('病人查詢與自助取消', () => {
+  const verification = {
+    mode: 'phone',
+    phone: PATIENT_A.phone,
+    birthDate: PATIENT_A.birthDate
+  };
+  const bookedState = () => {
+    const state: any = initialState();
+    const appointment = createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemIds: ['service_snoring']
+      },
+      'patient_test_001'
+    );
+    return { state, appointment };
+  };
+
+  it('電話＋生日與證件＋生日都可查到，同一欄位或錯誤身分一律回通用失敗', () => {
+    const { state, appointment } = bookedState();
+    expect(lookupPatientAppointments(state, verification)).toEqual([
+      appointment
+    ]);
+    expect(
+      lookupPatientAppointments(state, {
+        mode: 'document',
+        documentNumber: PATIENT_A.nationalId.toLowerCase(),
+        birthDate: PATIENT_A.birthDate
+      })
+    ).toEqual([appointment]);
+    for (const bad of [
+      { mode: 'phone', phone: PATIENT_A.phone },
+      { mode: 'phone', birthDate: PATIENT_A.birthDate },
+      { ...verification, phone: '0900000000' },
+      { ...verification, birthDate: '1990-05-21' }
+    ])
+      expect(() => lookupPatientAppointments(state, bad)).toThrow(
+        '查無符合的可管理預約。'
+      );
+  });
+
+  it.each([
+    [21, true, 'allowed'],
+    [20, false, 'phone_required'],
+    [19, false, 'phone_required'],
+    [-1, false, 'phone_required']
+  ])('距離 %i 分鐘時 allowed=%s', (minutes, allowed, code) => {
+    const now = Date.parse('2030-01-02T03:00:00.000Z');
+    expect(
+      patientCancellationEligibility(
+        { status: 'confirmed', startsAt: new Date(now + minutes * 60_000) },
+        now
+      )
+    ).toMatchObject({ allowed, code });
+  });
+
+  it('成功直接進 canonical cancelled、釋放時段、各新增一次 audit/outbox', () => {
+    const { state, appointment } = bookedState();
+    const slot = state.slots.find((item: any) => item.id === appointment.slotId);
+    const before = {
+      audit: state.auditEvents.length,
+      outbox: state.outboxJobs.length
+    };
+
+    cancelPatientAppointment(
+      state,
+      appointment.id,
+      verification,
+      'actor_test_patient_001',
+      Date.parse(appointment.startsAt) - 21 * 60_000
+    );
+
+    expect(appointment.status).toBe('cancelled');
+    expect(slot.reservationId).toBeUndefined();
+    expect(state.auditEvents).toHaveLength(before.audit + 1);
+    expect(state.auditEvents.at(-1).action).toBe('appointment_cancelled');
+    expect(state.outboxJobs).toHaveLength(before.outbox + 1);
+    expect(state.outboxJobs.at(-1).appointmentStatus).toBe('cancelled');
+  });
+
+  it('20 分鐘、錯誤身分與已取消重試都在 mutation 前拒絕', () => {
+    const deniedCases = [
+      (state: any, appointment: any) =>
+        cancelPatientAppointment(
+          state,
+          appointment.id,
+          verification,
+          'actor_test_patient_001',
+          Date.parse(appointment.startsAt) - 20 * 60_000
+        ),
+      (state: any, appointment: any) =>
+        cancelPatientAppointment(
+          state,
+          appointment.id,
+          { ...verification, phone: '0900000000' },
+          'actor_test_patient_001',
+          Date.parse(appointment.startsAt) - 21 * 60_000
+        )
+    ];
+    for (const deny of deniedCases) {
+      const { state, appointment } = bookedState();
+      const before = JSON.stringify(state);
+      expect(() => deny(state, appointment)).toThrow();
+      expect(JSON.stringify(state)).toBe(before);
+    }
+
+    const { state, appointment } = bookedState();
+    const now = Date.parse(appointment.startsAt) - 21 * 60_000;
+    cancelPatientAppointment(
+      state,
+      appointment.id,
+      verification,
+      'actor_test_patient_001',
+      now
+    );
+    const afterFirst = JSON.stringify(state);
+    expect(() =>
+      cancelPatientAppointment(
+        state,
+        appointment.id,
+        verification,
+        'actor_test_patient_001',
+        now
+      )
+    ).toThrow('這筆預約已取消。');
+    expect(JSON.stringify(state)).toBe(afterFirst);
   });
 });
 

@@ -31,6 +31,11 @@ import {
   validateSchedule
 } from './modules/schedule-engine.js';
 import {
+  cancelPatientAppointment,
+  lookupPatientAppointments,
+  managedAppointmentSummary
+} from './modules/patient-booking-management.js';
+import {
   initialState,
   loadState,
   resetState,
@@ -175,6 +180,32 @@ export async function stagingRequest(path, options = {}) {
 
   const state = loadState();
   const body = parseBody(options);
+
+  // 查詢是 read-only POST：雙欄位驗證資料放在 body，避免出現在 URL／歷史紀錄；
+  // 找到或找不到都不呼叫 saveState。
+  if (path === '/patient/bookings/lookup')
+    return {
+      appointments: lookupPatientAppointments(state, body).map(
+        managedAppointmentSummary
+      )
+    };
+  const selfCancelMatch =
+    /^\/patient\/bookings\/([A-Za-z0-9_-]+)\/self-cancel$/.exec(path);
+  if (selfCancelMatch !== null) {
+    const appointment = cancelPatientAppointment(
+      state,
+      selfCancelMatch[1],
+      body,
+      PATIENT_ACTOR_ID,
+      Date.now()
+    );
+    // 成功路徑只在 canonical transition 完成後保存一次；任何 guard 拋錯都到不了這裡。
+    saveState(state);
+    return {
+      appointment: managedAppointmentSummary(appointment),
+      state: snapshotState(state)
+    };
+  }
 
   if (path === '/reset') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_SYSTEM);
