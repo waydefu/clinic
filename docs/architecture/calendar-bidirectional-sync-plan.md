@@ -1,27 +1,32 @@
 # Google Calendar 雙向同步規劃
 
-**狀態：** plan-only。**被 D-009 與 D-016 阻擋，且牴觸現行已接受的 ADR-0002。**
-本文件不授權任何實作。
+**狀態：** plan-only。**被 D-009 與 D-016 阻擋，且必須遵守現行已接受的
+ADR-0002。** 本文件不授權任何實作、連線、credential、worker 部署或
+Calendar-to-system write path。
 
 **撰寫日期：** 2026-08-04
 
 ---
 
-## 1. 這份規劃的前提是一次架構方向反轉
+## 1. 這份規劃不得改變系統權威
 
 [ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md) 的現行結論是
-**Calendar 是投影，不是鎖**：系統是唯一真實來源，日曆只接收單向投影。
+**Calendar 是投影，不是鎖**：system/domain state 是唯一權威；Calendar 永遠不是
+availability source、capacity lock 或 booking transaction authority。這個決定保持
+accepted，沒有被本規劃取代。
 
-雙向同步要求 Google → 系統的回寫，這與該 ADR 直接牴觸。因此：
+本文件的 inbound 僅指「把外部變更讀成 candidate，送進人工待審佇列」。candidate
+store 不得直接修改 appointment、slot、audit 或其他營運資料；若 D-016 日後核准，
+reviewer 接受 candidate 也必須發出正常 domain command、重新檢查當下資源衝突並追加
+audit/outbox。這種設計仍是 system-authoritative，與 ADR-0002 相容。
 
-> **實作前置條件（不可跳過）：** 必須先新增一份 ADR-0006 明確**取代** ADR-0002，
-> 說明為什麼真實來源要從單一改為協商式，以及衝突時誰贏。在該 ADR 被接受之前，
-> 本文件的任何內容都不得實作。
+若未來提案要自動套用 Google 變更、讓 Google 衝突優先，或把 Calendar 變成
+co-authority，才需要新的 accepted ADR 明確取代 ADR-0002；目前沒有這項 authority。
 
-決策登錄 [D-016](../product/phase-1-decision-register.md) 目前為 pending，且註明
-「workbench synchronization direction recorded 2026-07-28；**review semantics
-unresolved**」——也就是負責人已表達要同步，但「誰有權審核回寫、衝突怎麼判、刪除
-語意是什麼」三個問題還沒有答案。**這三個問題不回答，資料模型就不可能定案。**
+決策登錄 [D-016](../product/phase-1-decision-register.md) 目前為 pending。2026-08-16
+輸入已指定 manual review、system authoritative 與 30-minute target，但那是 recorded
+input，不是 formal approval；reviewer role、matching identity、刪除語意與 scope/exclusion
+仍未解。**這些問題不回答，route、權限與資料模型就不能定案。**
 
 同時 D-009（outbound Calendar 整合的擁有者、日曆選擇、授權模型、scope 與最小事件
 欄位）也仍為 pending。**單向都還沒核准，雙向不可能先做。**
@@ -84,11 +89,11 @@ syncToken 增量同步。
 新增、修改、取消三種動作各對應一次 upsert／cancel。**交易內絕不呼叫 Calendar**
 （不可協商規則 #2）。
 
-### 4.2 Google → 系統（inbound，D-016）
+### 4.2 Google → candidate review queue（inbound proposal，D-016）
 
 ```
-Google push notification → webhook 端點 → 驗證 channel token
-    → 以 syncToken 拉增量 → 逐筆比對
+Google push notification → proposed webhook → 驗證 channel token
+    → 以 syncToken 拉增量 → 寫入隔離的 mirror/candidate store → 逐筆比對
         ├─ 系統無此事件      → 進入待審佇列（不自動建立預約）
         ├─ 系統有且 etag 相同 → 無變更，略過
         ├─ 系統有但 etag 不同 → 進入衝突處理（§5）
@@ -97,8 +102,10 @@ Google push notification → webhook 端點 → 驗證 channel token
 
 **inbound 一律不自動寫入營運資料。** 這是本規劃最重要的安全設計：日曆是一個
 外部可寫的介面，任何有該日曆編輯權的人都能改動。把它當成可信輸入，等於把預約
-系統的寫入權開放給日曆的所有共用者。所有 inbound 變更進入**待審佇列**，由具權限的
-角色確認後才落地——這正是 D-016 未解的「reviewer authority」問題。
+系統的寫入權開放給日曆的所有共用者。所有 inbound 變更只能進入**隔離待審佇列**；
+目前沒有 reviewer route 或落地路徑。D-016 若日後核准，具權限角色接受 candidate 時
+仍須執行正常 domain command、重查 slot/capacity 衝突並追加 audit/outbox——這正是
+D-016 尚未定案的 reviewer authority／matching／delete semantics 邊界。
 
 ### 4.3 syncToken 與 410
 
@@ -181,12 +188,14 @@ App 上，其存取控制不在本系統掌握之內。既有的「事件欄位�
 
 ## 8. 驗收條件
 
-1. 新增、修改、刪除三種動作在兩個方向皆可同步。
+1. outbound 的新增、修改、刪除可投影；inbound 的三種外部變更只可形成隔離
+   candidate，不可自動修改營運資料。
 2. 重試不產生重複事件（既有的 100 次重試測試維持全綠）。
 3. syncToken 過期（410）可自動重建且**不觸發任何自動寫入**。
 4. webhook channel 續訂失敗會告警。
-5. 所有 inbound 變更進入待審佇列，無任何自動落地路徑。
-6. 所有衝突都有明確的人工處理介面，無自動解決。
+5. 所有 inbound 變更進入待審佇列，無任何自動落地路徑；人工接受仍走正常
+   domain command、衝突檢查與 audit。
+6. 所有衝突都有明確的人工處理介面，無自動解決；reviewer role 未核准前不建立 route。
 7. 日曆事件欄位最小化斷言涵蓋 §6 全部禁止欄位。
 8. 時區全程 `Asia/Taipei`，無隱含轉換。
 
@@ -199,8 +208,9 @@ App 上，其存取控制不在本系統掌握之內。既有的「事件欄位�
 2. **停止全部同步**：outbox 停止派送，既有預約資料完全不受影響——因為日曆從來不是
    真實來源。
 
-第 2 點是保留 ADR-0002 精神的實際好處：即使雙向同步整個失敗，營運資料仍然完整。
-**新的 ADR-0006 必須明確保留這個性質**，否則回滾會變成資料遷移。
+第 2 點是遵守 ADR-0002 的實際好處：即使 inbound candidate intake 整個失敗，營運
+資料仍然完整。任何未來要放棄這個性質的提案都必須先用新的 accepted ADR 明確取代
+ADR-0002；本規劃沒有這項 authority。
 
 ---
 
@@ -218,7 +228,7 @@ App 上，其存取控制不在本系統掌握之內。既有的「事件欄位�
 
 ## 11. 相關文件
 
-- [ADR-0002 — Calendar 是投影，不是鎖](../adr/0002-calendar-is-a-projection-not-the-lock.md) — **本規劃要求取代它**
+- [ADR-0002 — Calendar 是投影，不是鎖](../adr/0002-calendar-is-a-projection-not-the-lock.md) — **本規劃必須遵守的 accepted authority**
 - [Calendar event ID 與 outbox key](calendar-event-id.md)
 - [日曆與資料庫整合計畫](calendar-and-database-integration-plan.md)
 - [Calendar 同步失敗 runbook](../runbooks/calendar-sync-failure.md)

@@ -78,6 +78,38 @@ export function importSpecifiers(source) {
 }
 
 /**
+ * Walk a browser ESM graph whose sources are keyed by repository-relative,
+ * POSIX-style paths. Only literal relative imports discovered by
+ * `importSpecifiers` create edges, so comments and decoy strings cannot make a
+ * module appear reachable.
+ */
+export function reachableRelativeModules(entry, sources) {
+  const seen = new Set();
+  const queue = [entry];
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (current === undefined || seen.has(current)) continue;
+    const source = sources.get(current);
+    if (source === undefined) continue;
+    seen.add(current);
+    for (const specifier of importSpecifiers(source)) {
+      if (!specifier.startsWith('.')) continue;
+      const base = current.slice(0, current.lastIndexOf('/') + 1);
+      const parts = `${base}${specifier}`.split('/');
+      const normalized = [];
+      for (const part of parts) {
+        if (part === '' || part === '.') continue;
+        if (part === '..') normalized.pop();
+        else normalized.push(part);
+      }
+      const target = normalized.join('/');
+      if (sources.has(target)) queue.push(target);
+    }
+  }
+  return seen;
+}
+
+/**
  * 走訪**看不透**的模組載入。
  *
  * `importSpecifiers` 是靜態比對，只認得字面值。這在 2026-08-06 的對抗測試裡被

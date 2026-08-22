@@ -31,6 +31,11 @@ import {
   validateSchedule
 } from './modules/schedule-engine.js';
 import {
+  cancelPatientAppointment,
+  lookupPatientAppointments,
+  managedAppointmentSummary
+} from './modules/patient-booking-management.js';
+import {
   initialState,
   loadState,
   resetState,
@@ -142,6 +147,30 @@ function parseBody(options) {
   return options.body === undefined ? {} : JSON.parse(options.body);
 }
 
+function requestedCaseManagerId(body, { required = false } = {}) {
+  if (typeof body.managerId !== 'string') {
+    if (required) throw new Error('請選擇可用的合成個管師。');
+    return undefined;
+  }
+  if (body.managerId === '') {
+    if (required) throw new Error('請選擇可用的合成個管師。');
+    return undefined;
+  }
+  const managerId = body.managerId.trim();
+  if (managerId === '') throw new Error('個管師不可只填空白。');
+  return managerId;
+}
+
+function authorizeCaseAssignment(state, appointmentId) {
+  const hasActiveAssignment = state.caseAssignments.some(
+    (item) => item.appointmentId === appointmentId && item.status === 'active'
+  );
+  return requirePermission(
+    state,
+    hasActiveAssignment ? PERMISSIONS.REASSIGN_CASE : PERMISSIONS.ASSIGN_CASE
+  );
+}
+
 export async function stagingRequest(path, options = {}) {
   const method = options.method ?? 'GET';
   if (method === 'GET' && path === '/state') return snapshotState(loadState());
@@ -151,6 +180,32 @@ export async function stagingRequest(path, options = {}) {
 
   const state = loadState();
   const body = parseBody(options);
+
+  // 查詢是 read-only POST：雙欄位驗證資料放在 body，避免出現在 URL／歷史紀錄；
+  // 找到或找不到都不呼叫 saveState。
+  if (path === '/patient/bookings/lookup')
+    return {
+      appointments: lookupPatientAppointments(state, body).map(
+        managedAppointmentSummary
+      )
+    };
+  const selfCancelMatch =
+    /^\/patient\/bookings\/([A-Za-z0-9_-]+)\/self-cancel$/.exec(path);
+  if (selfCancelMatch !== null) {
+    const appointment = cancelPatientAppointment(
+      state,
+      selfCancelMatch[1],
+      body,
+      PATIENT_ACTOR_ID,
+      Date.now()
+    );
+    // 成功路徑只在 canonical transition 完成後保存一次；任何 guard 拋錯都到不了這裡。
+    saveState(state);
+    return {
+      appointment: managedAppointmentSummary(appointment),
+      state: snapshotState(state)
+    };
+  }
 
   if (path === '/reset') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_SYSTEM);
@@ -279,34 +334,23 @@ export async function stagingRequest(path, options = {}) {
     const actor = requirePermission(state, PERMISSIONS.CREATE_BOOKING);
     updateAppointmentNotes(state, path.split('/')[2], body, actor.id);
   } else if (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)) {
-    const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
     const appointmentId = path.split('/')[2];
+    const managerId = requestedCaseManagerId(body);
+    // Case authorization must complete before recordFollowUp mutates request-
+    // local state. A denied reassignment therefore cannot leave a partial
+    // follow-up, audit event, outbox job, or persisted save behind.
+    const caseActor =
+      managerId === undefined
+        ? undefined
+        : authorizeCaseAssignment(state, appointmentId);
+    const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
     recordFollowUp(state, appointmentId, body, actor.id);
-    // 回診卡上的個管欄位只是捷徑，仍必須各自通過個管權限——在別的表單裡
-    // 順手做，不代表可以繞過該動作的授權。留空表示不變更現有指派。
-    if (typeof body.managerId === 'string' && body.managerId !== '') {
-      const hasActiveAssignment = state.caseAssignments.some(
-        (item) =>
-          item.appointmentId === appointmentId && item.status === 'active'
-      );
-      const caseActor = requirePermission(
-        state,
-        hasActiveAssignment
-          ? PERMISSIONS.REASSIGN_CASE
-          : PERMISSIONS.ASSIGN_CASE
-      );
-      assignCaseManager(state, appointmentId, body.managerId, caseActor.id);
-    }
+    if (managerId !== undefined)
+      assignCaseManager(state, appointmentId, managerId, caseActor.id);
   } else if (path === '/case-assignments') {
-    const hasActiveAssignment = state.caseAssignments.some(
-      (item) =>
-        item.appointmentId === body.appointmentId && item.status === 'active'
-    );
-    const actor = requirePermission(
-      state,
-      hasActiveAssignment ? PERMISSIONS.REASSIGN_CASE : PERMISSIONS.ASSIGN_CASE
-    );
-    assignCaseManager(state, body.appointmentId, body.managerId, actor.id);
+    const managerId = requestedCaseManagerId(body, { required: true });
+    const actor = authorizeCaseAssignment(state, body.appointmentId);
+    assignCaseManager(state, body.appointmentId, managerId, actor.id);
   } else if (path === '/outbox/simulate') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
     simulateCalendarSync(state, body.fail === true, actor.id);

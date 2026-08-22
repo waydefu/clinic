@@ -10,9 +10,9 @@
   const storedPreference = () => {
     try {
       const value = window.localStorage.getItem(STORAGE_KEY);
-      return ['light', 'warm', 'dark', 'auto'].includes(value) ? value : 'auto';
+      return ['light', 'warm', 'dark', 'auto'].includes(value) ? value : 'warm';
     } catch {
-      return 'auto';
+      return 'warm';
     }
   };
 

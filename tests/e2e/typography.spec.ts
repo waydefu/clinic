@@ -97,9 +97,9 @@ test.describe('readable operational typography', () => {
     await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
 
-    const navigationLink = page.locator('.patient-nav a').first();
-    await expect(navigationLink).toHaveCSS('font-size', '16px');
-    expect(await targetHeight(navigationLink)).toBeGreaterThanOrEqual(44);
+    const footerLink = page.locator('.patient-footer a').first();
+    await expect(footerLink).toHaveCSS('font-size', '16px');
+    expect(await targetHeight(footerLink)).toBeGreaterThanOrEqual(44);
 
     await expect(page.locator('.booking-stepper strong').first()).toHaveCSS(
       'font-size',

@@ -353,10 +353,12 @@ the
 
 The input does not silently expand Phase 1. D-014 gates clinical/surgical
 records, D-015 gates persisted money, and D-016 gates Calendar-to-system writes.
-The owner has required Google Calendar to synchronize with the workbench, but
-has not explicitly selected whether inbound changes auto-apply or enter a
-review queue; D-016 therefore remains pending. The accepted ADR remains that
-Calendar is not the appointment/capacity lock.
+The 2026-07-28 input required Google Calendar to synchronize with the workbench
+but did not select auto-apply versus review. Superseding 2026-08-16 input now
+selects manual review, system authority and a 30-minute target. D-016 still
+remains pending because reviewer role, matching identity, delete semantics,
+scope/exclusions and approval metadata are unresolved. The accepted ADR remains
+that Calendar is not the appointment/capacity lock.
 
 ### D-016 partial: Calendar must synchronize with the workbench - 2026-07-28
 
@@ -373,11 +375,14 @@ This records the required operator surface and convergence goal:
 - every accepted external change must still execute a normal domain command,
   recheck current resource conflicts and append audit.
 
-This does **not** close D-016. “Synchronize with the workbench” does not answer
-whether linked inbound edits may auto-apply, who reviews an unknown event, how a
-Google deletion maps to cancellation, conflict precedence or the candidate
-handling SLO. Until those are explicitly approved, the safe proposed behavior
-is a workbench review queue and no Calendar-to-system write path.
+This did **not** close D-016. At the 2026-07-28 checkpoint, “synchronize with the
+workbench” did not answer whether linked inbound edits may auto-apply, who
+reviews an unknown event, how a Google deletion maps to cancellation, conflict
+precedence or the candidate handling SLO. The 2026-08-16 input later selected
+manual review, system precedence and a 30-minute target, but reviewer identity,
+matching, delete semantics and formal approval remain open. The safe proposed
+behavior therefore remains an isolated workbench review queue and no automatic
+Calendar-to-system write path.
 
 The drift check that caught the prose copies did **not** cover the JSON-LD
 numbers, because those use `"opens"/"closes"` rather than the `12:00–20:00`

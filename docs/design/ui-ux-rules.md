@@ -738,17 +738,21 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
   及效能測試；影像看起來正確，不代表流程或可及性正確。
 
 現行基線是
-[2026-08-10 UI 視覺基準](../reviews/ui-visual-baseline-2026-08-10.md)與其 manifest：
-共 10 張 reference-only PNG，含一張 `320×568` critical-flow 壓力圖。它們是人工
-跨電腦複核的參考證據，不是跨 OS 像素 golden；更早的日期截圖（含
+[2026-08-22 UI 視覺基準](../reviews/ui-visual-baseline-2026-08-22.md)與其 manifest：
+共 13 張 reference-only PNG，覆蓋 warm-theme 工作臺日期欄週曆、Case follow-up、
+booking Step 1～3、privacy dialog、雙欄位查詢、取消確認／電話 fallback 與成功結果。
+它們是人工跨電腦複核的參考
+證據，不是跨 OS 像素 golden；更早的日期截圖（含
+[2026-08-20](../reviews/ui-visual-baseline-2026-08-20.md)、
+[2026-08-10](../reviews/ui-visual-baseline-2026-08-10.md)、
 [2026-08-07](../reviews/ui-visual-baseline-2026-08-07.md)、
 [2026-08-06](../reviews/ui-visual-baseline-2026-08-06.md) 與
-[2026-07-28](../reviews/ui-visual-baseline-2026-07-28.md) 三批）仍只算歷史證據。
+[2026-07-28](../reviews/ui-visual-baseline-2026-07-28.md) 五批）仍只算歷史證據。
 
 **基線是 approval artifact，不是「最新的截圖」。** 重拍的流程是：先擷到新日期的
 目錄（舊目錄因此不會被動到）、與前一份逐張 diff、確認每一處差異都是預期的，
-最後才把 required paths 指過去。2026-08-10 重拍只有兩張 clinic home 改變，其餘
-八張 SHA-256 完全相同；細節見該份基準文件。
+最後才把 required paths 指過去。2026-08-22 依此流程新增日期目錄，
+沒有就地改寫 2026-08-20 或更早的 historical evidence；細節見該份基準文件。
 
 **重拍基線時，擷取日期在四個地方**：`current-ui.spec.ts` 的 `CAPTURE_DATE`、
 `check-structure.mjs` 的 required paths 與 `visualBaselineDirectory`、新的基準文件，

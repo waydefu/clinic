@@ -23,6 +23,10 @@ import {
   groupSlotsByDate,
   roleLabel
 } from './ui-format.js';
+import {
+  activeOperationalTasks,
+  isWorkbenchCapabilityEnabled
+} from './workbench-scope-policy.js';
 
 const auditLabels = {
   appointment_confirmed: '建立預約',
@@ -230,6 +234,9 @@ function selectCell(state, entry, selectedIds) {
  * 全部為零時保持安靜，而不是顯示四個綠色的零。
  */
 const OPERATIONAL_TASKS = [
+  // Frozen descriptors remain beside their renderer implementation for a
+  // future reviewed reactivation. activeOperationalTasks() removes them from
+  // the Phase 1 projection before counts or links are rendered.
   // W2（業主 2026-07-27）：已過看診時間十分鐘、狀態仍停在「預約成立」。
   // 排在最前面：那一列代表的是一個現在正站在門口、或根本沒出現的人，而清單
   // 依時間排序會讓它一路往下沉、安靜地被忘掉。取消待確認雖然也在累積傷害，
@@ -280,13 +287,15 @@ export function renderTasks(state) {
   const canViewGovernance =
     state.session?.permissions?.includes(PERMISSIONS.MANAGE_COMMUNICATIONS) ??
     false;
-  const pending = OPERATIONAL_TASKS.map((task) => ({
-    ...task,
-    count: taskCount(state.tasks, task.key)
-  })).filter(
-    (task) =>
-      task.count > 0 && (task.key !== 'outboxPending' || canViewGovernance)
-  );
+  const pending = activeOperationalTasks(OPERATIONAL_TASKS)
+    .map((task) => ({
+      ...task,
+      count: taskCount(state.tasks, task.key)
+    }))
+    .filter(
+      (task) =>
+        task.count > 0 && (task.key !== 'outboxPending' || canViewGovernance)
+    );
 
   // 一切正常時保持安靜。四個綠色的零跟三筆待辦佔一樣大的版面，等於什麼都
   // 沒說；這裡改成一句話講完，把注意力留給真的需要處理的事。
@@ -806,28 +815,29 @@ export function renderFollowUps(state, editingIds = new Set()) {
             )
             .join('')
         : '<option value="">當天未營業</option>';
-      // 個管指派在這裡是「順手做完」的捷徑，與「個管指派」分頁用的是同一個
-      // domain 函式與同一組稽核事件；留空表示暫不指派，不會清掉既有指派。
-      const assignment = state.caseAssignments.find(
-        (item) =>
-          item.appointmentId === appointment.id && item.status === 'active'
-      );
-      const managerOptions = state.caseManagers
-        .filter((item) => item.status === 'active')
-        .map(
-          (manager) =>
-            `<option value="${escapeHtml(manager.id)}" ${assignment?.managerId === manager.id ? 'selected' : ''}>${escapeHtml(manager.label)}</option>`
-        )
-        .join('');
-      const permissions = state.session?.permissions ?? [];
-      const canAssign = permissions.includes(PERMISSIONS.ASSIGN_CASE);
-      const canReassign = permissions.includes(PERMISSIONS.REASSIGN_CASE);
-      const canEditManager =
-        (assignment === undefined && canAssign) ||
-        (assignment !== undefined && canReassign);
-      const managerField = canEditManager
-        ? `<label>個管師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前個管師：${escapeHtml(managerLabel(state, assignment.managerId))}` : '可在此首次指派，後續改派限主管'}</span></label>`
-        : `<div class="read-only-field"><span>目前個管師</span><strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong></div>`;
+      let managerField = '';
+      if (isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')) {
+        const assignment = state.caseAssignments.find(
+          (item) =>
+            item.appointmentId === appointment.id && item.status === 'active'
+        );
+        const managerOptions = state.caseManagers
+          .filter((item) => item.status === 'active')
+          .map(
+            (manager) =>
+              `<option value="${escapeHtml(manager.id)}" ${assignment?.managerId === manager.id ? 'selected' : ''}>${escapeHtml(manager.label)}</option>`
+          )
+          .join('');
+        const permissions = state.session?.permissions ?? [];
+        const canAssign = permissions.includes(PERMISSIONS.ASSIGN_CASE);
+        const canReassign = permissions.includes(PERMISSIONS.REASSIGN_CASE);
+        const canEditManager =
+          (assignment === undefined && canAssign) ||
+          (assignment !== undefined && canReassign);
+        managerField = canEditManager
+          ? `<label class="follow-up-field follow-up-manager">個管師<select name="managerId"><option value="">${assignment ? '維持目前指派' : '暫不指派'}</option>${managerOptions}</select><span class="field-hint">${assignment ? `目前個管師：${escapeHtml(managerLabel(state, assignment.managerId))}` : '可在此首次指派，後續改派限主管'}</span></label>`
+          : `<div class="read-only-field follow-up-field follow-up-manager"><span>目前個管師</span><strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong></div>`;
+      }
       const recordedBy =
         decision === undefined
           ? '尚未登錄'
@@ -843,7 +853,7 @@ export function renderFollowUps(state, editingIds = new Set()) {
         state,
         appointment.patientId
       )?.medicalRecordNumber;
-      return `<form class="decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><label>病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label>醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label>目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label>目標時間<select name="dueTime">${dueTimeOptions}</select></label>${managerField}<fieldset class="tag-picker"><legend>回診項目（可複選）</legend>${tags}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><label>診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label><button class="button button-primary" type="submit">儲存回診指示</button></form>`;
+      return `<form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span class="code">${escapeHtml(appointment.id)} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label class="follow-up-field follow-up-date">目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label class="follow-up-field follow-up-time">目標時間<select name="dueTime">${dueTimeOptions}</select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></form>`;
     })
     .join('');
 }
@@ -877,10 +887,6 @@ export function renderIntakeSheet(state, appointmentId) {
   );
   if (appointment === undefined) return '';
   const record = patient(state, appointment.patientId) ?? {};
-  const assignment = state.caseAssignments.find(
-    (item) => item.appointmentId === appointmentId && item.status === 'active'
-  );
-
   const birth = birthDateHasYear(record.birthDate)
     ? `${record.birthDate.slice(0, 4)} 年 ${record.birthDate.slice(5, 7)} 月 ${record.birthDate.slice(8, 10)} 日`
     : `${blankLine('sm')} 年 ${(record.birthDate ?? '').slice(2, 4)} 月 ${(record.birthDate ?? '').slice(5, 7)} 日`;
@@ -900,6 +906,18 @@ export function renderIntakeSheet(state, appointmentId) {
 
   const cell = (label, value, span = 1) =>
     `<div class="intake-cell" data-span="${span}"><span class="intake-label">${label}</span><span class="intake-value">${value}</span></div>`;
+  let managerCell = '';
+  if (isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')) {
+    const assignment = state.caseAssignments.find(
+      (item) => item.appointmentId === appointmentId && item.status === 'active'
+    );
+    managerCell = cell(
+      '管理師',
+      assignment
+        ? escapeHtml(managerLabel(state, assignment.managerId))
+        : blankLine('sm')
+    );
+  }
 
   return `<div class="intake-sheet">
     <header class="intake-head">
@@ -909,7 +927,7 @@ export function renderIntakeSheet(state, appointmentId) {
     <div class="intake-grid">
       ${cell('病歷號碼', record.medicalRecordNumber ? escapeHtml(record.medicalRecordNumber) : blankLine('sm'))}
       ${cell('初診日期', escapeHtml(formatFullDate(appointment.startsAt)))}
-      ${cell('管理師', assignment ? escapeHtml(managerLabel(state, assignment.managerId)) : blankLine('sm'))}
+      ${managerCell}
       ${cell('姓名', record.name ? escapeHtml(record.name) : blankLine())}
       ${cell('生日', birth)}
       ${cell('年齡', blankLine('sm'))}
@@ -947,9 +965,10 @@ export function renderIntakeSheet(state, appointmentId) {
 // 對齊成兩欄，比一疊卡片快得多。
 //
 // 每一列的指派表單放在最後一格裡——`<form>` 不能包住 `<tr>`（HTML 剖析器會把它
-// 丟出表格外），但放進 `<td>` 完全合法，`data-case-form` 的 submit 事件委派因此
-// 一行都不用改。
+// 丟出表格外），但放進 `<td>` 完全合法。此 preserved renderer 現僅依 owner 核准的
+// synthetic workbench scope 接線；這不代表 Case 已取得 production authority。
 export function renderCaseAssignments(state) {
+  if (!isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')) return '';
   const completed = state.appointments.filter(
     (item) => item.status === 'completed'
   );
@@ -996,6 +1015,7 @@ export function renderCaseAssignments(state) {
 // 月度統計本來就是數字表：同一欄的數字要能上下比對（誰帶的患者多、哪一期
 // 到診次數掉下來），卡片做不到這件事。數字欄靠右對齊、用等寬字，讓位數對齊。
 export function renderWorkload(state) {
+  if (!isWorkbenchCapabilityEnabled('PAYROLL_WORKLOAD')) return '';
   if (state.workload.length === 0)
     return emptyState('尚無月度工作量', '完成到診並指派個管師後才會產生統計。');
   const rows = state.workload

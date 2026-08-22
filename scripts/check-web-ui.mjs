@@ -19,6 +19,8 @@ const paths = {
   adminView: 'apps/web/public/modules/admin-view.js',
   schedule: 'apps/web/public/modules/schedule-engine.js',
   cases: 'apps/web/public/modules/case-management.js',
+  workbenchScope: 'apps/web/public/modules/workbench-scope-policy.js',
+  workspaceTabs: 'apps/web/public/modules/workspace-tabs.js',
   permissions: 'apps/web/public/modules/permissions.js',
   constants: 'apps/web/public/modules/constants.js',
   confirmDialog: 'apps/web/public/modules/confirm-dialog.js',
@@ -159,10 +161,36 @@ requireText(
   '登錄回診指示',
   'Admin shell is missing per-appointment follow-up decisions.'
 );
+for (const selector of [
+  'href="#case-section"',
+  'id="case-section"',
+  'id="case-assignment-list"'
+])
+  requireText(
+    files.adminShell,
+    selector,
+    `Owner-approved Case selector is missing from the active admin shell: ${selector}`
+  );
+for (const selector of ['id="workload-count"', 'id="workload"'])
+  refuseText(
+    files.adminShell,
+    selector,
+    `Frozen Payroll selector remains discoverable in the active admin shell: ${selector}`
+  );
 requireText(
-  files.adminShell,
-  '個管指派與工作量',
-  'Admin shell is missing case assignment workflow.'
+  files.workspaceTabs,
+  "from './workbench-scope-policy.js'",
+  'Workspace hash navigation no longer applies the Phase 1 scope policy.'
+);
+requireText(
+  files.workbenchScope,
+  'CASE_MANAGEMENT: true',
+  'Owner-approved synthetic Case Management is not enabled in source.'
+);
+requireText(
+  files.workbenchScope,
+  'PAYROLL_WORKLOAD: false',
+  'Payroll workload is not fail closed in the workbench scope policy.'
 );
 requireText(
   files.adminShell,
@@ -236,7 +264,17 @@ requireText(
 requireText(
   files.store,
   "path==='/case-assignments'",
-  'Store is missing case-manager assignment.'
+  'Store is missing the Case assignment mutation route.'
+);
+requireText(
+  files.store,
+  'PERMISSIONS.REASSIGN_CASE:PERMISSIONS.ASSIGN_CASE',
+  'Case assignment no longer distinguishes initial assignment from reassignment.'
+);
+requireText(
+  files.store,
+  'assignCaseManager(state,appointmentId,managerId,caseActor.id)',
+  'Follow-up Case assignment no longer uses the preserved canonical helper.'
 );
 requireText(
   files.schedule,
@@ -435,8 +473,11 @@ const allowedPatientControls = new Set([
   'synthetic-confirmation',
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
   'theme-picker',
-  // 2026-07-23：時段清單的日期跳轉，只是檢視用篩選，不收集任何患者資料。
-  'patient-slot-date',
+  // 2026-08-22：獨立查詢／取消流程。電話＋生日或證件＋生日必須成對送入
+  // browser-local verification；查詢回應不指出哪一欄不符。
+  'booking-lookup-phone',
+  'booking-lookup-document',
+  'booking-lookup-birth',
   // 2026-07-28：保留既有技術 id，但語意是 UI-only「已閱讀告知草稿」gate。
   // 瀏覽器不保存政策版本、顯示時間或接受紀錄，所以不得稱為正式同意或告知證據。
   // 與 synthetic-confirmation 分開，因為後者是「測試資料留在本機」確認。
@@ -503,17 +544,30 @@ requireText(
   '只會保存在我這台裝置的瀏覽器',
   'Patient form no longer states where the data is stored.'
 );
-const localOnlyLinks =
-  files.patientHtml.match(/\bdata-local-only-link\b/g)?.length ?? 0;
-if (localOnlyLinks !== 2)
-  failures.push(
-    'Patient header and footer must both mark their workbench links as local-only.'
-  );
 requireText(
-  files.patientClient,
-  "document.querySelectorAll('[data-local-only-link]')",
-  'Online patient preview no longer hides every internal workbench link.'
+  files.patientHtml,
+  'LOCAL TEST ONLY',
+  'Patient header no longer identifies the test-only real-data boundary.'
 );
+requireText(
+  files.patientHtml,
+  '勿填真實患者或健康資料；測試資料只存本機瀏覽器。',
+  'Patient preview no longer warns against real patient or health data.'
+);
+requireText(
+  files.patientHtml,
+  'class="brand" href="/booking"',
+  'Patient brand no longer returns to the self-contained booking surface.'
+);
+for (const href of ['/clinic', '/clinic/doctors', '/']) {
+  const escaped = href.replaceAll('/', '\\/');
+  if (
+    new RegExp(`<a\\b[^>]*\\bhref=["']${escaped}["']`).test(files.patientHtml)
+  )
+    failures.push(
+      `Patient booking surface must not advertise the frozen/internal route ${href}.`
+    );
+}
 // 2026-07-27：改釘 `maskIdentityDocument`。外籍患者給的是護照，只遮身分證那一欄
 // 會讓他們的識別碼要嘛整串裸露、要嘛顯示成破折號（看起來像資料缺漏）。
 requireText(

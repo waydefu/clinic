@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import {
+  STORAGE_KEY,
   createBooking,
   login,
   seedAppointmentCopies,
@@ -69,7 +70,7 @@ test.describe('營運首頁指揮中心', () => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
-    // 完成到診會同時產生「回診尚未決定」與「個管尚未指派」兩類待辦。
+    // 完成到診會同時產生合法的回診與 Case 待辦；Payroll 仍不進任務模型。
     await page
       .locator('[data-appointment-card]')
       .first()
@@ -81,6 +82,9 @@ test.describe('營運首頁指揮中心', () => {
     await page.goto('/#overview');
     const cards = page.locator('#task-list .task-card');
     await expect(cards.first()).toContainText('回診尚未決定');
+    await expect(
+      page.locator('#task-list .task-card', { hasText: '個管尚未指派' })
+    ).toHaveCount(1);
 
     // 「取消待確認」是零筆，所以整張卡不該存在——這正是階段 4 的重點。
     await expect(
@@ -582,39 +586,25 @@ test.describe('工作臺其餘資料表', () => {
     ).toHaveText(['星期', '時段', '操作']);
   });
 
-  test('個管指派：送出鈕與表單不同格，仍然送得出去', async ({ page }) => {
+  test('Case UI 可發現且 direct route 可達，Payroll UI 仍不可發現', async ({
+    page
+  }) => {
     await login(page);
-    await createBooking(page);
-    await showAllAppointments(page);
-    // 先完成到診，個案才會出現在指派表裡。
-    await page
-      .locator('[data-appointment-card]')
-      .first()
-      .locator('[data-appointment-action="complete"]')
-      .click();
-    await page.locator('.confirm-dialog button.button-primary').click();
+    await expect(
+      page.locator('.workspace-nav a[href="#case-section"]')
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#overview .summary-action[href="#case-section"]')
+    ).toHaveCount(1);
+    await expect(page.locator('#case-section')).toHaveCount(1);
+    await expect(page.locator('#case-assignment-list')).toHaveCount(1);
+    await expect(page.locator('#workload-count')).toHaveCount(0);
+    await expect(page.locator('#workload')).toHaveCount(0);
 
     await page.goto('/#case-section');
-    const row = page
-      .locator('#case-assignment-list tbody tr[data-case-row]')
-      .first();
-    await expect(row).toBeVisible();
-    await expect(row.locator('.status-chip')).toHaveText('待指派');
-
-    // `<form>` 不能包住 `<tr>`，所以表單放在「個案管理師」那一格，送出鈕靠
-    // form 屬性從「操作」格關聯回去。這個關聯壞掉的話按鈕會完全沒反應，
-    // 而且不會有任何錯誤訊息——所以這裡直接驗它有沒有真的送出。
-    await row.locator('button[type="submit"][form]').click();
-    await expect(row.locator('.status-chip')).toHaveText('已指派');
-
-    // 指派完成會重算月度統計，數字欄靠右對齊才比得動。
-    const workload = page.locator('#workload table.workload-table');
-    await expect(workload).toBeVisible();
-    await expect(workload.locator('tbody tr')).toHaveCount(1);
-    await expect(workload.locator('td.numeric').first()).toHaveCSS(
-      'text-align',
-      'right'
-    );
+    await expect(page).toHaveURL(/#case-section$/);
+    await expect(page.locator('#case-section')).toBeVisible();
+    await expect(page.locator('#status')).not.toContainText('權限');
   });
 
   test('手機寬度下每個工作區都不產生水平捲軸', async ({ page }) => {
@@ -643,6 +633,119 @@ test.describe('工作臺其餘資料表', () => {
 });
 
 test.describe('工作臺預約生命週期', () => {
+  test('改期釋放原時段、占用新時段並留下 audit/outbox', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+
+    const before = await page.evaluate((key) => {
+      const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+      const appointment = state.appointments.at(-1);
+      return {
+        appointmentId: appointment.id,
+        originalSlotId: appointment.slotId,
+        auditCount: state.auditEvents.length,
+        outboxCount: state.outboxJobs.length
+      };
+    }, STORAGE_KEY);
+    const card = page.locator(
+      `[data-appointment-card="${before.appointmentId}"]`
+    );
+    await card.locator('summary').click();
+    await card.locator('[data-appointment-action="reschedule"]').click();
+
+    const form = page.locator(
+      `[data-reschedule-form="${before.appointmentId}"]`
+    );
+    await expect(form).toBeVisible();
+    const targetSlotId = await form
+      .locator('select[name="slotId"]')
+      .inputValue();
+    expect(targetSlotId).not.toBe('');
+    expect(targetSlotId).not.toBe(before.originalSlotId);
+    await form.locator('button[type="submit"]').click();
+    await expect(page.locator('#status')).toContainText('預約已改期');
+
+    const after = await page.evaluate(
+      ({ appointmentId, key, originalSlotId, targetSlotId }) => {
+        const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+        return {
+          appointment: state.appointments.find(
+            (item) => item.id === appointmentId
+          ),
+          originalReservation: state.slots.find(
+            (item) => item.id === originalSlotId
+          )?.reservationId,
+          targetReservation: state.slots.find(
+            (item) => item.id === targetSlotId
+          )?.reservationId,
+          auditEvents: state.auditEvents,
+          outboxJobs: state.outboxJobs
+        };
+      },
+      {
+        appointmentId: before.appointmentId,
+        key: STORAGE_KEY,
+        originalSlotId: before.originalSlotId,
+        targetSlotId
+      }
+    );
+
+    expect(after.appointment).toMatchObject({
+      id: before.appointmentId,
+      slotId: targetSlotId,
+      status: 'confirmed'
+    });
+    expect(after.originalReservation).toBeUndefined();
+    expect(after.targetReservation).toBe(before.appointmentId);
+    expect(after.auditEvents).toHaveLength(before.auditCount + 1);
+    expect(after.auditEvents.at(-1)).toMatchObject({
+      action: 'appointment_rescheduled',
+      appointmentId: before.appointmentId
+    });
+    expect(after.outboxJobs).toHaveLength(before.outboxCount + 1);
+    expect(after.outboxJobs.at(-1)).toMatchObject({
+      type: 'calendar_projection_requested',
+      appointmentId: before.appointmentId,
+      status: 'pending'
+    });
+  });
+
+  test('初診資料在螢幕上遮罩身分證，完整值只存在列印層', async ({ page }) => {
+    await login(page);
+    await createBooking(page, { nationalId: 'A123456789' });
+    await showAllAppointments(page);
+
+    await page.evaluate(() => {
+      window.print = () => {
+        const screen = document.querySelector('.intake-screen-only');
+        const print = document.querySelector('.intake-print-only');
+        if (screen === null || print === null)
+          throw new Error('找不到初診資料的螢幕／列印身分欄。');
+        (window as any).__intakeIdentityCapture = {
+          screenText: screen.textContent,
+          printText: print.textContent,
+          screenDisplay: getComputedStyle(screen).display,
+          printDisplay: getComputedStyle(print).display
+        };
+      };
+    });
+
+    const card = page.locator('[data-appointment-card]').first();
+    await card.locator('summary').click();
+    await card.locator('[data-appointment-action="print_intake"]').click();
+    const capture = await page.evaluate(
+      () => (window as any).__intakeIdentityCapture
+    );
+
+    expect(capture).toMatchObject({
+      screenText: 'A12****789',
+      printText: 'A123456789',
+      printDisplay: 'none'
+    });
+    expect(capture.screenDisplay).not.toBe('none');
+  });
+
   test('登入→建立→到診→回診→刪除', async ({ page }) => {
     await login(page);
     await createBooking(page);

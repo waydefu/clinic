@@ -3,11 +3,11 @@
 This is the mandatory orientation document for anyone changing this repository.
 The project is in Phase 1. The repository contains approved public clinic and
 doctor content, but no authorised operational patient, staff, clinical,
-payroll or payment records. A static Firebase Hosting preview was separately
-authorised in 2026-07 and its last recorded channel expiry was 2026-08-04; its
-current remote availability is unverified. The source tree has no routed cloud
-backend, active Google Calendar integration or NAS connection; this repository
-fact alone does not prove that no remote resource exists.
+payroll or payment records. An exact-commit static Firebase Hosting preview was
+separately authorised and verified on 2026-08-20; it is synthetic-only,
+`noindex` and scheduled to expire on 2026-08-27. The source tree has no routed
+cloud backend, active Google Calendar integration or NAS connection; this
+repository fact alone does not prove that no remote resource exists.
 
 The 2026-07-23 enterprise review confirmed that the API-only, pure-domain,
 transactional outbox architecture can be retained. Stage 0 architecture
@@ -32,6 +32,14 @@ Calendar). Read
 owner statement as settled, and never restate an answer as a legal, medical or
 security approval — D-014's clinical-record classification in particular is still
 open regardless of the owner's operational direction.
+
+The current BOOK-MVP convergence checkpoint is PR #23 (2026-08-20):
+BOOK-MVP-003 frozen Case/Payroll runtime isolation, BOOK-MVP-004 synthetic
+Booking Preview validation, BOOK-MVP-005 vendor delivery and BOOK-MVP-006
+payload evidence are green; exact candidate `7e0add8` is verified on the
+expiring `synthetic-review` preview, and BOOK-MVP-007 is spec/governance only.
+This branch is not merged and does not alter Stage 1, production authority,
+real-data prohibitions or any pending D-series status.
 
 ## Non-negotiable safety boundaries
 

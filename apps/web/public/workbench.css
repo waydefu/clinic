@@ -613,6 +613,40 @@ details[open] > summary .workflow-summary-chevron {
 .decision-card label {
   min-width: 0;
 }
+.follow-up-decision-card {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+.follow-up-context {
+  grid-column: 1;
+}
+.follow-up-row {
+  align-items: start;
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.follow-up-row-primary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.follow-up-row-secondary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.follow-up-row-notes {
+  grid-template-columns: minmax(0, 3fr) minmax(10rem, 1fr);
+}
+.follow-up-field,
+.follow-up-tags {
+  align-self: stretch;
+}
+.follow-up-submit {
+  align-self: end;
+  justify-self: stretch;
+}
+.case-form select {
+  min-width: 10rem;
+  width: 100%;
+}
 .status-cancellation_requested {
   background: var(--amber-light);
   color: var(--amber);
@@ -628,6 +662,13 @@ details[open] > summary .workflow-summary-chevron {
     grid-template-columns: 1fr;
   }
   .decision-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .follow-up-decision-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .follow-up-row-primary,
+  .follow-up-row-secondary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -796,6 +837,17 @@ details[open] > summary .workflow-summary-chevron {
   .decision-card {
     align-items: stretch;
     grid-template-columns: 1fr;
+  }
+  .follow-up-decision-card > * {
+    grid-column: 1;
+  }
+  .follow-up-row-primary,
+  .follow-up-row-secondary,
+  .follow-up-row-notes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .follow-up-submit {
+    width: 100%;
   }
   .schedule-display li {
     grid-template-columns: 1fr auto;
@@ -2006,6 +2058,86 @@ details[open] > summary .workflow-summary-chevron {
   border-radius: var(--radius-circle);
   height: 0.9rem;
   width: 0.9rem;
+}
+
+/* Owner 2026-08-22：桌機週曆只保留日期欄。營業時間放在欄首，內文只放真實預約；
+   空白日與休診日不再用 session 列、色帶或假卡片填滿。 */
+.week-view {
+  max-height: none;
+  overflow-y: hidden;
+  padding-bottom: 0;
+}
+.wv-date-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 52rem;
+  table-layout: fixed;
+  width: 100%;
+}
+.wv-date-table caption {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+.wv-date-table th,
+.wv-date-table td {
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.wv-date-table tr:last-child > * {
+  border-bottom: 0;
+}
+.wv-date-table tr > *:last-child {
+  border-right: 0;
+}
+.wv-date-head {
+  background: var(--surface-soft);
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  padding: var(--space-xs) var(--space-2xs);
+  text-align: center;
+}
+.wv-date-head span {
+  display: block;
+  letter-spacing: var(--tracking-wide);
+}
+.wv-date-head b {
+  display: inline-block;
+  margin-top: var(--space-4xs);
+  min-width: 1.75rem;
+}
+.wv-date-head small {
+  display: block;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-regular);
+  margin-top: var(--space-3xs);
+}
+.wv-date-head.wv-closed small {
+  color: var(--danger);
+  font-weight: var(--weight-bold);
+}
+.wv-date-head.wv-today b {
+  background: var(--forest);
+  border-radius: var(--radius-pill);
+  color: var(--on-accent);
+  padding: var(--space-4xs) var(--space-3xs);
+}
+.wv-date-cell {
+  background: var(--surface);
+  height: 7rem;
+  padding: var(--space-2xs);
+  vertical-align: top;
+}
+.wv-date-cell .wv-event {
+  min-height: 2.75rem;
+  position: static;
+  width: 100%;
+}
+.wv-date-cell .wv-event + .wv-event {
+  margin-top: var(--space-2xs);
 }
 
 @media (max-width: 48rem) {
