@@ -178,11 +178,11 @@ test.describe('患者線上預約', () => {
       birthDate: '1991-04-18'
     });
     await page.evaluate((key) => {
-      const original = Storage.prototype.setItem;
+      const original = window.localStorage.setItem.bind(window.localStorage);
       (window as any).__patientSaveCalls = 0;
       Storage.prototype.setItem = function (name, value) {
         if (name === key) (window as any).__patientSaveCalls += 1;
-        return original.call(this, name, value);
+        return original(name, value);
       };
     }, STORAGE_KEY);
     await page.locator('[data-managed-cancel]').press('Enter');

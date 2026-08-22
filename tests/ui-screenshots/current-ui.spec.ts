@@ -5,8 +5,9 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { arch, platform, release } from 'node:os';
 import { join } from 'node:path';
 
-import { fillBirthDate } from '../e2e/support/patient.js';
+import { fillBirthDate, submitBooking } from '../e2e/support/patient.js';
 import {
+  STORAGE_KEY,
   createBooking,
   login,
   openDisclosure,
@@ -19,7 +20,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 // 擷取日期。**改這裡就要一起改 `outputDirectory`、`check-structure.mjs` 的
 // `visualBaselineDirectory` 與 required paths，以及介面規則書 §5.5 指向的現行基線。**
 // 舊日期的目錄與文件保留作歷史證據，不刪。
-const CAPTURE_DATE = '2026-08-20';
+const CAPTURE_DATE = '2026-08-22';
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
@@ -222,6 +223,50 @@ async function prepareFilledBookingDetails(page: Page): Promise<void> {
   await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
 }
 
+async function prepareBookingSuccess(page: Page): Promise<void> {
+  await prepareFilledBookingDetails(page);
+  await submitBooking(page);
+  await expect(page.locator('[data-booking-result]')).toBeVisible();
+  await expect(page.locator('#booking-complete-heading')).toHaveText(
+    '預約已建立'
+  );
+}
+
+async function prepareCancellationLookup(page: Page): Promise<void> {
+  await prepareBookingSuccess(page);
+  await page.locator('#booking-management-open').click();
+  await page.locator('#booking-lookup-phone').fill('0912345678');
+  await page.locator('#booking-lookup-birth').fill('1990-05-20');
+  await page.locator('#booking-lookup-form button[type="submit"]').click();
+  await expect(page.locator('.booking-lookup-card')).toBeVisible();
+}
+
+async function prepareEligibleCancellation(page: Page): Promise<void> {
+  await prepareCancellationLookup(page);
+  await page.locator('[data-managed-cancel]').click();
+  await expect(page.locator('.confirm-dialog')).toBeVisible();
+  await expect(page.locator('.confirm-dialog-message')).toContainText(
+    '取消後時段會立即釋出'
+  );
+}
+
+async function prepareCancellationPhoneFallback(page: Page): Promise<void> {
+  await prepareBookingSuccess(page);
+  await page.evaluate((key) => {
+    const state = JSON.parse(localStorage.getItem(key) ?? 'null');
+    state.appointments.at(-1).startsAt = new Date(
+      Date.now() + 19 * 60_000
+    ).toISOString();
+    localStorage.setItem(key, JSON.stringify(state));
+  }, STORAGE_KEY);
+  await page.locator('#booking-management-open').click();
+  await page.locator('#booking-lookup-phone').fill('0912345678');
+  await page.locator('#booking-lookup-birth').fill('1990-05-20');
+  await page.locator('#booking-lookup-form button[type="submit"]').click();
+  await expect(page.locator('.booking-phone-fallback')).toBeVisible();
+  await expect(page.locator('[data-managed-cancel]')).toHaveCount(0);
+}
+
 async function prepareCalendarEmpty(page: Page): Promise<void> {
   await login(page, 'admin', { fresh: false });
   await page.goto('/#appointments-section');
@@ -260,26 +305,13 @@ async function preparePrivacyDialog(page: Page): Promise<void> {
   await expect(page.locator('.policy-dialog')).toBeVisible();
 }
 
-async function preparePrivacyReturn(page: Page): Promise<void> {
-  await preparePrivacyDialog(page);
-  await page
-    .locator('.policy-dialog-body')
-    .evaluate((element) => element.scrollTo(0, element.scrollHeight));
-  await page.locator('.policy-dialog a[href="/booking?notice-read=1"]').click();
-  await expect(page.locator('.policy-dialog')).toBeHidden();
-  await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
-  await expect(page.locator('#patient-name')).toHaveValue('合成截圖患者甲');
-  await expect(page.locator('#privacy-consent')).toBeChecked();
-  await expect(page.locator('#open-privacy-policy')).toBeFocused();
-}
-
 const scenarios: Scenario[] = [
   {
     file: 'workbench--weekly-calendar-empty--desktop-1280x900--warm.png',
     route: '/#appointments-section',
     role: 'admin',
     viewport: DESKTOP,
-    state: 'schedule-derived-sessions-no-events',
+    state: 'seven-date-columns-no-events',
     prepare: prepareCalendarEmpty
   },
   {
@@ -320,7 +352,7 @@ const scenarios: Scenario[] = [
     route: '/booking',
     role: 'public',
     viewport: DESKTOP,
-    state: 'step-2-with-persistent-summary',
+    state: 'step-2-single-active-date-full-width',
     prepare: prepareBookingStepTwo
   },
   {
@@ -328,7 +360,7 @@ const scenarios: Scenario[] = [
     route: '/booking',
     role: 'public',
     viewport: DESKTOP,
-    state: 'step-3-filled-with-persistent-summary',
+    state: 'step-3-filled-two-semantic-columns',
     prepare: prepareFilledBookingDetails
   },
   {
@@ -336,7 +368,7 @@ const scenarios: Scenario[] = [
     route: '/booking',
     role: 'public',
     viewport: PHONE,
-    state: 'step-3-filled-with-stacked-summary',
+    state: 'step-3-filled-sections-stacked',
     prepare: prepareFilledBookingDetails
   },
   {
@@ -349,12 +381,40 @@ const scenarios: Scenario[] = [
     prepare: preparePrivacyDialog
   },
   {
-    file: 'booking--privacy-return-step-3--desktop-1280x900--warm.png',
+    file: 'booking--cancellation-lookup--desktop-1280x900--warm.png',
     route: '/booking',
     role: 'public',
     viewport: DESKTOP,
-    state: 'step-3-preserved-after-policy-return',
-    prepare: preparePrivacyReturn
+    state: 'dual-field-phone-birth-lookup-result',
+    fullPage: false,
+    prepare: prepareCancellationLookup
+  },
+  {
+    file: 'booking--eligible-cancellation-confirmation--desktop-1280x900--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: DESKTOP,
+    state: 'more-than-20-minutes-confirmation-open',
+    fullPage: false,
+    prepare: prepareEligibleCancellation
+  },
+  {
+    file: 'booking--cancellation-phone-fallback--phone-375x812--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: PHONE,
+    state: '19-minutes-no-self-cancel-click-to-call',
+    fullPage: false,
+    prepare: prepareCancellationPhoneFallback
+  },
+  {
+    file: 'booking--success-result--desktop-1280x900--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: DESKTOP,
+    state: 'three-step-booking-success-result',
+    fullPage: false,
+    prepare: prepareBookingSuccess
   }
 ];
 
@@ -455,7 +515,7 @@ test('capture the current synthetic UI reference set', async ({ browser }) => {
     crossOsPixelGate: false,
     captureNormalization: [
       'Non-focused skip links are hidden to avoid Chromium full-page stitching artifacts.',
-      'Sticky headers, navigation, booking summary and status regions are rendered in document flow; their runtime behavior remains covered by E2E tests.'
+      'Sticky headers, navigation and status regions are rendered in document flow; their runtime behavior remains covered by E2E tests.'
     ],
     environment: {
       os: {
