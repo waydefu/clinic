@@ -1173,16 +1173,6 @@ textarea {
   );
   margin: 0;
 }
-.patient-preview-warning {
-  background: var(--surface-tint);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  line-height: 1.5;
-  margin: var(--space-xs) 0 0;
-  padding: var(--space-2xs) var(--space-xs);
-}
 .patient-hero > div > p:last-of-type {
   color: var(--ink-muted);
   line-height: 1.8;
@@ -1531,29 +1521,6 @@ textarea {
   padding-bottom: var(--space-2xs);
   scrollbar-gutter: stable;
 }
-.patient-slot-months {
-  display: flex;
-  gap: var(--space-2xs);
-  margin-bottom: var(--space-xs);
-  overflow-x: auto;
-  padding-bottom: var(--space-2xs);
-}
-.patient-slot-month {
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
-  color: var(--ink);
-  flex: 0 0 auto;
-  font-size: var(--text-body);
-  min-height: var(--control-height-md);
-  padding: var(--space-2xs) var(--space-sm);
-}
-.patient-slot-month[aria-selected='true'] {
-  background: var(--forest-light);
-  border-color: var(--forest);
-  color: var(--forest-dark);
-  font-weight: var(--weight-bold);
-}
 .patient-slot-date {
   align-items: flex-start;
   background: var(--surface);
@@ -1591,19 +1558,6 @@ textarea {
   display: grid;
   gap: var(--space-xs);
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-}
-.slot-period {
-  display: grid;
-  gap: var(--space-2xs);
-}
-.slot-period + .slot-period {
-  border-inline-start: 1px solid var(--line);
-  padding-inline-start: var(--space-sm);
-}
-.slot-period h4 {
-  color: var(--forest-dark);
-  font-size: var(--text-body);
-  margin: 0;
 }
 .slot-load-more {
   align-self: start;
@@ -1813,29 +1767,6 @@ textarea {
 .booking-phone-fallback {
   color: var(--forest-dark);
   font-weight: var(--weight-bold);
-}
-.booking-cancel-contact {
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  display: grid;
-  gap: var(--space-xs);
-  margin-top: var(--space-xs);
-  padding: var(--space-sm);
-}
-.booking-cancel-contact > .booking-phone-fallback {
-  justify-self: start;
-  margin-top: 0;
-}
-.booking-social-fallback {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2xs);
-}
-.booking-cancel-contact p {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  margin: 0;
 }
 .patient-upcoming-section {
   margin-top: var(--space-2xl);
@@ -2420,13 +2351,6 @@ label:has(> input[type='radio']) {
   }
   .patient-slot-list {
     grid-template-columns: 1fr;
-  }
-  .slot-period + .slot-period {
-    border-inline-start: 0;
-    border-top: 1px solid var(--line);
-    margin-top: var(--space-xs);
-    padding-inline-start: 0;
-    padding-top: var(--space-sm);
   }
   #patient-booking-app:not([hidden]) {
     grid-template-columns: 1fr;
