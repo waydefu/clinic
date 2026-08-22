@@ -1266,3 +1266,60 @@
 - **NEW C4 FROZEN:** **NO — IMPLEMENTATION NOT STARTED**。
 - **Rollback:** logical runtime／test／docs commits 分別 `git revert <sha>`；preview 自動到期
   或依 runbook 提前刪除 channel。禁止 amend、rebase、reset、force push。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — AFTER IMPLEMENTATION, BEFORE CANDIDATE FREEZE (2026-08-22)
+
+- **Runtime Result:** `/booking` large hero 只在 Step 1；三步驟 stepper 不新增 success
+  step；Step 2 使用 month navigation、可用日期與非空的上午／中午／晚間分組；Step 3
+  只有單一返回與 `重新開始`，資料依「本人基本資料／本次門診補充」收斂。成功為 Step 3
+  後的 result。synthetic warning 持續可見。
+- **Command Boundary:** browser-local create 與 reschedule adapter 均使用 Asia/Taipei
+  trusted application date 驗證今日起 60 個日曆日範圍；直接繞過 UI 的 command 亦拒絕
+  第 60 天以外時段。此規則不核准 D-004 production horizon。
+- **Lookup / Cancel:** 維持電話＋生日或證件＋生日的雙欄位查詢；`>20 minutes` 才能
+  direct self-cancel，`<=20 minutes` 以 `02-2577-1314` 為 primary，並顯示 frozen clinic
+  content 中相同的 LINE／Instagram／Messenger／Facebook。文案明示社群非即時且不會
+  自動取消；D-005 仍 pending。
+- **Workbench Result:** desktop week 只渲染實際正常開放日；`extra_open` 以 `加開` 與
+  hours 加入，明示 `closed` 正常日移除；body／mobile agenda 只渲染 actual appointments，
+  follow-up reminder 不冒充 Calendar event。Case 三列與 mobile stack 保持；Payroll 未接線。
+- **Frozen / Architecture Boundaries:** 30/30 clinic files byte-identical；patient dependency
+  graph 不可達 workbench-only policy；Case permission-before-mutation／no-partial-write、
+  browser-only synthetic store、no-backend／no-real-data invariants 全部保持。
+- **Logical Commits:** `77cdbd2` owner UI corrections；`1a537e6` warning copy；`19369f4`／
+  `982e09d` follow-up event boundary tests；`bee0dd5`／`da6a60f`／`7c757ee`／`9578386`
+  payload/style convergence；`c2e75ad` 的 frozen-file touch 由 `2b30021` 完整復原；
+  `8cc12c8`／`553cc50`／`6bd7b04` month/date acceptance；`11cc861` capture matrix；
+  `97e3803` balanced layouts；`5089cd9` phone CTA contrast；後續 commits 記錄 visual、
+  CAL-PILOT-001、vendor 與 formatting evidence。
+- **Visual Evidence:** `docs/reviews/assets/ui-visual-c4-2026-08-22/` 新增 16 張、沒有
+  覆寫 C3。固定 Chromium／warm／zh-TW／Asia-Taipei／reduced-motion／DPR 1；manifest
+  綁定每張 SHA-256，16/16 console error／warning 均為 0。逐張人工檢視涵蓋 Step 1、
+  Step 2 month／period／mobile、Step 3 desktop／mobile、success、lookup、eligible cancel、
+  late phone/social fallback、normal／exception／populated week、Case desktop／mobile、privacy，
+  未見 unintended clipping、overlap、dead space 或 page overflow。
+- **Local Acceptance:** full unit **1057/1057**；packaged Chromium＋mobile-device E2E
+  **314/314**，包含 patient、60-day bypass、cancel contacts、four-open-day／exception calendar、
+  accessibility、responsive、privacy、roles、Case。此 Windows host 沒有 Playwright WebKit
+  executable，故 18 個 WebKit clinic-only cases 是 local tool unavailable，不是 runtime
+  failure；final GitHub same-SHA CI 必須安裝並通過它們。structure、docs、format、lint、
+  types/build、capture config、sync 18/18、architecture、UI、public pages、tokens、secrets、
+  performance 與 clinic freeze 皆 local PASS。
+- **Performance:** packaged dist 為 77 files／53 content-hashed files；`/booking` gzip
+  closure 38 resources／66.6 KiB（document 7.0、script 44.8、CSS 9.5、image 5.3），仍低於
+  unchanged 70 KiB／38-resource budgets。`/index.html` 88.9 KiB／39 resources，仍低於
+  unchanged 90 KiB／46-resource budgets；沒有調高門檻。
+- **Vendor Package:** official route、Widget + API、future API/optional booking hostname 與
+  DNS／TLS／CORS responsibility matrix 已完成；C4 URL／expiry／exact SHA 保持 `PENDING`，
+  直到 exact-C4 same-SHA CI 與 online verification 完成，C3 URL 不再標為 current。
+- **CAL-PILOT-001:** readiness 文件已固定 source reader `calendar.events.readonly`、separate
+  test writer、private test Calendar、allowlist-only mapping、no write-back、cleanup 與 explicit
+  STOP。**本輪沒有建立或使用 credential、Calendar ID、event data 或連線。**
+- **Deployment State:** **NOT DEPLOYED**。下一步是 push/open PR #24、取得 prospective C4
+  same-SHA 全 required CI 綠、凍結 exact C4，再以 docs-only commit 記錄 deployment authority。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CALENDAR CONNECTED / ORIGINAL ACCESSED:** **NO / NO**。
+- **DNS / CORS CHANGED:** **NO**。
+- **PR #24 MERGED:** **NO**。
+- **NEW C4 FROZEN:** **NO — FINAL SAME-SHA GITHUB CI PENDING**。
