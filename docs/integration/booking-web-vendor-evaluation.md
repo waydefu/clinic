@@ -7,11 +7,14 @@ website:
 
 - Official reservations page: <https://beauessence.com.tw/reservations/>
 - Vendor evaluation route: `/booking` **only**
-- Current C4 preview URL: **PENDING exact-C4 deployment; insert only after
-  same-SHA CI and online verification pass.**
-- Current C4 preview expiry: **PENDING deployment record.**
-- Exact deployed C4: **PENDING C4 freeze.**
-- Online verification: **PENDING exact-C4 deployment.**
+- Current C4 preview URL:
+  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>
+- Current C4 preview expiry: **2026-08-29 16:10:26 Asia/Taipei**
+  (`2026-08-29T08:10:26.405373913Z`)
+- Exact deployed C4: `b3bc47721aaf2ca8de89ed62159dd7461d0eae30`
+- Hosting release/version: `1787386261863000` / `11f4ad12b13c1512`
+  (`FINALIZED`)
+- Online verification: **PASS — 474/474 repository-defined checks**
 
 The C3 deployment (`d9b6965c0e3ae62df33e89744f12c6d7fcc16480`)
 at the previously published `synthetic-review-xvqa68cx` URL, plus candidate C
@@ -45,9 +48,8 @@ integration shape; it does not hand over a live API or production credential.
 
 ## 3. Preview evaluation
 
-After deployment, use only the exact-C4 URL and expiry recorded above. While
-those fields say `PENDING`, there is no current C4 vendor URL. The
-vendor-facing route is only:
+Use only the exact-C4 URL and expiry recorded above. The vendor-facing route is
+only:
 
 - `/booking` — patient Booking Preview and the source reference for the future
   official `/reservations/` surface.

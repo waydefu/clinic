@@ -1358,3 +1358,55 @@
 - **REAL DATA AUTHORIZED:** **NO**。
 - **CALENDAR ACCESS AUTHORIZED:** **NO**。
 - **PR #24 MERGED:** **NO**。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — DEPLOYMENT AND ONLINE VERIFICATION (2026-08-22)
+
+- **Authority Gate:** docs-only authority commit
+  `1997a5988514aecf74311efeee74064a20e0ef42` 的 GitHub run
+  [`32561272179`](https://github.com/waydefu/clinic/actions/runs/32561272179) 11/11
+  `success`。實際部署內容仍固定為 exact C4
+  `b3bc47721aaf2ca8de89ed62159dd7461d0eae30`。
+- **Exact Worktree / Lock:** successful deploy worktree
+  `F:\診所專案\tmp\booking-c4-deploy-ready-b3bc477` detached at exact C4；build／deploy／
+  online verify 前後 tracked status clean。repository 與 established complete dependency
+  environment 的 lock SHA-256 均為
+  `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`。
+- **Windows Dependency Handling:** 第一個 fresh exact-C4 worktree 的 frozen install 在
+  cached `@axe-core/playwright` licence copy 34/861 時遇 Windows `EPERM`，因此未拿來部署。
+  successful worktree 使用 lock-identical complete dependency environment；process-only
+  `PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false` 只阻止 pnpm 11 嘗試 purge external junction，
+  沒有改 repository／lock／gate。
+- **Canonical Predeploy:** 未修改 `firebase.json`，canonical `corepack pnpm run build` 仍
+  執行 workspace builds、18 vendored domain file sync，產生 77 files／53 content-hashed。
+- **Execution:** operator `wayde.fu@gmail.com`，Firebase CLI `15.18.0`；只在 process
+  scope 設 `CI=true` 並執行
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+- **Hosting Result:** **PASS**。Release `1787386261863000`，version
+  `11f4ad12b13c1512` (`FINALIZED`)，release time `2026-08-22T08:11:01.863Z`
+  (16:11:01 Asia/Taipei)。Authentication channel-domain add／sync warning 保留；
+  Authentication 沒有啟用或修改。
+- **Preview:**
+  <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；absolute expiry
+  `2026-08-29T08:10:26.405373913Z` (16:10:26 Asia/Taipei)。
+- **Online Verification:** 同一 exact-C4 worktree 在 `2026-08-22T08:11:22.996Z` 執行
+  canonical `verify:preview`，取得 **474/474 PASS**，evidence commit 等於 C4；驗證 routes、
+  staging containment、exact marker、security／noindex／cache headers 與 40 個 unique hashed
+  JS／CSS assets。
+- **Dated Evidence:**
+  `docs/reviews/2026-08-22-booking-final-c4-synthetic-preview-deployment.md`；C4 owner
+  acceptance、vendor package、payload report 均改指 exact C4。C3 documents／images 不修改，
+  只在 index 標為 historical。
+- **PRODUCTION RESOURCE TOUCHED:** **NO**。
+- **AUTHORIZED SYNTHETIC HOSTING PREVIEW TOUCHED:** **YES — EXACT C4 RELEASE ONLY**。
+- **LIVE HOSTING / BACKEND / AUTH / DNS / CORS CHANGED:** **NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO — 30/30 FROZEN**。
+- **GOOGLE CALENDAR CONNECTED / ORIGINAL ACCESSED:** **NO / NO**。
+- **TEST CALENDAR CONNECTED / CREDENTIALS USED:** **NO / NO**。
+- **PAYROLL REACTIVATED:** **NO**。
+- **D-004 / D-005 PRODUCTION RULES APPROVED:** **NO — BOTH REMAIN PENDING**。
+- **PR #24 MERGED:** **NO**。
+- **Final Gate:** 本 post-deploy docs HEAD push 後仍須 11/11 required jobs 與 commit-bound
+  Verification evidence 全綠，且 PR 保持 open／not merged，才可宣稱 merge-ready。
+- **Rollback:** preview 自動到期或依 runbook 提前刪除 `synthetic-review`；source／docs 用
+  `git revert`。沒有 backend／schema／real-data rollback。

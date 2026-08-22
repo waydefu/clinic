@@ -5,12 +5,14 @@
 **Result: PASS.** The current Booking Preview, clinic surface and staff
 workbench remain inside every repository-required performance budget.
 
-Measurements come from the authoritative GitHub Linux build at commit
-`934b683f96317efc3295625834942532fbc15e1b`, workflow
-[`32342667289`](https://github.com/waydefu/clinic/actions/runs/32342667289),
-core job `96344741075`. That job built `apps/web/dist` as 76 files, 52 with
-content-hashed names, and ran the existing deterministic transfer-closure
-checker in report mode.
+Measurements are the deterministic report from exact deployed C4
+`b3bc47721aaf2ca8de89ed62159dd7461d0eae30`. The authoritative GitHub Linux
+build is workflow
+[`32561071094`](https://github.com/waydefu/clinic/actions/runs/32561071094),
+core job `97002573196`; it built `apps/web/dist` as 77 files, 53 with
+content-hashed names, and passed the unchanged transfer-closure gate. The same
+exact-C4 detached deployment build was run in report mode for the per-type
+values below.
 
 Numbers below are gzip transfer KiB rounded to one decimal by the repository
 checker. Each entry includes the HTML document plus resources reached from its
@@ -21,9 +23,9 @@ test.
 
 | Public route / surface | HTML | JavaScript | CSS | Images | Total |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `/booking` (`patient.html`) | 7.0 KiB | 41.2 KiB | 9.0 KiB | 5.3 KiB | **62.6 KiB** |
+| `/booking` (`patient.html`) | 7.0 KiB | 44.8 KiB | 9.5 KiB | 5.3 KiB | **66.6 KiB** |
 | `/clinic` (`clinic.html`) | 2.0 KiB | 13.0 KiB | 7.4 KiB | 95.7 KiB | **118.1 KiB** |
-| Staff workbench (`index.html`) | 9.3 KiB | 59.2 KiB | 15.0 KiB | 2.6 KiB | **86.1 KiB** |
+| Staff workbench (`index.html`) | 9.5 KiB | 61.0 KiB | 15.8 KiB | 2.6 KiB | **88.9 KiB** |
 
 There are no font requests in these entry closures. `/booking` is the relevant
 evaluation payload for the official-site reservations integration; `/clinic`
@@ -34,9 +36,9 @@ the booking widget.
 
 | Surface | Documents | Scripts | Stylesheets | Images | Total resources |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `/booking` | 1 | 31 | 2 | 3 | **37** |
+| `/booking` | 1 | 32 | 2 | 3 | **38** |
 | `/clinic` | 1 | 2 | 1 | 9 | **13** |
-| Staff workbench | 1 | 33 | 2 | 2 | **38** |
+| Staff workbench | 1 | 34 | 2 | 2 | **39** |
 
 The unbundled ES modules are intentional for source readability. The build
 injects `modulepreload` entries, and the performance gate requires the relevant
@@ -63,7 +65,7 @@ No performance budget, threshold or checker algorithm was changed.
   vendor estimate.
 - **Raw/uncompressed:** not used as the acceptance metric and not reported as a
   transfer claim.
-- **Content hashing:** 52 of 76 built files have content-hashed names.
+- **Content hashing:** 53 of 77 built files have content-hashed names.
 - **HTML cache:** stable HTML entry names receive `Cache-Control: no-cache` so
   each visit can discover the current hashed assets.
 - **JS/CSS cache:** hashed `*.js` and `*.css` receive
@@ -72,9 +74,9 @@ No performance budget, threshold or checker algorithm was changed.
   immutable JS/CSS rule to other extensions; the global `no-cache` policy
   remains applicable.
 
-These are configured preview/Hosting policies. Online response-header behavior
-must still be reverified against the freshly deployed preview before vendor
-handoff.
+These configured policies were reverified against exact C4's deployed preview
+by the 474/474 online gate; see the
+[C4 deployment record](../reviews/2026-08-22-booking-final-c4-synthetic-preview-deployment.md).
 
 ## Boundaries
 
