@@ -193,7 +193,10 @@
           </div>
         </section>
 
-        <p class="patient-preview-warning patient-data-boundary">
+        <p
+          id="patient-preview-warning"
+          class="patient-preview-warning patient-data-boundary"
+        >
           合成測試預覽｜勿填真實患者或健康資料；測試資料只存本機瀏覽器。
         </p>
 
@@ -295,17 +298,21 @@
           hidden
           aria-labelledby="slot-choice-heading"
         >
-          <div class="booking-panel-heading">
+          <div class="booking-panel-heading booking-panel-heading-inline">
             <div class="booking-back-row">
               <button class="booking-back" type="button" data-booking-back="1">
                 <span class="back-arrow" aria-hidden="true">←</span
                 >返回類型與項目
               </button>
             </div>
-            <p class="eyebrow">STEP 02</p>
-            <h2 id="slot-choice-heading">選擇日期與時段</h2>
-            <p id="slot-choice-description">所有時間均以 Asia/Taipei 顯示。</p>
-            <p id="booking-context" class="booking-context"></p>
+            <div class="booking-panel-title">
+              <p class="eyebrow">STEP 02</p>
+              <h2 id="slot-choice-heading">選擇日期與時段</h2>
+              <p id="slot-choice-description">
+                所有時間均以 Asia/Taipei 顯示。
+              </p>
+              <p id="booking-context" class="booking-context"></p>
+            </div>
           </div>
           <div
             id="patient-slot-months"
@@ -335,7 +342,7 @@
           hidden
           aria-labelledby="confirmation-heading"
         >
-          <div class="booking-panel-heading">
+          <div class="booking-panel-heading booking-panel-heading-inline">
             <div class="booking-back-row">
               <button class="booking-back" type="button" data-booking-back="2">
                 <span class="back-arrow" aria-hidden="true">←</span>上一步
@@ -348,7 +355,9 @@
                 重新開始
               </button>
             </div>
-            <h2 id="confirmation-heading">填寫基本資料</h2>
+            <div class="booking-panel-title">
+              <h2 id="confirmation-heading">填寫基本資料</h2>
+            </div>
           </div>
           <!-- novalidate：驗證由 patient-app.js 一次攤開全部錯誤並聚焦第一欄，
                不用瀏覽器一次只報一欄的原生氣泡。包 form 讓欄位內按 Enter 可送出。 -->

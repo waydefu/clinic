@@ -64,6 +64,25 @@ test.describe('患者線上預約', () => {
     await service.click();
     await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
     await expect(page.locator('#patient-hero')).toBeHidden();
+    await expect(page.locator('#patient-preview-warning')).toBeHidden();
+    await expect(page.locator('#patient-status')).toHaveClass(
+      /visually-hidden/
+    );
+    expect(
+      await page.locator('[data-booking-step="2"]').evaluate((panel) => {
+        const actions = panel.querySelector('.booking-back-row');
+        const title = panel.querySelector('.booking-panel-title');
+        return {
+          display: getComputedStyle(
+            panel.querySelector('.booking-panel-heading')!
+          ).display,
+          topDifference: Math.abs(
+            actions!.getBoundingClientRect().top -
+              title!.getBoundingClientRect().top
+          )
+        };
+      })
+    ).toEqual({ display: 'grid', topDifference: 0 });
     expect(
       await page.locator('#patient-slot-months [role="tab"]').count()
     ).toBeGreaterThanOrEqual(2);
@@ -113,6 +132,25 @@ test.describe('患者線上預約', () => {
     await slot.click();
     await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
     await expect(page.locator('#patient-hero')).toBeHidden();
+    await expect(page.locator('#patient-preview-warning')).toBeHidden();
+    await expect(page.locator('#patient-status')).toHaveClass(
+      /visually-hidden/
+    );
+    expect(
+      await page.locator('[data-booking-step="3"]').evaluate((panel) => {
+        const actions = panel.querySelector('.booking-back-row');
+        const title = panel.querySelector('.booking-panel-title');
+        return {
+          display: getComputedStyle(
+            panel.querySelector('.booking-panel-heading')!
+          ).display,
+          topDifference: Math.abs(
+            actions!.getBoundingClientRect().top -
+              title!.getBoundingClientRect().top
+          )
+        };
+      })
+    ).toEqual({ display: 'grid', topDifference: 0 });
     await expect(page.getByRole('button', { name: '上一步' })).toHaveCount(1);
     await expect(page.getByRole('button', { name: '重新開始' })).toBeVisible();
     await expect(page.locator('.patient-form-section')).toHaveCount(2);

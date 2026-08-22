@@ -1292,6 +1292,18 @@ textarea {
 .booking-panel-heading {
   margin-bottom: var(--space-md);
 }
+.booking-panel-heading-inline {
+  align-items: start;
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.booking-panel-heading-inline .booking-back-row {
+  margin-bottom: 0;
+}
+.booking-panel-title {
+  min-width: 0;
+}
 .booking-panel-heading-spaced {
   margin-top: var(--space-lg);
 }
@@ -1302,7 +1314,8 @@ textarea {
 }
 /* 步驟說明是正文，不是註腳。它在告訴使用者這一步要做什麼——那是頁面上少數
    非讀不可的句子之一，卻和 eyebrow 標籤同樣大小。 */
-.booking-panel-heading > p:last-child {
+.booking-panel-heading > p:last-child,
+.booking-panel-title > p:last-child {
   color: var(--ink-muted);
   font-size: var(--text-body);
   line-height: 1.65;
@@ -2215,6 +2228,12 @@ label:has(> input[type='radio']) {
   }
   #patient-main {
     padding: var(--space-sm) var(--space-sm) var(--space-2xl);
+  }
+  .booking-panel-heading-inline {
+    display: block;
+  }
+  .booking-panel-heading-inline .booking-back-row {
+    margin-bottom: var(--space-sm);
   }
   .status-message {
     position: static;
