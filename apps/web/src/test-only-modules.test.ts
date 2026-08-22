@@ -861,7 +861,7 @@ describe('櫃台處置', () => {
     expect(nextCalendar).not.toContain(`data-week-event="${followUpVisit.id}"`);
     expect(nextCalendar).not.toContain('待安排回診');
     const queued = renderAppointments(state, {
-      status: 'follow_up_required',
+      status: 'all',
       kind: 'all',
       query: ''
     });
