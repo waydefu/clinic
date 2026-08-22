@@ -280,8 +280,7 @@ if (missing.length > 0) {
 // 下面的 captureDate 斷言都由它派生。先前日期各自寫死在三處，2026-08-06 重拍時
 // 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
 // 竄改，實際上是檢查器自己還停在舊日期。
-const visualBaselineDirectory =
-  'docs/reviews/assets/ui-visual-c4-2026-08-22';
+const visualBaselineDirectory = 'docs/reviews/assets/ui-visual-c4-2026-08-22';
 const visualBaselineDate = visualBaselineDirectory.slice(-'YYYY-MM-DD'.length);
 const visualBaselineErrors = [];
 try {
@@ -589,7 +588,9 @@ if (visualBaselineErrors.length > 0) {
   for (const error of visualBaselineErrors) console.error(`- ${error}`);
   process.exitCode = 1;
 } else {
-  console.log('UI visual baseline evidence check passed (16 C4 reference PNGs).');
+  console.log(
+    'UI visual baseline evidence check passed (16 C4 reference PNGs).'
+  );
 }
 
 // 在全新 clone 上，型別感知的 ESLint 需要先有 workspace 的 dist/*.d.ts；順序寫反
