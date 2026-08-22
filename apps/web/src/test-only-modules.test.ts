@@ -858,8 +858,15 @@ describe('櫃台處置', () => {
     );
 
     const nextCalendar = renderWeekView(state, '2030-01-07', '2030-01-07');
-    expect(nextCalendar).toContain(`data-week-event="${followUpVisit.id}"`);
-    expect(nextCalendar).toContain('待安排回診');
+    expect(nextCalendar).not.toContain(`data-week-event="${followUpVisit.id}"`);
+    expect(nextCalendar).not.toContain('待安排回診');
+    const queued = renderAppointments(state, {
+      status: 'follow_up_required',
+      kind: 'all',
+      query: ''
+    });
+    expect(queued).toContain(followUpVisit.id);
+    expect(queued).toContain('待安排回診');
   });
 
   it('缺 session 時回診版卡片不拋錯、且隱藏「調整回診」', () => {
