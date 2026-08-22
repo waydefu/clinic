@@ -64,6 +64,8 @@ test.describe('患者線上預約', () => {
     await service.click();
     await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
     await expect(page.locator('#patient-hero')).toBeHidden();
+    await expect(page.locator('.patient-header')).toBeVisible();
+    await expect(page.locator('.booking-stepper')).toBeVisible();
     await expect(page.locator('#patient-preview-warning')).toBeHidden();
     await expect(page.locator('#patient-status')).toHaveClass(
       /visually-hidden/

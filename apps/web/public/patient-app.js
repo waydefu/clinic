@@ -140,6 +140,7 @@ async function runUiAction({
 
 function showStep(step, { focusHeading = true, scroll = true } = {}) {
   bookingResultPanel.hidden = true;
+  document.body.dataset.bookingStep = String(step);
   elements['patient-hero'].hidden = step !== 1;
   elements['patient-preview-warning'].hidden = step !== 1;
   // 第二、三步已經由步驟標題與就地錯誤提供視覺回饋；頂端 aria-live 留在

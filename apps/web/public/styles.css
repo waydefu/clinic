@@ -2147,6 +2147,17 @@ label:has(> input[type='radio']) {
   .patient-header {
     position: static;
   }
+  /* 手機版的第二、三步只保留當下操作。頁首偏好／查詢、測試公告與步驟列都已在
+     第一步看過，而且新步驟本身有標題與返回鍵；繼續佔著首屏只會把日期與表單往下
+     推。桌機空間足夠，維持原樣。 */
+  .patient-body:is([data-booking-step='2'], [data-booking-step='3'])
+    .patient-header,
+  .patient-body:is([data-booking-step='2'], [data-booking-step='3'])
+    .patient-announcement,
+  .patient-body:is([data-booking-step='2'], [data-booking-step='3'])
+    .booking-stepper {
+    display: none;
+  }
   /* P13（2026-07-27，負責人核可）：導覽收進漢堡選單。
      先前導覽是常駐的一整列（44px 的觸控列），加上環境徽章那一列，頁首在 375px
      實測 235px、佔首屏 29%——而首屏該給的是預約流程。

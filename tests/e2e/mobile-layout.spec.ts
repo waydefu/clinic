@@ -372,10 +372,24 @@ test.describe('患者預約頁手機版', () => {
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('[data-service]').first().click();
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-booking-step',
+      '2'
+    );
+    await expect(page.locator('.patient-header')).toBeHidden();
+    await expect(page.locator('.patient-announcement')).toBeHidden();
+    await expect(page.locator('.booking-stepper')).toBeHidden();
     expect(await pageOverflow(page), 'step 2').toBeLessThanOrEqual(1);
 
     await page.locator('[data-patient-slot]').first().click();
     await expect(page.locator('#patient-name')).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-booking-step',
+      '3'
+    );
+    await expect(page.locator('.patient-header')).toBeHidden();
+    await expect(page.locator('.patient-announcement')).toBeHidden();
+    await expect(page.locator('.booking-stepper')).toBeHidden();
     expect(await pageOverflow(page), 'step 3').toBeLessThanOrEqual(1);
   });
 
