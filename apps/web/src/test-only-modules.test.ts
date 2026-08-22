@@ -239,7 +239,9 @@ describe('病人查詢與自助取消', () => {
 
   it('成功直接進 canonical cancelled、釋放時段、各新增一次 audit/outbox', () => {
     const { state, appointment } = bookedState();
-    const slot = state.slots.find((item: any) => item.id === appointment.slotId);
+    const slot = state.slots.find(
+      (item: any) => item.id === appointment.slotId
+    );
     const before = {
       audit: state.auditEvents.length,
       outbox: state.outboxJobs.length

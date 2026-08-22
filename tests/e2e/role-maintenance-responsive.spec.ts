@@ -105,16 +105,20 @@ test.describe('角色邊界', () => {
     const followUp = page.locator(`[data-follow-up-form="${appointmentId}"]`);
     await expect(followUp).toBeVisible();
     expect(
-      await followUp.locator('.follow-up-row-primary [name]').evaluateAll(
-        (fields) => fields.map((field) => field.getAttribute('name'))
-      )
+      await followUp
+        .locator('.follow-up-row-primary [name]')
+        .evaluateAll((fields) =>
+          fields.map((field) => field.getAttribute('name'))
+        )
     ).toEqual(['medicalRecordNumber', 'status', 'dueDate', 'dueTime']);
     expect(
-      await followUp.locator('.follow-up-row-secondary').evaluate((row) =>
-        Array.from(row.children).map(
-          (child) => child.querySelector('[name]')?.getAttribute('name')
+      await followUp
+        .locator('.follow-up-row-secondary')
+        .evaluate((row) =>
+          Array.from(row.children).map((child) =>
+            child.querySelector('[name]')?.getAttribute('name')
+          )
         )
-      )
     ).toEqual(['managerId', 'tags', 'certificateCopies']);
     await expect(followUp.locator('.follow-up-row-notes')).toContainText(
       '自填備註'

@@ -40,9 +40,7 @@ test.describe('桌機日期欄週曆', () => {
     ).toHaveCount(0);
   });
 
-  test('空週只有乾淨日期欄，沒有假事件、條紋或空白占位卡', async ({
-    page
-  }) => {
+  test('空週只有乾淨日期欄，沒有假事件、條紋或空白占位卡', async ({ page }) => {
     await expect(page.locator('#week-view [data-week-event]')).toHaveCount(0);
     await expect(page.locator('.wv-date-cell > *')).toHaveCount(0);
     await expect(page.locator('.wv-date-table')).not.toContainText('尚無預約');

@@ -21,7 +21,9 @@ function normalizedPhone(value) {
 }
 
 function normalizedDocument(value) {
-  return String(value ?? '').trim().toUpperCase();
+  return String(value ?? '')
+    .trim()
+    .toUpperCase();
 }
 
 function normalizedVerification(input) {
@@ -108,10 +110,9 @@ export function cancelPatientAppointment(
   actorId,
   nowMs
 ) {
-  const appointment = lookupPatientAppointments(
-    state,
-    verificationInput
-  ).find((item) => item.id === appointmentId);
+  const appointment = lookupPatientAppointments(state, verificationInput).find(
+    (item) => item.id === appointmentId
+  );
   if (appointment === undefined) throw managementError('lookup_failed');
   const eligibility = patientCancellationEligibility(appointment, nowMs);
   if (!eligibility.allowed)
