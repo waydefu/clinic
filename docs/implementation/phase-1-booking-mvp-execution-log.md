@@ -1323,3 +1323,38 @@
 - **DNS / CORS CHANGED:** **NO**。
 - **PR #24 MERGED:** **NO**。
 - **NEW C4 FROZEN:** **NO — FINAL SAME-SHA GITHUB CI PENDING**。
+
+## BOOKING FINAL OWNER CORRECTION / C4 — EXACT DEPLOYMENT AUTHORITY (2026-08-22)
+
+- **Candidate C4:** `b3bc47721aaf2ca8de89ed62159dd7461d0eae30`。本 SHA 包含
+  final runtime、tests、16-scenario evidence、vendor package 與 CAL-PILOT-001 stop-line；
+  相對 `origin/main` 的 `.github/workflows/verify.yml` diff 為 zero。
+- **Same-SHA Acceptance:** GitHub run
+  [`32561071094`](https://github.com/waydefu/clinic/actions/runs/32561071094) 的 11/11 jobs
+  `success`，包含 core verify、Firestore Emulator、六組 E2E（patient portal 含 WebKit）、
+  supply-chain／secrets、SAST 與 commit-bound Verification evidence。remote branch、local C4
+  均為上述 SHA；remote main 仍為 `5df89f0ef75ebe8cf63277d982b9c7330b0e5104`。
+- **Owner Authorization:** 本輪指令明確授權**一次** exact-C4 refreshed synthetic Hosting
+  preview，目的只限 website vendor `/booking` evaluation 與 owner final review。
+- **Exact Target:** Firebase project `beauessence-clinic-staging`（project number
+  `781119800251`，state `ACTIVE`）；Hosting preview channel `synthetic-review`；requested
+  expiry `7d`。
+- **Operator:** Firebase CLI `15.18.0`；`firebase login:list` 確認為
+  `wayde.fu@gmail.com`。
+- **Allowed Action:** 只能從 clean detached worktree 的 exact C4 執行 repository canonical
+  predeploy，再執行
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+  process-scoped `CI=true` 只可用於 non-interactive dependency／build／deploy／verify。
+- **Prohibited:** 部署本 docs authority commit、live Hosting、Firestore／Functions／Storage／
+  Cloud Run／Authentication、Calendar access／credential／test Calendar、DNS／CORS、LINE／
+  Meta API、production backend／credential／data、real patient／staff／clinical／payroll data。
+- **Post-Deploy Gate:** 從同一 exact-C4 worktree 對 returned current URL 執行 canonical
+  `verify:preview`，必須通過 evidence marker、routes、headers、noindex、cache、hashed assets
+  與 synthetic/no-backend boundary；失敗不得手改 dist，須修 source 並凍結新 candidate。
+- **Authority Record Isolation:** 本段只修改 execution log；authority commit push 後也須
+  11/11 CI 綠，但不會被部署，避免 self-referential SHA。實際部署內容固定為 exact C4。
+- **NEW C4 FROZEN:** **YES — EXACT C4 SAME-SHA 11/11 GREEN**。
+- **DEPLOYMENT EXECUTED:** **NO — AUTHORITY RECORDED, EXECUTION PENDING**。
+- **REAL DATA AUTHORIZED:** **NO**。
+- **CALENDAR ACCESS AUTHORIZED:** **NO**。
+- **PR #24 MERGED:** **NO**。
