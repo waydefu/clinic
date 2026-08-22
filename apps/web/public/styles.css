@@ -1749,6 +1749,7 @@ textarea {
   padding: var(--space-sm);
 }
 .booking-cancel-contact > .booking-phone-fallback {
+  color: var(--on-accent);
   justify-self: start;
   margin-top: 0;
 }
