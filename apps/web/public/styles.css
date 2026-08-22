@@ -1771,6 +1771,56 @@ textarea {
   flex-wrap: wrap;
   gap: var(--space-2xs);
 }
+.patient-contact-phone {
+  width: 100%;
+}
+.patient-contact-socials {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.patient-contact-link {
+  min-width: 0;
+  text-decoration: none;
+}
+.patient-contact-link svg {
+  flex: none;
+  height: var(--space-md);
+  width: var(--space-md);
+}
+@media (hover: hover) and (pointer: fine) {
+  .patient-contact-socials {
+    display: flex;
+  }
+  .patient-contact-socials .patient-contact-link {
+    border-radius: var(--radius-circle);
+    height: var(--control-height-md);
+    padding: 0;
+    position: relative;
+    width: var(--control-height-md);
+  }
+  .patient-contact-tooltip {
+    background: var(--surface-inverse-deep);
+    border-radius: var(--radius-sm);
+    bottom: calc(100% + var(--space-2xs));
+    color: var(--on-inverse);
+    font-size: var(--text-micro);
+    left: 50%;
+    opacity: 0;
+    padding: var(--space-3xs) var(--space-2xs);
+    pointer-events: none;
+    position: absolute;
+    transform: translate(-50%, var(--space-3xs));
+    transition:
+      opacity var(--motion-fast) var(--ease-standard),
+      transform var(--motion-fast) var(--ease-standard);
+    white-space: nowrap;
+    z-index: 3;
+  }
+  .patient-contact-link:is(:hover, :focus-visible) .patient-contact-tooltip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
 .booking-cancel-contact p {
   color: var(--ink-muted);
   font-size: var(--text-body);

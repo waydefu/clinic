@@ -394,6 +394,32 @@ test.describe('患者預約頁手機版', () => {
     await expect(
       page.locator('.patient-contact-link', { hasText: '02-2577-1314' })
     ).toHaveAttribute('href', 'tel:+886225771314');
+    const socialLinks = page.locator(
+      '.patient-contact-socials .patient-contact-link'
+    );
+    const socialBoxes = await socialLinks.evaluateAll((links) =>
+      links.map((link) => {
+        const box = link.getBoundingClientRect();
+        return { height: box.height, width: box.width, x: box.x, y: box.y };
+      })
+    );
+    expect(socialBoxes).toHaveLength(4);
+    if (
+      await page.evaluate(
+        () => matchMedia('(hover: hover) and (pointer: fine)').matches
+      )
+    ) {
+      for (const box of socialBoxes)
+        expect(Math.abs(box.width - box.height)).toBeLessThan(2);
+    } else {
+      expect(Math.abs(socialBoxes[0].y - socialBoxes[1].y)).toBeLessThan(2);
+      expect(Math.abs(socialBoxes[2].y - socialBoxes[3].y)).toBeLessThan(2);
+      expect(
+        Math.abs(socialBoxes[0].width - socialBoxes[1].width)
+      ).toBeLessThan(2);
+      for (const box of socialBoxes)
+        expect(box.height).toBeGreaterThanOrEqual(44);
+    }
     expect(await pageOverflow(page), 'step 3').toBeLessThanOrEqual(1);
   });
 

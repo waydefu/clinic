@@ -183,6 +183,23 @@ test.describe('患者線上預約', () => {
       'https://page.line.me/821tzbtx'
     );
 
+    const socialLinks = page.locator(
+      '.patient-contact-socials .patient-contact-link'
+    );
+    await expect(socialLinks).toHaveCount(4);
+    const socialBox = await socialLinks.first().boundingBox();
+    expect(
+      Math.abs((socialBox?.width ?? 0) - (socialBox?.height ?? 0))
+    ).toBeLessThan(2);
+    const tooltip = socialLinks.first().locator('.patient-contact-tooltip');
+    await expect(tooltip).toHaveCSS('opacity', '0');
+    await socialLinks.first().hover();
+    await expect(tooltip).toHaveCSS('opacity', '1');
+    await socialLinks.nth(1).focus();
+    await expect(
+      socialLinks.nth(1).locator('.patient-contact-tooltip')
+    ).toHaveCSS('opacity', '1');
+
     // 步驟 3：填基本資料，並勾選兩個各自獨立的確認——測試用的告知草稿已讀，
     // 以及「資料只留在本機」。前者不會建立正式同意紀錄。
     await page.locator('#patient-name').fill('測試患者甲');

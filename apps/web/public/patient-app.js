@@ -376,28 +376,14 @@ const patientContactIcons = Object.freeze({
 });
 
 function renderPatientContactLinks() {
-  const contacts = [
-    {
-      label: '電話',
-      href: CLINIC.phoneHref,
-      detail: CLINIC.phoneDisplay,
-      external: false
-    },
-    ...CLINIC.socialLinks.map((contact) => ({
-      ...contact,
-      detail: contact.label,
-      external: true
-    }))
-  ];
-
-  const links = contacts
+  const socialLinks = CLINIC.socialLinks
     .map(
-      ({ label, href, detail, external }) =>
-        `<a class="button ${label === '電話' ? 'button-primary' : 'button-secondary'} patient-contact-link" href="${escapeHtml(href)}"${external ? ' target="_blank" rel="noreferrer"' : ''}>${patientContactIcons[label] ?? ''}&nbsp;<span>${escapeHtml(detail)}</span></a>`
+      ({ label, href }) =>
+        `<a class="button button-secondary patient-contact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${escapeHtml(label)}">${patientContactIcons[label] ?? ''}<span class="patient-contact-tooltip">${escapeHtml(label)}</span></a>`
     )
     .join('');
   elements['patient-contact-options'].innerHTML =
-    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><div class="booking-social-fallback">${links}</div>`;
+    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><a class="button button-primary patient-contact-link patient-contact-phone" href="${escapeHtml(CLINIC.phoneHref)}">${patientContactIcons['電話']}&nbsp;<span>${escapeHtml(CLINIC.phoneDisplay)}</span></a><span>其他聯絡方式</span><div class="booking-social-fallback patient-contact-socials" aria-label="其他聯絡方式">${socialLinks}</div>`;
 }
 
 function checkedTagIds(containerId, attribute) {
