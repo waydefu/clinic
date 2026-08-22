@@ -1494,9 +1494,9 @@ textarea {
   transform: translateX(-2px);
 }
 .patient-slot-dates {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--space-2xs);
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
   margin-bottom: var(--space-sm);
   overflow-x: visible;
   padding-bottom: var(--space-2xs);
@@ -1532,10 +1532,9 @@ textarea {
   border-radius: var(--radius-md);
   color: var(--ink);
   display: grid;
-  flex: 1 1 8.5rem;
   font-size: var(--text-body);
   min-height: var(--control-height-md);
-  min-width: 8.5rem;
+  min-width: 0;
   padding: var(--space-xs);
   text-align: left;
 }
@@ -1564,6 +1563,7 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
 }
 .slot-period {
+  align-self: start;
   display: grid;
   gap: var(--space-2xs);
 }
@@ -2286,11 +2286,13 @@ label:has(> input[type='radio']) {
     grid-template-columns: 1fr;
   }
   .patient-slot-dates {
+    display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
   }
   .patient-slot-date {
     flex: 0 0 auto;
+    min-width: 8.5rem;
   }
   .patient-slot-list {
     grid-template-columns: 1fr;

@@ -302,6 +302,9 @@ async function prepareCancellationPhoneFallback(page: Page): Promise<void> {
   await page.locator('#booking-lookup-form button[type="submit"]').click();
   await expect(page.locator('.booking-phone-fallback')).toBeVisible();
   await expect(page.locator('[data-managed-cancel]')).toHaveCount(0);
+  await page.locator('.booking-cancel-contact').scrollIntoViewIfNeeded();
+  await expect(page.getByRole('link', { name: 'LINE' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Facebook' })).toBeVisible();
 }
 
 async function prepareCalendarEmpty(page: Page): Promise<void> {
