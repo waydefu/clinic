@@ -1,3 +1,5 @@
+@import url('./clinic-booking.css');
+
 /* C4 patient-only owner corrections. Kept off the staff and clinic routes. */
 .patient-preview-warning {
   background: var(--surface-tint);
