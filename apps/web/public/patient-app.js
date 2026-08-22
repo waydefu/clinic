@@ -365,14 +365,14 @@ function renderPatientTags() {
 }
 
 const patientContactIcons = Object.freeze({
-  電話: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h3l1.5 4-2 1.5a15 15 0 0 0 6 6l1.5-2 4 1.5v3a4 4 0 0 1-4 4C9.3 20.2 3.8 14.7 3 7a4 4 0 0 1 4-4Z"/></svg>',
-  LINE: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5c0 4.1-3.8 7.5-8.5 7.5-.8 0-1.7-.1-2.4-.3L5 21l1.2-3.5C4.2 16.1 3 13.9 3 11.5 3 7.4 6.8 4 11.5 4S20 7.4 20 11.5Z"/><path d="M7.5 10v3h1.7m1-3v3m1.2-3v3m0-3 2 3v-3m1.2 0h2v3h-2m0-1.5h1.6"/></svg>',
+  電話: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h3l1.5 4-2 1.5a15 15 0 0 0 6 6l1.5-2 4 1.5v3a4 4 0 0 1-4 4C9.3 20.2 3.8 14.7 3 7a4 4 0 0 1 4-4Z"/></svg>',
+  LINE: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5c0 4.1-3.8 7.5-8.5 7.5-.8 0-1.7-.1-2.4-.3L5 21l1.2-3.5C4.2 16.1 3 13.9 3 11.5 3 7.4 6.8 4 11.5 4S20 7.4 20 11.5Z"/><path d="M7.5 10v3h1.7m1-3v3m1.2-3v3m0-3 2 3v-3m1.2 0h2v3h-2m0-1.5h1.6"/></svg>',
   Instagram:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" class="patient-contact-icon-fill"/></svg>',
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>',
   Messenger:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L4 21l1.2-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="m8 14 3-3 2 2 3-3"/></svg>',
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L4 21l1.2-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="m8 14 3-3 2 2 3-3"/></svg>',
   Facebook:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M13.5 20v-7h2.4l.4-3h-2.8V8.5c0-.9.3-1.5 1.6-1.5h1.4V4.3c-.5-.1-1.3-.2-2.2-.2-2.3 0-3.8 1.4-3.8 4V10H8v3h2.5v7"/></svg>'
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M13.5 20v-7h2.4l.4-3h-2.8V8.5c0-.9.3-1.5 1.6-1.5h1.4V4.3c-.5-.1-1.3-.2-2.2-.2-2.3 0-3.8 1.4-3.8 4V10H8v3h2.5v7"/></svg>'
 });
 
 function renderPatientContactLinks() {
@@ -393,11 +393,11 @@ function renderPatientContactLinks() {
   const links = contacts
     .map(
       ({ label, href, detail, external }) =>
-        `<a class="patient-contact-link${label === '電話' ? ' is-primary' : ''}" href="${escapeHtml(href)}"${external ? ' target="_blank" rel="noreferrer"' : ''}>${patientContactIcons[label] ?? ''}<span>${escapeHtml(detail)}</span></a>`
+        `<a class="button ${label === '電話' ? 'button-primary' : 'button-secondary'} patient-contact-link" href="${escapeHtml(href)}"${external ? ' target="_blank" rel="noreferrer"' : ''}>${patientContactIcons[label] ?? ''}&nbsp;<span>${escapeHtml(detail)}</span></a>`
     )
     .join('');
   elements['patient-contact-options'].innerHTML =
-    `<div class="patient-contact-options-copy"><strong>需要其他協助？</strong><span>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</span></div><div class="patient-contact-links">${links}</div>`;
+    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><div class="booking-social-fallback">${links}</div>`;
 }
 
 function checkedTagIds(containerId, attribute) {
