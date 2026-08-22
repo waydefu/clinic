@@ -436,6 +436,15 @@ function monthLabel(monthKey) {
   return `${year} 年 ${Number(month)} 月`;
 }
 
+function compactDateLabel(dateKey) {
+  const [, month, day] = dateKey.split('-');
+  const weekday = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
+  return {
+    weekday: WEEKDAY_LABELS[weekday],
+    date: `${Number(month)}/${Number(day)}`
+  };
+}
+
 function renderSlots() {
   renderBookingContext();
   const slots = availableSlots();
@@ -476,7 +485,8 @@ function renderSlots() {
   elements['patient-slot-dates'].innerHTML = monthGroups
     .map((group) => {
       const selected = group.key === activeSlotDate;
-      return `<button class="patient-slot-date" type="button" role="tab" data-slot-date="${escapeHtml(group.key)}" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}"><strong>${escapeHtml(group.label)}</strong><small>${group.slots.length} 個時段${selected ? ' · ✓ 已選' : ''}</small></button>`;
+      const label = compactDateLabel(group.key);
+      return `<button class="patient-slot-date" type="button" role="tab" data-slot-date="${escapeHtml(group.key)}" aria-label="${escapeHtml(group.label)}，${group.slots.length} 個時段" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}"><strong>${escapeHtml(label.weekday)}</strong><span>${escapeHtml(label.date)}</span><small>${group.slots.length} 個時段${selected ? ' · ✓ 已選' : ''}</small></button>`;
     })
     .join('');
   const active = groups.find((group) => group.key === activeSlotDate);
