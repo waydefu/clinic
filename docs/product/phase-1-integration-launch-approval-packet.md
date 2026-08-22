@@ -28,11 +28,10 @@ Calendar 不是可用時段權威來源。即使同步失敗，已成立的預�
 
 **Expansion S 註記（2026-07-28）：** 業主提出 Calendar 直接新增／修改／刪除後
 回到系統的需求。這不改變 D-009 先核准 outbound projection 的順序，也不撤銷
-Calendar 非權威來源的 ADR。2026-08-16 input 已選擇 manual review＋system
-authoritative 方向，因此 D-016 不再把 auto-apply 視為候選；但 reviewer identity、
-matching、Google deletion 語意、衝突優先序、SLO 與 approval metadata 尚未核准，
-D-016 仍維持 pending。安全提案是 watch＋incremental sync 後只把 change candidate
-顯示在工作臺，未知病患或刪除事件都不自動改寫系統；這仍是待核准提案。完整規劃見
+Calendar 非權威來源的 ADR。業主已確認 inbound 狀態須與工作臺同步，但尚未明確
+選 auto-apply 或 review queue，因此 D-016 維持 pending。安全提案是 watch＋
+incremental sync 後把 change candidate 顯示在工作臺，未知病患或刪除事件都不
+自動改寫系統；這仍是待核准提案。完整規劃見
 [Expansion S plan](2026-07-28-surgery-follow-up-expansion-plan.md#6-google-calendar保留系統權威雙向審核佇列提案)。
 
 ## D-010 — Firebase、環境與維運責任

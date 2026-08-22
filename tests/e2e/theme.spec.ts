@@ -13,53 +13,6 @@ type Rgb = { r: number; g: number; b: number };
 
 const THEMES = ['light', 'warm', 'dark'] as const;
 
-test.describe('護眼暖色預設與顯式偏好', () => {
-  test('fresh browser 的 active surfaces 都以 warm 呈現', async ({ page }) => {
-    await page.goto('/booking');
-    await page.evaluate(() =>
-      window.localStorage.removeItem('beauessence_theme')
-    );
-
-    for (const url of ['/', '/booking', '/privacy', '/404.html']) {
-      await page.goto(url);
-      await expect(page.locator('html')).toHaveAttribute('data-theme', 'warm');
-    }
-  });
-
-  test('light、dark 與 auto 都可顯式選取並在重新載入後保留', async ({
-    page
-  }) => {
-    await page.goto('/booking');
-    await page.evaluate(() =>
-      window.localStorage.removeItem('beauessence_theme')
-    );
-    await page.reload();
-
-    const picker = page.locator('#theme-picker');
-    await expect(picker).toHaveValue('warm');
-
-    for (const preference of ['dark', 'light', 'auto']) {
-      await picker.selectOption(preference);
-      await page.reload();
-      await expect(page.locator('#theme-picker')).toHaveValue(preference);
-      await expect
-        .poll(() =>
-          page.evaluate(() => window.localStorage.getItem('beauessence_theme'))
-        )
-        .toBe(preference);
-    }
-  });
-
-  test('另一個 shared-theme surface respect a saved explicit preference', async ({
-    page
-  }) => {
-    await page.goto('/booking');
-    await page.locator('#theme-picker').selectOption('dark');
-    await page.goto('/');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  });
-});
-
 function parseRgb(value: string): Rgb {
   const parts = value.match(/[\d.]+/g);
   if (parts === null) throw new Error(`無法解析顏色：${value}`);

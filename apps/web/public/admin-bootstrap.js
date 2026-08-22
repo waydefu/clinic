@@ -18,7 +18,8 @@ import {
   renderSchedule,
   renderSlots,
   renderTagPicker,
-  renderTasks
+  renderTasks,
+  renderWorkload
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
 import { runPendingAction } from './modules/async-action.js';
@@ -497,6 +498,9 @@ function renderSummary() {
   elements['completed-count'].textContent = String(
     state.appointments.filter((item) => item.status === 'completed').length
   );
+  elements['workload-count'].textContent = String(
+    state.workload.reduce((sum, item) => sum + item.uniquePatientCount, 0)
+  );
   elements['task-list'].innerHTML = renderTasks(state);
   elements['next-up'].innerHTML = renderNextUp(state);
   // 待辦件數是「有幾種待辦還沒清掉」，不是總筆數——首頁要回答的是「還有幾件事
@@ -577,6 +581,7 @@ function render() {
     editingFollowUps
   );
   elements['case-assignment-list'].innerHTML = renderCaseAssignments(state);
+  elements.workload.innerHTML = renderWorkload(state);
   // 每個清單的內容都是整批置換，所以清單本身不是 live region；改由這些簡短的
   // 摘要負責公告「變了、現在有幾筆」。詳見 index.html 裡 #appointments 上方的
   // 說明。計數一律直接數 DOM，數字才不會和實際畫出來的東西分家。
@@ -592,6 +597,7 @@ function render() {
     '[data-case-row]',
     '筆個案'
   );
+  countSummary('workload-summary', 'workload', '[data-workload-row]', '筆統計');
   renderCommunicationForms();
   if (isAdminSession()) {
     elements['published-schedule'].innerHTML = renderSchedule(
@@ -1681,7 +1687,8 @@ elements['case-assignment-list'].addEventListener('submit', async (event) => {
         appointmentId: form.dataset.caseForm,
         managerId: data.get('managerId')
       }),
-    onSuccess: () => message('個管指派已更新。', 'success')
+    onSuccess: () =>
+      message('個管指派已更新，月度不重複患者統計已重新計算。', 'success')
   });
 });
 

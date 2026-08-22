@@ -5,7 +5,6 @@ import {
   isBareSpecifier,
   layerViolations,
   opaqueDynamicImports,
-  reachableRelativeModules,
   stripComments
 } from './architecture-rules.mjs';
 
@@ -67,40 +66,6 @@ describe('importSpecifiers', () => {
       '\n'
     );
     expect(importSpecifiers(source)).toEqual(['alpha', 'beta']);
-  });
-});
-
-describe('reachableRelativeModules', () => {
-  it('walks real imports but ignores comments and decoy strings', () => {
-    const sources = new Map([
-      [
-        'apps/web/public/patient-app.js',
-        [
-          "import './modules/api-client.js';",
-          "// import './modules/workbench-scope-policy.js';",
-          'const decoy = "import \'./modules/workbench-scope-policy.js\'";'
-        ].join('\n')
-      ],
-      [
-        'apps/web/public/modules/api-client.js',
-        "export { api } from '../store.js';"
-      ],
-      ['apps/web/public/store.js', 'export const api = true;'],
-      [
-        'apps/web/public/modules/workbench-scope-policy.js',
-        'export const enabled = false;'
-      ]
-    ]);
-
-    expect(
-      reachableRelativeModules('apps/web/public/patient-app.js', sources)
-    ).toEqual(
-      new Set([
-        'apps/web/public/patient-app.js',
-        'apps/web/public/modules/api-client.js',
-        'apps/web/public/store.js'
-      ])
-    );
   });
 });
 

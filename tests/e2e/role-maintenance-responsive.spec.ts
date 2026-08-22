@@ -94,7 +94,7 @@ test.describe('角色邊界', () => {
     expect(result).toContain('權限');
   });
 
-  test('櫃台可在回診流程首次指派 Case，但不能直接改派', async ({ page }) => {
+  test('櫃台可登錄回診與首次指派，但不能改派', async ({ page }) => {
     await login(page, 'admin', { fresh: false });
     const appointmentId = await createCompletedVisit(page);
     await page.locator('#logout').click();
@@ -104,53 +104,27 @@ test.describe('角色邊界', () => {
     await page.goto('/#appointments-section');
     const followUp = page.locator(`[data-follow-up-form="${appointmentId}"]`);
     await expect(followUp).toBeVisible();
-    expect(
-      await followUp
-        .locator('.follow-up-row-primary [name]')
-        .evaluateAll((fields) =>
-          fields.map((field) => field.getAttribute('name'))
-        )
-    ).toEqual(['medicalRecordNumber', 'status', 'dueDate', 'dueTime']);
-    expect(
-      await followUp
-        .locator('.follow-up-row-secondary')
-        .evaluate((row) =>
-          Array.from(row.children).map((child) =>
-            child.querySelector('[name]')?.getAttribute('name')
-          )
-        )
-    ).toEqual(['managerId', 'tags', 'certificateCopies']);
-    await expect(followUp.locator('.follow-up-row-notes')).toContainText(
-      '自填備註'
-    );
-    await followUp
-      .locator('select[name="managerId"]')
-      .selectOption('manager_test_002');
     await followUp.locator('button[type="submit"]').click();
-    await expect(page.locator('#status')).toContainText(
-      '回診指示與個管指派已登錄'
-    );
+    await expect(page.locator('#status')).toContainText('回診指示已登錄');
+
     await page.goto('/#case-section');
-    await expect(page.locator('#case-section')).toBeVisible();
-    await expect(
-      page.locator(`[data-case-row="${appointmentId}"]`)
-    ).toContainText('合成個管師 B');
+    const row = page.locator(`[data-case-row="${appointmentId}"]`);
+    await expect(row.locator('[data-case-form]')).toBeVisible();
+    await row.locator('button[type="submit"]').click();
+    await expect(row.locator('.status-chip')).toHaveText('已指派');
+    await expect(row).toContainText('改派限主管');
 
     const result = await callSyntheticStore<string>(page, '/case-assignments', {
       method: 'POST',
       body: JSON.stringify({
         appointmentId,
-        managerId: 'manager_test_001'
+        managerId: 'manager_test_002'
       })
     }).then(
       () => 'allowed',
       (error: unknown) => (error instanceof Error ? error.message : 'denied')
     );
     expect(result).toContain('權限');
-    await page.reload();
-    await expect(
-      page.locator(`[data-case-row="${appointmentId}"]`)
-    ).toContainText('合成個管師 B');
   });
 });
 
@@ -371,7 +345,7 @@ test.describe('患者端維護隔離', () => {
 });
 
 test.describe('患者端行動版', () => {
-  test('三步驟只標一個目前步驟，裝飾數字不重複報讀', async ({ page }) => {
+  test('四步驟只標一個目前步驟，裝飾數字不重複報讀', async ({ page }) => {
     await resetBrowserState(page);
     await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
@@ -379,7 +353,7 @@ test.describe('患者端行動版', () => {
     await expect(
       page.locator('[data-step-indicator][aria-current="step"]')
     ).toHaveCount(1);
-    await expect(page.locator('[data-step-indicator] > span')).toHaveCount(3);
+    await expect(page.locator('[data-step-indicator] > span')).toHaveCount(4);
     for (const number of await page
       .locator('[data-step-indicator] > span')
       .all())

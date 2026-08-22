@@ -7,16 +7,41 @@ import { taipeiDate, taipeiIso, taipeiMinutes } from './taipei-time.js';
 import { escapeHtml } from './ui-format.js';
 
 /**
- * 預約的週檢視：每個日期是一欄，營業時間只出現在日期表頭。
+ * 預約的週檢視：左時間軸＋週一～週日七欄，事件依看診時間定位。
  *
  * 設計呼應診所的真實規則，而非通用日曆：
- *   - 表頭直接取自該週每日的 weekly availability／date exception，不寫死時刻。
- *   - 沒有預約的 cell 保持空白；只有真實預約或回診提醒會產生事件按鈕。
- *   - 排班外仍存在的預約留在其日期欄，避免設定改變後資料從畫面消失。
+ *   - 初診（整點／30 分）與回診（15 分／45 分）共用時鐘；沒有時間交疊時使用
+ *     完整欄寬，真的交疊時才動態分欄，避免固定半欄造成資訊被截斷。
+ *   - 週日、週一、週二預設休診，以斜線標示為不可預約。
+ *   - 目前時間畫紅線——但只在顯示的那一週包含「今天」時。
  *
  * 這是**呈現層**：資料仍由 store 提供，處置動作留在下方的預約清單。點事件會
  * 捲到對應的卡片，讓視覺總覽與可操作清單分工。
  */
+
+// 檢視範圍由排班推導（介面規則 R-20），不寫死時刻。
+//
+// 先前是寫死的 10:00–21:00，註解說 21:00 是為了「涵蓋平日 20:00 掛號的一小時
+// 區塊」——但 `packages/domain` 的時段產生規定「一格必須完整落在營業時間內，
+// 末尾不能被切斷」，平日 12:00–20:00 的最後一格是 19:30 起、20:00 結束。
+// **20:00 開始的預約從來不存在**，那一小時永遠是空白。
+//
+// 比多畫一小時更麻煩的是它寫死：OR-07 才剛把收班時間定案，營業時間再改一次，
+// 這個檢視不會跟著動，只會再無聲地失準一次。
+//
+// 只有在完全推導不出範圍時（例如排班資料損壞）才退回這組保底值。
+const FALLBACK_WINDOW = { from: 10 * 60, to: 20 * 60 };
+// 每小時 102px。這個數字是**量出來的，不是估的**：一個 30 分鐘事件的方塊高度是
+// `SLOT_DURATION_MINUTES * PX_PER_MIN - 3`，而方塊裡要放兩行（患者姓名＋時間·
+// 掛號別·療程）加上下各 4px 內距——實測內容需要 46px。
+//
+// 先前是 78px/小時 → 方塊只有 36px，於是第二行被 `overflow: hidden` 從中間切掉
+// （2026-07-25 使用者截圖回報「字被切割」）。註解當時寫著「讓 30 分鐘事件可容納
+// 兩行資訊」，但數字從來沒有真的滿足過那個意圖。
+//
+// 102px → 方塊 48px，比需要的 46px 多 2px 餘裕。改字級或行高時請重新量一次：
+// `tests/e2e/workbench-lifecycle.spec.ts` 有一條斷言會在再次被切到時變紅。
+const PX_PER_MIN = 102 / 60;
 
 const WEEK_DAY_LABELS = [
   '週一',
@@ -148,6 +173,11 @@ function isClosed(schedule, dateText) {
   );
 }
 
+function clockMinutes(text) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(text ?? ''));
+  return match === null ? undefined : Number(match[1]) * 60 + Number(match[2]);
+}
+
 /** 某一天的營業時段。`extra_open` 例外自帶 intervals，優先於每週排班。 */
 function openIntervals(schedule, dateText) {
   const exception = schedule.dateExceptions.find(
@@ -160,6 +190,48 @@ function openIntervals(schedule, dateText) {
     schedule.weeklyAvailability.find((entry) => entry.weekday === sunday0)
       ?.intervals ?? []
   );
+}
+
+/**
+ * 這一週要畫的時間範圍：顯示中那幾天的營業時間，聯集已存在的預約。
+ *
+ * 為什麼要把預約也算進去：排班改了**不能讓既有預約從畫面上消失**——那會讓人
+ * 以為預約不見了。這與 `visibleDays` 保留「休診但有預約」那一天是同一條防線。
+ *
+ * 向外對齊到整點，因為時間軸每小時標一次；不對齊的話首尾會出現半格。
+ */
+function viewWindow(schedule, visibleDays, shown) {
+  let from = Infinity;
+  let to = -Infinity;
+  for (const { date } of visibleDays)
+    for (const interval of openIntervals(schedule, date)) {
+      const start = clockMinutes(interval.startLocalTime);
+      const end = clockMinutes(interval.endLocalTime);
+      if (start === undefined || end === undefined) continue;
+      from = Math.min(from, start);
+      to = Math.max(to, end);
+    }
+  for (const item of shown) {
+    const start = taipeiMinutes(item.startsAt);
+    from = Math.min(from, start);
+    to = Math.max(to, start + SLOT_DURATION_MINUTES);
+  }
+  if (from === Infinity || to <= from) return FALLBACK_WINDOW;
+  return { from: Math.floor(from / 60) * 60, to: Math.ceil(to / 60) * 60 };
+}
+
+// 位置以 data-top／data-height 傳遞，由 hydrateWeekView 用 CSSOM 套用。
+// 不能用 inline style 屬性：CSP 是 style-src 'self'（無 'unsafe-inline'），
+// 會把 style 屬性擋掉——屬性字串在、但完全不生效（實機驗證）。
+function hourAxis(range) {
+  const rows = [];
+  for (let minute = range.from; minute <= range.to; minute += 60) {
+    const label = `${String(Math.floor(minute / 60)).padStart(2, '0')}:00`;
+    rows.push(
+      `<div class="wv-hour" data-top="${(minute - range.from) * PX_PER_MIN}">${label}</div>`
+    );
+  }
+  return rows.join('');
 }
 
 /**
@@ -178,13 +250,16 @@ function itemToneClass(appointment) {
   return ids.includes('service_aesthetic') ? 'wv-item-aesthetic' : '';
 }
 
-function formatClock(minutes) {
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-}
-
-function eventBlock(layout, patientName) {
+function eventBlock(layout, patientName, range) {
   const { appointment, lane, laneCount } = layout;
   const start = taipeiMinutes(appointment.startsAt);
+  // 範圍已由 viewWindow 涵蓋所有已存在的預約，所以正常情況下不會落在外面；
+  // 這道防線留著是因為「畫在格子外」比「沒畫」更難察覺。
+  if (start < range.from || start >= range.to) return '';
+  const top = (start - range.from) * PX_PER_MIN;
+  const height = SLOT_DURATION_MINUTES * PX_PER_MIN - 3;
+  const width = 100 / laneCount;
+  const left = lane * width;
   const kindClass =
     appointment.bookingKind === 'follow_up' ? 'wv-follow-up' : 'wv-initial';
   const kindIcon =
@@ -192,12 +267,12 @@ function eventBlock(layout, patientName) {
   const statusClass = `wv-status-${escapeHtml(appointment.status)}`;
   const itemClass = itemToneClass(appointment);
   const collisionClass = laneCount > 1 ? ' wv-event-collision' : '';
-  const time = formatClock(start);
+  const time = `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`;
   const kind = BOOKING_KIND_LABELS[appointment.bookingKind] ?? '';
   const item = appointment.itemLabel ?? '';
   const status = APPOINTMENT_STATUS_LABELS[appointment.status] ?? '';
   const fullLabel = `${patientName}，${time}，${kind}，${item}，${status}`;
-  return `<button type="button" class="wv-event ${kindClass} ${itemClass} ${statusClass}${collisionClass}" data-week-event="${escapeHtml(appointment.id)}" data-collision-lane="${lane}" aria-label="${escapeHtml(fullLabel)}" title="${escapeHtml(fullLabel)}"><span class="wv-event-icon" aria-hidden="true">${kindIcon}</span><span class="wv-event-copy"><strong>${escapeHtml(patientName)}</strong><span>${time} · ${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button>`;
+  return `<button type="button" class="wv-event ${kindClass} ${itemClass} ${statusClass}${collisionClass}" data-top="${top}" data-height="${height}" data-left="${left}" data-width="${width}" data-week-event="${escapeHtml(appointment.id)}" aria-label="${escapeHtml(fullLabel)}" title="${escapeHtml(fullLabel)}"><span class="wv-event-icon" aria-hidden="true">${kindIcon}</span><span class="wv-event-copy"><strong>${escapeHtml(patientName)}</strong><span>${time} · ${escapeHtml(kind)}${item ? ` · ${escapeHtml(item)}` : ''}</span></span></button>`;
 }
 
 /**
@@ -228,12 +303,23 @@ function weekModel(state, weekStart) {
     ...followUpReminderEvents(state)
   ];
 
-  // 七天都保留為日期欄，休診只在表頭用文字標示。不要用斜線網底或假事件填滿
-  // 休診／空白日；同時，即使排班後來改變，既有預約仍留在原日期欄。
-  const visibleDays = days.map((date, index) => ({
-    date,
-    label: WEEK_DAY_LABELS[index]
-  }));
+  // 只顯示「有門診的日子」。
+  //
+  // 先前七天全部畫出來，休診日整欄鋪滿 45° 斜線——一週有三天休診，於是畫面近一半
+  // 是網底，反而把真正要看的門診日擠窄、也擋住視線（2026-07-25 使用者回報）。
+  //
+  // `isClosed` 對 `extra_open` 例外回傳 false，所以**加開的日子仍然會出現**，
+  // 正是「有加開再放進去」。
+  //
+  // 但有一條防線：**只要那天有預約，就一定要顯示**，即使排班說它休診。資料不能
+  // 因為設定改了就從畫面上消失——那會讓人以為預約不見了。
+  const visibleDays = days
+    .map((date, index) => ({ date, label: WEEK_DAY_LABELS[index] }))
+    .filter(
+      ({ date }) =>
+        !isClosed(state.schedule, date) ||
+        shown.some((item) => taipeiDate(item.startsAt) === date)
+    );
 
   return { visibleDays, shown, patientName };
 }
@@ -241,35 +327,52 @@ function weekModel(state, weekStart) {
 export function renderWeekView(state, weekStart, todayDate) {
   const { visibleDays, shown, patientName } = weekModel(state, weekStart);
 
+  if (visibleDays.length === 0)
+    return '<p class="wv-empty">這一週沒有門診日。可在排班管理加開日期。</p>';
+
   const header = visibleDays
     .map(({ date, label }) => {
+      const dayNumber = date.slice(8);
       const closed = isClosed(state.schedule, date);
       const today = date === todayDate;
-      const hours = openIntervals(state.schedule, date)
-        .map(
-          (interval) =>
-            `${escapeHtml(interval.startLocalTime)}–${escapeHtml(interval.endLocalTime)}`
-        )
-        .join('、');
-      return `<th scope="col" class="wv-date-head${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><span>${label}</span><b>${date.slice(5)}</b><small>${closed ? '休診' : hours}</small></th>`;
-    })
-    .join('');
-  const cells = visibleDays
-    .map(({ date, label }) => {
-      const appointments = shown
-        .filter((appointment) => taipeiDate(appointment.startsAt) === date)
-        .sort((left, right) => left.startsAt.localeCompare(right.startsAt));
-      const events = layoutCalendarEvents(appointments)
-        .map((layout) =>
-          eventBlock(layout, patientName(layout.appointment.patientId))
-        )
-        .join('');
-      const cellLabel = `${label} ${date.slice(5)}，${appointments.length === 0 ? '無預約' : `${appointments.length} 筆預約`}`;
-      return `<td class="wv-date-cell" aria-label="${escapeHtml(cellLabel)}">${events}</td>`;
+      return `<div class="wv-head-cell${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><span>${label}</span>${today ? `<b>${dayNumber}</b>` : dayNumber}</div>`;
     })
     .join('');
 
-  return `<table class="wv-date-table"><caption>本週預約；日期為欄，營業時間顯示在表頭</caption><thead><tr>${header}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
+  const range = viewWindow(state.schedule, visibleDays, shown);
+  const gridHeight = (range.to - range.from) * PX_PER_MIN;
+  const columns = visibleDays
+    .map(({ date }) => {
+      const closed = isClosed(state.schedule, date);
+      const lines = [];
+      for (let minute = range.from; minute < range.to; minute += 30)
+        lines.push(
+          `<div class="wv-line${minute % 60 === 0 ? ' wv-line-hour' : ''}" data-top="${(minute - range.from) * PX_PER_MIN}"></div>`
+        );
+      const events = closed
+        ? '<span class="wv-closed-label">休診</span>'
+        : layoutCalendarEvents(
+            shown.filter((item) => taipeiDate(item.startsAt) === date)
+          )
+            .map((layout) =>
+              eventBlock(
+                layout,
+                patientName(layout.appointment.patientId),
+                range
+              )
+            )
+            .join('');
+      let nowLine = '';
+      if (date === todayDate) {
+        const nowMin = taipeiMinutes(new Date().toISOString());
+        if (nowMin >= range.from && nowMin <= range.to)
+          nowLine = `<div class="wv-now" data-top="${(nowMin - range.from) * PX_PER_MIN}"></div>`;
+      }
+      return `<div class="wv-col${closed ? ' wv-closed' : ''}" data-height="${gridHeight}">${lines.join('')}${nowLine}${events}</div>`;
+    })
+    .join('');
+
+  return `<div class="wv-head"><div class="wv-head-time"></div>${header}</div><div class="wv-grid"><div class="wv-axis" data-height="${gridHeight}">${hourAxis(range)}</div>${columns}</div>`;
 }
 
 /**
@@ -328,9 +431,17 @@ export function renderAgendaView(state, weekStart, todayDate) {
 }
 
 /**
- * 相容既有 bootstrap 呼叫。新的 session matrix 與行程表都採自然排版，沒有任何
- * 需要 CSSOM 注入的絕對座標；保留函式可避免 presentation 改版波及呼叫端。
+ * 把 data-top／data-height 套成實際樣式（CSSOM，不受 CSP 的 style-src 限制）。
+ * 於 renderWeekView 的 HTML 插入 DOM 後呼叫。行程表沒有絕對定位，呼叫它是無害的
+ * no-op。
  */
 export function hydrateWeekView(root) {
-  return root;
+  for (const element of root.querySelectorAll('[data-height]'))
+    element.style.height = `${element.dataset.height}px`;
+  for (const element of root.querySelectorAll('[data-top]'))
+    element.style.top = `${element.dataset.top}px`;
+  for (const element of root.querySelectorAll('[data-left]'))
+    element.style.left = `calc(${element.dataset.left}% + 3px)`;
+  for (const element of root.querySelectorAll('[data-width]'))
+    element.style.width = `calc(${element.dataset.width}% - 6px)`;
 }

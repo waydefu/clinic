@@ -205,10 +205,8 @@ D-005、D-011 未完成且 D-006 control 未有實作證據前，不得開放真
 能力位於獨立 [Expansion S plan](../product/2026-07-28-surgery-follow-up-expansion-plan.md)
 的 S5，不改變 Stage 3 先完成 outbound-only projection 的順序。D-016 核准前不建立
 watch receiver 或 Calendar-to-system write path。業主已確認 inbound 狀態要與
-工作臺同步；2026-08-16 input 已選擇 manual review＋system authoritative 方向，
-因此候選設計是在工作臺產生待審核 change candidate，絕不自動套用 Calendar
-變更。這仍不是 D-009／D-016 核准：reviewer identity、matching、Google deletion
-語意、衝突優先序與 SLO 尚待 owner 決定。Calendar 仍不是容量鎖。
+工作臺同步，但尚未明確選 auto-apply 或 review queue；目前安全提案是先在工作臺
+產生待審核 change candidate，不將提案誤寫成已核准。Calendar 仍不是容量鎖。
 
 ## 6. 明確不做的事
 

@@ -147,15 +147,15 @@ corepack pnpm verify
 
 `verify` 已包含格式（Prettier）與 lint（ESLint），兩者不再由人工維持；CI 於每次 push 與 PR 執行同一組檢查。
 
-實機瀏覽器需覆蓋：管理者／櫃台切換、建立預約、五種櫃台處置、改期、回診確認、排班發布、公告與維護啟閉、患者三步驟預約與成功結果、雙欄位查詢及取消 cutoff、行事曆匯出、桌面、375px 與 320px 手機版，以及 0 console errors／warnings。
+實機瀏覽器需覆蓋：管理者／櫃台切換、建立預約、五種櫃台處置、改期、回診確認、排班發布、公告與維護啟閉、患者四步驟預約、行事曆匯出、桌面、375px 與 320px 手機版，以及 0 console errors／warnings。
 
 ## 現行 UI 視覺證據
 
 現行基線已記錄於
-[2026-08-22 UI 視覺基準](../reviews/ui-visual-baseline-2026-08-22.md)：13 張 PNG 與
-[manifest](../reviews/assets/ui-visual-baseline-2026-08-22/manifest.json)均已建立並由
+[2026-07-28 UI 視覺基準](../reviews/ui-visual-baseline-2026-07-28.md)：10 張 PNG 與
+[manifest](../reviews/assets/ui-visual-baseline-2026-07-28/manifest.json)均已建立並由
 structure guard 驗證。這組影像是 reference-only 人工複核證據，不是跨 OS 像素 gate；
-2026-08-20 與更早的截圖及下列日期紀錄仍只算歷史證據，不能代表目前 UI。
+2026-07-20 的兩張截圖與下列日期紀錄仍只算歷史證據，不能代表目前 UI。
 
 ## 歷史驗證紀錄（截至 2026-07-26）
 

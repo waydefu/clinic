@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant" data-theme="warm">
+<html lang="zh-Hant">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,8 +7,8 @@
     <meta name="theme-color" content="#155c48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>找不到頁面｜一森渼診所</title>
-    <!-- 錯誤頁維持獨立樣式表與零 script budget；static data-theme 讓這個 utility
-         surface 使用護眼暖色，不複製主應用的切換邏輯。 -->
+    <!-- 自成一頁的錯誤頁：CSP 禁 inline style／script，樣式走外部 error.css，
+         深淺色以 prefers-color-scheme 處理，不依賴 theme.js。 -->
     <link rel="stylesheet" href="/error.css" />
   </head>
   <body class="error-body">

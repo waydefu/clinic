@@ -306,54 +306,6 @@ test.describe('隱私權政策頁', () => {
       await expect(page.locator('#patient-name')).toBeVisible();
     });
 
-    test('從 Step 3 讀完返回時保留選擇、表單、步驟與焦點', async ({ page }) => {
-      await reachDetailsStep(page);
-      const selectedSlot = page.locator(
-        '[data-patient-slot][aria-pressed="true"]'
-      );
-      const selectedSlotId =
-        await selectedSlot.getAttribute('data-patient-slot');
-
-      await page.locator('#patient-name').fill('政策返回測試');
-      await page.locator('#patient-phone').fill('0911222333');
-      await fillBirthDate(page, { year: '1988', month: '08', day: '18' });
-      await page.locator('#patient-national-id').fill('A123456789');
-      await page.locator('#patient-note').fill('保留這段尚未送出的內容');
-
-      const opener = page.locator('#open-privacy-policy');
-      await opener.click();
-      const dialog = page.locator('.policy-dialog');
-      await expect(dialog).toBeVisible();
-      await page
-        .locator('.policy-dialog-body')
-        .evaluate((element) => element.scrollTo(0, element.scrollHeight));
-      await dialog.locator('a[href="/booking?notice-read=1"]').click();
-
-      await expect(dialog).toBeHidden();
-      await expect(page).toHaveURL(/\/booking$/);
-      await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
-      await expect(page.locator('[data-step-indicator="3"]')).toHaveAttribute(
-        'aria-current',
-        'step'
-      );
-      await expect(
-        page.locator(`[data-patient-slot="${selectedSlotId}"]`)
-      ).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.locator('#patient-name')).toHaveValue('政策返回測試');
-      await expect(page.locator('#patient-phone')).toHaveValue('0911222333');
-      await expect(page.locator('#patient-birth-year')).toHaveValue('1988');
-      await expect(page.locator('#patient-birth-month')).toHaveValue('08');
-      await expect(page.locator('#patient-birth-day')).toHaveValue('18');
-      await expect(page.locator('#patient-national-id')).toHaveValue(
-        'A123456789'
-      );
-      await expect(page.locator('#patient-note')).toHaveValue(
-        '保留這段尚未送出的內容'
-      );
-      await expect(page.locator('#privacy-consent')).toBeChecked();
-      await expect(opener).toBeFocused();
-    });
-
     test('取不到全文時給的是另一條看得到全文的路，不是一句抱歉', async ({
       page
     }) => {
@@ -367,7 +319,7 @@ test.describe('隱私權政策頁', () => {
     });
   });
 
-  test('本頁維持零指令碼與零字型下載', async ({ page }) => {
+  test('本頁不載入任何指令碼，也不下載字型', async ({ page }) => {
     const scripts: string[] = [];
     const fonts: string[] = [];
     page.on('request', (request) => {

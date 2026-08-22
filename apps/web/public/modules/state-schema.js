@@ -127,7 +127,7 @@ export function initialState() {
         {
           id: 'release_test_001',
           version: 'preview-6.0',
-          summary: '診所官網、預約欄位、隱私告知草稿與角色委派',
+          summary: '診所官網、預約欄位、隱私告知草稿、角色委派與個管工作量',
           publishedAt: '2026-07-28T00:00:00.000Z'
         }
       ]

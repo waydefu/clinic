@@ -8,8 +8,12 @@ import {
   showAllAppointments
 } from './support/workbench.js';
 
-// 桌機採純日期欄，營業時間只放在表頭；手機維持日期分組行程表。兩種檢視只畫
-// 真實事件，不靠 session 列、條紋或空白占位卡製造看似有內容的日曆。
+// 週檢視的捲動語意與行動版形態。
+//
+// 兩件由業主實機操作回報的問題：日曆內多出一條沒有用途的垂直捲軸，以及手機上
+// 的時間網格根本無法使用。既有的 responsive 測試檢查的是**頁面層級**的水平
+// 捲動，而週檢視的捲動發生在容器內部，所以那些測試一路綠燈卻沒看見這兩件事。
+// 這一組專門盯著容器本身。
 
 const MOBILE = { width: 375, height: 812 };
 
@@ -19,48 +23,73 @@ async function openCalendarPanel(page: Page): Promise<void> {
   await openDisclosure(page, '#week-calendar-disclosure');
 }
 
-test.describe('桌機日期欄週曆', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
+test.describe('週檢視的捲動', () => {
+  // 這一條原本斷言「不得有垂直捲軸」（`overflow-y` 必須是 `hidden`）。那是
+  // 2026-07-25 業主回報後的修法，但它把規則寫錯了層級：業主抱怨的是**捲了等於
+  // 沒捲**——`overflow-x: auto` 依 CSS 規定會把另一軸的 `visible` 計算成 `auto`，
+  // 水平捲軸佔掉約 13px 高度使內容垂直溢位 13px，於是冒出一條捲到底也看不到新
+  // 東西的捲軸，只會把停在日曆上的滾輪手勢吃掉。
+  //
+  // 「一律禁止垂直捲軸」把正確的做法也一起擋掉了：時間網格的高度是「時數 ×
+  // 每小時像素」，兩個因數各有下限，1122px 在 1366×768 的筆電上是視窗高度的
+  // 1.7 倍（2026-08-02 業主回報「佔太多頁面空間」）。唯一的調節方式就是限制
+  // 容器高度並在內部捲動。
+  //
+  // 規則因此改成「有捲軸就必須捲得出實質內容」（介面規則 R-20）——同時擋住舊
+  // bug 與它的劣化版，而不是連正確做法一起擋。
+  test('垂直捲軸必須捲得出實質內容，不能捲了等於沒捲', async ({ page }) => {
     await login(page);
     await openCalendarPanel(page);
-  });
 
-  test('七個日期欄的表頭顯示營業時間與休診，不渲染營業時段列', async ({
-    page
-  }) => {
-    const calendar = page.locator('.wv-date-table');
-    await expect(calendar).toBeVisible();
-    await expect(calendar.locator('thead th')).toHaveCount(7);
-    await expect(calendar.locator('thead')).toContainText('10:00–18:00');
-    await expect(calendar.locator('thead')).toContainText('12:00–20:00');
-    await expect(calendar.locator('thead')).toContainText('休診');
-    await expect(
-      page.locator('[data-week-session], .wv-session-label, .wv-axis, .wv-hour')
-    ).toHaveCount(0);
-  });
-
-  test('空週只有乾淨日期欄，沒有假事件、條紋或空白占位卡', async ({ page }) => {
-    await expect(page.locator('#week-view [data-week-event]')).toHaveCount(0);
-    await expect(page.locator('.wv-date-cell > *')).toHaveCount(0);
-    await expect(page.locator('.wv-date-table')).not.toContainText('尚無預約');
-    const backgrounds = await page
-      .locator('.wv-date-cell')
-      .evaluateAll((cells) =>
-        cells.map((cell) => getComputedStyle(cell).backgroundImage)
-      );
-    expect(backgrounds).toEqual(Array(7).fill('none'));
-  });
-
-  test('預設空週保持緊湊且不產生巢狀垂直捲動', async ({ page }) => {
-    const geometry = await page.locator('.week-view').evaluate((element) => ({
-      height: element.getBoundingClientRect().height,
+    const scroll = await page.locator('.week-view').evaluate((element) => ({
       hidden: element.scrollHeight - element.clientHeight,
       overflowY: getComputedStyle(element).overflowY
     }));
-    expect(geometry.height).toBeLessThan(400);
-    expect(geometry.hidden).toBeLessThanOrEqual(0);
-    expect(geometry.overflowY).toBe('hidden');
+
+    // 沒開放捲動就不該有溢位；開放了就必須是「值得捲」的量。100px 大約是一個
+    // 完整時段方塊加一條時線——低於它就是先前那種 13px 假捲軸的同類。
+    if (scroll.overflowY === 'hidden')
+      expect(scroll.hidden).toBeLessThanOrEqual(0);
+    else expect(scroll.hidden).toBeGreaterThan(100);
+  });
+
+  // 沒有欄名的時間網格等於一張沒有標題的表格：捲到下午就分不出哪一欄是哪一天。
+  // sticky 在 `overflow-y: hidden` 之下是**沒有效果**的（黏的是最近的捲動容器，
+  // 而那時容器垂直不捲），所以這條同時守著「有開放垂直捲動」與「表頭有黏住」。
+  test('捲動後日期表頭仍然可見', async ({ page }) => {
+    await login(page);
+    await openCalendarPanel(page);
+
+    const view = page.locator('.week-view');
+    await expect(page.locator('.wv-head')).toBeVisible();
+
+    await view.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+
+    const offset = await view.evaluate((element) => {
+      const header = element.querySelector('.wv-head') as HTMLElement;
+      return (
+        header.getBoundingClientRect().top - element.getBoundingClientRect().top
+      );
+    });
+    // 黏住時表頭頂端貼齊容器頂端；沒黏住會被捲成負值。
+    expect(Math.abs(offset)).toBeLessThanOrEqual(2);
+  });
+
+  // 時間範圍由排班推導，不寫死。平日 12:00–20:00、30 分鐘一格且必須完整落在
+  // 營業時間內 → 最後一格 19:30 起、20:00 結束，所以不該畫到 20:00 之後。
+  // 先前寫死到 21:00，多出一小時永遠空白的網格。
+  test('時間軸不超出營業時間', async ({ page }) => {
+    await login(page);
+    await openCalendarPanel(page);
+
+    const labels = await page
+      .locator('.wv-hour')
+      .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()));
+
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.at(-1)).toBe('20:00');
   });
 });
 
@@ -79,7 +108,7 @@ test.describe('行動版週檢視', () => {
 
     const host = page.locator('#week-view');
     await expect(host.locator('.wv-agenda')).toBeVisible();
-    await expect(host.locator('.wv-date-table')).toHaveCount(0);
+    await expect(host.locator('.wv-grid')).toHaveCount(0);
 
     const scroll = await host.evaluate((element) => ({
       scrollWidth: element.scrollWidth,
@@ -145,8 +174,8 @@ test.describe('行動版週檢視', () => {
   });
 });
 
-test.describe('桌機日期欄事件', () => {
-  test('寬螢幕只渲染日期欄，真實預約只產生一張事件卡', async ({ page }) => {
+test.describe('桌機仍是時間網格', () => {
+  test('寬螢幕維持網格檢視，行程表不出現', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await login(page);
     await createBooking(page);
@@ -156,7 +185,7 @@ test.describe('桌機日期欄事件', () => {
     await openCalendarPanel(page);
 
     const host = page.locator('#week-view');
-    await expect(host.locator('.wv-date-table')).toBeVisible();
+    await expect(host.locator('.wv-grid')).toBeVisible();
     await expect(host.locator('.wv-agenda')).toHaveCount(0);
     await expect(host.locator('[data-week-event]')).toHaveCount(1);
   });

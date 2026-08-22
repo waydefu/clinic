@@ -9,8 +9,7 @@ Google Calendar, social webhooks and NAS connections remain out of scope.
 ## Objective
 
 Prepare a reviewed, testable appointment write-path design. Phase 1 does not
-enable an operational public booking form or accept real patient data; only the
-explicit synthetic, `noindex`, browser-local preview may exercise that UI.
+enable a public booking form or accept real patient data.
 
 Stage 0 of the
 [production-readiness delivery plan](product/production-readiness-delivery-plan-2026-07-23.md),
@@ -22,12 +21,6 @@ on 2026-07-28, followed by full D-006 identity/security approval. The decision
 prerequisites for Stage 2 are present, but a separately reviewed change plan
 and deployment approval still gate cloud staging. Decision approval is not
 deployment authority and does not itself create any cloud resource.
-
-The 2026-08-20 BOOK-MVP convergence on unmerged PR #23 has independently
-validated the synthetic Booking Preview and isolated frozen Case/Payroll
-runtime reachability. It remains test-only: no cloud backend, Calendar
-connection, real data or production write route was enabled, and no pending
-D-series decision changed status.
 
 ## Workstreams
 

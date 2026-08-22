@@ -199,12 +199,11 @@ describe('clinic route integration', () => {
     }
   });
 
-  it('keeps the vendor booking surface self-contained while preserving its visual layer', () => {
+  it('links the booking page back into the clinic website and visual layer', () => {
     const patient = repoFile('apps/web/public/patient.html');
-    expect(patient).toContain('class="brand" href="/booking"');
-    expect(patient).not.toContain('href="/clinic"');
-    expect(patient).not.toContain('href="/clinic/doctors"');
-    expect(patient).not.toMatch(/<a\b[^>]*\bhref="\/"/);
+    expect(patient).toContain('href="/clinic"');
+    expect(patient).toContain('href="/clinic/doctors"');
     expect(patient).toContain('href="/clinic-booking.css"');
+    expect(patient).toContain('aria-current="page"');
   });
 });

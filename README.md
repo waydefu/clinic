@@ -29,17 +29,6 @@ LineID and gender are not collected. D-001 through D-003 remain pending; D-006
 is approved but not implemented. The preview must not be relied on to collect
 real patient data operationally.
 
-**Booking MVP final UI checkpoint (2026-08-22, PR #23):** exact C3
-`d9b6965c0e3ae62df33e89744f12c6d7fcc16480` passed all 11 required GitHub jobs,
-was deployed only to the expiring `noindex` `synthetic-review` channel and
-passed 474/474 online checks. It contains the corrected synthetic Case form and
-date-column calendar, a three-step patient flow, dual-field booking lookup and
-the synthetic `>20 minutes` self-cancel boundary. The preview expires
-2026-08-29 13:08 Asia/Taipei. Payroll remains frozen and Calendar alignment
-(007) remains documentation only. This unmerged branch checkpoint does not
-change Stage 1, approve D-005 or any other D-series item, enable a production
-backend or authorise real data.
-
 See [docs/roadmap.md](docs/roadmap.md) for what can be built without approval
 and what is blocked. The
 [current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
@@ -62,7 +51,7 @@ pending owner decisions rather than by engineering capacity.
 | ✅ | P0 role convergence and inventory | nothing — D-006 was approved 2026-07-28 |
 | ✅ | P1 App Shell and design tokens | nothing (front-end only) |
 | ⚠️ | P2 scheduling workspace | D-004 |
-| ❌ | P3 Calendar inbound review/sync | D-009 and D-016; ADR-0002 remains authoritative unless a future co-authority design explicitly supersedes it |
+| ❌ | P3 bidirectional Calendar sync | D-009, D-016, and a new ADR superseding ADR-0002 |
 | ❌ | P4 surgery and clinical resources | D-014, D-015 |
 | ❌ | P5 patient portal rebuild | D-001～D-003, D-005, D-011 |
 | ❌ | P6 multi-branch operations | needs a decision that does not exist yet |
@@ -142,9 +131,9 @@ as equivalent to CodeQL cross-file analysis.
 ## Clinic website integration — 2026-07-27
 
 The source implementation includes a responsive clinic website at `/clinic`,
-two medical-team profiles and four nasal-functional-medicine pages. A new
-exact-C3 synthetic preview was separately authorised and verified on
-2026-08-22; it is scheduled to expire on 2026-08-29 13:08 Asia/Taipei.
+two medical-team profiles and four nasal-functional-medicine pages. Its last
+recorded synthetic preview channel expired on 2026-08-04; current Hosting
+availability was not verified in the 2026-08-11 audit.
 Plastic-surgery and injectable/medical-aesthetic category pages are excluded.
 Every clinic appointment call to action enters the existing `/booking` flow,
 and the booking header links back to the clinic site. The two surfaces share
@@ -152,21 +141,21 @@ the same white, mist-green and deep-forest visual direction.
 
 The authorised presentation remains static and noindex: clinic information
 pages collect nothing, while the patient form is browser-local and must not
-receive real patient data. Preview availability grants no production or
-real-data authority. See the
+receive real patient data. This source fact does not assert that a preview is
+currently online. See the
 [clinic website and booking integration record](docs/design/clinic-site-integration-2026-07-27.md)
 for the route map, content boundary and implementation structure.
 
-## Current UI and delivery baseline — 2026-08-22
+## Current UI and delivery baseline — 2026-08-10
 
-Earlier UI paragraphs and dated screenshot sets remain historical reference
-only. The current reproducible reference is the
-[2026-08-22 UI visual baseline](docs/reviews/ui-visual-baseline-2026-08-22.md):
-13 named desktop/mobile screenshots with a hash manifest, fixed synthetic state
-and a documented capture environment. It covers the final workbench calendar
-and Case layout, booking Steps 1–3, privacy dialog, dual-field lookup,
-cancellation confirmation/telephone fallback and success result. It does not
-change the Stage 1 decision gate, route a production API or authorise real data.
+The former 2026-07-23 and 2026-07-28 UI paragraphs are historical; the latter
+remains a superseded reference only. The current reproducible reference is the
+[2026-08-10 UI visual baseline](docs/reviews/ui-visual-baseline-2026-08-10.md):
+ten named desktop/mobile screenshots with a hash manifest, fixed synthetic
+state and a documented capture environment. It confirms Stage 0/Checkpoint A
+has passed, Stage 1 owner decisions are current, `/v1/health` remains the only
+routed API controller, and Stage 2 still awaits reviewed change/deployment
+authority after D-006/D-010 approval.
 
 The 2026-07-28 owner input for surgery scheduling, clinical follow-up, patient
 payments, staff settlement and Calendar inbound edits is tracked separately in

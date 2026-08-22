@@ -7,9 +7,7 @@ import {
   forbiddenBrowserPatterns,
   importSpecifiers,
   layerViolations,
-  opaqueDynamicImports,
-  reachableRelativeModules,
-  stripComments
+  opaqueDynamicImports
 } from './architecture-rules.mjs';
 import {
   validateRbacPermissionCoverage,
@@ -260,73 +258,9 @@ for (const key of declared) {
 // 這是「患者身分模型只存在於瀏覽器」那個缺陷的守衛。vendored 副本是唯一允許
 // 出現這些規則的地方；其他檔案只能匯入。
 const webPublic = join(root, 'apps', 'web', 'public');
-const allBrowserFiles = await walk(webPublic, (file) => file.endsWith('.js'));
-const browserSources = new Map(
-  await Promise.all(
-    allBrowserFiles.map(async (file) => [
-      repoPath(file),
-      await readFile(file, 'utf8')
-    ])
-  )
-);
-const browserFiles = allBrowserFiles.filter(
-  (file) => !toPosix(file).includes('/vendor/')
-);
-
-// --- 規則 4：workbench-only scope policy 不得污染 patient graph ----------
-//
-// PR #22 證明 shared store 多一條 workbench-only import 會經
-// patient-app -> api-client -> store 進入 patient document preload graph。
-// 這裡走真正的 literal ESM edges；註解或只含 policy 名稱的 decoy 字串都不算。
-const workbenchPolicyPath = 'apps/web/public/modules/workbench-scope-policy.js';
-const patientGraph = reachableRelativeModules(
-  'apps/web/public/patient-app.js',
-  browserSources
-);
-const storeGraph = reachableRelativeModules(
-  'apps/web/public/store.js',
-  browserSources
-);
-const workbenchGraph = reachableRelativeModules(
-  'apps/web/public/admin-bootstrap.js',
-  browserSources
-);
-if (patientGraph.has(workbenchPolicyPath))
-  fail(
-    'workbench-scope-topology',
-    `${workbenchPolicyPath} 可由 patient-app static module graph 到達。` +
-      ' Workbench scope policy 不得經 api-client/store 增加 patient document transfer。'
-  );
-if (storeGraph.has(workbenchPolicyPath))
-  fail(
-    'workbench-scope-topology',
-    `shared apps/web/public/store.js 可到達 ${workbenchPolicyPath}。` +
-      ' Store 的 frozen mutation boundary 必須保持無 workbench-only dependency。'
-  );
-if (!workbenchGraph.has(workbenchPolicyPath))
-  fail(
-    'workbench-scope-topology',
-    `${workbenchPolicyPath} 未由 active workbench entry 到達；scope policy 已失去 runtime wiring。`
-  );
-const workbenchPolicySource = browserSources.get(workbenchPolicyPath);
-if (workbenchPolicySource === undefined) {
-  fail('workbench-scope-topology', `${workbenchPolicyPath} 不存在。`);
-} else {
-  if (importSpecifiers(workbenchPolicySource).length > 0)
-    fail(
-      'workbench-scope-topology',
-      `${workbenchPolicyPath} 必須是無 dependency 的 source-controlled policy。`
-    );
-  if (
-    /\b(?:window|document|localStorage|sessionStorage|URLSearchParams|fetch)\b/.test(
-      stripComments(workbenchPolicySource)
-    )
-  )
-    fail(
-      'workbench-scope-topology',
-      `${workbenchPolicyPath} 不得讀取 query、window、browser storage 或 remote config。`
-    );
-}
+const browserFiles = (
+  await walk(webPublic, (file) => file.endsWith('.js'))
+).filter((file) => !toPosix(file).includes('/vendor/'));
 
 const FORBIDDEN_IN_BROWSER = [
   {

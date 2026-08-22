@@ -18,8 +18,6 @@ let bodyNode;
 let fallbackNode;
 let closeButton;
 let cached;
-let readCallback;
-let returnFocusTo;
 
 function ensureDialog() {
   if (dialog !== undefined) return;
@@ -53,23 +51,6 @@ function ensureDialog() {
   actions.append(closeButton);
 
   dialog.append(heading, bodyNode, fallbackNode, actions);
-  dialog.addEventListener('click', (event) => {
-    if (!(event.target instanceof Element)) return;
-    const returnLink = event.target.closest(
-      'a[href="/booking"], a[href="/booking?notice-read=1"]'
-    );
-    if (returnLink === null) return;
-    event.preventDefault();
-    if (returnLink.getAttribute('href') === '/booking?notice-read=1')
-      readCallback?.();
-    dialog.close();
-  });
-  dialog.addEventListener('close', () => {
-    const target = returnFocusTo;
-    returnFocusTo = undefined;
-    readCallback = undefined;
-    target?.focus({ preventScroll: true });
-  });
   document.body.append(dialog);
 }
 
@@ -85,13 +66,8 @@ function extractPolicyBody(html) {
   return document.importNode(main, true);
 }
 
-export async function openPolicyDialog({ onRead } = {}) {
+export async function openPolicyDialog() {
   ensureDialog();
-  readCallback = onRead;
-  returnFocusTo =
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : undefined;
   fallbackNode.hidden = true;
   dialog.showModal();
   closeButton.focus();
