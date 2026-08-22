@@ -7,12 +7,12 @@ import { taipeiDate, taipeiIso, taipeiMinutes } from './taipei-time.js';
 import { escapeHtml } from './ui-format.js';
 
 /**
- * 預約的週檢視：日期為欄、實際營業 session 為列，事件在交叉格內自然排列。
+ * 預約的週檢視：每個日期是一欄，營業時間只出現在日期表頭。
  *
  * 設計呼應診所的真實規則，而非通用日曆：
- *   - session 直接取自該週每日的 weekly availability／date exception，不寫死時刻。
+ *   - 表頭直接取自該週每日的 weekly availability／date exception，不寫死時刻。
  *   - 沒有預約的 cell 保持空白；只有真實預約或回診提醒會產生事件按鈕。
- *   - 排班外仍存在的預約集中在「排班外」列，避免設定改變後資料從畫面消失。
+ *   - 排班外仍存在的預約留在其日期欄，避免設定改變後資料從畫面消失。
  *
  * 這是**呈現層**：資料仍由 store 提供，處置動作留在下方的預約清單。點事件會
  * 捲到對應的卡片，讓視覺總覽與可操作清單分工。
@@ -148,11 +148,6 @@ function isClosed(schedule, dateText) {
   );
 }
 
-function clockMinutes(text) {
-  const match = /^(\d{2}):(\d{2})$/.exec(String(text ?? ''));
-  return match === null ? undefined : Number(match[1]) * 60 + Number(match[2]);
-}
-
 /** 某一天的營業時段。`extra_open` 例外自帶 intervals，優先於每週排班。 */
 function openIntervals(schedule, dateText) {
   const exception = schedule.dateExceptions.find(
@@ -233,23 +228,12 @@ function weekModel(state, weekStart) {
     ...followUpReminderEvents(state)
   ];
 
-  // 只顯示「有門診的日子」。
-  //
-  // 先前七天全部畫出來，休診日整欄鋪滿 45° 斜線——一週有三天休診，於是畫面近一半
-  // 是網底，反而把真正要看的門診日擠窄、也擋住視線（2026-07-25 使用者回報）。
-  //
-  // `isClosed` 對 `extra_open` 例外回傳 false，所以**加開的日子仍然會出現**，
-  // 正是「有加開再放進去」。
-  //
-  // 但有一條防線：**只要那天有預約，就一定要顯示**，即使排班說它休診。資料不能
-  // 因為設定改了就從畫面上消失——那會讓人以為預約不見了。
-  const visibleDays = days
-    .map((date, index) => ({ date, label: WEEK_DAY_LABELS[index] }))
-    .filter(
-      ({ date }) =>
-        !isClosed(state.schedule, date) ||
-        shown.some((item) => taipeiDate(item.startsAt) === date)
-    );
+  // 七天都保留為日期欄，休診只在表頭用文字標示。不要用斜線網底或假事件填滿
+  // 休診／空白日；同時，即使排班後來改變，既有預約仍留在原日期欄。
+  const visibleDays = days.map((date, index) => ({
+    date,
+    label: WEEK_DAY_LABELS[index]
+  }));
 
   return { visibleDays, shown, patientName };
 }
@@ -257,91 +241,35 @@ function weekModel(state, weekStart) {
 export function renderWeekView(state, weekStart, todayDate) {
   const { visibleDays, shown, patientName } = weekModel(state, weekStart);
 
-  if (visibleDays.length === 0)
-    return '<p class="wv-empty">這一週沒有門診日。可在排班管理加開日期。</p>';
-
-  const visibleDates = new Set(visibleDays.map(({ date }) => date));
-  const weekShown = shown.filter((appointment) =>
-    visibleDates.has(taipeiDate(appointment.startsAt))
-  );
-  const dayIntervals = new Map(
-    visibleDays.map(({ date }) => [
-      date,
-      openIntervals(state.schedule, date).flatMap((interval) => {
-        const from = clockMinutes(interval.startLocalTime);
-        const to = clockMinutes(interval.endLocalTime);
-        return from === undefined || to === undefined || to <= from
-          ? []
-          : [
-              {
-                key: `${from}-${to}`,
-                from,
-                to,
-                label: `${formatClock(from)}–${formatClock(to)}`
-              }
-            ];
-      })
-    ])
-  );
-  const sessions = [
-    ...new Map(
-      [...dayIntervals.values()]
-        .flat()
-        .map((interval) => [interval.key, interval])
-    ).values()
-  ].sort((left, right) => left.from - right.from || left.to - right.to);
-  const outsideSchedule = weekShown.some((appointment) => {
-    const date = taipeiDate(appointment.startsAt);
-    const start = taipeiMinutes(appointment.startsAt);
-    return !(dayIntervals.get(date) ?? []).some(
-      (interval) => start >= interval.from && start < interval.to
-    );
-  });
-  if (outsideSchedule)
-    sessions.push({ key: 'outside', label: '排班外', outside: true });
-
   const header = visibleDays
     .map(({ date, label }) => {
       const closed = isClosed(state.schedule, date);
       const today = date === todayDate;
-      return `<th scope="col" class="wv-session-day${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><span>${label}</span><b>${date.slice(8)}</b></th>`;
+      const hours = openIntervals(state.schedule, date)
+        .map(
+          (interval) =>
+            `${escapeHtml(interval.startLocalTime)}–${escapeHtml(interval.endLocalTime)}`
+        )
+        .join('、');
+      return `<th scope="col" class="wv-date-head${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><span>${label}</span><b>${date.slice(5)}</b><small>${closed ? '休診' : hours}</small></th>`;
     })
     .join('');
-  const rows = sessions
-    .map((session) => {
-      const cells = visibleDays
-        .map(({ date, label }) => {
-          const intervals = dayIntervals.get(date) ?? [];
-          const interval = intervals.find((item) => item.key === session.key);
-          const appointments = weekShown.filter((appointment) => {
-            if (taipeiDate(appointment.startsAt) !== date) return false;
-            const start = taipeiMinutes(appointment.startsAt);
-            if (session.outside === true)
-              return !intervals.some(
-                (item) => start >= item.from && start < item.to
-              );
-            return (
-              interval !== undefined &&
-              start >= interval.from &&
-              start < interval.to
-            );
-          });
-          const events = layoutCalendarEvents(appointments)
-            .map((layout) =>
-              eventBlock(layout, patientName(layout.appointment.patientId))
-            )
-            .join('');
-          const unavailable =
-            session.outside !== true && interval === undefined;
-          const cellLabel = `${label} ${date.slice(8)}，${session.label}，${appointments.length === 0 ? '無預約' : `${appointments.length} 筆預約`}`;
-          return `<td class="wv-session-cell${unavailable ? ' wv-session-unavailable' : ''}" aria-label="${escapeHtml(cellLabel)}">${events}</td>`;
-        })
+  const cells = visibleDays
+    .map(({ date, label }) => {
+      const appointments = shown
+        .filter((appointment) => taipeiDate(appointment.startsAt) === date)
+        .sort((left, right) => left.startsAt.localeCompare(right.startsAt));
+      const events = layoutCalendarEvents(appointments)
+        .map((layout) =>
+          eventBlock(layout, patientName(layout.appointment.patientId))
+        )
         .join('');
-      return `<tr data-week-session="${escapeHtml(session.key)}"><th scope="row" class="wv-session-label">${escapeHtml(session.label)}</th>${cells}</tr>`;
+      const cellLabel = `${label} ${date.slice(5)}，${appointments.length === 0 ? '無預約' : `${appointments.length} 筆預約`}`;
+      return `<td class="wv-date-cell" aria-label="${escapeHtml(cellLabel)}">${events}</td>`;
     })
     .join('');
 
-  return `<table class="wv-session-table"><caption>本週預約；日期為欄，實際營業時段為列</caption><thead class="wv-session-head"><tr><th scope="col" class="wv-session-corner">門診時段</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="wv-date-table"><caption>本週預約；日期為欄，營業時間顯示在表頭</caption><thead><tr>${header}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
 }
 
 /**

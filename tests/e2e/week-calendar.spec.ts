@@ -8,8 +8,8 @@ import {
   showAllAppointments
 } from './support/workbench.js';
 
-// 桌機採「日期欄 × 實際營業 session 列」；手機維持日期分組行程表。兩種檢視只
-// 畫真實事件，不靠空白占位卡製造看似有內容的日曆。
+// 桌機採純日期欄，營業時間只放在表頭；手機維持日期分組行程表。兩種檢視只畫
+// 真實事件，不靠 session 列、條紋或空白占位卡製造看似有內容的日曆。
 
 const MOBILE = { width: 375, height: 812 };
 
@@ -19,32 +19,39 @@ async function openCalendarPanel(page: Page): Promise<void> {
   await openDisclosure(page, '#week-calendar-disclosure');
 }
 
-test.describe('桌機緊湊 session matrix', () => {
+test.describe('桌機日期欄週曆', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await login(page);
     await openCalendarPanel(page);
   });
 
-  test('門診列由實際排班推導，不再渲染絕對定位時間軸', async ({ page }) => {
-    await expect(page.locator('.wv-session-table')).toBeVisible();
-    await expect(page.locator('[data-week-session="600-1080"]')).toContainText(
-      '10:00–18:00'
-    );
-    await expect(page.locator('[data-week-session="720-1200"]')).toContainText(
-      '12:00–20:00'
-    );
-    await expect(page.locator('.wv-axis, .wv-hour, .wv-line')).toHaveCount(0);
+  test('七個日期欄的表頭顯示營業時間與休診，不渲染營業時段列', async ({
+    page
+  }) => {
+    const calendar = page.locator('.wv-date-table');
+    await expect(calendar).toBeVisible();
+    await expect(calendar.locator('thead th')).toHaveCount(7);
+    await expect(calendar.locator('thead')).toContainText('10:00–18:00');
+    await expect(calendar.locator('thead')).toContainText('12:00–20:00');
+    await expect(calendar.locator('thead')).toContainText('休診');
+    await expect(
+      page.locator('[data-week-session], .wv-session-label, .wv-axis, .wv-hour')
+    ).toHaveCount(0);
   });
 
-  test('空週只有日期與營業 session，沒有假事件或空白占位卡', async ({
+  test('空週只有乾淨日期欄，沒有假事件、條紋或空白占位卡', async ({
     page
   }) => {
     await expect(page.locator('#week-view [data-week-event]')).toHaveCount(0);
-    await expect(page.locator('.wv-session-cell > *')).toHaveCount(0);
-    await expect(page.locator('.wv-session-table')).not.toContainText(
-      '尚無預約'
-    );
+    await expect(page.locator('.wv-date-cell > *')).toHaveCount(0);
+    await expect(page.locator('.wv-date-table')).not.toContainText('尚無預約');
+    const backgrounds = await page
+      .locator('.wv-date-cell')
+      .evaluateAll((cells) =>
+        cells.map((cell) => getComputedStyle(cell).backgroundImage)
+      );
+    expect(backgrounds).toEqual(Array(7).fill('none'));
   });
 
   test('預設空週保持緊湊且不產生巢狀垂直捲動', async ({ page }) => {
@@ -74,7 +81,7 @@ test.describe('行動版週檢視', () => {
 
     const host = page.locator('#week-view');
     await expect(host.locator('.wv-agenda')).toBeVisible();
-    await expect(host.locator('.wv-session-table')).toHaveCount(0);
+    await expect(host.locator('.wv-date-table')).toHaveCount(0);
 
     const scroll = await host.evaluate((element) => ({
       scrollWidth: element.scrollWidth,
@@ -140,8 +147,8 @@ test.describe('行動版週檢視', () => {
   });
 });
 
-test.describe('桌機 session matrix 事件', () => {
-  test('寬螢幕只渲染 matrix，真實預約只產生一張事件卡', async ({ page }) => {
+test.describe('桌機日期欄事件', () => {
+  test('寬螢幕只渲染日期欄，真實預約只產生一張事件卡', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await login(page);
     await createBooking(page);
@@ -151,7 +158,7 @@ test.describe('桌機 session matrix 事件', () => {
     await openCalendarPanel(page);
 
     const host = page.locator('#week-view');
-    await expect(host.locator('.wv-session-table')).toBeVisible();
+    await expect(host.locator('.wv-date-table')).toBeVisible();
     await expect(host.locator('.wv-agenda')).toHaveCount(0);
     await expect(host.locator('[data-week-event]')).toHaveCount(1);
   });

@@ -227,7 +227,7 @@ async function prepareCalendarEmpty(page: Page): Promise<void> {
   await login(page, 'admin', { fresh: false });
   await page.goto('/#appointments-section');
   await openDisclosure(page, '#week-calendar-disclosure');
-  await expect(page.locator('.wv-session-table')).toBeVisible();
+  await expect(page.locator('.wv-date-table')).toBeVisible();
   await expect(page.locator('#week-view [data-week-event]')).toHaveCount(0);
 }
 
@@ -237,7 +237,7 @@ async function prepareCalendarEvents(page: Page): Promise<void> {
   await seedAppointmentCopies(page, 3);
   await page.goto('/#appointments-section');
   await openDisclosure(page, '#week-calendar-disclosure');
-  await expect(page.locator('.wv-session-table')).toBeVisible();
+  await expect(page.locator('.wv-date-table')).toBeVisible();
   await expect(page.locator('#week-view [data-week-event]')).toHaveCount(3);
 }
 
