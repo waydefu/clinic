@@ -77,25 +77,33 @@ test.describe('患者線上預約', () => {
       page.locator('#patient-slot-dates [aria-selected="true"]')
     ).toHaveCount(1);
 
-    let saturdayDate = page.locator('#patient-slot-dates [role="tab"]', {
-      hasText: '週六'
-    });
+    let foundFullSaturday = false;
     for (
       let index = 0;
       index < (await page.locator('#patient-slot-months [role="tab"]').count());
       index += 1
     ) {
-      if ((await saturdayDate.count()) > 0) break;
       await page
         .locator('#patient-slot-months [role="tab"]')
         .nth(index)
         .click();
-      saturdayDate = page.locator('#patient-slot-dates [role="tab"]', {
+      const saturdayDates = page.locator('#patient-slot-dates [role="tab"]', {
         hasText: '週六'
       });
+      for (
+        let dateIndex = 0;
+        dateIndex < (await saturdayDates.count());
+        dateIndex += 1
+      ) {
+        await saturdayDates.nth(dateIndex).click();
+        if ((await page.locator('.slot-period h4').count()) === 3) {
+          foundFullSaturday = true;
+          break;
+        }
+      }
+      if (foundFullSaturday) break;
     }
-    await expect(saturdayDate.first()).toBeVisible();
-    await saturdayDate.first().click();
+    expect(foundFullSaturday).toBe(true);
     await expect(page.locator('.slot-period h4')).toHaveText([
       '上午',
       '中午',
