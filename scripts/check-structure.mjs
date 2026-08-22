@@ -221,12 +221,13 @@ const requiredPaths = [
   // 現行視覺基線。舊日期的目錄與文件保留作歷史證據，但釘住的是現行那一份；
   // 日期見下方 visualBaselineDirectory 的註解。
   'docs/reviews/2026-08-10-clinic-homepage-restructure.md',
-  'docs/reviews/ui-visual-baseline-2026-08-20.md',
-  'docs/reviews/assets/ui-visual-baseline-2026-08-20/manifest.json',
+  'docs/reviews/ui-visual-baseline-2026-08-22.md',
+  'docs/reviews/assets/ui-visual-baseline-2026-08-22/manifest.json',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
   'apps/web/public/privacy.css',
   'apps/web/public/modules/policy-dialog.js',
+  'apps/web/public/modules/patient-booking-management.js',
   // 介面規則書：改規則要連同對應的測試一起改，所以它必須是被釘住的檔案。
   'docs/design/ui-ux-rules.md',
   // 對外頁面的單一來源與比對它的守衛（2026-07-27，自動檢查缺口 F-4）。
@@ -277,7 +278,7 @@ if (missing.length > 0) {
 // 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
 // 竄改，實際上是檢查器自己還停在舊日期。
 const visualBaselineDirectory =
-  'docs/reviews/assets/ui-visual-baseline-2026-08-20';
+  'docs/reviews/assets/ui-visual-baseline-2026-08-22';
 const visualBaselineDate = visualBaselineDirectory.slice(-'YYYY-MM-DD'.length);
 const visualBaselineErrors = [];
 try {
@@ -335,9 +336,9 @@ try {
     visualBaselineErrors.push(
       'visual manifest must retain its deterministic single-worker capture environment'
     );
-  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 10) {
+  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 13) {
     visualBaselineErrors.push(
-      'visual manifest must declare exactly the ten reviewed current UI captures'
+      'visual manifest must declare exactly the thirteen reviewed current UI captures'
     );
   } else {
     const requiredScenarios = [
@@ -345,7 +346,7 @@ try {
         file: 'workbench--weekly-calendar-empty--desktop-1280x900--warm.png',
         route: '/#appointments-section',
         role: 'admin',
-        state: 'schedule-derived-sessions-no-events',
+        state: 'seven-date-columns-no-events',
         captureKind: 'reference-full-page',
         width: 1280,
         height: 900
@@ -390,7 +391,7 @@ try {
         file: 'booking--step-2--desktop-1280x900--warm.png',
         route: '/booking',
         role: 'public',
-        state: 'step-2-with-persistent-summary',
+        state: 'step-2-single-active-date-full-width',
         captureKind: 'reference-full-page',
         width: 1280,
         height: 900
@@ -399,7 +400,7 @@ try {
         file: 'booking--step-3--desktop-1280x900--warm.png',
         route: '/booking',
         role: 'public',
-        state: 'step-3-filled-with-persistent-summary',
+        state: 'step-3-filled-two-semantic-columns',
         captureKind: 'reference-full-page',
         width: 1280,
         height: 900
@@ -408,7 +409,7 @@ try {
         file: 'booking--step-3--phone-375x812--warm.png',
         route: '/booking',
         role: 'public',
-        state: 'step-3-filled-with-stacked-summary',
+        state: 'step-3-filled-sections-stacked',
         captureKind: 'reference-full-page',
         width: 375,
         height: 812
@@ -423,11 +424,38 @@ try {
         height: 900
       },
       {
-        file: 'booking--privacy-return-step-3--desktop-1280x900--warm.png',
+        file: 'booking--cancellation-lookup--desktop-1280x900--warm.png',
         route: '/booking',
         role: 'public',
-        state: 'step-3-preserved-after-policy-return',
-        captureKind: 'reference-full-page',
+        state: 'dual-field-phone-birth-lookup-result',
+        captureKind: 'reference-viewport',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'booking--eligible-cancellation-confirmation--desktop-1280x900--warm.png',
+        route: '/booking',
+        role: 'public',
+        state: 'more-than-20-minutes-confirmation-open',
+        captureKind: 'reference-viewport',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'booking--cancellation-phone-fallback--phone-375x812--warm.png',
+        route: '/booking',
+        role: 'public',
+        state: '19-minutes-no-self-cancel-click-to-call',
+        captureKind: 'reference-viewport',
+        width: 375,
+        height: 812
+      },
+      {
+        file: 'booking--success-result--desktop-1280x900--warm.png',
+        route: '/booking',
+        role: 'public',
+        state: 'three-step-booking-success-result',
+        captureKind: 'reference-viewport',
         width: 1280,
         height: 900
       }
@@ -531,7 +559,7 @@ if (visualBaselineErrors.length > 0) {
   for (const error of visualBaselineErrors) console.error(`- ${error}`);
   process.exitCode = 1;
 } else {
-  console.log('UI visual baseline evidence check passed (10 reference PNGs).');
+  console.log('UI visual baseline evidence check passed (13 reference PNGs).');
 }
 
 // 在全新 clone 上，型別感知的 ESLint 需要先有 workspace 的 dist/*.d.ts；順序寫反

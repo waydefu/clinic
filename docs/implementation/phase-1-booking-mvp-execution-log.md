@@ -1073,3 +1073,60 @@
 - **NEW C3 FROZEN:** **NO — IMPLEMENTATION AND SAME-SHA CI PENDING**。
 - **Rollback:** 每一個 logical slice 使用獨立 commit，必要時 `git revert <sha>`；禁止
   amend、rebase、reset、force push。preview 可等待到期或依 runbook 提前刪除 channel。
+
+## BOOK-MVP FINAL UI CORRECTION / C3 — AFTER IMPLEMENTATION, BEFORE CANDIDATE FREEZE (2026-08-22)
+
+- **Implemented Scope:** Case／follow-up 表單移除桌機巨大空白並在手機單欄重排；週曆改成
+  七個日期欄、schedule-derived header 與 actual synthetic event cards；患者預約收斂為
+  Step 1 類型項目、Step 2 單一 active date 的 full-width slots、Step 3 兩個語意欄，成功
+  改為三步驟後結果。獨立查詢／取消流程只接受「電話＋生日」或「證件號碼＋生日」。
+- **Cancellation Rule:** synthetic patient direct cancel 只有在 trusted application time 可判斷
+  距開始時間嚴格大於 20 分鐘時才顯示確認並呼叫 canonical cancel transition；21 分鐘可取消，
+  20／19 分鐘、已開始、已取消、非 active 或時間未知皆 fail closed，改顯示 canonical
+  `02-2577-1314`。成功路徑只持久化一次並釋放 slot；拒絕及重複操作不改 appointment、
+  slot、audit、outbox 或 persisted state。
+- **Privacy / Identity:** 查無結果不揭示哪個欄位不符；結果只顯示查詢者操作所需的日期、
+  時間、類型、項目、遮罩編號與狀態。privacy dialog 關閉後仍返回 Step 3，已填欄位、勾選
+  與 read-status 保留，焦點回到 opener。
+- **Files:** runtime 只變更既有 `apps/web` synthetic workbench／patient HTML、CSS、modules
+  與 browser-local adapter；測試變更限於相關 unit／E2E／architecture／UI／capture guards。
+  本輪新增 2026-08-22 reference evidence，未修改 30 個 frozen clinic files、Payroll、
+  Firebase config、lockfile 或 production integration。
+- **Logical Commits:** `4a828d5` workbench Case／週曆；`5592000` verified direct
+  self-cancellation；`2b353ff` 三步驟 patient flow；`e04b827` final cancellation acceptance；
+  `6a2ee4d` mobile／budget gate 修正。`9c6adb5` 記錄 BEFORE authority，`b9b7e14` 與
+  `85c8cb9` 分別是 formatting 與一次性 visual-capture orchestration。
+- **Introduced Failure Handling:** run
+  [`32550738079`](https://github.com/waydefu/clinic/actions/runs/32550738079) 只發現兩個
+  touched test files 的 Prettier 差異；run
+  [`32551582162`](https://github.com/waydefu/clinic/actions/runs/32551582162) 只發現新測試的
+  unbound-method lint；run
+  [`32551803837`](https://github.com/waydefu/clinic/actions/runs/32551803837) 發現 patient
+  document 7 KiB budget 邊界、375px header height 與兩個舊文字 locator。每次都只修正
+  introduced defect，沒有放寬 workflow、performance、clinic freeze、security 或 test gate。
+- **Green Runtime Evidence:** commit `b9b7e14` run
+  [`32551027804`](https://github.com/waydefu/clinic/actions/runs/32551027804) 11/11 PASS；修正後
+  commit `6a2ee4d` run
+  [`32552109290`](https://github.com/waydefu/clinic/actions/runs/32552109290) 11/11 PASS；同一
+  source commit `85c8cb9` 的一般 PR run
+  [`32552271093`](https://github.com/waydefu/clinic/actions/runs/32552271093) 11/11 PASS。
+- **Visual Evidence:** dispatch run
+  [`32552601705`](https://github.com/waydefu/clinic/actions/runs/32552601705) 的
+  `capture-ui` job `96981661065` 在 Linux Chromium 產生 13 張 current-date PNG 與 hash-bound
+  manifest。13 個情境 console errors／warnings 均為 0、擷取前 page-level overflow assertion
+  全過；逐張人工檢視沒有意外 clipping、重疊、巨大空白或層級錯誤，warm default 正確。
+  一次性 dispatch input／job 已移除，final workflow 必須與 `origin/main` 相同。
+- **Acceptance Coverage:** structure、docs、format、lint、types/build、architecture、UI、
+  public pages、performance、clinic 30/30 freeze、unit、desktop/mobile／patient／appointments／
+  auth-RBAC E2E、accessibility、Firestore Emulator、supply-chain／secrets、SAST 與
+  commit-bound Verification evidence；final prospective C3 仍須在同一 SHA 再次全綠。
+- **Production Authority:** synthetic `>20 minutes` 規則不取代 D-005。正式取消窗口仍
+  `pending`，既有「當日 10:00 前」只保留為未核准 input；本輪沒有 production API、
+  Firestore、Functions、Storage、Cloud Run、Authentication、Calendar、live Hosting 或真實資料。
+- **Deployment State:** **NOT DEPLOYED**。只有 final prospective C3 same-SHA 11/11 全綠，
+  並另以 docs-only commit 記錄 exact C3／project／channel／expiry／operator／owner authority
+  後，才可由 detached exact-C3 worktree 部署 Hosting preview。
+- **NEW C3 FROZEN:** **NO — CURRENT EVIDENCE CHANGES REQUIRE FINAL SAME-SHA CI**。
+- **PR #23 MERGED:** **NO**。
+- **Rollback:** runtime／tests／evidence 依上述 logical commits 逐一 `git revert <sha>`；
+  不 amend、rebase、reset 或 force push。尚無 C3 cloud release 需要 rollback。
