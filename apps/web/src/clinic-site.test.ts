@@ -205,9 +205,6 @@ describe('clinic route integration', () => {
     expect(patient).not.toContain('href="/clinic"');
     expect(patient).not.toContain('href="/clinic/doctors"');
     expect(patient).not.toMatch(/<a\b[^>]*\bhref="\/"/);
-    expect(patient).toContain('href="/booking-c4.css"');
-    expect(repoFile('apps/web/public/booking-c4.css')).toContain(
-      "@import url('./clinic-booking.css')"
-    );
+    expect(patient).toContain('href="/clinic-booking.css"');
   });
 });

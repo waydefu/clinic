@@ -1173,6 +1173,16 @@ textarea {
   );
   margin: 0;
 }
+.patient-preview-warning {
+  background: var(--surface-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-2xs) var(--space-xs);
+}
 .patient-hero > div > p:last-of-type {
   color: var(--ink-muted);
   line-height: 1.8;
@@ -1276,37 +1286,8 @@ textarea {
 .booking-panel {
   grid-column: 1 / -1;
 }
-.booking-summary {
-  background: var(--surface-tint);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-1);
-  grid-column: 1;
-  padding: var(--space-md);
-  position: sticky;
-  top: calc(var(--scroll-anchor-offset) + var(--space-xs));
-}
 .booking-panel {
   min-width: 0;
-}
-.booking-summary h2 {
-  color: var(--forest-dark);
-  font-family: var(--font-serif-tc);
-  font-size: var(--text-lg);
-  margin-bottom: var(--space-2xs);
-}
-.booking-summary-step {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  margin: 0;
-}
-.booking-summary-hours {
-  border-top: 1px solid var(--line);
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  line-height: 1.55;
-  margin-top: var(--space-md);
-  padding-top: var(--space-sm);
 }
 .booking-panel-heading {
   margin-bottom: var(--space-md);
@@ -1521,6 +1502,29 @@ textarea {
   padding-bottom: var(--space-2xs);
   scrollbar-gutter: stable;
 }
+.patient-slot-months {
+  display: flex;
+  gap: var(--space-2xs);
+  margin-bottom: var(--space-xs);
+  overflow-x: auto;
+  padding-bottom: var(--space-2xs);
+}
+.patient-slot-month {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  flex: 0 0 auto;
+  font-size: var(--text-body);
+  min-height: var(--control-height-md);
+  padding: var(--space-2xs) var(--space-sm);
+}
+.patient-slot-month[aria-selected='true'] {
+  background: var(--forest-light);
+  border-color: var(--forest);
+  color: var(--forest-dark);
+  font-weight: var(--weight-bold);
+}
 .patient-slot-date {
   align-items: flex-start;
   background: var(--surface);
@@ -1559,18 +1563,18 @@ textarea {
   gap: var(--space-xs);
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
 }
-.slot-load-more {
-  align-self: start;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  color: var(--forest-dark);
-  display: inline-flex;
+.slot-period {
+  display: grid;
   gap: var(--space-2xs);
-  justify-self: start;
 }
-.slot-load-more-count {
-  color: var(--ink-muted);
-  font-weight: var(--weight-medium);
+.slot-period + .slot-period {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: var(--space-sm);
+}
+.slot-period h4 {
+  color: var(--forest-dark);
+  font-size: var(--text-body);
+  margin: 0;
 }
 .booking-confirmation-grid {
   display: grid;
@@ -1596,39 +1600,6 @@ textarea {
   display: grid;
   gap: var(--space-xs);
   min-width: 0;
-}
-.booking-summary,
-.booking-summary h3 {
-  color: var(--forest-dark);
-  font-size: var(--text-md);
-}
-.booking-summary dl,
-#patient-booking-summary {
-  display: grid;
-  gap: var(--space-xs);
-  margin: var(--space-sm) 0 0;
-}
-.booking-summary dl div,
-#patient-booking-summary div {
-  align-items: baseline;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  gap: var(--space-sm);
-  justify-content: space-between;
-  padding-bottom: var(--space-xs);
-}
-/* 確認摘要是整頁最重要的文字：使用者按下送出之前，唯一一次核對日期、時段與
-   療程的機會。它先前用的是最小字級。 */
-.booking-summary dt {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-}
-.booking-summary dd {
-  color: var(--ink);
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  margin: 0;
-  text-align: right;
 }
 /* 同意條款是法律文字。用最小字級呈現要人同意的東西，形式上就不對。 */
 .consent-preview {
@@ -1768,54 +1739,27 @@ textarea {
   color: var(--forest-dark);
   font-weight: var(--weight-bold);
 }
-.patient-upcoming-section {
-  margin-top: var(--space-2xl);
-}
-.patient-appointment-card {
-  align-items: center;
+.booking-cancel-contact {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  display: flex;
-  gap: var(--space-sm);
-  justify-content: space-between;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
   padding: var(--space-sm);
 }
-.patient-appointment-card > div {
-  display: grid;
+.booking-cancel-contact > .booking-phone-fallback {
+  justify-self: start;
+  margin-top: 0;
+}
+.booking-social-fallback {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2xs);
 }
-.patient-appointment-card > div > strong {
-  color: var(--forest-dark);
-}
-.patient-help-grid {
-  border-top: 1px solid var(--line);
-  display: grid;
-  gap: var(--space-sm);
-  grid-template-columns: repeat(3, 1fr);
-  margin-top: var(--space-2xl);
-  padding-top: var(--space-xl);
-}
-.patient-help-grid article {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm);
-}
-.patient-help-grid article > span {
-  color: var(--forest);
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-bold);
-}
-.patient-help-grid strong {
-  display: block;
-  margin: var(--space-xs) 0 var(--space-2xs);
-}
-.patient-help-grid p {
+.booking-cancel-contact p {
   color: var(--ink-muted);
   font-size: var(--text-body);
-  line-height: 1.6;
   margin: 0;
 }
 .maintenance-screen {
@@ -2336,7 +2280,6 @@ label:has(> input[type='radio']) {
   }
   .service-choice-grid,
   .booking-confirmation-grid,
-  .patient-help-grid,
   .patient-form-grid,
   .booking-step-one-grid,
   .booking-lookup-form {
@@ -2352,23 +2295,18 @@ label:has(> input[type='radio']) {
   .patient-slot-list {
     grid-template-columns: 1fr;
   }
+  .slot-period + .slot-period {
+    border-inline-start: 0;
+    border-top: 1px solid var(--line);
+    margin-top: var(--space-xs);
+    padding-inline-start: 0;
+    padding-top: var(--space-sm);
+  }
   #patient-booking-app:not([hidden]) {
     grid-template-columns: 1fr;
   }
-  .booking-summary,
   .booking-panel {
     grid-column: 1;
-  }
-  .booking-summary {
-    margin-bottom: var(--space-sm);
-    position: static;
-  }
-  .patient-appointment-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .patient-appointment-card .button {
-    width: 100%;
   }
   .patient-footer {
     align-items: flex-start;

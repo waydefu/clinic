@@ -642,23 +642,15 @@ async function main() {
   // 沒被掃到的那三份可以隨便寫死色、斷點、字重而這支腳本照樣印「全部為零」——
   // 一個只涵蓋一半的檢查比沒有檢查更容易誤導。實際上 clinic-booking.css 當時
   // 就有一個範圍外的斷點（62rem）。
-  const [
-    styles,
-    workbench,
-    error,
-    clinicBooking,
-    bookingC4,
-    clinicSite,
-    privacy
-  ] = await Promise.all([
-    read('styles.css'),
-    read('workbench.css'),
-    read('error.css'),
-    read('clinic-booking.css'),
-    read('booking-c4.css'),
-    read('clinic-site.css'),
-    read('privacy.css')
-  ]);
+  const [styles, workbench, error, clinicBooking, clinicSite, privacy] =
+    await Promise.all([
+      read('styles.css'),
+      read('workbench.css'),
+      read('error.css'),
+      read('clinic-booking.css'),
+      read('clinic-site.css'),
+      read('privacy.css')
+    ]);
 
   const base = definedTokens(styles);
   const withBase = (source) => new Set([...base, ...definedTokens(source)]);
@@ -673,10 +665,6 @@ async function main() {
     [
       'clinic-booking.css',
       { source: clinicBooking, scope: withBase(clinicBooking), full: true }
-    ],
-    [
-      'booking-c4.css',
-      { source: bookingC4, scope: withBase(bookingC4), full: true }
     ],
     // error.css 與 privacy.css 是自成一頁的獨立樣式表，不載入 styles.css
     // ——它們只有自己的 token，所以只檢查「用了自己沒定義的東西」。
