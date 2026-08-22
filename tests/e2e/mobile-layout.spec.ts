@@ -373,7 +373,7 @@ test.describe('患者預約頁手機版', () => {
     await page.locator('[data-service]').first().click();
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
     await expect(page.locator('body')).toHaveAttribute(
-      'data-booking-step',
+      'data-booking-flow-step',
       '2'
     );
     await expect(page.locator('.patient-header')).toBeHidden();
@@ -384,7 +384,7 @@ test.describe('患者預約頁手機版', () => {
     await page.locator('[data-patient-slot]').first().click();
     await expect(page.locator('#patient-name')).toBeVisible();
     await expect(page.locator('body')).toHaveAttribute(
-      'data-booking-step',
+      'data-booking-flow-step',
       '3'
     );
     await expect(page.locator('.patient-header')).toBeHidden();
