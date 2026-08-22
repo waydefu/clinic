@@ -17,6 +17,10 @@ import {
 import { confirmDialog } from './modules/confirm-dialog.js';
 import { openPolicyDialog } from './modules/policy-dialog.js';
 import { fieldErrors } from './modules/patient-registry.js';
+import {
+  PATIENT_LOOKUP_ERROR,
+  patientCancellationEligibility
+} from './modules/patient-booking-management.js';
 import { isUpcomingSlot } from './modules/schedule-engine.js';
 import { storageKey } from './modules/state-schema.js';
 import {
@@ -36,6 +40,7 @@ const elements = Object.fromEntries(
 );
 const panels = [...document.querySelectorAll('[data-booking-step]')];
 const indicators = [...document.querySelectorAll('[data-step-indicator]')];
+const bookingResultPanel = document.querySelector('[data-booking-result]');
 
 let state;
 let selectedBookingType = 'initial';
@@ -43,12 +48,11 @@ let selectedServiceId;
 let selectedSlotId;
 let completedAppointmentId;
 let completedAppointment;
-let activeBookingStep = 1;
-// 時段清單一次只展開幾天，避免一口氣塞滿整月；可按「顯示更多日期」加載，
-// 或用日期選擇器直接跳到某一天。切換看診類型時重置。
-const SLOT_DAYS_PAGE = 5;
-let slotVisibleDays = SLOT_DAYS_PAGE;
-let slotDateFilter = '';
+let activeSlotDate;
+let bookingLookupMode = 'phone';
+let managedAppointments = [];
+let lastLookupVerification;
+let bookingManagementReturnFocus;
 // 診所資料（門診時段、公告）是非同步載入的。在它到達之前，選項可以先畫出來
 // 佔住版面，但**不能可按**：按下去會走進需要 state 的路徑。
 let dataReady = false;
@@ -133,7 +137,7 @@ async function runUiAction({
 }
 
 function showStep(step, { focusHeading = true, scroll = true } = {}) {
-  activeBookingStep = step;
+  bookingResultPanel.hidden = true;
   panels.forEach((panel) => {
     panel.hidden = Number(panel.dataset.bookingStep) !== step;
   });
@@ -146,7 +150,6 @@ function showStep(step, { focusHeading = true, scroll = true } = {}) {
     else indicator.removeAttribute('aria-current');
   });
   const panel = document.querySelector(`[data-booking-step="${step}"]`);
-  renderBookingSummary();
   if (scroll && panel !== null) {
     const bounds = panel.getBoundingClientRect();
     const outsideUsefulViewport =
@@ -169,6 +172,26 @@ function showStep(step, { focusHeading = true, scroll = true } = {}) {
     heading.setAttribute('tabindex', '-1');
     heading.focus({ preventScroll: true });
   }
+}
+
+function showBookingResult() {
+  panels.forEach((panel) => {
+    panel.hidden = true;
+  });
+  indicators.forEach((indicator) => {
+    indicator.classList.remove('is-active');
+    indicator.classList.add('is-complete');
+    indicator.removeAttribute('aria-current');
+  });
+  bookingResultPanel.hidden = false;
+  elements['booking-complete-heading'].setAttribute('tabindex', '-1');
+  elements['booking-complete-heading'].focus({ preventScroll: true });
+  bookingResultPanel.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth',
+    block: 'start'
+  });
 }
 
 function latestFollowUp() {
@@ -379,7 +402,6 @@ function renderBookingContext() {
   const service = selectedService();
   elements['booking-context'].textContent =
     `目前選擇：${BOOKING_KIND_LABELS[selectedBookingType]}${service ? ` · ${service.label}` : ''}。選錯了嗎？可按上方「返回類型與項目」重選。`;
-  renderBookingSummary();
 }
 
 function renderDayGroup(group) {
@@ -389,26 +411,7 @@ function renderDayGroup(group) {
       return `<button class="slot-chip${selected ? ' is-selected' : ''}" type="button" data-patient-slot="${escapeHtml(slot.id)}" aria-pressed="${selected}">${escapeHtml(formatTime(slot.startsAt))}${selected ? '<span class="slot-chip-mark" aria-hidden="true">✓</span>' : ''}</button>`;
     })
     .join('');
-  return `<section class="slot-day"><h3 class="slot-day-label">${escapeHtml(group.label)}<span class="slot-day-count">${group.slots.length} 個時段</span></h3><div class="slot-chip-row">${buttons}</div></section>`;
-}
-
-// 依可預約範圍設定日期選擇器的上下限，並在無資料時停用，避免使用者跳到
-// 一個沒有時段的日期。
-function syncSlotDateInput(dayKeys) {
-  const input = elements['patient-slot-date'];
-  const clear = elements['patient-slot-date-clear'];
-  if (input === undefined) return;
-  if (dayKeys.length === 0) {
-    input.value = '';
-    input.disabled = true;
-    if (clear !== undefined) clear.hidden = true;
-    return;
-  }
-  input.disabled = false;
-  input.min = dayKeys[0];
-  input.max = dayKeys[dayKeys.length - 1];
-  input.value = slotDateFilter;
-  if (clear !== undefined) clear.hidden = slotDateFilter === '';
+  return `<div class="slot-chip-row">${buttons}</div>`;
 }
 
 function renderSlots() {
@@ -420,9 +423,11 @@ function renderSlots() {
       : '初診開放整點與 30 分，時間以 Asia/Taipei（台北時間）顯示。';
 
   const groups = groupSlotsByDate(slots);
-  syncSlotDateInput(groups.map((group) => group.key));
 
   if (groups.length === 0) {
+    activeSlotDate = undefined;
+    elements['patient-slot-dates'].replaceChildren();
+    elements['active-slot-date-label'].textContent = '目前沒有可預約日期';
     elements['patient-slots'].innerHTML = emptyState(
       '目前沒有可預約時段',
       '診所發布新的營業時間後，時段會自動更新。'
@@ -430,57 +435,27 @@ function renderSlots() {
     return;
   }
 
-  // 有指定日期時只顯示那一天；否則逐頁展開最近幾天，其餘用「顯示更多日期」。
-  if (slotDateFilter !== '') {
-    const match = groups.find((group) => group.key === slotDateFilter);
-    elements['patient-slots'].innerHTML = match
-      ? renderDayGroup(match)
-      : emptyState(
-          '這一天沒有可預約時段',
-          '請改選其他日期，或清除日期查看全部。'
-        );
-    return;
-  }
-
-  const shown = groups.slice(0, slotVisibleDays);
-  const remaining = groups.length - shown.length;
-  const moreButton =
-    remaining > 0
-      ? `<button class="button slot-load-more" type="button" data-load-more-days>顯示更多日期<span class="slot-load-more-count">還有 ${remaining} 天</span></button>`
-      : '';
-  elements['patient-slots'].innerHTML =
-    shown.map(renderDayGroup).join('') + moreButton;
+  if (!groups.some((group) => group.key === activeSlotDate))
+    activeSlotDate = groups[0].key;
+  elements['patient-slot-dates'].innerHTML = groups
+    .map((group) => {
+      const selected = group.key === activeSlotDate;
+      return `<button class="patient-slot-date" type="button" role="tab" data-slot-date="${escapeHtml(group.key)}" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}"><strong>${escapeHtml(group.label)}</strong><small>${group.slots.length} 個時段${selected ? ' · ✓ 已選' : ''}</small></button>`;
+    })
+    .join('');
+  const active = groups.find((group) => group.key === activeSlotDate);
+  elements['active-slot-date-label'].textContent =
+    `${active.label} · ${active.slots.length} 個可預約時段`;
+  elements['patient-slots'].innerHTML = renderDayGroup(active);
 }
 
 function selectedService() {
   return PATIENT_SERVICES.find((service) => service.id === selectedServiceId);
 }
 
-function renderBookingSummary() {
-  const stepLabels = ['類型與項目', '日期時段', '基本資料', '完成'];
-  const stepLabel = `目前步驟 ${activeBookingStep}／4 · ${stepLabels[activeBookingStep - 1]}`;
-  const slot = state?.slots.find((item) => item.id === selectedSlotId);
-  const service = selectedService();
-  const rows = [
-    ['掛號別', BOOKING_KIND_LABELS[selectedBookingType]],
-    ['看診項目', service?.label ?? '尚未選擇'],
-    ['日期', slot === undefined ? '尚未選擇' : formatFullDate(slot.startsAt)],
-    ['時間', slot === undefined ? '尚未選擇' : formatTime(slot.startsAt)]
-  ];
-  const details = rows
-    .map(
-      ([label, value]) =>
-        `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
-    )
-    .join('');
-  elements['booking-summary'].innerHTML =
-    `<h2>預約資訊</h2><p id="booking-summary-step" class="booking-summary-step">${escapeHtml(stepLabel)}</p><dl id="patient-booking-summary">${details}</dl><p class="booking-summary-hours">${escapeHtml(clinicHoursSummary())}</p>`;
-}
-
 function renderConfirmation() {
   const slot = state.slots.find((item) => item.id === selectedSlotId);
   if (slot === undefined) return;
-  renderBookingSummary();
   updateSubmitState();
 }
 
@@ -603,25 +578,9 @@ function statusLabel(status) {
       completed: '已完成到診',
       cancelled: '已取消',
       no_show: '未到',
-      cancellation_requested: '取消待診所確認'
+      cancellation_requested: '取消處理中'
     }[status] ?? status
   );
-}
-
-function renderAppointments() {
-  const patientId = myPatientId();
-  const list =
-    patientId === undefined
-      ? []
-      : state.appointments.filter((item) => item.patientId === patientId);
-  elements['patient-appointments'].innerHTML = list.length
-    ? list
-        .map((appointment) => {
-          const cancellable = appointment.status === 'confirmed';
-          return `<article class="patient-appointment-card"><div><span class="status-chip ${cancellable ? 'is-available' : 'is-reserved'}">${statusLabel(appointment.status)}</span><strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span>${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel ?? '')}</span><span class="code">${escapeHtml(appointment.id)}</span></div><button class="button button-tertiary" type="button" data-patient-cancel="${escapeHtml(appointment.id)}" ${cancellable ? '' : 'disabled'}>提出取消</button></article>`;
-        })
-        .join('')
-    : emptyState('目前沒有預約', '完成上方流程後，預約摘要會出現在這裡。');
 }
 
 function renderAll() {
@@ -635,7 +594,6 @@ function renderAll() {
   renderBookingTypeButtons();
   renderServices();
   renderSlots();
-  renderAppointments();
 }
 
 document.querySelectorAll('[data-booking-type]').forEach((button) =>
@@ -646,9 +604,8 @@ document.querySelectorAll('[data-booking-type]').forEach((button) =>
       return;
     }
     selectedBookingType = type;
-    // 換看診類型等於換一批時段，重置日期展開與跳轉。
-    slotVisibleDays = SLOT_DAYS_PAGE;
-    slotDateFilter = '';
+    // 換看診類型等於換一批時段，回到該類型的第一個可預約日期。
+    activeSlotDate = undefined;
     renderBookingTypeButtons();
     renderSlots();
     message(
@@ -677,11 +634,6 @@ document
   );
 
 elements['patient-slots'].addEventListener('click', (event) => {
-  if (event.target.closest('[data-load-more-days]') !== null) {
-    slotVisibleDays += SLOT_DAYS_PAGE;
-    renderSlots();
-    return;
-  }
   const button = event.target.closest('[data-patient-slot]');
   if (button === null) return;
   selectedSlotId = button.dataset.patientSlot;
@@ -690,15 +642,28 @@ elements['patient-slots'].addEventListener('click', (event) => {
   showStep(3);
 });
 
-elements['patient-slot-date'].addEventListener('change', (event) => {
-  slotDateFilter = event.target.value;
+elements['patient-slot-dates'].addEventListener('click', (event) => {
+  const button = event.target.closest('[data-slot-date]');
+  if (button === null) return;
+  activeSlotDate = button.dataset.slotDate;
   renderSlots();
 });
 
-elements['patient-slot-date-clear'].addEventListener('click', () => {
-  slotDateFilter = '';
-  slotVisibleDays = SLOT_DAYS_PAGE;
+elements['patient-slot-dates'].addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+  const tabs = [
+    ...elements['patient-slot-dates'].querySelectorAll('[data-slot-date]')
+  ];
+  const current = tabs.indexOf(document.activeElement);
+  if (current === -1) return;
+  event.preventDefault();
+  const offset = event.key === 'ArrowRight' ? 1 : -1;
+  const target = tabs[(current + offset + tabs.length) % tabs.length];
+  activeSlotDate = target.dataset.slotDate;
   renderSlots();
+  elements['patient-slot-dates']
+    .querySelector(`[data-slot-date="${activeSlotDate}"]`)
+    ?.focus();
 });
 
 for (const field of [
@@ -888,7 +853,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
       elements['booking-result'].innerHTML =
         `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`;
       renderAll();
-      showStep(4);
+      showBookingResult();
       message(`預約已建立：${appointment.id}。`, 'success');
     },
     failureMessage: (error) => `未送出預約：${error.message}`
@@ -904,49 +869,180 @@ elements['add-to-calendar'].addEventListener('click', () => {
 elements['book-another'].addEventListener('click', () => {
   selectedSlotId = undefined;
   selectedServiceId = undefined;
+  activeSlotDate = undefined;
   renderServices();
   showStep(1);
 });
 
-elements['patient-appointments'].addEventListener('click', async (event) => {
-  const button = event.target.closest('[data-patient-cancel]');
-  if (button === null) return;
+function lookupVerification() {
+  return {
+    mode: bookingLookupMode,
+    birthDate: elements['booking-lookup-birth'].value,
+    ...(bookingLookupMode === 'phone'
+      ? { phone: elements['booking-lookup-phone'].value }
+      : { documentNumber: elements['booking-lookup-document'].value })
+  };
+}
+
+function renderLookupMode() {
+  document.querySelectorAll('[data-booking-lookup-mode]').forEach((button) => {
+    const selected = button.dataset.bookingLookupMode === bookingLookupMode;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+  const usePhone = bookingLookupMode === 'phone';
+  elements['booking-lookup-phone-field'].hidden = !usePhone;
+  elements['booking-lookup-document-field'].hidden = usePhone;
+  if (usePhone) elements['booking-lookup-document'].value = '';
+  else elements['booking-lookup-phone'].value = '';
+}
+
+function renderManagedAppointments() {
+  elements['booking-lookup-results'].innerHTML = managedAppointments
+    .map((appointment) => {
+      const eligibility = patientCancellationEligibility(
+        appointment,
+        Date.now()
+      );
+      const status = statusLabel(appointment.status);
+      const action = eligibility.allowed
+        ? `<button class="button button-primary" type="button" data-managed-cancel="${escapeHtml(appointment.id)}">取消這筆預約</button>`
+        : ['phone_required', 'time_unavailable'].includes(eligibility.code)
+          ? '<a class="button button-secondary booking-phone-fallback" href="tel:+886225771314">請來電 02-2577-1314</a>'
+          : '';
+      return `<article class="booking-lookup-card"><div class="booking-lookup-card-heading"><strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(status)}</span></div><span>${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel)}</span><span class="code">預約末碼 ${escapeHtml(appointment.id.slice(-4))}</span>${action}</article>`;
+    })
+    .join('');
+}
+
+function openBookingManagement(trigger) {
+  bookingManagementReturnFocus = trigger;
+  elements['booking-management-dialog'].showModal();
+  elements['booking-management-heading'].setAttribute('tabindex', '-1');
+  elements['booking-management-heading'].focus();
+}
+
+for (const id of ['booking-management-open', 'booking-result-manage'])
+  elements[id].addEventListener('click', (event) =>
+    openBookingManagement(event.currentTarget)
+  );
+
+elements['booking-management-close'].addEventListener('click', () => {
+  elements['booking-management-dialog'].close();
+});
+
+elements['booking-management-dialog'].addEventListener('close', () => {
+  bookingManagementReturnFocus?.focus({ preventScroll: true });
+  bookingManagementReturnFocus = undefined;
+});
+
+document.querySelectorAll('[data-booking-lookup-mode]').forEach((button) =>
+  button.addEventListener('click', () => {
+    bookingLookupMode = button.dataset.bookingLookupMode;
+    renderLookupMode();
+    const target =
+      bookingLookupMode === 'phone'
+        ? elements['booking-lookup-phone']
+        : elements['booking-lookup-document'];
+    target.focus();
+  })
+);
+
+elements['booking-lookup-form'].addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const verification = lookupVerification();
+  const secondField =
+    bookingLookupMode === 'phone'
+      ? verification.phone
+      : verification.documentNumber;
   if (
-    !(await confirmDialog('確定提出此預約的取消要求？實際取消由櫃台確認。', {
-      confirmLabel: '提出取消'
+    verification.birthDate === '' ||
+    String(secondField ?? '').trim() === ''
+  ) {
+    elements['booking-lookup-status'].hidden = false;
+    elements['booking-lookup-status'].dataset.state = 'error';
+    elements['booking-lookup-status'].textContent = PATIENT_LOOKUP_ERROR;
+    return;
+  }
+  const control = elements['booking-lookup-form'].querySelector(
+    'button[type="submit"]'
+  );
+  await runUiAction({
+    control,
+    pendingLabel: '查詢中…',
+    pendingMessage: '正在查詢預約。',
+    anchorId: 'booking-lookup-status',
+    action: () =>
+      apiClient.request('/patient/bookings/lookup', {
+        method: 'POST',
+        body: JSON.stringify(verification)
+      }),
+    onSuccess: (result) => {
+      lastLookupVerification = verification;
+      managedAppointments = result.appointments;
+      renderManagedAppointments();
+      message(
+        `找到 ${managedAppointments.length} 筆預約。`,
+        'success',
+        'booking-lookup-status'
+      );
+    },
+    failureMessage: () => PATIENT_LOOKUP_ERROR
+  });
+});
+
+elements['booking-lookup-results'].addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-managed-cancel]');
+  if (button === null || lastLookupVerification === undefined) return;
+  const appointment = managedAppointments.find(
+    (item) => item.id === button.dataset.managedCancel
+  );
+  if (appointment === undefined) return;
+  const description = `${formatFullDate(appointment.startsAt)} ${formatTime(appointment.startsAt)}，${BOOKING_KIND_LABELS[appointment.bookingKind] ?? ''}，${appointment.itemLabel}`;
+  if (
+    !(await confirmDialog(`確定取消 ${description}？取消後時段會立即釋出。`, {
+      confirmLabel: '確認取消',
+      danger: true
     }))
   )
     return;
-  const appointmentId = button.dataset.patientCancel;
   await runUiAction({
     control: button,
-    pendingLabel: '送出中…',
-    pendingMessage: '正在送出取消要求，請稍候。',
+    pendingLabel: '取消中…',
+    pendingMessage: '正在取消預約。',
+    anchorId: 'booking-lookup-status',
     action: () =>
-      apiClient.request(`/bookings/${appointmentId}/cancellation`, {
+      apiClient.request(`/patient/bookings/${appointment.id}/self-cancel`, {
         method: 'POST',
-        body: JSON.stringify({ origin: 'patient' })
+        body: JSON.stringify(lastLookupVerification)
       }),
-    onSuccess: (nextState) => {
-      state = nextState;
-      if (appointmentId === completedAppointmentId) {
-        elements['booking-complete-mark'].textContent = '↻';
-        elements['booking-complete-eyebrow'].textContent =
-          'CANCELLATION REQUESTED';
-        elements['booking-complete-heading'].textContent = '取消要求已送出';
+    onSuccess: (result) => {
+      state = result.state;
+      managedAppointments = managedAppointments.map((item) =>
+        item.id === result.appointment.id ? result.appointment : item
+      );
+      renderManagedAppointments();
+      if (appointment.id === completedAppointmentId) {
+        elements['booking-complete-mark'].textContent = '✓';
+        elements['booking-complete-eyebrow'].textContent = 'BOOKING CANCELLED';
+        elements['booking-complete-heading'].textContent = '預約已取消';
         elements['booking-complete-description'].textContent =
-          '診所櫃台確認後才會釋放時段。';
-        // 已提出取消就沒有門診可提醒了，行事曆警語必須跟著收起來，
-        // 否則畫面會同時說「取消要求已送出」與「記得加入行事曆」。
+          '取消已完成，原時段已釋出。';
         elements['booking-complete-reminder'].hidden = true;
         elements['booking-result'].innerHTML =
-          `<strong>預約編號：${escapeHtml(completedAppointmentId)}</strong><span>狀態：取消待診所確認</span>`;
+          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>狀態：已取消</span>`;
       }
-      renderAppointments();
-      message('取消要求已記錄，等待櫃台確認。', 'success');
-    }
+      renderSlots();
+      message('預約已取消，原時段已釋出。', 'success', 'booking-lookup-status');
+    },
+    failureMessage: (error) =>
+      error.message.includes('已取消')
+        ? '這筆預約已取消。'
+        : '此預約無法線上取消，請來電 02-2577-1314。'
   });
 });
+
+renderLookupMode();
 
 document.querySelector('.skip-link').addEventListener('click', (event) => {
   event.preventDefault();

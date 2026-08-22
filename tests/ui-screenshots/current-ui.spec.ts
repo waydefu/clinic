@@ -41,7 +41,6 @@ const FULL_PAGE_CAPTURE_STYLE = `
   }
   .clinic-header,
   .patient-header,
-  .booking-summary,
   .workspace-nav,
   .status-banner,
   .status-message {

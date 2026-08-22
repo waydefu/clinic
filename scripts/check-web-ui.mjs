@@ -473,8 +473,11 @@ const allowedPatientControls = new Set([
   'synthetic-confirmation',
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
   'theme-picker',
-  // 2026-07-23：時段清單的日期跳轉，只是檢視用篩選，不收集任何患者資料。
-  'patient-slot-date',
+  // 2026-08-22：獨立查詢／取消流程。電話＋生日或證件＋生日必須成對送入
+  // browser-local verification；查詢回應不指出哪一欄不符。
+  'booking-lookup-phone',
+  'booking-lookup-document',
+  'booking-lookup-birth',
   // 2026-07-28：保留既有技術 id，但語意是 UI-only「已閱讀告知草稿」gate。
   // 瀏覽器不保存政策版本、顯示時間或接受紀錄，所以不得稱為正式同意或告知證據。
   // 與 synthetic-confirmation 分開，因為後者是「測試資料留在本機」確認。

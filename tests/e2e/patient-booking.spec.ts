@@ -13,8 +13,19 @@ async function syntheticState(page: import('@playwright/test').Page) {
   );
 }
 
-// 患者端完整預約流程，跑在打包後的最終產物上。這是唯一一條真正走完四步驟精靈
-// 的路徑，證明合成建立預約在真瀏覽器裡從頭到尾可用，而不只是單元層的函式。
+async function lookupBooking(
+  page: import('@playwright/test').Page,
+  { phone, birthDate }: { phone: string; birthDate: string }
+) {
+  await page.locator('#booking-management-open').click();
+  await page.locator('#booking-lookup-phone').fill(phone);
+  await page.locator('#booking-lookup-birth').fill(birthDate);
+  await page.locator('#booking-lookup-form button[type="submit"]').click();
+  await expect(page.locator('.booking-lookup-card')).toBeVisible();
+}
+
+// 患者端完整預約流程，跑在打包後的最終產物上。三個輸入步驟完成後顯示結果，
+// 結果本身不是第四步。
 
 test.describe('患者線上預約', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,36 +36,36 @@ test.describe('患者線上預約', () => {
     await page.reload();
   });
 
-  test('初次載入停在頁首，預約摘要隨四步驟的真實選擇更新', async ({ page }) => {
+  test('初次載入停在頁首，三步驟依序採指定的全寬版面', async ({ page }) => {
     await expect(page.locator('#patient-title')).toBeVisible();
     await expect(page.locator('#patient-hours-summary')).toBeVisible();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
-
-    const summary = page.locator('#patient-booking-app > .booking-summary');
-    await expect(summary).toBeVisible();
-    await expect(summary).toContainText('初診');
-    await expect(summary).toContainText('尚未選擇');
+    await expect(page.locator('[data-step-indicator]')).toHaveCount(3);
+    await expect(page.locator('.booking-step-one-grid')).toBeVisible();
+    await expect(page.locator('.booking-clinic-info')).toContainText(
+      '02-2577-1314'
+    );
+    await expect(page.locator('.booking-summary')).toHaveCount(0);
 
     const service = page.locator('#patient-services [data-service]').first();
-    const serviceLabel = await service.locator('strong').textContent();
     await service.click();
-    await expect(summary).toContainText(serviceLabel ?? '');
-    await expect(page.locator('#booking-summary-step')).toContainText(
-      '目前步驟 2／4'
-    );
+    await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
+    await expect(
+      page.locator('#patient-slot-dates [role="tab"]')
+    ).not.toHaveCount(0);
+    await expect(
+      page.locator('#patient-slot-dates [aria-selected="true"]')
+    ).toHaveCount(1);
 
     const slot = page.locator('[data-patient-slot]').first();
-    const slotTime = await slot.textContent();
     await slot.click();
-    await expect(page.locator('#booking-summary-step')).toContainText(
-      '目前步驟 3／4'
-    );
-    await expect(summary).toContainText((slotTime ?? '').replace('✓', ''));
-    await expect(summary).not.toContainText('日期尚未選擇');
-    await expect(summary).not.toContainText('時間尚未選擇');
+    await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
+    await expect(page.locator('.patient-form-section')).toHaveCount(2);
+    await expect(page.locator('#patient-identity-heading')).toBeVisible();
+    await expect(page.locator('#visit-supplement-heading')).toBeVisible();
   });
 
-  test('走完四步驟並建立一筆初診預約', async ({ page }) => {
+  test('走完三步驟並建立一筆初診預約，完成顯示為結果', async ({ page }) => {
     // 步驟 1：選初診，再選第一個看診項目（選項目會前進到步驟 2）。
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('#patient-services [data-service]').first().click();
@@ -76,18 +87,15 @@ test.describe('患者線上預約', () => {
     // 輪詢開始前就結束了，於是變成間歇性紅燈。忙碌狀態的專屬測試在
     // workbench-lifecycle.spec.ts，用 MutationObserver 確定性地觀察。
 
-    // 步驟 4：完成畫面出現預約編號。
+    // 成功結果出現預約編號，但 stepper 仍只有三個輸入步驟。
     await expect(page.locator('#booking-complete-heading')).toHaveText(
       '預約已建立'
     );
     await expect(page.locator('#booking-result')).toContainText('預約編號');
     await expect(page.locator('#booking-result')).toContainText('appointment_');
-    await expect(page.locator('#booking-summary-step')).toContainText(
-      '目前步驟 4／4'
-    );
-    await expect(
-      page.locator('#patient-booking-app > .booking-summary')
-    ).not.toContainText('尚未選擇');
+    await expect(page.locator('[data-booking-result]')).toBeVisible();
+    await expect(page.locator('[data-step-indicator]')).toHaveCount(3);
+    await expect(page.locator('[data-booking-step="4"]')).toHaveCount(0);
   });
 
   test('固定顯示合成資料邊界，鍵盤可完成預約與取消且不發出後端請求', async ({
@@ -102,7 +110,7 @@ test.describe('患者線上預約', () => {
     const headerBoundary = page.locator('.patient-header .environment-badge');
     await expect(headerBoundary).toBeVisible();
     await expect(headerBoundary).toContainText('LOCAL TEST ONLY');
-    const dataBoundary = page.locator('.patient-help-grid article').first();
+    const dataBoundary = page.locator('.patient-data-boundary');
     await expect(dataBoundary).toBeVisible();
     await expect(dataBoundary).toContainText('勿填真實患者或健康資料');
     await expect(dataBoundary).toContainText('測試資料只存本機瀏覽器');
@@ -165,13 +173,28 @@ test.describe('患者線上預約', () => {
       bookingKind: 'initial'
     });
 
-    await page.locator('[data-patient-cancel]').first().click();
-    await page.locator('.confirm-dialog button.button-primary').click();
+    await lookupBooking(page, {
+      phone: '0900111222',
+      birthDate: '1991-04-18'
+    });
+    await page.evaluate((key) => {
+      const original = Storage.prototype.setItem;
+      (window as any).__patientSaveCalls = 0;
+      Storage.prototype.setItem = function (name, value) {
+        if (name === key) (window as any).__patientSaveCalls += 1;
+        return original.call(this, name, value);
+      };
+    }, STORAGE_KEY);
+    await page.locator('[data-managed-cancel]').press('Enter');
+    await page.locator('.confirm-dialog button.button-danger').click();
     await expect(page.locator('#booking-complete-heading')).toHaveText(
-      '取消要求已送出'
+      '預約已取消'
     );
     expect((await syntheticState(page)).appointments.at(-1).status).toBe(
-      'cancellation_requested'
+      'cancelled'
+    );
+    expect(await page.evaluate(() => (window as any).__patientSaveCalls)).toBe(
+      1
     );
     expect(requests, '建立與取消只能使用瀏覽器內的 synthetic store').toEqual(
       []
@@ -251,11 +274,120 @@ test.describe('患者線上預約', () => {
     expect(result.reservationId).toBe(result.appointmentId);
   });
 
+  test('查詢要求雙欄位、錯誤身分只回通用失敗，證件＋生日可作後備', async ({
+    page
+  }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('查詢測試患者');
+    await page.locator('#patient-phone').fill('0922555666');
+    await fillBirthDate(page, { year: '1982', month: '07', day: '16' });
+    await page.locator('#patient-national-id').fill('J123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    await page.locator('#booking-management-open').click();
+    const persisted = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      STORAGE_KEY
+    );
+    await page.locator('#booking-lookup-phone').fill('0922555666');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+    await expect(page.locator('#booking-lookup-status')).toHaveText(
+      '查無符合的可管理預約。'
+    );
+    await page.locator('#booking-lookup-birth').fill('1982-07-17');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+    await expect(page.locator('#booking-lookup-status')).toHaveText(
+      '查無符合的可管理預約。'
+    );
+    await expect(page.locator('.booking-lookup-card')).toHaveCount(0);
+    expect(
+      await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)
+    ).toBe(persisted);
+
+    await page.locator('[data-booking-lookup-mode="document"]').click();
+    await page.locator('#booking-lookup-document').fill('j123456789');
+    await page.locator('#booking-lookup-birth').fill('1982-07-16');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+    await expect(page.locator('.booking-lookup-card')).toHaveCount(1);
+    await expect(page.locator('.booking-lookup-card')).toContainText(
+      '預約成立'
+    );
+  });
+
+  test('距預約 19 分鐘拒絕自助取消並提供診所電話，拒絕不改狀態', async ({
+    page
+  }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('截止測試患者');
+    await page.locator('#patient-phone').fill('0966111222');
+    await fillBirthDate(page, { year: '1980', month: '12', day: '03' });
+    await page.locator('#patient-national-id').fill('K123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    await page.evaluate((key) => {
+      const next = JSON.parse(localStorage.getItem(key) ?? 'null');
+      next.appointments.at(-1).startsAt = new Date(
+        Date.now() + 19 * 60_000
+      ).toISOString();
+      localStorage.setItem(key, JSON.stringify(next));
+    }, STORAGE_KEY);
+    await lookupBooking(page, {
+      phone: '0966111222',
+      birthDate: '1980-12-03'
+    });
+    await expect(page.locator('[data-managed-cancel]')).toHaveCount(0);
+    await expect(page.locator('.booking-phone-fallback')).toHaveAttribute(
+      'href',
+      'tel:+886225771314'
+    );
+
+    const denial = await page.evaluate(async (key) => {
+      const storeUrl = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .find((name) => /\/store\.[a-f0-9]+\.js$/.test(name));
+      if (storeUrl === undefined) throw new Error('找不到 synthetic store。');
+      const { stagingRequest } = await import(storeUrl);
+      const before = localStorage.getItem(key);
+      const state = await stagingRequest('/state');
+      let message = '';
+      try {
+        await stagingRequest(
+          `/patient/bookings/${state.appointments.at(-1).id}/self-cancel`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              mode: 'phone',
+              phone: '0966111222',
+              birthDate: '1980-12-03'
+            })
+          }
+        );
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      return {
+        message,
+        unchanged: before === localStorage.getItem(key)
+      };
+    }, STORAGE_KEY);
+    expect(denial.message).toContain('請來電');
+    expect(denial.unchanged).toBe(true);
+  });
+
   // P12（業主 2026-07-27）：加入行事曆是患者唯一會拿到的提醒，所以完成畫面要
-  // 明講「沒加就不會再有提醒」。但**提出取消之後那句話必須消失**——已經沒有門診
-  // 可以提醒了，留著會讓同一個畫面同時說「取消要求已送出」與「記得加入行事曆」。
+  // 明講「沒加就不會再有提醒」。但**取消完成後那句話必須消失**——已經沒有門診
+  // 可以提醒了，留著會讓同一個畫面同時說「預約已取消」與「記得加入行事曆」。
   // 取消路徑改寫的是同一批 id，所以這一段特別容易在改版時被漏掉。
-  test('完成畫面說明沒有其他提醒管道，提出取消後收起那句話', async ({
+  test('完成畫面說明沒有其他提醒管道，直接取消後收起那句話', async ({
     page
   }) => {
     await page.locator('[data-booking-type="initial"]').click();
@@ -274,11 +406,15 @@ test.describe('患者線上預約', () => {
       '不會再發出任何提醒'
     );
 
-    await page.locator('[data-patient-cancel]').first().click();
-    await page.locator('.confirm-dialog button.button-primary').click();
+    await lookupBooking(page, {
+      phone: '0933444555',
+      birthDate: '1978-03-09'
+    });
+    await page.locator('[data-managed-cancel]').click();
+    await page.locator('.confirm-dialog button.button-danger').click();
 
     await expect(page.locator('#booking-complete-heading')).toHaveText(
-      '取消要求已送出'
+      '預約已取消'
     );
     await expect(page.locator('#booking-complete-reminder')).toBeHidden();
   });
@@ -316,9 +452,8 @@ test.describe('患者線上預約', () => {
     await page.locator('#confirm-patient-booking').click();
 
     await expect(page.locator('#synthetic-confirmation-error')).toBeVisible();
-    // 沒有前進到完成步驟——步驟 4 面板維持隱藏（其標題文字是靜態預設，不能
-    // 拿它判斷是否完成）。
-    await expect(page.locator('[data-booking-step="4"]')).toBeHidden();
+    // 沒有送出成功，完成結果維持隱藏。
+    await expect(page.locator('[data-booking-result]')).toBeHidden();
   });
 
   // P7／P9（業主 2026-07-27）：患者自述的備註、需求標籤與訊息來源。
@@ -439,7 +574,7 @@ test.describe('身分欄位', () => {
     const error = page.locator('#patient-national-id-error');
     await expect(error).toBeVisible();
     await expect(error).toContainText('外籍人士');
-    await expect(page.locator('[data-booking-step="4"]')).toBeHidden();
+    await expect(page.locator('[data-booking-result]')).toBeHidden();
   });
 });
 

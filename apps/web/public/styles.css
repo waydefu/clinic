@@ -1091,6 +1091,10 @@ textarea {
   padding: var(--space-4xs);
   width: 1.75rem;
 }
+.patient-management-open {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 /* 導覽名稱不得被斷在字與字之間。
    中文沒有空格，容器一窄就會逐字換行——實測 900px 時「線上預約」「預約須知」
    「內部工作臺」三個都排成兩行（2026-07-27 由 affordance 的斷行測試抓到）。
@@ -1140,10 +1144,10 @@ textarea {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-xl);
   display: grid;
-  gap: var(--space-xl);
-  grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.65fr);
+  gap: var(--space-sm);
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
-  padding: clamp(1.6rem, 4vw, 3.2rem);
+  padding: var(--space-lg);
   position: relative;
 }
 /* Hero 右上角那圈細線是純裝飾（核准位置：患者端 Hero 的非功能性標記）。
@@ -1212,7 +1216,7 @@ textarea {
 .booking-stepper {
   display: grid;
   gap: 0;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   list-style: none;
   margin: var(--space-xl) 0 var(--space-md);
   padding: 0;
@@ -1263,14 +1267,13 @@ textarea {
 }
 #patient-booking-app:not([hidden]) {
   display: grid;
-  gap: 0 var(--space-md);
-  grid-template-columns: minmax(16rem, 0.34fr) minmax(0, 1fr);
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
 }
 .patient-hero,
 #patient-status,
 .booking-stepper,
-.patient-upcoming-section,
-.patient-help-grid {
+.booking-panel {
   grid-column: 1 / -1;
 }
 .booking-summary {
@@ -1284,7 +1287,6 @@ textarea {
   top: calc(var(--scroll-anchor-offset) + var(--space-xs));
 }
 .booking-panel {
-  grid-column: 2;
   min-width: 0;
 }
 .booking-summary h2 {
@@ -1324,6 +1326,42 @@ textarea {
   font-size: var(--text-body);
   line-height: 1.65;
   max-width: 68ch;
+}
+.booking-step-one-grid {
+  display: grid;
+  gap: var(--space-lg);
+  grid-template-columns: minmax(14rem, 0.38fr) minmax(0, 1fr);
+}
+.booking-clinic-info {
+  align-self: start;
+  background: var(--surface-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+}
+.booking-clinic-info h2,
+.booking-clinic-info p {
+  margin: 0;
+}
+.booking-clinic-info address {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  font-style: normal;
+  line-height: 1.6;
+}
+.booking-clinic-info a {
+  color: var(--forest-dark);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+.booking-clinic-info #patient-hours-summary {
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  padding-top: var(--space-xs);
 }
 .service-choice-grid {
   display: grid;
@@ -1474,37 +1512,51 @@ textarea {
 .booking-back:hover .back-arrow {
   transform: translateX(-2px);
 }
-.slot-date-filter {
-  align-items: center;
+.patient-slot-dates {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
+  gap: var(--space-2xs);
   margin-bottom: var(--space-sm);
+  overflow-x: auto;
+  padding-bottom: var(--space-2xs);
+  scrollbar-gutter: stable;
 }
-.slot-date-filter label {
-  color: var(--ink-muted);
+.patient-slot-date {
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  display: grid;
+  flex: 0 0 auto;
   font-size: var(--text-body);
+  min-height: var(--control-height-md);
+  min-width: 8.5rem;
+  padding: var(--space-xs);
+  text-align: left;
+}
+.patient-slot-date small {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+}
+.patient-slot-date[aria-selected='true'] {
+  background: var(--forest-light);
+  border-color: var(--forest);
+  border-width: 3px;
+  color: var(--forest-dark);
   font-weight: var(--weight-bold);
 }
-.slot-date-filter input[type='date'] {
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  color: var(--ink);
-  font: inherit;
-  min-height: var(--control-height-md);
-  padding: var(--space-2xs) var(--space-xs);
+.active-slot-date-heading {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-xs);
 }
-.slot-date-filter input[type='date']:disabled {
-  background: var(--surface-tint);
-  color: var(--ink-muted);
-}
-.slot-date-filter .text-button {
-  margin-bottom: 0;
+.active-slot-date-heading h3 {
+  margin: 0;
 }
 .patient-slot-list {
   display: grid;
   gap: var(--space-xs);
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 .slot-load-more {
   align-self: start;
@@ -1523,6 +1575,26 @@ textarea {
   display: grid;
   gap: var(--space-sm);
   grid-template-columns: 1fr;
+}
+.patient-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.patient-form-section {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+  padding: var(--space-md);
+}
+.patient-form-section > h3 {
+  color: var(--forest-dark);
+  font-family: var(--font-serif-tc);
+  margin-bottom: var(--space-sm);
+}
+.patient-form-section-fields {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
 }
 .booking-summary,
 .booking-summary h3 {
@@ -1621,6 +1693,79 @@ textarea {
 .booking-result span {
   color: var(--ink-muted);
   font-size: var(--text-body);
+}
+.booking-management-dialog {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-3);
+  color: var(--ink);
+  max-height: calc(100vh - var(--space-2xl));
+  max-width: 42rem;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  width: calc(100% - var(--space-xl));
+}
+.booking-management-dialog::backdrop {
+  background: color-mix(in srgb, var(--surface-inverse-deep) 55%, transparent);
+}
+.booking-management-heading-row {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: space-between;
+}
+.booking-lookup-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin: var(--space-md) 0 var(--space-sm);
+}
+.booking-lookup-modes .is-selected {
+  background: var(--forest-light);
+  border-color: var(--forest);
+  color: var(--forest-dark);
+}
+.booking-lookup-form {
+  display: grid;
+  gap: var(--space-xs);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.booking-lookup-form label {
+  display: grid;
+  gap: var(--space-3xs);
+}
+.booking-lookup-form .button {
+  align-self: end;
+}
+.booking-lookup-results {
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+.booking-lookup-card {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-sm);
+}
+.booking-lookup-card-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  justify-content: space-between;
+}
+.booking-lookup-card .button,
+.booking-lookup-card .booking-phone-fallback {
+  justify-self: start;
+  margin-top: var(--space-2xs);
+}
+.booking-phone-fallback {
+  color: var(--forest-dark);
+  font-weight: var(--weight-bold);
 }
 .patient-upcoming-section {
   margin-top: var(--space-2xl);
@@ -2096,6 +2241,9 @@ label:has(> input[type='radio']) {
   .patient-header-inner .theme-picker-label {
     margin-left: auto;
   }
+  .patient-management-open {
+    order: 2;
+  }
   /* 品牌下方的英文副標**不收起來**。它跟中文字標一起構成品牌識別，患者頁是對外
      的那一面，少掉英文名等於小螢幕上的品牌只剩一半；而且它疊在標誌的 40px 高度
      之內，並不會讓頁首長高。先前用 display:none 換來的是寬度（好讓環境徽章併上
@@ -2182,7 +2330,10 @@ label:has(> input[type='radio']) {
   }
   .service-choice-grid,
   .booking-confirmation-grid,
-  .patient-help-grid {
+  .patient-help-grid,
+  .patient-form-grid,
+  .booking-step-one-grid,
+  .booking-lookup-form {
     grid-template-columns: 1fr;
   }
   #patient-booking-app:not([hidden]) {

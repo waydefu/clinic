@@ -308,8 +308,11 @@ test.describe('隱私權政策頁', () => {
 
     test('從 Step 3 讀完返回時保留選擇、表單、步驟與焦點', async ({ page }) => {
       await reachDetailsStep(page);
-      const summary = page.locator('#patient-booking-summary');
-      const summaryBefore = await summary.textContent();
+      const selectedSlot = page.locator(
+        '[data-patient-slot][aria-pressed="true"]'
+      );
+      const selectedSlotId =
+        await selectedSlot.getAttribute('data-patient-slot');
 
       await page.locator('#patient-name').fill('政策返回測試');
       await page.locator('#patient-phone').fill('0911222333');
@@ -333,7 +336,9 @@ test.describe('隱私權政策頁', () => {
         'aria-current',
         'step'
       );
-      await expect(summary).toHaveText(summaryBefore ?? '');
+      await expect(
+        page.locator(`[data-patient-slot="${selectedSlotId}"]`)
+      ).toHaveAttribute('aria-pressed', 'true');
       await expect(page.locator('#patient-name')).toHaveValue('政策返回測試');
       await expect(page.locator('#patient-phone')).toHaveValue('0911222333');
       await expect(page.locator('#patient-birth-year')).toHaveValue('1988');

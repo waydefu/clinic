@@ -371,7 +371,7 @@ test.describe('患者端維護隔離', () => {
 });
 
 test.describe('患者端行動版', () => {
-  test('四步驟只標一個目前步驟，裝飾數字不重複報讀', async ({ page }) => {
+  test('三步驟只標一個目前步驟，裝飾數字不重複報讀', async ({ page }) => {
     await resetBrowserState(page);
     await page.goto('/booking');
     await expect(page.locator('[data-booking-type="initial"]')).toBeVisible();
@@ -379,7 +379,7 @@ test.describe('患者端行動版', () => {
     await expect(
       page.locator('[data-step-indicator][aria-current="step"]')
     ).toHaveCount(1);
-    await expect(page.locator('[data-step-indicator] > span')).toHaveCount(4);
+    await expect(page.locator('[data-step-indicator] > span')).toHaveCount(3);
     for (const number of await page
       .locator('[data-step-indicator] > span')
       .all())
