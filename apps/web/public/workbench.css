@@ -2060,8 +2060,9 @@ details[open] > summary .workflow-summary-chevron {
   width: 0.9rem;
 }
 
-/* Owner 2026-08-22：桌機週曆只保留日期欄。營業時間放在欄首，內文只放真實預約；
-   空白日與休診日不再用 session 列、色帶或假卡片填滿。 */
+/* C4 owner correction：桌機週曆只保留實際開放的日期欄。正常休診日與明示 closed
+   exception 不佔欄；extra_open 以「加開」標籤進表。營業時間放欄首，內文只放
+   actual appointments，不再畫 session 列、色帶或假卡片。 */
 .week-view {
   max-height: none;
   overflow-y: hidden;
@@ -2070,7 +2071,7 @@ details[open] > summary .workflow-summary-chevron {
 .wv-date-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 52rem;
+  min-width: 42rem;
   table-layout: fixed;
   width: 100%;
 }
@@ -2104,6 +2105,17 @@ details[open] > summary .workflow-summary-chevron {
   display: block;
   letter-spacing: var(--tracking-wide);
 }
+.wv-date-head span em {
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius-pill);
+  color: var(--forest-dark);
+  display: inline-block;
+  font-size: var(--text-micro);
+  font-style: normal;
+  letter-spacing: normal;
+  margin-inline-start: var(--space-3xs);
+  padding: 0 var(--space-3xs);
+}
 .wv-date-head b {
   display: inline-block;
   margin-top: var(--space-4xs);
@@ -2115,9 +2127,8 @@ details[open] > summary .workflow-summary-chevron {
   font-weight: var(--weight-regular);
   margin-top: var(--space-3xs);
 }
-.wv-date-head.wv-closed small {
-  color: var(--danger);
-  font-weight: var(--weight-bold);
+.wv-date-head.wv-extra-open {
+  background: var(--forest-light);
 }
 .wv-date-head.wv-today b {
   background: var(--forest);
@@ -2138,6 +2149,14 @@ details[open] > summary .workflow-summary-chevron {
 }
 .wv-date-cell .wv-event + .wv-event {
   margin-top: var(--space-2xs);
+}
+.wv-agenda-day.wv-extra-open .wv-agenda-date {
+  background: var(--forest-light);
+}
+.wv-agenda-date small {
+  color: var(--ink-muted);
+  font-size: var(--text-micro);
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 48rem) {

@@ -3,7 +3,7 @@ import {
   BOOKING_KIND_LABELS,
   SLOT_DURATION_MINUTES
 } from './constants.js';
-import { taipeiDate, taipeiIso, taipeiMinutes } from './taipei-time.js';
+import { taipeiDate, taipeiMinutes } from './taipei-time.js';
 import { escapeHtml } from './ui-format.js';
 
 /**
@@ -29,31 +29,6 @@ const WEEK_DAY_LABELS = [
 ];
 // 日曆只顯示尚未發生的預約；到診／取消／未到都已成事實，事件已從日曆刪除。
 const SHOWN_STATUSES = ['confirmed', 'cancellation_requested'];
-
-function followUpReminderEvents(state) {
-  return state.followUps.flatMap((decision) => {
-    if (
-      decision.status !== 'required' ||
-      decision.scheduledAppointmentId !== undefined ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(decision.dueDate ?? '') ||
-      !/^\d{2}:\d{2}$/.test(decision.dueTime ?? '')
-    )
-      return [];
-    const source = state.appointments.find(
-      (appointment) => appointment.id === decision.appointmentId
-    );
-    if (source === undefined) return [];
-    return [
-      {
-        ...source,
-        startsAt: taipeiIso(decision.dueDate, decision.dueTime),
-        bookingKind: 'follow_up',
-        itemLabel: '回診提醒',
-        status: 'follow_up_required'
-      }
-    ];
-  });
-}
 
 /**
  * 把同一天的預約排成「需要時才分欄」的視覺軌道。
@@ -136,18 +111,6 @@ export function weekStartOf(dateText) {
   return addDays(dateText, -weekdayIndex(dateText));
 }
 
-function isClosed(schedule, dateText) {
-  const exception = schedule.dateExceptions.find(
-    (entry) => entry.date === dateText
-  );
-  if (exception?.kind === 'closed') return true;
-  if (exception?.kind === 'extra_open') return false;
-  const sunday0 = new Date(`${dateText}T12:00:00Z`).getUTCDay();
-  return !schedule.weeklyAvailability.some(
-    (entry) => entry.weekday === sunday0
-  );
-}
-
 /** 某一天的營業時段。`extra_open` 例外自帶 intervals，優先於每週排班。 */
 function openIntervals(schedule, dateText) {
   const exception = schedule.dateExceptions.find(
@@ -221,19 +184,29 @@ function weekModel(state, weekStart) {
   const patientName = (id) =>
     state.patients.find((item) => item.id === id)?.name ?? id;
 
-  const shown = [
-    ...state.appointments.filter((item) =>
-      SHOWN_STATUSES.includes(item.status)
-    ),
-    ...followUpReminderEvents(state)
-  ];
+  const shown = state.appointments.filter((item) =>
+    SHOWN_STATUSES.includes(item.status)
+  );
 
-  // 七天都保留為日期欄，休診只在表頭用文字標示。不要用斜線網底或假事件填滿
-  // 休診／空白日；同時，即使排班後來改變，既有預約仍留在原日期欄。
-  const visibleDays = days.map((date, index) => ({
-    date,
-    label: WEEK_DAY_LABELS[index]
-  }));
+  // C4 owner correction: only days that are actually open belong in the week
+  // table. A closed exception removes a normally-open day; an explicit
+  // extra_open exception adds a normally-closed day and is labelled 加開.
+  const visibleDays = days.flatMap((date, index) => {
+    const exception = state.schedule.dateExceptions.find(
+      (entry) => entry.date === date
+    );
+    if (exception?.kind === 'closed') return [];
+    const intervals = openIntervals(state.schedule, date);
+    if (intervals.length === 0) return [];
+    return [
+      {
+        date,
+        label: WEEK_DAY_LABELS[index],
+        intervals,
+        extraOpen: exception?.kind === 'extra_open'
+      }
+    ];
+  });
 
   return { visibleDays, shown, patientName };
 }
@@ -242,16 +215,15 @@ export function renderWeekView(state, weekStart, todayDate) {
   const { visibleDays, shown, patientName } = weekModel(state, weekStart);
 
   const header = visibleDays
-    .map(({ date, label }) => {
-      const closed = isClosed(state.schedule, date);
+    .map(({ date, label, intervals, extraOpen }) => {
       const today = date === todayDate;
-      const hours = openIntervals(state.schedule, date)
+      const hours = intervals
         .map(
           (interval) =>
             `${escapeHtml(interval.startLocalTime)}–${escapeHtml(interval.endLocalTime)}`
         )
         .join('、');
-      return `<th scope="col" class="wv-date-head${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><span>${label}</span><b>${date.slice(5)}</b><small>${closed ? '休診' : hours}</small></th>`;
+      return `<th scope="col" class="wv-date-head${extraOpen ? ' wv-extra-open' : ''}${today ? ' wv-today' : ''}"><span>${label}${extraOpen ? '<em>加開</em>' : ''}</span><b>${date.slice(5)}</b><small>${hours}</small></th>`;
     })
     .join('');
   const cells = visibleDays
@@ -269,7 +241,7 @@ export function renderWeekView(state, weekStart, todayDate) {
     })
     .join('');
 
-  return `<table class="wv-date-table"><caption>本週預約；日期為欄，營業時間顯示在表頭</caption><thead><tr>${header}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
+  return `<table class="wv-date-table"><caption>本週開放門診日；日期為欄，營業時間與加開狀態顯示在表頭</caption><thead><tr>${header}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
 }
 
 /**
@@ -292,8 +264,7 @@ export function renderAgendaView(state, weekStart, todayDate) {
   if (visibleDays.length === 0)
     return '<p class="wv-empty">這一週沒有門診日。可在排班管理加開日期。</p>';
 
-  const days = visibleDays.map(({ date, label }) => {
-    const closed = isClosed(state.schedule, date);
+  const days = visibleDays.map(({ date, label, intervals, extraOpen }) => {
     const today = date === todayDate;
     const events = shown
       .filter((item) => taipeiDate(item.startsAt) === date)
@@ -301,7 +272,7 @@ export function renderAgendaView(state, weekStart, todayDate) {
 
     const rows =
       events.length === 0
-        ? `<li class="wv-agenda-empty">${closed ? '休診' : '尚無預約'}</li>`
+        ? '<li class="wv-agenda-empty">尚無預約</li>'
         : events
             .map((appointment) => {
               const name = patientName(appointment.patientId);
@@ -321,7 +292,10 @@ export function renderAgendaView(state, weekStart, todayDate) {
             })
             .join('');
 
-    return `<li class="wv-agenda-day${closed ? ' wv-closed' : ''}${today ? ' wv-today' : ''}"><div class="wv-agenda-date"><span>${label}</span><b>${date.slice(8)}</b></div><ul class="wv-agenda-events">${rows}</ul></li>`;
+    const hours = intervals
+      .map((interval) => `${interval.startLocalTime}–${interval.endLocalTime}`)
+      .join('、');
+    return `<li class="wv-agenda-day${extraOpen ? ' wv-extra-open' : ''}${today ? ' wv-today' : ''}"><div class="wv-agenda-date"><span>${label}${extraOpen ? ' · 加開' : ''}</span><b>${date.slice(8)}</b><small>${escapeHtml(hours)}</small></div><ul class="wv-agenda-events">${rows}</ul></li>`;
   });
 
   return `<ol class="wv-agenda">${days.join('')}</ol>`;

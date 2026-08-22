@@ -1147,7 +1147,7 @@ textarea {
   gap: var(--space-sm);
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
-  padding: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
   position: relative;
 }
 /* Hero 右上角那圈細線是純裝飾（核准位置：患者端 Hero 的非功能性標記）。
@@ -1171,7 +1171,17 @@ textarea {
     calc(var(--text-2xl) * 0.5 + 2vw),
     var(--text-3xl)
   );
-  margin-bottom: var(--space-sm);
+  margin: 0;
+}
+.patient-preview-warning {
+  background: var(--surface-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-2xs) var(--space-xs);
 }
 .patient-hero > div > p:last-of-type {
   color: var(--ink-muted);
@@ -1218,7 +1228,7 @@ textarea {
   gap: 0;
   grid-template-columns: repeat(3, 1fr);
   list-style: none;
-  margin: var(--space-xl) 0 var(--space-md);
+  margin: var(--space-md) 0 var(--space-sm);
   padding: 0;
 }
 .booking-stepper li {
@@ -1261,7 +1271,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   box-shadow: var(--elevation-1);
-  min-height: 22rem;
+  min-height: 0;
   padding: clamp(1.25rem, 3vw, 2.2rem);
   scroll-margin-top: var(--scroll-anchor-offset);
 }
@@ -1514,11 +1524,35 @@ textarea {
 }
 .patient-slot-dates {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2xs);
   margin-bottom: var(--space-sm);
-  overflow-x: auto;
+  overflow-x: visible;
   padding-bottom: var(--space-2xs);
   scrollbar-gutter: stable;
+}
+.patient-slot-months {
+  display: flex;
+  gap: var(--space-2xs);
+  margin-bottom: var(--space-xs);
+  overflow-x: auto;
+  padding-bottom: var(--space-2xs);
+}
+.patient-slot-month {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  flex: 0 0 auto;
+  font-size: var(--text-body);
+  min-height: var(--control-height-md);
+  padding: var(--space-2xs) var(--space-sm);
+}
+.patient-slot-month[aria-selected='true'] {
+  background: var(--forest-light);
+  border-color: var(--forest);
+  color: var(--forest-dark);
+  font-weight: var(--weight-bold);
 }
 .patient-slot-date {
   align-items: flex-start;
@@ -1527,7 +1561,7 @@ textarea {
   border-radius: var(--radius-md);
   color: var(--ink);
   display: grid;
-  flex: 0 0 auto;
+  flex: 1 1 8.5rem;
   font-size: var(--text-body);
   min-height: var(--control-height-md);
   min-width: 8.5rem;
@@ -1556,7 +1590,20 @@ textarea {
 .patient-slot-list {
   display: grid;
   gap: var(--space-xs);
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+.slot-period {
+  display: grid;
+  gap: var(--space-2xs);
+}
+.slot-period + .slot-period {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: var(--space-sm);
+}
+.slot-period h4 {
+  color: var(--forest-dark);
+  font-size: var(--text-body);
+  margin: 0;
 }
 .slot-load-more {
   align-self: start;
@@ -1766,6 +1813,29 @@ textarea {
 .booking-phone-fallback {
   color: var(--forest-dark);
   font-weight: var(--weight-bold);
+}
+.booking-cancel-contact {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+  padding: var(--space-sm);
+}
+.booking-cancel-contact > .booking-phone-fallback {
+  justify-self: start;
+  margin-top: 0;
+}
+.booking-social-fallback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+.booking-cancel-contact p {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  margin: 0;
 }
 .patient-upcoming-section {
   margin-top: var(--space-2xl);
@@ -2310,7 +2380,7 @@ label:has(> input[type='radio']) {
     display: none;
     line-height: 1.25;
   }
-  /* 只有目前步驟顯示文字，所以把寬度讓給它：其餘三步只是圓圈，不需要等分版面。
+  /* 只有目前步驟顯示文字，所以把寬度讓給它：其餘兩步只是圓圈，不需要等分版面。
 
      先前這裡是 `overflow-wrap: anywhere`，而中文可以在任何字之間斷行——
      「類型與項目」因此被排成「類型與項／目」，最後一個字自己一行。字數多一個
@@ -2340,6 +2410,23 @@ label:has(> input[type='radio']) {
   .booking-step-one-grid,
   .booking-lookup-form {
     grid-template-columns: 1fr;
+  }
+  .patient-slot-dates {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .patient-slot-date {
+    flex: 0 0 auto;
+  }
+  .patient-slot-list {
+    grid-template-columns: 1fr;
+  }
+  .slot-period + .slot-period {
+    border-inline-start: 0;
+    border-top: 1px solid var(--line);
+    margin-top: var(--space-xs);
+    padding-inline-start: 0;
+    padding-top: var(--space-sm);
   }
   #patient-booking-app:not([hidden]) {
     grid-template-columns: 1fr;
@@ -2444,7 +2531,7 @@ label:has(> input[type='radio']) {
   justify-content: center;
   gap: var(--space-3xs);
   padding: var(--space-xs) var(--space-2xs);
-  border: 1px solid currentColor;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: none;
   font: inherit;

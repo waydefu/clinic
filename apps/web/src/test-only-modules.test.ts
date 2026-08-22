@@ -26,6 +26,7 @@ import {
   calendarEventIdForFollowUp
 } from '../public/vendor/domain/index.js';
 import {
+  assertWithinSyntheticBookingWindow,
   followUpDueTimes,
   generateSlots,
   isUpcomingSlot,
@@ -146,14 +147,14 @@ describe('週曆事件排版', () => {
     );
   });
 
-  it('桌機以七個日期欄呈現，營業時間只在表頭且空 cell 不製造事件占位', () => {
+  it('桌機只呈現正常開放日期，營業時間只在表頭且空 cell 不製造事件占位', () => {
     const html = renderWeekView(initialState(), '2029-12-31', '2029-12-31');
 
     expect(html).toContain('class="wv-date-table"');
-    expect(html.match(/class="wv-date-head/g)).toHaveLength(7);
+    expect(html.match(/class="wv-date-head/g)).toHaveLength(4);
     expect(html).toContain('10:00–18:00');
     expect(html).toContain('12:00–20:00');
-    expect(html).toContain('休診');
+    expect(html).not.toContain('休診');
     expect(html).not.toContain('data-week-session');
     expect(html).not.toContain('data-week-event');
     expect(html).not.toContain('尚無預約');
@@ -161,7 +162,7 @@ describe('週曆事件排版', () => {
     expect(html).not.toContain('wv-axis');
   });
 
-  it('排班外仍存在的預約保留在原日期欄，不因排班改版消失', () => {
+  it('normally closed 日期不因既有預約而重新出現在開放日週曆', () => {
     const state: any = initialState();
     state.patients.push({ id: 'patient_outside', name: '排班外患者' });
     state.appointments.push({
@@ -175,7 +176,25 @@ describe('週曆事件排版', () => {
     });
 
     const html = renderWeekView(state, '2029-12-31', '2029-12-31');
-    expect(html).toContain('data-week-event="appointment_outside"');
+    expect(html).not.toContain('data-week-event="appointment_outside"');
+  });
+
+  it('明示 extra_open 例外加入欄位並標示加開，closed 例外移除正常開放日', () => {
+    const state: any = initialState();
+    state.schedule.dateExceptions = [
+      {
+        date: '2030-01-01',
+        kind: 'extra_open',
+        intervals: [{ startLocalTime: '09:00', endLocalTime: '12:00' }]
+      },
+      { date: '2030-01-02', kind: 'closed', intervals: [] }
+    ];
+
+    const html = renderWeekView(state, '2029-12-31', '2029-12-31');
+    expect(html.match(/class="wv-date-head/g)).toHaveLength(4);
+    expect(html).toContain('加開');
+    expect(html).toContain('09:00–12:00');
+    expect(html).not.toContain('01-02');
   });
 });
 
@@ -729,10 +748,8 @@ describe('櫃台處置', () => {
     // 目標時間換算成 Asia/Taipei 12:15 = 04:15Z。
     expect(followUpJobs[0].startsAt).toBe('2030-02-01T04:15:00.000Z');
     const calendar = renderWeekView(state, '2030-01-28', '2030-01-28');
-    expect(calendar).toContain(`data-week-event="${appointment.id}"`);
-    expect(calendar).toContain('wv-follow-up');
-    expect(calendar).toContain('回診提醒');
-    expect(calendar).toContain('待安排回診');
+    expect(calendar).not.toContain(`data-week-event="${appointment.id}"`);
+    expect(calendar).not.toContain('回診提醒');
 
     // 已完成到診＋需要回診 → 櫃台處理清單顯示「待安排回診」的回診版卡片。
     const queued = renderAppointments(state, {
@@ -1369,7 +1386,7 @@ describe('個管月度工作量', () => {
   });
 });
 
-// P5（業主 2026-07-27）：可預約時段改為「當日起一個月內」。
+// C4（業主 2026-08-22）：可預約時段改為「台北當日起 60 個日曆日」。
 //
 // 上面每一組測試都跑在凍住的 2030-01-01 上，所以它們證明的是「視窗的內容正確」，
 // 不是「視窗跟著今天走」。這一組換兩個完全不同的時鐘各驗一次——那才是這次改動
@@ -1390,7 +1407,7 @@ describe('可預約視窗跟著今天走', () => {
   });
 
   for (const today of ['2031-03-05', '2032-11-20']) {
-    it(`${today} 產生的時段落在當天起 30 天內`, () => {
+    it(`${today} 產生的時段落在當天起 60 天內`, () => {
       vi.setSystemTime(new Date(`${today}T09:00:00+08:00`));
       const state = initialState();
       const days = state.slots.map((slot) => dayNumber(slot.id));
@@ -1398,20 +1415,34 @@ describe('可預約視窗跟著今天走', () => {
       expect(days.length).toBeGreaterThan(0);
       // 一格都不在今天之前——那是「已經過去的時段」，患者不該看到。
       expect(Math.min(...days)).toBeGreaterThanOrEqual(asNumber(today));
-      // 也不超過視窗長度。29 是「今天算第一天」的第 30 天。
+      // 也不超過視窗長度。59 是「今天算第一天」的第 60 天。
       expect(Math.max(...days)).toBeLessThanOrEqual(
-        asNumber(plusDays(today, 29))
+        asNumber(plusDays(today, 59))
       );
     });
   }
 
-  it('視窗長度是 30 天，不是先前的 21 天', () => {
+  it('視窗長度是 60 天，不是先前的 30 天', () => {
     vi.setSystemTime(new Date('2031-03-05T09:00:00+08:00'));
     const days = new Set(
       initialState().slots.map((slot) => slot.id.slice(5, 13))
     );
-    // 每週開週三至週六四天，30 天大約 17 個門診日；21 天只會有 12 個左右。
-    expect(days.size).toBeGreaterThan(14);
+    // 每週開週三至週六四天，60 天大約 34 個門診日；30 天只有約 17 個。
+    expect(days.size).toBeGreaterThan(30);
+  });
+
+  it('command boundary 接受第 60 天並拒絕第 61 天', () => {
+    vi.setSystemTime(new Date('2031-03-05T09:00:00+08:00'));
+    expect(() =>
+      assertWithinSyntheticBookingWindow({
+        startsAt: '2031-05-03T04:00:00.000Z'
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertWithinSyntheticBookingWindow({
+        startsAt: '2031-05-04T04:00:00.000Z'
+      })
+    ).toThrowError(/60 天預約範圍/);
   });
 });
 
