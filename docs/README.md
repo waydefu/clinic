@@ -123,6 +123,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Taiwan privacy legal baseline](security/taiwan-privacy-legal-baseline.md) — statutory baseline for Phase 1 design
 - [Data classification and field inventory (2026-07-29)](security/data-classification-and-field-inventory-2026-07-29.md) — plan-only inventory of fields already present in the synthetic browser and local Emulator, conservative handling tiers and the blank approval worksheet; no production field or real-data flow is approved
 - [Privacy policy checklist](security/privacy-policy-checklist.md) — what a publishable policy must contain
+- [技術／資安決定事項回填草稿 (2026-08-23)](security/technical-security-decision-draft-2026-08-23.md) — draft answers for the previously blank 21-item technical/security list: nine回填 from repository evidence, eight recommendations bounded by approved D-006/D-010, and four explicitly left blank (test-environment pricing date, the non-existent regional-failure plan, the C0 approval switch and every approval signature). It approves nothing and does not move C0 out of `revise`
 - [Privacy policy draft](legal/privacy-policy-draft.md) — draft text, not published and not a recorded consent
 
 ## 7. Review record
