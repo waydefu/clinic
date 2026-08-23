@@ -224,8 +224,8 @@ const requiredPaths = [
   // 現行視覺基線。舊日期的目錄與文件保留作歷史證據，但釘住的是現行那一份；
   // 日期見下方 visualBaselineDirectory 的註解。
   'docs/reviews/2026-08-10-clinic-homepage-restructure.md',
-  'docs/reviews/ui-visual-baseline-2026-08-22.md',
-  'docs/reviews/assets/ui-visual-baseline-2026-08-22/manifest.json',
+  'docs/reviews/ui-visual-c6-2026-08-23.md',
+  'docs/reviews/assets/ui-visual-c6-2026-08-23/manifest.json',
   // 個資法第 8 條的告知頁：與 404 一樣自成一頁，無指令碼。
   'apps/web/public/privacy.html',
   'apps/web/public/privacy.css',
@@ -280,8 +280,7 @@ if (missing.length > 0) {
 // 下面的 captureDate 斷言都由它派生。先前日期各自寫死在三處，2026-08-06 重拍時
 // 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
 // 竄改，實際上是檢查器自己還停在舊日期。
-const visualBaselineDirectory =
-  'docs/reviews/assets/ui-visual-baseline-2026-08-22';
+const visualBaselineDirectory = 'docs/reviews/assets/ui-visual-c6-2026-08-23';
 const visualBaselineDate = visualBaselineDirectory.slice(-'YYYY-MM-DD'.length);
 const visualBaselineErrors = [];
 try {
@@ -339,9 +338,9 @@ try {
     visualBaselineErrors.push(
       'visual manifest must retain its deterministic single-worker capture environment'
     );
-  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 13) {
+  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 17) {
     visualBaselineErrors.push(
-      'visual manifest must declare exactly the thirteen reviewed current UI captures'
+      'visual manifest must declare exactly the seventeen reviewed C6 UI captures'
     );
   } else {
     const requiredScenarios = [
@@ -349,7 +348,16 @@ try {
         file: 'workbench--weekly-calendar-empty--desktop-1280x900--warm.png',
         route: '/#appointments-section',
         role: 'admin',
-        state: 'seven-date-columns-no-events',
+        state: 'four-open-date-columns-no-events',
+        captureKind: 'reference-full-page',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'workbench--weekly-calendar-opened-exception--desktop-1280x900--warm.png',
+        route: '/#appointments-section',
+        role: 'admin',
+        state: 'normally-closed-Monday-opened-and-Thursday-closed',
         captureKind: 'reference-full-page',
         width: 1280,
         height: 900
@@ -394,10 +402,28 @@ try {
         file: 'booking--step-2--desktop-1280x900--warm.png',
         route: '/booking',
         role: 'public',
-        state: 'step-2-single-active-date-full-width',
+        state: 'step-2-month-navigation-available-dates',
         captureKind: 'reference-full-page',
         width: 1280,
         height: 900
+      },
+      {
+        file: 'booking--step-2-time-groups--desktop-1280x900--warm.png',
+        route: '/booking',
+        role: 'public',
+        state: 'step-2-morning-midday-evening-columns',
+        captureKind: 'reference-full-page',
+        width: 1280,
+        height: 900
+      },
+      {
+        file: 'booking--step-2--phone-375x812--warm.png',
+        route: '/booking',
+        role: 'public',
+        state: 'step-2-contained-month-and-date-navigation',
+        captureKind: 'reference-full-page',
+        width: 375,
+        height: 812
       },
       {
         file: 'booking--step-3--desktop-1280x900--warm.png',
@@ -445,10 +471,10 @@ try {
         height: 900
       },
       {
-        file: 'booking--cancellation-phone-fallback--phone-375x812--warm.png',
+        file: 'booking--cancellation-phone-social-fallback--phone-375x812--warm.png',
         route: '/booking',
         role: 'public',
-        state: '19-minutes-no-self-cancel-click-to-call',
+        state: '19-minutes-phone-primary-and-four-social-links',
         captureKind: 'reference-viewport',
         width: 375,
         height: 812
@@ -461,6 +487,15 @@ try {
         captureKind: 'reference-viewport',
         width: 1280,
         height: 900
+      },
+      {
+        file: 'booking--success-header-restored--phone-375x812--warm.png',
+        route: '/booking',
+        role: 'public',
+        state: 'mobile-success-header-lookup-and-theme-restored',
+        captureKind: 'reference-viewport',
+        width: 375,
+        height: 812
       }
     ];
     for (const scenario of requiredScenarios) {
@@ -562,7 +597,9 @@ if (visualBaselineErrors.length > 0) {
   for (const error of visualBaselineErrors) console.error(`- ${error}`);
   process.exitCode = 1;
 } else {
-  console.log('UI visual baseline evidence check passed (13 reference PNGs).');
+  console.log(
+    'UI visual baseline evidence check passed (17 C6 reference PNGs).'
+  );
 }
 
 // 在全新 clone 上，型別感知的 ESLint 需要先有 workspace 的 dist/*.d.ts；順序寫反

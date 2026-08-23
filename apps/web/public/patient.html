@@ -182,12 +182,23 @@
       </section>
 
       <div id="patient-booking-app" hidden>
-        <section class="patient-hero" aria-labelledby="patient-title">
+        <section
+          id="patient-hero"
+          class="patient-hero"
+          aria-labelledby="patient-title"
+        >
           <div>
             <p class="eyebrow eyebrow-brand">BEAU ESSENCE · ONLINE BOOKING</p>
             <h1 id="patient-title">線上門診預約</h1>
           </div>
         </section>
+
+        <p
+          id="patient-preview-warning"
+          class="patient-preview-warning patient-data-boundary"
+        >
+          合成測試預覽｜勿填真實患者或健康資料；測試資料只存本機瀏覽器。
+        </p>
 
         <p
           id="patient-status"
@@ -230,9 +241,6 @@
               <a href="tel:+886225771314">02-2577-1314</a>
               <p id="patient-hours-summary">
                 門診時間：週三至週五 12:00–20:00；週六 10:00–18:00
-              </p>
-              <p class="patient-data-boundary">
-                勿填真實患者或健康資料；測試資料只存本機瀏覽器。
               </p>
             </aside>
             <div class="booking-choice-flow">
@@ -290,18 +298,28 @@
           hidden
           aria-labelledby="slot-choice-heading"
         >
-          <div class="booking-panel-heading">
+          <div class="booking-panel-heading booking-panel-heading-inline">
             <div class="booking-back-row">
               <button class="booking-back" type="button" data-booking-back="1">
                 <span class="back-arrow" aria-hidden="true">←</span
                 >返回類型與項目
               </button>
             </div>
-            <p class="eyebrow">STEP 02</p>
-            <h2 id="slot-choice-heading">選擇日期與時段</h2>
-            <p id="slot-choice-description">所有時間均以 Asia/Taipei 顯示。</p>
-            <p id="booking-context" class="booking-context"></p>
+            <div class="booking-panel-title">
+              <p class="eyebrow">STEP 02</p>
+              <h2 id="slot-choice-heading">選擇日期與時段</h2>
+              <p id="slot-choice-description">
+                所有時間均以 Asia/Taipei 顯示。
+              </p>
+              <p id="booking-context" class="booking-context"></p>
+            </div>
           </div>
+          <div
+            id="patient-slot-months"
+            class="patient-slot-months"
+            role="tablist"
+            aria-label="可預約月份"
+          ></div>
           <div
             id="patient-slot-dates"
             class="patient-slot-dates"
@@ -324,21 +342,22 @@
           hidden
           aria-labelledby="confirmation-heading"
         >
-          <div class="booking-panel-heading">
+          <div class="booking-panel-heading booking-panel-heading-inline">
             <div class="booking-back-row">
               <button class="booking-back" type="button" data-booking-back="2">
-                <span class="back-arrow" aria-hidden="true">←</span>返回選擇時段
+                <span class="back-arrow" aria-hidden="true">←</span>上一步
               </button>
-              <button class="booking-back" type="button" data-booking-back="1">
-                <span class="back-arrow" aria-hidden="true">←</span
-                >重新選擇類型與項目
+              <button
+                id="booking-restart"
+                class="button button-secondary booking-restart"
+                type="button"
+              >
+                重新開始
               </button>
             </div>
-            <p class="eyebrow">STEP 03</p>
-            <h2 id="confirmation-heading">填寫基本資料</h2>
-            <p>
-              為了確認身分與避免重複掛號，需要以下資料。同一位患者同時只能有一筆未完成的預約。
-            </p>
+            <div class="booking-panel-title">
+              <h2 id="confirmation-heading">填寫基本資料</h2>
+            </div>
           </div>
           <!-- novalidate：驗證由 patient-app.js 一次攤開全部錯誤並聚焦第一欄，
                不用瀏覽器一次只報一欄的原生氣泡。包 form 讓欄位內按 Enter 可送出。 -->
@@ -353,7 +372,7 @@
                   class="patient-form-section"
                   aria-labelledby="patient-identity-heading"
                 >
-                  <h3 id="patient-identity-heading">本人身分資料</h3>
+                  <h3 id="patient-identity-heading">本人基本資料</h3>
                   <div class="patient-form-section-fields">
                     <label
                       ><span class="field-label"
@@ -589,10 +608,15 @@
                         aria-describedby="patient-note-hint"
                       ></textarea>
                       <span id="patient-note-hint" class="field-hint"
-                        >最多 120 字。急事或需要即時回覆，請來電
-                        <a href="tel:+886225771314">02-2577-1314</a>。</span
+                        >最多 120 字。</span
                       >
                     </label>
+
+                    <section
+                      id="patient-contact-options"
+                      class="booking-cancel-contact patient-contact-options"
+                      aria-label="診所聯絡方式"
+                    ></section>
 
                     <label class="consent-preview"
                       ><input
@@ -698,7 +722,7 @@
               type="button"
               id="book-another"
             >
-              完成，返回預約</button
+              重新預約</button
             ><button
               class="button button-tertiary"
               type="button"

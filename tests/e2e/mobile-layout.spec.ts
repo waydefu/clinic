@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes.js';
+import { fillBirthDate, submitBooking } from './support/patient.js';
 import { createBooking, login, openDisclosure } from './support/workbench.js';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = ['/', '/booking', '/clinic'] as const;
@@ -365,6 +366,34 @@ test.describe('患者預約頁手機版', () => {
     expect(box?.height ?? 0).toBeLessThan(32);
   });
 
+  // 成功結果頁把頁首收起來過一次：showBookingResult 沿用了 showStep(3) 留下的
+  // data-booking-flow-step='3'，於是手機版「只留當下操作」的規則連結果頁一起命中，
+  // 「查詢／取消預約」在 375px 消失，患者剛訂完就找不到取消入口。步驟二、三的
+  // 斷言都停在步驟三，看不到這個狀態，所以補在這裡。
+  test('成功結果頁在 375px 要把頁首與查詢入口交還給患者', async ({ page }) => {
+    await page.goto(BOOKING_ROUTE);
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await expect(page.locator('#confirmation-heading')).toBeVisible();
+
+    await page.locator('#patient-name').fill('合成測試患者');
+    await page.locator('#patient-phone').fill('0912345678');
+    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
+    await page.locator('#patient-national-id').fill('A123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-booking-flow-step',
+      'result'
+    );
+    await expect(page.locator('.patient-header')).toBeVisible();
+    await expect(page.locator('#booking-management-open')).toBeVisible();
+    expect(await pageOverflow(page), 'result').toBeLessThanOrEqual(1);
+  });
+
   test('三個步驟在 375px 都不產生水平捲軸', async ({ page }) => {
     await page.goto(BOOKING_ROUTE);
     expect(await pageOverflow(page), 'step 1').toBeLessThanOrEqual(1);
@@ -372,10 +401,73 @@ test.describe('患者預約頁手機版', () => {
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('[data-service]').first().click();
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-booking-flow-step',
+      '2'
+    );
+    await expect(page.locator('.patient-header')).toBeHidden();
+    await expect(page.locator('.patient-announcement')).toBeHidden();
+    await expect(page.locator('.booking-stepper')).toBeHidden();
     expect(await pageOverflow(page), 'step 2').toBeLessThanOrEqual(1);
 
     await page.locator('[data-patient-slot]').first().click();
     await expect(page.locator('#patient-name')).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-booking-flow-step',
+      '3'
+    );
+    await expect(page.locator('.patient-header')).toBeHidden();
+    await expect(page.locator('.patient-announcement')).toBeHidden();
+    await expect(page.locator('.booking-stepper')).toBeHidden();
+    await expect(page.locator('.patient-contact-link')).toHaveCount(5);
+    await expect(
+      page.locator('.patient-contact-link', { hasText: '02-2577-1314' })
+    ).toHaveAttribute('href', 'tel:+886225771314');
+    const socialLinks = page.locator(
+      '.patient-contact-socials .patient-contact-link'
+    );
+    expect(
+      await socialLinks.evaluateAll((links) =>
+        links.map((link) => link.getAttribute('aria-label'))
+      )
+    ).toEqual(['LINE', 'Instagram', 'Messenger', 'Facebook']);
+    const socialBoxes = await socialLinks.evaluateAll((links) =>
+      links.map((link) => {
+        const box = link.getBoundingClientRect();
+        return { height: box.height, width: box.width, x: box.x, y: box.y };
+      })
+    );
+    expect(socialBoxes).toHaveLength(4);
+    if (
+      await page.evaluate(
+        () => matchMedia('(hover: hover) and (pointer: fine)').matches
+      )
+    ) {
+      await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+        'data-contact-layout',
+        'compact'
+      );
+      for (const box of socialBoxes)
+        expect(Math.abs(box.width - box.height)).toBeLessThan(2);
+    } else {
+      await expect(page.locator('.patient-contact-socials')).toHaveAttribute(
+        'data-contact-layout',
+        'labeled'
+      );
+      await expect(socialLinks).toHaveText([
+        'LINE',
+        'Instagram',
+        'Messenger',
+        'Facebook'
+      ]);
+      expect(Math.abs(socialBoxes[0].y - socialBoxes[1].y)).toBeLessThan(2);
+      expect(Math.abs(socialBoxes[2].y - socialBoxes[3].y)).toBeLessThan(2);
+      expect(
+        Math.abs(socialBoxes[0].width - socialBoxes[1].width)
+      ).toBeLessThan(2);
+      for (const box of socialBoxes)
+        expect(box.height).toBeGreaterThanOrEqual(44);
+    }
     expect(await pageOverflow(page), 'step 3').toBeLessThanOrEqual(1);
   });
 

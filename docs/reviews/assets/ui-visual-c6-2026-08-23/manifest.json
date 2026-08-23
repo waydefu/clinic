@@ -1,0 +1,321 @@
+{
+  "schemaVersion": 1,
+  "captureDate": "2026-08-23",
+  "fixedTime": "2026-07-29T01:00:00.000Z",
+  "sourceRevision": "commit-containing-this-manifest",
+  "referenceOnly": true,
+  "crossOsPixelGate": false,
+  "captureNormalization": [
+    "Non-focused skip links are hidden to avoid Chromium full-page stitching artifacts.",
+    "Sticky headers, navigation and status regions are rendered in document flow; their runtime behavior remains covered by E2E tests."
+  ],
+  "environment": {
+    "os": {
+      "platform": "win32",
+      "release": "10.0.19045",
+      "architecture": "x64"
+    },
+    "browser": {
+      "name": "chromium",
+      "version": "149.0.7827.55"
+    },
+    "playwright": "1.61.1",
+    "locale": "zh-TW",
+    "timezone": "Asia/Taipei",
+    "theme": "warm",
+    "reducedMotion": "reduce",
+    "workers": 1,
+    "serverPort": 3211
+  },
+  "captures": [
+    {
+      "file": "workbench--weekly-calendar-empty--desktop-1280x900--warm.png",
+      "route": "/#appointments-section",
+      "role": "admin",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "four-open-date-columns-no-events",
+      "captureKind": "reference-full-page",
+      "sha256": "ac0ffa535a10ea8be88830e376c2130a7f1a79d955ca50c8797887bc5e449fad",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--weekly-calendar-opened-exception--desktop-1280x900--warm.png",
+      "route": "/#appointments-section",
+      "role": "admin",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "normally-closed-Monday-opened-and-Thursday-closed",
+      "captureKind": "reference-full-page",
+      "sha256": "b247a9d46c7c5a906fc9a385056e1e3d9c1f28806ec1883f9bc16572f97889b2",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--weekly-calendar-events--desktop-1280x900--warm.png",
+      "route": "/#appointments-section",
+      "role": "admin",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "three-actual-synthetic-events",
+      "captureKind": "reference-full-page",
+      "sha256": "8fd6a458ba6d37df41f12954df659595483b9ce89f1a522783c622d6097016a1",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--follow-up-case--desktop-1280x900--warm.png",
+      "route": "/#appointments-section",
+      "role": "admin",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "completed-visit-follow-up-with-case-manager-field",
+      "captureKind": "reference-full-page",
+      "sha256": "5c605309a2ead4002075bde86808dac5915253e14ef29fe53348bea695d52277",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "workbench--follow-up-case--phone-375x812--warm.png",
+      "route": "/#appointments-section",
+      "role": "admin",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "completed-visit-follow-up-with-case-manager-field",
+      "captureKind": "reference-full-page",
+      "sha256": "4ee45e04e62fe4e6b4f220b688a6aa222ef8e4768cff5b4979b1cab99bb1114d",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-1-true-top--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-1-true-page-top-booking-only-header",
+      "captureKind": "reference-viewport",
+      "sha256": "9b00af6526385b6027bb3f05858994c7f95de1f0a1dac9421d253b558fd83825",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-2--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-2-month-navigation-available-dates",
+      "captureKind": "reference-full-page",
+      "sha256": "0fa98aa0b5ac686081a252576831e2d85fa2c15fa9f150854a94db18f7c37aea",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-2-time-groups--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-2-morning-midday-evening-columns",
+      "captureKind": "reference-full-page",
+      "sha256": "d22b430d9739836fee0bddd9cc49e1875a9ad33c97c509a5c2d774f640eeb956",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-2--phone-375x812--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-2-contained-month-and-date-navigation",
+      "captureKind": "reference-full-page",
+      "sha256": "49c440446ab4e885e6c4631d41eda9f0d02af509eceb31a115675a8689b8316c",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-3--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-3-filled-two-semantic-columns",
+      "captureKind": "reference-full-page",
+      "sha256": "3981276c14c173d162c14d2a4c871c1bac628a16345b0291396a6e04936da80b",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--step-3--phone-375x812--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-3-filled-sections-stacked",
+      "captureKind": "reference-full-page",
+      "sha256": "1b15379b0285f858f3f487ea0923ad550fdae032738d4ee0069fd9ef8d7c4162",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--privacy-dialog-step-3--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "step-3-filled-policy-dialog-open",
+      "captureKind": "reference-viewport",
+      "sha256": "e1379f31102d7072d5766d49c6a2b7b8660fa27a205e0e894f49c7753f995f2b",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--cancellation-lookup--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "dual-field-phone-birth-lookup-result",
+      "captureKind": "reference-viewport",
+      "sha256": "900759c16a08b2c3e0ee38d7df43415c289408fe43d4f7c198589bb7a9de1c2b",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--eligible-cancellation-confirmation--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "more-than-20-minutes-confirmation-open",
+      "captureKind": "reference-viewport",
+      "sha256": "691e82956fb03be8bb3b9defa9ce9ff7f8e003445ece6af37106c6d4a6ebc6b4",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--cancellation-phone-social-fallback--phone-375x812--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "19-minutes-phone-primary-and-four-social-links",
+      "captureKind": "reference-viewport",
+      "sha256": "b7c30a39b704564e85db42ef5bef3d01fe186a239de7271a589bcdef99c8ec5d",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--success-result--desktop-1280x900--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "state": "three-step-booking-success-result",
+      "captureKind": "reference-viewport",
+      "sha256": "24b12590e7e00c38bf909ee5764f36859004e43df468a81d3b091e6b6e5077f8",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "file": "booking--success-header-restored--phone-375x812--warm.png",
+      "route": "/booking",
+      "role": "public",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "deviceScaleFactor": 1,
+      "state": "mobile-success-header-lookup-and-theme-restored",
+      "captureKind": "reference-viewport",
+      "sha256": "a155a223b420e23bc7d55f929fafc79fc113e6eaae2aab732636297f6e8f344f",
+      "consoleCounts": {
+        "errors": 0,
+        "warnings": 0
+      }
+    }
+  ]
+}

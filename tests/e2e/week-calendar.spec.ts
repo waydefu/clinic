@@ -26,15 +26,15 @@ test.describe('桌機日期欄週曆', () => {
     await openCalendarPanel(page);
   });
 
-  test('七個日期欄的表頭顯示營業時間與休診，不渲染營業時段列', async ({
+  test('只顯示四個實際開診日與營業時間，不渲染休診欄或營業時段列', async ({
     page
   }) => {
     const calendar = page.locator('.wv-date-table');
     await expect(calendar).toBeVisible();
-    await expect(calendar.locator('thead th')).toHaveCount(7);
+    await expect(calendar.locator('thead th')).toHaveCount(4);
     await expect(calendar.locator('thead')).toContainText('10:00–18:00');
     await expect(calendar.locator('thead')).toContainText('12:00–20:00');
-    await expect(calendar.locator('thead')).toContainText('休診');
+    await expect(calendar.locator('thead')).not.toContainText('休診');
     await expect(
       page.locator('[data-week-session], .wv-session-label, .wv-axis, .wv-hour')
     ).toHaveCount(0);
@@ -49,7 +49,7 @@ test.describe('桌機日期欄週曆', () => {
       .evaluateAll((cells) =>
         cells.map((cell) => getComputedStyle(cell).backgroundImage)
       );
-    expect(backgrounds).toEqual(Array(7).fill('none'));
+    expect(backgrounds).toEqual(Array(4).fill('none'));
   });
 
   test('預設空週保持緊湊且不產生巢狀垂直捲動', async ({ page }) => {

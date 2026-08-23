@@ -86,6 +86,21 @@ export function isUpcomingSlot(slot, now = Date.now()) {
   return Date.parse(slot.startsAt) > now;
 }
 
+/**
+ * C4 synthetic command boundary: the selectable horizon is 60 Taipei calendar
+ * dates, so a caller cannot bypass the UI by posting a stale or injected slot.
+ * The end is exclusive: today is day 1 and start + 60 days is outside range.
+ */
+export function assertWithinSyntheticBookingWindow(slot) {
+  const startsAt = Date.parse(slot?.startsAt);
+  if (!Number.isFinite(startsAt)) throw new Error('預約時段格式無效。');
+  const startDate = syntheticWindowStart();
+  const windowStart = Date.parse(`${startDate}T00:00:00+08:00`);
+  const windowEnd = windowStart + SYNTHETIC_WINDOW_DAYS * 24 * 60 * 60_000;
+  if (startsAt < windowStart || startsAt >= windowEnd)
+    throw new Error('此時段不在目前開放的 60 天預約範圍內。');
+}
+
 export function followUpDueTimes(schedule, date) {
   return localize(() => followUpGridTimes(schedule, date));
 }
