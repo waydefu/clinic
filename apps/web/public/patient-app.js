@@ -183,6 +183,11 @@ function showStep(step, { focusHeading = true, scroll = true } = {}) {
 }
 
 function showBookingResult() {
+  // 結果頁不是第三步。手機版靠 data-booking-flow-step 把頁首、公告與步驟列收起來，
+  // 只留當下操作；成功畫面沒有「當下操作」，卻會沿用最後一次 showStep(3) 留下的
+  // 標記，於是頁首連同「查詢／取消預約」在 375px 一起消失，患者剛訂完就找不到
+  // 取消入口，只能重新整理。改成獨立的結果標記，讓那三條規則不再命中。
+  document.body.dataset.bookingFlowStep = 'result';
   elements['patient-hero'].hidden = true;
   panels.forEach((panel) => {
     panel.hidden = true;

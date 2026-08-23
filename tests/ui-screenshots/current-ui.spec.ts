@@ -17,9 +17,9 @@ import {
 
 const PORT = 3211;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-// C4 使用新的 evidence id；同一天的 C3 目錄仍是 immutable historical evidence。
-const CAPTURE_DATE = '2026-08-22';
-const EVIDENCE_ID = `ui-visual-c4-${CAPTURE_DATE}`;
+// C6 使用新的 evidence id；C4、C5 與 C3 的目錄都是 immutable historical evidence。
+const CAPTURE_DATE = '2026-08-23';
+const EVIDENCE_ID = `ui-visual-c6-${CAPTURE_DATE}`;
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
@@ -302,9 +302,32 @@ async function prepareCancellationPhoneFallback(page: Page): Promise<void> {
   await page.locator('#booking-lookup-form button[type="submit"]').click();
   await expect(page.locator('.booking-phone-fallback')).toBeVisible();
   await expect(page.locator('[data-managed-cancel]')).toHaveCount(0);
-  await page.locator('.booking-cancel-contact').scrollIntoViewIfNeeded();
+  // 第三步的診所聯絡區塊沿用了同一個 class（刻意重用已核可的樣式），所以
+  // `.booking-cancel-contact` 現在會命中兩個元素——另一個雖然 hidden，CSS locator
+  // 仍然算它，於是 strict mode 直接擋下。這裡要的是取消後備那一塊。
+  await page
+    .locator('.booking-cancel-contact:not(.patient-contact-options)')
+    .scrollIntoViewIfNeeded();
   await expect(page.getByRole('link', { name: 'LINE' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Facebook' })).toBeVisible();
+}
+
+/**
+ * 手機版成功結果頁。
+ *
+ * C5 在這裡壞過：showBookingResult 沿用 showStep(3) 留下的
+ * data-booking-flow-step='3'，手機版「只留當下操作」的規則於是連結果頁一起命中，
+ * 頁首與「查詢／取消預約」在 375px 消失。這個場景把修好的狀態固定成基準證據。
+ */
+async function prepareMobileSuccessHeader(page: Page): Promise<void> {
+  await prepareBookingSuccess(page);
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-booking-flow-step',
+    'result'
+  );
+  await expect(page.locator('.patient-header')).toBeVisible();
+  await expect(page.locator('#booking-management-open')).toBeVisible();
+  await expect(page.locator('#theme-picker')).toBeVisible();
 }
 
 async function prepareCalendarEmpty(page: Page): Promise<void> {
@@ -527,6 +550,15 @@ const scenarios: Scenario[] = [
     state: 'three-step-booking-success-result',
     fullPage: false,
     prepare: prepareBookingSuccess
+  },
+  {
+    file: 'booking--success-header-restored--phone-375x812--warm.png',
+    route: '/booking',
+    role: 'public',
+    viewport: PHONE,
+    state: 'mobile-success-header-lookup-and-theme-restored',
+    fullPage: false,
+    prepare: prepareMobileSuccessHeader
   }
 ];
 
