@@ -1531,3 +1531,31 @@
 - **DEPLOYMENT EXECUTED:** **NO — AUTHORITY RECORDED, EXECUTION PENDING**。
 - **REAL DATA / CALENDAR ACCESS AUTHORIZED:** **NO / NO**。
 - **PR #24 MERGED:** **NO**。
+
+## BOOKING FINAL OWNER CORRECTION / C6 — DEPLOYMENT RESULT (2026-08-23)
+
+- **Exact C6 Deployed:** `3a01e0721927990fdf7db8b122ddc337b22ccae6`。
+- **Preview:** <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；
+  release `1787463112831000` / version `7476ea2e8cd6419b`（`FINALIZED`）；
+  release time `2026-08-23T05:31:52.831Z`；expiry
+  `2026-08-30T05:31:16.323719674Z`（2026-08-30 13:31:16 Asia/Taipei）。
+- **`verify:preview`:** **PASS — 474/474**，generated `2026-08-23T05:32:12.459Z`，
+  evidence commit 等同 exact C6。
+- **URL 不變的陷阱：** channel hash 自 C4 起一直是 `xvqa68cx`——頻道未到期、每次都是
+  就地更新。**判斷線上是哪一個候選要看 deployed commit，不能看 URL。**
+- **C5 最終狀態：** `a9c525695c2920f82b5b5ead2def576ed8bbd927`
+  **DEPLOYED BUT REJECTED FOR FINAL ACCEPTANCE**。理由與量化證據見
+  [C6 deployment record](../reviews/2026-08-23-booking-final-c6-synthetic-preview-deployment.md)。
+  C4／C5 既有紀錄未被改寫。
+- **Live Channel:** 部署後再次確認 staging `live` 仍為 release
+  `1787409828279000`（`2026-08-22T14:43:48Z`、expiry `never`），**未被本輪修改**。
+- **DEPLOYMENT EXECUTED:** **YES — EXACT C6 ONLY**。
+- **BACKEND / FIRESTORE / FUNCTIONS / AUTH / DNS / CORS CHANGED:** **NO**。
+- **GOOGLE CALENDAR CONNECTED / ORIGINAL ACCESSED / CREDENTIALS USED:** **NO / NO / NO**。
+- **REAL DATA USED:** **NO**。
+- **CLINIC CHANGED:** **NO — 30/30 FROZEN**。
+- **PAYROLL REACTIVATED:** **NO**。
+- **D-004 / D-005 PRODUCTION RULES APPROVED:** **NO — BOTH REMAIN PENDING**。
+- **PR #24 MERGED:** **NO**。
+- **Final Gate:** 本 post-deploy docs HEAD push 後仍須 11/11 required jobs 全綠，
+  且須證明 deployed C6 與 final PR HEAD 的差異只有 documentation／evidence。

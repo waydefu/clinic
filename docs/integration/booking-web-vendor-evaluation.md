@@ -7,19 +7,24 @@ website:
 
 - Official reservations page: <https://beauessence.com.tw/reservations/>
 - Vendor evaluation route: `/booking` **only**
-- Current C4 preview URL:
+- Current C6 preview URL:
   <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>
-- Current C4 preview expiry: **2026-08-29 16:10:26 Asia/Taipei**
-  (`2026-08-29T08:10:26.405373913Z`)
-- Exact deployed C4: `b3bc47721aaf2ca8de89ed62159dd7461d0eae30`
-- Hosting release/version: `1787386261863000` / `11f4ad12b13c1512`
+- Current C6 preview expiry: **2026-08-30 13:31:16 Asia/Taipei**
+  (`2026-08-30T05:31:16.323719674Z`)
+- Exact deployed C6: `3a01e0721927990fdf7db8b122ddc337b22ccae6`
+- Hosting release/version: `1787463112831000` / `7476ea2e8cd6419b`
   (`FINALIZED`)
 - Online verification: **PASS — 474/474 repository-defined checks**
 
-The C3 deployment (`d9b6965c0e3ae62df33e89744f12c6d7fcc16480`)
-at the previously published `synthetic-review-xvqa68cx` URL, plus candidate C
-and C2, are historical evidence. None may be presented as the current vendor
-handoff because C4 changes the patient and workbench behavior.
+The C4 deployment (`b3bc47721aaf2ca8de89ed62159dd7461d0eae30`), the C3
+deployment (`d9b6965c0e3ae62df33e89744f12c6d7fcc16480`) and candidates C and C2
+are historical evidence. Candidate C5 (`a9c525695c2920f82b5b5ead2def576ed8bbd927`)
+was deployed and then **rejected before acceptance** for a mobile defect. None of
+them may be presented as the current vendor handoff.
+
+**The channel URL string has not changed across C4, C5 and C6.** The
+`synthetic-review` channel never expired, so each deployment updated it in place.
+Confirm the exact deployed commit above rather than the URL.
 
 The preview is for layout, interaction and technical evaluation only. It is
 `noindex`, uses synthetic browser-local state and must never receive real
@@ -40,6 +45,20 @@ server API boundary.
 The API does not yet exist as a production endpoint. This package defines the
 integration shape; it does not hand over a live API or production credential.
 
+### Short proposal text for the vendor
+
+Send this verbatim. It is deliberately limited to the integration shape and
+carries no internal architecture, hosting, security, Calendar, Case or Payroll
+detail:
+
+> 建議整合方式：Widget + API。
+> 官網 `/reservations/` 嵌入預約 Widget，正式環境由 Widget 串接診所 API；
+> DNS／自訂網域於正式上線階段配合設定。
+
+The future production API target <https://api.beauessence.com.tw> may be named
+if the vendor asks where the Widget will connect. Nothing beyond `/booking` is
+in evaluation scope.
+
 | Model | Status | Vendor responsibility |
 | --- | --- | --- |
 | API-only | Supported target | Build and own the complete official-site UI, error/loading states and accessibility; call only the future clinic API. |
@@ -48,7 +67,7 @@ integration shape; it does not hand over a live API or production credential.
 
 ## 3. Preview evaluation
 
-Use only the exact-C4 URL and expiry recorded above. The vendor-facing route is
+Use only the exact-C6 URL and expiry recorded above. The vendor-facing route is
 only:
 
 - `/booking` — patient Booking Preview and the source reference for the future
@@ -172,7 +191,7 @@ certificates, API infrastructure or CORS policy.
 - Optional isolated/fallback booking host: <https://book.beauessence.com.tw>
   (not the primary journey and not required for Widget + API)
 
-| Surface/control | Accountable party | C4 handoff state |
+| Surface/control | Accountable party | C6 handoff state |
 | --- | --- | --- |
 | `/reservations/` route and host-page navigation | Website vendor | Mount point specified; no official-site change made here. |
 | Clinic-approved Booking Widget artifact | Clinic product/repository owner + website vendor | Vendor evaluates `/booking`; production packaging remains a later release. |
