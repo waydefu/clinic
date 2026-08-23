@@ -1476,3 +1476,58 @@
 - **REAL DATA AUTHORIZED:** **NO**。
 - **CALENDAR ACCESS AUTHORIZED:** **NO**。
 - **PR #24 MERGED:** **NO**。
+
+## BOOKING FINAL OWNER CORRECTION / C6 — EXACT DEPLOYMENT AUTHORITY (2026-08-23)
+
+- **C5 是 deployed 但被駁回的候選，不是 final。** exact C5
+  `a9c525695c2920f82b5b5ead2def576ed8bbd927` 已於 2026-08-23 12:21 部署並通過
+  `verify:preview` 474/474，但**不得**作為最終驗收候選。駁回理由：手機版成功結果頁
+  仍保留 `data-booking-flow-step="3"`，使「第二、三步只留當下操作」的手機規則連
+  結果頁一起命中，`.patient-header` 連同「查詢／取消預約」、導覽與主題控制在 375px
+  於成功預約後全部消失，患者必須重新整理才能取消。此段不改寫 C4／C5 既有紀錄。
+- **缺陷證據（非推測）：** 視覺擷取在 375×812 對 `#booking-management-open` 重試
+  **1539 次**、逾 13 分鐘後逾時，錯誤為 `element is not visible`。負向對照：移除修正後
+  標記讀到 `"3"` 且新測試失敗，還原後通過。**刻意損壞的版本未進版控。**
+- **Candidate C6:** `3a01e0721927990fdf7db8b122ddc337b22ccae6`。內容為
+  `showBookingResult()` 改設獨立的 `result` 標記（唯一 runtime 變更，5 行）、
+  手機成功狀態迴歸測試、擷取工具的 `.booking-cancel-contact` 選擇器收斂（第三步
+  刻意重用同一個已核可 class，導致 strict mode 命中兩個元素），以及 **17 個場景**的
+  C6 視覺證據（新增手機成功狀態為必要場景）。
+- **Same-SHA Acceptance:** GitHub run
+  [`32620288428`](https://github.com/waydefu/clinic/actions/runs/32620288428) 的
+  **11/11 jobs `success`**，含 core verify、Firestore Emulator、六組 E2E、
+  accessibility、**e2e-mobile（執行新的成功狀態迴歸）**、supply-chain／secrets、
+  SAST 與 commit-bound Verification evidence。未調降任何測試或門檻。
+- **Local Re-verification:** `corepack pnpm verify` 全綠（64 test files／1057 tests、
+  structure 220、**17 C6 reference PNGs**、clinic freeze **30/30**、docs 148、
+  performance budget）。擷取本身也是證據：C6 的 17 場景 **1.4 分鐘**完成，C5 則是
+  在同一組場景上耗掉約 13 分鐘重試後逾時。
+- **Local Environment Notes（非程式缺陷）：** ①`tmp/booking-c4` 只有 root
+  `node_modules` junction、缺 per-package 樹，`packages/contracts` 因此解析不到
+  `zod`；改在具完整環境的 worktree 驗證同一份內容（六個檔案 `cmp` 全等）。
+  ②ESLint 曾對 `playwright-report/` 內的壓縮產物報 1151 錯——該目錄與
+  `test-results/` 均在 `.gitignore`（第 43、44 行）且未追蹤，fresh-clone CI 不會有，
+  清除後全綠。③pnpm 11 的 implicit deps check 觸發 Windows `EPERM`，沿用
+  `PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false`。
+- **Owner Authorization:** 業主已明確授權**一次額外**的 exact-C6 refreshed synthetic
+  preview，供 final owner acceptance 與 vendor `/booking` evaluation。此授權**取代**
+  已用盡的單次額度，**僅限**本段所述的單一 exact C6 preview，不含任何重複部署。
+- **Exact Target:** Firebase project `beauessence-clinic-staging`（`781119800251`）；
+  Hosting preview channel `synthetic-review`；requested expiry `7d`。
+- **Operator:** Firebase CLI `15.18.0`；`wayde.fu@gmail.com`。
+- **Allowed Action:** 只能從 clean detached worktree 的 exact C6 執行 canonical
+  predeploy 再 `firebase hosting:channel:deploy synthetic-review --expires 7d
+  --project beauessence-clinic-staging`。
+- **Prohibited:** 部署本 authority commit 或任何較晚的 docs HEAD、live Hosting、
+  production Hosting、Firestore、Functions、Storage、Cloud Run、Authentication、
+  Google Calendar、DNS／CORS mutation、real patient／staff／clinical／Calendar data。
+- **Live Channel:** staging 專案那筆無到期日的 `live` release（`2026-08-22T14:43:48Z`）
+  依業主指示**維持不動**，僅允許唯讀調查。
+- **Stop Condition:** C6 凍結後若再發現 runtime 缺陷，**不得**自行建立 C7 或重複部署，
+  必須停下並重新請求授權。
+- **NEW C6 FROZEN:** **YES — EXACT C6 SAME-SHA 11/11 GREEN**。
+- **C5 STATUS:** **DEPLOYED BUT REJECTED FOR FINAL ACCEPTANCE**。
+- **HISTORICAL C4／C5 EVIDENCE REWRITTEN:** **NO**。
+- **DEPLOYMENT EXECUTED:** **NO — AUTHORITY RECORDED, EXECUTION PENDING**。
+- **REAL DATA / CALENDAR ACCESS AUTHORIZED:** **NO / NO**。
+- **PR #24 MERGED:** **NO**。
