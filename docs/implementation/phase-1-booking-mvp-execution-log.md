@@ -1410,3 +1410,69 @@
   Verification evidence 全綠，且 PR 保持 open／not merged，才可宣稱 merge-ready。
 - **Rollback:** preview 自動到期或依 runbook 提前刪除 `synthetic-review`；source／docs 用
   `git revert`。沒有 backend／schema／real-data rollback。
+
+## BOOKING FINAL OWNER CORRECTION / C5 — EXACT DEPLOYMENT AUTHORITY (2026-08-23)
+
+- **Why a C5 exists at all:** exact C4 `b3bc47721aaf2ca8de89ed62159dd7461d0eae30`
+  遠端已被 **8 個 `apps/web` runtime commit** 超越（`cb59e16`、`d4e45a3`、
+  `e1965d5`、`070238d`、`b1a1104`、`8cbc4d7`、`c139073`、`a9c5256`）。相對 C4 的
+  net runtime diff 為 `patient-app.js` +48、`patient.html` +34/−13、
+  `styles.css` +36，屬使用者可見行為：Step 2／3 標題改 inline 精簡版、Step 3 新增
+  診所聯絡區塊、預覽警語與 status 收斂為僅 Step 1、社群聯絡依 pointer type 調整。
+  因此 C4 preview 已不足以作為最終 vendor evidence，必須凍結新候選；**歷史 C4
+  evidence 一律不改寫、不重貼標籤。**
+- **Candidate C5:** `a9c525695c2920f82b5b5ead2def576ed8bbd927`。
+- **Same-SHA Acceptance:** GitHub run
+  [`32579336517`](https://github.com/waydefu/clinic/actions/runs/32579336517) 的
+  **11/11 jobs `success`**，涵蓋 core verify、Firestore Emulator、六組 E2E（含
+  WebKit patient portal）、accessibility、mobile、supply-chain／secrets、SAST 與
+  commit-bound Verification evidence。remote branch 與 candidate 同為上述 SHA；
+  remote main 仍為 `5df89f0ef75ebe8cf63277d982b9c7330b0e5104`。
+- **Local Re-verification:** 於 detached exact-C5 worktree 執行
+  `corepack pnpm verify` 全綠（64 test files／1057 tests；structure 220、clinic
+  freeze **30/30**、architecture、public pages、design tokens、docs 146、E2E
+  groups 17/6、tracked secrets 549、Prettier、capture-config、types、build、
+  performance budget）。
+- **Known Local Environment Constraint:** pnpm 11 的 implicit deps-status check 會
+  在本工作區觸發 Windows `EPERM`（複製 `@axe-core/playwright` 的 LICENSE），與 C4
+  當日紀錄的失敗模式相同。以 process-scoped
+  `PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false` 沿用既有 lock-identical dependency
+  environment 即通過；未改動 repository 或 lockfile。共用 environment 的
+  `@beauessence/domain` 解析到 C3 worktree，已驗證 `packages/` 與
+  `apps/web/public/vendor/` 在 `d9b6965`→`a9c5256` 之間 **byte-identical**，故此解析
+  對建置結果無影響。
+- **Owner Authorization:** 本輪指令在「若需要新 runtime candidate」的前提下，明確授權
+  **一次** refreshed synthetic Hosting preview，僅供 website vendor `/booking`
+  evaluation 與 owner final review。前提條件已由上述 drift 稽核滿足，並於此綁定
+  exact C5 SHA。
+- **Exact Target:** Firebase project `beauessence-clinic-staging`（project number
+  `781119800251`）；Hosting preview channel `synthetic-review`；requested expiry
+  `7d`。
+- **Operator:** Firebase CLI `15.18.0`；`firebase login:list` 確認為
+  `wayde.fu@gmail.com`。
+- **Allowed Action:** 只能從 clean detached worktree 的 exact C5 執行 repository
+  canonical predeploy，再執行
+  `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
+  process-scoped `CI=true` 只可用於 non-interactive build／deploy／verify。
+- **Prohibited:** 部署本 docs authority commit 或任何較晚的 docs HEAD、live
+  Hosting、Firestore／Functions／Storage／Cloud Run／Authentication、Calendar
+  access／credential／test Calendar、DNS／CORS、LINE／Meta API、production
+  backend／credential／data、real patient／staff／clinical／payroll data。
+- **Post-Deploy Gate:** 從同一 exact-C5 worktree 對 returned current URL 執行
+  canonical `verify:preview`，必須通過 evidence marker、routes、headers、noindex、
+  cache、hashed assets 與 synthetic／no-backend boundary；失敗不得手改 dist，須修
+  source 並凍結新 candidate。
+- **Authority Record Isolation:** 本段只修改 execution log。authority commit push
+  後同樣須 11/11 CI 綠，但**不會被部署**，避免 self-referential SHA；實際部署內容
+  固定為 exact C5 `a9c5256`。
+- **Unresolved Governance Flags（不由本紀錄裁決）:** ①`b1a1104` 曾修改凍結檔
+  `apps/web/public/clinic-booking.css`，CI 當場轉紅並由 `8cbc4d7` 還原，現行 HEAD
+  為 30/30 綠；②`c139073` 完全沒有 check run；③staging 專案的 `live` channel 存在
+  一筆 **無到期日** 的 release（`2026-08-22T14:43:48Z`），超出 preview authority
+  的邊界（AGENTS.md §8），本輪未觸碰，待 owner 裁決。
+- **NEW C5 FROZEN:** **YES — EXACT C5 SAME-SHA 11/11 GREEN**。
+- **DEPLOYMENT EXECUTED:** **NO — AUTHORITY RECORDED, EXECUTION PENDING**。
+- **HISTORICAL C4 EVIDENCE REWRITTEN:** **NO**。
+- **REAL DATA AUTHORIZED:** **NO**。
+- **CALENDAR ACCESS AUTHORIZED:** **NO**。
+- **PR #24 MERGED:** **NO**。
