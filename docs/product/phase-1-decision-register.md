@@ -718,7 +718,45 @@ must not be used as the current field list or matching-key definition.
   deletion workflow, the published policy text and the real identity model
   remain `pending`, and no real patient data may be relied upon operationally.
 
-### Google Calendar test-integration authority - 2026-07-23
+### Google Calendar test-integration authority - 2026-07-23; scope clarified 2026-08-24
+
+**Clarification recorded 2026-08-24, at the owner's instruction.** The owner
+states that this authority is live, was given more than once, and does not need
+to be re-sought: the project is in a **test phase**, and connecting the
+**dedicated test calendar** with **synthetic** events is authorised now. It does
+**not** wait on D-009 or on Stage 2.
+
+This corrects a conflation the assistant had been repeating. There are two
+separate Calendar tracks, and they had been treated as one:
+
+| Track | Gate | Status |
+| --- | --- | --- |
+| **Test integration** — dedicated test calendar, synthetic no-PII events, owner-run with the owner's own credentials | This 2026-07-23 authority, explicitly 測試不審核 (a test, outside the formal review) | **Authorised. Never executed.** |
+| **Stage 3 production Calendar projection** | D-009 approved **and** Stage 2 complete, per [the approval plan §3](current-execution-and-approval-plan.md) | Both still open |
+
+The Stage-2/D-009 prerequisite belongs to the **second** row only. Applying it to
+the first row was wrong and repeatedly blocked work the owner had already
+authorised.
+
+**What this clarification does not change**, because these are data limits
+rather than process gates:
+
+- the calendar id must still point at a **dedicated test calendar**, never a
+  doctor's private calendar and never the clinic's production calendar;
+- **no real patient data**, and no real Calendar content — the smoke test
+  creates one synthetic, PII-free event and deletes it immediately;
+- **CAL-PILOT-001 is still separate.** Reading the clinic's **real operational
+  Calendar** is a different act on a different calendar, and this authority does
+  not reach it (recorded as H3 in the
+  [pilot readiness package](../integration/google-calendar-pilot-readiness.md));
+- the assistant still does not create the Google Cloud project, generate
+  credentials, or run a connection that writes to a real calendar. That remains
+  the owner's own action, per the original 2026-07-23 terms.
+
+The runbook for the owner-run smoke test is
+[calendar-go-live.md](../runbooks/calendar-go-live.md).
+
+### Original 2026-07-23 record
 
 - The project owner directed connecting the **real** Google Calendar API as a
   test ("測試不審核" — a test, outside the formal review), and authorised
