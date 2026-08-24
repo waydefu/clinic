@@ -313,8 +313,17 @@ export function createServiceAccountTokenProvider(
   serviceAccountJson: string,
   fetchImpl: FetchLike = fetch,
   now: () => number = Date.now,
-  requestTimeoutMs = DEFAULT_GOOGLE_HTTP_TIMEOUT_MS
+  requestTimeoutMs = DEFAULT_GOOGLE_HTTP_TIMEOUT_MS,
+  /**
+   * 要請求的 scope。預設是出站投影用的 `CALENDAR_SCOPE`。
+   *
+   * CAL-PILOT 的兩個身分需要各自不同的 scope——來源唯讀、目的地可寫——所以這裡
+   * 必須可傳入。先前刻意不加這個參數（尚未有人需要），試辦工具接上來之後就需要了。
+   */
+  scope: string = CALENDAR_SCOPE
 ): (deadlineSignal?: AbortSignal) => Promise<string> {
+  if (!isNonEmptyString(scope) || !scope.startsWith('https://'))
+    throw new Error('OAuth scope must be an https Google scope URL.');
   const account = parseServiceAccount(serviceAccountJson);
   const timeoutMs = validatedRequestTimeout(requestTimeoutMs);
 
@@ -329,7 +338,7 @@ export function createServiceAccountTokenProvider(
     const claims = base64Url(
       JSON.stringify({
         iss: account.client_email,
-        scope: CALENDAR_SCOPE,
+        scope,
         aud: TOKEN_URL,
         iat: issuedAt,
         exp: expiresAt
