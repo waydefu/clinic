@@ -239,8 +239,7 @@ function clinicHoursSummary() {
 
 function renderHours() {
   const summary = clinicHoursSummary();
-  elements['patient-hours-summary'].textContent = summary;
-  // 頁尾也顯示門診時間：手機版 hero 會收起聯絡卡，時間資訊改由頁尾承接。
+  // 預約步驟只保留當下操作，門診時間統一由每一步都能到達的頁尾承接。
   if (elements['patient-hours-footer'] !== undefined)
     elements['patient-hours-footer'].textContent = summary;
 }
