@@ -9,6 +9,7 @@ import {
   type CalendarProjectionRequest
 } from './calendar-port.js';
 import {
+  CALENDAR_SCOPE,
   GoogleCalendarClient,
   createCalendarPort,
   createServiceAccountTokenProvider
@@ -450,6 +451,35 @@ describe('createServiceAccountTokenProvider', () => {
       Buffer.from(encodedClaims, 'base64url').toString('utf8')
     );
     expect(claims.aud).toBe('https://oauth2.googleapis.com/token');
+  });
+
+  // scope 先前只存在於一個常數裡，沒有任何測試看著它——改寬了不會有人發現。
+  // 這裡刻意用字面值而非匯入 CALENDAR_SCOPE 比對：匯入的話，把常數改成
+  // `auth/calendar` 兩邊會一起變，測試照樣綠，等於沒有守住任何東西。
+  it('JWT 只請求 calendar.events，不得放寬成整本日曆的 calendar scope', async () => {
+    const { impl, calls } = fakeFetch(
+      [200],
+      [JSON.stringify({ access_token: 'token-123', expires_in: 3600 })]
+    );
+    const provider = createServiceAccountTokenProvider(
+      JSON.stringify(SERVICE_ACCOUNT),
+      impl,
+      () => Date.UTC(2030, 0, 1)
+    );
+
+    await expect(provider()).resolves.toBe('token-123');
+    const assertion =
+      new URLSearchParams(calls[0]?.body).get('assertion') ?? '';
+    const claims = JSON.parse(
+      Buffer.from(assertion.split('.')[1] ?? '', 'base64url').toString('utf8')
+    );
+
+    expect(claims.scope).toBe(
+      'https://www.googleapis.com/auth/calendar.events'
+    );
+    // 這個用戶端只 insert／patch／delete 事件，永遠不需要分享或永久刪除整本日曆。
+    expect(claims.scope).not.toBe('https://www.googleapis.com/auth/calendar');
+    expect(CALENDAR_SCOPE).toBe(claims.scope);
   });
 
   it.each([

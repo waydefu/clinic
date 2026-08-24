@@ -35,7 +35,7 @@ approver's own signature, scope, explicit exclusions and accepted residual
 risk, all of which the register's own approval format requires. Read the
 register before treating any owner statement here as settled.
 
-### Three unresolved conflicts (H1–H3) that block a field-level design, not just a gate
+### Two unresolved conflicts (H2, H3) that block a field-level design, plus one corrected entry (H1)
 
 - **H2 — the owner asked for the service item on the Calendar event.** The
   2026-08-16 input includes "加上項目" (add the item) for outbound events. This
@@ -53,14 +53,23 @@ register before treating any owner statement here as settled.
   register's own text confirms the scope: "This authority is a test
   integration only" and does not approve D-009 for any production use. Do not
   read the earlier authority as covering this pilot's source-reader access.
-- **H1 — authoritative business hours are unresolved**, independent of
-  Calendar: the decision register records the official site publishing
-  Mon–Fri 11:00–20:00, Sat 11:00–16:00, while the current synthetic
-  implementation uses Wed–Fri 12:00–20:00, Sat 10:00–18:00. This matters here
-  because the staff workbench's weekly view drops any day with no open
-  interval (see §5's workbench-architecture note) — a real event landing on a
-  day the wrong schedule treats as closed would import and then silently not
-  render, understating what the pilot actually found.
+- **H1 — corrected 2026-08-24. This was mis-stated as an unresolved conflict
+  and is not one.** The authoritative hours are settled: the owner selected
+  **Wed–Fri 12:00–20:00 and Sat 10:00–18:00** on 2026-07-28, the repository
+  already matches that answer, and the 2026-08-16 owner input independently
+  reconfirmed it ("目前週日一二不開診"). What is outstanding is not a decision
+  but a **content action outside this repository** — the clinic's official
+  reservations page still publishes the older Mon–Fri 11:00–20:00 / Sat
+  11:00–16:00 and must be corrected through its own controlled process. See
+  [the register's opening-hours entry](../product/phase-1-decision-register.md).
+
+  The residual relevance to this pilot is narrower than first written: the
+  workbench weekly view drops any day with no open interval (§5), so a real
+  source event falling outside the settled operating schedule — an
+  administrative block, a meeting, an out-of-hours entry — would import and
+  then silently not render. That is a **rendering-coverage caveat for
+  interpreting pilot results**, not a blocked decision, and it does not gate
+  the pilot the way D-009 and D-016 do.
 
 ## 1. Objective and fixed boundary
 

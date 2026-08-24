@@ -44,7 +44,25 @@ import {
  */
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
+/**
+ * 這個用戶端唯一需要的 scope。
+ *
+ * 它只對 `/events` 發 POST／PATCH／DELETE——insert、409 後的 patch、cancel 的
+ * delete，就這三件事。它從不建立或刪除日曆本身、不改 ACL、不改設定、不列舉其他
+ * 日曆。`calendar.events`（「檢視及編輯你所有日曆上的活動」）剛好涵蓋這個範圍。
+ *
+ * 先前這裡是 `https://www.googleapis.com/auth/calendar`，Google 對它的定義是
+ * 「**檢視、編輯、分享並永久刪除**你能存取的所有日曆」。那把權限遠超過本檔案
+ * 用得到的範圍：多出來的是分享與整本刪除，而那正是誤用時損害最大的兩件事。
+ * 服務帳戶在沒有 domain-wide delegation 時只能碰被明確分享給它的日曆，但那是
+ * Google 端的 ACL 設定，repository 看不到也管不著——程式碼這一側該自己收斂。
+ *
+ * **這不代表 D-009 已核准。** D-009（日曆擁有者、授權模型、scope 與最小事件欄位）
+ * 仍為 pending，正式 scope 由它決定；這裡只是把測試整合的預設值收到實際所需。
+ * 下方的單元測試會解出 JWT claims 並比對這個字串，改動它就會讓測試轉紅——那是
+ * 刻意的，scope 不該在沒人看到的情況下被放寬。
+ */
+export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
 const DEFAULT_GOOGLE_HTTP_TIMEOUT_MS = 30_000;
 const MAX_GOOGLE_HTTP_TIMEOUT_MS = 60_000;
