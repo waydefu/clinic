@@ -51,13 +51,10 @@ test.describe('患者線上預約', () => {
 
   test('初次載入停在頁首，三步驟依序採指定的全寬版面', async ({ page }) => {
     await expect(page.locator('#patient-title')).toBeVisible();
-    await expect(page.locator('#patient-hours-summary')).toBeVisible();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.locator('[data-step-indicator]')).toHaveCount(3);
-    await expect(page.locator('.booking-step-one-grid')).toBeVisible();
-    await expect(page.locator('.booking-clinic-info')).toContainText(
-      '02-2577-1314'
-    );
+    await expect(page.locator('.booking-clinic-info')).toHaveCount(0);
+    await expect(page.locator('.booking-choice-flow')).toBeVisible();
     await expect(page.locator('.booking-summary')).toHaveCount(0);
 
     const service = page.locator('#patient-services [data-service]').first();

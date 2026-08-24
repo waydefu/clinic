@@ -230,65 +230,51 @@
           <!-- 掛號別的時間規則（整點／30 分 對 15 分／45 分）刻意不寫在這裡：
                這一步只要選「初診還是回診」，時間規則到第二步選時段時才有用，
                由 #slot-choice-description 依所選類型講一次。 -->
-          <div class="booking-step-one-grid">
-            <aside
-              class="booking-clinic-info"
-              aria-labelledby="clinic-info-heading"
-            >
-              <p class="eyebrow">CLINIC</p>
-              <h2 id="clinic-info-heading">一森渼診所</h2>
-              <address>臺北市松山區光復北路112號2樓</address>
-              <a href="tel:+886225771314">02-2577-1314</a>
-              <p id="patient-hours-summary">
-                門診時間：週三至週五 12:00–20:00；週六 10:00–18:00
-              </p>
-            </aside>
-            <div class="booking-choice-flow">
-              <div class="booking-panel-heading">
-                <p class="eyebrow">STEP 01</p>
-                <h2 id="booking-type-heading">這次是初診還是回診？</h2>
-              </div>
-              <div class="service-choice-grid">
-                <button
-                  class="service-choice service-choice-compact"
-                  type="button"
-                  data-booking-type="initial"
-                  aria-describedby="follow-up-choice-status"
-                >
-                  <span class="service-icon" aria-hidden="true">＋</span
-                  ><strong>初診</strong>
-                </button>
-                <button
-                  class="service-choice service-choice-compact"
-                  type="button"
-                  data-booking-type="follow_up"
-                  aria-describedby="follow-up-choice-status"
-                >
-                  <span class="service-icon" aria-hidden="true">↻</span
-                  ><strong>回診</strong>
-                </button>
-              </div>
-              <p
-                id="follow-up-choice-status"
-                class="field-hint booking-type-hint"
-              >
-                讀取回診狀態中
-              </p>
-
-              <div class="booking-panel-heading booking-panel-heading-spaced">
-                <h2 id="service-choice-heading">看診項目</h2>
-                <p>選擇本次要進行的項目。</p>
-              </div>
-              <div
-                id="patient-services"
-                class="service-choice-grid"
-                role="group"
-                aria-labelledby="service-choice-heading"
-              ></div>
-              <p class="field-hint booking-service-hint">
-                本診所為全民健康保險特約醫事服務機構，門診看診依健保規定辦理；自費項目由醫師於門診時說明。
-              </p>
+          <div class="booking-choice-flow">
+            <div class="booking-panel-heading">
+              <p class="eyebrow">STEP 01</p>
+              <h2 id="booking-type-heading">這次是初診還是回診？</h2>
             </div>
+            <div class="service-choice-grid">
+              <button
+                class="service-choice service-choice-compact"
+                type="button"
+                data-booking-type="initial"
+                aria-describedby="follow-up-choice-status"
+              >
+                <span class="service-icon" aria-hidden="true">＋</span
+                ><strong>初診</strong>
+              </button>
+              <button
+                class="service-choice service-choice-compact"
+                type="button"
+                data-booking-type="follow_up"
+                aria-describedby="follow-up-choice-status"
+              >
+                <span class="service-icon" aria-hidden="true">↻</span
+                ><strong>回診</strong>
+              </button>
+            </div>
+            <p
+              id="follow-up-choice-status"
+              class="field-hint booking-type-hint"
+            >
+              讀取回診狀態中
+            </p>
+
+            <div class="booking-panel-heading booking-panel-heading-spaced">
+              <h2 id="service-choice-heading">看診項目</h2>
+              <p>選擇本次要進行的項目。</p>
+            </div>
+            <div
+              id="patient-services"
+              class="service-choice-grid"
+              role="group"
+              aria-labelledby="service-choice-heading"
+            ></div>
+            <p class="field-hint booking-service-hint">
+              本診所為全民健康保險特約醫事服務機構，門診看診依健保規定辦理；自費項目由醫師於門診時說明。
+            </p>
           </div>
         </section>
 

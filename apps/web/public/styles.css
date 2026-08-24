@@ -1321,42 +1321,6 @@ textarea {
   line-height: 1.65;
   max-width: 68ch;
 }
-.booking-step-one-grid {
-  display: grid;
-  gap: var(--space-lg);
-  grid-template-columns: minmax(14rem, 0.38fr) minmax(0, 1fr);
-}
-.booking-clinic-info {
-  align-self: start;
-  background: var(--surface-tint);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  display: grid;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-}
-.booking-clinic-info h2,
-.booking-clinic-info p {
-  margin: 0;
-}
-.booking-clinic-info address {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  font-style: normal;
-  line-height: 1.6;
-}
-.booking-clinic-info a {
-  color: var(--forest-dark);
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-}
-.booking-clinic-info #patient-hours-summary {
-  border-top: 1px solid var(--line);
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  line-height: 1.6;
-  padding-top: var(--space-xs);
-}
 .service-choice-grid {
   display: grid;
   gap: var(--space-sm);
@@ -2316,7 +2280,6 @@ label:has(> input[type='radio']) {
   .service-choice-grid,
   .booking-confirmation-grid,
   .patient-form-grid,
-  .booking-step-one-grid,
   .booking-lookup-form {
     grid-template-columns: 1fr;
   }

@@ -179,7 +179,7 @@ async function prepareBookingStepOne(page: Page): Promise<void> {
   await expect(page.locator('[data-booking-step="1"]')).toBeVisible();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.locator('#patient-title')).toBeVisible();
-  await expect(page.locator('#patient-hours-summary')).toBeVisible();
+  await expect(page.locator('.booking-clinic-info')).toHaveCount(0);
   await expect(page.locator('.patient-header .brand')).toHaveAttribute(
     'href',
     '/booking'
