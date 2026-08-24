@@ -482,6 +482,47 @@ describe('createServiceAccountTokenProvider', () => {
     expect(CALENDAR_SCOPE).toBe(claims.scope);
   });
 
+  // CAL-PILOT 的兩個身分要各自不同的 scope，所以這個參數是安全相關的：
+  // 傳進去的值必須真的出現在簽出的 JWT 裡，不能被預設值默默蓋掉。
+  it('傳入的 scope 會真的出現在 JWT claims 裡', async () => {
+    const { impl, calls } = fakeFetch(
+      [200],
+      [JSON.stringify({ access_token: 'token-123', expires_in: 3600 })]
+    );
+    const readonlyScope =
+      'https://www.googleapis.com/auth/calendar.events.readonly';
+    const provider = createServiceAccountTokenProvider(
+      JSON.stringify(SERVICE_ACCOUNT),
+      impl,
+      () => Date.UTC(2030, 0, 1),
+      undefined,
+      readonlyScope
+    );
+
+    await expect(provider()).resolves.toBe('token-123');
+    const assertion =
+      new URLSearchParams(calls[0]?.body).get('assertion') ?? '';
+    const claims = JSON.parse(
+      Buffer.from(assertion.split('.')[1] ?? '', 'base64url').toString('utf8')
+    );
+
+    expect(claims.scope).toBe(readonlyScope);
+    // 預設值不得覆蓋呼叫端明確指定的 scope。
+    expect(claims.scope).not.toBe(CALENDAR_SCOPE);
+  });
+
+  it('拒絕非 https 的 scope', () => {
+    expect(() =>
+      createServiceAccountTokenProvider(
+        JSON.stringify(SERVICE_ACCOUNT),
+        undefined,
+        undefined,
+        undefined,
+        'calendar.events'
+      )
+    ).toThrowError(/scope/iu);
+  });
+
   it.each([
     ['non-JSON', 'not-json'],
     ['missing token', JSON.stringify({ expires_in: 3600 })],

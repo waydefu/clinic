@@ -18,8 +18,13 @@
  *
  * 使用教學見 `docs/runbooks/cal-pilot-import.md`。
  */
+import { readFileSync } from 'node:fs';
+
+import { createServiceAccountTokenProvider } from '../google-calendar.js';
 import {
+  SOURCE_READONLY_SCOPE,
   SourceCalendarReader,
+  TEST_WRITER_SCOPE,
   TestCalendarWriter
 } from './pilot-calendar-clients.js';
 import { sanitizeSourceEvent, summarize } from './pilot-sanitizer.js';
@@ -30,8 +35,26 @@ interface Config {
   readonly pseudonymKey: string;
   readonly windowDays: number;
   readonly maxEvents: number;
-  readonly sourceToken: string;
-  readonly writerToken: string;
+  /** 服務帳號金鑰檔的內容（不是路徑，也不是會過期的 access token）。 */
+  readonly sourceKeyJson: string;
+  readonly writerKeyJson: string;
+}
+
+/**
+ * 讀金鑰檔。
+ *
+ * 收**檔案路徑**而不是金鑰內容本身：金鑰貼在指令列會進到 PowerShell 的歷史紀錄，
+ * 檔案路徑不會。讀進來之後只留在記憶體裡，不寫出去也不印出來。
+ */
+function readKeyFile(path: string, label: string): string {
+  let raw: string;
+  try {
+    raw = readFileSync(path, 'utf8');
+  } catch {
+    throw new Error(`讀不到${label}金鑰檔：${path}——請確認路徑正確。`);
+  }
+  if (raw.trim() === '') throw new Error(`${label}金鑰檔是空的：${path}`);
+  return raw;
 }
 
 function readConfig(env: NodeJS.ProcessEnv): Config {
@@ -61,24 +84,30 @@ function readConfig(env: NodeJS.ProcessEnv): Config {
   if (pseudonymKey.length < 16)
     throw new Error('CAL_PILOT_PSEUDONYM_KEY 至少要 16 個字元才有意義。');
 
+  const sourceKeyPath = required('CAL_PILOT_SOURCE_KEY_FILE');
+  const writerKeyPath = required('CAL_PILOT_WRITER_KEY_FILE');
+  if (sourceKeyPath === writerKeyPath)
+    throw new Error(
+      '讀取與寫入用的金鑰檔是同一個。必須是兩個不同的服務帳號，' +
+        '否則同一把鑰匙既能讀真實日曆又能寫測試日曆，讀寫分離形同虛設。'
+    );
+
   return {
     sourceCalendarId,
     testCalendarId,
     pseudonymKey,
     windowDays,
     maxEvents,
-    sourceToken: required('CAL_PILOT_SOURCE_TOKEN'),
-    writerToken: required('CAL_PILOT_WRITER_TOKEN')
+    sourceKeyJson: readKeyFile(sourceKeyPath, '讀取用'),
+    writerKeyJson: readKeyFile(writerKeyPath, '寫入用')
   };
 }
 
 async function main(): Promise<void> {
   const config = readConfig(process.env);
 
-  if (config.sourceToken === config.writerToken)
-    throw new Error(
-      '來源與寫入用的權杖相同。讀寫必須是不同身分，否則讀寫分離形同虛設。'
-    );
+  if (config.sourceKeyJson === config.writerKeyJson)
+    throw new Error('兩個金鑰檔的內容一模一樣。必須是兩個不同的服務帳號。');
 
   const windowStart = new Date();
   const windowEnd = new Date(
@@ -91,9 +120,16 @@ async function main(): Promise<void> {
     `期間：今天起 ${config.windowDays} 天；最多處理 ${config.maxEvents} 筆`
   );
 
+  // 讀取端只換到唯讀 scope 的 token——就算金鑰檔被拿去別的地方用，它也寫不了。
   const reader = new SourceCalendarReader({
     calendarId: config.sourceCalendarId,
-    getAccessToken: () => Promise.resolve(config.sourceToken)
+    getAccessToken: createServiceAccountTokenProvider(
+      config.sourceKeyJson,
+      undefined,
+      undefined,
+      undefined,
+      SOURCE_READONLY_SCOPE
+    )
   });
 
   console.log('1/3 讀取來源日曆（唯讀）…');
@@ -125,7 +161,13 @@ async function main(): Promise<void> {
   console.log('3/3 寫入測試日曆…');
   const writer = new TestCalendarWriter({
     calendarId: config.testCalendarId,
-    getAccessToken: () => Promise.resolve(config.writerToken),
+    getAccessToken: createServiceAccountTokenProvider(
+      config.writerKeyJson,
+      undefined,
+      undefined,
+      undefined,
+      TEST_WRITER_SCOPE
+    ),
     batchId
   });
 
