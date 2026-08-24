@@ -111,6 +111,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
+- [日曆搬運工具使用教學](runbooks/cal-pilot-import.md) — owner-run CAL-PILOT import CLI in plain language: what it copies (time and an opaque label only), the three guarantees it enforces in code, PowerShell setup, a deliberately tiny first run, what each skip reason means, how to clean up by batch ID and what every error message means
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
 - [Calendar go-live runbook](runbooks/calendar-go-live.md) — who does what to wire the real Google Calendar test integration (credentials stay with the owner)
 - [Backup and restore runbook](runbooks/backup-and-restore.md) — what is protected, approved RTO/RPO targets whose capability remains unverified, the restore procedure and the quarterly drill requirement
