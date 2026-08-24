@@ -139,12 +139,31 @@ All 39 questions came back answered. The full question-by-question
 reconciliation, including which earlier answers these supersede, is
 [the 2026-08-17 reconciliation record](../reviews/2026-08-17-owner-decision-reconciliation.md).
 
-**Attribution (recorded 2026-08-17):** the technical owner states that the
-answers were filled in by the clinic owner and dated **2026-08-16**. Two of the
-approval format's fields are therefore satisfied — approver and approval date.
+**Attribution (recorded 2026-08-17; corrected 2026-08-23).** The 2026-08-17
+record stated that the answers were filled in by the clinic owner, and concluded
+that two approval-format fields — approver and approval date — were therefore
+satisfied. **The technical owner corrected this on 2026-08-23: the clinic owner
+gave the answers verbally and the technical owner transcribed them on the owner's
+behalf.**
 
-**They are still not approvals.** Three things are missing, and they are
+**That correction removes the approver field, not just weakens it.** A verbal
+statement relayed and written down by someone else is not the named approver's
+own recorded approval, and the answer sheet is explicit on this point: 「口頭說
+『可以』不足以解除系統的檢查關卡」— saying "yes" out loud does not release the
+system's check gates. At most the **date** of the verbal statement is recorded.
+Every row below therefore has **one fewer** approval-format field satisfied than
+the 2026-08-17 record claimed.
+
+Nothing about the answers' content changed; the reconciliation in
+[the 2026-08-17 record](../reviews/2026-08-17-owner-decision-reconciliation.md)
+remains accurate. Only the attribution and its consequence changed. That dated
+record is left unedited as historical evidence.
+
+**They are still not approvals.** Four things are missing, and they are
 missing for different reasons:
+
+0. **A named approver's own signature.** See the correction above. This is now
+   the first gap, not an assumed-satisfied field.
 
 1. **Co-approvers.** The owner column below is not "clinic owner" alone for
    most rows. D-002/D-003 need the privacy/legal owner, D-005 the legal owner,
