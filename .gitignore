@@ -37,6 +37,10 @@ dependency-inventory.json
 # Tooling
 .playwright-cli/
 output/playwright/
+.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.*
 # Machine-readable verification evidence is generated per run/deployment.
 output/evidence/
 # Playwright run artifacts

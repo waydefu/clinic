@@ -255,4 +255,19 @@ describe('which markdown the gate discovers', () => {
   it('skips dependencies', () => {
     expect(isScannedMarkdown('node_modules/pkg/README.md')).toBe(false);
   });
+
+  it('skips Terraform provider cache documentation', () => {
+    expect(
+      isScannedMarkdown(
+        'infra/terraform/cal-pilot/.terraform/providers/example/README.md'
+      )
+    ).toBe(false);
+  });
+
+  it('skips generated browser reports and failure attachments', () => {
+    expect(isScannedMarkdown('playwright-report/data/trace/README.md')).toBe(
+      false
+    );
+    expect(isScannedMarkdown('test-results/spec/error-context.md')).toBe(false);
+  });
 });

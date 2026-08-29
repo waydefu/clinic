@@ -54,4 +54,22 @@ describe('Firestore direct-client deny-by-default baseline', () => {
       getDoc(doc(unauthenticatedFirestore, 'appointments', 'appointment-001'))
     );
   });
+
+  it('also denies every CAL-PILOT mirror, candidate and configuration path', async () => {
+    await assertFails(
+      getDoc(
+        doc(unauthenticatedFirestore, 'calendar_pilot_configuration', 'active')
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(
+          unauthenticatedFirestore,
+          'calendar_pilot_candidates',
+          'candidate_001'
+        ),
+        { status: 'accepted' }
+      )
+    );
+  });
 });

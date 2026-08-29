@@ -1,0 +1,13 @@
+.git
+.github
+.codex
+**/dist
+**/node_modules
+apps/web
+docs
+infra
+tests
+test-results
+playwright-report
+*.log
+*.jsonl

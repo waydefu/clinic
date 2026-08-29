@@ -15,6 +15,38 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "leaseExpiresAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "calendar_pilot_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendar_pilot_mirrors",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sourceId", "order": "ASCENDING" },
+        { "fieldPath": "externalEventId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendar_pilot_outbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "calendar_pilot_appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "startsAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

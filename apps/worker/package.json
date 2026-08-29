@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "start:calendar-pilot": "node dist/calendar-sync/calendar-pilot-main.js"
   },
   "dependencies": {
     "@beauessence/domain": "workspace:*",

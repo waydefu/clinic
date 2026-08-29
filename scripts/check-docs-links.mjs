@@ -33,6 +33,10 @@ export const MARKDOWN_GLOBS = ['**/*.md', '.claude/**/*.md'];
 // parallel checkout.
 export function isScannedMarkdown(file) {
   if (file.includes('node_modules')) return false;
+  if (file.startsWith('playwright-report/')) return false;
+  if (file.startsWith('test-results/')) return false;
+  if (file.includes('/.terraform/') || file.startsWith('.terraform/'))
+    return false;
   if (file.startsWith('.claude/worktrees/')) return false;
   return true;
 }

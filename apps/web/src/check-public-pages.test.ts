@@ -136,6 +136,14 @@ function fixture() {
           }
         ],
         rewrites: [
+          {
+            source: '/v1/**',
+            run: {
+              serviceId: 'cal-pilot-api',
+              region: 'asia-east1',
+              pinTag: true
+            }
+          },
           { source: '/booking', destination: '/patient.html' },
           { source: '/privacy', destination: '/privacy.html' },
           { source: '/clinic', destination: '/clinic.html' },
@@ -254,7 +262,7 @@ describe('checkPublicPageConfiguration', () => {
 
   it('fails stale rewrite and redirect destinations', () => {
     const input = fixture();
-    input.firebase.hosting.rewrites[0].destination = '/stale.html';
+    input.firebase.hosting.rewrites[1].destination = '/stale.html';
     input.firebase.hosting.redirects[0].destination = '/old-booking';
 
     const failures = failuresOf(input);

@@ -1,5 +1,13 @@
 # CAL-PILOT-001 — Google Calendar controlled-pilot readiness
 
+> **2026-08-29 現況更新：** 本文件以下保留為早期、涉及真實營運資料的
+> documentation-only 歷史方案。業主於 2026-08-28 另核准「兩本專用
+> CAL-PILOT 日曆、A01～A30 合成患者、30 天、人工審核」的窄範圍，實作與操作
+> 邊界以 [30 天雙向同步操作手冊](../runbooks/cal-pilot-30-day-bidirectional-sync.md)
+> 及 [D-009／D-016 子範圍紀錄](../product/phase-1-decision-register.md)為準。
+> Production D-009／D-016 與任何真實資料仍是 pending；以下提到的「原始診所
+> Calendar」不在這次核准內。
+
 **Status:** documentation-only readiness package. **STOPPED before credentials,
 Calendar access, test-calendar connection or real-data import.** This document
 does not approve D-001～D-003, D-009 or D-016 and does not change

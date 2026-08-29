@@ -225,6 +225,32 @@ describe('planHashedBuild', () => {
     expect(html).not.toContain('modulepreload" href="/favicon.svg"');
   });
 
+  it('hashes lazy imports and styles without preloading their payload', () => {
+    const files = sampleFiles();
+    files.set(
+      'app.js',
+      "const stylesheet = {};\nstylesheet.href = './pilot.css';\nvoid import('./pilot.js');\n"
+    );
+    files.set('pilot.css', '.pilot{display:block}');
+    files.set('pilot.js', 'export const enabled = true;\n');
+
+    const { outputs, manifest } = planHashedBuild(files);
+    const html = String(outputs.get('index.html'));
+    const app = String(outputs.get(manifest.get('app.js')));
+
+    expect(app).toContain(`stylesheet.href = './${manifest.get('pilot.css')}'`);
+    expect(app).toContain(`import('./${manifest.get('pilot.js')}')`);
+    expect(html).not.toContain(
+      `modulepreload" href="/${manifest.get('pilot.js')}"`
+    );
+
+    const changed = new Map(files);
+    changed.set('pilot.js', 'export const enabled = false;\n');
+    expect(planHashedBuild(changed).manifest.get('app.js')).not.toBe(
+      manifest.get('app.js')
+    );
+  });
+
   it('preloads the hashed name, so a preload can never miss the served file', () => {
     const { outputs, manifest } = planHashedBuild(sampleFiles());
     const html = outputs.get('index.html') as string;

@@ -16,6 +16,9 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       '**/.firebase/**',
+      '**/.terraform/**',
+      'playwright-report/**',
+      'test-results/**',
       'output/**',
       // packages/domain 的編譯產物，同步而來，不重複檢查。
       'apps/web/public/vendor/**',
@@ -96,9 +99,9 @@ export default tseslint.config(
     }
   },
 
-  // --- 瀏覽器模組：原生 ESM，無建置流程 ---------------------------------
+  // --- 瀏覽器模組：public 原生 ESM＋src 內的 CAL-PILOT bundle entry -------
   {
-    files: ['apps/web/public/**/*.js'],
+    files: ['apps/web/public/**/*.js', 'apps/web/src/**/*.js'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
