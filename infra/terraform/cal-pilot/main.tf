@@ -183,7 +183,7 @@ resource "google_cloud_scheduler_job" "sync" {
 }
 
 resource "google_billing_budget" "pilot" {
-  billing_account = data.google_project.pilot.billing_account
+  billing_account = var.billing_account_id
   display_name    = "CAL-PILOT 30-day synthetic alert budget"
   budget_filter {
     projects = ["projects/${data.google_project.pilot.number}"]

@@ -18,6 +18,10 @@ GCS backend before any apply; pass its bucket and a staging-only prefix to
 prevention and object versioning on that bucket. The 30-day expiry remains an
 application kill switch even if cleanup is delayed.
 
+Pass the owner-approved billing account through the sensitive
+`TF_VAR_billing_account_id` environment variable for every plan and apply. The
+configuration never infers or commits a billing account identifier.
+
 Release sequencing is owned by `scripts/cal-pilot-release.ps1`: after the
 reviewed foundation has been applied, it accepts immutable image digests,
 deploys 0% revisions, runs authenticated synthetic smoke, moves the exact

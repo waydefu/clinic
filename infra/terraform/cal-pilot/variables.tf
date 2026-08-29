@@ -36,3 +36,13 @@ variable "budget_amount_twd" {
     error_message = "This pilot is approved with a NT$30 alerting budget only."
   }
 }
+
+variable "billing_account_id" {
+  type        = string
+  description = "Explicitly approved billing account for the pilot budget."
+  sensitive   = true
+  validation {
+    condition     = can(regex("^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$", var.billing_account_id))
+    error_message = "billing_account_id must be a Google Cloud billing account ID."
+  }
+}
