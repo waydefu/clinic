@@ -3,7 +3,7 @@
 Review-only until the final exact deployment confirmation. This configuration
 creates service identities, least-privilege IAM, empty Secret Manager
 containers, a deny-direct-browser Firestore database, a **paused** five-minute
-Scheduler job and the NT$300 50/80/100% alert budget. It does not create secret
+Scheduler job and the NT$30 50/80/100% alert budget. It does not create secret
 versions, Calendar ACLs, Cloud Run revisions or Hosting releases.
 
 The first foundation plan uses the reviewed

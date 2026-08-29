@@ -57,8 +57,9 @@ This records a narrow approval, not a production decision:
   incremental synchronization; Google changes become review candidates;
   `manager` may switch sources and `manager`／`front_desk` may review.
 - **Expiry and cost:** 30 days after deployment; kill switch disables inbound,
-  outbound and synchronization at expiry; NT$300 budget notifications at
-  50%／80%／100% are alerts, not a spending cap.
+  outbound and synchronization at expiry; on 2026-08-29 the owner reduced the
+  alerting budget from NT$300 to NT$30. Notifications at 50%／80%／100%
+  (approximately NT$15／24／30) are alerts, not a spending cap.
 - **Explicit exclusions:** no production project, production calendar, patient
   name, phone, record, clinical note, payment, attendee, location or other
   free text; no production D-009/D-016 approval; no deployment apply before the

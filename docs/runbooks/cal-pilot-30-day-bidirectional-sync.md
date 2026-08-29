@@ -88,7 +88,7 @@ Secret version、撤銷 Google Calendar ACL 並輪替服務帳號金鑰。
 ## 8. 到期與費用
 
 部署後 30 天，API 與 Worker 都會 fail closed；Scheduler 與 Hosting channel 也須
-停止／到期。NT$300 的 50%／80%／100% 通知是告警，不是硬上限。低流量可能接近
+停止／到期。NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）是告警，不是硬上限。低流量可能接近
 免費，但 Cloud Run、Scheduler、Firestore、Secret Manager、Artifact Registry、
 日誌或流量都可能產生費用；正式環境不得假設免費。
 

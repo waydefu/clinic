@@ -30,9 +30,9 @@ variable "worker_service_url" {
 variable "budget_amount_twd" {
   type        = number
   description = "Alerting budget; not a hard spending cap."
-  default     = 300
+  default     = 30
   validation {
-    condition     = var.budget_amount_twd == 300
-    error_message = "This pilot is approved with a NT$300 alerting budget only."
+    condition     = var.budget_amount_twd == 30
+    error_message = "This pilot is approved with a NT$30 alerting budget only."
   }
 }
