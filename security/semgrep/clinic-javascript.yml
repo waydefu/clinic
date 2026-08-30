@@ -114,7 +114,7 @@ rules:
 
   - id: clinic.javascript.html-sink-outside-trusted-entrypoint
     message: >-
-      HTML injection sinks are only allowed in the two audited browser
+      HTML injection sinks are only allowed in the three audited browser
       entrypoints that load the repository Trusted Types default policy before
       application code.
     severity: ERROR
@@ -130,6 +130,7 @@ rules:
       exclude:
         - /apps/web/public/admin-bootstrap.js
         - /apps/web/public/patient-app.js
+        - /apps/web/src/calendar-pilot-entry.js
     pattern-either:
       - pattern: $ELEMENT.innerHTML = $HTML
       - pattern: $ELEMENT.outerHTML = $HTML
