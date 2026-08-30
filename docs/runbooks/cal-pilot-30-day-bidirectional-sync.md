@@ -3,6 +3,10 @@
 **適用範圍：** `beauessence-clinic-staging` 的 synthetic-only 測試。
 **不適用：** 正式專案、正式日曆、真實姓名、電話、病歷、臨床內容或金流。
 
+**目前狀態（2026-08-30）：** 已依核准候選啟用；精確 revision、映像、期限、
+初次同步與驗證結果見
+[30 天 synthetic-only 部署紀錄](../reviews/2026-08-30-cal-pilot-30-day-deployment.md)。
+
 ## 1. 使用者會看到什麼
 
 - 員工工作臺與患者測試頁讀取同一個 API 可用時段鏡像。
@@ -23,6 +27,12 @@
 患者代碼只能是已啟用的 A01～A30；掛號別只能是「初診／回診」；項目只能是
 「止鼾／醫美」；忙碌原因只能是「會議／休假／教育訓練／其他」。說明、地點、
 與會者與其他自由文字不會匯入。格式錯誤只會產生「需修正」候選。
+
+既有日曆另觀察到「小編姓名 `(LINE)[來源]`／姓名、電話／服務／全麻或局麻」
+這類斜線分隔舊標題。它**不是**本次允許格式，也不得自動轉入：姓名與電話是本次
+明文禁止的真實個資，麻醉方式是臨床欄位。正式接線前若要遷移，必須另行核准資料
+範圍，將小編／來源改為封閉代碼、患者改為系統識別碼、電話完全移出 Calendar，
+並由臨床資料系統承接麻醉資訊；在此之前一律維持「需修正」、不擋位。
 
 ## 3. 架構與秘密邊界
 
@@ -55,14 +65,20 @@ Calendar ID、原始 Google event ID、etag、sync token、服務帳號金鑰與
 ## 5. 部署順序
 
 1. 套用 reviewed Terraform foundation；Scheduler 必須維持 paused。
-2. 以專用 builder 在 Cloud Build 建立兩個映像，取得 Artifact Registry digest，
-   再建立 API／Worker 0% tagged revision。
-3. 執行 API 與私人 Worker synthetic smoke。
+2. 以專用 builder 在 Cloud Build 建立兩個映像，取得 Artifact Registry digest。
+   已存在的服務建立 0% tagged revision；Cloud Run 不接受全新服務以 0% 建立，
+   因此首次部署要先建立**不公開**的 100% revision，通過具身分 smoke 後才公開 API。
+   Worker 全程保持私人。
+3. 以短期 `run.invoker` 與隔離的 CLI 設定執行 API／私人 Worker synthetic smoke；
+   完成後撤銷測試登入與 IAM binding。
 4. 將流量切到精確 revision，更新 Scheduler 私人 URL，但仍保持 paused。
 5. seed A01～A30、兩個 opaque source summary 與 30 天到期 kill switch。
 6. 先部署 Firebase Auth Google provider、Firestore deny-all rules 與 indexes，再發布
    `cal-pilot` 30 天 Hosting preview。
 7. 初始化 Identity Platform，把 preview domain 加入 allowlist，並強制啟用 TOTP。
+   若專案已啟用，只接受官方回傳的精確「already enabled」結果為冪等成功；
+   `authorizedDomains` 與 MFA 使用 Identity Toolkit `projects.config` GET／PATCH，
+   保留既有 MFA provider，不用 Admin SDK 不支援的更新欄位。
 8. 驗證 Google provider、TOTP 與 Firestore 規則後，才開啟 inbound／outbound；最後
    resume 五分鐘 Scheduler。
 
@@ -74,6 +90,9 @@ Calendar ID、原始 Google event ID、etag、sync token、服務帳號金鑰與
   來源由系統管理的副本；外部事件不動。
 - 切換失敗不更動 active source；上一來源保留為一鍵回滾。
 - `410 Gone` 會清掉失效 sync token 並重建鏡像；重建只產生候選，不直接改預約。
+- Terraform foundation 固定 Scheduler 的私人 Worker 目標；部署流程負責 active window
+  的 resume／pause。active window 期間不可直接套用仍含 `paused = true` 的預設 plan，
+  否則會把五分鐘同步停掉。
 
 ## 7. 緊急停止與回滾
 
@@ -83,6 +102,11 @@ Calendar ID、原始 Google event ID、etag、sync token、服務帳號金鑰與
 2. 把 `inboundEnabled`、`outboundEnabled` 設為 `false`，寫入匿名 audit。
 3. API／Worker 流量切回記錄的前一 revision。
 4. Hosting `cal-pilot` channel 切回前一 version。
+
+首次發布沒有前一個 Cloud Run revision 或 Hosting version，不得聲稱已回切。首版安全
+停止是：依序 pause Scheduler、關閉 inbound／outbound、移除 API 公開呼叫權限，並讓
+`cal-pilot` preview 到期或刪除；保留 Cloud Run revision、合成資料、候選與匿名 audit
+供查核。後續發布才可依已記錄的前一 revision／version 執行第 3、4 步。
 
 不要刪除合成預約、mirror、候選或匿名 audit。若疑似金鑰外洩，另停用對應
 Secret version、撤銷 Google Calendar ACL 並輪替服務帳號金鑰。

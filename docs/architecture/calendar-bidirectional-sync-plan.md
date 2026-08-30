@@ -1,10 +1,12 @@
 # Google Calendar 雙向同步規劃
 
-> **2026-08-29 實作註記：** 下文是 production／真實資料方向的 plan-only 歷史
-> 文件，因此其 blocked 結論仍適用 production。另有一個已核准的窄範圍
-> synthetic-only 實作：兩本 allowlisted CAL-PILOT 日曆、A01～A30、Google＋TOTP、
-> 五分鐘增量同步、人工候選審核、30 天 kill switch。現行操作規格請看
-> [CAL-PILOT 30 天雙向同步操作手冊](../runbooks/cal-pilot-30-day-bidirectional-sync.md)。
+> **2026-08-30 實作註記：** 下文是 production／真實資料方向的 plan-only 歷史
+> 文件，因此其 blocked 結論仍適用 production。另行核准的窄範圍 synthetic-only
+> 實作（兩本 allowlisted CAL-PILOT 日曆、A01～A30、Google＋TOTP、五分鐘增量同步、
+> 人工候選審核、30 天 kill switch）已部署；現行操作規格與精確證據請看
+> [操作手冊](../runbooks/cal-pilot-30-day-bidirectional-sync.md)及
+> [2026-08-30 部署紀錄](../reviews/2026-08-30-cal-pilot-30-day-deployment.md)。
+> 這次部署沒有核准 production、真實資料或臨床欄位。
 
 **狀態：** production plan-only。**production 仍被 D-009 與 D-016 阻擋，且
 必須遵守現行已接受的 ADR-0002。** 本文件不授權正式連線、正式 credential、

@@ -73,6 +73,17 @@ This records a narrow approval, not a production decision:
 The table rows remain `pending for production` because this sub-scope neither
 classifies real patient/clinical fields nor authorizes a production Calendar.
 
+Execution evidence: on 2026-08-30 the owner confirmed the exact immutable
+candidate and NT$30 alert profile; the synthetic-only release was then enabled
+and is recorded in the
+[30-day deployment record](../reviews/2026-08-30-cal-pilot-30-day-deployment.md).
+The owner also reported that legacy operational titles may contain an editor
+name and source, patient name and phone, service, and general／local anesthesia.
+That observation is a future migration input only: it does not expand this
+approval. The deployed parser must continue to reject those titles as
+`invalid_format`, must not block availability from them, and must not ingest
+the personal or clinical fields.
+
 ### Owner answers to the 2026-07-27 requirements questionnaire
 
 The assistant put 30 questions to the project owner in plain language. These are
