@@ -10,8 +10,9 @@ CAL-PILOT 已在 `beauessence-clinic-staging`／`asia-east1` 啟用。這是 30 
 <https://beauessence-clinic-staging--cal-pilot-pk9yyofq.web.app/>
 
 應用程式 kill switch 於 `2026-09-29T04:51:37Z`（台北時間 2026-09-29
-12:51:37）停止同步與寫入。Hosting channel 到期時間是
-`2026-09-29T05:58:30.562151111Z`；兩者不一致時，以較早的應用程式停止時間為準。
+12:51:37）停止同步與寫入。登入 CSP hotfix 發布時保留剩餘整數小時，Hosting
+channel 到期時間現在是 `2026-09-29T05:18:46.938568327Z`；兩者不一致時，
+仍以較早的應用程式停止時間為準，沒有延長測試。
 
 ## 2. 核准與 immutable candidate
 
@@ -34,7 +35,7 @@ CAL-PILOT 已在 `beauessence-clinic-staging`／`asia-east1` 啟用。這是 30 
 | API | `cal-pilot-api-00001-xiv`，核准 API digest，100% traffic |
 | Worker | `cal-pilot-worker-00001-gow`，核准 Worker digest，100% traffic，未公開 |
 | Scheduler | `cal-pilot-five-minute-sync`，`ENABLED`，`*/5 * * * *`；目標與 OIDC audience 都等於私人 Worker service |
-| Hosting | release `1788069549292000`、version `7c586b9a461886ea`、83 files、371,308 bytes |
+| Hosting | 登入 CSP hotfix release `1788088766253000`、version `29a02d4e51c819c1`、83 files、371,776 bytes |
 | Firestore | rules／indexes 已發布；瀏覽器直接讀寫全面拒絕 |
 | Identity | Google provider 已啟用，preview domain 已加入 allowlist，TOTP 已啟用 |
 | Secrets | reader、writer、source map、manager allowlist、web API key、pseudonym key 均由 Secret Manager 版本管理；內容未輸出、未提交、未進入 Hosting |
@@ -58,6 +59,8 @@ Hosting `/v1/**` 使用同來源 Cloud Run rewrite。瀏覽器取得的投影不
 ### 5.1 候選與本機驗證
 
 - 核准候選在部署前的同 SHA CI：11／11 成功，run `33293121249`。
+- 登入 CSP hotfix `f2c2ad058f3c6e3d4f635d0dd2c49171d63476a4`：同 SHA CI
+  11／11 成功，run `33308433138`。
 - 部署後 hardening：結構、clinic freeze、架構、頁面、design token、文件連結、
   E2E 分組、秘密掃描、Prettier、型別、build、ESLint、vendor sync 與效能預算通過。
 - 單元測試：73 files、1128 tests，全數通過。
@@ -70,7 +73,9 @@ Hosting `/v1/**` 使用同來源 Cloud Run rewrite。瀏覽器取得的投影不
 - 私人 Worker smoke HTTP 200；API `/v1/health` HTTP 200；未登入存取
   `/v1/calendar/status` 回 HTTP 401。
 - 首次 Scheduler 呼叫成功，後續狀態為 enabled。
-- 內建瀏覽器只顯示一個登入主畫面：`CAL-PILOT 安全登入`；Google 登入可見。
+- 內建瀏覽器只顯示一個登入主畫面：`CAL-PILOT 安全登入`；登入 CSP hotfix 後
+  實際按下 Google 登入可依序到達 Firebase Auth handler 與 Google 帳戶選擇頁。
+  帳號選擇、TOTP enrollment 與登入後工作臺保留給業主親自驗收。
 - lazy stylesheet 已改為 hashed asset，載入完成後才啟動 client；console error／warning
   為 0。
 - DOM 未出現 private key、service-account email、Calendar ID、原始 Google event ID
@@ -116,6 +121,14 @@ Hosting `/v1/**` 使用同來源 Cloud Run rewrite。瀏覽器取得的投影不
    manifest 內的相對 CSS，新增 minified identifier regression，並等待 stylesheet load。
 5. 首次發布沒有可回切的舊 revision／version：runbook 改為首版安全停止流程，不再
    聲稱可回到不存在的版本。
+6. 初次瀏覽器 smoke 只驗證「登入按鈕可見」，沒有點擊登入，因此漏掉 Hosting CSP
+   將 Firebase Auth 擋在 `identitytoolkit.googleapis.com` 的缺陷。後續操作驗收重現
+   `auth/network-request-failed`。修正只在 `connect-src` 放行 Identity Toolkit／
+   Secure Token、在 `script-src` 放行 Google API iframe loader、在 `frame-src`
+   放行本 staging authDomain；所有來源都採精確 host，沒有 wildcard。Trusted Types
+   的 `createScriptURL` 再把 loader 限縮到 `/js/api.js` 與 SDK 的 callback 形狀。
+   修正版已線上實際點擊並到達 Google 帳戶選擇頁。`redirectionChainSiteScript.js`
+   的 `Cannot redefine property: location` 來自瀏覽器擴充功能注入，與本站修正無關。
 
 ## 9. 首版安全停止／後續回復
 

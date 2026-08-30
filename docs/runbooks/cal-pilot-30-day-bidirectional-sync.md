@@ -46,6 +46,10 @@ Calendar ID、原始 Google event ID、etag、sync token、服務帳號金鑰與
 金鑰只存在私人 Worker／Secret Manager 邊界，不得回傳瀏覽器、寫入日誌、提交 Git
 或進入 Hosting 建置產物。讀取與寫入使用不同服務帳號與不同最小 scope。
 
+Hosting CSP 除同源外，只允許 Firebase Auth 的 Identity Toolkit／Secure Token
+連線、Google API 的固定 iframe loader，以及本 staging 專案的 Firebase Auth
+iframe；全部使用精確 host，不使用 wildcard，且瀏覽器仍不得直接連 Calendar API。
+
 ## 4. 部署前必要證據
 
 1. 工作樹乾淨，候選 commit 已固定。
