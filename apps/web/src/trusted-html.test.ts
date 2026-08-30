@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { assertRenderable } from '../public/modules/trusted-html.js';
+import {
+  assertFirebaseAuthScriptUrl,
+  assertRenderable
+} from '../public/modules/trusted-html.js';
 
 const calendarPilotEntry = readFileSync(
   fileURLToPath(new URL('./calendar-pilot-entry.js', import.meta.url)),
@@ -17,6 +20,40 @@ describe('CAL-PILOT Trusted Types entrypoint', () => {
     expect(
       calendarPilotEntry.match(/public\/modules\/trusted-html\.js/g)
     ).toHaveLength(1);
+  });
+
+  it('shows a user-facing message when redirect startup fails', () => {
+    expect(calendarPilotEntry).toContain(
+      'try {\n        await signInWithRedirect'
+    );
+    expect(calendarPilotEntry).toContain('登入服務暫時無法連線');
+  });
+});
+
+describe('assertFirebaseAuthScriptUrl', () => {
+  it('allows only the Firebase Auth iframe loader callback shape', () => {
+    expect(
+      assertFirebaseAuthScriptUrl(
+        'https://apis.google.com/js/api.js?onload=__iframefcb0'
+      )
+    ).toBe('https://apis.google.com/js/api.js?onload=__iframefcb0');
+    expect(
+      assertFirebaseAuthScriptUrl(
+        'https://apis.google.com/js/api.js?onload=__iframefcb999999'
+      )
+    ).toContain('__iframefcb999999');
+  });
+
+  it.each([
+    'https://evil.example/js/api.js?onload=__iframefcb1',
+    'https://apis.google.com/js/other.js?onload=__iframefcb1',
+    'https://apis.google.com/js/api.js?onload=alert',
+    'https://apis.google.com/js/api.js?onload=__iframefcb1&extra=1',
+    'https://apis.google.com/js/api.js?onload=__iframefcb1#fragment',
+    ['javascript', ':alert(1)'].join(''),
+    'not a URL'
+  ])('rejects %s', (url) => {
+    expect(() => assertFirebaseAuthScriptUrl(url)).toThrow(TypeError);
   });
 });
 

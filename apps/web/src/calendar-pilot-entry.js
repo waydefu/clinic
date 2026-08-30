@@ -223,11 +223,16 @@ function loginView() {
   root
     .querySelector('[data-google-login]')
     .addEventListener('click', async () => {
-      root.querySelector('[data-login-status]').textContent =
-        '正在前往 Google 登入…';
+      const status = root.querySelector('[data-login-status]');
+      status.textContent = '正在前往 Google 登入…';
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithRedirect(auth, provider);
+      try {
+        await signInWithRedirect(auth, provider);
+      } catch {
+        status.textContent =
+          '登入服務暫時無法連線，請重新整理後再試；若持續發生請通知管理者。';
+      }
     });
 }
 

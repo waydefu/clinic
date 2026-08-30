@@ -37,7 +37,7 @@
           { "key": "Cache-Control", "value": "no-cache" },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; frame-src https://beauessence-clinic-staging.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
           { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },

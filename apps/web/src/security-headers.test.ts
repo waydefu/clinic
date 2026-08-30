@@ -34,9 +34,10 @@ describe('hosting security headers', () => {
 
     for (const directive of [
       "default-src 'self'",
-      "connect-src 'self'",
+      "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
       "style-src 'self'",
-      "script-src 'self'",
+      "script-src 'self' https://apis.google.com",
+      'frame-src https://beauessence-clinic-staging.firebaseapp.com',
       // 沒有任何 <object>/<embed>/<applet> 插件面：關掉外掛執行面。
       "object-src 'none'",
       "base-uri 'none'",
@@ -50,11 +51,13 @@ describe('hosting security headers', () => {
     }
   });
 
-  it('never allows inline or remote script/style execution', () => {
+  it('allows only the audited Firebase loader without inline or wildcard execution', () => {
     const csp = headerValue('Content-Security-Policy');
     expect(csp).not.toContain('unsafe-inline');
     expect(csp).not.toContain('unsafe-eval');
     expect(csp).not.toContain('*');
+    expect(csp).not.toContain('https://*.googleapis.com');
+    expect(csp).not.toContain('https://*.firebaseapp.com');
   });
 
   it('keeps the framing, sniffing and referrer protections', () => {
