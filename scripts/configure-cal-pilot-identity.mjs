@@ -17,7 +17,40 @@ if (
     'CALENDAR_PILOT_PREVIEW_DOMAIN is not an exact pilot preview domain.'
   );
 
-if (getApps().length === 0) initializeApp({ projectId });
+const app = getApps()[0] ?? initializeApp({ projectId });
+const credential = app.options.credential;
+if (credential === undefined)
+  throw new Error('Application Default Credentials are required.');
+
+async function identityRequest(path, init = {}, allowedErrorStatuses = []) {
+  const accessToken = await credential.getAccessToken();
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com${path}`,
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${accessToken.access_token}`,
+        'Content-Type': 'application/json',
+        'x-goog-user-project': projectId,
+        ...(init.headers ?? {})
+      }
+    }
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok) return payload;
+  const status = payload?.error?.status;
+  if (allowedErrorStatuses.includes(status)) return payload;
+  throw new Error(
+    `Identity Toolkit request failed (${response.status}${status === undefined ? '' : ` ${status}`}).`
+  );
+}
+
+await identityRequest(
+  `/v2/projects/${projectId}/identityPlatform:initializeAuth`,
+  { method: 'POST', body: '{}' },
+  ['ALREADY_EXISTS', 'FAILED_PRECONDITION']
+);
+
 const manager = getAuth().projectConfigManager();
 const current = await manager.getProjectConfig();
 const authorizedDomains = new Set(current.authorizedDomains ?? []);
@@ -38,13 +71,12 @@ await manager.updateProjectConfig({
   }
 });
 
-const providerManager = getAuth().projectConfigManager();
-const googleProvider = await providerManager
-  .getProviderConfig('google.com')
-  .catch(() => undefined);
-if (googleProvider === undefined || googleProvider.enabled !== true)
+const googleProvider = await identityRequest(
+  `/admin/v2/projects/${projectId}/defaultSupportedIdpConfigs/google.com`
+);
+if (googleProvider.enabled !== true)
   throw new Error(
-    'Google Identity provider is not enabled. Enable the existing project Google provider before release.'
+    'Google Identity provider is not enabled by the reviewed Firebase Auth configuration.'
   );
 process.stdout.write(
   'Identity Platform Google provider verified; TOTP enabled.\n'

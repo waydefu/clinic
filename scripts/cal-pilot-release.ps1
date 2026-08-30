@@ -72,6 +72,11 @@ if ($managerEmails.Count -ne 1 -or $managerEmails[0] -notmatch '^[^\s@]+@[^\s@]+
 if ([string]::IsNullOrWhiteSpace((Get-Content -LiteralPath $FirebaseWebApiKeyPath -Raw))) {
   throw 'Firebase Web API key input is empty.'
 }
+$adcToken = gcloud auth application-default print-access-token 2>$null
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$adcToken)) {
+  throw 'Google Application Default Credentials are required for Identity and Firestore release steps.'
+}
+$adcToken = $null
 $readerKey = $null
 $writerKey = $null
 $sourceMap = $null
@@ -80,6 +85,8 @@ $head = (git rev-parse HEAD).Trim()
 if ((git status --porcelain).Length -ne 0) { throw 'Release requires a clean exact commit.' }
 Write-Host "Approved release candidate commit: $head"
 Write-Host "Project: $projectId | Region: $region | Expiry: $ExpiresAt"
+
+firebase deploy --only "auth,firestore:rules,firestore:indexes" --project $projectId
 
 gcloud secrets versions add cal-pilot-reader-service-account --project $projectId --data-file $ReaderKeyPath | Out-Null
 gcloud secrets versions add cal-pilot-writer-service-account --project $projectId --data-file $WriterKeyPath | Out-Null

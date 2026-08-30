@@ -1,4 +1,15 @@
 {
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "CAL-PILOT Synthetic Preview",
+        "supportEmail": "wayde.fu@gmail.com",
+        "authorizedRedirectUris": [
+          "https://beauessence-clinic-staging.firebaseapp.com/__/auth/handler"
+        ]
+      }
+    }
+  },
   "hosting": {
     "public": "apps/web/dist",
     "predeploy": ["corepack pnpm run build"],

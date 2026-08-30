@@ -60,9 +60,11 @@ Calendar ID、原始 Google event ID、etag、sync token、服務帳號金鑰與
 3. 執行 API 與私人 Worker synthetic smoke。
 4. 將流量切到精確 revision，更新 Scheduler 私人 URL，但仍保持 paused。
 5. seed A01～A30、兩個 opaque source summary 與 30 天到期 kill switch。
-6. 發布 `cal-pilot` 30 天 Hosting preview。
-7. 把 preview domain 加入 Identity Platform，啟用 Google＋TOTP。
-8. 開啟 inbound／outbound，最後才 resume 五分鐘 Scheduler。
+6. 先部署 Firebase Auth Google provider、Firestore deny-all rules 與 indexes，再發布
+   `cal-pilot` 30 天 Hosting preview。
+7. 初始化 Identity Platform，把 preview domain 加入 allowlist，並強制啟用 TOTP。
+8. 驗證 Google provider、TOTP 與 Firestore 規則後，才開啟 inbound／outbound；最後
+   resume 五分鐘 Scheduler。
 
 ## 6. 每日操作與來源切換
 
