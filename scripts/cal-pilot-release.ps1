@@ -12,6 +12,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
@@ -53,6 +54,7 @@ $writerKey = Read-ServiceAccountKey $WriterKeyPath
 if ($readerKey.client_email -eq $writerKey.client_email) {
   throw 'Reader and writer service accounts must be different identities.'
 }
+$smokeIdentityEmail = [string]$writerKey.client_email
 try { $sourceMap = Get-Content -LiteralPath $SourceMapPath -Raw | ConvertFrom-Json }
 catch { throw 'Source map is not valid JSON.' }
 $requiredSourceIds = @('calendar_source_primary', 'calendar_source_secondary')
@@ -100,8 +102,36 @@ if ($existingPseudonymVersion.Count -eq 0) {
   $pseudonymKey = $null
 }
 
-gcloud run deploy cal-pilot-api --project $projectId --region $region --image $ApiImage --service-account "cal-pilot-api@$projectId.iam.gserviceaccount.com" --no-traffic --tag cal-pilot-smoke --allow-unauthenticated --min-instances 0 --max-instances 1 --cpu 1 --memory 512Mi --timeout 60 --concurrency 20 --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId,CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN=$projectId.firebaseapp.com" --set-secrets "CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist:latest,CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key:latest"
-gcloud run deploy cal-pilot-worker --project $projectId --region $region --image $WorkerImage --service-account "cal-pilot-worker@$projectId.iam.gserviceaccount.com" --no-traffic --tag cal-pilot-smoke --no-allow-unauthenticated --min-instances 0 --max-instances 1 --cpu 1 --memory 512Mi --timeout 240 --concurrency 1 --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId" --set-secrets "CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account:latest,CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account:latest,CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map:latest,CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key:latest"
+$existingRunServices = @(gcloud run services list --project $projectId --region $region --platform managed --format 'value(metadata.name)')
+$apiDeployArguments = @(
+  'run', 'deploy', 'cal-pilot-api', '--project', $projectId, '--region', $region,
+  '--image', $ApiImage, '--service-account', "cal-pilot-api@$projectId.iam.gserviceaccount.com",
+  '--tag', 'cal-pilot-smoke', '--min-instances', '0', '--max-instances', '1',
+  '--cpu', '1', '--memory', '512Mi', '--timeout', '60', '--concurrency', '20',
+  '--set-env-vars', "GOOGLE_CLOUD_PROJECT=$projectId,CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN=$projectId.firebaseapp.com",
+  '--set-secrets', 'CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist:latest,CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key:latest'
+)
+if ($existingRunServices -contains 'cal-pilot-api') {
+  $apiDeployArguments += @('--no-traffic', '--allow-unauthenticated')
+} else {
+  # Cloud Run rejects --no-traffic for a brand-new service. Keep the first
+  # revision private until its authenticated smoke succeeds instead.
+  $apiDeployArguments += '--no-allow-unauthenticated'
+}
+gcloud @apiDeployArguments
+
+$workerDeployArguments = @(
+  'run', 'deploy', 'cal-pilot-worker', '--project', $projectId, '--region', $region,
+  '--image', $WorkerImage, '--service-account', "cal-pilot-worker@$projectId.iam.gserviceaccount.com",
+  '--tag', 'cal-pilot-smoke', '--no-allow-unauthenticated', '--min-instances', '0',
+  '--max-instances', '1', '--cpu', '1', '--memory', '512Mi', '--timeout', '240',
+  '--concurrency', '1', '--set-env-vars', "GOOGLE_CLOUD_PROJECT=$projectId",
+  '--set-secrets', 'CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account:latest,CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account:latest,CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map:latest,CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key:latest'
+)
+if ($existingRunServices -contains 'cal-pilot-worker') {
+  $workerDeployArguments += '--no-traffic'
+}
+gcloud @workerDeployArguments
 
 $apiService = gcloud run services describe cal-pilot-api --project $projectId --region $region --format json | ConvertFrom-Json
 $workerService = gcloud run services describe cal-pilot-worker --project $projectId --region $region --format json | ConvertFrom-Json
@@ -113,11 +143,40 @@ $workerSmokeUrl = [string]$workerSmokeTraffic[0].url
 $apiRevision = [string]$apiSmokeTraffic[0].revisionName
 $workerRevision = [string]$workerSmokeTraffic[0].revisionName
 $workerServiceUrl = [string]$workerService.status.url
-if ((Invoke-WebRequest -UseBasicParsing -Uri "$apiSmokeUrl/v1/health").StatusCode -ne 200) { throw 'API smoke failed.' }
-$identityToken = (gcloud auth print-identity-token --audiences $workerSmokeUrl).Trim()
-if ((Invoke-WebRequest -UseBasicParsing -Uri "$workerSmokeUrl/health" -Headers @{ Authorization = "Bearer $identityToken" }).StatusCode -ne 200) { throw 'Worker smoke failed.' }
+$smokeMember = "serviceAccount:$smokeIdentityEmail"
+$smokeConfiguration = "cal-pilot-smoke-$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
+$apiSmokeBindingAdded = $false
+$workerSmokeBindingAdded = $false
+$smokeConfigurationCreated = $false
+try {
+  gcloud run services add-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+  $apiSmokeBindingAdded = $true
+  gcloud run services add-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+  $workerSmokeBindingAdded = $true
+  gcloud config configurations create $smokeConfiguration --no-activate --quiet | Out-Null
+  $smokeConfigurationCreated = $true
+  gcloud auth activate-service-account --key-file $WriterKeyPath --configuration $smokeConfiguration --quiet | Out-Null
+  $apiIdentityToken = (gcloud auth print-identity-token --audiences $apiSmokeUrl --configuration $smokeConfiguration).Trim()
+  $workerIdentityToken = (gcloud auth print-identity-token --audiences $workerSmokeUrl --configuration $smokeConfiguration).Trim()
+  if ((Invoke-WebRequest -UseBasicParsing -Uri "$apiSmokeUrl/v1/health" -Headers @{ Authorization = "Bearer $apiIdentityToken" }).StatusCode -ne 200) { throw 'API smoke failed.' }
+  if ((Invoke-WebRequest -UseBasicParsing -Uri "$workerSmokeUrl/health" -Headers @{ Authorization = "Bearer $workerIdentityToken" }).StatusCode -ne 200) { throw 'Worker smoke failed.' }
+} finally {
+  $apiIdentityToken = $null
+  $workerIdentityToken = $null
+  if ($apiSmokeBindingAdded) {
+    gcloud run services remove-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+  }
+  if ($workerSmokeBindingAdded) {
+    gcloud run services remove-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+  }
+  if ($smokeConfigurationCreated) {
+    gcloud auth revoke $smokeIdentityEmail --configuration $smokeConfiguration --quiet 2>$null
+    gcloud config configurations delete $smokeConfiguration --quiet | Out-Null
+  }
+}
 
 gcloud run services add-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member "serviceAccount:cal-pilot-scheduler@$projectId.iam.gserviceaccount.com" --role roles/run.invoker
+gcloud run services add-iam-policy-binding cal-pilot-api --project $projectId --region $region --member allUsers --role roles/run.invoker
 gcloud run services update-traffic cal-pilot-api --project $projectId --region $region --to-revisions "$apiRevision=100"
 gcloud run services update-traffic cal-pilot-worker --project $projectId --region $region --to-revisions "$workerRevision=100"
 gcloud scheduler jobs update http cal-pilot-five-minute-sync --project $projectId --location $region --uri "$workerServiceUrl/tasks/calendar-sync" --http-method POST --oidc-service-account-email "cal-pilot-scheduler@$projectId.iam.gserviceaccount.com" --oidc-token-audience $workerServiceUrl --attempt-deadline 240s

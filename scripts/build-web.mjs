@@ -94,10 +94,11 @@ function hashedBasename(path, hash) {
 const STATIC_IMPORT_SPECIFIER =
   /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
 const DYNAMIC_IMPORT_SPECIFIER = /\bimport\s*\(\s*(['"])(\.[^'"]+\.js)\1\s*\)/g;
-// 延遲載入的樣式表同樣要指向雜湊檔名；限定 `stylesheet.href`
-// 這個專用寫法，避免將一般文字常數誤當成資源。
+// 延遲載入的樣式表同樣要指向雜湊檔名。esbuild 會把 `stylesheet`
+// 這類區域識別字縮成單一字母，所以要接受任何簡單識別字的 `.href`；
+// 仍只改寫存在於 manifest 的相對 CSS，避免誤碰一般網址。
 const LAZY_STYLE_SPECIFIER =
-  /(stylesheet\.href\s*=\s*)(['"])(\.[^'"]+\.css)\2/g;
+  /([A-Za-z_$][\w$]*\.href\s*=\s*)(['"])(\.[^'"]+\.css)\2/g;
 
 // HTML 進入點掛載模組的方式，以及注入 preload 的錨點。
 const MODULE_ENTRY = /<script\s+type="module"\s+src="(\/[^"]+\.js)"/g;

@@ -3,10 +3,7 @@
     "providers": {
       "googleSignIn": {
         "oAuthBrandDisplayName": "CAL-PILOT Synthetic Preview",
-        "supportEmail": "wayde.fu@gmail.com",
-        "authorizedRedirectUris": [
-          "https://beauessence-clinic-staging.firebaseapp.com/__/auth/handler"
-        ]
+        "supportEmail": "wayde.fu@gmail.com"
       }
     }
   },

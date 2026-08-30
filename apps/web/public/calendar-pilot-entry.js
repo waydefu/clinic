@@ -11,6 +11,15 @@ if (response?.ok === true) {
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
   stylesheet.href = './calendar-pilot.css';
+  const stylesheetLoaded = new Promise((resolve, reject) => {
+    stylesheet.addEventListener('load', resolve, { once: true });
+    stylesheet.addEventListener(
+      'error',
+      () => reject(new Error('CAL-PILOT stylesheet failed to load.')),
+      { once: true }
+    );
+  });
   document.head.append(stylesheet);
+  await stylesheetLoaded;
   await import('./calendar-pilot-client.js');
 }

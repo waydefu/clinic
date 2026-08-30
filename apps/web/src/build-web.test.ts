@@ -229,7 +229,7 @@ describe('planHashedBuild', () => {
     const files = sampleFiles();
     files.set(
       'app.js',
-      "const stylesheet = {};\nstylesheet.href = './pilot.css';\nvoid import('./pilot.js');\n"
+      "const e = {};\ne.href = './pilot.css';\nvoid import('./pilot.js');\n"
     );
     files.set('pilot.css', '.pilot{display:block}');
     files.set('pilot.js', 'export const enabled = true;\n');
@@ -238,7 +238,7 @@ describe('planHashedBuild', () => {
     const html = String(outputs.get('index.html'));
     const app = String(outputs.get(manifest.get('app.js')));
 
-    expect(app).toContain(`stylesheet.href = './${manifest.get('pilot.css')}'`);
+    expect(app).toContain(`e.href = './${manifest.get('pilot.css')}'`);
     expect(app).toContain(`import('./${manifest.get('pilot.js')}')`);
     expect(html).not.toContain(
       `modulepreload" href="/${manifest.get('pilot.js')}"`

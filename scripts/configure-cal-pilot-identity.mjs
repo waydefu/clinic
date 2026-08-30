@@ -1,5 +1,4 @@
 import { getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 
 const projectId = process.env['GOOGLE_CLOUD_PROJECT'];
 const previewDomain = process.env['CALENDAR_PILOT_PREVIEW_DOMAIN'];
@@ -22,7 +21,12 @@ const credential = app.options.credential;
 if (credential === undefined)
   throw new Error('Application Default Credentials are required.');
 
-async function identityRequest(path, init = {}, allowedErrorStatuses = []) {
+async function identityRequest(
+  path,
+  init = {},
+  allowedErrorStatuses = [],
+  allowedErrorMessages = []
+) {
   const accessToken = await credential.getAccessToken();
   const response = await fetch(
     `https://identitytoolkit.googleapis.com${path}`,
@@ -39,7 +43,12 @@ async function identityRequest(path, init = {}, allowedErrorStatuses = []) {
   const payload = await response.json().catch(() => ({}));
   if (response.ok) return payload;
   const status = payload?.error?.status;
-  if (allowedErrorStatuses.includes(status)) return payload;
+  const message = payload?.error?.message;
+  if (
+    allowedErrorStatuses.includes(status) ||
+    allowedErrorMessages.includes(message)
+  )
+    return payload;
   throw new Error(
     `Identity Toolkit request failed (${response.status}${status === undefined ? '' : ` ${status}`}).`
   );
@@ -48,28 +57,41 @@ async function identityRequest(path, init = {}, allowedErrorStatuses = []) {
 await identityRequest(
   `/v2/projects/${projectId}/identityPlatform:initializeAuth`,
   { method: 'POST', body: '{}' },
-  ['ALREADY_EXISTS', 'FAILED_PRECONDITION']
+  ['ALREADY_EXISTS', 'FAILED_PRECONDITION'],
+  [
+    'INVALID_PROJECT_ID : Identity Platform has already been enabled for this project.'
+  ]
 );
 
-const manager = getAuth().projectConfigManager();
-const current = await manager.getProjectConfig();
+const current = await identityRequest(`/admin/v2/projects/${projectId}/config`);
 const authorizedDomains = new Set(current.authorizedDomains ?? []);
 authorizedDomains.add('beauessence-clinic-staging.firebaseapp.com');
 authorizedDomains.add('beauessence-clinic-staging.web.app');
 authorizedDomains.add(previewDomain);
 
-await manager.updateProjectConfig({
-  authorizedDomains: [...authorizedDomains].sort(),
-  multiFactorConfig: {
-    state: 'ENABLED',
-    providerConfigs: [
-      {
-        state: 'ENABLED',
-        totpProviderConfig: { adjacentIntervals: 1 }
-      }
-    ]
-  }
+const existingMfa = current.mfa ?? {};
+const providerConfigs = (existingMfa.providerConfigs ?? []).filter(
+  (provider) => provider.totpProviderConfig === undefined
+);
+providerConfigs.push({
+  state: 'ENABLED',
+  totpProviderConfig: { adjacentIntervals: 1 }
 });
+
+await identityRequest(
+  `/admin/v2/projects/${projectId}/config?updateMask=authorizedDomains,mfa`,
+  {
+    method: 'PATCH',
+    body: JSON.stringify({
+      authorizedDomains: [...authorizedDomains].sort(),
+      mfa: {
+        ...existingMfa,
+        state: 'ENABLED',
+        providerConfigs
+      }
+    })
+  }
+);
 
 const googleProvider = await identityRequest(
   `/admin/v2/projects/${projectId}/defaultSupportedIdpConfigs/google.com`
