@@ -158,8 +158,11 @@ if (-not $ConfirmApply) {
 
 $writerKey = Get-Content -LiteralPath $WriterKeyPath -Raw | ConvertFrom-Json
 $smokeIdentityEmail = [string]$writerKey.client_email
-if ($smokeIdentityEmail -notmatch "^[^@]+@$projectId\.iam\.gserviceaccount\.com$") {
-  throw 'Writer smoke key does not belong to the approved staging project.'
+if (
+  [string]$writerKey.project_id -ne 'cal-pilot-sandbox' -or
+  $smokeIdentityEmail -ne 'cal-pilot-writer@cal-pilot-sandbox.iam.gserviceaccount.com'
+) {
+  throw 'Writer smoke key does not belong to the approved isolated Calendar sandbox.'
 }
 $smokeMember = "serviceAccount:$smokeIdentityEmail"
 $smokeConfiguration = "cal-pilot-update-$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
