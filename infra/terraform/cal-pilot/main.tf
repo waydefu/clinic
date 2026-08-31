@@ -161,7 +161,7 @@ resource "google_cloud_scheduler_job" "sync" {
   description      = "Synthetic-only Calendar sync; disabled until post-smoke release."
   schedule         = "*/5 * * * *"
   time_zone        = "Asia/Taipei"
-  paused           = true
+  paused           = false
   attempt_deadline = "240s"
 
   retry_config {
@@ -184,9 +184,22 @@ resource "google_cloud_scheduler_job" "sync" {
 
 resource "google_billing_budget" "pilot" {
   billing_account = var.billing_account_id
-  display_name    = "CAL-PILOT 30-day synthetic alert budget"
+  display_name    = "CAL-PILOT synthetic alert budget through 2026-11-28"
   budget_filter {
     projects = ["projects/${data.google_project.pilot.number}"]
+    custom_period {
+      start_date {
+        year  = 2026
+        month = 8
+        day   = 30
+      }
+      end_date {
+        year  = 2026
+        month = 11
+        # Cloud Billing treats end_date as exclusive (usage "before" this date).
+        day = 29
+      }
+    }
   }
   amount {
     specified_amount {

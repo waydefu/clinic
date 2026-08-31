@@ -8,6 +8,7 @@ import type {
   CalendarSyncStatus,
   CancelSyntheticAppointmentRequest,
   CreateSyntheticAppointmentRequest,
+  CorrectCalendarCandidateRequest,
   RescheduleSyntheticAppointmentRequest,
   ResolveCalendarCandidateRequest,
   ReviewCalendarCandidateRequest,
@@ -168,6 +169,21 @@ export class CalendarPilotApplicationService {
         command.resolution === 'system' ? 'resolve_system' : 'resolve_google',
       expectedVersion: command.expectedVersion,
       idempotencyKey: command.idempotencyKey,
+      actorId: authentication.actorId,
+      actorRole: role,
+      occurredAt: this.clock.nowUtc()
+    });
+  }
+
+  public correctCandidate(
+    candidateId: string,
+    command: CorrectCalendarCandidateRequest,
+    authentication: AuthenticationContext
+  ): Promise<ReviewCalendarCandidateResponse> {
+    const role = requireRole(authentication, ['manager', 'front_desk']);
+    return this.repository.correctCandidate({
+      candidateId,
+      ...command,
       actorId: authentication.actorId,
       actorRole: role,
       occurredAt: this.clock.nowUtc()

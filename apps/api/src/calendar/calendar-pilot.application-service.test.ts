@@ -13,6 +13,9 @@ function repository() {
   const reviewCandidate = vi
     .fn()
     .mockResolvedValue({ candidate: {}, projection: null });
+  const correctCandidate = vi
+    .fn()
+    .mockResolvedValue({ candidate: {}, projection: null });
   const port = {
     getStatus: vi.fn(),
     listSources: vi.fn().mockResolvedValue([]),
@@ -25,11 +28,17 @@ function repository() {
     activateSource: vi.fn(),
     rollbackSource: vi.fn(),
     reviewCandidate,
+    correctCandidate,
     createSyntheticAppointment: vi.fn(),
     rescheduleSyntheticAppointment: vi.fn(),
     cancelSyntheticAppointment: vi.fn()
   } as unknown as CalendarPilotRepositoryPort;
-  return { port, requestSourcePreflight, reviewCandidate };
+  return {
+    port,
+    requestSourcePreflight,
+    reviewCandidate,
+    correctCandidate
+  };
 }
 
 describe('CalendarPilotApplicationService role boundary', () => {
@@ -89,5 +98,38 @@ describe('CalendarPilotApplicationService role boundary', () => {
     expect(() =>
       service.sources({ actorId: 'patient_001', actorRole: 'patient' })
     ).toThrow(AuthorizationDeniedError);
+  });
+
+  it('allows front desk to submit only server-attributed controlled corrections', async () => {
+    const repo = repository();
+    const service = new CalendarPilotApplicationService(repo.port, {
+      nowUtc: () => NOW
+    });
+    await service.correctCandidate(
+      'candidate_invalid_001',
+      {
+        kind: 'appointment',
+        idempotencyKey: 'calendar_correction_0001',
+        expectedVersion: 2,
+        patientCode: 'A17',
+        bookingKind: 'initial',
+        serviceId: 'service_snoring',
+        startsAt: '2026-09-02T06:00:00.000Z'
+      },
+      { actorId: 'front_001', actorRole: 'front_desk' }
+    );
+    expect(repo.correctCandidate).toHaveBeenCalledWith({
+      candidateId: 'candidate_invalid_001',
+      kind: 'appointment',
+      idempotencyKey: 'calendar_correction_0001',
+      expectedVersion: 2,
+      patientCode: 'A17',
+      bookingKind: 'initial',
+      serviceId: 'service_snoring',
+      startsAt: '2026-09-02T06:00:00.000Z',
+      actorId: 'front_001',
+      actorRole: 'front_desk',
+      occurredAt: NOW
+    });
   });
 });

@@ -87,6 +87,7 @@ export interface CalendarMirrorRecord {
 export interface CalendarCandidateDraft {
   readonly candidateId: string;
   readonly mirrorId: string;
+  readonly expectedEtag: string;
   readonly kind: CalendarCandidateKind;
   readonly sourceId: string;
   readonly sourceVersion: number;
@@ -309,6 +310,7 @@ export class CalendarSyncEngine {
         const candidate: CalendarCandidateDraft = {
           candidateId,
           mirrorId,
+          expectedEtag: event.etag,
           kind,
           sourceId: configuration.activeSourceId,
           sourceVersion: configuration.sourceVersion,

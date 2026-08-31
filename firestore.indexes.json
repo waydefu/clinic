@@ -41,6 +41,14 @@
       ]
     },
     {
+      "collectionGroup": "calendar_pilot_outbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "leaseExpiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "calendar_pilot_appointments",
       "queryScope": "COLLECTION",
       "fields": [

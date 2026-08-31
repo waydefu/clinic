@@ -1,11 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import type {
-  Firestore,
-  QueryDocumentSnapshot
-} from 'firebase-admin/firestore';
+import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 
 import {
+  formatBusyTitle,
   formatSyntheticAppointmentTitle,
   parseCalendarEntry,
   type CalendarBookingKind,
@@ -17,13 +15,15 @@ import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repos
 import {
   GoogleCalendarEventReader,
   GoogleCalendarEventWriter,
-  GoogleCalendarSyncError
+  GoogleCalendarSyncError,
+  type CalendarWriteEvent
 } from './google-sync-client.js';
 import { CalendarSyncEngine, type CalendarSyncSummary } from './sync-engine.js';
 
 const READ_SCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly';
 const WRITE_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 const LEASE_MS = 4 * 60_000;
+const JOB_BATCH_SIZE = 20;
 
 interface SourceSecret {
   readonly calendarId: string;
@@ -44,10 +44,73 @@ interface PilotJob {
   readonly previousSourceId?: string;
   readonly localRecordId?: string;
   readonly mirrorId?: string;
+  readonly writeMode?: 'update_existing';
+  readonly expectedEtag?: string;
   readonly generation?: number;
   readonly leaseOwner?: string;
   readonly leaseExpiresAt?: string;
   readonly attemptCount?: number;
+}
+
+function leaseExpired(job: PilotJob, now: string): boolean {
+  return (
+    typeof job.leaseExpiresAt !== 'string' ||
+    Date.parse(job.leaseExpiresAt) <= Date.parse(now)
+  );
+}
+
+/**
+ * Claims pending work and reclaims processing work whose worker lease expired.
+ * Each candidate is re-read in a transaction so two Worker instances cannot
+ * take the same external effect concurrently.
+ */
+export async function claimCalendarPilotJobs(
+  db: Firestore,
+  owner: string,
+  now: string,
+  limit = JOB_BATCH_SIZE
+): Promise<readonly DocumentSnapshot[]> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > JOB_BATCH_SIZE)
+    throw new Error('Calendar pilot job claim limit is invalid.');
+  const collection = db.collection('calendar_pilot_outbox');
+  const [expiredProcessing, pending] = await Promise.all([
+    collection
+      .where('status', '==', 'processing')
+      .where('leaseExpiresAt', '<=', now)
+      .orderBy('leaseExpiresAt', 'asc')
+      .limit(limit)
+      .get(),
+    collection
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'asc')
+      .limit(limit)
+      .get()
+  ]);
+  const candidates = [...expiredProcessing.docs, ...pending.docs].slice(
+    0,
+    limit
+  );
+  const claimed: DocumentSnapshot[] = [];
+  for (const candidate of candidates) {
+    const document = await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(candidate.ref);
+      if (!current.exists) return undefined;
+      const job = current.data() as PilotJob;
+      if (
+        job.status !== 'pending' &&
+        !(job.status === 'processing' && leaseExpired(job, now))
+      )
+        return undefined;
+      transaction.update(current.ref, {
+        status: 'processing',
+        leaseOwner: owner,
+        leaseExpiresAt: new Date(Date.parse(now) + LEASE_MS).toISOString()
+      });
+      return current;
+    });
+    if (document !== undefined) claimed.push(document);
+  }
+  return claimed;
 }
 
 interface StoredAppointment {
@@ -58,8 +121,9 @@ interface StoredAppointment {
   readonly endsAt: string;
 }
 
-interface StoredMirror {
+export interface StoredMirror {
   readonly externalEventId: string;
+  readonly etag: string;
   readonly parsed: Extract<ParsedCalendarEntry, { readonly ok: true }>;
   readonly linkId?: string;
 }
@@ -133,6 +197,8 @@ function storedMirror(value: unknown): StoredMirror {
   const parsed = data['parsed'];
   if (
     typeof data['externalEventId'] !== 'string' ||
+    typeof data['etag'] !== 'string' ||
+    data['etag'].trim() === '' ||
     typeof parsed !== 'object' ||
     parsed === null ||
     Array.isArray(parsed) ||
@@ -140,6 +206,12 @@ function storedMirror(value: unknown): StoredMirror {
   )
     throw new Error('Calendar mirror record is invalid.');
   const parsedRecord = parsed as Record<string, unknown>;
+  if (
+    parsedRecord['allDay'] === true &&
+    (typeof parsedRecord['startDate'] !== 'string' ||
+      typeof parsedRecord['endDate'] !== 'string')
+  )
+    throw new Error('Calendar mirror record is invalid.');
   if (
     !['appointment', 'busy'].includes(String(parsedRecord['kind'])) ||
     typeof parsedRecord['displayLabel'] !== 'string' ||
@@ -149,9 +221,37 @@ function storedMirror(value: unknown): StoredMirror {
     throw new Error('Calendar mirror record is invalid.');
   return {
     externalEventId: data['externalEventId'],
+    etag: data['etag'],
     parsed: parsed as StoredMirror['parsed'],
     ...(typeof data['linkId'] === 'string' ? { linkId: data['linkId'] } : {})
   };
+}
+
+export function calendarWriteEventForMirror(
+  mirror: StoredMirror,
+  fallbackLinkId: string
+): CalendarWriteEvent {
+  const parsed = mirror.parsed;
+  const common = {
+    eventId: mirror.externalEventId,
+    title:
+      parsed.kind === 'appointment'
+        ? formatSyntheticAppointmentTitle(parsed)
+        : formatBusyTitle(parsed.busyReason),
+    linkId: mirror.linkId ?? fallbackLinkId
+  };
+  return parsed.kind === 'busy' && parsed.allDay === true
+    ? {
+        ...common,
+        allDay: true,
+        startDate: parsed.startDate as string,
+        endDate: parsed.endDate as string
+      }
+    : {
+        ...common,
+        startsAt: parsed.startsAt,
+        endsAt: parsed.endsAt
+      };
 }
 
 function calendarEventId(localRecordId: string): string {
@@ -279,26 +379,8 @@ export class CalendarPilotRuntime {
     });
   }
 
-  private async claimJobs(owner: string, now: string) {
-    const query = this.db
-      .collection('calendar_pilot_outbox')
-      .where('status', '==', 'pending')
-      .orderBy('createdAt', 'asc')
-      .limit(20);
-    return this.db.runTransaction(async (transaction) => {
-      const documents = await transaction.get(query);
-      for (const document of documents.docs)
-        transaction.update(document.ref, {
-          status: 'processing',
-          leaseOwner: owner,
-          leaseExpiresAt: new Date(Date.parse(now) + LEASE_MS).toISOString()
-        });
-      return documents.docs;
-    });
-  }
-
   private async completeJob(
-    document: QueryDocumentSnapshot,
+    document: DocumentSnapshot,
     owner: string,
     status: 'completed' | 'failed' | 'superseded',
     now: string,
@@ -318,7 +400,7 @@ export class CalendarPilotRuntime {
   }
 
   private async retryJob(
-    document: QueryDocumentSnapshot,
+    document: DocumentSnapshot,
     owner: string,
     now: string,
     attemptCount: number,
@@ -342,7 +424,7 @@ export class CalendarPilotRuntime {
 
   private async preflight(
     job: PilotJob,
-    document: QueryDocumentSnapshot,
+    document: DocumentSnapshot,
     now: string
   ) {
     if (job.sourceId === undefined)
@@ -431,17 +513,16 @@ export class CalendarPilotRuntime {
         .get();
       if (!mirror.exists) throw new Error('Mirror is missing.');
       const data = storedMirror(mirror.data());
-      const parsed = data.parsed;
-      await writer.upsert({
-        eventId: data.externalEventId,
-        title:
-          parsed.kind === 'appointment'
-            ? formatSyntheticAppointmentTitle(parsed)
-            : `[忙碌] ${parsed.displayLabel.replace(/^忙碌：/, '')}`,
-        startsAt: parsed.startsAt,
-        endsAt: parsed.endsAt,
-        linkId: data.linkId ?? job.mirrorId
-      });
+      const event = calendarWriteEventForMirror(data, job.mirrorId);
+      if (job.writeMode === 'update_existing') {
+        if (
+          typeof job.expectedEtag !== 'string' ||
+          job.expectedEtag.trim() === '' ||
+          data.etag !== job.expectedEtag
+        )
+          throw new Error('Calendar event version is stale.');
+        await writer.update(event, job.expectedEtag);
+      } else await writer.upsert(event);
       return 'completed';
     }
     if (job.localRecordId === undefined)
@@ -480,7 +561,7 @@ export class CalendarPilotRuntime {
     let processedJobs = 0;
     let failedJobs = 0;
     try {
-      const jobs = await this.claimJobs(owner, now);
+      const jobs = await claimCalendarPilotJobs(this.db, owner, now);
       for (const document of jobs) {
         const job = document.data() as PilotJob;
         try {

@@ -45,7 +45,7 @@ export const CALENDAR_PILOT_SCHEDULE = Object.freeze({
     ]),
     dateExceptions: Object.freeze([])
 });
-const SYNTHETIC_PATIENT_CODE = /^[A-Z][0-9]{2}$/;
+const SYNTHETIC_PATIENT_CODE = /^A(?:0[1-9]|[12][0-9]|30)$/;
 const APPOINTMENT_PREFIX = '[預約] ';
 const BUSY_PREFIX = '[忙碌] ';
 const TAIPEI_OFFSET = '+08:00';
@@ -166,7 +166,15 @@ export function parseCalendarEntry(input, knownPatientCodes) {
             busyReason,
             displayLabel: `忙碌：${reasonLabel}`,
             startsAt: range.startsAt,
-            endsAt: range.endsAt
+            endsAt: range.endsAt,
+            ...(isNonEmptyString(input.start?.date) &&
+                isNonEmptyString(input.end?.date)
+                ? {
+                    allDay: true,
+                    startDate: input.start.date,
+                    endDate: input.end.date
+                }
+                : {})
         };
     }
     return { ok: false, errors: ['title_format_invalid'] };

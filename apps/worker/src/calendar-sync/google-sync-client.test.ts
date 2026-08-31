@@ -124,5 +124,98 @@ describe('GoogleCalendarEventWriter', () => {
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('PATCH');
+    expect(
+      JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))
+    ).not.toHaveProperty('id');
+  });
+
+  it('updates the existing event with If-Match and never sends insert-only id', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response({}, 200)));
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      fetchImpl
+    );
+    await writer.update(
+      {
+        eventId: 'originalevent001',
+        title: '[忙碌] 會議',
+        startsAt: '2026-09-02T06:00:00.000Z',
+        endsAt: '2026-09-02T07:00:00.000Z',
+        linkId: 'block_001'
+      },
+      '"etag-001"'
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const request = fetchImpl.mock.calls[0]?.[1];
+    expect(request?.method).toBe('PATCH');
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain(
+      '/events/originalevent001'
+    );
+    expect(new Headers(request?.headers).get('If-Match')).toBe('"etag-001"');
+    expect(JSON.parse(String(request?.body))).toEqual({
+      summary: '[忙碌] 會議',
+      start: {
+        dateTime: '2026-09-02T06:00:00.000Z',
+        timeZone: 'Asia/Taipei'
+      },
+      end: {
+        dateTime: '2026-09-02T07:00:00.000Z',
+        timeZone: 'Asia/Taipei'
+      },
+      extendedProperties: {
+        private: { beauessenceLinkId: 'block_001' }
+      }
+    });
+  });
+
+  it('treats a rejected If-Match precondition as a non-retryable conflict', async () => {
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      () => Promise.resolve(response({}, 412))
+    );
+    await expect(
+      writer.update(
+        {
+          eventId: 'originalevent001',
+          title: '[忙碌] 會議',
+          startsAt: '2026-09-02T06:00:00.000Z',
+          endsAt: '2026-09-02T07:00:00.000Z',
+          linkId: 'block_001'
+        },
+        '"etag-001"'
+      )
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<GoogleCalendarSyncError>>({
+        status: 412,
+        retryable: false,
+        message: 'Google Calendar write failed (412).'
+      })
+    );
+  });
+
+  it('preserves an all-day cross-day range with exclusive Google end date', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response({}, 200)));
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      fetchImpl
+    );
+    await writer.upsert({
+      eventId: 'existingevent001',
+      title: '[忙碌] 休假',
+      allDay: true,
+      startDate: '2026-09-02',
+      endDate: '2026-09-04',
+      linkId: 'block_001'
+    });
+    expect(
+      JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))
+    ).toMatchObject({
+      id: 'existingevent001',
+      start: { date: '2026-09-02' },
+      end: { date: '2026-09-04' }
+    });
   });
 });

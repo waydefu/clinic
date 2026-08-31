@@ -33,16 +33,73 @@ medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
 | D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | approved (2026-07-28; implementation evidence pending) | Authenticated write endpoint |
 | D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending (owner input recorded 2026-08-16) | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending; period-close and adjustment sub-items deferred (owner direction recorded 2026-08-16) | Payroll-credit persistence |
-| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending for production; 30-day CAL-PILOT synthetic-only sub-scope approved 2026-08-28 (dedicated allowlisted calendars, closed synthetic fields, no real data) | Outbound Calendar integration review |
+| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (dedicated allowlisted calendars, closed synthetic fields, no real data; exact apply still gated) | Outbound Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
 | D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: no English version; the production URL is still undecided) | Public booking UX |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
 | D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (owner operational direction recorded 2026-08-16; the legal/medical classification still requires named professional review) | Storing surgery, anesthesia or clinical follow-up data |
 | D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending; ledger, refund and settlement sub-items deferred (owner direction recorded 2026-08-16) | Persisting money or settlement amounts |
-| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; 30-day CAL-PILOT synthetic-only sub-scope approved 2026-08-28 (manager/front desk review, private link ID, five-minute target) | Calendar-to-system writes |
+| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (manager/front desk review, private link ID, five-minute target; exact apply still gated) | Calendar-to-system writes |
 
 ## Recorded inputs
+
+### CAL-PILOT controlled-correction staging deployment approval — 2026-08-31
+
+After reviewing the actual stacked-PR state, the project owner explicitly
+directed deployment, testing and documentation of the synthetic-only
+controlled-correction release. PR #31 is the only one already merged into
+`main`; PR #32 was merged into the PR #31 feature branch and PR #33 was merged
+into the PR #32 branch. Their changes therefore require a new integration pull
+request to `main`. This later direction supersedes only the earlier instruction
+that PR B remain undeployed, and authorizes the following narrow staging change
+after the integration PR and all required checks pass:
+
+- integrate the already reviewed extension and controlled-correction changes
+  into `main`, together with recovery of expired `processing` Worker jobs;
+- extend the existing synthetic-only kill switch and NT$30 custom-period
+  budget as already approved, then deploy new API／Worker revisions, the
+  reviewed Firestore index and the matching Hosting build;
+- with Scheduler paused and inbound／outbound disabled, supersede exactly the
+  29 legacy `invalid_format` candidates that lack an `expectedEtag`, remove only
+  their unlinked invalid mirrors, clear the active source cursor and perform a
+  controlled full resync; the old candidates must never be populated with the
+  mirror's current etag;
+- require zero-traffic authenticated smoke, regenerated-candidate verification,
+  online browser smoke and an exact rollback record before resuming the
+  five-minute Scheduler.
+
+This does **not** approve production D-009／D-016, a production project or
+Calendar, real patient data, names, phone numbers, free-text source/editor
+fields, anesthesia or other clinical fields, payment data, new accounts,
+additional calendars, or changes to Identity／Secret values. Any drift in the
+exact candidate count, source generation, two-source allowlist, existing
+secrets, manager allowlist or rollback baseline stops the deployment.
+
+### CAL-PILOT synthetic-only extension approval — 2026-08-31
+
+The project owner approved a 60-day extension of the already deployed narrow
+CAL-PILOT sub-scope, from `2026-09-29T04:51:37Z` to
+`2026-11-28T04:51:37Z`, with these explicit conditions:
+
+- the existing API／Worker revisions, two-calendar allowlist, secrets, manager
+  allowlist, five-minute Scheduler and synthetic A01～A30 boundary remain
+  unchanged;
+- production, real data, `/clinic`, Payroll, surgery, anesthesia, clinical and
+  payment capabilities remain frozen;
+- the only online Web change removes the now-inaccurate “30 天” wording; feature
+  work proceeds in separate pull requests and is not deployed;
+- the NT$30 50%／80%／100% alerts cover one static 2026-08-30～2026-11-28
+  custom period instead of resetting monthly; they remain alerts rather than a
+  hard cap;
+- Firebase Hosting may renew only its preview-channel expiry metadata within
+  the final seven days, at no more than 30 days per renewal and never beyond
+  the application kill switch.
+
+This is approval of the extension plan and exclusions. Cloud mutation remains
+gated on the exact extension commit, Terraform diff, Hosting file diff and
+recovery list. It does not approve production D-009／D-016 or any new account,
+Calendar, field, credential or data source.
 
 ### CAL-PILOT D-009／D-016 synthetic-only sub-scope approval — 2026-08-28
 

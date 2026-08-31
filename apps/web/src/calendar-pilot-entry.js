@@ -79,6 +79,24 @@ function displayTime(iso) {
   }).format(new Date(iso));
 }
 
+function taipeiLocalValue(iso) {
+  if (iso === null || Number.isNaN(Date.parse(iso))) return '';
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+      .formatToParts(new Date(iso))
+      .map((part) => [part.type, part.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
 function taipeiToday() {
   const parts = new Intl.DateTimeFormat('en', {
     timeZone: 'Asia/Taipei',
@@ -213,7 +231,7 @@ function loginView() {
       <section class="cp-login-card">
         <img src="/assets/brand-mark.webp" alt="" width="57" height="80" />
         <h1 id="cp-login-heading">CAL-PILOT 安全登入</h1>
-        <p>30 天合成日曆測試。僅允許白名單 Google 帳號，並強制使用 TOTP 驗證器。</p>
+        <p>CAL-PILOT 合成日曆測試。僅允許白名單 Google 帳號，並強制使用 TOTP 驗證器。</p>
         <p class="cp-alert">禁止輸入姓名、電話、病歷或任何正式日曆資料。</p>
         <button class="cp-button cp-button-primary" data-google-login type="button">使用 Google 帳號登入</button>
         <p data-login-status role="status" aria-live="polite"></p>
@@ -301,21 +319,71 @@ async function switchSource(source, button) {
   }
 }
 
-function candidateItem(candidate) {
+const CANDIDATE_KIND_LABELS = Object.freeze({
+  create_appointment: '新增預約',
+  create_block: '新增忙碌',
+  update_appointment: '修改預約',
+  update_block: '修改忙碌',
+  cancel_appointment: '取消預約',
+  release_block: '解除忙碌',
+  invalid_format: '格式需修正',
+  conflict: '衝突'
+});
+
+const VALIDATION_LABELS = Object.freeze({
+  title_missing: '缺少標題',
+  title_format_invalid: '標題不符合統一格式',
+  patient_code_unknown: '合成患者代碼不存在',
+  time_missing: '缺少開始或結束時間',
+  time_invalid: '開始與結束時間無效',
+  appointment_all_day: '預約不能設為整天',
+  appointment_duration_invalid: '預約必須為 30 分鐘',
+  appointment_off_grid: '預約不在合法格線上',
+  appointment_outside_hours: '預約不在開放時段內',
+  busy_reason_unknown: '忙碌原因不在允許清單'
+});
+
+function candidateCategory(candidate) {
+  if (candidate.kind === 'invalid_format') return 'invalid';
+  if (candidate.kind === 'conflict' || candidate.status === 'conflict')
+    return 'conflict';
+  if (candidate.kind.includes('appointment')) return 'appointment';
+  return 'busy';
+}
+
+function candidateItem(candidate, correctionContext) {
   const item = document.createElement('li');
   item.className = 'cp-list-item cp-event';
   item.dataset.status = candidate.status;
-  item.innerHTML = `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p></div><div class="cp-actions"></div></div>`;
+  item.dataset.candidateType = candidateCategory(candidate);
+  item.innerHTML = `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p><dl class="cp-diff" data-candidate-diff></dl><ul class="cp-validation" data-validation-errors></ul></div><div class="cp-actions"></div></div>`;
   item.querySelector('strong').textContent = candidate.displayLabel;
   const range =
     candidate.startsAt === null
       ? '格式需修正'
       : `${displayTime(candidate.startsAt)}–${displayTime(candidate.endsAt)}`;
-  const before =
-    candidate.before === null
-      ? ''
-      : `・原為 ${candidate.before.displayLabel} ${displayTime(candidate.before.startsAt)}–${displayTime(candidate.before.endsAt)}`;
-  item.querySelector('p').textContent = `${candidate.kind}・${range}${before}`;
+  item.querySelector('p').textContent =
+    `${CANDIDATE_KIND_LABELS[candidate.kind] ?? '待審變更'}・${range}`;
+  const diff = item.querySelector('[data-candidate-diff]');
+  if (candidate.before === null) diff.remove();
+  else {
+    const beforeLabel = document.createElement('dt');
+    beforeLabel.textContent = '修改前';
+    const beforeValue = document.createElement('dd');
+    beforeValue.textContent = `${candidate.before.displayLabel}・${displayTime(candidate.before.startsAt)}–${displayTime(candidate.before.endsAt)}`;
+    const afterLabel = document.createElement('dt');
+    afterLabel.textContent = 'Google 變更';
+    const afterValue = document.createElement('dd');
+    afterValue.textContent = `${candidate.displayLabel}・${range}`;
+    diff.append(beforeLabel, beforeValue, afterLabel, afterValue);
+  }
+  const validation = item.querySelector('[data-validation-errors]');
+  for (const code of candidate.validationErrors) {
+    const error = document.createElement('li');
+    error.textContent = VALIDATION_LABELS[code] ?? '資料無法安全判讀';
+    validation.append(error);
+  }
+  if (candidate.validationErrors.length === 0) validation.remove();
   const actions = item.querySelector('.cp-actions');
   if (candidate.kind === 'conflict' || candidate.status === 'conflict') {
     for (const [resolution, label] of [
@@ -330,6 +398,20 @@ function candidateItem(candidate) {
       );
       actions.append(button);
     }
+  } else if (candidate.kind === 'invalid_format') {
+    const correct = document.createElement('button');
+    correct.className = 'cp-button cp-button-primary';
+    correct.textContent = '受控修正';
+    correct.addEventListener('click', () =>
+      openCorrectionDrawer(candidate, correctionContext)
+    );
+    const reject = document.createElement('button');
+    reject.className = 'cp-button';
+    reject.textContent = '拒絕';
+    reject.addEventListener('click', () =>
+      reviewCandidate(candidate, 'reject', {}, reject)
+    );
+    actions.append(correct, reject);
   } else {
     for (const [action, label, primary] of [
       ['accept', '接受', true],
@@ -338,8 +420,6 @@ function candidateItem(candidate) {
       const button = document.createElement('button');
       button.className = `cp-button${primary ? ' cp-button-primary' : ''}`;
       button.textContent = label;
-      button.disabled =
-        candidate.kind === 'invalid_format' && action === 'accept';
       button.addEventListener('click', () =>
         reviewCandidate(candidate, action, {}, button)
       );
@@ -347,6 +427,143 @@ function candidateItem(candidate) {
     }
   }
   return item;
+}
+
+function openCorrectionDrawer(candidate, context) {
+  const dialog = root.querySelector('[data-correction-dialog]');
+  dialog.innerHTML = `
+    <form class="cp-correction" data-correction-form>
+      <div class="cp-row"><div><p class="cp-kicker">格式需修正</p><h2>受控修正候選</h2></div><button class="cp-button" type="button" data-close-correction>關閉</button></div>
+      <p class="cp-alert">只能選合成代碼與封閉欄位；無法輸入姓名、電話、來源、麻醉或臨床文字。</p>
+      <label>修正類型<select name="kind"><option value="appointment">預約</option><option value="busy">忙碌</option></select></label>
+      <fieldset data-appointment-correction><legend>預約</legend><div class="cp-form"><label>合成患者<select name="patientCode"></select></label><label>掛號別<select name="bookingKind"><option value="initial">初診</option><option value="follow_up">回診</option></select></label><label>項目<select name="serviceId"><option value="service_snoring">止鼾</option><option value="service_aesthetic">醫美</option></select></label><label>合法 30 分鐘時段<select name="startsAt"></select></label></div></fieldset>
+      <fieldset data-busy-correction hidden><legend>忙碌</legend><div class="cp-form"><label>原因<select name="busyReason"><option value="meeting">會議</option><option value="leave">休假</option><option value="training">教育訓練</option><option value="other">其他</option></select></label><label>時間類型<select name="timeKind"><option value="timed">指定起訖</option><option value="all_day">整天／跨日</option></select></label><label data-timed-field>開始時間（台北）<input name="busyStartsAt" type="datetime-local" step="60" required /></label><label data-timed-field>結束時間（台北）<input name="busyEndsAt" type="datetime-local" step="60" required /></label><label data-all-day-field hidden>開始日期<input name="startDate" type="date" required disabled /></label><label data-all-day-field hidden>結束日期（不含）<input name="endDate" type="date" required disabled /></label></div></fieldset>
+      <button class="cp-button cp-button-primary" type="submit">重新檢查並核准</button>
+    </form>`;
+  dialog
+    .querySelector('h2')
+    .insertAdjacentText('afterend', `目前：${candidate.displayLabel}`);
+  const form = dialog.querySelector('[data-correction-form]');
+  const patientSelect = form.querySelector('[name="patientCode"]');
+  for (const patient of context.patients) {
+    const option = document.createElement('option');
+    option.value = patient.patientCode;
+    option.textContent = patient.patientCode;
+    patientSelect.append(option);
+  }
+  const booking = form.querySelector('[name="bookingKind"]');
+  const startsAt = form.querySelector('[name="startsAt"]');
+  const refreshCorrectionSlots = () =>
+    renderSlotOptions(
+      startsAt,
+      context.availability,
+      booking.value,
+      context.expiresAt
+    );
+  booking.addEventListener('change', refreshCorrectionSlots);
+  refreshCorrectionSlots();
+  const kind = form.querySelector('[name="kind"]');
+  const appointmentFields = form.querySelector('[data-appointment-correction]');
+  const busyFields = form.querySelector('[data-busy-correction]');
+  const toggleKind = () => {
+    const appointment = kind.value === 'appointment';
+    appointmentFields.hidden = !appointment;
+    busyFields.hidden = appointment;
+    for (const control of appointmentFields.querySelectorAll('input, select'))
+      control.disabled = !appointment;
+    for (const control of busyFields.querySelectorAll('input, select'))
+      control.disabled = appointment;
+    if (!appointment) toggleTimeKind();
+  };
+  kind.addEventListener('change', toggleKind);
+  const timeKind = form.querySelector('[name="timeKind"]');
+  const toggleTimeKind = () => {
+    if (kind.value !== 'busy') return;
+    const allDay = timeKind.value === 'all_day';
+    for (const label of form.querySelectorAll('[data-timed-field]')) {
+      label.hidden = allDay;
+      label.querySelector('input').disabled = allDay;
+    }
+    for (const label of form.querySelectorAll('[data-all-day-field]')) {
+      label.hidden = !allDay;
+      label.querySelector('input').disabled = !allDay;
+    }
+  };
+  timeKind.addEventListener('change', toggleTimeKind);
+  if (candidate.startsAt !== null) {
+    form.querySelector('[name="busyStartsAt"]').value = taipeiLocalValue(
+      candidate.startsAt
+    );
+    form.querySelector('[name="busyEndsAt"]').value = taipeiLocalValue(
+      candidate.endsAt
+    );
+  }
+  toggleKind();
+  toggleTimeKind();
+  dialog
+    .querySelector('[data-close-correction]')
+    .addEventListener('click', () => dialog.close());
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      const fields = Object.fromEntries(new FormData(form));
+      let correction;
+      if (fields.kind === 'appointment') {
+        if (!fields.startsAt) throw new Error('目前沒有合法 30 分鐘時段。');
+        correction = {
+          kind: 'appointment',
+          patientCode: fields.patientCode,
+          bookingKind: fields.bookingKind,
+          serviceId: fields.serviceId,
+          startsAt: fields.startsAt
+        };
+      } else if (fields.timeKind === 'all_day') {
+        if (fields.endDate <= fields.startDate)
+          throw new Error('整天忙碌的結束日期必須晚於開始日期。');
+        correction = {
+          kind: 'busy',
+          busyReason: fields.busyReason,
+          timeRange: {
+            kind: 'all_day',
+            startDate: fields.startDate,
+            endDate: fields.endDate
+          }
+        };
+      } else {
+        const busyStartsAt = toUtc(fields.busyStartsAt);
+        const busyEndsAt = toUtc(fields.busyEndsAt);
+        if (Date.parse(busyEndsAt) <= Date.parse(busyStartsAt))
+          throw new Error('忙碌結束時間必須晚於開始時間。');
+        correction = {
+          kind: 'busy',
+          busyReason: fields.busyReason,
+          timeRange: {
+            kind: 'timed',
+            startsAt: busyStartsAt,
+            endsAt: busyEndsAt
+          }
+        };
+      }
+      await request(`/calendar/candidates/${candidate.candidateId}/correct`, {
+        method: 'POST',
+        body: JSON.stringify({
+          idempotencyKey: idempotency('candidate_correct'),
+          expectedVersion: candidate.expectedVersion,
+          ...correction
+        })
+      });
+      dialog.close();
+      announce('格式已受控修正；同一 Google 事件更新已排入同步。');
+      await renderApplication();
+    } catch (error) {
+      announce(error.message, 'error');
+      submit.disabled = false;
+    }
+  });
+  dialog.showModal();
+  kind.focus();
 }
 
 async function reviewCandidate(candidate, action, extra, button) {
@@ -469,16 +686,17 @@ function applicationSkeleton(isPatient) {
   root.innerHTML = `
     <div class="cp-shell">
       <header class="cp-topbar">
-        <div class="cp-brand"><img src="/assets/brand-mark.webp" alt="" /><div><strong>一森渼診所</strong><span>CAL-PILOT 30 天合成同步</span></div></div>
+        <div class="cp-brand"><img src="/assets/brand-mark.webp" alt="" /><div><strong>一森渼診所</strong><span>CAL-PILOT 合成同步測試</span></div></div>
         <div class="cp-actions"><span class="cp-badge">SYNTHETIC ONLY</span><button class="cp-button" data-logout>登出</button></div>
       </header>
       <main class="cp-grid" id="cp-main">
         <section class="cp-card"><div class="cp-row"><div><h1>${isPatient ? '合成患者預約測試' : '日曆同步工作臺'}</h1><p>Google 與網頁共用同一份可用時段；外部變更必須審核後才會占用。</p></div><p class="cp-alert">不得輸入真實資料</p></div><div class="cp-status" data-status-grid></div></section>
-        ${isPatient ? '' : '<section class="cp-card cp-two"><h2>日曆來源</h2><p>切換前會驗證讀寫與格式；失敗時維持舊來源。</p><ul class="cp-list" data-sources></ul></section><section class="cp-card cp-two"><h2>待審佇列</h2><p>預約、忙碌、修改、刪除與衝突均不自動覆蓋。</p><ul class="cp-list" data-candidates></ul></section>'}
+        ${isPatient ? '' : '<section class="cp-card cp-two"><h2>日曆來源</h2><p>切換前會驗證讀寫與格式；失敗時維持舊來源。</p><ul class="cp-list" data-sources></ul></section><section class="cp-card cp-two"><h2>待審佇列</h2><p>預約、忙碌、修改、刪除與衝突均不自動覆蓋。</p><label class="cp-filter">候選類型<select data-candidate-filter><option value="all">全部</option><option value="appointment">預約</option><option value="busy">忙碌</option><option value="invalid">格式需修正</option><option value="conflict">衝突</option></select></label><ul class="cp-list" data-candidates></ul></section>'}
         <section class="cp-card cp-two"><h2>建立合成預約</h2><form class="cp-form" data-appointment-form><label>合成患者<select name="patientCode" required></select></label><label>掛號別<select name="bookingKind"><option value="initial">初診</option><option value="follow_up">回診</option></select></label><label>項目<select name="serviceId"><option value="service_snoring">止鼾</option><option value="service_aesthetic">醫美</option></select></label><label>可用時段（台北）<select name="startsAt" required></select></label><button class="cp-button cp-button-primary cp-full" type="submit">建立並排入 Google 同步</button></form></section>
         <section class="cp-card cp-two"><h2>合成預約</h2><ul class="cp-list" data-appointments></ul></section>
         <section class="cp-card"><h2>共用時段鏡像</h2><p>文字標籤同時區分預約與忙碌，不只依靠顏色。</p><ul class="cp-list" data-availability></ul></section>
       </main>
+      ${isPatient ? '' : '<dialog class="cp-dialog" data-correction-dialog aria-label="受控修正候選"></dialog>'}
     </div>`;
 }
 
@@ -534,8 +752,36 @@ async function renderApplication() {
     if (sources.length === 0) empty(sourceList, '尚未設定白名單來源。');
     const candidateList = root.querySelector('[data-candidates]');
     for (const candidate of candidates)
-      candidateList.append(candidateItem(candidate));
+      candidateList.append(
+        candidateItem(candidate, {
+          patients,
+          availability,
+          expiresAt: sync.expiresAt
+        })
+      );
     if (candidates.length === 0) empty(candidateList, '目前沒有待審變更。');
+    const candidateFilter = root.querySelector('[data-candidate-filter]');
+    candidateFilter.addEventListener('change', () => {
+      let visible = 0;
+      for (const item of candidateList.querySelectorAll(
+        '[data-candidate-type]'
+      )) {
+        item.hidden =
+          candidateFilter.value !== 'all' &&
+          item.dataset.candidateType !== candidateFilter.value;
+        if (!item.hidden) visible += 1;
+      }
+      let filteredEmpty = candidateList.querySelector('[data-filtered-empty]');
+      if (visible === 0 && candidates.length > 0) {
+        if (filteredEmpty === null) {
+          filteredEmpty = document.createElement('li');
+          filteredEmpty.className = 'cp-empty';
+          filteredEmpty.dataset.filteredEmpty = '';
+          filteredEmpty.textContent = '這個類型目前沒有候選變更。';
+          candidateList.append(filteredEmpty);
+        }
+      } else filteredEmpty?.remove();
+    });
   }
   const appointmentList = root.querySelector('[data-appointments]');
   for (const appointment of appointments)

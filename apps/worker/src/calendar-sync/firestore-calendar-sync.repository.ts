@@ -24,6 +24,7 @@ const MIRRORS = 'calendar_pilot_mirrors';
 const CANDIDATES = 'calendar_pilot_candidates';
 const PREFLIGHTS = 'calendar_pilot_preflights';
 const APPOINTMENTS = 'calendar_pilot_appointments';
+const LEGACY_RESYNC_REASON = 'legacy_candidate_requires_resync';
 
 interface StoredConfiguration extends CalendarSourceConfiguration {
   readonly lastSuccessfulSyncAt?: string;
@@ -175,10 +176,10 @@ export class FirestoreCalendarSyncRepository
             )
           )
       );
-      const existingCandidates = new Set(
+      const existingCandidates = new Map(
         candidateDocuments
           .filter((document) => document.exists)
-          .map((document) => document.id)
+          .map((document) => [document.id, document.data()] as const)
       );
 
       for (const mutation of commit.mutations) {
@@ -186,14 +187,26 @@ export class FirestoreCalendarSyncRepository
           this.db.collection(MIRRORS).doc(mutation.mirror.mirrorId),
           mutation.mirror
         );
-        if (
-          mutation.candidate !== undefined &&
-          !existingCandidates.has(mutation.candidate.candidateId)
-        )
-          transaction.create(
-            this.db.collection(CANDIDATES).doc(mutation.candidate.candidateId),
-            publicCandidate(mutation.candidate)
+        if (mutation.candidate !== undefined) {
+          const candidateRef = this.db
+            .collection(CANDIDATES)
+            .doc(mutation.candidate.candidateId);
+          const existingCandidate = existingCandidates.get(
+            mutation.candidate.candidateId
           );
+          if (existingCandidate === undefined)
+            transaction.create(
+              candidateRef,
+              publicCandidate(mutation.candidate)
+            );
+          else if (
+            existingCandidate['status'] === 'superseded' &&
+            existingCandidate['supersededReason'] === LEGACY_RESYNC_REASON &&
+            (typeof existingCandidate['expectedEtag'] !== 'string' ||
+              existingCandidate['expectedEtag'].trim() === '')
+          )
+            transaction.set(candidateRef, publicCandidate(mutation.candidate));
+        }
       }
 
       const sourceUpdate = {

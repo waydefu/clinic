@@ -1,11 +1,17 @@
-# CAL-PILOT 30 天雙向同步操作手冊
+# CAL-PILOT synthetic-only 雙向同步操作手冊
 
 **適用範圍：** `beauessence-clinic-staging` 的 synthetic-only 測試。
 **不適用：** 正式專案、正式日曆、真實姓名、電話、病歷、臨床內容或金流。
 
-**目前狀態（2026-08-30）：** 已依核准候選啟用；精確 revision、映像、期限、
+**目前狀態（2026-08-31）：** 既有 30 天候選已啟用；業主已核准延長至
+`2026-11-28T04:51:37Z`，並在 stacked-PR 狀態釐清後指示將受控修正透過
+integration PR 真正合入 `main`，完成測試後部署到同一 synthetic-only
+staging。線上在 exact main SHA、CI、映像 digest、Terraform diff 與回復清單
+全數固定前仍不變。精確 revision、映像、期限、
 初次同步與驗證結果見
 [30 天 synthetic-only 部署紀錄](../reviews/2026-08-30-cal-pilot-30-day-deployment.md)。
+延期候選與凍結邊界見
+[2026-08-31 延期 change plan](../reviews/2026-08-31-cal-pilot-extension-change-plan.md)。
 
 ## 1. 使用者會看到什麼
 
@@ -16,6 +22,26 @@
 - Google 新增、修改或刪除不直接改預約；先進入待審佇列，核准時重新檢查
   時段、合成患者重複預約與版本衝突。
 - 只有 `manager` 可切換或回滾來源；`manager` 與 `front_desk` 可審核。
+
+### 受控修正的部署狀態
+
+後續功能 PR 增加 `POST /v1/calendar/candidates/{candidateId}/correct`。它原本只供
+本機與 CI review；業主現已核准透過 integration PR 部署至同一合成測試環境。
+在該 exact main 候選完成 CI 與部署紀錄前，它仍不是線上操作步驟。該端點只
+接受封閉選項，核准時重新跑版本、source generation、時段重疊與患者重複檢查，並
+由 Worker 更新同一個 Google 事件；candidate 建立時會在 server-side 封存 Google
+`etag`，交易再次核對 mirror 後，Worker 的 `PATCH` 仍以 `If-Match` 防止審核後到寫回前
+的競態。PATCH body 不帶 insert-only `event.id`，`etag` 也不回傳瀏覽器；不存在
+「強制覆蓋」參數。
+
+既有舊候選缺少上述版本快照，因此功能會 fail closed。部署必須在 Scheduler
+暫停、inbound／outbound 關閉時，受控 supersede 精確 29 筆 legacy candidate、
+刪除它們對應的未連結無效 mirror，清除 active source cursor 後完整重新同步。
+重建後要驗證每筆新 candidate 的 server-side `expectedEtag` 與新 mirror 相等；
+不得把目前 mirror `etag` 直接補到舊候選。
+若同一 Google 版本使重建後的 deterministic candidate ID 與舊 ID 相同，repository
+只可以完整同步剛讀到的資料取代「本次 migration 標記且仍缺 `expectedEtag`」
+的 tombstone；其他已存在或 superseded candidate 一律不覆寫。
 
 ## 2. 唯一允許的 Google 標題
 
@@ -115,11 +141,59 @@ iframe；全部使用精確 host，不使用 wildcard，且瀏覽器仍不得直
 不要刪除合成預約、mirror、候選或匿名 audit。若疑似金鑰外洩，另停用對應
 Secret version、撤銷 Google Calendar ACL 並輪替服務帳號金鑰。
 
-## 8. 到期與費用
+### Worker 過期租約回收
 
-部署後 30 天，API 與 Worker 都會 fail closed；Scheduler 與 Hosting channel 也須
-停止／到期。NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）是告警，不是硬上限。低流量可能接近
+`calendar_pilot_outbox` 的 `processing` 工作若在 complete／retry 前當機，租約過期後
+必須先於 pending 工作被重新 claim。每筆 claim 都在 transaction 中重讀；仍有效的
+租約不可被搜夺，兩個 Worker 競爭時只能一個成功。部署新 Worker 前先發布
+`status + leaseExpiresAt` composite index 並實際查詢證明 index ready；否則保持
+Scheduler paused 與雙開關關閉。
+
+## 8. 到期、續期與費用
+
+應用程式在核准的精確 UTC 時間 fail closed；Scheduler 與 Hosting channel 也須
+停止／到期。延長套用後的 kill switch 是 `2026-11-28T04:51:37Z`。
+NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
+2026-08-30～2026-11-28 的單一 custom period，不按月重設；Cloud Billing API
+使用不含尾日的 `endDate`，所以 Terraform 寫入 `2026-11-29`。它是告警，不是硬上限。低流量可能接近
 免費，但 Cloud Run、Scheduler、Firestore、Secret Manager、Artifact Registry、
 日誌或流量都可能產生費用；正式環境不得假設免費。
 
 延長測試、增加帳號、改 Calendar 白名單或接正式資料，全部視為新核准。
+
+### 延期套用
+
+1. 不可重跑 `seed-cal-pilot.mjs`，避免重設來源、游標或合成資料。
+2. 以 `cal-pilot-extend.ps1` 核對精確 commit、API／Worker revision 與 digest、
+   Hosting version、Scheduler、六個 Secret 的單一 enabled version、舊期限與精確
+   兩本 enabled source ID 與 source generation；Secret version manifest 只能放版本號，不能放值。只有
+   `-ConfirmApply` 才執行 Firestore transaction。
+3. 該 transaction 只更新 `expiresAt` 並同時新增匿名
+   `calendar_pilot_expiry_extended` audit；source generation 不變。
+4. Terraform plan 必須只有既有 budget 的名稱與 custom period 更新，且為
+   `0 added, 1 changed, 0 destroyed`；任何其他差異都停止。
+5. Hosting 文案 release 只允許移除「30 天」字樣。發布前後都重新比對 81 個既有
+   檔案，除 hashed client／對應 HTML manifest 外不得有功能差異。
+
+### Hosting metadata-only 續期
+
+- Preview channel 一次最多延長 30 天。只在剩餘七天內執行
+  `cal-pilot-renew-hosting.ps1`；下一期限固定為
+  `min(now + 30 days, 2026-11-28T04:51:37Z)`。
+- 續期前後必須是同一 Hosting version；腳本只 PATCH `expireTime`，不得建立
+  release、重建網站或改 Identity authorized domain。
+- 若續期失敗或過期，不改 live channel；讓 preview fail closed，依緊急停止流程
+  關閉 Scheduler 與 inbound／outbound，再由具名核准決定是否恢復。
+
+### 後續受控版本更新
+
+1. 先用 `cal-pilot-extend.ps1` 與 reviewed Terraform plan 完成期限／budget；不重跑 seed。
+2. `cal-pilot-update.ps1` 預設只做 read-only preflight；只有 exact clean main SHA、新與舊
+   immutable image digest、舊 revision／Hosting version、六個 Secret version manifest、
+   source generation、legacy 筆數與 writer smoke key 全數相符，並顯式加入
+   `-ConfirmApply` 才會修改線上。
+3. 腳本固定 pause Scheduler → disable 雙開關 → Firestore index ready → 0% revision
+   authenticated smoke → traffic switch → legacy transaction／full resync／verify → Hosting
+   → Secret／revision 復驗 → resume Scheduler。
+4. 中途任一錯誤都保持 Scheduler paused 與雙開關 disabled，不自動刪除資料；
+   使用部署前記錄的三個精確版本執行回滾。

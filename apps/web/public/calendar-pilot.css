@@ -273,6 +273,90 @@
 .cp-subtle {
   font-size: 0.8rem;
 }
+.cp-filter {
+  display: grid;
+  gap: 0.3rem;
+  max-width: 15rem;
+  margin-top: 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.cp-filter select {
+  min-height: 44px;
+  border: 1px solid #b9cec5;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  background: #fff;
+  color: #18352d;
+  font: inherit;
+}
+.cp-diff {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 0.55rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+}
+.cp-diff dt {
+  font-weight: 800;
+}
+.cp-diff dd {
+  margin: 0;
+}
+.cp-validation {
+  margin: 0.45rem 0 0;
+  padding-inline-start: 1.2rem;
+  color: #842a2a;
+  font-size: 0.82rem;
+}
+.cp-dialog {
+  width: min(680px, calc(100% - 1rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  border: 1px solid #b9cec5;
+  border-radius: 18px;
+  padding: 0;
+  color: #18352d;
+  box-shadow: 0 24px 80px #09271e52;
+}
+.cp-dialog::backdrop {
+  background: #09271e85;
+}
+.cp-correction {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.2rem;
+}
+.cp-correction > label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.cp-correction select,
+.cp-correction input {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid #b9cec5;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  background: #fff;
+  color: #18352d;
+  font: inherit;
+}
+.cp-correction fieldset {
+  margin: 0;
+  border: 1px solid #d8e4df;
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+.cp-correction legend,
+.cp-kicker {
+  color: #155c48;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
 .cp-sr-status {
   position: fixed;
   inset: auto 1rem 1rem auto;
