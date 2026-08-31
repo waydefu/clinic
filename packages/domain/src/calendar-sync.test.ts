@@ -35,7 +35,7 @@ describe('calendar entry format', () => {
     expect(
       parseCalendarEntry(
         {
-          summary: '[預約] C99｜回診｜醫美',
+          summary: '[預約] A18｜回診｜醫美',
           start: { dateTime: '2026-09-02T14:00:00+08:00' },
           end: { dateTime: '2026-09-02T15:00:00+08:00' }
         },
@@ -91,7 +91,10 @@ describe('calendar entry format', () => {
       busyReason: 'leave',
       displayLabel: '忙碌：休假',
       startsAt: '2026-09-01T16:00:00.000Z',
-      endsAt: '2026-09-03T16:00:00.000Z'
+      endsAt: '2026-09-03T16:00:00.000Z',
+      allDay: true,
+      startDate: '2026-09-02',
+      endDate: '2026-09-04'
     });
   });
 
@@ -143,5 +146,12 @@ describe('calendar entry format', () => {
       })
     ).toBe('[預約] A17｜回診｜醫美');
     expect(formatBusyTitle('training')).toBe('[忙碌] 教育訓練');
+    expect(() =>
+      formatSyntheticAppointmentTitle({
+        patientCode: 'A31',
+        bookingKind: 'initial',
+        serviceId: 'service_snoring'
+      })
+    ).toThrow('Invalid synthetic Calendar appointment fields.');
   });
 });
