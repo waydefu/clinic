@@ -144,3 +144,14 @@ mirror、候選與匿名 audit 供查核。因為這是首版，沒有前一版�
 - 本次沒有建立 production 專案、production secrets 或 production cursor。
 - 使用者第一次登入仍需親自完成 Google 登入與 TOTP enrollment；這是人工驗收，
   不由部署者代替。
+
+## 11. 2026-08-31 延期核准（尚未套用）
+
+業主已核准把 synthetic-only 測試延長至 `2026-11-28T04:51:37Z`，費用告警改為
+2026-08-30～2026-11-28 整段合計 NT$30，並允許一版只移除「30 天」字樣的
+Hosting 文案。API／Worker、Scheduler、兩本 Calendar、Secrets、帳號與資料邊界
+全部凍結；功能增補只進獨立 PR／CI，不部署。
+
+這一節只記錄方向，**不是已套用證據**。精確 extension commit、Terraform diff、
+Hosting file diff 與線上驗證完成前，上方既有 expiry／version 仍是現況。候選見
+[2026-08-31 延期 change plan](2026-08-31-cal-pilot-extension-change-plan.md)。
