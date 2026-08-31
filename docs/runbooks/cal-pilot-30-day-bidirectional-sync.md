@@ -26,7 +26,13 @@
 後續功能 PR 增加 `POST /v1/calendar/candidates/{candidateId}/correct`，但它目前只供
 本機與 CI review，**不是線上操作步驟**。功能合併／部署前仍須另行核准。該端點只
 接受封閉選項，核准時重新跑版本、source generation、時段重疊與患者重複檢查，並
-由 Worker 更新同一個 Google 事件；不存在「強制覆蓋」參數。
+由 Worker 更新同一個 Google 事件；candidate 建立時會在 server-side 封存 Google
+`etag`，交易再次核對 mirror 後，Worker 的 `PATCH` 仍以 `If-Match` 防止審核後到寫回前
+的競態。PATCH body 不帶 insert-only `event.id`，`etag` 也不回傳瀏覽器；不存在
+「強制覆蓋」參數。
+
+既有舊候選缺少上述版本快照，因此此未部署功能會 fail closed。未來若核准部署，先以
+受控重新同步／migration 重建候選並驗證，不得把目前 mirror `etag` 直接補到舊候選。
 
 ## 2. 唯一允許的 Google 標題
 

@@ -175,6 +175,11 @@ describe('CalendarSyncEngine', () => {
         .flatMap((commit) => commit.mutations)
         .map((mutation) => mutation.candidate?.kind)
     ).toEqual(['create_appointment', 'create_block']);
+    expect(
+      repository.commits
+        .flatMap((commit) => commit.mutations)
+        .map((mutation) => mutation.candidate?.expectedEtag)
+    ).toEqual(['etag-1', 'etag-2']);
     expect(repository.state.syncToken).toBe('sync-1');
   });
 

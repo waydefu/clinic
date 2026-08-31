@@ -57,6 +57,7 @@ async function seedInvalidCandidate(overrides: Record<string, unknown> = {}) {
     .doc(MIRROR_ID)
     .set({
       externalEventId: 'original_google_event_id',
+      etag: '"etag-001"',
       localDirty: false,
       parsed: { ok: false, errors: ['title_format_invalid'] }
     });
@@ -77,6 +78,7 @@ async function seedInvalidCandidate(overrides: Record<string, unknown> = {}) {
       createdAt: NOW,
       before: null,
       mirrorId: MIRROR_ID,
+      expectedEtag: '"etag-001"',
       parsed: { ok: false, errors: ['title_format_invalid'] },
       ...overrides
     });
@@ -151,6 +153,7 @@ describe('controlled Calendar candidate correction transaction', () => {
       kind: 'calendar_projection_restore',
       writeMode: 'update_existing',
       mirrorId: MIRROR_ID,
+      expectedEtag: '"etag-001"',
       generation: 1,
       status: 'pending'
     });
@@ -226,13 +229,24 @@ describe('controlled Calendar candidate correction transaction', () => {
       'version',
       'generation',
       'overlap',
-      'duplicate'
+      'duplicate',
+      'stale_etag',
+      'missing_candidate_etag'
     ] as const;
     for (const scenario of scenarios) {
       await wipe();
       await seedInvalidCandidate(
-        scenario === 'generation' ? { sourceVersion: 2 } : {}
+        scenario === 'generation'
+          ? { sourceVersion: 2 }
+          : scenario === 'missing_candidate_etag'
+            ? { expectedEtag: null }
+            : {}
       );
+      if (scenario === 'stale_etag')
+        await db
+          .collection('calendar_pilot_mirrors')
+          .doc(MIRROR_ID)
+          .update({ etag: '"etag-002"' });
       if (scenario === 'overlap')
         await db
           .collection('calendar_pilot_availability_blocks')
@@ -275,6 +289,9 @@ describe('controlled Calendar candidate correction transaction', () => {
       expect(
         (await db.collection('calendar_pilot_audit_events').get()).empty
       ).toBe(true);
+      expect(
+        (await db.collection('calendar_pilot_idempotency').get()).empty
+      ).toBe(true);
     }
   });
 
@@ -284,6 +301,7 @@ describe('controlled Calendar candidate correction transaction', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0]).not.toHaveProperty('sourceId');
     expect(candidates[0]).not.toHaveProperty('mirrorId');
+    expect(candidates[0]).not.toHaveProperty('expectedEtag');
     expect(candidates[0]).not.toHaveProperty('parsed');
   });
 });

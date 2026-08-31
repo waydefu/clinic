@@ -8,6 +8,7 @@ describe('calendar projection restore', () => {
       calendarWriteEventForMirror(
         {
           externalEventId: 'original_google_event',
+          etag: '"etag-001"',
           linkId: 'projection_001',
           parsed: {
             ok: true,
@@ -36,6 +37,7 @@ describe('calendar projection restore', () => {
       calendarWriteEventForMirror(
         {
           externalEventId: 'original_busy_event',
+          etag: '"etag-002"',
           parsed: {
             ok: true,
             kind: 'busy',

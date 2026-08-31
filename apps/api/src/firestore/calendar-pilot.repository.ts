@@ -66,6 +66,7 @@ interface ConfigurationRecord {
 
 interface CandidateRecord extends CalendarChangeCandidate {
   readonly mirrorId: string;
+  readonly expectedEtag: string;
   readonly parsed: ParsedCalendarEntry;
   readonly previousParsed?: ParsedCalendarEntry;
   readonly localRecordId?: string;
@@ -208,6 +209,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     return documents.docs.map((document) => {
       const {
         mirrorId: _mirrorId,
+        expectedEtag: _expectedEtag,
         parsed: _parsed,
         previousParsed: _previousParsed,
         localRecordId: _local,
@@ -654,6 +656,20 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       )
         throw new ConflictError();
 
+      const mirror = documentData<{ readonly etag?: unknown }>(
+        await transaction.get(
+          this.db.collection('calendar_pilot_mirrors').doc(candidate.mirrorId)
+        )
+      );
+      if (
+        typeof candidate.expectedEtag !== 'string' ||
+        candidate.expectedEtag.trim() === '' ||
+        typeof mirror.etag !== 'string' ||
+        mirror.etag.trim() === '' ||
+        mirror.etag !== candidate.expectedEtag
+      )
+        throw new ConflictError();
+
       let parsed: ParsedCalendarEntry;
       if (command.kind === 'appointment') {
         const patient = await transaction.get(
@@ -748,6 +764,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
           kind: 'calendar_projection_restore',
           writeMode: 'update_existing',
           mirrorId: candidate.mirrorId,
+          expectedEtag: candidate.expectedEtag,
           generation: configuration.version,
           status: 'pending',
           createdAt: command.occurredAt,
