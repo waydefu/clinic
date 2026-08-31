@@ -3,9 +3,11 @@
 **適用範圍：** `beauessence-clinic-staging` 的 synthetic-only 測試。
 **不適用：** 正式專案、正式日曆、真實姓名、電話、病歷、臨床內容或金流。
 
-**目前狀態（2026-08-31）：** 既有 30 天候選已啟用；業主另核准延長至
-`2026-11-28T04:51:37Z`，但仍須以精確 extension commit／diff 再確認後才可套用。
-目前線上仍以既有 kill switch 為準。精確 revision、映像、期限、
+**目前狀態（2026-08-31）：** 既有 30 天候選已啟用；業主已核准延長至
+`2026-11-28T04:51:37Z`，並在 stacked-PR 狀態釐清後指示將受控修正透過
+integration PR 真正合入 `main`，完成測試後部署到同一 synthetic-only
+staging。線上在 exact main SHA、CI、映像 digest、Terraform diff 與回復清單
+全數固定前仍不變。精確 revision、映像、期限、
 初次同步與驗證結果見
 [30 天 synthetic-only 部署紀錄](../reviews/2026-08-30-cal-pilot-30-day-deployment.md)。
 延期候選與凍結邊界見
@@ -21,18 +23,22 @@
   時段、合成患者重複預約與版本衝突。
 - 只有 `manager` 可切換或回滾來源；`manager` 與 `front_desk` 可審核。
 
-### 未部署的受控修正候選
+### 受控修正的部署狀態
 
-後續功能 PR 增加 `POST /v1/calendar/candidates/{candidateId}/correct`，但它目前只供
-本機與 CI review，**不是線上操作步驟**。功能合併／部署前仍須另行核准。該端點只
+後續功能 PR 增加 `POST /v1/calendar/candidates/{candidateId}/correct`。它原本只供
+本機與 CI review；業主現已核准透過 integration PR 部署至同一合成測試環境。
+在該 exact main 候選完成 CI 與部署紀錄前，它仍不是線上操作步驟。該端點只
 接受封閉選項，核准時重新跑版本、source generation、時段重疊與患者重複檢查，並
 由 Worker 更新同一個 Google 事件；candidate 建立時會在 server-side 封存 Google
 `etag`，交易再次核對 mirror 後，Worker 的 `PATCH` 仍以 `If-Match` 防止審核後到寫回前
 的競態。PATCH body 不帶 insert-only `event.id`，`etag` 也不回傳瀏覽器；不存在
 「強制覆蓋」參數。
 
-既有舊候選缺少上述版本快照，因此此未部署功能會 fail closed。未來若核准部署，先以
-受控重新同步／migration 重建候選並驗證，不得把目前 mirror `etag` 直接補到舊候選。
+既有舊候選缺少上述版本快照，因此功能會 fail closed。部署必須在 Scheduler
+暫停、inbound／outbound 關閉時，受控 supersede 精確 29 筆 legacy candidate、
+刪除它們對應的未連結無效 mirror，清除 active source cursor 後完整重新同步。
+重建後要驗證每筆新 candidate 的 server-side `expectedEtag` 與新 mirror 相等；
+不得把目前 mirror `etag` 直接補到舊候選。
 
 ## 2. 唯一允許的 Google 標題
 
@@ -132,6 +138,14 @@ iframe；全部使用精確 host，不使用 wildcard，且瀏覽器仍不得直
 不要刪除合成預約、mirror、候選或匿名 audit。若疑似金鑰外洩，另停用對應
 Secret version、撤銷 Google Calendar ACL 並輪替服務帳號金鑰。
 
+### Worker 過期租約回收
+
+`calendar_pilot_outbox` 的 `processing` 工作若在 complete／retry 前當機，租約過期後
+必須先於 pending 工作被重新 claim。每筆 claim 都在 transaction 中重讀；仍有效的
+租約不可被搜夺，兩個 Worker 競爭時只能一個成功。部署新 Worker 前先發布
+`status + leaseExpiresAt` composite index 並實際查詢證明 index ready；否則保持
+Scheduler paused 與雙開關關閉。
+
 ## 8. 到期、續期與費用
 
 應用程式在核准的精確 UTC 時間 fail closed；Scheduler 與 Hosting channel 也須
@@ -167,3 +181,16 @@ NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
   release、重建網站或改 Identity authorized domain。
 - 若續期失敗或過期，不改 live channel；讓 preview fail closed，依緊急停止流程
   關閉 Scheduler 與 inbound／outbound，再由具名核准決定是否恢復。
+
+### 後續受控版本更新
+
+1. 先用 `cal-pilot-extend.ps1` 與 reviewed Terraform plan 完成期限／budget；不重跑 seed。
+2. `cal-pilot-update.ps1` 預設只做 read-only preflight；只有 exact clean main SHA、新與舊
+   immutable image digest、舊 revision／Hosting version、六個 Secret version manifest、
+   source generation、legacy 筆數與 writer smoke key 全數相符，並顯式加入
+   `-ConfirmApply` 才會修改線上。
+3. 腳本固定 pause Scheduler → disable 雙開關 → Firestore index ready → 0% revision
+   authenticated smoke → traffic switch → legacy transaction／full resync／verify → Hosting
+   → Secret／revision 復驗 → resume Scheduler。
+4. 中途任一錯誤都保持 Scheduler paused 與雙開關 disabled，不自動刪除資料；
+   使用部署前記錄的三個精確版本執行回滾。

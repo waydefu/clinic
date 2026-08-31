@@ -1,5 +1,12 @@
 # CAL-PILOT synthetic-only 延期 change plan（2026-08-31）
 
+> **Current direction:** after the stacked-PR review later on 2026-08-31, the
+> owner authorized an integration PR to `main` and a controlled synthetic-only
+> staging deployment. Sections that describe PR B as permanently undeployed are
+> retained as the earlier gate; the superseding deployment scope and extra
+> safety gates are recorded in section 9 and the
+> [controlled-correction deployment record](2026-08-31-cal-pilot-controlled-correction-deployment.md).
+
 ## 1. 核准結果與停止點
 
 業主核准把既有 application kill switch 從 `2026-09-29T04:51:37Z` 延至
@@ -106,3 +113,43 @@ legacy candidate fail closed；在任何未來部署前，必須以受控重新�
 
 PR B URL／exact SHA／GitHub CI 在 PR 建立後記入交付報告；不寫入 deployment
 runbook，也不得成為 PR A Hosting build 的來源。
+
+## 9. Superseding integration and deployment gate
+
+The actual GitHub graph changes the delivery mechanics:
+
+- #31 is merged to `main`.
+- #32 is marked merged only into the #31 feature branch.
+- #33 is marked merged only into the #32 feature branch.
+- therefore #32／#33 are not in `main`; a new integration PR from the final
+  feature state to current `main` is mandatory.
+
+The owner subsequently directed deployment, testing and documentation. That
+direction authorizes PR B only within the existing synthetic staging boundary,
+and adds these required changes before apply:
+
+1. Recover `calendar_pilot_outbox` jobs in `processing` when their lease has
+   expired. The claim transaction must re-read each job and allow only one
+   Worker to win; an active lease is never stolen.
+2. Deploy the matching Firestore composite index before new Worker traffic and
+   prove the expired-processing query is ready.
+3. Extend the application expiry and apply the reviewed one-time budget before
+   the runtime update. The exact Terraform plan is still restricted to
+   `0 added, 1 changed, 0 destroyed` and no Scheduler action.
+4. Pause Scheduler and disable inbound／outbound. Supersede exactly 29 pending
+   legacy invalid candidates that lack an `expectedEtag`, delete only their
+   unlinked invalid mirrors, clear the active source sync cursor and append one
+   anonymous batch audit in a transaction. Any count, generation, allowlist,
+   switch or mirror drift fails closed with zero partial writes.
+5. Deploy new API／Worker images at 0% traffic, run authenticated smoke, then
+   switch traffic. Enable the application only for one controlled full sync;
+   verify that all 29 replacement candidates contain a fresh server-side etag
+   matching their rebuilt mirror. No identifier or etag is printed or exposed.
+6. Publish the exact matching Hosting build, run CSP／login／sanitized-network
+   browser smoke, confirm Secret／Identity／account／Calendar boundaries are
+   unchanged, then resume the five-minute Scheduler.
+
+Any failure after the stop point leaves Scheduler paused and both application
+switches disabled. Rollback targets remain the live #31 API revision, Worker
+revision and Hosting version captured immediately before apply; synthetic data
+and anonymous audit are retained.

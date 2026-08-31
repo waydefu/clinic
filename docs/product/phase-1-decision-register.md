@@ -44,6 +44,38 @@ medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
 
 ## Recorded inputs
 
+### CAL-PILOT controlled-correction staging deployment approval — 2026-08-31
+
+After reviewing the actual stacked-PR state, the project owner explicitly
+directed deployment, testing and documentation of the synthetic-only
+controlled-correction release. PR #31 is the only one already merged into
+`main`; PR #32 was merged into the PR #31 feature branch and PR #33 was merged
+into the PR #32 branch. Their changes therefore require a new integration pull
+request to `main`. This later direction supersedes only the earlier instruction
+that PR B remain undeployed, and authorizes the following narrow staging change
+after the integration PR and all required checks pass:
+
+- integrate the already reviewed extension and controlled-correction changes
+  into `main`, together with recovery of expired `processing` Worker jobs;
+- extend the existing synthetic-only kill switch and NT$30 custom-period
+  budget as already approved, then deploy new API／Worker revisions, the
+  reviewed Firestore index and the matching Hosting build;
+- with Scheduler paused and inbound／outbound disabled, supersede exactly the
+  29 legacy `invalid_format` candidates that lack an `expectedEtag`, remove only
+  their unlinked invalid mirrors, clear the active source cursor and perform a
+  controlled full resync; the old candidates must never be populated with the
+  mirror's current etag;
+- require zero-traffic authenticated smoke, regenerated-candidate verification,
+  online browser smoke and an exact rollback record before resuming the
+  five-minute Scheduler.
+
+This does **not** approve production D-009／D-016, a production project or
+Calendar, real patient data, names, phone numbers, free-text source/editor
+fields, anesthesia or other clinical fields, payment data, new accounts,
+additional calendars, or changes to Identity／Secret values. Any drift in the
+exact candidate count, source generation, two-source allowlist, existing
+secrets, manager allowlist or rollback baseline stops the deployment.
+
 ### CAL-PILOT synthetic-only extension approval — 2026-08-31
 
 The project owner approved a 60-day extension of the already deployed narrow

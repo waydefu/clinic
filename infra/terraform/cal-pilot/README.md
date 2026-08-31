@@ -49,3 +49,12 @@ The Scheduler declaration now records `paused = false` because the reviewed
 2026-08-30 release already enabled that exact five-minute job. This is state
 reconciliation only: an extension plan is acceptable only when it contains no
 Scheduler action and exactly one in-place budget update.
+
+After the extension and budget are applied, subsequent reviewed runtime updates
+use `scripts/cal-pilot-update.ps1`, not the first-release script. The update
+path verifies the prior rollback revisions／Hosting version and all six enabled
+Secret versions, pauses Scheduler, disables both application switches, waits
+for the expired-processing recovery index, runs 0% authenticated smoke,
+performs the guarded legacy-candidate rebuild and full-sync verification,
+publishes the matching Hosting build, then resumes Scheduler. Any failure
+leaves the pilot stopped; it never reseeds, rotates secrets or changes Identity.

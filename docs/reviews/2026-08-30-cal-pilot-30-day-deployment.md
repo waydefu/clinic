@@ -155,3 +155,14 @@ Hosting 文案。API／Worker、Scheduler、兩本 Calendar、Secrets、帳號�
 這一節只記錄方向，**不是已套用證據**。精確 extension commit、Terraform diff、
 Hosting file diff 與線上驗證完成前，上方既有 expiry／version 仍是現況。候選見
 [2026-08-31 延期 change plan](2026-08-31-cal-pilot-extension-change-plan.md)。
+
+### Later superseding staging direction
+
+Later on 2026-08-31, after the owner reviewed the actual stacked-PR graph and
+the final stale-event protection, the owner directed deployment, testing and
+documentation of the controlled-correction release. This supersedes the
+feature-freeze sentence above only for the same synthetic staging project. It
+does not expand production, data, account, Calendar, Identity or Secret scope.
+The new integration, migration, runtime and rollback evidence belongs in the
+[2026-08-31 controlled-correction deployment record](2026-08-31-cal-pilot-controlled-correction-deployment.md),
+while this document remains the immutable #31 baseline record.
