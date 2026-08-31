@@ -1,11 +1,15 @@
-# CAL-PILOT 30 天雙向同步操作手冊
+# CAL-PILOT synthetic-only 雙向同步操作手冊
 
 **適用範圍：** `beauessence-clinic-staging` 的 synthetic-only 測試。
 **不適用：** 正式專案、正式日曆、真實姓名、電話、病歷、臨床內容或金流。
 
-**目前狀態（2026-08-30）：** 已依核准候選啟用；精確 revision、映像、期限、
+**目前狀態（2026-08-31）：** 既有 30 天候選已啟用；業主另核准延長至
+`2026-11-28T04:51:37Z`，但仍須以精確 extension commit／diff 再確認後才可套用。
+目前線上仍以既有 kill switch 為準。精確 revision、映像、期限、
 初次同步與驗證結果見
 [30 天 synthetic-only 部署紀錄](../reviews/2026-08-30-cal-pilot-30-day-deployment.md)。
+延期候選與凍結邊界見
+[2026-08-31 延期 change plan](../reviews/2026-08-31-cal-pilot-extension-change-plan.md)。
 
 ## 1. 使用者會看到什麼
 
@@ -115,11 +119,38 @@ iframe；全部使用精確 host，不使用 wildcard，且瀏覽器仍不得直
 不要刪除合成預約、mirror、候選或匿名 audit。若疑似金鑰外洩，另停用對應
 Secret version、撤銷 Google Calendar ACL 並輪替服務帳號金鑰。
 
-## 8. 到期與費用
+## 8. 到期、續期與費用
 
-部署後 30 天，API 與 Worker 都會 fail closed；Scheduler 與 Hosting channel 也須
-停止／到期。NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）是告警，不是硬上限。低流量可能接近
+應用程式在核准的精確 UTC 時間 fail closed；Scheduler 與 Hosting channel 也須
+停止／到期。延長套用後的 kill switch 是 `2026-11-28T04:51:37Z`。
+NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
+2026-08-30～2026-11-28 的單一 custom period，不按月重設；Cloud Billing API
+使用不含尾日的 `endDate`，所以 Terraform 寫入 `2026-11-29`。它是告警，不是硬上限。低流量可能接近
 免費，但 Cloud Run、Scheduler、Firestore、Secret Manager、Artifact Registry、
 日誌或流量都可能產生費用；正式環境不得假設免費。
 
 延長測試、增加帳號、改 Calendar 白名單或接正式資料，全部視為新核准。
+
+### 延期套用
+
+1. 不可重跑 `seed-cal-pilot.mjs`，避免重設來源、游標或合成資料。
+2. 以 `cal-pilot-extend.ps1` 核對精確 commit、API／Worker revision 與 digest、
+   Hosting version、Scheduler、六個 Secret 的單一 enabled version、舊期限與精確
+   兩本 enabled source ID 與 source generation；Secret version manifest 只能放版本號，不能放值。只有
+   `-ConfirmApply` 才執行 Firestore transaction。
+3. 該 transaction 只更新 `expiresAt` 並同時新增匿名
+   `calendar_pilot_expiry_extended` audit；source generation 不變。
+4. Terraform plan 必須只有既有 budget 的名稱與 custom period 更新，且為
+   `0 added, 1 changed, 0 destroyed`；任何其他差異都停止。
+5. Hosting 文案 release 只允許移除「30 天」字樣。發布前後都重新比對 81 個既有
+   檔案，除 hashed client／對應 HTML manifest 外不得有功能差異。
+
+### Hosting metadata-only 續期
+
+- Preview channel 一次最多延長 30 天。只在剩餘七天內執行
+  `cal-pilot-renew-hosting.ps1`；下一期限固定為
+  `min(now + 30 days, 2026-11-28T04:51:37Z)`。
+- 續期前後必須是同一 Hosting version；腳本只 PATCH `expireTime`，不得建立
+  release、重建網站或改 Identity authorized domain。
+- 若續期失敗或過期，不改 live channel；讓 preview fail closed，依緊急停止流程
+  關閉 Scheduler 與 inbound／outbound，再由具名核准決定是否恢復。
