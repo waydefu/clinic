@@ -125,4 +125,49 @@ describe('GoogleCalendarEventWriter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('PATCH');
   });
+
+  it('can update the existing event without attempting an insert', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response({}, 200)));
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      fetchImpl
+    );
+    await writer.update({
+      eventId: 'originalevent001',
+      title: '[忙碌] 會議',
+      startsAt: '2026-09-02T06:00:00.000Z',
+      endsAt: '2026-09-02T07:00:00.000Z',
+      linkId: 'block_001'
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe('PATCH');
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain(
+      '/events/originalevent001'
+    );
+  });
+
+  it('preserves an all-day cross-day range with exclusive Google end date', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response({}, 200)));
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      fetchImpl
+    );
+    await writer.upsert({
+      eventId: 'existingevent001',
+      title: '[忙碌] 休假',
+      allDay: true,
+      startDate: '2026-09-02',
+      endDate: '2026-09-04',
+      linkId: 'block_001'
+    });
+    expect(
+      JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))
+    ).toMatchObject({
+      id: 'existingevent001',
+      start: { date: '2026-09-02' },
+      end: { date: '2026-09-04' }
+    });
+  });
 });

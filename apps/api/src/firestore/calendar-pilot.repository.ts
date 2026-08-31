@@ -14,6 +14,7 @@ import type {
   SyntheticPatientSummary
 } from '@beauessence/contracts';
 import {
+  formatBusyTitle,
   formatSyntheticAppointmentTitle,
   parseCalendarEntry,
   type ParsedCalendarEntry
@@ -27,6 +28,7 @@ import type {
 
 import type {
   CalendarCandidateReviewCommand,
+  CalendarCandidateCorrectionCommand,
   CalendarPilotRepositoryPort,
   CalendarSourceCommand
 } from '../calendar/calendar-pilot.repository-port.js';
@@ -44,6 +46,7 @@ const COLLECTIONS = {
   blocks: 'calendar_pilot_availability_blocks',
   appointments: 'calendar_pilot_appointments',
   patientGuards: 'calendar_pilot_patient_guards',
+  patients: 'calendar_pilot_patients',
   idempotency: 'calendar_pilot_idempotency',
   audits: 'calendar_pilot_audit_events',
   outbox: 'calendar_pilot_outbox'
@@ -208,8 +211,9 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         parsed: _parsed,
         previousParsed: _previousParsed,
         localRecordId: _local,
+        sourceId: _sourceId,
         ...publicRecord
-      } = document.data() as CandidateRecord;
+      } = document.data() as CandidateRecord & { readonly sourceId?: string };
       return publicRecord;
     });
   }
@@ -266,7 +270,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     readonly SyntheticPatientSummary[]
   > {
     const documents = await this.db
-      .collection('calendar_pilot_patients')
+      .collection(COLLECTIONS.patients)
       .where('enabled', '==', true)
       .orderBy('__name__', 'asc')
       .get();
@@ -591,6 +595,182 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     });
   }
 
+  public correctCandidate(
+    command: CalendarCandidateCorrectionCommand
+  ): Promise<{
+    readonly candidate: CalendarChangeCandidate;
+    readonly projection: CalendarEventProjection | null;
+  }> {
+    return this.db.runTransaction(async (transaction) => {
+      const configuration = documentData<ConfigurationRecord>(
+        await transaction.get(this.configurationRef())
+      );
+      assertActive(configuration, command.occurredAt);
+      assertPilotEnabled(configuration);
+      const candidateRef = this.db
+        .collection(COLLECTIONS.candidates)
+        .doc(command.candidateId);
+      const candidate = documentData<CandidateRecord>(
+        await transaction.get(candidateRef)
+      );
+      const idempotencyRef = this.db
+        .collection(COLLECTIONS.idempotency)
+        .doc(hash(`${command.actorId}:${command.idempotencyKey}`).slice(0, 40));
+      const replay = await transaction.get(idempotencyRef);
+      const fingerprint = hash(
+        JSON.stringify({
+          action: 'correct',
+          candidateId: command.candidateId,
+          expectedVersion: command.expectedVersion,
+          correction:
+            command.kind === 'appointment'
+              ? {
+                  kind: command.kind,
+                  patientCode: command.patientCode,
+                  bookingKind: command.bookingKind,
+                  serviceId: command.serviceId,
+                  startsAt: command.startsAt
+                }
+              : {
+                  kind: command.kind,
+                  busyReason: command.busyReason,
+                  timeRange: command.timeRange
+                }
+        })
+      );
+      if (replay.exists) {
+        const record = replay.data() as IdempotencyRecord<{
+          candidate: CalendarChangeCandidate;
+          projection: CalendarEventProjection | null;
+        }>;
+        if (record.fingerprint !== fingerprint) throw new ConflictError();
+        return record.response;
+      }
+      if (
+        candidate.kind !== 'invalid_format' ||
+        candidate.status !== 'pending' ||
+        candidate.expectedVersion !== command.expectedVersion ||
+        candidate.sourceVersion !== configuration.version
+      )
+        throw new ConflictError();
+
+      let parsed: ParsedCalendarEntry;
+      if (command.kind === 'appointment') {
+        const patient = await transaction.get(
+          this.db.collection(COLLECTIONS.patients).doc(command.patientCode)
+        );
+        if (!patient.exists || patient.data()?.['enabled'] !== true)
+          throw new ConflictError();
+        const endsAt = addThirtyMinutes(command.startsAt);
+        parsed = parseCalendarEntry(
+          {
+            summary: formatSyntheticAppointmentTitle(command),
+            start: { dateTime: command.startsAt },
+            end: { dateTime: endsAt }
+          },
+          new Set([command.patientCode])
+        );
+      } else {
+        parsed = parseCalendarEntry(
+          {
+            summary: formatBusyTitle(command.busyReason),
+            start:
+              command.timeRange.kind === 'all_day'
+                ? { date: command.timeRange.startDate }
+                : { dateTime: command.timeRange.startsAt },
+            end:
+              command.timeRange.kind === 'all_day'
+                ? { date: command.timeRange.endDate }
+                : { dateTime: command.timeRange.endsAt }
+          },
+          new Set()
+        );
+      }
+      if (!parsed.ok || parsed.kind !== command.kind) throw new ConflictError();
+
+      const correctedKind =
+        parsed.kind === 'appointment'
+          ? candidate.localRecordId === undefined
+            ? 'create_appointment'
+            : 'update_appointment'
+          : candidate.localRecordId === undefined
+            ? 'create_block'
+            : 'update_block';
+      const corrected: CandidateRecord = {
+        ...candidate,
+        kind: correctedKind,
+        displayLabel: parsed.displayLabel,
+        startsAt: parsed.startsAt,
+        endsAt: parsed.endsAt,
+        validationErrors: [],
+        parsed
+      };
+      const projection = await this.applyCandidate(
+        transaction,
+        corrected,
+        configuration,
+        command.occurredAt
+      );
+      const publicCandidate: CalendarChangeCandidate = {
+        candidateId: candidate.candidateId,
+        kind: correctedKind,
+        status: 'accepted',
+        displayLabel: parsed.displayLabel,
+        startsAt: parsed.startsAt,
+        endsAt: parsed.endsAt,
+        sourceVersion: candidate.sourceVersion,
+        expectedVersion: candidate.expectedVersion + 1,
+        validationErrors: [],
+        createdAt: candidate.createdAt,
+        before: candidate.before
+      };
+      transaction.update(candidateRef, {
+        kind: correctedKind,
+        status: 'accepted',
+        displayLabel: parsed.displayLabel,
+        startsAt: parsed.startsAt,
+        endsAt: parsed.endsAt,
+        validationErrors: [],
+        parsed,
+        expectedVersion: publicCandidate.expectedVersion,
+        reviewedBy: command.actorId,
+        reviewedAt: command.occurredAt
+      });
+      transaction.set(
+        this.db
+          .collection(COLLECTIONS.outbox)
+          .doc(
+            hash(
+              `${candidate.candidateId}:correct:${candidate.expectedVersion}`
+            ).slice(0, 32)
+          ),
+        {
+          kind: 'calendar_projection_restore',
+          writeMode: 'update_existing',
+          mirrorId: candidate.mirrorId,
+          generation: configuration.version,
+          status: 'pending',
+          createdAt: command.occurredAt,
+          attemptCount: 0
+        }
+      );
+      transaction.create(
+        this.db.collection(COLLECTIONS.audits).doc(randomUUID()),
+        {
+          action: 'calendar_candidate_corrected',
+          actorId: command.actorId,
+          actorRole: command.actorRole,
+          candidateId: candidate.candidateId,
+          correctedKind,
+          occurredAt: command.occurredAt
+        }
+      );
+      const response = { candidate: publicCandidate, projection };
+      transaction.create(idempotencyRef, { fingerprint, response });
+      return response;
+    });
+  }
+
   private async applyCandidate(
     transaction: Transaction,
     candidate: CandidateRecord,
@@ -721,7 +901,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       this.db.collection('calendar_pilot_mirrors').doc(candidate.mirrorId),
       {
         linkId: projectionId,
-        localDirty: false
+        localDirty: false,
+        parsed
       }
     );
     transaction.set(this.db.collection(COLLECTIONS.blocks).doc(projectionId), {

@@ -21,6 +21,13 @@
   時段、合成患者重複預約與版本衝突。
 - 只有 `manager` 可切換或回滾來源；`manager` 與 `front_desk` 可審核。
 
+### 未部署的受控修正候選
+
+後續功能 PR 增加 `POST /v1/calendar/candidates/{candidateId}/correct`，但它目前只供
+本機與 CI review，**不是線上操作步驟**。功能合併／部署前仍須另行核准。該端點只
+接受封閉選項，核准時重新跑版本、source generation、時段重疊與患者重複檢查，並
+由 Worker 更新同一個 Google 事件；不存在「強制覆蓋」參數。
+
 ## 2. 唯一允許的 Google 標題
 
 | 類型 | 格式 | 例子 |

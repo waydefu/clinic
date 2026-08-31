@@ -14,6 +14,7 @@ import {
   CalendarCommandBaseSchema,
   CancelSyntheticAppointmentRequestSchema,
   CompleteCalendarSourceSwitchRequestSchema,
+  CorrectCalendarCandidateRequestSchema,
   CreateSyntheticAppointmentRequestSchema,
   RescheduleSyntheticAppointmentRequestSchema,
   ResolveCalendarCandidateRequestSchema,
@@ -38,9 +39,8 @@ function identifier(value: string): string {
 }
 
 /**
- * Deliberately not registered in AppModule until the exact cloud candidate is
- * approved. Keeping the controller compiled and unit-testable lets the final
- * deployment review see the real route surface without publishing it early.
+ * Synthetic-only route surface. Registration stays inside CalendarPilotModule;
+ * every route is protected by the server-established Google+TOTP session guard.
  */
 @Controller('calendar')
 @UseGuards(CalendarPilotSessionGuard)
@@ -153,6 +153,19 @@ export class CalendarPilotController {
     return this.application.resolveCandidate(
       identifier(candidateId),
       ResolveCalendarCandidateRequestSchema.parse(body),
+      request.calendarPilotAuthentication
+    );
+  }
+
+  @Post('candidates/:candidateId/correct')
+  public correct(
+    @Param('candidateId') candidateId: string,
+    @Body() body: unknown,
+    @Req() request: CalendarPilotAuthenticatedRequest
+  ) {
+    return this.application.correctCandidate(
+      identifier(candidateId),
+      CorrectCalendarCandidateRequestSchema.parse(body),
       request.calendarPilotAuthentication
     );
   }

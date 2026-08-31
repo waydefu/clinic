@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import {
   IdempotencyKeySchema,
+  LocalDateSchema,
   OpaqueIdentifierSchema,
   UtcIsoTimestampSchema
 } from './common.js';
@@ -207,6 +208,50 @@ export const ResolveCalendarCandidateRequestSchema = z
   })
   .strict();
 
+const CorrectCalendarCandidateCommandBase = {
+  idempotencyKey: IdempotencyKeySchema,
+  expectedVersion: z.number().int().min(0)
+} as const;
+
+export const CorrectCalendarCandidateRequestSchema = z.discriminatedUnion(
+  'kind',
+  [
+    z
+      .object({
+        ...CorrectCalendarCandidateCommandBase,
+        kind: z.literal('appointment'),
+        patientCode: z.string().regex(/^A(?:0[1-9]|[12][0-9]|30)$/),
+        bookingKind: CalendarBookingKindSchema,
+        serviceId: z.enum(['service_snoring', 'service_aesthetic']),
+        startsAt: UtcIsoTimestampSchema
+      })
+      .strict(),
+    z
+      .object({
+        ...CorrectCalendarCandidateCommandBase,
+        kind: z.literal('busy'),
+        busyReason: CalendarBusyReasonSchema,
+        timeRange: z.discriminatedUnion('kind', [
+          z
+            .object({
+              kind: z.literal('timed'),
+              startsAt: UtcIsoTimestampSchema,
+              endsAt: UtcIsoTimestampSchema
+            })
+            .strict(),
+          z
+            .object({
+              kind: z.literal('all_day'),
+              startDate: LocalDateSchema,
+              endDate: LocalDateSchema
+            })
+            .strict()
+        ])
+      })
+      .strict()
+  ]
+);
+
 export const ReviewCalendarCandidateResponseSchema = z
   .object({
     candidate: CalendarChangeCandidateSchema,
@@ -222,7 +267,9 @@ export const CalendarAvailabilityResponseSchema = z
   })
   .strict();
 
-export const SyntheticPatientCodeSchema = z.string().regex(/^A[0-9]{2}$/);
+export const SyntheticPatientCodeSchema = z
+  .string()
+  .regex(/^A(?:0[1-9]|[12][0-9]|30)$/);
 export const SyntheticPatientSummarySchema = z
   .object({ patientCode: SyntheticPatientCodeSchema })
   .strict();
@@ -316,6 +363,9 @@ export type ReviewCalendarCandidateRequest = z.infer<
 >;
 export type ResolveCalendarCandidateRequest = z.infer<
   typeof ResolveCalendarCandidateRequestSchema
+>;
+export type CorrectCalendarCandidateRequest = z.infer<
+  typeof CorrectCalendarCandidateRequestSchema
 >;
 export type ReviewCalendarCandidateResponse = z.infer<
   typeof ReviewCalendarCandidateResponseSchema
