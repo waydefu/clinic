@@ -37,9 +37,12 @@ billing identifier was emitted by the preflight.
   feature branches and therefore require a new integration PR to `main`.
 - The integration adds expired-`processing` lease recovery, its Firestore index,
   a guarded legacy-candidate rebuild and sanitized state reporting.
-- Firestore Emulator: 10 test files／80 tests pass, including active-lease
+- Firestore Emulator: 10 test files／81 tests pass, including active-lease
   protection, one-winner recovery races, zero-write migration drift and fresh
-  regenerated-etag verification.
+  regenerated-etag verification. When a full sync deterministically produces
+  the same candidate ID, repository replacement is allowed only for the exact
+  migration-marked tombstone that still lacks `expectedEtag`; unrelated
+  superseded candidates remain immutable.
 - Exact integration PR, merge SHA, 11 required GitHub checks, full verify／E2E,
   Cloud Build IDs and immutable image digests: pending.
 

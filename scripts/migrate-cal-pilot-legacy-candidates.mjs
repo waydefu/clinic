@@ -204,10 +204,11 @@ export async function verifyLegacyCalendarCandidateRegeneration({
   expectedSourceGeneration
 }) {
   assertProjectAndCount(projectId, expectedCount);
-  const [superseded, pending, mirrors] = await Promise.all([
+  const [configurationDocument, audits, pending, mirrors] = await Promise.all([
+    db.collection('calendar_pilot_configuration').doc('active').get(),
     db
-      .collection('calendar_pilot_candidates')
-      .where('supersededReason', '==', MIGRATION_REASON)
+      .collection('calendar_pilot_audit_events')
+      .where('action', '==', 'calendar_pilot_legacy_candidates_superseded')
       .get(),
     db
       .collection('calendar_pilot_candidates')
@@ -215,23 +216,55 @@ export async function verifyLegacyCalendarCandidateRegeneration({
       .get(),
     db.collection('calendar_pilot_mirrors').get()
   ]);
-  if (superseded.size !== expectedCount)
-    throw new Error('Superseded legacy candidate count is incomplete.');
+  if (!configurationDocument.exists)
+    throw new Error('CAL-PILOT configuration is missing during verification.');
+  const configuration = configurationDocument.data();
+  if (
+    configuration.expiresAt !== APPROVED_EXPIRY ||
+    configuration.version !== expectedSourceGeneration ||
+    typeof configuration.activeSourceId !== 'string'
+  )
+    throw new Error('CAL-PILOT verification state drifted.');
+  const matchingAudits = audits.docs
+    .map((document) => document.data())
+    .filter(
+      (audit) =>
+        audit.sourceGeneration === expectedSourceGeneration &&
+        audit.candidateCount === expectedCount &&
+        typeof audit.occurredAt === 'string'
+    )
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
+  const migrationAudit = matchingAudits[0];
+  if (migrationAudit === undefined)
+    throw new Error('Legacy candidate migration audit is missing.');
+  const regeneratedCandidates = pending.docs
+    .map((document) => document.data())
+    .filter(
+      (candidate) =>
+        candidate.kind === 'invalid_format' &&
+        candidate.sourceId === configuration.activeSourceId &&
+        candidate.sourceVersion === expectedSourceGeneration &&
+        typeof candidate.createdAt === 'string' &&
+        Date.parse(candidate.createdAt) >=
+          Date.parse(migrationAudit.occurredAt) &&
+        typeof candidate.expectedEtag === 'string' &&
+        candidate.expectedEtag.trim() !== ''
+    );
+  if (regeneratedCandidates.length !== expectedCount)
+    throw new Error('Regenerated legacy candidate count is incomplete.');
   const pendingByMirror = new Map(
-    pending.docs.map((document) => [document.data().mirrorId, document.data()])
+    regeneratedCandidates.map((candidate) => [candidate.mirrorId, candidate])
   );
   const mirrorById = new Map(
     mirrors.docs.map((document) => [document.id, document.data()])
   );
-  for (const document of superseded.docs) {
-    const mirrorId = document.data().mirrorId;
-    const candidate = pendingByMirror.get(mirrorId);
+  for (const [mirrorId, candidate] of pendingByMirror) {
     const mirror = mirrorById.get(mirrorId);
     if (
       typeof mirrorId !== 'string' ||
-      candidate === undefined ||
       mirror === undefined ||
       candidate.sourceVersion !== expectedSourceGeneration ||
+      mirror.sourceId !== configuration.activeSourceId ||
       mirror.sourceVersion !== expectedSourceGeneration ||
       typeof candidate.expectedEtag !== 'string' ||
       candidate.expectedEtag.trim() === '' ||

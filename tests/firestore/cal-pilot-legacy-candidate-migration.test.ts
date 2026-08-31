@@ -2,6 +2,7 @@ import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { FirestoreCalendarSyncRepository } from '../../apps/worker/src/calendar-sync/firestore-calendar-sync.repository.js';
 import {
   migrateLegacyCalendarCandidates,
   verifyLegacyCalendarCandidateRegeneration
@@ -210,38 +211,48 @@ describe('CAL-PILOT legacy candidate migration', () => {
       auditId: 'audit_migration_001',
       occurredAt: NOW
     });
-    await db
-      .collection('calendar_pilot_mirrors')
-      .doc(MIRROR_ID)
-      .set({
-        mirrorId: MIRROR_ID,
-        sourceId: 'calendar_source_primary',
-        sourceVersion: 1,
-        externalEventId: 'server_only_external_event',
-        etag: '"fresh-etag"',
-        externalStatus: 'confirmed',
-        localDirty: false,
-        parsed: { ok: false, errors: ['title_format_invalid'] }
-      });
-    await db
-      .collection('calendar_pilot_candidates')
-      .doc('fresh_candidate')
-      .set({
-        candidateId: 'fresh_candidate',
-        mirrorId: MIRROR_ID,
-        expectedEtag: '"fresh-etag"',
-        sourceId: 'calendar_source_primary',
-        sourceVersion: 1,
-        expectedVersion: 0,
-        kind: 'invalid_format',
-        status: 'pending',
-        displayLabel: '格式需修正',
-        startsAt: null,
-        endsAt: null,
-        validationErrors: ['title_format_invalid'],
-        parsed: { ok: false, errors: ['title_format_invalid'] },
-        createdAt: NOW
-      });
+    await new FirestoreCalendarSyncRepository(db, 'p'.repeat(64)).commitSync({
+      sourceId: 'calendar_source_primary',
+      expectedSourceVersion: 1,
+      fullSync: true,
+      completedAt: '2026-09-01T00:01:00.000Z',
+      mutations: [
+        {
+          mirror: {
+            mirrorId: MIRROR_ID,
+            sourceId: 'calendar_source_primary',
+            sourceVersion: 1,
+            externalEventId: 'server_only_external_event',
+            etag: '"fresh-etag"',
+            externalStatus: 'confirmed',
+            localDirty: false,
+            parsed: { ok: false, errors: ['title_format_invalid'] },
+            updatedAt: '2026-09-01T00:01:00.000Z'
+          },
+          candidate: {
+            candidateId: CANDIDATE_ID,
+            mirrorId: MIRROR_ID,
+            expectedEtag: '"fresh-etag"',
+            sourceId: 'calendar_source_primary',
+            sourceVersion: 1,
+            expectedVersion: 0,
+            kind: 'invalid_format',
+            validationErrors: ['title_format_invalid'],
+            parsed: { ok: false, errors: ['title_format_invalid'] },
+            createdAt: '2026-09-01T00:01:00.000Z'
+          }
+        }
+      ]
+    });
+
+    expect(
+      (
+        await db.collection('calendar_pilot_candidates').doc(CANDIDATE_ID).get()
+      ).data()
+    ).toMatchObject({
+      status: 'pending',
+      expectedEtag: '"fresh-etag"'
+    });
 
     await expect(
       verifyLegacyCalendarCandidateRegeneration({
@@ -251,5 +262,53 @@ describe('CAL-PILOT legacy candidate migration', () => {
         expectedSourceGeneration: 1
       })
     ).resolves.toEqual({ regeneratedCount: 1 });
+  });
+
+  it('never overwrites a superseded candidate outside the exact legacy rebuild marker', async () => {
+    await db.collection('calendar_pilot_candidates').doc(CANDIDATE_ID).update({
+      status: 'superseded',
+      supersededReason: 'unrelated_operator_action'
+    });
+    await new FirestoreCalendarSyncRepository(db, 'p'.repeat(64)).commitSync({
+      sourceId: 'calendar_source_primary',
+      expectedSourceVersion: 1,
+      fullSync: true,
+      mutations: [
+        {
+          mirror: {
+            mirrorId: MIRROR_ID,
+            sourceId: 'calendar_source_primary',
+            sourceVersion: 1,
+            externalEventId: 'server_only_external_event',
+            etag: '"fresh-etag"',
+            externalStatus: 'confirmed',
+            localDirty: false,
+            parsed: { ok: false, errors: ['title_format_invalid'] },
+            updatedAt: '2026-09-01T00:01:00.000Z'
+          },
+          candidate: {
+            candidateId: CANDIDATE_ID,
+            mirrorId: MIRROR_ID,
+            expectedEtag: '"fresh-etag"',
+            sourceId: 'calendar_source_primary',
+            sourceVersion: 1,
+            expectedVersion: 0,
+            kind: 'invalid_format',
+            validationErrors: ['title_format_invalid'],
+            parsed: { ok: false, errors: ['title_format_invalid'] },
+            createdAt: '2026-09-01T00:01:00.000Z'
+          }
+        }
+      ]
+    });
+
+    expect(
+      (
+        await db.collection('calendar_pilot_candidates').doc(CANDIDATE_ID).get()
+      ).data()
+    ).toMatchObject({
+      status: 'superseded',
+      supersededReason: 'unrelated_operator_action'
+    });
   });
 });

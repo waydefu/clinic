@@ -144,7 +144,10 @@ and adds these required changes before apply:
 5. Deploy new API／Worker images at 0% traffic, run authenticated smoke, then
    switch traffic. Enable the application only for one controlled full sync;
    verify that all 29 replacement candidates contain a fresh server-side etag
-   matching their rebuilt mirror. No identifier or etag is printed or exposed.
+   matching their rebuilt mirror. If the deterministic candidate ID is
+   unchanged, repository replacement is permitted only for the exact
+   migration-marked, etag-less tombstone; no other existing or superseded
+   candidate can be overwritten. No identifier or etag is printed or exposed.
 6. Publish the exact matching Hosting build, run CSP／login／sanitized-network
    browser smoke, confirm Secret／Identity／account／Calendar boundaries are
    unchanged, then resume the five-minute Scheduler.

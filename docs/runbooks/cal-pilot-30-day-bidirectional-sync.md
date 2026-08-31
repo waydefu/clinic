@@ -39,6 +39,9 @@ staging。線上在 exact main SHA、CI、映像 digest、Terraform diff 與回�
 刪除它們對應的未連結無效 mirror，清除 active source cursor 後完整重新同步。
 重建後要驗證每筆新 candidate 的 server-side `expectedEtag` 與新 mirror 相等；
 不得把目前 mirror `etag` 直接補到舊候選。
+若同一 Google 版本使重建後的 deterministic candidate ID 與舊 ID 相同，repository
+只可以完整同步剛讀到的資料取代「本次 migration 標記且仍缺 `expectedEtag`」
+的 tombstone；其他已存在或 superseded candidate 一律不覆寫。
 
 ## 2. 唯一允許的 Google 標題
 
