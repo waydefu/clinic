@@ -187,16 +187,15 @@ export class GoogleCalendarEventWriter {
     idempotentStatuses: ReadonlySet<number> = new Set()
   ): Promise<Response> {
     const token = await this.getAccessToken();
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${token}`);
+    if (init.body !== undefined)
+      headers.set('Content-Type', 'application/json');
     const response = await this.fetchImpl(
       `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}${path}`,
       {
         ...init,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(init.body === undefined
-            ? {}
-            : { 'Content-Type': 'application/json' })
-        },
+        headers,
         signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
       }
     );
@@ -210,7 +209,7 @@ export class GoogleCalendarEventWriter {
   }
 
   public async upsert(event: CalendarWriteEvent): Promise<void> {
-    const body = this.body(event);
+    const body = this.insertBody(event);
     const inserted = await this.request(
       '/events',
       { method: 'POST', body },
@@ -220,16 +219,21 @@ export class GoogleCalendarEventWriter {
     await this.update(event);
   }
 
-  public async update(event: CalendarWriteEvent): Promise<void> {
+  public async update(
+    event: CalendarWriteEvent,
+    expectedEtag?: string
+  ): Promise<void> {
     await this.request(`/events/${encodeURIComponent(event.eventId)}`, {
       method: 'PATCH',
-      body: this.body(event)
+      body: this.patchBody(event),
+      ...(expectedEtag === undefined
+        ? {}
+        : { headers: { 'If-Match': expectedEtag } })
     });
   }
 
-  private body(event: CalendarWriteEvent): string {
-    return JSON.stringify({
-      id: event.eventId,
+  private mutationBody(event: CalendarWriteEvent): Record<string, unknown> {
+    return {
       summary: event.title,
       start:
         event.allDay === true
@@ -242,7 +246,15 @@ export class GoogleCalendarEventWriter {
       extendedProperties: {
         private: { beauessenceLinkId: event.linkId }
       }
-    });
+    };
+  }
+
+  private insertBody(event: CalendarWriteEvent): string {
+    return JSON.stringify({ id: event.eventId, ...this.mutationBody(event) });
+  }
+
+  private patchBody(event: CalendarWriteEvent): string {
+    return JSON.stringify(this.mutationBody(event));
   }
 
   public async remove(eventId: string): Promise<void> {

@@ -47,6 +47,7 @@ interface PilotJob {
   readonly localRecordId?: string;
   readonly mirrorId?: string;
   readonly writeMode?: 'update_existing';
+  readonly expectedEtag?: string;
   readonly generation?: number;
   readonly leaseOwner?: string;
   readonly leaseExpiresAt?: string;
@@ -63,6 +64,7 @@ interface StoredAppointment {
 
 export interface StoredMirror {
   readonly externalEventId: string;
+  readonly etag: string;
   readonly parsed: Extract<ParsedCalendarEntry, { readonly ok: true }>;
   readonly linkId?: string;
 }
@@ -136,6 +138,8 @@ function storedMirror(value: unknown): StoredMirror {
   const parsed = data['parsed'];
   if (
     typeof data['externalEventId'] !== 'string' ||
+    typeof data['etag'] !== 'string' ||
+    data['etag'].trim() === '' ||
     typeof parsed !== 'object' ||
     parsed === null ||
     Array.isArray(parsed) ||
@@ -158,6 +162,7 @@ function storedMirror(value: unknown): StoredMirror {
     throw new Error('Calendar mirror record is invalid.');
   return {
     externalEventId: data['externalEventId'],
+    etag: data['etag'],
     parsed: parsed as StoredMirror['parsed'],
     ...(typeof data['linkId'] === 'string' ? { linkId: data['linkId'] } : {})
   };
@@ -468,8 +473,15 @@ export class CalendarPilotRuntime {
       if (!mirror.exists) throw new Error('Mirror is missing.');
       const data = storedMirror(mirror.data());
       const event = calendarWriteEventForMirror(data, job.mirrorId);
-      if (job.writeMode === 'update_existing') await writer.update(event);
-      else await writer.upsert(event);
+      if (job.writeMode === 'update_existing') {
+        if (
+          typeof job.expectedEtag !== 'string' ||
+          job.expectedEtag.trim() === '' ||
+          data.etag !== job.expectedEtag
+        )
+          throw new Error('Calendar event version is stale.');
+        await writer.update(event, job.expectedEtag);
+      } else await writer.upsert(event);
       return 'completed';
     }
     if (job.localRecordId === undefined)
