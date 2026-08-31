@@ -1,0 +1,28 @@
+steps:
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - containers/api.Dockerfile
+      - --tag
+      - asia-east1-docker.pkg.dev/$PROJECT_ID/cal-pilot/api:${_TAG}
+      - .
+    waitFor: ['-']
+  - id: build-worker
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - containers/worker.Dockerfile
+      - --tag
+      - asia-east1-docker.pkg.dev/$PROJECT_ID/cal-pilot/worker:${_TAG}
+      - .
+    waitFor: ['-']
+images:
+  - asia-east1-docker.pkg.dev/$PROJECT_ID/cal-pilot/api:${_TAG}
+  - asia-east1-docker.pkg.dev/$PROJECT_ID/cal-pilot/worker:${_TAG}
+options:
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _TAG: unset

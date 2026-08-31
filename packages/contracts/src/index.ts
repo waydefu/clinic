@@ -1,5 +1,6 @@
 export * from './appointments.js';
 export * from './audit.js';
+export * from './calendar-sync.js';
 export * from './case-assignment.js';
 export * from './common.js';
 export * from './errors.js';

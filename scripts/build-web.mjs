@@ -87,18 +87,41 @@ function hashedBasename(path, hash) {
   return `${base.slice(0, dot)}.${hash}${base.slice(dot)}`;
 }
 
-// 只改寫相對匯入（./ 或 ../）。shipped module 沒有裸名或 root-absolute 匯入，
-// 也沒有動態 import；驗證過的前提讓這個改寫可以只用正則而不必完整解析。
-const IMPORT_SPECIFIER = /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
+// 只改寫相對匯入（./ 或 ../）。靜態匯入會進入 modulepreload；動態
+// import 則是真正的延遲載入邊界，只參與內容雜湊與檔名改寫，不可被
+// preload 拉回首頁負載。CAL-PILOT 的 Google/TOTP 客戶端就靠這個邊界
+// 等後端確認功能已啟用後才下載。
+const STATIC_IMPORT_SPECIFIER =
+  /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
+const DYNAMIC_IMPORT_SPECIFIER = /\bimport\s*\(\s*(['"])(\.[^'"]+\.js)\1\s*\)/g;
+// 延遲載入的樣式表同樣要指向雜湊檔名。esbuild 會把 `stylesheet`
+// 這類區域識別字縮成單一字母，所以要接受任何簡單識別字的 `.href`；
+// 仍只改寫存在於 manifest 的相對 CSS，避免誤碰一般網址。
+const LAZY_STYLE_SPECIFIER =
+  /([A-Za-z_$][\w$]*\.href\s*=\s*)(['"])(\.[^'"]+\.css)\2/g;
 
 // HTML 進入點掛載模組的方式，以及注入 preload 的錨點。
 const MODULE_ENTRY = /<script\s+type="module"\s+src="(\/[^"]+\.js)"/g;
 const CLOSING_HEAD = /(?:(\r?\n)([ \t]*))?<\/head>/;
 
-function relativeSpecifiers(source) {
+function staticSpecifiers(source) {
   const found = new Set();
-  for (const match of source.matchAll(IMPORT_SPECIFIER)) found.add(match[3]);
+  for (const match of source.matchAll(STATIC_IMPORT_SPECIFIER))
+    found.add(match[3]);
   return [...found];
+}
+
+function dynamicSpecifiers(source) {
+  const found = new Set();
+  for (const match of source.matchAll(DYNAMIC_IMPORT_SPECIFIER))
+    found.add(match[2]);
+  return [...found];
+}
+
+function relativeSpecifiers(source) {
+  return [
+    ...new Set([...staticSpecifiers(source), ...dynamicSpecifiers(source)])
+  ];
 }
 
 /** 把匯入者裡的相對規格解析成以 public 根為基準的 POSIX 路徑。 */
@@ -181,11 +204,22 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
     else otherPaths.push(path);
   }
 
-  // 相依圖：每個 JS 指向它匯入的（存在於檔案集合裡的）相對規格。
+  // 雜湊相依圖包含靜態與動態 import，讓 loader 的雜湊一定反映
+  // 它會在 runtime 載入的精確客戶端版本。
   const dependencies = new Map(
     jsPaths.map((path) => [
       path,
       relativeSpecifiers(String(files.get(path)))
+        .map((specifier) => resolveSpecifier(path, specifier))
+        .filter((target) => files.has(target))
+    ])
+  );
+  // 首頁 preload 只能走靜態邊；若把動態邊也放進去，延遲載入
+  // 就會形同虛設。
+  const staticDependencies = new Map(
+    jsPaths.map((path) => [
+      path,
+      staticSpecifiers(String(files.get(path)))
         .map((specifier) => resolveSpecifier(path, specifier))
         .filter((target) => files.has(target))
     ])
@@ -202,12 +236,35 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
   const manifest = new Map();
 
   // 把一個相對匯入改寫成指定的目標檔名，保留相對目錄前綴。
-  const rewriteImports = (source, importer, basenameFor) =>
-    source.replace(IMPORT_SPECIFIER, (whole, keyword, quote, specifier) => {
+  const rewriteImports = (source, importer, basenameFor) => {
+    const staticRewritten = source.replace(
+      STATIC_IMPORT_SPECIFIER,
+      (whole, keyword, quote, specifier) => {
+        const target = resolveSpecifier(importer, specifier);
+        const basename = basenameFor(target);
+        if (basename === undefined) return whole;
+        return `${keyword}${quote}${specifier.replace(/[^/]+$/, basename)}${quote}`;
+      }
+    );
+    return staticRewritten.replace(
+      DYNAMIC_IMPORT_SPECIFIER,
+      (whole, quote, specifier) => {
+        const target = resolveSpecifier(importer, specifier);
+        const basename = basenameFor(target);
+        if (basename === undefined) return whole;
+        return `import(${quote}${specifier.replace(/[^/]+$/, basename)}${quote})`;
+      }
+    );
+  };
+
+  const rewriteLazyStyles = (source, importer) =>
+    source.replace(LAZY_STYLE_SPECIFIER, (whole, prefix, quote, specifier) => {
       const target = resolveSpecifier(importer, specifier);
-      const basename = basenameFor(target);
+      const basename = manifest.has(target)
+        ? posix.basename(manifest.get(target))
+        : undefined;
       if (basename === undefined) return whole;
-      return `${keyword}${quote}${specifier.replace(/[^/]+$/, basename)}${quote}`;
+      return `${prefix}${quote}${specifier.replace(/[^/]+$/, basename)}${quote}`;
     });
 
   const emit = (sourcePath, content) => {
@@ -232,12 +289,16 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
     // 同 SCC 匯入換成目標的來源路徑（穩定）。因此雜湊有定義，且任一成員改動都會
     // 讓整個 SCC 的雜湊改變。
     const canonicalize = (path) =>
-      rewriteImports(String(files.get(path)), path, (target) => {
-        if (members.has(target)) return `@scc:${target}`;
-        return manifest.has(target)
-          ? posix.basename(manifest.get(target))
-          : undefined;
-      });
+      rewriteImports(
+        rewriteLazyStyles(String(files.get(path)), path),
+        path,
+        (target) => {
+          if (members.has(target)) return `@scc:${target}`;
+          return manifest.has(target)
+            ? posix.basename(manifest.get(target))
+            : undefined;
+        }
+      );
     const hashInput = [...members]
       .sort()
       .map((path) => `${path}\u0000${canonicalize(path)}`)
@@ -257,10 +318,13 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
     for (const path of members) {
       emit(
         path,
-        rewriteImports(String(files.get(path)), path, (target) =>
-          manifest.has(target)
-            ? posix.basename(manifest.get(target))
-            : undefined
+        rewriteImports(
+          rewriteLazyStyles(String(files.get(path)), path),
+          path,
+          (target) =>
+            manifest.has(target)
+              ? posix.basename(manifest.get(target))
+              : undefined
         )
       );
     }
@@ -301,7 +365,7 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
     while (queue.length > 0) {
       const current = queue.shift();
       order.push(current);
-      for (const next of dependencies.get(current) ?? []) {
+      for (const next of staticDependencies.get(current) ?? []) {
         if (seen.has(next)) continue;
         seen.add(next);
         queue.push(next);
@@ -514,12 +578,32 @@ async function minifyModules(files) {
   }
 }
 
+async function bundleCalendarPilot(files, repoRoot) {
+  const { build } = await import('esbuild');
+  const result = await build({
+    entryPoints: [
+      join(repoRoot, 'apps', 'web', 'src', 'calendar-pilot-entry.js')
+    ],
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    write: false,
+    minify: false
+  });
+  const output = result.outputFiles?.[0];
+  if (output === undefined)
+    throw new Error('CAL-PILOT browser bundle was not produced.');
+  files.set('calendar-pilot-client.js', output.text);
+}
+
 async function main() {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const publicDir = join(repoRoot, 'apps', 'web', 'public');
   const distDir = join(repoRoot, 'apps', 'web', 'dist');
 
   const files = await collectFiles(publicDir);
+  await bundleCalendarPilot(files, repoRoot);
   await minifyStylesheets(files);
   await minifyModules(files);
   const { outputs, manifest } = planHashedBuild(files);

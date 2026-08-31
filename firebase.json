@@ -1,4 +1,12 @@
 {
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "CAL-PILOT Synthetic Preview",
+        "supportEmail": "wayde.fu@gmail.com"
+      }
+    }
+  },
   "hosting": {
     "public": "apps/web/dist",
     "predeploy": ["corepack pnpm run build"],
@@ -9,6 +17,14 @@
       { "source": "/clinic.html", "destination": "/clinic", "type": 301 }
     ],
     "rewrites": [
+      {
+        "source": "/v1/**",
+        "run": {
+          "serviceId": "cal-pilot-api",
+          "region": "asia-east1",
+          "pinTag": true
+        }
+      },
       { "source": "/booking", "destination": "/patient.html" },
       { "source": "/privacy", "destination": "/privacy.html" },
       { "source": "/clinic", "destination": "/clinic.html" },
@@ -21,7 +37,7 @@
           { "key": "Cache-Control", "value": "no-cache" },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; frame-src https://beauessence-clinic-staging.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
           { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },

@@ -565,42 +565,6 @@
       ],
       "note": "D-010 已核准 Cloud 所有權、區域與復原目標；儲存 port 仍沒有獲准的 staging foundation 或可部署交易證據。"
     },
-    "src/auth/authentication-context.ts": {
-      "approvedPolicyDependencies": ["D-006"],
-      "remainingBlockers": [
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "Google／local IdP、MFA 與 recovery 尚未產生實作證據。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "server-side session、idle／absolute timeout 與停權撤銷尚未實作。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "authentication context 尚未由 staff-only synthetic route 使用。"
-        }
-      ],
-      "note": "D-006 已核准身分來源與 session 規則；此型別仍沒有 server-verified adapter，request body 不得提供其值。"
-    },
     "src/firestore/booking.repository.ts": {
       "approvedPolicyDependencies": ["D-010"],
       "remainingBlockers": [
@@ -759,37 +723,6 @@
         }
       ],
       "note": "D-006 已核准 policy；此 adapter 仍把 account 當成 active，不能代替 C2～C4 的真實 claims、撤銷與授權實作。"
-    },
-    "src/platform/errors/api-error.ts": {
-      "approvedPolicyDependencies": ["D-006", "D-010"],
-      "remainingBlockers": [
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "authentication／authorization／runtime failure 尚未由 server-side boundary 產生。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "沒有獲准的 controller 使用此 mapper，v1 error envelope 尚未經 route E2E 驗證。"
-        }
-      ],
-      "note": "D-006 與 D-010 已核准相關安全及平台目標；錯誤 mapper 本身仍未被任何獲准路由載入。"
     },
     "src/platform/runtime/maintenance-gate.ts": {
       "approvedPolicyDependencies": ["D-010"],

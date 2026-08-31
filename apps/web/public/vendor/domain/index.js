@@ -6,6 +6,7 @@ export * from './booking-transaction.js';
 export * from './case-assignment.js';
 export * from './delegated-authorization.js';
 export * from './calendar-event-id.js';
+export * from './calendar-sync.js';
 export * from './errors.js';
 export * from './follow-up.js';
 export * from './idempotency.js';

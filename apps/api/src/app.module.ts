@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 
 import { HealthController } from './health.controller.js';
+import { CalendarPilotModule } from './calendar/calendar-pilot.module.js';
 
 /**
- * The API currently exposes only /v1/health. The booking write path exists as
- * a repository plus Emulator tests (see apps/api/src/firestore) but is
- * deliberately not routed: the Phase 1 gate forbids enabling a booking write
- * endpoint before the privacy, appointment-policy and role decisions land.
+ * The formal booking write path remains unrouted. CAL-PILOT is a separately
+ * approved, expiring synthetic-only surface with its own Google+TOTP boundary.
  */
 @Module({
+  imports: [CalendarPilotModule],
   controllers: [HealthController]
 })
 export class AppModule {}

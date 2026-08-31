@@ -1,0 +1,324 @@
+.calendar-pilot-root {
+  min-height: 100vh;
+  background: linear-gradient(145deg, #f5f8f4, #e8f1ed);
+  color: #18352d;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+.calendar-pilot-root[hidden] {
+  display: none;
+}
+.calendar-pilot-active body > :not(.calendar-pilot-root) {
+  display: none !important;
+}
+.cp-shell {
+  width: min(1180px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 3rem;
+}
+.cp-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid #c7d8d1;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 36px #164b3a14;
+}
+.cp-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.cp-brand img {
+  width: 36px;
+  height: auto;
+}
+.cp-brand strong,
+.cp-brand span {
+  display: block;
+}
+.cp-brand span {
+  font-size: 0.78rem;
+  color: #587269;
+}
+.cp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: #e7f4ed;
+  color: #155c48;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.cp-badge:before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #1b8f65;
+}
+.cp-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.cp-card {
+  grid-column: span 12;
+  padding: 1.1rem;
+  border: 1px solid #cbdcd5;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px #164b3a0d;
+}
+.cp-card h1,
+.cp-card h2,
+.cp-card h3 {
+  margin: 0 0 0.45rem;
+}
+.cp-card p {
+  margin: 0.25rem 0;
+  color: #526d63;
+}
+.cp-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.cp-metric {
+  padding: 0.8rem;
+  border-radius: 14px;
+  background: #f3f7f5;
+}
+.cp-metric span,
+.cp-metric strong {
+  display: block;
+}
+.cp-metric span {
+  font-size: 0.78rem;
+  color: #667c74;
+}
+.cp-metric strong {
+  margin-top: 0.2rem;
+  font-size: 1.05rem;
+}
+.cp-two {
+  grid-column: span 6;
+}
+.cp-three {
+  grid-column: span 4;
+}
+.cp-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-list-item {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem;
+  border: 1px solid #d8e4df;
+  border-radius: 14px;
+  background: #fbfdfc;
+}
+.cp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.cp-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.cp-button {
+  min-height: 42px;
+  border: 1px solid #adc7bd;
+  border-radius: 11px;
+  padding: 0.55rem 0.85rem;
+  background: #fff;
+  color: #174c3b;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+.cp-button:hover {
+  background: #edf6f2;
+}
+.cp-button-primary {
+  border-color: #155c48;
+  background: #155c48;
+  color: #fff;
+}
+.cp-button-primary:hover {
+  background: #0f4939;
+}
+.cp-button-danger {
+  border-color: #d6a5a5;
+  color: #8b2c2c;
+}
+.cp-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.cp-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+.cp-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.cp-form input,
+.cp-form select {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid #b9cec5;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  background: #fff;
+  color: #18352d;
+  font: inherit;
+}
+.cp-form .cp-full {
+  grid-column: 1/-1;
+}
+.cp-login {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+.cp-login-card {
+  width: min(460px, 100%);
+  padding: 1.5rem;
+  border: 1px solid #c7d8d1;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 18px 54px #164b3a24;
+}
+.cp-login-card img {
+  display: block;
+  width: 48px;
+  height: auto;
+  margin: 0 auto 0.7rem;
+}
+.cp-login-card h1,
+.cp-login-card p {
+  text-align: center;
+}
+.cp-login-card .cp-button {
+  width: 100%;
+  margin-top: 0.8rem;
+}
+.cp-otp {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: #f2f7f5;
+}
+.cp-secret {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 0.65rem;
+  border-radius: 8px;
+  background: #e5efeb;
+  font-family: ui-monospace, monospace;
+}
+.cp-alert {
+  margin: 0.8rem 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: #fff3d8;
+  color: #6b4c00;
+}
+.cp-alert[data-tone='error'] {
+  background: #fdeaea;
+  color: #842a2a;
+}
+.cp-event {
+  border-inline-start: 5px solid #287a61;
+}
+.cp-event[data-kind='busy'] {
+  border-inline-start-color: #8a6b26;
+}
+.cp-event[data-status='pending'] {
+  border-inline-start-color: #4d68a8;
+}
+.cp-event[data-status='conflict'] {
+  border-inline-start-color: #b13d3d;
+}
+.cp-empty {
+  padding: 1rem;
+  text-align: center;
+  border: 1px dashed #bdd0c8;
+  border-radius: 12px;
+  color: #61776f;
+}
+.cp-subtle {
+  font-size: 0.8rem;
+}
+.cp-sr-status {
+  position: fixed;
+  inset: auto 1rem 1rem auto;
+  max-width: 360px;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: #153b30;
+  color: #fff;
+  box-shadow: 0 8px 30px #0003;
+}
+.cp-sr-status[hidden] {
+  display: none;
+}
+.cp-tabs {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+.cp-tabs button[aria-selected='true'] {
+  background: #155c48;
+  color: #fff;
+}
+.cp-code {
+  font-family: ui-monospace, monospace;
+}
+@media (max-width: 760px) {
+  .cp-shell {
+    width: min(100% - 1rem, 1180px);
+  }
+  .cp-topbar {
+    align-items: flex-start;
+  }
+  .cp-status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cp-two,
+  .cp-three {
+    grid-column: span 12;
+  }
+  .cp-form {
+    grid-template-columns: 1fr;
+  }
+  .cp-actions .cp-button {
+    flex: 1;
+  }
+  .cp-topbar .cp-subtle {
+    display: none;
+  }
+}

@@ -43,6 +43,12 @@ const ROUTE_PATTERN =
   /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
 const ENTRY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*\.html$/;
 const DATA_SOURCE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+const CAL_PILOT_API_REWRITE = Object.freeze({
+  source: '/v1/**',
+  serviceId: 'cal-pilot-api',
+  region: 'asia-east1',
+  pinTag: true
+});
 
 const isRecord = (value) =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -504,10 +510,47 @@ function firebaseRules(firebase, name, failures) {
 
 function compareFirebaseRewrites(expected, rules, failures) {
   const actual = new Map();
+  let apiRewriteCount = 0;
   for (const [index, value] of rules.entries()) {
     const label = `firebase.json rewrites[${index}]`;
     if (!isRecord(value)) {
       failures.push(`${label} 必須是 object。`);
+      continue;
+    }
+    if (hasOwn(value, 'run')) {
+      apiRewriteCount += 1;
+      validateKeys(
+        value,
+        ['source', 'run'],
+        ['source', 'run'],
+        label,
+        failures
+      );
+      if (index !== 0)
+        failures.push(
+          `${label} 的 CAL-PILOT API rewrite 必須排在所有靜態規則前。`
+        );
+      if (value.source !== CAL_PILOT_API_REWRITE.source)
+        failures.push(
+          `${label}.source 必須精確為 ${CAL_PILOT_API_REWRITE.source}。`
+        );
+      if (!isRecord(value.run)) {
+        failures.push(`${label}.run 必須是 object。`);
+        continue;
+      }
+      validateKeys(
+        value.run,
+        ['serviceId', 'region', 'pinTag'],
+        ['serviceId', 'region', 'pinTag'],
+        `${label}.run`,
+        failures
+      );
+      for (const key of ['serviceId', 'region', 'pinTag']) {
+        if (value.run[key] !== CAL_PILOT_API_REWRITE[key])
+          failures.push(
+            `${label}.run.${key} 必須是 ${String(CAL_PILOT_API_REWRITE[key])}。`
+          );
+      }
       continue;
     }
     validateKeys(
@@ -526,6 +569,11 @@ function compareFirebaseRewrites(expected, rules, failures) {
       failures.push(`firebase.json rewrites 重複宣告 ${value.source}。`);
     else actual.set(value.source, value.destination);
   }
+
+  if (apiRewriteCount !== 1)
+    failures.push(
+      'firebase.json 必須恰好有一筆受控的 /v1/** Cloud Run rewrite。'
+    );
 
   for (const [source, destination] of expected) {
     const actualDestination = actual.get(source);

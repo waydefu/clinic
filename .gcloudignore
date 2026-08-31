@@ -1,0 +1,17 @@
+.git
+.github
+.codex
+.env
+.env.*
+**/*.jsonl
+**/node_modules
+**/dist
+apps/web
+docs
+infra
+tests
+test-results
+playwright-report
+C:/Users/**
+cal-pilot-keys
+*.log

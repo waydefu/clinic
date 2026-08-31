@@ -54,6 +54,34 @@ export function assertRenderable(html) {
 }
 
 /**
+ * Firebase Auth 的 redirect resolver 會動態載入 Google API iframe loader。
+ * `require-trusted-types-for 'script'` 同時保護 script.src，因此 default policy
+ * 必須處理這個唯一獲准的外部 ScriptURL。只接受 SDK 實際產生的固定路徑與隨機
+ * callback 形狀；其他來源、路徑、query 或 fragment 一律拒絕。
+ */
+export function assertFirebaseAuthScriptUrl(value) {
+  const text = String(value);
+  let url;
+  try {
+    url = new URL(text);
+  } catch {
+    throw new TypeError('Refusing an invalid external script URL.');
+  }
+  const parameters = [...url.searchParams.entries()];
+  const allowed =
+    url.origin === 'https://apis.google.com' &&
+    url.pathname === '/js/api.js' &&
+    url.hash === '' &&
+    parameters.length === 1 &&
+    parameters[0][0] === 'onload' &&
+    /^__iframefcb\d{1,6}$/.test(parameters[0][1]);
+  if (!allowed) {
+    throw new TypeError('Refusing an unaudited external script URL.');
+  }
+  return text;
+}
+
+/**
  * 註冊 default policy。
  *
  * Trusted Types 在測試環境（Node／vitest）與尚未支援的瀏覽器裡不存在，此時
@@ -65,7 +93,10 @@ export function installTrustedHtmlPolicy() {
   const trustedTypes = globalThis.trustedTypes;
   if (trustedTypes === undefined) return false;
   try {
-    trustedTypes.createPolicy('default', { createHTML: assertRenderable });
+    trustedTypes.createPolicy('default', {
+      createHTML: assertRenderable,
+      createScriptURL: assertFirebaseAuthScriptUrl
+    });
     return true;
   } catch {
     // 已經註冊過（例如同一頁載入兩個進入點）就不是錯誤，維持既有的那一份。

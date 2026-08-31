@@ -1,5 +1,6 @@
 import type { ApiErrorCode, ApiErrorResponse } from '@beauessence/contracts';
 import { DomainError, type DomainErrorCode } from '@beauessence/domain';
+import { HttpException } from '@nestjs/common';
 import { ZodError } from 'zod';
 
 /**
@@ -10,11 +11,9 @@ import { ZodError } from 'zod';
  * and code only and emits a fixed, generic message per API code. The domain
  * message, the stack, any SDK error and any identifier stay on the server.
  *
- * No route emits this yet. D-006 approved the identity/security policy, but the
- * Stage 2 C0 review, separate C1 deployment authority and C2～C6 implementation
- * evidence are unfinished; public/domain-specific routes also retain their own
- * pending decisions. This mapper keeps those future controllers from each
- * inventing an envelope.
+ * CAL-PILOT controllers and Nest's own route errors both use this mapper, so a
+ * framework-generated 404 cannot accidentally become a 500 or echo a raw SDK
+ * message.
  */
 
 /**
@@ -72,6 +71,14 @@ export class ServiceUnavailableError extends PlatformError {
   public constructor(public readonly retryAfterSeconds?: number) {
     super('A required dependency is temporarily unavailable.');
     this.name = 'ServiceUnavailableError';
+  }
+}
+
+export class ConflictError extends PlatformError {
+  public readonly apiCode = 'CONFLICT' as const;
+  public constructor() {
+    super('The requested state transition conflicts with current state.');
+    this.name = 'ConflictError';
   }
 }
 
@@ -175,6 +182,18 @@ function retryAfterHeader(error: unknown): Record<string, string> {
 function classify(error: unknown): ApiErrorCode {
   if (error instanceof ZodError) return 'VALIDATION_FAILED';
   if (error instanceof PlatformError) return error.apiCode;
+  if (error instanceof HttpException) {
+    const codeByStatus: Readonly<Record<number, ApiErrorCode>> = {
+      400: 'VALIDATION_FAILED',
+      401: 'AUTHENTICATION_REQUIRED',
+      403: 'AUTHORIZATION_DENIED',
+      404: 'NOT_FOUND',
+      409: 'CONFLICT',
+      429: 'RATE_LIMITED',
+      503: 'SERVICE_UNAVAILABLE'
+    };
+    return codeByStatus[error.getStatus()] ?? 'INTERNAL_ERROR';
+  }
   if (error instanceof DomainError) {
     return DOMAIN_TO_API_CODE[error.code] ?? 'INTERNAL_ERROR';
   }

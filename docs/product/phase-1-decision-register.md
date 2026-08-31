@@ -33,16 +33,56 @@ medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
 | D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | approved (2026-07-28; implementation evidence pending) | Authenticated write endpoint |
 | D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending (owner input recorded 2026-08-16) | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending; period-close and adjustment sub-items deferred (owner direction recorded 2026-08-16) | Payroll-credit persistence |
-| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending (superseding owner direction recorded 2026-08-16: a dedicated calendar, not the clinic's shared one; the request to add the service item conflicts with minimal event contents and needs privacy classification) | Outbound Calendar integration review |
+| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending for production; 30-day CAL-PILOT synthetic-only sub-scope approved 2026-08-28 (dedicated allowlisted calendars, closed synthetic fields, no real data) | Outbound Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
 | D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: no English version; the production URL is still undecided) | Public booking UX |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
 | D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (owner operational direction recorded 2026-08-16; the legal/medical classification still requires named professional review) | Storing surgery, anesthesia or clinical follow-up data |
 | D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending; ledger, refund and settlement sub-items deferred (owner direction recorded 2026-08-16) | Persisting money or settlement amounts |
-| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending (owner input recorded 2026-08-16: manual review, system is authoritative, 30-minute target; reviewer role and matching identity unresolved) | Calendar-to-system writes |
+| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; 30-day CAL-PILOT synthetic-only sub-scope approved 2026-08-28 (manager/front desk review, private link ID, five-minute target) | Calendar-to-system writes |
 
 ## Recorded inputs
+
+### CAL-PILOT D-009／D-016 synthetic-only sub-scope approval — 2026-08-28
+
+The project owner explicitly directed implementation of the pasted
+“CAL-PILOT 30 天線上雙向同步計畫” and confirmed execution after identifying
+their authority for this test as clinic owner, security owner and operations.
+This records a narrow approval, not a production decision:
+
+- **Scope:** one active source selected from exactly two allowlisted dedicated
+  CAL-PILOT calendars; synthetic patient codes only; titles are restricted to
+  `[預約] A17｜初診｜止鼾` and `[忙碌] 會議` closed formats; five-minute
+  incremental synchronization; Google changes become review candidates;
+  `manager` may switch sources and `manager`／`front_desk` may review.
+- **Expiry and cost:** 30 days after deployment; kill switch disables inbound,
+  outbound and synchronization at expiry; on 2026-08-29 the owner reduced the
+  alerting budget from NT$300 to NT$30. Notifications at 50%／80%／100%
+  (approximately NT$15／24／30) are alerts, not a spending cap.
+- **Explicit exclusions:** no production project, production calendar, patient
+  name, phone, record, clinical note, payment, attendee, location or other
+  free text; no production D-009/D-016 approval; no deployment apply before the
+  final exact commit／image digest／resource diff／rollback confirmation.
+- **Accepted residual risk:** low synthetic traffic may still incur Cloud Run,
+  Scheduler, Firestore, Secret Manager or logging charges; budget notifications
+  do not stop spend automatically. A failed source switch must leave the old
+  source active, and production must use entirely new identities, secrets,
+  allowlists, cursors, audit and kill switch.
+
+The table rows remain `pending for production` because this sub-scope neither
+classifies real patient/clinical fields nor authorizes a production Calendar.
+
+Execution evidence: on 2026-08-30 the owner confirmed the exact immutable
+candidate and NT$30 alert profile; the synthetic-only release was then enabled
+and is recorded in the
+[30-day deployment record](../reviews/2026-08-30-cal-pilot-30-day-deployment.md).
+The owner also reported that legacy operational titles may contain an editor
+name and source, patient name and phone, service, and general／local anesthesia.
+That observation is a future migration input only: it does not expand this
+approval. The deployed parser must continue to reject those titles as
+`invalid_format`, must not block availability from them, and must not ingest
+the personal or clinical fields.
 
 ### Owner answers to the 2026-07-27 requirements questionnaire
 

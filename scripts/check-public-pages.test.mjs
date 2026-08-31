@@ -176,6 +176,14 @@ describe('checkPublicPageConfiguration', () => {
     ).toBeGreaterThan(0);
   });
 
+  it('fails closed when the CAL-PILOT Cloud Run target drifts', () => {
+    expect(
+      mutate((c) => {
+        c.firebase.hosting.rewrites[0].run.serviceId = 'unexpected-service';
+      }).failures.length
+    ).toBeGreaterThan(0);
+  });
+
   it('notices a scan matrix that stopped covering its routes', () => {
     expect(
       mutate((c) => {
