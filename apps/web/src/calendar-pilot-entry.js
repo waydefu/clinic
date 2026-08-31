@@ -213,7 +213,7 @@ function loginView() {
       <section class="cp-login-card">
         <img src="/assets/brand-mark.webp" alt="" width="57" height="80" />
         <h1 id="cp-login-heading">CAL-PILOT 安全登入</h1>
-        <p>30 天合成日曆測試。僅允許白名單 Google 帳號，並強制使用 TOTP 驗證器。</p>
+        <p>CAL-PILOT 合成日曆測試。僅允許白名單 Google 帳號，並強制使用 TOTP 驗證器。</p>
         <p class="cp-alert">禁止輸入姓名、電話、病歷或任何正式日曆資料。</p>
         <button class="cp-button cp-button-primary" data-google-login type="button">使用 Google 帳號登入</button>
         <p data-login-status role="status" aria-live="polite"></p>
@@ -469,7 +469,7 @@ function applicationSkeleton(isPatient) {
   root.innerHTML = `
     <div class="cp-shell">
       <header class="cp-topbar">
-        <div class="cp-brand"><img src="/assets/brand-mark.webp" alt="" /><div><strong>一森渼診所</strong><span>CAL-PILOT 30 天合成同步</span></div></div>
+        <div class="cp-brand"><img src="/assets/brand-mark.webp" alt="" /><div><strong>一森渼診所</strong><span>CAL-PILOT 合成同步測試</span></div></div>
         <div class="cp-actions"><span class="cp-badge">SYNTHETIC ONLY</span><button class="cp-button" data-logout>登出</button></div>
       </header>
       <main class="cp-grid" id="cp-main">
