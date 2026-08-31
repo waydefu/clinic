@@ -6,6 +6,7 @@ import type {
   CalendarSourcePreflightResponse,
   CalendarSourceSummary,
   CalendarSyncStatus,
+  CorrectCalendarCandidateRequest,
   CreateSyntheticAppointmentRequest,
   RescheduleSyntheticAppointmentRequest,
   SyntheticAppointmentCommandResponse
@@ -20,6 +21,14 @@ export interface CalendarCandidateReviewCommand {
   readonly actorRole: 'manager' | 'front_desk';
   readonly occurredAt: string;
 }
+
+export type CalendarCandidateCorrectionCommand =
+  CorrectCalendarCandidateRequest & {
+    readonly candidateId: string;
+    readonly actorId: string;
+    readonly actorRole: 'manager' | 'front_desk';
+    readonly occurredAt: string;
+  };
 
 export interface CalendarSourceCommand {
   readonly sourceId: string;
@@ -55,6 +64,10 @@ export interface CalendarPilotRepositoryPort {
     }
   ): Promise<CalendarSourceCommandResponse>;
   reviewCandidate(command: CalendarCandidateReviewCommand): Promise<{
+    readonly candidate: CalendarChangeCandidate;
+    readonly projection: CalendarEventProjection | null;
+  }>;
+  correctCandidate(command: CalendarCandidateCorrectionCommand): Promise<{
     readonly candidate: CalendarChangeCandidate;
     readonly projection: CalendarEventProjection | null;
   }>;

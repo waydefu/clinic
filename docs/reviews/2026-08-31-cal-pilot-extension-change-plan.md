@@ -60,10 +60,49 @@ metadata-only renewal；腳本把下一期限設為
 - 緊急停止順序仍是 pause Scheduler → 關閉 inbound／outbound → 移除 API 公開呼叫
   → 讓 preview 到期；不刪 appointments、mirror、candidate 或 anonymous audit。
 
-## 7. 待填實際證據
+## 7. PR A 候選證據（尚未套用）
 
-- PR A URL／SHA／CI：待建立。
+- PR A：[#32](https://github.com/waydefu/clinic/pull/32)。
+- exact SHA：`f6ebbff93b1ec1f9901f2b83dce5804f52f2a57d`。
+- Terraform plan：`0 added, 1 changed, 0 destroyed`，只更新既有 budget；
+  plan SHA-256 為
+  `326D4991294AA46659BA81E9F369DA58F03F3C9B8777D5EA393E780C6482D46E`。
+- 本機完整 verify、Firestore Emulator、334 個 E2E、供應鏈／秘密掃描與
+  Terraform validate 已通過；GitHub CI 以 PR checks 為最終準據。
+- read-only cloud preflight 已通過，但 mutation guard 依設計停在再次確認前；
+  因此下列線上值仍未變更。
 - Terraform plan hash／結果：待 exact apply 確認。
 - 新 Hosting release／version／expiry：待 exact apply 確認。
 - Firestore expiry／health、Scheduler 與 unchanged revisions：待 exact apply 確認。
-- PR B URL／SHA／CI：待建立；不部署。
+
+## 8. PR B 受控候選修正（禁止部署）
+
+PR B 從 PR A exact SHA 堆疊，只提供 code review 與 CI 證據：
+
+- `CorrectCalendarCandidateRequest` 是嚴格的 appointment／busy 判別聯集；預約
+  只接受 A01～A30、初診／回診、止鼾／醫美與合法 30 分鐘格線，忙碌只接受
+  封閉原因與 timed／all-day 起訖。
+- 任意姓名、電話、小編、來源、麻醉、臨床或自由文字欄位都不在 contract 中，
+  會由 strict schema 拒絕。
+- `POST /v1/calendar/candidates/{candidateId}/correct` 只允許 manager／front_desk。
+  Firestore transaction 重新檢查版本、source generation、患者、重複預約與重疊，
+  原子寫入 projection、block／appointment、mirror、outbox、audit 與 idempotency。
+- candidate 只在 server-side 保存建立當下的 Google `etag`；修正交易會同時讀取
+  mirror 並要求兩者完全一致。mirror 已被後續同步更新、candidate 缺少 `etag` 或版本
+  不一致時，交易零寫入並回報衝突，不會以較新的 mirror 版本代替舊快照。
+- mirror 保留原始 server-only external event ID；Worker 以該 ID 更新同一事件並加入
+  私有 opaque link，不建立副本。outbox 會把 candidate 的預期 `etag` 傳到私人
+  Worker；Google `PATCH` 使用 `If-Match`，且 request body 不帶 insert-only 的
+  `event.id`。Google 回覆 `412` 時該工作失敗，不會覆蓋較新的 Calendar 變更。
+  整天與跨日忙碌保留 Google 的 exclusive end date。
+- 工作臺只顯示 sanitized candidate，提供類型篩選、中文錯誤、修改前後差異及
+  受控修正 dialog；`etag` 不進入公開型別或 API response。沒有強制覆蓋，也沒有
+  自由文字欄位。
+
+既有線上 29 筆舊候選是在 server-side `expectedEtag` 欄位加入前產生。PR B 會對這類
+legacy candidate fail closed；在任何未來部署前，必須以受控重新同步／migration 產生
+帶版本快照的新候選並重新驗證，不能直接為舊候選補上目前 mirror `etag`。這也是 PR B
+維持 **DO NOT DEPLOY** 的額外 gate。
+
+PR B URL／exact SHA／GitHub CI 在 PR 建立後記入交付報告；不寫入 deployment
+runbook，也不得成為 PR A Hosting build 的來源。

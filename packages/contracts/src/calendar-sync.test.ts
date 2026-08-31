@@ -6,6 +6,7 @@ import {
   AvailabilityBlockSchema,
   CalendarSourceSummarySchema,
   CalendarSyncStatusSchema,
+  CorrectCalendarCandidateRequestSchema,
   CreateSyntheticAppointmentRequestSchema
 } from './index.js';
 
@@ -100,9 +101,57 @@ describe('calendar sync contracts', () => {
     expect(
       CreateSyntheticAppointmentRequestSchema.safeParse({
         ...base,
-        patientCode: '王小明'
+        patientCode: 'A31'
       }).success
     ).toBe(false);
+  });
+
+  it('accepts only controlled candidate corrections and rejects clinical text', () => {
+    const common = {
+      idempotencyKey: 'candidate_correct_0001',
+      expectedVersion: 0
+    };
+    expect(
+      CorrectCalendarCandidateRequestSchema.safeParse({
+        ...common,
+        kind: 'appointment',
+        patientCode: 'A30',
+        bookingKind: 'follow_up',
+        serviceId: 'service_aesthetic',
+        startsAt: '2026-09-02T06:15:00.000Z'
+      }).success
+    ).toBe(true);
+    expect(
+      CorrectCalendarCandidateRequestSchema.safeParse({
+        ...common,
+        kind: 'busy',
+        busyReason: 'leave',
+        timeRange: {
+          kind: 'all_day',
+          startDate: '2026-09-02',
+          endDate: '2026-09-04'
+        }
+      }).success
+    ).toBe(true);
+    for (const forbidden of [
+      'name',
+      'phone',
+      'editor',
+      'source',
+      'anesthesia'
+    ]) {
+      expect(
+        CorrectCalendarCandidateRequestSchema.safeParse({
+          ...common,
+          kind: 'appointment',
+          patientCode: 'A17',
+          bookingKind: 'initial',
+          serviceId: 'service_snoring',
+          startsAt: '2026-09-02T06:00:00.000Z',
+          [forbidden]: '不得接受'
+        }).success
+      ).toBe(false);
+    }
   });
 
   it('marks the capacity line on every public availability block', () => {

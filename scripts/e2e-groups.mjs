@@ -25,7 +25,11 @@ export const E2E_GROUPS = {
     'delegated-deletion.spec.ts',
     'role-maintenance-responsive.spec.ts'
   ],
-  appointments: ['week-calendar.spec.ts', 'workbench-lifecycle.spec.ts'],
+  appointments: [
+    'calendar-pilot-correction.spec.ts',
+    'week-calendar.spec.ts',
+    'workbench-lifecycle.spec.ts'
+  ],
   'patient-portal': [
     'clinic-site.spec.ts',
     'patient-booking.spec.ts',

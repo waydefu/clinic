@@ -154,13 +154,25 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
   }
 }
 
-export interface CalendarWriteEvent {
+interface CalendarWriteEventBase {
   readonly eventId: string;
   readonly title: string;
-  readonly startsAt: string;
-  readonly endsAt: string;
   readonly linkId: string;
 }
+
+export type CalendarWriteEvent = CalendarWriteEventBase &
+  (
+    | {
+        readonly allDay?: false;
+        readonly startsAt: string;
+        readonly endsAt: string;
+      }
+    | {
+        readonly allDay: true;
+        readonly startDate: string;
+        readonly endDate: string;
+      }
+  );
 
 export class GoogleCalendarEventWriter {
   public constructor(
@@ -175,16 +187,15 @@ export class GoogleCalendarEventWriter {
     idempotentStatuses: ReadonlySet<number> = new Set()
   ): Promise<Response> {
     const token = await this.getAccessToken();
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${token}`);
+    if (init.body !== undefined)
+      headers.set('Content-Type', 'application/json');
     const response = await this.fetchImpl(
       `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}${path}`,
       {
         ...init,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(init.body === undefined
-            ? {}
-            : { 'Content-Type': 'application/json' })
-        },
+        headers,
         signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
       }
     );
@@ -198,25 +209,52 @@ export class GoogleCalendarEventWriter {
   }
 
   public async upsert(event: CalendarWriteEvent): Promise<void> {
-    const body = JSON.stringify({
-      id: event.eventId,
-      summary: event.title,
-      start: { dateTime: event.startsAt, timeZone: 'Asia/Taipei' },
-      end: { dateTime: event.endsAt, timeZone: 'Asia/Taipei' },
-      extendedProperties: {
-        private: { beauessenceLinkId: event.linkId }
-      }
-    });
+    const body = this.insertBody(event);
     const inserted = await this.request(
       '/events',
       { method: 'POST', body },
       new Set([409])
     );
     if (inserted.status !== 409) return;
+    await this.update(event);
+  }
+
+  public async update(
+    event: CalendarWriteEvent,
+    expectedEtag?: string
+  ): Promise<void> {
     await this.request(`/events/${encodeURIComponent(event.eventId)}`, {
       method: 'PATCH',
-      body
+      body: this.patchBody(event),
+      ...(expectedEtag === undefined
+        ? {}
+        : { headers: { 'If-Match': expectedEtag } })
     });
+  }
+
+  private mutationBody(event: CalendarWriteEvent): Record<string, unknown> {
+    return {
+      summary: event.title,
+      start:
+        event.allDay === true
+          ? { date: event.startDate }
+          : { dateTime: event.startsAt, timeZone: 'Asia/Taipei' },
+      end:
+        event.allDay === true
+          ? { date: event.endDate }
+          : { dateTime: event.endsAt, timeZone: 'Asia/Taipei' },
+      extendedProperties: {
+        private: { beauessenceLinkId: event.linkId }
+      }
+    };
+  }
+
+  private insertBody(event: CalendarWriteEvent): string {
+    return JSON.stringify({ id: event.eventId, ...this.mutationBody(event) });
+  }
+
+  private patchBody(event: CalendarWriteEvent): string {
+    return JSON.stringify(this.mutationBody(event));
   }
 
   public async remove(eventId: string): Promise<void> {

@@ -6,6 +6,7 @@ import type {
 } from 'firebase-admin/firestore';
 
 import {
+  formatBusyTitle,
   formatSyntheticAppointmentTitle,
   parseCalendarEntry,
   type CalendarBookingKind,
@@ -17,7 +18,8 @@ import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repos
 import {
   GoogleCalendarEventReader,
   GoogleCalendarEventWriter,
-  GoogleCalendarSyncError
+  GoogleCalendarSyncError,
+  type CalendarWriteEvent
 } from './google-sync-client.js';
 import { CalendarSyncEngine, type CalendarSyncSummary } from './sync-engine.js';
 
@@ -44,6 +46,8 @@ interface PilotJob {
   readonly previousSourceId?: string;
   readonly localRecordId?: string;
   readonly mirrorId?: string;
+  readonly writeMode?: 'update_existing';
+  readonly expectedEtag?: string;
   readonly generation?: number;
   readonly leaseOwner?: string;
   readonly leaseExpiresAt?: string;
@@ -58,8 +62,9 @@ interface StoredAppointment {
   readonly endsAt: string;
 }
 
-interface StoredMirror {
+export interface StoredMirror {
   readonly externalEventId: string;
+  readonly etag: string;
   readonly parsed: Extract<ParsedCalendarEntry, { readonly ok: true }>;
   readonly linkId?: string;
 }
@@ -133,6 +138,8 @@ function storedMirror(value: unknown): StoredMirror {
   const parsed = data['parsed'];
   if (
     typeof data['externalEventId'] !== 'string' ||
+    typeof data['etag'] !== 'string' ||
+    data['etag'].trim() === '' ||
     typeof parsed !== 'object' ||
     parsed === null ||
     Array.isArray(parsed) ||
@@ -140,6 +147,12 @@ function storedMirror(value: unknown): StoredMirror {
   )
     throw new Error('Calendar mirror record is invalid.');
   const parsedRecord = parsed as Record<string, unknown>;
+  if (
+    parsedRecord['allDay'] === true &&
+    (typeof parsedRecord['startDate'] !== 'string' ||
+      typeof parsedRecord['endDate'] !== 'string')
+  )
+    throw new Error('Calendar mirror record is invalid.');
   if (
     !['appointment', 'busy'].includes(String(parsedRecord['kind'])) ||
     typeof parsedRecord['displayLabel'] !== 'string' ||
@@ -149,9 +162,37 @@ function storedMirror(value: unknown): StoredMirror {
     throw new Error('Calendar mirror record is invalid.');
   return {
     externalEventId: data['externalEventId'],
+    etag: data['etag'],
     parsed: parsed as StoredMirror['parsed'],
     ...(typeof data['linkId'] === 'string' ? { linkId: data['linkId'] } : {})
   };
+}
+
+export function calendarWriteEventForMirror(
+  mirror: StoredMirror,
+  fallbackLinkId: string
+): CalendarWriteEvent {
+  const parsed = mirror.parsed;
+  const common = {
+    eventId: mirror.externalEventId,
+    title:
+      parsed.kind === 'appointment'
+        ? formatSyntheticAppointmentTitle(parsed)
+        : formatBusyTitle(parsed.busyReason),
+    linkId: mirror.linkId ?? fallbackLinkId
+  };
+  return parsed.kind === 'busy' && parsed.allDay === true
+    ? {
+        ...common,
+        allDay: true,
+        startDate: parsed.startDate as string,
+        endDate: parsed.endDate as string
+      }
+    : {
+        ...common,
+        startsAt: parsed.startsAt,
+        endsAt: parsed.endsAt
+      };
 }
 
 function calendarEventId(localRecordId: string): string {
@@ -431,17 +472,16 @@ export class CalendarPilotRuntime {
         .get();
       if (!mirror.exists) throw new Error('Mirror is missing.');
       const data = storedMirror(mirror.data());
-      const parsed = data.parsed;
-      await writer.upsert({
-        eventId: data.externalEventId,
-        title:
-          parsed.kind === 'appointment'
-            ? formatSyntheticAppointmentTitle(parsed)
-            : `[忙碌] ${parsed.displayLabel.replace(/^忙碌：/, '')}`,
-        startsAt: parsed.startsAt,
-        endsAt: parsed.endsAt,
-        linkId: data.linkId ?? job.mirrorId
-      });
+      const event = calendarWriteEventForMirror(data, job.mirrorId);
+      if (job.writeMode === 'update_existing') {
+        if (
+          typeof job.expectedEtag !== 'string' ||
+          job.expectedEtag.trim() === '' ||
+          data.etag !== job.expectedEtag
+        )
+          throw new Error('Calendar event version is stale.');
+        await writer.update(event, job.expectedEtag);
+      } else await writer.upsert(event);
       return 'completed';
     }
     if (job.localRecordId === undefined)
