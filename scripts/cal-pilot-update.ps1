@@ -30,8 +30,9 @@ $approvedSecrets = @(
   'cal-pilot-pseudonym-key'
 )
 
-function Assert-ImmutableImage([string]$Image, [string]$Label) {
-  if ($Image -notmatch "^$region-docker\.pkg\.dev/$projectId/cal-pilot/(api|worker)@sha256:[a-f0-9]{64}$") {
+function Assert-ImmutableImage([string]$Image, [string]$Component, [string]$Label) {
+  if ($Component -notin @('api', 'worker')) { throw 'Unknown CAL-PILOT image component.' }
+  if ($Image -notmatch "^$region-docker\.pkg\.dev/$projectId/cal-pilot/$Component@sha256:[a-f0-9]{64}$") {
     throw "$Label must be an approved immutable CAL-PILOT image digest."
   }
 }
@@ -129,10 +130,10 @@ if ($ApprovedCommit -notmatch '^[a-f0-9]{40}$' -or (git rev-parse HEAD).Trim() -
   throw 'The working tree is not on the approved exact commit.'
 }
 if ((git status --porcelain).Length -ne 0) { throw 'Deployment requires a clean exact commit.' }
-Assert-ImmutableImage $ApiImage 'API image'
-Assert-ImmutableImage $WorkerImage 'Worker image'
-Assert-ImmutableImage $ExpectedPreviousApiImage 'Previous API image'
-Assert-ImmutableImage $ExpectedPreviousWorkerImage 'Previous Worker image'
+Assert-ImmutableImage $ApiImage 'api' 'API image'
+Assert-ImmutableImage $WorkerImage 'worker' 'Worker image'
+Assert-ImmutableImage $ExpectedPreviousApiImage 'api' 'Previous API image'
+Assert-ImmutableImage $ExpectedPreviousWorkerImage 'worker' 'Previous Worker image'
 if ($ExpectedPreviousApiRevision -notmatch '^cal-pilot-api-[a-z0-9-]+$' -or $ExpectedPreviousWorkerRevision -notmatch '^cal-pilot-worker-[a-z0-9-]+$') {
   throw 'Previous Cloud Run revisions are invalid.'
 }
