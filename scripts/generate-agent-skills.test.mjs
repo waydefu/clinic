@@ -1,15 +1,22 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   ALLOWED_TOP_LEVEL,
   assertCodexFrontmatter,
+  generateAgentSkills,
   parseSkillMarkdown,
   reviewAgentSkills,
   translateFrontmatter,
   translateSkillFile
 } from './generate-agent-skills.mjs';
+
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..'
+);
 
 const source = `---
 name: verify-gates
@@ -137,5 +144,20 @@ describe('agent skill adapter translation', () => {
     );
     const stale = await reviewAgentSkills(root, files);
     expect(stale.some((problem) => problem.includes('is stale'))).toBe(true);
+  });
+
+  it('keeps the committed verify-gates adapter in sync with the canonical skill', async () => {
+    const canonical = await readFile(
+      path.join(repoRoot, '.claude/skills/verify-gates/SKILL.md'),
+      'utf8'
+    );
+    expect(() => parseSkillMarkdown(canonical)).not.toThrow();
+    const files = await generateAgentSkills(repoRoot);
+    expect(await reviewAgentSkills(repoRoot, files)).toEqual([]);
+    const adapter = files.get('.agents/skills/verify-gates/SKILL.md');
+    expect(adapter).toBeDefined();
+    expect(() =>
+      assertCodexFrontmatter(parseSkillMarkdown(adapter).frontmatter)
+    ).not.toThrow();
   });
 });
