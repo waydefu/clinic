@@ -4,7 +4,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { FirestoreCalendarSyncRepository } from '../../apps/worker/src/calendar-sync/firestore-calendar-sync.repository.js';
 import {
+  inspectLegacyCalendarCandidates,
   migrateLegacyCalendarCandidates,
+  validateMigrationSwitchState,
   verifyLegacyCalendarCandidateRegeneration
 } from '../../scripts/migrate-cal-pilot-legacy-candidates.mjs';
 import {
@@ -111,6 +113,38 @@ afterAll(async () => {
 });
 
 describe('CAL-PILOT legacy candidate migration', () => {
+  it('requires the exact enabled or safe-stopped switch state before a deployment attempt', async () => {
+    const enabledInspection = await inspectLegacyCalendarCandidates({
+      db,
+      projectId: PROJECT,
+      expectedCount: 1,
+      expectedSourceGeneration: 1
+    });
+    expect(() =>
+      validateMigrationSwitchState(enabledInspection, 'disabled')
+    ).not.toThrow();
+    expect(() =>
+      validateMigrationSwitchState(enabledInspection, 'enabled')
+    ).toThrow('not both enabled');
+
+    await db
+      .collection('calendar_pilot_configuration')
+      .doc('active')
+      .update({ inboundEnabled: true, outboundEnabled: true });
+    const activeInspection = await inspectLegacyCalendarCandidates({
+      db,
+      projectId: PROJECT,
+      expectedCount: 1,
+      expectedSourceGeneration: 1
+    });
+    expect(() =>
+      validateMigrationSwitchState(activeInspection, 'enabled')
+    ).not.toThrow();
+    expect(() =>
+      validateMigrationSwitchState(activeInspection, 'disabled')
+    ).toThrow('not both disabled');
+  });
+
   it('supersedes the legacy candidate, removes only its mirror and requests full resync', async () => {
     await expect(
       migrateLegacyCalendarCandidates({

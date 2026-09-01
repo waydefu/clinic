@@ -37,7 +37,7 @@ billing identifier was emitted by the preflight.
   feature branches and therefore require a new integration PR to `main`.
 - The integration adds expired-`processing` lease recovery, its Firestore index,
   a guarded legacy-candidate rebuild and sanitized state reporting.
-- Firestore Emulator: 10 test files／81 tests pass, including active-lease
+- Firestore Emulator: 10 test files／82 tests pass, including active-lease
   protection, one-winner recovery races, zero-write migration drift and fresh
   regenerated-etag verification. When a full sync deterministically produces
   the same candidate ID, repository replacement is allowed only for the exact
@@ -69,7 +69,27 @@ appointments, candidates, mirrors and anonymous audit are retained.
 
 ## 5. Post-apply evidence
 
-Pending. This section must record the integration PR and merge SHA, CI run,
+The expiry extension and budget step completed first:
+
+- integration PR #34 passed 11／11 checks and merged as
+  `77255e1e1503d5cb062b53f46a86039f0150088f`;
+- application expiry is `2026-11-28T04:51:37Z`, generation remains 1;
+- reviewed Terraform plan SHA-256 is
+  `2CC09E65ECB629473FD429E6B44A16EFDF141A8E197565AF82ED3090AF909DC2`;
+  it applied `0 added, 1 changed, 0 destroyed` to the existing NT$30 budget,
+  and the post-apply plan reported no changes;
+- Cloud Build `cdc22a08-8621-4133-ba34-5ea1d84a7bc6` succeeded for the exact
+  merge SHA and produced both immutable application images.
+
+The first runtime-update attempt then stopped safely before any Firestore index,
+Cloud Run revision, migration or Hosting release was created. Firebase CLI
+rejected an unsupported `--quiet` flag. The catch path left Scheduler `PAUSED`,
+both switches disabled, the #31 API／Worker／Hosting baseline unchanged, all 30
+pending candidates intact and no outbox backlog. A follow-up hotfix removes the
+unsupported flag and requires an explicit `ResumeSafeStoppedAttempt` gate that
+proves Scheduler and both switches are already stopped before continuing.
+
+Pending after that hotfix: the final merge SHA and CI run,
 Terraform plan digest, new revisions and immutable images, Hosting release and
 expiry, actual application expiry, regenerated candidate count, online smoke,
 Scheduler state, unchanged Identity／Secret／account／Calendar boundaries and the

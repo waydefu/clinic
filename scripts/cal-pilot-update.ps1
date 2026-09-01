@@ -12,6 +12,7 @@ param(
   [Parameter(Mandatory = $true)][ValidateRange(1, [int]::MaxValue)][int]$ExpectedSourceGeneration,
   [Parameter(Mandatory = $true)][ValidateRange(1, 100)][int]$ExpectedLegacyCandidateCount,
   [Parameter(Mandatory = $true)][string]$WriterKeyPath,
+  [switch]$ResumeSafeStoppedAttempt,
   [switch]$ConfirmApply
 )
 
@@ -113,7 +114,8 @@ function Assert-PreviousState {
     throw 'Hosting baseline drifted from the approved rollback target.'
   }
   $scheduler = gcloud scheduler jobs describe cal-pilot-five-minute-sync --project $projectId --location $region --format json | ConvertFrom-Json
-  if ($scheduler.state -ne 'ENABLED' -or $scheduler.schedule -ne '*/5 * * * *' -or $scheduler.attemptDeadline -ne '240s') {
+  $expectedSchedulerState = if ($ResumeSafeStoppedAttempt) { 'PAUSED' } else { 'ENABLED' }
+  if ($scheduler.state -ne $expectedSchedulerState -or $scheduler.schedule -ne '*/5 * * * *' -or $scheduler.attemptDeadline -ne '240s') {
     throw 'The five-minute Scheduler boundary drifted.'
   }
   Assert-SecretVersions
@@ -149,9 +151,11 @@ if (-not (Test-Path -LiteralPath $WriterKeyPath -PathType Leaf)) {
 
 Assert-PreviousState
 Set-MigrationEnvironment 'plan'
+$env:CALENDAR_PILOT_REQUIRED_SWITCH_STATE = if ($ResumeSafeStoppedAttempt) { 'disabled' } else { 'enabled' }
 try { node scripts/migrate-cal-pilot-legacy-candidates.mjs }
 finally {
   Remove-Item Env:CALENDAR_PILOT_LEGACY_MIGRATION_MODE -ErrorAction SilentlyContinue
+  Remove-Item Env:CALENDAR_PILOT_REQUIRED_SWITCH_STATE -ErrorAction SilentlyContinue
 }
 if (-not $ConfirmApply) {
   throw 'Preflight passed; review-only mode made no changes. Re-run with -ConfirmApply for this exact candidate.'
@@ -177,11 +181,13 @@ $newHostingVersion = $null
 
 try {
   $safeStopRequired = $true
-  gcloud scheduler jobs pause cal-pilot-five-minute-sync --project $projectId --location $region --quiet | Out-Null
-  $env:GOOGLE_CLOUD_PROJECT = $projectId
-  node scripts/disable-cal-pilot.mjs
+  if (-not $ResumeSafeStoppedAttempt) {
+    gcloud scheduler jobs pause cal-pilot-five-minute-sync --project $projectId --location $region --quiet | Out-Null
+    $env:GOOGLE_CLOUD_PROJECT = $projectId
+    node scripts/disable-cal-pilot.mjs
+  }
 
-  firebase deploy --only 'firestore:rules,firestore:indexes' --project $projectId --quiet
+  firebase deploy --only 'firestore:rules,firestore:indexes' --project $projectId
   $indexDeadline = (Get-Date).AddMinutes(10)
   while ($true) {
     try {
@@ -282,4 +288,5 @@ try {
   Remove-Item Env:CALENDAR_PILOT_EXPECTED_LEGACY_CANDIDATES -ErrorAction SilentlyContinue
   Remove-Item Env:CALENDAR_PILOT_EXPECTED_SOURCE_GENERATION -ErrorAction SilentlyContinue
   Remove-Item Env:CALENDAR_PILOT_LEGACY_MIGRATION_MODE -ErrorAction SilentlyContinue
+  Remove-Item Env:CALENDAR_PILOT_REQUIRED_SWITCH_STATE -ErrorAction SilentlyContinue
 }

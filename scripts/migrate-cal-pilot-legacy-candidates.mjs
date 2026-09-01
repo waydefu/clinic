@@ -78,8 +78,20 @@ export async function inspectLegacyCalendarCandidates({
     switchesDisabled:
       configuration.inboundEnabled === false &&
       configuration.outboundEnabled === false,
+    switchesEnabled:
+      configuration.inboundEnabled === true &&
+      configuration.outboundEnabled === true,
     candidateIds: legacyCandidates.map((document) => document.id)
   };
+}
+
+export function validateMigrationSwitchState(inspection, requiredState) {
+  if (requiredState === 'enabled' && inspection.switchesEnabled !== true)
+    throw new Error('CAL-PILOT switches are not both enabled.');
+  if (requiredState === 'disabled' && inspection.switchesDisabled !== true)
+    throw new Error('CAL-PILOT switches are not both disabled.');
+  if (!['enabled', 'disabled'].includes(requiredState))
+    throw new Error('CAL-PILOT required switch state is invalid.');
 }
 
 export async function migrateLegacyCalendarCandidates({
@@ -296,6 +308,10 @@ async function main() {
       expectedCount,
       expectedSourceGeneration
     });
+    validateMigrationSwitchState(
+      result,
+      process.env['CALENDAR_PILOT_REQUIRED_SWITCH_STATE'] ?? 'enabled'
+    );
     process.stdout.write(
       `Legacy candidate migration preflight passed for ${result.candidateIds.length} synthetic candidates; no changes made.\n`
     );
