@@ -141,7 +141,15 @@ pending candidates and empty outbox. PR #38 normalizes application and Hosting
 timestamps to UTC instants before comparison; it does not broaden any accepted
 state or mutate cloud resources.
 
-Pending after PR #38: the final merge SHA and CI run,
+PR #38 passed 11／11 checks and merged as
+`22b8998e1a399127140c3164a7cf28f3dc8180eb`. The next read-only preflight
+normalized both timestamps correctly, then failed closed at the Scheduler-only
+IAM comparison because PowerShell unwrapped the one-member result into a scalar
+string before index access. Direct IAM read-back still showed exactly the one
+approved Scheduler invoker. PR #39 keeps the sorted result inside an explicit
+array; no accepted principal or cloud state changes.
+
+Pending after PR #39: the final merge SHA and CI run,
 Terraform plan digest, new revisions and immutable images, Hosting release and
 expiry, actual application expiry, regenerated candidate count, online smoke,
 Scheduler state, unchanged Identity／Secret／account／Calendar boundaries and the
