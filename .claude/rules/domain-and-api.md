@@ -9,8 +9,8 @@ paths:
 
 # Domain, API, worker and Rules
 
-Authority: `AGENTS.md` §"Non-negotiable safety boundaries", §"Repository map"
-and §"Task routing". The ADRs under [`docs/adr/`](../../docs/adr) are binding,
+Authority: `AGENTS.md` Safety Floor and [docs/INDEX.md](../../docs/INDEX.md)
+API/domain route. The ADRs under [`docs/adr/`](../../docs/adr) are binding,
 not historical.
 
 ## Invariants that a change here must not break

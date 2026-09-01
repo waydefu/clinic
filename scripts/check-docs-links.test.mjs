@@ -5,7 +5,8 @@ import {
   MARKDOWN_GLOBS,
   resolveLink,
   reviewDocumentation,
-  sectionText
+  sectionText,
+  STALE_CLAIMS
 } from './check-docs-links.mjs';
 
 const INDEX = 'docs/README.md';
@@ -222,6 +223,17 @@ describe('documentation gate', () => {
     ]);
   });
 
+  it('blocks retired AGENTS boot headings and the publication slogan', () => {
+    const agents = STALE_CLAIMS.filter(([file]) => file === 'AGENTS.md');
+    expect(agents.map(([, pattern]) => pattern.source).sort()).toEqual(
+      [
+        '## Current commands',
+        'Repository security posture — dated facts',
+        'every commit is a publication'
+      ].sort()
+    );
+  });
+
   it('stays silent when a stale-claim source is absent rather than crashing', () => {
     const failures = reviewDocumentation({
       documents: new Map([[INDEX, index()]]),
@@ -238,6 +250,7 @@ describe('documentation gate', () => {
 describe('which markdown the gate discovers', () => {
   it('scans the harness explicitly, because **/*.md skips dot-directories', () => {
     expect(MARKDOWN_GLOBS).toContain('.claude/**/*.md');
+    expect(MARKDOWN_GLOBS).toContain('.agents/**/*.md');
     expect(isScannedMarkdown('.claude/rules/web-ui.md')).toBe(true);
     expect(isScannedMarkdown('.claude/skills/verify-gates/SKILL.md')).toBe(
       true

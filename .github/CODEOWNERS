@@ -1,0 +1,20 @@
+# Ownership declaration; non-blocking approval.
+# This file may affect GitHub reviewer routing. It does not itself enable
+# required code-owner approval, branch protection, or a ruleset.
+
+* @waydefu
+
+AGENTS.md @waydefu
+GOVERNANCE.md @waydefu
+CLAUDE.md @waydefu
+CONTRIBUTING.md @waydefu
+.github/ @waydefu
+.claude/ @waydefu
+.agents/ @waydefu
+docs/document-lifecycle.md @waydefu
+docs/INDEX.md @waydefu
+docs/governance/ @waydefu
+docs/state/ @waydefu
+scripts/check-governance.mjs @waydefu
+scripts/generate-governance-state.mjs @waydefu
+scripts/generate-agent-skills.mjs @waydefu

@@ -1,0 +1,54 @@
+{
+  "auditExceptions": {
+    "activeCount": 0,
+    "releasedCount": 1
+  },
+  "generated": true,
+  "generator": "scripts/generate-governance-state.mjs",
+  "generatorVersion": "1",
+  "pointers": {
+    "adrs": "docs/adr",
+    "conflicts": "docs/state/conflicts.md",
+    "decisionRegister": "docs/product/phase-1-decision-register.md",
+    "documentLifecycle": "docs/document-lifecycle.md",
+    "index": "docs/INDEX.md",
+    "roadmap": "docs/roadmap.md"
+  },
+  "schemaVersion": 1,
+  "sourceSnapshotSha256": "f197043326c8920f4dcaf558c50845923c42da0d8944e2ab900a8e10773749e8",
+  "sources": [
+    {
+      "path": "docs/architecture/stage-2-gate-status.json",
+      "sha256": "9829c73307ddad50e397328e0c1e9e6d7472b0ba8a1130c4d6f442e6cfab63d2"
+    },
+    {
+      "path": "security/audit-exceptions.json",
+      "sha256": "16e6921c9cd6f5421ae26aa5ee773810a22d9ffc5e7b74e78c8b42e9f6c0bfde"
+    }
+  ],
+  "stage2": {
+    "deploymentAuthorities": {
+      "C1": "not_granted",
+      "C2": "not_granted",
+      "C3": "not_granted",
+      "C4": "not_granted",
+      "C5": "not_granted",
+      "C6": "not_granted"
+    },
+    "stageSlices": {
+      "C0": "revise",
+      "C1": "pending",
+      "C2": "pending",
+      "C3": "pending",
+      "C4": "pending",
+      "C5": "pending",
+      "C6": "pending"
+    }
+  },
+  "unverified": [
+    "githubProtection",
+    "previewAvailability",
+    "dependabotAlerts",
+    "remoteCloud"
+  ]
+}

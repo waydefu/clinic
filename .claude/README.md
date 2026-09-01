@@ -1,18 +1,20 @@
 # Agent harness
 
 Configuration for Claude Code in this repository. It is deliberately thin: the
-project's policy already lives in `AGENTS.md`, `CONTRIBUTING.md` and `docs/`, and
-duplicating any of it here would create a second source of truth that drifts.
+project's policy already lives in `AGENTS.md` (Safety Floor), `GOVERNANCE.md`,
+`CONTRIBUTING.md` and `docs/`, and duplicating any of it here would create a
+second source of truth that drifts.
 
 ## Layers, and what each costs
 
 | Layer | Loads | Cost | Holds |
 | --- | --- | --- | --- |
-| [`../CLAUDE.md`](../CLAUDE.md) | Every session | Always paid | How to work: planning threshold, debug loop, evidence ladder, Git and parallel-agent safety, completion semantics |
+| [`../CLAUDE.md`](../CLAUDE.md) | Every session | Always paid | How to work, plus a non-canonical three-line fail-safe mirror of the AGENTS Safety Floor |
 | [`rules/`](rules) | When a file matching its `paths:` is read | Near zero until relevant | Domain invariants per area, and the gates that fail for non-obvious reasons |
-| [`skills/`](skills) | Only when invoked | Zero until used | Repeated procedures: `/verify-gates`, `/root-cause`, `/ui-check`, `/closeout`, `/handoff-record` |
+| [`skills/`](skills) | Only when invoked | Zero until used | Repeated procedures. Canonical for Claude, Grok compatibility, and Kimi |
 | [`hooks/`](hooks) + [`settings.json`](settings.json) | Every matching tool call | Zero context | What must not depend on the model deciding correctly |
-| `AGENTS.md`, `docs/` | On demand, by reading | Paid per read | All policy, authority and architecture. Canonical |
+| `AGENTS.md` Safety Floor | On demand | Paid per read | Designated safety Canon |
+| [`../GOVERNANCE.md`](../GOVERNANCE.md), [`../docs/INDEX.md`](../docs/INDEX.md) | On demand | Paid per read | Authority scopes and retrieval routes. Not product policy |
 
 ## Where a new instruction goes
 

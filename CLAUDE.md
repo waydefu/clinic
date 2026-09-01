@@ -1,23 +1,25 @@
 # CLAUDE.md — operating contract
 
-`AGENTS.md` is the canonical authority document for this repository: it owns the
-safety boundaries, the publication boundary, the repository map, task routing,
-the decision gates and the dated security posture. **None of that is repeated
-here, except the three-line floor below** — which is restated precisely because
-it has to survive a session that never opens `AGENTS.md`. This file owns the
-other half — *how to work*: when to plan, how to debug, what counts as verified,
-what is safe to do to the working tree, and what "done" means. When the two
-disagree, `AGENTS.md` wins on policy and this file wins on procedure.
+Policy authority is scoped by [GOVERNANCE.md](GOVERNANCE.md). The designated
+safety Canon is the **Safety Floor in [AGENTS.md](AGENTS.md)**. D-series status
+lives only in
+[the decision register](docs/product/phase-1-decision-register.md). This file
+owns *how to work*: when to plan, how to debug, what counts as verified, what
+is safe to do to the working tree, and what "done" means. When procedure and
+policy disagree, AGENTS.md Safety Floor and the register win on policy; this
+file wins on procedure.
 
-Layered on top of both: [`.claude/rules/`](.claude/rules) loads automatically per
-path, and the skills under [`.claude/skills/`](.claude/skills) load only when
-invoked. See [`.claude/README.md`](.claude/README.md) for which layer a new
-instruction belongs in.
+Layered on top: [`.claude/rules/`](.claude/rules) loads per path, and
+[`.claude/skills/`](.claude/skills) load only when invoked. That skill tree is
+canonical for Claude, Grok compatibility, and Kimi. `.agents/skills/` is a
+generated Codex-compatible adapter, not a second Canon. See
+[`.claude/README.md`](.claude/README.md).
 
 ## The floor, which holds in a session that never opens AGENTS.md
 
-Not judgement calls. These bind a one-line typo fix exactly as much as a
-migration:
+This is a **non-canonical fail-safe mirror** of the AGENTS.md Safety Floor,
+kept because Claude Code cannot be assumed to have loaded AGENTS.md in every
+session. It does not replace that floor.
 
 - **No real data, anywhere.** Patient, payroll, calendar, staff and
   social-message values are synthetic and opaque here — in code, tests,
@@ -27,11 +29,12 @@ migration:
 - **Deployment is not a session's decision.** See [Production
   safety](#production-safety).
 
-`AGENTS.md` owns the reasoning and everything past the floor.
+`AGENTS.md` owns the remaining safety boundaries and the reasoning.
 
 ## Read AGENTS.md before you change any of these
 
-Read it in full — not grep for one line — before the first edit that touches:
+Read the Safety Floor — and `docs/INDEX.md` for the matching route — before
+the first edit that touches:
 
 - a write path, transaction, outbox, idempotency or audit behaviour;
 - authentication, authorization, roles or Firestore Rules;
@@ -144,9 +147,9 @@ the rung you reached and nothing more.
 
 Deployment, `terraform apply`, live-channel Hosting, Firestore import/export and
 making any repository public are outside what any session may decide. They
-require fresh, explicit, per-commit authority as defined in `AGENTS.md`. The
-command guard denies them; if one is genuinely authorised, hand the exact command
-to the user to run.
+require fresh, explicit, per-commit authority as defined in the `AGENTS.md`
+Safety Floor. The command guard denies them; if one is genuinely authorised,
+hand the exact command to the user to run.
 
 ## Scope
 
@@ -154,6 +157,24 @@ Deliver the change that was asked for and nothing else. `AGENTS.md` §"Minimal
 safe change" is the full rule — the operational consequence is: no opportunistic
 refactors, no drive-by formatting, no dependency bumps riding along. If you find
 an unrelated defect, record it in the completion report and leave it.
+
+## Decision challenge and simplification
+
+GRILL ME is a manual decision-review technique, not an always-on hook. Before
+implementing a choice that materially affects privacy, authz, a public API,
+migration, an external integration, cloud cost, deployment or rollback, ask
+only the unresolved questions that would change the design, then record any
+policy answer in the decision register.
+
+PONYTAIL is a one-time, human-reviewed simplification pass after correctness
+and security gates, for low-risk local duplication or naming only. Do not use
+it on privacy, RBAC, Rules, transactions, outbox, payroll, backup, incident
+response, IaC, deployment, legal text or governance.
+
+A status/progress request is read-only: do not run `pnpm`, install, build,
+Emulator or Playwright merely to confirm status. If `node_modules` is missing,
+report the prerequisite and stop. Treat repository-memory tools as navigation
+hints, never as Canon; the live register and current files win.
 
 ## Completion semantics
 

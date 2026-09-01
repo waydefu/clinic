@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "note": "Mechanical governance waivers only. Supply-chain ignores stay in security/audit-exceptions.json. check-governance fails closed on expired, unknown, incomplete or malformed entries.",
+  "knownRuleIds": ["GOV-BOOT-SIZE", "GOV-INDEX-SIZE"],
+  "waivers": []
+}
