@@ -149,9 +149,67 @@ string before index access. Direct IAM read-back still showed exactly the one
 approved Scheduler invoker. PR #39 keeps the sorted result inside an explicit
 array; no accepted principal or cloud state changes.
 
-Pending after PR #39: the final merge SHA and CI run,
-Terraform plan digest, new revisions and immutable images, Hosting release and
-expiry, actual application expiry, regenerated candidate count, online smoke,
-Scheduler state, unchanged Identity／Secret／account／Calendar boundaries and the
-executed rollback command inputs. It must not contain secret or Google object
-identifiers.
+PR #39 passed 11／11 checks and merged as
+`bc8dadc3dad10cd0fd62f4aade61f72bb56ad6eb`. Its read-only finalizer preflight
+verified the complete exact state and made no changes. The confirmed run then
+enabled inbound／outbound and resumed the five-minute Scheduler. A manual
+Scheduler invocation at `2026-09-01T15:24:01.630947Z` reached the private Worker
+and returned HTTP 200 in about 2.36 seconds.
+
+Final runtime and data evidence:
+
+- API revision `cal-pilot-api-00003-muy` serves 100% from
+  `sha256:9bcd90b35befea80a8a3636f3418c2953f38ccd2d165f1d9bed75e90d58e7a94`;
+- Worker revision `cal-pilot-worker-00003-nuf` serves 100% from
+  `sha256:cbfbfbe36615f743aea0162d88ca3742fd1b03b74056a2d8fbb73014aac15f88`;
+- both revisions report ready and container healthy; the Worker has exactly one
+  invoker, the existing Scheduler service identity;
+- application expiry is `2026-11-28T04:51:37Z`, generation remains 1, both
+  switches are enabled, health is `healthy`, exactly two sources remain enabled
+  and the active source remains enabled;
+- zero legacy candidates remain, all 29 replacements passed matching-etag
+  verification, 30 sanitized candidates are pending in total and outbox is
+  empty;
+- Hosting version `09ca5b147ea8e576` is active at the existing CAL-PILOT preview
+  URL and expires `2026-10-01T11:06:13.085614582Z`; the next metadata-only
+  renewal remains due in its final seven days;
+- all six Secret containers still have exactly one enabled version, version 1;
+  no Secret value was read into this report;
+- Identity read-back reports three authorized domains, MFA `ENABLED` and one
+  TOTP provider configuration. No Identity or allowlist mutation occurred;
+- the existing NT$30 budget covers 2026-08-30 through 2026-11-28 with
+  50%／80%／100% notifications. The reviewed plan hash remains
+  `2CC09E65ECB629473FD429E6B44A16EFDF141A8E197565AF82ED3090AF909DC2`, and
+  post-apply Terraform reported no changes.
+
+Final online smoke:
+
+- preview page and `/v1/health` returned 200; an unauthenticated Calendar status
+  request returned 401;
+- CSP permits only the required Identity Toolkit and Secure Token connections;
+  the application page had zero console errors and zero warnings;
+- clicking `使用 Google 帳號登入` reached the Google account sign-in page,
+  proving the prior CSP login failure is fixed. Credential entry and TOTP
+  completion remain the owner's acceptance step;
+- downloaded HTML and hashed scripts contained no service-account private key,
+  Calendar ID, raw external event ID, sync token or expected etag.
+
+Local verification for the finalizer line ended at 76 test files／1,154 tests;
+PRs #34 through #39 each passed all 11 required GitHub checks. The completed
+runtime and Hosting artifacts were built from reviewed `main`; later finalizer
+commits changed deployment scripts, policy tests and documentation only.
+
+## 6. Rollback inputs
+
+The guarded rollback remains review-only until `-ConfirmRollback` is supplied.
+Its exact inputs are:
+
+- previous API revision: `cal-pilot-api-00001-xiv`;
+- previous Worker revision: `cal-pilot-worker-00001-gow`;
+- previous Hosting version resource:
+  `sites/beauessence-clinic-staging/versions/29a02d4e51c819c1`.
+
+Rollback first pauses Scheduler and disables both switches, then restores those
+three versions. It retains appointments, regenerated candidates, mirrors and
+anonymous audit. Production, real patient data, clinical fields, additional
+accounts and non-allowlisted Calendars remain outside this deployment.
