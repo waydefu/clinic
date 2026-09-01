@@ -56,6 +56,7 @@ describe('required project files', () => {
       'scripts/generate-governance-state.mjs',
       'scripts/generate-agent-skills.mjs',
       'scripts/generate-sast-evidence.mjs',
+      'scripts/review-artifact-attestation.mjs',
       'security/audit-exceptions.json',
       '.github/workflows/sast.yml',
       '.github/workflows/sast-scan.yml'
@@ -78,7 +79,8 @@ describe('required project files', () => {
     'scripts/check-branch-protection.test.mjs',
     'scripts/generate-ci-evidence.test.mjs',
     'scripts/generate-sast-evidence.test.mjs',
-    'scripts/generate-sbom.test.mjs'
+    'scripts/generate-sbom.test.mjs',
+    'scripts/review-artifact-attestation.test.mjs'
   ])('requires the gate test %s', (testFile) => {
     expect(requiredPaths).toContain(testFile);
   });

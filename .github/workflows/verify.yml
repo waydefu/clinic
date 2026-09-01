@@ -141,6 +141,13 @@ jobs:
     name: Tracked secrets、dependency audit 與 inventory
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Provenance 只加在這個已產出 SBOM 的 job。workflow 預設仍是 contents:read。
+    # id-token / attestations 是 GitHub 原生 OIDC 簽章所需的最小權限；不新增
+    # repository secret，也不部署任何東西。
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -160,12 +167,51 @@ jobs:
       # owner before the production policy is final.
       - run: pnpm check:supply-chain
 
+      # CycloneDX SBOM 是這個 workflow 裡唯一穩定、以 digest 識別、且有 90 日
+      # 保留的供應鏈產物。E2E 的 dist 每組重建且不上傳；沒有 container image。
+      # 因此 provenance 的最小集合就是這一份 `sbom.cdx.json`。
+      #
+      # 這是 SLSA-aligned provenance controls，不是 SLSA level 宣告。
+      # 不部署、不推 registry、不觸發 Firebase / Cloud Run / preview。
+      #
+      # Fork PR 無法用 GITHUB_TOKEN 寫 attestations；同 repo 的 PR 與 push 必須
+      # 成功，缺件不得被當成通過。
+      - name: Record SBOM digest
+        run: node scripts/review-artifact-attestation.mjs --subject sbom.cdx.json --write output/evidence/sbom-attestation-binding.json
+
+      - name: Attest CycloneDX SBOM provenance
+        id: attest-sbom
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: sbom.cdx.json
+
+      - name: Bind attestation to digest
+        if: ${{ steps.attest-sbom.outcome == 'success' }}
+        env:
+          ATTESTATION_ID: ${{ steps.attest-sbom.outputs.attestation-id }}
+          ATTESTATION_URL: ${{ steps.attest-sbom.outputs.attestation-url }}
+          BUNDLE_PATH: ${{ steps.attest-sbom.outputs.bundle-path }}
+        run: node scripts/review-artifact-attestation.mjs --subject sbom.cdx.json --write output/evidence/sbom-attestation-binding.json --attestation-id "$ATTESTATION_ID" --attestation-url "$ATTESTATION_URL" --bundle-path "$BUNDLE_PATH" --require-attestation
+
+      - name: Fail closed when same-repository attestation is missing
+        if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && steps.attest-sbom.outcome != 'success' }}
+        run: |
+          echo 'SBOM provenance attestation did not succeed on a same-repository run.'
+          exit 1
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-cyclonedx
-          path: sbom.cdx.json
+          path: |
+            sbom.cdx.json
+            output/evidence/sbom-attestation-binding.json
           if-no-files-found: error
           retention-days: 90
+
+      # Auditor, after downloading sbom.cdx.json from this run:
+      #   gh attestation verify sbom.cdx.json --repo waydefu/clinic --signer-workflow waydefu/clinic/.github/workflows/verify.yml
+      # Exact digest is in output/evidence/sbom-attestation-binding.json (sha256).
 
   # SCM-R01：SAST 必須和其他必要 job 在**同一個 run** 內執行，`needs` 才拿得到它的
   # 結果——GitHub Actions 沒有跨 workflow 的 `needs`。掃描實作因此抽成可重用

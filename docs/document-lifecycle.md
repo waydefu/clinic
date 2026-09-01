@@ -57,6 +57,7 @@ commit／environment、涵蓋範圍、owner、evidence 及 expiry／next review�
 | --- | --- | --- |
 | CI 完整驗證 | `verify` workflow 的 `Verification evidence` job | GitHub artifact 90 天；同時寫 job summary |
 | Semgrep CE SAST | `sast-scan.yml` 的 commit-bound JSON／SARIF／summary（由 `verify` workflow 的 `sast` job 在同一個 run 內產生；每週排程與手動觸發走 `sast.yml`） | GitHub artifact 90 天；**自 2026-08-18（`SCM-R01`）起被唯一 required 的 `Verification evidence` 依賴**，紅的 SAST 會擋下合併 |
+| CycloneDX SBOM provenance | `verify` workflow 的 `supply-chain` job：對 `sbom.cdx.json` 做 GitHub artifact attestation（`actions/attest` provenance mode） | GitHub attestations API；digest 綁定寫在同 run 的 `sbom-cyclonedx` artifact。**不是** SLSA level 宣告，也**不是**部署 |
 | 合成預覽 | `pnpm verify:preview -- <preview-url>` | 本機 `output/evidence/`，依 review／交付需要另行保存 |
 
 證據 JSON 至少綁定 commit SHA、時間、執行／部署網址、必要檢查與結論。
@@ -70,5 +71,7 @@ CI artifact 或把摘要登記到新的 dated review。
 - workflow 設定存在不等於 GitHub run 成功或 required。Semgrep CE 是規則式分析，
   不等同 CodeQL 的跨檔 taint/data-flow；兩者是否可用、是否 required 仍須讀實際
   repository 權限、ruleset 與同一 commit 的 run。
+- SBOM 的 artifact attestation 是「這個 digest 由這個 workflow、這個 commit 產出」
+  的 SLSA-aligned provenance，不是 SLSA level、不是部署、也不授權真實資料。
 - 自動 axe 成功不等於螢幕閱讀器、強制色彩及人工鍵盤驗收成功。
 - 所有 D-series 決策只有[決策登錄](product/phase-1-decision-register.md)能關閉。
