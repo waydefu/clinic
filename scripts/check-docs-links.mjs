@@ -81,7 +81,13 @@ export const STALE_CLAIMS = [
     'AGENTS.md',
     /every commit is a publication/,
     'publication safety is visibility-independent; see docs/state/conflicts.md'
-  ]
+  ],
+  [
+    'SECURITY.md',
+    /Private Vulnerability Reporting is enabled/,
+    'do not assert the remote PVR setting from a committed file'
+  ],
+  ['SECURITY.md', /mailto:/i, 'do not publish a personal security contact']
 ];
 
 const linkPattern = /\[[^\]]*\]\(([^)\s]+)\)/g;

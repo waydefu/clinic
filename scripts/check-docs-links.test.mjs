@@ -234,6 +234,55 @@ describe('documentation gate', () => {
     );
   });
 
+  it('blocks SECURITY.md from asserting a live PVR setting or a mailto contact', () => {
+    const security = STALE_CLAIMS.filter(([file]) => file === 'SECURITY.md');
+    expect(security.map(([, pattern]) => pattern.source).sort()).toEqual(
+      ['Private Vulnerability Reporting is enabled', 'mailto:'].sort()
+    );
+  });
+
+  it('accepts wording that refuses to assert the remote PVR setting', () => {
+    const failures = reviewDocumentation({
+      documents: new Map([
+        [INDEX, index()],
+        [
+          'SECURITY.md',
+          [
+            'The intended private intake is GitHub Private Vulnerability Reporting.',
+            'Whether GitHub currently offers Private Vulnerability Reporting is a remote repository setting.',
+            'This file cannot treat that setting as standing fact.'
+          ].join('\n')
+        ]
+      ]),
+      fileExists: () => true
+    });
+    expect(failures).toEqual([]);
+  });
+
+  it('rejects a SECURITY.md that asserts PVR is enabled or publishes mailto', () => {
+    const enabled = reviewDocumentation({
+      documents: new Map([
+        [INDEX, index()],
+        ['SECURITY.md', 'Private Vulnerability Reporting is enabled here.']
+      ]),
+      fileExists: () => true
+    });
+    expect(enabled).toEqual([
+      'Stale claim in SECURITY.md: do not assert the remote PVR setting from a committed file'
+    ]);
+
+    const mailto = reviewDocumentation({
+      documents: new Map([
+        [INDEX, index()],
+        ['SECURITY.md', 'Write to mailto:security@example.invalid']
+      ]),
+      fileExists: () => true
+    });
+    expect(mailto).toEqual([
+      'Stale claim in SECURITY.md: do not publish a personal security contact'
+    ]);
+  });
+
   it('stays silent when a stale-claim source is absent rather than crashing', () => {
     const failures = reviewDocumentation({
       documents: new Map([[INDEX, index()]]),
