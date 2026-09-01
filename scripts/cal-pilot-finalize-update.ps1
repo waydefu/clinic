@@ -36,6 +36,14 @@ function Assert-ImmutableImage([string]$Image, [string]$Component, [string]$Labe
   }
 }
 
+function Test-SameInstant($Actual, [string]$Expected) {
+  try {
+    return ([DateTimeOffset]$Actual).ToUniversalTime() -eq ([DateTimeOffset]$Expected).ToUniversalTime()
+  } catch {
+    return $false
+  }
+}
+
 function Get-ActiveRunState([string]$Name) {
   $service = gcloud run services describe $Name --project $projectId --region $region --format json | ConvertFrom-Json
   $traffic = @($service.status.traffic | Where-Object { $_.percent -eq 100 })
@@ -97,7 +105,7 @@ function Assert-SafeStoppedState {
   }
   $state = Get-PilotState
   if (
-    $state.expiresAt -ne $expectedApplicationExpiry -or
+    -not (Test-SameInstant $state.expiresAt $expectedApplicationExpiry) -or
     $state.generation -ne $ExpectedSourceGeneration -or
     $state.health -ne 'degraded' -or
     $state.inboundEnabled -ne $false -or
@@ -143,7 +151,7 @@ if ($worker.revision -ne $ExpectedWorkerRevision -or $worker.image -ne $Expected
 $hosting = Get-HostingChannel
 if (
   [string]$hosting.release.version.name -ne $ExpectedHostingVersion -or
-  [string]$hosting.expireTime -ne $ExpectedHostingExpiry -or
+  -not (Test-SameInstant $hosting.expireTime $ExpectedHostingExpiry) -or
   [string]$hosting.url -ne $ExpectedPreviewUrl
 ) {
   throw 'Hosting post-migration release drifted.'
