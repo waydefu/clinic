@@ -55,11 +55,11 @@ function Get-ActiveRunState([string]$Name) {
   }
 }
 
-function Get-HostingVersion {
+function Get-HostingChannel {
   $channels = firebase hosting:channel:list --project $projectId --json | ConvertFrom-Json
   $current = @($channels.result.channels | Where-Object { $_.name -eq "projects/$projectId/sites/$projectId/channels/$channel" })
   if ($current.Count -ne 1) { throw 'CAL-PILOT Hosting channel was not found.' }
-  return [string]$current[0].release.version.name
+  return $current[0]
 }
 
 function Assert-SecretVersions {
@@ -78,28 +78,6 @@ function Assert-SecretVersions {
   }
 }
 
-function Find-PreviewUrl($Value) {
-  if ($null -eq $Value) { return $null }
-  if ($Value -is [string] -and $Value -match '^https://[^/]+\.web\.app/?$') { return [string]$Value }
-  if ($Value -is [System.Collections.IDictionary]) {
-    foreach ($item in $Value.Values) {
-      $found = Find-PreviewUrl $item
-      if ($null -ne $found) { return $found }
-    }
-  } elseif ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
-    foreach ($item in $Value) {
-      $found = Find-PreviewUrl $item
-      if ($null -ne $found) { return $found }
-    }
-  } else {
-    foreach ($property in $Value.PSObject.Properties) {
-      $found = Find-PreviewUrl $property.Value
-      if ($null -ne $found) { return $found }
-    }
-  }
-  return $null
-}
-
 function Assert-PreviousState {
   $api = Get-ActiveRunState 'cal-pilot-api'
   $worker = Get-ActiveRunState 'cal-pilot-worker'
@@ -109,7 +87,7 @@ function Assert-PreviousState {
   if ($worker.revision -ne $ExpectedPreviousWorkerRevision -or $worker.image -ne $ExpectedPreviousWorkerImage) {
     throw 'Worker baseline drifted from the approved rollback target.'
   }
-  if ((Get-HostingVersion) -ne $ExpectedPreviousHostingVersion) {
+  if ([string](Get-HostingChannel).release.version.name -ne $ExpectedPreviousHostingVersion) {
     throw 'Hosting baseline drifted from the approved rollback target.'
   }
   $scheduler = gcloud scheduler jobs describe cal-pilot-five-minute-sync --project $projectId --location $region --format json | ConvertFrom-Json
@@ -231,10 +209,11 @@ try {
   node scripts/migrate-cal-pilot-legacy-candidates.mjs
 
   corepack pnpm run build:web
-  $deployJson = firebase hosting:channel:deploy $channel --expires 30d --project $projectId --json | ConvertFrom-Json
-  $newHostingVersion = Get-HostingVersion
+  firebase hosting:channel:deploy $channel --expires 30d --project $projectId
+  $hostingChannel = Get-HostingChannel
+  $newHostingVersion = [string]$hostingChannel.release.version.name
   if ($newHostingVersion -eq $ExpectedPreviousHostingVersion) { throw 'Hosting did not create the expected new reviewed version.' }
-  $previewUrl = Find-PreviewUrl $deployJson
+  $previewUrl = [string]$hostingChannel.url
   if ([string]::IsNullOrWhiteSpace($previewUrl)) { throw 'Hosting preview URL was not returned.' }
 
   Assert-SecretVersions
