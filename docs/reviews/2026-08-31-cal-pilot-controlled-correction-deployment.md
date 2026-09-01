@@ -111,7 +111,28 @@ also resolves baseline images from the actual 100%-traffic revision, rather than
 the latest service template, so a safely stopped retry cannot misidentify a
 0%-traffic candidate as active.
 
-Pending after PR #36: the final merge SHA and CI run,
+PR #36 passed 11／11 checks and merged as
+`6e3f351b8eeaa17d995b09573df77cac9099095a`. Exact-main Cloud Build
+`eabb01df-4a13-429f-a499-cb3a4c62c92f` succeeded. The next guarded attempt
+created API revision `cal-pilot-api-00003-muy` and Worker revision
+`cal-pilot-worker-00003-nuf`, passed both 0% health smokes and moved each to
+100%. Exactly 29 legacy candidates were superseded, a controlled full sync ran,
+and exactly 29 regenerated candidates were verified with fresh matching etags.
+
+Hosting release `09ca5b147ea8e576` also finalized successfully with preview
+expiry `2026-10-01T11:06:13.085614582Z` and the reviewed CSP. Firebase CLI mixed
+predeploy text with its JSON output, so the local parser failed after the
+release. The catch path again paused Scheduler and disabled both switches.
+Read-back proved zero legacy candidates, 30 pending sanitized candidates, empty
+outbox, new Run revisions at 100%, new Hosting active and private Worker IAM
+still Scheduler-only.
+
+Follow-up PR #37 adds a dedicated post-migration finalizer and stops parsing
+mixed Hosting deployment stdout as JSON. The finalizer cannot deploy, migrate,
+change IAM or touch Secrets; it verifies the exact post-migration safe-stop
+state and only then re-enables both switches and the five-minute Scheduler.
+
+Pending after PR #37: the final merge SHA and CI run,
 Terraform plan digest, new revisions and immutable images, Hosting release and
 expiry, actual application expiry, regenerated candidate count, online smoke,
 Scheduler state, unchanged Identity／Secret／account／Calendar boundaries and the

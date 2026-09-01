@@ -206,3 +206,9 @@ NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
    inbound／outbound 必須同時為 `false`，而且舊 revision／Hosting／Secret／
    generation／legacy 筆數仍完全相同；不可用這個參數繞過一般首次部署的
    enabled-state 檢查。
+6. 若 Run 流量切換、legacy transaction、完整同步驗證與 Hosting release 都已完成，
+   但最後的輸出解析或復驗失敗，禁止重跑 legacy migration。改用
+   `cal-pilot-finalize-update.ps1`：它只接受精確的新 revision／digest／Hosting
+   version／expireTime、六個 Secret 版本、零 legacy、29 筆已驗證重生候選、空 outbox、
+   Scheduler `PAUSED`、雙開關 disabled 與 Scheduler-only Worker IAM。預設仍只讀，只有
+   `-ConfirmApply` 才會重新啟用雙開關與五分鐘 Scheduler；任一錯誤再次安全停止。
