@@ -1,6 +1,6 @@
 ---
 name: "verify-gates"
-description: "Pick and run the blocking gates that actually cover a change in this repository, then report a truthful evidence rung with every gate marked PASS, FAIL, NOT_RUN or UNAVAILABLE. Use after editing code, scripts, workflows or docs, and before claiming any work is done or handing a branch over. Local resource limits may move expensive gates to required CI; they never omit or weaken required verification. After making changes and before reporting completion; when asked \"did you verify this\", \"run the checks\", \"is this ready to push\", or when preparing a handoff or PR. Also when local disk, memory, browser or JVM limits make the full matrix unsafe to run here."
+description: "Pick and run the blocking gates that actually cover a change in this repository, then report a truthful evidence rung with every gate marked PASS, FAIL, NOT_RUN or UNAVAILABLE. Use after editing code, scripts, workflows or docs, and before claiming any work is done or handing a branch over. After making changes and before reporting completion; when asked \"did you verify this\", \"run the checks\", \"is this ready to push\", or when preparing a handoff or PR."
 metadata:
   generated: "true"
   generator: "scripts/generate-agent-skills.mjs"
@@ -21,27 +21,6 @@ the evidence block the completion contract in `CLAUDE.md` requires.
    start an implicit install; that must never be a side effect of verification.
 3. If the tree contains changes you did not make, say so before running anything
    that writes (`format`, `build`, `capture:ui`).
-4. Before a **resource-intensive** gate (full `verify`, broad build, full unit
-   matrix, SBOM, Firestore Emulator, browser/Playwright), glance at whether this
-   environment can take it: free disk, the runtime exists, and whether a JVM or
-   browser run is reasonable here. This is a judgment, not a benchmark suite.
-   Known dated incidents (low disk, `SQLITE_FULL`, pnpm junction/purge, CJK
-   Emulator path) stay dated evidence. They do not become machine-specific Canon.
-
-Cheap local checks (run when practical): targeted unit tests for the files you
-touched; `check:governance`; `check:docs`; `check:structure`; format; lint;
-narrow type/build; generator/gate tests.
-
-Resource-sensitive checks (run locally only when it is safe): full/broad build,
-the whole unit matrix, SBOM, Firestore Emulator, browser automation. If running
-them here risks filling the disk, exhausting RAM, or destabilising the workspace,
-**do not** smash the environment to obtain a local green. Delegate execution to
-required PR CI. That is a change of venue, not a skip.
-
-Authoritative full verification remains the PR's clean GitHub Actions matrix:
-applicable `pnpm verify`, Firestore Emulator, E2E groups, supply-chain, SAST,
-and commit-bound `Verification evidence`. Do not remove or cheapen CI jobs
-because the laptop is weak. Do not deploy or mutate cloud to obtain evidence.
 
 ## Decide what is already covered
 
@@ -72,10 +51,9 @@ evidence and costs the user real time.
 | `docs/**`, any `*.md` | `corepack pnpm run check:docs` |
 | `package.json`, `pnpm-workspace.yaml`, lockfile | `corepack pnpm run check:supply-chain` |
 | `.github/workflows/**`, `security/**` | `corepack pnpm run check:structure` and read the workflow diff for unpinned actions. If you touched the `sast` job, `sast-scan.yml` or the `evidence` job’s `needs`, you changed the merge gate — prove it with an intentional-failure pull request, not by reading the YAML |
-| Broad or uncertain | `corepack pnpm verify` when this environment can run it safely; otherwise Tier-1 local gates plus truthful `NOT_RUN`/`UNAVAILABLE` for the rest, with the CI job that replaces them |
+| Broad or uncertain | `corepack pnpm verify` (the full local gate) |
 
-Run the narrow gates first — a fast failure is worth more than a slow one. Do
-not launch the largest possible suite on constrained hardware by default.
+Run the narrow gates first — a fast failure is worth more than a slow one.
 
 ## Is this red yours?
 
@@ -89,13 +67,12 @@ gate, report it with evidence rather than clearing it by relaxing a
 threshold, registering an audit exception or dismissing an alert. Those are
 the three moves the supply-chain rule exists to forbid.
 
-## Local environment limits are venue changes
+## The one local trap
 
 `test:rules` starts a Firestore Emulator whose JVM cannot resolve a working
-directory containing non-ASCII characters, and this workspace may live under a
-CJK path. It then fails instantly with `FileNotFoundException` on a mangled
-path. `JAVA_TOOL_OPTIONS` does not fix it. If you can map an ASCII drive, run
-it locally:
+directory containing non-ASCII characters, and this workspace lives under a CJK
+path. It fails instantly with `FileNotFoundException` on a mangled path.
+`JAVA_TOOL_OPTIONS` does not fix it. Map an ASCII drive for the run:
 
 ```powershell
 subst Y: "<repository root>"
@@ -105,35 +82,8 @@ cd \
 subst Y: /D
 ```
 
-If you cannot run it here, the local status is `UNAVAILABLE`, not a skip and
-not a `PASS`. Reason: this filesystem/JVM cannot execute the Emulator reliably.
-Final merge requirement: the Firestore Emulator job on this exact PR commit.
-Linux CI is unaffected. Do not describe the Rules as untested.
-
-The same pattern applies to other heavy gates. Example: `test:e2e` may be
-local `NOT_RUN` when the browser matrix is intentionally delegated to required
-PR CI. Final merge requirement: exact-commit CI `PASS`. Do not use
-`UNAVAILABLE` merely because a test is slow.
-
-A local failure caused by disk or RAM exhaustion is still a local `FAIL` until
-you classify it as a repository defect or an environment/resource failure. If
-it is environmental, report that truthfully and obtain clean CI on this
-commit. Never convert it to `PASS`. Never change `FAIL` to `NOT_RUN`.
-
-Targeted local gates that pass, with required CI not yet run, are at most
-`GATE-VERIFIED`. After this exact commit's required jobs and `Verification
-evidence` pass, `CI-VERIFIED` is allowed. Earlier-commit CI is not this
-commit's evidence.
-
-## Fail-safe
-
-Resource awareness does not permit: reducing coverage; weakening thresholds;
-making CI cheaper because the local machine is weak; skipping a required PR
-CI job; hiding a repository failure behind a resource story; registering a
-governance or security waiver solely because hardware cannot run a test;
-deploying or mutating cloud to obtain verification; claiming CI from another
-commit. A weak local machine is an execution constraint, not a policy
-exception.
+This is a local-environment limitation only — Linux CI is unaffected. It is
+never a reason to skip the gate or to describe the Rules as untested.
 
 ## Report
 
