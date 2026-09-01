@@ -112,6 +112,26 @@ external provider. If a gate did not run, report it as `NOT_RUN` with the reason
 — never omit it, and never let silence imply a pass. Run `/verify-gates` to pick
 and run the right gates and produce this report.
 
+### Resource-aware verification
+
+Local disk, memory, browser, JVM or environment limits may change **where** a
+required gate runs. They must not change **what** must be verified before
+merge, weaken a threshold, delete tests, register a waiver just to go green,
+or raise the evidence rung. Procedure: skill `verify-gates`.
+
+```text
+LOCAL RESOURCE LIMIT → change execution venue
+  → targeted local verification + full required CI → final evidence
+```
+
+Not: resource limit → skip required verification. Keep `PASS` / `FAIL` /
+`NOT_RUN` / `UNAVAILABLE`. Defer a heavy gate as `NOT_RUN` when it is
+intentionally delegated to CI, or `UNAVAILABLE` when this environment cannot
+execute it. `UNAVAILABLE` is not for slowness. Name the limitation and the CI
+job that replaces the local evidence. A local crash from disk or RAM is not a
+`PASS`. Targeted local gates with CI not yet run are at most `GATE-VERIFIED`.
+`CI-VERIFIED` requires this exact commit's `Verification evidence`.
+
 Evidence has an age. A gate that passed before your edit is still evidence for
 the files you did not touch and no evidence at all for the ones you did. Re-run
 what your change invalidated; do not re-run an untouched expensive suite for
