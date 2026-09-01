@@ -197,3 +197,8 @@ NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
    → Secret／revision 復驗 → resume Scheduler。
 4. 中途任一錯誤都保持 Scheduler paused 與雙開關 disabled，不自動刪除資料；
    使用部署前記錄的三個精確版本執行回滾。
+5. 若失敗發生在 safe-stop 之後且尚未需要回切，修正後只能以
+   `-ResumeSafeStoppedAttempt` 繼續。該 gate 要求 Scheduler 必須已是 `PAUSED`、
+   inbound／outbound 必須同時為 `false`，而且舊 revision／Hosting／Secret／
+   generation／legacy 筆數仍完全相同；不可用這個參數繞過一般首次部署的
+   enabled-state 檢查。
