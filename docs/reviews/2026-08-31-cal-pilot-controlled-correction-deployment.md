@@ -132,7 +132,16 @@ mixed Hosting deployment stdout as JSON. The finalizer cannot deploy, migrate,
 change IAM or touch Secrets; it verifies the exact post-migration safe-stop
 state and only then re-enables both switches and the five-minute Scheduler.
 
-Pending after PR #37: the final merge SHA and CI run,
+PR #37 passed 11／11 checks and merged as
+`dedec4929a958c33f757b7197dde536c6890bfcd`. Its first read-only finalizer
+preflight failed closed because PowerShell converted ISO timestamps to date
+objects before a string comparison. Live read-back showed no actual drift:
+Scheduler remained paused, both switches disabled, zero legacy candidates, 30
+pending candidates and empty outbox. PR #38 normalizes application and Hosting
+timestamps to UTC instants before comparison; it does not broaden any accepted
+state or mutate cloud resources.
+
+Pending after PR #38: the final merge SHA and CI run,
 Terraform plan digest, new revisions and immutable images, Hosting release and
 expiry, actual application expiry, regenerated candidate count, online smoke,
 Scheduler state, unchanged Identity／Secret／account／Calendar boundaries and the

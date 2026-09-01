@@ -71,4 +71,20 @@ describe('CAL-PILOT guarded update policy', () => {
     );
     expect(finalizeScript).not.toContain('firebase hosting:channel:deploy');
   });
+
+  it('normalizes parsed ISO timestamps before finalizer comparisons', () => {
+    expect(finalizeScript).toContain('function Test-SameInstant');
+    expect(finalizeScript).toContain(
+      '([DateTimeOffset]$Actual).ToUniversalTime()'
+    );
+    expect(finalizeScript).toContain(
+      'Test-SameInstant $state.expiresAt $expectedApplicationExpiry'
+    );
+    expect(finalizeScript).toContain(
+      'Test-SameInstant $hosting.expireTime $ExpectedHostingExpiry'
+    );
+    expect(finalizeScript).not.toContain(
+      '$state.expiresAt -ne $expectedApplicationExpiry'
+    );
+  });
 });
