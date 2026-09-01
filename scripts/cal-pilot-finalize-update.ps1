@@ -86,8 +86,9 @@ function Assert-WorkerInvokerBoundary {
   $members = @(
     $policy.bindings |
       Where-Object { $_.role -eq 'roles/run.invoker' } |
-      ForEach-Object { @($_.members) }
-  ) | Sort-Object -Unique
+      ForEach-Object { @($_.members) } |
+      Sort-Object -Unique
+  )
   if ($members.Count -ne 1 -or [string]$members[0] -ne $expectedSchedulerMember) {
     throw 'Private Worker invoker boundary is not Scheduler-only.'
   }

@@ -87,4 +87,19 @@ describe('CAL-PILOT guarded update policy', () => {
       '$state.expiresAt -ne $expectedApplicationExpiry'
     );
   });
+
+  it('keeps a single Worker invoker as an array before indexing', () => {
+    const boundaryStart = finalizeScript.indexOf(
+      'function Assert-WorkerInvokerBoundary'
+    );
+    const boundaryEnd = finalizeScript.indexOf(
+      'function Get-PilotState',
+      boundaryStart
+    );
+    const boundary = finalizeScript.slice(boundaryStart, boundaryEnd);
+    expect(boundary).toMatch(
+      /ForEach-Object \{ @\(\$_\.members\) \} \|\r?\n\s+Sort-Object -Unique\r?\n\s+\)/u
+    );
+    expect(boundary).not.toContain(') | Sort-Object -Unique');
+  });
 });
