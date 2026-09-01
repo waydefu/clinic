@@ -190,11 +190,15 @@ NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
 1. 先用 `cal-pilot-extend.ps1` 與 reviewed Terraform plan 完成期限／budget；不重跑 seed。
 2. `cal-pilot-update.ps1` 預設只做 read-only preflight；只有 exact clean main SHA、新與舊
    immutable image digest、舊 revision／Hosting version、六個 Secret version manifest、
-   source generation、legacy 筆數與 writer smoke key 全數相符，並顯式加入
+   source generation、legacy 筆數與隔離 sandbox writer key 所屬身分全數相符，並顯式加入
    `-ConfirmApply` 才會修改線上。
 3. 腳本固定 pause Scheduler → disable 雙開關 → Firestore index ready → 0% revision
    authenticated smoke → traffic switch → legacy transaction／full resync／verify → Hosting
    → Secret／revision 復驗 → resume Scheduler。
+   0% smoke 與一次性 full resync 使用目前已登入、具部署權限的操作員 identity token，
+   不臨時新增 Calendar writer 的 Cloud Run IAM；正常 Worker 服務仍只保留既有
+   Scheduler invoker。前後 baseline 的 image 必須從實際承接 100% 流量的 revision
+   讀回，不得把尚未切流量的 service template 誤判為 active image。
 4. 中途任一錯誤都保持 Scheduler paused 與雙開關 disabled，不自動刪除資料；
    使用部署前記錄的三個精確版本執行回滾。
 5. 若失敗發生在 safe-stop 之後且尚未需要回切，修正後只能以

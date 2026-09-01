@@ -42,9 +42,15 @@ function Get-ActiveRunState([string]$Name) {
   $service = gcloud run services describe $Name --project $projectId --region $region --format json | ConvertFrom-Json
   $traffic = @($service.status.traffic | Where-Object { $_.percent -eq 100 })
   if ($traffic.Count -ne 1) { throw "$Name does not have exactly one 100 percent revision." }
+  $activeRevisionName = [string]$traffic[0].revisionName
+  $activeRevision = gcloud run revisions describe $activeRevisionName --project $projectId --region $region --format json | ConvertFrom-Json
+  $activeImage = [string]$activeRevision.status.imageDigest
+  if ([string]::IsNullOrWhiteSpace($activeImage)) {
+    $activeImage = [string]$activeRevision.spec.containers[0].image
+  }
   return [pscustomobject]@{
-    revision = [string]$traffic[0].revisionName
-    image = [string]$service.spec.template.spec.containers[0].image
+    revision = $activeRevisionName
+    image = $activeImage
     url = [string]$service.status.url
   }
 }
@@ -70,13 +76,6 @@ function Assert-SecretVersions {
       throw "$secretName enabled version drifted from the approved manifest."
     }
   }
-}
-
-function Test-RunInvokerBinding([string]$Service, [string]$Member) {
-  $policy = gcloud run services get-iam-policy $Service --project $projectId --region $region --format json | ConvertFrom-Json
-  return @($policy.bindings | Where-Object {
-      $_.role -eq 'roles/run.invoker' -and @($_.members) -contains $Member
-    }).Count -gt 0
 }
 
 function Find-PreviewUrl($Value) {
@@ -162,22 +161,18 @@ if (-not $ConfirmApply) {
 }
 
 $writerKey = Get-Content -LiteralPath $WriterKeyPath -Raw | ConvertFrom-Json
-$smokeIdentityEmail = [string]$writerKey.client_email
+$writerIdentityEmail = [string]$writerKey.client_email
 if (
   [string]$writerKey.project_id -ne 'cal-pilot-sandbox' -or
-  $smokeIdentityEmail -ne 'cal-pilot-writer@cal-pilot-sandbox.iam.gserviceaccount.com'
+  $writerIdentityEmail -ne 'cal-pilot-writer@cal-pilot-sandbox.iam.gserviceaccount.com'
 ) {
-  throw 'Writer smoke key does not belong to the approved isolated Calendar sandbox.'
+  throw 'Writer key does not belong to the approved isolated Calendar sandbox.'
 }
-$smokeMember = "serviceAccount:$smokeIdentityEmail"
-$smokeConfiguration = "cal-pilot-update-$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
-$smokeConfigurationCreated = $false
-$apiSmokeBindingAdded = $false
-$workerSmokeBindingAdded = $false
 $safeStopRequired = $false
 $apiRevision = $null
 $workerRevision = $null
 $newHostingVersion = $null
+$operatorIdentityToken = $null
 
 try {
   $safeStopRequired = $true
@@ -213,23 +208,10 @@ try {
   $workerSmokeUrl = [string]$workerSmoke[0].url
   $workerServiceUrl = [string]$workerService.status.url
 
-  if (-not (Test-RunInvokerBinding 'cal-pilot-api' $smokeMember)) {
-    gcloud run services add-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-    $apiSmokeBindingAdded = $true
-  }
-  if (-not (Test-RunInvokerBinding 'cal-pilot-worker' $smokeMember)) {
-    gcloud run services add-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-    $workerSmokeBindingAdded = $true
-  }
-  gcloud config configurations create $smokeConfiguration --no-activate --quiet | Out-Null
-  $smokeConfigurationCreated = $true
-  gcloud auth activate-service-account --key-file $WriterKeyPath --configuration $smokeConfiguration --quiet | Out-Null
-  $apiIdentityToken = (gcloud auth print-identity-token --audiences $apiSmokeUrl --configuration $smokeConfiguration).Trim()
-  $workerIdentityToken = (gcloud auth print-identity-token --audiences $workerSmokeUrl --configuration $smokeConfiguration).Trim()
-  if ((Invoke-WebRequest -UseBasicParsing -Uri "$apiSmokeUrl/v1/health" -Headers @{ Authorization = "Bearer $apiIdentityToken" }).StatusCode -ne 200) { throw 'API zero-traffic smoke failed.' }
-  if ((Invoke-WebRequest -UseBasicParsing -Uri "$workerSmokeUrl/health" -Headers @{ Authorization = "Bearer $workerIdentityToken" }).StatusCode -ne 200) { throw 'Worker zero-traffic smoke failed.' }
-  $apiIdentityToken = $null
-  $workerIdentityToken = $null
+  $operatorIdentityToken = (gcloud auth print-identity-token).Trim()
+  if ([string]::IsNullOrWhiteSpace($operatorIdentityToken)) { throw 'Deployment operator identity token was not returned.' }
+  if ((Invoke-WebRequest -UseBasicParsing -Uri "$apiSmokeUrl/v1/health" -Headers @{ Authorization = "Bearer $operatorIdentityToken" }).StatusCode -ne 200) { throw 'API zero-traffic smoke failed.' }
+  if ((Invoke-WebRequest -UseBasicParsing -Uri "$workerSmokeUrl/health" -Headers @{ Authorization = "Bearer $operatorIdentityToken" }).StatusCode -ne 200) { throw 'Worker zero-traffic smoke failed.' }
 
   gcloud run services update-traffic cal-pilot-api --project $projectId --region $region --to-revisions "$apiRevision=100" --quiet | Out-Null
   gcloud run services update-traffic cal-pilot-worker --project $projectId --region $region --to-revisions "$workerRevision=100" --quiet | Out-Null
@@ -244,9 +226,7 @@ try {
   }
   node scripts/activate-cal-pilot.mjs
 
-  $workerIdentityToken = (gcloud auth print-identity-token --audiences $workerServiceUrl --configuration $smokeConfiguration).Trim()
-  if ((Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$workerServiceUrl/tasks/calendar-sync" -Headers @{ Authorization = "Bearer $workerIdentityToken" }).StatusCode -ne 200) { throw 'Controlled full resync failed.' }
-  $workerIdentityToken = $null
+  if ((Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$workerServiceUrl/tasks/calendar-sync" -Headers @{ Authorization = "Bearer $operatorIdentityToken" }).StatusCode -ne 200) { throw 'Controlled full resync failed.' }
   Set-MigrationEnvironment 'verify'
   node scripts/migrate-cal-pilot-legacy-candidates.mjs
 
@@ -273,18 +253,7 @@ try {
   }
   throw
 } finally {
-  $apiIdentityToken = $null
-  $workerIdentityToken = $null
-  if ($apiSmokeBindingAdded) {
-    gcloud run services remove-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-  }
-  if ($workerSmokeBindingAdded) {
-    gcloud run services remove-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-  }
-  if ($smokeConfigurationCreated) {
-    gcloud auth revoke $smokeIdentityEmail --configuration $smokeConfiguration --quiet 2>$null
-    gcloud config configurations delete $smokeConfiguration --quiet | Out-Null
-  }
+  $operatorIdentityToken = $null
   Remove-Item Env:CALENDAR_PILOT_EXPECTED_LEGACY_CANDIDATES -ErrorAction SilentlyContinue
   Remove-Item Env:CALENDAR_PILOT_EXPECTED_SOURCE_GENERATION -ErrorAction SilentlyContinue
   Remove-Item Env:CALENDAR_PILOT_LEGACY_MIGRATION_MODE -ErrorAction SilentlyContinue

@@ -89,7 +89,29 @@ pending candidates intact and no outbox backlog. A follow-up hotfix removes the
 unsupported flag and requires an explicit `ResumeSafeStoppedAttempt` gate that
 proves Scheduler and both switches are already stopped before continuing.
 
-Pending after that hotfix: the final merge SHA and CI run,
+Hotfix PR #35 passed 11／11 checks and merged as
+`d4a8cc7c16b1e88a3996c1a580a2a0178684e6f8`. Exact-main Cloud Build
+`5e6d9aa5-3b20-48ad-8540-8f3525147057` succeeded and produced reviewed API and
+Worker digests ending in `…a18f6` and `…ad85e` respectively.
+
+The resumed attempt deployed the Firestore rules and expired-processing index;
+the index reached `READY`, and both new revisions were created at 0% with
+successful platform startup checks. The Worker authenticated HTTP smoke then
+failed closed: a temporary cross-project Calendar writer invoker binding was
+present in IAM but Cloud Run rejected that principal. No traffic moved, no
+candidate was migrated, no Hosting release was created, and Scheduler plus both
+switches remained stopped. Read-back showed the #31 revisions still at 100%,
+all 30 pending candidates intact, exactly 29 legacy candidates and no outbox
+backlog.
+
+Follow-up PR #36 removes temporary Calendar-writer Run IAM entirely. Zero-traffic
+health smoke and the single controlled full sync use the already authenticated
+deployment operator; the ordinary private Worker IAM remains Scheduler-only. It
+also resolves baseline images from the actual 100%-traffic revision, rather than
+the latest service template, so a safely stopped retry cannot misidentify a
+0%-traffic candidate as active.
+
+Pending after PR #36: the final merge SHA and CI run,
 Terraform plan digest, new revisions and immutable images, Hosting release and
 expiry, actual application expiry, regenerated candidate count, online smoke,
 Scheduler state, unchanged Identity／Secret／account／Calendar boundaries and the
