@@ -24,7 +24,7 @@ export const LIVE_REVIEW_EXCEPTION = 'docs/reviews/phase-1-approval-gate.md';
 // `.claude/` needs its own pass. Its rules and skills link into `docs/` and
 // `scripts/`; without this the harness is the one place in the repository where
 // renaming a document breaks a reference and no gate notices.
-export const MARKDOWN_GLOBS = ['**/*.md', '.claude/**/*.md'];
+export const MARKDOWN_GLOBS = ['**/*.md', '.claude/**/*.md', '.agents/**/*.md'];
 
 // `.claude/worktrees/<name>/` is another session's checkout of this same
 // repository, carrying a full second copy of `docs/`. Scanning it would report
@@ -66,6 +66,21 @@ export const STALE_CLAIMS = [
     'docs/architecture/web-quality-gates-2026-07-24.md',
     /CSP 是 `script-src 'self'`，產物必須維持/,
     'CSP does not require a multi-file unbundled module graph'
+  ],
+  [
+    'AGENTS.md',
+    /Repository security posture — dated facts/,
+    'dated security posture was relocated out of the boot kernel'
+  ],
+  [
+    'AGENTS.md',
+    /## Current commands/,
+    'command cookbook belongs in README.md, not AGENTS.md'
+  ],
+  [
+    'AGENTS.md',
+    /every commit is a publication/,
+    'publication safety is visibility-independent; see docs/state/conflicts.md'
   ]
 ];
 

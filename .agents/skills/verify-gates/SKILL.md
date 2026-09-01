@@ -1,9 +1,11 @@
 ---
-name: verify-gates
-description: Pick and run the blocking gates that actually cover a change in this repository, then report a truthful evidence rung with every gate marked PASS, FAIL, NOT_RUN or UNAVAILABLE. Use after editing code, scripts, workflows or docs, and before claiming any work is done or handing a branch over.
-when_to_use: After making changes and before reporting completion; when asked "did you verify this", "run the checks", "is this ready to push", or when preparing a handoff or PR.
+name: "verify-gates"
+description: "Pick and run the blocking gates that actually cover a change in this repository, then report a truthful evidence rung with every gate marked PASS, FAIL, NOT_RUN or UNAVAILABLE. Use after editing code, scripts, workflows or docs, and before claiming any work is done or handing a branch over. After making changes and before reporting completion; when asked \"did you verify this\", \"run the checks\", \"is this ready to push\", or when preparing a handoff or PR."
+metadata:
+  generated: "true"
+  generator: "scripts/generate-agent-skills.mjs"
+  source: ".claude/skills/verify-gates/SKILL.md"
 ---
-
 # Verify the change
 
 Runs the smallest set of gates that actually covers what changed, and produces

@@ -9,6 +9,17 @@ it to `scripts/check-structure.mjs` if it must never be deleted.
 
 How to distinguish current authority, dated evidence, drafts and superseded
 material is defined in [Document lifecycle and evidence rules](document-lifecycle.md).
+Meta-governance (authority scopes, not product policy) is
+[GOVERNANCE.md](../GOVERNANCE.md). The compact AI retrieval map is
+[INDEX.md](INDEX.md); it is not a second catalogue.
+
+## 0. Governance v2 surfaces
+
+These are routing and projection files, not a second decision register.
+
+- [AI retrieval map](INDEX.md) — minimum Canon by task scope
+- [Current state projection](state/current.md) — generated projection, not Canon
+- [Unresolved governance conflicts](state/conflicts.md) — live-state conflict record
 
 ## 1. Start here
 
@@ -134,6 +145,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-02 | [Governance v2 結構遷移交接](reviews/2026-09-02-governance-v2-migration-handoff.md) | Dated handoff for the Governance v2 structural migration on `agent/governance-v2` from `origin/main` `df97fd4`. Records the scope-matrix GOVERNANCE.md, AGENTS Safety Floor boot kernel, generated state projection, INDEX routes, Codex-safe `.agents` adapters, `check:governance`, and local GATE-VERIFIED evidence. Does not approve D-series, deployment, real data, GOV-R01 or CI |
 | 2026-08-31 | [CAL-PILOT controlled-correction deployment record](reviews/2026-08-31-cal-pilot-controlled-correction-deployment.md) | Superseding synthetic-staging deployment authority, actual stacked-PR integration requirement, #31 rollback baseline, expired-processing recovery, guarded 29-candidate rebuild, exact apply sequence and pending post-apply evidence. Production and real data remain unapproved |
 | 2026-08-31 | [CAL-PILOT 延期變更計畫](reviews/2026-08-31-cal-pilot-extension-change-plan.md) | Original extension/freeze plan plus the later superseding integration-and-deploy gate; application expiry through 2026-11-28, one-time NT$30 custom budget period, exact rollback state and unchanged production boundary |
 | 2026-08-30 | [CAL-PILOT 30 天 synthetic-only 部署紀錄](reviews/2026-08-30-cal-pilot-30-day-deployment.md) | Exact authority, candidate commit, immutable image digests, Cloud Run revisions, Scheduler／Identity／Firestore／Hosting state, 30-day kill switch, NT$30 alerts, first sync (1 valid pending block and 29 invalid-format candidates), browser leak checks, the post-click Firebase Auth CSP repair proven through the Google account chooser, and honest first-release safe-stop evidence. Production and real personal／clinical data remain unapproved |
