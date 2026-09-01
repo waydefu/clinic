@@ -8,6 +8,7 @@ const requiredPaths = [
   'AGENTS.md',
   'GOVERNANCE.md',
   'CONTRIBUTING.md',
+  'SECURITY.md',
   '.github/CODEOWNERS',
   'docs/INDEX.md',
   'docs/state/current.json',

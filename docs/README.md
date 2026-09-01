@@ -20,6 +20,7 @@ These are routing and projection files, not a second decision register.
 - [AI retrieval map](INDEX.md) — minimum Canon by task scope
 - [Current state projection](state/current.md) — generated projection, not Canon
 - [Unresolved governance conflicts](state/conflicts.md) — live-state conflict record
+- [Security reporting](../SECURITY.md) — private intake procedure; not a second Safety Floor
 
 ## 1. Start here
 
