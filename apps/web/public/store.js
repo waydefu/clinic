@@ -10,11 +10,9 @@ import {
   updateAppointmentNotes
 } from './modules/appointment-domain.js';
 import {
-  assignCaseManager,
   buildOperationalTasks,
   buildWorkload
 } from './modules/case-management.js';
-import { CASE_MANAGEMENT_ENABLED } from './modules/capability-flags.js';
 import { PERMISSIONS } from './modules/constants.js';
 import {
   canUseDelegation,
@@ -284,44 +282,14 @@ export async function stagingRequest(path, options = {}) {
     // 「順手」在回診表單裡帶上 managerId 的個管 side effect 必須在寫入前
     // fail closed——在 recordFollowUp 之後才擋會留下「回診成功、個管失敗」的
     // 半完成狀態。因此檢查放在任何 mutation 之前，拒絕時 state 完全不變。
-    if (
-      !CASE_MANAGEMENT_ENABLED &&
-      typeof body.managerId === 'string' &&
-      body.managerId !== ''
-    ) {
+    if (typeof body.managerId === 'string' && body.managerId !== '') {
       throw new Error('個管指派功能已凍結，無法在回診指示中指派個管師。');
     }
     const actor = requirePermission(state, PERMISSIONS.MANAGE_FOLLOW_UP);
     const appointmentId = path.split('/')[2];
     recordFollowUp(state, appointmentId, body, actor.id);
-    // 回診卡上的個管欄位只是捷徑，仍必須各自通過個管權限——在別的表單裡
-    // 順手做，不代表可以繞過該動作的授權。留空表示不變更現有指派。
-    if (typeof body.managerId === 'string' && body.managerId !== '') {
-      const hasActiveAssignment = state.caseAssignments.some(
-        (item) =>
-          item.appointmentId === appointmentId && item.status === 'active'
-      );
-      const caseActor = requirePermission(
-        state,
-        hasActiveAssignment
-          ? PERMISSIONS.REASSIGN_CASE
-          : PERMISSIONS.ASSIGN_CASE
-      );
-      assignCaseManager(state, appointmentId, body.managerId, caseActor.id);
-    }
   } else if (path === '/case-assignments') {
-    if (!CASE_MANAGEMENT_ENABLED) {
-      throw new Error('個管指派功能已凍結，無法指派個管師。');
-    }
-    const hasActiveAssignment = state.caseAssignments.some(
-      (item) =>
-        item.appointmentId === body.appointmentId && item.status === 'active'
-    );
-    const actor = requirePermission(
-      state,
-      hasActiveAssignment ? PERMISSIONS.REASSIGN_CASE : PERMISSIONS.ASSIGN_CASE
-    );
-    assignCaseManager(state, body.appointmentId, body.managerId, actor.id);
+    throw new Error('個管指派功能已凍結，無法指派個管師。');
   } else if (path === '/outbox/simulate') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
     simulateCalendarSync(state, body.fail === true, actor.id);
