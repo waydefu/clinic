@@ -41,6 +41,10 @@ describe('required project files', () => {
     ).toEqual([]);
   });
 
+  it('keeps the security reporting entrypoint', () => {
+    expect(requiredPaths).toContain('SECURITY.md');
+  });
+
   // 這份清單就是「刪掉某個把關檔案會被發現」的唯一保證，所以它自己不能悄悄變空。
   it('keeps every blocking gate script in the required list', () => {
     for (const gate of [

@@ -10,7 +10,7 @@
 
 | 類型 | 可以做什麼 | 位置／例子 |
 | --- | --- | --- |
-| **現行權威** | 定義目前範圍、邊界與下一步；衝突時優先 | `roadmap.md`、Phase 1 執行計畫、決策登錄、ADR、runbook、根目錄 `GOVERNANCE.md`（僅 meta-governance）、`AGENTS.md` Safety Floor |
+| **現行權威** | 定義目前範圍、邊界與下一步；衝突時優先 | `roadmap.md`、Phase 1 執行計畫、決策登錄、ADR、runbook、根目錄 `GOVERNANCE.md`（僅 meta-governance）、`AGENTS.md` Safety Floor、根目錄 `SECURITY.md`（僅報告受理程序） |
 | **產生的現況投影** | 由機器來源產生的檢索輔助；不可覆蓋決策登錄、ADR、roadmap 或 Safety Floor | `docs/state/current.json`、`docs/state/current.md` |
 | **未決治理衝突** | 記錄尚未由 owner 關閉的 dated／current 衝突；不是 Canon | `docs/state/conflicts.md` |
 | **受決策限制的設計** | 描述核准後怎麼做；不得被當成已啟用 | 標有 `plan-only`／「計畫」的架構文件與 IaC |

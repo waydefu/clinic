@@ -329,6 +329,11 @@ patients per manager and `Asia/Taipei` month with a rule-version breakdown. It
 is not an assignment rule, payroll export or compensation calculation; D-007
 and D-008 remain pending.
 
+## Security reports
+
+See [SECURITY.md](SECURITY.md). Do not put credentials, secrets, or real
+patient, staff, or other private data in public Issues or Pull Requests.
+
 ## Non-negotiable rules
 
 1. Clients, social channels, mobile apps and NAS integrations never write
