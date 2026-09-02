@@ -330,10 +330,10 @@ CLI／MCP 載入、Pub/Sub＋OpenTelemetry propagator 與 Hono public API smoke 
 ignore 洗到失效；維持單一 high 則相反——**出貨程式**多一筆 moderate 也不會有人
 發現。分層之後，「哪一種漏洞會擋下發布」是寫在指令裡、可被檢驗的決定。
 
-現況（2026-08-04 更新）：`audit:prod` 無任何 advisory；`audit:all` 剩 5 筆 moderate，
-全在 high 門檻之下，且**沒有任何 audit 例外**。Dependabot 是看 default branch，
-因此 PR 分支上的修補要等 merge 並重新分析後才會關閉 alert；不得把「已準備修補」
-寫成「GitHub alert 已關閉」。
+現況（2026-09-03 更新）：`audit:prod` 無任何 advisory。`audit:all` 剩 11 筆
+（1 low／10 moderate），全在 high 門檻之下，且**沒有任何 audit 例外**。Dependabot
+是看 default branch，因此 PR 分支上的修補要等 merge 並重新分析後才會關閉
+alert；不得把「已準備修補」寫成「GitHub alert 已關閉」。
 
 修補一律寫進版控（`pnpm-workspace.yaml` 的 `overrides`），不靠「本機剛好裝到新版」：
 
@@ -342,7 +342,8 @@ ignore 洗到失效；維持單一 high 則相反——**出貨程式**多一筆
 | `find-my-way` ≤9.6.0 | HTTP/2 DDoS。路徑 `apps/api > @nestjs/platform-fastify > fastify` | override 到 `^9.6.1`（實際解析為 9.7.0） |
 | `brace-expansion` ≤5.0.7 | 不受限展開導致 OOM（GHSA-mh99-v99m-4gvg） | 5.x 那條線 override 到 `^5.0.8`，2026-08-04 因下一列的續修提高到 `^5.0.9` |
 | `brace-expansion` <5.0.9 | 以不受限的中間陣列繞過 CVE-2026-14257 的緩解（GHSA-rgw5-rvv9-x895）。dev-only，路徑 `eslint > minimatch` | `^5` 那條線提高到 `^5.0.9`；1.x／2.x 不在此 advisory 範圍 |
-| `fast-uri` <3.1.5 與 <4.1.2 | backslash authority introducer 造成 host confusion（GHSA-7p8r-x3mc-p8w7）。**出貨面**，路徑 `apps/api > @nestjs/platform-fastify > fastify` | **兩個 major 同時中且樹上都在**，逐 major 鎖到 `^3.1.5` 與 `^4.1.2` |
+| `fast-uri` <3.1.7 與 <4.1.4 | 2026-08-04 先鎖到 `^3.1.5`／`^4.1.2`。2026-09-03 `audit:prod` 對該解析回報 8 high（GHSA-5jgf-p345-68v8、GHSA-f65p-4m7j-42xc、GHSA-fph4-wmhf-6fwf、GHSA-jqff-g426-hqxp）。審計可見下限是 3.1.6／4.1.3，但 2026-09-02 的 GHSA-58mr-gqgx-xq4g 與 GHSA-qw65-cvwx-89v3 的 affected 恰為那兩版，修補是 3.1.7／4.1.4。**出貨面**，兩個 major 都在樹上 | 逐 major 地板升到 `^3.1.7` 與 `^4.1.4`；`minimumReleaseAgeExclude` 只放這兩個年輕 security patch，不是 audit exception |
+| `fastify` <5.12.1 | 根層 primitive schema coercion 繞過（GHSA-w2qp-rph6-63g4）與 `trustProxy` hop-count 偽造（GHSA-3m5p-2c4r-xxw2），皆 moderate。**出貨面**。`@nestjs/platform-fastify@11.1.28` 精確釘 5.10.0；11.x 最新 11.2.3 仍釘 5.11.3。Nest 12 才帶 5.12.1，不做跨 major | 比照 `find-my-way`，override `fastify: '^5.12.1'` |
 | `undici` ≥8.0.0 <8.9.0 | degenerate private cache directive 造成跨使用者資訊洩漏與 parse-time crash（GHSA-4cwx-7wf7-3272）。dev-only Firebase CLI 路徑 | 鎖 `^8` 那條線到 `^8.9.0`；樹上的 `undici@6` 不在範圍內 |
 | `ip-address` ≤10.3.0 | 前導零位元組被當十進位解析、resolver 當八進位，造成 SSRF 與信任邊界繞過（GHSA-mwp4-54f8-5fhr）。dev-only Firebase CLI 路徑 | 鎖 `^10` 那條線到 `^10.3.1`（實際解析為 10.4.0） |
 | `tar` ≤7.5.20 | crafted archive member selection 可觸發 stack overflow；dev-only Firebase CLI 路徑 | 既有 7.x range 精確鎖到 `7.5.22` |
