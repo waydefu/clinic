@@ -143,6 +143,16 @@ requireText(
 );
 requireText(
   files.adminShell,
+  'href="/calendar-pilot.css"',
+  'Root page does not load CAL-PILOT boot CSS before first paint.'
+);
+requireText(
+  files.adminShell,
+  'id="cal-pilot-boot-status"',
+  'Root page is missing the CAL-PILOT boot status while client-config is unresolved.'
+);
+requireText(
+  files.adminShell,
   'id="login-account"',
   'Admin shell is missing the synthetic account+password login gate.'
 );

@@ -14,11 +14,22 @@
     <title>預約營運工作臺｜一森渼診所</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/workbench.css" />
+    <!-- Sync: hide the synthetic login on first paint while CAL-PILOT
+         client-config is unresolved. Do not lazy-load this sheet. -->
+    <link rel="stylesheet" href="/calendar-pilot.css" />
     <!-- 同步載入：首次繪製前套用主題，避免閃爍（CSP 禁 inline script）。 -->
     <script src="/theme.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳至主要內容</a>
+    <p
+      id="cal-pilot-boot-status"
+      class="cp-boot-status"
+      role="status"
+      aria-live="polite"
+    >
+      正在載入安全登入…
+    </p>
     <!-- JavaScript 沒有執行時唯一會顯示的內容。登入閘門與工作臺一開始都是
          hidden，由模組載入後才顯示，所以少了 JS 這一頁原本是全白——沒有任何
          說明，也看不出是壞了還是還在載。 -->

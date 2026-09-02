@@ -27,6 +27,7 @@ export const E2E_GROUPS = {
   ],
   appointments: [
     'calendar-pilot-correction.spec.ts',
+    'legacy-login-flash.spec.ts',
     'week-calendar.spec.ts',
     'workbench-lifecycle.spec.ts'
   ],

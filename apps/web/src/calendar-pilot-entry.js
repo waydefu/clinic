@@ -225,6 +225,17 @@ async function completeGoogleSignIn() {
   return true;
 }
 
+function bootStatusView(message) {
+  root.innerHTML = `
+    <main class="cp-login" aria-labelledby="cp-boot-heading">
+      <section class="cp-login-card">
+        <h1 id="cp-boot-heading">CAL-PILOT</h1>
+        <p data-login-status role="status" aria-live="polite">${escapeHtml(message)}</p>
+        <div data-otp-region hidden></div>
+      </section>
+    </main>`;
+}
+
 function loginView() {
   root.innerHTML = `
     <main class="cp-login" aria-labelledby="cp-login-heading">
@@ -847,14 +858,17 @@ async function boot() {
     credentials: 'same-origin',
     headers: { Accept: 'application/json' }
   }).catch(() => undefined);
-  if (configResponse?.ok !== true) return;
+  if (configResponse?.ok !== true) {
+    document.documentElement.classList.add('synthetic-workbench-ready');
+    return;
+  }
   const config = await configResponse.json();
   document.documentElement.classList.add('calendar-pilot-active');
   root = document.createElement('div');
   root.className = 'calendar-pilot-root';
   document.body.append(root);
   auth = getAuth(initializeApp(config, 'calendar-pilot'));
-  loginView();
+  bootStatusView('正在完成登入…');
   const cachedCsrf = sessionStorage.getItem('calPilotCsrf');
   if (cachedCsrf !== null) {
     csrfToken = cachedCsrf;
@@ -867,12 +881,18 @@ async function boot() {
     }
   }
   try {
-    if (await completeGoogleSignIn()) await renderApplication();
+    if (await completeGoogleSignIn()) {
+      await renderApplication();
+      return;
+    }
   } catch (error) {
+    loginView();
     const node = root.querySelector('[data-login-status]');
     if (node !== null)
       node.textContent = error.message ?? '登入失敗，請重新嘗試。';
+    return;
   }
+  loginView();
 }
 
 void boot();

@@ -14,6 +14,29 @@
 .calendar-pilot-active body > :not(.calendar-pilot-root) {
   display: none !important;
 }
+html:not(.calendar-pilot-active):not(.synthetic-workbench-ready) #login-view,
+html:not(.calendar-pilot-active):not(.synthetic-workbench-ready) .app-shell {
+  display: none !important;
+}
+.cp-boot-status {
+  margin: 2.5rem auto;
+  max-width: 28rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid #c7d8d1;
+  border-radius: 14px;
+  background: #fff;
+  color: #18352d;
+  text-align: center;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+html.calendar-pilot-active .cp-boot-status,
+html.synthetic-workbench-ready .cp-boot-status {
+  display: none !important;
+}
 .cp-shell {
   width: min(1180px, calc(100% - 2rem));
   margin: 0 auto;
