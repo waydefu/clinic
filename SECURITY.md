@@ -8,22 +8,19 @@ verified at a commit. They are not this policy.
 
 ## Private intake
 
-The intended private intake is GitHub Private Vulnerability Reporting for this
-repository.
+To report a security vulnerability in this repository privately, use this
+repository's **GitHub Private Vulnerability Reporting** (Security → Advisories →
+"Report a vulnerability"). Do not publish the report as a public Issue or Pull
+Request.
 
-- **If GitHub offers a private reporting control** on this repository (Security
-  → Advisories, or Report a vulnerability), use that interface. Do not publish
-  the report as a public Issue or Pull Request.
-- **If GitHub does not offer that control**, this repository has **no published
-  private reporting channel**. Do not invent an email address, SLA, disclosure
-  deadline, or bounty. Do not file a public Issue or Pull Request that contains
-  credentials, secrets, patient data, staff or other private data, or
-  exploitable sensitive details.
+- Do not invent an email address, SLA, disclosure deadline, or bounty; none is
+  published here.
+- Do not put credentials, secrets, patient, staff or other private data, or
+  exploitable sensitive details into any report.
 
-Whether GitHub currently offers Private Vulnerability Reporting is a **remote
-repository setting**. This file cannot treat that setting as standing fact.
-Check the live GitHub UI for this repository; do not infer the setting from
-committed text.
+The private reporting control is a **remote repository setting** managed in the
+GitHub UI, not by this file; if the GitHub control is ever unavailable, do not
+file a public Issue or Pull Request containing sensitive details.
 
 ## What must not appear in Issues, Pull Requests, or reports
 
