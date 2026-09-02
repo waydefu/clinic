@@ -25,3 +25,7 @@ deployment evidence for a UI-only change.
 
 D-series answers are only in the [decision register](product/phase-1-decision-register.md).
 Owner input is not approval. Do not guess.
+
+Day 1 dated evidence (2026-09-03, not Canon): [scope lock / auth
+incident](reviews/2026-09-03-day1-scope-lock-and-auth-incident.md);
+[function inventory / acceptance](reviews/2026-09-03-function-inventory-and-acceptance-matrix.md).
