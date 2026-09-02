@@ -1,0 +1,20 @@
+{
+  "name": "Beau Essence Appointment Platform",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "web",
+      "command": "export PATH=\"$HOME/.nvm/versions/node/v24.18.0/bin:$PATH\"; WEB_ROOT=dist TEST_ONLY_WEB_ENABLED=true TEST_ONLY_WEB_PORT=3100 node apps/web/server.mjs",
+      "description": "Local test-only static site (operations workbench at /, plus /clinic, /booking, /privacy) served from apps/web/dist on http://127.0.0.1:3100. Synthetic, browser-local state only; no API or real data."
+    },
+    {
+      "name": "api",
+      "command": "export PATH=\"$HOME/.nvm/versions/node/v24.18.0/bin:$PATH\"; PORT=3000 HOST=127.0.0.1 node apps/api/dist/main.js",
+      "description": "Stage 1 API on http://127.0.0.1:3000. Exposes only /v1/health; the booking write path is built but not routed (Phase 1 gate)."
+    }
+  ],
+  "ports": [
+    { "name": "web", "port": 3100 },
+    { "name": "api", "port": 3000 }
+  ]
+}
