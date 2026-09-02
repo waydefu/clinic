@@ -7,6 +7,14 @@ allowBuilds:
   protobufjs: true
   re2: false
 
+# pnpm 11.9 supply-chain maturity gate. 3.1.7 / 4.1.4 are the 2026-09-02
+# security patches (GHSA-58mr-gqgx-xq4g, GHSA-qw65-cvwx-89v3). They are
+# younger than the default release-age window, so they must be named here
+# or the resolver will refuse them. This is not an audit exception and does
+# not change audit:prod / audit:all thresholds.
+minimumReleaseAgeExclude:
+  - fast-uri@3.1.7 || 4.1.4
+
 # 安全性修補：把有 advisory 的傳遞相依鎖到已修補的版本。
 #
 # 兩筆都是**同一個 major 內的 patch**，所以不會改變任何 API；上游把版本帶上來
@@ -34,17 +42,28 @@ allowBuilds:
 #                  所有路徑原本就接受 7.x patch，精確鎖到目前修補版 7.5.22。
 #   @hono/node-server <2.0.5 Windows encoded-backslash path traversal
 #                  先帶入已正式放寬 v2 range 的 MCP SDK 1.30.0，再鎖 Hono 2.0.12。
-#   fast-uri       host confusion via backslash authority introducer
-#                  （GHSA-7p8r-x3mc-p8w7，high）
-#                  路徑：apps/api > @nestjs/platform-fastify > fastify >
-#                  @fastify/ajv-compiler > (ajv) > fast-uri，**出貨面**。
-#                  2026-08-04 新發布。**兩個 major 同時中**，而且樹上兩個都在：
-#                  3.1.4（@fastify/ajv-compiler ^3.0.0、ajv ^3.0.1）與
-#                  4.1.1（fast-json-stringify ^4.0.0）。advisory 分別列出
-#                  >=3.0.0 <3.1.5 → 3.1.5 與 >=4.0.0 <4.1.2 → 4.1.2，因此比照
-#                  brace-expansion 逐 major 鎖定。不可用無範圍的 `fast-uri: ^3.1.5`
-#                  ——那會把 fast-json-stringify 需要的 4.x 降級成 3.x。
-#                  兩筆都是同 major 內的 patch，且都落在父套件宣告的 range 內。
+#   fast-uri       host confusion / SSRF（多筆 high GHSA）
+#                  路徑：apps/api > @nestjs/platform-fastify > fastify，**出貨面**。
+#                  3.x：@fastify/ajv-compiler ^3.0.0、ajv ^3.0.1。
+#                  4.x：fast-json-stringify ^4.0.0。樹上沒有 2.x。
+#                  2026-08-04 鎖到 ^3.1.5 / ^4.1.2。2026-09-03 在未改 lockfile 下
+#                  audit:prod 對 3.1.5 / 4.1.2 回報 8 high（GHSA-5jgf-p345-68v8、
+#                  GHSA-f65p-4m7j-42xc、GHSA-fph4-wmhf-6fwf、GHSA-jqff-g426-hqxp；
+#                  每筆分 3.x／4.x）。父套件 range 已允許修補版；失敗原因是
+#                  lockfile 仍解析到舊 patch。pnpm 審計可見的 patched 下限是
+#                  3.1.6 / 4.1.3，但 GitHub 2026-09-02 的 GHSA-58mr-gqgx-xq4g 與
+#                  GHSA-qw65-cvwx-89v3 的 affected 恰為 3.1.6 / 4.1.3，修補版是
+#                  3.1.7 / 4.1.4。因此地板升到 ^3.1.7 與 ^4.1.4，仍是同 major
+#                  patch。不可用無範圍的 `fast-uri: ^3.1.7`——那會把 4.x 降級。
+#   fastify        schema 根層 primitive coercion 繞過（GHSA-w2qp-rph6-63g4，
+#                  moderate）與 trustProxy hop-count 偽造（GHSA-3m5p-2c4r-xxw2，
+#                  moderate）。路徑：apps/api > @nestjs/platform-fastify >
+#                  fastify，**出貨面**。@nestjs/platform-fastify@11.1.28 精確釘
+#                  fastify 5.10.0；11.x 最新 11.2.3 仍精確釘 5.11.3，都 <5.12.1。
+#                  Nest 12.0.1 才帶 5.12.1，屬 framework 跨 major，不做。因此
+#                  比照 find-my-way，用無 selector 的 `fastify: '^5.12.1'`——
+#                  `fastify@^5` 對精確釘 5.10.0 可能套不上。樹上只有 5.x；
+#                  不得改成 6.x。
 #
 # 以下三筆是 2026-08-04 修掉 fast-uri 之後才浮現的：`check:supply-chain` 依序跑
 # audit:prod 再跑 audit:all，出貨面先失敗時 audit:all 根本沒機會執行，所以這三筆
@@ -71,8 +90,9 @@ overrides:
   tar@^7: '7.5.22'
   '@modelcontextprotocol/sdk': '1.30.0'
   '@hono/node-server': '2.0.12'
-  fast-uri@^3: '^3.1.5'
-  fast-uri@^4: '^4.1.2'
+  fast-uri@^3: '^3.1.7'
+  fast-uri@^4: '^4.1.4'
+  fastify: '^5.12.1'
   undici@^8: '^8.9.0'
   ip-address@^10: '^10.3.1'
 
