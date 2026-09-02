@@ -141,6 +141,21 @@ requireText(
   'href="#main-content"',
   'Admin shell is missing skip navigation.'
 );
+refuseText(
+  files.adminShell,
+  'href="/calendar-pilot.css"',
+  'Root page must not eager-load calendar-pilot.css; that sheet exceeds the index stylesheet budget.'
+);
+requireText(
+  files.css,
+  'html:not(.calendar-pilot-active):not(.synthetic-workbench-ready) #login-view',
+  'workbench.css no longer hides the synthetic login until CAL-PILOT or the loader is ready.'
+);
+requireText(
+  files.adminShell,
+  'id="cal-pilot-boot-status"',
+  'Root page is missing the CAL-PILOT boot status while client-config is unresolved.'
+);
 requireText(
   files.adminShell,
   'id="login-account"',

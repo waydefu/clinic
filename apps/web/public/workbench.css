@@ -1,3 +1,25 @@
+/* Hide the synthetic login and workbench until CAL-PILOT takes over or the
+   loader confirms the 30-day pilot is off. This sheet is already in <head>,
+   so first paint cannot flash test credentials. The full calendar-pilot.css
+   stays lazy-loaded after client-config succeeds. */
+html:not(.calendar-pilot-active):not(.synthetic-workbench-ready) #login-view,
+html:not(.calendar-pilot-active):not(.synthetic-workbench-ready) .app-shell {
+  display: none !important;
+}
+.cp-boot-status {
+  margin: var(--space-2xl) auto;
+  max-width: 28rem;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+}
+html.calendar-pilot-active .cp-boot-status,
+html.synthetic-workbench-ready .cp-boot-status {
+  display: none !important;
+}
 .app-shell-wide {
   max-width: 92rem;
 }

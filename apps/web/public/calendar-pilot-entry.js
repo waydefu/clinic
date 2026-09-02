@@ -1,7 +1,8 @@
 // Keep the existing workbench fast and usable when CAL-PILOT is absent. The
 // Google/TOTP client and its styles load only after the same-origin API confirms
 // that this 30-day pilot is enabled. The build rewrites both lazy resources to
-// content-hashed filenames without preloading them.
+// content-hashed filenames without preloading them. First-paint hide rules live
+// in workbench.css so the synthetic login cannot flash while this fetch runs.
 const response = await fetch('/v1/calendar-session/client-config', {
   credentials: 'same-origin',
   headers: { Accept: 'application/json' }
@@ -22,4 +23,6 @@ if (response?.ok === true) {
   document.head.append(stylesheet);
   await stylesheetLoaded;
   await import('./calendar-pilot-client.js');
+} else {
+  document.documentElement.classList.add('synthetic-workbench-ready');
 }
