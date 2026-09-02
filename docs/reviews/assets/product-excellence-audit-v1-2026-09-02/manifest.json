@@ -1,0 +1,75 @@
+{
+  "evidenceId": "product-excellence-audit-v1-2026-09-02",
+  "role": "supplementary-observed-renders",
+  "notAVisualBaseline": true,
+  "visualBaselineRemains": "docs/reviews/assets/ui-visual-c6-2026-08-23",
+  "capturedAt": "2026-09-02",
+  "origin": "local TEST_ONLY_WEB_ENABLED node apps/web/server.mjs serving apps/web/public (not dist)",
+  "host": "127.0.0.1:3100",
+  "baseCommit": "65d77eeb8dc1639584aa057756c208e59bccbbdf",
+  "theme": "warm-default-or-page-static",
+  "syntheticOnly": true,
+  "files": [
+    {
+      "file": "404-1280x800.png",
+      "sha256": "80e57855bc0507581b922d5a24ded0439f1170e943ff1d727539475a57b5ccd8",
+      "route": "/this-page-does-not-exist",
+      "viewport": "1280x800",
+      "observation": "Chrome default HTTP 404; local server returns empty 404 body"
+    },
+    {
+      "file": "booking-320x568.png",
+      "sha256": "7e5bfa0cc17059e0d0948916cab05040bd5e2d917f3846a6dfb197ffdd9d6040",
+      "route": "/booking",
+      "viewport": "320x568",
+      "state": "step-1-above-fold"
+    },
+    {
+      "file": "booking-375x812-step1.png",
+      "sha256": "1df46c18c1609ff354510bc8e1aa255df6332a9faefd65238f2a3cecb85a47e0",
+      "route": "/booking",
+      "viewport": "375x812",
+      "state": "step-1"
+    },
+    {
+      "file": "booking-step2-375x812.png",
+      "sha256": "78a15a167651d967caad608896a18fdc614fdc22e5f24ec478312592a0f21d4b",
+      "route": "/booking",
+      "viewport": "375x812",
+      "state": "step-2-after-initial"
+    },
+    {
+      "file": "clinic-nasal-snoring-375x812.png",
+      "sha256": "4249cf2c1aa326af905b2d4bb856b71003deb78971bd662d66cec737ac79dadc",
+      "route": "/clinic/nasal/snoring-five-in-one",
+      "viewport": "375x812"
+    },
+    {
+      "file": "login-1280x800.png",
+      "sha256": "188ec4d5fdf3e86cc452c8c69abf29e4317999e98cbf4138cb46814715bfa957",
+      "route": "/",
+      "viewport": "1280x800",
+      "state": "staff-login"
+    },
+    {
+      "file": "privacy-375x812.png",
+      "sha256": "22b61b55a254adc382ba4d104ec334d28f1455ab1315a560c22e77bdfc726ee1",
+      "route": "/privacy",
+      "viewport": "375x812"
+    },
+    {
+      "file": "workbench-1280x800.png",
+      "sha256": "ba9f23489232ad8c275a7315c4e5c049f6b44551093bb8b714b33c35dd69c43c",
+      "route": "/#overview",
+      "viewport": "1280x800",
+      "state": "admin-daily-overview-empty"
+    },
+    {
+      "file": "workbench-375x812.png",
+      "sha256": "97d89ec94daec9628aae8f0e480da1fb2e0cf8fee8fa79bc413f28e2913455ec",
+      "route": "/#overview",
+      "viewport": "375x812",
+      "state": "admin-daily-overview-empty"
+    }
+  ]
+}
