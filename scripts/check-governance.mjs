@@ -95,6 +95,21 @@ export function reviewRetiredHeadings(agentsText) {
   ).map((heading) => `AGENTS.md reintroduced retired heading: ${heading}`);
 }
 
+export function reviewVerificationBar(governanceText) {
+  const required = [
+    'Model selection may change.',
+    'Verification bar must not.',
+    'Same-bar fallback',
+    'Tiered routing'
+  ];
+  return required
+    .filter((needle) => !governanceText.includes(needle))
+    .map(
+      (needle) =>
+        `GOVERNANCE.md dropped the verification-bar invariant ${JSON.stringify(needle)}.`
+    );
+}
+
 export function reviewWaivers({ registry, today }) {
   const problems = [];
   if (!registry || typeof registry !== 'object') {
@@ -197,6 +212,12 @@ if (isDirectRun) {
   warnings.push(...budgets.warnings);
   problems.push(...budgets.problems);
   problems.push(...reviewRetiredHeadings(agentsText));
+
+  const governanceText = await readFile(
+    path.join(root, 'GOVERNANCE.md'),
+    'utf8'
+  );
+  problems.push(...reviewVerificationBar(governanceText));
 
   if (await fileExists(root, '.grok/skills')) {
     problems.push('.grok/skills must not exist; Grok uses .claude/skills');

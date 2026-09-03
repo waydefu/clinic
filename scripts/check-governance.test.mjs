@@ -8,6 +8,7 @@ import {
   hasValidWaiver,
   reviewBootBudgets,
   reviewRetiredHeadings,
+  reviewVerificationBar,
   reviewWaivers
 } from './check-governance.mjs';
 
@@ -190,5 +191,23 @@ describe('governance health check', () => {
     expect(
       reviewRetiredHeadings('## Current commands\n\npnpm verify\n').join('\n')
     ).toContain('Current commands');
+  });
+
+  it('requires the verification-bar invariant in GOVERNANCE.md', () => {
+    const intact = [
+      '**Same-bar fallback.**',
+      'Model selection may change.',
+      'Verification bar must not.',
+      '**Tiered routing.**'
+    ].join('\n');
+    expect(reviewVerificationBar(intact)).toEqual([]);
+    expect(
+      reviewVerificationBar('Same-bar fallback\nTiered routing\n').join('\n')
+    ).toContain('Model selection may change.');
+    expect(
+      reviewVerificationBar(
+        'Model selection may change.\nVerification bar must not.\n'
+      ).join('\n')
+    ).toMatch(/Same-bar fallback|Tiered routing/);
   });
 });

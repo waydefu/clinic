@@ -61,6 +61,8 @@ commit／environment、涵蓋範圍、owner、evidence 及 expiry／next review�
 | 合成預覽 | `pnpm verify:preview -- <preview-url>` | 本機 `output/evidence/`，依 review／交付需要另行保存 |
 
 證據 JSON 至少綁定 commit SHA、時間、執行／部署網址、必要檢查與結論。
+候選 commit 走同一條 `Verification evidence` 路徑，不因產生 diff 的 agent
+或模型而另開驗收。
 `output/evidence/` 不進版控，避免每次執行產生沒有審查價值的 diff；正式交付時應保存
 CI artifact 或把摘要登記到新的 dated review。
 
