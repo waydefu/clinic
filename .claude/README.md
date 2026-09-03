@@ -28,6 +28,7 @@ Before adding anything, classify it. Most candidates belong in the first row.
 | A procedure with steps and a completion test | A skill |
 | Something that must never happen, whatever the model concludes | `hooks/guard-commands.mjs` or `permissions.deny` |
 | A behaviour that could silently regress | A test, not an instruction |
+| Who may execute vs what must be verified | `GOVERNANCE.md` (verification bar). Not a skill |
 
 Rules and skills that exist to restate `AGENTS.md` should be deleted, not
 maintained. Each rule file states why it exists so a future reader can retire it.

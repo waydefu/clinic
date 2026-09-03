@@ -38,7 +38,28 @@ override Canon**. They only detect drift from it.
    facts into this kernel. Owner resolution is required to retire them.
 7. Vendor adapters (`.claude/`, `.agents/`) are not Canon. `.claude/skills/` is
    the canonical skill body; `.agents/skills/` is a generated Codex-compatible
-   adapter.
+   adapter. Skills describe procedure. They are not a second acceptance path.
+
+## Verification bar
+
+The merge evidence path is repository-owned. It does not depend on which
+agent or model produced the candidate.
+
+**Same-bar fallback.** A primary, fallback, or alternate agent may propose a
+diff. That candidate still uses this repository's acceptance criteria, tests,
+evals, CI gates, and evidence path. Changing who produced the work must not
+lower the bar, skip a gate, substitute a weaker definition of done, or raise
+the evidence rung.
+
+Model selection may change.
+Verification bar must not.
+
+**Tiered routing.** Choose model and reasoning effort by remaining uncertainty
+and risk, not by task size alone. Known edit, known acceptance, and an
+existing design are low uncertainty. A known goal whose integration path is
+still open is medium. Unresolved root cause, architecture, authority conflict,
+or a material tradeoff is high. Routing decides who works and how much they
+reason. It does not change the verification bar.
 
 ## Generated state
 

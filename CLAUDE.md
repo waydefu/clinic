@@ -73,6 +73,10 @@ implementing, track it, and search for siblings of every failure class you
 confirm. "One PR per concern" bounds the pull request; it never bounds the
 closure. Run `/closeout`.
 
+Choose reasoning effort by remaining uncertainty and risk, not by task size
+alone. Direct work is the low-uncertainty case. That choice does not change
+the verification bar in [GOVERNANCE.md](GOVERNANCE.md).
+
 If no decision authorises the behaviour, stop at the plan and say which decision
 is missing. Do not implement a guess and leave the policy question in a comment.
 
