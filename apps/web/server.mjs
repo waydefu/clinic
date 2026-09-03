@@ -46,14 +46,15 @@ function hostingHeaders(contentType, cacheControl) {
     'Cache-Control': cacheControl,
     // connect-src 必須保留 'self'：預約頁會從同源 `/privacy` 載入告知草稿；
     // CAL-PILOT 登入另只開 Firebase Auth 的 identity／token 兩個官方端點。
-    // signInWithRedirect 會載入 Google 的 iframe loader，script-src 與 frame-src
-    // 因此分別精確限定 apis.google.com 與本 staging 專案的 authDomain。
+    // signInWithRedirect 會載入 Google 的 iframe loader，script-src 精確限定
+    // apis.google.com；frame-src 允許同源（Option 1 auth iframe）與本 staging
+    // 專案的 firebaseapp.com authDomain。
     // `require-trusted-types-for 'script'`：寫進 innerHTML 的字串一律要先經過
     // Trusted Types policy，否則瀏覽器直接丟 TypeError。modules/trusted-html.js
     // 註冊 default policy，於是既有的 29 處指派全部流經那裡的結構檢查。
     // 導入前先以 report-only 跑過兩個進入點的完整 render 路徑，違規為 0。
     'Content-Security-Policy':
-      "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; frame-src https://beauessence-clinic-staging.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'",
+      "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; frame-src 'self' https://beauessence-clinic-staging.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'",
     // 沒有任何跨來源彈窗或被他站嵌入的需求，所以兩者都收到 same-origin：
     // 前者切斷跨來源視窗對 window.opener 的存取，後者阻止其他站台把本站資源
     // 當成子資源載入。

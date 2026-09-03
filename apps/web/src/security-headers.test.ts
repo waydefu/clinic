@@ -37,7 +37,7 @@ describe('hosting security headers', () => {
       "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
       "style-src 'self'",
       "script-src 'self' https://apis.google.com",
-      'frame-src https://beauessence-clinic-staging.firebaseapp.com',
+      "frame-src 'self' https://beauessence-clinic-staging.firebaseapp.com",
       // 沒有任何 <object>/<embed>/<applet> 插件面：關掉外掛執行面。
       "object-src 'none'",
       "base-uri 'none'",
