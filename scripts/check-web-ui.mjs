@@ -36,6 +36,7 @@ const paths = {
   robots: 'apps/web/public/robots.txt',
   sitemap: 'apps/web/public/sitemap.xml',
   privacyHtml: 'apps/web/public/privacy.html',
+  errorHtml: 'apps/web/public/404.html',
   workbenchSupport: 'tests/e2e/support/workbench.ts',
   ogMetadata: 'apps/web/brand-source/og-booking.metadata.json'
 };
@@ -1049,6 +1050,36 @@ if (bookingPayload === null) {
     );
 }
 // 政策頁沒有指令碼，所以 UI-only「已閱讀草稿」只能靠網址把狀態帶回預約頁。
+requireText(
+  files.errorHtml,
+  'href="/clinic"',
+  'The branded 404 home recovery no longer points at the public clinic site.'
+);
+requireText(
+  files.errorHtml,
+  'href="/booking"',
+  'The branded 404 no longer offers the public booking recovery path.'
+);
+requireText(
+  files.errorHtml,
+  '回到首頁',
+  'The branded 404 is missing the home recovery control.'
+);
+requireText(
+  files.errorHtml,
+  '前往線上預約',
+  'The branded 404 is missing the booking recovery control.'
+);
+refuseText(
+  files.errorHtml,
+  'href="/">',
+  'The branded 404 home recovery again points at staff `/`.'
+);
+refuseText(
+  files.errorHtml,
+  'href="/staff"',
+  'The branded 404 must not invent a staff-login recovery path.'
+);
 requireText(
   files.privacyHtml,
   'href="/booking?notice-read=1"',
