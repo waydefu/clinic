@@ -11,7 +11,9 @@ import {
 import { z } from 'zod';
 
 import {
-  CALENDAR_PILOT_COOKIE,
+  calendarPilotSessionClearCookie,
+  calendarPilotSessionSetCookie,
+  readCalendarPilotSessionCookie,
   type CalendarPilotSessionService
 } from './calendar-pilot-session.js';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
@@ -24,15 +26,6 @@ interface HeaderReply {
 const SessionRequestSchema = z
   .object({ idToken: z.string().min(100).max(20_000) })
   .strict();
-
-function cookieValue(header: string | undefined): string | undefined {
-  for (const part of (header ?? '').split(';')) {
-    const [name, ...value] = part.trim().split('=');
-    if (name === CALENDAR_PILOT_COOKIE)
-      return decodeURIComponent(value.join('='));
-  }
-  return undefined;
-}
 
 @Controller('calendar-session')
 export class CalendarPilotSessionController {
@@ -65,8 +58,10 @@ export class CalendarPilotSessionController {
     );
     reply.header(
       'Set-Cookie',
-      `${CALENDAR_PILOT_COOKIE}=${encodeURIComponent(session.cookieValue)}; ` +
-        `Max-Age=${session.cookieMaxAgeSeconds}; Path=/; HttpOnly; Secure; SameSite=Strict`
+      calendarPilotSessionSetCookie(
+        session.cookieValue,
+        session.cookieMaxAgeSeconds
+      )
     );
     return {
       csrfToken: session.csrfToken,
@@ -79,12 +74,9 @@ export class CalendarPilotSessionController {
     @Headers('cookie') cookieHeader: string | undefined,
     @Res({ passthrough: true }) reply: HeaderReply
   ) {
-    const sessionCookie = cookieValue(cookieHeader);
+    const sessionCookie = readCalendarPilotSessionCookie(cookieHeader);
     if (sessionCookie !== undefined) await this.sessions.revoke(sessionCookie);
-    reply.header(
-      'Set-Cookie',
-      `${CALENDAR_PILOT_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict`
-    );
+    reply.header('Set-Cookie', calendarPilotSessionClearCookie());
     return { signedOut: true };
   }
 }

@@ -8,7 +8,37 @@ import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
 const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000;
 const IDLE_SESSION_MS = 30 * 60 * 1000;
-export const CALENDAR_PILOT_COOKIE = '__Host-cal-pilot';
+// Firebase Hosting strips incoming cookies before Cloud Run rewrites, except
+// the exact name `__session`. See Hosting cache docs, "Using cookies".
+export const CALENDAR_PILOT_COOKIE = '__session';
+const SESSION_COOKIE_SCOPE = 'Path=/; HttpOnly; Secure; SameSite=Strict';
+
+export function readCalendarPilotSessionCookie(
+  header: string | string[] | undefined
+): string | undefined {
+  const raw = Array.isArray(header) ? header.join(';') : header;
+  if (raw === undefined) return undefined;
+  for (const part of raw.split(';')) {
+    const [name, ...value] = part.trim().split('=');
+    if (name === CALENDAR_PILOT_COOKIE)
+      return decodeURIComponent(value.join('='));
+  }
+  return undefined;
+}
+
+export function calendarPilotSessionSetCookie(
+  cookieValue: string,
+  maxAgeSeconds: number
+): string {
+  return (
+    `${CALENDAR_PILOT_COOKIE}=${encodeURIComponent(cookieValue)}; ` +
+    `Max-Age=${maxAgeSeconds}; ${SESSION_COOKIE_SCOPE}`
+  );
+}
+
+export function calendarPilotSessionClearCookie(): string {
+  return `${CALENDAR_PILOT_COOKIE}=; Max-Age=0; ${SESSION_COOKIE_SCOPE}`;
+}
 
 export type CalendarPilotStaffRole = 'manager' | 'front_desk';
 
