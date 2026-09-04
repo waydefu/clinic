@@ -6,7 +6,7 @@ import {
 
 import type { CalendarPilotAuthenticatedRequest } from '../calendar/calendar-pilot.controller.js';
 import {
-  CALENDAR_PILOT_COOKIE,
+  readCalendarPilotSessionCookie,
   type CalendarPilotSessionService
 } from './calendar-pilot-session.js';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
@@ -18,19 +18,6 @@ interface ProtectedRequest extends CalendarPilotAuthenticatedRequest {
   calendarPilotAuthentication: CalendarPilotAuthenticatedRequest['calendarPilotAuthentication'];
 }
 
-function cookieValue(
-  header: string | string[] | undefined,
-  name: string
-): string | undefined {
-  const raw = Array.isArray(header) ? header.join(';') : header;
-  if (raw === undefined) return undefined;
-  for (const part of raw.split(';')) {
-    const [key, ...value] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(value.join('='));
-  }
-  return undefined;
-}
-
 export class CalendarPilotSessionGuard implements CanActivate {
   public constructor(
     @Inject(CALENDAR_PILOT_SESSIONS)
@@ -39,9 +26,8 @@ export class CalendarPilotSessionGuard implements CanActivate {
 
   public async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<ProtectedRequest>();
-    const sessionCookie = cookieValue(
-      request.headers['cookie'],
-      CALENDAR_PILOT_COOKIE
+    const sessionCookie = readCalendarPilotSessionCookie(
+      request.headers['cookie']
     );
     if (sessionCookie === undefined) throw new AuthenticationRequiredError();
     const authentication = await this.sessions.authenticate(sessionCookie);
