@@ -30,7 +30,7 @@ export async function login(
   role: WorkbenchRole = 'admin',
   { fresh = true }: { fresh?: boolean } = {}
 ): Promise<void> {
-  await page.goto('/');
+  await page.goto('/staff');
   if (fresh) {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
@@ -63,7 +63,7 @@ export async function createBooking(
     birth?: string;
   } = {}
 ): Promise<void> {
-  await page.goto('/#appointments-section');
+  await page.goto('/staff#appointments-section');
   await openDisclosure(page, '#booking-workflow');
   await page.locator('#booking-name').fill(name);
   await page.locator('#booking-phone').fill(phone);

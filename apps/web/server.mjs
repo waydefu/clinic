@@ -86,9 +86,14 @@ async function sendBrandedNotFound(request, response) {
   }
 }
 
+// 根入口分流（Q4）：`/` 302 到 `/clinic`。具名常數供
+// check-public-pages.mjs 逐字比對 firebase.json。
+const ROOT_REDIRECT = { source: '/', destination: '/clinic', type: 302 };
+
 // 對外網址與實體檔名。canonical 與 og:url 指向這些網址，所以它們必須真的可用。
 // 一頁一列，避免再出現「新增一個對外頁面卻忘了在這裡開路」的落差。
 const PRETTY_PATHS = new Map([
+  ['/staff', 'index.html'],
   ['/booking', 'patient.html'],
   ['/privacy', 'privacy.html'],
   ['/clinic', 'clinic.html'],
@@ -108,6 +113,16 @@ const server = createServer(async (request, response) => {
   }
 
   const pathname = new URL(request.url ?? '/', `http://${host}`).pathname;
+
+  // 根 `/` 不是工作臺了：公開訪客去 `/clinic`（Q4 front-door 分離）。
+  // 302（非 301）是刻意的——這是入口分流，不是永久搬遷；寫成具名常數，
+  // 讓 check-public-pages.mjs 可以逐字比對 firebase.json。
+  if (pathname === ROOT_REDIRECT.source) {
+    response
+      .writeHead(ROOT_REDIRECT.type, { Location: ROOT_REDIRECT.destination })
+      .end();
+    return;
+  }
 
   // 對外的預約頁網址是 /booking（2026-07-26 決策），實體檔名仍是 patient.html。
   // 這兩條規則必須與 firebase.json 的 redirects／rewrites 逐字對應——E2E 跑在這個

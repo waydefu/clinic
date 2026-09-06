@@ -15,7 +15,7 @@ const MOBILE = { width: 375, height: 812 };
 
 /** 週檢視收在「本週排程」的 <details> 裡，量捲動之前要先展開。 */
 async function openCalendarPanel(page: Page): Promise<void> {
-  await page.goto('/#appointments-section');
+  await page.goto('/staff#appointments-section');
   await openDisclosure(page, '#week-calendar-disclosure');
 }
 

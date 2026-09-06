@@ -20,7 +20,7 @@ test.describe('護眼暖色預設與顯式偏好', () => {
       window.localStorage.removeItem('beauessence_theme')
     );
 
-    for (const url of ['/', '/booking', '/privacy', '/404.html']) {
+    for (const url of ['/staff', '/booking', '/privacy', '/404.html']) {
       await page.goto(url);
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'warm');
     }
@@ -55,7 +55,7 @@ test.describe('護眼暖色預設與顯式偏好', () => {
   }) => {
     await page.goto('/booking');
     await page.locator('#theme-picker').selectOption('dark');
-    await page.goto('/');
+    await page.goto('/staff');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 });
@@ -125,7 +125,7 @@ test.describe('三個主題', () => {
     const heroes = new Map<string, string>();
 
     for (const theme of THEMES) {
-      await applyTheme(page, '/', theme);
+      await applyTheme(page, '/staff', theme);
       const gradient = await page
         .locator('.hero-panel')
         .evaluate(
@@ -220,7 +220,7 @@ test.describe('品牌層（香檳金與系統字體）', () => {
         fontRequests.push(url);
     });
 
-    for (const url of ['/booking', '/']) {
+    for (const url of ['/booking', '/staff']) {
       await page.goto(url);
       await page.waitForLoadState('networkidle');
     }
@@ -351,13 +351,13 @@ test.describe('動效系統', () => {
       // 用 emulateMedia 明確設定，不靠 test.use()——實測後者在這個設定檔下
       // **沒有生效**（頁面裡量到的 matchMedia 仍是 false），測試會因此驗錯前提。
       await page.emulateMedia({ reducedMotion: 'no-preference' });
-      await applyTheme(page, '/', 'light');
+      await applyTheme(page, '/staff', 'light');
       await page.locator('#login-account').fill('admin');
       await page.locator('#login-password').fill('beauessence-admin');
       await page.locator('#login-view button[type="submit"]').click();
       await expect(page.locator('#logout')).toBeVisible();
 
-      await page.goto('/#appointments-section');
+      await page.goto('/staff#appointments-section');
       await page.locator('#booking-workflow').evaluate((element) => {
         (element as HTMLDetailsElement).open = true;
       });
@@ -435,13 +435,13 @@ test.describe('動效系統', () => {
   test.describe('要求減少動效時', () => {
     test('動效關掉，但「哪一列變了」這個資訊不能跟著消失', async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
-      await applyTheme(page, '/', 'light');
+      await applyTheme(page, '/staff', 'light');
       await page.locator('#login-account').fill('admin');
       await page.locator('#login-password').fill('beauessence-admin');
       await page.locator('#login-view button[type="submit"]').click();
       await expect(page.locator('#logout')).toBeVisible();
 
-      await page.goto('/#appointments-section');
+      await page.goto('/staff#appointments-section');
       await page.locator('#booking-workflow').evaluate((element) => {
         (element as HTMLDetailsElement).open = true;
       });

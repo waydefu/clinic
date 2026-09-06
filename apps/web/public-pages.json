@@ -2,15 +2,15 @@
   "why": "對外頁面的單一來源（2026-07-27，自動檢查缺口 F-4；2026-07-29 加入 fail-closed schema 與雙向 route gate）。介面規則書 §4.1 早就寫著這份清單應該收斂成一份 machine-readable inventory，先前它散在效能預算、本機 server 的 PRETTY_PATHS、firebase.json 的 redirects／rewrites、建置的 indexable allowlist 與 e2e 掃描範圍。漏掉或多留其中一份都不會有任何錯誤。`pnpm check:pages` 現在驗證欄位型別、唯一性、路徑格式，並雙向比對每一份仍有自己格式的抄本；build-web 直接由 indexable 欄位派生放行清單，各 scan spec 則以 TypeScript AST 可解析的 PUBLIC_PAGE_SCAN_ROUTES literal export 宣告實際覆蓋，註解中的 route 不算。合法的 entry redirect、資料驅動路由與共用 clinic shell 必須由 routing 明確建模，不再靠檢查器猜例外。",
   "pages": [
     {
-      "route": "/",
+      "route": "/staff",
       "entry": "index.html",
       "audience": "staff",
       "indexable": false,
       "scans": ["axe", "responsive", "affordance", "mobile-layout"],
-      "note": "營運工作臺。永遠不對外索引，也沒有 pretty URL——它就是根目錄。",
+      "note": "營運工作臺（Q4 front-door 分離後 canonical 路由）。永遠不對外索引；根 `/` 302 到 `/clinic`。",
       "routing": {
-        "kind": "root",
-        "entryRedirect": null
+        "kind": "exact",
+        "entryRedirect": { "status": 301 }
       }
     },
     {

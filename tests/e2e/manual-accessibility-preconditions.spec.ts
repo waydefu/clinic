@@ -18,7 +18,7 @@ test.describe('runbook B4：跳過導覽連結', () => {
     page
   }) => {
     await login(page);
-    await page.goto('/');
+    await page.goto('/staff');
     await page.keyboard.press('Tab');
 
     const focused = page.locator(':focus');
@@ -68,7 +68,7 @@ test.describe('runbook B9：週檢視可聚焦', () => {
   test('是具名群組且可以取得焦點', async ({ page }) => {
     await login(page);
     await createBooking(page);
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await openDisclosure(page, '#week-calendar-disclosure');
 
     const weekView = page.locator('#week-view');
@@ -111,7 +111,7 @@ test.describe('runbook C1：forced-colors 下的焦點框', () => {
   test('高對比模式仍有可見焦點框，且用系統色', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' });
     await login(page);
-    await page.goto('/');
+    await page.goto('/staff');
     await page.keyboard.press('Tab');
 
     const outline = await page.evaluate(() => {

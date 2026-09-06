@@ -52,7 +52,7 @@ test.describe('JavaScript 未執行時的後備', () => {
   });
 
   test('工作臺說明自己為什麼是空的，而不是留一片空白', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/staff');
 
     const text = await page.locator('body').innerText();
     expect(text).toContain('JavaScript');

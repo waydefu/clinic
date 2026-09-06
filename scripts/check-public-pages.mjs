@@ -38,7 +38,13 @@ const PAGE_KEYS = [
   'note',
   'routing'
 ];
-const ROUTING_KINDS = new Set(['root', 'exact', 'shared-shell', 'hosting-404']);
+const ROUTING_KINDS = new Set(['exact', 'shared-shell', 'hosting-404']);
+
+/**
+ * 根入口分流（Q4 front-door 分離）：`/` 不是頁面，302 到 `/clinic`。
+ * server.mjs 以同名常數宣告，firebase.json 以同值宣告；兩邊逐字比對。
+ */
+const ROOT_REDIRECT = { source: '/', destination: '/clinic', type: 302 };
 const ROUTE_PATTERN =
   /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
 const ENTRY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*\.html$/;
@@ -117,7 +123,7 @@ function validateRouting(value, page, label, failures) {
 
   if (typeof kind !== 'string' || !ROUTING_KINDS.has(kind)) {
     failures.push(
-      `${label}.routing.kind 必須是 root、exact、shared-shell 或 hosting-404。`
+      `${label}.routing.kind 必須是 exact、shared-shell 或 hosting-404。`
     );
     return null;
   }
@@ -127,13 +133,6 @@ function validateRouting(value, page, label, failures) {
     `${label}.routing`,
     failures
   );
-
-  if (kind === 'root') {
-    if (page.route !== '/' || page.entry !== 'index.html')
-      failures.push(`${label} 的 root routing 只允許 / → index.html。`);
-    if (value.entryRedirect !== null)
-      failures.push(`${label} 的 root routing 不得宣告 entry redirect。`);
-  }
 
   if (kind === 'hosting-404') {
     if (page.route !== '/404' || page.entry !== '404.html')
@@ -399,12 +398,60 @@ function buildExpectedRouting(pages, dataRouteSources, failures) {
       );
   }
 
+  // 根 `/` 不是頁面：302 分流到 `/clinic`，由 ROOT_REDIRECT 常數擁有。
+  redirects.set(ROOT_REDIRECT.source, {
+    destination: ROOT_REDIRECT.destination,
+    type: ROOT_REDIRECT.type
+  });
+
   return {
     serverMappings,
     rewrites,
     redirects,
     dataRouteCount: dataRoutes.size
   };
+}
+
+/**
+ * 從 server.mjs 解析具名 ROOT_REDIRECT 常數，與 PRETTY_PATHS 同一手法：
+ * 逐字比對、不猜語意。根 `/` 的分流必須與 firebase.json 同值。
+ */
+export function extractRootRedirect(serverSource) {
+  const failures = [];
+  if (typeof serverSource !== 'string') {
+    failures.push('apps/web/server.mjs 來源必須是字串。');
+    return { failures, rule: null };
+  }
+  const match =
+    /const\s+ROOT_REDIRECT\s*=\s*\{\s*source:\s*(['"])([^'"\\]+)\1\s*,\s*destination:\s*(['"])([^'"\\]+)\3\s*,\s*type:\s*(\d+)\s*\}\s*;/.exec(
+      serverSource
+    );
+  if (match === null) {
+    failures.push(
+      'apps/web/server.mjs 讀不到 const ROOT_REDIRECT = { source, destination, type }；根分流守衛已失效。'
+    );
+    return { failures, rule: null };
+  }
+  return {
+    failures,
+    rule: {
+      source: match[2],
+      destination: match[4],
+      type: Number(match[5])
+    }
+  };
+}
+
+function compareServerRootRedirect(rule, failures) {
+  if (rule === null) return;
+  if (
+    rule.source !== ROOT_REDIRECT.source ||
+    rule.destination !== ROOT_REDIRECT.destination ||
+    rule.type !== ROOT_REDIRECT.type
+  )
+    failures.push(
+      `apps/web/server.mjs 的 ROOT_REDIRECT 是 ${rule.source} → ${rule.destination} (${rule.type})；manifest 要求 ${ROOT_REDIRECT.source} → ${ROOT_REDIRECT.destination} (${ROOT_REDIRECT.type})。`
+    );
 }
 
 export function extractPrettyPaths(serverSource) {
@@ -607,11 +654,15 @@ function compareFirebaseRedirects(expected, rules, failures) {
       label,
       failures
     );
-    if (!isEntryPath(value.source))
+    if (value.source !== '/' && !isEntryPath(value.source))
       failures.push(`${label}.source 必須是 /<entry>.html。`);
+    if (value.source === '/' && value.type !== ROOT_REDIRECT.type)
+      failures.push(
+        `${label} 的根分流 type 必須是 manifest 支援的 ${ROOT_REDIRECT.type}。`
+      );
     if (!isRoute(value.destination))
       failures.push(`${label}.destination 必須是合法 canonical route。`);
-    if (value.type !== 301)
+    if (value.source !== '/' && value.type !== 301)
       failures.push(`${label}.type 必須是 manifest 支援的 301。`);
     if (typeof value.source !== 'string') continue;
     if (actual.has(value.source))
@@ -1085,6 +1136,9 @@ export function checkPublicPageConfiguration({
   const expected = buildExpectedRouting(pages, dataRouteSources, failures);
   const parsedServer = extractPrettyPaths(serverSource);
   failures.push(...parsedServer.failures);
+  const parsedRoot = extractRootRedirect(serverSource);
+  failures.push(...parsedRoot.failures);
+  compareServerRootRedirect(parsedRoot.rule, failures);
 
   compareBudgets(pages, budgets, failures);
   compareIndexableEntries(pages, buildIndexableEntries, failures);
