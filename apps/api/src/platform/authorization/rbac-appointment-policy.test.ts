@@ -88,6 +88,15 @@ describe('createRbacAppointmentPolicy', () => {
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 
+  it('denies a patient reschedule when the appointment owner is unknown', async () => {
+    await expect(
+      policyFor('patient').assertCanReschedule(
+        context({ verifiedPatientId: 'patient_001' }),
+        {}
+      )
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
   it('lets staff reschedule against the clinic-wide scope', async () => {
     await expect(
       policyFor('front_desk').assertCanReschedule(context(), {})
@@ -97,6 +106,15 @@ describe('createRbacAppointmentPolicy', () => {
   it('denies a physician from rescheduling', async () => {
     await expect(
       policyFor('physician').assertCanReschedule(context(), {})
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
+  it('lets a manager delete and denies the front desk', async () => {
+    await expect(
+      policyFor('manager').assertCanDelete(context())
+    ).resolves.toBeUndefined();
+    await expect(
+      policyFor('front_desk').assertCanDelete(context())
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 

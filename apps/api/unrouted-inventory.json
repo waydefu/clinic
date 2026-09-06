@@ -488,6 +488,57 @@
       ],
       "note": "D-006 已核准身分與授權政策；這個應用服務仍只是未接路由的 Stage 2 候選實作，沒有 IdP、session、授權或部署證據。"
     },
+    "src/appointments/appointment.controller.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C0",
+          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
+        },
+        {
+          "kind": "deployment_authority",
+          "id": "C1",
+          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C1",
+          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C2",
+          "description": "尚未建置合成 staff 的正式 IdP、MFA 與 recovery 證據。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C3",
+          "description": "尚未建置 server-side session、CSRF 與停權撤銷。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C4",
+          "description": "尚未完成 server-side authorization 與角色／action fixtures。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C5",
+          "description": "寫入尚未證明可在同一 transaction append 永久 audit。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C6",
+          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
+        }
+      ],
+      "note": "T1-API-01 以 test-only Nest harness 證明 RBAC 對照；production AppModule 不得掛入此 controller，/v1/bookings 必須維持 404。"
+    },
     "src/appointments/appointment.policy.ts": {
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
