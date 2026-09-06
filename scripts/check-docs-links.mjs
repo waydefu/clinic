@@ -87,7 +87,12 @@ export const STALE_CLAIMS = [
     /Private Vulnerability Reporting is enabled/,
     'do not assert the remote PVR setting from a committed file'
   ],
-  ['SECURITY.md', /mailto:/i, 'do not publish a personal security contact']
+  ['SECURITY.md', /mailto:/i, 'do not publish a personal security contact'],
+  [
+    'docs/roadmap.md',
+    /已由 `DATA-R01\/02`、`ARC-R01` 補齊，PR #23/,
+    'PR #23 did not close DATA-R01/02 or ARC-R01; those landed as T1-DATA-01 (#59), T1-DATA-02 (#60), T1-ARC-01 (#67)'
+  ]
 ];
 
 const linkPattern = /\[[^\]]*\]\(([^)\s]+)\)/g;
