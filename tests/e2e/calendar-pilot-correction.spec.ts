@@ -95,7 +95,7 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
       await route.fulfill({ status: 404, json: {} });
     });
 
-    await page.goto('/');
+    await page.goto('/staff');
     await expect(page.getByRole('heading', { name: '待審佇列' })).toBeVisible();
     await expect(page.getByText('標題不符合統一格式')).toBeVisible();
     await expect(page.getByText('忙碌原因不在允許清單')).toBeVisible();

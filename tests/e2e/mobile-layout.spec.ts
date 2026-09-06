@@ -4,7 +4,11 @@ import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes.js';
 import { fillBirthDate, submitBooking } from './support/patient.js';
 import { createBooking, login, openDisclosure } from './support/workbench.js';
 
-export const PUBLIC_PAGE_SCAN_ROUTES = ['/', '/booking', '/clinic'] as const;
+export const PUBLIC_PAGE_SCAN_ROUTES = [
+  '/staff',
+  '/booking',
+  '/clinic'
+] as const;
 const [WORKBENCH_ROUTE, BOOKING_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
 // 手機版版面的迴歸守門員。

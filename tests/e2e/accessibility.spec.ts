@@ -9,7 +9,7 @@ import {
 } from './support/workbench.js';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
-  '/',
+  '/staff',
   '/booking',
   '/privacy',
   '/clinic'
