@@ -66,7 +66,7 @@
   },
   {
     "path": "/index.html",
-    "justification": "內部工作臺，只有員工在用，因此比患者頁寬鬆。document 10 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 9.2 KiB 加餘裕；script 64／stylesheet 16 反映它比患者頁多出的排班、個管與稽核介面。",
+    "justification": "內部工作臺，只有員工在用，因此比患者頁寬鬆。document 10 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 9.2 KiB 加餘裕；script 64／stylesheet 16 反映它比患者頁多出的排班、個管與稽核介面。total 91 是 2026-09-07 T1-BOOK-02（one-month horizon 進 domain，規則收斂為 single source）上調（原為 90）：兩輪非破壞性壓縮後實測 92,380 B，僅超原上限 220 B，繼續壓縮需刪必要驗證或做非最小架構重構，業主當日批准；script／stylesheet／counts／timings 皆不放寬。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -90,7 +90,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 90
+        "budget": 91
       }
     ],
     "resourceCounts": [

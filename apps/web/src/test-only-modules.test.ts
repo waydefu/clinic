@@ -29,6 +29,7 @@ import {
   summaryCounts
 } from '../public/modules/admin-view.js';
 import {
+  bookingHorizonEndExclusive,
   calendarEventIdForAppointment,
   calendarEventIdForFollowUp
 } from '../public/vendor/domain/index.js';
@@ -588,7 +589,7 @@ describe('預約建立', () => {
         {
           slotId: openSlot(state, 'initial').id,
           patient: PATIENT_B,
-          itemIds: ['service_aesthetic']
+          itemIds: ['service_snoring']
         },
         'admin_test_001'
       )
@@ -1408,63 +1409,85 @@ describe('個管月度工作量', () => {
   });
 });
 
-// C4（業主 2026-08-22）：可預約時段改為「台北當日起 60 個日曆日」。
+// T1-BOOK-02：可預約視窗改為「台北當月的同日，下月同日月底箝制」
+//（領域 bookingHorizonEndExclusive 擁有規則）。
 //
 // 上面每一組測試都跑在凍住的 2030-01-01 上，所以它們證明的是「視窗的內容正確」，
 // 不是「視窗跟著今天走」。這一組換兩個完全不同的時鐘各驗一次——那才是這次改動
-// 真正要保證的事：先前是寫死的 2030-01-01，任何時鐘下都會產生同一批日期。
+// 真正要保證的事。
 describe('可預約視窗跟著今天走', () => {
   const dayNumber = (slotId: string) => Number(slotId.slice(5, 13));
   const asNumber = (isoDate: string) => Number(isoDate.replaceAll('-', ''));
-  // 日期加減一律在 UTC 上做。用 `+08:00` 建立再 `toISOString()` 會先倒回 UTC，
-  // 於是每一次換算都少八小時——跨月時就會差一天（實測 2031-03-05 + 29 被算成
-  // 04-02 而不是 04-03）。這裡只是在數日子，時區不該參與。
-  const plusDays = (isoDate: string, days: number) =>
-    new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
 
   afterAll(() => {
     vi.setSystemTime(FROZEN_NOW);
   });
 
   for (const today of ['2031-03-05', '2032-11-20']) {
-    it(`${today} 產生的時段落在當天起 60 天內`, () => {
+    it(`${today} 產生的時段落在當月視窗內`, () => {
       vi.setSystemTime(new Date(`${today}T09:00:00+08:00`));
       const state = initialState();
       const days = state.slots.map((slot) => dayNumber(slot.id));
+      const endExclusive = bookingHorizonEndExclusive(today);
 
       expect(days.length).toBeGreaterThan(0);
       // 一格都不在今天之前——那是「已經過去的時段」，患者不該看到。
       expect(Math.min(...days)).toBeGreaterThanOrEqual(asNumber(today));
-      // 也不超過視窗長度。59 是「今天算第一天」的第 60 天。
-      expect(Math.max(...days)).toBeLessThanOrEqual(
-        asNumber(plusDays(today, 59))
-      );
+      // 也不超過領域規則的排他終點。
+      expect(Math.max(...days)).toBeLessThan(asNumber(endExclusive));
     });
   }
 
-  it('視窗長度是 60 天，不是先前的 30 天', () => {
+  it('視窗產滿到排他終點前的最後一個門診日', () => {
     vi.setSystemTime(new Date('2031-03-05T09:00:00+08:00'));
-    const days = new Set(
+    // 2031-03-05 起一個月：終點 2031-04-06；04-05 是週日休診，最後門診日是週六 04-04。
+    const days: Set<string> = new Set(
       initialState().slots.map((slot) => slot.id.slice(5, 13))
     );
-    // 每週開週三至週六四天，60 天大約 34 個門診日；30 天只有約 17 個。
-    expect(days.size).toBeGreaterThan(30);
+    expect(days.has('20310404')).toBe(true);
+    expect([...days].every((day) => asNumber(day) < 20310406)).toBe(true);
   });
 
-  it('command boundary 接受第 60 天並拒絕第 61 天', () => {
+  it('command boundary 接受視窗內並拒絕終點之後', () => {
     vi.setSystemTime(new Date('2031-03-05T09:00:00+08:00'));
     expect(() =>
       assertWithinSyntheticBookingWindow({
-        startsAt: '2031-05-03T04:00:00.000Z'
+        startsAt: '2031-04-05T15:59:00.000Z'
       })
     ).not.toThrow();
     expect(() =>
       assertWithinSyntheticBookingWindow({
-        startsAt: '2031-05-04T04:00:00.000Z'
+        startsAt: '2031-04-05T16:00:00.000Z'
       })
-    ).toThrowError(/60 天預約範圍/);
+    ).toThrowError(/1 個月預約範圍/);
+  });
+
+  it('月底箝制：非閏年 1 月 31 日起只到 2 月 28 日', () => {
+    vi.setSystemTime(new Date('2031-01-31T09:00:00+08:00'));
+    expect(() =>
+      assertWithinSyntheticBookingWindow({
+        startsAt: '2031-02-28T04:00:00.000Z'
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertWithinSyntheticBookingWindow({
+        startsAt: '2031-03-01T04:00:00.000Z'
+      })
+    ).toThrowError(/1 個月預約範圍/);
+  });
+
+  it('月底箝制：閏年 1 月 31 日起含 2 月 29 日', () => {
+    vi.setSystemTime(new Date('2032-01-31T09:00:00+08:00'));
+    expect(() =>
+      assertWithinSyntheticBookingWindow({
+        startsAt: '2032-02-29T04:00:00.000Z'
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertWithinSyntheticBookingWindow({
+        startsAt: '2032-02-29T16:00:00.000Z'
+      })
+    ).toThrowError(/1 個月預約範圍/);
   });
 });
 

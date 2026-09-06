@@ -4,7 +4,7 @@ import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
 import { createBooking, login, showAllAppointments } from './support/workbench';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
-  '/',
+  '/staff',
   '/booking',
   '/privacy',
   '/clinic'
