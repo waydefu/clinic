@@ -267,7 +267,7 @@ describe('local logical restore drill', () => {
           .doc(thirdRequest.slotId)
           .get()
       ).data()
-    ).toMatchObject({ reservationId: null });
+    ).not.toHaveProperty('reservationId');
 
     // The incident scene remains untouched while validation runs elsewhere.
     expect((await source.collection(COLLECTIONS.appointments).get()).size).toBe(

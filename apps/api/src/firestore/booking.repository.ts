@@ -19,6 +19,7 @@ import type {
   Firestore,
   Transaction
 } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 
 import type {
   AppointmentRepositoryPort,
@@ -145,7 +146,9 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   ): void {
     if (!slotDocument.exists) return;
     if (slotDocument.data()?.['reservationId'] !== appointmentId) return;
-    transaction.update(slotDocument.ref, { reservationId: null });
+    transaction.update(slotDocument.ref, {
+      reservationId: FieldValue.delete()
+    });
   }
 
   /**
