@@ -1,3 +1,4 @@
+import { isSlotOccupied } from './appointment-rules.js';
 import { DomainError } from './errors.js';
 import { assertUtcTimestamp } from './timestamp.js';
 
@@ -38,7 +39,7 @@ export function reserveSlot(
   assertIdentifier(appointmentId, 'appointmentId');
   assertTimestampRange(slot.startsAt, slot.endsAt, 'slot');
 
-  if (slot.reservationId !== undefined) {
+  if (isSlotOccupied(slot.reservationId)) {
     throw new DomainError(
       'SLOT_UNAVAILABLE',
       'A reserved slot cannot be reserved again.'

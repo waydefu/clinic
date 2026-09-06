@@ -7,6 +7,7 @@ import {
   FirestoreBookingRepository
 } from '../../apps/api/src/firestore/booking.repository.js';
 import {
+  createAppointmentIdempotency,
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../../apps/api/src/idempotency/appointment-idempotency.js';
@@ -119,7 +120,7 @@ describe('appointment transitions in a Firestore transaction', () => {
     await transition('cancel');
 
     expect((await appointmentState())?.['status']).toBe('cancelled');
-    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeUndefined();
     expect((await patientGuardState()).exists).toBe(false);
   });
 
@@ -127,8 +128,45 @@ describe('appointment transitions in a Firestore transaction', () => {
     await transition('no_show');
 
     expect((await appointmentState())?.['status']).toBe('no_show');
-    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeUndefined();
     expect((await patientGuardState()).exists).toBe(false);
+  });
+
+  it('lets the released slot be booked again', async () => {
+    await transition('cancel');
+
+    const result = await repository.reserve({
+      appointmentId: 'appointment_002',
+      slotId: SLOT_A,
+      patientId: 'patient_001',
+      bookingKind: 'initial',
+      itemId: 'service_snoring',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_rebook_001',
+        source: 'api',
+        reasonCode: null,
+        policyVersion: null
+      },
+      requestedAt: NOW,
+      idempotency: createAppointmentIdempotency({
+        key: 'idem_rebook_001',
+        actorId: 'actor_front_desk_001',
+        patientId: 'patient_001',
+        slotId: SLOT_A,
+        bookingKind: 'initial',
+        itemId: 'service_snoring'
+      })
+    });
+
+    expect(result).toEqual({
+      appointmentId: 'appointment_002',
+      replayed: false
+    });
+    expect((await slotState(SLOT_A))?.['reservationId']).toBe(
+      'appointment_002'
+    );
   });
 
   // 完成到診是已經發生的事實，時段不該被別人搶走。
@@ -279,7 +317,7 @@ describe('reschedule in a Firestore transaction', () => {
     expect(appointment?.['slotId']).toBe(SLOT_B);
     expect(appointment?.['startsAt']).toBe('2030-01-02T04:30:00.000Z');
     expect(appointment?.['status']).toBe('confirmed');
-    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeUndefined();
     expect((await slotState(SLOT_B))?.['reservationId']).toBe(APPOINTMENT);
     expect((await patientGuardState()).data()).toMatchObject({
       activeAppointmentId: APPOINTMENT,
@@ -339,7 +377,7 @@ describe('reschedule in a Firestore transaction', () => {
     const settled = await Promise.allSettled(attempts);
 
     expect(settled.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
-    expect((await slotState(SLOT_A))?.['reservationId']).toBeNull();
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeUndefined();
     expect((await slotState(SLOT_B))?.['reservationId']).toBe(APPOINTMENT);
   });
 

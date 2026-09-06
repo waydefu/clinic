@@ -43,11 +43,22 @@ const ALLOWED_FROM: Record<
   no_show: OPEN_STATUSES
 };
 
+/**
+ * A slot is occupied only when it names a reservation. Legacy documents may
+ * carry `reservationId: null` from before releases deleted the field; null
+ * reads as unoccupied so those documents need no migration.
+ */
+export function isSlotOccupied(
+  reservationId: string | null | undefined
+): boolean {
+  return reservationId !== undefined && reservationId !== null;
+}
+
 export function assertSlotBookable(
   slot: SlotSnapshot | undefined,
   bookingKind: BookingKind
 ): asserts slot is SlotSnapshot {
-  if (slot === undefined || slot.reservationId !== undefined) {
+  if (slot === undefined || isSlotOccupied(slot.reservationId)) {
     throw new DomainError(
       'SLOT_UNAVAILABLE',
       'The slot does not exist or is already reserved.'
@@ -94,7 +105,7 @@ export function assertReschedulable(
       'Only an appointment that has not finished can be rescheduled.'
     );
   }
-  if (targetSlot === undefined || targetSlot.reservationId !== undefined) {
+  if (targetSlot === undefined || isSlotOccupied(targetSlot.reservationId)) {
     throw new DomainError(
       'SLOT_UNAVAILABLE',
       'The target slot is not available.'
