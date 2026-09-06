@@ -38,3 +38,25 @@ test.describe('public 404 recovery', () => {
     ).toHaveCount(0);
   });
 });
+
+test.describe('public front-door split', () => {
+  test('root splits to the public clinic instead of the staff login', async ({
+    page
+  }) => {
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/clinic$/);
+    await expect(
+      page.getByRole('heading', { name: '登入營運工作臺' })
+    ).toHaveCount(0);
+  });
+
+  test('staff serves the operations workbench with its own URL', async ({
+    page
+  }) => {
+    await page.goto('/staff');
+    await expect(page).toHaveURL(/\/staff$/);
+    await expect(
+      page.getByRole('heading', { name: '登入營運工作臺' })
+    ).toBeVisible();
+  });
+});

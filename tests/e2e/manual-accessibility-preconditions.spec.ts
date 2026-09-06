@@ -18,7 +18,7 @@ test.describe('runbook B4：跳過導覽連結', () => {
     page
   }) => {
     await login(page);
-    await page.goto('/');
+    await page.goto('/staff');
     await page.keyboard.press('Tab');
 
     const focused = page.locator(':focus');
@@ -111,7 +111,7 @@ test.describe('runbook C1：forced-colors 下的焦點框', () => {
   test('高對比模式仍有可見焦點框，且用系統色', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' });
     await login(page);
-    await page.goto('/');
+    await page.goto('/staff');
     await page.keyboard.press('Tab');
 
     const outline = await page.evaluate(() => {

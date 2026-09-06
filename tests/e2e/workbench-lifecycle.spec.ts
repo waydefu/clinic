@@ -151,7 +151,7 @@ test.describe('營運首頁指揮中心', () => {
 
 test.describe('待處理狀態', () => {
   test('送出期間按鈕會換成忙碌文字，且不設 aria-busy', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/staff');
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.locator('#login-account').fill('admin');

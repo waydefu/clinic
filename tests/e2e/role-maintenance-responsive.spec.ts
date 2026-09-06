@@ -6,7 +6,7 @@ import { login } from './support/workbench.js';
 // 角色邊界的測試會先以 admin 建好資料、登出、再以 front 登入——登入時順手清掉
 // localStorage 等於把前置資料一起抹掉，斷言就會找不到那筆預約。
 async function resetBrowserState(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/staff');
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
 }
