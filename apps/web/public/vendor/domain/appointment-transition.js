@@ -16,9 +16,9 @@ const NEXT_STATUS = {
     complete: 'completed',
     no_show: 'no_show'
 };
-function outboxFor(appointmentId, status, at, correlationId, causationId) {
+function outboxFor(appointmentId, status, at, correlationId, causationId, recordId) {
     return {
-        id: `outbox_${appointmentId}_${status}`,
+        id: `outbox_${appointmentId}_${status}_${recordId}`,
         type: 'calendar_projection_requested',
         appointmentId,
         correlationId,
@@ -51,7 +51,7 @@ export function planTransition(request, appointment, patientBookingGuard) {
     // 已經發生的事實，兩者都不釋出時段。
     const releasesSlot = request.transition === 'cancel' || request.transition === 'no_show';
     const auditEvent = planAuditEvent({
-        eventId: `audit_${appointment.id}_${nextStatus}`,
+        eventId: `audit_${appointment.id}_${nextStatus}_${request.idempotency.recordId}`,
         occurredAt: request.requestedAt,
         action: AUDIT_ACTIONS[request.transition],
         resourceType: 'appointment',
@@ -88,7 +88,7 @@ export function planTransition(request, appointment, patientBookingGuard) {
                 activeAppointmentId: appointment.id
             },
         auditEvent,
-        outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt, request.audit.correlationId, auditEvent.eventId),
+        outboxJob: outboxFor(appointment.id, nextStatus, request.requestedAt, request.audit.correlationId, auditEvent.eventId, request.idempotency.recordId),
         idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };
 }
@@ -121,7 +121,7 @@ export function planDeletion(request, appointment, patientBookingGuard) {
         assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
     }
     const auditEvent = planAuditEvent({
-        eventId: `audit_${appointment.id}_deleted`,
+        eventId: `audit_${appointment.id}_deleted_${request.idempotency.recordId}`,
         occurredAt: request.requestedAt,
         action: 'appointment_deleted',
         resourceType: 'appointment',
@@ -144,7 +144,7 @@ export function planDeletion(request, appointment, patientBookingGuard) {
             activeAppointmentId: appointment.id
         },
         auditEvent,
-        outboxJob: outboxFor(appointment.id, 'deleted', request.requestedAt, request.audit.correlationId, auditEvent.eventId),
+        outboxJob: outboxFor(appointment.id, 'deleted', request.requestedAt, request.audit.correlationId, auditEvent.eventId, request.idempotency.recordId),
         idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };
 }
@@ -158,7 +158,7 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
     assertReschedulable(appointment.status, appointment.slotId, targetSlot, appointment.bookingKind);
     assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
     const auditEvent = planAuditEvent({
-        eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}`,
+        eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}_${request.idempotency.recordId}`,
         occurredAt: request.requestedAt,
         action: 'appointment_rescheduled',
         resourceType: 'appointment',
@@ -190,10 +190,10 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
         },
         auditEvent,
         outboxJob: {
-            ...outboxFor(appointment.id, 'confirmed', request.requestedAt, request.audit.correlationId, auditEvent.eventId),
+            ...outboxFor(appointment.id, 'confirmed', request.requestedAt, request.audit.correlationId, auditEvent.eventId, request.idempotency.recordId),
             // 工作本身要能與原本的成立工作區分（否則會被視為同一筆而覆蓋），但
             // 日曆事件仍是同一個——改期是把事件搬到新時間，不是再開一格。
-            id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}`
+            id: `outbox_${appointment.id}_rescheduled_${targetSlot.id}_${request.idempotency.recordId}`
         },
         idempotencyRecord: planIdempotencyRecord(request.idempotency, appointment.id, request.requestedAt)
     };

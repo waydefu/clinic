@@ -197,11 +197,18 @@ describe('appointment transitions in a Firestore transaction', () => {
   it('writes an audit event and an outbox job with every transition', async () => {
     await transition('cancel');
 
+    const cancelRecordId = transitionAppointmentIdempotency({
+      key: 'idem_cancel',
+      actorId: 'actor_front_desk_001',
+      appointmentId: APPOINTMENT,
+      transition: 'cancel'
+    }).recordId;
+
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
     const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
     expect(audits.size).toBe(1);
     expect(AuditEventV2Schema.parse(audits.docs[0]?.data())).toEqual({
-      eventId: 'audit_appointment_001_cancelled',
+      eventId: `audit_appointment_001_cancelled_${cancelRecordId}`,
       occurredAt: NOW,
       actorId: 'actor_front_desk_001',
       actorRole: 'test_front_desk',
@@ -227,7 +234,7 @@ describe('appointment transitions in a Firestore transaction', () => {
     expect(outbox.docs[0]?.data()).toMatchObject({
       appointmentStatus: 'cancelled',
       correlationId: 'corr_idem_cancel',
-      causationId: 'audit_appointment_001_cancelled',
+      causationId: `audit_appointment_001_cancelled_${cancelRecordId}`,
       status: 'pending',
       attempts: 0
     });
@@ -348,6 +355,21 @@ describe('reschedule in a Firestore transaction', () => {
     await reschedule(SLOT_B);
 
     expect((await appointmentState())?.['status']).toBe('confirmed');
+  });
+
+  it('records a repeated cancellation_requested as a distinct occurrence', async () => {
+    await transition('request_cancellation', 'idem_request_first');
+    await reschedule(SLOT_B, 'idem_restore_first');
+    await transition('request_cancellation', 'idem_request_second');
+
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    expect(audits.size).toBe(3);
+    const eventIds = audits.docs.map((document) => document.id);
+    expect(new Set(eventIds).size).toBe(3);
+
+    const outbox = await db.collection(COLLECTIONS.outboxJobs).get();
+    const jobIds = outbox.docs.map((document) => document.id);
+    expect(new Set(jobIds).size).toBe(outbox.size);
   });
 
   it('refuses to move onto the other booking grid, writing nothing', async () => {

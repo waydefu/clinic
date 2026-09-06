@@ -162,7 +162,7 @@ describe('booking write path in a Firestore transaction', () => {
     });
     expect(audits.size).toBe(1);
     expect(AuditEventV2Schema.parse(audits.docs[0]?.data())).toEqual({
-      eventId: 'audit_appointment_001_confirmed',
+      eventId: `audit_appointment_001_confirmed_${request.idempotency.recordId}`,
       occurredAt: '2026-07-21T09:00:00.000Z',
       actorId: 'actor_front_desk_001',
       actorRole: 'test_front_desk',
@@ -185,7 +185,7 @@ describe('booking write path in a Firestore transaction', () => {
     expect(outbox.docs[0]?.data()).toMatchObject({
       type: 'calendar_projection_requested',
       correlationId: 'corr_booking_001',
-      causationId: 'audit_appointment_001_confirmed',
+      causationId: `audit_appointment_001_confirmed_${request.idempotency.recordId}`,
       status: 'pending',
       attempts: 0
     });
@@ -343,12 +343,13 @@ describe('booking write path in a Firestore transaction', () => {
   });
 
   it('never overwrites an existing audit event and rolls back every sibling write', async () => {
+    const request = bookingRequest();
     const auditRef = db
       .collection(COLLECTIONS.auditEvents)
-      .doc('audit_appointment_001_confirmed');
+      .doc(`audit_appointment_001_confirmed_${request.idempotency.recordId}`);
     await auditRef.set({ sentinel: 'existing_append_only_event' });
 
-    await expect(repository.reserve(bookingRequest())).rejects.toThrow();
+    await expect(repository.reserve(request)).rejects.toThrow();
 
     expect((await auditRef.get()).data()).toEqual({
       sentinel: 'existing_append_only_event'

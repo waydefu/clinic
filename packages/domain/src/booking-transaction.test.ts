@@ -77,7 +77,7 @@ describe('planBooking', () => {
       updatedAt: request.requestedAt
     });
     expect(plan.auditEvent).toEqual({
-      eventId: 'audit_appointment_001_confirmed',
+      eventId: `audit_appointment_001_confirmed_${'b'.repeat(64)}`,
       occurredAt: request.requestedAt,
       actorId: 'actor_front_desk_001',
       actorRole: 'test_front_desk',
@@ -99,7 +99,7 @@ describe('planBooking', () => {
     expect(plan.outboxJob).toMatchObject({
       type: 'calendar_projection_requested',
       correlationId: 'corr_booking_001',
-      causationId: 'audit_appointment_001_confirmed',
+      causationId: `audit_appointment_001_confirmed_${'b'.repeat(64)}`,
       status: 'pending',
       attempts: 0
     });

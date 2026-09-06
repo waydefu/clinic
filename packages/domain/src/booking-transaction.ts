@@ -156,7 +156,7 @@ export function planBooking(
     updatedAt: request.requestedAt
   };
   const auditEvent = planAuditEvent({
-    eventId: `audit_${request.appointmentId}_confirmed`,
+    eventId: `audit_${request.appointmentId}_confirmed_${request.idempotency.recordId}`,
     occurredAt: request.requestedAt,
     action: 'appointment_confirmed',
     resourceType: 'appointment',
@@ -184,7 +184,7 @@ export function planBooking(
     // The Calendar projection is only ever an intent recorded in the same
     // transaction. The worker performs the external effect afterwards.
     outboxJob: {
-      id: `outbox_${request.appointmentId}_confirmed`,
+      id: `outbox_${request.appointmentId}_confirmed_${request.idempotency.recordId}`,
       type: 'calendar_projection_requested',
       appointmentId: request.appointmentId,
       correlationId: request.audit.correlationId,
