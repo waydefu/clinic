@@ -54,7 +54,7 @@ async function recordLabelsDuring(
 test.describe('營運首頁指揮中心', () => {
   test('沒有待辦時保持安靜，不顯示一排零', async ({ page }) => {
     await login(page);
-    await page.goto('/#overview');
+    await page.goto('/staff#overview');
 
     // 先前這裡永遠有四張卡片，數量為零也照顯示——於是「0 筆」和「3 筆」佔一樣
     // 大的版面，畫面沒辦法告訴任何人現在該做什麼。
@@ -79,7 +79,7 @@ test.describe('營運首頁指揮中心', () => {
     await page.locator('.confirm-dialog button.button-primary').click();
     await expect(page.locator('#status')).toContainText('到診已記錄');
 
-    await page.goto('/#overview');
+    await page.goto('/staff#overview');
     const cards = page.locator('#task-list .task-card');
     await expect(cards.first()).toContainText('回診尚未決定');
     await expect(
@@ -110,14 +110,14 @@ test.describe('營運首頁指揮中心', () => {
   test('下一位只看已確認且還沒到的最早一筆', async ({ page }) => {
     await login(page);
     await createBooking(page);
-    await page.goto('/#overview');
+    await page.goto('/staff#overview');
 
     // 「下一位」是櫃台整天問最多次的問題，先前首頁完全沒有。
     await expect(page.locator('#next-up')).toContainText('測試患者甲');
     await expect(page.locator('#next-up .next-up-time strong')).not.toBeEmpty();
 
     // 完成到診之後那一筆就不再是「下一位」——它已經不是 confirmed 了。
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await showAllAppointments(page);
     await page
       .locator('[data-appointment-card]')
@@ -127,7 +127,7 @@ test.describe('營運首頁指揮中心', () => {
     await page.locator('.confirm-dialog button.button-primary').click();
     await expect(page.locator('#status')).toContainText('到診已記錄');
 
-    await page.goto('/#overview');
+    await page.goto('/staff#overview');
     await expect(page.locator('#next-up')).toContainText(
       '沒有已確認的後續預約'
     );
@@ -135,7 +135,7 @@ test.describe('營運首頁指揮中心', () => {
 
   test('待辦清單不是 live region，由摘要公告件數', async ({ page }) => {
     await login(page);
-    await page.goto('/#overview');
+    await page.goto('/staff#overview');
     // 整批置換的容器掛 aria-live 會被螢幕閱讀器逐項重唸。全站一致：live 掛在
     // 簡短摘要上。
     await expect(page.locator('#task-list')).not.toHaveAttribute(
@@ -181,7 +181,7 @@ test.describe('待處理狀態', () => {
 
   test('結果清單不是 live region，避免整張表被重唸', async ({ page }) => {
     await login(page);
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
 
     // 清單內容整批換掉，若掛 aria-live，螢幕閱讀器會在每次篩選時把整張表逐列
     // 重唸一次。變化由簡短的筆數摘要公告就夠了。
@@ -387,7 +387,7 @@ test.describe('預約清單分頁', () => {
 test.describe('櫃台快捷鍵', () => {
   test('/ 聚焦搜尋，Alt+N 只開啟表單並聚焦第一欄', async ({ page }) => {
     await login(page);
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
 
     await expect(page.locator('.shortcut-hint')).toContainText('鍵盤快捷鍵');
 
@@ -425,12 +425,12 @@ test.describe('櫃台快捷鍵', () => {
     page
   }) => {
     await login(page);
-    await page.goto('/#communications-section');
+    await page.goto('/staff#communications-section');
     await page.locator('#announcement-body').focus();
     await page.keyboard.press('Alt+N');
     await expect(page.locator('#announcement-body')).toBeFocused();
 
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await page.locator('#appointment-kind-filter').focus();
     await page.keyboard.press('Alt+N');
     await expect(page.locator('#appointment-kind-filter')).toBeFocused();
@@ -575,7 +575,7 @@ test.describe('工作臺其餘資料表', () => {
 
   test('已發布排班沒有操作欄，草稿才有', async ({ page }) => {
     await login(page);
-    await page.goto('/#schedule-section');
+    await page.goto('/staff#schedule-section');
 
     // 只有草稿能改。不可編輯的版本留一個空的「操作」欄，會讓人以為功能壞了。
     await expect(
@@ -601,7 +601,7 @@ test.describe('工作臺其餘資料表', () => {
     await expect(page.locator('#workload-count')).toHaveCount(0);
     await expect(page.locator('#workload')).toHaveCount(0);
 
-    await page.goto('/#case-section');
+    await page.goto('/staff#case-section');
     await expect(page).toHaveURL(/#case-section$/);
     await expect(page.locator('#case-section')).toBeVisible();
     await expect(page.locator('#status')).not.toContainText('權限');
@@ -819,7 +819,7 @@ test.describe('工作臺預約生命週期', () => {
     await page.locator('#login-view button[type="submit"]').click();
     await expect(page.locator('#logout')).toBeVisible();
 
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await showAllAppointments(page);
     const card = page.locator('[data-appointment-card]').first();
     await expect(card).toBeVisible();

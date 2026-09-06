@@ -32,7 +32,7 @@ async function callSyntheticStore<T>(
 }
 
 async function createCompletedVisit(page: Page): Promise<string> {
-  await page.goto('/#appointments-section');
+  await page.goto('/staff#appointments-section');
   await page.locator('#booking-workflow').evaluate((element) => {
     (element as HTMLDetailsElement).open = true;
   });
@@ -71,7 +71,7 @@ test.describe('角色邊界', () => {
 
   test('櫃台輸入管理區 hash 會導回首頁並取得拒絕訊息焦點', async ({ page }) => {
     await login(page, 'front', { fresh: false });
-    await page.goto('/#accounts-section');
+    await page.goto('/staff#accounts-section');
 
     await expect(page).toHaveURL(/#overview$/);
     await expect(page.locator('#status')).toContainText('沒有權限');
@@ -101,7 +101,7 @@ test.describe('角色邊界', () => {
     await expect(page.locator('#login-view')).toBeVisible();
     await login(page, 'front', { fresh: false });
 
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     const followUp = page.locator(`[data-follow-up-form="${appointmentId}"]`);
     await expect(followUp).toBeVisible();
     expect(
@@ -130,7 +130,7 @@ test.describe('角色邊界', () => {
     await expect(page.locator('#status')).toContainText(
       '回診指示與個管指派已登錄'
     );
-    await page.goto('/#case-section');
+    await page.goto('/staff#case-section');
     await expect(page.locator('#case-section')).toBeVisible();
     await expect(
       page.locator(`[data-case-row="${appointmentId}"]`)
@@ -225,7 +225,7 @@ test.describe('行動版 header 與重排', () => {
     page
   }) => {
     await login(page, 'admin', { fresh: false });
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await page.locator('#booking-workflow').evaluate((element) => {
       (element as HTMLDetailsElement).open = true;
     });

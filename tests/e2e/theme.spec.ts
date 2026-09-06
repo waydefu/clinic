@@ -357,7 +357,7 @@ test.describe('動效系統', () => {
       await page.locator('#login-view button[type="submit"]').click();
       await expect(page.locator('#logout')).toBeVisible();
 
-      await page.goto('/#appointments-section');
+      await page.goto('/staff#appointments-section');
       await page.locator('#booking-workflow').evaluate((element) => {
         (element as HTMLDetailsElement).open = true;
       });
@@ -441,7 +441,7 @@ test.describe('動效系統', () => {
       await page.locator('#login-view button[type="submit"]').click();
       await expect(page.locator('#logout')).toBeVisible();
 
-      await page.goto('/#appointments-section');
+      await page.goto('/staff#appointments-section');
       await page.locator('#booking-workflow').evaluate((element) => {
         (element as HTMLDetailsElement).open = true;
       });

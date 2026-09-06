@@ -68,7 +68,7 @@ test.describe('runbook B9：週檢視可聚焦', () => {
   test('是具名群組且可以取得焦點', async ({ page }) => {
     await login(page);
     await createBooking(page);
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await openDisclosure(page, '#week-calendar-disclosure');
 
     const weekView = page.locator('#week-view');
