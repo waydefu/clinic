@@ -18,7 +18,8 @@ import {
   renderSchedule,
   renderSlots,
   renderTagPicker,
-  renderTasks
+  renderTasks,
+  summaryCounts
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
 import { runPendingAction } from './modules/async-action.js';
@@ -486,17 +487,12 @@ function renderSlotList() {
 }
 
 function renderSummary() {
-  elements['available-count'].textContent = String(
-    state.slots.filter((slot) => slot.reservationId === undefined).length
-  );
-  elements['confirmed-count'].textContent = String(
-    state.appointments.filter((item) =>
-      ['confirmed', 'cancellation_requested'].includes(item.status)
-    ).length
-  );
-  elements['completed-count'].textContent = String(
-    state.appointments.filter((item) => item.status === 'completed').length
-  );
+  // T2-WB-02：三張卡是「今日工作」，與它們連結的清單（預設即當日）同一口徑，
+  // 不是全量存量。口徑由 admin-view 的 summaryCounts 擁有，這裡只負責顯示。
+  const counts = summaryCounts(state);
+  elements['available-count'].textContent = String(counts.available);
+  elements['confirmed-count'].textContent = String(counts.pending);
+  elements['completed-count'].textContent = String(counts.completed);
   elements['task-list'].innerHTML = renderTasks(state);
   elements['next-up'].innerHTML = renderNextUp(state);
   // 待辦件數是「有幾種待辦還沒清掉」，不是總筆數——首頁要回答的是「還有幾件事
