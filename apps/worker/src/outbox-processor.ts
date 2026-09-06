@@ -13,6 +13,7 @@ import {
   type Firestore
 } from 'firebase-admin/firestore';
 import { performance } from 'node:perf_hooks';
+import { randomUUID } from 'node:crypto';
 
 import {
   CalendarError,
@@ -71,6 +72,14 @@ export interface ProcessSummary {
 
 interface ClaimedOutboxJob extends OutboxJob {
   readonly leaseExpiresAt: string;
+  /**
+   * Fencing token: the worker that owns this claim, and the monotonic
+   * generation allocated atomically inside the claiming transaction.
+   * A stale worker settling after a reclaim carries an older generation and
+   * must not overwrite the new owner's settlement.
+   */
+  readonly leaseOwner: string;
+  readonly generation: number;
 }
 
 /**
@@ -90,7 +99,8 @@ export class OutboxProcessor {
     private readonly calendar: CalendarPort,
     private readonly metrics: WorkerMetricsPort = NOOP_WORKER_METRICS,
     private readonly random: () => number = Math.random,
-    private readonly monotonicNow: () => number = () => performance.now()
+    private readonly monotonicNow: () => number = () => performance.now(),
+    private readonly workerId: string = randomUUID()
   ) {}
 
   /**
@@ -192,11 +202,24 @@ export class OutboxProcessor {
         const leaseExpiresAt = new Date(
           Date.parse(claimedAt) + LEASE_SECONDS * 1000
         ).toISOString();
+        // Ownership transfer: the generation advances atomically inside this
+        // same claiming transaction. There is no same-owner renewal path —
+        // every successful claim write is a transfer event.
+        const stored = snapshot.data() as { generation?: unknown };
+        const generation =
+          typeof stored.generation === 'number' ? stored.generation + 1 : 1;
         transaction.update(reference, {
           status: 'in_progress',
-          leaseExpiresAt
+          leaseExpiresAt,
+          leaseOwner: this.workerId,
+          generation
         });
-        return { ...job, leaseExpiresAt };
+        return {
+          ...job,
+          leaseExpiresAt,
+          leaseOwner: this.workerId,
+          generation
+        };
       });
 
       if (claimed !== undefined) return claimed;
@@ -205,10 +228,10 @@ export class OutboxProcessor {
   }
 
   private async settle(
-    job: OutboxJob,
+    job: ClaimedOutboxJob,
     outcome: AttemptOutcome,
     now: string
-  ): Promise<'completed' | 'retried' | 'deadLettered'> {
+  ): Promise<'completed' | 'retried' | 'deadLettered' | 'superseded'> {
     // 結算時把 status 還原成領取前的樣子再交給純決策，避免 in_progress
     // 這個純技術狀態洩漏進領域規則。
     const decision = planOutboxAttempt(
@@ -224,10 +247,24 @@ export class OutboxProcessor {
           ).toISOString()
         : undefined;
 
-    await this.db
-      .collection(OUTBOX_COLLECTION)
-      .doc(job.id)
-      .update({
+    // Fenced settlement: only the current lease owner holding the claimed
+    // generation may write. A stale worker whose lease was reclaimed (or a
+    // job that moved on otherwise) skips the write instead of clobbering
+    // the new owner's settlement.
+    const reference = this.db.collection(OUTBOX_COLLECTION).doc(job.id);
+    const owned = await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(reference);
+      if (!snapshot.exists) return false;
+      const current = snapshot.data() as {
+        leaseOwner?: unknown;
+        generation?: unknown;
+      };
+      if (
+        current.leaseOwner !== job.leaseOwner ||
+        current.generation !== job.generation
+      )
+        return false;
+      transaction.update(reference, {
         status: decision.status,
         attempts: decision.attempts,
         needsOperator: decision.needsOperator,
@@ -240,6 +277,9 @@ export class OutboxProcessor {
           : { lastError: decision.lastError }),
         settledAt: now
       });
+      return true;
+    });
+    if (!owned) return 'superseded';
 
     if (decision.status === 'completed') return 'completed';
     if (decision.status === 'dead_letter') return 'deadLettered';
@@ -360,7 +400,9 @@ export class OutboxProcessor {
               ? 'dead_lettered'
               : result === 'retried'
                 ? 'retried'
-                : 'completed',
+                : result === 'superseded'
+                  ? 'superseded'
+                  : 'completed',
           retryable: outcome.kind === 'failed' ? outcome.retryable : null,
           attempt: job.attempts + 1,
           latencyMs: Math.max(0, this.monotonicNow() - attemptStartedAt)
@@ -368,7 +410,8 @@ export class OutboxProcessor {
       );
       if (result === 'completed') completed += 1;
       else if (result === 'retried') retried += 1;
-      else deadLettered += 1;
+      else if (result === 'deadLettered') deadLettered += 1;
+      // superseded：租約已易主，本次嘗試不計入任何結局；claimed 已計數。
     }
 
     const summary = { claimed, completed, retried, deadLettered };
