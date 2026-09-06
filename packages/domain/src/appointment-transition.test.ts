@@ -498,6 +498,29 @@ describe('planReschedule', () => {
     ).toBe('INVALID_VALUE');
   });
 
+  it('treats a verified-patient mismatch as not found', () => {
+    expect(
+      codeOf(() =>
+        planReschedule(
+          {
+            appointmentId: appointment.id,
+            targetSlotId: target.id,
+            expectedPatientId: 'patient_other',
+            audit,
+            requestedAt: NOW,
+            idempotency: {
+              ...idempotencyFor(),
+              scope: `appointment:${appointment.id}:reschedule`
+            }
+          },
+          appointment,
+          target,
+          patientBookingGuard
+        )
+      )
+    ).toBe('APPOINTMENT_NOT_FOUND');
+  });
+
   it('refuses to move an initial visit onto a follow-up slot', () => {
     expect(codeOf(() => reschedule({ ...target, kind: 'follow_up' }))).toBe(
       'BOOKING_KIND_MISMATCH'

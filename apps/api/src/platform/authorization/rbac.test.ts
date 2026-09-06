@@ -53,6 +53,21 @@ describe('evaluateAccess', () => {
     ).toThrowError(AuthorizationDeniedError);
   });
 
+  it('allows a patient to reschedule only their own resource', () => {
+    const request: AccessRequest = {
+      role: 'patient',
+      accountActive: true,
+      permission: 'reschedule_appointment',
+      scope: { kind: 'own_patient', ownerPatientId: 'patient_001' }
+    };
+    expect(() =>
+      evaluateAccess(context({ verifiedPatientId: 'patient_001' }), request)
+    ).not.toThrow();
+    expect(() =>
+      evaluateAccess(context({ verifiedPatientId: 'patient_002' }), request)
+    ).toThrowError(AuthorizationDeniedError);
+  });
+
   it('denies an action the role does not carry', () => {
     expect(() =>
       evaluateAccess(context(), {

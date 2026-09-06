@@ -167,7 +167,9 @@ export function planDeletion(request, appointment, patientBookingGuard) {
 export function planReschedule(request, appointment, targetSlot, patientBookingGuard) {
     assertUtcTimestamp(request.requestedAt, 'requestedAt');
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
-    if (appointment === undefined) {
+    if (appointment === undefined ||
+        (request.expectedPatientId !== undefined &&
+            appointment.patientId !== request.expectedPatientId)) {
         throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
     }
     // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。

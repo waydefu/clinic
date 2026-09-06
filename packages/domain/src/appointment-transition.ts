@@ -55,6 +55,12 @@ export interface TransitionRequest {
 export interface RescheduleRequest {
   readonly appointmentId: string;
   readonly targetSlotId: string;
+  /**
+   * When set, the appointment must belong to this patient. Callers that have
+   * a verified patient identity pass it so a BOLA attempt is the same
+   * `APPOINTMENT_NOT_FOUND` as a missing row — never an ownership oracle.
+   */
+  readonly expectedPatientId?: string;
   readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotency: IdempotencyContext;
@@ -401,7 +407,11 @@ export function planReschedule(
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
   assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
-  if (appointment === undefined) {
+  if (
+    appointment === undefined ||
+    (request.expectedPatientId !== undefined &&
+      appointment.patientId !== request.expectedPatientId)
+  ) {
     throw new DomainError(
       'APPOINTMENT_NOT_FOUND',
       'The appointment does not exist.'

@@ -64,6 +64,42 @@ describe('createRbacAppointmentPolicy', () => {
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 
+  it('scopes a verified patient reschedule to their own bookings', async () => {
+    await expect(
+      policyFor('patient').assertCanReschedule(
+        context({ verifiedPatientId: 'patient_001' }),
+        { appointmentPatientId: 'patient_001' }
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it('denies a patient rescheduling another patient resource', async () => {
+    await expect(
+      policyFor('patient').assertCanReschedule(
+        context({ verifiedPatientId: 'patient_001' }),
+        { appointmentPatientId: 'patient_002' }
+      )
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
+  it('denies a patient reschedule with no verified identity', async () => {
+    await expect(
+      policyFor('patient').assertCanReschedule(context(), {})
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
+  it('lets staff reschedule against the clinic-wide scope', async () => {
+    await expect(
+      policyFor('front_desk').assertCanReschedule(context(), {})
+    ).resolves.toBeUndefined();
+  });
+
+  it('denies a physician from rescheduling', async () => {
+    await expect(
+      policyFor('physician').assertCanReschedule(context(), {})
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
   it('resolves the opaque role through the injected resolver rather than guessing', async () => {
     const resolveRole = vi.fn<
       (context: AuthenticationContext) => CandidateRole

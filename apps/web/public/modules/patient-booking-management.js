@@ -1,5 +1,12 @@
 import { isWithinSelfCancelWindow } from '../vendor/domain/appointment-rules.js';
-import { transitionAppointment } from './appointment-domain.js';
+import {
+  rescheduleAppointment,
+  transitionAppointment
+} from './appointment-domain.js';
+import {
+  isUpcomingSlot,
+  isWithinSyntheticBookingWindow
+} from './schedule-engine.js';
 
 export const PATIENT_LOOKUP_ERROR = '查無符合的可管理預約。';
 
@@ -104,13 +111,12 @@ export function patientCancellationEligibility(appointment, nowMs) {
   return { allowed: true, code: 'allowed' };
 }
 
-/** 所有 guards 都在 canonical transition 之前；任何拒絕皆不會改動 state。 */
-export function cancelPatientAppointment(
+function requireSelfServiceAppointment(
   state,
   appointmentId,
   verificationInput,
-  actorId,
-  nowMs
+  nowMs,
+  deniedMessage
 ) {
   const appointment = lookupPatientAppointments(state, verificationInput).find(
     (item) => item.id === appointmentId
@@ -122,14 +128,73 @@ export function cancelPatientAppointment(
       eligibility.code,
       eligibility.code === 'already_cancelled'
         ? '這筆預約已取消。'
-        : '此預約無法線上取消，請來電由櫃台協助。'
+        : deniedMessage
     );
+  return appointment;
+}
+
+export function patientRescheduleTargets(state, appointment, nowMs) {
+  return state.slots.filter(
+    (slot) =>
+      slot.kind === appointment.bookingKind &&
+      slot.id !== appointment.slotId &&
+      slot.reservationId === undefined &&
+      isUpcomingSlot(slot, nowMs) &&
+      isWithinSyntheticBookingWindow(slot, nowMs)
+  );
+}
+
+export function reschedulePatientAppointment(
+  state,
+  appointmentId,
+  targetSlotId,
+  verificationInput,
+  actorId,
+  nowMs
+) {
+  requireSelfServiceAppointment(
+    state,
+    appointmentId,
+    verificationInput,
+    nowMs,
+    '此預約無法線上改期，請來電由櫃台協助。'
+  );
+  const target = state.slots.find((item) => item.id === targetSlotId);
+  if (
+    target === undefined ||
+    !isUpcomingSlot(target, nowMs) ||
+    !isWithinSyntheticBookingWindow(target, nowMs)
+  ) {
+    throw managementError(
+      'horizon_closed',
+      '此時段不在目前開放的 1 個月預約範圍內。'
+    );
+  }
+  return rescheduleAppointment(state, appointmentId, targetSlotId, actorId);
+}
+
+/** 所有 guards 都在 canonical transition 之前；任何拒絕皆不會改動 state。 */
+export function cancelPatientAppointment(
+  state,
+  appointmentId,
+  verificationInput,
+  actorId,
+  nowMs
+) {
+  requireSelfServiceAppointment(
+    state,
+    appointmentId,
+    verificationInput,
+    nowMs,
+    '此預約無法線上取消，請來電由櫃台協助。'
+  );
   return transitionAppointment(state, appointmentId, 'cancel', actorId);
 }
 
 export function managedAppointmentSummary(appointment) {
   return {
     id: appointment.id,
+    slotId: appointment.slotId,
     startsAt: appointment.startsAt,
     bookingKind: appointment.bookingKind,
     itemLabel: appointment.itemLabel ?? '',

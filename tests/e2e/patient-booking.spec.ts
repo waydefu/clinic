@@ -536,6 +536,55 @@ test.describe('患者線上預約', () => {
     );
   });
 
+  test('自助改期占用新時段並釋出原時段', async ({ page }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('改期測試患者');
+    await page.locator('#patient-phone').fill('0977000111');
+    await fillBirthDate(page, { year: '1984', month: '04', day: '18' });
+    await page.locator('#patient-national-id').fill('L123456789');
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    await makeLatestBookingSelfCancellable(page);
+    const before = await syntheticState(page);
+    const originalSlotId = before.appointments.at(-1).slotId;
+
+    await lookupBooking(page, {
+      phone: '0977000111',
+      birthDate: '1984-04-18'
+    });
+    const select = page.locator('[data-managed-reschedule-slot]');
+    await expect(select).toBeVisible();
+    const optionValues = await select.evaluate((element: HTMLSelectElement) =>
+      [...element.options].map((option) => option.value).filter(Boolean)
+    );
+    expect(optionValues.length).toBeGreaterThan(0);
+    await select.selectOption(optionValues[0]);
+    await page.locator('[data-managed-reschedule]').click();
+    await page.getByRole('button', { name: '確認改期' }).click();
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '預約已改期'
+    );
+
+    const after = await syntheticState(page);
+    const appointment = after.appointments.find(
+      (item: { id: string }) => item.id === before.appointments.at(-1).id
+    );
+    expect(appointment.slotId).not.toBe(originalSlotId);
+    expect(appointment.slotId).toBe(optionValues[0]);
+    expect(
+      after.slots.find((item: { id: string }) => item.id === originalSlotId)
+        .reservationId
+    ).toBeUndefined();
+    expect(
+      after.slots.find((item: { id: string }) => item.id === appointment.slotId)
+        .reservationId
+    ).toBe(appointment.id);
+  });
+
   test('逾當日 10:00 截止拒絕自助取消並提供電話與完整社群聯絡，拒絕不改狀態', async ({
     page
   }) => {

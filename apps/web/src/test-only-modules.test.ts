@@ -49,7 +49,8 @@ import { createAccount } from '../public/modules/workspace-domain.js';
 import {
   cancelPatientAppointment,
   lookupPatientAppointments,
-  patientCancellationEligibility
+  patientCancellationEligibility,
+  reschedulePatientAppointment
 } from '../public/modules/patient-booking-management.js';
 
 // 合成資料的可預約視窗自 2026-07-27 起由**今天**起算（P5，業主要求）。
@@ -360,6 +361,140 @@ describe('病人查詢與自助取消', () => {
       )
     ).toThrow('這筆預約已取消。');
     expect(JSON.stringify(state)).toBe(afterFirst);
+  });
+});
+
+describe('病人自助改期', () => {
+  const verification = {
+    mode: 'phone',
+    phone: PATIENT_A.phone,
+    birthDate: PATIENT_A.birthDate
+  };
+  const bookedState = () => {
+    const state: any = initialState();
+    const appointment = createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemIds: ['service_snoring']
+      },
+      'patient_test_001'
+    );
+    return { state, appointment };
+  };
+
+  it('占用新時段並釋出原時段', () => {
+    const { state, appointment } = bookedState();
+    const original = appointment.slotId;
+    const target = openSlot(state, 'initial');
+    const before = {
+      audit: state.auditEvents.length,
+      outbox: state.outboxJobs.length
+    };
+
+    reschedulePatientAppointment(
+      state,
+      appointment.id,
+      target.id,
+      verification,
+      'actor_test_patient_001',
+      Date.parse('2030-01-02T01:00:00.000Z')
+    );
+
+    expect(appointment.slotId).toBe(target.id);
+    expect(appointment.status).toBe('confirmed');
+    expect(
+      state.slots.find((item: { id: string }) => item.id === original)
+        .reservationId
+    ).toBeUndefined();
+    expect(
+      state.slots.find((item: { id: string }) => item.id === target.id)
+        .reservationId
+    ).toBe(appointment.id);
+    expect(state.auditEvents).toHaveLength(before.audit + 1);
+    expect(state.auditEvents.at(-1).action).toBe('appointment_rescheduled');
+    expect(state.outboxJobs).toHaveLength(before.outbox + 1);
+  });
+
+  it('目標時段衝突、逾截止、錯誤身分與超出視窗都不會改動原預約', () => {
+    const { state: occupiedState, appointment: occupiedAppointment } =
+      bookedState();
+    const occupiedOriginal = occupiedAppointment.slotId;
+    const occupiedTarget = openSlot(occupiedState, 'initial');
+    occupiedTarget.reservationId = 'appointment_other';
+    expect(() =>
+      reschedulePatientAppointment(
+        occupiedState,
+        occupiedAppointment.id,
+        occupiedTarget.id,
+        verification,
+        'actor_test_patient_001',
+        Date.parse('2030-01-02T01:00:00.000Z')
+      )
+    ).toThrow();
+    expect(occupiedAppointment.slotId).toBe(occupiedOriginal);
+    expect(
+      occupiedState.slots.find(
+        (item: { id: string }) => item.id === occupiedOriginal
+      ).reservationId
+    ).toBe(occupiedAppointment.id);
+    expect(occupiedTarget.reservationId).toBe('appointment_other');
+
+    const deniedCases = [
+      (state: any, appointment: any) =>
+        reschedulePatientAppointment(
+          state,
+          appointment.id,
+          openSlot(state, 'initial').id,
+          verification,
+          'actor_test_patient_001',
+          Date.parse('2030-01-02T02:00:00.000Z')
+        ),
+      (state: any, appointment: any) =>
+        reschedulePatientAppointment(
+          state,
+          appointment.id,
+          openSlot(state, 'initial').id,
+          { ...verification, phone: '0900000000' },
+          'actor_test_patient_001',
+          Date.parse('2030-01-02T01:00:00.000Z')
+        )
+    ];
+    for (const deny of deniedCases) {
+      const { state, appointment } = bookedState();
+      const before = JSON.stringify(state);
+      expect(() => deny(state, appointment)).toThrow();
+      expect(JSON.stringify(state)).toBe(before);
+    }
+
+    const { state: farState, appointment: farAppointment } = bookedState();
+    const farOriginal = farAppointment.slotId;
+    farState.slots.push({
+      id: 'slot_20310601_1200',
+      kind: 'initial',
+      startsAt: '2031-06-01T04:00:00.000Z'
+    });
+    expect(() =>
+      reschedulePatientAppointment(
+        farState,
+        farAppointment.id,
+        'slot_20310601_1200',
+        verification,
+        'actor_test_patient_001',
+        Date.parse('2030-01-02T01:00:00.000Z')
+      )
+    ).toThrow('1 個月預約範圍');
+    expect(farAppointment.slotId).toBe(farOriginal);
+    expect(
+      farState.slots.find((item: { id: string }) => item.id === farOriginal)
+        .reservationId
+    ).toBe(farAppointment.id);
+    expect(
+      farState.slots.find(
+        (item: { id: string }) => item.id === 'slot_20310601_1200'
+      ).reservationId
+    ).toBeUndefined();
   });
 });
 
@@ -718,6 +853,30 @@ describe('櫃台處置', () => {
         'admin_test_001'
       )
     ).toThrow(/掛號別不符/);
+  });
+
+  it('目標時段已被占用時原預約不變', () => {
+    const state = initialState();
+    const appointment = book(state);
+    const original = appointment.slotId;
+    const target = openSlot(state, 'initial');
+    target.reservationId = 'appointment_other';
+
+    expect(() =>
+      rescheduleAppointment(
+        state,
+        appointment.id,
+        target.id,
+        'front_desk_test_001'
+      )
+    ).toThrow();
+
+    expect(appointment.slotId).toBe(original);
+    expect(
+      state.slots.find((item: { id: string }) => item.id === original)
+        .reservationId
+    ).toBe(appointment.id);
+    expect(target.reservationId).toBe('appointment_other');
   });
 
   it('回診確認可記錄項目、備註與診斷書份數', () => {
