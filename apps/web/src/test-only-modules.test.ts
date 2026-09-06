@@ -22,8 +22,11 @@ import {
 import {
   appointmentPage,
   DEFAULT_APPOINTMENT_PAGE_SIZE,
+  isTodayWork,
   renderAppointments,
-  renderIntakeSheet
+  renderFollowUps,
+  renderIntakeSheet,
+  summaryCounts
 } from '../public/modules/admin-view.js';
 import {
   bookingHorizonEndExclusive,
@@ -1702,5 +1705,109 @@ describe('工作臺批次的新行為', () => {
       const appointment = bookOne(state, ['service_snoring']);
       expect(sheetFor(state, appointment.id)).not.toMatch(/\sstyle="/);
     });
+  });
+});
+
+describe('工作臺語意 T2-WB-02', () => {
+  const filtersAll = { status: 'all', kind: 'all', query: '' };
+
+  it('療程欄顯示項目名稱，不顯示預約內部 ID', () => {
+    const state: any = initialState();
+    const appointment = createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemIds: ['service_snoring']
+      },
+      'admin_test_001'
+    );
+    const html = renderAppointments(state, filtersAll);
+    expect(html).toContain(appointment.itemLabel);
+    // 功能掛鉤（data-attributes、搜尋索引）保留，肉眼可見的裸 ID 移除。
+    expect(html).toContain(`data-appointment-card="${appointment.id}"`);
+    expect(html).not.toContain(`<span class="code">${appointment.id}</span>`);
+  });
+
+  it('回診待安排列不顯示來源 ID', () => {
+    const state: any = initialState();
+    state.patients.push({
+      id: 'patient_wb02',
+      name: '工作臺患者',
+      birthDate: '1990-05-20'
+    });
+    state.appointments.push({
+      id: 'appointment_wb02_followup',
+      patientId: 'patient_wb02',
+      startsAt: '2030-01-01T02:00:00.000Z',
+      bookingKind: 'initial',
+      itemIds: ['service_snoring'],
+      itemLabel: '止鼾',
+      status: 'completed'
+    });
+    state.followUps.push({
+      appointmentId: 'appointment_wb02_followup',
+      status: 'required',
+      tags: [],
+      dueDate: '2030-01-05',
+      dueTime: '10:00'
+    });
+    const html = renderAppointments(state, filtersAll);
+    expect(html).toContain('待安排回診');
+    expect(html).not.toContain(
+      '<span class="code">appointment_wb02_followup</span>'
+    );
+  });
+
+  it('回診決策卡顯示項目，不顯示裸 ID', () => {
+    const state: any = initialState();
+    state.patients.push({ id: 'patient_wb02', name: '工作臺患者' });
+    state.appointments.push({
+      id: 'appointment_wb02_decision',
+      patientId: 'patient_wb02',
+      startsAt: '2030-01-01T02:00:00.000Z',
+      bookingKind: 'initial',
+      itemIds: ['service_snoring'],
+      itemLabel: '止鼾',
+      status: 'completed'
+    });
+    const html = renderFollowUps(state);
+    expect(html).toContain('止鼾');
+    expect(html).not.toContain('<span class="code">appointment_wb02_decision');
+  });
+
+  it('summaryCounts 只算台北今天，與清單當日口徑一致', () => {
+    const state: any = initialState();
+    state.slots = [
+      { id: 'slot_today_open', startsAt: '2030-01-01T02:00:00.000Z' },
+      {
+        id: 'slot_today_taken',
+        startsAt: '2030-01-01T03:00:00.000Z',
+        reservationId: 'appointment_taken'
+      },
+      { id: 'slot_tomorrow_open', startsAt: '2030-01-02T02:00:00.000Z' }
+    ];
+    state.patients.push({ id: 'patient_wb02', name: '工作臺患者' });
+    const visit = (id: string, startsAt: string, status: string) => ({
+      id,
+      patientId: 'patient_wb02',
+      startsAt,
+      bookingKind: 'initial',
+      itemLabel: '止鼾',
+      status
+    });
+    state.appointments = [
+      visit('a_today_confirmed', '2030-01-01T02:00:00.000Z', 'confirmed'),
+      visit('a_tomorrow_confirmed', '2030-01-02T02:00:00.000Z', 'confirmed'),
+      visit('a_today_completed', '2030-01-01T01:00:00.000Z', 'completed'),
+      visit('a_past_completed', '2029-12-31T02:00:00.000Z', 'completed')
+    ];
+    expect(summaryCounts(state, '2030-01-01')).toEqual({
+      available: 1,
+      pending: 1,
+      completed: 1
+    });
+    expect(isTodayWork(state, state.appointments[0], '2030-01-01')).toBe(true);
+    expect(isTodayWork(state, state.appointments[1], '2030-01-01')).toBe(false);
   });
 });
