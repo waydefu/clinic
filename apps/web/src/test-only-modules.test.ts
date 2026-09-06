@@ -254,18 +254,33 @@ describe('病人查詢與自助取消', () => {
   });
 
   it.each([
-    [21, true, 'allowed'],
-    [20, false, 'phone_required'],
-    [19, false, 'phone_required'],
-    [-1, false, 'phone_required']
-  ])('距離 %i 分鐘時 allowed=%s', (minutes, allowed, code) => {
-    const now = Date.parse('2030-01-02T03:00:00.000Z');
+    // 2030-01-02（週四）預約：截止是當日 10:00+08:00＝02:00Z。09:59 可，10:00 拒。
+    ['2030-01-02T01:59:00.000Z', true, 'allowed'],
+    ['2030-01-02T02:00:00.000Z', false, 'phone_required'],
+    ['2030-01-01T12:00:00.000Z', true, 'allowed'],
+    ['2030-01-03T00:00:00.000Z', false, 'phone_required']
+  ])('%s 時 allowed=%s', (nowIso, allowed, code) => {
     expect(
       patientCancellationEligibility(
-        { status: 'confirmed', startsAt: new Date(now + minutes * 60_000) },
-        now
+        { status: 'confirmed', startsAt: '2030-01-02T04:00:00.000Z' },
+        Date.parse(nowIso)
       )
     ).toMatchObject({ allowed, code });
+  });
+
+  it('時間不可用時 fail closed', () => {
+    expect(
+      patientCancellationEligibility(
+        { status: 'confirmed', startsAt: '2030-01-02T04:00:00.000Z' },
+        Number.NaN
+      )
+    ).toMatchObject({ allowed: false, code: 'time_unavailable' });
+    expect(
+      patientCancellationEligibility(
+        { status: 'confirmed', startsAt: 'not-a-time' },
+        Date.parse('2030-01-01T00:00:00.000Z')
+      )
+    ).toMatchObject({ allowed: false, code: 'time_unavailable' });
   });
 
   it('成功直接進 canonical cancelled、釋放時段、各新增一次 audit/outbox', () => {
@@ -283,7 +298,7 @@ describe('病人查詢與自助取消', () => {
       appointment.id,
       verification,
       'actor_test_patient_001',
-      Date.parse(appointment.startsAt) - 21 * 60_000
+      Date.parse('2030-01-02T01:00:00.000Z')
     );
 
     expect(appointment.status).toBe('cancelled');
@@ -294,15 +309,16 @@ describe('病人查詢與自助取消', () => {
     expect(state.outboxJobs.at(-1).appointmentStatus).toBe('cancelled');
   });
 
-  it('20 分鐘、錯誤身分與已取消重試都在 mutation 前拒絕', () => {
+  it('逾截止、錯誤身分與已取消重試都在 mutation 前拒絕', () => {
     const deniedCases = [
+      // 預約當日 10:00+08:00（＝02:00Z）整點已逾：09:59 可，10:00 拒。
       (state: any, appointment: any) =>
         cancelPatientAppointment(
           state,
           appointment.id,
           verification,
           'actor_test_patient_001',
-          Date.parse(appointment.startsAt) - 20 * 60_000
+          Date.parse('2030-01-02T02:00:00.000Z')
         ),
       (state: any, appointment: any) =>
         cancelPatientAppointment(
@@ -310,7 +326,7 @@ describe('病人查詢與自助取消', () => {
           appointment.id,
           { ...verification, phone: '0900000000' },
           'actor_test_patient_001',
-          Date.parse(appointment.startsAt) - 21 * 60_000
+          Date.parse('2030-01-02T01:00:00.000Z')
         )
     ];
     for (const deny of deniedCases) {
@@ -321,7 +337,7 @@ describe('病人查詢與自助取消', () => {
     }
 
     const { state, appointment } = bookedState();
-    const now = Date.parse(appointment.startsAt) - 21 * 60_000;
+    const now = Date.parse('2030-01-02T01:00:00.000Z');
     cancelPatientAppointment(
       state,
       appointment.id,

@@ -1056,7 +1056,7 @@ function cancellationContactFallback() {
         `<a class="button button-tertiary" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
     )
     .join('');
-  return `<div class="booking-cancel-contact"><strong>距離預約時間不足 20 分鐘，如需取消或更改，建議直接來電診所。</strong><a class="button button-primary booking-phone-fallback" href="${escapeHtml(CLINIC.phoneHref)}">立即撥打 ${escapeHtml(CLINIC.phoneDisplay)}</a><span>其他聯絡方式：</span><div class="booking-social-fallback" aria-label="其他聯絡方式">${social}</div><p class="booking-contact-disclaimer">社群訊息不保證即時回覆；急件請直接來電。以上連結會開啟外部網站，且不會自動取消預約。</p></div>`;
+  return `<div class="booking-cancel-contact"><strong>預約當日 10:00 後如需取消或更改，建議直接來電診所。</strong><a class="button button-primary booking-phone-fallback" href="${escapeHtml(CLINIC.phoneHref)}">立即撥打 ${escapeHtml(CLINIC.phoneDisplay)}</a><span>其他聯絡方式：</span><div class="booking-social-fallback" aria-label="其他聯絡方式">${social}</div><p class="booking-contact-disclaimer">社群訊息不保證即時回覆；急件請直接來電。以上連結會開啟外部網站，且不會自動取消預約。</p></div>`;
 }
 
 function openBookingManagement(trigger) {

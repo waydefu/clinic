@@ -1,6 +1,6 @@
+import { isWithinSelfCancelWindow } from '../vendor/domain/appointment-rules.js';
 import { transitionAppointment } from './appointment-domain.js';
 
-export const SELF_CANCEL_CUTOFF_MINUTES = 20;
 export const PATIENT_LOOKUP_ERROR = '查無符合的可管理預約。';
 
 export class PatientBookingManagementError extends Error {
@@ -83,6 +83,8 @@ export function lookupPatientAppointments(state, input) {
 }
 
 /**
+ * 患者自助取消截止：預約當日 10:00（Asia/Taipei），逾期改來電
+ *（Q6／D-005 方向；計算見領域 isWithinSelfCancelWindow）。
  * Synthetic browser preview 以呼叫端傳入的 `nowMs` 做邊界證明。正式服務不可相信
  * 瀏覽器時鐘：必須使用可信伺服器時間；時間不可取得或解析時一律 fail closed。
  */
@@ -93,13 +95,13 @@ export function patientCancellationEligibility(appointment, nowMs) {
     return { allowed: false, code: 'already_cancelled' };
   if (!['confirmed', 'cancellation_requested'].includes(appointment.status))
     return { allowed: false, code: 'not_cancelable' };
-  const startsAtMs = Date.parse(appointment.startsAt);
-  if (!Number.isFinite(startsAtMs))
+  try {
+    if (!isWithinSelfCancelWindow(appointment.startsAt, nowMs))
+      return { allowed: false, code: 'phone_required' };
+  } catch {
     return { allowed: false, code: 'time_unavailable' };
-  const remainingMinutes = (startsAtMs - nowMs) / 60_000;
-  if (remainingMinutes <= SELF_CANCEL_CUTOFF_MINUTES)
-    return { allowed: false, code: 'phone_required', remainingMinutes };
-  return { allowed: true, code: 'allowed', remainingMinutes };
+  }
+  return { allowed: true, code: 'allowed' };
 }
 
 /** 所有 guards 都在 canonical transition 之前；任何拒絕皆不會改動 state。 */

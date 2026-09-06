@@ -532,7 +532,7 @@ test.describe('患者線上預約', () => {
     );
   });
 
-  test('距預約 19 分鐘拒絕自助取消並提供電話與完整社群聯絡，拒絕不改狀態', async ({
+  test('逾當日 10:00 截止拒絕自助取消並提供電話與完整社群聯絡，拒絕不改狀態', async ({
     page
   }) => {
     await page.locator('[data-booking-type="initial"]').click();
@@ -548,8 +548,9 @@ test.describe('患者線上預約', () => {
 
     await page.evaluate((key) => {
       const next = JSON.parse(localStorage.getItem(key) ?? 'null');
+      // 昨日同時刻：當日 10:00 截止早已過去，且與 CI 執行時刻無關。
       next.appointments.at(-1).startsAt = new Date(
-        Date.now() + 19 * 60_000
+        Date.now() - 26 * 60 * 60_000
       ).toISOString();
       localStorage.setItem(key, JSON.stringify(next));
     }, STORAGE_KEY);
