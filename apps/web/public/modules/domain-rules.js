@@ -18,7 +18,7 @@ const MESSAGES = {
   SLOT_UNAVAILABLE: '此時段已無法預約。',
   BOOKING_KIND_MISMATCH: '此時段與掛號別不符，請改選對應的時段。',
   DUPLICATE_ACTIVE_BOOKING:
-    '同一位患者同時只能有一筆未完成的預約，請先完成或取消現有預約。',
+    '同一位患者同時最多只能有兩筆未完成的預約，請先完成或取消現有預約。',
   TRANSITION_NOT_ALLOWED: '目前的預約狀態無法執行這個動作。',
   INVALID_VALUE: '所選時段無效。'
 };

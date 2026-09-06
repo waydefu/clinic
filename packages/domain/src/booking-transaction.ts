@@ -30,8 +30,8 @@ import { assertUtcTimestamp } from './timestamp.js';
 
 export type BookingKind = 'initial' | 'follow_up';
 
-/** 同一人同時只能有一筆未結束的預約。 */
-export const ACTIVE_BOOKING_LIMIT = 1;
+/** 同一人同時最多兩筆未結束的預約。 */
+export const ACTIVE_BOOKING_LIMIT = 2;
 export const ACTIVE_BOOKING_STATUSES: readonly string[] = [
   'confirmed',
   'cancellation_requested'
@@ -44,15 +44,20 @@ export interface SlotSnapshot {
   readonly reservationId?: string;
 }
 
-export type PatientBookingGuardStatus = 'confirmed' | 'cancellation_requested';
-
 /**
- * Snapshot of `patient_booking_guards/{patientId}`. Document existence is the
- * explicit active-booking lock; terminal appointments do not retain a guard.
+ * Snapshot of `patient_booking_guards/{patientId}`.
+ *
+ * The document is the patient-level contention point: every transaction that
+ * changes the unfinished-appointment count reads and writes this same row, even
+ * when the requests target different slots. Terminal appointments drop out of
+ * the ID set; an empty set means the document is deleted.
+ *
+ * Legacy rows store a single `activeAppointmentId` (and optionally `status`).
+ * `parsePatientBookingGuard` reads that form. The first mutation writes only
+ * `activeAppointmentIds` and `updatedAt`.
  */
 export interface PatientBookingGuardSnapshot {
-  readonly activeAppointmentId: string;
-  readonly status: PatientBookingGuardStatus;
+  readonly activeAppointmentIds: readonly string[];
   readonly updatedAt: string;
 }
 
@@ -115,6 +120,90 @@ function assertIdentifier(value: string, fieldName: string): void {
   }
 }
 
+function uniqueIdentifiers(
+  values: readonly unknown[],
+  fieldName: string
+): string[] {
+  const identifiers: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== 'string') {
+      throw new DomainError(
+        'INVALID_VALUE',
+        `${fieldName} must be opaque identifiers.`
+      );
+    }
+    assertIdentifier(value, fieldName);
+    if (seen.has(value)) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        `${fieldName} must not contain duplicates.`
+      );
+    }
+    seen.add(value);
+    identifiers.push(value);
+  }
+  return identifiers;
+}
+
+/**
+ * Reads the canonical or legacy patient-guard document.
+ *
+ * New rows use `activeAppointmentIds`. Legacy rows use a single
+ * `activeAppointmentId`. When both are present the array is the source of
+ * truth so a partial write cannot double-count.
+ */
+export function parsePatientBookingGuard(
+  data: unknown
+): PatientBookingGuardSnapshot {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The patient booking guard is unreadable.'
+    );
+  }
+  const record = data as Record<string, unknown>;
+  const updatedAt = record['updatedAt'];
+  if (typeof updatedAt !== 'string') {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The patient booking guard is unreadable.'
+    );
+  }
+  assertUtcTimestamp(updatedAt, 'updatedAt');
+
+  const rawIds = record['activeAppointmentIds'];
+  const ids =
+    Array.isArray(rawIds) && rawIds.length > 0
+      ? uniqueIdentifiers(rawIds, 'activeAppointmentIds')
+      : typeof record['activeAppointmentId'] === 'string' &&
+          record['activeAppointmentId'] !== ''
+        ? uniqueIdentifiers(
+            [record['activeAppointmentId']],
+            'activeAppointmentId'
+          )
+        : undefined;
+
+  if (ids === undefined || ids.length === 0) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The patient booking guard is unreadable.'
+    );
+  }
+
+  return {
+    activeAppointmentIds: ids,
+    updatedAt
+  };
+}
+
+export function patientBookingGuardHolds(
+  guard: PatientBookingGuardSnapshot | undefined,
+  appointmentId: string
+): boolean {
+  return guard?.activeAppointmentIds.includes(appointmentId) === true;
+}
+
 /**
  * Decides the complete set of writes for one reservation.
  *
@@ -142,7 +231,14 @@ export function planBooking(
     );
   }
   assertSlotBookable(slot, request.bookingKind);
-  assertWithinActiveBookingLimit(patientBookingGuard === undefined ? 0 : 1);
+  const activeIds = patientBookingGuard?.activeAppointmentIds ?? [];
+  assertWithinActiveBookingLimit(activeIds.length);
+  if (activeIds.includes(request.appointmentId)) {
+    throw new DomainError(
+      'DUPLICATE_ACTIVE_BOOKING',
+      'The patient already has the maximum number of active bookings.'
+    );
+  }
 
   const appointment: PlannedAppointment = {
     id: request.appointmentId,
@@ -176,8 +272,7 @@ export function planBooking(
       reservationId: request.appointmentId
     },
     patientBookingGuard: {
-      activeAppointmentId: request.appointmentId,
-      status: 'confirmed',
+      activeAppointmentIds: [...activeIds, request.appointmentId],
       updatedAt: request.requestedAt
     },
     auditEvent,

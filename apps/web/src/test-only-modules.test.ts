@@ -575,8 +575,17 @@ describe('預約建立', () => {
     }
   });
 
-  it('同一人同時只能有一筆未完成預約', () => {
+  it('同一人同時最多兩筆未完成預約', () => {
     const state = initialState();
+    createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemIds: ['service_snoring']
+      },
+      'admin_test_001'
+    );
     createBooking(
       state,
       {

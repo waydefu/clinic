@@ -76,7 +76,7 @@ export function assertWithinActiveBookingLimit(activeCount: number): void {
   if (activeCount >= ACTIVE_BOOKING_LIMIT) {
     throw new DomainError(
       'DUPLICATE_ACTIVE_BOOKING',
-      'The patient already has an active booking.'
+      'The patient already has the maximum number of active bookings.'
     );
   }
 }
