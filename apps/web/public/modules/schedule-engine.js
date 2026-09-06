@@ -82,11 +82,15 @@ export function generateSlots(schedule, existingSlots = [], options = {}) {
   );
 }
 
+// 視窗的排他終點（毫秒）：領域規則的日期字串轉成當日午夜 +08:00。
+// generateSlots 與 command boundary 共用，避免兩處各自拼一次。
+function windowEndMs(startDate) {
+  return Date.parse(`${bookingHorizonEndExclusive(startDate)}T00:00:00+08:00`);
+}
+
 function horizonDayCount(startDate) {
-  const endExclusive = bookingHorizonEndExclusive(startDate);
   return Math.round(
-    (Date.parse(`${endExclusive}T00:00:00+08:00`) -
-      Date.parse(`${startDate}T00:00:00+08:00`)) /
+    (windowEndMs(startDate) - Date.parse(`${startDate}T00:00:00+08:00`)) /
       86_400_000
   );
 }
@@ -107,9 +111,7 @@ export function assertWithinSyntheticBookingWindow(slot) {
   if (!Number.isFinite(startsAt)) throw new Error('預約時段格式無效。');
   const startDate = syntheticWindowStart();
   const windowStart = Date.parse(`${startDate}T00:00:00+08:00`);
-  const windowEnd = Date.parse(
-    `${bookingHorizonEndExclusive(startDate)}T00:00:00+08:00`
-  );
+  const windowEnd = windowEndMs(startDate);
   if (startsAt < windowStart || startsAt >= windowEnd)
     throw new Error('此時段不在目前開放的 1 個月預約範圍內。');
 }

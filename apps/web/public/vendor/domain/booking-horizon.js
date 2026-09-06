@@ -15,28 +15,26 @@ const TAIPEI_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 function daysInMonth(year, month) {
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
-function formatDate(year, month, day) {
-    const pad = (value) => String(value).padStart(2, '0');
-    return `${year}-${pad(month)}-${pad(day)}`;
-}
 export function bookingHorizonEndExclusive(taipeiToday) {
-    const match = TAIPEI_DATE_PATTERN.exec(taipeiToday);
-    const year = match === null ? Number.NaN : Number(match[1]);
-    const month = match === null ? Number.NaN : Number(match[2]);
-    const day = match === null ? Number.NaN : Number(match[3]);
-    if (!Number.isInteger(year) ||
-        !Number.isInteger(month) ||
+    // 位數格式正確時三者必為整數；只有解析失敗才會出現 NaN，
+    // 所以加總一次檢查就等價於三個 isInteger。
+    const match = TAIPEI_DATE_PATTERN.exec(taipeiToday) ?? [];
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (Number.isNaN(year + month + day) ||
         month < 1 ||
         month > 12 ||
-        !Number.isInteger(day) ||
         day < 1 ||
         day > daysInMonth(year, month)) {
-        throw new DomainError('INVALID_VALUE', 'taipeiToday must be a real YYYY-MM-DD calendar date.');
+        throw new DomainError('INVALID_VALUE', 'must be a real calendar date.');
     }
     const nextYear = month === 12 ? year + 1 : year;
     const nextMonth = month === 12 ? 1 : month + 1;
     const lastBookableDay = Math.min(day, daysInMonth(nextYear, nextMonth));
-    const endExclusiveMs = Date.UTC(nextYear, nextMonth - 1, lastBookableDay) + 86_400_000;
-    const end = new Date(endExclusiveMs);
-    return formatDate(end.getUTCFullYear(), end.getUTCMonth() + 1, end.getUTCDate());
+    // 「最後可訂日加一」可能跨月，交給 Date.UTC 正規化，不手寫進位分支；
+    // toISOString 前十碼即 UTC 的 YYYY-MM-DD。
+    return new Date(Date.UTC(nextYear, nextMonth - 1, lastBookableDay + 1))
+        .toISOString()
+        .slice(0, 10);
 }
