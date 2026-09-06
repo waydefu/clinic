@@ -7,10 +7,12 @@ import {
   getMultiFactorResolver,
   getRedirectResult,
   multiFactor,
+  onAuthStateChanged,
   signInWithRedirect,
   signOut
 } from 'firebase/auth';
 import { CALENDAR_PILOT_SCHEDULE, planSlots } from '@beauessence/domain';
+import { resolveBootUser } from '../public/modules/pilot-auth-state.js';
 
 const API = '/v1';
 let csrfToken;
@@ -202,7 +204,13 @@ async function completeGoogleSignIn() {
     );
     result = await resolver.resolveSignIn(assertion);
   }
-  const user = result?.user ?? auth.currentUser;
+  // Redirect 回來的使用者直接採用；否則等第一次 auth state 觸發、確認
+  // 已持久化狀態還原完成後，才讀 currentUser 做登入決定（T1-AUTH-01）。
+  const user = await resolveBootUser({
+    redirectResult: result,
+    onAuthStateChanged: (callback) => onAuthStateChanged(auth, callback),
+    currentUser: () => auth.currentUser
+  });
   if (user === null) return false;
   const factors = multiFactor(user);
   if (factors.enrolledFactors.length === 0) {
