@@ -1,6 +1,11 @@
 import type { CalendarAction } from './calendar-port.js';
 
-export type WorkerAttemptResult = 'completed' | 'retried' | 'dead_lettered';
+export type WorkerAttemptResult =
+  | 'completed'
+  | 'retried'
+  | 'dead_lettered'
+  /** The lease moved to another worker before settlement; nothing was written. */
+  | 'superseded';
 
 /**
  * Low-cardinality metric for one external attempt. Identifiers deliberately do

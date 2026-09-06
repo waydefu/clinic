@@ -9,6 +9,7 @@ import {
 } from '@beauessence/domain';
 import {
   CLINIC_EVENT_COLOR_ID,
+  CalendarError,
   InMemoryCalendar,
   type CalendarProjectionOptions,
   type CalendarProjectionRequest
@@ -811,5 +812,65 @@ describe('outbox worker', () => {
 
     expect((await jobState('outbox_aa_early'))?.['status']).toBe('completed');
     expect((await jobState('outbox_zz_late'))?.['status']).toBe('pending');
+  });
+
+  // 陳舊結算不得覆寫：A 領走後外部呼叫卡住超過租約，B 合法接管並結算完成；
+  // A 醒來後的結算必須被忽略，而不是把已完成的工作打回重試。
+  it('ignores a stale worker settlement after another worker reclaimed the job', async () => {
+    await seedJob();
+
+    let releaseHang: (() => void) | undefined;
+    const hang = new Promise<void>((resolve) => {
+      releaseHang = resolve;
+    });
+    const hangingCalendar = new InMemoryCalendar();
+    const originalProject = hangingCalendar.project.bind(hangingCalendar);
+    let hangCalls = 0;
+    hangingCalendar.project = async (request, options) => {
+      hangCalls += 1;
+      if (hangCalls === 1) {
+        await hang;
+        throw new CalendarError('late external failure', true);
+      }
+      return originalProject(request, options);
+    };
+
+    const workerA = new OutboxProcessor(
+      db,
+      hangingCalendar,
+      metrics,
+      () => 0.5,
+      () => 0
+    );
+    const workerB = new OutboxProcessor(
+      db,
+      calendar,
+      metrics,
+      () => 0.5,
+      () => 0
+    );
+
+    const summaryAPromise = workerA.processDue(NOW);
+    const start = Date.now();
+    while ((await jobState())?.['status'] !== 'in_progress') {
+      if (Date.now() - start > 10_000)
+        throw new Error('worker A never claimed');
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    const summaryB = await workerB.processDue(later(180));
+    expect(summaryB).toMatchObject({ claimed: 1, completed: 1 });
+
+    releaseHang?.();
+    const summaryA = await summaryAPromise;
+
+    expect(summaryA).toMatchObject({
+      claimed: 1,
+      completed: 0,
+      retried: 0,
+      deadLettered: 0
+    });
+    expect((await jobState())?.['status']).toBe('completed');
+    expect((await jobState())?.['attempts']).toBe(1);
   });
 });
