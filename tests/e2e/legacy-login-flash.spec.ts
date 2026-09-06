@@ -29,7 +29,7 @@ test.describe('legacy synthetic login flash', () => {
       });
     });
 
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/staff', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => {
       const login = document.getElementById('login-view');
       const boot = document.getElementById('cal-pilot-boot-status');
@@ -95,7 +95,7 @@ test.describe('legacy synthetic login flash', () => {
       await route.fulfill({ status: 404, json: {} });
     });
 
-    await page.goto('/');
+    await page.goto('/staff');
     await expect(page.getByRole('heading', { name: '待審佇列' })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: '登入營運工作臺' })

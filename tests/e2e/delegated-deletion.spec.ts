@@ -13,7 +13,7 @@ import {
 // 一樣會被擋——「隱藏按鈕」從來不是授權。
 
 async function addAuthorization(page: Page, label: string, secret: string) {
-  await page.goto('/#accounts-section');
+  await page.goto('/staff#accounts-section');
   await page.locator('#delegation-label').fill(label);
   await page.locator('#delegation-secret').fill(secret);
   await page.locator('#delegation-form button[type="submit"]').click();
@@ -37,7 +37,7 @@ async function enableDelegation(page: Page) {
  * 按鈕），所以要先把選單展開，否則按鈕存在卻不可見。
  */
 async function openDeleteDialog(page: Page) {
-  await page.goto('/#appointments-section');
+  await page.goto('/staff#appointments-section');
   await showAllAppointments(page);
   const menu = page.locator('details.action-menu').first();
   if ((await menu.count()) > 0)
@@ -50,7 +50,7 @@ async function openDeleteDialog(page: Page) {
 test.describe('刪除預約的委派授權', () => {
   test('預設是關的，而且一組授權碼都沒有', async ({ page }) => {
     await login(page, 'admin');
-    await page.goto('/#accounts-section');
+    await page.goto('/staff#accounts-section');
     await expect(page.locator('[data-delegation-toggle]')).toHaveText(
       '開啟委派'
     );
@@ -61,7 +61,7 @@ test.describe('刪除預約的委派授權', () => {
     await login(page, 'admin');
     await createBooking(page, { name: '委派測試甲' });
     await switchRole(page, 'front');
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await showAllAppointments(page);
     await expect(
       page.locator('[data-appointment-action="delete"]')
@@ -144,7 +144,7 @@ test.describe('刪除預約的委派授權', () => {
     await createBooking(page, { name: '委派測試戊' });
 
     await switchRole(page, 'front');
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await showAllAppointments(page);
     // 委派雖然開著，但沒有任何啟用中的授權碼，入口就不該出現。
     await expect(
@@ -164,7 +164,7 @@ test.describe('刪除預約的委派授權', () => {
     await createBooking(page, { name: '委派測試己' });
 
     await switchRole(page, 'front');
-    await page.goto('/#appointments-section');
+    await page.goto('/staff#appointments-section');
     await showAllAppointments(page);
     await expect(
       page.locator('[data-appointment-action="delete"]')

@@ -7,13 +7,18 @@ type PrettyPath = [route: string, entry: string];
 
 const CLINIC_ROUTES = ['/clinic', '/clinic/doctors', '/clinic/doctors/example'];
 const PRETTY_PATHS: PrettyPath[] = [
+  ['/staff', 'index.html'],
   ['/booking', 'patient.html'],
   ['/privacy', 'privacy.html'],
   ...CLINIC_ROUTES.map((route): PrettyPath => [route, 'clinic.html'])
 ];
 
+const ROOT_REDIRECT_DECLARATION =
+  "const ROOT_REDIRECT = { source: '/', destination: '/clinic', type: 302 };";
+
 function serverSource(paths: PrettyPath[] = PRETTY_PATHS): string {
-  return `const PRETTY_PATHS = new Map([\n${paths
+  return `${ROOT_REDIRECT_DECLARATION}
+const PRETTY_PATHS = new Map([\n${paths
     .map(([route, entry]) => `  ['${route}', '${entry}']`)
     .join(',\n')}\n]);\n`;
 }
@@ -51,13 +56,16 @@ function fixture() {
       why: '縮小但形狀完整的 public-page gate 測試夾具。',
       pages: [
         {
-          route: '/',
+          route: '/staff',
           entry: 'index.html',
           audience: 'staff',
           indexable: false,
           scans: [],
-          note: 'root',
-          routing: { kind: 'root', entryRedirect: null }
+          note: 'staff workbench canonical route',
+          routing: {
+            kind: 'exact',
+            entryRedirect: { status: 301 }
+          }
         },
         {
           route: '/booking',
@@ -120,6 +128,16 @@ function fixture() {
       hosting: {
         redirects: [
           {
+            source: '/',
+            destination: '/clinic',
+            type: 302
+          },
+          {
+            source: '/index.html',
+            destination: '/staff',
+            type: 301
+          },
+          {
             source: '/patient.html',
             destination: '/booking',
             type: 301
@@ -144,6 +162,7 @@ function fixture() {
               pinTag: true
             }
           },
+          { source: '/staff', destination: '/index.html' },
           { source: '/booking', destination: '/patient.html' },
           { source: '/privacy', destination: '/privacy.html' },
           { source: '/clinic', destination: '/clinic.html' },
@@ -260,10 +279,39 @@ describe('checkPublicPageConfiguration', () => {
     expect(failures).toContainEqual(expect.stringContaining('未知欄位 scan'));
   });
 
+  it('fails when the root redirect drifts from the front-door split', () => {
+    const missing = fixture();
+    missing.firebase.hosting.redirects =
+      missing.firebase.hosting.redirects.filter(
+        (rule: { source: string }) => rule.source !== '/'
+      );
+
+    expect(failuresOf(missing)).toContainEqual(
+      expect.stringContaining('redirects 少了 / → /clinic (302)')
+    );
+
+    const mistyped = fixture();
+    mistyped.firebase.hosting.redirects[0].type = 301;
+
+    expect(failuresOf(mistyped)).toContainEqual(
+      expect.stringContaining('manifest 要求 /clinic (302)')
+    );
+
+    const undescribed = fixture();
+    undescribed.serverSource = undescribed.serverSource.replace(
+      ROOT_REDIRECT_DECLARATION,
+      ''
+    );
+
+    expect(failuresOf(undescribed)).toContainEqual(
+      expect.stringContaining('讀不到 const ROOT_REDIRECT')
+    );
+  });
+
   it('fails stale rewrite and redirect destinations', () => {
     const input = fixture();
-    input.firebase.hosting.rewrites[1].destination = '/stale.html';
-    input.firebase.hosting.redirects[0].destination = '/old-booking';
+    input.firebase.hosting.rewrites[2].destination = '/stale.html';
+    input.firebase.hosting.redirects[2].destination = '/old-booking';
 
     const failures = failuresOf(input);
     expect(failures).toContainEqual(

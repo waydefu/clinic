@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
-  '/',
+  '/staff',
   '/booking',
   '/privacy',
   '/clinic'
