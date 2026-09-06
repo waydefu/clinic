@@ -8,7 +8,6 @@
 //
 // 與 domain-rules.js 同一個做法：措辭留在邊界，規則留在領域套件。在這之前，
 // 患者看到的可預約時間與未來 API 會核可的時間是兩份各自實作的診所政策。
-import { SYNTHETIC_WINDOW_DAYS } from './constants.js';
 import { taipeiTodayDate } from './taipei-time.js';
 import { DomainError } from '../vendor/domain/errors.js';
 import {
@@ -18,6 +17,7 @@ import {
   planSlots,
   scheduleImpact as domainScheduleImpact
 } from '../vendor/domain/schedule.js';
+import { bookingHorizonEndExclusive } from '../vendor/domain/booking-horizon.js';
 
 const MESSAGES = {
   INVALID_VALUE: '營業時間設定無效：請確認時間為 HH:MM，且開始早於結束。',
@@ -66,17 +66,28 @@ export function syntheticWindowStart() {
 }
 
 /**
- * 合成原型的時段產生。
+ * 合成原型的時段產生。產生天數來自領域套件的一個月規則
+ *（bookingHorizonEndExclusive），不再是寫死的 60 天。
  */
 export function generateSlots(schedule, existingSlots = [], options = {}) {
+  const startDate = options.startDate ?? syntheticWindowStart();
   return localize(() =>
     planSlots(schedule, existingSlots, {
-      startDate: options.startDate ?? syntheticWindowStart(),
-      dayCount: options.dayCount ?? SYNTHETIC_WINDOW_DAYS,
+      startDate,
+      dayCount: options.dayCount ?? horizonDayCount(startDate),
       ...(options.durationMinutes === undefined
         ? {}
         : { durationMinutes: options.durationMinutes })
     })
+  );
+}
+
+function horizonDayCount(startDate) {
+  const endExclusive = bookingHorizonEndExclusive(startDate);
+  return Math.round(
+    (Date.parse(`${endExclusive}T00:00:00+08:00`) -
+      Date.parse(`${startDate}T00:00:00+08:00`)) /
+      86_400_000
   );
 }
 
@@ -87,18 +98,20 @@ export function isUpcomingSlot(slot, now = Date.now()) {
 }
 
 /**
- * C4 synthetic command boundary: the selectable horizon is 60 Taipei calendar
- * dates, so a caller cannot bypass the UI by posting a stale or injected slot.
- * The end is exclusive: today is day 1 and start + 60 days is outside range.
+ * Synthetic command boundary: the selectable horizon is one month per the
+ * domain rule (bookingHorizonEndExclusive), so a caller cannot bypass the UI
+ * by posting a stale or injected slot. The end is exclusive.
  */
 export function assertWithinSyntheticBookingWindow(slot) {
   const startsAt = Date.parse(slot?.startsAt);
   if (!Number.isFinite(startsAt)) throw new Error('預約時段格式無效。');
   const startDate = syntheticWindowStart();
   const windowStart = Date.parse(`${startDate}T00:00:00+08:00`);
-  const windowEnd = windowStart + SYNTHETIC_WINDOW_DAYS * 24 * 60 * 60_000;
+  const windowEnd = Date.parse(
+    `${bookingHorizonEndExclusive(startDate)}T00:00:00+08:00`
+  );
   if (startsAt < windowStart || startsAt >= windowEnd)
-    throw new Error('此時段不在目前開放的 60 天預約範圍內。');
+    throw new Error('此時段不在目前開放的 1 個月預約範圍內。');
 }
 
 export function followUpDueTimes(schedule, date) {

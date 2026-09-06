@@ -47,15 +47,10 @@ export const CLINIC = Object.freeze({
     })
   ])
 });
-// 合成資料的可預約視窗：**由台北今天起算 60 個日曆日**（C4，業主 2026-08-22）。
-//
-// 先前是寫死的 2030-01-01 起 21 天。那讓每一份合成資料都落在一個沒有人會遇到
-// 的年份——好處是測試容易，代價是業主看預覽時看到的日期與現實無關，而
-// 「當日」篩選永遠是空的。錨點改成今天之後，日期會跟著真實時間走。
-//
-// 起點是**函式**而不是常數：模組載入的那一刻算一次會讓開著一整天的分頁停在
-// 昨天。呼叫端每次產生時段時重算。
-export const SYNTHETIC_WINDOW_DAYS = 60;
+// 合成資料的可預約視窗起點：**台北的今天**。起點是**函式**而不是常數：
+// 模組載入的那一刻算一次會讓開著一整天的分頁停在昨天。呼叫端每次產生時段
+// 時重算。視窗長度（一月規則）由領域套件的 bookingHorizonEndExclusive 擁有，
+// 不在此重複定義。
 
 // 初診走整點與半點，回診走 15 分與 45 分，兩種掛號各自成格。
 export const BOOKING_KINDS = Object.freeze({
@@ -76,9 +71,11 @@ export const DEFAULT_BLOCKED_TIMES = Object.freeze({
 
 // 客戶端可自行選擇的項目。D-004 已記錄兩類服務的實際時間都要到診後確認，
 // 不能把預約格或先前的療程估時顯示成治療時間。
+//
+// 醫美暫時移出患者可見目錄（Q10／T1-BOOK-02）：患者端只留止鼾；契約層的
+// service enum 保留，舊合成資料的顯示相容不受影響。
 export const PATIENT_SERVICES = Object.freeze([
-  { id: 'service_snoring', label: '止鼾', note: '實際時間到診後確認' },
-  { id: 'service_aesthetic', label: '醫美', note: '依療程進度' }
+  { id: 'service_snoring', label: '止鼾', note: '實際時間到診後確認' }
 ]);
 
 // 工作臺建立預約時登記的療程／看診項目。
