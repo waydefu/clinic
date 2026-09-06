@@ -81,6 +81,42 @@ export function assertWithinActiveBookingLimit(activeCount: number): void {
   }
 }
 
+/**
+ * Patient self-cancellation cutoff, single source (Q6 / D-005 direction:
+ * 10:00 Asia/Taipei on the appointment day; afterwards call the clinic).
+ * Returns the cutoff instant: the appointment's Taipei calendar date at
+ * 10:00 local, i.e. 02:00 UTC. Throws INVALID_VALUE for an unparseable
+ * appointment start; callers fail closed.
+ */
+export function selfCancelCutoffAt(appointmentStartsAt: string): string {
+  const startsAtMs = Date.parse(appointmentStartsAt);
+  if (!Number.isFinite(startsAtMs)) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The appointment start must be a parseable timestamp.'
+    );
+  }
+  const day = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date(startsAtMs));
+  return `${day}T02:00:00.000Z`;
+}
+
+/**
+ * Self-cancellation is allowed strictly before the day-10:00 cutoff:
+ * 09:59 allowed, 10:00 denied. Non-finite now fails closed (false).
+ */
+export function isWithinSelfCancelWindow(
+  appointmentStartsAt: string,
+  nowMs: number
+): boolean {
+  if (!Number.isFinite(nowMs)) return false;
+  return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));
+}
+
 export function assertTransitionAllowed(
   transition: AppointmentTransition,
   status: AppointmentStatusValue
