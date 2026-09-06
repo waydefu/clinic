@@ -417,7 +417,7 @@ test.describe('患者線上預約', () => {
     expect(result.reservationId).toBe(result.appointmentId);
   });
 
-  test('直接合成指令也不能建立第 60 天以外的預約', async ({ page }) => {
+  test('直接合成指令也不能建立一個月視窗以外的預約', async ({ page }) => {
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('#patient-services [data-service]').first().click();
     await page.locator('[data-patient-slot]').first().click();
@@ -442,15 +442,19 @@ test.describe('患者線上預約', () => {
         (slot) => slot.id === appointment.slotId
       );
       const now = new Date(Date.now() + 8 * 60 * 60_000);
-      const outsideDate = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 60)
-      )
-        .toISOString()
-        .slice(0, 10);
+      const today = now.toISOString().slice(0, 10);
+      const horizonUrl = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .find((name) => /\/booking-horizon\.[a-f0-9]+\.js$/.test(name));
+      if (horizonUrl === undefined)
+        throw new Error('找不到出貨版 horizon 模組。');
+      const { bookingHorizonEndExclusive } = await import(horizonUrl);
+      const endExclusive: string = bookingHorizonEndExclusive(today);
       const outsideSlot = {
         ...sourceSlot,
-        id: 'slot_c4_outside_horizon',
-        startsAt: new Date(`${outsideDate}T12:00:00+08:00`).toISOString(),
+        id: 'slot_window_outside_horizon',
+        startsAt: new Date(`${endExclusive}T12:00:00+08:00`).toISOString(),
         reservationId: undefined
       };
       const persisted = JSON.parse(localStorage.getItem(key) ?? 'null');
@@ -484,7 +488,7 @@ test.describe('患者線上預約', () => {
       };
     }, STORAGE_KEY);
 
-    expect(result.message).toContain('60 天預約範圍');
+    expect(result.message).toContain('1 個月預約範圍');
     expect(result.unchanged).toBe(true);
   });
 
