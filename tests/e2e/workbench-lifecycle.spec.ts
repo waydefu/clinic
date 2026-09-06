@@ -550,7 +550,7 @@ test.describe('工作臺其餘資料表', () => {
   for (const [panel, selector, caption, firstLabel] of TABLES) {
     test(`${selector} 是帶完整表格語意的資料表`, async ({ page }) => {
       await login(page);
-      await page.goto(`/${panel}`);
+      await page.goto(`/staff${panel}`);
 
       const table = page.locator(selector).first();
       await expect(table).toBeVisible();
@@ -621,7 +621,7 @@ test.describe('工作臺其餘資料表', () => {
       '#accounts-section',
       '#audit-section'
     ]) {
-      await page.goto(`/${panel}`);
+      await page.goto(`/staff${panel}`);
       await expect(page.locator(panel)).toBeVisible();
       const overflow = await page.evaluate(() => {
         const root = document.documentElement;
