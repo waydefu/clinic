@@ -56,25 +56,25 @@
   --weight-medium: 600;
   --weight-bold: 700;
 
-  --canvas: #f5f7f5;
+  --canvas: #f5f6f3;
   --canvas-top: #fbfcfb;
   --canvas-glow: rgba(204, 229, 216, 0.85);
   --surface: #ffffff;
-  --surface-soft: #f7fbf8;
-  --surface-tint: #e8f3ed;
+  --surface-soft: #f8f9f6;
+  --surface-tint: #edf2ec;
   --surface-tint-strong: #d8ebe0;
-  --ink: #132a24;
-  --ink-muted: #5d7068;
+  --ink: #182e27;
+  --ink-muted: #54665d;
   --line: #dbe5df;
   --line-strong: #c3d3ca;
   --line-accent: #91c1a9;
   /* --forest / --forest-dark 是「文字與框線」的品牌色，深色主題會調亮；
    * --accent-solid 系列是「白字襯底」的實心色，任何主題都維持深綠。 */
-  --forest: #155c48;
-  --forest-dark: #0f4537;
+  --forest: #184f40;
+  --forest-dark: #103b30;
   --forest-light: #e4f1ea;
-  --accent-solid: #155c48;
-  --accent-solid-strong: #0f4537;
+  --accent-solid: #184f40;
+  --accent-solid-strong: #103b30;
   --accent-solid-soft: #2f7f68;
   --on-accent: #ffffff;
   --success-soft: #f1faf4;
@@ -201,10 +201,10 @@
 
   /* 圓角：五階＋兩個特例。先前有 20 種以上，而且 rem 與 px 混用。 */
   --radius-xs: 0.25rem;
-  --radius-sm: 0.6rem;
-  --radius-md: 0.8rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
   --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  --radius-xl: 1rem;
   --radius-pill: 999px;
   --radius-circle: 50%;
 
@@ -413,9 +413,7 @@ html {
   scroll-behavior: smooth;
 }
 body {
-  background:
-    radial-gradient(circle at 94% -10%, var(--canvas-glow), transparent 30rem),
-    linear-gradient(180deg, var(--canvas-top) 0, var(--canvas) 34rem);
+  background: var(--canvas);
   margin: 0;
   min-width: 0;
 }
@@ -580,14 +578,9 @@ textarea:focus-visible {
   padding-top: var(--space-md);
 }
 .hero-panel {
-  background: linear-gradient(
-    125deg,
-    var(--surface-inverse) 0%,
-    var(--surface-inverse-soft) 57%,
-    var(--surface-inverse-strong) 100%
-  );
+  background: var(--surface-inverse);
   border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-3);
+  box-shadow: none;
   color: var(--on-inverse);
   display: grid;
   gap: var(--space-xl);
@@ -595,16 +588,6 @@ textarea:focus-visible {
   overflow: hidden;
   padding: clamp(1.5rem, 4vw, 3.25rem);
   position: relative;
-}
-.hero-panel::after {
-  border: 1px solid var(--on-inverse-line);
-  border-radius: var(--radius-pill);
-  content: '';
-  height: 20rem;
-  position: absolute;
-  right: -7rem;
-  top: -11rem;
-  width: 20rem;
 }
 .hero-copy,
 .environment-card {
@@ -876,6 +859,7 @@ select {
   color: var(--ink);
   font: inherit;
   min-height: var(--control-height-md);
+  min-width: 0;
   padding: var(--space-2xs) var(--space-2xs);
 }
 textarea {
@@ -954,6 +938,7 @@ textarea {
   display: flex;
   gap: var(--space-2xs);
   min-height: var(--control-height-md);
+  min-width: 0;
   padding: var(--space-2xs) var(--space-2xs);
 }
 .weekday-picker input,
@@ -2250,24 +2235,14 @@ label:has(> input[type='radio']) {
     padding-inline: var(--space-3xs);
     text-align: center;
   }
-  .booking-stepper strong {
-    display: none;
-    line-height: 1.25;
-  }
-  /* 只有目前步驟顯示文字，所以把寬度讓給它：其餘兩步只是圓圈，不需要等分版面。
-
-     先前這裡是 `overflow-wrap: anywhere`，而中文可以在任何字之間斷行——
-     「類型與項目」因此被排成「類型與項／目」，最後一個字自己一行。字數多一個
-     就會發生，不是邊界情況。 */
-  .booking-stepper li.is-active {
-    flex: 1 1 auto;
-  }
-  .booking-stepper li:not(.is-active) {
-    flex: 0 0 auto;
-  }
-  .booking-stepper li.is-active strong {
+  .booking-stepper li strong {
     display: block;
-    white-space: nowrap;
+    line-height: 1.25;
+    white-space: normal;
+  }
+  .booking-stepper li.is-active,
+  .booking-stepper li:not(.is-active) {
+    flex: 1 1 0;
   }
   .booking-stepper li span {
     font-size: var(--text-micro);

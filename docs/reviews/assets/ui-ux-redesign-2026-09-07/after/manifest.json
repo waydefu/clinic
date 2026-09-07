@@ -1,0 +1,946 @@
+{
+  "phase": "after",
+  "captureDate": "2026-09-07T18:14:27.310Z",
+  "fixedTime": "2026-07-29T01:00:00.000Z",
+  "sourceRevision": "commit-containing-this-manifest",
+  "environment": {
+    "os": "linux",
+    "arch": "arm64",
+    "browser": "149.0.7827.0",
+    "playwright": "1.61.1",
+    "launchArgs": ["--use-gl=disabled", "--disable-gpu-compositing"],
+    "locale": "zh-TW",
+    "timezone": "Asia/Taipei",
+    "reducedMotion": "reduce",
+    "dpr": 1
+  },
+  "captureKind": "reference-viewport",
+  "dist": [
+    {
+      "file": "404.html",
+      "sha256": "e3b0d9889c9bb04d8767578ad7d9cd9634688bf92cffa49c28d34777345047d4"
+    },
+    {
+      "file": "admin-bootstrap.135cffd9f2.js",
+      "sha256": "093522278d152737aa00db3b1ad01256150fbb595d008b5271cc022380c4f6e5"
+    },
+    {
+      "file": "assets/brand-mark.webp",
+      "sha256": "6328907c387e2735f0b3593a5d68aea1e03d57ffad99763ed2f4c25f0d38819f"
+    },
+    {
+      "file": "assets/nhi-mark.webp",
+      "sha256": "48647855c343ac8f3d1ead4231f36887f117730df83eaf5fd458d12334de26e0"
+    },
+    {
+      "file": "calendar-pilot-client.d1495f7031.js",
+      "sha256": "3dffb91d45a3eb7965817f0b32b53c8fe955166553197a80a1d32f4870ce896e"
+    },
+    {
+      "file": "calendar-pilot-entry.a92e6339d2.js",
+      "sha256": "3fdb971b5cc9a546fa1459475e75de4ee30ca4624af777beaff384dbd192ede1"
+    },
+    {
+      "file": "calendar-pilot.00953a77d4.css",
+      "sha256": "00953a77d455e3735e20b2b823fc3d48a9d22d6903a55a38a0e86af52c22406f"
+    },
+    {
+      "file": "clinic-assets/care-aftercare.webp",
+      "sha256": "357a5456cd34d5358330982ced3e21d7184d4dff27e22996f61761c9d859ab2b"
+    },
+    {
+      "file": "clinic-assets/care-environment.webp",
+      "sha256": "e012952d35fe9e6baa277ffa283f22619588130e2f8f5b69f3a81de4f58c2321"
+    },
+    {
+      "file": "clinic-assets/care-listening.webp",
+      "sha256": "6944e0bb33174e3f1b49450e10689f645e4f87fefdfd019592a6d1ae4b4d00ce"
+    },
+    {
+      "file": "clinic-assets/care-treatment.webp",
+      "sha256": "cad10418106dc43b6f8496fba3bed1ea5d3dd0f46523b363ed3536435f0d940a"
+    },
+    {
+      "file": "clinic-assets/clinic-logo.webp",
+      "sha256": "d75608cda33fad2a83d5a67f5dddc78dcd71bbc880aefe8240b59a13a3ed27fe"
+    },
+    {
+      "file": "clinic-assets/doctor-yan.webp",
+      "sha256": "2ad8d264794a5f7343da35e13576e3173926f95420b9700a8bbbc1c08f0208f5"
+    },
+    {
+      "file": "clinic-assets/doctor-yang.webp",
+      "sha256": "08d82dea869b851a0ba4e8238c140d47b84dcc783fd3a60e3ebd1639a1adcb45"
+    },
+    {
+      "file": "clinic-assets/service-mouthguard.webp",
+      "sha256": "0336e510cebfa63f5eea67b4f88d6870e99e1899f541617613e2d1dc4c7a2a28"
+    },
+    {
+      "file": "clinic-assets/service-septoplasty.webp",
+      "sha256": "437dcbb24b080669c9c2c409f8da5dcaa727597f02f3d10c9c53e66155b006cb"
+    },
+    {
+      "file": "clinic-assets/service-snoring.webp",
+      "sha256": "13e09041abcb7f22754e1dfecb043d2af4517f3193f3d075e1167959e6f45f02"
+    },
+    {
+      "file": "clinic-assets/service-turbinate.webp",
+      "sha256": "2facd26d81cd1b28c8c28bc59b07a6d7a807f4719634b3d1f9c5662457ef5970"
+    },
+    {
+      "file": "clinic-assets/soft-green-bg.webp",
+      "sha256": "0f2af54beadbf8c0bbe264bf7e53a7fd819ca7fa7ae0f6275107fed9e60977a6"
+    },
+    {
+      "file": "clinic-booking.8e94cdfec6.css",
+      "sha256": "8e94cdfec6fd1c5a4676a90470ea5987957d8f7c24e3c7e6e28179f1d1609bc4"
+    },
+    {
+      "file": "clinic-content.f02e6f4929.js",
+      "sha256": "a397cc2466d1210f762053ffff7bbc6f13a1c5362db009cb7a5c0141a73c631b"
+    },
+    {
+      "file": "clinic-site.11d1db2ba1.css",
+      "sha256": "11d1db2ba17180c991deb7d0185bb84d99ccc37c8b8f4e688d69245f8435f637"
+    },
+    {
+      "file": "clinic-site.c50806c4f7.js",
+      "sha256": "8b469d6c10448419875f94d09ac74a2a1fded1537342afe1e6b70ec19a81cb84"
+    },
+    {
+      "file": "clinic.html",
+      "sha256": "fe64472cad3917bcbff5e467de104cbf24f2f525c8bf55dfb3a85723f5c50fcd"
+    },
+    {
+      "file": "error.140132b1bf.css",
+      "sha256": "140132b1bffef9d47daa9d91c2f04879ecc36357d6ae73253bfca880d4461e80"
+    },
+    {
+      "file": "favicon.svg",
+      "sha256": "f96744aaf59fb0759de1d8918dbda2293b727417127f895f41e407a0d79c6c42"
+    },
+    {
+      "file": "index.html",
+      "sha256": "7c5734f91765d300f51b57b47f66360ae7592b4d57c50b754c07d00be5acf2f1"
+    },
+    {
+      "file": "modules/admin-view.53c5ac466e.js",
+      "sha256": "478c9e6f59e2bc8e401d7cf07b039243511c654c8abefe8d3dfe9a9b738e0384"
+    },
+    {
+      "file": "modules/api-client.067712234d.js",
+      "sha256": "798c73afc9552f81c722af5f4766f7414a91125c16991b021391f77b349b95c4"
+    },
+    {
+      "file": "modules/appointment-domain.34109b59ef.js",
+      "sha256": "462504e692e78007b43e35ca2b039b06182747e6978fb6817523fb800760d7d0"
+    },
+    {
+      "file": "modules/async-action.3d74dae2f9.js",
+      "sha256": "8780c472bdca4bcc025430e652e0a79cc9e3a71406a496fbb7f1c33b1282df6c"
+    },
+    {
+      "file": "modules/calendar-export.c687b608b1.js",
+      "sha256": "6d69a4e14fbcfd465a142ef8ba7069b051d2f9191c0f196f074a07c592984381"
+    },
+    {
+      "file": "modules/case-management.ba1bcc2a11.js",
+      "sha256": "72aedb53f3a7a694e677f8031d93cbf8c695e47f8a270a54c178e026307a26c7"
+    },
+    {
+      "file": "modules/confirm-dialog.6e2807e0f9.js",
+      "sha256": "e84071e824e449061c6074587efc9c95ea65f40c1a6604542a18c7a01f286b72"
+    },
+    {
+      "file": "modules/constants.3377828dfc.js",
+      "sha256": "4a0cf5ea3cdae420657ec525a613c3d4947cdfd7ae415ad14b3ac5b068a361c4"
+    },
+    {
+      "file": "modules/domain-rules.caf83f7d4d.js",
+      "sha256": "e8c7e78807871c7f1396c9852b5c8adf65cc49007339e3df8d31d4169f0a5e5b"
+    },
+    {
+      "file": "modules/patient-booking-management.9d21c5df4a.js",
+      "sha256": "be32d7d4402fe220bc51145c63dccaef0f953223b35fc80625d4c04e170427bf"
+    },
+    {
+      "file": "modules/patient-registry.2b87285dfe.js",
+      "sha256": "14ff17359e1c1c1c8298975ed9b7388bf84abd089e6be68a707d08d6d6d5c85a"
+    },
+    {
+      "file": "modules/permissions.9134208eda.js",
+      "sha256": "1218e08741083fc5eabd3e9c753ea96d738d7552d2bf06222fe38658a3388285"
+    },
+    {
+      "file": "modules/pilot-auth-state.d70c897897.js",
+      "sha256": "af595e8a635363b7d7462ce3c6fae042b26dd2b006dc7c776bb7174a353d577a"
+    },
+    {
+      "file": "modules/policy-dialog.627bab6b65.js",
+      "sha256": "9f10b32ff32997beb35e75d53a50672e895f9f8c3edefa6980c560072b0dbd2e"
+    },
+    {
+      "file": "modules/schedule-engine.bd392b44c0.js",
+      "sha256": "5e1d9668628a314eca4c7ef8be70bfe669f9437b5c074dedb8917b0c07fc0570"
+    },
+    {
+      "file": "modules/state-schema.4cdf811b57.js",
+      "sha256": "618a15597ffc311a430e336ce3d3faaf3b0e29ffe389d8429a479c88ad82c645"
+    },
+    {
+      "file": "modules/tag-picker.062eb9dcaa.js",
+      "sha256": "eaa03ca157b753fa3f6055de1d6a13c00e94d354beb44e3c9b1040018cb41480"
+    },
+    {
+      "file": "modules/taipei-time.63c1050e71.js",
+      "sha256": "66ead98454aa6b17ad6433f678019b8bd0ac905402dac10cf758b4d7a2c54fc1"
+    },
+    {
+      "file": "modules/trusted-html.eecc31ab11.js",
+      "sha256": "a04d79b0eb010d2bff9fe31875ef03b3971396a1975b685783dbe796bd60f814"
+    },
+    {
+      "file": "modules/ui-format.7c6e441672.js",
+      "sha256": "0c6bc9d67d723565c80cff257a0df9ca2c8ceb987da46b0c84c4ca7b87a0faae"
+    },
+    {
+      "file": "modules/week-view.2081d65368.js",
+      "sha256": "5716e725484a7aaee0c0c11d30a363bf2506484b6be7cff2575475b695f155ff"
+    },
+    {
+      "file": "modules/workbench-scope-policy.38a21c1dbe.js",
+      "sha256": "bec1f35e3eb8a185ef0c5ce13b45a2c77bb6c7084aa5754c5c3627c8a6362ab9"
+    },
+    {
+      "file": "modules/workspace-domain.541c5760bc.js",
+      "sha256": "a22b7a14b186a875c46351cbfcb55adae816a7cd346b9ada852b69ed6812ce09"
+    },
+    {
+      "file": "modules/workspace-tabs.b8f6e2d81e.js",
+      "sha256": "7382134983c1190f091643b7d10b4719c4a02933a3fcead62bf3f43f194bc00f"
+    },
+    {
+      "file": "og-booking.jpg",
+      "sha256": "3a769215f451e544156b839cca4ca33696e272a6c51b4968def6c8d6930bd184"
+    },
+    {
+      "file": "patient-app.0f8de7e4f8.js",
+      "sha256": "d3968d8fa8db1f8031d62bdecd80f91b5326163b0d3d01ad985780a280c5ae92"
+    },
+    {
+      "file": "patient.html",
+      "sha256": "1d65b94c6a40dbe87c7d873cdc4f32982a1288d7b38a5e691b6ed42764cc6b8b"
+    },
+    {
+      "file": "privacy.8efecdc854.css",
+      "sha256": "8efecdc8542a90790e7ffc748bea55a69f43399959c086e721653ba430270c5b"
+    },
+    {
+      "file": "privacy.html",
+      "sha256": "8afcbb9ea7053e1738a18ba10fc53b0c05b3d0a9bbe786ee7af4c49ceb0b9c0c"
+    },
+    {
+      "file": "robots.txt",
+      "sha256": "30853a6bc23a2a2a2f7bc9b15a5ec4cee89957ce16b4b606ba9fdb07e683a767"
+    },
+    {
+      "file": "sitemap.xml",
+      "sha256": "55c285aad5b385e91388aa80557f627e6cc34e49dab0079baeab721574574fc4"
+    },
+    {
+      "file": "store.2120a0cdad.js",
+      "sha256": "c1cb0b96f3318fee1668b90d5531d9a8a633f2d163311efb2e126d8c22d1755c"
+    },
+    {
+      "file": "styles.6b26880cf9.css",
+      "sha256": "6b26880cf920d13e05e4149fe9f7062a3b06f806b46a49950c3e509f8d85bfe2"
+    },
+    {
+      "file": "theme.efdc6205bc.js",
+      "sha256": "d68dedbc9581ca8f13b40aa6160840bcdd7e91534e7226fa155ec1ffbe6f0c0e"
+    },
+    {
+      "file": "vendor/domain/appointment-rules.c88fbc8e6b.js",
+      "sha256": "c07942eea98b36233662a212394ec6ed3b44bf2fb0dff68da8eb1d0111551814"
+    },
+    {
+      "file": "vendor/domain/appointment-transition.ec45a828d3.js",
+      "sha256": "69d7918edc909335d7dd26aad8e175f704d3f2560f2c35c32437849a2c6ebadb"
+    },
+    {
+      "file": "vendor/domain/appointment.c68264bbf7.js",
+      "sha256": "41a5d088182daa1a7d2932ed972b29257ccbe21cabb112037e640ed34a99b0c6"
+    },
+    {
+      "file": "vendor/domain/audit.120bb25c59.js",
+      "sha256": "772c94415de3988d214cd737bf7dff86c1ff4b2e8c24a1dd2bbdfc5fffb6bd26"
+    },
+    {
+      "file": "vendor/domain/booking-horizon.f2aafb85d3.js",
+      "sha256": "aaefd976d11db1e4b9525480fcf47de1e97b5ae89199b8170521b333c2ea4962"
+    },
+    {
+      "file": "vendor/domain/booking-transaction.c88fbc8e6b.js",
+      "sha256": "28d123a9af5e3e566fbe416b0670a1a19a4b7a96f8f1bfbbd147745a18f3da05"
+    },
+    {
+      "file": "vendor/domain/calendar-event-id.2f8d4126c2.js",
+      "sha256": "63a7a728378b63cf213ad47f77ecdd86ec2a017f7d42890a1d5b8b0e461c9595"
+    },
+    {
+      "file": "vendor/domain/calendar-sync.98c6d1dbde.js",
+      "sha256": "8410ff92209e898ee3cc4bcabe9c1109ad24041f8090241ed1559b922ab63108"
+    },
+    {
+      "file": "vendor/domain/case-assignment.5bd6e80d07.js",
+      "sha256": "a93bcb1adb70e705c6cbfe906fb8e3c0820e216f1ae0ea2863a3f6d473f429f4"
+    },
+    {
+      "file": "vendor/domain/delegated-authorization.2c1e7ce914.js",
+      "sha256": "f59d72cb5317f7bd152b0b1d465021d266fb3baeefbbaf92e76f726de3634e7a"
+    },
+    {
+      "file": "vendor/domain/errors.b0e1763417.js",
+      "sha256": "26d37eed66f7b24c7c7f88367e6d90c858578cadee057cb4c7a51dbc42a92cfe"
+    },
+    {
+      "file": "vendor/domain/follow-up.0c7fa04807.js",
+      "sha256": "9f1d8611e0becea921c7729e927d29fa805ffc5b185ba4c75a43dced5c073408"
+    },
+    {
+      "file": "vendor/domain/idempotency.115d582d6d.js",
+      "sha256": "0bd8e32232189871a152a62b67a0ddf3b309d8bdc22440f71597d2c11760bd72"
+    },
+    {
+      "file": "vendor/domain/index.dcf834c7bd.js",
+      "sha256": "8d21c3f5d399223b8a224f66ceb8203f964d2786f6df420ff95cc6ea7ee28181"
+    },
+    {
+      "file": "vendor/domain/manifest.json",
+      "sha256": "8e1e312b51a776eec181fe8590f352375f8e55c4bd39f8eada8a076d1b5f3faa"
+    },
+    {
+      "file": "vendor/domain/outbox.7da195b402.js",
+      "sha256": "6ac480721dbcd2c3299df0ebb6b695524c9eaee80ea76f675b4cea8fe87138af"
+    },
+    {
+      "file": "vendor/domain/patient-identity.1a530252d1.js",
+      "sha256": "bc3f10e140ffd97c81a8412d3027fece919777477a431c817c3b6f1b6d39060a"
+    },
+    {
+      "file": "vendor/domain/payroll.712f500c17.js",
+      "sha256": "e0592e3813a01aa7bd91a8e80542fb426c0bc6e33fcace7e0987744c3cca0a60"
+    },
+    {
+      "file": "vendor/domain/roles.ff246ea8ba.js",
+      "sha256": "1d7434b4ff3564359942c56b5cd9723a29686b9f4712522d44a5c74b35c10cc2"
+    },
+    {
+      "file": "vendor/domain/schedule.40ddf59d70.js",
+      "sha256": "68fb714b48cdcc27fe28525a9a1a6852a02edb3ded7ac2526eb2b45e8fb2e61d"
+    },
+    {
+      "file": "vendor/domain/timestamp.51e733eed8.js",
+      "sha256": "f305054ef40b3693e23cc48f4354ab2c30c31ed905f578b1efdaaf80eee389da"
+    },
+    {
+      "file": "workbench.db125fba61.css",
+      "sha256": "db125fba615aef22e72f773d16a3a9abe2a3752453a02cd8bece008d7659dd8b"
+    }
+  ],
+  "captures": [
+    {
+      "file": "clinic-320.png",
+      "role": "public",
+      "route": "/clinic",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "light",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "heading": ["今晚，不必再和呼吸拔河\n今晚，不必再和呼吸拔河"],
+        "theme": "light",
+        "primaryY": 457.46875
+      },
+      "sha256": "bc6278e7dbfb7d82ec060c108dea56121158c57a26cab8560974f52394bf738d",
+      "errors": [],
+      "warnings": [],
+      "failedResponses": [],
+      "axe": null
+    },
+    {
+      "file": "booking-320.png",
+      "role": "public",
+      "route": "/booking",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "warm",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "heading": ["線上門診預約"],
+        "theme": "warm",
+        "primaryY": 768.09375
+      },
+      "sha256": "7317b38d71bfc56628c952bd4a0719c3f6b9ac49b1cb6fbf956bab945643a1cd",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "staff-320.png",
+      "role": "synthetic-operator",
+      "route": "/staff#appointments-section",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "warm",
+      "state": "synthetic-appointment-populated",
+      "dimensions": {
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "heading": ["預約與回診管理"],
+        "theme": "warm"
+      },
+      "sha256": "6d041f64ae4a861f8269954979bbdb54b075343640db2f4fb8899c4b2ae13ac1",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "clinic-360.png",
+      "role": "public",
+      "route": "/clinic",
+      "viewport": {
+        "width": 360,
+        "height": 844
+      },
+      "theme": "light",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "heading": ["今晚，不必再和呼吸拔河\n今晚，不必再和呼吸拔河"],
+        "theme": "light",
+        "primaryY": 457.46875
+      },
+      "sha256": "6140d2ecd5abcd0e502b7018b664b0199e0768ddd24a113ed77dab4ef1be52a0",
+      "errors": [],
+      "warnings": [],
+      "failedResponses": [],
+      "axe": null
+    },
+    {
+      "file": "booking-360.png",
+      "role": "public",
+      "route": "/booking",
+      "viewport": {
+        "width": 360,
+        "height": 844
+      },
+      "theme": "warm",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "heading": ["線上門診預約"],
+        "theme": "warm",
+        "primaryY": 704.09375
+      },
+      "sha256": "701e212f78107dced63317079a37ff1a4df6678963d2a1ca4bb928daf8dbd178",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "staff-360.png",
+      "role": "synthetic-operator",
+      "route": "/staff#appointments-section",
+      "viewport": {
+        "width": 360,
+        "height": 844
+      },
+      "theme": "warm",
+      "state": "synthetic-appointment-populated",
+      "dimensions": {
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "heading": ["預約與回診管理"],
+        "theme": "warm"
+      },
+      "sha256": "d558373d078c9dde852763e3747edf378e022f434b3e653b10d5e8ed95e582ac",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "clinic-375.png",
+      "role": "public",
+      "route": "/clinic",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "theme": "light",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 375,
+        "clientWidth": 375,
+        "heading": ["今晚，不必再和呼吸拔河\n今晚，不必再和呼吸拔河"],
+        "theme": "light",
+        "primaryY": 433.46875
+      },
+      "sha256": "03f8b0cd96b5ea3730a5ee5ba4fa0f4be01243da8b34191297d60c10ecae84bd",
+      "errors": [],
+      "warnings": [],
+      "failedResponses": [],
+      "axe": null
+    },
+    {
+      "file": "booking-375.png",
+      "role": "public",
+      "route": "/booking",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "theme": "warm",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 375,
+        "clientWidth": 375,
+        "heading": ["線上門診預約"],
+        "theme": "warm",
+        "primaryY": 712.09375
+      },
+      "sha256": "fd5b3dbcabb26037882ff4c2ae0738500da201d2cf241e170afb5718ba6b0a17",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "staff-375.png",
+      "role": "synthetic-operator",
+      "route": "/staff#appointments-section",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "theme": "warm",
+      "state": "synthetic-appointment-populated",
+      "dimensions": {
+        "scrollWidth": 375,
+        "clientWidth": 375,
+        "heading": ["預約與回診管理"],
+        "theme": "warm"
+      },
+      "sha256": "34d35db3d285fd99c62b1467b7fb837a7a4491cc1aa91b06b4033e1bbb3c4a90",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "clinic-390.png",
+      "role": "public",
+      "route": "/clinic",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "heading": ["今晚，不必再和呼吸拔河\n今晚，不必再和呼吸拔河"],
+        "theme": "light",
+        "primaryY": 433.46875
+      },
+      "sha256": "cf8840c53962587e46070a6cdd38c23dfd2187b014c675f885f74dac750b8a86",
+      "errors": [],
+      "warnings": [],
+      "failedResponses": [],
+      "axe": {
+        "version": "4.12.1",
+        "violations": []
+      }
+    },
+    {
+      "file": "booking-390.png",
+      "role": "public",
+      "route": "/booking",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "warm",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "heading": ["線上門診預約"],
+        "theme": "warm",
+        "primaryY": 712.09375
+      },
+      "sha256": "3babef674da2e06802213653bdb18097faaf179ac1c3669244a0987ace31edfa",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": {
+        "version": "4.12.1",
+        "violations": []
+      }
+    },
+    {
+      "file": "staff-390.png",
+      "role": "synthetic-operator",
+      "route": "/staff#appointments-section",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "warm",
+      "state": "synthetic-appointment-populated",
+      "dimensions": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "heading": ["預約與回診管理"],
+        "theme": "warm"
+      },
+      "sha256": "4c334d0d844f7dcfce908fbce0feb2b8ac1e2ea6c37a75c3a54a67b3f1160ad8",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": {
+        "version": "4.12.1",
+        "violations": []
+      }
+    },
+    {
+      "file": "clinic-768.png",
+      "role": "public",
+      "route": "/clinic",
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "theme": "light",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "heading": ["今晚，不必再和呼吸拔河\n今晚，不必再和呼吸拔河"],
+        "theme": "light",
+        "primaryY": 446.453125
+      },
+      "sha256": "11d47a10137edeb266ab0cba949fd7a9e7db0280b777a545dc1f5b4bc7ae7ebc",
+      "errors": [],
+      "warnings": [],
+      "failedResponses": [],
+      "axe": null
+    },
+    {
+      "file": "booking-768.png",
+      "role": "public",
+      "route": "/booking",
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "theme": "warm",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "heading": ["線上門診預約"],
+        "theme": "warm",
+        "primaryY": 574.09375
+      },
+      "sha256": "4ba81b2dc7493f445e28abb5900ef4dd4041fd5279f32cd2e70c4b7186f57e0f",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "staff-768.png",
+      "role": "synthetic-operator",
+      "route": "/staff#appointments-section",
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "theme": "warm",
+      "state": "synthetic-appointment-populated",
+      "dimensions": {
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "heading": ["預約與回診管理"],
+        "theme": "warm"
+      },
+      "sha256": "c37cf55d3943eaee96d46d79789260b1f227252afe35207b76925654ca1b1049",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "clinic-1280.png",
+      "role": "public",
+      "route": "/clinic",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "theme": "light",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "heading": ["今晚，不必再和呼吸拔河\n今晚，不必再和呼吸拔河"],
+        "theme": "light",
+        "primaryY": 509.71875
+      },
+      "sha256": "78937247ae6647e37b9e931ea9fdbab6cdc77ea2b554ee1981cfdc4a78064fa7",
+      "errors": [],
+      "warnings": [],
+      "failedResponses": [],
+      "axe": {
+        "version": "4.12.1",
+        "violations": []
+      }
+    },
+    {
+      "file": "booking-1280.png",
+      "role": "public",
+      "route": "/booking",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "theme": "warm",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "heading": ["線上門診預約"],
+        "theme": "warm",
+        "primaryY": 651.703125
+      },
+      "sha256": "b1c86b01dfcededca48e53f54012cdc14e889bc7b7f4d7f11223fd32f6eb7b16",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": {
+        "version": "4.12.1",
+        "violations": []
+      }
+    },
+    {
+      "file": "staff-1280.png",
+      "role": "synthetic-operator",
+      "route": "/staff#appointments-section",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "theme": "warm",
+      "state": "synthetic-appointment-populated",
+      "dimensions": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "heading": ["預約與回診管理"],
+        "theme": "warm"
+      },
+      "sha256": "a8ce52b7d96e3bbc1d5f29358306a08179d7bafd9fe819f62b9fd6f4f944cb58",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": {
+        "version": "4.12.1",
+        "violations": []
+      }
+    },
+    {
+      "file": "clinic-1440.png",
+      "role": "public",
+      "route": "/clinic",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "theme": "light",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "heading": ["今晚，不必再和呼吸拔河\n今晚，不必再和呼吸拔河"],
+        "theme": "light",
+        "primaryY": 520.203125
+      },
+      "sha256": "645c9954a2f29476fe432fac115c402aefc32debd8050075b910de6e11724174",
+      "errors": [],
+      "warnings": [],
+      "failedResponses": [],
+      "axe": null
+    },
+    {
+      "file": "booking-1440.png",
+      "role": "public",
+      "route": "/booking",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "theme": "warm",
+      "state": "initial",
+      "dimensions": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "heading": ["線上門診預約"],
+        "theme": "warm",
+        "primaryY": 651.703125
+      },
+      "sha256": "4f1fd4f420f6c55e698b6385ad33b3fc2b9a014f2a553a5cdbb4c1e143336625",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    },
+    {
+      "file": "staff-1440.png",
+      "role": "synthetic-operator",
+      "route": "/staff#appointments-section",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "theme": "warm",
+      "state": "synthetic-appointment-populated",
+      "dimensions": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "heading": ["預約與回診管理"],
+        "theme": "warm"
+      },
+      "sha256": "b5b34a976e5334ec2fe5363dcfc46844f50008fea287be19522d64272aa460e5",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "warnings": [],
+      "failedResponses": [
+        {
+          "path": "/v1/calendar-session/client-config",
+          "status": 404
+        }
+      ],
+      "axe": null
+    }
+  ]
+}
