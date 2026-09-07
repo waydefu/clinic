@@ -3,6 +3,8 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import process from 'node:process';
 
+import { reviewNodeEngine } from './check-node-engine.mjs';
+
 const requiredPaths = [
   'README.md',
   'AGENTS.md',
@@ -665,6 +667,10 @@ export function reviewVerifyOrdering(packageJson) {
 
 const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 const verifyOrderErrors = reviewVerifyOrdering(packageJson);
+const nodeEngineErrors = reviewNodeEngine({
+  enginesNode: packageJson.engines?.node,
+  workflowText: await readFile('.github/workflows/verify.yml', 'utf8')
+});
 
 if (verifyOrderErrors.length > 0) {
   console.error('Invalid clean-clone verify prerequisites:');
@@ -672,4 +678,12 @@ if (verifyOrderErrors.length > 0) {
   process.exitCode = 1;
 } else {
   console.log('Clean-clone verify ordering check passed.');
+}
+
+if (nodeEngineErrors.length > 0) {
+  console.error('Node engine floor check failed:');
+  for (const error of nodeEngineErrors) console.error(`- ${error}`);
+  process.exitCode = 1;
+} else {
+  console.log('Node engine floor check passed.');
 }

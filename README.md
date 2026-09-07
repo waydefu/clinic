@@ -242,13 +242,11 @@ git status
 git push -u origin $branch
 ```
 
-On the next computer, install Git 2.x, pnpm `11.9.0` and JDK 21. For the dated
-2026-08-11 verification baseline use Node `24.18.0`; the repository engine
-range still admits older 24.x patches and CI still floats the major, which is a
-known release blocker tracked by `SCM-R02`, not a security floor. Once
-`SCM-R02` lands, use the exact patched Node version or image digest recorded by
-CI/runtime instead of copying this dated value. Close and reopen PowerShell
-after installation so the updated `PATH` and `JAVA_HOME` are loaded. Clone the
+On the next computer, install Git 2.x, pnpm `11.9.0` and JDK 21. Use Node
+`24.20.0` or any later 24.x that satisfies `engines.node` (`>=24.20.0 <25`).
+CI pins exact `24.20.0` (`SCM-R02`). Do not install `24.14.0`. Close and reopen
+PowerShell after installation so the updated `PATH` and `JAVA_HOME` are loaded.
+Clone the
 branch that was just pushed into a folder owned by the current computer's user:
 
 ```powershell
