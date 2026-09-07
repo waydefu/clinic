@@ -80,7 +80,7 @@
 | 權限 | 管理者 | 櫃檯 | 諮詢師 | 醫師 | 病患 |
 | --- | --- | --- | --- | --- | --- |
 | `create_appointment` | ✔ | ✔ | | | △ 自己 |
-| `reschedule_appointment` | ✔ | ✔ | | | △ 申請 |
+| `reschedule_appointment` | ✔ | ✔ | | | △ 自己 |
 | `request_cancellation` | ✔ | ✔ | | | △ 自己 |
 | `confirm_cancellation` | ✔ | ✔ | | | |
 | `complete_visit` | ✔ | ✔ | | ✔ | |

@@ -9,10 +9,11 @@ deterministic one-patient/one-manager/one-period credit key. The API layer must
 enforce the resulting credit key inside a Firestore transaction.
 
 The booking planner also models the explicit active-booking guard written at
-`patient_booking_guards/{patientId}`. A present guard rejects another booking;
-terminal transitions release the matching guard, while cancellation requests
-and reschedules retain it. The package describes the mutation but performs no
-database I/O.
+`patient_booking_guards/{patientId}`. The document is the patient-level
+contention point and holds at most two unfinished appointment IDs. A third
+booking is rejected; terminal transitions release exactly one matching ID, while
+cancellation requests and reschedules retain the set. The package describes the
+mutation but performs no database I/O.
 
 Appointment planners emit privacy-minimised Audit v2 events containing the
 server actor/role, action, resource, before/after state, reason/result,

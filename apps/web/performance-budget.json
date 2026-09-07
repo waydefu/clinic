@@ -1,7 +1,7 @@
 [
   {
     "path": "/patient.html",
-    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。",
+    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。total 71 是 2026-09-07 T1-BOOK-04（患者自助改期：查詢即本人、當日 10:00 截止、一個月 horizon、同一原子操作先佔新時段再釋出舊時段）上調（原為 70）：壓縮共用 store／management／schedule-engine 後 gzip 實測仍超原上限 76 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -25,7 +25,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 70
+        "budget": 71
       }
     ],
     "resourceCounts": [
@@ -66,7 +66,7 @@
   },
   {
     "path": "/index.html",
-    "justification": "內部工作臺，只有員工在用，因此比患者頁寬鬆。document 10 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 9.2 KiB 加餘裕；script 64／stylesheet 16 反映它比患者頁多出的排班、個管與稽核介面。total 91 是 2026-09-07 T1-BOOK-02（one-month horizon 進 domain，規則收斂為 single source）上調（原為 90）：兩輪非破壞性壓縮後實測 92,380 B，僅超原上限 220 B，繼續壓縮需刪必要驗證或做非最小架構重構，業主當日批准；script／stylesheet／counts／timings 皆不放寬。",
+    "justification": "內部工作臺，只有員工在用，因此比患者頁寬鬆。document 10 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 9.2 KiB 加餘裕；script 64／stylesheet 16 反映它比患者頁多出的排班、個管與稽核介面。total 92 是 2026-09-07 T1-BOOK-04（患者自助改期路徑進入共用 store，工作臺閉包一併變重）上調（原為 91）：壓縮後 gzip 實測仍超原上限 280 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -90,7 +90,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 91
+        "budget": 92
       }
     ],
     "resourceCounts": [

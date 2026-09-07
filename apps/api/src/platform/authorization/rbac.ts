@@ -70,7 +70,11 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
   CandidateRole,
   readonly Permission[]
 > = {
-  patient: ['create_appointment', 'request_cancellation'],
+  patient: [
+    'create_appointment',
+    'request_cancellation',
+    'reschedule_appointment'
+  ],
   front_desk: [
     'create_appointment',
     'request_cancellation',

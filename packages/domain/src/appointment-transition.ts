@@ -11,10 +11,11 @@ import {
   type AuditContext,
   type AuditEventV2
 } from './audit.js';
-import type {
-  BookingKind,
-  PatientBookingGuardSnapshot,
-  SlotSnapshot
+import {
+  patientBookingGuardHolds,
+  type BookingKind,
+  type PatientBookingGuardSnapshot,
+  type SlotSnapshot
 } from './booking-transaction.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
@@ -54,6 +55,12 @@ export interface TransitionRequest {
 export interface RescheduleRequest {
   readonly appointmentId: string;
   readonly targetSlotId: string;
+  /**
+   * When set, the appointment must belong to this patient. Callers that have
+   * a verified patient identity pass it so a BOLA attempt is the same
+   * `APPOINTMENT_NOT_FOUND` as a missing row — never an ownership oracle.
+   */
+  readonly expectedPatientId?: string;
   readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotency: IdempotencyContext;
@@ -103,6 +110,8 @@ export type PlannedPatientBookingGuardMutation =
   | {
       readonly action: 'release';
       readonly activeAppointmentId: string;
+      /** Present when another unfinished appointment must keep the guard. */
+      readonly remainingGuard?: PatientBookingGuardSnapshot;
     }
   | {
       readonly action: 'retain';
@@ -189,12 +198,43 @@ function assertPatientBookingGuardOwnedBy(
   appointment: AppointmentSnapshot,
   guard: PatientBookingGuardSnapshot | undefined
 ): asserts guard is PatientBookingGuardSnapshot {
-  if (guard === undefined || guard.activeAppointmentId !== appointment.id) {
+  if (!patientBookingGuardHolds(guard, appointment.id)) {
     throw new DomainError(
       'PATIENT_BOOKING_GUARD_MISMATCH',
       'The patient booking guard does not belong to the appointment.'
     );
   }
+}
+
+function normalizedGuard(
+  guard: PatientBookingGuardSnapshot,
+  updatedAt: string
+): PatientBookingGuardSnapshot {
+  return {
+    activeAppointmentIds: guard.activeAppointmentIds,
+    updatedAt
+  };
+}
+
+function releaseGuardMutation(
+  guard: PatientBookingGuardSnapshot,
+  appointmentId: string,
+  updatedAt: string
+): PlannedPatientBookingGuardMutation {
+  const remaining = guard.activeAppointmentIds.filter(
+    (id) => id !== appointmentId
+  );
+  if (remaining.length === 0) {
+    return { action: 'release', activeAppointmentId: appointmentId };
+  }
+  return {
+    action: 'release',
+    activeAppointmentId: appointmentId,
+    remainingGuard: {
+      activeAppointmentIds: remaining,
+      updatedAt
+    }
+  };
 }
 
 export function planTransition(
@@ -248,16 +288,13 @@ export function planTransition(
       request.transition === 'request_cancellation'
         ? {
             action: 'retain',
-            guard: {
-              activeAppointmentId: appointment.id,
-              status: 'cancellation_requested',
-              updatedAt: request.requestedAt
-            }
+            guard: normalizedGuard(patientBookingGuard, request.requestedAt)
           }
-        : {
-            action: 'release',
-            activeAppointmentId: appointment.id
-          },
+        : releaseGuardMutation(
+            patientBookingGuard,
+            appointment.id,
+            request.requestedAt
+          ),
     auditEvent,
     outboxJob: outboxFor(
       appointment.id,
@@ -307,12 +344,21 @@ export function planDeletion(
   // 只有尚未結束的預約還佔著時段；取消／未到／完成到診早已釋出，再釋出一次
   // 會把後來訂走這格的人擠掉。
   const holdsSlot = OPEN_STATUSES.includes(appointment.status);
-  // 開放中的預約必須仍持有「一位病患一筆有效預約」guard；終局狀態在生命週期
+  // 開放中的預約必須仍列在病患 guard 的未完成集合裡；終局狀態在生命週期
   // 轉換時已釋出，所以刪除 cancelled/completed/no_show 時不能再要求它存在。
-  // 回傳的 release mutation 仍指向被刪預約，repository 會以 activeAppointmentId
-  // 比對後才刪除，因此也不會誤刪病患後來建立的新 guard。
+  // 回傳的 release mutation 仍指向被刪預約，repository 會確認該 ID 仍在集合
+  // 裡才寫入，因此也不會誤刪病患其他未完成預約的 guard。
+  let patientGuardMutation: PlannedPatientBookingGuardMutation = {
+    action: 'release',
+    activeAppointmentId: appointment.id
+  };
   if (holdsSlot) {
     assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
+    patientGuardMutation = releaseGuardMutation(
+      patientBookingGuard,
+      appointment.id,
+      request.requestedAt
+    );
   }
   const auditEvent = planAuditEvent({
     eventId: `audit_${appointment.id}_deleted_${request.idempotency.recordId}`,
@@ -334,10 +380,7 @@ export function planDeletion(
     appointmentId: appointment.id,
     deletedAt: request.requestedAt,
     ...(holdsSlot ? { releaseSlotId: appointment.slotId } : {}),
-    patientBookingGuard: {
-      action: 'release',
-      activeAppointmentId: appointment.id
-    },
+    patientBookingGuard: patientGuardMutation,
     auditEvent,
     outboxJob: outboxFor(
       appointment.id,
@@ -364,7 +407,11 @@ export function planReschedule(
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
   assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
-  if (appointment === undefined) {
+  if (
+    appointment === undefined ||
+    (request.expectedPatientId !== undefined &&
+      appointment.patientId !== request.expectedPatientId)
+  ) {
     throw new DomainError(
       'APPOINTMENT_NOT_FOUND',
       'The appointment does not exist.'
@@ -404,11 +451,7 @@ export function planReschedule(
     updatedAt: request.requestedAt,
     patientBookingGuard: {
       action: 'retain',
-      guard: {
-        activeAppointmentId: appointment.id,
-        status: 'confirmed',
-        updatedAt: request.requestedAt
-      }
+      guard: normalizedGuard(patientBookingGuard, request.requestedAt)
     },
     auditEvent,
     outboxJob: {

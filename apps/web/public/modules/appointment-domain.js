@@ -406,8 +406,8 @@ export function rescheduleAppointment(
   );
 
   const previous = state.slots.find((item) => item.id === appointment.slotId);
-  if (previous?.reservationId === appointmentId) delete previous.reservationId;
   target.reservationId = appointmentId;
+  if (previous?.reservationId === appointmentId) delete previous.reservationId;
   appointment.slotId = target.id;
   appointment.startsAt = target.startsAt;
   appointment.status = 'confirmed';

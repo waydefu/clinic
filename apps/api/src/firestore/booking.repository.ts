@@ -1,5 +1,6 @@
 import {
   assertIdempotencyContext,
+  parsePatientBookingGuard,
   planBooking,
   planReschedule,
   planTransition,
@@ -49,6 +50,15 @@ export const COLLECTIONS = {
 export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   public constructor(private readonly db: Firestore) {}
 
+  public async patientIdOf(appointmentId: string): Promise<string | undefined> {
+    const snapshot = await this.db
+      .collection(COLLECTIONS.appointments)
+      .doc(appointmentId)
+      .get();
+    const patientId: unknown = snapshot.data()?.patientId;
+    return typeof patientId === 'string' ? patientId : undefined;
+  }
+
   public async reserve(request: BookingRequest): Promise<ReservationResult> {
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
@@ -76,9 +86,8 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
             ...slotDocument.data()
           } as SlotSnapshot)
         : undefined;
-      const patientBookingGuard = patientGuardDocument.exists
-        ? (patientGuardDocument.data() as PatientBookingGuardSnapshot)
-        : undefined;
+      const patientBookingGuard =
+        this.patientGuardSnapshotOf(patientGuardDocument);
 
       // --- decision (pure) ---------------------------------------------
       const plan = planBooking(request, slot, patientBookingGuard);
@@ -91,7 +100,11 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       transaction.update(slotRef, {
         reservationId: plan.slotReservation.reservationId
       });
-      transaction.create(patientGuardRef, plan.patientBookingGuard);
+      if (patientGuardDocument.exists) {
+        transaction.set(patientGuardRef, plan.patientBookingGuard);
+      } else {
+        transaction.create(patientGuardRef, plan.patientBookingGuard);
+      }
       transaction.create(
         this.db
           .collection(COLLECTIONS.auditEvents)
@@ -132,7 +145,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     document: DocumentSnapshot | undefined
   ): PatientBookingGuardSnapshot | undefined {
     if (document === undefined || !document.exists) return undefined;
-    return document.data() as PatientBookingGuardSnapshot;
+    return parsePatientBookingGuard(document.data());
   }
 
   /**
@@ -152,28 +165,34 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   }
 
   /**
-   * A terminal transition may release only the guard that still names this
-   * appointment. It must never delete a newer appointment's lock.
+   * A terminal transition may release only the appointment named in this
+   * mutation. It must never delete or overwrite a guard that no longer lists
+   * that appointment — another unfinished booking may still hold the lock.
    */
   private applyPatientGuardMutation(
     transaction: Transaction,
     guardDocument: DocumentSnapshot | undefined,
     mutation: PlannedPatientBookingGuardMutation
   ): void {
-    if (guardDocument === undefined) return;
+    if (guardDocument === undefined || !guardDocument.exists) return;
+
+    const current = parsePatientBookingGuard(guardDocument.data());
 
     if (mutation.action === 'release') {
       if (
-        guardDocument.exists &&
-        guardDocument.data()?.['activeAppointmentId'] ===
-          mutation.activeAppointmentId
+        !current.activeAppointmentIds.includes(mutation.activeAppointmentId)
       ) {
-        transaction.delete(guardDocument.ref);
+        return;
       }
+      if (mutation.remainingGuard === undefined) {
+        transaction.delete(guardDocument.ref);
+        return;
+      }
+      transaction.set(guardDocument.ref, mutation.remainingGuard);
       return;
     }
 
-    transaction.update(guardDocument.ref, mutation.guard);
+    transaction.set(guardDocument.ref, mutation.guard);
   }
 
   /** 取消、提出取消、到診與未到；規則由 planTransition 決定。 */
@@ -254,7 +273,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     });
   }
 
-  /** 改期：在同一筆交易內釋出原時段並占用新時段。 */
+  /** 改期：同一筆交易內先占用新時段，再釋出原時段。 */
   public async reschedule(
     request: RescheduleRequest
   ): Promise<ReservationResult> {
@@ -308,10 +327,13 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
 
       // --- writes -------------------------------------------------------
+      // Reserve the new slot before releasing the old one. If the new slot
+      // cannot be taken, the transaction aborts and the original booking is
+      // unchanged. Releasing first would drop the old slot on a failed reserve.
+      transaction.update(targetRef, { reservationId: plan.appointmentId });
       if (previousDocument !== undefined) {
         this.releaseSlot(transaction, previousDocument, plan.appointmentId);
       }
-      transaction.update(targetRef, { reservationId: plan.appointmentId });
       transaction.update(appointmentRef, {
         slotId: plan.reserveSlotId,
         startsAt: plan.startsAt,
