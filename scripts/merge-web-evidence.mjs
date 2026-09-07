@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import process from 'node:process';
@@ -76,7 +76,25 @@ export function expectedA11yScans({ shellRoutes, clinicRoutes }) {
 export function headSha() {
   const fromCi = process.env['GITHUB_SHA'];
   if (fromCi !== undefined && fromCi !== '') return fromCi;
-  return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+    shell: false
+  });
+  if (result.error !== undefined) {
+    throw new Error(
+      `merge-web-evidence: git rev-parse failed: ${result.error.message}`
+    );
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      `merge-web-evidence: git rev-parse exited ${result.status}`
+    );
+  }
+  const sha = String(result.stdout ?? '').trim();
+  if (!/^[0-9a-f]{40}$/.test(sha)) {
+    throw new Error('merge-web-evidence: git rev-parse returned malformed SHA');
+  }
+  return sha;
 }
 
 export function utcToday() {

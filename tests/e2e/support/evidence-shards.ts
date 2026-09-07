@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -11,13 +11,34 @@ import { join } from 'node:path';
 
 let cachedSha: string | undefined;
 
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
+
+function gitHeadSha(): string {
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+    shell: false
+  });
+  if (result.error !== undefined) {
+    throw new Error(
+      `evidence shard: git rev-parse failed: ${result.error.message}`
+    );
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      `evidence shard: git rev-parse exited ${String(result.status)}`
+    );
+  }
+  const sha = result.stdout.trim();
+  if (!SHA_PATTERN.test(sha)) {
+    throw new Error('evidence shard: git rev-parse returned malformed SHA');
+  }
+  return sha;
+}
+
 export function evidenceHeadSha(): string {
   if (cachedSha === undefined) {
     const fromCi = process.env['GITHUB_SHA'];
-    cachedSha =
-      fromCi !== undefined && fromCi !== ''
-        ? fromCi
-        : execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+    cachedSha = fromCi !== undefined && fromCi !== '' ? fromCi : gitHeadSha();
   }
   return cachedSha;
 }
@@ -30,13 +51,25 @@ export function evidenceSlug(...parts: string[]): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/**
+ * 分片目錄：repo-root 的 `output/evidence/shards/`，與
+ * `scripts/merge-web-evidence.mjs` 的讀取端一致。
+ *
+ * `fromSupportDir` 預設是本檔所在的 `tests/e2e/support`（Playwright 轉 CommonJS
+ * 執行時 `__dirname` 可用）；匯出參數是為了讓回歸測試在不依賴 `__dirname`
+ * 的環境下也能證明寫入端與讀取端同目錄。
+ */
+export function resolveShardDir(fromSupportDir: string = __dirname): string {
+  return join(fromSupportDir, '..', '..', '..', 'output', 'evidence', 'shards');
+}
+
 export function writeEvidenceShard(
   kind: 'web-performance' | 'web-accessibility',
   slug: string,
   payload: unknown
 ): void {
   const sha = evidenceHeadSha();
-  const dir = join(__dirname, '..', '..', 'output', 'evidence', 'shards');
+  const dir = resolveShardDir();
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     join(dir, `${kind}-${sha}--${slug}.json`),

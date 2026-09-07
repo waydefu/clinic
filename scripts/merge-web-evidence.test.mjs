@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   expectedA11yScans,
+  headSha,
   mergeA11yShards,
   mergeEvidence,
   mergePerformanceShards,
   parseArgs,
-  repositoryInputs
+  repositoryInputs,
+  SHARD_DIR_PARTS
 } from './merge-web-evidence.mjs';
+import {
+  evidenceHeadSha,
+  resolveShardDir
+} from '../tests/e2e/support/evidence-shards.ts';
 
 // WEB-P0-02／03 證據合併：多 worker 分片 → canonical artifact。
 // 上一版各 worker 覆寫同一個 artifact 檔，上傳的是不確定的殘缺品；
@@ -233,5 +241,21 @@ describe('repositoryInputs', () => {
     expect(inputs.shellRoutes).toContain('/clinic');
     expect(inputs.shellRoutes).not.toContain('/404');
     expect(inputs.budgets.length).toBeGreaterThan(0);
+  });
+});
+
+describe('shard 目錄一致（寫入端＝讀取端）', () => {
+  it('spec 寫入的 repo-root 分片目錄就是 merge 讀取的那一個', () => {
+    const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const readerDir = join(repoRoot, ...SHARD_DIR_PARTS);
+    const writerDir = resolveShardDir(
+      join(repoRoot, 'tests', 'e2e', 'support')
+    );
+    expect(writerDir).toBe(readerDir);
+  });
+
+  it('兩端的 head SHA 都是 40 字小寫 hex（fail closed 的形狀）', () => {
+    expect(headSha()).toMatch(/^[0-9a-f]{40}$/);
+    expect(evidenceHeadSha()).toMatch(/^[0-9a-f]{40}$/);
   });
 });
