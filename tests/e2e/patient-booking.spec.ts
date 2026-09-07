@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-import { fillBirthDate, submitBooking } from './support/patient';
+import {
+  fillBirthDate,
+  lookupBooking,
+  makeLatestBookingSelfCancellable,
+  submitBooking
+} from './support/patient';
 import { STORAGE_KEY, login } from './support/workbench';
 
 /** 讀出瀏覽器裡的合成狀態。斷言「送出去的東西真的存下來了」時用。 */
@@ -11,30 +16,6 @@ async function syntheticState(page: import('@playwright/test').Page) {
       STORAGE_KEY
     )
   );
-}
-
-async function lookupBooking(
-  page: import('@playwright/test').Page,
-  { phone, birthDate }: { phone: string; birthDate: string }
-) {
-  await page.locator('#booking-management-open').click();
-  await page.locator('#booking-lookup-phone').fill(phone);
-  await page.locator('#booking-lookup-birth').fill(birthDate);
-  await page.locator('#booking-lookup-form button[type="submit"]').click();
-  await expect(page.locator('.booking-lookup-card')).toBeVisible();
-}
-
-/** 讓需要走完取消流程的案例不受 CI 實際執行時刻影響。 */
-async function makeLatestBookingSelfCancellable(
-  page: import('@playwright/test').Page
-) {
-  await page.evaluate((key) => {
-    const next = JSON.parse(localStorage.getItem(key) ?? 'null');
-    next.appointments.at(-1).startsAt = new Date(
-      Date.now() + 24 * 60 * 60_000
-    ).toISOString();
-    localStorage.setItem(key, JSON.stringify(next));
-  }, STORAGE_KEY);
 }
 
 // 患者端完整預約流程，跑在打包後的最終產物上。三個輸入步驟完成後顯示結果，

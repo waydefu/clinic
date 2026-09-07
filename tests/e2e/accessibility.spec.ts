@@ -4,9 +4,11 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   createBooking,
   login,
+  openStaffRescheduleForm,
   seedAppointmentCopies,
   showAllAppointments
 } from './support/workbench.js';
+import { openPatientRescheduleControls } from './support/patient.js';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/staff',
@@ -116,6 +118,19 @@ test.describe('無障礙掃描', () => {
     });
     await expect(page.locator('#booking-form')).toBeVisible();
     await scan(page, '工作臺預約清單');
+  });
+
+  test('工作臺改期表單沒有 serious/critical 違規', async ({ page }) => {
+    await openStaffRescheduleForm(page);
+    await scan(page, '工作臺改期表單');
+  });
+
+  test('患者自助改期控制沒有 serious/critical 違規', async ({ page }) => {
+    await openPatientRescheduleControls(page);
+    await expect(
+      page.getByRole('heading', { name: '查詢／取消預約' })
+    ).toBeVisible();
+    await scan(page, '患者自助改期控制');
   });
 
   test('預約分頁有可及名稱、頁碼狀態且沒有 serious/critical 違規', async ({

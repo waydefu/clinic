@@ -1,8 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes.js';
-import { fillBirthDate, submitBooking } from './support/patient.js';
-import { createBooking, login, openDisclosure } from './support/workbench.js';
+import {
+  fillBirthDate,
+  openPatientRescheduleControls,
+  submitBooking
+} from './support/patient.js';
+import {
+  createBooking,
+  login,
+  openDisclosure,
+  openStaffRescheduleForm
+} from './support/workbench.js';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/staff',
@@ -293,6 +302,31 @@ test.describe('工作臺在最窄的常見螢幕', () => {
 
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
+});
+
+test.describe('改期表面在 360 與 390 不溢位', () => {
+  for (const width of [360, 390] as const) {
+    test(`/staff 改期表單在 ${width}px 不產生水平捲軸`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await openStaffRescheduleForm(page);
+      expect(
+        await pageOverflow(page),
+        `/staff 改期表單 @ ${width}px`
+      ).toBeLessThanOrEqual(1);
+    });
+
+    test(`/booking 自助改期在 ${width}px 不產生水平捲軸`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await openPatientRescheduleControls(page);
+      await expect(
+        page.getByRole('heading', { name: '查詢／取消預約' })
+      ).toBeVisible();
+      expect(
+        await pageOverflow(page),
+        `/booking 自助改期 @ ${width}px`
+      ).toBeLessThanOrEqual(1);
+    });
+  }
 });
 
 test.describe('患者預約頁手機版', () => {
