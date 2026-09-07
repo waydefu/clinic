@@ -66,10 +66,102 @@ const PUBLIC_PAGE_INVENTORY = JSON.parse(
     'utf8'
   )
 );
+export { PUBLIC_PAGE_INVENTORY };
 export const PUBLIC_INDEXABLE_ENTRIES = Object.freeze(
   indexableEntriesFromPublicPages(PUBLIC_PAGE_INVENTORY)
 );
 const PUBLIC_INDEXABLE_ENTRY_SET = new Set(PUBLIC_INDEXABLE_ENTRIES);
+
+// D 系列核准狀態的唯一正典是決策登錄（decision register）；建置只讀不寫。
+// 讀不到、列不存在、狀態不是 approved 開頭，一律視為未核准（fail-closed）。
+const DECISION_REGISTER_TEXT = await readFile(
+  new URL('../docs/product/phase-1-decision-register.md', import.meta.url),
+  'utf8'
+);
+export { DECISION_REGISTER_TEXT };
+
+const DECISION_PATTERN = /^D-\d{3}$/;
+
+/**
+ * 每頁發布核准的單一正典判定（canonical publication decision）。
+ *
+ * indexAllowed = 全域開關 AND indexable AND 所需決策已核准。
+ * 預設關閉：任一條件不滿足即不可索引、不可進 sitemap。全域開關只是必要條件，
+ * 永遠不是充分條件——它打不開缺少每頁核准的頁面。
+ */
+export function readDecisionApproval(registerText, decisionId) {
+  if (typeof registerText !== 'string' || !DECISION_PATTERN.test(decisionId))
+    return false;
+  for (const line of registerText.split('\n')) {
+    const match = /^\|\s*(D-\d{3})\s*\|[^|]*\|[^|]*\|\s*([^|]*?)\s*\|/.exec(
+      line
+    );
+    if (match === null || match[1] !== decisionId) continue;
+    return /^approved\b/i.test(match[2]);
+  }
+  return false;
+}
+
+/** 登錄裡出現過的決策編號集合；requiresDecision 引用不存在的編號即 gate 失敗。 */
+export function listRegisterDecisions(registerText) {
+  const ids = new Set();
+  if (typeof registerText !== 'string') return ids;
+  for (const line of registerText.split('\n')) {
+    const match = /^\|\s*(D-\d{3})\s*\|/.exec(line);
+    if (match !== null) ids.add(match[1]);
+  }
+  return ids;
+}
+
+/**
+ * 整份 inventory 的發布判定表（entry → decision），建置與 gate 共用同一個函式，
+ * 不會有兩份算法各自解讀核准。
+ */
+export function publishDecisionsForInventory(
+  inventory,
+  registerText,
+  globalRelease
+) {
+  const decisions = new Map();
+  const pages =
+    inventory !== null &&
+    typeof inventory === 'object' &&
+    Array.isArray(inventory.pages)
+      ? inventory.pages
+      : [];
+  for (const page of pages) {
+    if (
+      typeof page !== 'object' ||
+      page === null ||
+      typeof page.entry !== 'string'
+    )
+      continue;
+    decisions.set(
+      page.entry,
+      pagePublishDecision(page, {
+        globalRelease,
+        isDecisionApproved: (decision) =>
+          readDecisionApproval(registerText, decision)
+      })
+    );
+  }
+  return decisions;
+}
+
+export function pagePublishDecision(
+  page,
+  { globalRelease, isDecisionApproved }
+) {
+  if (!globalRelease) return { index: false, inSitemap: false };
+  if (typeof page !== 'object' || page === null || page.indexable !== true)
+    return { index: false, inSitemap: false };
+  if (
+    typeof page.requiresDecision === 'string' &&
+    !isDecisionApproved(page.requiresDecision)
+  )
+    return { index: false, inSitemap: false };
+  return { index: true, inSitemap: true };
+}
 
 function extensionOf(path) {
   const dot = path.lastIndexOf('.');
@@ -191,7 +283,14 @@ function stronglyConnectedComponents(nodes, edgesOf) {
  * are hashed before dependents (SCC-condensed topological order) so every hash
  * reflects the exact bytes that will be fetched transitively.
  */
-export function planHashedBuild(files, { hashLength = 10 } = {}) {
+export function planHashedBuild(
+  files,
+  {
+    hashLength = 10,
+    inventory = PUBLIC_PAGE_INVENTORY,
+    registerText = DECISION_REGISTER_TEXT
+  } = {}
+) {
   const jsPaths = [];
   const cssPaths = [];
   const htmlPaths = [];
@@ -424,8 +523,21 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
   // 設 `WEB_PUBLIC_INDEXABLE=true`，由建置**移除**那一行；實際 allowlist 直接來自
   // public-pages.json 的 indexable metadata。工作臺、clinic preview 與 404 目前
   // 都是 false，不能因為這支建置腳本留著另一份過期陣列而意外被放行。
+  //
+  // 但全域開關只是必要條件：真正放行的是每頁的正典發布判定
+  // （pagePublishDecision）——全域開關 AND indexable AND 所需決策已核准。
+  // 例如 /privacy 的 indexable 是 true（技術上可索引），但 requiresDecision
+  // D-003 仍是 pending，所以即使開關打開也維持 noindex 且不得進 sitemap。
   const indexable = process.env.WEB_PUBLIC_INDEXABLE === 'true';
   const ROBOTS_META = /\s*<meta\s+name="robots"[^>]*>/i;
+  // 注入的 inventory 照樣走一次形狀驗證：malformed metadata 在建置期就爆炸，
+  // 不會安靜地變成「全部關閉」或「全部放行」。
+  indexableEntriesFromPublicPages(inventory);
+  const releaseSet = new Set(
+    [...publishDecisionsForInventory(inventory, registerText, indexable)]
+      .filter(([, decision]) => decision.index)
+      .map(([entry]) => entry)
+  );
 
   // 測試版本要在**名稱**上就看得出來：分享連結、瀏覽器分頁、書籤、螢幕截圖裡
   // 出現的都是 <title>，而業主看到的往往就是那些，不是頁面上的徽章。
@@ -439,7 +551,7 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
   };
 
   const publishIndexable = (path, html) => {
-    if (!indexable || !PUBLIC_INDEXABLE_ENTRY_SET.has(path)) return html;
+    if (!indexable || !releaseSet.has(path)) return html;
     if (!ROBOTS_META.test(html)) {
       throw new Error(
         `WEB_PUBLIC_INDEXABLE=true but ${path} has no <meta name="robots"> to remove. ` +
@@ -476,6 +588,43 @@ export function planHashedBuild(files, { hashLength = 10 } = {}) {
   for (const path of otherPaths) {
     outputs.set(path, files.get(path));
     manifest.set(path, path);
+  }
+
+  // sitemap 與 meta 用同一個正典判定派生：已發布頁的 canonical 必須在列，
+  // 未核准頁的 <url> 整段拿掉。模板裡缺了已發布頁的 canonical 就爆炸——
+  // 不能安靜地出貨「meta 可索引、sitemap 卻交代不清」的矛盾組合。
+  if (outputs.has('sitemap.xml')) {
+    const publishedCanonicals = new Set();
+    for (const entry of releaseSet) {
+      if (!outputs.has(entry)) continue;
+      const match = /<link\s+rel="canonical"\s+href="([^"]+)"/i.exec(
+        String(outputs.get(entry))
+      );
+      if (match !== null) publishedCanonicals.add(match[1]);
+    }
+    const template = String(outputs.get('sitemap.xml'));
+    const templateLocs = new Set(
+      [...template.matchAll(/<loc>([^<]+)<\/loc>/gi)].map((match) =>
+        match[1].trim()
+      )
+    );
+    for (const canonical of publishedCanonicals) {
+      if (!templateLocs.has(canonical)) {
+        throw new Error(
+          `${canonical} is publish-approved but missing from sitemap.xml; ` +
+            'refusing to ship an indexable page the sitemap cannot explain.'
+        );
+      }
+    }
+    outputs.set(
+      'sitemap.xml',
+      template.replace(/<url>[\s\S]*?<\/url>/gi, (block) => {
+        const loc = /<loc>([^<]+)<\/loc>/i.exec(block);
+        return loc !== null && publishedCanonicals.has(loc[1].trim())
+          ? block
+          : '';
+      })
+    );
   }
 
   // 完整性：改寫後每個相對匯入都必須指到真的產出的檔案。改寫本來就該保證這點，

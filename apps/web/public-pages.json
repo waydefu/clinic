@@ -30,8 +30,9 @@
       "entry": "privacy.html",
       "audience": "public",
       "indexable": true,
+      "requiresDecision": "D-003",
       "scans": ["axe", "responsive", "affordance"],
-      "note": "個資法第 8 條的告知草稿頁。即使零指令碼、零字型，長篇法務文字與定義清單仍須通過 320px～桌面寬度的 reflow 掃描。",
+      "note": "個資法第 8 條的告知草稿頁。即使零指令碼、零字型，長篇法務文字與定義清單仍須通過 320px～桌面寬度的 reflow 掃描。D-003 未核准前維持 noindex 且不得進 sitemap，全域開關不得放行。",
       "routing": {
         "kind": "exact",
         "entryRedirect": { "status": 301 }

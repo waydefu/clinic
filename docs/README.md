@@ -69,6 +69,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0003 — direct Firestore client access is deny by default](adr/0003-firestore-direct-client-access-is-deny-by-default.md)
 - [ADR-0004 — the browser and the server share one compiled domain, with no bundler](adr/0004-browser-and-server-share-one-compiled-domain.md)
 - [ADR-0005 — patient intake/verification and appointment commands are separate](adr/0005-patient-intake-and-appointment-command-are-separate.md)
+- [ADR-0006 — index release requires per-page publication approval](adr/0006-index-release-requires-per-page-approval.md)
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
 - [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
 - [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — production remains plan-only and blocked by production D-009/D-016; a 2026-08-30 banner points to the separately approved and deployed 30-day synthetic-only implementation and evidence
