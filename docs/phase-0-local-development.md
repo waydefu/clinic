@@ -45,10 +45,9 @@ machines only at a Git boundary:
    documentation changes, record `git branch --show-current`, and push that
    exact branch with `git push -u origin <branch>`.
 2. On the next computer, install Git 2.x, pnpm `11.9.0` and JDK 21 before
-   running any repository command. For the 2026-08-11 dated verification
-   baseline use Node `24.18.0`; the current engine range and floating CI major
-   do not enforce that security floor and are tracked by `SCM-R02`. After that
-   work lands, use its exact reviewed patch or runtime image digest. JDK 21 matches CI and is
+   running any repository command. Use Node `24.20.0` or any later 24.x that
+   satisfies `package.json` `engines.node` (`>=24.20.0 <25`). CI pins that
+   exact patch (`SCM-R02`). JDK 21 matches CI and is
    needed by the local Firestore Emulator. Close and reopen PowerShell after
    installation so the updated `PATH` and `JAVA_HOME` are loaded.
 3. Clone the branch pushed in step 1 into a folder owned by the next computer's

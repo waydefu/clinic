@@ -60,6 +60,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Case management and payroll approval packet](product/phase-1-case-management-payroll-approval-packet.md) — D-007, D-008 assignment and compensation basis
 - [Integration and launch approval packet](product/phase-1-integration-launch-approval-packet.md) — D-009…D-011 Calendar, social channels and launch
 - [Privacy approval packet](legal/phase-1-privacy-approval-packet.md) — D-001…D-003 privacy, retention and vendor record
+- [BOOK-PILOT synthetic booking write-path proposal (2026-09-07)](product/2026-09-07-book-pilot-proposal.md) — plan-only T2-GOV-01 draft: scope, exclusions, synthetic-only, expiry, kill switch, rollback, evidence and required gate changes; does not approve D-004/D-005, does not change capability gates, and does not route `/v1/bookings`
 
 ## 3. Architecture and contracts
 
