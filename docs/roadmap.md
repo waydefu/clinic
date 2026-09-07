@@ -40,7 +40,7 @@ Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 > 完成，見下**）、~~`DATA-R02` occurrence identity~~（**2026-09-06 完成，見下**）、
 > ~~`ARC-R01` lease fencing~~（**2026-09-06 完成，見下**）、~~`SCM-R05` 修綠 dependency audit
 > gate~~（**2026-08-17 完成，見下**）、~~`SCM-R01` required SAST~~（**2026-08-18
-> 完成，見下**）、`SCM-R02` runtime、
+> 完成，見下**）、~~`SCM-R02` Node 安全 floor~~（**2026-09-07 完成，見下**）、
 > `WEB-P0-01/02/03` privacy index/performance/axe。
 > 這些不是全面重開 Stage 0，但在對應 acceptance 前，不得接 booking/worker route 或
 > 宣稱相關 gate 完整。完整證據見
@@ -66,11 +66,16 @@ Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 > `Verification evidence` 同時變紅、其餘十個 job 全綠、`mergeStateStatus=BLOCKED`、
 > 未用 admin bypass，該 PR 已關閉未合併。branch protection 未變動。
 >
-> 這**不**表示 Semgrep CE 等同 CodeQL 跨檔分析，也不表示 `SCM-R02` 有任何進展。
+> 這**不**表示 Semgrep CE 等同 CodeQL 跨檔分析。當時 `SCM-R02` 尚未進行。
 >
 > 兩件不因此成立的事：(1) `SCM-R04` 未關閉——9 筆殘留 advisory（1 low／8 moderate，
 > 皆 dev 工具鏈）仍無 owner／理由／到期日；(2) 稽核對 `SCM-R05` 的驗收條文另含
 > 「逐筆 triage 殘留 alert」，該子句與 `SCM-R04` 範圍重疊且尚未完成，邊界待 owner 裁定。
+>
+> **`SCM-R02` 已於 2026-09-07 完成。** `package.json` `engines.node` 為
+> `>=24.20.0 <25`（拒絕未修補的 `24.14.0`）；`verify.yml` 五處 `node-version`
+> 釘 `24.20.0`，不再浮動 major。這是 repository／CI 的 patch floor，**不是**
+> Cloud Run image digest，也不授權 D-010 部署。
 >
 > **`DATA-R01`、`DATA-R02`、`ARC-R01` 已於 2026-09-06 完成；PR #23 不是這三項的完成證據。**
 > 2026-08-22 的 PR #23 通過當時同 commit 的 Firestore Emulator job，但沒有改 slot
