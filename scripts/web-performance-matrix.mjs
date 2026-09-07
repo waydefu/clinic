@@ -30,6 +30,21 @@ export const PERFORMANCE_PROFILES = [
 /** 觀察記錄的狀態：量不到只能是 UNAVAILABLE 或 FAIL，絕不能是 PASS。 */
 export const RECORD_STATUSES = ['PASS', 'FAIL', 'UNAVAILABLE'];
 
+/**
+ * 進入點產物檔名 → 對外路由的 canonical 對應（單一來源）。
+ *
+ * index.html 是 `/staff`、patient.html 由 /booking 提供（firebase.json 的
+ * rewrite，server.mjs 同步實作）；clinic.html 承載 CLINIC_ROUTES 的每一條
+ * 具體路由。spec 與 merge 腳本都從這裡拿，不各寫一份。
+ */
+export function defaultEntryRoutes({ clinicRoutes }) {
+  return [
+    { entryPath: '/patient.html', routes: ['/booking'] },
+    { entryPath: '/index.html', routes: ['/staff'] },
+    { entryPath: '/clinic.html', routes: [...clinicRoutes] }
+  ];
+}
+
 /** artifact 綁定的 exact commit：40 位小寫 hex，GITHUB_SHA 或 rev-parse。 */
 export const SHA_PATTERN = /^[0-9a-f]{40}$/;
 
@@ -52,9 +67,8 @@ export function timingBudget(budgets, entryPath, metric) {
  * 展開「進入點 × 具體路由 × 雙 profile」的完整觀察清單。
  *
  * @param budgets performance-budget.json 內容（決定哪些進入點有 timings）。
- * @param entryRoutes [{ entryPath, routes: [route...] }]，呼叫端（spec）
- *   由 public-pages.json 的 routing 與 clinic-content.js 的 CLINIC_ROUTES
- *   組出來；這裡不自己猜對應關係。
+ * @param entryRoutes [{ entryPath, routes: [route...] }]，呼叫端由
+ *   defaultEntryRoutes 建出來；這裡不自己猜對應關係。
  */
 export function expectedObservations({ budgets, entryRoutes }) {
   const budgeted = new Set(

@@ -1,5 +1,4 @@
-import { execSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
@@ -9,9 +8,15 @@ import { expect, test } from '@playwright/test';
 import { CLINIC_ROUTES } from '../../apps/web/public/clinic-content.js';
 import {
   PERFORMANCE_PROFILES,
-  timingBudget,
-  validatePerformanceArtifact
+  defaultEntryRoutes,
+  timingBudget
 } from '../../scripts/web-performance-matrix.mjs';
+
+import {
+  evidenceHeadSha,
+  evidenceSlug,
+  writeEvidenceShard
+} from './support/evidence-shards.js';
 
 // 效能預算的「實驗室時間」那一半。位元組那一半是確定性的，由
 // `scripts/check-performance-budget.mjs` 在 verify 裡對 dist 靜態計算；
@@ -25,6 +30,11 @@ import {
 // WEB-P0-02 完整性：/clinic 共用 shell 底下的每一條具體路由都要有
 // desktop＋mobile 的實測，不得因為共用同一個 clinic.html 就只量首頁。
 // privacy／404 沒有 timings 門檻（位元組預算仍由靜態 gate 守），不進本矩陣。
+//
+// 證據架構：每個測試只寫自己的分片（`output/evidence/shards/`），完整性驗證
+// 交給 CI 的 `scripts/merge-web-evidence.mjs`。fullyParallel 下同一支 spec
+// 會分散到多個 worker，各 worker 的 afterAll 只能看到局部資料——跨測試斷言
+// 寫在 spec 裡只會誤報缺件。
 
 interface TimingBudget {
   metric: string;
@@ -36,6 +46,11 @@ interface BudgetEntry {
   timings?: TimingBudget[];
 }
 
+interface ShiftSource {
+  target: string;
+  value: number;
+}
+
 interface PerfRecord {
   route: string;
   entryPath: string;
@@ -45,6 +60,7 @@ interface PerfRecord {
   metrics: Record<string, number>;
   budgets: Record<string, number>;
   status: 'PASS' | 'FAIL' | 'UNAVAILABLE';
+  shiftSources: ShiftSource[];
 }
 
 // Playwright 把測試轉成 CommonJS 執行，因此這裡用 `__dirname` 而不是
@@ -56,20 +72,10 @@ const budgets = JSON.parse(
   )
 ) as BudgetEntry[];
 
-// 進入點產物檔名 → 對外路由。index.html 是 `/staff`、patient.html 由
-// /booking 提供（firebase.json 的 rewrite，server.mjs 同步實作）；
-// clinic.html 承載 CLINIC_ROUTES 的每一條具體路由。
-const ENTRY_ROUTES: Array<{ entryPath: string; routes: string[] }> = [
-  { entryPath: '/patient.html', routes: ['/booking'] },
-  { entryPath: '/index.html', routes: ['/staff'] },
-  { entryPath: '/clinic.html', routes: [...(CLINIC_ROUTES as string[])] }
-];
-
-function headSha(): string {
-  const fromCi = process.env['GITHUB_SHA'];
-  if (fromCi !== undefined && fromCi !== '') return fromCi;
-  return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
-}
+// 進入點產物檔名 → 對外路由（單一來源在 web-performance-matrix.mjs）。
+const ENTRY_ROUTES = defaultEntryRoutes({
+  clinicRoutes: CLINIC_ROUTES as string[]
+}) as Array<{ entryPath: string; routes: string[] }>;
 
 declare global {
   interface Window {
@@ -77,37 +83,9 @@ declare global {
       largestContentfulPaint: number;
       cumulativeLayoutShift: number;
     };
+    __perfShiftSources?: Map<string, number>;
   }
 }
-
-const collected: PerfRecord[] = [];
-
-test.afterAll(() => {
-  const sha = headSha();
-  // CI retry 會重跑測試：同一觀察點以後寫的為準，不留重複。
-  const byKey = new Map(collected.map((r) => [`${r.profile} ${r.route}`, r]));
-  const artifact = {
-    schemaVersion: 1,
-    headSha: sha,
-    generatedBy: 'tests/e2e/performance.spec.ts',
-    records: Array.from(byKey.values())
-  };
-  // 先寫檔再斷言：紅燈本身也是證據，CI 一定要上傳它。
-  const dir = join(__dirname, '..', '..', 'output', 'evidence');
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, `web-performance-${sha}.json`),
-    `${JSON.stringify(artifact, null, 2)}\n`
-  );
-  const failures = validatePerformanceArtifact(artifact, {
-    budgets,
-    entryRoutes: ENTRY_ROUTES
-  });
-  expect(
-    failures,
-    `performance artifact 不完整:\n${failures.join('\n')}`
-  ).toEqual([]);
-});
 
 for (const { entryPath, routes } of ENTRY_ROUTES) {
   for (const route of routes) {
@@ -133,7 +111,20 @@ for (const { entryPath, routes } of ENTRY_ROUTES) {
             largestContentfulPaint: 0,
             cumulativeLayoutShift: 0
           };
+          const sources = new Map<string, number>();
           window.__perfMetrics = metrics;
+          window.__perfShiftSources = sources;
+          const describe = (node: Node | null | undefined): string => {
+            if (!(node instanceof Element)) return 'unknown';
+            let label = node.tagName.toLowerCase();
+            if (node.id !== '') label += `#${node.id}`;
+            else if (
+              typeof node.className === 'string' &&
+              node.className.trim() !== ''
+            )
+              label += `.${node.className.trim().split(/\s+/)[0]}`;
+            return label;
+          };
           new PerformanceObserver((list) => {
             for (const observed of list.getEntries()) {
               metrics.largestContentfulPaint = observed.startTime;
@@ -144,9 +135,16 @@ for (const { entryPath, routes } of ENTRY_ROUTES) {
               const shift = observed as PerformanceEntry & {
                 value?: number;
                 hadRecentInput?: boolean;
+                sources?: Array<{ node?: Node | null }>;
               };
               if (shift.hadRecentInput) continue;
               metrics.cumulativeLayoutShift += shift.value ?? 0;
+              // 位移歸因（triage 用近似值：同一筆位移的全額記在每個牽涉節點上，
+              // 只用於排出嫌疑順序，不做精確分帳）。
+              for (const source of shift.sources ?? []) {
+                const key = describe(source.node);
+                sources.set(key, (sources.get(key) ?? 0) + (shift.value ?? 0));
+              }
             }
           }).observe({ type: 'layout-shift', buffered: true });
         });
@@ -182,7 +180,16 @@ for (const { entryPath, routes } of ENTRY_ROUTES) {
             largestContentfulPaint:
               window.__perfMetrics?.largestContentfulPaint ?? Number.NaN,
             cumulativeLayoutShift:
-              window.__perfMetrics?.cumulativeLayoutShift ?? Number.NaN
+              window.__perfMetrics?.cumulativeLayoutShift ?? Number.NaN,
+            shiftSources: Array.from(
+              window.__perfShiftSources ?? new Map<string, number>()
+            )
+              .map(([target, value]) => ({
+                target,
+                value: Math.round(value * 10000) / 10000
+              }))
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 5)
           }));
         };
 
@@ -218,25 +225,37 @@ for (const { entryPath, routes } of ENTRY_ROUTES) {
           measured.firstContentfulPaint <= fcpBudget &&
           measured.largestContentfulPaint <= lcpBudget &&
           measured.cumulativeLayoutShift <= clsBudget;
-        // 先收集再斷言：失敗的測試也要留下 FAIL 記錄，artifact 才完整。
-        collected.push({
-          route,
-          entryPath,
-          profile: profile.name,
-          width: profile.width,
-          height: profile.height,
-          metrics: {
-            'first-contentful-paint': measured.firstContentfulPaint,
-            'largest-contentful-paint': measured.largestContentfulPaint,
-            'cumulative-layout-shift': measured.cumulativeLayoutShift
-          },
-          budgets: {
-            'first-contentful-paint': fcpBudget,
-            'largest-contentful-paint': lcpBudget,
-            'cumulative-layout-shift': clsBudget
-          },
-          status: honest ? 'PASS' : 'FAIL'
-        });
+        // 先寫分片再斷言：失敗的測試也要留下 FAIL 記錄，合併後的 artifact 才完整。
+        // 同一測試 retry 會覆寫同名分片（先後執行，不競態）。
+        const sha = evidenceHeadSha();
+        writeEvidenceShard(
+          'web-performance',
+          evidenceSlug(route, profile.name),
+          {
+            schemaVersion: 1,
+            headSha: sha,
+            generatedBy: 'tests/e2e/performance.spec.ts',
+            record: {
+              route,
+              entryPath,
+              profile: profile.name,
+              width: profile.width,
+              height: profile.height,
+              metrics: {
+                'first-contentful-paint': measured.firstContentfulPaint,
+                'largest-contentful-paint': measured.largestContentfulPaint,
+                'cumulative-layout-shift': measured.cumulativeLayoutShift
+              },
+              budgets: {
+                'first-contentful-paint': fcpBudget,
+                'largest-contentful-paint': lcpBudget,
+                'cumulative-layout-shift': clsBudget
+              },
+              status: honest ? 'PASS' : 'FAIL',
+              shiftSources: measured.shiftSources
+            } satisfies PerfRecord
+          }
+        );
 
         // 量到 0 代表指標沒被記錄到（觀察器沒裝上或頁面沒畫出東西），
         // 那是測試壞了而不是效能好，必須失敗而不是靜靜通過。

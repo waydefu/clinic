@@ -1,5 +1,4 @@
-import { execSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
@@ -10,10 +9,14 @@ import { expect, test, type Page } from '@playwright/test';
 import { CLINIC_ROUTES } from '../../apps/web/public/clinic-content.js';
 import {
   classifyFindings,
-  targetKey,
-  validateA11yArtifact,
-  validateWaivers
+  targetKey
 } from '../../scripts/web-a11y-waivers.mjs';
+
+import {
+  evidenceHeadSha,
+  evidenceSlug,
+  writeEvidenceShard
+} from './support/evidence-shards.js';
 
 import {
   createBooking,
@@ -65,27 +68,6 @@ interface A11yFinding {
   waiverId?: string;
 }
 
-interface A11yScan {
-  route: string;
-  state: string;
-  viewport: string;
-  axeVersion: string;
-  findings: A11yFinding[];
-}
-
-const collectedScans: A11yScan[] = [];
-const evaluatedRuleIds = new Set<string>();
-
-function headSha(): string {
-  const fromCi = process.env['GITHUB_SHA'];
-  if (fromCi !== undefined && fromCi !== '') return fromCi;
-  return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
-}
-
-function utcToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 const waiversRegistry = JSON.parse(
   readFileSync(
     join(__dirname, '..', '..', 'apps', 'web', 'accessibility-waivers.json'),
@@ -93,50 +75,12 @@ const waiversRegistry = JSON.parse(
   )
 ) as { schemaVersion: number; waivers: Array<Record<string, string>> };
 
-// 期望掃描矩陣：字面迴圈的 4 殼＋具體 clinic 路由＋既有互動狀態。
+// 期望掃描矩陣的互動狀態那一半住在 `scripts/merge-web-evidence.mjs` 的
+// WORKBENCH_SCAN_STATES（單一來源）；這裡的 scan() 呼叫必須逐字使用那些字串。
 // `/clinic` 已在字面迴圈掃過，完整迴圈只補其餘具體路由，不重複。
 const CONCRETE_CLINIC_ROUTES = (CLINIC_ROUTES as string[]).filter(
   (route) => route !== CLINIC_ROUTE
 );
-const EXPECTED_SCANS: Array<{ route: string; state: string }> = [
-  ...PUBLIC_PAGE_SCAN_ROUTES.map((route) => ({ route, state: 'default' })),
-  ...CONCRETE_CLINIC_ROUTES.map((route) => ({ route, state: 'default' })),
-  { route: WORKBENCH_ROUTE, state: 'workbench-appointments' },
-  { route: WORKBENCH_ROUTE, state: 'workbench-reschedule' },
-  { route: BOOKING_ROUTE, state: 'patient-reschedule' },
-  { route: WORKBENCH_ROUTE, state: 'workbench-pagination' }
-];
-
-test.afterAll(() => {
-  const sha = headSha();
-  const artifact = {
-    schemaVersion: 1,
-    headSha: sha,
-    generatedBy: 'tests/e2e/accessibility.spec.ts',
-    scans: collectedScans
-  };
-  // 先寫檔再斷言：紅燈本身也是證據，CI 一定要上傳它。
-  // findings 只存 target 與 failureSummary，不存節點 HTML——工作臺固件裡有
-  // 電話號碼形式的合成值，進 artifact 會變成敏感外觀的資料。
-  const dir = join(__dirname, '..', '..', 'output', 'evidence');
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, `web-accessibility-${sha}.json`),
-    `${JSON.stringify(artifact, null, 2)}\n`
-  );
-  const failures = [
-    ...validateWaivers(waiversRegistry, { today: utcToday() }),
-    ...validateA11yArtifact(artifact, {
-      waivers: waiversRegistry.waivers,
-      evaluatedRuleIds: Array.from(evaluatedRuleIds),
-      expectedScans: EXPECTED_SCANS
-    })
-  ];
-  expect(
-    failures,
-    `accessibility artifact 不完整:\n${failures.join('\n')}`
-  ).toEqual([]);
-});
 
 async function scan(page: Page, route: string, state: string) {
   const builder = new AxeBuilder({ page }).withTags(STANDARD_TAGS).options({
@@ -145,6 +89,7 @@ async function scan(page: Page, route: string, state: string) {
     }
   });
   const results = await builder.analyze();
+  const evaluatedRuleIds = new Set<string>();
   for (const group of [
     results.violations,
     results.passes,
@@ -170,13 +115,24 @@ async function scan(page: Page, route: string, state: string) {
   const findings = classification.results;
   const failures = classification.failures;
   const viewport = page.viewportSize();
-  collectedScans.push({
-    route,
-    state,
-    viewport:
-      viewport === null ? 'unknown' : `${viewport.width}x${viewport.height}`,
-    axeVersion: results.testEngine?.version ?? 'unknown',
-    findings: findings
+  // 先寫分片再斷言：失敗的掃描也要留下記錄，合併後的 artifact 才完整。
+  // findings 只存 target 與 failureSummary，不存節點 HTML——工作臺固件裡有
+  // 電話號碼形式的合成值，進 artifact 會變成敏感外觀的資料。
+  // 同一掃描 retry 會覆寫同名分片（先後執行，不競態）。
+  const sha = evidenceHeadSha();
+  writeEvidenceShard('web-accessibility', evidenceSlug(route, state), {
+    schemaVersion: 1,
+    headSha: sha,
+    generatedBy: 'tests/e2e/accessibility.spec.ts',
+    scan: {
+      route,
+      state,
+      viewport:
+        viewport === null ? 'unknown' : `${viewport.width}x${viewport.height}`,
+      axeVersion: results.testEngine?.version ?? 'unknown',
+      findings
+    },
+    evaluatedRuleIds: Array.from(evaluatedRuleIds)
   });
   // 失敗時把違規的規則與節點印出來，才知道要修哪裡。
   expect(
