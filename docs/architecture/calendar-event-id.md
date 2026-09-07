@@ -1,7 +1,8 @@
 # 日曆 event ID 與 outbox 冪等鍵
 
-**狀態：** Stable Calendar projection ID 已實作（2026-07-22）；2026-08-11 稽核確認
-audit/outbox **occurrence identity** 仍有 `DATA-002` 缺口。兩者不得混為同一種 ID。
+**狀態：** Stable Calendar projection ID 已實作（2026-07-22）；audit/outbox
+**occurrence identity** 由 `DATA-R02`／T1-DATA-02（PR #60，2026-09-06）關閉。
+兩者仍不得混為同一種 ID。
 
 這份文件是「哪裡改、為什麼這樣改」的導航圖。規則本身在
 [`packages/domain/src/calendar-event-id.ts`](../../packages/domain/src/calendar-event-id.ts)，
@@ -16,7 +17,9 @@ outbox 工作的 `idempotencyKey` **就是** Google Calendar 的 event ID，因�
 仍須有獨立、唯一的 audit event ID 與 outbox job occurrence ID；只有同一 idempotency
 record 的 exact replay 才能重用 occurrence。不得用 appointment＋結果狀態或 target slot
 當 occurrence ID，否則 `cancellation_requested → confirmed → cancellation_requested` 或
-A→B→A→B 會碰撞。修正與回返狀態 regression 由 `DATA-R02`／`ADR-NEW-02` 追蹤。
+A→B→A→B 會碰撞。該 regression 已由 `DATA-R02`／T1-DATA-02（PR #60）補上；
+規則背景仍見 `ADR-NEW-02`。這不授權 Calendar 寫回本系統（D-016）或把
+Calendar 當可用性鎖（ADR-0002）。
 
 ## 白話版：這到底在做什麼
 

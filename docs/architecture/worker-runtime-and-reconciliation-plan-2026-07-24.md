@@ -4,12 +4,11 @@
 
 `apps/worker` 目前有的是**處理器**，不是**執行環境**：`OutboxProcessor` 已在
 Emulator 驗證過領取、外部呼叫（交易外）、結算三段分離，也有退避、死信與
-`requeue`。但 2026-08-11 靜態稽核確認現有 lease 只有 expiry，沒有 owner／generation
-fencing，settle 又是 unconditional update；A 過期、B 接手後 A 仍可能覆寫 B。
-既有測試只驗證預先過期可接手，沒有 dual-worker stale-settle case。2026-07-29
-已對 deterministic backoff cap 套用可注入 random source 的 full jitter，並限制
-同一 job 每批最多嘗試一次；這是本機程式能力，不是 cloud runner 證據。缺的是
-「誰來按下開始」、「事件被人手動改掉之後怎麼發現」，以及「補回死信要什麼權限」。
+`requeue`。2026-08-11 靜態稽核當時確認 lease 只有 expiry、settle 是
+unconditional update。`ARC-R01`（T1-ARC-01，PR #67，2026-09-06）已補上
+owner／generation fencing 與 conditional settle；這仍是本機／Emulator 能力，
+不是 cloud runner 證據。缺的仍是「誰來按下開始」、「事件被人手動改掉之後怎麼
+發現」，以及「補回死信要什麼權限」。
 
 這份文件把那三件事展開成可審查的設計。D-010 的 clinic ownership、
 `asia-east1` primary 與 RPO 1 小時／RTO 4 小時 target 已於 2026-07-28 核准，
@@ -41,13 +40,14 @@ isolated-foundation authority 本身不解鎖 Cloud Run／Scheduler／metrics ba
 | 觸發間隔 | 60 秒 | 延遲與空轉成本的平衡 |
 | 每批筆數 | 20 | 一次執行在 Cloud Run 逾時內能穩定跑完 |
 | 租約 | 120 秒（`LEASE_SECONDS`，已實作） | 大於單筆最壞情況的外部呼叫時間 |
-| 併發實例 | 1（暫時風險降低，不是 correctness proof） | 在 `ARC-R01` 完成 owner/token/generation 與 conditional settle 前不得多實例；平台 retry／重疊仍可能造成兩個執行者 |
+| 併發實例 | 1（cloud runner 尚未授權；本機 fencing 已由 `ARC-R01` 補上） | `ARC-R01`（PR #67，2026-09-06）已有 owner／token／generation 與 conditional settle。多實例 cloud runner 仍未授權（D-010／本設計未執行） |
 | 執行逾時 | 300 秒 | 遠大於一批的預期時間，避免半途被砍 |
 
-**併發實例維持 1 是刻意的暫時控制，但不能補掉 fencing。** Cloud Run retry、逾時與
-排程重疊仍可產生 stale worker。正式 runner 前，`ARC-R01` 必須加入 lease owner/token
-或 monotonic generation，所有 extend/settle 以 transaction compare-and-set 驗證目前
-owner；stale attempt 要被拒絕並計量。完成後若要放大，仍先以積壓與 quota 基線決定。
+**併發實例維持 1 仍是 cloud runner 的預設，不是「尚未補 fencing」。**
+`ARC-R01` 已把 lease owner／token／generation 與 conditional settle 寫進本機
+處理器。Cloud Run retry、逾時與排程重疊在**尚未授權的**正式 runner 上仍可能
+產生兩個執行者；放大實例數要另一次 D-010／runtime 授權，並先以積壓與 quota
+基線決定。
 
 ### 1.2 至少一次，而不是剛好一次
 
@@ -60,8 +60,9 @@ owner；stale attempt 要被拒絕並計量。完成後若要放大，仍先以�
 - 動作依預約**當下**的狀態決定，不是工作建立時的狀態——所以延遲執行也不會把
   已取消的預約寫回日曆。
 
-Calendar effect 的冪等語意有 dated Emulator coverage；worker ownership 則尚未覆蓋
-stale settle。兩者不可合併宣稱為「至少一次已安全」。
+Calendar effect 的冪等語意有 dated Emulator coverage；worker stale-settle
+ownership 由 `ARC-R01`（PR #67）在 Emulator 補上。兩者仍不可合併宣稱為
+「cloud 至少一次已安全」——尚未有授權的 cloud runner。
 
 ## 2. 對帳（reconciliation）
 

@@ -246,6 +246,43 @@ describe('documentation gate', () => {
     expect(pattern.test('PR #23 不是這三項的完成證據')).toBe(false);
   });
 
+  it('blocks current-status docs from leaving DATA-R01/02 and ARC-R01 pending', () => {
+    const execution = STALE_CLAIMS.find(
+      ([file]) => file === 'docs/product/current-execution-and-approval-plan.md'
+    );
+    expect(
+      execution?.[1].test(
+        '`DATA-R01`／`DATA-R02`／\n`ARC-R01`／`WEB-P0-01/02/03` 不受此影響，仍各自待處理。'
+      )
+    ).toBe(true);
+    expect(
+      execution?.[1].test('`WEB-P0-01/02/03` 不受此影響，仍各自待處理。')
+    ).toBe(false);
+
+    const firestore = STALE_CLAIMS.find(
+      ([file]) => file === 'docs/architecture/firestore-local-baseline.md'
+    );
+    expect(firestore?.[1].test('Until `DATA-R01` and `DATA-R02` pass')).toBe(
+      true
+    );
+
+    const calendar = STALE_CLAIMS.find(
+      ([file]) => file === 'docs/architecture/calendar-event-id.md'
+    );
+    expect(calendar?.[1].test('仍有 `DATA-002` 缺口')).toBe(true);
+
+    const worker = STALE_CLAIMS.find(
+      ([file]) =>
+        file ===
+        'docs/architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md'
+    );
+    expect(
+      worker?.[1].test(
+        '在 `ARC-R01` 完成 owner/token/generation 與 conditional settle 前不得多實例'
+      )
+    ).toBe(true);
+  });
+
   it('blocks SECURITY.md from asserting a live PVR setting or a mailto contact', () => {
     const security = STALE_CLAIMS.filter(([file]) => file === 'SECURITY.md');
     expect(security.map(([, pattern]) => pattern.source).sort()).toEqual(
