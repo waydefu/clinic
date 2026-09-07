@@ -17,11 +17,11 @@ export type RoleResolver = (context: AuthenticationContext) => CandidateRole;
 
 /**
  * Wires the candidate RBAC evaluator into the existing (still unrouted)
- * appointment authorization port. A patient may only create their own booking;
- * a staff role creates against the clinic-wide scope. The account is treated as
- * active because the session was validated upstream — the real disabled-account
- * signal is approved by D-006 but only arrives after the C2/C3 identity and
- * session implementation exists.
+ * appointment authorization port. A patient may only create or reschedule
+ * their own booking; a staff role acts against the clinic-wide scope. The
+ * account is treated as active because the session was validated upstream —
+ * the real disabled-account signal is approved by D-006 but only arrives after
+ * the C2/C3 identity and session implementation exists.
  */
 /**
  * A patient without a server-verified identity is refused, never widened to the
@@ -55,6 +55,22 @@ export function createRbacAppointmentPolicy(
           role,
           accountActive: true,
           permission: 'create_appointment',
+          scope
+        });
+        resolve();
+      });
+    },
+    assertCanReschedule(context, command): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        const scope = resolveScope(
+          role,
+          command.appointmentPatientId ?? context.verifiedPatientId
+        );
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'reschedule_appointment',
           scope
         });
         resolve();

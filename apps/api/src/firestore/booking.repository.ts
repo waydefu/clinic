@@ -264,7 +264,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     });
   }
 
-  /** 改期：在同一筆交易內釋出原時段並占用新時段。 */
+  /** 改期：同一筆交易內先占用新時段，再釋出原時段。 */
   public async reschedule(
     request: RescheduleRequest
   ): Promise<ReservationResult> {
@@ -318,10 +318,13 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
 
       // --- writes -------------------------------------------------------
+      // Reserve the new slot before releasing the old one. If the new slot
+      // cannot be taken, the transaction aborts and the original booking is
+      // unchanged. Releasing first would drop the old slot on a failed reserve.
+      transaction.update(targetRef, { reservationId: plan.appointmentId });
       if (previousDocument !== undefined) {
         this.releaseSlot(transaction, previousDocument, plan.appointmentId);
       }
-      transaction.update(targetRef, { reservationId: plan.appointmentId });
       transaction.update(appointmentRef, {
         slotId: plan.reserveSlotId,
         startsAt: plan.startsAt,

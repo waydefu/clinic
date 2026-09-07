@@ -1,4 +1,4 @@
-import type { BookingRequest } from '@beauessence/domain';
+import type { BookingRequest, RescheduleRequest } from '@beauessence/domain';
 
 export interface ReservationResult {
   readonly appointmentId: string;
@@ -12,4 +12,5 @@ export interface ReservationResult {
  */
 export interface AppointmentRepositoryPort {
   reserve(request: BookingRequest): Promise<ReservationResult>;
+  reschedule(request: RescheduleRequest): Promise<ReservationResult>;
 }

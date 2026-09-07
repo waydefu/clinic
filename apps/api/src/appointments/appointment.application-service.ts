@@ -1,5 +1,12 @@
-import type { CreateAppointmentRequest } from '@beauessence/contracts';
-import type { AuditContext, BookingRequest } from '@beauessence/domain';
+import type {
+  CreateAppointmentRequest,
+  RescheduleAppointmentRequest
+} from '@beauessence/contracts';
+import type {
+  AuditContext,
+  BookingRequest,
+  RescheduleRequest
+} from '@beauessence/domain';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
@@ -7,7 +14,10 @@ import type {
   AppointmentRepositoryPort,
   ReservationResult
 } from './appointment.repository-port.js';
-import { createAppointmentIdempotency } from '../idempotency/appointment-idempotency.js';
+import {
+  createAppointmentIdempotency,
+  rescheduleAppointmentIdempotency
+} from '../idempotency/appointment-idempotency.js';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
 export interface AppointmentIdGenerator {
@@ -69,6 +79,37 @@ export function toBookingRequest(
 }
 
 /**
+ * Maps the executable reschedule command to the pure domain request. Slot
+ * occupancy, cutoff and horizon stay at their owning boundaries; this helper
+ * only binds server-owned identity, time and idempotency.
+ */
+export function toRescheduleRequest(
+  appointmentId: string,
+  command: RescheduleAppointmentRequest,
+  context: {
+    readonly expectedPatientId?: string;
+    readonly requestedAt: string;
+    readonly audit: AuditContext;
+  }
+): RescheduleRequest {
+  return {
+    appointmentId,
+    targetSlotId: command.targetSlotId,
+    ...(context.expectedPatientId === undefined
+      ? {}
+      : { expectedPatientId: context.expectedPatientId }),
+    audit: context.audit,
+    requestedAt: context.requestedAt,
+    idempotency: rescheduleAppointmentIdempotency({
+      key: command.idempotencyKey,
+      actorId: context.audit.actorId,
+      appointmentId,
+      targetSlotId: command.targetSlotId
+    })
+  };
+}
+
+/**
  * Unrouted Stage 0 application boundary. A future controller may parse HTTP
  * input and call this service only after the authentication adapter has
  * produced a context; it must never call Firestore directly.
@@ -105,6 +146,36 @@ export class AppointmentApplicationService {
           reasonCode: null,
           // The approved policy/rule version will be loaded here after the
           // D-003/D-004 decisions land; Stage 0 must not invent one.
+          policyVersion: null
+        }
+      })
+    );
+  }
+
+  public async reschedule(
+    appointmentId: string,
+    command: RescheduleAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<ReservationResult> {
+    await this.authorization.assertCanReschedule(
+      authentication,
+      authentication.verifiedPatientId === undefined
+        ? {}
+        : { appointmentPatientId: authentication.verifiedPatientId }
+    );
+
+    return this.repository.reschedule(
+      toRescheduleRequest(appointmentId, command, {
+        ...(authentication.verifiedPatientId === undefined
+          ? {}
+          : { expectedPatientId: authentication.verifiedPatientId }),
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: null,
           policyVersion: null
         }
       })

@@ -13,4 +13,8 @@ export interface AppointmentAuthorizationPolicy {
     context: AuthenticationContext,
     command: CreateAppointmentRequest
   ): Promise<void>;
+  assertCanReschedule(
+    context: AuthenticationContext,
+    command: { readonly appointmentPatientId?: string }
+  ): Promise<void>;
 }
