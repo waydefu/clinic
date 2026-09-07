@@ -194,6 +194,49 @@ describe('checkPublicPageConfiguration', () => {
     expect(result.dataRouteCount).toBe(3);
   });
 
+  it('接受登錄裡存在的 requiresDecision 引用', () => {
+    const input = fixture();
+    const booking = input.inventory.pages[1] as unknown as Record<
+      string,
+      unknown
+    >;
+    booking.requiresDecision = 'D-003';
+    const withDecisions = {
+      ...input,
+      registerDecisions: ['D-003', 'D-006']
+    };
+
+    expect(failuresOf(withDecisions)).toEqual([]);
+  });
+
+  it('requiresDecision 引用不存在的編號即失敗', () => {
+    const input = fixture();
+    const booking = input.inventory.pages[1] as unknown as Record<
+      string,
+      unknown
+    >;
+    booking.requiresDecision = 'D-999';
+    const withDecisions = { ...input, registerDecisions: ['D-003'] };
+
+    expect(failuresOf(withDecisions)).toContainEqual(
+      expect.stringContaining('D-999')
+    );
+  });
+
+  it('形狀錯誤的 requiresDecision 即失敗', () => {
+    const input = fixture();
+    const booking = input.inventory.pages[1] as unknown as Record<
+      string,
+      unknown
+    >;
+    booking.requiresDecision = 'D-03';
+    const withDecisions = { ...input, registerDecisions: ['D-003'] };
+
+    expect(failuresOf(withDecisions)).toContainEqual(
+      expect.stringContaining('requiresDecision')
+    );
+  });
+
   it('fails when a data-driven route is missing from PRETTY_PATHS', () => {
     const input = fixture();
     input.serverSource = serverSource(

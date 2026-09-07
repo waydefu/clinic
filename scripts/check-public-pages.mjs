@@ -38,6 +38,10 @@ const PAGE_KEYS = [
   'note',
   'routing'
 ];
+// 每頁發布核准需求：選填。填了就必須是 D-NNN 形狀，且該編號必須存在於決策登錄，
+// 否則 gate 直接失敗（拼錯的核准引用等於沒有核准，不能安靜通過）。
+const PAGE_OPTIONAL_KEYS = ['requiresDecision'];
+const DECISION_PATTERN = /^D-\d{3}$/;
 const ROUTING_KINDS = new Set(['exact', 'shared-shell', 'hosting-404']);
 
 /**
@@ -226,7 +230,13 @@ function validateInventory(inventory, failures) {
       typeof value.route === 'string'
         ? `public-pages.json ${value.route}`
         : fallbackLabel;
-    validateKeys(value, PAGE_KEYS, PAGE_KEYS, label, failures);
+    validateKeys(
+      value,
+      PAGE_KEYS,
+      [...PAGE_KEYS, ...PAGE_OPTIONAL_KEYS],
+      label,
+      failures
+    );
 
     const routeValid = isRoute(value.route);
     if (!routeValid)
@@ -242,6 +252,13 @@ function validateInventory(inventory, failures) {
       failures.push(`${label}.audience 必須是 staff 或 public。`);
     if (typeof value.indexable !== 'boolean')
       failures.push(`${label}.indexable 必須是 boolean。`);
+    if (
+      value.requiresDecision !== undefined &&
+      value.requiresDecision !== null &&
+      (typeof value.requiresDecision !== 'string' ||
+        !DECISION_PATTERN.test(value.requiresDecision))
+    )
+      failures.push(`${label}.requiresDecision 必須是 D-NNN 形狀的決策編號。`);
     if (!Array.isArray(value.scans)) {
       failures.push(`${label}.scans 必須是 array。`);
     } else {
@@ -284,6 +301,10 @@ function validateInventory(inventory, failures) {
         route: value.route,
         entry: value.entry,
         indexable: value.indexable === true,
+        requiresDecision:
+          typeof value.requiresDecision === 'string'
+            ? value.requiresDecision
+            : null,
         scans: Array.isArray(value.scans) ? value.scans : [],
         routing
       });
@@ -729,6 +750,19 @@ function compareBudgets(pages, budgets, failures) {
   }
 }
 
+function compareDecisionRequirements(pages, knownDecisions, failures) {
+  if (!Array.isArray(knownDecisions)) return;
+  const known = new Set(knownDecisions);
+  for (const page of pages) {
+    if (page.requiresDecision === null || page.requiresDecision === undefined)
+      continue;
+    if (!known.has(page.requiresDecision))
+      failures.push(
+        `public-pages.json ${page.route} 引用的 ${page.requiresDecision} 不在決策登錄；拼錯的核准引用等於沒有核准。`
+      );
+  }
+}
+
 function compareIndexableEntries(pages, entries, failures) {
   if (!Array.isArray(entries)) {
     failures.push('build-web 的 PUBLIC_INDEXABLE_ENTRIES 必須是 array。');
@@ -1128,6 +1162,7 @@ export function checkPublicPageConfiguration({
   serverSource,
   firebase,
   buildIndexableEntries,
+  registerDecisions = null,
   scanSources = {},
   dataRouteSources = {}
 }) {
@@ -1142,6 +1177,7 @@ export function checkPublicPageConfiguration({
 
   compareBudgets(pages, budgets, failures);
   compareIndexableEntries(pages, buildIndexableEntries, failures);
+  compareDecisionRequirements(pages, registerDecisions, failures);
   compareServerMappings(
     expected.serverMappings,
     expected.redirects,
@@ -1189,6 +1225,11 @@ export async function repositoryInputs() {
     serverSource: await read('apps', 'web', 'server.mjs'),
     firebase: JSON.parse(await read('firebase.json')),
     buildIndexableEntries: buildWeb.PUBLIC_INDEXABLE_ENTRIES,
+    registerDecisions: [
+      ...buildWeb.listRegisterDecisions(
+        await read('docs', 'product', 'phase-1-decision-register.md')
+      )
+    ],
     scanSources,
     dataRouteSources: {
       CLINIC_ROUTES: clinicContent.CLINIC_ROUTES

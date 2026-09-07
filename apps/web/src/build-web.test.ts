@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error — the build script is plain ESM with no type declarations.
-import { planHashedBuild } from '../../../scripts/build-web.mjs';
+import {
+  listRegisterDecisions,
+  pagePublishDecision,
+  planHashedBuild,
+  publishDecisionsForInventory,
+  readDecisionApproval
+} from '../../../scripts/build-web.mjs';
 
 type Files = Map<string, string>;
 
@@ -169,6 +175,254 @@ describe('planHashedBuild', () => {
       expect(build(files).outputs.get('patient.html')).toContain(
         '<title>測試站</title>'
       );
+    });
+  });
+
+  describe('per-page publication approval (WEB-P0-01)', () => {
+    const NOINDEX = '<meta name="robots" content="noindex, nofollow" />';
+    const BOOKING_CANONICAL =
+      '<link rel="canonical" href="https://beauessence.com.tw/booking" />';
+    const PRIVACY_CANONICAL =
+      '<link rel="canonical" href="https://beauessence.com.tw/privacy" />';
+    const STAFF_CANONICAL =
+      '<link rel="canonical" href="https://beauessence.com.tw/staff" />';
+    const REGISTER = [
+      '| ID | Decision | Owner | Status | Needed before |',
+      '| --- | --- | --- | --- | --- |',
+      '| D-003 | Final policy text | Clinic owner | pending (owner input recorded) | Privacy acceptance |',
+      '| D-006 | Identity provider | Clinic owner | approved (2026-07-28) | Authenticated write |'
+    ].join('\n');
+
+    function approvalInventory() {
+      return {
+        why: 'WEB-P0-01 縮小夾具：核准頁、草稿頁、工作臺、404。',
+        pages: [
+          {
+            route: '/booking',
+            entry: 'patient.html',
+            audience: 'public',
+            indexable: true,
+            scans: [],
+            note: 'approved page',
+            routing: { kind: 'exact', entryRedirect: { status: 301 } }
+          },
+          {
+            route: '/privacy',
+            entry: 'privacy.html',
+            audience: 'public',
+            indexable: true,
+            requiresDecision: 'D-003',
+            scans: [],
+            note: 'draft page',
+            routing: { kind: 'exact', entryRedirect: { status: 301 } }
+          },
+          {
+            route: '/staff',
+            entry: 'index.html',
+            audience: 'staff',
+            indexable: false,
+            scans: [],
+            note: 'staff workbench',
+            routing: { kind: 'exact', entryRedirect: { status: 301 } }
+          },
+          {
+            route: '/404',
+            entry: '404.html',
+            audience: 'public',
+            indexable: false,
+            scans: [],
+            note: 'hosting 404',
+            routing: { kind: 'hosting-404', entryRedirect: null }
+          }
+        ]
+      };
+    }
+
+    function siteFiles(): Files {
+      return new Map<string, string>([
+        [
+          'patient.html',
+          `<head>\n    ${NOINDEX}\n    ${BOOKING_CANONICAL}\n    <title>預約</title>\n  </head>`
+        ],
+        [
+          'privacy.html',
+          `<head>\n    ${NOINDEX}\n    ${PRIVACY_CANONICAL}\n    <title>隱私</title>\n  </head>`
+        ],
+        [
+          'index.html',
+          `<head>\n    ${NOINDEX}\n    ${STAFF_CANONICAL}\n    <title>工作臺</title>\n  </head>`
+        ],
+        [
+          '404.html',
+          `<head>\n    ${NOINDEX}\n    <title>迷路</title>\n  </head>`
+        ],
+        [
+          'sitemap.xml',
+          '<urlset>\n' +
+            '  <url><loc>https://beauessence.com.tw/booking</loc></url>\n' +
+            '  <url><loc>https://beauessence.com.tw/privacy</loc></url>\n' +
+            '</urlset>'
+        ]
+      ]);
+    }
+
+    const build = (files: Files, value?: string) => {
+      const previous = process.env.WEB_PUBLIC_INDEXABLE;
+      if (value === undefined) delete process.env.WEB_PUBLIC_INDEXABLE;
+      else process.env.WEB_PUBLIC_INDEXABLE = value;
+      try {
+        return planHashedBuild(files, {
+          inventory: approvalInventory(),
+          registerText: REGISTER
+        });
+      } finally {
+        if (previous === undefined) delete process.env.WEB_PUBLIC_INDEXABLE;
+        else process.env.WEB_PUBLIC_INDEXABLE = previous;
+      }
+    };
+
+    const locsOf = (sitemap: unknown): string[] =>
+      [...String(sitemap).matchAll(/<loc>([^<]+)<\/loc>/gi)].map((match) =>
+        match[1].trim()
+      );
+
+    it('核准只認狀態欄以 approved 開頭，內文出現 approved 不算數', () => {
+      expect(readDecisionApproval(REGISTER, 'D-006')).toBe(true);
+      expect(readDecisionApproval(REGISTER, 'D-003')).toBe(false);
+      expect(
+        readDecisionApproval(
+          '| D-009 | Calendar | Owner | pending for production; sub-scope approved 2026-08-28 | Review |',
+          'D-009'
+        )
+      ).toBe(false);
+    });
+
+    it('缺列、編號形狀錯誤、非字串一律視為未核准', () => {
+      expect(readDecisionApproval(REGISTER, 'D-999')).toBe(false);
+      expect(readDecisionApproval(REGISTER, 'D-03')).toBe(false);
+      expect(readDecisionApproval('', 'D-006')).toBe(false);
+      expect(listRegisterDecisions(REGISTER).has('D-003')).toBe(true);
+      expect(listRegisterDecisions(REGISTER).has('D-999')).toBe(false);
+    });
+
+    it('判定真值表：預設關閉，三者齊了才放行', () => {
+      const yes = () => true;
+      const no = () => false;
+      expect(
+        pagePublishDecision(
+          { indexable: true },
+          { globalRelease: false, isDecisionApproved: yes }
+        )
+      ).toEqual({ index: false, inSitemap: false });
+      expect(
+        pagePublishDecision(
+          { indexable: false },
+          { globalRelease: true, isDecisionApproved: yes }
+        )
+      ).toEqual({ index: false, inSitemap: false });
+      expect(
+        pagePublishDecision(
+          { indexable: true, requiresDecision: 'D-003' },
+          { globalRelease: true, isDecisionApproved: no }
+        )
+      ).toEqual({ index: false, inSitemap: false });
+      expect(
+        pagePublishDecision(
+          { indexable: true, requiresDecision: 'D-003' },
+          { globalRelease: true, isDecisionApproved: yes }
+        )
+      ).toEqual({ index: true, inSitemap: true });
+      expect(
+        publishDecisionsForInventory(approvalInventory(), REGISTER, true).get(
+          'privacy.html'
+        )
+      ).toEqual({ index: false, inSitemap: false });
+    });
+
+    it('A/G：預設建置全部維持 noindex，sitemap 一筆不留', () => {
+      const { outputs } = build(siteFiles());
+      for (const entry of [
+        'patient.html',
+        'privacy.html',
+        'index.html',
+        '404.html'
+      ])
+        expect(String(outputs.get(entry))).toContain('name="robots"');
+      expect(locsOf(outputs.get('sitemap.xml'))).toEqual([]);
+    });
+
+    it('B：開關打開只放行核准頁', () => {
+      const { outputs } = build(siteFiles(), 'true');
+      expect(String(outputs.get('patient.html'))).not.toContain(
+        'name="robots"'
+      );
+    });
+
+    it('C：開關打開，草稿仍維持 noindex', () => {
+      const { outputs } = build(siteFiles(), 'true');
+      expect(String(outputs.get('privacy.html'))).toContain('name="robots"');
+    });
+
+    it('D：開關打開，草稿不得進 sitemap', () => {
+      const { outputs } = build(siteFiles(), 'true');
+      const locs = locsOf(outputs.get('sitemap.xml'));
+      expect(locs).toContain('https://beauessence.com.tw/booking');
+      expect(locs).not.toContain('https://beauessence.com.tw/privacy');
+    });
+
+    it('E：全域開關打不開工作臺與 404（連 canonical 齊了也不行）', () => {
+      const { outputs } = build(siteFiles(), 'true');
+      expect(String(outputs.get('index.html'))).toContain('name="robots"');
+      expect(String(outputs.get('404.html'))).toContain('name="robots"');
+    });
+
+    it('F：核准頁缺 canonical 照樣拒絕放行', () => {
+      const files = siteFiles();
+      files.set(
+        'patient.html',
+        `<head>\n    ${NOINDEX}\n    <title>預約</title>\n  </head>`
+      );
+      expect(() => build(files, 'true')).toThrow(/canonical/);
+    });
+
+    it('H：meta 放行集合與 sitemap 列出集合一致', () => {
+      const { outputs } = build(siteFiles(), 'true');
+      const released = ['patient.html', 'privacy.html'].filter(
+        (entry) => !String(outputs.get(entry)).includes('name="robots"')
+      );
+      expect(released).toEqual(['patient.html']);
+      expect(locsOf(outputs.get('sitemap.xml'))).toEqual([
+        'https://beauessence.com.tw/booking'
+      ]);
+    });
+
+    it('真實鏈路：現行登錄 D-003 pending 時草稿不被放行（D-003 核准後此測必須跟著翻）', () => {
+      const previous = process.env.WEB_PUBLIC_INDEXABLE;
+      process.env.WEB_PUBLIC_INDEXABLE = 'true';
+      try {
+        const { outputs } = planHashedBuild(
+          new Map<string, string>([
+            [
+              'privacy.html',
+              `<head>\n    ${NOINDEX}\n    ${PRIVACY_CANONICAL}\n    <title>隱私</title>\n  </head>`
+            ],
+            [
+              'sitemap.xml',
+              '<urlset>\n' +
+                '  <url><loc>https://beauessence.com.tw/booking</loc></url>\n' +
+                '  <url><loc>https://beauessence.com.tw/privacy</loc></url>\n' +
+                '</urlset>'
+            ]
+          ])
+        );
+        expect(String(outputs.get('privacy.html'))).toContain('name="robots"');
+        expect(locsOf(outputs.get('sitemap.xml'))).not.toContain(
+          'https://beauessence.com.tw/privacy'
+        );
+      } finally {
+        if (previous === undefined) delete process.env.WEB_PUBLIC_INDEXABLE;
+        else process.env.WEB_PUBLIC_INDEXABLE = previous;
+      }
     });
   });
 

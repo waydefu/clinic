@@ -7,6 +7,11 @@ import {
   duplicateIds,
   reviewInjectedInputs
 } from './web-ui-rules.mjs';
+import {
+  DECISION_REGISTER_TEXT,
+  PUBLIC_PAGE_INVENTORY,
+  publishDecisionsForInventory
+} from './build-web.mjs';
 
 // 工作臺的標記自 2026-07-21 起直接寫在 index.html，不再有獨立的 shell 檔。
 const paths = {
@@ -1168,24 +1173,37 @@ const canonicalOf = (source, label) => {
   return match[1];
 };
 
-// 每一個對外頁面都必須在 sitemap 裡，而且用的是它自己宣告的正規網址。
-const publicPages = [
-  {
-    canonical: canonicalOf(files.patientHtml, 'patient.html'),
-    label: '預約頁'
-  },
-  {
-    canonical: canonicalOf(files.privacyHtml, 'privacy.html'),
-    label: '隱私權政策'
+// sitemap 與各頁 meta 用同一個正典發布判定：只有發布核准的頁面可以（且必須）
+// 在列；未核准頁（例如 D-003 pending 的 privacy 草稿）出現即失敗。模板列的是
+// 「開關打開時會發布」的集合，開關本身由建置控制。
+const entrySources = {
+  'patient.html': { source: files.patientHtml, label: '預約頁' },
+  'privacy.html': { source: files.privacyHtml, label: '隱私權政策' }
+};
+const publishDecisions = publishDecisionsForInventory(
+  PUBLIC_PAGE_INVENTORY,
+  DECISION_REGISTER_TEXT,
+  true
+);
+const publicPages = [];
+for (const [entry, decision] of publishDecisions) {
+  if (!decision.inSitemap) continue;
+  const known = entrySources[entry];
+  if (known === undefined) {
+    failures.push(
+      `${entry} 已發布核准，但 check-web-ui 沒有載入它的來源，無法驗證 sitemap；請先接線再放行。`
+    );
+    continue;
   }
-];
+  publicPages.push({
+    canonical: canonicalOf(known.source, entry),
+    label: known.label
+  });
+}
 const sitemapLocations = [
   ...files.sitemap.matchAll(/<loc>([^<]+)<\/loc>/gi)
 ].map((match) => match[1]);
 
-if (sitemapLocations.length === 0) {
-  failures.push('sitemap.xml has no <loc>.');
-}
 for (const { canonical, label } of publicPages) {
   if (canonical !== undefined && !sitemapLocations.includes(canonical)) {
     failures.push(
@@ -1193,7 +1211,7 @@ for (const { canonical, label } of publicPages) {
     );
   }
 }
-// 反向：sitemap 不得列出沒有任何頁面宣告為正規網址的位址。
+// 反向一：sitemap 不得列出沒有任何頁面宣告為正規網址的位址。
 const canonicals = publicPages
   .map((page) => page.canonical)
   .filter((value) => value !== undefined);
@@ -1201,6 +1219,18 @@ for (const location of sitemapLocations) {
   if (!canonicals.includes(location)) {
     failures.push(
       `sitemap.xml lists ${location}, which no page declares as its canonical; search engines will discard it.`
+    );
+  }
+}
+// 反向二：未核准頁不得出現在 sitemap。它沒有發布核准，列進去等於請搜尋引擎收錄草稿。
+for (const [entry, decision] of publishDecisions) {
+  if (decision.inSitemap) continue;
+  const known = entrySources[entry];
+  if (known === undefined) continue;
+  const match = /<link\s+rel="canonical"\s+href="([^"]+)"/i.exec(known.source);
+  if (match !== null && sitemapLocations.includes(match[1])) {
+    failures.push(
+      `sitemap.xml lists ${match[1]} (${known.label})，但 ${entry} 尚未發布核准；草稿不得請搜尋引擎收錄。`
     );
   }
 }

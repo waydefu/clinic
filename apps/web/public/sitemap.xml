@@ -4,6 +4,10 @@
   （scripts/check-web-ui.mjs 會比對；不一致等於叫搜尋引擎收錄一個和正規網址
   不同的位址，權重會被拆成兩份）。
 
+  這份檔案是模板：建置依每頁正典發布判定（public-pages.json 的 indexable
+  AND requiresDecision 核准 AND 全域開關）過濾 <url>，未核准頁整段拿掉；
+  已發布頁的 canonical 缺列就讓建置爆炸。/privacy 在 D-003 核准前不得加回來。
+
   工作臺與 404 不列入：sitemap 是「請收錄這些」的清單，不是網站目錄。
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -11,10 +15,5 @@
     <loc>https://beauessence.com.tw/booking</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://beauessence.com.tw/privacy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
   </url>
 </urlset>
