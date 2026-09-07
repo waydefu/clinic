@@ -121,18 +121,18 @@ test.describe('三個主題', () => {
     expect(new Set(footers.values()).size, `實際值：${painted}`).toBe(3);
   });
 
-  test('工作臺 hero 的漸層會隨主題改變', async ({ page }) => {
+  test('工作臺 hero 的底色會隨主題改變', async ({ page }) => {
     const heroes = new Map<string, string>();
 
     for (const theme of THEMES) {
       await applyTheme(page, '/staff', theme);
-      const gradient = await page
+      const background = await page
         .locator('.hero-panel')
         .evaluate(
-          (element) => window.getComputedStyle(element).backgroundImage
+          (element) => window.getComputedStyle(element).backgroundColor
         );
-      heroes.set(theme, gradient);
-      expect(gradient).toContain('linear-gradient');
+      heroes.set(theme, background);
+      expect(background).not.toBe('rgba(0, 0, 0, 0)');
     }
 
     const painted = [...heroes]
@@ -260,33 +260,34 @@ test.describe('品牌層（香檳金與系統字體）', () => {
       // 患者頁有兩個品牌眉題（hero 與預約完成頁），這裡量 hero 那一個。
       const eyebrow = await paintedStyle(page, '.patient-hero .eyebrow-brand');
 
-      // hero 是漸層，所以 `backgroundColor` 是透明的——直接拿它比會被當成黑色，
-      // 量出一個假的 3.5:1。要比的是漸層**每一個色停**，而且以最差的那個為準：
-      // 文字會落在漸層的哪一段是版面決定的，不該把可讀性押在版面不會變上。
-      const stops = await page.locator('.patient-hero').evaluate((element) =>
-        (
-          window
-            .getComputedStyle(element)
-            .backgroundImage.match(/rgba?\([^)]+\)/g) ?? []
-        ).filter((stop) => {
-          // **完全透明的色停要排除。**
-          //
-          // 漸層常以 `transparent` 收尾（計算後是 `rgba(0, 0, 0, 0)`），那不是
-          // 一個背景色——那一段看到的是它底下的圖層。把它當色停比，等於拿黑色
-          // 去比，會量出一個假的 3.5:1；這正是本函式上方註解在講的同一個陷阱，
-          // 只是換成從色停進來的（2026-07-27 診所版 hero 改成含 transparent 的
-          // 漸層後才浮現）。
-          const parts = stop.match(/[\d.]+/g) ?? [];
-          return parts.length < 4 || Number(parts[3]) > 0;
-        })
-      );
-      expect(stops.length, 'hero 應該是漸層').toBeGreaterThan(1);
-
-      for (const stop of stops)
-        expect(
-          contrast(eyebrow.color, stop),
-          `${theme}：品牌眉題對 hero 漸層色停 ${stop} 的對比不足`
-        ).toBeGreaterThanOrEqual(4.5);
+      // The redesigned hero is unboxed. Resolve the opaque painted ancestor
+      // rather than mistaking a transparent background for black.
+      const background = await page
+        .locator('.patient-hero')
+        .evaluate((element) => {
+          for (
+            let current: Element | null = element;
+            current;
+            current = current.parentElement
+          ) {
+            const style = getComputedStyle(current);
+            if (style.backgroundImage !== 'none')
+              throw new Error(
+                'Measure gradient stops before adding an image background'
+              );
+            const parts = style.backgroundColor.match(/[\d.]+/g) ?? [];
+            if (
+              parts.length === 3 ||
+              (parts.length === 4 && Number(parts[3]) === 1)
+            )
+              return style.backgroundColor;
+          }
+          throw new Error('No opaque hero background found');
+        });
+      expect(
+        contrast(eyebrow.color, background),
+        `${theme} 品牌眉題對實際底色`
+      ).toBeGreaterThanOrEqual(4.5);
     }
 
     // 三個主題必須是三個不同的金——直接沿用淺色值在深色底上只有 2.5:1。

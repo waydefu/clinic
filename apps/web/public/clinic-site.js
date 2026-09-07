@@ -245,13 +245,13 @@ function renderSnoringTrackerSection() {
 
 function renderHome() {
   const heroImage = image(
-    HOME_PAGE.heroImage,
-    HOME_PAGE.heroImageAlt,
+    DOCTORS[0].image,
+    DOCTORS[0].imageAlt,
     'clinic-hybrid-hero__image',
     'eager'
   );
-  heroImage.setAttribute('width', '540');
-  heroImage.setAttribute('height', '405');
+  heroImage.setAttribute('width', '800');
+  heroImage.setAttribute('height', '800');
   heroImage.setAttribute('fetchpriority', 'high');
 
   const hero = element(
@@ -288,7 +288,7 @@ function renderHome() {
           element('div', { className: 'clinic-hybrid-hero__media' }, [
             heroImage,
             element('div', { className: 'clinic-hybrid-hero__caption' }, [
-              element('span', { text: '鼻塞・打鼾・睡眠' }),
+              element('span', { text: DOCTORS[0].name }),
               element('strong', { text: HOME_PAGE.heroCaption })
             ])
           ]),

@@ -23,6 +23,47 @@ html.synthetic-workbench-ready .cp-boot-status {
 .app-shell-wide {
   max-width: 92rem;
 }
+/* Desktop uses a stable rail; DOM and keyboard order stay header → nav → main.
+   Smaller viewports retain the existing, labelled local scrolling navigation. */
+@media (min-width: 64rem) {
+  .app-shell-wide {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    column-gap: var(--space-xl);
+    align-items: start;
+  }
+  .app-shell-wide > .topbar {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: var(--space-sm);
+  }
+  .app-shell-wide > .workspace-nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2xs);
+    padding: var(--space-sm) 0;
+    margin-top: var(--space-sm);
+    border: 0;
+    border-radius: 0;
+    background: var(--canvas);
+    box-shadow: none;
+    top: 1rem;
+  }
+  .app-shell-wide > .workspace-nav a {
+    white-space: normal;
+  }
+  .app-shell-wide > .workspace-nav a.is-active {
+    box-shadow: inset 3px 0 0 var(--forest);
+  }
+  .app-shell-wide > .dashboard {
+    min-width: 0;
+    padding-top: var(--space-xl);
+  }
+  .app-shell-wide .status-banner {
+    top: 1rem;
+  }
+}
+
 .topbar {
   display: grid;
   grid-template-columns: minmax(12rem, auto) minmax(9rem, 1fr) auto;
@@ -70,7 +111,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: var(--elevation-1);
+  box-shadow: none;
   border-radius: var(--radius-lg);
   display: flex;
   gap: var(--space-3xs);
@@ -120,7 +161,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  box-shadow: var(--elevation-1);
+  box-shadow: none;
   color: var(--ink-muted);
   display: flex;
   font-size: var(--text-body);
@@ -258,7 +299,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--elevation-1);
+  box-shadow: none;
   padding: var(--space-sm);
 }
 .next-up-time {
@@ -509,7 +550,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--elevation-1);
+  box-shadow: none;
   margin-block: var(--space-lg);
   overflow: clip;
 }
@@ -745,7 +786,7 @@ details[open] > summary .workflow-summary-chevron {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    box-shadow: var(--elevation-2);
+    box-shadow: none;
     margin-top: var(--space-2xs);
     padding: var(--space-xs);
     position: absolute;
@@ -998,7 +1039,7 @@ details[open] > summary .workflow-summary-chevron {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  box-shadow: var(--elevation-2);
+  box-shadow: none;
 }
 .action-menu-list button {
   padding: var(--space-2xs) var(--space-xs);
@@ -1968,7 +2009,7 @@ details[open] > summary .workflow-summary-chevron {
 }
 .action-menu-list {
   border-color: var(--line-strong);
-  box-shadow: var(--elevation-2);
+  box-shadow: none;
   min-width: 11.5rem;
   padding: var(--space-2xs);
 }
@@ -1985,7 +2026,7 @@ details[open] > summary .workflow-summary-chevron {
 /* 週曆依實際時間衝突動態分軌，並保留可讀的事件、時間軸與圖例尺寸。 */
 .week-view {
   background: var(--surface);
-  box-shadow: var(--elevation-1);
+  box-shadow: none;
 }
 .wv-head,
 .wv-grid {
@@ -2016,7 +2057,7 @@ details[open] > summary .workflow-summary-chevron {
 .wv-event {
   align-items: flex-start;
   border-left-width: 4px;
-  box-shadow: var(--elevation-1);
+  box-shadow: none;
   display: flex;
   font-size: var(--text-micro);
   gap: var(--space-2xs);

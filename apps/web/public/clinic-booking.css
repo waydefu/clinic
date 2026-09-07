@@ -1,169 +1,126 @@
-/*
- * 診所網站與患者預約的視覺橋接層。
- * 保留 styles.css 的設計 token、主題與所有流程狀態，只調整患者端呈現。
- */
+/* Public-to-booking brand continuity. Shared tokens own theme and state. */
 :root {
   --patient-header-height: 5.5rem;
 }
-
 .patient-body {
-  background:
-    radial-gradient(circle at 85% 8%, var(--surface-tint), transparent 28rem),
-    var(--surface-soft);
+  background: var(--canvas);
 }
-
 .patient-header {
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
-  box-shadow: var(--elevation-1);
-  backdrop-filter: blur(1rem);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
 }
-
 .patient-header-inner {
   min-height: var(--patient-header-height);
   gap: var(--space-md);
 }
-
 #patient-main {
-  /*
-   * The booking app stays hidden until local maintenance state is resolved.
-   * Reserve the remaining viewport in that brief interval so the visible
-   * footer is not pushed out of the first frame when JavaScript reveals the
-   * full booking flow.
-   */
   min-height: calc(100vh - var(--patient-header-height));
   min-height: calc(100dvh - var(--patient-header-height));
+  max-width: 64rem;
 }
-
 .patient-header .brand {
   color: var(--forest-dark);
   text-decoration: none;
 }
-
 .patient-header .brand strong {
   font-family: var(--font-serif-tc);
-  letter-spacing: var(--tracking-eyebrow);
+  letter-spacing: var(--tracking-label);
 }
-
 .patient-header .brand small {
   color: var(--ink-muted);
-  letter-spacing: var(--tracking-eyebrow);
+  letter-spacing: var(--tracking-wide);
 }
-
-.patient-nav a {
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-xs);
-}
-
-.patient-nav {
-  gap: var(--space-2xs);
-}
-
-.patient-nav a:hover {
-  background: var(--surface-tint);
-}
-
-.patient-nav a[aria-current='page'] {
-  color: var(--on-accent);
-  background: var(--accent-solid);
-}
-
 .patient-announcement {
   color: var(--forest-dark);
   background: var(--surface-tint);
   border-bottom: 1px solid var(--line);
 }
-
 .patient-announcement strong {
   color: var(--forest);
 }
-
 .patient-hero {
-  background:
-    radial-gradient(
-      circle at 92% 4%,
-      color-mix(in srgb, var(--surface) 82%, transparent),
-      transparent 17rem
-    ),
-    linear-gradient(135deg, var(--surface-tint), var(--surface-soft));
-  border-color: var(--line);
-  box-shadow: var(--elevation-2);
+  padding: var(--space-sm) 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
-
-/* 這一頁的 hero 改成**淺色**漸層之後，品牌眉題必須跟著換金。
-   原本 hero 是深底，眉題用的是深底上的亮金（#d6c199）；換成淺底後那個金只剩
-   1.55:1（淺色主題）與 1.45:1（護眼主題）——遠低於 WCAG 1.4.3 的 4.5:1，實際上
-   等於看不見。`--brand-metallic-text` 是隨主題切換的那一個（淺色 #75603c、
-   護眼 #725e3c、深色 #d6c199），所以三個主題都成立。
-   修正放在這裡而不是 styles.css：把 hero 變淺的是這個檔案，成因與修正要在一起。 */
+.patient-hero::after {
+  content: none;
+}
 .patient-hero .eyebrow-brand {
   color: var(--brand-metallic-text);
 }
-
-.patient-hero h1,
-.booking-panel-heading h2 {
+.patient-hero h1 {
   font-family: var(--font-serif-tc);
   letter-spacing: var(--tracking-wide);
 }
-
-.patient-contact-card,
-.booking-panel {
-  border-color: var(--line);
-  box-shadow: var(--elevation-2);
+.booking-panel-heading h2 {
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-tight);
 }
-
+.patient-preview-warning {
+  border: 0;
+  border-left: 3px solid var(--line-accent);
+  border-radius: 0;
+  background: var(--surface-tint);
+}
 .booking-stepper {
-  padding: var(--space-xs);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  padding: var(--space-xs) 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
 }
-
 .booking-stepper li {
-  padding-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-2xs);
 }
-
+.booking-panel,
+.patient-contact-card {
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+.booking-panel {
+  padding: var(--space-xl);
+}
 .service-choice {
   background: var(--surface);
-  box-shadow: var(--elevation-1);
+  border-color: var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: none;
 }
-
 .service-choice:hover,
 .service-choice.is-selected {
   background: var(--surface-tint);
-  box-shadow: var(--elevation-2);
+  box-shadow: none;
+  transform: none;
 }
-
+.booking-context {
+  border-left: 3px solid var(--forest);
+}
+.patient-form-section {
+  border-radius: var(--radius-md);
+}
 .patient-footer {
   background: var(--surface-inverse-deep);
 }
-
-/* 平板寬度：導覽項放不進品牌那一列，改成獨佔一列並允許局部橫捲。
-   更窄時（48rem 以下）導覽整個收進漢堡選單，由 styles.css 接手。
-   斷點原本是 62rem——不在正式尺度（64／48／30rem）內，而且 `check:tokens`
-   當時根本沒有掃這份檔案（見 2026-07-27 自動檢查缺口 F-2）。 */
-@media (max-width: 64rem) {
-  .patient-nav {
-    order: 3;
-    width: 100%;
-    overflow-x: auto;
-    padding-bottom: var(--space-3xs);
-  }
-}
-
 @media (max-width: 48rem) {
   .patient-body {
     --patient-header-height: 4.5rem;
   }
-
   .patient-header-inner {
     min-height: var(--patient-header-height);
+    gap: var(--space-2xs) var(--space-xs);
   }
-
-  .patient-nav {
-    gap: var(--space-2xs);
+  .booking-panel {
+    padding: var(--space-lg);
   }
 }
-
+@media (max-width: 30rem) {
+  .booking-panel {
+    padding: var(--space-sm);
+  }
+}
 @media (forced-colors: active) {
   .patient-header,
   .patient-contact-card,
