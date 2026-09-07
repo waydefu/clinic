@@ -138,6 +138,18 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      # WEB-P0-02／03：機器可讀的效能與 axe 證據。檔名已綁 exact head SHA；
+      # `!cancelled()` 讓紅燈的失敗證據同樣上傳——失敗的 artifact 才是除錯依據。
+      # 只有 ui（performance）與 accessibility（axe）兩組會產出這些檔，
+      # 其餘組別 ignore 不視為缺件。
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: web-quality-evidence-${{ matrix.group }}
+          path: output/evidence/web-*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
   supply-chain:
     name: Tracked secrets、dependency audit 與 inventory
     runs-on: ubuntu-latest

@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "why": "WEB-P0-03 的 axe 豁免 registry。空陣列是合法常態：零豁免代表零已知未修問題。新增豁免必須填齊 id／rule／route／state／selector／rationale／owner／created／expires，窄匹配（四者全對才命中），到期即失效；stale（本輪未命中任何 finding）與未知 rule 都會讓 gate 變紅。絕不為跑測試而發明豁免。",
+  "waivers": []
+}
