@@ -86,6 +86,10 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 4. Building and testing
 
+- [Clinic UI/UX 研究、六方案與設計系統](design/2026-09-07-ui-ux-redesign-research.md) — tokens、元件、Figma、候選評分。
+
+- [UI/UX 重設計計畫（2026-09-07）](design/2026-09-07-ui-ux-redesign-plan.md) — scope, invariants, files, review dependencies, verification and rollback for the owner-requested redesign PR
+
 - [Phase 0 local development](phase-0-local-development.md) — what exists locally and how to verify it
 - [Test-only sandbox baseline](product/test-only-sandbox-baseline.md) — the authority and limits of the synthetic-only profile
 - [Test-only scheduling and follow-up workbench](product/test-only-scheduling-follow-up-workbench.md) — scope of the synthetic scheduling and follow-up surface
@@ -149,6 +153,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-07 | [Clinic UI/UX 重設計交接](reviews/2026-09-07-ui-ux-redesign.md) | 三入口設計候選、42 張 before/after、原预算、ARM64 回歸與待人工驗收事項；沒有合併／部署授權 |
 | 2026-09-06 | [章程 v2.0 Q1–Q22 對帳紀錄（T0-REG-01）](reviews/2026-09-06-charter-v2-qa-reconciliation.md) | Q1–Q22 as Recorded Owner Input on `9e1be1a`；D 狀態不變；Q5 A 取代 §16 B，Q12 取代三次限制，Q15 只記需求。產品 code diff NONE |
 | 2026-09-03 | [Supply-chain hotfix: fast-uri 3.1.7 / 4.1.4 and fastify 5.12.1](reviews/2026-09-03-supply-chain-fast-uri-fastify.md) | Independent of PR #50. Reproduced `audit:prod` 8 high + 2 moderate on `c2a5013`. Same-major floors / Nest-exact Fastify override; no audit exception. Remaining `audit:all` 11 (1 low / 10 moderate) stay below the high bar |
 | 2026-09-03 | [Day 1 scope lock 與 Google 登入事故調查](reviews/2026-09-03-day1-scope-lock-and-auth-incident.md) | Read-only Day 1：鎖定本週 scope；舊登入閃現 CONFIRMED；Google bounce 僅 PARTIAL／LIKELY authDomain≠web.app preview；P0/P1 對 `c2a5013` 與 cal-pilot staging 重驗。產品 code diff NONE。Staging 既有 channel = DEPLOYED-NOT-SMOKED；產品變更 rung = N/A。不是 Canon，不開始 Day 2 實作 |

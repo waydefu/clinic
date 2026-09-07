@@ -34,7 +34,8 @@ const budgets = JSON.parse(
 // patient.html 由 /booking 提供（firebase.json 的 rewrite，server.mjs 同步實作）。
 const URL_BY_BUDGET_PATH = new Map([
   ['/index.html', '/staff'],
-  ['/patient.html', '/booking']
+  ['/patient.html', '/booking'],
+  ['/clinic.html', '/clinic']
 ]);
 
 declare global {
@@ -60,7 +61,9 @@ for (const entry of budgets) {
   const url = URL_BY_BUDGET_PATH.get(entry.path);
   if (url === undefined || entry.timings === undefined) continue;
 
-  test(`${entry.path} 的首屏時間與版面位移在預算內`, async ({ page }) => {
+  test(`${entry.path} 的首屏時間與版面位移在預算內`, async ({
+    page
+  }, testInfo) => {
     // 觀察器必須在文件開始載入前就裝好，否則 LCP 與 layout-shift 的第一批
     // 事件會在觀察之前就發生。CDP 注入不受頁面 CSP 限制。
     await page.addInitScript(() => {
@@ -112,6 +115,11 @@ for (const entry of budgets) {
     ) {
       measured = await measure();
     }
+
+    await testInfo.attach('lab-paint-metrics', {
+      body: JSON.stringify({ url, measured }),
+      contentType: 'application/json'
+    });
 
     // 量到 0 代表指標沒被記錄到（觀察器沒裝上或頁面沒畫出東西），
     // 那是測試壞了而不是效能好，必須失敗而不是靜靜通過。

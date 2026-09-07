@@ -1,18 +1,18 @@
 :root {
   color-scheme: light;
-  --clinic-forest: #174f42;
-  --clinic-forest-deep: #103d34;
-  --clinic-green: #397461;
+  --clinic-forest: #184f40;
+  --clinic-forest-deep: #103b30;
+  --clinic-green: #37664f;
   --clinic-sage: #8eaa9c;
-  --clinic-mist: #edf5f0;
-  --clinic-mist-soft: #f6faf7;
+  --clinic-mist: #eaf0e6;
+  --clinic-mist-soft: #f8f7f2;
   --clinic-white: #ffffff;
-  --clinic-ink: #1d302b;
-  --clinic-muted: #5f6f69;
+  --clinic-ink: #182e27;
+  --clinic-muted: #56655a;
   --clinic-line: #dbe7df;
   --clinic-shadow: 0 1.25rem 3.75rem rgb(22 72 58 / 10%);
-  --clinic-radius: 1.25rem;
-  --clinic-shell: min(73rem, calc(100% - 3rem));
+  --clinic-radius: 0.75rem;
+  --clinic-shell: min(76rem, calc(100% - 3rem));
 
   /* -----------------------------------------------------------------
    * 深底上的文字色階。這六個值先前散在 `.clinic-footer`、`.clinic-cta` 與
@@ -401,7 +401,7 @@ a {
   justify-content: center;
   padding: 0.75rem 1.25rem;
   border: 1px solid transparent;
-  border-radius: var(--clinic-radius-pill);
+  border-radius: var(--clinic-radius-sm);
   font-weight: var(--clinic-weight-bold);
   letter-spacing: var(--clinic-tracking-tight);
   line-height: 1.25;
@@ -495,9 +495,9 @@ a {
 
 .clinic-section-heading {
   position: relative;
-  max-width: 43rem;
-  margin: 0 auto clamp(2.5rem, 5vw, 4rem);
-  text-align: center;
+  max-width: 48rem;
+  margin: 0 0 3rem;
+  text-align: left;
 }
 
 .clinic-eyebrow {
@@ -530,13 +530,13 @@ a {
 }
 
 .clinic-section-heading > p:last-child {
-  margin: 1rem auto 0;
+  margin: 1rem 0 0;
   color: var(--clinic-muted);
   font-size: var(--clinic-text-body);
 }
 
 .clinic-section {
-  padding: clamp(4.5rem, 8vw, 7.5rem) 0;
+  padding: 4rem 0;
   scroll-margin-top: 7rem;
 }
 
@@ -2015,32 +2015,13 @@ a {
 
 .clinic-hybrid-hero {
   position: relative;
-  overflow: hidden;
   padding: 4rem 0;
-  background:
-    radial-gradient(
-      circle at 78% 8%,
-      color-mix(in srgb, var(--clinic-white) 78%, transparent) 0,
-      transparent 24rem
-    ),
-    radial-gradient(
-      circle at 7% 90%,
-      color-mix(in srgb, var(--clinic-green) 12%, transparent) 0,
-      transparent 26rem
-    ),
-    linear-gradient(
-      135deg,
-      var(--clinic-hero-gradient-to),
-      var(--clinic-hero-gradient-from)
-    );
+  background: var(--clinic-mist-soft);
+  border-bottom: 1px solid var(--clinic-line);
 }
 
 .clinic-hybrid-hero::before {
-  position: absolute;
-  inset: 2rem 0 auto;
-  height: 1px;
-  background: var(--clinic-line);
-  content: '';
+  content: none;
 }
 
 .clinic-hybrid-hero__grid {
@@ -2048,7 +2029,7 @@ a {
   display: grid;
   min-width: 0;
   align-items: center;
-  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.8fr);
   gap: 4rem;
 }
 
@@ -2058,18 +2039,18 @@ a {
 }
 
 .clinic-hybrid-hero__copy h1 {
-  max-width: 11em;
+  max-width: 10em;
   margin: 0;
   color: var(--clinic-forest-deep);
   font-family: var(--clinic-font-serif-tc);
   font-size: clamp(
     var(--clinic-text-3xl),
-    calc(var(--clinic-text-3xl) * 0.5 + 4.6vw),
+    calc(var(--clinic-text-3xl) + 1vw),
     var(--clinic-text-5xl)
   );
   font-weight: var(--clinic-weight-medium);
-  letter-spacing: var(--clinic-tracking-heading);
-  line-height: 1.24;
+  letter-spacing: var(--clinic-tracking-tight);
+  line-height: 1.35;
   text-wrap: balance;
 }
 
@@ -2094,31 +2075,26 @@ a {
 .clinic-hybrid-hero__media {
   position: relative;
   overflow: hidden;
-  background: var(--clinic-white);
+  background: var(--clinic-mist);
   border: 1px solid var(--clinic-line);
-  border-radius: var(--clinic-radius-organic-dome);
-  box-shadow: var(--clinic-shadow);
+  border-radius: var(--clinic-radius-lg);
+  box-shadow: none;
 }
 
 .clinic-hybrid-hero__image {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  height: 22rem;
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 .clinic-hybrid-hero__caption {
-  position: absolute;
-  inset: auto 0 0;
   display: flex;
-  min-height: 55%;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 4rem 1.5rem 1.5rem;
+  gap: 0.5rem;
+  padding: 1.5rem;
   color: var(--clinic-white);
-  background: linear-gradient(
-    transparent,
-    color-mix(in srgb, var(--clinic-forest-deep) 94%, transparent)
-  );
+  background: var(--clinic-forest-deep);
 }
 
 .clinic-hybrid-hero__caption span {
@@ -2128,9 +2104,9 @@ a {
 }
 
 .clinic-hybrid-hero__caption strong {
-  margin-top: 0.5rem;
+  margin: 0;
   font-family: var(--clinic-font-serif-tc);
-  font-size: var(--clinic-text-xl);
+  font-size: var(--clinic-text-lg);
   font-weight: var(--clinic-weight-medium);
   line-height: 1.45;
 }
@@ -2158,16 +2134,7 @@ a {
 .clinic-home-process {
   padding: 4rem 0;
   scroll-margin-top: 4rem;
-}
-
-.clinic-symptom-section {
-  background:
-    radial-gradient(
-      circle at 8% 0,
-      color-mix(in srgb, var(--clinic-white) 72%, transparent) 0,
-      transparent 24rem
-    ),
-    linear-gradient(145deg, var(--clinic-mist), var(--clinic-mist-soft));
+  background: var(--clinic-mist);
 }
 
 .clinic-symptom-grid {
@@ -2236,19 +2203,13 @@ a {
 }
 
 .clinic-home-services .clinic-card-grid--services {
-  max-width: 60rem;
+  max-width: none;
   margin-inline: auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .clinic-home-services {
-  background:
-    radial-gradient(
-      circle at 92% 12%,
-      color-mix(in srgb, var(--clinic-green) 9%, transparent) 0,
-      transparent 28rem
-    ),
-    linear-gradient(180deg, var(--clinic-white), var(--clinic-mist-soft));
+  background: var(--clinic-white);
 }
 
 .clinic-home-services .clinic-service-card.is-recommended {
@@ -2471,12 +2432,7 @@ a {
   margin: 0.5rem 0 1rem;
 }
 
-.clinic-motion .clinic-hybrid-hero__copy > *,
-.clinic-motion .clinic-hybrid-hero__visual {
-  animation: clinic-rise var(--clinic-duration-spatial-slow)
-    var(--clinic-ease-out) backwards;
-  animation-delay: calc(var(--clinic-stagger, 0) * var(--clinic-stagger-layer));
-}
+/* Primary content is readable immediately; entrance fades are reserved for secondary sections. */
 
 @media (max-width: 64rem) {
   .clinic-hybrid-hero__grid {
@@ -2555,7 +2511,7 @@ a {
   }
 
   .clinic-hybrid-hero__caption {
-    padding: 4rem 1rem 1rem;
+    padding: 1.5rem 1rem;
   }
 
   .clinic-hybrid-hero__caption strong {

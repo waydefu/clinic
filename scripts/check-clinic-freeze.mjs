@@ -4,23 +4,23 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 /**
- * 診所首頁 /clinic 及其相關資產之第一階段凍結基準 (SHA-256 Hash Manifest)。
- *
- * 依據專案第一階段治理守則 (CLAUDE.md / AGENTS.md / BOOK-MVP-002)：
- * 診所首頁與衛教頁面在第一階段全面凍結 (Freeze ≠ Delete)，禁止任何外觀、文案、
- * 版型、動效、SEO 或品牌結構修改。任何對 /clinic 實體檔案之變更均屬違規。
+ * Clinic freeze guard: all 30 files remain protected.
+ * The owner's 2026-09-07 full UI/UX redesign and new-PR instruction authorises
+ * only this dated visual revision (docs/design/2026-09-07-ui-ux-redesign-plan.md).
+ * Rebaseline only the three edited CSS/renderer files; assets, public content,
+ * guard failure behavior and every deployment/operational boundary stay intact.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
     '3b5c0de6caab960f2bdbc883fcfe5a38452bf08c5572be1202fbd647274583e8',
   'apps/web/public/clinic-site.js':
-    '9056dbd4e28a3369541b95661a4805b91b3f9114d1e5b3018ab75ceb5427ce9d',
+    '6dcbd0e91779252161f8a2d0aa1a9051304c4641c32f4f1b9f69acd4707084f5',
   'apps/web/public/clinic-site.css':
-    '31e4ad6c472c09369ad0f71dede8789da3c92de1fb6b171adcd3c5bc2c08d757',
+    'cd02e23196e50576ea597e837e7cefbfe3a0992349614b799203405ab6132fe9',
   'apps/web/public/clinic-content.js':
     '91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397',
   'apps/web/public/clinic-booking.css':
-    '58c13447098fccadcfc271c48fee5ef3c832ba8e43c3c0f675d4fba7838cb3cd',
+    '8a979d8ee09f9203034c45a232cd0500ff61c729a9edd0afc9292057a497c202',
   'apps/web/clinic-assets.manifest.json':
     'a60b2e038d112cab269bd541a274be027e3b930be365408d01ae2e8a9e1951ec',
   'apps/web/public/clinic-assets/care-aftercare.webp':

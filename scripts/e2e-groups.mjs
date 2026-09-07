@@ -49,7 +49,8 @@ export const E2E_GROUPS = {
     'clinic-motion.spec.ts',
     'performance.spec.ts',
     'theme.spec.ts',
-    'typography.spec.ts'
+    'typography.spec.ts',
+    'ui-redesign.spec.ts'
   ]
 };
 

@@ -1,0 +1,174 @@
+{
+  "before": {
+    "entries": [
+      {
+        "path": "/404.html",
+        "sizes": {
+          "document": 731,
+          "image": 377,
+          "stylesheet": 911,
+          "total": 2019
+        },
+        "counts": {
+          "document": 1,
+          "image": 1,
+          "stylesheet": 1,
+          "total": 3
+        }
+      },
+      {
+        "path": "/clinic.html",
+        "sizes": {
+          "document": 2019,
+          "image": 98033,
+          "stylesheet": 7610,
+          "script": 13269,
+          "total": 120931
+        },
+        "counts": {
+          "document": 1,
+          "image": 9,
+          "stylesheet": 1,
+          "script": 2,
+          "total": 13
+        }
+      },
+      {
+        "path": "/index.html",
+        "sizes": {
+          "document": 9832,
+          "image": 2650,
+          "stylesheet": 16330,
+          "script": 64652,
+          "total": 93464
+        },
+        "counts": {
+          "document": 1,
+          "image": 2,
+          "stylesheet": 2,
+          "script": 36,
+          "total": 41
+        }
+      },
+      {
+        "path": "/patient.html",
+        "sizes": {
+          "document": 7098,
+          "image": 5469,
+          "stylesheet": 9729,
+          "script": 49460,
+          "total": 71756
+        },
+        "counts": {
+          "document": 1,
+          "image": 3,
+          "stylesheet": 2,
+          "script": 34,
+          "total": 40
+        }
+      },
+      {
+        "path": "/privacy.html",
+        "sizes": {
+          "document": 4023,
+          "image": 2650,
+          "stylesheet": 1349,
+          "total": 8022
+        },
+        "counts": {
+          "document": 1,
+          "image": 2,
+          "stylesheet": 1,
+          "total": 4
+        }
+      }
+    ],
+    "violations": []
+  },
+  "after": {
+    "entries": [
+      {
+        "path": "/404.html",
+        "sizes": {
+          "document": 731,
+          "image": 377,
+          "stylesheet": 911,
+          "total": 2019
+        },
+        "counts": {
+          "document": 1,
+          "image": 1,
+          "stylesheet": 1,
+          "total": 3
+        }
+      },
+      {
+        "path": "/clinic.html",
+        "sizes": {
+          "document": 2020,
+          "image": 98033,
+          "stylesheet": 7455,
+          "script": 13261,
+          "total": 120769
+        },
+        "counts": {
+          "document": 1,
+          "image": 9,
+          "stylesheet": 1,
+          "script": 2,
+          "total": 13
+        }
+      },
+      {
+        "path": "/index.html",
+        "sizes": {
+          "document": 9833,
+          "image": 2650,
+          "stylesheet": 16372,
+          "script": 64652,
+          "total": 93507
+        },
+        "counts": {
+          "document": 1,
+          "image": 2,
+          "stylesheet": 2,
+          "script": 36,
+          "total": 41
+        }
+      },
+      {
+        "path": "/patient.html",
+        "sizes": {
+          "document": 7096,
+          "image": 5469,
+          "stylesheet": 9534,
+          "script": 49460,
+          "total": 71559
+        },
+        "counts": {
+          "document": 1,
+          "image": 3,
+          "stylesheet": 2,
+          "script": 34,
+          "total": 40
+        }
+      },
+      {
+        "path": "/privacy.html",
+        "sizes": {
+          "document": 4023,
+          "image": 2650,
+          "stylesheet": 1349,
+          "total": 8022
+        },
+        "counts": {
+          "document": 1,
+          "image": 2,
+          "stylesheet": 1,
+          "total": 4
+        }
+      }
+    ],
+    "violations": []
+  }
+}
