@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parsePatientBookingGuard,
   planBooking,
   type BookingRequest,
   type PatientBookingGuardSnapshot,
@@ -43,8 +44,12 @@ const openSlot: SlotSnapshot = {
 };
 
 const activeGuard: PatientBookingGuardSnapshot = {
-  activeAppointmentId: 'appointment_existing',
-  status: 'confirmed',
+  activeAppointmentIds: ['appointment_existing'],
+  updatedAt: '2026-07-21T08:00:00.000Z'
+};
+
+const twoActiveGuard: PatientBookingGuardSnapshot = {
+  activeAppointmentIds: ['appointment_existing', 'appointment_other'],
   updatedAt: '2026-07-21T08:00:00.000Z'
 };
 
@@ -72,8 +77,7 @@ describe('planBooking', () => {
       reservationId: 'appointment_001'
     });
     expect(plan.patientBookingGuard).toEqual({
-      activeAppointmentId: 'appointment_001',
-      status: 'confirmed',
+      activeAppointmentIds: ['appointment_001'],
       updatedAt: request.requestedAt
     });
     expect(plan.auditEvent).toEqual({
@@ -159,10 +163,26 @@ describe('planBooking', () => {
     );
   });
 
-  it('rejects a patient whose fixed guard already holds an active booking', () => {
-    expect(codeOf(() => planBooking(request, openSlot, activeGuard))).toBe(
+  it('allows a second active booking and rejects a third', () => {
+    const second = planBooking(request, openSlot, activeGuard);
+    expect(second.patientBookingGuard).toEqual({
+      activeAppointmentIds: ['appointment_existing', 'appointment_001'],
+      updatedAt: request.requestedAt
+    });
+    expect(codeOf(() => planBooking(request, openSlot, twoActiveGuard))).toBe(
       'DUPLICATE_ACTIVE_BOOKING'
     );
+  });
+
+  it('does not add an appointment that is already in the guard', () => {
+    expect(
+      codeOf(() =>
+        planBooking(request, openSlot, {
+          activeAppointmentIds: ['appointment_001'],
+          updatedAt: '2026-07-21T08:00:00.000Z'
+        })
+      )
+    ).toBe('DUPLICATE_ACTIVE_BOOKING');
   });
 
   it('rejects malformed identifiers and timestamps', () => {
@@ -180,5 +200,47 @@ describe('planBooking', () => {
         )
       )
     ).toBe('INVALID_TIMESTAMP');
+  });
+});
+
+describe('parsePatientBookingGuard', () => {
+  it('reads the legacy single-id document', () => {
+    expect(
+      parsePatientBookingGuard({
+        activeAppointmentId: 'appointment_legacy',
+        status: 'confirmed',
+        updatedAt: '2026-07-21T08:00:00.000Z'
+      })
+    ).toEqual({
+      activeAppointmentIds: ['appointment_legacy'],
+      updatedAt: '2026-07-21T08:00:00.000Z'
+    });
+  });
+
+  it('reads the bounded-id document and prefers it over a leftover legacy field', () => {
+    expect(
+      parsePatientBookingGuard({
+        activeAppointmentId: 'appointment_stale',
+        activeAppointmentIds: ['appointment_a', 'appointment_b'],
+        updatedAt: '2026-07-21T08:00:00.000Z'
+      })
+    ).toEqual({
+      activeAppointmentIds: ['appointment_a', 'appointment_b'],
+      updatedAt: '2026-07-21T08:00:00.000Z'
+    });
+  });
+
+  it('rejects an unreadable or duplicate-id document', () => {
+    expect(codeOf(() => parsePatientBookingGuard(undefined))).toBe(
+      'INVALID_VALUE'
+    );
+    expect(
+      codeOf(() =>
+        parsePatientBookingGuard({
+          activeAppointmentIds: ['appointment_a', 'appointment_a'],
+          updatedAt: '2026-07-21T08:00:00.000Z'
+        })
+      )
+    ).toBe('INVALID_VALUE');
   });
 });

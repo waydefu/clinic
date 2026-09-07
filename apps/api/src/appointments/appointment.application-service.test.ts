@@ -1,14 +1,21 @@
-import type { CreateAppointmentRequest } from '@beauessence/contracts';
-import type { BookingRequest } from '@beauessence/domain';
+import type {
+  CreateAppointmentRequest,
+  RescheduleAppointmentRequest
+} from '@beauessence/contracts';
+import type { BookingRequest, RescheduleRequest } from '@beauessence/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import {
   AppointmentApplicationService,
   MissingVerifiedPatientError,
-  toBookingRequest
+  toBookingRequest,
+  toRescheduleRequest
 } from './appointment.application-service.js';
-import { createAppointmentIdempotency } from '../idempotency/appointment-idempotency.js';
+import {
+  createAppointmentIdempotency,
+  rescheduleAppointmentIdempotency
+} from '../idempotency/appointment-idempotency.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
 import type {
   AppointmentRepositoryPort,
@@ -28,6 +35,11 @@ const AUTHENTICATION: AuthenticationContext = {
   verifiedPatientId: 'patient_opaque_001'
 };
 
+const RESCHEDULE_COMMAND: RescheduleAppointmentRequest = {
+  idempotencyKey: 'reschedule_request_0001',
+  targetSlotId: 'slot_002'
+};
+
 function createBoundary() {
   const reserve = vi.fn<
     (request: BookingRequest) => Promise<ReservationResult>
@@ -37,11 +49,36 @@ function createBoundary() {
       replayed: false
     })
   );
+  const reschedule = vi.fn<
+    (request: RescheduleRequest) => Promise<ReservationResult>
+  >(() =>
+    Promise.resolve({
+      appointmentId: 'appointment_server_001',
+      replayed: false
+    })
+  );
+  const patientIdOf = vi.fn<() => Promise<string | undefined>>(() =>
+    Promise.resolve('patient_opaque_001')
+  );
   const assertCanCreate = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCreate']
   >(() => Promise.resolve());
-  const repository: AppointmentRepositoryPort = { reserve };
-  const authorization: AppointmentAuthorizationPolicy = { assertCanCreate };
+  const assertCanReschedule = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanReschedule']
+  >(() => Promise.resolve());
+  const assertCanDelete = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanDelete']
+  >(() => Promise.resolve());
+  const repository: AppointmentRepositoryPort = {
+    reserve,
+    reschedule,
+    patientIdOf
+  };
+  const authorization: AppointmentAuthorizationPolicy = {
+    assertCanCreate,
+    assertCanReschedule,
+    assertCanDelete
+  };
   const service = new AppointmentApplicationService(
     repository,
     authorization,
@@ -50,7 +87,14 @@ function createBoundary() {
     { next: () => 'corr_server_001' }
   );
 
-  return { assertCanCreate, reserve, service };
+  return {
+    assertCanCreate,
+    assertCanReschedule,
+    patientIdOf,
+    reserve,
+    reschedule,
+    service
+  };
 }
 
 describe('AppointmentApplicationService', () => {
@@ -140,5 +184,135 @@ describe('AppointmentApplicationService', () => {
       'denied'
     );
     expect(reserve).not.toHaveBeenCalled();
+  });
+});
+
+describe('AppointmentApplicationService reschedule', () => {
+  it('maps a parsed command plus server identity and time to the domain', async () => {
+    const { assertCanReschedule, reschedule, service } = createBoundary();
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        RESCHEDULE_COMMAND,
+        AUTHENTICATION
+      )
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      replayed: false
+    });
+
+    expect(assertCanReschedule).toHaveBeenCalledWith(AUTHENTICATION, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(reschedule).toHaveBeenCalledWith({
+      appointmentId: 'appointment_server_001',
+      targetSlotId: 'slot_002',
+      expectedPatientId: 'patient_opaque_001',
+      audit: {
+        actorId: 'actor_verified_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_server_001',
+        source: 'api',
+        reasonCode: null,
+        policyVersion: null
+      },
+      requestedAt: '2026-07-23T14:30:00.000Z',
+      idempotency: rescheduleAppointmentIdempotency({
+        key: 'reschedule_request_0001',
+        actorId: 'actor_verified_001',
+        appointmentId: 'appointment_server_001',
+        targetSlotId: 'slot_002'
+      })
+    });
+  });
+
+  it('lets staff reschedule without a verified patient identity', async () => {
+    const { assertCanReschedule, reschedule, service } = createBoundary();
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+
+    await expect(
+      service.reschedule('appointment_server_001', RESCHEDULE_COMMAND, staff)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      replayed: false
+    });
+    expect(assertCanReschedule).toHaveBeenCalledWith(staff, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(reschedule.mock.calls[0]?.[0]).not.toHaveProperty(
+      'expectedPatientId'
+    );
+  });
+
+  it('keeps retry identity stable when server execution metadata changes', () => {
+    const first = toRescheduleRequest(
+      'appointment_server_001',
+      RESCHEDULE_COMMAND,
+      {
+        expectedPatientId: 'patient_opaque_001',
+        requestedAt: '2026-07-23T14:30:00.000Z',
+        audit: {
+          actorId: 'actor_verified_001',
+          actorRole: 'test_front_desk',
+          correlationId: 'corr_server_001',
+          source: 'api',
+          reasonCode: null,
+          policyVersion: null
+        }
+      }
+    );
+    const retry = toRescheduleRequest(
+      'appointment_server_001',
+      RESCHEDULE_COMMAND,
+      {
+        expectedPatientId: 'patient_opaque_001',
+        requestedAt: '2026-07-23T14:31:00.000Z',
+        audit: {
+          ...first.audit,
+          correlationId: 'corr_server_002'
+        }
+      }
+    );
+
+    expect(retry.requestedAt).not.toBe(first.requestedAt);
+    expect(retry.audit.correlationId).not.toBe(first.audit.correlationId);
+    expect(retry.idempotency).toEqual(first.idempotency);
+  });
+
+  it('does not persist when authorization denies the command', async () => {
+    const { assertCanReschedule, reschedule, service } = createBoundary();
+    assertCanReschedule.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        RESCHEDULE_COMMAND,
+        AUTHENTICATION
+      )
+    ).rejects.toThrow('denied');
+    expect(reschedule).not.toHaveBeenCalled();
+  });
+
+  it('scopes reschedule authorization to the appointment owner', async () => {
+    const { assertCanReschedule, patientIdOf, reschedule, service } =
+      createBoundary();
+    patientIdOf.mockResolvedValueOnce('patient_other');
+    assertCanReschedule.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        RESCHEDULE_COMMAND,
+        AUTHENTICATION
+      )
+    ).rejects.toThrow('denied');
+    expect(assertCanReschedule).toHaveBeenCalledWith(AUTHENTICATION, {
+      appointmentPatientId: 'patient_other'
+    });
+    expect(reschedule).not.toHaveBeenCalled();
   });
 });

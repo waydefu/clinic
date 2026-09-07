@@ -2,7 +2,7 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-08-22
+**整合更新：** 2026-09-06
 
 **39 題業主答案已於 2026-08-16 全數回收**，逐題對帳見
 [2026-08-17 對帳紀錄](reviews/2026-08-17-owner-decision-reconciliation.md)。答案是
@@ -36,8 +36,9 @@ Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 > [專案後續執行與核准清單](product/current-execution-and-approval-plan.md)。
 > 既有 Stage 0 與 dated review 完成紀錄保留作歷史證據，不得取代目前 gate。
 >
-> **2026-08-11 唯讀稽核新增的 current P0：** `DATA-R01` slot sentinel、`DATA-R02`
-> occurrence identity、`ARC-R01` lease fencing、~~`SCM-R05` 修綠 dependency audit
+> **2026-08-11 唯讀稽核新增的 current P0：** ~~`DATA-R01` slot sentinel~~（**2026-09-06
+> 完成，見下**）、~~`DATA-R02` occurrence identity~~（**2026-09-06 完成，見下**）、
+> ~~`ARC-R01` lease fencing~~（**2026-09-06 完成，見下**）、~~`SCM-R05` 修綠 dependency audit
 > gate~~（**2026-08-17 完成，見下**）、~~`SCM-R01` required SAST~~（**2026-08-18
 > 完成，見下**）、`SCM-R02` runtime、
 > `WEB-P0-01/02/03` privacy index/performance/axe。
@@ -70,6 +71,13 @@ Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 > 兩件不因此成立的事：(1) `SCM-R04` 未關閉——9 筆殘留 advisory（1 low／8 moderate，
 > 皆 dev 工具鏈）仍無 owner／理由／到期日；(2) 稽核對 `SCM-R05` 的驗收條文另含
 > 「逐筆 triage 殘留 alert」，該子句與 `SCM-R04` 範圍重疊且尚未完成，邊界待 owner 裁定。
+>
+> **`DATA-R01`、`DATA-R02`、`ARC-R01` 已於 2026-09-06 完成；PR #23 不是這三項的完成證據。**
+> 2026-08-22 的 PR #23 通過當時同 commit 的 Firestore Emulator job，但沒有改 slot
+> release sentinel、occurrence identity 或 outbox lease fencing。實際關閉這三項的是
+> T1-DATA-01 PR #59（merge `6c14ac4`）、T1-DATA-02 PR #60（merge `ed2148c`）、
+> T1-ARC-01 PR #67（merge `cbd604b`）。這**不**表示 booking route、cloud Firestore
+> 或 worker 多實例已被授權。
 
 > **2026-07-24 進度整合。** 本檔的 2026-07-23 原始內容，其後的 Stage 0 內工作以
 > [delivery-plan](product/production-readiness-delivery-plan-2026-07-23.md) §5 backlog
@@ -247,7 +255,7 @@ Firestore、backup/PITR 或 runtime。
 | 患者端預約（四步驟、逐欄驗證、行事曆匯出） | 完成，實機驗證 |
 | 排班（門診時間、固定不開放時間、草稿／發布） | 完成 |
 | 個管指派與月度工作量 | 完成（非金額） |
-| Firestore 交易、冪等、outbox | 僅限 Emulator／synthetic；先前 slot release null sentinel、state-cycle occurrence ID、stale worker settle 缺口已由 `DATA-R01/02`、`ARC-R01` 補齊，PR #23 當前同 commit 的 GitHub Firestore Emulator job 亦通過；未連 cloud backend，端點維持關閉 |
+| Firestore 交易、冪等、outbox | 僅限 Emulator／synthetic；slot release sentinel、occurrence identity 與 outbox lease fencing 由 T1-DATA-01（PR #59）、T1-DATA-02（PR #60）、T1-ARC-01（PR #67）於 2026-09-06 補齊。PR #23 的 Emulator job 不能當作這三項的完成證據。未連 cloud backend，端點維持關閉 |
 | 雲端資料庫 | 未啟用 |
 | 身分驗證 | 未啟用（工作臺目前是角色模擬） |
 | Google 日曆 | 未連線 |

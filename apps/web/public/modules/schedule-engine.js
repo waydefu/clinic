@@ -8,7 +8,7 @@
 //
 // 與 domain-rules.js 同一個做法：措辭留在邊界，規則留在領域套件。在這之前，
 // 患者看到的可預約時間與未來 API 會核可的時間是兩份各自實作的診所政策。
-import { taipeiTodayDate } from './taipei-time.js';
+import { taipeiDate, taipeiTodayDate } from './taipei-time.js';
 import { DomainError } from '../vendor/domain/errors.js';
 import {
   assertScheduleValid,
@@ -106,13 +106,20 @@ export function isUpcomingSlot(slot, now = Date.now()) {
  * domain rule (bookingHorizonEndExclusive), so a caller cannot bypass the UI
  * by posting a stale or injected slot. The end is exclusive.
  */
-export function assertWithinSyntheticBookingWindow(slot) {
+export function isWithinSyntheticBookingWindow(slot, nowMs = Date.now()) {
   const startsAt = Date.parse(slot?.startsAt);
-  if (!Number.isFinite(startsAt)) throw new Error('預約時段格式無效。');
-  const startDate = syntheticWindowStart();
-  const windowStart = Date.parse(`${startDate}T00:00:00+08:00`);
-  const windowEnd = windowEndMs(startDate);
-  if (startsAt < windowStart || startsAt >= windowEnd)
+  if (!Number.isFinite(nowMs) || !Number.isFinite(startsAt)) return false;
+  const startDate = taipeiDate(new Date(nowMs).toISOString());
+  return (
+    startsAt >= Date.parse(`${startDate}T00:00:00+08:00`) &&
+    startsAt < windowEndMs(startDate)
+  );
+}
+
+export function assertWithinSyntheticBookingWindow(slot) {
+  if (!Number.isFinite(Date.parse(slot?.startsAt)))
+    throw new Error('預約時段格式無效。');
+  if (!isWithinSyntheticBookingWindow(slot))
     throw new Error('此時段不在目前開放的 1 個月預約範圍內。');
 }
 

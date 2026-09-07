@@ -187,9 +187,8 @@ describe('appointment transitions in a Firestore transaction', () => {
       'cancellation_requested'
     );
     expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
-    expect((await patientGuardState()).data()).toMatchObject({
-      activeAppointmentId: APPOINTMENT,
-      status: 'cancellation_requested',
+    expect((await patientGuardState()).data()).toEqual({
+      activeAppointmentIds: [APPOINTMENT],
       updatedAt: NOW
     });
   });
@@ -326,9 +325,8 @@ describe('reschedule in a Firestore transaction', () => {
     expect(appointment?.['status']).toBe('confirmed');
     expect((await slotState(SLOT_A))?.['reservationId']).toBeUndefined();
     expect((await slotState(SLOT_B))?.['reservationId']).toBe(APPOINTMENT);
-    expect((await patientGuardState()).data()).toMatchObject({
-      activeAppointmentId: APPOINTMENT,
-      status: 'confirmed',
+    expect((await patientGuardState()).data()).toEqual({
+      activeAppointmentIds: [APPOINTMENT],
       updatedAt: NOW
     });
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
@@ -348,6 +346,49 @@ describe('reschedule in a Firestore transaction', () => {
       correlationId: 'corr_idem_reschedule',
       schemaVersion: 2
     });
+  });
+
+  it('does not consume a third allowance when rescheduling one of two active bookings', async () => {
+    const slotC = 'slot_20300102_1300';
+    await db.collection(COLLECTIONS.slots).doc(slotC).set({
+      kind: 'initial',
+      startsAt: '2030-01-02T05:00:00.000Z'
+    });
+    await repository.reserve({
+      appointmentId: 'appointment_002',
+      slotId: SLOT_B,
+      patientId: 'patient_001',
+      bookingKind: 'initial',
+      itemId: 'service_snoring',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_second_active',
+        source: 'api',
+        reasonCode: null,
+        policyVersion: null
+      },
+      requestedAt: NOW,
+      idempotency: createAppointmentIdempotency({
+        key: 'idem_second_active',
+        actorId: 'actor_front_desk_001',
+        patientId: 'patient_001',
+        slotId: SLOT_B,
+        bookingKind: 'initial',
+        itemId: 'service_snoring'
+      })
+    });
+
+    await reschedule(slotC, 'idem_reschedule_with_sibling');
+
+    expect(
+      (await patientGuardState()).data()?.['activeAppointmentIds']
+    ).toEqual([APPOINTMENT, 'appointment_002']);
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeUndefined();
+    expect((await slotState(slotC))?.['reservationId']).toBe(APPOINTMENT);
+    expect((await slotState(SLOT_B))?.['reservationId']).toBe(
+      'appointment_002'
+    );
   });
 
   it('restores a requested cancellation to confirmed', async () => {

@@ -20,7 +20,8 @@ import { openPolicyDialog } from './modules/policy-dialog.js';
 import { fieldErrors } from './modules/patient-registry.js';
 import {
   PATIENT_LOOKUP_ERROR,
-  patientCancellationEligibility
+  patientCancellationEligibility,
+  patientRescheduleTargets
 } from './modules/patient-booking-management.js';
 import { isUpcomingSlot } from './modules/schedule-engine.js';
 import { storageKey } from './modules/state-schema.js';
@@ -1039,12 +1040,26 @@ function renderManagedAppointments() {
         Date.now()
       );
       const status = statusLabel(appointment.status);
-      const action = eligibility.allowed
+      const cancelAction = eligibility.allowed
         ? `<button class="button button-primary" type="button" data-managed-cancel="${escapeHtml(appointment.id)}">取消這筆預約</button>`
         : ['phone_required', 'time_unavailable'].includes(eligibility.code)
           ? cancellationContactFallback()
           : '';
-      return `<article class="booking-lookup-card"><div class="booking-lookup-card-heading"><strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(status)}</span></div><span>${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel)}</span><span class="code">預約末碼 ${escapeHtml(appointment.id.slice(-4))}</span>${action}</article>`;
+      const targets = eligibility.allowed
+        ? patientRescheduleTargets(state, appointment, Date.now())
+        : [];
+      const rescheduleAction =
+        eligibility.allowed && targets.length > 0
+          ? `<div class="booking-lookup-reschedule"><label>改期時段<select name="targetSlotId" data-managed-reschedule-slot="${escapeHtml(appointment.id)}"><option value="">請選擇新時段</option>${targets
+              .map(
+                (slot) =>
+                  `<option value="${escapeHtml(slot.id)}">${escapeHtml(formatFullDate(slot.startsAt))} ${escapeHtml(formatTime(slot.startsAt))}</option>`
+              )
+              .join(
+                ''
+              )}</select></label><button class="button button-secondary" type="button" data-managed-reschedule="${escapeHtml(appointment.id)}">改期</button></div>`
+          : '';
+      return `<article class="booking-lookup-card"><div class="booking-lookup-card-heading"><strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(status)}</span></div><span>${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel)}</span><span class="code">預約末碼 ${escapeHtml(appointment.id.slice(-4))}</span>${rescheduleAction}${cancelAction}</article>`;
     })
     .join('');
 }
@@ -1183,6 +1198,67 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
       error.message.includes('已取消')
         ? '這筆預約已取消。'
         : '此預約無法線上取消，請來電 02-2577-1314。'
+  });
+});
+
+elements['booking-lookup-results'].addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-managed-reschedule]');
+  if (button === null || lastLookupVerification === undefined) return;
+  const appointment = managedAppointments.find(
+    (item) => item.id === button.dataset.managedReschedule
+  );
+  if (appointment === undefined) return;
+  const card = button.closest('.booking-lookup-card');
+  const select = card?.querySelector('[data-managed-reschedule-slot]');
+  const targetSlotId = select?.value;
+  if (!targetSlotId) {
+    message('請選擇新時段。', 'error', 'booking-lookup-status');
+    return;
+  }
+  const targetOption = [...(select?.options ?? [])].find(
+    (option) => option.value === targetSlotId
+  );
+  const description = targetOption?.textContent ?? '';
+  if (
+    !(await confirmDialog(`確定改期為 ${description}？原時段會立即釋出。`, {
+      confirmLabel: '確認改期'
+    }))
+  )
+    return;
+  await runUiAction({
+    control: button,
+    pendingLabel: '改期中…',
+    pendingMessage: '正在改期。',
+    anchorId: 'booking-lookup-status',
+    action: () =>
+      apiClient.request(`/patient/bookings/${appointment.id}/self-reschedule`, {
+        method: 'POST',
+        body: JSON.stringify({ ...lastLookupVerification, targetSlotId })
+      }),
+    onSuccess: (result) => {
+      state = result.state;
+      managedAppointments = managedAppointments.map((item) =>
+        item.id === result.appointment.id ? result.appointment : item
+      );
+      renderManagedAppointments();
+      if (appointment.id === completedAppointmentId) {
+        elements['booking-complete-mark'].textContent = '✓';
+        elements['booking-complete-eyebrow'].textContent = 'BOOKING UPDATED';
+        elements['booking-complete-heading'].textContent = '預約已改期';
+        elements['booking-complete-description'].textContent =
+          '改期已完成，請以新時段為準。';
+        elements['booking-result'].innerHTML =
+          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>狀態：已改期</span>`;
+      }
+      renderSlots();
+      message('預約已改期，原時段已釋出。', 'success', 'booking-lookup-status');
+    },
+    failureMessage: (error) =>
+      error.message.includes('已取消')
+        ? '這筆預約已取消。'
+        : error.message.includes('1 個月')
+          ? error.message
+          : '此預約無法線上改期，請來電 02-2577-1314。'
   });
 });
 

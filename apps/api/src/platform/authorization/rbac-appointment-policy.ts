@@ -17,11 +17,11 @@ export type RoleResolver = (context: AuthenticationContext) => CandidateRole;
 
 /**
  * Wires the candidate RBAC evaluator into the existing (still unrouted)
- * appointment authorization port. A patient may only create their own booking;
- * a staff role creates against the clinic-wide scope. The account is treated as
- * active because the session was validated upstream — the real disabled-account
- * signal is approved by D-006 but only arrives after the C2/C3 identity and
- * session implementation exists.
+ * appointment authorization port. A patient may only create or reschedule
+ * their own booking; a staff role acts against the clinic-wide scope. The
+ * account is treated as active because the session was validated upstream —
+ * the real disabled-account signal is approved by D-006 but only arrives after
+ * the C2/C3 identity and session implementation exists.
  */
 /**
  * A patient without a server-verified identity is refused, never widened to the
@@ -56,6 +56,35 @@ export function createRbacAppointmentPolicy(
           accountActive: true,
           permission: 'create_appointment',
           scope
+        });
+        resolve();
+      });
+    },
+    assertCanReschedule(context, command): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        // Patients are scoped to the appointment owner, never to "whoever
+        // is calling". Falling back to verifiedPatientId when the owner is
+        // unknown made a missing row look like the caller's own booking and
+        // turned 403/404 into an existence oracle.
+        const scope = resolveScope(role, command.appointmentPatientId);
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'reschedule_appointment',
+          scope
+        });
+        resolve();
+      });
+    },
+    assertCanDelete(context): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'delete_appointment',
+          scope: { kind: 'any' }
         });
         resolve();
       });

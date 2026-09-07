@@ -32,7 +32,7 @@ export function assertSlotBookable(slot, bookingKind) {
 }
 export function assertWithinActiveBookingLimit(activeCount) {
     if (activeCount >= ACTIVE_BOOKING_LIMIT) {
-        throw new DomainError('DUPLICATE_ACTIVE_BOOKING', 'The patient already has an active booking.');
+        throw new DomainError('DUPLICATE_ACTIVE_BOOKING', 'The patient already has the maximum number of active bookings.');
     }
 }
 /**

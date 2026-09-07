@@ -34,7 +34,8 @@ import {
 import {
   cancelPatientAppointment,
   lookupPatientAppointments,
-  managedAppointmentSummary
+  managedAppointmentSummary,
+  reschedulePatientAppointment
 } from './modules/patient-booking-management.js';
 import {
   initialState,
@@ -190,17 +191,28 @@ export async function stagingRequest(path, options = {}) {
         managedAppointmentSummary
       )
     };
-  const selfCancelMatch =
-    /^\/patient\/bookings\/([A-Za-z0-9_-]+)\/self-cancel$/.exec(path);
-  if (selfCancelMatch !== null) {
-    const appointment = cancelPatientAppointment(
-      state,
-      selfCancelMatch[1],
-      body,
-      PATIENT_ACTOR_ID,
-      Date.now()
+  const selfManage =
+    /^\/patient\/bookings\/([A-Za-z0-9_-]+)\/self-(cancel|reschedule)$/.exec(
+      path
     );
-    // 成功路徑只在 canonical transition 完成後保存一次；任何 guard 拋錯都到不了這裡。
+  if (selfManage !== null) {
+    const appointment =
+      selfManage[2] === 'cancel'
+        ? cancelPatientAppointment(
+            state,
+            selfManage[1],
+            body,
+            PATIENT_ACTOR_ID,
+            Date.now()
+          )
+        : reschedulePatientAppointment(
+            state,
+            selfManage[1],
+            body.targetSlotId,
+            body,
+            PATIENT_ACTOR_ID,
+            Date.now()
+          );
     saveState(state);
     return {
       appointment: managedAppointmentSummary(appointment),

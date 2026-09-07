@@ -234,6 +234,18 @@ describe('documentation gate', () => {
     );
   });
 
+  it('blocks attributing DATA-R01/02 and ARC-R01 completion to PR #23', () => {
+    const roadmap = STALE_CLAIMS.filter(([file]) => file === 'docs/roadmap.md');
+    expect(roadmap).toHaveLength(1);
+    const pattern = roadmap[0][1];
+    expect(
+      pattern.test(
+        '缺口已由 `DATA-R01/02`、`ARC-R01` 補齊，PR #23 當前同 commit'
+      )
+    ).toBe(true);
+    expect(pattern.test('PR #23 不是這三項的完成證據')).toBe(false);
+  });
+
   it('blocks SECURITY.md from asserting a live PVR setting or a mailto contact', () => {
     const security = STALE_CLAIMS.filter(([file]) => file === 'SECURITY.md');
     expect(security.map(([, pattern]) => pattern.source).sort()).toEqual(
