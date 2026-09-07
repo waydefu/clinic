@@ -92,6 +92,26 @@ export const STALE_CLAIMS = [
     'docs/roadmap.md',
     /已由 `DATA-R01\/02`、`ARC-R01` 補齊，PR #23/,
     'PR #23 did not close DATA-R01/02 or ARC-R01; those landed as T1-DATA-01 (#59), T1-DATA-02 (#60), T1-ARC-01 (#67)'
+  ],
+  [
+    'docs/product/current-execution-and-approval-plan.md',
+    /`DATA-R01`／`DATA-R02`／\s*`ARC-R01`／`WEB-P0-01\/02\/03` 不受此影響，仍各自待處理/,
+    'DATA-R01/02 and ARC-R01 closed 2026-09-06 as T1-DATA-01 (#59), T1-DATA-02 (#60), T1-ARC-01 (#67); only WEB-P0 remains pending in that list'
+  ],
+  [
+    'docs/architecture/firestore-local-baseline.md',
+    /Until `DATA-R01` and `DATA-R02` pass/,
+    'DATA-R01/02 closed 2026-09-06; keep the adapter unrouted, do not reopen the finding as current'
+  ],
+  [
+    'docs/architecture/calendar-event-id.md',
+    /仍有 `DATA-002` 缺口/,
+    'DATA-R02 / T1-DATA-02 (#60) closed occurrence identity on 2026-09-06'
+  ],
+  [
+    'docs/architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md',
+    /在 `ARC-R01` 完成[^。]*前不得多實例/,
+    'ARC-R01 / T1-ARC-01 (#67) closed lease fencing on 2026-09-06; multi-instance cloud runners remain unauthorised'
   ]
 ];
 

@@ -52,9 +52,11 @@ confirmed two uncovered cases:
   target slot. A legal state cycle can therefore reuse an Audit v2 document ID;
   the repository's create-only audit then rolls back the whole transaction.
 
-Until `DATA-R01` and `DATA-R02` pass release-after-rebook, repeated legal-cycle
-and contention regression tests, do not describe slot release or append-only
-occurrence identity as fully verified and do not route the adapter.
+`DATA-R01` and `DATA-R02` closed those two cases on 2026-09-06 as T1-DATA-01
+(PR #59) and T1-DATA-02 (PR #60): release-after-rebook, repeated legal-cycle
+and contention regressions now exist. That does **not** route the adapter, open
+cloud Firestore, or mount `/v1/bookings`. Keep describing slot release and
+append-only occurrence identity as Emulator-verified only.
 
 ## Commands
 

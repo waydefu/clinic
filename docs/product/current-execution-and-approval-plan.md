@@ -1,7 +1,7 @@
 # 專案後續執行與核准清單
 
 **狀態：現行權威／Stage 1／尚未授權雲端或真實資料。**  
-**最後更新：2026-08-11（Asia/Taipei）**
+**最後更新：2026-09-07（Asia/Taipei）**
 
 **證據新鮮度：** 2026-08-11 為唯讀靜態盤點；未重跑 build、unit、Rules、E2E、
 browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史證據，不是目前 HEAD
@@ -39,12 +39,14 @@ TW-04 與 TW-05 自動前置條件已交付；原 TW 唯一未完成的是 TW-05
 鍵盤、forced-colors 與實體裝置驗收，先在 synthetic rehearsal 執行，Production 前再
 對 release candidate 留正式紀錄。
 
-2026-08-11 另確認需先處理 `DATA-R01`、`DATA-R02`、`ARC-R01`、~~`SCM-R05`~~
-（**2026-08-17 已完成**）、~~`SCM-R01`~~（**2026-08-18 已完成**）、`SCM-R02`、
-`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是新的
-current finding；在對應 acceptance 通過前，不得把 slot release、outbox
-ownership、SAST merge gate、privacy index、clinic timing 或完整 axe evidence
-寫成已驗證。
+2026-08-11 另確認需先處理 ~~`DATA-R01`~~（**2026-09-06 已完成**）、
+~~`DATA-R02`~~（**2026-09-06 已完成**）、~~`ARC-R01`~~（**2026-09-06 已完成**）、
+~~`SCM-R05`~~（**2026-08-17 已完成**）、~~`SCM-R01`~~（**2026-08-18 已完成**）、
+`SCM-R02`、`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是當日的
+current finding；在對應 acceptance 通過前，不得把尚未關閉項寫成已驗證。
+SAST merge gate 已隨 `SCM-R01` 關閉。slot release、occurrence identity 與
+outbox lease fencing 已隨 `DATA-R01`／`DATA-R02`／`ARC-R01` 關閉，見下；
+這**不**表示 booking route、cloud Firestore 或 worker 多實例已被授權。
 
 **`SCM-R05` 已於 2026-08-17 完成（PR #16、實作 `5c99b54`、merge `cf3b87b`）。**
 修法是把 lockfile 的 `nanoid` 由 `3.3.16` 提到 `3.3.18`——`postcss@8.5.20` 本就
@@ -60,9 +62,21 @@ ownership、SAST merge gate、privacy index、clinic timing 或完整 axe eviden
 其餘全綠、`mergeStateStatus=BLOCKED`、未用 admin bypass，已關閉未合併。
 branch protection 未變動。
 
+**`DATA-R01` 已於 2026-09-06 完成（T1-DATA-01，PR #59，merge `6c14ac4`）。**
+slot release sentinel：釋放後可重訂，contention 一勝。2026-08-22 的 PR #23
+Emulator job 不是這項的完成證據。
+
+**`DATA-R02` 已於 2026-09-06 完成（T1-DATA-02，PR #60，merge `ed2148c`）。**
+audit／outbox occurrence identity：合法循環獨立、exact replay 才可重用
+occurrence ID。
+
+**`ARC-R01` 已於 2026-09-06 完成（T1-ARC-01，PR #67，merge `cbd604b`）。**
+outbox lease owner／token／generation 與 conditional settle。這仍不是 cloud
+worker 多實例或 D-010 部署授權。
+
 因此這一路的下一個工程切片是 **`SCM-R02`**（runtime 安全：CSP／security headers／
-API runtime 防護），它與 `SCM-R01`／`SCM-R05` 無相依。`DATA-R01`／`DATA-R02`／
-`ARC-R01`／`WEB-P0-01/02/03` 不受此影響，仍各自待處理。
+API runtime 防護），它與 `SCM-R01`／`SCM-R05` 無相依。`WEB-P0-01/02/03`
+不受此影響，仍各自待處理。
 
 `SCM-R04` 未關閉：9 筆殘留 advisory（1 low／8 moderate，全在 dev 工具鏈）低於 `high`
 門檻、不擋 gate，但仍無 owner／理由／到期日。**gate 綠不等於 patch SLA 存在。**
