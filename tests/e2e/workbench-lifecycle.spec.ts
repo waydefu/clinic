@@ -5,7 +5,8 @@ import {
   createBooking,
   login,
   seedAppointmentCopies,
-  showAllAppointments
+  showAllAppointments,
+  switchRole
 } from './support/workbench.js';
 
 // 工作臺的完整生命週期：登入 → 建立 → 到診 → 回診 → 刪除，跑在打包後的產物上。
@@ -863,5 +864,57 @@ test.describe('工作臺預約生命週期', () => {
     await expect(
       card.locator('[data-appointment-action="delete"]')
     ).toHaveCount(0);
+  });
+});
+
+// T2-WB-01 — 工作臺回饋狀態。分類依現行合成架構，不發明假 loading／假拒絕頁。
+//
+// | 狀態 | 判定 |
+// | empty | ENFORCED：清單用 `.empty-state`，首頁零待辦保持安靜 |
+// | loading | 清單拉取 NOT_APPLICABLE（localStorage 同步）；控制項 pending 與
+// |         | `#cal-pilot-boot-status` 為 ENFORCED |
+// | success | ENFORCED：`#status[role=status]` 公告結果 |
+// | permission denied | ENFORCED：無權限動作不渲染；受限 hash 走 `#status`，沒有專用拒絕頁 |
+test.describe('T2-WB-01 工作臺回饋狀態', () => {
+  test('empty：今日無預約時顯示 empty-state', async ({ page }) => {
+    await login(page);
+    await page.goto('/staff#appointments-section');
+    const empty = page.locator('#appointments .empty-state');
+    await expect(empty).toBeVisible();
+    await expect(empty).toContainText('今日尚無預約');
+    await expect(page.locator('[data-appointment-card]')).toHaveCount(0);
+  });
+
+  test('loading：預約清單沒有獨立載入骨架', async ({ page }) => {
+    await login(page);
+    await page.goto('/staff#appointments-section');
+    await expect(page.locator('html')).toHaveClass(/synthetic-workbench-ready/);
+    await expect(page.locator('#cal-pilot-boot-status')).toBeHidden();
+    await expect(page.locator('#appointments [aria-busy]')).toHaveCount(0);
+    await expect(page.locator('#appointments')).not.toContainText('載入中');
+  });
+
+  test('success：建立預約後由 #status 公告', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await expect(page.locator('#status')).toHaveAttribute('role', 'status');
+    await expect(page.locator('#status')).toContainText('預約已建立');
+  });
+
+  test('permission denied：不渲染無權限動作，受限 hash 走狀態列', async ({
+    page
+  }) => {
+    await login(page);
+    await createBooking(page);
+    await switchRole(page, 'front');
+    await page.goto('/staff#appointments-section');
+    await showAllAppointments(page);
+    await expect(
+      page.locator('[data-appointment-action="delete"]')
+    ).toHaveCount(0);
+    await page.goto('/staff#accounts-section');
+    await expect(page).toHaveURL(/#overview$/);
+    await expect(page.locator('#status')).toContainText('沒有權限');
+    await expect(page.locator('#permission-denied')).toHaveCount(0);
   });
 });
