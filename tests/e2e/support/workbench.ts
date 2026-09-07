@@ -125,6 +125,23 @@ export async function showAllAppointments(page: Page): Promise<void> {
   await page.locator('#appointment-status-filter').selectOption('all');
 }
 
+/** 打開工作臺某一筆預約的改期表單。 */
+export async function openStaffRescheduleForm(page: Page): Promise<void> {
+  await login(page);
+  await createBooking(page);
+  await showAllAppointments(page);
+  const appointmentId = await page.evaluate((key) => {
+    const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+    return state.appointments.at(-1).id as string;
+  }, STORAGE_KEY);
+  const card = page.locator(`[data-appointment-card="${appointmentId}"]`);
+  await card.locator('summary').click();
+  await card.locator('[data-appointment-action="reschedule"]').click();
+  await expect(
+    page.locator(`[data-reschedule-form="${appointmentId}"]`)
+  ).toBeVisible();
+}
+
 /**
  * 把已建立的第一筆預約複製成一組確定性的合成清單。
  *
