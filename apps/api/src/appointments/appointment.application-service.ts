@@ -157,11 +157,12 @@ export class AppointmentApplicationService {
     command: RescheduleAppointmentRequest,
     authentication: AuthenticationContext
   ): Promise<ReservationResult> {
+    const ownerPatientId = await this.repository.patientIdOf(appointmentId);
     await this.authorization.assertCanReschedule(
       authentication,
-      authentication.verifiedPatientId === undefined
+      ownerPatientId === undefined
         ? {}
-        : { appointmentPatientId: authentication.verifiedPatientId }
+        : { appointmentPatientId: ownerPatientId }
     );
 
     return this.repository.reschedule(

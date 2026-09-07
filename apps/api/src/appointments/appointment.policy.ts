@@ -17,4 +17,5 @@ export interface AppointmentAuthorizationPolicy {
     context: AuthenticationContext,
     command: { readonly appointmentPatientId?: string }
   ): Promise<void>;
+  assertCanDelete(context: AuthenticationContext): Promise<void>;
 }

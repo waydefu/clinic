@@ -57,16 +57,27 @@ function createBoundary() {
       replayed: false
     })
   );
+  const patientIdOf = vi.fn<() => Promise<string | undefined>>(() =>
+    Promise.resolve('patient_opaque_001')
+  );
   const assertCanCreate = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCreate']
   >(() => Promise.resolve());
   const assertCanReschedule = vi.fn<
     AppointmentAuthorizationPolicy['assertCanReschedule']
   >(() => Promise.resolve());
-  const repository: AppointmentRepositoryPort = { reserve, reschedule };
+  const assertCanDelete = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanDelete']
+  >(() => Promise.resolve());
+  const repository: AppointmentRepositoryPort = {
+    reserve,
+    reschedule,
+    patientIdOf
+  };
   const authorization: AppointmentAuthorizationPolicy = {
     assertCanCreate,
-    assertCanReschedule
+    assertCanReschedule,
+    assertCanDelete
   };
   const service = new AppointmentApplicationService(
     repository,
@@ -79,6 +90,7 @@ function createBoundary() {
   return {
     assertCanCreate,
     assertCanReschedule,
+    patientIdOf,
     reserve,
     reschedule,
     service
@@ -228,7 +240,9 @@ describe('AppointmentApplicationService reschedule', () => {
       appointmentId: 'appointment_server_001',
       replayed: false
     });
-    expect(assertCanReschedule).toHaveBeenCalledWith(staff, {});
+    expect(assertCanReschedule).toHaveBeenCalledWith(staff, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
     expect(reschedule.mock.calls[0]?.[0]).not.toHaveProperty(
       'expectedPatientId'
     );
@@ -280,6 +294,25 @@ describe('AppointmentApplicationService reschedule', () => {
         AUTHENTICATION
       )
     ).rejects.toThrow('denied');
+    expect(reschedule).not.toHaveBeenCalled();
+  });
+
+  it('scopes reschedule authorization to the appointment owner', async () => {
+    const { assertCanReschedule, patientIdOf, reschedule, service } =
+      createBoundary();
+    patientIdOf.mockResolvedValueOnce('patient_other');
+    assertCanReschedule.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        RESCHEDULE_COMMAND,
+        AUTHENTICATION
+      )
+    ).rejects.toThrow('denied');
+    expect(assertCanReschedule).toHaveBeenCalledWith(AUTHENTICATION, {
+      appointmentPatientId: 'patient_other'
+    });
     expect(reschedule).not.toHaveBeenCalled();
   });
 });

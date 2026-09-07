@@ -13,4 +13,6 @@ export interface ReservationResult {
 export interface AppointmentRepositoryPort {
   reserve(request: BookingRequest): Promise<ReservationResult>;
   reschedule(request: RescheduleRequest): Promise<ReservationResult>;
+  /** Owner of the appointment, or `undefined` when the row is missing. */
+  patientIdOf(appointmentId: string): Promise<string | undefined>;
 }

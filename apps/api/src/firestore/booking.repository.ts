@@ -50,6 +50,15 @@ export const COLLECTIONS = {
 export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   public constructor(private readonly db: Firestore) {}
 
+  public async patientIdOf(appointmentId: string): Promise<string | undefined> {
+    const snapshot = await this.db
+      .collection(COLLECTIONS.appointments)
+      .doc(appointmentId)
+      .get();
+    const patientId: unknown = snapshot.data()?.patientId;
+    return typeof patientId === 'string' ? patientId : undefined;
+  }
+
   public async reserve(request: BookingRequest): Promise<ReservationResult> {
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db

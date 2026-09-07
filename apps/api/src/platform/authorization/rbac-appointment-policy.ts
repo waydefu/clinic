@@ -63,15 +63,28 @@ export function createRbacAppointmentPolicy(
     assertCanReschedule(context, command): Promise<void> {
       return new Promise<void>((resolve) => {
         const role = resolveRole(context);
-        const scope = resolveScope(
-          role,
-          command.appointmentPatientId ?? context.verifiedPatientId
-        );
+        // Patients are scoped to the appointment owner, never to "whoever
+        // is calling". Falling back to verifiedPatientId when the owner is
+        // unknown made a missing row look like the caller's own booking and
+        // turned 403/404 into an existence oracle.
+        const scope = resolveScope(role, command.appointmentPatientId);
         evaluateAccess(context, {
           role,
           accountActive: true,
           permission: 'reschedule_appointment',
           scope
+        });
+        resolve();
+      });
+    },
+    assertCanDelete(context): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'delete_appointment',
+          scope: { kind: 'any' }
         });
         resolve();
       });
