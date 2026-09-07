@@ -4,8 +4,8 @@ import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
 import { assertUtcTimestamp } from './timestamp.js';
-/** 同一人同時只能有一筆未結束的預約。 */
-export const ACTIVE_BOOKING_LIMIT = 1;
+/** 同一人同時最多兩筆未結束的預約。 */
+export const ACTIVE_BOOKING_LIMIT = 2;
 export const ACTIVE_BOOKING_STATUSES = [
     'confirmed',
     'cancellation_requested'
@@ -14,6 +14,57 @@ function assertIdentifier(value, fieldName) {
     if (!/^[A-Za-z0-9_:-]{1,128}$/.test(value)) {
         throw new DomainError('INVALID_VALUE', `${fieldName} must be an opaque identifier.`);
     }
+}
+function uniqueIdentifiers(values, fieldName) {
+    const identifiers = [];
+    const seen = new Set();
+    for (const value of values) {
+        if (typeof value !== 'string') {
+            throw new DomainError('INVALID_VALUE', `${fieldName} must be opaque identifiers.`);
+        }
+        assertIdentifier(value, fieldName);
+        if (seen.has(value)) {
+            throw new DomainError('INVALID_VALUE', `${fieldName} must not contain duplicates.`);
+        }
+        seen.add(value);
+        identifiers.push(value);
+    }
+    return identifiers;
+}
+/**
+ * Reads the canonical or legacy patient-guard document.
+ *
+ * New rows use `activeAppointmentIds`. Legacy rows use a single
+ * `activeAppointmentId`. When both are present the array is the source of
+ * truth so a partial write cannot double-count.
+ */
+export function parsePatientBookingGuard(data) {
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+        throw new DomainError('INVALID_VALUE', 'The patient booking guard is unreadable.');
+    }
+    const record = data;
+    const updatedAt = record['updatedAt'];
+    if (typeof updatedAt !== 'string') {
+        throw new DomainError('INVALID_VALUE', 'The patient booking guard is unreadable.');
+    }
+    assertUtcTimestamp(updatedAt, 'updatedAt');
+    const rawIds = record['activeAppointmentIds'];
+    const ids = Array.isArray(rawIds) && rawIds.length > 0
+        ? uniqueIdentifiers(rawIds, 'activeAppointmentIds')
+        : typeof record['activeAppointmentId'] === 'string' &&
+            record['activeAppointmentId'] !== ''
+            ? uniqueIdentifiers([record['activeAppointmentId']], 'activeAppointmentId')
+            : undefined;
+    if (ids === undefined || ids.length === 0) {
+        throw new DomainError('INVALID_VALUE', 'The patient booking guard is unreadable.');
+    }
+    return {
+        activeAppointmentIds: ids,
+        updatedAt
+    };
+}
+export function patientBookingGuardHolds(guard, appointmentId) {
+    return guard?.activeAppointmentIds.includes(appointmentId) === true;
 }
 /**
  * Decides the complete set of writes for one reservation.
@@ -34,7 +85,11 @@ export function planBooking(request, slot, patientBookingGuard) {
         throw new DomainError('INVALID_VALUE', 'The slot does not match the request.');
     }
     assertSlotBookable(slot, request.bookingKind);
-    assertWithinActiveBookingLimit(patientBookingGuard === undefined ? 0 : 1);
+    const activeIds = patientBookingGuard?.activeAppointmentIds ?? [];
+    assertWithinActiveBookingLimit(activeIds.length);
+    if (activeIds.includes(request.appointmentId)) {
+        throw new DomainError('DUPLICATE_ACTIVE_BOOKING', 'The patient already has the maximum number of active bookings.');
+    }
     const appointment = {
         id: request.appointmentId,
         slotId: slot.id,
@@ -66,8 +121,7 @@ export function planBooking(request, slot, patientBookingGuard) {
             reservationId: request.appointmentId
         },
         patientBookingGuard: {
-            activeAppointmentId: request.appointmentId,
-            status: 'confirmed',
+            activeAppointmentIds: [...activeIds, request.appointmentId],
             updatedAt: request.requestedAt
         },
         auditEvent,

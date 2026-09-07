@@ -199,6 +199,16 @@ requireText(
   'Workspace hash navigation no longer applies the Phase 1 scope policy.'
 );
 requireText(
+  files.workspaceTabs,
+  "window.addEventListener('hashchange'",
+  'Workspace tabs no longer restore the panel from the URL hash on navigation.'
+);
+refuseText(
+  files.workspaceTabs,
+  'preventDefault',
+  'Workspace tabs intercept clicks instead of letting hash history restore the panel.'
+);
+requireText(
   files.workbenchScope,
   'CASE_MANAGEMENT: true',
   'Owner-approved synthetic Case Management is not enabled in source.'

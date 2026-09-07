@@ -149,6 +149,41 @@ test.describe('營運首頁指揮中心', () => {
   });
 });
 
+test.describe('工作臺深連結還原', () => {
+  async function expectWorkspacePanel(page: Page, panelId: string) {
+    await expect(page.locator(`#${panelId}`)).toBeVisible();
+    await expect(
+      page.locator(`[data-workspace-nav][href="#${panelId}"]`)
+    ).toHaveAttribute('aria-current', 'page');
+  }
+
+  test('重新整理後仍停在 /staff 雜湊工作區', async ({ page }) => {
+    await login(page);
+    await page.goto('/staff#appointments-section');
+    await expectWorkspacePanel(page, 'appointments-section');
+
+    await page.reload();
+    await expect(page.locator('#login-view')).toBeHidden();
+    await expectWorkspacePanel(page, 'appointments-section');
+    expect(new URL(page.url()).hash).toBe('#appointments-section');
+  });
+
+  test('上一頁與下一頁還原工作區', async ({ page }) => {
+    await login(page);
+    await page.goto('/staff#appointments-section');
+    await expectWorkspacePanel(page, 'appointments-section');
+
+    await page.locator('[data-workspace-nav][href="#overview"]').click();
+    await expectWorkspacePanel(page, 'overview');
+
+    await page.goBack();
+    await expectWorkspacePanel(page, 'appointments-section');
+
+    await page.goForward();
+    await expectWorkspacePanel(page, 'overview');
+  });
+});
+
 test.describe('待處理狀態', () => {
   test('送出期間按鈕會換成忙碌文字，且不設 aria-busy', async ({ page }) => {
     await page.goto('/staff');
