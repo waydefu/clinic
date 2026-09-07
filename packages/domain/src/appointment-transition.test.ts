@@ -25,8 +25,12 @@ const appointment: AppointmentSnapshot = {
 };
 
 const patientBookingGuard: PatientBookingGuardSnapshot = {
-  activeAppointmentId: appointment.id,
-  status: 'confirmed',
+  activeAppointmentIds: [appointment.id],
+  updatedAt: '2026-07-21T08:00:00.000Z'
+};
+
+const twoActiveGuard: PatientBookingGuardSnapshot = {
+  activeAppointmentIds: [appointment.id, 'appointment_other'],
   updatedAt: '2026-07-21T08:00:00.000Z'
 };
 
@@ -133,8 +137,7 @@ describe('planTransition', () => {
     expect(request('request_cancellation').plan().patientBookingGuard).toEqual({
       action: 'retain',
       guard: {
-        activeAppointmentId: appointment.id,
-        status: 'cancellation_requested',
+        activeAppointmentIds: [appointment.id],
         updatedAt: NOW
       }
     });
@@ -144,6 +147,49 @@ describe('planTransition', () => {
         activeAppointmentId: appointment.id
       });
     }
+  });
+
+  it('releases only one allowance when another appointment remains active', () => {
+    const plan = planTransition(
+      {
+        appointmentId: appointment.id,
+        transition: 'complete',
+        audit,
+        requestedAt: NOW,
+        idempotency: idempotencyFor()
+      },
+      appointment,
+      twoActiveGuard
+    );
+    expect(plan.patientBookingGuard).toEqual({
+      action: 'release',
+      activeAppointmentId: appointment.id,
+      remainingGuard: {
+        activeAppointmentIds: ['appointment_other'],
+        updatedAt: NOW
+      }
+    });
+  });
+
+  it('keeps both active appointments when cancellation is only requested', () => {
+    const plan = planTransition(
+      {
+        appointmentId: appointment.id,
+        transition: 'request_cancellation',
+        audit,
+        requestedAt: NOW,
+        idempotency: idempotencyFor()
+      },
+      appointment,
+      twoActiveGuard
+    );
+    expect(plan.patientBookingGuard).toEqual({
+      action: 'retain',
+      guard: {
+        activeAppointmentIds: [appointment.id, 'appointment_other'],
+        updatedAt: NOW
+      }
+    });
   });
 
   // 一筆預約 = 日曆上一個事件。每個狀態各自一個 ID 會讓改期留下殘影、
@@ -290,6 +336,17 @@ describe('planDeletion', () => {
     });
   });
 
+  it('keeps a sibling active appointment when deleting one open booking', () => {
+    expect(remove({}, {}, twoActiveGuard).patientBookingGuard).toEqual({
+      action: 'release',
+      activeAppointmentId: appointment.id,
+      remainingGuard: {
+        activeAppointmentIds: ['appointment_other'],
+        updatedAt: NOW
+      }
+    });
+  });
+
   // 紀錄消失後稽核事件是唯一證據，沒有理由的刪除等於無法複核。
   it('refuses a deletion with no reason code', () => {
     expect(codeOf(() => remove({}, { reasonCode: null }))).toBe(
@@ -324,7 +381,11 @@ describe('planDeletion', () => {
     ).toBe('APPOINTMENT_NOT_FOUND');
     expect(
       codeOf(() =>
-        remove({}, {}, { ...patientBookingGuard, activeAppointmentId: 'other' })
+        remove(
+          {},
+          {},
+          { ...patientBookingGuard, activeAppointmentIds: ['other'] }
+        )
       )
     ).toBe('PATIENT_BOOKING_GUARD_MISMATCH');
     expect(codeOf(() => remove({}, {}, null))).toBe(
@@ -336,7 +397,7 @@ describe('planDeletion', () => {
     const plan = remove(
       { status: 'completed' },
       {},
-      { ...patientBookingGuard, activeAppointmentId: 'appointment_newer' }
+      { ...patientBookingGuard, activeAppointmentIds: ['appointment_newer'] }
     );
 
     expect(plan.patientBookingGuard).toEqual({
@@ -385,8 +446,32 @@ describe('planReschedule', () => {
     expect(plan.patientBookingGuard).toEqual({
       action: 'retain',
       guard: {
-        activeAppointmentId: appointment.id,
-        status: 'confirmed',
+        activeAppointmentIds: [appointment.id],
+        updatedAt: NOW
+      }
+    });
+  });
+
+  it('keeps a sibling active appointment while rescheduling', () => {
+    const plan = planReschedule(
+      {
+        appointmentId: appointment.id,
+        targetSlotId: target.id,
+        audit,
+        requestedAt: NOW,
+        idempotency: {
+          ...idempotencyFor(),
+          scope: `appointment:${appointment.id}:reschedule`
+        }
+      },
+      appointment,
+      target,
+      twoActiveGuard
+    );
+    expect(plan.patientBookingGuard).toEqual({
+      action: 'retain',
+      guard: {
+        activeAppointmentIds: [appointment.id, 'appointment_other'],
         updatedAt: NOW
       }
     });
@@ -442,7 +527,7 @@ describe('planReschedule', () => {
       codeOf(() =>
         planTransition(requestInput, appointment, {
           ...patientBookingGuard,
-          activeAppointmentId: 'appointment_other'
+          activeAppointmentIds: ['appointment_other']
         })
       )
     ).toBe('PATIENT_BOOKING_GUARD_MISMATCH');

@@ -156,8 +156,7 @@ describe('booking write path in a Firestore transaction', () => {
     });
     expect(slot.data()?.['reservationId']).toBe('appointment_001');
     expect(patientGuard.data()).toEqual({
-      activeAppointmentId: 'appointment_001',
-      status: 'confirmed',
+      activeAppointmentIds: ['appointment_001'],
       updatedAt: '2026-07-21T09:00:00.000Z'
     });
     expect(audits.size).toBe(1);
@@ -235,7 +234,7 @@ describe('booking write path in a Firestore transaction', () => {
     expect(patientGuards.size).toBe(1);
   });
 
-  it('allows only one concurrent booking by the same patient across different slots', async () => {
+  it('allows only two concurrent bookings by the same patient across different slots', async () => {
     const attempts = PATIENT_RACE_SLOT_IDS.map((slotId, index) =>
       repository.reserve(
         bookingRequest({
@@ -249,9 +248,9 @@ describe('booking write path in a Firestore transaction', () => {
     const settled = await Promise.allSettled(attempts);
     expect(
       settled.filter((entry) => entry.status === 'fulfilled')
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(settled.filter((entry) => entry.status === 'rejected')).toHaveLength(
-      7
+      6
     );
 
     const appointments = await db.collection(COLLECTIONS.appointments).get();
@@ -271,15 +270,22 @@ describe('booking write path in a Firestore transaction', () => {
       )
     ).filter((slot) => slot.data()?.['reservationId'] !== undefined);
 
-    expect(appointments.size).toBe(1);
+    expect(appointments.size).toBe(2);
     expect(patientGuards.size).toBe(1);
-    expect(patientGuards.docs[0]?.data()?.['activeAppointmentId']).toBe(
-      appointments.docs[0]?.id
+    expect(patientGuards.docs[0]?.data()?.['activeAppointmentIds']).toEqual(
+      expect.arrayContaining(appointments.docs.map((doc) => doc.id))
     );
-    expect(audits.size).toBe(1);
-    expect(outbox.size).toBe(1);
-    expect(idempotencyKeys.size).toBe(1);
-    expect(reservedRaceSlots).toHaveLength(1);
+    expect(
+      (patientGuards.docs[0]?.data()?.['activeAppointmentIds'] as string[])
+        .length
+    ).toBe(2);
+    expect(patientGuards.docs[0]?.data()).not.toHaveProperty(
+      'activeAppointmentId'
+    );
+    expect(audits.size).toBe(2);
+    expect(outbox.size).toBe(2);
+    expect(idempotencyKeys.size).toBe(2);
+    expect(reservedRaceSlots).toHaveLength(2);
   });
 
   it('replays the same idempotency key instead of booking twice', async () => {
@@ -369,24 +375,66 @@ describe('booking write path in a Firestore transaction', () => {
     ).toBeUndefined();
   });
 
-  it('rejects a second active booking by the same patient', async () => {
+  it('rejects a third active booking by the same patient', async () => {
     await repository.reserve(bookingRequest());
+    await repository.reserve(
+      bookingRequest({
+        appointmentId: 'appointment_002',
+        slotId: OTHER_SLOT_ID,
+        idempotencyKey: 'idem_002'
+      })
+    );
 
     await expect(
       repository.reserve(
         bookingRequest({
-          appointmentId: 'appointment_002',
-          slotId: OTHER_SLOT_ID,
-          idempotencyKey: 'idem_002'
+          appointmentId: 'appointment_003',
+          slotId: PATIENT_RACE_SLOT_IDS[0],
+          idempotencyKey: 'idem_003'
         })
       )
     ).rejects.toThrow(/active booking/i);
 
     const appointments = await db.collection(COLLECTIONS.appointments).get();
-    expect(appointments.size).toBe(1);
+    expect(appointments.size).toBe(2);
     expect(
       (await db.collection(COLLECTIONS.patientBookingGuards).get()).size
     ).toBe(1);
+  });
+
+  it('normalizes a legacy single-id guard on the first extra booking', async () => {
+    await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc('patient_001')
+      .set({
+        activeAppointmentId: 'appointment_legacy',
+        status: 'confirmed',
+        updatedAt: '2026-07-21T08:00:00.000Z'
+      });
+    await db
+      .collection(COLLECTIONS.appointments)
+      .doc('appointment_legacy')
+      .set({
+        slotId: 'slot_legacy',
+        startsAt: '2030-01-02T03:00:00.000Z',
+        patientId: 'patient_001',
+        bookingKind: 'initial',
+        status: 'confirmed'
+      });
+
+    const second = await repository.reserve(bookingRequest());
+    expect(second.replayed).toBe(false);
+
+    const guard = await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc('patient_001')
+      .get();
+    expect(guard.data()).toEqual({
+      activeAppointmentIds: ['appointment_legacy', 'appointment_001'],
+      updatedAt: '2026-07-21T09:00:00.000Z'
+    });
+    expect(guard.data()).not.toHaveProperty('activeAppointmentId');
+    expect(guard.data()).not.toHaveProperty('status');
   });
 
   it('lets the patient book again once the first visit is finished', async () => {
@@ -435,8 +483,64 @@ describe('booking write path in a Firestore transaction', () => {
           .collection(COLLECTIONS.patientBookingGuards)
           .doc('patient_001')
           .get()
-      ).data()?.['activeAppointmentId']
-    ).toBe('appointment_002');
+      ).data()?.['activeAppointmentIds']
+    ).toEqual(['appointment_002']);
+  });
+
+  it('lets the patient book again after one of two active visits is finished', async () => {
+    await repository.reserve(bookingRequest());
+    await repository.reserve(
+      bookingRequest({
+        appointmentId: 'appointment_002',
+        slotId: OTHER_SLOT_ID,
+        idempotencyKey: 'idem_002'
+      })
+    );
+    await repository.transition({
+      appointmentId: 'appointment_001',
+      transition: 'complete',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_complete_one_of_two',
+        source: 'api',
+        reasonCode: 'test_visit_completed',
+        policyVersion: null
+      },
+      requestedAt: '2026-07-21T10:00:00.000Z',
+      idempotency: transitionAppointmentIdempotency({
+        key: 'idem_complete_one_of_two',
+        actorId: 'actor_front_desk_001',
+        appointmentId: 'appointment_001',
+        transition: 'complete'
+      })
+    });
+
+    expect(
+      (
+        await db
+          .collection(COLLECTIONS.patientBookingGuards)
+          .doc('patient_001')
+          .get()
+      ).data()?.['activeAppointmentIds']
+    ).toEqual(['appointment_002']);
+
+    const third = await repository.reserve(
+      bookingRequest({
+        appointmentId: 'appointment_003',
+        slotId: PATIENT_RACE_SLOT_IDS[0],
+        idempotencyKey: 'idem_003'
+      })
+    );
+    expect(third.replayed).toBe(false);
+    expect(
+      (
+        await db
+          .collection(COLLECTIONS.patientBookingGuards)
+          .doc('patient_001')
+          .get()
+      ).data()?.['activeAppointmentIds']
+    ).toEqual(['appointment_002', 'appointment_003']);
   });
 
   it('rejects a slot from the other booking grid and writes nothing', async () => {
