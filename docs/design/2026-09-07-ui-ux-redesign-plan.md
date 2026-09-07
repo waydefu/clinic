@@ -54,3 +54,11 @@ PR 描述交代 T3-Q-01 的整合依賴。PR #76 是 BOOK-PILOT plan-only，#77 
 - 回復為 revert 本 PR；沒有資料遷移、後端變更或外部副作用。
 - **部署影響：none — local only。** 本次不具 exact commit／project／channel／expiry
   的新 preview authority，不部署，不合併主分支。
+
+## 整合更新（2026-09-08）
+
+交付前已更新至 `origin/main@867fb8cdc4387f08434df45cd3b8a23166a3f02f`，
+[main CI 34146328328](https://github.com/waydefu/clinic/actions/runs/34146328328) 成功。
+原調查表為當時快照；#76、#77、#78、#79、#80、#81 均已合併，沒有仍等待 #78 合併的依賴。
+本分支已包含 T3-Q-01 的五檔與 WB-01 回歸，沒有改寫它們；整合後由本 PR CI 重驗。
+before 仍是原調查起點，after 使用整合後新 dist。#81 的 index fail-closed 與 D-003 gate 完整保留。

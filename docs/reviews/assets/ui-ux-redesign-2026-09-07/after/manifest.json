@@ -1,6 +1,6 @@
 {
   "phase": "after",
-  "captureDate": "2026-09-07T12:39:10.187Z",
+  "captureDate": "2026-09-07T18:01:14.002Z",
   "fixedTime": "2026-07-29T01:00:00.000Z",
   "sourceRevision": "commit-containing-this-manifest",
   "environment": {
@@ -246,7 +246,7 @@
     },
     {
       "file": "sitemap.xml",
-      "sha256": "b18b94f4e0665b8c35f6e91884b1b004d90ff0a498553ed4d32f612a34348fde"
+      "sha256": "55c285aad5b385e91388aa80557f627e6cc34e49dab0079baeab721574574fc4"
     },
     {
       "file": "store.2120a0cdad.js",

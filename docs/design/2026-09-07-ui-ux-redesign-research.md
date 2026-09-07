@@ -177,3 +177,11 @@ before 的可及性評分只根據當時穩態掃描與既有 CI，不代表進�
 候選桌面評分達 92，但 **owner 獨立評分與完整驗收仍未完成**。
 任一 hard defect 或 gate FAIL 都優先於分數；數字不能抵銷焦點失效、溢出、業務退化或 performance 超標。
 §5 矩陣、實機讀屏、field CWV 與尚未批准的營運條件未補齊前，不宣稱可生產上線。
+
+## 整合更新（2026-09-08）
+
+交付前已更新至 `origin/main@867fb8cdc4387f08434df45cd3b8a23166a3f02f`，
+[main CI 34146328328](https://github.com/waydefu/clinic/actions/runs/34146328328) 成功。
+原調查表為當時快照；#76、#77、#78、#79、#80、#81 均已合併，沒有仍等待 #78 合併的依賴。
+本分支已包含 T3-Q-01 的五檔與 WB-01 回歸，沒有改寫它們；整合後由本 PR CI 重驗。
+before 仍是原調查起點，after 使用整合後新 dist。#81 的 index fail-closed 與 D-003 gate 完整保留。

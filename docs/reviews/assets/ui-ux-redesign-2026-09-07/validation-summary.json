@@ -1,0 +1,80 @@
+{
+  "preIntegrationChromium": {
+    "stats": {
+      "startTime": "2026-09-07T12:38:25.690Z",
+      "duration": 533758.0260000001,
+      "expected": 266,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": {
+        "expected": 266
+      }
+    },
+    "labPaint": [
+      {
+        "url": "/booking",
+        "measured": {
+          "firstContentfulPaint": 296,
+          "largestContentfulPaint": 956,
+          "cumulativeLayoutShift": 0
+        }
+      },
+      {
+        "url": "/staff",
+        "measured": {
+          "firstContentfulPaint": 520,
+          "largestContentfulPaint": 1288,
+          "cumulativeLayoutShift": 0
+        }
+      },
+      {
+        "url": "/clinic",
+        "measured": {
+          "firstContentfulPaint": 500,
+          "largestContentfulPaint": 512,
+          "cumulativeLayoutShift": 0
+        }
+      }
+    ]
+  },
+  "integratedEngines": {
+    "stats": {
+      "startTime": "2026-09-07T17:59:30.431Z",
+      "duration": 220332.869,
+      "expected": 94,
+      "skipped": 0,
+      "unexpected": 1,
+      "flaky": 0
+    },
+    "projects": {
+      "mobile-device": {
+        "expected": 76,
+        "unexpected": 1
+      },
+      "webkit": {
+        "expected": 18
+      }
+    },
+    "labPaint": []
+  },
+  "integratedBase": "867fb8cdc4387f08434df45cd3b8a23166a3f02f",
+  "preIntegrationBase": "df51b5ae32e74cbd0236f1367545c75205320adf",
+  "mobileOwnedServerRecheck": {
+    "startTime": "2026-09-07T18:03:49.403Z",
+    "duration": 19865.891,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "notes": [
+    "PRoot software rendering; loopback synthetic data only.",
+    "Original mobile run: one checkbox did not change state; no layout assertion executed in that case.",
+    "Isolated owned-server recheck: same test passed 3 times without code changes.",
+    "An intermediate shared-server rerun lost its server and had two connection-refused failures; not classified as product failures.",
+    "Lab paint is unthrottled and not field p75 or INP."
+  ]
+}

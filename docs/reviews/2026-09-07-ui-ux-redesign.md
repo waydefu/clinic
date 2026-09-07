@@ -30,7 +30,7 @@
 | `scripts/check-design-tokens.mjs` | clinic 間距 clamp 技術債上限 13 收緊至 11 |
 | `tests/ui-screenshots/redesign-capture.mjs` | loopback-only 合成 before／after 擷取，固定時間與 seed，紀錄瀏覽器／theme／SHA／錯誤 |
 | `docs/design/2026-09-07-ui-ux-redesign-plan.md`、`2026-09-07-ui-ux-redesign-research.md` | 範圍、研究、六方案、設計系統、元件、Figma 整合、補充評分 |
-| 本文件、`docs/README.md`、`docs/reviews/assets/ui-ux-redesign-2026-09-07/` | dated evidence、索引、42 張 PNG、manifest、概念 SVG、位元組報告 |
+| 本文件、`docs/README.md`、`docs/reviews/assets/ui-ux-redesign-2026-09-07/` | dated evidence、索引、42 張 PNG、manifest、概念 SVG、位元組與驗證摘要 |
 
 ## 截圖與差異
 
@@ -89,22 +89,24 @@ node tests/ui-screenshots/redesign-capture.mjs after
 
 staff 增加 43 bytes，CSS 16372 bytes／16384 bytes，僅剩 12 bytes，這是真實的維護限制。
 下次修改需重新量測，不能提高上限。所有入口零字型下載，資源 request 數不增加。
-lab FCP／LCP／CLS 沿用 1800ms／2500ms／0.1；clinic 新增進既有測試，JSON 附在 Playwright result。
+lab FCP／LCP／CLS 沿用 1800ms／2500ms／0.1；clinic 新增進既有測試，JSON 附在 Playwright result。整合 main 前完整回歸中的單次 lab 結果為 clinic FCP 500ms／LCP 512ms／CLS 0、booking 296ms／956ms／0、staff 520ms／1288ms／0；沒有 CPU／network throttling。
 這不是 field p75；INP 需要具代表性的真實互動資料，本 PR 沒有聲稱已取得。
 
 42 張初始／有資料截圖均為 0 文件層水平溢出。
 before／after 各 6 次 axe 取樣為 0 violation；動態與其他狀態另由完整 E2E 覆蓋。
+[本機結果摘要](assets/ui-ux-redesign-2026-09-07/validation-summary.json) 保存分組數與 lab 數據。
 兩批 booking／staff 每張皆有一個相同的 `/v1/calendar-session/client-config` 404 console error，
 代表本機 server 沒有 pilot config 路由、正常保留 synthetic fallback；不是「console 全零」。
 沒有為了截圖偽造 200 回應或改變登入分支。clinic console 為 0；沒有觀察到 JavaScript pageerror。
 
 ## Gate 狀態
 
-本文件初稿為 **GATE-VERIFIED**；最終 exact-commit CI 結果依 PR `Verification evidence`。
-下表的暫存執行結果會在交付前更新，不以 main 的成功冒充本 PR。
+本機達 **GATE-VERIFIED**；exact-commit CI 結果依 PR `Verification evidence`，不以 main 的成功冒充本 PR。
 
 | Gate | 狀態 | 證據／限制 |
 | --- | --- | --- |
+| verify aggregate | PASS | 整合 main 後全部本機 verify 完成；以下為各子 gate |
+| architecture／sync／node-engine／capture-config | PASS | 3 層依賴方向、10 筆未接線清單、20 vendor 檔無差異、Node floor 與截圖設定型別通過 |
 | build／types | PASS | 6 workspace packages／apps 建置；20 domain vendor 同步無 diff；web 83 files、59 content-hashed |
 | check:ui | PASS | test-only 邊界、權限、published schedule、case flow、a11y 靜態 gate |
 | check:tokens | PASS | 未定義 token、寫死色／字重／圓角／陰影／斷點 0；clamp 上限收緊至 11 |
@@ -112,12 +114,13 @@ before／after 各 6 次 axe 取樣為 0 violation；動態與其他狀態另由
 | check:perf | PASS | 5 入口，各分類與總量均在原 budget |
 | check:clinic-freeze | PASS | 30 檔，修改拒絕與缺檔拒絕的既有單元測試保留 |
 | check:e2e-groups | PASS | 21 specs、6 groups |
-| test:unit | PASS | 88 files、1282 tests；ratchet／freeze／group 另 3 files、50 tests PASS |
+| test:unit | PASS | 整合前 88 files／1282 tests；整合最新 main 後完整 verify 89 files／1300 tests PASS；ratchet／freeze／group 另 50 tests PASS |
 | check:structure | PASS | 236 required files、17 份歷史 C6 reference；此數字不表示新圖已成正式基準 |
 | check:governance | PASS | 0 blocking finding；既有 AGENTS／CLAUDE advisory size warnings 留存 |
-| check:format／lint／docs／secrets | NOT_RUN | 待最終候選樹與所有新證據生成後重跑 |
+| check:format／lint／docs／secrets | PASS | 完整 verify 通過；docs 179 files、secrets 750 tracked files、format／lint 0 finding。最終文件更新後再補 narrow gate |
 | Chromium E2E 六組 | PASS | 更新 main 前的完整候選：266 tests、0 failure、0 skipped、0 flaky；先前四組 199 PASS／4 FAIL 的 input 溢出已修正。整合新 main 後以 exact-commit CI 重驗 |
-| mobile-device／WebKit | NOT_RUN | 待最後本機引擎執行；標準 runner 矩陣仍為 CI 必須項 |
+| WebKit | PASS | 整合後 18 tests、0 failure |
+| mobile-device | FAIL | 原完整執行 76 PASS／1 FAIL（checkbox click 無改變），未重現為 geometry failure；同一測試在獨占 server 連跑 3 次 PASS，未改程式或測試。仍由 exact-commit CI 確認 |
 | Firestore Emulator／supply-chain／SAST | NOT_RUN | 本機資源優先 UI，交由 unchanged required PR CI；不啟用雲端取得證據 |
 | exact-commit Verification evidence | NOT_RUN | 尚未建立 PR 時無此 commit 的 CI |
 | §5.2／§5.3 實體裝置與讀屏 | UNAVAILABLE | External manual verification required；owner／真人 QA 環境執行 |
@@ -131,6 +134,11 @@ before／after 各 6 次 axe 取樣為 0 violation；動態與其他狀態另由
 | CONFIRMED | clinic normal-motion axe 7 個低對比節點；主內容 `clinic-rise` 從 opacity 0 開始 | 新透明度回歸先 FAIL，移除 hero 主內容淡入後 PASS；reduced-motion 與次要 reveal 保留 |
 | CONFIRMED | main 原版在本機 375px：schedule 35px、patient step3 68px 溢出；重設計初版 35px／64px | 原生文字 input 的 auto min-width 撐開 grid；共用 input 加 min-width:0，兩個 failing-first 回歸 PASS，再補 320px |
 | NOT-A-BUG | 兩項 theme tests 強制要求 linear-gradient／多個色停 | 保留主題必須不同與 AA 對比，改量實際純色及不透明祖先；不刪除驗證 |
+
+行動模式有一次 checkbox click 未改變狀態，根因尚未證實（LIKELY timing／scroll interaction）。
+未把原 FAIL 改寫為 PASS，也未修改 helper 或加等待掩蓋；獨占 server 的同一測試 3/3 PASS。
+一次中間重跑沿用另一 suite 的 server，對方結束後出現 2 次 ERR_CONNECTION_REFUSED；
+後續改成每個 suite 獨占 server，避免驗證程序互相終止服務。
 
 ## 本機陷阱、未覆蓋與下一步
 
@@ -150,3 +158,11 @@ PRoot 的標準 Chromium GPU subprocess 曾崩潰，單程序模式又會在 con
 5. 不合併、不部署、不開 `/v1/bookings`；下一步只做已批准範圍的 review。正式營運仍依決策登錄與另外的部署授權。
 
 回復方式：revert 本 PR 的 coherent UI／測試／證據變更；無資料遷移、外部訊息或雲端寫入。
+
+## 整合更新（2026-09-08）
+
+交付前已更新至 `origin/main@867fb8cdc4387f08434df45cd3b8a23166a3f02f`，
+[main CI 34146328328](https://github.com/waydefu/clinic/actions/runs/34146328328) 成功。
+原調查表為當時快照；#76、#77、#78、#79、#80、#81 均已合併，沒有仍等待 #78 合併的依賴。
+本分支已包含 T3-Q-01 的五檔與 WB-01 回歸，沒有改寫它們；整合後由本 PR CI 重驗。
+before 仍是原調查起點，after 使用整合後新 dist。#81 的 index fail-closed 與 D-003 gate 完整保留。
