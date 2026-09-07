@@ -639,7 +639,7 @@ function doctorCard(doctor) {
     image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
     element('div', { className: 'clinic-doctor-card__body' }, [
       element('p', { className: 'clinic-eyebrow', text: 'MEDICAL TEAM' }),
-      element('h3', {}, [link(doctor.name, `/clinic/doctors/${doctor.slug}`)]),
+      element('h2', {}, [link(doctor.name, `/clinic/doctors/${doctor.slug}`)]),
       element('strong', { text: doctor.title }),
       element('p', { text: doctor.summary }),
       link('醫師介紹', `/clinic/doctors/${doctor.slug}`, 'clinic-text-link')

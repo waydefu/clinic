@@ -600,6 +600,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 }
 
 .clinic-service-card h3,
+.clinic-doctor-card h2,
 .clinic-doctor-card h3 {
   margin: 0;
   color: var(--clinic-forest-deep);
@@ -620,11 +621,13 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 }
 
 .clinic-service-card h3 a,
+.clinic-doctor-card h2 a,
 .clinic-doctor-card h3 a {
   text-decoration: none;
 }
 
 .clinic-service-card h3 a::after,
+.clinic-doctor-card h2 a::after,
 .clinic-doctor-card h3 a::after {
   content: '';
   position: absolute;
