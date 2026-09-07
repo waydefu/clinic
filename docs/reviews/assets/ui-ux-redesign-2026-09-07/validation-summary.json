@@ -76,5 +76,47 @@
     "Isolated owned-server recheck: same test passed 3 times without code changes.",
     "An intermediate shared-server rerun lost its server and had two connection-refused failures; not classified as product failures.",
     "Lab paint is unthrottled and not field p75 or INP."
-  ]
+  ],
+  "clsFixTargeted": {
+    "stats": {
+      "startTime": "2026-09-07T18:12:10.644Z",
+      "duration": 44764.518000000004,
+      "expected": 25,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "labPaint": [
+      {
+        "url": "/booking",
+        "measured": {
+          "firstContentfulPaint": 160,
+          "largestContentfulPaint": 620,
+          "cumulativeLayoutShift": 0
+        }
+      },
+      {
+        "url": "/staff",
+        "measured": {
+          "firstContentfulPaint": 204,
+          "largestContentfulPaint": 760,
+          "cumulativeLayoutShift": 0
+        }
+      },
+      {
+        "url": "/clinic",
+        "measured": {
+          "firstContentfulPaint": 276,
+          "largestContentfulPaint": 276,
+          "cumulativeLayoutShift": 0
+        }
+      }
+    ]
+  },
+  "firstPrCi": {
+    "head": "c43fed7616b6b7f76f7ba3ac708549892d6628ff",
+    "run": "https://github.com/waydefu/clinic/actions/runs/34150283871",
+    "status": "FAIL",
+    "reason": "clinic CLS 0.4903; all other execution jobs passed"
+  }
 }

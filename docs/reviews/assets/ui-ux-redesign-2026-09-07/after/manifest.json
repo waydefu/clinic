@@ -1,6 +1,6 @@
 {
   "phase": "after",
-  "captureDate": "2026-09-07T18:01:14.002Z",
+  "captureDate": "2026-09-07T18:14:27.310Z",
   "fixedTime": "2026-07-29T01:00:00.000Z",
   "sourceRevision": "commit-containing-this-manifest",
   "environment": {
@@ -101,8 +101,8 @@
       "sha256": "a397cc2466d1210f762053ffff7bbc6f13a1c5362db009cb7a5c0141a73c631b"
     },
     {
-      "file": "clinic-site.680dea340b.css",
-      "sha256": "680dea340b7c2e1e19366ff4fbb12c105ff578325f111f3b3cf36b8110986850"
+      "file": "clinic-site.11d1db2ba1.css",
+      "sha256": "11d1db2ba17180c991deb7d0185bb84d99ccc37c8b8f4e688d69245f8435f637"
     },
     {
       "file": "clinic-site.c50806c4f7.js",
@@ -110,7 +110,7 @@
     },
     {
       "file": "clinic.html",
-      "sha256": "03854d8b41882f766a2069da207bf381ff73c2dde00bca8c1a058aec5249b16a"
+      "sha256": "fe64472cad3917bcbff5e467de104cbf24f2f525c8bf55dfb3a85723f5c50fcd"
     },
     {
       "file": "error.140132b1bf.css",
@@ -531,7 +531,7 @@
         "theme": "light",
         "primaryY": 433.46875
       },
-      "sha256": "fc1269add3f52ec3c235cc8d5280456bf72af657eb12dc8b6c4cc535ebd2a2a6",
+      "sha256": "03f8b0cd96b5ea3730a5ee5ba4fa0f4be01243da8b34191297d60c10ecae84bd",
       "errors": [],
       "warnings": [],
       "failedResponses": [],

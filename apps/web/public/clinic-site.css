@@ -535,6 +535,12 @@ a {
   font-size: var(--clinic-text-body);
 }
 
+/* Reserve the first viewport while the route module loads, so the footer
+   cannot flash there and then shift away. Keep the existing no-script fallback. */
+body:not(:has(.clinic-noscript)) #clinic-main {
+  min-height: 100vh;
+}
+
 .clinic-section {
   padding: 4rem 0;
   scroll-margin-top: 7rem;

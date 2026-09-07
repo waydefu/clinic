@@ -136,3 +136,42 @@ for (const width of [320, 375]) {
     });
   }
 }
+
+test('官網模組延遲時，頁尾不先佔據主內容首屏', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  let release!: () => void;
+  const moduleReady = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(/\/clinic-site(?:\.[a-f0-9]+)?\.js$/, async (route) => {
+    await moduleReady;
+    await route.continue();
+  });
+  try {
+    await page.goto('/clinic', { waitUntil: 'commit' });
+    await expect(page.locator('.clinic-header')).toHaveCSS(
+      'position',
+      'sticky'
+    );
+    await expect(page.locator('.clinic-footer')).toBeAttached();
+    const footer = await page.locator('.clinic-footer').boundingBox();
+    expect(footer!.y).toBeGreaterThanOrEqual(900);
+  } finally {
+    release();
+  }
+  await expect(page.locator('#clinic-main h1')).toBeVisible();
+});
+
+test.describe('官網無腳本退路', () => {
+  test.use({ javaScriptEnabled: false });
+  test('不為尚未執行的模組留下空白首屏', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/clinic');
+    await expect(page.locator('.clinic-noscript')).toBeVisible();
+    const footer = await page.locator('.clinic-footer').boundingBox();
+    expect(footer!.y).toBeLessThan(900);
+    await expect(
+      page.locator('.clinic-noscript a[href="tel:+886225771314"]')
+    ).toBeVisible();
+  });
+});

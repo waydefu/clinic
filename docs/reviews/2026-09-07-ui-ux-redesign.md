@@ -81,7 +81,7 @@ node tests/ui-screenshots/redesign-capture.mjs after
 
 | 入口 | before bytes | after bytes | 原 total budget | 結果 |
 | --- | ---: | ---: | ---: | --- |
-| clinic | 120931 | 120769 | 200 KiB | PASS |
+| clinic | 120931 | 120800 | 200 KiB | PASS |
 | booking | 71756 | 71559 | 71 KiB | PASS |
 | staff | 93464 | 93507 | 92 KiB | PASS |
 | privacy | 8022 | 8022 | 8 KiB | PASS |
@@ -166,3 +166,18 @@ PRoot 的標準 Chromium GPU subprocess 曾崩潰，單程序模式又會在 con
 原調查表為當時快照；#76、#77、#78、#79、#80、#81 均已合併，沒有仍等待 #78 合併的依賴。
 本分支已包含 T3-Q-01 的五檔與 WB-01 回歸，沒有改寫它們；整合後由本 PR CI 重驗。
 before 仍是原調查起點，after 使用整合後新 dist。#81 的 index fail-closed 與 D-003 gate 完整保留。
+
+## CI 修正：官網首屏位移
+
+首輪 [PR CI 34150283871](https://github.com/waydefu/clinic/actions/runs/34150283871)
+在 `c43fed7` 的 clinic timing test 與 retry 均量到 CLS 0.4903，超過原 0.1。
+其餘九個執行 job（含 mobile、WebKit 所屬 patient-portal、Firestore、SAST）全數成功，
+總 Verification evidence 因 UI 失敗而 FAIL；沒有用 retry、上調門檻或刪除 clinic 測試過關。
+
+根因 CONFIRMED：HTML 的 `#clinic-main` 在模組載入前沒有高度，頁尾先在 y=121px 出現；
+模組填入長頁後把頁尾推離首屏。PRoot 先前同次 paint 完成而沒量到，不代表標準環境沒有問題。
+新增「模組延遲」回歸先得到 footer y=121 的 FAIL，再於 clinic CSS 預留一個 viewport 高度。
+`:has(.clinic-noscript)` 排除無 JavaScript 情境，另有 no-script 回歸，保留原聯絡退路。
+最終 CI 以 PR head 的 Verification evidence 為準；此處如實保留第一次失敗與修復原因。
+
+CLS 修正後本機 targeted 25 tests 全數 PASS（含三入口 timing、clinic motion、新版操作、延遲模組與無腳本退路），freeze／token 的 35 個 gate unit tests PASS；最終 after 影像與 dist manifest 已重新產生。
