@@ -12,7 +12,8 @@ const allGreen = {
   CI_EVIDENCE_RULES_RESULT: 'success',
   CI_EVIDENCE_E2E_RESULT: 'success',
   CI_EVIDENCE_SUPPLY_CHAIN_RESULT: 'success',
-  CI_EVIDENCE_SAST_RESULT: 'success'
+  CI_EVIDENCE_SAST_RESULT: 'success',
+  CI_EVIDENCE_GITLEAKS_RESULT: 'success'
 };
 
 const runContext = {
@@ -43,7 +44,8 @@ describe('required job evaluation', () => {
     'CI_EVIDENCE_RULES_RESULT',
     'CI_EVIDENCE_E2E_RESULT',
     'CI_EVIDENCE_SUPPLY_CHAIN_RESULT',
-    'CI_EVIDENCE_SAST_RESULT'
+    'CI_EVIDENCE_SAST_RESULT',
+    'CI_EVIDENCE_GITLEAKS_RESULT'
   ])('concludes failure when %s failed', (variable) => {
     expect(
       evidenceFor({ ...runContext, ...allGreen, [variable]: 'failure' })
@@ -79,6 +81,19 @@ describe('required job evaluation', () => {
     }
   );
 
+  it.each(['cancelled', 'skipped', ''])(
+    'treats the non-success Gitleaks result %s as failure',
+    (result) => {
+      expect(
+        evidenceFor({
+          ...runContext,
+          ...allGreen,
+          CI_EVIDENCE_GITLEAKS_RESULT: result
+        }).conclusion
+      ).toBe('failure');
+    }
+  );
+
   it('records a job that reported nothing as missing rather than assuming it passed', () => {
     const evidence = evidenceFor(runContext);
 
@@ -88,16 +103,21 @@ describe('required job evaluation', () => {
       'missing',
       'missing',
       'missing',
+      'missing',
       'missing'
     ]);
   });
 
-  it('keeps all five required jobs in the evidence', () => {
+  it('keeps all six required jobs in the evidence', () => {
     expect(
       evidenceFor({ ...runContext, ...allGreen }).requiredJobs.map(
         (job) => job.name
       )
-    ).toEqual(['verify', 'rules', 'e2e', 'supply-chain', 'sast']);
+    ).toEqual(['verify', 'rules', 'e2e', 'supply-chain', 'sast', 'gitleaks']);
+  });
+
+  it('records schemaVersion 3 after SCM-R03', () => {
+    expect(evidenceFor({ ...runContext, ...allGreen }).schemaVersion).toBe(3);
   });
 });
 
@@ -190,6 +210,7 @@ describe('summary rendering', () => {
     expect(summary).toContain('Conclusion: **success**');
     expect(summary).toContain('| supply-chain | success |');
     expect(summary).toContain('| sast | success |');
+    expect(summary).toContain('| gitleaks | success |');
     expect(summary).toContain(
       '- SAST evidence commit: `' +
         CANDIDATE_COMMIT +

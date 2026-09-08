@@ -78,6 +78,7 @@ describe('required project files', () => {
     'scripts/check-public-pages.test.mjs',
     'scripts/check-branch-protection.test.mjs',
     'scripts/generate-ci-evidence.test.mjs',
+    'scripts/check-gitleaks-config.test.mjs',
     'scripts/generate-sast-evidence.test.mjs',
     'scripts/generate-sbom.test.mjs',
     'scripts/review-artifact-attestation.test.mjs'
