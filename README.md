@@ -137,12 +137,12 @@ and no required review. D-013 (amended 2026-09-09) requires
 `enforce_admins=true` so administrators are bound by that check. Live GitHub
 API reads at 2026-09-08T16:44:40Z and 2026-09-08T18:05:00Z match that policy;
 [GC-002](docs/state/conflicts.md) is closed on that amendment plus evidence.
-Since `SCM-R01` on 2026-08-18
-that required job aggregates five results, Semgrep CE among them, all bound to
-the same candidate commit — so SEC-02 is an approved policy whose merge-blocking
-enforcement has been demonstrated: an intentional-failure pull request turned
-`Verification evidence` red and was blocked. Semgrep CE is still not represented
-as equivalent to CodeQL cross-file analysis.
+Since `SCM-R01` on 2026-08-18 that required job aggregated Semgrep CE with the
+other blocking jobs on the same candidate commit. Since `SCM-R03` on 2026-09-09
+it aggregates **six** results, Gitleaks among them — still one GitHub required
+context. SEC-02 merge-blocking was demonstrated on 2026-08-18; Gitleaks
+merge-blocking was demonstrated by PR #91 (run `34265160446`, closed unmerged).
+Semgrep CE is still not represented as equivalent to CodeQL cross-file analysis.
 
 ## Clinic website integration — 2026-07-27
 

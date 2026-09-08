@@ -79,9 +79,14 @@ worker 多實例或 D-010 部署授權。
 `>=24.20.0 <25` 與 CI 釘 `24.20.0`，拒絕未修補的 `24.14.0`。這**不是** Cloud Run
 image digest，也不授權 D-010。舊稿曾把同一 ID 寫成「CSP／security headers／API
 runtime」——那是 ID 碰撞。Hosting CSP 與 API `private, no-store` 已存在於
-Stage 0／後續切片；HSTS 仍未排程。`DATA-R03` 與 `SCM-R03`（Gitleaks 進
-`Verification evidence` 聚合，不另增 GitHub required context）已於 2026-09-09
-由業主授權，不得重開 `SCM-R02`。
+Stage 0／後續切片；HSTS 仍未排程。不得重開 `SCM-R02`。
+
+**`SCM-R03` 已於 2026-09-09 完成（PR #89，merge `6e91bda`）。** checksum-pinned
+Gitleaks 8.30.1 進入同一 `verify` run；`Verification evidence` `schemaVersion` 3
+聚合其結果。不另增 GitHub required context。故意失敗 PR #91（run
+`34265160446`）證明紅掃描擋合併後關閉未合併。證據：
+[2026-09-09 SCM-R03 record](../reviews/2026-09-09-scm-r03-gitleaks-evidence.md)。
+`DATA-R03` 已於 2026-09-09 由業主授權，尚未關閉。
 
 **`WEB-P0-01` 已於 2026-09-07 完成（PR #81，merge `867fb8c`）。** 每頁
 `requiresDecision` fail-closed；`/privacy` 在 D-003 核准前維持 noindex。
@@ -90,9 +95,9 @@ Stage 0／後續切片；HSTS 仍未排程。`DATA-R03` 與 `SCM-R03`（Gitleaks
 `origin/main` 該 SHA 的 `verify` run `34201616025` 含 performance／axe 證據 job。
 這**不是** TW-05／WEB-30-02 真人輔具與實體裝置驗收。
 
-此節剩餘未關閉項：`SCM-R04`（殘留 advisory 無 owner／到期日）、TW-05 真人驗收、
-以及 C0／Stage 2 授權。不得把 booking write route、cloud Firestore 或 worker
-多實例寫成已授權。
+此節剩餘未關閉項：`DATA-R03`（已授權、尚未實作）、`SCM-R04`（殘留 advisory 無
+owner／到期日）、TW-05 真人驗收、以及 C0／Stage 2 授權。不得把 booking write
+route、cloud Firestore 或 worker 多實例寫成已授權。
 
 `SCM-R04` 未關閉：9 筆殘留 advisory（1 low／8 moderate，全在 dev 工具鏈）低於 `high`
 門檻、不擋 gate，但仍無 owner／理由／到期日。**gate 綠不等於 patch SLA 存在。**
