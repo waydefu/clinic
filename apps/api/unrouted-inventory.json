@@ -836,6 +836,150 @@
         }
       ],
       "note": "D-006／D-010 已核准必須限流與平台目標；目前只有 per-process fixed-window 測試實作，沒有共享狀態或核准參數。"
+    },
+    "src/book-pilot/book-pilot.tokens.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C0",
+          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
+        },
+        {
+          "kind": "deployment_authority",
+          "id": "C1",
+          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C1",
+          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C6",
+          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
+        }
+      ],
+      "note": "Isolated BOOK-PILOT DI tokens. Production AppModule must not import BookPilotModule. This does not clear D-004／D-005 or appointment_scheduling remainingBlockers."
+    },
+    "src/book-pilot/book-pilot.gate.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C0",
+          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
+        },
+        {
+          "kind": "deployment_authority",
+          "id": "C1",
+          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C1",
+          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C6",
+          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
+        }
+      ],
+      "note": "Fail-closed BOOK-PILOT kill switch and UTC expiry. Unrouted; HTTP 503 SERVICE_UNAVAILABLE, no new GONE contract. Not D-004／D-005 clearance."
+    },
+    "src/book-pilot/book-pilot.controller.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C0",
+          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
+        },
+        {
+          "kind": "deployment_authority",
+          "id": "C1",
+          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C1",
+          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C2",
+          "description": "尚未建置合成 staff 的正式 IdP、MFA 與 recovery 證據。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C3",
+          "description": "尚未建置 server-side session、CSRF 與停權撤銷。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C4",
+          "description": "尚未完成 server-side authorization 與角色／action fixtures。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C5",
+          "description": "寫入尚未證明可在同一 transaction append 永久 audit。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C6",
+          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
+        }
+      ],
+      "note": "Isolated BOOK-PILOT controller at book-pilot/bookings. Production AppModule must not import it; /v1/bookings and /v1/book-pilot/bookings stay 404. Does not mount AppointmentController or clear D-004／D-005."
+    },
+    "src/book-pilot/book-pilot.module.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C0",
+          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
+        },
+        {
+          "kind": "deployment_authority",
+          "id": "C1",
+          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C1",
+          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C6",
+          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
+        }
+      ],
+      "note": "Dedicated BookPilotModule. Must not be imported from production AppModule. Later exact-SHA authority is required before any compose/import. Not D-004／D-005 or Stage 2."
     }
   }
 }
