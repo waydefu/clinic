@@ -91,7 +91,10 @@ html.synthetic-workbench-ready .cp-boot-status {
 }
 .workspace-section,
 .workflow-disclosure,
-.follow-up-workflow {
+.follow-up-workflow,
+.appointment-filters,
+.appointment-filters :is(input, select),
+.filter-bar {
   scroll-margin-top: var(--scroll-anchor-offset);
 }
 .section-heading [tabindex='-1']:focus-visible {
