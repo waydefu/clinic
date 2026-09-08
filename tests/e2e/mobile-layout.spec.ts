@@ -702,25 +702,49 @@ test('Staff disclosure preserves permission redirects', async ({ page }) => {
   }
 });
 
-test('Staff disclosure keeps focus reachable across tablet and rail boundaries', async ({
-  page
-}) => {
-  await page.setViewportSize({ width: 768, height: 900 });
-  await login(page);
-  const trigger = page.getByRole('button', { name: '工作區導覽', exact: true });
-  await trigger.focus();
-  await page.setViewportSize({ width: 1024, height: 900 });
-  const active = page.locator('[data-workspace-nav][aria-current="page"]');
-  await expect(active).toBeFocused();
-  await expect(active).toBeVisible();
-  await expect(trigger).toBeHidden();
-  await page.setViewportSize({ width: 768, height: 900 });
-  await expect(trigger).toBeFocused();
-  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-  await page.keyboard.press('Space');
-  await page.keyboard.press('Tab');
-  await expect(active).toBeFocused();
-});
+for (const blurBeforeMedia of [false, true]) {
+  test(`Staff disclosure keeps focus reachable across tablet and rail boundaries (${blurBeforeMedia ? 'blur-before-media' : 'native'})`, async ({
+    page
+  }) => {
+    if (blurBeforeMedia) {
+      // Chromium can blur a CSS-hidden trigger before delivering the media event.
+      // Force that ordering as well as testing the browser's native ordering.
+      await page.addInitScript(() => {
+        window
+          .matchMedia('(max-width: 48rem)')
+          .addEventListener('change', (event) => {
+            if (!event.matches)
+              document
+                .querySelector<HTMLElement>('.workspace-nav-toggle')
+                ?.blur();
+          });
+      });
+    }
+    await page.setViewportSize({ width: 768, height: 900 });
+    await login(page);
+    const trigger = page.getByRole('button', {
+      name: '工作區導覽',
+      exact: true
+    });
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
+    await page.setViewportSize({ width: 1024, height: 900 });
+    const active = page.locator('[data-workspace-nav][aria-current="page"]');
+    await expect(active).toBeFocused();
+    await expect(active).toBeVisible();
+    await expect(trigger).toBeHidden();
+    await page.setViewportSize({ width: 768, height: 900 });
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Tab');
+    await expect(active).toBeFocused();
+    const heading = page.locator('#overview-heading');
+    await heading.focus();
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await expect(heading).toBeFocused();
+  });
+}
 
 // 2026-08-06 手機版審查補上的三條。前兩條釘住的是實際量到的缺陷，第三條釘住
 // 修它時差點造成的回歸。

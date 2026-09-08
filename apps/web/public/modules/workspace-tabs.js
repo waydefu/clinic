@@ -93,6 +93,14 @@ export function initWorkspaceTabs({ onDenied } = {}) {
   };
   if (trigger !== null && nav !== null) {
     trigger.hidden = false;
+    let triggerFocused = false;
+    trigger.addEventListener('focus', () => {
+      triggerFocused = true;
+    });
+    trigger.addEventListener('blur', () => {
+      // CSS may hide the trigger before the media-change callback runs.
+      if (mobile.matches) triggerFocused = false;
+    });
     trigger.addEventListener('click', () =>
       setExpanded(trigger.getAttribute('aria-expanded') !== 'true')
     );
@@ -111,8 +119,10 @@ export function initWorkspaceTabs({ onDenied } = {}) {
     mobile.addEventListener('change', () => {
       if (mobile.matches && nav.contains(document.activeElement))
         trigger.focus();
-      else if (!mobile.matches && document.activeElement === trigger)
+      else if (!mobile.matches && triggerFocused) {
         nav.querySelector('[aria-current="page"]')?.focus();
+        triggerFocused = false;
+      }
       setExpanded(false);
     });
     setExpanded(false);
