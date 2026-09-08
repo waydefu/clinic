@@ -52,3 +52,30 @@ personal data rather than committing it.
 **What would close this:** a named owner decision that either (a) retires
 Rule 1 with scope, date and exclusions, and updates CONTRIBUTING.md, or
 (b) restores a non-public canonical repository, with evidence.
+
+## GC-002 — D-013 administrator bypass vs live `enforce_admins`
+
+**Status:** unresolved
+**Owner:** technical owner
+**Approver:** not recorded as a named decision
+
+**Canon (D-013, approved 2026-07-26):** require the `Verification evidence`
+check on `main`, and keep the administrator bypass — “Do not allow bypassing
+the above settings” stays unchecked (`enforce_admins=false`). Dated
+documentation through 2026-08-18 restates that live setting.
+
+**Recorded live setting (2026-09-08T16:44:40Z):** GitHub API
+`GET /repos/waydefu/clinic/branches/main/protection` returned
+`enforce_admins.enabled=true`, `required_status_checks.contexts=["Verification evidence"]`,
+`strict=true`, `required_approving_review_count=0`, force pushes and deletions
+disabled, no rulesets. `scripts/check-branch-protection.mjs` only asserts the
+required check name; it does not assert `enforce_admins`.
+
+**What this is not:** not deployment authority, not a D-013 status change, and
+not permission to weaken or restore the bypass from a session. Public visibility
+plus this stricter-than-Canon enforcement is still not production readiness.
+
+**What would close this:** a named owner decision that either (a) restores
+GitHub to `enforce_admins=false` to match D-013, with evidence, or (b) amends
+D-013 to `enforce_admins=true` with approver, date, scope and exclusions, and
+updates the register.
