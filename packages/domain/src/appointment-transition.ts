@@ -86,8 +86,9 @@ export interface DeleteAppointmentRequest {
 
 /**
  * 投影工作攜帶的狀態。多數情況就是預約狀態，但刪除後預約已不存在，因此多一個
- * `deleted`：worker 的 `actionForStatus` 對任何非 upsert 狀態一律回 `cancel`，
- * 所以刪除走的就是 `events.delete`，且刪除不存在的事件視為成功。
+ * `deleted`：worker 的 `actionForStatus` 對已知的非 upsert 狀態（含 `deleted`）
+ * 回 `cancel`，所以刪除走的就是 `events.delete`，且刪除不存在的事件視為成功。
+ * 無法辨識的狀態不得當成 cancel。
  */
 export type CalendarProjectionStatus = AppointmentStatusValue | 'deleted';
 

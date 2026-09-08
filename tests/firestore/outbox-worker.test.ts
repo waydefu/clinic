@@ -389,6 +389,39 @@ describe('outbox worker', () => {
     }
   });
 
+  it('dead-letters an unknown appointment status without cancelling Calendar', async () => {
+    await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
+      status: 'not_a_real_status',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial',
+      patientId: 'patient_001'
+    });
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_unknown').set({
+      appointmentId: 'appointment_001',
+      correlationId: 'corr_outbox_unknown',
+      causationId: 'audit_appointment_001_unknown',
+      idempotencyKey: CONFIRMED_KEY,
+      type: 'calendar_projection_requested',
+      status: 'pending',
+      attempts: 0,
+      nextAttemptAt: NOW
+    });
+
+    const summary = await processor.processDue(NOW);
+
+    expect(summary).toMatchObject({
+      claimed: 1,
+      deadLettered: 1,
+      completed: 0
+    });
+    expect(calendar.events.size).toBe(0);
+    expect(calendar.cancelCount).toBe(0);
+    expect(calendar.insertCount).toBe(0);
+    const state = await jobState('outbox_unknown');
+    expect(state?.['status']).toBe('dead_letter');
+    expect(state?.['lastError']).toMatch(/unknown appointment status/);
+  });
+
   // 整條生命週期跑完，日曆上不該留下任何殘影。
   it('leaves no ghost events after book, reschedule, complete and cancel', async () => {
     await seedJob();

@@ -46,12 +46,32 @@ export const APPOINTMENTS_COLLECTION = 'appointments';
  * 到診刪除的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同 event id、
  * 落在回診目標日），由回診投影負責，不受這裡影響。
  */
-function actionForStatus(status: string): CalendarAction {
-  return status === 'confirmed' ||
-    status === 'cancellation_requested' ||
-    status === 'follow_up_required'
-    ? 'upsert'
-    : 'cancel';
+const UPSERT_PROJECTION_STATUSES = new Set([
+  'confirmed',
+  'cancellation_requested',
+  'follow_up_required'
+]);
+
+const CANCEL_PROJECTION_STATUSES = new Set([
+  'cancelled',
+  'completed',
+  'no_show',
+  'deleted',
+  'follow_up_not_required'
+]);
+
+/**
+ * Unknown / corrupt appointment status must not become Calendar `cancel`.
+ * That used to delete a live projection whenever a document could not be
+ * decoded. Fail closed: DomainError → non-retryable dead-letter.
+ */
+export function actionForStatus(status: string): CalendarAction {
+  if (UPSERT_PROJECTION_STATUSES.has(status)) return 'upsert';
+  if (CANCEL_PROJECTION_STATUSES.has(status)) return 'cancel';
+  throw new DomainError(
+    'INVALID_VALUE',
+    `Calendar projection refused unknown appointment status ${status}.`
+  );
 }
 
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
