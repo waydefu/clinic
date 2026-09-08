@@ -64,6 +64,27 @@ export function timingBudget(budgets, entryPath, metric) {
 }
 
 /**
+ * 將瀏覽器量測轉成 artifact 狀態。
+ *
+ * `PerformanceObserver` 沒收到 layout-shift entry 時 CLS 會維持 0；在目前
+ * 的證據契約裡，這只能標成 UNAVAILABLE，不能把「沒有量到」當成 PASS。
+ */
+export function classifyPerformanceStatus({ metrics, budgets }) {
+  const measurable =
+    isFinitePositive(metrics?.['first-contentful-paint']) &&
+    isFinitePositive(metrics?.['largest-contentful-paint']) &&
+    isFinitePositive(metrics?.['cumulative-layout-shift']);
+  if (!measurable) return 'UNAVAILABLE';
+
+  const withinBudget =
+    metrics['first-contentful-paint'] <= budgets['first-contentful-paint'] &&
+    metrics['largest-contentful-paint'] <=
+      budgets['largest-contentful-paint'] &&
+    metrics['cumulative-layout-shift'] <= budgets['cumulative-layout-shift'];
+  return withinBudget ? 'PASS' : 'FAIL';
+}
+
+/**
  * 展開「進入點 × 具體路由 × 雙 profile」的完整觀察清單。
  *
  * @param budgets performance-budget.json 內容（決定哪些進入點有 timings）。
@@ -90,6 +111,10 @@ export function expectedObservations({ budgets, entryRoutes }) {
 
 function isFiniteNonNegative(value) {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isFinitePositive(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  classifyPerformanceStatus,
   PERFORMANCE_PROFILES,
   SHA_PATTERN,
   TIMING_METRICS,
@@ -96,6 +97,41 @@ describe('timingBudget', () => {
     expect(() =>
       timingBudget(budgets, '/privacy.html', 'largest-contentful-paint')
     ).toThrow();
+  });
+});
+
+describe('classifyPerformanceStatus', () => {
+  const metrics = {
+    'first-contentful-paint': 500,
+    'largest-contentful-paint': 900,
+    'cumulative-layout-shift': 0.01
+  };
+  const budgets = {
+    'first-contentful-paint': 1800,
+    'largest-contentful-paint': 2500,
+    'cumulative-layout-shift': 0.1
+  };
+
+  it('量不到 CLS 時回報 UNAVAILABLE', () => {
+    expect(
+      classifyPerformanceStatus({
+        metrics: { ...metrics, 'cumulative-layout-shift': 0 },
+        budgets
+      })
+    ).toBe('UNAVAILABLE');
+  });
+
+  it('三個指標都量到且在預算內時回報 PASS', () => {
+    expect(classifyPerformanceStatus({ metrics, budgets })).toBe('PASS');
+  });
+
+  it('量到超過預算時回報 FAIL', () => {
+    expect(
+      classifyPerformanceStatus({
+        metrics: { ...metrics, 'largest-contentful-paint': 3000 },
+        budgets
+      })
+    ).toBe('FAIL');
   });
 });
 
@@ -207,6 +243,32 @@ describe('validatePerformanceArtifact', () => {
     expect(
       validatePerformanceArtifact(artifact, { budgets, entryRoutes }).length
     ).toBeGreaterThan(0);
+  });
+
+  it('CLS 沒有 layout-shift entry 時標 UNAVAILABLE 可以通過', () => {
+    const expected = expectedObservations({ budgets, entryRoutes });
+    const artifact = {
+      schemaVersion: 1,
+      headSha: SHA,
+      records: expected.map(({ route, entryPath, profile }) =>
+        record(
+          route,
+          PERFORMANCE_PROFILES.find((p) => p.name === profile),
+          {
+            entryPath,
+            metrics: {
+              'first-contentful-paint': 500,
+              'largest-contentful-paint': 900,
+              'cumulative-layout-shift': 0
+            },
+            status: 'UNAVAILABLE'
+          }
+        )
+      )
+    };
+    expect(
+      validatePerformanceArtifact(artifact, { budgets, entryRoutes })
+    ).toEqual([]);
   });
 
   it('超預算卻標 PASS 是 FAIL', () => {

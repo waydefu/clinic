@@ -8,6 +8,7 @@ import { expect, test } from '@playwright/test';
 import { CLINIC_ROUTES } from '../../apps/web/public/clinic-content.js';
 import {
   PERFORMANCE_PROFILES,
+  classifyPerformanceStatus,
   defaultEntryRoutes,
   timingBudget
 } from '../../scripts/web-performance-matrix.mjs';
@@ -218,14 +219,19 @@ for (const { entryPath, routes } of ENTRY_ROUTES) {
           entryPath,
           'cumulative-layout-shift'
         );
-        const honest =
-          measured.firstContentfulPaint > 0 &&
-          measured.largestContentfulPaint > 0 &&
-          Number.isFinite(measured.cumulativeLayoutShift) &&
-          measured.firstContentfulPaint <= fcpBudget &&
-          measured.largestContentfulPaint <= lcpBudget &&
-          measured.cumulativeLayoutShift <= clsBudget;
-        // 先寫分片再斷言：失敗的測試也要留下 FAIL 記錄，合併後的 artifact 才完整。
+        const metrics = {
+          'first-contentful-paint': measured.firstContentfulPaint,
+          'largest-contentful-paint': measured.largestContentfulPaint,
+          'cumulative-layout-shift': measured.cumulativeLayoutShift
+        };
+        const metricBudgets = {
+          'first-contentful-paint': fcpBudget,
+          'largest-contentful-paint': lcpBudget,
+          'cumulative-layout-shift': clsBudget
+        };
+        // 沒有任何 layout-shift entry 時 CLS 會是 0；依 artifact 契約，
+        // 這代表量測不可用而不是「零位移」的 PASS。先寫分片再斷言：
+        // 非 PASS 的測試也要留下 FAIL／UNAVAILABLE 記錄，合併後的 artifact 才完整。
         // 同一測試 retry 會覆寫同名分片（先後執行，不競態）。
         const sha = evidenceHeadSha();
         writeEvidenceShard(
@@ -241,17 +247,12 @@ for (const { entryPath, routes } of ENTRY_ROUTES) {
               profile: profile.name,
               width: profile.width,
               height: profile.height,
-              metrics: {
-                'first-contentful-paint': measured.firstContentfulPaint,
-                'largest-contentful-paint': measured.largestContentfulPaint,
-                'cumulative-layout-shift': measured.cumulativeLayoutShift
-              },
-              budgets: {
-                'first-contentful-paint': fcpBudget,
-                'largest-contentful-paint': lcpBudget,
-                'cumulative-layout-shift': clsBudget
-              },
-              status: honest ? 'PASS' : 'FAIL',
+              metrics,
+              budgets: metricBudgets,
+              status: classifyPerformanceStatus({
+                metrics,
+                budgets: metricBudgets
+              }),
               shiftSources: measured.shiftSources
             } satisfies PerfRecord
           }
