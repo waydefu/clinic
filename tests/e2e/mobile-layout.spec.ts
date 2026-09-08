@@ -9,7 +9,6 @@ import {
 import {
   createBooking,
   login,
-  openDisclosure,
   openStaffRescheduleForm
 } from './support/workbench.js';
 
@@ -257,7 +256,7 @@ test.describe('工作臺手機版版面', () => {
       viewport?.height ?? 0
     );
 
-    await page.locator('.workspace-nav a').first().focus();
+    await page.getByRole('button', { name: '工作區導覽', exact: true }).focus();
     await expect(popover).toBeHidden();
     await expect(bell).toHaveAttribute('aria-expanded', 'false');
   });
@@ -578,26 +577,149 @@ test.describe('患者預約頁在最窄的常見螢幕', () => {
   });
 });
 
-test.describe('工作臺導覽的捲動提示', () => {
-  test.use({ viewport: PHONE });
+const WORKSPACE_DESTINATIONS = [
+  'overview',
+  'appointments-section',
+  'schedule-section',
+  'case-section',
+  'accounts-section',
+  'communications-section',
+  'audit-section'
+];
 
-  // 七個工作區在 375px 只看得到三個，其餘四個在畫面外。沒有提示的話，使用者
-  // 合理地會以為工作臺只有三個區塊。
-  test('放不下時要有捲動提示，而不是把最後一項硬切掉', async ({ page }) => {
+for (const width of [320, 360, 375, 390, 768]) {
+  test(`Staff disclosure ${width}px exposes every native destination`, async ({
+    page
+  }) => {
+    await page.setViewportSize({ width, height: width === 320 ? 568 : 900 });
     await login(page);
-    await openDisclosure(page, '#week-calendar-disclosure');
-
-    const nav = page.locator('.workspace-nav');
-    const state = await nav.evaluate((el) => ({
-      overflows: el.scrollWidth > el.clientWidth + 1,
-      mask: getComputedStyle(el).maskImage,
-      snap: getComputedStyle(el).scrollSnapType
-    }));
-
-    expect(state.overflows, '這個測試只在導覽真的放不下時有意義').toBe(true);
-    expect(state.mask, '需要淡出遮罩表示「後面還有」').not.toBe('none');
-    expect(state.snap, '需要 scroll-snap 讓項目不會停在半個字').toContain('x');
+    const trigger = page.getByRole('button', {
+      name: '工作區導覽',
+      exact: true
+    });
+    const nav = page.getByRole('navigation', {
+      name: '管理工作臺導覽',
+      includeHidden: true
+    });
+    await expect(trigger).toHaveAttribute(
+      'aria-controls',
+      'workspace-navigation'
+    );
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await page.locator('.topbar-tools > summary').focus();
+    await page.keyboard.press('Tab');
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(nav.locator('a')).toHaveCount(7);
+    for (const id of WORKSPACE_DESTINATIONS) {
+      const link = nav.locator(`a[href="#${id}"]`);
+      await page.keyboard.press('Tab');
+      await expect(link).toBeFocused();
+      await expect(link).toBeInViewport();
+      const box = await link.boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      expect(
+        await link.evaluate((el) => el.scrollWidth - el.clientWidth)
+      ).toBeLessThanOrEqual(1);
+    }
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    for (const id of WORKSPACE_DESTINATIONS.slice(1).concat('overview')) {
+      await trigger.click();
+      const link = nav.locator(`a[href="#${id}"]`);
+      await link.focus();
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL(new RegExp(`#${id}$`));
+      await expect(link).toHaveAttribute('aria-current', 'page');
+      await expect(link).toHaveClass(/is-active/);
+      const panel = page.locator(`#${id}`);
+      await expect(panel).toBeVisible();
+      const headingId = await panel.getAttribute('aria-labelledby');
+      await expect(page.locator(`#${headingId}`)).toBeFocused();
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+    }
   });
+}
+
+test('Staff disclosure preserves deep links, refresh and browser history', async ({
+  page
+}) => {
+  await page.setViewportSize(NARROW);
+  await login(page);
+  await page.goto('/staff#audit-section');
+  const trigger = page.getByRole('button', { name: '工作區導覽', exact: true });
+  const assertCurrent = async (id: string) => {
+    const panel = page.locator(`#${id}`);
+    await expect(panel).toBeVisible();
+    await expect(
+      page.locator(`[data-workspace-nav][href="#${id}"]`)
+    ).toHaveAttribute('aria-current', 'page');
+    await expect(
+      page.locator(`#${await panel.getAttribute('aria-labelledby')}`)
+    ).toBeFocused();
+  };
+  await assertCurrent('audit-section');
+  await page.reload();
+  await assertCurrent('audit-section');
+  await trigger.click();
+  await page.locator('[data-workspace-nav][href="#schedule-section"]').click();
+  await assertCurrent('schedule-section');
+  await page.goBack();
+  await assertCurrent('audit-section');
+  await page.goForward();
+  await assertCurrent('schedule-section');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('Staff disclosure preserves permission redirects', async ({ page }) => {
+  await page.setViewportSize(NARROW);
+  await login(page, 'front');
+  for (const id of [
+    'schedule-section',
+    'accounts-section',
+    'communications-section',
+    'audit-section'
+  ]) {
+    await page.goto(`/staff#${id}`);
+    await expect(page).toHaveURL(/#overview$/);
+    await expect(page.locator('#overview')).toBeVisible();
+    await expect(
+      page.locator('[data-workspace-nav][href="#overview"]')
+    ).toHaveAttribute('aria-current', 'page');
+    await page.getByRole('button', { name: '工作區導覽', exact: true }).click();
+    await expect(
+      page.locator(`[data-workspace-nav][href="#${id}"]`)
+    ).toBeHidden();
+    await expect(
+      page.locator('[data-workspace-nav][href="#overview"]')
+    ).toBeVisible();
+  }
+});
+
+test('Staff disclosure keeps focus reachable across tablet and rail boundaries', async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 768, height: 900 });
+  await login(page);
+  const trigger = page.getByRole('button', { name: '工作區導覽', exact: true });
+  await trigger.focus();
+  await page.setViewportSize({ width: 1024, height: 900 });
+  const active = page.locator('[data-workspace-nav][aria-current="page"]');
+  await expect(active).toBeFocused();
+  await expect(active).toBeVisible();
+  await expect(trigger).toBeHidden();
+  await page.setViewportSize({ width: 768, height: 900 });
+  await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Tab');
+  await expect(active).toBeFocused();
 });
 
 // 2026-08-06 手機版審查補上的三條。前兩條釘住的是實際量到的缺陷，第三條釘住

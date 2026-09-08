@@ -83,9 +83,44 @@ export function applyWorkspacePanel({
 
 export function initWorkspaceTabs({ onDenied } = {}) {
   deniedHandler = onDenied;
-  window.addEventListener('hashchange', () =>
-    applyWorkspacePanel({ scroll: true })
-  );
+  const trigger = document.querySelector('.workspace-nav-toggle');
+  const nav = document.getElementById('workspace-navigation');
+  const mobile = window.matchMedia('(max-width: 48rem)');
+  const setExpanded = (expanded) => {
+    const visible = !mobile.matches || expanded;
+    trigger?.setAttribute('aria-expanded', String(visible));
+    if (nav !== null) nav.dataset.collapsed = String(!visible);
+  };
+  if (trigger !== null && nav !== null) {
+    trigger.hidden = false;
+    trigger.addEventListener('click', () =>
+      setExpanded(trigger.getAttribute('aria-expanded') !== 'true')
+    );
+    const closeOnEscape = (event) => {
+      if (
+        event.key === 'Escape' &&
+        mobile.matches &&
+        trigger.getAttribute('aria-expanded') === 'true'
+      ) {
+        setExpanded(false);
+        trigger.focus();
+      }
+    };
+    trigger.addEventListener('keydown', closeOnEscape);
+    nav.addEventListener('keydown', closeOnEscape);
+    mobile.addEventListener('change', () => {
+      if (mobile.matches && nav.contains(document.activeElement))
+        trigger.focus();
+      else if (!mobile.matches && document.activeElement === trigger)
+        nav.querySelector('[aria-current="page"]')?.focus();
+      setExpanded(false);
+    });
+    setExpanded(false);
+  }
+  window.addEventListener('hashchange', () => {
+    setExpanded(false);
+    applyWorkspacePanel({ scroll: true });
+  });
   applyWorkspacePanel();
   if (window.location.hash !== '')
     window.requestAnimationFrame(() =>
