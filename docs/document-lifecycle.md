@@ -57,6 +57,7 @@ commit／environment、涵蓋範圍、owner、evidence 及 expiry／next review�
 | --- | --- | --- |
 | CI 完整驗證 | `verify` workflow 的 `Verification evidence` job | GitHub artifact 90 天；同時寫 job summary |
 | Semgrep CE SAST | `sast-scan.yml` 的 commit-bound JSON／SARIF／summary（由 `verify` workflow 的 `sast` job 在同一個 run 內產生；每週排程與手動觸發走 `sast.yml`） | GitHub artifact 90 天；**自 2026-08-18（`SCM-R01`）起被唯一 required 的 `Verification evidence` 依賴**，紅的 SAST 會擋下合併 |
+| Gitleaks | `verify.yml` 的 `gitleaks` job：checksum-pinned 8.30.1，`gitleaks.toml` + default rules，redact | GitHub artifact 90 天（寫入同一份 `ci-verification.json`）；**自 2026-09-09（`SCM-R03`）起被同一 required aggregate 依賴**，紅的掃描會擋下合併。不另增 GitHub required context |
 | CycloneDX SBOM provenance | `verify` workflow 的 `supply-chain` job：對 `sbom.cdx.json` 做 GitHub artifact attestation（`actions/attest` provenance mode） | GitHub attestations API；digest 綁定寫在同 run 的 `sbom-cyclonedx` artifact。**不是** SLSA level 宣告，也**不是**部署 |
 | 合成預覽 | `pnpm verify:preview -- <preview-url>` | 本機 `output/evidence/`，依 review／交付需要另行保存 |
 
