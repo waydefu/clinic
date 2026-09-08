@@ -54,6 +54,21 @@
 驗收。`verify:preview` 產生的失敗摘要保留於 git-ignored `output/evidence/`，不納入
 產品文件資產。
 
+## 瀏覽器 UI 驗收
+
+使用 Codex in-app browser 對同一預覽網址完成人工 smoke check：
+
+- 桌面預設視窗：`/clinic`、`/booking`、`/staff` 均可載入；首頁症狀導引、預約「初診 → 止鼾 → 時段 → 基本資料」流程與工作臺合成登入均可操作。
+- 鍵盤：工作臺以 `Tab` 移動後，焦點有 `3px` 可見外框。
+- 手機模擬 `375×812`：首頁、預約三步驟、基本資料表單與工作臺均無整頁橫向溢出；工作臺窄版導覽維持可水平滑動。
+- 主題：預約頁的淺色與深色切換均可套用。
+- 瀏覽器 console：上述頁面未見 error 或 warning。
+
+這是瀏覽器模擬與合成資料 smoke check；真人 iOS／Android、Safari／Firefox／Edge、
+讀屏、200%／400% 文字縮放與實機虛擬鍵盤仍屬 External manual verification required。
+官方 `verify:preview` 的 462/463 路徑假設失敗仍存在，因此部署證據階梯仍維持
+**DEPLOYED-NOT-SMOKED**，不把本節人工結果冒充成全套 deployment verifier 綠燈。
+
 ## 不變邊界與後續
 
 - 正式 live channel、正式網域、Firebase backend 與真實資料均未部署或啟用。
