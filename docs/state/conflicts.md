@@ -1,11 +1,12 @@
-# Unresolved governance conflicts
+# Governance conflicts
 
 **Type:** live state / unresolved pointer. Not Canon. Not
 [GOVERNANCE.md](../../GOVERNANCE.md).
 **Resolution rule:** [GOVERNANCE.md](../../GOVERNANCE.md) § Conflict resolution.
-An owner decision is required to close each item. Do not retire an item from
-`AGENTS.md` Safety Floor or CONTRIBUTING merely because this file records a
-newer visibility snapshot.
+An owner decision is required to close each **unresolved** item. Closed items
+stay here as dated evidence until a later cleanup retires them. Do not retire
+an item from `AGENTS.md` Safety Floor or CONTRIBUTING merely because this file
+records a newer visibility snapshot.
 
 ## GC-001 — repository visibility vs unretired Rule 1
 
@@ -55,27 +56,26 @@ Rule 1 with scope, date and exclusions, and updates CONTRIBUTING.md, or
 
 ## GC-002 — D-013 administrator bypass vs live `enforce_admins`
 
-**Status:** unresolved
+**Status:** closed (2026-09-09)
 **Owner:** technical owner
-**Approver:** not recorded as a named decision
+**Approver:** clinic owner / technical owner (2026-09-09)
 
-**Canon (D-013, approved 2026-07-26):** require the `Verification evidence`
-check on `main`, and keep the administrator bypass — “Do not allow bypassing
-the above settings” stays unchecked (`enforce_admins=false`). Dated
-documentation through 2026-08-18 restates that live setting.
+**Canon (D-013, amended 2026-09-09):** require the `Verification evidence`
+check on `main`, and require `enforce_admins=true` so administrators cannot
+bypass required checks. Force pushes and branch deletion stay disabled. Do
+not reduce required checks or add a new required GitHub context unless a
+later named decision says so.
 
-**Recorded live setting (2026-09-08T16:44:40Z):** GitHub API
-`GET /repos/waydefu/clinic/branches/main/protection` returned
+**Recorded live setting (2026-09-08T16:44:40Z, reconfirmed 2026-09-08T18:05:00Z):**
+GitHub API `GET /repos/waydefu/clinic/branches/main/protection` returned
 `enforce_admins.enabled=true`, `required_status_checks.contexts=["Verification evidence"]`,
 `strict=true`, `required_approving_review_count=0`, force pushes and deletions
-disabled, no rulesets. `scripts/check-branch-protection.mjs` only asserts the
-required check name; it does not assert `enforce_admins`.
+disabled, no rulesets. `scripts/check-branch-protection.mjs` now asserts both
+the required check name and those D-013 policy fields.
 
-**What this is not:** not deployment authority, not a D-013 status change, and
-not permission to weaken or restore the bypass from a session. Public visibility
-plus this stricter-than-Canon enforcement is still not production readiness.
+**Why this closes:** the 2026-09-09 owner amendment chose option (b) from the
+open item — D-013 now matches live GitHub, with approver, date, scope and
+exclusions in the decision register. GitHub was not weakened.
 
-**What would close this:** a named owner decision that either (a) restores
-GitHub to `enforce_admins=false` to match D-013, with evidence, or (b) amends
-D-013 to `enforce_admins=true` with approver, date, scope and exclusions, and
-updates the register.
+**What this is not:** not deployment authority, not Stage 2, and not permission
+to lower required checks.

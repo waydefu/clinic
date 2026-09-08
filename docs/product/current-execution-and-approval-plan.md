@@ -212,7 +212,8 @@ production 的告警、secret rotation、restore、DR、法規／vendor 重審�
 
 D-006 與 D-010 已核准的是目標；仍須 C0 與各切片 deployment authority 才能實作。
 D-012 只核准合成 preview 上的健保署署徽；production domain 前要重評。D-013 已
-核准並要求 `main` 的 `Verification evidence`，管理者 bypass 保留。
+核准並要求 `main` 的 `Verification evidence`；2026-09-09 修訂為 administrators
+同樣受約束（`enforce_admins=true`）。
 
 ### C. C0 與每次部署
 
