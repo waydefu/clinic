@@ -46,12 +46,34 @@ export const APPOINTMENTS_COLLECTION = 'appointments';
  * 到診刪除的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同 event id、
  * 落在回診目標日），由回診投影負責，不受這裡影響。
  */
-function actionForStatus(status: string): CalendarAction {
-  return status === 'confirmed' ||
-    status === 'cancellation_requested' ||
-    status === 'follow_up_required'
-    ? 'upsert'
-    : 'cancel';
+const UPSERT_PROJECTION_STATUSES = new Set([
+  'confirmed',
+  'cancellation_requested',
+  'follow_up_required'
+]);
+
+const CANCEL_PROJECTION_STATUSES = new Set([
+  'cancelled',
+  'completed',
+  'no_show',
+  'deleted',
+  'follow_up_not_required',
+  // 正式回診預約已建立時，先前的「尚待安排」提醒必須刪掉。
+  'follow_up_scheduled'
+]);
+
+/**
+ * Unknown / corrupt appointment status must not become Calendar `cancel`.
+ * That used to delete a live projection whenever a document could not be
+ * decoded. Fail closed: DomainError → non-retryable dead-letter.
+ */
+export function actionForStatus(status: string): CalendarAction {
+  if (UPSERT_PROJECTION_STATUSES.has(status)) return 'upsert';
+  if (CANCEL_PROJECTION_STATUSES.has(status)) return 'cancel';
+  throw new DomainError(
+    'INVALID_VALUE',
+    `Calendar projection refused unknown appointment status ${status}.`
+  );
 }
 
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
@@ -338,10 +360,11 @@ export class OutboxProcessor {
       // 一般預約投影沒有 job.startsAt，退回讀來源預約的時間。
       const startsAt =
         job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '';
-      const action = actionForStatus(projectionStatus);
       const attemptStartedAt = this.monotonicNow();
       let outcome: AttemptOutcome;
+      let action: CalendarAction | undefined;
       try {
+        action = actionForStatus(projectionStatus);
         assertOutboxTraceContext(job);
         const projectionStartedAt = at();
         const projectionTimeoutMs =
@@ -391,23 +414,25 @@ export class OutboxProcessor {
       // 結算用結算當下的時刻：退避的起點是「這次嘗試何時失敗」，不是「這批
       // 何時開始」，settledAt 也才不會讓整批看起來同時完成。
       const result = await this.settle(job, outcome, at());
-      this.recordMetric(() =>
-        this.metrics.recordCalendarAttempt({
-          destination: 'calendar',
-          action,
-          result:
-            result === 'deadLettered'
-              ? 'dead_lettered'
-              : result === 'retried'
-                ? 'retried'
-                : result === 'superseded'
-                  ? 'superseded'
-                  : 'completed',
-          retryable: outcome.kind === 'failed' ? outcome.retryable : null,
-          attempt: job.attempts + 1,
-          latencyMs: Math.max(0, this.monotonicNow() - attemptStartedAt)
-        })
-      );
+      if (action !== undefined) {
+        this.recordMetric(() =>
+          this.metrics.recordCalendarAttempt({
+            destination: 'calendar',
+            action,
+            result:
+              result === 'deadLettered'
+                ? 'dead_lettered'
+                : result === 'retried'
+                  ? 'retried'
+                  : result === 'superseded'
+                    ? 'superseded'
+                    : 'completed',
+            retryable: outcome.kind === 'failed' ? outcome.retryable : null,
+            attempt: job.attempts + 1,
+            latencyMs: Math.max(0, this.monotonicNow() - attemptStartedAt)
+          })
+        );
+      }
       if (result === 'completed') completed += 1;
       else if (result === 'retried') retried += 1;
       else if (result === 'deadLettered') deadLettered += 1;
