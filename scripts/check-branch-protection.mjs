@@ -59,6 +59,28 @@ export function missingChecks(enforced, required = REQUIRED_CHECKS) {
   return required.filter((check) => !enforced.has(check));
 }
 
+/**
+ * D-013 amended 2026-09-09: administrators are bound by the same required
+ * checks. Fail closed if the payload omits a field rather than treating
+ * silence as the approved setting.
+ *
+ * @param {object} parsed Classic branch-protection JSON body
+ * @returns {string[]} Human-readable failures; empty means the policy holds
+ */
+export function protectionPolicyFailures(parsed) {
+  const failures = [];
+  if (parsed?.enforce_admins?.enabled !== true) {
+    failures.push('enforce_admins must be true (administrators cannot bypass)');
+  }
+  if (parsed?.allow_force_pushes?.enabled !== false) {
+    failures.push('allow_force_pushes must stay disabled');
+  }
+  if (parsed?.allow_deletions?.enabled !== false) {
+    failures.push('allow_deletions must stay disabled');
+  }
+  return failures;
+}
+
 async function main() {
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
   if (token === undefined) {
@@ -102,6 +124,12 @@ async function main() {
 
   const enforced = evaluated.enforced;
   const missing = missingChecks(enforced);
+  const policyFailures =
+    protection.status === 200
+      ? protectionPolicyFailures(JSON.parse(protection.body))
+      : [
+          'classic branch protection is required to assert D-013 enforce_admins'
+        ];
   if (missing.length > 0) {
     console.error(
       `${REPOSITORY}@${BRANCH}：以下檢查沒有被設為必要 → ${missing.join('、')}`
@@ -113,9 +141,16 @@ async function main() {
       'CI 會照跑、紅燈會顯示，但沒有任何東西阻止把紅的合併進 main——整套證據設計到這裡才生效。'
     );
     process.exitCode = 1;
-  } else {
+  }
+  if (policyFailures.length > 0) {
+    console.error(
+      `${REPOSITORY}@${BRANCH}：D-013 保護政策不符 → ${policyFailures.join('；')}`
+    );
+    process.exitCode = 1;
+  }
+  if (missing.length === 0 && policyFailures.length === 0) {
     console.log(
-      `Branch protection OK：${REPOSITORY}@${BRANCH} 必要檢查包含 ${REQUIRED_CHECKS.join('、')}。`
+      `Branch protection OK：${REPOSITORY}@${BRANCH} 必要檢查包含 ${REQUIRED_CHECKS.join('、')}，且 administrators 同樣受約束（enforce_admins=true；force push／deletion 關閉）。`
     );
   }
 }

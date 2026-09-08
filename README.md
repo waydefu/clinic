@@ -133,10 +133,11 @@ separate from source-tree audit exceptions and requires `SCM-R04` triage
 (`SCM-R03` is Gitleaks, not Dependabot).
 `main` has no repository ruleset; branch protection has one strict required
 context, `Verification evidence`, with force pushes and deletion disabled,
-and no required review. D-013 (2026-07-26) approved keeping the administrator
-bypass (`enforce_admins=false`). A GitHub API read at 2026-09-08T16:44:40Z
-reported `enforce_admins=true`; that live drift is [GC-002](docs/state/conflicts.md),
-not a silent amendment of D-013. Since `SCM-R01` on 2026-08-18
+and no required review. D-013 (amended 2026-09-09) requires
+`enforce_admins=true` so administrators are bound by that check. Live GitHub
+API reads at 2026-09-08T16:44:40Z and 2026-09-08T18:05:00Z match that policy;
+[GC-002](docs/state/conflicts.md) is closed on that amendment plus evidence.
+Since `SCM-R01` on 2026-08-18
 that required job aggregates five results, Semgrep CE among them, all bound to
 the same candidate commit — so SEC-02 is an approved policy whose merge-blocking
 enforcement has been demonstrated: an intentional-failure pull request turned

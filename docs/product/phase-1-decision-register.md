@@ -37,7 +37,7 @@ medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
 | D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: no English version; the production URL is still undecided) | Public booking UX |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
-| D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26) | Treating a green CI run as a merge gate |
+| D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26; amended 2026-09-09: administrators also bound) | Treating a green CI run as a merge gate |
 | D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (owner operational direction recorded 2026-08-16; the legal/medical classification still requires named professional review) | Storing surgery, anesthesia or clinical follow-up data |
 | D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending; ledger, refund and settlement sub-items deferred (owner direction recorded 2026-08-16) | Persisting money or settlement amounts |
 | D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (manager/front desk review, private link ID, five-minute target). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA | Calendar-to-system writes |
@@ -540,32 +540,62 @@ that setting (no `gh`, no token). A gate nobody requires is a display.
 
 **Owner decision: require the check, but keep the administrator bypass.**
 
+That 2026-07-26 text is dated history. **Current authority is the 2026-09-09
+amendment:** administrators are bound by the same required checks.
+
 - Required status check on `main`: **`Verification evidence`** — the job's
   `name:`, not its id `evidence`. GitHub's status-check context uses the display
   name; configuring the id would silently require a check that never reports.
-- "Do not allow bypassing the above settings" stays **unchecked**, so the owner
-  can still push straight to `main` without a pull request.
-- **Any tool acting with the owner's credentials inherits that bypass** — this
-  was an explicit requirement so that assistants other than the one that set it
-  up keep working. A tool that authenticates as its own GitHub App or a
-  fine-grained token under a different identity would be blocked and would have
-  to be added to the bypass list deliberately.
+- Original 2026-07-26: "Do not allow bypassing the above settings" stays
+  **unchecked**. **Superseded.**
+- Original 2026-07-26: **any tool acting with the owner's credentials inherits
+  that bypass**. **Superseded.**
 
-**The consequence, stated plainly:** direct pushes by the owner (and by any
-assistant using those credentials) are **not** gated by CI. For that path the
-real protection is running `corepack pnpm verify` before pushing, which is
-convention, not enforcement. The required check protects collaborators and
-future pull requests. Verify the setting with
-`corepack pnpm run check:branch-protection` (needs a token with
+**Amendment — 2026-09-09:** the clinic owner adopted `enforce_admins=true` so
+administrators cannot bypass required status checks or other branch protection.
+
+```text
+Approval ID: D-013
+Answer: approved amendment — require `Verification evidence` on `main`, and
+require "Do not allow bypassing the above settings" (`enforce_admins=true`).
+Administrators may not bypass required checks. Force pushes and branch deletion
+stay disabled. Do not reduce the required-check set, add a new required GitHub
+status-check context unless a later named decision says so, or weaken any other
+protection field.
+Approved by: clinic owner / technical owner
+Approval date (Asia/Taipei): 2026-09-09
+Recorded by: assistant, at the owner's instruction. The owner gave the approval;
+the assistant is not an approver.
+Evidence: GitHub API GET /repos/waydefu/clinic/branches/main/protection at
+2026-09-08T16:44:40Z and reconfirmed 2026-09-08T18:05:00Z —
+enforce_admins.enabled=true, required_status_checks.contexts=["Verification evidence"],
+strict=true, required_approving_review_count=0, allow_force_pushes=false,
+allow_deletions=false, no rulesets. `scripts/check-branch-protection.mjs` asserts
+the required check name and these D-013 policy fields. GC-002 closes on this
+amendment plus that live evidence.
+Scope and explicit exclusions: `main` branch protection only. It does not approve
+deployment, real data, D-004/D-005, Stage 2, C0–C6, or any other D-series item.
+It does not authorise lowering required checks or enabling force push.
+Residual risk accepted: required_approving_review_count remains 0; conversation
+resolution remains required. Both approver roles were signed by one person.
+```
+
+**The consequence, stated plainly:** a green CI run is a merge gate for
+administrators as well as collaborators. Direct pushes that skip the required
+check are a protection violation, not an approved bypass. Verify the setting
+with `corepack pnpm run check:branch-protection` (needs a token with
 `administration:read`); with no token it exits 2, never 0.
 
 **Execution evidence — 2026-07-31:** the classic branch-protection rule is now
 configured on `waydefu/clinic@main` with strict required status check
-`Verification evidence`. Administrator enforcement remains off, so the
-approved owner/administrator bypass is preserved. Force pushes and branch
-deletion are disabled; pull-request reviews are not required by this rule.
-The authenticated `check:branch-protection` command returned success after the
-remote setting was applied.
+`Verification evidence`. At that date administrator enforcement remained off.
+Force pushes and branch deletion were disabled; pull-request reviews were not
+required by this rule. The authenticated `check:branch-protection` command
+returned success after the remote setting was applied.
+
+**Live setting reconfirmed — 2026-09-08 / policy amendment 2026-09-09:**
+`enforce_admins.enabled=true`. The 2026-07-31 "administrator enforcement remains
+off" sentence is dated evidence, not current Canon.
 
 **SEC-02 and SEC-03 approved — 2026-08-01:** the repository owner approved both
 repository-security items and instructed that they be recorded on their behalf.
@@ -620,8 +650,9 @@ the required context is still exactly `Verification evidence`.
 What this does not change: the recorded residual risks stand. Semgrep CE remains
 rule-based rather than CodeQL cross-file taint analysis, code-scanning upload is
 still unavailable, and both approver roles were still signed by one person. The
-D-013 administrator bypass is also untouched, so this enforces the protected
-merge path and nothing else.
+2026-08-18 SCM-R01 implementation did not itself change D-013; the 2026-09-09
+amendment separately binds administrators. SCM-R01 still enforces the protected
+merge path for the SAST aggregate.
 
 ```text
 Approval ID: SEC-03
