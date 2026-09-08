@@ -1,0 +1,5 @@
+SCM-R03 negative-control canary. This is not a credential.
+The following token shape exists only so Gitleaks must fail the required
+Verification evidence aggregate. Do not merge this file onto main.
+
+aws_access_key_id = AKIASCMR03CANARYTEST
