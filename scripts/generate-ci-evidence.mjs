@@ -19,7 +19,8 @@ export const REQUIRED_JOBS = [
   ['rules', 'CI_EVIDENCE_RULES_RESULT'],
   ['e2e', 'CI_EVIDENCE_E2E_RESULT'],
   ['supply-chain', 'CI_EVIDENCE_SUPPLY_CHAIN_RESULT'],
-  ['sast', 'CI_EVIDENCE_SAST_RESULT']
+  ['sast', 'CI_EVIDENCE_SAST_RESULT'],
+  ['gitleaks', 'CI_EVIDENCE_GITLEAKS_RESULT']
 ];
 
 export const safeMarkdown = (value) =>
@@ -45,8 +46,9 @@ export function createCiEvidence({ env = {}, now = new Date() } = {}) {
   const runId = env.GITHUB_RUN_ID ?? 'unknown';
 
   return {
-    // 2：新增 `sast` 必要 job 與它的 commit 綁定欄位（`SCM-R01`）。
-    schemaVersion: 2,
+    // 3：新增 `gitleaks` 必要 job（`SCM-R03`）。仍只綁一個 GitHub required
+    // context：`Verification evidence`。
+    schemaVersion: 3,
     kind: 'ci-verification',
     generatedAt: now.toISOString(),
     repository,

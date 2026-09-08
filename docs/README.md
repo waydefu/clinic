@@ -153,6 +153,9 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-09 | [SCM-R04 Dependabot 逐筆 triage](reviews/2026-09-09-scm-r04-dependabot-triage.md) | Fresh-check 10 筆 open（0 high）；同 major 修 `hono`／`postcss`／`undici@6`／`re2`；`stream-json`／`csv-parse` 跨 major 留至 2026-10-09。未 dismiss。SCM-R04 仍開 |
+| 2026-09-09 | [SCM-R03 Gitleaks 納入 Verification evidence](reviews/2026-09-09-scm-r03-gitleaks-evidence.md) | PR #89 merge `6e91bda`、verify 34262629891 SUCCESS；故意失敗 PR #91 run 34265160446 證明紅的 Gitleaks 擋合併後關閉未合併。不另增 GitHub required context。不是 SCM-R04／production |
+| 2026-09-09 | [非 UI 工作流目前授權上限交接](reviews/2026-09-09-non-ui-authorized-closure-handoff.md) | PR #86 merge `69b56e9`；exact-head `5af406e` verify 34257564731 SUCCESS。文件對帳 + GC-002；剩餘為 C0／部署／D-series／SCM-R04 等 HARD_STOP。不是 Stage 2 或 production 授權 |
 | 2026-09-08 | [UI/UX 重設計 synthetic-review 預覽部署](reviews/2026-09-08-ui-ux-redesign-synthetic-preview-deployment.md) | Exact `73febfa` 已部署至 `beauessence-clinic-staging` 的 `synthetic-review`；預覽至 2026-09-30 20:00（Asia/Taipei），靜態-only、未碰 CAL-PILOT／正式站。HTTP／安全標頭／hashed assets／無 `/v1/**` rewrite 通過；既有 `verify:preview` 因 root→`/clinic` 與工作臺文案路徑假設不一致而 462/463，已如實記錄 |
 | 2026-09-07 | [Clinic UI/UX 重設計交接](reviews/2026-09-07-ui-ux-redesign.md) | 三入口設計候選、42 張 before/after、原預算、ARM64 回歸與待人工驗收事項；沒有合併／部署授權 |
 | 2026-09-06 | [章程 v2.0 Q1–Q22 對帳紀錄（T0-REG-01）](reviews/2026-09-06-charter-v2-qa-reconciliation.md) | Q1–Q22 as Recorded Owner Input on `9e1be1a`；D 狀態不變；Q5 A 取代 §16 B，Q12 取代三次限制，Q15 只記需求。產品 code diff NONE |

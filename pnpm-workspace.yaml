@@ -95,6 +95,18 @@ overrides:
   fastify: '^5.12.1'
   undici@^8: '^8.9.0'
   ip-address@^10: '^10.3.1'
+  # 2026-09-09 SCM-R04：fresh Dependabot 仍全是 development-scope。
+  # 下列四條是**同一個 major 內的 patch**，父套件 range 已允許：
+  #   hono      4.12.31 → 精確 4.12.34（不用 ^，避免 4.13 次要版）
+  #   postcss   8.5.20  → 8.5.23   vite（vitest / 建置，dev）
+  #   undici@^6 6.27.0  → 6.28.0   firebase-tools 宣告 ^6.19.0；^8 線已鎖
+  #   re2       1.26.0  → 1.26.1   superstatic optional native；allowBuilds 仍 false
+  # stream-json 1.9.1 與 csv-parse 5.6.0 的 patched 版是跨 major（3.5.0 / 7.0.2），
+  # firebase-tools 15.x 仍宣告 ^1.7.3 / ^5.0.4，不在此強制升級。
+  hono: '4.12.34'
+  postcss@^8: '8.5.23'
+  undici@^6: '^6.28.0'
+  re2: '1.26.1'
 
 # 2026-08-01：本檔曾經有一筆 `auditConfig.ignoreGhsas` 例外
 # （GHSA-mh99-v99m-4gvg，SEC-03）。當時的解除條件寫的是「1.x／2.x 出現修補版」，

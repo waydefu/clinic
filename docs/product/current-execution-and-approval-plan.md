@@ -1,7 +1,7 @@
 # 專案後續執行與核准清單
 
 **狀態：現行權威／Stage 1／尚未授權雲端或真實資料。**  
-**最後更新：2026-09-07（Asia/Taipei）**
+**最後更新：2026-09-09（Asia/Taipei）**
 
 **證據新鮮度：** 2026-08-11 為唯讀靜態盤點；未重跑 build、unit、Rules、E2E、
 browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史證據，不是目前 HEAD
@@ -42,8 +42,9 @@ TW-04 與 TW-05 自動前置條件已交付；原 TW 唯一未完成的是 TW-05
 2026-08-11 另確認需先處理 ~~`DATA-R01`~~（**2026-09-06 已完成**）、
 ~~`DATA-R02`~~（**2026-09-06 已完成**）、~~`ARC-R01`~~（**2026-09-06 已完成**）、
 ~~`SCM-R05`~~（**2026-08-17 已完成**）、~~`SCM-R01`~~（**2026-08-18 已完成**）、
-`SCM-R02`、`WEB-P0-01/02/03`。這些不重開已完成的 Stage 0 歷史，而是當日的
-current finding；在對應 acceptance 通過前，不得把尚未關閉項寫成已驗證。
+~~`SCM-R02` Node 安全 floor~~（**2026-09-07 已完成**）、
+~~`WEB-P0-01/02/03`~~（**2026-09-07／2026-09-08 已完成**）。這些不重開已完成的
+Stage 0 歷史，而是當日的 current finding；已關閉項見下，不得把未關閉項寫成已驗證。
 SAST merge gate 已隨 `SCM-R01` 關閉。slot release、occurrence identity 與
 outbox lease fencing 已隨 `DATA-R01`／`DATA-R02`／`ARC-R01` 關閉，見下；
 這**不**表示 booking route、cloud Firestore 或 worker 多實例已被授權。
@@ -74,16 +75,35 @@ occurrence ID。
 outbox lease owner／token／generation 與 conditional settle。這仍不是 cloud
 worker 多實例或 D-010 部署授權。
 
-因此這一路的下一個工程切片是 **`SCM-R02`**（runtime 安全：CSP／security headers／
-API runtime 防護），它與 `SCM-R01`／`SCM-R05` 無相依。`WEB-P0-01/02/03`
-不受此影響，仍各自待處理。
+**`SCM-R02` 已於 2026-09-07 完成（PR #80，merge `bcff619`）。** 範圍是 Node
+`>=24.20.0 <25` 與 CI 釘 `24.20.0`，拒絕未修補的 `24.14.0`。這**不是** Cloud Run
+image digest，也不授權 D-010。舊稿曾把同一 ID 寫成「CSP／security headers／API
+runtime」——那是 ID 碰撞。Hosting CSP 與 API `private, no-store` 已存在於
+Stage 0／後續切片；HSTS 仍未排程。不得重開 `SCM-R02`。
 
-**`WEB-P0-01` 已於 2026-09-07 完成（PR #81，merge `867fb8c`）。**
-`WEB-P0-02`／`WEB-P0-03` 的實作與證據 gate 另以 PR 送審；在該 PR 的
-exact-head CI 轉綠前，兩項皆不得記為完成或 CI-VERIFIED。
+**`SCM-R03` 已於 2026-09-09 完成（PR #89，merge `6e91bda`）。** checksum-pinned
+Gitleaks 8.30.1 進入同一 `verify` run；`Verification evidence` `schemaVersion` 3
+聚合其結果。不另增 GitHub required context。故意失敗 PR #91（run
+`34265160446`）證明紅掃描擋合併後關閉未合併。證據：
+[2026-09-09 SCM-R03 record](../reviews/2026-09-09-scm-r03-gitleaks-evidence.md)。
+`DATA-R03` 已於 2026-09-09 由業主授權，尚未關閉。
 
-`SCM-R04` 未關閉：9 筆殘留 advisory（1 low／8 moderate，全在 dev 工具鏈）低於 `high`
-門檻、不擋 gate，但仍無 owner／理由／到期日。**gate 綠不等於 patch SLA 存在。**
+**`WEB-P0-01` 已於 2026-09-07 完成（PR #81，merge `867fb8c`）。** 每頁
+`requiresDecision` fail-closed；`/privacy` 在 D-003 核准前維持 noindex。
+
+**`WEB-P0-02`／`WEB-P0-03` 已於 2026-09-08 完成（PR #83，merge `49efeda`）。**
+`origin/main` 該 SHA 的 `verify` run `34201616025` 含 performance／axe 證據 job。
+這**不是** TW-05／WEB-30-02 真人輔具與實體裝置驗收。
+
+此節剩餘未關閉項：`DATA-R03`（已授權、尚未實作）、`SCM-R04`（firebase-tools 兩筆
+跨 major advisory 待 2026-10-09 重審）、TW-05 真人驗收、以及 C0／Stage 2 授權。
+不得把 booking write route、cloud Firestore 或 worker 多實例寫成已授權。
+
+`SCM-R04` 未關閉：2026-09-08T19:10Z fresh-check 為 10 筆 open（9 moderate／1 low，
+0 high）。同 major patch（`hono`／`postcss`／`undici@6`／`re2`）見
+[2026-09-09 triage](../reviews/2026-09-09-scm-r04-dependabot-triage.md)。
+`stream-json@1` 與 `csv-parse@5` 的修補版是 3.x／7.x，而 `firebase-tools` 15.x
+仍宣告 `^1.7.3`／`^5.0.4`，不得為清帳而 dismiss。**gate 綠不等於 patch SLA 結束。**
 
 每項的完成定義、回滾與證據格式以[執行書 §1A](full-project-execution-book-2026-07-31.md)
 為準。
@@ -142,10 +162,10 @@ Calendar 仍只是投影，不是預約量能或衝突的 source of truth。
 public release；C2 已於 2026-08-02 全部完成——WebP／responsive 壓縮到位、影像預算改為
 180 KiB／14 檔（實測 127.3 KiB／13 檔），圖片來源與授權確認為診所自有。
 
-**2026-08-11 SEO／隱私 fail-closed 缺口：** `/privacy` 目前被 page inventory 標為
-indexable 且列於 sitemap，但頁面仍明示草稿未生效。任何
-`WEB_PUBLIC_INDEXABLE=true` 發布前必須改為 route-specific 核准；D-003 未核准時，
-privacy 草稿維持 noindex 並排除 sitemap。一個全域開關不得代替每頁發布核准。
+**SEO／隱私 fail-closed（WEB-P0-01 已實作）：** `/privacy` 的技術
+`indexable` 仍可為 true，但 `requiresDecision: D-003` 在決策未核准前強制
+noindex 並排除發布 sitemap。一個全域 `WEB_PUBLIC_INDEXABLE` 不得代替每頁發布核准。
+D-003 本身仍 pending。
 
 ### 5. Stage 5：個管、排班與薪資正式化
 
@@ -201,7 +221,8 @@ production 的告警、secret rotation、restore、DR、法規／vendor 重審�
 
 D-006 與 D-010 已核准的是目標；仍須 C0 與各切片 deployment authority 才能實作。
 D-012 只核准合成 preview 上的健保署署徽；production domain 前要重評。D-013 已
-核准並要求 `main` 的 `Verification evidence`，管理者 bypass 保留。
+核准並要求 `main` 的 `Verification evidence`；2026-09-09 修訂為 administrators
+同樣受約束（`enforce_admins=true`）。
 
 ### C. C0 與每次部署
 

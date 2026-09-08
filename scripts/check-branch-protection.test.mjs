@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { enforcedChecks, missingChecks } from './check-branch-protection.mjs';
+import {
+  enforcedChecks,
+  missingChecks,
+  protectionPolicyFailures
+} from './check-branch-protection.mjs';
 
 const NOT_CONFIGURED = { status: 404, body: '' };
 const NO_RULESETS = { status: 200, body: '[]' };
@@ -126,5 +130,45 @@ describe('missing required checks', () => {
 
   it('returns nothing when every required check is enforced', () => {
     expect(missingChecks(new Set(['A', 'B']), ['A', 'B'])).toEqual([]);
+  });
+});
+
+describe('D-013 protection policy', () => {
+  const compliant = {
+    enforce_admins: { enabled: true },
+    allow_force_pushes: { enabled: false },
+    allow_deletions: { enabled: false }
+  };
+
+  it('accepts administrators bound by required checks with force push and deletion off', () => {
+    expect(protectionPolicyFailures(compliant)).toEqual([]);
+  });
+
+  it('rejects an administrator bypass', () => {
+    expect(
+      protectionPolicyFailures({
+        ...compliant,
+        enforce_admins: { enabled: false }
+      })
+    ).toContain('enforce_admins must be true (administrators cannot bypass)');
+  });
+
+  it('rejects omitted enforce_admins instead of treating silence as approved', () => {
+    expect(protectionPolicyFailures({}).length).toBeGreaterThan(0);
+  });
+
+  it('rejects force pushes and branch deletion', () => {
+    expect(
+      protectionPolicyFailures({
+        ...compliant,
+        allow_force_pushes: { enabled: true }
+      })
+    ).toContain('allow_force_pushes must stay disabled');
+    expect(
+      protectionPolicyFailures({
+        ...compliant,
+        allow_deletions: { enabled: true }
+      })
+    ).toContain('allow_deletions must stay disabled');
   });
 });
