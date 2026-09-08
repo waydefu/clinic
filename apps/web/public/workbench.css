@@ -100,13 +100,10 @@ html.synthetic-workbench-ready .cp-boot-status {
   outline-offset: 0.28rem;
 }
 /* 不透明底：半透明會讓 hero 文字透出來疊在導覽列上（2026-07-22 截圖回報）。 */
-/* 導覽在手機放不下七個工作區，會橫向捲動——實測 375px 下只看得到前三個，
-   「個管指派」「員工權限」「患者端與系統」「稽核紀錄」全在畫面外，而且最後一個
-   還被切在半個字上。沒有任何提示的話，使用者合理地會以為工作臺只有三個區塊。
-
-   scroll-snap 讓每次滑動停在完整的項目上，不會停在半個字；右緣的淡出遮罩（在
-   手機斷點裡）代表「後面還有」。用 proximity 而非 mandatory：mandatory 會在
-   使用者只想微調位置時把畫面搶回去。 */
+/* 手機以 disclosure 顯示完整清單；未初始化時仍保留原生錨點。 */
+.workspace-nav-toggle {
+  display: none;
+}
 .workspace-nav {
   align-items: center;
   background: var(--surface);
@@ -130,8 +127,6 @@ html.synthetic-workbench-ready .cp-boot-status {
 }
 .workspace-nav a {
   scroll-snap-align: start;
-}
-.workspace-nav a {
   align-items: center;
   border-radius: var(--radius-sm);
   color: var(--ink-muted);
@@ -802,20 +797,22 @@ details[open] > summary .workflow-summary-chevron {
   .session-picker select {
     width: 100%;
   }
-  /* 右緣淡出：被硬切的邊看起來像「就這樣了」，淡出的邊看起來像「還有」。
-     只在手機加，因為桌機放得下七項、不會捲動，那裡加遮罩反而像顯示錯誤。
-     已知取捨：捲到最右端時遮罩仍在（純 CSS 讀不到捲動位置）。相較於完全沒有
-     提示，這個代價可以接受。 */
+  .workspace-nav-toggle:not([hidden]) {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
   .workspace-nav {
+    align-items: stretch;
     border-radius: var(--radius-sm);
+    flex-direction: column;
     margin-inline: calc(var(--space-3xs) * -1);
-    mask-image: linear-gradient(
-      to right,
-      currentColor 0,
-      currentColor calc(100% - 2rem),
-      transparent 100%
-    );
-    top: 0;
+    overflow: visible;
+    position: static;
+    scroll-snap-type: none;
+  }
+  .workspace-nav[data-collapsed='true'] {
+    display: none;
   }
   .status-banner {
     position: static;
