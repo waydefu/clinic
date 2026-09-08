@@ -1,0 +1,5 @@
+SCM-R03 negative-control canary. This is not a credential.
+The following assignment exists only so default Gitleaks generic-api-key
+must fail the required Verification evidence aggregate. Do not merge.
+
+api_key = "n7Q2vK9mX4pL8wR1zC6bH0yT3sA5dF"
