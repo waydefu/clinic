@@ -14,7 +14,14 @@ export const IdempotencyResponseReferenceSchema = z
   .object({
     // A replay has to resolve to the same kind of resource it originally
     // produced, so the reference names it rather than assuming appointment.
-    resourceType: z.enum(['appointment', 'schedule']),
+    // case_assignment and payroll_period remain for planner alignment, not
+    // persistence or D-007/D-008 clearance.
+    resourceType: z.enum([
+      'appointment',
+      'schedule',
+      'case_assignment',
+      'payroll_period'
+    ]),
     resourceId: OpaqueIdentifierSchema
   })
   .strict();

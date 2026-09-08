@@ -36,6 +36,26 @@ describe('idempotency domain contract', () => {
     });
   });
 
+  it('preserves planner resource types in response references', () => {
+    const caseAssignment = planIdempotencyRecord(
+      context,
+      'case_assignment_001',
+      '2026-07-23T14:30:00.000Z',
+      'case_assignment'
+    );
+    const payrollPeriod = planIdempotencyRecord(
+      context,
+      'payroll_period_001',
+      '2026-07-23T14:30:00.000Z',
+      'payroll_period'
+    );
+
+    expect([
+      caseAssignment.responseReference.resourceType,
+      payrollPeriod.responseReference.resourceType
+    ]).toEqual(['case_assignment', 'payroll_period']);
+  });
+
   it('resolves an exact replay to the original appointment', () => {
     const record = planIdempotencyRecord(
       context,

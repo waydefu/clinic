@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { IdempotencyRecordV1Schema } from './idempotency.js';
+import {
+  IdempotencyRecordV1Schema,
+  IdempotencyResponseReferenceSchema
+} from './idempotency.js';
 
 const HASH = 'a'.repeat(64);
 
@@ -25,6 +28,39 @@ describe('IdempotencyRecordV1Schema', () => {
     expect(() =>
       IdempotencyRecordV1Schema.parse({ ...record, requestHash: 'not-a-hash' })
     ).toThrow();
+  });
+
+  it('accepts all stored planner resource types', () => {
+    for (const resourceType of [
+      'schedule',
+      'case_assignment',
+      'payroll_period'
+    ] as const) {
+      expect(
+        IdempotencyResponseReferenceSchema.parse({
+          resourceType,
+          resourceId: 'resource_001'
+        })
+      ).toEqual({
+        resourceType,
+        resourceId: 'resource_001'
+      });
+    }
+  });
+
+  it('rejects an unknown resource type', () => {
+    expect(() =>
+      IdempotencyResponseReferenceSchema.parse({
+        resourceType: 'unknown',
+        resourceId: 'resource_001'
+      })
+    ).toThrow();
+  });
+
+  it('exposes the stored resource types in order', () => {
+    expect(
+      IdempotencyResponseReferenceSchema.shape.resourceType.options
+    ).toEqual(['appointment', 'schedule', 'case_assignment', 'payroll_period']);
   });
 
   it('rejects legacy and raw-key fields', () => {
