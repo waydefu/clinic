@@ -86,7 +86,12 @@ Gitleaks 8.30.1 進入同一 `verify` run；`Verification evidence` `schemaVersi
 聚合其結果。不另增 GitHub required context。故意失敗 PR #91（run
 `34265160446`）證明紅掃描擋合併後關閉未合併。證據：
 [2026-09-09 SCM-R03 record](../reviews/2026-09-09-scm-r03-gitleaks-evidence.md)。
-`DATA-R03` 已於 2026-09-09 由業主授權，尚未關閉。
+
+**`DATA-R03` 已於 2026-09-09 由業主授權，三刀工程切片已上 `main`，ID 尚未關閉。**
+未知 Calendar status 拒絕（PR #95，`dbbeed7`）、slot／appointment dual-reader
+（PR #98，`21a3ee9`）、idempotency `resourceType` 與 domain 對齊（PR #99，
+`3f726d8`）。沒有 dual-write、沒有 D-007／D-008 持久化。證據：
+[2026-09-09 DATA-R03 slices](../reviews/2026-09-09-data-r03-engineering-slices.md)。
 
 **`WEB-P0-01` 已於 2026-09-07 完成（PR #81，merge `867fb8c`）。** 每頁
 `requiresDecision` fail-closed；`/privacy` 在 D-003 核准前維持 noindex。
@@ -95,7 +100,7 @@ Gitleaks 8.30.1 進入同一 `verify` run；`Verification evidence` `schemaVersi
 `origin/main` 該 SHA 的 `verify` run `34201616025` 含 performance／axe 證據 job。
 這**不是** TW-05／WEB-30-02 真人輔具與實體裝置驗收。
 
-此節剩餘未關閉項：`DATA-R03`（已授權、尚未實作）、`SCM-R04`（firebase-tools 兩筆
+此節剩餘未關閉項：`DATA-R03`（已授權、三刀已上 main、ID 未關）、`SCM-R04`（firebase-tools 兩筆
 跨 major advisory 待 2026-10-09 重審）、TW-05 真人驗收、以及 C0／Stage 2 授權。
 不得把 booking write route、cloud Firestore 或 worker 多實例寫成已授權。
 
