@@ -1,6 +1,8 @@
 import {
   assertIdempotencyContext,
+  parseAppointmentSnapshot,
   parsePatientBookingGuard,
+  parseSlotSnapshot,
   planBooking,
   planReschedule,
   planTransition,
@@ -11,7 +13,6 @@ import {
   type PatientBookingGuardSnapshot,
   type PlannedPatientBookingGuardMutation,
   type RescheduleRequest,
-  type SlotSnapshot,
   type TransitionRequest
 } from '@beauessence/domain';
 import { IdempotencyRecordV1Schema } from '@beauessence/contracts';
@@ -81,10 +82,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       const slotDocument = await transaction.get(slotRef);
 
       const slot = slotDocument.exists
-        ? ({
-            id: slotDocument.id,
-            ...slotDocument.data()
-          } as SlotSnapshot)
+        ? parseSlotSnapshot(slotDocument.id, slotDocument.data())
         : undefined;
       const patientBookingGuard =
         this.patientGuardSnapshotOf(patientGuardDocument);
@@ -138,7 +136,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     document: DocumentSnapshot
   ): AppointmentSnapshot | undefined {
     if (!document.exists) return undefined;
-    return { id: document.id, ...document.data() } as AppointmentSnapshot;
+    return parseAppointmentSnapshot(document.id, document.data());
   }
 
   private patientGuardSnapshotOf(
@@ -315,7 +313,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
             );
 
       const targetSlot = targetDocument.exists
-        ? ({ id: targetDocument.id, ...targetDocument.data() } as SlotSnapshot)
+        ? parseSlotSnapshot(targetDocument.id, targetDocument.data())
         : undefined;
 
       // --- decision (pure) ---------------------------------------------

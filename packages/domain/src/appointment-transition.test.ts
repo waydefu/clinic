@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseAppointmentSnapshot,
   planDeletion,
   planReschedule,
   planTransition,
@@ -77,6 +78,62 @@ const codeOf = (run: () => unknown): string => {
   }
   return 'NO_ERROR';
 };
+
+describe('parseAppointmentSnapshot', () => {
+  const id = 'appointment_001';
+  const legacy = {
+    slotId: 'slot_20300102_1200',
+    patientId: 'patient_001',
+    bookingKind: 'initial',
+    status: 'confirmed',
+    startsAt: NOW,
+    createdAt: NOW,
+    updatedAt: NOW
+  };
+
+  it('reads the legacy shape without a schema version', () => {
+    expect(parseAppointmentSnapshot(id, legacy)).toEqual({
+      id,
+      slotId: 'slot_20300102_1200',
+      patientId: 'patient_001',
+      bookingKind: 'initial',
+      status: 'confirmed'
+    });
+  });
+
+  it('reads schema version 1', () => {
+    expect(
+      parseAppointmentSnapshot(id, { ...legacy, schemaVersion: 1 })
+    ).toEqual({
+      id,
+      slotId: 'slot_20300102_1200',
+      patientId: 'patient_001',
+      bookingKind: 'initial',
+      status: 'confirmed'
+    });
+  });
+
+  it('rejects an unknown status and schema version', () => {
+    expect(
+      codeOf(() =>
+        parseAppointmentSnapshot(id, { ...legacy, status: 'unknown' })
+      )
+    ).toBe('INVALID_VALUE');
+    expect(
+      codeOf(() =>
+        parseAppointmentSnapshot(id, { ...legacy, schemaVersion: 2 })
+      )
+    ).toBe('INVALID_VALUE');
+  });
+
+  it('rejects an appointment without a slot identifier', () => {
+    expect(
+      codeOf(() =>
+        parseAppointmentSnapshot(id, { ...legacy, slotId: undefined })
+      )
+    ).toBe('INVALID_VALUE');
+  });
+});
 
 describe('planTransition', () => {
   it('maps each transition to its status and audit action', () => {

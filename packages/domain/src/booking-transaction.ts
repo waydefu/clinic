@@ -120,6 +120,55 @@ function assertIdentifier(value: string, fieldName: string): void {
   }
 }
 
+export function parseSlotSnapshot(id: string, data: unknown): SlotSnapshot {
+  assertIdentifier(id, 'id');
+
+  try {
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error();
+    }
+    const record = data as Record<string, unknown>;
+    if (
+      Object.prototype.hasOwnProperty.call(record, 'schemaVersion') &&
+      record['schemaVersion'] !== 1
+    ) {
+      throw new Error();
+    }
+    if (record['kind'] !== 'initial' && record['kind'] !== 'follow_up') {
+      throw new Error();
+    }
+    if (typeof record['startsAt'] !== 'string') {
+      throw new Error();
+    }
+    assertUtcTimestamp(record['startsAt'], 'startsAt');
+
+    const hasReservationId = Object.prototype.hasOwnProperty.call(
+      record,
+      'reservationId'
+    );
+    const reservationId = record['reservationId'];
+    if (
+      hasReservationId &&
+      reservationId !== null &&
+      (typeof reservationId !== 'string' || reservationId === '')
+    ) {
+      throw new Error();
+    }
+    if (hasReservationId && typeof reservationId === 'string') {
+      assertIdentifier(reservationId, 'reservationId');
+    }
+
+    return {
+      id,
+      kind: record['kind'],
+      startsAt: record['startsAt'],
+      ...(typeof reservationId === 'string' ? { reservationId } : {})
+    };
+  } catch {
+    throw new DomainError('INVALID_VALUE', 'The slot is unreadable.');
+  }
+}
+
 function uniqueIdentifiers(
   values: readonly unknown[],
   fieldName: string
