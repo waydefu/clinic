@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseSlotSnapshot,
   parsePatientBookingGuard,
   planBooking,
   type BookingRequest,
@@ -200,6 +201,74 @@ describe('planBooking', () => {
         )
       )
     ).toBe('INVALID_TIMESTAMP');
+  });
+});
+
+describe('parseSlotSnapshot', () => {
+  const id = 'slot_20300102_1200';
+  const legacy = {
+    kind: 'initial',
+    startsAt: '2030-01-02T04:00:00.000Z',
+    status: 'available'
+  };
+
+  it('reads the legacy shape without a schema version', () => {
+    expect(parseSlotSnapshot(id, legacy)).toEqual({
+      id,
+      kind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z'
+    });
+  });
+
+  it('reads schema version 1', () => {
+    expect(parseSlotSnapshot(id, { ...legacy, schemaVersion: 1 })).toEqual({
+      id,
+      kind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z'
+    });
+  });
+
+  it('treats a legacy null reservation as unoccupied', () => {
+    expect(parseSlotSnapshot(id, { ...legacy, reservationId: null })).toEqual({
+      id,
+      kind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z'
+    });
+  });
+
+  it('keeps an occupied reservation identifier', () => {
+    expect(
+      parseSlotSnapshot(id, { ...legacy, reservationId: 'appointment_001' })
+    ).toEqual({
+      id,
+      kind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      reservationId: 'appointment_001'
+    });
+  });
+
+  it('rejects missing or unparsable startsAt', () => {
+    expect(codeOf(() => parseSlotSnapshot(id, { kind: legacy.kind }))).toBe(
+      'INVALID_VALUE'
+    );
+    expect(
+      codeOf(() =>
+        parseSlotSnapshot(id, {
+          ...legacy,
+          startsAt: '2030-02-31T04:00:00.000Z'
+        })
+      )
+    ).toBe('INVALID_VALUE');
+  });
+
+  it('rejects a bad kind, an unknown schema version and non-objects', () => {
+    expect(
+      codeOf(() => parseSlotSnapshot(id, { ...legacy, kind: 'not_a_kind' }))
+    ).toBe('INVALID_VALUE');
+    expect(
+      codeOf(() => parseSlotSnapshot(id, { ...legacy, schemaVersion: 2 }))
+    ).toBe('INVALID_VALUE');
+    expect(codeOf(() => parseSlotSnapshot(id, null))).toBe('INVALID_VALUE');
   });
 });
 

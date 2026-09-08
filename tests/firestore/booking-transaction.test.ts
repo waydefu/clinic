@@ -562,4 +562,17 @@ describe('booking write path in a Firestore transaction', () => {
     const appointments = await db.collection(COLLECTIONS.appointments).get();
     expect(appointments.size).toBe(0);
   });
+
+  it('rejects an unreadable slot and writes nothing', async () => {
+    await db
+      .collection(COLLECTIONS.slots)
+      .doc(SLOT_ID)
+      .update({ kind: 'not_a_kind' });
+
+    await expect(repository.reserve(bookingRequest())).rejects.toMatchObject({
+      code: 'INVALID_VALUE',
+      message: 'The slot is unreadable.'
+    });
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(0);
+  });
 });

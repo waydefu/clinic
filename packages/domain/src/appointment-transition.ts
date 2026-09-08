@@ -170,6 +170,66 @@ const NEXT_STATUS: Record<AppointmentTransition, AppointmentStatusValue> = {
   no_show: 'no_show'
 };
 
+function assertIdentifier(value: string, fieldName: string): void {
+  if (!/^[A-Za-z0-9_:-]{1,128}$/.test(value)) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      `${fieldName} must be an opaque identifier.`
+    );
+  }
+}
+
+export function parseAppointmentSnapshot(
+  id: string,
+  data: unknown
+): AppointmentSnapshot {
+  assertIdentifier(id, 'id');
+
+  try {
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error();
+    }
+    const record = data as Record<string, unknown>;
+    if (
+      Object.prototype.hasOwnProperty.call(record, 'schemaVersion') &&
+      record['schemaVersion'] !== 1
+    ) {
+      throw new Error();
+    }
+
+    const slotId = record['slotId'];
+    const patientId = record['patientId'];
+    if (typeof slotId !== 'string' || slotId === '') {
+      throw new Error();
+    }
+    if (typeof patientId !== 'string' || patientId === '') {
+      throw new Error();
+    }
+    assertIdentifier(slotId, 'slotId');
+    assertIdentifier(patientId, 'patientId');
+
+    const bookingKind = record['bookingKind'];
+    if (bookingKind !== 'initial' && bookingKind !== 'follow_up') {
+      throw new Error();
+    }
+
+    const status = record['status'];
+    if (
+      status !== 'confirmed' &&
+      status !== 'cancellation_requested' &&
+      status !== 'cancelled' &&
+      status !== 'completed' &&
+      status !== 'no_show'
+    ) {
+      throw new Error();
+    }
+
+    return { id, slotId, patientId, bookingKind, status };
+  } catch {
+    throw new DomainError('INVALID_VALUE', 'The appointment is unreadable.');
+  }
+}
+
 function outboxFor(
   appointmentId: string,
   status: CalendarProjectionStatus,

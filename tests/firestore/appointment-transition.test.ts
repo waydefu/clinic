@@ -292,6 +292,19 @@ describe('appointment transitions in a Firestore transaction', () => {
     );
     expect((await appointmentState())?.['status']).toBe('confirmed');
   });
+
+  it('rejects an unreadable appointment without writing', async () => {
+    await db
+      .collection(COLLECTIONS.appointments)
+      .doc(APPOINTMENT)
+      .update({ status: 'mystery' });
+
+    await expect(transition('cancel')).rejects.toMatchObject({
+      code: 'INVALID_VALUE',
+      message: 'The appointment is unreadable.'
+    });
+    expect((await appointmentState())?.['status']).toBe('mystery');
+  });
 });
 
 describe('reschedule in a Firestore transaction', () => {
