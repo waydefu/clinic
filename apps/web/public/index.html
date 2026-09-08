@@ -211,7 +211,20 @@
           </details>
         </div>
       </header>
-      <nav class="workspace-nav" aria-label="管理工作臺導覽">
+      <button
+        class="button button-secondary workspace-nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="workspace-navigation"
+        hidden
+      >
+        工作區導覽<span aria-hidden="true">☰</span>
+      </button>
+      <nav
+        id="workspace-navigation"
+        class="workspace-nav"
+        aria-label="管理工作臺導覽"
+      >
         <a href="#overview" data-workspace-nav>營運首頁</a
         ><a href="#appointments-section" data-workspace-nav>預約與回診</a
         ><a href="#schedule-section" data-workspace-nav data-admin-nav

@@ -8,7 +8,7 @@ import {
 
 // Complements T3-Q-01 without modifying its five in-flight files. Assertions
 // protect task access and responsive geometry, not a particular CSS layout.
-for (const width of [360, 390, 768, 1280, 1440]) {
+for (const width of [320, 360, 375, 390, 768, 1024, 1280, 1440]) {
   test(`新版工作臺 ${width}px 保留有資料清單、導覽與可操作目標`, async ({
     page
   }) => {
@@ -25,6 +25,18 @@ for (const width of [360, 390, 768, 1280, 1440]) {
         document.documentElement.clientWidth
     );
     expect(overflow).toBeLessThanOrEqual(1);
+    const trigger = page.getByRole('button', {
+      name: '工作區導覽',
+      exact: true
+    });
+    if (width <= 768) await trigger.click();
+    else {
+      await expect(trigger).toBeHidden();
+      const rail = page.locator('.workspace-nav');
+      await expect(rail).toHaveCSS('flex-direction', 'column');
+      await expect(rail).toHaveCSS('position', 'sticky');
+      expect((await rail.boundingBox())!.width).toBe(176);
+    }
     const active = page.locator('.workspace-nav [aria-current="page"]');
     await active.focus();
     await expect(active).toBeInViewport();
