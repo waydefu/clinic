@@ -8,13 +8,6 @@ stay here as dated evidence until a later cleanup retires them. Do not retire
 an item from `AGENTS.md` Safety Floor or CONTRIBUTING merely because this file
 records a newer visibility snapshot.
 
-**Type:** live state / unresolved pointer. Not Canon. Not
-[GOVERNANCE.md](../../GOVERNANCE.md).
-**Resolution rule:** [GOVERNANCE.md](../../GOVERNANCE.md) § Conflict resolution.
-An owner decision is required to close each item. Do not retire an item from
-`AGENTS.md` Safety Floor or CONTRIBUTING merely because this file records a
-newer visibility snapshot.
-
 ## GC-001 — repository visibility vs unretired Rule 1
 
 **Status:** unresolved
