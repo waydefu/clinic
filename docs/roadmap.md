@@ -67,9 +67,12 @@ Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 >
 > 這**不**表示 Semgrep CE 等同 CodeQL 跨檔分析。當時 `SCM-R02` 尚未進行。
 >
-> 兩件不因此成立的事：(1) `SCM-R04` 未關閉——9 筆殘留 advisory（1 low／8 moderate，
-> 皆 dev 工具鏈）仍無 owner／理由／到期日；(2) 稽核對 `SCM-R05` 的驗收條文另含
-> 「逐筆 triage 殘留 alert」，該子句與 `SCM-R04` 範圍重疊且尚未完成，邊界待 owner 裁定。
+> 兩件不因此成立的事：(1) `SCM-R04` 未關閉——2026-09-08T19:10Z fresh-check 10 筆
+> open（0 high）；同 major 已修，`stream-json@1`／`csv-parse@5` 跨 major 留至
+> 2026-10-09 重審，見
+> [2026-09-09 triage](reviews/2026-09-09-scm-r04-dependabot-triage.md)；(2) 稽核對
+> `SCM-R05` 的驗收條文另含「逐筆 triage 殘留 alert」，該子句與 `SCM-R04` 範圍重疊，
+> 現由 Q-SCM-R04 授權處理。
 >
 > **`SCM-R02` 已於 2026-09-07 完成。** `package.json` `engines.node` 為
 > `>=24.20.0 <25`（拒絕未修補的 `24.14.0`）；`verify.yml` 五處 `node-version`

@@ -95,12 +95,15 @@ Gitleaks 8.30.1 進入同一 `verify` run；`Verification evidence` `schemaVersi
 `origin/main` 該 SHA 的 `verify` run `34201616025` 含 performance／axe 證據 job。
 這**不是** TW-05／WEB-30-02 真人輔具與實體裝置驗收。
 
-此節剩餘未關閉項：`DATA-R03`（已授權、尚未實作）、`SCM-R04`（殘留 advisory 無
-owner／到期日）、TW-05 真人驗收、以及 C0／Stage 2 授權。不得把 booking write
-route、cloud Firestore 或 worker 多實例寫成已授權。
+此節剩餘未關閉項：`DATA-R03`（已授權、尚未實作）、`SCM-R04`（firebase-tools 兩筆
+跨 major advisory 待 2026-10-09 重審）、TW-05 真人驗收、以及 C0／Stage 2 授權。
+不得把 booking write route、cloud Firestore 或 worker 多實例寫成已授權。
 
-`SCM-R04` 未關閉：9 筆殘留 advisory（1 low／8 moderate，全在 dev 工具鏈）低於 `high`
-門檻、不擋 gate，但仍無 owner／理由／到期日。**gate 綠不等於 patch SLA 存在。**
+`SCM-R04` 未關閉：2026-09-08T19:10Z fresh-check 為 10 筆 open（9 moderate／1 low，
+0 high）。同 major patch（`hono`／`postcss`／`undici@6`／`re2`）見
+[2026-09-09 triage](../reviews/2026-09-09-scm-r04-dependabot-triage.md)。
+`stream-json@1` 與 `csv-parse@5` 的修補版是 3.x／7.x，而 `firebase-tools` 15.x
+仍宣告 `^1.7.3`／`^5.0.4`，不得為清帳而 dismiss。**gate 綠不等於 patch SLA 結束。**
 
 每項的完成定義、回滾與證據格式以[執行書 §1A](full-project-execution-book-2026-07-31.md)
 為準。

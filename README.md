@@ -128,8 +128,12 @@ The 2026-08-01 repository-security delivery fixed the three recorded moderate
 advisories and pinned patched `brace-expansion` versions after its advisory was
 revised; the source tree carries no active audit exception. A read-only GitHub
 API check at 2026-08-11 14:32 +08:00 found **9 open development-scope
-Dependabot alerts** on `main` (8 medium, 1 low); this dated remote inventory is
-separate from source-tree audit exceptions and requires `SCM-R04` triage
+Dependabot alerts** on `main` (8 medium, 1 low); that dated remote inventory is
+separate from source-tree audit exceptions. A 2026-09-08T19:10Z fresh-check
+found **10 open** (9 moderate, 1 low, 0 high), including new alert #32
+(`csv-parse`). Same-major patches and the two remaining firebase-tools majors
+are recorded under `SCM-R04`
+([2026-09-09 triage](docs/reviews/2026-09-09-scm-r04-dependabot-triage.md)).
 (`SCM-R03` is Gitleaks, not Dependabot).
 `main` has no repository ruleset; branch protection has one strict required
 context, `Verification evidence`, with force pushes and deletion disabled,
