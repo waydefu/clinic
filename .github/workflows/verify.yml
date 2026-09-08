@@ -130,6 +130,14 @@ jobs:
       - name: Playwright E2E（${{ matrix.group }}）
         run: pnpm test:e2e $(node scripts/e2e-groups.mjs --files ${{ matrix.group }})
 
+      # WEB-P0-02／03：把各 worker 的證據分片合併成 canonical artifact 並驗證。
+      # 失敗也執行（`!cancelled()`）：紅燈的失敗證據正是除錯依據；合併本身
+      # 缺件（該跑的 spec 沒產出分片）也會讓 job 變紅。非 ui／accessibility
+      # 組別無分片可合，直接跳過。
+      - name: Merge web quality evidence shards
+        if: ${{ !cancelled() && (matrix.group == 'ui' || matrix.group == 'accessibility') }}
+        run: node scripts/merge-web-evidence.mjs --expect ${{ matrix.group == 'ui' && 'perf' || 'a11y' }}
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
@@ -137,6 +145,20 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+      # WEB-P0-02／03：機器可讀的效能與 axe 證據。檔名已綁 exact head SHA；
+      # `!cancelled()` 讓紅燈的失敗證據同樣上傳——失敗的 artifact 才是除錯依據。
+      # 只有 ui（performance）與 accessibility（axe）兩組會產出這些檔，
+      # 其餘組別 ignore 不視為缺件。
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: web-quality-evidence-${{ matrix.group }}
+          path: |
+            output/evidence/web-*.json
+            output/evidence/shards/
+          if-no-files-found: ignore
+          retention-days: 30
 
   supply-chain:
     name: Tracked secrets、dependency audit 與 inventory

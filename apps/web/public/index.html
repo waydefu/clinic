@@ -224,6 +224,12 @@
         ><a href="#audit-section" data-workspace-nav data-admin-nav>稽核紀錄</a>
       </nav>
       <main id="main-content" class="dashboard" tabindex="-1">
+        <!-- 常駐頁面標題：hero 區（含可見 h1#workspace-title）在切換到各工作區
+          面板時會被整段隱藏（見 workspace-tabs.js 的 data-overview-only），
+          此時頁面將一個 h1 都沒有，觸發 axe page-has-heading-one。
+          這個 visually-hidden 的 h1 永遠留在可及樹裡，各面板的 h2 掛在它之下，
+          標題層級不斷裂；視覺零變化（.visually-hidden 為既有通用類）。 -->
+        <h1 class="visually-hidden">預約營運工作臺</h1>
         <section
           class="hero-panel compact-hero"
           data-overview-only

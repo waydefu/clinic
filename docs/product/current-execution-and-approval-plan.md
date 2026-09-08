@@ -78,6 +78,10 @@ worker 多實例或 D-010 部署授權。
 API runtime 防護），它與 `SCM-R01`／`SCM-R05` 無相依。`WEB-P0-01/02/03`
 不受此影響，仍各自待處理。
 
+**`WEB-P0-01` 已於 2026-09-07 完成（PR #81，merge `867fb8c`）。**
+`WEB-P0-02`／`WEB-P0-03` 的實作與證據 gate 另以 PR 送審；在該 PR 的
+exact-head CI 轉綠前，兩項皆不得記為完成或 CI-VERIFIED。
+
 `SCM-R04` 未關閉：9 筆殘留 advisory（1 low／8 moderate，全在 dev 工具鏈）低於 `high`
 門檻、不擋 gate，但仍無 owner／理由／到期日。**gate 綠不等於 patch SLA 存在。**
 
