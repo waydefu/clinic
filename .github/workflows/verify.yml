@@ -251,6 +251,33 @@ jobs:
   sast:
     uses: ./.github/workflows/sast-scan.yml
 
+  # SCM-R03：Gitleaks 與其他必要 job 在同一個 run，讓 `Verification evidence`
+  # 吃到結果。不新增 GitHub required context。二進位用 checksum 釘 8.30.1
+  # （與 public-mirror-sync runbook 相同版本），避免 org 授權的 action 與
+  # 浮動 tag。
+  gitleaks:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned Gitleaks 8.30.1
+        run: |
+          set -euo pipefail
+          asset='gitleaks_8.30.1_linux_x64.tar.gz'
+          expected='551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
+          curl -fsSL -o "$asset" "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/${asset}"
+          echo "${expected}  ${asset}" | sha256sum -c -
+          tar -xzf "$asset" gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan repository history with redaction
+        run: gitleaks detect --source . --verbose --redact --config gitleaks.toml --exit-code 1
+
   evidence:
     name: Verification evidence
     if: ${{ always() }}
@@ -260,8 +287,9 @@ jobs:
     # 證據的判斷不變，branch protection 也仍然只綁 `Verification evidence` 這一個
     # check。要看是哪一組壞掉，看 PR 上的 `e2e-<group>` 或 `sast / …`。
     #
-    # required job 清單自 `SCM-R01` 起是五項——第五項是 `sast`。
-    needs: [verify, rules, e2e, supply-chain, sast]
+    # required job 清單自 `SCM-R03` 起是六項——第六項是 `gitleaks`。
+    # GitHub branch protection 仍然只綁 `Verification evidence` 這一個 check。
+    needs: [verify, rules, e2e, supply-chain, sast, gitleaks]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -281,6 +309,7 @@ jobs:
           CI_EVIDENCE_E2E_RESULT: ${{ needs.e2e.result }}
           CI_EVIDENCE_SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
           CI_EVIDENCE_SAST_RESULT: ${{ needs.sast.result }}
+          CI_EVIDENCE_GITLEAKS_RESULT: ${{ needs.gitleaks.result }}
           # 掃描自報的 commit。它必須等於這個 run 的候選 commit，證據才算同 commit。
           # 失敗的掃描同樣會回報它掃了誰，所以紅燈指名得出對象；真正拿不到值的情況
           # （被跳過、提早中斷）是空字串，而空字串判為不符。

@@ -79,8 +79,9 @@ worker 多實例或 D-010 部署授權。
 `>=24.20.0 <25` 與 CI 釘 `24.20.0`，拒絕未修補的 `24.14.0`。這**不是** Cloud Run
 image digest，也不授權 D-010。舊稿曾把同一 ID 寫成「CSP／security headers／API
 runtime」——那是 ID 碰撞。Hosting CSP 與 API `private, no-store` 已存在於
-Stage 0／後續切片；若日後要獨立追 HSTS、Gitleaks-in-CI 或 DATA-R03，須另給 ID，
-不得重開 `SCM-R02`。
+Stage 0／後續切片；HSTS 仍未排程。`DATA-R03` 與 `SCM-R03`（Gitleaks 進
+`Verification evidence` 聚合，不另增 GitHub required context）已於 2026-09-09
+由業主授權，不得重開 `SCM-R02`。
 
 **`WEB-P0-01` 已於 2026-09-07 完成（PR #81，merge `867fb8c`）。** 每頁
 `requiresDecision` fail-closed；`/privacy` 在 D-003 核准前維持 noindex。
