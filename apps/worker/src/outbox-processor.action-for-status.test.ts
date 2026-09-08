@@ -16,6 +16,7 @@ describe('actionForStatus', () => {
     expect(actionForStatus('no_show')).toBe('cancel');
     expect(actionForStatus('deleted')).toBe('cancel');
     expect(actionForStatus('follow_up_not_required')).toBe('cancel');
+    expect(actionForStatus('follow_up_scheduled')).toBe('cancel');
   });
 
   it('refuses unknown status instead of cancelling the calendar event', () => {

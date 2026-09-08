@@ -57,7 +57,9 @@ const CANCEL_PROJECTION_STATUSES = new Set([
   'completed',
   'no_show',
   'deleted',
-  'follow_up_not_required'
+  'follow_up_not_required',
+  // 正式回診預約已建立時，先前的「尚待安排」提醒必須刪掉。
+  'follow_up_scheduled'
 ]);
 
 /**
@@ -358,10 +360,11 @@ export class OutboxProcessor {
       // 一般預約投影沒有 job.startsAt，退回讀來源預約的時間。
       const startsAt =
         job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '';
-      const action = actionForStatus(projectionStatus);
       const attemptStartedAt = this.monotonicNow();
       let outcome: AttemptOutcome;
+      let action: CalendarAction | undefined;
       try {
+        action = actionForStatus(projectionStatus);
         assertOutboxTraceContext(job);
         const projectionStartedAt = at();
         const projectionTimeoutMs =
@@ -411,23 +414,25 @@ export class OutboxProcessor {
       // 結算用結算當下的時刻：退避的起點是「這次嘗試何時失敗」，不是「這批
       // 何時開始」，settledAt 也才不會讓整批看起來同時完成。
       const result = await this.settle(job, outcome, at());
-      this.recordMetric(() =>
-        this.metrics.recordCalendarAttempt({
-          destination: 'calendar',
-          action,
-          result:
-            result === 'deadLettered'
-              ? 'dead_lettered'
-              : result === 'retried'
-                ? 'retried'
-                : result === 'superseded'
-                  ? 'superseded'
-                  : 'completed',
-          retryable: outcome.kind === 'failed' ? outcome.retryable : null,
-          attempt: job.attempts + 1,
-          latencyMs: Math.max(0, this.monotonicNow() - attemptStartedAt)
-        })
-      );
+      if (action !== undefined) {
+        this.recordMetric(() =>
+          this.metrics.recordCalendarAttempt({
+            destination: 'calendar',
+            action,
+            result:
+              result === 'deadLettered'
+                ? 'dead_lettered'
+                : result === 'retried'
+                  ? 'retried'
+                  : result === 'superseded'
+                    ? 'superseded'
+                    : 'completed',
+            retryable: outcome.kind === 'failed' ? outcome.retryable : null,
+            attempt: job.attempts + 1,
+            latencyMs: Math.max(0, this.monotonicNow() - attemptStartedAt)
+          })
+        );
+      }
       if (result === 'completed') completed += 1;
       else if (result === 'retried') retried += 1;
       else if (result === 'deadLettered') deadLettered += 1;
