@@ -1,6 +1,6 @@
 # 隱私權政策草案（預約平台）
 
-狀態：**未核准草案，不得成為 indexable/final policy，也不取代法律意見**。只有在每次具名核准、明確 commit／channel／expiry 且強制 `noindex` 的 synthetic preview 才可供測試檢視；D-003、immutable `privacy-vN` 與發布核准完成前不得進 production sitemap。現行 page inventory 把草稿標為 indexable 是已知 `WEB-P0-01` 缺口，不構成發布 authority。本文件是供診所負責人、法務／個資窗口與資安審閱的版本化起點。正式流程須依核准法律依據保存告知版本、顯示時間及必要證據；若以同意為依據，另保存實際意思表示版本與時間。
+狀態：**未核准草案，不得成為 indexable/final policy，也不取代法律意見**。只有在每次具名核准、明確 commit／channel／expiry 且強制 `noindex` 的 synthetic preview 才可供測試檢視；D-003、immutable `privacy-vN` 與發布核准完成前不得進 production sitemap。`WEB-P0-01`（PR #81）已用 `requiresDecision: D-003` 讓草稿在決策核准前 fail-closed 為 noindex；inventory 的技術 `indexable` 欄不得被讀成發布核准。本文件是供診所負責人、法務／個資窗口與資安審閱的版本化起點。正式流程須依核准法律依據保存告知版本、顯示時間及必要證據；若以同意為依據，另保存實際意思表示版本與時間。
 
 ## 1. 個資蒐集者
 

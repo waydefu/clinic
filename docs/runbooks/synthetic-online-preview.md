@@ -70,7 +70,9 @@ firebase hosting:channel:deploy synthetic-review --expires 7d --project [clinic-
 6. 不存在對 API、Firestore、Calendar 或其他外部服務的網路要求。
 7. 瀏覽器分頁標題為 `【測試用】…`，且所有 preview route 維持 `noindex`。現有
    `WEB_PUBLIC_INDEXABLE` 是全域開關，不能作為每頁法律／內容核准；正式參數出現在
-   preview 即停止驗收。直到 `WEB-P0-01` 完成，任何 route 的 index release 都禁止。
+   preview 即停止驗收。`WEB-P0-01` 已於 2026-09-07 以每頁 `requiresDecision`
+   fail-closed 關閉；任何 route 的 index release 仍須該頁核准，`/privacy` 另須
+   D-003。不得因全域開關放行。
 8. `/privacy` 可開啟，明示測試版與草稿；同時必須有 meta/header `noindex` 且不得進
    preview sitemap。D-003 final policy/policyVersion 前，不得因 global switch 被放行。
 
