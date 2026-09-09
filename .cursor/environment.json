@@ -4,12 +4,12 @@
   "terminals": [
     {
       "name": "web",
-      "command": "export PATH=\"$HOME/.nvm/versions/node/v24.18.0/bin:$PATH\"; WEB_ROOT=dist TEST_ONLY_WEB_ENABLED=true TEST_ONLY_WEB_PORT=3100 node apps/web/server.mjs",
+      "command": "export PATH=\"$HOME/.nvm/versions/node/v24.20.0/bin:$PATH\"; WEB_ROOT=dist TEST_ONLY_WEB_ENABLED=true TEST_ONLY_WEB_PORT=3100 node apps/web/server.mjs",
       "description": "Local test-only static site (operations workbench at /, plus /clinic, /booking, /privacy) served from apps/web/dist on http://127.0.0.1:3100. Synthetic, browser-local state only; no API or real data."
     },
     {
       "name": "api",
-      "command": "export PATH=\"$HOME/.nvm/versions/node/v24.18.0/bin:$PATH\"; PORT=3000 HOST=127.0.0.1 node apps/api/dist/main.js",
+      "command": "export PATH=\"$HOME/.nvm/versions/node/v24.20.0/bin:$PATH\"; PORT=3000 HOST=127.0.0.1 node apps/api/dist/main.js",
       "description": "Stage 1 API on http://127.0.0.1:3000. Formal booking remains unrouted. CAL-PILOT synthetic-only /v1/calendar-session and /v1/calendar routes may be present; they are not production booking."
     }
   ],
