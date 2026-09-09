@@ -666,9 +666,9 @@ h1 {
 h2 {
   font-family: var(--font-serif);
   font-size: clamp(
-    var(--text-md),
-    calc(var(--text-md) * 0.5 + 1vw),
-    var(--text-lg)
+    var(--text-lg),
+    calc(var(--text-lg) * 0.5 + 1vw),
+    var(--text-xl)
   );
   letter-spacing: var(--tracking-tight);
   line-height: var(--leading-tight);
@@ -700,6 +700,25 @@ h3 {
   line-height: 1.65;
   max-width: 68ch;
   margin-bottom: 0;
+}
+/* SYSTEM-CARD-01: the inverse hero is already the card. Keep session
+   grouping and contrast, drop the nested white elevated box. */
+.hero-panel .environment-card {
+  align-self: stretch;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: inherit;
+  padding: 0;
+}
+.hero-panel .environment-card .eyebrow {
+  color: var(--on-inverse-accent);
+}
+.hero-panel .environment-card h2 {
+  font-size: var(--text-lg);
+}
+.hero-panel .environment-card > p:last-child {
+  color: var(--on-inverse-muted);
 }
 .policy-code {
   background: var(--surface-tint);
@@ -1260,6 +1279,15 @@ textarea {
   padding: clamp(1.25rem, 3vw, 2.2rem);
   scroll-margin-top: var(--scroll-anchor-offset);
 }
+/* SYSTEM-CARD-01: the booking step is a grouping region. Inner
+   .service-choice / form sections keep the interactive card boundary.
+   clinic-booking.css loads after this file, so beat it on padding/border. */
+.patient-body .booking-panel {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 #patient-booking-app:not([hidden]) {
   display: grid;
   gap: 0;
@@ -1294,7 +1322,7 @@ textarea {
 }
 .booking-panel-heading h2 {
   color: var(--forest-dark);
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   margin-bottom: var(--space-2xs);
 }
 /* 步驟說明是正文，不是註腳。它在告訴使用者這一步要做什麼——那是頁面上少數
@@ -2293,6 +2321,41 @@ label:has(> input[type='radio']) {
   }
 }
 @media (max-width: 30rem) {
+  /* BOOK-MOB-START-01: at 320×568 the header was 211px (37% of the
+     viewport) because 查詢鍵（144px）與「主題」＋選單（149px）加總超過
+     288px 可用寬，主題自己換列。可見「主題」與 select 的 aria-label 重複，
+     窄寬只留選單，讓查詢與偏好回到同一列。不刪 announcement／warning／
+     status／stepper，也不把「第一個操作必須在 320×568 首屏」升成 merge
+     gate。選擇器帶 .patient-body：clinic-booking.css 後載、同分時會蓋掉
+     min-height 與 gap。 */
+  .patient-body .patient-header-inner {
+    align-items: center;
+    gap: var(--space-3xs) var(--space-2xs);
+    min-height: 0;
+    padding-block: var(--space-3xs);
+  }
+  .patient-body .patient-header-inner .theme-picker-text {
+    display: none;
+  }
+  .patient-body .patient-header-inner .theme-picker-label {
+    gap: 0;
+  }
+  .patient-body .patient-header .environment-badge {
+    flex-basis: 100%;
+    line-height: var(--leading-tight);
+    margin-left: 0;
+    white-space: normal;
+  }
+  .patient-body .patient-announcement > div {
+    padding-block: var(--space-2xs);
+    padding-inline: var(--space-sm);
+  }
+  .patient-body .booking-panel {
+    padding: 0;
+  }
+  .patient-body .booking-panel-heading .eyebrow {
+    display: none;
+  }
   .summary-grid {
     grid-template-columns: 1fr;
   }
