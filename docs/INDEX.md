@@ -4,7 +4,7 @@ Minimum authoritative context by task scope. Not the document catalogue —
 that remains [README.md](README.md). Authority scopes:
 [GOVERNANCE.md](../GOVERNANCE.md). Safety Floor: [AGENTS.md](../AGENTS.md).
 Generated projection (not Canon): [state/current.md](state/current.md).
-Unresolved dated conflicts: [state/conflicts.md](state/conflicts.md).
+Dated governance conflicts (open and closed): [state/conflicts.md](state/conflicts.md).
 
 Load only the matching route. Do not load backend, security-history or
 deployment evidence for a UI-only change.

@@ -66,16 +66,20 @@ literal anywhere else.
 
 ## Publication
 
-Every committed file MUST be safe for publication. Repository visibility is
-dynamic state and must not be inferred from AGENTS.md. Current and unresolved
-visibility, including the unretired Rule 1, live in
-[docs/state/conflicts.md](docs/state/conflicts.md).
+Every committed file MUST be safe for publication. That invariant does not
+depend on GitHub visibility and is not retired by GC-001.
 
-`waydefu/clinic` is the canonical project record. The public
+**GC-001 (clinic owner, 2026-09-09):** `waydefu/clinic` remains the canonical
+project record and remains public. Historical Rule 1 — that the canonical
+repository must not be public — is retired. Closed-item evidence lives in
+[docs/state/conflicts.md](docs/state/conflicts.md). Public visibility does
+not grant production, deployment, real-data, cloud, or secret / IAM /
+traffic authority, and does not grant an open-source licence.
+
+`waydefu/clinic` is the canonical project record. The separately curated
 [`waydefu/appointment-platform-public`](https://github.com/waydefu/appointment-platform-public)
-repository is a separately curated, code-only reference with its own clean Git
-history. It is not a backup, fork, deployment target or source of project-stage
-authority.
+repository is a code-only reference with its own clean Git history. It is not
+a backup, fork, deployment target or source of project-stage authority.
 
 1. Move code to the public mirror only through an explicit allowlist export
    into an isolated workspace. Exclude clinic and people content, brand assets,

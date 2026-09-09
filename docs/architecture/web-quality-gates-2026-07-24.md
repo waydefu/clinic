@@ -263,7 +263,7 @@ purl，不受影響。若之後需要完整相依圖，來源要改成鎖檔。
 `check:supply-chain` 依序跑**兩層** audit，會擋 CI。它查的是**線上的 advisory
 資料庫**，所以就算一行程式都沒改，它也可能某天開始變紅——這是刻意的，不是雜訊。
 
-2026-07-30，私有 canonical repository `waydefu/clinic` 已啟用 dependency graph
+2026-07-30，當時仍為私有的 canonical repository `waydefu/clinic` 已啟用 dependency graph
 與 Dependabot alerts，初始顯示 4 筆 development-scope open alerts（1 high／3
 moderate）。Automatic dependency submission、malware alerts、security updates、
 grouped updates、version updates 與 self-hosted-runner support 均未一併開啟。

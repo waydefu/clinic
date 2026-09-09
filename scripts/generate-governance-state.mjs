@@ -174,7 +174,7 @@ authority or enables a route.
 - roadmap: \`${projection.pointers.roadmap}\`
 - document lifecycle: \`${projection.pointers.documentLifecycle}\`
 - ADRs: \`${projection.pointers.adrs}\`
-- unresolved conflicts: \`${projection.pointers.conflicts}\`
+- governance conflicts: \`${projection.pointers.conflicts}\`
 - AI index: \`${projection.pointers.index}\`
 
 ## UNVERIFIED

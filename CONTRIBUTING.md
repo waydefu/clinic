@@ -37,12 +37,14 @@
 
 ## 公開參考 repository
 
-`waydefu/clinic` 是私有且唯一的專案權威來源。更新公開
+`waydefu/clinic` 是正式公開且唯一的專案權威來源（GC-001，業主決策
+2026-09-09）。公開可見不授予 production、部署、真實資料、雲端、IAM、
+密鑰或流量權限，也不授予開源授權。更新公開
 `waydefu/appointment-platform-public` 時，只能從明確 allowlist 產生隔離的
 sanitized candidate，再套用到公開 repository 的 fresh clone。
 
-- 不得複製私有 `.git`、commit、branch、tag、PR metadata 或直接建立
-  private-to-public fork／自動同步。
+- 不得把 `waydefu/clinic` 的完整 Git 歷史、commit、branch、tag、PR
+  metadata 複製進公開鏡像，也不得直接建立 fork／自動同步。
 - 不得帶入診所／人員內容、品牌與人物資產、UI、截圖、內部決策／治理／
   review／交付文件、部署識別碼、私有網址、log、credential、個資或擬真的
   身分欄位。

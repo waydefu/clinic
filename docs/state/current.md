@@ -54,7 +54,7 @@ authority or enables a route.
 - roadmap: `docs/roadmap.md`
 - document lifecycle: `docs/document-lifecycle.md`
 - ADRs: `docs/adr`
-- unresolved conflicts: `docs/state/conflicts.md`
+- governance conflicts: `docs/state/conflicts.md`
 - AI index: `docs/INDEX.md`
 
 ## UNVERIFIED
