@@ -130,10 +130,13 @@ advisories and pinned patched `brace-expansion` versions after its advisory was
 revised; the source tree carries no active audit exception. A read-only GitHub
 API check at 2026-08-11 14:32 +08:00 found **9 open development-scope
 Dependabot alerts** on `main` (8 medium, 1 low); that dated remote inventory is
-separate from source-tree audit exceptions. A 2026-09-08T19:10Z fresh-check
-found **10 open** (9 moderate, 1 low, 0 high), including new alert #32
-(`csv-parse`). Same-major patches and the two remaining firebase-tools majors
-are recorded under `SCM-R04`
+separate from source-tree audit exceptions. A 2026-09-10 fresh-check found
+**8 open medium Dependabot alerts** (0 high). This change patches `vitest`
+4.1.11, `hono` 4.13.7, `morgan` 1.12.0 and `qs` 6.16.0. `csv-parse@5` and
+`stream-json@1` stay visible: firebase-tools latest is still 15.x and
+`stream-json` 3.x breaks that CLI. See
+[2026-09-10 SCM-R04 upgrade](docs/reviews/2026-09-10-scm-r04-upgrade.md).
+The 2026-09-08T19:10Z count of 10 is dated evidence
 ([2026-09-09 triage](docs/reviews/2026-09-09-scm-r04-dependabot-triage.md)).
 (`SCM-R03` is Gitleaks, not Dependabot).
 `main` has no repository ruleset; branch protection has one strict required
