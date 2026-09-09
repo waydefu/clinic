@@ -1,4 +1,4 @@
-FROM node:24.14.0-bookworm-slim AS build
+FROM node:24.20.0-bookworm-slim AS build
 WORKDIR /workspace
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
@@ -14,7 +14,7 @@ RUN corepack pnpm --filter @beauessence/contracts build \
  && corepack pnpm --filter @beauessence/api build \
  && corepack pnpm --filter @beauessence/api deploy --prod --legacy /runtime
 
-FROM node:24.14.0-bookworm-slim
+FROM node:24.20.0-bookworm-slim
 ENV NODE_ENV=production PORT=8080 HOST=0.0.0.0 ALLOW_NON_LOOPBACK_BIND=true
 WORKDIR /app
 COPY --from=build /runtime/ ./

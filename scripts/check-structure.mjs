@@ -671,7 +671,19 @@ const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 const verifyOrderErrors = reviewVerifyOrdering(packageJson);
 const nodeEngineErrors = reviewNodeEngine({
   enginesNode: packageJson.engines?.node,
-  workflowText: await readFile('.github/workflows/verify.yml', 'utf8')
+  workflowText: await readFile('.github/workflows/verify.yml', 'utf8'),
+  dockerfileTexts: {
+    'containers/api.Dockerfile': await readFile(
+      'containers/api.Dockerfile',
+      'utf8'
+    ),
+    'containers/worker.Dockerfile': await readFile(
+      'containers/worker.Dockerfile',
+      'utf8'
+    )
+  },
+  cursorInstallText: await readFile('.cursor/install.sh', 'utf8'),
+  cursorEnvironmentText: await readFile('.cursor/environment.json', 'utf8')
 });
 
 if (verifyOrderErrors.length > 0) {

@@ -6,11 +6,11 @@
 # builds every package plus the static web app so the terminals can serve `dist`.
 #
 # The base image ships nvm and JDK 21 (the Firestore rules gate needs the JDK).
-# The repository's package.json requires Node >=24.14.0 <25 with engine-strict on,
+# The repository's package.json requires Node >=24.20.0 <25 with engine-strict on,
 # so the default Node 22 on PATH cannot run pnpm here.
 set -euo pipefail
 
-NODE_VERSION="24.18.0"
+NODE_VERSION="24.20.0"
 
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 if [ ! -s "$NVM_DIR/nvm.sh" ]; then
