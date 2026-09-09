@@ -3,8 +3,11 @@
 Status: Active  
 Started: 2026-07-20  
 Scope: Synthetic-only design and preparation. An explicitly authorised static
-Firebase Hosting preview is permitted; production data, cloud backends,
-Google Calendar, social webhooks and NAS connections remain out of scope.
+Firebase Hosting preview is permitted. Production data, general cloud backends,
+production Google Calendar, social webhooks and NAS connections remain out of
+scope. The Decision Register records a separate, expiring, synthetic-only
+CAL-PILOT sub-scope for D-009/D-016; that exception is not production Calendar
+or general cloud authority.
 
 ## Objective
 
@@ -71,7 +74,9 @@ D-series decision changed status.
 
 - Accept a real appointment or process real patient/contact data.
 - Enable any cloud Firebase backend, Authentication, Calendar, LINE, Meta,
-  email or NAS. The static Hosting preview is the sole recorded exception.
+  email or NAS, except (1) the static Hosting preview recorded in the AGENTS.md
+  Safety Floor and (2) the Decision Register's CAL-PILOT synthetic-only
+  sub-scope. Neither exception is production, real data, or Stage 2 authority.
 - Deploy the Firebase Hosting live channel or enter real data in the preview.
 - Relax Firestore deny-by-default Rules or add a direct client path.
 - Treat the privacy-policy draft as published or infer an unresolved policy.
@@ -97,8 +102,9 @@ D-series decision changed status.
 3. Local transaction, idempotency and audit/outbox tests pass with synthetic
    data.
 4. A security review confirms API-only Firestore access remains enforced.
-5. The Phase 2 Calendar scope and failure runbook are ready for review, but no
-   Calendar connection exists.
+5. Production Calendar scope and failure runbook are ready for review.
+   Production D-009/D-016 remain pending. CAL-PILOT is the register's
+   synthetic-only exception and must not be read as a production connection.
 
 ## Current gate
 

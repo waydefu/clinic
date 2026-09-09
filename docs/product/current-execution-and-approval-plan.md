@@ -16,7 +16,9 @@ browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史
 [正式化後續實作規劃](production-readiness-delivery-plan-2026-07-23.md)與
 [Stage 2 change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
 為準；本文件不自行關閉任何 D-series 決策，也不授權 `terraform apply`、建立
-Cloud／Firebase 資源、連接 Calendar 或處理真實病患資料。
+一般 Cloud／Firebase 資源、連接 production Calendar 或處理真實病患資料。
+決策登錄已記載的 CAL-PILOT 合成-only 子範圍不由本文件授權或擴大；本文件的
+概括禁令不得讀成否定該例外，也不得讀成 production Calendar 授權。
 
 ## 一句話說明
 
@@ -261,9 +263,11 @@ Follow-up implementation issue:
 
 ## 現在仍禁止
 
-- 真實病患、薪資、Calendar、社群訊息或 NAS 資料；
-- public／staff booking write route；
-- Cloud Firestore、Authentication、Identity Platform、Calendar 或 NAS 接線；
+- 真實病患、薪資、**production** Calendar、社群訊息或 NAS 資料；
+- public／staff booking write route（CAL-PILOT 合成路由不是正式預約）；
+- 一般 Cloud Firestore、Authentication、Identity Platform、production Calendar
+  或 NAS 接線；決策登錄的 CAL-PILOT 合成-only 子範圍（期限與排除項見登錄）
+  是已記載的窄例外，不是 production D-009／D-016，也不是 Stage 2；
 - `terraform apply`、Firebase live-channel deployment 或 production credential；
 - 以 synthetic UI、Emulator、preview、綠色 public mirror 或文件提案冒充 production
   安全、隱私、備份、IAM 或上線證據。

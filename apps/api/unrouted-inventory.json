@@ -1,6 +1,6 @@
 {
   "$comment": [
-    "Phase 1 的閘門讓 apps/api 只掛 /v1/health。以下檔案刻意存在但不接線；",
+    "Formal booking 仍未掛路由。AppModule 目前掛 HealthController 與決策登錄記載的合成-only CAL-PILOT（CalendarPilotModule）。以下檔案刻意存在但不接線；",
     "scripts/check-architecture.mjs 會雙向比對 main.ts 可達性與這份清單。",
     "capabilityGates 與檔案可達性無關：RBAC 檔案日後接上獲准路由時，尚待決的 action 仍必須保留自己的決策／Stage blocker。",
     "approvedPolicyDependencies 只記錄已核准、會約束後續實作的政策，不代表仍被該決策阻擋。",

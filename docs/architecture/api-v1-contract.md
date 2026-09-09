@@ -2,7 +2,10 @@
 
 Status: Stage 0 baseline completed; current delivery stage is Stage 1. This
 file is the human navigation layer for the executable schemas in
-`packages/contracts`, and only the health endpoint is routed.
+`packages/contracts`. Formal booking endpoints are **not** routed.
+`AppModule` registers `GET /v1/health` and the Decision Register's CAL-PILOT
+synthetic-only exception (`/v1/calendar-session`, `/v1/calendar`). That
+exception is not a production booking route.
 
 ## Boundary
 
@@ -15,11 +18,12 @@ file is the human navigation layer for the executable schemas in
   schema validation, idempotency handling and an audit event before it is
   declared ready.
 
-## Current routed endpoint
+## Current routed surfaces
 
 | Method | Path | Contract | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/v1/health` | `HealthResponseSchema` | Deployment and local-runtime liveness only; it exposes no patient data. |
+| CAL-PILOT session / calendar | `/v1/calendar-session/*`, `/v1/calendar/*` | CAL-PILOT contracts in `@beauessence/contracts` | Decision Register synthetic-only sub-scope: Google+TOTP, closed synthetic fields, expiry and exclusions in the register. Not production D-009/D-016, not `/v1/appointments`. |
 
 ## Reserved booking contracts
 
@@ -65,7 +69,8 @@ identity/cloud controls are not implemented and create no route authority.
 
 The Stage 0 application service, authorization policy and repository port are
 present under `apps/api/src/appointments`, but they are intentionally not
-registered in `AppModule`; `/v1/health` remains the only route.
+registered in `AppModule`. Formal booking stays unrouted; CAL-PILOT is a
+separate, expiring synthetic surface and does not mount `AppointmentController`.
 
 The application boundary also creates a server-owned audit context containing
 the authenticated actor ID and opaque role, correlation ID and source. None is
@@ -76,11 +81,13 @@ explicitly `null` until their decision owners approve real values.
 
 Inventory means the boundary, owner and decision dependency are explicit. It
 does **not** mean every row has an executable schema or an enabled route.
-Only health is routed; create/cancellation schemas remain reserved.
+Formal create/cancellation schemas remain reserved. CAL-PILOT does not
+promote those rows to routed production booking.
 
 | Capability / command | Executable contract | Domain / application mapping | Current state and decision gate |
 | --- | --- | --- | --- |
 | Health query | `HealthResponseSchema` | `HealthController` | Routed; no patient data |
+| CAL-PILOT session / calendar | CAL-PILOT contracts in `@beauessence/contracts` | `CalendarPilotModule` | Routed synthetic-only exception; expiry and exclusions in the Decision Register; not production D-009/D-016 and not `/v1/appointments` |
 | Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; patient fields, verification and matching remain TBD pending D-001～D-003/D-011; approved D-006 staff identity does not select patient identity |
 | Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; formal multi-service/no-service-duration direction is recorded, but the single-service contract and slot/capacity rule still need D-004 implementation, then D-001～D-005/D-011 and reviewed D-006/D-010 implementation |
 | Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005; staff security baseline approved in D-006 but unimplemented |
@@ -95,7 +102,7 @@ Only health is routed; create/cancellation schemas remain reserved.
 | Payroll close / adjustment | `ClosePayrollPeriodRequestSchema` / `RecordPayrollAdjustmentRequestSchema` / `PayrollPeriodSnapshotSchema` | Future application mapping → `planPayrollPeriodClose` + `planPayrollAdjustment` (lock the period; the snapshot is then frozen and reasoned adjustments accumulate in an append-only ledger) | Unrouted Stage 0 schema; finance rule version, lock owner and roles pending D-007/D-008; use approved D-006 security baseline |
 | Surgery / encounter / clinical follow-up | None | Expansion S inventory only | No contract or route; fields, medical owner, correction and retention pending D-001～D-003/D-014; use approved D-006 identity/session baseline |
 | Patient payment / refund / staff settlement | None | Expansion S ledger inventory only | No contract or route; accounting authority, money invariants and field scopes pending D-008/D-015; use approved D-006 identity/session baseline |
-| Calendar inbound change candidate / review | None | Expansion S reconciliation inventory only | No inbound receiver or write path; 2026-08-16 input selects manual review with the system authoritative, while matching, reviewer identity, conflict, delete semantics and approval metadata remain pending D-009/D-016 |
+| Calendar inbound change candidate / review | None for production | Expansion S reconciliation inventory only | Production inbound remains unrouted; matching, reviewer identity, conflict, delete semantics and approval metadata remain pending production D-009/D-016. CAL-PILOT candidate review is the register's synthetic-only exception in the routed-surfaces table, not this production row. |
 
 No controller may infer a missing schema from the browser implementation. A
 row moves from “inventory only” to executable only when its decision

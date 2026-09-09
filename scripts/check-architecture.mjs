@@ -102,12 +102,13 @@ for (const layer of LAYERS) {
 
 // --- 規則 2：未接線的 API 程式必須是「宣告過的」 -------------------------
 //
-// Phase 1 的閘門讓 apps/api 只掛 /v1/health，其餘寫入路徑刻意不接。問題不是它們
-// 存在，而是「存在但沒有人記得為什麼」——那正是死程式的定義。這條規則要求每個
-// 從 main.ts 走不到的檔案都必須列在 inventory，並把「已核准的政策依據」和「尚未
-// 完成的切片／部署授權／待決決策」分開；RBAC action 另有不隨檔案可達性消失的
-// capability gate。反過來，一旦某個檔案真的接上路由，它就必須從 unrouted 清單
-// 移除，但 action-level gate 仍保留到對應決策與 Stage 真正完成。
+// Formal booking 寫入路徑刻意不接；AppModule 另掛決策登錄記載的合成-only
+// CAL-PILOT，那不是 /v1/appointments。問題不是未路由檔案存在，而是「存在但沒有
+// 人記得為什麼」——那正是死程式的定義。這條規則要求每個從 main.ts 走不到的檔案
+// 都必須列在 inventory，並把「已核准的政策依據」和「尚未完成的切片／部署授權／
+// 待決決策」分開；RBAC action 另有不隨檔案可達性消失的 capability gate。反過來，
+// 一旦某個檔案真的接上路由，它就必須從 unrouted 清單移除，但 action-level gate
+// 仍保留到對應決策與 Stage 真正完成。CAL-PILOT 不得讀成 production 路由授權。
 const apiSource = join(root, 'apps', 'api', 'src');
 const inventoryPath = join(root, 'apps', 'api', 'unrouted-inventory.json');
 const decisionRegisterPath = join(

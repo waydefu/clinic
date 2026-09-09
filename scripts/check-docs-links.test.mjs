@@ -228,16 +228,62 @@ describe('documentation gate', () => {
     expect(agents.map(([, pattern]) => pattern.source).sort()).toEqual(
       [
         '## Current commands',
+        'Calendar test projection before D-009\\.',
         'Repository security posture — dated facts',
         'every commit is a publication'
       ].sort()
     );
   });
 
+  it('blocks current-facing health-only API wording after CAL-PILOT routed', () => {
+    const apiReadme = STALE_CLAIMS.find(
+      ([file]) => file === 'apps/api/README.md'
+    );
+    expect(
+      apiReadme?.[1].test(
+        'The current Stage 1 build still exposes only `GET /v1/health`; it does not'
+      )
+    ).toBe(true);
+    expect(
+      apiReadme?.[1].test(
+        'Formal booking routes remain unrouted. The Stage 1 `AppModule` registers'
+      )
+    ).toBe(false);
+
+    const contract = STALE_CLAIMS.find(
+      ([file]) => file === 'docs/architecture/api-v1-contract.md'
+    );
+    expect(contract?.[1].test('and only the health endpoint is routed.')).toBe(
+      true
+    );
+    expect(
+      contract?.[1].test(
+        'Formal booking endpoints are **not** routed. `AppModule` registers'
+      )
+    ).toBe(false);
+
+    const execution = STALE_CLAIMS.find(
+      ([file, pattern]) =>
+        file === 'docs/product/current-execution-and-approval-plan.md' &&
+        pattern.source.includes('真實病患、薪資、Calendar')
+    );
+    expect(
+      execution?.[1].test('- 真實病患、薪資、Calendar、社群訊息或 NAS 資料；')
+    ).toBe(true);
+    expect(
+      execution?.[1].test(
+        '- 真實病患、薪資、**production** Calendar、社群訊息或 NAS 資料；'
+      )
+    ).toBe(false);
+  });
+
   it('blocks attributing DATA-R01/02 and ARC-R01 completion to PR #23', () => {
     const roadmap = STALE_CLAIMS.filter(([file]) => file === 'docs/roadmap.md');
-    expect(roadmap).toHaveLength(1);
-    const pattern = roadmap[0][1];
+    expect(roadmap.length).toBeGreaterThanOrEqual(1);
+    const pattern = roadmap.find(([, claim]) =>
+      claim.source.includes('DATA-R01')
+    )?.[1];
+    expect(pattern).toBeDefined();
     expect(
       pattern.test(
         '缺口已由 `DATA-R01/02`、`ARC-R01` 補齊，PR #23 當前同 commit'

@@ -17,9 +17,10 @@ $env:TEST_ONLY_WEB_ENABLED='true'
 corepack pnpm --filter @beauessence/web dev:test-only
 ```
 
-**不需要另外啟動 API。** 這些頁面的狀態完全在瀏覽器。`apps/api` 目前只提供
-`/v1/health`，預約寫入路徑只有 repository 與 Emulator 測試，尚未開放為路由
-（Phase 1 gate）。
+**不需要另外啟動 API。** 這些頁面的狀態完全在瀏覽器。正式預約寫入路徑只有
+repository 與 Emulator 測試，尚未掛入 `AppModule`（Phase 1 gate）。`apps/api`
+另有決策登錄記載的合成-only CAL-PILOT 路由（`/v1/calendar-session`、
+`/v1/calendar`）；那不是 `/v1/appointments`，也不是 production Calendar。
 
 瀏覽 `http://127.0.0.1:3100` 後，可測試預約、取消、改期、未到、到診、回診確認、
 排班發布與稽核。資料只保存在該瀏覽器，清除網站資料即可重置。

@@ -305,9 +305,13 @@ The public-facing preview entry points are:
 
 ## Phase 1 gate
 
-Phase 1 does not authorise a booking route, a cloud Firebase backend or Google
-Calendar. The sole cloud exception is the recorded expiring static Hosting
-preview.
+Phase 1 does not authorise a production booking route, a general cloud
+Firebase backend or production Google Calendar. Two recorded exceptions
+exist and must not be expanded from this paragraph:
+
+- the expiring static Hosting `synthetic-review` preview (Safety Floor 8);
+- the Decision Register's CAL-PILOT synthetic-only sub-scope (production
+  D-009/D-016 remain pending; expiry and exclusions live only in the register).
 
 Stage 0 completed contract/domain alignment, the API application-boundary
 skeleton, the explicit patient booking guard, audit v2 and synthetic Emulator
@@ -315,14 +319,15 @@ tests; Checkpoint A passed on 2026-07-24. The project is now at Stage 1, where
 named owners must approve or defer the recorded policy and governance inputs.
 D-010 target architecture/SLO and D-006 identity/security are approved.
 Stage 2 cloud staging still requires a reviewed change plan plus separate
-deployment approval. None of this enables a route or authorises a cloud
-deployment.
+deployment approval. None of this enables a **formal booking** route or
+authorises a new cloud deployment.
 
-The write path is built and proven, but **not routed**: reservation, all five
+The formal write path is built and proven, but **not routed**: reservation, all five
 transitions, reschedule, idempotency, audit, outbox and the retry/dead-letter
-worker pass against the local Emulator, and `apps/api` still exposes only
-`/v1/health`. It stays that way until the privacy, appointment-policy and
-identity/role decisions are approved.
+worker pass against the local Emulator. `apps/api` exposes `GET /v1/health`
+plus the CAL-PILOT session/calendar routes. Formal `/v1/appointments` stays
+unrouted until the privacy, appointment-policy and identity/role decisions are
+approved. CAL-PILOT is not that booking route.
 
 The preview includes the patient booking flow and an operations role simulator.
 The simulated administrator manages accounts, availability, blocked times, date

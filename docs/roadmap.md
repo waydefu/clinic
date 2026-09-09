@@ -18,8 +18,10 @@ BOOK-MVP-003～009 均 PASS（007 僅為 spec/governance）。C3 的
 `>20 minutes` synthetic self-cancel，但 D-005 仍 pending。這仍不代表真人輔具驗收、
 merge 或 production。Firestore 仍只允許 Emulator／synthetic；同一 C3 的 GitHub
 Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
-目前仍在 Stage 1 owner decisions；尚無 source-routed cloud backend、Authentication、
-日曆連線或真實病患資料 authority。
+目前仍在 Stage 1 owner decisions；尚無 production booking route、一般 cloud
+backend、production Authentication 或真實病患資料 authority。決策登錄的
+CAL-PILOT 合成-only 子範圍（期限與排除項見登錄）不是 production 日曆連線，
+也不是 Stage 2。
 
 > **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
 > 2026-07-24 完成；D-010 target 與 D-006 identity/security 已於 2026-07-28

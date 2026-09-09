@@ -112,6 +112,71 @@ export const STALE_CLAIMS = [
     'docs/architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md',
     /在 `ARC-R01` 完成[^。]*前不得多實例/,
     'ARC-R01 / T1-ARC-01 (#67) closed lease fencing on 2026-09-06; multi-instance cloud runners remain unauthorised'
+  ],
+  [
+    'apps/api/README.md',
+    /exposes only `GET \/v1\/health`|registers only the health controller/,
+    'formal booking is unrouted; CAL-PILOT is a routed synthetic-only exception'
+  ],
+  [
+    'apps/web/README.md',
+    /目前只提供\s*`\/v1\/health`/,
+    'do not describe the API as health-only; distinguish unrouted booking from CAL-PILOT'
+  ],
+  [
+    'apps/api/unrouted-inventory.json',
+    /只掛 \/v1\/health/,
+    'unrouted inventory must not claim the API mounts only health'
+  ],
+  [
+    '.cursor/environment.json',
+    /Exposes only \/v1\/health/,
+    'local API description must distinguish unrouted booking from CAL-PILOT'
+  ],
+  [
+    'scripts/check-architecture.mjs',
+    /只掛 \/v1\/health/,
+    'architecture-gate comments must not claim the API mounts only health'
+  ],
+  [
+    'docs/architecture/api-v1-contract.md',
+    /only the health endpoint is routed|Only health is routed|\/v1\/health` remains the only route/,
+    'contract nav must list health plus the CAL-PILOT exception; formal booking stays unrouted'
+  ],
+  [
+    'docs/architecture/test-strategy.md',
+    /只掛 `\/v1\/health`/,
+    'no Cloud Functions is true; health-only API surface is not'
+  ],
+  [
+    'docs/phase-0-local-development.md',
+    /API skeleton with `GET \/v1\/health` only/,
+    'Phase 0 history must not be restated as the current Stage 1 API surface'
+  ],
+  [
+    'README.md',
+    /still exposes only\s*`\/v1\/health`|The sole cloud exception is the recorded expiring static Hosting/,
+    'README must distinguish unrouted booking, Hosting preview, and CAL-PILOT'
+  ],
+  [
+    'AGENTS.md',
+    /Calendar test projection before D-009\./,
+    'Remain disabled must name production D-009/D-016 and the register CAL-PILOT exception'
+  ],
+  [
+    'docs/phase-1-execution-plan.md',
+    /The static Hosting preview is the sole recorded exception|no\s+Calendar connection exists/,
+    'execution Canon must restate the register CAL-PILOT exception without expanding it'
+  ],
+  [
+    'docs/product/current-execution-and-approval-plan.md',
+    /真實病患、薪資、Calendar、社群訊息/,
+    'current execution plan must not use an unqualified Calendar prohibition'
+  ],
+  [
+    'docs/roadmap.md',
+    /尚無 source-routed cloud backend、Authentication、\s*日曆連線/,
+    'roadmap must not deny all Calendar connectivity; CAL-PILOT is a register exception'
   ]
 ];
 
