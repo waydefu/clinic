@@ -77,6 +77,28 @@ interface IdempotencyRecord<T> {
   readonly response: T;
 }
 
+export function parsePilotIdempotencyRecord<T>(
+  data: unknown
+): IdempotencyRecord<T> {
+  if (data === null || typeof data !== 'object' || Array.isArray(data))
+    throw new ConflictError();
+  const record = data as {
+    readonly fingerprint?: unknown;
+    readonly response?: unknown;
+  };
+  if (
+    typeof record.fingerprint !== 'string' ||
+    record.fingerprint.length === 0 ||
+    !('response' in record) ||
+    record.response === undefined
+  )
+    throw new ConflictError();
+  return {
+    fingerprint: record.fingerprint,
+    response: record.response as T
+  };
+}
+
 function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -309,7 +331,9 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       );
       if (replay.exists) {
         const record =
-          replay.data() as IdempotencyRecord<CalendarSourcePreflightResponse>;
+          parsePilotIdempotencyRecord<CalendarSourcePreflightResponse>(
+            replay.data()
+          );
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return record.response;
       }
@@ -407,7 +431,9 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       );
       if (replay.exists) {
         const record =
-          replay.data() as IdempotencyRecord<CalendarSourceCommandResponse>;
+          parsePilotIdempotencyRecord<CalendarSourceCommandResponse>(
+            replay.data()
+          );
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return record.response;
       }
@@ -516,10 +542,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         })
       );
       if (replay.exists) {
-        const record = replay.data() as IdempotencyRecord<{
+        const record = parsePilotIdempotencyRecord<{
           candidate: CalendarChangeCandidate;
           projection: CalendarEventProjection | null;
-        }>;
+        }>(replay.data());
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return record.response;
       }
@@ -641,10 +667,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         })
       );
       if (replay.exists) {
-        const record = replay.data() as IdempotencyRecord<{
+        const record = parsePilotIdempotencyRecord<{
           candidate: CalendarChangeCandidate;
           projection: CalendarEventProjection | null;
-        }>;
+        }>(replay.data());
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return record.response;
       }
@@ -1097,7 +1123,9 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       const replay = await transaction.get(idempotencyRef);
       if (replay.exists) {
         const record =
-          replay.data() as IdempotencyRecord<SyntheticAppointmentCommandResponse>;
+          parsePilotIdempotencyRecord<SyntheticAppointmentCommandResponse>(
+            replay.data()
+          );
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return { ...record.response, replayed: true };
       }
