@@ -95,6 +95,8 @@ overrides:
   fastify: '^5.12.1'
   undici@^8: '^8.9.0'
   ip-address@^10: '^10.3.1'
+  # 2026-09-09 GHSA-2883-xcg3-v3hh maxTotalMergeKeys; path firebase-tools > js-yaml and nested exegesis; same-major 4.3.1 → 4.3.2; not a dismiss.
+  js-yaml@^4: '4.3.2'
   # 2026-09-09 SCM-R04：fresh Dependabot 仍全是 development-scope。
   # 下列四條是**同一個 major 內的 patch**，父套件 range 已允許：
   #   hono      4.12.31 → 精確 4.12.34（不用 ^，避免 4.13 次要版）

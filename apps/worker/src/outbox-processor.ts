@@ -2,6 +2,7 @@ import {
   assertOutboxTraceContext,
   fullJitterBackoffMilliseconds,
   isDue,
+  parseOutboxSnapshot,
   planOutboxAttempt,
   DomainError,
   type AttemptOutcome,
@@ -206,14 +207,29 @@ export class OutboxProcessor {
           .doc(candidate.id);
         const snapshot = await transaction.get(reference);
         if (!snapshot.exists) return undefined;
-        const job = { id: snapshot.id, ...snapshot.data() } as OutboxJob & {
-          leaseExpiresAt?: string;
-        };
+        const stored = snapshot.data();
+        if (stored === undefined) return undefined;
+
+        let job: OutboxJob;
+        try {
+          job = parseOutboxSnapshot(snapshot.id, stored);
+        } catch {
+          transaction.update(reference, {
+            status: 'dead_letter',
+            lastError: 'The outbox job is unreadable.'
+          });
+          return undefined;
+        }
+
+        const existingLeaseExpiresAt =
+          typeof stored['leaseExpiresAt'] === 'string'
+            ? stored['leaseExpiresAt']
+            : undefined;
 
         const claimedAt = at();
         const leaseExpired =
-          job.leaseExpiresAt === undefined ||
-          Date.parse(job.leaseExpiresAt) <= Date.parse(claimedAt);
+          existingLeaseExpiresAt === undefined ||
+          Date.parse(existingLeaseExpiresAt) <= Date.parse(claimedAt);
 
         if (job.status === 'in_progress' && !leaseExpired) return undefined;
         if (job.status === 'pending' && !isDue(job, claimedAt))
@@ -227,9 +243,10 @@ export class OutboxProcessor {
         // Ownership transfer: the generation advances atomically inside this
         // same claiming transaction. There is no same-owner renewal path —
         // every successful claim write is a transfer event.
-        const stored = snapshot.data() as { generation?: unknown };
         const generation =
-          typeof stored.generation === 'number' ? stored.generation + 1 : 1;
+          typeof stored['generation'] === 'number'
+            ? stored['generation'] + 1
+            : 1;
         transaction.update(reference, {
           status: 'in_progress',
           leaseExpiresAt,
@@ -455,9 +472,13 @@ export class OutboxProcessor {
       .collection(OUTBOX_COLLECTION)
       .where('status', '==', 'dead_letter')
       .get();
-    return snapshot.docs.map(
-      (document) => ({ id: document.id, ...document.data() }) as OutboxJob
-    );
+    return snapshot.docs.flatMap((document) => {
+      try {
+        return [parseOutboxSnapshot(document.id, document.data())];
+      } catch {
+        return [];
+      }
+    });
   }
 
   /**

@@ -8,11 +8,13 @@ import {
   backoffSeconds,
   fullJitterBackoffMilliseconds,
   isDue,
+  parseOutboxSnapshot,
   planOutboxAttempt,
   type OutboxJob,
   type OutboxTraceContext
 } from './outbox.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
+import { DomainError } from './errors.js';
 
 const job: OutboxJob = {
   id: 'outbox_001',
@@ -181,5 +183,76 @@ describe('planOutboxAttempt', () => {
         planOutboxAttempt({ ...job, status }, { kind: 'succeeded' }, NOW)
       ).toThrow(/cannot be attempted again/i);
     }
+  });
+});
+
+const codeOf = (run: () => unknown): string => {
+  try {
+    run();
+  } catch (error) {
+    return error instanceof DomainError ? error.code : 'NOT_A_DOMAIN_ERROR';
+  }
+  return 'NO_ERROR';
+};
+
+describe('parseOutboxSnapshot', () => {
+  const id = 'outbox_001';
+  const legacy = {
+    appointmentId: 'appointment_001',
+    correlationId: 'corr_outbox_001',
+    causationId: 'audit_appointment_001_confirmed',
+    idempotencyKey: calendarEventIdForAppointment('appointment_001'),
+    status: 'pending',
+    attempts: 0,
+    nextAttemptAt: NOW
+  };
+
+  it('reads the legacy shape without a schema version', () => {
+    expect(parseOutboxSnapshot(id, legacy)).toEqual({
+      id,
+      appointmentId: 'appointment_001',
+      correlationId: 'corr_outbox_001',
+      causationId: 'audit_appointment_001_confirmed',
+      idempotencyKey: calendarEventIdForAppointment('appointment_001'),
+      status: 'pending',
+      attempts: 0,
+      nextAttemptAt: NOW
+    });
+  });
+
+  it('reads schema version 1 and optional fields', () => {
+    expect(
+      parseOutboxSnapshot(id, {
+        ...legacy,
+        schemaVersion: 1,
+        appointmentStatus: 'confirmed',
+        followUpSourceId: 'follow_up_001',
+        lastError: 'transient',
+        startsAt: '2030-01-02T04:00:00.000Z'
+      })
+    ).toEqual({
+      id,
+      appointmentId: 'appointment_001',
+      correlationId: 'corr_outbox_001',
+      causationId: 'audit_appointment_001_confirmed',
+      idempotencyKey: calendarEventIdForAppointment('appointment_001'),
+      status: 'pending',
+      attempts: 0,
+      nextAttemptAt: NOW,
+      appointmentStatus: 'confirmed',
+      followUpSourceId: 'follow_up_001',
+      lastError: 'transient',
+      startsAt: '2030-01-02T04:00:00.000Z'
+    });
+  });
+
+  it('rejects an unknown status, schema version and non-objects', () => {
+    expect(
+      codeOf(() => parseOutboxSnapshot(id, { ...legacy, status: 'unknown' }))
+    ).toBe('INVALID_VALUE');
+    expect(
+      codeOf(() => parseOutboxSnapshot(id, { ...legacy, schemaVersion: 2 }))
+    ).toBe('INVALID_VALUE');
+    expect(codeOf(() => parseOutboxSnapshot(id, null))).toBe('INVALID_VALUE');
   });
 });
