@@ -4,9 +4,11 @@
 apply、**不是** exact-SHA 部署授權、**不是** production、**不是** 真實資料授權。
 **日期：** 2026-09-09（Asia/Taipei）
 **Repository 基準：** GitHub `main`
-`dbbeed72463cf646cfa1c1a9782ebb5819aa584d`（`VERIFIED`，GitHub API／`origin/main`
-2026-09-08T19:57Z）
-**Cloud as-of：** 2026-09-08T20:12:27Z（Firebase CLI；本環境無 `gcloud`）
+`496da6e80733f1421e08c99f30559709116d04e0`（`VERIFIED`，GitHub `origin/main`
+at inventory write）
+**Cloud as-of：** 2026-09-09T07:47:58Z–07:50:38Z（`gcloud` 583.0.0 + Firebase
+CLI Hosting JSON；`--project beauessence-clinic-staging`；未
+`gcloud config set project`）
 **Owner grant：** Q-STAGING — `beauessence-clinic-staging` 唯讀；secret **version
 ID** 可記、**不得**讀值。禁止 terraform apply、firebase deploy、Cloud Run
 traffic 變更、secret／IAM 變更、任何 cloud write。
@@ -21,110 +23,152 @@ traffic 變更、secret／IAM 變更、任何 cloud write。
 
 ## 1. 一句話
 
-Staging 專案身分、Hosting 三個 channel、Firestore `(default)` 與一個 Web App ID
-已在本 session 讀回。Cloud Run 現行 revision／traffic、Secret version ID、IAM
-policy 與 Auth 完整 provider 清單**沒有**本 session 讀回，不得拿 2026-08-31
-紀錄當現況去 apply。
+Staging 專案身分、Hosting 三 channel 與現行 version ID、Firestore `(default)`
+與七筆 READY composite index 中繼資料、Cloud Run `asia-east1` 兩服務現行
+revision／traffic、六個 CAL-PILOT secret 的 version `1`＋`enabled`、以及收斂
+project／secret／Cloud Run IAM，已在本 session 讀回。Auth 完整 provider 清單
+仍 `UNKNOWN`（Identity Toolkit admin config `403`；未讀 users）。本盤點**不能**
+當 apply 或 live-channel 部署授權。
 
 ## 2. Project identity
 
 | 欄位 | 值 | 分類 | 來源 |
 | --- | --- | --- | --- |
-| projectId | `beauessence-clinic-staging` | `VERIFIED` | Firebase MCP `firebase_list_projects` 2026-09-08T19:57Z |
+| projectId | `beauessence-clinic-staging` | `VERIFIED` | `gcloud projects describe` 2026-09-09T07:47:58Z |
 | project number | `781119800251` | `VERIFIED` | 同上 |
 | state | `ACTIVE` | `VERIFIED` | 同上 |
-| Hosting site | `beauessence-clinic-staging` | `VERIFIED` | MCP；CLI `hosting:sites:list` 2026-09-08T20:12Z |
-| Web App ID | `1:781119800251:web:db95e2dd7bb800e1f77a9e` | `VERIFIED` | `firebase apps:list`；**未**取 SDK config／apiKey |
-| 其他 region | 除 CAL-PILOT 文件寫 `asia-east1` 外 | `UNKNOWN`（live）／`STALE`（文件） | 本環境無 `gcloud` |
-
-未切換 Firebase MCP `active_project`（當時指向
-`beauessence-appointment-local`，Firestore MCP 呼叫被該專案擋下）。目標專案改走
-CLI `--project`。
+| display name | BeauEssence Clinic Staging | `VERIFIED` | 同上 |
+| Hosting site | `beauessence-clinic-staging` | `VERIFIED` | Firebase CLI `hosting:channel:list` |
+| Web App ID | `1:781119800251:web:db95e2dd7bb800e1f77a9e` | `VERIFIED` | 先前 session `firebase apps:list`；本 session **未**重取 SDK config／apiKey |
+| region | `asia-east1`（Cloud Run URLs `*-de.a.run.app`） | `VERIFIED` | `gcloud run services list --region asia-east1` |
 
 ## 3. Hosting（無 deploy）
 
-`firebase hosting:channel:list --project beauessence-clinic-staging` at
-2026-09-08T20:12:27Z：
+`firebase hosting:channel:list --project beauessence-clinic-staging --json` at
+2026-09-09T07:50Z：
 
-| Channel | Last release (CLI) | URL | Expire | 分類 |
-| --- | --- | --- | --- | --- |
-| `synthetic-review` | 2026-09-08 07:37:28 | `https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app` | 2026-09-30 20:00:19 | `VERIFIED` |
-| `cal-pilot` | 2026-09-03 16:39:43 | `https://beauessence-clinic-staging--cal-pilot-pk9yyofq.web.app` | 2026-10-01 19:06:13 | `VERIFIED` |
-| `live` | 2026-08-22 22:43:48 | `https://beauessence-clinic-staging.web.app` | never | `VERIFIED` 存在；**禁止**本工作流對 live channel 部署 |
+| Channel | Version ID | Create (UTC) | Expire (UTC) | URL | 分類 |
+| --- | --- | --- | --- | --- | --- |
+| `synthetic-review` | `832dfc10068e6f34` | 2026-09-07T23:37:20Z | 2026-09-30T12:00:19Z | `https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app` | `VERIFIED` |
+| `cal-pilot` | `ae1ef7f097243b1a` | 2026-09-03T08:39:01Z | 2026-10-01T11:06:13Z | `https://beauessence-clinic-staging--cal-pilot-pk9yyofq.web.app` | `VERIFIED` |
+| `live` | `67055a24b10745ea` | 2026-08-22T14:43:43Z | never | `https://beauessence-clinic-staging.web.app` | `VERIFIED` 存在；**禁止**本工作流對 live channel 部署 |
 
-現行 Hosting **version ID** 本 session **未**讀回（`UNKNOWN`）。過往 version 只當
-`STALE`：`synthetic-review` `832dfc10068e6f34`（2026-09-08 UI 預覽紀錄）；
-`cal-pilot` `09ca5b147ea8e576`（2026-08-31 controlled-correction 紀錄）。
+`cal-pilot` Hosting version `ae1ef7f097243b1a` 與 API Cloud Run traffic tag
+`fh-ae1ef7f097243b1a` 一致（`VERIFIED`）。較舊 API tagged revision
+`cal-pilot-api-00003-muy` 的 tag `fh-09ca5b147ea8e576` 仍存在、**0%** traffic。
 
-Default site URL `https://beauessence-clinic-staging.web.app` 綁同一 Web App ID
-（`VERIFIED`）。這**不是** production 授權。
+這**不是** production 授權。
 
 ## 4. Cloud Run
 
-本環境 `gcloud: command not found` → 現行 service／revision／traffic
-`UNAVAILABLE`。
+`gcloud run services list/describe` `--region asia-east1` at
+2026-09-09T07:47:58Z–07:49Z。**未**改 traffic。
 
-`STALE`（2026-08-31 controlled-correction post-apply，不得當現況 apply）：
+| Service | Latest ready | Traffic | Tagged (0%) | 分類 |
+| --- | --- | --- | --- | --- |
+| `cal-pilot-api` | `cal-pilot-api-00004-64c` | 100% → `00004-64c` | `00003-muy` tag `fh-09ca5b147ea8e576` | `VERIFIED` |
+| `cal-pilot-worker` | `cal-pilot-worker-00003-nuf` | 100% → `00003-nuf` | — | `VERIFIED` |
 
-- region `asia-east1`
-- API revision `cal-pilot-api-00003-muy` 當時 100%
-- Worker revision `cal-pilot-worker-00003-nuf` 當時 100%
+Image digests（Artifact Registry `asia-east1-docker.pkg.dev/…/cal-pilot/…`）：
+
+| Revision | Image digest | 分類 |
+| --- | --- | --- |
+| `cal-pilot-api-00004-64c` | `sha256:9bcd90b35befea80a8a3636f3418c2953f38ccd2d165f1d9bed75e90d58e7a94` | `VERIFIED` |
+| `cal-pilot-api-00003-muy` | 同上（與 `00004-64c` 同一 digest） | `VERIFIED` |
+| `cal-pilot-worker-00003-nuf` | `sha256:cbfbfbe36615f743aea0162d88ca3742fd1b03b74056a2d8fbb73014aac15f88` | `VERIFIED` |
+
+Service URLs：`https://cal-pilot-api-s2e7555xmq-de.a.run.app`、
+`https://cal-pilot-worker-s2e7555xmq-de.a.run.app`。
+
+2026-08-31 紀錄寫 API `00003-muy` 100% — 對現行 traffic 為 `STALE`（該 revision
+仍 tagged、0%）。Worker `00003-nuf` 100% 與當時紀錄一致，本 session 重讀為
+`VERIFIED`。
 
 ## 5. Secret Manager
 
-Secret **values 未讀**。Version ID 本 session `UNAVAILABLE`（無 `gcloud`）。
+Secret **values 未讀**（無 `versions access`）。`gcloud secrets list` 名稱恰好
+Terraform `local.secret_access` 六個（`VERIFIED`）：
 
-Terraform 宣告的 **names**（`STALE` 對 live 是否仍恰好這六個；
-`infra/terraform/cal-pilot/main.tf` `local.secret_access`）：
+| Secret | Version ID | State | Created (UTC) | Accessor | 分類 |
+| --- | --- | --- | --- | --- | --- |
+| `cal-pilot-firebase-web-api-key` | `1` | `enabled` | 2026-08-30T05:30:32Z | `cal-pilot-api@…` `secretAccessor` | `VERIFIED` |
+| `cal-pilot-manager-allowlist` | `1` | `enabled` | 2026-08-30T05:30:29Z | `cal-pilot-api@…` `secretAccessor` | `VERIFIED` |
+| `cal-pilot-pseudonym-key` | `1` | `enabled` | 2026-08-30T05:30:38Z | `cal-pilot-worker@…` `secretAccessor` | `VERIFIED` |
+| `cal-pilot-reader-service-account` | `1` | `enabled` | 2026-08-30T05:30:18Z | `cal-pilot-worker@…` `secretAccessor` | `VERIFIED` |
+| `cal-pilot-source-map` | `1` | `enabled` | 2026-08-30T05:30:25Z | `cal-pilot-worker@…` `secretAccessor` | `VERIFIED` |
+| `cal-pilot-writer-service-account` | `1` | `enabled` | 2026-08-30T05:30:22Z | `cal-pilot-worker@…` `secretAccessor` | `VERIFIED` |
 
-- `cal-pilot-manager-allowlist`
-- `cal-pilot-firebase-web-api-key`
-- `cal-pilot-reader-service-account`
-- `cal-pilot-writer-service-account`
-- `cal-pilot-source-map`
-- `cal-pilot-pseudonym-key`
-
-2026-08-31 紀錄寫各 secret enabled version `1`（`STALE`）。未來 exact-SHA 封包必須
-用 `gcloud secrets versions list`（只要 name／version／state）重讀。
+沒有第七個 secret 名稱出現在 `secrets list`。2026-08-31「各 version `1`」現已
+本 session 重讀，不再只當 `STALE`。
 
 ## 6. Firestore
 
 | 欄位 | 值 | 分類 |
 | --- | --- | --- |
-| database | `projects/beauessence-clinic-staging/databases/(default)` | `VERIFIED`（`firebase firestore:databases:list` 2026-09-08T20:12Z） |
-| edition | `STANDARD` | `VERIFIED` |
-| type | `FIRESTORE_NATIVE` | `VERIFIED` |
-| indexes | — | `UNKNOWN`（本 session 未列） |
+| database | `projects/beauessence-clinic-staging/databases/(default)` | `VERIFIED`（先前 session CLI；本 session 未重列 databases） |
+| edition | `STANDARD` | `VERIFIED`（先前 session） |
+| type | `FIRESTORE_NATIVE` | `VERIFIED`（先前 session） |
+| composite indexes | 7 筆 `READY`／`COLLECTION` | `VERIFIED`（`gcloud firestore indexes composite list`） |
 | documents | — | **未讀**（禁止） |
+
+Index 中繼資料（field path only；不是文件內容）：
+
+| Index ID | Fields |
+| --- | --- |
+| `CICAgJim14AJ` | `sourceId ASC`, `externalEventId ASC`, `__name__ ASC` |
+| `CICAgJim14AK` | `status ASC`, `createdAt ASC`, `__name__ ASC` |
+| `CICAgOjXh4EK` | `status ASC`, `nextAttemptAt ASC`, `__name__ ASC` |
+| `CICAgJj7z4EK` | `status ASC`, `startsAt ASC`, `__name__ ASC` |
+| `CICAgJjF9oIK` | `status ASC`, `createdAt ASC`, `__name__ ASC` |
+| `CICAgJiUpoMK` | `status ASC`, `leaseExpiresAt ASC`, `__name__ ASC` |
+| `CICAgJjFqZMK` | `status ASC`, `leaseExpiresAt ASC`, `__name__ ASC` |
 
 ## 7. Auth
 
-**未**呼叫 `auth_get_users`／未匯出使用者。完整現行 provider 清單 `UNKNOWN`。
+**未**呼叫 `auth_get_users`／未匯出使用者。完整現行 provider 清單
+`UNKNOWN`：`GET …/identitytoolkit.googleapis.com/admin/v2/projects/beauessence-clinic-staging/config`
+回 `403`。未安裝／未用 `gcloud beta identity-platform`（避免非互動安裝提示）。
 
 `STALE`：2026-08-31／Day 1 紀錄寫 Google provider、TOTP／MFA 曾啟用。不得當
 identity 變更授權。
 
-## 8. IAM
+## 8. IAM（收斂；無完整 policy JSON）
 
-本 session **未** `get-iam-policy`（避免整份 policy dump）。現行 principal／role
-`UNKNOWN`。
+`gcloud projects get-iam-policy`：17 bindings、18 列 compact role／member；
+**1** 個 `user:` principal 記為 `user:<redacted>`（`roles/owner`），不寫入信箱。
+本文件不貼完整 policy。
 
-`STALE` locators：`infra/terraform/cal-pilot/main.tf` API／Worker
-`datastore.user`、API `firebaseauth.admin`、Secret Accessor、Worker
-`run.invoker` 設計為 Scheduler。未來封包可用收斂的 role／member 表，不要貼完整
-policy JSON。
+與 CAL-PILOT 相關的 project 角色（`VERIFIED`）：
+
+- `cal-pilot-api@…`：`roles/datastore.user`、`roles/firebaseauth.admin`
+- `cal-pilot-worker@…`：`roles/datastore.user`
+- `cal-pilot-builder@…`：`roles/logging.logWriter`、`roles/storage.objectViewer`
+- Google／Firebase service agents 與 Cloud Build／Compute `editor` 亦存在；不在
+  此重複完整 Google-managed agent 表
+
+Cloud Run service IAM（`VERIFIED`）：
+
+- `cal-pilot-worker`：`roles/run.invoker` →
+  `cal-pilot-scheduler@beauessence-clinic-staging.iam.gserviceaccount.com`
+- `cal-pilot-api`：`roles/run.invoker` → `allUsers`
+
+Scheduler（`VERIFIED`）：`cal-pilot-five-minute-sync` `*/5 * * * *` `ENABLED` →
+`https://cal-pilot-worker-s2e7555xmq-de.a.run.app/tasks/calendar-sync`。
+
+`allUsers` invoker 是盤點觀察，**不是**本工作流的變更授權或 hardening 任務。
 
 ## 9. 未來 exact-SHA 部署封包仍缺
 
 在另一次具名、逐 commit 的部署授權之前，至少還要：
 
-1. `gcloud run services describe`：現行 revision 名稱與 traffic 百分比（只讀）
-2. 每個 secret 的 version ID＋state（不要 `versions access`）
-3. 收斂 IAM GET（role／member，不要無差別 dump）
-4. Hosting 現行 version ID（channel 以外）
-5. Firestore index 中繼資料
-6. Auth provider 中繼資料（不要 user 紀錄）
+1. ~~現行 revision 名稱與 traffic 百分比~~ — 本盤點已讀；仍不是部署授權
+2. ~~每個 secret 的 version ID＋state~~ — 本盤點已讀；仍禁止 `versions access`
+3. ~~收斂 IAM GET~~ — 本盤點已讀；禁止 set-iam-policy
+4. ~~Hosting 現行 version ID~~ — 本盤點已讀
+5. ~~Firestore index 中繼資料~~ — 本盤點已讀
+6. Auth provider 中繼資料（不要 user 紀錄）— 仍 `UNKNOWN`（admin config `403`）
 7. 候選 commit SHA、同 SHA `Verification evidence`、image／file provenance
+   對**新**部署目標（現行 image digest 已讀，不是新 SHA 授權）
 8. 具名 approver／operator、channel、expiry、rollback 目標
 
 本盤點**不能**填上述任何一項為已核准。
