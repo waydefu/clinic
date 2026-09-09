@@ -153,6 +153,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-09 | [非 UI 工作流目前授權上限交接（owner 五題後）](reviews/2026-09-09-non-ui-max-authorized-handoff.md) | 基準 `a9d3ba8`；verify 34326772594 SUCCESS。Q-SCOPE／D013／SCM-R03／SCM-R04 同 major／DATA-R03 五刀／BOOK-PILOT／Q-STAGING gcloud 已落地。DATA-R03 與 SCM-R04 ID 仍開。不是 Stage 2 或 production |
 | 2026-09-09 | [DATA-R03 工程切片](reviews/2026-09-09-data-r03-engineering-slices.md) | PR #95／#98／#99／#101／#102 已上 `main`（未知 status fail-closed、slot／appointment dual-reader、idempotency enum、outbox dual-reader、CAL-PILOT envelope）。無 dual-write、無 D-007／D-008。DATA-R03 ID 仍開 |
 | 2026-09-09 | [beauessence-clinic-staging 唯讀盤點](reviews/2026-09-09-staging-readonly-inventory.md) | Q-STAGING：2026-09-09T07:47Z `gcloud` 重讀 Cloud Run revision／traffic、secret version `1` enabled、收斂 IAM、Hosting version ID、Firestore indexes。Auth providers 仍 UNKNOWN（admin config 403）。無 apply、無 secret 值、不是 production 授權 |
 | 2026-09-09 | [SCM-R04 Dependabot 逐筆 triage](reviews/2026-09-09-scm-r04-dependabot-triage.md) | Fresh-check 10 筆 open（0 high）；同 major 修 `hono`／`postcss`／`undici@6`／`re2`；`stream-json`／`csv-parse` 跨 major 留至 2026-10-09。未 dismiss。SCM-R04 仍開 |
