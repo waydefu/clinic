@@ -4,13 +4,18 @@
 
 - Pure TypeScript appointment and payroll domain rules in `packages/domain`.
 - Zod v4 request, response and error contracts in `packages/contracts`.
-- A NestJS + Fastify API skeleton with `GET /v1/health` only.
+- A NestJS + Fastify API. Phase 0 landed `GET /v1/health` as the first
+  routed endpoint. Stage 1 still keeps **formal booking unrouted**. The
+  Decision Register's CAL-PILOT synthetic-only exception is a later, separate
+  `AppModule` surface (`/v1/calendar-session`, `/v1/calendar`); it is not
+  `/v1/appointments` and does not expand production D-009/D-016.
 - A Firebase Local Emulator Suite baseline that denies all direct Firestore
   client access and tests that denial.
 
-No appointment route, authentication provider, Firebase production project,
-Google Calendar credential, service account, patient record, email delivery or
-NAS connector exists in this phase.
+No **formal** appointment route or production Google Calendar connection
+exists in this phase. CAL-PILOT is the register's expiring synthetic-only
+exception, not a production booking or Auth rollout. Real patient records,
+email delivery and NAS connectors remain absent.
 
 ## Safe local start
 

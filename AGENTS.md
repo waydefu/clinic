@@ -51,10 +51,13 @@ literal anywhere else.
 - Cloud Firestore or Authentication without an approved Stage 2 change plan and
   separate deployment authority; recorded D-006/D-010 decisions are not
   deployment authority.
-- Calendar test projection before D-009.
+- Production Calendar projection before production D-009, and
+  Calendar-to-system writes before production D-016. The Decision Register's
+  CAL-PILOT synthetic-only sub-scope (expiry/exclusions there) is the only
+  recorded exception and is not production or Stage 2.
 - Surgery/anesthesia/clinical-record persistence, patient money or staff
   settlement amounts before D-014/D-015 and their existing privacy/access
-  gates; Calendar-to-system writes before D-016.
+  gates.
 - Public booking or real patient data before D-001 through D-005 and D-011 are
   approved, the approved D-006 controls are implemented and verified, and the
   D-010 cloud change has separate deployment authority.

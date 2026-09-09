@@ -10,7 +10,7 @@
     {
       "name": "api",
       "command": "export PATH=\"$HOME/.nvm/versions/node/v24.18.0/bin:$PATH\"; PORT=3000 HOST=127.0.0.1 node apps/api/dist/main.js",
-      "description": "Stage 1 API on http://127.0.0.1:3000. Exposes only /v1/health; the booking write path is built but not routed (Phase 1 gate)."
+      "description": "Stage 1 API on http://127.0.0.1:3000. Formal booking remains unrouted. CAL-PILOT synthetic-only /v1/calendar-session and /v1/calendar routes may be present; they are not production booking."
     }
   ],
   "ports": [

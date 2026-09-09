@@ -16,7 +16,7 @@
 | --- | --- | --- | --- |
 | 1 | Unit tests | 已實作 Vitest suite；數量與通過狀態查同一 commit 的 CI／日期化證據 | `pnpm test:unit`（vitest） |
 | 2 | Firestore Emulator rules tests | ✅ | `pnpm test:rules`（需 JDK 21） |
-| 3 | Cloud Functions integration tests | ❌ **不存在** | 無 Functions 可測（只掛 `/v1/health`） |
+| 3 | Cloud Functions integration tests | ❌ **不存在** | 無 Functions 可測（專案未部署 Cloud Functions；health 與 CAL-PILOT 都不是 Functions） |
 | 4 | Playwright desktop E2E | ✅ | `pnpm test:e2e` |
 | 5 | Playwright mobile E2E | ✅ 部分 | `mobile-layout`、`responsive` |
 | 6 | axe 無障礙 | ✅ | `accessibility.spec.ts` |
