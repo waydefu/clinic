@@ -103,6 +103,9 @@ Gitleaks 8.30.1 進入同一 `verify` run；`Verification evidence` `schemaVersi
 
 此節剩餘未關閉項：`DATA-R03`（已授權、五刀已上 main、ID 未關）、`SCM-R04`（firebase-tools 兩筆
 跨 major advisory 待 2026-10-09 重審）、TW-05 真人驗收、以及 C0／Stage 2 授權。
+目前授權內的非 UI 工程切片已停在
+[2026-09-09 owner 五題後交接](../reviews/2026-09-09-non-ui-max-authorized-handoff.md)；
+不要把剩餘 CAL-PILOT `as T` 或 dual-write 當成已授權延續。
 不得把 booking write route、cloud Firestore 或 worker 多實例寫成已授權。
 
 `SCM-R04` 未關閉：2026-09-08T19:10Z fresh-check 為 10 筆 open（9 moderate／1 low，
