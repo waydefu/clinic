@@ -94,20 +94,21 @@ local, synthetic-only implementation does not authorise a route or cloud backend
 
 ## Repository publication boundary — 2026-07-29
 
-This access-restricted repository remains the canonical project record. The
-public
+`waydefu/clinic` remains the canonical project record. **GC-001
+(2026-09-09):** it remains public. Public visibility does not grant
+production, deployment, real-data, cloud, or secret / IAM / traffic
+authority. The separately curated
 [`appointment-platform-public`](https://github.com/waydefu/appointment-platform-public)
-repository is an independently curated, code-only reference with clean public
-history; it is not an automatic mirror, backup, release branch or deployment
-target.
+repository is a code-only reference with clean public history; it is not an
+automatic mirror, backup, release branch or deployment target.
 
 The public reference contains only an allowlisted appointment transaction
 boundary and synthetic tests. It deliberately excludes the clinic website and
 UI, brand and people assets, identity intake, scheduling/follow-up/payroll
 policy, internal governance and delivery records, deployment identifiers,
 private URLs, credentials, logs, personal data and the canonical Git history.
-Future updates must be exported without the private `.git` data, audited again,
-and merged through the public repository's required checks.
+Future updates must be exported without this repository's Git history, audited
+again, and merged through the public repository's required checks.
 
 Publication does not change the current Stage 1 status, close a D-series
 decision, authorise a backend or route, establish production readiness, or
@@ -116,8 +117,8 @@ licence. See the
 [sanitized public mirror publication record](docs/reviews/2026-07-29-sanitized-public-mirror-publication.md)
 for the initial audit evidence and repeatable update gate.
 
-The private canonical repository enabled its dependency graph and Dependabot
-alerts on 2026-07-30. Automatic dependency submission, security/version update
+On 2026-07-30, while the canonical repository was still private, it enabled
+its dependency graph and Dependabot alerts. Automatic dependency submission, security/version update
 pull requests and grouped updates remain disabled. The initial inventory was
 four open development-scope alerts (one high and three moderate); none was
 dismissed or automatically changed. See the
@@ -273,8 +274,8 @@ For an existing clone on the next computer, first make sure it tracks all
 remote branches with `git remote set-branches origin '*'`, then use
 `git fetch --prune`, switch to the same branch and run `git pull --ff-only`;
 do not reclone over that working tree. This repairs clones created by the older
-`--single-branch` instruction. This access-restricted repository may prompt for
-a GitHub browser sign-in through Git Credential Manager. HTTPS removes the SSH
+`--single-branch` instruction. GitHub may prompt for a browser sign-in
+through Git Credential Manager. HTTPS removes the SSH
 host-key step but does not bypass GitHub authorization.
 
 Never copy `.git`, `node_modules`, a pnpm store or the Playwright browser cache

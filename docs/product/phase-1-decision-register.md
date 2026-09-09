@@ -44,6 +44,34 @@ medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
 
 ## Recorded inputs
 
+### GC-001 repository visibility — 2026-09-09
+
+The clinic owner recorded that `waydefu/clinic` remains public and that
+historical Rule 1 (the canonical repository must not be public) is retired.
+
+```text
+Recorded input ID: GC-001
+Answer: approved — `waydefu/clinic` remains the canonical public project
+record. Rule 1 is retired.
+Approved by: clinic owner / technical owner
+Approval date (Asia/Taipei): 2026-09-09
+Recorded by: assistant, at the owner's instruction (construction
+2026-09-10). The owner gave the approval; the assistant is not an approver.
+Scope: GitHub visibility of `waydefu/clinic`, and the matching current-facing
+sentences in AGENTS.md Publication, CONTRIBUTING.md, and live-state
+conflicts.md.
+Explicit exclusions: does not grant production authority, deployment
+authority, real-data authority, cloud authority, or secret / IAM /
+traffic authority. Does not grant an open-source licence. Does not
+retire publication-safety (every committed file MUST be safe for
+publication). Does not collapse `waydefu/appointment-platform-public`
+into this repository or weaken allowlist export. Does not add PII.
+Does not change any D-series status, Stage 2, CAL-PILOT, SEC-02 SAST
+engine, or branch protection.
+```
+
+Closed-item evidence: [docs/state/conflicts.md](../state/conflicts.md) GC-001.
+
 ### CAL-PILOT controlled-correction staging deployment approval — 2026-08-31
 
 After reviewing the actual stacked-PR state, the project owner explicitly

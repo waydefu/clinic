@@ -209,7 +209,7 @@ production 的告警、secret rotation、restore、DR、法規／vendor 重審�
 
 | 核准項目 | 狀態 | 白話問題 | 建議方向 | 核准人 |
 | --- | --- | --- | --- | --- |
-| SEC-01 repository 位置 | **已決定** | 現在要不要把私有 repository 移到組織？ | 2026-07-31 業主方向為「目前不轉移」；維持個人私有 repository，未來再重評 | Repository owner |
+| SEC-01 repository 位置 | **已決定** | 現在要不要把 canonical repository 移到組織？ | 2026-07-31 業主方向為「目前不轉移」仍成立。GC-001（2026-09-09）另記錄：`waydefu/clinic` 維持個人帳號下的公開 canonical repository。公開不授予 production／部署／真實資料／雲端／IAM／密鑰／流量權限。未來再重評是否轉移組織。 | Repository owner |
 | SEC-02 私有 SAST 證據政策 | **政策已核准 2026-08-01；merge-blocking enforcement 已於 2026-08-18 由 `SCM-R01` 實作並以故意失敗 PR 驗證**（單人兼任兩角色簽核） | GitHub Security 頁面不能收 CodeQL 結果時，可否以 Semgrep CE commit-bound artifact 作為阻斷證據？ | 政策接受 pinned engine、rules/fixtures/hash 與 artifact，且明確認知 CE 非 CodeQL 跨檔等價物。2026-08-11 的唯讀快照顯示唯一 required context `Verification evidence` 未依賴獨立 SAST workflow；`SCM-R01`（2026-08-18）讓它在同一個 run 內聚合同 commit 的 SAST 結果，PR #19 的故意失敗驗收證明紅的 SAST 會擋下合併。**「非 CodeQL 等價物」這一句不因此改變。** | Technical owner＋security owner |
 | SEC-03 `brace-expansion` 暫時例外 | **已解除 2026-08-01**（核准當日 advisory 修訂補上各 major 修補版，解除條件成立；已改為逐 major 鎖定並移除忽略設定，目前無任何 audit 例外） | 舊 major 沒有相容修補時，是否接受目前限定路徑的暫時風險？ | 保持 alert 可見、不 dismiss；只接受目前 dev-only／未掛路由且不接收攻擊者 glob 的路徑，直到上游舊 major 修補或父套件可移到 5.x；每次升版重查 | Technical owner＋security owner |
 

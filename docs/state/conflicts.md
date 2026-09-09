@@ -1,58 +1,55 @@
 # Governance conflicts
 
-**Type:** live state / unresolved pointer. Not Canon. Not
+**Type:** live state. Not Canon. Not
 [GOVERNANCE.md](../../GOVERNANCE.md).
 **Resolution rule:** [GOVERNANCE.md](../../GOVERNANCE.md) § Conflict resolution.
 An owner decision is required to close each **unresolved** item. Closed items
-stay here as dated evidence until a later cleanup retires them. Do not retire
-an item from `AGENTS.md` Safety Floor or CONTRIBUTING merely because this file
-records a newer visibility snapshot.
+stay here as dated evidence until a later cleanup retires them.
 
 ## GC-001 — repository visibility vs unretired Rule 1
 
-**Status:** unresolved
+**Status:** closed (2026-09-09)
 **Owner:** clinic owner / technical owner
-**Approver:** not recorded as a named decision
+**Approver:** clinic owner / technical owner (2026-09-09)
+
+**Canon (GC-001, 2026-09-09):** `waydefu/clinic` remains the canonical project
+record and remains public. Historical Rule 1 — that the canonical repository
+must not be public — is retired. Recorded in the
+[decision register](../product/phase-1-decision-register.md) (recorded input,
+not a D-series ID) and in `AGENTS.md` Publication and `CONTRIBUTING.md`.
 
 **Recorded visibility (dated evidence, 2026-08-17):** GitHub API returned
 `visibility: public` for `waydefu/clinic`. The owner stated the change was
-deliberate and should stand, on the assessment that what was then in the
-repository was publishable. That snapshot is **not** standing authority to
-weaken export discipline, invent a licence, or treat public visibility as
-deployment or real-data permission.
-
-**Unretired Rule 1 (still binding until an owner retires it):** the publication
-boundary historically required that the canonical repository must not be made
-public, and that its `.git`, commits, branches, tags, pull-request metadata
-and other history must not be copied into the public mirror. Retiring that
-boundary is an owner decision that has **not** been recorded as such.
+deliberate and should stand. That snapshot was not itself the named decision;
+the 2026-09-09 record is.
 
 **Still-binding export discipline** (see `CONTRIBUTING.md` and
 [2026-07-29 sanitized public mirror publication](../reviews/2026-07-29-sanitized-public-mirror-publication.md)):
 allowlist export only; exclude clinic/people content, brand, portraits,
 screenshots, UI, internal governance/review/delivery documents, deployment
 identifiers, private URLs, logs, credentials, personal data and realistic
-identity fields; scan the candidate and the full public Git object/ref set;
-public availability grants no licence, production readiness, deployment
-authority or permission to use real data.
-
-**CONTRIBUTING.md** still describes `waydefu/clinic` as private and the unique
-canonical source. Do not silently rewrite that sentence here.
+identity fields; scan the candidate and the full public Git object/ref set.
+Do not copy this repository's full Git history into
+`waydefu/appointment-platform-public`.
 
 **Publication-safety invariant** (stable, in `AGENTS.md`): every committed
-file MUST be safe for publication. Repository visibility is dynamic state and
-must not be inferred from `AGENTS.md`.
+file MUST be safe for publication. GC-001 does not retire that invariant.
 
 **PII already in tree as of the 2026-08-17 note (do not add more silently):**
 clinic identity and address, clinic phone, one personal mobile and one
 personal email in the D-010 incident-contact record, two named individuals in
 the decision register, two real staff photographs, and the complete governance
-record including `enforce_admins=false`. Raise anything that would add
-personal data rather than committing it.
+record including the then-current `enforce_admins=false` snapshot. Raise
+anything that would add personal data rather than committing it.
 
-**What would close this:** a named owner decision that either (a) retires
-Rule 1 with scope, date and exclusions, and updates CONTRIBUTING.md, or
-(b) restores a non-public canonical repository, with evidence.
+**Why this closes:** the owner chose option (a) — retire Rule 1 with named
+approver, date, scope and exclusions, and update CONTRIBUTING.md.
+
+**What this is not:** not production authority, not deployment authority, not
+real-data authority, not cloud authority, not secret / IAM / traffic
+authority, not an open-source licence, not a change to any D-series status,
+Stage 2, CAL-PILOT, SEC-02 SAST engine or branch protection, and not
+permission to weaken publication-safety or public-mirror allowlist export.
 
 ## GC-002 — D-013 administrator bypass vs live `enforce_admins`
 

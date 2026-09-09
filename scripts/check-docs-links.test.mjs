@@ -230,8 +230,43 @@ describe('documentation gate', () => {
         '## Current commands',
         'Calendar test projection before D-009\\.',
         'Repository security posture — dated facts',
-        'every commit is a publication'
+        'every commit is a publication',
+        'unretired Rule 1'
       ].sort()
+    );
+  });
+
+  it('blocks current-facing claims that the canonical repository is private', () => {
+    const contributing = STALE_CLAIMS.find(
+      ([file]) => file === 'CONTRIBUTING.md'
+    );
+    expect(
+      contributing?.[1].test('waydefu/clinic 是私有且唯一的專案權威來源。')
+    ).toBe(true);
+    expect(
+      contributing?.[1].test(
+        'waydefu/clinic 是正式公開且唯一的專案權威來源（GC-001'
+      )
+    ).toBe(false);
+
+    const readme = STALE_CLAIMS.find(
+      ([file, pattern]) =>
+        file === 'README.md' &&
+        pattern.source.includes('access-restricted repository remains')
+    );
+    expect(
+      readme?.[1].test(
+        'This access-restricted repository remains the canonical project record.'
+      )
+    ).toBe(true);
+
+    const execution = STALE_CLAIMS.find(
+      ([file, pattern]) =>
+        file === 'docs/product/current-execution-and-approval-plan.md' &&
+        pattern.source.includes('維持個人私有 repository')
+    );
+    expect(execution?.[1].test('維持個人私有 repository，未來再重評')).toBe(
+      true
     );
   });
 

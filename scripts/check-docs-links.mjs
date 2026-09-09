@@ -177,6 +177,26 @@ export const STALE_CLAIMS = [
     'docs/roadmap.md',
     /尚無 source-routed cloud backend、Authentication、\s*日曆連線/,
     'roadmap must not deny all Calendar connectivity; CAL-PILOT is a register exception'
+  ],
+  [
+    'CONTRIBUTING.md',
+    /是私有且唯一的專案權威來源/,
+    'GC-001 retired Rule 1; waydefu/clinic is the public canonical record'
+  ],
+  [
+    'AGENTS.md',
+    /unretired Rule 1/,
+    'GC-001 retired Rule 1; do not restate it as current'
+  ],
+  [
+    'README.md',
+    /This access-restricted repository remains/,
+    'GC-001: the canonical repository remains public; do not describe it as access-restricted'
+  ],
+  [
+    'docs/product/current-execution-and-approval-plan.md',
+    /維持個人私有 repository/,
+    'GC-001: canonical repo stays public on the personal account; org-transfer remains deferred'
   ]
 ];
 
