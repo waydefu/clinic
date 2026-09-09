@@ -680,22 +680,17 @@ h3 {
   margin-bottom: 0;
 }
 .environment-card {
-  align-self: end;
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--elevation-2);
-  color: var(--ink);
-  padding: var(--space-md);
+  align-self: stretch;
 }
 .environment-card .eyebrow {
-  color: var(--forest);
+  color: var(--on-inverse-accent);
 }
 .environment-card h2 {
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   margin-bottom: var(--space-xs);
 }
 .environment-card > p:last-child {
-  color: var(--ink-muted);
+  color: var(--on-inverse-muted);
   font-size: var(--text-body);
   line-height: 1.65;
   max-width: 68ch;
@@ -1252,12 +1247,7 @@ textarea {
   border-color: var(--line-accent);
 }
 .booking-panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-1);
   min-height: 0;
-  padding: clamp(1.25rem, 3vw, 2.2rem);
   scroll-margin-top: var(--scroll-anchor-offset);
 }
 #patient-booking-app:not([hidden]) {
@@ -2036,9 +2026,6 @@ label:has(> input[type='radio']) {
   .hero-panel {
     grid-template-columns: 1fr;
   }
-  .environment-card {
-    max-width: 29rem;
-  }
   .release-grid {
     grid-template-columns: 1fr;
   }
@@ -2293,6 +2280,18 @@ label:has(> input[type='radio']) {
   }
 }
 @media (max-width: 30rem) {
+  /* 320px: 查詢 144px + labelled theme 149px wrap. Hide duplicate「主題」. */
+  .patient-body .patient-header-inner {
+    gap: var(--space-3xs);
+    min-height: 0;
+    padding-block: var(--space-3xs);
+  }
+  .patient-body .patient-header-inner .theme-picker-text {
+    display: none;
+  }
+  .patient-body .patient-header-inner .theme-picker-label {
+    gap: 0;
+  }
   .summary-grid {
     grid-template-columns: 1fr;
   }

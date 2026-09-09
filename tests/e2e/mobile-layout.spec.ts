@@ -359,6 +359,26 @@ test.describe('患者預約頁手機版', () => {
     expect(contentTop).toBeLessThan(viewportHeight * 0.72);
   });
 
+  test('320×568 頁首換列不得吃掉首屏，第一個操作仍可到達', async ({ page }) => {
+    await page.setViewportSize(NARROW);
+    await page.goto(BOOKING_ROUTE);
+    const firstVisit = page.locator('[data-booking-type="initial"]');
+    await expect(firstVisit).toBeVisible();
+    const viewportHeight = page.viewportSize()?.height ?? 568;
+    const headerHeight = await page
+      .locator('.patient-header')
+      .evaluate((el) => el.getBoundingClientRect().height);
+    expect(headerHeight).toBeLessThan(viewportHeight * 0.25);
+    await expect(page.locator('.patient-preview-warning')).toBeVisible();
+    await expect(page.locator('#patient-status')).toBeVisible();
+    await expect(page.locator('.booking-stepper strong')).toHaveCount(3);
+    await firstVisit.scrollIntoViewIfNeeded();
+    await expect(firstVisit).toBeInViewport();
+    const box = await firstVisit.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
   // 英文副標先前在 48rem 以下被 display:none 收掉，患者頁的品牌在手機上因此只剩
   // 中文——而患者頁正是對外的那一面。它疊在標誌的 40px 高度之內，本來就不需要用
   // 「藏起來」去換版面空間。
