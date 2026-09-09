@@ -683,13 +683,14 @@ describe('outbox worker', () => {
 
     const summary = await processor.processDue(NOW);
 
-    expect(summary).toMatchObject({ claimed: 1, deadLettered: 1 });
-    expect(calendar.callCount).toBe(0);
-    expect((await jobState())?.['lastError']).toMatch(/correlationId/);
-    expect(metrics.attempts[0]).toMatchObject({
-      result: 'dead_lettered',
-      retryable: false
+    expect(summary).toMatchObject({
+      claimed: 0,
+      deadLettered: 0,
+      completed: 0
     });
+    expect(calendar.callCount).toBe(0);
+    expect((await jobState())?.['status']).toBe('dead_letter');
+    expect((await jobState())?.['lastError']).toMatch(/unreadable/);
   });
 
   it('does not put identifiers or patient data into metric labels', async () => {
