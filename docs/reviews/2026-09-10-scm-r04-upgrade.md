@@ -65,6 +65,9 @@ until a parent line can load the patched majors.
 | `audit:all` | PASS | 2 remaining moderate, 0 high (threshold is high) |
 | `test:unit` | PASS | vitest 4.1.11, 97 files / 1403 tests |
 | `firebase help` | PASS | after dropping stream-json 3; failed under 3.6.0 |
-| Emulator / E2E / `verify` | see the PR completion report | exact-head `Verification evidence` is merge evidence |
+| `check:types` / `check:lint` | PASS | lint after `tsc` (verify.yml order) |
+| `check:docs` / `check:format` / `check:structure` / `check:supply-chain` | PASS | this tree |
+| Firestore Emulator | UNAVAILABLE locally | port 8080 already taken in this environment; CI `Firestore Emulator` job replaces it |
+| E2E | NOT_RUN | delegated to exact-head CI |
 
 Production is not in scope.
