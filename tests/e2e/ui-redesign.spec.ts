@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import {
   createBooking,
   login,
-  showAllAppointments
+  showAllAppointments,
+  STORAGE_KEY
 } from './support/workbench.js';
 
 // Complements T3-Q-01 without modifying its five in-flight files. Assertions
@@ -16,15 +17,54 @@ for (const width of [320, 360, 375, 390, 768, 1024, 1280, 1440]) {
     await login(page);
     await createBooking(page, { name: 'TEST_UI_001', phone: '0900000001' });
     await showAllAppointments(page);
+    if (width >= 1024) {
+      // 清單日期來自 createBooking 的「下一檔時段」，1–9 日比 10–31 日短一碼。
+      // 桌機 1280 的 4px 溢位只在兩位數日穩定出現；另插一列最長完整日期，
+      // 避免把真實版面缺陷藏進「今天還是個位數日」的綠燈。
+      await page.evaluate((key) => {
+        const raw = window.localStorage.getItem(key);
+        if (raw === null) throw new Error('找不到合成工作臺狀態');
+        const state = JSON.parse(raw);
+        const source = state.appointments.at(-1);
+        if (source === undefined) throw new Error('請先建立一筆預約');
+        state.appointments.push({
+          ...source,
+          id: 'appointment_long_date',
+          startsAt: '2026-12-31T04:00:00.000Z'
+        });
+        window.localStorage.setItem(key, JSON.stringify(state));
+      }, STORAGE_KEY);
+      await page.reload();
+      await expect(page.locator('#login-view')).toBeHidden();
+      await showAllAppointments(page);
+      await expect(page.locator('#appointments-section')).toContainText(
+        '2026年12月31日'
+      );
+    }
     await expect(page.locator('#appointments-section')).toContainText(
       'TEST_UI_001'
     );
-    const overflow = await page.evaluate(
-      () =>
+    const geometry = await page.evaluate(() => {
+      const overflow =
         document.documentElement.scrollWidth -
-        document.documentElement.clientWidth
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+        document.documentElement.clientWidth;
+      const outside = [...document.querySelectorAll('body *')]
+        .filter(
+          (el) =>
+            el.checkVisibility() &&
+            el.getBoundingClientRect().right > innerWidth + 1
+        )
+        .slice(-20)
+        .map((el) => ({
+          tag: el.tagName,
+          id: el.id,
+          class: String(el.className).slice(0, 80),
+          right: Number(el.getBoundingClientRect().right.toFixed(1)),
+          min: getComputedStyle(el).minWidth
+        }));
+      return { overflow, outside };
+    });
+    expect(geometry.overflow, JSON.stringify(geometry)).toBeLessThanOrEqual(1);
     const trigger = page.getByRole('button', {
       name: '工作區導覽',
       exact: true

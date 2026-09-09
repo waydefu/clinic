@@ -1180,16 +1180,27 @@ details[open] > summary .workflow-summary-chevron {
 .data-table td > form {
   min-width: 0;
 }
-/* 時間欄是掃描的起點，所以用等寬字讓數字逐位對齊。 */
+/* 時間欄是掃描的起點，所以用等寬字讓數字逐位對齊。完整日期（「2026年12月31日
+   星期四」）不可再 nowrap：桌機 1280 已離開平板的 #appointments 橫向捲動，
+   auto 表格的 min-content 會把整頁推出 4px（CI Chromium，兩位數日）。時鐘仍
+   nowrap。 */
+#appointments {
+  min-width: 0;
+}
+.appointment-table {
+  max-width: 100%;
+  min-width: 0;
+}
 .appointment-table .cell-date {
   color: var(--ink-muted);
   display: block;
+  overflow-wrap: anywhere;
 }
 .appointment-table .cell-time {
   font-family: var(--font-mono);
   font-size: var(--text-body);
+  white-space: nowrap;
 }
-.appointment-table td[data-label='時間'],
 .appointment-table td[data-label='掛號別'] {
   white-space: nowrap;
 }
