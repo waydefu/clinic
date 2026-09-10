@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   GoogleCalendarEventReader,
   GoogleCalendarEventWriter,
-  GoogleCalendarSyncError
+  GoogleCalendarSyncError,
+  GoogleCalendarWatchClient
 } from './google-sync-client.js';
 import { CalendarSyncTokenExpiredError } from './sync-engine.js';
 
@@ -217,5 +218,63 @@ describe('GoogleCalendarEventWriter', () => {
       start: { date: '2026-09-02' },
       end: { date: '2026-09-04' }
     });
+  });
+});
+
+describe('GoogleCalendarWatchClient (unwired)', () => {
+  it('opens a webhook channel and stops it without echoing event bodies', async () => {
+    const fetchImpl = vi.fn((url: string) => {
+      if (String(url).endsWith('/events/watch')) {
+        return Promise.resolve(
+          response({
+            id: 'chan-1',
+            resourceId: 'res-9',
+            expiration: '1780000000000'
+          })
+        );
+      }
+      return Promise.resolve(response({}, 200));
+    });
+    const client = new GoogleCalendarWatchClient(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      fetchImpl
+    );
+    await expect(
+      client.watch({
+        channelId: 'chan-1',
+        address: 'https://example.invalid/calendar-watch',
+        token: 'channel-token',
+        expirationMs: 1_780_000_000_000
+      })
+    ).resolves.toEqual({
+      channelId: 'chan-1',
+      resourceId: 'res-9',
+      expirationMs: 1_780_000_000_000
+    });
+    const watchUrl = new URL(String(fetchImpl.mock.calls[0]?.[0]));
+    expect(watchUrl.pathname).toContain('/events/watch');
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({
+      id: 'chan-1',
+      type: 'web_hook',
+      address: 'https://example.invalid/calendar-watch',
+      token: 'channel-token',
+      expiration: 1_780_000_000_000
+    });
+    await client.stop({ channelId: 'chan-1', resourceId: 'res-9' });
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toBe(
+      'https://www.googleapis.com/calendar/v3/channels/stop'
+    );
+  });
+
+  it('treats stop 404 as idempotent success', async () => {
+    const client = new GoogleCalendarWatchClient(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      () => Promise.resolve(response({}, 404))
+    );
+    await expect(
+      client.stop({ channelId: 'chan-1', resourceId: 'res-9' })
+    ).resolves.toBeUndefined();
   });
 });

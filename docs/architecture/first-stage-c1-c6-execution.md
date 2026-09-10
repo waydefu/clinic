@@ -91,7 +91,7 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | --- | --- |
 | Prerequisites | C1～C5 evidence; C6 authority; synthetic data only |
 | Scope | Staff login, RBAC, booking/schedule, audit, Calendar bidirectional (watch + compensation + conflict queue), website *redirect rehearsal* (no official DNS) |
-| Source in tree | Unrouted formal booking; CAL-PILOT five-minute poll; unwired `watch-channel.ts` |
+| Source in tree | Unrouted formal booking; CAL-PILOT five-minute poll; unwired `watch-channel.ts` + unused `GoogleCalendarWatchClient`; unrouted `CalendarWatchController` (`POST /v1/calendar-watch` 404 on AppModule) |
 | Exclusions | Real data; production; live Hosting; production Calendar; mounting `/v1/bookings` |
 | Remaining blockers | C1～C5 apply; exact C6 authority; DATA-R03 codecs for collections C6 will actually read |
 | Authority | `not_granted` |

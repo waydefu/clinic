@@ -1,3 +1,7 @@
+import { timingSafeEqual } from 'node:crypto';
+
+import type { CalendarCandidateKind } from './sync-engine.js';
+
 /**
  * Google Calendar watch-channel lifecycle helpers.
  *
@@ -102,4 +106,160 @@ export function inboundRequiresHumanReview(
   reason: InboundReviewReason | 'unique_match_only'
 ): boolean {
   return reason !== 'unique_match_only';
+}
+
+export type GooglePushResourceState = 'sync' | 'exists' | 'not_exists';
+
+export interface CalendarPushNotification {
+  readonly channelId: string;
+  readonly resourceId: string;
+  readonly resourceState: GooglePushResourceState;
+  readonly messageNumber: string;
+  readonly token: string;
+}
+
+export type InboundNotificationPlan =
+  | { readonly action: 'ack_only'; readonly channelId: string }
+  | {
+      readonly action: 'incremental_sync';
+      readonly channelId: string;
+      readonly resourceId: string;
+      readonly messageNumber: string;
+      readonly compensationIntervalMs: number;
+    }
+  | {
+      readonly action: 'reject';
+      readonly httpStatus: 400 | 404;
+      readonly reason: 'unrecognized_headers' | 'token_mismatch';
+    };
+
+function headerLine(
+  headers: Record<string, unknown>,
+  name: string
+): string | undefined {
+  const raw: unknown = headers[name] ?? headers[name.toLowerCase()];
+  const candidate: unknown = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof candidate !== 'string') return undefined;
+  const trimmed = candidate.trim();
+  return trimmed === '' ? undefined : trimmed;
+}
+
+export function parseCalendarPushHeaders(
+  headers: Record<string, unknown>
+): CalendarPushNotification | undefined {
+  const channelId = headerLine(headers, 'x-goog-channel-id');
+  const resourceId = headerLine(headers, 'x-goog-resource-id');
+  const resourceState = headerLine(headers, 'x-goog-resource-state');
+  const messageNumber = headerLine(headers, 'x-goog-message-number');
+  const token = headerLine(headers, 'x-goog-channel-token');
+  if (
+    channelId === undefined ||
+    resourceId === undefined ||
+    messageNumber === undefined ||
+    token === undefined ||
+    (resourceState !== 'sync' &&
+      resourceState !== 'exists' &&
+      resourceState !== 'not_exists')
+  ) {
+    return undefined;
+  }
+  return {
+    channelId,
+    resourceId,
+    resourceState,
+    messageNumber,
+    token
+  };
+}
+
+export function tokensMatch(expected: string, provided: string): boolean {
+  const left = Buffer.from(expected);
+  const right = Buffer.from(provided);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+export function planInboundNotificationWork(input: {
+  readonly headers: Record<string, unknown>;
+  readonly expectedToken: string | undefined;
+  readonly compensationIntervalMs?: number;
+}): InboundNotificationPlan {
+  const notification = parseCalendarPushHeaders(input.headers);
+  if (notification === undefined) {
+    return {
+      action: 'reject',
+      httpStatus: 400,
+      reason: 'unrecognized_headers'
+    };
+  }
+  if (
+    input.expectedToken === undefined ||
+    !tokensMatch(input.expectedToken, notification.token)
+  ) {
+    return { action: 'reject', httpStatus: 404, reason: 'token_mismatch' };
+  }
+  if (notification.resourceState === 'sync') {
+    return { action: 'ack_only', channelId: notification.channelId };
+  }
+  const compensationIntervalMs =
+    input.compensationIntervalMs ?? COMPENSATION_SYNC_MIN_MS;
+  if (!isCompensatingIntervalMs(compensationIntervalMs)) {
+    throw new Error('Compensation interval must be between 1 and 5 minutes.');
+  }
+  return {
+    action: 'incremental_sync',
+    channelId: notification.channelId,
+    resourceId: notification.resourceId,
+    messageNumber: notification.messageNumber,
+    compensationIntervalMs
+  };
+}
+
+export function reviewReasonForInboundCandidate(input: {
+  readonly kind: CalendarCandidateKind;
+  readonly uniquelyMatched: boolean;
+}): InboundReviewReason | 'unique_match_only' {
+  if (input.kind === 'invalid_format') return 'illegal_schema';
+  if (input.kind === 'conflict') return 'simultaneous_edit';
+  if (!input.uniquelyMatched) {
+    if (input.kind === 'cancel_appointment' || input.kind === 'release_block') {
+      return 'ambiguous_delete';
+    }
+    return 'unmatched';
+  }
+  return 'unique_match_only';
+}
+
+export function googleEventsWatchBody(input: {
+  readonly channelId: string;
+  readonly address: string;
+  readonly token: string;
+  readonly expirationMs: number;
+}): {
+  readonly id: string;
+  readonly type: 'web_hook';
+  readonly address: string;
+  readonly token: string;
+  readonly expiration: number;
+} {
+  if (input.channelId.trim() === '' || input.address.trim() === '') {
+    throw new Error('Watch channel id and address must be non-empty.');
+  }
+  return {
+    id: input.channelId,
+    type: 'web_hook',
+    address: input.address,
+    token: input.token,
+    expiration: input.expirationMs
+  };
+}
+
+export function googleChannelsStopBody(input: {
+  readonly channelId: string;
+  readonly resourceId: string;
+}): { readonly id: string; readonly resourceId: string } {
+  if (input.channelId.trim() === '' || input.resourceId.trim() === '') {
+    throw new Error('Stop requires a channel id and resource id.');
+  }
+  return { id: input.channelId, resourceId: input.resourceId };
 }

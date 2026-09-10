@@ -75,7 +75,7 @@ Do not invent answers.
 | ADR-0002 | Calendar is a projection, not the availability lock |
 | CAL-PILOT | synthetic-only exception; five-minute Scheduler; not production |
 | Worker `syncToken` engine | implemented for incremental list + `410` rebuild |
-| `events.watch` / webhook receiver | **not** on the default-branch executable path |
+| `events.watch` / webhook receiver | helpers + unused watch client + **unrouted** `CalendarWatchController`; **not** on AppModule or CAL-PILOT HTTP |
 | 2026-09-11 watch + 1–5 minute compensation | product direction; not deployed |
 
 Notification-driven inbound is therefore `IMPLEMENTED=NO` /

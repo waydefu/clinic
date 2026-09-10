@@ -57,7 +57,9 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
   it('keeps formal booking unrouted in AppModule', () => {
     const appModule = read('apps/api/src/app.module.ts');
     expect(appModule).toContain('CalendarPilotModule');
-    expect(appModule).not.toMatch(/AppointmentController|BookPilotModule/);
+    expect(appModule).not.toMatch(
+      /AppointmentController|BookPilotModule|CalendarWatchController/
+    );
   });
 
   it('indexes the 2026-09-11 C0 split in Canon maps', () => {
@@ -76,6 +78,10 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(execution).toContain('READY_FOR_EXPLICIT_AUTHORITY');
     expect(execution).not.toMatch(/Status \| `completed`/);
     expect(runtime).not.toMatch(/watch-channel/);
+    expect(runtime).not.toMatch(/GoogleCalendarWatchClient/);
+    expect(
+      read('apps/worker/src/calendar-sync/calendar-pilot-main.ts')
+    ).not.toMatch(/calendar-watch/);
   });
 
   it('keeps CAL-PILOT session windows aligned with C0-DIR idle/absolute targets', () => {

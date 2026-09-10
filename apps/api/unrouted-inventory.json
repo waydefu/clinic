@@ -980,6 +980,47 @@
         }
       ],
       "note": "Dedicated BookPilotModule. Must not be imported from production AppModule. Later exact-SHA authority is required before any compose/import. Not D-004／D-005 or Stage 2."
+    },
+    "src/calendar/calendar-watch.controller.ts": {
+      "approvedPolicyDependencies": [],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-009",
+          "description": "production Calendar owner、日曆選擇、授權模型與最小事件欄位仍 pending。"
+        },
+        {
+          "kind": "decision",
+          "id": "D-016",
+          "description": "production Calendar-to-system write path 仍 pending；CAL-PILOT 例外不是這條 webhook。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C0",
+          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
+        },
+        {
+          "kind": "deployment_authority",
+          "id": "C1",
+          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C1",
+          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
+        },
+        {
+          "kind": "stage_slice",
+          "id": "C6",
+          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
+        },
+        {
+          "kind": "deployment_authority",
+          "id": "C6",
+          "description": "尚未取得 C6 synthetic integration 的個別 deployment approval。"
+        }
+      ],
+      "note": "Google Calendar push receiver. Production AppModule must not import it; POST /v1/calendar-watch stays 404. Does not change the CAL-PILOT five-minute Scheduler or call Calendar from a transaction."
     }
   }
 }

@@ -285,3 +285,114 @@ export class GoogleCalendarEventWriter {
     }
   }
 }
+
+export interface GoogleWatchChannel {
+  readonly channelId: string;
+  readonly resourceId: string;
+  readonly expirationMs: number;
+}
+
+/**
+ * Unwired. Calendar-pilot runtime must not construct this client. Product
+ * direction is CAL-SYNC-DIR-2026-09-11; production D-009/D-016 stay pending.
+ */
+export class GoogleCalendarWatchClient {
+  public constructor(
+    private readonly calendarId: string,
+    private readonly getAccessToken: () => Promise<string>,
+    private readonly fetchImpl: FetchLike = fetch
+  ) {}
+
+  public async watch(input: {
+    readonly channelId: string;
+    readonly address: string;
+    readonly token: string;
+    readonly expirationMs: number;
+  }): Promise<GoogleWatchChannel> {
+    const token = await this.getAccessToken();
+    const url = `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events/watch`;
+    const response = await this.fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        id: input.channelId,
+        type: 'web_hook',
+        address: input.address,
+        token: input.token,
+        expiration: input.expirationMs
+      }),
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+    });
+    if (!response.ok)
+      throw new GoogleCalendarSyncError(
+        `Google Calendar watch failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
+    const raw = await responseJson(response);
+    if (typeof raw !== 'object' || raw === null)
+      throw new GoogleCalendarSyncError(
+        'Google Calendar returned an invalid response.',
+        response.status,
+        false
+      );
+    const body = raw as Record<string, unknown>;
+    if (
+      typeof body['id'] !== 'string' ||
+      body['id'].trim() === '' ||
+      typeof body['resourceId'] !== 'string' ||
+      body['resourceId'].trim() === ''
+    ) {
+      throw new GoogleCalendarSyncError(
+        'Google Calendar returned an invalid watch channel.',
+        response.status,
+        false
+      );
+    }
+    const expiration =
+      typeof body['expiration'] === 'string'
+        ? Number(body['expiration'])
+        : typeof body['expiration'] === 'number'
+          ? body['expiration']
+          : Number.NaN;
+    if (!Number.isFinite(expiration))
+      throw new GoogleCalendarSyncError(
+        'Google Calendar returned an invalid watch channel.',
+        response.status,
+        false
+      );
+    return {
+      channelId: body['id'],
+      resourceId: body['resourceId'],
+      expirationMs: expiration
+    };
+  }
+
+  public async stop(input: {
+    readonly channelId: string;
+    readonly resourceId: string;
+  }): Promise<void> {
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(`${API_BASE}/channels/stop`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        id: input.channelId,
+        resourceId: input.resourceId
+      }),
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+    });
+    if (!response.ok && response.status !== 404)
+      throw new GoogleCalendarSyncError(
+        `Google Calendar channel stop failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
+  }
+}

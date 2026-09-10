@@ -4,12 +4,17 @@ import {
   COMPENSATION_SYNC_MAX_MS,
   COMPENSATION_SYNC_MIN_MS,
   eventDedupeKey,
+  googleChannelsStopBody,
+  googleEventsWatchBody,
   inboundRequiresHumanReview,
   isCompensatingIntervalMs,
   nextWatchChannelId,
   notificationDedupeKey,
+  planInboundNotificationWork,
   planWatchChannelReplacement,
+  reviewReasonForInboundCandidate,
   shouldRenewWatchChannel,
+  tokensMatch,
   type WatchChannelRecord
 } from './watch-channel.js';
 
@@ -70,5 +75,109 @@ describe('watch-channel (unwired)', () => {
     expect(inboundRequiresHumanReview('simultaneous_edit')).toBe(true);
     expect(inboundRequiresHumanReview('ambiguous_delete')).toBe(true);
     expect(inboundRequiresHumanReview('authorization_failed')).toBe(true);
+  });
+
+  it('plans incremental sync from push headers and never reads a body', () => {
+    const headers = {
+      'x-goog-channel-id': 'chan-1',
+      'x-goog-resource-id': 'res-1',
+      'x-goog-resource-state': 'exists',
+      'x-goog-message-number': '12',
+      'x-goog-channel-token': 'token-hash'
+    };
+    expect(tokensMatch('token-hash', 'token-hash')).toBe(true);
+    expect(tokensMatch('token-hash', 'other')).toBe(false);
+    expect(
+      planInboundNotificationWork({
+        headers,
+        expectedToken: 'token-hash',
+        compensationIntervalMs: COMPENSATION_SYNC_MIN_MS
+      })
+    ).toEqual({
+      action: 'incremental_sync',
+      channelId: 'chan-1',
+      resourceId: 'res-1',
+      messageNumber: '12',
+      compensationIntervalMs: COMPENSATION_SYNC_MIN_MS
+    });
+    expect(
+      planInboundNotificationWork({
+        headers: { ...headers, 'x-goog-resource-state': 'sync' },
+        expectedToken: 'token-hash'
+      })
+    ).toEqual({ action: 'ack_only', channelId: 'chan-1' });
+    expect(
+      planInboundNotificationWork({
+        headers,
+        expectedToken: 'wrong'
+      })
+    ).toEqual({
+      action: 'reject',
+      httpStatus: 404,
+      reason: 'token_mismatch'
+    });
+    expect(
+      planInboundNotificationWork({
+        headers: { body: '{"summary":"must-not-be-read"}' },
+        expectedToken: 'token-hash'
+      })
+    ).toEqual({
+      action: 'reject',
+      httpStatus: 400,
+      reason: 'unrecognized_headers'
+    });
+  });
+
+  it('classifies inbound candidates without guessing unmatched or illegal schema', () => {
+    expect(
+      reviewReasonForInboundCandidate({
+        kind: 'create_appointment',
+        uniquelyMatched: false
+      })
+    ).toBe('unmatched');
+    expect(
+      reviewReasonForInboundCandidate({
+        kind: 'cancel_appointment',
+        uniquelyMatched: false
+      })
+    ).toBe('ambiguous_delete');
+    expect(
+      reviewReasonForInboundCandidate({
+        kind: 'invalid_format',
+        uniquelyMatched: false
+      })
+    ).toBe('illegal_schema');
+    expect(
+      reviewReasonForInboundCandidate({
+        kind: 'conflict',
+        uniquelyMatched: true
+      })
+    ).toBe('simultaneous_edit');
+    expect(
+      reviewReasonForInboundCandidate({
+        kind: 'update_appointment',
+        uniquelyMatched: true
+      })
+    ).toBe('unique_match_only');
+  });
+
+  it('builds watch and stop bodies with a new channel id', () => {
+    expect(
+      googleEventsWatchBody({
+        channelId: 'chan-2',
+        address: 'https://example.invalid/calendar-watch',
+        token: 'token-hash',
+        expirationMs: CHANNEL.expirationMs
+      })
+    ).toEqual({
+      id: 'chan-2',
+      type: 'web_hook',
+      address: 'https://example.invalid/calendar-watch',
+      token: 'token-hash',
+      expiration: CHANNEL.expirationMs
+    });
+    expect(
+      googleChannelsStopBody({ channelId: 'chan-1', resourceId: 'res-1' })
+    ).toEqual({ id: 'chan-1', resourceId: 'res-1' });
   });
 });
