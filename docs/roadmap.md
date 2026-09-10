@@ -2,7 +2,7 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-09-09
+**整合更新：** 2026-09-11
 
 **39 題業主答案已於 2026-08-16 全數回收**，逐題對帳見
 [2026-08-17 對帳紀錄](reviews/2026-08-17-owner-decision-reconciliation.md)。答案是
@@ -22,6 +22,13 @@ Firestore Emulator job 通過。Stage 0／Checkpoint A 已通過，
 backend、production Authentication 或真實病患資料 authority。決策登錄的
 CAL-PILOT 合成-only 子範圍（期限與排除項見登錄）不是 production 日曆連線，
 也不是 Stage 2。
+
+**2026-09-11 業主方向：** Phase 1 產品範圍與 C0 架構方向已記入 Decision
+Register（FS-001、C0-DIR、CAL-SYNC-DIR）。那是 `OWNER_DIRECTION_APPROVED`，
+**不是** `stageSlices.C0=approved`，也不是 C1～C6 `deploymentAuthorities`。
+Engineering C0 仍 `revise`。見
+[first-stage C0 authority](architecture/first-stage-c0-authority.md) 與
+[2026-09-11 對帳](reviews/2026-09-11-c0-owner-direction-reconciliation.md)。
 
 > **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
 > 2026-07-24 完成；D-010 target 與 D-006 identity/security 已於 2026-07-28

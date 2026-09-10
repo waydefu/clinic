@@ -1,5 +1,14 @@
 # Google Calendar 雙向同步規劃
 
+> **2026-09-11 產品方向：** 業主 C0／C6 封包把 Phase 1 *product* SLO 改成
+> system→Calendar 經 outbox（秒～數十秒）、Calendar→system 優先 `events.watch`
+> 再 `syncToken` 增量、補償輪詢 1–5 分鐘、channel 到期續約與 overlap 去重、
+> 衝突／無法匹配／刪除歧義送人工審核。這取代較早的 30 分鐘 *product* 方向，
+> **不**核准 production D-009／D-016，**不**把 `events.watch` 接到可執行路徑，
+> **不**改變已部署的 CAL-PILOT 五分鐘 Scheduler。live split 見
+> [first-stage C0 authority](first-stage-c0-authority.md)；unwired helpers 在
+> `apps/worker/src/calendar-sync/watch-channel.ts`。
+
 > **2026-08-30 實作註記：** 下文是 production／真實資料方向的 plan-only 歷史
 > 文件，因此其 blocked 結論仍適用 production。另行核准的窄範圍 synthetic-only
 > 實作（兩本 allowlisted CAL-PILOT 日曆、A01～A30、Google＋TOTP、五分鐘增量同步、

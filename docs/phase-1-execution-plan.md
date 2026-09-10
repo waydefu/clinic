@@ -111,7 +111,9 @@ D-series decision changed status.
 The project is in Stage 1, the decision-and-governance portion of Phase 1. Stage
 0 architecture hardening and Checkpoint A are complete: contract/domain
 alignment, application-boundary interfaces, `patient_booking_guards`, audit v2
-and synthetic tests have executable evidence. No booking write endpoint may be
+and synthetic tests have executable evidence. 2026-09-11 owner direction is
+recorded (`OWNER_DIRECTION_APPROVED`); engineering C0 in
+`stage-2-gate-status.json` remains `revise`. No booking write endpoint may be
 enabled until every relevant blocking decision is approved, and D-006 plus
 D-010 are Stage 2 prerequisites. Both are now approved as targets; the reviewed
 change plan and separate deployment approval still block Stage 2 cloud

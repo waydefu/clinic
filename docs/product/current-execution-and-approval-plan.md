@@ -1,7 +1,7 @@
 # 專案後續執行與核准清單
 
 **狀態：現行權威／Stage 1／尚未授權雲端或真實資料。**  
-**最後更新：2026-09-09（Asia/Taipei）**
+**最後更新：2026-09-11（Asia/Taipei）**
 
 **證據新鮮度：** 2026-08-11 為唯讀靜態盤點；未重跑 build、unit、Rules、E2E、
 browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史證據，不是目前 HEAD
@@ -25,11 +25,18 @@ browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史
 Stage 0 的日期化 repository 證據已交付。**39 題業主答案已於 2026-08-16 全數回收**
 （逐題對帳見 [2026-08-17 對帳紀錄](../reviews/2026-08-17-owner-decision-reconciliation.md)），
 因此第 1 條路已由「回收答案」前進到「核准資格補齊」——答案缺核准人、核准日期、適用
-範圍與排除項，以及 legal／privacy／medical 專業審查，補齊後才談 C0 closure。第 2 條
-路仍是 2026-08-11 新發現的 correctness／gate truthfulness P0。
+範圍與排除項，以及 legal／privacy／medical 專業審查，補齊後才談 **engineering**
+C0 closure。第 2 條路仍是 2026-08-11 新發現的 correctness／gate truthfulness P0。
 TW-01～TW-04 與 TW-05 自動前置條件已於 2026-08-01 交付，TW-05 真人驗收仍未完成。
-C0 通過後才可逐片申請只放合成資料的 staging，後續再依決策走 Calendar、公開服務、
-排班／個管／薪資、Production 與獨立的 Expansion S。
+**2026-09-11 業主封包**把 Phase 1 產品方向記為 `OWNER_DIRECTION_APPROVED`
+（FS-001、C0-DIR、CAL-SYNC-DIR）；這**不是** engineering C0 `approved`，也不是
+C1～C6 apply。live split 見
+[first-stage C0 authority](../architecture/first-stage-c0-authority.md)；
+C1～C6 封包見
+[first-stage C1～C6 execution](../architecture/first-stage-c1-c6-execution.md)。
+既有 `beauessence-clinic-staging` 不是 C1 complete。Engineering C0 通過後才可
+逐片申請只放合成資料的 staging，後續再依決策走 Calendar、公開服務、排班／個管／
+薪資、Production 與獨立的 Expansion S。
 
 ## 固定執行順序
 
@@ -127,7 +134,8 @@ pending D-series（D-001～D-005、D-007～D-009、D-011、D-014～D-016）現�
 全數維持 `pending`；D-008／D-015 的財務子項由業主指示 `deferred`。OR-07、OR-22、OR-37 與多服務時長矛盾須由 owner 明確定案，不得由
 實作者用現況或多數決猜值。詳細分組與完成定義見執行書 §1。
 
-C0 只核准「未來要怎麼做」，不連 cloud、不建立資源。決策基線齊備後，以下缺一不可：
+C0 只核准「未來要怎麼做」，不連 cloud、不建立資源。**2026-09-11 業主方向已核准**；
+`stageSlices.C0` 仍是 `revise`，因為下列 **engineering** 項目缺一不可（不得臆造）：
 
 1. 具名 technical reviewer、security reviewer、billing owner、主要與備援告警
    接收者。
