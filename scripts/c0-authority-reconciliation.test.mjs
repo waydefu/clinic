@@ -90,4 +90,17 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(session).toContain('const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000');
     expect(session).toContain('const IDLE_SESSION_MS = 30 * 60 * 1000');
   });
+
+  it('does not treat suggested hostnames as Hosting or Terraform apply targets', () => {
+    const firebase = read('firebase.json');
+    for (const host of [
+      'book.beauessence.com.tw',
+      'staff.beauessence.com.tw',
+      'api.beauessence.com.tw'
+    ]) {
+      expect(firebase).not.toContain(host);
+      expect(register).toContain(host);
+    }
+    expect(register).toContain('not DNS');
+  });
 });
