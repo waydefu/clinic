@@ -10,9 +10,11 @@ import {
   isCompensatingIntervalMs,
   nextWatchChannelId,
   notificationDedupeKey,
+  parseWatchChannelRecord,
   planInboundNotificationWork,
   planWatchChannelReplacement,
   reviewReasonForInboundCandidate,
+  shouldRunCompensationPoll,
   shouldRenewWatchChannel,
   tokensMatch,
   type WatchChannelRecord
@@ -179,5 +181,30 @@ describe('watch-channel (unwired)', () => {
     expect(
       googleChannelsStopBody({ channelId: 'chan-1', resourceId: 'res-1' })
     ).toEqual({ id: 'chan-1', resourceId: 'res-1' });
+  });
+
+  it('runs compensating polls only inside the 1–5 minute window', () => {
+    const now = Date.parse('2026-09-10T00:05:00.000Z');
+    expect(shouldRunCompensationPoll(now, undefined)).toBe(true);
+    expect(shouldRunCompensationPoll(now, now - COMPENSATION_SYNC_MIN_MS)).toBe(
+      true
+    );
+    expect(
+      shouldRunCompensationPoll(now, now - 30_000, COMPENSATION_SYNC_MIN_MS)
+    ).toBe(false);
+    expect(() => shouldRunCompensationPoll(now, undefined, 30_000)).toThrow(
+      /1 and 5 minutes/
+    );
+  });
+
+  it('requires schemaVersion 1 and fails closed on corrupt watch documents', () => {
+    expect(parseWatchChannelRecord({ ...CHANNEL, schemaVersion: 1 })).toEqual(
+      CHANNEL
+    );
+    expect(() => parseWatchChannelRecord({ ...CHANNEL })).toThrow(/unreadable/);
+    expect(() =>
+      parseWatchChannelRecord({ ...CHANNEL, schemaVersion: 2 })
+    ).toThrow(/unreadable/);
+    expect(() => parseWatchChannelRecord(null)).toThrow(/unreadable/);
   });
 });

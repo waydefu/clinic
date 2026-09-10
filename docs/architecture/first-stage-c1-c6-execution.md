@@ -91,7 +91,7 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | --- | --- |
 | Prerequisites | C1～C5 evidence; C6 authority; synthetic data only |
 | Scope | Staff login, RBAC, booking/schedule, audit, Calendar bidirectional (watch + compensation + conflict queue), website *redirect rehearsal* (no official DNS) |
-| Source in tree | Unrouted formal booking; CAL-PILOT five-minute poll; unwired `watch-channel.ts` + unused `GoogleCalendarWatchClient`; unrouted `CalendarWatchController` (`POST /v1/calendar-watch` 404 on AppModule) |
+| Source in tree | Unrouted formal booking; CAL-PILOT five-minute poll; unwired `watch-channel.ts` + unused `GoogleCalendarWatchClient` + unwired `calendar_watch_channels` emulator store; unrouted `CalendarWatchController` (`POST /v1/calendar-watch` 404 on AppModule) |
 | Exclusions | Real data; production; live Hosting; production Calendar; mounting `/v1/bookings` |
 | Remaining blockers | C1～C5 apply; exact C6 authority; DATA-R03 codecs for collections C6 will actually read |
 | Authority | `not_granted` |
@@ -101,7 +101,7 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 
 | ID | Class | Action now |
 | --- | --- | --- |
-| DATA-R03 remaining codecs / worker casts / alerting | C6 blocker *if* C6 uses those collections | no slice in this change; still OPEN |
+| DATA-R03 remaining codecs / worker casts / alerting | C6 blocker *if* C6 uses those collections | new unwired `calendar_watch_channels` has schemaVersion 1 fail-closed parser; remaining CAL-PILOT `documentData<T>` / worker `as T` still OPEN |
 | SCM-R04 `stream-json@1` / `csv-parse@5` | delayable debt; not C6 synthetic blocker | no force-upgrade |
 
 ## Hard stop

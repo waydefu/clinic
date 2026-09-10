@@ -200,6 +200,8 @@ const requiredPaths = [
   'scripts/c0-authority-reconciliation.test.mjs',
   'apps/worker/src/calendar-sync/watch-channel.ts',
   'apps/worker/src/calendar-sync/watch-channel.test.ts',
+  'apps/worker/src/calendar-sync/watch-channel-store.ts',
+  'tests/firestore/calendar-watch-channel.test.ts',
   'apps/api/src/calendar/calendar-watch.controller.ts',
   'apps/api/src/calendar/calendar-watch.controller.test.ts',
   'scripts/web-ui-rules.mjs',

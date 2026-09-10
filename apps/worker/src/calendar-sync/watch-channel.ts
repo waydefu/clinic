@@ -263,3 +263,48 @@ export function googleChannelsStopBody(input: {
   }
   return { id: input.channelId, resourceId: input.resourceId };
 }
+
+export const WATCH_CHANNEL_UNREADABLE =
+  'The watch channel record is unreadable.';
+
+export function shouldRunCompensationPoll(
+  nowMs: number,
+  lastSuccessfulSyncMs: number | undefined,
+  intervalMs = COMPENSATION_SYNC_MIN_MS
+): boolean {
+  if (!isCompensatingIntervalMs(intervalMs)) {
+    throw new Error('Compensation interval must be between 1 and 5 minutes.');
+  }
+  if (lastSuccessfulSyncMs === undefined) return true;
+  return nowMs - lastSuccessfulSyncMs >= intervalMs;
+}
+
+export function parseWatchChannelRecord(data: unknown): WatchChannelRecord {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error(WATCH_CHANNEL_UNREADABLE);
+  }
+  const record = data as Record<string, unknown>;
+  if (record['schemaVersion'] !== 1) {
+    throw new Error(WATCH_CHANNEL_UNREADABLE);
+  }
+  const channelId = record['channelId'];
+  const resourceId = record['resourceId'];
+  const calendarId = record['calendarId'];
+  const expirationMs = record['expirationMs'];
+  const token = record['token'];
+  if (
+    typeof channelId !== 'string' ||
+    channelId.trim() === '' ||
+    typeof resourceId !== 'string' ||
+    resourceId.trim() === '' ||
+    typeof calendarId !== 'string' ||
+    calendarId.trim() === '' ||
+    typeof token !== 'string' ||
+    token === '' ||
+    typeof expirationMs !== 'number' ||
+    !Number.isFinite(expirationMs)
+  ) {
+    throw new Error(WATCH_CHANNEL_UNREADABLE);
+  }
+  return { channelId, resourceId, calendarId, expirationMs, token };
+}

@@ -79,6 +79,7 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(execution).not.toMatch(/Status \| `completed`/);
     expect(runtime).not.toMatch(/watch-channel/);
     expect(runtime).not.toMatch(/GoogleCalendarWatchClient/);
+    expect(runtime).not.toMatch(/watch-channel-store/);
     expect(
       read('apps/worker/src/calendar-sync/calendar-pilot-main.ts')
     ).not.toMatch(/calendar-watch/);
