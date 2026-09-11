@@ -18,6 +18,8 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
   const c1 = read('infra/terraform/c1-foundation/main.tf');
   const c2 = read('infra/terraform/c2-identity/main.tf');
   const c5 = read('infra/terraform/c5-firestore/main.tf');
+  const c6 = read('infra/terraform/c6-calendar/main.tf');
+  const watch = read('apps/worker/src/calendar-sync/watch-channel.ts');
   const session = read('apps/api/src/auth/calendar-pilot-session.ts');
   const appModule = read('apps/api/src/app.module.ts');
   const roles = read('packages/domain/src/roles.ts');
@@ -32,9 +34,10 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     }
   });
 
-  it('keeps Identity and Firestore out of C1 and SHA-gates later slices', () => {
+  it('keeps Identity, Firestore and Calendar API out of C1 and SHA-gates later slices', () => {
     expect(c1).not.toContain('identitytoolkit.googleapis.com');
     expect(c1).not.toContain('firestore.googleapis.com');
+    expect(c1).not.toContain('calendar-json.googleapis.com');
     expect(c2).toContain('identitytoolkit.googleapis.com');
     expect(c2).not.toContain('firestore.googleapis.com');
     expect(c2).toContain(
@@ -47,10 +50,18 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
       'asia-east1'
     );
     expect(c5).not.toContain('identitytoolkit.googleapis.com');
+    expect(c6).toContain('calendar-json.googleapis.com');
+    expect(c6).toContain(
+      'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
+    );
+    expect(c6).not.toContain('identitytoolkit.googleapis.com');
     expect(read('infra/terraform/c2-identity/variables.tf')).toContain(
       'beauessence-clinic-staging'
     );
     expect(read('infra/terraform/c5-firestore/variables.tf')).toContain(
+      'beauessence-clinic-staging'
+    );
+    expect(read('infra/terraform/c6-calendar/variables.tf')).toContain(
       'beauessence-clinic-staging'
     );
   });
@@ -64,11 +75,17 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     );
     expect(session).toContain('const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000');
     expect(session).toContain('const IDLE_SESSION_MS = 30 * 60 * 1000');
+    expect(session).toContain(
+      'if (user.disabled) throw new AuthenticationRequiredError()'
+    );
     expect(roles).toContain("'manager'");
     expect(roles).toContain("'front_desk'");
     expect(appModule).toContain('CalendarPilotModule');
     expect(appModule).not.toMatch(
       /AppointmentController|BookPilotModule|CalendarWatchController/
     );
+    expect(watch).toContain('COMPENSATION_SYNC_MIN_MS = 60_000');
+    expect(watch).toContain('COMPENSATION_SYNC_MAX_MS = 5 * 60_000');
+    expect(watch).toContain('Unwired by policy');
   });
 });
