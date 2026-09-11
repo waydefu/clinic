@@ -18,7 +18,7 @@ Companion contracts in this file:
 - [Authority map](#4-remaining-authority-map)
 - [Stale documents](#5-stale-documents--do-not-trust-as-live)
 - [Phase dependency graph](#6-phase-dependency-graph)
-- [PROJECT_COMPLETE](#phase-l--project-closeout)
+- [PROJECT_COMPLETE](#project_complete-definition)
 
 ---
 
@@ -375,6 +375,12 @@ No production project login in this profile.
 7. If a **live** Canon file still claims C2～C6 `not_granted`, reconcile
    that file in a docs PR. Do not rewrite dated reviews.
 
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Live Canon sentences that still say C2～C6 `not_granted`; index pointers to this plan; checkpoint file (gitignored) | `AppModule` imports; `stage-2-gate-status.json` values; Terraform/cloud apply; secrets; dated reviews; D-series table statuses |
+
 ### Browser actions
 
 - GitHub: PR #112 merged; Actions run on exact `origin/main` SHA green.
@@ -482,6 +488,12 @@ drive-by implement payroll/clinical/money.
 Dead synthetic-only scaffolding: keep SHA-gated Terraform default no-op
 and unrouted modules. Delete only if a file is proven unused **and** not
 in `unrouted-inventory.json`.
+
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Stale *live* narratives; generated `docs/state/current.*`; debt classification review; same-major SCM-R04 patches under existing Q-SCM-R04 | Machine C0～C6; routing `/v1/bookings`; Terraform apply; closing DATA-R03 without remaining codecs; dismissing Dependabot; payroll/clinical/money persistence; dated reviews |
 
 ### Browser actions
 
@@ -592,6 +604,12 @@ medical/security review is required, technical impact, routes unlocked,
 exclusions, acceptance criteria. Produce the smallest approval packet
 only for true human IDs. Record answers in the register **only** after
 named owner, date, scope, exclusions exist.
+
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Approval-packet drafts; register rows **after** named owner/date/scope/exclusions; D-006 implementation against `roles.ts` | Guessed policy in code; new role literals outside `roles.ts`; flipping a decision to `approved` without ceremony; D-008/D-014/D-015 persistence; production Calendar ids in source |
 
 ### Browser actions
 
@@ -707,6 +725,12 @@ Must cover, in code at the owning boundary (domain/contracts first):
 
 Kill switch + UTC expiry for any synthetic pilot, copied from CAL-PILOT.
 
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Domain/contracts/API at the owning boundary; `unrouted-inventory.json` blockers **in the same PR** as an authorised import; isolated BookPilot module; browser UX inside R-1–R-26 | Production AppModule import without D-001～D-005; importing BookPilot **and** AppointmentController together; Calendar calls inside a Firestore transaction; real PII in events; official DNS |
+
 ### Browser actions
 
 Drive `web-dist` (build first). Patient booking, lookup/cancel, staff
@@ -820,6 +844,12 @@ ADR-0002; D-009/D-016; CAL-SYNC-DIR; `docs/architecture/calendar-event-id.md`;
 Never call Calendar from a Firestore transaction. Persist outbox, worker
 performs the effect.
 
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Watch routing **after** production D-009/D-016 + exact-SHA; projection mapper allowlist tests; worker `syncToken`/410 path; outbox jobs | Patient PII in Calendar; Calendar as occupancy lock; pointing CAL-PILOT at a production calendar; committing service-account JSON; calling Calendar from a transaction |
+
 ### Browser actions
 
 Google Calendar UI on the **production profile only after authority**.
@@ -927,6 +957,12 @@ the production dependency).
 | DR | Option A + B secondary `asia-east1`; manual failback | Option C/D (rejected) |
 | Restore exercise | Actual restore to isolated project | Paper-only |
 
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| New clinic-owned production/DR projects; SHA-gated Terraform; Secret Manager names; IAM/WIF/runtime SA; PITR/backup; Cloud Run/Hosting **without** official DNS until F | Reusing `beauessence-clinic-stg-c1a01` or `beauessence-clinic-staging` as production; primitive Owner/Editor on runtime; secrets in git; auto-detach billing; loading real patient data |
+
 ### Browser actions
 
 GCP + Firebase + Identity Platform consoles in `clinic-production`
@@ -1029,6 +1065,12 @@ ADR-0001 (browser → API only).
 | CORS / CSRF | API allowlist exact book/staff origins; CSRF with session |
 | Rollback | DNS TTL keep short during cutover; keep previous records documented |
 
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| DNS records **after** D-011 + ownership authority; Hosting/Cloud Run custom domains; CSP/HSTS/cookie flags; short TTL during cutover | Official DNS before D-011; iframe of synthetic preview on `beauessence.com.tw`; widening `__session` to a parent domain; leaving HTTP without redirect |
+
 ### Browser actions
 
 Registrar / Cloud DNS / Firebase Hosting domains UI. After attach:
@@ -1122,6 +1164,12 @@ time + opaque label only); data classification
 
 Do not invent the real event count. Measure from the authorised export.
 
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Operator scripts under gitignored `exports/` / `secrets/`; dry-run counts/hashes in a dated review (no payloads); Firestore occupancy import after real-data authority | Guessing real data; copying production data into synthetic/staging; committing exports; dual occupancy locks; PII in Calendar projection or the git repo |
+
 ### Browser actions
 
 Calendar UI sampling of N synthetic-looking vs real events **on the
@@ -1200,6 +1248,12 @@ loading, empty, permission denied.
 
 Fix hierarchy/spacing/type/colour/alignment/button priority/card weight
 inside the existing system.
+
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Layout/spacing/type/colour/alignment/button hierarchy inside existing tokens and R-1–R-26; e2e regressions for CSS bugs | A new design system; real-patient screenshots in git; skipping 320px or keyboard; marking PASS when usable-but-ugly |
 
 ### Browser actions
 
@@ -1286,6 +1340,12 @@ Cover: keyboard-only, screen reader, forced colors, zoom, physical
 device, focus, forms, dialogs, errors.
 
 Do not claim Taiwan 無障礙標章.
+
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| UI fixes required by the runbook; dated TW-05 review using the runbook template | Closing TW-05 on axe-only evidence; claiming a government accessibility mark; PII in AT recordings |
 
 ### Browser actions
 
@@ -1375,6 +1435,12 @@ Release checklist (all must be evidenced on **this SHA**):
 | Accessibility | I PASS |
 | Owner approval | named, dated, SHA, project, channel, expiry if preview leftover |
 
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Production deploy of the **named SHA** after owner authority; smoke using synthetic fixtures if policy allows | Deploying a different SHA; reusing preview authority; going live with monitoring off; real data without D-001～D-003 |
+
 ### Browser actions
 
 Production profile only. Smoke the public book + staff URLs. Confirm no
@@ -1445,6 +1511,12 @@ runbook.
 
 Rollback if: occupancy corruption; PII in Calendar; auth bypass; data
 loss; budget 100% pause conditions; kill switch tripped; owner order.
+
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Alert thresholds; canary synthetic booking if policy allows; incident tickets | Quiet-fixing a PII leak; load-tests without authority; applying unrelated Terraform during the first week |
 
 ### Browser actions
 
@@ -1525,6 +1597,12 @@ This section; `docs/state/conflicts.md`; runbooks; handoff skill
 | Deprecated staging | Isolated project keep-or-kill owner decision; `beauessence-clinic-staging` CAL-PILOT expiry respected (2026-11-28) |
 | Synthetic cleanup | Preview channels expired; unused watch channels deleted |
 | Final evidence bundle | SHA, CI, deploy revisions, DNS, Calendar ids (not secrets), AT, UI matrix |
+
+### Change boundary
+
+| May change | Must not change |
+| --- | --- |
+| Handoff record; expired preview cleanup **after** owner keep-or-kill; merged `agent/luna-*` branch deletion after confirm | Declaring `PROJECT_COMPLETE` while production was never authorised and is still required; leaving Luna as password holder; rewriting C0～C6 to pending |
 
 ### Browser actions
 
