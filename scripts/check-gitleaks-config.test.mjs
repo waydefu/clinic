@@ -15,9 +15,7 @@ describe('gitleaks allowlist', () => {
     expect(config).toContain("'''schedule_publish_\\d{4}'''");
     expect(config).toContain("'''schedule-publish-key-\\d{4}'''");
     expect(config).toContain("'''booking-idempotency-\\d{4}'''");
-    expect(config).toContain(
-      '\'\'\'"[A-Za-z0-9.-]+\\.js": "[a-f0-9]{64}"\'\'\''
-    );
+    expect(config).toContain("'''\"[A-Za-z0-9.-]+\\.js\": \"[a-f0-9]{64}\"'''");
     expect(config).toContain('regexTarget = "line"');
   });
 
