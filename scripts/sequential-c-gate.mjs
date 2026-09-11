@@ -99,6 +99,9 @@ export function evaluateC3Source(sessionSource) {
   if (!sessionSource.includes('public async assertCsrf')) {
     issues.push('C3 must bind CSRF to the server-side session.');
   }
+  if (!sessionSource.includes('public async revoke')) {
+    issues.push('C3 must revoke the server-side session on logout.');
+  }
   return { ok: issues.length === 0, issues };
 }
 
@@ -126,6 +129,46 @@ export function evaluateC4Source(rolesSource, authParametersSource, recs) {
   }
   if (!authParametersSource.includes("BREAK_GLASS = 'not_provisioned'")) {
     issues.push('C4 must keep break-glass unprovisioned.');
+  }
+  if (recs.mfa.authorizationLockBaseMs !== 15 * 60 * 1000) {
+    issues.push('C0-ENG-REC lockout base must be 15 minutes.');
+  }
+  if (
+    !authParametersSource.includes(
+      'export const AUTHORIZATION_LOCK_BASE_MS = 15 * 60 * 1000'
+    )
+  ) {
+    issues.push('C4 lockout base must be 15 minutes.');
+  }
+  if (recs.mfa.authorizationLockMaxMs !== 4 * 60 * 60 * 1000) {
+    issues.push('C0-ENG-REC lockout ceiling must be 4 hours.');
+  }
+  if (
+    !authParametersSource.includes(
+      'export const AUTHORIZATION_LOCK_MAX_MS = 4 * 60 * 60 * 1000'
+    )
+  ) {
+    issues.push('C4 lockout ceiling must be 4 hours.');
+  }
+  if (recs.mfa.authorizationCodeTtlMs !== 24 * 60 * 60 * 1000) {
+    issues.push('C0-ENG-REC authorization-code TTL must be 24 hours.');
+  }
+  if (
+    !authParametersSource.includes(
+      'export const AUTHORIZATION_CODE_TTL_MS = 24 * 60 * 60 * 1000'
+    )
+  ) {
+    issues.push('C4 authorization-code TTL must be 24 hours.');
+  }
+  if (recs.mfa.authorizationUnlockRole !== 'manager') {
+    issues.push('C0-ENG-REC unlock role must be manager.');
+  }
+  if (
+    !authParametersSource.includes(
+      "export const AUTHORIZATION_UNLOCK_ROLE: OperationalRole = 'manager'"
+    )
+  ) {
+    issues.push('C4 unlock role must be manager.');
   }
   return { ok: issues.length === 0, issues };
 }

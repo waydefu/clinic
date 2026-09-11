@@ -254,6 +254,28 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
     expect(request.shaLookup).toBe('git rev-parse HEAD');
   });
 
+  it('fails C3 without logout revoke and C4 without lockout timings', () => {
+    const noLogout = evaluateC3Source(
+      liveSources.sessionSource.replace(
+        'public async revoke',
+        'public async keep'
+      )
+    );
+    expect(noLogout.ok).toBe(false);
+    expect(noLogout.issues.join('\n')).toMatch(/revoke/);
+
+    const noBase = evaluateC4Source(
+      liveSources.rolesSource,
+      liveSources.authParametersSource.replace(
+        'export const AUTHORIZATION_LOCK_BASE_MS = 15 * 60 * 1000',
+        'export const AUTHORIZATION_LOCK_BASE_MS = 60 * 1000'
+      ),
+      recs
+    );
+    expect(noBase.ok).toBe(false);
+    expect(noBase.issues.join('\n')).toMatch(/15 minutes/);
+  });
+
   it('refuses --write on the live tree and writes only a legal temp patch', () => {
     const liveWrite = spawnSync(
       process.execPath,
