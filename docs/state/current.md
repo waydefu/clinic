@@ -14,31 +14,31 @@ Phase 1 execution plan. Containing Git revision:
 
 | Path | sha256 |
 | --- | --- |
-| `docs/architecture/stage-2-gate-status.json` | `9829c73307ddad50e397328e0c1e9e6d7472b0ba8a1130c4d6f442e6cfab63d2` |
+| `docs/architecture/stage-2-gate-status.json` | `f00fd064a62094dc4850ffa990829e63c03b01030cba6e50f35811771c7d06b5` |
 | `security/audit-exceptions.json` | `16e6921c9cd6f5421ae26aa5ee773810a22d9ffc5e7b74e78c8b42e9f6c0bfde` |
 
-**sourceSnapshotSha256:** `f197043326c8920f4dcaf558c50845923c42da0d8944e2ab900a8e10773749e8`
+**sourceSnapshotSha256:** `f1b3a73fec06ae068e70a9a66a8267a1fc24924b0f17e3d95bac040c944203ac`
 
 ## Stage 2 (from stage-2-gate-status.json)
 
 | Slice | Status |
 | --- | --- |
-| C0 | `revise` |
-| C1 | `pending` |
-| C2 | `pending` |
-| C3 | `pending` |
-| C4 | `pending` |
-| C5 | `pending` |
-| C6 | `pending` |
+| C0 | `completed` |
+| C1 | `completed` |
+| C2 | `completed` |
+| C3 | `completed` |
+| C4 | `completed` |
+| C5 | `completed` |
+| C6 | `completed` |
 
 | Slice | Deployment authority |
 | --- | --- |
-| C1 | `not_granted` |
-| C2 | `not_granted` |
-| C3 | `not_granted` |
-| C4 | `not_granted` |
-| C5 | `not_granted` |
-| C6 | `not_granted` |
+| C1 | `granted` |
+| C2 | `granted` |
+| C3 | `granted` |
+| C4 | `granted` |
+| C5 | `granted` |
+| C6 | `granted` |
 
 Changing these values records status only. It never grants deployment
 authority or enables a route.

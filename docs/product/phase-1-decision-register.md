@@ -14,14 +14,24 @@ a backend or proves that the controls or RPO/RTO have been achieved. D-014～
 D-016 track the separate surgery/clinical/finance/Calendar-inbound expansion
 and do not change the current Phase 1 gate.
 
+**2026-09-11 owner packet (FS-001, C0-DIR, C1～C6 direction) plus
+continuation C0-ENG-ACCEPT:** product direction is
+`OWNER_DIRECTION_APPROVED`. Engineering C0 in
+`docs/architecture/stage-2-gate-status.json` is `completed`
+(`OWNER_AUTHORITY_CONFIRMED`). C1 `deploymentAuthorities=granted`
+(start C1 only). C2～C6 stay `not_granted`. Named reviewer person-name
+fields remain `NAMED_REVIEWER_METADATA_PENDING` and are not fabricated.
+This does not unlock production, real data, DNS, public booking, or C1
+PASS / apply evidence.
+
 **All 39 owner questions came back answered on 2026-08-16**, and the
 question-by-question reconciliation is
 [the 2026-08-17 record](../reviews/2026-08-17-owner-decision-reconciliation.md).
 The answers are recorded input, not approval: the sheet carries answers without
 the named approver, approval date, scope and exclusions its own approval format
-requires, so every status below is unchanged in value. The next gate is approval
-qualification — collecting that missing metadata and the legal, privacy and
-medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
+requires, so every status below is unchanged in value. The next engineering
+C0 gate is still the missing reviewer signatures, budget actions, DR option
+and MFA-recovery answers listed under C0-DIR. **This does not unlock Stage 2.**
 
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |
@@ -33,16 +43,187 @@ medical reviews — followed by C0 closure. **This does not unlock Stage 2.**
 | D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | approved (2026-07-28; implementation evidence pending) | Authenticated write endpoint |
 | D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending (owner input recorded 2026-08-16) | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending; period-close and adjustment sub-items deferred (owner direction recorded 2026-08-16) | Payroll-credit persistence |
-| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (dedicated allowlisted calendars, closed synthetic fields, no real data). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA | Outbound Calendar integration review |
+| D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (dedicated allowlisted calendars, closed synthetic fields, no real data). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA. 2026-09-11 C0-DIR records Phase 1 *product* bidirectional-sync direction (not production D-009) | Outbound Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
-| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: no English version; the production URL is still undecided) | Public booking UX |
+| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: no English version; the production URL is still undecided). 2026-09-11 FS-001 records suggested hostnames only — not DNS mutation authority | Public booking UX |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26; amended 2026-09-09: administrators also bound) | Treating a green CI run as a merge gate |
 | D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (owner operational direction recorded 2026-08-16; the legal/medical classification still requires named professional review) | Storing surgery, anesthesia or clinical follow-up data |
 | D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending; ledger, refund and settlement sub-items deferred (owner direction recorded 2026-08-16) | Persisting money or settlement amounts |
-| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (manager/front desk review, private link ID, five-minute target). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA | Calendar-to-system writes |
+| D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (manager/front desk review, private link ID, five-minute target). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA. 2026-09-11 CAL-SYNC-DIR supersedes the earlier 30-minute *product* SLO with push-then-incremental plus 1–5 minute compensation; production D-016 stays pending | Calendar-to-system writes |
 
 ## Recorded inputs
+
+### FS-001 first-stage product scope — 2026-09-11
+
+The clinic owner recorded the Phase 1 owner-visible capability freeze.
+
+```text
+Recorded input ID: FS-001
+Answer: approved as product direction — Phase 1 owner-visible
+capabilities are appointment query/create/reschedule/cancel,
+daily/weekly schedule, business hours, closures, special dates,
+bookable slots, basic follow-up tracking, per-staff login,
+manager/front_desk RBAC, append-only audit, and fast bidirectional
+Google Calendar sync. Hidden/not delivered: payroll/commission,
+formal medical records, surgery/anesthesia, payment/refund/settlement,
+advanced case management, advanced reports. Chart auto-print is a
+later add-on after the clinic supplies a fixed format. Suggested
+hostnames (not DNS authority): book.beauessence.com.tw,
+staff.beauessence.com.tw, api.beauessence.com.tw. Existing
+beauessence.com.tw stays with the incumbent vendor; first-stage
+patient entry remains beauessence.com.tw/reservations/ with an
+optional redirect. Do not embed the synthetic preview iframe in the
+official site.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-11
+Recorded by: assistant, from the owner's 2026-09-11 Phase 1 packet
+(00 plus C0～C6). The owner gave the approval; the assistant is not
+an approver.
+Scope: product scope and UI capability freeze for Phase 1.
+Explicit exclusions: not production deployment; not real patient
+data; not DNS mutation; not Terraform/Firebase/Cloud Run apply; not a
+blanket C1–C6 cloud-mutation grant; does not re-enable hidden modules
+because code already exists; does not mount AppointmentController.
+Residual risk: D-004/D-005/D-011 remain pending for public booking
+semantics.
+```
+
+Closed-item evidence: [2026-09-11 C0 owner-direction reconciliation](../reviews/2026-09-11-c0-owner-direction-reconciliation.md).
+
+### C0-ENG-ACCEPT-2026-09-11 engineering C0 acceptance
+
+The clinic owner accepted C0-ENG-REC for Phase-1 synthetic staging and
+authorised engineering C0 closure. Machine status is `completed`, not
+the invalid gate word `approved`. C1 start authority is granted; C1 PASS
+still requires apply + smoke on a new isolated project.
+
+```text
+Recorded input ID: C0-ENG-ACCEPT-2026-09-11
+Answer: OWNER_AUTHORITY_CONFIRMED — accept C0-ENG-REC-2026-09-11 in
+full for synthetic staging, including least-privilege IAM, no standing
+Owner/Editor, CI WIF, human JIT ≤8h, dedicated runtime SA, adapter
+allowlist, deny-by-default clients, Firestore database-scope residual
+risk for this synthetic staging scope, NT$2,000 month baseline, 50%
+notify / 80% freeze further C-slice apply / 100% pause Scheduler and
+non-essential APIs without detaching billing, DR A+B in asia-east1 with
+manual failback, TOTP adjacentIntervals=1, second-manager MFA recovery,
+authorization-code lock 5 / 15min exponential / manager unlock / 24h
+TTL, no shared break-glass, and C1 as a new isolated project (existing
+beauessence-clinic-staging is not C1). Set stageSlices.C0=completed.
+Grant deploymentAuthorities.C1=granted to start C1. Keep C2–C6
+not_granted until the prior gate PASSes. Split NAMED_REVIEWER_METADATA_PENDING
+from owner authority; do not invent person names.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-11
+Recorded by: assistant, from the owner's 2026-09-11 continuation
+packet. The owner gave the approval; the assistant is not an approver
+and did not fabricate a named technical or security reviewer.
+Scope: engineering C0 closure and sequential C1 start for Phase-1
+synthetic staging only.
+Explicit exclusions: not production; not real patient data; not
+official DNS; not public /v1/bookings; not production Calendar; not C1
+PASS or apply evidence; not C2–C6 granted; not payroll/clinical/payment;
+does not authorise this chat session to run terraform apply (local ADC
+packet only).
+Follow-up: C1 isolated project apply via LOCAL_EXECUTION_PACKET;
+NAMED_REVIEWER_METADATA_PENDING remains a person-name field only.
+```
+
+Closed-item evidence: [2026-09-11 C0 engineering acceptance](../reviews/2026-09-11-c0-engineering-acceptance.md).
+
+### C0-ENG-REC-2026-09-11 engineering recommendations
+
+Engineering selected Phase-1 values for IAM, budget actions, DR, MFA
+parameters and C1 strategy. Owner later accepted them as
+C0-ENG-ACCEPT-2026-09-11. This original record remains the recommendation
+text; it did **not** itself set `stageSlices.C0=completed`.
+
+```text
+Recorded input ID: C0-ENG-REC-2026-09-11
+Answer: ENGINEERING_RECOMMENDATION_COMPLETE — IAM: no primitive
+Owner/Editor, WIF, IAM Conditions ≤8h JIT, Firestore collection IAM
+impossible (residual risk needs human acceptance); budget: notify at
+50%, freeze further C-slice apply at 80%, pause Scheduler/non-essential
+APIs at 100%, never auto-detach billing, proposed NT$2000/month from
+recorded input; DR: option A baseline plus option B secondary project
+in asia-east1, reject C and D, manual failback; MFA: adjacentIntervals=1,
+in-person second-manager rebind, 5-failure/15-minute exponential lock,
+manager unlock, 24h TTL, break-glass not provisioned; C1: new isolated
+project, existing beauessence-clinic-staging is not C1.
+Approved by: not approved — engineering recommendation only
+Approval date (Asia/Taipei): not applicable
+Recorded by: assistant, 2026-09-11, under delegated technical
+selection. The assistant is not an approver.
+Scope: engineering C0 recommendations for later human signature.
+Explicit exclusions: does not set stageSlices.C0=approved; does not
+grant C1–C6 deploymentAuthorities; does not apply Terraform; does not
+accept Firestore database-scope residual risk; does not name billing
+email recipients in the public repository.
+Follow-up: HUMAN_REVIEW_SIGNATURE_PENDING on
+docs/architecture/first-stage-c0-authority.md.
+```
+
+Closed-item evidence: [2026-09-11 C0 engineering recommendations](../reviews/2026-09-11-c0-engineering-recommendations.md).
+
+### C0-DIR-2026-09-11 architecture direction
+
+The clinic owner recorded C0 as **direction approved**. Engineering C0
+status after C0-ENG-ACCEPT-2026-09-11 is `completed`; the recorded
+direction text below is unchanged and still is not C1 PASS.
+
+```text
+Recorded input ID: C0-DIR-2026-09-11
+Answer: approved as architecture *direction* — GCP+Firebase;
+Firestore Native; primary asia-east1; isolated test vs production;
+developer-held test billing allowed if no private account/project/
+billing/email is hardcoded; production eventually clinic-owned;
+staff Google+local MFA; idle 30m / absolute 8h; append-only audit;
+existing public site stays; Calendar bidirectional sync in Phase 1;
+C1～C6 are the necessary sequential route, not a one-shot apply.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-11
+Recorded by: assistant, from the owner's 2026-09-11 C0 packet.
+The owner gave the approval; the assistant is not an approver.
+Scope: product/architecture direction for subsequent C1–C6 packets.
+Explicit exclusions: does not set stageSlices.C0=approved; does not
+create/switch production; does not grant C1–C6
+deploymentAuthorities; does not select the DR option; does not fill
+50/80/100 budget *actions*; does not classify Calendar PII fields;
+does not complete MFA-recovery / TOTP clock-skew parameters.
+Follow-up: ENGINEERING_CLOSURE_PENDING items in
+docs/architecture/first-stage-c0-authority.md. Existing
+beauessence-clinic-staging / CAL-PILOT is evidence, not C1 complete.
+```
+
+### CAL-SYNC-DIR-2026-09-11 Calendar sync product SLO
+
+```text
+Recorded input ID: CAL-SYNC-DIR-2026-09-11
+Answer: Phase 1 product direction for bidirectional Google Calendar
+sync: system→Calendar via outbox after a successful canonical write,
+target seconds to tens of seconds; Calendar→system prefers
+events.watch then incremental syncToken; compensating poll 1–5
+minutes because notifications are not 100% reliable; channels expire
+and are not auto-renewed; overlap must be deduped; conflicts, unmatched
+events, delete ambiguity, simultaneous edits, incomplete/illegal
+schema and failed authz go to human review — no guessing. Cutover
+semantics: before a separate cutover approval, Calendar is the
+clinic's legacy operational surface; Firestore slot transactions remain
+the availability lock (ADR-0002). After migration, validation and
+cutover approval, Firestore becomes the operational source of truth
+and Calendar remains a schedule projection / interaction surface.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-11
+Recorded by: assistant, from the owner's 2026-09-11 C0/C6 packets.
+Scope: product SLO and conflict policy for a future authorised test
+environment. Does not approve production D-009/D-016. Does not
+authorise reading real Calendar contents. Does not change the
+deployed CAL-PILOT five-minute Scheduler. Does not implement
+events.watch. CAL-PILOT remains a synthetic-only exception.
+The 2026-08-16 recorded 30-minute inbound target is superseded as
+*product SLO direction* only; production D-016 remains pending.
+```
 
 ### GC-001 repository visibility — 2026-09-09
 

@@ -163,9 +163,9 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 ## 8. 尚未涵蓋
 
 - **跨區災難復原**：目前是單區設計；§2 的 RPO 1 小時／RTO 4 小時是核准 target，
-  不是現有能力。四個候選與共同驗收欄位已列於
-  [C0 readiness artifacts §5](../architecture/stage-2-c0-readiness-artifacts-2026-07-29.md#5-disaster-recovery-option-analysis)，
-  但 secondary project/location、成本、跨境、routing 與實際演練仍 pending。
+  不是現有能力。工程選案（A 基線 + B 同區 secondary project）見
+  [C0 engineering recommendations](../architecture/c0-engineering-recommendations.md)；
+  演練前不得宣稱 RPO／RTO 已達成。真實資料進 `asia-east2` 前仍須 D-001～D-003。
 - **備份加密金鑰的自管（CMEK）**：預設用平台管理的金鑰。改用自管金鑰會讓金鑰
   遺失等同資料遺失，需要先有金鑰管理程序。
 - **匯出到本地／NAS**：企業規劃書提過 NAS adapter，但把患者資料匯出到診所內部

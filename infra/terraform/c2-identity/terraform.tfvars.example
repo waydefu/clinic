@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars locally. Do not commit terraform.tfvars.
+# Do not paste billing IDs, tokens or keys into chat or the repository.
+# Do not apply until sequential-c-gate has C1 completed and C2 granted.
+# project_id is the isolated C1 id: beauessence-clinic-stg- plus 1-7 [a-z0-9].
+
+project_id                = "beauessence-clinic-stg-c1tmp"
+region                    = "asia-east1"
+exact_apply_authority_sha = "not_granted"

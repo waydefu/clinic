@@ -72,7 +72,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0006 — index release requires per-page publication approval](adr/0006-index-release-requires-per-page-approval.md)
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
 - [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
-- [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — production remains plan-only and blocked by production D-009/D-016; a 2026-08-30 banner points to the separately approved and deployed 30-day synthetic-only implementation and evidence
+- [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — production remains plan-only and blocked by production D-009/D-016; a 2026-09-11 banner records the owner product SLO (watch then `syncToken`, 1–5 minute compensation) without making `events.watch` executable; a 2026-08-30 banner still points to the separately approved synthetic-only five-minute poll
 - [API v1 contract baseline](architecture/api-v1-contract.md) — navigation layer for the schemas in `packages/contracts`
 - [Local Firestore baseline](architecture/firestore-local-baseline.md) — Emulator-only project and Rules baseline
 - [Synthetic Web modular architecture](architecture/synthetic-web-modular-architecture.md) — browser module boundaries and how they are later replaced by the real API
@@ -81,6 +81,9 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) — architecture verdict, required changes, target containers, data model, transactions and migration boundaries
 - [Infrastructure and operations plan (2026-07-24)](architecture/infrastructure-and-operations-plan-2026-07-24.md) — plan-only environment split, Terraform layout, IAM, secrets, Firestore backup/PITR, monitoring, budget, deploy and rollback
 - [Stage 2 C0 readiness artifacts (2026-07-29)](architecture/stage-2-c0-readiness-artifacts-2026-07-29.md) — proposal-ready／approval-pending logical resource manifest, Cloud IAM matrix, cost-input model, DR option analysis and test/rollback evidence template; no Terraform or cloud execution
+- [First-stage C0 authority](architecture/first-stage-c0-authority.md) — live split: `OWNER_AUTHORITY_CONFIRMED`; C0～C6 `completed`; named-reviewer metadata pending; not production/DNS
+- [C0 engineering recommendations (2026-09-11)](architecture/c0-engineering-recommendations.md) — IAM/JIT, 50/80/100, DR A+B, MFA, new isolated C1; owner-accepted as C0-ENG-ACCEPT; not C1 PASS
+- [First-stage C1～C6 execution packet](architecture/first-stage-c1-c6-execution.md) — C1～C6 synthetic `PASS` on `beauessence-clinic-stg-c1a01`; booking UNROUTED; `PRODUCTION_AUTHORIZED=NO`
 - [Stage 2 machine-readable gate status](architecture/stage-2-gate-status.json) — canonical C0 review plus separate C1～C6 deployment-authority and execution/evidence status consumed by architecture checks
 - [Worker runtime and reconciliation plan (2026-07-24)](architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md) — plan-only trigger design, at-least-once semantics, Calendar reconciliation, dead-letter operator permissions and credential rotation
 
@@ -130,6 +133,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
+- [C1 local execution packet](runbooks/c1-local-execution-packet.md) — ADC/CLI commands for the new isolated C1 project; no secrets; C1 foundation smoke PASSed on `beauessence-clinic-stg-c1a01`
+- [C2～C6 local execution packet](runbooks/c2-c6-local-execution-packet.md) — sequential Identity/session/RBAC/Firestore/Calendar dry-run and apply packets; SHA-gated; booking stays UNROUTED
 - [日曆搬運工具使用教學](runbooks/cal-pilot-import.md) — owner-run CAL-PILOT import CLI in plain language: what it copies (time and an opaque label only), the three guarantees it enforces in code, PowerShell setup, a deliberately tiny first run, what each skip reason means, how to clean up by batch ID and what every error message means
 - [CAL-PILOT 合成雙向同步操作手冊](runbooks/cal-pilot-30-day-bidirectional-sync.md) — synthetic-only event format, shared availability, Google＋TOTP, source switching, immutable release sequence, rollback, expiry and budget boundaries
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
@@ -153,6 +158,9 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-11 | [C0 engineering acceptance](reviews/2026-09-11-c0-engineering-acceptance.md) | Owner 接受 C0-ENG-REC；`OWNER_AUTHORITY_CONFIRMED`；C0 `completed`；C1 `granted`（開始 C1，不是 PASS）；`NAMED_REVIEWER_METADATA_PENDING`；不是 apply |
+| 2026-09-11 | [C0 engineering recommendations](reviews/2026-09-11-c0-engineering-recommendations.md) | 五項可委派工程選案記入 Canon／JSON／domain 常數；後由 C0-ENG-ACCEPT 收斂；當日紀錄本身不是 apply |
+| 2026-09-11 | [C0 owner-direction reconciliation](reviews/2026-09-11-c0-owner-direction-reconciliation.md) | FS-001／C0-DIR／CAL-SYNC-DIR 記入 Decision Register；`OWNER_DIRECTION_APPROVED`／`ENGINEERING_CLOSURE_PENDING`；`stageSlices.C0` 仍 `revise`；C1～C6 `not_granted`；formal booking 仍 UNROUTED；不是 apply |
 | 2026-09-10 | [SCM-R04 升級施工（fresh-check）](reviews/2026-09-10-scm-r04-upgrade.md) | 依當日 Dependabot／npm／audit 施工：`vitest` 4.1.11、`hono` 4.13.7、`morgan` 1.12.0、`qs` 6.16.0。`stream-json` 3.x 會弄壞 firebase-tools 15 的 `src/filters/Pick`，與 `csv-parse` 7 一併不強制。未 dismiss。SCM-R04 仍開 |
 | 2026-09-09 | [非 UI 工作流目前授權上限交接（owner 五題後）](reviews/2026-09-09-non-ui-max-authorized-handoff.md) | 基準 `a9d3ba8`；verify 34326772594 SUCCESS。Q-SCOPE／D013／SCM-R03／SCM-R04 同 major／DATA-R03 五刀／BOOK-PILOT／Q-STAGING gcloud 已落地。DATA-R03 與 SCM-R04 ID 仍開。不是 Stage 2 或 production |
 | 2026-09-09 | [DATA-R03 工程切片](reviews/2026-09-09-data-r03-engineering-slices.md) | PR #95／#98／#99／#101／#102 已上 `main`（未知 status fail-closed、slot／appointment dual-reader、idempotency enum、outbox dual-reader、CAL-PILOT envelope）。無 dual-write、無 D-007／D-008。DATA-R03 ID 仍開 |

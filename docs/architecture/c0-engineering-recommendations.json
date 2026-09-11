@@ -1,0 +1,122 @@
+{
+  "$comment": [
+    "Engineering C0 recommendations for first-stage Phase 1, accepted by owner as C0-ENG-ACCEPT-2026-09-11.",
+    "Machine C0 status is completed, not the invalid word approved. C1 granted is start-C1, not C1 PASS.",
+    "Status split: OWNER_AUTHORITY_CONFIRMED / ENGINEERING_RECOMMENDATION_COMPLETE / NAMED_REVIEWER_METADATA_PENDING."
+  ],
+  "recordedInputId": "C0-ENG-REC-2026-09-11",
+  "acceptanceId": "C0-ENG-ACCEPT-2026-09-11",
+  "status": {
+    "ownerDirection": "OWNER_DIRECTION_APPROVED",
+    "engineeringRecommendations": "ENGINEERING_RECOMMENDATION_COMPLETE",
+    "ownerAuthority": "OWNER_AUTHORITY_CONFIRMED",
+    "humanReview": "NAMED_REVIEWER_METADATA_PENDING",
+    "stageSliceC0": "completed",
+    "c1Authority": "granted",
+    "c2ToC6Authorities": "not_granted",
+    "cloudApply": "C1_PACKET_ONLY_NOT_DEPLOYED"
+  },
+  "iam": {
+    "selected": "least_privilege_no_primitive_wif_time_bounded_iam_conditions",
+    "rejected": [
+      "standing_owner_or_editor",
+      "org_privileged_access_manager_for_phase1",
+      "collection_scoped_firestore_iam"
+    ],
+    "jit": "iam_conditions_request_time_max_8h_no_standing_datastore_user_for_humans",
+    "firestoreDatabaseScope": {
+      "collectionIamPossible": false,
+      "residualRisk": "runtime_sa_with_datastore_user_can_read_write_entire_database",
+      "mitigations": [
+        "dedicated_runtime_sas",
+        "adapter_collection_allowlist",
+        "firestore_rules_deny_direct_clients",
+        "no_human_standing_datastore_user",
+        "restore_operator_jit_only"
+      ],
+      "syntheticStagingAcceptance": "OWNER_AUTHORITY_CONFIRMED",
+      "productionAcceptance": "not_granted",
+      "humanAcceptanceRequired": true
+    },
+    "noBreakGlass": true
+  },
+  "budget": {
+    "selected": "alerts_plus_pubsub_selective_control_not_billing_detach",
+    "currency": "TWD",
+    "proposedMonthlyAmount": 2000,
+    "amountSource": "recorded_owner_input_not_approval",
+    "thresholds": [0.5, 0.8, 1.0],
+    "spendBasis": "CURRENT_SPEND",
+    "actions": {
+      "50": "notify_billing_and_technical_roles_investigate_no_mutation",
+      "80": "notify_and_freeze_further_c_slice_apply_keep_existing_synthetic_runtime",
+      "100": "notify_pause_schedulers_and_non_essential_apis_do_not_detach_billing_do_not_destroy"
+    },
+    "rejected": [
+      "email_only_no_action",
+      "auto_detach_billing_at_100",
+      "spend_cap_as_project_wide_control"
+    ],
+    "spendCapNote": "Official spend caps (as of 2026-09-10) cover Cloud Run per project/service only, not Firestore; they also require Project Owner or equivalent to configure. Phase-1 C1 has no Cloud Run."
+  },
+  "dr": {
+    "selected": "option_a_baseline_plus_option_b_secondary_project_same_region",
+    "primaryLocation": "asia-east1",
+    "secondaryProject": "new_isolated_dr_project_not_c1",
+    "secondaryLocation": "asia-east1",
+    "copyCadence": "hourly_managed_export_compatible_with_rpo_1h",
+    "runtimeStandby": "cold",
+    "failback": "named_technical_owner_manual_validate_then_route_back_no_auto_failback",
+    "regionalResidual": "taiwan_regional_gcp_outage_accepted_until_d001_d003_authorize_asia_east2_for_real_data",
+    "rejected": [
+      "option_c_application_replica",
+      "option_d_firestore_multi_region",
+      "gap_close_existing_staging_as_dr"
+    ],
+    "notC1": true
+  },
+  "mfa": {
+    "totpAdjacentIntervals": 1,
+    "providerDefaultRejected": 5,
+    "recovery": "in_person_second_manager_rebind_no_email_only",
+    "authorizationLockFailureThreshold": 5,
+    "authorizationLockBaseMs": 900000,
+    "authorizationLockMaxMs": 14400000,
+    "authorizationCodeTtlMs": 86400000,
+    "authorizationUnlockRole": "manager",
+    "rotation": "revoke_on_leave_or_suspected_leak_no_calendar_rotation",
+    "breakGlass": "not_provisioned"
+  },
+  "c1": {
+    "strategy": "new_isolated_project",
+    "existingStaging": "beauessence-clinic-staging",
+    "existingStagingDisposition": "cal_pilot_and_synthetic_review_preview_only",
+    "logicalProjectId": "stg.project",
+    "forbiddenApplyTargets": [
+      "beauessence-clinic-staging",
+      "book.beauessence.com.tw",
+      "staff.beauessence.com.tw",
+      "api.beauessence.com.tw"
+    ],
+    "apiAllowlist": [
+      "billingbudgets.googleapis.com",
+      "cloudbilling.googleapis.com",
+      "cloudresourcemanager.googleapis.com",
+      "iam.googleapis.com",
+      "iamcredentials.googleapis.com",
+      "logging.googleapis.com",
+      "monitoring.googleapis.com",
+      "pubsub.googleapis.com",
+      "secretmanager.googleapis.com",
+      "storage.googleapis.com",
+      "sts.googleapis.com"
+    ],
+    "excludedApis": [
+      "firestore.googleapis.com",
+      "identitytoolkit.googleapis.com",
+      "run.googleapis.com",
+      "cloudscheduler.googleapis.com",
+      "artifactregistry.googleapis.com"
+    ]
+  }
+}

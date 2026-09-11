@@ -1,11 +1,11 @@
 {
   "files": {
     "appointment-rules.js": "082c994b6a56480ea450d2825db5f338a7183d699bf49deb75858152d1808f16",
-    "appointment-transition.js": "c9e79165c3f67a595cb6aff838470c3e648496d875a881a2bb259655385388b9",
+    "appointment-transition.js": "cc3b08b49ac0af688a6cbae62fdc48159c681090ebff9002061a1388245f6362",
     "appointment.js": "8fa1c2c43d1b63abd12cb7614afbf88c0c19f844c4d5adf2b47c76cc798cf461",
     "audit.js": "68a51f5d552201284ef2e8e7b652f2c012fe482d8a54ad7cfe671845cb2e4656",
     "booking-horizon.js": "aaf27ececd66d6362f97c5a03ae52a30337068ddca1d3252ffd19a87679aa467",
-    "booking-transaction.js": "47bb6d11251dd5335697567170805811baf46fe90bd998b8bfa6bcdec958a2fd",
+    "booking-transaction.js": "9bcb9b4889cc8e30af49b7c1af5995971d222c42fabd2c0cf0af925740c28b98",
     "calendar-event-id.js": "3ab0209aad2fd713d2542bf5941e555a8c98e2c2e774ddd84d102d309555972c",
     "calendar-sync.js": "6bc5889bc84a474c257c470a2754688862617f271832858953a189e8f6d6a239",
     "case-assignment.js": "4deded259b47694cffbe5838b54f028e61135ba91d5b59235e2a6985ef705bd1",
@@ -13,12 +13,13 @@
     "errors.js": "f427a34853268c1436ce2d4ad966fc55a6499464f44ca337f6e7cc6be9ae26aa",
     "follow-up.js": "2137acdd85fd8caa9faa95f8d57e5f54d6a820c7354d0fd889358a37e9f31c7e",
     "idempotency.js": "b16ce5c3118c799ded30a1ab3930279e29f0212e40973a05e133fe1fc4d21a3a",
-    "index.js": "92600e1421fec9e63312489e48020f499385156e72fe5df4edede7e7ed25686f",
-    "outbox.js": "2fd91c2c89fc1e7c50a18913361b702d578679ed3ee13f6dd8a4c9cac615bf47",
+    "index.js": "71dfcc6d9857d715331fc7c2c8acbe8efb8889f168d93dc3b98348646b2861f9",
+    "outbox.js": "2767f7641029491979fec8b532d6cf1c0165f45c400dbd269ed357b906a953bb",
     "patient-identity.js": "c037f0fdf65d73b95c94c9c16ecc999480df54920e34dff89a6bc2353455dd62",
     "payroll.js": "8f37cb1e4ef39f38f097dceac3868263fd5bb38aa4f006c83eebd2b0234b597c",
     "roles.js": "53635318dc9fdfa2425d587ab1b8fbc288a9894df0f68bcae60d078bd8919d55",
     "schedule.js": "110285cd546685a777ab6bc15265515b7ec34053825d00de791b29e5bb44bae6",
+    "staff-auth-parameters.js": "65d4b6ac802d7586c0185b78107c4ed57fef7e4bf97df40942a1b1983c4103d7",
     "timestamp.js": "687ae57b03cc553e0e83928800a5c0760e4345f480563bd9b0d19e3e8f242e74"
   }
 }
