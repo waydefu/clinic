@@ -113,7 +113,7 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(roles).toContain("'front_desk'");
     expect(appModule).toContain('CalendarPilotModule');
     expect(appModule).not.toMatch(
-      /AppointmentController|BookPilotModule|CalendarWatchController/
+      /AppointmentController|BookPilotModule|BookPilotController|CalendarWatchController/
     );
     expect(watch).toContain('COMPENSATION_SYNC_MIN_MS = 60_000');
     expect(watch).toContain('COMPENSATION_SYNC_MAX_MS = 5 * 60_000');

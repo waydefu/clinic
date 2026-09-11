@@ -100,6 +100,9 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
     expect(action.exactAuthorityRequest.forbidden).toContain(
       'beauessence-clinic-staging'
     );
+    expect(action.exactAuthorityRequest.forbidden).toContain(
+      'routing BookPilotController'
+    );
     expect(evaluateC1Smoke(passingC1(), recs).ok).toBe(true);
     expect(terraformCliStatus()).toEqual(
       expect.objectContaining({
@@ -242,6 +245,14 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
     });
     expect(routed.kind).toBe('HARD_BLOCKER');
     expect(routed.proposedPatch).toBeNull();
+
+    const bookPilot = nextSequentialAction(afterC5, {
+      ...liveSources,
+      appModuleSource: 'controllers: [BookPilotController]',
+      c6Smoke: passingC6()
+    });
+    expect(bookPilot.kind).toBe('HARD_BLOCKER');
+    expect(bookPilot.proposedPatch).toBeNull();
   });
 
   it('evaluates live C3/C4 source and emits a C1 authority request packet', () => {

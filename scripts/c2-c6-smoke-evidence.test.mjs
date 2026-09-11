@@ -306,5 +306,8 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
       'controllers: [AppointmentController, CalendarWatchController]'
     );
     expect(evaluateC6Smoke(routed).ok).toBe(false);
+    expect(
+      bookingAndWatchRemainUnrouted('controllers: [BookPilotController]')
+    ).toBe(false);
   });
 });

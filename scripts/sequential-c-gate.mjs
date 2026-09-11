@@ -217,7 +217,8 @@ export function emitExactAuthorityRequest(slice, extras = {}) {
       'live Hosting channel',
       'production Calendar',
       'real patient data',
-      'routing AppointmentController'
+      'routing AppointmentController',
+      'routing BookPilotController'
     ],
     applyPolicy:
       'never from sequential-c-gate; local packet only after exact SHA',

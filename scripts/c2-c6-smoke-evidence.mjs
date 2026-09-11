@@ -25,10 +25,11 @@ export function assertIsolatedSliceProjectId(projectId, slice) {
   }
 }
 
+export const FORMAL_BOOKING_ROUTE_MARKERS =
+  /AppointmentController|BookPilotModule|BookPilotController|CalendarWatchController/;
+
 export function bookingAndWatchRemainUnrouted(appModuleSource) {
-  return !/AppointmentController|BookPilotModule|CalendarWatchController/.test(
-    appModuleSource
-  );
+  return !FORMAL_BOOKING_ROUTE_MARKERS.test(appModuleSource);
 }
 
 function projectIssues(evidence, slice) {

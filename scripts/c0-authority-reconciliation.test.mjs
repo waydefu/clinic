@@ -66,7 +66,7 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     const appModule = read('apps/api/src/app.module.ts');
     expect(appModule).toContain('CalendarPilotModule');
     expect(appModule).not.toMatch(
-      /AppointmentController|BookPilotModule|CalendarWatchController/
+      /AppointmentController|BookPilotModule|BookPilotController|CalendarWatchController/
     );
   });
 
