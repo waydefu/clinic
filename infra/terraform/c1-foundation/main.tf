@@ -139,6 +139,18 @@ resource "google_pubsub_topic_iam_member" "budget_publisher" {
   ]
 }
 
+resource "google_pubsub_topic_iam_member" "monitoring_publisher" {
+  count   = local.apply_enabled ? 1 : 0
+  project = var.project_id
+  topic   = google_pubsub_topic.budget[0].name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:service-${data.google_project.c1[0].number}@gcp-sa-monitoring.iam.gserviceaccount.com"
+  depends_on = [
+    google_project_service.c1,
+    google_pubsub_topic.budget
+  ]
+}
+
 resource "google_billing_budget" "c1" {
   count           = local.apply_enabled ? 1 : 0
   billing_account = var.billing_account_id
@@ -189,7 +201,10 @@ resource "google_monitoring_notification_channel" "budget_pubsub" {
   labels = {
     topic = google_pubsub_topic.budget[0].id
   }
-  depends_on = [google_project_service.c1]
+  depends_on = [
+    google_project_service.c1,
+    google_pubsub_topic_iam_member.monitoring_publisher
+  ]
 }
 
 resource "google_logging_metric" "iam_setiampolicy" {

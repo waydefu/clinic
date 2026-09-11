@@ -114,6 +114,11 @@ run "named_sha_enables_c1_allowlist_only" {
     condition     = google_iam_workload_identity_pool.github[0].workload_identity_pool_id == "c1-github"
     error_message = "C1 WIF pool must be c1-github."
   }
+
+  assert {
+    condition     = length(google_pubsub_topic_iam_member.monitoring_publisher) == 1
+    error_message = "C1 must grant the Monitoring service agent Pub/Sub publisher before the notification channel."
+  }
 }
 
 run "oversized_project_id_is_rejected" {

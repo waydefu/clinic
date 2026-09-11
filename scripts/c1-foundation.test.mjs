@@ -64,6 +64,15 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain('google_pubsub_topic');
     expect(main).toContain('c1-foundation');
     expect(main).toContain('google_pubsub_topic_iam_member.budget_publisher');
+    expect(main).toContain(
+      'google_pubsub_topic_iam_member.monitoring_publisher'
+    );
+    expect(read('infra/terraform/c1-foundation/README.md')).toContain(
+      'docs/runbooks/c1-local-execution-packet.md'
+    );
+    expect(read('infra/terraform/c1-foundation/README.md')).not.toContain(
+      'docs/reviews/'
+    );
     expect(versions).toContain('backend "gcs"');
     expect(
       read('infra/terraform/c1-foundation/terraform.tfvars.example')

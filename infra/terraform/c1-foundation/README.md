@@ -17,4 +17,5 @@ First apply uses human ADC (JIT ≤8h). The module then creates WIF +
 no secret versions.
 
 See [c0-engineering-recommendations](../../../docs/architecture/c0-engineering-recommendations.md)
-and the dated local packet under `docs/reviews/`.
+and the local packet
+[c1-local-execution-packet.md](../../../docs/runbooks/c1-local-execution-packet.md).
