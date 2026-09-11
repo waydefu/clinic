@@ -1,10 +1,10 @@
 /**
- * Phase-1 staff identity parameters selected by C0-ENG-REC-2026-09-11.
+ * Phase-1 staff identity parameters from C0-ENG-REC-2026-09-11,
+ * accepted for synthetic staging by C0-ENG-ACCEPT-2026-09-11.
  *
- * These are engineering recommendations, not owner approval and not a
- * routed C2/C4 implementation. Identity Platform's unreviewed default
- * `adjacentIntervals` is 5; this module keeps the tighter value already
- * used by the synthetic CAL-PILOT configurator.
+ * Not a routed C2/C4 implementation. Identity Platform's unreviewed
+ * default `adjacentIntervals` is 5; this module keeps the tighter value
+ * already used by the synthetic CAL-PILOT configurator.
  */
 export const TOTP_ADJACENT_INTERVALS = 1;
 export const AUTHORIZATION_LOCK_FAILURE_THRESHOLD = 5;
