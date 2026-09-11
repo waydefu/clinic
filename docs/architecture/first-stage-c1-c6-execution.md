@@ -47,7 +47,7 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | --- | --- |
 | Prerequisites | C1 evidence; C2 authority |
 | Scope | Independent staff accounts; Google + clinic-managed; MFA; disable-on-next-request; owner UI at least manager / front_desk |
-| Source in tree | CAL-PILOT Google+TOTP session (`calendar-pilot-session.ts`) is synthetic-only, not C2 complete |
+| Source in tree | CAL-PILOT Google+TOTP session (`calendar-pilot-session.ts`) is synthetic-only; SHA-gated `infra/terraform/c2-identity/` (Identity Platform API only; default no-op) |
 | Tests | `apps/api/src/auth/calendar-pilot-session.test.ts` (pilot, not C2) |
 | Exclusions | Patient login; real staff PII |
 | Remaining blockers | C1 PASS; exact C2 apply / Identity Platform authority |
@@ -85,7 +85,7 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | --- | --- |
 | Prerequisites | C4 evidence; C5 authority; D-002 still pending for real-data retention |
 | Scope | Append-only audit for booking, hours, login/disable, authz denies, Calendar success/fail/conflict/review |
-| Source in tree | Domain audit v2 + Emulator transaction tests |
+| Source in tree | Domain audit v2 + Emulator transaction tests; SHA-gated `infra/terraform/c5-firestore/` (Native + PITR; default no-op) |
 | Remaining blockers | C4 PASS; exact C5 authority; D-002 for production linkability |
 | Authority | `not_granted` |
 | Status | `NOT_AUTHORIZED` |

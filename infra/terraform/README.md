@@ -18,7 +18,9 @@ production 或真實資料的 authority。候選不含 secret version，避免�
 `c1-foundation/` 是第一階段 C1 隔離地基來源：C1 `deploymentAuthorities=granted`
 但預設 `exact_apply_authority_sha = not_granted` 時不建立任何資源，且拒絕
 `beauessence-clinic-staging`。Agent sandbox 不執行 apply；本機 packet 才 apply。
-C1 `granted` 不是 C1 PASS，也不延伸到 C2～C6。
+`c2-identity/` 與 `c5-firestore/` 同樣 SHA-gated、預設不建立資源，且 C2／C5
+`deploymentAuthorities` 仍為 `not_granted`。不得把 C2 Identity 或 C5 Firestore
+混進 C1。
 
 未來應分開管理：
 
