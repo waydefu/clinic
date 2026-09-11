@@ -119,6 +119,14 @@ run "named_sha_enables_c1_allowlist_only" {
     condition     = length(google_pubsub_topic_iam_member.monitoring_publisher) == 1
     error_message = "C1 must grant the Monitoring service agent Pub/Sub publisher before the notification channel."
   }
+
+  assert {
+    condition = (
+      google_pubsub_topic_iam_member.budget_publisher[0].member ==
+      "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
+    )
+    error_message = "C1 budget Pub/Sub publisher must be billing-budget-alert@system.gserviceaccount.com, not gcp-sa-billingbudgets."
+  }
 }
 
 run "oversized_project_id_is_rejected" {

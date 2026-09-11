@@ -58,16 +58,18 @@ SUFFIX="c1a01" # 1-7 [a-z0-9]; pick unused; do not commit
 PROJECT_ID="beauessence-clinic-stg-${SUFFIX}"
 test "${#PROJECT_ID}" -ge 24 && test "${#PROJECT_ID}" -le 30
 gcloud projects create "$PROJECT_ID" \
-  --name="Beau Essence C1 synthetic staging" \
+  --name="C1 synthetic staging" \
   --folder="$FOLDER_ID" # or --organization="$ORG_ID"; values stay local
+# GCP project display names are max 30 characters.
 gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"
 ```
 
 3. Enable the C1 API allowlist **before** Terraform. The provider sets
    `user_project_override` (required by Billing Budgets). Quota checks
-   and the Billing Budgets service agent fail on a brand-new project
-   until these APIs exist. This also enables Storage for the state
-   bucket:
+   fail on a brand-new project until these APIs exist. Billing Budgets
+   publishes to Pub/Sub as `billing-budget-alert@system.gserviceaccount.com`
+   (the project-numbered `gcp-sa-billingbudgets` agent is not created).
+   This step also enables Storage for the state bucket:
 
 ```bash
 gcloud services enable \

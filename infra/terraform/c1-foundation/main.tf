@@ -132,7 +132,10 @@ resource "google_pubsub_topic_iam_member" "budget_publisher" {
   project = var.project_id
   topic   = google_pubsub_topic.budget[0].name
   role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:service-${data.google_project.c1[0].number}@gcp-sa-billingbudgets.iam.gserviceaccount.com"
+  # Live Billing Budgets publishes as this system agent. The project-numbered
+  # gcp-sa-billingbudgets agent is not provisioned on a new C1 project
+  # (Pub/Sub IAM 400: service account does not exist).
+  member = "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
   depends_on = [
     google_project_service.c1,
     google_pubsub_topic.budget

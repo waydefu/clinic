@@ -64,6 +64,10 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain('google_pubsub_topic');
     expect(main).toContain('c1-foundation');
     expect(main).toContain('google_pubsub_topic_iam_member.budget_publisher');
+    expect(main).toContain('billing-budget-alert@system.gserviceaccount.com');
+    expect(main).not.toMatch(
+      /service-\$\{data\.google_project\.c1\[0\]\.number\}@gcp-sa-billingbudgets/
+    );
     expect(main).toContain(
       'google_pubsub_topic_iam_member.monitoring_publisher'
     );
