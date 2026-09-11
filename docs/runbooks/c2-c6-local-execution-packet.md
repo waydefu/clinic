@@ -12,7 +12,8 @@ into chat or the repository.
 
 This agent sandbox has no `gcloud` / Terraform / Firebase CLI. Cloud
 slices stay `UNAVAILABLE` here. Run apply only on a local ADC host after
-the previous gate is `completed`.
+the previous gate is `completed`. Static SHA-gating of every resource is
+checked by `node scripts/terraform-sha-gate.mjs` without credentials.
 
 ## Sequence
 

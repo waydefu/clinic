@@ -25,8 +25,8 @@ variable "project_id" {
 }
 
 variable "region" {
-  type        = string
-  default     = "asia-east1"
+  type    = string
+  default = "asia-east1"
   validation {
     condition     = var.region == "asia-east1"
     error_message = "C6 is approved only for asia-east1."

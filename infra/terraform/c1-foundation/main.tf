@@ -120,10 +120,10 @@ resource "google_logging_project_bucket_config" "c1" {
 }
 
 resource "google_pubsub_topic" "budget" {
-  count   = local.apply_enabled ? 1 : 0
-  project = var.project_id
-  name    = "c1-budget-notifications"
-  labels  = local.labels
+  count      = local.apply_enabled ? 1 : 0
+  project    = var.project_id
+  name       = "c1-budget-notifications"
+  labels     = local.labels
   depends_on = [google_project_service.c1]
 }
 
@@ -156,8 +156,8 @@ resource "google_billing_budget" "c1" {
     }
   }
   all_updates_rule {
-    pubsub_topic                 = google_pubsub_topic.budget[0].id
-    schema_version               = "1.0"
+    pubsub_topic                   = google_pubsub_topic.budget[0].id
+    schema_version                 = "1.0"
     disable_default_iam_recipients = false
   }
   depends_on = [google_project_service.c1]

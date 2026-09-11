@@ -3,9 +3,9 @@ locals {
 }
 
 resource "google_project_service" "c5" {
-  for_each = local.apply_enabled ? toset(["firestore.googleapis.com"]) : toset([])
-  project  = var.project_id
-  service  = each.value
+  for_each           = local.apply_enabled ? toset(["firestore.googleapis.com"]) : toset([])
+  project            = var.project_id
+  service            = each.value
   disable_on_destroy = false
 }
 

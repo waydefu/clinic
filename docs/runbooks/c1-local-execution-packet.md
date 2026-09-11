@@ -57,6 +57,7 @@ terraform apply c1.tfplan
    id) into one snapshot file, assemble, then evaluate:
 
 ```bash
+# static SHA-gate (no credentials): node scripts/terraform-sha-gate.mjs
 # commands: node -e "import {c1SmokeCollectCommands} from './scripts/collect-c1-smoke.mjs'; console.log(c1SmokeCollectCommands(process.env.PROJECT_ID).join('\n'))"
 node scripts/collect-c1-smoke.mjs /tmp/c1-gcloud-snapshot.json > /tmp/c1-smoke.json
 node scripts/c1-smoke-evidence.mjs /tmp/c1-smoke.json

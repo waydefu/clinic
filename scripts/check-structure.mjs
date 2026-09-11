@@ -232,6 +232,8 @@ const requiredPaths = [
   'scripts/c2-c6-smoke-evidence.test.mjs',
   'scripts/sequential-c-gate.mjs',
   'scripts/sequential-c-gate.test.mjs',
+  'scripts/terraform-sha-gate.mjs',
+  'scripts/terraform-sha-gate.test.mjs',
   'apps/worker/src/calendar-sync/watch-channel.ts',
   'apps/worker/src/calendar-sync/watch-channel.test.ts',
   'apps/worker/src/calendar-sync/watch-channel-store.ts',
