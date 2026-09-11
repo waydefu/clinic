@@ -17,6 +17,25 @@ run "default_sha_is_noop" {
   }
 }
 
+run "named_sha_enables_identity_only" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+  }
+
+  assert {
+    condition     = local.apply_enabled == true
+    error_message = "C2 apply_enabled must be true for a 40-character SHA."
+  }
+
+  assert {
+    condition     = length(google_project_service.c2) == 1
+    error_message = "C2 must enable only identitytoolkit.googleapis.com."
+  }
+}
+
 run "staging_project_is_rejected" {
   command = plan
 

@@ -22,6 +22,25 @@ run "default_sha_is_noop" {
   }
 }
 
+run "named_sha_enables_native_firestore" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+  }
+
+  assert {
+    condition     = local.apply_enabled == true
+    error_message = "C5 apply_enabled must be true for a 40-character SHA."
+  }
+
+  assert {
+    condition     = length(google_firestore_database.synthetic) == 1
+    error_message = "C5 must create the Native Firestore database when SHA-gated apply is on."
+  }
+}
+
 run "staging_project_is_rejected" {
   command = plan
 

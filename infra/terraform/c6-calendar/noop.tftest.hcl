@@ -17,6 +17,25 @@ run "default_sha_is_noop" {
   }
 }
 
+run "named_sha_enables_calendar_json_only" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+  }
+
+  assert {
+    condition     = local.apply_enabled == true
+    error_message = "C6 apply_enabled must be true for a 40-character SHA."
+  }
+
+  assert {
+    condition     = length(google_project_service.c6) == 1
+    error_message = "C6 must enable only calendar-json.googleapis.com."
+  }
+}
+
 run "staging_project_is_rejected" {
   command = plan
 
