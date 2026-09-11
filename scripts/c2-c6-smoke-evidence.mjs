@@ -2,26 +2,25 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import {
+  FORBIDDEN_STAGING_PROJECT,
+  ISOLATED_PROJECT_PATTERN,
+  UNAPPLIED_PLACEHOLDER,
+  isIsolatedC1ProjectId,
+  isolatedC1ProjectIdError
+} from './isolated-c1-project-id.mjs';
+
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
-export const FORBIDDEN_STAGING_PROJECT = 'beauessence-clinic-staging';
-export const UNAPPLIED_PLACEHOLDER = 'beauessence-clinic-stg-unapplied';
-export const ISOLATED_PROJECT_PATTERN = /^beauessence-clinic-stg-[a-z0-9-]+$/;
+export {
+  FORBIDDEN_STAGING_PROJECT,
+  ISOLATED_PROJECT_PATTERN,
+  UNAPPLIED_PLACEHOLDER
+};
 
 export function assertIsolatedSliceProjectId(projectId, slice) {
-  if (projectId === FORBIDDEN_STAGING_PROJECT) {
-    throw new Error(
-      `${slice} smoke refuses beauessence-clinic-staging; that project is CAL-PILOT, not C1.`
-    );
-  }
-  if (
-    typeof projectId !== 'string' ||
-    !ISOLATED_PROJECT_PATTERN.test(projectId) ||
-    projectId === UNAPPLIED_PLACEHOLDER
-  ) {
-    throw new Error(
-      `${slice} smoke requires a real isolated beauessence-clinic-stg-* project.`
-    );
+  if (!isIsolatedC1ProjectId(projectId)) {
+    throw new Error(isolatedC1ProjectIdError(projectId, `${slice} smoke`));
   }
 }
 
@@ -38,14 +37,9 @@ function projectIssues(evidence, slice) {
     issues.push(
       `${slice} smoke used beauessence-clinic-staging; that project is not C1.`
     );
-  }
-  if (
-    typeof projectId !== 'string' ||
-    !ISOLATED_PROJECT_PATTERN.test(projectId) ||
-    projectId === UNAPPLIED_PLACEHOLDER
-  ) {
+  } else if (!isIsolatedC1ProjectId(projectId)) {
     issues.push(
-      `${slice} projectId must be a real isolated beauessence-clinic-stg-* id.`
+      `${slice} projectId must be beauessence-clinic-stg- plus 1-7 lowercase alphanumeric chars (GCP max 30).`
     );
   }
   if (evidence?.region !== 'asia-east1') {

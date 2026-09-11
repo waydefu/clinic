@@ -8,6 +8,7 @@ import {
 import {
   assembleC1SmokeEvidence,
   assertC1CollectProjectId,
+  c1PreApplyEnableApisCommand,
   c1SmokeCollectCommands
 } from './collect-c1-smoke.mjs';
 
@@ -55,6 +56,17 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
     expect(() =>
       assertC1CollectProjectId('beauessence-clinic-staging')
     ).toThrow(/not C1/);
+    expect(() =>
+      assertC1CollectProjectId('beauessence-clinic-stg-replace-me')
+    ).toThrow(/max 30/);
+    expect(() =>
+      assertC1CollectProjectId('beauessence-clinic-stg-unapplied')
+    ).toThrow(/unapplied/);
+    const enable = c1PreApplyEnableApisCommand('beauessence-clinic-stg-smoke1');
+    expect(enable).toContain('gcloud services enable');
+    for (const api of recs.c1.apiAllowlist) {
+      expect(enable).toContain(api);
+    }
     const commands = c1SmokeCollectCommands('beauessence-clinic-stg-smoke1');
     expect(
       commands.some((line) => line.includes('services list --enabled'))

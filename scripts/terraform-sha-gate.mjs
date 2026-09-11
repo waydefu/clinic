@@ -170,6 +170,11 @@ export function evaluateCSliceTerraformSource(module, files) {
   if (!variables.includes('beauessence-clinic-staging')) {
     issues.push(`${module.slice} must reject beauessence-clinic-staging.`);
   }
+  if (!variables.includes('beauessence-clinic-stg-[a-z0-9]{1,7}')) {
+    issues.push(
+      `${module.slice} project_id must enforce a 1-7 character suffix (GCP max 30).`
+    );
+  }
   if (!tftest.includes('mock_provider "google"')) {
     issues.push(`${module.slice} must ship a mock_provider terraform test.`);
   }

@@ -13,6 +13,9 @@ terraform {
   }
 }
 
+# Billing budgets require user_project_override. Enable the C1 API
+# allowlist with gcloud before apply so quota checks against this new
+# project succeed and the Billing Budgets service agent exists.
 provider "google" {
   project               = var.project_id
   region                = var.region

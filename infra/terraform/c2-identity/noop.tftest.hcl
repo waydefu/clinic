@@ -60,6 +60,18 @@ run "named_sha_enables_identity_only" {
   }
 }
 
+run "oversized_project_id_is_rejected" {
+  command = plan
+
+  variables {
+    project_id = "beauessence-clinic-stg-replace-me"
+  }
+
+  expect_failures = [
+    var.project_id
+  ]
+}
+
 run "staging_project_is_rejected" {
   command = plan
 

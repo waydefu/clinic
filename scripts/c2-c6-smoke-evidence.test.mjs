@@ -64,7 +64,10 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     );
     expect(() =>
       c5SmokeCollectCommands('beauessence-clinic-stg-unapplied')
-    ).toThrow(/isolated/);
+    ).toThrow(/unapplied/);
+    expect(() =>
+      c2SmokeCollectCommands('beauessence-clinic-stg-replace-me')
+    ).toThrow(/max 30/);
     const commands = c6SmokeCollectCommands(isolated);
     expect(commands.join('\n')).toContain('services list --enabled');
     expect(commands.join('\n')).not.toContain('beauessence-clinic-staging');

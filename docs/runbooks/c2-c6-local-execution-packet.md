@@ -13,7 +13,8 @@ into chat or the repository.
 This agent sandbox has no `gcloud`. Cloud slices stay `UNAVAILABLE`
 here. Run apply only on a local ADC host after the previous gate is
 `completed`. Reuse the C1 state bucket `gs://${PROJECT_ID}-tfstate`.
-Static SHA-gating of every resource is checked by
+Project id remains `beauessence-clinic-stg-` plus 1–7 `[a-z0-9]`
+(GCP max 30). Static SHA-gating of every resource is checked by
 `node scripts/terraform-sha-gate.mjs` without credentials.
 `terraform test` in each module uses `mock_provider` to plan a no-op.
 
@@ -58,17 +59,18 @@ the field. It must not create Firestore or enable Calendar JSON API.
 
 No Terraform. After C2 PASS and C3 `granted`,
 `sequential-c-gate` evaluates `__session` HttpOnly/Secure/SameSite=Strict,
-idle 30m, absolute 8h, CSRF `assertCsrf`, and disabled-user rejection on
-the CAL-PILOT session module. That is C3 source PASS for the synthetic
-surface, not production staff Hosting.
+idle 30m, absolute 8h, CSRF `assertCsrf`, logout `revoke`, and
+disabled-user rejection on the CAL-PILOT session module. That is C3
+source PASS for the synthetic surface, not production staff Hosting.
 
 ## C4 RBAC (source)
 
 No Terraform. After C3 PASS and C4 `granted`, the evaluator checks
 `packages/domain/src/roles.ts` (`manager` / `front_desk`) and
-`staff-auth-parameters.ts` (lockout 5 / 15m base / manager unlock /
-break-glass not provisioned). Authorization-code KDF remains unspecified
-in Canon — do not guess a hash.
+`staff-auth-parameters.ts` (TOTP adjacentIntervals=1, lockout
+threshold 5 / base 15m / ceiling 4h / authorization-code TTL 24h /
+manager unlock / break-glass not provisioned). Authorization-code KDF
+remains unspecified in Canon — do not guess a hash.
 
 ## C5 Firestore (cloud)
 

@@ -26,6 +26,7 @@ describe('C1 isolated foundation Terraform source', () => {
     );
     expect(variables).toContain('var.region == "asia-east1"');
     expect(variables).toContain('var.budget_amount_twd == 2000');
+    expect(variables).toContain('beauessence-clinic-stg-[a-z0-9]{1,7}');
     expect(main).toContain(
       'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
     );
@@ -75,6 +76,16 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(packet).toContain('storage.googleapis.com');
     expect(packet).toContain('${PROJECT_ID}-tfstate');
     expect(packet).toContain('gcloud billing budgets list');
+    expect(packet).toContain('GCP project ids are max **30**');
+    expect(packet).toContain('user_project_override');
+    expect(packet).toContain('billingbudgets.googleapis.com');
+    expect(packet).toContain('beauessence-clinic-stg-replace-me');
+    expect(
+      read('infra/terraform/c1-foundation/terraform.tfvars.example')
+    ).toContain('beauessence-clinic-stg-c1tmp');
+    expect(
+      read('infra/terraform/c1-foundation/terraform.tfvars.example')
+    ).not.toContain('replace-me');
     expect(packet).not.toContain(
       'Required snapshot fields that gcloud does not infer'
     );

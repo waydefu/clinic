@@ -54,7 +54,8 @@ resource "google_project_service" "open" {
   service = "iam.googleapis.com"
 }
 `,
-      variables: 'default     = "not_granted"\nbeauessence-clinic-staging\n',
+      variables:
+        'default     = "not_granted"\nbeauessence-clinic-staging\nbeauessence-clinic-stg-[a-z0-9]{1,7}\n',
       tftest: passingTftest
     });
     expect(ungated.ok).toBe(false);
@@ -67,7 +68,8 @@ resource "google_firestore_database" "bad" {
   count = local.apply_enabled ? 1 : 0
 }
 `,
-      variables: 'default     = "not_granted"\nbeauessence-clinic-staging\n',
+      variables:
+        'default     = "not_granted"\nbeauessence-clinic-staging\nbeauessence-clinic-stg-[a-z0-9]{1,7}\n',
       tftest: passingTftest
     });
     expect(firestore.ok).toBe(false);

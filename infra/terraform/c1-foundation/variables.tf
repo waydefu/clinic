@@ -13,14 +13,16 @@ variable "exact_apply_authority_sha" {
 
 variable "project_id" {
   type        = string
-  description = "New isolated synthetic C1 project. Must not be the existing CAL-PILOT/preview project."
+  description = "New isolated synthetic C1 project. GCP ids are max 30 characters, so the suffix after beauessence-clinic-stg- is 1-7 [a-z0-9]. Must not be the existing CAL-PILOT/preview project."
   default     = "beauessence-clinic-stg-unapplied"
   validation {
     condition = (
-      var.project_id != "beauessence-clinic-staging" &&
-      can(regex("^beauessence-clinic-stg-[a-z0-9-]+$", var.project_id))
+      var.project_id != "beauessence-clinic-staging" && (
+        var.project_id == "beauessence-clinic-stg-unapplied" ||
+        can(regex("^beauessence-clinic-stg-[a-z0-9]{1,7}$", var.project_id))
+      )
     )
-    error_message = "C1 must be a new isolated beauessence-clinic-stg-* project; beauessence-clinic-staging is not C1."
+    error_message = "C1 project id must be beauessence-clinic-stg- plus 1-7 lowercase alphanumeric chars (GCP max 30); beauessence-clinic-staging is not C1."
   }
 }
 

@@ -76,6 +76,56 @@ run "named_sha_enables_c1_allowlist_only" {
     )
     error_message = "C1 must not enable Firestore."
   }
+
+  assert {
+    condition = !contains(
+      keys(google_project_service.c1),
+      "calendar-json.googleapis.com"
+    )
+    error_message = "C1 must not enable Calendar JSON API; that is C6."
+  }
+
+  assert {
+    condition     = length(google_billing_budget.c1) == 1
+    error_message = "C1 must create the NT$2000 alerting budget when SHA-gated apply is on."
+  }
+
+  assert {
+    condition     = google_billing_budget.c1[0].amount[0].specified_amount[0].currency_code == "TWD"
+    error_message = "C1 budget currency must be TWD."
+  }
+
+  assert {
+    condition     = google_billing_budget.c1[0].amount[0].specified_amount[0].units == "2000"
+    error_message = "C1 budget amount must be NT$2000."
+  }
+
+  assert {
+    condition     = google_logging_project_bucket_config.c1[0].bucket_id == "c1-foundation"
+    error_message = "C1 logging bucket must be c1-foundation."
+  }
+
+  assert {
+    condition     = google_logging_project_bucket_config.c1[0].location == "asia-east1"
+    error_message = "C1 logging bucket must be in asia-east1."
+  }
+
+  assert {
+    condition     = google_iam_workload_identity_pool.github[0].workload_identity_pool_id == "c1-github"
+    error_message = "C1 WIF pool must be c1-github."
+  }
+}
+
+run "oversized_project_id_is_rejected" {
+  command = plan
+
+  variables {
+    project_id = "beauessence-clinic-stg-replace-me"
+  }
+
+  expect_failures = [
+    var.project_id
+  ]
 }
 
 run "staging_project_is_rejected" {

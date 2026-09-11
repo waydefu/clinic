@@ -85,5 +85,12 @@ describe('C1 smoke evidence evaluator', () => {
     );
     expect(secrets.ok).toBe(false);
     expect(secrets.issues.join('\n')).toMatch(/zero versions/);
+
+    const oversized = evaluateC1Smoke(
+      passingEvidence({ projectId: 'beauessence-clinic-stg-replace-me' }),
+      recs
+    );
+    expect(oversized.ok).toBe(false);
+    expect(oversized.issues.join('\n')).toMatch(/max 30/);
   });
 });

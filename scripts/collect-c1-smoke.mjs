@@ -1,21 +1,22 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+import {
+  isIsolatedC1ProjectId,
+  isolatedC1ProjectIdError
+} from './isolated-c1-project-id.mjs';
+import { loadC0EngineeringRecs } from './c1-smoke-evidence.mjs';
+
 export function assertC1CollectProjectId(projectId) {
-  if (projectId === 'beauessence-clinic-staging') {
-    throw new Error(
-      'C1 smoke collect refuses beauessence-clinic-staging; that project is not C1.'
-    );
+  if (!isIsolatedC1ProjectId(projectId)) {
+    throw new Error(isolatedC1ProjectIdError(projectId, 'C1 smoke collect'));
   }
-  if (
-    typeof projectId !== 'string' ||
-    !/^beauessence-clinic-stg-[a-z0-9-]+$/.test(projectId) ||
-    projectId === 'beauessence-clinic-stg-unapplied'
-  ) {
-    throw new Error(
-      'C1 smoke collect requires a real isolated beauessence-clinic-stg-* project.'
-    );
-  }
+}
+
+export function c1PreApplyEnableApisCommand(projectId) {
+  assertC1CollectProjectId(projectId);
+  const apis = loadC0EngineeringRecs().c1.apiAllowlist.join(' \\\n  ');
+  return `gcloud services enable \\\n  ${apis} \\\n  --project=${projectId}`;
 }
 
 export function c1SmokeCollectCommands(projectId) {

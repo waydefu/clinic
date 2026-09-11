@@ -2,8 +2,9 @@
 # Do not paste billing IDs, tokens or keys into chat or the repository.
 # exact_apply_authority_sha must be `git rev-parse HEAD` after Verification
 # evidence is green — never a path-filtered terraform-directory SHA.
+# Replace c1tmp with an unused 1-7 character [a-z0-9] suffix (GCP id max 30).
 
-project_id                  = "beauessence-clinic-stg-replace-me"
+project_id                  = "beauessence-clinic-stg-c1tmp"
 region                      = "asia-east1"
 github_repository           = "waydefu/clinic"
 budget_amount_twd           = 2000

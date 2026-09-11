@@ -14,6 +14,10 @@ import {
   evaluateC6Smoke
 } from './c2-c6-smoke-evidence.mjs';
 import { parseStageGateStatus } from './unrouted-inventory.mjs';
+import {
+  GCP_PROJECT_ID_MAX_LENGTH,
+  ISOLATED_C1_PROJECT_PREFIX
+} from './isolated-c1-project-id.mjs';
 
 export { bookingAndWatchRemainUnrouted };
 
@@ -181,6 +185,19 @@ export function currentHeadSha(repoRoot = root) {
 
 export function emitExactAuthorityRequest(slice, extras = {}) {
   const packet = SLICE_PACKETS[slice];
+  const bootstrapBeforeApply =
+    slice === 'C1'
+      ? [
+          'create unused isolated project under owner org/folder (not no-org)',
+          'link billing; account currency must be TWD; caller needs billing.budgets.create',
+          'gcloud services enable the C1 API allowlist (required before user_project_override apply)',
+          'create versioned gs://${PROJECT_ID}-tfstate in asia-east1',
+          'terraform test && init && plan && apply with exact SHA'
+        ]
+      : [
+          'reuse the isolated C1 project; never beauessence-clinic-staging',
+          'terraform test && init && plan && apply with exact SHA'
+        ];
   return {
     kind: 'EXACT_SHA_CLOUD_MUTATION',
     slice,
@@ -188,6 +205,9 @@ export function emitExactAuthorityRequest(slice, extras = {}) {
     packet: packet?.packet ?? null,
     sha: currentHeadSha(),
     shaLookup: 'git rev-parse HEAD',
+    projectIdPattern: `${ISOLATED_C1_PROJECT_PREFIX}[a-z0-9]{1,7}`,
+    projectIdMaxLength: GCP_PROJECT_ID_MAX_LENGTH,
+    bootstrapBeforeApply,
     forbidden: [
       'beauessence-clinic-staging',
       'book.beauessence.com.tw',

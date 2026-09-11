@@ -111,6 +111,13 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
     expect(action.exactAuthorityRequest.applyPolicy).toMatch(
       /never from sequential-c-gate/
     );
+    expect(action.exactAuthorityRequest.projectIdMaxLength).toBe(30);
+    expect(action.exactAuthorityRequest.projectIdPattern).toBe(
+      'beauessence-clinic-stg-[a-z0-9]{1,7}'
+    );
+    expect(
+      action.exactAuthorityRequest.bootstrapBeforeApply.join('\n')
+    ).toMatch(/gcloud services enable the C1 API allowlist/);
   });
 
   it('proposes C1 completed and grants only C2 after C1 smoke PASS', () => {

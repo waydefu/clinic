@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { isIsolatedC1ProjectId } from './isolated-c1-project-id.mjs';
+
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 /** Least-privilege roles C1 Terraform grants to `c1-terraform-ci` only. */
@@ -43,14 +45,9 @@ export function evaluateC1Smoke(evidence, recs) {
     issues.push(
       'C1 smoke used beauessence-clinic-staging; that project is not C1.'
     );
-  }
-  if (
-    typeof projectId !== 'string' ||
-    !/^beauessence-clinic-stg-[a-z0-9-]+$/.test(projectId) ||
-    projectId === 'beauessence-clinic-stg-unapplied'
-  ) {
+  } else if (!isIsolatedC1ProjectId(projectId)) {
     issues.push(
-      'C1 projectId must be a real isolated beauessence-clinic-stg-* id.'
+      'C1 projectId must be beauessence-clinic-stg- plus 1-7 lowercase alphanumeric chars (GCP max 30).'
     );
   }
 

@@ -1,27 +1,19 @@
 import { pathToFileURL } from 'node:url';
 
-export const C2_FORBIDDEN_PROJECT = 'beauessence-clinic-staging';
-export const C2_UNAPPLIED_PLACEHOLDER = 'beauessence-clinic-stg-unapplied';
+import {
+  FORBIDDEN_STAGING_PROJECT,
+  UNAPPLIED_PLACEHOLDER,
+  isIsolatedC1ProjectId,
+  isolatedC1ProjectIdError
+} from './isolated-c1-project-id.mjs';
+
+export const C2_FORBIDDEN_PROJECT = FORBIDDEN_STAGING_PROJECT;
+export const C2_UNAPPLIED_PLACEHOLDER = UNAPPLIED_PLACEHOLDER;
 export const C2_TOTP_ADJACENT_INTERVALS = 1;
 
 export function assertC2IdentityProjectId(projectId) {
-  if (projectId === C2_FORBIDDEN_PROJECT) {
-    throw new Error(
-      'C2 identity refuses beauessence-clinic-staging; that project is CAL-PILOT, not C1.'
-    );
-  }
-  if (projectId === C2_UNAPPLIED_PLACEHOLDER) {
-    throw new Error(
-      'C2 identity refuses the unapplied placeholder project id.'
-    );
-  }
-  if (
-    typeof projectId !== 'string' ||
-    !/^beauessence-clinic-stg-[a-z0-9-]+$/.test(projectId)
-  ) {
-    throw new Error(
-      'C2 identity only targets an isolated beauessence-clinic-stg-* project.'
-    );
+  if (!isIsolatedC1ProjectId(projectId)) {
+    throw new Error(isolatedC1ProjectIdError(projectId, 'C2 identity'));
   }
 }
 

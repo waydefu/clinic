@@ -81,6 +81,8 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
       expect(read(example)).toContain(
         'exact_apply_authority_sha = "not_granted"'
       );
+      expect(read(example)).toContain('beauessence-clinic-stg-c1tmp');
+      expect(read(example)).not.toContain('replace-me');
       expect(read(example)).not.toContain('beauessence-clinic-staging');
     }
   });

@@ -26,6 +26,9 @@ describe('C2 identity configurator (dry-run, not apply)', () => {
       assertC2IdentityProjectId('beauessence-clinic-stg-abc1')
     ).not.toThrow();
     expect(() =>
+      assertC2IdentityProjectId('beauessence-clinic-stg-replace-me')
+    ).toThrow(/max 30/);
+    expect(() =>
       assertC2IdentityApplyGate({ C2_IDENTITY_APPLY: 'granted' })
     ).not.toThrow();
   });

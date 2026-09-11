@@ -18,12 +18,19 @@ into chat or the repository.
 - Confirm `node scripts/sequential-c-gate.mjs` prints
   `exactAuthorityRequest.sha` equal to `git rev-parse HEAD` and to the
   green Verification evidence SHA before apply
+- Billing account **currency is TWD** (C0-ENG-REC). A USD account
+  rejects `specified_amount.currency_code = TWD`.
+- Caller can create a billing budget (`billing.budgets.create` on that
+  account). Values stay local.
 
 ## Environment
 
 - Directory: `infra/terraform/c1-foundation`
 - Region: `asia-east1`
-- Project id pattern: `beauessence-clinic-stg-<unique-suffix>`
+- Project id: `beauessence-clinic-stg-` + **1–7** chars `[a-z0-9]`
+  (prefix is 23 characters; GCP project ids are max **30**). Example
+  suffix: `c1a01`. Forbidden: `beauessence-clinic-stg-replace-me`
+  (33 characters) and `beauessence-clinic-stg-unapplied` (placeholder).
 - State bucket: `gs://${PROJECT_ID}-tfstate` in `asia-east1` (create
   after enabling Storage; never use `beauessence-clinic-staging`)
 - Forbidden: `beauessence-clinic-staging`, official DNS hostnames,
@@ -43,19 +50,39 @@ APPLY_SHA="$(git rev-parse HEAD)"
 echo "$APPLY_SHA"
 ```
 
-2. Pick an unused project id, create it, link billing:
+2. Pick an unused 1–7 character suffix, create the project under the
+   owner org/folder (not no-org), and link billing:
 
 ```bash
-PROJECT_ID="beauessence-clinic-stg-<suffix>"
-gcloud projects create "$PROJECT_ID" --name="Beau Essence C1 synthetic staging"
+SUFFIX="c1a01" # 1-7 [a-z0-9]; pick unused; do not commit
+PROJECT_ID="beauessence-clinic-stg-${SUFFIX}"
+test "${#PROJECT_ID}" -ge 24 && test "${#PROJECT_ID}" -le 30
+gcloud projects create "$PROJECT_ID" \
+  --name="Beau Essence C1 synthetic staging" \
+  --folder="$FOLDER_ID" # or --organization="$ORG_ID"; values stay local
 gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"
 ```
 
-3. Enable Storage, then create the versioned GCS backend (required
-   before `terraform init`; this module uses `backend "gcs" {}`):
+3. Enable the C1 API allowlist **before** Terraform. The provider sets
+   `user_project_override` (required by Billing Budgets). Quota checks
+   and the Billing Budgets service agent fail on a brand-new project
+   until these APIs exist. This also enables Storage for the state
+   bucket:
 
 ```bash
-gcloud services enable storage.googleapis.com --project="$PROJECT_ID"
+gcloud services enable \
+  billingbudgets.googleapis.com \
+  cloudbilling.googleapis.com \
+  cloudresourcemanager.googleapis.com \
+  iam.googleapis.com \
+  iamcredentials.googleapis.com \
+  logging.googleapis.com \
+  monitoring.googleapis.com \
+  pubsub.googleapis.com \
+  secretmanager.googleapis.com \
+  storage.googleapis.com \
+  sts.googleapis.com \
+  --project="$PROJECT_ID"
 STATE_BUCKET="${PROJECT_ID}-tfstate"
 gcloud storage buckets create "gs://${STATE_BUCKET}" \
   --project="$PROJECT_ID" \
@@ -70,7 +97,7 @@ gcloud storage buckets update "gs://${STATE_BUCKET}" --versioning
 cd infra/terraform/c1-foundation
 terraform test
 cp terraform.tfvars.example terraform.tfvars
-# set project_id, billing_account_id locally
+# set project_id to $PROJECT_ID (24-30 chars), billing_account_id locally
 # exact_apply_authority_sha="$APPLY_SHA"
 terraform init \
   -backend-config="bucket=${STATE_BUCKET}" \

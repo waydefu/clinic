@@ -13,14 +13,16 @@ variable "exact_apply_authority_sha" {
 
 variable "project_id" {
   type        = string
-  description = "Isolated C1 project that C6 Calendar API attaches to. Must not be existing staging."
+  description = "Isolated C1 project that C6 Calendar API attaches to. Suffix after beauessence-clinic-stg- is 1-7 [a-z0-9] (GCP max 30). Must not be existing staging."
   default     = "beauessence-clinic-stg-unapplied"
   validation {
     condition = (
-      var.project_id != "beauessence-clinic-staging" &&
-      can(regex("^beauessence-clinic-stg-[a-z0-9-]+$", var.project_id))
+      var.project_id != "beauessence-clinic-staging" && (
+        var.project_id == "beauessence-clinic-stg-unapplied" ||
+        can(regex("^beauessence-clinic-stg-[a-z0-9]{1,7}$", var.project_id))
+      )
     )
-    error_message = "C6 must attach to the new isolated C1 project, not beauessence-clinic-staging."
+    error_message = "C6 project id must be beauessence-clinic-stg- plus 1-7 lowercase alphanumeric chars (GCP max 30); beauessence-clinic-staging is not C1."
   }
 }
 
