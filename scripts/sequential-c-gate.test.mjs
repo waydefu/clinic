@@ -99,8 +99,16 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
       'beauessence-clinic-staging'
     );
     expect(evaluateC1Smoke(passingC1(), recs).ok).toBe(true);
-    expect(terraformCliStatus().gcloud).toBe(false);
-    expect(terraformCliStatus().terraform).toBe(false);
+    expect(terraformCliStatus()).toEqual(
+      expect.objectContaining({
+        gcloud: expect.any(Boolean),
+        terraform: expect.any(Boolean),
+        firebase: expect.any(Boolean)
+      })
+    );
+    expect(action.exactAuthorityRequest.applyPolicy).toMatch(
+      /never from sequential-c-gate/
+    );
   });
 
   it('proposes C1 completed and grants only C2 after C1 smoke PASS', () => {
@@ -238,7 +246,7 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
     ).toBe(true);
     const request = emitExactAuthorityRequest('C1');
     expect(request.packet).toBe('docs/runbooks/c1-local-execution-packet.md');
-    expect(request.thisSandbox).toMatch(/no gcloud/);
+    expect(request.applyPolicy).toMatch(/never from sequential-c-gate/);
   });
 
   it('refuses --write on the live tree and writes only a legal temp patch', () => {

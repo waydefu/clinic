@@ -148,7 +148,9 @@ export function emitExactAuthorityRequest(slice, extras = {}) {
       'real patient data',
       'routing AppointmentController'
     ],
-    thisSandbox: 'no gcloud / terraform / firebase CLI',
+    applyPolicy:
+      'never from sequential-c-gate; local packet only after exact SHA',
+    cli: terraformCliStatus(),
     afterEvidence:
       slice === 'C1'
         ? 'node scripts/sequential-c-gate.mjs --c1-smoke /tmp/c1-smoke.json'
