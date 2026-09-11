@@ -10,6 +10,9 @@ Lookup SHA: `git rev-parse HEAD`
 Do not paste credentials, tokens, billing IDs or service-account JSON
 into chat or the repository.
 
+Identity split is the same as the C1 packet: gcloud CLI ≠ ADC ≠ Firebase
+CLI. Rebuild the Luna plan ACCOUNT_CONTEXT_SNAPSHOT before any apply.
+
 This packet is the C2～C6 local ADC/CLI path. Isolated project
 `beauessence-clinic-stg-c1a01` reused the C1 state bucket. Cloud slices
 C2/C5/C6 applied; C3/C4 are source evaluators. Formal booking stays

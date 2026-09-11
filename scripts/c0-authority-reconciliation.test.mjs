@@ -122,6 +122,28 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     }
     expect(register).toContain('not DNS');
   });
+
+  it('keeps gcloud CLI, ADC, and Firebase token paths distinct in the Luna plan', () => {
+    const plan = read(
+      'docs/product/luna-local-project-completion-master-plan.md'
+    );
+    expect(plan).toContain('Changing gcloud configuration does not change ADC');
+    expect(plan).toContain(
+      'The credentials you provide to ADC by using the gcloud CLI are distinct from your gcloud credentials'
+    );
+    expect(plan).toContain('ACCOUNT_CONTEXT_SNAPSHOT');
+    expect(plan).toContain('gcloud auth application-default login');
+    expect(plan).toContain('gcloud auth login --update-adc');
+    expect(plan).toContain('firebase login:ci');
+    expect(plan).toContain('FIREBASE_TOKEN');
+    expect(plan).toContain('login:use');
+    expect(plan).toContain('CLOUD_AGENT_CAN_FINISH');
+    expect(plan).toContain('LOCAL_NOW');
+    expect(plan).toContain('LOCAL_LATER');
+    expect(plan).toContain('INTERACTIVE_HUMAN_STEP');
+    expect(plan).toContain('getByRole');
+    expect(plan).toMatch(/Do not assume `gcloud active account = ADC account`/);
+  });
 });
 
 describe('C0-ENG-REC-2026-09-11 engineering recommendations', () => {

@@ -18,6 +18,8 @@ Companion contracts in this file:
 - [Authority map](#4-remaining-authority-map)
 - [Stale documents](#5-stale-documents--do-not-trust-as-live)
 - [Phase dependency graph](#6-phase-dependency-graph)
+- [Local identity / credential safety](#8-local-identity--credential-safety--required)
+- [Handoff classification](#9-handoff-classification-grok--luna-last-mile)
 - [PROJECT_COMPLETE](#project_complete-definition)
 
 ---
@@ -42,8 +44,10 @@ layers or guessing policy.
    into chat.
 5. **Worktrees.** Prefer `.claude/worktrees/<topic>/`. Never commit to
    `main`. Branch `agent/luna-<phase>-<topic>`.
-6. **Secrets stay local.** Use ADC, Chrome profiles, `secrets/` (gitignored),
-   Secret Manager, and OS keychain. Repository and chat stay publication-safe.
+6. **Secrets stay local.** gcloud CLI identity, ADC, Firebase CLI, browser
+   Google session, and Terraform target are **five separate states**. Never
+   paste tokens, refresh tokens, ADC JSON, or service-account keys into chat,
+   the repository, or a committed evidence file.
 
 ### What this file is not
 
@@ -68,6 +72,11 @@ git rev-parse origin/main
 git log -1 --oneline origin/main
 test -f output/evidence/luna-checkpoint.txt && cat output/evidence/luna-checkpoint.txt
 ```
+
+If the current phase will touch GCP, Firebase, Terraform, or a Console,
+also rebuild the [ACCOUNT_CONTEXT_SNAPSHOT](#81-account-context-snapshot)
+from [§8](#8-local-identity--credential-safety--required). Do not treat
+`gcloud auth list` as proof of ADC, Firebase, or Terraform identity.
 
 Then read **only**:
 
@@ -116,6 +125,7 @@ IN PROGRESS: <exact work package>
 BLOCKERS: <none | HUMAN BLOCKER id>
 AUTHORITY: PRODUCTION=NO REAL_DATA=NO DNS=NO LIVE_HOSTING=NO PROD_CALENDAR=NO BOOKING=<UNROUTED|...>
 CLOUD STATE: isolated=beauessence-clinic-stg-c1a01 staging=CAL-PILOT+preview-only production=NOT_AUTHORIZED
+IDENTITY STATE: gcloud_account=<email-or-UNVERIFIED> gcloud_config=<clinic-staging|clinic-production|other> adc_source=<user-adc|impersonation|GAC-env|UNVERIFIED> firebase_account=<email-or-UNSET> gac_env=<unset|path-only>
 BROWSER STATE: profile=<clinic-synthetic|clinic-production> account=<verified|unverified> mix=NO
 TEST STATE: <gates PASS/FAIL/NOT_RUN/UNAVAILABLE>
 NEXT EXACT ACTION: <one sentence + command or URL>
@@ -152,13 +162,37 @@ when the OS or IdP blocks automation.
 | local HTTPS | Not required for loopback API. Required later for production cookie/`__session` Secure checks. |
 | test vs real | Playwright uses the repo test profile / storageState fixtures. Real Google login stays in `clinic-synthetic` / `clinic-production` Chrome profiles, never in committed fixtures. |
 
-### 3.2 Automation rules
+### 3.2 Browser vs CLI
 
-- Prefer user-visible name, accessible role, label, and URL.
-- Do not use DOM nth-index or screen coordinates as the primary selector.
+If the same mutation can be done reliably with Terraform, gcloud, Firebase
+CLI, or an API, **use the reproducible CLI / IaC**. Browser Console is for
+interactive OAuth, 2FA, account consent, billing/payment confirmation,
+Console-only settings, visual read-back, and ownership confirmation. Do
+not recreate SHA-gated infrastructure by clicking Console.
+
+Every browser mutation:
+
+1. Fresh-verify Google account in the correct Chrome profile.
+2. Fresh-verify project id / site / calendar name in the page.
+3. Execute.
+4. Reload and read-back the confirming field.
+5. Re-check the same fact with CLI/API.
+6. Store evidence (no secrets).
+
+A Console “success” toast is not completion evidence.
+
+### 3.3 Automation rules
+
+- Prefer accessible role, accessible name, label, visible text, URL, or a
+  stable test contract (`getByRole` / `getByLabel` style). Let the
+  automation framework wait for the control to be actionable.
+- Do not use absolute screen coordinates, brittle CSS chains, DOM
+  nth-child, or arbitrary sleep as the primary selector.
 - Before any destructive Console action (delete, disable, IAM, DNS, billing):
   read-back **project id, account email, resource name, region**.
 - After every mutation: reload, read-back, screenshot the confirming field.
+- On failure, save screenshot, console errors, failed network requests, and
+  a trace **before** retrying. Do not blind re-click.
 - Record Console errors and failed Network requests (status ≥ 400) as FAIL
   unless the current packet names them as expected (example: unrouted
   `POST /v1/bookings` must be 404).
@@ -166,7 +200,7 @@ when the OS or IdP blocks automation.
   real calendar name, real patient strings): **HARD STOP** and check
   authority before continuing.
 
-### 3.3 UI verification matrix (every UI gate)
+### 3.4 UI verification matrix (every UI gate)
 
 Cover all of: desktop (≥1280), tablet (~768), mobile (~390), 320px edge,
 keyboard-only, browser console, network, responsive reflow, visual
@@ -322,6 +356,228 @@ domain planner, ADR, or existing packet already decides it.
 
 ---
 
+## 8. Local identity / credential safety — required
+
+Luna must not treat “a Google account is signed in” as one state.
+
+Official sources were **re-fetched 2026-09-11** (page “last updated”
+dates below). Community posts are not Canon.
+
+| Source | What it authorises in this file |
+| --- | --- |
+| [Set up ADC for a local development environment](https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment) (updated 2026-09-10) | Local ADC is associated with the **user account**, not the gcloud CLI configuration. Changing gcloud configuration does not change ADC. Prefer user ADC, then impersonation; a service-account key only if those are impossible. |
+| [How Application Default Credentials works](https://cloud.google.com/docs/authentication/application-default-credentials) (updated 2026-09-10) | ADC search order: (1) `GOOGLE_APPLICATION_CREDENTIALS` (2) the well-known file from `gcloud auth application-default login` (3) metadata server. “The credentials you provide to ADC by using the gcloud CLI are distinct from your gcloud credentials.” Service-account keys “create a security risk and are not recommended.” |
+| [Authenticate for the gcloud CLI](https://cloud.google.com/docs/authentication/gcloud) | `gcloud init` / `gcloud auth login` authorise the **gcloud CLI only**. Client libraries and Terraform use ADC, not this page. |
+| [HashiCorp: Build infrastructure (GCP)](https://developer.hashicorp.com/terraform/tutorials/gcp-get-started/google-cloud-platform-build) | Local Terraform auth is `gcloud auth application-default login`. The Google provider then uses ADC automatically. |
+| [Firebase CLI](https://firebase.google.com/docs/cli) | Local: `firebase login`, `login:list`, `login:use`. Legacy `FIREBASE_TOKEN` / `login:ci` is “less secure than Application Default Credentials and is no longer recommended.” |
+| [Playwright locators](https://playwright.dev/docs/locators) | Prefer `getByRole` / `getByLabel` / user-facing attributes; locators auto-wait. Fail with screenshot/trace, not coordinate clicks. |
+
+`gcloud auth login --update-adc` can write an ADC file in the same browser
+flow. It still does **not** bind ADC to the active gcloud configuration.
+After any configuration switch, re-verify ADC. Prefer the explicit
+`gcloud auth application-default login` so the two stores are never treated
+as one.
+
+### 8.1 Account context snapshot
+
+Before any GCP / Firebase / Terraform / Console mutation, rebuild this
+locally. Write it to `output/evidence/account-context-snapshot.txt`
+(gitignored). Redact emails to domain if the file might be pasted. Never
+commit it. Never paste tokens or JSON keys.
+
+```text
+ACCOUNT_CONTEXT_SNAPSHOT
+environment: <synthetic-isolated | cal-pilot-staging | production | unknown>
+current authority: <packet + SHA or NOT_AUTHORIZED>
+gcloud configuration:
+gcloud identity:
+gcloud project:
+organization:
+folder:
+billing account: <present/absent; do not commit the id unless required>
+ADC identity / source: <user-adc | impersonation | GAC-env | missing>
+GOOGLE_APPLICATION_CREDENTIALS: <unset | path-only>
+Firebase CLI account:
+Firebase project:
+browser Google account / Chrome profile:
+Terraform target dir / var.project_id:
+CLI + browser + Terraform agree: <yes | NO-HARD-STOP>
+```
+
+Read-only discovery (values stay in the terminal):
+
+```bash
+gcloud auth list
+gcloud config configurations list
+gcloud config list
+gcloud config get-value account
+gcloud config get-value project
+printf 'GAC=%s\n' "${GOOGLE_APPLICATION_CREDENTIALS:-unset}"
+gcloud auth application-default print-access-token >/dev/null \
+  && echo ADC_TOKEN_OK \
+  || echo ADC_MISSING
+gcloud projects list
+gcloud billing accounts list
+gcloud organizations list
+gcloud resource-manager folders list
+firebase login:list
+firebase projects:list
+```
+
+Do **not** print access tokens into the session. `print-access-token`
+must redirect to `/dev/null` except when debugging locally with the
+owner present.
+
+If any row is missing, mixed, or disagrees: **read-only only**. No
+apply, no IAM change, no DNS, no Hosting.
+
+### 8.2 gcloud CLI identity
+
+`gcloud init` / `gcloud auth login` authorize the **gcloud CLI**. They
+do not set ADC.
+
+```bash
+gcloud auth list
+gcloud config configurations list
+gcloud config list
+gcloud config get-value account
+gcloud config get-value project
+```
+
+Prefer named configurations. Do not bounce one `default` configuration
+between staging and production:
+
+```bash
+gcloud config configurations create clinic-staging   # once
+gcloud config configurations create clinic-production  # once; unused until production authority
+gcloud config configurations activate clinic-staging
+```
+
+`clinic-production` stays empty / unused until Phase J authority. After
+every `configurations activate`, rebuild the snapshot. Activating a
+configuration does **not** switch ADC.
+
+Before mutation confirm: ACCOUNT, PROJECT, CONFIGURATION, ENVIRONMENT,
+AUTHORITY. CLI, browser Console, and Terraform `project` must match.
+
+### 8.3 Application Default Credentials
+
+Terraform Google provider, Google client libraries, and (in CI/headless)
+Firebase CLI consumers use ADC, not `gcloud auth list`.
+
+Local user ADC:
+
+```bash
+gcloud auth application-default login
+```
+
+If architecture already approved impersonation (preferred over a JSON
+key):
+
+```bash
+gcloud auth application-default login \
+  --impersonate-service-account SERVICE_ACCT_EMAIL
+```
+
+Do not assume `gcloud active account = ADC account`. After switching
+gcloud configuration, re-verify ADC — the well-known ADC file
+(`$HOME/.config/gcloud/application_default_credentials.json` on
+Linux/macOS) does not follow `gcloud config configurations activate`.
+If ADC is for the wrong principal, `gcloud auth application-default revoke`
+then `gcloud auth application-default login` for the intended account —
+do not “fix” it by exporting a key, and do not treat
+`gcloud auth login --update-adc` as a standing link between CLI and ADC.
+
+`GOOGLE_APPLICATION_CREDENTIALS`, if set, **wins** ADC search order.
+If it points at a downloaded service-account private key: **HARD STOP**
+unless a named packet explicitly requires that file, the file is under
+gitignored `secrets/`, and impersonation/user ADC were proven impossible.
+
+### 8.4 Firebase local auth
+
+```bash
+firebase login
+firebase login:list
+firebase login:use <account>   # if more than one Google account
+firebase projects:list
+firebase use                   # active project / alias
+```
+
+Do not use legacy `firebase login:ci` or `FIREBASE_TOKEN` as a local
+workflow. Do not put a Firebase token in chat, the repo, docs, or shell
+history. Isolated C1 project is `beauessence-clinic-stg-c1a01`. Existing
+`beauessence-clinic-staging` is CAL-PILOT + preview only.
+
+### 8.5 Terraform authentication
+
+Google provider on this laptop, in this order:
+
+1. Approved user ADC (`gcloud auth application-default login`).
+2. Approved service-account **impersonation** (ADC
+   `--impersonate-service-account` or equivalent provider impersonation).
+3. A service-account key only if 1 and 2 are proven impossible **and** a
+   written security policy allows it.
+
+Do not create a long-lived JSON private key for convenience. CI already
+uses WIF (`infra/terraform/c1-foundation` impersonation for GitHub).
+Local apply must not invent a second key-based identity.
+
+Before `terraform apply`: snapshot agrees; `var.project_id` is the
+isolated or authorised project, never `beauessence-clinic-staging` for
+C1～C6; `exact_apply_authority_sha` is this HEAD; plan target matches
+that project.
+
+### 8.6 Last-mile shape (what Luna is for)
+
+Grok / a cloud agent keeps source, Terraform, tests, plan files, and
+verification scripts. Luna’s remaining account-side work looks like:
+
+> Sign in the named Google account → named gcloud configuration → ADC
+> for that same principal → confirm billing/project → run the already
+> verified apply → CLI read-back.
+
+Not:
+
+> Figure out how to deploy GCP.
+
+---
+
+## 9. Handoff classification (Grok → Luna last mile)
+
+Classify every remaining account-side item. Prefer
+`CLOUD_AGENT_CAN_FINISH` or `NOT_NEEDED`. Give Luna only unavoidable
+last-mile work.
+
+| Class | Meaning |
+| --- | --- |
+| `CLOUD_AGENT_CAN_FINISH` | No owner login required. Do it in the agent/PR now. |
+| `NOT_NEEDED` | Looks human, but CLI/API/IaC already covers it or it is forbidden. |
+| `LOCAL_NOW` | Authority exists. Luna does it on the laptop immediately. |
+| `LOCAL_LATER` | Needs the laptop, but authority is still missing. |
+| `INTERACTIVE_HUMAN_STEP` | Password, 2FA, security key, CAPTCHA, payment confirmation — the human only. |
+
+Snapshot at this plan’s write (re-classify after Phase 0):
+
+| Item | Class | Note |
+| --- | --- | --- |
+| Docs, tests, Terraform source, unrouted inventory, this plan | `CLOUD_AGENT_CAN_FINISH` | Already the PR path |
+| Phase A consolidation / stale Canon | `CLOUD_AGENT_CAN_FINISH` | No login |
+| Phase B approval-packet **drafts** | `CLOUD_AGENT_CAN_FINISH` | Signoff is human |
+| D-series named approval | `INTERACTIVE_HUMAN_STEP` | Owner/legal/medical |
+| Isolated project read-only verify | `LOCAL_NOW` | ADC + `clinic-staging` config |
+| Create `clinic-staging` / `clinic-production` gcloud configs | `LOCAL_NOW` | Production config unused until authority |
+| User ADC for synthetic work | `LOCAL_NOW` + possible `INTERACTIVE_HUMAN_STEP` for consent/2FA |
+| Firebase `login` / `projects:list` against isolated project | `LOCAL_NOW` | Not `login:ci` |
+| Re-apply C1～C6 | `NOT_NEEDED` unless a new exact-SHA packet says so | Already PASS on `beauessence-clinic-stg-c1a01` |
+| Download a Terraform SA JSON key | `NOT_NEEDED` | User ADC or impersonation |
+| `firebase login:ci` / `FIREBASE_TOKEN` | `NOT_NEEDED` | Officially not recommended |
+| Reconstruct C0～C6 history | `NOT_NEEDED` | Machine file + this plan |
+| Production project / billing attach / DNS / live Hosting | `LOCAL_LATER` | Explicit production authority |
+| Production Calendar / real data / `/v1/bookings` route | `LOCAL_LATER` | Register + exact SHA |
+| Billing payment / domain-registrar 2FA | `INTERACTIVE_HUMAN_STEP` | |
+
+---
+
 ## Fresh-verified baseline (re-check in Phase 0)
 
 Recorded while writing this file. **Not standing authority.** Luna must
@@ -350,8 +606,10 @@ are pending. Do not start product construction.
 
 ### Preconditions
 
-Local clone, `gh` auth, Chrome `clinic-synthetic` profile, `gcloud` ADC.
-No production project login in this profile.
+Local clone, `gh` auth, Chrome `clinic-synthetic` profile. gcloud CLI
+identity **and** ADC **and** Firebase CLI are verified separately
+([§8](#8-local-identity--credential-safety--required)). No production
+project login in the synthetic profile.
 
 ### Authoritative inputs
 
@@ -372,6 +630,8 @@ No production project login in this profile.
 5. Read D-series **table** (not old prose). Copy live statuses into the
    checkpoint.
 6. Read-only inspect isolated project (CLI + Console). Do not apply.
+   Rebuild [ACCOUNT_CONTEXT_SNAPSHOT](#81-account-context-snapshot) first.
+   If gcloud account and ADC disagree, stop.
 7. If a **live** Canon file still claims C2～C6 `not_granted`, reconcile
    that file in a docs PR. Do not rewrite dated reviews.
 
@@ -401,12 +661,19 @@ gh run list --commit "$(git rev-parse origin/main)" --limit 10
 node -e "console.log(JSON.parse(require('fs').readFileSync('docs/architecture/stage-2-gate-status.json','utf8')))"
 rg -n "AppointmentController|BookPilotModule|CalendarWatchController" apps/api/src/app.module.ts
 node scripts/sequential-c-gate.mjs --help
+gcloud config configurations list
+gcloud config get-value account
 gcloud config get-value project
+printf 'GAC=%s\n' "${GOOGLE_APPLICATION_CREDENTIALS:-unset}"
+gcloud auth application-default print-access-token >/dev/null && echo ADC_TOKEN_OK || echo ADC_MISSING
 gcloud projects describe beauessence-clinic-stg-c1a01 --format='yaml(projectId,name,lifecycleState)'
+firebase login:list
+firebase projects:list
 ```
 
-Values that look like billing account IDs, emails, or keys stay in the
-terminal. Do not paste them into chat or the repo.
+gcloud CLI identity ≠ ADC. Values that look like billing account IDs,
+emails, tokens, or keys stay in the terminal. Do not paste them into
+chat or the repo.
 
 ### Tests
 
@@ -432,7 +699,9 @@ status rolled back without a new owner record.
 ### HARD STOP
 
 Any production project, live Hosting channel, official hostname, or real
-patient row appears in the session. Any secret in the git tree.
+patient row appears in the session. Any secret in the git tree. gcloud
+CLI account and ADC disagree, or `GOOGLE_APPLICATION_CREDENTIALS` points
+at a convenience JSON key.
 
 ### Rollback
 
@@ -972,11 +1241,16 @@ budget thresholds, alert policies, Cloud Run ingress.
 
 ### CLI actions
 
+Google provider on this laptop: user ADC, then impersonation, never a
+convenience JSON key ([§8.5](#85-terraform-authentication)). Rebuild the
+account snapshot. Plan → apply → smoke → CLI read-back → rollback
+evidence. Console is read-back, not the apply path.
+
 ```bash
+# snapshot must already show clinic-staging + ADC_TOKEN_OK + matching project
 terraform -chdir=infra/terraform/<env> plan -out=tfplan
 # apply only with exact-SHA written authority
 terraform -chdir=infra/terraform/<env> apply tfplan
-# smoke + read-back (examples)
 gcloud run services describe ... --format='yaml(status.url,status.traffic)'
 gcloud firestore backups list ...
 ```
