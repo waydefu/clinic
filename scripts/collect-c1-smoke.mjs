@@ -58,14 +58,18 @@ function isTerraformCiMember(member) {
   );
 }
 
-function loggingBucketsFromSnapshot(snapshot) {
+export function loggingBucketsFromSnapshot(snapshot) {
   const value = snapshot.loggingBuckets;
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.buckets)) return value.buckets;
   return [];
 }
 
-function regionFromLoggingBuckets(buckets) {
+export function regionFromC1FoundationLogging(snapshot) {
+  return regionFromLoggingBuckets(loggingBucketsFromSnapshot(snapshot));
+}
+
+export function regionFromLoggingBuckets(buckets) {
   for (const bucket of buckets) {
     const name = String(bucket?.name ?? bucket?.bucketId ?? '');
     const match = name.match(/locations\/([^/]+)\/buckets\/c1-foundation$/);
@@ -151,7 +155,7 @@ export function assembleC1SmokeEvidence(snapshot) {
 
   return {
     projectId: snapshot.projectId,
-    region: regionFromLoggingBuckets(loggingBucketsFromSnapshot(snapshot)),
+    region: regionFromC1FoundationLogging(snapshot),
     enabledApis,
     iamRoles,
     wifPoolId,

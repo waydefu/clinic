@@ -54,6 +54,11 @@ node scripts/sequential-c-gate.mjs --c1-smoke /tmp/c1-smoke.json --c2-smoke /tmp
 C2 must enable `identitytoolkit.googleapis.com` with TOTP
 `adjacentIntervals=1` read from Identity Toolkit config — do not invent
 the field. It must not create Firestore or enable Calendar JSON API.
+Assembler derives `region` from the existing `c1-foundation` logging
+bucket, same as C1. Typed `snapshot.region` and typed
+`totpAdjacentIntervals` are ignored. Include
+`gcloud logging buckets list --location=asia-east1` in the C2/C6
+snapshot.
 
 ## C3 session (source)
 
@@ -93,7 +98,9 @@ node scripts/c2-c6-smoke-evidence.mjs C5 /tmp/c5-smoke.json
 Preconditions: C5 `completed`; C6 `granted`. Enables
 `calendar-json.googleapis.com` only. Formal booking and
 `CalendarWatchController` stay **UNROUTED**. Production Calendar remains
-blocked by D-009 / D-016.
+blocked by D-009 / D-016. C6 `region` comes from the `c1-foundation`
+logging bucket, not a typed snapshot field. UNROUTED comes from
+`AppModule`, not typed booleans.
 
 ```bash
 cd infra/terraform/c6-calendar

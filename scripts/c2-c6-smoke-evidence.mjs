@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { regionFromC1FoundationLogging } from './collect-c1-smoke.mjs';
 import {
   FORBIDDEN_STAGING_PROJECT,
   ISOLATED_PROJECT_PATTERN,
@@ -82,6 +83,7 @@ export function c2SmokeCollectCommands(projectId) {
   return [
     `gcloud services list --enabled --project=${projectId} --format=json`,
     `gcloud firestore databases list --project=${projectId} --format=json`,
+    `gcloud logging buckets list --project=${projectId} --location=asia-east1 --format=json`,
     `# Identity Toolkit admin config (local ADC; do not paste the token): curl -sS -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "x-goog-user-project: ${projectId}" "https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config"`
   ];
 }
@@ -97,7 +99,8 @@ export function c5SmokeCollectCommands(projectId) {
 export function c6SmokeCollectCommands(projectId) {
   assertIsolatedSliceProjectId(projectId, 'C6');
   return [
-    `gcloud services list --enabled --project=${projectId} --format=json`
+    `gcloud services list --enabled --project=${projectId} --format=json`,
+    `gcloud logging buckets list --project=${projectId} --location=asia-east1 --format=json`
   ];
 }
 
@@ -106,7 +109,7 @@ export function assembleC2SmokeEvidence(snapshot) {
   const databases = firestoreDatabasesFromSnapshot(snapshot);
   return {
     projectId: snapshot.projectId,
-    region: snapshot.region,
+    region: regionFromC1FoundationLogging(snapshot),
     enabledApis: enabledApisFromSnapshot(snapshot),
     totpAdjacentIntervals: totpAdjacentIntervalsFromIdentityConfig(
       snapshot.identityConfig
@@ -140,7 +143,7 @@ export function assembleC6SmokeEvidence(snapshot, appModuleSource) {
     : undefined;
   return {
     projectId: snapshot.projectId,
-    region: snapshot.region,
+    region: regionFromC1FoundationLogging(snapshot),
     enabledApis: enabledApisFromSnapshot(snapshot),
     bookingUnrouted: unrouted,
     watchUnrouted: unrouted

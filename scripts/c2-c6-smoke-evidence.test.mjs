@@ -23,6 +23,25 @@ const liveAppModule = readFileSync(
   'utf8'
 );
 
+function c1FoundationBuckets(location = 'asia-east1') {
+  return [
+    {
+      name: `projects/1/locations/${location}/buckets/c1-foundation`
+    }
+  ];
+}
+
+function passingIdentityConfig() {
+  return {
+    mfa: {
+      state: 'ENABLED',
+      providerConfigs: [
+        { state: 'ENABLED', totpProviderConfig: { adjacentIntervals: 1 } }
+      ]
+    }
+  };
+}
+
 function passingC2(overrides = {}) {
   return {
     projectId: isolated,
@@ -70,9 +89,13 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     ).toThrow(/max 30/);
     const commands = c6SmokeCollectCommands(isolated);
     expect(commands.join('\n')).toContain('services list --enabled');
+    expect(commands.join('\n')).toContain('logging buckets list');
     expect(commands.join('\n')).not.toContain('beauessence-clinic-staging');
     expect(c2SmokeCollectCommands(isolated).join('\n')).toContain(
       '/admin/v2/projects/beauessence-clinic-stg-smoke1/config'
+    );
+    expect(c2SmokeCollectCommands(isolated).join('\n')).toContain(
+      'logging buckets list'
     );
   });
 
@@ -132,28 +155,21 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
   it('assembles C2 from gcloud snapshots and does not invent TOTP=1', () => {
     const evidence = assembleC2SmokeEvidence({
       projectId: isolated,
-      region: 'asia-east1',
       services: [
         { config: { name: 'identitytoolkit.googleapis.com' } },
         { config: { name: 'iam.googleapis.com' } }
       ],
       firestoreDatabases: [],
-      identityConfig: {
-        mfa: {
-          state: 'ENABLED',
-          providerConfigs: [
-            { state: 'ENABLED', totpProviderConfig: { adjacentIntervals: 1 } }
-          ]
-        }
-      }
+      loggingBuckets: c1FoundationBuckets(),
+      identityConfig: passingIdentityConfig()
     });
     expect(evaluateC2Smoke(evidence)).toEqual({ ok: true, issues: [] });
 
     const missingTotp = assembleC2SmokeEvidence({
       projectId: isolated,
-      region: 'asia-east1',
       services: [{ config: { name: 'identitytoolkit.googleapis.com' } }],
       firestoreDatabases: [],
+      loggingBuckets: c1FoundationBuckets(),
       identityConfig: {}
     });
     expect(missingTotp.totpAdjacentIntervals).toBeUndefined();
@@ -161,19 +177,64 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
 
     const missingFirestoreList = assembleC2SmokeEvidence({
       projectId: isolated,
-      region: 'asia-east1',
       services: [{ config: { name: 'identitytoolkit.googleapis.com' } }],
-      identityConfig: {
-        mfa: {
-          state: 'ENABLED',
-          providerConfigs: [
-            { state: 'ENABLED', totpProviderConfig: { adjacentIntervals: 1 } }
-          ]
-        }
-      }
+      loggingBuckets: c1FoundationBuckets(),
+      identityConfig: passingIdentityConfig()
     });
     expect(missingFirestoreList.firestoreDatabase).toBeUndefined();
     expect(evaluateC2Smoke(missingFirestoreList).ok).toBe(false);
+  });
+
+  it('ignores typed C2/C6 region and TOTP fields; derives region from c1-foundation', () => {
+    const typedRegion = assembleC2SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      totpAdjacentIntervals: 1,
+      services: [{ config: { name: 'identitytoolkit.googleapis.com' } }],
+      firestoreDatabases: [],
+      identityConfig: {}
+    });
+    expect(typedRegion.region).toBeUndefined();
+    expect(typedRegion.totpAdjacentIntervals).toBeUndefined();
+    expect(evaluateC2Smoke(typedRegion).ok).toBe(false);
+
+    const wrongBucket = assembleC2SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      totpAdjacentIntervals: 1,
+      services: [{ config: { name: 'identitytoolkit.googleapis.com' } }],
+      firestoreDatabases: [],
+      loggingBuckets: c1FoundationBuckets('us-central1'),
+      identityConfig: passingIdentityConfig()
+    });
+    expect(wrongBucket.region).toBe('us-central1');
+    expect(wrongBucket.totpAdjacentIntervals).toBe(1);
+    expect(evaluateC2Smoke(wrongBucket).ok).toBe(false);
+
+    const typedC6 = assembleC6SmokeEvidence(
+      {
+        projectId: isolated,
+        region: 'asia-east1',
+        bookingUnrouted: true,
+        watchUnrouted: true,
+        services: [{ config: { name: 'calendar-json.googleapis.com' } }]
+      },
+      liveAppModule
+    );
+    expect(typedC6.region).toBeUndefined();
+    expect(evaluateC6Smoke(typedC6).ok).toBe(false);
+
+    const c6FromBucket = assembleC6SmokeEvidence(
+      {
+        projectId: isolated,
+        region: 'us-central1',
+        services: [{ config: { name: 'calendar-json.googleapis.com' } }],
+        loggingBuckets: c1FoundationBuckets()
+      },
+      liveAppModule
+    );
+    expect(c6FromBucket.region).toBe('asia-east1');
+    expect(evaluateC6Smoke(c6FromBucket)).toEqual({ ok: true, issues: [] });
   });
 
   it('assembles C5 Native/PITR/delete-protection from Firestore list JSON', () => {
@@ -221,8 +282,8 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     const evidence = assembleC6SmokeEvidence(
       {
         projectId: isolated,
-        region: 'asia-east1',
-        services: [{ config: { name: 'calendar-json.googleapis.com' } }]
+        services: [{ config: { name: 'calendar-json.googleapis.com' } }],
+        loggingBuckets: c1FoundationBuckets()
       },
       liveAppModule
     );
@@ -230,8 +291,8 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
 
     const invented = assembleC6SmokeEvidence({
       projectId: isolated,
-      region: 'asia-east1',
-      services: [{ config: { name: 'calendar-json.googleapis.com' } }]
+      services: [{ config: { name: 'calendar-json.googleapis.com' } }],
+      loggingBuckets: c1FoundationBuckets()
     });
     expect(invented.bookingUnrouted).toBeUndefined();
     expect(evaluateC6Smoke(invented).ok).toBe(false);
@@ -239,8 +300,8 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     const routed = assembleC6SmokeEvidence(
       {
         projectId: isolated,
-        region: 'asia-east1',
-        services: [{ config: { name: 'calendar-json.googleapis.com' } }]
+        services: [{ config: { name: 'calendar-json.googleapis.com' } }],
+        loggingBuckets: c1FoundationBuckets()
       },
       'controllers: [AppointmentController, CalendarWatchController]'
     );
