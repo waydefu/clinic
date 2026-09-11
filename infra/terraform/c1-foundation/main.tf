@@ -133,6 +133,10 @@ resource "google_pubsub_topic_iam_member" "budget_publisher" {
   topic   = google_pubsub_topic.budget[0].name
   role    = "roles/pubsub.publisher"
   member  = "serviceAccount:service-${data.google_project.c1[0].number}@gcp-sa-billingbudgets.iam.gserviceaccount.com"
+  depends_on = [
+    google_project_service.c1,
+    google_pubsub_topic.budget
+  ]
 }
 
 resource "google_billing_budget" "c1" {
@@ -160,7 +164,10 @@ resource "google_billing_budget" "c1" {
     schema_version                 = "1.0"
     disable_default_iam_recipients = false
   }
-  depends_on = [google_project_service.c1]
+  depends_on = [
+    google_project_service.c1,
+    google_pubsub_topic_iam_member.budget_publisher
+  ]
 
   lifecycle {
     precondition {
