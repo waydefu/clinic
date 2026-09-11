@@ -64,6 +64,16 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(read('infra/terraform/c6-calendar/variables.tf')).toContain(
       'beauessence-clinic-staging'
     );
+    for (const example of [
+      'infra/terraform/c2-identity/terraform.tfvars.example',
+      'infra/terraform/c5-firestore/terraform.tfvars.example',
+      'infra/terraform/c6-calendar/terraform.tfvars.example'
+    ]) {
+      expect(read(example)).toContain(
+        'exact_apply_authority_sha = "not_granted"'
+      );
+      expect(read(example)).not.toContain('beauessence-clinic-staging');
+    }
   });
 
   it('keeps staff session, roles, and unrouted booking/watch boundaries', () => {

@@ -53,10 +53,12 @@ terraform plan -out=c1.tfplan
 terraform apply c1.tfplan
 ```
 
-4. Collect **metadata-only** JSON locally (no tokens, no billing account
-   id, no secret values) and evaluate:
+4. Dump gcloud JSON snapshots locally (no tokens, no billing account
+   id) into one snapshot file, assemble, then evaluate:
 
 ```bash
+# commands: node -e "import {c1SmokeCollectCommands} from './scripts/collect-c1-smoke.mjs'; console.log(c1SmokeCollectCommands(process.env.PROJECT_ID).join('\n'))"
+node scripts/collect-c1-smoke.mjs /tmp/c1-gcloud-snapshot.json > /tmp/c1-smoke.json
 node scripts/c1-smoke-evidence.mjs /tmp/c1-smoke.json
 ```
 
@@ -83,4 +85,7 @@ as the default rollback. Do not detach billing.
 ## Expected result
 
 `DEPLOYED` for C1 foundation only, still `PRODUCTION_AUTHORIZED=NO`.
-C2 remains `not_granted` until this smoke is verified.
+C2 remains `not_granted` until this smoke is verified. After exit 0,
+run `node scripts/sequential-c-gate.mjs --c1-smoke /tmp/c1-smoke.json`
+to propose C1 `completed` and C2 `granted` only. Do not grant C3～C6
+in that step.

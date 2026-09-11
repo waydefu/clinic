@@ -21,9 +21,11 @@ run `terraform apply`.
 
 `C0 completed → C1 granted → C1 PASS → C2 granted → … → C6 PASS`
 
-Source implementation may proceed where Canon already allows
-synthetic/local work. Claiming a gate PASS still requires that slice's
-`deploymentAuthorities=granted` plus apply/smoke evidence.
+Machine: `scripts/sequential-c-gate.mjs`. One slice per step. Live tree
+without C1 smoke is a C1 exact-SHA `HARD_BLOCKER`; this sandbox cannot
+`terraform apply`. Source implementation may proceed where Canon already
+allows synthetic/local work. Claiming a gate PASS still requires that
+slice's `deploymentAuthorities=granted` plus apply/smoke evidence.
 
 ## C1 isolated test foundation
 
@@ -37,7 +39,7 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Security | No real patient data; no production project link; C1 API allowlist excludes Firestore / Identity Platform / Cloud Run |
 | Exclusions | Firestore database; Identity Platform; API runtime; production; Calendar apply; DR secondary |
 | Rollback | Quarantine new APIs/IAM; do not default to project deletion |
-| Remaining blockers | **exact C1 apply** on a new project (local ADC); smoke evidence |
+| Remaining blockers | **exact C1 apply** on a new project (local ADC); then `sequential-c-gate` + C1 smoke evidence |
 | Authority | `granted` |
 | Status | `AUTHORIZED` / source `IMPLEMENTED` / `DEPLOYED=NO` / `PASS=NO` |
 
@@ -50,9 +52,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Source in tree | CAL-PILOT Google+TOTP session (`calendar-pilot-session.ts`) is synthetic-only; SHA-gated `infra/terraform/c2-identity/` (Identity Platform API only; default no-op) |
 | Tests | `apps/api/src/auth/calendar-pilot-session.test.ts` (pilot, not C2) |
 | Exclusions | Patient login; real staff PII |
-| Remaining blockers | C1 PASS; exact C2 apply / Identity Platform authority |
+| Remaining blockers | C1 PASS; exact C2 apply / Identity Platform authority (`c2-c6-local-execution-packet`) |
 | Authority | `not_granted` |
-| Status | source `IMPLEMENTED` only for CAL-PILOT; C2 apply `NOT_AUTHORIZED` |
+| Status | source `IMPLEMENTED` (SHA-gated Terraform + TOTP dry-run); C2 apply `NOT_AUTHORIZED` |
 
 ## C3 session security
 
@@ -62,9 +64,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Scope | Idle 30m; absolute 8h; server-side session; `__session` + CSRF; no shared emergency account |
 | Source in tree | `IDLE_SESSION_MS` / `ABSOLUTE_SESSION_MS` on CAL-PILOT |
 | Hosting constraint | Firebase Hosting forwards only `__session` |
-| Remaining blockers | C2 PASS; exact C3 authority for the formal staff surface |
+| Remaining blockers | C2 PASS; exact C3 grant; `sequential-c-gate` source evaluator |
 | Authority | `not_granted` |
-| Status | source windows `IMPLEMENTED` on CAL-PILOT; C3 apply `NOT_AUTHORIZED` |
+| Status | source windows `IMPLEMENTED` on CAL-PILOT; C3 grant `NOT_AUTHORIZED` |
 
 ## C4 RBAC
 
@@ -75,9 +77,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Source in tree | `packages/domain/src/roles.ts`; unrouted RBAC appointment policy |
 | Tests | Unrouted AppointmentController / BookPilot harnesses |
 | Exclusions | Payroll / clinical / money permissions |
-| Remaining blockers | C3 PASS; exact C4 authority; front_desk vs manager conflict-queue question still open |
+| Remaining blockers | C3 PASS; exact C4 grant; front_desk vs manager conflict-queue question still open |
 | Authority | `not_granted` |
-| Status | `NOT_AUTHORIZED` |
+| Status | source `IMPLEMENTED` (`roles.ts` + lockout parameters); C4 grant `NOT_AUTHORIZED` |
 
 ## C5 audit
 
@@ -86,9 +88,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Prerequisites | C4 evidence; C5 authority; D-002 still pending for real-data retention |
 | Scope | Append-only audit for booking, hours, login/disable, authz denies, Calendar success/fail/conflict/review |
 | Source in tree | Domain audit v2 + Emulator transaction tests; SHA-gated `infra/terraform/c5-firestore/` (Native + PITR; default no-op) |
-| Remaining blockers | C4 PASS; exact C5 authority; D-002 for production linkability |
+| Remaining blockers | C4 PASS; exact C5 apply SHA; D-002 for production linkability |
 | Authority | `not_granted` |
-| Status | `NOT_AUTHORIZED` |
+| Status | source `IMPLEMENTED` (SHA-gated Native+PITR); C5 apply `NOT_AUTHORIZED` |
 
 ## C6 synthetic integration
 
@@ -98,9 +100,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Scope | Staff login, RBAC, booking/schedule, audit, Calendar bidirectional (watch + compensation + conflict queue), website *redirect rehearsal* (no official DNS) |
 | Source in tree | Unrouted formal booking; CAL-PILOT five-minute poll; unwired `watch-channel.ts` + unused `GoogleCalendarWatchClient` + unwired `calendar_watch_channels` emulator store; unrouted `CalendarWatchController`; SHA-gated `infra/terraform/c6-calendar/` (Calendar JSON API only; default no-op) |
 | Exclusions | Real data; production; live Hosting; production Calendar; mounting `/v1/bookings` |
-| Remaining blockers | C1～C5 apply; exact C6 authority; DATA-R03 codecs for collections C6 will actually read |
+| Remaining blockers | C1～C5 apply; exact C6 apply SHA; DATA-R03 codecs for collections C6 will actually read |
 | Authority | `not_granted` |
-| Status | `NOT_AUTHORIZED` |
+| Status | source `IMPLEMENTED` (SHA-gated Calendar JSON API; watch/booking UNROUTED); C6 apply `NOT_AUTHORIZED` |
 
 ## DATA-R03 / SCM-R04 (this packet)
 
@@ -114,3 +116,6 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 Any Firebase live-channel, production Calendar, or real Calendar/patient
 data still needs a **fresh exact-change authority**. C1 apply is local
 ADC against a **new** project named in the packet; it is not production.
+Progression after local smoke: `node scripts/sequential-c-gate.mjs`
+with the slice evidence files; `--write` is refused on this live tree
+until that evidence exists.
