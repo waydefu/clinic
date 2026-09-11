@@ -27,6 +27,7 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(register).toContain('Recorded input ID: FS-001');
     expect(register).toContain('Recorded input ID: C0-DIR-2026-09-11');
     expect(register).toContain('Recorded input ID: CAL-SYNC-DIR-2026-09-11');
+    expect(register).toContain('Recorded input ID: C0-ENG-REC-2026-09-11');
     expect(decisions.get('D-006')).toBe('approved');
     expect(decisions.get('D-010')).toBe('approved');
     expect(decisions.get('D-009')).toBe('pending');
@@ -45,6 +46,8 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
 
   it('does not let owner direction be read as engineering closure or cloud grant', () => {
     expect(authority).toContain('OWNER_DIRECTION_APPROVED');
+    expect(authority).toContain('ENGINEERING_RECOMMENDATION_COMPLETE');
+    expect(authority).toContain('HUMAN_REVIEW_SIGNATURE_PENDING');
     expect(authority).toContain('ENGINEERING_CLOSURE_PENDING');
     expect(authority).toMatch(/50%\s*\/\s*80%\s*\/\s*100%/);
     expect(authority).toContain('DR option');
@@ -75,6 +78,12 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(catalogue).toContain(
       'reviews/2026-09-11-c0-owner-direction-reconciliation.md'
     );
+    expect(catalogue).toContain(
+      'reviews/2026-09-11-c0-engineering-recommendations.md'
+    );
+    expect(catalogue).toContain(
+      'architecture/c0-engineering-recommendations.md'
+    );
     expect(execution).toContain('READY_FOR_EXPLICIT_AUTHORITY');
     expect(execution).not.toMatch(/Status \| `completed`/);
     expect(runtime).not.toMatch(/watch-channel/);
@@ -102,5 +111,49 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
       expect(register).toContain(host);
     }
     expect(register).toContain('not DNS');
+  });
+});
+
+describe('C0-ENG-REC-2026-09-11 engineering recommendations', () => {
+  const recs = JSON.parse(
+    read('docs/architecture/c0-engineering-recommendations.json')
+  );
+  const identityScript = read('scripts/configure-cal-pilot-identity.mjs');
+  const calPilotTf = read('infra/terraform/cal-pilot/variables.tf');
+
+  it('does not close C0 or grant C1–C6 apply', () => {
+    expect(recs.status.stageSliceC0).toBe('revise');
+    expect(recs.status.c1ToC6Authorities).toBe('not_granted');
+    expect(recs.status.humanReview).toBe('HUMAN_REVIEW_SIGNATURE_PENDING');
+    expect(recs.iam.firestoreDatabaseScope.humanAcceptanceRequired).toBe(true);
+  });
+
+  it('selects a new isolated C1 project and keeps existing staging out of C1', () => {
+    expect(recs.c1.strategy).toBe('new_isolated_project');
+    expect(recs.c1.existingStaging).toBe('beauessence-clinic-staging');
+    expect(calPilotTf).toContain('default     = "beauessence-clinic-staging"');
+    expect(recs.c1.existingStagingDisposition).toContain('cal_pilot');
+    expect(recs.c1.excludedApis).toEqual(
+      expect.arrayContaining([
+        'firestore.googleapis.com',
+        'identitytoolkit.googleapis.com',
+        'run.googleapis.com'
+      ])
+    );
+    expect(recs.c1.apiAllowlist).not.toEqual(
+      expect.arrayContaining(recs.c1.excludedApis)
+    );
+  });
+
+  it('encodes budget actions, DR A+B, and MFA parameters used by domain/CAL-PILOT', () => {
+    expect(recs.budget.actions['50']).toMatch(/notify/);
+    expect(recs.budget.actions['80']).toMatch(/freeze/);
+    expect(recs.budget.actions['100']).toMatch(/do_not_detach_billing/);
+    expect(recs.dr.selected).toBe(
+      'option_a_baseline_plus_option_b_secondary_project_same_region'
+    );
+    expect(recs.mfa.totpAdjacentIntervals).toBe(1);
+    expect(identityScript).toContain('adjacentIntervals: 1');
+    expect(recs.mfa.breakGlass).toBe('not_provisioned');
   });
 });

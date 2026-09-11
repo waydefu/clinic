@@ -37,6 +37,8 @@ const requiredPaths = [
   'docs/architecture/firestore-local-baseline.md',
   'docs/architecture/first-stage-c0-authority.md',
   'docs/architecture/first-stage-c1-c6-execution.md',
+  'docs/architecture/c0-engineering-recommendations.md',
+  'docs/architecture/c0-engineering-recommendations.json',
   'docs/phase-0-local-development.md',
   'docs/phase-1-execution-plan.md',
   'docs/implementation/phase-1-booking-mvp-execution-log.md',
@@ -244,6 +246,8 @@ const requiredPaths = [
   'apps/api/src/unrouted-inventory.test.ts',
   'packages/domain/src/patient-identity.ts',
   'packages/domain/src/patient-identity.test.ts',
+  'packages/domain/src/staff-auth-parameters.ts',
+  'packages/domain/src/staff-auth-parameters.test.ts',
   'docs/reviews/2026-07-26-full-project-audit.md',
   // 檢索與收錄：兩份檔案與 patient.html 的 canonical 由 check:ui 綁在一起。
   'apps/web/public/robots.txt',

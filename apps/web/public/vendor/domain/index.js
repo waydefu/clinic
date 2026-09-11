@@ -16,4 +16,5 @@ export * from './patient-identity.js';
 export * from './payroll.js';
 export * from './roles.js';
 export * from './schedule.js';
+export * from './staff-auth-parameters.js';
 export * from './timestamp.js';

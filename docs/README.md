@@ -81,7 +81,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) — architecture verdict, required changes, target containers, data model, transactions and migration boundaries
 - [Infrastructure and operations plan (2026-07-24)](architecture/infrastructure-and-operations-plan-2026-07-24.md) — plan-only environment split, Terraform layout, IAM, secrets, Firestore backup/PITR, monitoring, budget, deploy and rollback
 - [Stage 2 C0 readiness artifacts (2026-07-29)](architecture/stage-2-c0-readiness-artifacts-2026-07-29.md) — proposal-ready／approval-pending logical resource manifest, Cloud IAM matrix, cost-input model, DR option analysis and test/rollback evidence template; no Terraform or cloud execution
-- [First-stage C0 authority](architecture/first-stage-c0-authority.md) — live split: 2026-09-11 owner/product direction approved; engineering C0 remains `revise` / `ENGINEERING_CLOSURE_PENDING`; not a cloud or DNS grant
+- [First-stage C0 authority](architecture/first-stage-c0-authority.md) — live split: 2026-09-11 owner/product direction approved; engineering recommendations complete; human signatures pending; C0 remains `revise`; not a cloud or DNS grant
+- [C0 engineering recommendations (2026-09-11)](architecture/c0-engineering-recommendations.md) — selected IAM/JIT, 50/80/100 budget actions, DR A+B, MFA/TOTP/lock parameters, new isolated C1 project; not signatures and not apply
 - [First-stage C1～C6 execution packet](architecture/first-stage-c1-c6-execution.md) — sequential C1～C6 source/status packets; every apply stays `READY_FOR_EXPLICIT_AUTHORITY`
 - [Stage 2 machine-readable gate status](architecture/stage-2-gate-status.json) — canonical C0 review plus separate C1～C6 deployment-authority and execution/evidence status consumed by architecture checks
 - [Worker runtime and reconciliation plan (2026-07-24)](architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md) — plan-only trigger design, at-least-once semantics, Calendar reconciliation, dead-letter operator permissions and credential rotation
@@ -155,6 +156,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-11 | [C0 engineering recommendations](reviews/2026-09-11-c0-engineering-recommendations.md) | 五項可委派工程選案記入 Canon／JSON／domain 常數；`ENGINEERING_RECOMMENDATION_COMPLETE`／`HUMAN_REVIEW_SIGNATURE_PENDING`；C0 仍 `revise`；C1 選新隔離專案；不是 apply |
 | 2026-09-11 | [C0 owner-direction reconciliation](reviews/2026-09-11-c0-owner-direction-reconciliation.md) | FS-001／C0-DIR／CAL-SYNC-DIR 記入 Decision Register；`OWNER_DIRECTION_APPROVED`／`ENGINEERING_CLOSURE_PENDING`；`stageSlices.C0` 仍 `revise`；C1～C6 `not_granted`；formal booking 仍 UNROUTED；不是 apply |
 | 2026-09-10 | [SCM-R04 升級施工（fresh-check）](reviews/2026-09-10-scm-r04-upgrade.md) | 依當日 Dependabot／npm／audit 施工：`vitest` 4.1.11、`hono` 4.13.7、`morgan` 1.12.0、`qs` 6.16.0。`stream-json` 3.x 會弄壞 firebase-tools 15 的 `src/filters/Pick`，與 `csv-parse` 7 一併不強制。未 dismiss。SCM-R04 仍開 |
 | 2026-09-09 | [非 UI 工作流目前授權上限交接（owner 五題後）](reviews/2026-09-09-non-ui-max-authorized-handoff.md) | 基準 `a9d3ba8`；verify 34326772594 SUCCESS。Q-SCOPE／D013／SCM-R03／SCM-R04 同 major／DATA-R03 五刀／BOOK-PILOT／Q-STAGING gcloud 已落地。DATA-R03 與 SCM-R04 ID 仍開。不是 Stage 2 或 production |

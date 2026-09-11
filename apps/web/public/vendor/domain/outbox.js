@@ -1,4 +1,5 @@
 import { DomainError } from './errors.js';
+import { assertUtcTimestamp } from './timestamp.js';
 /** 連續失敗達此次數即進入死信，改由人工處理。 */
 export const MAX_ATTEMPTS = 6;
 /** 指數退避的基數與上限，避免外部服務故障時把它打得更慘。 */
@@ -17,6 +18,101 @@ export function assertOutboxTraceContext(context) {
     assertOpaqueTraceId(context.correlationId, 'outbox.correlationId', 128);
     // Causation names the Audit v2 event, whose executable contract allows 512.
     assertOpaqueTraceId(context.causationId, 'outbox.causationId', 512);
+}
+function isOutboxStatus(value) {
+    return (value === 'pending' ||
+        value === 'in_progress' ||
+        value === 'completed' ||
+        value === 'dead_letter');
+}
+function assertOutboxIdentifier(value, fieldName) {
+    if (!/^[A-Za-z0-9_:-]{1,128}$/.test(value)) {
+        throw new Error(fieldName);
+    }
+}
+function optionalString(record, fieldName) {
+    if (!Object.prototype.hasOwnProperty.call(record, fieldName)) {
+        return undefined;
+    }
+    const value = record[fieldName];
+    if (typeof value !== 'string' || value === '') {
+        throw new Error(fieldName);
+    }
+    return value;
+}
+/**
+ * Dual-read a persisted outbox job. Legacy documents without
+ * `schemaVersion` still parse. A present version must be `1`. Corrupt
+ * fields and unknown status fail closed. This is not a dual-write.
+ */
+export function parseOutboxSnapshot(id, data) {
+    try {
+        assertOutboxIdentifier(id, 'id');
+        if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+            throw new Error();
+        }
+        const record = data;
+        if (Object.prototype.hasOwnProperty.call(record, 'schemaVersion') &&
+            record['schemaVersion'] !== 1) {
+            throw new Error();
+        }
+        const appointmentId = record['appointmentId'];
+        const idempotencyKey = record['idempotencyKey'];
+        const status = record['status'];
+        const attempts = record['attempts'];
+        if (typeof appointmentId !== 'string' || appointmentId === '') {
+            throw new Error();
+        }
+        if (typeof idempotencyKey !== 'string' || idempotencyKey === '') {
+            throw new Error();
+        }
+        if (!isOutboxStatus(status)) {
+            throw new Error();
+        }
+        if (typeof attempts !== 'number' ||
+            !Number.isInteger(attempts) ||
+            attempts < 0) {
+            throw new Error();
+        }
+        assertOutboxIdentifier(appointmentId, 'appointmentId');
+        const correlationId = record['correlationId'];
+        const causationId = record['causationId'];
+        if (typeof correlationId !== 'string' || typeof causationId !== 'string') {
+            throw new Error();
+        }
+        assertOutboxTraceContext({ correlationId, causationId });
+        const appointmentStatus = optionalString(record, 'appointmentStatus');
+        const followUpSourceId = optionalString(record, 'followUpSourceId');
+        if (followUpSourceId !== undefined) {
+            assertOutboxIdentifier(followUpSourceId, 'followUpSourceId');
+        }
+        const nextAttemptAt = optionalString(record, 'nextAttemptAt');
+        if (nextAttemptAt !== undefined) {
+            assertUtcTimestamp(nextAttemptAt, 'nextAttemptAt');
+        }
+        const lastError = optionalString(record, 'lastError');
+        const startsAt = optionalString(record, 'startsAt');
+        if (startsAt !== undefined) {
+            assertUtcTimestamp(startsAt, 'startsAt');
+        }
+        return {
+            id,
+            appointmentId,
+            idempotencyKey,
+            status,
+            attempts,
+            correlationId,
+            causationId,
+            ...(appointmentStatus === undefined ? {} : { appointmentStatus }),
+            ...(followUpSourceId === undefined ? {} : { followUpSourceId }),
+            ...(nextAttemptAt === undefined ? {} : { nextAttemptAt }),
+            ...(lastError === undefined ? {} : { lastError }),
+            ...(startsAt === undefined ? {} : { startsAt })
+        };
+    }
+    catch {
+        throw new DomainError('INVALID_VALUE', 'The outbox job is unreadable.');
+    }
 }
 export function backoffSeconds(attempts) {
     if (!Number.isInteger(attempts) || attempts < 1)

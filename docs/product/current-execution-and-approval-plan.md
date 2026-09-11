@@ -135,18 +135,21 @@ pending D-series（D-001～D-005、D-007～D-009、D-011、D-014～D-016）現�
 實作者用現況或多數決猜值。詳細分組與完成定義見執行書 §1。
 
 C0 只核准「未來要怎麼做」，不連 cloud、不建立資源。**2026-09-11 業主方向已核准**；
-`stageSlices.C0` 仍是 `revise`，因為下列 **engineering** 項目缺一不可（不得臆造）：
+工程選案見
+[c0-engineering-recommendations](../architecture/c0-engineering-recommendations.md)
+（`ENGINEERING_RECOMMENDATION_COMPLETE`）。`stageSlices.C0` 仍是 `revise`，因為：
 
-1. 具名 technical reviewer、security reviewer、billing owner、主要與備援告警
-   接收者。
-2. 核准最小 IAM matrix、JIT／覆核方式與 Firestore database-scope residual risk。
-3. 填入 staging 人數、用量、Cloud Run 容量、查價日期、月預算與
-   50%／80%／100% 告警後要做的事。
-4. 選定 regional failure 的 DR 方案、secondary project／location、資料複本頻率、
-   routing、完整性驗證與 failback owner。
-5. 核准 MFA recovery、TOTP clock-skew、授權碼限流／鎖定／解鎖／expiry／rotation
-   與是否維持無 break-glass 的 fail-closed 設計。
-6. technical／security reviewer 將 C0 結論從 `revise` 改為 `approved`。
+1. 具名 technical／security reviewer 簽章，含 Firestore database-scope residual
+   risk **接受**（`HUMAN_REVIEW_SIGNATURE_PENDING`）。
+2. IAM／JIT／residual risk：**工程已選** least privilege、WIF、IAM Conditions ≤8h；
+   collection IAM 不可行。剩餘風險仍須人類接受。
+3. 50%／80%／100% 動作：**工程已選**（通知／凍結後續 apply／暫停非必要 API；
+   不切斷 billing）。月額 NT$2,000 為 recorded input，收件人只記角色。
+4. DR：**工程已選** A 基線 + B 同區 secondary project；拒絕 C／D。
+5. MFA／TOTP／授權碼：**工程已選** `adjacentIntervals=1`、當面重綁、5 次／15 分
+   鎖定；break-glass 不配置。
+6. C1：**新隔離專案**。既有 `beauessence-clinic-staging` 不是 C1。
+7. 具名 reviewer 將 C0 從 `revise` 改為 `approved`（不得由助理改）。
 
 ### 2. C0 通過後，逐片申請 Stage 2
 

@@ -1,9 +1,11 @@
 # First-stage C0 authority (live split)
 
 **Type:** current authority pointer, not a deployment grant.
-**Status:** `OWNER_DIRECTION_APPROVED` / `ENGINEERING_CLOSURE_PENDING`
+**Status:** `OWNER_DIRECTION_APPROVED` /
+`ENGINEERING_RECOMMENDATION_COMPLETE` / `HUMAN_REVIEW_SIGNATURE_PENDING`
+(umbrella: `ENGINEERING_CLOSURE_PENDING` until signatures exist)
 **Canon:** [decision register](../product/phase-1-decision-register.md)
-FS-001, C0-DIR-2026-09-11, CAL-SYNC-DIR-2026-09-11.
+FS-001, C0-DIR-2026-09-11, CAL-SYNC-DIR-2026-09-11, C0-ENG-REC-2026-09-11.
 **Machine gate:** [stage-2-gate-status.json](stage-2-gate-status.json)
 `stageSlices.C0=revise`; C1～C6 `deploymentAuthorities=not_granted`.
 
@@ -12,6 +14,8 @@ This file exists so agents cannot collapse four layers into one lamp:
 | Layer | Current value |
 | --- | --- |
 | Owner/product direction (2026-09-11) | approved |
+| Engineering recommendations | `ENGINEERING_RECOMMENDATION_COMPLETE` |
+| Human signatures | `HUMAN_REVIEW_SIGNATURE_PENDING` |
 | Engineering C0 (`stageSlices.C0`) | `revise` |
 | C1～C6 deployment authority | `not_granted` |
 | Production / real data / DNS | `NOT_AUTHORIZED` |
@@ -40,24 +44,32 @@ secrets, live Hosting, production Calendar, or real patient data.
 
 ## ENGINEERING_CLOSURE_PENDING
 
-These still block moving `stageSlices.C0` from `revise` to `approved`.
-Do not invent answers.
+Moving `stageSlices.C0` from `revise` to `approved` still requires named
+technical and security reviewer signatures. Engineering values for items
+2–6 are now selected in
+[c0-engineering-recommendations](c0-engineering-recommendations.md)
+(`ENGINEERING_RECOMMENDATION_COMPLETE`). Do not treat that file as a
+signature or as apply authority.
 
-1. Named technical reviewer and security reviewer signatures on C0
-   engineering acceptance (not the same as the owner direction packet).
-2. Accepted Cloud IAM matrix, JIT/review, and Firestore database-scope
-   residual risk (proposal already in
-   [C0 readiness artifacts](stage-2-c0-readiness-artifacts-2026-07-29.md)).
-3. Budget **actions** at 50% / 80% / 100% (recipients alone are not a
-   control). D-010 recorded input already flags this gap.
-4. Selected regional-failure DR option (A/B/C), secondary location
-   principle, failback owner.
-5. MFA recovery path, TOTP clock-skew, authorization-code lock/unlock
-   parameters; keep fail-closed (no shared emergency account) unless a
-   later named decision says otherwise.
-6. Explicit C1 packet: new isolated project versus documented gap-closure
-   on existing `beauessence-clinic-staging`. Existing staging is not C1
-   complete.
+1. **HUMAN_REVIEW_SIGNATURE_PENDING** — named technical reviewer and
+   security reviewer signatures on C0 engineering acceptance, including
+   Firestore database-scope residual-risk **acceptance**. Do not
+   fabricate signatures.
+2. IAM / JIT / residual risk — **engineering selected:** least privilege,
+   no primitive Owner/Editor, WIF, IAM Conditions ≤8h; collection-scoped
+   Firestore IAM is impossible. Residual risk remains for human
+   acceptance.
+3. Budget **actions** at 50% / 80% / 100% — **engineering selected:** notify;
+   freeze further C-slice apply at 80%; pause Scheduler/non-essential
+   APIs at 100%; never auto-detach billing.
+4. DR option — **engineering selected:** A as C5/C6 baseline plus B
+   secondary project in `asia-east1`; reject C and D. Failback is manual.
+5. MFA recovery / TOTP / authorization-code lock — **engineering selected:**
+   `adjacentIntervals=1`, in-person second-manager rebind, 5-failure /
+   15-minute exponential lock, `manager` unlock, 24h TTL, break-glass
+   not provisioned.
+6. C1 strategy — **engineering selected:** new isolated project.
+   Existing `beauessence-clinic-staging` stays CAL-PILOT + preview only.
 
 ## Transferability (design, not apply)
 

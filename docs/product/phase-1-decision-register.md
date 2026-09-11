@@ -89,6 +89,39 @@ semantics.
 
 Closed-item evidence: [2026-09-11 C0 owner-direction reconciliation](../reviews/2026-09-11-c0-owner-direction-reconciliation.md).
 
+### C0-ENG-REC-2026-09-11 engineering recommendations
+
+Engineering selected Phase-1 values for IAM, budget actions, DR, MFA
+parameters and C1 strategy. This is **not** owner approval, **not**
+`stageSlices.C0=approved`, and **not** C1～C6 apply.
+
+```text
+Recorded input ID: C0-ENG-REC-2026-09-11
+Answer: ENGINEERING_RECOMMENDATION_COMPLETE — IAM: no primitive
+Owner/Editor, WIF, IAM Conditions ≤8h JIT, Firestore collection IAM
+impossible (residual risk needs human acceptance); budget: notify at
+50%, freeze further C-slice apply at 80%, pause Scheduler/non-essential
+APIs at 100%, never auto-detach billing, proposed NT$2000/month from
+recorded input; DR: option A baseline plus option B secondary project
+in asia-east1, reject C and D, manual failback; MFA: adjacentIntervals=1,
+in-person second-manager rebind, 5-failure/15-minute exponential lock,
+manager unlock, 24h TTL, break-glass not provisioned; C1: new isolated
+project, existing beauessence-clinic-staging is not C1.
+Approved by: not approved — engineering recommendation only
+Approval date (Asia/Taipei): not applicable
+Recorded by: assistant, 2026-09-11, under delegated technical
+selection. The assistant is not an approver.
+Scope: engineering C0 recommendations for later human signature.
+Explicit exclusions: does not set stageSlices.C0=approved; does not
+grant C1–C6 deploymentAuthorities; does not apply Terraform; does not
+accept Firestore database-scope residual risk; does not name billing
+email recipients in the public repository.
+Follow-up: HUMAN_REVIEW_SIGNATURE_PENDING on
+docs/architecture/first-stage-c0-authority.md.
+```
+
+Closed-item evidence: [2026-09-11 C0 engineering recommendations](../reviews/2026-09-11-c0-engineering-recommendations.md).
+
 ### C0-DIR-2026-09-11 architecture direction
 
 The clinic owner recorded C0 as **direction approved**. Engineering C0

@@ -2,7 +2,8 @@
 
 **Type:** current execution packet. Not apply authority.
 **Depends on:** [first-stage C0 authority](first-stage-c0-authority.md)
-(`OWNER_DIRECTION_APPROVED` / `ENGINEERING_CLOSURE_PENDING`).
+(`OWNER_DIRECTION_APPROVED` / `ENGINEERING_RECOMMENDATION_COMPLETE` /
+`HUMAN_REVIEW_SIGNATURE_PENDING`).
 **Machine gate:** [stage-2-gate-status.json](stage-2-gate-status.json)
 C1～C6 `pending` / `not_granted`.
 
@@ -25,14 +26,15 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 
 | Field | Value |
 | --- | --- |
-| Prerequisites | Engineering C0 `approved`; C1 request packet; exact apply SHA |
-| Scope | Isolated test project (or documented gap-closure on existing staging); transferable settings; monitoring; budget alerts; empty secret containers; synthetic data only |
-| Source in tree | CAL-PILOT Terraform under `infra/terraform/cal-pilot/` is **not** C1 complete |
-| Tests | Transferability / no-hardcoded-production-identity is a documentation invariant in C0-DIR |
-| Security | No real patient data; no production project link |
-| Exclusions | Firestore database (C5/C6 slice); Identity Platform; API runtime; production; Calendar apply |
+| Prerequisites | Engineering C0 signatures (`HUMAN_REVIEW_SIGNATURE_PENDING`); C1 request packet; exact apply SHA |
+| Scope | **New isolated** synthetic staging project; transferable settings; monitoring; budget alerts with 50/80/100 **actions**; empty secret containers; WIF; no real data |
+| Strategy | `new_isolated_project` — see [c0-engineering-recommendations](c0-engineering-recommendations.md). Existing `beauessence-clinic-staging` is CAL-PILOT + preview only, **not** C1 |
+| Source in tree | Plan-only `infra/terraform/c1-foundation/` (apply blocked without exact SHA). CAL-PILOT Terraform under `infra/terraform/cal-pilot/` is **not** C1 |
+| Tests | C0-ENG-REC invariants; C1 must not target existing staging or suggested hostnames |
+| Security | No real patient data; no production project link; C1 API allowlist excludes Firestore / Identity Platform / Cloud Run |
+| Exclusions | Firestore database; Identity Platform; API runtime; production; Calendar apply; DR secondary |
 | Rollback | Quarantine new APIs/IAM; do not default to project deletion |
-| Remaining blockers | ENGINEERING_CLOSURE_PENDING; **exact C1 apply authority** |
+| Remaining blockers | `HUMAN_REVIEW_SIGNATURE_PENDING`; **exact C1 apply authority** |
 | Authority | `not_granted` |
 | Status | `READY_FOR_EXPLICIT_AUTHORITY` |
 
