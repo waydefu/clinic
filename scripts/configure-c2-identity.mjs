@@ -54,13 +54,28 @@ export function c2IdentityConfigUrl(projectId) {
   return `https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`;
 }
 
+export function c2IdentityInitializeUrl(projectId) {
+  assertC2IdentityProjectId(projectId);
+  return `https://identitytoolkit.googleapis.com/v2/projects/${projectId}/identityPlatform:initializeAuth`;
+}
+
 export function c2IdentityMutatePlan(projectId) {
   return {
-    method: 'PATCH',
-    url: `${c2IdentityConfigUrl(projectId)}?updateMask=mfa`,
-    body: c2TotpConfigPatch(),
     execute: false,
-    note: 'Dry-run only. A local ADC host PATCHes after C1 PASS and C2 terraform apply. This sandbox never sends the request. Do not target beauessence-clinic-staging.'
+    note: 'Dry-run only. A local ADC host runs these after C1 PASS and C2 terraform apply. This sandbox never sends the request. Do not target beauessence-clinic-staging.',
+    steps: [
+      {
+        method: 'POST',
+        url: c2IdentityInitializeUrl(projectId),
+        body: {},
+        allowedErrorStatuses: ['ALREADY_EXISTS', 'FAILED_PRECONDITION']
+      },
+      {
+        method: 'PATCH',
+        url: `${c2IdentityConfigUrl(projectId)}?updateMask=mfa`,
+        body: c2TotpConfigPatch()
+      }
+    ]
   };
 }
 

@@ -103,5 +103,8 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(read('scripts/configure-c2-identity.mjs')).toContain(
       'execute: false'
     );
+    expect(read('scripts/configure-c2-identity.mjs')).toContain(
+      'identityPlatform:initializeAuth'
+    );
   });
 });

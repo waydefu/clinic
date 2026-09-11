@@ -42,8 +42,9 @@ terraform init -backend-config="bucket=${PROJECT_ID}-tfstate" -backend-config="p
 terraform plan -out=c2.tfplan
 terraform apply c2.tfplan
 C2_IDENTITY_APPLY=granted GOOGLE_CLOUD_PROJECT="$PROJECT_ID" node scripts/configure-c2-identity.mjs
-# That script prints a PATCH plan with execute:false. Apply the plan only
-# on the local ADC host; do not send tokens back. Then assemble:
+# That script prints a two-step plan with execute:false:
+# POST identityPlatform:initializeAuth, then PATCH mfa adjacentIntervals=1.
+# Run those only on the local ADC host; do not send tokens back. Then assemble:
 node scripts/c2-c6-smoke-evidence.mjs assemble C2 /tmp/c2-gcloud-snapshot.json > /tmp/c2-smoke.json
 node scripts/c2-c6-smoke-evidence.mjs C2 /tmp/c2-smoke.json
 node scripts/sequential-c-gate.mjs --c1-smoke /tmp/c1-smoke.json --c2-smoke /tmp/c2-smoke.json
