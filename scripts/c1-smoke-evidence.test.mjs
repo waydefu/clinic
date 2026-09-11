@@ -92,5 +92,16 @@ describe('C1 smoke evidence evaluator', () => {
     );
     expect(oversized.ok).toBe(false);
     expect(oversized.issues.join('\n')).toMatch(/max 30/);
+
+    const omittedNegatives = evaluateC1Smoke(
+      passingEvidence({
+        firestoreDatabase: undefined,
+        identityPlatformEnabled: undefined
+      }),
+      recs
+    );
+    expect(omittedNegatives.ok).toBe(false);
+    expect(omittedNegatives.issues.join('\n')).toMatch(/Firestore database/);
+    expect(omittedNegatives.issues.join('\n')).toMatch(/Identity Platform/);
   });
 });

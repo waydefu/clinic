@@ -67,7 +67,7 @@ function firestoreDatabasesFromSnapshot(snapshot) {
   const value = snapshot.firestoreDatabases;
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.databases)) return value.databases;
-  return [];
+  return undefined;
 }
 
 export function totpAdjacentIntervalsFromIdentityConfig(config) {
@@ -111,13 +111,15 @@ export function assembleC2SmokeEvidence(snapshot) {
     totpAdjacentIntervals: totpAdjacentIntervalsFromIdentityConfig(
       snapshot.identityConfig
     ),
-    firestoreDatabase: databases.length > 0
+    firestoreDatabase: Array.isArray(databases)
+      ? databases.length > 0
+      : undefined
   };
 }
 
 export function assembleC5SmokeEvidence(snapshot) {
   assertIsolatedSliceProjectId(snapshot.projectId, 'C5');
-  const databases = firestoreDatabasesFromSnapshot(snapshot);
+  const databases = firestoreDatabasesFromSnapshot(snapshot) ?? [];
   const database = databases[0] ?? {};
   return {
     projectId: snapshot.projectId,
@@ -160,7 +162,7 @@ export function evaluateC2Smoke(evidence) {
   if (apis.includes('calendar-json.googleapis.com')) {
     issues.push('C2 must not enable Calendar JSON API; that is C6.');
   }
-  if (evidence.firestoreDatabase) {
+  if (evidence.firestoreDatabase !== false) {
     issues.push('C2 must not create a Firestore database.');
   }
   if (evidence.totpAdjacentIntervals !== 1) {

@@ -137,9 +137,12 @@ export function assembleC1SmokeEvidence(snapshot) {
   const secretVersionCount = Array.isArray(snapshot.secretVersions)
     ? snapshot.secretVersions.length
     : -1;
-  const firestoreDatabase = Array.isArray(snapshot.firestoreDatabases)
-    ? snapshot.firestoreDatabases.length > 0
-    : Boolean(snapshot.firestoreDatabases);
+  const firestoreLists = snapshot.firestoreDatabases;
+  const firestoreDatabase = Array.isArray(firestoreLists)
+    ? firestoreLists.length > 0
+    : Array.isArray(firestoreLists?.databases)
+      ? firestoreLists.databases.length > 0
+      : undefined;
   const identityPlatformEnabled =
     (snapshot.identityServices ?? []).some(
       (entry) => apiIdFromService(entry) === 'identitytoolkit.googleapis.com'

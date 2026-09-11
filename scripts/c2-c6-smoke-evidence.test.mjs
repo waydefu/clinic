@@ -92,6 +92,11 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     const totp = evaluateC2Smoke(passingC2({ totpAdjacentIntervals: 5 }));
     expect(totp.ok).toBe(false);
     expect(totp.issues.join('\n')).toMatch(/adjacentIntervals/);
+    const omittedFirestore = evaluateC2Smoke(
+      passingC2({ firestoreDatabase: undefined })
+    );
+    expect(omittedFirestore.ok).toBe(false);
+    expect(omittedFirestore.issues.join('\n')).toMatch(/Firestore database/);
   });
 
   it('requires Native Firestore with PITR and delete protection for C5', () => {
@@ -153,6 +158,22 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     });
     expect(missingTotp.totpAdjacentIntervals).toBeUndefined();
     expect(evaluateC2Smoke(missingTotp).ok).toBe(false);
+
+    const missingFirestoreList = assembleC2SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      services: [{ config: { name: 'identitytoolkit.googleapis.com' } }],
+      identityConfig: {
+        mfa: {
+          state: 'ENABLED',
+          providerConfigs: [
+            { state: 'ENABLED', totpProviderConfig: { adjacentIntervals: 1 } }
+          ]
+        }
+      }
+    });
+    expect(missingFirestoreList.firestoreDatabase).toBeUndefined();
+    expect(evaluateC2Smoke(missingFirestoreList).ok).toBe(false);
   });
 
   it('assembles C5 Native/PITR/delete-protection from Firestore list JSON', () => {

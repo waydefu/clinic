@@ -253,4 +253,28 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
     expect(typed.billingDetached).toBeUndefined();
     expect(evaluateC1Smoke(typed, recs).ok).toBe(false);
   });
+
+  it('does not treat a missing Firestore list as firestoreDatabase=false', () => {
+    const evidence = assembleC1SmokeEvidence({
+      projectId: 'beauessence-clinic-stg-smoke1',
+      services: recs.c1.apiAllowlist.map((api) => ({
+        config: { name: api }
+      })),
+      iamPolicy: { bindings: terraformCiBindings() },
+      wifPools: [
+        {
+          name: 'projects/1/locations/global/workloadIdentityPools/c1-github'
+        }
+      ],
+      serviceAccounts: [{ email: terraformCiEmail }],
+      secretVersions: [],
+      identityServices: [],
+      ...derivedFoundation()
+    });
+    expect(evidence.firestoreDatabase).toBeUndefined();
+    expect(evaluateC1Smoke(evidence, recs).ok).toBe(false);
+    expect(evaluateC1Smoke(evidence, recs).issues.join('\n')).toMatch(
+      /Firestore database/
+    );
+  });
 });

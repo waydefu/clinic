@@ -102,10 +102,10 @@ export function evaluateC1Smoke(evidence, recs) {
   if (evidence.billingDetached !== false) {
     issues.push('C1 must record billingDetached=false (no auto-detach).');
   }
-  if (evidence.firestoreDatabase) {
+  if (evidence.firestoreDatabase !== false) {
     issues.push('C1 must not create a Firestore database.');
   }
-  if (evidence.identityPlatformEnabled) {
+  if (evidence.identityPlatformEnabled !== false) {
     issues.push('C1 must not enable Identity Platform.');
   }
 
