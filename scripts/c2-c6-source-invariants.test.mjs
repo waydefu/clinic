@@ -55,6 +55,15 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
       'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
     );
     expect(c6).not.toContain('identitytoolkit.googleapis.com');
+    expect(read('infra/terraform/c5-firestore/noop.tftest.hcl')).toContain(
+      'FIRESTORE_NATIVE'
+    );
+    expect(read('infra/terraform/c5-firestore/noop.tftest.hcl')).toContain(
+      'POINT_IN_TIME_RECOVERY_ENABLED'
+    );
+    expect(read('infra/terraform/c6-calendar/noop.tftest.hcl')).toContain(
+      'calendar-json.googleapis.com'
+    );
     expect(read('infra/terraform/c2-identity/variables.tf')).toContain(
       'beauessence-clinic-staging'
     );

@@ -34,6 +34,30 @@ run "named_sha_enables_calendar_json_only" {
     condition     = length(google_project_service.c6) == 1
     error_message = "C6 must enable only calendar-json.googleapis.com."
   }
+
+  assert {
+    condition = contains(
+      keys(google_project_service.c6),
+      "calendar-json.googleapis.com"
+    )
+    error_message = "C6 must enable calendar-json.googleapis.com."
+  }
+
+  assert {
+    condition = !contains(
+      keys(google_project_service.c6),
+      "firestore.googleapis.com"
+    )
+    error_message = "C6 must not enable Firestore."
+  }
+
+  assert {
+    condition = !contains(
+      keys(google_project_service.c6),
+      "identitytoolkit.googleapis.com"
+    )
+    error_message = "C6 must not enable Identity Platform."
+  }
 }
 
 run "staging_project_is_rejected" {
