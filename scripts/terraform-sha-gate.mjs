@@ -145,6 +145,7 @@ export function terraformValidateCommands(directory) {
   return [
     `terraform -chdir=${directory} init -backend=false -input=false`,
     `terraform -chdir=${directory} validate`,
+    `terraform -chdir=${directory} test`,
     `terraform -chdir=${directory} plan -input=false -lock=false -refresh=false -var=exact_apply_authority_sha=not_granted`
   ];
 }
@@ -153,6 +154,7 @@ export function evaluateCSliceTerraformSource(module, files) {
   const issues = [];
   const main = files.main ?? '';
   const variables = files.variables ?? '';
+  const tftest = files.tftest ?? '';
   if (
     !main.includes(
       'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
@@ -167,6 +169,21 @@ export function evaluateCSliceTerraformSource(module, files) {
   }
   if (!variables.includes('beauessence-clinic-staging')) {
     issues.push(`${module.slice} must reject beauessence-clinic-staging.`);
+  }
+  if (!tftest.includes('mock_provider "google"')) {
+    issues.push(`${module.slice} must ship a mock_provider terraform test.`);
+  }
+  if (!tftest.includes('command = plan')) {
+    issues.push(`${module.slice} terraform test must plan, not apply.`);
+  }
+  if (tftest.includes('command = apply')) {
+    issues.push(`${module.slice} terraform test must not apply.`);
+  }
+  if (!tftest.includes('length(') || !tftest.includes('== 0')) {
+    issues.push(`${module.slice} terraform test must assert zero resources.`);
+  }
+  if (!tftest.includes('beauessence-clinic-staging')) {
+    issues.push(`${module.slice} terraform test must reject existing staging.`);
   }
   for (const forbidden of module.forbiddenSubstrings) {
     if (main.includes(forbidden)) {
@@ -197,7 +214,8 @@ export function evaluateAllCSliceTerraform(repoRoot = root) {
     const directory = join(repoRoot, module.directory);
     const files = {
       main: readFileSync(join(directory, 'main.tf'), 'utf8'),
-      variables: readFileSync(join(directory, 'variables.tf'), 'utf8')
+      variables: readFileSync(join(directory, 'variables.tf'), 'utf8'),
+      tftest: readFileSync(join(directory, 'noop.tftest.hcl'), 'utf8')
     };
     const evaluation = evaluateCSliceTerraformSource(module, files);
     return {

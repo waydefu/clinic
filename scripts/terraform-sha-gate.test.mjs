@@ -9,6 +9,12 @@ import {
   terraformValidateCommands
 } from './terraform-sha-gate.mjs';
 
+const passingTftest = `mock_provider "google" {}
+command = plan
+length(google_project_service.c1) == 0
+beauessence-clinic-staging
+`;
+
 describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
   it('gates every live C1/C2/C5/C6 resource and data block', () => {
     const report = evaluateAllCSliceTerraform();
@@ -24,10 +30,13 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
     expect(report.results[0].blockCount).toBeGreaterThan(5);
   });
 
-  it('prints validate/plan commands that never apply and fail closed without a SHA', () => {
+  it('prints validate/plan/test commands that never apply and fail closed without a SHA', () => {
     const commands = terraformValidateCommands('infra/terraform/c1-foundation');
     expect(commands.join('\n')).toContain('init -backend=false');
     expect(commands.join('\n')).toContain('validate');
+    expect(commands.join('\n')).toContain(
+      'terraform -chdir=infra/terraform/c1-foundation test'
+    );
     expect(commands.join('\n')).toContain(
       'exact_apply_authority_sha=not_granted'
     );
@@ -45,7 +54,8 @@ resource "google_project_service" "open" {
   service = "iam.googleapis.com"
 }
 `,
-      variables: 'default     = "not_granted"\nbeauessence-clinic-staging\n'
+      variables: 'default     = "not_granted"\nbeauessence-clinic-staging\n',
+      tftest: passingTftest
     });
     expect(ungated.ok).toBe(false);
     expect(ungated.issues.join('\n')).toMatch(/not SHA-gated/);
@@ -57,7 +67,8 @@ resource "google_firestore_database" "bad" {
   count = local.apply_enabled ? 1 : 0
 }
 `,
-      variables: 'default     = "not_granted"\nbeauessence-clinic-staging\n'
+      variables: 'default     = "not_granted"\nbeauessence-clinic-staging\n',
+      tftest: passingTftest
     });
     expect(firestore.ok).toBe(false);
     expect(firestore.issues.join('\n')).toMatch(/google_firestore_database/);

@@ -98,6 +98,9 @@ export function evaluateC3Source(sessionSource) {
   ) {
     issues.push('C3 must reject disabled users.');
   }
+  if (!sessionSource.includes('public async assertCsrf')) {
+    issues.push('C3 must bind CSRF to the server-side session.');
+  }
   return { ok: issues.length === 0, issues };
 }
 

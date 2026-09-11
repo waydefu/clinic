@@ -1,0 +1,35 @@
+# Credential-free proof that the default SHA creates zero Firestore resources.
+# Not C5 authority and not apply.
+
+mock_provider "google" {}
+
+run "default_sha_is_noop" {
+  command = plan
+
+  assert {
+    condition     = local.apply_enabled == false
+    error_message = "C5 apply_enabled must be false when SHA is not_granted."
+  }
+
+  assert {
+    condition     = length(google_project_service.c5) == 0
+    error_message = "C5 must enable zero Firestore APIs when SHA is not_granted."
+  }
+
+  assert {
+    condition     = length(google_firestore_database.synthetic) == 0
+    error_message = "C5 must create zero Firestore databases when SHA is not_granted."
+  }
+}
+
+run "staging_project_is_rejected" {
+  command = plan
+
+  variables {
+    project_id = "beauessence-clinic-staging"
+  }
+
+  expect_failures = [
+    var.project_id
+  ]
+}
