@@ -42,21 +42,24 @@ terraform init -backend-config="bucket=${PROJECT_ID}-tfstate" -backend-config="p
 terraform plan -out=c2.tfplan
 terraform apply c2.tfplan
 C2_IDENTITY_APPLY=granted GOOGLE_CLOUD_PROJECT="$PROJECT_ID" node scripts/configure-c2-identity.mjs
+# That script prints a PATCH plan with execute:false. Apply the plan only
+# on the local ADC host; do not send tokens back. Then assemble:
+node scripts/c2-c6-smoke-evidence.mjs assemble C2 /tmp/c2-gcloud-snapshot.json > /tmp/c2-smoke.json
 node scripts/c2-c6-smoke-evidence.mjs C2 /tmp/c2-smoke.json
 node scripts/sequential-c-gate.mjs --c1-smoke /tmp/c1-smoke.json --c2-smoke /tmp/c2-smoke.json
 ```
 
 C2 must enable `identitytoolkit.googleapis.com` with TOTP
-`adjacentIntervals=1`. It must not create Firestore or enable Calendar
-JSON API.
+`adjacentIntervals=1` read from Identity Toolkit config — do not invent
+the field. It must not create Firestore or enable Calendar JSON API.
 
 ## C3 session (source)
 
 No Terraform. After C2 PASS and C3 `granted`,
 `sequential-c-gate` evaluates `__session` HttpOnly/Secure/SameSite=Strict,
-idle 30m, absolute 8h, and disabled-user rejection on the CAL-PILOT
-session module. That is C3 source PASS for the synthetic surface, not
-production staff Hosting.
+idle 30m, absolute 8h, CSRF `assertCsrf`, and disabled-user rejection on
+the CAL-PILOT session module. That is C3 source PASS for the synthetic
+surface, not production staff Hosting.
 
 ## C4 RBAC (source)
 
@@ -78,6 +81,7 @@ terraform test
 terraform init -backend-config="bucket=${PROJECT_ID}-tfstate" -backend-config="prefix=c5-firestore"
 terraform plan -out=c5.tfplan
 terraform apply c5.tfplan
+node scripts/c2-c6-smoke-evidence.mjs assemble C5 /tmp/c5-gcloud-snapshot.json > /tmp/c5-smoke.json
 node scripts/c2-c6-smoke-evidence.mjs C5 /tmp/c5-smoke.json
 ```
 
@@ -95,6 +99,7 @@ terraform test
 terraform init -backend-config="bucket=${PROJECT_ID}-tfstate" -backend-config="prefix=c6-calendar"
 terraform plan -out=c6.tfplan
 terraform apply c6.tfplan
+node scripts/c2-c6-smoke-evidence.mjs assemble C6 /tmp/c6-gcloud-snapshot.json > /tmp/c6-smoke.json
 node scripts/c2-c6-smoke-evidence.mjs C6 /tmp/c6-smoke.json
 ```
 

@@ -97,5 +97,11 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(watch).toContain('COMPENSATION_SYNC_MIN_MS = 60_000');
     expect(watch).toContain('COMPENSATION_SYNC_MAX_MS = 5 * 60_000');
     expect(watch).toContain('Unwired by policy');
+    expect(read('scripts/c2-c6-smoke-evidence.mjs')).toContain(
+      'assembleC2SmokeEvidence'
+    );
+    expect(read('scripts/configure-c2-identity.mjs')).toContain(
+      'execute: false'
+    );
   });
 });

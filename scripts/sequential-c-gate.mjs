@@ -8,11 +8,14 @@ import {
   loadC0EngineeringRecs
 } from './c1-smoke-evidence.mjs';
 import {
+  bookingAndWatchRemainUnrouted,
   evaluateC2Smoke,
   evaluateC5Smoke,
   evaluateC6Smoke
 } from './c2-c6-smoke-evidence.mjs';
 import { parseStageGateStatus } from './unrouted-inventory.mjs';
+
+export { bookingAndWatchRemainUnrouted };
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const LIVE_GATE_STATUS = join(
@@ -62,12 +65,6 @@ export function terraformCliStatus() {
     terraform: hasCli('terraform'),
     firebase: hasCli('firebase')
   };
-}
-
-export function bookingAndWatchRemainUnrouted(appModuleSource) {
-  return !/AppointmentController|BookPilotModule|CalendarWatchController/.test(
-    appModuleSource
-  );
 }
 
 export function evaluateC3Source(sessionSource) {

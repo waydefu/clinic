@@ -49,6 +49,21 @@ export function c2TotpConfigPatch() {
   };
 }
 
+export function c2IdentityConfigUrl(projectId) {
+  assertC2IdentityProjectId(projectId);
+  return `https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`;
+}
+
+export function c2IdentityMutatePlan(projectId) {
+  return {
+    method: 'PATCH',
+    url: `${c2IdentityConfigUrl(projectId)}?updateMask=mfa`,
+    body: c2TotpConfigPatch(),
+    execute: false,
+    note: 'Dry-run only. A local ADC host PATCHes after C1 PASS and C2 terraform apply. This sandbox never sends the request. Do not target beauessence-clinic-staging.'
+  };
+}
+
 function isDirectRun() {
   const invoked = process.argv[1];
   if (typeof invoked !== 'string' || invoked === '') return false;
@@ -58,7 +73,8 @@ function isDirectRun() {
 if (isDirectRun()) {
   assertC2IdentityApplyGate(process.env);
   assertC2IdentityProjectId(process.env.GOOGLE_CLOUD_PROJECT);
-  process.stdout.write(`${JSON.stringify(c2TotpConfigPatch(), null, 2)}\n`);
+  const plan = c2IdentityMutatePlan(process.env.GOOGLE_CLOUD_PROJECT);
+  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
   process.stdout.write(
     'Dry-run only. Identity Platform mutation waits for C2 apply after C1 PASS.\n'
   );

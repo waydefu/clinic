@@ -1,6 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  assembleC2SmokeEvidence,
+  assembleC5SmokeEvidence,
+  assembleC6SmokeEvidence,
+  bookingAndWatchRemainUnrouted,
   c2SmokeCollectCommands,
   c5SmokeCollectCommands,
   c6SmokeCollectCommands,
@@ -10,6 +17,11 @@ import {
 } from './c2-c6-smoke-evidence.mjs';
 
 const isolated = 'beauessence-clinic-stg-smoke1';
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const liveAppModule = readFileSync(
+  join(root, 'apps/api/src/app.module.ts'),
+  'utf8'
+);
 
 function passingC2(overrides = {}) {
   return {
@@ -56,6 +68,9 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     const commands = c6SmokeCollectCommands(isolated);
     expect(commands.join('\n')).toContain('services list --enabled');
     expect(commands.join('\n')).not.toContain('beauessence-clinic-staging');
+    expect(c2SmokeCollectCommands(isolated).join('\n')).toContain(
+      '/admin/v2/projects/beauessence-clinic-stg-smoke1/config'
+    );
   });
 
   it('accepts isolated C2 Identity evidence and rejects Firestore/Calendar bleed', () => {
@@ -104,5 +119,91 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     );
     expect(staging.ok).toBe(false);
     expect(staging.issues.join('\n')).toMatch(/not C1/);
+  });
+
+  it('assembles C2 from gcloud snapshots and does not invent TOTP=1', () => {
+    const evidence = assembleC2SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      services: [
+        { config: { name: 'identitytoolkit.googleapis.com' } },
+        { config: { name: 'iam.googleapis.com' } }
+      ],
+      firestoreDatabases: [],
+      identityConfig: {
+        mfa: {
+          state: 'ENABLED',
+          providerConfigs: [
+            { state: 'ENABLED', totpProviderConfig: { adjacentIntervals: 1 } }
+          ]
+        }
+      }
+    });
+    expect(evaluateC2Smoke(evidence)).toEqual({ ok: true, issues: [] });
+
+    const missingTotp = assembleC2SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      services: [{ config: { name: 'identitytoolkit.googleapis.com' } }],
+      firestoreDatabases: [],
+      identityConfig: {}
+    });
+    expect(missingTotp.totpAdjacentIntervals).toBeUndefined();
+    expect(evaluateC2Smoke(missingTotp).ok).toBe(false);
+  });
+
+  it('assembles C5 Native/PITR/delete-protection from Firestore list JSON', () => {
+    const evidence = assembleC5SmokeEvidence({
+      projectId: isolated,
+      services: [{ config: { name: 'firestore.googleapis.com' } }],
+      firestoreDatabases: [
+        {
+          type: 'FIRESTORE_NATIVE',
+          locationId: 'asia-east1',
+          pointInTimeRecoveryEnablement: 'POINT_IN_TIME_RECOVERY_ENABLED',
+          deleteProtectionState: 'DELETE_PROTECTION_ENABLED'
+        }
+      ]
+    });
+    expect(evaluateC5Smoke(evidence)).toEqual({ ok: true, issues: [] });
+
+    const empty = assembleC5SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      services: [{ config: { name: 'firestore.googleapis.com' } }],
+      firestoreDatabases: []
+    });
+    expect(evaluateC5Smoke(empty).ok).toBe(false);
+  });
+
+  it('derives C6 UNROUTED from AppModule and does not invent it', () => {
+    expect(bookingAndWatchRemainUnrouted(liveAppModule)).toBe(true);
+    const evidence = assembleC6SmokeEvidence(
+      {
+        projectId: isolated,
+        region: 'asia-east1',
+        services: [{ config: { name: 'calendar-json.googleapis.com' } }]
+      },
+      liveAppModule
+    );
+    expect(evaluateC6Smoke(evidence)).toEqual({ ok: true, issues: [] });
+
+    const invented = assembleC6SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      services: [{ config: { name: 'calendar-json.googleapis.com' } }]
+    });
+    expect(invented.bookingUnrouted).toBeUndefined();
+    expect(evaluateC6Smoke(invented).ok).toBe(false);
+
+    const routed = assembleC6SmokeEvidence(
+      {
+        projectId: isolated,
+        region: 'asia-east1',
+        services: [{ config: { name: 'calendar-json.googleapis.com' } }]
+      },
+      'controllers: [AppointmentController, CalendarWatchController]'
+    );
+    expect(evaluateC6Smoke(routed).ok).toBe(false);
   });
 });

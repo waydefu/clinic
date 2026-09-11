@@ -6,6 +6,8 @@ import {
   C2_UNAPPLIED_PLACEHOLDER,
   assertC2IdentityApplyGate,
   assertC2IdentityProjectId,
+  c2IdentityConfigUrl,
+  c2IdentityMutatePlan,
   c2TotpConfigPatch
 } from './configure-c2-identity.mjs';
 
@@ -34,5 +36,21 @@ describe('C2 identity configurator (dry-run, not apply)', () => {
       patch.mfa.providerConfigs[0].totpProviderConfig.adjacentIntervals
     ).toBe(1);
     expect(JSON.stringify(patch)).not.toMatch(/AIza|BEGIN |private_key/);
+  });
+
+  it('prints a local Identity PATCH plan and never executes it', () => {
+    expect(() => c2IdentityConfigUrl(C2_FORBIDDEN_PROJECT)).toThrow(
+      /CAL-PILOT/
+    );
+    const plan = c2IdentityMutatePlan('beauessence-clinic-stg-abc1');
+    expect(plan.execute).toBe(false);
+    expect(plan.method).toBe('PATCH');
+    expect(plan.url).toContain(
+      '/admin/v2/projects/beauessence-clinic-stg-abc1/config'
+    );
+    expect(plan.url).not.toContain('beauessence-clinic-staging');
+    expect(
+      plan.body.mfa.providerConfigs[0].totpProviderConfig.adjacentIntervals
+    ).toBe(1);
   });
 });
