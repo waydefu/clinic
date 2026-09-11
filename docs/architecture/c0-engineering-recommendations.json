@@ -1,17 +1,20 @@
 {
   "$comment": [
-    "Engineering C0 recommendations for first-stage Phase 1. Not owner approval.",
-    "Not stageSlices.C0=approved. Not C1-C6 deploymentAuthorities. Not apply authority.",
-    "Status split: ENGINEERING_RECOMMENDATION_COMPLETE / HUMAN_REVIEW_SIGNATURE_PENDING."
+    "Engineering C0 recommendations for first-stage Phase 1, accepted by owner as C0-ENG-ACCEPT-2026-09-11.",
+    "Machine C0 status is completed, not the invalid word approved. C1 granted is start-C1, not C1 PASS.",
+    "Status split: OWNER_AUTHORITY_CONFIRMED / ENGINEERING_RECOMMENDATION_COMPLETE / NAMED_REVIEWER_METADATA_PENDING."
   ],
   "recordedInputId": "C0-ENG-REC-2026-09-11",
+  "acceptanceId": "C0-ENG-ACCEPT-2026-09-11",
   "status": {
     "ownerDirection": "OWNER_DIRECTION_APPROVED",
     "engineeringRecommendations": "ENGINEERING_RECOMMENDATION_COMPLETE",
-    "humanReview": "HUMAN_REVIEW_SIGNATURE_PENDING",
-    "stageSliceC0": "revise",
-    "c1ToC6Authorities": "not_granted",
-    "cloudApply": "NOT_AUTHORIZED"
+    "ownerAuthority": "OWNER_AUTHORITY_CONFIRMED",
+    "humanReview": "NAMED_REVIEWER_METADATA_PENDING",
+    "stageSliceC0": "completed",
+    "c1Authority": "granted",
+    "c2ToC6Authorities": "not_granted",
+    "cloudApply": "C1_PACKET_ONLY_NOT_DEPLOYED"
   },
   "iam": {
     "selected": "least_privilege_no_primitive_wif_time_bounded_iam_conditions",
@@ -31,6 +34,8 @@
         "no_human_standing_datastore_user",
         "restore_operator_jit_only"
       ],
+      "syntheticStagingAcceptance": "OWNER_AUTHORITY_CONFIRMED",
+      "productionAcceptance": "not_granted",
       "humanAcceptanceRequired": true
     },
     "noBreakGlass": true

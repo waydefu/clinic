@@ -134,22 +134,14 @@ pending D-series（D-001～D-005、D-007～D-009、D-011、D-014～D-016）現�
 全數維持 `pending`；D-008／D-015 的財務子項由業主指示 `deferred`。OR-07、OR-22、OR-37 與多服務時長矛盾須由 owner 明確定案，不得由
 實作者用現況或多數決猜值。詳細分組與完成定義見執行書 §1。
 
-C0 只核准「未來要怎麼做」，不連 cloud、不建立資源。**2026-09-11 業主方向已核准**；
-工程選案見
-[c0-engineering-recommendations](../architecture/c0-engineering-recommendations.md)
-（`ENGINEERING_RECOMMENDATION_COMPLETE`）。`stageSlices.C0` 仍是 `revise`，因為：
-
-1. 具名 technical／security reviewer 簽章，含 Firestore database-scope residual
-   risk **接受**（`HUMAN_REVIEW_SIGNATURE_PENDING`）。
-2. IAM／JIT／residual risk：**工程已選** least privilege、WIF、IAM Conditions ≤8h；
-   collection IAM 不可行。剩餘風險仍須人類接受。
-3. 50%／80%／100% 動作：**工程已選**（通知／凍結後續 apply／暫停非必要 API；
-   不切斷 billing）。月額 NT$2,000 為 recorded input，收件人只記角色。
-4. DR：**工程已選** A 基線 + B 同區 secondary project；拒絕 C／D。
-5. MFA／TOTP／授權碼：**工程已選** `adjacentIntervals=1`、當面重綁、5 次／15 分
-   鎖定；break-glass 不配置。
-6. C1：**新隔離專案**。既有 `beauessence-clinic-staging` 不是 C1。
-7. 具名 reviewer 將 C0 從 `revise` 改為 `approved`（不得由助理改）。
+C0 只核准「未來要怎麼做」，不連 production、不建立 production 資源。**2026-09-11
+業主方向已核准**；工程選案見
+[c0-engineering-recommendations](../architecture/c0-engineering-recommendations.md)，
+並由 `C0-ENG-ACCEPT-2026-09-11` 收成 `stageSlices.C0=completed`
+（`OWNER_AUTHORITY_CONFIRMED`）。機器字彙是 `completed`，不是無效字
+`approved`。C1 `granted` 只表示可以開始 C1 packet。具名人名字段仍是
+`NAMED_REVIEWER_METADATA_PENDING`，不得捏造。Firestore database-scope
+residual risk 僅在 **synthetic staging** 被接受。
 
 ### 2. C0 通過後，逐片申請 Stage 2
 
@@ -250,7 +242,7 @@ D-012 只核准合成 preview 上的健保署署徽；production domain 前要�
 
 | 核准項目 | 必填答案 |
 | --- | --- |
-| C0 reviewers | Technical reviewer、security reviewer、日期與 `approved/revise` |
+| C0 reviewers | `OWNER_AUTHORITY_CONFIRMED`；`NAMED_REVIEWER_METADATA_PENDING`（人名欄，不擋工程 C0）；機器狀態 `completed` |
 | 帳務與告警 | Billing owner、staging 月預算、50%／80%／100% 行動、主要／備援接收者 |
 | IAM | 具名 principals、exact roles/custom roles、JIT／覆核週期與 residual-risk acceptance |
 | DR | 選定方案、secondary project/location、複本頻率、routing、failback 與 owner |

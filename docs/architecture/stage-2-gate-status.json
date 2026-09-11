@@ -6,7 +6,7 @@
     "Changing a value records status only; it never grants deployment authority or enables a route."
   ],
   "stageSlices": {
-    "C0": "revise",
+    "C0": "completed",
     "C1": "pending",
     "C2": "pending",
     "C3": "pending",
@@ -15,7 +15,7 @@
     "C6": "pending"
   },
   "deploymentAuthorities": {
-    "C1": "not_granted",
+    "C1": "granted",
     "C2": "not_granted",
     "C3": "not_granted",
     "C4": "not_granted",

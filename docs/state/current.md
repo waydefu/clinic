@@ -14,16 +14,16 @@ Phase 1 execution plan. Containing Git revision:
 
 | Path | sha256 |
 | --- | --- |
-| `docs/architecture/stage-2-gate-status.json` | `9829c73307ddad50e397328e0c1e9e6d7472b0ba8a1130c4d6f442e6cfab63d2` |
+| `docs/architecture/stage-2-gate-status.json` | `2fe5c206b31b992a24b10f755ace8984e676b3b455ad12d1757839d3345dc776` |
 | `security/audit-exceptions.json` | `16e6921c9cd6f5421ae26aa5ee773810a22d9ffc5e7b74e78c8b42e9f6c0bfde` |
 
-**sourceSnapshotSha256:** `f197043326c8920f4dcaf558c50845923c42da0d8944e2ab900a8e10773749e8`
+**sourceSnapshotSha256:** `f1a059e9ae4d93726f18372f08bd40fee10875c75c1157e673f2b56b28bbb54f`
 
 ## Stage 2 (from stage-2-gate-status.json)
 
 | Slice | Status |
 | --- | --- |
-| C0 | `revise` |
+| C0 | `completed` |
 | C1 | `pending` |
 | C2 | `pending` |
 | C3 | `pending` |
@@ -33,7 +33,7 @@ Phase 1 execution plan. Containing Git revision:
 
 | Slice | Deployment authority |
 | --- | --- |
-| C1 | `not_granted` |
+| C1 | `granted` |
 | C2 | `not_granted` |
 | C3 | `not_granted` |
 | C4 | `not_granted` |

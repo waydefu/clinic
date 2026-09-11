@@ -1,13 +1,15 @@
 # First-stage C0 authority (live split)
 
-**Type:** current authority pointer, not a deployment grant.
-**Status:** `OWNER_DIRECTION_APPROVED` /
-`ENGINEERING_RECOMMENDATION_COMPLETE` / `HUMAN_REVIEW_SIGNATURE_PENDING`
-(umbrella: `ENGINEERING_CLOSURE_PENDING` until signatures exist)
+**Type:** current authority pointer, not a production grant.
+**Status:** `OWNER_AUTHORITY_CONFIRMED` /
+`ENGINEERING_RECOMMENDATION_COMPLETE` / `NAMED_REVIEWER_METADATA_PENDING`
+(umbrella: engineering C0 `completed`)
 **Canon:** [decision register](../product/phase-1-decision-register.md)
-FS-001, C0-DIR-2026-09-11, CAL-SYNC-DIR-2026-09-11, C0-ENG-REC-2026-09-11.
+FS-001, C0-DIR-2026-09-11, CAL-SYNC-DIR-2026-09-11, C0-ENG-REC-2026-09-11,
+C0-ENG-ACCEPT-2026-09-11.
 **Machine gate:** [stage-2-gate-status.json](stage-2-gate-status.json)
-`stageSlices.C0=revise`; C1～C6 `deploymentAuthorities=not_granted`.
+`stageSlices.C0=completed`; `deploymentAuthorities.C1=granted`; C2～C6
+`not_granted`.
 
 This file exists so agents cannot collapse four layers into one lamp:
 
@@ -15,16 +17,26 @@ This file exists so agents cannot collapse four layers into one lamp:
 | --- | --- |
 | Owner/product direction (2026-09-11) | approved |
 | Engineering recommendations | `ENGINEERING_RECOMMENDATION_COMPLETE` |
-| Human signatures | `HUMAN_REVIEW_SIGNATURE_PENDING` |
-| Engineering C0 (`stageSlices.C0`) | `revise` |
-| C1～C6 deployment authority | `not_granted` |
+| Owner engineering acceptance | `OWNER_AUTHORITY_CONFIRMED` |
+| Named reviewer identity fields | `NAMED_REVIEWER_METADATA_PENDING` |
+| Engineering C0 (`stageSlices.C0`) | `completed` |
+| C1 deployment authority | `granted` (start C1; not C1 PASS) |
+| C2～C6 deployment authority | `not_granted` until the prior gate PASSes |
 | Production / real data / DNS | `NOT_AUTHORIZED` |
 
-Changing `stageSlices.C0` to `approved` is forbidden until every
-ENGINEERING_CLOSURE_PENDING item below is signed by the named technical
-and security reviewers. Recording owner direction here does **not**
-grant Terraform apply, Firebase deploy, Cloud Run, IAM, billing, DNS,
-secrets, live Hosting, production Calendar, or real patient data.
+Machine vocabulary for engineering C0 is `completed`, not the invalid
+word `approved` in `stage-2-gate-status.json`. Owner engineering
+acceptance of C0-ENG-REC (including synthetic-staging Firestore
+database-scope residual risk) is recorded as C0-ENG-ACCEPT-2026-09-11.
+`NAMED_REVIEWER_METADATA_PENDING` is a missing person-name field, not a
+block on engineering C0. It does **not** invent a technical or security
+reviewer identity.
+
+C1 `granted` authorises the isolated synthetic foundation packet. It is
+not C1 PASS, not apply evidence, not C2～C6, and not production. This
+session still does not run `terraform apply`; local ADC/CLI executes the
+packet. AGENTS.md Safety Floor item 8 still forbids live-channel and
+production backend enablement.
 
 ## Owner direction that is now recorded
 
@@ -42,34 +54,30 @@ secrets, live Hosting, production Calendar, or real patient data.
   operational *surface* before cutover; Firestore slot transactions remain
   the availability lock per [ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md)).
 
-## ENGINEERING_CLOSURE_PENDING
+## Engineering C0 values now accepted
 
-Moving `stageSlices.C0` from `revise` to `approved` still requires named
-technical and security reviewer signatures. Engineering values for items
-2–6 are now selected in
+Owner 2026-09-11 continuation accepts
 [c0-engineering-recommendations](c0-engineering-recommendations.md)
-(`ENGINEERING_RECOMMENDATION_COMPLETE`). Do not treat that file as a
-signature or as apply authority.
+(`C0-ENG-REC-2026-09-11`) for Phase-1 synthetic staging:
 
-1. **HUMAN_REVIEW_SIGNATURE_PENDING** — named technical reviewer and
-   security reviewer signatures on C0 engineering acceptance, including
-   Firestore database-scope residual-risk **acceptance**. Do not
-   fabricate signatures.
-2. IAM / JIT / residual risk — **engineering selected:** least privilege,
-   no primitive Owner/Editor, WIF, IAM Conditions ≤8h; collection-scoped
-   Firestore IAM is impossible. Residual risk remains for human
-   acceptance.
-3. Budget **actions** at 50% / 80% / 100% — **engineering selected:** notify;
-   freeze further C-slice apply at 80%; pause Scheduler/non-essential
-   APIs at 100%; never auto-detach billing.
-4. DR option — **engineering selected:** A as C5/C6 baseline plus B
-   secondary project in `asia-east1`; reject C and D. Failback is manual.
-5. MFA recovery / TOTP / authorization-code lock — **engineering selected:**
+1. **NAMED_REVIEWER_METADATA_PENDING** — person-name signature fields
+   remain empty; do not fabricate them. Owner authority is confirmed.
+2. IAM / JIT / residual risk — least privilege, no primitive
+   Owner/Editor, WIF, IAM Conditions ≤8h; collection-scoped Firestore IAM
+   is impossible. Synthetic-staging residual risk (runtime SA
+   `datastore.user` can RW the whole database) is **accepted** with the
+   recorded mitigations. Production residual-risk acceptance is separate.
+3. Budget **actions** at 50% / 80% / 100% — notify; freeze further
+   C-slice apply at 80%; pause Scheduler/non-essential APIs at 100%; never
+   auto-detach billing. Proposed month amount NT$2,000.
+4. DR option — A as C5/C6 baseline plus B secondary project in
+   `asia-east1`; reject C and D. Failback is manual.
+5. MFA recovery / TOTP / authorization-code lock —
    `adjacentIntervals=1`, in-person second-manager rebind, 5-failure /
    15-minute exponential lock, `manager` unlock, 24h TTL, break-glass
    not provisioned.
-6. C1 strategy — **engineering selected:** new isolated project.
-   Existing `beauessence-clinic-staging` stays CAL-PILOT + preview only.
+6. C1 strategy — new isolated project. Existing
+   `beauessence-clinic-staging` stays CAL-PILOT + preview only.
 
 ## Transferability (design, not apply)
 
@@ -102,4 +110,5 @@ Notification-driven inbound is therefore `IMPLEMENTED=NO` /
 
 This file and the matching register records are documentation. Reverting
 them restores the previous wording. It does not create or destroy cloud
-resources. `stage-2-gate-status.json` is unchanged by this pointer.
+resources. Moving `stageSlices.C0` back to `revise` would again require
+`stage_slice:C0` remaining blockers.

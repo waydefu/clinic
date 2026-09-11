@@ -5,7 +5,7 @@
     "capabilityGates 與檔案可達性無關：RBAC 檔案日後接上獲准路由時，尚待決的 action 仍必須保留自己的決策／Stage blocker。",
     "approvedPolicyDependencies 只記錄已核准、會約束後續實作的政策，不代表仍被該決策阻擋。",
     "remainingBlockers 只能列真正未完成的 Stage 2 slice／review、實際適用的 C1～C6 deployment authority，",
-    "C1 authority 與 C1 post-authority execution/evidence 必須分列，不能把獲准誤記成已完成。",
+    "C1 deploymentAuthorities=granted 後不得再列 deployment_authority:C1；C1 執行／證據仍用 stage_slice:C1。不得把 granted 寫成 completed。",
     "或 decision register 中尚未 approved 的決策；note 說明目前邊界。",
     "checker 從 main.ts 走訪可達模組；任何 executable permission literal 都會反查 capabilityGates，remainingBlockers 未清空時 route/action 不得變 reachable。"
   ],
@@ -22,16 +22,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block、capacity、多療程占用與逾時規則尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
         },
         {
           "kind": "stage_slice",
@@ -77,16 +67,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -122,16 +102,6 @@
       "permissions": ["complete_visit"],
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
-        },
         {
           "kind": "stage_slice",
           "id": "C1",
@@ -173,16 +143,6 @@
           "kind": "decision",
           "id": "D-002",
           "description": "正式 retention、deletion workflow 與 access/export 邊界尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
         },
         {
           "kind": "stage_slice",
@@ -233,16 +193,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -282,16 +232,6 @@
           "kind": "decision",
           "id": "D-007",
           "description": "個管指派、重派、patient merge review 與例外權限尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
         },
         {
           "kind": "stage_slice",
@@ -342,16 +282,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -391,16 +321,6 @@
           "kind": "decision",
           "id": "D-002",
           "description": "audit projection 的資料存取、保存與 export 對齊尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安審查仍為 revise。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "isolated staging foundation 的 deployment authority 尚未授予。"
         },
         {
           "kind": "stage_slice",
@@ -447,16 +367,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -498,16 +408,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -542,16 +442,6 @@
     "src/appointments/appointment.policy.ts": {
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
         {
           "kind": "stage_slice",
           "id": "C1",
@@ -590,16 +480,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -623,16 +503,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 capacity／resource／多療程占用交易語意仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 C1 isolated foundation 的個別 deployment approval；C1 明確不包含 Firestore。"
         },
         {
           "kind": "stage_slice",
@@ -662,16 +532,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -696,16 +556,6 @@
     "src/platform/authorization/rbac.ts": {
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
         {
           "kind": "stage_slice",
           "id": "C1",
@@ -739,16 +589,6 @@
       "remainingBlockers": [
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -780,16 +620,6 @@
       "remainingBlockers": [
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 shared runtime configuration 所需 staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -804,16 +634,6 @@
     "src/platform/runtime/rate-limiter.ts": {
       "approvedPolicyDependencies": ["D-006", "D-010"],
       "remainingBlockers": [
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件、limiter 參數與成本簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 shared limiter store 所需 staging foundation 的個別 deployment approval。"
-        },
         {
           "kind": "stage_slice",
           "id": "C1",
@@ -847,16 +667,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -878,16 +688,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -906,16 +706,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
         },
         {
           "kind": "stage_slice",
@@ -960,16 +750,6 @@
         },
         {
           "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
-        },
-        {
-          "kind": "stage_slice",
           "id": "C1",
           "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
         },
@@ -993,16 +773,6 @@
           "kind": "decision",
           "id": "D-016",
           "description": "production Calendar-to-system write path 仍 pending；CAL-PILOT 例外不是這條 webhook。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C0",
-          "description": "Stage 2 技術／資安補件與簽核尚未通過。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C1",
-          "description": "尚未取得 isolated staging foundation 的個別 deployment approval。"
         },
         {
           "kind": "stage_slice",

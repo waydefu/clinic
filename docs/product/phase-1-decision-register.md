@@ -14,13 +14,15 @@ a backend or proves that the controls or RPO/RTO have been achieved. D-014～
 D-016 track the separate surgery/clinical/finance/Calendar-inbound expansion
 and do not change the current Phase 1 gate.
 
-**2026-09-11 owner packet (FS-001, C0-DIR, C1～C6 direction):** product
-direction for Phase 1 is recorded below as
+**2026-09-11 owner packet (FS-001, C0-DIR, C1～C6 direction) plus
+continuation C0-ENG-ACCEPT:** product direction is
 `OWNER_DIRECTION_APPROVED`. Engineering C0 in
-`docs/architecture/stage-2-gate-status.json` remains `revise`
-(`ENGINEERING_CLOSURE_PENDING`). C1～C6 `deploymentAuthorities` stay
-`not_granted`. This does not unlock Stage 2, production, real data, DNS, or
-any cloud apply.
+`docs/architecture/stage-2-gate-status.json` is `completed`
+(`OWNER_AUTHORITY_CONFIRMED`). C1 `deploymentAuthorities=granted`
+(start C1 only). C2～C6 stay `not_granted`. Named reviewer person-name
+fields remain `NAMED_REVIEWER_METADATA_PENDING` and are not fabricated.
+This does not unlock production, real data, DNS, public booking, or C1
+PASS / apply evidence.
 
 **All 39 owner questions came back answered on 2026-08-16**, and the
 question-by-question reconciliation is
@@ -89,11 +91,53 @@ semantics.
 
 Closed-item evidence: [2026-09-11 C0 owner-direction reconciliation](../reviews/2026-09-11-c0-owner-direction-reconciliation.md).
 
+### C0-ENG-ACCEPT-2026-09-11 engineering C0 acceptance
+
+The clinic owner accepted C0-ENG-REC for Phase-1 synthetic staging and
+authorised engineering C0 closure. Machine status is `completed`, not
+the invalid gate word `approved`. C1 start authority is granted; C1 PASS
+still requires apply + smoke on a new isolated project.
+
+```text
+Recorded input ID: C0-ENG-ACCEPT-2026-09-11
+Answer: OWNER_AUTHORITY_CONFIRMED — accept C0-ENG-REC-2026-09-11 in
+full for synthetic staging, including least-privilege IAM, no standing
+Owner/Editor, CI WIF, human JIT ≤8h, dedicated runtime SA, adapter
+allowlist, deny-by-default clients, Firestore database-scope residual
+risk for this synthetic staging scope, NT$2,000 month baseline, 50%
+notify / 80% freeze further C-slice apply / 100% pause Scheduler and
+non-essential APIs without detaching billing, DR A+B in asia-east1 with
+manual failback, TOTP adjacentIntervals=1, second-manager MFA recovery,
+authorization-code lock 5 / 15min exponential / manager unlock / 24h
+TTL, no shared break-glass, and C1 as a new isolated project (existing
+beauessence-clinic-staging is not C1). Set stageSlices.C0=completed.
+Grant deploymentAuthorities.C1=granted to start C1. Keep C2–C6
+not_granted until the prior gate PASSes. Split NAMED_REVIEWER_METADATA_PENDING
+from owner authority; do not invent person names.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-11
+Recorded by: assistant, from the owner's 2026-09-11 continuation
+packet. The owner gave the approval; the assistant is not an approver
+and did not fabricate a named technical or security reviewer.
+Scope: engineering C0 closure and sequential C1 start for Phase-1
+synthetic staging only.
+Explicit exclusions: not production; not real patient data; not
+official DNS; not public /v1/bookings; not production Calendar; not C1
+PASS or apply evidence; not C2–C6 granted; not payroll/clinical/payment;
+does not authorise this chat session to run terraform apply (local ADC
+packet only).
+Follow-up: C1 isolated project apply via LOCAL_EXECUTION_PACKET;
+NAMED_REVIEWER_METADATA_PENDING remains a person-name field only.
+```
+
+Closed-item evidence: [2026-09-11 C0 engineering acceptance](../reviews/2026-09-11-c0-engineering-acceptance.md).
+
 ### C0-ENG-REC-2026-09-11 engineering recommendations
 
 Engineering selected Phase-1 values for IAM, budget actions, DR, MFA
-parameters and C1 strategy. This is **not** owner approval, **not**
-`stageSlices.C0=approved`, and **not** C1～C6 apply.
+parameters and C1 strategy. Owner later accepted them as
+C0-ENG-ACCEPT-2026-09-11. This original record remains the recommendation
+text; it did **not** itself set `stageSlices.C0=completed`.
 
 ```text
 Recorded input ID: C0-ENG-REC-2026-09-11
@@ -125,8 +169,8 @@ Closed-item evidence: [2026-09-11 C0 engineering recommendations](../reviews/202
 ### C0-DIR-2026-09-11 architecture direction
 
 The clinic owner recorded C0 as **direction approved**. Engineering C0
-(`stageSlices.C0`) stays `revise` until the remaining engineering
-acceptance items are signed.
+status after C0-ENG-ACCEPT-2026-09-11 is `completed`; the recorded
+direction text below is unchanged and still is not C1 PASS.
 
 ```text
 Recorded input ID: C0-DIR-2026-09-11

@@ -1,11 +1,9 @@
 # Infrastructure as Code 邊界
 
 D-010 已核准診所擁有權、primary `asia-east1` 與 database／whole-project／regional
-failure 的 RPO 1 小時／RTO 4 小時 target；這不是 C0 review、任何 C1～C6
-deployment authority、Terraform plan 或復原證據。技術／資安／帳務負責人仍須
-完成 project 與 billing 值、secondary design、命名／標籤、成本、最小 IAM、驗證
-與逐資源 rollback 的審核，才能提出 C1 deployment request。C1 authority 不延伸到
-C2～C6；每個後續 slice 都要自己的 request、deployment authority 與 apply approval。
+failure 的 RPO 1 小時／RTO 4 小時 target。C0 工程已 `completed`；C1 僅
+`granted`（開始隔離地基 packet），不是 C1 PASS，也不延伸到 C2～C6。
+本目錄的 apply 仍要 exact SHA 與本機 ADC；agent sandbox 不執行 apply。
 
 **完整設計見 [基礎設施與維運計畫](../../docs/architecture/infrastructure-and-operations-plan-2026-07-24.md)**
 與
@@ -16,6 +14,11 @@ Manager、成本輸入、Firestore backup/PITR、DR options、監控、驗證與
 30 天 CAL-PILOT synthetic-only 子範圍，因此 `cal-pilot/` 現在可保存**供最後部署
 確認審閱的 Terraform 候選**；仍不得 `apply`，也不得把它解讀為一般 Stage 2、
 production 或真實資料的 authority。候選不含 secret version，避免金鑰進入 state。
+
+`c1-foundation/` 是第一階段 C1 隔離地基來源：C1 `deploymentAuthorities=granted`
+但預設 `exact_apply_authority_sha = not_granted` 時不建立任何資源，且拒絕
+`beauessence-clinic-staging`。Agent sandbox 不執行 apply；本機 packet 才 apply。
+C1 `granted` 不是 C1 PASS，也不延伸到 C2～C6。
 
 未來應分開管理：
 

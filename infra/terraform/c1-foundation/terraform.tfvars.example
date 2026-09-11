@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars locally. Do not commit terraform.tfvars.
+# Do not paste billing IDs, tokens or keys into chat or the repository.
+
+project_id                  = "beauessence-clinic-stg-replace-me"
+region                      = "asia-east1"
+github_repository           = "waydefu/clinic"
+budget_amount_twd           = 2000
+exact_apply_authority_sha   = "not_granted"
+billing_account_id          = ""

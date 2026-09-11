@@ -41,6 +41,8 @@ output/playwright/
 *.tfplan
 *.tfstate
 *.tfstate.*
+*.tfvars
+!*.tfvars.example
 # Machine-readable verification evidence is generated per run/deployment.
 output/evidence/
 # Playwright run artifacts

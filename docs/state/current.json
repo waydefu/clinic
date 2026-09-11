@@ -15,11 +15,11 @@
     "roadmap": "docs/roadmap.md"
   },
   "schemaVersion": 1,
-  "sourceSnapshotSha256": "f197043326c8920f4dcaf558c50845923c42da0d8944e2ab900a8e10773749e8",
+  "sourceSnapshotSha256": "f1a059e9ae4d93726f18372f08bd40fee10875c75c1157e673f2b56b28bbb54f",
   "sources": [
     {
       "path": "docs/architecture/stage-2-gate-status.json",
-      "sha256": "9829c73307ddad50e397328e0c1e9e6d7472b0ba8a1130c4d6f442e6cfab63d2"
+      "sha256": "2fe5c206b31b992a24b10f755ace8984e676b3b455ad12d1757839d3345dc776"
     },
     {
       "path": "security/audit-exceptions.json",
@@ -28,7 +28,7 @@
   ],
   "stage2": {
     "deploymentAuthorities": {
-      "C1": "not_granted",
+      "C1": "granted",
       "C2": "not_granted",
       "C3": "not_granted",
       "C4": "not_granted",
@@ -36,7 +36,7 @@
       "C6": "not_granted"
     },
     "stageSlices": {
-      "C0": "revise",
+      "C0": "completed",
       "C1": "pending",
       "C2": "pending",
       "C3": "pending",

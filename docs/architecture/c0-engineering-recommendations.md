@@ -1,15 +1,20 @@
 # C0 工程建議（2026-09-11）
 
-**Type:** engineering recommendation. Not owner approval. Not apply.
+**Type:** engineering recommendation, owner-accepted for synthetic staging.
 **Recorded input:** `C0-ENG-REC-2026-09-11`
+**Acceptance:** `C0-ENG-ACCEPT-2026-09-11`
 **Machine file:** [c0-engineering-recommendations.json](c0-engineering-recommendations.json)
-**Status:** `ENGINEERING_RECOMMENDATION_COMPLETE` /
-`HUMAN_REVIEW_SIGNATURE_PENDING`
+**Status:** `OWNER_AUTHORITY_CONFIRMED` /
+`ENGINEERING_RECOMMENDATION_COMPLETE` /
+`NAMED_REVIEWER_METADATA_PENDING`
 
-本文件關閉「缺工程選案」缺口。它**不**把
-`stageSlices.C0` 改成 `approved`，也**不**授予 C1～C6
-`deploymentAuthorities`。具名 technical／security 簽章與 Firestore
-database-scope residual-risk **接受**仍須人類簽署。
+本文件關閉「缺工程選案」缺口。Owner 2026-09-11 continuation 已接受這些
+值作為 Phase-1 **synthetic staging** 工程 C0。機器狀態是
+`stageSlices.C0=completed`（不是無效字 `approved`）。C1
+`deploymentAuthorities=granted` 只表示可以開始 C1 packet，**不是** C1
+PASS、**不是** apply 證據。C2～C6 仍 `not_granted`。具名
+technical／security 人名欄位仍空（`NAMED_REVIEWER_METADATA_PENDING`），
+不得捏造。
 
 官方依據（查詢日 2026-09-11）：
 
@@ -31,7 +36,8 @@ database-scope residual-risk **接受**仍須人類簽署。
 
 建議：人類與自建 SA 不得持有 primitive Owner／Editor；CI 走 WIF、無長期金鑰；
 人類不得常駐 `roles/datastore.user`；還原操作者只在演練窗 JIT。
-API／worker 若被接管，database-scope 仍是剩餘風險，須由資安審查人**具名接受**。
+API／worker 若被接管，database-scope 仍是剩餘風險。Synthetic staging 已由
+owner 接受該剩餘風險；production 另需獨立接受。
 
 回滾：撤銷 binding／停用 SA；不以刪專案當預設回滾。
 
@@ -45,7 +51,7 @@ API／worker 若被接管，database-scope 仍是剩餘風險，須由資安審�
 
 拒絕：只有信件沒有動作；100% 自動 detach billing；把 Preview spend cap 當專案總閘。
 
-建議月額 **NT$2,000**（業主 recorded input，不是新核准）。收件人只記**角色**，
+建議月額 **NT$2,000**（業主 recorded input）。收件人只記**角色**，
 email 不進公開 repository。
 
 回滾：回復上一版 budget／alert；保留變更證據。

@@ -1,42 +1,45 @@
 # First-stage C1～C6 execution packet (source only)
 
-**Type:** current execution packet. Not apply authority.
+**Type:** current execution packet. Not production authority.
 **Depends on:** [first-stage C0 authority](first-stage-c0-authority.md)
-(`OWNER_DIRECTION_APPROVED` / `ENGINEERING_RECOMMENDATION_COMPLETE` /
-`HUMAN_REVIEW_SIGNATURE_PENDING`).
+(`OWNER_AUTHORITY_CONFIRMED` / `ENGINEERING_RECOMMENDATION_COMPLETE` /
+`NAMED_REVIEWER_METADATA_PENDING`).
 **Machine gate:** [stage-2-gate-status.json](stage-2-gate-status.json)
-C1～C6 `pending` / `not_granted`.
+C0 `completed`; C1 `granted` / `pending`; C2～C6 `pending` / `not_granted`.
 
-Owner 2026-09-11 packets name C1～C6 as the necessary *route*. That is
-not exact mutation authority. This file records what source work is in
-the tree, what remains blocked, and the stop condition for each slice.
+Owner 2026-09-11 continuation names C1～C6 as the sequential *route* and
+grants C1 start authority after engineering C0 `completed`. That is not
+C1 PASS, not apply evidence, and not C2～C6. Do not write `AUTHORIZED` as
+`PASS`, `IMPLEMENTED` as `DEPLOYED`, or `CI PASS` as
+`PRODUCTION AUTHORIZED`.
 
-Do not mark any slice `completed` here. Do not route
-`AppointmentController`. Do not apply Terraform.
+Do not mark C1～C6 `completed` without that slice's apply + smoke
+evidence. Do not route `AppointmentController`. This session does not
+run `terraform apply`.
 
 ## Sequence (authority DAG, not technical DAG)
 
-`C0 engineering approved → C1 apply authority → C2 → C3 → C4 → C5 → C6`
+`C0 completed → C1 granted → C1 PASS → C2 granted → … → C6 PASS`
 
 Source implementation may proceed where Canon already allows
 synthetic/local work. Claiming a gate PASS still requires that slice's
-`deploymentAuthorities=granted` plus evidence.
+`deploymentAuthorities=granted` plus apply/smoke evidence.
 
 ## C1 isolated test foundation
 
 | Field | Value |
 | --- | --- |
-| Prerequisites | Engineering C0 signatures (`HUMAN_REVIEW_SIGNATURE_PENDING`); C1 request packet; exact apply SHA |
+| Prerequisites | Engineering C0 `completed`; C1 `granted`; exact apply SHA in local packet |
 | Scope | **New isolated** synthetic staging project; transferable settings; monitoring; budget alerts with 50/80/100 **actions**; empty secret containers; WIF; no real data |
 | Strategy | `new_isolated_project` — see [c0-engineering-recommendations](c0-engineering-recommendations.md). Existing `beauessence-clinic-staging` is CAL-PILOT + preview only, **not** C1 |
-| Source in tree | Plan-only `infra/terraform/c1-foundation/` (apply blocked without exact SHA). CAL-PILOT Terraform under `infra/terraform/cal-pilot/` is **not** C1 |
+| Source in tree | `infra/terraform/c1-foundation/` (default SHA `not_granted` creates zero resources). CAL-PILOT Terraform under `infra/terraform/cal-pilot/` is **not** C1 |
 | Tests | C0-ENG-REC invariants; C1 must not target existing staging or suggested hostnames |
 | Security | No real patient data; no production project link; C1 API allowlist excludes Firestore / Identity Platform / Cloud Run |
 | Exclusions | Firestore database; Identity Platform; API runtime; production; Calendar apply; DR secondary |
 | Rollback | Quarantine new APIs/IAM; do not default to project deletion |
-| Remaining blockers | `HUMAN_REVIEW_SIGNATURE_PENDING`; **exact C1 apply authority** |
-| Authority | `not_granted` |
-| Status | `READY_FOR_EXPLICIT_AUTHORITY` |
+| Remaining blockers | **exact C1 apply** on a new project (local ADC); smoke evidence |
+| Authority | `granted` |
+| Status | `AUTHORIZED` / source `IMPLEMENTED` / `DEPLOYED=NO` / `PASS=NO` |
 
 ## C2 staff login
 
@@ -47,9 +50,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Source in tree | CAL-PILOT Google+TOTP session (`calendar-pilot-session.ts`) is synthetic-only, not C2 complete |
 | Tests | `apps/api/src/auth/calendar-pilot-session.test.ts` (pilot, not C2) |
 | Exclusions | Patient login; real staff PII |
-| Remaining blockers | C1; exact C2 apply / Identity Platform authority |
+| Remaining blockers | C1 PASS; exact C2 apply / Identity Platform authority |
 | Authority | `not_granted` |
-| Status | `READY_FOR_EXPLICIT_AUTHORITY` for IdP; source `IMPLEMENTED` only for CAL-PILOT |
+| Status | source `IMPLEMENTED` only for CAL-PILOT; C2 apply `NOT_AUTHORIZED` |
 
 ## C3 session security
 
@@ -59,9 +62,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Scope | Idle 30m; absolute 8h; server-side session; `__session` + CSRF; no shared emergency account |
 | Source in tree | `IDLE_SESSION_MS` / `ABSOLUTE_SESSION_MS` on CAL-PILOT |
 | Hosting constraint | Firebase Hosting forwards only `__session` |
-| Remaining blockers | C2; exact C3 authority for the formal staff surface |
+| Remaining blockers | C2 PASS; exact C3 authority for the formal staff surface |
 | Authority | `not_granted` |
-| Status | `READY_FOR_EXPLICIT_AUTHORITY` |
+| Status | source windows `IMPLEMENTED` on CAL-PILOT; C3 apply `NOT_AUTHORIZED` |
 
 ## C4 RBAC
 
@@ -72,9 +75,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Source in tree | `packages/domain/src/roles.ts`; unrouted RBAC appointment policy |
 | Tests | Unrouted AppointmentController / BookPilot harnesses |
 | Exclusions | Payroll / clinical / money permissions |
-| Remaining blockers | C3; exact C4 authority; front_desk vs manager conflict-queue question still open |
+| Remaining blockers | C3 PASS; exact C4 authority; front_desk vs manager conflict-queue question still open |
 | Authority | `not_granted` |
-| Status | `READY_FOR_EXPLICIT_AUTHORITY` |
+| Status | `NOT_AUTHORIZED` |
 
 ## C5 audit
 
@@ -83,9 +86,9 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Prerequisites | C4 evidence; C5 authority; D-002 still pending for real-data retention |
 | Scope | Append-only audit for booking, hours, login/disable, authz denies, Calendar success/fail/conflict/review |
 | Source in tree | Domain audit v2 + Emulator transaction tests |
-| Remaining blockers | C4; exact C5 authority; D-002 for production linkability |
+| Remaining blockers | C4 PASS; exact C5 authority; D-002 for production linkability |
 | Authority | `not_granted` |
-| Status | `READY_FOR_EXPLICIT_AUTHORITY` |
+| Status | `NOT_AUTHORIZED` |
 
 ## C6 synthetic integration
 
@@ -97,7 +100,7 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 | Exclusions | Real data; production; live Hosting; production Calendar; mounting `/v1/bookings` |
 | Remaining blockers | C1～C5 apply; exact C6 authority; DATA-R03 codecs for collections C6 will actually read |
 | Authority | `not_granted` |
-| Status | `READY_FOR_EXPLICIT_AUTHORITY` |
+| Status | `NOT_AUTHORIZED` |
 
 ## DATA-R03 / SCM-R04 (this packet)
 
@@ -108,7 +111,6 @@ synthetic/local work. Claiming a gate PASS still requires that slice's
 
 ## Hard stop
 
-Any new Terraform apply, Firebase/Cloud Run/IAM/DNS/secret mutation, live
-channel, production Calendar, or real Calendar/patient data requires a
-**fresh exact-change authority**. Until then every C1～C6 apply stays
-`READY_FOR_EXPLICIT_AUTHORITY`.
+Any Firebase live-channel, production Calendar, or real Calendar/patient
+data still needs a **fresh exact-change authority**. C1 apply is local
+ADC against a **new** project named in the packet; it is not production.

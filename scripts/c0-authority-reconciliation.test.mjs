@@ -28,6 +28,7 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(register).toContain('Recorded input ID: C0-DIR-2026-09-11');
     expect(register).toContain('Recorded input ID: CAL-SYNC-DIR-2026-09-11');
     expect(register).toContain('Recorded input ID: C0-ENG-REC-2026-09-11');
+    expect(register).toContain('Recorded input ID: C0-ENG-ACCEPT-2026-09-11');
     expect(decisions.get('D-006')).toBe('approved');
     expect(decisions.get('D-010')).toBe('approved');
     expect(decisions.get('D-009')).toBe('pending');
@@ -35,26 +36,30 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(decisions.get('D-011')).toBe('pending');
   });
 
-  it('keeps engineering C0 revise and every C1–C6 authority not_granted', () => {
+  it('closes engineering C0 and grants only C1 start authority', () => {
     expect(gateStatus.issues).toEqual([]);
-    expect(gateStatus.stageSlices.get('C0')).toBe('revise');
+    expect(gateStatus.stageSlices.get('C0')).toBe('completed');
+    expect(gateStatus.deploymentAuthorities.get('C1')).toBe('granted');
     for (const id of ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']) {
       expect(gateStatus.stageSlices.get(id)).toBe('pending');
+    }
+    for (const id of ['C2', 'C3', 'C4', 'C5', 'C6']) {
       expect(gateStatus.deploymentAuthorities.get(id)).toBe('not_granted');
     }
   });
 
-  it('does not let owner direction be read as engineering closure or cloud grant', () => {
-    expect(authority).toContain('OWNER_DIRECTION_APPROVED');
+  it('splits owner authority from named-reviewer metadata and forbids invalid C0=approved', () => {
+    expect(authority).toContain('OWNER_AUTHORITY_CONFIRMED');
     expect(authority).toContain('ENGINEERING_RECOMMENDATION_COMPLETE');
-    expect(authority).toContain('HUMAN_REVIEW_SIGNATURE_PENDING');
-    expect(authority).toContain('ENGINEERING_CLOSURE_PENDING');
+    expect(authority).toContain('NAMED_REVIEWER_METADATA_PENDING');
+    expect(authority).toContain('stageSlices.C0=completed');
     expect(authority).toMatch(/50%\s*\/\s*80%\s*\/\s*100%/);
     expect(authority).toContain('DR option');
     expect(authority).toContain('MFA recovery');
     expect(authority).toContain('events.watch');
     expect(authority).toContain('UNROUTED');
     expect(authority).not.toMatch(/stageSlices\.C0=approved/);
+    expect(register).toContain('did not fabricate a named technical');
   });
 
   it('keeps formal booking unrouted in AppModule', () => {
@@ -82,9 +87,13 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
       'reviews/2026-09-11-c0-engineering-recommendations.md'
     );
     expect(catalogue).toContain(
+      'reviews/2026-09-11-c0-engineering-acceptance.md'
+    );
+    expect(catalogue).toContain(
       'architecture/c0-engineering-recommendations.md'
     );
-    expect(execution).toContain('READY_FOR_EXPLICIT_AUTHORITY');
+    expect(execution).toContain('AUTHORIZED');
+    expect(execution).toContain('DEPLOYED=NO');
     expect(execution).not.toMatch(/Status \| `completed`/);
     expect(runtime).not.toMatch(/watch-channel/);
     expect(runtime).not.toMatch(/GoogleCalendarWatchClient/);
@@ -121,10 +130,18 @@ describe('C0-ENG-REC-2026-09-11 engineering recommendations', () => {
   const identityScript = read('scripts/configure-cal-pilot-identity.mjs');
   const calPilotTf = read('infra/terraform/cal-pilot/variables.tf');
 
-  it('does not close C0 or grant C1–C6 apply', () => {
-    expect(recs.status.stageSliceC0).toBe('revise');
-    expect(recs.status.c1ToC6Authorities).toBe('not_granted');
-    expect(recs.status.humanReview).toBe('HUMAN_REVIEW_SIGNATURE_PENDING');
+  it('records owner acceptance without claiming C1 PASS or C2–C6 grants', () => {
+    expect(recs.status.stageSliceC0).toBe('completed');
+    expect(recs.status.c1Authority).toBe('granted');
+    expect(recs.status.c2ToC6Authorities).toBe('not_granted');
+    expect(recs.status.ownerAuthority).toBe('OWNER_AUTHORITY_CONFIRMED');
+    expect(recs.status.humanReview).toBe('NAMED_REVIEWER_METADATA_PENDING');
+    expect(recs.iam.firestoreDatabaseScope.syntheticStagingAcceptance).toBe(
+      'OWNER_AUTHORITY_CONFIRMED'
+    );
+    expect(recs.iam.firestoreDatabaseScope.productionAcceptance).toBe(
+      'not_granted'
+    );
     expect(recs.iam.firestoreDatabaseScope.humanAcceptanceRequired).toBe(true);
   });
 
