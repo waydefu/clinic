@@ -36,16 +36,12 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(decisions.get('D-011')).toBe('pending');
   });
 
-  it('closes engineering C0, records C1 PASS, and grants only C2 next', () => {
+  it('closes engineering C0 and records C1–C6 synthetic PASS', () => {
     expect(gateStatus.issues).toEqual([]);
     expect(gateStatus.stageSlices.get('C0')).toBe('completed');
-    expect(gateStatus.stageSlices.get('C1')).toBe('completed');
-    expect(gateStatus.deploymentAuthorities.get('C1')).toBe('granted');
-    expect(gateStatus.deploymentAuthorities.get('C2')).toBe('granted');
-    expect(gateStatus.stageSlices.get('C2')).toBe('pending');
-    for (const id of ['C3', 'C4', 'C5', 'C6']) {
-      expect(gateStatus.stageSlices.get(id)).toBe('pending');
-      expect(gateStatus.deploymentAuthorities.get(id)).toBe('not_granted');
+    for (const id of ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']) {
+      expect(gateStatus.stageSlices.get(id)).toBe('completed');
+      expect(gateStatus.deploymentAuthorities.get(id)).toBe('granted');
     }
   });
 

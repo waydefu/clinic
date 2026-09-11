@@ -8,9 +8,9 @@
 FS-001, C0-DIR-2026-09-11, CAL-SYNC-DIR-2026-09-11, C0-ENG-REC-2026-09-11,
 C0-ENG-ACCEPT-2026-09-11.
 **Machine gate:** [stage-2-gate-status.json](stage-2-gate-status.json)
-`stageSlices.C0=completed`; `stageSlices.C1=completed`;
-`deploymentAuthorities.C1=granted`; `deploymentAuthorities.C2=granted`;
-C3～C6 `not_granted`.
+`stageSlices.C0=completed` through `C6=completed`;
+`deploymentAuthorities.C1`～`C6=granted`.
+Production / live Hosting / official DNS remain `NOT_AUTHORIZED`.
 
 This file exists so agents cannot collapse four layers into one lamp:
 
@@ -21,9 +21,7 @@ This file exists so agents cannot collapse four layers into one lamp:
 | Owner engineering acceptance | `OWNER_AUTHORITY_CONFIRMED` |
 | Named reviewer identity fields | `NAMED_REVIEWER_METADATA_PENDING` |
 | Engineering C0 (`stageSlices.C0`) | `completed` |
-| C1 deployment authority | `granted` (C1 foundation smoke PASS) |
-| C2 deployment authority | `granted` (not C2 PASS) |
-| C3～C6 deployment authority | `not_granted` until the prior gate PASSes |
+| C1～C6 deployment authority | `granted` (synthetic isolated project; not production) |
 | Production / real data / DNS | `NOT_AUTHORIZED` |
 
 Machine vocabulary for engineering C0 is `completed`, not the invalid
@@ -34,11 +32,10 @@ database-scope residual risk) is recorded as C0-ENG-ACCEPT-2026-09-11.
 block on engineering C0. It does **not** invent a technical or security
 reviewer identity.
 
-C1 `granted` authorised the isolated synthetic foundation packet. C1
-foundation smoke has PASSed; that is not production and not C2 PASS.
-C2 `granted` authorises Identity Toolkit on the same isolated project.
-This file still does not authorise live-channel Hosting or a production
-backend. AGENTS.md Safety Floor item 8 still forbids live-channel and
+C1～C6 synthetic smoke has PASSed on isolated project
+`beauessence-clinic-stg-c1a01`. That is not production, not live Hosting,
+not official DNS, and not public `/v1/bookings`. Formal booking stays
+UNROUTED. AGENTS.md Safety Floor item 8 still forbids live-channel and
 production backend enablement.
 
 ## Owner direction that is now recorded

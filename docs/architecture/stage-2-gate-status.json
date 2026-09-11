@@ -8,18 +8,18 @@
   "stageSlices": {
     "C0": "completed",
     "C1": "completed",
-    "C2": "pending",
-    "C3": "pending",
-    "C4": "pending",
-    "C5": "pending",
-    "C6": "pending"
+    "C2": "completed",
+    "C3": "completed",
+    "C4": "completed",
+    "C5": "completed",
+    "C6": "completed"
   },
   "deploymentAuthorities": {
     "C1": "granted",
     "C2": "granted",
-    "C3": "not_granted",
-    "C4": "not_granted",
-    "C5": "not_granted",
-    "C6": "not_granted"
+    "C3": "granted",
+    "C4": "granted",
+    "C5": "granted",
+    "C6": "granted"
   }
 }

@@ -5,7 +5,7 @@
     "capabilityGates 與檔案可達性無關：RBAC 檔案日後接上獲准路由時，尚待決的 action 仍必須保留自己的決策／Stage blocker。",
     "approvedPolicyDependencies 只記錄已核准、會約束後續實作的政策，不代表仍被該決策阻擋。",
     "remainingBlockers 只能列真正未完成的 Stage 2 slice／review、實際適用的 C1～C6 deployment authority，",
-    "C1 deploymentAuthorities=granted 後不得再列 deployment_authority:C1；C1 執行／證據仍用 stage_slice:C1。不得把 granted 寫成 completed。",
+    "C1～C6 stageSlices=completed 後不得再列 stage_slice:C1～C6 或 deployment_authority:C1～C6；剩餘 blockers 是尚未 approved 的 D-series（公開預約／production Calendar／真實資料）。",
     "或 decision register 中尚未 approved 的決策；note 說明目前邊界。",
     "checker 從 main.ts 走訪可達模組；任何 executable permission literal 都會反查 capabilityGates，remainingBlockers 未清空時 route/action 不得變 reachable。"
   ],
@@ -22,36 +22,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block、capacity、多療程占用與逾時規則尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified staff identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "server-side session 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "server-side RBAC 與 deny-default evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "同 transaction permanent audit evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未完成。"
         }
       ],
       "note": "這些 action 即使 RBAC evaluator 已被其他獲准路由載入，也不能在 D-004 與 C0～C6 完成前成為可路由能力。"
@@ -64,36 +34,6 @@
           "kind": "decision",
           "id": "D-005",
           "description": "取消截止、病患／櫃台流程、no-show 與費用規則尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified actor identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "server-side session 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "cancellation action 的 server-side authorization evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "取消寫入與 audit 的共同提交證據尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "取消 route 與 denied-case E2E 尚未完成。"
         }
       ],
       "note": "D-005 是 action-level gate；不能因 rbac.ts 為其他 action 變成 reachable 就消失。"
@@ -103,37 +43,12 @@
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
         {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified staff identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "active session 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "D-006 completion authority 尚未成為 server-side evidence。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "完成就診與 permanent audit 的共同提交證據尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only completion route 與 E2E 尚未完成。"
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
         }
       ],
-      "note": "D-006 已核准完成權限政策，但核准不代表 C2～C6 控制已有實作證據。"
+      "note": "D-006 已核准完成權限政策；C1～C6 合成 foundation 完成仍不掛 staff write 路由。"
     },
     "appointment_deletion": {
       "permissions": ["delete_appointment"],
@@ -143,36 +58,6 @@
           "kind": "decision",
           "id": "D-002",
           "description": "正式 retention、deletion workflow 與 access/export 邊界尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified staff identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "active session 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "delegated deletion authorization code、KDF 與 rate-limit evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "永久 audit deletion deny 與同 transaction audit 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "deletion route 與 denied-case E2E 尚未完成。"
         }
       ],
       "note": "D-006 核准誰可刪除，D-002 仍控制資料保存與刪除流程；兩者不可互相取代。"
@@ -190,36 +75,6 @@
           "kind": "decision",
           "id": "D-014",
           "description": "clinical／surgical follow-up 欄位、責任、保存、修正與匯出邊界尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified clinical／case role identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "active session、scope 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "clinical／case action 的 server-side resource-scope evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "clinical／follow-up append、correction 與 audit evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "沒有獲准的 clinical／follow-up route 或 E2E。"
         }
       ],
       "note": "目前 candidate permission 不得被解讀為已核准的 clinical record 或 case-management write capability。"
@@ -232,36 +87,6 @@
           "kind": "decision",
           "id": "D-007",
           "description": "個管指派、重派、patient merge review 與例外權限尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified case role identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "active session 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "assignment resource scope 與 exception authorization evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "assignment／reassignment 與 audit 的共同提交證據尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "assignment route 與 denied-case E2E 尚未完成。"
         }
       ],
       "note": "D-007 未核准前，candidate case_manager role 不能使指派 action 成為可路由能力。"
@@ -279,36 +104,6 @@
           "kind": "decision",
           "id": "D-015",
           "description": "patient money、accounting reconciliation 與 staff-settlement source 尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified finance／manager identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "active session 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "payroll／settlement action 的 server-side authorization evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "locked-period adjustment 與 permanent audit evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "沒有獲准的 payroll／money route 或 E2E。"
         }
       ],
       "note": "Candidate matrix 的 payroll action 不代表 D-008 或 D-015 已核准，也不允許保存金額。"
@@ -321,39 +116,9 @@
           "kind": "decision",
           "id": "D-002",
           "description": "audit projection 的資料存取、保存與 export 對齊尚未核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified auditor／administrator identity 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "active session 與 revocation 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "audit read scope 與 denied-case evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "append-only store、read projection 與 deletion deny 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "audit read route 與 access E2E 尚未完成。"
         }
       ],
-      "note": "D-006 核准 audit retention 目標，不代表 D-002 data-access/export 決策或 C5 projection 已完成。"
+      "note": "D-006 核准 audit retention 目標，不代表 D-002 data-access/export 已完成或 production audit 已上線。"
     }
   },
   "unrouted": {
@@ -364,36 +129,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "尚未建置合成 staff 的正式 IdP、MFA 與 recovery 證據。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "尚未建置 server-side session、CSRF 與停權撤銷。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "尚未完成 server-side authorization 與角色／action fixtures。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "寫入尚未證明可在同一 transaction append 永久 audit。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
         }
       ],
       "note": "D-006 已核准身分與授權政策；這個應用服務仍只是未接路由的 Stage 2 候選實作，沒有 IdP、session、授權或部署證據。"
@@ -405,36 +140,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "尚未建置合成 staff 的正式 IdP、MFA 與 recovery 證據。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "尚未建置 server-side session、CSRF 與停權撤銷。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "尚未完成 server-side authorization 與角色／action fixtures。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "寫入尚未證明可在同一 transaction append 永久 audit。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
         }
       ],
       "note": "T1-API-01 以 test-only Nest harness 證明 RBAC 對照；production AppModule 不得掛入此 controller，/v1/bookings 必須維持 404。"
@@ -443,32 +148,12 @@
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
         {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "server-verified staff identity 尚未實作。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "server session 與停權撤銷證據尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "D-006 核准矩陣尚未實作成 server-side policy。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "policy 尚未經 staff-only synthetic route 與 E2E 驗證。"
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
         }
       ],
-      "note": "D-006 已核准基線角色、動作與 deny-default；這個 port 保留實作接縫，但核准不等於 C2～C4 已完成。"
+      "note": "D-006 已核准基線角色、動作與 deny-default；這個 port 保留實作接縫，正式 write 路由仍待 D-004。"
     },
     "src/appointments/appointment.repository-port.ts": {
       "approvedPolicyDependencies": ["D-010"],
@@ -477,21 +162,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 capacity／resource／多療程占用交易語意仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "repository transaction 與永久 audit 的共同提交證據尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "repository 尚未經 routed synthetic API E2E 驗證。"
         }
       ],
       "note": "D-010 已核准 Cloud 所有權、區域與復原目標；儲存 port 仍沒有獲准的 staging foundation 或可部署交易證據。"
@@ -503,21 +173,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 capacity／resource／多療程占用交易語意仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成；這不是 Firestore 建立證據。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "Firestore 後續獨立 slice authority、同 transaction audit、容量告警與永久 deletion deny 證據尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "Firestore adapter 尚未經 routed synthetic API E2E 驗證。"
         }
       ],
       "note": "D-010 核准的是目標架構與 SLO，不是已建立的資料庫；此 adapter 目前只可用 Emulator 驗證。"
@@ -529,26 +184,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "多療程 request 與正式占用語意未定，idempotency fingerprint 尚不能凍結。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "server-verified actor 與 request scope 尚未由 session 提供。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "actor／action 綁定與 deny-default 尚未經 authorization evidence 驗證。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "idempotency 行為尚未經 routed synthetic API E2E 驗證。"
         }
       ],
       "note": "D-006 已核准 staff identity controls；冪等記錄仍沒有可信 actor/session，且正式 request shape 尚未完成。"
@@ -557,29 +192,9 @@
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
         {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "IdP claims 與 approved staff role mapping 尚未實作。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "active-account 與 session revocation signal 尚未實作。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "D-006 基線矩陣、deny-default 與授權碼流程尚未完成 server-side evidence。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "authorization 尚未經 staff-only synthetic route 與 denied-case E2E 驗證。"
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
         }
       ],
       "note": "D-006 已核准 administrator、front desk、physician 基線；目前 candidate matrix 不是實作證據。每個 action 的 D-004／D-005／D-007／D-008／D-014／D-015 等待決政策由 capabilityGates 獨立守住，因此日後此檔案 reachable 時也不會一起消失。"
@@ -588,45 +203,20 @@
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
         {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "approved staff roles 尚未由 server-verified IdP claims 解析。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "disabled-account signal 與 session revocation 尚未接入。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "appointment policy 尚未完成 server-side RBAC 與 denied-case evidence。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "adapter 尚未經 staff-only synthetic route E2E 驗證。"
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
         }
       ],
-      "note": "D-006 已核准 policy；此 adapter 仍把 account 當成 active，不能代替 C2～C4 的真實 claims、撤銷與授權實作。"
+      "note": "D-006 已核准 policy；此 adapter 仍把 account 當成 active。正式 write 路由仍待 D-004，且不得把合成 C2～C4 當成 production claims。"
     },
     "src/platform/runtime/maintenance-gate.ts": {
       "approvedPolicyDependencies": ["D-010"],
       "remainingBlockers": [
         {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "maintenance gate 尚未由獲准的 staff-only route 驗證。"
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
         }
       ],
       "note": "D-010 已核准平台目標；目前只有 process-local static gate，沒有已部署的共享旗標或 controller。"
@@ -635,24 +225,9 @@
       "approvedPolicyDependencies": ["D-006", "D-010"],
       "remainingBlockers": [
         {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "可信 caller/session key 尚未由 server session 提供。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "per-actor／action 限流與授權碼重試鎖定尚未完成 security evidence。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "shared limiter 尚未經 routed synthetic API 與 retry behavior E2E 驗證。"
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
         }
       ],
       "note": "D-006／D-010 已核准必須限流與平台目標；目前只有 per-process fixed-window 測試實作，沒有共享狀態或核准參數。"
@@ -664,16 +239,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
         }
       ],
       "note": "Isolated BOOK-PILOT DI tokens. Production AppModule must not import BookPilotModule. This does not clear D-004／D-005 or appointment_scheduling remainingBlockers."
@@ -685,16 +250,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
         }
       ],
       "note": "Fail-closed BOOK-PILOT kill switch and UTC expiry. Unrouted; HTTP 503 SERVICE_UNAVAILABLE, no new GONE contract. Not D-004／D-005 clearance."
@@ -706,36 +261,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C2",
-          "description": "尚未建置合成 staff 的正式 IdP、MFA 與 recovery 證據。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C3",
-          "description": "尚未建置 server-side session、CSRF 與停權撤銷。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C4",
-          "description": "尚未完成 server-side authorization 與角色／action fixtures。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C5",
-          "description": "寫入尚未證明可在同一 transaction append 永久 audit。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
         }
       ],
       "note": "Isolated BOOK-PILOT controller at book-pilot/bookings. Production AppModule must not import it; /v1/bookings and /v1/book-pilot/bookings stay 404. Does not mount AppointmentController or clear D-004／D-005."
@@ -747,16 +272,6 @@
           "kind": "decision",
           "id": "D-004",
           "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
         }
       ],
       "note": "Dedicated BookPilotModule. Must not be imported from production AppModule. Later exact-SHA authority is required before any compose/import. Not D-004／D-005 or Stage 2."
@@ -773,21 +288,6 @@
           "kind": "decision",
           "id": "D-016",
           "description": "production Calendar-to-system write path 仍 pending；CAL-PILOT 例外不是這條 webhook。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C1",
-          "description": "C1 isolated foundation 的 plan／apply／test／rollback evidence 尚未完成。"
-        },
-        {
-          "kind": "stage_slice",
-          "id": "C6",
-          "description": "staff-only synthetic route 與 E2E 尚未提出；目前不得接路由。"
-        },
-        {
-          "kind": "deployment_authority",
-          "id": "C6",
-          "description": "尚未取得 C6 synthetic integration 的個別 deployment approval。"
         }
       ],
       "note": "Google Calendar push receiver. Production AppModule must not import it; POST /v1/calendar-watch stays 404. Does not change the CAL-PILOT five-minute Scheduler or call Calendar from a transaction."

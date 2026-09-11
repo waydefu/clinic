@@ -10,9 +10,10 @@ Lookup SHA: `git rev-parse HEAD`
 Do not paste credentials, tokens, billing IDs or service-account JSON
 into chat or the repository.
 
-This agent sandbox has no `gcloud`. Cloud slices stay `UNAVAILABLE`
-here. Run apply only on a local ADC host after the previous gate is
-`completed`. Reuse the C1 state bucket `gs://${PROJECT_ID}-tfstate`.
+This packet is the C2～C6 local ADC/CLI path. Isolated project
+`beauessence-clinic-stg-c1a01` reused the C1 state bucket. Cloud slices
+C2/C5/C6 applied; C3/C4 are source evaluators. Formal booking stays
+UNROUTED.
 Project id remains `beauessence-clinic-stg-` plus 1–7 `[a-z0-9]`
 (GCP max 30). Static SHA-gating of every resource is checked by
 `node scripts/terraform-sha-gate.mjs` without credentials.

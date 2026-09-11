@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   C1_TERRAFORM_CI_ROLES,
-  evaluateC1Smoke,
   loadC0EngineeringRecs
 } from './c1-smoke-evidence.mjs';
 import {
@@ -17,8 +16,7 @@ import {
   evaluateC3Source,
   evaluateC4Source,
   loadLiveSources,
-  nextSequentialAction,
-  terraformCliStatus
+  nextSequentialAction
 } from './sequential-c-gate.mjs';
 import { parseStageGateStatus } from './unrouted-inventory.mjs';
 
@@ -28,6 +26,37 @@ const liveSources = loadLiveSources(root);
 const liveGate = JSON.parse(
   readFileSync(join(root, 'docs/architecture/stage-2-gate-status.json'), 'utf8')
 );
+
+const c0ClosedGate = {
+  ...JSON.parse(JSON.stringify(liveGate)),
+  stageSlices: {
+    C0: 'completed',
+    C1: 'pending',
+    C2: 'pending',
+    C3: 'pending',
+    C4: 'pending',
+    C5: 'pending',
+    C6: 'pending'
+  },
+  deploymentAuthorities: {
+    C1: 'granted',
+    C2: 'not_granted',
+    C3: 'not_granted',
+    C4: 'not_granted',
+    C5: 'not_granted',
+    C6: 'not_granted'
+  }
+};
+
+function patchGate(overrides) {
+  const value = JSON.parse(JSON.stringify(c0ClosedGate));
+  Object.assign(value.stageSlices, overrides.stageSlices ?? {});
+  Object.assign(
+    value.deploymentAuthorities,
+    overrides.deploymentAuthorities ?? {}
+  );
+  return value;
+}
 
 function passingC1() {
   return {
@@ -77,16 +106,6 @@ function passingC6() {
   };
 }
 
-function patchGate(overrides) {
-  const value = JSON.parse(JSON.stringify(liveGate));
-  Object.assign(value.stageSlices, overrides.stageSlices ?? {});
-  Object.assign(
-    value.deploymentAuthorities,
-    overrides.deploymentAuthorities ?? {}
-  );
-  return value;
-}
-
 function beforeC1Pass() {
   return patchGate({
     stageSlices: { C1: 'pending', C2: 'pending' },
@@ -95,39 +114,15 @@ function beforeC1Pass() {
 }
 
 describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
-  it('keeps the live tree on a C2 exact-SHA hard blocker after C1 PASS', () => {
+  it('reports DONE on the live tree after C6 PASS', () => {
     const action = nextSequentialAction(liveGate, liveSources);
-    expect(action.kind).toBe('HARD_BLOCKER');
-    expect(action.slice).toBe('C2');
+    expect(action.kind).toBe('DONE');
+    expect(action.slice).toBe('C6');
     expect(action.proposedPatch).toBeNull();
-    expect(action.exactAuthorityRequest.kind).toBe('EXACT_SHA_CLOUD_MUTATION');
-    expect(action.exactAuthorityRequest.directory).toBe(
-      'infra/terraform/c2-identity'
+    expect(action.exactAuthorityRequest).toBeNull();
+    expect(bookingAndWatchRemainUnrouted(liveSources.appModuleSource)).toBe(
+      true
     );
-    expect(action.exactAuthorityRequest.forbidden).toContain(
-      'beauessence-clinic-staging'
-    );
-    expect(action.exactAuthorityRequest.forbidden).toContain(
-      'routing BookPilotController'
-    );
-    expect(evaluateC1Smoke(passingC1(), recs).ok).toBe(true);
-    expect(terraformCliStatus()).toEqual(
-      expect.objectContaining({
-        gcloud: expect.any(Boolean),
-        terraform: expect.any(Boolean),
-        firebase: expect.any(Boolean)
-      })
-    );
-    expect(action.exactAuthorityRequest.applyPolicy).toMatch(
-      /never from sequential-c-gate/
-    );
-    expect(action.exactAuthorityRequest.projectIdMaxLength).toBe(30);
-    expect(action.exactAuthorityRequest.projectIdPattern).toBe(
-      'beauessence-clinic-stg-[a-z0-9]{1,7}'
-    );
-    expect(
-      action.exactAuthorityRequest.bootstrapBeforeApply.join('\n')
-    ).toMatch(/reuse the isolated C1 project/);
   });
 
   it('proposes C1 completed and grants only C2 after C1 smoke PASS', () => {
@@ -315,7 +310,7 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
           join(root, 'docs/architecture/stage-2-gate-status.json'),
           'utf8'
         )
-      ).stageSlices.C1
+      ).stageSlices.C6
     ).toBe('completed');
 
     const dir = mkdtempSync(join(tmpdir(), 'c-gate-'));

@@ -81,9 +81,9 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) — architecture verdict, required changes, target containers, data model, transactions and migration boundaries
 - [Infrastructure and operations plan (2026-07-24)](architecture/infrastructure-and-operations-plan-2026-07-24.md) — plan-only environment split, Terraform layout, IAM, secrets, Firestore backup/PITR, monitoring, budget, deploy and rollback
 - [Stage 2 C0 readiness artifacts (2026-07-29)](architecture/stage-2-c0-readiness-artifacts-2026-07-29.md) — proposal-ready／approval-pending logical resource manifest, Cloud IAM matrix, cost-input model, DR option analysis and test/rollback evidence template; no Terraform or cloud execution
-- [First-stage C0 authority](architecture/first-stage-c0-authority.md) — live split: `OWNER_AUTHORITY_CONFIRMED`; C0 `completed`; C1 `completed`/`granted`; C2 `granted`; named-reviewer metadata pending; not production/DNS
+- [First-stage C0 authority](architecture/first-stage-c0-authority.md) — live split: `OWNER_AUTHORITY_CONFIRMED`; C0～C6 `completed`; named-reviewer metadata pending; not production/DNS
 - [C0 engineering recommendations (2026-09-11)](architecture/c0-engineering-recommendations.md) — IAM/JIT, 50/80/100, DR A+B, MFA, new isolated C1; owner-accepted as C0-ENG-ACCEPT; not C1 PASS
-- [First-stage C1～C6 execution packet](architecture/first-stage-c1-c6-execution.md) — C1 `completed`/`DEPLOYED`/smoke `PASS`; C2 `granted`/`pending`; C3～C6 `not_granted`
+- [First-stage C1～C6 execution packet](architecture/first-stage-c1-c6-execution.md) — C1～C6 synthetic `PASS` on `beauessence-clinic-stg-c1a01`; booking UNROUTED; `PRODUCTION_AUTHORIZED=NO`
 - [Stage 2 machine-readable gate status](architecture/stage-2-gate-status.json) — canonical C0 review plus separate C1～C6 deployment-authority and execution/evidence status consumed by architecture checks
 - [Worker runtime and reconciliation plan (2026-07-24)](architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md) — plan-only trigger design, at-least-once semantics, Calendar reconciliation, dead-letter operator permissions and credential rotation
 
