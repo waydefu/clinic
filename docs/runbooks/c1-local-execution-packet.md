@@ -82,11 +82,11 @@ terraform apply c1.tfplan
 5. Dump gcloud JSON snapshots locally (no tokens, no billing account
    id) into one snapshot file, assemble, then evaluate.
 
-Required snapshot fields that gcloud does not infer: `region`
-(`asia-east1`), `budgetAmountTwd` (`2000`), `budgetThresholds`
-(`[0.5, 0.8, 1.0]`), `billingDetached` (`false`). Extract budget
-numbers locally from `gcloud billing budgets list`; do not paste the
-billing account id into the snapshot that leaves the machine.
+Assembler derives `region` from the `c1-foundation` logging bucket,
+`budgetAmountTwd` / `budgetThresholds` from `gcloud billing budgets list`,
+and `billingDetached` from `gcloud billing projects describe`. Typed
+`region` / `budgetAmountTwd` / `billingDetached` fields are ignored.
+The assembled evidence must not contain a billing account id.
 
 IAM evidence is **only** roles granted to `c1-terraform-ci`. A
 creating-user `roles/owner` binding is expected on a new project and

@@ -22,6 +22,34 @@ function terraformCiBindings() {
   }));
 }
 
+function derivedFoundation(overrides = {}) {
+  return {
+    loggingBuckets: [
+      {
+        name: 'projects/1/locations/asia-east1/buckets/c1-foundation'
+      }
+    ],
+    budgets: [
+      {
+        name: 'billingAccounts/000000-000000-000000/budgets/synthetic',
+        amount: {
+          specifiedAmount: { currencyCode: 'TWD', units: '2000' }
+        },
+        thresholdRules: [
+          { thresholdPercent: 0.5 },
+          { thresholdPercent: 0.8 },
+          { thresholdPercent: 1.0 }
+        ]
+      }
+    ],
+    billingProject: {
+      billingEnabled: true,
+      billingAccountName: 'billingAccounts/000000-000000-000000'
+    },
+    ...overrides
+  };
+}
+
 describe('C1 smoke collector (no gcloud in this sandbox)', () => {
   it('refuses CAL-PILOT staging and prints the local gcloud dump commands', () => {
     expect(() =>
@@ -31,6 +59,9 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
     expect(
       commands.some((line) => line.includes('services list --enabled'))
     ).toBe(true);
+    expect(commands.join('\n')).toContain('logging buckets list');
+    expect(commands.join('\n')).toContain('billing projects describe');
+    expect(commands.join('\n')).toContain('$BILLING_ACCOUNT_ID');
     expect(commands.join('\n')).not.toContain('beauessence-clinic-staging');
   });
 
@@ -64,11 +95,12 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
       secretVersions: [],
       firestoreDatabases: [],
       identityServices: [],
-      budgetAmountTwd: 2000,
-      budgetThresholds: [0.5, 0.8, 1.0],
-      billingDetached: false
+      ...derivedFoundation()
     });
     expect(evaluateC1Smoke(evidence, recs)).toEqual({ ok: true, issues: [] });
+    expect(JSON.stringify(evidence)).not.toMatch(
+      /billingAccounts\/[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}/
+    );
   });
 
   it('surfaces Firestore or Identity in the assembled evidence', () => {
@@ -125,9 +157,7 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
       secretVersions: [],
       firestoreDatabases: [],
       identityServices: [],
-      budgetAmountTwd: 2000,
-      budgetThresholds: [0.5, 0.8, 1.0],
-      billingDetached: false
+      ...derivedFoundation()
     });
     expect(isolated.iamRoles).toEqual(C1_TERRAFORM_CI_ROLES);
     expect(evaluateC1Smoke(isolated, recs).ok).toBe(true);
@@ -155,9 +185,7 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
       secretVersions: [],
       firestoreDatabases: [],
       identityServices: [],
-      budgetAmountTwd: 2000,
-      budgetThresholds: [0.5, 0.8, 1.0],
-      billingDetached: false
+      ...derivedFoundation()
     });
     const result = evaluateC1Smoke(privileged, recs);
     expect(result.ok).toBe(false);
@@ -185,5 +213,32 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
     expect(evidence.budgetAmountTwd).toBeUndefined();
     expect(evidence.billingDetached).toBeUndefined();
     expect(evaluateC1Smoke(evidence, recs).ok).toBe(false);
+  });
+
+  it('ignores typed budget fields and requires gcloud budget JSON', () => {
+    const typed = assembleC1SmokeEvidence({
+      projectId: 'beauessence-clinic-stg-smoke1',
+      region: 'asia-east1',
+      services: recs.c1.apiAllowlist.map((api) => ({
+        config: { name: api }
+      })),
+      iamPolicy: { bindings: terraformCiBindings() },
+      wifPools: [
+        {
+          name: 'projects/1/locations/global/workloadIdentityPools/c1-github'
+        }
+      ],
+      serviceAccounts: [{ email: terraformCiEmail }],
+      secretVersions: [],
+      firestoreDatabases: [],
+      identityServices: [],
+      budgetAmountTwd: 2000,
+      budgetThresholds: [0.5, 0.8, 1.0],
+      billingDetached: false
+    });
+    expect(typed.budgetAmountTwd).toBeUndefined();
+    expect(typed.region).toBeUndefined();
+    expect(typed.billingDetached).toBeUndefined();
+    expect(evaluateC1Smoke(typed, recs).ok).toBe(false);
   });
 });

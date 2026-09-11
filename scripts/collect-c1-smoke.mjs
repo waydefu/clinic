@@ -27,7 +27,10 @@ export function c1SmokeCollectCommands(projectId) {
     `gcloud iam service-accounts list --project=${projectId} --format=json`,
     `gcloud secrets versions list c1-bootstrap-reserved --project=${projectId} --format=json`,
     `gcloud firestore databases list --project=${projectId} --format=json`,
-    `gcloud services list --enabled --project=${projectId} --filter=config.name:identitytoolkit.googleapis.com --format=json`
+    `gcloud services list --enabled --project=${projectId} --filter=config.name:identitytoolkit.googleapis.com --format=json`,
+    `gcloud logging buckets list --project=${projectId} --location=asia-east1 --format=json`,
+    `gcloud billing projects describe ${projectId} --format=json`,
+    `# local only; do not commit or paste the account id: gcloud billing budgets list --billing-account="$BILLING_ACCOUNT_ID" --format=json`
   ];
 }
 
@@ -52,6 +55,64 @@ function isTerraformCiMember(member) {
     typeof member === 'string' &&
     member.startsWith('serviceAccount:c1-terraform-ci@')
   );
+}
+
+function loggingBucketsFromSnapshot(snapshot) {
+  const value = snapshot.loggingBuckets;
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.buckets)) return value.buckets;
+  return [];
+}
+
+function regionFromLoggingBuckets(buckets) {
+  for (const bucket of buckets) {
+    const name = String(bucket?.name ?? bucket?.bucketId ?? '');
+    const match = name.match(/locations\/([^/]+)\/buckets\/c1-foundation$/);
+    if (match) return match[1];
+    if (
+      (bucket?.bucketId === 'c1-foundation' || name === 'c1-foundation') &&
+      typeof bucket?.location === 'string'
+    ) {
+      return bucket.location.toLowerCase();
+    }
+  }
+  return undefined;
+}
+
+function budgetsFromSnapshot(snapshot) {
+  const value = snapshot.budgets;
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.budgets)) return value.budgets;
+  return [];
+}
+
+function budgetAmountTwdFromBudgets(budgets) {
+  const amount = budgets[0]?.amount?.specifiedAmount;
+  const currency = amount?.currencyCode ?? amount?.currency_code;
+  if (currency !== 'TWD') return undefined;
+  if (amount?.units === undefined || amount?.units === null) return undefined;
+  const parsed = Number(amount.units);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function budgetThresholdsFromBudgets(budgets) {
+  const rules = budgets[0]?.thresholdRules ?? budgets[0]?.threshold_rules;
+  if (!Array.isArray(rules)) return undefined;
+  return rules.map((rule) => rule.thresholdPercent ?? rule.threshold_percent);
+}
+
+function billingDetachedFromSnapshot(snapshot) {
+  const billing = snapshot.billingProject;
+  if (!billing || typeof billing !== 'object') return undefined;
+  if (billing.billingEnabled === false) return true;
+  if (
+    billing.billingEnabled === true &&
+    typeof billing.billingAccountName === 'string' &&
+    billing.billingAccountName.startsWith('billingAccounts/')
+  ) {
+    return false;
+  }
+  return undefined;
 }
 
 export function assembleC1SmokeEvidence(snapshot) {
@@ -82,18 +143,19 @@ export function assembleC1SmokeEvidence(snapshot) {
     (snapshot.identityServices ?? []).some(
       (entry) => apiIdFromService(entry) === 'identitytoolkit.googleapis.com'
     ) || enabledApis.includes('identitytoolkit.googleapis.com');
+  const budgets = budgetsFromSnapshot(snapshot);
 
   return {
     projectId: snapshot.projectId,
-    region: snapshot.region,
+    region: regionFromLoggingBuckets(loggingBucketsFromSnapshot(snapshot)),
     enabledApis,
     iamRoles,
     wifPoolId,
     terraformCiSa,
     secretVersionCount,
-    budgetAmountTwd: snapshot.budgetAmountTwd,
-    budgetThresholds: snapshot.budgetThresholds,
-    billingDetached: snapshot.billingDetached,
+    budgetAmountTwd: budgetAmountTwdFromBudgets(budgets),
+    budgetThresholds: budgetThresholdsFromBudgets(budgets),
+    billingDetached: billingDetachedFromSnapshot(snapshot),
     firestoreDatabase,
     identityPlatformEnabled
   };

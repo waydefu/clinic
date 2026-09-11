@@ -73,6 +73,10 @@ describe('C1 isolated foundation Terraform source', () => {
     );
     expect(packet).toContain('storage.googleapis.com');
     expect(packet).toContain('${PROJECT_ID}-tfstate');
+    expect(packet).toContain('gcloud billing budgets list');
+    expect(packet).not.toContain(
+      'Required snapshot fields that gcloud does not infer'
+    );
     expect(read('firebase.json')).not.toContain('beauessence-clinic-stg-');
   });
 });
