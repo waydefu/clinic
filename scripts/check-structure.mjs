@@ -223,6 +223,8 @@ const requiredPaths = [
   'infra/terraform/c6-calendar/README.md',
   'scripts/configure-c2-identity.mjs',
   'scripts/configure-c2-identity.test.mjs',
+  'scripts/c1-smoke-evidence.mjs',
+  'scripts/c1-smoke-evidence.test.mjs',
   'apps/worker/src/calendar-sync/watch-channel.ts',
   'apps/worker/src/calendar-sync/watch-channel.test.ts',
   'apps/worker/src/calendar-sync/watch-channel-store.ts',

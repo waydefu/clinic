@@ -53,15 +53,27 @@ terraform plan -out=c1.tfplan
 terraform apply c1.tfplan
 ```
 
-4. Smoke (expected): APIs in the C0-ENG-REC allowlist enabled; WIF pool
+4. Collect **metadata-only** JSON locally (no tokens, no billing account
+   id, no secret values) and evaluate:
+
+```bash
+node scripts/c1-smoke-evidence.mjs /tmp/c1-smoke.json
+```
+
+Expected JSON fields: `projectId`, `region`, `enabledApis`, `iamRoles`,
+`wifPoolId` (`c1-github`), `terraformCiSa` (`c1-terraform-ci`),
+`secretVersionCount` (`0`), `budgetAmountTwd` (`2000`),
+`budgetThresholds` (`[0.5, 0.8, 1.0]`), `billingDetached` (`false`),
+`firestoreDatabase` (`false`), `identityPlatformEnabled` (`false`).
+Exit 0 is smoke PASS for C1 foundation only. Exit 1 prints issues.
+Do not paste the JSON into chat if it contains account identifiers
+beyond the synthetic project id.
+
+5. Smoke (expected): APIs in the C0-ENG-REC allowlist enabled; WIF pool
    `c1-github` exists; SA `c1-terraform-ci` has no Owner/Editor and no
    `datastore.user`; secret `c1-bootstrap-reserved` has **no** versions;
    budget NT$2000 with 50/80/100 Pub/Sub; logging bucket `c1-foundation`;
    Firestore / Identity / Run / Scheduler **absent**.
-
-5. Record project number, API list, IAM bindings, budget name and plan
-   checksum locally; return **metadata only** (no secrets) so C1 can be
-   marked PASS and C2 can start.
 
 ## Rollback
 
