@@ -87,15 +87,22 @@ function patchGate(overrides) {
   return value;
 }
 
+function beforeC1Pass() {
+  return patchGate({
+    stageSlices: { C1: 'pending', C2: 'pending' },
+    deploymentAuthorities: { C1: 'granted', C2: 'not_granted' }
+  });
+}
+
 describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
-  it('keeps the live tree on a C1 exact-SHA hard blocker', () => {
+  it('keeps the live tree on a C2 exact-SHA hard blocker after C1 PASS', () => {
     const action = nextSequentialAction(liveGate, liveSources);
     expect(action.kind).toBe('HARD_BLOCKER');
-    expect(action.slice).toBe('C1');
+    expect(action.slice).toBe('C2');
     expect(action.proposedPatch).toBeNull();
     expect(action.exactAuthorityRequest.kind).toBe('EXACT_SHA_CLOUD_MUTATION');
     expect(action.exactAuthorityRequest.directory).toBe(
-      'infra/terraform/c1-foundation'
+      'infra/terraform/c2-identity'
     );
     expect(action.exactAuthorityRequest.forbidden).toContain(
       'beauessence-clinic-staging'
@@ -120,11 +127,11 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
     );
     expect(
       action.exactAuthorityRequest.bootstrapBeforeApply.join('\n')
-    ).toMatch(/gcloud services enable the C1 API allowlist/);
+    ).toMatch(/reuse the isolated C1 project/);
   });
 
   it('proposes C1 completed and grants only C2 after C1 smoke PASS', () => {
-    const action = nextSequentialAction(liveGate, {
+    const action = nextSequentialAction(beforeC1Pass(), {
       ...liveSources,
       c1Smoke: passingC1()
     });
@@ -141,7 +148,7 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
   });
 
   it('does not treat C2 smoke as a substitute for C1 PASS', () => {
-    const action = nextSequentialAction(liveGate, {
+    const action = nextSequentialAction(beforeC1Pass(), {
       ...liveSources,
       c2Smoke: passingC2()
     });
@@ -309,12 +316,12 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
           'utf8'
         )
       ).stageSlices.C1
-    ).toBe('pending');
+    ).toBe('completed');
 
     const dir = mkdtempSync(join(tmpdir(), 'c-gate-'));
     const gatePath = join(dir, 'gate.json');
     const smokePath = join(dir, 'c1.json');
-    writeFileSync(gatePath, `${JSON.stringify(liveGate, null, 2)}\n`);
+    writeFileSync(gatePath, `${JSON.stringify(beforeC1Pass(), null, 2)}\n`);
     writeFileSync(smokePath, `${JSON.stringify(passingC1(), null, 2)}\n`);
     const written = spawnSync(
       process.execPath,

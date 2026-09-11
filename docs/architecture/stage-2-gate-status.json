@@ -7,7 +7,7 @@
   ],
   "stageSlices": {
     "C0": "completed",
-    "C1": "pending",
+    "C1": "completed",
     "C2": "pending",
     "C3": "pending",
     "C4": "pending",
@@ -16,7 +16,7 @@
   },
   "deploymentAuthorities": {
     "C1": "granted",
-    "C2": "not_granted",
+    "C2": "granted",
     "C3": "not_granted",
     "C4": "not_granted",
     "C5": "not_granted",

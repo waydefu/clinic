@@ -1,7 +1,7 @@
 # C1 local execution packet
 
-**Type:** local ADC/CLI packet. Not production. Not C1 PASS until
-apply + smoke evidence is recorded against the exact SHA.
+**Type:** local ADC/CLI packet. Not production.
+C1 foundation apply + smoke PASSed on `beauessence-clinic-stg-c1a01`.
 **Date:** 2026-09-11
 Lookup SHA: `git rev-parse HEAD` (tree SHA that GitHub
 `Verification evidence` passed — not a path-filtered
@@ -11,13 +11,10 @@ into chat or the repository.
 
 ## Preconditions
 
-- C0 `completed`; C1 `granted`; C2～C6 `not_granted`
-- This agent sandbox has no `gcloud`. Terraform apply is denied here.
-- Human/local environment already authenticated (ADC); do not send
-  secrets back
-- Confirm `node scripts/sequential-c-gate.mjs` prints
-  `exactAuthorityRequest.sha` equal to `git rev-parse HEAD` and to the
-  green Verification evidence SHA before apply
+- C0 `completed`; C1 `completed` / `granted`; C2 `granted` (not C2 PASS)
+- Isolated project `beauessence-clinic-stg-c1a01` in `asia-east1`
+- Confirm `node scripts/sequential-c-gate.mjs --c1-smoke` still PASSes
+  before treating a later SHA as C1
 - Billing account **currency is TWD** (C0-ENG-REC). A USD account
   rejects `specified_amount.currency_code = TWD`.
 - Caller can create a billing budget (`billing.budgets.create` on that
@@ -153,7 +150,5 @@ as the default rollback. Do not detach billing.
 ## Expected result
 
 `DEPLOYED` for C1 foundation only, still `PRODUCTION_AUTHORIZED=NO`.
-C2 remains `not_granted` until this smoke is verified. After exit 0,
-run `node scripts/sequential-c-gate.mjs --c1-smoke /tmp/c1-smoke.json`
-to propose C1 `completed` and C2 `granted` only. Do not grant C3～C6
-in that step.
+C1 smoke exit 0 recorded C1 `completed` and C2 `granted` only. Do not
+grant C3～C6 in that step.

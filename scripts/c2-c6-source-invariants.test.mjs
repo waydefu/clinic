@@ -24,11 +24,14 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
   const appModule = read('apps/api/src/app.module.ts');
   const roles = read('packages/domain/src/roles.ts');
 
-  it('does not grant or complete C2–C6 before C1 PASS', () => {
+  it('records C1 PASS and grants only C2 until C2 smoke', () => {
     expect(gateStatus.issues).toEqual([]);
     expect(gateStatus.stageSlices.get('C0')).toBe('completed');
+    expect(gateStatus.stageSlices.get('C1')).toBe('completed');
     expect(gateStatus.deploymentAuthorities.get('C1')).toBe('granted');
-    for (const id of ['C2', 'C3', 'C4', 'C5', 'C6']) {
+    expect(gateStatus.deploymentAuthorities.get('C2')).toBe('granted');
+    expect(gateStatus.stageSlices.get('C2')).toBe('pending');
+    for (const id of ['C3', 'C4', 'C5', 'C6']) {
       expect(gateStatus.stageSlices.get(id)).toBe('pending');
       expect(gateStatus.deploymentAuthorities.get(id)).toBe('not_granted');
     }

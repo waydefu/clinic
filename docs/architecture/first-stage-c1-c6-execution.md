@@ -5,17 +5,20 @@
 (`OWNER_AUTHORITY_CONFIRMED` / `ENGINEERING_RECOMMENDATION_COMPLETE` /
 `NAMED_REVIEWER_METADATA_PENDING`).
 **Machine gate:** [stage-2-gate-status.json](stage-2-gate-status.json)
-C0 `completed`; C1 `granted` / `pending`; C2～C6 `pending` / `not_granted`.
+C0 `completed`; C1 `completed` / `granted`; C2 `granted` / `pending`;
+C3～C6 `pending` / `not_granted`.
 
 Owner 2026-09-11 continuation names C1～C6 as the sequential *route* and
-grants C1 start authority after engineering C0 `completed`. That is not
-C1 PASS, not apply evidence, and not C2～C6. Do not write `AUTHORIZED` as
+grants C1 start authority after engineering C0 `completed`. C1 foundation
+smoke has since PASSed on isolated project `beauessence-clinic-stg-c1a01`;
+C2 is `granted` and not yet applied. Do not write `AUTHORIZED` as
 `PASS`, `IMPLEMENTED` as `DEPLOYED`, or `CI PASS` as
 `PRODUCTION AUTHORIZED`.
 
-Do not mark C1～C6 `completed` without that slice's apply + smoke
-evidence. Do not route `AppointmentController`. This session does not
-run `terraform apply`.
+Do not mark C2～C6 `completed` without that slice's apply + smoke
+evidence. Do not route `AppointmentController`. C1 local apply for the
+isolated foundation is done; later cloud slices still use the C2～C6
+packet. Production apply remains outside this file.
 
 ## Sequence (authority DAG, not technical DAG)
 
@@ -39,9 +42,9 @@ slice's `deploymentAuthorities=granted` plus apply/smoke evidence.
 | Security | No real patient data; no production project link; C1 API allowlist excludes Firestore / Identity Platform / Cloud Run |
 | Exclusions | Firestore database; Identity Platform; API runtime; production; Calendar apply; DR secondary |
 | Rollback | Quarantine new APIs/IAM; do not default to project deletion |
-| Remaining blockers | **exact C1 apply** on a new project (local ADC); then `sequential-c-gate` + C1 smoke evidence |
+| Remaining blockers | none for C1 foundation; C2 Identity apply is next |
 | Authority | `granted` |
-| Status | `AUTHORIZED` / source `IMPLEMENTED` / `DEPLOYED=NO` / `PASS=NO` |
+| Status | `AUTHORIZED` / `DEPLOYED` / smoke `PASS` / `PRODUCTION_AUTHORIZED=NO` |
 
 ## C2 staff login
 
@@ -52,9 +55,9 @@ slice's `deploymentAuthorities=granted` plus apply/smoke evidence.
 | Source in tree | CAL-PILOT Google+TOTP session (`calendar-pilot-session.ts`) is synthetic-only; SHA-gated `infra/terraform/c2-identity/` (Identity Platform API only; default no-op) |
 | Tests | `apps/api/src/auth/calendar-pilot-session.test.ts` (pilot, not C2) |
 | Exclusions | Patient login; real staff PII |
-| Remaining blockers | C1 PASS; exact C2 apply / Identity Platform authority (`c2-c6-local-execution-packet`) |
-| Authority | `not_granted` |
-| Status | source `IMPLEMENTED` (SHA-gated Terraform + TOTP dry-run); C2 apply `NOT_AUTHORIZED` |
+| Remaining blockers | exact C2 apply / Identity Platform (`c2-c6-local-execution-packet`) |
+| Authority | `granted` |
+| Status | source `IMPLEMENTED` (SHA-gated Terraform + TOTP dry-run); C2 apply `NOT_AUTHORIZED` / `DEPLOYED=NO` |
 
 ## C3 session security
 
