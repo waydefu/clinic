@@ -89,6 +89,10 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(catalogue).toContain(
       'architecture/c0-engineering-recommendations.md'
     );
+    expect(catalogue).toContain(
+      'product/luna-local-project-completion-master-plan.md'
+    );
+    expect(register).toContain('luna-local-project-completion-master-plan.md');
     expect(execution).toContain('AUTHORIZED');
     expect(execution).toContain('DEPLOYED=NO');
     expect(execution).not.toMatch(/Status \| `completed`/);
@@ -127,10 +131,11 @@ describe('C0-ENG-REC-2026-09-11 engineering recommendations', () => {
   const identityScript = read('scripts/configure-cal-pilot-identity.mjs');
   const calPilotTf = read('infra/terraform/cal-pilot/variables.tf');
 
-  it('records owner acceptance without claiming C1 PASS or C2–C6 grants', () => {
+  it('records the C0-time packet; live C2–C6 grants live only in stage-2-gate-status.json', () => {
     expect(recs.status.stageSliceC0).toBe('completed');
     expect(recs.status.c1Authority).toBe('granted');
     expect(recs.status.c2ToC6Authorities).toBe('not_granted');
+    expect(JSON.stringify(recs.$comment)).toMatch(/stage-2-gate-status.json/);
     expect(recs.status.ownerAuthority).toBe('OWNER_AUTHORITY_CONFIRMED');
     expect(recs.status.humanReview).toBe('NAMED_REVIEWER_METADATA_PENDING');
     expect(recs.iam.firestoreDatabaseScope.syntheticStagingAcceptance).toBe(

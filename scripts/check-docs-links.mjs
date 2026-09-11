@@ -114,6 +114,21 @@ export const STALE_CLAIMS = [
     'ARC-R01 / T1-ARC-01 (#67) closed lease fencing on 2026-09-06; multi-instance cloud runners remain unauthorised'
   ],
   [
+    'docs/product/phase-1-decision-register.md',
+    /C2～C6 stay `not_granted`/,
+    'PR #112 merged C1–C6 granted/completed on the isolated synthetic project; live machine status is stage-2-gate-status.json'
+  ],
+  [
+    'docs/architecture/c0-engineering-recommendations.md',
+    /C2～C6 仍 `not_granted`/,
+    'PR #112 merged C1–C6 granted/completed; do not instruct agents to treat C2–C6 as not_granted'
+  ],
+  [
+    'docs/roadmap.md',
+    /C2～C6 仍 `not_granted`/,
+    'PR #112 completed C1–C6 on isolated synthetic staging; live status is stage-2-gate-status.json'
+  ],
+  [
     'apps/api/README.md',
     /exposes only `GET \/v1\/health`|registers only the health controller/,
     'formal booking is unrouted; CAL-PILOT is a routed synthetic-only exception'

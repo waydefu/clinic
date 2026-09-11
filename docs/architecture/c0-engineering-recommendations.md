@@ -10,11 +10,16 @@
 
 本文件關閉「缺工程選案」缺口。Owner 2026-09-11 continuation 已接受這些
 值作為 Phase-1 **synthetic staging** 工程 C0。機器狀態是
-`stageSlices.C0=completed`（不是無效字 `approved`）。C1
-`deploymentAuthorities=granted` 只表示可以開始 C1 packet，**不是** C1
-PASS、**不是** apply 證據。C2～C6 仍 `not_granted`。具名
+`stageSlices.C0=completed`（不是無效字 `approved`）。具名
 technical／security 人名欄位仍空（`NAMED_REVIEWER_METADATA_PENDING`），
 不得捏造。
+
+**Live after PR #112:** C1～C6 `deploymentAuthorities=granted` and
+`stageSlices=completed` on isolated project `beauessence-clinic-stg-c1a01`.
+That is not production, not live Hosting, not official DNS, and not
+`/v1/bookings`. Read
+[stage-2-gate-status.json](stage-2-gate-status.json). Local execution:
+[Luna master plan](../product/luna-local-project-completion-master-plan.md).
 
 官方依據（查詢日 2026-09-11）：
 
