@@ -177,6 +177,22 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
       firestoreDatabases: []
     });
     expect(evaluateC5Smoke(empty).ok).toBe(false);
+
+    const typedRegionOverride = assembleC5SmokeEvidence({
+      projectId: isolated,
+      region: 'asia-east1',
+      services: [{ config: { name: 'firestore.googleapis.com' } }],
+      firestoreDatabases: [
+        {
+          type: 'FIRESTORE_NATIVE',
+          locationId: 'us-central1',
+          pointInTimeRecoveryEnablement: 'POINT_IN_TIME_RECOVERY_ENABLED',
+          deleteProtectionState: 'DELETE_PROTECTION_ENABLED'
+        }
+      ]
+    });
+    expect(typedRegionOverride.region).toBe('us-central1');
+    expect(evaluateC5Smoke(typedRegionOverride).ok).toBe(false);
   });
 
   it('derives C6 UNROUTED from AppModule and does not invent it', () => {

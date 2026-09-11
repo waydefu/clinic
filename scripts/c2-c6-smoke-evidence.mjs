@@ -121,7 +121,7 @@ export function assembleC5SmokeEvidence(snapshot) {
   const database = databases[0] ?? {};
   return {
     projectId: snapshot.projectId,
-    region: snapshot.region ?? database.locationId,
+    region: database.locationId,
     enabledApis: enabledApisFromSnapshot(snapshot),
     firestoreType: database.type,
     pointInTimeRecovery: database.pointInTimeRecoveryEnablement,

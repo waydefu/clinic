@@ -73,6 +73,16 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(read('infra/terraform/c6-calendar/variables.tf')).toContain(
       'beauessence-clinic-staging'
     );
+    for (const readme of [
+      'infra/terraform/c2-identity/README.md',
+      'infra/terraform/c5-firestore/README.md',
+      'infra/terraform/c6-calendar/README.md'
+    ]) {
+      expect(read(readme)).toContain(
+        'docs/runbooks/c2-c6-local-execution-packet.md'
+      );
+      expect(read(readme)).not.toContain('docs/reviews/');
+    }
     for (const example of [
       'infra/terraform/c2-identity/terraform.tfvars.example',
       'infra/terraform/c5-firestore/terraform.tfvars.example',
