@@ -276,6 +276,19 @@ describe('unrouted inventory validation', () => {
     }
   );
 
+  it('refuses to grant a later slice before the previous slice has completed', () => {
+    const stages = structuredClone(STAGE_GATE_STATUS);
+    stages.stageSlices.C0 = 'completed';
+    stages.deploymentAuthorities.C1 = 'granted';
+    stages.deploymentAuthorities.C2 = 'granted';
+
+    expect(parseStageGateStatus(stages).issues).toEqual([
+      expect.stringContaining(
+        'cannot grant deploymentAuthorities.C2 before stageSlices.C1 is completed'
+      )
+    ]);
+  });
+
   it('requires a note, blockers and the exact fail-closed entry fields', () => {
     const inventory = validInventory();
     const entry = inventory.unrouted['src/example.ts'] as Record<

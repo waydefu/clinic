@@ -124,6 +124,31 @@ describe('parseStageGateStatus', () => {
       parseStageGateStatus(status({ extra: true })).issues.length
     ).toBeGreaterThan(0);
   });
+
+  it('refuses to grant C1 before C0 is completed', () => {
+    const value = status();
+    value.deploymentAuthorities.C1 = 'granted';
+    expect(parseStageGateStatus(value).issues.join('\n')).toContain(
+      'cannot grant deploymentAuthorities.C1 before stageSlices.C0 is completed'
+    );
+  });
+
+  it('refuses to grant C2 before C1 execution is completed', () => {
+    const value = status();
+    value.stageSlices.C0 = 'completed';
+    value.deploymentAuthorities.C1 = 'granted';
+    value.deploymentAuthorities.C2 = 'granted';
+    expect(parseStageGateStatus(value).issues.join('\n')).toContain(
+      'cannot grant deploymentAuthorities.C2 before stageSlices.C1 is completed'
+    );
+  });
+
+  it('allows C1 start authority after C0 completed while C1 execution is still pending', () => {
+    const value = status();
+    value.stageSlices.C0 = 'completed';
+    value.deploymentAuthorities.C1 = 'granted';
+    expect(parseStageGateStatus(value).issues).toEqual([]);
+  });
 });
 
 describe('parseRbacPermissions', () => {

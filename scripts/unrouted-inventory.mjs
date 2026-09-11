@@ -171,6 +171,28 @@ export function parseStageGateStatus(value) {
     }
   }
 
+  if (
+    deploymentAuthorities.get('C1') === 'granted' &&
+    stageSlices.get('C0') !== 'completed'
+  ) {
+    issues.push(
+      'Stage gate status cannot grant deploymentAuthorities.C1 before stageSlices.C0 is completed.'
+    );
+  }
+
+  for (let index = 1; index < DEPLOYMENT_AUTHORITY_IDS.length; index += 1) {
+    const previous = DEPLOYMENT_AUTHORITY_IDS[index - 1];
+    const current = DEPLOYMENT_AUTHORITY_IDS[index];
+    if (
+      deploymentAuthorities.get(current) === 'granted' &&
+      stageSlices.get(previous) !== 'completed'
+    ) {
+      issues.push(
+        `Stage gate status cannot grant deploymentAuthorities.${current} before stageSlices.${previous} is completed.`
+      );
+    }
+  }
+
   return { stageSlices, deploymentAuthorities, issues };
 }
 
