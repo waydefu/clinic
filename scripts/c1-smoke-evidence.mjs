@@ -4,6 +4,25 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
+/** Least-privilege roles C1 Terraform grants to `c1-terraform-ci` only. */
+export const C1_TERRAFORM_CI_ROLES = [
+  'roles/serviceusage.serviceUsageAdmin',
+  'roles/iam.serviceAccountAdmin',
+  'roles/iam.workloadIdentityPoolAdmin',
+  'roles/resourcemanager.projectIamAdmin',
+  'roles/secretmanager.admin',
+  'roles/logging.admin',
+  'roles/monitoring.admin',
+  'roles/pubsub.admin',
+  'roles/storage.admin'
+];
+
+export const C1_FORBIDDEN_SA_ROLES = [
+  'roles/owner',
+  'roles/editor',
+  'roles/datastore.user'
+];
+
 export function loadC0EngineeringRecs() {
   return JSON.parse(
     readFileSync(
@@ -54,13 +73,14 @@ export function evaluateC1Smoke(evidence, recs) {
   }
 
   const roles = Array.isArray(evidence.iamRoles) ? evidence.iamRoles : [];
-  for (const forbidden of [
-    'roles/owner',
-    'roles/editor',
-    'roles/datastore.user'
-  ]) {
+  for (const required of C1_TERRAFORM_CI_ROLES) {
+    if (!roles.includes(required)) {
+      issues.push(`C1 terraform-ci SA missing role ${required}.`);
+    }
+  }
+  for (const forbidden of C1_FORBIDDEN_SA_ROLES) {
     if (roles.includes(forbidden)) {
-      issues.push(`C1 IAM includes forbidden role ${forbidden}.`);
+      issues.push(`C1 terraform-ci SA has forbidden role ${forbidden}.`);
     }
   }
 
@@ -82,8 +102,8 @@ export function evaluateC1Smoke(evidence, recs) {
   if (!recs.budget.thresholds.every((value) => thresholds.includes(value))) {
     issues.push('C1 budget must notify at 50/80/100.');
   }
-  if (evidence.billingDetached === true) {
-    issues.push('C1 must not auto-detach billing.');
+  if (evidence.billingDetached !== false) {
+    issues.push('C1 must record billingDetached=false (no auto-detach).');
   }
   if (evidence.firestoreDatabase) {
     issues.push('C1 must not create a Firestore database.');

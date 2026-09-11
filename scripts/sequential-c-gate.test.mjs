@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  C1_TERRAFORM_CI_ROLES,
   evaluateC1Smoke,
   loadC0EngineeringRecs
 } from './c1-smoke-evidence.mjs';
 import {
   bookingAndWatchRemainUnrouted,
+  currentHeadSha,
   emitExactAuthorityRequest,
   evaluateC3Source,
   evaluateC4Source,
@@ -32,7 +34,7 @@ function passingC1() {
     projectId: 'beauessence-clinic-stg-smoke1',
     region: 'asia-east1',
     enabledApis: [...recs.c1.apiAllowlist],
-    iamRoles: ['roles/iam.serviceAccountAdmin'],
+    iamRoles: [...C1_TERRAFORM_CI_ROLES],
     wifPoolId: 'c1-github',
     terraformCiSa: 'c1-terraform-ci',
     secretVersionCount: 0,
@@ -247,6 +249,9 @@ describe('sequential C1→C6 gate (source/tests/dry-run; no apply)', () => {
     const request = emitExactAuthorityRequest('C1');
     expect(request.packet).toBe('docs/runbooks/c1-local-execution-packet.md');
     expect(request.applyPolicy).toMatch(/never from sequential-c-gate/);
+    expect(request.sha).toBe(currentHeadSha(root));
+    expect(request.sha).toMatch(/^[a-f0-9]{40}$/);
+    expect(request.shaLookup).toBe('git rev-parse HEAD');
   });
 
   it('refuses --write on the live tree and writes only a legal temp patch', () => {

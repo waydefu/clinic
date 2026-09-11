@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  C1_FORBIDDEN_SA_ROLES,
+  C1_TERRAFORM_CI_ROLES,
   evaluateC1Smoke,
   loadC0EngineeringRecs
 } from './c1-smoke-evidence.mjs';
@@ -12,10 +14,7 @@ function passingEvidence(overrides = {}) {
     projectId: 'beauessence-clinic-stg-smoke1',
     region: 'asia-east1',
     enabledApis: [...recs.c1.apiAllowlist],
-    iamRoles: [
-      'roles/serviceusage.serviceUsageAdmin',
-      'roles/iam.serviceAccountAdmin'
-    ],
+    iamRoles: [...C1_TERRAFORM_CI_ROLES],
     wifPoolId: 'c1-github',
     terraformCiSa: 'c1-terraform-ci',
     secretVersionCount: 0,
@@ -55,12 +54,30 @@ describe('C1 smoke evidence evaluator', () => {
     expect(firestore.issues.join('\n')).toMatch(/firestore/);
 
     const iam = evaluateC1Smoke(
-      passingEvidence({ iamRoles: ['roles/owner', 'roles/datastore.user'] }),
+      passingEvidence({
+        iamRoles: [...C1_FORBIDDEN_SA_ROLES, 'roles/iam.serviceAccountAdmin']
+      }),
       recs
     );
     expect(iam.ok).toBe(false);
+    expect(iam.issues.join('\n')).toMatch(/terraform-ci SA has forbidden role/);
     expect(iam.issues.join('\n')).toMatch(/roles\/owner/);
     expect(iam.issues.join('\n')).toMatch(/datastore\.user/);
+
+    const creatorOwner = evaluateC1Smoke(passingEvidence(), recs);
+    expect(creatorOwner.ok).toBe(true);
+
+    const missingBudget = evaluateC1Smoke(
+      passingEvidence({
+        budgetAmountTwd: undefined,
+        billingDetached: undefined
+      }),
+      recs
+    );
+    expect(missingBudget.ok).toBe(false);
+    expect(missingBudget.issues.join('\n')).toMatch(
+      /budget amount|billingDetached/
+    );
 
     const secrets = evaluateC1Smoke(
       passingEvidence({ secretVersionCount: 1 }),

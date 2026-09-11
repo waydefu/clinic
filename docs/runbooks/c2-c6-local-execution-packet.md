@@ -10,10 +10,11 @@ Lookup SHA: `git rev-parse HEAD`
 Do not paste credentials, tokens, billing IDs or service-account JSON
 into chat or the repository.
 
-This agent sandbox has no `gcloud` / Terraform / Firebase CLI. Cloud
-slices stay `UNAVAILABLE` here. Run apply only on a local ADC host after
-the previous gate is `completed`. Static SHA-gating of every resource is
-checked by `node scripts/terraform-sha-gate.mjs` without credentials.
+This agent sandbox has no `gcloud`. Cloud slices stay `UNAVAILABLE`
+here. Run apply only on a local ADC host after the previous gate is
+`completed`. Reuse the C1 state bucket `gs://${PROJECT_ID}-tfstate`.
+Static SHA-gating of every resource is checked by
+`node scripts/terraform-sha-gate.mjs` without credentials.
 `terraform test` in each module uses `mock_provider` to plan a no-op.
 
 ## Sequence
@@ -36,7 +37,8 @@ cd infra/terraform/c2-identity
 cp terraform.tfvars.example terraform.tfvars
 # set project_id to the isolated C1 project
 # exact_apply_authority_sha=$(git rev-parse HEAD)
-terraform init -backend-config="bucket=<state-bucket>" -backend-config="prefix=c2-identity"
+terraform test
+terraform init -backend-config="bucket=${PROJECT_ID}-tfstate" -backend-config="prefix=c2-identity"
 terraform plan -out=c2.tfplan
 terraform apply c2.tfplan
 C2_IDENTITY_APPLY=granted GOOGLE_CLOUD_PROJECT="$PROJECT_ID" node scripts/configure-c2-identity.mjs
@@ -72,7 +74,8 @@ protection in `asia-east1`. Synthetic data only.
 ```bash
 cd infra/terraform/c5-firestore
 cp terraform.tfvars.example terraform.tfvars
-terraform init -backend-config="bucket=<state-bucket>" -backend-config="prefix=c5-firestore"
+terraform test
+terraform init -backend-config="bucket=${PROJECT_ID}-tfstate" -backend-config="prefix=c5-firestore"
 terraform plan -out=c5.tfplan
 terraform apply c5.tfplan
 node scripts/c2-c6-smoke-evidence.mjs C5 /tmp/c5-smoke.json
@@ -88,7 +91,8 @@ blocked by D-009 / D-016.
 ```bash
 cd infra/terraform/c6-calendar
 cp terraform.tfvars.example terraform.tfvars
-terraform init -backend-config="bucket=<state-bucket>" -backend-config="prefix=c6-calendar"
+terraform test
+terraform init -backend-config="bucket=${PROJECT_ID}-tfstate" -backend-config="prefix=c6-calendar"
 terraform plan -out=c6.tfplan
 terraform apply c6.tfplan
 node scripts/c2-c6-smoke-evidence.mjs C6 /tmp/c6-smoke.json

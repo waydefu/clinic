@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { C1_TERRAFORM_CI_ROLES } from './c1-smoke-evidence.mjs';
 import { describe, expect, it } from 'vitest';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -49,6 +50,9 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).not.toMatch(/roles\/owner/);
     expect(main).not.toMatch(/roles\/editor/);
     expect(main).not.toMatch(/roles\/datastore\.user/);
+    for (const role of C1_TERRAFORM_CI_ROLES) {
+      expect(main).toContain(`"${role}"`);
+    }
   });
 
   it('provisions WIF, empty secrets, budget 50/80/100 Pub/Sub, and logging only when apply is enabled', () => {
@@ -62,6 +66,13 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(
       read('infra/terraform/c1-foundation/terraform.tfvars.example')
     ).toContain('exact_apply_authority_sha   = "not_granted"');
+    const packet = read('docs/runbooks/c1-local-execution-packet.md');
+    expect(packet).toContain('git rev-parse HEAD');
+    expect(packet).not.toContain(
+      'git log -1 --format=%H -- infra/terraform/c1-foundation'
+    );
+    expect(packet).toContain('storage.googleapis.com');
+    expect(packet).toContain('${PROJECT_ID}-tfstate');
     expect(read('firebase.json')).not.toContain('beauessence-clinic-stg-');
   });
 });

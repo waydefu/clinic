@@ -47,18 +47,27 @@ function saIdFromEmail(email) {
   return match ? match[1] : '';
 }
 
+function isTerraformCiMember(member) {
+  return (
+    typeof member === 'string' &&
+    member.startsWith('serviceAccount:c1-terraform-ci@')
+  );
+}
+
 export function assembleC1SmokeEvidence(snapshot) {
   assertC1CollectProjectId(snapshot.projectId);
   const enabledApis = (snapshot.services ?? [])
     .map(apiIdFromService)
     .filter(Boolean);
-  const iamRoles = (snapshot.iamPolicy?.bindings ?? []).map(
-    (binding) => binding.role
-  );
+  const iamRoles = (snapshot.iamPolicy?.bindings ?? [])
+    .filter((binding) =>
+      (binding.members ?? []).some((member) => isTerraformCiMember(member))
+    )
+    .map((binding) => binding.role);
   const wifPoolId =
     (snapshot.wifPools ?? [])
       .map((pool) => poolIdFromName(pool.name))
-      .find(Boolean) ?? '';
+      .find((id) => id === 'c1-github') ?? '';
   const terraformCiSa =
     (snapshot.serviceAccounts ?? [])
       .map((account) => saIdFromEmail(account.email))
@@ -76,15 +85,15 @@ export function assembleC1SmokeEvidence(snapshot) {
 
   return {
     projectId: snapshot.projectId,
-    region: snapshot.region ?? 'asia-east1',
+    region: snapshot.region,
     enabledApis,
     iamRoles,
     wifPoolId,
     terraformCiSa,
     secretVersionCount,
-    budgetAmountTwd: snapshot.budgetAmountTwd ?? 2000,
-    budgetThresholds: snapshot.budgetThresholds ?? [0.5, 0.8, 1.0],
-    billingDetached: snapshot.billingDetached === true,
+    budgetAmountTwd: snapshot.budgetAmountTwd,
+    budgetThresholds: snapshot.budgetThresholds,
+    billingDetached: snapshot.billingDetached,
     firestoreDatabase,
     identityPlatformEnabled
   };

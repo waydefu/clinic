@@ -1,5 +1,7 @@
 # Copy to terraform.tfvars locally. Do not commit terraform.tfvars.
 # Do not paste billing IDs, tokens or keys into chat or the repository.
+# exact_apply_authority_sha must be `git rev-parse HEAD` after Verification
+# evidence is green — never a path-filtered terraform-directory SHA.
 
 project_id                  = "beauessence-clinic-stg-replace-me"
 region                      = "asia-east1"

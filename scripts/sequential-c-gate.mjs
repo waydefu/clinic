@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { accessSync, constants, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -132,6 +133,12 @@ export function evaluateC4Source(rolesSource, authParametersSource, recs) {
   return { ok: issues.length === 0, issues };
 }
 
+export function currentHeadSha(repoRoot = root) {
+  return execFileSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], {
+    encoding: 'utf8'
+  }).trim();
+}
+
 export function emitExactAuthorityRequest(slice, extras = {}) {
   const packet = SLICE_PACKETS[slice];
   return {
@@ -139,6 +146,7 @@ export function emitExactAuthorityRequest(slice, extras = {}) {
     slice,
     directory: packet?.directory ?? null,
     packet: packet?.packet ?? null,
+    sha: currentHeadSha(),
     shaLookup: 'git rev-parse HEAD',
     forbidden: [
       'beauessence-clinic-staging',
