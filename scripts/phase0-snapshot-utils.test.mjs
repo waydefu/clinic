@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -25,5 +27,13 @@ describe('Phase 0 account snapshot parsing', () => {
       'domain=example.invalid'
     );
     expect(redactAccount('UNVERIFIED')).toBe('UNVERIFIED');
+  });
+
+  it('requires the gcloud configuration to be active', () => {
+    const source = readFileSync(
+      new URL('./phase0-snapshot.mjs', import.meta.url),
+      'utf8'
+    );
+    expect(source).toContain('--filter="is_active=true"');
   });
 });
