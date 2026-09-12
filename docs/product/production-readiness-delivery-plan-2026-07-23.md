@@ -4,9 +4,11 @@
 日期：2026-07-23  
 目前 checkpoint：Stage 0／Checkpoint A 已於 2026-07-24 通過；目前進行 Stage 1
 owner decisions。D-010 target architecture/SLO 與 D-006 identity/security 已於
-2026-07-28 核准；Stage 2 的 C1～C6 仍各待精確 request、change-plan review、
-deployment authority 與 apply approval，且決策核准不等於已有實作、部署或
-復原證據。C1 isolated foundation 不解鎖後續資源。
+2026-07-28 核准。2026-09-12 current machine status records engineering
+C0～C6 `completed` and C1～C6 `deploymentAuthorities=granted` on isolated
+synthetic project `beauessence-clinic-stg-c1a01`; this is synthetic execution
+evidence only, not production deployment or recovery proof. C1 isolated
+foundation does not unlock production or formal booking.
 
 架構依據：[正式環境目標架構書](../architecture/production-target-architecture-2026-07-23.md)  
 決策依據：[Phase 1 決策登錄](phase-1-decision-register.md)
@@ -409,9 +411,9 @@ Calendar 接線另受 D-009 gate。
 [C0 readiness artifacts](../architecture/stage-2-c0-readiness-artifacts-2026-07-29.md)
 的 logical manifest、IAM proposal、cost-input model、DR options 與 evidence／rollback
 模板。D-010 的 clinic ownership、`asia-east1` 與 RPO 1 小時／RTO 4 小時是已核准
-target；C0 owner review 與 C1 request packet 仍未完成，authority 尚未授予，
-Terraform plan 與 cloud 演練也未執行。正確順序是 C0 review → C1 request packet
-→ authority → provider-backed plan/apply/evidence；C1 本身不含 Firestore。
+target；C0～C6 synthetic execution 已完成，但 production Terraform plan/apply、
+provider-backed recovery evidence 與 cloud 演練仍未執行。正確順序是 fresh exact-SHA
+review → authority → provider-backed plan/apply/evidence；C1 本身不含 Firestore。
 勾選要等對應後續 slice 實際建立與驗證。
 **沒有執行任何 `terraform apply`。**
 

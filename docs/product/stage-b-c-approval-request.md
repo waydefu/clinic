@@ -13,6 +13,14 @@
 isolated foundation 不含 IdP、Firestore、backup/PITR 或 runtime。本文件因此尚未
 整體完成。
 
+**2026-09-12 current status：** machine Canon
+[stage-2-gate-status.json](../architecture/stage-2-gate-status.json) records
+C0～C6 `completed` and C1～C6 `deploymentAuthorities=granted` on isolated
+synthetic project `beauessence-clinic-stg-c1a01`. This closes the recorded
+synthetic C1～C6 execution evidence; it does not grant production apply,
+production Calendar, real data, or formal `/v1/bookings` routing. Any new
+cloud mutation still needs a fresh exact-SHA packet.
+
 **現行階段對照（2026-07-28）：** 本文件沿用早期 A／B／C／D 名稱；A 已併入並
 完成於 Stage 0，B 對應 Stage 2 cloud staging，C 對應 Stage 3 專用測試日曆，
 D 對應 Stage 4 真實資料。專案目前在 Stage 1 owner decisions。

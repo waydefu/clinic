@@ -5,9 +5,11 @@
 **狀態：** cloud backup／PITR **尚未演練**。2026-07-26 已完成
 [Emulator 邏輯還原與事故技術演練](../reviews/2026-07-26-local-operations-rehearsal.md)，
 V1～V5 與 Calendar companion V6 通過；它不驗證真實備份、IAM、RTO／RPO 或流量
-切換。D-010 target 已核准，但 C0 review／C1 isolated-foundation authority 尚未
-完成；C1 明確不含 Firestore。只有後續 C5/C6 Firestore／runtime slice 各自取得
-獨立 authority、apply approval 並實際建立 cloud staging 後，才可照本 runbook
+切換。D-010 target 已核准；工程 C0 與 C1～C6 synthetic slices 已在
+`beauessence-clinic-stg-c1a01` 完成，machine Canon 記錄 C1～C6
+`deploymentAuthorities=granted`。這些證據不等於 production backup／PITR、
+IAM、RTO／RPO 或流量切換證據。只有 production 取得相應的 exact-SHA
+authority、apply approval 並實際建立資源後，才可照本 runbook
 做真實還原——
 **沒有演練過的備份不能算備份**。
 

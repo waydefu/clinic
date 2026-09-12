@@ -207,13 +207,13 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 | 路徑 | 用途 | 狀態 |
 |---|---|---|
 | `apps/web/` | 病患預約站與管理後台 | 合成測試介面已建立；正式預約站未建立 |
-| `apps/api/` | NestJS API、認證、權限與 OpenAPI | 只暴露 `/v1/health`；預約寫入路徑有 repository 與 Emulator 測試，依 Phase 1 gate 尚未開為路由 |
+| `apps/api/` | NestJS API、認證、權限與 OpenAPI | CAL-PILOT synthetic-only routes 與 `/v1/health` 已接線；formal booking write path 有 repository 與 Emulator 測試，依 Phase 1 gate 尚未開為路由 |
 | `apps/worker/` | Calendar、Email、社群等背景工作 | outbox 處理器已實作：租約領取、指數退避、死信；外部服務以 port 隔離 |
 | `packages/domain/` | 預約狀態機、時段規則、純商業邏輯 | 已建立並有測試；預約、排班、患者身分、個管、回診、月結／調整與 outbox 規則皆有 I/O-free planner |
 | `packages/contracts/` | Zod schema、OpenAPI 型別、錯誤碼 | 已建立 |
 | `packages/config/` | 安全設定解析與本機預設值 | 已建立 |
 | `packages/ui/` | 共用 UI 元件與設計 token | 尚未建立；目前樣式集中於 `apps/web/public` |
-| `infra/terraform/` | 雲端資源、IAM、監控、環境配置 | 僅有 README，尚未撰寫 |
+| `infra/terraform/` | 雲端資源、IAM、監控、環境配置 | C1～C6 與 CAL-PILOT synthetic-only modules／no-op tests 已建立；production modules 與 apply 仍受 authority gate |
 | `tests/` | 跨套件、Emulator Rules 與瀏覽器端到端測試 | 已建立；Playwright 跑打包後網站，Rules 跑一次性本機 Emulator |
 | `scripts/` | 結構、UI 邊界與 Emulator 檢查腳本 | 已建立 |
 | `docs/adr/`、`docs/runbooks/` | 架構決策與維運手冊 | 已建立 |
@@ -234,9 +234,12 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 ### 5.3 規劃與實作落差追蹤
 
 規劃書與程式庫容易隨時間脫節。本節記錄兩者目前的差距，每次階段檢查時更新。
-Stage 0／Checkpoint A 已於 2026-07-24 通過；目前是 Stage 1 owner decisions，
-D-010 target 與 D-006 已核准但尚未實作／驗證；Stage 2 change plan 尚未取得
-獨立審查／部署核准，因此 cloud staging 尚未開始。
+Stage 0／Checkpoint A 已於 2026-07-24 通過；目前仍是 Stage 1 owner decisions。
+D-010 target 與 D-006 已核准；工程 C0 以及 C1～C6 synthetic slices 已在
+`beauessence-clinic-stg-c1a01` 完成，且 machine Canon 記錄 C1～C6
+`deploymentAuthorities=granted`。這不等於 production implementation、
+production deployment、復原證據或 formal booking routing；D-006 implementation
+evidence 與未決 D-series 仍須依 register 處理。
 
 **目前已自動化的 gates（依下列命令分開執行）**
 
@@ -271,9 +274,9 @@ Lint 只負責正確性，排版交給 Prettier，兩者不重疊。型別感知
 | ~~瀏覽器與伺服器是兩份領域規則~~ | ADR-0004、vendored compiled domain 與 `check:sync` 已收斂 appointment、schedule、patient identity 等共用規則 | ✅ |
 | ~~無 API contract test 與端對端測試~~ | strict contract/mapping tests 與打包後 Playwright E2E 已建立並進 CI | ✅ |
 | ~~無 remote repository~~ | 已有 HTTPS GitHub origin `https://github.com/waydefu/clinic.git`；跨電腦以 branch push／fresh clone 或 `fetch`＋`pull --ff-only` 交接 | ✅ |
-| Stage 1 owner decisions 尚未完成 | D-006/D-010 target 已核准；C0 review 與 C1～C6 各 slice 的 request／deployment authority／apply approval 尚未完成，只能依實際獲准 slice 建立 cloud staging；C1 不解鎖 IdP/Firestore/runtime | **目前 gate；Stage 2 前** |
+| Stage 1 owner decisions 尚未完成 | D-006/D-010 target 已核准；C0～C6 synthetic execution 已完成於隔離專案，machine Canon 記錄 C1～C6 authority 為 `granted`；這不解鎖 production、formal booking、real data 或新 apply | **目前 gate；production／公開能力前** |
 | production worker runner／觀測尚未接線 | 本機 processor、ports 與 plan 已有；trigger、共享 metrics、alerts、service identity 依 D-010 target 在 Stage 2／3 落實 | Stage 3 前 |
-| `infra/terraform/` 僅有 README | 雲端資源為 Phase 1 完成標準的一部分 | 依 Phase 1 排程 |
+| production Terraform／復原證據 | synthetic C1～C6 modules 已建立；production modules、apply、PITR／restore evidence 尚未完成 | 依 Phase 1 authority 與後續 slice |
 | OpenAPI 文件尚未產生 | 契約目前以 `packages/contracts` 的 TypeScript 型別為準 | 對外提供 API 前 |
 
 已解決列保留用來說明原始落差如何收斂；未解決列不影響目前「僅合成資料、無雲端
