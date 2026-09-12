@@ -8,6 +8,11 @@
 核准紀錄寫入 `docs/product/phase-1-decision-register.md`。D-004／D-005 的必要
 欄位未定時維持 `pending`；D-006 的核准不等於其控制已實作。
 
+**2026-09-12 draft normalization：** 已把 Decision Register 的 owner input
+（capacity `1`、booking horizon `1 個月`、cancellation cutoff
+`預約當日 10:00 Asia/Taipei`）標在對應欄位。這些仍是 recorded input，不是
+D-004／D-005 approval；服務規則、例外、法律與核准責任欄位仍須正式核准。
+
 本文件所用的技術邊界，請先閱讀
 [`../architecture/domain-boundaries.md`](../architecture/domain-boundaries.md)
 與 [`../architecture/api-v1-contract.md`](../architecture/api-v1-contract.md)。
@@ -33,7 +38,7 @@
 
 | 項目 | 核准答案 | 核准者／證據 |
 | --- | --- | --- |
-| 預約開放範圍 | `[最早可預約時間；最晚可預約日期]` | `[營運負責人]` |
+| 預約開放範圍 | `✅ 最長 1 個月（最早起算點與日期邊界仍待 D-004 核准）` | `業主 recorded input 2026-08-16；營運負責人 approval pending` |
 | 每日／每週營業時段 | `[含時區 Asia/Taipei]` | `[營運負責人]` |
 | 官網與目前合成預覽的營業時間衝突 | `✅ 週三至週五 12:00–20:00、週六 10:00–18:00；官網需更正` | `業主 2026-07-28` |
 | 一筆預約的服務數量 | `✅ 可多項；不自動相加服務時長，仍須填 slot 占用、緩衝、容量與價格如何合併` | `業主 2026-07-28` |
@@ -57,7 +62,7 @@ buffer／overrun 規則，讓每筆 reservation 有 operational interval，再�
 
 | 項目 | 核准答案 | 核准者／證據 |
 | --- | --- | --- |
-| 各服務取消期限 | `[服務代碼 → 距開始時間多久前]` | `[營運＋法務負責人]` |
+| 各服務取消期限 | `✅ 預約當日 10:00（Asia/Taipei；服務別例外與法律規則仍待 D-005 核准）` | `業主 recorded input 2026-08-16；營運＋法務 approval pending` |
 | 病患自行取消的驗證與操作流程 | `[流程]` | `[營運負責人]` |
 | 截止後取消 | `[不可取消／人工申請／其他規則]` | `[營運＋法務負責人]` |
 | 櫃檯或主管代為取消／改期的角色與理由 | `[角色、必填理由、稽核]` | `[營運負責人]` |
