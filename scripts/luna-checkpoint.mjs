@@ -18,7 +18,7 @@
  * All args optional; defaults pulled from git where possible.
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,16 +27,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const EVIDENCE_DIR = join(ROOT, 'output', 'evidence');
 
-function run(cmd, { silent = true } = {}) {
-  try {
-    return execSync(cmd, {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: silent ? 'pipe' : 'inherit'
-    }).trim();
-  } catch {
+function run(cmd) {
+  const [exe, ...args] = cmd.split(' ');
+  const result = spawnSync(exe, args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: 'pipe',
+    shell: false,
+  });
+  if (result.error || result.status !== 0) {
     return '';
   }
+  return result.stdout.trim();
 }
 
 function parseArgs() {
@@ -45,9 +47,7 @@ function parseArgs() {
     const arg = process.argv[i];
     if (arg.startsWith('--')) {
       const key = arg.slice(2);
-      const val = process.argv[i + 1]?.startsWith('--')
-        ? ''
-        : process.argv[++i];
+      const val = process.argv[i + 1]?.startsWith('--') ? '' : process.argv[++i];
       args[key] = val;
     }
   }

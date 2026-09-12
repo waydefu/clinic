@@ -14,7 +14,7 @@
  *   1 = mismatch / NO-HARD-STOP (read-only only)
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,21 +24,49 @@ const ROOT = join(__dirname, '..');
 const EVIDENCE_DIR = join(ROOT, 'output', 'evidence');
 
 function run(cmd, { silent = false, ignoreError = false } = {}) {
-  try {
-    const out = execSync(cmd, {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: silent ? 'pipe' : 'inherit'
-    });
-    return out.trim();
-  } catch (e) {
+  const [exe, ...args] = cmd.split(' ');
+  const result = spawnSync(exe, args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: silent ? 'pipe' : 'inherit',
+    shell: false,
+  });
+  if (result.error) {
     if (ignoreError) return '';
-    throw e;
+    throw result.error;
   }
+  if (result.status !== 0 && !ignoreError) {
+    const err = new Error(`Command failed: ${cmd}`);
+    err.status = result.status;
+    err.stderr = result.stderr;
+    throw err;
+  }
+  return result.stdout.trim();
 }
 
 function runSilent(cmd) {
   return run(cmd, { silent: true, ignoreError: true });
+}
+
+function runShell(cmd, { silent = true, ignoreError = true } = {}) {
+  // For commands that need shell features (pipes, redirections)
+  const result = spawnSync('bash', ['-c', cmd], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: silent ? 'pipe' : 'inherit',
+  });
+  if (result.error && !ignoreError) throw result.error;
+  if (result.status !== 0 && !ignoreError) {
+    const err = new Error(`Shell command failed: ${cmd}`);
+    err.status = result.status;
+    err.stderr = result.stderr;
+    throw err;
+  }
+  return result.stdout.trim();
+}
+
+function runShellSilent(cmd) {
+  return runShell(cmd, { silent: true, ignoreError: true });
 }
 
 mkdirSync(EVIDENCE_DIR, { recursive: true });
@@ -51,7 +79,7 @@ lines.push(
 );
 
 // gcloud configuration
-const gcloudConfig = runSilent(
+const gcloudConfig = runShellSilent(
   'gcloud config configurations list --format="value(name)" | grep -x clinic-staging'
 );
 lines.push(`gcloud configuration: ${gcloudConfig || 'MISSING'}`);
@@ -65,12 +93,12 @@ const gcloudProject = runSilent('gcloud config get-value project');
 lines.push(`gcloud project: ${gcloudProject || 'UNSET'}`);
 
 // organization
-const orgId = runSilent(
+const orgId = runShellSilent(
   "gcloud organizations list --format='value(name)' | awk 'NR==1'"
 );
 let orgLine = 'ORG_VISIBLE=no';
 if (orgId) {
-  const folders = runSilent(
+  const folders = runShellSilent(
     `gcloud resource-manager folders list --organization="${orgId}" --format='value(name)' | head -5`
   );
   orgLine = `org=${orgId}${folders ? ` folders=${folders.replace(/\n/g, ',')}` : ''}`;
@@ -78,13 +106,13 @@ if (orgId) {
 lines.push(`organization: ${orgLine}`);
 
 // folder (from project parent)
-const projectParent = runSilent(
+const projectParent = runShellSilent(
   "gcloud projects describe beauessence-clinic-stg-c1a01 --format='value(parent)' 2>/dev/null"
 );
 lines.push(`folder: ${projectParent || 'unknown'}`);
 
 // billing account
-const billing = runSilent(
+const billing = runShellSilent(
   'gcloud billing accounts list --format="value(name)" | head -1'
 );
 lines.push(`billing account: ${billing ? 'present' : 'absent'}`);
@@ -99,12 +127,12 @@ let adcSource;
 if (gac !== 'unset') {
   adcSource = 'GAC-env';
 } else {
-  adcToken = runSilent(
+  adcToken = runShellSilent(
     'gcloud auth application-default print-access-token >/dev/null 2>&1 && echo ADC_TOKEN_OK || echo ADC_MISSING'
   );
   if (adcToken.includes('ADC_TOKEN_OK')) {
     adcSource = 'user-adc'; // could be impersonation too; we don't distinguish here
-    const adcAct = runSilent(
+    const adcAct = runShellSilent(
       'gcloud auth application-default print-access-token 2>/dev/null | head -c 20'
     );
     adcIdentity = adcAct ? 'token-present' : 'UNVERIFIED';
@@ -115,12 +143,12 @@ if (gac !== 'unset') {
 lines.push(`ADC identity / source: ${adcIdentity} / ${adcSource}`);
 
 // Firebase CLI
-const firebaseAccount = runSilent(
+const firebaseAccount = runShellSilent(
   'firebase login:list --format=json 2>/dev/null | jq -r ".[0].user.email" 2>/dev/null'
 );
 lines.push(`Firebase CLI account: ${firebaseAccount || 'UNSET'}`);
 
-const firebaseProjects = runSilent(
+const firebaseProjects = runShellSilent(
   'firebase projects:list --json 2>/dev/null | jq -r ".result[].projectId" 2>/dev/null | grep beauessence-clinic-stg-c1a01'
 );
 lines.push(
