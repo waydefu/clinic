@@ -29,7 +29,7 @@ function run(cmd, { silent = false, ignoreError = false } = {}) {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: silent ? 'pipe' : 'inherit',
-    shell: false,
+    shell: false
   });
   if (result.error) {
     if (ignoreError) return '';
@@ -53,7 +53,7 @@ function runShell(cmd, { silent = true, ignoreError = true } = {}) {
   const result = spawnSync('bash', ['-c', cmd], {
     cwd: ROOT,
     encoding: 'utf8',
-    stdio: silent ? 'pipe' : 'inherit',
+    stdio: silent ? 'pipe' : 'inherit'
   });
   if (result.error && !ignoreError) throw result.error;
   if (result.status !== 0 && !ignoreError) {

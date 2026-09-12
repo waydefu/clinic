@@ -33,7 +33,7 @@ function run(cmd) {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: 'pipe',
-    shell: false,
+    shell: false
   });
   if (result.error || result.status !== 0) {
     return '';
@@ -47,7 +47,9 @@ function parseArgs() {
     const arg = process.argv[i];
     if (arg.startsWith('--')) {
       const key = arg.slice(2);
-      const val = process.argv[i + 1]?.startsWith('--') ? '' : process.argv[++i];
+      const val = process.argv[i + 1]?.startsWith('--')
+        ? ''
+        : process.argv[++i];
       args[key] = val;
     }
   }
