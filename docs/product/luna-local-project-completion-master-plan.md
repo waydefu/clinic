@@ -918,7 +918,7 @@ the snapshot below). Packets:
 | D-003 | pending; final text/version/publication outstanding | **human** | privacy acceptance / public booking | draft ≠ published |
 | D-004 | pending; input capacity 1, horizon 1 month | **human** named approval of scope/exclusions; Grok may *draft* the packet from recorded input | slot reservation / routing | input ≠ approval |
 | D-005 | pending; input cutoff 10:00 appointment day | same as D-004 | cancellation route | fees/no-show still in packet |
-| D-006 | approved 2026-07-28; implementation evidence pending | **Luna** implements against `roles.ts`; no new role literals | authenticated write *when also routed* | `physician` stays empty-permission |
+| D-006 | approved 2026-07-28; implementation evidence pending | **Grok** implements against `roles.ts`; no new role literals. Luna only if a §9 last-mile item applies | authenticated write *when also routed* | `physician` stays empty-permission |
 | D-007 | pending | **human**; FS-001 hides advanced case management | assignment write path | do not persist in Phase 1 |
 | D-008 | pending; period-close/adjust **deferred** | **do not implement** | payroll-credit persistence | FS-001 hidden |
 | D-009 | pending **production**; CAL-PILOT synthetic-only through 2026-11-28 | production = **human**; synthetic already approved | outbound production Calendar | CAL-PILOT ≠ production |

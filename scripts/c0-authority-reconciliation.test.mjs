@@ -162,6 +162,8 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(plan).toContain('INTERACTIVE_HUMAN_STEP');
     expect(plan).toContain('getByRole');
     expect(plan).toMatch(/Do not assume `gcloud active account = ADC account`/);
+    expect(plan).not.toMatch(/\*\*Luna\*\* implements/);
+    expect(plan).toContain('**Grok** implements against `roles.ts`');
   });
 });
 
