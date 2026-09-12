@@ -79,8 +79,11 @@ gcloud --version
 firebase --version
 ```
 
-If `gcloud` or `firebase` is missing: stop. Ask the human to install
-Google Cloud SDK and Firebase CLI. Do not invent another login method.
+If `gcloud` or `firebase` is missing: install it yourself first with the
+OS package manager or the official installer. Only if installation needs
+a sudo password / OS confirmation you cannot complete, stop and emit
+`INTERACTIVE_HUMAN_STEP` for the human to install them. Do not invent
+another login method.
 
 ---
 
@@ -275,7 +278,8 @@ firebase projects:list
 
 Browser (profile `clinic-synthetic`):
 
-1. GCP Console project picker = `beauessence-clinic-stg-c1a01`, region
+1. GCP Console project picker = `beauessence-clinic-stg-c1a01`; separately
+   verify that the resources/configuration expected to be regional use
    `asia-east1`.
 2. Confirm it is **not** `beauessence-clinic-staging`.
 3. Firebase Console: same isolated project.
