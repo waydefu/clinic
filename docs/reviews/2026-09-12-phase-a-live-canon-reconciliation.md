@@ -25,6 +25,10 @@ after PR #115. The machine Canon records:
   status and retained the exact-SHA requirement for any new mutation.
 - `docs/product/production-readiness-delivery-plan-2026-07-23.md`: updated the
   current checkpoint while retaining the plan-only production sequence.
+- `docs/roadmap.md`: updated the current delivery position without reopening
+  production or formal booking.
+- `docs/architecture/production-target-architecture-2026-07-23.md`: updated
+  the current synthetic status while retaining the production target boundary.
 
 Dated reviews that recorded earlier `not_granted` or `revise` values were not
 rewritten. The current machine file and current Decision Register remain the
