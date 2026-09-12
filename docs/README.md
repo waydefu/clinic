@@ -32,8 +32,8 @@ Read in this order before changing a boundary or enabling a capability.
 | 1 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
 | 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
 | 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Live status of all D-series decisions, including the separate D-014～D-016 expansion gates; nothing policy-dependent may be built ahead of them |
-| 4 | [Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md) | Live local execution book from post-C6 `main` through `PROJECT_COMPLETE` (checkpoint, browser ownership, remaining authority). Does **not** grant production, DNS, real data, or `/v1/bookings` |
-| 5 | [Current execution and approval plan](product/current-execution-and-approval-plan.md) | Human approval-packet index; **not** the live C-slice status (machine file + Luna plan win if they conflict) |
+| 4 | [Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md) | Grok→Luna last-mile handoff after post-C6 `main`. Grok owns remaining engineering; Luna does account/CLI/browser last-mile only. Does **not** grant production, DNS, real data, or `/v1/bookings` |
+| 5 | [Current execution and approval plan](product/current-execution-and-approval-plan.md) | Human approval-packet index; **not** the live C-slice status (machine file + last-mile spec win if they conflict) |
 | 6 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
 | 7 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
 | 8 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
@@ -48,8 +48,8 @@ Read in this order before changing a boundary or enabling a capability.
 Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Phase 1 decision register](product/phase-1-decision-register.md) — the live status of every decision
-- [Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md) — GPT-5.6 Luna local execution from post-C6 `main` through `PROJECT_COMPLETE`; checkpoint/resume; browser ownership; remaining authority. Not production authority
-- [Current execution and approval plan](product/current-execution-and-approval-plan.md) — human approval-packet checklist; superseded as the live execution path by the Luna plan after PR #112
+- [Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md) — Grok→Luna last-mile handoff; Grok keeps remaining engineering; Luna is not the successor. Not production authority
+- [Current execution and approval plan](product/current-execution-and-approval-plan.md) — human approval-packet checklist; remaining engineering stays with Grok after PR #112
 - [2026-07-27 owner request batch](product/2026-07-27-owner-request-batch.md) — the 19 owner requests of 2026-07-27 turned into scoped items, the decisions already taken, the paper intake form they map onto, and a batched execution sheet
 - [Full-project master plan (2026-07-31)](product/full-project-master-plan-2026-07-31.md) — the single technical-strategy and open-work baseline for all 39 owner questions, T／D／OR items, repository debt, the unfinished clinic-site acceptance／licensed-media batch, C1～C6, Calendar, public／operations release, Production, Expansion S and BAU, with WBS, milestones, owners, evidence, risks and authoritative controls
 - [Full-project execution book (2026-07-31)](product/full-project-execution-book-2026-07-31.md) — the complete status board and step-by-step execution path for every master-plan work package, including decision intake, parallel technical hardening, request/plan/apply/verify/stabilize/handoff, product and Expansion slices, Go/No-Go, BAU cadence and reusable evidence／tracking templates

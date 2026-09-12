@@ -25,8 +25,9 @@ continuation C0-ENG-ACCEPT:** product direction is
 C0～C6 `completed` and C1～C6 `granted` on isolated synthetic project
 `beauessence-clinic-stg-c1a01`. Formal booking stays UNROUTED.
 Production, real data, official DNS, live Hosting, and production
-Calendar stay `NOT_AUTHORIZED`. Local execution from this SHA through
-`PROJECT_COMPLETE` is
+Calendar stay `NOT_AUTHORIZED`. Remaining engineering stays with the
+cloud agent (Grok). Luna receives only local/account/browser last-mile
+work the cloud VM cannot do. Spec:
 [luna-local-project-completion-master-plan.md](luna-local-project-completion-master-plan.md).
 D-series table values below are unchanged.
 

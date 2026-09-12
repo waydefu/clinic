@@ -138,6 +138,25 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(plan).toContain('FIREBASE_TOKEN');
     expect(plan).toContain('login:use');
     expect(plan).toContain('CLOUD_AGENT_CAN_FINISH');
+    expect(plan).toContain(
+      'Grok continues to own remaining project engineering'
+    );
+    expect(plan).not.toContain(
+      'live execution path from post-C6 `main` through `PROJECT_COMPLETE`'
+    );
+    expect(plan).not.toContain('single sequential playbook Luna follows');
+    expect(plan).not.toContain('### Luna actions');
+    expect(plan).toContain('### Engineering actions (Grok)');
+    expect(plan).toContain(
+      'gcloud resource-manager folders list --organization='
+    );
+    expect(plan).not.toMatch(/^gcloud resource-manager folders list$/m);
+    expect(plan).toMatch(
+      /Create `clinic-production` gcloud config \| `LOCAL_LATER`/
+    );
+    expect(plan).not.toMatch(
+      /^gcloud config configurations create clinic-production/m
+    );
     expect(plan).toContain('LOCAL_NOW');
     expect(plan).toContain('LOCAL_LATER');
     expect(plan).toContain('INTERACTIVE_HUMAN_STEP');

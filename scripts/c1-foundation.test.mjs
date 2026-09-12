@@ -93,6 +93,10 @@ describe('C1 isolated foundation Terraform source', () => {
       'gcloud auth application-default print-access-token'
     );
     expect(packet).toContain('ADC_TOKEN_OK');
+    expect(packet).toContain(
+      'gcloud resource-manager folders list --organization='
+    );
+    expect(packet).not.toMatch(/^gcloud resource-manager folders list$/m);
     expect(packet).toContain('GCP project ids are max **30**');
     expect(packet).toContain('user_project_override');
     expect(packet).toContain('billingbudgets.googleapis.com');

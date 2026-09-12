@@ -1,9 +1,9 @@
 # 專案後續執行與核准清單
 
-**狀態：核准清單（仍可用）／執行路徑已移交。**  
+**狀態：核准清單（仍可用）／剩餘工程仍由 Grok；Luna 只做帳號最後一哩。**  
 **最後更新：2026-09-11（Asia/Taipei）**
 
-**現行本機執行書：**
+**Grok→Luna last-mile spec（工程仍由雲端 agent）：**
 [Luna local project-completion master plan](luna-local-project-completion-master-plan.md)。
 C0～C6 合成切片的機器狀態以
 [stage-2-gate-status.json](../architecture/stage-2-gate-status.json)

@@ -29,7 +29,7 @@ CAL-SYNC-DIR、C0-ENG-ACCEPT）。那是 `OWNER_AUTHORITY_CONFIRMED`。機器狀
 見 [stage-2-gate-status.json](architecture/stage-2-gate-status.json)：
 C0～C6 `completed`，C1～C6 `granted`（隔離專案 `beauessence-clinic-stg-c1a01`）。
 那不是 production、不是 live Hosting、不是官方 DNS、不是 `/v1/bookings`。
-本機後續執行見
+Grok 繼續扛剩餘工程；本機帳號／瀏覽器最後一哩見
 [Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md)。
 見 [first-stage C0 authority](architecture/first-stage-c0-authority.md)。
 
