@@ -19,6 +19,11 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  parseFirebaseLoginAccount,
+  redactAccount
+} from './phase0-snapshot-utils.mjs';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const EVIDENCE_DIR = join(ROOT, 'output', 'evidence');
@@ -86,7 +91,9 @@ lines.push(`gcloud configuration: ${gcloudConfig || 'MISSING'}`);
 
 // gcloud identity
 const gcloudAccount = runSilent('gcloud config get-value account');
-lines.push(`gcloud identity: ${gcloudAccount || 'UNVERIFIED'}`);
+lines.push(
+  `gcloud identity: ${gcloudAccount ? redactAccount(gcloudAccount) : 'UNVERIFIED'}`
+);
 
 // gcloud project
 const gcloudProject = runSilent('gcloud config get-value project');
@@ -132,10 +139,7 @@ if (gac !== 'unset') {
   );
   if (adcToken.includes('ADC_TOKEN_OK')) {
     adcSource = 'user-adc'; // could be impersonation too; we don't distinguish here
-    const adcAct = runShellSilent(
-      'gcloud auth application-default print-access-token 2>/dev/null | head -c 20'
-    );
-    adcIdentity = adcAct ? 'token-present' : 'UNVERIFIED';
+    adcIdentity = 'token-present';
   } else {
     adcSource = 'missing';
   }
@@ -143,13 +147,14 @@ if (gac !== 'unset') {
 lines.push(`ADC identity / source: ${adcIdentity} / ${adcSource}`);
 
 // Firebase CLI
-const firebaseAccount = runShellSilent(
-  'firebase login:list --format=json 2>/dev/null | jq -r ".[0].user.email" 2>/dev/null'
+const firebaseLoginOutput = runShellSilent('firebase login:list 2>/dev/null');
+const firebaseAccount = parseFirebaseLoginAccount(firebaseLoginOutput);
+lines.push(
+  `Firebase CLI account: ${firebaseAccount ? redactAccount(firebaseAccount) : 'UNSET'}`
 );
-lines.push(`Firebase CLI account: ${firebaseAccount || 'UNSET'}`);
 
 const firebaseProjects = runShellSilent(
-  'firebase projects:list --json 2>/dev/null | jq -r ".result[].projectId" 2>/dev/null | grep beauessence-clinic-stg-c1a01'
+  'firebase projects:list 2>/dev/null | grep -F beauessence-clinic-stg-c1a01'
 );
 lines.push(
   `Firebase project: beauessence-clinic-stg-c1a01 listed? ${firebaseProjects ? 'yes' : 'no'}`
