@@ -89,6 +89,10 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(catalogue).toContain(
       'architecture/c0-engineering-recommendations.md'
     );
+    expect(catalogue).toContain(
+      'product/luna-local-project-completion-master-plan.md'
+    );
+    expect(register).toContain('luna-local-project-completion-master-plan.md');
     expect(execution).toContain('AUTHORIZED');
     expect(execution).toContain('DEPLOYED=NO');
     expect(execution).not.toMatch(/Status \| `completed`/);
@@ -118,6 +122,49 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     }
     expect(register).toContain('not DNS');
   });
+
+  it('keeps gcloud CLI, ADC, and Firebase token paths distinct in the Luna plan', () => {
+    const plan = read(
+      'docs/product/luna-local-project-completion-master-plan.md'
+    );
+    expect(plan).toContain('Changing gcloud configuration does not change ADC');
+    expect(plan).toContain(
+      'The credentials you provide to ADC by using the gcloud CLI are distinct from your gcloud credentials'
+    );
+    expect(plan).toContain('ACCOUNT_CONTEXT_SNAPSHOT');
+    expect(plan).toContain('gcloud auth application-default login');
+    expect(plan).toContain('gcloud auth login --update-adc');
+    expect(plan).toContain('firebase login:ci');
+    expect(plan).toContain('FIREBASE_TOKEN');
+    expect(plan).toContain('login:use');
+    expect(plan).toContain('CLOUD_AGENT_CAN_FINISH');
+    expect(plan).toContain(
+      'Grok continues to own remaining project engineering'
+    );
+    expect(plan).not.toContain(
+      'live execution path from post-C6 `main` through `PROJECT_COMPLETE`'
+    );
+    expect(plan).not.toContain('single sequential playbook Luna follows');
+    expect(plan).not.toContain('### Luna actions');
+    expect(plan).toContain('### Engineering actions (Grok)');
+    expect(plan).toContain(
+      'gcloud resource-manager folders list --organization='
+    );
+    expect(plan).not.toMatch(/^gcloud resource-manager folders list$/m);
+    expect(plan).toMatch(
+      /Create `clinic-production` gcloud config \| `LOCAL_LATER`/
+    );
+    expect(plan).not.toMatch(
+      /^gcloud config configurations create clinic-production/m
+    );
+    expect(plan).toContain('LOCAL_NOW');
+    expect(plan).toContain('LOCAL_LATER');
+    expect(plan).toContain('INTERACTIVE_HUMAN_STEP');
+    expect(plan).toContain('getByRole');
+    expect(plan).toMatch(/Do not assume `gcloud active account = ADC account`/);
+    expect(plan).not.toMatch(/\*\*Luna\*\* implements/);
+    expect(plan).toContain('**Grok** implements against `roles.ts`');
+  });
 });
 
 describe('C0-ENG-REC-2026-09-11 engineering recommendations', () => {
@@ -127,10 +174,11 @@ describe('C0-ENG-REC-2026-09-11 engineering recommendations', () => {
   const identityScript = read('scripts/configure-cal-pilot-identity.mjs');
   const calPilotTf = read('infra/terraform/cal-pilot/variables.tf');
 
-  it('records owner acceptance without claiming C1 PASS or C2–C6 grants', () => {
+  it('records the C0-time packet; live C2–C6 grants live only in stage-2-gate-status.json', () => {
     expect(recs.status.stageSliceC0).toBe('completed');
     expect(recs.status.c1Authority).toBe('granted');
     expect(recs.status.c2ToC6Authorities).toBe('not_granted');
+    expect(JSON.stringify(recs.$comment)).toMatch(/stage-2-gate-status.json/);
     expect(recs.status.ownerAuthority).toBe('OWNER_AUTHORITY_CONFIRMED');
     expect(recs.status.humanReview).toBe('NAMED_REVIEWER_METADATA_PENDING');
     expect(recs.iam.firestoreDatabaseScope.syntheticStagingAcceptance).toBe(

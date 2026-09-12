@@ -32,22 +32,24 @@ Read in this order before changing a boundary or enabling a capability.
 | 1 | [Roadmap](roadmap.md) | Where the project actually stands, what can be built without any approval, and what is blocked |
 | 2 | [Phase 1 execution plan](phase-1-execution-plan.md) | Current scope, permitted and prohibited work, exit criteria |
 | 3 | [Phase 1 decision register](product/phase-1-decision-register.md) | Live status of all D-series decisions, including the separate D-014～D-016 expansion gates; nothing policy-dependent may be built ahead of them |
-| 4 | [Current execution and approval plan](product/current-execution-and-approval-plan.md) | Plain-language current path across Stage 1 decisions, parallel technical debt, C0／C1～C6, Calendar, public／operations release, Production, Expansion S and BAU |
-| 5 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
-| 6 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
-| 7 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
-| 8 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
-| 9 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
-| 10 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
-| 11 | [產品定位與長期方向](product/product-vision.md) | Plan-only product positioning, the roles it serves, the twelve core capabilities with what blocks each, and the current boundary that none of it may be read as built |
-| 12 | [2026-08-11 enterprise modernization audit](reviews/2026-08-11-enterprise-modernization-audit.md) | Read-only 20-section evidence: 47 issues, 29 capability decisions, 38 Roadmap items, limits and official sources; not implementation authority |
+| 4 | [Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md) | Grok→Luna last-mile handoff after post-C6 `main`. Grok owns remaining engineering; Luna does account/CLI/browser last-mile only. Does **not** grant production, DNS, real data, or `/v1/bookings` |
+| 5 | [Current execution and approval plan](product/current-execution-and-approval-plan.md) | Human approval-packet index; **not** the live C-slice status (machine file + last-mile spec win if they conflict) |
+| 6 | [Production target architecture (2026-07-23)](architecture/production-target-architecture-2026-07-23.md) | The retained boundaries, required architecture changes and target data flows |
+| 7 | [Production-readiness delivery plan (2026-07-23)](product/production-readiness-delivery-plan-2026-07-23.md) | The gated implementation sequence from the synthetic preview to production evidence |
+| 8 | [Domain boundaries](architecture/domain-boundaries.md) | Which package owns which rule |
+| 9 | [Enterprise readiness review (2026-07-23)](reviews/2026-07-23-enterprise-production-readiness-review.md) | The verified baseline, scores, findings and limitations before Stage 0 |
+| 10 | [Enterprise project plan](enterprise-appointment-project-plan.md) | The whole programme background, data model, privacy and historical gap register |
+| 11 | [Phase 1 approval gate](reviews/phase-1-approval-gate.md) | The single start/stop record |
+| 12 | [產品定位與長期方向](product/product-vision.md) | Plan-only product positioning, the roles it serves, the twelve core capabilities with what blocks each, and the current boundary that none of it may be read as built |
+| 13 | [2026-08-11 enterprise modernization audit](reviews/2026-08-11-enterprise-modernization-audit.md) | Read-only 20-section evidence: 47 issues, 29 capability decisions, 38 Roadmap items, limits and official sources; not implementation authority |
 
 ## 2. Decisions and approval packets
 
 Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Phase 1 decision register](product/phase-1-decision-register.md) — the live status of every decision
-- [Current execution and approval plan](product/current-execution-and-approval-plan.md) — the plain-language current path and consolidated approval checklist for all governance, technical, deployment, product, Production, Expansion and BAU work
+- [Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md) — Grok→Luna last-mile handoff; Grok keeps remaining engineering; Luna is not the successor. Not production authority
+- [Current execution and approval plan](product/current-execution-and-approval-plan.md) — human approval-packet checklist; remaining engineering stays with Grok after PR #112
 - [2026-07-27 owner request batch](product/2026-07-27-owner-request-batch.md) — the 19 owner requests of 2026-07-27 turned into scoped items, the decisions already taken, the paper intake form they map onto, and a batched execution sheet
 - [Full-project master plan (2026-07-31)](product/full-project-master-plan-2026-07-31.md) — the single technical-strategy and open-work baseline for all 39 owner questions, T／D／OR items, repository debt, the unfinished clinic-site acceptance／licensed-media batch, C1～C6, Calendar, public／operations release, Production, Expansion S and BAU, with WBS, milestones, owners, evidence, risks and authoritative controls
 - [Full-project execution book (2026-07-31)](product/full-project-execution-book-2026-07-31.md) — the complete status board and step-by-step execution path for every master-plan work package, including decision intake, parallel technical hardening, request/plan/apply/verify/stabilize/handoff, product and Expansion slices, Go/No-Go, BAU cadence and reusable evidence／tracking templates

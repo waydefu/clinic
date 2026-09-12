@@ -9,6 +9,11 @@ Lookup SHA: `git rev-parse HEAD` (tree SHA that GitHub
 Do not paste credentials, tokens, billing IDs or service-account JSON
 into chat or the repository.
 
+gcloud CLI login and Application Default Credentials are **different**.
+`gcloud auth list` does not prove Terraform identity. Switching
+`gcloud config configurations` does not change ADC. See
+[Luna master plan §8](../product/luna-local-project-completion-master-plan.md#8-local-identity--credential-safety--required).
+
 ## Preconditions
 
 - C0 `completed`; C1 `completed` / `granted`; C2 `granted` (not C2 PASS)
@@ -35,17 +40,39 @@ into chat or the repository.
 
 ## Commands (local)
 
-1. Confirm identity (values stay local):
+1. Confirm **gcloud CLI** identity and **ADC** separately (values stay
+   local; do not paste tokens). Prefer named configuration
+   `clinic-staging`. User ADC, then impersonation; do not download a
+   JSON key for convenience. Do not use `firebase login:ci`.
 
 ```bash
+gcloud config configurations list
 gcloud auth list
 gcloud config list
+gcloud config get-value account
+gcloud config get-value project
+printf 'GAC=%s\n' "${GOOGLE_APPLICATION_CREDENTIALS:-unset}"
+gcloud auth application-default print-access-token >/dev/null \
+  && echo ADC_TOKEN_OK \
+  || echo ADC_MISSING
 gcloud organizations list
-gcloud resource-manager folders list
+# Official: exactly one of --organization or --folder is required.
+# Empty org list is ORG_VISIBLE=no (permission or no-org) — not an
+# identity failure. Do not run folders list without a parent.
+ORG_ID="$(gcloud organizations list --format='value(name)' | awk 'NR==1')"
+if [ -n "$ORG_ID" ]; then
+  gcloud resource-manager folders list --organization="$ORG_ID"
+else
+  echo ORG_VISIBLE=no
+fi
 gcloud billing accounts list
 APPLY_SHA="$(git rev-parse HEAD)"
 echo "$APPLY_SHA"
 ```
+
+If `ADC_MISSING`, run `gcloud auth application-default login` (or
+`--impersonate-service-account` when that is the approved path), then
+repeat. If gcloud account and ADC disagree, stop. Do not apply.
 
 2. Pick an unused 1–7 character suffix, create the project under the
    owner org/folder (not no-org), and link billing:

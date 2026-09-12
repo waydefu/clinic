@@ -18,20 +18,27 @@ and do not change the current Phase 1 gate.
 continuation C0-ENG-ACCEPT:** product direction is
 `OWNER_DIRECTION_APPROVED`. Engineering C0 in
 `docs/architecture/stage-2-gate-status.json` is `completed`
-(`OWNER_AUTHORITY_CONFIRMED`). C1 `deploymentAuthorities=granted`
-(start C1 only). C2～C6 stay `not_granted`. Named reviewer person-name
-fields remain `NAMED_REVIEWER_METADATA_PENDING` and are not fabricated.
-This does not unlock production, real data, DNS, public booking, or C1
-PASS / apply evidence.
+(`OWNER_AUTHORITY_CONFIRMED`). Named reviewer person-name fields remain
+`NAMED_REVIEWER_METADATA_PENDING` and are not fabricated.
+
+**2026-09-11 post-merge (PR #112, `48f773b`):** live machine status is
+C0～C6 `completed` and C1～C6 `granted` on isolated synthetic project
+`beauessence-clinic-stg-c1a01`. Formal booking stays UNROUTED.
+Production, real data, official DNS, live Hosting, and production
+Calendar stay `NOT_AUTHORIZED`. Remaining engineering stays with the
+cloud agent (Grok). Luna receives only local/account/browser last-mile
+work the cloud VM cannot do. Spec:
+[luna-local-project-completion-master-plan.md](luna-local-project-completion-master-plan.md).
+D-series table values below are unchanged.
 
 **All 39 owner questions came back answered on 2026-08-16**, and the
 question-by-question reconciliation is
 [the 2026-08-17 record](../reviews/2026-08-17-owner-decision-reconciliation.md).
 The answers are recorded input, not approval: the sheet carries answers without
 the named approver, approval date, scope and exclusions its own approval format
-requires, so every status below is unchanged in value. The next engineering
-C0 gate is still the missing reviewer signatures, budget actions, DR option
-and MFA-recovery answers listed under C0-DIR. **This does not unlock Stage 2.**
+requires, so every D-series status below is unchanged in value. Engineering
+C0 and synthetic C1～C6 closed on 2026-09-11 (PR #112). That is not
+production, not public booking, and not a D-series close.
 
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |

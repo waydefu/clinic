@@ -1,7 +1,17 @@
 # 專案後續執行與核准清單
 
-**狀態：現行權威／Stage 1／尚未授權雲端或真實資料。**  
+**狀態：核准清單（仍可用）／剩餘工程仍由 Grok；Luna 只做帳號最後一哩。**  
 **最後更新：2026-09-11（Asia/Taipei）**
+
+**Grok→Luna last-mile spec（工程仍由雲端 agent）：**
+[Luna local project-completion master plan](luna-local-project-completion-master-plan.md)。
+C0～C6 合成切片的機器狀態以
+[stage-2-gate-status.json](../architecture/stage-2-gate-status.json)
+為準（PR #112 後為 `completed`／`granted`，隔離專案
+`beauessence-clinic-stg-c1a01`）。下文若仍寫「C0 尚未關閉」「C1 not_granted」
+「C2～C6 pending」，視為過期敘述，不得指揮新工作。本文件**不**授權
+production、真實資料、官方 DNS、live Hosting、production Calendar，也不掛
+`/v1/bookings`。
 
 **證據新鮮度：** 2026-08-11 為唯讀靜態盤點；未重跑 build、unit、Rules、E2E、
 browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史證據，不是目前 HEAD

@@ -327,6 +327,31 @@ describe('documentation gate', () => {
     expect(pattern.test('PR #23 不是這三項的完成證據')).toBe(false);
   });
 
+  it('blocks live Canon from telling agents C2–C6 are still not_granted', () => {
+    const register = STALE_CLAIMS.find(
+      ([file, pattern]) =>
+        file === 'docs/product/phase-1-decision-register.md' &&
+        pattern.source.includes('not_granted')
+    );
+    expect(
+      register?.[1].test('C2～C6 stay `not_granted`. Named reviewer')
+    ).toBe(true);
+    expect(register?.[1].test('C1～C6 `deploymentAuthorities=granted`')).toBe(
+      false
+    );
+
+    const recs = STALE_CLAIMS.find(
+      ([file]) => file === 'docs/architecture/c0-engineering-recommendations.md'
+    );
+    expect(recs?.[1].test('C2～C6 仍 `not_granted`。具名')).toBe(true);
+
+    const roadmap = STALE_CLAIMS.find(
+      ([file, pattern]) =>
+        file === 'docs/roadmap.md' && pattern.source.includes('not_granted')
+    );
+    expect(roadmap?.[1].test('C2～C6 仍 `not_granted`。見')).toBe(true);
+  });
+
   it('blocks current-status docs from leaving DATA-R01/02 and ARC-R01 pending', () => {
     const execution = STALE_CLAIMS.find(
       ([file]) => file === 'docs/product/current-execution-and-approval-plan.md'

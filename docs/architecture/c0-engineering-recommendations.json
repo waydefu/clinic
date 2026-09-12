@@ -1,8 +1,9 @@
 {
   "$comment": [
     "Engineering C0 recommendations for first-stage Phase 1, accepted by owner as C0-ENG-ACCEPT-2026-09-11.",
-    "Machine C0 status is completed, not the invalid word approved. C1 granted is start-C1, not C1 PASS.",
-    "Status split: OWNER_AUTHORITY_CONFIRMED / ENGINEERING_RECOMMENDATION_COMPLETE / NAMED_REVIEWER_METADATA_PENDING."
+    "This packet records recommendation-time gates (C1 start only; c2ToC6Authorities=not_granted).",
+    "Live C-slice status after PR #112 is docs/architecture/stage-2-gate-status.json only (C1–C6 granted/completed on isolated synthetic project). Do not treat this JSON as live C2–C6 authority.",
+    "Machine C0 status is completed, not the invalid word approved. Status split: OWNER_AUTHORITY_CONFIRMED / ENGINEERING_RECOMMENDATION_COMPLETE / NAMED_REVIEWER_METADATA_PENDING."
   ],
   "recordedInputId": "C0-ENG-REC-2026-09-11",
   "acceptanceId": "C0-ENG-ACCEPT-2026-09-11",

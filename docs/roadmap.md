@@ -23,11 +23,15 @@ backend、production Authentication 或真實病患資料 authority。決策登�
 CAL-PILOT 合成-only 子範圍（期限與排除項見登錄）不是 production 日曆連線，
 也不是 Stage 2。
 
-**2026-09-11 業主方向與工程 C0：** Phase 1 產品範圍與 C0 架構方向已記入
-Decision Register（FS-001、C0-DIR、CAL-SYNC-DIR、C0-ENG-ACCEPT）。那是
-`OWNER_AUTHORITY_CONFIRMED`。機器狀態 `stageSlices.C0=completed`（不是無效字
-`approved`）。C1 `granted` 不是 C1 PASS。C2～C6 仍 `not_granted`。見
-[first-stage C0 authority](architecture/first-stage-c0-authority.md)。
+**2026-09-11 業主方向與工程 C0，以及 PR #112 合成 C1～C6：** Phase 1
+產品範圍與 C0 架構方向已記入 Decision Register（FS-001、C0-DIR、
+CAL-SYNC-DIR、C0-ENG-ACCEPT）。那是 `OWNER_AUTHORITY_CONFIRMED`。機器狀態
+見 [stage-2-gate-status.json](architecture/stage-2-gate-status.json)：
+C0～C6 `completed`，C1～C6 `granted`（隔離專案 `beauessence-clinic-stg-c1a01`）。
+那不是 production、不是 live Hosting、不是官方 DNS、不是 `/v1/bookings`。
+Grok 繼續扛剩餘工程；本機帳號／瀏覽器最後一哩見
+[Luna local project-completion master plan](product/luna-local-project-completion-master-plan.md)。
+見 [first-stage C0 authority](architecture/first-stage-c0-authority.md)。
 
 > **目前 gate：Stage 1 決策與治理核准。** Stage 0 架構硬化與 Checkpoint A 已於
 > 2026-07-24 完成；D-010 target 與 D-006 identity/security 已於 2026-07-28

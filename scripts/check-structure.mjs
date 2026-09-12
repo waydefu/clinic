@@ -52,6 +52,7 @@ const requiredPaths = [
   'docs/design/test-only-operations-ui.md',
   'docs/legal/phase-1-privacy-approval-packet.md',
   'docs/product/phase-1-decision-register.md',
+  'docs/product/luna-local-project-completion-master-plan.md',
   'docs/product/current-execution-and-approval-plan.md',
   'docs/product/full-project-master-plan-2026-07-31.md',
   'docs/product/full-project-execution-book-2026-07-31.md',
