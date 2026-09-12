@@ -93,12 +93,13 @@ lines.push(`billing account: ${billing ? 'present' : 'absent'}`);
 const gac = process.env.GOOGLE_APPLICATION_CREDENTIALS || 'unset';
 lines.push(`GOOGLE_APPLICATION_CREDENTIALS: ${gac}`);
 
-let adcSource = 'missing';
 let adcIdentity = 'UNVERIFIED';
+let adcToken = '';
+let adcSource;
 if (gac !== 'unset') {
   adcSource = 'GAC-env';
 } else {
-  const adcToken = runSilent(
+  adcToken = runSilent(
     'gcloud auth application-default print-access-token >/dev/null 2>&1 && echo ADC_TOKEN_OK || echo ADC_MISSING'
   );
   if (adcToken.includes('ADC_TOKEN_OK')) {
@@ -135,9 +136,10 @@ lines.push(
 lines.push(`Terraform target: none this card (no apply)`);
 
 // Agreement check
+const hasAdcToken = gac !== 'unset' || adcToken.includes('ADC_TOKEN_OK');
 const agree =
   gcloudProject === 'beauessence-clinic-stg-c1a01' &&
-  adcToken?.includes('ADC_TOKEN_OK') &&
+  hasAdcToken &&
   firebaseProjects &&
   gcloudConfig === 'clinic-staging'
     ? 'yes'
