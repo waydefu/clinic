@@ -92,7 +92,9 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(catalogue).toContain(
       'product/luna-local-project-completion-master-plan.md'
     );
+    expect(catalogue).toContain('product/luna-local-authorized-playbook.md');
     expect(register).toContain('luna-local-project-completion-master-plan.md');
+    expect(register).toContain('luna-local-authorized-playbook.md');
     expect(execution).toContain('AUTHORIZED');
     expect(execution).toContain('DEPLOYED=NO');
     expect(execution).not.toMatch(/Status \| `completed`/);
@@ -127,6 +129,7 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     const plan = read(
       'docs/product/luna-local-project-completion-master-plan.md'
     );
+    const playbook = read('docs/product/luna-local-authorized-playbook.md');
     expect(plan).toContain('Changing gcloud configuration does not change ADC');
     expect(plan).toContain(
       'The credentials you provide to ADC by using the gcloud CLI are distinct from your gcloud credentials'
@@ -137,16 +140,19 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(plan).toContain('firebase login:ci');
     expect(plan).toContain('FIREBASE_TOKEN');
     expect(plan).toContain('login:use');
-    expect(plan).toContain('CLOUD_AGENT_CAN_FINISH');
-    expect(plan).toContain(
-      'Grok continues to own remaining project engineering'
-    );
+    expect(plan).toContain('LUNA_CAN_FINISH');
+    expect(plan).toContain('GROK_RESTS');
+    expect(plan).toContain('LUNA_SOLE_EXECUTOR');
+    expect(plan).toContain('Luna starts here');
+    expect(playbook).toContain('LUNA_SOLE_EXECUTOR');
+    expect(playbook).toContain('GROK_RESTS');
     expect(plan).not.toContain(
       'live execution path from post-C6 `main` through `PROJECT_COMPLETE`'
     );
     expect(plan).not.toContain('single sequential playbook Luna follows');
     expect(plan).not.toContain('### Luna actions');
-    expect(plan).toContain('### Engineering actions (Grok)');
+    expect(plan).toContain('### Engineering actions (Luna)');
+    expect(plan).not.toContain('### Engineering actions (Grok)');
     expect(plan).toContain(
       'gcloud resource-manager folders list --organization='
     );
@@ -162,8 +168,15 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(plan).toContain('INTERACTIVE_HUMAN_STEP');
     expect(plan).toContain('getByRole');
     expect(plan).toMatch(/Do not assume `gcloud active account = ADC account`/);
-    expect(plan).not.toMatch(/\*\*Luna\*\* implements/);
-    expect(plan).toContain('**Grok** implements against `roles.ts`');
+    expect(plan).toMatch(/\*\*Luna\*\* implements against\s+`roles\.ts`/);
+    expect(plan).not.toContain('**Grok** implements against `roles.ts`');
+    expect(playbook).toContain(
+      'gcloud resource-manager folders list --organization='
+    );
+    expect(playbook).not.toMatch(/^gcloud resource-manager folders list$/m);
+    expect(playbook).not.toMatch(
+      /^gcloud config configurations create clinic-production/m
+    );
   });
 });
 

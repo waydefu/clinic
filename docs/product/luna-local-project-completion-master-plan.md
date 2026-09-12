@@ -1,24 +1,22 @@
-# Grok → Luna local last-mile handoff
+# Luna remaining-work playbook (Grok rests)
 
-**Type:** last-mile account / CLI / browser handoff. Not a production grant.
-**Audience:** Grok (cloud agent: remaining engineering) and GPT-5.6 Luna
-(owner laptop: last-mile only).
-**Status:** live Grok→Luna split after post-C6 `main`. Phases 0 and A–L
-are **Grok’s remaining delivery map** through `PROJECT_COMPLETE`. Luna is
-not the successor.
+**Type:** current local execution book. Not a production grant.
+**Audience:** GPT-5.6 Luna on the owner’s laptop. **Start**
+[luna-local-authorized-playbook.md](luna-local-authorized-playbook.md).
+**Status:** `LUNA_SOLE_EXECUTOR` / `GROK_RESTS` (2026-09-12). Luna does
+the remaining work. Grok does not take further engineering on this
+delivery. This is not production.
 **Does not authorize:** production, real patient data, official DNS, live
 Hosting, production Calendar, or routing `/v1/bookings`.
 
-Grok continues to own remaining project engineering (source, Terraform,
-tests, plans, verification scripts, Canon, CI). Luna receives only work
-the cloud VM cannot do because it has no owner Google login, browser
-session, gcloud CLI identity, ADC, or Firebase account context. Do not
-reconstruct two months of chat. Do not treat dated reviews as live
-status. Do not use sub-agents.
+Luna is the remaining executor: identity last-mile **and** remaining
+engineering up to each phase HARD STOP. Do not wait for a cloud agent.
+Do not reconstruct two months of chat. Do not treat dated reviews as
+live status. Do not use sub-agents.
 
 Companion contracts in this file:
 
-- [How Grok and Luna share this book](#0-how-grok-and-luna-share-this-book)
+- [Luna local authorized playbook](luna-local-authorized-playbook.md) — **Luna starts here**
 - [Session start](#1-session-start-do-not-reaudit-the-whole-project)
 - [Checkpoint / resume](#2-checkpoint--resume-contract)
 - [Browser ownership](#3-browser-ownership-contract)
@@ -26,35 +24,34 @@ Companion contracts in this file:
 - [Stale documents](#5-stale-documents--do-not-trust-as-live)
 - [Phase dependency graph](#6-phase-dependency-graph)
 - [Local identity / credential safety](#8-local-identity--credential-safety--required)
-- [Handoff classification](#9-handoff-classification-grok--luna-last-mile)
+- [Work classification](#9-work-classification-luna-sole-executor)
 - [PROJECT_COMPLETE](#project_complete-definition)
 
 ---
 
-## 0. How Grok and Luna share this book
+## 0. How Luna works this book (Grok rests)
 
 ### Goal
 
-Keep Grok on remaining engineering from current `main` through
-`PROJECT_COMPLETE`. Hand Luna only unavoidable local/account/browser
-last-mile work. Do not mix authority layers or guess policy.
+Luna finishes remaining delivery from current `main` through each
+phase HARD STOP. Grok rests. Do not mix authority layers or guess
+policy.
 
 ### Ownership (normative)
 
 | Who | Owns | Must not |
 | --- | --- | --- |
-| **Grok** (cloud agent / PR) | Phases 0, A–L engineering: source, Terraform, tests, Canon, CI, unrouted inventory, approval-packet *drafts* | Stall a phase because the VM has no Google login; dump A–L onto Luna |
-| **Luna** (owner laptop) | Items classed `LOCAL_NOW`, `LOCAL_LATER`, or `INTERACTIVE_HUMAN_STEP` in [§9](#9-handoff-classification-grok--luna-last-mile) | Walk 0→L as project successor; start formal booking, production Calendar, production infra, DNS, cutover, or release engineering that belongs in a Grok PR |
+| **Luna** (owner laptop) | All remaining cards and phases in the [authorized playbook](luna-local-authorized-playbook.md) and this map | Production, DNS, live Hosting, real data, `/v1/bookings` route, `clinic-production` config, `terraform apply` without a new exact-SHA packet, inventing D-series approval |
+| **Grok** | Nothing further on this delivery (`GROK_RESTS`) | Resume engineering unless the owner explicitly un-rests Grok |
 | **Human** | Password, 2FA, security key, CAPTCHA, payment, named D-series approval | Paste secrets into chat |
 
-Headings **Engineering actions (Grok)** below are Grok’s. Luna reads a
-phase only to run the named last-mile command, then stops.
+Luna’s first file is the playbook. After identity Card 8 PASS, open the
+**current phase** section here and do the Engineering actions (Luna).
 
 ### Operating model
 
-1. **Grok is the main engineering agent.** No sub-agent architecture.
-   One Grok phase, then the next exact engineering action in the
-   checkpoint. Luna is invoked only for a classified last-mile packet.
+1. **Luna is the sole remaining executor.** No sub-agents. No waiting
+   for Grok. Playbook cards in order; then the next phase.
 2. **Fresh-verify necessary state** at session start. Expand the audit only
    when [§1](#1-session-start-do-not-reaudit-the-whole-project) says so.
 3. **Auto-continue** on engineering defects (see [§7](#7-automatic-continuation-vs-true-human-blockers)).
@@ -62,8 +59,7 @@ phase only to run the named last-mile command, then stops.
    question. Never ask the user to paste secrets, tokens, or private keys
    into chat.
 5. **Worktrees.** Prefer `.claude/worktrees/<topic>/`. Never commit to
-   `main`. Grok branches `cursor/<topic>` or `agent/grok-<phase>-<topic>`.
-   Luna opens a branch only if a last-mile packet must commit locally.
+   `main`. Luna branches `cursor/luna-<topic>` from `origin/main`.
 6. **Secrets stay local.** gcloud CLI identity, ADC, Firebase CLI, browser
    Google session, and Terraform target are **five separate states**. Never
    paste tokens, refresh tokens, ADC JSON, or service-account keys into chat,
@@ -71,10 +67,10 @@ phase only to run the named last-mile command, then stops.
 
 ### What this file is not
 
-- Not a Luna takeover of Phases A–L.
+- Not production, DNS, live Hosting, or real-data authority.
+- Not a route enablement.
 - Not D-series approval.
 - Not `terraform apply` authority.
-- Not a route enablement.
 - Not a replacement for `AGENTS.md` Safety Floor or
   `docs/product/phase-1-decision-register.md`.
 
@@ -85,9 +81,17 @@ this file in the same PR that records the new evidence.
 
 ## 1. Session start (do not re-audit the whole project)
 
-### Grok (default)
+### Luna (sole remaining executor)
 
-Every Grok session, from the worktree root:
+Open
+[luna-local-authorized-playbook.md](luna-local-authorized-playbook.md)
+and run Card 0. Rebuild the
+[ACCOUNT_CONTEXT_SNAPSHOT](#81-account-context-snapshot) as Card 7.
+Do not treat `gcloud auth list` as proof of ADC. After Card 8 PASS,
+open the **current phase** section here. Do not start production, DNS,
+or `/v1/bookings`.
+
+From the worktree root:
 
 ```bash
 git fetch origin main
@@ -95,11 +99,6 @@ git rev-parse origin/main
 git log -1 --oneline origin/main
 test -f output/evidence/luna-checkpoint.txt && cat output/evidence/luna-checkpoint.txt
 ```
-
-Do **not** rebuild `ACCOUNT_CONTEXT_SNAPSHOT` on the cloud VM. There is
-no owner ADC here. If the next engineering step needs a Google login,
-classify it `LOCAL_*` in [§9](#9-handoff-classification-grok--luna-last-mile)
-and keep coding what the VM can finish.
 
 Then read **only**:
 
@@ -125,13 +124,12 @@ Then read **only**:
 reviews, or the C0 owner-direction reviews unless the current phase names
 them.
 
-### Luna (only when executing a `LOCAL_*` packet)
+### Grok (dormant — `GROK_RESTS`)
 
-Rebuild the [ACCOUNT_CONTEXT_SNAPSHOT](#81-account-context-snapshot)
-from [§8](#8-local-identity--credential-safety--required). Do not treat
-`gcloud auth list` as proof of ADC, Firebase, or Terraform identity.
-Run the one last-mile command in the checkpoint. Do not start Phase A–L
-engineering.
+Do not start a Grok engineering session. If the owner later un-rests
+Grok in writing, fetch `origin/main`, read the checkpoint, and take only
+the named package. Do **not** rebuild `ACCOUNT_CONTEXT_SNAPSHOT` on the
+cloud VM.
 
 ---
 
@@ -148,7 +146,7 @@ dated review under `docs/reviews/` and index it in `docs/README.md` §7.
 ```text
 PROJECT: waydefu/clinic
 BASE MAIN: <origin/main SHA>
-WORK BRANCH: <cursor/… or agent/grok-…; Luna branch only for last-mile commit>
+WORK BRANCH: <cursor/luna-…>
 HEAD: <worktree SHA>
 CURRENT PHASE: <0|A|B|C|D|E|F|G|H|I|J|K|L>
 COMPLETED: <phase ids>
@@ -170,11 +168,11 @@ not reopen `DO NOT REOPEN`.
 
 ## 3. Browser ownership contract
 
-Browser is a last-mile surface when [§9](#9-handoff-classification-grok--luna-last-mile)
+Browser is Luna’s surface when [§9](#9-work-classification-luna-sole-executor)
 classes the work `LOCAL_*`. Luna owns settings, profiles, and
-verification for that packet. The human only performs unavoidable
-account login / 2FA when the OS or IdP blocks automation. Grok does not
-drive the owner’s Chrome.
+verification. The human only performs unavoidable account login / 2FA
+when the OS or IdP blocks automation. Grok does not drive the owner’s
+Chrome (`GROK_RESTS`).
 
 ### 3.1 Bootstrap
 
@@ -294,7 +292,7 @@ narrative in Phase A; do not roll machine status backwards.
 
 | File | Why stale as live instruction | Use instead |
 | --- | --- | --- |
-| `docs/product/current-execution-and-approval-plan.md` | Written as Stage 1 / C0-not-closed execution path | **this file** for Grok’s remaining map + Luna last-mile; keep it as the human approval-packet index |
+| `docs/product/current-execution-and-approval-plan.md` | Written as Stage 1 / C0-not-closed execution path | **the authorized playbook** then **this file** for Luna’s remaining map; keep it as the human approval-packet index |
 | Register 2026-08-16 “next C0 gate / does not unlock Stage 2” prose | C0 and synthetic C1～C6 closed in PR #112 | register status table + `stage-2-gate-status.json` |
 | `docs/reviews/2026-09-11-c0-engineering-acceptance.md` | Dated; records C2～C6 `not_granted` **at that hour** | dated evidence only |
 | `docs/reviews/2026-09-11-c0-owner-direction-reconciliation.md` | Dated; C0 was `revise` then | dated evidence only |
@@ -319,8 +317,9 @@ Live Canon for this plan:
 
 ## 6. Phase dependency graph
 
-Phases 0 and A–L are **Grok’s remaining delivery map**. Luna does not
-walk this graph as successor. Each phase still has its own HARD STOP.
+Phases 0 and A–L are **Luna’s remaining delivery map** (`LUNA_SOLE_EXECUTOR`).
+Each phase still has its own HARD STOP. Grok does not walk this graph
+(`GROK_RESTS`).
 
 ```text
 Phase 0 (fresh verify + canon reconcile)
@@ -352,8 +351,7 @@ HARD STOP.
 
 Expansion S (D-014/D-015 clinical/money) stays **out of Phase 1 delivery**.
 FS-001 hides payroll, formal medical records, surgery/anesthesia, and
-settlement. Grok does not implement them unless the register changes.
-Luna does not take Expansion S as leftover local work.
+settlement. Luna does not implement them unless the register changes.
 
 ---
 
@@ -579,38 +577,41 @@ isolated or authorised project, never `beauessence-clinic-staging` for
 C1～C6; `exact_apply_authority_sha` is this HEAD; plan target matches
 that project.
 
-### 8.6 Last-mile shape (what Luna is for)
+### 8.6 Laptop execution shape (what Luna is for)
 
-Grok keeps source, Terraform, tests, plan files, verification scripts,
-and the A–L engineering map. Luna is not the successor. Luna’s remaining
-account-side work looks like:
+Luna keeps remaining source, Terraform drafts, tests, plan files,
+verification scripts, identity work, and the A–L map up to each HARD
+STOP. Grok rests (`GROK_RESTS` / `LUNA_SOLE_EXECUTOR`).
+
+Identity work looks like:
 
 > Sign in the named Google account → named **synthetic** gcloud
 > configuration (`clinic-staging`) → ADC for that same principal →
-> confirm billing/project → run the already verified apply → CLI
-> read-back.
+> confirm billing/project → CLI read-back.
+
+Engineering work looks like:
+
+> Playbook Card 8 PASS → current phase Engineering actions (Luna) →
+> covering gate → checkpoint.
 
 Not:
 
-> Figure out how to deploy GCP.
-
-Not:
-
-> Take Phases A–L and finish the product on the laptop.
+> Invent D-series approval, route `/v1/bookings` early, create
+> `clinic-production` “just in case”, or apply production Terraform
+> without an exact-SHA packet.
 
 ---
 
-## 9. Handoff classification (Grok → Luna last mile)
+## 9. Work classification (Luna sole executor)
 
-Classify every remaining account-side item. Prefer
-`CLOUD_AGENT_CAN_FINISH` or `NOT_NEEDED`. Give Luna only unavoidable
-last-mile work.
+Classify every remaining item. Prefer `LUNA_CAN_FINISH` or `NOT_NEEDED`.
+Grok does not take a class (`GROK_RESTS`).
 
 | Class | Meaning |
 | --- | --- |
-| `CLOUD_AGENT_CAN_FINISH` | No owner login required. Do it in the agent/PR now. |
+| `LUNA_CAN_FINISH` | No owner login required. Luna does it on the laptop now. |
 | `NOT_NEEDED` | Looks human, but CLI/API/IaC already covers it or it is forbidden. |
-| `LOCAL_NOW` | Authority exists. Luna does it on the laptop immediately. |
+| `LOCAL_NOW` | Authority exists. Luna does it on the laptop immediately (needs Google identity). |
 | `LOCAL_LATER` | Needs the laptop, but authority is still missing. |
 | `INTERACTIVE_HUMAN_STEP` | Password, 2FA, security key, CAPTCHA, payment confirmation — the human only. |
 
@@ -618,10 +619,10 @@ Snapshot at this plan’s write (re-classify after Phase 0):
 
 | Item | Class | Note |
 | --- | --- | --- |
-| Docs, tests, Terraform source, unrouted inventory, this plan | `CLOUD_AGENT_CAN_FINISH` | Already the PR path |
-| Phases 0, A–L engineering (booking, Calendar, infra, DNS, cutover, UI, release) | `CLOUD_AGENT_CAN_FINISH` | Grok’s map; not a Luna takeover |
-| Phase A consolidation / stale Canon | `CLOUD_AGENT_CAN_FINISH` | No login |
-| Phase B approval-packet **drafts** | `CLOUD_AGENT_CAN_FINISH` | Signoff is human |
+| Docs, tests, Terraform source, unrouted inventory, this plan | `LUNA_CAN_FINISH` | Luna PR path; Grok rests |
+| Phases 0, A–L engineering (booking, Calendar, infra, DNS, cutover, UI, release) | `LUNA_CAN_FINISH` up to each HARD STOP | Luna’s map |
+| Phase A consolidation / stale Canon | `LUNA_CAN_FINISH` | No login |
+| Phase B approval-packet **drafts** | `LUNA_CAN_FINISH` | Signoff is human |
 | D-series named approval | `INTERACTIVE_HUMAN_STEP` | Owner/legal/medical |
 | Isolated project read-only verify | `LOCAL_NOW` | ADC + `clinic-staging` config |
 | Create `clinic-staging` gcloud config | `LOCAL_NOW` | Synthetic isolated work only |
@@ -641,8 +642,8 @@ Snapshot at this plan’s write (re-classify after Phase 0):
 
 ## Fresh-verified baseline (re-check in Phase 0)
 
-Recorded while writing this file. **Not standing authority.** Grok
-re-checks git/Canon. Luna re-checks identity only for a `LOCAL_*` packet.
+Recorded while writing this file. **Not standing authority.** Luna
+re-checks git/Canon **and** identity (playbook Cards 0–8).
 
 | Fact | Evidence at plan write |
 | --- | --- |
@@ -667,9 +668,8 @@ are pending. Do not start product construction.
 
 ### Preconditions
 
-Grok: clone + `gh`. No owner ADC required for git/Canon/AppModule.
-Luna last-mile (item 6 only): Chrome `clinic-synthetic`; gcloud CLI
-identity **and** ADC **and** Firebase CLI verified separately
+Luna: clone + `gh` + playbook Cards 0–8. Chrome `clinic-synthetic`;
+gcloud CLI identity **and** ADC **and** Firebase CLI verified separately
 ([§8](#8-local-identity--credential-safety--required)). No production
 project login in the synthetic profile.
 
@@ -681,7 +681,7 @@ project login in the synthetic profile.
 `apps/api/unrouted-inventory.json`; `scripts/c2-c6-smoke-evidence.mjs`;
 `scripts/sequential-c-gate.mjs`; `scripts/isolated-c1-project-id.mjs`.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 1. Fetch and pin `origin/main`. If SHA ≠ `48f773b…`, read the delta and
    treat **that** SHA as `BASE MAIN`. Do not assume this plan's SHA.
@@ -693,13 +693,10 @@ project login in the synthetic profile.
    checkpoint.
 6. If a **live** Canon file still claims C2～C6 `not_granted`, reconcile
    that file in a docs PR. Do not rewrite dated reviews.
-
-### Luna last-mile
-
-Read-only inspect isolated project (CLI + Console). Do not apply.
-Rebuild [ACCOUNT_CONTEXT_SNAPSHOT](#81-account-context-snapshot) first.
-If gcloud account and ADC disagree, stop. Do not continue into Phase A
-engineering.
+7. Read-only inspect isolated project (CLI + Console). Do not apply.
+   Rebuild [ACCOUNT_CONTEXT_SNAPSHOT](#81-account-context-snapshot) first.
+   If gcloud account and ADC disagree, stop. Do not continue into Phase A
+   engineering.
 
 ### Change boundary
 
@@ -789,8 +786,7 @@ behavior unchanged.
 
 ### Preconditions
 
-Phase 0 engineering PASS. Working branch `cursor/` or `agent/grok-a-consolidation`.
-Luna does not take this phase.
+Phase 0 engineering PASS. Working branch `cursor/luna-a-consolidation`.
 
 ### Authoritative inputs
 
@@ -802,7 +798,7 @@ This file §5; `docs/document-lifecycle.md`; `docs/INDEX.md`;
 `docs/runbooks/manual-accessibility-test.md`;
 `security/audit-exceptions.json`.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 Inventory then classify every open item:
 
@@ -860,7 +856,7 @@ checkpoint A.
 
 ### PASS
 
-Every open ID is classified. Live Canon no longer tells Grok to start C1.
+Every open ID is classified. Live Canon no longer tells Luna to start C1.
 Machine C0～C6 unchanged. Booking still UNROUTED. No secrets.
 
 ### FAIL
@@ -916,9 +912,9 @@ the snapshot below). Packets:
 | D-001 | pending (input 2026-08-16) | **human** legal/privacy | published privacy policy | not a booking route |
 | D-002 | pending; backup-deletion + Google processor unanswered | **human** | collecting patient data; deletion/audit export | not IAM |
 | D-003 | pending; final text/version/publication outstanding | **human** | privacy acceptance / public booking | draft ≠ published |
-| D-004 | pending; input capacity 1, horizon 1 month | **human** named approval of scope/exclusions; Grok may *draft* the packet from recorded input | slot reservation / routing | input ≠ approval |
+| D-004 | pending; input capacity 1, horizon 1 month | **human** named approval of scope/exclusions; Luna may *draft* the packet from recorded input | slot reservation / routing | input ≠ approval |
 | D-005 | pending; input cutoff 10:00 appointment day | same as D-004 | cancellation route | fees/no-show still in packet |
-| D-006 | approved 2026-07-28; implementation evidence pending | **Grok** implements against `roles.ts`; no new role literals. Luna only if a §9 last-mile item applies | authenticated write *when also routed* | `physician` stays empty-permission |
+| D-006 | approved 2026-07-28; implementation evidence pending | **Luna** implements against `roles.ts`; no new role literals | authenticated write *when also routed* | `physician` stays empty-permission |
 | D-007 | pending | **human**; FS-001 hides advanced case management | assignment write path | do not persist in Phase 1 |
 | D-008 | pending; period-close/adjust **deferred** | **do not implement** | payroll-credit persistence | FS-001 hidden |
 | D-009 | pending **production**; CAL-PILOT synthetic-only through 2026-11-28 | production = **human**; synthetic already approved | outbound production Calendar | CAL-PILOT ≠ production |
@@ -928,12 +924,12 @@ the snapshot below). Packets:
 | D-015 | pending; ledger/refund/settlement **deferred** | **human**; out of Phase 1 | money/settlement | FS-001 hidden |
 | D-016 | pending **production**; CAL-PILOT synthetic-only same expiry | production = **human** | Calendar-to-system writes | watch UNROUTED until authorised |
 
-Grok may fill packet blanks that are already decided by FS-001 / C0-ENG-REC
+Luna may fill packet blanks that are already decided by FS-001 / C0-ENG-REC
 / ADRs (example: capacity 1, cutoff 10:00, roles from `roles.ts`, region
-`asia-east1`). Grok may not invent legal controller name, processor
+`asia-east1`). Luna may not invent legal controller name, processor
 agreement, medical record fields, or production calendar ids.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 For each ID: current answer, missing authority, whether legal/privacy/
 medical/security review is required, technical impact, routes unlocked,
@@ -1038,7 +1034,7 @@ routing may proceed without D-011.
 `scripts/c2-c6-smoke-evidence.mjs` (`FORMAL_BOOKING_ROUTE_MARKERS`);
 BOOK-PILOT proposal; C0-DIR / FS-001; `docs/architecture/api-v1-contract.md`.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 Must cover, in code at the owning boundary (domain/contracts first):
 
@@ -1161,7 +1157,7 @@ ADR-0002; D-009/D-016; CAL-SYNC-DIR; `docs/architecture/calendar-event-id.md`;
 `apps/api/src/calendar/calendar-watch.controller.ts`;
 `infra/terraform/c6-calendar/` (API enablement, not production).
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 | Topic | Rule |
 | --- | --- |
@@ -1275,7 +1271,7 @@ the production dependency).
 `infra/terraform/**`; `docs/runbooks/backup-and-restore.md`;
 `docs/runbooks/incident-response.md`; D-010; Safety Floor 8.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 | Slice | Do | Do not |
 | --- | --- | --- |
@@ -1323,11 +1319,10 @@ gcloud run services describe ... --format='yaml(status.url,status.traffic)'
 gcloud firestore backups list ...
 ```
 
-Terraform apply remains a guarded, authorised command. After Grok has
-the plan and SHA gate in git, Luna may run apply only as a `LOCAL_*`
-packet with matching ADC/project. Grok does not apply from the cloud VM.
+Terraform apply remains a guarded, authorised command. Luna may apply
 locally **only** when the checkpoint records the exact SHA and the owner
-authority packet names that SHA.
+authority packet names that SHA, with matching ADC/project. Do not apply
+from a cloud VM that lacks owner ADC.
 
 ### Tests
 
@@ -1394,7 +1389,7 @@ FS-001; D-011; `docs/runbooks/synthetic-online-preview.md` (preview ≠
 prod); `firebase.json`; CSP/HSTS notes in web quality gates;
 ADR-0001 (browser → API only).
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 | Topic | Rule |
 | --- | --- |
@@ -1490,7 +1485,7 @@ time + opaque label only); data classification
 `docs/security/data-classification-and-field-inventory-2026-07-29.md`
 (plan-only; production fields still unapproved until D-001～D-003).
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 | Step | Rule |
 | --- | --- |
@@ -1547,7 +1542,7 @@ with no owner accept of delta.
 
 ### HARD STOP
 
-No real-data authority. Export requested into the cloud agent or public
+No real-data authority. Export requested into chat, git, or the public
 repo. Dual-run without loop prevention.
 
 ### Rollback
@@ -1581,7 +1576,7 @@ named visual defect requires it.
 `docs/design/test-only-operations-ui.md`; visual C6 **preview** references
 are historical, not pixel gates.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 Walk roles and states on viewports **320, 360, 390, 430, tablet, laptop,
 desktop, high-DPI**:
@@ -1671,7 +1666,7 @@ Phase H visual bar PASS on the candidate. Automated
 The manual AT runbook; ui-ux-rules §1.2 and §5.3; WCAG 2.2 AA as
 engineering baseline (not a Taiwan government mark claim).
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 Distinguish:
 
@@ -1755,7 +1750,7 @@ ships. Owner approval for **this SHA**.
 `AGENTS.md` Safety Floor 8; D-013; `docs/runbooks/incident-response.md`;
 this section’s checklist.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 Release checklist (all must be evidenced on **this SHA**):
 
@@ -1845,7 +1840,7 @@ Phase J PASS. Monitoring accessible in `clinic-production` profile.
 Incident runbook; backup runbook; budget 50/80/100; Calendar failure
 runbook.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 | Window | Watch |
 | --- | --- |
@@ -1920,7 +1915,7 @@ Phase K first-week PASS (or owner-accepted residuals). No open Sev-1.
 This section; `docs/state/conflicts.md`; runbooks; handoff skill
 `.claude/skills/handoff-record/SKILL.md`.
 
-### Engineering actions (Grok)
+### Engineering actions (Luna)
 
 | Item | Done when |
 | --- | --- |
@@ -2027,7 +2022,8 @@ Until then the checkpoint stays `CURRENT PHASE: K` or earlier.
 
 ## What this planning change does not do
 
-- Does not assign Phases A–L to Luna as successor
+- Does not wait for Grok; remaining Phases 0 and A–L engineering is Luna’s
+  up to each HARD STOP (`LUNA_SOLE_EXECUTOR` / `GROK_RESTS`)
 - Does not create a `clinic-production` gcloud config or Chrome profile now
 - No `terraform apply`
 - No AppModule routing change
