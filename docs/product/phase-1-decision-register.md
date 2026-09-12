@@ -25,11 +25,20 @@ continuation C0-ENG-ACCEPT:** product direction is
 C0～C6 `completed` and C1～C6 `granted` on isolated synthetic project
 `beauessence-clinic-stg-c1a01`. Formal booking stays UNROUTED.
 Production, real data, official DNS, live Hosting, and production
-Calendar stay `NOT_AUTHORIZED`. Remaining engineering stays with the
-cloud agent (Grok). Luna receives only local/account/browser last-mile
-work the cloud VM cannot do. Spec:
-[luna-local-project-completion-master-plan.md](luna-local-project-completion-master-plan.md).
+Calendar stay `NOT_AUTHORIZED`. Dated at that hour: remaining
+engineering was assigned to the cloud agent. Superseded 2026-09-12.
 D-series table values below are unchanged.
+
+**2026-09-12 (`GROK_RESTS` / `LUNA_SOLE_EXECUTOR`):** remaining identity
+and remaining engineering are Luna-only on the owner laptop. Grok does
+not take further engineering unless the owner explicitly un-rests Grok.
+Start:
+[luna-local-authorized-playbook.md](luna-local-authorized-playbook.md).
+Map:
+[luna-local-project-completion-master-plan.md](luna-local-project-completion-master-plan.md).
+D-series table values below are unchanged. Production, real data,
+official DNS, live Hosting, production Calendar, and `/v1/bookings`
+stay `NOT_AUTHORIZED`.
 
 **All 39 owner questions came back answered on 2026-08-16**, and the
 question-by-question reconciliation is

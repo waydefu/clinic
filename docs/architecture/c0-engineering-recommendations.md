@@ -18,9 +18,9 @@ technical／security 人名欄位仍空（`NAMED_REVIEWER_METADATA_PENDING`）�
 `stageSlices=completed` on isolated project `beauessence-clinic-stg-c1a01`.
 That is not production, not live Hosting, not official DNS, and not
 `/v1/bookings`. Read
-[stage-2-gate-status.json](stage-2-gate-status.json). Last-mile handoff:
-[Luna master plan](../product/luna-local-project-completion-master-plan.md)
-(Grok owns remaining engineering).
+[stage-2-gate-status.json](stage-2-gate-status.json). Remaining-work:
+[Luna authorized playbook](../product/luna-local-authorized-playbook.md)
+(`GROK_RESTS`; Luna sole remaining executor).
 
 官方依據（查詢日 2026-09-11）：
 
