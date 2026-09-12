@@ -85,7 +85,7 @@ lines.push(
 
 // gcloud configuration
 const gcloudConfig = runShellSilent(
-  'gcloud config configurations list --format="value(name)" | grep -x clinic-staging'
+  'gcloud config configurations list --filter="is_active=true" --format="value(name)" | grep -x clinic-staging'
 );
 lines.push(`gcloud configuration: ${gcloudConfig || 'MISSING'}`);
 
