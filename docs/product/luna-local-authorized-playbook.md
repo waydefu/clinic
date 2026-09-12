@@ -79,11 +79,45 @@ gcloud --version
 firebase --version
 ```
 
-If `gcloud` or `firebase` is missing: install it yourself first with the
-OS package manager or the official installer. Only if installation needs
-a sudo password / OS confirmation you cannot complete, stop and emit
-`INTERACTIVE_HUMAN_STEP` for the human to install them. Do not invent
-another login method.
+If `gcloud` or `firebase` or `terraform` is missing: install it yourself first.
+**Ubuntu/Debian (arm64) — this laptop**:
+
+- **gcloud**: Google APT repo publishes `google-cloud-cli` for `arm64`.
+  ```bash
+  # one-time repo setup (needs sudo)
+  sudo apt-get update && sudo apt-get install -y curl apt-transport-https ca-certificates gnupg
+  echo "deb [signed-by=/usr/share/keyrings/google-cloud-cli.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-cli.sources > /dev/null
+  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/google-cloud-cli.gpg
+  sudo apt-get update && sudo apt-get install -y google-cloud-cli
+  ```
+  If APT fails (Python version conflict), fall back to the versioned archive:
+  ```bash
+  wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-arm.tar.gz
+  sudo tar -xzf google-cloud-cli-linux-arm.tar.gz -C /opt
+  cd /opt/google-cloud-sdk && sudo ./install.sh -q
+  echo 'export PATH="/opt/google-cloud-sdk/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+  ```
+
+- **firebase**: npm global (already on this laptop at `/usr/bin/firebase` via `firebase-tools`).
+  ```bash
+  npm install -g firebase-tools@latest
+  ```
+
+- **terraform**: HashiCorp APT repo publishes `terraform` for `arm64`.
+  ```bash
+  sudo apt-get update && sudo apt-get install -y curl ca-certificates gnupg
+  curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.sources > /dev/null
+  sudo apt-get update && sudo apt-get install -y terraform
+  ```
+  If the repo codename is not yet supported, download the ARM64 binary directly:
+  ```bash
+  TVER=1.15.4  # or latest from https://releases.hashicorp.com/terraform/
+  curl -fsSLO "https://releases.hashicorp.com/terraform/${TVER}/terraform_${TVER}_linux_arm64.zip"
+  unzip -o "terraform_${TVER}_linux_arm64.zip" -d /usr/local/bin/
+  ```
+
+Only if installation needs a sudo password / OS confirmation you cannot complete, stop and emit `INTERACTIVE_HUMAN_STEP` for the human to install them. Do not invent another login method.
 
 ---
 
@@ -234,29 +268,16 @@ permission, or no-org). Skip folders list. Never run
 
 ## Card 7 — Snapshot
 
-Write `output/evidence/account-context-snapshot.txt` (gitignored).
-Redact emails to domain. Never commit it.
+Run the snapshot script (rebuilds everything, writes file, exits 1 on mismatch):
 
-```text
-ACCOUNT_CONTEXT_SNAPSHOT
-environment: synthetic-isolated
-current authority: LUNA_SOLE_EXECUTOR / GROK_RESTS (not production)
-gcloud configuration: clinic-staging
-gcloud identity: <email-or-UNVERIFIED>
-gcloud project: beauessence-clinic-stg-c1a01
-organization: <id-or-ORG_VISIBLE=no>
-folder: <from project parent; do not commit unless required>
-billing account: present/absent (do not commit the id)
-ADC identity / source: user-adc | impersonation | missing
-GOOGLE_APPLICATION_CREDENTIALS: unset | path-only
-Firebase CLI account: <email-or-UNSET>
-Firebase project: beauessence-clinic-stg-c1a01 listed? yes/no
-browser Google account / Chrome profile: clinic-synthetic
-Terraform target: none this card (no apply)
-CLI + browser + Terraform agree: <yes | NO-HARD-STOP>
+```bash
+node scripts/phase0-snapshot.mjs
 ```
 
-If any row is missing, mixed, or `NO-HARD-STOP`: read-only only. Do not
+Expected output file: `output/evidence/account-context-snapshot.txt` (gitignored).
+Redact emails to domain if pasted. Never commit it.
+
+If the script exits with code 1 (`NO-HARD-STOP`): read-only only. Do not
 continue to Card 8 as PASS.
 
 Also write `output/evidence/luna-checkpoint.txt` using the block in the
@@ -281,9 +302,18 @@ Browser (profile `clinic-synthetic`):
 1. GCP Console project picker = `beauessence-clinic-stg-c1a01`; separately
    verify that the resources/configuration expected to be regional use
    `asia-east1`.
+   - Open <https://console.cloud.google.com/home/dashboard?project=beauessence-clinic-stg-c1a01>
+   - **Project picker** (top bar) shows `beauessence-clinic-stg-c1a01` — screenshot → `output/evidence/card8-gcp-project-picker.png`
+   - **Firestore → Settings** → Location shows `asia-east1` (immutable) — screenshot → `output/evidence/card8-firestore-location.png`
+   - **Cloud Run → Services** → Region column shows `asia-east1` — screenshot → `output/evidence/card8-cloudrun-region.png`
+   - **IAM & Admin → Settings** → Project number/id match — screenshot → `output/evidence/card8-iam-settings.png`
 2. Confirm it is **not** `beauessence-clinic-staging`.
 3. Firebase Console: same isolated project.
+   - Open <https://console.firebase.google.com/project/beauessence-clinic-stg-c1a01/overview>
+   - Project selector shows `beauessence-clinic-stg-c1a01` — screenshot → `output/evidence/card8-firebase-console.png`
 4. Reload. Screenshot the project id (no secrets).
+
+All screenshots saved under `output/evidence/` (gitignored). Filenames use `card8-{service}-{detail}.png` pattern.
 
 **PASS (identity):** all true:
 
@@ -492,15 +522,9 @@ un-rests Grok in writing.
 
 ## Human blocker (one question only)
 
-```text
-HUMAN BLOCKER
-PHASE: Luna playbook Card <n>
-DECISION OR RESOURCE:
-ONE QUESTION:
-WHY I CANNOT PROCEED:
-WHAT I WILL NOT DO UNTIL ANSWERED:
-SAFE OPTIONS (if any):
-```
+Use the shared template: `docs/templates/human-blocker-template.md`.
+
+Copy it verbatim for every blocker. Do not improvise the format.
 
 Never ask the human to paste a password, token, ADC JSON, or private key
 into chat.

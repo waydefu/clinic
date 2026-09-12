@@ -65,6 +65,11 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Privacy approval packet](legal/phase-1-privacy-approval-packet.md) — D-001…D-003 privacy, retention and vendor record
 - [BOOK-PILOT synthetic booking write-path proposal (2026-09-07)](product/2026-09-07-book-pilot-proposal.md) — plan-only T2-GOV-01 draft: scope, exclusions, synthetic-only, expiry, kill switch, rollback, evidence and required gate changes; does not approve D-004/D-005, does not change capability gates, and does not route `/v1/bookings`
 
+## 2a. Reusable templates
+
+- [D-series approval packet template](templates/d-series-approval-packet-template.md) — standardised metadata, ceremony checklist, and register update procedure for every D-series approval
+- [Human blocker template](templates/human-blocker-template.md) — exact format for every HUMAN BLOCKER; copy verbatim, do not improvise
+
 ## 3. Architecture and contracts
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)

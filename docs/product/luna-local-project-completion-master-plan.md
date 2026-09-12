@@ -137,11 +137,18 @@ cloud VM.
 
 At the end of every major phase, and at the end of every session, write:
 
-`output/evidence/luna-checkpoint.txt`
+```bash
+node scripts/luna-checkpoint.mjs --phase <0|A|B|C|D|E|F|G|H|I|J|K|L> [options]
+```
 
+Options: `--completed`, `--in-progress`, `--blockers`, `--booking`, `--test-state`, `--next-action`.
+
+Outputs to `output/evidence/luna-checkpoint.txt` (gitignored) and prints to stdout.
 Also paste the same block into the session reply. Do not commit this file
 (`output/evidence/` is gitignored). When a phase changes Canon, also add a
 dated review under `docs/reviews/` and index it in `docs/README.md` §7.
+
+Checkpoint block format:
 
 ```text
 PROJECT: waydefu/clinic
@@ -159,6 +166,7 @@ BROWSER STATE: profile=<clinic-synthetic|clinic-production> account=<verified|un
 TEST STATE: <gates PASS/FAIL/NOT_RUN/UNAVAILABLE>
 NEXT EXACT ACTION: <one sentence + command or URL>
 DO NOT REOPEN: C0-C6 synthetic slices; PR #112; vendor comment-drift on 16e3bfc
+TIMESTAMP: <ISO-8601 Asia/Taipei>
 ```
 
 Resume rule: the next session does **exactly** `NEXT EXACT ACTION`. It does
@@ -374,17 +382,9 @@ real-data authority, production Calendar authority, DNS ownership,
 unavoidable login/2FA, billing ownership / clinic project transfer,
 irreversible high-risk mutation.
 
-Question template:
+Use the shared template: `docs/templates/human-blocker-template.md`.
 
-```text
-HUMAN BLOCKER
-PHASE:
-DECISION OR RESOURCE:
-ONE QUESTION:
-WHY I CANNOT PROCEED:
-WHAT I WILL NOT DO UNTIL ANSWERED:
-SAFE OPTIONS (if any):
-```
+Copy it verbatim for every blocker. Do not improvise the format.
 
 Do not ask the human to choose among engineering implementations when a
 domain planner, ADR, or existing packet already decides it.
@@ -904,6 +904,7 @@ the snapshot below). Packets:
 - `docs/security/taiwan-privacy-legal-baseline.md`
 - `docs/legal/privacy-policy-draft.md` (draft, not published)
 - FS-001 in the register (capability freeze + suggested hostnames)
+- **Template**: `docs/templates/d-series-approval-packet-template.md` — use this for any new packet drafts
 
 ### Snapshot at plan write (must re-read)
 
@@ -1519,6 +1520,14 @@ owner machine**, redacting PII from screenshots (crop; no names).
 Local scripts under `secrets/` / `exports/` (gitignored). Dry-run prints
 counts, not payloads, into the evidence doc.
 
+Generate the anonymised fixture for dry-run:
+
+```bash
+node scripts/gen-cutover-fixture.mjs --count 50
+```
+
+Output: `output/evidence/phaseG-cutover-fixture.json` (gitignored).
+
 ### Tests
 
 Dry-run on an **anonymised fixture** that Luna generates (fake times,
@@ -1690,6 +1699,17 @@ Do not claim Taiwan 無障礙標章.
 
 Follow the runbook on Chrome and Safari/iOS or Chrome/Android. Capture
 pass/fail per runbook ID. No PII in recordings.
+
+**When the OS blocks automation (record as `INTERACTIVE_HUMAN_STEP`):**
+
+| Platform | Blocker | Human Action Required |
+|----------|---------|----------------------|
+| macOS | VoiceOver needs Screen Recording permission | Human grants in System Settings → Privacy & Security → Screen Recording |
+| iOS Safari | No WebDriver / Playwright support on device | Human holds iPhone, runs VoiceOver manually |
+| Android Chrome | TalkBack permission dialogs, USB debugging auth | Human taps "Allow" on device; enables USB debugging |
+| Windows | Narrator secure desktop / UAC | Human completes UAC / secure desktop prompts |
+
+Luna drives the test script; human only performs the unavoidable OS/IdP step.
 
 ### CLI actions
 
