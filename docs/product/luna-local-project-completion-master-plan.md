@@ -1205,9 +1205,9 @@ gcloud secrets list --project "$PROD_PROJECT"   # names only
 ```
 
 Use `docs/runbooks/calendar-go-live.md` for service-account **shape**
-(service account, not OAuth client). Owner creates keys; neither Grok
-nor Luna downloads a convenience JSON key.
-paste JSON.
+(service account, not OAuth client). Owner provisions the approved
+service-account access path; do not create or download a long-lived JSON key
+for convenience.
 
 ### Tests
 
