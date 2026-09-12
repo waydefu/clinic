@@ -4,10 +4,11 @@
 日期：2026-07-23  
 進度註記：Stage 0／Checkpoint A 已於 2026-07-24 完成；目前為 Stage 1 owner
 decisions。D-010 target architecture/SLO 與 D-006 identity/security 已於
-2026-07-28 核准；Stage 2 的 C1～C6 仍各須精確 request、change-plan review、
-deployment authority 與 apply approval，且尚未建立任何 cloud 資源、身分控制
-或復原證據。C1 isolated foundation 不解鎖後續 IdP、Firestore、backup/PITR 或
-runtime slice。
+2026-07-28 核准。2026-09-12 machine Canon 記錄工程 C0～C6
+`completed`、C1～C6 `deploymentAuthorities=granted`，執行範圍是隔離
+synthetic project `beauessence-clinic-stg-c1a01`。這不代表 production
+資源、身分控制、復原證據或 formal booking 已啟用；C1 isolated foundation
+不解鎖 production IdP、Firestore、backup/PITR 或 runtime slice。
 
 適用範圍：一森渼診所預約平台從合成 preview 過渡至 staging 與 production  
 配套規劃：[正式化後續實作規劃書](../product/production-readiness-delivery-plan-2026-07-23.md)
