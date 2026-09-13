@@ -1,4 +1,12 @@
-import { Body, Controller, Inject, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Inject,
+  Optional,
+  Param,
+  Post,
+  Req
+} from '@nestjs/common';
 import {
   CreateAppointmentRequestSchema,
   RescheduleAppointmentRequestSchema
@@ -8,6 +16,15 @@ import type { AuthenticationContext } from '../auth/authentication-context.js';
 import { ServiceUnavailableError } from '../platform/errors/api-error.js';
 import { AppointmentApplicationService } from './appointment.application-service.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
+import {
+  assertInternalTestBookingWritable,
+  type InternalTestBookingSettings
+} from '../internal-test-booking/internal-test-booking.gate.js';
+import {
+  INTERNAL_TEST_BOOKING_CLOCK,
+  INTERNAL_TEST_BOOKING_SETTINGS,
+  type InternalTestBookingClock
+} from '../internal-test-booking/internal-test-booking.tokens.js';
 
 export const APPOINTMENT_AUTHENTICATOR = 'AppointmentAuthenticator';
 export const APPOINTMENT_AUTHORIZATION = 'AppointmentAuthorizationPolicy';
@@ -15,6 +32,7 @@ export const APPOINTMENT_APPLICATION = 'AppointmentApplicationService';
 
 export interface AuthenticatableRequest {
   readonly headers: Record<string, unknown>;
+  readonly method?: string;
 }
 
 export interface AppointmentAuthenticator {
@@ -29,9 +47,10 @@ function identifier(value: string): string {
 }
 
 /**
- * Unrouted appointment write surface. Production `AppModule` must not import
- * this controller: `/v1/bookings` stays 404 until Stage 2 C2～C6 and D-004 /
- * D-005 close. Test-only Nest modules may register it to prove RBAC mapping.
+ * Appointment write surface. Production public traffic stays refused:
+ * `InternalTestBookingModule` supplies fail-closed IP-001 settings so
+ * `/v1/bookings` is 503 unless the isolated-test gate is explicitly open.
+ * Test-only Nest harnesses omit those settings and prove RBAC mapping.
  */
 @Controller('bookings')
 export class AppointmentController {
@@ -41,14 +60,29 @@ export class AppointmentController {
     @Inject(APPOINTMENT_AUTHORIZATION)
     private readonly authorization: AppointmentAuthorizationPolicy,
     @Inject(APPOINTMENT_AUTHENTICATOR)
-    private readonly authenticator: AppointmentAuthenticator
+    private readonly authenticator: AppointmentAuthenticator,
+    @Optional()
+    @Inject(INTERNAL_TEST_BOOKING_SETTINGS)
+    private readonly internalTestSettings?: InternalTestBookingSettings,
+    @Optional()
+    @Inject(INTERNAL_TEST_BOOKING_CLOCK)
+    private readonly internalTestClock?: InternalTestBookingClock
   ) {}
+
+  private assertInternalTestGate(): void {
+    if (this.internalTestSettings === undefined) return;
+    assertInternalTestBookingWritable(
+      this.internalTestClock?.nowUtc() ?? new Date().toISOString(),
+      this.internalTestSettings
+    );
+  }
 
   @Post()
   public async create(
     @Body() body: unknown,
     @Req() request: AuthenticatableRequest
   ) {
+    this.assertInternalTestGate();
     const authentication = await this.authenticator.authenticate(request);
     return this.appointments.create(
       CreateAppointmentRequestSchema.parse(body),
@@ -62,6 +96,7 @@ export class AppointmentController {
     @Body() body: unknown,
     @Req() request: AuthenticatableRequest
   ) {
+    this.assertInternalTestGate();
     const authentication = await this.authenticator.authenticate(request);
     return this.appointments.reschedule(
       identifier(appointmentId),
@@ -75,6 +110,7 @@ export class AppointmentController {
     @Param('appointmentId') appointmentId: string,
     @Req() request: AuthenticatableRequest
   ) {
+    this.assertInternalTestGate();
     const authentication = await this.authenticator.authenticate(request);
     identifier(appointmentId);
     await this.authorization.assertCanDelete(authentication);

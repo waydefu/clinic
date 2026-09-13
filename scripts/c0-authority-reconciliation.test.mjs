@@ -29,11 +29,20 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(register).toContain('Recorded input ID: CAL-SYNC-DIR-2026-09-11');
     expect(register).toContain('Recorded input ID: C0-ENG-REC-2026-09-11');
     expect(register).toContain('Recorded input ID: C0-ENG-ACCEPT-2026-09-11');
+    expect(register).toContain('Recorded input ID: IP-001-2026-09-13');
+    expect(register).toContain('INTERNAL_TEST_ROUTE_AUTHORIZED');
+    expect(register).toContain('PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED');
     expect(decisions.get('D-006')).toBe('approved');
     expect(decisions.get('D-010')).toBe('approved');
     expect(decisions.get('D-009')).toBe('pending');
     expect(decisions.get('D-016')).toBe('pending');
     expect(decisions.get('D-011')).toBe('pending');
+    expect(decisions.get('D-001')).toBe('pending');
+    expect(decisions.get('D-004')).toBe('pending');
+    expect(decisions.get('D-005')).toBe('pending');
+    expect(decisions.get('D-007')).toBe('deferred');
+    expect(decisions.get('D-014')).toBe('deferred');
+    expect(decisions.get('D-015')).toBe('deferred');
   });
 
   it('closes engineering C0 and records C1–C6 synthetic PASS', () => {
@@ -55,13 +64,16 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
     expect(authority).toContain('MFA recovery');
     expect(authority).toContain('events.watch');
     expect(authority).toContain('UNROUTED');
+    expect(authority).toContain('INTERNAL_TEST_ROUTE_AUTHORIZED');
+    expect(authority).toContain('PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED');
     expect(authority).not.toMatch(/stageSlices\.C0=approved/);
     expect(register).toContain('did not fabricate a named technical');
   });
 
-  it('keeps formal booking unrouted in AppModule', () => {
+  it('mounts IP-001 InternalTestBookingModule without direct production controllers', () => {
     const appModule = read('apps/api/src/app.module.ts');
     expect(appModule).toContain('CalendarPilotModule');
+    expect(appModule).toContain('InternalTestBookingModule');
     expect(appModule).not.toMatch(
       /AppointmentController|BookPilotModule|BookPilotController|CalendarWatchController/
     );

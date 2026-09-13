@@ -76,66 +76,69 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 `HUMAN_ACTION_REQUIRED` | `EXTERNAL_AUTHORITY_REQUIRED` | `UNAVAILABLE` |
 `SUPERSEDED`.
 
-### B-001 — PR #117 merge
+### B-001 — PR #117 / #118 merge
 
 - **category:** PR / merge
 - **blocked capability:** land D-006 hashed-delegation slice on `main`
 - **exact root cause:** this integration token has `permissions.push=false`
   and `ManagePullRequest` has no merge action; `gh` is read-only
-- **current evidence:** #118 OPEN, Ready, MERGEABLE, CLEAN, exact-head
-  `fb07f2a` 12/12 PASS, verify run `34767934798`. #118 contains #117 HEAD
-  `96fc9aa` plus atomic/audit work. This token `permissions.push=false`.
+- **current evidence:** #118 MERGED 2026-09-13T16:56:25Z into `main`
+  `02b949f`. Contains #117 HEAD `96fc9aa` plus atomic/audit work.
 - **owner:** clinic technical owner
 - **severity:** high
-- **dependency:** none other than human merge authority
-- **exact resolution:** human merges #118 (lands #117 too); do not rebuild
-  #117; do not merge #117 in parallel
-- **can Grok solve it?** no
-- **requires human?** yes
-- **requires external approval?** no (CI already green)
-- **safe parallel work:** B-013 UI PR #119 stacked on #118
-- **resume action:** merge #118 then rebase #116
-- **status:** `HUMAN_ACTION_REQUIRED`
+- **dependency:** none
+- **exact resolution:** already merged
+- **can Grok solve it?** n/a
+- **requires human?** no remaining
+- **requires external approval?** no
+- **safe parallel work:** n/a
+- **resume action:** none
+- **status:** `RESOLVED`
 
-### B-002 — PR #116 merge
+### B-002 — PR #116 / #120 merge
 
 - **category:** PR / merge
 - **blocked capability:** Phase 0 Firebase `login:list` hardening + Canon
   reconcile docs
-- **exact root cause:** docs overlap with #117 (`docs/README.md`,
-  `docs/enterprise-appointment-project-plan.md`); merge token same as B-001
-- **current evidence:** OPEN, MERGEABLE, CLEAN, 12/12 PASS, run
-  `34713250166`; HEAD advanced from older `6dd812f` to `de2075f`
+- **exact root cause:** docs overlap with #117; merge token cannot merge
+- **current evidence:** original #116 OPEN on stale `de2075f`. Successor
+  is #120 rebased onto #119 `0c03679`. Merge order: #119 then #120;
+  then close #116 as superseded.
 - **owner:** clinic technical owner
 - **severity:** medium
-- **dependency:** B-001
-- **exact resolution:** rebase onto post-#117 main, exact-head CI, then merge
-- **can Grok solve it?** rebase/CI yes after #117 lands; merge no
+- **dependency:** PR #119
+- **exact resolution:** human merges #119 (`0c03679` 12/12), then #120
+  after that SHA’s exact-head CI
+- **can Grok solve it?** rebase/CI yes; merge no
 - **requires human?** yes for merge
 - **requires external approval?** no
-- **safe parallel work:** none on those two doc files
-- **resume action:** wait for #117 on main
+- **safe parallel work:** IP-001 internal-test route on a stacked branch
+- **resume action:** merge #119 then #120
 - **status:** `HUMAN_ACTION_REQUIRED`
 
-### B-003 — D-001–D-005 / D-007 / D-011 / D-014 formal approval
+### B-003 — D-001–D-005 production/legal ceremony
 
 - **category:** D-series
-- **blocked capability:** published privacy policy, public booking, deletion
-  workflow, DNS hostname, clinical persistence
-- **exact root cause:** recorded input without named approver, date, scope,
-  exclusions; several legal/privacy/medical reviews missing
-- **current evidence:** decision register table rows remain `pending`
+- **blocked capability:** published privacy policy and **public production**
+  booking; not internal-test implementation (IP-001)
+- **exact root cause:** recorded input without named production/legal
+  approver, date, scope, exclusions
+- **current evidence:** D-001–D-005 remain `pending`; IP-001 records
+  provisional internal-test rules. D-007/D-014/D-015 are deferred outside
+  Phase 1 delivery. D-011 is GO_LIVE_DEFERRED.
 - **owner:** clinic owner + privacy/legal/medical/operations as per row
-- **severity:** critical
+- **severity:** critical for **go-live**; `GO_LIVE_DEFERRED_ITEM` for
+  internal-preproduction
 - **dependency:** none (ceremony)
 - **exact resolution:** complete the register’s own approval format; do not
   let an agent mark `approved`
-- **can Grok solve it?** no
-- **requires human?** yes
+- **can Grok solve it?** no for ceremony; yes for internal-test rules
+- **requires human?** yes for production/legal ceremony
 - **requires external approval?** yes (legal/privacy/medical where listed)
-- **safe parallel work:** unrouted implementation evidence
-- **resume action:** owner fills approval packets
-- **status:** `EXTERNAL_AUTHORITY_REQUIRED`
+- **safe parallel work:** IP-001 internal-test implementation
+- **resume action:** implement internally; do not flip pending → approved
+- **status:** `EXTERNAL_AUTHORITY_REQUIRED` (production/legal);
+  not an `INTERNAL_TEST_BLOCKER`
 
 ### B-004 — D-006 routed identity / C4
 
@@ -352,25 +355,28 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 - **resume action:** use nvm 24.20.0
 - **status:** `ACTIONABLE_BY_GROK`
 
-### B-015 — Formal booking still UNROUTED
+### B-015 — Formal booking public production route
 
 - **category:** booking
-- **blocked capability:** `/v1/bookings`
-- **exact root cause:** D-001–D-005 not approved; D-006 implementation
-  evidence not complete; no route authority
-- **current evidence:** `AppModule` has no `AppointmentController` /
-  `BookPilotModule`
-- **owner:** safety floor
-- **severity:** critical for `PROJECT_COMPLETE`, correctly blocked
-- **dependency:** B-003, B-004
-- **exact resolution:** wait for approvals + evidence + explicit route
-  authority
-- **can Grok solve it?** no
-- **requires human?** yes
-- **requires external approval?** yes
-- **safe parallel work:** unrouted booking tests already on main
-- **resume action:** keep 404
-- **status:** `EXTERNAL_AUTHORITY_REQUIRED`
+- **blocked capability:** public production `/v1/bookings`
+- **exact root cause:** D-001–D-005 not production-approved; no public
+  production route authority. IP-001 authorises **internal-test** routing
+  only (`INTERNAL_TEST_ROUTE_AUTHORIZED`).
+- **current evidence:** `PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED`;
+  `InternalTestBookingModule` is the internal-test composing path
+- **owner:** safety floor + IP-001
+- **severity:** critical for production launch; not an
+  `INTERNAL_TEST_BLOCKER` once the fail-closed module is verified
+- **dependency:** production ceremony for public launch only
+- **exact resolution:** keep production default OFF; do not treat
+  internal-test routing as production launch
+- **can Grok solve it?** internal-test module yes; public production no
+- **requires human?** yes for public production
+- **requires external approval?** yes for public production
+- **safe parallel work:** IP-001 internal-test implementation
+- **resume action:** implement internal-test route; keep production 404/503
+- **status:** `EXTERNAL_AUTHORITY_REQUIRED` (public production);
+  internal-test is `ACTIONABLE_BY_GROK`
 
 ---
 
@@ -553,13 +559,12 @@ WHAT GROK WILL DO AFTER: stop treating named-reviewer as a Grok task
 
 ---
 
-## PROJECT_COMPLETE
+## PROJECT_COMPLETE / INTERNAL_PREPRODUCTION_COMPLETE
 
-`PROJECT_COMPLETE = HUMAN_BLOCKED`
+`PROJECT_COMPLETE` as production launched is a `GO_LIVE_DEFERRED_ITEM`.
 
-Grok-solvable work in this harvest that this follow-on actually does:
-unrouted D-006 atomic lock + denied audit + IdP/session/field helpers +
-executor Canon. Remaining Grok-solvable after merge: Calendar
-non-production hardening already largely on main, rebase of #116 once
-#117/#118 land. B-013 stored-role migration is `RESOLVED` on the dedicated
-UI follow-on (schema v8; no `roles.js` import).
+Current stage target: `INTERNAL_PREPRODUCTION_COMPLETE`.
+
+Do not report the whole project `HUMAN_BLOCKED` merely because production
+launch, official DNS, the vendor-leased public website, or production
+Calendar were intentionally deferred.

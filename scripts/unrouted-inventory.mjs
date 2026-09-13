@@ -14,7 +14,8 @@ const CAPABILITY_ENTRY_FIELDS = new Set([
   'remainingBlockers',
   'note'
 ]);
-const BLOCKER_FIELDS = new Set(['kind', 'id', 'description']);
+const BLOCKER_FIELDS = new Set(['kind', 'id', 'description', 'blocks']);
+const BLOCKER_SCOPES = new Set(['all', 'public_production_route']);
 const BLOCKER_KINDS = new Set([
   'decision',
   'stage_slice',
@@ -258,6 +259,11 @@ function validateRemainingBlockers(
     }
     if (!isNonEmptyString(blocker.description)) {
       issues.push(`${blockerLabel} description must be a non-empty string.`);
+    }
+    if (blocker.blocks !== undefined && !BLOCKER_SCOPES.has(blocker.blocks)) {
+      issues.push(
+        `${blockerLabel} blocks must be all or public_production_route.`
+      );
     }
     if (!BLOCKER_KINDS.has(blocker.kind)) {
       issues.push(
@@ -637,7 +643,8 @@ export function parsePermissionActionReferences(source) {
  */
 export function validateReachableCapabilityBlockers(
   inventory,
-  reachableSources
+  reachableSources,
+  decisionRegisterSource = ''
 ) {
   const issues = [];
   if (!isRecord(inventory) || !isRecord(inventory.capabilityGates)) {
@@ -692,10 +699,23 @@ export function validateReachableCapabilityBlockers(
         issues.push(
           `${file} makes ${permission} reachable, but capability ${capability} has no valid remainingBlockers array.`
         );
-      } else if (blockers.length > 0) {
-        issues.push(
-          `${file} makes RBAC permission ${permission} reachable, but capability ${capability} still has ${blockers.length} remaining blocker(s).`
+      } else {
+        const internalTestAuthorized = String(decisionRegisterSource).includes(
+          'INTERNAL_TEST_ROUTE_AUTHORIZED'
         );
+        const productionBlockers = blockers.filter((blocker) => {
+          if (!isRecord(blocker)) return true;
+          const scope = blocker.blocks ?? 'all';
+          if (scope === 'public_production_route' && internalTestAuthorized) {
+            return false;
+          }
+          return true;
+        });
+        if (productionBlockers.length > 0) {
+          issues.push(
+            `${file} makes RBAC permission ${permission} reachable, but capability ${capability} still has ${productionBlockers.length} remaining blocker(s).`
+          );
+        }
       }
     }
   }

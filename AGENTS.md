@@ -47,22 +47,43 @@ literal anywhere else.
 
 ### Remain disabled until the live decision register says otherwise
 
-- Any booking controller or public/staff write route.
-- Cloud Firestore or Authentication without an approved Stage 2 change plan and
-  separate deployment authority; recorded D-006/D-010 decisions are not
-  deployment authority.
+Register IP-001-2026-09-13 splits **internal test** from **public
+production**. Do not collapse those two.
+
+**Public production / go-live (still disabled):**
+
+- Public production `/v1/bookings` traffic and any ungated
+  `AppointmentController` / `BookPilotModule` import on `AppModule`.
+- Cloud Firestore or Authentication as a **production** backend without an
+  approved Stage 2 change plan and separate **production** deployment
+  authority; recorded D-006/D-010 decisions are not production deployment
+  authority.
 - Production Calendar projection before production D-009, and
   Calendar-to-system writes before production D-016. The Decision Register's
   CAL-PILOT synthetic-only sub-scope (expiry/exclusions there) is the only
-  recorded exception and is not production or Stage 2.
-- Surgery/anesthesia/clinical-record persistence, patient money or staff
-  settlement amounts before D-014/D-015 and their existing privacy/access
-  gates.
-- Public booking or real patient data before D-001 through D-005 and D-011 are
-  approved, the approved D-006 controls are implemented and verified, and the
-  D-010 cloud change has separate deployment authority.
-- Case/payroll persistence before D-007 and D-008.
-- Any Terraform apply, live-channel deployment or production credential use.
+  recorded production-Calendar exception and is not production launch.
+- Real patient data. Functional completeness is not real-data authority.
+- Official DNS, custom domains, live-channel Hosting, production Terraform
+  apply, or production credential use.
+- Clinic public marketing / corporate website takeover (vendor lease;
+  `DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE`).
+
+**Internal test (IP-001 `INTERNAL_TEST_ROUTE_AUTHORIZED`):**
+
+- Isolated-test / emulator booking create, query, reschedule, cancel and
+  supporting staff routes may be imported only through
+  `InternalTestBookingModule`, with fail-closed production default
+  (`INTERNAL_TEST_BOOKING_ENABLED` + UTC expiry + allowlisted isolated
+  project `beauessence-clinic-stg-c1a01` or the Firestore emulator).
+- CAL-PILOT / dedicated synthetic calendars may complete technical sync
+  behaviour. Production clinic Calendar stays blocked.
+- Firebase Hosting **preview** / isolated-test deploy only with fresh
+  exact-SHA, project, channel and expiry. Preview URLs are public and are
+  not authentication. Never promote preview to live.
+- D-001–D-005 stay `pending`; their IP-001 provisional rules may be
+  implemented internally. Do not mark them `approved` from this packet.
+- D-007 / D-014 / D-015 are `DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY`.
+- D-011 is `GO_LIVE_DEFERRED` for this stage.
 
 ## Publication
 

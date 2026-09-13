@@ -2,10 +2,12 @@
 
 Status: Stage 0 baseline completed; current delivery stage is Stage 1. This
 file is the human navigation layer for the executable schemas in
-`packages/contracts`. Formal booking endpoints are **not** routed.
-`AppModule` registers `GET /v1/health` and the Decision Register's CAL-PILOT
-synthetic-only exception (`/v1/calendar-session`, `/v1/calendar`). That
-exception is not a production booking route.
+`packages/contracts`. Public production booking endpoints are **not**
+authorised. `AppModule` registers `GET /v1/health`, the Decision Register's
+CAL-PILOT synthetic-only exception (`/v1/calendar-session`, `/v1/calendar`),
+and IP-001 `InternalTestBookingModule` (`POST /v1/bookings`, fail-closed
+503 unless the isolated-test gate is explicitly open). CAL-PILOT is not a
+production booking route.
 
 ## Boundary
 
@@ -23,7 +25,8 @@ exception is not a production booking route.
 | Method | Path | Contract | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/v1/health` | `HealthResponseSchema` | Deployment and local-runtime liveness only; it exposes no patient data. |
-| CAL-PILOT session / calendar | `/v1/calendar-session/*`, `/v1/calendar/*` | CAL-PILOT contracts in `@beauessence/contracts` | Decision Register synthetic-only sub-scope: Google+TOTP, closed synthetic fields, expiry and exclusions in the register. Not production D-009/D-016, not `/v1/appointments`. |
+| CAL-PILOT session / calendar | `/v1/calendar-session/*`, `/v1/calendar/*` | CAL-PILOT contracts in `@beauessence/contracts` | Decision Register synthetic-only sub-scope: Google+TOTP, closed synthetic fields, expiry and exclusions in the register. Not production D-009/D-016, not public production booking. |
+| IP-001 internal-test booking | `POST /v1/bookings`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/delete` | Appointment command schemas | Fail-closed isolated-test writes. Default 503. Not public production. |
 
 ## Reserved booking contracts
 
@@ -68,9 +71,10 @@ booking route is enabled. D-006/D-010 are approved policy targets but their
 identity/cloud controls are not implemented and create no route authority.
 
 The Stage 0 application service, authorization policy and repository port are
-present under `apps/api/src/appointments`, but they are intentionally not
-registered in `AppModule`. Formal booking stays unrouted; CAL-PILOT is a
-separate, expiring synthetic surface and does not mount `AppointmentController`.
+present under `apps/api/src/appointments`. IP-001 mounts them through
+`InternalTestBookingModule` with fail-closed production default. Public
+production `/v1/bookings` stays unauthorised. CAL-PILOT does not mount
+`AppointmentController` directly.
 
 The application boundary also creates a server-owned audit context containing
 the authenticated actor ID and opaque role, correlation ID and source. None is

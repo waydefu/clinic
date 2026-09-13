@@ -10,7 +10,7 @@
     {
       "name": "api",
       "command": "export PATH=\"$HOME/.nvm/versions/node/v24.20.0/bin:$PATH\"; PORT=3000 HOST=127.0.0.1 node apps/api/dist/main.js",
-      "description": "Stage 1 API on http://127.0.0.1:3000. Formal booking remains unrouted. CAL-PILOT synthetic-only /v1/calendar-session and /v1/calendar routes may be present; they are not production booking."
+      "description": "Stage 1 API on http://127.0.0.1:3000. IP-001 internal-test /v1/bookings is fail-closed (503) unless INTERNAL_TEST_BOOKING_ENABLED is explicit. Public production booking remains unauthorised. CAL-PILOT synthetic-only /v1/calendar-session and /v1/calendar routes may be present."
     }
   ],
   "ports": [

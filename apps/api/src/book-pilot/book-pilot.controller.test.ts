@@ -243,7 +243,7 @@ describe('production AppModule book-pilot write path', () => {
     app = undefined;
   });
 
-  it('keeps POST /v1/bookings unrouted', async () => {
+  it('refuses POST /v1/bookings while the IP-001 internal-test gate is closed', async () => {
     app = await createApplication();
     await app.init();
     const response = await app.inject({
@@ -251,7 +251,7 @@ describe('production AppModule book-pilot write path', () => {
       url: '/v1/bookings',
       payload: CREATE_BODY
     });
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(503);
   });
 
   it('keeps POST /v1/book-pilot/bookings unrouted', async () => {

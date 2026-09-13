@@ -396,6 +396,44 @@ describe('unrouted inventory validation', () => {
     ).toEqual([]);
   });
 
+  it('allows IP-001 internal-test reachability when blockers only gate public production', () => {
+    const inventory = validInventory();
+    inventory.capabilityGates.scheduling.remainingBlockers = [
+      {
+        kind: 'decision',
+        id: 'D-004',
+        description: 'Public production scheduling remains pending.',
+        blocks: 'public_production_route'
+      }
+    ];
+    const reachableSources = new Map([
+      [
+        'src/appointments/appointment.controller.ts',
+        `
+          evaluateAccess(context, {
+            permission: 'create_appointment',
+            scope: { kind: 'any' }
+          });
+        `
+      ]
+    ]);
+
+    expect(
+      validateReachableCapabilityBlockers(inventory, reachableSources)
+    ).toEqual([
+      expect.stringContaining(
+        'create_appointment reachable, but capability scheduling still has'
+      )
+    ]);
+    expect(
+      validateReachableCapabilityBlockers(
+        inventory,
+        reachableSources,
+        'INTERNAL_TEST_ROUTE_AUTHORIZED'
+      )
+    ).toEqual([]);
+  });
+
   it('uses executable permission properties, not comments or prose, as action reachability', () => {
     expect(
       parsePermissionActionReferences(`

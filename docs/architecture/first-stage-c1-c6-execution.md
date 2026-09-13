@@ -6,13 +6,16 @@
 `NAMED_REVIEWER_METADATA_PENDING`).
 **Machine gate:** [stage-2-gate-status.json](stage-2-gate-status.json)
 C0～C6 `completed`; C1～C6 `granted`. Isolated project
-`beauessence-clinic-stg-c1a01`. Formal booking stays **UNROUTED**.
+`beauessence-clinic-stg-c1a01`. Public production booking stays
+**UNROUTED**. IP-001 may enable fail-closed internal-test booking.
 `PRODUCTION_AUTHORIZED=NO`. Live Hosting `DEPLOYED=NO`.
 
 Owner 2026-09-11 continuation named C1～C6 as the sequential *route*.
 Synthetic C1～C6 smoke has PASSed on the isolated project. Do not write
 `AUTHORIZED` as production `PASS`, or `CI PASS` as
-`PRODUCTION AUTHORIZED`. Do not route `AppointmentController`.
+`PRODUCTION AUTHORIZED`. Do not mount ungated `AppointmentController` on
+`AppModule`. Internal-test routing uses `InternalTestBookingModule` only
+(IP-001).
 
 ## Sequence (authority DAG, not technical DAG)
 
@@ -97,7 +100,7 @@ Machine: `scripts/sequential-c-gate.mjs`. Live tree with C1～C6 smoke is
 | Exclusions | Real data; production; live Hosting; production Calendar; mounting `/v1/bookings` |
 | Remaining blockers | DATA-R03 codecs; production Calendar D-009/D-016; public booking D-004/D-005 |
 | Authority | `granted` |
-| Status | `AUTHORIZED` / `DEPLOYED` / smoke `PASS` / booking+watch **UNROUTED** / `PRODUCTION_AUTHORIZED=NO` |
+| Status | `AUTHORIZED` / `DEPLOYED` / smoke `PASS` / C6 packet booking+watch **UNROUTED** / `PRODUCTION_AUTHORIZED=NO`. IP-001 internal-test composing module is a later grant, not this C6 apply. |
 
 ## DATA-R03 / SCM-R04 (this packet)
 
