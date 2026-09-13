@@ -47,6 +47,7 @@ requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 
 const projectId = LOCAL_FIREBASE_PROJECT_ID;
 const NOW = '2029-12-15T09:00:00.000Z';
+const AFTER_SELF_CANCEL_CUTOFF = '2030-01-02T02:30:00.000Z';
 const SLOT_ID = 'slot_20300102_1200';
 const TARGET_SLOT_ID = 'slot_20300102_1230';
 const APPOINTMENT_ID = 'appointment_http_occupancy_001';
@@ -120,7 +121,10 @@ function actorHeaders(
  * excluded from `test:unit` and collected by `test:rules`. Settings are
  * omitted so the IP-001 gate stays open the same way other Nest harnesses do.
  */
-function occupancyHarnessModule(db: Firestore) {
+function occupancyHarnessModule(
+  db: Firestore,
+  clock: { nowUtc: () => string }
+) {
   @Module({
     controllers: [AppointmentController, ScheduleController],
     providers: [
@@ -140,7 +144,7 @@ function occupancyHarnessModule(db: Firestore) {
             new FirestoreBookingRepository(db),
             authorization,
             { next: () => APPOINTMENT_ID },
-            { nowUtc: () => NOW },
+            clock,
             { next: () => 'corr_http_occupancy_001' }
           )
       },
@@ -150,7 +154,7 @@ function occupancyHarnessModule(db: Firestore) {
           new ScheduleApplicationService(
             new FirestoreScheduleRepository(db),
             createScheduleAuthorizationPolicy(resolveRole),
-            { nowUtc: () => NOW },
+            clock,
             { next: () => 'corr_http_schedule_001' }
           )
       }
@@ -165,12 +169,14 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
   let firebaseApp: App;
   let db: Firestore;
   let nestApp: NestFastifyApplication | undefined;
+  let nowUtc = NOW;
+  const clock = { nowUtc: () => nowUtc };
 
   beforeAll(async () => {
     firebaseApp = initializeApp({ projectId }, 'schedule-occupancy-http');
     db = getFirestore(firebaseApp);
     const instance = await NestFactory.create<NestFastifyApplication>(
-      occupancyHarnessModule(db),
+      occupancyHarnessModule(db, clock),
       new FastifyAdapter({ logger: false }),
       { logger: false }
     );
@@ -187,6 +193,7 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
   });
 
   beforeEach(async () => {
+    nowUtc = NOW;
     for (const collection of Object.values(COLLECTIONS)) {
       const documents = await db.collection(collection).listDocuments();
       await Promise.all(documents.map((document) => document.delete()));
@@ -441,6 +448,71 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
     expect(JSON.parse(recorded.payload)).toEqual({
       appointmentId: APPOINTMENT_ID,
       status: 'no_show'
+    });
+  });
+
+  it('replays the same HTTP create idempotency key instead of booking twice', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0010');
+    const first = await bookPublishedSlot(harness);
+    const second = await bookPublishedSlot(harness);
+    expect(first.statusCode).toBe(201);
+    expect(second.statusCode).toBe(201);
+    expect(JSON.parse(second.payload)).toEqual(JSON.parse(first.payload));
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(1);
+    expect((await db.collection(COLLECTIONS.slots).get()).size).toBe(1);
+  });
+
+  it('rejects a reused HTTP create key with different slot content', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0011');
+    const first = await bookPublishedSlot(harness);
+    expect(first.statusCode).toBe(201);
+
+    const reused = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
+      payload: {
+        ...CREATE_BODY,
+        slotId: TARGET_SLOT_ID
+      }
+    });
+    expect(reused.statusCode).toBe(409);
+    expect(JSON.parse(reused.payload)).toMatchObject({
+      error: { code: 'IDEMPOTENCY_MISMATCH' }
+    });
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(1);
+  });
+
+  it('closes patient self-cancel after cutoff and still lets staff cancel', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0012');
+    const created = await bookPublishedSlot(harness);
+    expect(created.statusCode).toBe(201);
+
+    nowUtc = AFTER_SELF_CANCEL_CUTOFF;
+    const denied = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/cancel`,
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
+      payload: { idempotencyKey: 'booking-idempotency-0015' }
+    });
+    expect(denied.statusCode).toBe(409);
+    expect(JSON.parse(denied.payload)).toMatchObject({
+      error: { code: 'CONFLICT' }
+    });
+
+    const cancelled = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/cancel`,
+      headers: actorHeaders('manager'),
+      payload: { idempotencyKey: 'booking-idempotency-0016' }
+    });
+    expect(cancelled.statusCode).toBe(201);
+    expect(JSON.parse(cancelled.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'cancelled'
     });
   });
 });
