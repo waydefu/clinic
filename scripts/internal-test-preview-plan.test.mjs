@@ -88,4 +88,20 @@ describe('isolated preview Hosting config', () => {
       readFileSync(join(root, 'scripts/internal-test-preview-plan.mjs'), 'utf8')
     ).not.toMatch(/execFile|spawnSync|firebase deploy/);
   });
+
+  it('keeps static redirects, rewrites, and headers aligned with firebase.json', () => {
+    const calPilot = JSON.parse(
+      readFileSync(join(root, 'firebase.json'), 'utf8')
+    ).hosting;
+    const isolated = JSON.parse(
+      readFileSync(join(root, ISOLATED_PREVIEW_CONFIG), 'utf8')
+    ).hosting;
+    expect(isolated.public).toBe(calPilot.public);
+    expect(isolated.predeploy).toEqual(calPilot.predeploy);
+    expect(isolated.redirects).toEqual(calPilot.redirects);
+    expect(isolated.headers).toEqual(calPilot.headers);
+    expect(isolated.rewrites).toEqual(
+      calPilot.rewrites.filter((rule) => !('run' in rule))
+    );
+  });
 });
