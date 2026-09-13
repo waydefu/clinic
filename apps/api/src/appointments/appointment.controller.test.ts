@@ -386,4 +386,73 @@ describe('production AppModule booking write path', () => {
     });
     expect(response.statusCode).toBe(503);
   });
+
+  it('opens the isolated-test gate to authentication, not a write', async () => {
+    const previous = {
+      enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
+      expires: process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'],
+      project: process.env['GOOGLE_CLOUD_PROJECT'],
+      emulator: process.env['FIRESTORE_EMULATOR_HOST']
+    };
+    process.env['INTERNAL_TEST_BOOKING_ENABLED'] = 'true';
+    process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'] =
+      '2099-01-01T00:00:00.000Z';
+    process.env['GOOGLE_CLOUD_PROJECT'] = 'beauessence-clinic-stg-c1a01';
+    delete process.env['FIRESTORE_EMULATOR_HOST'];
+    try {
+      app = await createApplication();
+      await app.init();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload: CREATE_BODY
+      });
+      expect(response.statusCode).toBe(401);
+    } finally {
+      restoreInternalTestEnv(previous);
+    }
+  });
+
+  it('keeps forbidden staging closed even when the kill switch is on', async () => {
+    const previous = {
+      enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
+      expires: process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'],
+      project: process.env['GOOGLE_CLOUD_PROJECT'],
+      emulator: process.env['FIRESTORE_EMULATOR_HOST']
+    };
+    process.env['INTERNAL_TEST_BOOKING_ENABLED'] = 'true';
+    process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'] =
+      '2099-01-01T00:00:00.000Z';
+    process.env['GOOGLE_CLOUD_PROJECT'] = 'beauessence-clinic-staging';
+    delete process.env['FIRESTORE_EMULATOR_HOST'];
+    try {
+      app = await createApplication();
+      await app.init();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload: CREATE_BODY
+      });
+      expect(response.statusCode).toBe(503);
+    } finally {
+      restoreInternalTestEnv(previous);
+    }
+  });
 });
+
+function restoreInternalTestEnv(previous: {
+  readonly enabled: string | undefined;
+  readonly expires: string | undefined;
+  readonly project: string | undefined;
+  readonly emulator: string | undefined;
+}): void {
+  restoreEnv('INTERNAL_TEST_BOOKING_ENABLED', previous.enabled);
+  restoreEnv('INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC', previous.expires);
+  restoreEnv('GOOGLE_CLOUD_PROJECT', previous.project);
+  restoreEnv('FIRESTORE_EMULATOR_HOST', previous.emulator);
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
