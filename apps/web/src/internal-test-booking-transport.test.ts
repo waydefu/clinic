@@ -234,7 +234,10 @@ describe('createInternalTestBookingTransport', () => {
       fetchImpl
     });
 
-    await expect(transport('/state')).resolves.toEqual({ version: 8 });
+    await expect(transport('/state')).resolves.toEqual({
+      version: 8,
+      slots: []
+    });
     expect(fetchImpl).toHaveBeenCalled();
     await expect(
       transport('/bookings', {
@@ -249,6 +252,31 @@ describe('createInternalTestBookingTransport', () => {
       code: 'SERVICE_UNAVAILABLE',
       retryable: true,
       correlationId: 'corr_gate'
+    });
+  });
+
+  it('does not keep local slots when the published grid cannot be loaded', async () => {
+    const local = vi.fn(() =>
+      Promise.resolve({ version: 8, slots: [{ id: 'local_slot' }] })
+    );
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        json: () =>
+          Promise.resolve({
+            error: { code: 'UNAUTHENTICATED' }
+          })
+      })
+    );
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+    await expect(transport('/state')).resolves.toEqual({
+      version: 8,
+      slots: []
     });
   });
 

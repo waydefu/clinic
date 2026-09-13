@@ -1,8 +1,8 @@
 function overlayListedSlots(state, listed) {
-  if (!Array.isArray(listed?.slots)) return state;
+  const listedSlots = Array.isArray(listed?.slots) ? listed.slots : [];
   return {
     ...state,
-    slots: listed.slots.map((slot) => ({
+    slots: listedSlots.map((slot) => ({
       id: slot.slotId,
       kind: slot.kind,
       startsAt: slot.startsAt,
@@ -181,7 +181,8 @@ async function requestV1(
 /**
  * Hybrid transport: booking writes/query go to fail-closed `/v1/bookings`.
  * Slot list and schedule publish join that gate. `/state` stays local, then
- * overlays the published grid when the operator opted in.
+ * overlays the published grid when the operator opted in. A failed grid
+ * fetch must not leave the local synthetic slots bookable.
  */
 export function createInternalTestBookingTransport({
   local,
@@ -232,7 +233,7 @@ export function createInternalTestBookingTransport({
           }
           return next;
         } catch {
-          return localResult;
+          return { ...localResult, slots: [] };
         }
       }
       return localResult;
