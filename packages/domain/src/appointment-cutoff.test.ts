@@ -57,4 +57,10 @@ describe('assertSlotMeetsEarliestLead', () => {
       })
     );
   });
+
+  it('rejects an unparseable slot start', () => {
+    expect(() =>
+      assertSlotMeetsEarliestLead('not-a-time', requestedAt)
+    ).toThrow(/parseable/);
+  });
 });

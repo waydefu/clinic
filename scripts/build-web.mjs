@@ -224,8 +224,7 @@ function resolveSpecifier(importerPath, specifier) {
 /**
  * Tarjan's strongly-connected components, returned dependencies-first.
  *
- * The JS graph is not a DAG: ES modules allow import cycles (the vendored
- * domain has `appointment-rules ↔ booking-transaction`), and cyclic files
+ * The JS graph is not a DAG: ES modules allow import cycles, and cyclic files
  * cannot be given independent content hashes — there is no order in which each
  * one's hash is known before the other needs it. The answer is to hash each SCC
  * as a unit: every file in a cycle shares one hash and busts together, which is

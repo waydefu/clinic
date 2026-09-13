@@ -1,10 +1,12 @@
-import { ACTIVE_BOOKING_LIMIT } from './booking-transaction.js';
 import { DomainError } from './errors.js';
 /** 尚未結束、仍佔用時段的狀態。 */
 export const OPEN_STATUSES = [
     'confirmed',
     'cancellation_requested'
 ];
+/** 同一人同時最多兩筆未結束的預約。 */
+export const ACTIVE_BOOKING_LIMIT = 2;
+export const ACTIVE_BOOKING_STATUSES = OPEN_STATUSES;
 /** 每個轉換可以從哪些狀態進入。 */
 const ALLOWED_FROM = {
     // 提出取消與標記到診都只能從「預約成立」進入。
@@ -64,19 +66,15 @@ export function isWithinSelfCancelWindow(appointmentStartsAt, nowMs) {
         return false;
     return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));
 }
-/**
- * IP-001 internal-test provisional: earliest bookable start is now+2 hours.
- * Not production/legal D-004 approval. Equality at exactly +2h is allowed.
- */
-export const EARLIEST_BOOKING_LEAD_MS = 2 * 60 * 60 * 1000;
+export const EARLIEST_BOOKING_LEAD_MS = 7_200_000;
 export function assertSlotMeetsEarliestLead(slotStartsAt, requestedAt) {
     const startMs = Date.parse(slotStartsAt);
     const requestedMs = Date.parse(requestedAt);
     if (!Number.isFinite(startMs) || !Number.isFinite(requestedMs)) {
-        throw new DomainError('INVALID_VALUE', 'Slot start and request time must be parseable timestamps.');
+        throw new DomainError('INVALID_VALUE', 'The appointment start must be a parseable timestamp.');
     }
     if (startMs < requestedMs + EARLIEST_BOOKING_LEAD_MS) {
-        throw new DomainError('SLOT_UNAVAILABLE', 'The slot is too soon to book.');
+        throw new DomainError('SLOT_UNAVAILABLE', 'The slot does not exist or is already reserved.');
     }
 }
 export function assertTransitionAllowed(transition, status) {
