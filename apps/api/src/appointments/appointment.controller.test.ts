@@ -78,12 +78,14 @@ const harnessRepository: AppointmentRepositoryPort = {
   reserve: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:00:00.000Z'
     }),
   reschedule: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:30:00.000Z'
     }),
   transition: () =>
     Promise.resolve({
@@ -201,7 +203,9 @@ describe('unrouted AppointmentController RBAC harness', () => {
     expect(response.statusCode).toBeLessThan(300);
     expect(response.json()).toEqual({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
     });
   });
 
@@ -275,7 +279,9 @@ describe('unrouted AppointmentController RBAC harness', () => {
     expect(response.statusCode).toBeLessThan(300);
     expect(response.json()).toEqual({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
   });
 

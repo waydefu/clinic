@@ -163,7 +163,8 @@ describe('appointment transitions in a Firestore transaction', () => {
 
     expect(result).toEqual({
       appointmentId: 'appointment_002',
-      replayed: false
+      replayed: false,
+      startsAt: '2030-01-02T04:00:00.000Z'
     });
     expect((await slotState(SLOT_A))?.['reservationId']).toBe(
       'appointment_002'

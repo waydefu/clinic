@@ -10,6 +10,8 @@ export interface ReservationResult {
   readonly appointmentId: string;
   /** True when the request replayed an idempotency key instead of writing. */
   readonly replayed: boolean;
+  /** Authoritative slot start from the plan or the replayed row. */
+  readonly startsAt?: string;
 }
 
 export interface AppointmentRecord {

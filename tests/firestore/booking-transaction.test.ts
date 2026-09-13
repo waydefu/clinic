@@ -131,7 +131,8 @@ describe('booking write path in a Firestore transaction', () => {
     const result = await repository.reserve(request);
     expect(result).toEqual({
       appointmentId: 'appointment_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2030-01-02T04:00:00.000Z'
     });
 
     const appointment = await db
@@ -342,7 +343,8 @@ describe('booking write path in a Firestore transaction', () => {
 
     expect(second).toEqual({
       appointmentId: 'appointment_002',
-      replayed: false
+      replayed: false,
+      startsAt: '2030-01-02T04:30:00.000Z'
     });
     expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
       2

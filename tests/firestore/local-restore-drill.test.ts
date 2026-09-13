@@ -184,7 +184,8 @@ describe('local logical restore drill', () => {
     const restoredRepository = new FirestoreBookingRepository(restored);
     await expect(restoredRepository.reserve(firstRequest)).resolves.toEqual({
       appointmentId: 'appointment_restore_001',
-      replayed: true
+      replayed: true,
+      startsAt: '2030-01-02T04:00:00.000Z'
     });
 
     // V5: the restored database accepts a new booking and a terminal command

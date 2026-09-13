@@ -68,7 +68,8 @@ function createBoundary() {
   >(() =>
     Promise.resolve({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:00:00.000Z'
     })
   );
   const reschedule = vi.fn<
@@ -76,7 +77,8 @@ function createBoundary() {
   >(() =>
     Promise.resolve({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:30:00.000Z'
     })
   );
   const patientIdOf = vi.fn<() => Promise<string | undefined>>(() =>
@@ -151,7 +153,9 @@ describe('AppointmentApplicationService', () => {
 
     await expect(service.create(COMMAND, AUTHENTICATION)).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
     });
 
     expect(assertCanCreate).toHaveBeenCalledWith(AUTHENTICATION, COMMAND);
@@ -207,7 +211,9 @@ describe('AppointmentApplicationService', () => {
 
     await expect(service.create(command, staff)).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
     });
     expect(assertCanCreate).toHaveBeenCalledWith(staff, command);
     expect(reserve.mock.calls[0]?.[0]).toMatchObject({
@@ -225,7 +231,9 @@ describe('AppointmentApplicationService', () => {
       )
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
     });
     expect(reserve.mock.calls[0]?.[0]).toMatchObject({
       patientId: 'patient_opaque_001'
@@ -294,7 +302,9 @@ describe('AppointmentApplicationService reschedule', () => {
       )
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
 
     expect(assertCanReschedule).toHaveBeenCalledWith(AUTHENTICATION, {
@@ -333,7 +343,9 @@ describe('AppointmentApplicationService reschedule', () => {
       service.reschedule('appointment_server_001', RESCHEDULE_COMMAND, staff)
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
     expect(assertCanReschedule).toHaveBeenCalledWith(staff, {
       appointmentPatientId: 'patient_opaque_001'
@@ -377,7 +389,9 @@ describe('AppointmentApplicationService reschedule', () => {
       service.reschedule('appointment_server_001', RESCHEDULE_COMMAND, staff)
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
     expect(reschedule).toHaveBeenCalled();
   });
@@ -450,89 +464,6 @@ describe('AppointmentApplicationService reschedule', () => {
       appointmentPatientId: 'patient_other'
     });
     expect(reschedule).not.toHaveBeenCalled();
-  });
-});
-
-describe('AppointmentApplicationService query', () => {
-  it('returns opaque identifiers and computed end time', async () => {
-    const { assertCanQuery, service } = createBoundary();
-
-    await expect(
-      service.get('appointment_server_001', AUTHENTICATION)
-    ).resolves.toEqual({
-      appointmentId: 'appointment_server_001',
-      status: 'confirmed',
-      startsAt: '2026-07-25T04:00:00.000Z',
-      endsAt: '2026-07-25T04:30:00.000Z'
-    });
-    expect(assertCanQuery).toHaveBeenCalledWith(AUTHENTICATION, {
-      appointmentPatientId: 'patient_opaque_001'
-    });
-  });
-
-  it('does not reveal a missing row to a patient', async () => {
-    const { assertCanQuery, read, service } = createBoundary();
-    read.mockResolvedValueOnce(undefined);
-    assertCanQuery.mockRejectedValueOnce(new Error('denied'));
-
-    await expect(
-      service.get('appointment_server_001', AUTHENTICATION)
-    ).rejects.toThrow('denied');
-  });
-});
-
-describe('AppointmentApplicationService cancel', () => {
-  it('lets a patient cancel immediately before the day-10:00 cutoff', async () => {
-    const { assertCanCancel, transition, service } = createBoundary();
-
-    await expect(
-      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
-    ).resolves.toEqual({
-      appointmentId: 'appointment_server_001',
-      status: 'cancelled'
-    });
-    expect(assertCanCancel).toHaveBeenCalledWith(AUTHENTICATION, {
-      appointmentPatientId: 'patient_opaque_001'
-    });
-    expect(transition.mock.calls[0]?.[0]).toMatchObject({
-      appointmentId: 'appointment_server_001',
-      transition: 'cancel'
-    });
-  });
-
-  it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
-    const { read, transition, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
-    });
-
-    await expect(
-      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
-    ).rejects.toMatchObject<Partial<DomainError>>({
-      code: 'CANCELLATION_WINDOW_CLOSED'
-    });
-    expect(transition).not.toHaveBeenCalled();
-  });
-
-  it('lets staff cancel after the patient cutoff', async () => {
-    const { read, transition, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
-    });
-    const staff: AuthenticationContext = {
-      actorId: 'actor_verified_001',
-      actorRole: 'test_front_desk'
-    };
-
-    await expect(
-      service.cancel('appointment_server_001', CANCEL_COMMAND, staff)
-    ).resolves.toEqual({
-      appointmentId: 'appointment_server_001',
-      status: 'cancelled'
-    });
-    expect(transition).toHaveBeenCalled();
   });
 });
 

@@ -2,8 +2,10 @@ import type {
   CancelAppointmentRequest,
   CancelAppointmentResponse,
   CreateAppointmentRequest,
+  CreateAppointmentResponse,
   GetAppointmentResponse,
-  RescheduleAppointmentRequest
+  RescheduleAppointmentRequest,
+  RescheduleAppointmentResponse
 } from '@beauessence/contracts';
 import type {
   AppointmentTransition,
@@ -74,6 +76,30 @@ function resolvedCreatePatientId(
   }
   if (onBehalf !== undefined) return onBehalf;
   throw new MissingVerifiedPatientError();
+}
+
+function confirmedAppointmentResponse(
+  appointmentId: string,
+  startsAt: string
+): CreateAppointmentResponse {
+  return {
+    appointmentId,
+    status: 'confirmed',
+    startsAt,
+    endsAt: new Date(
+      Date.parse(startsAt) + SLOT_DURATION_MINUTES * 60_000
+    ).toISOString()
+  };
+}
+
+function requireReservationStart(result: ReservationResult): string {
+  if (result.startsAt === undefined) {
+    throw new DomainError(
+      'APPOINTMENT_NOT_FOUND',
+      'The appointment does not exist.'
+    );
+  }
+  return result.startsAt;
 }
 
 /**
@@ -179,11 +205,11 @@ export class AppointmentApplicationService {
   public async create(
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
-  ): Promise<ReservationResult> {
+  ): Promise<CreateAppointmentResponse> {
     const patientId = resolvedCreatePatientId(command, authentication);
     await this.authorization.assertCanCreate(authentication, command);
 
-    return this.repository.reserve(
+    const result = await this.repository.reserve(
       toBookingRequest(command, {
         appointmentId: this.ids.next(),
         patientId,
@@ -200,13 +226,17 @@ export class AppointmentApplicationService {
         }
       })
     );
+    return confirmedAppointmentResponse(
+      result.appointmentId,
+      requireReservationStart(result)
+    );
   }
 
   public async reschedule(
     appointmentId: string,
     command: RescheduleAppointmentRequest,
     authentication: AuthenticationContext
-  ): Promise<ReservationResult> {
+  ): Promise<RescheduleAppointmentResponse> {
     const record = await this.repository.read(appointmentId);
     await this.authorization.assertCanReschedule(
       authentication,
@@ -226,7 +256,7 @@ export class AppointmentApplicationService {
       }
     }
 
-    return this.repository.reschedule(
+    const result = await this.repository.reschedule(
       toRescheduleRequest(appointmentId, command, {
         ...(authentication.verifiedPatientId === undefined
           ? {}
@@ -241,6 +271,10 @@ export class AppointmentApplicationService {
           policyVersion: null
         }
       })
+    );
+    return confirmedAppointmentResponse(
+      result.appointmentId,
+      requireReservationStart(result)
     );
   }
 

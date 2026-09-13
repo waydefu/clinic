@@ -89,7 +89,8 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
-      const replay = this.replayOf(
+      const replay = await this.reservationFromReplay(
+        transaction,
         await transaction.get(idempotencyRef),
         request.idempotency
       );
@@ -132,7 +133,11 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       transaction.create(idempotencyRef, plan.idempotencyRecord);
 
-      return { appointmentId: plan.appointment.id, replayed: false };
+      return {
+        appointmentId: plan.appointment.id,
+        replayed: false,
+        startsAt: plan.appointment.startsAt
+      };
     });
   }
 
@@ -146,6 +151,26 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     return {
       appointmentId: resolveIdempotencyReplay(record, context),
       replayed: true
+    };
+  }
+
+  private async reservationFromReplay(
+    transaction: Transaction,
+    snapshot: DocumentSnapshot,
+    context: IdempotencyContext
+  ): Promise<ReservationResult | undefined> {
+    const replay = this.replayOf(snapshot, context);
+    if (replay === undefined) return undefined;
+    const appointment = this.snapshotOf(
+      await transaction.get(
+        this.db.collection(COLLECTIONS.appointments).doc(replay.appointmentId)
+      )
+    );
+    return {
+      ...replay,
+      ...(appointment?.startsAt === undefined
+        ? {}
+        : { startsAt: appointment.startsAt })
     };
   }
 
@@ -314,7 +339,8 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
-      const replay = this.replayOf(
+      const replay = await this.reservationFromReplay(
+        transaction,
         await transaction.get(idempotencyRef),
         request.idempotency
       );
@@ -381,7 +407,11 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       transaction.create(idempotencyRef, plan.idempotencyRecord);
 
-      return { appointmentId: plan.appointmentId, replayed: false };
+      return {
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        startsAt: plan.startsAt
+      };
     });
   }
 }
