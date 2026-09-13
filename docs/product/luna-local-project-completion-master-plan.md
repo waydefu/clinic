@@ -4,8 +4,9 @@
 **Audience:** GPT-5.6 Luna on the owner’s laptop. **Start**
 [luna-local-authorized-playbook.md](luna-local-authorized-playbook.md).
 **Status:** `LUNA_SOLE_EXECUTOR` / `GROK_RESTS` (2026-09-12). Luna does
-the remaining work. Grok does not take further engineering on this
-delivery. This is not production.
+the remaining work on the owner laptop. **2026-09-13:** clinic owner
+recorded `GROK_UNRESTED` / `GROK_PROJECT_CLOSER` for cloud-agent
+engineering; this file remains the laptop map. This is not production.
 **Does not authorize:** production, real patient data, official DNS, live
 Hosting, production Calendar, or routing `/v1/bookings`.
 

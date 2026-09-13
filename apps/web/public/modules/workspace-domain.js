@@ -1,3 +1,4 @@
+import { normaliseRole } from '../vendor/domain/roles.js';
 import { assertSyntheticAuthorizationShape } from '../vendor/domain/synthetic-delegated-authorization.js';
 import { ROLE_LABELS } from './constants.js';
 import { currentAccount } from './permissions.js';
@@ -129,9 +130,13 @@ export function toggleAccount(state, accountId) {
     account.status === 'active'
   )
     throw new Error('不可停用目前正在操作的合成帳號。');
-  if (account.role === 'admin' && account.status === 'active') {
+  if (
+    normaliseRole(account.role) === 'manager' &&
+    account.status === 'active'
+  ) {
     const active = state.workspace.accounts.filter(
-      (item) => item.role === 'admin' && item.status === 'active'
+      (item) =>
+        normaliseRole(item.role) === 'manager' && item.status === 'active'
     );
     if (active.length <= 1)
       throw new Error('至少必須保留一個啟用中的合成主管。');

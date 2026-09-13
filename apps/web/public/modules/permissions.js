@@ -1,3 +1,4 @@
+import { normaliseRole } from '../vendor/domain/roles.js';
 import {
   authoriseSyntheticDelegatedAction,
   planSyntheticDelegationRecord
@@ -14,7 +15,7 @@ import { PERMISSIONS } from './constants.js';
 // 把權限搬進 front_desk；分開之後「這個角色天生有什麼」與「這次是被授權的」在
 // 稽核上永遠分得清楚。
 const rolePermissions = Object.freeze({
-  admin: new Set(Object.values(PERMISSIONS)),
+  manager: new Set(Object.values(PERMISSIONS)),
   front_desk: new Set([
     PERMISSIONS.CREATE_BOOKING,
     PERMISSIONS.CANCEL_BOOKING,
@@ -36,12 +37,17 @@ export function currentAccount(state) {
   );
 }
 
+function permissionsForAccount(account) {
+  const role = normaliseRole(account.role);
+  return role === undefined ? undefined : rolePermissions[role];
+}
+
 export function permissionsFor(state) {
   if (state.workspace.authenticated !== true) return [];
   const account = currentAccount(state);
   return account === undefined
     ? []
-    : [...(rolePermissions[account.role] ?? new Set())];
+    : [...(permissionsForAccount(account) ?? new Set())];
 }
 
 export function hasPermission(state, permission) {
@@ -49,7 +55,7 @@ export function hasPermission(state, permission) {
   const account = currentAccount(state);
   return (
     account !== undefined &&
-    (rolePermissions[account.role]?.has(permission) ?? false)
+    (permissionsForAccount(account)?.has(permission) ?? false)
   );
 }
 
@@ -85,7 +91,7 @@ export function canUseDelegation(state, permission) {
     account !== undefined &&
     delegation !== undefined &&
     delegation.enabled === true &&
-    delegation.delegatedToRole === account.role &&
+    delegation.delegatedToRole === normaliseRole(account.role) &&
     delegation.authorizations.some((item) => item.enabled === true)
   );
 }
@@ -116,13 +122,19 @@ export function requirePermissionOrDelegation(state, permission, secret) {
 
   const account = currentAccount(state);
   const delegation = delegationFor(state, permission);
-  if (account === undefined || delegation === undefined) {
+  const actorRole =
+    account === undefined ? undefined : normaliseRole(account.role);
+  if (
+    account === undefined ||
+    delegation === undefined ||
+    actorRole === undefined
+  ) {
     throw new Error('目前合成帳號沒有執行此動作的權限。');
   }
 
   const decision = authoriseSyntheticDelegatedAction(
     delegation,
-    account.role,
+    actorRole,
     secret
   );
   if (!decision.authorised) {
