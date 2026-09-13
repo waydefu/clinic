@@ -342,9 +342,8 @@ async function post(path, body = {}) {
       typeof result?.appointmentId === 'string' &&
       occupancyWrite(path)
     ) {
-      const { refreshPublishedOccupancy } = await import(
-        './modules/internal-test-booking-transport.js'
-      );
+      const { refreshPublishedOccupancy } =
+        await import('./modules/internal-test-booking-transport.js');
       state = await refreshPublishedOccupancy(
         (nextPath) => client.request(nextPath),
         state

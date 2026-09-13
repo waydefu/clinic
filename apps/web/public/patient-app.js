@@ -114,9 +114,8 @@ function rememberManagedAppointment(appointment) {
 
 async function refreshPublishedGrid() {
   if (!isInternalTestBookingEnabled()) return;
-  const { refreshPublishedOccupancy } = await import(
-    './modules/internal-test-booking-transport.js'
-  );
+  const { refreshPublishedOccupancy } =
+    await import('./modules/internal-test-booking-transport.js');
   state = await refreshPublishedOccupancy(
     (path) => client.request(path),
     state
