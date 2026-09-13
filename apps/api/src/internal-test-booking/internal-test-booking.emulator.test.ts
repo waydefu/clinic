@@ -8,7 +8,11 @@ import {
   type App
 } from 'firebase-admin/app';
 import type { Auth, DecodedIdToken } from 'firebase-admin/auth';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import {
+  getFirestore,
+  type DocumentData,
+  type Firestore
+} from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -153,6 +157,48 @@ function restoreEnv(name: string, value: string | undefined): void {
   else process.env[name] = value;
 }
 
+type LogicalSnapshot = Record<
+  string,
+  readonly { readonly id: string; readonly data: DocumentData }[]
+>;
+
+async function wipeCollections(db: Firestore): Promise<void> {
+  for (const collection of Object.values(COLLECTIONS)) {
+    const documents = await db.collection(collection).listDocuments();
+    await Promise.all(documents.map((document) => document.delete()));
+  }
+}
+
+async function takeLogicalSnapshot(db: Firestore): Promise<LogicalSnapshot> {
+  return Object.fromEntries(
+    await Promise.all(
+      Object.values(COLLECTIONS).map(async (collection) => {
+        const documents = await db.collection(collection).get();
+        return [
+          collection,
+          documents.docs.map((document) => ({
+            id: document.id,
+            data: document.data()
+          }))
+        ] as const;
+      })
+    )
+  );
+}
+
+async function restoreLogicalSnapshot(
+  db: Firestore,
+  snapshot: LogicalSnapshot
+): Promise<void> {
+  const batch = db.batch();
+  for (const [collection, documents] of Object.entries(snapshot)) {
+    for (const document of documents) {
+      batch.create(db.collection(collection).doc(document.id), document.data);
+    }
+  }
+  await batch.commit();
+}
+
 function composingModule(auth: Auth, sessions: CalendarPilotSessionService) {
   @Module({
     imports: [
@@ -237,10 +283,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
 
   beforeEach(async () => {
     nowUtc = NOW;
-    for (const collection of Object.values(COLLECTIONS)) {
-      const documents = await db.collection(collection).listDocuments();
-      await Promise.all(documents.map((document) => document.delete()));
-    }
+    await wipeCollections(db);
   });
 
   function requireHarness(): NestFastifyApplication {
@@ -385,5 +428,83 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     });
     expect(calendar.events.size).toBe(0);
     expect(calendar.cancelCount).toBe(1);
+  });
+
+  it('serves the published grid and booking after a logical restore', async () => {
+    const harness = requireHarness();
+    const published = await harness.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: managerHeaders(),
+      payload: {
+        ...PUBLISH_BODY,
+        idempotencyKey: 'schedule_publish_0011'
+      }
+    });
+    expect(published.statusCode).toBe(201);
+
+    const created = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: {
+        ...CREATE_BODY,
+        idempotencyKey: 'booking-idempotency-0012'
+      }
+    });
+    expect(created.statusCode).toBe(201);
+    const createdBody = JSON.parse(created.payload) as {
+      appointmentId: string;
+      status: string;
+      startsAt: string;
+    };
+
+    const beforeIncident = await takeLogicalSnapshot(db);
+    await wipeCollections(db);
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(0);
+    await restoreLogicalSnapshot(db, beforeIncident);
+
+    const queried = await harness.inject({
+      method: 'GET',
+      url: `/v1/bookings/${createdBody.appointmentId}`,
+      headers: patientHeaders()
+    });
+    expect(queried.statusCode).toBe(200);
+    expect(JSON.parse(queried.payload)).toMatchObject({
+      appointmentId: createdBody.appointmentId,
+      status: 'confirmed',
+      startsAt: createdBody.startsAt
+    });
+
+    const listed = await harness.inject({
+      method: 'GET',
+      url: '/v1/slots?kind=initial',
+      headers: patientHeaders()
+    });
+    expect(listed.statusCode).toBe(200);
+    const listedBody = JSON.parse(listed.payload) as {
+      slots: Array<{ slotId: string; available: boolean }>;
+    };
+    expect(
+      listedBody.slots.some(
+        (slot) => slot.slotId === SLOT_ID && slot.available === false
+      )
+    ).toBe(true);
+
+    const calendar = new InMemoryCalendar();
+    const outbox = createInternalTestOutboxRuntime({
+      db,
+      calendar,
+      clock: () => NOW,
+      random: () => 0.5
+    });
+    await expect(outbox.run()).resolves.toMatchObject({
+      summary: { claimed: 1, completed: 1 }
+    });
+    expect([...calendar.events.values()][0]).toMatchObject({
+      appointmentId: createdBody.appointmentId,
+      appointmentStatus: 'confirmed'
+    });
+    expect([...calendar.events.values()][0]).not.toHaveProperty('patientName');
   });
 });
