@@ -48,6 +48,7 @@ requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 const projectId = LOCAL_FIREBASE_PROJECT_ID;
 const NOW = '2029-12-15T09:00:00.000Z';
 const SLOT_ID = 'slot_20300102_1200';
+const TARGET_SLOT_ID = 'slot_20300102_1230';
 const APPOINTMENT_ID = 'appointment_http_occupancy_001';
 
 const PUBLISH_BODY = {
@@ -367,6 +368,79 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
     expect(second.statusCode).toBe(409);
     expect(JSON.parse(second.payload)).toMatchObject({
       error: { code: 'CONFLICT' }
+    });
+  });
+
+  it('lets a patient cancel a published-grid booking over HTTP and releases the slot', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0007');
+    const created = await bookPublishedSlot(harness);
+    expect(created.statusCode).toBe(201);
+
+    const cancelled = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/cancel`,
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
+      payload: { idempotencyKey: 'booking-idempotency-0010' }
+    });
+    expect(cancelled.statusCode).toBe(201);
+    expect(JSON.parse(cancelled.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'cancelled'
+    });
+
+    const slot = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    expect(slot.data()?.['reservationId']).toBeUndefined();
+  });
+
+  it('lets a patient reschedule a published-grid booking onto another grid slot', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0008');
+    const created = await bookPublishedSlot(harness);
+    expect(created.statusCode).toBe(201);
+
+    const rescheduled = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/reschedule`,
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
+      payload: {
+        idempotencyKey: 'booking-idempotency-0011',
+        targetSlotId: TARGET_SLOT_ID
+      }
+    });
+    expect(rescheduled.statusCode).toBe(201);
+    expect(JSON.parse(rescheduled.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:30:00.000Z',
+      endsAt: '2030-01-02T05:00:00.000Z'
+    });
+
+    const released = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    expect(released.data()?.['reservationId']).toBeUndefined();
+    const reserved = await db
+      .collection(COLLECTIONS.slots)
+      .doc(TARGET_SLOT_ID)
+      .get();
+    expect(reserved.data()?.['reservationId']).toBe(APPOINTMENT_ID);
+  });
+
+  it('lets staff record no-show on a published-grid booking over HTTP', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0009');
+    const created = await bookPublishedSlot(harness);
+    expect(created.statusCode).toBe(201);
+
+    const recorded = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/no-show`,
+      headers: actorHeaders('manager'),
+      payload: { idempotencyKey: 'booking-idempotency-0012' }
+    });
+    expect(recorded.statusCode).toBe(201);
+    expect(JSON.parse(recorded.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'no_show'
     });
   });
 });
