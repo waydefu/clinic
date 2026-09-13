@@ -166,6 +166,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-13 | [給下一位 Luna：D-006 本地 hardening 階段交接](reviews/2026-09-13-luna-d006-handoff-for-next-agent.md) | PR #117、branch `agent/luna-d006-authorization`、implementation commit `f1f366d`。本階段已暫停；記錄 24/24 targeted、verify 113/1492、Rules 102/102、Chromium E2E 本機 GPU `UNAVAILABLE`、D-006 剩餘 C2/C3/C4 與所有 human／production blockers；不得 merge 或把 synthetic path 當 production。 |
 | 2026-09-13 | [D-006 delegated-authorization hardening](reviews/2026-09-13-d006-delegated-authorization-hardening.md) | Partial local evidence: server persistence no longer stores plaintext authorization codes; server-side scrypt verifier, constant-time comparison and explicit attempt-lock state tested. Browser synthetic path remains explicitly non-production. Full C2/C3 identity/session, routed RBAC, audit sink, UI migration and production authority remain open. |
 | 2026-09-11 | [C0 engineering acceptance](reviews/2026-09-11-c0-engineering-acceptance.md) | Owner 接受 C0-ENG-REC；`OWNER_AUTHORITY_CONFIRMED`；C0 `completed`；C1 `granted`（開始 C1，不是 PASS）；`NAMED_REVIEWER_METADATA_PENDING`；不是 apply |
 | 2026-09-11 | [C0 engineering recommendations](reviews/2026-09-11-c0-engineering-recommendations.md) | 五項可委派工程選案記入 Canon／JSON／domain 常數；後由 C0-ENG-ACCEPT 收斂；當日紀錄本身不是 apply |
