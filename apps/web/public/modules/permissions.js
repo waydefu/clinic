@@ -2,7 +2,7 @@ import {
   authoriseSyntheticDelegatedAction,
   planSyntheticDelegationRecord
 } from '../vendor/domain/synthetic-delegated-authorization.js';
-import { PERMISSIONS } from './constants.js';
+import { PERMISSIONS, workbenchRole } from './constants.js';
 
 // 櫃台保有「取消」：取消是每天都在做的營運動作，收斂給管理者只會讓現場卡住。
 // 「刪除」則刻意只給管理者——它讓紀錄從營運清單消失，只留下稽核事件。這是
@@ -14,7 +14,7 @@ import { PERMISSIONS } from './constants.js';
 // 把權限搬進 front_desk；分開之後「這個角色天生有什麼」與「這次是被授權的」在
 // 稽核上永遠分得清楚。
 const rolePermissions = Object.freeze({
-  admin: new Set(Object.values(PERMISSIONS)),
+  manager: new Set(Object.values(PERMISSIONS)),
   front_desk: new Set([
     PERMISSIONS.CREATE_BOOKING,
     PERMISSIONS.CANCEL_BOOKING,
@@ -41,7 +41,7 @@ export function permissionsFor(state) {
   const account = currentAccount(state);
   return account === undefined
     ? []
-    : [...(rolePermissions[account.role] ?? new Set())];
+    : [...(rolePermissions[workbenchRole(account.role)] ?? new Set())];
 }
 
 export function hasPermission(state, permission) {
@@ -49,7 +49,7 @@ export function hasPermission(state, permission) {
   const account = currentAccount(state);
   return (
     account !== undefined &&
-    (rolePermissions[account.role]?.has(permission) ?? false)
+    (rolePermissions[workbenchRole(account.role)]?.has(permission) ?? false)
   );
 }
 

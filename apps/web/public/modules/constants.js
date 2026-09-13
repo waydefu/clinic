@@ -194,9 +194,16 @@ export const APPOINTMENT_STATUS_LABELS = Object.freeze({
 });
 
 export const ROLE_LABELS = Object.freeze({
-  admin: '主管',
+  manager: '主管',
   front_desk: '櫃台員工'
 });
+
+// Browser-local read alias only. Canonical codes live in packages/domain
+// `roles.ts`; this workbench graph cannot import that leaf without breaking
+// the /index.html gzip total (92 KiB). New writes must store `manager`.
+export function workbenchRole(role) {
+  return role === 'admin' ? 'manager' : role;
+}
 
 export const SYNTHETIC_CASE_MANAGERS = Object.freeze([
   { id: 'manager_test_001', label: '合成個管師 A', status: 'active' },

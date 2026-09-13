@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { PERMISSIONS } from '../public/modules/constants.js';
+import { PERMISSIONS, workbenchRole } from '../public/modules/constants.js';
 import { permissionsFor } from '../public/modules/permissions.js';
 import { initialState } from '../public/modules/state-schema.js';
+import { normaliseRole } from '../public/vendor/domain/roles.js';
 import {
   authenticateAccount,
   createAccount,
@@ -22,7 +23,7 @@ describe('synthetic workbench login', () => {
   it('authenticates the seeded admin with the right credentials', () => {
     const state = initialState();
     const account = authenticateAccount(state, 'admin', 'beauessence-admin');
-    expect(account.role).toBe('admin');
+    expect(account.role).toBe('manager');
     expect(state.workspace.authenticated).toBe(true);
     expect(state.workspace.currentAccountId).toBe('admin_test_001');
   });
@@ -89,5 +90,23 @@ describe('synthetic workbench login', () => {
     );
     expect(account.label).toBe('測試櫃台 B');
     expect(state.workspace.authenticated).toBe(true);
+  });
+
+  it('stores leftover admin creates as canonical manager', () => {
+    const state = initialState();
+    createAccount(state, { label: '測試主管 B', role: 'admin' });
+    const created = state.workspace.accounts.find(
+      (item) => item.label === '測試主管 B'
+    );
+    expect(created?.role).toBe('manager');
+    expect(created?.id.startsWith('manager_test_')).toBe(true);
+    expect(workbenchRole('admin')).toBe(normaliseRole('admin'));
+  });
+
+  it('refuses to disable the last active manager', () => {
+    const state = initialState();
+    expect(() => toggleAccount(state, 'admin_test_001')).toThrow(
+      '至少必須保留一個啟用中的合成主管。'
+    );
   });
 });

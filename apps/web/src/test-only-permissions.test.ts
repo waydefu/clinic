@@ -1,12 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   currentAccount,
   hasPermission,
   permissionsFor,
   requirePermission
 } from '../public/modules/permissions.js';
-import { initialState, isUsableState } from '../public/modules/state-schema.js';
-import { PERMISSIONS } from '../public/modules/constants.js';
+import {
+  initialState,
+  isUsableState,
+  loadState,
+  storageKey
+} from '../public/modules/state-schema.js';
+import { PERMISSIONS, workbenchRole } from '../public/modules/constants.js';
+import { normaliseRole } from '../public/vendor/domain/roles.js';
 import {
   identityKey,
   maskNationalId,
@@ -14,6 +20,10 @@ import {
 } from '../public/modules/patient-registry.js';
 
 const MANAGE_ACCOUNTS = PERMISSIONS.MANAGE_ACCOUNTS;
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('synthetic session resolution fails closed', () => {
   it('resolves the selected active account', () => {
@@ -68,6 +78,35 @@ describe('synthetic session resolution fails closed', () => {
     expect(hasPermission(state, PERMISSIONS.CANCEL_BOOKING)).toBe(true);
     expect(hasPermission(state, PERMISSIONS.DELETE_APPOINTMENT)).toBe(true);
   });
+
+  it('maps leftover stored admin onto manager permissions and fail-closes unknown roles', () => {
+    const state = initialState();
+    state.workspace.authenticated = true;
+    const seeded = state.workspace.accounts.find(
+      (item) => item.id === 'admin_test_001'
+    );
+    if (seeded === undefined) throw new Error('missing seed account');
+    expect(seeded.role).toBe('manager');
+    expect(workbenchRole(seeded.role)).toBe(normaliseRole('manager'));
+
+    seeded.role = 'admin';
+    expect(hasPermission(state, MANAGE_ACCOUNTS)).toBe(true);
+    expect(permissionsFor(state)).toEqual(
+      permissionsFor({
+        ...state,
+        workspace: {
+          ...state.workspace,
+          accounts: state.workspace.accounts.map((item) =>
+            item.id === 'admin_test_001' ? { ...item, role: 'manager' } : item
+          )
+        }
+      })
+    );
+
+    seeded.role = 'not_a_role';
+    expect(permissionsFor(state)).toEqual([]);
+    expect(hasPermission(state, MANAGE_ACCOUNTS)).toBe(false);
+  });
 });
 
 describe('stored synthetic state is validated before use', () => {
@@ -85,6 +124,47 @@ describe('stored synthetic state is validated before use', () => {
     const state = initialState();
     state.schemaVersion = 1;
     expect(isUsableState(state)).toBe(false);
+  });
+
+  it('accepts schema 7 so leftover admin blobs can migrate', () => {
+    const state = initialState();
+    state.schemaVersion = 7;
+    state.workspace.accounts[0].role = 'admin';
+    expect(isUsableState(state)).toBe(true);
+  });
+
+  it('rewrites leftover admin to manager when loading schema 7', () => {
+    const values = new Map();
+    vi.stubGlobal('localStorage', {
+      get length() {
+        return values.size;
+      },
+      clear() {
+        values.clear();
+      },
+      getItem(key) {
+        return values.get(key) ?? null;
+      },
+      key(index) {
+        return [...values.keys()][index] ?? null;
+      },
+      removeItem(key) {
+        values.delete(key);
+      },
+      setItem(key, value) {
+        values.set(key, value);
+      }
+    });
+    const leftover = initialState();
+    leftover.schemaVersion = 7;
+    leftover.workspace.accounts[0].role = 'admin';
+    leftover.workspace.authenticated = true;
+    localStorage.setItem(storageKey, JSON.stringify(leftover));
+
+    const loaded = loadState();
+    expect(loaded.schemaVersion).toBe(8);
+    expect(loaded.workspace.accounts[0].role).toBe('manager');
+    expect(loaded.workspace.authenticated).toBe(true);
   });
 
   it('rejects structurally broken state', () => {

@@ -1,5 +1,5 @@
 import { assertSyntheticAuthorizationShape } from '../vendor/domain/synthetic-delegated-authorization.js';
-import { ROLE_LABELS } from './constants.js';
+import { ROLE_LABELS, workbenchRole } from './constants.js';
 import { currentAccount } from './permissions.js';
 function safeText(value, label, maximum) {
   if (
@@ -40,20 +40,20 @@ export function logout(state) {
   state.workspace.authenticated = false;
 }
 export function createAccount(state, input) {
-  if (!Object.hasOwn(ROLE_LABELS, input.role))
-    throw new Error('合成角色無效。');
+  const role = workbenchRole(input.role);
+  if (!Object.hasOwn(ROLE_LABELS, role)) throw new Error('合成角色無效。');
   const label = safeText(input.label, '帳號標籤', 24);
   // 標籤是人在清單上辨識帳號的唯一依據，重複會讓停用／恢復按錯人。
   if (state.workspace.accounts.some((item) => item.label === label))
     throw new Error(`已有名稱為「${label}」的帳號，請改用其他標籤。`);
   const suffix = String(state.workspace.accountSequence).padStart(3, '0');
-  const prefix = input.role === 'admin' ? 'admin' : 'front_desk';
+  const prefix = role === 'manager' ? 'manager' : 'front_desk';
   // 合成帳密：新帳號也要能登入，因此一併帶可預期的測試帳密（明碼、僅供合成
   // 展示，正式版改真 IdP）。帳號管理頁會顯示，方便測試切換不同角色登入。
   state.workspace.accounts.push({
     id: `${prefix}_test_${suffix}`,
     label,
-    role: input.role,
+    role,
     status: 'active',
     username: `${prefix}${suffix}`,
     password: `beauessence-${suffix}`
@@ -129,9 +129,13 @@ export function toggleAccount(state, accountId) {
     account.status === 'active'
   )
     throw new Error('不可停用目前正在操作的合成帳號。');
-  if (account.role === 'admin' && account.status === 'active') {
+  if (
+    workbenchRole(account.role) === 'manager' &&
+    account.status === 'active'
+  ) {
     const active = state.workspace.accounts.filter(
-      (item) => item.role === 'admin' && item.status === 'active'
+      (item) =>
+        workbenchRole(item.role) === 'manager' && item.status === 'active'
     );
     if (active.length <= 1)
       throw new Error('至少必須保留一個啟用中的合成主管。');

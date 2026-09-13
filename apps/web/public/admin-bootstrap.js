@@ -27,7 +27,8 @@ import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
 import {
   DELETE_APPOINTMENT_REASONS,
   PERMISSIONS,
-  WORKBENCH_PROCEDURES
+  WORKBENCH_PROCEDURES,
+  workbenchRole
 } from './modules/constants.js';
 import { overdueAppointments } from './modules/case-management.js';
 import { renderTagOptions } from './modules/tag-picker.js';
@@ -66,7 +67,7 @@ const restrictedDom = [
 function isAdminSession() {
   return (
     state?.session?.authenticated === true &&
-    state.session.account?.role === 'admin'
+    workbenchRole(state.session.account?.role) === 'manager'
   );
 }
 
@@ -336,7 +337,7 @@ function renderSession() {
   elements['current-account-label'].textContent =
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
-    state.session.account.role === 'admin'
+    workbenchRole(state.session.account.role) === 'manager'
       ? '可設定營業時間、改派個管、帳號與系統治理。'
       : '可處理預約、到診、登錄回診指示與首次個管指派。';
   applyWorkspacePanel();

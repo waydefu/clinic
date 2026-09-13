@@ -8,8 +8,11 @@ import { cloneSchedule, generateSlots } from './schedule-engine.js';
 // v6 → v7（2026-07-28）：移除會讓人誤以為瀏覽器保存正式政策版本的
 // `policyVersion`。這個合成流程只有 UI-only「已閱讀告知草稿」gate，沒有政策版本、
 // 顯示時間或接受證據；換鍵才能讓已存在的 v6 localStorage 一併淘汰舊欄位。
+// v7 → v8（2026-09-13）：stored role `admin` → canonical `manager`。localStorage
+// 鍵名維持 v7，避免多一個 legacy key 字串把 /index.html total gzip 推過 92 KiB；
+// schemaVersion 7 的 blob 會被 isUsableState 丟棄，下一次 saveState 覆寫同鍵。
 export const storageKey = 'beauessence_synthetic_online_preview_v7';
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 // 只清理由本應用歷史版本建立過的精確鍵名，不掃整個 localStorage，也不碰主題或
 // 同 origin 其他用途的資料。v1～v6 可由 Git 歷史逐一核對。
 const LEGACY_STORAGE_KEYS = Object.freeze([
@@ -80,7 +83,7 @@ export function initialState() {
         {
           id: 'admin_test_001',
           label: '測試主管',
-          role: 'admin',
+          role: 'manager',
           status: 'active',
           username: 'admin',
           password: 'beauessence-admin'
@@ -152,7 +155,8 @@ const REQUIRED_ARRAYS = [
 // actually dereference and discard anything that does not hold up.
 export function isUsableState(state) {
   if (state === null || typeof state !== 'object') return false;
-  if (state.schemaVersion !== SCHEMA_VERSION) return false;
+  if (state.schemaVersion !== SCHEMA_VERSION && state.schemaVersion !== 7)
+    return false;
   if ('policyVersion' in state) return false;
   if (REQUIRED_ARRAYS.some((key) => !Array.isArray(state[key]))) return false;
 
@@ -220,13 +224,23 @@ function removeLegacyState() {
   for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key);
 }
 
+function migrateStoredWorkbenchRoles(state) {
+  for (const account of state.workspace.accounts) {
+    if (account.role === 'admin') account.role = 'manager';
+  }
+  state.schemaVersion = SCHEMA_VERSION;
+  return state;
+}
+
 export function loadState() {
   try {
     removeLegacyState();
     const value = localStorage.getItem(storageKey);
     if (value === null) return initialState();
     const stored = JSON.parse(value);
-    return isUsableState(stored) ? stored : initialState();
+    return isUsableState(stored)
+      ? migrateStoredWorkbenchRoles(stored)
+      : initialState();
   } catch {
     return initialState();
   }
