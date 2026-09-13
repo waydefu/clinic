@@ -20,9 +20,10 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
  * network. The web harness hard-codes its own loopback bind; this keeps the API
  * side symmetrical.
  *
- * The booking write path is not exposed yet (see the Phase 1 gate), so nothing
- * currently sets this flag. It stays because the guard must already be in place
- * on the day the first route lands, not added afterwards.
+ * IP-001 routes `/v1/bookings` through InternalTestBookingModule with a
+ * fail-closed production default. Those routes still require authentication,
+ * so nothing currently sets this flag. The loopback bind stays so a stray
+ * HOST value cannot publish an unauthenticated write endpoint.
  *
  * A non-loopback bind also needs a separate, exact
  * `ALLOW_NON_LOOPBACK_BIND=true` opt-in. That keeps an inherited or mistyped
