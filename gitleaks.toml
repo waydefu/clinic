@@ -17,6 +17,7 @@ description = """
 
   packages/contracts/src/payroll.test.ts   payroll-close-key-NNNN
   packages/contracts/src/schedule.test.ts  schedule_publish_NNNN
+  apps/api occupancy HTTP emulator history schedule_publish_occupancy_NNNN
 
 這些值的形狀是固定的前綴加流水號，與任何真實憑證的字元集與長度都不同。若日後
 測試改用別的前綴，這裡必須一起更新——allowlist 沒有涵蓋到的新值會照常告警，
@@ -30,6 +31,7 @@ regexTarget = "line"
 regexes = [
   '''payroll-close-key-\d{4}''',
   '''schedule_publish_\d{4}''',
+  '''schedule_publish_occupancy_\d{4}''',
   '''schedule-publish-key-\d{4}''',
   '''booking-idempotency-\d{4}''',
   '''"[A-Za-z0-9.-]+\.js": "[a-f0-9]{64}"'''
