@@ -717,6 +717,67 @@ function compareFirebaseRedirects(expected, rules, failures) {
   }
 }
 
+function sameJson(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/**
+ * Isolated C1 has no Cloud Run API, so preview Hosting is static-only.
+ * Static public/predeploy/redirects/headers/non-run rewrites must still
+ * match firebase.json so a page-routing change cannot silently leave the
+ * isolated config behind.
+ */
+export function compareIsolatedPreviewHosting(calPilot, isolated, failures) {
+  if (!isRecord(isolated) || !isRecord(isolated.hosting)) {
+    failures.push('firebase.isolated-preview.json.hosting 必須是 object。');
+    return;
+  }
+  if (!isRecord(calPilot) || !isRecord(calPilot.hosting)) {
+    failures.push('firebase.json.hosting 必須是 object。');
+    return;
+  }
+  for (const key of ['firestore', 'auth', 'emulators']) {
+    if (isolated[key] !== undefined)
+      failures.push(
+        `firebase.isolated-preview.json 不得宣告 ${key}；isolated preview 只部署靜態 Hosting。`
+      );
+  }
+  const isolatedHosting = isolated.hosting;
+  const calPilotHosting = calPilot.hosting;
+  const isolatedRewrites = Array.isArray(isolatedHosting.rewrites)
+    ? isolatedHosting.rewrites
+    : [];
+  if (isolatedRewrites.some((rule) => isRecord(rule) && hasOwn(rule, 'run')))
+    failures.push(
+      'firebase.isolated-preview.json 不得宣告 Cloud Run rewrite；isolated C1 沒有 Run API。'
+    );
+  if (isolatedHosting.public !== calPilotHosting.public)
+    failures.push(
+      'firebase.isolated-preview.json hosting.public 必須與 firebase.json 相同。'
+    );
+  if (!sameJson(isolatedHosting.predeploy, calPilotHosting.predeploy))
+    failures.push(
+      'firebase.isolated-preview.json hosting.predeploy 必須與 firebase.json 相同。'
+    );
+  if (!sameJson(isolatedHosting.redirects, calPilotHosting.redirects))
+    failures.push(
+      'firebase.isolated-preview.json hosting.redirects 必須與 firebase.json 相同。'
+    );
+  if (!sameJson(isolatedHosting.headers, calPilotHosting.headers))
+    failures.push(
+      'firebase.isolated-preview.json hosting.headers 必須與 firebase.json 相同。'
+    );
+  const calPilotStaticRewrites = Array.isArray(calPilotHosting.rewrites)
+    ? calPilotHosting.rewrites.filter(
+        (rule) => !(isRecord(rule) && hasOwn(rule, 'run'))
+      )
+    : [];
+  if (!sameJson(isolatedRewrites, calPilotStaticRewrites))
+    failures.push(
+      'firebase.isolated-preview.json 的非 Cloud Run rewrites 必須與 firebase.json 相同。'
+    );
+}
+
 function compareBudgets(pages, budgets, failures) {
   if (!Array.isArray(budgets)) {
     failures.push('apps/web/performance-budget.json 頂層必須是 array。');
@@ -1161,6 +1222,7 @@ export function checkPublicPageConfiguration({
   budgets,
   serverSource,
   firebase,
+  isolatedFirebase,
   buildIndexableEntries,
   registerDecisions = null,
   scanSources = {},
@@ -1194,6 +1256,7 @@ export function checkPublicPageConfiguration({
     firebaseRules(firebase, 'redirects', failures),
     failures
   );
+  compareIsolatedPreviewHosting(firebase, isolatedFirebase, failures);
   compareScans(pages, scanSources, failures);
 
   return {
@@ -1224,6 +1287,7 @@ export async function repositoryInputs() {
     budgets: JSON.parse(await read('apps', 'web', 'performance-budget.json')),
     serverSource: await read('apps', 'web', 'server.mjs'),
     firebase: JSON.parse(await read('firebase.json')),
+    isolatedFirebase: JSON.parse(await read('firebase.isolated-preview.json')),
     buildIndexableEntries: buildWeb.PUBLIC_INDEXABLE_ENTRIES,
     registerDecisions: [
       ...buildWeb.listRegisterDecisions(

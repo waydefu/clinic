@@ -116,6 +116,7 @@ describe('checkPublicPageConfiguration', () => {
       inventory: structuredClone(inputs.inventory),
       budgets: structuredClone(inputs.budgets),
       firebase: structuredClone(inputs.firebase),
+      isolatedFirebase: structuredClone(inputs.isolatedFirebase),
       scanSources: { ...inputs.scanSources },
       dataRouteSources: { ...inputs.dataRouteSources }
     };
@@ -197,6 +198,29 @@ describe('checkPublicPageConfiguration', () => {
     expect(
       mutate((c) => {
         c.dataRouteSources.CLINIC_ROUTES = [];
+      }).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('notices isolated preview static Hosting that drifted from firebase.json', () => {
+    expect(
+      mutate((c) => {
+        c.isolatedFirebase.hosting.redirects = [];
+      }).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('rejects a Cloud Run rewrite on the isolated preview config', () => {
+    expect(
+      mutate((c) => {
+        c.isolatedFirebase.hosting.rewrites.unshift({
+          source: '/v1/**',
+          run: {
+            serviceId: 'cal-pilot-api',
+            region: 'asia-east1',
+            pinTag: true
+          }
+        });
       }).failures.length
     ).toBeGreaterThan(0);
   });
