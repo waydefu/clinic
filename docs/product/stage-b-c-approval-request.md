@@ -7,11 +7,19 @@
 不新增任何政策；填寫後請同步登錄
 [決策登錄](phase-1-decision-register.md)。
 
-**2026-07-29 更新：** D-010 target architecture/SLO 與 D-006 identity/security
+**2026-07-29 當時更新：** D-010 target architecture/SLO 與 D-006 identity/security
 已核准；D-009 仍待核准。Stage 2 是 C1～C6 的 umbrella，每個 slice 仍須各自的
 精確 request、change-plan review、deployment authority 與 apply approval；C1
 isolated foundation 不含 IdP、Firestore、backup/PITR 或 runtime。本文件因此尚未
 整體完成。
+
+**2026-09-12 current status：** machine Canon
+[stage-2-gate-status.json](../architecture/stage-2-gate-status.json) records
+C0～C6 `completed` and C1～C6 `deploymentAuthorities=granted` on isolated
+synthetic project `beauessence-clinic-stg-c1a01`. This closes the recorded
+synthetic C1～C6 execution evidence; it does not grant production apply,
+production Calendar, real data, or formal `/v1/bookings` routing. Any new
+cloud mutation still needs a fresh exact-SHA packet.
 
 **現行階段對照（2026-07-28）：** 本文件沿用早期 A／B／C／D 名稱；A 已併入並
 完成於 Stage 0，B 對應 Stage 2 cloud staging，C 對應 Stage 3 專用測試日曆，
@@ -22,7 +30,7 @@ D 對應 Stage 4 真實資料。專案目前在 Stage 1 owner decisions。
 | 階段 | 內容 | 卡住的決策 |
 | --- | --- | --- |
 | A | 本機 Emulator 的交易、冪等、outbox | 無 — **已於 2026-07-21 完成** |
-| **B** | Stage 2 合成 cloud staging umbrella：C1 isolated foundation，後續 C2～C6 才含 IdP、Firestore 與 runtime | **D-006/D-010 是前置；每個 slice 仍須各自 request、deployment authority 與 apply approval，C1 不解鎖後續資源** |
+| **B** | Stage 2 合成 cloud staging umbrella：C1 isolated foundation，後續 C2～C6 才含 IdP、Firestore 與 runtime | **C0～C6 synthetic execution 已完成於隔離專案；任何新 slice 或 production mutation 仍須各自 exact-SHA request、authority 與 apply approval，C1 不解鎖 production** |
 | **C** | Google 日曆投影（專用測試日曆） | **D-009** |
 | D | 開始處理真實病患資料 | D-001～D-005、D-011（本文件不涵蓋） |
 
