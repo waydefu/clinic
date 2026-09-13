@@ -176,7 +176,7 @@ describe('AppointmentApplicationService', () => {
         correlationId: 'corr_server_001',
         source: 'api',
         reasonCode: null,
-        policyVersion: null
+        policyVersion: 'privacy-v1'
       },
       requestedAt: '2026-07-23T14:30:00.000Z',
       idempotency: createAppointmentIdempotency({

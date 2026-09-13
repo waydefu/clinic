@@ -1,12 +1,13 @@
-import type {
-  CancelAppointmentRequest,
-  CancelAppointmentResponse,
-  CreateAppointmentRequest,
-  CreateAppointmentResponse,
-  GetAppointmentResponse,
-  RescheduleAppointmentRequest,
-  RescheduleAppointmentResponse,
-  TransitionAppointmentResponse
+import {
+  INTERNAL_TEST_PRIVACY_POLICY_VERSION,
+  type CancelAppointmentRequest,
+  type CancelAppointmentResponse,
+  type CreateAppointmentRequest,
+  type CreateAppointmentResponse,
+  type GetAppointmentResponse,
+  type RescheduleAppointmentRequest,
+  type RescheduleAppointmentResponse,
+  type TransitionAppointmentResponse
 } from '@beauessence/contracts';
 import type {
   AppointmentTransition,
@@ -221,9 +222,9 @@ export class AppointmentApplicationService {
           correlationId: this.correlations.next(),
           source: 'api',
           reasonCode: null,
-          // The approved policy/rule version will be loaded here after the
-          // D-003/D-004 decisions land; Stage 0 must not invent one.
-          policyVersion: null
+          // IP-001 internal-test identifier. accepted_at is audit.occurredAt.
+          // Create must not take a client privacyAcceptance payload.
+          policyVersion: INTERNAL_TEST_PRIVACY_POLICY_VERSION
         }
       })
     );

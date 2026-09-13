@@ -73,3 +73,10 @@ export const IdempotencyKeySchema = z
   .regex(/^[A-Za-z0-9_-]+$/);
 
 export const PolicyVersionSchema = z.string().regex(/^privacy-v[1-9][0-9]*$/);
+
+/**
+ * IP-001 internal-test identifier. This is not D-003 publication approval
+ * and is not a client-supplied acceptance payload.
+ */
+export const INTERNAL_TEST_PRIVACY_POLICY_VERSION =
+  PolicyVersionSchema.parse('privacy-v1');

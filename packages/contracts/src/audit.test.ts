@@ -254,4 +254,17 @@ describe('AuditEventV2Schema', () => {
       AuditEventV2Schema.safeParse({ ...EVENT, schemaVersion: 1 }).success
     ).toBe(false);
   });
+
+  it('accepts the IP-001 privacy identifier and rejects an opaque stand-in', () => {
+    expect(
+      AuditEventV2Schema.parse({ ...EVENT, policyVersion: 'privacy-v1' })
+        .policyVersion
+    ).toBe('privacy-v1');
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...EVENT,
+        policyVersion: 'not-a-policy-version'
+      }).success
+    ).toBe(false);
+  });
 });
