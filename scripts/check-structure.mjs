@@ -179,6 +179,7 @@ const requiredPaths = [
   'playwright.screenshots.config.ts',
   'tests/ui-screenshots/current-ui.spec.ts',
   'tests/e2e/patient-booking.spec.ts',
+  'tests/e2e/internal-test-booking.spec.ts',
   'tests/e2e/clinic-site.spec.ts',
   'tests/e2e/workbench-lifecycle.spec.ts',
   'tests/e2e/accessibility.spec.ts',
