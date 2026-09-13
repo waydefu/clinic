@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type DynamicModule } from '@nestjs/common';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { isRole } from '@beauessence/domain';
@@ -7,12 +7,16 @@ import {
   APPOINTMENT_APPLICATION,
   APPOINTMENT_AUTHENTICATOR,
   APPOINTMENT_AUTHORIZATION,
-  AppointmentController
+  AppointmentController,
+  type AppointmentAuthenticator
 } from '../appointments/appointment.controller.js';
 import { AppointmentApplicationService } from '../appointments/appointment.application-service.js';
 import type { AppointmentAuthorizationPolicy } from '../appointments/appointment.policy.js';
 import type { AuthenticationContext } from '../auth/authentication-context.js';
-import { CalendarPilotModule } from '../calendar/calendar-pilot.module.js';
+import {
+  CalendarPilotModule,
+  defaultFirebaseApp
+} from '../calendar/calendar-pilot.module.js';
 import { CALENDAR_PILOT_SESSIONS } from '../calendar/calendar-pilot.tokens.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
 import { FirestoreScheduleRepository } from '../firestore/schedule.repository.js';
@@ -45,66 +49,96 @@ function resolveRole(context: AuthenticationContext): CandidateRole {
   return context.actorRole;
 }
 
+export interface InternalTestBookingModuleOptions {
+  readonly clock?: InternalTestBookingClock;
+  readonly authenticator?: AppointmentAuthenticator;
+}
+
 /**
  * IP-001 composing module. Fail-closed: default env refuses writes with 503.
  * Public production `/v1/bookings` is not authorised. Do not import
  * `AppointmentController` from `AppModule` except through this module.
+ *
+ * `register()` is the production compose. Emulator suites pass a shared
+ * clock (and a header authenticator) so occupancy proofs boot this module
+ * instead of a parallel Nest harness.
  */
-@Module({
-  imports: [CalendarPilotModule],
-  controllers: [AppointmentController, ScheduleController],
-  providers: [
-    {
-      provide: INTERNAL_TEST_BOOKING_SETTINGS,
-      useFactory: () => internalTestBookingSettingsFromEnv()
-    },
-    {
-      provide: INTERNAL_TEST_BOOKING_CLOCK,
-      useValue: { nowUtc: () => new Date().toISOString() }
-    },
-    {
-      provide: APPOINTMENT_AUTHORIZATION,
-      useFactory: () => createRbacAppointmentPolicy(resolveRole)
-    },
-    {
-      provide: SCHEDULE_AUTHORIZATION,
-      useFactory: () => createScheduleAuthorizationPolicy(resolveRole)
-    },
-    {
-      provide: APPOINTMENT_AUTHENTICATOR,
-      inject: [CALENDAR_PILOT_SESSIONS],
-      useFactory: (sessions: CalendarPilotSessionService) =>
-        new InternalTestBookingAuthenticator(sessions, getAuth())
-    },
-    {
-      provide: APPOINTMENT_APPLICATION,
-      inject: [APPOINTMENT_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
-      useFactory: (
-        authorization: AppointmentAuthorizationPolicy,
-        clock: InternalTestBookingClock
-      ) =>
-        new AppointmentApplicationService(
-          new FirestoreBookingRepository(getFirestore()),
-          authorization,
-          { next: opaqueBookingId },
-          clock,
-          { next: opaqueBookingId }
-        )
-    },
-    {
-      provide: SCHEDULE_APPLICATION,
-      inject: [SCHEDULE_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
-      useFactory: (
-        authorization: ScheduleAuthorizationPolicy,
-        clock: InternalTestBookingClock
-      ) =>
-        new ScheduleApplicationService(
-          new FirestoreScheduleRepository(getFirestore()),
-          authorization,
-          clock,
-          { next: opaqueBookingId }
-        )
-    }
-  ]
-})
-export class InternalTestBookingModule {}
+@Module({})
+export class InternalTestBookingModule {
+  public static register(
+    options: InternalTestBookingModuleOptions = {}
+  ): DynamicModule {
+    return {
+      module: InternalTestBookingModule,
+      imports: [CalendarPilotModule],
+      controllers: [AppointmentController, ScheduleController],
+      providers: [
+        {
+          provide: INTERNAL_TEST_BOOKING_SETTINGS,
+          useFactory: () => internalTestBookingSettingsFromEnv()
+        },
+        {
+          provide: INTERNAL_TEST_BOOKING_CLOCK,
+          useValue: options.clock ?? {
+            nowUtc: () => new Date().toISOString()
+          }
+        },
+        {
+          provide: APPOINTMENT_AUTHORIZATION,
+          useFactory: () => createRbacAppointmentPolicy(resolveRole)
+        },
+        {
+          provide: SCHEDULE_AUTHORIZATION,
+          useFactory: () => createScheduleAuthorizationPolicy(resolveRole)
+        },
+        options.authenticator === undefined
+          ? {
+              provide: APPOINTMENT_AUTHENTICATOR,
+              inject: [CALENDAR_PILOT_SESSIONS],
+              useFactory: (sessions: CalendarPilotSessionService) =>
+                new InternalTestBookingAuthenticator(
+                  sessions,
+                  getAuth(defaultFirebaseApp())
+                )
+            }
+          : {
+              provide: APPOINTMENT_AUTHENTICATOR,
+              useValue: options.authenticator
+            },
+        {
+          provide: APPOINTMENT_APPLICATION,
+          inject: [APPOINTMENT_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
+          useFactory: (
+            authorization: AppointmentAuthorizationPolicy,
+            clock: InternalTestBookingClock
+          ) =>
+            new AppointmentApplicationService(
+              new FirestoreBookingRepository(
+                getFirestore(defaultFirebaseApp())
+              ),
+              authorization,
+              { next: opaqueBookingId },
+              clock,
+              { next: opaqueBookingId }
+            )
+        },
+        {
+          provide: SCHEDULE_APPLICATION,
+          inject: [SCHEDULE_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
+          useFactory: (
+            authorization: ScheduleAuthorizationPolicy,
+            clock: InternalTestBookingClock
+          ) =>
+            new ScheduleApplicationService(
+              new FirestoreScheduleRepository(
+                getFirestore(defaultFirebaseApp())
+              ),
+              authorization,
+              clock,
+              { next: opaqueBookingId }
+            )
+        }
+      ]
+    };
+  }
+}
