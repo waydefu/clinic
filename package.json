@@ -39,6 +39,7 @@
     "check:sync": "node scripts/sync-domain-vendor.mjs --check",
     "verify:preview": "node scripts/verify-preview-deployment.mjs",
     "smoke:internal-test-booking": "node scripts/internal-test-booking-smoke.mjs",
+    "plan:internal-test-preview": "node scripts/internal-test-preview-plan.mjs",
     "format": "prettier --write .",
     "test:unit": "vitest run --exclude \"tests/firestore/**\" --exclude \"**/*.emulator.test.ts\"",
     "test:rules": "node scripts/run-firestore-rules.mjs",

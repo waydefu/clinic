@@ -54,11 +54,12 @@ export function assertInternalTestSmokeTarget(input) {
 }
 
 /**
- * Unauthenticated booking/slots must not succeed. Gate closed → 503.
- * Gate open → 401. A 2xx create or list is a public-write defect.
+ * Unauthenticated booking/slots must not succeed.
+ * Gate closed → 503. Gate open → 401. Isolated static Hosting (no
+ * Cloud Run rewrite) → 404. A 2xx create or list is a public-write defect.
  */
 export function evaluateUnauthenticatedApiSurface({ method, path, status }) {
-  if (status === 503 || status === 401) {
+  if (status === 503 || status === 401 || status === 404) {
     return { ok: true, status, reason: 'fail-closed' };
   }
   if (status >= 200 && status < 300) {

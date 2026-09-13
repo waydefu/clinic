@@ -1,0 +1,57 @@
+{
+  "hosting": {
+    "public": "apps/web/dist",
+    "predeploy": ["corepack pnpm run build"],
+    "ignore": [
+      "firebase.json",
+      "firebase.isolated-preview.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "redirects": [
+      { "source": "/", "destination": "/clinic", "type": 302 },
+      { "source": "/index.html", "destination": "/staff", "type": 301 },
+      { "source": "/patient.html", "destination": "/booking", "type": 301 },
+      { "source": "/privacy.html", "destination": "/privacy", "type": 301 },
+      { "source": "/clinic.html", "destination": "/clinic", "type": 301 }
+    ],
+    "rewrites": [
+      { "source": "/staff", "destination": "/index.html" },
+      { "source": "/booking", "destination": "/patient.html" },
+      { "source": "/privacy", "destination": "/privacy.html" },
+      { "source": "/clinic", "destination": "/clinic.html" },
+      { "source": "/clinic/**", "destination": "/clinic.html" }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; frame-src 'self' https://beauessence-clinic-staging.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+          },
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+          { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
+          {
+            "key": "Permissions-Policy",
+            "value": "camera=(), microphone=(), geolocation=(), payment=(), browsing-topics=(), attribution-reporting=(), join-ad-interest-group=(), run-ad-auction=()"
+          },
+          { "key": "Referrer-Policy", "value": "no-referrer" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "X-Frame-Options", "value": "DENY" },
+          { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+        ]
+      },
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      }
+    ]
+  }
+}

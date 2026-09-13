@@ -19,7 +19,7 @@ internal-test booking.
 | --- | --- |
 | `GO_LIVE_DEFERRED_ITEM` | official DNS / custom domain; clinic main-website takeover; production Calendar D-009/D-016; real patient data; live Hosting; terraform apply to production |
 | `EXTERNAL_AUTHORITY_REQUIRED` (keep unrouted) | durable Firestore lockout / denied-event store (B-012, D-002); `CalendarWatchController`; BookPilot production compose |
-| Already Grok-solvable / landed | fail-closed `/v1/bookings` create/query/cancel/reschedule/complete/no-show; fail-closed `/v1/slots` + `/v1/schedule/publish`; Nest HTTP occupancy, query, complete, cancel, reschedule, no-show, same-slot contention, idempotent replay, and post-cutoff staff cancel on a published grid; privacy-v1 create audit; staff on-behalf; patient cutoff; D-006 session evaluator on CAL-PILOT `__session`; fail-closed pre-deploy smoke evaluator (`pnpm smoke:internal-test-booking`) that refuses staging and the isolated live channel and treats unauthenticated 2xx create/list as FAIL; exact-head CI on the composing branch |
+| Already Grok-solvable / landed | fail-closed `/v1/bookings` create/query/cancel/reschedule/complete/no-show; fail-closed `/v1/slots` + `/v1/schedule/publish`; Nest HTTP occupancy, query, complete, cancel, reschedule, no-show, same-slot contention, idempotent replay, and post-cutoff staff cancel on a published grid; privacy-v1 create audit; staff on-behalf; patient cutoff; D-006 session evaluator on CAL-PILOT `__session`; fail-closed pre-deploy smoke evaluator (`pnpm smoke:internal-test-booking`) that refuses staging and the isolated live channel and treats unauthenticated 2xx create/list as FAIL (503/401/static 404 pass); isolated static Hosting config `firebase.isolated-preview.json` (no Cloud Run rewrite — isolated C1 has no Run API); execute:false preview plan (`pnpm plan:internal-test-preview`); exact-head CI on the composing branch |
 
 ## Queue
 
@@ -28,9 +28,9 @@ HUMAN BLOCKER
 PHASE: INTERNAL_PREPRODUCTION
 DECISION OR RESOURCE: Fresh named Hosting preview packet for the exact HEAD of cursor/internal-preproduction-f9d6, project beauessence-clinic-stg-c1a01, preview channel (not live), expiry, operator, approver
 ONE QUESTION: Is there a written preview-deploy packet for that exact SHA on beauessence-clinic-stg-c1a01 naming channel, expiry, operator, and approver?
-WHY I CANNOT PROCEED: Safety Floor 8 forbids Hosting deploy without a fresh per-commit packet; IP-001 is internal-test route authority, not deploy authority; earlier synthetic-review packets for beauessence-clinic-staging are not reusable
-WHAT I WILL NOT DO UNTIL ANSWERED: firebase hosting:channel:deploy, any live-channel update, targeting beauessence-clinic-staging, or firebase login:ci
-SAFE OPTIONS (if any): keep production booking HTTP 503; wait for exact-head CI; do not invent D-series approval
+WHY I CANNOT PROCEED: Safety Floor 8 forbids Hosting deploy without a fresh per-commit packet; IP-001 is internal-test route authority, not deploy authority; earlier synthetic-review packets for beauessence-clinic-staging are not reusable; isolated C1 Hosting currently has only the live channel; Cloud Run Admin API is disabled there (C1 allowlist excludes Cloud Run), so CAL-PILOT firebase.json `/v1/**` → cal-pilot-api cannot be served on this project
+WHAT I WILL NOT DO UNTIL ANSWERED: firebase hosting:channel:deploy, any live-channel update, targeting beauessence-clinic-staging, enabling Cloud Run, or firebase login:ci
+SAFE OPTIONS (if any): keep production booking HTTP 503; use firebase.isolated-preview.json (static only) once a packet names a preview channel; do not invent D-series approval
 ```
 
 ```text

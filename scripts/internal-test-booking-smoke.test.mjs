@@ -59,7 +59,7 @@ describe('assertInternalTestSmokeTarget', () => {
 });
 
 describe('evaluateUnauthenticatedApiSurface', () => {
-  it('treats 503 and 401 as fail-closed and 2xx as a public write', () => {
+  it('treats 503, 401, and static 404 as fail-closed and 2xx as a public write', () => {
     expect(evaluateUnauthenticatedBookingWrite({ status: 503 })).toEqual({
       ok: true,
       status: 503,
@@ -72,6 +72,13 @@ describe('evaluateUnauthenticatedApiSurface', () => {
         status: 401
       })
     ).toMatchObject({ ok: true, status: 401 });
+    expect(
+      evaluateUnauthenticatedApiSurface({
+        method: 'POST',
+        path: '/v1/bookings',
+        status: 404
+      })
+    ).toMatchObject({ ok: true, status: 404 });
     expect(
       evaluateUnauthenticatedApiSurface({
         method: 'POST',
@@ -102,6 +109,12 @@ describe('evaluateInternalTestBookingSmoke', () => {
       evaluateInternalTestBookingSmoke({
         bookingWriteStatus: 503,
         slotsStatus: 503
+      })
+    ).toEqual({ ok: true, issues: [] });
+    expect(
+      evaluateInternalTestBookingSmoke({
+        bookingWriteStatus: 404,
+        slotsStatus: 404
       })
     ).toEqual({ ok: true, issues: [] });
   });
