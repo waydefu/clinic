@@ -341,6 +341,46 @@ describe('createInternalTestBookingTransport', () => {
       scheduleMeta: { publishedVersion: 1 }
     });
   });
+
+  it('does not leave publish without an occupancy list when the grid cannot be loaded', async () => {
+    const local = vi.fn();
+    const fetchImpl = vi.fn((url) => {
+      if (url === '/v1/schedule/publish') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              publishedVersion: 1,
+              publishedAt: '2029-12-15T09:00:00.000Z',
+              schedule: { timeZone: 'Asia/Taipei' }
+            })
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: { code: 'UNAUTHENTICATED' } })
+      });
+    });
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+    await expect(
+      transport('/schedule/publish', {
+        method: 'POST',
+        body: JSON.stringify({
+          expectedVersion: 0,
+          schedule: { timeZone: 'Asia/Taipei' }
+        })
+      })
+    ).resolves.toMatchObject({
+      publishedVersion: 1,
+      slots: []
+    });
+    expect(local).not.toHaveBeenCalled();
+  });
 });
 
 describe('refreshPublishedOccupancy', () => {

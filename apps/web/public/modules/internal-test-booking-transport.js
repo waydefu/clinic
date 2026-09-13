@@ -262,6 +262,7 @@ export function createInternalTestBookingTransport({
       try {
         payload.slots = (await v1({ url: '/v1/slots', method: 'GET' })).slots;
       } catch {
+        payload.slots = [];
         return payload;
       }
     }
