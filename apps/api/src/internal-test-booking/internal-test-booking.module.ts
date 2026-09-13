@@ -33,7 +33,8 @@ import { internalTestBookingSettingsFromEnv } from './internal-test-booking.gate
 import {
   INTERNAL_TEST_BOOKING_CLOCK,
   INTERNAL_TEST_BOOKING_SETTINGS,
-  opaqueBookingId
+  opaqueBookingId,
+  type InternalTestBookingClock
 } from './internal-test-booking.tokens.js';
 import type { CalendarPilotSessionService } from '../auth/calendar-pilot-session.js';
 
@@ -77,13 +78,16 @@ function resolveRole(context: AuthenticationContext): CandidateRole {
     },
     {
       provide: APPOINTMENT_APPLICATION,
-      inject: [APPOINTMENT_AUTHORIZATION],
-      useFactory: (authorization: AppointmentAuthorizationPolicy) =>
+      inject: [APPOINTMENT_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
+      useFactory: (
+        authorization: AppointmentAuthorizationPolicy,
+        clock: InternalTestBookingClock
+      ) =>
         new AppointmentApplicationService(
           new FirestoreBookingRepository(getFirestore()),
           authorization,
           { next: opaqueBookingId },
-          { nowUtc: () => new Date().toISOString() },
+          clock,
           { next: opaqueBookingId }
         )
     },
@@ -92,7 +96,7 @@ function resolveRole(context: AuthenticationContext): CandidateRole {
       inject: [SCHEDULE_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
       useFactory: (
         authorization: ScheduleAuthorizationPolicy,
-        clock: { nowUtc: () => string }
+        clock: InternalTestBookingClock
       ) =>
         new ScheduleApplicationService(
           new FirestoreScheduleRepository(getFirestore()),
