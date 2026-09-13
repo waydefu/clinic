@@ -60,7 +60,7 @@ Machine: `scripts/sequential-c-gate.mjs`. Live tree with C1～C6 smoke is
 | --- | --- |
 | Prerequisites | C2 evidence; C3 authority |
 | Scope | Idle 30m; absolute 8h; server-side session; `__session` + CSRF; no shared emergency account |
-| Source in tree | `IDLE_SESSION_MS` / `ABSOLUTE_SESSION_MS` on CAL-PILOT |
+| Source in tree | domain `evaluateStaffSession` / `STAFF_ABSOLUTE_SESSION_MS` on CAL-PILOT |
 | Hosting constraint | Firebase Hosting forwards only `__session` |
 | Remaining blockers | none for C3 source evaluator |
 | Authority | `granted` |

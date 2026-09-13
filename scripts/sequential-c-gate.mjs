@@ -85,13 +85,23 @@ export function evaluateC3Source(sessionSource) {
   ) {
     issues.push('C3 cookie must be HttpOnly; Secure; SameSite=Strict.');
   }
-  if (
-    !sessionSource.includes('const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000')
-  ) {
-    issues.push('C3 absolute session must be 8h.');
+  if (!sessionSource.includes('STAFF_ABSOLUTE_SESSION_MS')) {
+    issues.push(
+      'C3 absolute session must use domain STAFF_ABSOLUTE_SESSION_MS.'
+    );
   }
-  if (!sessionSource.includes('const IDLE_SESSION_MS = 30 * 60 * 1000')) {
-    issues.push('C3 idle session must be 30m.');
+  if (!sessionSource.includes('evaluateStaffSession')) {
+    issues.push(
+      'C3 idle/absolute/disabled must use domain evaluateStaffSession.'
+    );
+  }
+  if (
+    sessionSource.includes('const ABSOLUTE_SESSION_MS =') ||
+    sessionSource.includes('const IDLE_SESSION_MS =')
+  ) {
+    issues.push(
+      'C3 must not duplicate D-006 session windows outside packages/domain.'
+    );
   }
   if (
     !sessionSource.includes(

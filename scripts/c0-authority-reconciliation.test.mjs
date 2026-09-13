@@ -120,8 +120,10 @@ describe('2026-09-11 C0 owner-direction reconciliation', () => {
 
   it('keeps CAL-PILOT session windows aligned with C0-DIR idle/absolute targets', () => {
     const session = read('apps/api/src/auth/calendar-pilot-session.ts');
-    expect(session).toContain('const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000');
-    expect(session).toContain('const IDLE_SESSION_MS = 30 * 60 * 1000');
+    expect(session).toContain('STAFF_ABSOLUTE_SESSION_MS');
+    expect(session).toContain('evaluateStaffSession');
+    expect(session).not.toContain('const ABSOLUTE_SESSION_MS =');
+    expect(session).not.toContain('const IDLE_SESSION_MS =');
   });
 
   it('does not treat suggested hostnames as Hosting or Terraform apply targets', () => {

@@ -103,8 +103,10 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(session).toContain(
       "const SESSION_COOKIE_SCOPE = 'Path=/; HttpOnly; Secure; SameSite=Strict'"
     );
-    expect(session).toContain('const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000');
-    expect(session).toContain('const IDLE_SESSION_MS = 30 * 60 * 1000');
+    expect(session).toContain('STAFF_ABSOLUTE_SESSION_MS');
+    expect(session).toContain('evaluateStaffSession');
+    expect(session).not.toContain('const ABSOLUTE_SESSION_MS =');
+    expect(session).not.toContain('const IDLE_SESSION_MS =');
     expect(session).toContain(
       'if (user.disabled) throw new AuthenticationRequiredError()'
     );
