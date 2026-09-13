@@ -4,6 +4,9 @@
 **Audience:** GPT-5.6 Luna on the owner’s laptop. Read **this file only**
 until Card 8 PASSes.
 **Authority id:** `LUNA_SOLE_EXECUTOR` / `GROK_RESTS` (2026-09-12).
+**2026-09-13 supersession:** clinic owner recorded `GROK_UNRESTED` /
+`GROK_PROJECT_CLOSER` for cloud-agent engineering. This file remains the
+laptop Luna card. Production grants are unchanged.
 **Does not authorize:** production, real patient data, official DNS, live
 Hosting, production Calendar, or routing `/v1/bookings`.
 

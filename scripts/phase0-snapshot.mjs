@@ -75,7 +75,7 @@ const lines = [];
 lines.push('ACCOUNT_CONTEXT_SNAPSHOT');
 lines.push(`environment: synthetic-isolated`);
 lines.push(
-  `current authority: LUNA_SOLE_EXECUTOR / GROK_RESTS (not production)`
+  `current authority: GROK_UNRESTED / GROK_PROJECT_CLOSER + LUNA_SOLE_EXECUTOR; GROK_RESTS superseded 2026-09-13 (not production)`
 );
 
 // gcloud configuration

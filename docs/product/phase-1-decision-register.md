@@ -29,6 +29,13 @@ Calendar stay `NOT_AUTHORIZED`. Dated at that hour: remaining
 engineering was assigned to the cloud agent. Superseded 2026-09-12.
 D-series table values below are unchanged.
 
+**2026-09-13 (`GROK_UNRESTED` / `GROK_PROJECT_CLOSER`):** the clinic owner
+explicitly un-rested Grok for cloud-agent engineering and project-closer
+execution. `GROK_RESTS` / `LUNA_SOLE_EXECUTOR` (2026-09-12) remains the
+laptop Luna playbook, not a ban on cloud-agent work. D-series table values
+below are unchanged. Production, real data, official DNS, live Hosting,
+production Calendar, and `/v1/bookings` stay `NOT_AUTHORIZED`.
+
 **2026-09-12 (`GROK_RESTS` / `LUNA_SOLE_EXECUTOR`):** remaining identity
 and remaining engineering are Luna-only on the owner laptop. Grok does
 not take further engineering unless the owner explicitly un-rests Grok.
@@ -38,7 +45,8 @@ Map:
 [luna-local-project-completion-master-plan.md](luna-local-project-completion-master-plan.md).
 D-series table values below are unchanged. Production, real data,
 official DNS, live Hosting, production Calendar, and `/v1/bookings`
-stay `NOT_AUTHORIZED`.
+stay `NOT_AUTHORIZED`. This executor assignment was superseded for
+cloud-agent engineering on 2026-09-13 (`GROK_UNRESTED`).
 
 **All 39 owner questions came back answered on 2026-08-16**, and the
 question-by-question reconciliation is
@@ -629,9 +637,13 @@ The owner then approved **all remaining D-006 controls**:
 
 Implementation and test details are frozen in the
 [Stage 2 identity and cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md).
-D-006 is `approved`; this is a policy approval, not evidence that the current
-synthetic role switch, plaintext demonstration code or any cloud identity
-boundary satisfies it.
+D-006 is `approved`; this is a policy approval. Local unrouted evidence now
+includes canonical roles, a server-side scrypt verifier, atomic in-memory
+attempt-lock persistence, a denied-event audit sink, staff IdP claim mapping
+to D-006 roles, D-006 session lifetime evaluation, and fail-closed field
+projection. This is still not evidence that synthetic browser login, routed
+C4 enforcement, Identity Platform, durable audit storage, or any cloud
+identity boundary satisfies D-006.
 
 **Retention clarification required by D-002 (2026-08-11 audit):** append-only
 integrity means an authorised event cannot be edited or silently deleted; it

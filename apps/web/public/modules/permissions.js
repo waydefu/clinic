@@ -1,7 +1,7 @@
 import {
-  authoriseDelegatedAction,
-  planDelegationRecord
-} from '../vendor/domain/delegated-authorization.js';
+  authoriseSyntheticDelegatedAction,
+  planSyntheticDelegationRecord
+} from '../vendor/domain/synthetic-delegated-authorization.js';
 import { PERMISSIONS } from './constants.js';
 
 // 櫃台保有「取消」：取消是每天都在做的營運動作，收斂給管理者只會讓現場卡住。
@@ -120,7 +120,11 @@ export function requirePermissionOrDelegation(state, permission, secret) {
     throw new Error('目前合成帳號沒有執行此動作的權限。');
   }
 
-  const decision = authoriseDelegatedAction(delegation, account.role, secret);
+  const decision = authoriseSyntheticDelegatedAction(
+    delegation,
+    account.role,
+    secret
+  );
   if (!decision.authorised) {
     throw new Error(
       DELEGATION_MESSAGES[decision.reason] ??
@@ -129,6 +133,6 @@ export function requirePermissionOrDelegation(state, permission, secret) {
   }
   return {
     actor: account,
-    delegation: planDelegationRecord(delegation, decision)
+    delegation: planSyntheticDelegationRecord(delegation, decision)
   };
 }

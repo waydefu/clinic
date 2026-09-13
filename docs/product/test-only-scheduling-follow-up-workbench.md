@@ -2,9 +2,7 @@
 
 **狀態：合成測試設計（本機或已授權的到期 Hosting preview）。** 本文件把工作臺
 與患者端的功能邊界寫成可實作、可測試的規格；它不是正式回診醫囑、公開掛號服務
-或正式作業規範。D-006 已核准但未實作；所有正式值與啟用仍受其他對應 gate、
-各自 Stage 2 slice 的 request／deployment authority／apply approval 與 D-006
-實作證據約束。
+或正式作業規範。D-006 已核准；委派授權碼的 server-side 雜湊驗證已有部分證據，但正式身分、Session、RBAC 與稽核接線仍未完成。所有正式值與啟用仍受其他對應 gate、各自 Stage 2 slice 的 request／deployment authority／apply approval 與 D-006 完整實作證據約束。
 
 ## 目標與邊界
 

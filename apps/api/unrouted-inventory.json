@@ -210,6 +210,50 @@
       ],
       "note": "D-006 已核准 policy；此 adapter 仍把 account 當成 active。正式 write 路由仍待 D-004，且不得把合成 C2～C4 當成 production claims。"
     },
+    "src/platform/authorization/delegated-authorization-crypto.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 booking write route 與 appointment deletion action 仍受 D-004 及後續 capability gates 約束；此 server adapter 刻意不由 AppModule 接線。"
+        }
+      ],
+      "note": "D-006 partial evidence: server-only scrypt verifier、per-record salt、constant-time comparison 已由 unit test 證明。Atomic attempt persistence 與 denied-event sink 在同目錄的 unrouted service；routed C4、IdP、Firestore persistence 尚未完成。"
+    },
+    "src/platform/authorization/delegated-authorization-attempt-store.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 booking／deletion write route 仍受 D-004 及後續 capability gates 約束；此 in-memory atomic store 刻意不由 AppModule 接線，也尚未接到 Firestore。"
+        }
+      ],
+      "note": "D-006 partial evidence: per-actor+purpose attempt state is applied inside a per-key exclusive queue so overlapping failures cannot drop the lock. Not a shared/production store."
+    },
+    "src/platform/authorization/denied-authorization-audit-sink.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-002",
+          "description": "Denied-event retention、linkability 與 export 仍待 D-002；此 sink 只證明 append-only in-memory 行為。"
+        }
+      ],
+      "note": "D-006 partial evidence: authorization denials append without secret/salt/hash. Not appointment AuditEventV2 and not a durable C5 store."
+    },
+    "src/platform/authorization/delegated-authorization-service.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 deletion action 仍受 D-004／D-002 與 booking route authority 約束；AppModule 不得匯入此 service。"
+        }
+      ],
+      "note": "D-006 partial evidence: unrouted evaluator wires hashed verification, atomic lockout and denied-event audit. Caller-facing lock denials stay generic. Not routed C4."
+    },
     "src/platform/runtime/maintenance-gate.ts": {
       "approvedPolicyDependencies": ["D-010"],
       "remainingBlockers": [
