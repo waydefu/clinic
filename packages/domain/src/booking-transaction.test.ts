@@ -29,7 +29,7 @@ const request: BookingRequest = {
     reasonCode: null,
     policyVersion: null
   },
-  requestedAt: '2026-07-21T09:00:00.000Z',
+  requestedAt: '2029-12-15T09:00:00.000Z',
   idempotency: {
     actorId: 'actor_front_desk_001',
     scope: 'appointment:create',
@@ -153,11 +153,33 @@ describe('planBooking', () => {
   it('rejects a slot sooner than now+2 hours', () => {
     const tooSoon: SlotSnapshot = {
       ...openSlot,
-      startsAt: '2026-07-21T10:00:00.000Z'
+      startsAt: '2029-12-15T10:00:00.000Z'
     };
     expect(codeOf(() => planBooking(request, tooSoon, undefined))).toBe(
       'SLOT_UNAVAILABLE'
     );
+  });
+
+  it('rejects a slot that has already started', () => {
+    const past: SlotSnapshot = {
+      ...openSlot,
+      startsAt: '2029-12-15T08:00:00.000Z'
+    };
+    expect(codeOf(() => planBooking(request, past, undefined))).toBe(
+      'SLOT_UNAVAILABLE'
+    );
+  });
+
+  it('rejects a slot beyond the one-month Taipei booking horizon', () => {
+    expect(
+      codeOf(() =>
+        planBooking(
+          { ...request, requestedAt: '2026-07-21T09:00:00.000Z' },
+          openSlot,
+          undefined
+        )
+      )
+    ).toBe('SLOT_UNAVAILABLE');
   });
 
   it('rejects an already reserved slot', () => {

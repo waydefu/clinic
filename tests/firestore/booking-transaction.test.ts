@@ -30,6 +30,7 @@ let repository: FirestoreBookingRepository;
 
 const SLOT_ID = 'slot_20300102_1200';
 const OTHER_SLOT_ID = 'slot_20300102_1230';
+const REQUESTED_AT = '2029-12-15T09:00:00.000Z';
 const PATIENT_RACE_SLOT_IDS = Array.from(
   { length: 8 },
   (_, index) => `slot_patient_race_${index}`
@@ -57,7 +58,7 @@ function bookingRequest(
       reasonCode: null,
       policyVersion: null
     },
-    requestedAt: '2026-07-21T09:00:00.000Z',
+    requestedAt: REQUESTED_AT,
     ...requestOverrides
   };
 
@@ -157,12 +158,12 @@ describe('booking write path in a Firestore transaction', () => {
     expect(slot.data()?.['reservationId']).toBe('appointment_001');
     expect(patientGuard.data()).toEqual({
       activeAppointmentIds: ['appointment_001'],
-      updatedAt: '2026-07-21T09:00:00.000Z'
+      updatedAt: REQUESTED_AT
     });
     expect(audits.size).toBe(1);
     expect(AuditEventV2Schema.parse(audits.docs[0]?.data())).toEqual({
       eventId: `audit_appointment_001_confirmed_${request.idempotency.recordId}`,
-      occurredAt: '2026-07-21T09:00:00.000Z',
+      occurredAt: REQUESTED_AT,
       actorId: 'actor_front_desk_001',
       actorRole: 'test_front_desk',
       action: 'appointment_confirmed',
@@ -196,7 +197,7 @@ describe('booking write path in a Firestore transaction', () => {
         resourceType: 'appointment',
         resourceId: 'appointment_001'
       },
-      recordedAt: '2026-07-21T09:00:00.000Z',
+      recordedAt: REQUESTED_AT,
       schemaVersion: 1
     });
     expect(idempotency.data()).not.toHaveProperty('key');
@@ -431,7 +432,7 @@ describe('booking write path in a Firestore transaction', () => {
       .get();
     expect(guard.data()).toEqual({
       activeAppointmentIds: ['appointment_legacy', 'appointment_001'],
-      updatedAt: '2026-07-21T09:00:00.000Z'
+      updatedAt: REQUESTED_AT
     });
     expect(guard.data()).not.toHaveProperty('activeAppointmentId');
     expect(guard.data()).not.toHaveProperty('status');

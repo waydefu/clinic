@@ -1,4 +1,5 @@
 import { assertSlotBookable, assertSlotMeetsEarliestLead, assertWithinActiveBookingLimit } from './appointment-rules.js';
+import { assertSlotNotInPast, assertSlotWithinBookingHorizon } from './booking-horizon.js';
 import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
@@ -119,7 +120,9 @@ export function planBooking(request, slot, patientBookingGuard) {
         throw new DomainError('INVALID_VALUE', 'The slot does not match the request.');
     }
     assertSlotBookable(slot, request.bookingKind);
+    assertSlotNotInPast(slot.startsAt, request.requestedAt);
     assertSlotMeetsEarliestLead(slot.startsAt, request.requestedAt);
+    assertSlotWithinBookingHorizon(slot.startsAt, request.requestedAt);
     const activeIds = patientBookingGuard?.activeAppointmentIds ?? [];
     assertWithinActiveBookingLimit(activeIds.length);
     if (activeIds.includes(request.appointmentId)) {

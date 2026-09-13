@@ -13,6 +13,10 @@ import {
   type AuditEventV2
 } from './audit.js';
 import {
+  assertSlotNotInPast,
+  assertSlotWithinBookingHorizon
+} from './booking-horizon.js';
+import {
   patientBookingGuardHolds,
   type BookingKind,
   type PatientBookingGuardSnapshot,
@@ -502,7 +506,9 @@ export function planReschedule(
     targetSlot,
     appointment.bookingKind
   );
+  assertSlotNotInPast(targetSlot.startsAt, request.requestedAt);
   assertSlotMeetsEarliestLead(targetSlot.startsAt, request.requestedAt);
+  assertSlotWithinBookingHorizon(targetSlot.startsAt, request.requestedAt);
   assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
   const auditEvent = planAuditEvent({
     eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}_${request.idempotency.recordId}`,

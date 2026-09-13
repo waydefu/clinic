@@ -16,6 +16,7 @@ import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 
 const NOW = '2026-07-21T09:00:00.000Z';
+const WITHIN_HORIZON_AT = '2029-12-15T09:00:00.000Z';
 
 const appointment: AppointmentSnapshot = {
   id: 'appointment_001',
@@ -481,7 +482,7 @@ describe('planReschedule', () => {
         appointmentId: 'appointment_001',
         targetSlotId: slot?.id ?? 'missing',
         audit,
-        requestedAt: NOW,
+        requestedAt: WITHIN_HORIZON_AT,
         idempotency: {
           ...idempotencyFor(),
           scope: `appointment:${appointment.id}:reschedule`
@@ -506,7 +507,7 @@ describe('planReschedule', () => {
       action: 'retain',
       guard: {
         activeAppointmentIds: [appointment.id],
-        updatedAt: NOW
+        updatedAt: WITHIN_HORIZON_AT
       }
     });
   });
@@ -517,7 +518,7 @@ describe('planReschedule', () => {
         appointmentId: appointment.id,
         targetSlotId: target.id,
         audit,
-        requestedAt: NOW,
+        requestedAt: WITHIN_HORIZON_AT,
         idempotency: {
           ...idempotencyFor(),
           scope: `appointment:${appointment.id}:reschedule`
@@ -531,7 +532,7 @@ describe('planReschedule', () => {
       action: 'retain',
       guard: {
         activeAppointmentIds: [appointment.id, 'appointment_other'],
-        updatedAt: NOW
+        updatedAt: WITHIN_HORIZON_AT
       }
     });
   });
@@ -557,7 +558,34 @@ describe('planReschedule', () => {
     ).toBe('INVALID_VALUE');
     expect(
       codeOf(() =>
-        reschedule({ ...target, startsAt: '2026-07-21T10:00:00.000Z' })
+        reschedule({ ...target, startsAt: '2029-12-15T10:00:00.000Z' })
+      )
+    ).toBe('SLOT_UNAVAILABLE');
+  });
+
+  it('rejects a past slot and a slot beyond the one-month horizon', () => {
+    expect(
+      codeOf(() =>
+        reschedule({ ...target, startsAt: '2029-12-15T08:00:00.000Z' })
+      )
+    ).toBe('SLOT_UNAVAILABLE');
+    expect(
+      codeOf(() =>
+        planReschedule(
+          {
+            appointmentId: appointment.id,
+            targetSlotId: target.id,
+            audit,
+            requestedAt: NOW,
+            idempotency: {
+              ...idempotencyFor(),
+              scope: `appointment:${appointment.id}:reschedule`
+            }
+          },
+          appointment,
+          target,
+          patientBookingGuard
+        )
       )
     ).toBe('SLOT_UNAVAILABLE');
   });
@@ -571,7 +599,7 @@ describe('planReschedule', () => {
             targetSlotId: target.id,
             expectedPatientId: 'patient_other',
             audit,
-            requestedAt: NOW,
+            requestedAt: WITHIN_HORIZON_AT,
             idempotency: {
               ...idempotencyFor(),
               scope: `appointment:${appointment.id}:reschedule`
