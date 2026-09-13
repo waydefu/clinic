@@ -7,6 +7,7 @@ import {
   initializeApp,
   type App
 } from 'firebase-admin/app';
+import type { Auth, DecodedIdToken } from 'firebase-admin/auth';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Module } from '@nestjs/common';
@@ -18,14 +19,11 @@ import {
 
 import { INTERNAL_TEST_PRIVACY_POLICY_VERSION } from '@beauessence/contracts';
 
-import type { AuthenticationContext } from '../auth/authentication-context.js';
 import {
-  type AppointmentAuthenticator,
-  type AuthenticatableRequest
-} from '../appointments/appointment.controller.js';
+  CALENDAR_PILOT_COOKIE,
+  CalendarPilotSessionService
+} from '../auth/calendar-pilot-session.js';
 import { COLLECTIONS } from '../firestore/booking.repository.js';
-import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
-import type { CandidateRole } from '../platform/authorization/rbac.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -40,6 +38,10 @@ const projectId = LOCAL_FIREBASE_PROJECT_ID;
 const NOW = '2029-12-15T09:00:00.000Z';
 const SLOT_ID = 'slot_20300102_1200';
 const EXPIRES_AT = '2099-01-01T00:00:00.000Z';
+const MANAGER_EMAIL = 'manager@example.com';
+const MANAGER_UID = 'pilot_user_001';
+const PATIENT_EMAIL = 'patient@example.com';
+const PATIENT_UID = 'patient_001';
 
 const PUBLISH_BODY = {
   idempotencyKey: 'schedule_publish_0010',
@@ -63,85 +65,153 @@ const CREATE_BODY = {
   bookingKind: 'initial'
 } as const;
 
-function header(
-  request: AuthenticatableRequest,
-  name: string
-): string | undefined {
-  const value = request.headers[name];
-  if (typeof value === 'string' && value.length > 0) return value;
-  return undefined;
+interface FakeAccount {
+  uid: string;
+  email: string;
+  totp: boolean;
+  disabled: boolean;
+  refreshTokensRevoked: boolean;
 }
 
-const harnessAuthenticator: AppointmentAuthenticator = {
-  authenticate(request) {
-    const actorId = header(request, 'x-test-actor-id');
-    if (actorId === undefined) {
-      return Promise.reject(new AuthenticationRequiredError());
-    }
-    const actorRole = header(request, 'x-test-role') ?? 'unknown';
-    const verifiedPatientId = header(request, 'x-test-patient-id');
-    const context: AuthenticationContext = {
-      actorId,
-      actorRole,
-      ...(verifiedPatientId === undefined ? {} : { verifiedPatientId })
-    };
-    return Promise.resolve(context);
-  }
-};
+/**
+ * Deterministic in-memory Firebase Auth stand-in. No network, no real
+ * accounts: cookie/id-token strings map to accounts created per test.
+ */
+class FakeAuth {
+  private accounts = new Map<string, FakeAccount>();
+  private idTokens = new Map<string, string>();
+  private sessionCookies = new Map<string, string>();
+  private minted = 0;
 
-function actorHeaders(
-  role: CandidateRole,
-  extras: Record<string, string> = {}
-): Record<string, string> {
-  return {
-    'x-test-actor-id': `actor_${role}_composing_001`,
-    'x-test-role': role,
-    ...extras
-  };
+  addAccount(account: FakeAccount): void {
+    this.accounts.set(account.uid, account);
+  }
+
+  mintIdToken(uid: string): string {
+    const token = `id_token_${uid}_${this.minted}`;
+    this.minted += 1;
+    this.idTokens.set(token, uid);
+    return token;
+  }
+
+  private decodedFor(uid: string): DecodedIdToken {
+    const account = this.accounts.get(uid);
+    if (account === undefined) throw new Error(`unknown account ${uid}`);
+    return {
+      uid,
+      email: account.email,
+      email_verified: true,
+      firebase: {
+        sign_in_second_factor: account.totp ? 'totp' : undefined
+      }
+    } as unknown as DecodedIdToken;
+  }
+
+  verifyIdToken(idToken: string): Promise<DecodedIdToken> {
+    const uid = this.idTokens.get(idToken);
+    if (uid === undefined) return Promise.reject(new Error('invalid token'));
+    return Promise.resolve(this.decodedFor(uid));
+  }
+
+  verifySessionCookie(
+    cookieValue: string,
+    checkRevoked: boolean
+  ): Promise<DecodedIdToken> {
+    const uid = this.sessionCookies.get(cookieValue);
+    if (uid === undefined) return Promise.reject(new Error('invalid cookie'));
+    const account = this.accounts.get(uid);
+    if (account === undefined)
+      return Promise.reject(new Error('invalid cookie'));
+    if (checkRevoked && account.refreshTokensRevoked)
+      return Promise.reject(new Error('revoked'));
+    return Promise.resolve(this.decodedFor(uid));
+  }
+
+  getUser(uid: string): Promise<{ disabled: boolean }> {
+    const account = this.accounts.get(uid);
+    if (account === undefined)
+      return Promise.reject(new Error(`unknown user ${uid}`));
+    return Promise.resolve({ disabled: account.disabled });
+  }
+
+  createSessionCookie(): Promise<string> {
+    const cookie = `session_cookie_${this.minted}`;
+    this.minted += 1;
+    return Promise.resolve(cookie);
+  }
+
+  linkSessionCookie(cookieValue: string, uid: string): void {
+    this.sessionCookies.set(cookieValue, uid);
+  }
 }
 
 let nowUtc = NOW;
 const clock = { nowUtc: () => nowUtc };
-
-/**
- * Boots the production InternalTestBookingModule against the Firestore
- * emulator. Lives under `apps/api` so `@nestjs/*` resolves. Gate env is
- * set so IP-001 settings stay on — unlike the occupancy harness, which
- * omits them.
- */
-@Module({
-  imports: [
-    InternalTestBookingModule.register({
-      clock,
-      authenticator: harnessAuthenticator
-    })
-  ]
-})
-class InternalTestBookingComposingModule {}
 
 function restoreEnv(name: string, value: string | undefined): void {
   if (value === undefined) delete process.env[name];
   else process.env[name] = value;
 }
 
+function composingModule(auth: Auth, sessions: CalendarPilotSessionService) {
+  @Module({
+    imports: [
+      InternalTestBookingModule.register({
+        clock,
+        auth,
+        sessions
+      })
+    ]
+  })
+  class InternalTestBookingComposingModule {}
+
+  return InternalTestBookingComposingModule;
+}
+
 describe('InternalTestBookingModule composing HTTP occupancy', () => {
   let firebaseApp: App;
   let db: Firestore;
   let nestApp: NestFastifyApplication | undefined;
+  let fake: FakeAuth;
+  let managerCookie: string;
+  let managerCsrf: string;
+  let patientToken: string;
   const previousEnv = {
     enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
-    expires: process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC']
+    expires: process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'],
+    managers: process.env['CALENDAR_PILOT_MANAGER_EMAILS']
   };
 
   beforeAll(async () => {
     process.env['INTERNAL_TEST_BOOKING_ENABLED'] = 'true';
     process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'] = EXPIRES_AT;
+    process.env['CALENDAR_PILOT_MANAGER_EMAILS'] = MANAGER_EMAIL;
     firebaseApp = getApps().some((app) => app.name === '[DEFAULT]')
       ? getApp()
       : initializeApp({ projectId });
     db = getFirestore(firebaseApp);
+    fake = new FakeAuth();
+    fake.addAccount({
+      uid: MANAGER_UID,
+      email: MANAGER_EMAIL,
+      totp: true,
+      disabled: false,
+      refreshTokensRevoked: false
+    });
+    fake.addAccount({
+      uid: PATIENT_UID,
+      email: PATIENT_EMAIL,
+      totp: false,
+      disabled: false,
+      refreshTokensRevoked: false
+    });
+    const sessions = new CalendarPilotSessionService(
+      fake as unknown as Auth,
+      db,
+      process.env
+    );
     const instance = await NestFactory.create<NestFastifyApplication>(
-      InternalTestBookingComposingModule,
+      composingModule(fake as unknown as Auth, sessions),
       new FastifyAdapter({ logger: false }),
       { logger: false }
     );
@@ -149,6 +219,11 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     await instance.init();
     await instance.getHttpAdapter().getInstance().ready();
     nestApp = instance;
+    const created = await sessions.create(fake.mintIdToken(MANAGER_UID));
+    fake.linkSessionCookie(created.cookieValue, MANAGER_UID);
+    managerCookie = `${CALENDAR_PILOT_COOKIE}=${created.cookieValue}`;
+    managerCsrf = created.csrfToken;
+    patientToken = fake.mintIdToken(PATIENT_UID);
   });
 
   afterAll(async () => {
@@ -157,6 +232,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     if (firebaseApp.name === '[DEFAULT]') await deleteApp(firebaseApp);
     restoreEnv('INTERNAL_TEST_BOOKING_ENABLED', previousEnv.enabled);
     restoreEnv('INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC', previousEnv.expires);
+    restoreEnv('CALENDAR_PILOT_MANAGER_EMAILS', previousEnv.managers);
   });
 
   beforeEach(async () => {
@@ -172,6 +248,17 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     return nestApp;
   }
 
+  function managerHeaders(csrf = true): Record<string, string> {
+    return {
+      cookie: managerCookie,
+      ...(csrf ? { 'x-csrf-token': managerCsrf } : {})
+    };
+  }
+
+  function patientHeaders(): Record<string, string> {
+    return { authorization: `Bearer ${patientToken}` };
+  }
+
   it('opens the IP-001 gate to authentication, not an unauthenticated write', async () => {
     const unauthenticated = await requireHarness().inject({
       method: 'POST',
@@ -181,13 +268,23 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     expect(unauthenticated.statusCode).toBe(401);
   });
 
+  it('refuses a staff write that has the session cookie but no CSRF token', async () => {
+    const published = await requireHarness().inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: managerHeaders(false),
+      payload: PUBLISH_BODY
+    });
+    expect(published.statusCode).toBe(401);
+  });
+
   it('publishes, books, stamps privacy-v1, and projects calendar outbox in memory', async () => {
     const harness = requireHarness();
 
     const published = await harness.inject({
       method: 'POST',
       url: '/v1/schedule/publish',
-      headers: actorHeaders('manager'),
+      headers: managerHeaders(),
       payload: PUBLISH_BODY
     });
     expect(published.statusCode).toBe(201);
@@ -195,7 +292,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const listed = await harness.inject({
       method: 'GET',
       url: '/v1/slots?kind=initial',
-      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+      headers: patientHeaders()
     });
     expect(listed.statusCode).toBe(200);
     const listedBody = JSON.parse(listed.payload) as {
@@ -211,7 +308,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const created = await harness.inject({
       method: 'POST',
       url: '/v1/bookings',
-      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
+      headers: patientHeaders(),
       payload: CREATE_BODY
     });
     expect(created.statusCode).toBe(201);
@@ -238,7 +335,8 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     expect(confirmed).toMatchObject({
       policyVersion: INTERNAL_TEST_PRIVACY_POLICY_VERSION,
       occurredAt: NOW,
-      actorRole: 'patient'
+      actorRole: 'patient',
+      actorId: PATIENT_UID
     });
 
     const jobs = await db.collection(COLLECTIONS.outboxJobs).get();

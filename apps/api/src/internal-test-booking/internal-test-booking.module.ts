@@ -1,5 +1,5 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { getAuth } from 'firebase-admin/auth';
+import { getAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { isRole } from '@beauessence/domain';
 
@@ -7,8 +7,7 @@ import {
   APPOINTMENT_APPLICATION,
   APPOINTMENT_AUTHENTICATOR,
   APPOINTMENT_AUTHORIZATION,
-  AppointmentController,
-  type AppointmentAuthenticator
+  AppointmentController
 } from '../appointments/appointment.controller.js';
 import { AppointmentApplicationService } from '../appointments/appointment.application-service.js';
 import type { AppointmentAuthorizationPolicy } from '../appointments/appointment.policy.js';
@@ -51,7 +50,8 @@ function resolveRole(context: AuthenticationContext): CandidateRole {
 
 export interface InternalTestBookingModuleOptions {
   readonly clock?: InternalTestBookingClock;
-  readonly authenticator?: AppointmentAuthenticator;
+  readonly auth?: Auth;
+  readonly sessions?: CalendarPilotSessionService;
 }
 
 /**
@@ -60,8 +60,8 @@ export interface InternalTestBookingModuleOptions {
  * `AppointmentController` from `AppModule` except through this module.
  *
  * `register()` is the production compose. Emulator suites pass a shared
- * clock (and a header authenticator) so occupancy proofs boot this module
- * instead of a parallel Nest harness.
+ * clock and the CAL-PILOT session/Auth ports so occupancy proofs boot this
+ * module with `InternalTestBookingAuthenticator` instead of a header harness.
  */
 @Module({})
 export class InternalTestBookingModule {
@@ -91,8 +91,15 @@ export class InternalTestBookingModule {
           provide: SCHEDULE_AUTHORIZATION,
           useFactory: () => createScheduleAuthorizationPolicy(resolveRole)
         },
-        options.authenticator === undefined
+        options.auth !== undefined && options.sessions !== undefined
           ? {
+              provide: APPOINTMENT_AUTHENTICATOR,
+              useValue: new InternalTestBookingAuthenticator(
+                options.sessions,
+                options.auth
+              )
+            }
+          : {
               provide: APPOINTMENT_AUTHENTICATOR,
               inject: [CALENDAR_PILOT_SESSIONS],
               useFactory: (sessions: CalendarPilotSessionService) =>
@@ -100,10 +107,6 @@ export class InternalTestBookingModule {
                   sessions,
                   getAuth(defaultFirebaseApp())
                 )
-            }
-          : {
-              provide: APPOINTMENT_AUTHENTICATOR,
-              useValue: options.authenticator
             },
         {
           provide: APPOINTMENT_APPLICATION,
