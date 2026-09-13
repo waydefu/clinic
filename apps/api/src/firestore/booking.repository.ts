@@ -2,17 +2,20 @@ import {
   assertIdempotencyContext,
   parseAppointmentSnapshot,
   parsePatientBookingGuard,
+  parsePublishedScheduleSnapshot,
   parseSlotSnapshot,
   planBooking,
   planReschedule,
   planTransition,
   resolveIdempotencyReplay,
+  resolvePublishedSlot,
   type AppointmentSnapshot,
   type BookingRequest,
   type IdempotencyContext,
   type PatientBookingGuardSnapshot,
   type PlannedPatientBookingGuardMutation,
   type RescheduleRequest,
+  type SlotSnapshot,
   type TransitionRequest
 } from '@beauessence/domain';
 import { IdempotencyRecordV1Schema } from '@beauessence/contracts';
@@ -36,7 +39,8 @@ export const COLLECTIONS = {
   patientBookingGuards: 'patient_booking_guards',
   auditEvents: 'audit_events',
   outboxJobs: 'outbox_jobs',
-  idempotencyKeys: 'idempotency_keys'
+  idempotencyKeys: 'idempotency_keys',
+  schedules: 'schedules'
 } as const;
 
 /**
@@ -86,6 +90,9 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     const patientGuardRef = this.db
       .collection(COLLECTIONS.patientBookingGuards)
       .doc(request.patientId);
+    const scheduleRef = this.db
+      .collection(COLLECTIONS.schedules)
+      .doc('current');
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
@@ -98,10 +105,17 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
 
       const patientGuardDocument = await transaction.get(patientGuardRef);
       const slotDocument = await transaction.get(slotRef);
+      const scheduleDocument = await transaction.get(scheduleRef);
 
-      const slot = slotDocument.exists
+      const existingSlot = slotDocument.exists
         ? parseSlotSnapshot(slotDocument.id, slotDocument.data())
         : undefined;
+      const slot = this.slotForWrite(
+        scheduleDocument,
+        request.slotId,
+        existingSlot,
+        request.requestedAt
+      );
       const patientBookingGuard =
         this.patientGuardSnapshotOf(patientGuardDocument);
 
@@ -113,9 +127,12 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         this.db.collection(COLLECTIONS.appointments).doc(plan.appointment.id),
         plan.appointment
       );
-      transaction.update(slotRef, {
-        reservationId: plan.slotReservation.reservationId
-      });
+      this.writeSlotReservation(
+        transaction,
+        slotDocument,
+        slot,
+        plan.slotReservation.reservationId
+      );
       if (patientGuardDocument.exists) {
         transaction.set(patientGuardRef, plan.patientBookingGuard);
       } else {
@@ -186,6 +203,47 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   ): PatientBookingGuardSnapshot | undefined {
     if (document === undefined || !document.exists) return undefined;
     return parsePatientBookingGuard(document.data());
+  }
+
+  /**
+   * When a published grid exists, a missing slot document is materialised
+   * from that grid. Emulator tests that seed slot rows without a schedule
+   * keep the previous occupancy-only path.
+   */
+  private slotForWrite(
+    scheduleDocument: DocumentSnapshot,
+    slotId: string,
+    existing: SlotSnapshot | undefined,
+    requestedAt: string
+  ): SlotSnapshot | undefined {
+    if (!scheduleDocument.exists) return existing;
+    const published = parsePublishedScheduleSnapshot(scheduleDocument.data());
+    if (published.schedule === null) return existing;
+    return resolvePublishedSlot(
+      published.schedule,
+      slotId,
+      existing,
+      requestedAt
+    );
+  }
+
+  private writeSlotReservation(
+    transaction: Transaction,
+    slotDocument: DocumentSnapshot,
+    slot: SlotSnapshot | undefined,
+    reservationId: string
+  ): void {
+    if (slotDocument.exists) {
+      transaction.update(slotDocument.ref, { reservationId });
+      return;
+    }
+    if (slot === undefined) return;
+    transaction.create(slotDocument.ref, {
+      schemaVersion: 1,
+      kind: slot.kind,
+      startsAt: slot.startsAt,
+      reservationId
+    });
   }
 
   /**
@@ -336,6 +394,9 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     const targetRef = this.db
       .collection(COLLECTIONS.slots)
       .doc(request.targetSlotId);
+    const scheduleRef = this.db
+      .collection(COLLECTIONS.schedules)
+      .doc('current');
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
@@ -349,6 +410,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       const appointmentDocument = await transaction.get(appointmentRef);
       const appointment = this.snapshotOf(appointmentDocument);
       const targetDocument = await transaction.get(targetRef);
+      const scheduleDocument = await transaction.get(scheduleRef);
       const previousDocument =
         appointment === undefined
           ? undefined
@@ -364,9 +426,15 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
                 .doc(appointment.patientId)
             );
 
-      const targetSlot = targetDocument.exists
+      const existingTarget = targetDocument.exists
         ? parseSlotSnapshot(targetDocument.id, targetDocument.data())
         : undefined;
+      const targetSlot = this.slotForWrite(
+        scheduleDocument,
+        request.targetSlotId,
+        existingTarget,
+        request.requestedAt
+      );
 
       // --- decision (pure) ---------------------------------------------
       const plan = planReschedule(
@@ -380,7 +448,12 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       // Reserve the new slot before releasing the old one. If the new slot
       // cannot be taken, the transaction aborts and the original booking is
       // unchanged. Releasing first would drop the old slot on a failed reserve.
-      transaction.update(targetRef, { reservationId: plan.appointmentId });
+      this.writeSlotReservation(
+        transaction,
+        targetDocument,
+        targetSlot,
+        plan.appointmentId
+      );
       if (previousDocument !== undefined) {
         this.releaseSlot(transaction, previousDocument, plan.appointmentId);
       }

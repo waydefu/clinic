@@ -1,3 +1,36 @@
+function overlayListedSlots(state, listed) {
+  if (!Array.isArray(listed?.slots)) return state;
+  return {
+    ...state,
+    slots: listed.slots.map((slot) => ({
+      id: slot.slotId,
+      kind: slot.kind,
+      startsAt: slot.startsAt,
+      ...(slot.available === true ? {} : { reservationId: 'reserved' })
+    }))
+  };
+}
+
+function overlayPublishedSchedule(state, published) {
+  if (typeof published?.publishedVersion !== 'number') return state;
+  const next = {
+    ...state,
+    scheduleMeta: {
+      ...state.scheduleMeta,
+      publishedVersion: published.publishedVersion,
+      publishedAt: published.publishedAt,
+      draftDirty: state.scheduleMeta?.draftDirty === true
+    }
+  };
+  if (published.schedule !== null && published.schedule !== undefined) {
+    next.schedule = published.schedule;
+    if (state.scheduleMeta?.draftDirty !== true) {
+      next.scheduleDraft = published.schedule;
+    }
+  }
+  return next;
+}
+
 function parseBody(options) {
   if (typeof options.body !== 'string') return {};
   try {
@@ -20,7 +53,7 @@ function firstServiceId(body) {
   return undefined;
 }
 
-export function mapInternalTestBookingRequest(path, method, body) {
+export function mapInternalTestBookingRequest(path, method, body = {}) {
   const verb = String(method ?? 'GET').toUpperCase();
   if (verb === 'POST' && path === '/bookings') {
     return {
@@ -80,6 +113,27 @@ export function mapInternalTestBookingRequest(path, method, body) {
   if (verb === 'GET' && query !== null) {
     return { url: `/v1/bookings/${query[1]}`, method: 'GET' };
   }
+  if (verb === 'GET' && path === '/slots') {
+    const kind =
+      typeof body.kind === 'string' && body.kind !== ''
+        ? `?kind=${encodeURIComponent(body.kind)}`
+        : '';
+    return { url: `/v1/slots${kind}`, method: 'GET' };
+  }
+  if (verb === 'GET' && path === '/schedule') {
+    return { url: '/v1/schedule', method: 'GET' };
+  }
+  if (verb === 'POST' && path === '/schedule/publish') {
+    return {
+      url: '/v1/schedule/publish',
+      method: 'POST',
+      body: {
+        idempotencyKey: idempotencyKey(),
+        expectedVersion: body.expectedVersion,
+        schedule: body.schedule
+      }
+    };
+  }
   return undefined;
 }
 
@@ -126,8 +180,8 @@ async function requestV1(
 
 /**
  * Hybrid transport: booking writes/query go to fail-closed `/v1/bookings`.
- * Everything else, including `/state` and phone lookup, stays on the injected
- * local store so preview pages without the opt-in keep working.
+ * Slot list and schedule publish join that gate. `/state` stays local, then
+ * overlays the published grid when the operator opted in.
  */
 export function createInternalTestBookingTransport({
   local,
@@ -143,18 +197,59 @@ export function createInternalTestBookingTransport({
   if (typeof toError !== 'function')
     throw new TypeError('toError mapper is required.');
 
+  const v1 = (mapped) =>
+    requestV1(fetchImpl, mapped, {
+      signal: undefined,
+      csrfToken: csrfToken(),
+      accessToken: accessToken(),
+      toError
+    });
+
   return async function internalTestBookingTransport(path, options = {}) {
     const mapped = mapInternalTestBookingRequest(
       path,
       options.method,
       parseBody(options)
     );
-    if (mapped === undefined) return local(path, options);
-    return requestV1(fetchImpl, mapped, {
+    if (mapped === undefined) {
+      const localResult = await local(path, options);
+      if (
+        path === '/state' &&
+        String(options.method ?? 'GET').toUpperCase() === 'GET'
+      ) {
+        try {
+          let next = overlayListedSlots(
+            localResult,
+            await v1({ url: '/v1/slots', method: 'GET' })
+          );
+          try {
+            next = overlayPublishedSchedule(
+              next,
+              await v1({ url: '/v1/schedule', method: 'GET' })
+            );
+          } catch {
+            return next;
+          }
+          return next;
+        } catch {
+          return localResult;
+        }
+      }
+      return localResult;
+    }
+    const payload = await requestV1(fetchImpl, mapped, {
       signal: options.signal,
       csrfToken: csrfToken(),
       accessToken: accessToken(),
       toError
     });
+    if (path === '/schedule/publish' && payload !== undefined) {
+      try {
+        payload.slots = (await v1({ url: '/v1/slots', method: 'GET' })).slots;
+      } catch {
+        return payload;
+      }
+    }
+    return payload;
   };
 }

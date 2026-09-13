@@ -105,6 +105,23 @@ describe('mapInternalTestBookingRequest', () => {
         {}
       )
     ).toBeUndefined();
+    expect(mapInternalTestBookingRequest('/slots', 'GET')).toEqual({
+      url: '/v1/slots',
+      method: 'GET'
+    });
+    expect(
+      mapInternalTestBookingRequest('/schedule/publish', 'POST', {
+        expectedVersion: 2,
+        schedule: { timeZone: 'Asia/Taipei' }
+      })
+    ).toMatchObject({
+      url: '/v1/schedule/publish',
+      method: 'POST',
+      body: {
+        expectedVersion: 2,
+        schedule: { timeZone: 'Asia/Taipei' }
+      }
+    });
   });
 });
 
@@ -218,7 +235,7 @@ describe('createInternalTestBookingTransport', () => {
     });
 
     await expect(transport('/state')).resolves.toEqual({ version: 8 });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalled();
     await expect(
       transport('/bookings', {
         method: 'POST',
@@ -232,6 +249,57 @@ describe('createInternalTestBookingTransport', () => {
       code: 'SERVICE_UNAVAILABLE',
       retryable: true,
       correlationId: 'corr_gate'
+    });
+  });
+
+  it('overlays listed slots onto local /state when the gate answers', async () => {
+    const local = vi.fn(() =>
+      Promise.resolve({ version: 8, slots: [{ id: 'local_slot' }] })
+    );
+    const fetchImpl = vi.fn((url) => {
+      if (url === '/v1/slots') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              slots: [
+                {
+                  slotId: 'slot_20300102_1200',
+                  kind: 'initial',
+                  startsAt: '2030-01-02T04:00:00.000Z',
+                  endsAt: '2030-01-02T04:30:00.000Z',
+                  available: true
+                }
+              ]
+            })
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            publishedVersion: 1,
+            publishedAt: '2029-12-15T09:00:00.000Z',
+            schedule: { timeZone: 'Asia/Taipei' }
+          })
+      });
+    });
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+    await expect(transport('/state')).resolves.toMatchObject({
+      version: 8,
+      slots: [
+        {
+          id: 'slot_20300102_1200',
+          kind: 'initial',
+          startsAt: '2030-01-02T04:00:00.000Z'
+        }
+      ],
+      schedule: { timeZone: 'Asia/Taipei' },
+      scheduleMeta: { publishedVersion: 1 }
     });
   });
 });

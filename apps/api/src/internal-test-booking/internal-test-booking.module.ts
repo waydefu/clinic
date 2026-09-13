@@ -15,9 +15,19 @@ import type { AuthenticationContext } from '../auth/authentication-context.js';
 import { CalendarPilotModule } from '../calendar/calendar-pilot.module.js';
 import { CALENDAR_PILOT_SESSIONS } from '../calendar/calendar-pilot.tokens.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
+import { FirestoreScheduleRepository } from '../firestore/schedule.repository.js';
 import type { CandidateRole } from '../platform/authorization/rbac.js';
-import { createRbacAppointmentPolicy } from '../platform/authorization/rbac-appointment-policy.js';
+import {
+  createRbacAppointmentPolicy,
+  createScheduleAuthorizationPolicy
+} from '../platform/authorization/rbac-appointment-policy.js';
 import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
+import {
+  SCHEDULE_APPLICATION,
+  ScheduleController
+} from '../schedule/schedule.controller.js';
+import { ScheduleApplicationService } from '../schedule/schedule.application-service.js';
+import type { ScheduleAuthorizationPolicy } from '../schedule/schedule.policy.js';
 import { InternalTestBookingAuthenticator } from './internal-test-booking.authenticator.js';
 import { internalTestBookingSettingsFromEnv } from './internal-test-booking.gate.js';
 import {
@@ -26,6 +36,8 @@ import {
   opaqueBookingId
 } from './internal-test-booking.tokens.js';
 import type { CalendarPilotSessionService } from '../auth/calendar-pilot-session.js';
+
+const SCHEDULE_AUTHORIZATION = 'ScheduleAuthorizationPolicy';
 
 function resolveRole(context: AuthenticationContext): CandidateRole {
   if (!isRole(context.actorRole)) throw new AuthorizationDeniedError();
@@ -39,7 +51,7 @@ function resolveRole(context: AuthenticationContext): CandidateRole {
  */
 @Module({
   imports: [CalendarPilotModule],
-  controllers: [AppointmentController],
+  controllers: [AppointmentController, ScheduleController],
   providers: [
     {
       provide: INTERNAL_TEST_BOOKING_SETTINGS,
@@ -52,6 +64,10 @@ function resolveRole(context: AuthenticationContext): CandidateRole {
     {
       provide: APPOINTMENT_AUTHORIZATION,
       useFactory: () => createRbacAppointmentPolicy(resolveRole)
+    },
+    {
+      provide: SCHEDULE_AUTHORIZATION,
+      useFactory: () => createScheduleAuthorizationPolicy(resolveRole)
     },
     {
       provide: APPOINTMENT_AUTHENTICATOR,
@@ -68,6 +84,20 @@ function resolveRole(context: AuthenticationContext): CandidateRole {
           authorization,
           { next: opaqueBookingId },
           { nowUtc: () => new Date().toISOString() },
+          { next: opaqueBookingId }
+        )
+    },
+    {
+      provide: SCHEDULE_APPLICATION,
+      inject: [SCHEDULE_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
+      useFactory: (
+        authorization: ScheduleAuthorizationPolicy,
+        clock: { nowUtc: () => string }
+      ) =>
+        new ScheduleApplicationService(
+          new FirestoreScheduleRepository(getFirestore()),
+          authorization,
+          clock,
           { next: opaqueBookingId }
         )
     }

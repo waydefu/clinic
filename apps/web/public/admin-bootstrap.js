@@ -330,6 +330,8 @@ async function post(path, body = {}) {
   });
   if (Array.isArray(result?.appointments)) {
     state = result;
+  } else if (path === '/schedule/publish') {
+    state = await client.request('/state');
   } else {
     applyContractWrite(path, body, result);
   }
@@ -1656,7 +1658,8 @@ elements['publish-schedule'].addEventListener('click', async () => {
     // 送出畫面所根據的版本；若另一分頁已發布，store 會擋下而不靜默覆蓋。
     action: () =>
       post('/schedule/publish', {
-        expectedVersion: state.scheduleMeta.publishedVersion
+        expectedVersion: state.scheduleMeta.publishedVersion,
+        schedule: state.scheduleDraft
       }),
     onSuccess: () =>
       message(

@@ -463,6 +463,29 @@ describe('production AppModule booking write path', () => {
     expect(noShowResponse.statusCode).toBe(503);
   });
 
+  it('refuses schedule publish and slot list while the gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const slots = await app.inject({ method: 'GET', url: '/v1/slots' });
+    const schedule = await app.inject({ method: 'GET', url: '/v1/schedule' });
+    const publish = await app.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      payload: {
+        idempotencyKey: 'schedule_publish_0001',
+        expectedVersion: 0,
+        schedule: {
+          timeZone: 'Asia/Taipei',
+          weeklyAvailability: [],
+          dateExceptions: []
+        }
+      }
+    });
+    expect(slots.statusCode).toBe(503);
+    expect(schedule.statusCode).toBe(503);
+    expect(publish.statusCode).toBe(503);
+  });
+
   it('opens the isolated-test gate to authentication, not a write', async () => {
     const previous = {
       enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
@@ -490,6 +513,8 @@ describe('production AppModule booking write path', () => {
         payload: { idempotencyKey: 'complete_request_0001' }
       });
       expect(complete.statusCode).toBe(401);
+      const slots = await app.inject({ method: 'GET', url: '/v1/slots' });
+      expect(slots.statusCode).toBe(401);
     } finally {
       restoreInternalTestEnv(previous);
     }

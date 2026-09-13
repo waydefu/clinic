@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   IdempotencyKeySchema,
   LocalDateSchema,
+  OpaqueIdentifierSchema,
   UtcIsoTimestampSchema
 } from './common.js';
 
@@ -80,6 +81,30 @@ export const PublishScheduleResponseSchema = z
   })
   .strict();
 
+export const GetPublishedScheduleResponseSchema = z
+  .object({
+    publishedVersion: z.number().int().min(0),
+    publishedAt: UtcIsoTimestampSchema.nullable(),
+    schedule: ScheduleSchema.nullable()
+  })
+  .strict();
+
+export const ListedSlotSchema = z
+  .object({
+    slotId: OpaqueIdentifierSchema,
+    kind: z.enum(['initial', 'follow_up']),
+    startsAt: UtcIsoTimestampSchema,
+    endsAt: UtcIsoTimestampSchema,
+    available: z.boolean()
+  })
+  .strict();
+
+export const ListSlotsResponseSchema = z
+  .object({
+    slots: z.array(ListedSlotSchema)
+  })
+  .strict();
+
 export type TimeInterval = z.infer<typeof TimeIntervalSchema>;
 export type WeeklyAvailability = z.infer<typeof WeeklyAvailabilitySchema>;
 export type DateException = z.infer<typeof DateExceptionSchema>;
@@ -90,3 +115,8 @@ export type PublishScheduleRequest = z.infer<
 export type PublishScheduleResponse = z.infer<
   typeof PublishScheduleResponseSchema
 >;
+export type GetPublishedScheduleResponse = z.infer<
+  typeof GetPublishedScheduleResponseSchema
+>;
+export type ListedSlot = z.infer<typeof ListedSlotSchema>;
+export type ListSlotsResponse = z.infer<typeof ListSlotsResponseSchema>;

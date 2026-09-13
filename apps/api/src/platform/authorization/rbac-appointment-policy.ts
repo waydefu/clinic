@@ -1,5 +1,6 @@
 import type { AuthenticationContext } from '../../auth/authentication-context.js';
 import type { AppointmentAuthorizationPolicy } from '../../appointments/appointment.policy.js';
+import type { ScheduleAuthorizationPolicy } from '../../schedule/schedule.policy.js';
 import {
   evaluateAccess,
   type CandidateRole,
@@ -123,6 +124,35 @@ export function createRbacAppointmentPolicy(
           role,
           accountActive: true,
           permission: 'delete_appointment',
+          scope: { kind: 'any' }
+        });
+        resolve();
+      });
+    }
+  };
+}
+
+export function createScheduleAuthorizationPolicy(
+  resolveRole: RoleResolver
+): ScheduleAuthorizationPolicy {
+  return {
+    assertCanPublish(context): Promise<void> {
+      return new Promise<void>((resolve) => {
+        evaluateAccess(context, {
+          role: resolveRole(context),
+          accountActive: true,
+          permission: 'publish_schedule',
+          scope: { kind: 'any' }
+        });
+        resolve();
+      });
+    },
+    assertCanReadGrid(context): Promise<void> {
+      return new Promise<void>((resolve) => {
+        evaluateAccess(context, {
+          role: resolveRole(context),
+          accountActive: true,
+          permission: 'create_appointment',
           scope: { kind: 'any' }
         });
         resolve();
