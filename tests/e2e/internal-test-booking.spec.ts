@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { fillBirthDate } from './support/patient';
-import { login, openDisclosure } from './support/workbench';
+import {
+  login,
+  openDisclosure,
+  showAllAppointments
+} from './support/workbench';
 
 type ListedSlot = {
   slotId: string;
@@ -12,35 +16,47 @@ type ListedSlot = {
 
 type ContractBooking = {
   appointmentId: string;
-  status: 'confirmed' | 'cancelled';
+  status: 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   startsAt: string;
   endsAt?: string;
 };
 
 type CreateStub = 'closed' | ContractBooking;
 type MutationStub = 'closed' | ContractBooking;
+type MutationKind = 'cancel' | 'reschedule' | 'complete' | 'noShow';
 
 type CapturedPost = {
   path?: string;
   body?: Record<string, unknown>;
 };
 
+const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
+  { kind: 'cancel', pattern: /^\/v1\/bookings\/[^/]+\/cancel$/ },
+  { kind: 'reschedule', pattern: /^\/v1\/bookings\/[^/]+\/reschedule$/ },
+  { kind: 'complete', pattern: /^\/v1\/bookings\/[^/]+\/complete$/ },
+  { kind: 'noShow', pattern: /^\/v1\/bookings\/[^/]+\/no-show$/ }
+];
+
 /** Isolated-test `/v1` is fail-closed on the packed dist server. Tests stub it. */
 async function stubV1(
   page: Page,
   occupancy: 'closed' | { slots: ListedSlot[] },
   create: CreateStub = 'closed',
-  mutations: { cancel?: MutationStub; reschedule?: MutationStub } = {}
+  mutations: Partial<Record<MutationKind, MutationStub>> = {}
 ): Promise<{
   body?: Record<string, unknown>;
   cancel: CapturedPost;
   reschedule: CapturedPost;
+  complete: CapturedPost;
+  noShow: CapturedPost;
 }> {
   const posted: {
     body?: Record<string, unknown>;
     cancel: CapturedPost;
     reschedule: CapturedPost;
-  } = { cancel: {}, reschedule: {} };
+    complete: CapturedPost;
+    noShow: CapturedPost;
+  } = { cancel: {}, reschedule: {}, complete: {}, noShow: {} };
   await page.route('**/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const method = route.request().method();
@@ -60,45 +76,26 @@ async function stubV1(
       await route.fulfill({ status: 201, json: create });
       return;
     }
-    const cancel = /^\/v1\/bookings\/([^/]+)\/cancel$/.exec(path);
-    if (
-      method === 'POST' &&
-      cancel !== null &&
-      mutations.cancel !== undefined
-    ) {
-      posted.cancel = {
-        path,
-        body: route.request().postDataJSON() as Record<string, unknown>
-      };
-      if (mutations.cancel === 'closed') {
-        await route.fulfill({
-          status: 503,
-          json: { error: { code: 'SERVICE_UNAVAILABLE' } }
-        });
+    if (method === 'POST') {
+      const matched = MUTATION_ROUTES.find(
+        (spec) => spec.pattern.test(path) && mutations[spec.kind] !== undefined
+      );
+      if (matched !== undefined) {
+        posted[matched.kind] = {
+          path,
+          body: route.request().postDataJSON() as Record<string, unknown>
+        };
+        const stub = mutations[matched.kind];
+        if (stub === 'closed') {
+          await route.fulfill({
+            status: 503,
+            json: { error: { code: 'SERVICE_UNAVAILABLE' } }
+          });
+          return;
+        }
+        await route.fulfill({ status: 200, json: stub });
         return;
       }
-      await route.fulfill({ status: 200, json: mutations.cancel });
-      return;
-    }
-    const reschedule = /^\/v1\/bookings\/([^/]+)\/reschedule$/.exec(path);
-    if (
-      method === 'POST' &&
-      reschedule !== null &&
-      mutations.reschedule !== undefined
-    ) {
-      posted.reschedule = {
-        path,
-        body: route.request().postDataJSON() as Record<string, unknown>
-      };
-      if (mutations.reschedule === 'closed') {
-        await route.fulfill({
-          status: 503,
-          json: { error: { code: 'SERVICE_UNAVAILABLE' } }
-        });
-        return;
-      }
-      await route.fulfill({ status: 200, json: mutations.reschedule });
-      return;
     }
     await route.fulfill({
       status: 404,
@@ -142,6 +139,25 @@ async function openCreatedBookingManagement(page: Page): Promise<void> {
   await page.locator('#booking-result-manage').click();
   await expect(page.locator('#booking-management-dialog')).toBeVisible();
   await expect(page.locator('.booking-lookup-card')).toBeVisible();
+}
+
+async function fillStaffOptInCreateForm(
+  page: Page,
+  slotId: string
+): Promise<void> {
+  await page.evaluate(() => {
+    window.location.hash = 'appointments-section';
+  });
+  await openDisclosure(page, '#booking-workflow');
+  await page.locator('#booking-name').fill('測試患者甲');
+  await page.locator('#booking-phone').fill('0912345678');
+  await page.locator('#booking-birth').fill('1990-05-20');
+  await page.locator('#booking-national-id').fill('A123456789');
+  await page.locator('#booking-kind').selectOption('initial');
+  await page.locator('#booking-items [data-booking-item]').first().check();
+  await page.locator(`[data-select-slot="${slotId}"]`).click();
+  await page.locator('#booking-form button[type="submit"]').click();
+  await expect(page.locator('#status')).toContainText('預約已建立');
 }
 
 function upcomingIso(hoursFromNow: number): string {
@@ -509,5 +525,162 @@ test.describe('internal-test booking occupancy overlay', () => {
     expect(posted.reschedule.body?.idempotencyKey).toEqual(
       expect.stringMatching(/^.{16,}$/)
     );
+  });
+
+  test('opt-in staff create posts onBehalfPatientId then complete hits /v1', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      },
+      {
+        complete: {
+          appointmentId: 'appointment_api_001',
+          status: 'completed',
+          startsAt,
+          endsAt
+        }
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    expect(posted.body).toMatchObject({
+      slotId: 'slot_overlay_open',
+      serviceId: expect.any(String),
+      bookingKind: 'initial',
+      onBehalfPatientId: expect.stringMatching(/^patient_\d{3}$/)
+    });
+    expect(posted.body).not.toHaveProperty('patient');
+    expect(posted.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '確認到診' }).click();
+
+    await expect(page.locator('#status')).toContainText('到診已記錄');
+    expect(posted.complete.path).toBe(
+      '/v1/bookings/appointment_api_001/complete'
+    );
+    expect(posted.complete.body).not.toHaveProperty('patient');
+    expect(posted.complete.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+  });
+
+  test('opt-in staff no-show posts /v1/bookings/:id/no-show without patient fields', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_002',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      },
+      {
+        noShow: {
+          appointmentId: 'appointment_api_002',
+          status: 'no_show',
+          startsAt,
+          endsAt
+        }
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_002"]');
+    await card.locator('.action-menu summary').click();
+    await card.locator('[data-appointment-action="no_show"]').click();
+    await page.getByRole('button', { name: '標記未到', exact: true }).click();
+
+    await expect(page.locator('#status')).toContainText('已標記未到');
+    expect(posted.noShow.path).toBe('/v1/bookings/appointment_api_002/no-show');
+    expect(posted.noShow.body).not.toHaveProperty('patient');
+    expect(posted.noShow.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+  });
+
+  test('opt-in staff complete does not succeed locally when /v1 complete is closed', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt: upcomingIso(48.5)
+      },
+      { complete: 'closed' }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '確認到診' }).click();
+
+    await expect(page.locator('#status')).toContainText(
+      '服務暫時無法使用，請稍後再試。'
+    );
+    await expect(card).toContainText('預約成立');
   });
 });
