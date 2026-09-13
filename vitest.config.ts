@@ -21,7 +21,7 @@ export default defineConfig({
       // is held to the same standard as the gates under scripts/.
       '.claude/hooks/**/*.test.mjs'
     ],
-    exclude: ['node_modules', 'dist'],
+    exclude: ['node_modules', 'dist', '**/*.emulator.test.ts'],
     // `forks` 保留行程隔離：`apps/api` 的測試會啟動 Nest，共用行程的 `threads`
     // 會讓它們互相看得見對方的模組狀態。實測 threads 只快 2 秒，不值得拿隔離換。
     pool: 'forks',

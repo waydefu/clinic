@@ -19,7 +19,7 @@ internal-test booking.
 | --- | --- |
 | `GO_LIVE_DEFERRED_ITEM` | official DNS / custom domain; clinic main-website takeover; production Calendar D-009/D-016; real patient data; live Hosting; terraform apply to production |
 | `EXTERNAL_AUTHORITY_REQUIRED` (keep unrouted) | durable Firestore lockout / denied-event store (B-012, D-002); `CalendarWatchController`; BookPilot production compose |
-| Already Grok-solvable / landed | fail-closed `/v1/bookings` create/query/cancel/reschedule/complete/no-show; fail-closed `/v1/slots` + `/v1/schedule/publish`; privacy-v1 create audit; staff on-behalf; patient cutoff; D-006 session evaluator on CAL-PILOT `__session`; exact-head CI on the composing branch |
+| Already Grok-solvable / landed | fail-closed `/v1/bookings` create/query/cancel/reschedule/complete/no-show; fail-closed `/v1/slots` + `/v1/schedule/publish`; Nest HTTP occupancy of a published grid slot; privacy-v1 create audit; staff on-behalf; patient cutoff; D-006 session evaluator on CAL-PILOT `__session`; exact-head CI on the composing branch |
 
 ## Queue
 
