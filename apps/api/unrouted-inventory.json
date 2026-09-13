@@ -1,13 +1,13 @@
 {
   "$comment": [
-    "Formal booking 仍未掛路由。AppModule 目前掛 HealthController 與決策登錄記載的合成-only CAL-PILOT（CalendarPilotModule）。以下檔案刻意存在但不接線；",
+    "AppModule 掛 HealthController、CAL-PILOT，以及 IP-001 的 InternalTestBookingModule（預設 fail-closed）。以下檔案仍刻意不接線；",
     "scripts/check-architecture.mjs 會雙向比對 main.ts 可達性與這份清單。",
-    "capabilityGates 與檔案可達性無關：RBAC 檔案日後接上獲准路由時，尚待決的 action 仍必須保留自己的決策／Stage blocker。",
+    "capabilityGates 與檔案可達性無關：RBAC 檔案接上內部測試路由時，尚待決的 production action 仍必須保留自己的決策 blocker。",
     "approvedPolicyDependencies 只記錄已核准、會約束後續實作的政策，不代表仍被該決策阻擋。",
     "remainingBlockers 只能列真正未完成的 Stage 2 slice／review、實際適用的 C1～C6 deployment authority，",
     "C1～C6 stageSlices=completed 後不得再列 stage_slice:C1～C6 或 deployment_authority:C1～C6；剩餘 blockers 是尚未 approved 的 D-series（公開預約／production Calendar／真實資料）。",
-    "或 decision register 中尚未 approved 的決策；note 說明目前邊界。",
-    "checker 從 main.ts 走訪可達模組；任何 executable permission literal 都會反查 capabilityGates，remainingBlockers 未清空時 route/action 不得變 reachable。"
+    "blocks=public_production_route 表示 IP-001 允許內部測試可達，但仍擋住 public production。",
+    "checker 從 main.ts 走訪可達模組；任何 executable permission literal 都會反查 capabilityGates。"
   ],
   "capabilityGates": {
     "appointment_scheduling": {
@@ -21,10 +21,11 @@
         {
           "kind": "decision",
           "id": "D-004",
-          "description": "正式 slot block、capacity、多療程占用與逾時規則尚未核定。"
+          "description": "正式 slot block、capacity、多療程占用與逾時規則尚未核定。",
+          "blocks": "public_production_route"
         }
       ],
-      "note": "這些 action 即使 RBAC evaluator 已被其他獲准路由載入，也不能在 D-004 與 C0～C6 完成前成為可路由能力。"
+      "note": "IP-001 允許內部測試可達；D-004 pending 仍擋住 public production。"
     },
     "appointment_cancellation": {
       "permissions": ["request_cancellation", "confirm_cancellation"],
@@ -33,10 +34,11 @@
         {
           "kind": "decision",
           "id": "D-005",
-          "description": "取消截止、病患／櫃台流程、no-show 與費用規則尚未核定。"
+          "description": "取消截止、病患／櫃台流程、no-show 與費用規則尚未核定。",
+          "blocks": "public_production_route"
         }
       ],
-      "note": "D-005 是 action-level gate；不能因 rbac.ts 為其他 action 變成 reachable 就消失。"
+      "note": "IP-001 允許內部測試可達；D-005 pending 仍擋住 public production。"
     },
     "visit_completion": {
       "permissions": ["complete_visit"],
@@ -57,10 +59,11 @@
         {
           "kind": "decision",
           "id": "D-002",
-          "description": "正式 retention、deletion workflow 與 access/export 邊界尚未核定。"
+          "description": "正式 retention、deletion workflow 與 access/export 邊界尚未核定。",
+          "blocks": "public_production_route"
         }
       ],
-      "note": "D-006 核准誰可刪除，D-002 仍控制資料保存與刪除流程；兩者不可互相取代。"
+      "note": "IP-001 允許內部測試可達；D-002 pending 仍擋住 public production deletion workflow。"
     },
     "clinical_follow_up": {
       "permissions": ["update_appointment_notes", "decide_follow_up"],
@@ -122,94 +125,6 @@
     }
   },
   "unrouted": {
-    "src/appointments/appointment.application-service.ts": {
-      "approvedPolicyDependencies": ["D-006"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        }
-      ],
-      "note": "D-006 已核准身分與授權政策；這個應用服務仍只是未接路由的 Stage 2 候選實作，沒有 IdP、session、授權或部署證據。"
-    },
-    "src/appointments/appointment.controller.ts": {
-      "approvedPolicyDependencies": ["D-006"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式 slot block／capacity、多療程占用與逾時規則仍待核定。"
-        }
-      ],
-      "note": "T1-API-01 以 test-only Nest harness 證明 RBAC 對照；production AppModule 不得掛入此 controller，/v1/bookings 必須維持 404。"
-    },
-    "src/appointments/appointment.policy.ts": {
-      "approvedPolicyDependencies": ["D-006"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
-        }
-      ],
-      "note": "D-006 已核准基線角色、動作與 deny-default；這個 port 保留實作接縫，正式 write 路由仍待 D-004。"
-    },
-    "src/appointments/appointment.repository-port.ts": {
-      "approvedPolicyDependencies": ["D-010"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式 capacity／resource／多療程占用交易語意仍待核定。"
-        }
-      ],
-      "note": "D-010 已核准 Cloud 所有權、區域與復原目標；儲存 port 仍沒有獲准的 staging foundation 或可部署交易證據。"
-    },
-    "src/firestore/booking.repository.ts": {
-      "approvedPolicyDependencies": ["D-010"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式 capacity／resource／多療程占用交易語意仍待核定。"
-        }
-      ],
-      "note": "D-010 核准的是目標架構與 SLO，不是已建立的資料庫；此 adapter 目前只可用 Emulator 驗證。"
-    },
-    "src/idempotency/appointment-idempotency.ts": {
-      "approvedPolicyDependencies": ["D-006"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "多療程 request 與正式占用語意未定，idempotency fingerprint 尚不能凍結。"
-        }
-      ],
-      "note": "D-006 已核准 staff identity controls；冪等記錄仍沒有可信 actor/session，且正式 request shape 尚未完成。"
-    },
-    "src/platform/authorization/rbac.ts": {
-      "approvedPolicyDependencies": ["D-006"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
-        }
-      ],
-      "note": "D-006 已核准 administrator、front desk、physician 基線；目前 candidate matrix 不是實作證據。每個 action 的 D-004／D-005／D-007／D-008／D-014／D-015 等待決政策由 capabilityGates 獨立守住，因此日後此檔案 reachable 時也不會一起消失。"
-    },
-    "src/platform/authorization/rbac-appointment-policy.ts": {
-      "approvedPolicyDependencies": ["D-006"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
-        }
-      ],
-      "note": "D-006 已核准 policy；此 adapter 仍把 account 當成 active。正式 write 路由仍待 D-004，且不得把合成 C2～C4 當成 production claims。"
-    },
     "src/platform/authorization/delegated-authorization-crypto.ts": {
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [

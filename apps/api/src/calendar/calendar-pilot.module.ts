@@ -43,6 +43,7 @@ const firebaseAuth = getAuth();
     },
     CalendarPilotSessionGuard,
     { provide: APP_FILTER, useClass: ApiExceptionFilter }
-  ]
+  ],
+  exports: [CALENDAR_PILOT_SESSIONS]
 })
 export class CalendarPilotModule {}

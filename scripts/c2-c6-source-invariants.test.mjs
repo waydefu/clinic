@@ -111,6 +111,7 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(roles).toContain("'manager'");
     expect(roles).toContain("'front_desk'");
     expect(appModule).toContain('CalendarPilotModule');
+    expect(appModule).toContain('InternalTestBookingModule');
     expect(appModule).not.toMatch(
       /AppointmentController|BookPilotModule|BookPilotController|CalendarWatchController/
     );

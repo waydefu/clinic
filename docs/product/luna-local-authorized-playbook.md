@@ -8,7 +8,9 @@ until Card 8 PASSes.
 `GROK_PROJECT_CLOSER` for cloud-agent engineering. This file remains the
 laptop Luna card. Production grants are unchanged.
 **Does not authorize:** production, real patient data, official DNS, live
-Hosting, production Calendar, or routing `/v1/bookings`.
+Hosting, production Calendar, or **public production** `/v1/bookings`.
+Register IP-001 (`INTERNAL_TEST_ROUTE_AUTHORIZED`) is a separate
+internal-test grant with fail-closed production default.
 
 You are the **sole remaining executor**. Grok rests. Do not wait for a
 cloud agent. After Card 8 PASSes, continue the numbered cards, then the

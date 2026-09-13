@@ -29,12 +29,26 @@ Calendar stay `NOT_AUTHORIZED`. Dated at that hour: remaining
 engineering was assigned to the cloud agent. Superseded 2026-09-12.
 D-series table values below are unchanged.
 
+**2026-09-13 (`IP-001` / `INTERNAL_PREPRODUCTION`):** the clinic owner
+split internal-test completion from public production launch. Current
+stage target is `INTERNAL_PREPRODUCTION_COMPLETE`, not production
+launched. `INTERNAL_TEST_ROUTE_AUTHORIZED` is recorded below;
+`PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED` remains. D-001–D-005 stay
+`pending` (not legal/production approval) but no longer block synthetic
+internal-test implementation. D-007 / D-014 / D-015 are
+`DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY`. D-011 is `GO_LIVE_DEFERRED`
+for this stage. Clinic public marketing site is
+`DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE`. Do not count
+production DNS, live Hosting, production Calendar, real patient data, or
+the vendor-leased main website as `INTERNAL_TEST_BLOCKER`.
+
 **2026-09-13 (`GROK_UNRESTED` / `GROK_PROJECT_CLOSER`):** the clinic owner
 explicitly un-rested Grok for cloud-agent engineering and project-closer
 execution. `GROK_RESTS` / `LUNA_SOLE_EXECUTOR` (2026-09-12) remains the
-laptop Luna playbook, not a ban on cloud-agent work. D-series table values
-below are unchanged. Production, real data, official DNS, live Hosting,
-production Calendar, and `/v1/bookings` stay `NOT_AUTHORIZED`.
+laptop Luna playbook, not a ban on cloud-agent work. Public production,
+real data, official DNS, live Hosting, and production Calendar stay
+`NOT_AUTHORIZED`. Internal-test booking route authority is IP-001, not
+this executor assignment.
 
 **2026-09-12 (`GROK_RESTS` / `LUNA_SOLE_EXECUTOR`):** remaining identity
 and remaining engineering are Luna-only on the owner laptop. Grok does
@@ -59,24 +73,91 @@ production, not public booking, and not a D-series close.
 
 | ID | Decision | Owner | Status | Needed before |
 | --- | --- | --- | --- | --- |
-| D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16) | Published privacy policy |
-| D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending (owner input recorded 2026-08-16; backup-deletion semantics and the Google processor agreement remain unanswered) | Collecting patient data |
-| D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16; final text, version ID and publication approval outstanding) | Privacy acceptance or public booking |
-| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: capacity 1, booking horizon 1 month; earlier 60-day provisional horizon superseded) | Slot reservation |
-| D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending (superseding owner direction recorded 2026-08-16: cutoff is 10:00 on the appointment day; the earlier 24-hour rule is superseded) | Cancellation route or notice |
+| D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16; internal-test implementation rules in IP-001, 2026-09-13 — not legal/production approval) | Published privacy policy |
+| D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending (owner input recorded 2026-08-16; backup-deletion semantics and the Google processor agreement remain unanswered; internal-test retention numbers in IP-001, 2026-09-13 — not legal/production approval) | Collecting patient data |
+| D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16; final text, version ID and publication approval outstanding; internal-test policy version `v1.0` in IP-001 — not publication approval) | Privacy acceptance or public booking |
+| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: capacity 1, booking horizon 1 month; internal-test operational rules in IP-001, 2026-09-13, including unspecified duration default 30 min — not production/legal approval; does not retire the 2026-07-28 “duration known only at visit” production answer) | Slot reservation |
+| D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending (superseding owner direction recorded 2026-08-16: cutoff is 10:00 on the appointment day; internal-test override/no-show/no-fee rules in IP-001, 2026-09-13 — not production/legal approval) | Cancellation route or notice |
 | D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | approved (2026-07-28; implementation evidence pending) | Authenticated write endpoint |
-| D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | pending (owner input recorded 2026-08-16) | Assignment write path |
+| D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | deferred (DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY; owner 2026-09-13) | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending; period-close and adjustment sub-items deferred (owner direction recorded 2026-08-16) | Payroll-credit persistence |
 | D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (dedicated allowlisted calendars, closed synthetic fields, no real data). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA. 2026-09-11 C0-DIR records Phase 1 *product* bidirectional-sync direction (not production D-009) | Outbound Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
-| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: no English version; the production URL is still undecided). 2026-09-11 FS-001 records suggested hostnames only — not DNS mutation authority | Public booking UX |
+| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (GO_LIVE_DEFERRED for internal-preproduction; 2026-09-13). Production URL still undecided; Firebase preview / `.web.app` is the current internal-test entry. 2026-09-11 FS-001 hostnames are not DNS mutation authority | Public production booking UX / official DNS |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26; amended 2026-09-09: administrators also bound) | Treating a green CI run as a merge gate |
-| D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | pending (owner operational direction recorded 2026-08-16; the legal/medical classification still requires named professional review) | Storing surgery, anesthesia or clinical follow-up data |
-| D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | pending; ledger, refund and settlement sub-items deferred (owner direction recorded 2026-08-16) | Persisting money or settlement amounts |
+| D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | deferred (DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY; owner 2026-09-13) | Storing surgery, anesthesia or clinical follow-up data |
+| D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | deferred (DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY; owner 2026-09-13) | Persisting money or settlement amounts |
 | D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (manager/front desk review, private link ID, five-minute target). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA. 2026-09-11 CAL-SYNC-DIR supersedes the earlier 30-minute *product* SLO with push-then-incremental plus 1–5 minute compensation; production D-016 stays pending | Calendar-to-system writes |
 
 ## Recorded inputs
+
+### IP-001 internal-preproduction and internal-test route — 2026-09-13
+
+The clinic owner split **internal-test / staging completion** from
+**public production launch**. This packet authorises internal-test
+implementation and a fail-closed isolated-test booking route. It does
+**not** mark D-001–D-005 `approved`, does not grant production, real
+patient data, official DNS, live Hosting, or production Calendar, and
+does not retire named legal/privacy/medical ceremony.
+
+```text
+Recorded input ID: IP-001-2026-09-13
+Answer: INTERNAL_TEST_ROUTE_AUTHORIZED /
+PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED /
+INTERNAL_PREPRODUCTION_COMPLETE is the current stage target (not
+production launched). Executor remains GROK_PROJECT_CLOSER.
+
+Internal-test booking (create, query, reschedule, cancel, capacity,
+cutoff, concurrency, idempotency, RBAC, audit, failure handling) may be
+implemented and routed through InternalTestBookingModule with:
+- staging / isolated-test / emulator scope only
+- production default OFF (fail-closed)
+- explicit INTERNAL_TEST_BOOKING_ENABLED=true plus UTC expiry plus
+  allowlisted isolated project beauessence-clinic-stg-c1a01 or the
+  Firestore emulator
+- no uncontrolled public patient traffic
+- preview URLs are not authentication
+
+Provisional internal-test rules (not production/legal approval):
+D-001 clinic as controller; clinic privacy contact; rights request =
+identity verification → authorised handling → audit record.
+D-002 booking retention 2 years; audit/security logs 3 years; deletion
+removes active/main data first; backups expire by retention; Google
+Cloud treated as processor. Formal privacy/legal gate remains.
+D-003 Privacy Policy version v1.0; store policy version and accepted_at;
+do not extra-collect device fingerprints to prove acceptance.
+D-004 capacity 1; horizon 1 month; service-specific duration;
+unspecified duration default 30 min; earliest booking now+2 hours; past
+and closed-hour slots unavailable; blackout overrides; Asia/Taipei.
+D-005 self cancel/reschedule allowed before appointment-day 10:00
+Asia/Taipei; after cutoff staff/manager manual handling with reason +
+audit; no-show recorded; Phase 1 does not auto-charge cancellation /
+no-show fees.
+
+D-007 / D-014 / D-015 = DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY.
+D-011 = GO_LIVE_DEFERRED (Firebase preview / .web.app is enough).
+Clinic public marketing website =
+DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE.
+Production Calendar remains D-009/D-016; CAL-PILOT / synthetic calendars
+may complete technical behaviour.
+FUNCTIONALLY COMPLETE ≠ REAL PATIENT DATA AUTHORIZED.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-13
+Recorded by: assistant, from the owner's 2026-09-13 in-flight
+INTERNAL_PREPRODUCTION direction patch. The owner gave the direction;
+the assistant is not an approver and did not flip D-001–D-005 to
+approved.
+Scope: internal-test / isolated staging completion of Booking + Patient
+Portal and required staff/backend dependencies.
+Explicit exclusions: public production launch; official DNS / custom
+domain cutover; live Hosting channel; production Calendar; real patient
+data; clinic public-site takeover; named legal/privacy/medical
+production ceremony; terraform apply to production; firebase login:ci
+token in chat/docs/repo.
+```
+
+Closed-item evidence: [2026-09-13 internal-preproduction owner direction](../reviews/2026-09-13-internal-preproduction-owner-direction.md).
 
 ### FS-001 first-stage product scope — 2026-09-11
 

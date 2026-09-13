@@ -3,14 +3,16 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 
 import { HealthController } from './health.controller.js';
 import { CalendarPilotModule } from './calendar/calendar-pilot.module.js';
+import { InternalTestBookingModule } from './internal-test-booking/internal-test-booking.module.js';
 import { NoStoreInterceptor } from './platform/runtime/no-store.interceptor.js';
 
 /**
- * The formal booking write path remains unrouted. CAL-PILOT is a separately
- * approved, expiring synthetic-only surface with its own Google+TOTP boundary.
+ * CAL-PILOT is a separately approved, expiring synthetic-only surface.
+ * IP-001 mounts `InternalTestBookingModule` with fail-closed production
+ * default. Public production `/v1/bookings` stays unauthorised.
  */
 @Module({
-  imports: [CalendarPilotModule],
+  imports: [CalendarPilotModule, InternalTestBookingModule],
   controllers: [HealthController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor }]
 })

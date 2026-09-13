@@ -34,9 +34,12 @@ reviewer identity.
 
 C1～C6 synthetic smoke has PASSed on isolated project
 `beauessence-clinic-stg-c1a01`. That is not production, not live Hosting,
-not official DNS, and not public `/v1/bookings`. Formal booking stays
-UNROUTED. AGENTS.md Safety Floor item 8 still forbids live-channel and
-production backend enablement.
+not official DNS, and not public production `/v1/bookings`.
+`PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED` remains. IP-001
+(`INTERNAL_TEST_ROUTE_AUTHORIZED`) allows a fail-closed isolated-test
+booking module. Production Calendar watch (`CalendarWatchController`)
+stays UNROUTED. AGENTS.md Safety Floor item 8 still forbids live-channel
+and production backend enablement.
 
 ## Owner direction that is now recorded
 
@@ -103,8 +106,11 @@ Notification-driven inbound is therefore `IMPLEMENTED=NO` /
 
 ## Formal booking
 
-`AppointmentController` exists and remains unrouted.
-`IMPLEMENTED` / `UNROUTED` / `NOT PRODUCTION AUTHORIZED`.
+`AppointmentController` exists. Public production `/v1/bookings` stays
+`UNROUTED` / `PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED`.
+IP-001 authorises `InternalTestBookingModule` as
+`INTERNAL_TEST_ROUTE_AUTHORIZED` with fail-closed production default.
+`IMPLEMENTED` for internal test ≠ production launched.
 
 ## Rollback
 

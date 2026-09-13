@@ -21,7 +21,7 @@ describe('GET /v1/health', () => {
     expect(response.json()).toEqual({ service: 'api', status: 'ok' });
   });
 
-  it('exposes no other route; the booking write path is not routed yet', async () => {
+  it('refuses POST /v1/bookings while the IP-001 internal-test gate is closed', async () => {
     app = await createApplication();
     await app.init();
 
@@ -30,6 +30,6 @@ describe('GET /v1/health', () => {
       url: '/v1/bookings'
     });
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(503);
   });
 });

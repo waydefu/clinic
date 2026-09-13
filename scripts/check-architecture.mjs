@@ -207,7 +207,8 @@ for (const file of apiFiles) {
 }
 for (const detail of validateReachableCapabilityBlockers(
   inventory,
-  reachableApiSources
+  reachableApiSources,
+  decisionRegisterSource
 )) {
   fail('capability-reachability', detail);
 }
