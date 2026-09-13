@@ -22,7 +22,10 @@ import {
   summaryCounts
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
-import { resolveApiClient } from './modules/api-client.js';
+import {
+  isInternalTestBookingEnabled,
+  resolveApiClient
+} from './modules/api-client.js';
 import { upsertPatient } from './modules/patient-registry.js';
 import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
@@ -334,12 +337,41 @@ async function post(path, body = {}) {
     state = await client.request('/state');
   } else {
     applyContractWrite(path, body, result);
+    if (
+      isInternalTestBookingEnabled() &&
+      typeof result?.appointmentId === 'string' &&
+      occupancyWrite(path)
+    ) {
+      const { refreshPublishedOccupancy } = await import(
+        './modules/internal-test-booking-transport.js'
+      );
+      state = await refreshPublishedOccupancy(
+        (nextPath) => client.request(nextPath),
+        state
+      );
+    }
   }
   if (!['/workspace/logout', '/reset'].includes(path)) {
     enforceRoleDomBoundary();
     render();
   }
   return state;
+}
+
+function occupancyWrite(path) {
+  return (
+    path === '/bookings' ||
+    /\/bookings\/.+\/(cancel|reschedule|no-show)$/.test(path)
+  );
+}
+
+function releaseOverlaySlot(slot, appointmentId) {
+  if (
+    slot?.reservationId === appointmentId ||
+    slot?.reservationId === 'reserved'
+  ) {
+    delete slot.reservationId;
+  }
 }
 
 function applyContractWrite(path, body, result) {
@@ -375,7 +407,7 @@ function applyContractWrite(path, body, result) {
     appointment.status = result.status ?? 'cancelled';
     appointment.updatedAt = now;
     const slot = state.slots.find((item) => item.id === appointment.slotId);
-    if (slot?.reservationId === appointment.id) delete slot.reservationId;
+    releaseOverlaySlot(slot, appointment.id);
     return;
   }
   const complete = /^\/bookings\/([^/]+)\/complete$/.exec(path);
@@ -397,7 +429,7 @@ function applyContractWrite(path, body, result) {
     appointment.status = result.status ?? 'no_show';
     appointment.updatedAt = now;
     const slot = state.slots.find((item) => item.id === appointment.slotId);
-    if (slot?.reservationId === appointment.id) delete slot.reservationId;
+    releaseOverlaySlot(slot, appointment.id);
     return;
   }
   const reschedule = /^\/bookings\/([^/]+)\/reschedule$/.exec(path);
@@ -406,13 +438,15 @@ function applyContractWrite(path, body, result) {
     (item) => item.id === reschedule[1]
   );
   if (appointment === undefined) return;
+  const targetSlotId =
+    typeof body.targetSlotId === 'string' ? body.targetSlotId : body.slotId;
   const previous = state.slots.find((item) => item.id === appointment.slotId);
-  if (previous?.reservationId === appointment.id) delete previous.reservationId;
-  appointment.slotId = body.targetSlotId;
+  releaseOverlaySlot(previous, appointment.id);
+  appointment.slotId = targetSlotId;
   appointment.startsAt = result.startsAt;
   appointment.status = result.status ?? 'confirmed';
   appointment.updatedAt = now;
-  const next = state.slots.find((item) => item.id === body.targetSlotId);
+  const next = state.slots.find((item) => item.id === targetSlotId);
   if (next !== undefined) next.reservationId = appointment.id;
 }
 

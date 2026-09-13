@@ -112,6 +112,17 @@ function rememberManagedAppointment(appointment) {
   renderManagedAppointments();
 }
 
+async function refreshPublishedGrid() {
+  if (!isInternalTestBookingEnabled()) return;
+  const { refreshPublishedOccupancy } = await import(
+    './modules/internal-test-booking-transport.js'
+  );
+  state = await refreshPublishedOccupancy(
+    (path) => client.request(path),
+    state
+  );
+}
+
 // 頂端 #patient-status 是唯一的 aria-live 播報點；anchorId 把同一句話放到
 // 送出鈕旁，避免使用者在表單位置看不到失敗原因。
 let inlineStatus;
@@ -988,7 +999,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
           origin: 'patient'
         })
       }),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (isContractBooking(result) && result.startsAt !== undefined) {
         const itemLabel =
           PATIENT_SERVICES.find((item) => item.id === selectedServiceId)
@@ -1016,6 +1027,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
         elements['booking-complete-reminder'].hidden = false;
         elements['booking-result'].innerHTML =
           `<strong>預約編號：${escapeHtml(result.appointmentId)}</strong><span>${escapeHtml(formatFullDate(result.startsAt))} ${escapeHtml(formatTime(result.startsAt))} · ${escapeHtml(itemLabel)}</span>`;
+        await refreshPublishedGrid();
         renderAll();
         showBookingResult();
         message(`預約已建立：${result.appointmentId}。`, 'success');
@@ -1264,12 +1276,13 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
         method: 'POST',
         body: JSON.stringify(lastLookupVerification ?? {})
       }),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (isContractBooking(result)) {
         rememberManagedAppointment({
           ...appointment,
           status: result.status
         });
+        await refreshPublishedGrid();
       } else {
         state = result.state;
         managedAppointments = managedAppointments.map((item) =>
@@ -1334,7 +1347,7 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
           targetSlotId
         })
       }),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (isContractBooking(result) && result.startsAt !== undefined) {
         rememberManagedAppointment({
           ...appointment,
@@ -1342,6 +1355,7 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
           status: result.status ?? 'confirmed',
           slotId: targetSlotId
         });
+        await refreshPublishedGrid();
       } else {
         state = result.state;
         managedAppointments = managedAppointments.map((item) =>

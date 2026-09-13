@@ -6,7 +6,8 @@ import {
 } from '../public/modules/api-client.js';
 import {
   createInternalTestBookingTransport,
-  mapInternalTestBookingRequest
+  mapInternalTestBookingRequest,
+  refreshPublishedOccupancy
 } from '../public/modules/internal-test-booking-transport.js';
 
 describe('isInternalTestBookingEnabled', () => {
@@ -73,6 +74,16 @@ describe('mapInternalTestBookingRequest', () => {
     ).toMatchObject({
       url: '/v1/bookings/appointment_001/reschedule',
       body: { targetSlotId: 'slot_002' }
+    });
+    expect(
+      mapInternalTestBookingRequest(
+        '/bookings/appointment_001/reschedule',
+        'POST',
+        { slotId: 'slot_staff_002' }
+      )
+    ).toMatchObject({
+      url: '/v1/bookings/appointment_001/reschedule',
+      body: { targetSlotId: 'slot_staff_002' }
     });
     expect(
       mapInternalTestBookingRequest('/patient/bookings/lookup', 'POST', {})
@@ -328,6 +339,73 @@ describe('createInternalTestBookingTransport', () => {
       ],
       schedule: { timeZone: 'Asia/Taipei' },
       scheduleMeta: { publishedVersion: 1 }
+    });
+  });
+});
+
+describe('refreshPublishedOccupancy', () => {
+  const currentState = {
+    version: 8,
+    appointments: [{ id: 'appointment_local_001' }],
+    slots: [
+      {
+        id: 'slot_stale_open',
+        kind: 'initial',
+        startsAt: '2030-01-02T04:00:00.000Z'
+      }
+    ]
+  };
+
+  it('overlays the published grid onto the current snapshot after a write', async () => {
+    const request = vi.fn(() =>
+      Promise.resolve({
+        slots: [
+          {
+            slotId: 'slot_20300102_1200',
+            kind: 'initial',
+            startsAt: '2030-01-02T04:00:00.000Z',
+            available: false
+          },
+          {
+            slotId: 'slot_20300102_1230',
+            kind: 'initial',
+            startsAt: '2030-01-02T04:30:00.000Z',
+            available: true
+          }
+        ]
+      })
+    );
+
+    await expect(
+      refreshPublishedOccupancy(request, currentState)
+    ).resolves.toEqual({
+      version: 8,
+      appointments: [{ id: 'appointment_local_001' }],
+      slots: [
+        {
+          id: 'slot_20300102_1200',
+          kind: 'initial',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          reservationId: 'reserved'
+        },
+        {
+          id: 'slot_20300102_1230',
+          kind: 'initial',
+          startsAt: '2030-01-02T04:30:00.000Z'
+        }
+      ]
+    });
+    expect(request).toHaveBeenCalledWith('/slots');
+  });
+
+  it('does not keep the pre-write grid when occupancy cannot be loaded', async () => {
+    const request = vi.fn(() => Promise.reject(new Error('gate closed')));
+    await expect(
+      refreshPublishedOccupancy(request, currentState)
+    ).resolves.toEqual({
+      version: 8,
+      appointments: [{ id: 'appointment_local_001' }],
+      slots: []
     });
   });
 });

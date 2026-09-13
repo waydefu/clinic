@@ -11,6 +11,18 @@ function overlayListedSlots(state, listed) {
   };
 }
 
+/**
+ * Re-apply published occupancy onto the in-memory snapshot after a contract
+ * write. A failed list must not leave the pre-write grid bookable.
+ */
+export async function refreshPublishedOccupancy(request, currentState) {
+  try {
+    return overlayListedSlots(currentState, await request('/slots'));
+  } catch {
+    return { ...currentState, slots: [] };
+  }
+}
+
 function overlayPublishedSchedule(state, published) {
   if (typeof published?.publishedVersion !== 'number') return state;
   const next = {
@@ -84,12 +96,14 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
     /^\/patient\/bookings\/([A-Za-z0-9_-]+)\/self-reschedule$/.exec(path) ??
     /^\/bookings\/([A-Za-z0-9_-]+)\/reschedule$/.exec(path);
   if (verb === 'POST' && reschedule !== null) {
+    const targetSlotId =
+      typeof body.targetSlotId === 'string' ? body.targetSlotId : body.slotId;
     return {
       url: `/v1/bookings/${reschedule[1]}/reschedule`,
       method: 'POST',
       body: {
         idempotencyKey: idempotencyKey(),
-        targetSlotId: body.targetSlotId
+        targetSlotId
       }
     };
   }
