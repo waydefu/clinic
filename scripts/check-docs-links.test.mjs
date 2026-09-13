@@ -296,6 +296,16 @@ describe('documentation gate', () => {
         'Formal booking endpoints are **not** routed. `AppModule` registers'
       )
     ).toBe(false);
+    const scheduleClaim = STALE_CLAIMS.find(
+      ([file, pattern]) =>
+        file === 'docs/architecture/api-v1-contract.md' &&
+        pattern.source.includes('Schedule publish')
+    );
+    expect(
+      scheduleClaim?.[1].test(
+        'Schedule publish | x | y | Unrouted Stage 0 schema'
+      )
+    ).toBe(true);
 
     const execution = STALE_CLAIMS.find(
       ([file, pattern]) =>
