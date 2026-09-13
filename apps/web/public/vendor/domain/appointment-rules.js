@@ -64,6 +64,21 @@ export function isWithinSelfCancelWindow(appointmentStartsAt, nowMs) {
         return false;
     return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));
 }
+/**
+ * IP-001 internal-test provisional: earliest bookable start is now+2 hours.
+ * Not production/legal D-004 approval. Equality at exactly +2h is allowed.
+ */
+export const EARLIEST_BOOKING_LEAD_MS = 2 * 60 * 60 * 1000;
+export function assertSlotMeetsEarliestLead(slotStartsAt, requestedAt) {
+    const startMs = Date.parse(slotStartsAt);
+    const requestedMs = Date.parse(requestedAt);
+    if (!Number.isFinite(startMs) || !Number.isFinite(requestedMs)) {
+        throw new DomainError('INVALID_VALUE', 'Slot start and request time must be parseable timestamps.');
+    }
+    if (startMs < requestedMs + EARLIEST_BOOKING_LEAD_MS) {
+        throw new DomainError('SLOT_UNAVAILABLE', 'The slot is too soon to book.');
+    }
+}
 export function assertTransitionAllowed(transition, status) {
     if (!ALLOWED_FROM[transition].includes(status)) {
         throw new DomainError('TRANSITION_NOT_ALLOWED', `An appointment in status "${status}" cannot be ${transition}.`);

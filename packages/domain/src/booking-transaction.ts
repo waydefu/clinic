@@ -1,5 +1,6 @@
 import {
   assertSlotBookable,
+  assertSlotMeetsEarliestLead,
   assertWithinActiveBookingLimit
 } from './appointment-rules.js';
 import {
@@ -280,6 +281,7 @@ export function planBooking(
     );
   }
   assertSlotBookable(slot, request.bookingKind);
+  assertSlotMeetsEarliestLead(slot.startsAt, request.requestedAt);
   const activeIds = patientBookingGuard?.activeAppointmentIds ?? [];
   assertWithinActiveBookingLimit(activeIds.length);
   if (activeIds.includes(request.appointmentId)) {

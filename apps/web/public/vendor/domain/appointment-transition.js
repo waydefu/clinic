@@ -1,4 +1,4 @@
-import { assertReschedulable, assertTransitionAllowed, OPEN_STATUSES } from './appointment-rules.js';
+import { assertReschedulable, assertSlotMeetsEarliestLead, assertTransitionAllowed, OPEN_STATUSES } from './appointment-rules.js';
 import { planAuditEvent } from './audit.js';
 import { patientBookingGuardHolds } from './booking-transaction.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
@@ -55,7 +55,21 @@ export function parseAppointmentSnapshot(id, data) {
             status !== 'no_show') {
             throw new Error();
         }
-        return { id, slotId, patientId, bookingKind, status };
+        const startsAt = record['startsAt'];
+        if (startsAt !== undefined) {
+            if (typeof startsAt !== 'string') {
+                throw new Error();
+            }
+            assertUtcTimestamp(startsAt, 'startsAt');
+        }
+        return {
+            id,
+            slotId,
+            patientId,
+            bookingKind,
+            status,
+            ...(typeof startsAt === 'string' ? { startsAt } : {})
+        };
     }
     catch {
         throw new DomainError('INVALID_VALUE', 'The appointment is unreadable.');
@@ -218,6 +232,7 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
     }
     // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。
     assertReschedulable(appointment.status, appointment.slotId, targetSlot, appointment.bookingKind);
+    assertSlotMeetsEarliestLead(targetSlot.startsAt, request.requestedAt);
     assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
     const auditEvent = planAuditEvent({
         eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}_${request.idempotency.recordId}`,

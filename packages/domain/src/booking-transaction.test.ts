@@ -150,6 +150,16 @@ describe('planBooking', () => {
     );
   });
 
+  it('rejects a slot sooner than now+2 hours', () => {
+    const tooSoon: SlotSnapshot = {
+      ...openSlot,
+      startsAt: '2026-07-21T10:00:00.000Z'
+    };
+    expect(codeOf(() => planBooking(request, tooSoon, undefined))).toBe(
+      'SLOT_UNAVAILABLE'
+    );
+  });
+
   it('rejects an already reserved slot', () => {
     const taken = { ...openSlot, reservationId: 'appointment_000' };
     expect(codeOf(() => planBooking(request, taken, undefined))).toBe(

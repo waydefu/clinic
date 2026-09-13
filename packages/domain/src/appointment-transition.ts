@@ -1,5 +1,6 @@
 import {
   assertReschedulable,
+  assertSlotMeetsEarliestLead,
   assertTransitionAllowed,
   OPEN_STATUSES,
   type AppointmentStatusValue,
@@ -42,6 +43,7 @@ export interface AppointmentSnapshot {
   readonly patientId: string;
   readonly bookingKind: BookingKind;
   readonly status: AppointmentStatusValue;
+  readonly startsAt?: string;
 }
 
 export interface TransitionRequest {
@@ -224,7 +226,22 @@ export function parseAppointmentSnapshot(
       throw new Error();
     }
 
-    return { id, slotId, patientId, bookingKind, status };
+    const startsAt = record['startsAt'];
+    if (startsAt !== undefined) {
+      if (typeof startsAt !== 'string') {
+        throw new Error();
+      }
+      assertUtcTimestamp(startsAt, 'startsAt');
+    }
+
+    return {
+      id,
+      slotId,
+      patientId,
+      bookingKind,
+      status,
+      ...(typeof startsAt === 'string' ? { startsAt } : {})
+    };
   } catch {
     throw new DomainError('INVALID_VALUE', 'The appointment is unreadable.');
   }
@@ -485,6 +502,7 @@ export function planReschedule(
     targetSlot,
     appointment.bookingKind
   );
+  assertSlotMeetsEarliestLead(targetSlot.startsAt, request.requestedAt);
   assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
   const auditEvent = planAuditEvent({
     eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}_${request.idempotency.recordId}`,
