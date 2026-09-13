@@ -201,9 +201,9 @@ test.describe('internal-test booking occupancy overlay', () => {
       bookingKind: 'initial'
     });
     expect(posted.body).not.toHaveProperty('patient');
-    expect(
-      String(posted.body?.idempotencyKey ?? '').length
-    ).toBeGreaterThanOrEqual(16);
+    expect(posted.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
   });
 
   test('opt-in create does not keep a local booking when /v1/bookings is closed', async ({
