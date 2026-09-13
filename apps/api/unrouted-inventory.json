@@ -13,6 +13,7 @@
     "appointment_scheduling": {
       "permissions": [
         "create_appointment",
+        "read_appointment",
         "reschedule_appointment",
         "publish_schedule"
       ],

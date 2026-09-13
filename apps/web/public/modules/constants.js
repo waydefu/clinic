@@ -9,10 +9,14 @@
 // 13，而瀏覽器不做 bundling（刻意保留逐檔可讀性），所以經過 barrel 就等於把
 // 薪資、個管、outbox 等患者頁用不到的模組全部下載一遍。深層匯入把 vendor 的
 // 傳遞閉包從 13 個檔案縮到 7 個。
+//
+// 防重複上限從 appointment-rules.js 接力（工作臺已為斷言載入該檔）。不要從
+// booking-transaction.js 取這兩個常數：瀏覽器不做 tree-shake，會把整份
+// planBooking write-path（audit / idempotency）拉進 /index.html gzip 閉包。
 export {
   ACTIVE_BOOKING_LIMIT,
   ACTIVE_BOOKING_STATUSES
-} from '../vendor/domain/booking-transaction.js';
+} from '../vendor/domain/appointment-rules.js';
 // 時區與掛號網格是診所規則，不是介面設定：兩邊各寫一份就會漂移，因此同樣
 // 從編譯後的 domain 取得（ADR-0004）。
 export {

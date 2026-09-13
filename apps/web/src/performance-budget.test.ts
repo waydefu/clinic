@@ -327,3 +327,18 @@ describe('moduleGraphDepth', () => {
     expect(graph.moduleCount).toBe(0);
   });
 });
+
+describe('workbench vendor import graph', () => {
+  it('does not load booking-transaction.js through constants.js', () => {
+    const source = readFileSync(
+      new URL('../public/modules/constants.js', import.meta.url),
+      'utf8'
+    );
+    expect(source).not.toMatch(
+      /from ['"]\.\.\/vendor\/domain\/booking-transaction\.js['"]/
+    );
+    expect(source).toMatch(
+      /from ['"]\.\.\/vendor\/domain\/appointment-rules\.js['"]/
+    );
+  });
+});

@@ -1,5 +1,6 @@
 import {
   assertSlotBookable,
+  assertSlotMeetsEarliestLead,
   assertWithinActiveBookingLimit
 } from './appointment-rules.js';
 import {
@@ -30,12 +31,10 @@ import { assertUtcTimestamp } from './timestamp.js';
 
 export type BookingKind = 'initial' | 'follow_up';
 
-/** 同一人同時最多兩筆未結束的預約。 */
-export const ACTIVE_BOOKING_LIMIT = 2;
-export const ACTIVE_BOOKING_STATUSES: readonly string[] = [
-  'confirmed',
-  'cancellation_requested'
-];
+export {
+  ACTIVE_BOOKING_LIMIT,
+  ACTIVE_BOOKING_STATUSES
+} from './appointment-rules.js';
 
 export interface SlotSnapshot {
   readonly id: string;
@@ -280,6 +279,7 @@ export function planBooking(
     );
   }
   assertSlotBookable(slot, request.bookingKind);
+  assertSlotMeetsEarliestLead(slot.startsAt, request.requestedAt);
   const activeIds = patientBookingGuard?.activeAppointmentIds ?? [];
   assertWithinActiveBookingLimit(activeIds.length);
   if (activeIds.includes(request.appointmentId)) {

@@ -1,8 +1,14 @@
 import type {
+  CancelAppointmentRequest,
   CreateAppointmentRequest,
   RescheduleAppointmentRequest
 } from '@beauessence/contracts';
-import type { BookingRequest, RescheduleRequest } from '@beauessence/domain';
+import type {
+  BookingRequest,
+  RescheduleRequest,
+  TransitionRequest
+} from '@beauessence/domain';
+import { DomainError } from '@beauessence/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
@@ -18,8 +24,10 @@ import {
 } from '../idempotency/appointment-idempotency.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
 import type {
+  AppointmentRecord,
   AppointmentRepositoryPort,
-  ReservationResult
+  ReservationResult,
+  TransitionResult
 } from './appointment.repository-port.js';
 
 const COMMAND: CreateAppointmentRequest = {
@@ -38,6 +46,19 @@ const AUTHENTICATION: AuthenticationContext = {
 const RESCHEDULE_COMMAND: RescheduleAppointmentRequest = {
   idempotencyKey: 'reschedule_request_0001',
   targetSlotId: 'slot_002'
+};
+
+const CANCEL_COMMAND: CancelAppointmentRequest = {
+  idempotencyKey: 'cancel_request_0001'
+};
+
+const OPEN_RECORD: AppointmentRecord = {
+  appointmentId: 'appointment_server_001',
+  patientId: 'patient_opaque_001',
+  slotId: 'slot_001',
+  bookingKind: 'initial',
+  status: 'confirmed',
+  startsAt: '2026-07-25T04:00:00.000Z'
 };
 
 function createBoundary() {
@@ -60,11 +81,29 @@ function createBoundary() {
   const patientIdOf = vi.fn<() => Promise<string | undefined>>(() =>
     Promise.resolve('patient_opaque_001')
   );
+  const read = vi.fn<() => Promise<AppointmentRecord | undefined>>(() =>
+    Promise.resolve(OPEN_RECORD)
+  );
+  const transition = vi.fn<
+    (request: TransitionRequest) => Promise<TransitionResult>
+  >(() =>
+    Promise.resolve({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'cancelled'
+    })
+  );
   const assertCanCreate = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCreate']
   >(() => Promise.resolve());
   const assertCanReschedule = vi.fn<
     AppointmentAuthorizationPolicy['assertCanReschedule']
+  >(() => Promise.resolve());
+  const assertCanCancel = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanCancel']
+  >(() => Promise.resolve());
+  const assertCanQuery = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanQuery']
   >(() => Promise.resolve());
   const assertCanDelete = vi.fn<
     AppointmentAuthorizationPolicy['assertCanDelete']
@@ -72,11 +111,15 @@ function createBoundary() {
   const repository: AppointmentRepositoryPort = {
     reserve,
     reschedule,
-    patientIdOf
+    patientIdOf,
+    read,
+    transition
   };
   const authorization: AppointmentAuthorizationPolicy = {
     assertCanCreate,
     assertCanReschedule,
+    assertCanCancel,
+    assertCanQuery,
     assertCanDelete
   };
   const service = new AppointmentApplicationService(
@@ -90,9 +133,13 @@ function createBoundary() {
   return {
     assertCanCreate,
     assertCanReschedule,
+    assertCanCancel,
+    assertCanQuery,
     patientIdOf,
+    read,
     reserve,
     reschedule,
+    transition,
     service
   };
 }
@@ -314,5 +361,171 @@ describe('AppointmentApplicationService reschedule', () => {
       appointmentPatientId: 'patient_other'
     });
     expect(reschedule).not.toHaveBeenCalled();
+  });
+});
+
+describe('AppointmentApplicationService query', () => {
+  it('returns opaque identifiers and computed end time', async () => {
+    const { assertCanQuery, service } = createBoundary();
+
+    await expect(
+      service.get('appointment_server_001', AUTHENTICATION)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
+    });
+    expect(assertCanQuery).toHaveBeenCalledWith(AUTHENTICATION, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+  });
+
+  it('does not reveal a missing row to a patient', async () => {
+    const { assertCanQuery, read, service } = createBoundary();
+    read.mockResolvedValueOnce(undefined);
+    assertCanQuery.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.get('appointment_server_001', AUTHENTICATION)
+    ).rejects.toThrow('denied');
+  });
+});
+
+describe('AppointmentApplicationService cancel', () => {
+  it('lets a patient cancel immediately before the day-10:00 cutoff', async () => {
+    const { assertCanCancel, transition, service } = createBoundary();
+
+    await expect(
+      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'cancelled'
+    });
+    expect(assertCanCancel).toHaveBeenCalledWith(AUTHENTICATION, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      transition: 'cancel'
+    });
+  });
+
+  it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
+    const { read, transition, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+
+    await expect(
+      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
+    ).rejects.toMatchObject<Partial<DomainError>>({
+      code: 'CANCELLATION_WINDOW_CLOSED'
+    });
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  it('lets staff cancel after the patient cutoff', async () => {
+    const { read, transition, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+
+    await expect(
+      service.cancel('appointment_server_001', CANCEL_COMMAND, staff)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'cancelled'
+    });
+    expect(transition).toHaveBeenCalled();
+  });
+});
+
+describe('AppointmentApplicationService query', () => {
+  it('returns opaque identifiers and computed end time', async () => {
+    const { assertCanQuery, service } = createBoundary();
+
+    await expect(
+      service.get('appointment_server_001', AUTHENTICATION)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
+    });
+    expect(assertCanQuery).toHaveBeenCalledWith(AUTHENTICATION, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+  });
+
+  it('does not reveal a missing row to a patient', async () => {
+    const { assertCanQuery, read, service } = createBoundary();
+    read.mockResolvedValueOnce(undefined);
+    assertCanQuery.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.get('appointment_server_001', AUTHENTICATION)
+    ).rejects.toThrow('denied');
+  });
+});
+
+describe('AppointmentApplicationService cancel', () => {
+  it('lets a patient cancel immediately before the day-10:00 cutoff', async () => {
+    const { assertCanCancel, transition, service } = createBoundary();
+
+    await expect(
+      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'cancelled'
+    });
+    expect(assertCanCancel).toHaveBeenCalledWith(AUTHENTICATION, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      transition: 'cancel'
+    });
+  });
+
+  it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
+    const { read, transition, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+
+    await expect(
+      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
+    ).rejects.toMatchObject<Partial<DomainError>>({
+      code: 'CANCELLATION_WINDOW_CLOSED'
+    });
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  it('lets staff cancel after the patient cutoff', async () => {
+    const { read, transition, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+
+    await expect(
+      service.cancel('appointment_server_001', CANCEL_COMMAND, staff)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'cancelled'
+    });
+    expect(transition).toHaveBeenCalled();
   });
 });

@@ -1,15 +1,10 @@
-import { assertSlotBookable, assertWithinActiveBookingLimit } from './appointment-rules.js';
+import { assertSlotBookable, assertSlotMeetsEarliestLead, assertWithinActiveBookingLimit } from './appointment-rules.js';
 import { planAuditEvent } from './audit.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
 import { assertUtcTimestamp } from './timestamp.js';
-/** 同一人同時最多兩筆未結束的預約。 */
-export const ACTIVE_BOOKING_LIMIT = 2;
-export const ACTIVE_BOOKING_STATUSES = [
-    'confirmed',
-    'cancellation_requested'
-];
+export { ACTIVE_BOOKING_LIMIT, ACTIVE_BOOKING_STATUSES } from './appointment-rules.js';
 function assertIdentifier(value, fieldName) {
     if (!/^[A-Za-z0-9_:-]{1,128}$/.test(value)) {
         throw new DomainError('INVALID_VALUE', `${fieldName} must be an opaque identifier.`);
@@ -124,6 +119,7 @@ export function planBooking(request, slot, patientBookingGuard) {
         throw new DomainError('INVALID_VALUE', 'The slot does not match the request.');
     }
     assertSlotBookable(slot, request.bookingKind);
+    assertSlotMeetsEarliestLead(slot.startsAt, request.requestedAt);
     const activeIds = patientBookingGuard?.activeAppointmentIds ?? [];
     assertWithinActiveBookingLimit(activeIds.length);
     if (activeIds.includes(request.appointmentId)) {

@@ -77,6 +77,32 @@ export function createRbacAppointmentPolicy(
         resolve();
       });
     },
+    assertCanCancel(context, command): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        const scope = resolveScope(role, command.appointmentPatientId);
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'request_cancellation',
+          scope
+        });
+        resolve();
+      });
+    },
+    assertCanQuery(context, command): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        const scope = resolveScope(role, command.appointmentPatientId);
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'read_appointment',
+          scope
+        });
+        resolve();
+      });
+    },
     assertCanDelete(context): Promise<void> {
       return new Promise<void>((resolve) => {
         const role = resolveRole(context);

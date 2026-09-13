@@ -52,6 +52,19 @@ export const CancelAppointmentResponseSchema = z
   .strict();
 
 /**
+ * Internal-test query. Opaque identifiers and timestamps only; no patient
+ * profile. Status is the stored lifecycle value.
+ */
+export const GetAppointmentResponseSchema = z
+  .object({
+    appointmentId: OpaqueIdentifierSchema,
+    status: AppointmentStatusSchema,
+    startsAt: UtcIsoTimestampSchema,
+    endsAt: UtcIsoTimestampSchema
+  })
+  .strict();
+
+/**
  * Staff resolutions of an existing appointment. The patient-facing "request
  * cancellation" is `CancelAppointmentRequestSchema`; these are the staff-side
  * transitions. Like every other command the body carries only the idempotency
@@ -162,6 +175,9 @@ export type CancelAppointmentRequest = z.infer<
 >;
 export type CancelAppointmentResponse = z.infer<
   typeof CancelAppointmentResponseSchema
+>;
+export type GetAppointmentResponse = z.infer<
+  typeof GetAppointmentResponseSchema
 >;
 export type StaffAppointmentTransition = z.infer<
   typeof StaffAppointmentTransitionSchema

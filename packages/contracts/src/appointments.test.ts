@@ -8,6 +8,7 @@ import {
   DeleteAppointmentRequestSchema,
   DeleteAppointmentResponseSchema,
   HealthResponseSchema,
+  GetAppointmentResponseSchema,
   RescheduleAppointmentRequestSchema,
   RescheduleAppointmentResponseSchema,
   STAFF_TRANSITION_TO_DOMAIN,
@@ -292,6 +293,36 @@ describe('reschedule command', () => {
         appointmentId: 'appointment_001',
         status: 'confirmed',
         startsAt: '2030-01-02T04:00:00.000Z'
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe('appointment query response', () => {
+  it('returns opaque identifiers, status and authoritative times', () => {
+    expect(
+      GetAppointmentResponseSchema.parse({
+        appointmentId: 'appointment_001',
+        status: 'confirmed',
+        startsAt: '2030-01-02T04:00:00.000Z',
+        endsAt: '2030-01-02T04:30:00.000Z'
+      })
+    ).toEqual({
+      appointmentId: 'appointment_001',
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z'
+    });
+  });
+
+  it('rejects a patient profile on the query response', () => {
+    expect(
+      GetAppointmentResponseSchema.safeParse({
+        appointmentId: 'appointment_001',
+        status: 'confirmed',
+        startsAt: '2030-01-02T04:00:00.000Z',
+        endsAt: '2030-01-02T04:30:00.000Z',
+        patientId: 'patient_001'
       }).success
     ).toBe(false);
   });

@@ -1,5 +1,4 @@
 import type { BookingKind, SlotSnapshot } from './booking-transaction.js';
-import { ACTIVE_BOOKING_LIMIT } from './booking-transaction.js';
 import { DomainError } from './errors.js';
 
 /**
@@ -29,6 +28,10 @@ export const OPEN_STATUSES: readonly AppointmentStatusValue[] = [
   'confirmed',
   'cancellation_requested'
 ];
+
+/** 同一人同時最多兩筆未結束的預約。 */
+export const ACTIVE_BOOKING_LIMIT = 2;
+export const ACTIVE_BOOKING_STATUSES = OPEN_STATUSES;
 
 /** 每個轉換可以從哪些狀態進入。 */
 const ALLOWED_FROM: Record<
@@ -115,6 +118,28 @@ export function isWithinSelfCancelWindow(
 ): boolean {
   if (!Number.isFinite(nowMs)) return false;
   return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));
+}
+
+export const EARLIEST_BOOKING_LEAD_MS = 7_200_000;
+
+export function assertSlotMeetsEarliestLead(
+  slotStartsAt: string,
+  requestedAt: string
+): void {
+  const startMs = Date.parse(slotStartsAt);
+  const requestedMs = Date.parse(requestedAt);
+  if (!Number.isFinite(startMs) || !Number.isFinite(requestedMs)) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The appointment start must be a parseable timestamp.'
+    );
+  }
+  if (startMs < requestedMs + EARLIEST_BOOKING_LEAD_MS) {
+    throw new DomainError(
+      'SLOT_UNAVAILABLE',
+      'The slot does not exist or is already reserved.'
+    );
+  }
 }
 
 export function assertTransitionAllowed(

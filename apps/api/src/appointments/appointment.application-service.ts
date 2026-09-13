@@ -1,11 +1,21 @@
 import type {
+  CancelAppointmentRequest,
+  CancelAppointmentResponse,
   CreateAppointmentRequest,
+  GetAppointmentResponse,
   RescheduleAppointmentRequest
 } from '@beauessence/contracts';
 import type {
+  AppointmentTransition,
   AuditContext,
   BookingRequest,
-  RescheduleRequest
+  RescheduleRequest,
+  TransitionRequest
+} from '@beauessence/domain';
+import {
+  DomainError,
+  isWithinSelfCancelWindow,
+  SLOT_DURATION_MINUTES
 } from '@beauessence/domain';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
@@ -16,7 +26,8 @@ import type {
 } from './appointment.repository-port.js';
 import {
   createAppointmentIdempotency,
-  rescheduleAppointmentIdempotency
+  rescheduleAppointmentIdempotency,
+  transitionAppointmentIdempotency
 } from '../idempotency/appointment-idempotency.js';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
@@ -109,6 +120,29 @@ export function toRescheduleRequest(
   };
 }
 
+export function toTransitionRequest(
+  appointmentId: string,
+  command: CancelAppointmentRequest,
+  transition: AppointmentTransition,
+  context: {
+    readonly requestedAt: string;
+    readonly audit: AuditContext;
+  }
+): TransitionRequest {
+  return {
+    appointmentId,
+    transition,
+    audit: context.audit,
+    requestedAt: context.requestedAt,
+    idempotency: transitionAppointmentIdempotency({
+      key: command.idempotencyKey,
+      actorId: context.audit.actorId,
+      appointmentId,
+      transition
+    })
+  };
+}
+
 /**
  * Unrouted Stage 0 application boundary. A future controller may parse HTTP
  * input and call this service only after the authentication adapter has
@@ -181,5 +215,84 @@ export class AppointmentApplicationService {
         }
       })
     );
+  }
+
+  public async get(
+    appointmentId: string,
+    authentication: AuthenticationContext
+  ): Promise<GetAppointmentResponse> {
+    const record = await this.repository.read(appointmentId);
+    await this.authorization.assertCanQuery(
+      authentication,
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
+    );
+    if (record === undefined || record.startsAt === undefined) {
+      throw new DomainError(
+        'APPOINTMENT_NOT_FOUND',
+        'The appointment does not exist.'
+      );
+    }
+    return {
+      appointmentId: record.appointmentId,
+      status: record.status,
+      startsAt: record.startsAt,
+      endsAt: new Date(
+        Date.parse(record.startsAt) + SLOT_DURATION_MINUTES * 60_000
+      ).toISOString()
+    };
+  }
+
+  public async cancel(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<CancelAppointmentResponse> {
+    const record = await this.repository.read(appointmentId);
+    await this.authorization.assertCanCancel(
+      authentication,
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
+    );
+
+    if (authentication.verifiedPatientId !== undefined) {
+      const nowMs = Date.parse(this.clock.nowUtc());
+      if (
+        record?.startsAt === undefined ||
+        !isWithinSelfCancelWindow(record.startsAt, nowMs)
+      ) {
+        throw new DomainError(
+          'CANCELLATION_WINDOW_CLOSED',
+          'The self-cancellation window has closed.'
+        );
+      }
+    }
+
+    const result = await this.repository.transition(
+      toTransitionRequest(appointmentId, command, 'cancel', {
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: null,
+          policyVersion: null
+        }
+      })
+    );
+
+    if (
+      result.status !== 'cancelled' &&
+      result.status !== 'cancellation_requested'
+    ) {
+      throw new DomainError(
+        'TRANSITION_NOT_ALLOWED',
+        'The appointment cannot be cancelled.'
+      );
+    }
+
+    return {
+      appointmentId: result.appointmentId,
+      status: result.status
+    };
   }
 }

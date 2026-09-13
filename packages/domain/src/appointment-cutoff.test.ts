@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { DomainError } from './errors.js';
 import {
+  assertSlotMeetsEarliestLead,
+  EARLIEST_BOOKING_LEAD_MS,
   isWithinSelfCancelWindow,
   selfCancelCutoffAt
 } from './appointment-rules.js';
@@ -32,5 +35,32 @@ describe('isWithinSelfCancelWindow', () => {
     expect(
       isWithinSelfCancelWindow('2030-01-02T04:00:00.000Z', Number.NaN)
     ).toBe(false);
+  });
+});
+
+describe('assertSlotMeetsEarliestLead', () => {
+  const requestedAt = '2026-07-21T09:00:00.000Z';
+  const exactlyTwoHours = '2026-07-21T11:00:00.000Z';
+  const oneHour = '2026-07-21T10:00:00.000Z';
+
+  it('allows a slot at exactly now+2 hours', () => {
+    expect(() =>
+      assertSlotMeetsEarliestLead(exactlyTwoHours, requestedAt)
+    ).not.toThrow();
+    expect(EARLIEST_BOOKING_LEAD_MS).toBe(2 * 60 * 60 * 1000);
+  });
+
+  it('rejects a slot sooner than now+2 hours', () => {
+    expect(() => assertSlotMeetsEarliestLead(oneHour, requestedAt)).toThrow(
+      expect.objectContaining<Partial<DomainError>>({
+        code: 'SLOT_UNAVAILABLE'
+      })
+    );
+  });
+
+  it('rejects an unparseable slot start', () => {
+    expect(() =>
+      assertSlotMeetsEarliestLead('not-a-time', requestedAt)
+    ).toThrow(/parseable/);
   });
 });

@@ -97,7 +97,8 @@ describe('parseAppointmentSnapshot', () => {
       slotId: 'slot_20300102_1200',
       patientId: 'patient_001',
       bookingKind: 'initial',
-      status: 'confirmed'
+      status: 'confirmed',
+      startsAt: NOW
     });
   });
 
@@ -109,7 +110,8 @@ describe('parseAppointmentSnapshot', () => {
       slotId: 'slot_20300102_1200',
       patientId: 'patient_001',
       bookingKind: 'initial',
-      status: 'confirmed'
+      status: 'confirmed',
+      startsAt: NOW
     });
   });
 
@@ -545,7 +547,7 @@ describe('planReschedule', () => {
     expect(isCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(true);
   });
 
-  it('rejects a taken, missing or same slot', () => {
+  it('rejects a taken, missing, same, or too-soon slot', () => {
     expect(
       codeOf(() => reschedule({ ...target, reservationId: 'appointment_002' }))
     ).toBe('SLOT_UNAVAILABLE');
@@ -553,6 +555,11 @@ describe('planReschedule', () => {
     expect(
       codeOf(() => reschedule({ ...target, id: appointment.slotId }))
     ).toBe('INVALID_VALUE');
+    expect(
+      codeOf(() =>
+        reschedule({ ...target, startsAt: '2026-07-21T10:00:00.000Z' })
+      )
+    ).toBe('SLOT_UNAVAILABLE');
   });
 
   it('treats a verified-patient mismatch as not found', () => {

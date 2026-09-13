@@ -6,7 +6,8 @@ file is the human navigation layer for the executable schemas in
 authorised. `AppModule` registers `GET /v1/health`, the Decision Register's
 CAL-PILOT synthetic-only exception (`/v1/calendar-session`, `/v1/calendar`),
 and IP-001 `InternalTestBookingModule` (`POST /v1/bookings`, fail-closed
-503 unless the isolated-test gate is explicitly open). CAL-PILOT is not a
+503 unless the isolated-test gate is explicitly open; query and cancel
+are on the same gate). CAL-PILOT is not a
 production booking route.
 
 ## Boundary
@@ -26,7 +27,7 @@ production booking route.
 | --- | --- | --- | --- |
 | `GET` | `/v1/health` | `HealthResponseSchema` | Deployment and local-runtime liveness only; it exposes no patient data. |
 | CAL-PILOT session / calendar | `/v1/calendar-session/*`, `/v1/calendar/*` | CAL-PILOT contracts in `@beauessence/contracts` | Decision Register synthetic-only sub-scope: Google+TOTP, closed synthetic fields, expiry and exclusions in the register. Not production D-009/D-016, not public production booking. |
-| IP-001 internal-test booking | `POST /v1/bookings`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/delete` | Appointment command schemas | Fail-closed isolated-test writes. Default 503. Not public production. |
+| IP-001 internal-test booking | `POST /v1/bookings`, `GET /v1/bookings/:id`, `POST /v1/bookings/:id/cancel`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/delete` | Appointment command/query schemas | Fail-closed isolated-test reads/writes. Default 503. Not public production. |
 
 ## Reserved booking contracts
 
@@ -94,7 +95,7 @@ promote those rows to routed production booking.
 | CAL-PILOT session / calendar | CAL-PILOT contracts in `@beauessence/contracts` | `CalendarPilotModule` | Routed synthetic-only exception; expiry and exclusions in the Decision Register; not production D-009/D-016 and not `/v1/appointments` |
 | Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; patient fields, verification and matching remain TBD pending D-001～D-003/D-011; approved D-006 staff identity does not select patient identity |
 | Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; formal multi-service/no-service-duration direction is recorded, but the single-service contract and slot/capacity rule still need D-004 implementation, then D-001～D-005/D-011 and reviewed D-006/D-010 implementation |
-| Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | Future application mapping → `TransitionRequest(request_cancellation)` | Unrouted; exact cutoff and patient verification pending D-005; staff security baseline approved in D-006 but unimplemented |
+| Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | `AppointmentApplicationService.cancel` → `TransitionRequest(cancel)` (owner Q5 immediate cancel; patient cutoff is day-10:00 Asia/Taipei) | IP-001 fail-closed `POST /v1/bookings/:id/cancel`. Default 503. Not public production; D-005 stays pending. |
 | Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; cancellation authority/rules remain D-005; staff session/RBAC must implement approved D-006 |
 | Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; D-006 approves complete for front desk/administrator, while no-show remains D-005 and slot behavior remains D-004 |
 | Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | Future application mapping → `RescheduleRequest` | Unrouted Stage 0 schema; capacity/cancellation pending D-004/D-005; staff session/RBAC must implement approved D-006 |
