@@ -2,8 +2,8 @@
 
 **狀態：** 現況 inventory＋plan-only 權限提案。Canonical role 集合已於 2026-08-06
 收斂到 domain；2026-09-13 已補上委派授權碼的 server-side KDF verifier、
-atomic attempt persistence、denied-event sink、staff IdP mapping 與 session
-lifetime 評估，但 browser stored role 仍為 legacy `admin`、正式 routed
+atomic attempt persistence、denied-event sink、staff IdP mapping、session
+lifetime 評估，以及工作臺 stored role `admin→manager`（schema v8）。正式 routed
 Session/RBAC 與 query enforcement 仍未完成。
 **不是** protected-route 實作證據，也不關閉任何 D-series 決策。
 
@@ -16,14 +16,17 @@ Session/RBAC 與 query enforcement 仍未完成。
 ## 1. 為什麼需要這一份
 
 2026-08-04 撰寫時 repository 有三套互不相容的角色。2026-08-06 已把 server canonical
-集合收斂到 `packages/domain/src/roles.ts`，API 從 `@beauessence/domain` 匯入；但 browser
-仍維持 legacy `admin/front_desk`，因此 migration 與安全 enforcement 尚未完成：
+集合收斂到 `packages/domain/src/roles.ts`，API 從 `@beauessence/domain` 匯入。
+2026-09-13 工作臺 stored role 已收斂為 `manager`／`front_desk`（schema v8，
+leftover `admin` 讀取時對齊 `normaliseRole`）。`/index.html` gzip total 已貼齊
+92 KiB，因此工作臺執行期**不**匯入 `vendor/domain/roles.js`；對齊由單元測試對
+該 vendor leaf 釘住，而不是再造一套角色集合：
 
 | 來源 | 角色 | 數量 |
 | --- | --- | --- |
 | [`packages/domain/src/roles.ts`](../../packages/domain/src/roles.ts) | `manager`、`front_desk`、`consultant`、`physician`、`patient`、`system_admin`、`auditor`、`service_account` | 8；canonical |
 | [`apps/api/src/platform/authorization/rbac.ts`](../../apps/api/src/platform/authorization/rbac.ts) | 從 domain 匯入 canonical `Role`；candidate permission table 未 routed | 8 |
-| [`apps/web/public/modules/permissions.js`](../../apps/web/public/modules/permissions.js) | `admin`、`front_desk` | 2；legacy 待遷移 |
+| [`apps/web/public/modules/permissions.js`](../../apps/web/public/modules/permissions.js) | `manager`、`front_desk` | 2；工作臺子集，stored `admin` 已遷移 |
 | D-006 核准基線（2026-07-28） | administrator／front-desk／**physician** | 3 |
 | 負責人 2026-08-04 需求 | 管理者、櫃檯、諮詢師、醫師、病患（＋未來護理師、麻醉、財務） | 5＋3 |
 
@@ -44,7 +47,7 @@ Session/RBAC 與 query enforcement 仍未完成。
 
 | 角色代碼 | 繁中名稱 | 來源 | 說明 |
 | --- | --- | --- | --- |
-| `manager` | 管理者 | 既有（瀏覽器叫 `admin`） | 診所營運最高權限；金額、員工權限、稽核、系統設定 |
+| `manager` | 管理者 | 既有（瀏覽器已改存 `manager`） | 診所營運最高權限；金額、員工權限、稽核、系統設定 |
 | `front_desk` | 櫃檯 | 既有 | 每日營運主力；預約、改期、取消、個管指派、款項處理 |
 | `consultant` | 諮詢師 | **新增** | 只看自己負責的病患與個案金額 |
 | `physician` | 醫師 | **新增**（D-006 已核准；canonical role 與 deny-by-default evaluator 已就位，但 routed session／action enforcement 未完成） | 只看與自己相關的預約與必要醫療資訊 |
@@ -66,7 +69,7 @@ Session/RBAC 與 query enforcement 仍未完成。
 
 | 現行瀏覽器 | 現行伺服器 | 收斂後 | 動作 |
 | --- | --- | --- | --- |
-| `admin` | `manager` | `manager` | 瀏覽器改名，避免與 `system_admin` 混淆 |
+| `manager`（schema v8；leftover `admin` 讀取對齊） | `manager` | `manager` | 已遷移，避免與 `system_admin` 混淆 |
 | `front_desk` | `front_desk` | `front_desk` | 一致，不動 |
 | — | `case_manager` | `consultant` | **需負責人確認**：`case_manager`（個管師）與諮詢師是同一個職務，還是兩個？見 §7 未解問題 |
 | — | `patient` | `patient` | 瀏覽器端補上 |
@@ -212,6 +215,8 @@ Rules 層的責任是「確保沒有人繞過 API」，不是複製一份角色�
    使用雜湊驗證的 compiled vendor mirror。不得另建 role 字串來源。
 2. 瀏覽器 `permissions.js` 的 legacy `admin/front_desk` 以 versioned state migration
    收斂；`admin→manager`，未知角色 fail-closed，不以 browser role 作 server authority。
+   **2026-09-13：** schema v8 種子為 `manager`；schema 7 leftover `admin` 被
+   `isUsableState` 丟棄後重建。工作臺不匯入 `roles.js`（gzip total 92 KiB）。
 3. 每個角色都有一支 `tests/e2e/auth-rbac` 分組下的直連 URL 測試：以該角色登入後
    直接輸入其他角色的工作區網址，必須被擋下且不洩漏資料。
 4. Firestore rules 測試維持預設拒絕全綠。

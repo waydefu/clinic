@@ -82,19 +82,19 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 - **blocked capability:** land D-006 hashed-delegation slice on `main`
 - **exact root cause:** this integration token has `permissions.push=false`
   and `ManagePullRequest` has no merge action; `gh` is read-only
-- **current evidence:** OPEN, MERGEABLE, CLEAN, 12/12 PASS, run
-  `34765355315`, Verification evidence `103745746006`. Follow-on PR #118
-  contains this HEAD plus atomic/audit work.
+- **current evidence:** #118 OPEN, Ready, MERGEABLE, CLEAN, exact-head
+  `fb07f2a` 12/12 PASS, verify run `34767934798`. #118 contains #117 HEAD
+  `96fc9aa` plus atomic/audit work. This token `permissions.push=false`.
 - **owner:** clinic technical owner
 - **severity:** high
 - **dependency:** none other than human merge authority
-- **exact resolution:** human merges #117 after reading this review; do not
-  rebuild
+- **exact resolution:** human merges #118 (lands #117 too); do not rebuild
+  #117; do not merge #117 in parallel
 - **can Grok solve it?** no
 - **requires human?** yes
 - **requires external approval?** no (CI already green)
-- **safe parallel work:** this stacked follow-on
-- **resume action:** merge #117 then rebase #116
+- **safe parallel work:** B-013 UI PR #119 stacked on #118
+- **resume action:** merge #118 then rebase #116
 - **status:** `HUMAN_ACTION_REQUIRED`
 
 ### B-002 — PR #116 merge
@@ -316,23 +316,24 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 
 - **category:** D-006 / UI
 - **blocked capability:** single live role vocabulary in workspace state
-- **exact root cause:** fixtures and login still store `admin`. Importing
-  `roles.js` into the workbench graph on this PR exceeded the `/index.html`
-  gzip script budget (64.3 / 64 KiB), so the lookup migration was reverted
-  rather than raising the budget.
-- **current evidence:** `state-schema.js` default account `role: 'admin'`;
-  e2e still types username `admin` (handle, not role)
+- **exact root cause:** fixtures and login still stored `admin`. Importing
+  `roles.js` into the workbench graph exceeded the `/index.html`
+  gzip script budget (64.3 / 64 KiB) and total (92.6 / 92 KiB).
+- **current evidence:** schema v8 seeds `role: 'manager'`; schema 7 leftover
+  `admin` blobs fail `isUsableState` and re-seed. In-memory leftover `admin`
+  fail-closes. Login username remains `admin`. Workbench does not import
+  `vendor/domain/roles.js`. `createAccount` still maps write-side `admin` →
+  `manager`. Unit tests pin `normaliseRole('admin')` to `manager`.
 - **owner:** implementer
 - **severity:** low
-- **dependency:** versioned state migration + e2e update
-- **exact resolution:** migrate stored role to `manager` in a dedicated UI
-  PR with `ui-check` / e2e
-- **can Grok solve it?** yes in a later UI-focused PR
+- **dependency:** none remaining for stored codes
+- **exact resolution:** dedicated UI PR without raising the budget
+- **can Grok solve it?** yes — this follow-on
 - **requires human?** no for code; TW-05 still human
 - **requires external approval?** no
-- **safe parallel work:** this non-UI PR
-- **resume action:** separate UI PR
-- **status:** `ACTIONABLE_BY_GROK`
+- **safe parallel work:** #118 remains untouched
+- **resume action:** none
+- **status:** `RESOLVED`
 
 ### B-014 — Node runtime in this cloud VM
 
@@ -558,6 +559,7 @@ WHAT GROK WILL DO AFTER: stop treating named-reviewer as a Grok task
 
 Grok-solvable work in this harvest that this follow-on actually does:
 unrouted D-006 atomic lock + denied audit + IdP/session/field helpers +
-executor Canon. Remaining Grok-solvable after merge: B-013 stored-role
-migration (UI PR), Calendar non-production hardening already largely on
-main, rebase of #116 once #117 lands.
+executor Canon. Remaining Grok-solvable after merge: Calendar
+non-production hardening already largely on main, rebase of #116 once
+#117/#118 land. B-013 stored-role migration is `RESOLVED` on the dedicated
+UI follow-on (schema v8; no `roles.js` import).

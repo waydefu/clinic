@@ -66,7 +66,7 @@ const restrictedDom = [
 function isAdminSession() {
   return (
     state?.session?.authenticated === true &&
-    state.session.account?.role === 'admin'
+    state.session.account?.role === 'manager'
   );
 }
 
@@ -336,7 +336,7 @@ function renderSession() {
   elements['current-account-label'].textContent =
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
-    state.session.account.role === 'admin'
+    state.session.account.role === 'manager'
       ? '可設定營業時間、改派個管、帳號與系統治理。'
       : '可處理預約、到診、登錄回診指示與首次個管指派。';
   applyWorkspacePanel();

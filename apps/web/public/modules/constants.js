@@ -194,7 +194,7 @@ export const APPOINTMENT_STATUS_LABELS = Object.freeze({
 });
 
 export const ROLE_LABELS = Object.freeze({
-  admin: '主管',
+  manager: '主管',
   front_desk: '櫃台員工'
 });
 

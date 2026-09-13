@@ -7,6 +7,7 @@ import {
 } from '../public/modules/permissions.js';
 import { initialState, isUsableState } from '../public/modules/state-schema.js';
 import { PERMISSIONS } from '../public/modules/constants.js';
+import { normaliseRole } from '../public/vendor/domain/roles.js';
 import {
   identityKey,
   maskNationalId,
@@ -68,6 +69,27 @@ describe('synthetic session resolution fails closed', () => {
     expect(hasPermission(state, PERMISSIONS.CANCEL_BOOKING)).toBe(true);
     expect(hasPermission(state, PERMISSIONS.DELETE_APPOINTMENT)).toBe(true);
   });
+
+  it('fail-closes leftover stored admin after schema v8 and unknown roles', () => {
+    const state = initialState();
+    state.workspace.authenticated = true;
+    const seeded = state.workspace.accounts.find(
+      (item) => item.id === 'admin_test_001'
+    );
+    if (seeded === undefined) throw new Error('missing seed account');
+    expect(seeded.role).toBe('manager');
+    expect(normaliseRole('admin')).toBe('manager');
+    expect(normaliseRole(seeded.role)).toBe('manager');
+    expect(hasPermission(state, MANAGE_ACCOUNTS)).toBe(true);
+
+    seeded.role = 'admin';
+    expect(permissionsFor(state)).toEqual([]);
+    expect(hasPermission(state, MANAGE_ACCOUNTS)).toBe(false);
+
+    seeded.role = 'not_a_role';
+    expect(permissionsFor(state)).toEqual([]);
+    expect(hasPermission(state, MANAGE_ACCOUNTS)).toBe(false);
+  });
 });
 
 describe('stored synthetic state is validated before use', () => {
@@ -85,6 +107,15 @@ describe('stored synthetic state is validated before use', () => {
     const state = initialState();
     state.schemaVersion = 1;
     expect(isUsableState(state)).toBe(false);
+  });
+
+  it('discards schema 7 leftover admin blobs instead of reading them', () => {
+    const state = initialState();
+    state.schemaVersion = 7;
+    state.workspace.accounts[0].role = 'admin';
+    expect(isUsableState(state)).toBe(false);
+    expect(initialState().workspace.accounts[0].role).toBe('manager');
+    expect(initialState().schemaVersion).toBe(8);
   });
 
   it('rejects structurally broken state', () => {

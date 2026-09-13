@@ -14,7 +14,7 @@ import { PERMISSIONS } from './constants.js';
 // 把權限搬進 front_desk；分開之後「這個角色天生有什麼」與「這次是被授權的」在
 // 稽核上永遠分得清楚。
 const rolePermissions = Object.freeze({
-  admin: new Set(Object.values(PERMISSIONS)),
+  manager: new Set(Object.values(PERMISSIONS)),
   front_desk: new Set([
     PERMISSIONS.CREATE_BOOKING,
     PERMISSIONS.CANCEL_BOOKING,
