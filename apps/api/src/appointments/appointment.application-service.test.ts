@@ -105,6 +105,9 @@ function createBoundary() {
   const assertCanCancel = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCancel']
   >(() => Promise.resolve());
+  const assertCanComplete = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanComplete']
+  >(() => Promise.resolve());
   const assertCanQuery = vi.fn<
     AppointmentAuthorizationPolicy['assertCanQuery']
   >(() => Promise.resolve());
@@ -122,6 +125,7 @@ function createBoundary() {
     assertCanCreate,
     assertCanReschedule,
     assertCanCancel,
+    assertCanComplete,
     assertCanQuery,
     assertCanDelete
   };
@@ -137,6 +141,7 @@ function createBoundary() {
     assertCanCreate,
     assertCanReschedule,
     assertCanCancel,
+    assertCanComplete,
     assertCanQuery,
     patientIdOf,
     read,
@@ -547,5 +552,67 @@ describe('AppointmentApplicationService cancel', () => {
       status: 'cancelled'
     });
     expect(transition).toHaveBeenCalled();
+  });
+});
+
+describe('AppointmentApplicationService complete and no-show', () => {
+  const STAFF: AuthenticationContext = {
+    actorId: 'actor_verified_001',
+    actorRole: 'test_front_desk'
+  };
+
+  it('lets staff complete a confirmed visit', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    transition.mockResolvedValueOnce({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'completed'
+    });
+
+    await expect(
+      service.complete('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'completed'
+    });
+    expect(assertCanComplete).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      transition: 'complete'
+    });
+  });
+
+  it('lets staff record no-show', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    transition.mockResolvedValueOnce({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'no_show'
+    });
+
+    await expect(
+      service.markNoShow('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'no_show'
+    });
+    expect(assertCanComplete).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      transition: 'no_show'
+    });
+  });
+
+  it('does not persist complete when authorization denies', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    assertCanComplete.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.complete('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).rejects.toThrow('denied');
+    expect(transition).not.toHaveBeenCalled();
   });
 });

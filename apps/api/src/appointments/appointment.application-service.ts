@@ -5,7 +5,8 @@ import type {
   CreateAppointmentResponse,
   GetAppointmentResponse,
   RescheduleAppointmentRequest,
-  RescheduleAppointmentResponse
+  RescheduleAppointmentResponse,
+  TransitionAppointmentResponse
 } from '@beauessence/contracts';
 import type {
   AppointmentTransition,
@@ -348,6 +349,74 @@ export class AppointmentApplicationService {
       throw new DomainError(
         'TRANSITION_NOT_ALLOWED',
         'The appointment cannot be cancelled.'
+      );
+    }
+
+    return {
+      appointmentId: result.appointmentId,
+      status: result.status
+    };
+  }
+
+  public async complete(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<TransitionAppointmentResponse> {
+    return this.staffVisitTransition(
+      appointmentId,
+      command,
+      authentication,
+      'complete',
+      'completed'
+    );
+  }
+
+  public async markNoShow(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<TransitionAppointmentResponse> {
+    return this.staffVisitTransition(
+      appointmentId,
+      command,
+      authentication,
+      'no_show',
+      'no_show'
+    );
+  }
+
+  private async staffVisitTransition(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext,
+    transition: 'complete' | 'no_show',
+    expectedStatus: 'completed' | 'no_show'
+  ): Promise<TransitionAppointmentResponse> {
+    const record = await this.repository.read(appointmentId);
+    await this.authorization.assertCanComplete(
+      authentication,
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
+    );
+
+    const result = await this.repository.transition(
+      toTransitionRequest(appointmentId, command, transition, {
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: null,
+          policyVersion: null
+        }
+      })
+    );
+
+    if (result.status !== expectedStatus) {
+      throw new DomainError(
+        'TRANSITION_NOT_ALLOWED',
+        'The appointment cannot change visit status.'
       );
     }
 

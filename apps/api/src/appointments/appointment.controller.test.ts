@@ -87,11 +87,16 @@ const harnessRepository: AppointmentRepositoryPort = {
       replayed: false,
       startsAt: '2026-07-25T04:30:00.000Z'
     }),
-  transition: () =>
+  transition: (request) =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
       replayed: false,
-      status: 'cancelled'
+      status:
+        request.transition === 'complete'
+          ? 'completed'
+          : request.transition === 'no_show'
+            ? 'no_show'
+            : 'cancelled'
     }),
   read: () =>
     Promise.resolve(
@@ -339,6 +344,60 @@ describe('unrouted AppointmentController RBAC harness', () => {
       status: 'cancelled'
     });
   });
+
+  it('rejects a patient complete with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' },
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('rejects a physician complete with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' },
+      headers: actorHeaders('physician')
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('lets front desk complete with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' },
+      headers: actorHeaders('front_desk')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      status: 'completed'
+    });
+  });
+
+  it('lets a manager record no-show with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/no-show',
+      payload: { idempotencyKey: 'no_show_request_0001' },
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      status: 'no_show'
+    });
+  });
 });
 
 describe('production AppModule booking write path', () => {
@@ -387,6 +446,23 @@ describe('production AppModule booking write path', () => {
     expect(response.statusCode).toBe(503);
   });
 
+  it('refuses complete and no-show while the IP-001 internal-test gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const completeResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' }
+    });
+    const noShowResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/no-show',
+      payload: { idempotencyKey: 'no_show_request_0001' }
+    });
+    expect(completeResponse.statusCode).toBe(503);
+    expect(noShowResponse.statusCode).toBe(503);
+  });
+
   it('opens the isolated-test gate to authentication, not a write', async () => {
     const previous = {
       enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
@@ -408,6 +484,12 @@ describe('production AppModule booking write path', () => {
         payload: CREATE_BODY
       });
       expect(response.statusCode).toBe(401);
+      const complete = await app.inject({
+        method: 'POST',
+        url: '/v1/bookings/appointment_harness_001/complete',
+        payload: { idempotencyKey: 'complete_request_0001' }
+      });
+      expect(complete.statusCode).toBe(401);
     } finally {
       restoreInternalTestEnv(previous);
     }

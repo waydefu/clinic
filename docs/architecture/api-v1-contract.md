@@ -6,8 +6,8 @@ file is the human navigation layer for the executable schemas in
 authorised. `AppModule` registers `GET /v1/health`, the Decision Register's
 CAL-PILOT synthetic-only exception (`/v1/calendar-session`, `/v1/calendar`),
 and IP-001 `InternalTestBookingModule` (`POST /v1/bookings`, fail-closed
-503 unless the isolated-test gate is explicitly open; query and cancel
-are on the same gate). CAL-PILOT is not a
+503 unless the isolated-test gate is explicitly open; query, cancel,
+reschedule, complete and no-show are on the same gate). CAL-PILOT is not a
 production booking route.
 
 ## Boundary
@@ -27,7 +27,7 @@ production booking route.
 | --- | --- | --- | --- |
 | `GET` | `/v1/health` | `HealthResponseSchema` | Deployment and local-runtime liveness only; it exposes no patient data. |
 | CAL-PILOT session / calendar | `/v1/calendar-session/*`, `/v1/calendar/*` | CAL-PILOT contracts in `@beauessence/contracts` | Decision Register synthetic-only sub-scope: Google+TOTP, closed synthetic fields, expiry and exclusions in the register. Not production D-009/D-016, not public production booking. |
-| IP-001 internal-test booking | `POST /v1/bookings`, `GET /v1/bookings/:id`, `POST /v1/bookings/:id/cancel`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/delete` | Appointment command/query schemas | Fail-closed isolated-test reads/writes. Default 503. Not public production. |
+| IP-001 internal-test booking | `POST /v1/bookings`, `GET /v1/bookings/:id`, `POST /v1/bookings/:id/cancel`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/complete`, `POST /v1/bookings/:id/no-show`, `POST /v1/bookings/:id/delete` | Appointment command/query schemas | Fail-closed isolated-test reads/writes. Default 503. Not public production. |
 
 ## Reserved booking contracts
 
@@ -114,7 +114,7 @@ promote those rows to routed production booking.
 | Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | IP-001 fail-closed `POST /v1/bookings`. Patient identity is `verifiedPatientId`; staff may send opaque `onBehalfPatientId`. Default 503. Not public production; D-001～D-005 stay pending. |
 | Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | `AppointmentApplicationService.cancel` → `TransitionRequest(cancel)` (owner Q5 immediate cancel; patient cutoff is day-10:00 Asia/Taipei) | IP-001 fail-closed `POST /v1/bookings/:id/cancel`. Default 503. Not public production; D-005 stays pending. |
 | Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; cancellation authority/rules remain D-005; staff session/RBAC must implement approved D-006 |
-| Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; D-006 approves complete for front desk/administrator, while no-show remains D-005 and slot behavior remains D-004 |
+| Complete / no-show | Path `POST /v1/bookings/:id/complete` and `/no-show` with `CancelAppointmentRequestSchema` / `TransitionAppointmentResponseSchema` | `AppointmentApplicationService.complete` / `markNoShow` → `TransitionRequest(complete/no_show)` | IP-001 fail-closed staff routes. `complete_visit` for front_desk/manager/system_admin; patient and physician denied. Default 503. Not public production; D-004/D-005 stay pending. `complete-without-card` stays local-only — domain has no such transition. |
 | Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | `AppointmentApplicationService.reschedule` → `RescheduleRequest` | IP-001 fail-closed `POST /v1/bookings/:id/reschedule`. Patient cutoff is the same day-10:00 Asia/Taipei window as cancel. Default 503. Not public production; D-004/D-005 stay pending. |
 | Delete appointment record | `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Future staff application mapping → `DeleteAppointmentRequest` → `planDeletion` | Unrouted Stage 0 schema; D-006 approves administrator delete/front-desk delegated code, hashed/revocable/attempt-limited controls and permanent undeletable audit; booking retention remains D-002 and implementation remains Stage 2 work |
 | Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification/fields remain D-001～D-003/D-014; approved D-006 baseline does not infer clinical field scope |

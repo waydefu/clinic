@@ -133,6 +133,36 @@ export class AppointmentController {
     );
   }
 
+  @Post(':appointmentId/complete')
+  public async complete(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticator.authenticate(request);
+    return this.appointments.complete(
+      identifier(appointmentId),
+      CancelAppointmentRequestSchema.parse(body),
+      authentication
+    );
+  }
+
+  @Post(':appointmentId/no-show')
+  public async markNoShow(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticator.authenticate(request);
+    return this.appointments.markNoShow(
+      identifier(appointmentId),
+      CancelAppointmentRequestSchema.parse(body),
+      authentication
+    );
+  }
+
   @Post(':appointmentId/delete')
   public async delete(
     @Param('appointmentId') appointmentId: string,

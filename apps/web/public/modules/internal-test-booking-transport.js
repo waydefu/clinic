@@ -60,6 +60,22 @@ export function mapInternalTestBookingRequest(path, method, body) {
       }
     };
   }
+  const complete = /^\/bookings\/([A-Za-z0-9_-]+)\/complete$/.exec(path);
+  if (verb === 'POST' && complete !== null) {
+    return {
+      url: `/v1/bookings/${complete[1]}/complete`,
+      method: 'POST',
+      body: { idempotencyKey: idempotencyKey() }
+    };
+  }
+  const noShow = /^\/bookings\/([A-Za-z0-9_-]+)\/no-show$/.exec(path);
+  if (verb === 'POST' && noShow !== null) {
+    return {
+      url: `/v1/bookings/${noShow[1]}/no-show`,
+      method: 'POST',
+      body: { idempotencyKey: idempotencyKey() }
+    };
+  }
   const query = /^\/bookings\/([A-Za-z0-9_-]+)$/.exec(path);
   if (verb === 'GET' && query !== null) {
     return { url: `/v1/bookings/${query[1]}`, method: 'GET' };

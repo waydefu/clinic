@@ -90,6 +90,19 @@ export function createRbacAppointmentPolicy(
         resolve();
       });
     },
+    assertCanComplete(context, command): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        const scope = resolveScope(role, command.appointmentPatientId);
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'complete_visit',
+          scope
+        });
+        resolve();
+      });
+    },
     assertCanQuery(context, command): Promise<void> {
       return new Promise<void>((resolve) => {
         const role = resolveRole(context);

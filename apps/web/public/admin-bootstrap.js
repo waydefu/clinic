@@ -376,6 +376,28 @@ function applyContractWrite(path, body, result) {
     if (slot?.reservationId === appointment.id) delete slot.reservationId;
     return;
   }
+  const complete = /^\/bookings\/([^/]+)\/complete$/.exec(path);
+  if (complete !== null) {
+    const appointment = state.appointments.find(
+      (item) => item.id === complete[1]
+    );
+    if (appointment === undefined) return;
+    appointment.status = result.status ?? 'completed';
+    appointment.updatedAt = now;
+    return;
+  }
+  const noShow = /^\/bookings\/([^/]+)\/no-show$/.exec(path);
+  if (noShow !== null) {
+    const appointment = state.appointments.find(
+      (item) => item.id === noShow[1]
+    );
+    if (appointment === undefined) return;
+    appointment.status = result.status ?? 'no_show';
+    appointment.updatedAt = now;
+    const slot = state.slots.find((item) => item.id === appointment.slotId);
+    if (slot?.reservationId === appointment.id) delete slot.reservationId;
+    return;
+  }
   const reschedule = /^\/bookings\/([^/]+)\/reschedule$/.exec(path);
   if (reschedule === null) return;
   const appointment = state.appointments.find(

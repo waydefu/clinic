@@ -48,10 +48,17 @@
         {
           "kind": "decision",
           "id": "D-004",
-          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
+          "description": "正式公開 complete 的 slot 占用與逾時規則尚未核定。",
+          "blocks": "public_production_route"
+        },
+        {
+          "kind": "decision",
+          "id": "D-005",
+          "description": "正式公開 no-show 流程與費用規則尚未核定。",
+          "blocks": "public_production_route"
         }
       ],
-      "note": "D-006 已核准完成權限政策；C1～C6 合成 foundation 完成仍不掛 staff write 路由。"
+      "note": "IP-001 允許內部測試可達；D-004/D-005 pending 仍擋住 public production。"
     },
     "appointment_deletion": {
       "permissions": ["delete_appointment"],

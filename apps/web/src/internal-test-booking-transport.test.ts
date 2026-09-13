@@ -84,6 +84,27 @@ describe('mapInternalTestBookingRequest', () => {
       url: '/v1/bookings/appointment_001',
       method: 'GET'
     });
+    expect(
+      mapInternalTestBookingRequest(
+        '/bookings/appointment_001/complete',
+        'POST',
+        {}
+      )?.url
+    ).toBe('/v1/bookings/appointment_001/complete');
+    expect(
+      mapInternalTestBookingRequest(
+        '/bookings/appointment_001/no-show',
+        'POST',
+        {}
+      )?.url
+    ).toBe('/v1/bookings/appointment_001/no-show');
+    expect(
+      mapInternalTestBookingRequest(
+        '/bookings/appointment_001/complete-without-card',
+        'POST',
+        {}
+      )
+    ).toBeUndefined();
   });
 });
 
