@@ -192,9 +192,45 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
     }
   });
 
+  function requireHarness(): NestFastifyApplication {
+    if (nestApp === undefined) throw new Error('Nest harness was not started.');
+    return nestApp;
+  }
+
+  async function publishGrid(
+    harness: NestFastifyApplication,
+    idempotencyKey = PUBLISH_BODY.idempotencyKey
+  ): Promise<void> {
+    const published = await harness.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: actorHeaders('manager'),
+      payload: { ...PUBLISH_BODY, idempotencyKey }
+    });
+    expect(published.statusCode).toBe(201);
+  }
+
+  async function bookPublishedSlot(
+    harness: NestFastifyApplication,
+    extras: Record<string, string> = {}
+  ) {
+    return harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: actorHeaders('patient', {
+        'x-test-patient-id': extras['x-test-patient-id'] ?? 'patient_001'
+      }),
+      payload: {
+        ...CREATE_BODY,
+        ...(extras.idempotencyKey === undefined
+          ? {}
+          : { idempotencyKey: extras.idempotencyKey })
+      }
+    });
+  }
+
   it('publishes over HTTP, lists a grid slot with no slot document, then books it', async () => {
-    const harness = nestApp;
-    if (harness === undefined) throw new Error('Nest harness was not started.');
+    const harness = requireHarness();
 
     const published = await harness.inject({
       method: 'POST',
@@ -244,22 +280,24 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
 
     const slot = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
     expect(slot.data()?.['reservationId']).toBe(APPOINTMENT_ID);
+
+    const queried = await harness.inject({
+      method: 'GET',
+      url: `/v1/bookings/${APPOINTMENT_ID}`,
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(queried.statusCode).toBe(200);
+    expect(JSON.parse(queried.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z'
+    });
   });
 
   it('rejects a slot that is not on the published grid with 409', async () => {
-    const harness = nestApp;
-    if (harness === undefined) throw new Error('Nest harness was not started.');
-
-    const published = await harness.inject({
-      method: 'POST',
-      url: '/v1/schedule/publish',
-      headers: actorHeaders('manager'),
-      payload: {
-        ...PUBLISH_BODY,
-        idempotencyKey: 'schedule_publish_0004'
-      }
-    });
-    expect(published.statusCode).toBe(201);
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0004');
 
     const created = await harness.inject({
       method: 'POST',
@@ -274,6 +312,60 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
     });
     expect(created.statusCode).toBe(409);
     expect(JSON.parse(created.payload)).toMatchObject({
+      error: { code: 'CONFLICT' }
+    });
+  });
+
+  it('lets staff complete a published-grid booking over HTTP and refuses a patient', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0005');
+    const created = await bookPublishedSlot(harness);
+    expect(created.statusCode).toBe(201);
+
+    const denied = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/complete`,
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
+      payload: { idempotencyKey: 'booking-idempotency-0005' }
+    });
+    expect(denied.statusCode).toBe(403);
+
+    const completed = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/complete`,
+      headers: actorHeaders('manager'),
+      payload: { idempotencyKey: 'booking-idempotency-0006' }
+    });
+    expect(completed.statusCode).toBe(201);
+    expect(JSON.parse(completed.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'completed'
+    });
+
+    const queried = await harness.inject({
+      method: 'GET',
+      url: `/v1/bookings/${APPOINTMENT_ID}`,
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(queried.statusCode).toBe(200);
+    expect(JSON.parse(queried.payload)).toMatchObject({
+      appointmentId: APPOINTMENT_ID,
+      status: 'completed'
+    });
+  });
+
+  it('rejects a second HTTP create on the occupied published slot with 409', async () => {
+    const harness = requireHarness();
+    await publishGrid(harness, 'schedule_publish_0006');
+    const first = await bookPublishedSlot(harness);
+    expect(first.statusCode).toBe(201);
+
+    const second = await bookPublishedSlot(harness, {
+      'x-test-patient-id': 'patient_002',
+      idempotencyKey: 'booking-idempotency-0008'
+    });
+    expect(second.statusCode).toBe(409);
+    expect(JSON.parse(second.payload)).toMatchObject({
       error: { code: 'CONFLICT' }
     });
   });
