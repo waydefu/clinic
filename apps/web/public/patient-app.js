@@ -33,6 +33,10 @@ import {
   groupSlotsByDate
 } from './modules/ui-format.js';
 import { apiClient } from './modules/api-client.js';
+import {
+  isInternalTestBookingEnabled,
+  resolveApiClient
+} from './modules/api-client.js';
 import { runPendingAction } from './modules/async-action.js';
 
 const identityKeyStorage = 'beauessence_patient_last_identity';
@@ -44,6 +48,7 @@ const panels = [...document.querySelectorAll('[data-booking-step]')];
 const indicators = [...document.querySelectorAll('[data-step-indicator]')];
 const bookingResultPanel = document.querySelector('[data-booking-result]');
 
+let client = apiClient;
 let state;
 let selectedBookingType = 'initial';
 let selectedServiceId;
@@ -75,6 +80,36 @@ function rememberPatient(patientId) {
   } catch {
     /* 無痕模式等情境下略過記憶 */
   }
+}
+
+function isContractBooking(result) {
+  return (
+    result !== null &&
+    typeof result === 'object' &&
+    typeof result.appointmentId === 'string' &&
+    result.state === undefined &&
+    !Array.isArray(result.appointments)
+  );
+}
+
+function managedFromContract(result, extras = {}) {
+  return {
+    id: result.appointmentId,
+    startsAt: result.startsAt,
+    status: result.status ?? 'confirmed',
+    bookingKind: extras.bookingKind,
+    itemLabel: extras.itemLabel ?? '',
+    slotId: extras.slotId
+  };
+}
+
+function rememberManagedAppointment(appointment) {
+  managedAppointments = [
+    appointment,
+    ...managedAppointments.filter((item) => item.id !== appointment.id)
+  ];
+  lastLookupVerification = lastLookupVerification ?? {};
+  renderManagedAppointments();
 }
 
 // 頂端 #patient-status 是唯一的 aria-live 播報點；anchorId 把同一句話放到
@@ -286,7 +321,7 @@ function scheduleMaintenanceResume() {
   if (!Number.isFinite(delay) || delay <= 0) return;
   maintenanceResumeTimer = window.setTimeout(
     async () => {
-      state = await apiClient.request('/state');
+      state = await client.request('/state');
       renderAll();
     },
     Math.min(delay + 50, 2_147_000_000)
@@ -932,7 +967,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
     pendingMessage: '正在送出預約，請稍候。',
     anchorId: 'patient-submit-status',
     action: () =>
-      apiClient.request('/bookings', {
+      client.request('/bookings', {
         method: 'POST',
         body: JSON.stringify({
           slotId: selectedSlotId,
@@ -953,8 +988,40 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
           origin: 'patient'
         })
       }),
-    onSuccess: (nextState) => {
-      state = nextState;
+    onSuccess: (result) => {
+      if (isContractBooking(result) && result.startsAt !== undefined) {
+        const itemLabel =
+          PATIENT_SERVICES.find((item) => item.id === selectedServiceId)
+            ?.label ?? '';
+        completedAppointmentId = result.appointmentId;
+        completedAppointment = {
+          id: result.appointmentId,
+          startsAt: result.startsAt,
+          kindLabel: BOOKING_KIND_LABELS[selectedBookingType]
+        };
+        rememberManagedAppointment(
+          managedFromContract(result, {
+            bookingKind: selectedBookingType,
+            itemLabel,
+            slotId: selectedSlotId
+          })
+        );
+        elements['add-to-google-calendar'].href =
+          buildGoogleCalendarUrl(completedAppointment);
+        elements['booking-complete-mark'].textContent = '✓';
+        elements['booking-complete-eyebrow'].textContent = 'BOOKING COMPLETE';
+        elements['booking-complete-heading'].textContent = '預約已建立';
+        elements['booking-complete-description'].textContent =
+          '請於門診時間前十分鐘抵達櫃台。';
+        elements['booking-complete-reminder'].hidden = false;
+        elements['booking-result'].innerHTML =
+          `<strong>預約編號：${escapeHtml(result.appointmentId)}</strong><span>${escapeHtml(formatFullDate(result.startsAt))} ${escapeHtml(formatTime(result.startsAt))} · ${escapeHtml(itemLabel)}</span>`;
+        renderAll();
+        showBookingResult();
+        message(`預約已建立：${result.appointmentId}。`, 'success');
+        return;
+      }
+      state = result;
       // A cancelled or no-show appointment keeps its original slotId even
       // after release, so only the live reservation identifies this result.
       const appointment = state.appointments.find(
@@ -1107,16 +1174,30 @@ document.querySelectorAll('[data-booking-lookup-mode]').forEach((button) =>
   })
 );
 
+function opaqueAppointmentId(value) {
+  const id = String(value ?? '').trim();
+  return /^[A-Za-z0-9_-]{8,128}$/.test(id) && /[A-Za-z_]/.test(id)
+    ? id
+    : undefined;
+}
+
 elements['booking-lookup-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   const verification = lookupVerification();
+  const appointmentId = opaqueAppointmentId(
+    bookingLookupMode === 'phone'
+      ? verification.phone
+      : verification.documentNumber
+  );
+  const canQueryById =
+    appointmentId !== undefined && isInternalTestBookingEnabled();
   const secondField =
     bookingLookupMode === 'phone'
       ? verification.phone
       : verification.documentNumber;
   if (
-    verification.birthDate === '' ||
-    String(secondField ?? '').trim() === ''
+    !canQueryById &&
+    (verification.birthDate === '' || String(secondField ?? '').trim() === '')
   ) {
     elements['booking-lookup-status'].hidden = false;
     elements['booking-lookup-status'].dataset.state = 'error';
@@ -1132,11 +1213,19 @@ elements['booking-lookup-form'].addEventListener('submit', async (event) => {
     pendingMessage: '正在查詢預約。',
     anchorId: 'booking-lookup-status',
     action: () =>
-      apiClient.request('/patient/bookings/lookup', {
-        method: 'POST',
-        body: JSON.stringify(verification)
-      }),
+      canQueryById
+        ? client.request(`/bookings/${appointmentId}`)
+        : client.request('/patient/bookings/lookup', {
+            method: 'POST',
+            body: JSON.stringify(verification)
+          }),
     onSuccess: (result) => {
+      if (isContractBooking(result)) {
+        lastLookupVerification = {};
+        rememberManagedAppointment(managedFromContract(result));
+        message('找到 1 筆預約。', 'success', 'booking-lookup-status');
+        return;
+      }
       lastLookupVerification = verification;
       managedAppointments = result.appointments;
       renderManagedAppointments();
@@ -1152,7 +1241,7 @@ elements['booking-lookup-form'].addEventListener('submit', async (event) => {
 
 elements['booking-lookup-results'].addEventListener('click', async (event) => {
   const button = event.target.closest('[data-managed-cancel]');
-  if (button === null || lastLookupVerification === undefined) return;
+  if (button === null) return;
   const appointment = managedAppointments.find(
     (item) => item.id === button.dataset.managedCancel
   );
@@ -1171,16 +1260,23 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
     pendingMessage: '正在取消預約。',
     anchorId: 'booking-lookup-status',
     action: () =>
-      apiClient.request(`/patient/bookings/${appointment.id}/self-cancel`, {
+      client.request(`/patient/bookings/${appointment.id}/self-cancel`, {
         method: 'POST',
-        body: JSON.stringify(lastLookupVerification)
+        body: JSON.stringify(lastLookupVerification ?? {})
       }),
     onSuccess: (result) => {
-      state = result.state;
-      managedAppointments = managedAppointments.map((item) =>
-        item.id === result.appointment.id ? result.appointment : item
-      );
-      renderManagedAppointments();
+      if (isContractBooking(result)) {
+        rememberManagedAppointment({
+          ...appointment,
+          status: result.status
+        });
+      } else {
+        state = result.state;
+        managedAppointments = managedAppointments.map((item) =>
+          item.id === result.appointment.id ? result.appointment : item
+        );
+        renderManagedAppointments();
+      }
       if (appointment.id === completedAppointmentId) {
         elements['booking-complete-mark'].textContent = '✓';
         elements['booking-complete-eyebrow'].textContent = 'BOOKING CANCELLED';
@@ -1203,7 +1299,7 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
 
 elements['booking-lookup-results'].addEventListener('click', async (event) => {
   const button = event.target.closest('[data-managed-reschedule]');
-  if (button === null || lastLookupVerification === undefined) return;
+  if (button === null) return;
   const appointment = managedAppointments.find(
     (item) => item.id === button.dataset.managedReschedule
   );
@@ -1231,16 +1327,28 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
     pendingMessage: '正在改期。',
     anchorId: 'booking-lookup-status',
     action: () =>
-      apiClient.request(`/patient/bookings/${appointment.id}/self-reschedule`, {
+      client.request(`/patient/bookings/${appointment.id}/self-reschedule`, {
         method: 'POST',
-        body: JSON.stringify({ ...lastLookupVerification, targetSlotId })
+        body: JSON.stringify({
+          ...(lastLookupVerification ?? {}),
+          targetSlotId
+        })
       }),
     onSuccess: (result) => {
-      state = result.state;
-      managedAppointments = managedAppointments.map((item) =>
-        item.id === result.appointment.id ? result.appointment : item
-      );
-      renderManagedAppointments();
+      if (isContractBooking(result) && result.startsAt !== undefined) {
+        rememberManagedAppointment({
+          ...appointment,
+          startsAt: result.startsAt,
+          status: result.status ?? 'confirmed',
+          slotId: targetSlotId
+        });
+      } else {
+        state = result.state;
+        managedAppointments = managedAppointments.map((item) =>
+          item.id === result.appointment.id ? result.appointment : item
+        );
+        renderManagedAppointments();
+      }
       if (appointment.id === completedAppointmentId) {
         elements['booking-complete-mark'].textContent = '✓';
         elements['booking-complete-eyebrow'].textContent = 'BOOKING UPDATED';
@@ -1275,7 +1383,7 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
 // 靜地不同步（v4→v5 當下就發生了）。
 window.addEventListener('storage', async (event) => {
   if (event.key !== storageKey) return;
-  state = await apiClient.request('/state');
+  state = await client.request('/state');
   renderAll();
   if (state.maintenanceActive)
     message('預約系統已進入維護，請稍後再試。', 'info');
@@ -1284,8 +1392,9 @@ window.addEventListener('storage', async (event) => {
 if (isOnline) {
   document.querySelector('.environment-badge').lastChild.textContent =
     'ONLINE PREVIEW';
-  elements['patient-env-boundary'].textContent =
-    '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
+  elements['patient-env-boundary'].textContent = isInternalTestBookingEnabled()
+    ? '內部測試路由 · 非正式上線'
+    : '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
 }
 
 // 不依賴資料的內容先畫（但停用）：看診項目與看診類型是常數，沒有理由等一次
@@ -1301,7 +1410,8 @@ syncReferrerField();
 syncIdentityDocumentField();
 
 try {
-  state = await apiClient.request('/state');
+  client = await resolveApiClient();
+  state = await client.request('/state');
   dataReady = true;
   renderAll();
   // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。

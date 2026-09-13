@@ -80,6 +80,20 @@ present under `apps/api/src/appointments`. IP-001 mounts them through
 production `/v1/bookings` stays unauthorised. CAL-PILOT does not mount
 `AppointmentController` directly.
 
+The application service maps create and reschedule onto
+`CreateAppointmentResponseSchema` / `RescheduleAppointmentResponseSchema`
+(`appointmentId`, `status: 'confirmed'`, `startsAt`, `endsAt`). Idempotent
+replay is an internal repository flag and is **not** returned on the wire.
+
+The patient booking page stays on the local synthetic store unless the
+operator opts in with `?internalTestBooking=1` on a host that is **not**
+`beauessence-clinic-staging.web.app`. That opt-in dynamically loads a
+hybrid transport so the 92 KiB static graph does not include `fetch`.
+Phone lookup remains synthetic. Patients present a Firebase ID token
+(`sessionStorage.internalTestIdToken` or a future Auth adapter); staff
+reuse the CAL-PILOT `__session` cookie plus CSRF. Default production
+booking remains HTTP 503.
+
 The application boundary also creates a server-owned audit context containing
 the authenticated actor ID and opaque role, correlation ID and source. None is
 accepted from the appointment command. Reason code and policy version remain

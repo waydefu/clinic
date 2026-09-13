@@ -284,3 +284,39 @@ export const apiClient = createApiClient(stagingRequest, {
   minimumLatencyMs: DEFAULT_SYNTHETIC_LATENCY_MS,
   timeoutMs: DEFAULT_TIMEOUT_MS
 });
+
+const FORBIDDEN_PREVIEW_HOST = 'beauessence-clinic-staging.web.app';
+
+/**
+ * Fail-closed: preview and default pages stay on localStorage. Operators
+ * opt in with `?internalTestBooking=1` on a host that is not the forbidden
+ * CAL-PILOT preview project.
+ */
+export function isInternalTestBookingEnabled(location = globalThis.location) {
+  if (location === undefined || location === null) return false;
+  const hostname = String(location.hostname ?? '');
+  if (
+    hostname === FORBIDDEN_PREVIEW_HOST ||
+    hostname.endsWith(`.${FORBIDDEN_PREVIEW_HOST}`)
+  ) {
+    return false;
+  }
+  return (
+    new URLSearchParams(String(location.search ?? '')).get(
+      'internalTestBooking'
+    ) === '1'
+  );
+}
+
+export async function resolveApiClient() {
+  if (!isInternalTestBookingEnabled()) return apiClient;
+  const { createInternalTestBookingTransport } =
+    await import('./internal-test-booking-transport.js');
+  return createApiClient(
+    createInternalTestBookingTransport({
+      local: stagingRequest,
+      toError: httpTransportError
+    }),
+    { timeoutMs: DEFAULT_TIMEOUT_MS }
+  );
+}
