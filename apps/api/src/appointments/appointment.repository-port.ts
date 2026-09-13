@@ -1,9 +1,30 @@
-import type { BookingRequest, RescheduleRequest } from '@beauessence/domain';
+import type {
+  AppointmentStatusValue,
+  BookingKind,
+  BookingRequest,
+  RescheduleRequest,
+  TransitionRequest
+} from '@beauessence/domain';
 
 export interface ReservationResult {
   readonly appointmentId: string;
   /** True when the request replayed an idempotency key instead of writing. */
   readonly replayed: boolean;
+}
+
+export interface AppointmentRecord {
+  readonly appointmentId: string;
+  readonly patientId: string;
+  readonly slotId: string;
+  readonly bookingKind: BookingKind;
+  readonly status: AppointmentStatusValue;
+  readonly startsAt?: string;
+}
+
+export interface TransitionResult {
+  readonly appointmentId: string;
+  readonly replayed: boolean;
+  readonly status: AppointmentStatusValue;
 }
 
 /**
@@ -13,6 +34,8 @@ export interface ReservationResult {
 export interface AppointmentRepositoryPort {
   reserve(request: BookingRequest): Promise<ReservationResult>;
   reschedule(request: RescheduleRequest): Promise<ReservationResult>;
+  transition(request: TransitionRequest): Promise<TransitionResult>;
+  read(appointmentId: string): Promise<AppointmentRecord | undefined>;
   /** Owner of the appointment, or `undefined` when the row is missing. */
   patientIdOf(appointmentId: string): Promise<string | undefined>;
 }

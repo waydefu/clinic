@@ -103,6 +103,46 @@ describe('createRbacAppointmentPolicy', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('scopes a verified patient cancel and query to their own bookings', async () => {
+    const own = { appointmentPatientId: 'patient_001' };
+    const patient = context({ verifiedPatientId: 'patient_001' });
+    await expect(
+      policyFor('patient').assertCanCancel(patient, own)
+    ).resolves.toBeUndefined();
+    await expect(
+      policyFor('patient').assertCanQuery(patient, own)
+    ).resolves.toBeUndefined();
+  });
+
+  it('denies a patient cancelling or querying another patient resource', async () => {
+    const other = { appointmentPatientId: 'patient_002' };
+    const patient = context({ verifiedPatientId: 'patient_001' });
+    await expect(
+      policyFor('patient').assertCanCancel(patient, other)
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    await expect(
+      policyFor('patient').assertCanQuery(patient, other)
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
+  it('lets staff cancel and query against the clinic-wide scope', async () => {
+    await expect(
+      policyFor('front_desk').assertCanCancel(context(), {})
+    ).resolves.toBeUndefined();
+    await expect(
+      policyFor('front_desk').assertCanQuery(context(), {})
+    ).resolves.toBeUndefined();
+  });
+
+  it('denies a physician from cancelling or querying', async () => {
+    await expect(
+      policyFor('physician').assertCanCancel(context(), {})
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    await expect(
+      policyFor('physician').assertCanQuery(context(), {})
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
   it('denies a physician from rescheduling', async () => {
     await expect(
       policyFor('physician').assertCanReschedule(context(), {})

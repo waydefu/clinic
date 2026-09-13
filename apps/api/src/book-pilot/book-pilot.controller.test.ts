@@ -97,6 +97,25 @@ const harnessRepository: AppointmentRepositoryPort = {
       appointmentId: 'appointment_harness_001',
       replayed: false
     }),
+  transition: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      status: 'cancelled'
+    }),
+  read: () =>
+    Promise.resolve(
+      ownerPatientId === undefined
+        ? undefined
+        : {
+            appointmentId: 'appointment_harness_001',
+            patientId: ownerPatientId,
+            slotId: 'slot_001',
+            bookingKind: 'initial',
+            status: 'confirmed',
+            startsAt: '2026-07-25T04:00:00.000Z'
+          }
+    ),
   patientIdOf: () => Promise.resolve(ownerPatientId)
 };
 

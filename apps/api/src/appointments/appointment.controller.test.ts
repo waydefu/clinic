@@ -85,6 +85,25 @@ const harnessRepository: AppointmentRepositoryPort = {
       appointmentId: 'appointment_harness_001',
       replayed: false
     }),
+  transition: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      status: 'cancelled'
+    }),
+  read: () =>
+    Promise.resolve(
+      ownerPatientId === undefined
+        ? undefined
+        : {
+            appointmentId: 'appointment_harness_001',
+            patientId: ownerPatientId,
+            slotId: 'slot_001',
+            bookingKind: 'initial',
+            status: 'confirmed',
+            startsAt: '2026-07-25T04:00:00.000Z'
+          }
+    ),
   patientIdOf: () => Promise.resolve(ownerPatientId)
 };
 
@@ -215,6 +234,61 @@ describe('unrouted AppointmentController RBAC harness', () => {
       replayed: false
     });
   });
+
+  it('rejects a patient querying another patient resource with 403', async () => {
+    ownerPatientId = 'patient_002';
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'GET',
+      url: '/v1/bookings/appointment_harness_001',
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('lets a manager query with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'GET',
+      url: '/v1/bookings/appointment_harness_001',
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
+    });
+  });
+
+  it('rejects a physician cancel with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/cancel',
+      payload: { idempotencyKey: 'cancel_request_0001' },
+      headers: actorHeaders('physician')
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('lets a manager cancel with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/cancel',
+      payload: { idempotencyKey: 'cancel_request_0001' },
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      status: 'cancelled'
+    });
+  });
 });
 
 describe('production AppModule booking write path', () => {
@@ -234,5 +308,21 @@ describe('production AppModule booking write path', () => {
       payload: CREATE_BODY
     });
     expect(response.statusCode).toBe(503);
+  });
+
+  it('refuses GET and cancel while the IP-001 internal-test gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const getResponse = await app.inject({
+      method: 'GET',
+      url: '/v1/bookings/appointment_harness_001'
+    });
+    const cancelResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/cancel',
+      payload: { idempotencyKey: 'cancel_request_0001' }
+    });
+    expect(getResponse.statusCode).toBe(503);
+    expect(cancelResponse.statusCode).toBe(503);
   });
 });

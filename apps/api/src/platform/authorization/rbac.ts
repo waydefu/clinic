@@ -45,6 +45,7 @@ export type CandidateRole = Role;
 
 export type Permission =
   | 'create_appointment'
+  | 'read_appointment'
   | 'request_cancellation'
   | 'confirm_cancellation'
   | 'complete_visit'
@@ -72,11 +73,13 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
 > = {
   patient: [
     'create_appointment',
+    'read_appointment',
     'request_cancellation',
     'reschedule_appointment'
   ],
   front_desk: [
     'create_appointment',
+    'read_appointment',
     'request_cancellation',
     'confirm_cancellation',
     'complete_visit',
@@ -92,6 +95,7 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
   physician: [],
   manager: [
     'create_appointment',
+    'read_appointment',
     'request_cancellation',
     'confirm_cancellation',
     'complete_visit',
@@ -107,6 +111,7 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
   ],
   system_admin: [
     'create_appointment',
+    'read_appointment',
     'request_cancellation',
     'confirm_cancellation',
     'complete_visit',

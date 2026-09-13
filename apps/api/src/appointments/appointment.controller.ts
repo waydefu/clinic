@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Inject,
   Optional,
   Param,
@@ -8,8 +9,10 @@ import {
   Req
 } from '@nestjs/common';
 import {
+  CancelAppointmentRequestSchema,
   CreateAppointmentRequestSchema,
-  RescheduleAppointmentRequestSchema
+  RescheduleAppointmentRequestSchema,
+  type GetAppointmentResponse
 } from '@beauessence/contracts';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
@@ -86,6 +89,31 @@ export class AppointmentController {
     const authentication = await this.authenticator.authenticate(request);
     return this.appointments.create(
       CreateAppointmentRequestSchema.parse(body),
+      authentication
+    );
+  }
+
+  @Get(':appointmentId')
+  public async get(
+    @Param('appointmentId') appointmentId: string,
+    @Req() request: AuthenticatableRequest
+  ): Promise<GetAppointmentResponse> {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticator.authenticate(request);
+    return this.appointments.get(identifier(appointmentId), authentication);
+  }
+
+  @Post(':appointmentId/cancel')
+  public async cancel(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticator.authenticate(request);
+    return this.appointments.cancel(
+      identifier(appointmentId),
+      CancelAppointmentRequestSchema.parse(body),
       authentication
     );
   }

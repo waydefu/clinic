@@ -2,7 +2,18 @@
 
 Dated evidence, not an approval. As-of GitHub / CLI inventory:
 `2026-09-13T15:56:36Z`. This record does not authorize production, real
-data, DNS mutation, live Hosting, production Calendar, or `/v1/bookings`.
+data, DNS mutation, live Hosting, production Calendar, or public production
+`/v1/bookings`.
+
+## Update 2026-09-13T17:55Z
+
+Dated evidence, not approval. `origin/main` is `d6559f0` (merge of #121).
+#116 is closed as superseded. #118, #119 and #121 are on `main`. #120's
+Phase 0 snapshot commits landed through #121. B-001 and B-002 are
+`RESOLVED`. This VM has gcloud CLI identity, ADC, and Firebase CLI login
+for isolated project `beauessence-clinic-stg-c1a01` only. Do not
+`firebase use` or apply to `beauessence-clinic-staging`. No terraform
+apply, live Hosting, DNS, or real data this session.
 
 **Executor:** `GROK_UNRESTED` / `GROK_PROJECT_CLOSER` (owner direction this
 session). `GROK_RESTS` / `LUNA_SOLE_EXECUTOR` remains the laptop Luna card.
@@ -101,20 +112,20 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 - **blocked capability:** Phase 0 Firebase `login:list` hardening + Canon
   reconcile docs
 - **exact root cause:** docs overlap with #117; merge token cannot merge
-- **current evidence:** original #116 OPEN on stale `de2075f`. Successor
-  is #120 rebased onto #119 `0c03679`. Merge order: #119 then #120;
-  then close #116 as superseded.
+- **current evidence:** #119 MERGED 2026-09-13T17:04:12Z into `main`
+  `201969d`. #120 MERGED into `cursor/b013-stored-role-f9d6` then its six
+  commits landed on `main` via #121 `d6559f0` (2026-09-13T17:37:53Z).
+  #116 CLOSED 2026-09-13T17:30:37Z as superseded.
 - **owner:** clinic technical owner
 - **severity:** medium
-- **dependency:** PR #119
-- **exact resolution:** human merges #119 (`0c03679` 12/12), then #120
-  after that SHA’s exact-head CI
-- **can Grok solve it?** rebase/CI yes; merge no
-- **requires human?** yes for merge
+- **dependency:** none remaining
+- **exact resolution:** already on `main`
+- **can Grok solve it?** n/a
+- **requires human?** no remaining
 - **requires external approval?** no
-- **safe parallel work:** IP-001 internal-test route on a stacked branch
-- **resume action:** merge #119 then #120
-- **status:** `HUMAN_ACTION_REQUIRED`
+- **safe parallel work:** n/a
+- **resume action:** none
+- **status:** `RESOLVED`
 
 ### B-003 — D-001–D-005 production/legal ceremony
 
@@ -472,14 +483,12 @@ Do not paste passwords, OTP, tokens, ADC JSON, or service-account keys.
 
 ```text
 BLOCKER: B-001 / B-002
-WHY: this agent cannot merge; #116 and #117 overlap two doc files
-EXACT ACTION: merge PR #118 (contains #117 HEAD plus this follow-on) OR
-     merge #117 then this follow-on; then rebase #116
-WHERE: https://github.com/waydefu/clinic/pull/118
-EXPECTED RESULT: main contains hashed delegation + atomic lock/audit;
-     #116 rebased and still green
+WHY: already merged to main (#118, #119, #121; #116 closed)
+EXACT ACTION: none remaining for this merge stack
+WHERE: origin/main d6559f0
+EXPECTED RESULT: already true
 DO NOT SHARE: merge tokens
-WHAT GROK WILL DO AFTER: continue unrouted D-006 / Calendar prep on fresh main
+WHAT GROK WILL DO AFTER: internal-test cancel/query and isolated-project preview only with fresh exact-SHA authority
 ```
 
 ```text

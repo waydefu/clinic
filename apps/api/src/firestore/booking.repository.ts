@@ -24,8 +24,10 @@ import type {
 import { FieldValue } from 'firebase-admin/firestore';
 
 import type {
+  AppointmentRecord,
   AppointmentRepositoryPort,
-  ReservationResult
+  ReservationResult,
+  TransitionResult
 } from '../appointments/appointment.repository-port.js';
 
 export const COLLECTIONS = {
@@ -52,12 +54,27 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   public constructor(private readonly db: Firestore) {}
 
   public async patientIdOf(appointmentId: string): Promise<string | undefined> {
+    const record = await this.read(appointmentId);
+    return record?.patientId;
+  }
+
+  public async read(
+    appointmentId: string
+  ): Promise<AppointmentRecord | undefined> {
     const snapshot = await this.db
       .collection(COLLECTIONS.appointments)
       .doc(appointmentId)
       .get();
-    const patientId: unknown = snapshot.data()?.patientId;
-    return typeof patientId === 'string' ? patientId : undefined;
+    if (!snapshot.exists) return undefined;
+    const parsed = parseAppointmentSnapshot(snapshot.id, snapshot.data());
+    return {
+      appointmentId: parsed.id,
+      patientId: parsed.patientId,
+      slotId: parsed.slotId,
+      bookingKind: parsed.bookingKind,
+      status: parsed.status,
+      ...(parsed.startsAt === undefined ? {} : { startsAt: parsed.startsAt })
+    };
   }
 
   public async reserve(request: BookingRequest): Promise<ReservationResult> {
@@ -196,7 +213,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   /** 取消、提出取消、到診與未到；規則由 planTransition 決定。 */
   public async transition(
     request: TransitionRequest
-  ): Promise<ReservationResult> {
+  ): Promise<TransitionResult> {
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
       .collection(COLLECTIONS.idempotencyKeys)
@@ -211,10 +228,15 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         await transaction.get(idempotencyRef),
         request.idempotency
       );
-      if (replay !== undefined) return replay;
-
       const appointmentDocument = await transaction.get(appointmentRef);
       const appointment = this.snapshotOf(appointmentDocument);
+      if (replay !== undefined) {
+        return {
+          appointmentId: replay.appointmentId,
+          replayed: true,
+          status: appointment?.status ?? 'cancelled'
+        };
+      }
       const patientGuardDocument =
         appointment === undefined
           ? undefined
@@ -267,7 +289,11 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       transaction.create(idempotencyRef, plan.idempotencyRecord);
 
-      return { appointmentId: plan.appointmentId, replayed: false };
+      return {
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        status: plan.nextStatus
+      };
     });
   }
 
