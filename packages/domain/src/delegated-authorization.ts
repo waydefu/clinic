@@ -1,4 +1,16 @@
 import { DomainError } from './errors.js';
+import type { Role } from './roles.js';
+import type { DelegationDecision as CommonDelegationDecision } from './delegated-authorization-common.js';
+
+export {
+  assertAuthorizationShape,
+  planDelegationRecord
+} from './delegated-authorization-common.js';
+export type {
+  DelegationDecision,
+  DelegationDenialReason,
+  DelegationRecord
+} from './delegated-authorization-common.js';
 
 /**
  * 把一項權限「委派」給原本沒有它的角色，並以可個別撤銷的授權碼把關。
@@ -8,48 +20,89 @@ import { DomainError } from './errors.js';
  * 多組、每一組都能單獨開關**。多組是重點：一位離職、一支被看到，就停掉那一組，
  * 不必換掉全部人的。
  *
- * **這裡定義的是規則，不是安全機制。** 現階段授權碼以明碼比對，與工作臺的合成
- * 登入同屬 AUTH-001 的「非安全邊界」——瀏覽器裡的東西使用者本來就看得到。真正
- * 的驗證政策（雜湊、伺服器端、與 IdP 綁定）已由 D-006 核准，但 Stage 2 C2～C4
- * 尚未實作。把規則放在 domain，是為了讓實作到來時只換比對與執行邊界，不重寫
- * 整套判斷。
+ * **這裡定義的是規則，不是安全機制。** 授權碼只以 `secretSalt` 與 `secretHash`
+ * 形式存在；明碼只在輸入驗證與 server adapter 的短暫記憶體中出現。真正的 KDF、
+ * constant-time 比對、server-side session 與 IdP 綁定由 API 邊界負責。
+ * Stage 2 C2～C4 尚未接到 route。把規則放在 domain，是為了讓實作到來時只換
+ * 比對與執行邊界，不重寫整套判斷。
  */
 
 export interface DelegatedAuthorization {
   readonly id: string;
   /** 給人看的名字，例如「早班櫃台」。稽核紀錄會留這個，不留授權碼。 */
   readonly label: string;
-  readonly secret: string;
+  /** KDF 演算法版本由 server adapter 解讀；domain 不實作密碼學。 */
+  readonly secretKdf: 'scrypt';
+  /** 每組授權碼獨立 salt 的 base64url 編碼，不是明碼。 */
+  readonly secretSalt: string;
+  /** KDF 結果的 base64url 編碼，不是明碼。 */
+  readonly secretHash: string;
   readonly enabled: boolean;
 }
 
 export interface DelegationPolicy {
   /** 被委派的權限，例如 delete_appointment。 */
   readonly permission: string;
-  /** 委派給哪一個角色。 */
-  readonly delegatedToRole: string;
+  /** 委派給哪一個 canonical 角色。 */
+  readonly delegatedToRole: Role;
   /** 總開關：關掉就等於整項委派收回，不必逐一停用授權碼。 */
   readonly enabled: boolean;
   readonly authorizations: readonly DelegatedAuthorization[];
 }
 
-export type DelegationDenialReason =
-  | 'not_delegated_to_role'
-  | 'delegation_disabled'
-  | 'no_authorization_configured'
-  | 'secret_required'
-  | 'secret_not_recognised';
+export type DelegatedSecretVerifier = (
+  authorization: DelegatedAuthorization,
+  presentedSecret: string
+) => boolean;
 
-export type DelegationDecision =
-  | {
-      readonly authorised: true;
-      readonly authorizationId: string;
-      readonly authorizationLabel: string;
-    }
-  | { readonly authorised: false; readonly reason: DelegationDenialReason };
+export interface DelegationVerificationState {
+  readonly failedAttempts: number;
+  readonly locked: boolean;
+}
 
-const MINIMUM_SECRET_LENGTH = 6;
-const MAXIMUM_LABEL_LENGTH = 30;
+export type DelegationAttemptResult = 'success' | 'failure';
+
+/**
+ * Calculates the next attempt state. Persistence, actor/purpose keying and
+ * manager-mediated unlock belong to the server/application boundary. The
+ * caller must provide the reviewed maximum; the domain refuses values outside
+ * the NIST-derived 1–10 safety range rather than guessing a product policy.
+ */
+export function recordDelegationAttempt(
+  state: DelegationVerificationState,
+  result: DelegationAttemptResult,
+  maximumFailures: number
+): DelegationVerificationState {
+  if (
+    !Number.isInteger(maximumFailures) ||
+    maximumFailures < 1 ||
+    maximumFailures > 10
+  ) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'maximum delegation failures must be an integer from 1 to 10'
+    );
+  }
+  if (
+    !Number.isInteger(state.failedAttempts) ||
+    state.failedAttempts < 0 ||
+    state.failedAttempts > maximumFailures ||
+    (state.failedAttempts === maximumFailures && !state.locked)
+  ) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'delegation attempt state is invalid'
+    );
+  }
+  if (state.locked) return state;
+  if (result === 'success') return { failedAttempts: 0, locked: false };
+
+  const failedAttempts = state.failedAttempts + 1;
+  return {
+    failedAttempts,
+    locked: failedAttempts >= maximumFailures
+  };
+}
 
 /**
  * 判斷這一次委派使用是否成立。
@@ -59,9 +112,10 @@ const MAXIMUM_LABEL_LENGTH = 30;
  */
 export function authoriseDelegatedAction(
   policy: DelegationPolicy,
-  actorRole: string,
-  presentedSecret: unknown
-): DelegationDecision {
+  actorRole: Role,
+  presentedSecret: unknown,
+  verifySecret: DelegatedSecretVerifier
+): CommonDelegationDecision {
   if (policy.delegatedToRole !== actorRole)
     return { authorised: false, reason: 'not_delegated_to_role' };
   if (!policy.enabled)
@@ -76,7 +130,9 @@ export function authoriseDelegatedAction(
   const secret = typeof presentedSecret === 'string' ? presentedSecret : '';
   if (secret === '') return { authorised: false, reason: 'secret_required' };
 
-  const match = usable.find((authorization) => authorization.secret === secret);
+  const match = usable.find((authorization) =>
+    verifySecret(authorization, secret)
+  );
 
   // 停用的授權碼一律當作不存在。
   //
@@ -90,59 +146,5 @@ export function authoriseDelegatedAction(
     authorised: true,
     authorizationId: match.id,
     authorizationLabel: match.label
-  };
-}
-
-/**
- * 新增或更名一組授權碼時的驗證。
- *
- * 名稱必須可辨識：稽核紀錄留的是名稱，一堆「授權碼 1／2／3」等於沒有留。
- */
-export function assertAuthorizationShape(
-  label: unknown,
-  secret: unknown
-): { label: string; secret: string } {
-  const trimmedLabel = typeof label === 'string' ? label.trim() : '';
-  if (trimmedLabel === '' || trimmedLabel.length > MAXIMUM_LABEL_LENGTH)
-    throw new DomainError(
-      'INVALID_VALUE',
-      `authorization label must be 1-${MAXIMUM_LABEL_LENGTH} characters`
-    );
-
-  const trimmedSecret = typeof secret === 'string' ? secret.trim() : '';
-  if (trimmedSecret.length < MINIMUM_SECRET_LENGTH)
-    throw new DomainError(
-      'INVALID_VALUE',
-      `authorization secret must be at least ${MINIMUM_SECRET_LENGTH} characters`
-    );
-
-  return { label: trimmedLabel, secret: trimmedSecret };
-}
-
-/**
- * 稽核用的委派紀錄。**永遠不含授權碼本身**——稽核紀錄會被匯出、列印、轉寄，
- * 把授權碼寫進去等於讓它從一條沒有人在看的路徑外流。
- */
-export interface DelegationRecord {
-  readonly delegated: true;
-  readonly permission: string;
-  readonly authorizationId: string;
-  readonly authorizationLabel: string;
-}
-
-export function planDelegationRecord(
-  policy: DelegationPolicy,
-  decision: DelegationDecision
-): DelegationRecord {
-  if (!decision.authorised)
-    throw new DomainError(
-      'DELEGATION_NOT_AUTHORIZED',
-      'a delegation record requires an authorised decision'
-    );
-  return {
-    delegated: true,
-    permission: policy.permission,
-    authorizationId: decision.authorizationId,
-    authorizationLabel: decision.authorizationLabel
   };
 }

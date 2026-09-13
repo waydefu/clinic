@@ -629,9 +629,11 @@ The owner then approved **all remaining D-006 controls**:
 
 Implementation and test details are frozen in the
 [Stage 2 identity and cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md).
-D-006 is `approved`; this is a policy approval, not evidence that the current
-synthetic role switch, plaintext demonstration code or any cloud identity
-boundary satisfies it.
+D-006 is `approved`; this is a policy approval. The local implementation now has
+canonical roles, a server-side scrypt verifier for delegated authorization codes,
+and an explicit attempt-state transition, but this is not evidence that the
+synthetic role switch, C2/C3 identity/session, routed action enforcement, audit
+sink, or any cloud identity boundary satisfies D-006.
 
 **Retention clarification required by D-002 (2026-08-11 audit):** append-only
 integrity means an authorised event cannot be edited or silently deleted; it

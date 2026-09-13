@@ -210,6 +210,17 @@
       ],
       "note": "D-006 已核准 policy；此 adapter 仍把 account 當成 active。正式 write 路由仍待 D-004，且不得把合成 C2～C4 當成 production claims。"
     },
+    "src/platform/authorization/delegated-authorization-crypto.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式 booking write route 與 appointment deletion action 仍受 D-004 及後續 capability gates 約束；此 server adapter 刻意不由 AppModule 接線。"
+        }
+      ],
+      "note": "D-006 partial evidence: server-only scrypt verifier、per-record salt、constant-time comparison 已由 unit test 證明；C2/C3 identity/session、atomic persistence、denial audit sink 與 routed C4 enforcement 尚未完成。"
+    },
     "src/platform/runtime/maintenance-gate.ts": {
       "approvedPolicyDependencies": ["D-010"],
       "remainingBlockers": [

@@ -13,6 +13,12 @@
  *     --blockers "none" \
  *     --booking UNROUTED \
  *     --test-state "gates PASS" \
+ *     --authority "PRODUCTION=NO REAL_DATA=NO DNS=NO LIVE_HOSTING=NO PROD_CALENDAR=NO BOOKING=UNROUTED" \
+ *     --cloud-state "isolated=beauessence-clinic-stg-c1a01 production=NOT_AUTHORIZED" \
+ *     --identity-state "gcloud=missing adc=UNAVAILABLE firebase=verified terraform=missing" \
+ *     --browser-state "clinic-synthetic=UNAVAILABLE default-browser-unsupported" \
+ *     --resolved-blockers "Firebase CLI login/project-list read-back; branch protection read-back" \
+ *     --human-blocker-queue "PR #116 merge authority; owner Chrome profile; gcloud/ADC; terraform; D-series approvals; TW-05" \
  *     --next-action "Card 8 isolated project read-back"
  *
  * All args optional; defaults pulled from git where possible.
@@ -70,11 +76,36 @@ const phase = cli.phase || '0';
 const completed = cli.completed || phase;
 const inProgress = cli['in-progress'] || `Phase ${phase} work`;
 const blockers = cli.blockers || 'none';
-const booking = cli.booking || 'UNROUTED';
 const testState = cli['test-state'] || 'gates PASS';
+const authority =
+  cli.authority ||
+  'PRODUCTION=NO REAL_DATA=NO DNS=NO LIVE_HOSTING=NO PROD_CALENDAR=NO BOOKING=UNROUTED';
+const cloudState =
+  cli['cloud-state'] ||
+  'isolated=beauessence-clinic-stg-c1a01 production=NOT_AUTHORIZED';
+const identityState =
+  cli['identity-state'] ||
+  'gcloud=missing adc=UNAVAILABLE firebase=verified terraform=missing';
+const browserState =
+  cli['browser-state'] ||
+  'clinic-synthetic=UNAVAILABLE default-browser-unsupported';
+const resolvedBlockers =
+  cli['resolved-blockers'] ||
+  'Firebase CLI login/project-list read-back; branch protection read-back';
+const humanBlockerQueue =
+  cli['human-blocker-queue'] ||
+  'PR #116 merge authority; owner Chrome profile; gcloud/ADC; terraform; D-series approvals; TW-05';
 const nextAction = cli['next-action'] || `Continue Phase ${phase}`;
 
-const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+const now =
+  new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Taipei',
+    dateStyle: 'short',
+    timeStyle: 'medium',
+    hourCycle: 'h23'
+  })
+    .format(new Date())
+    .replace(' ', 'T') + '+08:00';
 
 const lines = [];
 lines.push(`PROJECT: waydefu/clinic`);
@@ -85,18 +116,12 @@ lines.push(`CURRENT PHASE: ${phase}`);
 lines.push(`COMPLETED: ${completed}`);
 lines.push(`IN PROGRESS: ${inProgress}`);
 lines.push(`BLOCKERS: ${blockers}`);
-lines.push(
-  `AUTHORITY: PRODUCTION=NO REAL_DATA=NO DNS=NO LIVE_HOSTING=NO PROD_CALENDAR=NO BOOKING=${booking}`
-);
-lines.push(
-  `CLOUD STATE: isolated=beauessence-clinic-stg-c1a01 staging=CAL-PILOT+preview-only production=NOT_AUTHORIZED`
-);
-lines.push(
-  `IDENTITY STATE: gcloud_account=<email-or-UNVERIFIED> gcloud_config=<clinic-staging|clinic-production|other> adc_source=<user-adc|impersonation|GAC-env|UNVERIFIED> firebase_account=<email-or-UNSET> gac_env=<unset|path-only>`
-);
-lines.push(
-  `BROWSER STATE: profile=<clinic-synthetic|clinic-production> account=<verified|unverified> mix=NO`
-);
+lines.push(`AUTHORITY: ${authority}`);
+lines.push(`CLOUD STATE: ${cloudState}`);
+lines.push(`IDENTITY STATE: ${identityState}`);
+lines.push(`BROWSER STATE: ${browserState}`);
+lines.push(`RESOLVED BLOCKERS: ${resolvedBlockers}`);
+lines.push(`HUMAN BLOCKER QUEUE: ${humanBlockerQueue}`);
 lines.push(`TEST STATE: ${testState}`);
 lines.push(`NEXT EXACT ACTION: ${nextAction}`);
 lines.push(

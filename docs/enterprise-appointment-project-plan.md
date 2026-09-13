@@ -235,7 +235,7 @@ Calendar 事件標題只放預約編號或最小識別資訊，例如「預約 #
 
 規劃書與程式庫容易隨時間脫節。本節記錄兩者目前的差距，每次階段檢查時更新。
 Stage 0／Checkpoint A 已於 2026-07-24 通過；目前是 Stage 1 owner decisions，
-D-010 target 與 D-006 已核准但尚未實作／驗證；Stage 2 change plan 尚未取得
+D-010 target 與 D-006 已核准；D-006 僅有部分委派授權碼 server-side 證據，完整控制仍尚未實作／驗證；Stage 2 change plan 尚未取得
 獨立審查／部署核准，因此 cloud staging 尚未開始。
 
 **目前已自動化的 gates（依下列命令分開執行）**

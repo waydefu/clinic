@@ -1,7 +1,9 @@
 # 角色權限矩陣（RBAC Matrix）
 
 **狀態：** 現況 inventory＋plan-only 權限提案。Canonical role 集合已於 2026-08-06
-收斂到 domain；browser migration、正式 Session/RBAC/query/field enforcement 仍未完成。
+收斂到 domain；2026-09-13 已補上委派授權碼的 server-side KDF verifier 與
+attempt-state 純函式，但 browser migration、正式 Session/RBAC/query/field enforcement
+仍未完成。
 **不是** protected-route 實作證據，也不關閉任何 D-series 決策。
 
 **撰寫日期：** 2026-08-04
@@ -44,7 +46,7 @@
 | `manager` | 管理者 | 既有（瀏覽器叫 `admin`） | 診所營運最高權限；金額、員工權限、稽核、系統設定 |
 | `front_desk` | 櫃檯 | 既有 | 每日營運主力；預約、改期、取消、個管指派、款項處理 |
 | `consultant` | 諮詢師 | **新增** | 只看自己負責的病患與個案金額 |
-| `physician` | 醫師 | **新增**（D-006 已核准但未實作） | 只看與自己相關的預約與必要醫療資訊 |
+| `physician` | 醫師 | **新增**（D-006 已核准；canonical role 與 deny-by-default evaluator 已就位，但 routed session／action enforcement 未完成） | 只看與自己相關的預約與必要醫療資訊 |
 | `patient` | 病患 | 既有（僅伺服器側） | 只看自己的資料與預約 |
 
 ### 2.2 未來角色（不在本次收斂範圍）

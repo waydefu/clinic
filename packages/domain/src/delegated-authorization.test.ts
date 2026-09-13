@@ -3,10 +3,44 @@ import { describe, expect, it } from 'vitest';
 import { DomainError } from './errors.js';
 import {
   assertAuthorizationShape,
-  authoriseDelegatedAction,
+  authoriseDelegatedAction as authoriseWithVerifier,
   planDelegationRecord,
-  type DelegationPolicy
+  recordDelegationAttempt,
+  type DelegatedAuthorization,
+  type DelegationPolicy,
+  type DelegationVerificationState
 } from './delegated-authorization.js';
+
+const storedAuthorization = (
+  id: string,
+  label: string,
+  presentedSecret: string,
+  enabled = true
+): DelegatedAuthorization => ({
+  id,
+  label,
+  secretKdf: 'scrypt',
+  secretSalt: `salt-${id}`,
+  secretHash: `hash-${presentedSecret}`,
+  enabled
+});
+
+const verifySyntheticSecret = (
+  authorization: DelegatedAuthorization,
+  presentedSecret: string
+): boolean => authorization.secretHash === `hash-${presentedSecret}`;
+
+const authorise = (
+  currentPolicy: DelegationPolicy,
+  actorRole: DelegationPolicy['delegatedToRole'],
+  presentedSecret: unknown
+) =>
+  authoriseWithVerifier(
+    currentPolicy,
+    actorRole,
+    presentedSecret,
+    verifySyntheticSecret
+  );
 
 const policy = (
   overrides: Partial<DelegationPolicy> = {}
@@ -15,17 +49,15 @@ const policy = (
   delegatedToRole: 'front_desk',
   enabled: true,
   authorizations: [
-    { id: 'auth_1', label: '早班櫃台', secret: 'morning-key', enabled: true },
-    { id: 'auth_2', label: '晚班櫃台', secret: 'evening-key', enabled: true }
+    storedAuthorization('auth_1', '早班櫃台', 'morning-key'),
+    storedAuthorization('auth_2', '晚班櫃台', 'evening-key')
   ],
   ...overrides
 });
 
 describe('authoriseDelegatedAction', () => {
   it('啟用中的授權碼可以通過，並回報是哪一組', () => {
-    expect(
-      authoriseDelegatedAction(policy(), 'front_desk', 'evening-key')
-    ).toEqual({
+    expect(authorise(policy(), 'front_desk', 'evening-key')).toEqual({
       authorised: true,
       authorizationId: 'auth_2',
       authorizationLabel: '晚班櫃台'
@@ -35,27 +67,15 @@ describe('authoriseDelegatedAction', () => {
   it('多組並存：停掉一組不影響另一組', () => {
     const withOneRevoked = policy({
       authorizations: [
-        {
-          id: 'auth_1',
-          label: '早班櫃台',
-          secret: 'morning-key',
-          enabled: false
-        },
-        {
-          id: 'auth_2',
-          label: '晚班櫃台',
-          secret: 'evening-key',
-          enabled: true
-        }
+        storedAuthorization('auth_1', '早班櫃台', 'morning-key', false),
+        storedAuthorization('auth_2', '晚班櫃台', 'evening-key')
       ]
     });
     expect(
-      authoriseDelegatedAction(withOneRevoked, 'front_desk', 'evening-key')
-        .authorised
+      authorise(withOneRevoked, 'front_desk', 'evening-key').authorised
     ).toBe(true);
     expect(
-      authoriseDelegatedAction(withOneRevoked, 'front_desk', 'morning-key')
-        .authorised
+      authorise(withOneRevoked, 'front_desk', 'morning-key').authorised
     ).toBe(false);
   });
 
@@ -67,85 +87,112 @@ describe('authoriseDelegatedAction', () => {
     // 測試涵蓋。
     const revoked = policy({
       authorizations: [
-        {
-          id: 'auth_1',
-          label: '早班櫃台',
-          secret: 'morning-key',
-          enabled: false
-        },
-        {
-          id: 'auth_2',
-          label: '晚班櫃台',
-          secret: 'evening-key',
-          enabled: true
-        }
+        storedAuthorization('auth_1', '早班櫃台', 'morning-key', false),
+        storedAuthorization('auth_2', '晚班櫃台', 'evening-key')
       ]
     });
-    expect(
-      authoriseDelegatedAction(revoked, 'front_desk', 'morning-key')
-    ).toEqual({ authorised: false, reason: 'secret_not_recognised' });
-    expect(
-      authoriseDelegatedAction(revoked, 'front_desk', 'never-was-a-key')
-    ).toEqual({ authorised: false, reason: 'secret_not_recognised' });
+    expect(authorise(revoked, 'front_desk', 'morning-key')).toEqual({
+      authorised: false,
+      reason: 'secret_not_recognised'
+    });
+    expect(authorise(revoked, 'front_desk', 'never-was-a-key')).toEqual({
+      authorised: false,
+      reason: 'secret_not_recognised'
+    });
   });
 
   it('總開關關掉時，任何一組授權碼都不通過', () => {
     expect(
-      authoriseDelegatedAction(
-        policy({ enabled: false }),
-        'front_desk',
-        'morning-key'
-      )
+      authorise(policy({ enabled: false }), 'front_desk', 'morning-key')
     ).toEqual({ authorised: false, reason: 'delegation_disabled' });
   });
 
   it('一組授權碼都沒設定時，說的是「沒有設定」而不是「密碼錯誤」', () => {
     expect(
-      authoriseDelegatedAction(
-        policy({ authorizations: [] }),
-        'front_desk',
-        'x'
-      )
+      authorise(policy({ authorizations: [] }), 'front_desk', 'x')
     ).toEqual({ authorised: false, reason: 'no_authorization_configured' });
   });
 
   it('全部都被停用等同於沒有設定', () => {
     const allOff = policy({
       authorizations: [
-        {
-          id: 'auth_1',
-          label: '早班櫃台',
-          secret: 'morning-key',
-          enabled: false
-        }
+        storedAuthorization('auth_1', '早班櫃台', 'morning-key', false)
       ]
     });
-    expect(
-      authoriseDelegatedAction(allOff, 'front_desk', 'morning-key').authorised
-    ).toBe(false);
-    expect(authoriseDelegatedAction(allOff, 'front_desk', '').reason).toBe(
-      'no_authorization_configured'
+    expect(authorise(allOff, 'front_desk', 'morning-key').authorised).toBe(
+      false
     );
+    expect(authorise(allOff, 'front_desk', '')).toEqual({
+      authorised: false,
+      reason: 'no_authorization_configured'
+    });
   });
 
   it('沒有輸入授權碼與輸入錯誤的授權碼是不同的原因', () => {
-    expect(authoriseDelegatedAction(policy(), 'front_desk', '')).toEqual({
+    expect(authorise(policy(), 'front_desk', '')).toEqual({
       authorised: false,
       reason: 'secret_required'
     });
-    expect(authoriseDelegatedAction(policy(), 'front_desk', undefined)).toEqual(
-      {
-        authorised: false,
-        reason: 'secret_required'
-      }
-    );
+    expect(authorise(policy(), 'front_desk', undefined)).toEqual({
+      authorised: false,
+      reason: 'secret_required'
+    });
   });
 
   it('委派對象不是這個角色時，授權碼再正確也不通過', () => {
-    expect(authoriseDelegatedAction(policy(), 'nurse', 'morning-key')).toEqual({
+    expect(authorise(policy(), 'physician', 'morning-key')).toEqual({
       authorised: false,
       reason: 'not_delegated_to_role'
     });
+  });
+});
+
+describe('recordDelegationAttempt', () => {
+  const initial: DelegationVerificationState = {
+    failedAttempts: 0,
+    locked: false
+  };
+
+  it('increments failures and locks at the explicit maximum', () => {
+    const first = recordDelegationAttempt(initial, 'failure', 3);
+    expect(first).toEqual({ failedAttempts: 1, locked: false });
+
+    const second = recordDelegationAttempt(first, 'failure', 3);
+    expect(second).toEqual({ failedAttempts: 2, locked: false });
+
+    expect(recordDelegationAttempt(second, 'failure', 3)).toEqual({
+      failedAttempts: 3,
+      locked: true
+    });
+  });
+
+  it('resets failures after success but never silently unlocks', () => {
+    expect(
+      recordDelegationAttempt(
+        { failedAttempts: 2, locked: false },
+        'success',
+        3
+      )
+    ).toEqual({ failedAttempts: 0, locked: false });
+    expect(
+      recordDelegationAttempt({ failedAttempts: 3, locked: true }, 'success', 3)
+    ).toEqual({ failedAttempts: 3, locked: true });
+  });
+
+  it('rejects an unsafe or ambiguous maximum', () => {
+    expect(() => recordDelegationAttempt(initial, 'failure', 0)).toThrow(
+      DomainError
+    );
+    expect(() => recordDelegationAttempt(initial, 'failure', 11)).toThrow(
+      DomainError
+    );
+    expect(() =>
+      recordDelegationAttempt(
+        { failedAttempts: 3, locked: false },
+        'failure',
+        3
+      )
+    ).toThrow(DomainError);
   });
 });
 
@@ -176,11 +223,7 @@ describe('assertAuthorizationShape', () => {
 
 describe('planDelegationRecord', () => {
   it('稽核紀錄帶名稱與 id，但絕不帶授權碼', () => {
-    const decision = authoriseDelegatedAction(
-      policy(),
-      'front_desk',
-      'morning-key'
-    );
+    const decision = authorise(policy(), 'front_desk', 'morning-key');
     const record = planDelegationRecord(policy(), decision);
     expect(record).toEqual({
       delegated: true,
@@ -192,7 +235,7 @@ describe('planDelegationRecord', () => {
   });
 
   it('未通過的判斷不可能被寫成稽核紀錄', () => {
-    const denied = authoriseDelegatedAction(policy(), 'front_desk', 'wrong');
+    const denied = authorise(policy(), 'front_desk', 'wrong');
     expect(() => planDelegationRecord(policy(), denied)).toThrow(DomainError);
   });
 });

@@ -1,4 +1,4 @@
-import { assertAuthorizationShape } from '../vendor/domain/delegated-authorization.js';
+import { assertSyntheticAuthorizationShape } from '../vendor/domain/synthetic-delegated-authorization.js';
 import { ROLE_LABELS } from './constants.js';
 import { currentAccount } from './permissions.js';
 function safeText(value, label, maximum) {
@@ -76,7 +76,7 @@ function findDelegation(state, permission) {
  */
 export function saveDelegationAuthorization(state, input) {
   const delegation = findDelegation(state, input?.permission);
-  const { label, secret } = assertAuthorizationShape(
+  const { label, secret } = assertSyntheticAuthorizationShape(
     input?.label,
     input?.secret
   );

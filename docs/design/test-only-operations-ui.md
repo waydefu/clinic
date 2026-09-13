@@ -4,7 +4,7 @@
 
 本文件規範 `apps/web/public` 的測試版本。它可在本機旗標下運行，也可發布到已記錄的 Firebase Hosting preview channel。所有狀態僅存在目前瀏覽器的 `localStorage`，沒有後端、資料庫或登入系統。
 
-D-006/D-010 已核准但未實作；其他 D-001～D-011 依決策登錄仍為部分或 pending。
+D-006/D-010 已核准；D-006 目前已有部分 server-side 委派授權碼證據，但正式 Session/RBAC/field enforcement 仍未實作。其他 D-001～D-011 依決策登錄仍為部分或 pending。
 因此本頁的合成政策、角色與文字都不得被推定為已實作的正式規則。
 
 ## 資料範圍（2026-07-21 首次取得合成測試授權；2026-07-27 依業主要求擴充）

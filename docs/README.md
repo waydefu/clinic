@@ -166,6 +166,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-13 | [D-006 delegated-authorization hardening](reviews/2026-09-13-d006-delegated-authorization-hardening.md) | Partial local evidence: server persistence no longer stores plaintext authorization codes; server-side scrypt verifier, constant-time comparison and explicit attempt-lock state tested. Browser synthetic path remains explicitly non-production. Full C2/C3 identity/session, routed RBAC, audit sink, UI migration and production authority remain open. |
 | 2026-09-11 | [C0 engineering acceptance](reviews/2026-09-11-c0-engineering-acceptance.md) | Owner 接受 C0-ENG-REC；`OWNER_AUTHORITY_CONFIRMED`；C0 `completed`；C1 `granted`（開始 C1，不是 PASS）；`NAMED_REVIEWER_METADATA_PENDING`；不是 apply |
 | 2026-09-11 | [C0 engineering recommendations](reviews/2026-09-11-c0-engineering-recommendations.md) | 五項可委派工程選案記入 Canon／JSON／domain 常數；後由 C0-ENG-ACCEPT 收斂；當日紀錄本身不是 apply |
 | 2026-09-11 | [C0 owner-direction reconciliation](reviews/2026-09-11-c0-owner-direction-reconciliation.md) | FS-001／C0-DIR／CAL-SYNC-DIR 記入 Decision Register；`OWNER_DIRECTION_APPROVED`／`ENGINEERING_CLOSURE_PENDING`；`stageSlices.C0` 仍 `revise`；C1～C6 `not_granted`；formal booking 仍 UNROUTED；不是 apply |
