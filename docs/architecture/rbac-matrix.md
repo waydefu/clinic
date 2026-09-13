@@ -215,8 +215,8 @@ Rules 層的責任是「確保沒有人繞過 API」，不是複製一份角色�
    使用雜湊驗證的 compiled vendor mirror。不得另建 role 字串來源。
 2. 瀏覽器 `permissions.js` 的 legacy `admin/front_desk` 以 versioned state migration
    收斂；`admin→manager`，未知角色 fail-closed，不以 browser role 作 server authority。
-   **2026-09-13：** schema v8 種子為 `manager`；schema 7 leftover `admin` 在
-   `loadState` 改寫。工作臺不匯入 `roles.js`（gzip total 92 KiB）。
+   **2026-09-13：** schema v8 種子為 `manager`；schema 7 leftover `admin` 被
+   `isUsableState` 丟棄後重建。工作臺不匯入 `roles.js`（gzip total 92 KiB）。
 3. 每個角色都有一支 `tests/e2e/auth-rbac` 分組下的直連 URL 測試：以該角色登入後
    直接輸入其他角色的工作區網址，必須被擋下且不洩漏資料。
 4. Firestore rules 測試維持預設拒絕全綠。

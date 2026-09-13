@@ -1,5 +1,5 @@
 import { assertSyntheticAuthorizationShape } from '../vendor/domain/synthetic-delegated-authorization.js';
-import { ROLE_LABELS, workbenchRole } from './constants.js';
+import { ROLE_LABELS } from './constants.js';
 import { currentAccount } from './permissions.js';
 function safeText(value, label, maximum) {
   if (
@@ -40,7 +40,7 @@ export function logout(state) {
   state.workspace.authenticated = false;
 }
 export function createAccount(state, input) {
-  const role = workbenchRole(input.role);
+  const role = input.role === 'admin' ? 'manager' : input.role;
   if (!Object.hasOwn(ROLE_LABELS, role)) throw new Error('合成角色無效。');
   const label = safeText(input.label, '帳號標籤', 24);
   // 標籤是人在清單上辨識帳號的唯一依據，重複會讓停用／恢復按錯人。
@@ -129,13 +129,9 @@ export function toggleAccount(state, accountId) {
     account.status === 'active'
   )
     throw new Error('不可停用目前正在操作的合成帳號。');
-  if (
-    workbenchRole(account.role) === 'manager' &&
-    account.status === 'active'
-  ) {
+  if (account.role === 'manager' && account.status === 'active') {
     const active = state.workspace.accounts.filter(
-      (item) =>
-        workbenchRole(item.role) === 'manager' && item.status === 'active'
+      (item) => item.role === 'manager' && item.status === 'active'
     );
     if (active.length <= 1)
       throw new Error('至少必須保留一個啟用中的合成主管。');

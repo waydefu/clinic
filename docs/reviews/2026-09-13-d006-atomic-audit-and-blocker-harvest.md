@@ -82,19 +82,19 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 - **blocked capability:** land D-006 hashed-delegation slice on `main`
 - **exact root cause:** this integration token has `permissions.push=false`
   and `ManagePullRequest` has no merge action; `gh` is read-only
-- **current evidence:** OPEN, MERGEABLE, CLEAN, 12/12 PASS, run
-  `34765355315`, Verification evidence `103745746006`. Follow-on PR #118
-  contains this HEAD plus atomic/audit work.
+- **current evidence:** #118 OPEN, Ready, MERGEABLE, CLEAN, exact-head
+  `fb07f2a` 12/12 PASS, verify run `34767934798`. #118 contains #117 HEAD
+  `96fc9aa` plus atomic/audit work. This token `permissions.push=false`.
 - **owner:** clinic technical owner
 - **severity:** high
 - **dependency:** none other than human merge authority
-- **exact resolution:** human merges #117 after reading this review; do not
-  rebuild
+- **exact resolution:** human merges #118 (lands #117 too); do not rebuild
+  #117; do not merge #117 in parallel
 - **can Grok solve it?** no
 - **requires human?** yes
 - **requires external approval?** no (CI already green)
-- **safe parallel work:** this stacked follow-on
-- **resume action:** merge #117 then rebase #116
+- **safe parallel work:** B-013 UI PR #119 stacked on #118
+- **resume action:** merge #118 then rebase #116
 - **status:** `HUMAN_ACTION_REQUIRED`
 
 ### B-002 — PR #116 merge
@@ -319,10 +319,11 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 - **exact root cause:** fixtures and login still stored `admin`. Importing
   `roles.js` into the workbench graph exceeded the `/index.html`
   gzip script budget (64.3 / 64 KiB) and total (92.6 / 92 KiB).
-- **current evidence:** schema v8 seeds `role: 'manager'`; leftover schema 7
-  `admin` is rewritten on `loadState`; login username remains `admin`.
-  Workbench does not import `vendor/domain/roles.js`; unit tests pin
-  `workbenchRole` to domain `normaliseRole`.
+- **current evidence:** schema v8 seeds `role: 'manager'`; schema 7 leftover
+  `admin` blobs fail `isUsableState` and re-seed. In-memory leftover `admin`
+  fail-closes. Login username remains `admin`. Workbench does not import
+  `vendor/domain/roles.js`. `createAccount` still maps write-side `admin` →
+  `manager`. Unit tests pin `normaliseRole('admin')` to `manager`.
 - **owner:** implementer
 - **severity:** low
 - **dependency:** none remaining for stored codes

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PERMISSIONS, workbenchRole } from '../public/modules/constants.js';
+import { PERMISSIONS } from '../public/modules/constants.js';
 import { permissionsFor } from '../public/modules/permissions.js';
 import { initialState } from '../public/modules/state-schema.js';
 import { normaliseRole } from '../public/vendor/domain/roles.js';
@@ -100,11 +100,12 @@ describe('synthetic workbench login', () => {
     );
     expect(created?.role).toBe('manager');
     expect(created?.id.startsWith('manager_test_')).toBe(true);
-    expect(workbenchRole('admin')).toBe(normaliseRole('admin'));
+    expect(normaliseRole('admin')).toBe('manager');
   });
 
   it('refuses to disable the last active manager', () => {
     const state = initialState();
+    state.workspace.currentAccountId = 'front_desk_test_001';
     expect(() => toggleAccount(state, 'admin_test_001')).toThrow(
       '至少必須保留一個啟用中的合成主管。'
     );

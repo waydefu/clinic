@@ -155,8 +155,7 @@ const REQUIRED_ARRAYS = [
 // actually dereference and discard anything that does not hold up.
 export function isUsableState(state) {
   if (state === null || typeof state !== 'object') return false;
-  if (state.schemaVersion !== SCHEMA_VERSION && state.schemaVersion !== 7)
-    return false;
+  if (state.schemaVersion !== SCHEMA_VERSION) return false;
   if ('policyVersion' in state) return false;
   if (REQUIRED_ARRAYS.some((key) => !Array.isArray(state[key]))) return false;
 
@@ -224,23 +223,13 @@ function removeLegacyState() {
   for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key);
 }
 
-function migrateStoredWorkbenchRoles(state) {
-  for (const account of state.workspace.accounts) {
-    if (account.role === 'admin') account.role = 'manager';
-  }
-  state.schemaVersion = SCHEMA_VERSION;
-  return state;
-}
-
 export function loadState() {
   try {
     removeLegacyState();
     const value = localStorage.getItem(storageKey);
     if (value === null) return initialState();
     const stored = JSON.parse(value);
-    return isUsableState(stored)
-      ? migrateStoredWorkbenchRoles(stored)
-      : initialState();
+    return isUsableState(stored) ? stored : initialState();
   } catch {
     return initialState();
   }

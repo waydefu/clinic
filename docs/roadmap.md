@@ -568,8 +568,8 @@ Later  P3 日曆 inbound review／同步 ← D-009、D-016；ADR-0002保持 auth
 1. 保持 `packages/domain/src/roles.ts` 為唯一 canonical role，修正任何新增漂移。
 2. 保持 `rbac.ts` 從 domain 匯入；後續工作是 Session、scope/query/field enforcement。
 3. 工作臺 stored role 已遷移為 `manager`（schema v8）。不得把 `roles.js` 拉進
-   `/index.html` 傳遞閉包（gzip total 92 KiB）；對齊由單元測試釘住
-   `workbenchRole` ≡ `normaliseRole`。
+   `/index.html` 傳遞閉包（gzip total 92 KiB）；schema 7 leftover 丟棄重建。
+   單元測試釘 leftover `admin` 讀取與 `normaliseRole('admin') === 'manager'`。
 4. 新增 `consultant`、`physician` 兩個角色的空權限集合（先不授予任何權限）。
 5. `check-architecture.mjs` 新增守衛：禁止角色字串字面值出現在 contracts 以外。
 6. 撰寫五角色 × 各工作區的直連 URL 測試。

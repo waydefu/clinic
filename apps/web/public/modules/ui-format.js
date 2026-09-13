@@ -1,4 +1,4 @@
-import { ROLE_LABELS, TIME_ZONE, workbenchRole } from './constants.js';
+import { ROLE_LABELS, TIME_ZONE } from './constants.js';
 export function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -30,7 +30,7 @@ export function formatDateTime(value) {
   }).format(new Date(value));
 }
 export function roleLabel(role) {
-  return ROLE_LABELS[workbenchRole(role)] ?? role;
+  return ROLE_LABELS[role] ?? role;
 }
 // 時段清單依日期分組，日期只在群組標題出現一次；平鋪清單會讓每一格都重複
 // 一次日期，掃視時很難分辨「同一天有哪些時間」。

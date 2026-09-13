@@ -2,7 +2,7 @@ import {
   authoriseSyntheticDelegatedAction,
   planSyntheticDelegationRecord
 } from '../vendor/domain/synthetic-delegated-authorization.js';
-import { PERMISSIONS, workbenchRole } from './constants.js';
+import { PERMISSIONS } from './constants.js';
 
 // 櫃台保有「取消」：取消是每天都在做的營運動作，收斂給管理者只會讓現場卡住。
 // 「刪除」則刻意只給管理者——它讓紀錄從營運清單消失，只留下稽核事件。這是
@@ -41,7 +41,7 @@ export function permissionsFor(state) {
   const account = currentAccount(state);
   return account === undefined
     ? []
-    : [...(rolePermissions[workbenchRole(account.role)] ?? new Set())];
+    : [...(rolePermissions[account.role] ?? new Set())];
 }
 
 export function hasPermission(state, permission) {
@@ -49,7 +49,7 @@ export function hasPermission(state, permission) {
   const account = currentAccount(state);
   return (
     account !== undefined &&
-    (rolePermissions[workbenchRole(account.role)]?.has(permission) ?? false)
+    (rolePermissions[account.role]?.has(permission) ?? false)
   );
 }
 
