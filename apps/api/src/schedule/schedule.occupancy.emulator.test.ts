@@ -51,7 +51,7 @@ const SLOT_ID = 'slot_20300102_1200';
 const APPOINTMENT_ID = 'appointment_http_occupancy_001';
 
 const PUBLISH_BODY = {
-  idempotencyKey: 'schedule_publish_occupancy_0001',
+  idempotencyKey: 'schedule_publish_0003',
   expectedVersion: 0,
   schedule: {
     timeZone: 'Asia/Taipei',
@@ -256,7 +256,7 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
       headers: actorHeaders('manager'),
       payload: {
         ...PUBLISH_BODY,
-        idempotencyKey: 'schedule_publish_occupancy_0002'
+        idempotencyKey: 'schedule_publish_0004'
       }
     });
     expect(published.statusCode).toBe(201);
