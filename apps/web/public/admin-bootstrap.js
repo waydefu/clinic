@@ -22,7 +22,8 @@ import {
   summaryCounts
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
-import { runPendingAction } from './modules/async-action.js';
+import { resolveApiClient } from './modules/api-client.js';
+import { upsertPatient } from './modules/patient-registry.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
 import {
   DELETE_APPOINTMENT_REASONS,
@@ -62,6 +63,7 @@ const appShell = document.querySelector('.app-shell');
 const restrictedDom = [
   ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
 ];
+let client = apiClient;
 
 function isAdminSession() {
   return (
@@ -321,15 +323,72 @@ async function post(path, body = {}) {
   )
     throw new Error('目前合成帳號沒有執行此動作的權限。');
 
-  state = await apiClient.request(path, {
+  const result = await client.request(path, {
     method: 'POST',
     body: JSON.stringify(body)
   });
+  if (Array.isArray(result?.appointments)) {
+    state = result;
+  } else {
+    applyContractWrite(path, body, result);
+  }
   if (!['/workspace/logout', '/reset'].includes(path)) {
     enforceRoleDomBoundary();
     render();
   }
   return state;
+}
+
+function applyContractWrite(path, body, result) {
+  if (typeof result?.appointmentId !== 'string') return;
+  const now = new Date().toISOString();
+  if (path === '/bookings') {
+    const patient = upsertPatient(state, body.patient);
+    const items = WORKBENCH_PROCEDURES.filter((item) =>
+      (body.itemIds ?? []).includes(item.id)
+    );
+    state.appointments.push({
+      id: result.appointmentId,
+      slotId: body.slotId,
+      startsAt: result.startsAt,
+      patientId: patient.id,
+      bookingKind: body.bookingKind,
+      itemIds: items.map((item) => item.id),
+      itemLabel: items.map((item) => item.label).join('、'),
+      status: result.status ?? 'confirmed',
+      createdAt: now,
+      updatedAt: now
+    });
+    const slot = state.slots.find((item) => item.id === body.slotId);
+    if (slot !== undefined) slot.reservationId = result.appointmentId;
+    return;
+  }
+  const cancel = /^\/bookings\/([^/]+)\/cancel$/.exec(path);
+  if (cancel !== null) {
+    const appointment = state.appointments.find(
+      (item) => item.id === cancel[1]
+    );
+    if (appointment === undefined) return;
+    appointment.status = result.status ?? 'cancelled';
+    appointment.updatedAt = now;
+    const slot = state.slots.find((item) => item.id === appointment.slotId);
+    if (slot?.reservationId === appointment.id) delete slot.reservationId;
+    return;
+  }
+  const reschedule = /^\/bookings\/([^/]+)\/reschedule$/.exec(path);
+  if (reschedule === null) return;
+  const appointment = state.appointments.find(
+    (item) => item.id === reschedule[1]
+  );
+  if (appointment === undefined) return;
+  const previous = state.slots.find((item) => item.id === appointment.slotId);
+  if (previous?.reservationId === appointment.id) delete previous.reservationId;
+  appointment.slotId = body.targetSlotId;
+  appointment.startsAt = result.startsAt;
+  appointment.status = result.status ?? 'confirmed';
+  appointment.updatedAt = now;
+  const next = state.slots.find((item) => item.id === body.targetSlotId);
+  if (next !== undefined) next.reservationId = appointment.id;
 }
 
 function renderSession() {
@@ -1013,27 +1072,31 @@ elements['booking-form'].addEventListener('submit', async (event) => {
       'booking-form-status'
     );
   const bookedSlotId = selectedSlotId;
+  const patient = {
+    name: elements['booking-name'].value,
+    phone: elements['booking-phone'].value,
+    birthDate: elements['booking-birth'].value,
+    nationalId: elements['booking-national-id'].value,
+    hasNhiCard: elements['booking-nhi-card'].checked
+  };
   await runUiAction({
     control: event.submitter,
     pendingLabel: '建立中…',
     pendingMessage: '正在建立預約，請稍候。',
     anchorId: 'booking-form-status',
-    action: () =>
-      post('/bookings', {
+    action: () => {
+      const owner = upsertPatient(state, patient);
+      return post('/bookings', {
         slotId: bookedSlotId,
         bookingKind: elements['booking-kind'].value,
         itemIds,
         noteTags,
         noteText: elements['booking-note'].value,
-        patient: {
-          name: elements['booking-name'].value,
-          phone: elements['booking-phone'].value,
-          birthDate: elements['booking-birth'].value,
-          nationalId: elements['booking-national-id'].value,
-          hasNhiCard: elements['booking-nhi-card'].checked
-        },
+        patient,
+        onBehalfPatientId: owner.id,
         origin: 'staff'
-      }),
+      });
+    },
     onSuccess: () => {
       // 成功訊息講清楚建立哪一筆，操作者不必捲到清單才能確認。
       const created = state.appointments.find(
@@ -1924,7 +1987,8 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
 if (!isOnline) elements['environment-label'].textContent = 'LOCAL TEST ONLY';
 
 try {
-  state = await apiClient.request('/state');
+  client = await resolveApiClient();
+  state = await client.request('/state');
   enforceRoleDomBoundary();
   let accessDenied = false;
   initWorkspaceTabs({
