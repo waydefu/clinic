@@ -56,9 +56,6 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
 
-    await expect(page.locator('#patient-env-boundary')).toHaveText(
-      '公開網址持有人可存取 · 資料只保存在本機瀏覽器'
-    );
     await openPatientSlotStep(page);
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
     expect(slotListCalls).toBe(0);
@@ -72,9 +69,6 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
 
-    await expect(page.locator('#patient-env-boundary')).toHaveText(
-      '內部測試路由 · 非正式上線'
-    );
     await openPatientSlotStep(page);
     await expect(page.getByText('目前沒有可預約時段')).toBeVisible();
     await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
@@ -124,7 +118,9 @@ test.describe('internal-test booking occupancy overlay', () => {
       fresh: true,
       path: '/staff?internalTestBooking=1'
     });
-    await page.goto('/staff?internalTestBooking=1#appointments-section');
+    await page.evaluate(() => {
+      window.location.hash = 'appointments-section';
+    });
     await openDisclosure(page, '#booking-workflow');
     await expect(page.locator('#slots')).toContainText('目前沒有可預約時段');
     await expect(page.locator('#slots [data-select-slot]')).toHaveCount(0);

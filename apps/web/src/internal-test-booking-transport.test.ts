@@ -291,6 +291,41 @@ describe('createInternalTestBookingTransport', () => {
     });
   });
 
+  it('does not restore synthetic slots after a local workspace snapshot', async () => {
+    const local = vi.fn(() =>
+      Promise.resolve({
+        version: 8,
+        appointments: [{ id: 'appointment_local_001' }],
+        slots: [{ id: 'local_slot' }]
+      })
+    );
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        json: () =>
+          Promise.resolve({
+            error: { code: 'UNAUTHENTICATED' }
+          })
+      })
+    );
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+    await expect(
+      transport('/workspace/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: 'admin', password: 'secret' })
+      })
+    ).resolves.toEqual({
+      version: 8,
+      appointments: [{ id: 'appointment_local_001' }],
+      slots: []
+    });
+  });
+
   it('overlays listed slots onto local /state when the gate answers', async () => {
     const local = vi.fn(() =>
       Promise.resolve({ version: 8, slots: [{ id: 'local_slot' }] })

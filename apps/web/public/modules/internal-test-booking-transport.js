@@ -228,10 +228,16 @@ export function createInternalTestBookingTransport({
     );
     if (mapped === undefined) {
       const localResult = await local(path, options);
-      if (
+      const isStateGet =
         path === '/state' &&
-        String(options.method ?? 'GET').toUpperCase() === 'GET'
-      ) {
+        String(options.method ?? 'GET').toUpperCase() === 'GET';
+      const isWorkspaceSnapshot =
+        Array.isArray(localResult?.appointments) &&
+        Array.isArray(localResult?.slots);
+      // Login/logout/reset return the full local snapshot. Overlay occupancy
+      // the same way GET /state does, or those commands restore synthetic
+      // slots on top of a fail-closed published grid.
+      if (isStateGet || isWorkspaceSnapshot) {
         try {
           let next = overlayListedSlots(
             localResult,
