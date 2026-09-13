@@ -175,6 +175,50 @@ describe('unrouted AppointmentController RBAC harness', () => {
     expect(response.statusCode).toBe(401);
   });
 
+  it('rejects a staff create that names no on-behalf patient with 401', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: CREATE_BODY,
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('lets a manager create on behalf of an opaque patient id', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: {
+        ...CREATE_BODY,
+        onBehalfPatientId: 'patient_opaque_002'
+      },
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      replayed: false
+    });
+  });
+
+  it('rejects a patient creating on behalf of another patient with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: {
+        ...CREATE_BODY,
+        onBehalfPatientId: 'patient_opaque_002'
+      },
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
   it('rejects a suspended account with 401', async () => {
     const harness = await startHarness();
     const response = await harness.inject({
@@ -324,5 +368,16 @@ describe('production AppModule booking write path', () => {
     });
     expect(getResponse.statusCode).toBe(503);
     expect(cancelResponse.statusCode).toBe(503);
+  });
+
+  it('refuses reschedule while the IP-001 internal-test gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/reschedule',
+      payload: RESCHEDULE_BODY
+    });
+    expect(response.statusCode).toBe(503);
   });
 });

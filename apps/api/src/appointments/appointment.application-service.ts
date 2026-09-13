@@ -29,7 +29,10 @@ import {
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../idempotency/appointment-idempotency.js';
-import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
+import {
+  AuthenticationRequiredError,
+  AuthorizationDeniedError
+} from '../platform/errors/api-error.js';
 
 export interface AppointmentIdGenerator {
   next(): string;
@@ -55,6 +58,22 @@ export class MissingVerifiedPatientError extends AuthenticationRequiredError {
     super();
     this.name = 'MissingVerifiedPatientError';
   }
+}
+
+function resolvedCreatePatientId(
+  command: CreateAppointmentRequest,
+  authentication: AuthenticationContext
+): string {
+  const verified = authentication.verifiedPatientId;
+  const onBehalf = command.onBehalfPatientId;
+  if (verified !== undefined) {
+    if (onBehalf !== undefined && onBehalf !== verified) {
+      throw new AuthorizationDeniedError();
+    }
+    return verified;
+  }
+  if (onBehalf !== undefined) return onBehalf;
+  throw new MissingVerifiedPatientError();
 }
 
 /**
@@ -161,16 +180,13 @@ export class AppointmentApplicationService {
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
   ): Promise<ReservationResult> {
-    if (authentication.verifiedPatientId === undefined) {
-      throw new MissingVerifiedPatientError();
-    }
-
+    const patientId = resolvedCreatePatientId(command, authentication);
     await this.authorization.assertCanCreate(authentication, command);
 
     return this.repository.reserve(
       toBookingRequest(command, {
         appointmentId: this.ids.next(),
-        patientId: authentication.verifiedPatientId,
+        patientId,
         requestedAt: this.clock.nowUtc(),
         audit: {
           actorId: authentication.actorId,
@@ -191,13 +207,24 @@ export class AppointmentApplicationService {
     command: RescheduleAppointmentRequest,
     authentication: AuthenticationContext
   ): Promise<ReservationResult> {
-    const ownerPatientId = await this.repository.patientIdOf(appointmentId);
+    const record = await this.repository.read(appointmentId);
     await this.authorization.assertCanReschedule(
       authentication,
-      ownerPatientId === undefined
-        ? {}
-        : { appointmentPatientId: ownerPatientId }
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
     );
+
+    if (authentication.verifiedPatientId !== undefined) {
+      const nowMs = Date.parse(this.clock.nowUtc());
+      if (
+        record?.startsAt === undefined ||
+        !isWithinSelfCancelWindow(record.startsAt, nowMs)
+      ) {
+        throw new DomainError(
+          'CANCELLATION_WINDOW_CLOSED',
+          'The self-reschedule window has closed.'
+        );
+      }
+    }
 
     return this.repository.reschedule(
       toRescheduleRequest(appointmentId, command, {

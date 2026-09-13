@@ -44,11 +44,14 @@ by a route yet**:
 | `POST /v1/appointments/{id}/follow-up` | `RecordFollowUpRequestSchema` | `RecordFollowUpResponseSchema` | `planFollowUpDecision` validates the target time against the published follow-up grid and plans a separate reminder projection. Browser follow-up categories/tags, clinical note, certificate count and case-manager assignment are deliberately out of this command until an approved mapping exists. |
 | `POST /v1/schedule/publications` | `PublishScheduleRequestSchema` | `PublishScheduleResponseSchema` | `planSchedulePublication` is optimistically concurrent on `expectedVersion` and refuses to orphan an open appointment. The schedule carries no patient data by construction. |
 
-`CreateAppointmentRequestSchema` is an appointment command only:
-`idempotencyKey`, `slotId`, `serviceId` and `bookingKind`. It deliberately
-omits the patient profile, email, actor, role, patient ID, client timestamp,
-policy version, medical notes, diagnosis, uploaded images, social-message
-transcripts and arbitrary free text.
+`CreateAppointmentRequestSchema` is an appointment command:
+`idempotencyKey`, `slotId`, `serviceId`, `bookingKind`, and optional
+`onBehalfPatientId`. It deliberately omits the patient profile, email, actor,
+role, client `patientId`, client timestamp, policy version, medical notes,
+diagnosis, uploaded images, social-message transcripts and arbitrary free
+text. `onBehalfPatientId` is the staff-only opaque owner for an IP-001
+internal-test create; a verified patient identity always wins, and a patient
+who names a different owner is denied.
 
 The current browser-local synthetic prototype supports multiple selected
 items as `itemIds`. The executable appointment contract and domain transaction
@@ -94,11 +97,11 @@ promote those rows to routed production booking.
 | Health query | `HealthResponseSchema` | `HealthController` | Routed; no patient data |
 | CAL-PILOT session / calendar | CAL-PILOT contracts in `@beauessence/contracts` | `CalendarPilotModule` | Routed synthetic-only exception; expiry and exclusions in the Decision Register; not production D-009/D-016 and not `/v1/appointments` |
 | Patient intake / identity verification | None | Future protected patient application service | Boundary fixed by ADR-0005; patient fields, verification and matching remain TBD pending D-001～D-003/D-011; approved D-006 staff identity does not select patient identity |
-| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | Unrouted Stage 0 executable mapping; formal multi-service/no-service-duration direction is recorded, but the single-service contract and slot/capacity rule still need D-004 implementation, then D-001～D-005/D-011 and reviewed D-006/D-010 implementation |
+| Create appointment | `CreateAppointmentRequestSchema` / `CreateAppointmentResponseSchema` | `AppointmentApplicationService.create` → `BookingRequest` | IP-001 fail-closed `POST /v1/bookings`. Patient identity is `verifiedPatientId`; staff may send opaque `onBehalfPatientId`. Default 503. Not public production; D-001～D-005 stay pending. |
 | Request cancellation | Provisional `CancelAppointmentRequestSchema` / `CancelAppointmentResponseSchema` | `AppointmentApplicationService.cancel` → `TransitionRequest(cancel)` (owner Q5 immediate cancel; patient cutoff is day-10:00 Asia/Taipei) | IP-001 fail-closed `POST /v1/bookings/:id/cancel`. Default 503. Not public production; D-005 stays pending. |
 | Confirm cancellation | `TransitionAppointmentRequestSchema` (`confirm_cancellation`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(cancel)` via `STAFF_TRANSITION_TO_DOMAIN` | Unrouted Stage 0 schema; cancellation authority/rules remain D-005; staff session/RBAC must implement approved D-006 |
 | Complete / no-show | `TransitionAppointmentRequestSchema` (`complete`/`no_show`) / `TransitionAppointmentResponseSchema` | Future staff application mapping → `TransitionRequest(complete/no_show)` | Unrouted Stage 0 schema; D-006 approves complete for front desk/administrator, while no-show remains D-005 and slot behavior remains D-004 |
-| Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | Future application mapping → `RescheduleRequest` | Unrouted Stage 0 schema; capacity/cancellation pending D-004/D-005; staff session/RBAC must implement approved D-006 |
+| Reschedule | `RescheduleAppointmentRequestSchema` / `RescheduleAppointmentResponseSchema` | `AppointmentApplicationService.reschedule` → `RescheduleRequest` | IP-001 fail-closed `POST /v1/bookings/:id/reschedule`. Patient cutoff is the same day-10:00 Asia/Taipei window as cancel. Default 503. Not public production; D-004/D-005 stay pending. |
 | Delete appointment record | `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Future staff application mapping → `DeleteAppointmentRequest` → `planDeletion` | Unrouted Stage 0 schema; D-006 approves administrator delete/front-desk delegated code, hashed/revocable/attempt-limited controls and permanent undeletable audit; booking retention remains D-002 and implementation remains Stage 2 work |
 | Appointment note update | None | Browser-only synthetic behavior; protected application/domain command required | Inventory only; data classification/fields remain D-001～D-003/D-014; approved D-006 baseline does not infer clinical field scope |
 | Follow-up decision | `RecordFollowUpRequestSchema` / `RecordFollowUpResponseSchema` | Future application mapping → `planFollowUpDecision` (validates the target against the published follow-up grid) | Unrouted Stage 0 schema; browser categories/tags have no approved domain/audit mapping yet, and they remain inventory-only with free-text note, certificate count and case-manager shortcut pending D-001～D-003/D-007/D-014; D-006 security baseline is approved but unimplemented |

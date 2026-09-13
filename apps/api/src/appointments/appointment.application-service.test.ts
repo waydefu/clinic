@@ -18,6 +18,7 @@ import {
   toBookingRequest,
   toRescheduleRequest
 } from './appointment.application-service.js';
+import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
 import {
   createAppointmentIdempotency,
   rescheduleAppointmentIdempotency
@@ -193,6 +194,53 @@ describe('AppointmentApplicationService', () => {
     expect(reserve).not.toHaveBeenCalled();
   });
 
+  it('lets staff create on behalf of an opaque patient id', async () => {
+    const { assertCanCreate, reserve, service } = createBoundary();
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+    const command = {
+      ...COMMAND,
+      onBehalfPatientId: 'patient_opaque_002'
+    };
+
+    await expect(service.create(command, staff)).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      replayed: false
+    });
+    expect(assertCanCreate).toHaveBeenCalledWith(staff, command);
+    expect(reserve.mock.calls[0]?.[0]).toMatchObject({
+      patientId: 'patient_opaque_002'
+    });
+  });
+
+  it('ignores a matching on-behalf id and refuses a different one', async () => {
+    const { assertCanCreate, reserve, service } = createBoundary();
+
+    await expect(
+      service.create(
+        { ...COMMAND, onBehalfPatientId: 'patient_opaque_001' },
+        AUTHENTICATION
+      )
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      replayed: false
+    });
+    expect(reserve.mock.calls[0]?.[0]).toMatchObject({
+      patientId: 'patient_opaque_001'
+    });
+
+    await expect(
+      service.create(
+        { ...COMMAND, onBehalfPatientId: 'patient_opaque_002' },
+        AUTHENTICATION
+      )
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(assertCanCreate).toHaveBeenCalledTimes(1);
+    expect(reserve).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps retry identity stable when server execution metadata changes', () => {
     const first = toBookingRequest(COMMAND, {
       appointmentId: 'appointment_server_001',
@@ -295,6 +343,45 @@ describe('AppointmentApplicationService reschedule', () => {
     );
   });
 
+  it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
+    const { read, reschedule, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        RESCHEDULE_COMMAND,
+        AUTHENTICATION
+      )
+    ).rejects.toMatchObject<Partial<DomainError>>({
+      code: 'CANCELLATION_WINDOW_CLOSED'
+    });
+    expect(reschedule).not.toHaveBeenCalled();
+  });
+
+  it('lets staff reschedule after the patient cutoff', async () => {
+    const { read, reschedule, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+
+    await expect(
+      service.reschedule('appointment_server_001', RESCHEDULE_COMMAND, staff)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      replayed: false
+    });
+    expect(reschedule).toHaveBeenCalled();
+  });
+
   it('keeps retry identity stable when server execution metadata changes', () => {
     const first = toRescheduleRequest(
       'appointment_server_001',
@@ -345,9 +432,11 @@ describe('AppointmentApplicationService reschedule', () => {
   });
 
   it('scopes reschedule authorization to the appointment owner', async () => {
-    const { assertCanReschedule, patientIdOf, reschedule, service } =
-      createBoundary();
-    patientIdOf.mockResolvedValueOnce('patient_other');
+    const { assertCanReschedule, read, reschedule, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      patientId: 'patient_other'
+    });
     assertCanReschedule.mockRejectedValueOnce(new Error('denied'));
 
     await expect(
