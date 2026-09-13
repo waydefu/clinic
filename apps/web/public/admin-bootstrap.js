@@ -24,6 +24,7 @@ import {
 import { apiClient } from './modules/api-client.js';
 import { resolveApiClient } from './modules/api-client.js';
 import { upsertPatient } from './modules/patient-registry.js';
+import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
 import {
   DELETE_APPOINTMENT_REASONS,
