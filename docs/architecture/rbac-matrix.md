@@ -23,7 +23,7 @@ Session/RBAC 與 query enforcement 仍未完成。
 | --- | --- | --- |
 | [`packages/domain/src/roles.ts`](../../packages/domain/src/roles.ts) | `manager`、`front_desk`、`consultant`、`physician`、`patient`、`system_admin`、`auditor`、`service_account` | 8；canonical |
 | [`apps/api/src/platform/authorization/rbac.ts`](../../apps/api/src/platform/authorization/rbac.ts) | 從 domain 匯入 canonical `Role`；candidate permission table 未 routed | 8 |
-| [`apps/web/public/modules/permissions.js`](../../apps/web/public/modules/permissions.js) | 權限表鍵為 `manager`／`front_desk`，經 `normaliseRole` 讀取；stored fixture 仍為 `admin` | 2；lookup 已收斂，state migration 未完成 |
+| [`apps/web/public/modules/permissions.js`](../../apps/web/public/modules/permissions.js) | `admin`、`front_desk` | 2；legacy 待遷移 |
 | D-006 核准基線（2026-07-28） | administrator／front-desk／**physician** | 3 |
 | 負責人 2026-08-04 需求 | 管理者、櫃檯、諮詢師、醫師、病患（＋未來護理師、麻醉、財務） | 5＋3 |
 

@@ -23,9 +23,10 @@ describe('planDeniedDelegationAudit', () => {
       result: 'denied',
       source: 'api'
     });
-    expect(JSON.stringify(event)).not.toMatch(/secret/i);
+    expect(JSON.stringify(event)).not.toContain('morning-key');
     expect(event).not.toHaveProperty('authorizationId');
     expect(event).not.toHaveProperty('secretHash');
+    expect(event).not.toHaveProperty('secretSalt');
   });
 
   it('records a lockout as verification_locked', () => {

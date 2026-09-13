@@ -83,7 +83,8 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 - **exact root cause:** this integration token has `permissions.push=false`
   and `ManagePullRequest` has no merge action; `gh` is read-only
 - **current evidence:** OPEN, MERGEABLE, CLEAN, 12/12 PASS, run
-  `34765355315`, Verification evidence `103745746006`
+  `34765355315`, Verification evidence `103745746006`. Follow-on PR #118
+  contains this HEAD plus atomic/audit work.
 - **owner:** clinic technical owner
 - **severity:** high
 - **dependency:** none other than human merge authority
@@ -315,8 +316,10 @@ Status vocabulary is closed: `RESOLVED` | `ACTIONABLE_BY_GROK` |
 
 - **category:** D-006 / UI
 - **blocked capability:** single live role vocabulary in workspace state
-- **exact root cause:** fixtures and login still store `admin`; this PR maps
-  via `normaliseRole` so permission lookup is canonical `manager`
+- **exact root cause:** fixtures and login still store `admin`. Importing
+  `roles.js` into the workbench graph on this PR exceeded the `/index.html`
+  gzip script budget (64.3 / 64 KiB), so the lookup migration was reverted
+  rather than raising the budget.
 - **current evidence:** `state-schema.js` default account `role: 'admin'`;
   e2e still types username `admin` (handle, not role)
 - **owner:** implementer
@@ -385,7 +388,8 @@ Unrouted, synthetic-only. Does **not** close D-006 implementation evidence.
   ([Manage session cookies](https://firebase.google.com/docs/auth/admin/manage-cookies))
 - Field projection omits D-014/D-015 columns for every role (omit key, not
   `null`)
-- Browser permission table keyed by `manager` via `normaliseRole`
+- Browser permission table is unchanged here; pulling `roles.js` into the
+  workbench graph exceeded the `/index.html` script budget
 
 KDF parameters remain Node `scryptSync` as in #117
 ([Node.js crypto.scryptSync](https://nodejs.org/api/crypto.html#cryptoscryptsyncpassword-salt-keylen-options)).
@@ -462,9 +466,11 @@ Do not paste passwords, OTP, tokens, ADC JSON, or service-account keys.
 ```text
 BLOCKER: B-001 / B-002
 WHY: this agent cannot merge; #116 and #117 overlap two doc files
-EXACT ACTION: merge PR #117 first; rebase #116; merge #116
-WHERE: https://github.com/waydefu/clinic/pull/117 then /116
-EXPECTED RESULT: both closed, main contains 117 then 116
+EXACT ACTION: merge PR #118 (contains #117 HEAD plus this follow-on) OR
+     merge #117 then this follow-on; then rebase #116
+WHERE: https://github.com/waydefu/clinic/pull/118
+EXPECTED RESULT: main contains hashed delegation + atomic lock/audit;
+     #116 rebased and still green
 DO NOT SHARE: merge tokens
 WHAT GROK WILL DO AFTER: continue unrouted D-006 / Calendar prep on fresh main
 ```
