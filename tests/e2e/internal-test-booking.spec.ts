@@ -1,25 +1,48 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { fillBirthDate } from './support/patient';
 import { login, openDisclosure } from './support/workbench';
+
+type ListedSlot = {
+  slotId: string;
+  kind: string;
+  startsAt: string;
+  available: boolean;
+};
+
+type CreateStub =
+  | 'closed'
+  | {
+      appointmentId: string;
+      status: 'confirmed';
+      startsAt: string;
+      endsAt: string;
+    };
 
 /** Isolated-test `/v1` is fail-closed on the packed dist server. Tests stub it. */
 async function stubV1(
   page: Page,
-  occupancy:
-    | 'closed'
-    | {
-        slots: Array<{
-          slotId: string;
-          kind: string;
-          startsAt: string;
-          available: boolean;
-        }>;
-      }
-): Promise<void> {
+  occupancy: 'closed' | { slots: ListedSlot[] },
+  create: CreateStub = 'closed'
+): Promise<{ body?: Record<string, unknown> }> {
+  const posted: { body?: Record<string, unknown> } = {};
   await page.route('**/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
+    const method = route.request().method();
     if (path === '/v1/slots' && occupancy !== 'closed') {
       await route.fulfill({ json: occupancy });
+      return;
+    }
+    if (path === '/v1/bookings' && method === 'POST') {
+      posted.body = route.request().postDataJSON() as Record<string, unknown>;
+      if (create === 'closed') {
+        await route.fulfill({
+          status: 503,
+          json: { error: { code: 'SERVICE_UNAVAILABLE' } }
+        });
+        return;
+      }
+      await route.fulfill({ status: 201, json: create });
       return;
     }
     await route.fulfill({
@@ -27,6 +50,16 @@ async function stubV1(
       json: { error: { code: 'NOT_FOUND' } }
     });
   });
+  return posted;
+}
+
+async function fillPatientCreateForm(page: Page): Promise<void> {
+  await page.locator('#patient-name').fill('測試患者甲');
+  await page.locator('#patient-phone').fill('0912345678');
+  await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
+  await page.locator('#patient-national-id').fill('A123456789');
+  await page.locator('#privacy-consent').check();
+  await page.locator('#synthetic-confirmation').check();
 }
 
 async function openPatientSlotStep(page: Page): Promise<void> {
@@ -124,5 +157,88 @@ test.describe('internal-test booking occupancy overlay', () => {
     await openDisclosure(page, '#booking-workflow');
     await expect(page.locator('#slots')).toContainText('目前沒有可預約時段');
     await expect(page.locator('#slots [data-select-slot]')).toHaveCount(0);
+  });
+
+  test('opt-in create posts /v1/bookings without patient fields', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      }
+    );
+
+    await page.goto('/booking?internalTestBooking=1');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await openPatientSlotStep(page);
+    await page.locator('[data-patient-slot="slot_overlay_open"]').click();
+    await fillPatientCreateForm(page);
+    await page.locator('#confirm-patient-booking').click();
+
+    await expect(page.locator('#booking-result')).toContainText(
+      'appointment_api_001'
+    );
+    expect(posted.body).toMatchObject({
+      slotId: 'slot_overlay_open',
+      serviceId: expect.any(String),
+      bookingKind: 'initial'
+    });
+    expect(posted.body).not.toHaveProperty('patient');
+    expect(
+      String(posted.body?.idempotencyKey ?? '').length
+    ).toBeGreaterThanOrEqual(16);
+  });
+
+  test('opt-in create does not keep a local booking when /v1/bookings is closed', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      'closed'
+    );
+
+    await page.goto('/booking?internalTestBooking=1');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await openPatientSlotStep(page);
+    await page.locator('[data-patient-slot="slot_overlay_open"]').click();
+    await fillPatientCreateForm(page);
+    await page.locator('#confirm-patient-booking').click();
+
+    await expect(page.locator('#patient-submit-status')).toContainText(
+      '未送出預約'
+    );
+    await expect(page.locator('#booking-result')).not.toContainText(
+      'appointment_'
+    );
+    await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
   });
 });
