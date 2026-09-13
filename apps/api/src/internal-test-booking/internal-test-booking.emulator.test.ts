@@ -29,7 +29,7 @@ import {
   requireLocalFirestoreEmulatorTarget
 } from '../../../../packages/config/src/index.js';
 import { InMemoryCalendar } from '../../../worker/src/calendar-port.js';
-import { OutboxProcessor } from '../../../worker/src/outbox-processor.js';
+import { createInternalTestOutboxRuntime } from '../../../worker/src/internal-test-outbox-runtime.js';
 import { InternalTestBookingModule } from './internal-test-booking.module.js';
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
@@ -352,10 +352,16 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     expect(job).not.toHaveProperty('nationalId');
 
     const calendar = new InMemoryCalendar();
-    const processor = new OutboxProcessor(db, calendar, undefined, () => 0.5);
-    await expect(processor.processDue(NOW)).resolves.toMatchObject({
-      claimed: 1,
-      completed: 1
+    const outbox = createInternalTestOutboxRuntime({
+      db,
+      calendar,
+      clock: () => NOW,
+      random: () => 0.5
+    });
+    await expect(outbox.run()).resolves.toMatchObject({
+      summary: { claimed: 1, completed: 1 },
+      snapshot: { pending: 0, deadLettered: 0 },
+      alerts: []
     });
     const [event] = [...calendar.events.values()];
     expect(event).toMatchObject({
@@ -366,5 +372,18 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     });
     expect(event).not.toHaveProperty('patientName');
     expect(event).not.toHaveProperty('nationalId');
+
+    const cancelled = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/cancel`,
+      headers: patientHeaders(),
+      payload: { idempotencyKey: 'booking-idempotency-0011' }
+    });
+    expect(cancelled.statusCode).toBe(201);
+    await expect(outbox.run()).resolves.toMatchObject({
+      summary: { claimed: 1, completed: 1 }
+    });
+    expect(calendar.events.size).toBe(0);
+    expect(calendar.cancelCount).toBe(1);
   });
 });
