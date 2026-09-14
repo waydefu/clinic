@@ -318,7 +318,9 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
       appointmentId: APPOINTMENT_ID,
       status: 'confirmed',
       startsAt: '2030-01-02T04:00:00.000Z',
-      endsAt: '2030-01-02T04:30:00.000Z'
+      endsAt: '2030-01-02T04:30:00.000Z',
+      bookingKind: 'initial',
+      slotId: SLOT_ID
     });
   });
 
