@@ -29,9 +29,14 @@ type MutationStub =
       appointmentId: string;
       decision: 'required' | 'not_required';
       dueAt: string | null;
+    }
+  | {
+      appointmentId: string;
+      deleted: true;
+      auditEventId: string;
     };
 type MutationKind =
-  'cancel' | 'reschedule' | 'complete' | 'noShow' | 'followUp';
+  'cancel' | 'reschedule' | 'complete' | 'noShow' | 'followUp' | 'delete';
 
 type CapturedPost = {
   path?: string;
@@ -51,7 +56,8 @@ const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
   { kind: 'reschedule', pattern: /^\/v1\/bookings\/[^/]+\/reschedule$/ },
   { kind: 'complete', pattern: /^\/v1\/bookings\/[^/]+\/complete$/ },
   { kind: 'noShow', pattern: /^\/v1\/bookings\/[^/]+\/no-show$/ },
-  { kind: 'followUp', pattern: /^\/v1\/bookings\/[^/]+\/follow-up$/ }
+  { kind: 'followUp', pattern: /^\/v1\/bookings\/[^/]+\/follow-up$/ },
+  { kind: 'delete', pattern: /^\/v1\/bookings\/[^/]+\/delete$/ }
 ];
 
 /** Isolated-test `/v1` is fail-closed on the packed dist server. Tests stub it. */
@@ -68,6 +74,7 @@ async function stubV1(
   complete: CapturedPost;
   noShow: CapturedPost;
   followUp: CapturedPost;
+  delete: CapturedPost;
   query: CapturedPost;
   publish: CapturedPost;
 }> {
@@ -78,6 +85,7 @@ async function stubV1(
     complete: CapturedPost;
     noShow: CapturedPost;
     followUp: CapturedPost;
+    delete: CapturedPost;
     query: CapturedPost;
     publish: CapturedPost;
   } = {
@@ -86,6 +94,7 @@ async function stubV1(
     complete: {},
     noShow: {},
     followUp: {},
+    delete: {},
     query: {},
     publish: {}
   };
@@ -1094,5 +1103,106 @@ test.describe('internal-test booking occupancy overlay', () => {
       '服務暫時無法使用，請稍後再試。'
     );
     await expect(form).toBeVisible();
+  });
+
+  test('opt-in staff delete posts /v1/bookings/:id/delete with a closed reason', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      },
+      {
+        delete: {
+          appointmentId: 'appointment_api_001',
+          deleted: true,
+          auditEventId: 'audit_appointment_api_001_deleted_key'
+        }
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('.action-menu summary').click();
+    await card.locator('[data-appointment-action="delete"]').click();
+    await page
+      .locator('.confirm-dialog-reason select')
+      .selectOption('created_in_error');
+    await page.locator('.confirm-dialog-actions .button-danger').click();
+
+    await expect(page.locator('#status')).toContainText('已刪除');
+    expect(posted.delete.path).toBe('/v1/bookings/appointment_api_001/delete');
+    expect(posted.delete.body).toMatchObject({
+      reasonCode: 'created_in_error'
+    });
+    expect(posted.delete.body).not.toHaveProperty('patient');
+    expect(posted.delete.body).not.toHaveProperty('authorizationSecret');
+    expect(posted.delete.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+  });
+
+  test('opt-in staff delete does not succeed locally when /v1 delete is closed', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      },
+      { delete: 'closed' }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('.action-menu summary').click();
+    await card.locator('[data-appointment-action="delete"]').click();
+    await page.locator('.confirm-dialog-actions .button-danger').click();
+
+    await expect(page.locator('#status')).toContainText(
+      '服務暫時無法使用，請稍後再試。'
+    );
+    await expect(card).toBeVisible();
   });
 });

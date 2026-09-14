@@ -112,6 +112,12 @@ const harnessRepository: AppointmentRepositoryPort = {
       decision: 'required' as const,
       dueAt: '2030-01-02T04:15:00.000Z'
     }),
+  deleteAppointment: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      auditEventId: 'audit_appointment_harness_001_deleted_key'
+    }),
   read: () =>
     Promise.resolve(
       ownerPatientId === undefined

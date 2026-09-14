@@ -85,3 +85,16 @@ export function rescheduleAppointmentIdempotency(input: {
     input.targetSlotId
   ]);
 }
+
+export function deleteAppointmentIdempotency(input: {
+  readonly key: string;
+  readonly actorId: string;
+  readonly appointmentId: string;
+  readonly reasonCode: string;
+}): IdempotencyContext {
+  const scope = `appointment:${input.appointmentId}:delete`;
+  return contextFor(input.key, input.actorId, scope, [
+    input.appointmentId,
+    input.reasonCode
+  ]);
+}

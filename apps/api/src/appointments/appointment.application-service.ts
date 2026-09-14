@@ -4,6 +4,8 @@ import {
   type CancelAppointmentResponse,
   type CreateAppointmentRequest,
   type CreateAppointmentResponse,
+  type DeleteAppointmentRequest,
+  type DeleteAppointmentResponse,
   type GetAppointmentResponse,
   type RecordFollowUpRequest,
   type RecordFollowUpResponse,
@@ -15,6 +17,7 @@ import type {
   AppointmentTransition,
   AuditContext,
   BookingRequest,
+  DeleteAppointmentRequest as DomainDeleteAppointmentRequest,
   FollowUpDecisionRequest,
   RescheduleRequest,
   TransitionRequest
@@ -33,6 +36,7 @@ import type {
 } from './appointment.repository-port.js';
 import {
   createAppointmentIdempotency,
+  deleteAppointmentIdempotency,
   followUpAppointmentIdempotency,
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
@@ -216,6 +220,27 @@ export function toFollowUpRequest(
       decision: command.decision,
       ...(command.dueDate === undefined ? {} : { dueDate: command.dueDate }),
       ...(command.dueTime === undefined ? {} : { dueTime: command.dueTime })
+    })
+  };
+}
+
+export function toDeleteRequest(
+  appointmentId: string,
+  command: DeleteAppointmentRequest,
+  context: {
+    readonly requestedAt: string;
+    readonly audit: AuditContext;
+  }
+): DomainDeleteAppointmentRequest {
+  return {
+    appointmentId,
+    audit: context.audit,
+    requestedAt: context.requestedAt,
+    idempotency: deleteAppointmentIdempotency({
+      key: command.idempotencyKey,
+      actorId: context.audit.actorId,
+      appointmentId,
+      reasonCode: command.reasonCode
     })
   };
 }
@@ -446,6 +471,33 @@ export class AppointmentApplicationService {
       appointmentId: result.appointmentId,
       decision: result.decision,
       dueAt: result.dueAt
+    };
+  }
+
+  public async delete(
+    appointmentId: string,
+    command: DeleteAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<DeleteAppointmentResponse> {
+    await this.authorization.assertCanDelete(authentication);
+    const result = await this.repository.deleteAppointment(
+      toDeleteRequest(appointmentId, command, {
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: command.reasonCode,
+          policyVersion: null
+        }
+      })
+    );
+
+    return {
+      appointmentId: result.appointmentId,
+      deleted: true,
+      auditEventId: result.auditEventId
     };
   }
 

@@ -6,6 +6,7 @@ import {
   parsePublishedScheduleSnapshot,
   parseSlotSnapshot,
   planBooking,
+  planDeletion,
   planFollowUpDecision,
   planReschedule,
   planTransition,
@@ -13,6 +14,7 @@ import {
   resolvePublishedSlot,
   type AppointmentSnapshot,
   type BookingRequest,
+  type DeleteAppointmentRequest,
   type ExistingFollowUpSnapshot,
   type FollowUpDecisionRequest,
   type IdempotencyContext,
@@ -33,6 +35,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type {
   AppointmentRecord,
   AppointmentRepositoryPort,
+  DeletionResult,
   FollowUpResult,
   ReservationResult,
   TransitionResult
@@ -382,6 +385,87 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         appointmentId: plan.appointmentId,
         replayed: false,
         status: plan.nextStatus
+      };
+    });
+  }
+
+  /**
+   * Administrator record hygiene. The appointment row is removed in the same
+   * transaction as the surviving audit event, slot release, and Calendar
+   * cancel outbox. Delegated front-desk codes stay off this path.
+   */
+  public async deleteAppointment(
+    request: DeleteAppointmentRequest
+  ): Promise<DeletionResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
+    const idempotencyRef = this.db
+      .collection(COLLECTIONS.idempotencyKeys)
+      .doc(request.idempotency.recordId);
+    const appointmentRef = this.db
+      .collection(COLLECTIONS.appointments)
+      .doc(request.appointmentId);
+
+    return this.db.runTransaction(async (transaction) => {
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
+      if (replay !== undefined) {
+        return {
+          appointmentId: replay.appointmentId,
+          replayed: true,
+          auditEventId: `audit_${replay.appointmentId}_deleted_${request.idempotency.recordId}`
+        };
+      }
+
+      const appointmentDocument = await transaction.get(appointmentRef);
+      const appointment = this.snapshotOf(appointmentDocument);
+      const patientGuardDocument =
+        appointment === undefined
+          ? undefined
+          : await transaction.get(
+              this.db
+                .collection(COLLECTIONS.patientBookingGuards)
+                .doc(appointment.patientId)
+            );
+      const slotDocument =
+        appointment === undefined
+          ? undefined
+          : await transaction.get(
+              this.db.collection(COLLECTIONS.slots).doc(appointment.slotId)
+            );
+
+      const plan = planDeletion(
+        request,
+        appointment,
+        this.patientGuardSnapshotOf(patientGuardDocument)
+      );
+
+      transaction.delete(appointmentRef);
+      if (plan.releaseSlotId !== undefined && slotDocument !== undefined) {
+        this.releaseSlot(transaction, slotDocument, plan.appointmentId);
+      }
+      this.applyPatientGuardMutation(
+        transaction,
+        patientGuardDocument,
+        plan.patientBookingGuard
+      );
+      transaction.create(
+        this.db
+          .collection(COLLECTIONS.auditEvents)
+          .doc(plan.auditEvent.eventId),
+        plan.auditEvent
+      );
+      transaction.set(
+        this.db.collection(COLLECTIONS.outboxJobs).doc(plan.outboxJob.id),
+        plan.outboxJob
+      );
+      transaction.create(idempotencyRef, plan.idempotencyRecord);
+
+      return {
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        auditEventId: plan.auditEvent.eventId
       };
     });
   }

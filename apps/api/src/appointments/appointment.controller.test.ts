@@ -105,6 +105,12 @@ const harnessRepository: AppointmentRepositoryPort = {
       decision: 'required' as const,
       dueAt: '2030-01-02T04:15:00.000Z'
     }),
+  deleteAppointment: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      auditEventId: 'audit_appointment_harness_001_deleted_key'
+    }),
   read: () =>
     Promise.resolve(
       ownerPatientId === undefined
@@ -274,9 +280,33 @@ describe('unrouted AppointmentController RBAC harness', () => {
     const response = await harness.inject({
       method: 'POST',
       url: '/v1/bookings/appointment_harness_001/delete',
+      payload: {
+        idempotencyKey: 'delete_request_0001',
+        reasonCode: 'created_in_error'
+      },
       headers: actorHeaders('front_desk')
     });
     expect(response.statusCode).toBe(403);
+  });
+
+  it('lets a manager delete with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/delete',
+      payload: {
+        idempotencyKey: 'delete_request_0001',
+        reasonCode: 'created_in_error'
+      },
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      deleted: true,
+      auditEventId: 'audit_appointment_harness_001_deleted_key'
+    });
   });
 
   it('lets a manager reschedule with 2xx', async () => {
@@ -507,7 +537,7 @@ describe('production AppModule booking write path', () => {
     expect(response.statusCode).toBe(503);
   });
 
-  it('refuses complete and no-show while the IP-001 internal-test gate is closed', async () => {
+  it('refuses complete, no-show and delete while the IP-001 internal-test gate is closed', async () => {
     app = await createApplication();
     await app.init();
     const completeResponse = await app.inject({
@@ -520,8 +550,17 @@ describe('production AppModule booking write path', () => {
       url: '/v1/bookings/appointment_harness_001/no-show',
       payload: { idempotencyKey: 'no_show_request_0001' }
     });
+    const deleteResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/delete',
+      payload: {
+        idempotencyKey: 'delete_request_0001',
+        reasonCode: 'created_in_error'
+      }
+    });
     expect(completeResponse.statusCode).toBe(503);
     expect(noShowResponse.statusCode).toBe(503);
+    expect(deleteResponse.statusCode).toBe(503);
   });
 
   it('refuses follow-up while the IP-001 internal-test gate is closed', async () => {

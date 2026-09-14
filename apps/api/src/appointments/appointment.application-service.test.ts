@@ -1,11 +1,13 @@
 import type {
   CancelAppointmentRequest,
   CreateAppointmentRequest,
+  DeleteAppointmentRequest,
   RecordFollowUpRequest,
   RescheduleAppointmentRequest
 } from '@beauessence/contracts';
 import type {
   BookingRequest,
+  DeleteAppointmentRequest as DomainDeleteAppointmentRequest,
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
@@ -28,6 +30,7 @@ import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
 import type {
   AppointmentRecord,
   AppointmentRepositoryPort,
+  DeletionResult,
   ReservationResult,
   TransitionResult
 } from './appointment.repository-port.js';
@@ -59,6 +62,11 @@ const FOLLOW_UP_COMMAND: RecordFollowUpRequest = {
   decision: 'required',
   dueDate: '2030-01-02',
   dueTime: '12:15'
+};
+
+const DELETE_COMMAND: DeleteAppointmentRequest = {
+  idempotencyKey: 'delete_request_0001',
+  reasonCode: 'created_in_error'
 };
 
 const OPEN_RECORD: AppointmentRecord = {
@@ -112,6 +120,15 @@ function createBoundary() {
       dueAt: '2030-01-02T04:15:00.000Z'
     })
   );
+  const deleteAppointment = vi.fn<
+    (request: DomainDeleteAppointmentRequest) => Promise<DeletionResult>
+  >(() =>
+    Promise.resolve({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      auditEventId: 'audit_appointment_server_001_deleted_key'
+    })
+  );
   const assertCanCreate = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCreate']
   >(() => Promise.resolve());
@@ -139,7 +156,8 @@ function createBoundary() {
     patientIdOf,
     read,
     transition,
-    recordFollowUp
+    recordFollowUp,
+    deleteAppointment
   };
   const authorization: AppointmentAuthorizationPolicy = {
     assertCanCreate,
@@ -165,12 +183,14 @@ function createBoundary() {
     assertCanComplete,
     assertCanDecideFollowUp,
     assertCanQuery,
+    assertCanDelete,
     patientIdOf,
     read,
     reserve,
     reschedule,
     transition,
     recordFollowUp,
+    deleteAppointment,
     service
   };
 }
@@ -670,5 +690,32 @@ describe('AppointmentApplicationService complete and no-show', () => {
       service.recordFollowUp('appointment_server_001', FOLLOW_UP_COMMAND, STAFF)
     ).rejects.toThrow('denied');
     expect(recordFollowUp).not.toHaveBeenCalled();
+  });
+
+  it('lets a manager delete with a closed reason code after authorization', async () => {
+    const { assertCanDelete, deleteAppointment, service } = createBoundary();
+
+    await expect(
+      service.delete('appointment_server_001', DELETE_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      deleted: true,
+      auditEventId: 'audit_appointment_server_001_deleted_key'
+    });
+    expect(assertCanDelete).toHaveBeenCalledWith(STAFF);
+    expect(deleteAppointment.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      audit: { reasonCode: 'created_in_error' }
+    });
+  });
+
+  it('does not persist deletion when authorization denies', async () => {
+    const { assertCanDelete, deleteAppointment, service } = createBoundary();
+    assertCanDelete.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.delete('appointment_server_001', DELETE_COMMAND, STAFF)
+    ).rejects.toThrow('denied');
+    expect(deleteAppointment).not.toHaveBeenCalled();
   });
 });

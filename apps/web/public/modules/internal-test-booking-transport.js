@@ -123,6 +123,17 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
       body: { idempotencyKey: idempotencyKey() }
     };
   }
+  const deletion = /^\/bookings\/([A-Za-z0-9_-]+)\/delete$/.exec(path);
+  if (verb === 'POST' && deletion !== null) {
+    return {
+      url: `/v1/bookings/${deletion[1]}/delete`,
+      method: 'POST',
+      body: {
+        idempotencyKey: idempotencyKey(),
+        reasonCode: body.reasonCode
+      }
+    };
+  }
   const query = /^\/bookings\/([A-Za-z0-9_-]+)$/.exec(path);
   if (verb === 'GET' && query !== null) {
     return { url: `/v1/bookings/${query[1]}`, method: 'GET' };
@@ -204,6 +215,18 @@ export function applyFollowUpContractWrite(state, path, body, result) {
     }
   }
   state.followUps = followUps;
+  return state;
+}
+
+export function applyDeleteContractWrite(state, path, result) {
+  const deletion = /^\/bookings\/([^/]+)\/delete$/.exec(path);
+  if (deletion === null || result?.deleted !== true) return state;
+  const appointmentId = deletion[1];
+  if (Array.isArray(state?.appointments)) {
+    state.appointments = state.appointments.filter(
+      (item) => item.id !== appointmentId
+    );
+  }
   return state;
 }
 

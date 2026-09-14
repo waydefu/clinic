@@ -12,14 +12,13 @@ import {
   CancelAppointmentRequestSchema,
   CreateAppointmentRequestSchema,
   RecordFollowUpRequestSchema,
+  DeleteAppointmentRequestSchema,
   RescheduleAppointmentRequestSchema,
   type GetAppointmentResponse
 } from '@beauessence/contracts';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
-import { ServiceUnavailableError } from '../platform/errors/api-error.js';
 import { AppointmentApplicationService } from './appointment.application-service.js';
-import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
 import {
   assertInternalTestBookingWritable,
   type InternalTestBookingSettings
@@ -61,8 +60,6 @@ export class AppointmentController {
   public constructor(
     @Inject(APPOINTMENT_APPLICATION)
     private readonly appointments: AppointmentApplicationService,
-    @Inject(APPOINTMENT_AUTHORIZATION)
-    private readonly authorization: AppointmentAuthorizationPolicy,
     @Inject(APPOINTMENT_AUTHENTICATOR)
     private readonly authenticator: AppointmentAuthenticator,
     @Optional()
@@ -182,15 +179,15 @@ export class AppointmentController {
   @Post(':appointmentId/delete')
   public async delete(
     @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticator.authenticate(request);
-    identifier(appointmentId);
-    await this.authorization.assertCanDelete(authentication);
-    // Persistence stays unwired. An allowed caller still cannot delete through
-    // this unrouted controller; the 503 is the evidence that authorization
-    // ran and the write path did not invent a deletion.
-    throw new ServiceUnavailableError();
+    return this.appointments.delete(
+      identifier(appointmentId),
+      DeleteAppointmentRequestSchema.parse(body),
+      authentication
+    );
   }
 }

@@ -342,8 +342,9 @@ async function post(path, body = {}) {
       typeof result?.appointmentId === 'string' &&
       occupancyWrite(path)
     ) {
-      const { refreshPublishedOccupancy } =
+      const { refreshPublishedOccupancy, applyDeleteContractWrite } =
         await import('./modules/internal-test-booking-transport.js');
+      applyDeleteContractWrite(state, path, result);
       state = await refreshPublishedOccupancy(
         (nextPath) => client.request(nextPath),
         state
@@ -368,7 +369,7 @@ async function post(path, body = {}) {
 function occupancyWrite(path) {
   return (
     path === '/bookings' ||
-    /\/bookings\/.+\/(cancel|reschedule|no-show)$/.test(path)
+    /\/bookings\/.+\/(cancel|reschedule|no-show|delete)$/.test(path)
   );
 }
 

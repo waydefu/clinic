@@ -2,6 +2,7 @@ import type {
   AppointmentStatusValue,
   BookingKind,
   BookingRequest,
+  DeleteAppointmentRequest,
   FollowUpDecisionRequest,
   FollowUpDecisionValue,
   RescheduleRequest,
@@ -38,6 +39,12 @@ export interface FollowUpResult {
   readonly dueAt: string | null;
 }
 
+export interface DeletionResult {
+  readonly appointmentId: string;
+  readonly replayed: boolean;
+  readonly auditEventId: string;
+}
+
 /**
  * Application-owned persistence boundary. Adapters may use Firestore, but
  * application services and future controllers depend only on this port.
@@ -47,6 +54,7 @@ export interface AppointmentRepositoryPort {
   reschedule(request: RescheduleRequest): Promise<ReservationResult>;
   transition(request: TransitionRequest): Promise<TransitionResult>;
   recordFollowUp(request: FollowUpDecisionRequest): Promise<FollowUpResult>;
+  deleteAppointment(request: DeleteAppointmentRequest): Promise<DeletionResult>;
   read(appointmentId: string): Promise<AppointmentRecord | undefined>;
   /** Owner of the appointment, or `undefined` when the row is missing. */
   patientIdOf(appointmentId: string): Promise<string | undefined>;

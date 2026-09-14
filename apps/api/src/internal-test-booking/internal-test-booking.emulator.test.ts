@@ -623,4 +623,104 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
       )
     ).toBe(true);
   });
+
+  it('deletes a booking with a closed reason and projects the cancel outbox in memory', async () => {
+    const harness = requireHarness();
+    const published = await harness.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: managerHeaders(),
+      payload: {
+        ...PUBLISH_BODY,
+        idempotencyKey: 'schedule_publish_0013'
+      }
+    });
+    expect(published.statusCode).toBe(201);
+
+    const created = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: {
+        ...CREATE_BODY,
+        idempotencyKey: 'booking-idempotency-0014'
+      }
+    });
+    expect(created.statusCode).toBe(201);
+    const createdBody = JSON.parse(created.payload) as {
+      appointmentId: string;
+    };
+
+    const denied = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/delete`,
+      headers: patientHeaders(),
+      payload: {
+        idempotencyKey: 'booking-idempotency-0015',
+        reasonCode: 'created_in_error'
+      }
+    });
+    expect(denied.statusCode).toBe(403);
+
+    const deleted = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/delete`,
+      headers: managerHeaders(),
+      payload: {
+        idempotencyKey: 'booking-idempotency-0016',
+        reasonCode: 'created_in_error'
+      }
+    });
+    expect(deleted.statusCode).toBe(201);
+    const deletedBody = JSON.parse(deleted.payload) as {
+      appointmentId: string;
+      deleted: boolean;
+      auditEventId: string;
+    };
+    expect(deletedBody).toMatchObject({
+      appointmentId: createdBody.appointmentId,
+      deleted: true
+    });
+    expect(deletedBody.auditEventId).toMatch(/^audit_/);
+
+    const replayed = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/delete`,
+      headers: managerHeaders(),
+      payload: {
+        idempotencyKey: 'booking-idempotency-0016',
+        reasonCode: 'created_in_error'
+      }
+    });
+    expect(replayed.statusCode).toBe(201);
+    expect(JSON.parse(replayed.payload)).toEqual(deletedBody);
+
+    const appointment = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(createdBody.appointmentId)
+      .get();
+    expect(appointment.exists).toBe(false);
+
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    expect(
+      audits.docs.some(
+        (document) => document.data()['action'] === 'appointment_deleted'
+      )
+    ).toBe(true);
+
+    const calendar = new InMemoryCalendar();
+    const outbox = createInternalTestOutboxRuntime({
+      db,
+      calendar,
+      clock: () => NOW,
+      random: () => 0.5
+    });
+    await outbox.run();
+    expect(calendar.cancelCount).toBeGreaterThanOrEqual(1);
+    expect(
+      [...calendar.events.values()].some(
+        (event) => event.appointmentId === createdBody.appointmentId
+      )
+    ).toBe(false);
+  });
 });

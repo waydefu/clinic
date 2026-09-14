@@ -5,6 +5,7 @@ import {
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
 import {
+  applyDeleteContractWrite,
   applyFollowUpContractWrite,
   createInternalTestBookingTransport,
   mapInternalTestBookingRequest,
@@ -110,6 +111,30 @@ describe('mapInternalTestBookingRequest', () => {
         {}
       )?.url
     ).toBe('/v1/bookings/appointment_001/no-show');
+    expect(
+      mapInternalTestBookingRequest(
+        '/bookings/appointment_001/delete',
+        'POST',
+        {
+          reasonCode: 'created_in_error',
+          authorizationSecret: 'must-not-leave-the-browser'
+        }
+      )
+    ).toMatchObject({
+      url: '/v1/bookings/appointment_001/delete',
+      method: 'POST',
+      body: { reasonCode: 'created_in_error' }
+    });
+    expect(
+      mapInternalTestBookingRequest(
+        '/bookings/appointment_001/delete',
+        'POST',
+        {
+          reasonCode: 'created_in_error',
+          authorizationSecret: 'must-not-leave-the-browser'
+        }
+      )?.body
+    ).not.toHaveProperty('authorizationSecret');
     expect(
       mapInternalTestBookingRequest(
         '/bookings/appointment_001/complete-without-card',
@@ -591,5 +616,31 @@ describe('applyFollowUpContractWrite', () => {
       applyFollowUpContractWrite(state, '/bookings', {}, { appointmentId: 'x' })
     ).toBe(state);
     expect(state.followUps).toEqual([]);
+  });
+});
+
+describe('applyDeleteContractWrite', () => {
+  it('removes the deleted appointment from the local list', () => {
+    const state = {
+      appointments: [{ id: 'appointment_001' }, { id: 'appointment_002' }]
+    };
+
+    applyDeleteContractWrite(state, '/bookings/appointment_001/delete', {
+      appointmentId: 'appointment_001',
+      deleted: true,
+      auditEventId: 'audit_appointment_001_deleted_key'
+    });
+
+    expect(state.appointments).toEqual([{ id: 'appointment_002' }]);
+  });
+
+  it('leaves the snapshot unchanged when the write is not a deletion', () => {
+    const state = { appointments: [{ id: 'appointment_001' }] };
+    expect(
+      applyDeleteContractWrite(state, '/bookings', {
+        appointmentId: 'appointment_001'
+      })
+    ).toBe(state);
+    expect(state.appointments).toEqual([{ id: 'appointment_001' }]);
   });
 });
