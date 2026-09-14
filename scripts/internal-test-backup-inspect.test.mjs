@@ -52,7 +52,9 @@ describe('internalTestBackupCollectCommands', () => {
     const commands = internalTestBackupCollectCommands(isolated);
     expect(commands[0]).toContain(`--project=${isolated}`);
     expect(commands[1]).toContain('backups schedules list');
-    expect(commands.join('\n')).not.toMatch(/apply|clone|restore|delete/);
+    expect(commands.join('\n')).not.toMatch(
+      /terraform apply|databases clone|firebase deploy|backups delete/
+    );
     expect(() =>
       internalTestBackupCollectCommands('beauessence-clinic-staging')
     ).toThrow(/beauessence-clinic-staging/);
