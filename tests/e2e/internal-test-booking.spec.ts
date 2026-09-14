@@ -683,4 +683,123 @@ test.describe('internal-test booking occupancy overlay', () => {
     );
     await expect(card).toContainText('預約成立');
   });
+
+  test('opt-in staff reschedule posts /v1/bookings/:id/reschedule without patient fields', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const altStartsAt = upcomingIso(72);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          },
+          {
+            slotId: 'slot_overlay_alt',
+            kind: 'initial',
+            startsAt: altStartsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt: upcomingIso(48.5)
+      },
+      {
+        reschedule: {
+          appointmentId: 'appointment_api_001',
+          status: 'confirmed',
+          startsAt: altStartsAt,
+          endsAt: upcomingIso(72.5)
+        }
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('.action-menu summary').click();
+    await card.locator('[data-appointment-action="reschedule"]').click();
+    const form = page.locator('[data-reschedule-form="appointment_api_001"]');
+    await expect(form).toBeVisible();
+    await form
+      .locator('select[name="slotId"]')
+      .selectOption('slot_overlay_alt');
+    await form.getByRole('button', { name: '確認改期' }).click();
+
+    await expect(page.locator('#status')).toContainText('預約已改期');
+    expect(posted.reschedule.path).toBe(
+      '/v1/bookings/appointment_api_001/reschedule'
+    );
+    expect(posted.reschedule.body).toMatchObject({
+      targetSlotId: 'slot_overlay_alt'
+    });
+    expect(posted.reschedule.body).not.toHaveProperty('patient');
+    expect(posted.reschedule.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+  });
+
+  test('opt-in staff cancel posts /v1/bookings/:id/cancel without patient fields', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt: upcomingIso(48.5)
+      },
+      {
+        cancel: {
+          appointmentId: 'appointment_api_001',
+          status: 'cancelled',
+          startsAt,
+          endsAt: upcomingIso(48.5)
+        }
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('.action-menu summary').click();
+    await card.locator('[data-appointment-action="cancel"]').click();
+    await page.locator('.confirm-dialog button.button-danger').click();
+
+    await expect(page.locator('#status')).toContainText('預約已取消');
+    expect(posted.cancel.path).toBe('/v1/bookings/appointment_api_001/cancel');
+    expect(posted.cancel.body).not.toHaveProperty('patient');
+    expect(posted.cancel.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+  });
 });
