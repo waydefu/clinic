@@ -167,6 +167,46 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
   return undefined;
 }
 
+export function applyFollowUpContractWrite(state, path, body, result) {
+  const followUp = /^\/follow-ups\/([^/]+)$/.exec(path);
+  if (followUp === null) return state;
+  const decision = result?.decision;
+  if (decision !== 'required' && decision !== 'not_required') return state;
+  const appointmentId = followUp[1];
+  const appointment = Array.isArray(state?.appointments)
+    ? state.appointments.find((item) => item.id === appointmentId)
+    : undefined;
+  const now = new Date().toISOString();
+  const next = {
+    appointmentId,
+    ...(appointment === undefined ? {} : { patientId: appointment.patientId }),
+    status: decision,
+    followUpDecisionBy: 'doctor_instruction',
+    decidedAt: now,
+    followUpRecordedAt: now,
+    ...(decision === 'required'
+      ? {
+          dueDate: typeof body?.dueDate === 'string' ? body.dueDate : undefined,
+          dueTime: typeof body?.dueTime === 'string' ? body.dueTime : undefined
+        }
+      : {})
+  };
+  const followUps = Array.isArray(state.followUps) ? state.followUps : [];
+  const existing = followUps.find(
+    (item) => item.appointmentId === appointmentId
+  );
+  if (existing === undefined) followUps.push(next);
+  else {
+    Object.assign(existing, next);
+    if (decision === 'not_required') {
+      delete existing.dueDate;
+      delete existing.dueTime;
+    }
+  }
+  state.followUps = followUps;
+  return state;
+}
+
 async function requestV1(
   fetchImpl,
   mapped,

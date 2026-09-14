@@ -5,6 +5,7 @@ import {
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
 import {
+  applyFollowUpContractWrite,
   createInternalTestBookingTransport,
   mapInternalTestBookingRequest,
   refreshPublishedOccupancy
@@ -524,5 +525,71 @@ describe('refreshPublishedOccupancy', () => {
       appointments: [{ id: 'appointment_local_001' }],
       slots: []
     });
+  });
+});
+
+describe('applyFollowUpContractWrite', () => {
+  it('records a required decision onto the local follow-up list', () => {
+    const state = {
+      appointments: [{ id: 'appointment_001', patientId: 'patient_001' }],
+      followUps: [] as Array<Record<string, unknown>>
+    };
+
+    const next = applyFollowUpContractWrite(
+      state,
+      '/follow-ups/appointment_001',
+      { dueDate: '2030-01-02', dueTime: '12:15' },
+      { appointmentId: 'appointment_001', decision: 'required' }
+    );
+
+    expect(next.followUps).toEqual([
+      expect.objectContaining({
+        appointmentId: 'appointment_001',
+        patientId: 'patient_001',
+        status: 'required',
+        followUpDecisionBy: 'doctor_instruction',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      })
+    ]);
+  });
+
+  it('clears due fields when a later decision is not_required', () => {
+    const state = {
+      appointments: [{ id: 'appointment_001', patientId: 'patient_001' }],
+      followUps: [
+        {
+          appointmentId: 'appointment_001',
+          patientId: 'patient_001',
+          status: 'required',
+          dueDate: '2030-01-02',
+          dueTime: '12:15'
+        }
+      ]
+    };
+
+    applyFollowUpContractWrite(
+      state,
+      '/follow-ups/appointment_001',
+      { dueDate: '2030-01-09', dueTime: '12:15' },
+      { appointmentId: 'appointment_001', decision: 'not_required' }
+    );
+
+    expect(state.followUps).toEqual([
+      expect.objectContaining({
+        appointmentId: 'appointment_001',
+        status: 'not_required'
+      })
+    ]);
+    expect(state.followUps[0]).not.toHaveProperty('dueDate');
+    expect(state.followUps[0]).not.toHaveProperty('dueTime');
+  });
+
+  it('leaves the snapshot unchanged for other writes', () => {
+    const state = { followUps: [] };
+    expect(
+      applyFollowUpContractWrite(state, '/bookings', {}, { appointmentId: 'x' })
+    ).toBe(state);
+    expect(state.followUps).toEqual([]);
   });
 });
