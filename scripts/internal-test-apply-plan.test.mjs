@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   C1_APPLY_DIRECTORY,
+  C1_IAM_APPLY_RESOURCE,
   C5_APPLY_DIRECTORY,
+  C5_APPLY_RESOURCE,
   PLAN_USAGE,
   planInternalTestC1IamApply,
   planInternalTestC5Apply,
@@ -21,11 +23,18 @@ const PACKET = {
 };
 
 describe('planInternalTestC5Apply', () => {
-  it('prints execute:false SHA-gated C5 apply and refuses destroy', () => {
+  it('prints execute:false SHA-gated C5 targeted apply and refuses destroy', () => {
     const plan = planInternalTestC5Apply(PACKET, HEAD);
     expect(plan.execute).toBe(false);
     expect(plan.target).toBe('c5');
     expect(plan.workingDirectory).toBe(C5_APPLY_DIRECTORY);
+    expect(plan.resourceAddress).toBe(C5_APPLY_RESOURCE);
+    expect(plan.initCommand).toContain(
+      '-backend-config=bucket=beauessence-clinic-stg-c1a01-tfstate'
+    );
+    expect(plan.initCommand).toContain('-backend-config=prefix=c5-firestore');
+    expect(plan.planCommand).toContain(' plan ');
+    expect(plan.planCommand).toContain(`-target=${C5_APPLY_RESOURCE}`);
     expect(plan.applyCommand).toContain(`-chdir=${C5_APPLY_DIRECTORY}`);
     expect(plan.applyCommand).toContain(
       `-var=exact_apply_authority_sha=${HEAD}`
@@ -33,11 +42,13 @@ describe('planInternalTestC5Apply', () => {
     expect(plan.applyCommand).toContain(
       '-var=project_id=beauessence-clinic-stg-c1a01'
     );
+    expect(plan.applyCommand).toContain(`-target=${C5_APPLY_RESOURCE}`);
     expect(plan.applyCommand).not.toContain('beauessence-clinic-staging');
     expect(plan.applyCommand).not.toMatch(/destroy|not_granted/);
     expect(plan.inspectCommand).toContain('inspect:internal-test-backup');
     expect(plan.rollbackReminder).toMatch(/not_granted/);
     expect(plan.rollbackReminder).toMatch(/Do not destroy/);
+    expect(plan.packetReminder).toMatch(/google_firestore_backup_schedule/);
   });
 
   it('refuses staging and a stale SHA', () => {
@@ -57,19 +68,23 @@ describe('planInternalTestC5Apply', () => {
 });
 
 describe('planInternalTestC1IamApply', () => {
-  it('prints execute:false Pub/Sub-only C1 IAM apply', () => {
+  it('prints execute:false Pub/Sub-only targeted C1 IAM apply', () => {
     const plan = planInternalTestC1IamApply(PACKET, HEAD);
     expect(plan.execute).toBe(false);
     expect(plan.target).toBe('c1-iam');
     expect(plan.workingDirectory).toBe(C1_APPLY_DIRECTORY);
+    expect(plan.resourceAddress).toBe(C1_IAM_APPLY_RESOURCE);
+    expect(plan.initCommand).toContain('-backend-config=prefix=c1-foundation');
     expect(plan.applyCommand).toContain(`-chdir=${C1_APPLY_DIRECTORY}`);
     expect(plan.applyCommand).toContain(
       `-var=exact_apply_authority_sha=${HEAD}`
     );
-    expect(plan.applyCommand).not.toMatch(/destroy|not_granted|@/);
+    expect(plan.applyCommand).toContain(`-target=${C1_IAM_APPLY_RESOURCE}`);
+    expect(plan.applyCommand).not.toMatch(/destroy|not_granted|@|billing/);
     expect(plan.inspectCommand).toContain('inspect:internal-test-monitoring');
     expect(plan.packetReminder).toMatch(/Pub\/Sub/);
     expect(plan.packetReminder).toMatch(/email recipients/);
+    expect(plan.packetReminder).toMatch(/billing tfvars/);
   });
 });
 
@@ -142,5 +157,8 @@ describe('internal-test apply plan source', () => {
     expect(source).not.toMatch(/execFile|spawnSync/);
     expect(source).not.toMatch(/terraform destroy/);
     expect(source).toContain('execute: false');
+    expect(source).toContain('`-target=${resourceAddress}`');
+    expect(source).toContain(C5_APPLY_RESOURCE);
+    expect(source).toContain(C1_IAM_APPLY_RESOURCE);
   });
 });

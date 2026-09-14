@@ -8,6 +8,9 @@ import {
 
 export const C5_APPLY_DIRECTORY = 'infra/terraform/c5-firestore';
 export const C1_APPLY_DIRECTORY = 'infra/terraform/c1-foundation';
+export const C5_APPLY_RESOURCE = 'google_firestore_backup_schedule.daily';
+export const C1_IAM_APPLY_RESOURCE =
+  'google_monitoring_alert_policy.iam_setiampolicy';
 export const APPLY_TARGETS = Object.freeze(['c5', 'c1-iam']);
 
 const ROLLBACK_REMINDER =
@@ -47,14 +50,27 @@ function assertInternalTestApplyPacket(packet, headSha, context) {
   return { sha, projectId, operator, approver };
 }
 
-function terraformApplyCommand(directory, authorized) {
+function terraformInitCommand(directory, projectId, statePrefix) {
   return [
     'terraform',
     `-chdir=${directory}`,
-    'apply',
+    'init',
+    '-input=false',
+    `-backend-config=bucket=${projectId}-tfstate`,
+    `-backend-config=prefix=${statePrefix}`
+  ].join(' ');
+}
+
+function terraformCommand(action, directory, authorized, resourceAddress) {
+  return [
+    'terraform',
+    `-chdir=${directory}`,
+    action,
+    '-input=false',
     `-var=exact_apply_authority_sha=${authorized.sha}`,
     `-var=project_id=${authorized.projectId}`,
-    '-var=region=asia-east1'
+    '-var=region=asia-east1',
+    `-target=${resourceAddress}`
   ].join(' ');
 }
 
@@ -68,14 +84,31 @@ export function planInternalTestC5Apply(packet, headSha) {
     execute: false,
     target: 'c5',
     workingDirectory: C5_APPLY_DIRECTORY,
+    resourceAddress: C5_APPLY_RESOURCE,
     projectId: authorized.projectId,
     sha: authorized.sha,
-    applyCommand: terraformApplyCommand(C5_APPLY_DIRECTORY, authorized),
+    initCommand: terraformInitCommand(
+      C5_APPLY_DIRECTORY,
+      authorized.projectId,
+      'c5-firestore'
+    ),
+    planCommand: terraformCommand(
+      'plan',
+      C5_APPLY_DIRECTORY,
+      authorized,
+      C5_APPLY_RESOURCE
+    ),
+    applyCommand: terraformCommand(
+      'apply',
+      C5_APPLY_DIRECTORY,
+      authorized,
+      C5_APPLY_RESOURCE
+    ),
     inspectCommand:
       'pnpm inspect:internal-test-backup -- inspect <snapshot.json>',
     rollbackReminder: ROLLBACK_REMINDER,
     packetReminder:
-      'This plan is not the C5 apply packet. Applying still needs a fresh exact-SHA packet for this HEAD, isolated project beauessence-clinic-stg-c1a01, operator, and named approver. Live (default) already exists; the SHA-gated daily schedule is the missing resource.'
+      'This plan is not the C5 apply packet. Applying still needs a fresh exact-SHA packet for this HEAD, isolated project beauessence-clinic-stg-c1a01, operator, and named approver. Live (default) is already in remote state; init against that project tfstate prefix c5-firestore, then targeted apply adds only google_firestore_backup_schedule.daily. Do not apply the whole stack.'
   };
 }
 
@@ -89,14 +122,31 @@ export function planInternalTestC1IamApply(packet, headSha) {
     execute: false,
     target: 'c1-iam',
     workingDirectory: C1_APPLY_DIRECTORY,
+    resourceAddress: C1_IAM_APPLY_RESOURCE,
     projectId: authorized.projectId,
     sha: authorized.sha,
-    applyCommand: terraformApplyCommand(C1_APPLY_DIRECTORY, authorized),
+    initCommand: terraformInitCommand(
+      C1_APPLY_DIRECTORY,
+      authorized.projectId,
+      'c1-foundation'
+    ),
+    planCommand: terraformCommand(
+      'plan',
+      C1_APPLY_DIRECTORY,
+      authorized,
+      C1_IAM_APPLY_RESOURCE
+    ),
+    applyCommand: terraformCommand(
+      'apply',
+      C1_APPLY_DIRECTORY,
+      authorized,
+      C1_IAM_APPLY_RESOURCE
+    ),
     inspectCommand:
       'pnpm inspect:internal-test-monitoring -- inspect <snapshot.json>',
     rollbackReminder: ROLLBACK_REMINDER,
     packetReminder:
-      'This plan is not the C1 IAM apply packet. Applying still needs a fresh exact-SHA packet for this HEAD, isolated project beauessence-clinic-stg-c1a01, operator, and named approver. Notify the existing budget Pub/Sub channel only; do not add email recipients.'
+      'This plan is not the C1 IAM apply packet. Applying still needs a fresh exact-SHA packet for this HEAD, isolated project beauessence-clinic-stg-c1a01, operator, and named approver. Live logging metric and budget Pub/Sub channel are already in remote state; targeted apply adds only google_monitoring_alert_policy.iam_setiampolicy and does not require billing tfvars. Untargeted C1 apply would evaluate the budget billing precondition. Notify the existing budget Pub/Sub channel only; do not add email recipients.'
   };
 }
 
@@ -110,7 +160,7 @@ export function packetFromEnv(env = process.env) {
 }
 
 export const PLAN_USAGE =
-  'Usage: set INTERNAL_TEST_APPLY_{SHA,PROJECT,OPERATOR,APPROVER} then pnpm plan:internal-test-apply -- <c5|c1-iam> <40-char-HEAD-sha>\nPrints execute:false terraform apply for the SHA-gated C5 daily backup schedule or C1 IAM SetIamPolicy alert. Does not apply, destroy, or invent email recipients. Live staging/production are refused.\n';
+  'Usage: set INTERNAL_TEST_APPLY_{SHA,PROJECT,OPERATOR,APPROVER} then pnpm plan:internal-test-apply -- <c5|c1-iam> <40-char-HEAD-sha>\nPrints execute:false terraform init/plan/apply -target for the SHA-gated C5 daily backup schedule or C1 IAM SetIamPolicy alert. Does not apply, destroy, or invent email recipients. Live staging/production are refused.\n';
 
 export function runInternalTestApplyPlanCli({ argv, env, stdout, stderr }) {
   const args = argv.filter((argument) => argument !== '--');
