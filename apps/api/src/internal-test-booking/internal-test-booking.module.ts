@@ -20,7 +20,8 @@ import type { AppointmentAuthorizationPolicy } from '../appointments/appointment
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import {
   CalendarPilotModule,
-  defaultFirebaseApp
+  defaultFirebaseApp,
+  vitestWithoutFirestoreEmulator
 } from '../calendar/calendar-pilot.module.js';
 import { CALENDAR_PILOT_SESSIONS } from '../calendar/calendar-pilot.tokens.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
@@ -71,13 +72,6 @@ const SCHEDULE_AUTHORIZATION = 'ScheduleAuthorizationPolicy';
 function resolveRole(context: AuthenticationContext): CandidateRole {
   if (!isRole(context.actorRole)) throw new AuthorizationDeniedError();
   return context.actorRole;
-}
-
-function vitestWithoutFirestoreEmulator(): boolean {
-  return (
-    process.env['VITEST'] !== undefined &&
-    process.env['FIRESTORE_EMULATOR_HOST'] === undefined
-  );
 }
 
 function unpublishedMemorySchedule(): ScheduleRepositoryPort {

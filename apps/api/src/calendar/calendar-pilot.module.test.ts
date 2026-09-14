@@ -15,4 +15,10 @@ describe('CalendarPilotModule Firebase wiring', () => {
     expect(source).not.toMatch(/^const firestore = getFirestore\(\);$/m);
     expect(source).not.toMatch(/^const firebaseAuth = getAuth\(\);$/m);
   });
+
+  it('keeps Vitest AppModule denial audits off Cloud Firestore', () => {
+    expect(source).toContain('InMemoryDeniedAccessAuditSink');
+    expect(source).toContain('vitestWithoutFirestoreEmulator');
+    expect(source).toContain('FirestoreDeniedAccessAuditStore');
+  });
 });

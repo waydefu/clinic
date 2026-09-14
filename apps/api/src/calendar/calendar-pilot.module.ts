@@ -10,7 +10,10 @@ import { CalendarPilotSessionController } from '../auth/calendar-pilot-session.c
 import { FirestoreCalendarPilotRepository } from '../firestore/calendar-pilot.repository.js';
 import { FirestoreDeniedAccessAuditStore } from '../firestore/denied-access-audit.repository.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
-import { DENIED_AUTHORIZATION_AUDIT } from '../platform/authorization/denied-access-audit.port.js';
+import {
+  DENIED_AUTHORIZATION_AUDIT,
+  InMemoryDeniedAccessAuditSink
+} from '../platform/authorization/denied-access-audit.port.js';
 import { CalendarPilotApplicationService } from './calendar-pilot.application-service.js';
 import { CalendarPilotController } from './calendar-pilot.controller.js';
 import {
@@ -27,6 +30,13 @@ import {
 export function defaultFirebaseApp(): App {
   if (getApps().some((app) => app.name === '[DEFAULT]')) return getApp();
   return initializeApp();
+}
+
+export function vitestWithoutFirestoreEmulator(): boolean {
+  return (
+    process.env['VITEST'] !== undefined &&
+    process.env['FIRESTORE_EMULATOR_HOST'] === undefined
+  );
 }
 
 @Module({
@@ -58,8 +68,16 @@ export function defaultFirebaseApp(): App {
     },
     {
       provide: DENIED_AUTHORIZATION_AUDIT,
-      useFactory: () =>
-        new FirestoreDeniedAccessAuditStore(getFirestore(defaultFirebaseApp()))
+      useFactory: () => {
+        // Vitest AppModule proofs boot without ADC. A fire-and-forget
+        // Firestore create() then rejects unhandled and fails the suite.
+        if (vitestWithoutFirestoreEmulator()) {
+          return new InMemoryDeniedAccessAuditSink();
+        }
+        return new FirestoreDeniedAccessAuditStore(
+          getFirestore(defaultFirebaseApp())
+        );
+      }
     },
     CalendarPilotSessionGuard,
     { provide: APP_FILTER, useClass: ApiExceptionFilter }
