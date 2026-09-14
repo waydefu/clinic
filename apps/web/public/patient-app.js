@@ -1402,13 +1402,12 @@ window.addEventListener('storage', async (event) => {
     message('預約系統已進入維護，請稍後再試。', 'info');
 });
 
-if (isOnline) {
-  document.querySelector('.environment-badge').lastChild.textContent =
-    'ONLINE PREVIEW';
-}
+const environmentBadge = document.querySelector('.environment-badge');
 if (isInternalTestBookingEnabled()) {
+  environmentBadge.lastChild.textContent = 'INTERNAL TEST';
   elements['patient-env-boundary'].textContent = '內部測試路由 · 非正式上線';
 } else if (isOnline) {
+  environmentBadge.lastChild.textContent = 'ONLINE PREVIEW';
   elements['patient-env-boundary'].textContent =
     '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
 }

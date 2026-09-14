@@ -256,6 +256,12 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(page.locator('#patient-env-boundary')).not.toContainText(
       '內部測試路由'
     );
+    await expect(
+      page.locator('.patient-header .environment-badge')
+    ).toContainText('LOCAL TEST ONLY');
+    await expect(
+      page.locator('.patient-header .environment-badge')
+    ).not.toContainText('INTERNAL TEST');
   });
 
   test('opt-in with a closed slot list hides the synthetic bookable grid', async ({
@@ -272,6 +278,9 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(page.locator('#patient-env-boundary')).toHaveText(
       '內部測試路由 · 非正式上線'
     );
+    await expect(
+      page.locator('.patient-header .environment-badge')
+    ).toContainText('INTERNAL TEST');
   });
 
   test('opt-in overlays published occupancy and keeps occupied slots unbookable', async ({
