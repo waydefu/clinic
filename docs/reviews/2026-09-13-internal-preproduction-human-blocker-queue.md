@@ -8,6 +8,14 @@ stage target remains `INTERNAL_PREPRODUCTION_COMPLETE` in
 **Executor:** `GROK_PROJECT_CLOSER`. Laptop Luna playbook remains
 `GROK_RESTS` / `LUNA_SOLE_EXECUTOR`.
 
+**2026-09-14 addendum:** the three packet blockers (Hosting preview, C5 daily
+backup apply, C1 IAM alert apply) landed on `origin/main`
+`a9a445a4e9bae83f779a9914bc7203961813f916`. Completeness inspect `ok: true`.
+See [2026-09-14 INTERNAL_PREPRODUCTION_COMPLETE](2026-09-14-internal-preproduction-complete.md).
+Interactive Auth/TOTP, TW-05, and named-reviewer person-names remain HUMAN
+and still do not block this stage. Do not re-apply those stacks with
+`exact_apply_authority_sha=not_granted`.
+
 These items are `HUMAN_ACTION_REQUIRED`. They do **not** make
 `PROJECT_COMPLETE = HUMAN_BLOCKED` merely because production launch is
 `GO_LIVE_DEFERRED`. Independent engineering continues on fail-closed
