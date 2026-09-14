@@ -28,10 +28,20 @@ export function createInternalTestOutboxServer(
 ) {
   return createServer((request, response) => {
     if (request.method === 'GET' && request.url === '/health') {
-      send(response, 200, {
-        service: 'internal-test-outbox-worker',
-        status: 'ok'
-      });
+      void runtime.inspect().then(
+        (inspection) =>
+          send(response, 200, {
+            service: 'internal-test-outbox-worker',
+            status: inspection.alerts.some(
+              (alert) => alert.severity === 'immediate'
+            )
+              ? 'degraded'
+              : 'ok',
+            snapshot: inspection.snapshot,
+            alerts: inspection.alerts
+          }),
+        () => send(response, 503, { error: 'worker_unavailable' })
+      );
       return;
     }
     if (request.method !== 'POST' || request.url !== '/tasks/outbox-drain') {

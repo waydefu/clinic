@@ -23,9 +23,15 @@ export interface InternalTestOutboxDrain {
   readonly alerts: readonly OutboxAlert[];
 }
 
+export interface InternalTestOutboxInspection {
+  readonly snapshot: WorkerQueueSnapshotMetric;
+  readonly alerts: readonly OutboxAlert[];
+}
+
 export interface InternalTestOutboxRuntime {
   readonly calendar: CalendarPort;
   run(nowUtc?: string): Promise<InternalTestOutboxDrain>;
+  inspect(nowUtc?: string): Promise<InternalTestOutboxInspection>;
 }
 
 export interface InternalTestOutboxRuntimeOptions {
@@ -56,6 +62,17 @@ export function createInternalTestOutboxRuntime(
 
   return {
     calendar,
+    async inspect(nowUtc = options.clock?.() ?? new Date().toISOString()) {
+      const snapshot = await readOutboxQueueSnapshot(options.db, nowUtc);
+      return {
+        snapshot,
+        alerts: evaluateOutboxSlo({
+          attemptFailRate10m: 0,
+          consecutiveEmptyBatchesWithPending: emptyStreak,
+          snapshot
+        })
+      };
+    },
     async run(nowUtc = options.clock?.() ?? new Date().toISOString()) {
       const summary = await processor.processDue(nowUtc);
       const snapshot = await readOutboxQueueSnapshot(options.db, nowUtc);

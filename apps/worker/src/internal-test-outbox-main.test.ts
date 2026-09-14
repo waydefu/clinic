@@ -8,13 +8,14 @@ import { fileURLToPath } from 'node:url';
 import { createInternalTestOutboxServer } from './internal-test-outbox-main.js';
 import { assertInternalTestOutboxBootAllowed } from './internal-test-outbox-runtime.js';
 
-function post(
+function http(
   port: number,
-  path: string
+  path: string,
+  method: 'GET' | 'POST'
 ): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const req = request(
-      { hostname: '127.0.0.1', port, path, method: 'POST' },
+      { hostname: '127.0.0.1', port, path, method },
       (response) => {
         const chunks: Buffer[] = [];
         response.on('data', (chunk) => chunks.push(chunk as Buffer));
@@ -31,19 +32,26 @@ function post(
   });
 }
 
+const EMPTY_SNAPSHOT = {
+  pending: 0,
+  inProgress: 0,
+  deadLettered: 0,
+  oldestPendingAgeSeconds: 0
+};
+
 describe('internal-test outbox HTTP surface', () => {
   it('serves health and outbox-drain, and 404s a watch path', async () => {
     const runtime = {
       calendar: {},
+      inspect: () =>
+        Promise.resolve({
+          snapshot: EMPTY_SNAPSHOT,
+          alerts: []
+        }),
       run: () =>
         Promise.resolve({
           summary: { claimed: 0, completed: 0, retried: 0, deadLettered: 0 },
-          snapshot: {
-            pending: 0,
-            inProgress: 0,
-            deadLettered: 0,
-            oldestPendingAgeSeconds: 0
-          },
+          snapshot: EMPTY_SNAPSHOT,
           alerts: []
         })
     };
@@ -52,35 +60,48 @@ describe('internal-test outbox HTTP surface', () => {
     await once(server, 'listening');
     const port = (server.address() as AddressInfo).port;
     try {
-      const health = await new Promise<{ status: number; body: string }>(
-        (resolve, reject) => {
-          request(
-            { hostname: '127.0.0.1', port, path: '/health', method: 'GET' },
-            (response) => {
-              const chunks: Buffer[] = [];
-              response.on('data', (chunk) => chunks.push(chunk as Buffer));
-              response.on('end', () =>
-                resolve({
-                  status: response.statusCode ?? 0,
-                  body: Buffer.concat(chunks).toString('utf8')
-                })
-              );
-            }
-          )
-            .on('error', reject)
-            .end();
-        }
-      );
+      const health = await http(port, '/health', 'GET');
       expect(health.status).toBe(200);
       expect(JSON.parse(health.body)).toEqual({
         service: 'internal-test-outbox-worker',
-        status: 'ok'
+        status: 'ok',
+        snapshot: EMPTY_SNAPSHOT,
+        alerts: []
       });
-      const drain = await post(port, '/tasks/outbox-drain');
+      const drain = await http(port, '/tasks/outbox-drain', 'POST');
       expect(drain.status).toBe(200);
-      const watch = await post(port, '/calendar-watch');
+      const watch = await http(port, '/calendar-watch', 'POST');
       expect(watch.status).toBe(404);
       expect(JSON.parse(watch.body)).toEqual({ error: 'not_found' });
+    } finally {
+      server.close();
+      await once(server, 'close');
+    }
+  });
+
+  it('reports degraded health when SLO inspection has an immediate alert', async () => {
+    const runtime = {
+      calendar: {},
+      inspect: () =>
+        Promise.resolve({
+          snapshot: { ...EMPTY_SNAPSHOT, deadLettered: 1 },
+          alerts: [{ code: 'dead_letter_present', severity: 'immediate' }]
+        }),
+      run: () => Promise.reject(new Error('drain must not run for health'))
+    };
+    const server = createInternalTestOutboxServer(runtime);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const health = await http(port, '/health', 'GET');
+      expect(health.status).toBe(200);
+      expect(JSON.parse(health.body)).toEqual({
+        service: 'internal-test-outbox-worker',
+        status: 'degraded',
+        snapshot: { ...EMPTY_SNAPSHOT, deadLettered: 1 },
+        alerts: [{ code: 'dead_letter_present', severity: 'immediate' }]
+      });
     } finally {
       server.close();
       await once(server, 'close');
