@@ -845,3 +845,47 @@ test.describe('診所官網首屏帶得走實用資訊', () => {
     for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
   });
 });
+
+test.describe('internal-test booking on a phone', () => {
+  test.use({ viewport: PHONE });
+
+  async function failClosedV1(page: Page): Promise<void> {
+    await page.route('**/v1/**', async (route) => {
+      await route.fulfill({
+        status: 404,
+        json: { error: { code: 'NOT_FOUND' } }
+      });
+    });
+  }
+
+  test('opt-in /booking labels INTERNAL TEST and does not overflow', async ({
+    page
+  }) => {
+    await failClosedV1(page);
+    await page.goto('/booking?internalTestBooking=1');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+
+    await expect(
+      page.locator('.patient-header .environment-badge')
+    ).toContainText('INTERNAL TEST');
+    await expect(page.locator('#patient-env-boundary')).toHaveText(
+      '內部測試路由 · 非正式上線'
+    );
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('opt-in /staff labels INTERNAL TEST and does not overflow', async ({
+    page
+  }) => {
+    await failClosedV1(page);
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await expect(page.locator('#environment-label')).toHaveText(
+      'INTERNAL TEST'
+    );
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+});
