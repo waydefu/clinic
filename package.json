@@ -44,6 +44,7 @@
     "inspect:internal-test-monitoring": "node scripts/internal-test-monitoring-inspect.mjs",
     "inspect:internal-test-migration": "node scripts/internal-test-migration-inspect.mjs",
     "inspect:internal-test-hosting": "node scripts/internal-test-hosting-inspect.mjs",
+    "inspect:internal-preproduction": "node scripts/internal-preproduction-complete.mjs",
     "format": "prettier --write .",
     "test:unit": "vitest run --exclude \"tests/firestore/**\" --exclude \"**/*.emulator.test.ts\"",
     "test:rules": "node scripts/run-firestore-rules.mjs",
