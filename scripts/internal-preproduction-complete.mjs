@@ -54,7 +54,8 @@ function nestedResult(section, assemble, evaluate, missingIssue) {
 
 function evaluateCiSection(section, headSha) {
   const issues = [];
-  if (!/^[a-f0-9]{40}$/.test(String(headSha ?? ''))) {
+  const expectedHead = String(headSha ?? '').trim();
+  if (!/^[a-f0-9]{40}$/.test(expectedHead)) {
     issues.push(
       'internal-preproduction requires the current 40-char HEAD SHA.'
     );
@@ -68,6 +69,16 @@ function evaluateCiSection(section, headSha) {
   if (!runUrl.startsWith('https://github.com/waydefu/clinic/actions/runs/')) {
     issues.push(
       'internal-preproduction requires a GitHub Actions run URL for this HEAD.'
+    );
+  }
+  // Actions run headSha must be this branch HEAD. Artifact `commit` may still
+  // be the pull_request merge ref.
+  const runHeadSha = String(
+    section?.headSha ?? section?.run?.headSha ?? ''
+  ).trim();
+  if (runHeadSha !== expectedHead) {
+    issues.push(
+      "internal-preproduction requires the GitHub Actions run headSha to equal this HEAD; a prior SHA's green is not this HEAD. Merge-ref Verification evidence remains allowed."
     );
   }
   return { ok: issues.length === 0, issues };

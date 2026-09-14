@@ -27,6 +27,7 @@ function passingSnapshot(overrides = {}) {
     ci: {
       conclusion: 'success',
       runUrl: 'https://github.com/waydefu/clinic/actions/runs/1',
+      headSha: HEAD,
       commit: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
     },
     hosting: {
@@ -101,6 +102,24 @@ describe('evaluateInternalPreproduction', () => {
   it('accepts pull_request Verification evidence whose commit is the merge ref', () => {
     const result = evaluateInternalPreproduction(passingSnapshot());
     expect(result.ok).toBe(true);
+    expect(passingSnapshot().ci.commit).not.toBe(HEAD);
+    expect(passingSnapshot().ci.headSha).toBe(HEAD);
+  });
+
+  it('fails closed when the Actions run headSha is a prior SHA', () => {
+    const result = evaluateInternalPreproduction(
+      passingSnapshot({
+        ci: {
+          conclusion: 'success',
+          runUrl: 'https://github.com/waydefu/clinic/actions/runs/1',
+          headSha: 'cccccccccccccccccccccccccccccccccccccccc',
+          commit: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+        }
+      })
+    );
+    expect(result.ok).toBe(false);
+    expect(result.humanBlockers.join('\n')).toMatch(/exact-head CI/);
+    expect(result.issues.join('\n')).toMatch(/run headSha/);
   });
 
   it('fails closed on live-only Hosting without setting PROJECT_COMPLETE = HUMAN_BLOCKED', () => {
