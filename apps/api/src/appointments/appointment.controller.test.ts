@@ -25,7 +25,28 @@ import {
   type AuthenticatableRequest
 } from './appointment.controller.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
+import {
+  INTERNAL_TEST_BOOKING_CLOCK,
+  INTERNAL_TEST_BOOKING_SETTINGS
+} from '../internal-test-booking/internal-test-booking.tokens.js';
+import type { InternalTestBookingSettings } from '../internal-test-booking/internal-test-booking.gate.js';
 import type { AppointmentRepositoryPort } from './appointment.repository-port.js';
+
+const OPEN_INTERNAL_TEST_SETTINGS: InternalTestBookingSettings = {
+  enabled: true,
+  expiresAtUtc: '2029-12-01T00:00:00.000Z',
+  projectId: 'beauessence-clinic-stg-c1a01',
+  emulatorHost: '127.0.0.1:8080'
+};
+
+const CLOSED_INTERNAL_TEST_SETTINGS: InternalTestBookingSettings = {
+  ...OPEN_INTERNAL_TEST_SETTINGS,
+  enabled: false
+};
+
+const FIXED_INTERNAL_TEST_CLOCK = {
+  nowUtc: () => '2026-07-23T14:30:00.000Z'
+};
 
 const CREATE_BODY = {
   idempotencyKey: 'booking_request_0001',
@@ -147,10 +168,76 @@ const harnessRepository: AppointmentRepositoryPort = {
           { next: () => 'corr_harness_001' }
         ),
       inject: [APPOINTMENT_AUTHORIZATION]
+    },
+    {
+      provide: INTERNAL_TEST_BOOKING_SETTINGS,
+      useValue: OPEN_INTERNAL_TEST_SETTINGS
+    },
+    {
+      provide: INTERNAL_TEST_BOOKING_CLOCK,
+      useValue: FIXED_INTERNAL_TEST_CLOCK
     }
   ]
 })
 class AppointmentRbacHarnessModule {}
+
+@Module({
+  controllers: [AppointmentController],
+  providers: [
+    { provide: APP_FILTER, useClass: ApiExceptionFilter },
+    { provide: APPOINTMENT_AUTHENTICATOR, useValue: harnessAuthenticator },
+    {
+      provide: APPOINTMENT_AUTHORIZATION,
+      useValue: createRbacAppointmentPolicy(resolveRole)
+    },
+    {
+      provide: APPOINTMENT_APPLICATION,
+      useFactory: (authorization: AppointmentAuthorizationPolicy) =>
+        new AppointmentApplicationService(
+          harnessRepository,
+          authorization,
+          { next: () => 'appointment_harness_001' },
+          { nowUtc: () => '2026-07-23T14:30:00.000Z' },
+          { next: () => 'corr_harness_001' }
+        ),
+      inject: [APPOINTMENT_AUTHORIZATION]
+    }
+  ]
+})
+class AppointmentMissingSettingsModule {}
+
+@Module({
+  controllers: [AppointmentController],
+  providers: [
+    { provide: APP_FILTER, useClass: ApiExceptionFilter },
+    { provide: APPOINTMENT_AUTHENTICATOR, useValue: harnessAuthenticator },
+    {
+      provide: APPOINTMENT_AUTHORIZATION,
+      useValue: createRbacAppointmentPolicy(resolveRole)
+    },
+    {
+      provide: APPOINTMENT_APPLICATION,
+      useFactory: (authorization: AppointmentAuthorizationPolicy) =>
+        new AppointmentApplicationService(
+          harnessRepository,
+          authorization,
+          { next: () => 'appointment_harness_001' },
+          { nowUtc: () => '2026-07-23T14:30:00.000Z' },
+          { next: () => 'corr_harness_001' }
+        ),
+      inject: [APPOINTMENT_AUTHORIZATION]
+    },
+    {
+      provide: INTERNAL_TEST_BOOKING_SETTINGS,
+      useValue: CLOSED_INTERNAL_TEST_SETTINGS
+    },
+    {
+      provide: INTERNAL_TEST_BOOKING_CLOCK,
+      useValue: FIXED_INTERNAL_TEST_CLOCK
+    }
+  ]
+})
+class AppointmentClosedGateModule {}
 
 function actorHeaders(
   role: CandidateRole,
@@ -184,6 +271,36 @@ describe('unrouted AppointmentController RBAC harness', () => {
     app = instance;
     return instance;
   }
+
+  it('fails closed when internal-test settings are not injected', async () => {
+    await expect(
+      NestFactory.create(
+        AppointmentMissingSettingsModule,
+        new FastifyAdapter({ logger: false }),
+        { logger: false, abortOnError: false }
+      )
+    ).rejects.toThrow(/InternalTestBookingSettings|Nest can't resolve/i);
+  });
+
+  it('returns HTTP 503 when the injected internal-test gate is closed', async () => {
+    const instance = await NestFactory.create<NestFastifyApplication>(
+      AppointmentClosedGateModule,
+      new FastifyAdapter({ logger: false }),
+      { logger: false }
+    );
+    instance.setGlobalPrefix('v1');
+    await instance.init();
+    await instance.getHttpAdapter().getInstance().ready();
+    app = instance;
+    const response = await instance.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: CREATE_BODY,
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.statusCode).not.toBe(404);
+  });
 
   it('rejects an anonymous create with 401', async () => {
     const harness = await startHarness();

@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Inject,
-  Optional,
   Post,
   Query,
   Req
@@ -41,18 +40,15 @@ export class ScheduleController {
     private readonly schedules: ScheduleApplicationService,
     @Inject(APPOINTMENT_AUTHENTICATOR)
     private readonly authenticator: AppointmentAuthenticator,
-    @Optional()
     @Inject(INTERNAL_TEST_BOOKING_SETTINGS)
-    private readonly internalTestSettings?: InternalTestBookingSettings,
-    @Optional()
+    private readonly internalTestSettings: InternalTestBookingSettings,
     @Inject(INTERNAL_TEST_BOOKING_CLOCK)
-    private readonly internalTestClock?: InternalTestBookingClock
+    private readonly internalTestClock: InternalTestBookingClock
   ) {}
 
   private assertInternalTestGate(): void {
-    if (this.internalTestSettings === undefined) return;
     assertInternalTestBookingWritable(
-      this.internalTestClock?.nowUtc() ?? new Date().toISOString(),
+      this.internalTestClock.nowUtc(),
       this.internalTestSettings
     );
   }

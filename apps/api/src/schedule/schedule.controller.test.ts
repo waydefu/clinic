@@ -25,6 +25,22 @@ import {
   ScheduleController
 } from './schedule.controller.js';
 import type { ScheduleRepositoryPort } from './schedule.repository-port.js';
+import {
+  INTERNAL_TEST_BOOKING_CLOCK,
+  INTERNAL_TEST_BOOKING_SETTINGS
+} from '../internal-test-booking/internal-test-booking.tokens.js';
+import type { InternalTestBookingSettings } from '../internal-test-booking/internal-test-booking.gate.js';
+
+const OPEN_INTERNAL_TEST_SETTINGS: InternalTestBookingSettings = {
+  enabled: true,
+  expiresAtUtc: '2099-01-01T00:00:00.000Z',
+  projectId: 'beauessence-clinic-stg-c1a01',
+  emulatorHost: '127.0.0.1:8080'
+};
+
+const FIXED_INTERNAL_TEST_CLOCK = {
+  nowUtc: () => '2029-12-15T09:00:00.000Z'
+};
 
 const PUBLISH_BODY = {
   idempotencyKey: 'schedule_publish_0001',
@@ -102,6 +118,14 @@ const harnessRepository: ScheduleRepositoryPort = {
           { nowUtc: () => '2029-12-15T09:00:00.000Z' },
           { next: () => 'corr_schedule_harness_001' }
         )
+    },
+    {
+      provide: INTERNAL_TEST_BOOKING_SETTINGS,
+      useValue: OPEN_INTERNAL_TEST_SETTINGS
+    },
+    {
+      provide: INTERNAL_TEST_BOOKING_CLOCK,
+      useValue: FIXED_INTERNAL_TEST_CLOCK
     }
   ]
 })

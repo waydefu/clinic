@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Inject,
-  Optional,
   Param,
   Post,
   Req
@@ -53,7 +52,8 @@ function identifier(value: string): string {
  * Appointment write surface. Production public traffic stays refused:
  * `InternalTestBookingModule` supplies fail-closed IP-001 settings so
  * `/v1/bookings` is 503 unless the isolated-test gate is explicitly open.
- * Test-only Nest harnesses omit those settings and prove RBAC mapping.
+ * Settings are required: missing configuration is a boot failure, and a
+ * closed gate is HTTP 503. Test harnesses inject an explicit open fixture.
  */
 @Controller('bookings')
 export class AppointmentController {
@@ -62,18 +62,15 @@ export class AppointmentController {
     private readonly appointments: AppointmentApplicationService,
     @Inject(APPOINTMENT_AUTHENTICATOR)
     private readonly authenticator: AppointmentAuthenticator,
-    @Optional()
     @Inject(INTERNAL_TEST_BOOKING_SETTINGS)
-    private readonly internalTestSettings?: InternalTestBookingSettings,
-    @Optional()
+    private readonly internalTestSettings: InternalTestBookingSettings,
     @Inject(INTERNAL_TEST_BOOKING_CLOCK)
-    private readonly internalTestClock?: InternalTestBookingClock
+    private readonly internalTestClock: InternalTestBookingClock
   ) {}
 
   private assertInternalTestGate(): void {
-    if (this.internalTestSettings === undefined) return;
     assertInternalTestBookingWritable(
-      this.internalTestClock?.nowUtc() ?? new Date().toISOString(),
+      this.internalTestClock.nowUtc(),
       this.internalTestSettings
     );
   }

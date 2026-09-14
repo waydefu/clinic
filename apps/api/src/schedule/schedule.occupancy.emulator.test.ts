@@ -42,6 +42,12 @@ import {
   SCHEDULE_APPLICATION,
   ScheduleController
 } from './schedule.controller.js';
+import {
+  INTERNAL_TEST_BOOKING_CLOCK,
+  INTERNAL_TEST_BOOKING_SETTINGS
+} from '../internal-test-booking/internal-test-booking.tokens.js';
+
+requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 
@@ -118,8 +124,8 @@ function actorHeaders(
 /**
  * Nest HTTP occupancy against the Firestore emulator. Lives under `apps/api`
  * so `@nestjs/*` and `reflect-metadata` resolve; `*.emulator.test.ts` is
- * excluded from `test:unit` and collected by `test:rules`. Settings are
- * omitted so the IP-001 gate stays open the same way other Nest harnesses do.
+ * excluded from `test:unit` and collected by `test:rules`. The IP-001 gate
+ * is injected open with a fixed clock so missing settings cannot fail-open.
  */
 function occupancyHarnessModule(
   db: Firestore,
@@ -157,6 +163,19 @@ function occupancyHarnessModule(
             clock,
             { next: () => 'corr_http_schedule_001' }
           )
+      },
+      {
+        provide: INTERNAL_TEST_BOOKING_SETTINGS,
+        useValue: {
+          enabled: true,
+          expiresAtUtc: '2099-01-01T00:00:00.000Z',
+          projectId: 'beauessence-clinic-stg-c1a01',
+          emulatorHost: '127.0.0.1:8080'
+        }
+      },
+      {
+        provide: INTERNAL_TEST_BOOKING_CLOCK,
+        useValue: clock
       }
     ]
   })
