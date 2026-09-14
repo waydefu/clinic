@@ -30,6 +30,14 @@ type CapturedPost = {
   body?: Record<string, unknown>;
 };
 
+type PublishStub =
+  | 'closed'
+  | {
+      publishedVersion: number;
+      publishedAt: string;
+      schedule: Record<string, unknown>;
+    };
+
 const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
   { kind: 'cancel', pattern: /^\/v1\/bookings\/[^/]+\/cancel$/ },
   { kind: 'reschedule', pattern: /^\/v1\/bookings\/[^/]+\/reschedule$/ },
@@ -42,13 +50,16 @@ async function stubV1(
   page: Page,
   occupancy: 'closed' | { slots: ListedSlot[] },
   create: CreateStub = 'closed',
-  mutations: Partial<Record<MutationKind, MutationStub>> = {}
+  mutations: Partial<Record<MutationKind, MutationStub>> = {},
+  extras: { getBooking?: ContractBooking; publish?: PublishStub } = {}
 ): Promise<{
   body?: Record<string, unknown>;
   cancel: CapturedPost;
   reschedule: CapturedPost;
   complete: CapturedPost;
   noShow: CapturedPost;
+  query: CapturedPost;
+  publish: CapturedPost;
 }> {
   const posted: {
     body?: Record<string, unknown>;
@@ -56,7 +67,16 @@ async function stubV1(
     reschedule: CapturedPost;
     complete: CapturedPost;
     noShow: CapturedPost;
-  } = { cancel: {}, reschedule: {}, complete: {}, noShow: {} };
+    query: CapturedPost;
+    publish: CapturedPost;
+  } = {
+    cancel: {},
+    reschedule: {},
+    complete: {},
+    noShow: {},
+    query: {},
+    publish: {}
+  };
   await page.route('**/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const method = route.request().method();
@@ -96,6 +116,31 @@ async function stubV1(
         await route.fulfill({ status: 200, json: stub });
         return;
       }
+    }
+    const query = /^\/v1\/bookings\/[^/]+$/.exec(path);
+    if (method === 'GET' && query !== null && extras.getBooking !== undefined) {
+      posted.query = { path };
+      await route.fulfill({ json: extras.getBooking });
+      return;
+    }
+    if (
+      path === '/v1/schedule/publish' &&
+      method === 'POST' &&
+      extras.publish !== undefined
+    ) {
+      posted.publish = {
+        path,
+        body: route.request().postDataJSON() as Record<string, unknown>
+      };
+      if (extras.publish === 'closed') {
+        await route.fulfill({
+          status: 503,
+          json: { error: { code: 'SERVICE_UNAVAILABLE' } }
+        });
+        return;
+      }
+      await route.fulfill({ status: 200, json: extras.publish });
+      return;
     }
     await route.fulfill({
       status: 404,
@@ -799,6 +844,97 @@ test.describe('internal-test booking occupancy overlay', () => {
     expect(posted.cancel.path).toBe('/v1/bookings/appointment_api_001/cancel');
     expect(posted.cancel.body).not.toHaveProperty('patient');
     expect(posted.cancel.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+  });
+
+  test('opt-in lookup by opaque id queries /v1/bookings/:id without PII', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const posted = await stubV1(
+      page,
+      'closed',
+      'closed',
+      {},
+      {
+        getBooking: {
+          appointmentId: 'appointment_api_001',
+          status: 'confirmed',
+          startsAt,
+          endsAt: upcomingIso(48.5)
+        }
+      }
+    );
+
+    await page.goto('/booking?internalTestBooking=1');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.locator('#booking-management-open').click();
+    await page.locator('#booking-lookup-phone').fill('appointment_api_001');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '找到 1 筆預約'
+    );
+    await expect(page.locator('.booking-lookup-card')).toBeVisible();
+    expect(posted.query.path).toBe('/v1/bookings/appointment_api_001');
+  });
+
+  test('opt-in staff publish posts /v1/schedule/publish without patient fields', async ({
+    page
+  }) => {
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt: upcomingIso(48),
+            available: true
+          }
+        ]
+      },
+      'closed',
+      {},
+      {
+        publish: {
+          publishedVersion: 2,
+          publishedAt: '2030-01-02T04:00:00.000Z',
+          schedule: { timeZone: 'Asia/Taipei' }
+        }
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await page.evaluate(() => {
+      window.location.hash = 'schedule-section';
+    });
+    await expect(page.locator('#date-exception-form')).toBeVisible();
+    await page.locator('#exception-date').fill('2030-12-31');
+    await page.locator('#exception-kind').selectOption('closed');
+    await page.locator('#date-exception-form button[type="submit"]').click();
+    await expect(page.locator('#date-exception-form-status')).toContainText(
+      '日期例外已加入'
+    );
+    await expect(page.locator('#publish-schedule')).toBeEnabled();
+    await page.locator('#publish-schedule').click();
+    await page.getByRole('button', { name: '發布營業時間' }).click();
+
+    await expect(page.locator('#schedule-toolbar-status')).toContainText(
+      '營業時間已發布'
+    );
+    expect(posted.publish.path).toBe('/v1/schedule/publish');
+    expect(posted.publish.body).toMatchObject({
+      expectedVersion: expect.any(Number),
+      schedule: expect.any(Object)
+    });
+    expect(posted.publish.body).not.toHaveProperty('patient');
+    expect(posted.publish.body?.idempotencyKey).toEqual(
       expect.stringMatching(/^.{16,}$/)
     );
   });
