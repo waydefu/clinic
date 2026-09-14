@@ -188,6 +188,13 @@ Hosting; production; real patient data; D-001–D-005 approved.
 Recorded by: assistant, from WP-B1 in the 2026-09-14 remediation plan.
 The assistant is not an approver and did not choose A or B.
 
+Joint owner-review sheet for WP-B1 through WP-B6 (still waiting, not
+approval): [2026-09-14 WP-B1～B6 業主連審表](../reviews/2026-09-14-wp-b1-through-b6-owner-review.md).
+IDs WP-B2 through WP-B6 remain `WAITING_FOR_ANSWER` on that sheet
+(rate limits, patient login, alert channel, role coverage / D-013
+reviews, inspect artifacts). Do not start WP-C2, WP-C3, WP-C4, WP-C5,
+or role-expansion work until the matching ID has an owner answer here.
+
 ### FS-001 first-stage product scope — 2026-09-11
 
 The clinic owner recorded the Phase 1 owner-visible capability freeze.

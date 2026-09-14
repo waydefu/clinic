@@ -168,6 +168,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-14 | [WP-B1～B6 業主連審表](reviews/2026-09-14-wp-b1-through-b6-owner-review.md) | 六題一次審：C1 API、限流、病患登入、告警、驗收角色／D-013 reviews、inspect 原檔。`WAITING_FOR_ANSWER`。Word 離線填寫，不進 git。不是核准、不是 apply。 |
 | 2026-09-14 | [WP-B1 C1 API 授權封包](reviews/2026-09-14-wp-b1-c1-api-authority-packet.md) | F-01 HUMAN BLOCKER：選項 A（C1 啟用 Cloud Run＋fail-closed API，新 exact-SHA 後端封包）或 B（不部署 API，改寫 `INTERNAL_PREPRODUCTION_COMPLETE`）。`WAITING_FOR_ANSWER`。不是核准、不是 apply。 |
 | 2026-09-14 | [INTERNAL_PREPRODUCTION_COMPLETE inspect](reviews/2026-09-14-internal-preproduction-complete.md) | PR #123 squash `a9a445a` on isolated C1: preview channel, C5 daily backup, C1 IAM alert, smoke/inspect `ok: true`. `INTERNAL_PREPRODUCTION_COMPLETE = PASS`. `projectComplete: NOT_CLAIMED`. D-001–D-005 stay pending. Not production. |
 | 2026-09-13 | [INTERNAL_PREPRODUCTION HUMAN_BLOCKER_QUEUE](reviews/2026-09-13-internal-preproduction-human-blocker-queue.md) | Queues named preview packet, interactive Auth/2FA, TW-05, named reviewers, and D-001–D-005 production ceremony. Preview/C5/C1 packets for `a9a445a` closed in the 2026-09-14 inspect; Auth/TW-05/named-reviewer remain HUMAN. Not `PROJECT_COMPLETE = HUMAN_BLOCKED`. Production stays `GO_LIVE_DEFERRED`. |
