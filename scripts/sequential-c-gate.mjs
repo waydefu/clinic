@@ -114,7 +114,7 @@ export function evaluateC3Source(sessionSource) {
   }
   if (
     !sessionSource.includes(
-      'if (user.disabled) throw new AuthenticationRequiredError()'
+      'if (user.disabled) throw new DisabledAccountError()'
     )
   ) {
     issues.push('C3 must reject disabled users.');
