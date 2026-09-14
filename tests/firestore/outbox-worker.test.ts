@@ -194,6 +194,36 @@ describe('outbox worker', () => {
     ]);
   });
 
+  it('cancels the calendar event when the appointment row is already gone', async () => {
+    await seedJob();
+    await calendar.project({
+      idempotencyKey: CONFIRMED_KEY,
+      action: 'upsert',
+      appointmentId: 'appointment_001',
+      correlationId: 'corr_outbox_001',
+      causationId: 'audit_appointment_001_confirmed',
+      appointmentStatus: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T05:00:00.000Z',
+      bookingKind: 'initial',
+      colorId: CLINIC_EVENT_COLOR_ID
+    });
+    await db
+      .collection(APPOINTMENTS_COLLECTION)
+      .doc('appointment_001')
+      .delete();
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
+      appointmentStatus: 'deleted',
+      causationId: 'audit_appointment_001_deleted'
+    });
+
+    const summary = await processor.processDue(NOW);
+
+    expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+    expect(calendar.events.size).toBe(0);
+    expect(calendar.cancelCount).toBe(1);
+  });
+
   // 診所端的事件是一小時的看診區塊，與患者端「只標記開始時間」不同。
   it('gives the clinic a one-hour block with the clinic colour', async () => {
     await seedJob();
