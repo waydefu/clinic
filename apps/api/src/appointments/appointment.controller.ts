@@ -126,7 +126,10 @@ export class AppointmentController {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, false);
     const parsed = ListAppointmentsQuerySchema.parse(query);
-    return this.appointments.list(parsed.scope, authentication);
+    const scope =
+      parsed.scope ??
+      (authentication.actorRole === 'patient' ? 'mine' : 'clinic');
+    return this.appointments.list(scope, authentication);
   }
 
   @Get(':appointmentId')

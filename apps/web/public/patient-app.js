@@ -632,6 +632,21 @@ function birthDateValue() {
   return year === '' ? `--${monthDay}` : `${year}-${monthDay}`;
 }
 
+function patientIntake() {
+  const patient = patientInput();
+  return {
+    name: patient.name,
+    phone: patient.phone,
+    birthDate: patient.birthDate,
+    ...(patient.nationalId !== '' ? { nationalId: patient.nationalId } : {}),
+    ...(patient.passportNumber !== ''
+      ? { passportNumber: patient.passportNumber }
+      : {}),
+    ...(patient.hasNhiCard === true ? { hasNhiCard: true } : {}),
+    privacyConsent: true
+  };
+}
+
 function patientInput() {
   const foreign = isForeignNational();
   return {
@@ -995,7 +1010,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
         method: 'POST',
         body: JSON.stringify({
           slotId: selectedSlotId,
-          ...(reuseReturn ? {} : { patient: patientInput() }),
+          ...(reuseReturn ? {} : { intake: patientIntake() }),
           bookingKind: selectedBookingType,
           // 患者端一次只選一個項目（那一步是兩張大卡片，不是清單）；工作臺的
           // 建立表單才是可複選的（W5）。送出的形狀一致，都是陣列。
@@ -1253,6 +1268,19 @@ elements['booking-lookup-form'].addEventListener('submit', async (event) => {
           'booking-lookup-status'
         );
         showStep(2);
+        return;
+      }
+      if (result?.outcome === 'existing' && result.appointmentId) {
+        lastLookupVerification = {};
+        rememberManagedAppointment(
+          managedFromContract({
+            appointmentId: result.appointmentId,
+            startsAt: result.startsAt,
+            status: 'confirmed',
+            bookingKind: 'follow_up'
+          })
+        );
+        message('找到 1 筆預約。', 'success', 'booking-lookup-status');
         return;
       }
       if (isContractBooking(result)) {

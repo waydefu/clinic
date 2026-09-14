@@ -88,7 +88,7 @@ export const GetAppointmentResponseSchema = z
 
 export const ListAppointmentsQuerySchema = z
   .object({
-    scope: z.enum(['mine', 'clinic']),
+    scope: z.enum(['mine', 'clinic']).optional(),
     startAfter: UtcIsoTimestampSchema.optional(),
     limit: z.coerce.number().int().min(1).max(50).optional()
   })

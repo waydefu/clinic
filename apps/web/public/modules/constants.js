@@ -162,9 +162,8 @@ export const APPOINTMENT_ACTIONS = Object.freeze([
   { id: 'reschedule', label: '改期' },
   { id: 'cancel', label: '取消' },
   { id: 'no_show', label: '未到' },
-  { id: 'arrive', label: '到診' },
   { id: 'complete', label: '完成看診' },
-  { id: 'complete_without_card', label: '完成看診（忘記帶健保卡）' },
+  { id: 'complete_without_card', label: '完成看診（未帶卡）' },
   // W7（業主 2026-07-27）：把線上填過的資料印在紙本初診表的大框裡，其餘欄位
   // 留白讓患者到診時手寫。這是一張**排版頁**，不是電子病歷——不儲存任何病歷內容。
   { id: 'print_intake', label: '列印初診基本資料' },

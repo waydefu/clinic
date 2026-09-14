@@ -8,7 +8,8 @@ import {
   PATIENT_REQUEST_TAGS,
   PATIENT_SOURCE_TAGS,
   PERMISSIONS,
-  WEEKDAY_LABELS
+  WEEKDAY_LABELS,
+  ACTIVE_BOOKING_STATUSES
 } from './constants.js';
 import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
@@ -68,7 +69,6 @@ const appointmentActions = new Set([
 
 const statusIcons = {
   confirmed: '&#10003;',
-  arrived: '&#10003;',
   cancellation_requested: '!',
   completed: '&#10003;',
   cancelled: '&#8212;',
@@ -111,14 +111,10 @@ function detailRow(state, id) {
 
 // 哪些處置在什麼狀態下可用，集中在這裡，避免選單與 domain 規則各說各話。
 function actionEnabled(actionId, appointment) {
-  const active = ['confirmed', 'arrived', 'cancellation_requested'].includes(
-    appointment.status
-  );
+  const active = ACTIVE_BOOKING_STATUSES.includes(appointment.status);
   switch (actionId) {
     case 'follow_up_confirm':
       return appointment.status === 'completed';
-    case 'arrive':
-      return appointment.status === 'confirmed';
     case 'complete':
     case 'complete_without_card':
       return appointment.status === 'arrived';
@@ -142,19 +138,12 @@ function actionEnabled(actionId, appointment) {
 
 function primaryAction(appointment, decided, canManageFollowUp) {
   let action;
-  if (appointment.status === 'confirmed')
+  if (appointment.status === 'confirmed' || appointment.status === 'arrived')
     action = {
-      id: 'arrive',
-      label: '到診',
+      id: appointment.status === 'confirmed' ? 'arrive' : 'complete',
+      label: appointment.status === 'confirmed' ? '到診' : '完成看診',
       icon: '&#10003;',
       className: 'appointment-arrival-button'
-    };
-  else if (appointment.status === 'arrived')
-    action = {
-      id: 'complete',
-      label: '完成看診',
-      icon: '&#10003;',
-      className: 'appointment-complete-button'
     };
   else if (appointment.status === 'cancellation_requested')
     action = {
@@ -367,9 +356,8 @@ export function summaryCounts(state, today = taipeiTodayDate()) {
     ).length,
     pending: state.appointments.filter(
       (item) =>
-        ['confirmed', 'arrived', 'cancellation_requested'].includes(
-          item.status
-        ) && isTodayWork(state, item, today)
+        ACTIVE_BOOKING_STATUSES.includes(item.status) &&
+        isTodayWork(state, item, today)
     ).length,
     completed: state.appointments.filter(
       (item) => item.status === 'completed' && isTodayWork(state, item, today)
@@ -394,12 +382,10 @@ export function renderTagPicker(selected = [], scope = 'booking') {
 // 備註可改的狀態，與 updateAppointmentNotes 的規則一致：已取消或未到的
 // 預約是已經發生的事實，不再修改。
 function notesEditable(appointment) {
-  return [
-    'confirmed',
-    'arrived',
-    'cancellation_requested',
-    'completed'
-  ].includes(appointment.status);
+  return (
+    ACTIVE_BOOKING_STATUSES.includes(appointment.status) ||
+    appointment.status === 'completed'
+  );
 }
 
 export function renderSlots(state, kind, selectedSlotId) {

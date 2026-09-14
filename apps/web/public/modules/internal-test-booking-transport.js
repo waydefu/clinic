@@ -1,69 +1,10 @@
-function overlayListedAppointments(state, listed) {
-  const listedAppointments = Array.isArray(listed?.appointments)
-    ? listed.appointments
-    : [];
-  return {
-    ...state,
-    appointments: listedAppointments.map((item) => ({
-      id: item.appointmentId,
-      slotId: item.slotId ?? item.appointmentId,
-      startsAt: item.startsAt,
-      patientId: item.patientId ?? 'patient_server',
-      bookingKind: item.bookingKind ?? 'initial',
-      itemIds: [],
-      itemLabel: '',
-      status: item.status,
-      createdAt: item.startsAt,
-      updatedAt: item.startsAt
-    }))
-  };
-}
-
-const RETURN_SESSION_KEY = 'internalTestReturnSession';
-
 function storedReturnSession() {
-  try {
-    return globalThis.sessionStorage?.getItem(RETURN_SESSION_KEY) ?? undefined;
-  } catch {
-    return undefined;
-  }
+  return globalThis.sessionStorage?.getItem('itrs') ?? undefined;
 }
 
 function rememberReturnSession(sessionId) {
-  if (typeof sessionId !== 'string' || sessionId === '') return;
-  try {
-    globalThis.sessionStorage?.setItem(RETURN_SESSION_KEY, sessionId);
-  } catch {
-    /* sessionStorage may be unavailable */
-  }
-}
-
-function mappedLookupResult(payload) {
-  rememberReturnSession(payload?.sessionId);
-  if (
-    payload?.outcome === 'existing' &&
-    typeof payload.appointmentId === 'string'
-  ) {
-    return {
-      appointments: [
-        {
-          id: payload.appointmentId,
-          startsAt: payload.startsAt,
-          status: 'confirmed',
-          bookingKind: 'follow_up',
-          itemLabel: '',
-          slotId: payload.appointmentId
-        }
-      ],
-      sessionId: payload.sessionId,
-      outcome: 'existing'
-    };
-  }
-  return {
-    appointments: [],
-    sessionId: payload?.sessionId,
-    outcome: payload?.outcome ?? 'schedule'
-  };
+  if (typeof sessionId === 'string' && sessionId !== '')
+    globalThis.sessionStorage?.setItem('itrs', sessionId);
 }
 
 function overlayListedSlots(state, listed) {
@@ -133,45 +74,9 @@ function firstServiceId(body) {
   return undefined;
 }
 
-function mappedIntake(body) {
-  const patient = body.patient;
-  if (patient === null || typeof patient !== 'object') return {};
-  const name =
-    typeof patient.name === 'string'
-      ? patient.name
-      : typeof patient.fullName === 'string'
-        ? patient.fullName
-        : undefined;
-  const phone = patient.phone;
-  const birthDate = patient.birthDate;
-  if (
-    typeof name !== 'string' ||
-    typeof phone !== 'string' ||
-    typeof birthDate !== 'string'
-  ) {
-    return {};
-  }
-  return {
-    intake: {
-      name,
-      phone,
-      birthDate,
-      ...(typeof patient.nationalId === 'string'
-        ? { nationalId: patient.nationalId }
-        : {}),
-      ...(typeof patient.passportNumber === 'string'
-        ? { passportNumber: patient.passportNumber }
-        : {}),
-      ...(patient.hasNhiCard === true ? { hasNhiCard: true } : {}),
-      privacyConsent: true
-    }
-  };
-}
-
 export function mapInternalTestBookingRequest(path, method, body = {}) {
   const verb = String(method ?? 'GET').toUpperCase();
   if (verb === 'POST' && path === '/bookings') {
-    const intake = mappedIntake(body);
     return {
       url: '/v1/bookings',
       method: 'POST',
@@ -180,8 +85,10 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
         slotId: body.slotId,
         serviceId: firstServiceId(body),
         bookingKind: body.bookingKind,
-        ...intake,
-        ...(intake.intake === undefined &&
+        ...(body.intake !== undefined && body.intake !== null
+          ? { intake: body.intake }
+          : {}),
+        ...(body.intake === undefined &&
         typeof body.onBehalfPatientId === 'string'
           ? { onBehalfPatientId: body.onBehalfPatientId }
           : {})
@@ -360,7 +267,7 @@ export function applyDeleteContractWrite(state, path, result) {
 async function requestV1(
   fetchImpl,
   mapped,
-  { signal, csrfToken, accessToken, returnSession, toError }
+  { signal, csrfToken, accessToken, toError }
 ) {
   const headers = {
     Accept: 'application/json'
@@ -372,9 +279,8 @@ async function requestV1(
   if (typeof accessToken === 'string' && accessToken !== '') {
     headers.Authorization = `Bearer ${accessToken}`;
   }
-  if (typeof returnSession === 'string' && returnSession !== '') {
-    headers['x-return-session'] = returnSession;
-  }
+  const session = storedReturnSession();
+  if (typeof session === 'string') headers['x-return-session'] = session;
   const response = await fetchImpl(mapped.url, {
     method: mapped.method,
     headers,
@@ -414,8 +320,7 @@ export function createInternalTestBookingTransport({
   csrfToken = () =>
     globalThis.sessionStorage?.getItem('calPilotCsrf') ?? undefined,
   accessToken = () =>
-    globalThis.sessionStorage?.getItem('internalTestIdToken') ?? undefined,
-  returnSession = storedReturnSession
+    globalThis.sessionStorage?.getItem('internalTestIdToken') ?? undefined
 } = {}) {
   if (typeof local !== 'function')
     throw new TypeError('local transport is required.');
@@ -427,7 +332,6 @@ export function createInternalTestBookingTransport({
       signal: undefined,
       csrfToken: csrfToken(),
       accessToken: accessToken(),
-      returnSession: returnSession(),
       toError
     });
 
@@ -453,49 +357,51 @@ export function createInternalTestBookingTransport({
         });
       }
       const localResult = await local(path, options);
-      const isStateGet =
-        path === '/state' &&
-        String(options.method ?? 'GET').toUpperCase() === 'GET';
-      const isWorkspaceSnapshot =
-        Array.isArray(localResult?.appointments) &&
-        Array.isArray(localResult?.slots);
-      if (isStateGet || isWorkspaceSnapshot) {
-        try {
-          let next = overlayListedSlots(
-            localResult,
-            await v1({ url: '/v1/slots', method: 'GET' })
-          );
-          try {
-            next = overlayPublishedSchedule(
-              next,
-              await v1({ url: '/v1/schedule', method: 'GET' })
-            );
-          } catch {
-            /* published schedule is optional once occupancy loaded */
-          }
-          try {
-            const listed = await overlayServerAppointments(v1);
-            next = overlayListedAppointments(next, listed);
-          } catch {
-            next = { ...next, appointments: [] };
-          }
-          return next;
-        } catch {
-          return { ...localResult, slots: [], appointments: [] };
-        }
+      const overlay =
+        (path === '/state' &&
+          String(options.method ?? 'GET').toUpperCase() === 'GET') ||
+        (Array.isArray(localResult?.appointments) &&
+          Array.isArray(localResult?.slots));
+      if (!overlay) return localResult;
+      try {
+        const next = overlayListedSlots(
+          localResult,
+          await v1({ url: '/v1/slots', method: 'GET' })
+        );
+        const published = await v1({
+          url: '/v1/schedule',
+          method: 'GET'
+        }).catch(() => undefined);
+        const listed = await v1({
+          url: '/v1/bookings',
+          method: 'GET'
+        }).catch(() => ({ appointments: [] }));
+        const withSchedule =
+          published === undefined
+            ? next
+            : overlayPublishedSchedule(next, published);
+        return {
+          ...withSchedule,
+          appointments: (listed?.appointments ?? []).map((item) => ({
+            id: item.appointmentId,
+            slotId: item.slotId ?? item.appointmentId,
+            startsAt: item.startsAt,
+            patientId: item.patientId,
+            bookingKind: item.bookingKind,
+            status: item.status
+          }))
+        };
+      } catch {
+        return { ...localResult, slots: [], appointments: [] };
       }
-      return localResult;
     }
     const payload = await requestV1(fetchImpl, mapped, {
       signal: options.signal,
       csrfToken: csrfToken(),
       accessToken: accessToken(),
-      returnSession: returnSession(),
       toError
     });
-    if (mapped.url === '/v1/return-lookup') {
-      return mappedLookupResult(payload);
-    }
+    rememberReturnSession(payload?.sessionId);
     if (path === '/schedule/publish' && payload !== undefined) {
       try {
         payload.slots = (await v1({ url: '/v1/slots', method: 'GET' })).slots;
@@ -506,12 +412,4 @@ export function createInternalTestBookingTransport({
     }
     return payload;
   };
-}
-
-async function overlayServerAppointments(v1) {
-  try {
-    return await v1({ url: '/v1/bookings?scope=clinic', method: 'GET' });
-  } catch {
-    return await v1({ url: '/v1/bookings?scope=mine', method: 'GET' });
-  }
 }

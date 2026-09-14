@@ -64,11 +64,12 @@ describe('mapInternalTestBookingRequest', () => {
       slotId: 'slot_001',
       itemIds: ['service_consult'],
       bookingKind: 'initial',
-      patient: {
+      intake: {
         name: '合成患者甲',
         phone: '0912000001',
         birthDate: '1990-01-15',
-        nationalId: 'A123456789'
+        nationalId: 'A123456789',
+        privacyConsent: true
       }
     });
     expect(accountless?.body).toMatchObject({
