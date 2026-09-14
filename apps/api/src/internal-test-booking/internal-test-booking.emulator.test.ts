@@ -535,6 +535,14 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
       appointmentId: string;
     };
 
+    const arrived = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/arrive`,
+      headers: managerHeaders(),
+      payload: { idempotencyKey: 'arrive-idempotency-0013' }
+    });
+    expect(arrived.statusCode).toBe(201);
+
     const completed = await harness.inject({
       method: 'POST',
       url: `/v1/bookings/${createdBody.appointmentId}/complete`,

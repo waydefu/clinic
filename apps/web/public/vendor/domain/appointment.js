@@ -31,8 +31,8 @@ export function requestCancellation(appointment, requestedAt, cancellationCutoff
 }
 export function markAppointmentCompleted(appointment, actorRole, completedAt) {
     assertUtcTimestamp(completedAt, 'completedAt');
-    if (appointment.status !== 'confirmed') {
-        throw new DomainError('APPOINTMENT_NOT_CONFIRMABLE', 'Only a confirmed appointment can be marked completed.');
+    if (appointment.status !== 'arrived') {
+        throw new DomainError('APPOINTMENT_NOT_CONFIRMABLE', 'Only an arrived appointment can be marked completed.');
     }
     if (!['clinic_admin', 'front_desk', 'system'].includes(actorRole)) {
         throw new DomainError('COMPLETION_NOT_AUTHORIZED', 'The actor role cannot mark an appointment as completed.');

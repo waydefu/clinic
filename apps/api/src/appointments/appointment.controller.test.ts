@@ -115,9 +115,11 @@ const harnessRepository: AppointmentRepositoryPort = {
       status:
         request.transition === 'complete'
           ? 'completed'
-          : request.transition === 'no_show'
-            ? 'no_show'
-            : 'cancelled'
+          : request.transition === 'arrive'
+            ? 'arrived'
+            : request.transition === 'no_show'
+              ? 'no_show'
+              : 'cancelled'
     }),
   recordFollowUp: () =>
     Promise.resolve({

@@ -418,6 +418,16 @@ function applyContractWrite(path, body, result) {
     releaseOverlaySlot(slot, appointment.id);
     return;
   }
+  const arrive = /^\/bookings\/([^/]+)\/arrive$/.exec(path);
+  if (arrive !== null) {
+    const appointment = state.appointments.find(
+      (item) => item.id === arrive[1]
+    );
+    if (appointment === undefined) return;
+    appointment.status = result.status ?? 'arrived';
+    appointment.updatedAt = now;
+    return;
+  }
   const complete = /^\/bookings\/([^/]+)\/complete$/.exec(path);
   if (complete !== null) {
     const appointment = state.appointments.find(
@@ -1464,28 +1474,31 @@ elements.appointments.addEventListener('click', async (event) => {
     return;
   }
 
-  const completing = action.startsWith('complete');
+  const completing = action === 'complete' || action === 'complete_without_card';
   const questions = {
     cancel: '確認取消此預約並釋放時段？',
     no_show: '確認將此預約標記為未到？時段會釋放。',
+    arrive: '確認患者已到診？到診不會結束看診，完成看診是下一步。',
     complete:
-      '確認患者已到診並完成本次看診？完成後，可依醫師指示登錄回診並首次指派個管師。',
+      '確認已完成本次看診？完成後，可依醫師指示登錄回診並首次指派個管師。',
     complete_without_card:
-      '確認患者已到診，但本次未攜帶健保卡？這只記錄這一次的情況，不會改變患者「預計攜帶健保卡」的登記。'
+      '確認已完成本次看診，但本次未攜帶健保卡？這只記錄這一次的情況，不會改變患者「預計攜帶健保卡」的登記。'
   };
   const confirmed = await confirmDialog(questions[action], {
-    danger: !completing,
+    danger: !completing && action !== 'arrive',
     confirmLabel: {
       cancel: '取消預約',
       no_show: '標記未到',
-      complete: '確認到診',
-      complete_without_card: '確認到診（未帶卡）'
+      arrive: '確認到診',
+      complete: '完成看診',
+      complete_without_card: '完成看診（未帶卡）'
     }[action]
   });
   if (!confirmed) return;
   const paths = {
     cancel: 'cancel',
     no_show: 'no-show',
+    arrive: 'arrive',
     complete: 'complete',
     complete_without_card: 'complete-without-card'
   };
@@ -1498,9 +1511,10 @@ elements.appointments.addEventListener('click', async (event) => {
       const done = {
         cancel: '預約已取消並釋放時段。',
         no_show: '已標記未到並釋放時段。',
-        complete: '到診已記錄，請接續處理回診與個管指派。',
+        arrive: '已記錄到診，看診尚未完成。',
+        complete: '看診已完成，請接續處理回診與個管指派。',
         complete_without_card:
-          '到診已記錄，並註記本次未攜帶健保卡。請接續處理回診與個管指派。'
+          '看診已完成，並註記本次未攜帶健保卡。請接續處理回診與個管指派。'
       };
       message(done[action], 'success');
       if (completing && !elements['follow-up-workflow'].hidden) {

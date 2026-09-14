@@ -128,6 +128,21 @@ export class AppointmentController {
     );
   }
 
+  @Post(':appointmentId/arrive')
+  public async arrive(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticator.authenticate(request);
+    return this.appointments.arrive(
+      identifier(appointmentId),
+      CancelAppointmentRequestSchema.parse(body),
+      authentication
+    );
+  }
+
   @Post(':appointmentId/complete')
   public async complete(
     @Param('appointmentId') appointmentId: string,

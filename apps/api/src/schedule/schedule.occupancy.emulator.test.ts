@@ -343,7 +343,7 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
     });
   });
 
-  it('lets staff complete a published-grid booking over HTTP and refuses a patient', async () => {
+  it('lets staff arrive then complete a published-grid booking over HTTP and refuses a patient', async () => {
     const harness = requireHarness();
     await publishGrid(harness, 'schedule_publish_0005');
     const created = await bookPublishedSlot(harness);
@@ -351,11 +351,31 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
 
     const denied = await harness.inject({
       method: 'POST',
-      url: `/v1/bookings/${APPOINTMENT_ID}/complete`,
+      url: `/v1/bookings/${APPOINTMENT_ID}/arrive`,
       headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
       payload: { idempotencyKey: 'booking-idempotency-0005' }
     });
     expect(denied.statusCode).toBe(403);
+
+    const tooSoon = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/complete`,
+      headers: actorHeaders('manager'),
+      payload: { idempotencyKey: 'booking-idempotency-0006-too-soon' }
+    });
+    expect(tooSoon.statusCode).toBe(409);
+
+    const arrived = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/arrive`,
+      headers: actorHeaders('manager'),
+      payload: { idempotencyKey: 'booking-idempotency-0006-arrive' }
+    });
+    expect(arrived.statusCode).toBe(201);
+    expect(JSON.parse(arrived.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'arrived'
+    });
 
     const completed = await harness.inject({
       method: 'POST',

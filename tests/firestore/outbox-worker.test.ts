@@ -516,9 +516,10 @@ describe('outbox worker', () => {
 
     await queue('outbox_rescheduled', 'confirmed');
     expect(calendar.events.size).toBe(1);
-    // 到診是已成事實：就診事件從日曆刪除（若需要回診，回診提醒是另一筆事件）。
+    await queue('outbox_arrived', 'arrived');
+    expect(calendar.events.size).toBe(1);
     await queue('outbox_completed', 'completed');
-    expect(calendar.events.size).toBe(0);
+    expect(calendar.events.size).toBe(1);
   });
 
   it('treats cancelling an already-missing event as a success (410/404 path)', async () => {

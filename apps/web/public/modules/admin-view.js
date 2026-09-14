@@ -33,6 +33,7 @@ const auditLabels = {
   appointment_notes_updated: '修改備註',
   cancellation_requested: '提出取消',
   appointment_cancelled: '確認取消',
+  appointment_arrived: '標記到診',
   appointment_completed: '完成到診',
   appointment_completed_without_nhi_card: '完成到診（未帶健保卡）',
   appointment_no_show: '標記未到',
@@ -57,6 +58,7 @@ const appointmentActions = new Set([
   'appointment_notes_updated',
   'cancellation_requested',
   'appointment_cancelled',
+  'appointment_arrived',
   'appointment_completed',
   'appointment_completed_without_nhi_card',
   'appointment_no_show',
@@ -66,6 +68,7 @@ const appointmentActions = new Set([
 
 const statusIcons = {
   confirmed: '&#10003;',
+  arrived: '&#10003;',
   cancellation_requested: '!',
   completed: '&#10003;',
   cancelled: '&#8212;',
@@ -108,15 +111,17 @@ function detailRow(state, id) {
 
 // 哪些處置在什麼狀態下可用，集中在這裡，避免選單與 domain 規則各說各話。
 function actionEnabled(actionId, appointment) {
-  const active = ['confirmed', 'cancellation_requested'].includes(
+  const active = ['confirmed', 'arrived', 'cancellation_requested'].includes(
     appointment.status
   );
   switch (actionId) {
     case 'follow_up_confirm':
       return appointment.status === 'completed';
+    case 'arrive':
+      return appointment.status === 'confirmed';
     case 'complete':
     case 'complete_without_card':
-      return appointment.status === 'confirmed';
+      return appointment.status === 'arrived';
     // 列印不改變任何狀態，只是把已有的資料排版印出來。
     // 只在**看診發生之前**可用：那是一張初診資料表，用途是患者到診時拿著它把
     // 其餘欄位手寫補齊。看診結束之後那張紙早就填完了，再印一張空的沒有意義
@@ -139,10 +144,17 @@ function primaryAction(appointment, decided, canManageFollowUp) {
   let action;
   if (appointment.status === 'confirmed')
     action = {
-      id: 'complete',
+      id: 'arrive',
       label: '到診',
       icon: '&#10003;',
       className: 'appointment-arrival-button'
+    };
+  else if (appointment.status === 'arrived')
+    action = {
+      id: 'complete',
+      label: '完成看診',
+      icon: '&#10003;',
+      className: 'appointment-complete-button'
     };
   else if (appointment.status === 'cancellation_requested')
     action = {
@@ -355,8 +367,9 @@ export function summaryCounts(state, today = taipeiTodayDate()) {
     ).length,
     pending: state.appointments.filter(
       (item) =>
-        ['confirmed', 'cancellation_requested'].includes(item.status) &&
-        isTodayWork(state, item, today)
+        ['confirmed', 'arrived', 'cancellation_requested'].includes(
+          item.status
+        ) && isTodayWork(state, item, today)
     ).length,
     completed: state.appointments.filter(
       (item) => item.status === 'completed' && isTodayWork(state, item, today)
@@ -381,9 +394,12 @@ export function renderTagPicker(selected = [], scope = 'booking') {
 // 備註可改的狀態，與 updateAppointmentNotes 的規則一致：已取消或未到的
 // 預約是已經發生的事實，不再修改。
 function notesEditable(appointment) {
-  return ['confirmed', 'cancellation_requested', 'completed'].includes(
-    appointment.status
-  );
+  return [
+    'confirmed',
+    'arrived',
+    'cancellation_requested',
+    'completed'
+  ].includes(appointment.status);
 }
 
 export function renderSlots(state, kind, selectedSlotId) {

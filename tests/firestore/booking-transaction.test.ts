@@ -444,6 +444,25 @@ describe('booking write path in a Firestore transaction', () => {
     await repository.reserve(bookingRequest());
     await repository.transition({
       appointmentId: 'appointment_001',
+      transition: 'arrive',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_arrive_001',
+        source: 'api',
+        reasonCode: 'test_visit_arrived',
+        policyVersion: null
+      },
+      requestedAt: '2026-07-21T09:30:00.000Z',
+      idempotency: transitionAppointmentIdempotency({
+        key: 'idem_arrive_001',
+        actorId: 'actor_front_desk_001',
+        appointmentId: 'appointment_001',
+        transition: 'arrive'
+      })
+    });
+    await repository.transition({
+      appointmentId: 'appointment_001',
       transition: 'complete',
       audit: {
         actorId: 'actor_front_desk_001',
@@ -499,6 +518,25 @@ describe('booking write path in a Firestore transaction', () => {
         idempotencyKey: 'idem_002'
       })
     );
+    await repository.transition({
+      appointmentId: 'appointment_001',
+      transition: 'arrive',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_arrive_one_of_two',
+        source: 'api',
+        reasonCode: 'test_visit_arrived',
+        policyVersion: null
+      },
+      requestedAt: '2026-07-21T09:30:00.000Z',
+      idempotency: transitionAppointmentIdempotency({
+        key: 'idem_arrive_one_of_two',
+        actorId: 'actor_front_desk_001',
+        appointmentId: 'appointment_001',
+        transition: 'arrive'
+      })
+    });
     await repository.transition({
       appointmentId: 'appointment_001',
       transition: 'complete',

@@ -165,6 +165,7 @@ export interface ReschedulePlan {
 const AUDIT_ACTIONS: Record<AppointmentTransition, AuditAction> = {
   request_cancellation: 'cancellation_requested',
   cancel: 'appointment_cancelled',
+  arrive: 'appointment_arrived',
   complete: 'appointment_completed',
   no_show: 'appointment_no_show'
 };
@@ -172,6 +173,7 @@ const AUDIT_ACTIONS: Record<AppointmentTransition, AuditAction> = {
 const NEXT_STATUS: Record<AppointmentTransition, AppointmentStatusValue> = {
   request_cancellation: 'cancellation_requested',
   cancel: 'cancelled',
+  arrive: 'arrived',
   complete: 'completed',
   no_show: 'no_show'
 };
@@ -222,6 +224,7 @@ export function parseAppointmentSnapshot(
     const status = record['status'];
     if (
       status !== 'confirmed' &&
+      status !== 'arrived' &&
       status !== 'cancellation_requested' &&
       status !== 'cancelled' &&
       status !== 'completed' &&
@@ -337,8 +340,8 @@ export function planTransition(
   assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
 
   const nextStatus = NEXT_STATUS[request.transition];
-  // 取消與未到會把時段還給其他患者；提出取消只是等櫃台確認，完成到診則是
-  // 已經發生的事實，兩者都不釋出時段。
+  // 取消與未到會把時段還給其他患者；提出取消只是等櫃台確認，到診與完成
+  // 都是已經發生的事實，兩者都不釋出時段、也不刪日曆事件。
   const releasesSlot =
     request.transition === 'cancel' || request.transition === 'no_show';
   const auditEvent = planAuditEvent({
@@ -367,7 +370,8 @@ export function planTransition(
       : {}),
     ...(releasesSlot ? { releaseSlotId: appointment.slotId } : {}),
     patientBookingGuard:
-      request.transition === 'request_cancellation'
+      request.transition === 'request_cancellation' ||
+      request.transition === 'arrive'
         ? {
             action: 'retain',
             guard: normalizedGuard(patientBookingGuard, request.requestedAt)

@@ -140,18 +140,25 @@ describe('parseAppointmentSnapshot', () => {
 
 describe('planTransition', () => {
   it('maps each transition to its status and audit action', () => {
-    const cases: [AppointmentTransition, AppointmentStatusValue, string][] = [
+    const cases: [
+      AppointmentTransition,
+      AppointmentStatusValue,
+      string,
+      AppointmentStatusValue
+    ][] = [
       [
         'request_cancellation',
         'cancellation_requested',
-        'cancellation_requested'
+        'cancellation_requested',
+        'confirmed'
       ],
-      ['cancel', 'cancelled', 'appointment_cancelled'],
-      ['complete', 'completed', 'appointment_completed'],
-      ['no_show', 'no_show', 'appointment_no_show']
+      ['cancel', 'cancelled', 'appointment_cancelled', 'confirmed'],
+      ['arrive', 'arrived', 'appointment_arrived', 'confirmed'],
+      ['complete', 'completed', 'appointment_completed', 'arrived'],
+      ['no_show', 'no_show', 'appointment_no_show', 'confirmed']
     ];
-    for (const [transition, status, action] of cases) {
-      const plan = request(transition).plan();
+    for (const [transition, status, action, from] of cases) {
+      const plan = request(transition, { status: from }).plan();
       expect(plan.nextStatus).toBe(status);
       expect(plan.auditEvent).toMatchObject({
         action,
@@ -160,7 +167,7 @@ describe('planTransition', () => {
         resourceType: 'appointment',
         resourceId: appointment.id,
         before: {
-          status: appointment.status,
+          status: from,
           slotId: appointment.slotId
         },
         reasonCode: audit.reasonCode,
@@ -182,14 +189,18 @@ describe('planTransition', () => {
   it('releases the slot only for cancel and no_show', () => {
     expect(request('cancel').plan().releaseSlotId).toBe(appointment.slotId);
     expect(request('no_show').plan().releaseSlotId).toBe(appointment.slotId);
-    expect(request('complete').plan().releaseSlotId).toBeUndefined();
+    expect(request('complete', { status: 'arrived' }).plan().releaseSlotId).toBeUndefined();
+    expect(request('arrive').plan().releaseSlotId).toBeUndefined();
     expect(
       request('request_cancellation').plan().releaseSlotId
     ).toBeUndefined();
   });
 
   it('records completedAt only when completing', () => {
-    expect(request('complete').plan().completedAt).toBe(NOW);
+    expect(request('complete', { status: 'arrived' }).plan().completedAt).toBe(
+      NOW
+    );
+    expect(request('arrive').plan().completedAt).toBeUndefined();
     expect(request('cancel').plan().completedAt).toBeUndefined();
   });
 
@@ -201,12 +212,25 @@ describe('planTransition', () => {
         updatedAt: NOW
       }
     });
-    for (const transition of ['cancel', 'complete', 'no_show'] as const) {
+    expect(request('arrive').plan().patientBookingGuard).toEqual({
+      action: 'retain',
+      guard: {
+        activeAppointmentIds: [appointment.id],
+        updatedAt: NOW
+      }
+    });
+    for (const transition of ['cancel', 'no_show'] as const) {
       expect(request(transition).plan().patientBookingGuard).toEqual({
         action: 'release',
         activeAppointmentId: appointment.id
       });
     }
+    expect(
+      request('complete', { status: 'arrived' }).plan().patientBookingGuard
+    ).toEqual({
+      action: 'release',
+      activeAppointmentId: appointment.id
+    });
   });
 
   it('releases only one allowance when another appointment remains active', () => {
@@ -218,7 +242,7 @@ describe('planTransition', () => {
         requestedAt: NOW,
         idempotency: idempotencyFor()
       },
-      appointment,
+      { ...appointment, status: 'arrived' },
       twoActiveGuard
     );
     expect(plan.patientBookingGuard).toEqual({
@@ -259,10 +283,15 @@ describe('planTransition', () => {
       [
         'request_cancellation',
         'cancel',
-        'complete',
+        'arrive',
         'no_show'
       ] as AppointmentTransition[]
-    ).map((transition) => request(transition).plan().outboxJob.idempotencyKey);
+    )
+      .map((transition) => request(transition).plan().outboxJob.idempotencyKey)
+      .concat(
+        request('complete', { status: 'arrived' }).plan().outboxJob
+          .idempotencyKey
+      );
 
     expect(new Set(keys).size).toBe(1);
     expect(isCalendarEventId(keys[0] as string)).toBe(true);
@@ -280,8 +309,24 @@ describe('planTransition', () => {
     }
   });
 
-  it('refuses to complete or re-request cancellation once it is pending', () => {
-    for (const transition of ['complete', 'request_cancellation'] as const) {
+  it('refuses to complete from confirmed and refuses arrive once already arrived', () => {
+    expect(codeOf(() => request('complete').plan())).toBe(
+      'TRANSITION_NOT_ALLOWED'
+    );
+    expect(codeOf(() => request('arrive', { status: 'arrived' }).plan())).toBe(
+      'TRANSITION_NOT_ALLOWED'
+    );
+    expect(() =>
+      request('complete', { status: 'arrived' }).plan()
+    ).not.toThrow();
+  });
+
+  it('refuses to complete, arrive, or re-request cancellation once it is pending', () => {
+    for (const transition of [
+      'complete',
+      'arrive',
+      'request_cancellation'
+    ] as const) {
       expect(
         codeOf(() =>
           request(transition, { status: 'cancellation_requested' }).plan()
@@ -299,6 +344,7 @@ describe('planTransition', () => {
     const transitions: AppointmentTransition[] = [
       'request_cancellation',
       'cancel',
+      'arrive',
       'complete',
       'no_show'
     ];
@@ -367,12 +413,15 @@ describe('planDeletion', () => {
   it('deletes from every status, including the ones no transition can leave', () => {
     for (const status of [
       'confirmed',
+      'arrived',
       'cancellation_requested',
       'cancelled',
       'completed',
       'no_show'
     ] as AppointmentStatusValue[]) {
-      const guard = ['confirmed', 'cancellation_requested'].includes(status)
+      const guard = ['confirmed', 'arrived', 'cancellation_requested'].includes(
+        status
+      )
         ? patientBookingGuard
         : null;
       expect(() => remove({ status }, {}, guard)).not.toThrow();
@@ -382,6 +431,7 @@ describe('planDeletion', () => {
   // 已結束的預約早就把時段還出去了，再釋出一次會把後來訂走這格的人擠掉。
   it('releases the slot only while the appointment still holds one', () => {
     expect(remove().releaseSlotId).toBe(appointment.slotId);
+    expect(remove({ status: 'arrived' }).releaseSlotId).toBe(appointment.slotId);
     expect(remove({ status: 'cancellation_requested' }).releaseSlotId).toBe(
       appointment.slotId
     );

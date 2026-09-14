@@ -99,6 +99,13 @@ describe('mapInternalTestBookingRequest', () => {
     });
     expect(
       mapInternalTestBookingRequest(
+        '/bookings/appointment_001/arrive',
+        'POST',
+        {}
+      )?.url
+    ).toBe('/v1/bookings/appointment_001/arrive');
+    expect(
+      mapInternalTestBookingRequest(
         '/bookings/appointment_001/complete',
         'POST',
         {}

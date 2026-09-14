@@ -37,28 +37,29 @@ export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
 
 /**
- * 日曆只留「尚未發生」的預約。已完成到診、已取消、未到都是已成事實，事件應該
- * 消失（`cancel`）；confirmed／cancellation_requested 與待安排回診提醒是
- * upsert。
+ * 日曆投影預約狀態，不是可用性鎖。到診與完成更新同一事件，不得刪除；
+ * 已取消、未到與紀錄刪除才 cancel。confirmed／arrived／completed／
+ * cancellation_requested 與待安排回診提醒是 upsert。
  *
  * 用預約的**目前**狀態而不是工作建立時的狀態：工作可能等到退避結束才執行，
- * 期間預約已被取消或完成——這時再把事件寫回日曆就是錯的。
+ * 期間預約已被取消——這時再把事件寫回日曆就是錯的。
  *
  * 刪除例外：紀錄已不存在，活狀態讀不到。此時用工作上的 `appointmentStatus`
  * （`planDeletion` 寫入 `deleted`），才能把同一把日曆事件取消。
  *
- * 到診刪除的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同 event id、
- * 落在回診目標日），由回診投影負責，不受這裡影響。
+ * 到診／完成更新的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同
+ * event id、落在回診目標日），由回診投影負責，不受這裡影響。
  */
 const UPSERT_PROJECTION_STATUSES = new Set([
   'confirmed',
+  'arrived',
+  'completed',
   'cancellation_requested',
   'follow_up_required'
 ]);
 
 const CANCEL_PROJECTION_STATUSES = new Set([
   'cancelled',
-  'completed',
   'no_show',
   'deleted',
   'follow_up_not_required',

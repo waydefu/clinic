@@ -11,6 +11,7 @@ export const AuditActionSchema = z.enum([
   'appointment_confirmed',
   'cancellation_requested',
   'appointment_cancelled',
+  'appointment_arrived',
   'appointment_completed',
   'appointment_no_show',
   'appointment_rescheduled',
@@ -220,6 +221,7 @@ export const AuditEventV2Schema = z
         break;
       case 'cancellation_requested':
       case 'appointment_cancelled':
+      case 'appointment_arrived':
       case 'appointment_completed':
       case 'appointment_no_show':
       case 'appointment_rescheduled':

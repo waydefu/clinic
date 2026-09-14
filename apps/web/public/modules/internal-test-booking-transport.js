@@ -115,6 +115,14 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
       body: { idempotencyKey: idempotencyKey() }
     };
   }
+  const arrive = /^\/bookings\/([A-Za-z0-9_-]+)\/arrive$/.exec(path);
+  if (verb === 'POST' && arrive !== null) {
+    return {
+      url: `/v1/bookings/${arrive[1]}/arrive`,
+      method: 'POST',
+      body: { idempotencyKey: idempotencyKey() }
+    };
+  }
   const noShow = /^\/bookings\/([A-Za-z0-9_-]+)\/no-show$/.exec(path);
   if (verb === 'POST' && noShow !== null) {
     return {

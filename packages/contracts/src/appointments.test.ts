@@ -128,7 +128,7 @@ describe('v1 API contracts', () => {
 describe('staff appointment transition command', () => {
   const validKey = 'transition_request_0001';
 
-  it.each([['confirm_cancellation'], ['complete'], ['no_show']] as const)(
+  it.each([['confirm_cancellation'], ['arrive'], ['complete'], ['no_show']] as const)(
     'accepts the %s action with only a key',
     (transition) => {
       expect(
@@ -143,6 +143,7 @@ describe('staff appointment transition command', () => {
   it('does not accept the patient-only request_cancellation action', () => {
     expect(StaffAppointmentTransitionSchema.options).toEqual([
       'confirm_cancellation',
+      'arrive',
       'complete',
       'no_show'
     ]);
@@ -173,21 +174,28 @@ describe('staff appointment transition command', () => {
     // values must be the non-create, non-patient domain transitions.
     expect(STAFF_TRANSITION_TO_DOMAIN).toEqual({
       confirm_cancellation: 'cancel',
+      arrive: 'arrive',
       complete: 'complete',
       no_show: 'no_show'
     });
     expect(new Set(Object.values(STAFF_TRANSITION_TO_DOMAIN))).toEqual(
-      new Set(['cancel', 'complete', 'no_show'])
+      new Set(['cancel', 'arrive', 'complete', 'no_show'])
     );
   });
 
-  it('returns only a resulting terminal status', () => {
+  it('returns the resulting staff-transition status', () => {
     expect(
       TransitionAppointmentResponseSchema.parse({
         appointmentId: 'appointment_001',
         status: 'completed'
       })
     ).toEqual({ appointmentId: 'appointment_001', status: 'completed' });
+    expect(
+      TransitionAppointmentResponseSchema.parse({
+        appointmentId: 'appointment_001',
+        status: 'arrived'
+      })
+    ).toEqual({ appointmentId: 'appointment_001', status: 'arrived' });
     expect(
       TransitionAppointmentResponseSchema.safeParse({
         appointmentId: 'appointment_001',

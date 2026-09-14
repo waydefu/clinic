@@ -883,6 +883,10 @@ test.describe('已確認回診時的掛號別', () => {
       const { stagingRequest } = await import(storeUrl);
       const state = await stagingRequest('/state');
       const appointment = state.appointments.at(-1);
+      await stagingRequest(`/bookings/${appointment.id}/arrive`, {
+        method: 'POST',
+        body: '{}'
+      });
       await stagingRequest(`/bookings/${appointment.id}/complete`, {
         method: 'POST',
         body: '{}'

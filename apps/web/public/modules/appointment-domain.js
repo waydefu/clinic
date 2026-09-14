@@ -341,6 +341,7 @@ export function transitionAppointment(state, appointmentId, action, actorId) {
   const TRANSITIONS = {
     request_cancellation: 'request_cancellation',
     cancel: 'cancel',
+    arrive: 'arrive',
     complete: 'complete',
     complete_without_card: 'complete',
     no_show: 'no_show'
@@ -359,6 +360,9 @@ export function transitionAppointment(state, appointmentId, action, actorId) {
     appointment.status = 'cancelled';
     if (slot?.reservationId === appointmentId) delete slot.reservationId;
     appendAudit(state, 'appointment_cancelled', appointmentId, actorId);
+  } else if (transition === 'arrive') {
+    appointment.status = 'arrived';
+    appendAudit(state, 'appointment_arrived', appointmentId, actorId);
   } else if (transition === 'complete') {
     appointment.status = 'completed';
     appointment.completedAt = now;
@@ -540,7 +544,7 @@ export function updateAppointmentNotes(state, appointmentId, input, actorId) {
   );
   if (appointment === undefined) throw new Error('找不到這筆預約。');
   if (
-    !['confirmed', 'cancellation_requested', 'completed'].includes(
+    !['confirmed', 'arrived', 'cancellation_requested', 'completed'].includes(
       appointment.status
     )
   )

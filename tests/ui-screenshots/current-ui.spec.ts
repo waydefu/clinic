@@ -9,6 +9,7 @@ import { fillBirthDate, submitBooking } from '../e2e/support/patient.js';
 import {
   STORAGE_KEY,
   createBooking,
+  finishVisit,
   login,
   openDisclosure,
   seedAppointmentCopies,
@@ -402,9 +403,7 @@ async function prepareFollowUpWithCase(page: Page): Promise<void> {
   await showAllAppointments(page);
 
   const appointment = page.locator('[data-appointment-card]').first();
-  await appointment.locator('[data-appointment-action="complete"]').click();
-  await page.locator('.confirm-dialog button.button-primary').click();
-  await expect(page.locator('#status')).toContainText('到診已記錄');
+  await finishVisit(page, appointment);
   const form = page.locator('#follow-up-list [data-follow-up-form]').first();
   await expect(form).toBeVisible();
   await expect(form.locator('select[name="managerId"]')).toBeVisible();

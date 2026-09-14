@@ -310,6 +310,9 @@ export async function stagingRequest(path, options = {}) {
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/cancel$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.CANCEL_BOOKING);
     transitionAppointment(state, path.split('/')[2], 'cancel', actor.id);
+  } else if (/^\/bookings\/[A-Za-z0-9_-]+\/arrive$/.test(path)) {
+    const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
+    transitionAppointment(state, path.split('/')[2], 'arrive', actor.id);
   } else if (/^\/bookings\/[A-Za-z0-9_-]+\/complete$/.test(path)) {
     const actor = requirePermission(state, PERMISSIONS.COMPLETE_VISIT);
     transitionAppointment(state, path.split('/')[2], 'complete', actor.id);

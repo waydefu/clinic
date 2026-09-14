@@ -16,7 +16,7 @@ type ListedSlot = {
 
 type ContractBooking = {
   appointmentId: string;
-  status: 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+  status: 'confirmed' | 'arrived' | 'cancelled' | 'completed' | 'no_show';
   startsAt: string;
   endsAt?: string;
 };
@@ -36,7 +36,13 @@ type MutationStub =
       auditEventId: string;
     };
 type MutationKind =
-  'cancel' | 'reschedule' | 'complete' | 'noShow' | 'followUp' | 'delete';
+  | 'cancel'
+  | 'reschedule'
+  | 'arrive'
+  | 'complete'
+  | 'noShow'
+  | 'followUp'
+  | 'delete';
 
 type CapturedPost = {
   path?: string;
@@ -54,6 +60,7 @@ type PublishStub =
 const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
   { kind: 'cancel', pattern: /^\/v1\/bookings\/[^/]+\/cancel$/ },
   { kind: 'reschedule', pattern: /^\/v1\/bookings\/[^/]+\/reschedule$/ },
+  { kind: 'arrive', pattern: /^\/v1\/bookings\/[^/]+\/arrive$/ },
   { kind: 'complete', pattern: /^\/v1\/bookings\/[^/]+\/complete$/ },
   { kind: 'noShow', pattern: /^\/v1\/bookings\/[^/]+\/no-show$/ },
   { kind: 'followUp', pattern: /^\/v1\/bookings\/[^/]+\/follow-up$/ },
@@ -69,6 +76,7 @@ async function stubV1(
   extras: { getBooking?: ContractBooking; publish?: PublishStub } = {}
 ): Promise<{
   body?: Record<string, unknown>;
+  arrive: CapturedPost;
   cancel: CapturedPost;
   reschedule: CapturedPost;
   complete: CapturedPost;
@@ -80,6 +88,7 @@ async function stubV1(
 }> {
   const posted: {
     body?: Record<string, unknown>;
+    arrive: CapturedPost;
     cancel: CapturedPost;
     reschedule: CapturedPost;
     complete: CapturedPost;
@@ -89,6 +98,7 @@ async function stubV1(
     query: CapturedPost;
     publish: CapturedPost;
   } = {
+    arrive: {},
     cancel: {},
     reschedule: {},
     complete: {},
@@ -638,6 +648,12 @@ test.describe('internal-test booking occupancy overlay', () => {
         endsAt
       },
       {
+        arrive: {
+          appointmentId: 'appointment_api_001',
+          status: 'arrived',
+          startsAt,
+          endsAt
+        },
         complete: {
           appointmentId: 'appointment_api_001',
           status: 'completed',
@@ -665,10 +681,14 @@ test.describe('internal-test booking occupancy overlay', () => {
 
     await showAllAppointments(page);
     const card = page.locator('[data-appointment-card="appointment_api_001"]');
-    await card.locator('[data-appointment-action="complete"]').click();
+    await card.locator('[data-appointment-action="arrive"]').click();
     await page.getByRole('button', { name: '確認到診' }).click();
+    await expect(page.locator('#status')).toContainText('已記錄到診');
+    expect(posted.arrive.path).toBe('/v1/bookings/appointment_api_001/arrive');
 
-    await expect(page.locator('#status')).toContainText('到診已記錄');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '完成看診' }).click();
+    await expect(page.locator('#status')).toContainText('看診已完成');
     expect(posted.complete.path).toBe(
       '/v1/bookings/appointment_api_001/complete'
     );
@@ -752,7 +772,15 @@ test.describe('internal-test booking occupancy overlay', () => {
         startsAt,
         endsAt: upcomingIso(48.5)
       },
-      { complete: 'closed' }
+      {
+        arrive: {
+          appointmentId: 'appointment_api_001',
+          status: 'arrived',
+          startsAt,
+          endsAt: upcomingIso(48.5)
+        },
+        complete: 'closed'
+      }
     );
 
     await login(page, 'admin', {
@@ -762,13 +790,16 @@ test.describe('internal-test booking occupancy overlay', () => {
     await fillStaffOptInCreateForm(page, 'slot_overlay_open');
     await showAllAppointments(page);
     const card = page.locator('[data-appointment-card="appointment_api_001"]');
-    await card.locator('[data-appointment-action="complete"]').click();
+    await card.locator('[data-appointment-action="arrive"]').click();
     await page.getByRole('button', { name: '確認到診' }).click();
+    await expect(page.locator('#status')).toContainText('已記錄到診');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '完成看診' }).click();
 
     await expect(page.locator('#status')).toContainText(
       '服務暫時無法使用，請稍後再試。'
     );
-    await expect(card).toContainText('預約成立');
+    await expect(card).toContainText('已到診');
   });
 
   test('opt-in staff complete-without-card does not succeed locally', async ({
@@ -792,6 +823,14 @@ test.describe('internal-test booking occupancy overlay', () => {
         status: 'confirmed',
         startsAt,
         endsAt: upcomingIso(48.5)
+      },
+      {
+        arrive: {
+          appointmentId: 'appointment_api_001',
+          status: 'arrived',
+          startsAt,
+          endsAt: upcomingIso(48.5)
+        }
       }
     );
 
@@ -802,11 +841,14 @@ test.describe('internal-test booking occupancy overlay', () => {
     await fillStaffOptInCreateForm(page, 'slot_overlay_open');
     await showAllAppointments(page);
     const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('[data-appointment-action="arrive"]').click();
+    await page.getByRole('button', { name: '確認到診' }).click();
+    await expect(page.locator('#status')).toContainText('已記錄到診');
     await card.locator('.action-menu summary').click();
     await card
       .locator('[data-appointment-action="complete_without_card"]')
       .click();
-    await page.getByRole('button', { name: '確認到診（未帶卡）' }).click();
+    await page.getByRole('button', { name: '完成看診（未帶卡）' }).click();
 
     await expect(page.locator('#status')).toContainText(
       '服務暫時無法使用，請稍後再試。'
@@ -1095,6 +1137,12 @@ test.describe('internal-test booking occupancy overlay', () => {
         endsAt
       },
       {
+        arrive: {
+          appointmentId: 'appointment_api_001',
+          status: 'arrived',
+          startsAt,
+          endsAt
+        },
         complete: {
           appointmentId: 'appointment_api_001',
           status: 'completed',
@@ -1116,9 +1164,12 @@ test.describe('internal-test booking occupancy overlay', () => {
     await fillStaffOptInCreateForm(page, 'slot_overlay_open');
     await showAllAppointments(page);
     const card = page.locator('[data-appointment-card="appointment_api_001"]');
-    await card.locator('[data-appointment-action="complete"]').click();
+    await card.locator('[data-appointment-action="arrive"]').click();
     await page.getByRole('button', { name: '確認到診' }).click();
-    await expect(page.locator('#status')).toContainText('到診已記錄');
+    await expect(page.locator('#status')).toContainText('已記錄到診');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '完成看診' }).click();
+    await expect(page.locator('#status')).toContainText('看診已完成');
 
     const form = page.locator('[data-follow-up-form="appointment_api_001"]');
     await expect(form).toBeVisible();
@@ -1177,6 +1228,12 @@ test.describe('internal-test booking occupancy overlay', () => {
         endsAt
       },
       {
+        arrive: {
+          appointmentId: 'appointment_api_001',
+          status: 'arrived',
+          startsAt,
+          endsAt
+        },
         complete: {
           appointmentId: 'appointment_api_001',
           status: 'completed',
@@ -1194,9 +1251,12 @@ test.describe('internal-test booking occupancy overlay', () => {
     await fillStaffOptInCreateForm(page, 'slot_overlay_open');
     await showAllAppointments(page);
     const card = page.locator('[data-appointment-card="appointment_api_001"]');
-    await card.locator('[data-appointment-action="complete"]').click();
+    await card.locator('[data-appointment-action="arrive"]').click();
     await page.getByRole('button', { name: '確認到診' }).click();
-    await expect(page.locator('#status')).toContainText('到診已記錄');
+    await expect(page.locator('#status')).toContainText('已記錄到診');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '完成看診' }).click();
+    await expect(page.locator('#status')).toContainText('看診已完成');
 
     const form = page.locator('[data-follow-up-form="appointment_api_001"]');
     await expect(form).toBeVisible();

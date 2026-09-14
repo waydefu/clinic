@@ -222,6 +222,25 @@ describe('local logical restore drill', () => {
     await restoredRepository.reserve(secondRequest);
     await restoredRepository.transition({
       appointmentId: secondRequest.appointmentId,
+      transition: 'arrive',
+      audit: {
+        actorId: 'actor_restore_drill',
+        actorRole: 'test_operator',
+        correlationId: 'corr_restore_arrive_002',
+        source: 'api',
+        reasonCode: 'local_restore_drill',
+        policyVersion: null
+      },
+      requestedAt: '2026-07-26T08:20:00.000Z',
+      idempotency: transitionAppointmentIdempotency({
+        key: 'restore-arrive-002',
+        actorId: 'actor_restore_drill',
+        appointmentId: secondRequest.appointmentId,
+        transition: 'arrive'
+      })
+    });
+    await restoredRepository.transition({
+      appointmentId: secondRequest.appointmentId,
       transition: 'complete',
       audit: {
         actorId: 'actor_restore_drill',

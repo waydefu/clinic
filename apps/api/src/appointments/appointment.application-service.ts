@@ -414,6 +414,20 @@ export class AppointmentApplicationService {
     };
   }
 
+  public async arrive(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<TransitionAppointmentResponse> {
+    return this.staffVisitTransition(
+      appointmentId,
+      command,
+      authentication,
+      'arrive',
+      'arrived'
+    );
+  }
+
   public async complete(
     appointmentId: string,
     command: CancelAppointmentRequest,
@@ -505,8 +519,8 @@ export class AppointmentApplicationService {
     appointmentId: string,
     command: CancelAppointmentRequest,
     authentication: AuthenticationContext,
-    transition: 'complete' | 'no_show',
-    expectedStatus: 'completed' | 'no_show'
+    transition: 'arrive' | 'complete' | 'no_show',
+    expectedStatus: 'arrived' | 'completed' | 'no_show'
   ): Promise<TransitionAppointmentResponse> {
     const record = await this.repository.read(appointmentId);
     await this.authorization.assertCanComplete(

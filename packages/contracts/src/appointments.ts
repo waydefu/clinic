@@ -8,6 +8,7 @@ import {
 
 export const AppointmentStatusSchema = z.enum([
   'confirmed',
+  'arrived',
   'cancellation_requested',
   'cancelled',
   'completed',
@@ -78,6 +79,7 @@ export const GetAppointmentResponseSchema = z
  */
 export const StaffAppointmentTransitionSchema = z.enum([
   'confirm_cancellation',
+  'arrive',
   'complete',
   'no_show'
 ]);
@@ -92,6 +94,7 @@ export const StaffAppointmentTransitionSchema = z.enum([
  */
 export const STAFF_TRANSITION_TO_DOMAIN = {
   confirm_cancellation: 'cancel',
+  arrive: 'arrive',
   complete: 'complete',
   no_show: 'no_show'
 } as const;
@@ -106,7 +109,7 @@ export const TransitionAppointmentRequestSchema = z
 export const TransitionAppointmentResponseSchema = z
   .object({
     appointmentId: OpaqueIdentifierSchema,
-    status: z.enum(['cancelled', 'completed', 'no_show'])
+    status: z.enum(['cancelled', 'arrived', 'completed', 'no_show'])
   })
   .strict();
 

@@ -125,6 +125,35 @@ export async function showAllAppointments(page: Page): Promise<void> {
   await page.locator('#appointment-status-filter').selectOption('all');
 }
 
+/** 櫃台把已確認預約記成到診。到診不是完成看診。 */
+export async function markVisitArrived(
+  page: Page,
+  card = page.locator('[data-appointment-card]').first()
+): Promise<void> {
+  await card.locator('[data-appointment-action="arrive"]').click();
+  await page.locator('.confirm-dialog button.button-primary').click();
+  await expect(page.locator('#status')).toContainText('已記錄到診');
+}
+
+/** 櫃台把已到診預約記成完成看診。必須先經過 arrived。 */
+export async function markVisitCompleted(
+  page: Page,
+  card = page.locator('[data-appointment-card]').first()
+): Promise<void> {
+  await card.locator('[data-appointment-action="complete"]').click();
+  await page.locator('.confirm-dialog button.button-primary').click();
+  await expect(page.locator('#status')).toContainText('看診已完成');
+}
+
+/** 已確認 → 到診 → 完成看診。 */
+export async function finishVisit(
+  page: Page,
+  card = page.locator('[data-appointment-card]').first()
+): Promise<void> {
+  await markVisitArrived(page, card);
+  await markVisitCompleted(page, card);
+}
+
 /** 打開工作臺某一筆預約的改期表單。 */
 export async function openStaffRescheduleForm(page: Page): Promise<void> {
   await login(page);

@@ -598,13 +598,36 @@ describe('AppointmentApplicationService cancel', () => {
   });
 });
 
-describe('AppointmentApplicationService complete and no-show', () => {
+describe('AppointmentApplicationService arrive, complete and no-show', () => {
   const STAFF: AuthenticationContext = {
     actorId: 'actor_verified_001',
     actorRole: 'test_front_desk'
   };
 
-  it('lets staff complete a confirmed visit', async () => {
+  it('lets staff mark a confirmed visit arrived', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    transition.mockResolvedValueOnce({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'arrived'
+    });
+
+    await expect(
+      service.arrive('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'arrived'
+    });
+    expect(assertCanComplete).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      transition: 'arrive'
+    });
+  });
+
+  it('lets staff complete an arrived visit', async () => {
     const { assertCanComplete, transition, service } = createBoundary();
     transition.mockResolvedValueOnce({
       appointmentId: 'appointment_server_001',
