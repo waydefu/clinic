@@ -23,6 +23,11 @@ function assertInternalTestApplyPacket(packet, headSha, context) {
   if (expectedSha === '' || !/^[a-f0-9]{40}$/.test(expectedSha)) {
     throw new Error(`${context} plan requires the current 40-char HEAD SHA.`);
   }
+  if (sha === '') {
+    throw new Error(
+      `${context} packet SHA is missing; set INTERNAL_TEST_APPLY_SHA to this HEAD.`
+    );
+  }
   if (sha !== expectedSha) {
     throw new Error(
       `${context} packet SHA is not this HEAD; earlier packets are not reusable.`

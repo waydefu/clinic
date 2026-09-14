@@ -90,6 +90,22 @@ describe('runInternalTestApplyPlanCli', () => {
     expect(stderr).toBe(PLAN_USAGE);
   });
 
+  it('exits 2 when the packet SHA env is missing', () => {
+    let stderr = '';
+    const code = runInternalTestApplyPlanCli({
+      argv: ['c5', HEAD],
+      env: {},
+      stdout: { write() {} },
+      stderr: {
+        write(chunk) {
+          stderr += chunk;
+        }
+      }
+    });
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/packet SHA is missing/);
+  });
+
   it('prints execute:false when pnpm injects --', () => {
     let stdout = '';
     const code = runInternalTestApplyPlanCli({
