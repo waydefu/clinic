@@ -250,6 +250,12 @@ test.describe('internal-test booking occupancy overlay', () => {
     await openPatientSlotStep(page);
     await expect(page.locator('[data-patient-slot]').first()).toBeVisible();
     expect(slotListCalls).toBe(0);
+    await expect(page.locator('#patient-env-boundary')).toContainText(
+      '資料只保存在本機瀏覽器'
+    );
+    await expect(page.locator('#patient-env-boundary')).not.toContainText(
+      '內部測試路由'
+    );
   });
 
   test('opt-in with a closed slot list hides the synthetic bookable grid', async ({
@@ -263,6 +269,9 @@ test.describe('internal-test booking occupancy overlay', () => {
     await openPatientSlotStep(page);
     await expect(page.getByText('目前沒有可預約時段')).toBeVisible();
     await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
+    await expect(page.locator('#patient-env-boundary')).toHaveText(
+      '內部測試路由 · 非正式上線'
+    );
   });
 
   test('opt-in overlays published occupancy and keeps occupied slots unbookable', async ({

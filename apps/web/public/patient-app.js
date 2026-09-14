@@ -1405,9 +1405,12 @@ window.addEventListener('storage', async (event) => {
 if (isOnline) {
   document.querySelector('.environment-badge').lastChild.textContent =
     'ONLINE PREVIEW';
-  elements['patient-env-boundary'].textContent = isInternalTestBookingEnabled()
-    ? '內部測試路由 · 非正式上線'
-    : '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
+}
+if (isInternalTestBookingEnabled()) {
+  elements['patient-env-boundary'].textContent = '內部測試路由 · 非正式上線';
+} else if (isOnline) {
+  elements['patient-env-boundary'].textContent =
+    '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
 }
 
 // 不依賴資料的內容先畫（但停用）：看診項目與看診類型是常數，沒有理由等一次
