@@ -19,7 +19,7 @@ internal-test booking.
 | --- | --- |
 | `GO_LIVE_DEFERRED_ITEM` | official DNS / custom domain; clinic main-website takeover; production Calendar D-009/D-016; real patient data; live Hosting; terraform apply to production |
 | `EXTERNAL_AUTHORITY_REQUIRED` (keep unrouted) | durable Firestore lockout / denied-event store (B-012, D-002); `CalendarWatchController`; BookPilot production compose |
-| Already Grok-solvable / landed | fail-closed `/v1/bookings` create/query/cancel/reschedule/complete/no-show; fail-closed `/v1/slots` + `/v1/schedule/publish`; Nest HTTP occupancy, query, complete, cancel, reschedule, no-show, same-slot contention, idempotent replay, and post-cutoff staff cancel on a published grid; privacy-v1 create audit; staff on-behalf; patient cutoff; D-006 session evaluator on CAL-PILOT `__session`; fail-closed pre-deploy smoke evaluator (`pnpm smoke:internal-test-booking`) that refuses staging and the isolated live channel and treats unauthenticated 2xx create/list as FAIL (503/401/static 404 pass); isolated static Hosting config `firebase.isolated-preview.json` (no Cloud Run rewrite — isolated C1 has no Run API); execute:false preview plan (`pnpm plan:internal-test-preview`) including preview-channel rollback; fail-closed synthetic migration inspect (`pnpm inspect:internal-test-migration`) that refuses staging and does not retarget `scripts/migrate-cal-pilot-legacy-candidates.mjs`; fail-closed Hosting channel inspect (`pnpm inspect:internal-test-hosting`) that refuses staging, treats live-only C1 as FAIL, and does not deploy or delete; fail-closed INTERNAL_PREPRODUCTION completeness inspect (`pnpm inspect:internal-preproduction`) that requires exact-head CI, preview Hosting, smoke, backup, monitoring, and migration evidence and never sets `PROJECT_COMPLETE = HUMAN_BLOCKED`; packed-artifact Playwright for `?internalTestBooking=1` fail-closed occupancy (empty grid / occupied overlay; default path stays synthetic); `check:pages` refuses isolated Hosting drift from `firebase.json`; exact-head CI on the composing branch |
+| Already Grok-solvable / landed | fail-closed `/v1/bookings` create/query/cancel/reschedule/complete/no-show; fail-closed `/v1/slots` + `/v1/schedule/publish`; Nest HTTP occupancy, query, complete, cancel, reschedule, no-show, same-slot contention, idempotent replay, and post-cutoff staff cancel on a published grid; privacy-v1 create audit; staff on-behalf; patient cutoff; D-006 session evaluator on CAL-PILOT `__session`; fail-closed pre-deploy smoke evaluator (`pnpm smoke:internal-test-booking`) that refuses staging and the isolated live channel and treats unauthenticated 2xx create/list as FAIL (503/401/static 404 pass); isolated static Hosting config `firebase.isolated-preview.json` (no Cloud Run rewrite — isolated C1 has no Run API); execute:false preview plan (`pnpm plan:internal-test-preview`) including preview-channel rollback; fail-closed synthetic migration inspect (`pnpm inspect:internal-test-migration`) that refuses staging and does not retarget `scripts/migrate-cal-pilot-legacy-candidates.mjs`; fail-closed Hosting channel inspect (`pnpm inspect:internal-test-hosting`) that refuses staging, treats live-only C1 as FAIL, and does not deploy or delete; SHA-gated C5 daily backup schedule source plus fail-closed inspect (`pnpm inspect:internal-test-backup`); SHA-gated C1 IAM SetIamPolicy alert source on existing Pub/Sub plus fail-closed inspect (`pnpm inspect:internal-test-monitoring`); fail-closed INTERNAL_PREPRODUCTION completeness inspect (`pnpm inspect:internal-preproduction`) that requires exact-head CI, preview Hosting, smoke, backup, monitoring, and migration evidence and never sets `PROJECT_COMPLETE = HUMAN_BLOCKED`; packed-artifact Playwright for `?internalTestBooking=1` fail-closed occupancy (empty grid / occupied overlay; default path stays synthetic); `check:pages` refuses isolated Hosting drift from `firebase.json`; exact-head CI on the composing branch |
 
 ## Queue
 
@@ -31,6 +31,26 @@ ONE QUESTION: Is there a written preview-deploy packet for that exact SHA on bea
 WHY I CANNOT PROCEED: Safety Floor 8 forbids Hosting deploy without a fresh per-commit packet; IP-001 is internal-test route authority, not deploy authority; earlier synthetic-review packets for beauessence-clinic-staging are not reusable; isolated C1 Hosting currently has only the live channel; Cloud Run Admin API is disabled there (C1 allowlist excludes Cloud Run), so CAL-PILOT firebase.json `/v1/**` → cal-pilot-api cannot be served on this project
 WHAT I WILL NOT DO UNTIL ANSWERED: firebase hosting:channel:deploy, any live-channel update, targeting beauessence-clinic-staging, enabling Cloud Run, or firebase login:ci
 SAFE OPTIONS (if any): keep production booking HTTP 503; use firebase.isolated-preview.json (static only) once a packet names a preview channel; do not invent D-series approval
+```
+
+```text
+HUMAN BLOCKER
+PHASE: INTERNAL_PREPRODUCTION
+DECISION OR RESOURCE: Fresh exact-SHA packet to apply the SHA-gated C5 daily backup schedule on beauessence-clinic-stg-c1a01
+ONE QUESTION: Is there a written C5 apply packet for the then-current HEAD SHA naming operator and approver, targeting only isolated C1 (not production, not beauessence-clinic-staging)?
+WHY I CANNOT PROCEED: command guard and AGENTS.md deny terraform apply without a reviewed packet whose SHA equals HEAD; live C1 PITR is on and daily backup schedules are currently []; source exists SHA-gated in infra/terraform/c5-firestore; sequential C5 smoke was deliberately not tightened to require the schedule
+WHAT I WILL NOT DO UNTIL ANSWERED: terraform apply, terraform destroy, retarget staging, or invent operator/approver names
+SAFE OPTIONS (if any): keep restore plan execute:false clone-to-new-db; inspect with pnpm inspect:internal-test-backup; do not in-place restore (default)
+```
+
+```text
+HUMAN BLOCKER
+PHASE: INTERNAL_PREPRODUCTION
+DECISION OR RESOURCE: Fresh exact-SHA packet to apply the SHA-gated C1 IAM SetIamPolicy alert on existing Pub/Sub for beauessence-clinic-stg-c1a01
+ONE QUESTION: Is there a written C1 apply packet for the then-current HEAD SHA naming operator and approver, targeting only isolated C1 (not production, not beauessence-clinic-staging, no email recipients)?
+WHY I CANNOT PROCEED: command guard and AGENTS.md deny terraform apply without a reviewed packet whose SHA equals HEAD; live C1 has the logging metric and 0 alert policies; source exists SHA-gated in infra/terraform/c1-foundation; sequential C1 smoke was deliberately not tightened to require alert policies; C0-ENG-REC forbids inventing email recipients
+WHAT I WILL NOT DO UNTIL ANSWERED: terraform apply, add email notification channels, retarget staging, or invent operator/approver names
+SAFE OPTIONS (if any): notify only the existing budget Pub/Sub channel; inspect with pnpm inspect:internal-test-monitoring
 ```
 
 ```text
@@ -78,5 +98,9 @@ SAFE OPTIONS (if any): keep INTERNAL_TEST_ROUTE_AUTHORIZED fail-closed; keep pro
 1. Owner records the preview packet for the then-current exact SHA.
 2. Grok or Luna deploys **only** that SHA to a preview channel on
    `beauessence-clinic-stg-c1a01` and smokes it.
-3. Interactive login / TW-05 / named reviewers stay human.
-4. Production launch stays `GO_LIVE_DEFERRED`.
+3. Owner records fresh exact-SHA C5 backup-schedule and C1 IAM-alert
+   apply packets; Grok or Luna applies **only** those SHAs on isolated
+   C1 (Pub/Sub notify only; no email recipients) and re-inspects.
+4. Interactive login / TW-05 / named reviewers stay human and are
+   **not** `INTERNAL_PREPRODUCTION` stage blockers.
+5. Production launch stays `GO_LIVE_DEFERRED`.
