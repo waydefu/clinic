@@ -28,6 +28,10 @@ import {
 } from '../platform/authorization/rbac-appointment-policy.js';
 import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
 import {
+  InMemoryDurableRateLimitStore,
+  type DurableRateLimitStore
+} from '../platform/runtime/durable-rate-limit-store.js';
+import {
   RATE_LIMIT_STORE,
   WP_B2_RATE_LIMITER,
   WpB2RateLimiter
@@ -97,15 +101,25 @@ export class InternalTestBookingModule {
         },
         {
           provide: RATE_LIMIT_STORE,
-          useFactory: () =>
-            new FirestoreDurableRateLimitStore(
+          useFactory: () => {
+            // Vitest AppModule proofs boot without ADC or an emulator.
+            // Durable consume must not call Cloud Firestore there.
+            // Production and emulator suites keep the Firestore store.
+            if (
+              process.env['VITEST'] !== undefined &&
+              process.env['FIRESTORE_EMULATOR_HOST'] === undefined
+            ) {
+              return new InMemoryDurableRateLimitStore();
+            }
+            return new FirestoreDurableRateLimitStore(
               getFirestore(defaultFirebaseApp())
-            )
+            );
+          }
         },
         {
           provide: WP_B2_RATE_LIMITER,
           inject: [RATE_LIMIT_STORE],
-          useFactory: (store: FirestoreDurableRateLimitStore) =>
+          useFactory: (store: DurableRateLimitStore) =>
             new WpB2RateLimiter(store)
         },
         {

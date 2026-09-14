@@ -3,7 +3,10 @@ import {
   type RateLimitPolicyName
 } from '@beauessence/domain';
 
-import { RateLimitedError } from '../errors/api-error.js';
+import {
+  RateLimitedError,
+  ServiceUnavailableError
+} from '../errors/api-error.js';
 import { FixedWindowRateLimiter, type Clock } from './rate-limiter.js';
 import {
   consumeDurableRateLimit,
@@ -45,12 +48,17 @@ export class WpB2RateLimiter {
   ): Promise<void> {
     const policy = RATE_LIMIT_POLICIES[name];
     this.burstLimiter(name).assertWithinLimit(key);
-    await consumeDurableRateLimit(
-      this.store,
-      policy,
-      `${name}:${key}`,
-      this.clock.now()
-    );
+    try {
+      await consumeDurableRateLimit(
+        this.store,
+        policy,
+        `${name}:${key}`,
+        this.clock.now()
+      );
+    } catch (error) {
+      if (error instanceof RateLimitedError) throw error;
+      throw new ServiceUnavailableError();
+    }
   }
 
   public async assertUnauthenticatedIp(ip: string): Promise<void> {

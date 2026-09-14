@@ -6,7 +6,10 @@ import {
   UNAUTHENTICATED_GENERAL_LIMIT
 } from '@beauessence/domain';
 
-import { RateLimitedError } from '../errors/api-error.js';
+import {
+  RateLimitedError,
+  ServiceUnavailableError
+} from '../errors/api-error.js';
 import { InMemoryDurableRateLimitStore } from './durable-rate-limit-store.js';
 import { WpB2RateLimiter } from './wp-b2-rate-limiter.js';
 
@@ -85,5 +88,18 @@ describe('WpB2RateLimiter', () => {
     expect(
       results.filter((result) => result.status === 'rejected')
     ).toHaveLength(8);
+  });
+
+  it('fails closed with 503 when the durable store cannot persist', async () => {
+    const limiter = new WpB2RateLimiter(
+      {
+        consume: () =>
+          Promise.reject(new Error('Could not load the default credentials.'))
+      },
+      { now: () => 1_000 }
+    );
+    await expect(
+      limiter.assertUnauthenticatedIp('198.51.100.10')
+    ).rejects.toBeInstanceOf(ServiceUnavailableError);
   });
 });
