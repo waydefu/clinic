@@ -148,6 +148,22 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
       }
     };
   }
+  const followUp = /^\/follow-ups\/([A-Za-z0-9_-]+)$/.exec(path);
+  if (verb === 'POST' && followUp !== null) {
+    const decision =
+      typeof body.decision === 'string' ? body.decision : body.status;
+    return {
+      url: `/v1/bookings/${followUp[1]}/follow-up`,
+      method: 'POST',
+      body: {
+        idempotencyKey: idempotencyKey(),
+        decision,
+        ...(decision === 'required'
+          ? { dueDate: body.dueDate, dueTime: body.dueTime }
+          : {})
+      }
+    };
+  }
   return undefined;
 }
 

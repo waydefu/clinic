@@ -5,6 +5,8 @@ import {
   type CreateAppointmentRequest,
   type CreateAppointmentResponse,
   type GetAppointmentResponse,
+  type RecordFollowUpRequest,
+  type RecordFollowUpResponse,
   type RescheduleAppointmentRequest,
   type RescheduleAppointmentResponse,
   type TransitionAppointmentResponse
@@ -13,6 +15,7 @@ import type {
   AppointmentTransition,
   AuditContext,
   BookingRequest,
+  FollowUpDecisionRequest,
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
@@ -30,6 +33,7 @@ import type {
 } from './appointment.repository-port.js';
 import {
   createAppointmentIdempotency,
+  followUpAppointmentIdempotency,
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../idempotency/appointment-idempotency.js';
@@ -186,6 +190,32 @@ export function toTransitionRequest(
       actorId: context.audit.actorId,
       appointmentId,
       transition
+    })
+  };
+}
+
+export function toFollowUpRequest(
+  appointmentId: string,
+  command: RecordFollowUpRequest,
+  context: {
+    readonly requestedAt: string;
+    readonly audit: AuditContext;
+  }
+): FollowUpDecisionRequest {
+  return {
+    appointmentId,
+    decision: command.decision,
+    ...(command.dueDate === undefined ? {} : { dueDate: command.dueDate }),
+    ...(command.dueTime === undefined ? {} : { dueTime: command.dueTime }),
+    audit: context.audit,
+    requestedAt: context.requestedAt,
+    idempotency: followUpAppointmentIdempotency({
+      key: command.idempotencyKey,
+      actorId: context.audit.actorId,
+      appointmentId,
+      decision: command.decision,
+      ...(command.dueDate === undefined ? {} : { dueDate: command.dueDate }),
+      ...(command.dueTime === undefined ? {} : { dueTime: command.dueTime })
     })
   };
 }
@@ -385,6 +415,38 @@ export class AppointmentApplicationService {
       'no_show',
       'no_show'
     );
+  }
+
+  public async recordFollowUp(
+    appointmentId: string,
+    command: RecordFollowUpRequest,
+    authentication: AuthenticationContext
+  ): Promise<RecordFollowUpResponse> {
+    const record = await this.repository.read(appointmentId);
+    await this.authorization.assertCanDecideFollowUp(
+      authentication,
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
+    );
+
+    const result = await this.repository.recordFollowUp(
+      toFollowUpRequest(appointmentId, command, {
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: null,
+          policyVersion: null
+        }
+      })
+    );
+
+    return {
+      appointmentId: result.appointmentId,
+      decision: result.decision,
+      dueAt: result.dueAt
+    };
   }
 
   private async staffVisitTransition(

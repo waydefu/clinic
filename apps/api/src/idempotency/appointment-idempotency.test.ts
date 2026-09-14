@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createAppointmentIdempotency,
+  followUpAppointmentIdempotency,
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from './appointment-idempotency.js';
@@ -51,14 +52,23 @@ describe('appointment idempotency hashing', () => {
       appointmentId: 'appointment_001',
       targetSlotId: 'slot_002'
     });
+    const followUp = followUpAppointmentIdempotency({
+      key: createInput.key,
+      actorId: createInput.actorId,
+      appointmentId: 'appointment_001',
+      decision: 'required',
+      dueDate: '2030-01-02',
+      dueTime: '12:15'
+    });
 
     expect(
       new Set([
         create.recordId,
         otherActor.recordId,
         transition.recordId,
-        reschedule.recordId
+        reschedule.recordId,
+        followUp.recordId
       ]).size
-    ).toBe(4);
+    ).toBe(5);
   });
 });

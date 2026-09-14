@@ -105,6 +105,13 @@ const harnessRepository: AppointmentRepositoryPort = {
       replayed: false,
       status: 'cancelled'
     }),
+  recordFollowUp: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      decision: 'required' as const,
+      dueAt: '2030-01-02T04:15:00.000Z'
+    }),
   read: () =>
     Promise.resolve(
       ownerPatientId === undefined

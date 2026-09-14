@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type {
   AppointmentTransition,
   BookingKind,
+  FollowUpDecisionValue,
   IdempotencyContext
 } from '@beauessence/domain';
 
@@ -52,6 +53,23 @@ export function transitionAppointmentIdempotency(input: {
   return contextFor(input.key, input.actorId, scope, [
     input.appointmentId,
     input.transition
+  ]);
+}
+
+export function followUpAppointmentIdempotency(input: {
+  readonly key: string;
+  readonly actorId: string;
+  readonly appointmentId: string;
+  readonly decision: FollowUpDecisionValue;
+  readonly dueDate?: string;
+  readonly dueTime?: string;
+}): IdempotencyContext {
+  const scope = `appointment:${input.appointmentId}:follow-up`;
+  return contextFor(input.key, input.actorId, scope, [
+    input.appointmentId,
+    input.decision,
+    input.dueDate ?? '',
+    input.dueTime ?? ''
   ]);
 }
 

@@ -375,6 +375,7 @@ function releaseOverlaySlot(slot, appointmentId) {
 
 function applyContractWrite(path, body, result) {
   if (typeof result?.appointmentId !== 'string') return;
+  if (applyFollowUpWrite(path, body, result)) return;
   const now = new Date().toISOString();
   if (path === '/bookings') {
     const patient = upsertPatient(state, body.patient);
@@ -447,6 +448,44 @@ function applyContractWrite(path, body, result) {
   appointment.updatedAt = now;
   const next = state.slots.find((item) => item.id === targetSlotId);
   if (next !== undefined) next.reservationId = appointment.id;
+}
+
+function applyFollowUpWrite(path, body, result) {
+  const followUp = /^\/follow-ups\/([^/]+)$/.exec(path);
+  if (followUp === null) return false;
+  const decision = result.decision;
+  if (decision !== 'required' && decision !== 'not_required') return true;
+  const appointmentId = followUp[1];
+  const appointment = state.appointments.find(
+    (item) => item.id === appointmentId
+  );
+  const now = new Date().toISOString();
+  const next = {
+    appointmentId,
+    ...(appointment === undefined ? {} : { patientId: appointment.patientId }),
+    status: decision,
+    followUpDecisionBy: 'doctor_instruction',
+    decidedAt: now,
+    followUpRecordedAt: now,
+    ...(decision === 'required'
+      ? {
+          dueDate: typeof body.dueDate === 'string' ? body.dueDate : undefined,
+          dueTime: typeof body.dueTime === 'string' ? body.dueTime : undefined
+        }
+      : {})
+  };
+  const existing = state.followUps.find(
+    (item) => item.appointmentId === appointmentId
+  );
+  if (existing === undefined) state.followUps.push(next);
+  else {
+    Object.assign(existing, next);
+    if (decision === 'not_required') {
+      delete existing.dueDate;
+      delete existing.dueTime;
+    }
+  }
+  return true;
 }
 
 function renderSession() {

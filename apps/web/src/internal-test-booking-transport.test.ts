@@ -133,6 +133,48 @@ describe('mapInternalTestBookingRequest', () => {
         schedule: { timeZone: 'Asia/Taipei' }
       }
     });
+    const followUp = mapInternalTestBookingRequest(
+      '/follow-ups/appointment_001',
+      'POST',
+      {
+        status: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15',
+        tags: ['reminder'],
+        noteText: 'must-not-leave-the-browser',
+        certificateCopies: 2,
+        medicalRecordNumber: 'chart-only-local',
+        managerId: 'manager_001'
+      }
+    );
+    expect(followUp).toMatchObject({
+      url: '/v1/bookings/appointment_001/follow-up',
+      method: 'POST',
+      body: {
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      }
+    });
+    expect(followUp?.body).not.toHaveProperty('tags');
+    expect(followUp?.body).not.toHaveProperty('noteText');
+    expect(followUp?.body).not.toHaveProperty('certificateCopies');
+    expect(followUp?.body).not.toHaveProperty('medicalRecordNumber');
+    expect(followUp?.body).not.toHaveProperty('managerId');
+    expect(followUp?.body).not.toHaveProperty('status');
+    expect(
+      mapInternalTestBookingRequest('/follow-ups/appointment_001', 'POST', {
+        status: 'not_required'
+      })
+    ).toMatchObject({
+      url: '/v1/bookings/appointment_001/follow-up',
+      body: { decision: 'not_required' }
+    });
+    expect(
+      mapInternalTestBookingRequest('/follow-ups/appointment_001', 'POST', {
+        status: 'not_required'
+      })?.body
+    ).not.toHaveProperty('dueDate');
   });
 });
 

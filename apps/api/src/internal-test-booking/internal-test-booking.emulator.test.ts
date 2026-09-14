@@ -507,4 +507,120 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     });
     expect([...calendar.events.values()][0]).not.toHaveProperty('patientName');
   });
+
+  it('records a follow-up decision and projects the reminder outbox in memory', async () => {
+    const harness = requireHarness();
+    const published = await harness.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: managerHeaders(),
+      payload: {
+        ...PUBLISH_BODY,
+        idempotencyKey: 'schedule_publish_0012'
+      }
+    });
+    expect(published.statusCode).toBe(201);
+
+    const created = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: {
+        ...CREATE_BODY,
+        idempotencyKey: 'booking-idempotency-0013'
+      }
+    });
+    expect(created.statusCode).toBe(201);
+    const createdBody = JSON.parse(created.payload) as {
+      appointmentId: string;
+    };
+
+    const completed = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/complete`,
+      headers: managerHeaders(),
+      payload: { idempotencyKey: 'complete-idempotency-0013' }
+    });
+    expect(completed.statusCode).toBe(201);
+
+    const denied = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/follow-up`,
+      headers: patientHeaders(),
+      payload: {
+        idempotencyKey: 'follow-up-idempotency-denied',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      }
+    });
+    expect(denied.statusCode).toBe(403);
+
+    const recorded = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/follow-up`,
+      headers: managerHeaders(),
+      payload: {
+        idempotencyKey: 'follow-up-idempotency-0013',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      }
+    });
+    expect(recorded.statusCode).toBe(201);
+    expect(JSON.parse(recorded.payload)).toEqual({
+      appointmentId: createdBody.appointmentId,
+      decision: 'required',
+      dueAt: '2030-01-02T04:15:00.000Z'
+    });
+
+    const replayed = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${createdBody.appointmentId}/follow-up`,
+      headers: managerHeaders(),
+      payload: {
+        idempotencyKey: 'follow-up-idempotency-0013',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      }
+    });
+    expect(replayed.statusCode).toBe(201);
+    expect(JSON.parse(replayed.payload)).toEqual({
+      appointmentId: createdBody.appointmentId,
+      decision: 'required',
+      dueAt: '2030-01-02T04:15:00.000Z'
+    });
+
+    const followUp = await db
+      .collection(COLLECTIONS.followUps)
+      .doc(createdBody.appointmentId)
+      .get();
+    expect(followUp.data()).toMatchObject({
+      decision: 'required',
+      dueAt: '2030-01-02T04:15:00.000Z',
+      patientId: PATIENT_UID
+    });
+
+    const audits = await db.collection(COLLECTIONS.auditEvents).get();
+    expect(
+      audits.docs.some(
+        (document) => document.data()['action'] === 'follow_up_decided'
+      )
+    ).toBe(true);
+
+    const calendar = new InMemoryCalendar();
+    const outbox = createInternalTestOutboxRuntime({
+      db,
+      calendar,
+      clock: () => NOW,
+      random: () => 0.5
+    });
+    await outbox.run();
+    expect(
+      [...calendar.events.values()].some(
+        (event) => event.appointmentStatus === 'follow_up_required'
+      )
+    ).toBe(true);
+  });
 });

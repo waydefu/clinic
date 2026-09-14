@@ -1,16 +1,20 @@
 import {
   assertIdempotencyContext,
+  DomainError,
   parseAppointmentSnapshot,
   parsePatientBookingGuard,
   parsePublishedScheduleSnapshot,
   parseSlotSnapshot,
   planBooking,
+  planFollowUpDecision,
   planReschedule,
   planTransition,
   resolveIdempotencyReplay,
   resolvePublishedSlot,
   type AppointmentSnapshot,
   type BookingRequest,
+  type ExistingFollowUpSnapshot,
+  type FollowUpDecisionRequest,
   type IdempotencyContext,
   type PatientBookingGuardSnapshot,
   type PlannedPatientBookingGuardMutation,
@@ -29,6 +33,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type {
   AppointmentRecord,
   AppointmentRepositoryPort,
+  FollowUpResult,
   ReservationResult,
   TransitionResult
 } from '../appointments/appointment.repository-port.js';
@@ -40,7 +45,8 @@ export const COLLECTIONS = {
   auditEvents: 'audit_events',
   outboxJobs: 'outbox_jobs',
   idempotencyKeys: 'idempotency_keys',
-  schedules: 'schedules'
+  schedules: 'schedules',
+  followUps: 'follow_ups'
 } as const;
 
 /**
@@ -486,5 +492,135 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         startsAt: plan.startsAt
       };
     });
+  }
+
+  public async recordFollowUp(
+    request: FollowUpDecisionRequest
+  ): Promise<FollowUpResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
+    const idempotencyRef = this.db
+      .collection(COLLECTIONS.idempotencyKeys)
+      .doc(request.idempotency.recordId);
+    const appointmentRef = this.db
+      .collection(COLLECTIONS.appointments)
+      .doc(request.appointmentId);
+    const followUpRef = this.db
+      .collection(COLLECTIONS.followUps)
+      .doc(request.appointmentId);
+    const scheduleRef = this.db
+      .collection(COLLECTIONS.schedules)
+      .doc('current');
+
+    return this.db.runTransaction(async (transaction) => {
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
+      const appointmentDocument = await transaction.get(appointmentRef);
+      const followUpDocument = await transaction.get(followUpRef);
+      if (replay !== undefined) {
+        const stored = this.followUpSnapshotOf(followUpDocument);
+        if (stored === undefined) {
+          throw new DomainError(
+            'INVALID_VALUE',
+            'The follow-up decision is unreadable.'
+          );
+        }
+        return {
+          appointmentId: replay.appointmentId,
+          replayed: true,
+          decision: stored.decision,
+          dueAt: stored.dueAt
+        };
+      }
+
+      const scheduleDocument = await transaction.get(scheduleRef);
+      if (!scheduleDocument.exists) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'A published schedule is required to record follow-up.'
+        );
+      }
+      const published = parsePublishedScheduleSnapshot(scheduleDocument.data());
+      if (published.schedule === null) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'A published schedule is required to record follow-up.'
+        );
+      }
+
+      const appointment = this.snapshotOf(appointmentDocument);
+      const plan = planFollowUpDecision(
+        request,
+        appointment === undefined
+          ? undefined
+          : {
+              id: appointment.id,
+              patientId: appointment.patientId,
+              status: appointment.status
+            },
+        published.schedule,
+        this.followUpSnapshotOf(followUpDocument)
+      );
+
+      transaction.set(followUpRef, {
+        schemaVersion: 1,
+        appointmentId: plan.appointmentId,
+        patientId: plan.patientId,
+        decision: plan.decision,
+        dueAt: plan.dueAt,
+        decidedAt: plan.decidedAt
+      });
+      transaction.create(
+        this.db
+          .collection(COLLECTIONS.auditEvents)
+          .doc(plan.auditEvent.eventId),
+        plan.auditEvent
+      );
+      transaction.set(
+        this.db.collection(COLLECTIONS.outboxJobs).doc(plan.outboxJob.id),
+        plan.outboxJob
+      );
+      transaction.create(idempotencyRef, plan.idempotencyRecord);
+
+      return {
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        decision: plan.decision,
+        dueAt: plan.dueAt
+      };
+    });
+  }
+
+  private followUpSnapshotOf(
+    document: DocumentSnapshot
+  ): ExistingFollowUpSnapshot | undefined {
+    if (!document.exists) return undefined;
+    const data: unknown = document.data();
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The follow-up decision is unreadable.'
+      );
+    }
+    const record = data as Record<string, unknown>;
+    const decision = record['decision'];
+    if (decision !== 'required' && decision !== 'not_required') {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The follow-up decision is unreadable.'
+      );
+    }
+    const dueAt = record['dueAt'];
+    if (dueAt === undefined || dueAt === null) {
+      return { decision, dueAt: null };
+    }
+    if (typeof dueAt !== 'string' || dueAt.length === 0) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The follow-up decision is unreadable.'
+      );
+    }
+    return { decision, dueAt };
   }
 }

@@ -73,8 +73,21 @@
       ],
       "note": "IP-001 允許內部測試可達；D-002 pending 仍擋住 public production deletion workflow。"
     },
+    "basic_follow_up_tracking": {
+      "permissions": ["decide_follow_up"],
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-004",
+          "description": "正式公開 follow-up 的 slot 占用、回診網格與逾時規則尚未核定。",
+          "blocks": "public_production_route"
+        }
+      ],
+      "note": "IP-001 允許內部測試可達；FS-001 basic follow-up tracking。Command 只有 required/not_required 與目標時間，不含臨床備註、診斷書或個管指派。D-004 pending 仍擋住 public production。"
+    },
     "clinical_follow_up": {
-      "permissions": ["update_appointment_notes", "decide_follow_up"],
+      "permissions": ["update_appointment_notes"],
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
         {

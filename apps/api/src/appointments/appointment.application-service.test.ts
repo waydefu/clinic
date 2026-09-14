@@ -1,6 +1,7 @@
 import type {
   CancelAppointmentRequest,
   CreateAppointmentRequest,
+  RecordFollowUpRequest,
   RescheduleAppointmentRequest
 } from '@beauessence/contracts';
 import type {
@@ -53,6 +54,13 @@ const CANCEL_COMMAND: CancelAppointmentRequest = {
   idempotencyKey: 'cancel_request_0001'
 };
 
+const FOLLOW_UP_COMMAND: RecordFollowUpRequest = {
+  idempotencyKey: 'follow_up_request_0001',
+  decision: 'required',
+  dueDate: '2030-01-02',
+  dueTime: '12:15'
+};
+
 const OPEN_RECORD: AppointmentRecord = {
   appointmentId: 'appointment_server_001',
   patientId: 'patient_opaque_001',
@@ -96,6 +104,14 @@ function createBoundary() {
       status: 'cancelled'
     })
   );
+  const recordFollowUp = vi.fn(() =>
+    Promise.resolve({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      decision: 'required' as const,
+      dueAt: '2030-01-02T04:15:00.000Z'
+    })
+  );
   const assertCanCreate = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCreate']
   >(() => Promise.resolve());
@@ -108,6 +124,9 @@ function createBoundary() {
   const assertCanComplete = vi.fn<
     AppointmentAuthorizationPolicy['assertCanComplete']
   >(() => Promise.resolve());
+  const assertCanDecideFollowUp = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanDecideFollowUp']
+  >(() => Promise.resolve());
   const assertCanQuery = vi.fn<
     AppointmentAuthorizationPolicy['assertCanQuery']
   >(() => Promise.resolve());
@@ -119,13 +138,15 @@ function createBoundary() {
     reschedule,
     patientIdOf,
     read,
-    transition
+    transition,
+    recordFollowUp
   };
   const authorization: AppointmentAuthorizationPolicy = {
     assertCanCreate,
     assertCanReschedule,
     assertCanCancel,
     assertCanComplete,
+    assertCanDecideFollowUp,
     assertCanQuery,
     assertCanDelete
   };
@@ -142,12 +163,14 @@ function createBoundary() {
     assertCanReschedule,
     assertCanCancel,
     assertCanComplete,
+    assertCanDecideFollowUp,
     assertCanQuery,
     patientIdOf,
     read,
     reserve,
     reschedule,
     transition,
+    recordFollowUp,
     service
   };
 }
@@ -614,5 +637,38 @@ describe('AppointmentApplicationService complete and no-show', () => {
       service.complete('appointment_server_001', CANCEL_COMMAND, STAFF)
     ).rejects.toThrow('denied');
     expect(transition).not.toHaveBeenCalled();
+  });
+
+  it('lets staff record a follow-up decision after authorization', async () => {
+    const { assertCanDecideFollowUp, recordFollowUp, service } =
+      createBoundary();
+
+    await expect(
+      service.recordFollowUp('appointment_server_001', FOLLOW_UP_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      decision: 'required',
+      dueAt: '2030-01-02T04:15:00.000Z'
+    });
+    expect(assertCanDecideFollowUp).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(recordFollowUp.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      decision: 'required',
+      dueDate: '2030-01-02',
+      dueTime: '12:15'
+    });
+  });
+
+  it('does not persist follow-up when authorization denies', async () => {
+    const { assertCanDecideFollowUp, recordFollowUp, service } =
+      createBoundary();
+    assertCanDecideFollowUp.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.recordFollowUp('appointment_server_001', FOLLOW_UP_COMMAND, STAFF)
+    ).rejects.toThrow('denied');
+    expect(recordFollowUp).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,7 @@ import {
 import {
   CancelAppointmentRequestSchema,
   CreateAppointmentRequestSchema,
+  RecordFollowUpRequestSchema,
   RescheduleAppointmentRequestSchema,
   type GetAppointmentResponse
 } from '@beauessence/contracts';
@@ -159,6 +160,21 @@ export class AppointmentController {
     return this.appointments.markNoShow(
       identifier(appointmentId),
       CancelAppointmentRequestSchema.parse(body),
+      authentication
+    );
+  }
+
+  @Post(':appointmentId/follow-up')
+  public async recordFollowUp(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticator.authenticate(request);
+    return this.appointments.recordFollowUp(
+      identifier(appointmentId),
+      RecordFollowUpRequestSchema.parse(body),
       authentication
     );
   }

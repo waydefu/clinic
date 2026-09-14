@@ -98,6 +98,13 @@ const harnessRepository: AppointmentRepositoryPort = {
             ? 'no_show'
             : 'cancelled'
     }),
+  recordFollowUp: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      decision: 'required' as const,
+      dueAt: '2030-01-02T04:15:00.000Z'
+    }),
   read: () =>
     Promise.resolve(
       ownerPatientId === undefined
@@ -398,6 +405,60 @@ describe('unrouted AppointmentController RBAC harness', () => {
       status: 'no_show'
     });
   });
+
+  it('rejects a patient follow-up with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      },
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('rejects a physician follow-up with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      },
+      headers: actorHeaders('physician')
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('lets front desk record follow-up with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      },
+      headers: actorHeaders('front_desk')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      decision: 'required',
+      dueAt: '2030-01-02T04:15:00.000Z'
+    });
+  });
 });
 
 describe('production AppModule booking write path', () => {
@@ -461,6 +522,22 @@ describe('production AppModule booking write path', () => {
     });
     expect(completeResponse.statusCode).toBe(503);
     expect(noShowResponse.statusCode).toBe(503);
+  });
+
+  it('refuses follow-up while the IP-001 internal-test gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      }
+    });
+    expect(response.statusCode).toBe(503);
   });
 
   it('refuses schedule publish and slot list while the gate is closed', async () => {

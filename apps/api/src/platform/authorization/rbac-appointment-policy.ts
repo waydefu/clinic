@@ -104,6 +104,19 @@ export function createRbacAppointmentPolicy(
         resolve();
       });
     },
+    assertCanDecideFollowUp(context, command): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const role = resolveRole(context);
+        const scope = resolveScope(role, command.appointmentPatientId);
+        evaluateAccess(context, {
+          role,
+          accountActive: true,
+          permission: 'decide_follow_up',
+          scope
+        });
+        resolve();
+      });
+    },
     assertCanQuery(context, command): Promise<void> {
       return new Promise<void>((resolve) => {
         const role = resolveRole(context);

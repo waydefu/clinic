@@ -22,8 +22,16 @@ type ContractBooking = {
 };
 
 type CreateStub = 'closed' | ContractBooking;
-type MutationStub = 'closed' | ContractBooking;
-type MutationKind = 'cancel' | 'reschedule' | 'complete' | 'noShow';
+type MutationStub =
+  | 'closed'
+  | ContractBooking
+  | {
+      appointmentId: string;
+      decision: 'required' | 'not_required';
+      dueAt: string | null;
+    };
+type MutationKind =
+  'cancel' | 'reschedule' | 'complete' | 'noShow' | 'followUp';
 
 type CapturedPost = {
   path?: string;
@@ -42,7 +50,8 @@ const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
   { kind: 'cancel', pattern: /^\/v1\/bookings\/[^/]+\/cancel$/ },
   { kind: 'reschedule', pattern: /^\/v1\/bookings\/[^/]+\/reschedule$/ },
   { kind: 'complete', pattern: /^\/v1\/bookings\/[^/]+\/complete$/ },
-  { kind: 'noShow', pattern: /^\/v1\/bookings\/[^/]+\/no-show$/ }
+  { kind: 'noShow', pattern: /^\/v1\/bookings\/[^/]+\/no-show$/ },
+  { kind: 'followUp', pattern: /^\/v1\/bookings\/[^/]+\/follow-up$/ }
 ];
 
 /** Isolated-test `/v1` is fail-closed on the packed dist server. Tests stub it. */
@@ -58,6 +67,7 @@ async function stubV1(
   reschedule: CapturedPost;
   complete: CapturedPost;
   noShow: CapturedPost;
+  followUp: CapturedPost;
   query: CapturedPost;
   publish: CapturedPost;
 }> {
@@ -67,6 +77,7 @@ async function stubV1(
     reschedule: CapturedPost;
     complete: CapturedPost;
     noShow: CapturedPost;
+    followUp: CapturedPost;
     query: CapturedPost;
     publish: CapturedPost;
   } = {
@@ -74,6 +85,7 @@ async function stubV1(
     reschedule: {},
     complete: {},
     noShow: {},
+    followUp: {},
     query: {},
     publish: {}
   };
@@ -937,5 +949,150 @@ test.describe('internal-test booking occupancy overlay', () => {
     expect(posted.publish.body?.idempotencyKey).toEqual(
       expect.stringMatching(/^.{16,}$/)
     );
+  });
+
+  test('opt-in staff follow-up posts /v1/bookings/:id/follow-up without clinical extras', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          },
+          {
+            slotId: 'slot_20300102_1215',
+            kind: 'follow_up',
+            startsAt: '2030-01-02T04:15:00.000Z',
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      },
+      {
+        complete: {
+          appointmentId: 'appointment_api_001',
+          status: 'completed',
+          startsAt,
+          endsAt
+        },
+        followUp: {
+          appointmentId: 'appointment_api_001',
+          decision: 'required',
+          dueAt: '2030-01-02T04:15:00.000Z'
+        }
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '確認到診' }).click();
+    await expect(page.locator('#status')).toContainText('到診已記錄');
+
+    const form = page.locator('[data-follow-up-form="appointment_api_001"]');
+    await expect(form).toBeVisible();
+    await form.locator('select[name="status"]').selectOption('required');
+    await form.locator('input[name="dueDate"]').fill('2030-01-02');
+    await expect(
+      form.locator('select[name="dueTime"] option[value="12:15"]')
+    ).toHaveCount(1);
+    await form.locator('select[name="dueTime"]').selectOption('12:15');
+    await form.getByRole('button', { name: '儲存回診指示' }).click();
+
+    await expect(page.locator('#status')).toContainText('回診指示已登錄');
+    expect(posted.followUp.path).toBe(
+      '/v1/bookings/appointment_api_001/follow-up'
+    );
+    expect(posted.followUp.body).toMatchObject({
+      decision: 'required',
+      dueDate: '2030-01-02',
+      dueTime: '12:15'
+    });
+    expect(posted.followUp.body).not.toHaveProperty('patient');
+    expect(posted.followUp.body).not.toHaveProperty('tags');
+    expect(posted.followUp.body).not.toHaveProperty('noteText');
+    expect(posted.followUp.body).not.toHaveProperty('certificateCopies');
+    expect(posted.followUp.body).not.toHaveProperty('medicalRecordNumber');
+    expect(posted.followUp.body).not.toHaveProperty('managerId');
+    expect(posted.followUp.body?.idempotencyKey).toEqual(
+      expect.stringMatching(/^.{16,}$/)
+    );
+    await expect(
+      page.locator('[data-follow-up-form="appointment_api_001"]')
+    ).toHaveCount(0);
+  });
+
+  test('opt-in staff follow-up does not succeed locally when /v1 follow-up is closed', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      },
+      {
+        complete: {
+          appointmentId: 'appointment_api_001',
+          status: 'completed',
+          startsAt,
+          endsAt
+        },
+        followUp: 'closed'
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('[data-appointment-action="complete"]').click();
+    await page.getByRole('button', { name: '確認到診' }).click();
+    await expect(page.locator('#status')).toContainText('到診已記錄');
+
+    const form = page.locator('[data-follow-up-form="appointment_api_001"]');
+    await expect(form).toBeVisible();
+    await form.locator('input[name="dueDate"]').fill('2030-01-02');
+    await form.locator('select[name="dueTime"]').selectOption('12:15');
+    await form.getByRole('button', { name: '儲存回診指示' }).click();
+
+    await expect(page.locator('#status')).toContainText(
+      '服務暫時無法使用，請稍後再試。'
+    );
+    await expect(form).toBeVisible();
   });
 });
