@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  INTERNAL_TEST_SMOKE_PROBES,
+  SMOKE_APPOINTMENT_ID,
   SMOKE_USAGE,
   assertInternalTestSmokeTarget,
   evaluateInternalTestBookingSmoke,
@@ -13,6 +15,14 @@ import {
   runInternalTestBookingSmokeCli,
   smokeInternalTestBooking
 } from './internal-test-booking-smoke.mjs';
+
+function probesWithStatus(status) {
+  return INTERNAL_TEST_SMOKE_PROBES.map((probe) => ({
+    method: probe.method,
+    path: probe.path,
+    status
+  }));
+}
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const PREVIEW =
@@ -104,39 +114,46 @@ describe('evaluateUnauthenticatedApiSurface', () => {
 });
 
 describe('evaluateInternalTestBookingSmoke', () => {
-  it('passes when both booking and slots stay fail-closed', () => {
-    expect(
-      evaluateInternalTestBookingSmoke({
-        bookingWriteStatus: 503,
-        slotsStatus: 503
-      })
-    ).toEqual({ ok: true, issues: [] });
-    expect(
-      evaluateInternalTestBookingSmoke({
-        bookingWriteStatus: 404,
-        slotsStatus: 404
-      })
-    ).toEqual({ ok: true, issues: [] });
+  it('passes when create, lookup, mutations, and schedule stay fail-closed', () => {
+    expect(evaluateInternalTestBookingSmoke(probesWithStatus(503))).toEqual({
+      ok: true,
+      issues: []
+    });
+    expect(evaluateInternalTestBookingSmoke(probesWithStatus(404))).toEqual({
+      ok: true,
+      issues: []
+    });
   });
 
-  it('fails if an unauthenticated create or slots list succeeds', () => {
-    const created = evaluateInternalTestBookingSmoke({
-      bookingWriteStatus: 201,
-      slotsStatus: 503
-    });
+  it('fails if an unauthenticated create, lookup, or delete succeeds', () => {
+    const created = evaluateInternalTestBookingSmoke(
+      probesWithStatus(503).map((probe) =>
+        probe.path === '/v1/bookings' && probe.method === 'POST'
+          ? { ...probe, status: 201 }
+          : probe
+      )
+    );
     expect(created.ok).toBe(false);
     expect(created.issues.join('\n')).toMatch(/POST \/v1\/bookings/);
-    const listed = evaluateInternalTestBookingSmoke({
-      bookingWriteStatus: 503,
-      slotsStatus: 200
-    });
+    const listed = evaluateInternalTestBookingSmoke(
+      probesWithStatus(503).map((probe) =>
+        probe.path === '/v1/slots' ? { ...probe, status: 200 } : probe
+      )
+    );
     expect(listed.ok).toBe(false);
     expect(listed.issues.join('\n')).toMatch(/GET \/v1\/slots/);
+    const deleted = evaluateInternalTestBookingSmoke(
+      probesWithStatus(503).map((probe) =>
+        probe.path.endsWith('/delete') ? { ...probe, status: 201 } : probe
+      )
+    );
+    expect(deleted.ok).toBe(false);
+    expect(deleted.issues.join('\n')).toMatch(/\/delete/);
   });
 });
 
 describe('smokeInternalTestBooking', () => {
-  it('posts a contract body and does not treat a 2xx create as a pass', async () => {
+  it('posts contract bodies without PII and probes every IP-001 write path', async () => {
     const fetchImpl = vi.fn((url, init) => {
       const path = String(url);
       if (path.endsWith('/v1/bookings') && init?.method === 'POST') {
@@ -144,14 +161,26 @@ describe('smokeInternalTestBooking', () => {
         expect(body).not.toHaveProperty('patient');
         expect(body).not.toHaveProperty('nationalId');
         expect(body).not.toHaveProperty('privacyAcceptance');
-        return Promise.resolve({ status: 503 });
+      }
+      if (path.endsWith('/follow-up')) {
+        const body = JSON.parse(String(init.body));
+        expect(body).not.toHaveProperty('notes');
+        expect(body).not.toHaveProperty('certificateCount');
+        expect(body).not.toHaveProperty('managerId');
       }
       return Promise.resolve({ status: 503 });
     });
     await expect(smokeInternalTestBooking(PREVIEW, fetchImpl)).resolves.toEqual(
       { ok: true, issues: [] }
     );
-    expect(fetchImpl).toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(INTERNAL_TEST_SMOKE_PROBES.length);
+    const paths = fetchImpl.mock.calls.map(
+      ([url]) => new URL(String(url)).pathname
+    );
+    expect(paths).toContain(`/v1/bookings/${SMOKE_APPOINTMENT_ID}/delete`);
+    expect(paths).toContain(`/v1/bookings/${SMOKE_APPOINTMENT_ID}/follow-up`);
+    expect(paths).toContain('/v1/schedule/publish');
+    expect(paths).not.toContain('/v1/health');
   });
 
   it('does not fetch when the host is the live channel', async () => {

@@ -54,9 +54,10 @@ export function assertInternalTestSmokeTarget(input) {
 }
 
 /**
- * Unauthenticated booking/slots must not succeed.
+ * Unauthenticated booking writes and lookups must not succeed.
  * Gate closed → 503. Gate open → 401. Isolated static Hosting (no
- * Cloud Run rewrite) → 404. A 2xx create or list is a public-write defect.
+ * Cloud Run rewrite) → 404. A 2xx create, mutate, or lookup is a
+ * public-write defect. GET /v1/health is liveness, not this check.
  */
 export function evaluateUnauthenticatedApiSurface({ method, path, status }) {
   if (status === 503 || status === 401 || status === 404) {
@@ -84,23 +85,63 @@ export function evaluateUnauthenticatedBookingWrite({ status }) {
   });
 }
 
-export function evaluateInternalTestBookingSmoke({
-  bookingWriteStatus,
-  slotsStatus
-}) {
+const JSON_HEADERS = {
+  Accept: 'application/json',
+  'Content-Type': 'application/json'
+};
+const ACCEPT_JSON = { Accept: 'application/json' };
+export const SMOKE_APPOINTMENT_ID = 'appointment_smoke_001';
+
+function jsonProbe(method, path, body) {
+  return { method, path, headers: JSON_HEADERS, body };
+}
+
+function getProbe(path) {
+  return { method: 'GET', path, headers: ACCEPT_JSON };
+}
+
+/** IP-001 create/query/reschedule/cancel/complete/no-show/follow-up/delete plus schedule. */
+export const INTERNAL_TEST_SMOKE_PROBES = [
+  jsonProbe('POST', '/v1/bookings', {
+    idempotencyKey: 'booking-idempotency-0099',
+    slotId: 'slot_20300102_1200',
+    serviceId: 'service_consult',
+    bookingKind: 'initial'
+  }),
+  getProbe('/v1/slots'),
+  getProbe('/v1/schedule'),
+  jsonProbe('POST', '/v1/schedule/publish', {
+    idempotencyKey: 'booking-idempotency-0095',
+    expectedVersion: 0
+  }),
+  getProbe(`/v1/bookings/${SMOKE_APPOINTMENT_ID}`),
+  jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/cancel`, {
+    idempotencyKey: 'booking-idempotency-0098'
+  }),
+  jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/reschedule`, {
+    idempotencyKey: 'booking-idempotency-0097',
+    targetSlotId: 'slot_20300102_1230'
+  }),
+  jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/complete`, {
+    idempotencyKey: 'complete-idempotency-0099'
+  }),
+  jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/no-show`, {
+    idempotencyKey: 'complete-idempotency-0098'
+  }),
+  jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/follow-up`, {
+    idempotencyKey: 'follow-up-idempotency-0099',
+    decision: 'not_required'
+  }),
+  jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/delete`, {
+    idempotencyKey: 'booking-idempotency-0096',
+    reasonCode: 'created_in_error'
+  })
+];
+
+export function evaluateInternalTestBookingSmoke(probes) {
   const issues = [];
-  for (const result of [
-    evaluateUnauthenticatedApiSurface({
-      method: 'POST',
-      path: '/v1/bookings',
-      status: bookingWriteStatus
-    }),
-    evaluateUnauthenticatedApiSurface({
-      method: 'GET',
-      path: '/v1/slots',
-      status: slotsStatus
-    })
-  ]) {
+  for (const probe of probes) {
+    const result = evaluateUnauthenticatedApiSurface(probe);
     if (!result.ok) issues.push(result.reason);
   }
   return { ok: issues.length === 0, issues };
@@ -111,24 +152,20 @@ export async function smokeInternalTestBooking(
   fetchImpl = globalThis.fetch.bind(globalThis)
 ) {
   const base = assertInternalTestSmokeTarget(previewUrl);
-  const booking = await fetchImpl(new URL('/v1/bookings', base), {
-    method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      idempotencyKey: 'booking-idempotency-0099',
-      slotId: 'slot_20300102_1200',
-      serviceId: 'service_consult',
-      bookingKind: 'initial'
-    })
-  });
-  const slots = await fetchImpl(new URL('/v1/slots', base), {
-    method: 'GET',
-    headers: { Accept: 'application/json' }
-  });
-  return evaluateInternalTestBookingSmoke({
-    bookingWriteStatus: booking.status,
-    slotsStatus: slots.status
-  });
+  const probes = [];
+  for (const spec of INTERNAL_TEST_SMOKE_PROBES) {
+    const response = await fetchImpl(new URL(spec.path, base), {
+      method: spec.method,
+      headers: spec.headers,
+      ...(spec.body === undefined ? {} : { body: JSON.stringify(spec.body) })
+    });
+    probes.push({
+      method: spec.method,
+      path: spec.path,
+      status: response.status
+    });
+  }
+  return evaluateInternalTestBookingSmoke(probes);
 }
 
 export const SMOKE_USAGE =
