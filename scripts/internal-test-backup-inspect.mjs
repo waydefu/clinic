@@ -219,7 +219,8 @@ export function runInternalTestBackupCli({
   readFile
 }) {
   const reader = readFile ?? ((path) => readFileSync(path, 'utf8'));
-  const [mode, operand] = argv;
+  const args = argv.filter((argument) => argument !== '--');
+  const [mode, operand] = args;
   if (mode !== 'inspect' && mode !== 'plan') {
     stderr.write(INSPECT_USAGE);
     return 2;
@@ -238,7 +239,7 @@ export function runInternalTestBackupCli({
       );
       return result.ok ? 0 : 1;
     }
-    const headSha = argv.find((argument) => /^[a-f0-9]{40}$/.test(argument));
+    const headSha = args.find((argument) => /^[a-f0-9]{40}$/.test(argument));
     if (headSha === undefined) {
       stderr.write(INSPECT_USAGE);
       return 2;

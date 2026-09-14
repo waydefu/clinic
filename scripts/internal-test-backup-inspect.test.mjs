@@ -160,7 +160,7 @@ describe('runInternalTestBackupCli', () => {
   it('inspects a snapshot without calling gcloud', () => {
     let stdout = '';
     const code = runInternalTestBackupCli({
-      argv: ['inspect', 'snapshot.json'],
+      argv: ['--', 'inspect', 'snapshot.json'],
       env: {},
       stdout: {
         write(chunk) {
