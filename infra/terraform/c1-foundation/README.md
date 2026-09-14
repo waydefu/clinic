@@ -12,6 +12,13 @@ exact SHA and injects billing via uncommitted tfvars. C1 still excludes
 Firestore, Identity Platform, Cloud Run, Scheduler, Artifact Registry,
 production, Calendar and DR secondary.
 
+SHA-gated `google_monitoring_alert_policy.iam_setiampolicy` fires on the
+existing `c1-iam-setiampolicy` log metric and notifies the budget Pub/Sub
+channel only. Email recipients stay out of the repository. Default SHA
+creates zero alert policies. Sequential C1 smoke does not require the
+live policy (completed C1 evidence stays valid). Inspect with
+`pnpm inspect:internal-test-monitoring`.
+
 First apply uses human ADC (JIT ≤8h). The module then creates WIF +
 `c1-terraform-ci` for later CI. No Owner/Editor, no `datastore.user`,
 no secret versions.

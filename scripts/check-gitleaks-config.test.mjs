@@ -13,8 +13,11 @@ describe('gitleaks allowlist', () => {
   it('allowlists only documented synthetic and vendor-sha256 shapes', () => {
     expect(config).toContain("'''payroll-close-key-\\d{4}'''");
     expect(config).toContain("'''schedule_publish_\\d{4}'''");
+    expect(config).toContain("'''schedule_publish_occupancy_\\d{4}'''");
     expect(config).toContain("'''schedule-publish-key-\\d{4}'''");
     expect(config).toContain("'''booking-idempotency-\\d{4}'''");
+    expect(config).toContain("'''complete-idempotency-\\d{4}'''");
+    expect(config).toContain("'''follow-up-idempotency-\\d{4}'''");
     expect(config).toContain("'''\"[A-Za-z0-9.-]+\\.js\": \"[a-f0-9]{64}\"'''");
     expect(config).toContain('regexTarget = "line"');
   });

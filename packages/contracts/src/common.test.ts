@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { UtcIsoTimestampSchema } from './index.js';
+import {
+  INTERNAL_TEST_PRIVACY_POLICY_VERSION,
+  PolicyVersionSchema,
+  UtcIsoTimestampSchema
+} from './index.js';
 
 // 每一個時間戳欄位都經過這個 schema，所以「它到底放行什麼」是整個契約層最值得
 // 釘死的一條規則。以前它是 `endsWith('Z') && !Number.isNaN(Date.parse(value))`，
@@ -45,5 +49,14 @@ describe('UtcIsoTimestampSchema', () => {
       const parsed = new Date(value);
       expect(parsed.toISOString().slice(0, 10)).toBe(value.slice(0, 10));
     }
+  });
+});
+
+describe('INTERNAL_TEST_PRIVACY_POLICY_VERSION', () => {
+  it('is the IP-001 privacy-v1 identifier', () => {
+    expect(INTERNAL_TEST_PRIVACY_POLICY_VERSION).toBe('privacy-v1');
+    expect(
+      PolicyVersionSchema.parse(INTERNAL_TEST_PRIVACY_POLICY_VERSION)
+    ).toBe('privacy-v1');
   });
 });

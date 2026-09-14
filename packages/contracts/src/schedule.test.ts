@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  GetPublishedScheduleResponseSchema,
+  ListSlotsResponseSchema,
   PublishScheduleRequestSchema,
   PublishScheduleResponseSchema,
   ScheduleSchema
@@ -125,6 +127,52 @@ describe('publish schedule command', () => {
         publishedVersion: 4,
         publishedAt: '2026-07-24T17:00:00+08:00',
         slotCount: 312
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe('published schedule query', () => {
+  it('allows an unpublished clinic grid', () => {
+    expect(
+      GetPublishedScheduleResponseSchema.parse({
+        publishedVersion: 0,
+        publishedAt: null,
+        schedule: null
+      })
+    ).toEqual({
+      publishedVersion: 0,
+      publishedAt: null,
+      schedule: null
+    });
+  });
+
+  it('lists occupancy without a reservation identifier', () => {
+    expect(
+      ListSlotsResponseSchema.parse({
+        slots: [
+          {
+            slotId: 'slot_20300102_1200',
+            kind: 'initial',
+            startsAt: '2030-01-02T04:00:00.000Z',
+            endsAt: '2030-01-02T04:30:00.000Z',
+            available: true
+          }
+        ]
+      }).slots
+    ).toHaveLength(1);
+    expect(
+      ListSlotsResponseSchema.safeParse({
+        slots: [
+          {
+            slotId: 'slot_20300102_1200',
+            kind: 'initial',
+            startsAt: '2030-01-02T04:00:00.000Z',
+            endsAt: '2030-01-02T04:30:00.000Z',
+            available: true,
+            reservationId: 'appointment_001'
+          }
+        ]
       }).success
     ).toBe(false);
   });

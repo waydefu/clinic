@@ -90,18 +90,33 @@ const harnessRepository: AppointmentRepositoryPort = {
   reserve: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:00:00.000Z'
     }),
   reschedule: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:30:00.000Z'
     }),
   transition: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
       replayed: false,
       status: 'cancelled'
+    }),
+  recordFollowUp: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      decision: 'required' as const,
+      dueAt: '2030-01-02T04:15:00.000Z'
+    }),
+  deleteAppointment: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      auditEventId: 'audit_appointment_harness_001_deleted_key'
     }),
   read: () =>
     Promise.resolve(
@@ -221,7 +236,9 @@ describe('isolated BookPilotController harness', () => {
     expect(response.statusCode).toBeLessThan(300);
     expect(response.json()).toEqual({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
   });
 

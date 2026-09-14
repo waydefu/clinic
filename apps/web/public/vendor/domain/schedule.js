@@ -1,4 +1,5 @@
 import { planAuditEvent } from './audit.js';
+import { taipeiCalendarDate } from './booking-horizon.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
 /**
@@ -236,6 +237,23 @@ export function planSlots(schedule, existingSlots, options) {
         }
     }
     return slots.sort((left, right) => left.startsAt.localeCompare(right.startsAt));
+}
+/**
+ * Closed hours, weekly rest days and blocked times are the same published
+ * grid `planSlots` already owns. A fabricated slot document that is not on
+ * that grid is unavailable — occupancy is a separate check.
+ */
+export function assertSlotOnPublishedSchedule(schedule, slot) {
+    const published = planSlots(schedule, [], {
+        startDate: taipeiCalendarDate(slot.startsAt),
+        dayCount: 1
+    });
+    const onGrid = published.some((candidate) => candidate.id === slot.id &&
+        candidate.startsAt === slot.startsAt &&
+        candidate.kind === slot.kind);
+    if (!onGrid) {
+        throw new DomainError('SLOT_UNAVAILABLE', 'The slot does not exist or is already reserved.');
+    }
 }
 /**
  * 回診「目標日期」當天可掛號的時間點。語意與時段產生完全一致：每週設定、

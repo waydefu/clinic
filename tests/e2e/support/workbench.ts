@@ -28,9 +28,9 @@ const PASSWORDS: Record<WorkbenchRole, string> = {
 export async function login(
   page: Page,
   role: WorkbenchRole = 'admin',
-  { fresh = true }: { fresh?: boolean } = {}
+  { fresh = true, path = '/staff' }: { fresh?: boolean; path?: string } = {}
 ): Promise<void> {
-  await page.goto('/staff');
+  await page.goto(path);
   if (fresh) {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();

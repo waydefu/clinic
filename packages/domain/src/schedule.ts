@@ -3,6 +3,7 @@ import {
   type AuditContext,
   type AuditEventV2
 } from './audit.js';
+import { taipeiCalendarDate } from './booking-horizon.js';
 import type { BookingKind, SlotSnapshot } from './booking-transaction.js';
 import { DomainError } from './errors.js';
 import {
@@ -404,6 +405,33 @@ export function planSlots(
   return slots.sort((left, right) =>
     left.startsAt.localeCompare(right.startsAt)
   );
+}
+
+/**
+ * Closed hours, weekly rest days and blocked times are the same published
+ * grid `planSlots` already owns. A fabricated slot document that is not on
+ * that grid is unavailable — occupancy is a separate check.
+ */
+export function assertSlotOnPublishedSchedule(
+  schedule: Schedule,
+  slot: SlotSnapshot
+): void {
+  const published = planSlots(schedule, [], {
+    startDate: taipeiCalendarDate(slot.startsAt),
+    dayCount: 1
+  });
+  const onGrid = published.some(
+    (candidate) =>
+      candidate.id === slot.id &&
+      candidate.startsAt === slot.startsAt &&
+      candidate.kind === slot.kind
+  );
+  if (!onGrid) {
+    throw new DomainError(
+      'SLOT_UNAVAILABLE',
+      'The slot does not exist or is already reserved.'
+    );
+  }
 }
 
 /**

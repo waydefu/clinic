@@ -35,6 +35,11 @@ run "default_sha_is_noop" {
     condition     = length(google_billing_budget.c1) == 0
     error_message = "C1 must create zero budgets when SHA is not_granted."
   }
+
+  assert {
+    condition     = length(google_monitoring_alert_policy.iam_setiampolicy) == 0
+    error_message = "C1 must create zero alert policies when SHA is not_granted."
+  }
 }
 
 run "named_sha_enables_c1_allowlist_only" {
@@ -126,6 +131,21 @@ run "named_sha_enables_c1_allowlist_only" {
       "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
     )
     error_message = "C1 budget Pub/Sub publisher must be billing-budget-alert@system.gserviceaccount.com, not gcp-sa-billingbudgets."
+  }
+
+  assert {
+    condition     = length(google_monitoring_alert_policy.iam_setiampolicy) == 1
+    error_message = "C1 must create the IAM SetIamPolicy alert when SHA-gated apply is on."
+  }
+
+  assert {
+    condition     = google_monitoring_alert_policy.iam_setiampolicy[0].display_name == "C1 IAM SetIamPolicy"
+    error_message = "C1 IAM alert display name must be C1 IAM SetIamPolicy."
+  }
+
+  assert {
+    condition     = google_monitoring_alert_policy.iam_setiampolicy[0].combiner == "OR"
+    error_message = "C1 IAM alert combiner must be OR."
   }
 }
 

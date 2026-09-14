@@ -1,14 +1,24 @@
-import type {
-  CancelAppointmentRequest,
-  CancelAppointmentResponse,
-  CreateAppointmentRequest,
-  GetAppointmentResponse,
-  RescheduleAppointmentRequest
+import {
+  INTERNAL_TEST_PRIVACY_POLICY_VERSION,
+  type CancelAppointmentRequest,
+  type CancelAppointmentResponse,
+  type CreateAppointmentRequest,
+  type CreateAppointmentResponse,
+  type DeleteAppointmentRequest,
+  type DeleteAppointmentResponse,
+  type GetAppointmentResponse,
+  type RecordFollowUpRequest,
+  type RecordFollowUpResponse,
+  type RescheduleAppointmentRequest,
+  type RescheduleAppointmentResponse,
+  type TransitionAppointmentResponse
 } from '@beauessence/contracts';
 import type {
   AppointmentTransition,
   AuditContext,
   BookingRequest,
+  DeleteAppointmentRequest as DomainDeleteAppointmentRequest,
+  FollowUpDecisionRequest,
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
@@ -26,10 +36,15 @@ import type {
 } from './appointment.repository-port.js';
 import {
   createAppointmentIdempotency,
+  deleteAppointmentIdempotency,
+  followUpAppointmentIdempotency,
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../idempotency/appointment-idempotency.js';
-import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
+import {
+  AuthenticationRequiredError,
+  AuthorizationDeniedError
+} from '../platform/errors/api-error.js';
 
 export interface AppointmentIdGenerator {
   next(): string;
@@ -55,6 +70,46 @@ export class MissingVerifiedPatientError extends AuthenticationRequiredError {
     super();
     this.name = 'MissingVerifiedPatientError';
   }
+}
+
+function resolvedCreatePatientId(
+  command: CreateAppointmentRequest,
+  authentication: AuthenticationContext
+): string {
+  const verified = authentication.verifiedPatientId;
+  const onBehalf = command.onBehalfPatientId;
+  if (verified !== undefined) {
+    if (onBehalf !== undefined && onBehalf !== verified) {
+      throw new AuthorizationDeniedError();
+    }
+    return verified;
+  }
+  if (onBehalf !== undefined) return onBehalf;
+  throw new MissingVerifiedPatientError();
+}
+
+function confirmedAppointmentResponse(
+  appointmentId: string,
+  startsAt: string
+): CreateAppointmentResponse {
+  return {
+    appointmentId,
+    status: 'confirmed',
+    startsAt,
+    endsAt: new Date(
+      Date.parse(startsAt) + SLOT_DURATION_MINUTES * 60_000
+    ).toISOString()
+  };
+}
+
+function requireReservationStart(result: ReservationResult): string {
+  if (result.startsAt === undefined) {
+    throw new DomainError(
+      'APPOINTMENT_NOT_FOUND',
+      'The appointment does not exist.'
+    );
+  }
+  return result.startsAt;
 }
 
 /**
@@ -143,6 +198,53 @@ export function toTransitionRequest(
   };
 }
 
+export function toFollowUpRequest(
+  appointmentId: string,
+  command: RecordFollowUpRequest,
+  context: {
+    readonly requestedAt: string;
+    readonly audit: AuditContext;
+  }
+): FollowUpDecisionRequest {
+  return {
+    appointmentId,
+    decision: command.decision,
+    ...(command.dueDate === undefined ? {} : { dueDate: command.dueDate }),
+    ...(command.dueTime === undefined ? {} : { dueTime: command.dueTime }),
+    audit: context.audit,
+    requestedAt: context.requestedAt,
+    idempotency: followUpAppointmentIdempotency({
+      key: command.idempotencyKey,
+      actorId: context.audit.actorId,
+      appointmentId,
+      decision: command.decision,
+      ...(command.dueDate === undefined ? {} : { dueDate: command.dueDate }),
+      ...(command.dueTime === undefined ? {} : { dueTime: command.dueTime })
+    })
+  };
+}
+
+export function toDeleteRequest(
+  appointmentId: string,
+  command: DeleteAppointmentRequest,
+  context: {
+    readonly requestedAt: string;
+    readonly audit: AuditContext;
+  }
+): DomainDeleteAppointmentRequest {
+  return {
+    appointmentId,
+    audit: context.audit,
+    requestedAt: context.requestedAt,
+    idempotency: deleteAppointmentIdempotency({
+      key: command.idempotencyKey,
+      actorId: context.audit.actorId,
+      appointmentId,
+      reasonCode: command.reasonCode
+    })
+  };
+}
+
 /**
  * Unrouted Stage 0 application boundary. A future controller may parse HTTP
  * input and call this service only after the authentication adapter has
@@ -160,17 +262,14 @@ export class AppointmentApplicationService {
   public async create(
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
-  ): Promise<ReservationResult> {
-    if (authentication.verifiedPatientId === undefined) {
-      throw new MissingVerifiedPatientError();
-    }
-
+  ): Promise<CreateAppointmentResponse> {
+    const patientId = resolvedCreatePatientId(command, authentication);
     await this.authorization.assertCanCreate(authentication, command);
 
-    return this.repository.reserve(
+    const result = await this.repository.reserve(
       toBookingRequest(command, {
         appointmentId: this.ids.next(),
-        patientId: authentication.verifiedPatientId,
+        patientId,
         requestedAt: this.clock.nowUtc(),
         audit: {
           actorId: authentication.actorId,
@@ -178,11 +277,15 @@ export class AppointmentApplicationService {
           correlationId: this.correlations.next(),
           source: 'api',
           reasonCode: null,
-          // The approved policy/rule version will be loaded here after the
-          // D-003/D-004 decisions land; Stage 0 must not invent one.
-          policyVersion: null
+          // IP-001 internal-test identifier. accepted_at is audit.occurredAt.
+          // Create must not take a client privacyAcceptance payload.
+          policyVersion: INTERNAL_TEST_PRIVACY_POLICY_VERSION
         }
       })
+    );
+    return confirmedAppointmentResponse(
+      result.appointmentId,
+      requireReservationStart(result)
     );
   }
 
@@ -190,16 +293,27 @@ export class AppointmentApplicationService {
     appointmentId: string,
     command: RescheduleAppointmentRequest,
     authentication: AuthenticationContext
-  ): Promise<ReservationResult> {
-    const ownerPatientId = await this.repository.patientIdOf(appointmentId);
+  ): Promise<RescheduleAppointmentResponse> {
+    const record = await this.repository.read(appointmentId);
     await this.authorization.assertCanReschedule(
       authentication,
-      ownerPatientId === undefined
-        ? {}
-        : { appointmentPatientId: ownerPatientId }
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
     );
 
-    return this.repository.reschedule(
+    if (authentication.verifiedPatientId !== undefined) {
+      const nowMs = Date.parse(this.clock.nowUtc());
+      if (
+        record?.startsAt === undefined ||
+        !isWithinSelfCancelWindow(record.startsAt, nowMs)
+      ) {
+        throw new DomainError(
+          'CANCELLATION_WINDOW_CLOSED',
+          'The self-reschedule window has closed.'
+        );
+      }
+    }
+
+    const result = await this.repository.reschedule(
       toRescheduleRequest(appointmentId, command, {
         ...(authentication.verifiedPatientId === undefined
           ? {}
@@ -214,6 +328,10 @@ export class AppointmentApplicationService {
           policyVersion: null
         }
       })
+    );
+    return confirmedAppointmentResponse(
+      result.appointmentId,
+      requireReservationStart(result)
     );
   }
 
@@ -287,6 +405,133 @@ export class AppointmentApplicationService {
       throw new DomainError(
         'TRANSITION_NOT_ALLOWED',
         'The appointment cannot be cancelled.'
+      );
+    }
+
+    return {
+      appointmentId: result.appointmentId,
+      status: result.status
+    };
+  }
+
+  public async complete(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<TransitionAppointmentResponse> {
+    return this.staffVisitTransition(
+      appointmentId,
+      command,
+      authentication,
+      'complete',
+      'completed'
+    );
+  }
+
+  public async markNoShow(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<TransitionAppointmentResponse> {
+    return this.staffVisitTransition(
+      appointmentId,
+      command,
+      authentication,
+      'no_show',
+      'no_show'
+    );
+  }
+
+  public async recordFollowUp(
+    appointmentId: string,
+    command: RecordFollowUpRequest,
+    authentication: AuthenticationContext
+  ): Promise<RecordFollowUpResponse> {
+    const record = await this.repository.read(appointmentId);
+    await this.authorization.assertCanDecideFollowUp(
+      authentication,
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
+    );
+
+    const result = await this.repository.recordFollowUp(
+      toFollowUpRequest(appointmentId, command, {
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: null,
+          policyVersion: null
+        }
+      })
+    );
+
+    return {
+      appointmentId: result.appointmentId,
+      decision: result.decision,
+      dueAt: result.dueAt
+    };
+  }
+
+  public async delete(
+    appointmentId: string,
+    command: DeleteAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<DeleteAppointmentResponse> {
+    await this.authorization.assertCanDelete(authentication);
+    const result = await this.repository.deleteAppointment(
+      toDeleteRequest(appointmentId, command, {
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: command.reasonCode,
+          policyVersion: null
+        }
+      })
+    );
+
+    return {
+      appointmentId: result.appointmentId,
+      deleted: true,
+      auditEventId: result.auditEventId
+    };
+  }
+
+  private async staffVisitTransition(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext,
+    transition: 'complete' | 'no_show',
+    expectedStatus: 'completed' | 'no_show'
+  ): Promise<TransitionAppointmentResponse> {
+    const record = await this.repository.read(appointmentId);
+    await this.authorization.assertCanComplete(
+      authentication,
+      record === undefined ? {} : { appointmentPatientId: record.patientId }
+    );
+
+    const result = await this.repository.transition(
+      toTransitionRequest(appointmentId, command, transition, {
+        requestedAt: this.clock.nowUtc(),
+        audit: {
+          actorId: authentication.actorId,
+          actorRole: authentication.actorRole,
+          correlationId: this.correlations.next(),
+          source: 'api',
+          reasonCode: null,
+          policyVersion: null
+        }
+      })
+    );
+
+    if (result.status !== expectedStatus) {
+      throw new DomainError(
+        'TRANSITION_NOT_ALLOWED',
+        'The appointment cannot change visit status.'
       );
     }
 

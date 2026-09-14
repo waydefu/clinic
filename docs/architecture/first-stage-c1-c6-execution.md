@@ -60,7 +60,7 @@ Machine: `scripts/sequential-c-gate.mjs`. Live tree with C1～C6 smoke is
 | --- | --- |
 | Prerequisites | C2 evidence; C3 authority |
 | Scope | Idle 30m; absolute 8h; server-side session; `__session` + CSRF; no shared emergency account |
-| Source in tree | `IDLE_SESSION_MS` / `ABSOLUTE_SESSION_MS` on CAL-PILOT |
+| Source in tree | domain `evaluateStaffSession` / `STAFF_ABSOLUTE_SESSION_MS` on CAL-PILOT |
 | Hosting constraint | Firebase Hosting forwards only `__session` |
 | Remaining blockers | none for C3 source evaluator |
 | Authority | `granted` |
@@ -85,7 +85,7 @@ Machine: `scripts/sequential-c-gate.mjs`. Live tree with C1～C6 smoke is
 | --- | --- |
 | Prerequisites | C4 evidence; C5 authority; D-002 still pending for real-data retention |
 | Scope | Append-only audit for booking, hours, login/disable, authz denies, Calendar success/fail/conflict/review |
-| Source in tree | Domain audit v2 + Emulator transaction tests; SHA-gated `infra/terraform/c5-firestore/` (Native + PITR; default no-op) |
+| Source in tree | Domain audit v2 + Emulator transaction tests; SHA-gated `infra/terraform/c5-firestore/` (Native + PITR + daily backup source; default no-op) |
 | Remaining blockers | D-002 for production linkability |
 | Authority | `granted` |
 | Status | `AUTHORIZED` / `DEPLOYED` / smoke `PASS` / `PRODUCTION_AUTHORIZED=NO` |

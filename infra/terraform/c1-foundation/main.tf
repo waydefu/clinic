@@ -221,3 +221,41 @@ resource "google_logging_metric" "iam_setiampolicy" {
   }
   depends_on = [google_project_service.c1]
 }
+
+# SHA-gated. Uses the existing budget Pub/Sub channel — no email recipients
+# in the repository (C0-ENG-REC). Default SHA creates zero alert policies.
+# Apply still needs a fresh exact-SHA packet. Do not invent named people.
+resource "google_monitoring_alert_policy" "iam_setiampolicy" {
+  count        = local.apply_enabled ? 1 : 0
+  project      = var.project_id
+  display_name = "C1 IAM SetIamPolicy"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.budget_pubsub[0].name
+  ]
+  conditions {
+    display_name = "c1-iam-setiampolicy above zero"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\" AND resource.type=\"global\""
+      duration        = "60s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_DELTA"
+      }
+      trigger {
+        count = 1
+      }
+    }
+  }
+  documentation {
+    content   = "C1 IAM SetIamPolicy log-based alert. Notify through the existing budget Pub/Sub topic. Email recipients stay out of the repository."
+    mime_type = "text/markdown"
+  }
+  depends_on = [
+    google_logging_metric.iam_setiampolicy,
+    google_monitoring_notification_channel.budget_pubsub
+  ]
+}

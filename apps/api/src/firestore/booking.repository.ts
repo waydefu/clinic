@@ -1,18 +1,27 @@
 import {
   assertIdempotencyContext,
+  DomainError,
   parseAppointmentSnapshot,
   parsePatientBookingGuard,
+  parsePublishedScheduleSnapshot,
   parseSlotSnapshot,
   planBooking,
+  planDeletion,
+  planFollowUpDecision,
   planReschedule,
   planTransition,
   resolveIdempotencyReplay,
+  resolvePublishedSlot,
   type AppointmentSnapshot,
   type BookingRequest,
+  type DeleteAppointmentRequest,
+  type ExistingFollowUpSnapshot,
+  type FollowUpDecisionRequest,
   type IdempotencyContext,
   type PatientBookingGuardSnapshot,
   type PlannedPatientBookingGuardMutation,
   type RescheduleRequest,
+  type SlotSnapshot,
   type TransitionRequest
 } from '@beauessence/domain';
 import { IdempotencyRecordV1Schema } from '@beauessence/contracts';
@@ -26,6 +35,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type {
   AppointmentRecord,
   AppointmentRepositoryPort,
+  DeletionResult,
+  FollowUpResult,
   ReservationResult,
   TransitionResult
 } from '../appointments/appointment.repository-port.js';
@@ -36,7 +47,9 @@ export const COLLECTIONS = {
   patientBookingGuards: 'patient_booking_guards',
   auditEvents: 'audit_events',
   outboxJobs: 'outbox_jobs',
-  idempotencyKeys: 'idempotency_keys'
+  idempotencyKeys: 'idempotency_keys',
+  schedules: 'schedules',
+  followUps: 'follow_ups'
 } as const;
 
 /**
@@ -86,10 +99,14 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     const patientGuardRef = this.db
       .collection(COLLECTIONS.patientBookingGuards)
       .doc(request.patientId);
+    const scheduleRef = this.db
+      .collection(COLLECTIONS.schedules)
+      .doc('current');
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
-      const replay = this.replayOf(
+      const replay = await this.reservationFromReplay(
+        transaction,
         await transaction.get(idempotencyRef),
         request.idempotency
       );
@@ -97,10 +114,17 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
 
       const patientGuardDocument = await transaction.get(patientGuardRef);
       const slotDocument = await transaction.get(slotRef);
+      const scheduleDocument = await transaction.get(scheduleRef);
 
-      const slot = slotDocument.exists
+      const existingSlot = slotDocument.exists
         ? parseSlotSnapshot(slotDocument.id, slotDocument.data())
         : undefined;
+      const slot = this.slotForWrite(
+        scheduleDocument,
+        request.slotId,
+        existingSlot,
+        request.requestedAt
+      );
       const patientBookingGuard =
         this.patientGuardSnapshotOf(patientGuardDocument);
 
@@ -112,9 +136,12 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         this.db.collection(COLLECTIONS.appointments).doc(plan.appointment.id),
         plan.appointment
       );
-      transaction.update(slotRef, {
-        reservationId: plan.slotReservation.reservationId
-      });
+      this.writeSlotReservation(
+        transaction,
+        slotDocument,
+        slot,
+        plan.slotReservation.reservationId
+      );
       if (patientGuardDocument.exists) {
         transaction.set(patientGuardRef, plan.patientBookingGuard);
       } else {
@@ -132,7 +159,11 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       transaction.create(idempotencyRef, plan.idempotencyRecord);
 
-      return { appointmentId: plan.appointment.id, replayed: false };
+      return {
+        appointmentId: plan.appointment.id,
+        replayed: false,
+        startsAt: plan.appointment.startsAt
+      };
     });
   }
 
@@ -149,6 +180,26 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     };
   }
 
+  private async reservationFromReplay(
+    transaction: Transaction,
+    snapshot: DocumentSnapshot,
+    context: IdempotencyContext
+  ): Promise<ReservationResult | undefined> {
+    const replay = this.replayOf(snapshot, context);
+    if (replay === undefined) return undefined;
+    const appointment = this.snapshotOf(
+      await transaction.get(
+        this.db.collection(COLLECTIONS.appointments).doc(replay.appointmentId)
+      )
+    );
+    return {
+      ...replay,
+      ...(appointment?.startsAt === undefined
+        ? {}
+        : { startsAt: appointment.startsAt })
+    };
+  }
+
   private snapshotOf(
     document: DocumentSnapshot
   ): AppointmentSnapshot | undefined {
@@ -161,6 +212,47 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   ): PatientBookingGuardSnapshot | undefined {
     if (document === undefined || !document.exists) return undefined;
     return parsePatientBookingGuard(document.data());
+  }
+
+  /**
+   * When a published grid exists, a missing slot document is materialised
+   * from that grid. Emulator tests that seed slot rows without a schedule
+   * keep the previous occupancy-only path.
+   */
+  private slotForWrite(
+    scheduleDocument: DocumentSnapshot,
+    slotId: string,
+    existing: SlotSnapshot | undefined,
+    requestedAt: string
+  ): SlotSnapshot | undefined {
+    if (!scheduleDocument.exists) return existing;
+    const published = parsePublishedScheduleSnapshot(scheduleDocument.data());
+    if (published.schedule === null) return existing;
+    return resolvePublishedSlot(
+      published.schedule,
+      slotId,
+      existing,
+      requestedAt
+    );
+  }
+
+  private writeSlotReservation(
+    transaction: Transaction,
+    slotDocument: DocumentSnapshot,
+    slot: SlotSnapshot | undefined,
+    reservationId: string
+  ): void {
+    if (slotDocument.exists) {
+      transaction.update(slotDocument.ref, { reservationId });
+      return;
+    }
+    if (slot === undefined) return;
+    transaction.create(slotDocument.ref, {
+      schemaVersion: 1,
+      kind: slot.kind,
+      startsAt: slot.startsAt,
+      reservationId
+    });
   }
 
   /**
@@ -297,6 +389,87 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     });
   }
 
+  /**
+   * Administrator record hygiene. The appointment row is removed in the same
+   * transaction as the surviving audit event, slot release, and Calendar
+   * cancel outbox. Delegated front-desk codes stay off this path.
+   */
+  public async deleteAppointment(
+    request: DeleteAppointmentRequest
+  ): Promise<DeletionResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
+    const idempotencyRef = this.db
+      .collection(COLLECTIONS.idempotencyKeys)
+      .doc(request.idempotency.recordId);
+    const appointmentRef = this.db
+      .collection(COLLECTIONS.appointments)
+      .doc(request.appointmentId);
+
+    return this.db.runTransaction(async (transaction) => {
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
+      if (replay !== undefined) {
+        return {
+          appointmentId: replay.appointmentId,
+          replayed: true,
+          auditEventId: `audit_${replay.appointmentId}_deleted_${request.idempotency.recordId}`
+        };
+      }
+
+      const appointmentDocument = await transaction.get(appointmentRef);
+      const appointment = this.snapshotOf(appointmentDocument);
+      const patientGuardDocument =
+        appointment === undefined
+          ? undefined
+          : await transaction.get(
+              this.db
+                .collection(COLLECTIONS.patientBookingGuards)
+                .doc(appointment.patientId)
+            );
+      const slotDocument =
+        appointment === undefined
+          ? undefined
+          : await transaction.get(
+              this.db.collection(COLLECTIONS.slots).doc(appointment.slotId)
+            );
+
+      const plan = planDeletion(
+        request,
+        appointment,
+        this.patientGuardSnapshotOf(patientGuardDocument)
+      );
+
+      transaction.delete(appointmentRef);
+      if (plan.releaseSlotId !== undefined && slotDocument !== undefined) {
+        this.releaseSlot(transaction, slotDocument, plan.appointmentId);
+      }
+      this.applyPatientGuardMutation(
+        transaction,
+        patientGuardDocument,
+        plan.patientBookingGuard
+      );
+      transaction.create(
+        this.db
+          .collection(COLLECTIONS.auditEvents)
+          .doc(plan.auditEvent.eventId),
+        plan.auditEvent
+      );
+      transaction.set(
+        this.db.collection(COLLECTIONS.outboxJobs).doc(plan.outboxJob.id),
+        plan.outboxJob
+      );
+      transaction.create(idempotencyRef, plan.idempotencyRecord);
+
+      return {
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        auditEventId: plan.auditEvent.eventId
+      };
+    });
+  }
+
   /** 改期：同一筆交易內先占用新時段，再釋出原時段。 */
   public async reschedule(
     request: RescheduleRequest
@@ -311,10 +484,14 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     const targetRef = this.db
       .collection(COLLECTIONS.slots)
       .doc(request.targetSlotId);
+    const scheduleRef = this.db
+      .collection(COLLECTIONS.schedules)
+      .doc('current');
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
-      const replay = this.replayOf(
+      const replay = await this.reservationFromReplay(
+        transaction,
         await transaction.get(idempotencyRef),
         request.idempotency
       );
@@ -323,6 +500,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       const appointmentDocument = await transaction.get(appointmentRef);
       const appointment = this.snapshotOf(appointmentDocument);
       const targetDocument = await transaction.get(targetRef);
+      const scheduleDocument = await transaction.get(scheduleRef);
       const previousDocument =
         appointment === undefined
           ? undefined
@@ -338,9 +516,15 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
                 .doc(appointment.patientId)
             );
 
-      const targetSlot = targetDocument.exists
+      const existingTarget = targetDocument.exists
         ? parseSlotSnapshot(targetDocument.id, targetDocument.data())
         : undefined;
+      const targetSlot = this.slotForWrite(
+        scheduleDocument,
+        request.targetSlotId,
+        existingTarget,
+        request.requestedAt
+      );
 
       // --- decision (pure) ---------------------------------------------
       const plan = planReschedule(
@@ -354,7 +538,12 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       // Reserve the new slot before releasing the old one. If the new slot
       // cannot be taken, the transaction aborts and the original booking is
       // unchanged. Releasing first would drop the old slot on a failed reserve.
-      transaction.update(targetRef, { reservationId: plan.appointmentId });
+      this.writeSlotReservation(
+        transaction,
+        targetDocument,
+        targetSlot,
+        plan.appointmentId
+      );
       if (previousDocument !== undefined) {
         this.releaseSlot(transaction, previousDocument, plan.appointmentId);
       }
@@ -381,7 +570,141 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       transaction.create(idempotencyRef, plan.idempotencyRecord);
 
-      return { appointmentId: plan.appointmentId, replayed: false };
+      return {
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        startsAt: plan.startsAt
+      };
     });
+  }
+
+  public async recordFollowUp(
+    request: FollowUpDecisionRequest
+  ): Promise<FollowUpResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
+    const idempotencyRef = this.db
+      .collection(COLLECTIONS.idempotencyKeys)
+      .doc(request.idempotency.recordId);
+    const appointmentRef = this.db
+      .collection(COLLECTIONS.appointments)
+      .doc(request.appointmentId);
+    const followUpRef = this.db
+      .collection(COLLECTIONS.followUps)
+      .doc(request.appointmentId);
+    const scheduleRef = this.db
+      .collection(COLLECTIONS.schedules)
+      .doc('current');
+
+    return this.db.runTransaction(async (transaction) => {
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
+      const appointmentDocument = await transaction.get(appointmentRef);
+      const followUpDocument = await transaction.get(followUpRef);
+      if (replay !== undefined) {
+        const stored = this.followUpSnapshotOf(followUpDocument);
+        if (stored === undefined) {
+          throw new DomainError(
+            'INVALID_VALUE',
+            'The follow-up decision is unreadable.'
+          );
+        }
+        return {
+          appointmentId: replay.appointmentId,
+          replayed: true,
+          decision: stored.decision,
+          dueAt: stored.dueAt
+        };
+      }
+
+      const scheduleDocument = await transaction.get(scheduleRef);
+      if (!scheduleDocument.exists) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'A published schedule is required to record follow-up.'
+        );
+      }
+      const published = parsePublishedScheduleSnapshot(scheduleDocument.data());
+      if (published.schedule === null) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'A published schedule is required to record follow-up.'
+        );
+      }
+
+      const appointment = this.snapshotOf(appointmentDocument);
+      const plan = planFollowUpDecision(
+        request,
+        appointment === undefined
+          ? undefined
+          : {
+              id: appointment.id,
+              patientId: appointment.patientId,
+              status: appointment.status
+            },
+        published.schedule,
+        this.followUpSnapshotOf(followUpDocument)
+      );
+
+      transaction.set(followUpRef, {
+        schemaVersion: 1,
+        appointmentId: plan.appointmentId,
+        patientId: plan.patientId,
+        decision: plan.decision,
+        dueAt: plan.dueAt,
+        decidedAt: plan.decidedAt
+      });
+      transaction.create(
+        this.db
+          .collection(COLLECTIONS.auditEvents)
+          .doc(plan.auditEvent.eventId),
+        plan.auditEvent
+      );
+      transaction.set(
+        this.db.collection(COLLECTIONS.outboxJobs).doc(plan.outboxJob.id),
+        plan.outboxJob
+      );
+      transaction.create(idempotencyRef, plan.idempotencyRecord);
+
+      return {
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        decision: plan.decision,
+        dueAt: plan.dueAt
+      };
+    });
+  }
+
+  private followUpSnapshotOf(
+    document: DocumentSnapshot
+  ): ExistingFollowUpSnapshot | undefined {
+    if (!document.exists) return undefined;
+    const data: unknown = document.data();
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The follow-up decision is unreadable.'
+      );
+    }
+    const record = data as Record<string, unknown>;
+    const decision = record['decision'];
+    if (decision !== 'required' && decision !== 'not_required') {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The follow-up decision is unreadable.'
+      );
+    }
+    const dueAt = record['dueAt'];
+    if (dueAt === undefined || dueAt === null) {
+      return { decision, dueAt: null };
+    }
+    if (typeof dueAt !== 'string' || dueAt.length === 0) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'The follow-up decision is unreadable.'
+      );
+    }
+    return { decision, dueAt };
   }
 }

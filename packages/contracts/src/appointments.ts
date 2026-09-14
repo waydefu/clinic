@@ -19,13 +19,18 @@ export const AppointmentStatusSchema = z.enum([
  * policy version or client timestamp. Patient intake/verification is a
  * separate, still decision-gated boundary; the verified patient and actor
  * identities plus IDs and timestamps must come from the server.
+ *
+ * `onBehalfPatientId` is the staff-only opaque owner for an internal-test
+ * create. It is not a client-supplied `patientId`: that field stays rejected.
+ * A verified patient identity always wins over this field.
  */
 export const CreateAppointmentRequestSchema = z
   .object({
     idempotencyKey: IdempotencyKeySchema,
     slotId: OpaqueIdentifierSchema,
     serviceId: OpaqueIdentifierSchema,
-    bookingKind: z.enum(['initial', 'follow_up'])
+    bookingKind: z.enum(['initial', 'follow_up']),
+    onBehalfPatientId: OpaqueIdentifierSchema.optional()
   })
   .strict();
 
@@ -108,9 +113,11 @@ export const TransitionAppointmentResponseSchema = z
 /**
  * Reschedule moves a confirmed appointment to another slot. The response keeps
  * the same minimal shape as create: the appointment stays confirmed and the
- * server returns the authoritative new start/end. Capacity, cancellation window
- * and role authorization are resolved server-side and remain decision-gated
- * (D-004～D-006); this schema only fixes the request/response boundary.
+ * server returns the authoritative new start/end. Capacity, the patient
+ * self-service cutoff (same appointment-day 10:00 Asia/Taipei window as
+ * cancel) and role authorization are resolved server-side. D-004～D-006 stay
+ * pending for production; IP-001 authorises the fail-closed internal-test
+ * route only.
  */
 export const RescheduleAppointmentRequestSchema = z
   .object({

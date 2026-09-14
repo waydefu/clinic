@@ -21,6 +21,14 @@ export interface AppointmentAuthorizationPolicy {
     context: AuthenticationContext,
     command: { readonly appointmentPatientId?: string }
   ): Promise<void>;
+  assertCanComplete(
+    context: AuthenticationContext,
+    command: { readonly appointmentPatientId?: string }
+  ): Promise<void>;
+  assertCanDecideFollowUp(
+    context: AuthenticationContext,
+    command: { readonly appointmentPatientId?: string }
+  ): Promise<void>;
   assertCanQuery(
     context: AuthenticationContext,
     command: { readonly appointmentPatientId?: string }

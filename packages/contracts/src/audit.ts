@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 import { AppointmentStatusSchema } from './appointments.js';
-import { OpaqueIdentifierSchema, UtcIsoTimestampSchema } from './common.js';
+import {
+  OpaqueIdentifierSchema,
+  PolicyVersionSchema,
+  UtcIsoTimestampSchema
+} from './common.js';
 
 export const AuditActionSchema = z.enum([
   'appointment_confirmed',
@@ -117,7 +121,7 @@ export const AuditEventV2Schema = z
     result: z.enum(['succeeded', 'denied', 'failed']),
     correlationId: OpaqueIdentifierSchema,
     source: AuditSourceSchema,
-    policyVersion: OpaqueIdentifierSchema.nullable(),
+    policyVersion: PolicyVersionSchema.nullable(),
     schemaVersion: z.literal(2)
   })
   .strict()

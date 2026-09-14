@@ -22,6 +22,11 @@ import {
   summaryCounts
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
+import {
+  isInternalTestBookingEnabled,
+  resolveApiClient
+} from './modules/api-client.js';
+import { upsertPatient } from './modules/patient-registry.js';
 import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
 import {
@@ -62,6 +67,7 @@ const appShell = document.querySelector('.app-shell');
 const restrictedDom = [
   ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
 ];
+let client = apiClient;
 
 function isAdminSession() {
   return (
@@ -321,15 +327,135 @@ async function post(path, body = {}) {
   )
     throw new Error('目前合成帳號沒有執行此動作的權限。');
 
-  state = await apiClient.request(path, {
+  const result = await client.request(path, {
     method: 'POST',
     body: JSON.stringify(body)
   });
+  if (Array.isArray(result?.appointments)) {
+    state = result;
+  } else if (path === '/schedule/publish') {
+    state = await client.request('/state');
+  } else {
+    applyContractWrite(path, body, result);
+    if (
+      isInternalTestBookingEnabled() &&
+      typeof result?.appointmentId === 'string' &&
+      occupancyWrite(path)
+    ) {
+      const { refreshPublishedOccupancy, applyDeleteContractWrite } =
+        await import('./modules/internal-test-booking-transport.js');
+      applyDeleteContractWrite(state, path, result);
+      state = await refreshPublishedOccupancy(
+        (nextPath) => client.request(nextPath),
+        state
+      );
+    } else if (
+      isInternalTestBookingEnabled() &&
+      typeof result?.appointmentId === 'string' &&
+      /^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)
+    ) {
+      const { applyFollowUpContractWrite } =
+        await import('./modules/internal-test-booking-transport.js');
+      applyFollowUpContractWrite(state, path, body, result);
+    }
+  }
   if (!['/workspace/logout', '/reset'].includes(path)) {
     enforceRoleDomBoundary();
     render();
   }
   return state;
+}
+
+function occupancyWrite(path) {
+  return (
+    path === '/bookings' ||
+    /\/bookings\/.+\/(cancel|reschedule|no-show|delete)$/.test(path)
+  );
+}
+
+function releaseOverlaySlot(slot, appointmentId) {
+  if (
+    slot?.reservationId === appointmentId ||
+    slot?.reservationId === 'reserved'
+  ) {
+    delete slot.reservationId;
+  }
+}
+
+function applyContractWrite(path, body, result) {
+  if (typeof result?.appointmentId !== 'string') return;
+  const now = new Date().toISOString();
+  if (path === '/bookings') {
+    const patient = upsertPatient(state, body.patient);
+    const items = WORKBENCH_PROCEDURES.filter((item) =>
+      (body.itemIds ?? []).includes(item.id)
+    );
+    state.appointments.push({
+      id: result.appointmentId,
+      slotId: body.slotId,
+      startsAt: result.startsAt,
+      patientId: patient.id,
+      bookingKind: body.bookingKind,
+      itemIds: items.map((item) => item.id),
+      itemLabel: items.map((item) => item.label).join('、'),
+      status: result.status ?? 'confirmed',
+      createdAt: now,
+      updatedAt: now
+    });
+    const slot = state.slots.find((item) => item.id === body.slotId);
+    if (slot !== undefined) slot.reservationId = result.appointmentId;
+    return;
+  }
+  const cancel = /^\/bookings\/([^/]+)\/cancel$/.exec(path);
+  if (cancel !== null) {
+    const appointment = state.appointments.find(
+      (item) => item.id === cancel[1]
+    );
+    if (appointment === undefined) return;
+    appointment.status = result.status ?? 'cancelled';
+    appointment.updatedAt = now;
+    const slot = state.slots.find((item) => item.id === appointment.slotId);
+    releaseOverlaySlot(slot, appointment.id);
+    return;
+  }
+  const complete = /^\/bookings\/([^/]+)\/complete$/.exec(path);
+  if (complete !== null) {
+    const appointment = state.appointments.find(
+      (item) => item.id === complete[1]
+    );
+    if (appointment === undefined) return;
+    appointment.status = result.status ?? 'completed';
+    appointment.updatedAt = now;
+    return;
+  }
+  const noShow = /^\/bookings\/([^/]+)\/no-show$/.exec(path);
+  if (noShow !== null) {
+    const appointment = state.appointments.find(
+      (item) => item.id === noShow[1]
+    );
+    if (appointment === undefined) return;
+    appointment.status = result.status ?? 'no_show';
+    appointment.updatedAt = now;
+    const slot = state.slots.find((item) => item.id === appointment.slotId);
+    releaseOverlaySlot(slot, appointment.id);
+    return;
+  }
+  const reschedule = /^\/bookings\/([^/]+)\/reschedule$/.exec(path);
+  if (reschedule === null) return;
+  const appointment = state.appointments.find(
+    (item) => item.id === reschedule[1]
+  );
+  if (appointment === undefined) return;
+  const targetSlotId =
+    typeof body.targetSlotId === 'string' ? body.targetSlotId : body.slotId;
+  const previous = state.slots.find((item) => item.id === appointment.slotId);
+  releaseOverlaySlot(previous, appointment.id);
+  appointment.slotId = targetSlotId;
+  appointment.startsAt = result.startsAt;
+  appointment.status = result.status ?? 'confirmed';
+  appointment.updatedAt = now;
+  const next = state.slots.find((item) => item.id === targetSlotId);
+  if (next !== undefined) next.reservationId = appointment.id;
 }
 
 function renderSession() {
@@ -1013,27 +1139,31 @@ elements['booking-form'].addEventListener('submit', async (event) => {
       'booking-form-status'
     );
   const bookedSlotId = selectedSlotId;
+  const patient = {
+    name: elements['booking-name'].value,
+    phone: elements['booking-phone'].value,
+    birthDate: elements['booking-birth'].value,
+    nationalId: elements['booking-national-id'].value,
+    hasNhiCard: elements['booking-nhi-card'].checked
+  };
   await runUiAction({
     control: event.submitter,
     pendingLabel: '建立中…',
     pendingMessage: '正在建立預約，請稍候。',
     anchorId: 'booking-form-status',
-    action: () =>
-      post('/bookings', {
+    action: () => {
+      const owner = upsertPatient(state, patient);
+      return post('/bookings', {
         slotId: bookedSlotId,
         bookingKind: elements['booking-kind'].value,
         itemIds,
         noteTags,
         noteText: elements['booking-note'].value,
-        patient: {
-          name: elements['booking-name'].value,
-          phone: elements['booking-phone'].value,
-          birthDate: elements['booking-birth'].value,
-          nationalId: elements['booking-national-id'].value,
-          hasNhiCard: elements['booking-nhi-card'].checked
-        },
+        patient,
+        onBehalfPatientId: owner.id,
         origin: 'staff'
-      }),
+      });
+    },
     onSuccess: () => {
       // 成功訊息講清楚建立哪一筆，操作者不必捲到清單才能確認。
       const created = state.appointments.find(
@@ -1570,7 +1700,8 @@ elements['publish-schedule'].addEventListener('click', async () => {
     // 送出畫面所根據的版本；若另一分頁已發布，store 會擋下而不靜默覆蓋。
     action: () =>
       post('/schedule/publish', {
-        expectedVersion: state.scheduleMeta.publishedVersion
+        expectedVersion: state.scheduleMeta.publishedVersion,
+        schedule: state.scheduleDraft
       }),
     onSuccess: () =>
       message(
@@ -1921,10 +2052,15 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
   elements['main-content'].focus({ preventScroll: true });
 });
 
-if (!isOnline) elements['environment-label'].textContent = 'LOCAL TEST ONLY';
+if (isInternalTestBookingEnabled()) {
+  elements['environment-label'].textContent = 'INTERNAL TEST';
+} else if (!isOnline) {
+  elements['environment-label'].textContent = 'LOCAL TEST ONLY';
+}
 
 try {
-  state = await apiClient.request('/state');
+  client = await resolveApiClient();
+  state = await client.request('/state');
   enforceRoleDomBoundary();
   let accessDenied = false;
   initWorkspaceTabs({

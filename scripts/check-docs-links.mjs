@@ -156,7 +156,12 @@ export const STALE_CLAIMS = [
   [
     'docs/architecture/api-v1-contract.md',
     /only the health endpoint is routed|Only health is routed|\/v1\/health` remains the only route/,
-    'contract nav must list health plus the CAL-PILOT exception; formal booking stays unrouted'
+    'contract nav must list health, CAL-PILOT, and IP-001 fail-closed booking; public production booking stays unrouted'
+  ],
+  [
+    'docs/architecture/api-v1-contract.md',
+    /Schedule publish[\s\S]{0,240}Unrouted Stage 0 schema/,
+    'IP-001 fail-closed POST /v1/schedule/publish is routed; D-004 still blocks public production'
   ],
   [
     'docs/architecture/test-strategy.md',

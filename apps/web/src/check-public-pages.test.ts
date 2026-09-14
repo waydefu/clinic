@@ -170,6 +170,44 @@ function fixture() {
         ]
       }
     },
+    isolatedFirebase: {
+      hosting: {
+        redirects: [
+          {
+            source: '/',
+            destination: '/clinic',
+            type: 302
+          },
+          {
+            source: '/index.html',
+            destination: '/staff',
+            type: 301
+          },
+          {
+            source: '/patient.html',
+            destination: '/booking',
+            type: 301
+          },
+          {
+            source: '/privacy.html',
+            destination: '/privacy',
+            type: 301
+          },
+          {
+            source: '/clinic.html',
+            destination: '/clinic',
+            type: 301
+          }
+        ],
+        rewrites: [
+          { source: '/staff', destination: '/index.html' },
+          { source: '/booking', destination: '/patient.html' },
+          { source: '/privacy', destination: '/privacy.html' },
+          { source: '/clinic', destination: '/clinic.html' },
+          { source: '/clinic/**', destination: '/clinic.html' }
+        ]
+      }
+    },
     buildIndexableEntries: ['patient.html', 'privacy.html'],
     scanSources: {
       axe: scanSource([], 'axe'),
@@ -192,6 +230,22 @@ describe('checkPublicPageConfiguration', () => {
     expect(result.failures).toEqual([]);
     expect(result.pageCount).toBe(5);
     expect(result.dataRouteCount).toBe(3);
+  });
+
+  it('rejects a Cloud Run rewrite on the isolated preview config', () => {
+    const input = fixture();
+    input.isolatedFirebase.hosting.rewrites.unshift({
+      source: '/v1/**',
+      run: {
+        serviceId: 'cal-pilot-api',
+        region: 'asia-east1',
+        pinTag: true
+      }
+    });
+
+    expect(failuresOf(input)).toContainEqual(
+      expect.stringContaining('不得宣告 Cloud Run rewrite')
+    );
   });
 
   it('接受登錄裡存在的 requiresDecision 引用', () => {

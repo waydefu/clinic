@@ -78,18 +78,38 @@ const harnessRepository: AppointmentRepositoryPort = {
   reserve: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:00:00.000Z'
     }),
   reschedule: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:30:00.000Z'
     }),
-  transition: () =>
+  transition: (request) =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
       replayed: false,
-      status: 'cancelled'
+      status:
+        request.transition === 'complete'
+          ? 'completed'
+          : request.transition === 'no_show'
+            ? 'no_show'
+            : 'cancelled'
+    }),
+  recordFollowUp: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      decision: 'required' as const,
+      dueAt: '2030-01-02T04:15:00.000Z'
+    }),
+  deleteAppointment: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      auditEventId: 'audit_appointment_harness_001_deleted_key'
     }),
   read: () =>
     Promise.resolve(
@@ -175,6 +195,52 @@ describe('unrouted AppointmentController RBAC harness', () => {
     expect(response.statusCode).toBe(401);
   });
 
+  it('rejects a staff create that names no on-behalf patient with 401', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: CREATE_BODY,
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('lets a manager create on behalf of an opaque patient id', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: {
+        ...CREATE_BODY,
+        onBehalfPatientId: 'patient_opaque_002'
+      },
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
+    });
+  });
+
+  it('rejects a patient creating on behalf of another patient with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: {
+        ...CREATE_BODY,
+        onBehalfPatientId: 'patient_opaque_002'
+      },
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
   it('rejects a suspended account with 401', async () => {
     const harness = await startHarness();
     const response = await harness.inject({
@@ -214,9 +280,33 @@ describe('unrouted AppointmentController RBAC harness', () => {
     const response = await harness.inject({
       method: 'POST',
       url: '/v1/bookings/appointment_harness_001/delete',
+      payload: {
+        idempotencyKey: 'delete_request_0001',
+        reasonCode: 'created_in_error'
+      },
       headers: actorHeaders('front_desk')
     });
     expect(response.statusCode).toBe(403);
+  });
+
+  it('lets a manager delete with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/delete',
+      payload: {
+        idempotencyKey: 'delete_request_0001',
+        reasonCode: 'created_in_error'
+      },
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      deleted: true,
+      auditEventId: 'audit_appointment_harness_001_deleted_key'
+    });
   });
 
   it('lets a manager reschedule with 2xx', async () => {
@@ -231,7 +321,9 @@ describe('unrouted AppointmentController RBAC harness', () => {
     expect(response.statusCode).toBeLessThan(300);
     expect(response.json()).toEqual({
       appointmentId: 'appointment_harness_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
   });
 
@@ -289,6 +381,114 @@ describe('unrouted AppointmentController RBAC harness', () => {
       status: 'cancelled'
     });
   });
+
+  it('rejects a patient complete with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' },
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('rejects a physician complete with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' },
+      headers: actorHeaders('physician')
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('lets front desk complete with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' },
+      headers: actorHeaders('front_desk')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      status: 'completed'
+    });
+  });
+
+  it('lets a manager record no-show with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/no-show',
+      payload: { idempotencyKey: 'no_show_request_0001' },
+      headers: actorHeaders('manager')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      status: 'no_show'
+    });
+  });
+
+  it('rejects a patient follow-up with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      },
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('rejects a physician follow-up with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      },
+      headers: actorHeaders('physician')
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('lets front desk record follow-up with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      },
+      headers: actorHeaders('front_desk')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      decision: 'required',
+      dueAt: '2030-01-02T04:15:00.000Z'
+    });
+  });
 });
 
 describe('production AppModule booking write path', () => {
@@ -325,4 +525,157 @@ describe('production AppModule booking write path', () => {
     expect(getResponse.statusCode).toBe(503);
     expect(cancelResponse.statusCode).toBe(503);
   });
+
+  it('refuses reschedule while the IP-001 internal-test gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/reschedule',
+      payload: RESCHEDULE_BODY
+    });
+    expect(response.statusCode).toBe(503);
+  });
+
+  it('refuses complete, no-show and delete while the IP-001 internal-test gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const completeResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/complete',
+      payload: { idempotencyKey: 'complete_request_0001' }
+    });
+    const noShowResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/no-show',
+      payload: { idempotencyKey: 'no_show_request_0001' }
+    });
+    const deleteResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/delete',
+      payload: {
+        idempotencyKey: 'delete_request_0001',
+        reasonCode: 'created_in_error'
+      }
+    });
+    expect(completeResponse.statusCode).toBe(503);
+    expect(noShowResponse.statusCode).toBe(503);
+    expect(deleteResponse.statusCode).toBe(503);
+  });
+
+  it('refuses follow-up while the IP-001 internal-test gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/follow-up',
+      payload: {
+        idempotencyKey: 'follow_up_request_0001',
+        decision: 'required',
+        dueDate: '2030-01-02',
+        dueTime: '12:15'
+      }
+    });
+    expect(response.statusCode).toBe(503);
+  });
+
+  it('refuses schedule publish and slot list while the gate is closed', async () => {
+    app = await createApplication();
+    await app.init();
+    const slots = await app.inject({ method: 'GET', url: '/v1/slots' });
+    const schedule = await app.inject({ method: 'GET', url: '/v1/schedule' });
+    const publish = await app.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      payload: {
+        idempotencyKey: 'schedule_publish_0001',
+        expectedVersion: 0,
+        schedule: {
+          timeZone: 'Asia/Taipei',
+          weeklyAvailability: [],
+          dateExceptions: []
+        }
+      }
+    });
+    expect(slots.statusCode).toBe(503);
+    expect(schedule.statusCode).toBe(503);
+    expect(publish.statusCode).toBe(503);
+  });
+
+  it('opens the isolated-test gate to authentication, not a write', async () => {
+    const previous = {
+      enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
+      expires: process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'],
+      project: process.env['GOOGLE_CLOUD_PROJECT'],
+      emulator: process.env['FIRESTORE_EMULATOR_HOST']
+    };
+    process.env['INTERNAL_TEST_BOOKING_ENABLED'] = 'true';
+    process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'] =
+      '2099-01-01T00:00:00.000Z';
+    process.env['GOOGLE_CLOUD_PROJECT'] = 'beauessence-clinic-stg-c1a01';
+    delete process.env['FIRESTORE_EMULATOR_HOST'];
+    try {
+      app = await createApplication();
+      await app.init();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload: CREATE_BODY
+      });
+      expect(response.statusCode).toBe(401);
+      const complete = await app.inject({
+        method: 'POST',
+        url: '/v1/bookings/appointment_harness_001/complete',
+        payload: { idempotencyKey: 'complete_request_0001' }
+      });
+      expect(complete.statusCode).toBe(401);
+      const slots = await app.inject({ method: 'GET', url: '/v1/slots' });
+      expect(slots.statusCode).toBe(401);
+    } finally {
+      restoreInternalTestEnv(previous);
+    }
+  });
+
+  it('keeps forbidden staging closed even when the kill switch is on', async () => {
+    const previous = {
+      enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
+      expires: process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'],
+      project: process.env['GOOGLE_CLOUD_PROJECT'],
+      emulator: process.env['FIRESTORE_EMULATOR_HOST']
+    };
+    process.env['INTERNAL_TEST_BOOKING_ENABLED'] = 'true';
+    process.env['INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC'] =
+      '2099-01-01T00:00:00.000Z';
+    process.env['GOOGLE_CLOUD_PROJECT'] = 'beauessence-clinic-staging';
+    delete process.env['FIRESTORE_EMULATOR_HOST'];
+    try {
+      app = await createApplication();
+      await app.init();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload: CREATE_BODY
+      });
+      expect(response.statusCode).toBe(503);
+    } finally {
+      restoreInternalTestEnv(previous);
+    }
+  });
 });
+
+function restoreInternalTestEnv(previous: {
+  readonly enabled: string | undefined;
+  readonly expires: string | undefined;
+  readonly project: string | undefined;
+  readonly emulator: string | undefined;
+}): void {
+  restoreEnv('INTERNAL_TEST_BOOKING_ENABLED', previous.enabled);
+  restoreEnv('INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC', previous.expires);
+  restoreEnv('GOOGLE_CLOUD_PROJECT', previous.project);
+  restoreEnv('FIRESTORE_EMULATOR_HOST', previous.emulator);
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}

@@ -44,6 +44,9 @@ export const APPOINTMENTS_COLLECTION = 'appointments';
  * 用預約的**目前**狀態而不是工作建立時的狀態：工作可能等到退避結束才執行，
  * 期間預約已被取消或完成——這時再把事件寫回日曆就是錯的。
  *
+ * 刪除例外：紀錄已不存在，活狀態讀不到。此時用工作上的 `appointmentStatus`
+ * （`planDeletion` 寫入 `deleted`），才能把同一把日曆事件取消。
+ *
  * 到診刪除的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同 event id、
  * 落在回診目標日），由回診投影負責，不受這裡影響。
  */
@@ -364,8 +367,14 @@ export class OutboxProcessor {
         .doc(job.appointmentId)
         .get();
 
-      const appointmentStatus =
-        (appointment.data()?.['status'] as string) ?? 'unknown';
+      const recorded = appointment.data();
+      const liveStatus =
+        recorded !== undefined && typeof recorded['status'] === 'string'
+          ? recorded['status']
+          : undefined;
+      const appointmentStatus = appointment.exists
+        ? (liveStatus ?? 'unknown')
+        : (job.appointmentStatus ?? 'unknown');
       // 一般預約必須看執行當下的來源狀態，避免重試把已完成／取消的事件寫回。
       // 回診提醒則是另一個 event ID，動作由該投影自己的狀態決定；來源預約本來
       // 就必須是 completed，若誤用來源狀態會把新提醒當成 cancel。

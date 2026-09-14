@@ -33,6 +33,7 @@ export const E2E_GROUPS = {
   ],
   'patient-portal': [
     'clinic-site.spec.ts',
+    'internal-test-booking.spec.ts',
     'patient-booking.spec.ts',
     'privacy-policy.spec.ts',
     'public-404-recovery.spec.ts'

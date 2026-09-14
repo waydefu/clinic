@@ -44,6 +44,9 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     );
     expect(c5).toContain('firestore.googleapis.com');
     expect(c5).toContain('POINT_IN_TIME_RECOVERY_ENABLED');
+    expect(c5).toContain('google_firestore_backup_schedule');
+    expect(c5).toContain('2592000s');
+    expect(c5).toContain('daily_recurrence');
     expect(c5).toContain('location_id                       = var.region');
     expect(read('infra/terraform/c5-firestore/variables.tf')).toContain(
       'asia-east1'
@@ -59,6 +62,9 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     );
     expect(read('infra/terraform/c5-firestore/noop.tftest.hcl')).toContain(
       'POINT_IN_TIME_RECOVERY_ENABLED'
+    );
+    expect(read('infra/terraform/c5-firestore/noop.tftest.hcl')).toContain(
+      'google_firestore_backup_schedule.daily'
     );
     expect(read('infra/terraform/c6-calendar/noop.tftest.hcl')).toContain(
       'calendar-json.googleapis.com'
@@ -103,8 +109,10 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(session).toContain(
       "const SESSION_COOKIE_SCOPE = 'Path=/; HttpOnly; Secure; SameSite=Strict'"
     );
-    expect(session).toContain('const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000');
-    expect(session).toContain('const IDLE_SESSION_MS = 30 * 60 * 1000');
+    expect(session).toContain('STAFF_ABSOLUTE_SESSION_MS');
+    expect(session).toContain('evaluateStaffSession');
+    expect(session).not.toContain('const ABSOLUTE_SESSION_MS =');
+    expect(session).not.toContain('const IDLE_SESSION_MS =');
     expect(session).toContain(
       'if (user.disabled) throw new AuthenticationRequiredError()'
     );

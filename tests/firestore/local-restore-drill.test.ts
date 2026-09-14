@@ -18,6 +18,8 @@ import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
 } from '../../packages/config/src/index.js';
+import { InMemoryCalendar } from '../../apps/worker/src/calendar-port.js';
+import { createInternalTestOutboxRuntime } from '../../apps/worker/src/internal-test-outbox-runtime.js';
 import type { BookingRequest } from '@beauessence/domain';
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
@@ -55,7 +57,7 @@ function bookingRequest(input: {
       reasonCode: 'local_restore_drill',
       policyVersion: null
     },
-    requestedAt: '2026-07-26T08:00:00.000Z',
+    requestedAt: '2029-12-15T09:00:00.000Z',
     idempotency: createAppointmentIdempotency({
       key: input.key,
       actorId,
@@ -184,8 +186,29 @@ describe('local logical restore drill', () => {
     const restoredRepository = new FirestoreBookingRepository(restored);
     await expect(restoredRepository.reserve(firstRequest)).resolves.toEqual({
       appointmentId: 'appointment_restore_001',
-      replayed: true
+      replayed: true,
+      startsAt: '2030-01-02T04:00:00.000Z'
     });
+
+    const calendar = new InMemoryCalendar();
+    const outbox = createInternalTestOutboxRuntime({
+      db: restored,
+      calendar,
+      clock: () => '2029-12-15T09:00:00.000Z',
+      random: () => 0.5
+    });
+    await expect(outbox.run()).resolves.toMatchObject({
+      summary: { claimed: 1, completed: 1 },
+      snapshot: { deadLettered: 0 },
+      alerts: []
+    });
+    const [event] = [...calendar.events.values()];
+    expect(event).toMatchObject({
+      appointmentId: 'appointment_restore_001',
+      appointmentStatus: 'confirmed'
+    });
+    expect(event).not.toHaveProperty('patientName');
+    expect(event).not.toHaveProperty('nationalId');
 
     // V5: the restored database accepts a new booking and a terminal command
     // through the real repository transaction path.

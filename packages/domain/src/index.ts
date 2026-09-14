@@ -20,6 +20,7 @@ export * from './patient-identity.js';
 export * from './payroll.js';
 export * from './roles.js';
 export * from './schedule.js';
+export * from './published-schedule.js';
 export * from './staff-auth-parameters.js';
 export * from './staff-idp-mapping.js';
 export * from './staff-session.js';

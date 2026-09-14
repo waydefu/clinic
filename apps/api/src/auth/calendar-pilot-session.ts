@@ -2,12 +2,14 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import type { Auth, DecodedIdToken } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
+import {
+  STAFF_ABSOLUTE_SESSION_MS,
+  evaluateStaffSession
+} from '@beauessence/domain';
 
 import type { AuthenticationContext } from './authentication-context.js';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
-const ABSOLUTE_SESSION_MS = 8 * 60 * 60 * 1000;
-const IDLE_SESSION_MS = 30 * 60 * 1000;
 // Firebase Hosting strips incoming cookies before Cloud Run rewrites, except
 // the exact name `__session`. See Hosting cache docs, "Using cookies".
 export const CALENDAR_PILOT_COOKIE = '__session';
@@ -101,16 +103,22 @@ export function isCalendarPilotSessionActive(
   session: CalendarPilotSessionRecord,
   actorId: string,
   role: CalendarPilotStaffRole,
-  now: string
+  now: string,
+  accountDisabled = false
 ): boolean {
-  const nowMs = Date.parse(now);
-  return (
-    session.actorId === actorId &&
-    session.actorRole === role &&
-    session.revokedAt === null &&
-    nowMs < Date.parse(session.expiresAt) &&
-    nowMs - Date.parse(session.lastSeenAt) < IDLE_SESSION_MS
-  );
+  if (
+    session.actorId !== actorId ||
+    session.actorRole !== role ||
+    session.revokedAt !== null
+  ) {
+    return false;
+  }
+  return evaluateStaffSession({
+    now,
+    issuedAt: session.createdAt,
+    lastSeenAt: session.lastSeenAt,
+    accountDisabled
+  }).active;
 }
 
 /**
@@ -143,12 +151,12 @@ export class CalendarPilotSessionService {
     if (user.disabled) throw new AuthenticationRequiredError();
 
     const cookieValue = await this.auth.createSessionCookie(idToken, {
-      expiresIn: ABSOLUTE_SESSION_MS
+      expiresIn: STAFF_ABSOLUTE_SESSION_MS
     });
     const sessionId = digest(cookieValue);
     const csrfToken = randomBytes(32).toString('base64url');
     const expiresAt = new Date(
-      Date.parse(now) + ABSOLUTE_SESSION_MS
+      Date.parse(now) + STAFF_ABSOLUTE_SESSION_MS
     ).toISOString();
     const record: CalendarPilotSessionRecord = {
       actorId: decoded.uid,
@@ -166,7 +174,7 @@ export class CalendarPilotSessionService {
     return {
       cookieName: CALENDAR_PILOT_COOKIE,
       cookieValue,
-      cookieMaxAgeSeconds: ABSOLUTE_SESSION_MS / 1000,
+      cookieMaxAgeSeconds: STAFF_ABSOLUTE_SESSION_MS / 1000,
       csrfToken,
       authentication: { actorId: decoded.uid, actorRole: role }
     };
@@ -198,7 +206,15 @@ export class CalendarPilotSessionService {
       const document = await transaction.get(ref);
       if (!document.exists) throw new AuthenticationRequiredError();
       const session = document.data() as CalendarPilotSessionRecord;
-      if (!isCalendarPilotSessionActive(session, decoded.uid, role, now))
+      if (
+        !isCalendarPilotSessionActive(
+          session,
+          decoded.uid,
+          role,
+          now,
+          user.disabled
+        )
+      )
         throw new AuthenticationRequiredError();
       transaction.update(ref, { lastSeenAt: now });
     });

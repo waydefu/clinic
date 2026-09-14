@@ -26,6 +26,7 @@ let db: Firestore;
 let repository: FirestoreBookingRepository;
 
 const NOW = '2026-07-21T09:00:00.000Z';
+const WITHIN_HORIZON_AT = '2029-12-15T09:00:00.000Z';
 const SLOT_A = 'slot_20300102_1200';
 const SLOT_B = 'slot_20300102_1230';
 const FOLLOW_UP_SLOT = 'slot_20300102_1215';
@@ -149,7 +150,7 @@ describe('appointment transitions in a Firestore transaction', () => {
         reasonCode: null,
         policyVersion: null
       },
-      requestedAt: NOW,
+      requestedAt: WITHIN_HORIZON_AT,
       idempotency: createAppointmentIdempotency({
         key: 'idem_rebook_001',
         actorId: 'actor_front_desk_001',
@@ -162,7 +163,8 @@ describe('appointment transitions in a Firestore transaction', () => {
 
     expect(result).toEqual({
       appointmentId: 'appointment_002',
-      replayed: false
+      replayed: false,
+      startsAt: '2030-01-02T04:00:00.000Z'
     });
     expect((await slotState(SLOT_A))?.['reservationId']).toBe(
       'appointment_002'
@@ -320,7 +322,7 @@ describe('reschedule in a Firestore transaction', () => {
         reasonCode: 'test_operator_reschedule',
         policyVersion: null
       },
-      requestedAt: NOW,
+      requestedAt: WITHIN_HORIZON_AT,
       idempotency: rescheduleAppointmentIdempotency({
         key,
         actorId: 'actor_front_desk_001',
@@ -340,7 +342,7 @@ describe('reschedule in a Firestore transaction', () => {
     expect((await slotState(SLOT_B))?.['reservationId']).toBe(APPOINTMENT);
     expect((await patientGuardState()).data()).toEqual({
       activeAppointmentIds: [APPOINTMENT],
-      updatedAt: NOW
+      updatedAt: WITHIN_HORIZON_AT
     });
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
     expect(AuditEventV2Schema.parse(audits.docs[0]?.data())).toMatchObject({
@@ -381,7 +383,7 @@ describe('reschedule in a Firestore transaction', () => {
         reasonCode: null,
         policyVersion: null
       },
-      requestedAt: NOW,
+      requestedAt: WITHIN_HORIZON_AT,
       idempotency: createAppointmentIdempotency({
         key: 'idem_second_active',
         actorId: 'actor_front_desk_001',

@@ -71,6 +71,19 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain(
       'google_pubsub_topic_iam_member.monitoring_publisher'
     );
+    expect(main).toContain('google_monitoring_alert_policy');
+    expect(main).toContain('c1-iam-setiampolicy');
+    expect(main).toContain(
+      'google_monitoring_notification_channel.budget_pubsub[0].name'
+    );
+    expect(main).not.toMatch(/type\s*=\s*"email"/);
+    expect(read('infra/terraform/c1-foundation/noop.tftest.hcl')).toContain(
+      'google_monitoring_alert_policy.iam_setiampolicy'
+    );
+    expect(read('scripts/c1-smoke-evidence.mjs')).not.toContain('alertPolicy');
+    expect(read('scripts/c1-smoke-evidence.mjs')).not.toContain(
+      'google_monitoring_alert_policy'
+    );
     expect(read('infra/terraform/c1-foundation/README.md')).toContain(
       'docs/runbooks/c1-local-execution-packet.md'
     );

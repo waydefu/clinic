@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start:calendar-pilot": "node dist/calendar-sync/calendar-pilot-main.js"
+    "start:calendar-pilot": "node dist/calendar-sync/calendar-pilot-main.js",
+    "start:internal-test-outbox": "node dist/internal-test-outbox-main.js"
   },
   "dependencies": {
     "@beauessence/domain": "workspace:*",

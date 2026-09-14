@@ -38,3 +38,31 @@ export function bookingHorizonEndExclusive(taipeiToday) {
         .toISOString()
         .slice(0, 10);
 }
+function utcMs(value) {
+    const ms = Date.parse(value);
+    if (!Number.isFinite(ms)) {
+        throw new DomainError('INVALID_VALUE', 'The appointment start must be a parseable timestamp.');
+    }
+    return ms;
+}
+export function taipeiCalendarDate(isoUtc) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date(utcMs(isoUtc)));
+}
+export function assertSlotNotInPast(slotStartsAt, requestedAt) {
+    if (utcMs(slotStartsAt) < utcMs(requestedAt)) {
+        throw new DomainError('SLOT_UNAVAILABLE', 'The slot does not exist or is already reserved.');
+    }
+}
+/** Last bookable Taipei date is exclusive-end minus one day (IP-001 / D-004). */
+export function assertSlotWithinBookingHorizon(slotStartsAt, requestedAt) {
+    const slotDay = taipeiCalendarDate(slotStartsAt);
+    const horizonEnd = bookingHorizonEndExclusive(taipeiCalendarDate(requestedAt));
+    if (slotDay >= horizonEnd) {
+        throw new DomainError('SLOT_UNAVAILABLE', 'The slot does not exist or is already reserved.');
+    }
+}

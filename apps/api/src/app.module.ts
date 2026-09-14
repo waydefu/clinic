@@ -12,7 +12,7 @@ import { NoStoreInterceptor } from './platform/runtime/no-store.interceptor.js';
  * default. Public production `/v1/bookings` stays unauthorised.
  */
 @Module({
-  imports: [CalendarPilotModule, InternalTestBookingModule],
+  imports: [CalendarPilotModule, InternalTestBookingModule.register()],
   controllers: [HealthController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor }]
 })

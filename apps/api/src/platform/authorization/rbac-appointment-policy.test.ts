@@ -149,6 +149,39 @@ describe('createRbacAppointmentPolicy', () => {
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 
+  it('lets front-desk complete and denies a patient or physician', async () => {
+    await expect(
+      policyFor('front_desk').assertCanComplete(context(), {})
+    ).resolves.toBeUndefined();
+    await expect(
+      policyFor('patient').assertCanComplete(
+        context({ verifiedPatientId: 'patient_001' }),
+        { appointmentPatientId: 'patient_001' }
+      )
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    await expect(
+      policyFor('physician').assertCanComplete(context(), {})
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
+  it('lets front-desk decide follow-up and denies a patient or physician', async () => {
+    await expect(
+      policyFor('front_desk').assertCanDecideFollowUp(context(), {})
+    ).resolves.toBeUndefined();
+    await expect(
+      policyFor('consultant').assertCanDecideFollowUp(context(), {})
+    ).resolves.toBeUndefined();
+    await expect(
+      policyFor('patient').assertCanDecideFollowUp(
+        context({ verifiedPatientId: 'patient_001' }),
+        { appointmentPatientId: 'patient_001' }
+      )
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    await expect(
+      policyFor('physician').assertCanDecideFollowUp(context(), {})
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
   it('lets a manager delete and denies the front desk', async () => {
     await expect(
       policyFor('manager').assertCanDelete(context())

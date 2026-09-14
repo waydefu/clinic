@@ -1,10 +1,13 @@
 import type {
   CancelAppointmentRequest,
   CreateAppointmentRequest,
+  DeleteAppointmentRequest,
+  RecordFollowUpRequest,
   RescheduleAppointmentRequest
 } from '@beauessence/contracts';
 import type {
   BookingRequest,
+  DeleteAppointmentRequest as DomainDeleteAppointmentRequest,
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
@@ -18,6 +21,7 @@ import {
   toBookingRequest,
   toRescheduleRequest
 } from './appointment.application-service.js';
+import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
 import {
   createAppointmentIdempotency,
   rescheduleAppointmentIdempotency
@@ -26,6 +30,7 @@ import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
 import type {
   AppointmentRecord,
   AppointmentRepositoryPort,
+  DeletionResult,
   ReservationResult,
   TransitionResult
 } from './appointment.repository-port.js';
@@ -52,6 +57,18 @@ const CANCEL_COMMAND: CancelAppointmentRequest = {
   idempotencyKey: 'cancel_request_0001'
 };
 
+const FOLLOW_UP_COMMAND: RecordFollowUpRequest = {
+  idempotencyKey: 'follow_up_request_0001',
+  decision: 'required',
+  dueDate: '2030-01-02',
+  dueTime: '12:15'
+};
+
+const DELETE_COMMAND: DeleteAppointmentRequest = {
+  idempotencyKey: 'delete_request_0001',
+  reasonCode: 'created_in_error'
+};
+
 const OPEN_RECORD: AppointmentRecord = {
   appointmentId: 'appointment_server_001',
   patientId: 'patient_opaque_001',
@@ -67,7 +84,8 @@ function createBoundary() {
   >(() =>
     Promise.resolve({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:00:00.000Z'
     })
   );
   const reschedule = vi.fn<
@@ -75,7 +93,8 @@ function createBoundary() {
   >(() =>
     Promise.resolve({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      replayed: false,
+      startsAt: '2026-07-25T04:30:00.000Z'
     })
   );
   const patientIdOf = vi.fn<() => Promise<string | undefined>>(() =>
@@ -93,6 +112,23 @@ function createBoundary() {
       status: 'cancelled'
     })
   );
+  const recordFollowUp = vi.fn(() =>
+    Promise.resolve({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      decision: 'required' as const,
+      dueAt: '2030-01-02T04:15:00.000Z'
+    })
+  );
+  const deleteAppointment = vi.fn<
+    (request: DomainDeleteAppointmentRequest) => Promise<DeletionResult>
+  >(() =>
+    Promise.resolve({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      auditEventId: 'audit_appointment_server_001_deleted_key'
+    })
+  );
   const assertCanCreate = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCreate']
   >(() => Promise.resolve());
@@ -101,6 +137,12 @@ function createBoundary() {
   >(() => Promise.resolve());
   const assertCanCancel = vi.fn<
     AppointmentAuthorizationPolicy['assertCanCancel']
+  >(() => Promise.resolve());
+  const assertCanComplete = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanComplete']
+  >(() => Promise.resolve());
+  const assertCanDecideFollowUp = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanDecideFollowUp']
   >(() => Promise.resolve());
   const assertCanQuery = vi.fn<
     AppointmentAuthorizationPolicy['assertCanQuery']
@@ -113,12 +155,16 @@ function createBoundary() {
     reschedule,
     patientIdOf,
     read,
-    transition
+    transition,
+    recordFollowUp,
+    deleteAppointment
   };
   const authorization: AppointmentAuthorizationPolicy = {
     assertCanCreate,
     assertCanReschedule,
     assertCanCancel,
+    assertCanComplete,
+    assertCanDecideFollowUp,
     assertCanQuery,
     assertCanDelete
   };
@@ -134,12 +180,17 @@ function createBoundary() {
     assertCanCreate,
     assertCanReschedule,
     assertCanCancel,
+    assertCanComplete,
+    assertCanDecideFollowUp,
     assertCanQuery,
+    assertCanDelete,
     patientIdOf,
     read,
     reserve,
     reschedule,
     transition,
+    recordFollowUp,
+    deleteAppointment,
     service
   };
 }
@@ -150,7 +201,9 @@ describe('AppointmentApplicationService', () => {
 
     await expect(service.create(COMMAND, AUTHENTICATION)).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
     });
 
     expect(assertCanCreate).toHaveBeenCalledWith(AUTHENTICATION, COMMAND);
@@ -166,7 +219,7 @@ describe('AppointmentApplicationService', () => {
         correlationId: 'corr_server_001',
         source: 'api',
         reasonCode: null,
-        policyVersion: null
+        policyVersion: 'privacy-v1'
       },
       requestedAt: '2026-07-23T14:30:00.000Z',
       idempotency: createAppointmentIdempotency({
@@ -191,6 +244,57 @@ describe('AppointmentApplicationService', () => {
     ).rejects.toBeInstanceOf(MissingVerifiedPatientError);
     expect(assertCanCreate).not.toHaveBeenCalled();
     expect(reserve).not.toHaveBeenCalled();
+  });
+
+  it('lets staff create on behalf of an opaque patient id', async () => {
+    const { assertCanCreate, reserve, service } = createBoundary();
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+    const command = {
+      ...COMMAND,
+      onBehalfPatientId: 'patient_opaque_002'
+    };
+
+    await expect(service.create(command, staff)).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
+    });
+    expect(assertCanCreate).toHaveBeenCalledWith(staff, command);
+    expect(reserve.mock.calls[0]?.[0]).toMatchObject({
+      patientId: 'patient_opaque_002'
+    });
+  });
+
+  it('ignores a matching on-behalf id and refuses a different one', async () => {
+    const { assertCanCreate, reserve, service } = createBoundary();
+
+    await expect(
+      service.create(
+        { ...COMMAND, onBehalfPatientId: 'patient_opaque_001' },
+        AUTHENTICATION
+      )
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      endsAt: '2026-07-25T04:30:00.000Z'
+    });
+    expect(reserve.mock.calls[0]?.[0]).toMatchObject({
+      patientId: 'patient_opaque_001'
+    });
+
+    await expect(
+      service.create(
+        { ...COMMAND, onBehalfPatientId: 'patient_opaque_002' },
+        AUTHENTICATION
+      )
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(assertCanCreate).toHaveBeenCalledTimes(1);
+    expect(reserve).toHaveBeenCalledTimes(1);
   });
 
   it('keeps retry identity stable when server execution metadata changes', () => {
@@ -246,7 +350,9 @@ describe('AppointmentApplicationService reschedule', () => {
       )
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
 
     expect(assertCanReschedule).toHaveBeenCalledWith(AUTHENTICATION, {
@@ -285,7 +391,9 @@ describe('AppointmentApplicationService reschedule', () => {
       service.reschedule('appointment_server_001', RESCHEDULE_COMMAND, staff)
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      replayed: false
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
     });
     expect(assertCanReschedule).toHaveBeenCalledWith(staff, {
       appointmentPatientId: 'patient_opaque_001'
@@ -293,6 +401,47 @@ describe('AppointmentApplicationService reschedule', () => {
     expect(reschedule.mock.calls[0]?.[0]).not.toHaveProperty(
       'expectedPatientId'
     );
+  });
+
+  it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
+    const { read, reschedule, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        RESCHEDULE_COMMAND,
+        AUTHENTICATION
+      )
+    ).rejects.toMatchObject<Partial<DomainError>>({
+      code: 'CANCELLATION_WINDOW_CLOSED'
+    });
+    expect(reschedule).not.toHaveBeenCalled();
+  });
+
+  it('lets staff reschedule after the patient cutoff', async () => {
+    const { read, reschedule, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      startsAt: '2026-07-23T04:00:00.000Z'
+    });
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+
+    await expect(
+      service.reschedule('appointment_server_001', RESCHEDULE_COMMAND, staff)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:30:00.000Z',
+      endsAt: '2026-07-25T05:00:00.000Z'
+    });
+    expect(reschedule).toHaveBeenCalled();
   });
 
   it('keeps retry identity stable when server execution metadata changes', () => {
@@ -345,9 +494,11 @@ describe('AppointmentApplicationService reschedule', () => {
   });
 
   it('scopes reschedule authorization to the appointment owner', async () => {
-    const { assertCanReschedule, patientIdOf, reschedule, service } =
-      createBoundary();
-    patientIdOf.mockResolvedValueOnce('patient_other');
+    const { assertCanReschedule, read, reschedule, service } = createBoundary();
+    read.mockResolvedValueOnce({
+      ...OPEN_RECORD,
+      patientId: 'patient_other'
+    });
     assertCanReschedule.mockRejectedValueOnce(new Error('denied'));
 
     await expect(
@@ -447,85 +598,124 @@ describe('AppointmentApplicationService cancel', () => {
   });
 });
 
-describe('AppointmentApplicationService query', () => {
-  it('returns opaque identifiers and computed end time', async () => {
-    const { assertCanQuery, service } = createBoundary();
+describe('AppointmentApplicationService complete and no-show', () => {
+  const STAFF: AuthenticationContext = {
+    actorId: 'actor_verified_001',
+    actorRole: 'test_front_desk'
+  };
+
+  it('lets staff complete a confirmed visit', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    transition.mockResolvedValueOnce({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'completed'
+    });
 
     await expect(
-      service.get('appointment_server_001', AUTHENTICATION)
+      service.complete('appointment_server_001', CANCEL_COMMAND, STAFF)
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      status: 'confirmed',
-      startsAt: '2026-07-25T04:00:00.000Z',
-      endsAt: '2026-07-25T04:30:00.000Z'
+      status: 'completed'
     });
-    expect(assertCanQuery).toHaveBeenCalledWith(AUTHENTICATION, {
-      appointmentPatientId: 'patient_opaque_001'
-    });
-  });
-
-  it('does not reveal a missing row to a patient', async () => {
-    const { assertCanQuery, read, service } = createBoundary();
-    read.mockResolvedValueOnce(undefined);
-    assertCanQuery.mockRejectedValueOnce(new Error('denied'));
-
-    await expect(
-      service.get('appointment_server_001', AUTHENTICATION)
-    ).rejects.toThrow('denied');
-  });
-});
-
-describe('AppointmentApplicationService cancel', () => {
-  it('lets a patient cancel immediately before the day-10:00 cutoff', async () => {
-    const { assertCanCancel, transition, service } = createBoundary();
-
-    await expect(
-      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
-    ).resolves.toEqual({
-      appointmentId: 'appointment_server_001',
-      status: 'cancelled'
-    });
-    expect(assertCanCancel).toHaveBeenCalledWith(AUTHENTICATION, {
+    expect(assertCanComplete).toHaveBeenCalledWith(STAFF, {
       appointmentPatientId: 'patient_opaque_001'
     });
     expect(transition.mock.calls[0]?.[0]).toMatchObject({
       appointmentId: 'appointment_server_001',
-      transition: 'cancel'
+      transition: 'complete'
     });
   });
 
-  it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
-    const { read, transition, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
+  it('lets staff record no-show', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    transition.mockResolvedValueOnce({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'no_show'
     });
 
     await expect(
-      service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
-    ).rejects.toMatchObject<Partial<DomainError>>({
-      code: 'CANCELLATION_WINDOW_CLOSED'
+      service.markNoShow('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'no_show'
     });
+    expect(assertCanComplete).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      transition: 'no_show'
+    });
+  });
+
+  it('does not persist complete when authorization denies', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    assertCanComplete.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.complete('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).rejects.toThrow('denied');
     expect(transition).not.toHaveBeenCalled();
   });
 
-  it('lets staff cancel after the patient cutoff', async () => {
-    const { read, transition, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
-    });
-    const staff: AuthenticationContext = {
-      actorId: 'actor_verified_001',
-      actorRole: 'test_front_desk'
-    };
+  it('lets staff record a follow-up decision after authorization', async () => {
+    const { assertCanDecideFollowUp, recordFollowUp, service } =
+      createBoundary();
 
     await expect(
-      service.cancel('appointment_server_001', CANCEL_COMMAND, staff)
+      service.recordFollowUp('appointment_server_001', FOLLOW_UP_COMMAND, STAFF)
     ).resolves.toEqual({
       appointmentId: 'appointment_server_001',
-      status: 'cancelled'
+      decision: 'required',
+      dueAt: '2030-01-02T04:15:00.000Z'
     });
-    expect(transition).toHaveBeenCalled();
+    expect(assertCanDecideFollowUp).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(recordFollowUp.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      decision: 'required',
+      dueDate: '2030-01-02',
+      dueTime: '12:15'
+    });
+  });
+
+  it('does not persist follow-up when authorization denies', async () => {
+    const { assertCanDecideFollowUp, recordFollowUp, service } =
+      createBoundary();
+    assertCanDecideFollowUp.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.recordFollowUp('appointment_server_001', FOLLOW_UP_COMMAND, STAFF)
+    ).rejects.toThrow('denied');
+    expect(recordFollowUp).not.toHaveBeenCalled();
+  });
+
+  it('lets a manager delete with a closed reason code after authorization', async () => {
+    const { assertCanDelete, deleteAppointment, service } = createBoundary();
+
+    await expect(
+      service.delete('appointment_server_001', DELETE_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      deleted: true,
+      auditEventId: 'audit_appointment_server_001_deleted_key'
+    });
+    expect(assertCanDelete).toHaveBeenCalledWith(STAFF);
+    expect(deleteAppointment.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      audit: { reasonCode: 'created_in_error' }
+    });
+  });
+
+  it('does not persist deletion when authorization denies', async () => {
+    const { assertCanDelete, deleteAppointment, service } = createBoundary();
+    assertCanDelete.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.delete('appointment_server_001', DELETE_COMMAND, STAFF)
+    ).rejects.toThrow('denied');
+    expect(deleteAppointment).not.toHaveBeenCalled();
   });
 });

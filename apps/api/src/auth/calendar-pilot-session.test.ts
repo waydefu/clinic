@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import {
+  STAFF_ABSOLUTE_SESSION_MS,
+  STAFF_IDLE_SESSION_MS
+} from '@beauessence/domain';
 
 import { CalendarPilotSessionController } from './calendar-pilot-session.controller.js';
 import {
@@ -68,42 +72,78 @@ describe('CAL-PILOT session policy', () => {
     expect(tokenHasTotpSecondFactor({ firebase: {} } as never)).toBe(false);
   });
 
-  it('enforces 30 minute idle, 8 hour absolute and revocation boundaries', () => {
+  it('enforces D-006 idle, absolute, disabled and revocation boundaries', () => {
+    const issuedAt = '2026-08-28T00:00:00.000Z';
+    const issuedMs = Date.parse(issuedAt);
     const record = {
       actorId: 'user_001',
       actorRole: 'manager' as const,
       csrfHash: '00',
-      createdAt: '2026-08-28T00:00:00.000Z',
-      lastSeenAt: '2026-08-28T07:30:01.000Z',
-      expiresAt: '2026-08-28T08:00:00.000Z',
+      createdAt: issuedAt,
+      lastSeenAt: issuedAt,
+      expiresAt: new Date(issuedMs + STAFF_ABSOLUTE_SESSION_MS).toISOString(),
       revokedAt: null
     };
+    expect(
+      isCalendarPilotSessionActive(
+        {
+          ...record,
+          lastSeenAt: new Date(
+            issuedMs + STAFF_ABSOLUTE_SESSION_MS - 60_000
+          ).toISOString()
+        },
+        'user_001',
+        'manager',
+        new Date(issuedMs + STAFF_ABSOLUTE_SESSION_MS - 1_000).toISOString()
+      )
+    ).toBe(true);
     expect(
       isCalendarPilotSessionActive(
         record,
         'user_001',
         'manager',
-        '2026-08-28T08:00:00.000Z'
+        new Date(issuedMs + STAFF_ABSOLUTE_SESSION_MS).toISOString()
       )
     ).toBe(false);
     expect(
       isCalendarPilotSessionActive(
-        { ...record, expiresAt: '2026-08-28T09:00:00.000Z' },
+        {
+          ...record,
+          expiresAt: new Date(
+            issuedMs + STAFF_ABSOLUTE_SESSION_MS + 3_600_000
+          ).toISOString()
+        },
         'user_001',
         'manager',
-        '2026-08-28T08:00:00.000Z'
+        new Date(issuedMs + STAFF_ABSOLUTE_SESSION_MS).toISOString()
       )
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      isCalendarPilotSessionActive(
+        record,
+        'user_001',
+        'manager',
+        new Date(issuedMs + STAFF_IDLE_SESSION_MS).toISOString()
+      )
+    ).toBe(false);
+    expect(
+      isCalendarPilotSessionActive(
+        record,
+        'user_001',
+        'manager',
+        new Date(issuedMs + 60_000).toISOString(),
+        true
+      )
+    ).toBe(false);
     expect(
       isCalendarPilotSessionActive(
         {
           ...record,
-          expiresAt: '2026-08-28T09:00:00.000Z',
-          revokedAt: '2026-08-28T07:50:00.000Z'
+          revokedAt: new Date(issuedMs + 60_000).toISOString()
         },
         'user_001',
         'manager',
-        '2026-08-28T08:00:00.000Z'
+        new Date(issuedMs + 120_000).toISOString()
       )
     ).toBe(false);
   });

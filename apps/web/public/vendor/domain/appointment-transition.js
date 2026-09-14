@@ -1,5 +1,6 @@
 import { assertReschedulable, assertSlotMeetsEarliestLead, assertTransitionAllowed, OPEN_STATUSES } from './appointment-rules.js';
 import { planAuditEvent } from './audit.js';
+import { assertSlotNotInPast, assertSlotWithinBookingHorizon } from './booking-horizon.js';
 import { patientBookingGuardHolds } from './booking-transaction.js';
 import { calendarEventIdForAppointment } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
@@ -232,7 +233,9 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
     }
     // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。
     assertReschedulable(appointment.status, appointment.slotId, targetSlot, appointment.bookingKind);
+    assertSlotNotInPast(targetSlot.startsAt, request.requestedAt);
     assertSlotMeetsEarliestLead(targetSlot.startsAt, request.requestedAt);
+    assertSlotWithinBookingHorizon(targetSlot.startsAt, request.requestedAt);
     assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
     const auditEvent = planAuditEvent({
         eventId: `audit_${appointment.id}_rescheduled_${targetSlot.id}_${request.idempotency.recordId}`,

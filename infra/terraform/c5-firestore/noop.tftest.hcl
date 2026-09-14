@@ -20,6 +20,11 @@ run "default_sha_is_noop" {
     condition     = length(google_firestore_database.synthetic) == 0
     error_message = "C5 must create zero Firestore databases when SHA is not_granted."
   }
+
+  assert {
+    condition     = length(google_firestore_backup_schedule.daily) == 0
+    error_message = "C5 must create zero backup schedules when SHA is not_granted."
+  }
 }
 
 run "named_sha_enables_native_firestore" {
@@ -74,6 +79,21 @@ run "named_sha_enables_native_firestore" {
       "calendar-json.googleapis.com"
     )
     error_message = "C5 must not enable Calendar JSON API; that is C6."
+  }
+
+  assert {
+    condition     = length(google_firestore_backup_schedule.daily) == 1
+    error_message = "C5 must create the daily backup schedule when SHA-gated apply is on."
+  }
+
+  assert {
+    condition     = google_firestore_backup_schedule.daily[0].retention == "2592000s"
+    error_message = "C5 daily backup retention must be 30 days (2592000s)."
+  }
+
+  assert {
+    condition     = google_firestore_backup_schedule.daily[0].database == "(default)"
+    error_message = "C5 daily backup must target the default database."
   }
 }
 

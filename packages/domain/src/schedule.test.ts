@@ -6,6 +6,7 @@ import { DomainError } from './errors.js';
 import {
   assertScheduleValid,
   assertScheduleVersionMatches,
+  assertSlotOnPublishedSchedule,
   followUpGridTimes,
   planSchedulePublication,
   planSlots,
@@ -389,5 +390,54 @@ describe('scheduleImpact and assertScheduleVersionMatches', () => {
     expect(codeOf(() => assertScheduleVersionMatches(2, current))).toBe(
       'SCHEDULE_VERSION_CONFLICT'
     );
+  });
+});
+
+describe('assertSlotOnPublishedSchedule', () => {
+  it('accepts a slot that planSlots would publish', () => {
+    const [slot] = planSlots(schedule, [], {
+      startDate: '2030-01-02',
+      dayCount: 1
+    });
+    expect(slot).toBeDefined();
+    expect(() => assertSlotOnPublishedSchedule(schedule, slot!)).not.toThrow();
+  });
+
+  it('rejects a closed date, a blocked time, and a weekly rest day', () => {
+    const [slot] = planSlots(schedule, [], {
+      startDate: '2030-01-02',
+      dayCount: 1
+    });
+    expect(
+      codeOf(() =>
+        assertSlotOnPublishedSchedule(
+          {
+            ...schedule,
+            dateExceptions: [{ date: '2030-01-02', kind: 'closed' }]
+          },
+          slot!
+        )
+      )
+    ).toBe('SLOT_UNAVAILABLE');
+
+    expect(
+      codeOf(() =>
+        assertSlotOnPublishedSchedule(schedule, {
+          id: 'slot_20300102_1300',
+          kind: 'initial',
+          startsAt: '2030-01-02T05:00:00.000Z'
+        })
+      )
+    ).toBe('SLOT_UNAVAILABLE');
+
+    expect(
+      codeOf(() =>
+        assertSlotOnPublishedSchedule(schedule, {
+          id: 'slot_20300106_1200',
+          kind: 'initial',
+          startsAt: '2030-01-06T04:00:00.000Z'
+        })
+      )
+    ).toBe('SLOT_UNAVAILABLE');
   });
 });

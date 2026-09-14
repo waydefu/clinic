@@ -4,6 +4,10 @@ import {
   assertWithinActiveBookingLimit
 } from './appointment-rules.js';
 import {
+  assertSlotNotInPast,
+  assertSlotWithinBookingHorizon
+} from './booking-horizon.js';
+import {
   planAuditEvent,
   type AuditContext,
   type AuditEventV2
@@ -279,7 +283,9 @@ export function planBooking(
     );
   }
   assertSlotBookable(slot, request.bookingKind);
+  assertSlotNotInPast(slot.startsAt, request.requestedAt);
   assertSlotMeetsEarliestLead(slot.startsAt, request.requestedAt);
+  assertSlotWithinBookingHorizon(slot.startsAt, request.requestedAt);
   const activeIds = patientBookingGuard?.activeAppointmentIds ?? [];
   assertWithinActiveBookingLimit(activeIds.length);
   if (activeIds.includes(request.appointmentId)) {

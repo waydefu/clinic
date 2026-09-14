@@ -44,6 +44,24 @@ describe('v1 API contracts', () => {
     });
   });
 
+  it('accepts an optional staff on-behalf opaque patient id', () => {
+    expect(
+      CreateAppointmentRequestSchema.parse({
+        idempotencyKey: 'booking_request_0001',
+        slotId: 'slot-001',
+        serviceId: 'service-001',
+        bookingKind: 'initial',
+        onBehalfPatientId: 'patient_opaque_002'
+      })
+    ).toEqual({
+      idempotencyKey: 'booking_request_0001',
+      slotId: 'slot-001',
+      serviceId: 'service-001',
+      bookingKind: 'initial',
+      onBehalfPatientId: 'patient_opaque_002'
+    });
+  });
+
   it.each([
     ['unapproved email', { email: 'patient@example.test' }],
     ['patient profile', { patient: { fullName: 'Example Patient' } }],

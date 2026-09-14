@@ -2,7 +2,11 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['tests/firestore/**/*.test.ts'],
+    include: [
+      'tests/firestore/**/*.test.ts',
+      // Nest HTTP occupancy needs apps/api node_modules (`reflect-metadata`).
+      'apps/**/src/**/*.emulator.test.ts'
+    ],
     testTimeout: 30_000,
     hookTimeout: 30_000,
     // 這些套件共用同一個 Emulator 資料庫，並在 beforeEach 清空 collection。
