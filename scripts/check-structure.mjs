@@ -91,6 +91,8 @@ const requiredPaths = [
   'scripts/internal-test-booking-smoke.test.mjs',
   'scripts/internal-test-preview-plan.mjs',
   'scripts/internal-test-preview-plan.test.mjs',
+  'scripts/internal-test-apply-plan.mjs',
+  'scripts/internal-test-apply-plan.test.mjs',
   'scripts/internal-test-backup-inspect.mjs',
   'scripts/internal-test-backup-inspect.test.mjs',
   'scripts/internal-test-monitoring-inspect.mjs',

@@ -40,6 +40,7 @@
     "verify:preview": "node scripts/verify-preview-deployment.mjs",
     "smoke:internal-test-booking": "node scripts/internal-test-booking-smoke.mjs",
     "plan:internal-test-preview": "node scripts/internal-test-preview-plan.mjs",
+    "plan:internal-test-apply": "node scripts/internal-test-apply-plan.mjs",
     "inspect:internal-test-backup": "node scripts/internal-test-backup-inspect.mjs",
     "inspect:internal-test-monitoring": "node scripts/internal-test-monitoring-inspect.mjs",
     "inspect:internal-test-migration": "node scripts/internal-test-migration-inspect.mjs",
