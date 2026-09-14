@@ -695,6 +695,22 @@ describe('AppointmentApplicationService arrive, complete and no-show', () => {
     expect(transition).not.toHaveBeenCalled();
   });
 
+  it('does not read the appointment when complete is denied by role', async () => {
+    const { assertCanComplete, read, transition, service } = createBoundary();
+    assertCanComplete.mockRejectedValueOnce(new Error('denied'));
+    const patient: AuthenticationContext = {
+      actorId: 'anonymous',
+      actorRole: 'patient'
+    };
+
+    await expect(
+      service.complete('appointment_server_001', CANCEL_COMMAND, patient)
+    ).rejects.toThrow('denied');
+    expect(assertCanComplete).toHaveBeenCalledWith(patient, {});
+    expect(read).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+  });
+
   it('lets staff record a follow-up decision after authorization', async () => {
     const { assertCanDecideFollowUp, recordFollowUp, service } =
       createBoundary();

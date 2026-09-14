@@ -672,6 +672,9 @@ export class AppointmentApplicationService {
     transition: 'arrive' | 'complete' | 'no_show',
     expectedStatus: 'arrived' | 'completed' | 'no_show'
   ): Promise<TransitionAppointmentResponse> {
+    // Role denial does not need the record. Reading first turned a 403 into a
+    // 500 when Cloud Firestore credentials were absent.
+    await this.authorization.assertCanComplete(authentication, {});
     const record = await this.repository.read(appointmentId);
     await this.authorization.assertCanComplete(
       authentication,
