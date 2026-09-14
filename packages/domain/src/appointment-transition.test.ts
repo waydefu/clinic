@@ -189,7 +189,9 @@ describe('planTransition', () => {
   it('releases the slot only for cancel and no_show', () => {
     expect(request('cancel').plan().releaseSlotId).toBe(appointment.slotId);
     expect(request('no_show').plan().releaseSlotId).toBe(appointment.slotId);
-    expect(request('complete', { status: 'arrived' }).plan().releaseSlotId).toBeUndefined();
+    expect(
+      request('complete', { status: 'arrived' }).plan().releaseSlotId
+    ).toBeUndefined();
     expect(request('arrive').plan().releaseSlotId).toBeUndefined();
     expect(
       request('request_cancellation').plan().releaseSlotId
@@ -431,7 +433,9 @@ describe('planDeletion', () => {
   // 已結束的預約早就把時段還出去了，再釋出一次會把後來訂走這格的人擠掉。
   it('releases the slot only while the appointment still holds one', () => {
     expect(remove().releaseSlotId).toBe(appointment.slotId);
-    expect(remove({ status: 'arrived' }).releaseSlotId).toBe(appointment.slotId);
+    expect(remove({ status: 'arrived' }).releaseSlotId).toBe(
+      appointment.slotId
+    );
     expect(remove({ status: 'cancellation_requested' }).releaseSlotId).toBe(
       appointment.slotId
     );

@@ -21,6 +21,7 @@ describe('booking route truth', () => {
     const truth = classifyLiveBookingRouting(root);
     expect(truth.internalTestAppointmentRouted).toBe(true);
     expect(truth.internalTestScheduleRouted).toBe(true);
+    expect(truth.internalTestReturnLookupRouted).toBe(true);
     expect(truth.appointmentControllerDirectOnAppModule).toBe(false);
     expect(truth.bookPilotControllerRouted).toBe(false);
     expect(truth.calendarWatchControllerRouted).toBe(false);

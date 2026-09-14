@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Inject,
+  Optional,
   Post,
   Query,
   Req
@@ -26,6 +27,11 @@ import {
   INTERNAL_TEST_BOOKING_SETTINGS,
   type InternalTestBookingClock
 } from '../internal-test-booking/internal-test-booking.tokens.js';
+import { deriveClientIp } from '../platform/runtime/client-ip.js';
+import {
+  WP_B2_RATE_LIMITER,
+  WpB2RateLimiter
+} from '../platform/runtime/wp-b2-rate-limiter.js';
 import {
   assertInternalTestSlotKind,
   ScheduleApplicationService
@@ -43,7 +49,10 @@ export class ScheduleController {
     @Inject(INTERNAL_TEST_BOOKING_SETTINGS)
     private readonly internalTestSettings: InternalTestBookingSettings,
     @Inject(INTERNAL_TEST_BOOKING_CLOCK)
-    private readonly internalTestClock: InternalTestBookingClock
+    private readonly internalTestClock: InternalTestBookingClock,
+    @Optional()
+    @Inject(WP_B2_RATE_LIMITER)
+    private readonly rateLimiter?: WpB2RateLimiter
   ) {}
 
   private assertInternalTestGate(): void {
@@ -53,13 +62,29 @@ export class ScheduleController {
     );
   }
 
+  private async authenticateAndLimit(
+    request: AuthenticatableRequest,
+    write: boolean
+  ) {
+    const authentication = await this.authenticator.authenticate(request);
+    request.authentication = authentication;
+    if (this.rateLimiter !== undefined) {
+      await this.rateLimiter.assertRequest({
+        ip: deriveClientIp(request),
+        actorId: authentication.actorId,
+        write
+      });
+    }
+    return authentication;
+  }
+
   @Get('slots')
   public async listSlots(
     @Query('kind') kind: string | undefined,
     @Req() request: AuthenticatableRequest
   ): Promise<ListSlotsResponse> {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, false);
     return this.schedules.listSlots(
       authentication,
       assertInternalTestSlotKind(kind)
@@ -71,7 +96,7 @@ export class ScheduleController {
     @Req() request: AuthenticatableRequest
   ): Promise<GetPublishedScheduleResponse> {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, false);
     return this.schedules.read(authentication);
   }
 
@@ -81,7 +106,7 @@ export class ScheduleController {
     @Req() request: AuthenticatableRequest
   ): Promise<PublishScheduleResponse> {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.schedules.publish(
       PublishScheduleRequestSchema.parse(body),
       authentication

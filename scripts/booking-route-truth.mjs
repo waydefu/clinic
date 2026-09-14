@@ -22,7 +22,8 @@ import {
 
 export const INTERNAL_TEST_CONTROLLERS = [
   'AppointmentController',
-  'ScheduleController'
+  'ScheduleController',
+  'ReturnLookupController'
 ];
 
 export const DEFERRED_CONTROLLERS = [
@@ -60,6 +61,9 @@ export function classifyBookingRouting(sources, entryPath = APP_MODULE_PATH) {
     visitedModules: [...visitedModules].sort(),
     appointmentControllerRouted: routedControllers.has('AppointmentController'),
     scheduleControllerRouted: routedControllers.has('ScheduleController'),
+    returnLookupControllerRouted: routedControllers.has(
+      'ReturnLookupController'
+    ),
     bookPilotControllerRouted: routedControllers.has('BookPilotController'),
     calendarWatchControllerRouted: routedControllers.has(
       'CalendarWatchController'
@@ -71,7 +75,10 @@ export function classifyBookingRouting(sources, entryPath = APP_MODULE_PATH) {
     internalTestAppointmentRouted:
       routedControllers.has('AppointmentController') && !appointmentDirect,
     internalTestScheduleRouted:
-      routedControllers.has('ScheduleController') && !scheduleDirect
+      routedControllers.has('ScheduleController') && !scheduleDirect,
+    internalTestReturnLookupRouted: routedControllers.has(
+      'ReturnLookupController'
+    )
   };
 }
 

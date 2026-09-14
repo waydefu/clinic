@@ -3,13 +3,16 @@ import {
   Controller,
   Get,
   Inject,
+  Optional,
   Param,
   Post,
+  Query,
   Req
 } from '@nestjs/common';
 import {
   CancelAppointmentRequestSchema,
   CreateAppointmentRequestSchema,
+  ListAppointmentsQuerySchema,
   RecordFollowUpRequestSchema,
   DeleteAppointmentRequestSchema,
   RescheduleAppointmentRequestSchema,
@@ -27,6 +30,11 @@ import {
   INTERNAL_TEST_BOOKING_SETTINGS,
   type InternalTestBookingClock
 } from '../internal-test-booking/internal-test-booking.tokens.js';
+import { deriveClientIp } from '../platform/runtime/client-ip.js';
+import {
+  WP_B2_RATE_LIMITER,
+  WpB2RateLimiter
+} from '../platform/runtime/wp-b2-rate-limiter.js';
 
 export const APPOINTMENT_AUTHENTICATOR = 'AppointmentAuthenticator';
 export const APPOINTMENT_AUTHORIZATION = 'AppointmentAuthorizationPolicy';
@@ -35,6 +43,9 @@ export const APPOINTMENT_APPLICATION = 'AppointmentApplicationService';
 export interface AuthenticatableRequest {
   readonly headers: Record<string, unknown>;
   readonly method?: string;
+  readonly ip?: string;
+  readonly socket?: { readonly remoteAddress?: string };
+  authentication?: AuthenticationContext;
 }
 
 export interface AppointmentAuthenticator {
@@ -65,7 +76,10 @@ export class AppointmentController {
     @Inject(INTERNAL_TEST_BOOKING_SETTINGS)
     private readonly internalTestSettings: InternalTestBookingSettings,
     @Inject(INTERNAL_TEST_BOOKING_CLOCK)
-    private readonly internalTestClock: InternalTestBookingClock
+    private readonly internalTestClock: InternalTestBookingClock,
+    @Optional()
+    @Inject(WP_B2_RATE_LIMITER)
+    private readonly rateLimiter?: WpB2RateLimiter
   ) {}
 
   private assertInternalTestGate(): void {
@@ -75,17 +89,44 @@ export class AppointmentController {
     );
   }
 
+  private async authenticateAndLimit(
+    request: AuthenticatableRequest,
+    write: boolean
+  ): Promise<AuthenticationContext> {
+    const authentication = await this.authenticator.authenticate(request);
+    request.authentication = authentication;
+    if (this.rateLimiter !== undefined) {
+      await this.rateLimiter.assertRequest({
+        ip: deriveClientIp(request),
+        actorId: authentication.actorId,
+        write
+      });
+    }
+    return authentication;
+  }
+
   @Post()
   public async create(
     @Body() body: unknown,
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.create(
       CreateAppointmentRequestSchema.parse(body),
       authentication
     );
+  }
+
+  @Get()
+  public async list(
+    @Query() query: Record<string, unknown>,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticateAndLimit(request, false);
+    const parsed = ListAppointmentsQuerySchema.parse(query);
+    return this.appointments.list(parsed.scope, authentication);
   }
 
   @Get(':appointmentId')
@@ -94,7 +135,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ): Promise<GetAppointmentResponse> {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, false);
     return this.appointments.get(identifier(appointmentId), authentication);
   }
 
@@ -105,7 +146,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.cancel(
       identifier(appointmentId),
       CancelAppointmentRequestSchema.parse(body),
@@ -120,7 +161,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.reschedule(
       identifier(appointmentId),
       RescheduleAppointmentRequestSchema.parse(body),
@@ -135,7 +176,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.arrive(
       identifier(appointmentId),
       CancelAppointmentRequestSchema.parse(body),
@@ -150,7 +191,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.complete(
       identifier(appointmentId),
       CancelAppointmentRequestSchema.parse(body),
@@ -165,7 +206,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.markNoShow(
       identifier(appointmentId),
       CancelAppointmentRequestSchema.parse(body),
@@ -180,7 +221,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.recordFollowUp(
       identifier(appointmentId),
       RecordFollowUpRequestSchema.parse(body),
@@ -195,7 +236,7 @@ export class AppointmentController {
     @Req() request: AuthenticatableRequest
   ) {
     this.assertInternalTestGate();
-    const authentication = await this.authenticator.authenticate(request);
+    const authentication = await this.authenticateAndLimit(request, true);
     return this.appointments.delete(
       identifier(appointmentId),
       DeleteAppointmentRequestSchema.parse(body),

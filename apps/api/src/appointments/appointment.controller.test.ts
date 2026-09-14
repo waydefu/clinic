@@ -470,7 +470,10 @@ describe('unrouted AppointmentController RBAC harness', () => {
       appointmentId: 'appointment_harness_001',
       status: 'confirmed',
       startsAt: '2026-07-25T04:00:00.000Z',
-      endsAt: '2026-07-25T04:30:00.000Z'
+      endsAt: '2026-07-25T04:30:00.000Z',
+      bookingKind: 'initial',
+      slotId: 'slot_001',
+      patientId: 'patient_001'
     });
   });
 
@@ -747,9 +750,10 @@ describe('production AppModule booking write path', () => {
         url: '/v1/bookings/appointment_harness_001/complete',
         payload: { idempotencyKey: 'complete_request_0001' }
       });
-      expect(complete.statusCode).toBe(401);
+      expect(complete.statusCode).toBe(403);
       const slots = await app.inject({ method: 'GET', url: '/v1/slots' });
-      expect(slots.statusCode).toBe(401);
+      expect(slots.statusCode).toBeGreaterThanOrEqual(200);
+      expect(slots.statusCode).toBeLessThan(300);
     } finally {
       restoreInternalTestEnv(previous);
     }

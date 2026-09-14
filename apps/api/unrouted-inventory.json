@@ -201,17 +201,6 @@
       ],
       "note": "D-010 已核准平台目標；目前只有 process-local static gate，沒有已部署的共享旗標或 controller。"
     },
-    "src/platform/runtime/rate-limiter.ts": {
-      "approvedPolicyDependencies": ["D-006", "D-010"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
-        }
-      ],
-      "note": "D-006／D-010 已核准必須限流與平台目標；目前只有 per-process fixed-window 測試實作，沒有共享狀態或核准參數。"
-    },
     "src/book-pilot/book-pilot.tokens.ts": {
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [

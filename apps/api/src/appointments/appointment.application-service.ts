@@ -7,10 +7,13 @@ import {
   type DeleteAppointmentRequest,
   type DeleteAppointmentResponse,
   type GetAppointmentResponse,
+  type ListAppointmentsResponse,
   type RecordFollowUpRequest,
   type RecordFollowUpResponse,
   type RescheduleAppointmentRequest,
   type RescheduleAppointmentResponse,
+  type ReturnLookupRequest,
+  type ReturnLookupResponse,
   type TransitionAppointmentResponse
 } from '@beauessence/contracts';
 import type {
@@ -45,6 +48,11 @@ import {
   AuthenticationRequiredError,
   AuthorizationDeniedError
 } from '../platform/errors/api-error.js';
+import {
+  assertFollowUpBookable,
+  opaqueLookupIdentity,
+  type PatientDirectoryPort
+} from '../patients/patient-directory.js';
 
 export interface AppointmentIdGenerator {
   next(): string;
@@ -256,15 +264,56 @@ export class AppointmentApplicationService {
     private readonly authorization: AppointmentAuthorizationPolicy,
     private readonly ids: AppointmentIdGenerator,
     private readonly clock: ApplicationClock,
-    private readonly correlations: CorrelationIdGenerator
+    private readonly correlations: CorrelationIdGenerator,
+    private readonly patients?: PatientDirectoryPort
   ) {}
+
+  private async resolveCreateAuthentication(
+    command: CreateAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<AuthenticationContext> {
+    if (authentication.verifiedPatientId !== undefined) return authentication;
+    if (command.intake !== undefined) {
+      if (this.patients === undefined) throw new MissingVerifiedPatientError();
+      const patientId = await this.patients.resolveFromIntake(
+        command.intake,
+        this.clock.nowUtc(),
+        () => this.ids.next()
+      );
+      return {
+        actorId:
+          authentication.actorId === 'anonymous'
+            ? patientId
+            : authentication.actorId,
+        actorRole: authentication.actorRole,
+        verifiedPatientId: patientId
+      };
+    }
+    return authentication;
+  }
 
   public async create(
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
   ): Promise<CreateAppointmentResponse> {
-    const patientId = resolvedCreatePatientId(command, authentication);
-    await this.authorization.assertCanCreate(authentication, command);
+    const resolvedAuth = await this.resolveCreateAuthentication(
+      command,
+      authentication
+    );
+    const patientId = resolvedCreatePatientId(command, resolvedAuth);
+    if (command.bookingKind === 'follow_up') {
+      if (this.patients === undefined) {
+        throw new DomainError(
+          'FOLLOW_UP_NOT_ENTITLED',
+          'No follow-up entitlement exists.'
+        );
+      }
+      assertFollowUpBookable(
+        await this.patients.readFollowUpState(patientId),
+        command.bookingKind
+      );
+    }
+    await this.authorization.assertCanCreate(resolvedAuth, command);
 
     const result = await this.repository.reserve(
       toBookingRequest(command, {
@@ -272,8 +321,8 @@ export class AppointmentApplicationService {
         patientId,
         requestedAt: this.clock.nowUtc(),
         audit: {
-          actorId: authentication.actorId,
-          actorRole: authentication.actorRole,
+          actorId: resolvedAuth.actorId,
+          actorRole: resolvedAuth.actorRole,
           correlationId: this.correlations.next(),
           source: 'api',
           reasonCode: null,
@@ -356,8 +405,109 @@ export class AppointmentApplicationService {
       startsAt: record.startsAt,
       endsAt: new Date(
         Date.parse(record.startsAt) + SLOT_DURATION_MINUTES * 60_000
-      ).toISOString()
+      ).toISOString(),
+      bookingKind: record.bookingKind,
+      slotId: record.slotId,
+      ...(authentication.actorRole === 'patient'
+        ? {}
+        : { patientId: record.patientId })
     };
+  }
+
+  public async list(
+    scope: 'mine' | 'clinic',
+    authentication: AuthenticationContext
+  ): Promise<ListAppointmentsResponse> {
+    if (this.patients === undefined) {
+      throw new DomainError(
+        'APPOINTMENT_NOT_FOUND',
+        'The appointment does not exist.'
+      );
+    }
+    if (scope === 'clinic') {
+      await this.authorization.assertCanQuery(authentication, {});
+      const records = await this.patients.listClinic(50);
+      return {
+        appointments: records.flatMap((record) => this.toListItem(record))
+      };
+    }
+    const patientId = authentication.verifiedPatientId;
+    if (patientId === undefined) throw new AuthenticationRequiredError();
+    await this.authorization.assertCanQuery(authentication, {
+      appointmentPatientId: patientId
+    });
+    const records = await this.patients.listByPatient(patientId, 50);
+    return {
+      appointments: records.flatMap((record) => this.toListItem(record, true))
+    };
+  }
+
+  public async lookupReturn(
+    command: ReturnLookupRequest,
+    ip: string,
+    limiter?: { assertLookupFailure(id: string, ip: string): Promise<void> }
+  ): Promise<ReturnLookupResponse> {
+    if (this.patients === undefined) {
+      throw new DomainError(
+        'APPOINTMENT_NOT_FOUND',
+        'The appointment does not exist.'
+      );
+    }
+    const result = await this.patients.lookupReturn(
+      command.phone,
+      command.birthDate,
+      this.clock.nowUtc(),
+      () => this.ids.next()
+    );
+    if (result === undefined) {
+      if (limiter !== undefined) {
+        await limiter.assertLookupFailure(
+          opaqueLookupIdentity(command.phone, command.birthDate),
+          ip
+        );
+      }
+      throw new DomainError(
+        'APPOINTMENT_NOT_FOUND',
+        'The appointment does not exist.'
+      );
+    }
+    return {
+      sessionId: result.sessionId,
+      expiresAt: result.expiresAt,
+      outcome: result.outcome,
+      ...(result.appointmentId === undefined
+        ? {}
+        : { appointmentId: result.appointmentId }),
+      ...(result.startsAt === undefined ? {} : { startsAt: result.startsAt }),
+      ...(result.endsAt === undefined ? {} : { endsAt: result.endsAt })
+    };
+  }
+
+  private toListItem(
+    record: import('./appointment.repository-port.js').AppointmentRecord,
+    patientScope = false
+  ): GetAppointmentResponse[] {
+    if (record.startsAt === undefined) return [];
+    const startMs = Date.parse(record.startsAt);
+    const nowMs = Date.parse(this.clock.nowUtc());
+    const lookbackMs = 7 * 24 * 60 * 60 * 1000;
+    const horizonMs = 31 * 24 * 60 * 60 * 1000;
+    if (startMs < nowMs - lookbackMs || startMs > nowMs + horizonMs) {
+      return [];
+    }
+    return [
+      {
+        appointmentId: record.appointmentId,
+        status: record.status,
+        startsAt: record.startsAt,
+        endsAt: new Date(
+          Date.parse(record.startsAt) + SLOT_DURATION_MINUTES * 60_000
+        ).toISOString(),
+        bookingKind: record.bookingKind,
+        slotId: record.slotId,
+        ...(patientScope ? {} : { patientId: record.patientId })
+      }
+    ];
   }
 
   public async cancel(

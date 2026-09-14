@@ -8,7 +8,10 @@ import {
 } from '@beauessence/domain';
 
 import type { AuthenticationContext } from './authentication-context.js';
-import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
+import {
+  AuthenticationRequiredError,
+  DisabledAccountError
+} from '../platform/errors/api-error.js';
 
 // Firebase Hosting strips incoming cookies before Cloud Run rewrites, except
 // the exact name `__session`. See Hosting cache docs, "Using cookies".
@@ -148,7 +151,7 @@ export class CalendarPilotSessionService {
     )
       throw new AuthenticationRequiredError();
     const user = await this.auth.getUser(decoded.uid);
-    if (user.disabled) throw new AuthenticationRequiredError();
+    if (user.disabled) throw new DisabledAccountError();
 
     const cookieValue = await this.auth.createSessionCookie(idToken, {
       expiresIn: STAFF_ABSOLUTE_SESSION_MS
@@ -198,7 +201,7 @@ export class CalendarPilotSessionService {
     )
       throw new AuthenticationRequiredError();
     const user = await this.auth.getUser(decoded.uid);
-    if (user.disabled) throw new AuthenticationRequiredError();
+    if (user.disabled) throw new DisabledAccountError();
 
     const sessionId = digest(cookieValue);
     const ref = this.db.collection('calendar_pilot_sessions').doc(sessionId);

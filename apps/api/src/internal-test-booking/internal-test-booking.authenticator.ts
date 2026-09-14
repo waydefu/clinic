@@ -11,7 +11,11 @@ import type {
   AppointmentAuthenticator,
   AuthenticatableRequest
 } from '../appointments/appointment.controller.js';
-import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
+import type { PatientDirectoryPort } from '../patients/patient-directory.js';
+import {
+  AuthenticationRequiredError,
+  DisabledAccountError
+} from '../platform/errors/api-error.js';
 
 const OPAQUE_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -43,12 +47,28 @@ function bearerToken(request: AuthenticatableRequest): string | undefined {
 export class InternalTestBookingAuthenticator implements AppointmentAuthenticator {
   public constructor(
     private readonly sessions: CalendarPilotSessionService,
-    private readonly auth: Auth
+    private readonly auth: Auth,
+    private readonly patients?: PatientDirectoryPort,
+    private readonly nowUtc: () => string = () => new Date().toISOString()
   ) {}
 
   public async authenticate(
     request: AuthenticatableRequest
   ): Promise<AuthenticationContext> {
+    const returnSession = header(request, 'x-return-session');
+    if (returnSession !== undefined && this.patients !== undefined) {
+      const patientId = await this.patients.readReturnSession(
+        returnSession,
+        this.nowUtc()
+      );
+      if (patientId === undefined) throw new AuthenticationRequiredError();
+      return {
+        actorId: patientId,
+        actorRole: 'patient',
+        verifiedPatientId: patientId
+      };
+    }
+
     const cookie = readCalendarPilotSessionCookie(header(request, 'cookie'));
     if (cookie !== undefined) {
       const authentication = await this.sessions.authenticate(cookie);
@@ -64,14 +84,16 @@ export class InternalTestBookingAuthenticator implements AppointmentAuthenticato
     }
 
     const idToken = bearerToken(request);
-    if (idToken === undefined) throw new AuthenticationRequiredError();
+    if (idToken === undefined) {
+      return { actorId: 'anonymous', actorRole: 'patient' };
+    }
     const decoded = await this.auth.verifyIdToken(idToken, true).catch(() => {
       throw new AuthenticationRequiredError();
     });
     if (decoded.email_verified !== true)
       throw new AuthenticationRequiredError();
     const user = await this.auth.getUser(decoded.uid);
-    if (user.disabled) throw new AuthenticationRequiredError();
+    if (user.disabled) throw new DisabledAccountError();
     if (!OPAQUE_ID.test(decoded.uid)) throw new AuthenticationRequiredError();
 
     const staffRole = roleForCalendarPilotEmail(decoded.email);

@@ -8,7 +8,9 @@ import { CalendarPilotSessionGuard } from '../auth/calendar-pilot.guard.js';
 import { CalendarPilotSessionService } from '../auth/calendar-pilot-session.js';
 import { CalendarPilotSessionController } from '../auth/calendar-pilot-session.controller.js';
 import { FirestoreCalendarPilotRepository } from '../firestore/calendar-pilot.repository.js';
+import { FirestoreDeniedAccessAuditStore } from '../firestore/denied-access-audit.repository.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
+import { DENIED_AUTHORIZATION_AUDIT } from '../platform/authorization/denied-access-audit.port.js';
 import { CalendarPilotApplicationService } from './calendar-pilot.application-service.js';
 import { CalendarPilotController } from './calendar-pilot.controller.js';
 import {
@@ -53,6 +55,11 @@ export function defaultFirebaseApp(): App {
         new CalendarPilotApplicationService(repository, {
           nowUtc: () => new Date().toISOString()
         })
+    },
+    {
+      provide: DENIED_AUTHORIZATION_AUDIT,
+      useFactory: () =>
+        new FirestoreDeniedAccessAuditStore(getFirestore(defaultFirebaseApp()))
     },
     CalendarPilotSessionGuard,
     { provide: APP_FILTER, useClass: ApiExceptionFilter }

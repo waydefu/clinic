@@ -34,11 +34,25 @@ export class AuthenticationRequiredError extends PlatformError {
   }
 }
 
+export class DisabledAccountError extends AuthenticationRequiredError {
+  public constructor() {
+    super();
+    this.name = 'DisabledAccountError';
+  }
+}
+
 export class AuthorizationDeniedError extends PlatformError {
   public readonly apiCode = 'AUTHORIZATION_DENIED' as const;
   public constructor() {
     super('Authorization was denied.');
     this.name = 'AuthorizationDeniedError';
+  }
+}
+
+export class CrossPatientDeniedError extends AuthorizationDeniedError {
+  public constructor() {
+    super();
+    this.name = 'CrossPatientDeniedError';
   }
 }
 
@@ -106,8 +120,10 @@ export const DOMAIN_TO_API_CODE: Record<DomainErrorCode, ApiErrorCode> = {
   PAYROLL_PERIOD_ALREADY_CLOSED: 'CONFLICT',
   PAYROLL_PERIOD_NOT_CLOSED: 'CONFLICT',
   BLOCKED_TIME_OFF_GRID: 'VALIDATION_FAILED',
+  FOLLOW_UP_ALREADY_SCHEDULED: 'CONFLICT',
   FOLLOW_UP_DAY_CLOSED: 'VALIDATION_FAILED',
   FOLLOW_UP_NOT_DECIDABLE: 'CONFLICT',
+  FOLLOW_UP_NOT_ENTITLED: 'NOT_FOUND',
   FOLLOW_UP_TIME_OFF_GRID: 'VALIDATION_FAILED',
   SCHEDULE_EXCEPTION_DUPLICATED: 'VALIDATION_FAILED',
   SCHEDULE_INTERVALS_OVERLAP: 'VALIDATION_FAILED',
