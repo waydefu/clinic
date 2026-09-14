@@ -1,9 +1,23 @@
 # 專案後續執行與核准清單
 
-**狀態：核准清單（仍可用）／剩餘工作全部 Luna（`GROK_RESTS`）。**  
-**最後更新：2026-09-12（Asia/Taipei）**
+**狀態：核准清單（仍可用）。**  
+**最後更新：2026-09-15（Asia/Taipei）** — 只更新本頁現行 overlay；下方 2026-09-12 清單本文保留為歷史路徑。
 
-**Luna remaining-work spec（Grok 休息）：**
+**2026-09-15 live overlay（指揮新工作時以此段為準）：**
+signed WP-B1～B11 與 `IP-001-SCOPE-2026-09-15` 見
+[decision register](phase-1-decision-register.md)。Cloud closer 是
+`GROK_UNRESTED`／`GROK_PROJECT_CLOSER`（2026-09-13），不是本頁舊的
+`GROK_RESTS` 禁令。本 stage 交付 Booking Page + Staff Workbench +
+fail-closed isolated API（IP-001 已掛 `InternalTestBookingModule`，預設
+503，不是 public production）。公開行銷官網
+`DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE`。
+`PUBLIC_PRODUCTION_LAUNCH = DEFERRED`。
+`INTERNAL_PREPRODUCTION_COMPLETE = FAIL`（C1 仍無 API）。詳
+[2026-09-15 WP-B / F closure](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md)。
+本文件**不**授權 production、真實資料、官方 DNS、live Hosting、production
+Calendar，也**不**把 signed WP-B1 A 讀成 Cloud Run exact-SHA 封包。
+
+**Luna remaining-work spec（筆電 Luna 卡，2026-09-12 原文）：**
 [Luna local authorized playbook](luna-local-authorized-playbook.md)；
 地圖見
 [Luna remaining-work map](luna-local-project-completion-master-plan.md)。
@@ -11,9 +25,7 @@ C0～C6 合成切片的機器狀態以
 [stage-2-gate-status.json](../architecture/stage-2-gate-status.json)
 為準（PR #112 後為 `completed`／`granted`，隔離專案
 `beauessence-clinic-stg-c1a01`）。下文若仍寫「C0 尚未關閉」「C1 not_granted」
-「C2～C6 pending」，視為過期敘述，不得指揮新工作。本文件**不**授權
-production、真實資料、官方 DNS、live Hosting、production Calendar，也不掛
-`/v1/bookings`。
+「C2～C6 pending」，視為過期敘述，不得指揮新工作。
 
 **證據新鮮度：** 2026-08-11 為唯讀靜態盤點；未重跑 build、unit、Rules、E2E、
 browser、SAST 或 deployment。本文引用的通過數字都是日期化歷史證據，不是目前 HEAD

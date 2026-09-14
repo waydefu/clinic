@@ -300,7 +300,7 @@ packet is required for the *fix to land in C1*, not that Stage A+B is blocked.
 
 | Field | Value |
 | --- | --- |
-| Status | `NO_LONGER_APPLICABLE` (original finding) |
+| Status | `NO_LONGER_APPLICABLE` |
 | 現況 | Original audit wanted patient Firebase/Google login. WP-B3 forbids that as this-stage product. Accountless booking + WP-B7 lookup are **not implemented** as an E2E server path (tracked under F-07 / B7–B9, not as “add login”) |
 | Root cause | Audit assumed D-006 patient IdP applied to public booking |
 | Signed-decision impact | **Do not build** mandatory patient Firebase login. Build accountless create + 回診 phone+DOB |
