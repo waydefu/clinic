@@ -1474,7 +1474,8 @@ elements.appointments.addEventListener('click', async (event) => {
     return;
   }
 
-  const completing = action === 'complete' || action === 'complete_without_card';
+  const completing =
+    action === 'complete' || action === 'complete_without_card';
   const questions = {
     cancel: '確認取消此預約並釋放時段？',
     no_show: '確認將此預約標記為未到？時段會釋放。',

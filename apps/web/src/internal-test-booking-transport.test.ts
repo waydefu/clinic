@@ -39,7 +39,7 @@ describe('isInternalTestBookingEnabled', () => {
 });
 
 describe('mapInternalTestBookingRequest', () => {
-  it('maps create, cancel and reschedule and leaves lookup on the local store', () => {
+  it('maps create, cancel, reschedule and return lookup', () => {
     const create = mapInternalTestBookingRequest('/bookings', 'POST', {
       slotId: 'slot_001',
       itemIds: ['service_consult'],
@@ -59,6 +59,29 @@ describe('mapInternalTestBookingRequest', () => {
     expect(String(create?.body.idempotencyKey).length).toBeGreaterThanOrEqual(
       16
     );
+
+    const accountless = mapInternalTestBookingRequest('/bookings', 'POST', {
+      slotId: 'slot_001',
+      itemIds: ['service_consult'],
+      bookingKind: 'initial',
+      patient: {
+        name: '合成患者甲',
+        phone: '0912000001',
+        birthDate: '1990-01-15',
+        nationalId: 'A123456789'
+      }
+    });
+    expect(accountless?.body).toMatchObject({
+      intake: {
+        name: '合成患者甲',
+        phone: '0912000001',
+        birthDate: '1990-01-15',
+        nationalId: 'A123456789',
+        privacyConsent: true
+      }
+    });
+    expect(accountless?.body).not.toHaveProperty('patient');
+    expect(accountless?.body).not.toHaveProperty('onBehalfPatientId');
 
     expect(
       mapInternalTestBookingRequest(
@@ -88,7 +111,20 @@ describe('mapInternalTestBookingRequest', () => {
       body: { targetSlotId: 'slot_staff_002' }
     });
     expect(
-      mapInternalTestBookingRequest('/patient/bookings/lookup', 'POST', {})
+      mapInternalTestBookingRequest('/patient/bookings/lookup', 'POST', {
+        phone: '0912000001',
+        birthDate: '1990-01-15'
+      })
+    ).toMatchObject({
+      url: '/v1/return-lookup',
+      method: 'POST',
+      body: { phone: '0912000001', birthDate: '1990-01-15' }
+    });
+    expect(
+      mapInternalTestBookingRequest('/patient/bookings/lookup', 'POST', {
+        documentNumber: 'A123456789',
+        birthDate: '1990-01-15'
+      })
     ).toBeUndefined();
     expect(mapInternalTestBookingRequest('/state', 'GET', {})).toBeUndefined();
     expect(
@@ -381,7 +417,8 @@ describe('createInternalTestBookingTransport', () => {
 
     await expect(transport('/state')).resolves.toEqual({
       version: 8,
-      slots: []
+      slots: [],
+      appointments: []
     });
     expect(fetchImpl).toHaveBeenCalled();
     await expect(
@@ -421,7 +458,8 @@ describe('createInternalTestBookingTransport', () => {
     });
     await expect(transport('/state')).resolves.toEqual({
       version: 8,
-      slots: []
+      slots: [],
+      appointments: []
     });
   });
 
@@ -455,7 +493,7 @@ describe('createInternalTestBookingTransport', () => {
       })
     ).resolves.toEqual({
       version: 8,
-      appointments: [{ id: 'appointment_local_001' }],
+      appointments: [],
       slots: []
     });
   });
@@ -477,6 +515,25 @@ describe('createInternalTestBookingTransport', () => {
                   startsAt: '2030-01-02T04:00:00.000Z',
                   endsAt: '2030-01-02T04:30:00.000Z',
                   available: true
+                }
+              ]
+            })
+        });
+      }
+      if (String(url).startsWith('/v1/bookings')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              appointments: [
+                {
+                  appointmentId: 'appointment_api_001',
+                  status: 'confirmed',
+                  startsAt: '2030-01-02T04:00:00.000Z',
+                  endsAt: '2030-01-02T04:30:00.000Z',
+                  bookingKind: 'initial',
+                  slotId: 'slot_20300102_1200',
+                  patientId: 'patient_opaque_001'
                 }
               ]
             })
@@ -504,6 +561,14 @@ describe('createInternalTestBookingTransport', () => {
           id: 'slot_20300102_1200',
           kind: 'initial',
           startsAt: '2030-01-02T04:00:00.000Z'
+        }
+      ],
+      appointments: [
+        {
+          id: 'appointment_api_001',
+          status: 'confirmed',
+          slotId: 'slot_20300102_1200',
+          patientId: 'patient_opaque_001'
         }
       ],
       schedule: { timeZone: 'Asia/Taipei' },
