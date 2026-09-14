@@ -158,6 +158,7 @@ token in chat/docs/repo.
 ```
 
 Closed-item evidence: [2026-09-13 internal-preproduction owner direction](../reviews/2026-09-13-internal-preproduction-owner-direction.md).
+Dated inspect (not D-series approval): [2026-09-14 INTERNAL_PREPRODUCTION_COMPLETE](../reviews/2026-09-14-internal-preproduction-complete.md) — `pnpm inspect:internal-preproduction` `ok: true` on `origin/main` `a9a445a4e9bae83f779a9914bc7203961813f916`; `projectComplete: NOT_CLAIMED`; D-001–D-005 remain `pending`.
 
 ### FS-001 first-stage product scope — 2026-09-11
 
