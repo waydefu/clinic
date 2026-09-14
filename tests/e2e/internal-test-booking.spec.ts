@@ -324,6 +324,9 @@ test.describe('internal-test booking occupancy overlay', () => {
     await openDisclosure(page, '#booking-workflow');
     await expect(page.locator('#slots')).toContainText('目前沒有可預約時段');
     await expect(page.locator('#slots [data-select-slot]')).toHaveCount(0);
+    await expect(page.locator('#environment-label')).toHaveText(
+      'INTERNAL TEST'
+    );
   });
 
   test('opt-in create posts /v1/bookings without patient fields', async ({

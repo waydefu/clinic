@@ -2052,7 +2052,11 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
   elements['main-content'].focus({ preventScroll: true });
 });
 
-if (!isOnline) elements['environment-label'].textContent = 'LOCAL TEST ONLY';
+if (isInternalTestBookingEnabled()) {
+  elements['environment-label'].textContent = 'INTERNAL TEST';
+} else if (!isOnline) {
+  elements['environment-label'].textContent = 'LOCAL TEST ONLY';
+}
 
 try {
   client = await resolveApiClient();
