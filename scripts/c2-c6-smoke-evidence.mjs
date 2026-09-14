@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import {
+  bookingAndWatchRemainUnrouted,
+  classifyBookingRouting,
+  classifyLiveBookingRouting
+} from './booking-route-truth.mjs';
 import { regionFromC1FoundationLogging } from './collect-c1-smoke.mjs';
 import {
   FORBIDDEN_STAGING_PROJECT,
@@ -10,8 +15,11 @@ import {
   isIsolatedC1ProjectId,
   isolatedC1ProjectIdError
 } from './isolated-c1-project-id.mjs';
+import { APP_MODULE_PATH } from './nest-module-reachability.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+
+export { bookingAndWatchRemainUnrouted };
 
 export {
   FORBIDDEN_STAGING_PROJECT,
@@ -25,11 +33,26 @@ export function assertIsolatedSliceProjectId(projectId, slice) {
   }
 }
 
-export const FORMAL_BOOKING_ROUTE_MARKERS =
-  /AppointmentController|BookPilotModule|BookPilotController|CalendarWatchController/;
+function isCompleteRoutingGraph(routingInput) {
+  if (routingInput instanceof Map) return routingInput.size > 1;
+  return (
+    routingInput !== null &&
+    typeof routingInput === 'object' &&
+    Array.isArray(routingInput.visitedModules)
+  );
+}
 
-export function bookingAndWatchRemainUnrouted(appModuleSource) {
-  return !FORMAL_BOOKING_ROUTE_MARKERS.test(appModuleSource);
+function routingTruthFromInput(routingInput) {
+  if (routingInput instanceof Map) {
+    return classifyBookingRouting(routingInput);
+  }
+  if (typeof routingInput === 'string') {
+    return classifyBookingRouting(new Map([[APP_MODULE_PATH, routingInput]]));
+  }
+  if (routingInput && typeof routingInput === 'object') {
+    return routingInput;
+  }
+  return classifyLiveBookingRouting(root);
 }
 
 function projectIssues(evidence, slice) {
@@ -135,19 +158,30 @@ export function assembleC5SmokeEvidence(snapshot) {
   };
 }
 
-export function assembleC6SmokeEvidence(snapshot, appModuleSource) {
+export function assembleC6SmokeEvidence(snapshot, routingInput) {
   assertIsolatedSliceProjectId(snapshot.projectId, 'C6');
-  const hasSource =
-    typeof appModuleSource === 'string' && appModuleSource.length > 0;
-  const unrouted = hasSource
-    ? bookingAndWatchRemainUnrouted(appModuleSource)
+  const hasRouting = routingInput !== undefined && routingInput !== null;
+  const truth = hasRouting ? routingTruthFromInput(routingInput) : undefined;
+  const bookPilotUnrouted = truth
+    ? !truth.bookPilotControllerRouted && !truth.bookPilotDirectOnAppModule
     : undefined;
+  const watchUnrouted = truth
+    ? !truth.calendarWatchControllerRouted &&
+      !truth.calendarWatchDirectOnAppModule
+    : undefined;
+  const includeInternalTest =
+    hasRouting && isCompleteRoutingGraph(routingInput);
   return {
     projectId: snapshot.projectId,
     region: regionFromC1FoundationLogging(snapshot),
     enabledApis: enabledApisFromSnapshot(snapshot),
-    bookingUnrouted: unrouted,
-    watchUnrouted: unrouted
+    bookingUnrouted: bookPilotUnrouted,
+    watchUnrouted,
+    ...(includeInternalTest
+      ? {
+          internalTestAppointmentRouted: truth.internalTestAppointmentRouted
+        }
+      : {})
   };
 }
 
@@ -214,6 +248,14 @@ export function evaluateC6Smoke(evidence) {
   if (evidence.watchUnrouted !== true) {
     issues.push('C6 must keep CalendarWatchController UNROUTED.');
   }
+  if (
+    evidence.internalTestAppointmentRouted !== undefined &&
+    evidence.internalTestAppointmentRouted !== true
+  ) {
+    issues.push(
+      'C6 internal-test AppointmentController must remain reachable via InternalTestBookingModule.'
+    );
+  }
   return { ok: issues.length === 0, issues };
 }
 
@@ -233,10 +275,7 @@ if (isDirectRun()) {
     C2: assembleC2SmokeEvidence,
     C5: assembleC5SmokeEvidence,
     C6: (snapshot) =>
-      assembleC6SmokeEvidence(
-        snapshot,
-        readFileSync(join(root, 'apps/api/src/app.module.ts'), 'utf8')
-      )
+      assembleC6SmokeEvidence(snapshot, classifyLiveBookingRouting(root))
   };
 
   if (process.argv[2] === 'assemble') {
