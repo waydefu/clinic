@@ -306,6 +306,18 @@ export function createInternalTestBookingTransport({
       parseBody(options)
     );
     if (mapped === undefined) {
+      // Domain has no complete-without-card transition. Falling through to
+      // the synthetic store would mark a contract appointment completed
+      // locally while /v1 still has confirmed.
+      if (
+        String(options.method ?? 'GET').toUpperCase() === 'POST' &&
+        /^\/bookings\/[A-Za-z0-9_-]+\/complete-without-card$/.test(path)
+      ) {
+        throw toError({
+          status: 503,
+          code: 'SERVICE_UNAVAILABLE'
+        });
+      }
       const localResult = await local(path, options);
       const isStateGet =
         path === '/state' &&

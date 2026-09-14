@@ -291,6 +291,25 @@ describe('createInternalTestBookingTransport', () => {
     expect(init?.body).toBeUndefined();
   });
 
+  it('fail-closes complete-without-card instead of completing on the local store', async () => {
+    const local = vi.fn();
+    const fetchImpl = vi.fn();
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+
+    await expect(
+      transport('/bookings/appointment_001/complete-without-card', {
+        method: 'POST',
+        body: '{}'
+      })
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    expect(local).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('keeps /state on the local store and maps a 503 through the v1 envelope', async () => {
     const local = vi.fn(() => Promise.resolve({ version: 8 }));
     const fetchImpl = vi.fn(() =>

@@ -771,6 +771,49 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(card).toContainText('預約成立');
   });
 
+  test('opt-in staff complete-without-card does not succeed locally', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt: upcomingIso(48.5)
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('.action-menu summary').click();
+    await card
+      .locator('[data-appointment-action="complete_without_card"]')
+      .click();
+    await page.getByRole('button', { name: '確認到診（未帶卡）' }).click();
+
+    await expect(page.locator('#status')).toContainText(
+      '服務暫時無法使用，請稍後再試。'
+    );
+    await expect(card).toContainText('預約成立');
+  });
+
   test('opt-in staff reschedule posts /v1/bookings/:id/reschedule without patient fields', async ({
     page
   }) => {
