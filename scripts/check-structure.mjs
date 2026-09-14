@@ -93,6 +93,8 @@ const requiredPaths = [
   'scripts/internal-test-preview-plan.test.mjs',
   'scripts/internal-test-backup-inspect.mjs',
   'scripts/internal-test-backup-inspect.test.mjs',
+  'scripts/internal-test-monitoring-inspect.mjs',
+  'scripts/internal-test-monitoring-inspect.test.mjs',
   'firestore.rules',
   'packages/domain/src/index.ts',
   'packages/domain/src/audit.ts',
