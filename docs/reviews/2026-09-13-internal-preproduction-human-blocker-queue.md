@@ -99,8 +99,12 @@ SAFE OPTIONS (if any): keep INTERNAL_TEST_ROUTE_AUTHORIZED fail-closed; keep pro
 2. Grok or Luna deploys **only** that SHA to a preview channel on
    `beauessence-clinic-stg-c1a01` and smokes it.
 3. Owner records fresh exact-SHA C5 backup-schedule and C1 IAM-alert
-   apply packets; Grok or Luna applies **only** those SHAs on isolated
-   C1 (Pub/Sub notify only; no email recipients) and re-inspects.
+   apply packets; print `pnpm plan:internal-test-apply -- c5 $(git
+   rev-parse HEAD)` and `pnpm plan:internal-test-apply -- c1-iam $(git
+   rev-parse HEAD)` (`execute: false`); Grok or Luna applies **only**
+   those SHAs on isolated C1 (Pub/Sub notify only; no email recipients)
+   and re-inspects. Do not destroy the stack and do not re-apply with
+   `exact_apply_authority_sha=not_granted`.
 4. Interactive login / TW-05 / named reviewers stay human and are
    **not** `INTERNAL_PREPRODUCTION` stage blockers.
 5. Production launch stays `GO_LIVE_DEFERRED`.
