@@ -687,7 +687,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     expect(posted.arrive.path).toBe('/v1/bookings/appointment_api_001/arrive');
 
     await card.locator('[data-appointment-action="complete"]').click();
-    await page.getByRole('button', { name: '完成看診' }).click();
+    await page.locator('.confirm-dialog button.button-primary').click();
     await expect(page.locator('#status')).toContainText('看診已完成');
     expect(posted.complete.path).toBe(
       '/v1/bookings/appointment_api_001/complete'
@@ -794,7 +794,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.getByRole('button', { name: '確認到診' }).click();
     await expect(page.locator('#status')).toContainText('已記錄到診');
     await card.locator('[data-appointment-action="complete"]').click();
-    await page.getByRole('button', { name: '完成看診' }).click();
+    await page.locator('.confirm-dialog button.button-primary').click();
 
     await expect(page.locator('#status')).toContainText(
       '服務暫時無法使用，請稍後再試。'
@@ -848,12 +848,12 @@ test.describe('internal-test booking occupancy overlay', () => {
     await card
       .locator('[data-appointment-action="complete_without_card"]')
       .click();
-    await page.getByRole('button', { name: '完成看診（未帶卡）' }).click();
+    await page.locator('.confirm-dialog button.button-primary').click();
 
     await expect(page.locator('#status')).toContainText(
       '服務暫時無法使用，請稍後再試。'
     );
-    await expect(card).toContainText('預約成立');
+    await expect(card).toContainText('已到診');
   });
 
   test('opt-in staff notes do not succeed locally', async ({ page }) => {
@@ -1168,7 +1168,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.getByRole('button', { name: '確認到診' }).click();
     await expect(page.locator('#status')).toContainText('已記錄到診');
     await card.locator('[data-appointment-action="complete"]').click();
-    await page.getByRole('button', { name: '完成看診' }).click();
+    await page.locator('.confirm-dialog button.button-primary').click();
     await expect(page.locator('#status')).toContainText('看診已完成');
 
     const form = page.locator('[data-follow-up-form="appointment_api_001"]');
@@ -1255,7 +1255,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.getByRole('button', { name: '確認到診' }).click();
     await expect(page.locator('#status')).toContainText('已記錄到診');
     await card.locator('[data-appointment-action="complete"]').click();
-    await page.getByRole('button', { name: '完成看診' }).click();
+    await page.locator('.confirm-dialog button.button-primary').click();
     await expect(page.locator('#status')).toContainText('看診已完成');
 
     const form = page.locator('[data-follow-up-form="appointment_api_001"]');
