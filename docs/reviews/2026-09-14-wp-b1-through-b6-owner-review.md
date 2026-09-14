@@ -1,5 +1,11 @@
 # WP-B1～B6 業主連審表 — 2026-09-14
 
+> **Status (2026-09-15):** `SUPERSEDED` as a `WAITING_FOR_ANSWER` fillable
+> sheet. Signed answers WP-B1～B11 live in the
+> [decision register](../product/phase-1-decision-register.md) (`WP-B*-2026-09-15`)
+> and [2026-09-15 closure review](2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md).
+> Do not fill this file. Do not delete it.
+
 一份表一次審六題。這份文件**不是核准、不是部署授權、不是 D-series 翻盤**。
 Drafter 不得代填 Answer。填完後由 clinic owner 把答案寫進
 [decision register](../product/phase-1-decision-register.md)。

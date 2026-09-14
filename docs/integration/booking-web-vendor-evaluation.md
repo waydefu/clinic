@@ -1,5 +1,28 @@
 # Booking Web Vendor Evaluation Package
 
+> **Authority (2026-09-15):** this file is a **dated vendor-evaluation
+> package**, not live Canon for internal preproduction.
+> Current: [decision register](../product/phase-1-decision-register.md)
+> `IP-001-SCOPE-2026-09-15` and `WP-B1-2026-09-15`…`WP-B11-2026-09-15`;
+> [2026-09-15 WP-B signed authority](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md).
+> Do not delete this file.
+
+## Current vs stale (2026-09-15)
+
+| Claim in this package | Classification | Current authority |
+| --- | --- | --- |
+| Official journey stays on `beauessence.com.tw/reservations/` as *this-stage* delivery | **stale for this stage** | Marketing homepage / vendor lease = `DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE`. This stage delivers an isolated **Booking Page** (accountless) + Staff Workbench against the Canonical Booking API |
+| Recommended **Widget + API**; browser never writes Firestore | **current** (keep) | ADR-0001 / ADR-0003; future vendor homepage links or embeds Widget / standalone Booking Page → one API → Firestore SoT. Do not build a second booking stack |
+| API-only as a supported target | **current** (keep) | Vendor may own host UI later; writes still only via clinic API |
+| iframe as future fallback | **current as fallback only** | Needs a separate embed/header decision; current previews must not be framed into the official site |
+| C6 preview URL `beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app` and expiry 2026-08-30 | **stale as current handoff** | Dated C6 evidence. Isolated C1 preview (static, no API) is `https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app` expiring `2026-09-21T04:14:28Z`. Forbidden project remains `beauessence-clinic-staging` |
+| Preview uses synthetic **browser-local** state; different browsers do not share bookings | **stale as source of truth** | WP-B9 + scope clarification: localStorage / mock is **not** SoT. Booking Page / Workbench must use the real isolated backend (still synthetic PII only) |
+| Query/cancel by phone+DOB **or identity-document number**+DOB | **stale for return lookup** | WP-B7: 回診 = phone + DOB, no OTP, no identity-document lookup this stage. General new booking is accountless and does not verify first |
+| Direct self-cancel only when strictly > 20 minutes; then clinic phone `02-2577-1314` | **stale as this-stage policy** | IP-001 provisional cutoff is appointment-day 10:00 Asia/Taipei; D-005 remains pending for production |
+| Synthetic staff workbench / Case / doctor / clinic pages out of vendor eval | **mixed** | Staff Workbench **is in-scope** for internal preproduction (not a vendor-homepage deliverable). Public `/clinic` marketing pages stay out of this stage |
+| Production API hostname `api.beauessence.com.tw` | **stale as DNS authority** | Suggested hostname only; D-011 `GO_LIVE_DEFERRED`; no official DNS this stage |
+| 474/474 online verification on C6 | **dated evidence** | Not current C1 completeness. `INTERNAL_PREPRODUCTION_COMPLETE = FAIL` until the isolated API exists |
+
 ## 1. Integration objective
 
 The production user journey is intended to remain on the clinic's official

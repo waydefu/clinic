@@ -2,12 +2,20 @@
 
 Status: Active  
 Started: 2026-07-20  
+**2026-09-15 live overlay:** internal-preproduction owner-visible delivery is
+Booking Page + Staff Workbench against a real isolated API (signed WP-B /
+`IP-001-SCOPE-2026-09-15`). Public marketing site remains vendor-leased and
+deferred. `INTERNAL_PREPRODUCTION_COMPLETE = FAIL` until that API exists on
+C1. This file's older “browser-local preview only” sentences are **stale as
+current delivery**, not deleted.
+
 Scope: Synthetic-only design and preparation. An explicitly authorised static
 Firebase Hosting preview is permitted. Production data, general cloud backends,
 production Google Calendar, social webhooks and NAS connections remain out of
 scope. The Decision Register records a separate, expiring, synthetic-only
 CAL-PILOT sub-scope for D-009/D-016; that exception is not production Calendar
-or general cloud authority.
+or general cloud authority. Isolated C1 fail-closed InternalTestBookingModule
+is IP-001 (not public production).
 
 ## Objective
 

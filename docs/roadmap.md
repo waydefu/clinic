@@ -2,7 +2,16 @@
 
 **撰寫日期：** 2026-07-21
 
-**整合更新：** 2026-09-11
+**整合更新：** 2026-09-15（WP-B signed; 2026-09-11 C0 text retained below）
+
+**2026-09-15 現況（live Canon，覆蓋下方較舊的「目前狀態」敘述）：**
+signed WP-B1～B11 + `IP-001-SCOPE-2026-09-15`。本 stage 交付 Booking Page、
+Staff Workbench、isolated API、isolated Firestore、Calendar 投影、staff
+Auth/RBAC、audit/outbox/monitoring；公開行銷官網
+`DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE`；
+`PUBLIC_PRODUCTION_LAUNCH = DEFERRED`；
+`INTERNAL_PREPRODUCTION_COMPLETE = FAIL`（C1 仍無 API）。詳
+[2026-09-15 WP-B / F closure](reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md)。
 
 **39 題業主答案已於 2026-08-16 全數回收**，逐題對帳見
 [2026-08-17 對帳紀錄](reviews/2026-08-17-owner-decision-reconciliation.md)。答案是

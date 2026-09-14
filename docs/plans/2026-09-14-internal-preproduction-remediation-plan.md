@@ -1,5 +1,13 @@
 # INTERNAL_PREPRODUCTION 補強施工計畫（2026-09-14 獨立稽核）
 
+> **Status (2026-09-15):** WP-B1～B11 are **signed**. F-01～F-14 remain
+> engineering-open except where the closure matrix marks
+> `NO_LONGER_APPLICABLE` or policy-accepted. Do not start from the waiting
+> HUMAN BLOCKER text in WP-B*. Current Canon:
+> [2026-09-15 WP-B signed authority](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md).
+> `INTERNAL_PREPRODUCTION_COMPLETE` is still **FAIL**. This plan stays
+> execution context; it does not itself authorize Cloud Run.
+
 **類型：** 工程施工計畫（execution context only）。**不是**核准、不是部署授權、
 不改變任何 D-series 狀態。權威順序：[AGENTS.md](../../AGENTS.md) Safety Floor →
 [decision register](../product/phase-1-decision-register.md) →
