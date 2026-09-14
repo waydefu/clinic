@@ -306,12 +306,16 @@ export function createInternalTestBookingTransport({
       parseBody(options)
     );
     if (mapped === undefined) {
-      // Domain has no complete-without-card transition. Falling through to
-      // the synthetic store would mark a contract appointment completed
-      // locally while /v1 still has confirmed.
+      // Unmapped writes that would mutate a contract appointment locally
+      // while /v1 is the source of truth. complete-without-card has no
+      // domain transition; notes and case assignment stay off the IP-001
+      // command (D-014 / D-007). Do not invent a /v1 mapping.
       if (
         String(options.method ?? 'GET').toUpperCase() === 'POST' &&
-        /^\/bookings\/[A-Za-z0-9_-]+\/complete-without-card$/.test(path)
+        (/^\/bookings\/[A-Za-z0-9_-]+\/(complete-without-card|notes)$/.test(
+          path
+        ) ||
+          path === '/case-assignments')
       ) {
         throw toError({
           status: 503,

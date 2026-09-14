@@ -814,6 +814,47 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(card).toContainText('預約成立');
   });
 
+  test('opt-in staff notes do not succeed locally', async ({ page }) => {
+    const startsAt = upcomingIso(48);
+    await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt: upcomingIso(48.5)
+      }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open');
+    await showAllAppointments(page);
+    const card = page.locator('[data-appointment-card="appointment_api_001"]');
+    await card.locator('[data-notes-toggle]').click();
+    const form = page.locator('[data-notes-form="appointment_api_001"]');
+    await expect(form).toBeVisible();
+    await form.locator('[name="noteText"]').fill('櫃台備註');
+    await form.getByRole('button', { name: '儲存備註' }).click();
+
+    await expect(page.locator('#status')).toContainText(
+      '服務暫時無法使用，請稍後再試。'
+    );
+    await expect(form.locator('[name="noteText"]')).toHaveValue('櫃台備註');
+  });
+
   test('opt-in staff reschedule posts /v1/bookings/:id/reschedule without patient fields', async ({
     page
   }) => {

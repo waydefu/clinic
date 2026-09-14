@@ -310,6 +310,34 @@ describe('createInternalTestBookingTransport', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('fail-closes notes and case assignment instead of writing the local store', async () => {
+    const local = vi.fn();
+    const fetchImpl = vi.fn();
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+
+    await expect(
+      transport('/bookings/appointment_001/notes', {
+        method: 'POST',
+        body: JSON.stringify({ noteText: 'must-not-persist-locally' })
+      })
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    await expect(
+      transport('/case-assignments', {
+        method: 'POST',
+        body: JSON.stringify({
+          appointmentId: 'appointment_001',
+          managerId: 'manager_001'
+        })
+      })
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    expect(local).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('keeps /state on the local store and maps a 503 through the v1 envelope', async () => {
     const local = vi.fn(() => Promise.resolve({ version: 8 }));
     const fetchImpl = vi.fn(() =>
