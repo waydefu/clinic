@@ -8,7 +8,8 @@ import {
 } from './outbox-processor.js';
 import { evaluateOutboxSlo, type OutboxAlert } from './outbox-slo.js';
 import {
-  NOOP_WORKER_METRICS,
+  InMemoryWorkerMetrics,
+  attemptFailRate10m,
   type WorkerMetricsPort,
   type WorkerQueueSnapshotMetric
 } from './worker-observability.js';
@@ -21,11 +22,13 @@ export interface InternalTestOutboxDrain {
   readonly summary: ProcessSummary;
   readonly snapshot: WorkerQueueSnapshotMetric;
   readonly alerts: readonly OutboxAlert[];
+  readonly attemptFailRate10m: number;
 }
 
 export interface InternalTestOutboxInspection {
   readonly snapshot: WorkerQueueSnapshotMetric;
   readonly alerts: readonly OutboxAlert[];
+  readonly attemptFailRate10m: number;
 }
 
 export interface InternalTestOutboxRuntime {
@@ -51,7 +54,7 @@ export function createInternalTestOutboxRuntime(
   options: InternalTestOutboxRuntimeOptions
 ): InternalTestOutboxRuntime {
   const calendar = options.calendar ?? new InMemoryCalendar();
-  const metrics = options.metrics ?? NOOP_WORKER_METRICS;
+  const metrics = options.metrics ?? new InMemoryWorkerMetrics();
   const processor = new OutboxProcessor(
     options.db,
     calendar,
@@ -64,10 +67,12 @@ export function createInternalTestOutboxRuntime(
     calendar,
     async inspect(nowUtc = options.clock?.() ?? new Date().toISOString()) {
       const snapshot = await readOutboxQueueSnapshot(options.db, nowUtc);
+      const failRate = attemptFailRate10m(metrics);
       return {
         snapshot,
+        attemptFailRate10m: failRate,
         alerts: evaluateOutboxSlo({
-          attemptFailRate10m: 0,
+          attemptFailRate10m: failRate,
           consecutiveEmptyBatchesWithPending: emptyStreak,
           snapshot
         })
@@ -83,11 +88,13 @@ export function createInternalTestOutboxRuntime(
       }
       if (summary.completed === 0 && snapshot.pending > 0) emptyStreak += 1;
       else emptyStreak = 0;
+      const failRate = attemptFailRate10m(metrics);
       return {
         summary,
         snapshot,
+        attemptFailRate10m: failRate,
         alerts: evaluateOutboxSlo({
-          attemptFailRate10m: 0,
+          attemptFailRate10m: failRate,
           consecutiveEmptyBatchesWithPending: emptyStreak,
           snapshot
         })

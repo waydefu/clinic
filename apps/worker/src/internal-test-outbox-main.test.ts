@@ -85,7 +85,8 @@ describe('internal-test outbox HTTP surface', () => {
       inspect: () =>
         Promise.resolve({
           snapshot: { ...EMPTY_SNAPSHOT, deadLettered: 1 },
-          alerts: [{ code: 'dead_letter_present', severity: 'immediate' }]
+          alerts: [{ code: 'dead_letter_present', severity: 'immediate' }],
+          attemptFailRate10m: 0
         }),
       run: () => Promise.reject(new Error('drain must not run for health'))
     };
@@ -100,7 +101,37 @@ describe('internal-test outbox HTTP surface', () => {
         service: 'internal-test-outbox-worker',
         status: 'degraded',
         snapshot: { ...EMPTY_SNAPSHOT, deadLettered: 1 },
-        alerts: [{ code: 'dead_letter_present', severity: 'immediate' }]
+        alerts: [{ code: 'dead_letter_present', severity: 'immediate' }],
+        attemptFailRate10m: 0
+      });
+    } finally {
+      server.close();
+      await once(server, 'close');
+    }
+  });
+
+  it('keeps health ok for a weekday fail-rate alert and forwards the rate', async () => {
+    const runtime = {
+      calendar: {},
+      inspect: () =>
+        Promise.resolve({
+          snapshot: EMPTY_SNAPSHOT,
+          alerts: [{ code: 'calendar_attempt_fail_rate', severity: 'weekday' }],
+          attemptFailRate10m: 0.25
+        }),
+      run: () => Promise.reject(new Error('drain must not run for health'))
+    };
+    const server = createInternalTestOutboxServer(runtime);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const health = await http(port, '/health', 'GET');
+      expect(health.status).toBe(200);
+      expect(JSON.parse(health.body)).toMatchObject({
+        status: 'ok',
+        attemptFailRate10m: 0.25,
+        alerts: [{ code: 'calendar_attempt_fail_rate', severity: 'weekday' }]
       });
     } finally {
       server.close();

@@ -38,7 +38,10 @@ export function createInternalTestOutboxServer(
               ? 'degraded'
               : 'ok',
             snapshot: inspection.snapshot,
-            alerts: inspection.alerts
+            alerts: inspection.alerts,
+            ...(typeof inspection.attemptFailRate10m === 'number'
+              ? { attemptFailRate10m: inspection.attemptFailRate10m }
+              : {})
           }),
         () => send(response, 503, { error: 'worker_unavailable' })
       );
