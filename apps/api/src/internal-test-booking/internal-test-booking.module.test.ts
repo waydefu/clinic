@@ -29,4 +29,10 @@ describe('InternalTestBookingModule clock wiring', () => {
     );
     expect(appModule).toMatch(/InternalTestBookingModule\.register\(\)/);
   });
+
+  it('keeps Vitest AppModule slot reads on an unpublished in-memory grid', () => {
+    expect(source).toContain('unpublishedMemorySchedule');
+    expect(source).toContain('vitestWithoutFirestoreEmulator');
+    expect(source).toContain('FirestoreScheduleRepository');
+  });
 });
