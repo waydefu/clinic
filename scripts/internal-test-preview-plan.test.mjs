@@ -37,6 +37,14 @@ describe('planInternalTestPreviewDeploy', () => {
     expect(plan.smokeCommand).toContain(
       'https://beauessence-clinic-stg-c1a01--internal-preproduction.web.app/'
     );
+    expect(plan.rollbackCommand).toContain('hosting:channel:delete');
+    expect(plan.rollbackCommand).toContain('internal-preproduction');
+    expect(plan.rollbackCommand).toContain('--force');
+    expect(plan.rollbackCommand).toContain(
+      '--project=beauessence-clinic-stg-c1a01'
+    );
+    expect(plan.rollbackCommand).not.toMatch(/channel:delete live\b/);
+    expect(plan.rollbackCommand).not.toContain('beauessence-clinic-staging');
   });
 
   it('refuses live, staging, and a stale SHA', () => {
@@ -73,6 +81,31 @@ describe('runInternalTestPreviewPlanCli', () => {
     });
     expect(code).toBe(2);
     expect(stderr).toBe(PLAN_USAGE);
+  });
+
+  it('prints execute:false including rollback when pnpm injects --', () => {
+    let stdout = '';
+    const code = runInternalTestPreviewPlanCli({
+      argv: ['--', HEAD],
+      env: {
+        INTERNAL_TEST_PREVIEW_SHA: HEAD,
+        INTERNAL_TEST_PREVIEW_PROJECT: PACKET.projectId,
+        INTERNAL_TEST_PREVIEW_CHANNEL: PACKET.channel,
+        INTERNAL_TEST_PREVIEW_EXPIRES: PACKET.expires,
+        INTERNAL_TEST_PREVIEW_OPERATOR: PACKET.operator,
+        INTERNAL_TEST_PREVIEW_APPROVER: PACKET.approver
+      },
+      stdout: {
+        write(chunk) {
+          stdout += chunk;
+        }
+      },
+      stderr: { write() {} }
+    });
+    expect(code).toBe(0);
+    const plan = JSON.parse(stdout);
+    expect(plan.execute).toBe(false);
+    expect(plan.rollbackCommand).toContain('hosting:channel:delete');
   });
 });
 

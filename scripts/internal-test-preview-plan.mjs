@@ -71,7 +71,15 @@ export function planInternalTestPreviewDeploy(packet, headSha) {
       `--project=${authorized.projectId}`,
       `--config=${ISOLATED_PREVIEW_CONFIG}`
     ].join(' '),
-    smokeCommand: `pnpm smoke:internal-test-booking -- ${previewUrl}`
+    smokeCommand: `pnpm smoke:internal-test-booking -- ${previewUrl}`,
+    rollbackCommand: [
+      'firebase',
+      'hosting:channel:delete',
+      authorized.channel,
+      '--force',
+      `--project=${authorized.projectId}`,
+      `--config=${ISOLATED_PREVIEW_CONFIG}`
+    ].join(' ')
   };
 }
 
@@ -87,10 +95,11 @@ export function packetFromEnv(env = process.env) {
 }
 
 export const PLAN_USAGE =
-  'Usage: set INTERNAL_TEST_PREVIEW_{SHA,PROJECT,CHANNEL,EXPIRES,OPERATOR,APPROVER} then pnpm plan:internal-test-preview -- <40-char-HEAD-sha>\nPrints execute:false. Does not deploy. Live channel and beauessence-clinic-staging are refused.\n';
+  'Usage: set INTERNAL_TEST_PREVIEW_{SHA,PROJECT,CHANNEL,EXPIRES,OPERATOR,APPROVER} then pnpm plan:internal-test-preview -- <40-char-HEAD-sha>\nPrints execute:false deploy, smoke, and preview-channel rollback. Does not deploy or delete. Live channel and beauessence-clinic-staging are refused.\n';
 
 export function runInternalTestPreviewPlanCli({ argv, env, stdout, stderr }) {
-  const headSha = argv.find((argument) => /^[a-f0-9]{40}$/.test(argument));
+  const args = argv.filter((argument) => argument !== '--');
+  const headSha = args.find((argument) => /^[a-f0-9]{40}$/.test(argument));
   if (headSha === undefined) {
     stderr.write(PLAN_USAGE);
     return 2;
