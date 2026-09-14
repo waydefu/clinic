@@ -1010,7 +1010,9 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
         method: 'POST',
         body: JSON.stringify({
           slotId: selectedSlotId,
-          ...(reuseReturn ? {} : { intake: patientIntake() }),
+          ...(reuseReturn
+            ? {}
+            : { patient: patientInput(), intake: patientIntake() }),
           bookingKind: selectedBookingType,
           // 患者端一次只選一個項目（那一步是兩張大卡片，不是清單）；工作臺的
           // 建立表單才是可複選的（W5）。送出的形狀一致，都是陣列。
