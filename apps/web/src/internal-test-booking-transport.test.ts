@@ -310,7 +310,7 @@ describe('createInternalTestBookingTransport', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('fail-closes notes and case assignment instead of writing the local store', async () => {
+  it('fail-closes notes, case assignment and local outbox demo writes', async () => {
     const local = vi.fn();
     const fetchImpl = vi.fn();
     const transport = createInternalTestBookingTransport({
@@ -332,6 +332,18 @@ describe('createInternalTestBookingTransport', () => {
           appointmentId: 'appointment_001',
           managerId: 'manager_001'
         })
+      })
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    await expect(
+      transport('/outbox/simulate', {
+        method: 'POST',
+        body: JSON.stringify({ fail: false })
+      })
+    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    await expect(
+      transport('/outbox/requeue', {
+        method: 'POST',
+        body: JSON.stringify({ jobId: 'outbox_001' })
       })
     ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
     expect(local).not.toHaveBeenCalled();

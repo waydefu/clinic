@@ -306,16 +306,19 @@ export function createInternalTestBookingTransport({
       parseBody(options)
     );
     if (mapped === undefined) {
-      // Unmapped writes that would mutate a contract appointment locally
-      // while /v1 is the source of truth. complete-without-card has no
-      // domain transition; notes and case assignment stay off the IP-001
-      // command (D-014 / D-007). Do not invent a /v1 mapping.
+      // Unmapped writes that would mutate contract state locally while /v1
+      // (or the worker outbox) is the source of truth. complete-without-card
+      // has no domain transition; notes and case assignment stay off the
+      // IP-001 command (D-014 / D-007); outbox simulate/requeue is the local
+      // calendar demo, not apps/worker. Do not invent a /v1 mapping.
       if (
         String(options.method ?? 'GET').toUpperCase() === 'POST' &&
         (/^\/bookings\/[A-Za-z0-9_-]+\/(complete-without-card|notes)$/.test(
           path
         ) ||
-          path === '/case-assignments')
+          path === '/case-assignments' ||
+          path === '/outbox/simulate' ||
+          path === '/outbox/requeue')
       ) {
         throw toError({
           status: 503,
