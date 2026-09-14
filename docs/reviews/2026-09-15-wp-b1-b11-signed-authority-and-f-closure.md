@@ -109,18 +109,18 @@ PR (redacted archive is WP-C5, not Stage A+B).
 
 | File | SHA-256 | Result |
 | --- | --- | --- |
-| `internal-preproduction-complete-a9a445a.json` | `b80d92b7…3f5454` | `HASH_MATCH` |
-| `internal-preproduction-complete-a9a445a.result.json` | `bb34e7c1…2c710e6` | `HASH_MATCH` |
-| `ci-verification.json` | `9efe81ca…e9a7b9285` | `HASH_MATCH` |
-| `hosting-inspect.json` | `5022f992…82bda8752` | `HASH_MATCH` |
-| `backup-inspect.json` | `2f076905…823708171` | `HASH_MATCH` |
-| `monitoring-inspect.json` | `4fb41f95…027867c5` | `HASH_MATCH` |
-| `migration-inspect.json` | `b392e7b5…13e438295f` | `HASH_MATCH` |
-| `smoke-probes.json` | `00a138d6…a7baf281a` | `HASH_MATCH` |
-| `c5-backup-schedule-apply-a9a445a.txt` | `0cee46ea…6130334589e` | `HASH_MATCH` |
-| `c1-iam-alert-apply-a9a445a.txt` | `9b0eeb2c…81ab821b94` | `HASH_MATCH` |
-| `firebase-preview-deploy-a9a445a.log` | `bc1afd4d…55584306442` | `HASH_MATCH` |
-| `hosting-channels-a9a445a.json` | `8fbda6db…29d83a793` | `HASH_MATCH` |
+| `internal-preproduction-complete-a9a445a.json` | `b80d92b70dea2564376732f95d8897bbdeca4bf7a26b875235e8d78ef23f5454` | `HASH_MATCH` |
+| `internal-preproduction-complete-a9a445a.result.json` | `bb34e7c18e46687e2762866b1b00135efa2ce5038841c41f74466e0cf2c710e6` | `HASH_MATCH` |
+| `ci-verification.json` | `9efe81ca35109abf42b02ac8c33f2438df067319778686ab698c1e9e0a7b9285` | `HASH_MATCH` |
+| `hosting-inspect.json` | `5022f9928ed91138e4b8611a8eb09b4772234312a6579c82bda8752a3b1bf7d4` | `HASH_MATCH` |
+| `backup-inspect.json` | `2f076905c4df15330919efc85b64d4a3029f0df7a31a93b6738237081714dc2f` | `HASH_MATCH` |
+| `monitoring-inspect.json` | `4fb41f9546d9c8a53071257873990a43360791675c702786b5d48c64ffbddf2b` | `HASH_MATCH` |
+| `migration-inspect.json` | `b392e7b5c6d2fd1e06940547d8cc84488f33b49908d70c488dcc6e13e438295f` | `HASH_MATCH` |
+| `smoke-probes.json` | `00a138d677c207cb244c5c7fb3d70c15cf4e4896da81ce9d9a92463a7baf281a` | `HASH_MATCH` |
+| `c5-backup-schedule-apply-a9a445a.txt` | `0cee46ea71f32c568d031b66e8f63443ef7696ff4232cb6329e6e6130334589e` | `HASH_MATCH` |
+| `c1-iam-alert-apply-a9a445a.txt` | `9b0eeb2cfc86dce1afd47640f7a978ac6dfa29d843fecfdba2882e81ab821b94` | `HASH_MATCH` |
+| `firebase-preview-deploy-a9a445a.log` | `bc1afd4d80ebf2b36d27e4a032e3e1c6ef52a41aefd8a04355584306442e713c` | `HASH_MATCH` |
+| `hosting-channels-a9a445a.json` | `8fbda6dbcee9136fbc15a056a364c9e86761a3fec6921913a29d83a793104a42` | `HASH_MATCH` |
 
 `HISTORICAL_ARTIFACTS_LOST` is **not** declared.
 
