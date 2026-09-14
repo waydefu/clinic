@@ -160,6 +160,34 @@ token in chat/docs/repo.
 Closed-item evidence: [2026-09-13 internal-preproduction owner direction](../reviews/2026-09-13-internal-preproduction-owner-direction.md).
 Dated inspect (not D-series approval): [2026-09-14 INTERNAL_PREPRODUCTION_COMPLETE](../reviews/2026-09-14-internal-preproduction-complete.md) — `pnpm inspect:internal-preproduction` `ok: true` on `origin/main` `a9a445a4e9bae83f779a9914bc7203961813f916`; `projectComplete: NOT_CLAIMED`; D-001–D-005 remain `pending`.
 
+### WP-B1 C1 API deployment — 2026-09-14 (waiting)
+
+Open owner question for finding F-01. Packet only; **not** approval and
+**not** Cloud Run authority. Do not start WP-C1 until this ID has Answer
+`A` or `B` recorded below by the clinic owner.
+
+```text
+Recorded input ID: WP-B1-2026-09-14
+Status: WAITING_FOR_ANSWER
+Owner: clinic owner
+Packet: docs/reviews/2026-09-14-wp-b1-c1-api-authority-packet.md
+Question: option A (authorize Cloud Run + fail-closed API on
+beauessence-clinic-stg-c1a01 with a new exact-SHA backend packet) or
+option B (do not deploy an API; redefine INTERNAL_PREPRODUCTION_COMPLETE
+as static Hosting preview plus CI-proven backend)?
+Answer: (blank until the clinic owner records A or B)
+Approved by:
+Approval date (Asia/Taipei):
+Explicit exclusions until answered: enable run.googleapis.com;
+artifactregistry.googleapis.com; terraform apply of a C1 API stack;
+firebase deploy of /v1/** to Cloud Run; reuse of the static
+internal-preproduction preview packet as backend authority; live
+Hosting; production; real patient data; D-001–D-005 approved.
+```
+
+Recorded by: assistant, from WP-B1 in the 2026-09-14 remediation plan.
+The assistant is not an approver and did not choose A or B.
+
 ### FS-001 first-stage product scope — 2026-09-11
 
 The clinic owner recorded the Phase 1 owner-visible capability freeze.
