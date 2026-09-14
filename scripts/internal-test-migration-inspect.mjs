@@ -23,7 +23,7 @@ function assertIsolatedC1Project(projectId, context) {
 export function internalTestMigrationCollectCommands(projectId) {
   assertIsolatedC1Project(projectId, 'internal-test migration inspect');
   return [
-    `gcloud firestore databases describe '(default)' --project=${projectId} --format=json`
+    `gcloud firestore databases describe --database='(default)' --project=${projectId} --format=json`
   ];
 }
 

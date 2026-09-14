@@ -49,6 +49,8 @@ describe('internalTestMigrationCollectCommands', () => {
     const commands = internalTestMigrationCollectCommands(isolated);
     expect(commands[0]).toContain(`--project=${isolated}`);
     expect(commands[0]).toContain('databases describe');
+    expect(commands[0]).toContain("--database='(default)'");
+    expect(commands[0]).not.toMatch(/describe '\(default\)'/);
     expect(commands.join('\n')).not.toMatch(
       /terraform apply|firebase deploy|CALENDAR_PILOT_LEGACY_MIGRATION_MODE=apply|databases clone|documents delete/
     );
