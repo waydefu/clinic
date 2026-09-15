@@ -1,5 +1,11 @@
 # WP-B1 C1 API 授權封包 — 2026-09-14
 
+> **Status (2026-09-15):** `SUPERSEDED` as a waiting question.
+> Clinic owner recorded answer **A** as `WP-B1-2026-09-15`. This file stays as
+> the original packet text. Answer A is **still not** Cloud Run deploy
+> authority; WP-C1 needs a later exact-SHA mutation packet.
+> Current: [2026-09-15 WP-B signed authority](2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md).
+
 Dated decision packet, **not** approval, **not** deployment authority, **not**
 a D-series flip. Drafter is not an approver. Until the clinic owner records
 **A** or **B** in the [decision register](../product/phase-1-decision-register.md),
@@ -11,7 +17,7 @@ This file cannot cite its own commit. Lookup:
 **Work package:** WP-B1（F-01）in
 [INTERNAL_PREPRODUCTION 補強施工計畫](../plans/2026-09-14-internal-preproduction-remediation-plan.md).  
 **Owner:** clinic owner.  
-**Status:** `WAITING_FOR_ANSWER`.
+**Status:** `SUPERSEDED` (answered A on 2026-09-15; waiting text below is historical).
 
 ## HUMAN BLOCKER
 

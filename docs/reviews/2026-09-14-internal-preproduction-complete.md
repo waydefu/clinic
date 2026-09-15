@@ -1,5 +1,11 @@
 # INTERNAL_PREPRODUCTION_COMPLETE — 2026-09-14
 
+> **Status (2026-09-15):** dated evidence for **static Hosting preview + C5
+> backup + C1 IAM alert** on `a9a445a`. **Not** current completeness.
+> After signed WP-B1 A (real isolated API + Booking Page/Workbench against
+> that API), live judgement is `INTERNAL_PREPRODUCTION_COMPLETE = FAIL`.
+> See [2026-09-15 WP-B signed authority](2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md).
+
 Dated evidence, not a production grant. `pnpm inspect:internal-preproduction`
 returned `ok: true` for isolated C1. D-001–D-005 stay `pending`.
 `projectComplete: NOT_CLAIMED`. `dSeriesForged: false`. Laptop Luna playbook

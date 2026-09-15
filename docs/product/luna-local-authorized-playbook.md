@@ -7,6 +7,10 @@ until Card 8 PASSes.
 **2026-09-13 supersession:** clinic owner recorded `GROK_UNRESTED` /
 `GROK_PROJECT_CLOSER` for cloud-agent engineering. This file remains the
 laptop Luna card. Production grants are unchanged.
+**2026-09-15 overlay:** signed WP-B1～B11 are internal-preproduction
+product/engineering direction for the cloud closer. They do not restore
+`LUNA_SOLE_EXECUTOR` as a ban on Grok, and they do not authorize Cloud Run
+without a later exact-SHA packet. Laptop cards below are unchanged.
 **Does not authorize:** production, real patient data, official DNS, live
 Hosting, production Calendar, or **public production** `/v1/bookings`.
 Register IP-001 (`INTERNAL_TEST_ROUTE_AUTHORIZED`) is a separate

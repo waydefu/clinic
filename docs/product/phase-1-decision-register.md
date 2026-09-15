@@ -42,6 +42,22 @@ for this stage. Clinic public marketing site is
 production DNS, live Hosting, production Calendar, real patient data, or
 the vendor-leased main website as `INTERNAL_TEST_BLOCKER`.
 
+**2026-09-15 (`WP-B1`～`WP-B11` signed):** clinic owner `wayde.fu` signed
+the WP-B1～B11 sheet at `2026/9/15/1:54` Asia/Taipei. Live answers are
+`WP-B1-2026-09-15` … `WP-B11-2026-09-15` and
+`IP-001-SCOPE-2026-09-15` below. This stage's owner-visible delivery is
+**Booking Page + Staff Workbench + fail-closed isolated API + isolated
+Firestore + Calendar projection + staff Auth/RBAC + audit/outbox/monitoring**,
+synthetic patients only, against a **real isolated backend** (not
+localStorage SoT). Public marketing homepage stays
+`DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE`.
+`PUBLIC_PRODUCTION_LAUNCH = DEFERRED`.
+`INTERNAL_PREPRODUCTION_COMPLETE` remains **FAIL** until that in-scope
+surface exists on isolated C1. Signed WP-B1 A is **not** Cloud Run
+deploy authority; a later exact-SHA WP-C1 packet is still required.
+D-001–D-005 stay `pending`. Closure matrix:
+[2026-09-15 WP-B signed authority and F-01～F-14](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md).
+
 **2026-09-13 (`GROK_UNRESTED` / `GROK_PROJECT_CLOSER`):** the clinic owner
 explicitly un-rested Grok for cloud-agent engineering and project-closer
 execution. `GROK_RESTS` / `LUNA_SOLE_EXECUTOR` (2026-09-12) remains the
@@ -85,7 +101,7 @@ production, not public booking, and not a D-series close.
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
 | D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (GO_LIVE_DEFERRED for internal-preproduction; 2026-09-13). Production URL still undecided; Firebase preview / `.web.app` is the current internal-test entry. 2026-09-11 FS-001 hostnames are not DNS mutation authority | Public production booking UX / official DNS |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
-| D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26; amended 2026-09-09: administrators also bound) | Treating a green CI run as a merge gate |
+| D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26; amended 2026-09-09: administrators also bound; WP-B5-2 2026-09-15 keeps `required_approving_review_count=0`) | Treating a green CI run as a merge gate |
 | D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | deferred (DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY; owner 2026-09-13) | Storing surgery, anesthesia or clinical follow-up data |
 | D-015 | Patient payment/refund ledger, accounting authority, reconciliation and staff-settlement source | Finance/accounting owner + clinic owner | deferred (DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY; owner 2026-09-13) | Persisting money or settlement amounts |
 | D-016 | Inbound Google Calendar edits, matching, reviewer authority, conflict/delete semantics and sync SLO | Clinic owner + security owner + operations | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (manager/front desk review, private link ID, five-minute target). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA. 2026-09-11 CAL-SYNC-DIR supersedes the earlier 30-minute *product* SLO with push-then-incremental plus 1–5 minute compensation; production D-016 stays pending | Calendar-to-system writes |
@@ -157,43 +173,251 @@ production ceremony; terraform apply to production; firebase login:ci
 token in chat/docs/repo.
 ```
 
+Owner-visible surfaces in that 2026-09-13 packet (“Booking + Patient
+Portal”) are **superseded for naming** by `IP-001-SCOPE-2026-09-15`
+below. IP-001 route authority (fail-closed InternalTestBookingModule,
+isolated project, no D-001–D-005 flip) is unchanged.
+
 Closed-item evidence: [2026-09-13 internal-preproduction owner direction](../reviews/2026-09-13-internal-preproduction-owner-direction.md).
-Dated inspect (not D-series approval): [2026-09-14 INTERNAL_PREPRODUCTION_COMPLETE](../reviews/2026-09-14-internal-preproduction-complete.md) — `pnpm inspect:internal-preproduction` `ok: true` on `origin/main` `a9a445a4e9bae83f779a9914bc7203961813f916`; `projectComplete: NOT_CLAIMED`; D-001–D-005 remain `pending`.
+Dated inspect (not current completeness): [2026-09-14 INTERNAL_PREPRODUCTION_COMPLETE](../reviews/2026-09-14-internal-preproduction-complete.md) — `pnpm inspect:internal-preproduction` `ok: true` on `origin/main` `a9a445a4e9bae83f779a9914bc7203961813f916` for **static preview + C5 backup + IAM alert**; `projectComplete: NOT_CLAIMED`; D-001–D-005 remain `pending`. Current judgement after signed WP-B1 A: `INTERNAL_PREPRODUCTION_COMPLETE = FAIL` — see [2026-09-15 WP-B signed authority](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md).
 
-### WP-B1 C1 API deployment — 2026-09-14 (waiting)
+### IP-001 scope clarification — 2026-09-15
 
-Open owner question for finding F-01. Packet only; **not** approval and
-**not** Cloud Run authority. Do not start WP-C1 until this ID has Answer
-`A` or `B` recorded below by the clinic owner.
+Clarifies the in-scope **owner-visible surfaces** for internal
+preproduction. Does not flip D-001–D-005. Does not grant Cloud Run
+deploy. Does not authorize real patient data or the vendor-leased
+marketing homepage.
+
+```text
+Recorded input ID: IP-001-SCOPE-2026-09-15
+Answer: this stage delivers Booking Page + Staff Workbench + required
+backend API + isolated Firestore + Calendar integration + staff
+Auth/RBAC + audit/outbox/monitoring on beauessence-clinic-stg-c1a01,
+synthetic patients only. Booking Page and Workbench must use the real
+isolated backend as source of truth (not localStorage / mock).
+Clinic public marketing website remains
+DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE.
+PUBLIC_PRODUCTION_LAUNCH = DEFERRED.
+Future official-site integration (not this stage): vendor homepage
+links or embeds a Booking Widget or standalone Booking Page that calls
+the single Canonical Booking API; Firestore remains SoT; Workbench and
+Calendar consume that SoT. Do not build a second booking stack.
+OUT_OF_SCOPE this stage: public marketing homepage; full site
+replacement; SEO/content migration; vendor takeover; official public
+production launch; patient Firebase/Google login as the general booking
+gate (WP-B3).
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+Recorded by: assistant, from the owner's 2026-09-15 work-order
+clarification layered on signed WP-B1～B11. The assistant is not an
+approver.
+```
+
+### WP-B1～B11 signed internal-preproduction decisions — 2026-09-15
+
+Source (do not edit): Google Doc
+https://docs.google.com/document/d/1HTFBOkrmsihz0rZzAnOhBPB0WGn45EI2nqF5R-WKAbI/edit
+Clinic owner `wayde.fu`, `2026/9/15/1:54` Asia/Taipei. Drive body header
+may still say `OWNER_SIGNATURE_PENDING`; the 簽署 block is the recorded
+act. Joint fillable sheet
+[2026-09-14 WP-B1～B6](../reviews/2026-09-14-wp-b1-through-b6-owner-review.md)
+and packet
+[2026-09-14 WP-B1](../reviews/2026-09-14-wp-b1-c1-api-authority-packet.md)
+are **superseded as waiting questions**. They stay as dated packets.
+
+Common exclusions for every ID below: live Hosting;
+`beauessence-clinic-staging`; production terraform; official DNS;
+production Calendar activation; real patient data; public production
+`/v1/bookings`; flipping D-001–D-005 to `approved`; `firebase login:ci`;
+passwords / TOTP / tokens / email recipients in the repo. Signed answers
+are internal-preproduction product/engineering direction. They are **not**
+an unscoped Cloud Run / Firebase / GCP mutation grant.
+
+```text
+Recorded input ID: WP-B1-2026-09-15
+Supersedes: WP-B1-2026-09-14 WAITING_FOR_ANSWER
+Answer: A — isolated C1 beauessence-clinic-stg-c1a01 must have a real
+fail-closed API. Suggested Cloud Run service internal-test-api.
+Hosting preview channel internal-preproduction, not live, expiry 7 days
+(renewable, never production). May enable Cloud Run API and Artifact
+Registry API; Cloud Build only if the real build path needs it.
+AUTHORIZED_SHA for mutation must be a fresh origin/main after
+engineering merges; do not reuse the static INTERNAL_TEST_PREVIEW_DEPLOY
+packet (a9a445a / firebase.isolated-preview.json) as backend authority.
+Acceptance floor: gate-off /v1 returns 503 not 404; gate-on accountless
+synthetic create + server read-back; return lookup per WP-B7.
+Does not: point at beauessence-clinic-staging; touch live Hosting;
+terraform apply stacks whose exact_apply_authority_sha is not_granted.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B2-2026-09-15
+Answer: B — Firestore durable limiter plus process-local burst limiter.
+Unauthenticated general API: 60 requests / 60 seconds / source IP.
+Identified patient or staff writes: 30 requests / 60 seconds / stable
+opaque actor id.
+Return-lookup and session/auth failures: 5 failed attempts / 15 minutes
+/ opaque lookup identity + source IP, then 15 minute lock.
+Over-limit: HTTP 429 + Retry-After.
+trustProxy: only the controlled Google/Firebase proxy chain; never
+blanket X-Forwarded-For.
+If approved D-006 is stricter, D-006 wins; this packet must not lower
+an approved security control.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B3-2026-09-15
+Answer: general Booking Page requires no account, no login, no OTP, and
+no Firebase patient Auth. Flow: service → date → time → required info →
+submit. Return identity confirmation runs only after the patient clicks
+回診 (WP-B7). Do not adopt “every patient must Google/Firebase login”
+as this-stage product. Diagnostic token injection is not an acceptance
+path. Does not replace D-001–D-003 privacy/legal approval.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B4-2026-09-15
+Answer: application monitoring = Pub/Sub + human Email. Email recipients
+are configured offline and must never enter the repository.
+Immediate: API outage / 5xx burst, booking durable write failure,
+Firestore persistent transaction failure, backup failure, outbox
+dead-letter, outbox oldest-pending too old, IAM SetIamPolicy, auth
+failure spike, authorization-denial spike.
+Suggested thresholds: API 5xx >= 3 / 5 min; booking write failure >= 3 /
+5 min; auth/authorization abnormal >= 10 / 5 min per actor or IP;
+dead-letter > 0.
+Weekday: rate-limit / denial summaries, retry counts, low-severity
+backlog, performance and budget trends.
+Monitoring acceptance requires at least one proven synthetic alert
+delivered to a real human. C1 IAM SetIamPolicy → budget Pub/Sub is
+infrastructure, not this application channel.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B5-1-2026-09-15
+Answer: IN_SCOPE this stage = manager, front_desk, patient.
+OUT_OF_SCOPE_THIS_STAGE = consultant, physician, system_admin, auditor,
+service_account. Do not expand physician/consultant workbench or invent
+permissions that reopen D-006.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B5-2-2026-09-15
+Answer: keep main required_approving_review_count = 0. Do not change to
+1. Solo-maintainer deadlock risk. Keep strict required CI, branch
+protection, enforce_admins. Revisit D-013 when a second trusted human
+maintainer exists.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B6-2026-09-15
+Answer: prefer recovering the 12 2026-09-14 inspect originals and
+redacting them into an archive. If lost: HISTORICAL_ARTIFACTS_LOST and
+build NEW_EVIDENCE_SET on a new exact SHA. Never fake originals.
+2026-09-15 Stage A recovered all 12 SHA-256 hashes on the cloud-agent
+VM (see the dated review). In-repo redacted archive remains WP-C5.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B7-2026-09-15
+Answer: return lookup (only after 回診) = phone number + date of birth,
+no OTP. Permanent identifier remains patientId. Phone is a lookup key,
+not the primary key. Failures use one normalized message (no
+existence/DOB oracle) plus WP-B2 lookup lock. Synthetic PII only.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B8-2026-09-15
+Answer: if an active follow-up appointment exists, show it and do not
+create a duplicate. If follow-up is required but no appointment exists,
+use the normal slot UI and create a follow_up appointment bound to the
+same patientId with lineage. Cancel/reschedule keep current cutoff and
+transaction safety.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B9-2026-09-15
+Answer: after successful return lookup, reuse existing name, phone, and
+DOB; do not force re-entry. New appointments reference patientId.
+localStorage is not the patient source of truth. Profile updates are a
+separate flow, not a re-create-on-every-return.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B10-2026-09-15
+Answer: appointment status at least confirmed → arrived → completed.
+Arrived is not completed. Arrived and completed update Calendar status
+and must not delete events. Database / workbench is source of truth;
+legal API/workbench changes project to Google Calendar via outbox /
+worker. Manual Calendar edits must not write the database directly;
+they become review candidates for manager/front_desk approve or reject
+(reject may repair Calendar back to SoT). Production Calendar inbound
+controller stays GO_LIVE_DEFERRED; internal synthetic may prove the
+flow. Does not approve production D-016.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+```text
+Recorded input ID: WP-B11-2026-09-15
+Answer: follow-up not_required closes the active follow-up only. It
+does not delete patient, appointments, audit, follow-up history, or
+Calendar history. The patient leaves “needs follow-up” lists but remains
+findable in history. Internal-preproduction may use synthetic
+PII-shaped Calendar fields (name, phone, type, item, time, status).
+Production real Calendar PII still needs privacy/medical/finance review.
+not_required is not a deletion or retention signal; D-002 remains
+pending.
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+```
+
+### WP-B1 C1 API deployment — 2026-09-14 (superseded waiting packet)
+
+Historical waiting packet for F-01. **Superseded** by `WP-B1-2026-09-15`
+answer A. Kept so the original question text remains auditable. Still
+**not** Cloud Run deploy authority.
 
 ```text
 Recorded input ID: WP-B1-2026-09-14
-Status: WAITING_FOR_ANSWER
+Status: SUPERSEDED (answered as A on 2026-09-15)
 Owner: clinic owner
 Packet: docs/reviews/2026-09-14-wp-b1-c1-api-authority-packet.md
 Question: option A (authorize Cloud Run + fail-closed API on
 beauessence-clinic-stg-c1a01 with a new exact-SHA backend packet) or
 option B (do not deploy an API; redefine INTERNAL_PREPRODUCTION_COMPLETE
 as static Hosting preview plus CI-proven backend)?
-Answer: (blank until the clinic owner records A or B)
-Approved by:
-Approval date (Asia/Taipei):
-Explicit exclusions until answered: enable run.googleapis.com;
-artifactregistry.googleapis.com; terraform apply of a C1 API stack;
-firebase deploy of /v1/** to Cloud Run; reuse of the static
-internal-preproduction preview packet as backend authority; live
+Answer: A (recorded under WP-B1-2026-09-15)
+Approved by: clinic owner
+Approval date (Asia/Taipei): 2026-09-15 01:54
+Explicit exclusions until a later exact-SHA WP-C1 packet: enable
+run.googleapis.com; artifactregistry.googleapis.com; terraform apply of
+a C1 API stack; firebase deploy of /v1/** to Cloud Run; reuse of the
+static internal-preproduction preview packet as backend authority; live
 Hosting; production; real patient data; D-001–D-005 approved.
 ```
 
-Recorded by: assistant, from WP-B1 in the 2026-09-14 remediation plan.
-The assistant is not an approver and did not choose A or B.
-
-Joint owner-review sheet for WP-B1 through WP-B6 (still waiting, not
-approval): [2026-09-14 WP-B1～B6 業主連審表](../reviews/2026-09-14-wp-b1-through-b6-owner-review.md).
-IDs WP-B2 through WP-B6 remain `WAITING_FOR_ANSWER` on that sheet
-(rate limits, patient login, alert channel, role coverage / D-013
-reviews, inspect artifacts). Do not start WP-C2, WP-C3, WP-C4, WP-C5,
-or role-expansion work until the matching ID has an owner answer here.
+Recorded by: assistant. The assistant is not an approver.
 
 ### FS-001 first-stage product scope — 2026-09-11
 
@@ -231,6 +455,15 @@ semantics.
 ```
 
 Closed-item evidence: [2026-09-11 C0 owner-direction reconciliation](../reviews/2026-09-11-c0-owner-direction-reconciliation.md).
+
+**2026-09-15 surface note:** `IP-001-SCOPE-2026-09-15` does not retire
+FS-001's Phase 1 capability freeze, but it **does** retire
+`beauessence.com.tw/reservations/` as a *this-stage* deliverable. The
+vendor-leased marketing site stays
+`DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE`. This-stage patient
+entry is the isolated Booking Page (accountless) plus later Widget /
+standalone page on the Canonical Booking API. Suggested hostnames remain
+not DNS authority.
 
 ### C0-ENG-ACCEPT-2026-09-11 engineering C0 acceptance
 
@@ -932,6 +1165,8 @@ deployment, real data, D-004/D-005, Stage 2, C0–C6, or any other D-series item
 It does not authorise lowering required checks or enabling force push.
 Residual risk accepted: required_approving_review_count remains 0; conversation
 resolution remains required. Both approver roles were signed by one person.
+WP-B5-2 (2026-09-15) keeps required_approving_review_count=0 and does not
+raise it to 1.
 ```
 
 **The consequence, stated plainly:** a green CI run is a merge gate for
