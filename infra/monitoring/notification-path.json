@@ -1,0 +1,29 @@
+{
+  "status": "IMPLEMENTED_NOT_DEPLOYED",
+  "proven": false,
+  "humanNotificationProvenForbiddenUntilCloudDelivery": true,
+  "path": ["alert_policy", "notification_channel", "human_email"],
+  "transport": "pubsub_plus_email",
+  "pubsubTopic": "c1-application-alerts",
+  "emailChannel": {
+    "type": "email",
+    "recipientSource": "secret_or_tfvar_never_in_repo",
+    "tfvar": "alert_email_address",
+    "secretName": "wp-b4-alert-email"
+  },
+  "iamSetIamPolicyExistingPath": {
+    "topic": "c1-budget-alerts",
+    "channel": "budget_pubsub",
+    "note": "C1 IAM SetIamPolicy continues to notify the existing budget Pub/Sub. WP-B4 application alerts use c1-application-alerts plus the human email channel."
+  },
+  "weekdaySummary": {
+    "kind": "weekday_operational_summary",
+    "delivery": "structured_payload_renderer_only",
+    "fakeEmailForbidden": true
+  },
+  "forbidden": [
+    "commit_recipient_address",
+    "claim_HUMAN_NOTIFICATION_PROVEN_without_cloud_delivery",
+    "cloud_apply_without_exact_sha_authority"
+  ]
+}

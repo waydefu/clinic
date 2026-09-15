@@ -72,6 +72,14 @@ function passingSnapshot(overrides = {}) {
       ]
     },
     migration: { projectId: isolated },
+    historicalArtifacts: {
+      status: 'HISTORICAL_ARTIFACTS_LOST',
+      newEvidenceSet: true
+    },
+    humanNotification: {
+      status: 'IMPLEMENTED_NOT_DEPLOYED',
+      proven: false
+    },
     smoke: {
       probes: INTERNAL_TEST_SMOKE_PROBES.map((probe) => ({
         method: probe.method,
@@ -146,6 +154,41 @@ describe('evaluateInternalPreproduction', () => {
     expect(result.projectComplete).toBe('NOT_CLAIMED');
     expect(result.goLiveDeferred).toContain('real patient data');
     expect(result.issues.join('\n')).toMatch(/beauessence-clinic-staging/);
+  });
+
+  it('fails closed when smoke is a static 404 instead of fail-closed 503', () => {
+    const result = evaluateInternalPreproduction(
+      passingSnapshot({
+        smoke: {
+          probes: INTERNAL_TEST_SMOKE_PROBES.map((probe) => ({
+            method: probe.method,
+            path: probe.path,
+            status: 404
+          }))
+        }
+      })
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues.join('\n')).toMatch(/api-not-mounted/);
+  });
+
+  it('rejects faked historical originals and unproven human notification', () => {
+    const reused = evaluateInternalPreproduction(
+      passingSnapshot({
+        historicalArtifacts: { status: 'HASH_MATCH', newEvidenceSet: true }
+      })
+    );
+    expect(reused.ok).toBe(false);
+    const proven = evaluateInternalPreproduction(
+      passingSnapshot({
+        humanNotification: {
+          status: 'HUMAN_NOTIFICATION_PROVEN',
+          proven: true
+        }
+      })
+    );
+    expect(proven.ok).toBe(false);
+    expect(proven.issues.join('\n')).toMatch(/inbox evidence/);
   });
 
   it('fails closed when exact-head CI or smoke evidence is missing', () => {

@@ -9,6 +9,7 @@ import { z } from 'zod';
 import {
   AuthenticationRequiredError,
   AuthorizationDeniedError,
+  DOMAIN_TO_API_CODE,
   PolicyAcceptanceRequiredError,
   RateLimitedError,
   ServiceUnavailableError,
@@ -140,6 +141,15 @@ describe('mapErrorToApiResponse', () => {
           .headers
       ).toEqual({});
     });
+  });
+
+  it('reuses domain codes instead of inventing SLOT_TAKEN or INVALID_TRANSITION', () => {
+    expect(DOMAIN_TO_API_CODE.SLOT_UNAVAILABLE).toBe('CONFLICT');
+    expect(DOMAIN_TO_API_CODE.TRANSITION_NOT_ALLOWED).toBe('CONFLICT');
+    expect(DOMAIN_TO_API_CODE.APPOINTMENT_NOT_FOUND).toBe('NOT_FOUND');
+    expect(DOMAIN_TO_API_CODE.CANCELLATION_WINDOW_CLOSED).toBe('CONFLICT');
+    expect(DOMAIN_TO_API_CODE.FOLLOW_UP_ALREADY_SCHEDULED).toBe('CONFLICT');
+    expect(DOMAIN_TO_API_CODE.FOLLOW_UP_NOT_ENTITLED).toBe('NOT_FOUND');
   });
 
   it('always produces a body that satisfies the v1 error envelope', () => {

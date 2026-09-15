@@ -24,6 +24,13 @@ function send(
 
 export function createCalendarPilotServer(runtime: CalendarPilotHttpRuntime) {
   return createServer((request, response) => {
+    if (request.method === 'GET' && request.url === '/live') {
+      send(response, 200, {
+        service: 'calendar-pilot-worker',
+        status: 'ok'
+      });
+      return;
+    }
     if (request.method === 'GET' && request.url === '/health') {
       void runtime.inspect().then(
         (inspection) =>

@@ -60,6 +60,12 @@ describe('internal-test outbox HTTP surface', () => {
     await once(server, 'listening');
     const port = (server.address() as AddressInfo).port;
     try {
+      const live = await http(port, '/live', 'GET');
+      expect(live.status).toBe(200);
+      expect(JSON.parse(live.body)).toEqual({
+        service: 'internal-test-outbox-worker',
+        status: 'ok'
+      });
       const health = await http(port, '/health', 'GET');
       expect(health.status).toBe(200);
       expect(JSON.parse(health.body)).toEqual({

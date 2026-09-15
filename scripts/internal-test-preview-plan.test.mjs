@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ISOLATED_AUTH_FRAME,
+  STAGING_AUTH_FRAME,
+  firebaseHostingHeaderBlocks
+} from '../apps/web/csp-policy.mjs';
+import {
   ISOLATED_PREVIEW_CONFIG,
   PLAN_USAGE,
   planInternalTestPreviewDeploy,
@@ -132,7 +137,15 @@ describe('isolated preview Hosting config', () => {
     expect(isolated.public).toBe(calPilot.public);
     expect(isolated.predeploy).toEqual(calPilot.predeploy);
     expect(isolated.redirects).toEqual(calPilot.redirects);
-    expect(isolated.headers).toEqual(calPilot.headers);
+    expect(calPilot.headers).toEqual(
+      firebaseHostingHeaderBlocks(STAGING_AUTH_FRAME)
+    );
+    expect(isolated.headers).toEqual(
+      firebaseHostingHeaderBlocks(ISOLATED_AUTH_FRAME)
+    );
+    expect(JSON.stringify(isolated.headers)).not.toContain(
+      'beauessence-clinic-staging.firebaseapp.com'
+    );
     expect(isolated.rewrites).toEqual(
       calPilot.rewrites.filter((rule) => !('run' in rule))
     );

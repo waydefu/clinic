@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 // @ts-expect-error — the repository gate is plain ESM with no type declarations.
 import { checkPublicPageConfiguration } from '../../../scripts/check-public-pages.mjs';
+import {
+  ISOLATED_AUTH_FRAME,
+  STAGING_AUTH_FRAME,
+  firebaseHostingHeaderBlocks
+} from '../csp-policy.mjs';
 
 type PrettyPath = [route: string, entry: string];
 
@@ -126,6 +131,7 @@ function fixture() {
     serverSource: serverSource(),
     firebase: {
       hosting: {
+        headers: firebaseHostingHeaderBlocks(STAGING_AUTH_FRAME),
         redirects: [
           {
             source: '/',
@@ -172,6 +178,7 @@ function fixture() {
     },
     isolatedFirebase: {
       hosting: {
+        headers: firebaseHostingHeaderBlocks(ISOLATED_AUTH_FRAME),
         redirects: [
           {
             source: '/',

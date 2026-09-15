@@ -63,6 +63,7 @@ export class InMemoryWorkerMetrics implements WorkerMetricsPort {
     readonly atMs: number;
     readonly failed: boolean;
   }[] = [];
+  private lastSnapshot: WorkerQueueSnapshotMetric | undefined;
 
   public constructor(private readonly nowMs: () => number = Date.now) {}
 
@@ -83,8 +84,12 @@ export class InMemoryWorkerMetrics implements WorkerMetricsPort {
     return;
   }
 
-  public recordQueueSnapshot(_metric: WorkerQueueSnapshotMetric): void {
-    return;
+  public recordQueueSnapshot(metric: WorkerQueueSnapshotMetric): void {
+    this.lastSnapshot = metric;
+  }
+
+  public lastQueueSnapshot(): WorkerQueueSnapshotMetric | undefined {
+    return this.lastSnapshot;
   }
 
   public attemptFailRate10m(): number {

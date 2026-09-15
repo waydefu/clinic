@@ -4,6 +4,14 @@
 （見[決策登錄](../product/phase-1-decision-register.md)）。D-009 正式核准仍為
 pending，正式上線不適用本文件。
 
+```text
+PRODUCTION_CALENDAR_INBOUND = GO_LIVE_DEFERRED
+code ready ≠ production activated
+```
+
+本文件可準備 production 操作，但**不得** register watch、啟用 webhook、
+或變更真實病患 Calendar。Stage E 沒有部署授權。
+
 ## 要「服務帳號」，不是「OAuth 用戶端」
 
 Google Cloud 有兩種容易混淆的憑證，**這裡要的是服務帳號**：

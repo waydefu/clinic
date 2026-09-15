@@ -109,6 +109,61 @@ function evaluateSmokeSection(section) {
   return evaluateInternalTestBookingSmoke(probes);
 }
 
+function evaluateHistoricalSection(section) {
+  const issues = [];
+  const status = String(section?.status ?? '').trim();
+  if (status === 'HASH_MATCH') {
+    if (section?.newEvidenceSet === true) {
+      issues.push(
+        'HASH_MATCH historical artifacts must not also be labelled NEW_EVIDENCE_SET.'
+      );
+    }
+    return { ok: issues.length === 0, issues };
+  }
+  if (status === 'HISTORICAL_ARTIFACTS_LOST') {
+    if (section?.newEvidenceSet !== true) {
+      issues.push(
+        'HISTORICAL_ARTIFACTS_LOST requires NEW_EVIDENCE_SET; do not fake WP-B6 originals.'
+      );
+    }
+    return { ok: issues.length === 0, issues };
+  }
+  issues.push(
+    'internal-preproduction requires historical artifact disposition HASH_MATCH or HISTORICAL_ARTIFACTS_LOST.'
+  );
+  return { ok: false, issues };
+}
+
+function evaluateHumanNotificationSection(section) {
+  const issues = [];
+  if (
+    section?.proven === true ||
+    section?.status === 'HUMAN_NOTIFICATION_PROVEN'
+  ) {
+    if (section?.humanInboxProof !== true) {
+      issues.push(
+        'HUMAN_NOTIFICATION_PROVEN is forbidden without cloud inbox evidence.'
+      );
+    }
+  }
+  const status = String(section?.status ?? '').trim();
+  if (
+    status !== '' &&
+    status !== 'IMPLEMENTED_NOT_DEPLOYED' &&
+    status !== 'HUMAN_NOTIFICATION_PROVEN'
+  ) {
+    issues.push(
+      'human notification status must be IMPLEMENTED_NOT_DEPLOYED or proven with inbox evidence.'
+    );
+  }
+  if (status === '') {
+    issues.push(
+      'internal-preproduction requires human notification path status.'
+    );
+  }
+  return { ok: issues.length === 0, issues };
+}
+
 export function evaluateInternalPreproduction(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') {
     return {
@@ -164,8 +219,21 @@ export function evaluateInternalPreproduction(snapshot) {
     'internal-preproduction requires migration inspect evidence.'
   );
   const smoke = evaluateSmokeSection(snapshot.smoke);
+  const historical = evaluateHistoricalSection(snapshot.historicalArtifacts);
+  const humanNotification = evaluateHumanNotificationSection(
+    snapshot.humanNotification
+  );
 
-  for (const result of [ci, hosting, backup, monitoring, migration, smoke]) {
+  for (const result of [
+    ci,
+    hosting,
+    backup,
+    monitoring,
+    migration,
+    smoke,
+    historical,
+    humanNotification
+  ]) {
     issues.push(...result.issues);
   }
 

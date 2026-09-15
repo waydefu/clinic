@@ -69,7 +69,7 @@ describe('assertInternalTestSmokeTarget', () => {
 });
 
 describe('evaluateUnauthenticatedApiSurface', () => {
-  it('treats 503, 401, and static 404 as fail-closed and 2xx as a public write', () => {
+  it('treats 503 and 401 as fail-closed and 404 as API-not-mounted', () => {
     expect(evaluateUnauthenticatedBookingWrite({ status: 503 })).toEqual({
       ok: true,
       status: 503,
@@ -87,8 +87,15 @@ describe('evaluateUnauthenticatedApiSurface', () => {
         method: 'POST',
         path: '/v1/bookings',
         status: 404
-      })
-    ).toMatchObject({ ok: true, status: 404 });
+      }).ok
+    ).toBe(false);
+    expect(
+      evaluateUnauthenticatedApiSurface({
+        method: 'POST',
+        path: '/v1/bookings',
+        status: 404
+      }).reason
+    ).toMatch(/api-not-mounted/);
     expect(
       evaluateUnauthenticatedApiSurface({
         method: 'POST',
@@ -119,10 +126,12 @@ describe('evaluateInternalTestBookingSmoke', () => {
       ok: true,
       issues: []
     });
-    expect(evaluateInternalTestBookingSmoke(probesWithStatus(404))).toEqual({
-      ok: true,
-      issues: []
-    });
+    expect(evaluateInternalTestBookingSmoke(probesWithStatus(404)).ok).toBe(
+      false
+    );
+    expect(
+      evaluateInternalTestBookingSmoke(probesWithStatus(404)).issues.join('\n')
+    ).toMatch(/api-not-mounted/);
   });
 
   it('fails if an unauthenticated create, lookup, or delete succeeds', () => {

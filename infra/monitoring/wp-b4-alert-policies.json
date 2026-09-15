@@ -1,0 +1,121 @@
+{
+  "status": "IMPLEMENTED_NOT_DEPLOYED",
+  "apply": "exact_sha_authority_required",
+  "window": "5m",
+  "notificationPath": ["alert_policy", "notification_channel", "human_email"],
+  "recipientSource": "secret_or_tfvar_never_in_repo",
+  "metricLabelPolicy": "opaque_ids_only_no_pii",
+  "immediate": [
+    {
+      "id": "api_outage_or_5xx_burst",
+      "displayName": "WP-B4 API 5xx burst",
+      "signal": "http_5xx",
+      "threshold": 3,
+      "comparison": "gte",
+      "window": "5m",
+      "logMetric": "wp-b4-http-5xx",
+      "filter": "jsonPayload.errorCode=\"INTERNAL_ERROR\" OR jsonPayload.errorCode=\"INTERNAL\"",
+      "exclude": "SERVICE_UNAVAILABLE fail-closed gate"
+    },
+    {
+      "id": "durable_booking_write_failure",
+      "displayName": "WP-B4 durable booking write failure",
+      "signal": "booking_write_failure",
+      "threshold": 3,
+      "comparison": "gte",
+      "window": "5m",
+      "logMetric": "wp-b4-booking-write-failure",
+      "filter": "jsonPayload.operation=\"POST_v1_bookings\" AND jsonPayload.result=\"error\" AND jsonPayload.errorCode!=\"SERVICE_UNAVAILABLE\""
+    },
+    {
+      "id": "persistent_firestore_transaction_failure",
+      "displayName": "WP-B4 Firestore transaction failure",
+      "signal": "booking_transaction_failure",
+      "threshold": 3,
+      "comparison": "gte",
+      "window": "5m",
+      "logMetric": "wp-b4-booking-transaction-failure",
+      "filter": "jsonPayload.errorCode=\"SLOT_UNAVAILABLE\" OR jsonPayload.operation=\"booking_transaction\" AND jsonPayload.result=\"error\""
+    },
+    {
+      "id": "backup_failure",
+      "displayName": "WP-B4 backup failure",
+      "signal": "backup_failure",
+      "threshold": 1,
+      "comparison": "gte",
+      "window": "5m",
+      "logMetric": "wp-b4-backup-failure",
+      "filter": "jsonPayload.errorCode=\"BACKUP_FAILED\" OR protoPayload.methodName=~\"google.firestore.admin.v1.FirestoreAdmin.CreateBackup\""
+    },
+    {
+      "id": "outbox_dead_letter",
+      "displayName": "WP-B4 outbox dead-letter",
+      "signal": "outbox_dead_letter",
+      "threshold": 1,
+      "comparison": "gte",
+      "window": "5m",
+      "logMetric": "wp-b4-outbox-dead-letter",
+      "filter": "jsonPayload.retryState=\"dead_lettered\""
+    },
+    {
+      "id": "excessive_outbox_age",
+      "displayName": "WP-B4 excessive outbox age",
+      "signal": "outbox_oldest_age",
+      "threshold": 60,
+      "comparison": "gte",
+      "window": "5m",
+      "unit": "seconds",
+      "note": "Existing worker Canon is 60s, stricter than a 5-minute guess."
+    },
+    {
+      "id": "iam_setiampolicy",
+      "displayName": "WP-B4 IAM SetIamPolicy",
+      "signal": "iam_setiampolicy",
+      "threshold": 1,
+      "comparison": "gte",
+      "window": "5m",
+      "existingC1Metric": "c1-iam-setiampolicy",
+      "note": "Reuse the SHA-gated C1 log metric. Application channel is additional to budget Pub/Sub."
+    },
+    {
+      "id": "auth_failure_spike",
+      "displayName": "WP-B4 auth failure spike",
+      "signal": "auth_failure",
+      "threshold": 10,
+      "comparison": "gte",
+      "window": "5m",
+      "logMetric": "wp-b4-auth-failure",
+      "filter": "jsonPayload.errorCode=\"AUTHENTICATION_REQUIRED\"",
+      "dimension": "route_family_only"
+    },
+    {
+      "id": "authz_denial_spike",
+      "displayName": "WP-B4 authorization denial spike",
+      "signal": "authz_denial",
+      "threshold": 10,
+      "comparison": "gte",
+      "window": "5m",
+      "logMetric": "wp-b4-authz-denial",
+      "filter": "jsonPayload.errorCode=\"AUTHORIZATION_DENIED\"",
+      "dimension": "route_family_only"
+    }
+  ],
+  "weekday": {
+    "id": "weekday_operational_summary",
+    "severity": "weekday",
+    "renderer": "packages/domain/src/observability.ts#renderWeekdayOperationalSummary",
+    "fields": [
+      "rateLimited",
+      "authDenials",
+      "authzDenials",
+      "retries",
+      "recoveries",
+      "outboxBacklog",
+      "calendarCandidateBacklog",
+      "apiP95Ms",
+      "resourceCostSignal"
+    ],
+    "piiForbidden": true,
+    "emailDelivery": "not_in_stage_e"
+  }
+}

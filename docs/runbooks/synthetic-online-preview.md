@@ -17,6 +17,12 @@ Firestore、Functions、Cloud Run、Google Calendar、LINE、Meta 或 NAS。不�
 建立或更新都要先取得新的具名核准，記錄 exact commit、Firebase project、channel、
 expiry、operator 與 approver；舊授權或舊 URL 不可重用。
 
+Isolated C1 internal-preproduction（Booking Page + Workbench + fail-closed
+API）的事故與 rollback 程序見
+[stage-e-operational.md](stage-e-operational.md)「Isolated preview
+deployment」。那條路徑仍需要 fresh exact-SHA packet；本文件的
+`synthetic-review` 靜態預覽授權不可重用。
+
 ```powershell
 corepack pnpm verify
 firebase login:list
