@@ -576,17 +576,11 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   const status = input?.status;
   if (!['required', 'not_required'].includes(status))
     throw new Error('回診狀態無效。');
-  const dueDate =
-    typeof input?.dueDate === 'string' && input.dueDate !== ''
-      ? input.dueDate
-      : undefined;
-  const dueTime =
-    typeof input?.dueTime === 'string' && input.dueTime !== ''
-      ? input.dueTime
-      : undefined;
+  const dueDate = input?.dueDate || undefined;
+  const dueTime = input?.dueTime || undefined;
   if (status === 'required') {
     if ((dueDate === undefined) !== (dueTime === undefined))
-      throw new Error('建議回診日期與時間必須成對填寫，或都先留空。');
+      throw new Error('日期與時間須成對或都留空。');
     if (dueDate !== undefined && dueTime !== undefined) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))
         throw new Error('建議回診日期無效。');
@@ -597,7 +591,7 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
         throw new Error('目標時間不在當天的回診可掛號時間內。');
     }
   } else if (dueDate !== undefined || dueTime !== undefined) {
-    throw new Error('不需要回診時不可帶建議日期或時間。');
+    throw new Error('無需回診時不可帶日期時間。');
   }
 
   const tags = selectedTags(input?.tags, FOLLOW_UP_NOTE_TAGS, '回診項目');

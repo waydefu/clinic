@@ -108,7 +108,7 @@ test.describe('角色邊界', () => {
         .evaluateAll((fields) =>
           fields.map((field) => field.getAttribute('name'))
         )
-    ).toEqual(['medicalRecordNumber', 'status', 'dueDate', 'dueTime']);
+    ).toEqual(['medicalRecordNumber', 'status']);
     expect(
       await followUp
         .locator('.follow-up-row-secondary')

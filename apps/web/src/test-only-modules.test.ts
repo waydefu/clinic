@@ -930,8 +930,7 @@ describe('櫃台處置', () => {
       query: ''
     });
     expect(queued).toContain('待安排回診');
-    expect(queued).toContain('尚未排期');
-    expect(queued).toContain('需回診，尚未排期');
+    expect(queued).toContain('稍後再排期');
     expect(queued).not.toContain('回診提醒已上日曆');
     expect(queued).toContain(appointment.id);
   });
@@ -969,7 +968,7 @@ describe('櫃台處置', () => {
         },
         'admin_test_001'
       )
-    ).toThrow(/不需要回診/);
+    ).toThrow(/無需回診/);
   });
 
   it('同日已過去的時段不可預約（5 點不能約 4 點）', () => {

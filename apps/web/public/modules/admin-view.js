@@ -13,7 +13,7 @@ import {
 } from './constants.js';
 import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
-import { followUpDueTimes, isUpcomingSlot } from './schedule-engine.js';
+import { isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
 import {
   emptyState,
@@ -433,23 +433,18 @@ function rescheduleOptions(state, appointment) {
 // 把每筆預約整理成「佇列項目」，把回診決定的影響一次算好：
 //   - 已完成到診 ＋ 需要回診（尚未正式預約）→ 回診版（模式 followup）
 //   - 其餘 → 一般（效期＝看診時間）
-// 有建議日期時效期用該目標；尚未排期時效期回到原就診時間，不得發明假時段。
 //
 // 「已完成到診＋不需要回診」先前是**整筆排除**的，理由是「後續無動作」。但那讓
 // 一筆真實發生過的看診從清單上完全消失——連切到「全部狀態」都找不回來，管理者
 // 也就沒有辦法再刪除誤建的紀錄。現在它留在清單上（顯示為「已完成到診」），只是
 // 預設的「當日」「待處理」篩選本來就不會列出已完成的預約，所以日常畫面不受影響。
-// 「效期」同時用於當日篩選與依日期排序。有建議日期時回診版依該日排；尚未排期
-// 則回到原就診時間，不得發明假時段。
 function queueEntry(state, appointment) {
   const decision = state.followUps.find(
     (item) => item.appointmentId === appointment.id
   );
   if (appointment.status === 'completed' && decision?.status === 'required') {
     if (decision.scheduledAppointmentId !== undefined) return undefined;
-    const hasTarget =
-      typeof decision.dueDate === 'string' &&
-      typeof decision.dueTime === 'string';
+    const hasTarget = decision.dueDate && decision.dueTime;
     return {
       appointment,
       decision,
@@ -467,34 +462,19 @@ function queueEntry(state, appointment) {
   };
 }
 
-// 回診版卡片：已確認需要回診、尚未建立 follow_up Appointment。
-// 建議日期只是提示，不是正式預約；尚未排期則不顯示假時間、不上日曆。
 function followUpQueueCard(state, entry, permissions, selectedIds) {
   const { appointment, decision, effectiveStart } = entry;
-  const hasTarget =
-    typeof decision.dueDate === 'string' &&
-    typeof decision.dueTime === 'string';
+  const hasTarget = decision.dueDate && decision.dueTime;
   const timeCell = hasTarget
     ? `<span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong>`
-    : `<span class="cell-date">尚未排期</span><strong class="cell-time">待選擇時段</strong>`;
-  const itemCell = hasTarget ? '建議回診日（非正式預約）' : '需回診，尚未排期';
+    : `<span class="cell-date">稍後再排期</span><strong class="cell-time">稍後再排期</strong>`;
   const notes = tagLabels(decision.tags, FOLLOW_UP_NOTE_TAGS);
   if (decision.noteText) notes.push(decision.noteText);
   const noteRow =
     notes.length === 0
       ? ''
       : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
-  // 待安排回診這一列的三個動作，對應櫃台真正會做的三件事：
-  //
-  //   確認回診  患者要約下一次了 → 帶著資料跳到建立預約（掛號別已選回診，
-  //             從已發布回診時段選擇）。**回診可以發生很多次**：那筆新預約完成
-  //             到診後又會再登錄一次回診指示，如此循環。
-  //   調整回診  醫師改了指示 → 放回逐筆登錄再改一次。
-  //   取消回診  不用回來了 → 走 `not_required`，**日曆上的回診提醒會一併移除**。
-  //
-  // 先前這裡只有「調整回診」＋選單裡一個「刪除紀錄」。刪除是清掉整筆到診紀錄
-  // （只留稽核），拿它當「不用回診了」用是錯的——那會連同已完成的看診事實一起
-  // 消失。取消回診只撤銷回診需求，到診紀錄留著。
+  // 確認回診＝從已發布時段建 follow_up；調整＝再改指示；取消＝not_required。
   const canManage = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP);
   // 缺 session 時（測試夾具、登入前）不顯示這些動作，而非拋錯。
   const adjust = canManage
@@ -506,7 +486,7 @@ function followUpQueueCard(state, entry, permissions, selectedIds) {
   const cancelFollowUp = canManage
     ? `<button class="button button-danger-outline" type="button" data-follow-up-cancel="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#10005;</span>取消回診</button>`
     : '';
-  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間">${timeCell}</td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">${itemCell}</td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${confirmFollowUp}${adjust}${cancelFollowUp}</div></td></tr>`;
+  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間">${timeCell}</td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診</td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${confirmFollowUp}${adjust}${cancelFollowUp}</div></td></tr>`;
 }
 
 // 櫃台清單的欄位定義。`sortKey` 有值的才可排序——「處置」是一堆按鈕，排它沒有
@@ -836,17 +816,6 @@ export function renderFollowUps(state, editingIds = new Set()) {
         (tag) =>
           `<label class="tag-option"><input type="checkbox" name="tags" value="${escapeHtml(tag.id)}" ${decision?.tags?.includes(tag.id) ? 'checked' : ''} />${escapeHtml(tag.label)}</label>`
       ).join('');
-      // Date/time are optional target metadata. Required-but-unscheduled is
-      // valid; do not pre-fill a date that would be submitted as a target.
-      const dueDate = decision?.dueDate ?? '';
-      const dueTimes =
-        dueDate === '' ? [] : followUpDueTimes(state.schedule, dueDate);
-      const dueTimeOptions = `<option value="">稍後再排期</option>${dueTimes
-        .map(
-          (time) =>
-            `<option value="${escapeHtml(time)}" ${decision?.dueTime === time ? 'selected' : ''}>${escapeHtml(time)}</option>`
-        )
-        .join('')}`;
       let managerField = '';
       if (isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')) {
         const assignment = state.caseAssignments.find(
@@ -885,7 +854,7 @@ export function renderFollowUps(state, editingIds = new Set()) {
         state,
         appointment.patientId
       )?.medicalRecordNumber;
-      return `<form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span>${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label class="follow-up-field follow-up-date">建議日期（選填）<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"><span class="field-hint">可先只登記需要回診</span></label><label class="follow-up-field follow-up-time">建議時間（選填）<select name="dueTime">${dueTimeOptions}</select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></form>`;
+      return `<form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span>${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></form>`;
     })
     .join('');
 }

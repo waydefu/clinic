@@ -1174,11 +1174,6 @@ test.describe('internal-test booking occupancy overlay', () => {
     const form = page.locator('[data-follow-up-form="appointment_api_001"]');
     await expect(form).toBeVisible();
     await form.locator('select[name="status"]').selectOption('required');
-    await form.locator('input[name="dueDate"]').fill('2030-01-02');
-    await expect(
-      form.locator('select[name="dueTime"] option[value="12:15"]')
-    ).toHaveCount(1);
-    await form.locator('select[name="dueTime"]').selectOption('12:15');
     await form.getByRole('button', { name: '儲存回診指示' }).click();
 
     await expect(page.locator('#status')).toContainText('回診指示已登錄');
@@ -1186,10 +1181,10 @@ test.describe('internal-test booking occupancy overlay', () => {
       '/v1/bookings/appointment_api_001/follow-up'
     );
     expect(posted.followUp.body).toMatchObject({
-      decision: 'required',
-      dueDate: '2030-01-02',
-      dueTime: '12:15'
+      decision: 'required'
     });
+    expect(posted.followUp.body).not.toHaveProperty('dueDate');
+    expect(posted.followUp.body).not.toHaveProperty('dueTime');
     expect(posted.followUp.body).not.toHaveProperty('patient');
     expect(posted.followUp.body).not.toHaveProperty('tags');
     expect(posted.followUp.body).not.toHaveProperty('noteText');
@@ -1260,8 +1255,6 @@ test.describe('internal-test booking occupancy overlay', () => {
 
     const form = page.locator('[data-follow-up-form="appointment_api_001"]');
     await expect(form).toBeVisible();
-    await form.locator('input[name="dueDate"]').fill('2030-01-02');
-    await form.locator('select[name="dueTime"]').selectOption('12:15');
     await form.getByRole('button', { name: '儲存回診指示' }).click();
 
     await expect(page.locator('#status')).toContainText(

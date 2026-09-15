@@ -19,16 +19,8 @@ import {
 import { assertUtcTimestamp } from './timestamp.js';
 
 /**
- * Whether a completed visit needs another one, as pure rules.
- *
- * `required` answers “does this patient need to come back?”. It does not
- * reserve a slot. A target date/time is optional paired metadata for a
- * reminder projection and must sit on the published follow-up grid when
- * present. The actual return time lives on a `follow_up` Appointment.
- *
- * A dated reminder, if planned, uses `calendarEventIdForFollowUp` and must
- * never occupy a booking slot. Required-but-unscheduled plans no Calendar
- * appointment event.
+ * Follow-up decision: required means come back, not “book a time now”.
+ * Optional paired target metadata is not a reserved appointment.
  */
 
 export type FollowUpDecisionValue = 'required' | 'not_required';
@@ -84,11 +76,7 @@ export interface FollowUpDecisionPlan {
   readonly dueAt: string | null;
   readonly decidedAt: string;
   readonly auditEvent: AuditEventV2;
-  /**
-   * Dated reminder projection, or a cancel when the decision is no longer
-   * required. Required-but-unscheduled emits a job without `startsAt`; the
-   * worker must not invent a Calendar appointment from the source visit.
-   */
+  /** Reminder job. Omit startsAt when required-but-unscheduled. */
   readonly outboxJob: PlannedFollowUpProjection;
   readonly idempotencyRecord: PlannedIdempotencyRecord;
 }
