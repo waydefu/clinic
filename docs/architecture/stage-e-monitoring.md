@@ -53,3 +53,54 @@ Weekday summary is a structured payload
 Fail-closed API with the gate closed is **503**, never **404**.
 Unauthenticated staff/private routes are 401/403. Public booking with the
 gate open is accountless create (2xx), not login.
+
+## Framing / CSP
+
+```text
+CURRENT_WIDGET_EMBED = DISABLED
+FUTURE_WIDGET_EMBED = ARCHITECTURALLY_SUPPORTED_BUT_NOT_AUTHORIZED
+```
+
+Current internal-preproduction widget embedding is intentionally disabled by
+CSP `frame-ancestors 'none'`.
+
+The absence of a site-wide X-Frame-Options DENY on the widget route preserves
+the ability to authorize explicit parent origins in a future integration
+change, but does not make the current widget embeddable.
+
+Staff remains non-embeddable: `X-Frame-Options: DENY` and
+`frame-ancestors 'none'`. Booking standalone stays non-embeddable for this
+stage (`X-Frame-Options: DENY` and `frame-ancestors 'none'`). Isolated CSP
+must not trust `beauessence-clinic-staging.firebaseapp.com`, must not use
+`frame-ancestors *`, and must not list speculative vendor hosts.
+
+Future vendor integration architecture (do **not** build a second booking
+stack; do **not** activate embed in Stage E):
+
+```text
+Vendor / clinic marketing website
+        │
+        ├─ direct link
+        │
+        └─ approved embed
+                │
+                ▼
+       Booking Widget / Booking Page
+                │
+                ▼
+       Canonical Booking API
+                │
+                ▼
+       Firestore source of truth
+```
+
+When embedding is actually authorised, the change must use an explicit
+allowlist conceptually:
+
+```text
+frame-ancestors 'self' https://approved-clinic-or-vendor-origin.example
+```
+
+Exact production hostname must not be invented now. Activation requires a
+confirmed embedding origin, security review, CSP regression tests,
+iframe/widget E2E, and explicit deployment authority.

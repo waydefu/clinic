@@ -3,9 +3,21 @@
  *
  * Firebase applies every matching `headers` source, so CSP is never on `**`
  * (that would AND with path-specific policies). Staff, booking, clinic and
- * widget each have their own Content-Security-Policy. Widget stays
- * frame-ancestors 'none' until a widget origin is approved; changing widget
- * must not open /staff or /booking.
+ * widget each have their own Content-Security-Policy.
+ *
+ * CURRENT_WIDGET_EMBED = DISABLED. Widget CSP is `frame-ancestors 'none'`,
+ * which blocks framing by any parent in modern browsers. The widget route
+ * omits `X-Frame-Options: DENY` only so a future authorised change can set
+ * an explicit parent-origin allowlist; that absence does not make the
+ * current widget embeddable. Do not use a wildcard frame-ancestors value
+ * or speculative vendor hosts. Changing widget must not open /staff or
+ * /booking.
+ *
+ * FUTURE_WIDGET_EMBED = ARCHITECTURALLY_SUPPORTED_BUT_NOT_AUTHORIZED.
+ * Activation requires confirmed origin(s), security review, CSP regression
+ * tests, iframe/widget E2E, and explicit deployment authority:
+ * `frame-ancestors 'self' https://approved-clinic-or-vendor-origin.example`
+ * (exact production hostname must not be invented here).
  */
 
 export const STAGING_AUTH_FRAME =

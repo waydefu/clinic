@@ -96,14 +96,26 @@ describe('hosting security headers', () => {
     expect(isolatedBooking).toContain(ISOLATED_AUTH_FRAME);
     expect(isolatedBooking).not.toContain(STAGING_AUTH_FRAME);
     expect(isolatedStaff).not.toContain(STAGING_AUTH_FRAME);
+    expect(
+      headerOn(isolatedConfig, '/widget', 'Content-Security-Policy')
+    ).toContain("frame-ancestors 'none'");
+    expect(
+      headerOn(isolatedConfig, '/widget', 'Content-Security-Policy')
+    ).not.toContain(STAGING_AUTH_FRAME);
     expect(JSON.stringify(isolatedConfig)).not.toContain(STAGING_AUTH_FRAME);
   });
 
-  it('keeps staff and booking unembeddable and widget policy separate', () => {
+  it('keeps staff and booking frame-protected and current widget embedding disabled', () => {
     expect(headerOn(firebaseConfig, '/staff', 'X-Frame-Options')).toBe('DENY');
     expect(headerOn(firebaseConfig, '/booking', 'X-Frame-Options')).toBe(
       'DENY'
     );
+    expect(
+      headerOn(firebaseConfig, '/staff', 'Content-Security-Policy')
+    ).toContain("frame-ancestors 'none'");
+    expect(
+      headerOn(firebaseConfig, '/booking', 'Content-Security-Policy')
+    ).toContain("frame-ancestors 'none'");
     const widget = firebaseConfig.hosting.headers.find(
       (entry: { source: string }) => entry.source === '/widget'
     );
@@ -113,12 +125,16 @@ describe('hosting security headers', () => {
         (item: { key: string }) => item.key === 'X-Frame-Options'
       )
     ).toBe(false);
-    expect(headerOn(firebaseConfig, '/widget', 'Content-Security-Policy')).toBe(
-      surfaceCsp('widget', STAGING_AUTH_FRAME)
+    const widgetCsp = headerOn(
+      firebaseConfig,
+      '/widget',
+      'Content-Security-Policy'
     );
-    expect(
-      headerOn(firebaseConfig, '/widget', 'Content-Security-Policy')
-    ).toContain("frame-ancestors 'none'");
+    expect(widgetCsp).toBe(surfaceCsp('widget', STAGING_AUTH_FRAME));
+    // CURRENT_WIDGET_EMBED = DISABLED: CSP is authoritative for modern browsers.
+    expect(widgetCsp).toContain("frame-ancestors 'none'");
+    expect(widgetCsp).not.toContain('frame-ancestors *');
+    expect(widgetCsp).not.toMatch(/frame-ancestors [^;]*https:/);
     expect(headerOn(firebaseConfig, '**', 'X-Content-Type-Options')).toBe(
       'nosniff'
     );
@@ -192,7 +208,23 @@ describe('the local server mirrors path policies without HSTS', () => {
     expect(booking['Content-Security-Policy']).toContain(
       "frame-ancestors 'none'"
     );
+    expect(staff['Content-Security-Policy']).toContain(
+      "frame-ancestors 'none'"
+    );
     expect(staff['X-Frame-Options']).toBe('DENY');
+    expect(booking['X-Frame-Options']).toBe('DENY');
     expect(booking['Strict-Transport-Security']).toBeUndefined();
+  });
+
+  it('disables current widget embedding even without X-Frame-Options DENY', () => {
+    const widget = hostingHeadersForPath('/widget', {
+      authFrame: STAGING_AUTH_FRAME,
+      includeHsts: false
+    });
+    expect(widget['Content-Security-Policy']).toContain(
+      "frame-ancestors 'none'"
+    );
+    expect(widget['X-Frame-Options']).toBeUndefined();
+    expect(widget['Content-Security-Policy']).not.toContain(STAGING_AUTH_FRAME);
   });
 });

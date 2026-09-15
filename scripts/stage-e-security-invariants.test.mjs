@@ -3,6 +3,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import {
+  ISOLATED_AUTH_FRAME,
+  STAGING_AUTH_FRAME,
+  assertIsolatedCsp,
+  surfaceCsp
+} from '../apps/web/csp-policy.mjs';
+
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (relativePath) => readFileSync(join(root, relativePath), 'utf8');
 
@@ -40,14 +47,23 @@ describe('Stage E security invariants', () => {
     expect(authenticator).not.toMatch(/captcha/i);
   });
 
-  it('keeps isolated CSP off the staging Firebase origin and widget unframed separately', () => {
-    expect(isolated).not.toContain(
-      'https://beauessence-clinic-staging.firebaseapp.com'
-    );
+  it('keeps isolated CSP off the staging Firebase origin and widget currently unembeddable', () => {
+    expect(isolated).not.toContain(STAGING_AUTH_FRAME);
     expect(csp).toContain("surface === 'widget'");
     expect(csp).toContain('frameAncestors: "\'none\'"');
+    expect(csp).toContain('CURRENT_WIDGET_EMBED = DISABLED');
     expect(csp).toContain('denyFrame: false');
+    expect(csp).toContain('denyFrame: true');
     expect(csp).toContain("source: '/staff'");
     expect(csp).toContain("source: '/booking'");
+    const widgetCsp = surfaceCsp('widget', ISOLATED_AUTH_FRAME);
+    const staffCsp = surfaceCsp('staff', ISOLATED_AUTH_FRAME);
+    const bookingCsp = surfaceCsp('booking', ISOLATED_AUTH_FRAME);
+    assertIsolatedCsp(widgetCsp);
+    assertIsolatedCsp(staffCsp);
+    assertIsolatedCsp(bookingCsp);
+    expect(widgetCsp).toContain("frame-ancestors 'none'");
+    expect(staffCsp).toContain("frame-ancestors 'none'");
+    expect(bookingCsp).toContain("frame-ancestors 'none'");
   });
 });

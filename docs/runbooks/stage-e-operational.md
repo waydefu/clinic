@@ -33,6 +33,11 @@ apply 都要 fresh exact-SHA packet。
 - 宣稱 `HUMAN_NOTIFICATION_PROVEN` 或 `INTERNAL_PREPRODUCTION_COMPLETE = PASS`
 - 對 `beauessence-clinic-staging` 做 isolated C1 操作
 - 為了止血而關掉 CSRF、rate limit、audit 或 exact-SHA guard
+- 把 widget 沒有 `X-Frame-Options: DENY` 讀成「目前可 iframe」。現況是
+  `CURRENT_WIDGET_EMBED = DISABLED`：CSP `frame-ancestors 'none'` 已阻止
+  任何 parent framing。未來 embed 必須等確認 origin、security review、
+  CSP 回歸、iframe/widget E2E 與明確部署授權後，才改成明確 allowlist，
+  禁止 `frame-ancestors *` 與臆測 vendor host
 
 ---
 
