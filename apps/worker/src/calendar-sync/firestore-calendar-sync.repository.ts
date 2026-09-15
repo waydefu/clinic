@@ -1,5 +1,10 @@
+import { randomUUID } from 'node:crypto';
+
 import type { Firestore } from 'firebase-admin/firestore';
-import type { ParsedCalendarEntry } from '@beauessence/domain';
+import {
+  CALENDAR_INBOUND_AUDIT_ACTIONS,
+  type ParsedCalendarEntry
+} from '@beauessence/domain';
 
 import type {
   CalendarCandidateDraft,
@@ -24,6 +29,7 @@ const MIRRORS = 'calendar_pilot_mirrors';
 const CANDIDATES = 'calendar_pilot_candidates';
 const PREFLIGHTS = 'calendar_pilot_preflights';
 const APPOINTMENTS = 'calendar_pilot_appointments';
+const AUDITS = 'calendar_pilot_audit_events';
 const LEGACY_RESYNC_REASON = 'legacy_candidate_requires_resync';
 
 interface StoredConfiguration extends CalendarSourceConfiguration {
@@ -35,12 +41,26 @@ interface StoredConfiguration extends CalendarSourceConfiguration {
 function publicCandidate(candidate: CalendarCandidateDraft) {
   const parsed = candidate.parsed;
   const previous = candidate.previousParsed;
+  const status =
+    candidate.kind === 'conflict'
+      ? 'conflict'
+      : candidate.kind === 'unmatched'
+        ? 'unmatched'
+        : 'pending';
   return {
     ...candidate,
-    status: candidate.kind === 'conflict' ? 'conflict' : 'pending',
-    displayLabel: parsed.ok ? parsed.displayLabel : '格式需修正',
+    status,
+    displayLabel: parsed.ok
+      ? parsed.displayLabel
+      : candidate.kind === 'unmatched'
+        ? '未對應事件'
+        : '格式需修正',
     startsAt: parsed.ok ? parsed.startsAt : null,
     endsAt: parsed.ok ? parsed.endsAt : null,
+    appointmentId: candidate.localRecordId ?? null,
+    ...(candidate.changedFields === undefined
+      ? {}
+      : { changedFields: candidate.changedFields }),
     before:
       previous?.ok === true
         ? {
@@ -153,6 +173,38 @@ export class FirestoreCalendarSyncRepository
     );
   }
 
+  public async loadAuthoritativeAppointment(appointmentId: string): Promise<
+    | {
+        readonly appointmentId: string;
+        readonly status: string;
+        readonly startsAt: string;
+        readonly bookingKind: 'initial' | 'follow_up';
+      }
+    | undefined
+  > {
+    const document = await this.db
+      .collection('appointments')
+      .doc(appointmentId)
+      .get();
+    if (!document.exists) return undefined;
+    const data: Record<string, unknown> = document.data() ?? {};
+    const status = data['status'];
+    const startsAt = data['startsAt'];
+    const bookingKind = data['bookingKind'];
+    if (
+      typeof status !== 'string' ||
+      typeof startsAt !== 'string' ||
+      (bookingKind !== 'initial' && bookingKind !== 'follow_up')
+    )
+      return undefined;
+    return {
+      appointmentId,
+      status,
+      startsAt,
+      bookingKind
+    };
+  }
+
   public commitSync(commit: CalendarSyncCommit): Promise<void> {
     return this.db.runTransaction(async (transaction) => {
       const configurationDocument = await transaction.get(this.configRef());
@@ -194,18 +246,34 @@ export class FirestoreCalendarSyncRepository
           const existingCandidate = existingCandidates.get(
             mutation.candidate.candidateId
           );
-          if (existingCandidate === undefined)
+          if (existingCandidate === undefined) {
             transaction.create(
               candidateRef,
               publicCandidate(mutation.candidate)
             );
-          else if (
+            transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
+              action:
+                mutation.candidate.kind === 'unmatched'
+                  ? CALENDAR_INBOUND_AUDIT_ACTIONS.unmatched
+                  : CALENDAR_INBOUND_AUDIT_ACTIONS.candidateCreated,
+              candidateId: mutation.candidate.candidateId,
+              kind: mutation.candidate.kind,
+              occurredAt: mutation.candidate.createdAt
+            });
+          } else if (
             existingCandidate['status'] === 'superseded' &&
             existingCandidate['supersededReason'] === LEGACY_RESYNC_REASON &&
             (typeof existingCandidate['expectedEtag'] !== 'string' ||
               existingCandidate['expectedEtag'].trim() === '')
-          )
+          ) {
             transaction.set(candidateRef, publicCandidate(mutation.candidate));
+            transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
+              action: CALENDAR_INBOUND_AUDIT_ACTIONS.candidateCreated,
+              candidateId: mutation.candidate.candidateId,
+              kind: mutation.candidate.kind,
+              occurredAt: mutation.candidate.createdAt
+            });
+          }
         }
       }
 
@@ -239,7 +307,8 @@ export class FirestoreCalendarSyncRepository
 
   public clearSyncToken(
     sourceId: string,
-    expectedSourceVersion: number
+    expectedSourceVersion: number,
+    occurredAt: string
   ): Promise<void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(this.configRef());
@@ -252,6 +321,11 @@ export class FirestoreCalendarSyncRepository
       transaction.update(this.db.collection(SOURCES).doc(sourceId), {
         syncToken: null,
         lastErrorCode: 'sync_token_expired'
+      });
+      transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
+        action: CALENDAR_INBOUND_AUDIT_ACTIONS.goneRecovered,
+        sourceId,
+        occurredAt
       });
     });
   }

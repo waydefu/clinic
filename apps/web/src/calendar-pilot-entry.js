@@ -346,7 +346,8 @@ const CANDIDATE_KIND_LABELS = Object.freeze({
   cancel_appointment: '取消預約',
   release_block: '解除忙碌',
   invalid_format: '格式需修正',
-  conflict: '衝突'
+  conflict: '衝突',
+  unmatched: '未對應'
 });
 
 const VALIDATION_LABELS = Object.freeze({
@@ -363,6 +364,8 @@ const VALIDATION_LABELS = Object.freeze({
 });
 
 function candidateCategory(candidate) {
+  if (candidate.kind === 'unmatched' || candidate.status === 'unmatched')
+    return 'unmatched';
   if (candidate.kind === 'invalid_format') return 'invalid';
   if (candidate.kind === 'conflict' || candidate.status === 'conflict')
     return 'conflict';
@@ -379,10 +382,16 @@ function candidateItem(candidate, correctionContext) {
   item.querySelector('strong').textContent = candidate.displayLabel;
   const range =
     candidate.startsAt === null
-      ? '格式需修正'
+      ? candidate.kind === 'unmatched' || candidate.status === 'unmatched'
+        ? '無正式預約對應'
+        : '格式需修正'
       : `${displayTime(candidate.startsAt)}–${displayTime(candidate.endsAt)}`;
+  const changed =
+    Array.isArray(candidate.changedFields) && candidate.changedFields.length > 0
+      ? `・欄位 ${candidate.changedFields.join('、')}`
+      : '';
   item.querySelector('p').textContent =
-    `${CANDIDATE_KIND_LABELS[candidate.kind] ?? '待審變更'}・${range}`;
+    `${CANDIDATE_KIND_LABELS[candidate.kind] ?? '待審變更'}・${range}${candidate.appointmentId ? `・預約 ${candidate.appointmentId}` : ''}${changed}・偵測 ${displayTime(candidate.createdAt)}`;
   const diff = item.querySelector('[data-candidate-diff]');
   if (candidate.before === null) diff.remove();
   else {
@@ -417,6 +426,17 @@ function candidateItem(candidate, correctionContext) {
       );
       actions.append(button);
     }
+  } else if (
+    candidate.status === 'unmatched' ||
+    candidate.kind === 'unmatched'
+  ) {
+    const reject = document.createElement('button');
+    reject.className = 'cp-button';
+    reject.textContent = '拒絕';
+    reject.addEventListener('click', () =>
+      reviewCandidate(candidate, 'reject', {}, reject)
+    );
+    actions.append(reject);
   } else if (candidate.kind === 'invalid_format') {
     const correct = document.createElement('button');
     correct.className = 'cp-button cp-button-primary';
@@ -433,7 +453,7 @@ function candidateItem(candidate, correctionContext) {
     actions.append(correct, reject);
   } else {
     for (const [action, label, primary] of [
-      ['accept', '接受', true],
+      ['accept', '核准', true],
       ['reject', '拒絕', false]
     ]) {
       const button = document.createElement('button');
@@ -710,7 +730,7 @@ function applicationSkeleton(isPatient) {
       </header>
       <main class="cp-grid" id="cp-main">
         <section class="cp-card"><div class="cp-row"><div><h1>${isPatient ? '合成患者預約測試' : '日曆同步工作臺'}</h1><p>Google 與網頁共用同一份可用時段；外部變更必須審核後才會占用。</p></div><p class="cp-alert">不得輸入真實資料</p></div><div class="cp-status" data-status-grid></div></section>
-        ${isPatient ? '' : '<section class="cp-card cp-two"><h2>日曆來源</h2><p>切換前會驗證讀寫與格式；失敗時維持舊來源。</p><ul class="cp-list" data-sources></ul></section><section class="cp-card cp-two"><h2>待審佇列</h2><p>預約、忙碌、修改、刪除與衝突均不自動覆蓋。</p><label class="cp-filter">候選類型<select data-candidate-filter><option value="all">全部</option><option value="appointment">預約</option><option value="busy">忙碌</option><option value="invalid">格式需修正</option><option value="conflict">衝突</option></select></label><ul class="cp-list" data-candidates></ul></section>'}
+        ${isPatient ? '' : '<section class="cp-card cp-two"><h2>日曆來源</h2><p>切換前會驗證讀寫與格式；失敗時維持舊來源。</p><ul class="cp-list" data-sources></ul></section><section class="cp-card cp-two"><h2>Calendar 待確認變更</h2><p>預約、忙碌、修改、刪除與衝突均不自動覆蓋；核准後才走正式 domain 交易。</p><label class="cp-filter">候選類型<select data-candidate-filter><option value="all">全部</option><option value="appointment">預約</option><option value="busy">忙碌</option><option value="invalid">格式需修正</option><option value="conflict">衝突</option><option value="unmatched">未對應</option></select></label><ul class="cp-list" data-candidates></ul></section>'}
         <section class="cp-card cp-two"><h2>建立合成預約</h2><form class="cp-form" data-appointment-form><label>合成患者<select name="patientCode" required></select></label><label>掛號別<select name="bookingKind"><option value="initial">初診</option><option value="follow_up">回診</option></select></label><label>項目<select name="serviceId"><option value="service_snoring">止鼾</option><option value="service_aesthetic">醫美</option></select></label><label>可用時段（台北）<select name="startsAt" required></select></label><button class="cp-button cp-button-primary cp-full" type="submit">建立並排入 Google 同步</button></form></section>
         <section class="cp-card cp-two"><h2>合成預約</h2><ul class="cp-list" data-appointments></ul></section>
         <section class="cp-card"><h2>共用時段鏡像</h2><p>文字標籤同時區分預約與忙碌，不只依靠顏色。</p><ul class="cp-list" data-availability></ul></section>

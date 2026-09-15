@@ -48,7 +48,8 @@ export const CalendarCandidateKindSchema = z.enum([
   'cancel_appointment',
   'release_block',
   'invalid_format',
-  'conflict'
+  'conflict',
+  'unmatched'
 ]);
 
 export const CalendarCandidateStatusSchema = z.enum([
@@ -56,7 +57,8 @@ export const CalendarCandidateStatusSchema = z.enum([
   'accepted',
   'rejected',
   'conflict',
-  'superseded'
+  'superseded',
+  'unmatched'
 ]);
 
 export const CalendarValidationCodeSchema = z.enum([
@@ -123,6 +125,11 @@ export const CalendarChangeCandidateSchema = z
     expectedVersion: z.number().int().min(0),
     validationErrors: z.array(CalendarValidationCodeSchema),
     createdAt: UtcIsoTimestampSchema,
+    appointmentId: OpaqueIdentifierSchema.nullable().optional(),
+    changedFields: z
+      .array(z.enum(['startsAt', 'endsAt', 'operationalStatus']))
+      .max(8)
+      .optional(),
     before: z
       .object({
         kind: CalendarProjectionKindSchema,

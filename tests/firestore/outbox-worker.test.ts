@@ -274,6 +274,25 @@ describe('outbox worker', () => {
     });
   });
 
+  it('does not invent a Calendar appointment for required but unscheduled follow-up', async () => {
+    await seedJob();
+    await db
+      .collection(APPOINTMENTS_COLLECTION)
+      .doc('appointment_001')
+      .update({ status: 'completed' });
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
+      idempotencyKey: FOLLOW_UP_KEY,
+      appointmentStatus: 'follow_up_required',
+      followUpSourceId: 'appointment_001',
+      startsAt: ''
+    });
+
+    const summary = await processor.processDue(NOW);
+    expect(summary).toMatchObject({ completed: 1 });
+    expect(calendar.events.size).toBe(0);
+    expect(calendar.insertCount).toBe(0);
+  });
+
   it('cancels the reminder when follow-up is no longer required or has been scheduled', async () => {
     await seedJob();
     await db
@@ -376,6 +395,44 @@ describe('outbox worker', () => {
     expect(calendar.events.size).toBe(1);
     expect(calendar.insertCount).toBe(1);
     expect(calendar.conflictUpdateCount).toBe(1);
+  });
+
+  it('projects a reserved follow_up Appointment onto the appointment event id', async () => {
+    const appointmentId = 'appointment_follow_up_001';
+    const eventId = calendarEventIdForAppointment(appointmentId);
+    await db.collection(APPOINTMENTS_COLLECTION).doc(appointmentId).set({
+      status: 'confirmed',
+      startsAt: '2030-01-02T06:15:00.000Z',
+      bookingKind: 'follow_up',
+      patientId: 'patient_001'
+    });
+    await db.collection(OUTBOX_COLLECTION).doc('outbox_follow_up_appt').set({
+      appointmentId,
+      correlationId: 'corr_follow_up_appt_001',
+      causationId: 'audit_follow_up_appt_001',
+      idempotencyKey: eventId,
+      type: 'calendar_projection_requested',
+      status: 'pending',
+      attempts: 0,
+      nextAttemptAt: NOW
+    });
+    const summary = await processor.processDue(NOW);
+    expect(summary).toMatchObject({ completed: 1 });
+    expect(calendar.events.has(eventId)).toBe(true);
+    expect(calendar.events.has(calendarEventIdForFollowUp(appointmentId))).toBe(
+      false
+    );
+  });
+
+  it('retries the same outbox key without duplicating the Calendar event', async () => {
+    await seedJob();
+    calendar.failNextAfterWrite(1);
+    const first = await processor.processDue(NOW);
+    expect(first).toMatchObject({ retried: 1 });
+    expect(calendar.events.size).toBe(1);
+    const second = await processor.processDue(later(60));
+    expect(second).toMatchObject({ completed: 1 });
+    expect(calendar.events.size).toBe(1);
   });
 
   // 走完整流程：取消會產生**另一筆**工作（不同的 job id），但兩筆工作指向

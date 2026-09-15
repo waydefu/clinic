@@ -12,6 +12,8 @@ export * from './denied-delegation-audit.js';
 export * from './field-projection.js';
 export * from './synthetic-delegated-authorization.js';
 export * from './calendar-event-id.js';
+export * from './calendar-inbound-review.js';
+export * from './calendar-projection.js';
 export * from './calendar-sync.js';
 export * from './errors.js';
 export * from './follow-up.js';

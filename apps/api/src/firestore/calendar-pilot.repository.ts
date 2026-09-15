@@ -526,9 +526,12 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       const candidate = documentData<CandidateRecord>(candidateDocument);
       if (
         candidate.expectedVersion !== command.expectedVersion ||
-        candidate.sourceVersion !== configuration.version ||
-        !['pending', 'conflict'].includes(candidate.status)
+        candidate.sourceVersion !== configuration.version
       )
+        throw new ConflictError();
+      if (candidate.status === 'unmatched' || candidate.kind === 'unmatched') {
+        if (command.action !== 'reject') throw new ConflictError();
+      } else if (!['pending', 'conflict'].includes(candidate.status))
         throw new ConflictError();
 
       const idempotencyRef = this.db
@@ -551,7 +554,11 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       }
 
       let projection: CalendarEventProjection | null = null;
-      if (command.action === 'accept' || command.action === 'resolve_google') {
+      if (
+        (command.action === 'accept' || command.action === 'resolve_google') &&
+        candidate.kind !== 'unmatched' &&
+        candidate.status !== 'unmatched'
+      ) {
         if (!candidate.parsed.ok || candidate.kind === 'invalid_format')
           throw new ConflictError();
         projection = await this.applyCandidate(

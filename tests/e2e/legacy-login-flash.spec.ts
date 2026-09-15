@@ -96,7 +96,9 @@ test.describe('legacy synthetic login flash', () => {
     });
 
     await page.goto('/staff');
-    await expect(page.getByRole('heading', { name: '待審佇列' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Calendar 待確認變更' })
+    ).toBeVisible();
     await expect(
       page.getByRole('heading', { name: '登入營運工作臺' })
     ).toBeHidden();
