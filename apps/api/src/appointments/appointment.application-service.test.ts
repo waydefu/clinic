@@ -833,7 +833,8 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
 
   it('returns schedule when follow-up is required and unscheduled', async () => {
     const patients = new InMemoryPatientDirectory();
-    const { service } = createBoundService(patients);
+    let n = 0;
+    const { service } = createBoundService(patients, () => `opaque_${++n}`);
     await service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous);
     const patientId = [...patients.patients.keys()][0] ?? '';
     patients.followUp.set(patientId, {
@@ -847,10 +848,17 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
         { phone: '0912000001', birthDate: '1990-01-15' },
         '198.51.100.10'
       )
-    ).resolves.toMatchObject({
-      outcome: 'schedule',
-      patientId
-    });
+    ).resolves.toEqual(
+      expect.objectContaining({
+        outcome: 'schedule'
+      })
+    );
+    await expect(
+      service.lookupReturn(
+        { phone: '0912000001', birthDate: '1990-01-15' },
+        '198.51.100.10'
+      )
+    ).resolves.not.toHaveProperty('appointmentId');
   });
 
   it('returns the existing follow-up time and refuses a duplicate', async () => {
