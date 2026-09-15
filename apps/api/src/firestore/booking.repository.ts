@@ -698,7 +698,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
               patientId: appointment.patientId,
               status: appointment.status
             },
-        published?.schedule,
+        published?.schedule ?? undefined,
         this.followUpSnapshotOf(followUpDocument)
       );
 
