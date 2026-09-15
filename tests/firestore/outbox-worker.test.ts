@@ -283,8 +283,7 @@ describe('outbox worker', () => {
     await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
       idempotencyKey: FOLLOW_UP_KEY,
       appointmentStatus: 'follow_up_required',
-      followUpSourceId: 'appointment_001',
-      startsAt: ''
+      followUpSourceId: 'appointment_001'
     });
 
     const summary = await processor.processDue(NOW);
