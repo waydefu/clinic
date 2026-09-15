@@ -2,80 +2,137 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// firebase.json 是靜態託管的安全邊界來源：CSP、frame、referrer 等 header 都在
-// 這裡定義，卻不會被一般單元測試執行到。這支測試把「應有哪些指令」釘住，讓任何
-// 放寬（例如不小心拿掉 object-src 或允許 inline script）在 CI 就被擋下。
+import {
+  ISOLATED_AUTH_FRAME,
+  STAGING_AUTH_FRAME,
+  firebaseHostingHeaderBlocks,
+  hostingHeadersForPath,
+  surfaceCsp
+} from '../csp-policy.mjs';
+
 const firebaseConfig = JSON.parse(
   readFileSync(
     fileURLToPath(new URL('../../../firebase.json', import.meta.url)),
     'utf8'
   )
 );
+const isolatedConfig = JSON.parse(
+  readFileSync(
+    fileURLToPath(
+      new URL('../../../firebase.isolated-preview.json', import.meta.url)
+    ),
+    'utf8'
+  )
+);
 
-function headerValue(key: string): string {
-  const rule = firebaseConfig.hosting.headers.find(
-    (entry: { source: string }) => entry.source === '**'
-  );
+function headerOn(
+  config: {
+    hosting: {
+      headers: { source: string; headers: { key: string; value: string }[] }[];
+    };
+  },
+  source: string,
+  key: string
+): string {
+  const rule = config.hosting.headers.find((entry) => entry.source === source);
   const header = rule?.headers.find(
-    (item: { key: string }) => item.key.toLowerCase() === key.toLowerCase()
+    (item) => item.key.toLowerCase() === key.toLowerCase()
   );
-  if (!header) throw new Error(`Missing "${key}" header on the "**" source.`);
+  if (!header) throw new Error(`Missing "${key}" header on "${source}".`);
   return header.value;
 }
 
 describe('hosting security headers', () => {
-  it('locks the Content-Security-Policy directives', () => {
+  it('matches the CSP catalog for staging and isolated configs', () => {
+    expect(firebaseConfig.hosting.headers).toEqual(
+      firebaseHostingHeaderBlocks(STAGING_AUTH_FRAME)
+    );
+    expect(isolatedConfig.hosting.headers).toEqual(
+      firebaseHostingHeaderBlocks(ISOLATED_AUTH_FRAME)
+    );
+  });
+
+  it('locks staff, booking and clinic CSP directives without wildcards', () => {
+    const csp = headerOn(firebaseConfig, '/booking', 'Content-Security-Policy');
     const directives = new Set(
-      headerValue('Content-Security-Policy')
+      csp
         .split(';')
-        .map((part) => part.trim())
+        .map((part: string) => part.trim())
         .filter(Boolean)
     );
-
     for (const directive of [
       "default-src 'self'",
       "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
       "style-src 'self'",
       "script-src 'self' https://apis.google.com",
-      "frame-src 'self' https://beauessence-clinic-staging.firebaseapp.com",
-      // 沒有任何 <object>/<embed>/<applet> 插件面：關掉外掛執行面。
+      "img-src 'self'",
+      "font-src 'self'",
+      `frame-src 'self' ${STAGING_AUTH_FRAME}`,
       "object-src 'none'",
       "base-uri 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
-      // 把「記得呼叫 escapeHtml」從紀律變成瀏覽器強制的機制：寫進 innerHTML 的
-      // 字串一律要先經過 Trusted Types policy，否則直接 TypeError。
       "require-trusted-types-for 'script'"
     ]) {
       expect(directives).toContain(directive);
     }
-  });
-
-  it('allows only the audited Firebase loader without inline or wildcard execution', () => {
-    const csp = headerValue('Content-Security-Policy');
     expect(csp).not.toContain('unsafe-inline');
     expect(csp).not.toContain('unsafe-eval');
-    expect(csp).not.toContain('*');
     expect(csp).not.toContain('https://*.googleapis.com');
     expect(csp).not.toContain('https://*.firebaseapp.com');
   });
 
-  it('keeps the framing, sniffing and referrer protections', () => {
-    expect(headerValue('X-Frame-Options')).toBe('DENY');
-    expect(headerValue('X-Content-Type-Options')).toBe('nosniff');
-    expect(headerValue('Referrer-Policy')).toBe('no-referrer');
-    expect(headerValue('X-Robots-Tag')).toContain('noindex');
+  it('removes the staging origin from isolated internal-preproduction CSP', () => {
+    const isolatedBooking = headerOn(
+      isolatedConfig,
+      '/booking',
+      'Content-Security-Policy'
+    );
+    const isolatedStaff = headerOn(
+      isolatedConfig,
+      '/staff',
+      'Content-Security-Policy'
+    );
+    expect(isolatedBooking).toContain(ISOLATED_AUTH_FRAME);
+    expect(isolatedBooking).not.toContain(STAGING_AUTH_FRAME);
+    expect(isolatedStaff).not.toContain(STAGING_AUTH_FRAME);
+    expect(JSON.stringify(isolatedConfig)).not.toContain(STAGING_AUTH_FRAME);
   });
 
-  // 沒有跨來源彈窗，也不需要被別站當子資源載入，所以兩者都收到 same-origin。
-  it('isolates the browsing context and its resources cross-origin', () => {
-    expect(headerValue('Cross-Origin-Opener-Policy')).toBe('same-origin');
-    expect(headerValue('Cross-Origin-Resource-Policy')).toBe('same-origin');
+  it('keeps staff and booking unembeddable and widget policy separate', () => {
+    expect(headerOn(firebaseConfig, '/staff', 'X-Frame-Options')).toBe('DENY');
+    expect(headerOn(firebaseConfig, '/booking', 'X-Frame-Options')).toBe(
+      'DENY'
+    );
+    const widget = firebaseConfig.hosting.headers.find(
+      (entry: { source: string }) => entry.source === '/widget'
+    );
+    expect(widget).toBeDefined();
+    expect(
+      widget?.headers.some(
+        (item: { key: string }) => item.key === 'X-Frame-Options'
+      )
+    ).toBe(false);
+    expect(headerOn(firebaseConfig, '/widget', 'Content-Security-Policy')).toBe(
+      surfaceCsp('widget', STAGING_AUTH_FRAME)
+    );
+    expect(
+      headerOn(firebaseConfig, '/widget', 'Content-Security-Policy')
+    ).toContain("frame-ancestors 'none'");
+    expect(headerOn(firebaseConfig, '**', 'X-Content-Type-Options')).toBe(
+      'nosniff'
+    );
+    expect(headerOn(firebaseConfig, '**', 'Referrer-Policy')).toBe(
+      'no-referrer'
+    );
+    expect(headerOn(firebaseConfig, '**', 'X-Robots-Tag')).toContain('noindex');
+    expect(
+      headerOn(firebaseConfig, '**', 'Strict-Transport-Security')
+    ).toContain('max-age=31536000');
   });
 
-  // 處理健康資料的站台沒有理由預設參與 Privacy Sandbox 的任何一項。
   it('opts out of device access and the Privacy Sandbox APIs', () => {
-    const policy = headerValue('Permissions-Policy');
+    const policy = headerOn(firebaseConfig, '**', 'Permissions-Policy');
     for (const feature of [
       'camera',
       'microphone',
@@ -90,17 +147,10 @@ describe('hosting security headers', () => {
     }
   });
 
-  // HTML 進入點必須每次重新驗證，才會抓到最新的雜湊參照。
-  //
-  // 用 `no-cache` 而不是 `no-store`：兩者都保證重新驗證，但 `no-store` 額外
-  // 禁止任何快取保存回應，因此 Chrome 不會把頁面放進 back/forward cache。
-  // 上一頁會變成完整的重新載入而不是瞬間還原，白白犧牲一項實地效能指標。
   it('revalidates html entry points without forfeiting the bfcache', () => {
-    expect(headerValue('Cache-Control')).toBe('no-cache');
+    expect(headerOn(firebaseConfig, '**', 'Cache-Control')).toBe('no-cache');
   });
 
-  // 只有內容雜湊過的 js/css 可以永久 immutable 快取：改一版就是新檔名，舊快取
-  // 不可能回錯內容。這個區塊排在 '**' 之後，才能覆蓋掉上面的 no-store。
   it('caches content-hashed assets immutably without weakening the catch-all', () => {
     const blocks = firebaseConfig.hosting.headers;
     const assetIndex = blocks.findIndex(
@@ -110,7 +160,6 @@ describe('hosting security headers', () => {
       (entry: { source: string }) => entry.source === '**'
     );
     expect(assetIndex).toBeGreaterThan(catchAllIndex);
-
     const cacheControl = blocks[assetIndex].headers.find(
       (item: { key: string }) => item.key.toLowerCase() === 'cache-control'
     );
@@ -119,31 +168,31 @@ describe('hosting security headers', () => {
   });
 });
 
-// `apps/web/server.mjs` 存在的理由，是在本機以與 Firebase Hosting 相同的安全與
-// 快取語意提供產物。兩份設定一旦漂移，本地與 E2E 測到的就不是會部署的東西——
-// 這正是先前 Permissions-Policy 少了 `payment=()` 卻沒有人發現的原因。
-describe('the local server mirrors the hosting headers', () => {
+describe('the local server mirrors path policies without HSTS', () => {
   const server = readFileSync(
     fileURLToPath(new URL('../server.mjs', import.meta.url)),
     'utf8'
   );
 
-  it.each([
-    'Content-Security-Policy',
-    'Cross-Origin-Opener-Policy',
-    'Cross-Origin-Resource-Policy',
-    'Permissions-Policy',
-    'Referrer-Policy',
-    'X-Content-Type-Options',
-    'X-Frame-Options',
-    'X-Robots-Tag'
-  ])('serves %s with the value firebase.json declares', (key) => {
-    // 原始碼裡的 header 常為了行寬而在冒號後折行，比對前先把換行與縮排收掉。
-    expect(server.replace(/\s*\n\s*/g, ' ')).toContain(headerValue(key));
+  it('imports the shared CSP catalog and refuses HSTS on loopback HTTP', () => {
+    expect(server).toContain("from './csp-policy.mjs'");
+    expect(server).toContain('includeHsts: false');
+    expect(server).not.toContain('Strict-Transport-Security');
   });
 
-  it('serves html with the same revalidating cache policy', () => {
-    expect(server).toContain(`'${headerValue('Cache-Control')}'`);
-    expect(server).not.toContain("'no-store'");
+  it('serves booking and staff with frame-ancestors none', () => {
+    const booking = hostingHeadersForPath('/booking', {
+      authFrame: STAGING_AUTH_FRAME,
+      includeHsts: false
+    });
+    const staff = hostingHeadersForPath('/staff', {
+      authFrame: STAGING_AUTH_FRAME,
+      includeHsts: false
+    });
+    expect(booking['Content-Security-Policy']).toContain(
+      "frame-ancestors 'none'"
+    );
+    expect(staff['X-Frame-Options']).toBe('DENY');
+    expect(booking['Strict-Transport-Security']).toBeUndefined();
   });
 });

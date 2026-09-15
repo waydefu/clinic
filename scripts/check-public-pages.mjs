@@ -4,6 +4,12 @@ import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 import ts from 'typescript';
 
+import {
+  ISOLATED_AUTH_FRAME,
+  STAGING_AUTH_FRAME,
+  firebaseHostingHeaderBlocks
+} from '../apps/web/csp-policy.mjs';
+
 // 對外頁面清單的一致性守衛（2026-07-27，自動檢查缺口 F-4）。
 //
 // public-pages.json 是「哪些頁面存在、如何路由、跑哪些掃描」的權威清單；本機
@@ -723,9 +729,10 @@ function sameJson(left, right) {
 
 /**
  * Isolated C1 has no Cloud Run API, so preview Hosting is static-only.
- * Static public/predeploy/redirects/headers/non-run rewrites must still
- * match firebase.json so a page-routing change cannot silently leave the
- * isolated config behind.
+ * Static public/predeploy/redirects/non-run rewrites must still match
+ * firebase.json so a page-routing change cannot silently leave the isolated
+ * config behind. CSP may differ: isolated must not trust the staging
+ * Firebase app origin (F-10).
  */
 export function compareIsolatedPreviewHosting(calPilot, isolated, failures) {
   if (!isRecord(isolated) || !isRecord(isolated.hosting)) {
@@ -763,10 +770,32 @@ export function compareIsolatedPreviewHosting(calPilot, isolated, failures) {
     failures.push(
       'firebase.isolated-preview.json hosting.redirects 必須與 firebase.json 相同。'
     );
-  if (!sameJson(isolatedHosting.headers, calPilotHosting.headers))
+  if (
+    !sameJson(
+      calPilotHosting.headers,
+      firebaseHostingHeaderBlocks(STAGING_AUTH_FRAME)
+    )
+  ) {
     failures.push(
-      'firebase.isolated-preview.json hosting.headers 必須與 firebase.json 相同。'
+      'firebase.json hosting.headers 必須與 apps/web/csp-policy.mjs 的 staging catalog 相同。'
     );
+  }
+  if (
+    !sameJson(
+      isolatedHosting.headers,
+      firebaseHostingHeaderBlocks(ISOLATED_AUTH_FRAME)
+    )
+  ) {
+    failures.push(
+      'firebase.isolated-preview.json hosting.headers 必須與 isolated C1 CSP catalog 相同。'
+    );
+  }
+  const isolatedEncoded = JSON.stringify(isolatedHosting.headers ?? []);
+  if (isolatedEncoded.includes('beauessence-clinic-staging.firebaseapp.com')) {
+    failures.push(
+      'firebase.isolated-preview.json 不得信任 beauessence-clinic-staging.firebaseapp.com。'
+    );
+  }
   const calPilotStaticRewrites = Array.isArray(calPilotHosting.rewrites)
     ? calPilotHosting.rewrites.filter(
         (rule) => !(isRecord(rule) && hasOwn(rule, 'run'))

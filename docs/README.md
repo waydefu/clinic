@@ -82,6 +82,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
 - [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — production remains plan-only and blocked by production D-009/D-016; a 2026-09-11 banner records the owner product SLO (watch then `syncToken`, 1–5 minute compensation) without making `events.watch` executable; a 2026-08-30 banner still points to the separately approved synthetic-only five-minute poll
 - [API v1 contract baseline](architecture/api-v1-contract.md) — navigation layer for the schemas in `packages/contracts`
+- [Stage E monitoring and operational contract](architecture/stage-e-monitoring.md) — health vs readiness, WP-B4 thresholds, PII-safe signals; not apply authority
+- [Stage F deployed acceptance matrix](architecture/stage-f-deployed-acceptance-matrix.md) — spec-only Booking / Workbench / Calendar / security / persistence cases; not a deployment
 - [Local Firestore baseline](architecture/firestore-local-baseline.md) — Emulator-only project and Rules baseline
 - [Synthetic Web modular architecture](architecture/synthetic-web-modular-architecture.md) — browser module boundaries and how they are later replaced by the real API
 - [Calendar and database integration plan](architecture/calendar-and-database-integration-plan.md) — staged route from the browser prototype to Firestore and a Calendar projection, and which decision blocks each stage
@@ -141,6 +143,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 5. Operations
 
+- [Stage E operational runbook](runbooks/stage-e-operational.md) — API outage, booking write, Firestore, Calendar 410/watch, dead-letter, backup verbs, auth, rate-limit, IAM, rollback, isolated preview; not apply
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [C1 local execution packet](runbooks/c1-local-execution-packet.md) — ADC/CLI commands for the new isolated C1 project; no secrets; C1 foundation smoke PASSed on `beauessence-clinic-stg-c1a01`
@@ -168,6 +171,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-15 | [Stage E monitoring / security / operational readiness](reviews/2026-09-15-stage-e-monitoring-readiness.md) | Engineering only. WP-B4 definitions, CSP, runbooks, evidence scripts. `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED`. No cloud apply. `INTERNAL_PREPRODUCTION_COMPLETE = FAIL`. |
 | 2026-09-15 | [WP-B1～B11 已簽署權威與 F-01～F-14 closure](reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md) | Stage A+B only. `origin/main` `2a336e9`. Signed WP-B1～B11 + Booking Page/Workbench scope. Isolated C1 still static preview, `/v1` HTTP 404. `INTERNAL_PREPRODUCTION_COMPLETE = FAIL`. No Cloud Run/Firebase mutation. Not Stage C. |
 | 2026-09-14 | [WP-B1～B6 業主連審表](reviews/2026-09-14-wp-b1-through-b6-owner-review.md) | **Superseded as waiting sheet** (2026-09-15 signed answers). Historical six-question packet. Not apply. |
 | 2026-09-14 | [WP-B1 C1 API 授權封包](reviews/2026-09-14-wp-b1-c1-api-authority-packet.md) | **Superseded as waiting question**; owner chose A. Still not Cloud Run deploy authority. |

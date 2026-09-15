@@ -32,6 +32,7 @@ Web / 社群 / 未來 App
 | 時區常數與時段規則 | `packages/domain/src/schedule.ts` | 匯入。瀏覽器的時間格式化一律經 `modules/taipei-time.js` |
 | 預約狀態轉移與守衛 | `packages/domain/src/appointment-*.ts` | 匯入 |
 | 線路格式（wire schema） | `packages/contracts` | 只依賴 zod，不得反向依賴 domain |
+| 營運健康、WP-B4 門檻、PII-safe log／metric | `packages/domain/src/observability.ts` | API／worker 只能匯入。禁止第二套 error taxonomy 或 PII label |
 
 **這張表由 `pnpm check:architecture` 強制執行**，不是慣例：它檢查依賴方向、
 擋下瀏覽器重寫 domain 規則，並要求 domain 每個原因代碼都有對應的介面訊息。

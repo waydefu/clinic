@@ -27,6 +27,13 @@ export function createInternalTestOutboxServer(
   runtime: InternalTestOutboxRuntime
 ) {
   return createServer((request, response) => {
+    if (request.method === 'GET' && request.url === '/live') {
+      send(response, 200, {
+        service: 'internal-test-outbox-worker',
+        status: 'ok'
+      });
+      return;
+    }
     if (request.method === 'GET' && request.url === '/health') {
       void runtime.inspect().then(
         (inspection) =>

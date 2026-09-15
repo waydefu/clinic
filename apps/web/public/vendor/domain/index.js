@@ -18,6 +18,7 @@ export * from './calendar-sync.js';
 export * from './errors.js';
 export * from './follow-up.js';
 export * from './idempotency.js';
+export * from './observability.js';
 export * from './outbox.js';
 export * from './patient-identity.js';
 export * from './payroll.js';

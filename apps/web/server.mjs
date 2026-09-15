@@ -4,6 +4,8 @@ import { extname, resolve, sep } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { STAGING_AUTH_FRAME, hostingHeadersForPath } from './csp-policy.mjs';
+
 if (process.env['TEST_ONLY_WEB_ENABLED'] !== 'true') {
   throw new Error(
     'Refusing to start the test-only website without TEST_ONLY_WEB_ENABLED=true.'
@@ -41,35 +43,14 @@ const contentTypes = {
 // Firebase Hosting serves public/404.html for missing URLs. Mirror that body
 // and status here so local/E2E recovery is the branded page, not an empty
 // response and not a rewrite to staff `/`.
-function hostingHeaders(contentType, cacheControl) {
+function hostingHeaders(contentType, cacheControl, pathname = '/') {
   return {
+    ...hostingHeadersForPath(pathname, {
+      authFrame: STAGING_AUTH_FRAME,
+      includeHsts: false
+    }),
     'Cache-Control': cacheControl,
-    // connect-src 必須保留 'self'：預約頁會從同源 `/privacy` 載入告知草稿；
-    // CAL-PILOT 登入另只開 Firebase Auth 的 identity／token 兩個官方端點。
-    // signInWithRedirect 會載入 Google 的 iframe loader，script-src 精確限定
-    // apis.google.com；frame-src 允許同源（Option 1 auth iframe）與本 staging
-    // 專案的 firebaseapp.com authDomain。
-    // `require-trusted-types-for 'script'`：寫進 innerHTML 的字串一律要先經過
-    // Trusted Types policy，否則瀏覽器直接丟 TypeError。modules/trusted-html.js
-    // 註冊 default policy，於是既有的 29 處指派全部流經那裡的結構檢查。
-    // 導入前先以 report-only 跑過兩個進入點的完整 render 路徑，違規為 0。
-    'Content-Security-Policy':
-      "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; frame-src 'self' https://beauessence-clinic-staging.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'",
-    // 沒有任何跨來源彈窗或被他站嵌入的需求，所以兩者都收到 same-origin：
-    // 前者切斷跨來源視窗對 window.opener 的存取，後者阻止其他站台把本站資源
-    // 當成子資源載入。
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Resource-Policy': 'same-origin',
-    'Content-Type': contentType,
-    // 必須與 firebase.json 逐字相同——這個 server 的存在意義就是在本機重現
-    // Hosting 的安全與快取語意，漂移等於測到的不是會部署的東西。
-    // Privacy Sandbox 的幾項一併關掉：處理健康資料的站台沒有理由預設參與。
-    'Permissions-Policy':
-      'camera=(), microphone=(), geolocation=(), payment=(), browsing-topics=(), attribution-reporting=(), join-ad-interest-group=(), run-ad-auction=()',
-    'Referrer-Policy': 'no-referrer',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'X-Robots-Tag': 'noindex, nofollow, noarchive'
+    'Content-Type': contentType
   };
 }
 
@@ -78,7 +59,7 @@ async function sendBrandedNotFound(request, response) {
     const content = await readFile(resolve(publicDirectory, '404.html'));
     response.writeHead(
       404,
-      hostingHeaders('text/html; charset=utf-8', 'no-cache')
+      hostingHeaders('text/html; charset=utf-8', 'no-cache', '/404.html')
     );
     response.end(request.method === 'HEAD' ? undefined : content);
   } catch {
@@ -169,7 +150,10 @@ const server = createServer(async (request, response) => {
       servingDist && /\.[a-f0-9]{10}\.(?:js|css)$/.test(relativePath)
         ? 'public, max-age=31536000, immutable'
         : 'no-cache';
-    response.writeHead(200, hostingHeaders(contentType, cacheControl));
+    response.writeHead(
+      200,
+      hostingHeaders(contentType, cacheControl, pathname)
+    );
     response.end(request.method === 'HEAD' ? undefined : content);
   } catch {
     await sendBrandedNotFound(request, response);

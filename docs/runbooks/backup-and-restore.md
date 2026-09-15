@@ -13,6 +13,19 @@ authority、apply approval 並實際建立資源後，才可照本 runbook
 做真實還原——
 **沒有演練過的備份不能算備份**。
 
+操作動詞必須分開，避免把 inspect 當 apply：
+
+| 動詞 | 本 runbook 允許的意思 | Stage E |
+| --- | --- | --- |
+| **inspect** | `pnpm inspect:internal-test-backup`；列出 backup／PITR。零 mutation | 允許 |
+| **plan** | SHA-gated Terraform plan。零 apply | 允許讀 source |
+| **apply** | 建立／變更 backup schedule | **禁止**（Stage F exact SHA） |
+| **restore** | 還原到**新** database | **禁止**直到 Stage F 演練 packet |
+| **rollback** | 不切換應用連線；保留事故庫 | 文件已寫 |
+
+Stage F 要能驗：backup exists、restore procedure works、restored bookings
+readable、pending outbox resumes safely。本輪不 apply。
+
 ## 1. 保護對象
 
 | 對象 | 機制 | 遺失的後果 |

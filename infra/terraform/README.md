@@ -20,7 +20,8 @@ production 或真實資料的 authority。候選不含 secret version，避免�
 `beauessence-clinic-staging`。Agent sandbox 不執行 apply；本機 packet 才 apply。
 `c2-identity/`、`c5-firestore/` 與 `c6-calendar/` 同樣 SHA-gated、預設不建立資源，且 C2／C5／C6
 `deploymentAuthorities` 仍為 `not_granted`。不得把 C2 Identity、C5 Firestore 或 C6 Calendar API
-混進 C1。
+混進 C1。`wp-b4-alerting/` 是 Stage E 的應用層告警來源：預設 `not_granted`，收件人只走
+tfvar／secret，不得 `apply` 直到 Stage F exact-SHA packet。
 
 未來應分開管理：
 

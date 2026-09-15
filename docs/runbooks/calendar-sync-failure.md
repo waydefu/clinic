@@ -1,5 +1,13 @@
 # Runbook：Google Calendar 同步失敗
 
+**狀態：** 程式可操作合成／CAL-PILOT 路徑。  
+`PRODUCTION_CALENDAR_INBOUND = GO_LIVE_DEFERRED`。  
+**code ready ≠ production activated。** 本 runbook 不授權 register
+watch、啟用 production webhook，或變更真實病患 Calendar。
+
+完整事故欄位見 [stage-e-operational.md](stage-e-operational.md)
+（Calendar sync failure、410 recovery、watch channel renewal）。
+
 ## 觸發條件
 
 - `outbox_job` 超過重試門檻。
@@ -18,6 +26,13 @@
 4. 若無法自動恢復，主管依預約編號在後台執行受稽核的人工補救；不要直接在
    Calendar 建立未連結事件。（`requeue` 會寫入 `requeuedBy`／`requeuedAt`。）
 5. 通知技術負責人、記錄根因與修正，並確認死信工作已清除或已保留處理結果。
+
+## 410 gone
+
+Calendar 回 410 時停止使用舊 sync token，改走全量補償（僅合成／CAL-PILOT）。
+不要為了 410 在 production 註冊 `events.watch`。Watch renewal 有重複保護；
+production inbound 仍 deferred。細節見
+[stage-e-operational.md](stage-e-operational.md)。
 
 ## 演練
 

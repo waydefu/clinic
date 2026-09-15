@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   planDeniedAccessAudit,
+  sanitizeStructuredLog,
   type DeniedAccessReasonCategory
 } from '@beauessence/domain';
 
@@ -23,6 +24,15 @@ import {
   DENIED_AUTHORIZATION_AUDIT,
   type DeniedAuthorizationAuditPort
 } from '../authorization/denied-access-audit.port.js';
+import {
+  API_METRICS,
+  httpMetricFromRequest,
+  type ApiMetricsPort
+} from '../runtime/api-metrics.js';
+import {
+  STRUCTURED_LOGGER,
+  type StructuredLogger
+} from '../runtime/structured-logger.js';
 
 interface HttpReply {
   header(name: string, value: string): HttpReply;
@@ -69,7 +79,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
   public constructor(
     @Optional()
     @Inject(DENIED_AUTHORIZATION_AUDIT)
-    private readonly denials?: DeniedAuthorizationAuditPort
+    private readonly denials?: DeniedAuthorizationAuditPort,
+    @Optional()
+    @Inject(API_METRICS)
+    private readonly metrics?: ApiMetricsPort,
+    @Optional()
+    @Inject(STRUCTURED_LOGGER)
+    private readonly logger?: StructuredLogger
   ) {}
 
   public catch(error: unknown, host: ArgumentsHost): void {
@@ -77,6 +93,38 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const request = host.switchToHttp().getRequest<HttpRequest>();
     const correlationId = randomUUID();
     const mapped = mapErrorToApiResponse(error, correlationId);
+    const path = request.routerPath ?? request.routeOptions?.url ?? 'unknown';
+    this.metrics?.recordHttp(
+      httpMetricFromRequest({
+        method: request.method ?? 'GET',
+        path,
+        status: mapped.status,
+        errorCode: mapped.body.error.code
+      })
+    );
+    try {
+      this.logger?.emit(
+        sanitizeStructuredLog({
+          timestamp: new Date().toISOString(),
+          environment: 'internal_test',
+          service: 'api',
+          correlationId,
+          operation: routeTemplate(request),
+          result:
+            mapped.body.error.code === 'RATE_LIMITED'
+              ? 'rate_limited'
+              : mapped.body.error.code === 'AUTHORIZATION_DENIED' ||
+                  mapped.body.error.code === 'AUTHENTICATION_REQUIRED'
+                ? 'denied'
+                : 'error',
+          errorCode: mapped.body.error.code,
+          durationMs: 0,
+          retryState: 'none'
+        })
+      );
+    } catch {
+      // Logging must never change the HTTP status or body.
+    }
     void this.recordDenial(error, request, correlationId);
     for (const [name, value] of Object.entries(mapped.headers))
       reply.header(name, value);

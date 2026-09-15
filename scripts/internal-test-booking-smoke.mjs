@@ -1,6 +1,11 @@
 import { pathToFileURL } from 'node:url';
 
 import {
+  evaluateFailClosedApiSurface,
+  evaluatePublicBookingGateOpen
+} from '@beauessence/domain';
+
+import {
   FORBIDDEN_STAGING_PROJECT,
   isIsolatedC1ProjectId
 } from './isolated-c1-project-id.mjs';
@@ -54,28 +59,16 @@ export function assertInternalTestSmokeTarget(input) {
 }
 
 /**
- * Unauthenticated booking writes and lookups must not succeed.
- * Gate closed → 503. Gate open → 401. Isolated static Hosting (no
- * Cloud Run rewrite) → 404. A 2xx create, mutate, or lookup is a
- * public-write defect. GET /v1/health is liveness, not this check.
+ * Unauthenticated booking writes and lookups must not succeed as public
+ * production. Gate closed → 503. Staff unauthenticated → 401/403. Isolated
+ * static Hosting 404 is API-not-mounted, never a healthy fail-closed API.
+ * GET /v1/health is liveness, not this check.
  */
 export function evaluateUnauthenticatedApiSurface({ method, path, status }) {
-  if (status === 503 || status === 401 || status === 404) {
-    return { ok: true, status, reason: 'fail-closed' };
-  }
-  if (status >= 200 && status < 300) {
-    return {
-      ok: false,
-      status,
-      reason: `${method} ${path} returned ${status}: unauthenticated 2xx means production default is not OFF`
-    };
-  }
-  return {
-    ok: false,
-    status,
-    reason: `${method} ${path} returned unexpected status ${status}`
-  };
+  return evaluateFailClosedApiSurface({ method, path, status });
 }
+
+export { evaluatePublicBookingGateOpen };
 
 export function evaluateUnauthenticatedBookingWrite({ status }) {
   return evaluateUnauthenticatedApiSurface({
