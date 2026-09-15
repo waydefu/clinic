@@ -114,7 +114,7 @@ describe('C2–C6 source invariants before prior-gate PASS', () => {
     expect(session).not.toContain('const ABSOLUTE_SESSION_MS =');
     expect(session).not.toContain('const IDLE_SESSION_MS =');
     expect(session).toContain(
-      'if (user.disabled) throw new AuthenticationRequiredError()'
+      'if (user.disabled) throw new DisabledAccountError()'
     );
     expect(roles).toContain("'manager'");
     expect(roles).toContain("'front_desk'");

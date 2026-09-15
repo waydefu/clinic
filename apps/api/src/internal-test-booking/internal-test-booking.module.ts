@@ -1,7 +1,13 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { isRole } from '@beauessence/domain';
+import {
+  isRole,
+  UNPUBLISHED_SCHEDULE,
+  type PublishedScheduleSnapshot,
+  type SchedulePublicationRequest,
+  type SlotSnapshot
+} from '@beauessence/domain';
 
 import {
   APPOINTMENT_APPLICATION,
@@ -14,23 +20,43 @@ import type { AppointmentAuthorizationPolicy } from '../appointments/appointment
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import {
   CalendarPilotModule,
-  defaultFirebaseApp
+  defaultFirebaseApp,
+  vitestWithoutFirestoreEmulator
 } from '../calendar/calendar-pilot.module.js';
 import { CALENDAR_PILOT_SESSIONS } from '../calendar/calendar-pilot.tokens.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
+import { FirestoreDurableRateLimitStore } from '../firestore/rate-limit.repository.js';
+import { FirestorePatientDirectory } from '../patients/patient-directory.js';
 import { FirestoreScheduleRepository } from '../firestore/schedule.repository.js';
 import type { CandidateRole } from '../platform/authorization/rbac.js';
 import {
   createRbacAppointmentPolicy,
   createScheduleAuthorizationPolicy
 } from '../platform/authorization/rbac-appointment-policy.js';
-import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
+import {
+  AuthorizationDeniedError,
+  ServiceUnavailableError
+} from '../platform/errors/api-error.js';
+import {
+  InMemoryDurableRateLimitStore,
+  type DurableRateLimitStore
+} from '../platform/runtime/durable-rate-limit-store.js';
+import {
+  RATE_LIMIT_STORE,
+  WP_B2_RATE_LIMITER,
+  WpB2RateLimiter
+} from '../platform/runtime/wp-b2-rate-limiter.js';
 import {
   SCHEDULE_APPLICATION,
   ScheduleController
 } from '../schedule/schedule.controller.js';
 import { ScheduleApplicationService } from '../schedule/schedule.application-service.js';
 import type { ScheduleAuthorizationPolicy } from '../schedule/schedule.policy.js';
+import type {
+  PublishedScheduleResult,
+  ScheduleRepositoryPort
+} from '../schedule/schedule.repository-port.js';
+import { ReturnLookupController } from './return-lookup.controller.js';
 import { InternalTestBookingAuthenticator } from './internal-test-booking.authenticator.js';
 import { internalTestBookingSettingsFromEnv } from './internal-test-booking.gate.js';
 import {
@@ -46,6 +72,19 @@ const SCHEDULE_AUTHORIZATION = 'ScheduleAuthorizationPolicy';
 function resolveRole(context: AuthenticationContext): CandidateRole {
   if (!isRole(context.actorRole)) throw new AuthorizationDeniedError();
   return context.actorRole;
+}
+
+function unpublishedMemorySchedule(): ScheduleRepositoryPort {
+  return {
+    readPublished: (): Promise<PublishedScheduleSnapshot> =>
+      Promise.resolve(UNPUBLISHED_SCHEDULE),
+    listOccupiedSlots: (): Promise<readonly SlotSnapshot[]> =>
+      Promise.resolve([]),
+    publish: (
+      _request: SchedulePublicationRequest
+    ): Promise<PublishedScheduleResult> =>
+      Promise.reject(new ServiceUnavailableError())
+  };
 }
 
 export interface InternalTestBookingModuleOptions {
@@ -71,7 +110,11 @@ export class InternalTestBookingModule {
     return {
       module: InternalTestBookingModule,
       imports: [CalendarPilotModule],
-      controllers: [AppointmentController, ScheduleController],
+      controllers: [
+        AppointmentController,
+        ScheduleController,
+        ReturnLookupController
+      ],
       providers: [
         {
           provide: INTERNAL_TEST_BOOKING_SETTINGS,
@@ -84,6 +127,31 @@ export class InternalTestBookingModule {
           }
         },
         {
+          provide: RATE_LIMIT_STORE,
+          useFactory: () => {
+            // Vitest AppModule proofs boot without ADC or an emulator.
+            // Durable consume must not call Cloud Firestore there.
+            // Production and emulator suites keep the Firestore store.
+            if (vitestWithoutFirestoreEmulator()) {
+              return new InMemoryDurableRateLimitStore();
+            }
+            return new FirestoreDurableRateLimitStore(
+              getFirestore(defaultFirebaseApp())
+            );
+          }
+        },
+        {
+          provide: WP_B2_RATE_LIMITER,
+          inject: [RATE_LIMIT_STORE],
+          useFactory: (store: DurableRateLimitStore) =>
+            new WpB2RateLimiter(store)
+        },
+        {
+          provide: 'PatientDirectory',
+          useFactory: () =>
+            new FirestorePatientDirectory(getFirestore(defaultFirebaseApp()))
+        },
+        {
           provide: APPOINTMENT_AUTHORIZATION,
           useFactory: () => createRbacAppointmentPolicy(resolveRole)
         },
@@ -94,26 +162,48 @@ export class InternalTestBookingModule {
         options.auth !== undefined && options.sessions !== undefined
           ? {
               provide: APPOINTMENT_AUTHENTICATOR,
-              useValue: new InternalTestBookingAuthenticator(
-                options.sessions,
-                options.auth
-              )
+              inject: ['PatientDirectory', INTERNAL_TEST_BOOKING_CLOCK],
+              useFactory: (
+                patients: FirestorePatientDirectory,
+                clock: InternalTestBookingClock
+              ) =>
+                new InternalTestBookingAuthenticator(
+                  options.sessions as CalendarPilotSessionService,
+                  options.auth as Auth,
+                  patients,
+                  () => clock.nowUtc()
+                )
             }
           : {
               provide: APPOINTMENT_AUTHENTICATOR,
-              inject: [CALENDAR_PILOT_SESSIONS],
-              useFactory: (sessions: CalendarPilotSessionService) =>
+              inject: [
+                CALENDAR_PILOT_SESSIONS,
+                'PatientDirectory',
+                INTERNAL_TEST_BOOKING_CLOCK
+              ],
+              useFactory: (
+                sessions: CalendarPilotSessionService,
+                patients: FirestorePatientDirectory,
+                clock: InternalTestBookingClock
+              ) =>
                 new InternalTestBookingAuthenticator(
                   sessions,
-                  getAuth(defaultFirebaseApp())
+                  getAuth(defaultFirebaseApp()),
+                  patients,
+                  () => clock.nowUtc()
                 )
             },
         {
           provide: APPOINTMENT_APPLICATION,
-          inject: [APPOINTMENT_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK],
+          inject: [
+            APPOINTMENT_AUTHORIZATION,
+            INTERNAL_TEST_BOOKING_CLOCK,
+            'PatientDirectory'
+          ],
           useFactory: (
             authorization: AppointmentAuthorizationPolicy,
-            clock: InternalTestBookingClock
+            clock: InternalTestBookingClock,
+            patients: FirestorePatientDirectory
           ) =>
             new AppointmentApplicationService(
               new FirestoreBookingRepository(
@@ -122,7 +212,8 @@ export class InternalTestBookingModule {
               authorization,
               { next: opaqueBookingId },
               clock,
-              { next: opaqueBookingId }
+              { next: opaqueBookingId },
+              patients
             )
         },
         {
@@ -133,9 +224,11 @@ export class InternalTestBookingModule {
             clock: InternalTestBookingClock
           ) =>
             new ScheduleApplicationService(
-              new FirestoreScheduleRepository(
-                getFirestore(defaultFirebaseApp())
-              ),
+              vitestWithoutFirestoreEmulator()
+                ? unpublishedMemorySchedule()
+                : new FirestoreScheduleRepository(
+                    getFirestore(defaultFirebaseApp())
+                  ),
               authorization,
               clock,
               { next: opaqueBookingId }

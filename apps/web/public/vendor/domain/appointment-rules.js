@@ -1,7 +1,8 @@
 import { DomainError } from './errors.js';
-/** 尚未結束、仍佔用時段的狀態。 */
+/** 尚未結束、仍佔用時段的狀態。到診不是完成；完成才是終局。 */
 export const OPEN_STATUSES = [
     'confirmed',
+    'arrived',
     'cancellation_requested'
 ];
 /** 同一人同時最多兩筆未結束的預約。 */
@@ -11,8 +12,9 @@ export const ACTIVE_BOOKING_STATUSES = OPEN_STATUSES;
 const ALLOWED_FROM = {
     // 提出取消與標記到診都只能從「預約成立」進入。
     request_cancellation: ['confirmed'],
-    complete: ['confirmed'],
-    // 取消與未到可從「預約成立」或「取消待確認」進入。
+    arrive: ['confirmed'],
+    complete: ['arrived'],
+    // 取消與未到可從尚未終局的狀態進入。
     cancel: OPEN_STATUSES,
     no_show: OPEN_STATUSES
 };

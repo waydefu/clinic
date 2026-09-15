@@ -9,10 +9,19 @@ import {
 } from './c1-smoke-evidence.mjs';
 import {
   bookingAndWatchRemainUnrouted,
+  classifyBookingRouting,
+  classifyLiveBookingRouting,
+  deferredBookingRoutingBlockers
+} from './booking-route-truth.mjs';
+import {
   evaluateC2Smoke,
   evaluateC5Smoke,
   evaluateC6Smoke
 } from './c2-c6-smoke-evidence.mjs';
+import {
+  APP_MODULE_PATH,
+  loadApiModuleSources
+} from './nest-module-reachability.mjs';
 import { parseStageGateStatus } from './unrouted-inventory.mjs';
 import {
   GCP_PROJECT_ID_MAX_LENGTH,
@@ -105,7 +114,7 @@ export function evaluateC3Source(sessionSource) {
   }
   if (
     !sessionSource.includes(
-      'if (user.disabled) throw new AuthenticationRequiredError()'
+      'if (user.disabled) throw new DisabledAccountError()'
     )
   ) {
     issues.push('C3 must reject disabled users.');
@@ -227,8 +236,9 @@ export function emitExactAuthorityRequest(slice, extras = {}) {
       'live Hosting channel',
       'production Calendar',
       'real patient data',
-      'routing AppointmentController',
-      'routing BookPilotController'
+      'direct AppModule AppointmentController',
+      'routing BookPilotController',
+      'routing CalendarWatchController'
     ],
     applyPolicy:
       'never from sequential-c-gate; local packet only after exact SHA',
@@ -239,6 +249,28 @@ export function emitExactAuthorityRequest(slice, extras = {}) {
         : `node scripts/sequential-c-gate.mjs --${slice.toLowerCase()}-smoke /tmp/${slice.toLowerCase()}-smoke.json`,
     ...extras
   };
+}
+
+function routingTruthFromInputs(inputs) {
+  if (inputs.bookingRouteTruth) return inputs.bookingRouteTruth;
+  const liveAppModule = inputs.nestSources?.get?.(APP_MODULE_PATH);
+  if (
+    inputs.nestSources instanceof Map &&
+    (inputs.appModuleSource === undefined ||
+      inputs.appModuleSource === liveAppModule)
+  ) {
+    return classifyBookingRouting(inputs.nestSources);
+  }
+  if (typeof inputs.appModuleSource === 'string') {
+    return classifyBookingRouting(
+      new Map([[APP_MODULE_PATH, inputs.appModuleSource]])
+    );
+  }
+  return classifyLiveBookingRouting();
+}
+
+function deferredRoutingIssues(inputs) {
+  return deferredBookingRoutingBlockers(routingTruthFromInputs(inputs));
 }
 
 function cloneGate(value) {
@@ -288,7 +320,7 @@ function evaluateSliceEvidence(slice, inputs) {
     const smoke = inputs.c6Smoke
       ? evaluateC6Smoke(inputs.c6Smoke)
       : { ok: false, issues: ['C6 smoke evidence is missing.'] };
-    if (!bookingAndWatchRemainUnrouted(inputs.appModuleSource)) {
+    if (deferredRoutingIssues(inputs).length > 0) {
       return {
         ok: false,
         issues: [
@@ -307,12 +339,7 @@ export function nextSequentialAction(gateValue, inputs = {}) {
   const parsed = parseStageGateStatus(gateValue);
   const blockers = [...parsed.issues];
   const appModuleSource = inputs.appModuleSource ?? '';
-
-  if (!bookingAndWatchRemainUnrouted(appModuleSource)) {
-    blockers.push(
-      'Formal booking and CalendarWatchController must stay UNROUTED.'
-    );
-  }
+  blockers.push(...deferredRoutingIssues({ ...inputs, appModuleSource }));
   if (parsed.stageSlices.get('C0') !== 'completed') {
     blockers.push('C0 must be completed before C1–C6 progression.');
   }
@@ -409,12 +436,11 @@ export function nextSequentialAction(gateValue, inputs = {}) {
 }
 
 export function loadLiveSources(repoRoot = root) {
+  const nestSources = loadApiModuleSources(repoRoot);
   return {
     recs: loadC0EngineeringRecs(),
-    appModuleSource: readFileSync(
-      join(repoRoot, 'apps/api/src/app.module.ts'),
-      'utf8'
-    ),
+    nestSources,
+    appModuleSource: nestSources.get(APP_MODULE_PATH) ?? '',
     sessionSource: readFileSync(
       join(repoRoot, 'apps/api/src/auth/calendar-pilot-session.ts'),
       'utf8'

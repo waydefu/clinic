@@ -8,11 +8,12 @@ import {
   PATIENT_REQUEST_TAGS,
   PATIENT_SOURCE_TAGS,
   PERMISSIONS,
-  WEEKDAY_LABELS
+  WEEKDAY_LABELS,
+  ACTIVE_BOOKING_STATUSES
 } from './constants.js';
 import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
-import { followUpDueTimes, isUpcomingSlot } from './schedule-engine.js';
+import { isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
 import {
   emptyState,
@@ -33,6 +34,7 @@ const auditLabels = {
   appointment_notes_updated: '修改備註',
   cancellation_requested: '提出取消',
   appointment_cancelled: '確認取消',
+  appointment_arrived: '標記到診',
   appointment_completed: '完成到診',
   appointment_completed_without_nhi_card: '完成到診（未帶健保卡）',
   appointment_no_show: '標記未到',
@@ -57,6 +59,7 @@ const appointmentActions = new Set([
   'appointment_notes_updated',
   'cancellation_requested',
   'appointment_cancelled',
+  'appointment_arrived',
   'appointment_completed',
   'appointment_completed_without_nhi_card',
   'appointment_no_show',
@@ -108,15 +111,13 @@ function detailRow(state, id) {
 
 // 哪些處置在什麼狀態下可用，集中在這裡，避免選單與 domain 規則各說各話。
 function actionEnabled(actionId, appointment) {
-  const active = ['confirmed', 'cancellation_requested'].includes(
-    appointment.status
-  );
+  const active = ACTIVE_BOOKING_STATUSES.includes(appointment.status);
   switch (actionId) {
     case 'follow_up_confirm':
       return appointment.status === 'completed';
     case 'complete':
     case 'complete_without_card':
-      return appointment.status === 'confirmed';
+      return appointment.status === 'arrived';
     // 列印不改變任何狀態，只是把已有的資料排版印出來。
     // 只在**看診發生之前**可用：那是一張初診資料表，用途是患者到診時拿著它把
     // 其餘欄位手寫補齊。看診結束之後那張紙早就填完了，再印一張空的沒有意義
@@ -137,10 +138,10 @@ function actionEnabled(actionId, appointment) {
 
 function primaryAction(appointment, decided, canManageFollowUp) {
   let action;
-  if (appointment.status === 'confirmed')
+  if (appointment.status === 'confirmed' || appointment.status === 'arrived')
     action = {
-      id: 'complete',
-      label: '到診',
+      id: appointment.status === 'confirmed' ? 'arrive' : 'complete',
+      label: appointment.status === 'confirmed' ? '到診' : '完成看診',
       icon: '&#10003;',
       className: 'appointment-arrival-button'
     };
@@ -226,7 +227,7 @@ function selectCell(state, entry, selectedIds) {
  * 急迫性的定義是「多久沒處理會造成傷害」，不是「哪個功能比較重要」：
  *
  *  1. 取消待確認——沒處理就一直佔著時段，別的患者訂不到。傷害每分鐘都在累積。
- *  2. 回診尚未決定——患者離開診所前應該知道下次何時回來，拖過今天就得再聯絡。
+ *  2. 回診尚未決定——患者離開診所前應該確認是否需要回診，不必當場排期。
  *  3. 個管尚未指派——影響的是月度統計與後續追蹤，可以晚一點。
  *  4. 日曆投影待處理——只影響提醒事件，患者的預約本身不受影響，排最後。
  *
@@ -258,7 +259,7 @@ const OPERATIONAL_TASKS = [
   {
     key: 'pendingFollowUps',
     title: '回診尚未決定',
-    why: '患者離開前應知道下次回診時間',
+    why: '患者離開前應確認是否需要回診',
     href: '#appointments-section',
     tone: 'warning'
   },
@@ -355,7 +356,7 @@ export function summaryCounts(state, today = taipeiTodayDate()) {
     ).length,
     pending: state.appointments.filter(
       (item) =>
-        ['confirmed', 'cancellation_requested'].includes(item.status) &&
+        ACTIVE_BOOKING_STATUSES.includes(item.status) &&
         isTodayWork(state, item, today)
     ).length,
     completed: state.appointments.filter(
@@ -381,8 +382,9 @@ export function renderTagPicker(selected = [], scope = 'booking') {
 // 備註可改的狀態，與 updateAppointmentNotes 的規則一致：已取消或未到的
 // 預約是已經發生的事實，不再修改。
 function notesEditable(appointment) {
-  return ['confirmed', 'cancellation_requested', 'completed'].includes(
-    appointment.status
+  return (
+    ACTIVE_BOOKING_STATUSES.includes(appointment.status) ||
+    appointment.status === 'completed'
   );
 }
 
@@ -429,25 +431,27 @@ function rescheduleOptions(state, appointment) {
 }
 
 // 把每筆預約整理成「佇列項目」，把回診決定的影響一次算好：
-//   - 已完成到診 ＋ 需要回診（未安排）→ 回診版（模式 followup，效期＝回診目標）
+//   - 已完成到診 ＋ 需要回診（尚未正式預約）→ 回診版（模式 followup）
 //   - 其餘 → 一般（效期＝看診時間）
 //
 // 「已完成到診＋不需要回診」先前是**整筆排除**的，理由是「後續無動作」。但那讓
 // 一筆真實發生過的看診從清單上完全消失——連切到「全部狀態」都找不回來，管理者
 // 也就沒有辦法再刪除誤建的紀錄。現在它留在清單上（顯示為「已完成到診」），只是
 // 預設的「當日」「待處理」篩選本來就不會列出已完成的預約，所以日常畫面不受影響。
-// 「效期」同時用於當日篩選與依日期排序，讓回診版依回診日排、而非原就診時間。
 function queueEntry(state, appointment) {
   const decision = state.followUps.find(
     (item) => item.appointmentId === appointment.id
   );
   if (appointment.status === 'completed' && decision?.status === 'required') {
     if (decision.scheduledAppointmentId !== undefined) return undefined;
+    const hasTarget = decision.dueDate && decision.dueTime;
     return {
       appointment,
       decision,
       mode: 'followup',
-      effectiveStart: taipeiIso(decision.dueDate, decision.dueTime)
+      effectiveStart: hasTarget
+        ? taipeiIso(decision.dueDate, decision.dueTime)
+        : appointment.startsAt
     };
   }
   return {
@@ -458,27 +462,19 @@ function queueEntry(state, appointment) {
   };
 }
 
-// 回診版卡片：已確認需要回診、尚未安排下次門診。主要時間顯示回診目標日
-// （＝日曆上的回診日）。「調整回診」把該筆重新放回逐筆回診確認可再改決定。
 function followUpQueueCard(state, entry, permissions, selectedIds) {
   const { appointment, decision, effectiveStart } = entry;
+  const hasTarget = decision.dueDate && decision.dueTime;
+  const timeCell = hasTarget
+    ? `<span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong>`
+    : `<span class="cell-date">稍後再排期</span><strong class="cell-time">稍後再排期</strong>`;
   const notes = tagLabels(decision.tags, FOLLOW_UP_NOTE_TAGS);
   if (decision.noteText) notes.push(decision.noteText);
   const noteRow =
     notes.length === 0
       ? ''
       : `<p class="note-row">${notes.map((note) => `<span class="note-chip">${escapeHtml(note)}</span>`).join('')}</p>`;
-  // 待安排回診這一列的三個動作，對應櫃台真正會做的三件事：
-  //
-  //   確認回診  患者要約下一次了 → 帶著資料跳到建立預約（掛號別已選回診、
-  //             日期已填回診目標日）。**回診可以發生很多次**：那筆新預約完成
-  //             到診後又會再登錄一次回診指示，如此循環。
-  //   調整回診  醫師改了指示 → 放回逐筆登錄再改一次。
-  //   取消回診  不用回來了 → 走 `not_required`，**日曆上的回診提醒會一併移除**。
-  //
-  // 先前這裡只有「調整回診」＋選單裡一個「刪除紀錄」。刪除是清掉整筆到診紀錄
-  // （只留稽核），拿它當「不用回診了」用是錯的——那會連同已完成的看診事實一起
-  // 消失。取消回診只撤銷回診需求，到診紀錄留著。
+  // 確認回診＝從已發布時段建 follow_up；調整＝再改指示；取消＝not_required。
   const canManage = permissions.includes(PERMISSIONS.MANAGE_FOLLOW_UP);
   // 缺 session 時（測試夾具、登入前）不顯示這些動作，而非拋錯。
   const adjust = canManage
@@ -490,7 +486,7 @@ function followUpQueueCard(state, entry, permissions, selectedIds) {
   const cancelFollowUp = canManage
     ? `<button class="button button-danger-outline" type="button" data-follow-up-cancel="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#10005;</span>取消回診</button>`
     : '';
-  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(effectiveStart))}</span><strong class="cell-time">${escapeHtml(formatTime(effectiveStart))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診提醒已上日曆</td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${confirmFollowUp}${adjust}${cancelFollowUp}</div></td></tr>`;
+  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間">${timeCell}</td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診</td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${confirmFollowUp}${adjust}${cancelFollowUp}</div></td></tr>`;
 }
 
 // 櫃台清單的欄位定義。`sortKey` 有值的才可排序——「處置」是一堆按鈕，排它沒有
@@ -820,28 +816,6 @@ export function renderFollowUps(state, editingIds = new Set()) {
         (tag) =>
           `<label class="tag-option"><input type="checkbox" name="tags" value="${escapeHtml(tag.id)}" ${decision?.tags?.includes(tag.id) ? 'checked' : ''} />${escapeHtml(tag.label)}</label>`
       ).join('');
-      // 目標日期預設為第一個有回診時段的門診日（舊版寫死 2030-01-15，
-      // 其實是週二未營業日）；時間選單只列該日可掛號的回診時間，
-      // 未營業日給出明確提示而不是留下可送出的空值。
-      // slot id 形如 slot_20300102_1215，前段就是台北時間的日期。
-      const firstId = state.slots.find((slot) => slot.kind === 'follow_up')?.id;
-      const firstFollowUpDate =
-        firstId === undefined
-          ? undefined
-          : `${firstId.slice(5, 9)}-${firstId.slice(9, 11)}-${firstId.slice(11, 13)}`;
-      // 完全沒有回診時段時（排班全關）退回今天：任何寫死的日期遲早會變成過去，
-      // 而 2026-07-27 之前那個 2030-01-16 已經是「合成視窗固定在 2030」時代的遺物。
-      const dueDate =
-        decision?.dueDate ?? firstFollowUpDate ?? taipeiTodayDate();
-      const dueTimes = followUpDueTimes(state.schedule, dueDate);
-      const dueTimeOptions = dueTimes.length
-        ? dueTimes
-            .map(
-              (time) =>
-                `<option value="${escapeHtml(time)}" ${decision?.dueTime === time ? 'selected' : ''}>${escapeHtml(time)}</option>`
-            )
-            .join('')
-        : '<option value="">當天未營業</option>';
       let managerField = '';
       if (isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')) {
         const assignment = state.caseAssignments.find(
@@ -880,7 +854,7 @@ export function renderFollowUps(state, editingIds = new Set()) {
         state,
         appointment.patientId
       )?.medicalRecordNumber;
-      return `<form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span>${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label><label class="follow-up-field follow-up-date">目標日期<input name="dueDate" type="date" value="${escapeHtml(dueDate)}"></label><label class="follow-up-field follow-up-time">目標時間<select name="dueTime">${dueTimeOptions}</select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></form>`;
+      return `<form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span>${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></form>`;
     })
     .join('');
 }

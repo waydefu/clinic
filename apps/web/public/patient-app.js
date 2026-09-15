@@ -632,6 +632,21 @@ function birthDateValue() {
   return year === '' ? `--${monthDay}` : `${year}-${monthDay}`;
 }
 
+function patientIntake() {
+  const patient = patientInput();
+  return {
+    name: patient.name,
+    phone: patient.phone,
+    birthDate: patient.birthDate,
+    ...(patient.nationalId !== '' ? { nationalId: patient.nationalId } : {}),
+    ...(patient.passportNumber !== ''
+      ? { passportNumber: patient.passportNumber }
+      : {}),
+    ...(patient.hasNhiCard === true ? { hasNhiCard: true } : {}),
+    privacyConsent: true
+  };
+}
+
 function patientInput() {
   const foreign = isForeignNational();
   return {
@@ -742,9 +757,17 @@ function renderAll() {
 document.querySelectorAll('[data-booking-type]').forEach((button) =>
   button.addEventListener('click', () => {
     const type = button.dataset.bookingType;
-    if (type === 'follow_up' && latestFollowUp() === undefined) {
-      message('目前沒有已由醫師確認、且尚未安排的回診需求。', 'error');
-      return;
+    if (type === 'follow_up') {
+      if (isInternalTestBookingEnabled()) {
+        selectedBookingType = 'follow_up';
+        openBookingManagement(button);
+        message('請先以手機號碼與生日確認回診身分。', 'success');
+        return;
+      }
+      if (latestFollowUp() === undefined) {
+        message('目前沒有已由醫師確認、且尚未安排的回診需求。', 'error');
+        return;
+      }
     }
     selectedBookingType = type;
     // 換看診類型等於換一批時段，回到該類型的第一個可預約日期。
@@ -923,51 +946,57 @@ for (const field of formFields)
     updateSubmitState();
   });
 
+function hasReturnSession() {
+  try {
+    return Boolean(window.sessionStorage.getItem('internalTestReturnSession'));
+  } catch {
+    return false;
+  }
+}
+
 elements['patient-booking-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
-  // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
-  for (const field of formFields) touched.add(field);
-  const errors = showFieldErrors();
-  // fieldErrors 依欄位在表單上的順序建出來（domain 保證這個順序），所以第一個
-  // 鍵就是使用者往下讀時第一個會遇到的問題。
-  const [firstProblem] = Object.keys(errors);
-  if (firstProblem !== undefined) {
-    const target = elements[fieldUi(firstProblem).input];
-    target.focus();
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    message(
-      '尚未送出：有欄位需要修正，請看欄位下方的提示。',
-      'error',
-      'patient-submit-status'
-    );
-    return;
-  }
-  // 告知草稿的 UI 閱讀 gate 與「測試資料留在本機」確認是兩件事，分開勾也
-  // 分開報錯。正式政策版本、法律依據與接受證據仍待 D-003。
-  if (!elements['privacy-consent'].checked) {
-    elements['privacy-consent-error'].textContent =
-      '請先閱讀個人資料蒐集告知草稿並勾選確認。';
-    elements['privacy-consent-error'].hidden = false;
-    elements['privacy-consent'].focus();
-    message(
-      '尚未送出：請先閱讀個人資料蒐集告知草稿並勾選確認。',
-      'error',
-      'patient-submit-status'
-    );
-    return;
-  }
-  if (!elements['synthetic-confirmation'].checked) {
-    // 錯誤必須以文字說明，不能只默默移動焦點——那看起來像按了沒反應。
-    elements['synthetic-confirmation-error'].textContent =
-      '請勾選此項才能送出：確認資料只保存在這台裝置的瀏覽器。';
-    elements['synthetic-confirmation-error'].hidden = false;
-    elements['synthetic-confirmation'].focus();
-    message(
-      '尚未送出：請先勾選資料保存的確認項目。',
-      'error',
-      'patient-submit-status'
-    );
-    return;
+  const reuseReturn = hasReturnSession() && selectedBookingType === 'follow_up';
+  if (!reuseReturn) {
+    // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
+    for (const field of formFields) touched.add(field);
+    const errors = showFieldErrors();
+    const [firstProblem] = Object.keys(errors);
+    if (firstProblem !== undefined) {
+      const target = elements[fieldUi(firstProblem).input];
+      target.focus();
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      message(
+        '尚未送出：有欄位需要修正，請看欄位下方的提示。',
+        'error',
+        'patient-submit-status'
+      );
+      return;
+    }
+    if (!elements['privacy-consent'].checked) {
+      elements['privacy-consent-error'].textContent =
+        '請先閱讀個人資料蒐集告知草稿並勾選確認。';
+      elements['privacy-consent-error'].hidden = false;
+      elements['privacy-consent'].focus();
+      message(
+        '尚未送出：請先閱讀個人資料蒐集告知草稿並勾選確認。',
+        'error',
+        'patient-submit-status'
+      );
+      return;
+    }
+    if (!elements['synthetic-confirmation'].checked) {
+      elements['synthetic-confirmation-error'].textContent =
+        '請勾選此項才能送出：確認資料只保存在這台裝置的瀏覽器。';
+      elements['synthetic-confirmation-error'].hidden = false;
+      elements['synthetic-confirmation'].focus();
+      message(
+        '尚未送出：請先勾選資料保存的確認項目。',
+        'error',
+        'patient-submit-status'
+      );
+      return;
+    }
   }
 
   const submitButton = elements['confirm-patient-booking'];
@@ -981,7 +1010,9 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
         method: 'POST',
         body: JSON.stringify({
           slotId: selectedSlotId,
-          patient: patientInput(),
+          ...(reuseReturn
+            ? {}
+            : { patient: patientInput(), intake: patientIntake() }),
           bookingKind: selectedBookingType,
           // 患者端一次只選一個項目（那一步是兩張大卡片，不是清單）；工作臺的
           // 建立表單才是可複選的（W5）。送出的形狀一致，都是陣列。
@@ -1231,6 +1262,29 @@ elements['booking-lookup-form'].addEventListener('submit', async (event) => {
             body: JSON.stringify(verification)
           }),
     onSuccess: (result) => {
+      if (result?.outcome === 'schedule') {
+        selectedBookingType = 'follow_up';
+        message(
+          '已確認回診身分，請選擇時段。不必再填寫姓名或電話。',
+          'success',
+          'booking-lookup-status'
+        );
+        showStep(2);
+        return;
+      }
+      if (result?.outcome === 'existing' && result.appointmentId) {
+        lastLookupVerification = {};
+        rememberManagedAppointment(
+          managedFromContract({
+            appointmentId: result.appointmentId,
+            startsAt: result.startsAt,
+            status: 'confirmed',
+            bookingKind: 'follow_up'
+          })
+        );
+        message('找到 1 筆預約。', 'success', 'booking-lookup-status');
+        return;
+      }
       if (isContractBooking(result)) {
         lastLookupVerification = {};
         rememberManagedAppointment(managedFromContract(result));

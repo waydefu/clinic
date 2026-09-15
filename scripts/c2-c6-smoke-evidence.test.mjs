@@ -15,6 +15,7 @@ import {
   evaluateC5Smoke,
   evaluateC6Smoke
 } from './c2-c6-smoke-evidence.mjs';
+import { classifyLiveBookingRouting } from './booking-route-truth.mjs';
 
 const isolated = 'beauessence-clinic-stg-smoke1';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -277,16 +278,19 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     expect(evaluateC5Smoke(typedRegionOverride).ok).toBe(false);
   });
 
-  it('derives C6 UNROUTED from AppModule and does not invent it', () => {
+  it('derives C6 UNROUTED from the Nest module graph, not AppModule string matching', () => {
     expect(bookingAndWatchRemainUnrouted(liveAppModule)).toBe(true);
+    const liveTruth = classifyLiveBookingRouting(root);
+    expect(liveTruth.internalTestAppointmentRouted).toBe(true);
     const evidence = assembleC6SmokeEvidence(
       {
         projectId: isolated,
         services: [{ config: { name: 'calendar-json.googleapis.com' } }],
         loggingBuckets: c1FoundationBuckets()
       },
-      liveAppModule
+      liveTruth
     );
+    expect(evidence.internalTestAppointmentRouted).toBe(true);
     expect(evaluateC6Smoke(evidence)).toEqual({ ok: true, issues: [] });
 
     const invented = assembleC6SmokeEvidence({
@@ -295,6 +299,7 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
       loggingBuckets: c1FoundationBuckets()
     });
     expect(invented.bookingUnrouted).toBeUndefined();
+    expect(invented.internalTestAppointmentRouted).toBeUndefined();
     expect(evaluateC6Smoke(invented).ok).toBe(false);
 
     const routed = assembleC6SmokeEvidence(

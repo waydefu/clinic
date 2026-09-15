@@ -19,7 +19,8 @@ description = """
   packages/contracts/src/schedule.test.ts  schedule_publish_NNNN
   apps/api occupancy HTTP emulator history schedule_publish_occupancy_NNNN
   apps/api internal-test emulator history  booking-idempotency-NNNN,
-  complete-idempotency-NNNN, follow-up-idempotency-NNNN
+  arrive-idempotency-NNNN, complete-idempotency-NNNN,
+  follow-up-idempotency-NNNN
 
 這些值的形狀是固定的前綴加流水號，與任何真實憑證的字元集與長度都不同。若日後
 測試改用別的前綴，這裡必須一起更新——allowlist 沒有涵蓋到的新值會照常告警，
@@ -36,6 +37,7 @@ regexes = [
   '''schedule_publish_occupancy_\d{4}''',
   '''schedule-publish-key-\d{4}''',
   '''booking-idempotency-\d{4}''',
+  '''arrive-idempotency-\d{4}''',
   '''complete-idempotency-\d{4}''',
   '''follow-up-idempotency-\d{4}''',
   '''"[A-Za-z0-9.-]+\.js": "[a-f0-9]{64}"'''

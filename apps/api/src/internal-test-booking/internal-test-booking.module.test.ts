@@ -13,10 +13,10 @@ const appModule = readFileSync(
 describe('InternalTestBookingModule clock wiring', () => {
   it('uses one INTERNAL_TEST_BOOKING_CLOCK for the gate, bookings, and grid', () => {
     expect(source).toMatch(
-      /inject: \[APPOINTMENT_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK\]/
+      /inject:\s*\[\s*APPOINTMENT_AUTHORIZATION,\s*INTERNAL_TEST_BOOKING_CLOCK,\s*'PatientDirectory'\s*\]/s
     );
     expect(source).toMatch(
-      /inject: \[SCHEDULE_AUTHORIZATION, INTERNAL_TEST_BOOKING_CLOCK\]/
+      /inject:\s*\[\s*SCHEDULE_AUTHORIZATION,\s*INTERNAL_TEST_BOOKING_CLOCK\s*\]/s
     );
     expect(source.match(/new Date\(\)\.toISOString\(\)/g)).toEqual([
       'new Date().toISOString()'
@@ -24,7 +24,15 @@ describe('InternalTestBookingModule clock wiring', () => {
   });
 
   it('keeps the production authenticator on CAL-PILOT sessions', () => {
-    expect(source).toMatch(/inject: \[CALENDAR_PILOT_SESSIONS\]/);
+    expect(source).toMatch(
+      /inject:\s*\[\s*CALENDAR_PILOT_SESSIONS,\s*'PatientDirectory',\s*INTERNAL_TEST_BOOKING_CLOCK\s*\]/s
+    );
     expect(appModule).toMatch(/InternalTestBookingModule\.register\(\)/);
+  });
+
+  it('keeps Vitest AppModule slot reads on an unpublished in-memory grid', () => {
+    expect(source).toContain('unpublishedMemorySchedule');
+    expect(source).toContain('vitestWithoutFirestoreEmulator');
+    expect(source).toContain('FirestoreScheduleRepository');
   });
 });

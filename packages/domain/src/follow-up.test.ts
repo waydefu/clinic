@@ -80,6 +80,42 @@ const decide = (
   );
 
 describe('planFollowUpDecision', () => {
+  it('accepts required without a target even when no schedule is published', () => {
+    const plan = planFollowUpDecision(
+      {
+        appointmentId: appointment.id,
+        decision: 'required',
+        audit,
+        requestedAt: NOW,
+        idempotency
+      },
+      appointment,
+      undefined
+    );
+
+    expect(plan.dueAt).toBeNull();
+    expect(plan.outboxJob).not.toHaveProperty('startsAt');
+    expect(plan.outboxJob.appointmentStatus).toBe('follow_up_required');
+  });
+
+  it('accepts required without a target and does not invent a reminder instant', () => {
+    const plan = decide({ decision: 'required' });
+
+    expect(plan.dueAt).toBeNull();
+    expect(plan.decision).toBe('required');
+    expect(plan.patientId).toBe('patient_001');
+    expect(plan.outboxJob).toMatchObject({
+      appointmentStatus: 'follow_up_required',
+      followUpSourceId: appointment.id,
+      status: 'pending'
+    });
+    expect(plan.outboxJob).not.toHaveProperty('startsAt');
+    expect(plan.auditEvent.after).toEqual({
+      followUpStatus: 'required',
+      dueAt: null
+    });
+  });
+
   it('resolves the Taipei target onto a UTC instant and plans the reminder', () => {
     // 2030-01-02 是週三；12:15 是當天第一個回診格。
     const plan = decide({
@@ -229,15 +265,28 @@ describe('planFollowUpDecision', () => {
       ).toBe('FOLLOW_UP_TIME_OFF_GRID');
   });
 
-  it('requires a complete target when required and none at all when not', () => {
+  it('requires a complete target pair, or none, and none at all when not required', () => {
     expect(
       codeOf(() => decide({ decision: 'required', dueDate: '2030-01-02' }))
     ).toBe('INVALID_VALUE');
-    expect(codeOf(() => decide({ decision: 'required' }))).toBe(
-      'INVALID_VALUE'
-    );
+    expect(
+      codeOf(() => decide({ decision: 'required', dueTime: '12:15' }))
+    ).toBe('INVALID_VALUE');
+    expect(codeOf(() => decide({ decision: 'required' }))).toBe('NO_ERROR');
     expect(
       codeOf(() => decide({ decision: 'not_required', dueDate: '2030-01-02' }))
+    ).toBe('INVALID_VALUE');
+    expect(
+      codeOf(() => decide({ decision: 'not_required', dueTime: '12:15' }))
+    ).toBe('INVALID_VALUE');
+    expect(
+      codeOf(() =>
+        decide({
+          decision: 'not_required',
+          dueDate: '2030-01-02',
+          dueTime: '12:15'
+        })
+      )
     ).toBe('INVALID_VALUE');
     expect(
       codeOf(() =>

@@ -36,7 +36,6 @@ import {
 } from './modules/constants.js';
 import { overdueAppointments } from './modules/case-management.js';
 import { renderTagOptions } from './modules/tag-picker.js';
-import { followUpDueTimes } from './modules/schedule-engine.js';
 import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
 import {
   hydrateWeekView,
@@ -418,13 +417,14 @@ function applyContractWrite(path, body, result) {
     releaseOverlaySlot(slot, appointment.id);
     return;
   }
-  const complete = /^\/bookings\/([^/]+)\/complete$/.exec(path);
-  if (complete !== null) {
+  const statusOnly = /^\/bookings\/([^/]+)\/(arrive|complete)$/.exec(path);
+  if (statusOnly !== null) {
     const appointment = state.appointments.find(
-      (item) => item.id === complete[1]
+      (item) => item.id === statusOnly[1]
     );
     if (appointment === undefined) return;
-    appointment.status = result.status ?? 'completed';
+    appointment.status =
+      result.status ?? (statusOnly[2] === 'arrive' ? 'arrived' : 'completed');
     appointment.updatedAt = now;
     return;
   }
@@ -1312,9 +1312,7 @@ elements.appointments.addEventListener('click', (event) => {
  * 「確認回診」＝現在就替這位患者約下一次。
  *
  * 不新增任何 domain 路徑：它只是把建立預約的表單**預先填好**（患者資料、掛號別
- * 選回診、日期跳到回診目標日），送出後仍走既有的 `/bookings`。domain 會自動把
- * 這筆新預約與來源回診連起來（`scheduledAppointmentId`），移除「尚待安排」的
- * 日曆提醒，這一列也就從佇列消失。
+ * 選回診），送出後仍走既有的 `/bookings`。domain 會把新預約與來源回診連起來。
  *
  * **回診可以發生很多次**：那筆新預約完成到診後會再登錄一次回診指示，如此循環。
  */
@@ -1342,7 +1340,6 @@ elements.appointments.addEventListener('click', (event) => {
     elements['booking-national-id'].value = record.nationalId;
     elements['booking-nhi-card'].checked = record.hasNhiCard === true;
   }
-  // 時段清單跳到回診目標日，櫃台不必自己翻頁找。
   selectedSlotId = undefined;
   renderSlotList();
   renderBookingForm();
@@ -1351,7 +1348,7 @@ elements.appointments.addEventListener('click', (event) => {
     block: 'start'
   });
   message(
-    `已帶入 ${record?.name ?? sourceId} 的回診資料，請選擇 ${decision.dueDate} 附近的時段後送出。`,
+    `已帶入 ${record?.name ?? sourceId} 的回診資料，請從目前開放的回診時段中選擇後送出。`,
     'info'
   );
 });
@@ -1464,28 +1461,30 @@ elements.appointments.addEventListener('click', async (event) => {
     return;
   }
 
-  const completing = action.startsWith('complete');
+  const completing =
+    action === 'complete' || action === 'complete_without_card';
   const questions = {
     cancel: '確認取消此預約並釋放時段？',
     no_show: '確認將此預約標記為未到？時段會釋放。',
-    complete:
-      '確認患者已到診並完成本次看診？完成後，可依醫師指示登錄回診並首次指派個管師。',
-    complete_without_card:
-      '確認患者已到診，但本次未攜帶健保卡？這只記錄這一次的情況，不會改變患者「預計攜帶健保卡」的登記。'
+    arrive: '確認患者已到診？',
+    complete: '確認已完成本次看診？',
+    complete_without_card: '確認已完成看診，且本次未帶健保卡？'
   };
   const confirmed = await confirmDialog(questions[action], {
-    danger: !completing,
+    danger: action === 'cancel' || action === 'no_show',
     confirmLabel: {
       cancel: '取消預約',
       no_show: '標記未到',
-      complete: '確認到診',
-      complete_without_card: '確認到診（未帶卡）'
+      arrive: '確認到診',
+      complete: '完成看診',
+      complete_without_card: '完成看診（未帶卡）'
     }[action]
   });
   if (!confirmed) return;
   const paths = {
     cancel: 'cancel',
     no_show: 'no-show',
+    arrive: 'arrive',
     complete: 'complete',
     complete_without_card: 'complete-without-card'
   };
@@ -1498,9 +1497,9 @@ elements.appointments.addEventListener('click', async (event) => {
       const done = {
         cancel: '預約已取消並釋放時段。',
         no_show: '已標記未到並釋放時段。',
-        complete: '到診已記錄，請接續處理回診與個管指派。',
-        complete_without_card:
-          '到診已記錄，並註記本次未攜帶健保卡。請接續處理回診與個管指派。'
+        arrive: '已記錄到診。',
+        complete: '看診已完成。',
+        complete_without_card: '看診已完成，並註記本次未帶健保卡。'
       };
       message(done[action], 'success');
       if (completing && !elements['follow-up-workflow'].hidden) {
@@ -1736,25 +1735,6 @@ elements['discard-schedule'].addEventListener('click', async () => {
   });
 });
 
-// 目標日期改變時，重建當天的回診時間選單；未營業日直接標示，
-// 不留下可送出的空值（送出端 domain 仍會再擋一次）。
-elements['follow-up-list'].addEventListener('change', (event) => {
-  const dateInput = event.target.closest('input[name="dueDate"]');
-  if (dateInput === null) return;
-  const select = dateInput
-    .closest('[data-follow-up-form]')
-    ?.querySelector('select[name="dueTime"]');
-  if (select === undefined || select === null) return;
-  const times = followUpDueTimes(state.schedule, dateInput.value);
-  select.innerHTML = times.length
-    ? times
-        .map((time) => `<option value="${escapeHtml(time)}">${time}</option>`)
-        .join('')
-    : '<option value="">當天未營業</option>';
-  if (times.length === 0)
-    message('目標日期當天未營業，請改選有門診的日期。', 'error');
-});
-
 elements['follow-up-list'].addEventListener('submit', async (event) => {
   const form = event.target.closest('[data-follow-up-form]');
   if (form === null) return;
@@ -1762,7 +1742,6 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   const appointmentId = form.dataset.followUpForm;
   const data = new FormData(form);
   // 決定存檔後即從逐筆回診確認消失（需要回診→清單回診版、不需要→移除）。
-  // 先移出編輯集合，post() 內部重繪就已反映；失敗時仍為未決定，照樣顯示。
   editingFollowUps.delete(appointmentId);
   const managerId = data.get('managerId');
   await runUiAction({
@@ -1772,20 +1751,13 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
     action: () =>
       post(`/follow-ups/${appointmentId}`, {
         status: data.get('status'),
-        dueDate: data.get('dueDate'),
-        dueTime: data.get('dueTime'),
         tags: data.getAll('tags'),
         noteText: data.get('noteText'),
         certificateCopies: Number(data.get('certificateCopies') ?? 0),
-        // W4：病歷號碼掛在患者身上，順著這張表單一起送。
         medicalRecordNumber: data.get('medicalRecordNumber') ?? '',
         managerId
       }),
     onSuccess: () => {
-      if (data.get('status') === 'required') {
-        weekStart = weekStartOf(data.get('dueDate'));
-        renderWeek();
-      }
       message(
         managerId ? '回診指示與個管指派已登錄。' : '回診指示已登錄。',
         'success'

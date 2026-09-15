@@ -9,6 +9,7 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module.js';
+import { fastifyTrustProxy } from './platform/runtime/client-ip.js';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
@@ -55,7 +56,10 @@ export function resolveListenHost(
 export async function createApplication(): Promise<NestFastifyApplication> {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: false }),
+    new FastifyAdapter({
+      logger: false,
+      trustProxy: fastifyTrustProxy()
+    }),
     { logger: false }
   );
 

@@ -37,28 +37,29 @@ export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
 
 /**
- * 日曆只留「尚未發生」的預約。已完成到診、已取消、未到都是已成事實，事件應該
- * 消失（`cancel`）；confirmed／cancellation_requested 與待安排回診提醒是
- * upsert。
+ * 日曆投影預約狀態，不是可用性鎖。到診與完成更新同一事件，不得刪除；
+ * 已取消、未到與紀錄刪除才 cancel。confirmed／arrived／completed／
+ * cancellation_requested 與待安排回診提醒是 upsert。
  *
  * 用預約的**目前**狀態而不是工作建立時的狀態：工作可能等到退避結束才執行，
- * 期間預約已被取消或完成——這時再把事件寫回日曆就是錯的。
+ * 期間預約已被取消——這時再把事件寫回日曆就是錯的。
  *
  * 刪除例外：紀錄已不存在，活狀態讀不到。此時用工作上的 `appointmentStatus`
  * （`planDeletion` 寫入 `deleted`），才能把同一把日曆事件取消。
  *
- * 到診刪除的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同 event id、
- * 落在回診目標日），由回診投影負責，不受這裡影響。
+ * 到診／完成更新的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同
+ * event id、落在回診目標日），由回診投影負責，不受這裡影響。
  */
 const UPSERT_PROJECTION_STATUSES = new Set([
   'confirmed',
+  'arrived',
+  'completed',
   'cancellation_requested',
   'follow_up_required'
 ]);
 
 const CANCEL_PROJECTION_STATUSES = new Set([
   'cancelled',
-  'completed',
   'no_show',
   'deleted',
   'follow_up_not_required',
@@ -78,6 +79,25 @@ export function actionForStatus(status: string): CalendarAction {
     'INVALID_VALUE',
     `Calendar projection refused unknown appointment status ${status}.`
   );
+}
+
+/**
+ * Required-but-unscheduled is entitlement, not a Calendar appointment.
+ * Never fall back to the completed visit's startsAt to invent one.
+ */
+export function shouldProjectFollowUpReminder(input: {
+  readonly isFollowUpProjection: boolean;
+  readonly action: CalendarAction;
+  readonly startsAt: string;
+}): boolean {
+  if (
+    input.isFollowUpProjection &&
+    input.action === 'upsert' &&
+    input.startsAt === ''
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
@@ -382,10 +402,11 @@ export class OutboxProcessor {
       const projectionStatus = isFollowUpProjection
         ? (job.appointmentStatus ?? 'unknown')
         : appointmentStatus;
-      // 事件自己的時間優先（回診提醒落在回診目標日期，不是原就診時間）；
-      // 一般預約投影沒有 job.startsAt，退回讀來源預約的時間。
-      const startsAt =
-        job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '';
+      // Dated follow-up reminders use job.startsAt. Required-but-unscheduled
+      // must not inherit the completed visit's time as a fake appointment.
+      const startsAt = isFollowUpProjection
+        ? (job.startsAt ?? '')
+        : (job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '');
       const attemptStartedAt = this.monotonicNow();
       let outcome: AttemptOutcome;
       let action: CalendarAction | undefined;
@@ -408,23 +429,31 @@ export class OutboxProcessor {
         };
         // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
         // 手術種類與備註一律不得離開本系統（ADR-0002）。
-        await this.calendar.project(
-          {
-            idempotencyKey: job.idempotencyKey,
+        if (
+          shouldProjectFollowUpReminder({
+            isFollowUpProjection,
             action,
-            appointmentId: job.appointmentId,
-            correlationId: job.correlationId,
-            causationId: job.causationId,
-            appointmentStatus: projectionStatus,
-            startsAt,
-            endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
-            colorId: CLINIC_EVENT_COLOR_ID,
-            bookingKind: isFollowUpProjection
-              ? 'follow_up'
-              : ((appointment.data()?.['bookingKind'] as string) ?? '')
-          },
-          projectionOptions
-        );
+            startsAt
+          })
+        ) {
+          await this.calendar.project(
+            {
+              idempotencyKey: job.idempotencyKey,
+              action,
+              appointmentId: job.appointmentId,
+              correlationId: job.correlationId,
+              causationId: job.causationId,
+              appointmentStatus: projectionStatus,
+              startsAt,
+              endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
+              colorId: CLINIC_EVENT_COLOR_ID,
+              bookingKind: isFollowUpProjection
+                ? 'follow_up'
+                : ((appointment.data()?.['bookingKind'] as string) ?? '')
+            },
+            projectionOptions
+          );
+        }
         outcome = { kind: 'succeeded' };
       } catch (error) {
         outcome = {

@@ -19,17 +19,8 @@ import {
 import { assertUtcTimestamp } from './timestamp.js';
 
 /**
- * Whether a completed visit needs another one, as pure rules.
- *
- * The decision was previously browser-only (`recordFollowUp`), so the "is this
- * a bookable follow-up time" check existed only where the receptionist happened
- * to be standing. It is a clinic rule, not a form validation: the target time
- * has to sit on the same follow-up grid a patient could actually book, or the
- * reminder points at a moment the clinic is closed.
- *
- * The reminder is a calendar event of its own, separate from the visit that
- * produced it — see `calendarEventIdForFollowUp`. That is why a decision plans
- * its own projection instead of reusing the appointment's.
+ * Follow-up decision: required means come back, not “book a time now”.
+ * Optional paired target metadata is not a reserved appointment.
  */
 
 export type FollowUpDecisionValue = 'required' | 'not_required';
@@ -37,9 +28,9 @@ export type FollowUpDecisionValue = 'required' | 'not_required';
 export interface FollowUpDecisionRequest {
   readonly appointmentId: string;
   readonly decision: FollowUpDecisionValue;
-  /** 目標日期（YYYY-MM-DD，台北時間）。`not_required` 時必須省略。 */
+  /** Optional Taipei date (YYYY-MM-DD). Paired with `dueTime` when present. */
   readonly dueDate?: string;
-  /** 目標時間（HH:MM，台北時間），必須落在該日的回診網格上。 */
+  /** Optional Taipei time (HH:MM) on the follow-up grid. Paired with `dueDate`. */
   readonly dueTime?: string;
   readonly audit: AuditContext;
   readonly requestedAt: string;
@@ -81,14 +72,11 @@ export interface FollowUpDecisionPlan {
   readonly appointmentId: string;
   readonly patientId: string;
   readonly decision: FollowUpDecisionValue;
-  /** UTC 時間點；`not_required` 時為 null。 */
+  /** Optional target instant. Null when unscheduled or not_required. */
   readonly dueAt: string | null;
   readonly decidedAt: string;
   readonly auditEvent: AuditEventV2;
-  /**
-   * 需要回診就 upsert 提醒；改成不需要時，用同一個 event ID 排入取消——只刪掉
-   * 本機紀錄不會讓日曆那一側的事件消失。
-   */
+  /** Reminder job. Omit startsAt when required-but-unscheduled. */
   readonly outboxJob: PlannedFollowUpProjection;
   readonly idempotencyRecord: PlannedIdempotencyRecord;
 }
@@ -110,7 +98,7 @@ export function taipeiInstant(date: string, time: string): string {
 export function planFollowUpDecision(
   request: FollowUpDecisionRequest,
   appointment: FollowUpSourceSnapshot | undefined,
-  schedule: Schedule,
+  schedule: Schedule | undefined,
   existing?: ExistingFollowUpSnapshot
 ): FollowUpDecisionPlan {
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
@@ -132,35 +120,50 @@ export function planFollowUpDecision(
   }
 
   let dueAt: string | null = null;
+  const hasDate = request.dueDate !== undefined;
+  const hasTime = request.dueTime !== undefined;
   if (request.decision === 'required') {
-    const { dueDate, dueTime } = request;
-    if (dueDate === undefined || !isValidLocalDate(dueDate)) {
+    if (hasDate !== hasTime) {
       throw new DomainError(
         'INVALID_VALUE',
-        'A required follow-up needs a target date.'
+        'A required follow-up target must include both a date and a time, or neither.'
       );
     }
-    if (dueTime === undefined || !TIME_PATTERN.test(dueTime)) {
-      throw new DomainError(
-        'INVALID_VALUE',
-        'A required follow-up needs a target time.'
-      );
+    if (hasDate && hasTime) {
+      const { dueDate, dueTime } = request;
+      if (dueDate === undefined || !isValidLocalDate(dueDate)) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'A follow-up target needs a real calendar date.'
+        );
+      }
+      if (dueTime === undefined || !TIME_PATTERN.test(dueTime)) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'A follow-up target needs an HH:MM time.'
+        );
+      }
+      if (schedule === undefined) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'A published schedule is required to record a follow-up target.'
+        );
+      }
+      const bookable = followUpGridTimes(schedule, dueDate);
+      if (bookable.length === 0) {
+        throw new DomainError(
+          'FOLLOW_UP_DAY_CLOSED',
+          `The clinic is closed on ${dueDate}.`
+        );
+      }
+      if (!bookable.includes(dueTime)) {
+        throw new DomainError(
+          'FOLLOW_UP_TIME_OFF_GRID',
+          `${dueTime} is not a bookable follow-up time on ${dueDate}.`
+        );
+      }
+      dueAt = taipeiInstant(dueDate, dueTime);
     }
-    // 目標時間必須是患者真的約得到的一格，否則提醒會落在休診時間。
-    const bookable = followUpGridTimes(schedule, dueDate);
-    if (bookable.length === 0) {
-      throw new DomainError(
-        'FOLLOW_UP_DAY_CLOSED',
-        `The clinic is closed on ${dueDate}.`
-      );
-    }
-    if (!bookable.includes(dueTime)) {
-      throw new DomainError(
-        'FOLLOW_UP_TIME_OFF_GRID',
-        `${dueTime} is not a bookable follow-up time on ${dueDate}.`
-      );
-    }
-    dueAt = taipeiInstant(dueDate, dueTime);
   } else if (request.dueDate !== undefined || request.dueTime !== undefined) {
     // 不需要回診卻帶著目標時間，代表呼叫端狀態不一致；沉默丟掉會讓稽核與
     // UI 各說各話。

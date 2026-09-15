@@ -42,6 +42,12 @@ import {
   SCHEDULE_APPLICATION,
   ScheduleController
 } from './schedule.controller.js';
+import {
+  INTERNAL_TEST_BOOKING_CLOCK,
+  INTERNAL_TEST_BOOKING_SETTINGS
+} from '../internal-test-booking/internal-test-booking.tokens.js';
+
+requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 
@@ -118,8 +124,8 @@ function actorHeaders(
 /**
  * Nest HTTP occupancy against the Firestore emulator. Lives under `apps/api`
  * so `@nestjs/*` and `reflect-metadata` resolve; `*.emulator.test.ts` is
- * excluded from `test:unit` and collected by `test:rules`. Settings are
- * omitted so the IP-001 gate stays open the same way other Nest harnesses do.
+ * excluded from `test:unit` and collected by `test:rules`. The IP-001 gate
+ * is injected open with a fixed clock so missing settings cannot fail-open.
  */
 function occupancyHarnessModule(
   db: Firestore,
@@ -157,6 +163,19 @@ function occupancyHarnessModule(
             clock,
             { next: () => 'corr_http_schedule_001' }
           )
+      },
+      {
+        provide: INTERNAL_TEST_BOOKING_SETTINGS,
+        useValue: {
+          enabled: true,
+          expiresAtUtc: '2099-01-01T00:00:00.000Z',
+          projectId: 'beauessence-clinic-stg-c1a01',
+          emulatorHost: '127.0.0.1:8080'
+        }
+      },
+      {
+        provide: INTERNAL_TEST_BOOKING_CLOCK,
+        useValue: clock
       }
     ]
   })
@@ -299,7 +318,9 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
       appointmentId: APPOINTMENT_ID,
       status: 'confirmed',
       startsAt: '2030-01-02T04:00:00.000Z',
-      endsAt: '2030-01-02T04:30:00.000Z'
+      endsAt: '2030-01-02T04:30:00.000Z',
+      bookingKind: 'initial',
+      slotId: SLOT_ID
     });
   });
 
@@ -324,7 +345,7 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
     });
   });
 
-  it('lets staff complete a published-grid booking over HTTP and refuses a patient', async () => {
+  it('lets staff arrive then complete a published-grid booking over HTTP and refuses a patient', async () => {
     const harness = requireHarness();
     await publishGrid(harness, 'schedule_publish_0005');
     const created = await bookPublishedSlot(harness);
@@ -332,11 +353,31 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
 
     const denied = await harness.inject({
       method: 'POST',
-      url: `/v1/bookings/${APPOINTMENT_ID}/complete`,
+      url: `/v1/bookings/${APPOINTMENT_ID}/arrive`,
       headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' }),
       payload: { idempotencyKey: 'booking-idempotency-0005' }
     });
     expect(denied.statusCode).toBe(403);
+
+    const tooSoon = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/complete`,
+      headers: actorHeaders('manager'),
+      payload: { idempotencyKey: 'booking-idempotency-0006-too-soon' }
+    });
+    expect(tooSoon.statusCode).toBe(409);
+
+    const arrived = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${APPOINTMENT_ID}/arrive`,
+      headers: actorHeaders('manager'),
+      payload: { idempotencyKey: 'booking-idempotency-0006-arrive' }
+    });
+    expect(arrived.statusCode).toBe(201);
+    expect(JSON.parse(arrived.payload)).toEqual({
+      appointmentId: APPOINTMENT_ID,
+      status: 'arrived'
+    });
 
     const completed = await harness.inject({
       method: 'POST',

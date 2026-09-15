@@ -95,6 +95,10 @@ async function seedSlots(): Promise<void> {
     kind: 'follow_up',
     startsAt: '2030-01-02T04:15:00.000Z'
   });
+  await db.collection(COLLECTIONS.slots).doc('slot_20300102_1245').set({
+    kind: 'follow_up',
+    startsAt: '2030-01-02T04:45:00.000Z'
+  });
   await Promise.all(
     PATIENT_RACE_SLOT_IDS.map((slotId, index) =>
       db
@@ -444,6 +448,25 @@ describe('booking write path in a Firestore transaction', () => {
     await repository.reserve(bookingRequest());
     await repository.transition({
       appointmentId: 'appointment_001',
+      transition: 'arrive',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_arrive_001',
+        source: 'api',
+        reasonCode: 'test_visit_arrived',
+        policyVersion: null
+      },
+      requestedAt: '2026-07-21T09:30:00.000Z',
+      idempotency: transitionAppointmentIdempotency({
+        key: 'idem_arrive_001',
+        actorId: 'actor_front_desk_001',
+        appointmentId: 'appointment_001',
+        transition: 'arrive'
+      })
+    });
+    await repository.transition({
+      appointmentId: 'appointment_001',
       transition: 'complete',
       audit: {
         actorId: 'actor_front_desk_001',
@@ -499,6 +522,25 @@ describe('booking write path in a Firestore transaction', () => {
         idempotencyKey: 'idem_002'
       })
     );
+    await repository.transition({
+      appointmentId: 'appointment_001',
+      transition: 'arrive',
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_arrive_one_of_two',
+        source: 'api',
+        reasonCode: 'test_visit_arrived',
+        policyVersion: null
+      },
+      requestedAt: '2026-07-21T09:30:00.000Z',
+      idempotency: transitionAppointmentIdempotency({
+        key: 'idem_arrive_one_of_two',
+        actorId: 'actor_front_desk_001',
+        appointmentId: 'appointment_001',
+        transition: 'arrive'
+      })
+    });
     await repository.transition({
       appointmentId: 'appointment_001',
       transition: 'complete',
@@ -577,5 +619,54 @@ describe('booking write path in a Firestore transaction', () => {
       message: 'The slot is unreadable.'
     });
     expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(0);
+  });
+
+  it('allows only one concurrent follow_up reservation per entitled patient', async () => {
+    await db.collection(COLLECTIONS.followUpState).doc('patient_001').set({
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001'
+    });
+
+    const settled = await Promise.allSettled([
+      repository.reserve(
+        bookingRequest({
+          appointmentId: 'appointment_follow_a',
+          slotId: 'slot_20300102_1215',
+          bookingKind: 'follow_up',
+          idempotencyKey: 'idem_follow_a'
+        })
+      ),
+      repository.reserve(
+        bookingRequest({
+          appointmentId: 'appointment_follow_b',
+          slotId: 'slot_20300102_1245',
+          bookingKind: 'follow_up',
+          idempotencyKey: 'idem_follow_b'
+        })
+      )
+    ]);
+
+    expect(
+      settled.filter((entry) => entry.status === 'fulfilled')
+    ).toHaveLength(1);
+    expect(settled.filter((entry) => entry.status === 'rejected')).toHaveLength(
+      1
+    );
+    const lost = settled.find((entry) => entry.status === 'rejected');
+    expect(lost).toMatchObject({
+      status: 'rejected',
+      reason: expect.objectContaining({ code: 'FOLLOW_UP_ALREADY_SCHEDULED' })
+    });
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    expect(appointments.size).toBe(1);
+    const state = await db
+      .collection(COLLECTIONS.followUpState)
+      .doc('patient_001')
+      .get();
+    expect(state.data()?.['activeFollowUpAppointmentId']).toBe(
+      appointments.docs[0]?.id
+    );
   });
 });

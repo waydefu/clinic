@@ -25,23 +25,32 @@ export function planFollowUpDecision(request, appointment, schedule, existing) {
         throw new DomainError('FOLLOW_UP_NOT_DECIDABLE', 'Only a completed visit can carry a follow-up decision.');
     }
     let dueAt = null;
+    const hasDate = request.dueDate !== undefined;
+    const hasTime = request.dueTime !== undefined;
     if (request.decision === 'required') {
-        const { dueDate, dueTime } = request;
-        if (dueDate === undefined || !isValidLocalDate(dueDate)) {
-            throw new DomainError('INVALID_VALUE', 'A required follow-up needs a target date.');
+        if (hasDate !== hasTime) {
+            throw new DomainError('INVALID_VALUE', 'A required follow-up target must include both a date and a time, or neither.');
         }
-        if (dueTime === undefined || !TIME_PATTERN.test(dueTime)) {
-            throw new DomainError('INVALID_VALUE', 'A required follow-up needs a target time.');
+        if (hasDate && hasTime) {
+            const { dueDate, dueTime } = request;
+            if (dueDate === undefined || !isValidLocalDate(dueDate)) {
+                throw new DomainError('INVALID_VALUE', 'A follow-up target needs a real calendar date.');
+            }
+            if (dueTime === undefined || !TIME_PATTERN.test(dueTime)) {
+                throw new DomainError('INVALID_VALUE', 'A follow-up target needs an HH:MM time.');
+            }
+            if (schedule === undefined) {
+                throw new DomainError('INVALID_VALUE', 'A published schedule is required to record a follow-up target.');
+            }
+            const bookable = followUpGridTimes(schedule, dueDate);
+            if (bookable.length === 0) {
+                throw new DomainError('FOLLOW_UP_DAY_CLOSED', `The clinic is closed on ${dueDate}.`);
+            }
+            if (!bookable.includes(dueTime)) {
+                throw new DomainError('FOLLOW_UP_TIME_OFF_GRID', `${dueTime} is not a bookable follow-up time on ${dueDate}.`);
+            }
+            dueAt = taipeiInstant(dueDate, dueTime);
         }
-        // 目標時間必須是患者真的約得到的一格，否則提醒會落在休診時間。
-        const bookable = followUpGridTimes(schedule, dueDate);
-        if (bookable.length === 0) {
-            throw new DomainError('FOLLOW_UP_DAY_CLOSED', `The clinic is closed on ${dueDate}.`);
-        }
-        if (!bookable.includes(dueTime)) {
-            throw new DomainError('FOLLOW_UP_TIME_OFF_GRID', `${dueTime} is not a bookable follow-up time on ${dueDate}.`);
-        }
-        dueAt = taipeiInstant(dueDate, dueTime);
     }
     else if (request.dueDate !== undefined || request.dueTime !== undefined) {
         // 不需要回診卻帶著目標時間，代表呼叫端狀態不一致；沉默丟掉會讓稽核與

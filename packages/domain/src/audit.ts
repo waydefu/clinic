@@ -7,6 +7,7 @@ export const AUDIT_SCHEMA_VERSION = 2 as const;
 export type AuditAction =
   | 'appointment_confirmed'
   | 'cancellation_requested'
+  | 'appointment_arrived'
   | 'appointment_cancelled'
   | 'appointment_completed'
   | 'appointment_no_show'

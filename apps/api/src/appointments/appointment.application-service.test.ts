@@ -34,6 +34,7 @@ import type {
   ReservationResult,
   TransitionResult
 } from './appointment.repository-port.js';
+import { InMemoryPatientDirectory } from '../patients/patient-directory.js';
 
 const COMMAND: CreateAppointmentRequest = {
   idempotencyKey: 'booking_request_0001',
@@ -78,7 +79,10 @@ const OPEN_RECORD: AppointmentRecord = {
   startsAt: '2026-07-25T04:00:00.000Z'
 };
 
-function createBoundary() {
+function createBoundService(
+  patients?: InMemoryPatientDirectory,
+  ids: () => string = () => 'appointment_server_001'
+) {
   const reserve = vi.fn<
     (request: BookingRequest) => Promise<ReservationResult>
   >(() =>
@@ -171,9 +175,10 @@ function createBoundary() {
   const service = new AppointmentApplicationService(
     repository,
     authorization,
-    { next: () => 'appointment_server_001' },
+    { next: ids },
     { nowUtc: () => '2026-07-23T14:30:00.000Z' },
-    { next: () => 'corr_server_001' }
+    { next: () => 'corr_server_001' },
+    patients
   );
 
   return {
@@ -191,8 +196,13 @@ function createBoundary() {
     transition,
     recordFollowUp,
     deleteAppointment,
+    patients,
     service
   };
+}
+
+function createBoundary() {
+  return createBoundService();
 }
 
 describe('AppointmentApplicationService', () => {
@@ -525,7 +535,10 @@ describe('AppointmentApplicationService query', () => {
       appointmentId: 'appointment_server_001',
       status: 'confirmed',
       startsAt: '2026-07-25T04:00:00.000Z',
-      endsAt: '2026-07-25T04:30:00.000Z'
+      endsAt: '2026-07-25T04:30:00.000Z',
+      bookingKind: 'initial',
+      slotId: 'slot_001',
+      patientId: 'patient_opaque_001'
     });
     expect(assertCanQuery).toHaveBeenCalledWith(AUTHENTICATION, {
       appointmentPatientId: 'patient_opaque_001'
@@ -598,13 +611,36 @@ describe('AppointmentApplicationService cancel', () => {
   });
 });
 
-describe('AppointmentApplicationService complete and no-show', () => {
+describe('AppointmentApplicationService arrive, complete and no-show', () => {
   const STAFF: AuthenticationContext = {
     actorId: 'actor_verified_001',
     actorRole: 'test_front_desk'
   };
 
-  it('lets staff complete a confirmed visit', async () => {
+  it('lets staff mark a confirmed visit arrived', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    transition.mockResolvedValueOnce({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'arrived'
+    });
+
+    await expect(
+      service.arrive('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'arrived'
+    });
+    expect(assertCanComplete).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      transition: 'arrive'
+    });
+  });
+
+  it('lets staff complete an arrived visit', async () => {
     const { assertCanComplete, transition, service } = createBoundary();
     transition.mockResolvedValueOnce({
       appointmentId: 'appointment_server_001',
@@ -656,6 +692,22 @@ describe('AppointmentApplicationService complete and no-show', () => {
     await expect(
       service.complete('appointment_server_001', CANCEL_COMMAND, STAFF)
     ).rejects.toThrow('denied');
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  it('does not read the appointment when complete is denied by role', async () => {
+    const { assertCanComplete, read, transition, service } = createBoundary();
+    assertCanComplete.mockRejectedValueOnce(new Error('denied'));
+    const patient: AuthenticationContext = {
+      actorId: 'anonymous',
+      actorRole: 'patient'
+    };
+
+    await expect(
+      service.complete('appointment_server_001', CANCEL_COMMAND, patient)
+    ).rejects.toThrow('denied');
+    expect(assertCanComplete).toHaveBeenCalledWith(patient, {});
+    expect(read).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
   });
 
@@ -717,5 +769,220 @@ describe('AppointmentApplicationService complete and no-show', () => {
       service.delete('appointment_server_001', DELETE_COMMAND, STAFF)
     ).rejects.toThrow('denied');
     expect(deleteAppointment).not.toHaveBeenCalled();
+  });
+});
+
+const SYNTHETIC_INTAKE = {
+  name: '合成患者甲',
+  phone: '0912000001',
+  birthDate: '1990-01-15',
+  nationalId: 'A123456789',
+  privacyConsent: true as const
+};
+
+describe('accountless intake, return lookup and follow-up lineage', () => {
+  const anonymous = {
+    actorId: 'anonymous',
+    actorRole: 'patient'
+  } as const;
+
+  it('creates from intake without an account and reuses the same patientId', async () => {
+    const patients = new InMemoryPatientDirectory();
+    let n = 0;
+    const { reserve, service } = createBoundService(
+      patients,
+      () => `opaque_${++n}`
+    );
+
+    await service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous);
+    await service.create(
+      {
+        ...COMMAND,
+        idempotencyKey: 'booking_request_0002',
+        intake: SYNTHETIC_INTAKE
+      },
+      anonymous
+    );
+
+    expect(patients.createdPatientCount).toBe(1);
+    expect(reserve.mock.calls[0]?.[0]).toMatchObject({
+      patientId: reserve.mock.calls[1]?.[0].patientId
+    });
+  });
+
+  it('returns a generic miss for an unknown lookup and does not enumerate', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const { service } = createBoundService(patients);
+    const failures: string[] = [];
+
+    await expect(
+      service.lookupReturn(
+        { phone: '0912000001', birthDate: '1990-01-15' },
+        '198.51.100.10',
+        {
+          assertLookupFailure: (id, ip) => {
+            failures.push(`${id}:${ip}`);
+            return Promise.resolve();
+          }
+        }
+      )
+    ).rejects.toMatchObject({ code: 'APPOINTMENT_NOT_FOUND' });
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).not.toMatch(/0912|1990-01-15/);
+  });
+
+  it('returns schedule when follow-up is required and unscheduled', async () => {
+    const patients = new InMemoryPatientDirectory();
+    let n = 0;
+    const { service } = createBoundService(patients, () => `opaque_${++n}`);
+    await service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous);
+    const patientId = [...patients.patients.keys()][0] ?? '';
+    patients.followUp.set(patientId, {
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001'
+    });
+
+    await expect(
+      service.lookupReturn(
+        { phone: '0912000001', birthDate: '1990-01-15' },
+        '198.51.100.10'
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        outcome: 'schedule'
+      })
+    );
+    await expect(
+      service.lookupReturn(
+        { phone: '0912000001', birthDate: '1990-01-15' },
+        '198.51.100.10'
+      )
+    ).resolves.not.toHaveProperty('appointmentId');
+  });
+
+  it('returns the existing follow-up time and refuses a duplicate', async () => {
+    const patients = new InMemoryPatientDirectory();
+    let n = 0;
+    const { service } = createBoundService(patients, () => `opaque_${++n}`);
+    await service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous);
+    const patientId = [...patients.patients.keys()][0] ?? '';
+    patients.followUp.set(patientId, {
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001',
+      activeFollowUpAppointmentId: 'appointment_follow_001'
+    });
+    patients.appointments.push({
+      appointmentId: 'appointment_follow_001',
+      patientId,
+      slotId: 'slot_follow_001',
+      bookingKind: 'follow_up',
+      status: 'confirmed',
+      startsAt: '2026-08-01T04:00:00.000Z'
+    });
+
+    await expect(
+      service.lookupReturn(
+        { phone: '0912000001', birthDate: '1990-01-15' },
+        '198.51.100.10'
+      )
+    ).resolves.toMatchObject({
+      outcome: 'existing',
+      appointmentId: 'appointment_follow_001',
+      startsAt: '2026-08-01T04:00:00.000Z'
+    });
+
+    const sessionId = (
+      await service.lookupReturn(
+        { phone: '0912000001', birthDate: '1990-01-15' },
+        '198.51.100.10'
+      )
+    ).sessionId;
+    const verified = {
+      actorId: patientId,
+      actorRole: 'patient' as const,
+      verifiedPatientId: patientId
+    };
+    expect(
+      await patients.readReturnSession(sessionId, '2026-07-23T14:30:00.000Z')
+    ).toBe(patientId);
+    await expect(
+      service.create(
+        {
+          ...COMMAND,
+          bookingKind: 'follow_up',
+          idempotencyKey: 'booking_request_follow'
+        },
+        verified
+      )
+    ).rejects.toMatchObject({ code: 'FOLLOW_UP_ALREADY_SCHEDULED' });
+  });
+
+  it('creates a follow-up on the same patientId when required and unscheduled', async () => {
+    const patients = new InMemoryPatientDirectory();
+    let n = 0;
+    const { reserve, service } = createBoundService(
+      patients,
+      () => `opaque_${++n}`
+    );
+    await service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous);
+    const patientId = [...patients.patients.keys()][0] ?? '';
+    patients.followUp.set(patientId, {
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001'
+    });
+    patients.appointments.push({
+      appointmentId: 'appointment_server_001',
+      patientId,
+      slotId: 'slot_001',
+      bookingKind: 'initial',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z'
+    });
+
+    const listed = await service.list('mine', {
+      actorId: patientId,
+      actorRole: 'patient',
+      verifiedPatientId: patientId
+    });
+    expect(
+      listed.appointments.every((item) => item.patientId === undefined)
+    ).toBe(true);
+
+    await service.create(
+      {
+        ...COMMAND,
+        bookingKind: 'follow_up',
+        idempotencyKey: 'booking_request_follow'
+      },
+      {
+        actorId: patientId,
+        actorRole: 'patient',
+        verifiedPatientId: patientId
+      }
+    );
+    expect(reserve.mock.calls.at(-1)?.[0]).toMatchObject({
+      patientId,
+      bookingKind: 'follow_up'
+    });
+    expect(patients.createdPatientCount).toBe(1);
+  });
+
+  it('does not entitle an unmatched patient to create a return appointment', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const { service } = createBoundService(patients);
+    await expect(
+      service.create(
+        { ...COMMAND, bookingKind: 'follow_up' },
+        {
+          actorId: 'patient_other',
+          actorRole: 'patient',
+          verifiedPatientId: 'patient_other'
+        }
+      )
+    ).rejects.toMatchObject({ code: 'FOLLOW_UP_NOT_ENTITLED' });
+    expect(patients.createdPatientCount).toBe(0);
   });
 });

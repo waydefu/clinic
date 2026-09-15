@@ -32,6 +32,7 @@ import type {
 } from 'firebase-admin/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { assertFollowUpBookable } from '../patients/patient-directory.js';
 import type {
   AppointmentRecord,
   AppointmentRepositoryPort,
@@ -49,7 +50,8 @@ export const COLLECTIONS = {
   outboxJobs: 'outbox_jobs',
   idempotencyKeys: 'idempotency_keys',
   schedules: 'schedules',
-  followUps: 'follow_ups'
+  followUps: 'follow_ups',
+  followUpState: 'patient_follow_up_states'
 } as const;
 
 /**
@@ -115,6 +117,10 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       const patientGuardDocument = await transaction.get(patientGuardRef);
       const slotDocument = await transaction.get(slotRef);
       const scheduleDocument = await transaction.get(scheduleRef);
+      const followUpStateRef = this.db
+        .collection(COLLECTIONS.followUpState)
+        .doc(request.patientId);
+      const followUpStateDocument = await transaction.get(followUpStateRef);
 
       const existingSlot = slotDocument.exists
         ? parseSlotSnapshot(slotDocument.id, slotDocument.data())
@@ -127,6 +133,22 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       const patientBookingGuard =
         this.patientGuardSnapshotOf(patientGuardDocument);
+      const followUpStateData = followUpStateDocument.data() ?? {};
+      if (request.bookingKind === 'follow_up') {
+        assertFollowUpBookable(
+          {
+            required: followUpStateData['required'] === true,
+            ...(typeof followUpStateData['activeFollowUpAppointmentId'] ===
+            'string'
+              ? {
+                  activeFollowUpAppointmentId:
+                    followUpStateData['activeFollowUpAppointmentId']
+                }
+              : {})
+          },
+          request.bookingKind
+        );
+      }
 
       // --- decision (pure) ---------------------------------------------
       const plan = planBooking(request, slot, patientBookingGuard);
@@ -134,7 +156,20 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       // --- writes -------------------------------------------------------
       transaction.set(
         this.db.collection(COLLECTIONS.appointments).doc(plan.appointment.id),
-        plan.appointment
+        request.bookingKind === 'follow_up'
+          ? {
+              ...plan.appointment,
+              ...(typeof followUpStateData['sourceAppointmentId'] === 'string'
+                ? {
+                    sourceAppointmentId:
+                      followUpStateData['sourceAppointmentId']
+                  }
+                : {}),
+              ...(typeof followUpStateData['sourceFollowUpId'] === 'string'
+                ? { sourceFollowUpId: followUpStateData['sourceFollowUpId'] }
+                : {})
+            }
+          : plan.appointment
       );
       this.writeSlotReservation(
         transaction,
@@ -158,6 +193,17 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         plan.outboxJob
       );
       transaction.create(idempotencyRef, plan.idempotencyRecord);
+      if (request.bookingKind === 'follow_up') {
+        transaction.set(
+          followUpStateRef,
+          {
+            required: true,
+            activeFollowUpAppointmentId: plan.appointment.id,
+            updatedAt: request.requestedAt
+          },
+          { merge: true }
+        );
+      }
 
       return {
         appointmentId: plan.appointment.id,
@@ -602,6 +648,14 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       const appointmentDocument = await transaction.get(appointmentRef);
       const followUpDocument = await transaction.get(followUpRef);
+      const appointmentPeek = this.snapshotOf(appointmentDocument);
+      if (appointmentPeek !== undefined) {
+        await transaction.get(
+          this.db
+            .collection(COLLECTIONS.followUpState)
+            .doc(appointmentPeek.patientId)
+        );
+      }
       if (replay !== undefined) {
         const stored = this.followUpSnapshotOf(followUpDocument);
         if (stored === undefined) {
@@ -619,17 +673,18 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       }
 
       const scheduleDocument = await transaction.get(scheduleRef);
-      if (!scheduleDocument.exists) {
+      const published = scheduleDocument.exists
+        ? parsePublishedScheduleSnapshot(scheduleDocument.data())
+        : undefined;
+      const hasTarget =
+        request.dueDate !== undefined || request.dueTime !== undefined;
+      if (
+        hasTarget &&
+        (published === undefined || published.schedule === null)
+      ) {
         throw new DomainError(
           'INVALID_VALUE',
-          'A published schedule is required to record follow-up.'
-        );
-      }
-      const published = parsePublishedScheduleSnapshot(scheduleDocument.data());
-      if (published.schedule === null) {
-        throw new DomainError(
-          'INVALID_VALUE',
-          'A published schedule is required to record follow-up.'
+          'A published schedule is required to record a follow-up target.'
         );
       }
 
@@ -643,7 +698,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
               patientId: appointment.patientId,
               status: appointment.status
             },
-        published.schedule,
+        published?.schedule ?? undefined,
         this.followUpSnapshotOf(followUpDocument)
       );
 
@@ -655,6 +710,23 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         dueAt: plan.dueAt,
         decidedAt: plan.decidedAt
       });
+      if (appointment !== undefined) {
+        transaction.set(
+          this.db
+            .collection(COLLECTIONS.followUpState)
+            .doc(appointment.patientId),
+          {
+            required: plan.decision === 'required',
+            sourceAppointmentId: appointment.id,
+            sourceFollowUpId: plan.appointmentId,
+            updatedAt: request.requestedAt,
+            ...(plan.decision === 'required'
+              ? {}
+              : { activeFollowUpAppointmentId: FieldValue.delete() })
+          },
+          { merge: true }
+        );
+      }
       transaction.create(
         this.db
           .collection(COLLECTIONS.auditEvents)

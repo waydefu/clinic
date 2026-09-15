@@ -8,6 +8,7 @@ import {
 
 export const AppointmentStatusSchema = z.enum([
   'confirmed',
+  'arrived',
   'cancellation_requested',
   'cancelled',
   'completed',
@@ -24,13 +25,26 @@ export const AppointmentStatusSchema = z.enum([
  * create. It is not a client-supplied `patientId`: that field stays rejected.
  * A verified patient identity always wins over this field.
  */
+export const PatientIntakeSchema = z
+  .object({
+    name: z.string().min(1).max(30),
+    phone: z.string().min(8).max(20),
+    birthDate: z.string().min(5).max(10),
+    nationalId: z.string().min(6).max(12).optional(),
+    passportNumber: z.string().min(6).max(12).optional(),
+    hasNhiCard: z.boolean().optional(),
+    privacyConsent: z.literal(true)
+  })
+  .strict();
+
 export const CreateAppointmentRequestSchema = z
   .object({
     idempotencyKey: IdempotencyKeySchema,
     slotId: OpaqueIdentifierSchema,
     serviceId: OpaqueIdentifierSchema,
     bookingKind: z.enum(['initial', 'follow_up']),
-    onBehalfPatientId: OpaqueIdentifierSchema.optional()
+    onBehalfPatientId: OpaqueIdentifierSchema.optional(),
+    intake: PatientIntakeSchema.optional()
   })
   .strict();
 
@@ -65,7 +79,42 @@ export const GetAppointmentResponseSchema = z
     appointmentId: OpaqueIdentifierSchema,
     status: AppointmentStatusSchema,
     startsAt: UtcIsoTimestampSchema,
-    endsAt: UtcIsoTimestampSchema
+    endsAt: UtcIsoTimestampSchema,
+    bookingKind: z.enum(['initial', 'follow_up']).optional(),
+    slotId: OpaqueIdentifierSchema.optional(),
+    patientId: OpaqueIdentifierSchema.optional()
+  })
+  .strict();
+
+export const ListAppointmentsQuerySchema = z
+  .object({
+    scope: z.enum(['mine', 'clinic']).optional(),
+    startAfter: UtcIsoTimestampSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(50).optional()
+  })
+  .strict();
+
+export const ListAppointmentsResponseSchema = z
+  .object({
+    appointments: z.array(GetAppointmentResponseSchema)
+  })
+  .strict();
+
+export const ReturnLookupRequestSchema = z
+  .object({
+    phone: z.string().min(8).max(20),
+    birthDate: z.string().min(5).max(10)
+  })
+  .strict();
+
+export const ReturnLookupResponseSchema = z
+  .object({
+    sessionId: OpaqueIdentifierSchema,
+    expiresAt: UtcIsoTimestampSchema,
+    outcome: z.enum(['existing', 'schedule']),
+    appointmentId: OpaqueIdentifierSchema.optional(),
+    startsAt: UtcIsoTimestampSchema.optional(),
+    endsAt: UtcIsoTimestampSchema.optional()
   })
   .strict();
 
@@ -78,6 +127,7 @@ export const GetAppointmentResponseSchema = z
  */
 export const StaffAppointmentTransitionSchema = z.enum([
   'confirm_cancellation',
+  'arrive',
   'complete',
   'no_show'
 ]);
@@ -92,6 +142,7 @@ export const StaffAppointmentTransitionSchema = z.enum([
  */
 export const STAFF_TRANSITION_TO_DOMAIN = {
   confirm_cancellation: 'cancel',
+  arrive: 'arrive',
   complete: 'complete',
   no_show: 'no_show'
 } as const;
@@ -106,7 +157,7 @@ export const TransitionAppointmentRequestSchema = z
 export const TransitionAppointmentResponseSchema = z
   .object({
     appointmentId: OpaqueIdentifierSchema,
-    status: z.enum(['cancelled', 'completed', 'no_show'])
+    status: z.enum(['cancelled', 'arrived', 'completed', 'no_show'])
   })
   .strict();
 
@@ -210,3 +261,10 @@ export type DeleteAppointmentRequest = z.infer<
 export type DeleteAppointmentResponse = z.infer<
   typeof DeleteAppointmentResponseSchema
 >;
+export type PatientIntake = z.infer<typeof PatientIntakeSchema>;
+export type ListAppointmentsQuery = z.infer<typeof ListAppointmentsQuerySchema>;
+export type ListAppointmentsResponse = z.infer<
+  typeof ListAppointmentsResponseSchema
+>;
+export type ReturnLookupRequest = z.infer<typeof ReturnLookupRequestSchema>;
+export type ReturnLookupResponse = z.infer<typeof ReturnLookupResponseSchema>;

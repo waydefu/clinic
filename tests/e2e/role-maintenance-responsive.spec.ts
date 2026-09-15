@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { login } from './support/workbench.js';
+import { finishVisit, login } from './support/workbench.js';
 
 // 這份 spec 自己決定何時清空瀏覽器狀態，所以下面每個 login 都帶 `fresh: false`。
 // 角色邊界的測試會先以 admin 建好資料、登出、再以 front 登入——登入時順手清掉
@@ -48,9 +48,7 @@ async function createCompletedVisit(page: Page): Promise<string> {
   await page.locator('#appointment-status-filter').selectOption('all');
   const row = page.locator('[data-appointment-card]').first();
   const id = await row.getAttribute('data-appointment-card');
-  await row.locator('[data-appointment-action="complete"]').click();
-  await page.locator('.confirm-dialog button.button-primary').click();
-  await expect(page.locator('#status')).toContainText('到診已記錄');
+  await finishVisit(page, row);
   if (id === null) throw new Error('預約缺少 synthetic id。');
   return id;
 }
@@ -110,7 +108,7 @@ test.describe('角色邊界', () => {
         .evaluateAll((fields) =>
           fields.map((field) => field.getAttribute('name'))
         )
-    ).toEqual(['medicalRecordNumber', 'status', 'dueDate', 'dueTime']);
+    ).toEqual(['medicalRecordNumber', 'status']);
     expect(
       await followUp
         .locator('.follow-up-row-secondary')

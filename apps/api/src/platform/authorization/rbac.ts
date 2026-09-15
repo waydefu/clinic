@@ -3,7 +3,9 @@ import type { Role } from '@beauessence/domain';
 import type { AuthenticationContext } from '../../auth/authentication-context.js';
 import {
   AuthenticationRequiredError,
-  AuthorizationDeniedError
+  AuthorizationDeniedError,
+  CrossPatientDeniedError,
+  DisabledAccountError
 } from '../errors/api-error.js';
 
 /**
@@ -172,7 +174,7 @@ export function evaluateAccess(
   // A disabled account is a session that is no longer valid, not merely an
   // under-privileged one — fail it as authentication, before any role check.
   if (!request.accountActive) {
-    throw new AuthenticationRequiredError();
+    throw new DisabledAccountError();
   }
 
   const permitted = CANDIDATE_ROLE_PERMISSIONS[request.role];
@@ -188,7 +190,7 @@ export function evaluateAccess(
         context.verifiedPatientId === undefined ||
         context.verifiedPatientId !== request.scope.ownerPatientId
       ) {
-        throw new AuthorizationDeniedError();
+        throw new CrossPatientDeniedError();
       }
       return;
     case 'assigned_patient': {

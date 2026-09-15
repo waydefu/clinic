@@ -1,3 +1,12 @@
+function storedReturnSession() {
+  return globalThis.sessionStorage?.getItem('itrs') ?? undefined;
+}
+
+function rememberReturnSession(sessionId) {
+  if (typeof sessionId === 'string' && sessionId !== '')
+    globalThis.sessionStorage?.setItem('itrs', sessionId);
+}
+
 function overlayListedSlots(state, listed) {
   const listedSlots = Array.isArray(listed?.slots) ? listed.slots : [];
   return {
@@ -76,9 +85,26 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
         slotId: body.slotId,
         serviceId: firstServiceId(body),
         bookingKind: body.bookingKind,
-        ...(typeof body.onBehalfPatientId === 'string'
+        ...(body.intake !== undefined && body.intake !== null
+          ? { intake: body.intake }
+          : {}),
+        ...(body.intake === undefined &&
+        typeof body.onBehalfPatientId === 'string'
           ? { onBehalfPatientId: body.onBehalfPatientId }
           : {})
+      }
+    };
+  }
+  if (verb === 'POST' && path === '/patient/bookings/lookup') {
+    if (typeof body.phone !== 'string' || typeof body.birthDate !== 'string') {
+      return undefined;
+    }
+    return {
+      url: '/v1/return-lookup',
+      method: 'POST',
+      body: {
+        phone: body.phone,
+        birthDate: body.birthDate
       }
     };
   }
@@ -111,6 +137,14 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
   if (verb === 'POST' && complete !== null) {
     return {
       url: `/v1/bookings/${complete[1]}/complete`,
+      method: 'POST',
+      body: { idempotencyKey: idempotencyKey() }
+    };
+  }
+  const arrive = /^\/bookings\/([A-Za-z0-9_-]+)\/arrive$/.exec(path);
+  if (verb === 'POST' && arrive !== null) {
+    return {
+      url: `/v1/bookings/${arrive[1]}/arrive`,
       method: 'POST',
       body: { idempotencyKey: idempotencyKey() }
     };
@@ -169,7 +203,11 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
       body: {
         idempotencyKey: idempotencyKey(),
         decision,
-        ...(decision === 'required'
+        ...(decision === 'required' &&
+        typeof body.dueDate === 'string' &&
+        body.dueDate !== '' &&
+        typeof body.dueTime === 'string' &&
+        body.dueTime !== ''
           ? { dueDate: body.dueDate, dueTime: body.dueTime }
           : {})
       }
@@ -195,11 +233,12 @@ export function applyFollowUpContractWrite(state, path, body, result) {
     followUpDecisionBy: 'doctor_instruction',
     decidedAt: now,
     followUpRecordedAt: now,
-    ...(decision === 'required'
-      ? {
-          dueDate: typeof body?.dueDate === 'string' ? body.dueDate : undefined,
-          dueTime: typeof body?.dueTime === 'string' ? body.dueTime : undefined
-        }
+    ...(decision === 'required' &&
+    typeof body?.dueDate === 'string' &&
+    body.dueDate !== '' &&
+    typeof body?.dueTime === 'string' &&
+    body.dueTime !== ''
+      ? { dueDate: body.dueDate, dueTime: body.dueTime }
       : {})
   };
   const followUps = Array.isArray(state.followUps) ? state.followUps : [];
@@ -209,7 +248,7 @@ export function applyFollowUpContractWrite(state, path, body, result) {
   if (existing === undefined) followUps.push(next);
   else {
     Object.assign(existing, next);
-    if (decision === 'not_required') {
+    if (decision === 'not_required' || next.dueDate === undefined) {
       delete existing.dueDate;
       delete existing.dueTime;
     }
@@ -245,6 +284,8 @@ async function requestV1(
   if (typeof accessToken === 'string' && accessToken !== '') {
     headers.Authorization = `Bearer ${accessToken}`;
   }
+  const session = storedReturnSession();
+  if (typeof session === 'string') headers['x-return-session'] = session;
   const response = await fetchImpl(mapped.url, {
     method: mapped.method,
     headers,
@@ -273,9 +314,9 @@ async function requestV1(
 
 /**
  * Hybrid transport: booking writes/query go to fail-closed `/v1/bookings`.
- * Slot list and schedule publish join that gate. `/state` stays local, then
- * overlays the published grid when the operator opted in. A failed grid
- * fetch must not leave the local synthetic slots bookable.
+ * Slot list and schedule publish join that gate. `/state` keeps local UI
+ * chrome, then overlays published occupancy and server appointment rows.
+ * Local appointment lists are not the source of truth in this mode.
  */
 export function createInternalTestBookingTransport({
   local,
@@ -306,11 +347,6 @@ export function createInternalTestBookingTransport({
       parseBody(options)
     );
     if (mapped === undefined) {
-      // Unmapped writes that would mutate contract state locally while /v1
-      // (or the worker outbox) is the source of truth. complete-without-card
-      // has no domain transition; notes and case assignment stay off the
-      // IP-001 command (D-014 / D-007); outbox simulate/requeue is the local
-      // calendar demo, not apps/worker. Do not invent a /v1 mapping.
       if (
         String(options.method ?? 'GET').toUpperCase() === 'POST' &&
         (/^\/bookings\/[A-Za-z0-9_-]+\/(complete-without-card|notes)$/.test(
@@ -326,35 +362,43 @@ export function createInternalTestBookingTransport({
         });
       }
       const localResult = await local(path, options);
-      const isStateGet =
-        path === '/state' &&
-        String(options.method ?? 'GET').toUpperCase() === 'GET';
-      const isWorkspaceSnapshot =
-        Array.isArray(localResult?.appointments) &&
-        Array.isArray(localResult?.slots);
-      // Login/logout/reset return the full local snapshot. Overlay occupancy
-      // the same way GET /state does, or those commands restore synthetic
-      // slots on top of a fail-closed published grid.
-      if (isStateGet || isWorkspaceSnapshot) {
-        try {
-          let next = overlayListedSlots(
-            localResult,
-            await v1({ url: '/v1/slots', method: 'GET' })
-          );
-          try {
-            next = overlayPublishedSchedule(
-              next,
-              await v1({ url: '/v1/schedule', method: 'GET' })
-            );
-          } catch {
-            return next;
-          }
-          return next;
-        } catch {
-          return { ...localResult, slots: [] };
-        }
+      const overlay =
+        (path === '/state' &&
+          String(options.method ?? 'GET').toUpperCase() === 'GET') ||
+        (Array.isArray(localResult?.appointments) &&
+          Array.isArray(localResult?.slots));
+      if (!overlay) return localResult;
+      try {
+        const next = overlayListedSlots(
+          localResult,
+          await v1({ url: '/v1/slots', method: 'GET' })
+        );
+        const published = await v1({
+          url: '/v1/schedule',
+          method: 'GET'
+        }).catch(() => undefined);
+        const listed = await v1({
+          url: '/v1/bookings',
+          method: 'GET'
+        }).catch(() => ({ appointments: [] }));
+        const withSchedule =
+          published === undefined
+            ? next
+            : overlayPublishedSchedule(next, published);
+        return {
+          ...withSchedule,
+          appointments: (listed?.appointments ?? []).map((item) => ({
+            id: item.appointmentId,
+            slotId: item.slotId ?? item.appointmentId,
+            startsAt: item.startsAt,
+            patientId: item.patientId,
+            bookingKind: item.bookingKind,
+            status: item.status
+          }))
+        };
+      } catch {
+        return { ...localResult, slots: [], appointments: [] };
       }
-      return localResult;
     }
     const payload = await requestV1(fetchImpl, mapped, {
       signal: options.signal,
@@ -362,6 +406,7 @@ export function createInternalTestBookingTransport({
       accessToken: accessToken(),
       toError
     });
+    rememberReturnSession(payload?.sessionId);
     if (path === '/schedule/publish' && payload !== undefined) {
       try {
         payload.slots = (await v1({ url: '/v1/slots', method: 'GET' })).slots;

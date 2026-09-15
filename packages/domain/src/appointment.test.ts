@@ -56,9 +56,13 @@ describe('appointment invariants', () => {
     );
   });
 
-  it('only permits authorised clinic roles to mark a visit completed', () => {
+  it('only permits authorised clinic roles to mark an arrived visit completed', () => {
+    const arrivedAppointment = {
+      ...confirmedAppointment,
+      status: 'arrived' as const
+    };
     const completed = markAppointmentCompleted(
-      confirmedAppointment,
+      arrivedAppointment,
       'front_desk',
       '2026-07-21T02:00:00.000Z'
     );
@@ -68,6 +72,17 @@ describe('appointment invariants', () => {
     expect(() =>
       markAppointmentCompleted(
         confirmedAppointment,
+        'front_desk',
+        '2026-07-21T02:00:00.000Z'
+      )
+    ).toThrow(
+      expect.objectContaining<Partial<DomainError>>({
+        code: 'APPOINTMENT_NOT_CONFIRMABLE'
+      })
+    );
+    expect(() =>
+      markAppointmentCompleted(
+        arrivedAppointment,
         'case_manager' as never,
         '2026-07-21T02:00:00.000Z'
       )

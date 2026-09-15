@@ -4,6 +4,7 @@ import { assertUtcTimestamp } from './timestamp.js';
 
 export type AppointmentStatus =
   | 'confirmed'
+  | 'arrived'
   | 'cancellation_requested'
   | 'cancelled'
   | 'completed'
@@ -90,10 +91,10 @@ export function markAppointmentCompleted(
 ): Appointment {
   assertUtcTimestamp(completedAt, 'completedAt');
 
-  if (appointment.status !== 'confirmed') {
+  if (appointment.status !== 'arrived') {
     throw new DomainError(
       'APPOINTMENT_NOT_CONFIRMABLE',
-      'Only a confirmed appointment can be marked completed.'
+      'Only an arrived appointment can be marked completed.'
     );
   }
 

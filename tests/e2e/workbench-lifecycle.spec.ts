@@ -3,7 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   STORAGE_KEY,
   createBooking,
+  finishVisit,
   login,
+  markVisitArrived,
   seedAppointmentCopies,
   showAllAppointments,
   switchRole
@@ -71,14 +73,8 @@ test.describe('營運首頁指揮中心', () => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
-    // 完成到診會同時產生合法的回診與 Case 待辦；Payroll 仍不進任務模型。
-    await page
-      .locator('[data-appointment-card]')
-      .first()
-      .locator('[data-appointment-action="complete"]')
-      .click();
-    await page.locator('.confirm-dialog button.button-primary').click();
-    await expect(page.locator('#status')).toContainText('到診已記錄');
+    // 完成看診會同時產生合法的回診與 Case 待辦；Payroll 仍不進任務模型。
+    await finishVisit(page);
 
     await page.goto('/staff#overview');
     const cards = page.locator('#task-list .task-card');
@@ -117,16 +113,10 @@ test.describe('營運首頁指揮中心', () => {
     await expect(page.locator('#next-up')).toContainText('測試患者甲');
     await expect(page.locator('#next-up .next-up-time strong')).not.toBeEmpty();
 
-    // 完成到診之後那一筆就不再是「下一位」——它已經不是 confirmed 了。
+    // 到診之後那一筆就不再是「下一位」——它已經不是 confirmed 了。
     await page.goto('/staff#appointments-section');
     await showAllAppointments(page);
-    await page
-      .locator('[data-appointment-card]')
-      .first()
-      .locator('[data-appointment-action="complete"]')
-      .click();
-    await page.locator('.confirm-dialog button.button-primary').click();
-    await expect(page.locator('#status')).toContainText('到診已記錄');
+    await markVisitArrived(page);
 
     await page.goto('/staff#overview');
     await expect(page.locator('#next-up')).toContainText(
@@ -791,9 +781,8 @@ test.describe('工作臺預約生命週期', () => {
     await expect(card).toBeVisible();
     await expect(card).toContainText('預約成立');
 
-    // 到診：卡片上的主要動作按鈕，確認彈窗按「確認到診」（非破壞性，主要色）。
-    await card.locator('[data-appointment-action="complete"]').click();
-    await page.locator('.confirm-dialog button.button-primary').click();
+    // 到診再完成看診：confirmed → arrived → completed；確認彈窗依動作改文案。
+    await finishVisit(page, card);
     await expect(page.locator('[data-appointment-card]').first()).toContainText(
       '已完成到診'
     );
@@ -806,7 +795,7 @@ test.describe('工作臺預約生命週期', () => {
     await followUpForm
       .locator('select[name="status"]')
       .selectOption('required');
-    // 目標日期／時間預設已落在第一個有回診時段的門診日，直接存檔。
+    // 需要回診不必當場填日期／時間；空白目標即「尚未排期」。
     await followUpForm.locator('button[type="submit"]').click();
 
     // 存檔後該筆變成「待安排回診」的回診版卡片。

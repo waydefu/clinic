@@ -8,6 +8,18 @@ import {
 const validKey = 'follow_up_request_0001';
 
 describe('record follow-up command', () => {
+  it('accepts a required decision without a target', () => {
+    expect(
+      RecordFollowUpRequestSchema.parse({
+        idempotencyKey: validKey,
+        decision: 'required'
+      })
+    ).toEqual({
+      idempotencyKey: validKey,
+      decision: 'required'
+    });
+  });
+
   it('accepts a required decision with a full target', () => {
     expect(
       RecordFollowUpRequestSchema.parse({
@@ -28,9 +40,9 @@ describe('record follow-up command', () => {
     ).toBe('not_required');
   });
 
-  // 半套的目標會產生一個指向不確定時刻的提醒。
+  // A half target is not an appointment and must not be stored as one.
   it('refuses a required decision missing either half of the target', () => {
-    for (const partial of [{ dueDate: '2030-01-02' }, { dueTime: '12:15' }, {}])
+    for (const partial of [{ dueDate: '2030-01-02' }, { dueTime: '12:15' }])
       expect(
         RecordFollowUpRequestSchema.safeParse({
           idempotencyKey: validKey,
@@ -84,7 +96,7 @@ describe('record follow-up command', () => {
     ).toBe(false);
   });
 
-  it('returns the server-resolved instant, or null when none is needed', () => {
+  it('returns the server-resolved instant, or null when unscheduled or not required', () => {
     expect(
       RecordFollowUpResponseSchema.parse({
         appointmentId: 'appointment_001',
@@ -92,6 +104,13 @@ describe('record follow-up command', () => {
         dueAt: '2030-01-02T04:15:00.000Z'
       }).dueAt
     ).toBe('2030-01-02T04:15:00.000Z');
+    expect(
+      RecordFollowUpResponseSchema.parse({
+        appointmentId: 'appointment_001',
+        decision: 'required',
+        dueAt: null
+      }).dueAt
+    ).toBeNull();
     expect(
       RecordFollowUpResponseSchema.parse({
         appointmentId: 'appointment_001',

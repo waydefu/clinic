@@ -14,18 +14,20 @@ import { DomainError } from './errors.js';
  */
 
 export type AppointmentTransition =
-  'request_cancellation' | 'cancel' | 'complete' | 'no_show';
+  'request_cancellation' | 'cancel' | 'arrive' | 'complete' | 'no_show';
 
 export type AppointmentStatusValue =
   | 'confirmed'
+  | 'arrived'
   | 'cancellation_requested'
   | 'cancelled'
   | 'completed'
   | 'no_show';
 
-/** 尚未結束、仍佔用時段的狀態。 */
+/** 尚未結束、仍佔用時段的狀態。到診不是完成；完成才是終局。 */
 export const OPEN_STATUSES: readonly AppointmentStatusValue[] = [
   'confirmed',
+  'arrived',
   'cancellation_requested'
 ];
 
@@ -40,8 +42,9 @@ const ALLOWED_FROM: Record<
 > = {
   // 提出取消與標記到診都只能從「預約成立」進入。
   request_cancellation: ['confirmed'],
-  complete: ['confirmed'],
-  // 取消與未到可從「預約成立」或「取消待確認」進入。
+  arrive: ['confirmed'],
+  complete: ['arrived'],
+  // 取消與未到可從尚未終局的狀態進入。
   cancel: OPEN_STATUSES,
   no_show: OPEN_STATUSES
 };

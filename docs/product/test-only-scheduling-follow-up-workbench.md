@@ -10,7 +10,7 @@
 
 1. 每週的開放星期與一日內一或多段可預約時間。
 2. 指定日期的加開時段與休息／休診日。
-3. 回診需求的人工確認與回診目標日期。
+3. 回診需求的人工確認（需要回診不必立刻排期）。
 4. 患者端只看到本人可預約的回診選項，並建立或取消自己的回診預約。
 
 本階段只會做雙重開關的 loopback、合成資料模型與介面，以及決策登錄另行授權的
@@ -28,7 +28,7 @@ Google Calendar、Firebase backend、LINE、Meta 或 NAS。`apps/api` 仍為唯�
 | 每週開放規則 | `weekday`、`startLocalTime`、`endLocalTime`、`resourceId` | 星期為 0–6；開始小於結束；同一資源同日區間不得重疊。 |
 | 日期例外 | `date`、`kind` (`closed` / `extra_open`)、`intervals`、`reasonCode` | `closed` 不帶時段；`extra_open` 至少一段有效時段；不可覆蓋為另一種例外。 |
 | 時段產生 | 規則版號、服務時長、容量、預約範圍 | 由 API／領域規則產生；前端與 Calendar 均不得把「空檔」當作權威。 |
-| 回診決定 | `followUpStatus`、`dueDate`、`decidedBy`、`decidedAt` | 僅授權臨床／營運角色可寫；`required` 才可有 `dueDate`。 |
+| 回診決定 | `followUpStatus`、可選成對 `dueDate`/`dueTime`、`decidedBy`、`decidedAt` | 僅授權臨床／營運角色可寫。`required` 是 entitlement，不必帶日期時間；若帶建議目標必須成對，且不是正式 `follow_up` Appointment。`not_required` 不得帶目標。歷史「`required` 才可有 `dueDate` 且必須立刻填」已被 2026-09-15 產品決策取代。 |
 
 ### 日期例外的測試用優先順序
 
@@ -58,7 +58,10 @@ capacity、resource、buffer／overrun 與 blackout policy 仍須由營運負責
 - `not_required` 與 `required` 必須是醫師或診所授權人員的明確決定，留下 actor、
   時間、前後狀態與規則版號。
 - 系統不得依服務類型、過往預約、時間間隔或任何演算法自行推論「是否需要回診」。
-- `required` 可設定一個回診目標日期；它是排程目標，不是診斷、醫囑全文或病歷。
+- `required` 只回答「需不需要再回來」；它可以沒有日期、沒有時間、也沒有
+  `follow_up` Appointment。可選的成對 `dueDate`/`dueTime` 只是建議目標，不是
+  正式預約，也不得佔用時段或建立假的日曆事件。真正時間由後續的 `follow_up`
+  Appointment 承載。
 - 取消、改期與逾期提醒仍須 D-005；個案管理師指派仍須 D-007。D-006 已核准，
   但相關正式功能仍須先完成 Stage 2 的 server-side 身分、權限與稽核實作。
 

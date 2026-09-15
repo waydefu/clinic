@@ -62,6 +62,27 @@ describe('v1 API contracts', () => {
     });
   });
 
+  it('accepts accountless patient intake without a client patient id', () => {
+    expect(
+      CreateAppointmentRequestSchema.parse({
+        idempotencyKey: 'booking_request_0001',
+        slotId: 'slot-001',
+        serviceId: 'service-001',
+        bookingKind: 'initial',
+        intake: {
+          name: '合成患者甲',
+          phone: '0912000001',
+          birthDate: '1990-01-15',
+          nationalId: 'A123456789',
+          privacyConsent: true
+        }
+      }).intake
+    ).toMatchObject({
+      name: '合成患者甲',
+      privacyConsent: true
+    });
+  });
+
   it.each([
     ['unapproved email', { email: 'patient@example.test' }],
     ['patient profile', { patient: { fullName: 'Example Patient' } }],
@@ -128,21 +149,24 @@ describe('v1 API contracts', () => {
 describe('staff appointment transition command', () => {
   const validKey = 'transition_request_0001';
 
-  it.each([['confirm_cancellation'], ['complete'], ['no_show']] as const)(
-    'accepts the %s action with only a key',
-    (transition) => {
-      expect(
-        TransitionAppointmentRequestSchema.parse({
-          idempotencyKey: validKey,
-          transition
-        })
-      ).toEqual({ idempotencyKey: validKey, transition });
-    }
-  );
+  it.each([
+    ['confirm_cancellation'],
+    ['arrive'],
+    ['complete'],
+    ['no_show']
+  ] as const)('accepts the %s action with only a key', (transition) => {
+    expect(
+      TransitionAppointmentRequestSchema.parse({
+        idempotencyKey: validKey,
+        transition
+      })
+    ).toEqual({ idempotencyKey: validKey, transition });
+  });
 
   it('does not accept the patient-only request_cancellation action', () => {
     expect(StaffAppointmentTransitionSchema.options).toEqual([
       'confirm_cancellation',
+      'arrive',
       'complete',
       'no_show'
     ]);
@@ -173,21 +197,28 @@ describe('staff appointment transition command', () => {
     // values must be the non-create, non-patient domain transitions.
     expect(STAFF_TRANSITION_TO_DOMAIN).toEqual({
       confirm_cancellation: 'cancel',
+      arrive: 'arrive',
       complete: 'complete',
       no_show: 'no_show'
     });
     expect(new Set(Object.values(STAFF_TRANSITION_TO_DOMAIN))).toEqual(
-      new Set(['cancel', 'complete', 'no_show'])
+      new Set(['cancel', 'arrive', 'complete', 'no_show'])
     );
   });
 
-  it('returns only a resulting terminal status', () => {
+  it('returns the resulting staff-transition status', () => {
     expect(
       TransitionAppointmentResponseSchema.parse({
         appointmentId: 'appointment_001',
         status: 'completed'
       })
     ).toEqual({ appointmentId: 'appointment_001', status: 'completed' });
+    expect(
+      TransitionAppointmentResponseSchema.parse({
+        appointmentId: 'appointment_001',
+        status: 'arrived'
+      })
+    ).toEqual({ appointmentId: 'appointment_001', status: 'arrived' });
     expect(
       TransitionAppointmentResponseSchema.safeParse({
         appointmentId: 'appointment_001',
@@ -333,6 +364,23 @@ describe('appointment query response', () => {
     });
   });
 
+  it('accepts an optional opaque patient id and slot id', () => {
+    expect(
+      GetAppointmentResponseSchema.parse({
+        appointmentId: 'appointment_001',
+        status: 'confirmed',
+        startsAt: '2030-01-02T04:00:00.000Z',
+        endsAt: '2030-01-02T04:30:00.000Z',
+        bookingKind: 'initial',
+        slotId: 'slot_001',
+        patientId: 'patient_001'
+      })
+    ).toMatchObject({
+      slotId: 'slot_001',
+      patientId: 'patient_001'
+    });
+  });
+
   it('rejects a patient profile on the query response', () => {
     expect(
       GetAppointmentResponseSchema.safeParse({
@@ -340,7 +388,7 @@ describe('appointment query response', () => {
         status: 'confirmed',
         startsAt: '2030-01-02T04:00:00.000Z',
         endsAt: '2030-01-02T04:30:00.000Z',
-        patientId: 'patient_001'
+        phone: '0912000001'
       }).success
     ).toBe(false);
   });

@@ -172,7 +172,12 @@ describe('appointment transitions in a Firestore transaction', () => {
   });
 
   // 完成到診是已經發生的事實，時段不該被別人搶走。
-  it('keeps the slot reserved when the visit is completed', async () => {
+  it('keeps the slot reserved when the visit is arrived and then completed', async () => {
+    await transition('arrive');
+    expect((await appointmentState())?.['status']).toBe('arrived');
+    expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
+    expect((await patientGuardState()).exists).toBe(true);
+
     await transition('complete');
 
     const appointment = await appointmentState();

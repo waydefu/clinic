@@ -53,6 +53,11 @@ import {
   reschedulePatientAppointment
 } from '../public/modules/patient-booking-management.js';
 
+function finishVisit(state, appointmentId, actorId, action = 'complete') {
+  transitionAppointment(state, appointmentId, 'arrive', actorId);
+  transitionAppointment(state, appointmentId, action, actorId);
+}
+
 // 合成資料的可預約視窗自 2026-07-27 起由**今天**起算（P5，業主要求）。
 //
 // 這份測試裡有二十幾個 `slot_20300102_*`、`2030-01-02` 之類的字串。把它們逐一
@@ -767,12 +772,7 @@ describe('預約建立', () => {
       },
       'admin_test_001'
     );
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
 
     expect(activeBookingsFor(state, PATIENT_A)).toHaveLength(0);
     expect(() =>
@@ -882,12 +882,7 @@ describe('櫃台處置', () => {
   it('回診確認可記錄項目、備註與診斷書份數', () => {
     const state = initialState();
     const appointment = book(state);
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
 
     const decision = recordFollowUp(
       state,
@@ -908,6 +903,74 @@ describe('櫃台處置', () => {
     expect(decision.dueTime).toBe('12:15');
   });
 
+  it('accepts required without a date or time and does not invent a calendar appointment', () => {
+    const state: any = initialState();
+    const appointment = book(state);
+    finishVisit(state, appointment.id, 'front_desk_test_001');
+
+    const decision = recordFollowUp(
+      state,
+      appointment.id,
+      { status: 'required', tags: [] },
+      'admin_test_001'
+    );
+
+    expect(decision.status).toBe('required');
+    expect(decision).not.toHaveProperty('dueDate');
+    expect(decision).not.toHaveProperty('dueTime');
+    expect(
+      state.outboxJobs.filter(
+        (job: any) => job.appointmentStatus === 'follow_up_required'
+      )
+    ).toHaveLength(0);
+
+    const queued = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+    expect(queued).toContain('待安排回診');
+    expect(queued).toContain('稍後再排期');
+    expect(queued).not.toContain('回診提醒已上日曆');
+    expect(queued).toContain(appointment.id);
+  });
+
+  it('rejects a required target missing either half, and a not_required target', () => {
+    const state = initialState();
+    const appointment = book(state);
+    finishVisit(state, appointment.id, 'front_desk_test_001');
+
+    expect(() =>
+      recordFollowUp(
+        state,
+        appointment.id,
+        { status: 'required', dueDate: '2030-02-01', tags: [] },
+        'admin_test_001'
+      )
+    ).toThrow(/成對/);
+    expect(() =>
+      recordFollowUp(
+        state,
+        appointment.id,
+        { status: 'required', dueTime: '12:15', tags: [] },
+        'admin_test_001'
+      )
+    ).toThrow(/成對/);
+    expect(() =>
+      recordFollowUp(
+        state,
+        appointment.id,
+        {
+          status: 'not_required',
+          dueDate: '2030-02-01',
+          dueTime: '12:15',
+          tags: []
+        },
+        'admin_test_001'
+      )
+    ).toThrow(/無需回診/);
+  });
+
   it('同日已過去的時段不可預約（5 點不能約 4 點）', () => {
     const at = (iso: string) => ({ id: 's', kind: 'initial', startsAt: iso });
     const now = Date.parse('2030-01-02T09:00:00.000Z');
@@ -922,12 +985,7 @@ describe('櫃台處置', () => {
       permissions: [PERMISSIONS.MANAGE_FOLLOW_UP]
     };
     const appointment = book(state);
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
 
     recordFollowUp(
       state,
@@ -1001,12 +1059,7 @@ describe('櫃台處置', () => {
   it('回診正式掛號後以新預約取代提醒，完成後仍可再安排下一次回診', () => {
     const state: any = initialState();
     const initialVisit = book(state);
-    transitionAppointment(
-      state,
-      initialVisit.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, initialVisit.id, 'front_desk_test_001');
     recordFollowUp(
       state,
       initialVisit.id,
@@ -1044,12 +1097,7 @@ describe('櫃台處置', () => {
       )
     ).toBeDefined();
 
-    transitionAppointment(
-      state,
-      followUpVisit.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, followUpVisit.id, 'front_desk_test_001');
     recordFollowUp(
       state,
       followUpVisit.id,
@@ -1076,7 +1124,7 @@ describe('櫃台處置', () => {
       permissions: [PERMISSIONS.MANAGE_FOLLOW_UP]
     };
     const appointment = book(state);
-    transitionAppointment(state, appointment.id, 'complete', 'front_desk_001');
+    finishVisit(state, appointment.id, 'front_desk_001');
     recordFollowUp(
       state,
       appointment.id,
@@ -1101,12 +1149,7 @@ describe('櫃台處置', () => {
   it('回診目標日期未營業或時間不在回診網格時拒絕', () => {
     const state = initialState();
     const appointment = book(state);
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
     const record = (dueDate: string, dueTime: string) =>
       recordFollowUp(
         state,
@@ -1126,12 +1169,7 @@ describe('櫃台處置', () => {
   it('拒絕未定義的回診項目與超量診斷書', () => {
     const state = initialState();
     const appointment = book(state);
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
 
     expect(() =>
       recordFollowUp(
@@ -1229,12 +1267,7 @@ describe('刪除預約紀錄', () => {
   it('刪除回診門診會把來源回診放回待安排並讓提醒回到日曆', () => {
     const state: any = initialState();
     const initialVisit = book(state);
-    transitionAppointment(
-      state,
-      initialVisit.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, initialVisit.id, 'front_desk_test_001');
     recordFollowUp(
       state,
       initialVisit.id,
@@ -1277,12 +1310,7 @@ describe('刪除預約紀錄', () => {
   it('刪除已決定回診的就診會一併收掉那筆回診提醒', () => {
     const state: any = initialState();
     const appointment = book(state);
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
     recordFollowUp(
       state,
       appointment.id,
@@ -1336,12 +1364,7 @@ describe('刪除預約紀錄', () => {
   it('撤銷個管指派，月度工作量不再計入', () => {
     const state: any = initialState();
     const appointment = book(state);
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
     assignCaseManager(
       state,
       appointment.id,
@@ -1439,7 +1462,7 @@ describe('櫃台預約清單介面', () => {
     const html = renderAppointments(state, filters);
 
     expect(html).toContain('appointment-arrival-button');
-    expect(html).toContain('data-appointment-action="complete"');
+    expect(html).toContain('data-appointment-action="arrive"');
     expect(html).toContain('更多處置');
     expect(html).not.toContain('disabled');
   });
@@ -1455,12 +1478,7 @@ describe('櫃台預約清單介面', () => {
       },
       'front_desk_test_001'
     );
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
     const completedFilters = { ...filters, status: 'all' };
 
     state.session = {
@@ -1569,12 +1587,7 @@ describe('個管月度工作量', () => {
         },
         'admin_test_001'
       );
-      transitionAppointment(
-        state,
-        appointment.id,
-        'complete',
-        'front_desk_test_001'
-      );
+      finishVisit(state, appointment.id, 'front_desk_test_001');
       assignCaseManager(
         state,
         appointment.id,
@@ -1713,11 +1726,11 @@ describe('工作臺批次的新行為', () => {
   it('忘記帶卡記在這一筆預約上，不動患者的「預計攜帶」', () => {
     const state = initialState();
     const appointment = bookOne(state, ['service_snoring']);
-    transitionAppointment(
+    finishVisit(
       state,
       appointment.id,
-      'complete_without_card',
-      'front_desk_test_001'
+      'front_desk_test_001',
+      'complete_without_card'
     );
     expect(appointment.status).toBe('completed');
     expect(appointment.nhiCardMissing).toBe(true);
@@ -1735,12 +1748,7 @@ describe('工作臺批次的新行為', () => {
   it('一般到診不宣稱任何關於健保卡的事', () => {
     const state = initialState();
     const appointment = bookOne(state, ['service_snoring']);
-    transitionAppointment(
-      state,
-      appointment.id,
-      'complete',
-      'front_desk_test_001'
-    );
+    finishVisit(state, appointment.id, 'front_desk_test_001');
     // 不是 false，是**沒有回答**：櫃台沒有被問過這個問題。
     expect(appointment.nhiCardMissing).toBeUndefined();
   });
@@ -1749,7 +1757,7 @@ describe('工作臺批次的新行為', () => {
   it('病歷號碼存在患者身上，跟著回診指示一起送出', () => {
     const state = initialState();
     const appointment = bookOne(state, ['service_snoring']);
-    transitionAppointment(state, appointment.id, 'complete', 'admin_test_001');
+    finishVisit(state, appointment.id, 'admin_test_001');
     recordFollowUp(
       state,
       appointment.id,
@@ -1767,7 +1775,7 @@ describe('工作臺批次的新行為', () => {
   it('病歷號碼可以用來搜尋預約', () => {
     const state = initialState();
     const appointment = bookOne(state, ['service_snoring']);
-    transitionAppointment(state, appointment.id, 'complete', 'admin_test_001');
+    finishVisit(state, appointment.id, 'admin_test_001');
     recordFollowUp(
       state,
       appointment.id,
@@ -1800,7 +1808,7 @@ describe('工作臺批次的新行為', () => {
       appointment.id
     ]);
     // 已處理的就不再是待辦，不管過了多久。
-    transitionAppointment(state, appointment.id, 'complete', 'admin_test_001');
+    finishVisit(state, appointment.id, 'admin_test_001');
     expect(overdueAppointments(state, startsAt + 60 * 60_000)).toEqual([]);
   });
 
