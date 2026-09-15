@@ -21,7 +21,15 @@ apply.
 
 IAM SetIamPolicy remains on the existing C1 budget Pub/Sub in
 `c1-foundation`. This module adds the **application** path required by
-signed WP-B4.
+signed WP-B4, including `excessive_outbox_age` (60 seconds, not 5
+minutes) and an additional IAM SetIamPolicy policy that reuses
+`c1-iam-setiampolicy`. Do not destroy the C1 budget path.
+
+Synthetic alert trigger design (do not send in this round): emit a
+structured log with `oldestPendingAgeSeconds>=60` or
+`retryState="dead_lettered"` against the isolated project, then confirm
+the policy condition without delivering email. `HUMAN_NOTIFICATION_PATH`
+stays `IMPLEMENTED_NOT_DEPLOYED` until Stage F delivery proof.
 
 See [c1-local-execution-packet.md](../../../docs/runbooks/c1-local-execution-packet.md)
 and [stage-e-operational.md](../../../docs/runbooks/stage-e-operational.md).

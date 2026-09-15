@@ -1,0 +1,185 @@
+{
+  "status": "IMPLEMENTED_NOT_DEPLOYED",
+  "firestoreIndexes": "firestore.indexes.json",
+  "rules": "firestore.rules",
+  "directClientAccess": "deny",
+  "rollback": "Do not delete an index still used by the previous Cloud Run revision. Indexes are forward-compatible; cleanup is a later named packet.",
+  "queries": [
+    {
+      "id": "outbox-pending-due",
+      "collection": "outbox_jobs",
+      "fields": ["status", "nextAttemptAt"],
+      "composite": true,
+      "owner": "apps/worker/src/outbox-processor.ts",
+      "rationale": "Claim due pending jobs ordered by nextAttemptAt."
+    },
+    {
+      "id": "outbox-expired-lease",
+      "collection": "outbox_jobs",
+      "fields": ["status", "leaseExpiresAt"],
+      "composite": true,
+      "owner": "apps/worker/src/outbox-processor.ts",
+      "rationale": "Reclaim expired in_progress leases."
+    },
+    {
+      "id": "outbox-dead-letter",
+      "collection": "outbox_jobs",
+      "fields": ["status"],
+      "composite": false,
+      "owner": "apps/worker/src/outbox-processor.ts",
+      "rationale": "Single-field status == dead_letter inspection."
+    },
+    {
+      "id": "outbox-queue-snapshot",
+      "collection": "outbox_jobs",
+      "fields": ["status", "nextAttemptAt"],
+      "composite": true,
+      "owner": "apps/worker/src/internal-test-outbox-runtime.ts",
+      "rationale": "Oldest due pending age for the 60s SLO."
+    },
+    {
+      "id": "appointments-by-patient",
+      "collection": "appointments",
+      "fields": ["patientId", "startsAt"],
+      "composite": true,
+      "owner": "apps/api/src/patients/patient-directory.ts",
+      "rationale": "Patient-scoped appointment list ordered by startsAt."
+    },
+    {
+      "id": "appointments-clinic-list",
+      "collection": "appointments",
+      "fields": ["startsAt"],
+      "composite": false,
+      "owner": "apps/api/src/patients/patient-directory.ts",
+      "rationale": "Clinic list is a bounded startsAt order; single-field index."
+    },
+    {
+      "id": "appointments-open-occupancy",
+      "collection": "appointments",
+      "fields": ["status"],
+      "composite": false,
+      "owner": "apps/api/src/firestore/schedule.repository.ts",
+      "rationale": "status IN open statuses; no additional orderBy."
+    },
+    {
+      "id": "slots-by-start-and-kind",
+      "collection": "slots",
+      "fields": ["startsAt", "kind"],
+      "composite": true,
+      "owner": "apps/api/src/firestore/clinic-calendar-review.repository.ts",
+      "rationale": "Calendar review slot lookup by start time and booking kind."
+    },
+    {
+      "id": "rate-limit-by-key",
+      "collection": "rate_limit_state",
+      "fields": [],
+      "composite": false,
+      "owner": "apps/api/src/firestore/rate-limit.repository.ts",
+      "rationale": "Document-id keyed durable limiter; no query."
+    },
+    {
+      "id": "follow-up-state-by-patient",
+      "collection": "patient_follow_up_states",
+      "fields": [],
+      "composite": false,
+      "owner": "apps/api/src/patients/patient-directory.ts",
+      "rationale": "Document-id keyed follow-up entitlement. required + unscheduled stays valid."
+    },
+    {
+      "id": "return-session-by-id",
+      "collection": "return_sessions",
+      "fields": [],
+      "composite": false,
+      "owner": "apps/api/src/patients/patient-directory.ts",
+      "rationale": "Document get; phone+DOB lookup uses hashed index docs."
+    },
+    {
+      "id": "calendar-candidates-review",
+      "collection": "calendar_pilot_candidates",
+      "fields": ["status", "createdAt"],
+      "composite": true,
+      "owner": "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "rationale": "Inbound review queue pending/conflict ordered by createdAt."
+    },
+    {
+      "id": "calendar-mirrors-external-event",
+      "collection": "calendar_pilot_mirrors",
+      "fields": ["sourceId", "externalEventId"],
+      "composite": true,
+      "owner": "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+      "rationale": "Idempotent mirror lookup for the same Calendar event."
+    },
+    {
+      "id": "calendar-pilot-outbox-pending",
+      "collection": "calendar_pilot_outbox",
+      "fields": ["status", "createdAt"],
+      "composite": true,
+      "owner": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+      "rationale": "CAL-PILOT pending jobs ordered by createdAt."
+    },
+    {
+      "id": "calendar-pilot-outbox-lease",
+      "collection": "calendar_pilot_outbox",
+      "fields": ["status", "leaseExpiresAt"],
+      "composite": true,
+      "owner": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+      "rationale": "CAL-PILOT expired processing lease reclaim."
+    },
+    {
+      "id": "calendar-pilot-appointments-confirmed-future",
+      "collection": "calendar_pilot_appointments",
+      "fields": ["status", "startsAt"],
+      "composite": true,
+      "owner": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+      "rationale": "Confirmed future appointments for source activation projection."
+    },
+    {
+      "id": "calendar-pilot-patients-enabled",
+      "collection": "calendar_pilot_patients",
+      "fields": ["enabled", "__name__"],
+      "composite": true,
+      "owner": "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "rationale": "enabled == true orderBy __name__ requires a composite in Native Firestore."
+    },
+    {
+      "id": "calendar-pilot-blocks-active",
+      "collection": "calendar_pilot_blocks",
+      "fields": ["endsAt"],
+      "composite": false,
+      "owner": "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "rationale": "endsAt > now orderBy endsAt uses a single-field index."
+    },
+    {
+      "id": "monitoring-outbox-age",
+      "collection": "outbox_jobs",
+      "fields": ["status", "nextAttemptAt"],
+      "composite": true,
+      "owner": "apps/worker/src/internal-test-outbox-runtime.ts",
+      "rationale": "WP-B4 excessive_outbox_age reads the same due query; threshold stays 60s."
+    },
+    {
+      "id": "calendar-mirrors-by-link",
+      "collection": "calendar_pilot_mirrors",
+      "fields": ["linkId"],
+      "composite": false,
+      "owner": "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "rationale": "Single-field linkId lookup; do not invent a composite."
+    },
+    {
+      "id": "calendar-blocks-overlap",
+      "collection": "calendar_pilot_blocks",
+      "fields": ["startsAt"],
+      "composite": false,
+      "owner": "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "rationale": "startsAt < endsAt overlap scan uses a single-field index; remaining filter is in memory."
+    },
+    {
+      "id": "calendar-pilot-sources-enabled",
+      "collection": "calendar_pilot_sources",
+      "fields": ["enabled"],
+      "composite": false,
+      "owner": "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "rationale": "enabled == true is a single-field equality."
+    }
+  ]
+}

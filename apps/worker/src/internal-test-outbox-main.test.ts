@@ -72,7 +72,8 @@ describe('internal-test outbox HTTP surface', () => {
         service: 'internal-test-outbox-worker',
         status: 'ok',
         snapshot: EMPTY_SNAPSHOT,
-        alerts: []
+        alerts: [],
+        processingEnabled: true
       });
       const drain = await http(port, '/tasks/outbox-drain', 'POST');
       expect(drain.status).toBe(200);
@@ -108,8 +109,12 @@ describe('internal-test outbox HTTP surface', () => {
         status: 'degraded',
         snapshot: { ...EMPTY_SNAPSHOT, deadLettered: 1 },
         alerts: [{ code: 'dead_letter_present', severity: 'immediate' }],
+        processingEnabled: true,
         attemptFailRate10m: 0
       });
+      const ready = await http(port, '/ready', 'GET');
+      expect(ready.status).toBe(503);
+      expect(JSON.parse(ready.body).status).toBe('degraded');
     } finally {
       server.close();
       await once(server, 'close');
@@ -168,7 +173,38 @@ describe('internal-test outbox HTTP surface', () => {
     ).not.toThrow();
   });
 
-  it('does not import the Google Calendar adapter', () => {
+  it('allows isolated cloud boot only with test Calendar credentials and a source SHA', () => {
+    expect(() =>
+      assertInternalTestOutboxBootAllowed({
+        INTERNAL_TEST_OUTBOX_EXECUTION: 'cloud',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED: 'true',
+        GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id',
+        GOOGLE_SERVICE_ACCOUNT_JSON: '{"client_email":"x"}',
+        INTERNAL_TEST_SOURCE_SHA: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertInternalTestOutboxBootAllowed({
+        INTERNAL_TEST_OUTBOX_EXECUTION: 'cloud',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED: 'true',
+        GOOGLE_CALENDAR_INTEGRATION_MODE: 'production',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id',
+        GOOGLE_SERVICE_ACCOUNT_JSON: '{"client_email":"x"}',
+        INTERNAL_TEST_SOURCE_SHA: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      })
+    ).toThrow(/production/);
+    expect(() =>
+      assertInternalTestOutboxBootAllowed({
+        INTERNAL_TEST_OUTBOX_EXECUTION: 'cloud',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01'
+      })
+    ).toThrow(/in-memory calendar|PROCESSING_ENABLED|GOOGLE_CALENDAR/);
+  });
+
+  it('keeps the runtime calendar-port injectable and does not enable watch', () => {
     const source = readFileSync(
       fileURLToPath(new URL('./internal-test-outbox-main.ts', import.meta.url)),
       'utf8'
@@ -179,7 +215,34 @@ describe('internal-test outbox HTTP surface', () => {
       ),
       'utf8'
     );
-    expect(source).not.toMatch(/google-calendar/);
     expect(runtime).not.toMatch(/google-calendar/);
+    expect(source).toMatch(/createCalendarPort/);
+    expect(source).not.toMatch(/CalendarWatch|events\.watch/);
+  });
+
+  it('refuses drain when processing is disabled for rollback', async () => {
+    const runtime = {
+      calendar: {},
+      inspect: () =>
+        Promise.resolve({
+          snapshot: EMPTY_SNAPSHOT,
+          alerts: []
+        }),
+      run: () => Promise.reject(new Error('drain must not run'))
+    };
+    const server = createInternalTestOutboxServer(runtime, {
+      processingEnabled: false
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const drain = await http(port, '/tasks/outbox-drain', 'POST');
+      expect(drain.status).toBe(503);
+      expect(JSON.parse(drain.body)).toEqual({ error: 'processing_disabled' });
+    } finally {
+      server.close();
+      await once(server, 'close');
+    }
   });
 });

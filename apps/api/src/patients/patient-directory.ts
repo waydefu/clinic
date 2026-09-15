@@ -261,6 +261,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     const snapshot = await this.db
       .collection('appointments')
       .where('patientId', '==', patientId)
+      .orderBy('startsAt', 'asc')
       .limit(limit)
       .get();
     return snapshot.docs.map((doc) =>
@@ -271,6 +272,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
   public async listClinic(limit: number): Promise<AppointmentRecord[]> {
     const snapshot = await this.db
       .collection('appointments')
+      .orderBy('startsAt', 'asc')
       .limit(limit)
       .get();
     return snapshot.docs.map((doc) =>
@@ -387,11 +389,20 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     await Promise.resolve();
     return this.appointments
       .filter((item) => item.patientId === patientId)
+      .slice()
+      .sort((left, right) =>
+        (left.startsAt ?? '').localeCompare(right.startsAt ?? '')
+      )
       .slice(0, limit);
   }
 
   public async listClinic(limit: number): Promise<AppointmentRecord[]> {
     await Promise.resolve();
-    return this.appointments.slice(0, limit);
+    return this.appointments
+      .slice()
+      .sort((left, right) =>
+        (left.startsAt ?? '').localeCompare(right.startsAt ?? '')
+      )
+      .slice(0, limit);
   }
 }

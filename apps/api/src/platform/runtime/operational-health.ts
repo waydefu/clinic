@@ -5,6 +5,8 @@ import {
   type ProbeResult
 } from '@beauessence/domain';
 
+import { apiCloudRequiredConfigPresent } from './c1-required-config.js';
+
 export const OPERATIONAL_HEALTH_PROBE = 'OperationalHealthProbe';
 
 export interface OperationalHealthProbe {
@@ -17,7 +19,7 @@ export class ProcessOnlyOperationalHealthProbe implements OperationalHealthProbe
       processAlive: true,
       firestore: 'not_probed',
       calendarAdapter: 'not_probed',
-      requiredConfigPresent: true,
+      requiredConfigPresent: apiCloudRequiredConfigPresent(),
       bookingGateEnabled:
         process.env['INTERNAL_TEST_BOOKING_ENABLED'] === 'true',
       outboxDeadLetterCount: 0,

@@ -53,6 +53,11 @@ Reload, server read-back, no localStorage SoT.
 
 ## Blockers this spec does not lift
 
-Cloud exact-SHA authority; isolated Cloud Run/API; Hosting rewrite;
-monitoring apply; human alert delivery proof; deployed Booking Page /
-Workbench / Calendar E2E; backup inspect; final completeness inspect.
+Cloud exact-SHA authority **after** E1–E7 engineering merge; isolated
+Cloud Run/API **apply**; Hosting rewrite **apply**; monitoring **apply**;
+human alert delivery proof; deployed Booking Page / Workbench / Calendar
+E2E; backup inspect; final completeness inspect.
+
+Source for those apply steps is in
+[stage-f-source-readiness.md](stage-f-source-readiness.md).
+`CLOUD_MUTATION = NONE` until a post-merge packet.

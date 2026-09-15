@@ -117,6 +117,7 @@ describe('checkPublicPageConfiguration', () => {
       budgets: structuredClone(inputs.budgets),
       firebase: structuredClone(inputs.firebase),
       isolatedFirebase: structuredClone(inputs.isolatedFirebase),
+      isolatedApiFirebase: structuredClone(inputs.isolatedApiFirebase),
       scanSources: { ...inputs.scanSources },
       dataRouteSources: { ...inputs.dataRouteSources }
     };
@@ -221,6 +222,20 @@ describe('checkPublicPageConfiguration', () => {
             pinTag: true
           }
         });
+      }).failures.length
+    ).toBeGreaterThan(0);
+  });
+
+  it('rejects isolated API Hosting that points at cal-pilot-api or drops /v1/**', () => {
+    expect(
+      mutate((c) => {
+        c.isolatedApiFirebase.hosting.rewrites[0].run.serviceId =
+          'cal-pilot-api';
+      }).failures.length
+    ).toBeGreaterThan(0);
+    expect(
+      mutate((c) => {
+        c.isolatedApiFirebase.hosting.rewrites.shift();
       }).failures.length
     ).toBeGreaterThan(0);
   });

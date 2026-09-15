@@ -80,8 +80,45 @@ export function evaluateWpB4Definitions({ policies, notification }) {
   return { ok: issues.length === 0, issues };
 }
 
+export function inspectWpB4TerraformSource(readFile = readFileSync) {
+  const terraform = readFile(
+    join(root, 'infra/terraform/wp-b4-alerting/main.tf'),
+    'utf8'
+  );
+  const issues = [];
+  for (const needle of [
+    'c1-application-alerts',
+    'type         = "email"',
+    'wp-b4-http-5xx',
+    'wp-b4-booking-write-failure',
+    'wp-b4-booking-transaction-failure',
+    'wp-b4-backup-failure',
+    'wp-b4-outbox-dead-letter',
+    'wp-b4-auth-failure',
+    'wp-b4-authz-denial',
+    'wp-b4-outbox-oldest-age',
+    'duration        = "60s"',
+    'threshold_value = 59',
+    'c1-iam-setiampolicy',
+    'resource "google_monitoring_alert_policy" "iam_setiampolicy_application"'
+  ]) {
+    if (!terraform.includes(needle)) {
+      issues.push(`WP-B4 terraform source missing ${needle}.`);
+    }
+  }
+  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(terraform)) {
+    issues.push('WP-B4 terraform must not contain email addresses.');
+  }
+  return { ok: issues.length === 0, issues };
+}
+
 export function inspectWpB4AlertDefinitions(readFile = readFileSync) {
-  return evaluateWpB4Definitions(loadWpB4Definitions(readFile));
+  const json = evaluateWpB4Definitions(loadWpB4Definitions(readFile));
+  const terraform = inspectWpB4TerraformSource(readFile);
+  return {
+    ok: json.ok && terraform.ok,
+    issues: [...json.issues, ...terraform.issues]
+  };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
