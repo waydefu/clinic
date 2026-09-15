@@ -50,6 +50,8 @@
     "inspect:historical-artifacts": "node scripts/historical-artifacts.mjs",
     "inspect:stage-f-matrix": "node scripts/stage-f-acceptance-matrix.mjs",
     "inspect:stage-f-graph": "node scripts/stage-f-deployment-graph.mjs",
+    "inspect:stage-f-schedule": "node scripts/stage-f-synthetic-schedule-bootstrap.mjs",
+    "inspect:stage-f-alert-proof": "node scripts/stage-f-human-alert-proof.mjs",
     "inspect:c1-config": "node scripts/c1-config-contract.mjs",
     "inspect:internal-test-images": "node scripts/internal-test-image-names.mjs",
     "plan:firestore-indexes": "node scripts/firestore-index-plan.mjs",
