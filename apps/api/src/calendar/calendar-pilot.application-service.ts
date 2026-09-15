@@ -22,6 +22,7 @@ import {
   AuthorizationDeniedError
 } from '../platform/errors/api-error.js';
 import type { CalendarPilotRepositoryPort } from './calendar-pilot.repository-port.js';
+import type { ClinicCalendarReviewApplicationService } from './clinic-calendar-review.application-service.js';
 
 export interface CalendarPilotClock {
   nowUtc(): string;
@@ -53,7 +54,8 @@ function requireRole(
 export class CalendarPilotApplicationService {
   public constructor(
     private readonly repository: CalendarPilotRepositoryPort,
-    private readonly clock: CalendarPilotClock
+    private readonly clock: CalendarPilotClock,
+    private readonly clinicReview?: ClinicCalendarReviewApplicationService
   ) {}
 
   public status(
@@ -140,13 +142,22 @@ export class CalendarPilotApplicationService {
     });
   }
 
-  public reviewCandidate(
+  public async reviewCandidate(
     candidateId: string,
     action: 'accept' | 'reject',
     command: ReviewCalendarCandidateRequest,
     authentication: AuthenticationContext
   ): Promise<ReviewCalendarCandidateResponse> {
     const role = requireRole(authentication, ['manager', 'front_desk']);
+    if (this.clinicReview !== undefined) {
+      const clinic = await this.clinicReview.tryReview({
+        candidateId,
+        action,
+        command,
+        authentication
+      });
+      if (clinic !== undefined) return clinic;
+    }
     return this.repository.reviewCandidate({
       candidateId,
       action,

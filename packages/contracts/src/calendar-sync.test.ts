@@ -63,6 +63,14 @@ describe('calendar sync contracts', () => {
     };
     expect(CalendarChangeCandidateSchema.parse(candidate)).toEqual(candidate);
     expect(
+      CalendarChangeCandidateSchema.parse({
+        ...candidate,
+        status: 'unmatched',
+        kind: 'unmatched',
+        appointmentId: null
+      }).status
+    ).toBe('unmatched');
+    expect(
       CalendarChangeCandidateSchema.safeParse({
         ...candidate,
         googleEventId: 'raw-event-id'

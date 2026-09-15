@@ -20,5 +20,6 @@ describe('CalendarPilotModule Firebase wiring', () => {
     expect(source).toContain('InMemoryDeniedAccessAuditSink');
     expect(source).toContain('vitestWithoutFirestoreEmulator');
     expect(source).toContain('FirestoreDeniedAccessAuditStore');
+    expect(source).toContain('ClinicCalendarReviewApplicationService');
   });
 });

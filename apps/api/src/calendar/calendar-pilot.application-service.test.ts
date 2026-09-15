@@ -100,6 +100,29 @@ describe('CalendarPilotApplicationService role boundary', () => {
     ).toThrow(AuthorizationDeniedError);
   });
 
+  it('lets clinic review handle a matched appointment candidate before CAL-PILOT apply', async () => {
+    const repo = repository();
+    const tryReview = vi.fn().mockResolvedValue({
+      candidate: { candidateId: 'candidate_001', status: 'accepted' },
+      projection: null
+    });
+    const service = new CalendarPilotApplicationService(
+      repo.port,
+      {
+        nowUtc: () => NOW
+      },
+      { tryReview } as never
+    );
+    await service.reviewCandidate(
+      'candidate_001',
+      'accept',
+      { idempotencyKey: 'calendar_candidate_0009', expectedVersion: 1 },
+      { actorId: 'manager_001', actorRole: 'manager' }
+    );
+    expect(tryReview).toHaveBeenCalled();
+    expect(repo.reviewCandidate).not.toHaveBeenCalled();
+  });
+
   it('allows front desk to submit only server-attributed controlled corrections', async () => {
     const repo = repository();
     const service = new CalendarPilotApplicationService(repo.port, {

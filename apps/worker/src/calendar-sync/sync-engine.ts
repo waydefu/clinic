@@ -1,8 +1,13 @@
 import { createHmac } from 'node:crypto';
 
 import {
+  extractCalendarEventRange,
+  isSelfProjectedCalendarEcho,
   parseCalendarEntry,
+  planCalendarInboundDetection,
+  resolveCalendarEventIdentity,
   type CalendarEntryValidationCode,
+  type CalendarInboundMutableField,
   type ParsedCalendarEntry
 } from '@beauessence/domain';
 
@@ -68,7 +73,8 @@ export type CalendarCandidateKind =
   | 'cancel_appointment'
   | 'release_block'
   | 'invalid_format'
-  | 'conflict';
+  | 'conflict'
+  | 'unmatched';
 
 export interface CalendarMirrorRecord {
   readonly mirrorId: string;
@@ -97,6 +103,7 @@ export interface CalendarCandidateDraft {
   readonly createdAt: string;
   readonly previousParsed?: ParsedCalendarEntry;
   readonly localRecordId?: string;
+  readonly changedFields?: readonly CalendarInboundMutableField[];
 }
 
 export interface CalendarMirrorMutation {
@@ -113,6 +120,13 @@ export interface CalendarSyncCommit {
   readonly fullSync: boolean;
 }
 
+export interface AuthoritativeAppointmentProjection {
+  readonly appointmentId: string;
+  readonly status: string;
+  readonly startsAt: string;
+  readonly bookingKind: 'initial' | 'follow_up';
+}
+
 export interface CalendarSyncRepository {
   loadConfiguration(): Promise<CalendarSyncConfiguration>;
   loadSyncState(sourceId: string): Promise<CalendarSyncState>;
@@ -124,10 +138,14 @@ export interface CalendarSyncRepository {
     linkId: string,
     parsed: ParsedCalendarEntry
   ): Promise<boolean>;
+  loadAuthoritativeAppointment(
+    appointmentId: string
+  ): Promise<AuthoritativeAppointmentProjection | undefined>;
   commitSync(commit: CalendarSyncCommit): Promise<void>;
   clearSyncToken(
     sourceId: string,
-    expectedSourceVersion: number
+    expectedSourceVersion: number,
+    occurredAt: string
   ): Promise<void>;
 }
 
@@ -164,6 +182,13 @@ function invalidCancelledEntry(): ParsedCalendarEntry {
   // use a closed error solely as an internal placeholder; the candidate kind
   // is derived from the existing mirror.
   return { ok: false, errors: ['title_missing'] };
+}
+
+function looksLikePilotTitle(summary: unknown): boolean {
+  return (
+    typeof summary === 'string' &&
+    (summary.startsWith('[預約]') || summary.startsWith('[忙碌]'))
+  );
 }
 
 function candidateKind(
@@ -240,7 +265,8 @@ export class CalendarSyncEngine {
         ) {
           await this.repository.clearSyncToken(
             configuration.activeSourceId,
-            configuration.sourceVersion
+            configuration.sourceVersion,
+            now
           );
           return this.runOnce(now, true, true);
         }
@@ -271,14 +297,72 @@ export class CalendarSyncEngine {
           event.status === 'cancelled'
             ? (existing?.parsed ?? invalidCancelledEntry())
             : parseCalendarEntry(event, configuration.knownPatientCodes);
-        const kind = candidateKind(existing, event.status, parsed);
+        const identity = resolveCalendarEventIdentity(event);
+        const clinicAppointmentId =
+          identity.logicalKind === 'appointment'
+            ? identity.appointmentId
+            : undefined;
+        const liveAppointment =
+          clinicAppointmentId === undefined
+            ? undefined
+            : await this.repository.loadAuthoritativeAppointment(
+                clinicAppointmentId
+              );
+        const selfProjectedEcho =
+          liveAppointment !== undefined &&
+          isSelfProjectedCalendarEcho({
+            event,
+            appointmentId: liveAppointment.appointmentId,
+            appointmentStatus: liveAppointment.status,
+            startsAt: liveAppointment.startsAt
+          });
+        const range = extractCalendarEventRange(event);
+        const detection = planCalendarInboundDetection({
+          selfProjectedEcho,
+          ...(clinicAppointmentId === undefined
+            ? {}
+            : { appointmentId: clinicAppointmentId }),
+          ...(identity.logicalKind === undefined
+            ? {}
+            : { logicalKind: identity.logicalKind }),
+          eventCancelled: event.status === 'cancelled',
+          ...(liveAppointment === undefined
+            ? {}
+            : {
+                liveAppointment: {
+                  appointmentId: liveAppointment.appointmentId,
+                  startsAt: liveAppointment.startsAt
+                }
+              }),
+          ...(range === undefined ? {} : { proposedStartsAt: range.startsAt })
+        });
+        let kind = candidateKind(existing, event.status, parsed);
+        if (detection.action === 'skip_echo') kind = undefined;
+        else if (
+          detection.status === 'unmatched' &&
+          !looksLikePilotTitle(event.summary) &&
+          existing?.parsed.ok !== true
+        )
+          kind = 'unmatched';
+        else if (
+          detection.action === 'candidate' &&
+          detection.status === 'pending' &&
+          detection.changeType === 'reschedule'
+        )
+          kind = 'update_appointment';
+        else if (
+          detection.action === 'candidate' &&
+          detection.status === 'pending' &&
+          detection.changeType === 'delete'
+        )
+          kind = 'cancel_appointment';
         const mirrorId = opaqueId(
           configuration.pseudonymKey,
           'mirror',
           `${configuration.activeSourceId}:${event.id}`
         );
-        const linkId = parseLinkId(event);
-        const managedLink = linkId ?? existing?.linkId;
+        const linkId = parseLinkId(event) ?? identity.linkId;
+        const managedLink = linkId ?? existing?.linkId ?? clinicAppointmentId;
         const managedProjectionMatch =
           managedLink !== undefined &&
           (await this.repository.matchesManagedProjection(managedLink, parsed));
@@ -291,12 +375,13 @@ export class CalendarSyncEngine {
           sourceVersion: configuration.sourceVersion,
           parsed,
           ...(managedLink === undefined ? {} : { linkId: managedLink }),
-          localDirty: managedProjectionMatch
-            ? false
-            : (existing?.localDirty ?? false),
+          localDirty:
+            managedProjectionMatch || selfProjectedEcho
+              ? false
+              : (existing?.localDirty ?? false),
           updatedAt: now
         };
-        if (kind === undefined || managedProjectionMatch) {
+        if (kind === undefined || managedProjectionMatch || selfProjectedEcho) {
           mutations.push({ mirror });
           skipped += 1;
           continue;
@@ -321,7 +406,11 @@ export class CalendarSyncEngine {
           ...(existing?.parsed === undefined
             ? {}
             : { previousParsed: existing.parsed }),
-          ...(managedLink === undefined ? {} : { localRecordId: managedLink })
+          ...(managedLink === undefined ? {} : { localRecordId: managedLink }),
+          ...(detection.action === 'candidate' &&
+          detection.changedFields.length > 0
+            ? { changedFields: detection.changedFields }
+            : {})
         };
         mutations.push({ mirror, candidate });
         candidates += 1;

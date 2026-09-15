@@ -8,6 +8,11 @@ import { CalendarPilotSessionGuard } from '../auth/calendar-pilot.guard.js';
 import { CalendarPilotSessionService } from '../auth/calendar-pilot-session.js';
 import { CalendarPilotSessionController } from '../auth/calendar-pilot-session.controller.js';
 import { FirestoreCalendarPilotRepository } from '../firestore/calendar-pilot.repository.js';
+import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
+import {
+  FirestoreClinicCalendarCandidateStore,
+  FirestoreClinicSlotLookup
+} from '../firestore/clinic-calendar-review.repository.js';
 import { FirestoreDeniedAccessAuditStore } from '../firestore/denied-access-audit.repository.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
 import {
@@ -15,6 +20,7 @@ import {
   InMemoryDeniedAccessAuditSink
 } from '../platform/authorization/denied-access-audit.port.js';
 import { CalendarPilotApplicationService } from './calendar-pilot.application-service.js';
+import { ClinicCalendarReviewApplicationService } from './clinic-calendar-review.application-service.js';
 import { CalendarPilotController } from './calendar-pilot.controller.js';
 import {
   CALENDAR_PILOT_APPLICATION,
@@ -61,10 +67,24 @@ export function vitestWithoutFirestoreEmulator(): boolean {
     {
       provide: CALENDAR_PILOT_APPLICATION,
       inject: [CALENDAR_PILOT_REPOSITORY],
-      useFactory: (repository: FirestoreCalendarPilotRepository) =>
-        new CalendarPilotApplicationService(repository, {
-          nowUtc: () => new Date().toISOString()
-        })
+      useFactory: (repository: FirestoreCalendarPilotRepository) => {
+        const clock = { nowUtc: () => new Date().toISOString() };
+        if (vitestWithoutFirestoreEmulator()) {
+          return new CalendarPilotApplicationService(repository, clock);
+        }
+        const db = getFirestore(defaultFirebaseApp());
+        const clinicReview = new ClinicCalendarReviewApplicationService(
+          new FirestoreBookingRepository(db),
+          new FirestoreClinicCalendarCandidateStore(db),
+          new FirestoreClinicSlotLookup(db),
+          clock.nowUtc
+        );
+        return new CalendarPilotApplicationService(
+          repository,
+          clock,
+          clinicReview
+        );
+      }
     },
     {
       provide: DENIED_AUTHORIZATION_AUDIT,

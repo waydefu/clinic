@@ -221,6 +221,7 @@ export function reviewReasonForInboundCandidate(input: {
 }): InboundReviewReason | 'unique_match_only' {
   if (input.kind === 'invalid_format') return 'illegal_schema';
   if (input.kind === 'conflict') return 'simultaneous_edit';
+  if (input.kind === 'unmatched') return 'unmatched';
   if (!input.uniquelyMatched) {
     if (input.kind === 'cancel_appointment' || input.kind === 'release_block') {
       return 'ambiguous_delete';

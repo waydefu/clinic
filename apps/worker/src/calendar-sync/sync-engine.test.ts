@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildClinicCalendarEventBody,
+  calendarEventIdForAppointment
+} from '@beauessence/domain';
+
+import {
   CalendarSyncEngine,
   CalendarSyncTokenExpiredError,
   type CalendarEventPage,
@@ -41,6 +46,15 @@ class MemoryRepository implements CalendarSyncRepository {
   public state: CalendarSyncState = { sourceId: 'source_a' };
   public readonly mirrors = new Map<string, CalendarMirrorRecord>();
   public readonly managedLinks = new Set<string>();
+  public readonly clinicAppointments = new Map<
+    string,
+    {
+      readonly appointmentId: string;
+      readonly status: string;
+      readonly startsAt: string;
+      readonly bookingKind: 'initial' | 'follow_up';
+    }
+  >();
   public readonly commits: CalendarSyncCommit[] = [];
   public cleared = 0;
 
@@ -61,6 +75,17 @@ class MemoryRepository implements CalendarSyncRepository {
     _parsed: import('@beauessence/domain').ParsedCalendarEntry
   ): Promise<boolean> {
     return Promise.resolve(this.managedLinks.has(linkId));
+  }
+  public loadAuthoritativeAppointment(appointmentId: string): Promise<
+    | {
+        readonly appointmentId: string;
+        readonly status: string;
+        readonly startsAt: string;
+        readonly bookingKind: 'initial' | 'follow_up';
+      }
+    | undefined
+  > {
+    return Promise.resolve(this.clinicAppointments.get(appointmentId));
   }
   public commitSync(commit: CalendarSyncCommit): Promise<void> {
     if (commit.expectedSourceVersion !== this.configuration.sourceVersion)
@@ -264,5 +289,146 @@ describe('CalendarSyncEngine', () => {
     await expect(
       new CalendarSyncEngine(reader, repository).run(NOW)
     ).rejects.toThrow('stale source generation');
+  });
+
+  it('does not open a review candidate for a clinic outbound patch replay', async () => {
+    const repository = new MemoryRepository();
+    const eventId = calendarEventIdForAppointment('appointment_001');
+    repository.clinicAppointments.set('appointment_001', {
+      appointmentId: 'appointment_001',
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial'
+    });
+    const payload = buildClinicCalendarEventBody({
+      eventId,
+      appointmentId: 'appointment_001',
+      appointmentStatus: 'confirmed',
+      bookingKind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T05:00:00.000Z',
+      colorId: '10',
+      clinicName: '一森渼診所',
+      clinicAddress: 'synthetic-location',
+      correlationId: 'corr_calendar_001'
+    });
+    const reader = new FakeReader([
+      {
+        events: [
+          {
+            id: eventId,
+            etag: 'etag-echo',
+            status: 'confirmed',
+            summary: payload.summary,
+            start: payload.start,
+            end: payload.end,
+            extendedProperties: payload.extendedProperties
+          }
+        ],
+        nextSyncToken: 'sync-echo'
+      }
+    ]);
+    const summary = await new CalendarSyncEngine(reader, repository).run(NOW);
+    expect(summary.candidates).toBe(0);
+    expect(repository.commits[0]?.mutations[0]?.candidate).toBeUndefined();
+  });
+
+  it('marks an unknown manually created Calendar event unmatched', async () => {
+    const repository = new MemoryRepository();
+    const reader = new FakeReader([
+      {
+        events: [
+          {
+            id: 'manual-event',
+            etag: 'etag-manual',
+            status: 'confirmed',
+            summary: 'Lunch with a friend',
+            start: { dateTime: '2026-09-02T14:00:00+08:00' },
+            end: { dateTime: '2026-09-02T15:00:00+08:00' }
+          }
+        ],
+        nextSyncToken: 'sync-unmatched'
+      }
+    ]);
+    const summary = await new CalendarSyncEngine(reader, repository).run(NOW);
+    expect(summary.candidates).toBe(1);
+    expect(repository.commits[0]?.mutations[0]?.candidate?.kind).toBe(
+      'unmatched'
+    );
+    expect(repository.clinicAppointments.size).toBe(0);
+  });
+
+  it('deduplicates the same change notification to one candidate', async () => {
+    const repository = new MemoryRepository();
+    const page = {
+      events: [appointment('event-1', 'etag-dup')],
+      nextSyncToken: 'sync-dup'
+    };
+    await new CalendarSyncEngine(new FakeReader([page]), repository).run(NOW);
+    const second = await new CalendarSyncEngine(
+      new FakeReader([
+        {
+          events: [appointment('event-1', 'etag-dup')],
+          nextSyncToken: 'sync-dup-2'
+        }
+      ]),
+      repository
+    ).run('2026-08-28T08:05:00.000Z');
+    const created = repository.commits.flatMap((commit) =>
+      commit.mutations.filter((mutation) => mutation.candidate !== undefined)
+    );
+    expect(created).toHaveLength(1);
+    expect(second.candidates).toBe(0);
+  });
+
+  it('keeps the previous sync token when the committing page fails', async () => {
+    const repository = new MemoryRepository();
+    repository.state = {
+      sourceId: 'source_a',
+      syncToken: 'old-token',
+      lastFullSyncAt: '2026-08-28T07:30:00.000Z'
+    };
+    const original = repository.commitSync.bind(repository);
+    repository.commitSync = (commit) => {
+      if (commit.nextSyncToken !== undefined)
+        return Promise.reject(new Error('crash before token persist'));
+      return original(commit);
+    };
+    await expect(
+      new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [appointment('event-1', 'etag-1')],
+            nextSyncToken: 'new-token'
+          }
+        ]),
+        repository
+      ).run('2026-08-28T08:05:00.000Z')
+    ).rejects.toThrow('crash before token persist');
+    expect(repository.state.syncToken).toBe('old-token');
+  });
+
+  it('rebuilds after 410 without writing authoritative appointments', async () => {
+    const repository = new MemoryRepository();
+    const live = {
+      appointmentId: 'appointment_001',
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial' as const
+    };
+    repository.clinicAppointments.set('appointment_001', live);
+    repository.state = {
+      sourceId: 'source_a',
+      syncToken: 'expired-token',
+      lastFullSyncAt: '2026-08-28T07:00:00.000Z'
+    };
+    const reader = new FakeReader([
+      new CalendarSyncTokenExpiredError('gone'),
+      { events: [appointment('event-1', 'etag-1')], nextSyncToken: 'fresh' }
+    ]);
+    await new CalendarSyncEngine(reader, repository).run(NOW);
+    expect(repository.cleared).toBe(1);
+    expect(repository.state.syncToken).toBe('fresh');
+    expect(repository.clinicAppointments.get('appointment_001')).toEqual(live);
   });
 });

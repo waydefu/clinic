@@ -82,7 +82,7 @@ Google 官方防重複的做法是由我們自行指定 event ID，這樣「後�
 | 編碼 | 邏輯鍵 UTF-8 → base32hex，小寫、無填充（`=` 不在允許字元內） |
 | 決定性 | 同一邏輯鍵永遠得到同一個 ID——冪等就靠這個性質，不得加入時間戳或隨機值 |
 | 可讀性 | `fromCalendarEventId` 可還原；`outbox_jobs` 另保有 `appointmentId`／`appointmentStatus` 明文欄位，人工追查優先看那裡 |
-| 粒度 | **一筆預約 = 一個事件**：`calendar_{appointmentId}`。改期是搬動；到診、取消、未到皆刪除同一個 ID |
+| 粒度 | **一筆預約 = 一個事件**：`calendar_{appointmentId}`。改期是搬動；到診與完成是更新同一個 ID；取消與未到才刪除 |
 | 守門 | 產生時檢查長度；假日曆拒絕不合格式的 ID 並標記為**不可重試**（重試一百次格式還是錯的，那是死信） |
 
 上表的「一筆預約一個事件」只適用外部 projection。它不代表一筆預約只有一筆 audit
@@ -126,8 +126,8 @@ worker 依**執行當下**的預約狀態決定動作，而不是工作排入時
 
 | 預約狀態 | action | 真實 Calendar 呼叫 | 特殊情形 |
 | --- | --- | --- | --- |
-| 一般預約：`confirmed`／`cancellation_requested` | `upsert` | `events.insert`（自訂 ID）；回 **409 就改 `events.patch`** | 409 = 事件已存在 → **冪等成功**，不是失敗 |
-| 一般預約：`completed`／`cancelled`／`no_show` | `cancel` | `events.delete` | 410／404 = 早就沒了 → **視為成功**，目標狀態已達成 |
+| 一般預約：`confirmed`／`arrived`／`completed`／`cancellation_requested` | `upsert` | `events.insert`（自訂 ID）；回 **409 就改 `events.patch`** | 409 = 事件已存在 → **冪等成功**，不是失敗。WP-B10：到診／完成不得刪除事件 |
+| 一般預約：`cancelled`／`no_show`／`deleted` | `cancel` | `events.delete` | 410／404 = 早就沒了 → **視為成功**，目標狀態已達成 |
 | 回診提醒：`follow_up_required` | `upsert` | 使用獨立的回診 event ID | 來源預約此時雖是 `completed`，不得因此誤判為刪除 |
 | 回診提醒：`follow_up_not_required`／`follow_up_scheduled` | `cancel` | 刪除同一個回診 event ID | 正式回診預約另有自己的事件 |
 
@@ -169,7 +169,7 @@ production duration rule。
 現在一筆預約固定一個事件：
 
 ```text
-新設計：建立 → 1 個事件；改期 → 1 個（搬時間）；到診／取消／未到 → 0
+新設計：建立 → 1 個事件；改期／到診／完成 → 同一個事件；取消／未到 → 刪除
 ```
 
 考慮過但未採用的替代方案：維持每狀態一鍵，改期時額外排一筆刪除舊事件的工作。

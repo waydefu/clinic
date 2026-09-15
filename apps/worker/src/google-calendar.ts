@@ -1,6 +1,11 @@
 import { createPrivateKey, createSign } from 'node:crypto';
 
 import {
+  assertClinicCalendarPayloadAllowlist,
+  buildClinicCalendarEventBody
+} from '@beauessence/domain';
+
+import {
   CalendarError,
   type CalendarPort,
   type CalendarProjectionOptions,
@@ -75,12 +80,6 @@ const RETRYABLE_CALENDAR_403_REASONS = new Set([
   'rateLimitExceeded',
   'userRateLimitExceeded'
 ]);
-
-/** 掛號別在日曆上的中文標籤。刻意只有這兩個字，不帶任何看診項目資訊。 */
-const KIND_LABEL: Record<string, string> = {
-  initial: '初診',
-  follow_up: '回診'
-};
 
 type FetchLike = (
   url: string,
@@ -473,18 +472,27 @@ export class GoogleCalendarClient implements CalendarPort {
     return this.upsert(request, token, deadlineSignal);
   }
 
-  /** 事件內容：刻意最小化，不含任何病患個資（ADR-0002）。 */
+  /**
+   * Clinic projection body: operational allowlist plus loop-prevention
+   * markers. Name, phone, DOB and clinical/money fields stay off the wire.
+   */
   private eventBody(request: CalendarProjectionRequest): string {
-    return JSON.stringify({
-      id: request.idempotencyKey,
-      summary:
-        `${this.clinicName} ${KIND_LABEL[request.bookingKind] ?? ''}`.trim(),
-      description: `預約編號 ${request.appointmentId}`,
-      location: this.clinicAddress,
+    const body = buildClinicCalendarEventBody({
+      eventId: request.idempotencyKey,
+      appointmentId: request.appointmentId,
+      appointmentStatus: request.appointmentStatus,
+      bookingKind: request.bookingKind,
+      startsAt: request.startsAt,
+      endsAt: request.endsAt,
       colorId: request.colorId,
-      start: { dateTime: request.startsAt, timeZone: 'Asia/Taipei' },
-      end: { dateTime: request.endsAt, timeZone: 'Asia/Taipei' }
+      clinicName: this.clinicName,
+      clinicAddress: this.clinicAddress,
+      correlationId: request.correlationId
     });
+    assertClinicCalendarPayloadAllowlist(
+      body as unknown as Record<string, unknown>
+    );
+    return JSON.stringify(body);
   }
 
   private encodedPath(...segments: string[]): string {

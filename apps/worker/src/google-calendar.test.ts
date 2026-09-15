@@ -140,6 +140,10 @@ describe('GoogleCalendarClient', () => {
     const body = JSON.parse(calls[0]?.body ?? '{}');
     expect(body.id).toBe(KEY);
     expect(body.summary).toBe('一森渼診所 初診');
+    expect(body.extendedProperties.private.beauessenceSource).toBe('clinic_db');
+    expect(body.extendedProperties.private.beauessenceLinkId).toBe(
+      'appointment_001'
+    );
     expect(body.start.dateTime).toBe('2030-01-02T04:00:00.000Z');
     expect(body.end.dateTime).toBe('2030-01-02T05:00:00.000Z');
     expect(body.colorId).toBe('10');
@@ -157,9 +161,32 @@ describe('GoogleCalendarClient', () => {
       '0912345678',
       'A123456789',
       '止鼾',
-      '鼻中膈'
+      '鼻中膈',
+      'dateOfBirth',
+      'nationalId',
+      'passport',
+      'diagnosis',
+      'anesthesia',
+      'paymentAmount',
+      'settlementAmount'
     ])
       expect(raw).not.toContain(secret);
+  });
+
+  it('arrived and completed patch the same event id and keep Calendar history', async () => {
+    const { impl, calls } = fakeFetch([409, 200, 409, 200]);
+    await client(impl).project(request({ appointmentStatus: 'arrived' }));
+    await client(impl).project(request({ appointmentStatus: 'completed' }));
+    expect(calls.map((call) => call.method)).toEqual([
+      'POST',
+      'PATCH',
+      'POST',
+      'PATCH'
+    ]);
+    expect(JSON.parse(calls[1]?.body ?? '{}').id).toBe(KEY);
+    expect(JSON.parse(calls[1]?.body ?? '{}').summary).toContain('✅到診');
+    expect(JSON.parse(calls[3]?.body ?? '{}').id).toBe(KEY);
+    expect(JSON.parse(calls[3]?.body ?? '{}').summary).toContain('✅完成');
   });
 
   it('insert 回 409 時改 patch，維持一個事件（冪等）', async () => {

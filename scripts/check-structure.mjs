@@ -264,6 +264,8 @@ const requiredPaths = [
   'infra/terraform/c6-calendar/noop.tftest.hcl',
   'apps/worker/src/calendar-sync/watch-channel.ts',
   'apps/worker/src/calendar-sync/watch-channel.test.ts',
+  'apps/worker/src/calendar-sync/watch-channel-lifecycle.ts',
+  'apps/worker/src/calendar-sync/watch-channel-lifecycle.test.ts',
   'apps/worker/src/calendar-sync/watch-channel-store.ts',
   'tests/firestore/calendar-watch-channel.test.ts',
   'apps/api/src/calendar/calendar-watch.controller.ts',
