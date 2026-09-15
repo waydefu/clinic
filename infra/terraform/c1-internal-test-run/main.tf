@@ -238,10 +238,7 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "HOST"
         value = "0.0.0.0"
       }
-      env {
-        name  = "PORT"
-        value = "8080"
-      }
+      # Cloud Run v2 reserves PORT and injects it from container_port.
       env {
         name  = "ALLOW_NON_LOOPBACK_BIND"
         value = "true"
@@ -284,6 +281,11 @@ resource "google_cloud_run_v2_service" "api" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
+  }
+
+  lifecycle {
+    # Firebase Hosting pinTag adds a tagged 0% revision. Do not strip it.
+    ignore_changes = [traffic]
   }
 }
 
@@ -346,10 +348,7 @@ resource "google_cloud_run_v2_service" "worker" {
         name  = "HOST"
         value = "0.0.0.0"
       }
-      env {
-        name  = "PORT"
-        value = "8080"
-      }
+      # Cloud Run v2 reserves PORT and injects it from container_port.
       env {
         name  = "INTERNAL_TEST_OUTBOX_EXECUTION"
         value = "cloud"
@@ -384,6 +383,10 @@ resource "google_cloud_run_v2_service" "worker" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
+  }
+
+  lifecycle {
+    ignore_changes = [traffic]
   }
 }
 
