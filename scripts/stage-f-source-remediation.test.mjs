@@ -8,7 +8,7 @@ import {
   stageFSyntheticOutboxAgeLog
 } from './stage-f-human-alert-proof.mjs';
 import {
-  STAGE_F_SCHEDULE_IDEMPOTENCY_KEY,
+  STAGE_F_SCHEDULE_IDEMPOTENCY,
   STAGE_F_SYNTHETIC_BLOCKED_TIMES,
   evaluateStageFSyntheticScheduleCanon,
   planStageFSyntheticScheduleBootstrap,
@@ -23,7 +23,7 @@ describe('Stage F synthetic schedule bootstrap', () => {
     expect(plan.projectId).toBe(ISOLATED_C1_PROJECT_ID);
     expect(plan.path).toBe('/v1/schedule/publish');
     expect(plan.body.expectedVersion).toBe(0);
-    expect(plan.body.idempotencyKey).toBe(STAGE_F_SCHEDULE_IDEMPOTENCY_KEY);
+    expect(plan.body.idempotencyKey).toBe(STAGE_F_SCHEDULE_IDEMPOTENCY);
     expect(plan.body.idempotencyKey.length).toBeGreaterThanOrEqual(16);
     expect(plan.body.schedule.timeZone).toBe('Asia/Taipei');
     expect(plan.body.schedule.blockedTimes).toEqual(

@@ -21,6 +21,9 @@ description = """
   apps/api internal-test emulator history  booking-idempotency-NNNN,
   arrive-idempotency-NNNN, complete-idempotency-NNNN,
   follow-up-idempotency-NNNN
+  scripts/stage-f-synthetic-schedule-bootstrap.mjs
+    stagef_c1_schedule_publish_v0
+    (inspect-only Stage F publish idempotency id; not a credential)
 
 這些值的形狀是固定的前綴加流水號，與任何真實憑證的字元集與長度都不同。若日後
 測試改用別的前綴，這裡必須一起更新——allowlist 沒有涵蓋到的新值會照常告警，
@@ -40,5 +43,6 @@ regexes = [
   '''arrive-idempotency-\d{4}''',
   '''complete-idempotency-\d{4}''',
   '''follow-up-idempotency-\d{4}''',
+  '''stagef_c1_schedule_publish_v0''',
   '''"[A-Za-z0-9.-]+\.js": "[a-f0-9]{64}"'''
 ]

@@ -14,7 +14,7 @@ import { ISOLATED_C1_PROJECT_ID } from './internal-test-c1-identity.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
-export const STAGE_F_SCHEDULE_IDEMPOTENCY_KEY = 'stagef_c1_schedule_publish_v0';
+export const STAGE_F_SCHEDULE_IDEMPOTENCY = 'stagef_c1_schedule_publish_v0';
 
 export const STAGE_F_SYNTHETIC_BLOCKED_TIMES = Object.freeze({
   initial: Object.freeze(['13:00', '15:00', '17:00']),
@@ -36,7 +36,7 @@ export function stageFSyntheticPublishSchedule() {
 
 export function stageFSyntheticPublishBody() {
   return {
-    idempotencyKey: STAGE_F_SCHEDULE_IDEMPOTENCY_KEY,
+    idempotencyKey: STAGE_F_SCHEDULE_IDEMPOTENCY,
     expectedVersion: 0,
     schedule: stageFSyntheticPublishSchedule()
   };

@@ -924,7 +924,9 @@ test.describe('已確認回診時的掛號別', () => {
       page.locator('[data-booking-type="follow_up"]')
     ).toHaveAttribute('aria-pressed', 'true');
   });
+});
 
+test.describe('Booking Page stays accountless', () => {
   test('does not overlay Google login when staff client-config is present', async ({
     page
   }) => {
@@ -938,7 +940,7 @@ test.describe('已確認回診時的掛號別', () => {
         }
       });
     });
-    await page.reload();
+    await page.goto('/booking');
     await expect(page.locator('#patient-title')).toBeVisible();
     await expect(
       page.getByRole('button', { name: '使用 Google 帳號登入' })
