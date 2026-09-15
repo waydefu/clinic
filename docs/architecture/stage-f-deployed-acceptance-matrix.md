@@ -2,7 +2,9 @@
 
 Status: **spec / evaluator only. Not a deployment.** Stage E must not
 run this matrix against a live isolated backend. Stage F binds it to an
-exact SHA after Cloud Run, Hosting rewrite, and monitoring apply.
+exact SHA after Cloud Run, Hosting rewrite, and monitoring apply. The
+unsigned [Stage F0 packet](../reviews/2026-09-15-stage-f0-exact-sha-authority-packet.md)
+is not that SHA authority.
 
 Evaluator: `pnpm inspect:stage-f-matrix` →
 `scripts/stage-f-acceptance-matrix.mjs`. Without `deployed: true`
