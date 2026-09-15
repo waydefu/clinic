@@ -81,7 +81,15 @@ export function inspectE4WorkerSource(repoRoot = root) {
     join(repoRoot, 'apps/worker/src/internal-test-outbox-runtime.ts'),
     'utf8'
   );
-  if (runtime.includes('google-calendar')) {
+  const terraform = readFileSync(
+    join(repoRoot, 'infra/terraform/c1-internal-test-run/main.tf'),
+    'utf8'
+  );
+  const calendar = readFileSync(
+    join(repoRoot, 'apps/worker/src/google-calendar.ts'),
+    'utf8'
+  );
+  if (runtime.includes("from './google-calendar")) {
     issues.push(
       'E4: internal-test-outbox-runtime.ts must keep Calendar injectable and must not import google-calendar.'
     );
@@ -104,13 +112,39 @@ export function inspectE4WorkerSource(repoRoot = root) {
       'E4: worker HTTP surface must expose /ready and refuse drain with processing_disabled.'
     );
   }
+  if (!main.includes('calendar_unavailable')) {
+    issues.push(
+      'E4: worker /ready must fail closed when Calendar access/config is unavailable.'
+    );
+  }
   if (
     !runtime.includes('INTERNAL_TEST_OUTBOX_EXECUTION') ||
     !runtime.includes('GOOGLE_CALENDAR_INTEGRATION_MODE') ||
+    !runtime.includes('CLOUD_ADC') ||
     !runtime.includes('production')
   ) {
     issues.push(
-      'E4: cloud boot must require isolated C1 identity, test Calendar mode, and refuse production.'
+      'E4: cloud boot must require isolated C1 identity, CLOUD_ADC, test Calendar mode, and refuse production.'
+    );
+  }
+  if (
+    !terraform.includes('GOOGLE_CALENDAR_AUTH') ||
+    !terraform.includes('CLOUD_ADC') ||
+    terraform.includes(
+      'GOOGLE_SERVICE_ACCOUNT_JSON = "c1-calendar-service-account-json"'
+    )
+  ) {
+    issues.push(
+      'E4: worker Cloud Run must set GOOGLE_CALENDAR_AUTH=CLOUD_ADC and must not mount a user-managed key JSON.'
+    );
+  }
+  if (
+    !calendar.includes('createCloudAdcTokenProvider') ||
+    !calendar.includes('METADATA_TOKEN_URL') ||
+    !calendar.includes('GOOGLE_APPLICATION_CREDENTIALS')
+  ) {
+    issues.push(
+      'E4: google-calendar.ts must implement keyless Cloud ADC and refuse GOOGLE_APPLICATION_CREDENTIALS.'
     );
   }
   return { ok: issues.length === 0, issues };
@@ -185,6 +219,8 @@ export function planStageFDeploymentGraph({
       'Hosting rewrite plan (firebase.isolated-api-preview.json)',
       'WP-B4 monitoring plan',
       'config/secret-reference validation',
+      'synthetic schedule bootstrap plan (execute: false)',
+      'synthetic human-alert proof plan (execute: false)',
       'rollback plan',
       'deployed acceptance plan'
     ],

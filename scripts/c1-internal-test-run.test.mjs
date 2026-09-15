@@ -37,6 +37,16 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     );
     expect(main).toContain('GOOGLE_CALENDAR_INTEGRATION_MODE');
     expect(main).toContain('value = "test"');
+    expect(main).toContain('GOOGLE_CALENDAR_AUTH');
+    expect(main).toContain('CLOUD_ADC');
+    expect(main).not.toMatch(
+      /GOOGLE_SERVICE_ACCOUNT_JSON\s*=\s*"c1-calendar-service-account-json"/
+    );
+    expect(main).not.toMatch(/name\s*=\s*"PORT"/);
+    expect(main).toContain('Cloud Run v2 reserves PORT');
+    expect(main).toContain('ignore_changes = [traffic]');
+    expect(main).toContain('GOOGLE_CALENDAR_ID = "c1-synthetic-calendar-id"');
+    expect(main).toContain('c1-calendar-service-account-json');
     expect(
       read('infra/terraform/c1-internal-test-run/terraform.tfvars.example')
     ).toContain('exact_apply_authority_sha         = "not_granted"');

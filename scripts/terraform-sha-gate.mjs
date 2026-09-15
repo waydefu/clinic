@@ -248,7 +248,10 @@ export const STAGE_F_TERRAFORM_MODULES = [
       'run.googleapis.com',
       'artifactregistry.googleapis.com',
       'cloudbuild.googleapis.com',
-      'cloudscheduler.googleapis.com'
+      'cloudscheduler.googleapis.com',
+      'GOOGLE_CALENDAR_AUTH',
+      'CLOUD_ADC',
+      'ignore_changes = [traffic]'
     ],
     forbiddenSubstrings: [
       'identitytoolkit.googleapis.com',
@@ -259,13 +262,20 @@ export const STAGE_F_TERRAFORM_MODULES = [
       'roles/owner',
       'roles/editor',
       ':latest',
-      '/cal-pilot/'
+      '/cal-pilot/',
+      'GOOGLE_APPLICATION_CREDENTIALS',
+      'name  = "PORT"'
     ]
   },
   {
     slice: 'F-WP-B4',
     directory: 'infra/terraform/wp-b4-alerting',
-    allowedServiceSubstrings: ['c1-application-alerts'],
+    allowedServiceSubstrings: [
+      'c1-application-alerts',
+      'DISTRIBUTION',
+      'ALIGN_PERCENTILE_99',
+      'duration        = "60s"'
+    ],
     forbiddenSubstrings: [
       'google_secret_manager_secret_version',
       'roles/owner',

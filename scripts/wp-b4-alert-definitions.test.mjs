@@ -30,6 +30,9 @@ describe('WP-B4 alert definitions', () => {
     );
     expect(terraform).toContain('threshold_value = 59');
     expect(terraform).toContain('duration        = "60s"');
+    expect(terraform).toContain('value_type  = "DISTRIBUTION"');
+    expect(terraform).toContain('ALIGN_PERCENTILE_99');
+    expect(terraform).toContain('EXTRACT(jsonPayload.oldestPendingAgeSeconds)');
     expect(terraform).toContain('c1-iam-setiampolicy');
     expect(terraform).toContain(
       'resource "google_monitoring_alert_policy" "iam_setiampolicy_application"'

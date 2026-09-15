@@ -13,6 +13,8 @@ locals {
     "cloudbuild.googleapis.com",
     "cloudscheduler.googleapis.com"
   ])
+  # c1-calendar-service-account-json is a leftover empty container from the
+  # key-JSON attempt. It is not mounted. Stage F worker auth is CLOUD_ADC.
   runtime_secrets = toset([
     "c1-staff-firebase-web-api-key",
     "c1-staff-manager-allowlist",
@@ -26,8 +28,7 @@ locals {
     CALENDAR_PILOT_FRONT_DESK_EMAILS    = "c1-staff-front-desk-allowlist"
   }
   worker_secret_env = {
-    GOOGLE_SERVICE_ACCOUNT_JSON = "c1-calendar-service-account-json"
-    GOOGLE_CALENDAR_ID          = "c1-synthetic-calendar-id"
+    GOOGLE_CALENDAR_ID = "c1-synthetic-calendar-id"
   }
   api_secret_env_when_mounted    = local.mount_secrets ? local.api_secret_env : {}
   worker_secret_env_when_mounted = local.mount_secrets ? local.worker_secret_env : {}
@@ -360,6 +361,10 @@ resource "google_cloud_run_v2_service" "worker" {
       env {
         name  = "GOOGLE_CALENDAR_INTEGRATION_MODE"
         value = "test"
+      }
+      env {
+        name  = "GOOGLE_CALENDAR_AUTH"
+        value = "CLOUD_ADC"
       }
       env {
         name  = "INTERNAL_TEST_SOURCE_SHA"

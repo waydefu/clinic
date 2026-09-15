@@ -109,6 +109,13 @@
       "cloudRequired": true
     },
     {
+      "name": "GOOGLE_CALENDAR_AUTH",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["worker"],
+      "cloudRequired": true,
+      "notes": "CLOUD_ADC for Stage F Cloud Run. No user-managed service-account key. DOMAIN_WIDE_DELEGATION_REQUIRED = NO for a dedicated synthetic calendar ACL-shared to the worker identity."
+    },
+    {
       "name": "GOOGLE_CALENDAR_ID",
       "class": "SECRET_REFERENCE",
       "secretId": "c1-synthetic-calendar-id",
@@ -120,7 +127,8 @@
       "class": "SECRET_REFERENCE",
       "secretId": "c1-calendar-service-account-json",
       "requiredFor": ["worker"],
-      "cloudRequired": true
+      "cloudRequired": false,
+      "notes": "Not mounted on Cloud Run. Local/emulator tests may still use SERVICE_ACCOUNT_JSON. USER_MANAGED_SERVICE_ACCOUNT_KEY_REQUIRED = NO."
     },
     {
       "name": "FIRESTORE_EMULATOR_HOST",

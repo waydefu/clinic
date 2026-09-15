@@ -23,6 +23,14 @@ stays accountless at the API layer. The worker uses `INGRESS_TRAFFIC_ALL`
 so Cloud Scheduler can reach `run.app`, but IAM grants `run.invoker` only
 to the scheduler service account. Unauthenticated drain is denied.
 
+Calendar projection uses **keyless Cloud Run ADC**
+(`GOOGLE_CALENDAR_AUTH=CLOUD_ADC`): attached `internal-test-outbox`
+identity → metadata server short-lived token → Calendar API. Do not
+create a user-managed service-account key and do not set
+`GOOGLE_APPLICATION_CREDENTIALS`. Share the synthetic test calendar to
+the worker identity. `DOMAIN_WIDE_DELEGATION_REQUIRED = NO`. Do not
+enable `events.watch`.
+
 Do not `terraform apply` until a post-merge exact-SHA packet names this
 directory. Agent sandbox does not apply. Do not re-apply
 `exact_apply_authority_sha=not_granted` onto `c1-foundation` or
