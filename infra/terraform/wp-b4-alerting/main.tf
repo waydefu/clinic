@@ -165,11 +165,18 @@ resource "google_logging_metric" "outbox_oldest_age" {
   name    = "wp-b4-outbox-oldest-age"
   filter  = "jsonPayload.oldestPendingAgeSeconds>=0"
   metric_descriptor {
-    metric_kind = "GAUGE"
-    value_type  = "INT64"
+    metric_kind = "DELTA"
+    value_type  = "DISTRIBUTION"
     unit        = "s"
   }
   value_extractor = "EXTRACT(jsonPayload.oldestPendingAgeSeconds)"
+  bucket_options {
+    exponential_buckets {
+      num_finite_buckets = 16
+      growth_factor      = 2
+      scale              = 1
+    }
+  }
 }
 
 resource "google_monitoring_alert_policy" "application" {
@@ -223,7 +230,7 @@ resource "google_monitoring_alert_policy" "outbox_age" {
       threshold_value = 59
       aggregations {
         alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MAX"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
       }
       trigger {
         count = 1
