@@ -95,7 +95,7 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
       await route.fulfill({ status: 404, json: {} });
     });
 
-    await page.goto('/staff');
+    await page.goto('/staff?calendarPilot=1');
     await expect(
       page.getByRole('heading', { name: 'Calendar 待確認變更' })
     ).toBeVisible();

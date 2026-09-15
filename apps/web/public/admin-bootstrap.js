@@ -26,6 +26,10 @@ import {
   isInternalTestBookingEnabled,
   resolveApiClient
 } from './modules/api-client.js';
+import {
+  applyServerStaffSessionSnapshot,
+  clearServerStaffSession
+} from './modules/staff-booking-surfaces.js';
 import { upsertPatient } from './modules/patient-registry.js';
 import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
@@ -986,7 +990,15 @@ elements['logout'].addEventListener('click', async () => {
   await runUiAction({
     control: elements['logout'],
     pendingLabel: '登出中…',
-    action: () => post('/workspace/logout'),
+    action: async () => {
+      clearServerStaffSession();
+      await fetch('/v1/calendar-session', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      }).catch(() => undefined);
+      return post('/workspace/logout');
+    },
     onSuccess: () => {
       window.location.hash = 'overview';
       window.location.reload();
@@ -2032,7 +2044,7 @@ if (isInternalTestBookingEnabled()) {
 
 try {
   client = await resolveApiClient();
-  state = await client.request('/state');
+  state = applyServerStaffSessionSnapshot(await client.request('/state'));
   enforceRoleDomBoundary();
   let accessDenied = false;
   initWorkspaceTabs({

@@ -272,7 +272,7 @@ export function applyDeleteContractWrite(state, path, result) {
 async function requestV1(
   fetchImpl,
   mapped,
-  { signal, csrfToken, accessToken, toError }
+  { signal, csrfToken, accessToken, toError, credentials }
 ) {
   const headers = {
     Accept: 'application/json'
@@ -289,7 +289,7 @@ async function requestV1(
   const response = await fetchImpl(mapped.url, {
     method: mapped.method,
     headers,
-    credentials: 'same-origin',
+    credentials: credentials ?? 'same-origin',
     signal,
     ...(mapped.body === undefined ? {} : { body: JSON.stringify(mapped.body) })
   });
@@ -322,6 +322,7 @@ export function createInternalTestBookingTransport({
   local,
   toError,
   fetchImpl = globalThis.fetch.bind(globalThis),
+  credentials = 'same-origin',
   csrfToken = () =>
     globalThis.sessionStorage?.getItem('calPilotCsrf') ?? undefined,
   accessToken = () =>
@@ -337,7 +338,8 @@ export function createInternalTestBookingTransport({
       signal: undefined,
       csrfToken: csrfToken(),
       accessToken: accessToken(),
-      toError
+      toError,
+      credentials
     });
 
   return async function internalTestBookingTransport(path, options = {}) {
@@ -404,7 +406,8 @@ export function createInternalTestBookingTransport({
       signal: options.signal,
       csrfToken: csrfToken(),
       accessToken: accessToken(),
-      toError
+      toError,
+      credentials
     });
     rememberReturnSession(payload?.sessionId);
     if (path === '/schedule/publish' && payload !== undefined) {

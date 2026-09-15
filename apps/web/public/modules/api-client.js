@@ -285,37 +285,54 @@ export const apiClient = createApiClient(stagingRequest, {
   timeoutMs: DEFAULT_TIMEOUT_MS
 });
 
-const FORBIDDEN_PREVIEW_HOST = 'beauessence-clinic-staging.web.app';
+import {
+  isForbiddenStagingHost,
+  isIsolatedC1PreviewHost,
+  isPublicBookingPath,
+  isStaffWorkbenchPath
+} from './staff-booking-surfaces.js';
 
 /**
- * Fail-closed: preview and default pages stay on localStorage. Operators
- * opt in with `?internalTestBooking=1` on a host that is not the forbidden
- * CAL-PILOT preview project.
+ * Canonical Booking API on isolated C1 preview hosts and explicit opt-in.
+ * Forbidden staging host stays localStorage. Laptop loopback stays opt-in.
  */
 export function isInternalTestBookingEnabled(location = globalThis.location) {
   if (location === undefined || location === null) return false;
   const hostname = String(location.hostname ?? '');
+  if (isForbiddenStagingHost(hostname)) return false;
   if (
-    hostname === FORBIDDEN_PREVIEW_HOST ||
-    hostname.endsWith(`.${FORBIDDEN_PREVIEW_HOST}`)
-  ) {
-    return false;
-  }
-  return (
     new URLSearchParams(String(location.search ?? '')).get(
       'internalTestBooking'
     ) === '1'
-  );
+  ) {
+    return true;
+  }
+  return isIsolatedC1PreviewHost(hostname);
 }
 
 export async function resolveApiClient() {
   if (!isInternalTestBookingEnabled()) return apiClient;
+  const staffSurface = isStaffWorkbenchPath(
+    String(globalThis.location?.pathname ?? '')
+  );
+  const publicBooking = isPublicBookingPath(
+    String(globalThis.location?.pathname ?? '')
+  );
   const { createInternalTestBookingTransport } =
     await import('./internal-test-booking-transport.js');
   return createApiClient(
     createInternalTestBookingTransport({
       local: stagingRequest,
-      toError: httpTransportError
+      toError: httpTransportError,
+      credentials: staffSurface ? 'same-origin' : 'omit',
+      csrfToken: staffSurface
+        ? () => globalThis.sessionStorage?.getItem('calPilotCsrf') ?? undefined
+        : () => undefined,
+      accessToken: publicBooking
+        ? () => undefined
+        : () =>
+            globalThis.sessionStorage?.getItem('internalTestIdToken') ??
+            undefined
     }),
     { timeoutMs: DEFAULT_TIMEOUT_MS }
   );
