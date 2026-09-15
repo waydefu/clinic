@@ -215,6 +215,53 @@ function fixture() {
         ]
       }
     },
+    isolatedApiFirebase: {
+      hosting: {
+        headers: firebaseHostingHeaderBlocks(ISOLATED_AUTH_FRAME),
+        redirects: [
+          {
+            source: '/',
+            destination: '/clinic',
+            type: 302
+          },
+          {
+            source: '/index.html',
+            destination: '/staff',
+            type: 301
+          },
+          {
+            source: '/patient.html',
+            destination: '/booking',
+            type: 301
+          },
+          {
+            source: '/privacy.html',
+            destination: '/privacy',
+            type: 301
+          },
+          {
+            source: '/clinic.html',
+            destination: '/clinic',
+            type: 301
+          }
+        ],
+        rewrites: [
+          {
+            source: '/v1/**',
+            run: {
+              serviceId: 'internal-test-api',
+              region: 'asia-east1',
+              pinTag: true
+            }
+          },
+          { source: '/staff', destination: '/index.html' },
+          { source: '/booking', destination: '/patient.html' },
+          { source: '/privacy', destination: '/privacy.html' },
+          { source: '/clinic', destination: '/clinic.html' },
+          { source: '/clinic/**', destination: '/clinic.html' }
+        ]
+      }
+    },
     buildIndexableEntries: ['patient.html', 'privacy.html'],
     scanSources: {
       axe: scanSource([], 'axe'),
@@ -253,6 +300,16 @@ describe('checkPublicPageConfiguration', () => {
     expect(failuresOf(input)).toContainEqual(
       expect.stringContaining('不得宣告 Cloud Run rewrite')
     );
+  });
+
+  it('rejects isolated API Hosting that points at cal-pilot-api', () => {
+    const input = fixture();
+    const runRule = input.isolatedApiFirebase.hosting.rewrites[0] as {
+      run: { serviceId: string };
+    };
+    runRule.run.serviceId = 'cal-pilot-api';
+
+    expect(failuresOf(input).join('\n')).toContain('cal-pilot-api');
   });
 
   it('接受登錄裡存在的 requiresDecision 引用', () => {
