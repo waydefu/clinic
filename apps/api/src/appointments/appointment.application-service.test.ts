@@ -831,6 +831,28 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     expect(failures[0]).not.toMatch(/0912|1990-01-15/);
   });
 
+  it('returns schedule when follow-up is required and unscheduled', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const { service } = createBoundService(patients);
+    await service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous);
+    const patientId = [...patients.patients.keys()][0] ?? '';
+    patients.followUp.set(patientId, {
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001'
+    });
+
+    await expect(
+      service.lookupReturn(
+        { phone: '0912000001', birthDate: '1990-01-15' },
+        '198.51.100.10'
+      )
+    ).resolves.toMatchObject({
+      outcome: 'schedule',
+      patientId
+    });
+  });
+
   it('returns the existing follow-up time and refuses a duplicate', async () => {
     const patients = new InMemoryPatientDirectory();
     let n = 0;

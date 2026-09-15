@@ -203,7 +203,11 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
       body: {
         idempotencyKey: idempotencyKey(),
         decision,
-        ...(decision === 'required'
+        ...(decision === 'required' &&
+        typeof body.dueDate === 'string' &&
+        body.dueDate !== '' &&
+        typeof body.dueTime === 'string' &&
+        body.dueTime !== ''
           ? { dueDate: body.dueDate, dueTime: body.dueTime }
           : {})
       }
@@ -229,11 +233,12 @@ export function applyFollowUpContractWrite(state, path, body, result) {
     followUpDecisionBy: 'doctor_instruction',
     decidedAt: now,
     followUpRecordedAt: now,
-    ...(decision === 'required'
-      ? {
-          dueDate: typeof body?.dueDate === 'string' ? body.dueDate : undefined,
-          dueTime: typeof body?.dueTime === 'string' ? body.dueTime : undefined
-        }
+    ...(decision === 'required' &&
+    typeof body?.dueDate === 'string' &&
+    body.dueDate !== '' &&
+    typeof body?.dueTime === 'string' &&
+    body.dueTime !== ''
+      ? { dueDate: body.dueDate, dueTime: body.dueTime }
       : {})
   };
   const followUps = Array.isArray(state.followUps) ? state.followUps : [];
@@ -243,7 +248,7 @@ export function applyFollowUpContractWrite(state, path, body, result) {
   if (existing === undefined) followUps.push(next);
   else {
     Object.assign(existing, next);
-    if (decision === 'not_required') {
+    if (decision === 'not_required' || next.dueDate === undefined) {
       delete existing.dueDate;
       delete existing.dueTime;
     }

@@ -1313,9 +1313,8 @@ elements.appointments.addEventListener('click', (event) => {
  * 「確認回診」＝現在就替這位患者約下一次。
  *
  * 不新增任何 domain 路徑：它只是把建立預約的表單**預先填好**（患者資料、掛號別
- * 選回診、日期跳到回診目標日），送出後仍走既有的 `/bookings`。domain 會自動把
- * 這筆新預約與來源回診連起來（`scheduledAppointmentId`），移除「尚待安排」的
- * 日曆提醒，這一列也就從佇列消失。
+ * 選回診），送出後仍走既有的 `/bookings`。domain 會自動把這筆新預約與來源回診
+ * 連起來（`scheduledAppointmentId`）。尚未排期的回診 entitlement 不是日曆預約。
  *
  * **回診可以發生很多次**：那筆新預約完成到診後會再登錄一次回診指示，如此循環。
  */
@@ -1343,7 +1342,7 @@ elements.appointments.addEventListener('click', (event) => {
     elements['booking-national-id'].value = record.nationalId;
     elements['booking-nhi-card'].checked = record.hasNhiCard === true;
   }
-  // 時段清單跳到回診目標日，櫃台不必自己翻頁找。
+  // 時段清單改列已發布的回診格子，櫃台／患者從真正可約的 :15/:45 中選。
   selectedSlotId = undefined;
   renderSlotList();
   renderBookingForm();
@@ -1352,7 +1351,7 @@ elements.appointments.addEventListener('click', (event) => {
     block: 'start'
   });
   message(
-    `已帶入 ${record?.name ?? sourceId} 的回診資料，請選擇 ${decision.dueDate} 附近的時段後送出。`,
+    `已帶入 ${record?.name ?? sourceId} 的回診資料，請從目前開放的回診時段中選擇後送出。`,
     'info'
   );
 });
@@ -1748,13 +1747,14 @@ elements['follow-up-list'].addEventListener('change', (event) => {
     .closest('[data-follow-up-form]')
     ?.querySelector('select[name="dueTime"]');
   if (select === undefined || select === null) return;
-  const times = followUpDueTimes(state.schedule, dateInput.value);
-  select.innerHTML = times.length
-    ? times
-        .map((time) => `<option value="${escapeHtml(time)}">${time}</option>`)
-        .join('')
-    : '<option value="">當天未營業</option>';
-  if (times.length === 0)
+  const times =
+    dateInput.value === ''
+      ? []
+      : followUpDueTimes(state.schedule, dateInput.value);
+  select.innerHTML = `<option value="">稍後再排期</option>${times
+    .map((time) => `<option value="${escapeHtml(time)}">${time}</option>`)
+    .join('')}`;
+  if (dateInput.value !== '' && times.length === 0)
     message('目標日期當天未營業，請改選有門診的日期。', 'error');
 });
 
@@ -1768,6 +1768,8 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
   // 先移出編輯集合，post() 內部重繪就已反映；失敗時仍為未決定，照樣顯示。
   editingFollowUps.delete(appointmentId);
   const managerId = data.get('managerId');
+  const dueDate = String(data.get('dueDate') ?? '');
+  const dueTime = String(data.get('dueTime') ?? '');
   await runUiAction({
     control: event.submitter,
     pendingLabel: '儲存中…',
@@ -1775,8 +1777,7 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
     action: () =>
       post(`/follow-ups/${appointmentId}`, {
         status: data.get('status'),
-        dueDate: data.get('dueDate'),
-        dueTime: data.get('dueTime'),
+        ...(dueDate !== '' && dueTime !== '' ? { dueDate, dueTime } : {}),
         tags: data.getAll('tags'),
         noteText: data.get('noteText'),
         certificateCopies: Number(data.get('certificateCopies') ?? 0),
@@ -1785,8 +1786,8 @@ elements['follow-up-list'].addEventListener('submit', async (event) => {
         managerId
       }),
     onSuccess: () => {
-      if (data.get('status') === 'required') {
-        weekStart = weekStartOf(data.get('dueDate'));
+      if (data.get('status') === 'required' && dueDate !== '') {
+        weekStart = weekStartOf(dueDate);
         renderWeek();
       }
       message(

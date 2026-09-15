@@ -903,6 +903,75 @@ describe('櫃台處置', () => {
     expect(decision.dueTime).toBe('12:15');
   });
 
+  it('accepts required without a date or time and does not invent a calendar appointment', () => {
+    const state: any = initialState();
+    const appointment = book(state);
+    finishVisit(state, appointment.id, 'front_desk_test_001');
+
+    const decision = recordFollowUp(
+      state,
+      appointment.id,
+      { status: 'required', tags: [] },
+      'admin_test_001'
+    );
+
+    expect(decision.status).toBe('required');
+    expect(decision).not.toHaveProperty('dueDate');
+    expect(decision).not.toHaveProperty('dueTime');
+    expect(
+      state.outboxJobs.filter(
+        (job: any) => job.appointmentStatus === 'follow_up_required'
+      )
+    ).toHaveLength(0);
+
+    const queued = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+    expect(queued).toContain('待安排回診');
+    expect(queued).toContain('尚未排期');
+    expect(queued).toContain('需回診，尚未排期');
+    expect(queued).not.toContain('回診提醒已上日曆');
+    expect(queued).toContain(appointment.id);
+  });
+
+  it('rejects a required target missing either half, and a not_required target', () => {
+    const state = initialState();
+    const appointment = book(state);
+    finishVisit(state, appointment.id, 'front_desk_test_001');
+
+    expect(() =>
+      recordFollowUp(
+        state,
+        appointment.id,
+        { status: 'required', dueDate: '2030-02-01', tags: [] },
+        'admin_test_001'
+      )
+    ).toThrow(/成對/);
+    expect(() =>
+      recordFollowUp(
+        state,
+        appointment.id,
+        { status: 'required', dueTime: '12:15', tags: [] },
+        'admin_test_001'
+      )
+    ).toThrow(/成對/);
+    expect(() =>
+      recordFollowUp(
+        state,
+        appointment.id,
+        {
+          status: 'not_required',
+          dueDate: '2030-02-01',
+          dueTime: '12:15',
+          tags: []
+        },
+        'admin_test_001'
+      )
+    ).toThrow(/不需要回診/);
+  });
+
   it('同日已過去的時段不可預約（5 點不能約 4 點）', () => {
     const at = (iso: string) => ({ id: 's', kind: 'initial', startsAt: iso });
     const now = Date.parse('2030-01-02T09:00:00.000Z');

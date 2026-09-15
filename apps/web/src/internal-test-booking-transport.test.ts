@@ -245,6 +245,20 @@ describe('mapInternalTestBookingRequest', () => {
         status: 'not_required'
       })?.body
     ).not.toHaveProperty('dueDate');
+    expect(
+      mapInternalTestBookingRequest('/follow-ups/appointment_001', 'POST', {
+        status: 'required'
+      })?.body
+    ).toEqual(
+      expect.objectContaining({
+        decision: 'required'
+      })
+    );
+    expect(
+      mapInternalTestBookingRequest('/follow-ups/appointment_001', 'POST', {
+        status: 'required'
+      })?.body
+    ).not.toHaveProperty('dueDate');
   });
 });
 
@@ -738,6 +752,27 @@ describe('applyFollowUpContractWrite', () => {
         status: 'not_required'
       })
     ]);
+    expect(state.followUps[0]).not.toHaveProperty('dueDate');
+    expect(state.followUps[0]).not.toHaveProperty('dueTime');
+  });
+
+  it('records required without a target as unscheduled entitlement', () => {
+    const state = {
+      appointments: [{ id: 'appointment_001', patientId: 'patient_001' }],
+      followUps: [] as Array<Record<string, unknown>>
+    };
+
+    applyFollowUpContractWrite(
+      state,
+      '/follow-ups/appointment_001',
+      {},
+      { appointmentId: 'appointment_001', decision: 'required' }
+    );
+
+    expect(state.followUps[0]).toMatchObject({
+      appointmentId: 'appointment_001',
+      status: 'required'
+    });
     expect(state.followUps[0]).not.toHaveProperty('dueDate');
     expect(state.followUps[0]).not.toHaveProperty('dueTime');
   });

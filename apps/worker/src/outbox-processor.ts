@@ -81,6 +81,25 @@ export function actionForStatus(status: string): CalendarAction {
   );
 }
 
+/**
+ * Required-but-unscheduled is entitlement, not a Calendar appointment.
+ * Never fall back to the completed visit's startsAt to invent one.
+ */
+export function shouldProjectFollowUpReminder(input: {
+  readonly isFollowUpProjection: boolean;
+  readonly action: CalendarAction;
+  readonly startsAt: string;
+}): boolean {
+  if (
+    input.isFollowUpProjection &&
+    input.action === 'upsert' &&
+    input.startsAt === ''
+  ) {
+    return false;
+  }
+  return true;
+}
+
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
 export const LEASE_SECONDS = OUTBOX_LEASE_SECONDS;
 
@@ -383,10 +402,11 @@ export class OutboxProcessor {
       const projectionStatus = isFollowUpProjection
         ? (job.appointmentStatus ?? 'unknown')
         : appointmentStatus;
-      // 事件自己的時間優先（回診提醒落在回診目標日期，不是原就診時間）；
-      // 一般預約投影沒有 job.startsAt，退回讀來源預約的時間。
-      const startsAt =
-        job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '';
+      // Dated follow-up reminders use job.startsAt. Required-but-unscheduled
+      // must not inherit the completed visit's time as a fake appointment.
+      const startsAt = isFollowUpProjection
+        ? (job.startsAt ?? '')
+        : (job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '');
       const attemptStartedAt = this.monotonicNow();
       let outcome: AttemptOutcome;
       let action: CalendarAction | undefined;
@@ -409,23 +429,31 @@ export class OutboxProcessor {
         };
         // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
         // 手術種類與備註一律不得離開本系統（ADR-0002）。
-        await this.calendar.project(
-          {
-            idempotencyKey: job.idempotencyKey,
+        if (
+          shouldProjectFollowUpReminder({
+            isFollowUpProjection,
             action,
-            appointmentId: job.appointmentId,
-            correlationId: job.correlationId,
-            causationId: job.causationId,
-            appointmentStatus: projectionStatus,
-            startsAt,
-            endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
-            colorId: CLINIC_EVENT_COLOR_ID,
-            bookingKind: isFollowUpProjection
-              ? 'follow_up'
-              : ((appointment.data()?.['bookingKind'] as string) ?? '')
-          },
-          projectionOptions
-        );
+            startsAt
+          })
+        ) {
+          await this.calendar.project(
+            {
+              idempotencyKey: job.idempotencyKey,
+              action,
+              appointmentId: job.appointmentId,
+              correlationId: job.correlationId,
+              causationId: job.causationId,
+              appointmentStatus: projectionStatus,
+              startsAt,
+              endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
+              colorId: CLINIC_EVENT_COLOR_ID,
+              bookingKind: isFollowUpProjection
+                ? 'follow_up'
+                : ((appointment.data()?.['bookingKind'] as string) ?? '')
+            },
+            projectionOptions
+          );
+        }
         outcome = { kind: 'succeeded' };
       } catch (error) {
         outcome = {

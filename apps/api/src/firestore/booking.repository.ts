@@ -673,17 +673,18 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       }
 
       const scheduleDocument = await transaction.get(scheduleRef);
-      if (!scheduleDocument.exists) {
+      const published = scheduleDocument.exists
+        ? parsePublishedScheduleSnapshot(scheduleDocument.data())
+        : undefined;
+      const hasTarget =
+        request.dueDate !== undefined || request.dueTime !== undefined;
+      if (
+        hasTarget &&
+        (published === undefined || published.schedule === null)
+      ) {
         throw new DomainError(
           'INVALID_VALUE',
-          'A published schedule is required to record follow-up.'
-        );
-      }
-      const published = parsePublishedScheduleSnapshot(scheduleDocument.data());
-      if (published.schedule === null) {
-        throw new DomainError(
-          'INVALID_VALUE',
-          'A published schedule is required to record follow-up.'
+          'A published schedule is required to record a follow-up target.'
         );
       }
 
@@ -697,7 +698,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
               patientId: appointment.patientId,
               status: appointment.status
             },
-        published.schedule,
+        published?.schedule,
         this.followUpSnapshotOf(followUpDocument)
       );
 
@@ -718,7 +719,10 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
             required: plan.decision === 'required',
             sourceAppointmentId: appointment.id,
             sourceFollowUpId: plan.appointmentId,
-            updatedAt: request.requestedAt
+            updatedAt: request.requestedAt,
+            ...(plan.decision === 'required'
+              ? {}
+              : { activeFollowUpAppointmentId: FieldValue.delete() })
           },
           { merge: true }
         );

@@ -457,12 +457,17 @@ export function deleteAppointment(
   );
   if (source !== undefined) {
     delete source.scheduledAppointmentId;
-    replaceFollowUpProjection(
-      state,
-      source.appointmentId,
-      'follow_up_required',
-      taipeiIso(source.dueDate, source.dueTime)
-    );
+    if (
+      typeof source.dueDate === 'string' &&
+      typeof source.dueTime === 'string'
+    ) {
+      replaceFollowUpProjection(
+        state,
+        source.appointmentId,
+        'follow_up_required',
+        taipeiIso(source.dueDate, source.dueTime)
+      );
+    }
   }
 
   // 這筆自己的回診決定一併結束：來源就診都不在了，提醒沒有對象。用同一個
@@ -571,18 +576,28 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   const status = input?.status;
   if (!['required', 'not_required'].includes(status))
     throw new Error('回診狀態無效。');
-  const dueDate = input?.dueDate;
-  const dueTime = input?.dueTime;
+  const dueDate =
+    typeof input?.dueDate === 'string' && input.dueDate !== ''
+      ? input.dueDate
+      : undefined;
+  const dueTime =
+    typeof input?.dueTime === 'string' && input.dueTime !== ''
+      ? input.dueTime
+      : undefined;
   if (status === 'required') {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate ?? ''))
-      throw new Error('需要回診時必須設定目標日期。');
-    // 目標日期與時間必須落在可掛號的回診網格上：未營業日、非 :15/:45、
-    // 固定不開放時間都在此擋下，與時段產生共用同一套語意。
-    const validTimes = followUpDueTimes(state.schedule, dueDate);
-    if (validTimes.length === 0)
-      throw new Error('目標日期當天未營業，請改選有門診的日期。');
-    if (!validTimes.includes(dueTime ?? ''))
-      throw new Error('目標時間不在當天的回診可掛號時間內。');
+    if ((dueDate === undefined) !== (dueTime === undefined))
+      throw new Error('建議回診日期與時間必須成對填寫，或都先留空。');
+    if (dueDate !== undefined && dueTime !== undefined) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))
+        throw new Error('建議回診日期無效。');
+      const validTimes = followUpDueTimes(state.schedule, dueDate);
+      if (validTimes.length === 0)
+        throw new Error('目標日期當天未營業，請改選有門診的日期。');
+      if (!validTimes.includes(dueTime))
+        throw new Error('目標時間不在當天的回診可掛號時間內。');
+    }
+  } else if (dueDate !== undefined || dueTime !== undefined) {
+    throw new Error('不需要回診時不可帶建議日期或時間。');
   }
 
   const tags = selectedTags(input?.tags, FOLLOW_UP_NOTE_TAGS, '回診項目');
@@ -611,7 +626,9 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
     appointmentId,
     patientId: appointment.patientId,
     status,
-    ...(status === 'required' ? { dueDate, dueTime } : {}),
+    ...(status === 'required' && dueDate !== undefined && dueTime !== undefined
+      ? { dueDate, dueTime }
+      : {}),
     tags,
     noteText,
     certificateCopies: copies,
@@ -629,7 +646,7 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   if (existing === undefined) state.followUps.push(next);
   else {
     Object.assign(existing, next);
-    if (status === 'not_required') {
+    if (status === 'not_required' || dueDate === undefined) {
       delete existing.dueDate;
       delete existing.dueTime;
     }
@@ -639,7 +656,7 @@ export function recordFollowUp(state, appointmentId, input, actorId) {
   // 回診確認後「上日曆」：回診提醒是與原就診分開的另一個事件（見
   // calendarEventIdForFollowUp）。需要回診就 upsert；若原本有提醒而改成
   // 不需要，則用同一 event ID 排入 cancel，不能只刪掉本機工作紀錄。
-  if (status === 'required') {
+  if (status === 'required' && dueDate !== undefined && dueTime !== undefined) {
     replaceFollowUpProjection(
       state,
       appointmentId,

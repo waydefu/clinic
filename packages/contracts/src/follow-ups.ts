@@ -18,8 +18,9 @@ import {
  * own authorised command (D-007) that must not ride along inside another
  * form's payload. They stay inventory-only until their own decisions land.
  *
- * The target time is validated against the published follow-up grid on the
- * server: a reminder must point at a moment a patient could actually book.
+ * `required` is entitlement, not a reserved appointment. A target date and
+ * time are optional paired metadata. They are not a `follow_up` Appointment
+ * and must not occupy a booking slot. `not_required` must not carry a target.
  */
 
 const LocalTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
@@ -47,16 +48,19 @@ export const RecordFollowUpRequestSchema = z
   .refine(
     (value) =>
       value.decision !== 'required' ||
-      (value.dueDate !== undefined && value.dueTime !== undefined),
-    { message: 'A required follow-up needs both a target date and time.' }
+      (value.dueDate === undefined) === (value.dueTime === undefined),
+    {
+      message:
+        'A required follow-up target must include both a date and a time, or neither.'
+    }
   );
 
 export const RecordFollowUpResponseSchema = z
   .object({
     appointmentId: OpaqueIdentifierSchema,
     decision: FollowUpDecisionSchema,
-    // Server-resolved UTC instant, so the client never has to do the Taipei
-    // conversion that the reminder depends on.
+    // Optional target instant. Null means required-but-unscheduled, or
+    // not_required. This is not the reserved follow_up Appointment.
     dueAt: UtcIsoTimestampSchema.nullable()
   })
   .strict();

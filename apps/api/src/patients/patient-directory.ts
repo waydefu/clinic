@@ -176,10 +176,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     const patientId = stringField(lookup.data(), 'patientId');
     if (typeof patientId !== 'string' || patientId === '') return undefined;
     const state = await this.readFollowUpState(patientId);
-    if (
-      state?.required !== true &&
-      state?.activeFollowUpAppointmentId === undefined
-    ) {
+    if (state?.required !== true) {
       return undefined;
     }
     const sessionId = `rs_${allocateId()}`;
@@ -336,10 +333,7 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     const patientId = this.lookup.get(opaqueLookupIdentity(digits, birthDate));
     if (patientId === undefined) return undefined;
     const state = this.followUp.get(patientId);
-    if (
-      state?.required !== true &&
-      state?.activeFollowUpAppointmentId === undefined
-    ) {
+    if (state?.required !== true) {
       return undefined;
     }
     const sessionId = `rs_${allocateId()}`;

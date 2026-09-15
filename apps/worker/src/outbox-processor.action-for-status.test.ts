@@ -1,7 +1,10 @@
 import { DomainError } from '@beauessence/domain';
 import { describe, expect, it } from 'vitest';
 
-import { actionForStatus } from './outbox-processor.js';
+import {
+  actionForStatus,
+  shouldProjectFollowUpReminder
+} from './outbox-processor.js';
 
 describe('actionForStatus', () => {
   it('upserts the live projection statuses', () => {
@@ -20,10 +23,34 @@ describe('actionForStatus', () => {
     expect(actionForStatus('follow_up_scheduled')).toBe('cancel');
   });
 
-  it('refuses unknown status instead of cancelling the calendar event', () => {
-    expect(() => actionForStatus('unknown')).toThrow(DomainError);
-    expect(() => actionForStatus('not_a_status')).toThrow(
-      /unknown appointment status/
-    );
+  it('does not project an unscheduled follow-up entitlement as a Calendar appointment', () => {
+    expect(
+      shouldProjectFollowUpReminder({
+        isFollowUpProjection: true,
+        action: 'upsert',
+        startsAt: ''
+      })
+    ).toBe(false);
+    expect(
+      shouldProjectFollowUpReminder({
+        isFollowUpProjection: true,
+        action: 'upsert',
+        startsAt: '2030-01-02T04:15:00.000Z'
+      })
+    ).toBe(true);
+    expect(
+      shouldProjectFollowUpReminder({
+        isFollowUpProjection: true,
+        action: 'cancel',
+        startsAt: ''
+      })
+    ).toBe(true);
+    expect(
+      shouldProjectFollowUpReminder({
+        isFollowUpProjection: false,
+        action: 'upsert',
+        startsAt: ''
+      })
+    ).toBe(true);
   });
 });

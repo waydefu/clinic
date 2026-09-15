@@ -795,7 +795,7 @@ test.describe('工作臺預約生命週期', () => {
     await followUpForm
       .locator('select[name="status"]')
       .selectOption('required');
-    // 目標日期／時間預設已落在第一個有回診時段的門診日，直接存檔。
+    // 需要回診不必當場填日期／時間；空白目標即「尚未排期」。
     await followUpForm.locator('button[type="submit"]').click();
 
     // 存檔後該筆變成「待安排回診」的回診版卡片。
