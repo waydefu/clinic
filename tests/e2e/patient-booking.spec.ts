@@ -925,3 +925,29 @@ test.describe('已確認回診時的掛號別', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 });
+
+test.describe('Booking Page stays accountless', () => {
+  test('does not overlay Google login when staff client-config is present', async ({
+    page
+  }) => {
+    await page.route('**/v1/calendar-session/client-config', async (route) => {
+      await route.fulfill({
+        json: {
+          apiKey: 'test-api-key',
+          authDomain: 'example.invalid',
+          projectId: 'test-project',
+          appId: 'test-app-id'
+        }
+      });
+    });
+    await page.goto('/booking');
+    await expect(page.locator('#patient-title')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: '使用 Google 帳號登入' })
+    ).toHaveCount(0);
+    await expect(page.locator('.calendar-pilot-root')).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'CAL-PILOT 安全登入' })
+    ).toHaveCount(0);
+  });
+});

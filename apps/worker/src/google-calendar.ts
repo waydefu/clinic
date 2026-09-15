@@ -33,8 +33,11 @@ import {
  *
  * ## 安全界線（與 ADR-0002 一致）
  *
- * - **憑證只從 env 讀，絕不寫進原始碼、日誌或 Git。** 服務帳號 JSON 走
- *   `GOOGLE_SERVICE_ACCOUNT_JSON`，日曆走 `GOOGLE_CALENDAR_ID`。
+ * - **憑證只從 env 讀，絕不寫進原始碼、日誌或 Git。** Stage F 部署的 worker
+ *   走 `GOOGLE_CALENDAR_AUTH=CLOUD_ADC`：Cloud Run 附加服務身分 → metadata
+ *   server 短效 OAuth2 token → Calendar API。不得在 Cloud Run 掛私人金鑰
+ *   JSON，也不得設 `GOOGLE_APPLICATION_CREDENTIALS`。本機／Emulator 測試
+ *   仍可用 `GOOGLE_SERVICE_ACCOUNT_JSON`。日曆 ID 走 `GOOGLE_CALENDAR_ID`。
  * - **事件欄位最小化**：只放診所名稱、掛號別、時間、地址與預約編號。姓名、
  *   電話、身分證、手術種類、備註一律不離開本系統。
  * - **專用測試日曆**：這是測試整合（2026-07-23 專案負責人授權「測試不審核」），
@@ -68,6 +71,10 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
  * 刻意的，scope 不該在沒人看到的情況下被放寬。
  */
 export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+export const CALENDAR_AUTH_CLOUD_ADC = 'CLOUD_ADC';
+export const CALENDAR_AUTH_SERVICE_ACCOUNT_JSON = 'SERVICE_ACCOUNT_JSON';
+export const METADATA_TOKEN_URL =
+  'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token';
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
 const DEFAULT_GOOGLE_HTTP_TIMEOUT_MS = 30_000;
 const MAX_GOOGLE_HTTP_TIMEOUT_MS = 60_000;
@@ -375,44 +382,105 @@ export function createServiceAccountTokenProvider(
     } catch {
       throw new CalendarError('Token response could not be read.', true);
     }
-    if (response.status !== 200)
-      // 408／429／5xx 是暫時性；其餘 4xx 多半是 JWT、金鑰或權限錯誤。
-      throw new CalendarError(
-        `Token exchange failed (${response.status}).`,
-        isRetryableHttpStatus(response.status)
-      );
-    if (raw.length > MAX_ERROR_RESPONSE_BYTES)
-      throw new CalendarError('Token response was unexpectedly large.', false);
-    let token: unknown;
-    try {
-      token = JSON.parse(raw);
-    } catch {
-      throw new CalendarError('Token response was not valid JSON.', false);
-    }
-    if (typeof token !== 'object' || token === null || Array.isArray(token))
-      throw new CalendarError('Token response was not a JSON object.', false);
-    const responseBody = token as {
-      access_token?: unknown;
-      expires_in?: unknown;
-    };
-    if (
-      !isNonEmptyString(responseBody.access_token) ||
-      responseBody.access_token.length > 16_384
-    )
-      throw new CalendarError(
-        'Token response had an invalid access_token.',
-        false
-      );
-    if (
-      typeof responseBody.expires_in !== 'number' ||
-      !Number.isInteger(responseBody.expires_in) ||
-      responseBody.expires_in <= 60 ||
-      responseBody.expires_in > 86_400
-    )
-      throw new CalendarError('Token response had invalid expires_in.', false);
+    const parsed = parseOAuthTokenResponse(response.status, raw);
     cached = {
-      token: responseBody.access_token.trim(),
-      expiresAtMs: now() + (responseBody.expires_in - 60) * 1000
+      token: parsed.token,
+      expiresAtMs: now() + (parsed.expiresIn - 60) * 1000
+    };
+    return cached.token;
+  };
+}
+
+function parseOAuthTokenResponse(
+  status: number,
+  raw: string
+): { readonly token: string; readonly expiresIn: number } {
+  if (status !== 200)
+    // 408／429／5xx 是暫時性；其餘 4xx 多半是 JWT、金鑰、metadata 或權限錯誤。
+    throw new CalendarError(
+      `Token exchange failed (${status}).`,
+      isRetryableHttpStatus(status)
+    );
+  if (raw.length > MAX_ERROR_RESPONSE_BYTES)
+    throw new CalendarError('Token response was unexpectedly large.', false);
+  let token: unknown;
+  try {
+    token = JSON.parse(raw);
+  } catch {
+    throw new CalendarError('Token response was not valid JSON.', false);
+  }
+  if (typeof token !== 'object' || token === null || Array.isArray(token))
+    throw new CalendarError('Token response was not a JSON object.', false);
+  const responseBody = token as {
+    access_token?: unknown;
+    expires_in?: unknown;
+  };
+  if (
+    !isNonEmptyString(responseBody.access_token) ||
+    responseBody.access_token.length > 16_384
+  )
+    throw new CalendarError(
+      'Token response had an invalid access_token.',
+      false
+    );
+  if (
+    typeof responseBody.expires_in !== 'number' ||
+    !Number.isInteger(responseBody.expires_in) ||
+    responseBody.expires_in <= 60 ||
+    responseBody.expires_in > 86_400
+  )
+    throw new CalendarError('Token response had invalid expires_in.', false);
+  return {
+    token: responseBody.access_token.trim(),
+    expiresIn: responseBody.expires_in
+  };
+}
+
+/**
+ * Cloud Run / GCE metadata server ADC. No private-key JSON, no
+ * GOOGLE_APPLICATION_CREDENTIALS file. Requests only CALENDAR_SCOPE.
+ * Access tokens are never written to logs.
+ */
+export function createCloudAdcTokenProvider(
+  fetchImpl: FetchLike = fetch,
+  now: () => number = Date.now,
+  requestTimeoutMs = DEFAULT_GOOGLE_HTTP_TIMEOUT_MS,
+  scope: string = CALENDAR_SCOPE
+): (deadlineSignal?: AbortSignal) => Promise<string> {
+  if (!isNonEmptyString(scope) || !scope.startsWith('https://'))
+    throw new Error('OAuth scope must be an https Google scope URL.');
+  const timeoutMs = validatedRequestTimeout(requestTimeoutMs);
+  const tokenUrl = `${METADATA_TOKEN_URL}?scopes=${encodeURIComponent(scope)}`;
+  let cached: { token: string; expiresAtMs: number } | undefined;
+
+  return async (deadlineSignal?: AbortSignal) => {
+    if (cached !== undefined && now() < cached.expiresAtMs) return cached.token;
+
+    let response: Awaited<ReturnType<FetchLike>>;
+    const signal = requestSignal(timeoutMs, deadlineSignal);
+    try {
+      response = await awaitWithAbort(
+        () =>
+          fetchImpl(tokenUrl, {
+            method: 'GET',
+            headers: { 'Metadata-Flavor': 'Google' },
+            signal
+          }),
+        signal
+      );
+    } catch {
+      throw new CalendarError('Token exchange request failed.', true);
+    }
+    let raw: string;
+    try {
+      raw = await awaitWithAbort(() => response.text(), signal);
+    } catch {
+      throw new CalendarError('Token response could not be read.', true);
+    }
+    const parsed = parseOAuthTokenResponse(response.status, raw);
+    cached = {
+      token: parsed.token,
+      expiresAtMs: now() + (parsed.expiresIn - 60) * 1000
     };
     return cached.token;
   };
@@ -441,6 +509,12 @@ export class GoogleCalendarClient implements CalendarPort {
     this.projectionTimeoutMs = validatedProjectionTimeout(
       config.projectionTimeoutMs ?? DEFAULT_CALENDAR_PROJECTION_TIMEOUT_MS
     );
+  }
+
+  public async ready(deadlineSignal?: AbortSignal): Promise<void> {
+    const token = await this.getAccessToken(deadlineSignal);
+    if (!isNonEmptyString(token))
+      throw new CalendarError('Calendar access token was empty.', false);
   }
 
   public async project(
@@ -615,12 +689,41 @@ export class GoogleCalendarClient implements CalendarPort {
   }
 }
 
+export type GoogleCalendarAuthMode =
+  typeof CALENDAR_AUTH_CLOUD_ADC | typeof CALENDAR_AUTH_SERVICE_ACCOUNT_JSON;
+
+export function resolveGoogleCalendarAuthMode(
+  env: Record<string, string | undefined>
+): GoogleCalendarAuthMode | 'disabled' {
+  const mode = env['GOOGLE_CALENDAR_INTEGRATION_MODE']?.trim();
+  if (mode === undefined || mode === '' || mode === 'disabled')
+    return 'disabled';
+  const explicit = env['GOOGLE_CALENDAR_AUTH']?.trim();
+  if (
+    explicit === CALENDAR_AUTH_CLOUD_ADC ||
+    explicit === CALENDAR_AUTH_SERVICE_ACCOUNT_JSON
+  ) {
+    return explicit;
+  }
+  if (explicit !== undefined && explicit !== '') {
+    throw new Error(
+      'GOOGLE_CALENDAR_AUTH must be CLOUD_ADC or SERVICE_ACCOUNT_JSON.'
+    );
+  }
+  if (isNonEmptyString(env['GOOGLE_SERVICE_ACCOUNT_JSON']?.trim())) {
+    return CALENDAR_AUTH_SERVICE_ACCOUNT_JSON;
+  }
+  throw new Error(
+    'Google Calendar test integration requires GOOGLE_CALENDAR_AUTH=CLOUD_ADC or GOOGLE_SERVICE_ACCOUNT_JSON.'
+  );
+}
+
 /**
  * 依環境選擇日曆用戶端。
  *
  * 完全沒有整合設定時才回傳 `InMemoryCalendar`，讓本機開發與測試不會意外對外
- * 呼叫。真實測試整合必須明確設為 `test`，而且兩個 credential env 都要齊備；
- * 半套設定或未知模式一律啟動失敗，避免把設定錯誤偽裝成成功的假日曆。
+ * 呼叫。真實測試整合必須明確設為 `test`。Stage F Cloud Run 走 CLOUD_ADC；
+ * 本機測試可走服務帳號 JSON。半套設定或未知模式一律啟動失敗。
  */
 export function createCalendarPort(
   env: Record<string, string | undefined> = process.env
@@ -628,6 +731,7 @@ export function createCalendarPort(
   const mode = env['GOOGLE_CALENDAR_INTEGRATION_MODE']?.trim();
   const calendarId = env['GOOGLE_CALENDAR_ID']?.trim();
   const serviceAccountJson = env['GOOGLE_SERVICE_ACCOUNT_JSON']?.trim();
+  const applicationCredentials = env['GOOGLE_APPLICATION_CREDENTIALS']?.trim();
   const hasCalendarId = isNonEmptyString(calendarId);
   const hasServiceAccount = isNonEmptyString(serviceAccountJson);
   const hasCredentials = hasCalendarId || hasServiceAccount;
@@ -643,9 +747,36 @@ export function createCalendarPort(
     throw new Error(
       'GOOGLE_CALENDAR_INTEGRATION_MODE must be disabled or test.'
     );
-  if (!hasCalendarId || !hasServiceAccount)
+
+  const authMode = resolveGoogleCalendarAuthMode(env);
+  if (authMode === 'disabled') {
     throw new Error(
-      'Google Calendar test integration requires both GOOGLE_CALENDAR_ID and GOOGLE_SERVICE_ACCOUNT_JSON.'
+      'GOOGLE_CALENDAR_INTEGRATION_MODE must be disabled or test.'
+    );
+  }
+  if (!hasCalendarId)
+    throw new Error(
+      'Google Calendar test integration requires GOOGLE_CALENDAR_ID.'
+    );
+
+  if (authMode === CALENDAR_AUTH_CLOUD_ADC) {
+    if (hasServiceAccount)
+      throw new Error(
+        'GOOGLE_CALENDAR_AUTH=CLOUD_ADC forbids GOOGLE_SERVICE_ACCOUNT_JSON; use the attached Cloud Run identity.'
+      );
+    if (isNonEmptyString(applicationCredentials))
+      throw new Error(
+        'GOOGLE_CALENDAR_AUTH=CLOUD_ADC forbids GOOGLE_APPLICATION_CREDENTIALS; do not mount a private key file.'
+      );
+    return new GoogleCalendarClient({
+      calendarId,
+      getAccessToken: createCloudAdcTokenProvider()
+    });
+  }
+
+  if (!hasServiceAccount)
+    throw new Error(
+      'Google Calendar SERVICE_ACCOUNT_JSON auth requires both GOOGLE_CALENDAR_ID and GOOGLE_SERVICE_ACCOUNT_JSON.'
     );
 
   return new GoogleCalendarClient({

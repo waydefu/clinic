@@ -13,6 +13,8 @@ locals {
     "cloudbuild.googleapis.com",
     "cloudscheduler.googleapis.com"
   ])
+  # c1-calendar-service-account-json is a leftover empty container from the
+  # key-JSON attempt. It is not mounted. Stage F worker auth is CLOUD_ADC.
   runtime_secrets = toset([
     "c1-staff-firebase-web-api-key",
     "c1-staff-manager-allowlist",
@@ -26,8 +28,7 @@ locals {
     CALENDAR_PILOT_FRONT_DESK_EMAILS    = "c1-staff-front-desk-allowlist"
   }
   worker_secret_env = {
-    GOOGLE_SERVICE_ACCOUNT_JSON = "c1-calendar-service-account-json"
-    GOOGLE_CALENDAR_ID          = "c1-synthetic-calendar-id"
+    GOOGLE_CALENDAR_ID = "c1-synthetic-calendar-id"
   }
   api_secret_env_when_mounted    = local.mount_secrets ? local.api_secret_env : {}
   worker_secret_env_when_mounted = local.mount_secrets ? local.worker_secret_env : {}
@@ -238,10 +239,7 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "HOST"
         value = "0.0.0.0"
       }
-      env {
-        name  = "PORT"
-        value = "8080"
-      }
+      # Cloud Run v2 reserves PORT and injects it from container_port.
       env {
         name  = "ALLOW_NON_LOOPBACK_BIND"
         value = "true"
@@ -284,6 +282,11 @@ resource "google_cloud_run_v2_service" "api" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
+  }
+
+  lifecycle {
+    # Firebase Hosting pinTag adds a tagged 0% revision. Do not strip it.
+    ignore_changes = [traffic]
   }
 }
 
@@ -346,10 +349,7 @@ resource "google_cloud_run_v2_service" "worker" {
         name  = "HOST"
         value = "0.0.0.0"
       }
-      env {
-        name  = "PORT"
-        value = "8080"
-      }
+      # Cloud Run v2 reserves PORT and injects it from container_port.
       env {
         name  = "INTERNAL_TEST_OUTBOX_EXECUTION"
         value = "cloud"
@@ -361,6 +361,10 @@ resource "google_cloud_run_v2_service" "worker" {
       env {
         name  = "GOOGLE_CALENDAR_INTEGRATION_MODE"
         value = "test"
+      }
+      env {
+        name  = "GOOGLE_CALENDAR_AUTH"
+        value = "CLOUD_ADC"
       }
       env {
         name  = "INTERNAL_TEST_SOURCE_SHA"
@@ -384,6 +388,10 @@ resource "google_cloud_run_v2_service" "worker" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
+  }
+
+  lifecycle {
+    ignore_changes = [traffic]
   }
 }
 

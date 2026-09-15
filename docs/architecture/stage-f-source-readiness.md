@@ -81,9 +81,16 @@ layer. Staff still needs session + CSRF + RBAC.
 ## E4 Outbox worker
 
 Cloud execution: Firestore outbox → `internal-test-outbox` → synthetic
-Calendar (`GOOGLE_CALENDAR_INTEGRATION_MODE=test`). Emulator execution
-still requires `FIRESTORE_EMULATOR_HOST` and will not drain cloud
-Firestore into `InMemoryCalendar`.
+Calendar (`GOOGLE_CALENDAR_INTEGRATION_MODE=test`,
+`GOOGLE_CALENDAR_AUTH=CLOUD_ADC`). The worker identity requests a
+short-lived `calendar.events` token from the metadata server. No
+user-managed key JSON and no `GOOGLE_APPLICATION_CREDENTIALS`.
+`USER_MANAGED_SERVICE_ACCOUNT_KEY_REQUIRED = NO`.
+`DOMAIN_WIDE_DELEGATION_REQUIRED = NO` when the designated synthetic
+calendar is ACL-shared to that identity. Emulator execution still
+requires `FIRESTORE_EMULATOR_HOST` and will not drain cloud Firestore
+into `InMemoryCalendar`. `/ready` returns 503 `calendar_unavailable`
+when token/config access fails. `/live` stays up.
 
 Required + unscheduled follow-up does not create a fake Calendar
 appointment. Only a scheduled `follow_up` appointment projects an event.
@@ -99,6 +106,27 @@ tfvar-only. Outbox age remains **60 seconds**. IAM SetIamPolicy reuses
 `c1-iam-setiampolicy` and does not destroy the C1 budget Pub/Sub path.
 Synthetic trigger design: emit `oldestPendingAgeSeconds>=60` or
 `retryState="dead_lettered"`; do not send mail in this round.
+Inspect-only: `pnpm inspect:stage-f-alert-proof`.
+`HUMAN_NOTIFICATION_PROVEN` remains false.
+
+## Booking Page and Staff Workbench
+
+`/booking` is accountless. It must not load the CAL-PILOT Google/TOTP
+overlay. Isolated C1 preview hosts call `POST /v1/bookings` without a
+Bearer token or staff CSRF cookie.
+
+`/staff` keeps strong auth: Google + TOTP mints `__session` + CSRF;
+Workbench then uses that server session with RBAC and disabled-account
+enforcement. Default `/staff` hands off to Workbench after a session
+exists. `?calendarPilot=1` keeps the synthetic Calendar review UI.
+
+## Synthetic published availability
+
+`GET /v1/slots` is empty until `schedules/current` is published.
+Inspect-only bootstrap: `pnpm inspect:stage-f-schedule`
+(`execute: false`). Canon grids stay initial `:00` / `:30`, follow_up
+`:15` / `:45`, duration 30 minutes, with closed days, extra-open,
+blocks, occupancy and a full 30-minute fit.
 
 ## E6 Configuration contract
 
@@ -125,8 +153,10 @@ do not delete an index still used by the previous revision.
 5. Hosting rewrite plan
 6. WP-B4 monitoring plan
 7. config/secret-reference validation
-8. rollback plan
-9. deployed acceptance plan
+8. synthetic schedule bootstrap plan (`execute: false`)
+9. synthetic human-alert proof plan (`execute: false`)
+10. rollback plan
+11. deployed acceptance plan
 
 ## Product invariants this source must not regress
 

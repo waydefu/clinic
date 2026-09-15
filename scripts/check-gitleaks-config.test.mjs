@@ -19,6 +19,7 @@ describe('gitleaks allowlist', () => {
     expect(config).toContain("'''arrive-idempotency-\\d{4}'''");
     expect(config).toContain("'''complete-idempotency-\\d{4}'''");
     expect(config).toContain("'''follow-up-idempotency-\\d{4}'''");
+    expect(config).toContain("'''stagef_c1_schedule_publish_v0'''");
     expect(config).toContain("'''\"[A-Za-z0-9.-]+\\.js\": \"[a-f0-9]{64}\"'''");
     expect(config).toContain('regexTarget = "line"');
   });

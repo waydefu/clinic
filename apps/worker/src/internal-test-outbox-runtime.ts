@@ -35,6 +35,7 @@ export interface InternalTestOutboxInspection {
 
 export interface InternalTestOutboxRuntime {
   readonly calendar: CalendarPort;
+  calendarReady(): Promise<void>;
   run(nowUtc?: string): Promise<InternalTestOutboxDrain>;
   inspect(nowUtc?: string): Promise<InternalTestOutboxInspection>;
 }
@@ -67,6 +68,9 @@ export function createInternalTestOutboxRuntime(
 
   return {
     calendar,
+    async calendarReady() {
+      await calendar.ready();
+    },
     async inspect(nowUtc = options.clock?.() ?? new Date().toISOString()) {
       const snapshot = await readOutboxQueueSnapshot(options.db, nowUtc);
       const failRate = attemptFailRate10m(metrics);
@@ -203,12 +207,25 @@ export function assertInternalTestOutboxBootAllowed(
       'internal-test outbox cloud execution requires GOOGLE_CALENDAR_INTEGRATION_MODE=test.'
     );
   }
-  if (
-    (env['GOOGLE_CALENDAR_ID'] ?? '').trim() === '' ||
-    (env['GOOGLE_SERVICE_ACCOUNT_JSON'] ?? '').trim() === ''
-  ) {
+  const calendarAuth = (env['GOOGLE_CALENDAR_AUTH'] ?? '').trim();
+  if (calendarAuth !== 'CLOUD_ADC') {
     throw new Error(
-      'internal-test outbox cloud execution requires GOOGLE_CALENDAR_ID and GOOGLE_SERVICE_ACCOUNT_JSON references; it will not drain cloud Firestore into an in-memory calendar.'
+      'internal-test outbox cloud execution requires GOOGLE_CALENDAR_AUTH=CLOUD_ADC; user-managed service-account keys are not used.'
+    );
+  }
+  if ((env['GOOGLE_CALENDAR_ID'] ?? '').trim() === '') {
+    throw new Error(
+      'internal-test outbox cloud execution requires GOOGLE_CALENDAR_ID; it will not drain cloud Firestore into an in-memory calendar.'
+    );
+  }
+  if ((env['GOOGLE_SERVICE_ACCOUNT_JSON'] ?? '').trim() !== '') {
+    throw new Error(
+      'internal-test outbox cloud execution forbids GOOGLE_SERVICE_ACCOUNT_JSON; use attached Cloud Run ADC.'
+    );
+  }
+  if ((env['GOOGLE_APPLICATION_CREDENTIALS'] ?? '').trim() !== '') {
+    throw new Error(
+      'internal-test outbox cloud execution forbids GOOGLE_APPLICATION_CREDENTIALS; do not mount a private key file.'
     );
   }
   const sourceSha = (env['INTERNAL_TEST_SOURCE_SHA'] ?? '').trim();

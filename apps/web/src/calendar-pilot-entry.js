@@ -229,6 +229,9 @@ async function completeGoogleSignIn() {
     body: JSON.stringify({ idToken })
   });
   csrfToken = session.csrfToken;
+  if (session.role === 'manager' || session.role === 'front_desk') {
+    sessionStorage.setItem('calPilotRole', session.role);
+  }
   sessionStorage.setItem('calPilotCsrf', csrfToken);
   return true;
 }
@@ -881,7 +884,25 @@ async function renderApplication() {
     });
 }
 
+async function handoffToStaffWorkbench() {
+  document.documentElement.classList.remove('calendar-pilot-active');
+  document.documentElement.classList.add('synthetic-workbench-ready');
+  root?.remove();
+}
+
+function isPublicBookingPath(pathname = '') {
+  return pathname === '/booking' || pathname.endsWith('/patient.html');
+}
+
+function wantsCalendarPilotOverlay(search = '') {
+  return new URLSearchParams(String(search)).get('calendarPilot') === '1';
+}
+
 async function boot() {
+  if (isPublicBookingPath(location.pathname)) {
+    document.documentElement.classList.add('synthetic-workbench-ready');
+    return;
+  }
   const configResponse = await fetch(`${API}/calendar-session/client-config`, {
     credentials: 'same-origin',
     headers: { Accept: 'application/json' }
@@ -891,6 +912,7 @@ async function boot() {
     return;
   }
   const config = await configResponse.json();
+  const calendarPilotWorkbench = wantsCalendarPilotOverlay(location.search);
   document.documentElement.classList.add('calendar-pilot-active');
   root = document.createElement('div');
   root.className = 'calendar-pilot-root';
@@ -901,16 +923,26 @@ async function boot() {
   if (cachedCsrf !== null) {
     csrfToken = cachedCsrf;
     try {
-      await renderApplication();
+      if (calendarPilotWorkbench) {
+        await renderApplication();
+        return;
+      }
+      await handoffToStaffWorkbench();
       return;
     } catch {
       sessionStorage.removeItem('calPilotCsrf');
+      sessionStorage.removeItem('calPilotRole');
       csrfToken = undefined;
     }
   }
   try {
     if (await completeGoogleSignIn()) {
-      await renderApplication();
+      if (calendarPilotWorkbench) {
+        await renderApplication();
+        return;
+      }
+      await handoffToStaffWorkbench();
+      location.reload();
       return;
     }
   } catch (error) {

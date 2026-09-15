@@ -87,6 +87,12 @@ export interface CalendarPort {
     request: CalendarProjectionRequest,
     options?: CalendarProjectionOptions
   ): Promise<void>;
+  /**
+   * Fail-closed readiness probe. Cloud Calendar adapters must prove that
+   * config/token access works without logging the token. In-memory adapters
+   * resolve immediately.
+   */
+  ready(deadlineSignal?: AbortSignal): Promise<void>;
 }
 
 export class CalendarError extends Error {
@@ -190,6 +196,10 @@ export class InMemoryCalendar implements CalendarPort {
     if (exists) this.conflictUpdateCount += 1;
     else this.insertCount += 1;
     this.events.set(request.idempotencyKey, request);
+    return Promise.resolve();
+  }
+
+  public ready(_deadlineSignal?: AbortSignal): Promise<void> {
     return Promise.resolve();
   }
 }

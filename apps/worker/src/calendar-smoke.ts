@@ -24,7 +24,7 @@ async function main(): Promise<void> {
   const port = createCalendarPort(process.env);
   if (port instanceof InMemoryCalendar) {
     console.error(
-      '未偵測到 GOOGLE_CALENDAR_ID / GOOGLE_SERVICE_ACCOUNT_JSON，已回退假日曆。' +
+      '未偵測到 Google Calendar 測試整合（CLOUD_ADC 或服務帳號 JSON），已回退假日曆。' +
         '請先設定 GOOGLE_CALENDAR_INTEGRATION_MODE=test 並注入憑證；未對外呼叫。'
     );
     process.exitCode = 1;

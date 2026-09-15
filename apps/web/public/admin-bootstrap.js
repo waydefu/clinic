@@ -986,7 +986,12 @@ elements['logout'].addEventListener('click', async () => {
   await runUiAction({
     control: elements['logout'],
     pendingLabel: '登出中…',
-    action: () => post('/workspace/logout'),
+    action: async () => {
+      sessionStorage.removeItem('calPilotCsrf');
+      sessionStorage.removeItem('calPilotRole');
+      void fetch('/v1/calendar-session', { method: 'DELETE' });
+      return post('/workspace/logout');
+    },
     onSuccess: () => {
       window.location.hash = 'overview';
       window.location.reload();
@@ -2033,6 +2038,9 @@ if (isInternalTestBookingEnabled()) {
 try {
   client = await resolveApiClient();
   state = await client.request('/state');
+  if (sessionStorage.getItem('calPilotCsrf')) {
+    state = (await import('./modules/hydrate-staff.js')).hydrateStaff(state);
+  }
   enforceRoleDomBoundary();
   let accessDenied = false;
   initWorkspaceTabs({

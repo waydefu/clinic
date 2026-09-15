@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from 'node:crypto';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { calendarEventIdForAppointment } from '@beauessence/domain';
 import {
@@ -9,9 +9,12 @@ import {
   type CalendarProjectionRequest
 } from './calendar-port.js';
 import {
+  CALENDAR_AUTH_CLOUD_ADC,
   CALENDAR_SCOPE,
   GoogleCalendarClient,
+  METADATA_TOKEN_URL,
   createCalendarPort,
+  createCloudAdcTokenProvider,
   createServiceAccountTokenProvider
 } from './google-calendar.js';
 
@@ -47,6 +50,7 @@ interface Call {
   method: string;
   body?: string;
   signal: AbortSignal | undefined;
+  headers?: Record<string, string>;
 }
 
 /** 依序回應預先排好的狀態碼，並記錄每次呼叫。 */
@@ -66,7 +70,8 @@ function fakeFetch(statuses: number[], bodies: string[] = []) {
       url,
       method: init.method,
       body: init.body,
-      signal: init.signal
+      signal: init.signal,
+      headers: init.headers
     });
     const status = statuses[index] ?? 200;
     const body = bodies[index] ?? '{}';
@@ -84,6 +89,25 @@ function calendarErrorBody(reason: string): string {
       message: 'Synthetic Calendar API error'
     }
   });
+}
+
+function captureConsoleMessages(): {
+  readonly messages: string[];
+  restore(): void;
+} {
+  const messages: string[] = [];
+  const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map(
+    (method) =>
+      vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+        messages.push(JSON.stringify(args));
+      })
+  );
+  return {
+    messages,
+    restore() {
+      for (const spy of spies) spy.mockRestore();
+    }
+  };
 }
 
 function abortingFetch(
@@ -396,13 +420,13 @@ describe('createCalendarPort', () => {
         GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
         GOOGLE_CALENDAR_ID: 'only-id'
       })
-    ).toThrow(/requires both/u);
+    ).toThrow(/CLOUD_ADC or GOOGLE_SERVICE_ACCOUNT_JSON/u);
     expect(() =>
       createCalendarPort({
         GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
         GOOGLE_SERVICE_ACCOUNT_JSON: JSON.stringify(SERVICE_ACCOUNT)
       })
-    ).toThrow(/requires both/u);
+    ).toThrow(/GOOGLE_CALENDAR_ID/u);
     expect(() =>
       createCalendarPort({
         GOOGLE_CALENDAR_ID: 'test-calendar',
@@ -424,6 +448,31 @@ describe('createCalendarPort', () => {
     expect(() =>
       createCalendarPort({ GOOGLE_CALENDAR_INTEGRATION_MODE: 'production' })
     ).toThrow(/must be disabled or test/u);
+  });
+
+  it('Stage F CLOUD_ADC 不需要金鑰 JSON 或 GOOGLE_APPLICATION_CREDENTIALS', () => {
+    const port = createCalendarPort({
+      GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
+      GOOGLE_CALENDAR_AUTH: CALENDAR_AUTH_CLOUD_ADC,
+      GOOGLE_CALENDAR_ID: 'test-calendar'
+    });
+    expect(port).toBeInstanceOf(GoogleCalendarClient);
+    expect(() =>
+      createCalendarPort({
+        GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
+        GOOGLE_CALENDAR_AUTH: CALENDAR_AUTH_CLOUD_ADC,
+        GOOGLE_CALENDAR_ID: 'test-calendar',
+        GOOGLE_SERVICE_ACCOUNT_JSON: JSON.stringify(SERVICE_ACCOUNT)
+      })
+    ).toThrow(/forbids GOOGLE_SERVICE_ACCOUNT_JSON/u);
+    expect(() =>
+      createCalendarPort({
+        GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
+        GOOGLE_CALENDAR_AUTH: CALENDAR_AUTH_CLOUD_ADC,
+        GOOGLE_CALENDAR_ID: 'test-calendar',
+        GOOGLE_APPLICATION_CREDENTIALS: '/var/secrets/key.json'
+      })
+    ).toThrow(/forbids GOOGLE_APPLICATION_CREDENTIALS/u);
   });
 });
 
@@ -626,5 +675,107 @@ describe('createServiceAccountTokenProvider', () => {
         60_001
       )
     ).toThrow(/between 1 and 60000 milliseconds/u);
+  });
+});
+
+describe('createCloudAdcTokenProvider', () => {
+  const SECRET_TOKEN = 'adc-access-token-never-log-this';
+
+  it('reads a short-lived token from the metadata server with calendar.events scope', async () => {
+    const { impl, calls } = fakeFetch(
+      [200],
+      [JSON.stringify({ access_token: SECRET_TOKEN, expires_in: 3600 })]
+    );
+    const provider = createCloudAdcTokenProvider(impl, () =>
+      Date.UTC(2030, 0, 1)
+    );
+    const captured = captureConsoleMessages();
+    try {
+      await expect(provider()).resolves.toBe(SECRET_TOKEN);
+    } finally {
+      captured.restore();
+    }
+    expect(calls[0]?.method).toBe('GET');
+    expect(calls[0]?.headers?.['Metadata-Flavor']).toBe('Google');
+    expect(calls[0]?.url).toBe(
+      `${METADATA_TOKEN_URL}?scopes=${encodeURIComponent(
+        'https://www.googleapis.com/auth/calendar.events'
+      )}`
+    );
+    expect(JSON.stringify(calls)).not.toContain(SECRET_TOKEN);
+    expect(captured.messages.join('\n')).not.toContain(SECRET_TOKEN);
+    expect(calls[0]?.url).not.toContain('auth%2Fcalendar%3F');
+    expect(decodeURIComponent(calls[0]?.url ?? '')).toContain(
+      'auth/calendar.events'
+    );
+  });
+
+  it('does not require GOOGLE_APPLICATION_CREDENTIALS or a key JSON file', async () => {
+    const { impl } = fakeFetch(
+      [200],
+      [JSON.stringify({ access_token: SECRET_TOKEN, expires_in: 3600 })]
+    );
+    const provider = createCloudAdcTokenProvider(impl);
+    await expect(provider()).resolves.toBe(SECRET_TOKEN);
+    expect(process.env['GOOGLE_APPLICATION_CREDENTIALS']).toBeUndefined();
+  });
+
+  it('keeps token failures opaque and never includes the access token', async () => {
+    const provider = createCloudAdcTokenProvider(() =>
+      Promise.reject(new Error(`upstream ${SECRET_TOKEN}`))
+    );
+    await expect(provider()).rejects.toMatchObject({
+      message: 'Token exchange request failed.',
+      retryable: true
+    });
+    try {
+      await provider();
+    } catch (error) {
+      expect(String(error)).not.toContain(SECRET_TOKEN);
+    }
+  });
+
+  it('invalid metadata JSON fails closed without logging the body', async () => {
+    const provider = createCloudAdcTokenProvider(
+      fakeFetch([200], ['not-json']).impl
+    );
+    await expect(provider()).rejects.toMatchObject({
+      message: 'Token response was not valid JSON.',
+      retryable: false
+    });
+  });
+});
+
+describe('GoogleCalendarClient.ready', () => {
+  const SECRET_TOKEN = 'ready-access-token-never-log-this';
+
+  it('proves token access without logging the credential', async () => {
+    const captured = captureConsoleMessages();
+    try {
+      const readyClient = new GoogleCalendarClient({
+        calendarId: 'test-calendar@group.calendar.google.com',
+        getAccessToken: () => Promise.resolve(SECRET_TOKEN),
+        fetchImpl: fakeFetch([200]).impl
+      });
+      await expect(readyClient.ready()).resolves.toBeUndefined();
+    } finally {
+      captured.restore();
+    }
+    expect(captured.messages.join('\n')).not.toContain(SECRET_TOKEN);
+  });
+
+  it('fails closed when Calendar token access is unavailable', async () => {
+    const readyClient = new GoogleCalendarClient({
+      calendarId: 'test-calendar@group.calendar.google.com',
+      getAccessToken: () =>
+        Promise.reject(
+          new CalendarError('Token exchange failed (401).', false)
+        ),
+      fetchImpl: fakeFetch([200]).impl
+    });
+    await expect(readyClient.ready()).rejects.toMatchObject({
+      message: 'Token exchange failed (401).',
+      retryable: false
+    });
   });
 });

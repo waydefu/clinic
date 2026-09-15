@@ -51,11 +51,12 @@ test.describe('legacy synthetic login flash', () => {
     ).toBeVisible();
   });
 
-  test('enters CAL-PILOT after client-config without showing the synthetic login', async ({
+  test('hands a staff session to the Workbench instead of the CAL-PILOT overlay', async ({
     page
   }) => {
     await page.addInitScript(() => {
       sessionStorage.setItem('calPilotCsrf', 'csrf_test_token');
+      sessionStorage.setItem('calPilotRole', 'manager');
     });
     await page.route('**/v1/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
@@ -70,37 +71,19 @@ test.describe('legacy synthetic login flash', () => {
         });
         return;
       }
-      if (path === '/v1/calendar/status') {
-        await route.fulfill({
-          json: {
-            health: 'healthy',
-            activeSource: null,
-            lastSuccessfulSyncAt: null,
-            nextScheduledSyncAt: null,
-            pendingCandidateCount: 0,
-            conflictCount: 0,
-            expiresAt: '2026-11-28T04:51:37Z'
-          }
-        });
-        return;
-      }
-      if (
-        path === '/v1/calendar/sources' ||
-        path === '/v1/calendar/candidates' ||
-        path === '/v1/calendar/synthetic-patients'
-      ) {
-        await route.fulfill({ json: [] });
-        return;
-      }
       await route.fulfill({ status: 404, json: {} });
     });
 
     await page.goto('/staff');
     await expect(
       page.getByRole('heading', { name: 'Calendar 待確認變更' })
-    ).toBeVisible();
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: '使用 Google 帳號登入' })
+    ).toHaveCount(0);
     await expect(
       page.getByRole('heading', { name: '登入營運工作臺' })
     ).toBeHidden();
+    await expect(page.locator('.calendar-pilot-root')).toHaveCount(0);
   });
 });

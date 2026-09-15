@@ -46,24 +46,40 @@ export function createInternalTestOutboxServer(
       request.method === 'GET' &&
       (request.url === '/health' || request.url === '/ready')
     ) {
-      void runtime.inspect().then(
-        (inspection) => {
-          const degraded = inspection.alerts.some(
-            (alert) => alert.severity === 'immediate'
-          );
-          send(response, request.url === '/ready' && degraded ? 503 : 200, {
-            service: 'internal-test-outbox-worker',
-            status: degraded ? 'degraded' : 'ok',
-            snapshot: inspection.snapshot,
-            alerts: inspection.alerts,
-            processingEnabled,
-            ...(typeof inspection.attemptFailRate10m === 'number'
-              ? { attemptFailRate10m: inspection.attemptFailRate10m }
-              : {})
-          });
-        },
-        () => send(response, 503, { error: 'worker_unavailable' })
-      );
+      void Promise.resolve()
+        .then(async () => {
+          if (request.url === '/ready') {
+            await runtime.calendarReady();
+          }
+          return runtime.inspect();
+        })
+        .then(
+          (inspection) => {
+            const degraded = inspection.alerts.some(
+              (alert) => alert.severity === 'immediate'
+            );
+            send(response, request.url === '/ready' && degraded ? 503 : 200, {
+              service: 'internal-test-outbox-worker',
+              status: degraded ? 'degraded' : 'ok',
+              snapshot: inspection.snapshot,
+              alerts: inspection.alerts,
+              processingEnabled,
+              ...(typeof inspection.attemptFailRate10m === 'number'
+                ? { attemptFailRate10m: inspection.attemptFailRate10m }
+                : {})
+            });
+          },
+          (error: unknown) => {
+            const calendarUnavailable =
+              error instanceof Error &&
+              /Calendar|token|GOOGLE_CALENDAR/iu.test(error.message);
+            send(response, 503, {
+              error: calendarUnavailable
+                ? 'calendar_unavailable'
+                : 'worker_unavailable'
+            });
+          }
+        );
       return;
     }
     if (request.method !== 'POST' || request.url !== '/tasks/outbox-drain') {

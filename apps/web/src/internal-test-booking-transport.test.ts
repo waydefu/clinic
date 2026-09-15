@@ -28,11 +28,18 @@ describe('isInternalTestBookingEnabled', () => {
     ).toBe(false);
   });
 
-  it('opts in only with the explicit query on another host', () => {
+  it('opts in with the explicit query, or automatically on isolated C1 preview', () => {
     expect(
       isInternalTestBookingEnabled({
         hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: '?internalTestBooking=1'
+      })
+    ).toBe(true);
+    expect(
+      isInternalTestBookingEnabled({
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        search: ''
       })
     ).toBe(true);
   });
@@ -476,6 +483,34 @@ describe('createInternalTestBookingTransport', () => {
       slots: [],
       appointments: []
     });
+  });
+
+  it('omits cookies on the public booking path so staff sessions stay separated', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ slots: [] })
+      })
+    );
+    const transport = createInternalTestBookingTransport({
+      local: () => Promise.resolve({}),
+      toError: httpTransportError,
+      fetchImpl,
+      credentials: 'omit',
+      csrfToken: () => undefined,
+      accessToken: () => undefined
+    });
+    await transport('/slots');
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/v1/slots',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'omit'
+      })
+    );
+    const headers = fetchImpl.mock.calls[0]?.[1]?.headers ?? {};
+    expect(headers['X-CSRF-Token']).toBeUndefined();
+    expect(headers.Authorization).toBeUndefined();
   });
 
   it('does not restore synthetic slots after a local workspace snapshot', async () => {

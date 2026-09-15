@@ -287,11 +287,6 @@ export const apiClient = createApiClient(stagingRequest, {
 
 const FORBIDDEN_PREVIEW_HOST = 'beauessence-clinic-staging.web.app';
 
-/**
- * Fail-closed: preview and default pages stay on localStorage. Operators
- * opt in with `?internalTestBooking=1` on a host that is not the forbidden
- * CAL-PILOT preview project.
- */
 export function isInternalTestBookingEnabled(location = globalThis.location) {
   if (location === undefined || location === null) return false;
   const hostname = String(location.hostname ?? '');
@@ -301,10 +296,17 @@ export function isInternalTestBookingEnabled(location = globalThis.location) {
   ) {
     return false;
   }
-  return (
+  if (
     new URLSearchParams(String(location.search ?? '')).get(
       'internalTestBooking'
     ) === '1'
+  ) {
+    return true;
+  }
+  return (
+    hostname.startsWith('beauessence-clinic-stg-') &&
+    hostname.includes('--') &&
+    hostname.endsWith('.web.app')
   );
 }
 

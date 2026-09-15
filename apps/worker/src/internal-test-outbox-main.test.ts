@@ -39,10 +39,13 @@ const EMPTY_SNAPSHOT = {
   oldestPendingAgeSeconds: 0
 };
 
+const NOOP_CALENDAR_READY = () => Promise.resolve();
+
 describe('internal-test outbox HTTP surface', () => {
   it('serves health and outbox-drain, and 404s a watch path', async () => {
     const runtime = {
       calendar: {},
+      calendarReady: NOOP_CALENDAR_READY,
       inspect: () =>
         Promise.resolve({
           snapshot: EMPTY_SNAPSHOT,
@@ -89,6 +92,7 @@ describe('internal-test outbox HTTP surface', () => {
   it('reports degraded health when SLO inspection has an immediate alert', async () => {
     const runtime = {
       calendar: {},
+      calendarReady: NOOP_CALENDAR_READY,
       inspect: () =>
         Promise.resolve({
           snapshot: { ...EMPTY_SNAPSHOT, deadLettered: 1 },
@@ -124,6 +128,7 @@ describe('internal-test outbox HTTP surface', () => {
   it('keeps health ok for a weekday fail-rate alert and forwards the rate', async () => {
     const runtime = {
       calendar: {},
+      calendarReady: NOOP_CALENDAR_READY,
       inspect: () =>
         Promise.resolve({
           snapshot: EMPTY_SNAPSHOT,
@@ -173,35 +178,41 @@ describe('internal-test outbox HTTP surface', () => {
     ).not.toThrow();
   });
 
-  it('allows isolated cloud boot only with test Calendar credentials and a source SHA', () => {
+  it('allows isolated cloud boot only with CLOUD_ADC, a calendar id, and a source SHA', () => {
+    const cloud = {
+      INTERNAL_TEST_OUTBOX_EXECUTION: 'cloud',
+      GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+      INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED: 'true',
+      GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
+      GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+      GOOGLE_CALENDAR_ID: 'synthetic-calendar-id',
+      INTERNAL_TEST_SOURCE_SHA: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    };
+    expect(() => assertInternalTestOutboxBootAllowed(cloud)).not.toThrow();
     expect(() =>
       assertInternalTestOutboxBootAllowed({
-        INTERNAL_TEST_OUTBOX_EXECUTION: 'cloud',
-        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
-        INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED: 'true',
-        GOOGLE_CALENDAR_INTEGRATION_MODE: 'test',
-        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id',
-        GOOGLE_SERVICE_ACCOUNT_JSON: '{"client_email":"x"}',
-        INTERNAL_TEST_SOURCE_SHA: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-      })
-    ).not.toThrow();
-    expect(() =>
-      assertInternalTestOutboxBootAllowed({
-        INTERNAL_TEST_OUTBOX_EXECUTION: 'cloud',
-        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
-        INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED: 'true',
-        GOOGLE_CALENDAR_INTEGRATION_MODE: 'production',
-        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id',
-        GOOGLE_SERVICE_ACCOUNT_JSON: '{"client_email":"x"}',
-        INTERNAL_TEST_SOURCE_SHA: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        ...cloud,
+        GOOGLE_CALENDAR_INTEGRATION_MODE: 'production'
       })
     ).toThrow(/production/);
+    expect(() =>
+      assertInternalTestOutboxBootAllowed({
+        ...cloud,
+        GOOGLE_SERVICE_ACCOUNT_JSON: '{"client_email":"x"}'
+      })
+    ).toThrow(/GOOGLE_SERVICE_ACCOUNT_JSON/);
+    expect(() =>
+      assertInternalTestOutboxBootAllowed({
+        ...cloud,
+        GOOGLE_APPLICATION_CREDENTIALS: '/var/secrets/key.json'
+      })
+    ).toThrow(/GOOGLE_APPLICATION_CREDENTIALS/);
     expect(() =>
       assertInternalTestOutboxBootAllowed({
         INTERNAL_TEST_OUTBOX_EXECUTION: 'cloud',
         GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01'
       })
-    ).toThrow(/in-memory calendar|PROCESSING_ENABLED|GOOGLE_CALENDAR/);
+    ).toThrow(/CLOUD_ADC|PROCESSING_ENABLED|GOOGLE_CALENDAR/);
   });
 
   it('keeps the runtime calendar-port injectable and does not enable watch', () => {
@@ -217,12 +228,42 @@ describe('internal-test outbox HTTP surface', () => {
     );
     expect(runtime).not.toMatch(/google-calendar/);
     expect(source).toMatch(/createCalendarPort/);
+    expect(source).toMatch(/calendar_unavailable/);
     expect(source).not.toMatch(/CalendarWatch|events\.watch/);
+  });
+
+  it('fails /ready closed when Calendar access is unavailable', async () => {
+    const runtime = {
+      calendar: {},
+      calendarReady: () =>
+        Promise.reject(new Error('Calendar access token was empty.')),
+      inspect: () =>
+        Promise.resolve({
+          snapshot: EMPTY_SNAPSHOT,
+          alerts: []
+        }),
+      run: () => Promise.reject(new Error('drain must not run for ready'))
+    };
+    const server = createInternalTestOutboxServer(runtime);
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const health = await http(port, '/health', 'GET');
+      expect(health.status).toBe(200);
+      const ready = await http(port, '/ready', 'GET');
+      expect(ready.status).toBe(503);
+      expect(JSON.parse(ready.body)).toEqual({ error: 'calendar_unavailable' });
+    } finally {
+      server.close();
+      await once(server, 'close');
+    }
   });
 
   it('refuses drain when processing is disabled for rollback', async () => {
     const runtime = {
       calendar: {},
+      calendarReady: NOOP_CALENDAR_READY,
       inspect: () =>
         Promise.resolve({
           snapshot: EMPTY_SNAPSHOT,

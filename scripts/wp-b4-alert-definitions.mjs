@@ -99,6 +99,9 @@ export function inspectWpB4TerraformSource(readFile = readFileSync) {
     'wp-b4-outbox-oldest-age',
     'duration        = "60s"',
     'threshold_value = 59',
+    'value_type  = "DISTRIBUTION"',
+    'ALIGN_PERCENTILE_99',
+    'EXTRACT(jsonPayload.oldestPendingAgeSeconds)',
     'c1-iam-setiampolicy',
     'resource "google_monitoring_alert_policy" "iam_setiampolicy_application"'
   ]) {
