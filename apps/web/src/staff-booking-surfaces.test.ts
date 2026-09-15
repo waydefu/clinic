@@ -2,43 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { hydrateStaff } from '../public/modules/hydrate-staff.js';
 import { isInternalTestBookingEnabled } from '../public/modules/api-client.js';
-import {
-  applyServerStaffSessionSnapshot,
-  isForbiddenStagingHost,
-  isIsolatedC1PreviewHost,
-  isPublicBookingPath,
-  isStaffWorkbenchPath,
-  wantsCalendarPilotOverlay
-} from '../public/modules/staff-booking-surfaces.js';
 
 describe('public booking vs staff surfaces', () => {
-  it('treats /booking as accountless and never a staff path', () => {
-    expect(isPublicBookingPath('/booking')).toBe(true);
-    expect(isPublicBookingPath('/patient.html')).toBe(true);
-    expect(isStaffWorkbenchPath('/booking')).toBe(false);
-    expect(isStaffWorkbenchPath('/staff')).toBe(true);
-    expect(wantsCalendarPilotOverlay('')).toBe(false);
-    expect(wantsCalendarPilotOverlay('?calendarPilot=1')).toBe(true);
-  });
-
   it('enables Canonical Booking API on isolated C1 preview without Google login', () => {
-    expect(
-      isIsolatedC1PreviewHost(
-        'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
-      )
-    ).toBe(true);
-    expect(
-      isIsolatedC1PreviewHost('beauessence-clinic-stg-c1a01.web.app')
-    ).toBe(false);
-    expect(isForbiddenStagingHost('beauessence-clinic-staging.web.app')).toBe(
-      true
-    );
     expect(
       isInternalTestBookingEnabled({
         hostname:
           'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
         search: ''
+      })
+    ).toBe(true);
+    expect(
+      isInternalTestBookingEnabled({
+        hostname: 'beauessence-clinic-stg-c1a01.web.app',
+        search: '?internalTestBooking=1'
       })
     ).toBe(true);
     expect(
@@ -63,7 +42,7 @@ describe('public booking vs staff surfaces', () => {
         return null;
       }
     };
-    const next = applyServerStaffSessionSnapshot(
+    const next = hydrateStaff(
       {
         workspace: {
           authenticated: false,
@@ -97,11 +76,29 @@ describe('public booking vs staff surfaces', () => {
       ),
       'utf8'
     );
+    const apiClient = readFileSync(
+      fileURLToPath(
+        new URL('../public/modules/api-client.js', import.meta.url)
+      ),
+      'utf8'
+    );
+    const transport = readFileSync(
+      fileURLToPath(
+        new URL(
+          '../public/modules/internal-test-booking-transport.js',
+          import.meta.url
+        )
+      ),
+      'utf8'
+    );
     expect(patient).not.toContain('calendar-pilot-entry.js');
     expect(patient).not.toContain('使用 Google 帳號登入');
-    expect(loader).toContain('isPublicBookingPath');
-    expect(loader).toContain('wantsCalendarPilotOverlay');
+    expect(loader).toContain("includes('calendarPilot=1')");
     expect(loader).toContain("sessionStorage.getItem('calPilotCsrf')");
+    expect(apiClient).toContain('beauessence-clinic-stg-');
+    expect(apiClient).toContain("hostname.includes('--')");
+    expect(transport).toContain("path === '/booking'");
+    expect(transport).toContain("publicBooking ? 'omit' : 'same-origin'");
     const client = readFileSync(
       fileURLToPath(new URL('./calendar-pilot-entry.js', import.meta.url)),
       'utf8'
@@ -125,7 +122,7 @@ describe('public booking vs staff surfaces', () => {
     };
     const session = { authenticated: false, account: null };
     expect(
-      applyServerStaffSessionSnapshot(
+      hydrateStaff(
         { workspace, session },
         {
           getItem(name: string) {
@@ -136,7 +133,7 @@ describe('public booking vs staff surfaces', () => {
       ).session.authenticated
     ).toBe(false);
     expect(
-      applyServerStaffSessionSnapshot(
+      hydrateStaff(
         { workspace, session },
         {
           getItem(name: string) {
@@ -148,7 +145,7 @@ describe('public booking vs staff surfaces', () => {
       ).session.authenticated
     ).toBe(false);
     expect(
-      applyServerStaffSessionSnapshot(
+      hydrateStaff(
         { workspace, session },
         {
           getItem(name: string) {

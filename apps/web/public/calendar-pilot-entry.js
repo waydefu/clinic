@@ -1,20 +1,5 @@
-// Keep the existing workbench fast and usable when CAL-PILOT is absent. The
-// Google/TOTP client and its styles load only after the same-origin API confirms
-// that this 30-day pilot is enabled. The build rewrites both lazy resources to
-// content-hashed filenames without preloading them. First-paint hide rules live
-// in workbench.css so the synthetic login cannot flash while this fetch runs.
-// General booking is accountless: never overlay Google/TOTP on /booking.
-// Default /staff uses Google+TOTP only to mint the server session, then the
-// Staff Workbench. Full CAL-PILOT chrome is opt-in via ?calendarPilot=1.
-import {
-  isPublicBookingPath,
-  wantsCalendarPilotOverlay
-} from './modules/staff-booking-surfaces.js';
-
-if (isPublicBookingPath(location.pathname)) {
-  document.documentElement.classList.add('synthetic-workbench-ready');
-} else if (
-  !wantsCalendarPilotOverlay(location.search) &&
+if (
+  !location.search.includes('calendarPilot=1') &&
   sessionStorage.getItem('calPilotCsrf')
 ) {
   document.documentElement.classList.add('synthetic-workbench-ready');

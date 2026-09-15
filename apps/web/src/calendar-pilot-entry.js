@@ -13,10 +13,6 @@ import {
 } from 'firebase/auth';
 import { CALENDAR_PILOT_SCHEDULE, planSlots } from '@beauessence/domain';
 import { resolveBootUser } from '../public/modules/pilot-auth-state.js';
-import {
-  isPublicBookingPath,
-  wantsCalendarPilotOverlay
-} from '../public/modules/staff-booking-surfaces.js';
 
 const API = '/v1';
 let csrfToken;
@@ -892,6 +888,14 @@ async function handoffToStaffWorkbench() {
   document.documentElement.classList.remove('calendar-pilot-active');
   document.documentElement.classList.add('synthetic-workbench-ready');
   root?.remove();
+}
+
+function isPublicBookingPath(pathname = '') {
+  return pathname === '/booking' || pathname.endsWith('/patient.html');
+}
+
+function wantsCalendarPilotOverlay(search = '') {
+  return new URLSearchParams(String(search)).get('calendarPilot') === '1';
 }
 
 async function boot() {

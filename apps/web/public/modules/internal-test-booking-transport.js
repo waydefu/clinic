@@ -322,24 +322,39 @@ export function createInternalTestBookingTransport({
   local,
   toError,
   fetchImpl = globalThis.fetch.bind(globalThis),
-  credentials = 'same-origin',
-  csrfToken = () =>
-    globalThis.sessionStorage?.getItem('calPilotCsrf') ?? undefined,
-  accessToken = () =>
-    globalThis.sessionStorage?.getItem('internalTestIdToken') ?? undefined
+  credentials,
+  csrfToken,
+  accessToken
 } = {}) {
   if (typeof local !== 'function')
     throw new TypeError('local transport is required.');
   if (typeof toError !== 'function')
     throw new TypeError('toError mapper is required.');
+  const path = String(globalThis.location?.pathname ?? '');
+  const publicBooking = path === '/booking' || path.endsWith('/patient.html');
+  const resolvedCredentials =
+    credentials ?? (publicBooking ? 'omit' : 'same-origin');
+  const resolvedCsrf =
+    csrfToken ??
+    (() =>
+      publicBooking
+        ? undefined
+        : (globalThis.sessionStorage?.getItem('calPilotCsrf') ?? undefined));
+  const resolvedAccess =
+    accessToken ??
+    (() =>
+      publicBooking
+        ? undefined
+        : (globalThis.sessionStorage?.getItem('internalTestIdToken') ??
+          undefined));
 
   const v1 = (mapped) =>
     requestV1(fetchImpl, mapped, {
       signal: undefined,
-      csrfToken: csrfToken(),
-      accessToken: accessToken(),
+      csrfToken: resolvedCsrf(),
+      accessToken: resolvedAccess(),
       toError,
-      credentials
+      credentials: resolvedCredentials
     });
 
   return async function internalTestBookingTransport(path, options = {}) {
@@ -404,10 +419,10 @@ export function createInternalTestBookingTransport({
     }
     const payload = await requestV1(fetchImpl, mapped, {
       signal: options.signal,
-      csrfToken: csrfToken(),
-      accessToken: accessToken(),
+      csrfToken: resolvedCsrf(),
+      accessToken: resolvedAccess(),
       toError,
-      credentials
+      credentials: resolvedCredentials
     });
     rememberReturnSession(payload?.sessionId);
     if (path === '/schedule/publish' && payload !== undefined) {

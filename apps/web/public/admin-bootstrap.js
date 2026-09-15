@@ -26,10 +26,6 @@ import {
   isInternalTestBookingEnabled,
   resolveApiClient
 } from './modules/api-client.js';
-import {
-  applyServerStaffSessionSnapshot,
-  clearServerStaffSession
-} from './modules/staff-booking-surfaces.js';
 import { upsertPatient } from './modules/patient-registry.js';
 import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
@@ -991,12 +987,9 @@ elements['logout'].addEventListener('click', async () => {
     control: elements['logout'],
     pendingLabel: '登出中…',
     action: async () => {
-      clearServerStaffSession();
-      await fetch('/v1/calendar-session', {
-        method: 'DELETE',
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' }
-      }).catch(() => undefined);
+      sessionStorage.removeItem('calPilotCsrf');
+      sessionStorage.removeItem('calPilotRole');
+      void fetch('/v1/calendar-session', { method: 'DELETE' });
       return post('/workspace/logout');
     },
     onSuccess: () => {
@@ -2044,7 +2037,10 @@ if (isInternalTestBookingEnabled()) {
 
 try {
   client = await resolveApiClient();
-  state = applyServerStaffSessionSnapshot(await client.request('/state'));
+  state = await client.request('/state');
+  if (sessionStorage.getItem('calPilotCsrf')) {
+    state = (await import('./modules/hydrate-staff.js')).hydrateStaff(state);
+  }
   enforceRoleDomBoundary();
   let accessDenied = false;
   initWorkspaceTabs({
