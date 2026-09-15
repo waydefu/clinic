@@ -49,6 +49,9 @@ describe('Stage E security invariants', () => {
 
   it('keeps isolated CSP off the staging Firebase origin and widget currently unembeddable', () => {
     expect(isolated).not.toContain(STAGING_AUTH_FRAME);
+    expect(read('firebase.isolated-api-preview.json')).not.toContain(
+      STAGING_AUTH_FRAME
+    );
     expect(csp).toContain("surface === 'widget'");
     expect(csp).toContain('frameAncestors: "\'none\'"');
     expect(csp).toContain('CURRENT_WIDGET_EMBED = DISABLED');

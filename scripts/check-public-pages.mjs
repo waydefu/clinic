@@ -65,6 +65,12 @@ const CAL_PILOT_API_REWRITE = Object.freeze({
   region: 'asia-east1',
   pinTag: true
 });
+const ISOLATED_API_REWRITE = Object.freeze({
+  source: '/v1/**',
+  serviceId: 'internal-test-api',
+  region: 'asia-east1',
+  pinTag: true
+});
 
 const isRecord = (value) =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -728,11 +734,11 @@ function sameJson(left, right) {
 }
 
 /**
- * Isolated C1 has no Cloud Run API, so preview Hosting is static-only.
- * Static public/predeploy/redirects/non-run rewrites must still match
- * firebase.json so a page-routing change cannot silently leave the isolated
- * config behind. CSP may differ: isolated must not trust the staging
- * Firebase app origin (F-10).
+ * Isolated C1 static rollback config remains Cloud Run-free. Static
+ * public/predeploy/redirects/non-run rewrites must still match firebase.json
+ * so a page-routing change cannot silently leave the isolated config behind.
+ * CSP may differ: isolated must not trust the staging Firebase app origin
+ * (F-10). Stage F API mounting uses firebase.isolated-api-preview.json.
  */
 export function compareIsolatedPreviewHosting(calPilot, isolated, failures) {
   if (!isRecord(isolated) || !isRecord(isolated.hosting)) {
@@ -805,6 +811,124 @@ export function compareIsolatedPreviewHosting(calPilot, isolated, failures) {
     failures.push(
       'firebase.isolated-preview.json 的非 Cloud Run rewrites 必須與 firebase.json 相同。'
     );
+}
+
+function isolatedCspHeadersMatch(hosting, label, failures) {
+  if (
+    !sameJson(hosting.headers, firebaseHostingHeaderBlocks(ISOLATED_AUTH_FRAME))
+  ) {
+    failures.push(
+      `${label} hosting.headers 必須與 isolated C1 CSP catalog 相同。`
+    );
+  }
+  const encoded = JSON.stringify(hosting.headers ?? []);
+  if (encoded.includes('beauessence-clinic-staging.firebaseapp.com')) {
+    failures.push(
+      `${label} 不得信任 beauessence-clinic-staging.firebaseapp.com。`
+    );
+  }
+}
+
+function compareIsolatedStaticSurface(calPilot, isolated, label, failures) {
+  if (!isRecord(isolated) || !isRecord(isolated.hosting)) {
+    failures.push(`${label}.hosting 必須是 object。`);
+    return null;
+  }
+  for (const key of ['firestore', 'auth', 'emulators']) {
+    if (isolated[key] !== undefined)
+      failures.push(
+        `${label} 不得宣告 ${key}；isolated preview 只部署 Hosting。`
+      );
+  }
+  const isolatedHosting = isolated.hosting;
+  const calPilotHosting = calPilot.hosting;
+  if (isolatedHosting.public !== calPilotHosting.public)
+    failures.push(`${label} hosting.public 必須與 firebase.json 相同。`);
+  if (!sameJson(isolatedHosting.predeploy, calPilotHosting.predeploy))
+    failures.push(`${label} hosting.predeploy 必須與 firebase.json 相同。`);
+  if (!sameJson(isolatedHosting.redirects, calPilotHosting.redirects))
+    failures.push(`${label} hosting.redirects 必須與 firebase.json 相同。`);
+  isolatedCspHeadersMatch(isolatedHosting, label, failures);
+  return { isolatedHosting, calPilotHosting };
+}
+
+/**
+ * Stage F isolated API Hosting: static routes unchanged, exactly one
+ * `/v1/**` rewrite to internal-test-api in asia-east1. Must not retarget
+ * live, staging, or cal-pilot-api.
+ */
+export function compareIsolatedApiPreviewHosting(
+  calPilot,
+  isolatedApi,
+  failures
+) {
+  if (!isRecord(calPilot) || !isRecord(calPilot.hosting)) {
+    failures.push('firebase.json.hosting 必須是 object。');
+    return;
+  }
+  const surface = compareIsolatedStaticSurface(
+    calPilot,
+    isolatedApi,
+    'firebase.isolated-api-preview.json',
+    failures
+  );
+  if (surface === null) return;
+  const isolatedRewrites = Array.isArray(surface.isolatedHosting.rewrites)
+    ? surface.isolatedHosting.rewrites
+    : [];
+  const runRewrites = isolatedRewrites.filter(
+    (rule) => isRecord(rule) && hasOwn(rule, 'run')
+  );
+  const staticRewrites = isolatedRewrites.filter(
+    (rule) => !(isRecord(rule) && hasOwn(rule, 'run'))
+  );
+  const calPilotStaticRewrites = Array.isArray(surface.calPilotHosting.rewrites)
+    ? surface.calPilotHosting.rewrites.filter(
+        (rule) => !(isRecord(rule) && hasOwn(rule, 'run'))
+      )
+    : [];
+  if (runRewrites.length !== 1) {
+    failures.push(
+      'firebase.isolated-api-preview.json 必須恰好有一筆 /v1/** Cloud Run rewrite 指向 internal-test-api。'
+    );
+  } else {
+    const rule = runRewrites[0];
+    if (isolatedRewrites[0] !== rule)
+      failures.push(
+        'firebase.isolated-api-preview.json 的 /v1/** rewrite 必須排在所有靜態規則前。'
+      );
+    if (rule.source !== ISOLATED_API_REWRITE.source)
+      failures.push(
+        `firebase.isolated-api-preview.json rewrite source 必須是 ${ISOLATED_API_REWRITE.source}。`
+      );
+    if (!isRecord(rule.run)) {
+      failures.push(
+        'firebase.isolated-api-preview.json rewrite.run 必須是 object。'
+      );
+    } else {
+      for (const key of ['serviceId', 'region', 'pinTag']) {
+        if (rule.run[key] !== ISOLATED_API_REWRITE[key])
+          failures.push(
+            `firebase.isolated-api-preview.json run.${key} 必須是 ${String(ISOLATED_API_REWRITE[key])}。`
+          );
+      }
+    }
+  }
+  if (!sameJson(staticRewrites, calPilotStaticRewrites))
+    failures.push(
+      'firebase.isolated-api-preview.json 的非 Cloud Run rewrites 必須與 firebase.json 相同。'
+    );
+  const encoded = JSON.stringify(isolatedApi);
+  if (encoded.includes('cal-pilot-api')) {
+    failures.push(
+      'firebase.isolated-api-preview.json 不得指向 cal-pilot-api。'
+    );
+  }
+  if (encoded.includes('beauessence-clinic-staging')) {
+    failures.push(
+      'firebase.isolated-api-preview.json 不得指向 beauessence-clinic-staging。'
+    );
+  }
 }
 
 function compareBudgets(pages, budgets, failures) {
@@ -1252,6 +1376,7 @@ export function checkPublicPageConfiguration({
   serverSource,
   firebase,
   isolatedFirebase,
+  isolatedApiFirebase,
   buildIndexableEntries,
   registerDecisions = null,
   scanSources = {},
@@ -1286,6 +1411,7 @@ export function checkPublicPageConfiguration({
     failures
   );
   compareIsolatedPreviewHosting(firebase, isolatedFirebase, failures);
+  compareIsolatedApiPreviewHosting(firebase, isolatedApiFirebase, failures);
   compareScans(pages, scanSources, failures);
 
   return {
@@ -1317,6 +1443,9 @@ export async function repositoryInputs() {
     serverSource: await read('apps', 'web', 'server.mjs'),
     firebase: JSON.parse(await read('firebase.json')),
     isolatedFirebase: JSON.parse(await read('firebase.isolated-preview.json')),
+    isolatedApiFirebase: JSON.parse(
+      await read('firebase.isolated-api-preview.json')
+    ),
     buildIndexableEntries: buildWeb.PUBLIC_INDEXABLE_ENTRIES,
     registerDecisions: [
       ...buildWeb.listRegisterDecisions(

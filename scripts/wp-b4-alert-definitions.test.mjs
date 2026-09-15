@@ -24,6 +24,16 @@ describe('WP-B4 alert definitions', () => {
     );
     expect(terraform).toContain('c1-application-alerts');
     expect(terraform).toContain('type         = "email"');
+    expect(terraform).toContain('wp-b4-outbox-oldest-age');
+    expect(terraform).toContain(
+      'resource "google_monitoring_alert_policy" "outbox_age"'
+    );
+    expect(terraform).toContain('threshold_value = 59');
+    expect(terraform).toContain('duration        = "60s"');
+    expect(terraform).toContain('c1-iam-setiampolicy');
+    expect(terraform).toContain(
+      'resource "google_monitoring_alert_policy" "iam_setiampolicy_application"'
+    );
     expect(terraform).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
     const example = readFileSync(
       join(root, 'infra/terraform/wp-b4-alerting/terraform.tfvars.example'),

@@ -1,0 +1,32 @@
+steps:
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - containers/api.Dockerfile
+      - --build-arg
+      - SOURCE_SHA=${_SOURCE_SHA}
+      - --tag
+      - asia-east1-docker.pkg.dev/$PROJECT_ID/internal-test/api:${_SOURCE_SHA}
+      - .
+    waitFor: ['-']
+  - id: build-worker
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - containers/internal-test-outbox.Dockerfile
+      - --build-arg
+      - SOURCE_SHA=${_SOURCE_SHA}
+      - --tag
+      - asia-east1-docker.pkg.dev/$PROJECT_ID/internal-test/worker:${_SOURCE_SHA}
+      - .
+    waitFor: ['-']
+images:
+  - asia-east1-docker.pkg.dev/$PROJECT_ID/internal-test/api:${_SOURCE_SHA}
+  - asia-east1-docker.pkg.dev/$PROJECT_ID/internal-test/worker:${_SOURCE_SHA}
+options:
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _SOURCE_SHA: unset

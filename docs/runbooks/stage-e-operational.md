@@ -406,9 +406,12 @@ Pub/Sub」。
 **Immediate containment.** 沒有 exact-SHA packet 就 STOP。
 
 **Diagnosis.** 確認 channel `internal-preproduction`、project
-`beauessence-clinic-stg-c1a01`、config `firebase.isolated-preview.json`。
-Hosting rewrite 到 Cloud Run 是 Stage F 工作，Stage E 故意不寫進 isolated
-JSON。
+`beauessence-clinic-stg-c1a01`。靜態 rollback 仍是
+`firebase.isolated-preview.json`（沒有 Cloud Run rewrite）。Stage F
+source 是 `firebase.isolated-api-preview.json`（`/v1/**` →
+`internal-test-api` / `asia-east1`）。在 post-merge exact-SHA packet
+之前不得 deploy。缺少 Cloud Run = `API_TARGET_MISSING`；rewrite 之後
+HTTP 404 = `API_NOT_MOUNTED` = FAIL；gate 關閉應為 503。
 
 **Recovery.** 依 Safety Floor 8 新 packet：靜態 + 具名 SHA 的 Run 服務。
 到期必須設定。禁止 live channel。

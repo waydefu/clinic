@@ -240,6 +240,67 @@ export function evaluateAllCSliceTerraform(repoRoot = root) {
   };
 }
 
+export const STAGE_F_TERRAFORM_MODULES = [
+  {
+    slice: 'F-RUN',
+    directory: 'infra/terraform/c1-internal-test-run',
+    allowedServiceSubstrings: [
+      'run.googleapis.com',
+      'artifactregistry.googleapis.com',
+      'cloudbuild.googleapis.com',
+      'cloudscheduler.googleapis.com'
+    ],
+    forbiddenSubstrings: [
+      'identitytoolkit.googleapis.com',
+      'firestore.googleapis.com',
+      'calendar-json.googleapis.com',
+      'google_firestore_database',
+      'google_secret_manager_secret_version',
+      'roles/owner',
+      'roles/editor',
+      ':latest',
+      '/cal-pilot/'
+    ]
+  },
+  {
+    slice: 'F-WP-B4',
+    directory: 'infra/terraform/wp-b4-alerting',
+    allowedServiceSubstrings: ['c1-application-alerts'],
+    forbiddenSubstrings: [
+      'google_secret_manager_secret_version',
+      'roles/owner',
+      'roles/editor',
+      'beauessence-clinic-staging.firebaseapp.com'
+    ]
+  }
+];
+
+export function evaluateAllStageFTerraform(repoRoot = root) {
+  const results = STAGE_F_TERRAFORM_MODULES.map((module) => {
+    const directory = join(repoRoot, module.directory);
+    const files = {
+      main: readFileSync(join(directory, 'main.tf'), 'utf8'),
+      variables: readFileSync(join(directory, 'variables.tf'), 'utf8'),
+      tftest: readFileSync(join(directory, 'noop.tftest.hcl'), 'utf8')
+    };
+    const evaluation = evaluateCSliceTerraformSource(module, files);
+    return {
+      slice: module.slice,
+      directory: module.directory,
+      validateCommands: terraformValidateCommands(module.directory),
+      ...evaluation
+    };
+  });
+  const issues = results.flatMap((result) => result.issues);
+  return {
+    ok: issues.length === 0,
+    issues,
+    results,
+    terraformCli: terraformCliStatus(),
+    apply: 'NOT_RUN'
+  };
+}
+
 function isDirectRun() {
   const invoked = process.argv[1];
   if (typeof invoked !== 'string' || invoked === '') return false;
@@ -247,7 +308,15 @@ function isDirectRun() {
 }
 
 if (isDirectRun()) {
-  const report = evaluateAllCSliceTerraform();
+  const cSlices = evaluateAllCSliceTerraform();
+  const stageF = evaluateAllStageFTerraform();
+  const report = {
+    ok: cSlices.ok && stageF.ok,
+    apply: 'NOT_RUN',
+    issues: [...cSlices.issues, ...stageF.issues],
+    results: [...cSlices.results, ...stageF.results],
+    terraformCli: cSlices.terraformCli
+  };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   process.exit(report.ok ? 0 : 1);
 }

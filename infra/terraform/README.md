@@ -21,7 +21,9 @@ production 或真實資料的 authority。候選不含 secret version，避免�
 `c2-identity/`、`c5-firestore/` 與 `c6-calendar/` 同樣 SHA-gated、預設不建立資源，且 C2／C5／C6
 `deploymentAuthorities` 仍為 `not_granted`。不得把 C2 Identity、C5 Firestore 或 C6 Calendar API
 混進 C1。`wp-b4-alerting/` 是 Stage E 的應用層告警來源：預設 `not_granted`，收件人只走
-tfvar／secret，不得 `apply` 直到 Stage F exact-SHA packet。
+tfvar／secret，不得 `apply` 直到 Stage F exact-SHA packet。`c1-internal-test-run/` 是 Stage F
+隔離 Cloud Run／Artifact Registry／paused outbox scheduler 來源：同樣預設 `not_granted`，
+digest-pinned image，拒絕 `latest` 與 staging cal-pilot path。本輪不得 apply。
 
 未來應分開管理：
 

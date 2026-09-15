@@ -69,6 +69,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [D-series approval packet template](templates/d-series-approval-packet-template.md) — standardised metadata, ceremony checklist, and register update procedure for every D-series approval
 - [Human blocker template](templates/human-blocker-template.md) — exact format for every HUMAN BLOCKER; copy verbatim, do not improvise
+- [Stage F exact-SHA authority packet template](templates/stage-f-exact-sha-authority-packet.md) — post-merge artifact bound to `origin/main`; not a self-invalidating docs commit; owner checkbox stays unchecked
 
 ## 3. Architecture and contracts
 
@@ -84,6 +85,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [API v1 contract baseline](architecture/api-v1-contract.md) — navigation layer for the schemas in `packages/contracts`
 - [Stage E monitoring and operational contract](architecture/stage-e-monitoring.md) — health vs readiness, WP-B4 thresholds, PII-safe signals, widget CSP `CURRENT_WIDGET_EMBED = DISABLED`; not apply authority
 - [Stage F deployed acceptance matrix](architecture/stage-f-deployed-acceptance-matrix.md) — spec-only Booking / Workbench / Calendar / security / persistence cases; not a deployment
+- [Stage F source readiness (E1–E7)](architecture/stage-f-source-readiness.md) — isolated Hosting rewrite, Cloud Run, images, worker, WP-B4, config contract, indexes; `IMPLEMENTED_NOT_DEPLOYED`; not apply
 - [Local Firestore baseline](architecture/firestore-local-baseline.md) — Emulator-only project and Rules baseline
 - [Synthetic Web modular architecture](architecture/synthetic-web-modular-architecture.md) — browser module boundaries and how they are later replaced by the real API
 - [Calendar and database integration plan](architecture/calendar-and-database-integration-plan.md) — staged route from the browser prototype to Firestore and a Calendar projection, and which decision blocks each stage
@@ -171,6 +173,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-15 | [Stage F E1–E7 source closeout](reviews/2026-09-15-stage-f-e1-e7-source-closeout.md) | Source only. E1–E7 `FIXED` in git. `CLOUD_MUTATION = NONE`. `STAGE_F_APPLY = NOT_STARTED`. `AUTHORITY_PACKET = WAITING_FOR_POST_MERGE_SHA`. PR #131 remains historical F0 (`BLOCKED_BY_SOURCE_GAPS`). Do not tick APPROVE. `INTERNAL_PREPRODUCTION_COMPLETE = FAIL`. |
 | 2026-09-15 | [Stage E monitoring / security / operational readiness](reviews/2026-09-15-stage-e-monitoring-readiness.md) | Engineering only. WP-B4 definitions, CSP, runbooks, evidence scripts. Widget `CURRENT_WIDGET_EMBED = DISABLED` (`frame-ancestors 'none'`). `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED`. No cloud apply. `INTERNAL_PREPRODUCTION_COMPLETE = FAIL`. |
 | 2026-09-15 | [WP-B1～B11 已簽署權威與 F-01～F-14 closure](reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md) | Stage A+B only. `origin/main` `2a336e9`. Signed WP-B1～B11 + Booking Page/Workbench scope. Isolated C1 still static preview, `/v1` HTTP 404. `INTERNAL_PREPRODUCTION_COMPLETE = FAIL`. No Cloud Run/Firebase mutation. Not Stage C. |
 | 2026-09-14 | [WP-B1～B6 業主連審表](reviews/2026-09-14-wp-b1-through-b6-owner-review.md) | **Superseded as waiting sheet** (2026-09-15 signed answers). Historical six-question packet. Not apply. |

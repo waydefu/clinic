@@ -4,6 +4,7 @@ import {
   C_SLICE_TERRAFORM_MODULES,
   blockIsApplyGated,
   evaluateAllCSliceTerraform,
+  evaluateAllStageFTerraform,
   evaluateCSliceTerraformSource,
   findHclBlocks,
   terraformValidateCommands
@@ -28,6 +29,17 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
       'C6'
     ]);
     expect(report.results[0].blockCount).toBeGreaterThan(5);
+  });
+
+  it('gates Stage F Cloud Run and WP-B4 source without applying', () => {
+    const report = evaluateAllStageFTerraform();
+    expect(report.ok).toBe(true);
+    expect(report.apply).toBe('NOT_RUN');
+    expect(report.issues).toEqual([]);
+    expect(report.results.map((result) => result.slice)).toEqual([
+      'F-RUN',
+      'F-WP-B4'
+    ]);
   });
 
   it('prints validate/plan/test commands that never apply and fail closed without a SHA', () => {

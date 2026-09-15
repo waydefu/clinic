@@ -159,8 +159,21 @@ locals {
   } : {}
 }
 
+resource "google_logging_metric" "outbox_oldest_age" {
+  count   = local.apply_enabled ? 1 : 0
+  project = var.project_id
+  name    = "wp-b4-outbox-oldest-age"
+  filter  = "jsonPayload.oldestPendingAgeSeconds>=0"
+  metric_descriptor {
+    metric_kind = "GAUGE"
+    value_type  = "INT64"
+    unit        = "s"
+  }
+  value_extractor = "EXTRACT(jsonPayload.oldestPendingAgeSeconds)"
+}
+
 resource "google_monitoring_alert_policy" "application" {
-  for_each     = local.application_policies
+  for_each     = local.apply_enabled ? local.application_policies : {}
   project      = var.project_id
   display_name = each.value.display_name
   combiner     = "OR"
@@ -187,6 +200,70 @@ resource "google_monitoring_alert_policy" "application" {
   }
   documentation {
     content   = "WP-B4 application alert. Recipients are not stored in git. HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED until Stage F delivery proof."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "outbox_age" {
+  count        = local.apply_enabled ? 1 : 0
+  project      = var.project_id
+  display_name = "WP-B4 excessive outbox age"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.application_pubsub[0].name,
+    google_monitoring_notification_channel.human_email[0].name
+  ]
+  conditions {
+    display_name = "WP-B4 excessive outbox age threshold"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.outbox_oldest_age[0].name}\" AND resource.type=\"global\""
+      duration        = "60s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 59
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MAX"
+      }
+      trigger {
+        count = 1
+      }
+    }
+  }
+  documentation {
+    content   = "Outbox oldest age remains 60 seconds. Do not relax to 5 minutes. Recipients are not stored in git."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "iam_setiampolicy_application" {
+  count        = local.apply_enabled ? 1 : 0
+  project      = var.project_id
+  display_name = "WP-B4 IAM SetIamPolicy"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.application_pubsub[0].name,
+    google_monitoring_notification_channel.human_email[0].name
+  ]
+  conditions {
+    display_name = "WP-B4 IAM SetIamPolicy threshold"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\" AND resource.type=\"global\""
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      aggregations {
+        alignment_period   = "300s"
+        per_series_aligner = "ALIGN_DELTA"
+      }
+      trigger {
+        count = 1
+      }
+    }
+  }
+  documentation {
+    content   = "Additional application notification path. Reuses the existing C1 log metric c1-iam-setiampolicy. Do not destroy the C1 budget Pub/Sub path."
     mime_type = "text/markdown"
   }
 }

@@ -10,8 +10,10 @@ import {
   firebaseHostingHeaderBlocks
 } from '../apps/web/csp-policy.mjs';
 import {
+  ISOLATED_API_PREVIEW_CONFIG,
   ISOLATED_PREVIEW_CONFIG,
   PLAN_USAGE,
+  planInternalTestApiPreviewDeploy,
   planInternalTestPreviewDeploy,
   runInternalTestPreviewPlanCli
 } from './internal-test-preview-plan.mjs';
@@ -148,6 +150,66 @@ describe('isolated preview Hosting config', () => {
     );
     expect(isolated.rewrites).toEqual(
       calPilot.rewrites.filter((rule) => !('run' in rule))
+    );
+  });
+});
+
+describe('planInternalTestApiPreviewDeploy', () => {
+  it('prints execute:false isolated API Hosting commands and detects a missing Run target', () => {
+    const plan = planInternalTestApiPreviewDeploy(PACKET, HEAD, {
+      cloudRunServices: []
+    });
+    expect(plan.execute).toBe(false);
+    expect(plan.config).toBe(ISOLATED_API_PREVIEW_CONFIG);
+    expect(plan.rollbackConfig).toBe(ISOLATED_PREVIEW_CONFIG);
+    expect(plan.apiTargetPresent).toBe(false);
+    expect(plan.apiTargetStatus).toBe('API_TARGET_MISSING');
+    expect(plan.blockers).toEqual(['API_TARGET_MISSING']);
+    expect(plan.apiNotMountedRule).toContain('API_NOT_MOUNTED');
+    expect(plan.deployCommand).toContain(
+      `--config=${ISOLATED_API_PREVIEW_CONFIG}`
+    );
+    expect(plan.rollbackStaticCommand).toContain(
+      `--config=${ISOLATED_PREVIEW_CONFIG}`
+    );
+    expect(plan.deployCommand).not.toMatch(
+      /--only\s+live|\bchannel:deploy live\b/
+    );
+    expect(plan.rollbackCommand).not.toMatch(/channel:delete live\b/);
+  });
+
+  it('clears the missing-target blocker when internal-test-api is listed', () => {
+    const plan = planInternalTestApiPreviewDeploy(PACKET, HEAD, {
+      cloudRunServices: [{ name: 'internal-test-api' }]
+    });
+    expect(plan.apiTargetPresent).toBe(true);
+    expect(plan.apiTargetStatus).toBe('PRESENT');
+    expect(plan.blockers).toEqual([]);
+    expect(plan.execute).toBe(false);
+  });
+});
+
+describe('isolated API preview Hosting config', () => {
+  it('rewrites /v1/** to internal-test-api and keeps Stage E CSP', () => {
+    const source = readFileSync(
+      join(root, ISOLATED_API_PREVIEW_CONFIG),
+      'utf8'
+    );
+    const config = JSON.parse(source);
+    const runRule = config.hosting.rewrites.find((rule) => 'run' in rule);
+    expect(runRule).toEqual({
+      source: '/v1/**',
+      run: {
+        serviceId: 'internal-test-api',
+        region: 'asia-east1',
+        pinTag: true
+      }
+    });
+    expect(config.hosting.rewrites[0]).toEqual(runRule);
+    expect(source).not.toContain('cal-pilot-api');
+    expect(source).not.toContain('beauessence-clinic-staging');
+    expect(config.hosting.headers).toEqual(
+      firebaseHostingHeaderBlocks(ISOLATED_AUTH_FRAME)
     );
   });
 });

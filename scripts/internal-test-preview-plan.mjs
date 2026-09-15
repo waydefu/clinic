@@ -5,8 +5,14 @@ import {
   isIsolatedC1ProjectId,
   isolatedC1ProjectIdError
 } from './isolated-c1-project-id.mjs';
+import {
+  INTERNAL_TEST_API_SERVICE,
+  ISOLATED_API_PREVIEW_CONFIG,
+  ISOLATED_PREVIEW_CONFIG as STATIC_ISOLATED_PREVIEW_CONFIG
+} from './internal-test-c1-identity.mjs';
 
-export const ISOLATED_PREVIEW_CONFIG = 'firebase.isolated-preview.json';
+export const ISOLATED_PREVIEW_CONFIG = STATIC_ISOLATED_PREVIEW_CONFIG;
+export { ISOLATED_API_PREVIEW_CONFIG };
 const CHANNEL_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 export function assertInternalTestPreviewPacket(packet, headSha) {
@@ -79,6 +85,69 @@ export function planInternalTestPreviewDeploy(packet, headSha) {
       '--force',
       `--project=${authorized.projectId}`,
       `--config=${ISOLATED_PREVIEW_CONFIG}`
+    ].join(' ')
+  };
+}
+
+function cloudRunApiTarget(inspect) {
+  const services = Array.isArray(inspect?.cloudRunServices)
+    ? inspect.cloudRunServices
+    : [];
+  return services.find((service) => {
+    const name = String(service?.name ?? service?.metadata?.name ?? '').trim();
+    const shortName = name.split('/').pop();
+    return shortName === INTERNAL_TEST_API_SERVICE;
+  });
+}
+
+/**
+ * Stage F Hosting plan. Static rollback remains firebase.isolated-preview.json.
+ * Missing Cloud Run is API_TARGET_MISSING — not a 404 fail-closed pass.
+ */
+export function planInternalTestApiPreviewDeploy(
+  packet,
+  headSha,
+  inspect = {}
+) {
+  const authorized = assertInternalTestPreviewPacket(packet, headSha);
+  const previewUrl = `https://${authorized.projectId}--${authorized.channel}.web.app/`;
+  const apiService = cloudRunApiTarget(inspect);
+  const apiTargetPresent = apiService !== undefined;
+  return {
+    execute: false,
+    config: ISOLATED_API_PREVIEW_CONFIG,
+    rollbackConfig: ISOLATED_PREVIEW_CONFIG,
+    previewUrl,
+    apiServiceId: INTERNAL_TEST_API_SERVICE,
+    apiTargetPresent,
+    apiTargetStatus: apiTargetPresent ? 'PRESENT' : 'API_TARGET_MISSING',
+    apiNotMountedRule: 'HTTP_404_AFTER_REWRITE_IS_API_NOT_MOUNTED_FAIL',
+    gateClosedRule: 'HTTP_503_IS_GATE_CLOSED',
+    blockers: apiTargetPresent ? [] : ['API_TARGET_MISSING'],
+    deployCommand: [
+      'firebase',
+      'hosting:channel:deploy',
+      authorized.channel,
+      `--expires=${authorized.expires}`,
+      `--project=${authorized.projectId}`,
+      `--config=${ISOLATED_API_PREVIEW_CONFIG}`
+    ].join(' '),
+    smokeCommand: `pnpm smoke:internal-test-booking -- ${previewUrl}`,
+    rollbackStaticCommand: [
+      'firebase',
+      'hosting:channel:deploy',
+      authorized.channel,
+      `--expires=${authorized.expires}`,
+      `--project=${authorized.projectId}`,
+      `--config=${ISOLATED_PREVIEW_CONFIG}`
+    ].join(' '),
+    rollbackCommand: [
+      'firebase',
+      'hosting:channel:delete',
+      authorized.channel,
+      '--force',
+      `--project=${authorized.projectId}`,
+      `--config=${ISOLATED_API_PREVIEW_CONFIG}`
     ].join(' ')
   };
 }

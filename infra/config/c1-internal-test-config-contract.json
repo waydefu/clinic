@@ -1,0 +1,183 @@
+{
+  "status": "IMPLEMENTED_NOT_DEPLOYED",
+  "projectId": "beauessence-clinic-stg-c1a01",
+  "region": "asia-east1",
+  "firestoreDatabase": "(default)",
+  "secretValuesInRepo": "FORBIDDEN",
+  "futureAuthorityCreates": [
+    "Secret Manager versions for empty c1-* containers",
+    "run.googleapis.com enablement",
+    "artifactregistry.googleapis.com enablement",
+    "cloudbuild.googleapis.com enablement",
+    "cloudscheduler.googleapis.com enablement"
+  ],
+  "entries": [
+    {
+      "name": "GOOGLE_CLOUD_PROJECT",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api", "worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "HOST",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api", "worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "PORT",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api", "worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "ALLOW_NON_LOOPBACK_BIND",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true
+    },
+    {
+      "name": "TRUSTED_PROXY_HOPS",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true
+    },
+    {
+      "name": "INTERNAL_TEST_BOOKING_ENABLED",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true
+    },
+    {
+      "name": "INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true,
+      "requiredWhen": {
+        "INTERNAL_TEST_BOOKING_ENABLED": "true"
+      }
+    },
+    {
+      "name": "INTERNAL_TEST_SOURCE_SHA",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api", "worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true
+    },
+    {
+      "name": "CALENDAR_PILOT_FIREBASE_WEB_API_KEY",
+      "class": "SECRET_REFERENCE",
+      "secretId": "c1-staff-firebase-web-api-key",
+      "requiredFor": ["api"],
+      "cloudRequired": true
+    },
+    {
+      "name": "CALENDAR_PILOT_MANAGER_EMAILS",
+      "class": "SECRET_REFERENCE",
+      "secretId": "c1-staff-manager-allowlist",
+      "requiredFor": ["api"],
+      "cloudRequired": true
+    },
+    {
+      "name": "CALENDAR_PILOT_FRONT_DESK_EMAILS",
+      "class": "SECRET_REFERENCE",
+      "secretId": "c1-staff-front-desk-allowlist",
+      "requiredFor": ["api"],
+      "cloudRequired": true
+    },
+    {
+      "name": "INTERNAL_TEST_OUTBOX_EXECUTION",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "GOOGLE_CALENDAR_INTEGRATION_MODE",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "GOOGLE_CALENDAR_ID",
+      "class": "SECRET_REFERENCE",
+      "secretId": "c1-synthetic-calendar-id",
+      "requiredFor": ["worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "GOOGLE_SERVICE_ACCOUNT_JSON",
+      "class": "SECRET_REFERENCE",
+      "secretId": "c1-calendar-service-account-json",
+      "requiredFor": ["worker"],
+      "cloudRequired": true
+    },
+    {
+      "name": "FIRESTORE_EMULATOR_HOST",
+      "class": "RUNTIME_DERIVED",
+      "requiredFor": ["api", "worker"],
+      "cloudRequired": false,
+      "cloudMustBeEmpty": true
+    },
+    {
+      "name": "alert_email_address",
+      "class": "SECRET_REFERENCE",
+      "secretId": "tfvar_or_secret_never_in_repo",
+      "requiredFor": ["monitoring"],
+      "cloudRequired": true
+    },
+    {
+      "name": "staff_session_cookie",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": false,
+      "source": "apps/api/src/auth/calendar-pilot-session.ts",
+      "notes": "Cookie __session, HttpOnly Secure SameSite=Strict. Not an env var."
+    },
+    {
+      "name": "staff_csrf_header",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": false,
+      "source": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+      "notes": "Staff writes require x-csrf-token. Public booking stays anonymous without Bearer."
+    },
+    {
+      "name": "public_booking_accountless",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": false,
+      "notes": "General booking is NO account / NO patient login / NO OTP. Return is phone+DOB. Cloud Run allUsers is Hosting rewrite transport only."
+    },
+    {
+      "name": "hosting_connect_src",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": false,
+      "source": "firebase.isolated-api-preview.json",
+      "notes": "Same-origin Hosting rewrite; CSP connect-src 'self'. No staging firebaseapp.com."
+    },
+    {
+      "name": "service_account_json_value",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false
+    },
+    {
+      "name": "real_patient_data",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false
+    }
+  ]
+}
