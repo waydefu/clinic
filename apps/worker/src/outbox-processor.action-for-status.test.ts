@@ -53,4 +53,11 @@ describe('actionForStatus', () => {
       })
     ).toBe(true);
   });
+
+  it('refuses unknown status instead of cancelling the calendar event', () => {
+    expect(() => actionForStatus('unknown')).toThrow(DomainError);
+    expect(() => actionForStatus('not_a_status')).toThrow(
+      /unknown appointment status/
+    );
+  });
 });
