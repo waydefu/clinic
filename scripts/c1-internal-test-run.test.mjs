@@ -126,4 +126,52 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
       read('infra/terraform/c1-internal-test-run/noop.tftest.hcl')
     ).toContain('named_sha_without_auth_domain_is_rejected');
   });
+
+  it('pins secrets per service and does not let the retired shared input govern mounts', () => {
+    const tftest = read('infra/terraform/c1-internal-test-run/noop.tftest.hcl');
+    const readme = read('infra/terraform/c1-internal-test-run/README.md');
+
+    expect(variables).toContain('variable "api_secret_versions"');
+    expect(variables).toContain('variable "worker_secret_versions"');
+    expect(variables).toContain('GOOGLE_CALENDAR_ID = "not_granted"');
+    expect(variables).toContain('latest is refused');
+    expect(variables).toContain('Retired shared pin');
+    expect(variables).not.toMatch(
+      /GOOGLE_CALENDAR_ID\s*==\s*"2"|GOOGLE_CALENDAR_ID\s*=\s*"2"/
+    );
+
+    expect(main).toContain('version = var.api_secret_versions[env.key]');
+    expect(main).toContain('version = var.worker_secret_versions[env.key]');
+    expect(main).toContain('resolved_google_calendar_id_secret_version');
+    expect(main).toContain('check "secret_pins_required_on_apply"');
+    expect(main).not.toContain('version = var.secret_resource_version');
+    expect(main).not.toContain(
+      'mount_secrets = local.apply_enabled && var.secret_resource_version'
+    );
+
+    expect(example).toContain('api_secret_versions');
+    expect(example).toContain('worker_secret_versions');
+    expect(example).toContain('GOOGLE_CALENDAR_ID = "2"');
+    expect(example).not.toMatch(/^\s*secret_resource_version\s*=/m);
+
+    expect(readme).toContain('api_secret_versions');
+    expect(readme).toContain('worker_secret_versions');
+    expect(readme).toContain('secret_resource_version');
+    expect(readme).toContain('input pin, not a permanent source invariant');
+
+    expect(tftest).toContain(
+      'current_c1_input_pins_calendar_to_explicit_approved_version'
+    );
+    expect(tftest).toContain('changing_another_pin_cannot_alter_calendar');
+    expect(tftest).toContain('future_calendar_pin_follows_explicit_input_only');
+    expect(tftest).toContain('GOOGLE_CALENDAR_ID = "3"');
+    expect(tftest).toContain('retired_shared_pin_cannot_govern_all_mounts');
+    expect(tftest).toContain('secret_resource_version   = "1"');
+    expect(tftest).toContain('missing_calendar_pin_on_apply_is_rejected');
+    expect(tftest).toContain('latest_calendar_pin_is_rejected');
+    expect(tftest).toContain('GOOGLE_CALENDAR_ID = "latest"');
+    expect(tftest).not.toMatch(
+      /condition\s*=\s*var\.worker_secret_versions\.GOOGLE_CALENDAR_ID\s*==\s*"2"\s*\n\s*error_message = ".*must remain 2/
+    );
+  });
 });

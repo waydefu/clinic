@@ -5,6 +5,15 @@
 # Replace c1tmp with an unused 1-7 character [a-z0-9] suffix (GCP id max 30).
 # firebase_auth_domain is the isolated Hosting preview host, with no scheme.
 # Do not substitute ${project_id}.firebaseapp.com.
+#
+# Local-input migration from secret_resource_version:
+# That shared pin is retired and cannot govern API or worker mounts. If a
+# local terraform.tfvars still has secret_resource_version = 1, delete or
+# ignore it — it must not be copied onto GOOGLE_CALENDAR_ID. Set independent
+# api_secret_versions and worker_secret_versions. Current approved C1
+# Calendar input is "2" (not a permanent source invariant). A later
+# authorized 2→3 rotation changes this input only. latest is refused.
+# Apply with any pin still not_granted fails closed.
 
 project_id                           = "beauessence-clinic-stg-c1tmp"
 region                               = "asia-east1"
@@ -17,5 +26,12 @@ internal_test_booking_enabled        = false
 internal_test_booking_expires_at_utc = ""
 worker_processing_enabled            = false
 worker_schedule_paused               = true
-secret_resource_version              = "not_granted"
+api_secret_versions = {
+  CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "not_granted"
+  CALENDAR_PILOT_MANAGER_EMAILS       = "not_granted"
+  CALENDAR_PILOT_FRONT_DESK_EMAILS    = "not_granted"
+}
+worker_secret_versions = {
+  GOOGLE_CALENDAR_ID = "2"
+}
 firebase_auth_domain                 = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
