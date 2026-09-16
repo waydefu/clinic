@@ -33,7 +33,7 @@ export const CALENDAR_PILOT_CLIENT_AUTH_KEYS = Object.freeze([
   'calPilotRole'
 ]);
 
-export const CALENDAR_PILOT_LOGOUT_GUARD_KEY = 'calPilotLogoutInProgress';
+export const CALENDAR_PILOT_LOGOUT_GUARD_KEY = 'calPilotOut';
 
 let calendarPilotLogoutInFlight;
 
@@ -90,6 +90,7 @@ function calendarPilotLogoutIncomplete(cause, evidence) {
 
 async function runCalendarPilotLogoutTeardown(ports) {
   beginCalendarPilotLogout(ports.storage);
+  clearCalendarPilotClientAuthState(ports.storage);
   let serverTerminated = false;
   let serverError;
   try {
@@ -106,8 +107,6 @@ async function runCalendarPilotLogoutTeardown(ports) {
     firebaseSignedOut = true;
   } catch (error) {
     firebaseError = error;
-  } finally {
-    clearCalendarPilotClientAuthState(ports.storage);
   }
 
   const evidence = Object.freeze({
@@ -137,6 +136,53 @@ export function teardownCalendarPilotSessions(ports) {
     }
   );
   return calendarPilotLogoutInFlight;
+}
+
+export async function deleteCalendarPilotServerSession(ports) {
+  const storage = ports.storage ?? globalThis.sessionStorage;
+  const fetchImpl = ports.fetch ?? globalThis.fetch.bind(globalThis);
+  const csrf = storage.getItem('calPilotCsrf');
+  const headers = { Accept: 'application/json' };
+  if (typeof csrf === 'string' && csrf !== '') headers['X-CSRF-Token'] = csrf;
+  const response = await fetchImpl('/v1/calendar-session', {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers
+  });
+  if (response.ok === true) return;
+  const body = await response.json().catch(() => ({}));
+  const error = new Error(body?.error?.message ?? '伺服器工作階段未能結束。');
+  error.code = body?.error?.code ?? 'REQUEST_FAILED';
+  throw error;
+}
+
+export async function signOutCalendarPilotFirebaseFromClient(ports) {
+  const module = await ports.importClient();
+  if (typeof module.signOutCalendarPilotFirebase !== 'function') {
+    const error = new Error('目前無法結束 Google 登入狀態。');
+    error.code = 'CALENDAR_PILOT_SIGNOUT_UNAVAILABLE';
+    throw error;
+  }
+  await module.signOutCalendarPilotFirebase();
+}
+
+export async function runWorkbenchCalendarPilotLogout(ports) {
+  try {
+    await teardownCalendarPilotSessions({
+      deleteServerSession: () => deleteCalendarPilotServerSession(ports),
+      signOut: () => signOutCalendarPilotFirebaseFromClient(ports),
+      storage: ports.storage ?? globalThis.sessionStorage
+    });
+  } catch (error) {
+    try {
+      await ports.post('/workspace/logout');
+    } catch {
+      // Local chrome lock is best-effort after calendar teardown failure.
+    }
+    ports.render();
+    throw error;
+  }
+  return ports.post('/workspace/logout');
 }
 
 /**

@@ -1,8 +1,6 @@
-import { shouldHydrateCalendarPilotWorkbench } from './modules/pilot-google-totp-session.js';
-
 if (
   !location.search.includes('calendarPilot=1') &&
-  shouldHydrateCalendarPilotWorkbench(sessionStorage)
+  sessionStorage.getItem('calPilotCsrf')
 ) {
   document.documentElement.classList.add('synthetic-workbench-ready');
 } else {

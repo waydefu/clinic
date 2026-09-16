@@ -11,7 +11,9 @@ import {
   isCalendarPilotLogoutInProgress,
   isCalendarPilotSessionAuthenticationRequired,
   shouldHydrateCalendarPilotWorkbench,
-  teardownCalendarPilotSessions
+  teardownCalendarPilotSessions,
+  deleteCalendarPilotServerSession,
+  runWorkbenchCalendarPilotLogout
 } from '../public/modules/pilot-google-totp-session.js';
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -321,7 +323,7 @@ describe('teardownCalendarPilotSessions', () => {
     expect(isCalendarPilotLogoutInProgress(storage)).toBe(true);
     expect(shouldHydrateCalendarPilotWorkbench(storage)).toBe(false);
     expect(signOut).not.toHaveBeenCalled();
-    expect(storage.getItem('calPilotCsrf')).toBe('csrf_test');
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
     releaseDelete();
     await expect(pending).resolves.toEqual({
       serverTerminated: true,
@@ -408,5 +410,57 @@ describe('teardownCalendarPilotSessions', () => {
     await expect(second).resolves.toMatchObject({ serverTerminated: true });
     expect(deleteServerSession).toHaveBeenCalledTimes(1);
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('deleteCalendarPilotServerSession', () => {
+  it('awaits a credentialed DELETE and does not treat HTTP failure as success', async () => {
+    const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
+    const fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        json: () =>
+          Promise.resolve({
+            error: {
+              message: '伺服器工作階段未能結束。',
+              code: 'INTERNAL_ERROR'
+            }
+          })
+      })
+    );
+    await expect(
+      deleteCalendarPilotServerSession({ fetch, storage })
+    ).rejects.toMatchObject({ code: 'INTERNAL_ERROR' });
+    expect(fetch).toHaveBeenCalledWith('/v1/calendar-session', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'X-CSRF-Token': 'csrf_test'
+      }
+    });
+  });
+});
+
+describe('runWorkbenchCalendarPilotLogout', () => {
+  it('locks local chrome when DELETE fails and still signs out', async () => {
+    const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
+    const post = vi.fn(() => Promise.resolve());
+    const render = vi.fn();
+    const signOut = vi.fn(() => Promise.resolve());
+    await expect(
+      runWorkbenchCalendarPilotLogout({
+        fetch: () => Promise.reject(new Error('delete-failed')),
+        storage,
+        post,
+        render,
+        importClient: () =>
+          Promise.resolve({ signOutCalendarPilotFirebase: signOut })
+      })
+    ).rejects.toMatchObject({ code: 'CALENDAR_PILOT_LOGOUT_INCOMPLETE' });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith('/workspace/logout');
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
   });
 });
