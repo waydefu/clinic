@@ -6,6 +6,14 @@ mock_provider "google" {}
 run "default_sha_is_noop" {
   command = plan
 
+  variables {
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    api_image                 = ""
+    worker_image              = ""
+    secret_resource_version   = "not_granted"
+  }
+
   assert {
     condition     = local.apply_enabled == false
     error_message = "C1 internal-test apply_enabled must be false when SHA is not_granted."
@@ -110,7 +118,9 @@ run "latest_image_is_rejected" {
   command = plan
 
   variables {
-    api_image = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api:latest"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api:latest"
   }
 
   expect_failures = [
@@ -122,7 +132,9 @@ run "staging_project_is_rejected" {
   command = plan
 
   variables {
-    project_id = "beauessence-clinic-staging"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    project_id                = "beauessence-clinic-staging"
   }
 
   expect_failures = [
@@ -134,7 +146,9 @@ run "wrong_region_is_rejected" {
   command = plan
 
   variables {
-    region = "us-central1"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    region                    = "us-central1"
   }
 
   expect_failures = [
@@ -146,7 +160,9 @@ run "production_service_name_is_rejected" {
   command = plan
 
   variables {
-    api_service_id = "production-api"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    api_service_id            = "production-api"
   }
 
   expect_failures = [
@@ -174,7 +190,8 @@ run "firebaseapp_auth_domain_is_rejected" {
   command = plan
 
   variables {
-    firebase_auth_domain = "beauessence-clinic-stg-c1a01.firebaseapp.com"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.firebaseapp.com"
   }
 
   expect_failures = [
@@ -186,7 +203,8 @@ run "staging_auth_domain_is_rejected" {
   command = plan
 
   variables {
-    firebase_auth_domain = "beauessence-clinic-staging.firebaseapp.com"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = "beauessence-clinic-staging.firebaseapp.com"
   }
 
   expect_failures = [
@@ -198,7 +216,8 @@ run "production_auth_domain_is_rejected" {
   command = plan
 
   variables {
-    firebase_auth_domain = "beauessence.com.tw"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = "beauessence.com.tw"
   }
 
   expect_failures = [
@@ -210,7 +229,8 @@ run "unrelated_auth_domain_is_rejected" {
   command = plan
 
   variables {
-    firebase_auth_domain = "example.com"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = "example.com"
   }
 
   expect_failures = [
@@ -222,7 +242,8 @@ run "auth_domain_with_scheme_is_rejected" {
   command = plan
 
   variables {
-    firebase_auth_domain = "https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = "https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
   }
 
   expect_failures = [

@@ -74,5 +74,11 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     );
     expect(example).toContain('worker_processing_enabled            = false');
     expect(example).toContain('worker_schedule_paused               = true');
+    expect(
+      read('infra/terraform/c1-internal-test-run/noop.tftest.hcl')
+    ).toContain('exact_apply_authority_sha = "not_granted"');
+    expect(
+      read('infra/terraform/c1-internal-test-run/noop.tftest.hcl')
+    ).toContain('named_sha_without_auth_domain_is_rejected');
   });
 });

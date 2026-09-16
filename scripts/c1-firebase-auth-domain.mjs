@@ -162,6 +162,14 @@ export function inspectC1FirebaseAuthDomainSource(repoRoot = root) {
       'C1 terraform tests must reject firebaseapp.com as authDomain.'
     );
   }
+  if (
+    !tftest.includes('exact_apply_authority_sha = "not_granted"') ||
+    !tftest.includes('firebase_auth_domain      = ""')
+  ) {
+    issues.push(
+      'C1 terraform noop test must pin not_granted SHA and empty firebase_auth_domain.'
+    );
+  }
   if (entry?.class !== 'NON_SECRET_CONFIG' || entry?.cloudRequired !== true) {
     issues.push(
       'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN must remain NON_SECRET_CONFIG cloudRequired api.'
