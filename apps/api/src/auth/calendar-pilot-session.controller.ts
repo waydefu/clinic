@@ -17,6 +17,10 @@ import {
   type CalendarPilotSessionService
 } from './calendar-pilot-session.js';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
+import {
+  isAuthorizedC1FirebaseAuthDomain,
+  isIsolatedC1ProjectId
+} from '../platform/runtime/c1-firebase-auth-domain.js';
 import { CALENDAR_PILOT_SESSIONS } from '../calendar/calendar-pilot.tokens.js';
 
 interface HeaderReply {
@@ -45,6 +49,12 @@ export class CalendarPilotSessionController {
       projectId === undefined
     )
       throw new AuthenticationRequiredError();
+    if (
+      isIsolatedC1ProjectId(projectId) &&
+      !isAuthorizedC1FirebaseAuthDomain(authDomain)
+    ) {
+      throw new AuthenticationRequiredError();
+    }
     return { apiKey, authDomain, projectId };
   }
 

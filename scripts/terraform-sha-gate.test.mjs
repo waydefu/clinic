@@ -54,6 +54,14 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
     );
     expect(commands.join('\n')).not.toMatch(/\bapply\b/);
     expect(commands.join('\n')).not.toContain('beauessence-clinic-staging');
+    const c1Run = terraformValidateCommands(
+      'infra/terraform/c1-internal-test-run'
+    ).join('\n');
+    expect(c1Run).toContain(
+      '-var=firebase_auth_domain=beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+    );
+    expect(c1Run).not.toContain('firebaseapp.com');
+    expect(c1Run).not.toMatch(/\bapply\b/);
   });
 
   it('rejects an ungated resource or a C1 Firestore bleed', () => {

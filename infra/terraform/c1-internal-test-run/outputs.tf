@@ -18,6 +18,11 @@ output "artifact_registry_repository" {
   value       = "internal-test"
 }
 
+output "firebase_auth_domain" {
+  description = "Non-secret C1 Firebase authDomain. Empty when not applying. No scheme."
+  value       = var.firebase_auth_domain
+}
+
 output "execute" {
   description = "Source plans never execute."
   value       = false

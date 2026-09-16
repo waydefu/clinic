@@ -1,4 +1,7 @@
-const ISOLATED_C1_PROJECT_ID = 'beauessence-clinic-stg-c1a01';
+import {
+  isAuthorizedC1FirebaseAuthDomain,
+  isIsolatedC1ProjectId
+} from './c1-firebase-auth-domain.js';
 
 export const API_CLOUD_ALWAYS_REQUIRED_ENV = [
   'GOOGLE_CLOUD_PROJECT',
@@ -31,10 +34,17 @@ export function apiCloudRequiredConfigPresent(
     env['GCLOUD_PROJECT_ID'] ??
     ''
   ).trim();
-  if (project !== ISOLATED_C1_PROJECT_ID) return true;
+  if (!isIsolatedC1ProjectId(project)) return true;
   if (
     !API_CLOUD_ALWAYS_REQUIRED_ENV.every(
       (name) => (env[name] ?? '').trim() !== ''
+    )
+  ) {
+    return false;
+  }
+  if (
+    !isAuthorizedC1FirebaseAuthDomain(
+      env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN']
     )
   ) {
     return false;

@@ -15,6 +15,7 @@ import {
   tokenHasTotpSecondFactor,
   type CalendarPilotSessionService
 } from './calendar-pilot-session.js';
+import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
 function parseSetCookie(header: string): {
   readonly name: string;
@@ -239,5 +240,49 @@ describe('CAL-PILOT Hosting-forwarded session cookie contract', () => {
     expect(cookie.value).toBe('');
     expect(cookie.attributes['max-age']).toBe('0');
     expectLockedSessionCookieScope(cookie.attributes);
+  });
+});
+
+describe('isolated C1 staff client-config authDomain', () => {
+  const previous = {
+    apiKey: process.env['CALENDAR_PILOT_FIREBASE_WEB_API_KEY'],
+    authDomain: process.env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'],
+    projectId: process.env['GOOGLE_CLOUD_PROJECT']
+  };
+
+  function restoreEnv(): void {
+    restoreOne('CALENDAR_PILOT_FIREBASE_WEB_API_KEY', previous.apiKey);
+    restoreOne('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN', previous.authDomain);
+    restoreOne('GOOGLE_CLOUD_PROJECT', previous.projectId);
+  }
+
+  function restoreOne(name: string, value: string | undefined): void {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+
+  it('returns the authorized isolated preview host and rejects firebaseapp.com', () => {
+    const controller = new CalendarPilotSessionController(
+      {} as CalendarPilotSessionService
+    );
+    try {
+      process.env['CALENDAR_PILOT_FIREBASE_WEB_API_KEY'] = 'synthetic-api-key';
+      process.env['GOOGLE_CLOUD_PROJECT'] = 'beauessence-clinic-stg-c1a01';
+      process.env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'] =
+        'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+      expect(controller.clientConfig()).toEqual({
+        apiKey: 'synthetic-api-key',
+        authDomain:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        projectId: 'beauessence-clinic-stg-c1a01'
+      });
+      process.env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'] =
+        'beauessence-clinic-stg-c1a01.firebaseapp.com';
+      expect(() => controller.clientConfig()).toThrow(
+        AuthenticationRequiredError
+      );
+    } finally {
+      restoreEnv();
+    }
   });
 });

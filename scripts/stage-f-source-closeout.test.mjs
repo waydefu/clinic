@@ -104,6 +104,33 @@ describe('C1 config contract', () => {
         'api'
       ).missing
     ).toContain('INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC');
+    expect(
+      evaluateRequiredCloudConfig(
+        {
+          CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN:
+            'beauessence-clinic-stg-c1a01.firebaseapp.com'
+        },
+        'api'
+      ).missing
+    ).toContain('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN_INVALID');
+    expect(
+      evaluateRequiredCloudConfig(
+        {
+          CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN:
+            'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+        },
+        'api'
+      ).missing
+    ).not.toContain('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN');
+    expect(
+      evaluateRequiredCloudConfig(
+        {
+          CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN:
+            'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+        },
+        'api'
+      ).missing
+    ).not.toContain('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN_INVALID');
     const redacted = redactConfigForLogs({
       GOOGLE_SERVICE_ACCOUNT_JSON: 'super-secret',
       GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01'

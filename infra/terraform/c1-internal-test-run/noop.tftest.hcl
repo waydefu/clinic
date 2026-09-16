@@ -38,6 +38,7 @@ run "named_sha_without_images_is_rejected" {
   variables {
     exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     project_id                = "beauessence-clinic-stg-smoke1"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
   }
 
   expect_failures = [
@@ -53,6 +54,7 @@ run "named_sha_with_digest_plans_isolated_run" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
   }
 
   assert {
@@ -91,6 +93,16 @@ run "named_sha_with_digest_plans_isolated_run" {
       "run.googleapis.com"
     )
     error_message = "Stage F source must declare run.googleapis.com enablement."
+  }
+
+  assert {
+    condition     = var.firebase_auth_domain == "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    error_message = "C1 apply plan must keep firebase_auth_domain on the authorized isolated preview host."
+  }
+
+  assert {
+    condition     = !strcontains(var.firebase_auth_domain, "firebaseapp.com")
+    error_message = "C1 runtime authDomain must not be firebaseapp.com."
   }
 }
 
@@ -139,5 +151,81 @@ run "production_service_name_is_rejected" {
 
   expect_failures = [
     var.api_service_id
+  ]
+}
+
+run "named_sha_without_auth_domain_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = ""
+  }
+
+  expect_failures = [
+    check.auth_domain_required_on_apply
+  ]
+}
+
+run "firebaseapp_auth_domain_is_rejected" {
+  command = plan
+
+  variables {
+    firebase_auth_domain = "beauessence-clinic-stg-c1a01.firebaseapp.com"
+  }
+
+  expect_failures = [
+    var.firebase_auth_domain
+  ]
+}
+
+run "staging_auth_domain_is_rejected" {
+  command = plan
+
+  variables {
+    firebase_auth_domain = "beauessence-clinic-staging.firebaseapp.com"
+  }
+
+  expect_failures = [
+    var.firebase_auth_domain
+  ]
+}
+
+run "production_auth_domain_is_rejected" {
+  command = plan
+
+  variables {
+    firebase_auth_domain = "beauessence.com.tw"
+  }
+
+  expect_failures = [
+    var.firebase_auth_domain
+  ]
+}
+
+run "unrelated_auth_domain_is_rejected" {
+  command = plan
+
+  variables {
+    firebase_auth_domain = "example.com"
+  }
+
+  expect_failures = [
+    var.firebase_auth_domain
+  ]
+}
+
+run "auth_domain_with_scheme_is_rejected" {
+  command = plan
+
+  variables {
+    firebase_auth_domain = "https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+  }
+
+  expect_failures = [
+    var.firebase_auth_domain
   ]
 }

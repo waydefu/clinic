@@ -2,6 +2,8 @@ import { accessSync, constants, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { ISOLATED_C1_FIREBASE_AUTH_DOMAIN } from './internal-test-c1-identity.mjs';
+
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 function hasCli(name) {
@@ -142,11 +144,17 @@ export function blockIsApplyGated(block) {
 }
 
 export function terraformValidateCommands(directory) {
+  const planVars = ['-var=exact_apply_authority_sha=not_granted'];
+  if (directory === 'infra/terraform/c1-internal-test-run') {
+    planVars.push(
+      `-var=firebase_auth_domain=${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}`
+    );
+  }
   return [
     `terraform -chdir=${directory} init -backend=false -input=false`,
     `terraform -chdir=${directory} validate`,
     `terraform -chdir=${directory} test`,
-    `terraform -chdir=${directory} plan -input=false -lock=false -refresh=false -var=exact_apply_authority_sha=not_granted`
+    `terraform -chdir=${directory} plan -input=false -lock=false -refresh=false ${planVars.join(' ')}`
   ];
 }
 
@@ -251,7 +259,8 @@ export const STAGE_F_TERRAFORM_MODULES = [
       'cloudscheduler.googleapis.com',
       'GOOGLE_CALENDAR_AUTH',
       'CLOUD_ADC',
-      'ignore_changes = [traffic]'
+      'ignore_changes = [traffic]',
+      'value = var.firebase_auth_domain'
     ],
     forbiddenSubstrings: [
       'identitytoolkit.googleapis.com',
@@ -264,7 +273,8 @@ export const STAGE_F_TERRAFORM_MODULES = [
       ':latest',
       '/cal-pilot/',
       'GOOGLE_APPLICATION_CREDENTIALS',
-      'name  = "PORT"'
+      'name  = "PORT"',
+      '${var.project_id}.firebaseapp.com'
     ]
   },
   {

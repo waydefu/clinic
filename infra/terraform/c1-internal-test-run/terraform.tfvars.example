@@ -1,17 +1,21 @@
 # Copy to terraform.tfvars locally. Do not commit terraform.tfvars.
 # Do not paste image digests from production, secret values, or billing IDs.
-# Apply needs a fresh exact-SHA Stage F packet after E1–E7 merge.
+# Apply needs a fresh exact-SHA Stage F packet. Old SHA 950d346 is not reusable
+# after the authDomain parameterization source merges.
 # Replace c1tmp with an unused 1-7 character [a-z0-9] suffix (GCP id max 30).
+# firebase_auth_domain is the isolated Hosting preview host, with no scheme.
+# Do not substitute ${project_id}.firebaseapp.com.
 
-project_id                        = "beauessence-clinic-stg-c1tmp"
-region                            = "asia-east1"
-exact_apply_authority_sha         = "not_granted"
-api_service_id                    = "internal-test-api"
-worker_service_id                 = "internal-test-outbox"
-api_image                         = ""
-worker_image                      = ""
-internal_test_booking_enabled     = false
+project_id                           = "beauessence-clinic-stg-c1tmp"
+region                               = "asia-east1"
+exact_apply_authority_sha            = "not_granted"
+api_service_id                       = "internal-test-api"
+worker_service_id                    = "internal-test-outbox"
+api_image                            = ""
+worker_image                         = ""
+internal_test_booking_enabled        = false
 internal_test_booking_expires_at_utc = ""
-worker_processing_enabled         = false
-worker_schedule_paused            = true
-secret_resource_version           = "not_granted"
+worker_processing_enabled            = false
+worker_schedule_paused               = true
+secret_resource_version              = "not_granted"
+firebase_auth_domain                 = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"

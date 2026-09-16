@@ -11,6 +11,8 @@ function presentEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   present.GOOGLE_CLOUD_PROJECT = 'beauessence-clinic-stg-c1a01';
   present.INTERNAL_TEST_BOOKING_ENABLED = 'false';
   present.INTERNAL_TEST_SOURCE_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  present.CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN =
+    'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
   return { ...present, ...overrides };
 }
 
@@ -31,6 +33,34 @@ describe('isolated C1 API required config', () => {
       })
     ).toBe(false);
     expect(apiCloudRequiredConfigPresent(presentEnv())).toBe(true);
+  });
+
+  it('fails closed when isolated C1 authDomain is missing or unauthorized', () => {
+    expect(
+      apiCloudRequiredConfigPresent(
+        presentEnv({ CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN: '' })
+      )
+    ).toBe(false);
+    expect(
+      apiCloudRequiredConfigPresent(
+        presentEnv({
+          CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN:
+            'beauessence-clinic-stg-c1a01.firebaseapp.com'
+        })
+      )
+    ).toBe(false);
+    expect(
+      apiCloudRequiredConfigPresent(
+        presentEnv({
+          CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN: 'beauessence.com.tw'
+        })
+      )
+    ).toBe(false);
+    expect(
+      apiCloudRequiredConfigPresent(
+        presentEnv({ CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN: 'example.com' })
+      )
+    ).toBe(false);
   });
 
   it('requires booking expiry only when isolated booking writes are enabled', () => {

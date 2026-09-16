@@ -53,6 +53,16 @@ check "booking_expiry_required_when_enabled" {
   }
 }
 
+check "auth_domain_required_on_apply" {
+  assert {
+    condition = !local.apply_enabled || (
+      var.firebase_auth_domain != "" &&
+      !strcontains(var.firebase_auth_domain, "firebaseapp.com")
+    )
+    error_message = "Applying C1 internal-test Cloud Run requires firebase_auth_domain set to an authorized isolated Hosting host. There is no fallback to project_id.firebaseapp.com."
+  }
+}
+
 resource "google_project_service" "stage_f" {
   for_each           = local.apply_enabled ? local.required_services : toset([])
   project            = var.project_id
@@ -262,7 +272,7 @@ resource "google_cloud_run_v2_service" "api" {
       }
       env {
         name  = "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN"
-        value = "${var.project_id}.firebaseapp.com"
+        value = var.firebase_auth_domain
       }
       dynamic "env" {
         for_each = local.apply_enabled ? local.api_secret_env_when_mounted : {}
