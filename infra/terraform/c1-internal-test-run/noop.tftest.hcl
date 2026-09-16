@@ -38,6 +38,11 @@ run "default_sha_is_noop" {
     condition     = length(google_project_service.stage_f) == 0
     error_message = "C1 internal-test must enable zero APIs when SHA is not_granted."
   }
+
+  assert {
+    condition     = length(google_project_iam_member.api_firebaseauth_viewer) == 0
+    error_message = "C1 internal-test must grant zero firebaseauth.viewer bindings when SHA is not_granted."
+  }
 }
 
 run "named_sha_without_images_is_rejected" {
@@ -111,6 +116,16 @@ run "named_sha_with_digest_plans_isolated_run" {
   assert {
     condition     = !strcontains(var.firebase_auth_domain, "firebaseapp.com")
     error_message = "C1 runtime authDomain must not be firebaseapp.com."
+  }
+
+  assert {
+    condition     = length(google_project_iam_member.api_firebaseauth_viewer) == 1
+    error_message = "C1 API must receive exactly one firebaseauth.viewer binding when SHA-gated apply is on."
+  }
+
+  assert {
+    condition     = google_project_iam_member.api_firebaseauth_viewer[0].role == "roles/firebaseauth.viewer"
+    error_message = "C1 API Auth IAM must be roles/firebaseauth.viewer, not Admin."
   }
 }
 
