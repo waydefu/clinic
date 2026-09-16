@@ -118,6 +118,33 @@ resource "google_project_iam_member" "api_firestore" {
   member  = "serviceAccount:${google_service_account.api[0].email}"
 }
 
+# Least-privilege Auth lookup + session-cookie mint for isolated C1 API.
+# verifyIdToken(idToken, true) needs firebaseauth.users.get.
+# createSessionCookie needs firebaseauth.users.createSession.
+# Do not grant Auth Viewer/Editor/Admin, Identity Toolkit Editor/Admin,
+# user-write permissions, or this role to the worker.
+resource "google_project_iam_custom_role" "api_firebaseauth_session_runtime" {
+  count       = local.apply_enabled ? 1 : 0
+  project     = var.project_id
+  role_id     = "clinicC1FirebaseAuthSessionRuntime"
+  title       = "Clinic C1 Firebase Auth Session Runtime"
+  description = "Least-privilege Auth user lookup and session-cookie mint for isolated C1 API. No user write."
+  permissions = [
+    "firebaseauth.users.get",
+    "firebaseauth.users.createSession",
+  ]
+}
+
+resource "google_project_iam_member" "api_firebaseauth_session_runtime" {
+  count   = local.apply_enabled ? 1 : 0
+  project = var.project_id
+  role    = google_project_iam_custom_role.api_firebaseauth_session_runtime[0].name
+  member  = "serviceAccount:${google_service_account.api[0].email}"
+  depends_on = [
+    google_project_iam_custom_role.api_firebaseauth_session_runtime
+  ]
+}
+
 resource "google_project_iam_member" "worker_firestore" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id

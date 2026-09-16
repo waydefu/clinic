@@ -38,6 +38,16 @@ run "default_sha_is_noop" {
     condition     = length(google_project_service.stage_f) == 0
     error_message = "C1 internal-test must enable zero APIs when SHA is not_granted."
   }
+
+  assert {
+    condition     = length(google_project_iam_custom_role.api_firebaseauth_session_runtime) == 0
+    error_message = "C1 internal-test must create zero Firebase Auth session custom roles when SHA is not_granted."
+  }
+
+  assert {
+    condition     = length(google_project_iam_member.api_firebaseauth_session_runtime) == 0
+    error_message = "C1 internal-test must grant zero Firebase Auth session bindings when SHA is not_granted."
+  }
 }
 
 run "named_sha_without_images_is_rejected" {
@@ -111,6 +121,34 @@ run "named_sha_with_digest_plans_isolated_run" {
   assert {
     condition     = !strcontains(var.firebase_auth_domain, "firebaseapp.com")
     error_message = "C1 runtime authDomain must not be firebaseapp.com."
+  }
+
+  assert {
+    condition     = length(google_project_iam_custom_role.api_firebaseauth_session_runtime) == 1
+    error_message = "C1 API must receive exactly one Firebase Auth session custom role when SHA-gated apply is on."
+  }
+
+  assert {
+    condition     = google_project_iam_custom_role.api_firebaseauth_session_runtime[0].role_id == "clinicC1FirebaseAuthSessionRuntime"
+    error_message = "C1 Firebase Auth session custom role id must be clinicC1FirebaseAuthSessionRuntime."
+  }
+
+  assert {
+    condition     = google_project_iam_custom_role.api_firebaseauth_session_runtime[0].title == "Clinic C1 Firebase Auth Session Runtime"
+    error_message = "C1 Firebase Auth session custom role title must remain Clinic C1 Firebase Auth Session Runtime."
+  }
+
+  assert {
+    condition = toset(google_project_iam_custom_role.api_firebaseauth_session_runtime[0].permissions) == toset([
+      "firebaseauth.users.get",
+      "firebaseauth.users.createSession",
+    ])
+    error_message = "C1 Firebase Auth session custom role must contain exactly users.get and users.createSession."
+  }
+
+  assert {
+    condition     = length(google_project_iam_member.api_firebaseauth_session_runtime) == 1
+    error_message = "C1 API must receive exactly one Firebase Auth session custom-role binding when SHA-gated apply is on."
   }
 }
 
