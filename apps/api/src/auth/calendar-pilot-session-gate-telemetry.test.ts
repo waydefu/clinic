@@ -42,24 +42,20 @@ const PII_TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.pii_token_body.pii_sig';
 function firebaseAuthError(
   code: string,
   message: string
-): { readonly code: string; readonly message: string } {
-  return { code, message };
+): Error & { readonly code: string } {
+  const error = new Error(message) as Error & { code: string };
+  error.code = code;
+  return error;
 }
 
-function audienceMismatchError(): {
-  readonly code: string;
-  readonly message: string;
-} {
+function audienceMismatchError(): Error & { readonly code: string } {
   return firebaseAuthError(
     'auth/argument-error',
     `Firebase ID token has incorrect "aud" (audience) claim. Expected "${PII_EXPECTED_PROJECT}" but got "${PII_PROJECT_ID}". email=${PII_EMAIL} uid=${PII_UID} token=${PII_TOKEN}`
   );
 }
 
-function issuerMismatchError(): {
-  readonly code: string;
-  readonly message: string;
-} {
+function issuerMismatchError(): Error & { readonly code: string } {
   return firebaseAuthError(
     'auth/argument-error',
     `Firebase ID token has incorrect "iss" (issuer) claim. Expected "https://securetoken.google.com/${PII_EXPECTED_PROJECT}" but got "https://securetoken.google.com/${PII_PROJECT_ID}". email=${PII_EMAIL} uid=${PII_UID} token=${PII_TOKEN}`
@@ -148,7 +144,7 @@ function fakeDb(createImpl?: (record: unknown) => Promise<void>): {
 
 function fakeAuth(options: {
   readonly decoded?: Record<string, unknown> | 'reject';
-  readonly verifyError?: unknown;
+  readonly verifyError?: Error;
   readonly disabled?: boolean;
   readonly cookie?: string | Error;
 }): {
@@ -249,7 +245,7 @@ function assertNoIdentityLeak(serialized: string, extra: string[] = []): void {
 
 const VERIFY_TOKEN_FAILURE_CASES: ReadonlyArray<{
   readonly name: string;
-  readonly error: unknown;
+  readonly error: Error;
   readonly errorCode: string;
 }> = [
   {
@@ -304,7 +300,7 @@ const VERIFY_TOKEN_FAILURE_CASES: ReadonlyArray<{
   },
   {
     name: 'unknown',
-    error: { unexpected: true, message: `uid=${PII_UID} email=${PII_EMAIL}` },
+    error: new Error(`uid=${PII_UID} email=${PII_EMAIL}`),
     errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.unknown
   }
 ];
