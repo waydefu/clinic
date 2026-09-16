@@ -31,21 +31,50 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).not.toMatch(/roles\/owner/);
     expect(main).not.toMatch(/roles\/editor/);
     expect(main).toContain(
-      'resource "google_project_iam_member" "api_firebaseauth_viewer"'
+      'resource "google_project_iam_custom_role" "api_firebaseauth_session_runtime"'
     );
-    expect(main).toContain('roles/firebaseauth.viewer');
+    expect(main).toContain(
+      'resource "google_project_iam_member" "api_firebaseauth_session_runtime"'
+    );
+    expect(main).toContain('clinicC1FirebaseAuthSessionRuntime');
+    expect(main).toContain('Clinic C1 Firebase Auth Session Runtime');
+    expect(main).toContain('firebaseauth.users.get');
+    expect(main).toContain('firebaseauth.users.createSession');
+    expect(main).not.toContain('roles/firebaseauth.viewer');
+    expect(main).not.toContain('roles/firebaseauth.editor');
     expect(main).not.toContain('roles/firebaseauth.admin');
     expect(main).not.toContain('roles/firebase.admin');
+    expect(main).not.toContain('roles/identitytoolkit.editor');
+    expect(main).not.toContain('roles/identitytoolkit.admin');
     expect(main).not.toContain('roles/identityplatform.admin');
-    expect(main.match(/roles\/firebaseauth\.viewer/g)?.length).toBe(1);
-    const viewerBlock = main.match(
-      /resource "google_project_iam_member" "api_firebaseauth_viewer" \{[\s\S]*?\n\}/
+    expect(main).not.toContain('firebaseauth.users.create"');
+    expect(main).not.toContain('firebaseauth.users.update');
+    expect(main).not.toContain('firebaseauth.users.delete');
+    expect(main).not.toContain('firebaseauth.users.sendEmail');
+    expect(main).not.toContain('firebaseauth.configs.');
+    expect(main).not.toMatch(/["']identitytoolkit\./);
+    expect(main).not.toContain('roles/identitytoolkit');
+    const customRoleBlock = main.match(
+      /resource "google_project_iam_custom_role" "api_firebaseauth_session_runtime" \{[\s\S]*?\n\}/
     )?.[0];
-    expect(viewerBlock).toBeDefined();
-    expect(viewerBlock).toContain(
+    expect(customRoleBlock).toBeDefined();
+    expect(customRoleBlock).toContain('firebaseauth.users.get');
+    expect(customRoleBlock).toContain('firebaseauth.users.createSession');
+    expect(customRoleBlock.match(/firebaseauth\.[a-zA-Z.]+/g)?.sort()).toEqual([
+      'firebaseauth.users.createSession',
+      'firebaseauth.users.get'
+    ]);
+    const sessionMemberBlock = main.match(
+      /resource "google_project_iam_member" "api_firebaseauth_session_runtime" \{[\s\S]*?\n\}/
+    )?.[0];
+    expect(sessionMemberBlock).toBeDefined();
+    expect(sessionMemberBlock).toContain(
       'member  = "serviceAccount:${google_service_account.api[0].email}"'
     );
-    expect(viewerBlock).not.toContain('google_service_account.worker');
+    expect(sessionMemberBlock).not.toContain('google_service_account.worker');
+    expect(sessionMemberBlock).toContain(
+      'google_project_iam_custom_role.api_firebaseauth_session_runtime[0].name'
+    );
     expect(main).not.toContain('google_secret_manager_secret_version');
     expect(main).toContain('internal-test-api');
     expect(main).toContain('internal-test-outbox');
