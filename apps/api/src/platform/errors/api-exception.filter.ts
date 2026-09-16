@@ -9,7 +9,9 @@ import {
 } from '@nestjs/common';
 import {
   planDeniedAccessAudit,
+  routeFamilyFromPath,
   sanitizeStructuredLog,
+  type DeniedAccessAuditEvent,
   type DeniedAccessReasonCategory
 } from '@beauessence/domain';
 
@@ -156,28 +158,53 @@ export class ApiExceptionFilter implements ExceptionFilter {
     }
     const actor = request.authentication;
     try {
-      const event = planDeniedAccessAudit({
-        eventId: `denial_${correlationId}`,
-        occurredAt: new Date().toISOString(),
-        actorId:
-          typeof actor?.actorId === 'string' && actor.actorId !== ''
-            ? actor.actorId
-            : 'anonymous',
-        actorType:
-          typeof actor?.actorRole === 'string' && actor.actorRole !== ''
-            ? actor.actorRole
-            : 'unauthenticated',
-        action: routeTemplate(request),
-        resourceType: 'appointment',
-        reasonCategory: category,
+      const event = this.planDenialEvent(
+        request,
         correlationId,
-        environment: 'internal_test'
-      });
+        category,
+        actor
+      );
       await this.denials.record(event);
       return 'recorded';
     } catch {
       this.emitAppendFailure(correlationId);
       return 'failed';
+    }
+  }
+
+  private planDenialEvent(
+    request: HttpRequest,
+    correlationId: string,
+    category: DeniedAccessReasonCategory,
+    actor: HttpRequest['authentication']
+  ): DeniedAccessAuditEvent {
+    const base = {
+      eventId: `denial_${correlationId}`,
+      occurredAt: new Date().toISOString(),
+      actorId:
+        typeof actor?.actorId === 'string' && actor.actorId !== ''
+          ? actor.actorId
+          : 'anonymous',
+      actorType:
+        typeof actor?.actorRole === 'string' && actor.actorRole !== ''
+          ? actor.actorRole
+          : 'unauthenticated',
+      resourceType: 'appointment' as const,
+      reasonCategory: category,
+      correlationId,
+      environment: 'internal_test'
+    };
+    try {
+      return planDeniedAccessAudit({
+        ...base,
+        action: routeTemplate(request)
+      });
+    } catch {
+      const path = request.routerPath ?? request.routeOptions?.url ?? 'unknown';
+      return planDeniedAccessAudit({
+        ...base,
+        action: routeFamilyFromPath(path)
+      });
     }
   }
 

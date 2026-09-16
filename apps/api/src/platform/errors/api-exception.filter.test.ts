@@ -212,4 +212,21 @@ describe('ApiExceptionFilter denied-authorization audit lifecycle', () => {
     expect(captured.headers[DENIED_AUDIT_APPEND_HEADER]).toBeUndefined();
     expect(denials.list()).toHaveLength(0);
   });
+
+  it('records calendar-session denials with a safe action label', async () => {
+    const denials = new InMemoryDeniedAccessAuditSink();
+    const filter = new ApiExceptionFilter(denials);
+    const captured = reply();
+    await filter.catch(
+      new AuthenticationRequiredError(),
+      host(captured, {
+        method: 'POST',
+        routerPath: '/v1/calendar-session'
+      })
+    );
+    expect(captured.statusCode).toBe(401);
+    expect(captured.headers[DENIED_AUDIT_APPEND_HEADER]).toBe('recorded');
+    expect(denials.list()).toHaveLength(1);
+    expect(denials.list()[0]?.action).not.toMatch(/session|token|cookie/i);
+  });
 });
