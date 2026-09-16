@@ -53,6 +53,10 @@ import {
   formatTime,
   roleLabel
 } from './modules/ui-format.js';
+import {
+  shouldHydrateCalendarPilotWorkbench,
+  teardownCalendarPilotSessions
+} from './modules/pilot-google-totp-session.js';
 
 // 工作臺的標記與樣式直接寫在 index.html 裡，不再於執行期 fetch 一份 shell
 // 再抽換 document.body。那個做法多一次往返、會讓畫面從假骨架跳成真介面，
@@ -982,20 +986,63 @@ elements['login-form'].addEventListener('submit', async (event) => {
   });
 });
 
+async function deleteCalendarPilotServerSession() {
+  const csrf = sessionStorage.getItem('calPilotCsrf');
+  const headers = { Accept: 'application/json' };
+  if (typeof csrf === 'string' && csrf !== '')
+    headers['X-CSRF-Token'] = csrf;
+  const response = await fetch('/v1/calendar-session', {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers
+  });
+  if (response.ok === true) return;
+  const body = await response.json().catch(() => ({}));
+  const error = new Error(body?.error?.message ?? '伺服器工作階段未能結束。');
+  error.code = body?.error?.code ?? 'REQUEST_FAILED';
+  throw error;
+}
+
+async function signOutCalendarPilotFirebase() {
+  const module = await import('./calendar-pilot-client.js');
+  if (typeof module.signOutCalendarPilotFirebase !== 'function') {
+    const error = new Error('目前無法結束 Google 登入狀態。');
+    error.code = 'CALENDAR_PILOT_SIGNOUT_UNAVAILABLE';
+    throw error;
+  }
+  await module.signOutCalendarPilotFirebase();
+}
+
 elements['logout'].addEventListener('click', async () => {
   await runUiAction({
     control: elements['logout'],
     pendingLabel: '登出中…',
     action: async () => {
-      sessionStorage.removeItem('calPilotCsrf');
-      sessionStorage.removeItem('calPilotRole');
-      void fetch('/v1/calendar-session', { method: 'DELETE' });
+      try {
+        await teardownCalendarPilotSessions({
+          deleteServerSession: deleteCalendarPilotServerSession,
+          signOut: signOutCalendarPilotFirebase,
+          storage: sessionStorage
+        });
+      } catch (error) {
+        try {
+          await post('/workspace/logout');
+        } catch {
+          // Local chrome lock is best-effort after calendar teardown failure.
+        }
+        render();
+        throw error;
+      }
       return post('/workspace/logout');
     },
     onSuccess: () => {
       window.location.hash = 'overview';
       window.location.reload();
-    }
+    },
+    failureMessage: (error) =>
+      error?.message
+        ? `登出未完成：${error.message}`
+        : '登出未完成。工作臺已鎖定，請不要假設伺服器工作階段已結束。'
   });
 });
 
@@ -2038,7 +2085,7 @@ if (isInternalTestBookingEnabled()) {
 try {
   client = await resolveApiClient();
   state = await client.request('/state');
-  if (sessionStorage.getItem('calPilotCsrf')) {
+  if (shouldHydrateCalendarPilotWorkbench(sessionStorage)) {
     state = (await import('./modules/hydrate-staff.js')).hydrateStaff(state);
   }
   enforceRoleDomBoundary();

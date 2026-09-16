@@ -94,7 +94,7 @@ describe('public booking vs staff surfaces', () => {
     expect(patient).not.toContain('calendar-pilot-entry.js');
     expect(patient).not.toContain('使用 Google 帳號登入');
     expect(loader).toContain("includes('calendarPilot=1')");
-    expect(loader).toContain("sessionStorage.getItem('calPilotCsrf')");
+    expect(loader).toContain('shouldHydrateCalendarPilotWorkbench');
     expect(apiClient).toContain('beauessence-clinic-stg-');
     expect(apiClient).toContain("hostname.includes('--')");
     expect(transport).toContain("path === '/booking'");
@@ -127,6 +127,18 @@ describe('public booking vs staff surfaces', () => {
       '登入狀態未完成雙重驗證，請重新使用 Google 帳號登入並輸入動態驗證碼。'
     );
     expect(totpSession).toContain('await abandonFirebaseClientSession(ports)');
+    expect(totpSession).toContain('teardownCalendarPilotSessions');
+    const admin = readFileSync(
+      fileURLToPath(new URL('../public/admin-bootstrap.js', import.meta.url)),
+      'utf8'
+    );
+    expect(admin).not.toContain("void fetch('/v1/calendar-session'");
+    expect(admin).toContain('teardownCalendarPilotSessions');
+    expect(admin).toContain("await import('./calendar-pilot-client.js')");
+    expect(admin).toContain("credentials: 'same-origin'");
+    expect(client).toContain('signOutCalendarPilotFirebase');
+    expect(client).toContain('teardownCalendarPilotSessions');
+    expect(client).not.toContain('.catch(\n      () => undefined');
   });
 
   it('does not map a missing CSRF, patient role, or disabled account onto Workbench', () => {
