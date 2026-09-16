@@ -3,8 +3,10 @@
 Dated evidence for the next engineering agent. This is **not** apply
 authority, **not** production authority, and **not** a login/logout fix.
 
-This document cannot cite its own commit hash. Lookup:
-`git log -- docs/reviews/2026-09-17-stage-f-cal-pilot-handoff.md`.
+Register: `docs/README.md` Review record (required by `check:docs`).
+`docs/INDEX.md` is already at the `check:governance` warning band
+(6107 / 6144 bytes). Adding this file there would fail the INDEX size
+gate. Do not lengthen INDEX.md without shrinking another cell.
 
 ```text
 DOCUMENTATION_ONLY = true
