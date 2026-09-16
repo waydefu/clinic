@@ -30,6 +30,22 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     );
     expect(main).not.toMatch(/roles\/owner/);
     expect(main).not.toMatch(/roles\/editor/);
+    expect(main).toContain(
+      'resource "google_project_iam_member" "api_firebaseauth_viewer"'
+    );
+    expect(main).toContain('roles/firebaseauth.viewer');
+    expect(main).not.toContain('roles/firebaseauth.admin');
+    expect(main).not.toContain('roles/firebase.admin');
+    expect(main).not.toContain('roles/identityplatform.admin');
+    expect(main.match(/roles\/firebaseauth\.viewer/g)?.length).toBe(1);
+    const viewerBlock = main.match(
+      /resource "google_project_iam_member" "api_firebaseauth_viewer" \{[\s\S]*?\n\}/
+    )?.[0];
+    expect(viewerBlock).toBeDefined();
+    expect(viewerBlock).toContain(
+      'member  = "serviceAccount:${google_service_account.api[0].email}"'
+    );
+    expect(viewerBlock).not.toContain('google_service_account.worker');
     expect(main).not.toContain('google_secret_manager_secret_version');
     expect(main).toContain('internal-test-api');
     expect(main).toContain('internal-test-outbox');

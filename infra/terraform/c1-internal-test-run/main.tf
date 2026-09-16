@@ -118,6 +118,16 @@ resource "google_project_iam_member" "api_firestore" {
   member  = "serviceAccount:${google_service_account.api[0].email}"
 }
 
+# Least-privilege Auth user lookup for verifyIdToken(idToken, true).
+# firebaseauth.users.get is required for revocation / disabled-user checks.
+# Do not widen to firebaseauth.admin or grant this role to the worker.
+resource "google_project_iam_member" "api_firebaseauth_viewer" {
+  count   = local.apply_enabled ? 1 : 0
+  project = var.project_id
+  role    = "roles/firebaseauth.viewer"
+  member  = "serviceAccount:${google_service_account.api[0].email}"
+}
+
 resource "google_project_iam_member" "worker_firestore" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
