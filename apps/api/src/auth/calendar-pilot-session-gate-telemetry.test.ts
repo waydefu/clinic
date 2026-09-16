@@ -38,6 +38,9 @@ const PII_EXPECTED_PROJECT = 'fixture-expected-project-bbb222';
 const PII_EMAIL = 'pii.verify@example.com';
 const PII_UID = 'uid_verify_pii_fixture_001';
 const PII_TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.pii_token_body.pii_sig';
+const PII_CREDENTIAL =
+  'ya29.fixture-oauth-access-token-not-real_service-account-json';
+const PII_SECRET_MESSAGE = `fixture secret text email=${PII_EMAIL} uid=${PII_UID} token=${PII_TOKEN} project=${PII_PROJECT_ID} credential=${PII_CREDENTIAL}`;
 
 function firebaseAuthError(
   code: string,
@@ -45,6 +48,29 @@ function firebaseAuthError(
 ): Error & { readonly code: string } {
   const error = new Error(message) as Error & { code: string };
   error.code = code;
+  return error;
+}
+
+function firebaseErrorInfoOnly(
+  code: string,
+  message: string
+): { readonly errorInfo: { readonly code: string; readonly message: string } } {
+  return { errorInfo: { code, message } };
+}
+
+function firebaseConflictingCodes(
+  code: string,
+  errorInfoCode: string,
+  message: string
+): Error & {
+  code: string;
+  errorInfo: { code: string; message: string };
+} {
+  const error = firebaseAuthError(code, message) as Error & {
+    code: string;
+    errorInfo: { code: string; message: string };
+  };
+  error.errorInfo = { code: errorInfoCode, message };
   return error;
 }
 
@@ -299,9 +325,81 @@ const VERIFY_TOKEN_FAILURE_CASES: ReadonlyArray<{
     errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.internal
   },
   {
+    name: 'insufficient_permission',
+    error: firebaseAuthError(
+      'auth/insufficient-permission',
+      `Credential lacks firebaseauth.users.get. email=${PII_EMAIL} uid=${PII_UID} project=${PII_PROJECT_ID} credential=${PII_CREDENTIAL}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.insufficientPermission
+  },
+  {
+    name: 'user_not_found',
+    error: firebaseAuthError(
+      'auth/user-not-found',
+      `There is no user record corresponding to the provided identifier. email=${PII_EMAIL} uid=${PII_UID}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.userNotFound
+  },
+  {
+    name: 'invalid_credential',
+    error: firebaseAuthError(
+      'auth/invalid-credential',
+      `Must initialize app with a cert credential. credential=${PII_CREDENTIAL} project=${PII_PROJECT_ID} token=${PII_TOKEN}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.invalidCredential
+  },
+  {
+    name: 'invalid_credential_app_prefix',
+    error: firebaseAuthError(
+      'app/invalid-credential',
+      `Credential implementation failed to fetch a valid Google OAuth2 access token. credential=${PII_CREDENTIAL} email=${PII_EMAIL}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.invalidCredential
+  },
+  {
+    name: 'project_not_found',
+    error: firebaseAuthError(
+      'auth/project-not-found',
+      `No project found for the provided identifier. project=${PII_PROJECT_ID} uid=${PII_UID}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.projectNotFound
+  },
+  {
     name: 'unknown',
     error: new Error(`uid=${PII_UID} email=${PII_EMAIL}`),
     errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.unknown
+  }
+];
+
+const NEW_VERIFY_CODE_CASES: ReadonlyArray<{
+  readonly name: string;
+  readonly code: string;
+  readonly errorCode: string;
+}> = [
+  {
+    name: 'insufficient_permission',
+    code: 'auth/insufficient-permission',
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.insufficientPermission
+  },
+  {
+    name: 'user_not_found',
+    code: 'auth/user-not-found',
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.userNotFound
+  },
+  {
+    name: 'invalid_credential',
+    code: 'auth/invalid-credential',
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.invalidCredential
+  },
+  {
+    name: 'invalid_credential_app_prefix',
+    code: 'app/invalid-credential',
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.invalidCredential
+  },
+  {
+    name: 'project_not_found',
+    code: 'auth/project-not-found',
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.projectNotFound
   }
 ];
 
@@ -370,6 +468,154 @@ describe('classifyCalendarSessionVerifyTokenError', () => {
         )
       )
     ).toBe('AUTH_GATE_VERIFY_TOKEN_INTERNAL');
+  });
+
+  it.each(NEW_VERIFY_CODE_CASES)(
+    'maps $code from error.code to $errorCode',
+    ({ code, errorCode }) => {
+      expect(
+        classifyCalendarSessionVerifyTokenError(
+          firebaseAuthError(code, PII_SECRET_MESSAGE)
+        )
+      ).toBe(errorCode);
+    }
+  );
+
+  it.each(NEW_VERIFY_CODE_CASES)(
+    'maps $code from error.errorInfo.code to $errorCode',
+    ({ code, errorCode }) => {
+      expect(
+        classifyCalendarSessionVerifyTokenError(
+          firebaseErrorInfoOnly(code, PII_SECRET_MESSAGE)
+        )
+      ).toBe(errorCode);
+    }
+  );
+
+  it('prefers error.code over a conflicting error.errorInfo.code', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseConflictingCodes(
+          'auth/id-token-expired',
+          'auth/insufficient-permission',
+          PII_SECRET_MESSAGE
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_EXPIRED');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseConflictingCodes(
+          'auth/insufficient-permission',
+          'auth/user-not-found',
+          PII_SECRET_MESSAGE
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_INSUFFICIENT_PERMISSION');
+  });
+
+  it('ignores malformed nested errorInfo values without throwing', () => {
+    expect(classifyCalendarSessionVerifyTokenError({ errorInfo: null })).toBe(
+      'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
+    );
+    expect(
+      classifyCalendarSessionVerifyTokenError({
+        errorInfo: 'auth/insufficient-permission'
+      })
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_UNKNOWN');
+    expect(
+      classifyCalendarSessionVerifyTokenError({
+        errorInfo: { code: 403 }
+      })
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_UNKNOWN');
+    const throwingInfo = {};
+    Object.defineProperty(throwingInfo, 'errorInfo', {
+      get(): never {
+        throw new Error(PII_SECRET_MESSAGE);
+      }
+    });
+    expect(classifyCalendarSessionVerifyTokenError(throwingInfo)).toBe(
+      'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
+    );
+    const throwingNestedCode = {};
+    Object.defineProperty(throwingNestedCode, 'errorInfo', {
+      get(): { readonly code: string } {
+        return {
+          get code(): string {
+            throw new Error(PII_SECRET_MESSAGE);
+          }
+        };
+      }
+    });
+    expect(classifyCalendarSessionVerifyTokenError(throwingNestedCode)).toBe(
+      'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
+    );
+  });
+
+  it('still classifies error.code when nested errorInfo is unusable', () => {
+    const error = firebaseAuthError(
+      'auth/insufficient-permission',
+      PII_SECRET_MESSAGE
+    ) as Error & { errorInfo: unknown };
+    error.errorInfo = null;
+    expect(classifyCalendarSessionVerifyTokenError(error)).toBe(
+      'AUTH_GATE_VERIFY_TOKEN_INSUFFICIENT_PERMISSION'
+    );
+  });
+
+  it('falls back to error.errorInfo.code when error.code is unusable', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError({
+        code: '',
+        errorInfo: {
+          code: 'auth/user-not-found',
+          message: PII_SECRET_MESSAGE
+        }
+      })
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_USER_NOT_FOUND');
+    expect(
+      classifyCalendarSessionVerifyTokenError({
+        code: 403,
+        errorInfo: {
+          code: 'auth/project-not-found',
+          message: PII_SECRET_MESSAGE
+        }
+      })
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_PROJECT_NOT_FOUND');
+  });
+
+  it('classifies new backend codes before audience/issuer message signatures', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/insufficient-permission',
+          'incorrect "aud" (audience) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_INSUFFICIENT_PERMISSION');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/user-not-found',
+          'incorrect "iss" (issuer) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_USER_NOT_FOUND');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/invalid-credential',
+          'incorrect "aud" (audience) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_INVALID_CREDENTIAL');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/project-not-found',
+          'incorrect "iss" (issuer) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_PROJECT_NOT_FOUND');
   });
 
   it('maps an unknown object to AUTH_GATE_VERIFY_TOKEN_UNKNOWN', () => {
@@ -765,7 +1011,11 @@ describe('calendar session gate telemetry PII safety', () => {
       PII_EMAIL,
       PII_UID,
       PII_TOKEN,
+      PII_CREDENTIAL,
       'securetoken.google.com',
+      'ya29.',
+      'service-account-json',
+      'fixture secret text',
       EMAIL,
       UID,
       ID_TOKEN,
@@ -774,7 +1024,12 @@ describe('calendar session gate telemetry PII safety', () => {
       COOKIE,
       GOOGLE_SUBJECT,
       AUTHORIZATION,
-      'sign_in_second_factor'
+      'sign_in_second_factor',
+      'errorInfo',
+      'insufficient-permission',
+      'user-not-found',
+      'invalid-credential',
+      'project-not-found'
     ];
     for (const { error, errorCode } of VERIFY_TOKEN_FAILURE_CASES) {
       lines.length = 0;
@@ -800,6 +1055,31 @@ describe('calendar session gate telemetry PII safety', () => {
         expect(serialized).not.toContain(needle);
       }
       expect(serialized).not.toMatch(/auth\/[a-z0-9-]+/);
+      expect(serialized).not.toMatch(/app\/[a-z0-9-]+/);
+    }
+    for (const { code, errorCode } of NEW_VERIFY_CODE_CASES) {
+      lines.length = 0;
+      await expectAuthenticationRequired(() =>
+        serviceFor(
+          fakeAuth({
+            verifyError: firebaseErrorInfoOnly(
+              code,
+              PII_SECRET_MESSAGE
+            ) as Error
+          }),
+          fakeDb(),
+          telemetry
+        ).create(ID_TOKEN, NOW)
+      );
+      expect(lines).toHaveLength(1);
+      const serialized = lines[0] ?? '';
+      const parsed = JSON.parse(serialized) as StructuredLog;
+      expect(parsed.errorCode).toBe(errorCode);
+      for (const needle of piiNeedles) {
+        expect(serialized).not.toContain(needle);
+      }
+      expect(serialized).not.toMatch(/auth\/[a-z0-9-]+/);
+      expect(serialized).not.toMatch(/app\/[a-z0-9-]+/);
     }
   });
 
@@ -965,9 +1245,14 @@ describe('existing generic calendar-session exception log', () => {
       'if (user.disabled) throw new DisabledAccountError()'
     );
     expect(session).toContain('.verifyIdToken(idToken, true)');
+    expect(session).not.toContain('.verifyIdToken(idToken, false)');
     expect(session).toContain(
       'errorCode: classifyCalendarSessionVerifyTokenError(error)'
     );
+    expect(telemetry).toContain('function firebaseErrorCode');
+    expect(telemetry).toContain('errorInfo');
+    expect(telemetry).not.toContain('error.errorInfo.message');
+    expect(telemetry).not.toContain('error.stack');
     expect(session).toContain('throw new AuthenticationRequiredError()');
     expect(session).not.toContain('authorization_denial_events');
     expect(telemetry).not.toContain('authorization_denial_events');
