@@ -13,6 +13,11 @@ import {
 } from 'firebase/auth';
 import { CALENDAR_PILOT_SCHEDULE, planSlots } from '@beauessence/domain';
 import { resolveBootUser } from '../public/modules/pilot-auth-state.js';
+import {
+  CALENDAR_PILOT_AUTH_OUTCOME,
+  clearCalendarPilotClientAuthState,
+  completeGoogleSignIn as completeGoogleTotpSignIn
+} from '../public/modules/pilot-google-totp-session.js';
 
 const API = '/v1';
 let csrfToken;
@@ -186,54 +191,34 @@ function promptTotp({ enrollmentKey } = {}) {
 }
 
 async function completeGoogleSignIn() {
-  let result;
-  try {
-    result = await getRedirectResult(auth);
-  } catch (error) {
-    if (error?.code !== 'auth/multi-factor-auth-required') throw error;
-    const resolver = getMultiFactorResolver(auth, error);
-    const factor = resolver.hints.find(
-      (hint) => hint.factorId === TotpMultiFactorGenerator.FACTOR_ID
-    );
-    if (factor === undefined)
-      throw new Error('此帳號沒有可用的 TOTP 驗證器。', { cause: error });
-    const code = await promptTotp();
-    const assertion = TotpMultiFactorGenerator.assertionForSignIn(
-      factor.uid,
-      code
-    );
-    result = await resolver.resolveSignIn(assertion);
-  }
-  // Redirect 回來的使用者直接採用；否則等第一次 auth state 觸發、確認
-  // 已持久化狀態還原完成後，才讀 currentUser 做登入決定（T1-AUTH-01）。
-  const user = await resolveBootUser({
-    redirectResult: result,
-    onAuthStateChanged: (callback) => onAuthStateChanged(auth, callback),
-    currentUser: () => auth.currentUser
+  return completeGoogleTotpSignIn({
+    getRedirectResult: () => getRedirectResult(auth),
+    getMultiFactorResolver: (error) => getMultiFactorResolver(auth, error),
+    totp: TotpMultiFactorGenerator,
+    multiFactor,
+    signOut: () => signOut(auth),
+    resolveBootUser: ({ redirectResult }) =>
+      resolveBootUser({
+        redirectResult,
+        onAuthStateChanged: (callback) => onAuthStateChanged(auth, callback),
+        currentUser: () => auth.currentUser
+      }),
+    promptTotp,
+    getIdToken: (user, forceRefresh) => user.getIdToken(forceRefresh),
+    createCalendarSession: (idToken) =>
+      request('/calendar-session', {
+        method: 'POST',
+        body: JSON.stringify({ idToken })
+      }),
+    storage: sessionStorage
   });
-  if (user === null) return false;
-  const factors = multiFactor(user);
-  if (factors.enrolledFactors.length === 0) {
-    const secret = await TotpMultiFactorGenerator.generateSecret(
-      await factors.getSession()
-    );
-    const code = await promptTotp({ enrollmentKey: secret.secretKey });
-    await factors.enroll(
-      TotpMultiFactorGenerator.assertionForEnrollment(secret, code),
-      'CAL-PILOT 驗證器'
-    );
-  }
-  const idToken = await user.getIdToken(true);
-  const session = await request('/calendar-session', {
-    method: 'POST',
-    body: JSON.stringify({ idToken })
-  });
-  csrfToken = session.csrfToken;
-  if (session.role === 'manager' || session.role === 'front_desk') {
-    sessionStorage.setItem('calPilotRole', session.role);
-  }
-  sessionStorage.setItem('calPilotCsrf', csrfToken);
-  return true;
+}
+
+function showLogin(statusMessage) {
+  loginView();
+  if (!statusMessage) return;
+  const node = root.querySelector('[data-login-status]');
+  if (node !== null) node.textContent = statusMessage;
 }
 
 function bootStatusView(message) {
@@ -930,13 +915,14 @@ async function boot() {
       await handoffToStaffWorkbench();
       return;
     } catch {
-      sessionStorage.removeItem('calPilotCsrf');
-      sessionStorage.removeItem('calPilotRole');
+      clearCalendarPilotClientAuthState(sessionStorage);
       csrfToken = undefined;
     }
   }
   try {
-    if (await completeGoogleSignIn()) {
+    const result = await completeGoogleSignIn();
+    if (result.outcome === CALENDAR_PILOT_AUTH_OUTCOME.AUTHENTICATED) {
+      csrfToken = result.csrfToken;
       if (calendarPilotWorkbench) {
         await renderApplication();
         return;
@@ -945,14 +931,17 @@ async function boot() {
       location.reload();
       return;
     }
+    if (result.outcome === CALENDAR_PILOT_AUTH_OUTCOME.NEEDS_REAUTHENTICATION) {
+      csrfToken = undefined;
+      showLogin(result.message);
+      return;
+    }
   } catch (error) {
-    loginView();
-    const node = root.querySelector('[data-login-status]');
-    if (node !== null)
-      node.textContent = error.message ?? '登入失敗，請重新嘗試。';
+    csrfToken = undefined;
+    showLogin(error.message ?? '登入失敗，請重新嘗試。');
     return;
   }
-  loginView();
+  showLogin();
 }
 
 void boot();

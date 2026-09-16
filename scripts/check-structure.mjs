@@ -75,6 +75,7 @@ const requiredPaths = [
   'docs/reviews/2026-09-15-stage-f-e1-e7-source-closeout.md',
   'docs/reviews/2026-09-15-stage-f-source-remediation.md',
   'docs/reviews/2026-09-16-c1-firebase-auth-domain-parameterization.md',
+  'docs/reviews/2026-09-16-cal-pilot-totp-enroll-reauth.md',
   'docs/architecture/synthetic-web-modular-architecture.md',
   'docs/reviews/manager-workflow-analysis-and-remediation-2026-07-21.md',
   'docs/reviews/codebase-analysis-and-remediation-2026-07-21.md',
