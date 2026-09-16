@@ -987,10 +987,13 @@ elements['logout'].addEventListener('click', async () => {
     control: elements['logout'],
     pendingLabel: '登出中…',
     action: async () => {
-      sessionStorage.removeItem('calPilotCsrf');
-      sessionStorage.removeItem('calPilotRole');
-      void fetch('/v1/calendar-session', { method: 'DELETE' });
-      return post('/workspace/logout');
+      const { runWorkbenchCalendarPilotLogout } =
+        await import('./modules/pilot-google-totp-session.js');
+      return runWorkbenchCalendarPilotLogout({
+        post,
+        render,
+        importClient: () => import('./calendar-pilot-client.js')
+      });
     },
     onSuccess: () => {
       window.location.hash = 'overview';
