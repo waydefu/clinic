@@ -77,9 +77,12 @@ export async function abandonFirebaseClientSession(ports) {
 }
 
 function calendarPilotLogoutIncomplete(cause, evidence) {
-  const error = new Error('登出未完成。工作臺已鎖定，請不要假設伺服器工作階段已結束。', {
-    cause
-  });
+  const error = new Error(
+    '登出未完成。工作臺已鎖定，請不要假設伺服器工作階段已結束。',
+    {
+      cause
+    }
+  );
   error.code = 'CALENDAR_PILOT_LOGOUT_INCOMPLETE';
   error.calendarPilotLogout = evidence;
   return error;

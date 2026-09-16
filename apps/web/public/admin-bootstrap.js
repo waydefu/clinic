@@ -989,8 +989,7 @@ elements['login-form'].addEventListener('submit', async (event) => {
 async function deleteCalendarPilotServerSession() {
   const csrf = sessionStorage.getItem('calPilotCsrf');
   const headers = { Accept: 'application/json' };
-  if (typeof csrf === 'string' && csrf !== '')
-    headers['X-CSRF-Token'] = csrf;
+  if (typeof csrf === 'string' && csrf !== '') headers['X-CSRF-Token'] = csrf;
   const response = await fetch('/v1/calendar-session', {
     method: 'DELETE',
     credentials: 'same-origin',
