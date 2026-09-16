@@ -126,3 +126,23 @@ variable "secret_resource_version" {
     error_message = "secret_resource_version must be not_granted or a numeric version. latest is refused."
   }
 }
+
+variable "firebase_auth_domain" {
+  type        = string
+  description = "Non-secret Firebase authDomain for isolated C1 Hosting. No scheme. Empty when not applying. Never project_id.firebaseapp.com."
+  default     = ""
+  validation {
+    condition = (
+      var.firebase_auth_domain == "" || (
+        var.firebase_auth_domain == "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app" &&
+        !strcontains(var.firebase_auth_domain, "://") &&
+        !strcontains(var.firebase_auth_domain, "*") &&
+        !strcontains(var.firebase_auth_domain, "/") &&
+        !strcontains(var.firebase_auth_domain, "firebaseapp.com") &&
+        !strcontains(var.firebase_auth_domain, "beauessence-clinic-staging") &&
+        !strcontains(var.firebase_auth_domain, "beauessence.com.tw")
+      )
+    )
+    error_message = "C1 firebase_auth_domain must be empty (noop) or the exact authorized isolated Hosting host. Scheme, wildcards, firebaseapp.com, beauessence-clinic-staging, production, official clinic domains, and arbitrary hosts are refused. Do not infer from request Host."
+  }
+}

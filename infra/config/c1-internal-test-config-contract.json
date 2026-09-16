@@ -67,7 +67,11 @@
       "name": "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN",
       "class": "NON_SECRET_CONFIG",
       "requiredFor": ["api"],
-      "cloudRequired": true
+      "cloudRequired": true,
+      "authorizedHosts": [
+        "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+      ],
+      "notes": "Non-secret. No scheme. Exact isolated Hosting preview host from var.firebase_auth_domain. No fallback to project_id.firebaseapp.com. Do not infer from request Host. Future OAuth (not this source PR): add https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app/__/auth/handler on clinic-c1-internal-preproduction-staff. CLOUD_MUTATION = NONE."
     },
     {
       "name": "CALENDAR_PILOT_FIREBASE_WEB_API_KEY",

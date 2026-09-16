@@ -17,6 +17,28 @@ Production-shaped defaults stay fail-closed: booking writes off, worker
 processing off, scheduler paused, images must be digest-pinned, mutable
 `latest` refused.
 
+`CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN` is the explicit non-secret input
+`firebase_auth_domain`. There is no fallback to
+`${project_id}.firebaseapp.com`. Empty is allowed only while
+`exact_apply_authority_sha = not_granted`. Apply requires the exact
+authorized isolated Hosting host (no scheme):
+
+`beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app`
+
+Scheme, wildcards, `firebaseapp.com`, `beauessence-clinic-staging`,
+official `beauessence.com.tw` hosts, production domains, and arbitrary
+hosts are refused. Do not infer authDomain from the request `Host`
+header.
+
+This source does not mutate the OAuth client
+`clinic-c1-internal-preproduction-staff`. A future, separately
+authorized cloud mutation must add
+
+`https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app/__/auth/handler`
+
+to that client's Authorized Redirect URIs, then apply the env above.
+`CLOUD_MUTATION = NONE` in this directory's source PR.
+
 `allUsers` `run.invoker` on the API is **Hosting rewrite transport only**.
 Staff/admin routes still require session + CSRF + RBAC. Public booking
 stays accountless at the API layer. The worker uses `INGRESS_TRAFFIC_ALL`

@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { evaluateC1FirebaseAuthDomain } from './c1-firebase-auth-domain.mjs';
+import {
+  C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS,
+  ISOLATED_C1_FIREBASE_AUTH_DOMAIN
+} from './internal-test-c1-identity.mjs';
+
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const SHA_PATTERN = /^[a-f0-9]{40}$/;
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
@@ -35,6 +41,28 @@ export function evaluateC1ConfigContract(contract = loadC1ConfigContract()) {
     if (!classes.has(required)) {
       issues.push(`C1 config contract missing class ${required}.`);
     }
+  }
+  const authDomain = (contract.entries ?? []).find(
+    (entry) => entry.name === 'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'
+  );
+  if (
+    authDomain?.class !== 'NON_SECRET_CONFIG' ||
+    authDomain?.cloudRequired !== true ||
+    !Array.isArray(authDomain?.requiredFor) ||
+    !authDomain.requiredFor.includes('api')
+  ) {
+    issues.push(
+      'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN must remain NON_SECRET_CONFIG requiredFor api cloudRequired true.'
+    );
+  }
+  const authorized = authDomain?.authorizedHosts ?? [];
+  if (
+    authorized.length !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.length ||
+    !authorized.includes(ISOLATED_C1_FIREBASE_AUTH_DOMAIN)
+  ) {
+    issues.push(
+      'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN authorizedHosts must be the exact isolated C1 preview allowlist.'
+    );
   }
   return { ok: issues.length === 0, issues };
 }
@@ -76,7 +104,16 @@ export function evaluateRequiredCloudConfig(env, surface, contract) {
       continue;
     }
     if (!requiredWhenSatisfied(entry, env)) continue;
-    if (String(env?.[entry.name] ?? '').trim() === '') missing.push(entry.name);
+    const value = String(env?.[entry.name] ?? '').trim();
+    if (value === '') {
+      missing.push(entry.name);
+      continue;
+    }
+    if (entry.name === 'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN') {
+      const evaluation = evaluateC1FirebaseAuthDomain(value);
+      if (!evaluation.ok)
+        missing.push('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN_INVALID');
+    }
   }
   const emulator = String(env?.FIRESTORE_EMULATOR_HOST ?? '').trim();
   const emulatorMustBeEmpty = (loaded.entries ?? []).some(

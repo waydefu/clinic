@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { evaluateC1ConfigContract } from './c1-config-contract.mjs';
+import { inspectC1FirebaseAuthDomainSource } from './c1-firebase-auth-domain.mjs';
 import { planFirestoreIndexDeploy } from './firestore-index-plan.mjs';
 import {
   evaluateExactShaAlignment,
@@ -159,10 +160,11 @@ export function inspectStageFSourceGaps(repoRoot = root) {
   const images = inspectInternalTestImageSource(repoRoot);
   const indexes = planFirestoreIndexDeploy().evaluation;
   const config = evaluateC1ConfigContract();
+  const authDomain = inspectC1FirebaseAuthDomainSource(repoRoot);
   const alerts = inspectWpB4AlertDefinitions();
   const statuses = {
     e1: closed(hosting.ok),
-    e2: closed(Boolean(fRun?.ok)),
+    e2: closed(Boolean(fRun?.ok) && authDomain.ok),
     e3: closed(images.ok),
     e4: closed(worker.ok),
     e5: closed(Boolean(fWpB4?.ok) && alerts.ok),
@@ -172,6 +174,7 @@ export function inspectStageFSourceGaps(repoRoot = root) {
   const issues = [
     ...hosting.issues,
     ...terraform.issues,
+    ...authDomain.issues,
     ...images.issues,
     ...worker.issues,
     ...indexes.issues,

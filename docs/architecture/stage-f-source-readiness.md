@@ -133,7 +133,11 @@ blocks, occupancy and a full 30-minute fit.
 `infra/config/c1-internal-test-config-contract.json` classifies
 `NON_SECRET_CONFIG`, `SECRET_REFERENCE`, `RUNTIME_DERIVED`, and
 `FORBIDDEN_TO_STORE_IN_REPO`. Missing required cloud config fails
-closed. Logs redact secret-like keys. Secret Manager **versions** are
+closed. `CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN` is non-secret, required
+for the API, and must be an explicit authorized isolated Hosting host
+(`var.firebase_auth_domain`). There is no fallback to
+`${project_id}.firebaseapp.com` and no inference from request `Host`.
+Logs redact secret-like keys. Secret Manager **versions** are
 future apply; this source only declares empty containers.
 
 ## E7 Firestore indexes
