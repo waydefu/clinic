@@ -31,5 +31,12 @@ describe('planDeniedAccessAudit', () => {
     expect(() =>
       planDeniedAccessAudit({ ...BASE, actorType: 'phone' })
     ).toThrow(DomainError);
+    expect(() =>
+      planDeniedAccessAudit({ ...BASE, action: 'set_cookie' })
+    ).toThrow(DomainError);
+  });
+
+  it('does not copy a resource identifier when none is supplied', () => {
+    expect(planDeniedAccessAudit(BASE).resourceId).toBeNull();
   });
 });

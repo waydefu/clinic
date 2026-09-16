@@ -17,7 +17,10 @@ import {
   AuthenticationRequiredError,
   DisabledAccountError
 } from '../platform/errors/api-error.js';
-import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
+import {
+  ApiExceptionFilter,
+  DENIED_AUDIT_APPEND_HEADER
+} from '../platform/errors/api-exception.filter.js';
 import { AppointmentApplicationService } from './appointment.application-service.js';
 import {
   APPOINTMENT_APPLICATION,
@@ -35,6 +38,7 @@ import {
 } from '../internal-test-booking/internal-test-booking.tokens.js';
 import { InMemoryDeniedAccessAuditSink } from '../platform/authorization/denied-access-audit.port.js';
 import { DENIED_AUTHORIZATION_AUDIT } from '../platform/authorization/denied-access-audit.port.js';
+import type { DeniedAuthorizationAuditPort } from '../platform/authorization/denied-access-audit.port.js';
 import { InMemoryDurableRateLimitStore } from '../platform/runtime/durable-rate-limit-store.js';
 import {
   WP_B2_RATE_LIMITER,
@@ -131,14 +135,14 @@ const harnessRepository: AppointmentRepositoryPort = {
 
 function createHarnessModule(
   limiter: WpB2RateLimiter,
-  denials: InMemoryDeniedAccessAuditSink
+  denials: DeniedAuthorizationAuditPort
 ) {
   @Module({
     controllers: [AppointmentController],
     providers: [
       {
         provide: APP_FILTER,
-        useFactory: (sink: InMemoryDeniedAccessAuditSink) =>
+        useFactory: (sink: DeniedAuthorizationAuditPort) =>
           new ApiExceptionFilter(sink),
         inject: [DENIED_AUTHORIZATION_AUDIT]
       },
@@ -187,7 +191,7 @@ describe('WP-B2 limiter and durable denial audit', () => {
 
   async function start(
     limiter: WpB2RateLimiter,
-    denials: InMemoryDeniedAccessAuditSink
+    denials: DeniedAuthorizationAuditPort
   ): Promise<NestFastifyApplication> {
     const instance = await NestFactory.create<NestFastifyApplication>(
       createHarnessModule(limiter, denials),
@@ -240,6 +244,7 @@ describe('WP-B2 limiter and durable denial audit', () => {
       payload: { ...CREATE_BODY, idempotencyKey: 'booking_request_other' }
     });
     expect(other.statusCode).toBeLessThan(300);
+    expect(denials.list()).toHaveLength(0);
   });
 
   it('writes one durable denial for authentication and authorization failures without secrets', async () => {
@@ -287,6 +292,37 @@ describe('WP-B2 limiter and durable denial audit', () => {
     ).toBe(true);
     expect(denials.list().every((event) => event.outcome === 'denied')).toBe(
       true
+    );
+    expect(denied.headers[DENIED_AUDIT_APPEND_HEADER]).toBe('recorded');
+    expect(missing.headers[DENIED_AUDIT_APPEND_HEADER]).toBe('recorded');
+  });
+
+  it('keeps 403 when the durable sink is unavailable', async () => {
+    const denials: DeniedAuthorizationAuditPort = {
+      record: () => Promise.reject(new Error('storage unavailable'))
+    };
+    const limiter = new WpB2RateLimiter(new InMemoryDurableRateLimitStore(), {
+      now: () => 1_000
+    });
+    const harness = await start(limiter, denials);
+    const denied = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: {
+        'x-test-actor-id': 'patient_other',
+        'x-test-role': 'patient',
+        'x-test-patient-id': 'patient_other',
+        'x-event-id': 'client_supplied_event'
+      },
+      payload: CREATE_BODY
+    });
+    expect(denied.statusCode).toBe(403);
+    expect(JSON.parse(denied.body)).toMatchObject({
+      error: { code: 'AUTHORIZATION_DENIED' }
+    });
+    expect(denied.headers[DENIED_AUDIT_APPEND_HEADER]).toBe('failed');
+    expect(denied.body).not.toMatch(
+      /storage unavailable|client_supplied_event/i
     );
   });
 });

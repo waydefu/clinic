@@ -53,6 +53,11 @@ interface HttpRequest {
 
 const recorded = new WeakSet<object>();
 
+/** Bounded append lifecycle. Values are opaque tokens, never PII. */
+export const DENIED_AUDIT_APPEND_HEADER = 'x-denied-audit-append';
+
+export type DeniedAuditAppendState = 'recorded' | 'duplicate' | 'failed';
+
 function routeTemplate(request: HttpRequest): string {
   const routed = request.routerPath ?? request.routeOptions?.url;
   if (typeof routed === 'string' && /^[A-Za-z0-9/_:-]+$/.test(routed)) {
@@ -88,7 +93,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     private readonly logger?: StructuredLogger
   ) {}
 
-  public catch(error: unknown, host: ArgumentsHost): void {
+  public async catch(error: unknown, host: ArgumentsHost): Promise<void> {
     const reply = host.switchToHttp().getResponse<HttpReply>();
     const request = host.switchToHttp().getRequest<HttpRequest>();
     const correlationId = randomUUID();
@@ -125,9 +130,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
     } catch {
       // Logging must never change the HTTP status or body.
     }
-    void this.recordDenial(error, request, correlationId);
+    const append = await this.recordDenial(error, request, correlationId);
     for (const [name, value] of Object.entries(mapped.headers))
       reply.header(name, value);
+    if (append !== undefined) {
+      reply.header(DENIED_AUDIT_APPEND_HEADER, append);
+    }
     reply.status(mapped.status).send(mapped.body);
   }
 
@@ -135,12 +143,16 @@ export class ApiExceptionFilter implements ExceptionFilter {
     error: unknown,
     request: HttpRequest,
     correlationId: string
-  ): Promise<void> {
+  ): Promise<DeniedAuditAppendState | undefined> {
     const category = reasonCategory(error);
-    if (category === undefined || this.denials === undefined) return;
+    if (category === undefined) return undefined;
     if (typeof error === 'object' && error !== null) {
-      if (recorded.has(error)) return;
+      if (recorded.has(error)) return 'duplicate';
       recorded.add(error);
+    }
+    if (this.denials === undefined) {
+      this.emitAppendFailure(correlationId);
+      return 'failed';
     }
     const actor = request.authentication;
     try {
@@ -162,8 +174,35 @@ export class ApiExceptionFilter implements ExceptionFilter {
         environment: 'internal_test'
       });
       await this.denials.record(event);
+      return 'recorded';
     } catch {
-      // Denial audit must never change the HTTP status or body.
+      this.emitAppendFailure(correlationId);
+      return 'failed';
+    }
+  }
+
+  private emitAppendFailure(correlationId: string): void {
+    try {
+      this.logger?.emit(
+        sanitizeStructuredLog({
+          timestamp: new Date().toISOString(),
+          environment: 'internal_test',
+          service: 'api',
+          correlationId,
+          operation: 'denied_access_audit',
+          result: 'error',
+          errorCode: 'INTERNAL_ERROR',
+          durationMs: 0,
+          retryState: 'none'
+        })
+      );
+    } catch {
+      // Failure evidence must never change the HTTP status or body.
+    }
+    try {
+      this.metrics?.recordSignal('denied_audit_append_failure');
+    } catch {
+      // Metrics must never change the HTTP status or body.
     }
   }
 }

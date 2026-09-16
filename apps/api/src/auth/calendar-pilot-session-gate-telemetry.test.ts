@@ -8,6 +8,7 @@ import {
   DisabledAccountError,
   mapErrorToApiResponse
 } from '../platform/errors/api-error.js';
+import { InMemoryDeniedAccessAuditSink } from '../platform/authorization/denied-access-audit.port.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
 import { StdoutStructuredLogger } from '../platform/runtime/structured-logger.js';
 import {
@@ -1184,13 +1185,17 @@ describe('calendar session gate telemetry PII safety', () => {
 });
 
 describe('existing generic calendar-session exception log', () => {
-  it('still emits v1_calendar-session denied AUTHENTICATION_REQUIRED', () => {
+  it('still emits v1_calendar-session denied AUTHENTICATION_REQUIRED', async () => {
     const entries: StructuredLog[] = [];
-    const filter = new ApiExceptionFilter(undefined, undefined, {
-      emit(entry: StructuredLog): void {
-        entries.push(entry);
+    const filter = new ApiExceptionFilter(
+      new InMemoryDeniedAccessAuditSink(),
+      undefined,
+      {
+        emit(entry: StructuredLog): void {
+          entries.push(entry);
+        }
       }
-    });
+    );
     const reply = {
       statusCode: 0,
       body: undefined as unknown,
@@ -1205,7 +1210,7 @@ describe('existing generic calendar-session exception log', () => {
         this.body = body;
       }
     };
-    filter.catch(new AuthenticationRequiredError(), {
+    await filter.catch(new AuthenticationRequiredError(), {
       switchToHttp: () => ({
         getResponse: () => reply,
         getRequest: () => ({
