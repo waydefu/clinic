@@ -115,10 +115,15 @@ Inspect-only: `pnpm inspect:stage-f-alert-proof`.
 overlay. Isolated C1 preview hosts call `POST /v1/bookings` without a
 Bearer token or staff CSRF cookie.
 
-`/staff` keeps strong auth: Google + TOTP mints `__session` + CSRF;
-Workbench then uses that server session with RBAC and disabled-account
-enforcement. Default `/staff` hands off to Workbench after a session
-exists. `?calendarPilot=1` keeps the synthetic Calendar review UI.
+`/staff` keeps strong auth: Google + TOTP mints `__session` + CSRF
+only after a TOTP second-factor sign-in. First-time TOTP enrollment
+signs Firebase Auth out and requires an explicit fresh Google login
+plus TOTP challenge before `POST /v1/calendar-session`. The server
+still requires `firebase.sign_in_second_factor === 'totp'` and does
+not treat an enrolled factor as that claim. Workbench then uses the
+server session with RBAC and disabled-account enforcement. Default
+`/staff` hands off to Workbench after a session exists.
+`?calendarPilot=1` keeps the synthetic Calendar review UI.
 
 ## Synthetic published availability
 
