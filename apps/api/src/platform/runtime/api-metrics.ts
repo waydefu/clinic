@@ -32,6 +32,7 @@ export interface ApiMetricsPort {
       | 'iam_setiampolicy'
       | 'calendar_projection_failure'
       | 'calendar_410_recovery'
+      | 'denied_audit_append_failure'
   ): void;
   counts(): SignalCounts;
   firingAlerts(health: OperationalHealthInput): readonly WpB4ImmediateAlert[];

@@ -98,8 +98,8 @@ export function vitestWithoutFirestoreEmulator(): boolean {
     {
       provide: DENIED_AUTHORIZATION_AUDIT,
       useFactory: () => {
-        // Vitest AppModule proofs boot without ADC. A fire-and-forget
-        // Firestore create() then rejects unhandled and fails the suite.
+        // Vitest AppModule proofs boot without ADC. Awaited Firestore
+        // create() would still reject and fail the suite without a store.
         if (vitestWithoutFirestoreEmulator()) {
           return new InMemoryDeniedAccessAuditSink();
         }

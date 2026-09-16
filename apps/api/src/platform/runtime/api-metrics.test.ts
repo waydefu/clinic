@@ -117,4 +117,10 @@ describe('InMemoryApiMetrics', () => {
       'api_outage_or_5xx_burst'
     );
   });
+
+  it('does not turn a denied-audit append failure into a WP-B4 alert', () => {
+    const metrics = new InMemoryApiMetrics(() => 1_000);
+    metrics.recordSignal('denied_audit_append_failure');
+    expect(metrics.firingAlerts(HEALTH)).toEqual([]);
+  });
 });
