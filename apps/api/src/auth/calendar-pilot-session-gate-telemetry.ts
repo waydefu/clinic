@@ -60,22 +60,34 @@ export const CALENDAR_SESSION_GATE_ERROR = {
  * exception is inspected in memory and never serialized. Project IDs, token
  * text, claims and identity values stay inside the classifier.
  *
- * firebase-admin@14.2.0 `verifyIdToken(idToken, true)` produces:
+ * firebase-admin@14.2.0 `verifyIdToken(idToken, true)` call chain is
+ * `verifyJWT` then `verifyDecodedJWTNotRevokedOrDisabled` → `getUser`.
+ * Reachable stable codes on that path:
  * - auth/id-token-expired
  * - auth/id-token-revoked
  * - auth/user-disabled
+ * - auth/insufficient-permission (Auth backend lookup)
+ * - auth/user-not-found (Auth backend lookup)
+ * - auth/invalid-credential (missing project ID, or INVALID_SERVICE_ACCOUNT)
+ * - app/invalid-credential (ADC / credential layer during getUser)
+ * - auth/project-not-found (Auth backend lookup)
  * - auth/argument-error (decode, signature, algorithm, aud/iss, sub)
+ * - auth/invalid-id-token (AuthErrorCode; classified malformed)
  * - auth/internal-error
  *
- * `auth/invalid-id-token` exists on AuthErrorCode and is classified as
- * malformed if observed. Audience/issuer have no distinct SDK code; they
- * are argument-error with deterministic message signatures. The
- * classifier may read `error.message` only to choose one of these enums.
+ * Audience/issuer have no distinct SDK code; they are argument-error with
+ * deterministic message signatures. The classifier may read
+ * `error.message` only to choose one of these enums. Raw codes, prefixes
+ * and messages never leave this module.
  */
 export const CALENDAR_SESSION_VERIFY_TOKEN_FAILURE = {
   expired: 'AUTH_GATE_VERIFY_TOKEN_EXPIRED',
   revoked: 'AUTH_GATE_VERIFY_TOKEN_REVOKED',
   userDisabled: 'AUTH_GATE_VERIFY_TOKEN_USER_DISABLED',
+  insufficientPermission: 'AUTH_GATE_VERIFY_TOKEN_INSUFFICIENT_PERMISSION',
+  userNotFound: 'AUTH_GATE_VERIFY_TOKEN_USER_NOT_FOUND',
+  invalidCredential: 'AUTH_GATE_VERIFY_TOKEN_INVALID_CREDENTIAL',
+  projectNotFound: 'AUTH_GATE_VERIFY_TOKEN_PROJECT_NOT_FOUND',
   audienceMismatch: 'AUTH_GATE_VERIFY_TOKEN_AUDIENCE_MISMATCH',
   issuerMismatch: 'AUTH_GATE_VERIFY_TOKEN_ISSUER_MISMATCH',
   malformed: 'AUTH_GATE_VERIFY_TOKEN_MALFORMED',
@@ -86,7 +98,8 @@ export const CALENDAR_SESSION_VERIFY_TOKEN_FAILURE = {
 export type CalendarSessionVerifyTokenFailure =
   (typeof CALENDAR_SESSION_VERIFY_TOKEN_FAILURE)[keyof typeof CALENDAR_SESSION_VERIFY_TOKEN_FAILURE];
 
-const FIREBASE_AUTH_CODE_PREFIX = 'auth/';
+const FIREBASE_CODE_PREFIXES = ['auth/', 'app/'] as const;
+const MAX_FIREBASE_CODE_LENGTH = 128;
 const AUDIENCE_MISMATCH_SIGNATURE = 'incorrect "aud" (audience) claim';
 const ISSUER_MISMATCH_SIGNATURE = 'incorrect "iss" (issuer) claim';
 
@@ -103,14 +116,51 @@ function readOwnString(value: unknown, key: string): string | undefined {
   return typeof property === 'string' ? property : undefined;
 }
 
-function firebaseAuthErrorCode(error: unknown): string | undefined {
-  const raw = readOwnString(error, 'code');
-  if (raw === undefined || raw.length === 0 || raw.length > 128) {
+function isUsableFirebaseCode(value: string | undefined): value is string {
+  return (
+    value !== undefined &&
+    value.length > 0 &&
+    value.length <= MAX_FIREBASE_CODE_LENGTH
+  );
+}
+
+function normalizeFirebaseErrorCode(raw: string): string {
+  for (const prefix of FIREBASE_CODE_PREFIXES) {
+    if (raw.startsWith(prefix)) {
+      return raw.slice(prefix.length);
+    }
+  }
+  return raw;
+}
+
+function firebaseErrorInfoCode(error: unknown): string | undefined {
+  if (error === null || error === undefined || typeof error !== 'object') {
     return undefined;
   }
-  return raw.startsWith(FIREBASE_AUTH_CODE_PREFIX)
-    ? raw.slice(FIREBASE_AUTH_CODE_PREFIX.length)
-    : raw;
+  let errorInfo: unknown;
+  try {
+    errorInfo = (error as Record<string, unknown>)['errorInfo'];
+  } catch {
+    return undefined;
+  }
+  return readOwnString(errorInfo, 'code');
+}
+
+/**
+ * Extract a normalized Firebase error code from `error.code`, falling
+ * back to `error.errorInfo.code`. Never throws. Never reads message,
+ * stack, token, or identity fields. Never serializes the error.
+ */
+function firebaseErrorCode(error: unknown): string | undefined {
+  const direct = readOwnString(error, 'code');
+  if (isUsableFirebaseCode(direct)) {
+    return normalizeFirebaseErrorCode(direct);
+  }
+  const nested = firebaseErrorInfoCode(error);
+  if (isUsableFirebaseCode(nested)) {
+    return normalizeFirebaseErrorCode(nested);
+  }
+  return undefined;
 }
 
 /**
@@ -121,7 +171,7 @@ export function classifyCalendarSessionVerifyTokenError(
   error: unknown
 ): CalendarSessionVerifyTokenFailure {
   try {
-    const code = firebaseAuthErrorCode(error);
+    const code = firebaseErrorCode(error);
     if (code === 'id-token-expired') {
       return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.expired;
     }
@@ -130,6 +180,18 @@ export function classifyCalendarSessionVerifyTokenError(
     }
     if (code === 'user-disabled') {
       return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.userDisabled;
+    }
+    if (code === 'insufficient-permission') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.insufficientPermission;
+    }
+    if (code === 'user-not-found') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.userNotFound;
+    }
+    if (code === 'invalid-credential') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.invalidCredential;
+    }
+    if (code === 'project-not-found') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.projectNotFound;
     }
 
     const message = readOwnString(error, 'message');
