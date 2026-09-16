@@ -30,6 +30,20 @@ official `beauessence.com.tw` hosts, production domains, and arbitrary
 hosts are refused. Do not infer authDomain from the request `Host`
 header.
 
+Secret Manager mounts use **independent per-service version inputs**:
+`api_secret_versions` and `worker_secret_versions`. A missing required
+pin fails closed on apply. `latest` is refused. The retired shared
+`secret_resource_version` input cannot pin any mount.
+
+Local `terraform.tfvars` migration: stop copying one numeric version
+onto every secret. Delete or ignore leftover `secret_resource_version`
+(including `= 1`). Set each API pin independently. Set
+`worker_secret_versions.GOOGLE_CALENDAR_ID` to the current approved C1
+Calendar input (`2` in `terraform.tfvars.example`). That `2` is an
+input pin, not a permanent source invariant — a later authorized
+rotation is `2` → `3` by changing the input only. Do not `terraform
+apply` from this packet.
+
 This source does not mutate the OAuth client
 `clinic-c1-internal-preproduction-staff`. A future, separately
 authorized cloud mutation must add

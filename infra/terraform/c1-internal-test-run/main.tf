@@ -1,6 +1,20 @@
 locals {
   apply_enabled = var.exact_apply_authority_sha != "not_granted"
-  mount_secrets = local.apply_enabled && var.secret_resource_version != "not_granted"
+  numeric_secret_version = "^[0-9]+$"
+  # Independent per-service pins. var.secret_resource_version is retired and
+  # must not appear on any mount.
+  api_secret_pins_numeric = alltrue([
+    for version in [
+      var.api_secret_versions.CALENDAR_PILOT_FIREBASE_WEB_API_KEY,
+      var.api_secret_versions.CALENDAR_PILOT_MANAGER_EMAILS,
+      var.api_secret_versions.CALENDAR_PILOT_FRONT_DESK_EMAILS
+    ] : can(regex(local.numeric_secret_version, version))
+  ])
+  worker_secret_pins_numeric = can(regex(
+    local.numeric_secret_version,
+    var.worker_secret_versions.GOOGLE_CALENDAR_ID
+  ))
+  resolved_google_calendar_id_secret_version = var.worker_secret_versions.GOOGLE_CALENDAR_ID
   labels = {
     application = "c1-internal-test-run"
     data_class  = "synthetic-only"
@@ -30,8 +44,24 @@ locals {
   worker_secret_env = {
     GOOGLE_CALENDAR_ID = "c1-synthetic-calendar-id"
   }
-  api_secret_env_when_mounted    = local.mount_secrets ? local.api_secret_env : {}
-  worker_secret_env_when_mounted = local.mount_secrets ? local.worker_secret_env : {}
+  api_secret_env_when_mounted = local.apply_enabled ? {
+    for env_name, secret_id in local.api_secret_env :
+    env_name => secret_id
+    if can(regex(local.numeric_secret_version, var.api_secret_versions[env_name]))
+  } : {}
+  worker_secret_env_when_mounted = local.apply_enabled ? {
+    for env_name, secret_id in local.worker_secret_env :
+    env_name => secret_id
+    if can(regex(local.numeric_secret_version, var.worker_secret_versions[env_name]))
+  } : {}
+  planned_api_secret_mount_versions = {
+    for env_name, secret_id in local.api_secret_env_when_mounted :
+    env_name => var.api_secret_versions[env_name]
+  }
+  planned_worker_secret_mount_versions = {
+    for env_name, secret_id in local.worker_secret_env_when_mounted :
+    env_name => var.worker_secret_versions[env_name]
+  }
 }
 
 check "images_required_on_apply" {
@@ -60,6 +90,13 @@ check "auth_domain_required_on_apply" {
       !strcontains(var.firebase_auth_domain, "firebaseapp.com")
     )
     error_message = "Applying C1 internal-test Cloud Run requires firebase_auth_domain set to an authorized isolated Hosting host. There is no fallback to project_id.firebaseapp.com."
+  }
+}
+
+check "secret_pins_required_on_apply" {
+  assert {
+    condition     = !local.apply_enabled || (local.api_secret_pins_numeric && local.worker_secret_pins_numeric)
+    error_message = "Applying C1 internal-test Cloud Run requires a numeric Secret Manager version pin for every API and worker mount. Independent per-service inputs only; missing pins fail closed and latest is refused."
   }
 }
 
@@ -308,7 +345,7 @@ resource "google_cloud_run_v2_service" "api" {
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.runtime[env.value].secret_id
-              version = var.secret_resource_version
+              version = var.api_secret_versions[env.key]
             }
           }
         }
@@ -414,7 +451,7 @@ resource "google_cloud_run_v2_service" "worker" {
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.runtime[env.value].secret_id
-              version = var.secret_resource_version
+              version = var.worker_secret_versions[env.key]
             }
           }
         }
