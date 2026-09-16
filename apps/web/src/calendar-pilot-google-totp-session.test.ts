@@ -40,16 +40,20 @@ function portsWith(
     syntheticId: 'staff_synthetic_001',
     enrolledFactors: [{ factorId: 'totp' }]
   };
-  const enroll = vi.fn(async () => undefined);
-  const getIdToken = vi.fn(async () => 'id-token-synthetic'.padEnd(120, 'x'));
-  const createCalendarSession = vi.fn(async () => ({
-    csrfToken: 'csrf_test',
-    role: 'manager'
-  }));
-  const signOut = vi.fn(async () => undefined);
-  const promptTotp = vi.fn(async () => '123456');
-  const resolveSignIn = vi.fn(async () => ({ user: enrolledUser }));
-  const getRedirectResult = vi.fn(async () => null);
+  const enroll = vi.fn(() => Promise.resolve());
+  const getIdToken = vi.fn(() =>
+    Promise.resolve('id-token-synthetic'.padEnd(120, 'x'))
+  );
+  const createCalendarSession = vi.fn(() =>
+    Promise.resolve({
+      csrfToken: 'csrf_test',
+      role: 'manager'
+    })
+  );
+  const signOut = vi.fn(() => Promise.resolve());
+  const promptTotp = vi.fn(() => Promise.resolve('123456'));
+  const resolveSignIn = vi.fn(() => Promise.resolve({ user: enrolledUser }));
+  const getRedirectResult = vi.fn(() => Promise.resolve(null));
   return {
     storage,
     enroll,
@@ -67,9 +71,11 @@ function portsWith(
       })),
       totp: {
         FACTOR_ID: 'totp',
-        generateSecret: vi.fn(async () => ({
-          secretKey: 'ENROLLMENT_SECRET_TEST_ONLY'
-        })),
+        generateSecret: vi.fn(() =>
+          Promise.resolve({
+            secretKey: 'ENROLLMENT_SECRET_TEST_ONLY'
+          })
+        ),
         assertionForEnrollment: vi.fn((secret, code) => ({
           kind: 'enroll',
           secret,
@@ -83,13 +89,15 @@ function portsWith(
       },
       multiFactor: vi.fn((user: { enrolledFactors?: unknown[] }) => ({
         enrolledFactors: user.enrolledFactors ?? [],
-        getSession: vi.fn(async () => ({ session: 'enrollment_session' })),
+        getSession: vi.fn(() =>
+          Promise.resolve({ session: 'enrollment_session' })
+        ),
         enroll
       })),
       signOut,
       resolveBootUser: vi.fn(
-        async ({ redirectResult }: { redirectResult?: { user?: unknown } }) =>
-          redirectResult?.user ?? null
+        ({ redirectResult }: { redirectResult?: { user?: unknown } }) =>
+          Promise.resolve(redirectResult?.user ?? null)
       ),
       promptTotp,
       getIdToken,
@@ -133,8 +141,8 @@ describe('completeGoogleSignIn', () => {
     const newUser = { syntheticId: 'staff_synthetic_new', enrolledFactors: [] };
     const { ports, enroll, getIdToken, createCalendarSession, signOut } =
       portsWith({
-        getRedirectResult: vi.fn(async () => ({ user: newUser })),
-        resolveBootUser: vi.fn(async () => newUser)
+        getRedirectResult: vi.fn(() => Promise.resolve({ user: newUser })),
+        resolveBootUser: vi.fn(() => Promise.resolve(newUser))
       });
 
     const result = await completeGoogleSignIn(ports);
@@ -159,12 +167,10 @@ describe('completeGoogleSignIn', () => {
     });
     const { ports, getIdToken, createCalendarSession, resolveSignIn, signOut } =
       portsWith({
-        getRedirectResult: vi.fn(async () => {
-          throw mfaError;
-        }),
+        getRedirectResult: vi.fn(() => Promise.reject(mfaError)),
         resolveBootUser: vi.fn(
-          async ({ redirectResult }: { redirectResult?: { user?: unknown } }) =>
-            redirectResult?.user ?? null
+          ({ redirectResult }: { redirectResult?: { user?: unknown } }) =>
+            Promise.resolve(redirectResult?.user ?? null)
         )
       });
 
@@ -199,10 +205,10 @@ describe('completeGoogleSignIn', () => {
     });
     const { ports } = portsWith(
       {
-        resolveBootUser: vi.fn(async () => staleUser),
-        createCalendarSession: vi.fn(async () => {
-          throw authenticationRequired();
-        })
+        resolveBootUser: vi.fn(() => Promise.resolve(staleUser)),
+        createCalendarSession: vi.fn(() =>
+          Promise.reject(authenticationRequired())
+        )
       },
       storage
     );
@@ -228,13 +234,9 @@ describe('completeGoogleSignIn', () => {
     const resolveError = Object.assign(new Error('invalid code'), {
       code: 'auth/invalid-verification-code'
     });
-    const resolveSignIn = vi.fn(async () => {
-      throw resolveError;
-    });
+    const resolveSignIn = vi.fn(() => Promise.reject(resolveError));
     const { ports } = portsWith({
-      getRedirectResult: vi.fn(async () => {
-        throw mfaError;
-      }),
+      getRedirectResult: vi.fn(() => Promise.reject(mfaError)),
       getMultiFactorResolver: vi.fn(() => ({
         hints: [{ factorId: 'totp', uid: 'factor_synthetic_001' }],
         resolveSignIn
@@ -264,9 +266,7 @@ describe('abandonFirebaseClientSession', () => {
     const storage = memoryStorage({ calPilotCsrf: 'csrf_stale' });
     await expect(
       abandonFirebaseClientSession({
-        signOut: async () => {
-          throw new Error('sign-out-failed');
-        },
+        signOut: () => Promise.reject(new Error('sign-out-failed')),
         storage
       })
     ).rejects.toThrow('sign-out-failed');
