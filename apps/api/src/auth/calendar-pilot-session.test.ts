@@ -71,6 +71,14 @@ describe('CAL-PILOT session policy', () => {
       } as never)
     ).toBe(true);
     expect(tokenHasTotpSecondFactor({ firebase: {} } as never)).toBe(false);
+    expect(
+      tokenHasTotpSecondFactor({
+        firebase: {
+          sign_in_second_factor: 'phone',
+          enrolled_factors: [{ factorId: 'totp' }]
+        }
+      } as never)
+    ).toBe(false);
   });
 
   it('enforces D-006 idle, absolute, disabled and revocation boundaries', () => {

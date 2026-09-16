@@ -1,4 +1,9 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual
+} from 'node:crypto';
 
 import type { Auth, DecodedIdToken } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -8,6 +13,15 @@ import {
 } from '@beauessence/domain';
 
 import type { AuthenticationContext } from './authentication-context.js';
+import {
+  CALENDAR_SESSION_GATE_ERROR,
+  CALENDAR_SESSION_GATE_OPERATION,
+  NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY,
+  classifyCalendarSessionSecondFactor,
+  secondFactorDenialErrorCode,
+  type CalendarPilotSessionGateEvent,
+  type CalendarPilotSessionGateTelemetry
+} from './calendar-pilot-session-gate-telemetry.js';
 import {
   AuthenticationRequiredError,
   DisabledAccountError
@@ -133,29 +147,86 @@ export class CalendarPilotSessionService {
   public constructor(
     private readonly auth: Auth,
     private readonly db: Firestore,
-    private readonly environment: NodeJS.ProcessEnv = process.env
+    private readonly environment: NodeJS.ProcessEnv = process.env,
+    private readonly telemetry: CalendarPilotSessionGateTelemetry = NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY
   ) {}
+
+  private emitCreateGate(event: CalendarPilotSessionGateEvent): void {
+    try {
+      this.telemetry.emit(event);
+    } catch {
+      // Telemetry must never change authentication control flow.
+    }
+  }
 
   public async create(
     idToken: string,
     now = new Date().toISOString()
   ): Promise<CreatedCalendarPilotSession> {
+    const correlationId = randomUUID();
     const decoded = await this.auth.verifyIdToken(idToken, true).catch(() => {
+      this.emitCreateGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.verifyToken,
+        result: 'denied',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.verifyToken
+      });
       throw new AuthenticationRequiredError();
     });
-    const role = roleForCalendarPilotEmail(decoded.email, this.environment);
-    if (
-      decoded.email_verified !== true ||
-      role === undefined ||
-      !tokenHasTotpSecondFactor(decoded)
-    )
+    if (decoded.email_verified !== true) {
+      this.emitCreateGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.emailVerified,
+        result: 'denied',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.emailVerified
+      });
       throw new AuthenticationRequiredError();
+    }
+    const role = roleForCalendarPilotEmail(decoded.email, this.environment);
+    if (role === undefined) {
+      this.emitCreateGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.allowlist,
+        result: 'denied',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.allowlist
+      });
+      throw new AuthenticationRequiredError();
+    }
+    if (!tokenHasTotpSecondFactor(decoded)) {
+      this.emitCreateGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.secondFactor,
+        result: 'denied',
+        errorCode: secondFactorDenialErrorCode(
+          classifyCalendarSessionSecondFactor(decoded)
+        )
+      });
+      throw new AuthenticationRequiredError();
+    }
     const user = await this.auth.getUser(decoded.uid);
+    if (user.disabled)
+      this.emitCreateGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.accountEnabled,
+        result: 'denied',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.accountDisabled
+      });
     if (user.disabled) throw new DisabledAccountError();
 
-    const cookieValue = await this.auth.createSessionCookie(idToken, {
-      expiresIn: STAFF_ABSOLUTE_SESSION_MS
-    });
+    let cookieValue: string;
+    try {
+      cookieValue = await this.auth.createSessionCookie(idToken, {
+        expiresIn: STAFF_ABSOLUTE_SESSION_MS
+      });
+    } catch (error) {
+      this.emitCreateGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.cookieCreate,
+        result: 'error',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.cookieCreate
+      });
+      throw error;
+    }
     const sessionId = digest(cookieValue);
     const csrfToken = randomBytes(32).toString('base64url');
     const expiresAt = new Date(
@@ -170,10 +241,26 @@ export class CalendarPilotSessionService {
       expiresAt,
       revokedAt: null
     };
-    await this.db
-      .collection('calendar_pilot_sessions')
-      .doc(sessionId)
-      .create(record);
+    try {
+      await this.db
+        .collection('calendar_pilot_sessions')
+        .doc(sessionId)
+        .create(record);
+    } catch (error) {
+      this.emitCreateGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.firestoreCreate,
+        result: 'error',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.firestoreCreate
+      });
+      throw error;
+    }
+    this.emitCreateGate({
+      correlationId,
+      operation: CALENDAR_SESSION_GATE_OPERATION.create,
+      result: 'ok',
+      errorCode: null
+    });
     return {
       cookieName: CALENDAR_PILOT_COOKIE,
       cookieValue,
