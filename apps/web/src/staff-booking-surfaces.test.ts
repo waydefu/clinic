@@ -127,6 +127,22 @@ describe('public booking vs staff surfaces', () => {
       '登入狀態未完成雙重驗證，請重新使用 Google 帳號登入並輸入動態驗證碼。'
     );
     expect(totpSession).toContain('await abandonFirebaseClientSession(ports)');
+    expect(totpSession).toContain('teardownCalendarPilotSessions');
+    expect(totpSession).toContain("credentials: 'same-origin'");
+    expect(totpSession).toContain('runWorkbenchCalendarPilotLogout');
+    const admin = readFileSync(
+      fileURLToPath(new URL('../public/admin-bootstrap.js', import.meta.url)),
+      'utf8'
+    );
+    expect(admin).not.toContain("void fetch('/v1/calendar-session'");
+    expect(admin).toContain('runWorkbenchCalendarPilotLogout');
+    expect(admin).toContain(
+      "await import('./modules/pilot-google-totp-session.js')"
+    );
+    expect(admin).toContain("import('./calendar-pilot-client.js')");
+    expect(client).toContain('signOutCalendarPilotFirebase');
+    expect(client).toContain('teardownCalendarPilotSessions');
+    expect(client).not.toContain('.catch(\n      () => undefined');
   });
 
   it('does not map a missing CSRF, patient role, or disabled account onto Workbench', () => {

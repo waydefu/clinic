@@ -2,12 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   CALENDAR_PILOT_AUTH_OUTCOME,
+  CALENDAR_PILOT_LOGOUT_GUARD_KEY,
   STALE_FIRST_FACTOR_REAUTH_MESSAGE,
   TOTP_ENROLLMENT_REAUTH_MESSAGE,
   abandonFirebaseClientSession,
   clearCalendarPilotClientAuthState,
   completeGoogleSignIn,
-  isCalendarPilotSessionAuthenticationRequired
+  isCalendarPilotLogoutInProgress,
+  isCalendarPilotSessionAuthenticationRequired,
+  shouldHydrateCalendarPilotWorkbench,
+  teardownCalendarPilotSessions,
+  deleteCalendarPilotServerSession,
+  runWorkbenchCalendarPilotLogout
 } from '../public/modules/pilot-google-totp-session.js';
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -270,6 +276,191 @@ describe('abandonFirebaseClientSession', () => {
         storage
       })
     ).rejects.toThrow('sign-out-failed');
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
+  });
+});
+
+describe('shouldHydrateCalendarPilotWorkbench', () => {
+  it('hydrates only with CSRF and no logout guard', () => {
+    expect(
+      shouldHydrateCalendarPilotWorkbench(
+        memoryStorage({ calPilotCsrf: 'csrf_test' })
+      )
+    ).toBe(true);
+    expect(shouldHydrateCalendarPilotWorkbench(memoryStorage())).toBe(false);
+    expect(
+      shouldHydrateCalendarPilotWorkbench(
+        memoryStorage({
+          calPilotCsrf: 'csrf_test',
+          [CALENDAR_PILOT_LOGOUT_GUARD_KEY]: '1'
+        })
+      )
+    ).toBe(false);
+  });
+});
+
+describe('teardownCalendarPilotSessions', () => {
+  it('awaits delayed DELETE before signOut and reload-ready success', async () => {
+    const storage = memoryStorage({
+      calPilotCsrf: 'csrf_test',
+      calPilotRole: 'manager',
+      unrelated: 'keep'
+    });
+    let releaseDelete: (value?: unknown) => void = () => undefined;
+    const deleteServerSession = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          releaseDelete = resolve;
+        })
+    );
+    const signOut = vi.fn(() => Promise.resolve());
+    const pending = teardownCalendarPilotSessions({
+      deleteServerSession,
+      signOut,
+      storage
+    });
+    await Promise.resolve();
+    expect(isCalendarPilotLogoutInProgress(storage)).toBe(true);
+    expect(shouldHydrateCalendarPilotWorkbench(storage)).toBe(false);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
+    releaseDelete();
+    await expect(pending).resolves.toEqual({
+      serverTerminated: true,
+      firebaseSignedOut: true,
+      clientStateCleared: true
+    });
+    expect(deleteServerSession).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
+    expect(storage.getItem('calPilotRole')).toBeNull();
+    expect(storage.getItem('unrelated')).toBe('keep');
+    expect(isCalendarPilotLogoutInProgress(storage)).toBe(false);
+  });
+
+  it('signs out and clears client state when DELETE fails without claiming success', async () => {
+    const storage = memoryStorage({
+      calPilotCsrf: 'csrf_test',
+      calPilotRole: 'front_desk'
+    });
+    const signOut = vi.fn(() => Promise.resolve());
+    await expect(
+      teardownCalendarPilotSessions({
+        deleteServerSession: () => Promise.reject(new Error('delete-failed')),
+        signOut,
+        storage
+      })
+    ).rejects.toMatchObject({
+      code: 'CALENDAR_PILOT_LOGOUT_INCOMPLETE',
+      calendarPilotLogout: {
+        serverTerminated: false,
+        firebaseSignedOut: true,
+        clientStateCleared: true
+      }
+    });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
+    expect(isCalendarPilotLogoutInProgress(storage)).toBe(true);
+    expect(shouldHydrateCalendarPilotWorkbench(storage)).toBe(false);
+  });
+
+  it('clears bootstrap keys when signOut fails and does not claim success', async () => {
+    const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
+    await expect(
+      teardownCalendarPilotSessions({
+        deleteServerSession: () => Promise.resolve(),
+        signOut: () => Promise.reject(new Error('sign-out-failed')),
+        storage
+      })
+    ).rejects.toMatchObject({
+      code: 'CALENDAR_PILOT_LOGOUT_INCOMPLETE',
+      calendarPilotLogout: {
+        serverTerminated: true,
+        firebaseSignedOut: false,
+        clientStateCleared: true
+      }
+    });
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
+    expect(isCalendarPilotLogoutInProgress(storage)).toBe(true);
+  });
+
+  it('joins a duplicate click onto the in-flight teardown', async () => {
+    const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
+    let releaseDelete: (value?: unknown) => void = () => undefined;
+    const deleteServerSession = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          releaseDelete = resolve;
+        })
+    );
+    const signOut = vi.fn(() => Promise.resolve());
+    const first = teardownCalendarPilotSessions({
+      deleteServerSession,
+      signOut,
+      storage
+    });
+    const second = teardownCalendarPilotSessions({
+      deleteServerSession,
+      signOut,
+      storage
+    });
+    expect(second).toBe(first);
+    releaseDelete();
+    await expect(first).resolves.toMatchObject({ serverTerminated: true });
+    await expect(second).resolves.toMatchObject({ serverTerminated: true });
+    expect(deleteServerSession).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('deleteCalendarPilotServerSession', () => {
+  it('awaits a credentialed DELETE and does not treat HTTP failure as success', async () => {
+    const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
+    const fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        json: () =>
+          Promise.resolve({
+            error: {
+              message: '伺服器工作階段未能結束。',
+              code: 'INTERNAL_ERROR'
+            }
+          })
+      })
+    );
+    await expect(
+      deleteCalendarPilotServerSession({ fetch, storage })
+    ).rejects.toMatchObject({ code: 'INTERNAL_ERROR' });
+    expect(fetch).toHaveBeenCalledWith('/v1/calendar-session', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'X-CSRF-Token': 'csrf_test'
+      }
+    });
+  });
+});
+
+describe('runWorkbenchCalendarPilotLogout', () => {
+  it('locks local chrome when DELETE fails and still signs out', async () => {
+    const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
+    const post = vi.fn(() => Promise.resolve());
+    const render = vi.fn();
+    const signOut = vi.fn(() => Promise.resolve());
+    await expect(
+      runWorkbenchCalendarPilotLogout({
+        fetch: () => Promise.reject(new Error('delete-failed')),
+        storage,
+        post,
+        render,
+        importClient: () =>
+          Promise.resolve({ signOutCalendarPilotFirebase: signOut })
+      })
+    ).rejects.toMatchObject({ code: 'CALENDAR_PILOT_LOGOUT_INCOMPLETE' });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith('/workspace/logout');
+    expect(render).toHaveBeenCalledTimes(1);
     expect(storage.getItem('calPilotCsrf')).toBeNull();
   });
 });

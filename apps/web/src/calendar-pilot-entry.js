@@ -1,5 +1,5 @@
 import '../public/modules/trusted-html.js';
-import { initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import {
   GoogleAuthProvider,
   TotpMultiFactorGenerator,
@@ -16,14 +16,41 @@ import { resolveBootUser } from '../public/modules/pilot-auth-state.js';
 import {
   CALENDAR_PILOT_AUTH_OUTCOME,
   clearCalendarPilotClientAuthState,
-  completeGoogleSignIn as completeGoogleTotpSignIn
+  completeGoogleSignIn as completeGoogleTotpSignIn,
+  isCalendarPilotLogoutInProgress,
+  teardownCalendarPilotSessions
 } from '../public/modules/pilot-google-totp-session.js';
 
 const API = '/v1';
+const CALENDAR_PILOT_FIREBASE_APP = 'calendar-pilot';
 let csrfToken;
 let auth;
 let root;
 let statusTimer;
+let logoutBusy = false;
+
+function calendarPilotFirebaseApp(config) {
+  const existing = getApps().find(
+    (app) => app.name === CALENDAR_PILOT_FIREBASE_APP
+  );
+  return existing ?? initializeApp(config, CALENDAR_PILOT_FIREBASE_APP);
+}
+
+export async function signOutCalendarPilotFirebase() {
+  const configResponse = await fetch(`${API}/calendar-session/client-config`, {
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json' }
+  });
+  if (configResponse.ok !== true) {
+    const error = new Error('目前無法結束 Google 登入狀態。');
+    error.code = 'CALENDAR_PILOT_SIGNOUT_UNAVAILABLE';
+    throw error;
+  }
+  const config = await configResponse.json();
+  const authInstance = getAuth(calendarPilotFirebaseApp(config));
+  auth = authInstance;
+  await signOut(authInstance);
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -740,12 +767,27 @@ async function renderApplication() {
     location.pathname.endsWith('/patient.html');
   applicationSkeleton(isPatient);
   root.querySelector('[data-logout]').addEventListener('click', async () => {
-    await request('/calendar-session', { method: 'DELETE' }).catch(
-      () => undefined
-    );
-    await signOut(auth);
-    sessionStorage.removeItem('calPilotCsrf');
-    location.reload();
+    if (logoutBusy) return;
+    logoutBusy = true;
+    const control = root.querySelector('[data-logout]');
+    if (control !== null) control.disabled = true;
+    try {
+      await teardownCalendarPilotSessions({
+        deleteServerSession: () =>
+          request('/calendar-session', { method: 'DELETE' }),
+        signOut: () => signOutCalendarPilotFirebase(),
+        storage: sessionStorage
+      });
+      csrfToken = undefined;
+      location.reload();
+    } catch (error) {
+      csrfToken = undefined;
+      announce(error.message ?? '登出未完成。', 'error');
+      showLogin(error.message ?? '登出未完成。');
+    } finally {
+      logoutBusy = false;
+      if (control !== null) control.disabled = false;
+    }
   });
   const [sync, sources, candidates, availability, appointments, patients] =
     await Promise.all([
@@ -888,6 +930,10 @@ async function boot() {
     document.documentElement.classList.add('synthetic-workbench-ready');
     return;
   }
+  if (isCalendarPilotLogoutInProgress(sessionStorage)) {
+    document.documentElement.classList.add('synthetic-workbench-ready');
+    return;
+  }
   const configResponse = await fetch(`${API}/calendar-session/client-config`, {
     credentials: 'same-origin',
     headers: { Accept: 'application/json' }
@@ -902,7 +948,7 @@ async function boot() {
   root = document.createElement('div');
   root.className = 'calendar-pilot-root';
   document.body.append(root);
-  auth = getAuth(initializeApp(config, 'calendar-pilot'));
+  auth = getAuth(calendarPilotFirebaseApp(config));
   bootStatusView('正在完成登入…');
   const cachedCsrf = sessionStorage.getItem('calPilotCsrf');
   if (cachedCsrf !== null) {
