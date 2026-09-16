@@ -7,6 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { CalendarPilotSessionGuard } from '../auth/calendar-pilot.guard.js';
 import { CalendarPilotSessionService } from '../auth/calendar-pilot-session.js';
 import { CalendarPilotSessionController } from '../auth/calendar-pilot-session.controller.js';
+import { createCalendarPilotSessionGateTelemetry } from '../auth/calendar-pilot-session-gate-telemetry.js';
 import { FirestoreCalendarPilotRepository } from '../firestore/calendar-pilot.repository.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
 import {
@@ -15,6 +16,11 @@ import {
 } from '../firestore/clinic-calendar-review.repository.js';
 import { FirestoreDeniedAccessAuditStore } from '../firestore/denied-access-audit.repository.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
+import { ObservabilityModule } from '../platform/runtime/observability.module.js';
+import {
+  STRUCTURED_LOGGER,
+  type StructuredLogger
+} from '../platform/runtime/structured-logger.js';
 import {
   DENIED_AUTHORIZATION_AUDIT,
   InMemoryDeniedAccessAuditSink
@@ -46,6 +52,7 @@ export function vitestWithoutFirestoreEmulator(): boolean {
 }
 
 @Module({
+  imports: [ObservabilityModule],
   controllers: [CalendarPilotSessionController, CalendarPilotController],
   providers: [
     {
@@ -55,12 +62,14 @@ export function vitestWithoutFirestoreEmulator(): boolean {
     },
     {
       provide: CALENDAR_PILOT_SESSIONS,
-      useFactory: () => {
+      inject: [STRUCTURED_LOGGER],
+      useFactory: (logger: StructuredLogger) => {
         const app = defaultFirebaseApp();
         return new CalendarPilotSessionService(
           getAuth(app),
           getFirestore(app),
-          process.env
+          process.env,
+          createCalendarPilotSessionGateTelemetry(logger)
         );
       }
     },
