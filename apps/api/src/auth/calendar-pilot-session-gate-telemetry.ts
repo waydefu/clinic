@@ -46,7 +46,6 @@ export const CALENDAR_SESSION_GATE_OPERATION = {
 } as const;
 
 export const CALENDAR_SESSION_GATE_ERROR = {
-  verifyToken: 'AUTH_GATE_VERIFY_TOKEN',
   emailVerified: 'AUTH_GATE_EMAIL_VERIFIED',
   allowlist: 'AUTH_GATE_ALLOWLIST',
   secondFactorAbsent: 'AUTH_GATE_SECOND_FACTOR_ABSENT',
@@ -55,6 +54,106 @@ export const CALENDAR_SESSION_GATE_ERROR = {
   cookieCreate: 'AUTH_SESSION_COOKIE_CREATE_FAILED',
   firestoreCreate: 'AUTH_SESSION_FIRESTORE_CREATE_FAILED'
 } as const;
+
+/**
+ * Fixed low-cardinality verifyIdToken failure classes. The Firebase Admin
+ * exception is inspected in memory and never serialized. Project IDs, token
+ * text, claims and identity values stay inside the classifier.
+ *
+ * firebase-admin@14.2.0 `verifyIdToken(idToken, true)` produces:
+ * - auth/id-token-expired
+ * - auth/id-token-revoked
+ * - auth/user-disabled
+ * - auth/argument-error (decode, signature, algorithm, aud/iss, sub)
+ * - auth/internal-error
+ *
+ * `auth/invalid-id-token` exists on AuthErrorCode and is classified as
+ * malformed if observed. Audience/issuer have no distinct SDK code; they
+ * are argument-error with deterministic message signatures. The
+ * classifier may read `error.message` only to choose one of these enums.
+ */
+export const CALENDAR_SESSION_VERIFY_TOKEN_FAILURE = {
+  expired: 'AUTH_GATE_VERIFY_TOKEN_EXPIRED',
+  revoked: 'AUTH_GATE_VERIFY_TOKEN_REVOKED',
+  userDisabled: 'AUTH_GATE_VERIFY_TOKEN_USER_DISABLED',
+  audienceMismatch: 'AUTH_GATE_VERIFY_TOKEN_AUDIENCE_MISMATCH',
+  issuerMismatch: 'AUTH_GATE_VERIFY_TOKEN_ISSUER_MISMATCH',
+  malformed: 'AUTH_GATE_VERIFY_TOKEN_MALFORMED',
+  internal: 'AUTH_GATE_VERIFY_TOKEN_INTERNAL',
+  unknown: 'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
+} as const;
+
+export type CalendarSessionVerifyTokenFailure =
+  (typeof CALENDAR_SESSION_VERIFY_TOKEN_FAILURE)[keyof typeof CALENDAR_SESSION_VERIFY_TOKEN_FAILURE];
+
+const FIREBASE_AUTH_CODE_PREFIX = 'auth/';
+const AUDIENCE_MISMATCH_SIGNATURE = 'incorrect "aud" (audience) claim';
+const ISSUER_MISMATCH_SIGNATURE = 'incorrect "iss" (issuer) claim';
+
+function readOwnString(value: unknown, key: string): string | undefined {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return undefined;
+  }
+  let property: unknown;
+  try {
+    property = (value as Record<string, unknown>)[key];
+  } catch {
+    return undefined;
+  }
+  return typeof property === 'string' ? property : undefined;
+}
+
+function firebaseAuthErrorCode(error: unknown): string | undefined {
+  const raw = readOwnString(error, 'code');
+  if (raw === undefined || raw.length === 0 || raw.length > 128) {
+    return undefined;
+  }
+  return raw.startsWith(FIREBASE_AUTH_CODE_PREFIX)
+    ? raw.slice(FIREBASE_AUTH_CODE_PREFIX.length)
+    : raw;
+}
+
+/**
+ * Map a Firebase Admin `verifyIdToken` rejection to a safe enum.
+ * Never throws. Never returns or logs message/stack/identity.
+ */
+export function classifyCalendarSessionVerifyTokenError(
+  error: unknown
+): CalendarSessionVerifyTokenFailure {
+  try {
+    const code = firebaseAuthErrorCode(error);
+    if (code === 'id-token-expired') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.expired;
+    }
+    if (code === 'id-token-revoked') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.revoked;
+    }
+    if (code === 'user-disabled') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.userDisabled;
+    }
+
+    const message = readOwnString(error, 'message');
+    if (
+      message !== undefined &&
+      message.includes(AUDIENCE_MISMATCH_SIGNATURE)
+    ) {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.audienceMismatch;
+    }
+    if (message !== undefined && message.includes(ISSUER_MISMATCH_SIGNATURE)) {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.issuerMismatch;
+    }
+
+    if (code === 'argument-error' || code === 'invalid-id-token') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.malformed;
+    }
+    if (code === 'internal-error') {
+      return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.internal;
+    }
+    return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.unknown;
+  } catch {
+    return CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.unknown;
+  }
+}
 
 /**
  * Classify `firebase.sign_in_second_factor` without returning or logging

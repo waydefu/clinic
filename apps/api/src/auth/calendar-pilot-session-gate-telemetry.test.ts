@@ -15,7 +15,9 @@ import {
   CalendarPilotSessionService
 } from './calendar-pilot-session.js';
 import {
+  CALENDAR_SESSION_VERIFY_TOKEN_FAILURE,
   classifyCalendarSessionSecondFactor,
+  classifyCalendarSessionVerifyTokenError,
   createCalendarPilotSessionGateTelemetry,
   secondFactorDenialErrorCode,
   type CalendarPilotSessionGateEvent,
@@ -31,6 +33,34 @@ const FACTOR_UID = 'factor_uid_secret_fixture';
 const COOKIE = 'session_cookie_secret_fixture';
 const GOOGLE_SUBJECT = 'google_subject_fixture';
 const AUTHORIZATION = `Bearer ${ID_TOKEN}`;
+const PII_PROJECT_ID = 'fixture-project-id-aaa111';
+const PII_EXPECTED_PROJECT = 'fixture-expected-project-bbb222';
+const PII_EMAIL = 'pii.verify@example.com';
+const PII_UID = 'uid_verify_pii_fixture_001';
+const PII_TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.pii_token_body.pii_sig';
+
+function firebaseAuthError(
+  code: string,
+  message: string
+): Error & { readonly code: string } {
+  const error = new Error(message) as Error & { code: string };
+  error.code = code;
+  return error;
+}
+
+function audienceMismatchError(): Error & { readonly code: string } {
+  return firebaseAuthError(
+    'auth/argument-error',
+    `Firebase ID token has incorrect "aud" (audience) claim. Expected "${PII_EXPECTED_PROJECT}" but got "${PII_PROJECT_ID}". email=${PII_EMAIL} uid=${PII_UID} token=${PII_TOKEN}`
+  );
+}
+
+function issuerMismatchError(): Error & { readonly code: string } {
+  return firebaseAuthError(
+    'auth/argument-error',
+    `Firebase ID token has incorrect "iss" (issuer) claim. Expected "https://securetoken.google.com/${PII_EXPECTED_PROJECT}" but got "https://securetoken.google.com/${PII_PROJECT_ID}". email=${PII_EMAIL} uid=${PII_UID} token=${PII_TOKEN}`
+  );
+}
 
 const ALLOWLIST_ENV = {
   CALENDAR_PILOT_MANAGER_EMAILS: EMAIL,
@@ -114,6 +144,7 @@ function fakeDb(createImpl?: (record: unknown) => Promise<void>): {
 
 function fakeAuth(options: {
   readonly decoded?: Record<string, unknown> | 'reject';
+  readonly verifyError?: Error;
   readonly disabled?: boolean;
   readonly cookie?: string | Error;
 }): {
@@ -139,6 +170,9 @@ function fakeAuth(options: {
       calls.verifyIdToken += 1;
       expect(idToken).toBe(ID_TOKEN);
       expect(checkRevoked).toBe(true);
+      if (options.verifyError !== undefined) {
+        return Promise.reject(options.verifyError);
+      }
       if (options.decoded === 'reject') {
         return Promise.reject(new Error('firebase verify failed'));
       }
@@ -209,6 +243,218 @@ function assertNoIdentityLeak(serialized: string, extra: string[] = []): void {
   }
 }
 
+const VERIFY_TOKEN_FAILURE_CASES: ReadonlyArray<{
+  readonly name: string;
+  readonly error: Error;
+  readonly errorCode: string;
+}> = [
+  {
+    name: 'expired',
+    error: firebaseAuthError(
+      'auth/id-token-expired',
+      `The provided Firebase ID token is expired. email=${PII_EMAIL} uid=${PII_UID} token=${PII_TOKEN} project=${PII_PROJECT_ID}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.expired
+  },
+  {
+    name: 'revoked',
+    error: firebaseAuthError(
+      'auth/id-token-revoked',
+      `The Firebase ID token has been revoked. email=${PII_EMAIL} uid=${PII_UID} token=${PII_TOKEN}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.revoked
+  },
+  {
+    name: 'user_disabled',
+    error: firebaseAuthError(
+      'auth/user-disabled',
+      `The user record is disabled. email=${PII_EMAIL} uid=${PII_UID}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.userDisabled
+  },
+  {
+    name: 'audience_mismatch',
+    error: audienceMismatchError(),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.audienceMismatch
+  },
+  {
+    name: 'issuer_mismatch',
+    error: issuerMismatchError(),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.issuerMismatch
+  },
+  {
+    name: 'malformed',
+    error: firebaseAuthError(
+      'auth/argument-error',
+      `Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. token=${PII_TOKEN} email=${PII_EMAIL}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.malformed
+  },
+  {
+    name: 'internal',
+    error: firebaseAuthError(
+      'auth/internal-error',
+      `An internal error has occurred. project=${PII_PROJECT_ID} uid=${PII_UID}`
+    ),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.internal
+  },
+  {
+    name: 'unknown',
+    error: new Error(`uid=${PII_UID} email=${PII_EMAIL}`),
+    errorCode: CALENDAR_SESSION_VERIFY_TOKEN_FAILURE.unknown
+  }
+];
+
+describe('classifyCalendarSessionVerifyTokenError', () => {
+  it('maps auth/id-token-expired', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError('auth/id-token-expired', 'expired')
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_EXPIRED');
+  });
+
+  it('maps auth/id-token-revoked', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError('auth/id-token-revoked', 'revoked')
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_REVOKED');
+  });
+
+  it('maps auth/user-disabled', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError('auth/user-disabled', 'disabled')
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_USER_DISABLED');
+  });
+
+  it('maps the known audience mismatch signature', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(audienceMismatchError())
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_AUDIENCE_MISMATCH');
+  });
+
+  it('maps the known issuer mismatch signature', () => {
+    expect(classifyCalendarSessionVerifyTokenError(issuerMismatchError())).toBe(
+      'AUTH_GATE_VERIFY_TOKEN_ISSUER_MISMATCH'
+    );
+  });
+
+  it('maps known malformed/invalid token errors', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/argument-error',
+          'Firebase ID token has invalid signature.'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_MALFORMED');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/invalid-id-token',
+          'The provided ID token is not a valid Firebase ID token.'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_MALFORMED');
+  });
+
+  it('maps a known internal SDK error', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/internal-error',
+          'An internal error has occurred.'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_INTERNAL');
+  });
+
+  it('maps an unknown object to AUTH_GATE_VERIFY_TOKEN_UNKNOWN', () => {
+    expect(classifyCalendarSessionVerifyTokenError({ nope: true })).toBe(
+      'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
+    );
+  });
+
+  it('maps primitive values to AUTH_GATE_VERIFY_TOKEN_UNKNOWN without throwing', () => {
+    for (const value of [null, undefined, 'auth/id-token-expired', 401]) {
+      expect(classifyCalendarSessionVerifyTokenError(value)).toBe(
+        'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
+      );
+    }
+  });
+
+  it('classifies audience before issuer before malformed', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/argument-error',
+          'incorrect "aud" (audience) claim and incorrect "iss" (issuer) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_AUDIENCE_MISMATCH');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/argument-error',
+          'incorrect "iss" (issuer) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_ISSUER_MISMATCH');
+  });
+
+  it('prefers expired/revoked/disabled codes over message signatures', () => {
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/id-token-expired',
+          'incorrect "aud" (audience) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_EXPIRED');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/id-token-revoked',
+          'incorrect "iss" (issuer) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_REVOKED');
+    expect(
+      classifyCalendarSessionVerifyTokenError(
+        firebaseAuthError(
+          'auth/user-disabled',
+          'incorrect "aud" (audience) claim'
+        )
+      )
+    ).toBe('AUTH_GATE_VERIFY_TOKEN_USER_DISABLED');
+  });
+
+  it('returns UNKNOWN when property accessors throw', () => {
+    const poisoned = {};
+    Object.defineProperty(poisoned, 'code', {
+      get(): string {
+        throw new Error('code accessor exploded');
+      }
+    });
+    expect(classifyCalendarSessionVerifyTokenError(poisoned)).toBe(
+      'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
+    );
+  });
+
+  it('never returns message content', () => {
+    const classified = classifyCalendarSessionVerifyTokenError(
+      audienceMismatchError()
+    );
+    expect(classified).toBe('AUTH_GATE_VERIFY_TOKEN_AUDIENCE_MISMATCH');
+    expect(classified).not.toContain(PII_PROJECT_ID);
+    expect(classified).not.toContain(PII_EMAIL);
+    expect(classified).not.toContain(PII_TOKEN);
+  });
+});
+
 describe('calendar session second-factor classification', () => {
   it('classifies totp, absent, and other without exposing the raw claim', () => {
     expect(
@@ -240,23 +486,38 @@ describe('calendar session second-factor classification', () => {
 });
 
 describe('CalendarPilotSessionService.create gate telemetry', () => {
-  it('emits AUTH_GATE_VERIFY_TOKEN and preserves AuthenticationRequiredError', async () => {
-    const telemetry = recordingTelemetry();
-    const auth = fakeAuth({ decoded: 'reject' });
-    const db = fakeDb();
-    await expectAuthenticationRequired(() =>
-      serviceFor(auth, db, telemetry).create(ID_TOKEN, NOW)
-    );
-    expect(telemetry.events).toEqual([
-      expect.objectContaining({
-        operation: 'calendar_session_verify_token',
-        result: 'denied',
-        errorCode: 'AUTH_GATE_VERIFY_TOKEN'
-      })
-    ]);
-    expect(auth.calls.getUser).toBe(0);
-    expect(db.created).toEqual([]);
-  });
+  it.each(VERIFY_TOKEN_FAILURE_CASES)(
+    'emits $errorCode and preserves AuthenticationRequiredError without later gates',
+    async ({ error, errorCode }) => {
+      const telemetry = recordingTelemetry();
+      const auth = fakeAuth({ verifyError: error });
+      const db = fakeDb();
+      await expectAuthenticationRequired(() =>
+        serviceFor(auth, db, telemetry).create(ID_TOKEN, NOW)
+      );
+      expect(telemetry.events).toHaveLength(1);
+      expect(telemetry.events).toEqual([
+        expect.objectContaining({
+          operation: 'calendar_session_verify_token',
+          result: 'denied',
+          errorCode
+        })
+      ]);
+      expect(auth.calls.verifyIdToken).toBe(1);
+      expect(auth.calls.getUser).toBe(0);
+      expect(auth.calls.createSessionCookie).toBe(0);
+      expect(db.created).toEqual([]);
+      expect(
+        telemetry.events.some(
+          (event) =>
+            event.operation === 'calendar_session_allowlist' ||
+            event.operation === 'calendar_session_second_factor' ||
+            event.operation === 'calendar_session_email_verified' ||
+            event.operation === 'calendar_session_account_enabled'
+        )
+      ).toBe(false);
+    }
+  );
 
   it('emits AUTH_GATE_EMAIL_VERIFIED when email_verified is false', async () => {
     const telemetry = recordingTelemetry();
@@ -489,6 +750,59 @@ describe('calendar session gate telemetry PII safety', () => {
     ]);
   });
 
+  it('never serializes Firebase error messages, tokens, claims or identity', async () => {
+    const lines: string[] = [];
+    const logger = new StdoutStructuredLogger(
+      () => 1_000,
+      (line) => {
+        lines.push(line);
+      }
+    );
+    const telemetry = createCalendarPilotSessionGateTelemetry(logger);
+    const piiNeedles = [
+      PII_PROJECT_ID,
+      PII_EXPECTED_PROJECT,
+      PII_EMAIL,
+      PII_UID,
+      PII_TOKEN,
+      'securetoken.google.com',
+      EMAIL,
+      UID,
+      ID_TOKEN,
+      TOTP_CODE,
+      FACTOR_UID,
+      COOKIE,
+      GOOGLE_SUBJECT,
+      AUTHORIZATION,
+      'sign_in_second_factor'
+    ];
+    for (const { error, errorCode } of VERIFY_TOKEN_FAILURE_CASES) {
+      lines.length = 0;
+      await expectAuthenticationRequired(() =>
+        serviceFor(
+          fakeAuth({ verifyError: error }),
+          fakeDb(),
+          telemetry
+        ).create(ID_TOKEN, NOW)
+      );
+      expect(lines).toHaveLength(1);
+      const serialized = lines[0] ?? '';
+      const parsed = JSON.parse(serialized) as StructuredLog;
+      expect(Object.keys(parsed).sort()).toEqual(
+        [...STRUCTURED_LOG_KEYS].sort()
+      );
+      expect(sanitizeStructuredLog(parsed)).toEqual(parsed);
+      expect(parsed.operation).toBe('calendar_session_verify_token');
+      expect(parsed.result).toBe('denied');
+      expect(parsed.errorCode).toBe(errorCode);
+      expect(parsed.errorCode).toMatch(/^AUTH_GATE_VERIFY_TOKEN_[A-Z_]+$/);
+      for (const needle of piiNeedles) {
+        expect(serialized).not.toContain(needle);
+      }
+      expect(serialized).not.toMatch(/auth\/[a-z0-9-]+/);
+    }
+  });
+
   it('sanitizes every denial and error gate event', async () => {
     const captured: StructuredLog[] = [];
     const telemetry = createCalendarPilotSessionGateTelemetry({
@@ -554,7 +868,7 @@ describe('calendar session gate telemetry PII safety', () => {
       await run().catch(() => undefined);
     }
     expect(captured.map((entry) => entry.errorCode)).toEqual([
-      'AUTH_GATE_VERIFY_TOKEN',
+      'AUTH_GATE_VERIFY_TOKEN_UNKNOWN',
       'AUTH_GATE_EMAIL_VERIFIED',
       'AUTH_GATE_ALLOWLIST',
       'AUTH_GATE_SECOND_FACTOR_ABSENT',
@@ -583,7 +897,7 @@ describe('calendar session gate telemetry PII safety', () => {
         correlationId: 'corr_open',
         operation: 'calendar_session_verify_token',
         result: 'denied',
-        errorCode: 'AUTH_GATE_VERIFY_TOKEN'
+        errorCode: 'AUTH_GATE_VERIFY_TOKEN_UNKNOWN'
       })
     ).not.toThrow();
   });
@@ -650,8 +964,19 @@ describe('existing generic calendar-session exception log', () => {
     expect(session).toContain(
       'if (user.disabled) throw new DisabledAccountError()'
     );
+    expect(session).toContain('.verifyIdToken(idToken, true)');
+    expect(session).toContain(
+      'errorCode: classifyCalendarSessionVerifyTokenError(error)'
+    );
+    expect(session).toContain('throw new AuthenticationRequiredError()');
     expect(session).not.toContain('authorization_denial_events');
     expect(telemetry).not.toContain('authorization_denial_events');
     expect(telemetry).toContain('sanitizeStructuredLog');
+    expect(telemetry).not.toContain("verifyToken: 'AUTH_GATE_VERIFY_TOKEN'");
+    expect(telemetry).not.toContain('JSON.stringify(error)');
+    expect(telemetry).not.toContain('console.log');
+    expect(telemetry).not.toContain('console.error');
+    expect(session).not.toContain('console.log');
+    expect(session).not.toContain('console.error');
   });
 });

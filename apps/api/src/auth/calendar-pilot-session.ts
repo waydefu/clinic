@@ -18,6 +18,7 @@ import {
   CALENDAR_SESSION_GATE_OPERATION,
   NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY,
   classifyCalendarSessionSecondFactor,
+  classifyCalendarSessionVerifyTokenError,
   secondFactorDenialErrorCode,
   type CalendarPilotSessionGateEvent,
   type CalendarPilotSessionGateTelemetry
@@ -164,15 +165,17 @@ export class CalendarPilotSessionService {
     now = new Date().toISOString()
   ): Promise<CreatedCalendarPilotSession> {
     const correlationId = randomUUID();
-    const decoded = await this.auth.verifyIdToken(idToken, true).catch(() => {
-      this.emitCreateGate({
-        correlationId,
-        operation: CALENDAR_SESSION_GATE_OPERATION.verifyToken,
-        result: 'denied',
-        errorCode: CALENDAR_SESSION_GATE_ERROR.verifyToken
+    const decoded = await this.auth
+      .verifyIdToken(idToken, true)
+      .catch((error: unknown) => {
+        this.emitCreateGate({
+          correlationId,
+          operation: CALENDAR_SESSION_GATE_OPERATION.verifyToken,
+          result: 'denied',
+          errorCode: classifyCalendarSessionVerifyTokenError(error)
+        });
+        throw new AuthenticationRequiredError();
       });
-      throw new AuthenticationRequiredError();
-    });
     if (decoded.email_verified !== true) {
       this.emitCreateGate({
         correlationId,
