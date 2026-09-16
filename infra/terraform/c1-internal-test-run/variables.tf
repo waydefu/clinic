@@ -114,16 +114,57 @@ variable "worker_schedule_paused" {
   default     = true
 }
 
+variable "api_secret_versions" {
+  type = object({
+    CALENDAR_PILOT_FIREBASE_WEB_API_KEY = string
+    CALENDAR_PILOT_MANAGER_EMAILS       = string
+    CALENDAR_PILOT_FRONT_DESK_EMAILS    = string
+  })
+  description = "Independent per-env Secret Manager version pins for C1 API mounts. Does not pin worker Calendar. not_granted skips that mount; never commit secret values."
+  default = {
+    CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "not_granted"
+    CALENDAR_PILOT_MANAGER_EMAILS       = "not_granted"
+    CALENDAR_PILOT_FRONT_DESK_EMAILS    = "not_granted"
+  }
+  validation {
+    condition = alltrue([
+      for version in [
+        var.api_secret_versions.CALENDAR_PILOT_FIREBASE_WEB_API_KEY,
+        var.api_secret_versions.CALENDAR_PILOT_MANAGER_EMAILS,
+        var.api_secret_versions.CALENDAR_PILOT_FRONT_DESK_EMAILS
+      ] : version == "not_granted" || can(regex("^[0-9]+$", version))
+    ])
+    error_message = "Each api_secret_versions pin must be not_granted or a numeric Secret Manager version. latest is refused."
+  }
+}
+
+variable "worker_secret_versions" {
+  type = object({
+    GOOGLE_CALENDAR_ID = string
+  })
+  description = "Independent per-env Secret Manager version pins for C1 worker mounts. GOOGLE_CALENDAR_ID is the Calendar pin and is not coupled to API pins. Current approved C1 input is 2; a later authorized rotation is an input change only. not_granted skips that mount; never commit secret values."
+  default = {
+    GOOGLE_CALENDAR_ID = "not_granted"
+  }
+  validation {
+    condition = (
+      var.worker_secret_versions.GOOGLE_CALENDAR_ID == "not_granted" ||
+      can(regex("^[0-9]+$", var.worker_secret_versions.GOOGLE_CALENDAR_ID))
+    )
+    error_message = "worker_secret_versions.GOOGLE_CALENDAR_ID must be not_granted or a numeric Secret Manager version. latest is refused."
+  }
+}
+
 variable "secret_resource_version" {
   type        = string
-  description = "Pinned Secret Manager version for runtime mounts. not_granted skips mounts; never commit secret values."
+  description = "Retired shared pin. It is not read by any mount. Keep not_granted or omit it; set api_secret_versions and worker_secret_versions instead. Never commit secret values."
   default     = "not_granted"
   validation {
     condition = (
       var.secret_resource_version == "not_granted" ||
       can(regex("^[0-9]+$", var.secret_resource_version))
     )
-    error_message = "secret_resource_version must be not_granted or a numeric version. latest is refused."
+    error_message = "Retired secret_resource_version must be not_granted or numeric if a local file still declares it. It cannot pin mounts; latest is refused."
   }
 }
 

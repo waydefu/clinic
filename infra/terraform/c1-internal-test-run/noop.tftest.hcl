@@ -48,6 +48,16 @@ run "default_sha_is_noop" {
     condition     = length(google_project_iam_member.api_firebaseauth_session_runtime) == 0
     error_message = "C1 internal-test must grant zero Firebase Auth session bindings when SHA is not_granted."
   }
+
+  assert {
+    condition     = length(local.api_secret_env_when_mounted) == 0
+    error_message = "C1 internal-test must mount zero API secrets when SHA is not_granted."
+  }
+
+  assert {
+    condition     = length(local.worker_secret_env_when_mounted) == 0
+    error_message = "C1 internal-test must mount zero worker secrets when SHA is not_granted."
+  }
 }
 
 run "named_sha_without_images_is_rejected" {
@@ -57,6 +67,14 @@ run "named_sha_without_images_is_rejected" {
     exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     project_id                = "beauessence-clinic-stg-smoke1"
     firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
   }
 
   expect_failures = [
@@ -73,6 +91,14 @@ run "named_sha_with_digest_plans_isolated_run" {
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
   }
 
   assert {
@@ -217,6 +243,14 @@ run "named_sha_without_auth_domain_is_rejected" {
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     firebase_auth_domain      = ""
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
   }
 
   expect_failures = [
@@ -286,5 +320,287 @@ run "auth_domain_with_scheme_is_rejected" {
 
   expect_failures = [
     var.firebase_auth_domain
+  ]
+}
+
+run "current_c1_input_pins_calendar_to_explicit_approved_version" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = var.worker_secret_versions.GOOGLE_CALENDAR_ID == "2"
+    error_message = "Current C1 fixture must supply Calendar pin 2 as an explicit input."
+  }
+
+  assert {
+    condition     = local.resolved_google_calendar_id_secret_version == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "Resolved Calendar secret version must equal the explicit worker input."
+  }
+
+  assert {
+    condition     = local.planned_worker_secret_mount_versions["GOOGLE_CALENDAR_ID"] == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "Worker Calendar mount must use the explicit worker input pin."
+  }
+
+  assert {
+    condition     = local.planned_api_secret_mount_versions["CALENDAR_PILOT_FIREBASE_WEB_API_KEY"] == "1"
+    error_message = "Current C1 fixture must mount the explicit API pin, not the Calendar pin."
+  }
+}
+
+run "changing_another_pin_cannot_alter_calendar" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "4"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "5"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "6"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = local.resolved_google_calendar_id_secret_version == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "Calendar pin must remain the explicit worker input when API pins change."
+  }
+
+  assert {
+    condition     = local.planned_worker_secret_mount_versions["GOOGLE_CALENDAR_ID"] == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "Changing API pins must not alter the worker Calendar mount."
+  }
+
+  assert {
+    condition     = local.planned_api_secret_mount_versions["CALENDAR_PILOT_FIREBASE_WEB_API_KEY"] == "4"
+    error_message = "API web-api-key mount must follow its own pin."
+  }
+
+  assert {
+    condition     = local.planned_api_secret_mount_versions["CALENDAR_PILOT_MANAGER_EMAILS"] == "5"
+    error_message = "API manager-allowlist mount must follow its own pin."
+  }
+
+  assert {
+    condition     = local.planned_api_secret_mount_versions["CALENDAR_PILOT_FRONT_DESK_EMAILS"] == "6"
+    error_message = "API front-desk-allowlist mount must follow its own pin."
+  }
+
+  assert {
+    condition     = local.planned_worker_secret_mount_versions["GOOGLE_CALENDAR_ID"] != local.planned_api_secret_mount_versions["CALENDAR_PILOT_FIREBASE_WEB_API_KEY"]
+    error_message = "Calendar mount version must stay independent of the API web-api-key pin."
+  }
+}
+
+run "future_calendar_pin_follows_explicit_input_only" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "3"
+    }
+  }
+
+  assert {
+    condition     = var.worker_secret_versions.GOOGLE_CALENDAR_ID == "3"
+    error_message = "Future-version fixture must supply Calendar pin 3 as an explicit input."
+  }
+
+  assert {
+    condition     = local.resolved_google_calendar_id_secret_version == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "A later authorized Calendar rotation must resolve from the worker input only."
+  }
+
+  assert {
+    condition     = local.planned_worker_secret_mount_versions["GOOGLE_CALENDAR_ID"] == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "Worker Calendar mount must follow a future explicit input without a source invariant."
+  }
+
+  assert {
+    condition     = local.planned_api_secret_mount_versions["CALENDAR_PILOT_FIREBASE_WEB_API_KEY"] == "1"
+    error_message = "A Calendar input change must not rewrite API secret pins."
+  }
+}
+
+run "retired_shared_pin_cannot_govern_all_mounts" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    secret_resource_version   = "1"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "4"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "4"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "4"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = var.secret_resource_version == "1"
+    error_message = "This fixture keeps the retired shared pin set to 1 to prove it cannot govern mounts."
+  }
+
+  assert {
+    condition     = local.planned_worker_secret_mount_versions["GOOGLE_CALENDAR_ID"] == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "Retired secret_resource_version must not pin worker Calendar."
+  }
+
+  assert {
+    condition     = local.planned_worker_secret_mount_versions["GOOGLE_CALENDAR_ID"] != var.secret_resource_version
+    error_message = "Worker Calendar mount must not equal the retired shared pin."
+  }
+
+  assert {
+    condition     = local.planned_api_secret_mount_versions["CALENDAR_PILOT_FIREBASE_WEB_API_KEY"] == "4"
+    error_message = "API mounts must follow api_secret_versions, not the retired shared pin."
+  }
+
+  assert {
+    condition     = local.planned_api_secret_mount_versions["CALENDAR_PILOT_FIREBASE_WEB_API_KEY"] != var.secret_resource_version
+    error_message = "API mounts must not equal the retired shared pin."
+  }
+}
+
+run "missing_calendar_pin_on_apply_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "not_granted"
+    }
+  }
+
+  expect_failures = [
+    check.secret_pins_required_on_apply
+  ]
+
+  assert {
+    condition     = length(local.worker_secret_env_when_mounted) == 0
+    error_message = "A missing Calendar pin must not mount GOOGLE_CALENDAR_ID."
+  }
+}
+
+run "missing_api_pin_on_apply_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "not_granted"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  expect_failures = [
+    check.secret_pins_required_on_apply
+  ]
+
+  assert {
+    condition     = local.resolved_google_calendar_id_secret_version == var.worker_secret_versions.GOOGLE_CALENDAR_ID
+    error_message = "A missing API pin must not rewrite the Calendar input."
+  }
+}
+
+run "latest_calendar_pin_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "latest"
+    }
+  }
+
+  expect_failures = [
+    var.worker_secret_versions
+  ]
+}
+
+run "latest_api_pin_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "latest"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+  }
+
+  expect_failures = [
+    var.api_secret_versions
+  ]
+}
+
+run "latest_retired_shared_pin_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    secret_resource_version   = "latest"
+  }
+
+  expect_failures = [
+    var.secret_resource_version
   ]
 }
