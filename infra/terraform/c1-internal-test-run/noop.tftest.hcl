@@ -168,8 +168,9 @@ run "named_sha_with_digest_plans_isolated_run" {
     condition = toset(google_project_iam_custom_role.api_firebaseauth_session_runtime[0].permissions) == toset([
       "firebaseauth.users.get",
       "firebaseauth.users.createSession",
+      "firebaseauth.users.update",
     ])
-    error_message = "C1 Firebase Auth session custom role must contain exactly users.get and users.createSession."
+    error_message = "C1 Firebase Auth session custom role must contain exactly users.get, users.createSession and users.update."
   }
 
   assert {

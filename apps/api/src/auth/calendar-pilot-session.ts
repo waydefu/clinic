@@ -18,6 +18,8 @@ import {
   CALENDAR_SESSION_GATE_OPERATION,
   NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY,
   classifyCalendarSessionSecondFactor,
+  classifyCalendarSessionRevokeCookieError,
+  classifyCalendarSessionRevokeDependencyError,
   classifyCalendarSessionVerifyTokenError,
   secondFactorDenialErrorCode,
   type CalendarPilotSessionGateEvent,
@@ -152,7 +154,7 @@ export class CalendarPilotSessionService {
     private readonly telemetry: CalendarPilotSessionGateTelemetry = NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY
   ) {}
 
-  private emitCreateGate(event: CalendarPilotSessionGateEvent): void {
+  private emitGate(event: CalendarPilotSessionGateEvent): void {
     try {
       this.telemetry.emit(event);
     } catch {
@@ -168,7 +170,7 @@ export class CalendarPilotSessionService {
     const decoded = await this.auth
       .verifyIdToken(idToken, true)
       .catch((error: unknown) => {
-        this.emitCreateGate({
+        this.emitGate({
           correlationId,
           operation: CALENDAR_SESSION_GATE_OPERATION.verifyToken,
           result: 'denied',
@@ -177,7 +179,7 @@ export class CalendarPilotSessionService {
         throw new AuthenticationRequiredError();
       });
     if (decoded.email_verified !== true) {
-      this.emitCreateGate({
+      this.emitGate({
         correlationId,
         operation: CALENDAR_SESSION_GATE_OPERATION.emailVerified,
         result: 'denied',
@@ -187,7 +189,7 @@ export class CalendarPilotSessionService {
     }
     const role = roleForCalendarPilotEmail(decoded.email, this.environment);
     if (role === undefined) {
-      this.emitCreateGate({
+      this.emitGate({
         correlationId,
         operation: CALENDAR_SESSION_GATE_OPERATION.allowlist,
         result: 'denied',
@@ -196,7 +198,7 @@ export class CalendarPilotSessionService {
       throw new AuthenticationRequiredError();
     }
     if (!tokenHasTotpSecondFactor(decoded)) {
-      this.emitCreateGate({
+      this.emitGate({
         correlationId,
         operation: CALENDAR_SESSION_GATE_OPERATION.secondFactor,
         result: 'denied',
@@ -208,7 +210,7 @@ export class CalendarPilotSessionService {
     }
     const user = await this.auth.getUser(decoded.uid);
     if (user.disabled)
-      this.emitCreateGate({
+      this.emitGate({
         correlationId,
         operation: CALENDAR_SESSION_GATE_OPERATION.accountEnabled,
         result: 'denied',
@@ -222,7 +224,7 @@ export class CalendarPilotSessionService {
         expiresIn: STAFF_ABSOLUTE_SESSION_MS
       });
     } catch (error) {
-      this.emitCreateGate({
+      this.emitGate({
         correlationId,
         operation: CALENDAR_SESSION_GATE_OPERATION.cookieCreate,
         result: 'error',
@@ -250,7 +252,7 @@ export class CalendarPilotSessionService {
         .doc(sessionId)
         .create(record);
     } catch (error) {
-      this.emitCreateGate({
+      this.emitGate({
         correlationId,
         operation: CALENDAR_SESSION_GATE_OPERATION.firestoreCreate,
         result: 'error',
@@ -258,7 +260,7 @@ export class CalendarPilotSessionService {
       });
       throw error;
     }
-    this.emitCreateGate({
+    this.emitGate({
       correlationId,
       operation: CALENDAR_SESSION_GATE_OPERATION.create,
       result: 'ok',
@@ -334,18 +336,65 @@ export class CalendarPilotSessionService {
     cookieValue: string,
     now = new Date().toISOString()
   ): Promise<void> {
+    const correlationId = randomUUID();
     const decoded = await this.auth
       .verifySessionCookie(cookieValue, false)
-      .catch(() => {
+      .catch((error: unknown) => {
+        this.emitGate({
+          correlationId,
+          operation: CALENDAR_SESSION_GATE_OPERATION.revokeVerifyCookie,
+          result: 'denied',
+          errorCode: classifyCalendarSessionRevokeCookieError(error)
+        });
         throw new AuthenticationRequiredError();
       });
+    this.emitGate({
+      correlationId,
+      operation: CALENDAR_SESSION_GATE_OPERATION.revokeVerifyCookie,
+      result: 'ok',
+      errorCode: null
+    });
     const sessionId = digest(cookieValue);
-    await Promise.all([
-      this.db
-        .collection('calendar_pilot_sessions')
-        .doc(sessionId)
-        .update({ revokedAt: now }),
-      this.auth.revokeRefreshTokens(decoded.uid)
-    ]);
+    const firestoreRevoke = this.db
+      .collection('calendar_pilot_sessions')
+      .doc(sessionId)
+      .update({ revokedAt: now })
+      .then(() => {
+        this.emitGate({
+          correlationId,
+          operation: CALENDAR_SESSION_GATE_OPERATION.revokeFirestore,
+          result: 'ok',
+          errorCode: null
+        });
+      })
+      .catch((error: unknown) => {
+        this.emitGate({
+          correlationId,
+          operation: CALENDAR_SESSION_GATE_OPERATION.revokeFirestore,
+          result: 'error',
+          errorCode: classifyCalendarSessionRevokeDependencyError(error)
+        });
+        throw error;
+      });
+    const firebaseRevoke = this.auth
+      .revokeRefreshTokens(decoded.uid)
+      .then(() => {
+        this.emitGate({
+          correlationId,
+          operation: CALENDAR_SESSION_GATE_OPERATION.revokeFirebaseTokens,
+          result: 'ok',
+          errorCode: null
+        });
+      })
+      .catch((error: unknown) => {
+        this.emitGate({
+          correlationId,
+          operation: CALENDAR_SESSION_GATE_OPERATION.revokeFirebaseTokens,
+          result: 'error',
+          errorCode: classifyCalendarSessionRevokeDependencyError(error)
+        });
+        throw error;
+      });
+    await Promise.all([firestoreRevoke, firebaseRevoke]);
   }
 }
