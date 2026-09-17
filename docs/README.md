@@ -73,6 +73,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 3. Architecture and contracts
 
+- [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
+
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
 - [ADR-0002 — Calendar is a projection, not the lock](adr/0002-calendar-is-a-projection-not-the-lock.md)
 - [ADR-0003 — direct Firestore client access is deny by default](adr/0003-firestore-direct-client-access-is-deny-by-default.md)
