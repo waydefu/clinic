@@ -8,6 +8,7 @@ export * from './business-delivery.js';
 export * from './business-delivery-export.js';
 export * from './business-delivery-retention.js';
 export * from './business-delivery-reporting.js';
+export * from './business-delivery-termination.js';
 export * from './case-assignment.js';
 export * from './delegated-authorization-common.js';
 export * from './delegated-authorization.js';
