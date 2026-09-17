@@ -42,7 +42,10 @@ export const CALENDAR_SESSION_GATE_OPERATION = {
   accountEnabled: 'calendar_session_account_enabled',
   cookieCreate: 'calendar_session_cookie_create',
   firestoreCreate: 'calendar_session_firestore_create',
-  create: 'calendar_session_create'
+  create: 'calendar_session_create',
+  revokeVerifyCookie: 'calendar_session_revoke_verify_cookie',
+  revokeFirestore: 'calendar_session_revoke_firestore',
+  revokeFirebaseTokens: 'calendar_session_revoke_firebase_tokens'
 } as const;
 
 export const CALENDAR_SESSION_GATE_ERROR = {
@@ -52,7 +55,13 @@ export const CALENDAR_SESSION_GATE_ERROR = {
   secondFactorOther: 'AUTH_GATE_SECOND_FACTOR_OTHER',
   accountDisabled: 'AUTH_GATE_ACCOUNT_DISABLED',
   cookieCreate: 'AUTH_SESSION_COOKIE_CREATE_FAILED',
-  firestoreCreate: 'AUTH_SESSION_FIRESTORE_CREATE_FAILED'
+  firestoreCreate: 'AUTH_SESSION_FIRESTORE_CREATE_FAILED',
+  revokeCookieInvalid: 'AUTH_SESSION_REVOKE_COOKIE_INVALID',
+  revokeCookieExpired: 'AUTH_SESSION_REVOKE_COOKIE_EXPIRED',
+  revokeCookieRevoked: 'AUTH_SESSION_REVOKE_COOKIE_REVOKED',
+  revokePermissionDenied: 'AUTH_SESSION_REVOKE_PERMISSION_DENIED',
+  revokeUnavailable: 'AUTH_SESSION_REVOKE_DEPENDENCY_UNAVAILABLE',
+  revokeUnknown: 'AUTH_SESSION_REVOKE_UNKNOWN'
 } as const;
 
 /**
@@ -116,6 +125,27 @@ function readOwnString(value: unknown, key: string): string | undefined {
   return typeof property === 'string' ? property : undefined;
 }
 
+function readOwnCode(value: unknown, key: string): string | undefined {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return undefined;
+  }
+  let property: unknown;
+  try {
+    property = (value as Record<string, unknown>)[key];
+  } catch {
+    return undefined;
+  }
+  if (typeof property === 'string') return property;
+  if (
+    typeof property === 'number' &&
+    Number.isInteger(property) &&
+    property >= 0 &&
+    property <= 999
+  )
+    return String(property);
+  return undefined;
+}
+
 function isUsableFirebaseCode(value: string | undefined): value is string {
   return (
     value !== undefined &&
@@ -161,6 +191,67 @@ function firebaseErrorCode(error: unknown): string | undefined {
     return normalizeFirebaseErrorCode(nested);
   }
   return undefined;
+}
+
+function operationErrorCode(error: unknown): string | undefined {
+  const firebaseCode = firebaseErrorCode(error);
+  if (firebaseCode !== undefined) return firebaseCode;
+  const direct = readOwnCode(error, 'code');
+  return direct === undefined ? undefined : normalizeFirebaseErrorCode(direct);
+}
+
+/**
+ * Classify a session-cookie verification failure without exposing the SDK
+ * error. The route intentionally keeps the existing 401 behavior.
+ */
+export function classifyCalendarSessionRevokeCookieError(
+  error: unknown
+):
+  | typeof CALENDAR_SESSION_GATE_ERROR.revokeCookieInvalid
+  | typeof CALENDAR_SESSION_GATE_ERROR.revokeCookieExpired
+  | typeof CALENDAR_SESSION_GATE_ERROR.revokeCookieRevoked {
+  try {
+    const code = operationErrorCode(error);
+    if (code === 'session-cookie-expired')
+      return CALENDAR_SESSION_GATE_ERROR.revokeCookieExpired;
+    if (code === 'session-cookie-revoked')
+      return CALENDAR_SESSION_GATE_ERROR.revokeCookieRevoked;
+  } catch {
+    // Fall through to the fixed invalid-cookie class.
+  }
+  return CALENDAR_SESSION_GATE_ERROR.revokeCookieInvalid;
+}
+
+/**
+ * Classify a revoke dependency failure using only stable SDK/gRPC codes.
+ * Error messages, stacks and identity fields are never read or serialized.
+ */
+export function classifyCalendarSessionRevokeDependencyError(
+  error: unknown
+):
+  | typeof CALENDAR_SESSION_GATE_ERROR.revokePermissionDenied
+  | typeof CALENDAR_SESSION_GATE_ERROR.revokeUnavailable
+  | typeof CALENDAR_SESSION_GATE_ERROR.revokeUnknown {
+  try {
+    const code = operationErrorCode(error);
+    if (
+      code === 'insufficient-permission' ||
+      code === 'permission-denied' ||
+      code === '7'
+    )
+      return CALENDAR_SESSION_GATE_ERROR.revokePermissionDenied;
+    if (
+      code === 'unavailable' ||
+      code === 'deadline-exceeded' ||
+      code === 'resource-exhausted' ||
+      code === 'aborted' ||
+      code === '14'
+    )
+      return CALENDAR_SESSION_GATE_ERROR.revokeUnavailable;
+  } catch {
+    // Fall through to the fixed unknown class.
+  }
+  return CALENDAR_SESSION_GATE_ERROR.revokeUnknown;
 }
 
 /**

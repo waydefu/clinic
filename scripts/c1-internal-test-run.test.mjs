@@ -40,6 +40,7 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).toContain('Clinic C1 Firebase Auth Session Runtime');
     expect(main).toContain('firebaseauth.users.get');
     expect(main).toContain('firebaseauth.users.createSession');
+    expect(main).toContain('firebaseauth.users.update');
     expect(main).not.toContain('roles/firebaseauth.viewer');
     expect(main).not.toContain('roles/firebaseauth.editor');
     expect(main).not.toContain('roles/firebaseauth.admin');
@@ -48,7 +49,6 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).not.toContain('roles/identitytoolkit.admin');
     expect(main).not.toContain('roles/identityplatform.admin');
     expect(main).not.toContain('firebaseauth.users.create"');
-    expect(main).not.toContain('firebaseauth.users.update');
     expect(main).not.toContain('firebaseauth.users.delete');
     expect(main).not.toContain('firebaseauth.users.sendEmail');
     expect(main).not.toContain('firebaseauth.configs.');
@@ -60,9 +60,11 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(customRoleBlock).toBeDefined();
     expect(customRoleBlock).toContain('firebaseauth.users.get');
     expect(customRoleBlock).toContain('firebaseauth.users.createSession');
+    expect(customRoleBlock).toContain('firebaseauth.users.update');
     expect(customRoleBlock.match(/firebaseauth\.[a-zA-Z.]+/g)?.sort()).toEqual([
       'firebaseauth.users.createSession',
-      'firebaseauth.users.get'
+      'firebaseauth.users.get',
+      'firebaseauth.users.update'
     ]);
     const sessionMemberBlock = main.match(
       /resource "google_project_iam_member" "api_firebaseauth_session_runtime" \{[\s\S]*?\n\}/

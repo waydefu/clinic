@@ -155,20 +155,23 @@ resource "google_project_iam_member" "api_firestore" {
   member  = "serviceAccount:${google_service_account.api[0].email}"
 }
 
-# Least-privilege Auth lookup + session-cookie mint for isolated C1 API.
+# Least-privilege Auth lookup, session-cookie mint and token revocation for
+# isolated C1 API.
 # verifyIdToken(idToken, true) needs firebaseauth.users.get.
 # createSessionCookie needs firebaseauth.users.createSession.
-# Do not grant Auth Viewer/Editor/Admin, Identity Toolkit Editor/Admin,
-# user-write permissions, or this role to the worker.
+# revokeRefreshTokens needs firebaseauth.users.update. Do not grant Auth
+# Viewer/Editor/Admin, Identity Toolkit Editor/Admin, user creation/deletion,
+# email-sending permissions, or this role to the worker.
 resource "google_project_iam_custom_role" "api_firebaseauth_session_runtime" {
   count       = local.apply_enabled ? 1 : 0
   project     = var.project_id
   role_id     = "clinicC1FirebaseAuthSessionRuntime"
   title       = "Clinic C1 Firebase Auth Session Runtime"
-  description = "Least-privilege Auth user lookup and session-cookie mint for isolated C1 API. No user write."
+  description = "Least-privilege Auth lookup, session-cookie mint and token revocation for isolated C1 API. The update permission is limited to Firebase token validity and does not grant user creation, deletion or email sending."
   permissions = [
     "firebaseauth.users.get",
     "firebaseauth.users.createSession",
+    "firebaseauth.users.update",
   ]
 }
 
