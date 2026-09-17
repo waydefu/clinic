@@ -5,6 +5,7 @@ export * from './audit.js';
 export * from './booking-horizon.js';
 export * from './booking-transaction.js';
 export * from './business-delivery.js';
+export * from './business-delivery-backup.js';
 export * from './business-delivery-export.js';
 export * from './business-delivery-retention.js';
 export * from './business-delivery-reporting.js';
