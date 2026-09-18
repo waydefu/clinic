@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { OUTBOX_AGE_ALERT_SECONDS } from '@beauessence/domain';
@@ -15,7 +17,21 @@ import {
   stageFSyntheticPublishBody
 } from './stage-f-synthetic-schedule-bootstrap.mjs';
 
+const INTERNAL_TEST_TRANSPORT_SOURCE = readFileSync(
+  new URL(
+    '../apps/web/public/modules/internal-test-booking-transport.js',
+    import.meta.url
+  ),
+  'utf8'
+);
+
 describe('Stage F synthetic schedule bootstrap', () => {
+  it('keeps the browser M11 key aligned with the planner key', () => {
+    expect(INTERNAL_TEST_TRANSPORT_SOURCE).toContain(
+      `const STAGE_F_SCHEDULE_IDEMPOTENCY = '${STAGE_F_SCHEDULE_IDEMPOTENCY}';`
+    );
+  });
+
   it('keeps execute false and refuses cloud mutation', () => {
     const plan = planStageFSyntheticScheduleBootstrap();
     expect(plan.execute).toBe(false);
