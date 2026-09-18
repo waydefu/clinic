@@ -28,7 +28,6 @@ import {
   ensureScheduleVersion,
   generateSlots,
   scheduleImpact,
-  schedulesEqual,
   validateSchedule
 } from './modules/schedule-engine.js';
 import {
@@ -112,15 +111,6 @@ function workspaceState(state) {
   });
 }
 
-function saveDraft(state, schedule) {
-  validateSchedule(schedule);
-  state.scheduleDraft = cloneSchedule(schedule);
-  state.scheduleMeta.draftDirty = !schedulesEqual(
-    state.schedule,
-    state.scheduleDraft
-  );
-}
-
 function publishSchedule(state, actorId, expectedVersion) {
   validateSchedule(state.scheduleDraft);
   // 發布者以為自己接在哪一版之後。不符即代表另一個分頁先發布了，擋下而不是
@@ -182,6 +172,10 @@ export async function stagingRequest(path, options = {}) {
 
   const state = loadState();
   const body = parseBody(options);
+  if (path === '/schedule/draft' || path === '/schedule/discard') {
+    const { editDraft } = await import('./modules/schedule-draft.js');
+    return editDraft(state, path, body, snapshotState);
+  }
 
   // 查詢是 read-only POST：雙欄位驗證資料放在 body，避免出現在 URL／歷史紀錄；
   // 找到或找不到都不呼叫 saveState。
@@ -275,16 +269,9 @@ export async function stagingRequest(path, options = {}) {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_COMMUNICATIONS);
     addRelease(state, body);
     appendWorkspaceAudit(state, 'release_recorded', actor.id);
-  } else if (path === '/schedule/draft') {
-    requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
-    saveDraft(state, body);
   } else if (path === '/schedule/publish') {
     const actor = requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
     publishSchedule(state, actor.id, body.expectedVersion);
-  } else if (path === '/schedule/discard') {
-    requirePermission(state, PERMISSIONS.MANAGE_SCHEDULE);
-    state.scheduleDraft = cloneSchedule(state.schedule);
-    state.scheduleMeta.draftDirty = false;
   } else if (path === '/bookings') {
     if (
       body.origin === 'patient' &&
