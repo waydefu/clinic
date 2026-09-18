@@ -1,7 +1,23 @@
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initialState, stagingRequest, storageKey } from '../public/store.js';
+import { completeGoogleSignIn } from '../public/modules/pilot-google-totp-session.js';
+
+vi.mock('firebase/app', () => ({
+  getApps: () => [{ name: 'calendar-pilot' }]
+}));
+vi.mock('firebase/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('firebase/auth')>()),
+  getAuth: () => ({})
+}));
+vi.mock(
+  '../public/modules/pilot-google-totp-session.js',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../public/modules/pilot-google-totp-session.js')
+    >()),
+    completeGoogleSignIn: vi.fn()
+  })
+);
 
 function storage(values: Record<string, string> = {}) {
   return {
@@ -19,55 +35,62 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('pilot handoff regressions', () => {
   it('restores the OTP region after a cached calendar render fails', async () => {
-    const source = readFileSync(
-      new URL('./calendar-pilot-entry.js', import.meta.url),
-      'utf8'
+    const otpForm = { addEventListener: vi.fn() };
+    const otpRegion = {
+      hidden: true,
+      innerHTML: '',
+      querySelector: () => otpForm
+    };
+    const root = {
+      innerHTML: '',
+      querySelector(selector: string) {
+        if (selector === '[data-otp-region]') {
+          return this.innerHTML.includes('data-otp-region') ? otpRegion : null;
+        }
+        return { addEventListener: vi.fn() };
+      }
+    };
+    vi.stubGlobal('location', {
+      pathname: '/staff',
+      search: '?calendarPilot=1'
+    });
+    vi.stubGlobal(
+      'sessionStorage',
+      storage({ calPilotCsrf: 'synthetic_csrf' })
     );
-    let otpPresent = false;
-    const completeGoogleSignIn = vi.fn(() => {
-      expect(otpPresent).toBe(true);
+    vi.stubGlobal('document', {
+      documentElement: { classList: { add() {} } },
+      createElement: () => root,
+      body: { append() {} }
+    });
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: url.endsWith('/client-config'),
+        json: () => Promise.resolve({ error: { code: 'CONFLICT' } })
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const promptFailure = vi.fn();
+    vi.mocked(completeGoogleSignIn).mockImplementation(({ promptTotp }) => {
+      // Exercise the real prompt against markup produced by the real boot flow.
+      // No credentials are submitted and the OTP promise remains pending.
+      void promptTotp().catch(promptFailure);
       return Promise.resolve({ outcome: 'not_authenticated' });
     });
-    const showLogin = vi.fn();
-    await runInNewContext(
-      source.slice(
-        source.indexOf('async function boot()'),
-        source.lastIndexOf('void boot();')
-      ) + '\nboot();',
-      {
-        isPublicBookingPath: () => false,
-        isCalendarPilotLogoutInProgress: () => false,
-        location: { pathname: '/staff', search: '?calendarPilot=1' },
-        sessionStorage: storage({ calPilotCsrf: 'synthetic_csrf' }),
-        fetch: () =>
-          Promise.resolve({ ok: true, json: () => Promise.resolve({}) }),
-        API: '/v1',
-        wantsCalendarPilotOverlay: () => true,
-        document: {
-          documentElement: { classList: { add() {} } },
-          createElement: () => ({}),
-          body: { append() {} }
-        },
-        getAuth: () => ({}),
-        calendarPilotFirebaseApp: () => ({}),
-        bootStatusView: () => {
-          otpPresent = true;
-        },
-        renderApplication: () => {
-          otpPresent = false;
-          return Promise.reject(new Error('synthetic conflict'));
-        },
-        clearCalendarPilotClientAuthState() {},
-        completeGoogleSignIn,
-        showLogin,
-        CALENDAR_PILOT_AUTH_OUTCOME: {
-          AUTHENTICATED: 'authenticated',
-          NEEDS_REAUTHENTICATION: 'needs_reauthentication'
-        }
-      }
+    await import('./calendar-pilot-entry.js');
+    await vi.waitFor(() => expect(completeGoogleSignIn).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/v1/calendar/status',
+      expect.anything()
     );
-    expect(completeGoogleSignIn).toHaveBeenCalledOnce();
-    expect(showLogin).toHaveBeenCalledWith();
+    expect(promptFailure).not.toHaveBeenCalled();
+    expect(otpRegion.hidden).toBe(false);
+    expect(otpForm.addEventListener).toHaveBeenCalledWith(
+      'submit',
+      expect.any(Function),
+      { once: true }
+    );
+    expect(sessionStorage.getItem('calPilotCsrf')).toBeNull();
   });
 
   it.each(['manager', 'front_desk', 'missing'])(
