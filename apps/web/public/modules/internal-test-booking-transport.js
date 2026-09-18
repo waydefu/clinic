@@ -1,3 +1,31 @@
+import { DEFAULT_BLOCKED_TIMES } from './constants.js';
+import { CALENDAR_PILOT_SCHEDULE } from '../vendor/domain/calendar-sync.js';
+
+const STAGE_F_SCHEDULE_IDEMPOTENCY = 'stagef_c1_schedule_publish_v0';
+const STAGE_F_HOST_PATTERN =
+  /^beauessence-clinic-stg-c1a01--internal-preproduction-[a-z0-9-]+\.web\.app$/i;
+
+export function isStageFM11Enabled(location = globalThis.location) {
+  if (location === undefined || location === null) return false;
+  if (String(location.protocol ?? '') !== 'https:') return false;
+  if (String(location.pathname ?? '') !== '/staff') return false;
+  if (!STAGE_F_HOST_PATTERN.test(String(location.hostname ?? ''))) return false;
+  const query = new URLSearchParams(String(location.search ?? ''));
+  return (
+    query.get('internalTestBooking') === '1' && query.get('stageFM11') === '1'
+  );
+}
+
+function stageFM11Schedule() {
+  return {
+    ...CALENDAR_PILOT_SCHEDULE,
+    blockedTimes: {
+      initial: [...DEFAULT_BLOCKED_TIMES.initial],
+      follow_up: [...DEFAULT_BLOCKED_TIMES.follow_up]
+    }
+  };
+}
+
 function storedReturnSession() {
   return globalThis.sessionStorage?.getItem('itrs') ?? undefined;
 }
@@ -74,7 +102,12 @@ function firstServiceId(body) {
   return undefined;
 }
 
-export function mapInternalTestBookingRequest(path, method, body = {}) {
+export function mapInternalTestBookingRequest(
+  path,
+  method,
+  body = {},
+  location = globalThis.location
+) {
   const verb = String(method ?? 'GET').toUpperCase();
   if (verb === 'POST' && path === '/bookings') {
     return {
@@ -183,6 +216,17 @@ export function mapInternalTestBookingRequest(path, method, body = {}) {
     return { url: '/v1/schedule', method: 'GET' };
   }
   if (verb === 'POST' && path === '/schedule/publish') {
+    if (isStageFM11Enabled(location)) {
+      return {
+        url: '/v1/schedule/publish',
+        method: 'POST',
+        body: {
+          idempotencyKey: STAGE_F_SCHEDULE_IDEMPOTENCY,
+          expectedVersion: 0,
+          schedule: stageFM11Schedule()
+        }
+      };
+    }
     return {
       url: '/v1/schedule/publish',
       method: 'POST',
@@ -361,7 +405,8 @@ export function createInternalTestBookingTransport({
     const mapped = mapInternalTestBookingRequest(
       path,
       options.method,
-      parseBody(options)
+      parseBody(options),
+      globalThis.location
     );
     if (mapped === undefined) {
       if (

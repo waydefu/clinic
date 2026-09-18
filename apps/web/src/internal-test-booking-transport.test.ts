@@ -4,13 +4,32 @@ import {
   httpTransportError,
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
+import { DEFAULT_BLOCKED_TIMES } from '../public/modules/constants.js';
+import { CALENDAR_PILOT_SCHEDULE } from '../public/vendor/domain/calendar-sync.js';
 import {
   applyDeleteContractWrite,
   applyFollowUpContractWrite,
   createInternalTestBookingTransport,
+  isStageFM11Enabled,
   mapInternalTestBookingRequest,
   refreshPublishedOccupancy
 } from '../public/modules/internal-test-booking-transport.js';
+
+const M11_LOCATION = {
+  protocol: 'https:',
+  hostname:
+    'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+  pathname: '/staff',
+  search: '?internalTestBooking=1&stageFM11=1'
+};
+
+const EXPECTED_M11_SCHEDULE = {
+  ...CALENDAR_PILOT_SCHEDULE,
+  blockedTimes: {
+    initial: [...DEFAULT_BLOCKED_TIMES.initial],
+    follow_up: [...DEFAULT_BLOCKED_TIMES.follow_up]
+  }
+};
 
 describe('isInternalTestBookingEnabled', () => {
   it('stays off without the query and on the forbidden preview host', () => {
@@ -42,6 +61,31 @@ describe('isInternalTestBookingEnabled', () => {
         search: ''
       })
     ).toBe(true);
+  });
+});
+
+describe('isStageFM11Enabled', () => {
+  it('requires the exact HTTPS staff host, path, and both flags', () => {
+    expect(isStageFM11Enabled(M11_LOCATION)).toBe(true);
+    for (const location of [
+      { ...M11_LOCATION, protocol: 'http:' },
+      { ...M11_LOCATION, pathname: '/booking' },
+      { ...M11_LOCATION, hostname: 'localhost' },
+      {
+        ...M11_LOCATION,
+        hostname: 'beauessence-clinic-stg-c1a01.web.app'
+      },
+      {
+        ...M11_LOCATION,
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.example.com'
+      },
+      { ...M11_LOCATION, search: '?internalTestBooking=1' },
+      { ...M11_LOCATION, search: '?stageFM11=1' },
+      { ...M11_LOCATION, search: '' }
+    ]) {
+      expect(isStageFM11Enabled(location)).toBe(false);
+    }
   });
 });
 
@@ -210,6 +254,51 @@ describe('mapInternalTestBookingRequest', () => {
         schedule: { timeZone: 'Asia/Taipei' }
       }
     });
+
+    const firstM11Request = mapInternalTestBookingRequest(
+      '/schedule/publish',
+      'POST',
+      {
+        idempotencyKey: 'caller-controlled-key-must-be-ignored',
+        expectedVersion: 0,
+        publishedVersion: 99,
+        schedule: { timeZone: 'caller-controlled-schedule-must-be-ignored' }
+      },
+      M11_LOCATION
+    );
+    const secondM11Request = mapInternalTestBookingRequest(
+      '/schedule/publish',
+      'POST',
+      {
+        idempotencyKey: 'a-different-caller-key',
+        expectedVersion: 1,
+        publishedVersion: 100,
+        schedule: { timeZone: 'another-caller-schedule' }
+      },
+      M11_LOCATION
+    );
+    expect(firstM11Request).toEqual({
+      url: '/v1/schedule/publish',
+      method: 'POST',
+      body: {
+        idempotencyKey: 'stagef_c1_schedule_publish_v0',
+        expectedVersion: 0,
+        schedule: EXPECTED_M11_SCHEDULE
+      }
+    });
+    expect(secondM11Request).toEqual(firstM11Request);
+
+    const normalRequest = mapInternalTestBookingRequest(
+      '/schedule/publish',
+      'POST',
+      { expectedVersion: 1, schedule: EXPECTED_M11_SCHEDULE },
+      { ...M11_LOCATION, search: '?internalTestBooking=1' }
+    );
+    expect(normalRequest?.body.expectedVersion).toBe(1);
+    expect(normalRequest?.body.idempotencyKey).not.toBe(
+      'stagef_c1_schedule_publish_v0'
+    );
+
     const followUp = mapInternalTestBookingRequest(
       '/follow-ups/appointment_001',
       'POST',
