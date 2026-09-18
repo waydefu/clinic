@@ -963,6 +963,9 @@ async function boot() {
     } catch {
       clearCalendarPilotClientAuthState(sessionStorage);
       csrfToken = undefined;
+      // renderApplication replaced the login DOM before its request failed.
+      // Restore the OTP region before processing a pending MFA redirect.
+      bootStatusView('正在完成登入…');
     }
   }
   try {
