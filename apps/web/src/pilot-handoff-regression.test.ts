@@ -5,18 +5,15 @@ import { completeGoogleSignIn } from '../public/modules/pilot-google-totp-sessio
 vi.mock('firebase/app', () => ({
   getApps: () => [{ name: 'calendar-pilot' }]
 }));
-vi.mock('firebase/auth', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('firebase/auth')>()),
-  getAuth: () => ({})
-}));
+vi.mock('firebase/auth', async (importOriginal) =>
+  Object.assign({}, await importOriginal(), { getAuth: () => ({}) })
+);
 vi.mock(
   '../public/modules/pilot-google-totp-session.js',
-  async (importOriginal) => ({
-    ...(await importOriginal<
-      typeof import('../public/modules/pilot-google-totp-session.js')
-    >()),
-    completeGoogleSignIn: vi.fn()
-  })
+  async (importOriginal) =>
+    Object.assign({}, await importOriginal(), {
+      completeGoogleSignIn: vi.fn()
+    })
 );
 
 function storage(values: Record<string, string> = {}) {
