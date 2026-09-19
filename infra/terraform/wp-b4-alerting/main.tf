@@ -189,13 +189,18 @@ resource "google_monitoring_alert_policy" "application" {
     google_monitoring_notification_channel.application_pubsub[0].name,
     google_monitoring_notification_channel.human_email[0].name
   ]
+  alert_strategy {
+    auto_close           = "1800s"
+    notification_prompts = ["OPENED", "CLOSED"]
+  }
   conditions {
     display_name = "${each.value.display_name} threshold"
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/${each.value.metric}\" AND resource.type=\"global\""
-      duration        = "300s"
-      comparison      = "COMPARISON_GT"
-      threshold_value = each.value.threshold - 1
+      filter                  = "metric.type=\"logging.googleapis.com/user/${each.value.metric}\" AND resource.type=\"global\""
+      duration                = "300s"
+      comparison              = "COMPARISON_GT"
+      threshold_value         = each.value.threshold - 1
+      evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"
       aggregations {
         alignment_period   = "300s"
         per_series_aligner = "ALIGN_DELTA"
@@ -221,13 +226,18 @@ resource "google_monitoring_alert_policy" "outbox_age" {
     google_monitoring_notification_channel.application_pubsub[0].name,
     google_monitoring_notification_channel.human_email[0].name
   ]
+  alert_strategy {
+    auto_close           = "1800s"
+    notification_prompts = ["OPENED", "CLOSED"]
+  }
   conditions {
     display_name = "WP-B4 excessive outbox age threshold"
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.outbox_oldest_age[0].name}\" AND resource.type=\"global\""
-      duration        = "60s"
-      comparison      = "COMPARISON_GT"
-      threshold_value = 59
+      filter                  = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.outbox_oldest_age[0].name}\" AND resource.type=\"global\""
+      duration                = "60s"
+      comparison              = "COMPARISON_GT"
+      threshold_value         = 59
+      evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"
       aggregations {
         alignment_period   = "60s"
         per_series_aligner = "ALIGN_PERCENTILE_99"
@@ -253,13 +263,18 @@ resource "google_monitoring_alert_policy" "iam_setiampolicy_application" {
     google_monitoring_notification_channel.application_pubsub[0].name,
     google_monitoring_notification_channel.human_email[0].name
   ]
+  alert_strategy {
+    auto_close           = "1800s"
+    notification_prompts = ["OPENED", "CLOSED"]
+  }
   conditions {
     display_name = "WP-B4 IAM SetIamPolicy threshold"
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\" AND resource.type=\"global\""
-      duration        = "300s"
-      comparison      = "COMPARISON_GT"
-      threshold_value = 0
+      filter                  = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\" AND resource.type=\"global\""
+      duration                = "300s"
+      comparison              = "COMPARISON_GT"
+      threshold_value         = 0
+      evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"
       aggregations {
         alignment_period   = "300s"
         per_series_aligner = "ALIGN_DELTA"

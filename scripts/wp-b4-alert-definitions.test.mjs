@@ -28,11 +28,20 @@ describe('WP-B4 alert definitions', () => {
     expect(terraform).toContain(
       'resource "google_monitoring_alert_policy" "outbox_age"'
     );
-    expect(terraform).toContain('threshold_value = 59');
-    expect(terraform).toContain('duration        = "60s"');
+    expect(terraform).toMatch(/threshold_value\s*=\s*59/);
+    expect(terraform).toMatch(/duration\s*=\s*"60s"/);
     expect(terraform).toContain('value_type  = "DISTRIBUTION"');
     expect(terraform).toContain('ALIGN_PERCENTILE_99');
     expect(terraform).toContain('EXTRACT(jsonPayload.oldestPendingAgeSeconds)');
+    expect(
+      terraform.match(
+        /evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"/g
+      )
+    ).toHaveLength(3);
+    expect(terraform.match(/auto_close\s+= "1800s"/g)).toHaveLength(3);
+    expect(
+      terraform.match(/notification_prompts = \["OPENED", "CLOSED"\]/g)
+    ).toHaveLength(3);
     expect(terraform).toContain('c1-iam-setiampolicy');
     expect(terraform).toContain(
       'resource "google_monitoring_alert_policy" "iam_setiampolicy_application"'
@@ -44,5 +53,16 @@ describe('WP-B4 alert definitions', () => {
     );
     expect(example).toContain('exact_apply_authority_sha = "not_granted"');
     expect(example).toContain('alert_email_address       = ""');
+    const policies = JSON.parse(
+      readFileSync(
+        join(root, 'infra/monitoring/wp-b4-alert-policies.json'),
+        'utf8'
+      )
+    );
+    expect(policies.recovery).toEqual({
+      evaluationMissingData: 'EVALUATION_MISSING_DATA_INACTIVE',
+      autoClose: '1800s',
+      notificationPrompts: ['OPENED', 'CLOSED']
+    });
   });
 });
