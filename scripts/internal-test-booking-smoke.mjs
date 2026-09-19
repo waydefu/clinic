@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -85,6 +86,103 @@ const JSON_HEADERS = {
 const ACCEPT_JSON = { Accept: 'application/json' };
 export const SMOKE_APPOINTMENT_ID = 'appointment_smoke_001';
 
+const EXPECT_API_MODE = 'expect-api';
+const FAIL_CLOSED_MODE = 'fail-closed';
+
+/**
+ * A schema-valid, synthetic schedule used only by --expect-api. The request
+ * must be rejected by authentication before any write is reached; keeping the
+ * body valid makes a 400 response evidence of a malformed probe, not auth.
+ */
+export const EXPECT_API_CANONICAL_SCHEDULE = Object.freeze({
+  timeZone: 'Asia/Taipei',
+  weeklyAvailability: Object.freeze([
+    Object.freeze({
+      weekday: 3,
+      intervals: Object.freeze([
+        Object.freeze({ startLocalTime: '12:00', endLocalTime: '20:00' })
+      ])
+    }),
+    Object.freeze({
+      weekday: 4,
+      intervals: Object.freeze([
+        Object.freeze({ startLocalTime: '12:00', endLocalTime: '20:00' })
+      ])
+    }),
+    Object.freeze({
+      weekday: 5,
+      intervals: Object.freeze([
+        Object.freeze({ startLocalTime: '12:00', endLocalTime: '20:00' })
+      ])
+    }),
+    Object.freeze({
+      weekday: 6,
+      intervals: Object.freeze([
+        Object.freeze({ startLocalTime: '10:00', endLocalTime: '18:00' })
+      ])
+    })
+  ]),
+  dateExceptions: Object.freeze([]),
+  blockedTimes: Object.freeze({
+    initial: Object.freeze(['13:00', '15:00', '17:00']),
+    follow_up: Object.freeze(['13:15', '15:15', '17:15'])
+  })
+});
+
+export function createExpectApiSmokeKey() {
+  return `internal-test-api-smoke-${randomUUID()}`;
+}
+
+/**
+ * The deployed-API mode proves only routing/auth boundaries. It never sends a
+ * credential and every write body is contract-shaped so auth is evaluated
+ * before validation or mutation.
+ */
+export function createExpectApiSmokeProbes(
+  smokeKey = createExpectApiSmokeKey()
+) {
+  return [
+    getProbe('/v1/health'),
+    getProbe('/v1/slots'),
+    getProbe('/v1/schedule'),
+    jsonProbe('POST', '/v1/bookings', {
+      idempotencyKey: `${smokeKey}-booking`,
+      slotId: 'slot_20300102_1200',
+      serviceId: 'service_consult',
+      bookingKind: 'initial'
+    }),
+    jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/cancel`, {
+      idempotencyKey: `${smokeKey}-cancel`
+    }),
+    jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/reschedule`, {
+      idempotencyKey: `${smokeKey}-reschedule`,
+      targetSlotId: 'slot_20300102_1230'
+    }),
+    jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/arrive`, {
+      idempotencyKey: `${smokeKey}-arrive`
+    }),
+    jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/complete`, {
+      idempotencyKey: `${smokeKey}-complete`
+    }),
+    jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/no-show`, {
+      idempotencyKey: `${smokeKey}-no-show`
+    }),
+    jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/follow-up`, {
+      idempotencyKey: `${smokeKey}-follow-up`,
+      decision: 'not_required'
+    }),
+    jsonProbe('POST', `/v1/bookings/${SMOKE_APPOINTMENT_ID}/delete`, {
+      idempotencyKey: `${smokeKey}-delete`,
+      reasonCode: 'created_in_error'
+    }),
+    jsonProbe('POST', '/v1/schedule/publish', {
+      idempotencyKey: `${smokeKey}-schedule-publish`,
+      expectedVersion: 999999,
+      schedule: EXPECT_API_CANONICAL_SCHEDULE
+    })
+  ];
+}
+
 function jsonProbe(method, path, body) {
   return { method, path, headers: JSON_HEADERS, body };
 }
@@ -140,13 +238,65 @@ export function evaluateInternalTestBookingSmoke(probes) {
   return { ok: issues.length === 0, issues };
 }
 
+function evaluateExpectApiProbe({ method, path, status }) {
+  const isRequiredGet =
+    method === 'GET' &&
+    ['/v1/health', '/v1/slots', '/v1/schedule'].includes(path);
+  if (isRequiredGet) {
+    return status === 200
+      ? { ok: true, status, reason: 'api-mounted' }
+      : {
+          ok: false,
+          status,
+          reason: `${method} ${path} expected 200, got ${status}`
+        };
+  }
+  return status === 401 || status === 403
+    ? { ok: true, status, reason: 'unauthenticated-denied' }
+    : {
+        ok: false,
+        status,
+        reason: `${method} ${path} expected 401/403, got ${status}`
+      };
+}
+
+export function evaluateExpectApiSmoke(probes) {
+  const issues = [];
+  for (const probe of probes) {
+    const result = evaluateExpectApiProbe(probe);
+    if (!result.ok) issues.push(result.reason);
+  }
+  return {
+    ok: issues.length === 0,
+    issues,
+    mode: EXPECT_API_MODE,
+    probes: probes.map(sanitizedProbe)
+  };
+}
+
+function sanitizedProbe(probe) {
+  return {
+    method: String(probe.method),
+    path: String(probe.path),
+    status: Number.isInteger(probe.status) ? probe.status : null
+  };
+}
+
 export async function smokeInternalTestBooking(
   previewUrl,
-  fetchImpl = globalThis.fetch.bind(globalThis)
+  fetchImpl = globalThis.fetch.bind(globalThis),
+  { mode = FAIL_CLOSED_MODE, smokeKey } = {}
 ) {
   const base = assertInternalTestSmokeTarget(previewUrl);
+  if (mode !== FAIL_CLOSED_MODE && mode !== EXPECT_API_MODE) {
+    throw new Error(`internal-test smoke mode is unsupported: ${mode}`);
+  }
+  const specs =
+    mode === EXPECT_API_MODE
+      ? createExpectApiSmokeProbes(smokeKey)
+      : INTERNAL_TEST_SMOKE_PROBES;
   const probes = [];
-  for (const spec of INTERNAL_TEST_SMOKE_PROBES) {
+  for (const spec of specs) {
     const response = await fetchImpl(new URL(spec.path, base), {
       method: spec.method,
       headers: spec.headers,
@@ -158,11 +308,16 @@ export async function smokeInternalTestBooking(
       status: response.status
     });
   }
-  return evaluateInternalTestBookingSmoke(probes);
+  const evaluation =
+    mode === EXPECT_API_MODE
+      ? evaluateExpectApiSmoke(probes)
+      : evaluateInternalTestBookingSmoke(probes);
+  if (mode === FAIL_CLOSED_MODE) return evaluation;
+  return evaluation;
 }
 
 export const SMOKE_USAGE =
-  'Usage: pnpm smoke:internal-test-booking -- https://{isolated-project}--{channel}.web.app\nDoes not deploy. Requires a named Safety Floor 8 packet before any Hosting deploy.\n';
+  'Usage: pnpm smoke:internal-test-booking -- [--expect-api] https://{isolated-project}--{channel}.web.app\nDefault mode checks the existing fail-closed surface. --expect-api checks that an isolated preview has the API mounted without creating a booking.\nDoes not deploy. Requires a named Safety Floor 8 packet before any Hosting deploy.\n';
 
 export async function runInternalTestBookingSmokeCli({
   argv,
@@ -170,14 +325,22 @@ export async function runInternalTestBookingSmokeCli({
   stderr,
   fetchImpl = globalThis.fetch.bind(globalThis)
 }) {
+  const mode = argv.includes(`--${EXPECT_API_MODE}`)
+    ? EXPECT_API_MODE
+    : FAIL_CLOSED_MODE;
   const previewUrl = argv.find((argument) => argument.startsWith('https://'));
   if (previewUrl === undefined) {
     stderr.write(SMOKE_USAGE);
     return 2;
   }
   try {
-    const result = await smokeInternalTestBooking(previewUrl, fetchImpl);
+    const result = await smokeInternalTestBooking(previewUrl, fetchImpl, {
+      mode
+    });
     if (!result.ok) {
+      if (mode === EXPECT_API_MODE) {
+        stdout.write(`${JSON.stringify(result)}\n`);
+      }
       stderr.write(`${result.issues.join('\n')}\n`);
       return 1;
     }

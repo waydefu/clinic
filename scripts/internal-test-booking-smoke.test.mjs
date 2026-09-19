@@ -5,10 +5,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  EXPECT_API_CANONICAL_SCHEDULE,
   INTERNAL_TEST_SMOKE_PROBES,
   SMOKE_APPOINTMENT_ID,
   SMOKE_USAGE,
   assertInternalTestSmokeTarget,
+  createExpectApiSmokeProbes,
+  evaluateExpectApiSmoke,
   evaluateInternalTestBookingSmoke,
   evaluateUnauthenticatedApiSurface,
   evaluateUnauthenticatedBookingWrite,
@@ -161,6 +164,89 @@ describe('evaluateInternalTestBookingSmoke', () => {
   });
 });
 
+describe('expect-api mode', () => {
+  it('requires mounted GETs and auth denial for every write probe', () => {
+    const probes = createExpectApiSmokeProbes('expect-api-test-key').map(
+      (probe) => ({
+        method: probe.method,
+        path: probe.path,
+        status:
+          probe.method === 'GET' &&
+          ['/v1/health', '/v1/slots', '/v1/schedule'].includes(probe.path)
+            ? 200
+            : 403
+      })
+    );
+    expect(evaluateExpectApiSmoke(probes)).toMatchObject({
+      ok: true,
+      issues: [],
+      mode: 'expect-api'
+    });
+    expect(evaluateExpectApiSmoke(probes).probes).toEqual(
+      probes.map(({ method, path, status }) => ({ method, path, status }))
+    );
+  });
+
+  it.each([201, 400, 404, 500, 503])(
+    'rejects a write status of %s instead of 401/403',
+    (status) => {
+      const probes = createExpectApiSmokeProbes('expect-api-test-key').map(
+        (probe) => ({
+          method: probe.method,
+          path: probe.path,
+          status:
+            probe.method === 'GET' &&
+            ['/v1/health', '/v1/slots', '/v1/schedule'].includes(probe.path)
+              ? 200
+              : status
+        })
+      );
+      expect(evaluateExpectApiSmoke(probes).ok).toBe(false);
+    }
+  );
+
+  it('rejects every non-200 required GET status', () => {
+    for (const status of [201, 400, 404, 500, 503]) {
+      const probes = createExpectApiSmokeProbes('expect-api-test-key').map(
+        (probe) => ({
+          method: probe.method,
+          path: probe.path,
+          status:
+            probe.method === 'GET' && probe.path === '/v1/health'
+              ? status
+              : probe.method === 'GET'
+                ? 200
+                : 403
+        })
+      );
+      expect(evaluateExpectApiSmoke(probes).ok).toBe(false);
+    }
+  });
+
+  it('uses schema-valid, non-PII bodies and a distinct schedule key', () => {
+    const probes = createExpectApiSmokeProbes('expect-api-test-key');
+    const booking = probes.find(
+      (probe) => probe.path === '/v1/bookings' && probe.method === 'POST'
+    );
+    const publish = probes.find(
+      (probe) => probe.path === '/v1/schedule/publish'
+    );
+    expect(booking.body).toMatchObject({
+      slotId: 'slot_20300102_1200',
+      serviceId: 'service_consult',
+      bookingKind: 'initial'
+    });
+    expect(booking.body).not.toHaveProperty('intake');
+    expect(booking.body).not.toHaveProperty('onBehalfPatientId');
+    expect(publish.body).toMatchObject({
+      expectedVersion: 999999,
+      schedule: EXPECT_API_CANONICAL_SCHEDULE
+    });
+    expect(publish.body.idempotencyKey).toContain('expect-api-test-key');
+    expect(publish.body.idempotencyKey).not.toBe(booking.body.idempotencyKey);
+  });
+});
+
 describe('smokeInternalTestBooking', () => {
   it('posts contract bodies without PII and probes every IP-001 write path', async () => {
     const fetchImpl = vi.fn((url, init) => {
@@ -201,6 +287,44 @@ describe('smokeInternalTestBooking', () => {
       )
     ).rejects.toThrow(/live channel/);
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('supports --expect-api probes without allowing any write success', async () => {
+    const fetchImpl = vi.fn((url, init) => {
+      const path = new URL(String(url)).pathname;
+      const status =
+        init?.method === 'GET' &&
+        ['/v1/health', '/v1/slots', '/v1/schedule'].includes(path)
+          ? 200
+          : 403;
+      return Promise.resolve({ status });
+    });
+    const result = await smokeInternalTestBooking(PREVIEW, fetchImpl, {
+      mode: 'expect-api',
+      smokeKey: 'expect-api-test-key'
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      issues: [],
+      mode: 'expect-api'
+    });
+    expect(result.probes).toEqual(
+      expect.arrayContaining([
+        { method: 'GET', path: '/v1/health', status: 200 },
+        { method: 'POST', path: '/v1/bookings', status: 403 },
+        {
+          method: 'POST',
+          path: '/v1/schedule/publish',
+          status: 403
+        }
+      ])
+    );
+    expect(
+      result.probes.every(
+        (probe) => Object.keys(probe).sort().join(',') === 'method,path,status'
+      )
+    ).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(12);
   });
 });
 
@@ -243,6 +367,84 @@ describe('runInternalTestBookingSmokeCli', () => {
     });
     expect(code).toBe(1);
     expect(stderr).toMatch(/production default is not OFF/);
+  });
+
+  it('selects --expect-api and returns sanitized evidence', async () => {
+    const fetchImpl = vi.fn((url, init) => {
+      const path = new URL(String(url)).pathname;
+      const status =
+        init?.method === 'GET' &&
+        ['/v1/health', '/v1/slots', '/v1/schedule'].includes(path)
+          ? 200
+          : 401;
+      return Promise.resolve({ status });
+    });
+    let stdout = '';
+    let stderr = '';
+    const code = await runInternalTestBookingSmokeCli({
+      argv: ['--expect-api', PREVIEW],
+      stdout: {
+        write(chunk) {
+          stdout += chunk;
+        }
+      },
+      stderr: {
+        write(chunk) {
+          stderr += chunk;
+        }
+      },
+      fetchImpl
+    });
+    expect(code).toBe(0);
+    expect(stderr).toBe('');
+    const result = JSON.parse(stdout);
+    expect(result.mode).toBe('expect-api');
+    expect(result.ok).toBe(true);
+    expect(result.probes).toHaveLength(12);
+    expect(result.probes[0]).toEqual({
+      method: 'GET',
+      path: '/v1/health',
+      status: 200
+    });
+  });
+
+  it('reports sanitized evidence when --expect-api sees a write success', async () => {
+    const fetchImpl = vi.fn((url, init) => {
+      const path = new URL(String(url)).pathname;
+      const status =
+        init?.method === 'GET' &&
+        ['/v1/health', '/v1/slots', '/v1/schedule'].includes(path)
+          ? 200
+          : path === '/v1/bookings'
+            ? 201
+            : 401;
+      return Promise.resolve({ status });
+    });
+    let stdout = '';
+    let stderr = '';
+    const code = await runInternalTestBookingSmokeCli({
+      argv: [PREVIEW, '--expect-api'],
+      stdout: {
+        write(chunk) {
+          stdout += chunk;
+        }
+      },
+      stderr: {
+        write(chunk) {
+          stderr += chunk;
+        }
+      },
+      fetchImpl
+    });
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/expected 401\/403/);
+    const result = JSON.parse(stdout);
+    expect(result.mode).toBe('expect-api');
+    expect(result.probes).toContainEqual({
+      method: 'POST',
+      path: '/v1/bookings',
+      status: 201
+    });
   });
 });
 
