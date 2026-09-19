@@ -57,6 +57,11 @@ type PublishStub =
       schedule: Record<string, unknown>;
     };
 
+type ReturnLookupStub = {
+  outcome: 'schedule';
+  sessionId: string;
+};
+
 const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
   { kind: 'cancel', pattern: /^\/v1\/bookings\/[^/]+\/cancel$/ },
   { kind: 'reschedule', pattern: /^\/v1\/bookings\/[^/]+\/reschedule$/ },
@@ -73,7 +78,11 @@ async function stubV1(
   occupancy: 'closed' | { slots: ListedSlot[] },
   create: CreateStub = 'closed',
   mutations: Partial<Record<MutationKind, MutationStub>> = {},
-  extras: { getBooking?: ContractBooking; publish?: PublishStub } = {}
+  extras: {
+    getBooking?: ContractBooking;
+    publish?: PublishStub;
+    returnLookup?: ReturnLookupStub;
+  } = {}
 ): Promise<{
   body?: Record<string, unknown>;
   arrive: CapturedPost;
@@ -85,6 +94,7 @@ async function stubV1(
   delete: CapturedPost;
   query: CapturedPost;
   publish: CapturedPost;
+  returnLookup: CapturedPost;
 }> {
   const posted: {
     body?: Record<string, unknown>;
@@ -97,6 +107,7 @@ async function stubV1(
     delete: CapturedPost;
     query: CapturedPost;
     publish: CapturedPost;
+    returnLookup: CapturedPost;
   } = {
     arrive: {},
     cancel: {},
@@ -106,7 +117,8 @@ async function stubV1(
     followUp: {},
     delete: {},
     query: {},
-    publish: {}
+    publish: {},
+    returnLookup: {}
   };
   await page.route('**/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -125,6 +137,18 @@ async function stubV1(
         return;
       }
       await route.fulfill({ status: 201, json: create });
+      return;
+    }
+    if (
+      path === '/v1/return-lookup' &&
+      method === 'POST' &&
+      extras.returnLookup !== undefined
+    ) {
+      posted.returnLookup = {
+        path,
+        body: route.request().postDataJSON() as Record<string, unknown>
+      };
+      await route.fulfill({ status: 200, json: extras.returnLookup });
       return;
     }
     if (method === 'POST') {
@@ -1047,6 +1071,56 @@ test.describe('internal-test booking occupancy overlay', () => {
     );
     await expect(page.locator('.booking-lookup-card')).toBeVisible();
     expect(posted.query.path).toBe('/v1/bookings/appointment_api_001');
+  });
+
+  test('verified return lookup switches the live flow to follow-up slots', async ({
+    page
+  }) => {
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_follow_up_open',
+            kind: 'follow_up',
+            startsAt: upcomingIso(48),
+            available: true
+          }
+        ]
+      },
+      'closed',
+      {},
+      {
+        returnLookup: {
+          outcome: 'schedule',
+          sessionId: 'return_session_test_001'
+        }
+      }
+    );
+
+    await page.goto('/booking?internalTestBooking=1');
+    await page.locator('#booking-management-open').click();
+    await page.locator('#booking-lookup-phone').fill('0912000001');
+    await page.locator('#booking-lookup-birth').fill('1990-01-15');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '已確認回診身分'
+    );
+    await page.locator('#booking-management-close').click();
+
+    await expect(page.locator('#slot-choice-description')).toContainText(
+      '回診開放每小時 15 分與 45 分'
+    );
+    await expect(
+      page.locator('[data-patient-slot="slot_follow_up_open"]')
+    ).toBeVisible();
+    await page.locator('[data-booking-back="1"]').click();
+    await expect(page.locator('[data-booking-type="follow_up"]')).toBeEnabled();
+    await expect(page.locator('[data-booking-type="initial"]')).toBeDisabled();
+    expect(posted.returnLookup).toEqual({
+      path: '/v1/return-lookup',
+      body: { phone: '0912000001', birthDate: '1990-01-15' }
+    });
   });
 
   test('opt-in staff publish posts /v1/schedule/publish without patient fields', async ({

@@ -61,6 +61,7 @@ let bookingLookupMode = 'phone';
 let managedAppointments = [];
 let lastLookupVerification;
 let bookingManagementReturnFocus;
+let verifiedReturnBooking = false;
 // 診所資料（門診時段、公告）是非同步載入的。在它到達之前，選項可以先畫出來
 // 佔住版面，但**不能可按**：按下去會走進需要 state 的路徑。
 let dataReady = false;
@@ -346,9 +347,11 @@ function scheduleMaintenanceResume() {
 function renderFollowUpChoice() {
   const followUp = latestFollowUp();
   elements['follow-up-choice-status'].textContent =
-    followUp === undefined
+    followUp === undefined && !verifiedReturnBooking
       ? '回診狀態：尚待醫師確認。醫師登錄回診指示後，這裡才會開放回診。'
-      : `回診狀態：醫師已登錄回診指示（建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}），這次請改約回診；初診暫不開放。`;
+      : followUp === undefined
+        ? '回診狀態：已確認回診身分，這次請改約回診；初診暫不開放。'
+        : `回診狀態：醫師已登錄回診指示（建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}），這次請改約回診；初診暫不開放。`;
 }
 
 function renderServices() {
@@ -372,7 +375,8 @@ function bookingTypeAvailability() {
   // 但所有按鈕都沒有反應」。兩顆按鈕在 dataReady 之前本來就一律停用，所以這裡
   // 回什麼都不影響使用者。
   if (state === undefined) return { initial: true, follow_up: true };
-  const hasFollowUp = latestFollowUp() !== undefined;
+  const hasFollowUp =
+    latestFollowUp() !== undefined || verifiedReturnBooking === true;
   return { initial: !hasFollowUp, follow_up: hasFollowUp };
 }
 
@@ -1103,6 +1107,7 @@ elements['add-to-calendar'].addEventListener('click', () => {
 function restartBooking() {
   elements['patient-booking-form'].reset();
   touched.clear();
+  verifiedReturnBooking = false;
   selectedBookingType = 'initial';
   selectedSlotId = undefined;
   selectedServiceId = undefined;
@@ -1263,7 +1268,12 @@ elements['booking-lookup-form'].addEventListener('submit', async (event) => {
           }),
     onSuccess: (result) => {
       if (result?.outcome === 'schedule') {
+        verifiedReturnBooking = true;
         selectedBookingType = 'follow_up';
+        selectedSlotId = undefined;
+        activeSlotDate = undefined;
+        activeSlotMonth = undefined;
+        renderAll();
         message(
           '已確認回診身分，請選擇時段。不必再填寫姓名或電話。',
           'success',
