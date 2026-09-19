@@ -15,6 +15,11 @@ Human notification status after this source lands:
 
 `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED`
 
+All nine sparse log-metric policies treat missing data as non-violating,
+auto-close after 30 minutes as a fallback, and notify on both opening and
+closure. This prevents a one-shot proof or recovered workload from leaving a
+seven-day incident open merely because no later matching log arrives.
+
 Do not claim `HUMAN_NOTIFICATION_PROVEN`. Do not `terraform apply` until
 a local packet names this directory's exact SHA. Agent sandbox does not
 apply.

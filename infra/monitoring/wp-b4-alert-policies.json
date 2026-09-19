@@ -5,6 +5,11 @@
   "notificationPath": ["alert_policy", "notification_channel", "human_email"],
   "recipientSource": "secret_or_tfvar_never_in_repo",
   "metricLabelPolicy": "opaque_ids_only_no_pii",
+  "recovery": {
+    "evaluationMissingData": "EVALUATION_MISSING_DATA_INACTIVE",
+    "autoClose": "1800s",
+    "notificationPrompts": ["OPENED", "CLOSED"]
+  },
   "immediate": [
     {
       "id": "api_outage_or_5xx_burst",
