@@ -284,7 +284,10 @@ export const STAGE_F_TERRAFORM_MODULES = [
       'c1-application-alerts',
       'DISTRIBUTION',
       'ALIGN_PERCENTILE_99',
-      'duration        = "60s"'
+      'duration                = "60s"',
+      'evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"',
+      'auto_close           = "1800s"',
+      'notification_prompts = ["OPENED", "CLOSED"]'
     ],
     forbiddenSubstrings: [
       'google_secret_manager_secret_version',

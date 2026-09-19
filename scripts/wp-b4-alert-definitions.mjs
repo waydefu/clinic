@@ -77,6 +77,18 @@ export function evaluateWpB4Definitions({ policies, notification }) {
   ) {
     issues.push('WP-B4 human path must be alert → channel → human email.');
   }
+  if (
+    JSON.stringify(policies?.recovery) !==
+    JSON.stringify({
+      evaluationMissingData: 'EVALUATION_MISSING_DATA_INACTIVE',
+      autoClose: '1800s',
+      notificationPrompts: ['OPENED', 'CLOSED']
+    })
+  ) {
+    issues.push(
+      'WP-B4 recovery must close on missing data within 30 minutes and notify on open/close.'
+    );
+  }
   return { ok: issues.length === 0, issues };
 }
 
@@ -97,8 +109,6 @@ export function inspectWpB4TerraformSource(readFile = readFileSync) {
     'wp-b4-auth-failure',
     'wp-b4-authz-denial',
     'wp-b4-outbox-oldest-age',
-    'duration        = "60s"',
-    'threshold_value = 59',
     'value_type  = "DISTRIBUTION"',
     'ALIGN_PERCENTILE_99',
     'EXTRACT(jsonPayload.oldestPendingAgeSeconds)',
@@ -109,8 +119,28 @@ export function inspectWpB4TerraformSource(readFile = readFileSync) {
       issues.push(`WP-B4 terraform source missing ${needle}.`);
     }
   }
+  for (const [pattern, label] of [
+    [/duration\s*=\s*"60s"/, '60-second outbox duration'],
+    [/threshold_value\s*=\s*59/, '59-second outbox threshold']
+  ]) {
+    if (!pattern.test(terraform)) {
+      issues.push(`WP-B4 terraform source missing ${label}.`);
+    }
+  }
   if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(terraform)) {
     issues.push('WP-B4 terraform must not contain email addresses.');
+  }
+  for (const [needle, expectedCount] of [
+    ['evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"', 3],
+    ['auto_close           = "1800s"', 3],
+    ['notification_prompts = ["OPENED", "CLOSED"]', 3]
+  ]) {
+    const count = terraform.split(needle).length - 1;
+    if (count !== expectedCount) {
+      issues.push(
+        `WP-B4 terraform must contain ${expectedCount} occurrences of ${needle}; found ${count}.`
+      );
+    }
   }
   return { ok: issues.length === 0, issues };
 }
