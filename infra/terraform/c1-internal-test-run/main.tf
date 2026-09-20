@@ -321,9 +321,12 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "ALLOW_NON_LOOPBACK_BIND"
         value = "true"
       }
+      # Firebase Hosting rewrite and the Cloud Run frontend are the two
+      # controlled proxy hops. Trusting only the final hop fragments one
+      # client across Google frontend addresses and defeats durable limits.
       env {
         name  = "TRUSTED_PROXY_HOPS"
-        value = "1"
+        value = "2"
       }
       env {
         name  = "INTERNAL_TEST_BOOKING_ENABLED"

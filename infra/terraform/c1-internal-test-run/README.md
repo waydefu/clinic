@@ -59,6 +59,11 @@ stays accountless at the API layer. The worker uses `INGRESS_TRAFFIC_ALL`
 so Cloud Scheduler can reach `run.app`, but IAM grants `run.invoker` only
 to the scheduler service account. Unauthenticated drain is denied.
 
+The API sets `TRUSTED_PROXY_HOPS=2` for the controlled Firebase Hosting
+rewrite plus Cloud Run frontend chain. This selects the stable client address
+without trusting an arbitrary leftmost `X-Forwarded-For` value; reducing it to
+one hop fragments durable rate-limit keys across Google frontend addresses.
+
 Calendar projection uses **keyless Cloud Run ADC**
 (`GOOGLE_CALENDAR_AUTH=CLOUD_ADC`): attached `internal-test-outbox`
 identity → metadata server short-lived token → Calendar API. Do not
