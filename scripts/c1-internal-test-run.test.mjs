@@ -25,8 +25,8 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(variables).toContain('internal-test-api');
     expect(variables).toContain('internal-test-outbox');
     expect(variables).toContain(':latest');
-    expect(main).toContain(
-      'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
+    expect(main).toMatch(
+      /apply_enabled\s*=\s*var\.exact_apply_authority_sha\s*!=\s*"not_granted"/
     );
     expect(main).not.toMatch(/roles\/owner/);
     expect(main).not.toMatch(/roles\/editor/);
@@ -94,6 +94,12 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     );
     expect(main).not.toMatch(/name\s*=\s*"PORT"/);
     expect(main).toContain('Cloud Run v2 reserves PORT');
+    expect(main).toMatch(
+      /name\s*=\s*"TRUSTED_PROXY_HOPS"[\s\S]*?value\s*=\s*"2"/
+    );
+    expect(main).toContain(
+      'Firebase Hosting rewrite and the Cloud Run frontend are the two'
+    );
     expect(main).toContain('ignore_changes = [traffic]');
     expect(main).toContain('GOOGLE_CALENDAR_ID = "c1-synthetic-calendar-id"');
     expect(main).toContain('c1-calendar-service-account-json');

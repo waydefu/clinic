@@ -3,6 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { deriveClientIp } from './client-ip.js';
 
 describe('deriveClientIp', () => {
+  it('uses the client address behind the two-hop Hosting and Cloud Run chain', () => {
+    expect(
+      deriveClientIp(
+        {
+          headers: {
+            'x-forwarded-for': '192.0.2.200, 203.0.113.9, 198.51.100.10'
+          },
+          ip: '198.51.100.10'
+        },
+        2
+      )
+    ).toBe('203.0.113.9');
+  });
+
   it('ignores a spoofed X-Forwarded-For prefix when one proxy hop is trusted', () => {
     expect(
       deriveClientIp(
