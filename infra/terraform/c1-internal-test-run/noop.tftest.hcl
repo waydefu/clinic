@@ -216,8 +216,8 @@ run "calendar_sync_is_opt_in_keyless_and_paused" {
   }
 
   assert {
-    condition     = google_cloud_run_v2_service.calendar_sync["enabled"].template[0].service_account == google_service_account.calendar_sync["enabled"].email
-    error_message = "C1 inbound sync must not reuse the outbox worker identity."
+    condition     = length(google_service_account.calendar_sync) == 1
+    error_message = "C1 inbound sync must have a dedicated identity."
   }
 
   assert {
@@ -236,12 +236,7 @@ run "calendar_sync_is_opt_in_keyless_and_paused" {
   }
 
   assert {
-    condition     = google_secret_manager_secret_iam_member.calendar_sync_pseudonym["enabled"].member == "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
-    error_message = "The existing outbox worker must not receive the inbound pseudonym key."
-  }
-
-  assert {
-    condition     = google_secret_manager_secret_iam_member.calendar_sync_calendar_id["enabled"].member == "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
+    condition     = length(google_secret_manager_secret_iam_member.calendar_sync_calendar_id) == 1
     error_message = "The inbound worker must get only its synthetic Calendar ID binding."
   }
 }

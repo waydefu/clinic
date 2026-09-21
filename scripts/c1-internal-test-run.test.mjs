@@ -110,6 +110,9 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).toContain(
       'resource "google_secret_manager_secret_iam_member" "calendar_sync_pseudonym"'
     );
+    expect(main).toContain(
+      'member    = "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"'
+    );
     expect(main).toContain('value = "C1_SYNTHETIC_ADC"');
     expect(main).toContain(
       'args    = ["dist/calendar-sync/calendar-pilot-main.js"]'
