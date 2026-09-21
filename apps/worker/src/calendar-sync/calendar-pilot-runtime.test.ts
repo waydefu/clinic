@@ -1,6 +1,77 @@
 import { describe, expect, it } from 'vitest';
 
-import { calendarWriteEventForMirror } from './calendar-pilot-runtime.js';
+import {
+  C1_SYNTHETIC_CALENDAR_SOURCE_ID,
+  calendarWriteEventForMirror,
+  resolveCalendarPilotRuntimeConfiguration
+} from './calendar-pilot-runtime.js';
+
+describe('calendar pilot runtime configuration', () => {
+  const pseudonymKey = 'p'.repeat(32);
+
+  it('uses one synthetic Calendar through keyless ADC in C1', () => {
+    expect(
+      resolveCalendarPilotRuntimeConfiguration({
+        CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        CALENDAR_PILOT_PSEUDONYM_KEY: pseudonymKey,
+        GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+      })
+    ).toEqual({
+      auth: 'cloud_adc',
+      pseudonymKey,
+      sources: {
+        [C1_SYNTHETIC_CALENDAR_SOURCE_ID]: {
+          calendarId: 'synthetic-calendar-id'
+        }
+      }
+    });
+  });
+
+  it('refuses user-managed service-account credentials in C1', () => {
+    expect(() =>
+      resolveCalendarPilotRuntimeConfiguration({
+        CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        CALENDAR_PILOT_PSEUDONYM_KEY: pseudonymKey,
+        GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id',
+        GOOGLE_SERVICE_ACCOUNT_JSON: 'forbidden-secret'
+      })
+    ).toThrow(/forbids user-managed/u);
+  });
+
+  it('fails closed when the pseudonym key is missing or short', () => {
+    expect(() =>
+      resolveCalendarPilotRuntimeConfiguration({
+        CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        CALENDAR_PILOT_PSEUDONYM_KEY: 'short',
+        GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+      })
+    ).toThrow(/at least 32/u);
+  });
+
+  it('refuses C1 mode outside the isolated project and unknown modes', () => {
+    expect(() =>
+      resolveCalendarPilotRuntimeConfiguration({
+        CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+        CALENDAR_PILOT_PSEUDONYM_KEY: pseudonymKey,
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-staging',
+        GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+      })
+    ).toThrow(/isolated C1 project/u);
+    expect(() =>
+      resolveCalendarPilotRuntimeConfiguration({
+        CALENDAR_PILOT_RUNTIME_MODE: 'unknown',
+        CALENDAR_PILOT_PSEUDONYM_KEY: pseudonymKey
+      })
+    ).toThrow(/Unknown Calendar pilot runtime mode/u);
+  });
+});
 
 describe('calendar projection restore', () => {
   it('updates the original event and adds only the private opaque link', () => {

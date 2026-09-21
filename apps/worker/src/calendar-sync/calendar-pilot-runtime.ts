@@ -10,7 +10,10 @@ import {
   type CalendarServiceId,
   type ParsedCalendarEntry
 } from '@beauessence/domain';
-import { createServiceAccountTokenProvider } from '../google-calendar.js';
+import {
+  createCloudAdcTokenProvider,
+  createServiceAccountTokenProvider
+} from '../google-calendar.js';
 import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repository.js';
 import {
   GoogleCalendarEventReader,
@@ -22,6 +25,9 @@ import { CalendarSyncEngine, type CalendarSyncSummary } from './sync-engine.js';
 
 const READ_SCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly';
 const WRITE_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+export const C1_SYNTHETIC_CALENDAR_SOURCE_ID = 'c1_synthetic_calendar';
+export const C1_SYNTHETIC_ADC_MODE = 'C1_SYNTHETIC_ADC';
+export const C1_SYNTHETIC_PROJECT_ID = 'beauessence-clinic-stg-c1a01';
 const LEASE_MS = 4 * 60_000;
 const JOB_BATCH_SIZE = 20;
 
@@ -165,6 +171,82 @@ function parseSourceRegistry(raw: string | undefined): SourceRegistry {
   return registry;
 }
 
+export type CalendarPilotRuntimeConfiguration =
+  | {
+      readonly auth: 'cloud_adc';
+      readonly pseudonymKey: string;
+      readonly sources: SourceRegistry;
+    }
+  | {
+      readonly auth: 'service_account_json';
+      readonly pseudonymKey: string;
+      readonly sources: SourceRegistry;
+      readonly readerCredentials: string;
+      readonly writerCredentials: string;
+    };
+
+/**
+ * Resolves the isolated C1 keyless runtime separately from the retained
+ * legacy two-source CAL-PILOT mode. C1 accepts one allowlisted synthetic
+ * Calendar and refuses every user-managed credential path.
+ */
+export function resolveCalendarPilotRuntimeConfiguration(
+  environment: NodeJS.ProcessEnv
+): CalendarPilotRuntimeConfiguration {
+  const pseudonymKey = environment['CALENDAR_PILOT_PSEUDONYM_KEY'];
+  if (pseudonymKey === undefined || pseudonymKey.length < 32)
+    throw new Error(
+      'CALENDAR_PILOT_PSEUDONYM_KEY must be at least 32 characters.'
+    );
+
+  if (environment['CALENDAR_PILOT_RUNTIME_MODE'] === C1_SYNTHETIC_ADC_MODE) {
+    if (environment['GOOGLE_CLOUD_PROJECT'] !== C1_SYNTHETIC_PROJECT_ID)
+      throw new Error('C1 Calendar sync requires the isolated C1 project.');
+    if (environment['GOOGLE_CALENDAR_AUTH'] !== 'CLOUD_ADC')
+      throw new Error(
+        'C1 Calendar sync requires GOOGLE_CALENDAR_AUTH=CLOUD_ADC.'
+      );
+    if (
+      environment['GOOGLE_APPLICATION_CREDENTIALS'] !== undefined ||
+      environment['GOOGLE_SERVICE_ACCOUNT_JSON'] !== undefined ||
+      environment['CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON'] !== undefined ||
+      environment['CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON'] !== undefined
+    )
+      throw new Error(
+        'C1 Calendar sync forbids user-managed service-account credentials.'
+      );
+    const calendarId = environment['GOOGLE_CALENDAR_ID'];
+    if (calendarId === undefined || calendarId.trim() === '')
+      throw new Error('C1 Calendar sync requires GOOGLE_CALENDAR_ID.');
+    return {
+      auth: 'cloud_adc',
+      pseudonymKey,
+      sources: {
+        [C1_SYNTHETIC_CALENDAR_SOURCE_ID]: {
+          calendarId: calendarId.trim()
+        }
+      }
+    };
+  }
+
+  if (environment['CALENDAR_PILOT_RUNTIME_MODE'] !== undefined)
+    throw new Error('Unknown Calendar pilot runtime mode.');
+
+  const readerCredentials =
+    environment['CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON'];
+  const writerCredentials =
+    environment['CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON'];
+  if (readerCredentials === undefined || writerCredentials === undefined)
+    throw new Error('CAL-PILOT reader and writer credentials are required.');
+  return {
+    auth: 'service_account_json',
+    pseudonymKey,
+    sources: parseSourceRegistry(environment['CALENDAR_PILOT_SOURCE_MAP_JSON']),
+    readerCredentials,
+    writerCredentials
+  };
+}
+
 function safeFailureCode(error: unknown): string {
   if (error instanceof Error && error.name === 'CalendarSyncTokenExpiredError')
     return 'sync_token_expired';
@@ -272,33 +354,41 @@ export class CalendarPilotRuntime {
     private readonly db: Firestore,
     environment: NodeJS.ProcessEnv = process.env
   ) {
-    const pseudonymKey = environment['CALENDAR_PILOT_PSEUDONYM_KEY'];
-    if (pseudonymKey === undefined)
-      throw new Error('CALENDAR_PILOT_PSEUDONYM_KEY is required.');
-    this.repository = new FirestoreCalendarSyncRepository(db, pseudonymKey);
-    this.sources = parseSourceRegistry(
-      environment['CALENDAR_PILOT_SOURCE_MAP_JSON']
+    const configuration = resolveCalendarPilotRuntimeConfiguration(environment);
+    this.repository = new FirestoreCalendarSyncRepository(
+      db,
+      configuration.pseudonymKey
     );
-    const readerCredentials =
-      environment['CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON'];
-    const writerCredentials =
-      environment['CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON'];
-    if (readerCredentials === undefined || writerCredentials === undefined)
-      throw new Error('CAL-PILOT reader and writer credentials are required.');
-    this.readToken = createServiceAccountTokenProvider(
-      readerCredentials,
-      fetch,
-      Date.now,
-      30_000,
-      READ_SCOPE
-    );
-    this.writeToken = createServiceAccountTokenProvider(
-      writerCredentials,
-      fetch,
-      Date.now,
-      30_000,
-      WRITE_SCOPE
-    );
+    this.sources = configuration.sources;
+    if (configuration.auth === 'cloud_adc') {
+      this.readToken = createCloudAdcTokenProvider(
+        fetch,
+        Date.now,
+        30_000,
+        READ_SCOPE
+      );
+      this.writeToken = createCloudAdcTokenProvider(
+        fetch,
+        Date.now,
+        30_000,
+        WRITE_SCOPE
+      );
+    } else {
+      this.readToken = createServiceAccountTokenProvider(
+        configuration.readerCredentials,
+        fetch,
+        Date.now,
+        30_000,
+        READ_SCOPE
+      );
+      this.writeToken = createServiceAccountTokenProvider(
+        configuration.writerCredentials,
+        fetch,
+        Date.now,
+        30_000,
+        WRITE_SCOPE
+      );
+    }
   }
 
   private source(sourceId: string): SourceSecret {

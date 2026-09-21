@@ -30,6 +30,16 @@ run "default_sha_is_noop" {
   }
 
   assert {
+    condition     = length(google_cloud_run_v2_service.calendar_sync) == 0
+    error_message = "C1 internal-test must create zero inbound Calendar services when SHA is not_granted."
+  }
+
+  assert {
+    condition     = length(google_service_account.calendar_sync) == 0
+    error_message = "C1 internal-test must create zero inbound Calendar identities when SHA is not_granted."
+  }
+
+  assert {
     condition     = length(google_artifact_registry_repository.internal_test) == 0
     error_message = "C1 internal-test must create zero Artifact Registry repositories when SHA is not_granted."
   }
@@ -177,6 +187,89 @@ run "named_sha_with_digest_plans_isolated_run" {
     condition     = length(google_project_iam_member.api_firebaseauth_session_runtime) == 1
     error_message = "C1 API must receive exactly one Firebase Auth session custom-role binding when SHA-gated apply is on."
   }
+}
+
+run "calendar_sync_is_opt_in_keyless_and_paused" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha              = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                             = "beauessence-clinic-stg-c1a01"
+    api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    calendar_sync_enabled                  = true
+    calendar_sync_pseudonym_secret_version = "1"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.calendar_sync["enabled"].name == "internal-test-calendar-sync"
+    error_message = "C1 inbound sync must use the isolated service id."
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.calendar_sync["enabled"].template[0].service_account == google_service_account.calendar_sync["enabled"].email
+    error_message = "C1 inbound sync must not reuse the outbox worker identity."
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.calendar_sync["enabled"].template[0].containers[0].args == tolist(["dist/calendar-sync/calendar-pilot-main.js"])
+    error_message = "C1 inbound sync must override only the worker process entrypoint."
+  }
+
+  assert {
+    condition     = google_cloud_scheduler_job.calendar_sync["enabled"].paused == true
+    error_message = "C1 inbound sync scheduler must remain paused."
+  }
+
+  assert {
+    condition     = length(google_secret_manager_secret_iam_member.calendar_sync_pseudonym) == 1
+    error_message = "C1 inbound sync must receive only its separately pinned pseudonym secret binding."
+  }
+
+  assert {
+    condition     = google_secret_manager_secret_iam_member.calendar_sync_pseudonym["enabled"].member == "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
+    error_message = "The existing outbox worker must not receive the inbound pseudonym key."
+  }
+
+  assert {
+    condition     = google_secret_manager_secret_iam_member.calendar_sync_calendar_id["enabled"].member == "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
+    error_message = "The inbound worker must get only its synthetic Calendar ID binding."
+  }
+}
+
+run "calendar_sync_refuses_another_staging_project" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha              = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                             = "beauessence-clinic-stg-smoke1"
+    api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    calendar_sync_enabled                  = true
+    calendar_sync_pseudonym_secret_version = "1"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  expect_failures = [
+    check.calendar_sync_is_c1_only
+  ]
 }
 
 run "latest_image_is_rejected" {
@@ -527,6 +620,31 @@ run "missing_calendar_pin_on_apply_is_rejected" {
     condition     = length(local.worker_secret_env_when_mounted) == 0
     error_message = "A missing Calendar pin must not mount GOOGLE_CALENDAR_ID."
   }
+}
+
+run "missing_calendar_sync_pseudonym_pin_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-c1a01"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    calendar_sync_enabled     = true
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  expect_failures = [
+    check.secret_pins_required_on_apply
+  ]
 }
 
 run "missing_api_pin_on_apply_is_rejected" {

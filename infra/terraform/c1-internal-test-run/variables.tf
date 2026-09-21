@@ -56,6 +56,16 @@ variable "worker_service_id" {
   }
 }
 
+variable "calendar_sync_service_id" {
+  type        = string
+  description = "Exact isolated inbound Calendar sync Cloud Run service id."
+  default     = "internal-test-calendar-sync"
+  validation {
+    condition     = var.calendar_sync_service_id == "internal-test-calendar-sync"
+    error_message = "Calendar sync Cloud Run service id must remain internal-test-calendar-sync."
+  }
+}
+
 variable "api_image" {
   type        = string
   description = "Digest-pinned API image. Empty when not applying. Mutable latest is refused."
@@ -112,6 +122,35 @@ variable "worker_schedule_paused" {
   type        = bool
   description = "Cloud Scheduler default is paused. A Stage F packet may unpause."
   default     = true
+}
+
+variable "calendar_sync_enabled" {
+  type        = bool
+  description = "Default false. An exact-SHA Stage F packet may deploy the isolated inbound sync service."
+  default     = false
+}
+
+variable "calendar_sync_schedule_paused" {
+  type        = bool
+  description = "Inbound sync scheduler remains paused; bounded verification invokes it explicitly."
+  default     = true
+  validation {
+    condition     = var.calendar_sync_schedule_paused == true
+    error_message = "C1 inbound Calendar scheduler must remain paused."
+  }
+}
+
+variable "calendar_sync_pseudonym_secret_version" {
+  type        = string
+  description = "Explicit numeric Secret Manager version for the C1 candidate pseudonym key. Required only when calendar_sync_enabled."
+  default     = "not_granted"
+  validation {
+    condition = (
+      var.calendar_sync_pseudonym_secret_version == "not_granted" ||
+      can(regex("^[0-9]+$", var.calendar_sync_pseudonym_secret_version))
+    )
+    error_message = "calendar_sync_pseudonym_secret_version must be not_granted or numeric. latest is refused."
+  }
 }
 
 variable "api_secret_versions" {

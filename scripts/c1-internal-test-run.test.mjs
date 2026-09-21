@@ -100,6 +100,28 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).toContain(
       'Firebase Hosting rewrite and the Cloud Run frontend are the two'
     );
+    expect(main).toContain(
+      'resource "google_cloud_run_v2_service" "calendar_sync"'
+    );
+    expect(main).toContain('resource "google_service_account" "calendar_sync"');
+    expect(main).toContain(
+      'service_account                  = google_service_account.calendar_sync["enabled"].email'
+    );
+    expect(main).toContain(
+      'resource "google_secret_manager_secret_iam_member" "calendar_sync_pseudonym"'
+    );
+    expect(main).toContain('value = "C1_SYNTHETIC_ADC"');
+    expect(main).toContain(
+      'args    = ["dist/calendar-sync/calendar-pilot-main.js"]'
+    );
+    expect(main).toContain(
+      'resource "google_cloud_scheduler_job" "calendar_sync"'
+    );
+    expect(main).toContain(
+      'paused           = var.calendar_sync_schedule_paused'
+    );
+    expect(main).not.toContain('CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON');
+    expect(main).not.toContain('CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON');
     expect(main).toContain('ignore_changes = [traffic]');
     expect(main).toContain('GOOGLE_CALENDAR_ID = "c1-synthetic-calendar-id"');
     expect(main).toContain('c1-calendar-service-account-json');

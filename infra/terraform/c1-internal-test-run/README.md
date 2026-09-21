@@ -72,6 +72,17 @@ create a user-managed service-account key and do not set
 the worker identity. `DOMAIN_WIDE_DELEGATION_REQUIRED = NO`. Do not
 enable `events.watch`.
 
+Inbound candidate verification is opt-in with `calendar_sync_enabled=true`.
+It deploys `internal-test-calendar-sync` from the same digest-pinned worker
+image and overrides only the process entrypoint. A dedicated keyless identity
+has Firestore and access to only the synthetic Calendar ID and separately
+pinned pseudonym key; the outbox worker gains no new secret access. Grant this
+new identity access to the synthetic Calendar only in a separately authorized
+cloud packet. Its Scheduler remains
+paused and has no automatic retry; an authorized packet invokes individual
+runs. The C1 bootstrap script creates one bounded synthetic source and refuses
+to overwrite existing state.
+
 Do not `terraform apply` until a post-merge exact-SHA packet names this
 directory. Agent sandbox does not apply. Do not re-apply
 `exact_apply_authority_sha=not_granted` onto `c1-foundation` or
