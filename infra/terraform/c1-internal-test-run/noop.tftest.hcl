@@ -70,6 +70,20 @@ run "default_sha_is_noop" {
   }
 }
 
+run "calendar_sync_prerequisites_without_sha_are_noop" {
+  command = plan
+
+  variables {
+    calendar_sync_prerequisites_enabled = true
+    project_id                          = "beauessence-clinic-stg-c1a01"
+  }
+
+  assert {
+    condition     = length(google_service_account.calendar_sync) == 0 && length(google_secret_manager_secret.runtime) == 0
+    error_message = "Calendar sync prerequisites must remain a zero-change plan without exact-SHA authority."
+  }
+}
+
 run "named_sha_without_images_is_rejected" {
   command = plan
 
@@ -238,6 +252,48 @@ run "calendar_sync_is_opt_in_keyless_and_paused" {
   assert {
     condition     = length(google_secret_manager_secret_iam_member.calendar_sync_calendar_id) == 1
     error_message = "The inbound worker must get only its synthetic Calendar ID binding."
+  }
+}
+
+run "calendar_sync_prerequisites_do_not_start_runtime" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha           = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                          = "beauessence-clinic-stg-c1a01"
+    api_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    calendar_sync_prerequisites_enabled = true
+    calendar_sync_enabled               = false
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = length(google_service_account.calendar_sync) == 1
+    error_message = "First stage must create the dedicated inbound identity."
+  }
+
+  assert {
+    condition     = length(google_secret_manager_secret.runtime) == 6
+    error_message = "First stage must create the pseudonym secret container."
+  }
+
+  assert {
+    condition     = length(google_cloud_run_v2_service.calendar_sync) == 0
+    error_message = "First stage must not mount a secret version or start inbound sync."
+  }
+
+  assert {
+    condition     = length(google_cloud_scheduler_job.calendar_sync) == 0
+    error_message = "First stage must not create the inbound Scheduler job."
   }
 }
 
