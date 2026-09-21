@@ -74,9 +74,12 @@ enable `events.watch`.
 
 Inbound candidate verification has two explicit stages. First apply with
 `calendar_sync_prerequisites_enabled=true` and `calendar_sync_enabled=false`
-to create only the dedicated keyless identity, secret container, and bindings;
-this stage does not create the inbound service or Scheduler and needs no
-pseudonym secret version. In the separately authorized cloud packet, add a
+to create the inbound component's dedicated keyless identity, secret
+container, and bindings; this stage does not create the inbound service or
+Scheduler and needs no pseudonym secret version. The module may still update
+the existing API/outbox services according to the exact-SHA image inputs, so
+inspect the whole saved plan before applying. In the separately authorized
+cloud packet, add a
 fresh random pseudonym value as a Secret Manager version without printing it,
 record its numeric version, and grant only this identity access to the
 synthetic Calendar. Then apply with `calendar_sync_enabled=true` and that
