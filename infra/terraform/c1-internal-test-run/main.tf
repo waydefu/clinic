@@ -14,6 +14,10 @@ locals {
     local.numeric_secret_version,
     var.worker_secret_versions.GOOGLE_CALENDAR_ID
   ))
+  calendar_sync_pseudonym_pin_numeric = can(regex(
+    local.numeric_secret_version,
+    var.calendar_sync_pseudonym_secret_version
+  ))
   resolved_google_calendar_id_secret_version = var.worker_secret_versions.GOOGLE_CALENDAR_ID
   labels = {
     application = "c1-internal-test-run"
@@ -29,13 +33,16 @@ locals {
   ])
   # c1-calendar-service-account-json is a leftover empty container from the
   # key-JSON attempt. It is not mounted. Stage F worker auth is CLOUD_ADC.
-  runtime_secrets = toset([
-    "c1-staff-firebase-web-api-key",
-    "c1-staff-manager-allowlist",
-    "c1-staff-front-desk-allowlist",
-    "c1-calendar-service-account-json",
-    "c1-synthetic-calendar-id"
-  ])
+  runtime_secrets = setunion(
+    toset([
+      "c1-staff-firebase-web-api-key",
+      "c1-staff-manager-allowlist",
+      "c1-staff-front-desk-allowlist",
+      "c1-calendar-service-account-json",
+      "c1-synthetic-calendar-id"
+    ]),
+    var.calendar_sync_enabled ? toset(["c1-calendar-pseudonym-key"]) : toset([])
+  )
   api_secret_env = {
     CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "c1-staff-firebase-web-api-key"
     CALENDAR_PILOT_MANAGER_EMAILS       = "c1-staff-manager-allowlist"
@@ -76,6 +83,13 @@ check "images_required_on_apply" {
   }
 }
 
+check "calendar_sync_is_c1_only" {
+  assert {
+    condition     = !var.calendar_sync_enabled || var.project_id == "beauessence-clinic-stg-c1a01"
+    error_message = "Inbound Calendar sync is restricted to the exact isolated C1 project."
+  }
+}
+
 check "booking_expiry_required_when_enabled" {
   assert {
     condition     = !var.internal_test_booking_enabled || var.internal_test_booking_expires_at_utc != ""
@@ -95,7 +109,11 @@ check "auth_domain_required_on_apply" {
 
 check "secret_pins_required_on_apply" {
   assert {
-    condition     = !local.apply_enabled || (local.api_secret_pins_numeric && local.worker_secret_pins_numeric)
+    condition = !local.apply_enabled || (
+      local.api_secret_pins_numeric &&
+      local.worker_secret_pins_numeric &&
+      (!var.calendar_sync_enabled || local.calendar_sync_pseudonym_pin_numeric)
+    )
     error_message = "Applying C1 internal-test Cloud Run requires a numeric Secret Manager version pin for every API and worker mount. Independent per-service inputs only; missing pins fail closed and latest is refused."
   }
 }
@@ -132,6 +150,14 @@ resource "google_service_account" "worker" {
   account_id   = "internal-test-outbox"
   display_name = "Isolated internal-test outbox worker"
   description  = "Calendar projection worker. No unauthenticated invoke. No production Calendar."
+}
+
+resource "google_service_account" "calendar_sync" {
+  for_each     = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  project      = var.project_id
+  account_id   = "internal-test-calendar-sync"
+  display_name = "Isolated synthetic Calendar inbound worker"
+  description  = "Candidate detection only. Separate from the existing outbox worker."
 }
 
 resource "google_service_account" "scheduler" {
@@ -192,6 +218,13 @@ resource "google_project_iam_member" "worker_firestore" {
   member  = "serviceAccount:${google_service_account.worker[0].email}"
 }
 
+resource "google_project_iam_member" "calendar_sync_firestore" {
+  for_each = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  project  = var.project_id
+  role     = "roles/datastore.user"
+  member   = "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
+}
+
 resource "google_project_iam_member" "builder_logging" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
@@ -209,10 +242,15 @@ resource "google_artifact_registry_repository_iam_member" "builder_images" {
 }
 
 resource "google_artifact_registry_repository_iam_member" "runtime_images" {
-  for_each = local.apply_enabled ? {
-    api    = google_service_account.api[0].email
-    worker = google_service_account.worker[0].email
-  } : {}
+  for_each = local.apply_enabled ? merge(
+    {
+      api    = google_service_account.api[0].email
+      worker = google_service_account.worker[0].email
+    },
+    var.calendar_sync_enabled ? {
+      calendar_sync = google_service_account.calendar_sync["enabled"].email
+    } : {}
+  ) : {}
   project    = var.project_id
   location   = google_artifact_registry_repository.internal_test[0].location
   repository = google_artifact_registry_repository.internal_test[0].name
@@ -258,6 +296,22 @@ resource "google_secret_manager_secret_iam_member" "worker" {
   secret_id = google_secret_manager_secret.runtime[each.value].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.worker[0].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "calendar_sync_pseudonym" {
+  for_each  = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.runtime["c1-calendar-pseudonym-key"].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "calendar_sync_calendar_id" {
+  for_each  = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.runtime["c1-synthetic-calendar-id"].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
 }
 
 resource "google_cloud_run_v2_service" "api" {
@@ -475,6 +529,110 @@ resource "google_cloud_run_v2_service" "worker" {
   }
 }
 
+resource "google_cloud_run_v2_service" "calendar_sync" {
+  for_each            = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  project             = var.project_id
+  name                = var.calendar_sync_service_id
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = true
+  labels              = local.labels
+  depends_on          = [google_project_service.stage_f]
+
+  template {
+    service_account                  = google_service_account.calendar_sync["enabled"].email
+    timeout                          = "240s"
+    max_instance_request_concurrency = 1
+    execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+    containers {
+      name    = "calendar-sync"
+      image   = var.worker_image
+      command = ["node"]
+      args    = ["dist/calendar-sync/calendar-pilot-main.js"]
+      ports {
+        container_port = 8080
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+      startup_probe {
+        http_get {
+          path = "/live"
+          port = 8080
+        }
+        period_seconds    = 10
+        timeout_seconds   = 3
+        failure_threshold = 12
+      }
+      liveness_probe {
+        http_get {
+          path = "/live"
+          port = 8080
+        }
+        period_seconds  = 20
+        timeout_seconds = 3
+      }
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "HOST"
+        value = "0.0.0.0"
+      }
+      env {
+        name  = "CALENDAR_PILOT_RUNTIME_MODE"
+        value = "C1_SYNTHETIC_ADC"
+      }
+      env {
+        name  = "GOOGLE_CALENDAR_AUTH"
+        value = "CLOUD_ADC"
+      }
+      env {
+        name  = "INTERNAL_TEST_SOURCE_SHA"
+        value = var.exact_apply_authority_sha
+      }
+      dynamic "env" {
+        for_each = local.apply_enabled ? local.worker_secret_env_when_mounted : {}
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.runtime[env.value].secret_id
+              version = var.worker_secret_versions[env.key]
+            }
+          }
+        }
+      }
+      env {
+        name = "CALENDAR_PILOT_PSEUDONYM_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.runtime["c1-calendar-pseudonym-key"].secret_id
+            version = var.calendar_sync_pseudonym_secret_version
+          }
+        }
+      }
+    }
+  }
+
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+
+  lifecycle {
+    ignore_changes = [traffic]
+  }
+}
+
 resource "google_cloud_run_v2_service_iam_member" "api_hosting_invoke" {
   count    = local.apply_enabled ? 1 : 0
   project  = var.project_id
@@ -489,6 +647,15 @@ resource "google_cloud_run_v2_service_iam_member" "worker_scheduler_invoke" {
   project  = var.project_id
   location = var.region
   name     = google_cloud_run_v2_service.worker[0].name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.scheduler[0].email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "calendar_sync_scheduler_invoke" {
+  for_each = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.calendar_sync["enabled"].name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.scheduler[0].email}"
 }
@@ -515,6 +682,33 @@ resource "google_cloud_scheduler_job" "outbox_drain" {
     oidc_token {
       service_account_email = google_service_account.scheduler[0].email
       audience              = google_cloud_run_v2_service.worker[0].uri
+    }
+  }
+  depends_on = [google_project_service.stage_f]
+}
+
+resource "google_cloud_scheduler_job" "calendar_sync" {
+  for_each         = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  project          = var.project_id
+  region           = var.region
+  name             = "internal-test-calendar-sync"
+  description      = "Bounded C1 synthetic inbound sync; remains paused and is invoked explicitly by an authorized packet."
+  schedule         = "*/5 * * * *"
+  time_zone        = "UTC"
+  paused           = var.calendar_sync_schedule_paused
+  attempt_deadline = "240s"
+  retry_config {
+    retry_count          = 0
+    min_backoff_duration = "10s"
+    max_backoff_duration = "10s"
+    max_doublings        = 0
+  }
+  http_target {
+    uri         = "${google_cloud_run_v2_service.calendar_sync["enabled"].uri}/tasks/calendar-sync"
+    http_method = "POST"
+    oidc_token {
+      service_account_email = google_service_account.scheduler[0].email
+      audience              = google_cloud_run_v2_service.calendar_sync["enabled"].uri
     }
   }
   depends_on = [google_project_service.stage_f]

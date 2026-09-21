@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { CalendarChangeCandidate } from '@beauessence/contracts';
 import {
+  calendarEventIdForAppointment,
   parseSlotSnapshot,
   type BookingKind,
   type CalendarReviewRole,
@@ -19,7 +20,29 @@ import { ConflictError } from '../platform/errors/api-error.js';
 
 const CANDIDATES = 'calendar_pilot_candidates';
 const AUDITS = 'calendar_pilot_audit_events';
-const OUTBOX = 'calendar_pilot_outbox';
+const APPOINTMENT_OUTBOX = 'outbox_jobs';
+
+export function clinicCalendarRestoreOutbox(input: {
+  readonly candidateId: string;
+  readonly appointmentId: string;
+  readonly auditEventId: string;
+  readonly occurredAt: string;
+}) {
+  return {
+    id: `outbox_calendar_review_${input.candidateId}`,
+    record: {
+      type: 'calendar_projection_requested',
+      appointmentId: input.appointmentId,
+      correlationId: `calendar_review_${input.candidateId}`,
+      causationId: input.auditEventId,
+      idempotencyKey: calendarEventIdForAppointment(input.appointmentId),
+      status: 'pending',
+      attempts: 0,
+      createdAt: input.occurredAt,
+      nextAttemptAt: input.occurredAt
+    }
+  } as const;
+}
 
 export class FirestoreClinicCalendarCandidateStore implements ClinicCalendarCandidateStore {
   public constructor(private readonly db: Firestore) {}
@@ -87,7 +110,8 @@ export class FirestoreClinicCalendarCandidateStore implements ClinicCalendarCand
         reviewedBy: input.actorId,
         reviewedAt: input.occurredAt
       });
-      transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
+      const auditEventId = randomUUID();
+      transaction.create(this.db.collection(AUDITS).doc(auditEventId), {
         action: input.auditAction,
         actorId: input.actorId,
         actorRole: input.actorRole,
@@ -95,15 +119,15 @@ export class FirestoreClinicCalendarCandidateStore implements ClinicCalendarCand
         occurredAt: input.occurredAt
       });
       if (input.restoreCalendar && stored.localRecordId !== undefined) {
+        const restore = clinicCalendarRestoreOutbox({
+          candidateId: input.candidateId,
+          appointmentId: stored.localRecordId,
+          auditEventId,
+          occurredAt: input.occurredAt
+        });
         transaction.set(
-          this.db.collection(OUTBOX).doc(`${input.candidateId}_restore`),
-          {
-            kind: 'calendar_projection_restore',
-            mirrorId: stored.localRecordId,
-            status: 'pending',
-            createdAt: input.occurredAt,
-            attemptCount: 0
-          }
+          this.db.collection(APPOINTMENT_OUTBOX).doc(restore.id),
+          restore.record
         );
       }
       return next;

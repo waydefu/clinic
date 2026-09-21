@@ -26,7 +26,7 @@ function passingSnapshot(overrides = {}) {
       {
         id: 'internal-preproduction',
         url: `https://${isolated}--internal-preproduction.web.app`,
-        expireTime: '2026-09-21T00:00:00.000Z'
+        expireTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       }
     ],
     ...overrides

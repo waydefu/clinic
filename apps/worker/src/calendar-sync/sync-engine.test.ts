@@ -333,6 +333,60 @@ describe('CalendarSyncEngine', () => {
     expect(repository.commits[0]?.mutations[0]?.candidate).toBeUndefined();
   });
 
+  it('turns a later manual edit of a projected event into a linked review candidate', async () => {
+    const repository = new MemoryRepository();
+    const appointmentId = 'appointment_001';
+    const eventId = calendarEventIdForAppointment(appointmentId);
+    repository.clinicAppointments.set(appointmentId, {
+      appointmentId,
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial'
+    });
+    const payload = buildClinicCalendarEventBody({
+      eventId,
+      appointmentId,
+      appointmentStatus: 'confirmed',
+      bookingKind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T05:00:00.000Z',
+      colorId: '10',
+      clinicName: '一森渼診所',
+      clinicAddress: 'synthetic-location',
+      correlationId: 'corr_calendar_001'
+    });
+    const baseline = {
+      id: eventId,
+      etag: 'etag-echo',
+      status: 'confirmed' as const,
+      summary: payload.summary,
+      start: payload.start,
+      end: payload.end,
+      extendedProperties: payload.extendedProperties
+    };
+    await new CalendarSyncEngine(
+      new FakeReader([{ events: [baseline], nextSyncToken: 'sync-echo' }]),
+      repository
+    ).run(NOW);
+
+    const changed = {
+      ...baseline,
+      etag: 'etag-manual-edit',
+      start: { dateTime: '2030-01-03T04:00:00.000Z' },
+      end: { dateTime: '2030-01-03T05:00:00.000Z' }
+    };
+    const summary = await new CalendarSyncEngine(
+      new FakeReader([{ events: [changed], nextSyncToken: 'sync-edit' }]),
+      repository
+    ).run(NOW);
+    expect(summary.candidates).toBe(1);
+    expect(repository.commits[1]?.mutations[0]?.candidate).toMatchObject({
+      kind: 'update_appointment',
+      localRecordId: appointmentId,
+      changedFields: expect.arrayContaining(['startsAt'])
+    });
+  });
+
   it('marks an unknown manually created Calendar event unmatched', async () => {
     const repository = new MemoryRepository();
     const reader = new FakeReader([
