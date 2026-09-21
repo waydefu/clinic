@@ -130,6 +130,12 @@ variable "calendar_sync_enabled" {
   default     = false
 }
 
+variable "calendar_sync_prerequisites_enabled" {
+  type        = bool
+  description = "First-stage opt-in: create only the dedicated identity, secret container, and access bindings, without the inbound service or Scheduler."
+  default     = false
+}
+
 variable "calendar_sync_schedule_paused" {
   type        = bool
   description = "Inbound sync scheduler remains paused; bounded verification invokes it explicitly."

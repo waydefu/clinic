@@ -1,6 +1,7 @@
 locals {
   apply_enabled = var.exact_apply_authority_sha != "not_granted"
-  numeric_secret_version = "^[0-9]+$"
+  calendar_sync_prerequisites_active = var.calendar_sync_prerequisites_enabled || var.calendar_sync_enabled
+  numeric_secret_version             = "^[0-9]+$"
   # Independent per-service pins. var.secret_resource_version is retired and
   # must not appear on any mount.
   api_secret_pins_numeric = alltrue([
@@ -41,7 +42,7 @@ locals {
       "c1-calendar-service-account-json",
       "c1-synthetic-calendar-id"
     ]),
-    var.calendar_sync_enabled ? toset(["c1-calendar-pseudonym-key"]) : toset([])
+    local.calendar_sync_prerequisites_active ? toset(["c1-calendar-pseudonym-key"]) : toset([])
   )
   api_secret_env = {
     CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "c1-staff-firebase-web-api-key"
@@ -85,7 +86,7 @@ check "images_required_on_apply" {
 
 check "calendar_sync_is_c1_only" {
   assert {
-    condition     = !var.calendar_sync_enabled || var.project_id == "beauessence-clinic-stg-c1a01"
+    condition     = !local.calendar_sync_prerequisites_active || var.project_id == "beauessence-clinic-stg-c1a01"
     error_message = "Inbound Calendar sync is restricted to the exact isolated C1 project."
   }
 }
@@ -153,7 +154,7 @@ resource "google_service_account" "worker" {
 }
 
 resource "google_service_account" "calendar_sync" {
-  for_each     = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  for_each     = local.apply_enabled ? (local.calendar_sync_prerequisites_active ? toset(["enabled"]) : toset([])) : toset([])
   project      = var.project_id
   account_id   = "internal-test-calendar-sync"
   display_name = "Isolated synthetic Calendar inbound worker"
@@ -219,7 +220,7 @@ resource "google_project_iam_member" "worker_firestore" {
 }
 
 resource "google_project_iam_member" "calendar_sync_firestore" {
-  for_each = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  for_each = local.apply_enabled ? (local.calendar_sync_prerequisites_active ? toset(["enabled"]) : toset([])) : toset([])
   project  = var.project_id
   role     = "roles/datastore.user"
   member   = "serviceAccount:${google_service_account.calendar_sync["enabled"].email}"
@@ -247,7 +248,7 @@ resource "google_artifact_registry_repository_iam_member" "runtime_images" {
       api    = google_service_account.api[0].email
       worker = google_service_account.worker[0].email
     },
-    var.calendar_sync_enabled ? {
+    local.calendar_sync_prerequisites_active ? {
       calendar_sync = google_service_account.calendar_sync["enabled"].email
     } : {}
   ) : {}
@@ -299,7 +300,7 @@ resource "google_secret_manager_secret_iam_member" "worker" {
 }
 
 resource "google_secret_manager_secret_iam_member" "calendar_sync_pseudonym" {
-  for_each  = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  for_each  = local.apply_enabled ? (local.calendar_sync_prerequisites_active ? toset(["enabled"]) : toset([])) : toset([])
   project   = var.project_id
   secret_id = google_secret_manager_secret.runtime["c1-calendar-pseudonym-key"].secret_id
   role      = "roles/secretmanager.secretAccessor"
@@ -307,7 +308,7 @@ resource "google_secret_manager_secret_iam_member" "calendar_sync_pseudonym" {
 }
 
 resource "google_secret_manager_secret_iam_member" "calendar_sync_calendar_id" {
-  for_each  = local.apply_enabled ? (var.calendar_sync_enabled ? toset(["enabled"]) : toset([])) : toset([])
+  for_each  = local.apply_enabled ? (local.calendar_sync_prerequisites_active ? toset(["enabled"]) : toset([])) : toset([])
   project   = var.project_id
   secret_id = google_secret_manager_secret.runtime["c1-synthetic-calendar-id"].secret_id
   role      = "roles/secretmanager.secretAccessor"

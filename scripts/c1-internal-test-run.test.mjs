@@ -103,6 +103,9 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).toContain(
       'resource "google_cloud_run_v2_service" "calendar_sync"'
     );
+    expect(main).toContain(
+      'calendar_sync_prerequisites_active = var.calendar_sync_prerequisites_enabled || var.calendar_sync_enabled'
+    );
     expect(main).toContain('resource "google_service_account" "calendar_sync"');
     expect(main).toContain(
       'service_account                  = google_service_account.calendar_sync["enabled"].email'

@@ -72,16 +72,23 @@ create a user-managed service-account key and do not set
 the worker identity. `DOMAIN_WIDE_DELEGATION_REQUIRED = NO`. Do not
 enable `events.watch`.
 
-Inbound candidate verification is opt-in with `calendar_sync_enabled=true`.
-It deploys `internal-test-calendar-sync` from the same digest-pinned worker
-image and overrides only the process entrypoint. A dedicated keyless identity
-has Firestore and access to only the synthetic Calendar ID and separately
-pinned pseudonym key; the outbox worker gains no new secret access. Grant this
-new identity access to the synthetic Calendar only in a separately authorized
-cloud packet. Its Scheduler remains
-paused and has no automatic retry; an authorized packet invokes individual
-runs. The C1 bootstrap script creates one bounded synthetic source and refuses
-to overwrite existing state.
+Inbound candidate verification has two explicit stages. First apply with
+`calendar_sync_prerequisites_enabled=true` and `calendar_sync_enabled=false`
+to create the inbound component's dedicated keyless identity, secret
+container, and bindings; this stage does not create the inbound service or
+Scheduler and needs no pseudonym secret version. The module may still update
+the existing API/outbox services according to the exact-SHA image inputs, so
+inspect the whole saved plan before applying. In the separately authorized
+cloud packet, add a
+fresh random pseudonym value as a Secret Manager version without printing it,
+record its numeric version, and grant only this identity access to the
+synthetic Calendar. Then apply with `calendar_sync_enabled=true` and that
+numeric `calendar_sync_pseudonym_secret_version`. This deploys
+`internal-test-calendar-sync` from the same digest-pinned worker image and
+overrides only the process entrypoint. The outbox worker gains no new secret
+access. Its Scheduler remains paused and has no automatic retry; an authorized
+packet invokes individual runs. The C1 bootstrap script creates one bounded
+synthetic source and refuses to overwrite existing state.
 
 Do not `terraform apply` until a post-merge exact-SHA packet names this
 directory. Agent sandbox does not apply. Do not re-apply
