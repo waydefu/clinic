@@ -1,5 +1,14 @@
 # Phase 1 Execution Plan
 
+**2026-09-22 current overlay:** C1 now has a real isolated API and outbox;
+the older “until that API exists” statement below is dated, not the current blocker.
+P1-09 remains NOT_CLOSED; source through #161 is not yet the deployed `4f31b00…` runtime.
+The [current-project master plan](plans/2026-09-22-current-project-acceptance-master-plan.md)
+separates P1-09 closure from later owner booking-data changes, BD runtime, Google restore,
+regression, Drive document reconciliation, and owner acceptance. AWS and the public website
+follow current-project acceptance. This does not renew cloud authority, alter D-series
+production status, or silently add later Business Delivery work to P1-09.
+
 Status: Active  
 Started: 2026-07-20  
 **2026-09-15 live overlay:** internal-preproduction owner-visible delivery is
