@@ -1,5 +1,27 @@
 # Phase 1 Decision Register
 
+## 2026-09-22 owner scope overlay（不修改既有 D-series 狀態）
+
+本輪業主要求修正後開完整規劃 PR；以下是產品與先後順序，**不是新雲端授權**。
+詳[現有專案驗收主計畫](../plans/2026-09-22-current-project-acceptance-master-plan.md)。
+
+- `CURRENT-PROJECT-SEQUENCE-2026-09-22`：先 P1-09、最新預約需求、BD runtime、
+  Google 真還原、回歸與文件／業主驗收；CURRENT_PROJECT_ACCEPTANCE 通過後才 AWS，官網最後。
+- `BOOKING-MINIMIZATION-2026-09-22`：生日刪年份只月日；國籍恰本國／外國；新預約不收
+  身分證、護照、來源渠道（含介紹人子欄位）與攜帶健保卡意向。不新增 OTP、碼、問題或替代身分欄位。
+  舊 hash-only 記錄不得反推年份、不誤合併病患；無法安全唯一辨識時 fail closed，不批次抹舊資料。
+- `COMMERCIAL-AUTHORITY-2026-09-22`：遠端 Google Drive 現行原檔為準，本機 DOCX 非 current authority。
+  已確認總價 NT$80,000、三期 30,000／30,000／20,000、正常維護 1,800／完全未使用月 500。
+  完全未使用為當月無員工 Workbench 登入 AND 無病患完成 booking create；缺證據不能當零。
+- `P1-09-AUTHORITY-REFRESH-2026-09-22`：不為舊 19:58:18 gate 趕工或沿用；
+  新 exact-SHA、UTC 時窗、完整 mutation、booking/config expiry 與 rollback 必須另外明確核准。
+  附件所列 APPROVE 是建議草稿，不是 owner 已簽署該 execution packet。
+
+待決只限未有答案：BD policy 型別所需期限／角色／allowlist／保留／返還／人證，以及
+CURRENT_PROJECT_ACCEPTANCE 與遠端「正式上線實際運行滿一月」付款里程碑的映射。
+不得從 fixture 值推定核准，不重新詢問已定的出生年替代欄位。
+舊 D-001～D-016 production/privacy/launch 審批及 named reviewer 缺口維持原狀。
+
 Status values: `pending`, `approved`, `deferred`. A decision is `approved`
 only after the named clinic owner records the answer and approval date. Do not
 infer an answer from an existing website, social message or Calendar event.

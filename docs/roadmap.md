@@ -1,5 +1,13 @@
 # 後續規劃書
 
+**2026-09-22 現行補充：** fresh main `e387f2522ea010848f41a4f34778ffc50d83fef3`；
+C1 已有真實 isolated API／outbox，下面「C1 仍無 API」只保留為 9/15 歷史。
+P1-09 尚未關帳；目前 runtime 仍為 `4f31b00…`，不能將 #159～161 合併當部署完成。
+後續順序為 P1-09 → 業主新預約欄位 → BD runtime／Google 真還原 → 完整回歸 →
+Drive 現行文件同步 → 業主驗收；`CURRENT_PROJECT_ACCEPTANCE = PASS` 後才 AWS，再官網。
+詳[完整主計畫](plans/2026-09-22-current-project-acceptance-master-plan.md)及其逐包入口。
+本補充只更新規劃與已觀察狀態，不續期舊 cloud gate、不改 D-series production 核准。
+
 **撰寫日期：** 2026-07-21
 
 **整合更新：** 2026-09-15（WP-B signed; 2026-09-11 C0 text retained below）

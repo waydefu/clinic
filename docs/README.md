@@ -73,6 +73,12 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 3. Architecture and contracts
 
+- [現有專案完整驗收主計畫（2026-09-22）](plans/2026-09-22-current-project-acceptance-master-plan.md) — plan-only：P1-09 → 新預約需求 → BD runtime／Google 真還原 → 回歸／Drive 同步／業主驗收；AWS 與官網後置，不構成雲端授權。
+- [現有專案逐包執行計畫（2026-09-22）](plans/2026-09-22-current-project-execution-packets.md) — Luna-ready：每包 24 個 PR 欄位、來源入口、步驟、測試、回退、停止條件與交辦內容。
+- [P1-09 C1 有界操作 packet（2026-09-22）](plans/2026-09-22-p1-09-operator-packet.md) — 19 gates、兩階完整 Terraform plan、獨立 config mutation、固定期限及最多 20 次限流驗證；待新明確核准。
+- [現有專案驗收矩陣（2026-09-22）](plans/2026-09-22-current-project-acceptance-matrix.md) — 88 項分層證據、原 F-01～14 對帳與技術／現有專案／production 的獨立 gate，不以 CI 代替現場或人證。
+- [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
+
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)

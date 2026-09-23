@@ -1,5 +1,14 @@
 # 正式交付與商務需求的後續程式規劃
 
+**2026-09-22 現行補充（不改寫以下 9/18 歷史）：** #149～154 已合併六個 domain 契約，
+後續應補 API／UI／runtime／policy，不重做契約。現行商務 authority 改以 Google Drive 原檔為準，
+本機九份 DOCX 僅歷史來源；金額已核對 80,000／30,000-30,000-20,000／1,800-500。
+依業主最新排序，AWS 獨立副本與新官網皆在 CURRENT_PROJECT_ACCEPTANCE 之後，
+不可用以下舊「不同位置獨立副本」語句倒灌為 current acceptance blocker。
+Google 現有 PITR／每日備份／刪除保護與真還原驗證仍屬當前工作。
+以[完整主計畫](2026-09-22-current-project-acceptance-master-plan.md)及其工作包為後續執行入口；
+本補充不改 policy 核准狀態、不授權雲端、不加入商務原檔。
+
 **狀態：plan-only／待確認需求，非已核准政策或已完成功能。**
 日期：2026-09-18（Asia/Taipei）。
 規劃基準：`8b8ca86a101333cabe20c5b4155b4ff67994f3a7`。
