@@ -42,6 +42,7 @@ const COLLECTIONS = {
   sources: 'calendar_pilot_sources',
   preflights: 'calendar_pilot_preflights',
   candidates: 'calendar_pilot_candidates',
+  mirrors: 'calendar_pilot_mirrors',
   projections: 'calendar_pilot_projections',
   blocks: 'calendar_pilot_availability_blocks',
   appointments: 'calendar_pilot_appointments',
@@ -67,6 +68,7 @@ interface ConfigurationRecord {
 interface CandidateRecord extends CalendarChangeCandidate {
   readonly mirrorId: string;
   readonly expectedEtag: string;
+  readonly sourceId: string;
   readonly parsed: ParsedCalendarEntry;
   readonly previousParsed?: ParsedCalendarEntry;
   readonly localRecordId?: string;
@@ -519,6 +521,38 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       );
       assertActive(configuration, command.occurredAt);
       assertPilotEnabled(configuration);
+      const idempotencyRef = this.db
+        .collection(COLLECTIONS.idempotency)
+        .doc(hash(`${command.actorId}:${command.idempotencyKey}`).slice(0, 40));
+      const fingerprint = hash(
+        JSON.stringify({
+          candidateId: command.candidateId,
+          action: command.action,
+          expectedVersion: command.expectedVersion
+        })
+      );
+      const legacyFingerprint = hash(
+        JSON.stringify({
+          candidateId: command.candidateId,
+          action: command.action
+        })
+      );
+      const replay = await transaction.get(idempotencyRef);
+      if (replay.exists) {
+        const record = parsePilotIdempotencyRecord<{
+          candidate: CalendarChangeCandidate;
+          projection: CalendarEventProjection | null;
+        }>(replay.data());
+        const isLegacyExactReplay =
+          record.fingerprint === legacyFingerprint &&
+          record.response.candidate?.candidateId === command.candidateId &&
+          record.response.candidate?.expectedVersion ===
+            command.expectedVersion + 1;
+        if (record.fingerprint !== fingerprint && !isLegacyExactReplay)
+          throw new ConflictError();
+        return record.response;
+      }
+
       const candidateRef = this.db
         .collection(COLLECTIONS.candidates)
         .doc(command.candidateId);
@@ -534,23 +568,45 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       } else if (!['pending', 'conflict'].includes(candidate.status))
         throw new ConflictError();
 
-      const idempotencyRef = this.db
-        .collection(COLLECTIONS.idempotency)
-        .doc(hash(`${command.actorId}:${command.idempotencyKey}`).slice(0, 40));
-      const replay = await transaction.get(idempotencyRef);
-      const fingerprint = hash(
-        JSON.stringify({
-          candidateId: command.candidateId,
-          action: command.action
-        })
-      );
-      if (replay.exists) {
-        const record = parsePilotIdempotencyRecord<{
-          candidate: CalendarChangeCandidate;
-          projection: CalendarEventProjection | null;
-        }>(replay.data());
-        if (record.fingerprint !== fingerprint) throw new ConflictError();
-        return record.response;
+      let restoreAppointmentId: string | undefined;
+      if (
+        command.action === 'reject' &&
+        candidate.kind === 'update_appointment'
+      ) {
+        const appointmentId = candidate.localRecordId;
+        if (typeof appointmentId !== 'string' || appointmentId.trim() === '')
+          throw new ConflictError();
+        const appointment = documentData<SyntheticAppointment>(
+          await transaction.get(
+            this.db.collection(COLLECTIONS.appointments).doc(appointmentId)
+          )
+        );
+        if (
+          appointment.appointmentId !== appointmentId ||
+          appointment.status !== 'confirmed'
+        )
+          throw new ConflictError();
+
+        const mirror = documentData<DocumentData>(
+          await transaction.get(
+            this.db.collection(COLLECTIONS.mirrors).doc(candidate.mirrorId)
+          )
+        );
+        if (
+          candidate.sourceId !== configuration.activeSourceId ||
+          typeof candidate.expectedEtag !== 'string' ||
+          candidate.expectedEtag.trim() === '' ||
+          mirror['sourceId'] !== candidate.sourceId ||
+          mirror['linkId'] !== appointmentId ||
+          typeof mirror['externalEventId'] !== 'string' ||
+          mirror['externalEventId'].trim() === '' ||
+          mirror['etag'] !== candidate.expectedEtag ||
+          typeof mirror['parsed'] !== 'object' ||
+          mirror['parsed'] === null ||
+          (mirror['parsed'] as DocumentData)['kind'] !== 'appointment'
+        )
+          throw new ConflictError();
+        restoreAppointmentId = appointmentId;
       }
 
       let projection: CalendarEventProjection | null = null;
@@ -588,6 +644,26 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         transaction.set(this.db.collection(COLLECTIONS.outbox).doc(outboxId), {
           kind: 'calendar_projection_restore',
           mirrorId: candidate.mirrorId,
+          generation: configuration.version,
+          status: 'pending',
+          createdAt: command.occurredAt,
+          attemptCount: 0
+        });
+      } else if (
+        command.action === 'reject' &&
+        candidate.kind === 'update_appointment'
+      ) {
+        if (restoreAppointmentId === undefined) throw new ConflictError();
+        const outboxId = hash(
+          `${candidate.candidateId}:reject-update-restore`
+        ).slice(0, 32);
+        transaction.set(this.db.collection(COLLECTIONS.outbox).doc(outboxId), {
+          kind: 'calendar_projection_restore',
+          writeMode: 'update_existing',
+          restoreSource: 'confirmed_appointment',
+          localRecordId: restoreAppointmentId,
+          mirrorId: candidate.mirrorId,
+          expectedEtag: candidate.expectedEtag,
           generation: configuration.version,
           status: 'pending',
           createdAt: command.occurredAt,

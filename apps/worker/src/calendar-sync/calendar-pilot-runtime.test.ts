@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertExpectedMirrorEtag,
   C1_SYNTHETIC_CALENDAR_SOURCE_ID,
+  calendarWriteEventForConfirmedAppointment,
   calendarWriteEventForMirror,
   resolveCalendarPilotRuntimeConfiguration
 } from './calendar-pilot-runtime.js';
@@ -74,6 +76,120 @@ describe('calendar pilot runtime configuration', () => {
 });
 
 describe('calendar projection restore', () => {
+  it('restores the original event from the confirmed appointment source of truth', () => {
+    const appointmentId = 'appointment_001';
+    const mirror = {
+      externalEventId: 'linked_external_event_77',
+      etag: '"etag-001"',
+      linkId: appointmentId,
+      parsed: {
+        ok: true as const,
+        kind: 'appointment' as const,
+        patientCode: 'A18',
+        bookingKind: 'follow_up' as const,
+        serviceId: 'service_aesthetic' as const,
+        displayLabel: 'A18，複診，美學',
+        startsAt: '2030-01-02T04:30:00.000Z',
+        endsAt: '2030-01-02T05:00:00.000Z'
+      }
+    };
+
+    expect(
+      calendarWriteEventForConfirmedAppointment(
+        mirror,
+        {
+          appointmentId,
+          status: 'confirmed',
+          patientCode: 'A17',
+          bookingKind: 'initial',
+          serviceId: 'service_snoring',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          endsAt: '2030-01-02T04:30:00.000Z'
+        },
+        appointmentId
+      )
+    ).toEqual({
+      eventId: 'linked_external_event_77',
+      title: '[預約] A17｜初診｜止鼾',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z',
+      linkId: appointmentId
+    });
+  });
+
+  it('fails closed when the SoT appointment is missing, cancelled, or linked elsewhere', () => {
+    const appointmentId = 'appointment_001';
+    const mirror = {
+      externalEventId: 'linked_external_event_77',
+      etag: '"etag-001"',
+      linkId: appointmentId,
+      parsed: {
+        ok: true as const,
+        kind: 'appointment' as const,
+        patientCode: 'A17',
+        bookingKind: 'initial' as const,
+        serviceId: 'service_snoring' as const,
+        displayLabel: 'A17，初診，止鼾',
+        startsAt: '2030-01-02T04:30:00.000Z',
+        endsAt: '2030-01-02T05:00:00.000Z'
+      }
+    };
+    const confirmed = {
+      appointmentId,
+      status: 'confirmed',
+      patientCode: 'A17',
+      bookingKind: 'initial',
+      serviceId: 'service_snoring',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z'
+    };
+
+    expect(() =>
+      calendarWriteEventForConfirmedAppointment(
+        mirror,
+        undefined,
+        appointmentId
+      )
+    ).toThrow(/link is invalid/u);
+    expect(() =>
+      calendarWriteEventForConfirmedAppointment(
+        mirror,
+        { ...confirmed, status: 'cancelled' },
+        appointmentId
+      )
+    ).toThrow(/missing or changed/u);
+    expect(() =>
+      calendarWriteEventForConfirmedAppointment(
+        { ...mirror, linkId: 'another_appointment' },
+        confirmed,
+        appointmentId
+      )
+    ).toThrow(/link is invalid/u);
+  });
+
+  it('fails closed on mirror ETag drift before updating an existing event', () => {
+    const mirror = {
+      externalEventId: 'linked_external_event_77',
+      etag: '"etag-002"',
+      parsed: {
+        ok: true as const,
+        kind: 'appointment' as const,
+        patientCode: 'A17',
+        bookingKind: 'initial' as const,
+        serviceId: 'service_snoring' as const,
+        displayLabel: 'A17，初診，止鼾',
+        startsAt: '2030-01-02T04:30:00.000Z',
+        endsAt: '2030-01-02T05:00:00.000Z'
+      }
+    };
+    expect(() => assertExpectedMirrorEtag(mirror, '"etag-001"')).toThrow(
+      /version is stale/u
+    );
+    expect(() => assertExpectedMirrorEtag(mirror, undefined)).toThrow(
+      /version is stale/u
+    );
+  });
+
   it('updates the original event and adds only the private opaque link', () => {
     expect(
       calendarWriteEventForMirror(

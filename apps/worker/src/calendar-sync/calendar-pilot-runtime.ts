@@ -51,6 +51,7 @@ interface PilotJob {
   readonly localRecordId?: string;
   readonly mirrorId?: string;
   readonly writeMode?: 'update_existing';
+  readonly restoreSource?: 'confirmed_appointment';
   readonly expectedEtag?: string;
   readonly generation?: number;
   readonly leaseOwner?: string;
@@ -279,6 +280,7 @@ function storedMirror(value: unknown): StoredMirror {
   const parsed = data['parsed'];
   if (
     typeof data['externalEventId'] !== 'string' ||
+    data['externalEventId'].trim() === '' ||
     typeof data['etag'] !== 'string' ||
     data['etag'].trim() === '' ||
     typeof parsed !== 'object' ||
@@ -334,6 +336,52 @@ export function calendarWriteEventForMirror(
         startsAt: parsed.startsAt,
         endsAt: parsed.endsAt
       };
+}
+
+export function calendarWriteEventForConfirmedAppointment(
+  mirror: StoredMirror,
+  appointmentValue: unknown,
+  localRecordId: string
+): CalendarWriteEvent {
+  if (
+    localRecordId.trim() === '' ||
+    mirror.linkId !== localRecordId ||
+    mirror.parsed.kind !== 'appointment' ||
+    typeof appointmentValue !== 'object' ||
+    appointmentValue === null ||
+    Array.isArray(appointmentValue)
+  )
+    throw new Error('Calendar restore link is invalid.');
+  const appointmentRecord = appointmentValue as Record<string, unknown>;
+  if (
+    appointmentRecord['appointmentId'] !== localRecordId ||
+    appointmentRecord['status'] !== 'confirmed'
+  )
+    throw new Error('Confirmed synthetic appointment is missing or changed.');
+  const appointment = storedAppointment(appointmentRecord);
+  return {
+    eventId: mirror.externalEventId,
+    title: formatSyntheticAppointmentTitle({
+      patientCode: appointment.patientCode,
+      bookingKind: appointment.bookingKind,
+      serviceId: appointment.serviceId
+    }),
+    startsAt: appointment.startsAt,
+    endsAt: appointment.endsAt,
+    linkId: localRecordId
+  };
+}
+
+export function assertExpectedMirrorEtag(
+  mirror: StoredMirror,
+  expectedEtag: string | undefined
+): asserts expectedEtag is string {
+  if (
+    typeof expectedEtag !== 'string' ||
+    expectedEtag.trim() === '' ||
+    mirror.etag !== expectedEtag
+  )
+    throw new Error('Calendar event version is stale.');
 }
 
 function calendarEventId(localRecordId: string): string {
@@ -603,14 +651,34 @@ export class CalendarPilotRuntime {
         .get();
       if (!mirror.exists) throw new Error('Mirror is missing.');
       const data = storedMirror(mirror.data());
-      const event = calendarWriteEventForMirror(data, job.mirrorId);
-      if (job.writeMode === 'update_existing') {
+      if (
+        job.restoreSource !== undefined &&
+        job.restoreSource !== 'confirmed_appointment'
+      )
+        throw new Error('Calendar restore source is unsupported.');
+      let event: CalendarWriteEvent;
+      if (job.restoreSource === 'confirmed_appointment') {
         if (
-          typeof job.expectedEtag !== 'string' ||
-          job.expectedEtag.trim() === '' ||
-          data.etag !== job.expectedEtag
+          job.writeMode !== 'update_existing' ||
+          job.localRecordId === undefined
         )
-          throw new Error('Calendar event version is stale.');
+          throw new Error('Confirmed appointment restore link is missing.');
+        const appointment = await this.db
+          .collection('calendar_pilot_appointments')
+          .doc(job.localRecordId)
+          .get();
+        if (!appointment.exists)
+          throw new Error('Synthetic appointment is missing.');
+        event = calendarWriteEventForConfirmedAppointment(
+          data,
+          appointment.data(),
+          job.localRecordId
+        );
+      } else {
+        event = calendarWriteEventForMirror(data, job.mirrorId);
+      }
+      if (job.writeMode === 'update_existing') {
+        assertExpectedMirrorEtag(data, job.expectedEtag);
         await writer.update(event, job.expectedEtag);
       } else await writer.upsert(event);
       return 'completed';
