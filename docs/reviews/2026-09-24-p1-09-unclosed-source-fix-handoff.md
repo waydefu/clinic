@@ -35,7 +35,7 @@ C1 的拒絕更新路徑未排入 Calendar restore outbox，Gate 14 因此失敗
 | 修復後 C1 rollout／Gate 14 runtime | **NOT_RUN** | 尚無合併 SHA 的 API／worker immutable build digest、部署 readback或修復後 Gate 14 證據。 |
 | PR #163 本機格式與 diff 檢查 | **PASS** | 實作者回報 Prettier 與 `git diff --check` 通過；不屬於 C1 runtime 證據。 |
 | PR #163 本機 build、unit 與 Firestore Emulator 測試 | **NOT_RUN** | 實作者回報依賴初始化遇 `ERR_PNPM_EPERM`，且當時 Node 為 24.15，低於 repository 要求的 24.20；沒有本機測試數可報。GitHub CI 結果另列於上。 |
-| 本交接 PR 本機 `check:docs` | **NOT_RUN** | 新 worktree 起初沒有本機依賴；命令轉入 workspace dependency 安裝，尚未執行文件檢查即停止。由本 PR CI 驗證文件連結與索引。 |
+| PR #164 文件檢查 | **PASS（direct script）；完整本機 pnpm wrapper UNAVAILABLE** | 本次 handoff 最後編輯後，`node scripts/check-docs-links.mjs` 通過 237 files／links／index／lifecycle checks；`git diff --check` 亦通過。`corepack pnpm run check:docs` 本機嘗試未完成：Node `24.15.0` 低於 repo 要求 `>=24.20.0`，依賴初始化遇 `ERR_PNPM_EPERM`。最終 exact-head CI 以 [PR #164 checks](https://github.com/waydefu/clinic/pull/164/checks) 為準；此文件檢查不代表 P1-09 runtime gates 通過。 |
 | 修復後 C1 deploy、Gate 14 end-to-end、P1-09 其餘 gates、P09-14 closure | **NOT_RUN** | 本交接未執行雲端操作或 runtime 重驗。必須先完成下方新 exact-SHA C1 packet 與適用授權；PR #163 CI 不替代這些驗收。 |
 
 本次沒有產生需列 SHA-256 的交付 artifact；不補造 artifact hash、測試數或 finding count。
