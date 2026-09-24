@@ -28,6 +28,8 @@ C1 的拒絕更新路徑未排入 Calendar restore outbox，Gate 14 因此失敗
 | C1 worker services | **PARTIAL；不是修復版** | 同一 fresh readback：`internal-test-outbox-00012-vzl` 與 `internal-test-calendar-sync-00001-422` 均 100% traffic、Ready/ContainerHealthy，兩者仍用舊 worker digest `sha256:f44c61c710497f1a10437ee659ec7934ab197365caf72fb262ad415f0f3ab17d`。Calendar-sync entrypoint 為 `node dist/calendar-sync/calendar-pilot-main.js`。存在與健康不等於 P09-05 rollout/source graph 驗收。 |
 | C1 scheduler／Firestore config | **PARTIAL** | 2026-09-24T14:11Z：`internal-test-calendar-sync` PAUSED（每 5 分鐘；`retryCount` 缺省，Cloud Scheduler 預設 0，`maxRetryDuration=0s`），`internal-test-outbox-drain` ENABLED（每分鐘、retryCount=2）。`calendar_pilot_configuration/active` 為 synthetic、version 1、inbound/outbound enabled、expiry `2026-09-30T10:00:00Z`、無 active lease；其 `sourceSha` 仍是舊基線 `caaa69e550a915842db5e959ec4ee3fc77f2dfe2`。見 [Cloud Scheduler retry defaults](https://docs.cloud.google.com/scheduler/docs/configuring/retry-jobs)。 |
 | C1 Hosting target | **PARTIAL；仍指舊 API** | 2026-09-24T14:08Z：`internal-preproduction` version `4f2b6f65fe8cc288` FINALIZED，expiry `2026-10-19T20:38:03.699747700Z`；`/v1/**` rewrite 指向 `internal-test-api`／`asia-east1`／tag `fh-4f2b6f65fe8cc288`，目前 tag 對應舊 API revision。Hosting web artifact/source SHA 與 rollback version 未證明。 |
+| Exact-main SHA build lookup | **NO MATCH FOUND；因此 build/provenance NOT_RUN** | 2026-09-24T14:41Z read-only lookup：Cloud Build `_SOURCE_SHA=f5bc805dd199324a149421159ac9f22cd944a6a4` 無匹配紀錄；Artifact Registry 的 API/worker package 也沒有同 SHA tag。這只記錄查詢結果，不排除其他未標記或不同來源的 artifact；不得當成 build receipt。 |
+| C1 secret references／direct IAM | **PARTIAL；舊 runtime readback** | 2026-09-24T14:36Z：目前三個 Cloud Run service template 的 secret refs 均使用數字版本且版本 ENABLED：API `c1-staff-manager-allowlist/1`、`c1-staff-firebase-web-api-key/1`、`c1-staff-front-desk-allowlist/1`；outbox `c1-synthetic-calendar-id/2`；Calendar sync `c1-synthetic-calendar-id/2`、`c1-calendar-pseudonym-key/1`。各 secret 的直接 `roles/secretmanager.secretAccessor` policy 只列出對應 API／outbox／Calendar-sync service account；三個 service account 的 project bindings 分別為 API custom Firebase Auth runtime role + `roles/datastore.user`、兩個 worker 各 `roles/datastore.user`。未讀 secret payload；未核對 folder/org inherited IAM，也未證明這些 pin/ACL 與新 SHA runtime 一致，故 P09-03 仍非 PASS。 |
 | 9/22 matrix 與現況差異 | **需 reconcile；不能據此判 PASS** | 9/22 dated matrix 把部分 C1 service/job 記為未建；2026-09-24 fresh readback 已看到 API、outbox、calendar-sync 服務及兩個 Scheduler jobs。Terraform remote plan/apply receipt、設定/source 對應仍未核對，故保留原 dated snapshot並以新 evidence 對帳。 |
 | Terraform 本機 mock validation | **VALIDATE_BLOCKED；test NOT_RUN** | 2026-09-24 Windows 上 init 後，`terraform validate` 遇到 Google provider cached package 與 lockfile checksum 不符；改用全新暫存 `TF_DATA_DIR` 重試仍相同。tracked lockfile 未變，WSL 無可用 distribution；remote plan 未執行。 |
 | 修復後 C1 rollout／Gate 14 runtime | **NOT_RUN** | 尚無合併 SHA 的 API／worker immutable build digest、部署 readback或修復後 Gate 14 證據。 |
@@ -65,9 +67,56 @@ PR #163 是獨立 source-fix PR，變更四個檔案：
 - 草稿原提案操作窗 `2026-09-24T14:00:00Z–15:30:00Z` 已過開始時間，依 packet 規則不可再批准；需待阻擋項補齊後另提新窗。repo overlay 也明定 2026-09-22 起需新的 exact-SHA/時間窗/完整 mutation/expiry/rollback 明確批准，舊廣泛授權不沿用。
 - 尚未以合併 SHA 建置 API／worker immutable image，亦未部署或更新 isolated Hosting preview。
 - 尚未用新版本完成一次 Gate 14 end-to-end：synthetic event edit → inbound → staff reject → idempotency replay → restore dispatch → 同一 Calendar event 的獨立 readback；也未證明重送不增加 audit/outbox。
-- Gate matrix 的 `CI_PROVEN`／`SOURCE_PROVEN`／`CLOUD_READBACK_PROVEN` 是證據類型，不是 gate PASS。P09-01 尚無新 SHA build/deployment manifest；P09-02/04/05 缺最新 plan/apply/readback 並須對帳上述資源差異；P09-03 缺 numeric secret pin/ACL/IAM receipts；P09-06 的 preview 仍指舊 API；P09-07～10 尚無合併 SHA runtime proof（其中 P09-09 有歷史 FAIL）；P09-11 缺本 SHA durable-429 證據；P09-12 的 Stage F 11 cases/evaluators 未完成；P09-13 雖有本次健康 readback，仍缺完整 rollback/monitoring/lease/DLQ/duplicate proof；因此 P09-14 仍 BLOCKED。舊 SHA 證據不得沿用為新 SHA PASS。
+- Gate matrix 的 `CI_PROVEN`／`SOURCE_PROVEN`／`CLOUD_READBACK_PROVEN` 是證據類型，不是 gate PASS。最新 overlay 狀態與逐列缺口見下方「P09 gate-by-gate closeout status」；該表不改寫或覆蓋 2026-09-22 dated matrix。舊 SHA 證據不得沿用為新 SHA PASS。
 - 未部署 source、未建立 fresh C1 fixture、未作 Gate 14 修復後 readback。
 - 未進行任何 production、AWS 或 public site actions。
+
+## P09 gate-by-gate closeout status
+
+Closure set: **all P09-01–P09-14 rows** in the dated [acceptance matrix](../plans/2026-09-22-current-project-acceptance-matrix.md), plus all 11 Stage F cases required by P09-12. Operational dependencies are the 19 sequential gates in the [operator packet](../plans/2026-09-22-p1-09-operator-packet.md); no row is excluded. This 2026-09-24 overlay is for target `main` SHA `f5bc805dd199324a149421159ac9f22cd944a6a4` and does not replace or rewrite the dated matrix. `SOURCE_PROVEN`, `CI_PROVEN` and `CLOUD_READBACK_PROVEN` describe evidence type only. No row below is promoted to PASS without its required acceptance evidence.
+
+| ID | Current acceptance status | What is proven / what is still required |
+| --- | --- | --- |
+| P09-01 | **NOT_RUN** | Main verify run `35998718456` is 12/12 CI; no exact-SHA build/deployment manifest or immutable API/worker digests. The 2026-09-24T14:41Z read-only lookup found no matching `_SOURCE_SHA` build record or matching image tags. |
+| P09-02 | **NOT_RUN** | Source evidence exists and current services/jobs are present, unlike the 9/22 snapshot; no current complete Terraform plan/readback reconciliation against the approved inputs is available. Historical mutations/readbacks do not prove this target-SHA state. |
+| P09-03 | **NOT_RUN** | A partial old-runtime readback at 2026-09-24T14:36Z found numeric, ENABLED secret versions and the direct Secret Manager policies listed above. Target-SHA parity, complete least-reader/inherited IAM review and acceptance-matrix reconciliation remain absent. |
+| P09-04 | **NOT_RUN** | Bootstrap source exists; no target-run transaction/audit/config readback proves expiry, source, synthetic flag and no-overwrite behavior. |
+| P09-05 | **NOT_RUN** | Three current services and Scheduler state were read back, but images are pre-fix; no exact-SHA digest/entrypoint graph or full plan/runtime proof. |
+| P09-06 | **NOT_RUN** | `internal-preproduction` `/v1/**` still targets the old API tag. No target-SHA before/after Hosting release, web-source provenance, authDomain/network proof or verified rollback version. |
+| P09-07 | **NOT_RUN** | Source path is proven; no target-SHA synthetic edit→pending chain or before/after event/candidate/appointment snapshots. |
+| P09-08 | **NOT_RUN** | Source path is proven; no target-SHA staff reject, audit/response reconciliation or unauthorized-denial runtime receipt. |
+| P09-09 | **NOT_RUN** | Historical C1 Gate 14 **FAIL** on 2026-09-23 because reject did not enqueue restore. PR #163 fixed source and merged, but no target-SHA deployment or same-event independent Calendar readback has revalidated it. |
+| P09-10 | **NOT_RUN** | Idempotency/lease source evidence exists; no target-SHA replay, concurrency bounds or no-duplicate before/after counts, attempts and audit receipts. |
+| P09-11 | **NOT_RUN** | Limiter source evidence exists; no target-SHA bounded durable-429 request ledger, `Retry-After`, stable-key hash and persistent-store/branch proof. |
+| P09-12 | **NOT_RUN** | None of the 11 Stage F cases is accepted for the target SHA; strict Stage F and legacy completeness-evaluator outputs/exit codes, backup inspect and required human inbox proof are absent. See the per-case checklist below. |
+| P09-13 | **NOT_RUN** | Old revisions were healthy and no active lease was seen in the dated readback; complete rollback execution/target, monitoring and human alert, lease/DLQ/duplicate state proof remain absent. |
+| P09-14 | **NOT_RUN (matrix state: BLOCKED)** | Requires every applicable P09 row complete, exact-head CI, a dated portable artifact manifest and a true closure handoff. PR #164 is explicitly an interim unclosed handoff, not closure evidence; prior rows remain incomplete. |
+
+## Stage F case evidence still required
+
+The following cases are all **NOT_RUN / NOT_PROVEN on `f5bc805dd199324a149421159ac9f22cd944a6a4`**. For each, the private evidence receipt must record exact SHA, UTC, environment, expected and actual result, and a reviewable artifact reference; redacted hashes alone do not replace an accessible evidence artifact.
+
+| Stage F case ID | Status for target SHA |
+| --- | --- |
+| `general_booking_page_create_reload` | **NOT_RUN** |
+| `workbench_arrived_completed` | **NOT_RUN** |
+| `calendar_outbound_same_event` | **NOT_RUN** |
+| `return_lookup_existing` | **NOT_RUN** |
+| `return_required_unscheduled_follow_up` | **NOT_RUN** |
+| `candidate_review_synthetic_manual_change` | **NOT_RUN** |
+| `security_rate_limit` | **NOT_RUN** |
+| `security_anti_enumeration` | **NOT_RUN** |
+| `security_denial_audit` | **NOT_RUN** |
+| `security_one_real_human_alert` | **NOT_RUN** |
+| `persistence_reload_server_readback` | **NOT_RUN** |
+
+Closeout requires the strict Stage F evaluator **and** legacy completeness inspector JSON/output plus exit codes. `security_one_real_human_alert` additionally requires actual human inbox proof; an evaluator boolean or “notification path implemented” is insufficient. Backup inspection must remain labelled inspection, never restore-test evidence. Keep raw inbox evidence in restricted storage; publish only a redacted manifest and access-controlled reference.
+
+## Private evidence custody and access
+
+- `F:\診所專案\tmp\P1-09-20260923-execution-ledger.md` contains the dated Gate 14 result beginning at the 2026-09-23T17:09Z section (around line 765), followed by cleanup and source-fix boundary notes. It is outside this repository and is not attached to PR #164.
+- `F:\診所專案\tmp\P1-09-C1-exact-SHA-approval-packet-20260924.md` is the owner-local draft packet. It remains **NOT APPROVED / BLOCKED**; its 14:00Z–15:30Z proposed window expired. It now includes the 14:36Z old-runtime secret/IAM readback, but still lacks build provenance/digests, fresh Terraform plan/drift resolution, full rollback proof and a new approved exact-SHA window.
+- These absolute paths are local pointers, not portable delivery. PR #164 includes the sanitized summary but not the private evidence files; do not assume a successor can read them. Before a runtime handoff, the owner must grant the named acceptance operator access to a controlled evidence store and the packet must record its location/access check. If evidence is unavailable, treat that gate as missing and create a new evidence set; do not infer PASS from a hash or this summary. Do not put credentials, raw logs, patient/staff values or Calendar identifiers in the public repository.
 
 ## 風險、停止條件與回復
 
@@ -88,13 +137,14 @@ PR #163 是獨立 source-fix PR，變更四個檔案：
 
 ## 下一位接手者的第一步
 
-**下一個 Roadmap ID：P09-09 修復後重驗；目前仍待完成 exact-SHA C1 packet、必要核准與 owner-run build。** 依下列順序執行：
+**不要直接重試 Gate 14。** P09-09 是主要歷史失敗項，不代表現在已可執行。最新 operator packet 規定 Gate 00–13 先完成並逐項留下 UTC/操作者證據；其中新 exact-SHA authority、rollback baseline、fresh Terraform plan/drift 對帳、build/provenance、deployment graph、必要 preview 準備都尚未具備。舊 packet 的操作窗已過期，不能沿用。
 
-1. 確認 `main` 仍為 `f5bc805dd199324a149421159ac9f22cd944a6a4` 且 verify run `35998718456` 成功；source CI 不替代 runtime gate。
-2. 由 C1 owner/operator 完成 fresh readback、immutable image build/provenance、完整 Hosting target、rollback target 與 Terraform plan/drift review；任何未解 drift 或非零／超範圍 plan 先停止處理。
-3. 填妥唯一 C1 project/channel、expiry、mutation budget、回復命令與停止條件，取得綁定 exact SHA 的必要明確核准。依 `CLAUDE.md`，build/deploy 命令由 owner 執行；未核准前不可執行。
-4. 僅部署核准的隔離 source，使用新的 synthetic fixture；部署後先讀回實際 revision、digest、traffic 與健康狀態。
-5. 僅執行一次有界序列：改動同一 event → inbound → reject → 同一 idempotency request replay → dispatch restore → 獨立讀回同一 event。確認只有一筆拒絕 audit、一筆 restore outbox、appointment SoT/version 未變、外部 event ID 未變、沒有第二個 event，且 29 筆 unmatched candidates metadata hash 不變。
-6. 任一斷言失敗即停止，不補手動 Calendar 變更或 Firestore 寫入。只有所有 readback 都符合才將 P09-09 更新為 PASS；再按現行 matrix 完成 P09-10～13，全部 PASS 後才可進行 P09-14 closure 與獨立 closeout handoff。
+1. 先以唯讀方式確認 `main`、verify CI、目前雲端 target 和私有證據可讀性；更新本交接 overlay，不覆寫 9/22 歷史 matrix。
+2. 依 [19-gate operator packet](../plans/2026-09-22-p1-09-operator-packet.md) 的 Gate 00–13 順序處理前置項。每個 mutation 前都需重新核對 exact source、有效 UTC 窗、C1 project/channel、expiry、完整 diff 和 rollback；任何前置 gate 未過即停止，不進 Gate 14。
+3. 前置證據齊全後，才由 owner 提出並明確批准新的 exact-SHA packet，逐項列出 project/channel、expiry、mutation scope/budget、rollback command/target、operator/approver 與有效時間窗。repo `CLAUDE.md` 規定 build/deploy 命令由 owner 執行；本交接不是授權。
+4. 僅在 Gate 00–13 PASS 且 packet 有效後，以核准 SHA build immutable API/worker images；read back provenance, digest, revision, traffic, health, Hosting target and rollback, then compare with approved plan. Any mismatch stops execution.
+5. Gate 14 只執行一次有界序列：同一 synthetic event 人工改動 → inbound → staff reject → 相同 idempotency input replay → restore dispatch → 獨立讀回同一 event。核對一筆 reject audit、一筆 restore outbox、SoT/version 與 external event ID 不變、沒有第二個 event、29 筆 unmatched metadata hash 不變。任一 assertion 失敗即停止，不以手動 Calendar/Firestore 修補補成 PASS。
+6. P09-09 通過後，依 operator packet 續行 Gate 15–17，完成 P09-10～13、Stage F 11 cases、strict Stage F 與舊 completeness inspect，並封存可攜、可讀的 redacted artifact manifest；任一列不是 PASS，不進 Gate 18。
+7. P09-01～13 全部適用門檻均有 exact-SHA 證據後，才建立真正 P09-14 closure PR，附 exact-head CI、逐列狀態、artifact manifest、cloud mutation/readback 與 rollback record，並作獨立 closeout handoff。PR #164 目前只交接未關帳狀態。
 
 截至 2026-09-24，P1-09 尚未關帳。任何後續狀態須新增 dated evidence；本文件不授予 cloud、deployment、production、AWS 或 public-site 權限。
