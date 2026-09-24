@@ -24,7 +24,12 @@ C1 的拒絕更新路徑未排入 Calendar restore outbox，Gate 14 因此失敗
 | Gate 14 / P09-09：人工改動同一 synthetic Calendar event、inbound candidate、staff reject、系統 restore 並讀回同一 event | **HISTORICAL FAIL；merged-SHA revalidation NOT_RUN** | 2026-09-23，隔離 C1 synthetic 環境。拒絕 `update_appointment` candidate 後沒有 restore outbox；同一 Calendar event 當時仍保留外部改動。操作者後來人工把該 event 改回 SoT 時間，獨立 readback 相符，但這是人工補救，不是系統 restore 能力，不能改判 Gate PASS。原 candidate 與 reject audit 保留。29 筆既有 unmatched candidates 的 metadata hash 前後未變：`ABC3991489EFC8B06BDB254366E84D7419935792A259EC67E989C986C1D6689B`。 |
 | PR #163 GitHub `verify` workflow | **PASS — 12/12 jobs** | 2026-09-23，source head `b6c88a4e3cace9d42ab8df6da817a3d7239cbc88`；[run 35897232581](https://github.com/waydefu/clinic/actions/runs/35897232581)。成功項目：workspace verify/unit、Firestore Emulator、六個 E2E（auth/RBAC、appointments、patient portal、mobile、accessibility、UI）、supply-chain、Semgrep、Gitleaks、Verification evidence。這只證明該 SHA 的 CI；**不代表 Gate 14 runtime PASS**。 |
 | 合併後 `main` verify workflow | **PASS — 12/12 jobs** | head／merge SHA `f5bc805dd199324a149421159ac9f22cd944a6a4`；run `35998718456` 已完成成功。這只證明 source CI；**不代表 C1 部署或 Gate 14 runtime PASS**。 |
-| C1 API 部署基線 | **PARTIAL；不是修復版** | 2026-09-24 fresh readback：service `internal-test-api`、latest-ready `internal-test-api-p109durable1`、100% traffic、Ready/ContainerHealthy；image digest `sha256:2250015b779b410ec63d58bc49676bb538448c6cc575e6eebe9454563a06820a`。Booking enabled=`true`，expiry=`2026-09-30T10:00:00Z`。該 image 是 #163 merge 前版本，不能證明修復已部署。 |
+| C1 API 部署基線 | **PARTIAL；不是修復版** | 2026-09-24T14:11Z fresh readback：service `internal-test-api`、revision `internal-test-api-p109durable1`、100% traffic、Ready/ContainerHealthy；image digest `sha256:2250015b779b410ec63d58bc49676bb538448c6cc575e6eebe9454563a06820a`；service account `internal-test-api@beauessence-clinic-stg-c1a01.iam.gserviceaccount.com`；`TRUSTED_PROXY_HOPS=2`，booking enabled、expiry `2026-09-30T10:00:00Z`。這是 #163 merge 前 image，沒有 source provenance。 |
+| C1 worker services | **PARTIAL；不是修復版** | 同一 fresh readback：`internal-test-outbox-00012-vzl` 與 `internal-test-calendar-sync-00001-422` 均 100% traffic、Ready/ContainerHealthy，兩者仍用舊 worker digest `sha256:f44c61c710497f1a10437ee659ec7934ab197365caf72fb262ad415f0f3ab17d`。Calendar-sync entrypoint 為 `node dist/calendar-sync/calendar-pilot-main.js`。存在與健康不等於 P09-05 rollout/source graph 驗收。 |
+| C1 scheduler／Firestore config | **PARTIAL** | 2026-09-24T14:11Z：`internal-test-calendar-sync` PAUSED（每 5 分鐘；`retryCount` 缺省，Cloud Scheduler 預設 0，`maxRetryDuration=0s`），`internal-test-outbox-drain` ENABLED（每分鐘、retryCount=2）。`calendar_pilot_configuration/active` 為 synthetic、version 1、inbound/outbound enabled、expiry `2026-09-30T10:00:00Z`、無 active lease；其 `sourceSha` 仍是舊基線 `caaa69e550a915842db5e959ec4ee3fc77f2dfe2`。見 [Cloud Scheduler retry defaults](https://docs.cloud.google.com/scheduler/docs/configuring/retry-jobs)。 |
+| C1 Hosting target | **PARTIAL；仍指舊 API** | 2026-09-24T14:08Z：`internal-preproduction` version `4f2b6f65fe8cc288` FINALIZED，expiry `2026-10-19T20:38:03.699747700Z`；`/v1/**` rewrite 指向 `internal-test-api`／`asia-east1`／tag `fh-4f2b6f65fe8cc288`，目前 tag 對應舊 API revision。Hosting web artifact/source SHA 與 rollback version 未證明。 |
+| 9/22 matrix 與現況差異 | **需 reconcile；不能據此判 PASS** | 9/22 dated matrix 把部分 C1 service/job 記為未建；2026-09-24 fresh readback 已看到 API、outbox、calendar-sync 服務及兩個 Scheduler jobs。Terraform remote plan/apply receipt、設定/source 對應仍未核對，故保留原 dated snapshot並以新 evidence 對帳。 |
+| Terraform 本機 mock validation | **VALIDATE_BLOCKED；test NOT_RUN** | 2026-09-24 Windows 上 init 後，`terraform validate` 遇到 Google provider cached package 與 lockfile checksum 不符；改用全新暫存 `TF_DATA_DIR` 重試仍相同。tracked lockfile 未變，WSL 無可用 distribution；remote plan 未執行。 |
 | 修復後 C1 rollout／Gate 14 runtime | **NOT_RUN** | 尚無合併 SHA 的 API／worker immutable build digest、部署 readback或修復後 Gate 14 證據。 |
 | PR #163 本機格式與 diff 檢查 | **PASS** | 實作者回報 Prettier 與 `git diff --check` 通過；不屬於 C1 runtime 證據。 |
 | PR #163 本機 build、unit 與 Firestore Emulator 測試 | **NOT_RUN** | 實作者回報依賴初始化遇 `ERR_PNPM_EPERM`，且當時 Node 為 24.15，低於 repository 要求的 24.20；沒有本機測試數可報。GitHub CI 結果另列於上。 |
@@ -50,16 +55,17 @@ PR #163 是獨立 source-fix PR，變更四個檔案：
 
 - 已查證 PR #163 已合併、merge SHA 與該 SHA 的 12/12 main verify run；記錄 source PR 的 CI 仍不等於 runtime 驗收。
 - C1 的實際拒絕結果、人工恢復、candidate/audit 留存及 unmatched hash，依 2026-09-23 execution evidence 記錄。
-- 2026-09-24 僅讀回 API service/revision、image digest、health、booking enabled/expiry；沒有在本次操作 API、Firestore、Google Calendar、IAM、Terraform、AWS、production 或 public site，也沒有重新執行已修復版本的 C1 runtime。
+- 2026-09-24 fresh-readback API/outbox/calendar-sync revisions、digest、health、service account、少量非敏感 env、scheduler state、Firestore config 欄位、Hosting version/rewrite/expiry；沒有在本次操作 API、Firestore、Google Calendar、IAM、Terraform remote state、AWS、production 或 public site，也沒有重新執行已修復版本的 C1 runtime。
 - 不把 PR CI、先前人工修復或舊版 C1 readback 推論為修復後能力。
 
 ## 未完成事項
 
 - PR #163 已合併；最新 `main` 已 fresh fetch 並核對為 `f5bc805dd199324a149421159ac9f22cd944a6a4`，main verify run `35998718456` 成功。
 - 合併 SHA 的 exact-SHA C1 packet 目前只有未核准草稿；build digest/provenance、完整 Hosting target、rollback readback、fresh Terraform plan/drift 解法等仍未完成。草稿不是授權，不可據以部署。
+- 草稿原提案操作窗 `2026-09-24T14:00:00Z–15:30:00Z` 已過開始時間，依 packet 規則不可再批准；需待阻擋項補齊後另提新窗。repo overlay 也明定 2026-09-22 起需新的 exact-SHA/時間窗/完整 mutation/expiry/rollback 明確批准，舊廣泛授權不沿用。
 - 尚未以合併 SHA 建置 API／worker immutable image，亦未部署或更新 isolated Hosting preview。
 - 尚未用新版本完成一次 Gate 14 end-to-end：synthetic event edit → inbound → staff reject → idempotency replay → restore dispatch → 同一 Calendar event 的獨立 readback；也未證明重送不增加 audit/outbox。
-- P09-10 replay、P09-12 Stage F 11 cases/evaluators、P09-13 current-SHA rollback proof、P09-14 closure 尚未完成；舊 SHA 證據不得沿用為新 SHA PASS。
+- Gate matrix 的 `CI_PROVEN`／`SOURCE_PROVEN`／`CLOUD_READBACK_PROVEN` 是證據類型，不是 gate PASS。P09-01 尚無新 SHA build/deployment manifest；P09-02/04/05 缺最新 plan/apply/readback 並須對帳上述資源差異；P09-03 缺 numeric secret pin/ACL/IAM receipts；P09-06 的 preview 仍指舊 API；P09-07～10 尚無合併 SHA runtime proof（其中 P09-09 有歷史 FAIL）；P09-11 缺本 SHA durable-429 證據；P09-12 的 Stage F 11 cases/evaluators 未完成；P09-13 雖有本次健康 readback，仍缺完整 rollback/monitoring/lease/DLQ/duplicate proof；因此 P09-14 仍 BLOCKED。舊 SHA 證據不得沿用為新 SHA PASS。
 - 未部署 source、未建立 fresh C1 fixture、未作 Gate 14 修復後 readback。
 - 未進行任何 production、AWS 或 public site actions。
 
