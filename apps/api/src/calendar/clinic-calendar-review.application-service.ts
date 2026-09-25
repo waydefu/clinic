@@ -103,15 +103,26 @@ export class ClinicCalendarReviewApplicationService {
   }): Promise<ReviewCalendarCandidateResponse | undefined> {
     const stored = await this.candidates.read(input.candidateId);
     if (stored === undefined) return undefined;
+    const unmatched =
+      stored.kind === 'unmatched' || stored.status === 'unmatched';
+    const appointmentId = stored.appointmentId ?? stored.localRecordId;
+    const unlinkedUnmatched =
+      unmatched && (appointmentId === undefined || appointmentId === null);
+    let liveRecord: AppointmentRecord | undefined;
+    if (!unlinkedUnmatched) {
+      if (appointmentId === undefined || appointmentId === null)
+        return undefined;
+      liveRecord = await this.appointments.read(appointmentId);
+      // Not a clinic booking: the CAL-PILOT repository owns this candidate,
+      // including its idempotent replay, so the version check must not run here.
+      if (liveRecord === undefined) return undefined;
+    }
     if (stored.expectedVersion !== input.command.expectedVersion)
       throw new ConflictError();
 
     const role = input.authentication.actorRole as Role;
     if (!canReviewCalendarCandidate(role)) throw new AuthorizationDeniedError();
-    const unmatched =
-      stored.kind === 'unmatched' || stored.status === 'unmatched';
-    const appointmentId = stored.appointmentId ?? stored.localRecordId;
-    if (unmatched && (appointmentId === undefined || appointmentId === null)) {
+    if (unlinkedUnmatched) {
       const candidate = await this.candidates.markReviewed({
         candidateId: stored.candidateId,
         expectedVersion: input.command.expectedVersion,
@@ -127,9 +138,12 @@ export class ClinicCalendarReviewApplicationService {
       });
       return { candidate, projection: null };
     }
-    if (appointmentId === undefined || appointmentId === null) return undefined;
-    const liveRecord = await this.appointments.read(appointmentId);
-    if (liveRecord === undefined) return undefined;
+    if (
+      appointmentId === undefined ||
+      appointmentId === null ||
+      liveRecord === undefined
+    )
+      return undefined;
     const live = liveFrom(liveRecord);
     const targetSlot =
       stored.startsAt === null
