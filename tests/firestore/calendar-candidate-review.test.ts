@@ -4,7 +4,17 @@ import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { CalendarPilotApplicationService } from '../../apps/api/src/calendar/calendar-pilot.application-service.js';
+import { ClinicCalendarReviewApplicationService } from '../../apps/api/src/calendar/clinic-calendar-review.application-service.js';
+import {
+  COLLECTIONS as BOOKING_COLLECTIONS,
+  FirestoreBookingRepository
+} from '../../apps/api/src/firestore/booking.repository.js';
 import { FirestoreCalendarPilotRepository } from '../../apps/api/src/firestore/calendar-pilot.repository.js';
+import {
+  FirestoreClinicCalendarCandidateStore,
+  FirestoreClinicSlotLookup
+} from '../../apps/api/src/firestore/clinic-calendar-review.repository.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -180,6 +190,52 @@ describe('Calendar candidate rejection transaction', () => {
       reviewCommand({ occurredAt: '2026-09-24T03:01:00.000Z' })
     );
 
+    expect(replay).toEqual(first);
+    expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(1);
+    expect(
+      (await db.collection('calendar_pilot_audit_events').get()).size
+    ).toBe(1);
+  });
+
+  it('replays a reject through the clinic review wiring instead of answering 409', async () => {
+    await db
+      .collection(BOOKING_COLLECTIONS.appointments)
+      .doc(APPOINTMENT_ID)
+      .delete();
+    const clock = { nowUtc: () => NOW };
+    const service = new CalendarPilotApplicationService(
+      new FirestoreCalendarPilotRepository(db),
+      clock,
+      new ClinicCalendarReviewApplicationService(
+        new FirestoreBookingRepository(db),
+        new FirestoreClinicCalendarCandidateStore(db),
+        new FirestoreClinicSlotLookup(db),
+        clock.nowUtc
+      )
+    );
+    const request = {
+      idempotencyKey: 'candidate_reject_update_0001',
+      expectedVersion: 1
+    };
+    const manager = { actorId: 'manager_001', actorRole: 'manager' as const };
+
+    const first = await service.reviewCandidate(
+      CANDIDATE_ID,
+      'reject',
+      request,
+      manager
+    );
+    const replay = await service.reviewCandidate(
+      CANDIDATE_ID,
+      'reject',
+      request,
+      manager
+    );
+
+    expect(first.candidate).toMatchObject({
+      status: 'rejected',
+      expectedVersion: 2
+    });
     expect(replay).toEqual(first);
     expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(1);
     expect(
