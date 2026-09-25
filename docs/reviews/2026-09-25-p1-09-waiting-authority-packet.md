@@ -114,16 +114,18 @@ deploy pin = 上述兩個映像的 sha256 digest，禁止只用 tag
 
 ## 待業主核准的區塊
 
-`APPROVER = OWNER_TO_CONFIRM`。操作者提案是目前已登入的 `wayde.fu@gmail.com`，時窗是提案。業主若改任一欄，以簽回的文字為準。`main` 若在簽署後又前進，這份 SHA 失效。
+業主已於 2026-09-25 簽回，`APPROVER = PROJECT_OWNER`，並把時窗改為台北時間 2026-09-26 13:00 至 2026-09-30 20:00。換算 UTC 是 `2026-09-26T05:00:00Z` 至 `2026-09-30T12:00:00Z`。2026-09-25T05:11Z 時窗尚未開始，所以仍不執行。`main` 若在開始前前進，這份 SHA 失效。
 
 ```text
 APPROVE P1-09-C1-SYNTHETIC-CLOSEOUT
 
 AUTHORITY_SHA = 716aaf4f97d77eb87aead6d15b70a2936e676831
 OPERATOR = wayde.fu@gmail.com
-APPROVER = OWNER_TO_CONFIRM
-VALID_FROM_UTC = 2026-09-26T02:00:00Z
-VALID_UNTIL_UTC = 2026-09-26T04:00:00Z
+APPROVER = PROJECT_OWNER
+VALID_FROM_UTC = 2026-09-26T05:00:00Z
+VALID_UNTIL_UTC = 2026-09-30T12:00:00Z
+VALID_FROM_TAIPEI = 2026-09-26 13:00
+VALID_UNTIL_TAIPEI = 2026-09-30 20:00
 
 PROJECT = beauessence-clinic-stg-c1a01
 REGION = asia-east1
