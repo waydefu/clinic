@@ -250,6 +250,33 @@ describe('ClinicCalendarReviewApplicationService', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('defers a replayed review of a non-clinic appointment so the CAL-PILOT idempotency record answers it', async () => {
+    const { service, appointments, markReviewed } = harness({
+      candidate: {
+        ...pending,
+        status: 'rejected',
+        expectedVersion: 2,
+        appointmentId: undefined,
+        localRecordId: 'c1_synthetic_appointment_001'
+      }
+    });
+    (appointments.read as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+    await expect(
+      service.tryReview({
+        candidateId: 'candidate_001',
+        action: 'reject',
+        command: {
+          idempotencyKey: 'calendar_candidate_0011',
+          expectedVersion: 1
+        },
+        authentication: { actorId: 'manager_001', actorRole: 'manager' }
+      })
+    ).resolves.toBeUndefined();
+    expect(markReviewed).not.toHaveBeenCalled();
+  });
+
   it('fails closed on a stale expectedVersion', async () => {
     const { service } = harness();
     await expect(
