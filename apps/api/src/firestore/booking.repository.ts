@@ -138,7 +138,8 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         this.patientGuardSnapshotOf(patientGuardDocument);
       const followUpStateData = followUpStateDocument.data() ?? {};
       if (request.bookingKind === 'follow_up') {
-        const activeId = followUpStateData['activeFollowUpAppointmentId'];
+        const activeId: unknown =
+          followUpStateData['activeFollowUpAppointmentId'];
         const activeStillHolds =
           typeof activeId === 'string' &&
           isLiveFollowUp(
