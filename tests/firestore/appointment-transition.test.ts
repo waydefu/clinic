@@ -125,6 +125,44 @@ describe('appointment transitions in a Firestore transaction', () => {
     expect((await patientGuardState()).exists).toBe(false);
   });
 
+  it.each(['cancel', 'no_show'] as const)(
+    'clears the active follow-up pointer when that follow-up ends by %s',
+    async (kind) => {
+      await db
+        .collection(COLLECTIONS.appointments)
+        .doc(APPOINTMENT)
+        .update({ bookingKind: 'follow_up' });
+      await db.collection(COLLECTIONS.followUpState).doc('patient_001').set({
+        required: true,
+        sourceAppointmentId: 'appointment_source_001',
+        activeFollowUpAppointmentId: APPOINTMENT
+      });
+
+      await transition(kind);
+
+      const state = (
+        await db.collection(COLLECTIONS.followUpState).doc('patient_001').get()
+      ).data();
+      expect(state?.['activeFollowUpAppointmentId']).toBeUndefined();
+      expect(state?.['required']).toBe(true);
+    }
+  );
+
+  it('keeps a follow-up pointer that names another appointment', async () => {
+    await db.collection(COLLECTIONS.followUpState).doc('patient_001').set({
+      required: true,
+      activeFollowUpAppointmentId: 'appointment_follow_up_other'
+    });
+
+    await transition('cancel');
+
+    expect(
+      (
+        await db.collection(COLLECTIONS.followUpState).doc('patient_001').get()
+      ).data()?.['activeFollowUpAppointmentId']
+    ).toBe('appointment_follow_up_other');
+  });
+
   it('marks no_show and returns the slot to the pool', async () => {
     await transition('no_show');
 

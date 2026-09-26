@@ -106,6 +106,38 @@ describe('InMemoryPatientDirectory', () => {
       startsAt: '2026-08-01T04:15:00.000Z'
     });
   });
+
+  it.each(['cancelled', 'no_show'] as const)(
+    'offers scheduling again when the active follow-up is %s',
+    async (status) => {
+      const directory = new InMemoryPatientDirectory();
+      await directory.resolveFromIntake(
+        INTAKE,
+        '2026-07-23T14:30:00.000Z',
+        () => 'patient_001'
+      );
+      directory.followUp.set('patient_001', {
+        required: true,
+        activeFollowUpAppointmentId: 'appointment_follow_001'
+      });
+      directory.appointments.push({
+        appointmentId: 'appointment_follow_001',
+        patientId: 'patient_001',
+        slotId: 'slot_follow_001',
+        bookingKind: 'follow_up',
+        status,
+        startsAt: '2026-08-01T04:15:00.000Z'
+      });
+      const result = await directory.lookupReturn(
+        '0912000001',
+        '1990-01-15',
+        '2026-07-23T14:30:00.000Z',
+        () => 'session'
+      );
+      expect(result?.outcome).toBe('schedule');
+      expect(result).not.toHaveProperty('appointmentId');
+    }
+  );
 });
 
 describe('assertFollowUpBookable', () => {

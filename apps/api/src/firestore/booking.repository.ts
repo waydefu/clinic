@@ -32,7 +32,10 @@ import type {
 } from 'firebase-admin/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 
-import { assertFollowUpBookable } from '../patients/patient-directory.js';
+import {
+  assertFollowUpBookable,
+  isLiveFollowUp
+} from '../patients/patient-directory.js';
 import type {
   AppointmentRecord,
   AppointmentRepositoryPort,
@@ -135,15 +138,22 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         this.patientGuardSnapshotOf(patientGuardDocument);
       const followUpStateData = followUpStateDocument.data() ?? {};
       if (request.bookingKind === 'follow_up') {
+        const activeId: unknown =
+          followUpStateData['activeFollowUpAppointmentId'];
+        const activeStillHolds =
+          typeof activeId === 'string' &&
+          isLiveFollowUp(
+            (
+              await transaction.get(
+                this.db.collection(COLLECTIONS.appointments).doc(activeId)
+              )
+            ).data()
+          );
         assertFollowUpBookable(
           {
             required: followUpStateData['required'] === true,
-            ...(typeof followUpStateData['activeFollowUpAppointmentId'] ===
-            'string'
-              ? {
-                  activeFollowUpAppointmentId:
-                    followUpStateData['activeFollowUpAppointmentId']
-                }
+            ...(activeStillHolds && typeof activeId === 'string'
+              ? { activeFollowUpAppointmentId: activeId }
               : {})
           },
           request.bookingKind
@@ -318,6 +328,30 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
   }
 
   /**
+   * A follow-up that ends without being attended no longer blocks the
+   * patient's entitlement. Only a pointer that still names this appointment
+   * is cleared, so a newer follow-up is never released by an older one.
+   */
+  private releaseActiveFollowUp(
+    transaction: Transaction,
+    followUpStateDocument: DocumentSnapshot | undefined,
+    appointmentId: string,
+    updatedAt: string
+  ): void {
+    if (followUpStateDocument === undefined || !followUpStateDocument.exists)
+      return;
+    if (
+      followUpStateDocument.data()?.['activeFollowUpAppointmentId'] !==
+      appointmentId
+    )
+      return;
+    transaction.update(followUpStateDocument.ref, {
+      activeFollowUpAppointmentId: FieldValue.delete(),
+      updatedAt
+    });
+  }
+
+  /**
    * A terminal transition may release only the appointment named in this
    * mutation. It must never delete or overwrite a guard that no longer lists
    * that appointment — another unfinished booking may still hold the lock.
@@ -391,6 +425,14 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
           : await transaction.get(
               this.db.collection(COLLECTIONS.slots).doc(appointment.slotId)
             );
+      const followUpStateDocument =
+        appointment?.bookingKind === 'follow_up'
+          ? await transaction.get(
+              this.db
+                .collection(COLLECTIONS.followUpState)
+                .doc(appointment.patientId)
+            )
+          : undefined;
 
       // --- decision (pure) ---------------------------------------------
       const plan = planTransition(
@@ -409,6 +451,14 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       });
       if (plan.releaseSlotId !== undefined && slotDocument !== undefined) {
         this.releaseSlot(transaction, slotDocument, plan.appointmentId);
+      }
+      if (plan.releaseSlotId !== undefined) {
+        this.releaseActiveFollowUp(
+          transaction,
+          followUpStateDocument,
+          plan.appointmentId,
+          plan.updatedAt
+        );
       }
       this.applyPatientGuardMutation(
         transaction,
@@ -480,6 +530,14 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
           : await transaction.get(
               this.db.collection(COLLECTIONS.slots).doc(appointment.slotId)
             );
+      const followUpStateDocument =
+        appointment?.bookingKind === 'follow_up'
+          ? await transaction.get(
+              this.db
+                .collection(COLLECTIONS.followUpState)
+                .doc(appointment.patientId)
+            )
+          : undefined;
 
       const plan = planDeletion(
         request,
@@ -491,6 +549,12 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       if (plan.releaseSlotId !== undefined && slotDocument !== undefined) {
         this.releaseSlot(transaction, slotDocument, plan.appointmentId);
       }
+      this.releaseActiveFollowUp(
+        transaction,
+        followUpStateDocument,
+        plan.appointmentId,
+        request.requestedAt
+      );
       this.applyPatientGuardMutation(
         transaction,
         patientGuardDocument,

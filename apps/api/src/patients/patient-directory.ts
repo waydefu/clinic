@@ -68,6 +68,18 @@ function parseBirthDate(birthDate: string): boolean {
   );
 }
 
+/**
+ * A follow-up that was cancelled, marked no-show, or removed no longer holds
+ * the patient's entitlement, even if a stale pointer still names it.
+ */
+export function isLiveFollowUp(appointment: unknown): boolean {
+  if (typeof appointment !== 'object' || appointment === null) return false;
+  const status = (appointment as Record<string, unknown>)['status'];
+  return (
+    typeof status === 'string' && status !== 'cancelled' && status !== 'no_show'
+  );
+}
+
 export function assertFollowUpBookable(
   state: PatientFollowUpState | undefined,
   bookingKind: string
@@ -198,7 +210,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
         .doc(activeId)
         .get();
       const startsAt = stringField(appointment.data(), 'startsAt');
-      if (typeof startsAt === 'string') {
+      if (typeof startsAt === 'string' && isLiveFollowUp(appointment.data())) {
         return {
           sessionId,
           expiresAt,
@@ -348,7 +360,7 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
       const appointment = this.appointments.find(
         (item) => item.appointmentId === activeId
       );
-      if (appointment?.startsAt !== undefined) {
+      if (appointment?.startsAt !== undefined && isLiveFollowUp(appointment)) {
         return {
           sessionId,
           expiresAt,
