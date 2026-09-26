@@ -196,7 +196,7 @@ resource "google_monitoring_alert_policy" "application" {
   conditions {
     display_name = "${each.value.display_name} threshold"
     condition_threshold {
-      filter                  = "metric.type=\"logging.googleapis.com/user/${each.value.metric}\" AND resource.type=\"global\""
+      filter                  = "metric.type=\"logging.googleapis.com/user/${each.value.metric}\""
       duration                = "300s"
       comparison              = "COMPARISON_GT"
       threshold_value         = each.value.threshold - 1
@@ -233,7 +233,7 @@ resource "google_monitoring_alert_policy" "outbox_age" {
   conditions {
     display_name = "WP-B4 excessive outbox age threshold"
     condition_threshold {
-      filter                  = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.outbox_oldest_age[0].name}\" AND resource.type=\"global\""
+      filter                  = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.outbox_oldest_age[0].name}\""
       duration                = "60s"
       comparison              = "COMPARISON_GT"
       threshold_value         = 59
@@ -270,7 +270,7 @@ resource "google_monitoring_alert_policy" "iam_setiampolicy_application" {
   conditions {
     display_name = "WP-B4 IAM SetIamPolicy threshold"
     condition_threshold {
-      filter                  = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\" AND resource.type=\"global\""
+      filter                  = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\""
       duration                = "300s"
       comparison              = "COMPARISON_GT"
       threshold_value         = 0
