@@ -252,6 +252,12 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       .get();
     if (!snapshot.exists) return undefined;
     const data = snapshot.data() ?? {};
+    const activeId: unknown = data['activeFollowUpAppointmentId'];
+    const activeHolds =
+      typeof activeId === 'string' &&
+      isLiveFollowUp(
+        (await this.db.collection('appointments').doc(activeId).get()).data()
+      );
     return {
       required: data['required'] === true,
       ...(typeof data['sourceAppointmentId'] === 'string'
@@ -260,8 +266,8 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       ...(typeof data['sourceFollowUpId'] === 'string'
         ? { sourceFollowUpId: data['sourceFollowUpId'] }
         : {}),
-      ...(typeof data['activeFollowUpAppointmentId'] === 'string'
-        ? { activeFollowUpAppointmentId: data['activeFollowUpAppointmentId'] }
+      ...(activeHolds && typeof activeId === 'string'
+        ? { activeFollowUpAppointmentId: activeId }
         : {})
     };
   }
@@ -391,7 +397,15 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     patientId: string
   ): Promise<PatientFollowUpState | undefined> {
     await Promise.resolve();
-    return this.followUp.get(patientId);
+    const state = this.followUp.get(patientId);
+    const activeId = state?.activeFollowUpAppointmentId;
+    if (state === undefined || activeId === undefined) return state;
+    const active = this.appointments.find(
+      (item) => item.appointmentId === activeId
+    );
+    if (isLiveFollowUp(active)) return state;
+    const { activeFollowUpAppointmentId: _stale, ...rest } = state;
+    return rest;
   }
 
   public async listByPatient(
