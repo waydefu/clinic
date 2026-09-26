@@ -4,6 +4,7 @@ import { AUTHORIZATION_LOCK_FAILURE_THRESHOLD } from './staff-auth-parameters.js
 import {
   IDENTIFIED_WRITE_LIMIT,
   LOOKUP_FAILURE_THRESHOLD,
+  LOOKUP_IDENTITY_LIMIT,
   LOOKUP_LOCK_MS,
   RATE_LIMIT_POLICIES,
   UNAUTHENTICATED_GENERAL_LIMIT
@@ -19,5 +20,16 @@ describe('WP-B2 rate-limit parameters', () => {
     expect(RATE_LIMIT_POLICIES.lookup_or_auth_failure.lockMs).toBe(
       LOOKUP_LOCK_MS
     );
+  });
+
+  it('caps one lookup identity per 15-minute window without an extended lock', () => {
+    expect(RATE_LIMIT_POLICIES.lookup_identity_failure).toEqual({
+      name: 'lookup_identity_failure',
+      limit: LOOKUP_IDENTITY_LIMIT,
+      windowMs: 15 * 60 * 1000,
+      lockMs: 0
+    });
+    expect(LOOKUP_IDENTITY_LIMIT).toBe(10);
+    expect(LOOKUP_IDENTITY_LIMIT).toBeGreaterThan(LOOKUP_FAILURE_THRESHOLD);
   });
 });
