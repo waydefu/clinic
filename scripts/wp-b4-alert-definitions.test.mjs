@@ -65,4 +65,14 @@ describe('WP-B4 alert definitions', () => {
       notificationPrompts: ['OPENED', 'CLOSED']
     });
   });
+
+  it('does not pin alert conditions to the global resource, where Cloud Run log metrics never land', () => {
+    for (const stack of ['wp-b4-alerting', 'c1-foundation']) {
+      const terraform = readFileSync(
+        join(root, `infra/terraform/${stack}/main.tf`),
+        'utf8'
+      );
+      expect(terraform, stack).not.toContain('resource.type=\\"global\\"');
+    }
+  });
 });

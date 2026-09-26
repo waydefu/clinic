@@ -237,7 +237,7 @@ resource "google_monitoring_alert_policy" "iam_setiampolicy" {
   conditions {
     display_name = "c1-iam-setiampolicy above zero"
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\" AND resource.type=\"global\""
+      filter          = "metric.type=\"logging.googleapis.com/user/c1-iam-setiampolicy\""
       duration        = "60s"
       comparison      = "COMPARISON_GT"
       threshold_value = 0

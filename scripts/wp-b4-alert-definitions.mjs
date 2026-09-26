@@ -130,6 +130,11 @@ export function inspectWpB4TerraformSource(readFile = readFileSync) {
   if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(terraform)) {
     issues.push('WP-B4 terraform must not contain email addresses.');
   }
+  if (terraform.includes('resource.type=\\"global\\"')) {
+    issues.push(
+      'WP-B4 alert conditions must not require resource.type="global"; Cloud Run log metrics are cloud_run_revision.'
+    );
+  }
   for (const [needle, expectedCount] of [
     ['evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"', 3],
     ['auto_close           = "1800s"', 3],
