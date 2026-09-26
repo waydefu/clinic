@@ -10,6 +10,7 @@ import {
 } from '@nestjs/platform-fastify';
 import {
   LOOKUP_FAILURE_THRESHOLD,
+  LOOKUP_IDENTITY_LIMIT,
   RATE_LIMIT_POLICIES
 } from '@beauessence/domain';
 
@@ -344,5 +345,31 @@ describe('accountless booking and return lookup HTTP', () => {
         1_000
       )
     ).resolves.toMatchObject({ allowed: false });
+  });
+
+  it('still 429s one lookup identity when every request spoofs a new X-Forwarded-For', async () => {
+    const limiter = new WpB2RateLimiter(new InMemoryDurableRateLimitStore(), {
+      now: () => 1_000
+    });
+    const { harness } = await start({ limiter });
+    for (let i = 0; i < LOOKUP_IDENTITY_LIMIT; i += 1) {
+      const miss = await harness.inject({
+        method: 'POST',
+        url: '/v1/return-lookup',
+        headers: { 'x-forwarded-for': `198.51.100.${i + 1}` },
+        payload: { phone: '0912000001', birthDate: '1990-01-15' }
+      });
+      expect(miss.statusCode).toBe(404);
+    }
+    const blocked = await harness.inject({
+      method: 'POST',
+      url: '/v1/return-lookup',
+      headers: { 'x-forwarded-for': '198.51.100.250' },
+      payload: { phone: '0912000001', birthDate: '1990-01-15' }
+    });
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.headers['retry-after']).toEqual(
+      expect.stringMatching(/^\d+$/)
+    );
   });
 });

@@ -77,6 +77,10 @@ export class WpB2RateLimiter {
       'lookup_or_auth_failure',
       `lookup:${lookupIdentity}:${ip}`
     );
+    await this.assertPolicy(
+      'lookup_identity_failure',
+      `lookup:${lookupIdentity}`
+    );
   }
 
   public async assertRequest(input: {

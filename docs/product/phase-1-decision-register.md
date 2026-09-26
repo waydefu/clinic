@@ -130,6 +130,35 @@ production, not public booking, and not a D-series close.
 
 ## Recorded inputs
 
+### WP-B2A lookup limiter under a bypassable proxy chain — 2026-09-26
+
+The 2026-09-26 P1-09 429 run showed that `internal-test-api` accepts direct
+`run.app` calls (`ingress=all`, `allUsers` invoker). On that path a spoofed
+leftmost `X-Forwarded-For` becomes the WP-B2 lookup key, so rotating it
+never trips the 5 / 15 minute lock
+([record](../reviews/2026-09-26-p1-09-gate-14-429-rerun.md)). This input
+amends WP-B2-2026-09-15; it does not relax any WP-B2 limit.
+
+```text
+Recorded input ID: WP-B2A-2026-09-26
+Answer: keep the WP-B2 lookup lock (5 failed attempts / 15 minutes / opaque
+lookup identity + source IP, then 15 minute lock) and add a second bucket:
+10 failed attempts / 15 minutes / opaque lookup identity only, no extended
+lock. Over-limit: HTTP 429 + Retry-After (remaining window).
+Accepted trade-off: a third party who knows a phone + birth date pair can
+block that pair's lookup for at most one 15 minute window at a time.
+P1-09 429 acceptance for this stage: with a stable lookup and a new spoofed
+leftmost X-Forwarded-For on every request, HTTP 429 + Retry-After must
+appear within 20 sends and the durable identity key must hold the count.
+Go-live prerequisite (not this stage): the API must not be reachable
+around the controlled proxy chain (restricted ingress or load balancer),
+or the source-IP key must come from a value the client cannot set.
+Does not: grant production, change D-006, or alter the WP-B2 IP limits.
+Approved by: clinic owner (PROJECT_OWNER), accepting the engineering
+recommendation in-session
+Approval date (Asia/Taipei): 2026-09-26 13:22
+```
+
 ### IP-001 internal-preproduction and internal-test route — 2026-09-13
 
 The clinic owner split **internal-test / staging completion** from

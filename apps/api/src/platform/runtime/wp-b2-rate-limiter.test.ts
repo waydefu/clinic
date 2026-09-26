@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   IDENTIFIED_WRITE_LIMIT,
   LOOKUP_FAILURE_THRESHOLD,
+  LOOKUP_IDENTITY_LIMIT,
+  LOOKUP_IDENTITY_WINDOW_MS,
   LOOKUP_LOCK_MS,
   UNAUTHENTICATED_GENERAL_LIMIT
 } from '@beauessence/domain';
@@ -71,6 +73,28 @@ describe('WpB2RateLimiter', () => {
     now += LOOKUP_LOCK_MS;
     await restarted.assertLookupFailure('rlk_synthetic_001', '198.51.100.10');
     await restarted.assertLookupFailure('rlk_synthetic_002', '198.51.100.10');
+  });
+
+  it('caps one lookup identity across rotating source IPs until its window ends', async () => {
+    let now = 5_000;
+    const limiter = new WpB2RateLimiter(new InMemoryDurableRateLimitStore(), {
+      now: () => now
+    });
+    for (let i = 0; i < LOOKUP_IDENTITY_LIMIT; i += 1) {
+      await limiter.assertLookupFailure('rlk_synthetic_001', `198.51.100.${i}`);
+    }
+    const blocked = limiter.assertLookupFailure(
+      'rlk_synthetic_001',
+      '198.51.100.200'
+    );
+    await expect(blocked).rejects.toBeInstanceOf(RateLimitedError);
+    await blocked.catch((error: RateLimitedError) => {
+      expect(error.retryAfterSeconds).toBeGreaterThan(0);
+    });
+    await limiter.assertLookupFailure('rlk_synthetic_002', '198.51.100.201');
+
+    now += LOOKUP_IDENTITY_WINDOW_MS;
+    await limiter.assertLookupFailure('rlk_synthetic_001', '198.51.100.202');
   });
 
   it('serializes concurrent consumes so the durable counter is not under-counted', async () => {
