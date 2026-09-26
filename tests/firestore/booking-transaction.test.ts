@@ -621,6 +621,39 @@ describe('booking write path in a Firestore transaction', () => {
     expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(0);
   });
 
+  it('books a follow_up when the stored active pointer names a cancelled follow-up', async () => {
+    await db
+      .collection(COLLECTIONS.appointments)
+      .doc('appointment_follow_cancelled')
+      .set({
+        slotId: 'slot_20300102_1245',
+        startsAt: '2030-01-02T04:45:00.000Z',
+        patientId: 'patient_001',
+        bookingKind: 'follow_up',
+        status: 'cancelled'
+      });
+    await db.collection(COLLECTIONS.followUpState).doc('patient_001').set({
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      activeFollowUpAppointmentId: 'appointment_follow_cancelled'
+    });
+
+    await repository.reserve(
+      bookingRequest({
+        appointmentId: 'appointment_follow_new',
+        slotId: 'slot_20300102_1215',
+        bookingKind: 'follow_up',
+        idempotencyKey: 'idem_follow_new'
+      })
+    );
+
+    expect(
+      (
+        await db.collection(COLLECTIONS.followUpState).doc('patient_001').get()
+      ).data()?.['activeFollowUpAppointmentId']
+    ).toBe('appointment_follow_new');
+  });
+
   it('allows only one concurrent follow_up reservation per entitled patient', async () => {
     await db.collection(COLLECTIONS.followUpState).doc('patient_001').set({
       required: true,
