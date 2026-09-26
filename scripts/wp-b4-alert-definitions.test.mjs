@@ -66,13 +66,23 @@ describe('WP-B4 alert definitions', () => {
     });
   });
 
-  it('does not pin alert conditions to the global resource, where Cloud Run log metrics never land', () => {
-    for (const stack of ['wp-b4-alerting', 'c1-foundation']) {
-      const terraform = readFileSync(
-        join(root, `infra/terraform/${stack}/main.tf`),
-        'utf8'
-      );
-      expect(terraform, stack).not.toContain('resource.type=\\"global\\"');
+  it('targets the resource types real events land on, never global alone', () => {
+    const cloudRun = 'AND resource.type=\\"cloud_run_revision\\""';
+    const auditTypes =
+      'AND resource.type=one_of(\\"project\\", \\"audited_resource\\", \\"cloud_run_revision\\", \\"pubsub_topic\\", \\"service_account\\")"';
+    const alerting = readFileSync(
+      join(root, 'infra/terraform/wp-b4-alerting/main.tf'),
+      'utf8'
+    );
+    const foundation = readFileSync(
+      join(root, 'infra/terraform/c1-foundation/main.tf'),
+      'utf8'
+    );
+    for (const terraform of [alerting, foundation]) {
+      expect(terraform).not.toContain('resource.type=\\"global\\"');
     }
+    expect(alerting.split(cloudRun)).toHaveLength(3);
+    expect(alerting.split(auditTypes)).toHaveLength(2);
+    expect(foundation.split(auditTypes)).toHaveLength(2);
   });
 });

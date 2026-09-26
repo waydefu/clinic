@@ -135,6 +135,17 @@ export function inspectWpB4TerraformSource(readFile = readFileSync) {
       'WP-B4 alert conditions must not require resource.type="global"; Cloud Run log metrics are cloud_run_revision.'
     );
   }
+  const conditionFilters = [
+    ...terraform.matchAll(/^\s*filter\s*=\s*"(metric\.type=.*)"$/gm)
+  ].map((match) => match[1]);
+  if (
+    conditionFilters.length !== 3 ||
+    conditionFilters.some((filter) => !filter.includes(' AND resource.type='))
+  ) {
+    issues.push(
+      'Every WP-B4 alert condition must restrict resource.type; the Monitoring API rejects filters without one.'
+    );
+  }
   for (const [needle, expectedCount] of [
     ['evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"', 3],
     ['auto_close           = "1800s"', 3],
