@@ -85,6 +85,7 @@ async function stubV1(
   } = {}
 ): Promise<{
   body?: Record<string, unknown>;
+  createHeaders?: Record<string, string>;
   arrive: CapturedPost;
   cancel: CapturedPost;
   reschedule: CapturedPost;
@@ -98,6 +99,7 @@ async function stubV1(
 }> {
   const posted: {
     body?: Record<string, unknown>;
+    createHeaders?: Record<string, string>;
     arrive: CapturedPost;
     cancel: CapturedPost;
     reschedule: CapturedPost;
@@ -129,6 +131,7 @@ async function stubV1(
     }
     if (path === '/v1/bookings' && method === 'POST') {
       posted.body = route.request().postDataJSON() as Record<string, unknown>;
+      posted.createHeaders = route.request().headers();
       if (create === 'closed') {
         await route.fulfill({
           status: 503,
@@ -1121,6 +1124,62 @@ test.describe('internal-test booking occupancy overlay', () => {
       path: '/v1/return-lookup',
       body: { phone: '0912000001', birthDate: '1990-01-15' }
     });
+  });
+
+  test('verified return lookup books the follow-up without re-entering identity', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_follow_up_open',
+            kind: 'follow_up',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_follow_up_001',
+        status: 'confirmed',
+        startsAt
+      },
+      {},
+      {
+        returnLookup: {
+          outcome: 'schedule',
+          sessionId: 'return_session_test_001'
+        }
+      }
+    );
+
+    await page.goto('/booking?internalTestBooking=1');
+    await page.locator('#booking-management-open').click();
+    await page.locator('#booking-lookup-phone').fill('0912000001');
+    await page.locator('#booking-lookup-birth').fill('1990-01-15');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '已確認回診身分'
+    );
+    await page.locator('#booking-management-close').click();
+    await page.locator('[data-patient-slot="slot_follow_up_open"]').click();
+    await page.locator('#confirm-patient-booking').click();
+
+    await expect(page.locator('#booking-result')).toContainText(
+      'appointment_follow_up_001'
+    );
+    expect(posted.body).toMatchObject({
+      slotId: 'slot_follow_up_open',
+      serviceId: 'service_snoring',
+      bookingKind: 'follow_up'
+    });
+    expect(posted.body).not.toHaveProperty('intake');
+    expect(posted.createHeaders?.['x-return-session']).toBe(
+      'return_session_test_001'
+    );
   });
 
   test('opt-in staff publish posts /v1/schedule/publish without patient fields', async ({

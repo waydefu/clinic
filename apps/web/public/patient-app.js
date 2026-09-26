@@ -952,7 +952,8 @@ for (const field of formFields)
 
 function hasReturnSession() {
   try {
-    return Boolean(window.sessionStorage.getItem('internalTestReturnSession'));
+    // Same key internal-test-booking-transport.js writes after /v1/return-lookup.
+    return Boolean(window.sessionStorage.getItem('itrs'));
   } catch {
     return false;
   }
@@ -1273,13 +1274,16 @@ elements['booking-lookup-form'].addEventListener('submit', async (event) => {
         selectedSlotId = undefined;
         activeSlotDate = undefined;
         activeSlotMonth = undefined;
+        if (selectedServiceId === undefined && PATIENT_SERVICES.length === 1) {
+          selectedServiceId = PATIENT_SERVICES[0].id;
+        }
         renderAll();
         message(
           '已確認回診身分，請選擇時段。不必再填寫姓名或電話。',
           'success',
           'booking-lookup-status'
         );
-        showStep(2);
+        showStep(selectedServiceId === undefined ? 1 : 2);
         return;
       }
       if (result?.outcome === 'existing' && result.appointmentId) {
