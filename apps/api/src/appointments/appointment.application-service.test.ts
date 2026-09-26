@@ -970,6 +970,44 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     expect(patients.createdPatientCount).toBe(1);
   });
 
+  it('creates a follow-up when the stored active pointer names a cancelled follow-up', async () => {
+    const patients = new InMemoryPatientDirectory();
+    let n = 0;
+    const { reserve, service } = createBoundService(
+      patients,
+      () => `opaque_${++n}`
+    );
+    await service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous);
+    const patientId = [...patients.patients.keys()][0] ?? '';
+    patients.followUp.set(patientId, {
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      activeFollowUpAppointmentId: 'appointment_follow_cancelled'
+    });
+    patients.appointments.push({
+      appointmentId: 'appointment_follow_cancelled',
+      patientId,
+      slotId: 'slot_follow_001',
+      bookingKind: 'follow_up',
+      status: 'cancelled',
+      startsAt: '2026-08-01T04:15:00.000Z'
+    });
+
+    await service.create(
+      {
+        ...COMMAND,
+        bookingKind: 'follow_up',
+        idempotencyKey: 'booking_request_follow_again'
+      },
+      { actorId: patientId, actorRole: 'patient', verifiedPatientId: patientId }
+    );
+
+    expect(reserve.mock.calls.at(-1)?.[0]).toMatchObject({
+      patientId,
+      bookingKind: 'follow_up'
+    });
+  });
+
   it('does not entitle an unmatched patient to create a return appointment', async () => {
     const patients = new InMemoryPatientDirectory();
     const { service } = createBoundService(patients);
