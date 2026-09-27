@@ -130,6 +130,31 @@ production, not public booking, and not a D-series close.
 
 ## Recorded inputs
 
+### WP-B5-1A schedule grid read gate — 2026-09-27
+
+F-13 in the [2026-09-15 closure matrix](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md)
+found that `assertCanReadGrid` gates schedule-grid reads on
+`create_appointment`, so any role that may create a booking may also read
+the grid. Its acceptance evidence is either an owner-amended permission or
+a dated decision that the create permission remains the grid gate for this
+stage. WP-B5-1 forbids inventing a permission that reopens D-006. This input
+records the second option.
+
+```text
+Recorded input ID: WP-B5-1A-2026-09-27
+Answer: for this stage, schedule-grid reads stay gated on
+create_appointment. No separate read_schedule permission is added and
+packages/domain role permissions do not change.
+Scope: IN_SCOPE roles under WP-B5-1 (manager, front_desk, accountless
+patient). OUT_OF_SCOPE roles stay out of scope.
+Revisit: a separate grid-read permission needs a D-006 amendment in a later
+stage; it is not implied by this input.
+Does not: grant production, change D-006, or change any role's permissions.
+Approved by: clinic owner (PROJECT_OWNER), accepting the engineering
+recommendation in-session
+Approval date (Asia/Taipei): 2026-09-27 13:43
+```
+
 ### WP-B2A lookup limiter under a bypassable proxy chain — 2026-09-26
 
 The 2026-09-26 P1-09 429 run showed that `internal-test-api` accepts direct

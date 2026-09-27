@@ -71,11 +71,12 @@
 | F-10 CSP 含 staging 來源 | C1 使用的 `firebase.isolated-api-preview.json` 已不含 `beauessence-clinic-staging`；`check:pages` 會檢查 | SOURCE_PROVEN | 部署環境回應標頭讀回（項目 E1） |
 | F-11 過期文件仍像現行權威 | `check:docs` 今天 PASS（見下方 gate） | SOURCE_PROVEN | 無 |
 | F-12 寫死 `accountActive` | 見上節 | SOURCE_PROVEN | 部署實測（項目 E2） |
-| F-13 班表讀取綁在建立權限 | `assertCanReadGrid` 仍用 `create_appointment`；WP-B5-1 禁止新增會重開 D-006 的權限，但決策登記簿沒有一筆「本階段維持以建立權限把關班表讀取」的明確紀錄 | NEEDS_OWNER_DECISION | 業主在登記簿記一筆帶日期的決定 |
+| F-13 班表讀取綁在建立權限 | `assertCanReadGrid` 仍用 `create_appointment`；業主於 2026-09-27 決定本階段維持此把關，記為 `WP-B5-1A-2026-09-27`（[決策登記簿](../product/phase-1-decision-register.md)） | DECIDED | 無；另設讀取權限需日後修訂 D-006 |
 | F-14 角色範圍與審查數 | WP-B5-1（本階段只做 manager、front_desk、免登入病患）與 WP-B5-2（審查數維持 0）已記錄；Stage F 員工與病患案例 PASS | SOURCE_PROVEN | 本紀錄沒有逐一核對 manager 與 front_desk 各自的部署證據 |
 
 **對帳後新增的關帳缺口：** F-06（可攜證據包）與 F-13（業主決定）。兩項都不需要
-C1 寫入，但都是 P09-14 關帳前要處理的事，前一份交接紀錄沒有列出。
+C1 寫入，但都是 P09-14 關帳前要處理的事，前一份交接紀錄沒有列出。F-13 已於同日由
+業主決定並記錄（`WP-B5-1A-2026-09-27`），剩 F-06。
 
 ## 操作者指令（需 C1 憑證，本 session 沒有執行）
 
@@ -184,6 +185,6 @@ CI 以 PR head 的 `Verification evidence` 為準。
 ## 未處理
 
 1. 雲端項目 A、B、C、D、E1、E2、I、G：NOT_RUN，本環境沒有 C1 憑證，且依 `CLAUDE.md` 部署與 apply 不由 session 執行。
-2. F-06 可攜證據包、F-13 業主決定：需業主處理。
+2. F-06 可攜證據包：需業主決定存放位置與讀取權限。F-13 已記錄為 `WP-B5-1A-2026-09-27`。
 3. `rbac-appointment-policy.ts` 寫死的 `accountActive: true`：觀察，未修改。
 4. controller 對限流器仍用 `@Optional()` 注入。目前的 module 一定會提供，所以部署行為正確；但它和 F-05 屬於同一類「可選注入」，重用時可能變成 fail-open。觀察，未修改。
