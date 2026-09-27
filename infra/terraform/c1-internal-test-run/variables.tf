@@ -100,6 +100,26 @@ variable "worker_image" {
   }
 }
 
+variable "api_source_sha" {
+  type        = string
+  description = "Commit the api_image digest was built from; the API reports it as INTERNAL_TEST_SOURCE_SHA. Empty means the image was built from exact_apply_authority_sha."
+  default     = ""
+  validation {
+    condition     = var.api_source_sha == "" || can(regex("^[a-f0-9]{40}$", var.api_source_sha))
+    error_message = "api_source_sha must be empty or a 40-character lowercase Git SHA."
+  }
+}
+
+variable "worker_source_sha" {
+  type        = string
+  description = "Commit the worker_image digest was built from; the outbox and inbound sync services both run that image and report it as INTERNAL_TEST_SOURCE_SHA. Empty means the image was built from exact_apply_authority_sha."
+  default     = ""
+  validation {
+    condition     = var.worker_source_sha == "" || can(regex("^[a-f0-9]{40}$", var.worker_source_sha))
+    error_message = "worker_source_sha must be empty or a 40-character lowercase Git SHA."
+  }
+}
+
 variable "internal_test_booking_enabled" {
   type        = bool
   description = "Production default is fail-closed. Stage F packet may set true with an expiry."

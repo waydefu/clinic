@@ -44,6 +44,13 @@ input pin, not a permanent source invariant — a later authorized
 rotation is `2` → `3` by changing the input only. Do not `terraform
 apply` from this packet.
 
+`INTERNAL_TEST_SOURCE_SHA` follows the image, not the approval. The API
+reports `api_source_sha` and the outbox and inbound sync services report
+`worker_source_sha`; each falls back to `exact_apply_authority_sha` when
+empty. A reconciling apply whose images were built from earlier commits
+must set both to their build commits, or the plan rewrites the env and
+every service gets a new revision.
+
 This source does not mutate the OAuth client
 `clinic-c1-internal-preproduction-staff`. A future, separately
 authorized cloud mutation must add
