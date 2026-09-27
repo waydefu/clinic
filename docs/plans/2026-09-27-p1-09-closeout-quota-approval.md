@@ -71,6 +71,13 @@ STOP_ON_UNEXPECTED_CHANGE = true
 - D：移除 2 個 tag；正式流量本來就沒離開 `00047-suy`，只需讀回確認。
 - E2：重新啟用該合成員工帳號並讀回。
 
+## 追記：操作者與授權 SHA（2026-09-27）
+
+- **操作者：** 業主在對話中指定 Claude Code session，以業主帳號的 gcloud 與 ADC 身分執行，業主在場。
+- **Gate 00：** `c390c9e` 之後唯一的非文件變更是 `0f48d4d` 的單元測試；業主同意以 `b857749` 繼續。
+- **A 項：** 執行前發現 run stack 用單一值寫入三個服務的 `INTERNAL_TEST_SOURCE_SHA`，無法對上現場，以 #186 修正；業主同意 A 改綁 `d2af1637e59552c313f7029b59f60feffa8763b0`。其餘項目仍依上方欄位。
+- 執行結果見 [P1-09 C1 操作者執行紀錄](../reviews/2026-09-27-p1-09-c1-operator-run.md)。
+
 ## 本文件不是什麼
 
 不是 production、live Hosting、官方 DNS、真實資料、CP-01、BD runtime、Google 真實
