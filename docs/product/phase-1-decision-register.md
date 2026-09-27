@@ -130,6 +130,37 @@ production, not public booking, and not a D-series close.
 
 ## Recorded inputs
 
+### WP-B6A private evidence custody — 2026-09-27
+
+F-06 in the [2026-09-15 closure matrix](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md)
+and the [2026-09-24 handoff](../reviews/2026-09-24-p1-09-unclosed-source-fix-handoff.md)
+left private P1-09 evidence on an owner-local path with no portable,
+access-controlled store. This input names the store. It amends
+WP-B6-2026-09-15 only where that input placed the redacted archive in the
+repository (WP-C5); the no-fake and NEW_EVIDENCE_SET rules stand.
+
+```text
+Recorded input ID: WP-B6A-2026-09-27
+Answer: private P1-09 evidence (cloud readbacks, request ledgers,
+evaluator JSON and exit codes, screenshots) is kept in a Google Drive
+folder owned by the clinic owner. Only the clinic owner has read access.
+No other person, service account or agent is granted access.
+Consequences recorded with the answer:
+- The folder link and ID stay offline and are never committed.
+- The repository keeps only a sanitized manifest per evidence set: file
+  name, size, SHA-256 and UTC time. No content and no link.
+- An operator hands evidence files to the clinic owner for upload and
+  keeps no copy after hand-over.
+- A later reviewer or agent sees the evidence only if the clinic owner
+  shares it for that review. Without that, the evidence counts as
+  unavailable, and a missing item needs a NEW_EVIDENCE_SET, never a
+  reconstructed hash.
+Does not: put private evidence in git, relax WP-B6-2026-09-15, or grant
+cloud, production or real-data authority.
+Approved by: clinic owner (PROJECT_OWNER), in-session
+Approval date (Asia/Taipei): 2026-09-27 13:51
+```
+
 ### WP-B5-1A schedule grid read gate — 2026-09-27
 
 F-13 in the [2026-09-15 closure matrix](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md)

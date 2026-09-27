@@ -64,7 +64,7 @@
 | F-03 沒有持久限流 | P09-11 PASS：新 process 以持久計數回 429，`retry-after: 835` | RUNTIME_PROVEN | 無 |
 | F-04 授權拒絕沒有持久稽核 | Stage F `security_denial_audit` PASS：`authorization_denial_events` 新增 55 筆 | RUNTIME_PROVEN | 無 |
 | F-05 缺設定時 fail-open | 預約設定已改為必要注入（controller 不再有 `@Optional()` 設定）；SEC-13 測試見上 | SOURCE_PROVEN | 無 |
-| F-06 證據鏈不在 git | 私有證據仍存在業主本機路徑，沒有可攜的遮罩版證據包（見 [2026-09-24 交接](2026-09-24-p1-09-unclosed-source-fix-handoff.md) §Private evidence custody） | NOT_PROVEN | 遮罩後的可攜證據包或授權存放位置；P09-14 關帳需要 |
+| F-06 證據鏈不在 git | 私有證據仍存在業主本機路徑，沒有可攜的遮罩版證據包（見 [2026-09-24 交接](2026-09-24-p1-09-unclosed-source-fix-handoff.md) §Private evidence custody）。業主於 2026-09-27 決定存放於業主擁有的 Google Drive 資料夾，只有業主可讀，記為 `WP-B6A-2026-09-27` | DECIDED_NOT_DELIVERED | 證據實際交給業主上傳，並在 repository 記錄遮罩後的清單（檔名、大小、SHA-256、UTC）；P09-14 關帳需要 |
 | F-07 預約存在瀏覽器 | Stage F `general_booking_page_create_reload` 與 `persistence_reload_server_readback` PASS：重新整理後瀏覽器儲存皆空，資料由 Firestore 讀回 | RUNTIME_PROVEN | 原驗收要求「兩個瀏覽器看到同一筆」，紀錄沒有明寫兩個瀏覽器 |
 | F-08 病患登入 | WP-B3 已取代：新病患免登入、回診以電話加生日查詢，Stage F 兩個回診案例 PASS | NO_LONGER_APPLICABLE | 無 |
 | F-09 沒有應用監控 | WP-B4 告警由真實事件觸發並恢復；業主收件已綁到 2026-09-26T08:25Z 事件 | RUNTIME_PROVEN | `c1-foundation` IAM 告警未套用（項目 I，選做） |
@@ -76,7 +76,8 @@
 
 **對帳後新增的關帳缺口：** F-06（可攜證據包）與 F-13（業主決定）。兩項都不需要
 C1 寫入，但都是 P09-14 關帳前要處理的事，前一份交接紀錄沒有列出。F-13 已於同日由
-業主決定並記錄（`WP-B5-1A-2026-09-27`），剩 F-06。
+業主決定並記錄（`WP-B5-1A-2026-09-27`）。F-06 的存放位置也已決定（`WP-B6A-2026-09-27`），
+剩下實際交付證據與清單。
 
 ## 操作者指令（需 C1 憑證，本 session 沒有執行）
 
@@ -185,6 +186,6 @@ CI 以 PR head 的 `Verification evidence` 為準。
 ## 未處理
 
 1. 雲端項目 A、B、C、D、E1、E2、I、G：NOT_RUN，本環境沒有 C1 憑證，且依 `CLAUDE.md` 部署與 apply 不由 session 執行。
-2. F-06 可攜證據包：需業主決定存放位置與讀取權限。F-13 已記錄為 `WP-B5-1A-2026-09-27`。
+2. F-06：存放位置與權限已決定（`WP-B6A-2026-09-27`），證據尚未交付、清單尚未記錄。F-13 已記錄為 `WP-B5-1A-2026-09-27`。
 3. `rbac-appointment-policy.ts` 寫死的 `accountActive: true`：觀察，未修改。
 4. controller 對限流器仍用 `@Optional()` 注入。目前的 module 一定會提供，所以部署行為正確；但它和 F-05 屬於同一類「可選注入」，重用時可能變成 fail-open。觀察，未修改。
