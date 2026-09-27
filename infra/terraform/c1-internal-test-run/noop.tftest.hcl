@@ -774,3 +774,95 @@ run "latest_retired_shared_pin_is_rejected" {
     var.secret_resource_version
   ]
 }
+
+run "source_sha_defaults_to_the_apply_authority" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha              = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                             = "beauessence-clinic-stg-c1a01"
+    api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    calendar_sync_enabled                  = true
+    calendar_sync_pseudonym_secret_version = "1"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.api[0].template[0].containers[0].env : e.value if e.name == "INTERNAL_TEST_SOURCE_SHA"]) == var.exact_apply_authority_sha
+    error_message = "Without an API source SHA, the API must report the apply authority SHA."
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.worker[0].template[0].containers[0].env : e.value if e.name == "INTERNAL_TEST_SOURCE_SHA"]) == var.exact_apply_authority_sha
+    error_message = "Without a worker source SHA, the outbox must report the apply authority SHA."
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.calendar_sync["enabled"].template[0].containers[0].env : e.value if e.name == "INTERNAL_TEST_SOURCE_SHA"]) == var.exact_apply_authority_sha
+    error_message = "Without a worker source SHA, inbound sync must report the apply authority SHA."
+  }
+}
+
+run "each_image_reports_the_commit_it_was_built_from" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha              = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    api_source_sha                         = "cccccccccccccccccccccccccccccccccccccccc"
+    worker_source_sha                      = "dddddddddddddddddddddddddddddddddddddddd"
+    project_id                             = "beauessence-clinic-stg-c1a01"
+    api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    calendar_sync_enabled                  = true
+    calendar_sync_pseudonym_secret_version = "1"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.api[0].template[0].containers[0].env : e.value if e.name == "INTERNAL_TEST_SOURCE_SHA"]) == var.api_source_sha
+    error_message = "The API must report the commit its image was built from, not the apply authority SHA."
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.worker[0].template[0].containers[0].env : e.value if e.name == "INTERNAL_TEST_SOURCE_SHA"]) == var.worker_source_sha
+    error_message = "The outbox must report the commit the worker image was built from."
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.calendar_sync["enabled"].template[0].containers[0].env : e.value if e.name == "INTERNAL_TEST_SOURCE_SHA"]) == var.worker_source_sha
+    error_message = "Inbound sync runs the worker image and must report the worker build commit."
+  }
+}
+
+run "abbreviated_source_sha_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = ""
+    api_source_sha            = "ffa5d33"
+    worker_source_sha         = "latest"
+  }
+
+  expect_failures = [
+    var.api_source_sha,
+    var.worker_source_sha
+  ]
+}

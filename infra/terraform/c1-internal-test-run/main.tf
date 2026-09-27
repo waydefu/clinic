@@ -20,6 +20,10 @@ locals {
     var.calendar_sync_pseudonym_secret_version
   ))
   resolved_google_calendar_id_secret_version = var.worker_secret_versions.GOOGLE_CALENDAR_ID
+  # Source SHA follows the image, not the approval: re-approving a later
+  # commit must not rewrite the env of an image built earlier.
+  api_source_sha    = var.api_source_sha != "" ? var.api_source_sha : var.exact_apply_authority_sha
+  worker_source_sha = var.worker_source_sha != "" ? var.worker_source_sha : var.exact_apply_authority_sha
   labels = {
     application = "c1-internal-test-run"
     data_class  = "synthetic-only"
@@ -393,7 +397,7 @@ resource "google_cloud_run_v2_service" "api" {
       }
       env {
         name  = "INTERNAL_TEST_SOURCE_SHA"
-        value = var.exact_apply_authority_sha
+        value = local.api_source_sha
       }
       env {
         name  = "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN"
@@ -503,7 +507,7 @@ resource "google_cloud_run_v2_service" "worker" {
       }
       env {
         name  = "INTERNAL_TEST_SOURCE_SHA"
-        value = var.exact_apply_authority_sha
+        value = local.worker_source_sha
       }
       dynamic "env" {
         for_each = local.apply_enabled ? local.worker_secret_env_when_mounted : {}
@@ -598,7 +602,7 @@ resource "google_cloud_run_v2_service" "calendar_sync" {
       }
       env {
         name  = "INTERNAL_TEST_SOURCE_SHA"
-        value = var.exact_apply_authority_sha
+        value = local.worker_source_sha
       }
       dynamic "env" {
         for_each = local.apply_enabled ? local.worker_secret_env_when_mounted : {}
