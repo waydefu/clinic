@@ -130,6 +130,38 @@ production, not public booking, and not a D-series close.
 
 ## Recorded inputs
 
+### WP-B6B P1-09 Stage F readback evidence — 2026-09-28
+
+The private artifacts of the 2026-09-25～26 P1-09 runs could not be found
+on the owner's machine, in the owner's evidence folder or in any local agent
+record. WP-B6-2026-09-15 requires a NEW_EVIDENCE_SET "on a new exact SHA"
+when originals are lost. This input amends that clause for one gate only.
+
+```text
+Recorded input ID: WP-B6B-2026-09-28
+Answer: for P1-09 Gate 17 (the eleven Stage F cases) only, the lost
+originals are declared HISTORICAL_ARTIFACTS_LOST, and the NEW_EVIDENCE_SET
+may be built from read-only readbacks of the durable C1 records those runs
+produced (Firestore documents, Cloud Run request and application logs,
+Monitoring data), each bound to the exact SHA that produced it, plus the
+owner's inbox evidence for the human alert and a browser re-check on the
+same deployed web build. Every per-case limitation of that method is
+recorded with the evidence set.
+Consequences recorded with the answer:
+- The set is P1-09-STAGE-F-READBACK-2026-09-28; its manifest is in the
+  2026-09-28 Stage F readback review. Custody follows WP-B6A.
+- New files never reuse lost original names and never claim to be the
+  originals. A hash is never reconstructed for a lost file.
+- Cases were bound to the SHAs that executed them (API ea1fbcc, 6cf9a5a
+  and ffa5d33; worker ea1fbcc); this input does not require re-execution
+  on the current SHA.
+Does not: extend to any other gate or stage, relax the no-fake rule or
+WP-B6A custody, or grant cloud, production or real-data authority.
+Approved by: clinic owner (PROJECT_OWNER), in-session, after being told the
+method deviates from the "new exact SHA" clause
+Approval date (Asia/Taipei): 2026-09-28 01:30
+```
+
 ### WP-B6A private evidence custody — 2026-09-27
 
 F-06 in the [2026-09-15 closure matrix](../reviews/2026-09-15-wp-b1-b11-signed-authority-and-f-closure.md)
