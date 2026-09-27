@@ -28,6 +28,34 @@ describe('assertInternalTestBookingWritable', () => {
     ).toThrow(ServiceUnavailableError);
   });
 
+  it('refuses at and after the expiry instant', () => {
+    const expiresAtUtc = '2026-09-13T00:00:00.000Z';
+    expect(() =>
+      assertInternalTestBookingWritable(
+        '2026-09-12T23:59:59.999Z',
+        settings({ expiresAtUtc })
+      )
+    ).not.toThrow();
+    expect(() =>
+      assertInternalTestBookingWritable(
+        expiresAtUtc,
+        settings({ expiresAtUtc })
+      )
+    ).toThrow(ServiceUnavailableError);
+    expect(() =>
+      assertInternalTestBookingWritable(
+        '2026-09-13T00:00:00.001Z',
+        settings({ expiresAtUtc })
+      )
+    ).toThrow(ServiceUnavailableError);
+  });
+
+  it('refuses an unparseable clock reading', () => {
+    expect(() =>
+      assertInternalTestBookingWritable('not-a-time', settings())
+    ).toThrow(ServiceUnavailableError);
+  });
+
   it('refuses missing expiry, forbidden staging, and unknown projects', () => {
     expect(() =>
       assertInternalTestBookingWritable(
