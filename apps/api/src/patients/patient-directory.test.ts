@@ -5,7 +5,8 @@ import { DomainError } from '@beauessence/domain';
 import {
   assertFollowUpBookable,
   InMemoryPatientDirectory,
-  opaqueLookupIdentity
+  opaqueLookupIdentity,
+  toListRecord
 } from './patient-directory.js';
 
 const INTAKE = {
@@ -196,6 +197,30 @@ describe('InMemoryPatientDirectory', () => {
       expect(result).not.toHaveProperty('appointmentId');
     }
   );
+});
+
+// ADR-0007：清單把國籍帶給工作臺，但只放行兩個核准值。
+describe('toListRecord intake nationality', () => {
+  const row = {
+    patientId: 'patient_001',
+    slotId: 'slot_001',
+    bookingKind: 'initial',
+    status: 'confirmed',
+    startsAt: '2026-09-29T04:00:00.000Z'
+  };
+
+  it('passes an approved stored value through', () => {
+    expect(
+      toListRecord('appointment_001', { ...row, intakeNationality: 'foreign' })
+    ).toMatchObject({ intakeNationality: 'foreign' });
+  });
+
+  it('drops a missing or unapproved value instead of echoing it', () => {
+    for (const data of [row, { ...row, intakeNationality: 'martian' }])
+      expect(toListRecord('appointment_001', data)).not.toHaveProperty(
+        'intakeNationality'
+      );
+  });
 });
 
 describe('assertFollowUpBookable', () => {

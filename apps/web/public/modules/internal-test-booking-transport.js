@@ -455,7 +455,8 @@ export function createInternalTestBookingTransport({
             startsAt: item.startsAt,
             patientId: item.patientId,
             bookingKind: item.bookingKind,
-            status: item.status
+            status: item.status,
+            intakeNationality: item.intakeNationality
           }))
         };
       } catch {

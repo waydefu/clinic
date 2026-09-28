@@ -5,6 +5,7 @@ import type {
   DeleteAppointmentRequest,
   FollowUpDecisionRequest,
   FollowUpDecisionValue,
+  PatientNationality,
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
@@ -24,6 +25,8 @@ export interface AppointmentRecord {
   readonly bookingKind: BookingKind;
   readonly status: AppointmentStatusValue;
   readonly startsAt?: string;
+  /** Staff-only visit fact (ADR-0007); absent on follow-ups and older rows. */
+  readonly intakeNationality?: PatientNationality;
 }
 
 export interface TransitionResult {

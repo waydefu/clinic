@@ -32,6 +32,9 @@ export const AppointmentStatusSchema = z.enum([
  */
 export const MonthDaySchema = z.string().regex(/^--\d{2}-\d{2}$/);
 
+/** 本國／外國；BOOKING-MINIMIZATION-2026-09-22 只允許這兩個值。 */
+export const NationalitySchema = z.enum(['domestic', 'foreign']);
+
 /**
  * New-booking intake after BOOKING-MINIMIZATION-2026-09-22. National ID,
  * passport, NHI-card intention, source channel and referrer are not collected;
@@ -42,7 +45,7 @@ export const PatientIntakeSchema = z
     name: z.string().min(1).max(30),
     phone: z.string().min(8).max(20),
     birthDate: MonthDaySchema,
-    nationality: z.enum(['domestic', 'foreign']),
+    nationality: NationalitySchema,
     privacyConsent: z.literal(true)
   })
   .strict();
@@ -83,6 +86,10 @@ export const CancelAppointmentResponseSchema = z
 /**
  * Internal-test query. Opaque identifiers and timestamps only; no patient
  * profile. Status is the stored lifecycle value.
+ *
+ * `intakeNationality` is the one intake value on this shape: the staff-only
+ * visit fact from ADR-0007. The API sets it only on the staff clinic list,
+ * never on a patient's own list, and it is not an identity field.
  */
 export const GetAppointmentResponseSchema = z
   .object({
@@ -92,7 +99,8 @@ export const GetAppointmentResponseSchema = z
     endsAt: UtcIsoTimestampSchema,
     bookingKind: z.enum(['initial', 'follow_up']).optional(),
     slotId: OpaqueIdentifierSchema.optional(),
-    patientId: OpaqueIdentifierSchema.optional()
+    patientId: OpaqueIdentifierSchema.optional(),
+    intakeNationality: NationalitySchema.optional()
   })
   .strict();
 
