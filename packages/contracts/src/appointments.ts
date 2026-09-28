@@ -25,14 +25,24 @@ export const AppointmentStatusSchema = z.enum([
  * create. It is not a client-supplied `patientId`: that field stays rejected.
  * A verified patient identity always wins over this field.
  */
+/**
+ * Birthday without a year (`--MM-DD`, XML Schema gMonthDay). Owner decision
+ * BOOKING-MINIMIZATION-2026-09-22 removed the year; whether the day exists is
+ * the domain's `patientIdentityIssues`, not this shape check.
+ */
+export const MonthDaySchema = z.string().regex(/^--\d{2}-\d{2}$/);
+
+/**
+ * New-booking intake after BOOKING-MINIMIZATION-2026-09-22. National ID,
+ * passport, NHI-card intention, source channel and referrer are not collected;
+ * `.strict()` rejects them rather than silently dropping them.
+ */
 export const PatientIntakeSchema = z
   .object({
     name: z.string().min(1).max(30),
     phone: z.string().min(8).max(20),
-    birthDate: z.string().min(5).max(10),
-    nationalId: z.string().min(6).max(12).optional(),
-    passportNumber: z.string().min(6).max(12).optional(),
-    hasNhiCard: z.boolean().optional(),
+    birthDate: MonthDaySchema,
+    nationality: z.enum(['domestic', 'foreign']),
     privacyConsent: z.literal(true)
   })
   .strict();
@@ -103,7 +113,7 @@ export const ListAppointmentsResponseSchema = z
 export const ReturnLookupRequestSchema = z
   .object({
     phone: z.string().min(8).max(20),
-    birthDate: z.string().min(5).max(10)
+    birthDate: MonthDaySchema
   })
   .strict();
 

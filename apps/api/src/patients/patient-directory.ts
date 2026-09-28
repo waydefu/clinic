@@ -1,5 +1,12 @@
 import { createHash } from 'node:crypto';
-import { DomainError, normalisePatientIdentity } from '@beauessence/domain';
+import {
+  DomainError,
+  normalisePatientIdentity,
+  patientPhoneDigits,
+  resolveIntakeCandidate,
+  resolveReturnCandidate,
+  type PatientCandidate
+} from '@beauessence/domain';
 import type { Firestore } from 'firebase-admin/firestore';
 
 import type { PatientIntake } from '@beauessence/contracts';
@@ -7,7 +14,14 @@ import type { AppointmentRecord } from '../appointments/appointment.repository-p
 
 export const PATIENT_COLLECTIONS = {
   patients: 'patients',
-  lookupIndex: 'patient_lookup_index',
+  /**
+   * v1 keyed phone + full birth date to one patient. Kept untouched and no
+   * longer read or written: its hash cannot be reversed into a month-day
+   * (BOOKING-MINIMIZATION-2026-09-22), so those rows stay as they are.
+   */
+  legacyLookupIndex: 'patient_lookup_index',
+  /** v2 keys phone digits + `--MM-DD` and lists every candidate patient. */
+  lookupIndex: 'patient_lookup_index_v2',
   returnSessions: 'return_sessions',
   followUpState: 'patient_follow_up_states'
 } as const;
@@ -15,11 +29,17 @@ export const PATIENT_COLLECTIONS = {
 const RETURN_SESSION_MS = 15 * 60 * 1000;
 
 export function opaqueLookupIdentity(phone: string, birthDate: string): string {
-  const digits = phone.replace(/\D/g, '');
-  return `rlk_${createHash('sha256')
-    .update(`return:${digits}|${birthDate}`)
+  return `rlk2_${createHash('sha256')
+    .update(`return-v2:${patientPhoneDigits(phone)}|${birthDate}`)
     .digest('hex')
     .slice(0, 32)}`;
+}
+
+function ambiguousIdentity(): DomainError {
+  return new DomainError(
+    'PATIENT_IDENTITY_AMBIGUOUS',
+    'The patient could not be identified uniquely.'
+  );
 }
 
 export interface ReturnLookupResult {
@@ -62,10 +82,8 @@ export interface PatientDirectoryPort {
   listClinic(limit: number): Promise<AppointmentRecord[]>;
 }
 
-function parseBirthDate(birthDate: string): boolean {
-  return (
-    /^\d{4}-\d{2}-\d{2}$/.test(birthDate) || /^--\d{2}-\d{2}$/.test(birthDate)
-  );
+function isMonthDay(birthDate: string): boolean {
+  return /^--\d{2}-\d{2}$/.test(birthDate);
 }
 
 /**
@@ -107,6 +125,18 @@ function stringField(
   return typeof value === 'string' ? value : undefined;
 }
 
+function stringArrayField(
+  data: Record<string, unknown> | undefined,
+  key: string
+): string[] {
+  const value = data?.[key];
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is string => typeof item === 'string' && item !== ''
+      )
+    : [];
+}
+
 function toListRecord(
   id: string,
   data: Record<string, unknown> | undefined
@@ -132,31 +162,36 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     nowUtc: string,
     allocateId: () => string
   ): Promise<string> {
-    const identity = normalisePatientIdentity(
-      {
-        name: intake.name,
-        phone: intake.phone,
-        birthDate: intake.birthDate,
-        nationalId: intake.nationalId,
-        passportNumber: intake.passportNumber,
-        hasNhiCard: intake.hasNhiCard === true
-      },
-      Date.parse(nowUtc)
-    );
+    const identity = normalisePatientIdentity(intake);
     const lookupKey = opaqueLookupIdentity(identity.phone, identity.birthDate);
     const lookupRef = this.db
       .collection(PATIENT_COLLECTIONS.lookupIndex)
       .doc(lookupKey);
+    // The index read and write share one transaction, so two concurrent
+    // creates for the same key retry and the second sees the first's patient.
     return this.db.runTransaction(async (transaction) => {
-      const existing = await transaction.get(lookupRef);
-      if (existing.exists) {
-        const patientId = stringField(existing.data(), 'patientId');
-        if (typeof patientId === 'string' && patientId !== '') return patientId;
-      }
+      const index = await transaction.get(lookupRef);
+      const ids = stringArrayField(index.data(), 'patientIds');
+      const snapshots =
+        ids.length === 0
+          ? []
+          : await transaction.getAll(
+              ...ids.map((id) =>
+                this.db.collection(PATIENT_COLLECTIONS.patients).doc(id)
+              )
+            );
+      const candidates: PatientCandidate[] = snapshots.map((snapshot, i) => ({
+        patientId: ids[i] ?? '',
+        name: stringField(snapshot.data(), 'name') ?? ''
+      }));
+      const decision = resolveIntakeCandidate(candidates, identity.name);
+      if (decision.kind === 'reuse') return decision.patientId;
+      if (decision.kind === 'ambiguous') throw ambiguousIdentity();
       const patientId = allocateId();
-      transaction.create(lookupRef, {
-        patientId,
-        createdAt: nowUtc
+      transaction.set(lookupRef, {
+        patientIds: [patientId],
+        createdAt: nowUtc,
+        updatedAt: nowUtc
       });
       transaction.create(
         this.db.collection(PATIENT_COLLECTIONS.patients).doc(patientId),
@@ -177,16 +212,17 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     nowUtc: string,
     allocateId: () => string
   ): Promise<ReturnLookupResult | undefined> {
-    const digits = phone.replace(/\D/g, '');
+    const digits = patientPhoneDigits(phone);
     if (digits.length < 8 || digits.length > 20) return undefined;
-    if (!parseBirthDate(birthDate)) return undefined;
-    const lookupKey = opaqueLookupIdentity(digits, birthDate);
+    if (!isMonthDay(birthDate)) return undefined;
     const lookup = await this.db
       .collection(PATIENT_COLLECTIONS.lookupIndex)
-      .doc(lookupKey)
+      .doc(opaqueLookupIdentity(digits, birthDate))
       .get();
-    const patientId = stringField(lookup.data(), 'patientId');
-    if (typeof patientId !== 'string' || patientId === '') return undefined;
+    const patientId = resolveReturnCandidate(
+      stringArrayField(lookup.data(), 'patientIds')
+    );
+    if (patientId === undefined) return undefined;
     const state = await this.readFollowUpState(patientId);
     if (state?.required !== true) {
       return undefined;
@@ -303,7 +339,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
  * Process-local directory for unit tests. It is not a security boundary.
  */
 export class InMemoryPatientDirectory implements PatientDirectoryPort {
-  public readonly lookup = new Map<string, string>();
+  public readonly lookup = new Map<string, string[]>();
   public readonly patients = new Map<string, { name: string }>();
   public readonly sessions = new Map<
     string,
@@ -319,22 +355,17 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     allocateId: () => string
   ): Promise<string> {
     await Promise.resolve();
-    const identity = normalisePatientIdentity(
-      {
-        name: intake.name,
-        phone: intake.phone,
-        birthDate: intake.birthDate,
-        nationalId: intake.nationalId,
-        passportNumber: intake.passportNumber,
-        hasNhiCard: intake.hasNhiCard === true
-      },
-      Date.parse(nowUtc)
-    );
+    const identity = normalisePatientIdentity(intake);
     const lookupKey = opaqueLookupIdentity(identity.phone, identity.birthDate);
-    const existing = this.lookup.get(lookupKey);
-    if (existing !== undefined) return existing;
+    const candidates = (this.lookup.get(lookupKey) ?? []).map((patientId) => ({
+      patientId,
+      name: this.patients.get(patientId)?.name ?? ''
+    }));
+    const decision = resolveIntakeCandidate(candidates, identity.name);
+    if (decision.kind === 'reuse') return decision.patientId;
+    if (decision.kind === 'ambiguous') throw ambiguousIdentity();
     const patientId = allocateId();
-    this.lookup.set(lookupKey, patientId);
+    this.lookup.set(lookupKey, [patientId]);
     this.patients.set(patientId, { name: identity.name });
     this.createdPatientCount += 1;
     return patientId;
@@ -347,10 +378,12 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     allocateId: () => string
   ): Promise<ReturnLookupResult | undefined> {
     await Promise.resolve();
-    const digits = phone.replace(/\D/g, '');
+    const digits = patientPhoneDigits(phone);
     if (digits.length < 8 || digits.length > 20) return undefined;
-    if (!parseBirthDate(birthDate)) return undefined;
-    const patientId = this.lookup.get(opaqueLookupIdentity(digits, birthDate));
+    if (!isMonthDay(birthDate)) return undefined;
+    const patientId = resolveReturnCandidate(
+      this.lookup.get(opaqueLookupIdentity(digits, birthDate)) ?? []
+    );
     if (patientId === undefined) return undefined;
     const state = this.followUp.get(patientId);
     if (state?.required !== true) {

@@ -775,8 +775,8 @@ describe('AppointmentApplicationService arrive, complete and no-show', () => {
 const SYNTHETIC_INTAKE = {
   name: '合成患者甲',
   phone: '0912000001',
-  birthDate: '1990-01-15',
-  nationalId: 'A123456789',
+  birthDate: '--01-15',
+  nationality: 'domestic' as const,
   privacyConsent: true as const
 };
 
@@ -817,7 +817,7 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
 
     await expect(
       service.lookupReturn(
-        { phone: '0912000001', birthDate: '1990-01-15' },
+        { phone: '0912000001', birthDate: '--01-15' },
         '198.51.100.10',
         {
           assertLookupFailure: (id, ip) => {
@@ -828,7 +828,7 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
       )
     ).rejects.toMatchObject({ code: 'APPOINTMENT_NOT_FOUND' });
     expect(failures).toHaveLength(1);
-    expect(failures[0]).not.toMatch(/0912|1990-01-15/);
+    expect(failures[0]).not.toMatch(/0912|01-15/);
   });
 
   it('returns schedule when follow-up is required and unscheduled', async () => {
@@ -845,7 +845,7 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
 
     await expect(
       service.lookupReturn(
-        { phone: '0912000001', birthDate: '1990-01-15' },
+        { phone: '0912000001', birthDate: '--01-15' },
         '198.51.100.10'
       )
     ).resolves.toEqual(
@@ -855,7 +855,7 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     );
     await expect(
       service.lookupReturn(
-        { phone: '0912000001', birthDate: '1990-01-15' },
+        { phone: '0912000001', birthDate: '--01-15' },
         '198.51.100.10'
       )
     ).resolves.not.toHaveProperty('appointmentId');
@@ -884,7 +884,7 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
 
     await expect(
       service.lookupReturn(
-        { phone: '0912000001', birthDate: '1990-01-15' },
+        { phone: '0912000001', birthDate: '--01-15' },
         '198.51.100.10'
       )
     ).resolves.toMatchObject({
@@ -895,7 +895,7 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
 
     const sessionId = (
       await service.lookupReturn(
-        { phone: '0912000001', birthDate: '1990-01-15' },
+        { phone: '0912000001', birthDate: '--01-15' },
         '198.51.100.10'
       )
     ).sessionId;

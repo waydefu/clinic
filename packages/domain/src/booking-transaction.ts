@@ -1,3 +1,4 @@
+import type { PatientNationality } from './patient-identity.js';
 import {
   assertSlotBookable,
   assertSlotMeetsEarliestLead,
@@ -73,6 +74,8 @@ export interface BookingRequest {
   readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotency: IdempotencyContext;
+  /** Intake metadata only: never an identity factor, audit value or Calendar field. */
+  readonly intakeNationality?: PatientNationality;
 }
 
 export interface PlannedAppointment {
@@ -85,6 +88,7 @@ export interface PlannedAppointment {
   readonly status: 'confirmed';
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly intakeNationality?: PatientNationality;
 }
 
 export interface PlannedOutboxJob {
@@ -304,7 +308,10 @@ export function planBooking(
     itemId: request.itemId,
     status: 'confirmed',
     createdAt: request.requestedAt,
-    updatedAt: request.requestedAt
+    updatedAt: request.requestedAt,
+    ...(request.intakeNationality === undefined
+      ? {}
+      : { intakeNationality: request.intakeNationality })
   };
   const auditEvent = planAuditEvent({
     eventId: `audit_${request.appointmentId}_confirmed_${request.idempotency.recordId}`,

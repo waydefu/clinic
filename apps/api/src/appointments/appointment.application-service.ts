@@ -141,6 +141,9 @@ export function toBookingRequest(
     itemId: command.serviceId,
     audit: context.audit,
     requestedAt: context.requestedAt,
+    ...(command.intake === undefined
+      ? {}
+      : { intakeNationality: command.intake.nationality }),
     idempotency: createAppointmentIdempotency({
       key: command.idempotencyKey,
       actorId: context.audit.actorId,
