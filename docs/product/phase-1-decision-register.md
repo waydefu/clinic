@@ -10,6 +10,12 @@
 - `BOOKING-MINIMIZATION-2026-09-22`：生日刪年份只月日；國籍恰本國／外國；新預約不收
   身分證、護照、來源渠道（含介紹人子欄位）與攜帶健保卡意向。不新增 OTP、碼、問題或替代身分欄位。
   舊 hash-only 記錄不得反推年份、不誤合併病患；無法安全唯一辨識時 fail closed，不批次抹舊資料。
+- `LEGACY-PATIENT-NO-ALIAS-2026-09-28`：伺服器端舊病患只存姓名與不可還原的電話＋完整生日
+  雜湊，沒有可合法建立對應的原值，所以 BKG-06「舊 fullDOB 合法 alias」記為不適用：舊病患
+  以月日預約時視為新病患另建一筆、不合併、不逐年試算反推。hash-only 的安全處理由 BKG-07 證明。
+  見 [ADR-0007](../adr/0007-minimized-booking-intake-and-identity-resolution.md)。
+- `CP-02-NO-DIRECT-SEED-2026-09-28`：C1 驗收不繞過 API 直接寫入合成病患或索引；「同鍵兩位
+  候選」的拒絕沿用 Firestore Emulator 測試證據，runtime 只證明同鍵並發只成立一筆。
 - `COMMERCIAL-AUTHORITY-2026-09-22`：遠端 Google Drive 現行原檔為準，本機 DOCX 非 current authority。
   已確認總價 NT$80,000、三期 30,000／30,000／20,000、正常維護 1,800／完全未使用月 500。
   完全未使用為當月無員工 Workbench 登入 AND 無病患完成 booking create；缺證據不能當零。
