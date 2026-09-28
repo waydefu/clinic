@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   DomainError,
   normalisePatientIdentity,
+  PATIENT_NATIONALITIES,
   patientPhoneDigits,
   resolveIntakeCandidate,
   resolveReturnCandidate,
@@ -137,10 +138,16 @@ function stringArrayField(
     : [];
 }
 
-function toListRecord(
+/** Maps a stored appointment row to the list record. Exported for tests. */
+export function toListRecord(
   id: string,
   data: Record<string, unknown> | undefined
 ): AppointmentRecord {
+  // Only the two approved values pass; anything else stored is dropped rather
+  // than echoed to the Workbench.
+  const intakeNationality = PATIENT_NATIONALITIES.find(
+    (value) => value === data?.['intakeNationality']
+  );
   return {
     appointmentId: id,
     patientId: stringField(data, 'patientId') ?? '',
@@ -150,7 +157,8 @@ function toListRecord(
     status: (data?.['status'] ?? 'confirmed') as AppointmentRecord['status'],
     ...(typeof data?.['startsAt'] === 'string'
       ? { startsAt: data['startsAt'] }
-      : {})
+      : {}),
+    ...(intakeNationality === undefined ? {} : { intakeNationality })
   };
 }
 

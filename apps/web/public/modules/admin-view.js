@@ -84,20 +84,26 @@ function patientLabel(state, id) {
   const record = patient(state, id);
   return record === undefined ? id : record.name;
 }
-function patientDetail(state, id) {
-  const record = patient(state, id);
-  if (record === undefined) return escapeHtml(id);
+function patientDetail(state, appointment) {
+  const record = patient(state, appointment.patientId);
+  // 國籍先看預約上的 `intakeNationality`（ADR-0007，這次到診的事實）：C1 的伺服器
+  // 清單只帶它、不帶病患資料，所以沒有病患紀錄時也要顯示。
+  const nationality =
+    NATIONALITY_LABELS[appointment.intakeNationality ?? record?.nationality];
+  const shownNationality = nationality && `國籍：${nationality}`;
+  // 沒有病患紀錄時，代碼已經印在上一行標籤裡，這裡有國籍就只印國籍。
+  if (record === undefined)
+    return shownNationality || escapeHtml(appointment.patientId);
   // 新預約的生日只有月日（`--05-20`，BOOKING-MINIMIZATION-2026-09-22）。直接印
   // 出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20」。舊紀錄可能帶年份。
   const birth = birthDateHasYear(record.birthDate)
     ? record.birthDate
     : record.birthDate.slice(2).replace('-', '/');
-  const nationality = NATIONALITY_LABELS[record.nationality];
   // 沒有值的段落整段不出現（filter 掉 falsy），而不是印一個空欄位。
   return [
     escapeHtml(record.phone),
     escapeHtml(birth),
-    nationality && `國籍：${nationality}`,
+    shownNationality,
     // 證件與「預計攜帶健保卡」只存在於舊紀錄；新資料不再收集。
     (record.nationalId || record.passportNumber) &&
       escapeHtml(maskIdentityDocument(record)),
@@ -112,11 +118,12 @@ function patientDetail(state, id) {
     .join(' · ');
 }
 
-// 固定字串，不含使用者輸入，所以輸出時不必再跳脫。
-const NATIONALITY_LABELS = Object.freeze({ domestic: '本國', foreign: '外國' });
+// 固定字串，不含使用者輸入，所以輸出時不必再跳脫。模組內部常數，沒有匯出，
+// 所以不另外 freeze（工作臺傳輸預算很緊）。
+const NATIONALITY_LABELS = { domestic: '本國', foreign: '外國' };
 
-function detailRow(state, id) {
-  return `<span class="code detail-line">${patientDetail(state, id)}</span>`;
+function detailRow(state, appointment) {
+  return `<span class="code detail-line">${patientDetail(state, appointment)}</span>`;
 }
 
 // 哪些處置在什麼狀態下可用，集中在這裡，避免選單與 domain 規則各說各話。
@@ -496,7 +503,7 @@ function followUpQueueCard(state, entry, permissions, selectedIds) {
   const cancelFollowUp = canManage
     ? `<button class="button button-danger-outline" type="button" data-follow-up-cancel="${escapeHtml(appointment.id)}"><span aria-hidden="true">&#10005;</span>取消回診</button>`
     : '';
-  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間">${timeCell}</td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診</td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${confirmFollowUp}${adjust}${cancelFollowUp}</div></td></tr>`;
+  return `<tr role="row" class="appointment-row follow-up-pending" data-appointment-card="${escapeHtml(appointment.id)}" data-follow-up-pending="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間">${timeCell}</td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">回診</span></td><td role="cell" data-label="療程">回診</td><td role="cell" data-label="狀態"><span class="status-chip is-reserved"><span class="status-icon" aria-hidden="true">&#8635;</span>待安排回診</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${confirmFollowUp}${adjust}${cancelFollowUp}</div></td></tr>`;
 }
 
 // 櫃台清單的欄位定義。`sortKey` 有值的才可排序——「處置」是一堆按鈕，排它沒有
@@ -717,7 +724,7 @@ export function renderAppointments(
         rescheduleForm === '' && notesForm === ''
           ? ''
           : `<tr role="row" class="appointment-forms" data-appointment-forms="${escapeHtml(appointment.id)}"><td role="cell" colspan="7">${rescheduleForm}${notesForm}</td></tr>`;
-      return `<tr role="row" class="appointment-row" data-appointment-card="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(appointment.startsAt))}</span><strong class="cell-time">${escapeHtml(formatTime(appointment.startsAt))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment.patientId)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></td><td role="cell" data-label="療程">${escapeHtml(appointment.itemLabel ?? '')}</td><td role="cell" data-label="狀態"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div></td></tr>${forms}`;
+      return `<tr role="row" class="appointment-row" data-appointment-card="${escapeHtml(appointment.id)}">${selectCell(state, entry, selectedIds)}<td role="cell" data-label="時間"><span class="cell-date">${escapeHtml(formatFullDate(appointment.startsAt))}</span><strong class="cell-time">${escapeHtml(formatTime(appointment.startsAt))}</strong></td><td role="cell" data-label="患者"><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong>${detailRow(state, appointment)}</td><td role="cell" data-label="掛號別"><span class="appointment-kind">${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')}</span></td><td role="cell" data-label="療程">${escapeHtml(appointment.itemLabel ?? '')}</td><td role="cell" data-label="狀態"><span class="status-chip status-${escapeHtml(appointment.status)}"><span class="status-icon" aria-hidden="true">${statusIcons[appointment.status] ?? ''}</span>${escapeHtml(APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status)}</span>${noteRow}</td><td role="cell" data-label="處置"><div class="appointment-controls">${primary.html}${notesControl}${actionMenu(appointment, primary.id, permissions)}</div></td></tr>${forms}`;
     })
     .join('');
 

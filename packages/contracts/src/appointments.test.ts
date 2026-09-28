@@ -454,4 +454,22 @@ describe('appointment query response', () => {
       }).success
     ).toBe(false);
   });
+
+  it('accepts only the two approved intake nationality values', () => {
+    const base = {
+      appointmentId: 'appointment_001',
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z'
+    };
+    for (const intakeNationality of ['domestic', 'foreign'])
+      expect(
+        GetAppointmentResponseSchema.parse({ ...base, intakeNationality })
+      ).toMatchObject({ intakeNationality });
+    for (const intakeNationality of ['', 'other', 'TW'])
+      expect(
+        GetAppointmentResponseSchema.safeParse({ ...base, intakeNationality })
+          .success
+      ).toBe(false);
+  });
 });

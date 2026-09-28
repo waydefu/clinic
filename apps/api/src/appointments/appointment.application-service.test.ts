@@ -970,6 +970,55 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     expect(patients.createdPatientCount).toBe(1);
   });
 
+  // ADR-0007: nationality is a staff-only visit fact. The clinic list carries
+  // it for the Workbench; a patient's own list never does, same as patientId.
+  it('returns intake nationality on the staff clinic list only', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const { service } = createBoundService(patients);
+    patients.appointments.push(
+      {
+        appointmentId: 'appointment_nationality_001',
+        patientId: 'patient_opaque_101',
+        slotId: 'slot_001',
+        bookingKind: 'initial',
+        status: 'confirmed',
+        startsAt: '2026-07-25T04:00:00.000Z',
+        intakeNationality: 'foreign'
+      },
+      {
+        appointmentId: 'appointment_nationality_002',
+        patientId: 'patient_opaque_101',
+        slotId: 'slot_002',
+        bookingKind: 'follow_up',
+        status: 'confirmed',
+        startsAt: '2026-07-26T04:15:00.000Z'
+      }
+    );
+
+    const clinic = await service.list('clinic', {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    });
+    expect(clinic.appointments.map((item) => item.intakeNationality)).toEqual([
+      'foreign',
+      undefined
+    ]);
+    expect(
+      clinic.appointments.every((item) => 'intakeNationality' in item)
+    ).toBe(false);
+
+    const mine = await service.list('mine', {
+      actorId: 'patient_opaque_101',
+      actorRole: 'patient',
+      verifiedPatientId: 'patient_opaque_101'
+    });
+    expect(mine.appointments).toHaveLength(2);
+    for (const item of mine.appointments) {
+      expect(item).not.toHaveProperty('intakeNationality');
+      expect(item).not.toHaveProperty('patientId');
+    }
+  });
+
   it('creates a follow-up when the stored active pointer names a cancelled follow-up', async () => {
     const patients = new InMemoryPatientDirectory();
     let n = 0;

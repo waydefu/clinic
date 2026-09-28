@@ -508,7 +508,12 @@ export class AppointmentApplicationService {
         ).toISOString(),
         bookingKind: record.bookingKind,
         slotId: record.slotId,
-        ...(patientScope ? {} : { patientId: record.patientId })
+        // Nationality is a staff-only visit fact (ADR-0007): like patientId it
+        // is never returned on a patient's own list.
+        ...(patientScope ? {} : { patientId: record.patientId }),
+        ...(patientScope || record.intakeNationality === undefined
+          ? {}
+          : { intakeNationality: record.intakeNationality })
       }
     ];
   }

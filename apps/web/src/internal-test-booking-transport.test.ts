@@ -672,7 +672,8 @@ describe('createInternalTestBookingTransport', () => {
                   endsAt: '2030-01-02T04:30:00.000Z',
                   bookingKind: 'initial',
                   slotId: 'slot_20300102_1200',
-                  patientId: 'patient_opaque_001'
+                  patientId: 'patient_opaque_001',
+                  intakeNationality: 'foreign'
                 }
               ]
             })
@@ -707,7 +708,8 @@ describe('createInternalTestBookingTransport', () => {
           id: 'appointment_api_001',
           status: 'confirmed',
           slotId: 'slot_20300102_1200',
-          patientId: 'patient_opaque_001'
+          patientId: 'patient_opaque_001',
+          intakeNationality: 'foreign'
         }
       ],
       schedule: { timeZone: 'Asia/Taipei' },

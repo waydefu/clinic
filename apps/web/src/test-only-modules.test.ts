@@ -1971,6 +1971,44 @@ describe('工作臺語意 T2-WB-02', () => {
     expect(html).not.toContain(`<span class="code">${appointment.id}</span>`);
   });
 
+  // C1 伺服器清單只帶預約、不帶病患紀錄；國籍來自預約上的 intakeNationality。
+  it('沒有病患紀錄時仍顯示預約上的國籍，病患紀錄的國籍不會蓋過它', () => {
+    const state: any = initialState();
+    const base = {
+      slotId: 'slot_c1_nat',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial',
+      itemIds: ['service_snoring'],
+      itemLabel: '止鼾',
+      status: 'confirmed'
+    };
+    state.appointments.push(
+      {
+        ...base,
+        id: 'appointment_c1_nat_1',
+        patientId: 'patient_c1_only',
+        intakeNationality: 'foreign'
+      },
+      { ...base, id: 'appointment_c1_nat_2', patientId: 'patient_c1_none' }
+    );
+    state.patients.push({
+      id: 'patient_c1_none',
+      name: '工作臺患者',
+      phone: '0900000000',
+      birthDate: '--05-20',
+      nationality: 'domestic'
+    });
+    const html = renderAppointments(state, filtersAll);
+    const row = (id: string) =>
+      html.slice(
+        html.indexOf(`data-appointment-card="${id}"`),
+        html.indexOf('</tr>', html.indexOf(`data-appointment-card="${id}"`))
+      );
+    expect(row('appointment_c1_nat_1')).toContain('國籍：外國');
+    expect(row('appointment_c1_nat_2')).toContain('國籍：本國');
+    expect(row('appointment_c1_nat_2')).toContain('0900000000');
+  });
+
   it('回診待安排列不顯示來源 ID', () => {
     const state: any = initialState();
     state.patients.push({

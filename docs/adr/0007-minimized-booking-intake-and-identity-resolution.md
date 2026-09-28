@@ -30,7 +30,8 @@
 一律拒絕，不默默丟棄。
 
 國籍記在預約的 `intakeNationality`，不進身分比對鍵、查詢、候選選人、audit、
-outbox、Calendar 投影或匯出。
+outbox、Calendar 投影或匯出。員工讀全診所預約清單時會帶出這個值給工作臺顯示
+（2026-09-28 補充）；病患以回診 session 讀自己的清單時不帶，與 `patientId` 相同。
 
 ### 身分辨識
 
