@@ -21,9 +21,7 @@ describe('opaque lookup identity', () => {
     expect(opaqueLookupIdentity('0912-000-001', '--01-15')).toBe(
       opaqueLookupIdentity('0912000001', '--01-15')
     );
-    expect(opaqueLookupIdentity('0912000001', '--01-15')).not.toMatch(
-      /0912/
-    );
+    expect(opaqueLookupIdentity('0912000001', '--01-15')).not.toMatch(/0912/);
   });
 });
 

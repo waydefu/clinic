@@ -11,13 +11,12 @@ import { DomainError } from './errors.js';
  * 身分證與護照的遮罩函式只為了在介面上顯示**舊紀錄**，新資料不會再有這兩個欄位。
  */
 
-export type PatientIdentityField = 'name' | 'phone' | 'birthDate' | 'nationality';
+export type PatientIdentityField =
+  'name' | 'phone' | 'birthDate' | 'nationality';
 
 /** 失敗原因用代碼表示；在地化屬於介面，不屬於 domain。 */
 export type PatientIdentityIssueCode =
-  | 'required'
-  | 'format'
-  | 'not_a_calendar_date';
+  'required' | 'format' | 'not_a_calendar_date';
 
 export type PatientNationality = 'domestic' | 'foreign';
 

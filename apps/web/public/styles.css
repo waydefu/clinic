@@ -1639,17 +1639,6 @@ textarea {
   gap: var(--space-sm);
   justify-content: space-between;
 }
-.booking-lookup-modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2xs);
-  margin: var(--space-md) 0 var(--space-sm);
-}
-.booking-lookup-modes .is-selected {
-  background: var(--forest-light);
-  border-color: var(--forest);
-  color: var(--forest-dark);
-}
 .booking-lookup-form {
   display: grid;
   gap: var(--space-xs);
@@ -2561,8 +2550,7 @@ label.has-error input {
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
-/* 生日的三格（GOV.UK date input）。年份四位、月日各兩位，欄寬跟著內容走而不是
-   一律等寬——等寬會讓兩位數的月份欄看起來還能再填兩個字。 */
+/* 生日的月、日兩格（GOV.UK date input），欄寬跟著兩位數的內容走。 */
 .date-input {
   display: flex;
   flex-wrap: wrap;
@@ -2579,8 +2567,11 @@ label.has-error input {
 .date-input input {
   width: 5.5rem;
 }
-.date-input label:first-child input {
-  width: 7rem;
+/* 國籍兩個選項並排（R-5：有橫向空間就不上下堆疊）。 */
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
 }
 
 /* ---------------------------------------------------------------

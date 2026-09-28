@@ -420,9 +420,11 @@ const allowedControls = new Set([
   'login-password',
   'booking-name',
   'booking-phone',
-  'booking-birth',
-  'booking-national-id',
-  'booking-nhi-card',
+  // 2026-09-22（BOOKING-MINIMIZATION-2026-09-22）：生日只收月日，國籍本國／外國；
+  // 不再收身分證與攜帶健保卡意向。
+  'booking-birth-month',
+  'booking-birth-day',
+  'booking-nationality',
   'booking-kind',
   // 2026-07-27（W5）：療程由 `<select id="booking-item">` 改為可複選的
   // `<fieldset id="booking-items">`；選項是注入的 checkbox，刻意不帶 id。
@@ -491,34 +493,30 @@ for (const control of files.adminShell.matchAll(
 const allowedPatientControls = new Set([
   'patient-name',
   'patient-phone',
-  // 2026-07-27（P11）：生日拆成三格，年份選填。日期是 R-7「一個資料一個欄位」
-  // 的具名例外——它是三個獨立的數字，而 <input type="date"> 無法表達「年可不填」。
-  'patient-birth-year',
+  // 2026-09-22（BOOKING-MINIMIZATION-2026-09-22）：生日只收月與日，不收年份。
+  // 日期是 R-7「一個資料一個欄位」的具名例外——兩個獨立的數字，
+  // <input type="date"> 無法表達「沒有年份」。
   'patient-birth-month',
   'patient-birth-day',
-  'patient-national-id',
-  // 2026-07-27（P10）：外籍患者改填護照。與身分證**擇一**，畫面上一次只出現
-  // 一個，切換時另一欄連值一起清空。
-  'patient-passport',
-  'patient-nhi-card',
+  // 同一決定：國籍只分本國／外國，一組兩個單選鈕。身分證、護照、健保卡意向、
+  // 來源渠道與介紹人不再收集，所以它們的欄位也不得回到表單上。
+  'patient-nationality-domestic',
+  'patient-nationality-foreign',
   'synthetic-confirmation',
   // 2026-07-22：顯示主題切換（自動／淺色／護眼／深色），不觸碰任何資料。
   'theme-picker',
-  // 2026-08-22：獨立查詢／取消流程。電話＋生日或證件＋生日必須成對送入
-  // browser-local verification；查詢回應不指出哪一欄不符。
+  // 2026-08-22：獨立查詢／取消流程。電話＋生日（月日）必須成對送入；查詢回應
+  // 不指出哪一欄不符。2026-09-22 起不再有證件查詢模式。
   'booking-lookup-phone',
-  'booking-lookup-document',
-  'booking-lookup-birth',
+  'booking-lookup-birth-month',
+  'booking-lookup-birth-day',
   // 2026-07-28：保留既有技術 id，但語意是 UI-only「已閱讀告知草稿」gate。
   // 瀏覽器不保存政策版本、顯示時間或接受紀錄，所以不得稱為正式同意或告知證據。
   // 與 synthetic-confirmation 分開，因為後者是「測試資料留在本機」確認。
   'privacy-consent',
   // 2026-07-27（P7）：患者自己的備註，上限 120 字。存成 appointment.patientNote，
   // 與櫃台的 noteText 分開——否則櫃台一按「修改備註」就會把患者寫的話蓋掉。
-  'patient-note',
-  // 2026-07-27（P9）：介紹人姓名。**這是第三人的個資**，所以只在勾了親友介紹
-  // 或員工介紹時才出現，取消勾選時由 patient-app.js 清空，後端也只在需要時才收。
-  'patient-referrer'
+  'patient-note'
 ]);
 for (const control of files.patientHtml.matchAll(
   /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"[^>]*>/gi
@@ -869,11 +867,8 @@ if (scheduleHours.length === 0) {
 const AUTOCOMPLETE_EXPECTED = {
   'patient-name': 'name',
   'patient-phone': 'tel',
-  'patient-birth-year': 'bday-year',
   'patient-birth-month': 'bday-month',
-  'patient-birth-day': 'bday-day',
-  'patient-national-id': 'off',
-  'patient-passport': 'off'
+  'patient-birth-day': 'bday-day'
 };
 for (const [id, token] of Object.entries(AUTOCOMPLETE_EXPECTED)) {
   const field = files.patientHtml.match(
@@ -961,14 +956,6 @@ requireText(
   "import { openPolicyDialog } from './modules/policy-dialog.js'",
   'The booking form can no longer open the full policy in place, so reading it means abandoning a half-filled form.'
 );
-// 介紹人是**第三人**的姓名，那個人不在現場、也沒有被告知。取消勾選「親友介紹」
-// 之後欄位會收起來，但輸入過的名字如果留在 DOM 裡仍會被一起送出——畫面上看不到
-// 的資料照樣離開了表單。收起來的同時必須清空。
-requireText(
-  files.patientClient,
-  "if (!needed) elements['patient-referrer'].value = '';",
-  'The referrer field keeps a third party’s name after the referral option is unticked, so a name the patient no longer offers is still submitted.'
-);
 const privacyCategories = files.privacyHtml.match(
   /<section\b[^>]*aria-labelledby="s3"[^>]*>([\s\S]*?)<\/section>/i
 );
@@ -980,13 +967,12 @@ if (privacyCategories === null) {
   for (const marker of [
     '<li>姓名</li>',
     '<li>聯絡電話</li>',
-    '出生月、日（西元年份選填）',
-    '國民身分證統一編號或居留證號',
-    '勾選「外籍人士」時改填護照號碼',
-    '本次是否預計攜帶健保卡',
+    // BOOKING-MINIMIZATION-2026-09-22：與表單同步只剩月日生日與國籍，並明說
+    // 哪些資料不再蒐集。
+    '出生月、日（不收年份）',
+    '國籍（本國或外國）',
+    '線上預約不蒐集身分證統一編號、居留證號、護照號碼',
     '本次門診需求標籤',
-    '得知診所的來源',
-    '介紹人姓名',
     '簡短備註',
     '預約與到診紀錄',
     '時段',
@@ -1028,18 +1014,18 @@ const patientInputPayload = files.patientClient.match(
 if (patientInputPayload === null) {
   failures.push('The patient identity/contact payload builder is missing.');
 } else {
-  for (const payloadField of [
-    'name:',
-    'phone:',
-    'birthDate:',
-    'nationalId:',
-    'passportNumber:',
-    'hasNhiCard:'
-  ])
+  for (const payloadField of ['name:', 'phone:', 'birthDate:', 'nationality:'])
     requireText(
       patientInputPayload[1],
       payloadField,
       `The patient identity/contact payload no longer carries: ${payloadField}`
+    );
+  // BOOKING-MINIMIZATION-2026-09-22：新預約不再收證件與健保卡意向。
+  for (const removedField of ['nationalId', 'passportNumber', 'hasNhiCard'])
+    refuseText(
+      patientInputPayload[1],
+      removedField,
+      `The patient identity/contact payload collects ${removedField} again, which BOOKING-MINIMIZATION-2026-09-22 removed from new bookings.`
     );
 }
 const bookingPayload = files.patientClient.match(
@@ -1054,14 +1040,19 @@ if (bookingPayload === null) {
     'bookingKind:',
     'itemIds:',
     'requestTags:',
-    'sourceTags:',
-    'referrerName:',
     'patientNote:'
   ])
     requireText(
       bookingPayload[1],
       payloadField,
       `The patient booking payload no longer carries: ${payloadField}`
+    );
+  // 來源渠道與介紹人（第三人姓名）自 BOOKING-MINIMIZATION-2026-09-22 起不收。
+  for (const removedField of ['sourceTags', 'referrerName'])
+    refuseText(
+      bookingPayload[1],
+      removedField,
+      `The patient booking payload collects ${removedField} again, which BOOKING-MINIMIZATION-2026-09-22 removed from new bookings.`
     );
 }
 // 政策頁沒有指令碼，所以 UI-only「已閱讀草稿」只能靠網址把狀態帶回預約頁。

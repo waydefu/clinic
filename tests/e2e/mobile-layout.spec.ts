@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes.js';
 import {
+  chooseNationality,
   fillBirthDate,
   openPatientRescheduleControls,
   submitBooking
@@ -436,8 +437,8 @@ test.describe('患者預約頁手機版', () => {
 
     await page.locator('#patient-name').fill('合成測試患者');
     await page.locator('#patient-phone').fill('0912345678');
-    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
-    await page.locator('#patient-national-id').fill('A123456789');
+    await fillBirthDate(page, { month: '05', day: '20' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -539,11 +540,13 @@ test.describe('患者預約頁手機版', () => {
     // （textarea）、標籤分組，以及一個平時收起來的護照欄——用
     // `:not(.consent-preview)` 會把它們一起撈進來，於是這條測試會因為「新增了一個
     // 選填欄位」而紅，卻與它要守的事（星號位置與各欄同寬）完全無關。
-    // 生日已改成 <fieldset> 三格，不在這一組裡；它有自己的欄寬規則。
+    // 生日（月日）與國籍（兩個單選鈕）都是 <fieldset>，不在這一組裡；它們有自己
+    // 的欄寬規則。2026-09-22 起身分證欄已移除（BOOKING-MINIMIZATION-2026-09-22），
+    // 剩下姓名與電話。
     const labels = page.locator(
       '.patient-form-section-fields > label:has(.required-mark):not([hidden])'
     );
-    await expect(labels).toHaveCount(3);
+    await expect(labels).toHaveCount(2);
     const labelRows = await labels.locator('.field-label').evaluateAll((rows) =>
       rows.map((row) => {
         const mark = row.querySelector('.required-mark');

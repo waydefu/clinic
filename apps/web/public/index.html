@@ -391,21 +391,30 @@
                         required
                     /></label>
                   </div>
+                  <!-- BOOKING-MINIMIZATION-2026-09-22：生日只收月日，不收身分證。
+                       type 省略即 text；工作臺閉包的傳輸預算很緊，多餘屬性不出貨。 -->
                   <div class="inline-fields">
                     <label
-                      >生日（西元）<input
-                        id="booking-birth"
-                        type="date"
+                      >生日（月）<input
+                        id="booking-birth-month"
+                        inputmode="numeric"
+                        maxlength="2"
                         autocomplete="off"
                         required /></label
                     ><label
-                      >身分證字號<input
-                        id="booking-national-id"
-                        type="text"
-                        maxlength="10"
+                      >生日（日）<input
+                        id="booking-birth-day"
+                        inputmode="numeric"
+                        maxlength="2"
                         autocomplete="off"
-                        required
-                    /></label>
+                        required /></label
+                    ><label
+                      >國籍<select id="booking-nationality" required>
+                        <option value="">請選擇</option>
+                        <option value="domestic">本國</option>
+                        <option value="foreign">外國</option>
+                      </select></label
+                    >
                   </div>
                 </fieldset>
                 <fieldset class="field-group">
@@ -415,12 +424,6 @@
                       <option value="initial">初診（整點／30 分）</option>
                       <option value="follow_up">回診（15 分／45 分）</option>
                     </select></label
-                  >
-                  <label class="switch-row"
-                    ><input
-                      id="booking-nhi-card"
-                      type="checkbox"
-                    />預計攜帶健保卡</label
                   >
                 </fieldset>
                 <!-- W5（業主 2026-07-27）：療程改可複選。一次門診處理兩項

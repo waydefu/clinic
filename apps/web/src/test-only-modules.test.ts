@@ -86,19 +86,19 @@ describe('預約聯絡資料', () => {
   });
 });
 
+// 2026-09-22（BOOKING-MINIMIZATION-2026-09-22）：新預約只收姓名、電話、
+// 月日生日與國籍。
 const PATIENT_A = {
   name: '測試患者甲',
   phone: '0912345678',
-  birthDate: '1990-05-20',
-  nationalId: 'A123456789',
-  hasNhiCard: true
+  birthDate: '--05-20',
+  nationality: 'domestic'
 };
 const PATIENT_B = {
   name: '測試患者乙',
   phone: '0922333444',
-  birthDate: '1985-11-02',
-  nationalId: 'B287654321',
-  hasNhiCard: false
+  birthDate: '--11-02',
+  nationality: 'foreign'
 };
 
 describe('合成狀態的隱私證據邊界', () => {
@@ -222,7 +222,6 @@ describe('週曆事件排版', () => {
 
 describe('病人查詢與自助取消', () => {
   const verification = {
-    mode: 'phone',
     phone: PATIENT_A.phone,
     birthDate: PATIENT_A.birthDate
   };
@@ -240,27 +239,43 @@ describe('病人查詢與自助取消', () => {
     return { state, appointment };
   };
 
-  it('電話＋生日與證件＋生日都可查到，同一欄位或錯誤身分一律回通用失敗', () => {
+  it('電話＋月日生日可查到，缺欄位或錯誤身分一律回通用失敗', () => {
     const { state, appointment } = bookedState();
     expect(lookupPatientAppointments(state, verification)).toEqual([
       appointment
     ]);
-    expect(
-      lookupPatientAppointments(state, {
-        mode: 'document',
-        documentNumber: PATIENT_A.nationalId.toLowerCase(),
-        birthDate: PATIENT_A.birthDate
-      })
-    ).toEqual([appointment]);
     for (const bad of [
-      { mode: 'phone', phone: PATIENT_A.phone },
-      { mode: 'phone', birthDate: PATIENT_A.birthDate },
+      { phone: PATIENT_A.phone },
+      { birthDate: PATIENT_A.birthDate },
       { ...verification, phone: '0900000000' },
-      { ...verification, birthDate: '1990-05-21' }
+      { ...verification, birthDate: '--05-21' },
+      // 證件查詢模式已移除，帶年份的生日也不再是查詢格式。
+      { ...verification, birthDate: '1990-05-20' }
     ])
       expect(() => lookupPatientAppointments(state, bad)).toThrow(
         '查無符合的可管理預約。'
       );
+  });
+
+  it('舊紀錄的完整生日以月日比對', () => {
+    const { state, appointment } = bookedState();
+    state.patients[0].birthDate = '1990-05-20';
+    expect(lookupPatientAppointments(state, verification)).toEqual([
+      appointment
+    ]);
+  });
+
+  it('同一組電話＋生日對到兩位患者時回通用失敗，不合併', () => {
+    const { state } = bookedState();
+    state.patients.push({
+      id: 'patient_legacy_twin',
+      name: '測試患者丁',
+      phone: PATIENT_A.phone,
+      birthDate: '1988-05-20'
+    });
+    expect(() => lookupPatientAppointments(state, verification)).toThrow(
+      '查無符合的可管理預約。'
+    );
   });
 
   it.each([
@@ -371,7 +386,6 @@ describe('病人查詢與自助取消', () => {
 
 describe('病人自助改期', () => {
   const verification = {
-    mode: 'phone',
     phone: PATIENT_A.phone,
     birthDate: PATIENT_A.birthDate
   };
@@ -666,7 +680,60 @@ describe('預約建立', () => {
     expect(appointment.noteTags).toEqual(['same_day', 'overseas']);
     expect(appointment.noteText).toBe('需要輪椅');
     expect(state.patients).toHaveLength(1);
-    expect(state.patients[0].hasNhiCard).toBe(true);
+    expect(state.patients[0].nationality).toBe('domestic');
+    // 國籍是給櫃台看的到診資訊，同時記在這一筆預約上。
+    expect(appointment.intakeNationality).toBe('domestic');
+    for (const removed of ['nationalId', 'passportNumber', 'hasNhiCard'])
+      expect(state.patients[0]).not.toHaveProperty(removed);
+    for (const removed of ['sourceTags', 'referrerName'])
+      expect(appointment).not.toHaveProperty(removed);
+  });
+
+  it('拒絕已不再收集的來源渠道與介紹人', () => {
+    const state = initialState();
+    for (const patch of [
+      { sourceTags: ['web_search'] },
+      { referrerName: '測試介紹人' }
+    ])
+      expect(() =>
+        createBooking(
+          state,
+          {
+            slotId: openSlot(state, 'initial').id,
+            patient: PATIENT_A,
+            itemIds: ['service_snoring'],
+            ...patch
+          },
+          'admin_test_001'
+        )
+      ).toThrow('預約不再收集訊息來源或介紹人。');
+    expect(state.appointments).toHaveLength(0);
+  });
+
+  it('同電話同生日但姓名不同時拒絕，不重用也不新建', () => {
+    const state = initialState();
+    createBooking(
+      state,
+      {
+        slotId: openSlot(state, 'initial').id,
+        patient: PATIENT_A,
+        itemIds: ['service_snoring']
+      },
+      'admin_test_001'
+    );
+    expect(() =>
+      createBooking(
+        state,
+        {
+          slotId: openSlot(state, 'initial').id,
+          patient: { ...PATIENT_A, name: '測試患者丙' },
+          itemIds: ['service_snoring']
+        },
+        'admin_test_001'
+      )
+    ).toThrow('無法線上完成這筆預約，請直接來電診所，由櫃台協助。');
+    expect(state.patients).toHaveLength(1);
+    expect(state.appointments).toHaveLength(1);
   });
 
   it('掛號別必須與時段格對應', () => {
@@ -691,14 +758,13 @@ describe('預約建立', () => {
     const cases: [Record<string, unknown>, RegExp][] = [
       [{ name: '' }, /姓名/],
       [{ phone: 'abc' }, /電話/],
-      // 2026-07-27 起生日的年份選填，訊息因此改談「出生月份與日期」——
-      // 三格的表單裡「生日格式不正確」不會告訴使用者是哪一格出了問題。
+      // 2026-09-22 起生日只收月日（BOOKING-MINIMIZATION-2026-09-22），
+      // 帶年份的完整日期也是格式錯誤。
       [{ birthDate: '90-05-20' }, /出生月份與日期/],
-      [{ birthDate: '--02-31' }, /有效的日期/],
-      [{ nationalId: 'X999' }, /身分證/],
-      [{ nationalId: '', passportNumber: 'A1' }, /護照號碼/],
-      // 兩種證件都空：訊息要同時指出兩條路，否則外籍患者只會被叫去填身分證。
-      [{ nationalId: '' }, /外籍人士/]
+      [{ birthDate: '1990-05-20' }, /出生月份與日期/],
+      [{ birthDate: '--02-30' }, /有效的月份與日期/],
+      [{ nationality: '' }, /本國或外國/],
+      [{ nationality: 'other' }, /本國或外國/]
     ];
     for (const [patch, message] of cases) {
       expect(() =>
@@ -1723,7 +1789,7 @@ describe('工作臺批次的新行為', () => {
   });
 
   // W3：到診但忘了帶健保卡。
-  it('忘記帶卡記在這一筆預約上，不動患者的「預計攜帶」', () => {
+  it('忘記帶卡記在這一筆預約上，不寫到患者身上', () => {
     const state = initialState();
     const appointment = bookOne(state, ['service_snoring']);
     finishVisit(
@@ -1734,9 +1800,9 @@ describe('工作臺批次的新行為', () => {
     );
     expect(appointment.status).toBe('completed');
     expect(appointment.nhiCardMissing).toBe(true);
-    // PATIENT_A 的 hasNhiCard 是 true，那是「這位患者預計會帶卡」的長期屬性。
-    // 這一次忘了帶不該把它改掉，否則下一次預約會顯示他沒有健保卡。
-    expect(state.patients.at(-1).hasNhiCard).toBe(true);
+    // 這一次忘了帶是這一筆就診的事實，不是患者的長期屬性。
+    expect(state.patients.at(-1)).not.toHaveProperty('hasNhiCard');
+    expect(state.patients.at(-1)).not.toHaveProperty('nhiCardMissing');
     expect(
       state.auditEvents.some(
         (event: any) =>
@@ -1840,9 +1906,20 @@ describe('工作臺批次的新行為', () => {
       expect(html).not.toContain('未填');
     });
 
-    it('身分證字號在畫面上遮罩、列印時完整', () => {
+    it('生日只印月日、年份留白；國籍印線上勾選的值，新預約身分證欄留白', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
+      const html = sheetFor(state, appointment.id);
+      expect(html).toContain(' 年 05 月 20 日');
+      expect(html).toContain('<span class="intake-value">本國</span>');
+      expect(html).not.toContain('intake-print-only');
+    });
+
+    // 舊紀錄仍帶證件時沿用原本的遮罩與列印層；新預約不會再有這些值。
+    it('舊紀錄的身分證字號在畫面上遮罩、列印時完整', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      state.patients.at(-1).nationalId = 'A123456789';
       const html = sheetFor(state, appointment.id);
       // 兩個值都在 DOM 裡，由 @media print 切換哪一個顯示。
       expect(html).toContain('intake-screen-only');
@@ -1851,21 +1928,10 @@ describe('工作臺批次的新行為', () => {
       expect(html).toContain('A123456789');
     });
 
-    it('護照號碼同樣只在合成列印層顯示完整值', () => {
+    it('舊紀錄的護照號碼同樣只在合成列印層顯示完整值', () => {
       const state = initialState();
-      const appointment = createBooking(
-        state,
-        {
-          slotId: openSlot(state, 'initial').id,
-          patient: {
-            ...PATIENT_A,
-            nationalId: '',
-            passportNumber: 'P12345678'
-          },
-          itemIds: ['service_snoring']
-        },
-        'admin_test_001'
-      );
+      const appointment = bookOne(state, ['service_snoring']);
+      state.patients.at(-1).passportNumber = 'P12345678';
       const html = sheetFor(state, appointment.id);
       expect(html).toContain(
         '<span class="intake-screen-only">P12****678</span>'

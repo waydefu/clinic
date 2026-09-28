@@ -1,4 +1,5 @@
 import { isWithinSelfCancelWindow } from '../vendor/domain/appointment-rules.js';
+import { resolveReturnCandidate } from '../vendor/domain/patient-identity.js';
 import {
   rescheduleAppointment,
   transitionAppointment
@@ -27,63 +28,46 @@ function normalizedPhone(value) {
   return digits.startsWith('886') ? `0${digits.slice(3)}` : digits;
 }
 
-function normalizedDocument(value) {
-  return String(value ?? '')
-    .trim()
-    .toUpperCase();
-}
-
+// 回診查詢只有「電話＋月日」一種方式（BOOKING-MINIMIZATION-2026-09-22）。
 function normalizedVerification(input) {
-  const mode = input?.mode;
   const birthDate = String(input?.birthDate ?? '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate))
+  if (!/^--\d{2}-\d{2}$/.test(birthDate))
     throw managementError('lookup_failed');
-  if (mode === 'phone') {
-    const phone = normalizedPhone(input?.phone);
-    if (phone.length < 9) throw managementError('lookup_failed');
-    return { mode, birthDate, phone };
-  }
-  if (mode === 'document') {
-    const documentNumber = normalizedDocument(input?.documentNumber);
-    if (documentNumber.length < 6) throw managementError('lookup_failed');
-    return { mode, birthDate, documentNumber };
-  }
-  throw managementError('lookup_failed');
+  const phone = normalizedPhone(input?.phone);
+  if (phone.length < 9) throw managementError('lookup_failed');
+  return { birthDate, phone };
 }
 
-function birthDateMatches(stored, requested) {
+// 瀏覽器端的舊紀錄保存了完整生日原值，可以合法換算成月日比對；只存雜湊的
+// 伺服器舊紀錄不在這裡，也不會被猜。
+function storedMonthDay(stored) {
   const value = String(stored ?? '');
-  return value.startsWith('--')
-    ? value.slice(2) === requested.slice(4)
-    : value === requested;
+  if (/^--\d{2}-\d{2}$/.test(value)) return value;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `--${value.slice(5)}` : '';
 }
 
 function patientMatches(patient, verification) {
-  if (!birthDateMatches(patient.birthDate, verification.birthDate))
-    return false;
-  if (verification.mode === 'phone')
-    return normalizedPhone(patient.phone) === verification.phone;
-  return [patient.nationalId, patient.passportNumber].some(
-    (value) =>
-      value !== undefined &&
-      normalizedDocument(value) === verification.documentNumber
+  return (
+    storedMonthDay(patient.birthDate) === verification.birthDate &&
+    normalizedPhone(patient.phone) === verification.phone
   );
 }
 
 /**
- * 以兩欄位組合尋找這位患者的預約。所有 mismatch 都只回同一個錯誤，避免洩漏
- * 到底是電話、生日或證件哪一欄命中。回傳完整物件只在 request-local state 內使用；
- * UI 取得的是 store 產生的最小摘要。
+ * 以電話＋月日尋找這位患者的預約。只有唯一一位患者符合時才成立；沒有、或有
+ * 好幾位（同一支電話、同月日的家人）都回同一個錯誤，不透露是哪一種。
+ * 回傳完整物件只在 request-local state 內使用；UI 取得的是 store 產生的最小摘要。
  */
 export function lookupPatientAppointments(state, input) {
   const verification = normalizedVerification(input);
-  const patientIds = new Set(
+  const patientId = resolveReturnCandidate(
     state.patients
       .filter((patient) => patientMatches(patient, verification))
       .map((patient) => patient.id)
   );
+  if (patientId === undefined) throw managementError('lookup_failed');
   const appointments = state.appointments
-    .filter((appointment) => patientIds.has(appointment.patientId))
+    .filter((appointment) => appointment.patientId === patientId)
     .sort((left, right) => left.startsAt.localeCompare(right.startsAt));
   if (appointments.length === 0) throw managementError('lookup_failed');
   return appointments;

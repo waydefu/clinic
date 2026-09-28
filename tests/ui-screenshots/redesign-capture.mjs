@@ -96,8 +96,9 @@ try {
         });
         await page.locator('#booking-name').fill('TEST_UI_001');
         await page.locator('#booking-phone').fill('0900000001');
-        await page.locator('#booking-birth').fill('1990-01-01');
-        await page.locator('#booking-national-id').fill('A123456789');
+        await page.locator('#booking-birth-month').fill('01');
+        await page.locator('#booking-birth-day').fill('01');
+        await page.locator('#booking-nationality').selectOption('domestic');
         await page.locator('#booking-kind').selectOption('initial');
         await page
           .locator('#booking-items [data-booking-item]')

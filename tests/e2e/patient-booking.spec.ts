@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import {
+  chooseNationality,
   fillBirthDate,
   lookupBooking,
   makeLatestBookingSelfCancellable,
@@ -186,8 +187,8 @@ test.describe('患者線上預約', () => {
     // 以及「資料只留在本機」。前者不會建立正式同意紀錄。
     await page.locator('#patient-name').fill('測試患者甲');
     await page.locator('#patient-phone').fill('0912345678');
-    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
-    await page.locator('#patient-national-id').fill('A123456789');
+    await fillBirthDate(page, { month: '05', day: '20' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await page.locator('#confirm-patient-booking').click();
@@ -248,17 +249,15 @@ test.describe('患者線上預約', () => {
       )
       .evaluateAll((fields) => fields.map((field) => field.id).sort());
     expect(approvedFields).toEqual(
+      // BOOKING-MINIMIZATION-2026-09-22：不再有證件、健保卡意向、介紹人欄位。
       [
         'patient-birth-day',
         'patient-birth-month',
-        'patient-birth-year',
         'patient-name',
-        'patient-national-id',
-        'patient-nhi-card',
+        'patient-nationality-domestic',
+        'patient-nationality-foreign',
         'patient-note',
-        'patient-passport',
         'patient-phone',
-        'patient-referrer',
         'privacy-consent',
         'synthetic-confirmation'
       ].sort()
@@ -281,8 +280,8 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('[data-booking-step="3"]')).toBeVisible();
     await page.locator('#patient-name').fill('鍵盤合成患者');
     await page.locator('#patient-phone').fill('0900111222');
-    await fillBirthDate(page, { year: '1991', month: '04', day: '18' });
-    await page.locator('#patient-national-id').fill('G123456789');
+    await fillBirthDate(page, { month: '04', day: '18' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -299,7 +298,7 @@ test.describe('患者線上預約', () => {
     await makeLatestBookingSelfCancellable(page);
     await lookupBooking(page, {
       phone: '0900111222',
-      birthDate: '1991-04-18'
+      birth: { month: '04', day: '18' }
     });
     await page.evaluate((key) => {
       const original = window.localStorage.setItem.bind(window.localStorage);
@@ -331,8 +330,8 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('時段衝突患者甲');
     await page.locator('#patient-phone').fill('0900222333');
-    await fillBirthDate(page, { year: '1986', month: '09', day: '07' });
-    await page.locator('#patient-national-id').fill('H123456789');
+    await fillBirthDate(page, { month: '09', day: '07' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -360,9 +359,8 @@ test.describe('患者線上預約', () => {
             patient: {
               name: '時段衝突患者乙',
               phone: '0900333444',
-              birthDate: '1987-10-08',
-              nationalId: 'I123456789',
-              hasNhiCard: false
+              birthDate: '--10-08',
+              nationality: 'domestic'
             }
           })
         });
@@ -404,8 +402,8 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('邊界測試患者');
     await page.locator('#patient-phone').fill('0900555666');
-    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
-    await page.locator('#patient-national-id').fill('L123456789');
+    await fillBirthDate(page, { month: '05', day: '20' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -454,9 +452,8 @@ test.describe('患者線上預約', () => {
             patient: {
               name: '越界測試患者',
               phone: '0900777888',
-              birthDate: '1991-06-21',
-              nationalId: 'M123456789',
-              hasNhiCard: false
+              birthDate: '--06-21',
+              nationality: 'domestic'
             }
           })
         });
@@ -473,16 +470,14 @@ test.describe('患者線上預約', () => {
     expect(result.unchanged).toBe(true);
   });
 
-  test('查詢要求雙欄位、錯誤身分只回通用失敗，證件＋生日可作後備', async ({
-    page
-  }) => {
+  test('查詢要求電話＋月日生日，錯誤身分只回通用失敗', async ({ page }) => {
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('#patient-services [data-service]').first().click();
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('查詢測試患者');
     await page.locator('#patient-phone').fill('0922555666');
-    await fillBirthDate(page, { year: '1982', month: '07', day: '16' });
-    await page.locator('#patient-national-id').fill('J123456789');
+    await fillBirthDate(page, { month: '07', day: '16' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -497,7 +492,8 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('#booking-lookup-status')).toHaveText(
       '查無符合的可管理預約。'
     );
-    await page.locator('#booking-lookup-birth').fill('1982-07-17');
+    await page.locator('#booking-lookup-birth-month').fill('07');
+    await page.locator('#booking-lookup-birth-day').fill('17');
     await page.locator('#booking-lookup-form button[type="submit"]').click();
     await expect(page.locator('#booking-lookup-status')).toHaveText(
       '查無符合的可管理預約。'
@@ -507,9 +503,9 @@ test.describe('患者線上預約', () => {
       await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)
     ).toBe(persisted);
 
-    await page.locator('[data-booking-lookup-mode="document"]').click();
-    await page.locator('#booking-lookup-document').fill('j123456789');
-    await page.locator('#booking-lookup-birth').fill('1982-07-16');
+    // 2026-09-22 起沒有證件查詢模式（BOOKING-MINIMIZATION-2026-09-22）。
+    await expect(page.locator('[data-booking-lookup-mode]')).toHaveCount(0);
+    await page.locator('#booking-lookup-birth-day').fill('16');
     await page.locator('#booking-lookup-form button[type="submit"]').click();
     await expect(page.locator('.booking-lookup-card')).toHaveCount(1);
     await expect(page.locator('.booking-lookup-card')).toContainText(
@@ -523,8 +519,8 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('改期測試患者');
     await page.locator('#patient-phone').fill('0977000111');
-    await fillBirthDate(page, { year: '1984', month: '04', day: '18' });
-    await page.locator('#patient-national-id').fill('L123456789');
+    await fillBirthDate(page, { month: '04', day: '18' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -535,7 +531,7 @@ test.describe('患者線上預約', () => {
 
     await lookupBooking(page, {
       phone: '0977000111',
-      birthDate: '1984-04-18'
+      birth: { month: '04', day: '18' }
     });
     const select = page.locator('[data-managed-reschedule-slot]');
     await expect(select).toBeVisible();
@@ -574,8 +570,8 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('截止測試患者');
     await page.locator('#patient-phone').fill('0966111222');
-    await fillBirthDate(page, { year: '1980', month: '12', day: '03' });
-    await page.locator('#patient-national-id').fill('K123456789');
+    await fillBirthDate(page, { month: '12', day: '03' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -590,7 +586,7 @@ test.describe('患者線上預約', () => {
     }, STORAGE_KEY);
     await lookupBooking(page, {
       phone: '0966111222',
-      birthDate: '1980-12-03'
+      birth: { month: '12', day: '03' }
     });
     await expect(page.locator('[data-managed-cancel]')).toHaveCount(0);
     await expect(page.locator('.booking-phone-fallback')).toHaveAttribute(
@@ -636,9 +632,8 @@ test.describe('患者線上預約', () => {
           {
             method: 'POST',
             body: JSON.stringify({
-              mode: 'phone',
               phone: '0966111222',
-              birthDate: '1980-12-03'
+              birthDate: '--12-03'
             })
           }
         );
@@ -666,8 +661,8 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('測試患者丙');
     await page.locator('#patient-phone').fill('0933444555');
-    await fillBirthDate(page, { year: '1978', month: '03', day: '09' });
-    await page.locator('#patient-national-id').fill('C123456789');
+    await fillBirthDate(page, { month: '03', day: '09' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -680,7 +675,7 @@ test.describe('患者線上預約', () => {
     await makeLatestBookingSelfCancellable(page);
     await lookupBooking(page, {
       phone: '0933444555',
-      birthDate: '1978-03-09'
+      birth: { month: '03', day: '09' }
     });
     await page.locator('[data-managed-cancel]').click();
     await page.locator('.confirm-dialog button.button-danger').click();
@@ -715,8 +710,8 @@ test.describe('患者線上預約', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('測試患者乙');
     await page.locator('#patient-phone').fill('0922333444');
-    await fillBirthDate(page, { year: '1985', month: '11', day: '02' });
-    await page.locator('#patient-national-id').fill('B287654321');
+    await fillBirthDate(page, { month: '11', day: '02' });
+    await chooseNationality(page);
     // 告知草稿已讀要先勾起來，才驗得到「本機保存確認」這一條——兩個確認各自
     // 報錯，而已讀 gate 排在前面。只留一個沒勾，才知道報的是不是對的那一句。
     await page.locator('#privacy-consent').check();
@@ -728,20 +723,22 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('[data-booking-result]')).toBeHidden();
   });
 
-  // P7／P9（業主 2026-07-27）：患者自述的備註、需求標籤與訊息來源。
-  test('備註、需求與來源標籤會跟著預約一起存下來', async ({ page }) => {
+  // P7（業主 2026-07-27）：患者自述的備註與需求標籤。訊息來源與介紹人自
+  // 2026-09-22 起不再收集（BOOKING-MINIMIZATION-2026-09-22）。
+  test('備註與需求標籤會跟著預約一起存下來，來源與介紹人不再出現', async ({
+    page
+  }) => {
     await page.locator('[data-booking-type="initial"]').click();
     await page.locator('#patient-services [data-service]').first().click();
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('測試患者丁');
     await page.locator('#patient-phone').fill('0955666777');
-    await fillBirthDate(page, { year: '1992', month: '08', day: '14' });
-    await page.locator('#patient-national-id').fill('D123456789');
+    await fillBirthDate(page, { month: '08', day: '14' });
+    await chooseNationality(page);
 
     await page.locator('[data-request-tag="same_day_procedure"]').check();
-    await page.locator('[data-source-tag="friend_referral"]').check();
-    await expect(page.locator('#patient-referrer-field')).toBeVisible();
-    await page.locator('#patient-referrer').fill('王小明');
+    await expect(page.locator('[data-source-tag]')).toHaveCount(0);
+    await expect(page.locator('#patient-referrer')).toHaveCount(0);
     await page.locator('#patient-note').fill('曾經做過鼻中膈手術。');
 
     await page.locator('#privacy-consent').check();
@@ -751,43 +748,17 @@ test.describe('患者線上預約', () => {
     const state = await syntheticState(page);
     const appointment = state.appointments.at(-1);
     expect(appointment.requestTags).toEqual(['same_day_procedure']);
-    expect(appointment.sourceTags).toEqual(['friend_referral']);
-    expect(appointment.referrerName).toBe('王小明');
+    expect(appointment).not.toHaveProperty('sourceTags');
+    expect(appointment).not.toHaveProperty('referrerName');
     // 患者自述與櫃台的營運備註是**兩個欄位**：合成一個的話，櫃台一按「修改備註」
     // 就會把患者寫的話覆蓋掉，而且沒有任何痕跡。
     expect(appointment.patientNote).toBe('曾經做過鼻中膈手術。');
     expect(appointment.noteText).toBe('');
   });
-
-  // 介紹人是**第三人**的姓名，那個人不在現場也沒有被告知。取消勾選之後欄位收起
-  // 來，但值如果留在 DOM 裡仍會被一起送出——畫面上看不到的資料照樣離開了表單。
-  test('取消勾選介紹管道時，介紹人姓名不會偷偷跟著送出', async ({ page }) => {
-    await page.locator('[data-booking-type="initial"]').click();
-    await page.locator('#patient-services [data-service]').first().click();
-    await page.locator('[data-patient-slot]').first().click();
-    await page.locator('#patient-name').fill('測試患者戊');
-    await page.locator('#patient-phone').fill('0966777888');
-    await fillBirthDate(page, { year: '1988', month: '01', day: '30' });
-    await page.locator('#patient-national-id').fill('E123456789');
-
-    await page.locator('[data-source-tag="staff_referral"]').check();
-    await page.locator('#patient-referrer').fill('不該被送出的名字');
-    await page.locator('[data-source-tag="staff_referral"]').uncheck();
-    await expect(page.locator('#patient-referrer-field')).toBeHidden();
-    await expect(page.locator('#patient-referrer')).toHaveValue('');
-
-    await page.locator('#privacy-consent').check();
-    await page.locator('#synthetic-confirmation').check();
-    await submitBooking(page);
-
-    const state = await syntheticState(page);
-    const appointment = state.appointments.at(-1);
-    expect(appointment.referrerName).toBeUndefined();
-    expect(JSON.stringify(state)).not.toContain('不該被送出的名字');
-  });
 });
 
-// P10／P11（業主 2026-07-27）：生日年份選填，外籍患者改填護照。
+// BOOKING-MINIMIZATION-2026-09-22：生日只收月日，國籍只分本國／外國，
+// 不收身分證或護照。
 test.describe('身分欄位', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/booking');
@@ -798,11 +769,11 @@ test.describe('身分欄位', () => {
     await page.locator('[data-patient-slot]').first().click();
   });
 
-  test('不填年份也能預約，存下來的是省略年份的形式', async ({ page }) => {
+  test('生日只收月日，存下來的是省略年份的形式', async ({ page }) => {
     await page.locator('#patient-name').fill('無年份');
     await page.locator('#patient-phone').fill('0911222333');
     await fillBirthDate(page, { month: '5', day: '20' });
-    await page.locator('#patient-national-id').fill('G123456789');
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
@@ -811,41 +782,43 @@ test.describe('身分欄位', () => {
     // `--MM-DD` 是 XSD gMonthDay：一眼看得出年份是刻意沒有的，而不是被截斷。
     // 個位數的月與日由介面補零，不是丟給 domain 處理。
     expect(state.patients.at(-1).birthDate).toBe('--05-20');
+    await expect(page.locator('#patient-birth-year')).toHaveCount(0);
   });
 
-  test('勾選外籍人士就改問護照，身分證欄連值一起收起來', async ({ page }) => {
-    await page.locator('#patient-national-id').fill('H123456789');
-    await page.locator('[data-request-tag="foreign_national"]').check();
+  test('選外國時國籍記在預約上，表單沒有任何證件欄', async ({ page }) => {
+    await expect(page.locator('#patient-national-id')).toHaveCount(0);
+    await expect(page.locator('#patient-passport')).toHaveCount(0);
+    await expect(page.locator('#patient-nhi-card')).toHaveCount(0);
+    await expect(
+      page.locator('[data-request-tag="foreign_national"]')
+    ).toHaveCount(0);
 
-    await expect(page.locator('#patient-national-id-field')).toBeHidden();
-    await expect(page.locator('#patient-passport-field')).toBeVisible();
-    // 收起來但還留著值的欄位照樣會被送出去——那是身分識別資料。
-    await expect(page.locator('#patient-national-id')).toHaveValue('');
-
-    await page.locator('#patient-name').fill('外籍患者');
+    await page.locator('#patient-name').fill('外國籍患者');
     await page.locator('#patient-phone').fill('0922111000');
-    await fillBirthDate(page, { year: '1985', month: '11', day: '02' });
-    await page.locator('#patient-passport').fill('AB1234567');
+    await fillBirthDate(page, { month: '11', day: '02' });
+    await chooseNationality(page, 'foreign');
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);
 
-    const patient = (await syntheticState(page)).patients.at(-1);
-    expect(patient.passportNumber).toBe('AB1234567');
-    expect(patient.nationalId).toBe('');
+    const state = await syntheticState(page);
+    expect(state.patients.at(-1).nationality).toBe('foreign');
+    expect(state.appointments.at(-1).intakeNationality).toBe('foreign');
+    for (const removed of ['nationalId', 'passportNumber', 'hasNhiCard'])
+      expect(state.patients.at(-1)).not.toHaveProperty(removed);
   });
 
-  test('兩種證件都沒填時，錯誤要同時指出兩條路', async ({ page }) => {
-    await page.locator('#patient-name').fill('缺證件');
+  test('沒選國籍時擋下送出並指出欄位', async ({ page }) => {
+    await page.locator('#patient-name').fill('缺國籍');
     await page.locator('#patient-phone').fill('0933000111');
-    await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
+    await fillBirthDate(page, { month: '05', day: '20' });
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await page.locator('#confirm-patient-booking').click();
 
-    const error = page.locator('#patient-national-id-error');
+    const error = page.locator('#patient-nationality-error');
     await expect(error).toBeVisible();
-    await expect(error).toContainText('外籍人士');
+    await expect(error).toContainText('本國或外國');
     await expect(page.locator('[data-booking-result]')).toBeHidden();
   });
 });
@@ -864,8 +837,8 @@ test.describe('已確認回診時的掛號別', () => {
     await page.locator('[data-patient-slot]').first().click();
     await page.locator('#patient-name').fill('回診測試');
     await page.locator('#patient-phone').fill('0977888999');
-    await fillBirthDate(page, { year: '1975', month: '06', day: '11' });
-    await page.locator('#patient-national-id').fill('F123456789');
+    await fillBirthDate(page, { month: '06', day: '11' });
+    await chooseNationality(page);
     await page.locator('#privacy-consent').check();
     await page.locator('#synthetic-confirmation').check();
     await submitBooking(page);

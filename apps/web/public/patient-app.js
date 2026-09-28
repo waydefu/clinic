@@ -6,8 +6,6 @@ import {
   CLINIC,
   PATIENT_REQUEST_TAGS,
   PATIENT_SERVICES,
-  PATIENT_SOURCE_TAGS,
-  SOURCE_TAGS_NEEDING_REFERRER,
   WEEKDAY_LABELS
 } from './modules/constants.js';
 import { renderTagOptions } from './modules/tag-picker.js';
@@ -57,7 +55,6 @@ let completedAppointmentId;
 let completedAppointment;
 let activeSlotDate;
 let activeSlotMonth;
-let bookingLookupMode = 'phone';
 let managedAppointments = [];
 let lastLookupVerification;
 let bookingManagementReturnFocus;
@@ -403,18 +400,13 @@ function renderBookingTypeButtons() {
   });
 }
 
-// P9：兩組可複選標籤。選項是常數，畫一次就好——它們不隨診所資料變動，
-// 而且重畫會清掉使用者已經勾好的選擇。
+// 「關於這次門診」的可複選標籤。選項是常數，畫一次就好——重畫會清掉使用者
+// 已經勾好的選擇。
 function renderPatientTags() {
   elements['patient-request-tags'].innerHTML = renderTagOptions(
     PATIENT_REQUEST_TAGS,
     [],
     { data: 'data-request-tag' }
-  );
-  elements['patient-source-tags'].innerHTML = renderTagOptions(
-    PATIENT_SOURCE_TAGS,
-    [],
-    { data: 'data-source-tag' }
   );
 }
 
@@ -464,28 +456,6 @@ function checkedTagIds(containerId, attribute) {
   return [
     ...elements[containerId].querySelectorAll(`[${attribute}]:checked`)
   ].map((input) => input.getAttribute(attribute));
-}
-
-// 介紹人欄位只在真的有人介紹時出現。收起來時一併清空：留著上一次輸入的名字，
-// 使用者取消勾選之後仍會被送出去，那是他沒有同意提供的第三人姓名。
-function syncReferrerField() {
-  const needed = checkedTagIds('patient-source-tags', 'data-source-tag').some(
-    (id) => SOURCE_TAGS_NEEDING_REFERRER.includes(id)
-  );
-  elements['patient-referrer-field'].hidden = !needed;
-  if (!needed) elements['patient-referrer'].value = '';
-}
-
-// P10：身分證與護照擇一，畫面上一次只出現一個。`required` 跟著搬——留在收起來
-// 的那一欄上，瀏覽器會拒絕送出一個使用者根本看不到的欄位（而且不會說是哪一個）。
-function syncIdentityDocumentField() {
-  const foreign = isForeignNational();
-  elements['patient-national-id-field'].hidden = foreign;
-  elements['patient-passport-field'].hidden = !foreign;
-  elements['patient-national-id'].required = !foreign;
-  elements['patient-passport'].required = foreign;
-  if (foreign) elements['patient-national-id'].value = '';
-  else elements['patient-passport'].value = '';
 }
 
 function availableSlots() {
@@ -606,83 +576,66 @@ function renderConfirmation() {
   updateSubmitState();
 }
 
+const NATIONALITY_INPUTS = [
+  'patient-nationality-domestic',
+  'patient-nationality-foreign'
+];
+
 const formFields = [
   'patient-name',
   'patient-phone',
-  'patient-birth-year',
   'patient-birth-month',
   'patient-birth-day',
-  'patient-national-id',
-  'patient-passport'
+  ...NATIONALITY_INPUTS
 ];
 
-/** 勾了「外籍人士」就改填護照。這是 PATIENT_REQUEST_TAGS 的其中一個選項。 */
-function isForeignNational() {
-  return checkedTagIds('patient-request-tags', 'data-request-tag').includes(
-    'foreign_national'
-  );
-}
-
-// 三格拼回 domain 認得的字串。月與日補零，年份留白就走 `--MM-DD`（XSD gMonthDay）。
-// 填了一半（只有月或只有日）一律回空字串，讓 domain 報 `required`——那比「格式
-// 不正確」誠實：使用者沒有填錯，是還沒填完。
-function birthDateValue() {
+// 月、日兩格拼成 domain 認得的 `--MM-DD`（XSD gMonthDay）。只填一半一律回空字串，
+// 讓 domain 報 `required`——使用者沒有填錯，是還沒填完。
+function monthDayValue(monthId, dayId) {
   const pad = (value) => (value.length === 1 ? `0${value}` : value);
-  const year = elements['patient-birth-year'].value.trim();
-  const month = elements['patient-birth-month'].value.trim();
-  const day = elements['patient-birth-day'].value.trim();
+  const month = elements[monthId].value.trim();
+  const day = elements[dayId].value.trim();
   if (month === '' || day === '') return '';
-  const monthDay = `${pad(month)}-${pad(day)}`;
-  return year === '' ? `--${monthDay}` : `${year}-${monthDay}`;
+  return `--${pad(month)}-${pad(day)}`;
 }
 
-function patientIntake() {
-  const patient = patientInput();
-  return {
-    name: patient.name,
-    phone: patient.phone,
-    birthDate: patient.birthDate,
-    ...(patient.nationalId !== '' ? { nationalId: patient.nationalId } : {}),
-    ...(patient.passportNumber !== ''
-      ? { passportNumber: patient.passportNumber }
-      : {}),
-    ...(patient.hasNhiCard === true ? { hasNhiCard: true } : {}),
-    privacyConsent: true
-  };
+function nationalityValue() {
+  const checked = NATIONALITY_INPUTS.find((id) => elements[id].checked);
+  return checked === undefined ? '' : elements[checked].value;
 }
 
 function patientInput() {
-  const foreign = isForeignNational();
   return {
     name: elements['patient-name'].value,
     phone: elements['patient-phone'].value,
-    birthDate: birthDateValue(),
-    // 只送使用者看得到的那一欄。另一欄即使還留著上一次的輸入，也不該跟著出去。
-    nationalId: foreign ? '' : elements['patient-national-id'].value,
-    passportNumber: foreign ? elements['patient-passport'].value : '',
-    hasNhiCard: elements['patient-nhi-card'].checked
+    birthDate: monthDayValue('patient-birth-month', 'patient-birth-day'),
+    nationality: nationalityValue()
   };
 }
 
-// domain 的欄位名 → 畫面上「該把錯誤放哪裡、焦點帶到哪裡」。
-// 生日拆成三格之後，錯誤訊息仍然只有一則（那是一個邏輯資料），掛在分組下方；
-// 焦點帶到月份，因為那是必填的第一格。
+function patientIntake() {
+  return { ...patientInput(), privacyConsent: true };
+}
+
+// domain 的欄位名 → 畫面上「該把錯誤放哪裡、焦點帶到哪裡」。生日兩格只有一則
+// 錯誤，掛在分組下方，焦點帶到月份；國籍的焦點帶到第一個選項。
 const FIELD_UI = {
   name: { input: 'patient-name', error: 'patient-name-error' },
   phone: { input: 'patient-phone', error: 'patient-phone-error' },
-  birthDate: { input: 'patient-birth-month', error: 'patient-birth-error' }
+  birthDate: { input: 'patient-birth-month', error: 'patient-birth-error' },
+  nationality: {
+    input: 'patient-nationality-domestic',
+    error: 'patient-nationality-error'
+  }
 };
 
-// 證件那三個欄位名（身分證／護照／兩者皆空）都指向**目前看得到的那一欄**。
-// 對著使用者根本沒顯示的欄位報錯，等於告訴他去修一個不存在的東西。
-function documentUi() {
-  return isForeignNational()
-    ? { input: 'patient-passport', error: 'patient-passport-error' }
-    : { input: 'patient-national-id', error: 'patient-national-id-error' };
-}
+const FIELD_INPUTS = {
+  birthDate: ['patient-birth-month', 'patient-birth-day'],
+  nationality: NATIONALITY_INPUTS
+};
 
 function fieldUi(field) {
-  return FIELD_UI[field] ?? documentUi();
+  return FIELD_UI[field];
 }
 
 // 只對「使用者已經離開過」的欄位顯示錯誤，避免一進表單就滿江紅。
@@ -690,15 +643,8 @@ const touched = new Set();
 
 function showFieldErrors(only = touched) {
   const errors = fieldErrors(patientInput());
-  // 先清空所有錯誤位置再逐一填：證件欄會依「外籍人士」切換，只更新目前這一欄
-  // 會把另一欄上一輪的紅字留在畫面上。
-  for (const id of [
-    'patient-name-error',
-    'patient-phone-error',
-    'patient-birth-error',
-    'patient-national-id-error',
-    'patient-passport-error'
-  ]) {
+  // 先清空所有錯誤位置再逐一填，避免上一輪的紅字留在已經改好的欄位上。
+  for (const { error: id } of Object.values(FIELD_UI)) {
     elements[id].textContent = '';
     elements[id].hidden = true;
   }
@@ -709,15 +655,10 @@ function showFieldErrors(only = touched) {
 
   for (const [field, message] of Object.entries(errors)) {
     const ui = fieldUi(field);
-    // 三格生日只要有一格被造訪過，就算這個邏輯欄位已經被造訪。
-    const seen =
-      field === 'birthDate'
-        ? [
-            'patient-birth-year',
-            'patient-birth-month',
-            'patient-birth-day'
-          ].some((id) => only.has(id))
-        : only.has(ui.input);
+    if (ui === undefined) continue;
+    // 由多個控制項組成的欄位（生日兩格、國籍兩個選項）只要有一個被造訪過，
+    // 就算這個邏輯欄位已經被造訪。
+    const seen = (FIELD_INPUTS[field] ?? [ui.input]).some((id) => only.has(id));
     if (!seen) continue;
     elements[ui.error].textContent = message;
     elements[ui.error].hidden = false;
@@ -865,7 +806,6 @@ elements['patient-slot-months'].addEventListener('keydown', (event) => {
 
 for (const field of [
   ...formFields,
-  'patient-nhi-card',
   'synthetic-confirmation',
   'privacy-consent'
 ])
@@ -894,16 +834,6 @@ elements['open-privacy-policy'].addEventListener('click', (event) => {
       message('已標記為讀過告知草稿；系統未保存正式同意紀錄。', 'success');
     }
   });
-});
-
-// P9：勾選來源標籤時同步介紹人欄位的顯示。
-elements['patient-source-tags'].addEventListener('change', syncReferrerField);
-
-// P10：勾選「外籍人士」時改問護照。切換時把另一欄清空——留著上一次的輸入，
-// 使用者換回來時會看到一個他以為已經刪掉的號碼，而那是身分識別資料。
-elements['patient-request-tags'].addEventListener('change', () => {
-  syncIdentityDocumentField();
-  updateSubmitState();
 });
 
 // 從政策頁按「已閱讀草稿，回到預約」回來時帶著 ?notice-read=1。
@@ -1028,8 +958,6 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
             'patient-request-tags',
             'data-request-tag'
           ),
-          sourceTags: checkedTagIds('patient-source-tags', 'data-source-tag'),
-          referrerName: elements['patient-referrer'].value,
           patientNote: elements['patient-note'].value,
           origin: 'patient'
         })
@@ -1115,8 +1043,6 @@ function restartBooking() {
   activeSlotDate = undefined;
   activeSlotMonth = undefined;
   syncSelectedBookingType();
-  syncReferrerField();
-  syncIdentityDocumentField();
   renderAll();
   showStep(1);
 }
@@ -1124,27 +1050,15 @@ function restartBooking() {
 elements['book-another'].addEventListener('click', restartBooking);
 elements['booking-restart'].addEventListener('click', restartBooking);
 
+// 回診查詢只有「電話＋月日」一種方式（BOOKING-MINIMIZATION-2026-09-22）。
 function lookupVerification() {
   return {
-    mode: bookingLookupMode,
-    birthDate: elements['booking-lookup-birth'].value,
-    ...(bookingLookupMode === 'phone'
-      ? { phone: elements['booking-lookup-phone'].value }
-      : { documentNumber: elements['booking-lookup-document'].value })
+    phone: elements['booking-lookup-phone'].value,
+    birthDate: monthDayValue(
+      'booking-lookup-birth-month',
+      'booking-lookup-birth-day'
+    )
   };
-}
-
-function renderLookupMode() {
-  document.querySelectorAll('[data-booking-lookup-mode]').forEach((button) => {
-    const selected = button.dataset.bookingLookupMode === bookingLookupMode;
-    button.classList.toggle('is-selected', selected);
-    button.setAttribute('aria-pressed', String(selected));
-  });
-  const usePhone = bookingLookupMode === 'phone';
-  elements['booking-lookup-phone-field'].hidden = !usePhone;
-  elements['booking-lookup-document-field'].hidden = usePhone;
-  if (usePhone) elements['booking-lookup-document'].value = '';
-  else elements['booking-lookup-phone'].value = '';
 }
 
 function renderManagedAppointments() {
@@ -1210,18 +1124,6 @@ elements['booking-management-dialog'].addEventListener('close', () => {
   bookingManagementReturnFocus = undefined;
 });
 
-document.querySelectorAll('[data-booking-lookup-mode]').forEach((button) =>
-  button.addEventListener('click', () => {
-    bookingLookupMode = button.dataset.bookingLookupMode;
-    renderLookupMode();
-    const target =
-      bookingLookupMode === 'phone'
-        ? elements['booking-lookup-phone']
-        : elements['booking-lookup-document'];
-    target.focus();
-  })
-);
-
 function opaqueAppointmentId(value) {
   const id = String(value ?? '').trim();
   return /^[A-Za-z0-9_-]{8,128}$/.test(id) && /[A-Za-z_]/.test(id)
@@ -1232,20 +1134,12 @@ function opaqueAppointmentId(value) {
 elements['booking-lookup-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
   const verification = lookupVerification();
-  const appointmentId = opaqueAppointmentId(
-    bookingLookupMode === 'phone'
-      ? verification.phone
-      : verification.documentNumber
-  );
+  const appointmentId = opaqueAppointmentId(verification.phone);
   const canQueryById =
     appointmentId !== undefined && isInternalTestBookingEnabled();
-  const secondField =
-    bookingLookupMode === 'phone'
-      ? verification.phone
-      : verification.documentNumber;
   if (
     !canQueryById &&
-    (verification.birthDate === '' || String(secondField ?? '').trim() === '')
+    (verification.birthDate === '' || verification.phone.trim() === '')
   ) {
     elements['booking-lookup-status'].hidden = false;
     elements['booking-lookup-status'].dataset.state = 'error';
@@ -1451,8 +1345,6 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
   });
 });
 
-renderLookupMode();
-
 document.querySelector('.skip-link').addEventListener('click', (event) => {
   event.preventDefault();
   window.location.hash = 'patient-main';
@@ -1489,8 +1381,6 @@ renderBookingTypeButtons();
 // 標籤是常數，只畫一次：重畫會清掉使用者已經勾好的選擇。
 renderPatientTags();
 renderPatientContactLinks();
-syncReferrerField();
-syncIdentityDocumentField();
 
 try {
   client = await resolveApiClient();

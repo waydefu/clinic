@@ -118,8 +118,8 @@ describe('mapInternalTestBookingRequest', () => {
       intake: {
         name: '合成患者甲',
         phone: '0912000001',
-        birthDate: '1990-01-15',
-        nationalId: 'A123456789',
+        birthDate: '--01-15',
+        nationality: 'domestic',
         privacyConsent: true
       }
     });
@@ -127,8 +127,8 @@ describe('mapInternalTestBookingRequest', () => {
       intake: {
         name: '合成患者甲',
         phone: '0912000001',
-        birthDate: '1990-01-15',
-        nationalId: 'A123456789',
+        birthDate: '--01-15',
+        nationality: 'domestic',
         privacyConsent: true
       }
     });
@@ -165,17 +165,17 @@ describe('mapInternalTestBookingRequest', () => {
     expect(
       mapInternalTestBookingRequest('/patient/bookings/lookup', 'POST', {
         phone: '0912000001',
-        birthDate: '1990-01-15'
+        birthDate: '--01-15'
       })
     ).toMatchObject({
       url: '/v1/return-lookup',
       method: 'POST',
-      body: { phone: '0912000001', birthDate: '1990-01-15' }
+      body: { phone: '0912000001', birthDate: '--01-15' }
     });
     expect(
       mapInternalTestBookingRequest('/patient/bookings/lookup', 'POST', {
         documentNumber: 'A123456789',
-        birthDate: '1990-01-15'
+        birthDate: '--01-15'
       })
     ).toBeUndefined();
     expect(mapInternalTestBookingRequest('/state', 'GET', {})).toBeUndefined();

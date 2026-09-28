@@ -64,9 +64,9 @@ describe('patientIdentityIssues', () => {
   });
 
   it('國籍只有本國與外國兩種', () => {
-    expect(
-      patientIdentityIssues({ ...VALID, nationality: 'foreign' })
-    ).toEqual([]);
+    expect(patientIdentityIssues({ ...VALID, nationality: 'foreign' })).toEqual(
+      []
+    );
     expect(
       patientIdentityIssues({ ...VALID, nationality: 'foreign_national' })
     ).toEqual([{ field: 'nationality', code: 'format' }]);
@@ -74,7 +74,9 @@ describe('patientIdentityIssues', () => {
 
   it('不再要求身分證或護照', () => {
     const issues = patientIdentityIssues(VALID);
-    expect(issues.map((issue) => issue.field)).not.toContain('identityDocument');
+    expect(issues.map((issue) => issue.field)).not.toContain(
+      'identityDocument'
+    );
   });
 
   it('姓名以字元數計算，不因表情符號的編碼長度誤判', () => {

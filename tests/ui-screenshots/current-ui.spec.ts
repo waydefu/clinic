@@ -5,7 +5,11 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { arch, platform, release } from 'node:os';
 import { join } from 'node:path';
 
-import { fillBirthDate, submitBooking } from '../e2e/support/patient.js';
+import {
+  chooseNationality,
+  fillBirthDate,
+  submitBooking
+} from '../e2e/support/patient.js';
 import {
   STORAGE_KEY,
   createBooking,
@@ -246,13 +250,9 @@ async function prepareFilledBookingDetails(page: Page): Promise<void> {
 
   await page.locator('#patient-name').fill('合成截圖患者甲');
   await page.locator('#patient-phone').fill('0912345678');
-  await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
-  await page.locator('#patient-national-id').fill('A123456789');
-  await page.locator('#patient-nhi-card').check();
+  await fillBirthDate(page, { month: '05', day: '20' });
+  await chooseNationality(page);
   await page.locator('[data-request-tag="same_day_procedure"]').check();
-  await page.locator('[data-source-tag="friend_referral"]').check();
-  await expect(page.locator('#patient-referrer-field')).toBeVisible();
-  await page.locator('#patient-referrer').fill('合成介紹人');
   await page
     .locator('#patient-note')
     .fill('合成截圖基準資料；禁止輸入真實病患資料。');
@@ -274,7 +274,8 @@ async function prepareCancellationLookup(page: Page): Promise<void> {
   await prepareBookingSuccess(page);
   await page.locator('#booking-management-open').click();
   await page.locator('#booking-lookup-phone').fill('0912345678');
-  await page.locator('#booking-lookup-birth').fill('1990-05-20');
+  await page.locator('#booking-lookup-birth-month').fill('05');
+  await page.locator('#booking-lookup-birth-day').fill('20');
   await page.locator('#booking-lookup-form button[type="submit"]').click();
   await expect(page.locator('.booking-lookup-card')).toBeVisible();
 }
@@ -299,7 +300,8 @@ async function prepareCancellationPhoneFallback(page: Page): Promise<void> {
   }, STORAGE_KEY);
   await page.locator('#booking-management-open').click();
   await page.locator('#booking-lookup-phone').fill('0912345678');
-  await page.locator('#booking-lookup-birth').fill('1990-05-20');
+  await page.locator('#booking-lookup-birth-month').fill('05');
+  await page.locator('#booking-lookup-birth-day').fill('20');
   await page.locator('#booking-lookup-form button[type="submit"]').click();
   await expect(page.locator('.booking-phone-fallback')).toBeVisible();
   await expect(page.locator('[data-managed-cancel]')).toHaveCount(0);

@@ -54,21 +54,23 @@ export async function createBooking(
   {
     name = '測試患者甲',
     phone = '0912345678',
-    nationalId = 'A123456789',
-    birth = '1990-05-20'
+    birth = { month: '05', day: '20' },
+    nationality = 'domestic'
   }: {
     name?: string;
     phone?: string;
-    nationalId?: string;
-    birth?: string;
+    birth?: { month: string; day: string };
+    nationality?: 'domestic' | 'foreign';
   } = {}
 ): Promise<void> {
   await page.goto('/staff#appointments-section');
   await openDisclosure(page, '#booking-workflow');
   await page.locator('#booking-name').fill(name);
   await page.locator('#booking-phone').fill(phone);
-  await page.locator('#booking-birth').fill(birth);
-  await page.locator('#booking-national-id').fill(nationalId);
+  // BOOKING-MINIMIZATION-2026-09-22：生日只收月日，國籍本國／外國。
+  await page.locator('#booking-birth-month').fill(birth.month);
+  await page.locator('#booking-birth-day').fill(birth.day);
+  await page.locator('#booking-nationality').selectOption(nationality);
   await page.locator('#booking-kind').selectOption('initial');
   // 療程自 2026-07-27 起是可複選（W5），而且**至少要一項**。先前是 `<select>`，
   // 永遠有一個預設值，所以這個 helper 從來不必碰它。
