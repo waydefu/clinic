@@ -76,6 +76,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [現有專案完整驗收主計畫（2026-09-22）](plans/2026-09-22-current-project-acceptance-master-plan.md) — plan-only：P1-09 → 新預約需求 → BD runtime／Google 真還原 → 回歸／Drive 同步／業主驗收；AWS 與官網後置，不構成雲端授權。
 - [現有專案逐包執行計畫（2026-09-22）](plans/2026-09-22-current-project-execution-packets.md) — Luna-ready：每包 24 個 PR 欄位、來源入口、步驟、測試、回退、停止條件與交辦內容。
 - [P1-09 C1 有界操作 packet（2026-09-22）](plans/2026-09-22-p1-09-operator-packet.md) — 19 gates、兩階完整 Terraform plan、獨立 config mutation、固定期限及最多 20 次限流驗證；待新明確核准。
+- [CP-02 C1 新預約驗收核准（2026-09-28）](plans/2026-09-28-cp-02-c1-runtime-approval.md) — 業主對話核准部署 CP-01（`1e0b84f`）到 C1 並以合成資料驗收，時窗到 2026-10-02T12:00Z；BKG-06 不適用、不直接寫入合成資料。
 - [P1-09 關帳追加額度核准（2026-09-27）](plans/2026-09-27-p1-09-closeout-quota-approval.md) — 業主對話核准 A／C／D／E2／I 的 C1 追加額度，綁 `c390c9e`，時窗到 2026-09-30T12:00Z；尚未指定操作者，未執行。
 - [現有專案驗收矩陣（2026-09-22）](plans/2026-09-22-current-project-acceptance-matrix.md) — 88 項分層證據、原 F-01～14 對帳與技術／現有專案／production 的獨立 gate，不以 CI 代替現場或人證。
 - [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
