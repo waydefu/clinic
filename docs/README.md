@@ -76,6 +76,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [現有專案完整驗收主計畫（2026-09-22）](plans/2026-09-22-current-project-acceptance-master-plan.md) — plan-only：P1-09 → 新預約需求 → BD runtime／Google 真還原 → 回歸／Drive 同步／業主驗收；AWS 與官網後置，不構成雲端授權。
 - [現有專案逐包執行計畫（2026-09-22）](plans/2026-09-22-current-project-execution-packets.md) — Luna-ready：每包 24 個 PR 欄位、來源入口、步驟、測試、回退、停止條件與交辦內容。
 - [P1-09 C1 有界操作 packet（2026-09-22）](plans/2026-09-22-p1-09-operator-packet.md) — 19 gates、兩階完整 Terraform plan、獨立 config mutation、固定期限及最多 20 次限流驗證；待新明確核准。
+- [CP-02 C1 新預約驗收核准（2026-09-28）](plans/2026-09-28-cp-02-c1-runtime-approval.md) — 業主對話核准部署 CP-01（`1e0b84f`）到 C1 並以合成資料驗收，時窗到 2026-10-02T12:00Z；BKG-06 不適用、不直接寫入合成資料。
 - [P1-09 關帳追加額度核准（2026-09-27）](plans/2026-09-27-p1-09-closeout-quota-approval.md) — 業主對話核准 A／C／D／E2／I 的 C1 追加額度，綁 `c390c9e`，時窗到 2026-09-30T12:00Z；尚未指定操作者，未執行。
 - [現有專案驗收矩陣（2026-09-22）](plans/2026-09-22-current-project-acceptance-matrix.md) — 88 項分層證據、原 F-01～14 對帳與技術／現有專案／production 的獨立 gate，不以 CI 代替現場或人證。
 - [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
@@ -184,6 +185,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-28 | [CP-02 C1 新預約驗收](reviews/2026-09-28-cp-02-c1-runtime-evidence.md) | CP-02 RUNTIME_PROVEN on isolated synthetic C1 at `1e0b84f`: BKG-01～05、07、09～12 runtime; BKG-06 not applicable by owner decision; BKG-08 two-candidate case kept on Emulator evidence. Three deviations recorded (API-only targeted apply, Hosting briefly pinned to an older revision before any write, legacy lookup proven structurally). Booking gate closed at the end. Open: C1 Workbench list shows no nationality. No production or D-series approval. |
 | 2026-09-28 | [P1-09 關帳](reviews/2026-09-28-p1-09-closeout.md) | P1-09 CLOSED on isolated synthetic C1: Stage F evaluator and `inspect:internal-preproduction` both `ok=true`, exit 0; all P09 rows, SEC-13/14 and Gate 16 PASS; F-06 evidence sets uploaded by the owner; booking gate closed early at owner direction. OPS-06 optional NOT_RUN. No production, live Hosting, real-data or D-series approval. |
 | 2026-09-28 | [P1-09 E2 停用員工實測](reviews/2026-09-28-p1-09-e2-disabled-staff.md) | Under the owner-approved E2 extension: a disabled staff account's next protected call on the same session was refused (401) and succeeded again after re-enable (200). First attempt void (idle timeout). Traffic rolled back afterwards. SEC-14 E2 PASS; WP-B6A manifest only. P1-09 `NOT_CLOSED`. |
 | 2026-09-28 | [P1-09 Stage F 唯讀重建](reviews/2026-09-28-p1-09-stage-f-readback.md) | Lost 9/25–9/26 originals declared `HISTORICAL_ARTIFACTS_LOST`; new evidence set built from read-only C1 readbacks under owner input `WP-B6B-2026-09-28`. Evaluator on `f734bb5`: `ok=true`, 11 PASS, exit 0. Gate 17 PASS (reconstructed); per-case detail stays in the private set, the review keeps only the WP-B6A manifest. P1-09 `NOT_CLOSED`. |

@@ -64,18 +64,18 @@ hash不能取代證據本體可訪問性。未核准的雲端/人證行保持NOT
 | P09-12 | StageF11case與舊inspect | NOT_PROVEN | 目前缺candidate/429等 | CP-00 | 全部requiredcase；humanInboxProof；非只空CLI | 11case manifest + both evaluatorresults |
 | P09-13 | 回退/告警/lease健康 | CLOUD_READBACK_PROVEN | 舊known-goodrevision與outboxENABLED | CP-00 | 基線healthy且可回退；新inbound不resume；無DLQ/duplicate | rollbackrecord+monitoring+state |
 | P09-14 | P1-09關帳交接 | BLOCKED | 新雲端授權、runtime/人證未齊 | CP-00 | 所有P09列完成；datedPRexactCI；不得雲端證據推定 | closurePR+headCI+artifactmanifest |
-| BKG-01 | 生日只月日新UI/payload | NOT_PROVEN | 當前year仍可收集；CP-01未實作 | CP-01/02 | 無year；只--MM-DD；閏日/非法日期 | UI+network+strictschema+unit |
-| BKG-02 | 本國/外國恰二選一 | NOT_PROVEN | 當前legacytag/label未收斂 | CP-01/02 | 無當日/外籍等舊分類；其他procedure不混國籍 | DOM+payload+domainfixture |
-| BKG-03 | 移除證件/來源/referrer/NHI意向 | NOT_PROVEN | 目前多層仍收；C1部分未persist不代表全鏈已移 | CP-01/02 | UI/state/transport/API/domain/persist零新收集；注入被拒 | fieldpath inventory+schema/DB/logdiff |
-| BKG-04 | 新預約serverSoT/reload | RUNTIME_PROVEN | 4f31 dated既有合成write；非新欄位版 | CP-02/08 | 新versionbookingcreate/reloadserver仍有；localStorage不是SoT | network+booking/slot/audit/outbox |
-| BKG-05 | phone+MM-DD回診查詢 | NOT_PROVEN | 舊fullDOB flow datedpass；新lookup未作 | CP-01/02 | 唯一合法lineage才給returnsession；genericnomatch | lookup/session/API/DBproof |
-| BKG-06 | 舊fullDOB合法alias | NOT_PROVEN | hash-only不可反推 | CP-01/02 | 有合法source可建alias；保留patientId/舊預約；不得猜年 | fixedlegacyfixture+transitiontests |
-| BKG-07 | hash-only不能安全相容 | NOT_PROVEN | 已識別不可逆限制，缺新safehandling | CP-01/02 | 保留舊row；不生成假alias、不wipe；查詢通用失敗 | negativefixture+no-session/no-writeproof |
-| BKG-08 | 共用電話/月日碰撞並行 | NOT_PROVEN | 當前singlepatientIdindex不能完整表ambiguity | CP-01/02 | 多候選/不可辨識failclosed；不顯示他人資料；交易不overwrite | collision/raceemulator+runtime |
-| BKG-09 | returnrequired+unscheduled | RUNTIME_PROVEN | 4f31 datedP1-07 flow | CP-02/08 | required/unscheduled才排followup；nonce/expiry/version守門 | APIdomain+returnsession+followup |
-| BKG-10 | 取消/改約/duplicate | CI_PROVEN | main既有contract/tests；新identity需重跑 | CP-01/02/08 | 沿原patientIdlineage；cutoff/slot/重播/衝突不繞過 | targetedtests+boundedruntime |
-| BKG-11 | 歷史相容read不再收集 | NOT_PROVEN | 新DTO separation未作 | CP-01/02 | 舊read保留；新draft不重送移除欄位；無massrewrite | legacy/newpayload+fixturecounts |
-| BKG-12 | audit/export/Calendar無新PII | SOURCE_PROVEN | 既有redaction/exportcontract；待新字段回歸 | CP-01/02/04/08 | 敏感fixture不在log/audit/Calendar或非白名單export | safeartifactscan+negativeassertions |
+| BKG-01 | 生日只月日新UI/payload | RUNTIME_PROVEN | 2026-09-28 CP-02 C1 1e0b84f；表單月日、strict schema | CP-01/02 | 無year；只--MM-DD；閏日/非法日期 | UI+network+strictschema+unit |
+| BKG-02 | 本國/外國恰二選一 | RUNTIME_PROVEN | 2026-09-28 CP-02；恰二選一、intakeNationality | CP-01/02 | 無當日/外籍等舊分類；其他procedure不混國籍 | DOM+payload+domainfixture |
+| BKG-03 | 移除證件/來源/referrer/NHI意向 | RUNTIME_PROVEN | 2026-09-28 CP-02；注入400、筆數不變 | CP-01/02 | UI/state/transport/API/domain/persist零新收集；注入被拒 | fieldpath inventory+schema/DB/logdiff |
+| BKG-04 | 新預約serverSoT/reload | RUNTIME_PROVEN | 2026-09-28 CP-02 新欄位版create/Workbench server讀回 | CP-02/08 | 新versionbookingcreate/reloadserver仍有；localStorage不是SoT | network+booking/slot/audit/outbox |
+| BKG-05 | phone+MM-DD回診查詢 | RUNTIME_PROVEN | 2026-09-28 CP-02；session/錯月日generic 404無session | CP-01/02 | 唯一合法lineage才給returnsession；genericnomatch | lookup/session/API/DBproof |
+| BKG-06 | 舊fullDOB合法alias | NOT_PROVEN | 業主決定不適用（LEGACY-PATIENT-NO-ALIAS-2026-09-28，無合法原值）；由BKG-07涵蓋 | CP-01/02 | 有合法source可建alias；保留patientId/舊預約；不得猜年 | fixedlegacyfixture+transitiontests |
+| BKG-07 | hash-only不能安全相容 | RUNTIME_PROVEN | 2026-09-28 CP-02；舊索引筆數不變、無alias | CP-01/02 | 保留舊row；不生成假alias、不wipe；查詢通用失敗 | negativefixture+no-session/no-writeproof |
+| BKG-08 | 共用電話/月日碰撞並行 | RUNTIME_PROVEN | 2026-09-28 CP-02並發201/409；兩候選沿用Emulator（CP-02-NO-DIRECT-SEED） | CP-01/02 | 多候選/不可辨識failclosed；不顯示他人資料；交易不overwrite | collision/raceemulator+runtime |
+| BKG-09 | returnrequired+unscheduled | RUNTIME_PROVEN | 2026-09-28 CP-02 新identity版 required→session→followup | CP-02/08 | required/unscheduled才排followup；nonce/expiry/version守門 | APIdomain+returnsession+followup |
+| BKG-10 | 取消/改約/duplicate | RUNTIME_PROVEN | 2026-09-28 CP-02；重播同id、改期/取消同lineage | CP-01/02/08 | 沿原patientIdlineage；cutoff/slot/重播/衝突不繞過 | targetedtests+boundedruntime |
+| BKG-11 | 歷史相容read不再收集 | RUNTIME_PROVEN | 2026-09-28 CP-02；舊資料保留、無草稿重送 | CP-01/02 | 舊read保留；新draft不重送移除欄位；無massrewrite | legacy/newpayload+fixturecounts |
+| BKG-12 | audit/export/Calendar無新PII | RUNTIME_PROVEN | 2026-09-28 CP-02；audit/outbox/Calendar掃描無新欄位值 | CP-01/02/04/08 | 敏感fixture不在log/audit/Calendar或非白名單export | safeartifactscan+negativeassertions |
 | SEC-01 | Google+TOTP登入 | RUNTIME_PROVEN | 4f31 datedP1-05R/07；非本計畫runtime | CP-00/02/08 | freshGoogle+TOTP→session→Workbench；錯/過期MFA拒 | privateUI+HTTPsessionreceipts |
 | SEC-02 | logout完整成功 | RUNTIME_PROVEN | 4f31 DELETE200及reloadgate | CP-00/02/08 | cookieverify+兩段revoke成功才clearcookie/signedOut | unit+network+session/clientflags |
 | SEC-03 | logout部分/雙失敗與安全重試 | CI_PROVEN | #148revoke telemetry/tests | CP-08 | 任一失敗不假成功；每retry兩段；revoked不復活；diag不含PII | revokeunit+controller+telemetrytests |
