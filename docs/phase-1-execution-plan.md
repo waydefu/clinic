@@ -1,6 +1,12 @@
 # Phase 1 Execution Plan
 
-**2026-09-22 current overlay:** C1 now has a real isolated API and outbox;
+**2026-09-28 current overlay:** P1-09 is CLOSED on the isolated synthetic C1
+environment — see the [P1-09 closeout record](reviews/2026-09-28-p1-09-closeout.md).
+The C1 internal-test booking gate was closed early at the owner's direction.
+Closure grants no production, live Hosting, real-data or D-series approval;
+the next current-project step is the owner booking-data change.
+
+**2026-09-22 overlay (dated):** C1 now has a real isolated API and outbox;
 the older “until that API exists” statement below is dated, not the current blocker.
 P1-09 remains NOT_CLOSED; source through #161 is not yet the deployed `4f31b00…` runtime.
 The [current-project master plan](plans/2026-09-22-current-project-acceptance-master-plan.md)
