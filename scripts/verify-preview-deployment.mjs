@@ -111,16 +111,14 @@ await inspectHtml('/', 'workbench entry', [
   'ONLINE PREVIEW',
   '公開預覽，網址持有人皆可存取'
 ]);
-// 2026-07-27：生日拆成三格（年選填，P11），身分證與護照擇一（P10）。
-// 這裡只釘「必填的那幾欄真的出貨了」——護照欄平時是收起來的，它的存在由
-// check:ui 與 e2e 負責。
+// 2026-09-22（BOOKING-MINIMIZATION-2026-09-22）：生日只收月日，國籍只分
+// 本國／外國，不再收身分證或護照。這裡只釘「必填的那幾欄真的出貨了」。
 await inspectHtml('/booking', 'patient entry', [
   'id="patient-name"',
   'id="patient-phone"',
-  'id="patient-birth-year"',
   'id="patient-birth-month"',
   'id="patient-birth-day"',
-  'id="patient-national-id"',
+  'id="patient-nationality-domestic"',
   '資料只會保存在我這台裝置的瀏覽器'
 ]);
 

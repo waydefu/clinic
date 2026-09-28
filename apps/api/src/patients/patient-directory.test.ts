@@ -11,19 +11,77 @@ import {
 const INTAKE = {
   name: '合成患者甲',
   phone: '0912-000-001',
-  birthDate: '1990-01-15',
-  nationalId: 'A123456789',
+  birthDate: '--01-15',
+  nationality: 'domestic' as const,
   privacyConsent: true as const
 };
 
 describe('opaque lookup identity', () => {
   it('is stable across phone punctuation and is not the raw phone number', () => {
-    expect(opaqueLookupIdentity('0912-000-001', '1990-01-15')).toBe(
-      opaqueLookupIdentity('0912000001', '1990-01-15')
+    expect(opaqueLookupIdentity('0912-000-001', '--01-15')).toBe(
+      opaqueLookupIdentity('0912000001', '--01-15')
     );
-    expect(opaqueLookupIdentity('0912000001', '1990-01-15')).not.toMatch(
-      /0912/
-    );
+    expect(opaqueLookupIdentity('0912000001', '--01-15')).not.toMatch(/0912/);
+  });
+});
+
+describe('phone + month-day identity (BOOKING-MINIMIZATION-2026-09-22)', () => {
+  const NOW = '2026-09-28T04:00:00.000Z';
+
+  it('refuses a different name on the same phone and month-day instead of merging', async () => {
+    const directory = new InMemoryPatientDirectory();
+    await directory.resolveFromIntake(INTAKE, NOW, () => 'patient_001');
+    await expect(
+      directory.resolveFromIntake(
+        { ...INTAKE, name: '合成患者乙' },
+        NOW,
+        () => 'patient_002'
+      )
+    ).rejects.toMatchObject({ code: 'PATIENT_IDENTITY_AMBIGUOUS' });
+    expect(directory.createdPatientCount).toBe(1);
+  });
+
+  it('refuses when the index already holds more than one candidate, whatever the name', async () => {
+    const directory = new InMemoryPatientDirectory();
+    const key = opaqueLookupIdentity(INTAKE.phone, INTAKE.birthDate);
+    directory.lookup.set(key, ['patient_001', 'patient_002']);
+    directory.patients.set('patient_001', { name: INTAKE.name });
+    directory.patients.set('patient_002', { name: '合成患者乙' });
+    await expect(
+      directory.resolveFromIntake(INTAKE, NOW, () => 'patient_003')
+    ).rejects.toMatchObject({ code: 'PATIENT_IDENTITY_AMBIGUOUS' });
+  });
+
+  it('answers a return lookup with several candidates exactly like a miss', async () => {
+    const directory = new InMemoryPatientDirectory();
+    const key = opaqueLookupIdentity(INTAKE.phone, INTAKE.birthDate);
+    directory.lookup.set(key, ['patient_001', 'patient_002']);
+    directory.followUp.set('patient_001', { required: true });
+    directory.followUp.set('patient_002', { required: true });
+    await expect(
+      directory.lookupReturn('0912000001', '--01-15', NOW, () => 'session')
+    ).resolves.toBeUndefined();
+    expect(directory.sessions.size).toBe(0);
+  });
+
+  it('treats a full birth date as a miss rather than parsing a year', async () => {
+    const directory = new InMemoryPatientDirectory();
+    await directory.resolveFromIntake(INTAKE, NOW, () => 'patient_001');
+    directory.followUp.set('patient_001', { required: true });
+    await expect(
+      directory.lookupReturn('0912000001', '1990-01-15', NOW, () => 'session')
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects an intake that still carries a year', async () => {
+    const directory = new InMemoryPatientDirectory();
+    await expect(
+      directory.resolveFromIntake(
+        { ...INTAKE, birthDate: '1990-01-15' },
+        NOW,
+        () => 'patient_001'
+      )
+    ).rejects.toBeInstanceOf(DomainError);
   });
 });
 
@@ -46,7 +104,7 @@ describe('InMemoryPatientDirectory', () => {
     await expect(
       directory.lookupReturn(
         '0912000001',
-        '1990-01-15',
+        '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
       )
@@ -55,7 +113,7 @@ describe('InMemoryPatientDirectory', () => {
     await expect(
       directory.lookupReturn(
         '0912000001',
-        '1990-01-15',
+        '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
       )
@@ -67,7 +125,7 @@ describe('InMemoryPatientDirectory', () => {
     await expect(
       directory.lookupReturn(
         '0912000001',
-        '1990-01-15',
+        '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
       )
@@ -96,7 +154,7 @@ describe('InMemoryPatientDirectory', () => {
     await expect(
       directory.lookupReturn(
         '0912000001',
-        '1990-01-15',
+        '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
       )
@@ -130,7 +188,7 @@ describe('InMemoryPatientDirectory', () => {
       });
       const result = await directory.lookupReturn(
         '0912000001',
-        '1990-01-15',
+        '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
       );

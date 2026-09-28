@@ -5,17 +5,24 @@ import { STORAGE_KEY } from './workbench.js';
 /**
  * 患者預約頁的共用操作。
  *
- * 生日自 2026-07-27 起是三格（年選填／月／日，見介面規則書 R-7 的具名例外），
- * 所以「填生日」不再是 `fill('1990-05-20')` 一句話。集中在這裡，是為了下一次
- * 欄位形狀再變時只有一個地方要改——先前 `#patient-birth` 散在三支 spec 裡。
+ * 生日自 2026-09-22 起只收月與日（BOOKING-MINIMIZATION-2026-09-22；介面規則書
+ * R-7 的具名例外），所以「填生日」不是一句 `fill`。集中在這裡，是為了下一次
+ * 欄位形狀再變時只有一個地方要改。
  */
 export async function fillBirthDate(
   page: Page,
-  { year, month, day }: { year?: string; month: string; day: string }
+  { month, day }: { month: string; day: string }
 ): Promise<void> {
-  await page.locator('#patient-birth-year').fill(year ?? '');
   await page.locator('#patient-birth-month').fill(month);
   await page.locator('#patient-birth-day').fill(day);
+}
+
+/** 國籍只分本國／外國，同一決定取代了身分證與護照欄。 */
+export async function chooseNationality(
+  page: Page,
+  nationality: 'domestic' | 'foreign' = 'domestic'
+): Promise<void> {
+  await page.locator(`#patient-nationality-${nationality}`).check();
 }
 
 /**
@@ -34,15 +41,16 @@ export async function submitBooking(page: Page): Promise<void> {
 /**
  * 打開「查詢／取消預約」對話框並查出本人可管理的預約。
  *
- * 查詢必須用電話＋生日；這是患者自助表面，不是工作臺。
+ * 查詢必須用電話＋生日（月日）；這是患者自助表面，不是工作臺。
  */
 export async function lookupBooking(
   page: Page,
-  { phone, birthDate }: { phone: string; birthDate: string }
+  { phone, birth }: { phone: string; birth: { month: string; day: string } }
 ): Promise<void> {
   await page.locator('#booking-management-open').click();
   await page.locator('#booking-lookup-phone').fill(phone);
-  await page.locator('#booking-lookup-birth').fill(birthDate);
+  await page.locator('#booking-lookup-birth-month').fill(birth.month);
+  await page.locator('#booking-lookup-birth-day').fill(birth.day);
   await page.locator('#booking-lookup-form button[type="submit"]').click();
   await expect(page.locator('.booking-lookup-card')).toBeVisible();
 }
@@ -70,13 +78,11 @@ export async function createPatientInitialBooking(
   {
     name,
     phone,
-    nationalId,
     birth
   }: {
     name: string;
     phone: string;
-    nationalId: string;
-    birth: { year: string; month: string; day: string };
+    birth: { month: string; day: string };
   }
 ): Promise<void> {
   await page.locator('[data-booking-type="initial"]').click();
@@ -85,7 +91,7 @@ export async function createPatientInitialBooking(
   await page.locator('#patient-name').fill(name);
   await page.locator('#patient-phone').fill(phone);
   await fillBirthDate(page, birth);
-  await page.locator('#patient-national-id').fill(nationalId);
+  await chooseNationality(page);
   await page.locator('#privacy-consent').check();
   await page.locator('#synthetic-confirmation').check();
   await submitBooking(page);
@@ -96,17 +102,13 @@ export async function openPatientRescheduleControls(page: Page): Promise<void> {
   const identity = {
     name: '改期品質患者',
     phone: '0977000222',
-    nationalId: 'M123456789',
-    birth: { year: '1984', month: '04', day: '18' }
+    birth: { month: '04', day: '18' }
   };
   await page.goto('/booking');
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
   await createPatientInitialBooking(page, identity);
   await makeLatestBookingSelfCancellable(page);
-  await lookupBooking(page, {
-    phone: identity.phone,
-    birthDate: `${identity.birth.year}-${identity.birth.month}-${identity.birth.day}`
-  });
+  await lookupBooking(page, { phone: identity.phone, birth: identity.birth });
   await expect(page.locator('[data-managed-reschedule-slot]')).toBeVisible();
 }

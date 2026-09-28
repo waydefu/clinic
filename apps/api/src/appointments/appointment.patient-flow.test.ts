@@ -58,8 +58,8 @@ const OPEN_INTERNAL_TEST_SETTINGS = {
 const INTAKE = {
   name: '合成患者甲',
   phone: '0912000001',
-  birthDate: '1990-01-15',
-  nationalId: 'A123456789',
+  birthDate: '--01-15',
+  nationality: 'domestic' as const,
   privacyConsent: true as const
 };
 
@@ -299,10 +299,55 @@ describe('accountless booking and return lookup HTTP', () => {
         slotId: 'slot_001',
         serviceId: 'service_consult',
         bookingKind: 'initial',
-        intake: { ...INTAKE, phone: '0912000002', nationalId: 'A123456780' }
+        intake: { ...INTAKE, phone: '0912000002' }
       }
     });
     expect(conflict.statusCode).toBe(409);
+  });
+
+  it('refuses a second person on the same phone and month-day without leaking either', async () => {
+    const { harness } = await start();
+    const first = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: {
+        idempotencyKey: 'booking_request_0001',
+        slotId: 'slot_001',
+        serviceId: 'service_consult',
+        bookingKind: 'initial',
+        intake: INTAKE
+      }
+    });
+    expect(first.statusCode).toBeLessThan(300);
+    const sibling = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: {
+        idempotencyKey: 'booking_request_0002',
+        slotId: 'slot_002',
+        serviceId: 'service_consult',
+        bookingKind: 'initial',
+        intake: { ...INTAKE, name: '合成患者乙' }
+      }
+    });
+    expect(sibling.statusCode).toBe(409);
+    expect(sibling.body).not.toMatch(/0912|01-15|合成患者/);
+  });
+
+  it('rejects an intake that still sends a removed identity field', async () => {
+    const { harness } = await start();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      payload: {
+        idempotencyKey: 'booking_request_0001',
+        slotId: 'slot_001',
+        serviceId: 'service_consult',
+        bookingKind: 'initial',
+        intake: { ...INTAKE, nationalId: 'A123456789' }
+      }
+    });
+    expect(response.statusCode).toBe(400);
   });
 
   it('rate-limits repeated invalid return lookups without enumerating', async () => {
@@ -314,15 +359,15 @@ describe('accountless booking and return lookup HTTP', () => {
       const miss = await harness.inject({
         method: 'POST',
         url: '/v1/return-lookup',
-        payload: { phone: '0912000001', birthDate: '1990-01-15' }
+        payload: { phone: '0912000001', birthDate: '--01-15' }
       });
       expect(miss.statusCode).toBe(404);
-      expect(miss.body).not.toMatch(/0912|1990-01-15|exists/i);
+      expect(miss.body).not.toMatch(/0912|01-15|exists/i);
     }
     const locked = await harness.inject({
       method: 'POST',
       url: '/v1/return-lookup',
-      payload: { phone: '0912000001', birthDate: '1990-01-15' }
+      payload: { phone: '0912000001', birthDate: '--01-15' }
     });
     expect(locked.statusCode).toBe(429);
     expect(locked.headers['retry-after']).toEqual(
@@ -357,7 +402,7 @@ describe('accountless booking and return lookup HTTP', () => {
         method: 'POST',
         url: '/v1/return-lookup',
         headers: { 'x-forwarded-for': `198.51.100.${i + 1}` },
-        payload: { phone: '0912000001', birthDate: '1990-01-15' }
+        payload: { phone: '0912000001', birthDate: '--01-15' }
       });
       expect(miss.statusCode).toBe(404);
     }
@@ -365,7 +410,7 @@ describe('accountless booking and return lookup HTTP', () => {
       method: 'POST',
       url: '/v1/return-lookup',
       headers: { 'x-forwarded-for': '198.51.100.250' },
-      payload: { phone: '0912000001', birthDate: '1990-01-15' }
+      payload: { phone: '0912000001', birthDate: '--01-15' }
     });
     expect(blocked.statusCode).toBe(429);
     expect(blocked.headers['retry-after']).toEqual(

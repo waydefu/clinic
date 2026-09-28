@@ -5,7 +5,7 @@ import {
   BOOKING_NOTE_TAGS,
   DELETE_APPOINTMENT_REASONS,
   FOLLOW_UP_NOTE_TAGS,
-  PATIENT_REQUEST_TAGS,
+  LEGACY_REQUEST_TAGS,
   PATIENT_SOURCE_TAGS,
   PERMISSIONS,
   WEEKDAY_LABELS,
@@ -87,23 +87,33 @@ function patientLabel(state, id) {
 function patientDetail(state, id) {
   const record = patient(state, id);
   if (record === undefined) return escapeHtml(id);
-  // 生日的年份自 2026-07-27 起是選填，沒填時值長 `--05-20`（XSD gMonthDay）。
-  // 直接印出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20（未填年）」，
-  // 讓「沒有年份」看起來是一個事實而不是一個錯誤。
+  // 新預約的生日只有月日（`--05-20`，BOOKING-MINIMIZATION-2026-09-22）。直接印
+  // 出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20」。舊紀錄可能帶年份。
   const birth = birthDateHasYear(record.birthDate)
     ? record.birthDate
-    : `${record.birthDate.slice(2).replace('-', '/')}（未填年）`;
-  // 遮罩走 domain 的統一入口：外籍患者給的是護照，這裡不能因為身分證欄是空的
-  // 就顯示破折號——那看起來像資料缺漏，而不是換了一種證件。
-  // 病歷號碼是診所自編的流水號，不是敏感識別碼，所以**不遮罩**（與身分證不同）。
-  // 沒有號碼時整段不出現，而不是印一個空欄位——櫃台看到的是「還沒開病歷」。
-  const chart =
-    record.medicalRecordNumber === undefined ||
-    record.medicalRecordNumber === ''
-      ? ''
-      : ` · 病歷 ${escapeHtml(record.medicalRecordNumber)}`;
-  return `${escapeHtml(record.phone)} · ${escapeHtml(birth)} · ${escapeHtml(maskIdentityDocument(record))}${chart} · 健保卡：${record.hasNhiCard ? '預計攜帶' : '未登記攜帶'}`;
+    : record.birthDate.slice(2).replace('-', '/');
+  const nationality = NATIONALITY_LABELS[record.nationality];
+  // 沒有值的段落整段不出現（filter 掉 falsy），而不是印一個空欄位。
+  return [
+    escapeHtml(record.phone),
+    escapeHtml(birth),
+    nationality && `國籍：${nationality}`,
+    // 證件與「預計攜帶健保卡」只存在於舊紀錄；新資料不再收集。
+    (record.nationalId || record.passportNumber) &&
+      escapeHtml(maskIdentityDocument(record)),
+    // 病歷號碼是診所自編的流水號，不是敏感識別碼，所以**不遮罩**。沒有號碼時
+    // 櫃台看到的是「還沒開病歷」。
+    record.medicalRecordNumber &&
+      `病歷 ${escapeHtml(record.medicalRecordNumber)}`,
+    typeof record.hasNhiCard === 'boolean' &&
+      `健保卡：${record.hasNhiCard ? '預計攜帶' : '未登記攜帶'}`
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
+
+// 固定字串，不含使用者輸入，所以輸出時不必再跳脫。
+const NATIONALITY_LABELS = Object.freeze({ domestic: '本國', foreign: '外國' });
 
 function detailRow(state, id) {
   return `<span class="code detail-line">${patientDetail(state, id)}</span>`;
@@ -673,7 +683,7 @@ export function renderAppointments(
       // 但在同一個地方顯示——櫃台要看的是「這一筆有什麼要注意的」，不是誰寫的。
       for (const label of tagLabels(
         appointment.requestTags,
-        PATIENT_REQUEST_TAGS
+        LEGACY_REQUEST_TAGS
       ))
         notes.push(label);
       if (appointment.patientNote)
@@ -892,12 +902,12 @@ export function renderIntakeSheet(state, appointmentId) {
     ? `${record.birthDate.slice(0, 4)} 年 ${record.birthDate.slice(5, 7)} 月 ${record.birthDate.slice(8, 10)} 日`
     : `${blankLine('sm')} 年 ${(record.birthDate ?? '').slice(2, 4)} 月 ${(record.birthDate ?? '').slice(5, 7)} 日`;
 
-  // 身分證：畫面遮罩、列印完整。兩個值都在，靠 @media print 換。
-  const document_ = record.nationalId
-    ? `<span class="intake-screen-only">${escapeHtml(maskIdentityDocument(record))}</span><span class="intake-print-only">${escapeHtml(record.nationalId)}</span>`
-    : record.passportNumber
-      ? `<span class="intake-screen-only">${escapeHtml(maskIdentityDocument(record))}</span><span class="intake-print-only">${escapeHtml(record.passportNumber)}（護照）</span>`
-      : blankLine();
+  // 身分證：新預約不再收集，列印出空白讓到診時在紙本填寫。舊紀錄仍有值時，
+  // 畫面遮罩、列印完整，兩個值都在，靠 @media print 換。身分證優先，沒有才看護照。
+  const legacyDocument = record.nationalId || record.passportNumber;
+  const document_ = legacyDocument
+    ? `<span class="intake-screen-only">${escapeHtml(maskIdentityDocument(record))}</span><span class="intake-print-only">${escapeHtml(legacyDocument)}${record.nationalId ? '' : '（護照）'}</span>`
+    : blankLine();
 
   const sources = tagLabels(appointment.sourceTags, PATIENT_SOURCE_TAGS);
   const referral =
@@ -934,6 +944,12 @@ export function renderIntakeSheet(state, appointmentId) {
       ${cell('年齡', blankLine('sm'))}
       ${cell('性別', `${blankLine('xs')} 男 ／ ${blankLine('xs')} 女`)}
       ${cell('身分證字號', document_)}
+      ${cell(
+        '國籍',
+        NATIONALITY_LABELS[
+          appointment.intakeNationality ?? record.nationality
+        ] ?? `${blankLine('xs')} 本國 ／ ${blankLine('xs')} 外國`
+      )}
       ${cell('手機', record.phone ? escapeHtml(record.phone) : blankLine())}
       ${cell('市話', blankLine())}
       ${cell('婚姻', `${blankLine('xs')} 已婚 ／ ${blankLine('xs')} 單身`)}

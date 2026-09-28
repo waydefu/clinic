@@ -108,7 +108,7 @@ test.describe('readable operational typography', () => {
     await expect(
       page.locator('.booking-panel-heading > p:last-child').first()
     ).toHaveCSS('font-size', '16px');
-    await expect(page.locator('#patient-national-id-hint')).toHaveCSS(
+    await expect(page.locator('#patient-birth-hint')).toHaveCSS(
       'font-size',
       '16px'
     );

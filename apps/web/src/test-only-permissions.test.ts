@@ -133,24 +133,27 @@ describe('stored synthetic state is validated before use', () => {
 });
 
 describe('患者資料驗證與遮罩', () => {
+  // 2026-09-22（BOOKING-MINIMIZATION-2026-09-22）：新預約只收這四個欄位。
   const VALID = {
     name: '王測試',
     phone: '0912345678',
-    birthDate: '1990-05-20',
-    nationalId: 'a123456789',
-    hasNhiCard: true
+    birthDate: '--05-20',
+    nationality: 'domestic'
   };
 
-  it('正規化身分證字號並保留欄位', () => {
-    const result = validatePatientInput(VALID);
-    expect(result.nationalId).toBe('A123456789');
-    expect(result.hasNhiCard).toBe(true);
+  it('只留下新預約收集的四個欄位', () => {
+    const result = validatePatientInput({
+      ...VALID,
+      nationalId: 'A123456789',
+      hasNhiCard: true
+    });
+    expect(result).toEqual(VALID);
   });
 
-  it('未勾選健保卡時預設為 false', () => {
+  it('接受閏日，因為沒有年份可以判斷', () => {
     expect(
-      validatePatientInput({ ...VALID, hasNhiCard: undefined }).hasNhiCard
-    ).toBe(false);
+      validatePatientInput({ ...VALID, birthDate: '--02-29' }).birthDate
+    ).toBe('--02-29');
   });
 
   it('拒絕無效輸入', () => {
@@ -164,26 +167,36 @@ describe('患者資料驗證與遮罩', () => {
       /電話/
     );
     expect(() =>
-      validatePatientInput({ ...VALID, birthDate: '1800-01-01' })
-    ).toThrow(/西元/);
+      validatePatientInput({ ...VALID, birthDate: '1990-05-20' })
+    ).toThrow(/出生月份與日期/);
     expect(() =>
-      validatePatientInput({ ...VALID, birthDate: '2999-01-01' })
-    ).toThrow(/生日/);
+      validatePatientInput({ ...VALID, birthDate: '--02-30' })
+    ).toThrow(/有效的月份與日期/);
     expect(() =>
-      validatePatientInput({ ...VALID, nationalId: 'A323456789' })
-    ).toThrow(/身分證/);
+      validatePatientInput({ ...VALID, nationality: undefined })
+    ).toThrow(/本國或外國/);
+    expect(() =>
+      validatePatientInput({ ...VALID, nationality: 'stateless' })
+    ).toThrow(/本國或外國/);
   });
 
-  it('身分證字號一律以遮罩呈現', () => {
+  // 只用於顯示舊紀錄。
+  it('舊紀錄的身分證字號一律以遮罩呈現', () => {
     expect(maskNationalId('A123456789')).toBe('A12****789');
     expect(maskNationalId('A123456789')).not.toContain('456');
     expect(maskNationalId('')).toBe('——');
     expect(maskNationalId(undefined)).toBe('——');
   });
 
-  it('身分證字號大小寫不影響身分比對', () => {
-    expect(identityKey({ nationalId: 'a123456789' })).toBe(
-      identityKey({ nationalId: 'A123456789' })
+  // 比對鍵只用電話數字與月日生日；姓名不進鍵，由 resolveIntakeCandidate 另外比。
+  it('身分比對鍵只看電話數字與月日生日', () => {
+    expect(
+      identityKey({ phone: '0912-345-678', birthDate: '--05-20', name: '甲' })
+    ).toBe(
+      identityKey({ phone: '0912345678', birthDate: '--05-20', name: '乙' })
+    );
+    expect(identityKey({ phone: '0912345678', birthDate: '--05-20' })).not.toBe(
+      identityKey({ phone: '0912345678', birthDate: '--05-21' })
     );
   });
 });

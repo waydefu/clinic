@@ -137,7 +137,10 @@ export function planBooking(request, slot, patientBookingGuard) {
         itemId: request.itemId,
         status: 'confirmed',
         createdAt: request.requestedAt,
-        updatedAt: request.requestedAt
+        updatedAt: request.requestedAt,
+        ...(request.intakeNationality === undefined
+            ? {}
+            : { intakeNationality: request.intakeNationality })
     };
     const auditEvent = planAuditEvent({
         eventId: `audit_${request.appointmentId}_confirmed_${request.idempotency.recordId}`,

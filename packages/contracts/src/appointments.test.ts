@@ -11,6 +11,7 @@ import {
   GetAppointmentResponseSchema,
   RescheduleAppointmentRequestSchema,
   RescheduleAppointmentResponseSchema,
+  ReturnLookupRequestSchema,
   STAFF_TRANSITION_TO_DOMAIN,
   StaffAppointmentTransitionSchema,
   TransitionAppointmentRequestSchema,
@@ -62,25 +63,86 @@ describe('v1 API contracts', () => {
     });
   });
 
-  it('accepts accountless patient intake without a client patient id', () => {
+  const minimalIntake = {
+    name: '合成患者甲',
+    phone: '0912000001',
+    birthDate: '--01-15',
+    nationality: 'domestic',
+    privacyConsent: true
+  } as const;
+
+  const withIntake = (intake: Record<string, unknown>) => ({
+    idempotencyKey: 'booking_request_0001',
+    slotId: 'slot-001',
+    serviceId: 'service-001',
+    bookingKind: 'initial',
+    intake
+  });
+
+  it('accepts the minimised accountless intake without a client patient id', () => {
     expect(
-      CreateAppointmentRequestSchema.parse({
-        idempotencyKey: 'booking_request_0001',
-        slotId: 'slot-001',
-        serviceId: 'service-001',
-        bookingKind: 'initial',
-        intake: {
-          name: '合成患者甲',
-          phone: '0912000001',
-          birthDate: '1990-01-15',
-          nationalId: 'A123456789',
-          privacyConsent: true
-        }
-      }).intake
-    ).toMatchObject({
-      name: '合成患者甲',
-      privacyConsent: true
-    });
+      CreateAppointmentRequestSchema.parse(withIntake(minimalIntake)).intake
+    ).toEqual(minimalIntake);
+  });
+
+  it.each([
+    ['national id', { nationalId: 'A123456789' }],
+    ['passport', { passportNumber: 'SYNTH0001' }],
+    ['NHI card intention', { hasNhiCard: true }],
+    ['source channel', { sourceTags: ['search'] }],
+    ['referrer', { referrerName: 'referrer' }]
+  ])('rejects the removed %s field instead of storing it', (_label, extra) => {
+    expect(
+      CreateAppointmentRequestSchema.safeParse(
+        withIntake({ ...minimalIntake, ...extra })
+      ).success
+    ).toBe(false);
+  });
+
+  it.each(['1990-01-15', '01-15', '--1-15', '--01-5'])(
+    'rejects a birth date that is not --MM-DD (%s)',
+    (birthDate) => {
+      expect(
+        CreateAppointmentRequestSchema.safeParse(
+          withIntake({ ...minimalIntake, birthDate })
+        ).success
+      ).toBe(false);
+    }
+  );
+
+  it('accepts only domestic or foreign nationality', () => {
+    expect(
+      CreateAppointmentRequestSchema.safeParse(
+        withIntake({ ...minimalIntake, nationality: 'foreign' })
+      ).success
+    ).toBe(true);
+    expect(
+      CreateAppointmentRequestSchema.safeParse(
+        withIntake({ ...minimalIntake, nationality: 'foreign_national' })
+      ).success
+    ).toBe(false);
+  });
+
+  it('return lookup takes phone and --MM-DD only', () => {
+    expect(
+      ReturnLookupRequestSchema.safeParse({
+        phone: '0912000001',
+        birthDate: '--01-15'
+      }).success
+    ).toBe(true);
+    expect(
+      ReturnLookupRequestSchema.safeParse({
+        phone: '0912000001',
+        birthDate: '1990-01-15'
+      }).success
+    ).toBe(false);
+    expect(
+      ReturnLookupRequestSchema.safeParse({
+        phone: '0912000001',
+        birthDate: '--01-15',
+        name: '合成患者甲'
+      }).success
+    ).toBe(false);
   });
 
   it.each([

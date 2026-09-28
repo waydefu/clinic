@@ -364,8 +364,9 @@ test.describe('動效系統', () => {
       });
       await page.locator('#booking-name').fill('動效測試');
       await page.locator('#booking-phone').fill('0912345678');
-      await page.locator('#booking-birth').fill('1990-05-20');
-      await page.locator('#booking-national-id').fill('A123456789');
+      await page.locator('#booking-birth-month').fill('05');
+      await page.locator('#booking-birth-day').fill('20');
+      await page.locator('#booking-nationality').selectOption('domestic');
       await page.locator('#booking-kind').selectOption('initial');
       // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
       await page.locator('#booking-items [data-booking-item]').first().check();
@@ -448,8 +449,9 @@ test.describe('動效系統', () => {
       });
       await page.locator('#booking-name').fill('動效測試');
       await page.locator('#booking-phone').fill('0912345678');
-      await page.locator('#booking-birth').fill('1990-05-20');
-      await page.locator('#booking-national-id').fill('A123456789');
+      await page.locator('#booking-birth-month').fill('05');
+      await page.locator('#booking-birth-day').fill('20');
+      await page.locator('#booking-nationality').selectOption('domestic');
       await page.locator('#booking-kind').selectOption('initial');
       // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
       await page.locator('#booking-items [data-booking-item]').first().check();

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { fillBirthDate } from './support/patient';
+import { chooseNationality, fillBirthDate } from './support/patient';
 import {
   login,
   openDisclosure,
@@ -211,8 +211,8 @@ async function stubV1(
 async function fillPatientCreateForm(page: Page): Promise<void> {
   await page.locator('#patient-name').fill('測試患者甲');
   await page.locator('#patient-phone').fill('0912345678');
-  await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
-  await page.locator('#patient-national-id').fill('A123456789');
+  await fillBirthDate(page, { month: '05', day: '20' });
+  await chooseNationality(page);
   await page.locator('#privacy-consent').check();
   await page.locator('#synthetic-confirmation').check();
 }
@@ -254,8 +254,9 @@ async function fillStaffOptInCreateForm(
   await openDisclosure(page, '#booking-workflow');
   await page.locator('#booking-name').fill('測試患者甲');
   await page.locator('#booking-phone').fill('0912345678');
-  await page.locator('#booking-birth').fill('1990-05-20');
-  await page.locator('#booking-national-id').fill('A123456789');
+  await page.locator('#booking-birth-month').fill('05');
+  await page.locator('#booking-birth-day').fill('20');
+  await page.locator('#booking-nationality').selectOption('domestic');
   await page.locator('#booking-kind').selectOption('initial');
   await page.locator('#booking-items [data-booking-item]').first().check();
   await page.locator(`[data-select-slot="${slotId}"]`).click();
@@ -1104,7 +1105,8 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.goto('/booking?internalTestBooking=1');
     await page.locator('#booking-management-open').click();
     await page.locator('#booking-lookup-phone').fill('0912000001');
-    await page.locator('#booking-lookup-birth').fill('1990-01-15');
+    await page.locator('#booking-lookup-birth-month').fill('01');
+    await page.locator('#booking-lookup-birth-day').fill('15');
     await page.locator('#booking-lookup-form button[type="submit"]').click();
     await expect(page.locator('#booking-lookup-status')).toContainText(
       '已確認回診身分'
@@ -1122,7 +1124,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(page.locator('[data-booking-type="initial"]')).toBeDisabled();
     expect(posted.returnLookup).toEqual({
       path: '/v1/return-lookup',
-      body: { phone: '0912000001', birthDate: '1990-01-15' }
+      body: { phone: '0912000001', birthDate: '--01-15' }
     });
   });
 
@@ -1159,7 +1161,8 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.goto('/booking?internalTestBooking=1');
     await page.locator('#booking-management-open').click();
     await page.locator('#booking-lookup-phone').fill('0912000001');
-    await page.locator('#booking-lookup-birth').fill('1990-01-15');
+    await page.locator('#booking-lookup-birth-month').fill('01');
+    await page.locator('#booking-lookup-birth-day').fill('15');
     await page.locator('#booking-lookup-form button[type="submit"]').click();
     await expect(page.locator('#booking-lookup-status')).toContainText(
       '已確認回診身分'

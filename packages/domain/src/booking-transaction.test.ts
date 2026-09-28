@@ -121,6 +121,22 @@ describe('planBooking', () => {
     });
   });
 
+  it('keeps intake nationality on the appointment only, never in audit or outbox', () => {
+    const plan = planBooking(
+      { ...request, intakeNationality: 'foreign' },
+      openSlot,
+      undefined
+    );
+    expect(plan.appointment.intakeNationality).toBe('foreign');
+    expect(JSON.stringify(plan.auditEvent)).not.toContain('foreign');
+    expect(JSON.stringify(plan.outboxJob)).not.toContain('foreign');
+  });
+
+  it('omits intake nationality when the request carries none', () => {
+    const plan = planBooking(request, openSlot, undefined);
+    expect('intakeNationality' in plan.appointment).toBe(false);
+  });
+
   it('is a pure function of its inputs', () => {
     const first = planBooking(request, openSlot, undefined);
     const second = planBooking(request, openSlot, undefined);

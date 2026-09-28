@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-import { fillBirthDate, submitBooking } from './support/patient';
+import {
+  chooseNationality,
+  fillBirthDate,
+  submitBooking
+} from './support/patient';
 import { STORAGE_KEY } from './support/workbench';
 
 // 個資法第 8 條要求「蒐集前告知」六項事項。這支測試把六項事項釘成頁面必須成立的
@@ -71,13 +75,9 @@ test.describe('隱私權政策頁', () => {
     for (const field of [
       '姓名',
       '聯絡電話',
-      '出生月、日（西元年份選填）',
-      '國民身分證統一編號或居留證號',
-      '勾選「外籍人士」時改填護照號碼',
-      '本次是否預計攜帶健保卡',
+      '出生月、日（不收年份）',
+      '國籍（本國或外國）',
       '本次門診需求標籤',
-      '得知診所的來源',
-      '介紹人姓名',
       '簡短備註',
       '時段',
       '看診類型',
@@ -260,8 +260,8 @@ test.describe('隱私權政策頁', () => {
       await reachDetailsStep(page);
       await page.locator('#patient-name').fill('告知測試');
       await page.locator('#patient-phone').fill('0912345678');
-      await fillBirthDate(page, { year: '1990', month: '05', day: '20' });
-      await page.locator('#patient-national-id').fill('A123456789');
+      await fillBirthDate(page, { month: '05', day: '20' });
+      await chooseNationality(page);
       await page.locator('#synthetic-confirmation').check();
       await page.locator('#confirm-patient-booking').click();
 
@@ -316,8 +316,8 @@ test.describe('隱私權政策頁', () => {
 
       await page.locator('#patient-name').fill('政策返回測試');
       await page.locator('#patient-phone').fill('0911222333');
-      await fillBirthDate(page, { year: '1988', month: '08', day: '18' });
-      await page.locator('#patient-national-id').fill('A123456789');
+      await fillBirthDate(page, { month: '08', day: '18' });
+      await chooseNationality(page);
       await page.locator('#patient-note').fill('保留這段尚未送出的內容');
 
       const opener = page.locator('#open-privacy-policy');
@@ -341,12 +341,9 @@ test.describe('隱私權政策頁', () => {
       ).toHaveAttribute('aria-pressed', 'true');
       await expect(page.locator('#patient-name')).toHaveValue('政策返回測試');
       await expect(page.locator('#patient-phone')).toHaveValue('0911222333');
-      await expect(page.locator('#patient-birth-year')).toHaveValue('1988');
       await expect(page.locator('#patient-birth-month')).toHaveValue('08');
       await expect(page.locator('#patient-birth-day')).toHaveValue('18');
-      await expect(page.locator('#patient-national-id')).toHaveValue(
-        'A123456789'
-      );
+      await expect(page.locator('#patient-nationality-domestic')).toBeChecked();
       await expect(page.locator('#patient-note')).toHaveValue(
         '保留這段尚未送出的內容'
       );

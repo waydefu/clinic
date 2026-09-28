@@ -521,8 +521,7 @@ test.describe('批次選取與批次操作', () => {
     await createBooking(page);
     await createBooking(page, {
       name: '測試患者乙',
-      phone: '0922333444',
-      nationalId: 'A222333444'
+      phone: '0922333444'
     });
     await showAllAppointments(page);
 
@@ -737,9 +736,17 @@ test.describe('工作臺預約生命週期', () => {
     });
   });
 
-  test('初診資料在螢幕上遮罩身分證，完整值只存在列印層', async ({ page }) => {
+  // BOOKING-MINIMIZATION-2026-09-22 之後新預約不收證件；只有較早的紀錄還帶著，
+  // 那些紀錄的遮罩與列印層必須照舊。
+  test('舊紀錄的身分證在螢幕上遮罩，完整值只存在列印層', async ({ page }) => {
     await login(page);
-    await createBooking(page, { nationalId: 'A123456789' });
+    await createBooking(page);
+    await page.evaluate((key) => {
+      const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+      state.patients.at(-1).nationalId = 'A123456789';
+      window.localStorage.setItem(key, JSON.stringify(state));
+    }, STORAGE_KEY);
+    await page.reload();
     await showAllAppointments(page);
 
     await page.evaluate(() => {

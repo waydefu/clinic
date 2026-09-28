@@ -50,6 +50,9 @@ export const CALENDAR_ALLOWED_OPERATIONAL_FIELDS = Object.freeze([
 export const CALENDAR_FORBIDDEN_PAYLOAD_KEYS = Object.freeze([
   'dateOfBirth',
   'dob',
+  'birthDate',
+  'nationality',
+  'intakeNationality',
   'nationalId',
   'nationalID',
   'idNumber',

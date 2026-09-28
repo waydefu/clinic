@@ -402,13 +402,9 @@
                         hidden
                       ></span>
                     </label>
-                    <!-- P11（業主 2026-07-27）：生日拆成三格，年份選填。
-                     介面規則書 R-7 的預設是「一個邏輯資料一個欄位」，日期是
-                     具名的例外：它是三個獨立的數字，而 `<input type="date">`
-                     沒有辦法表達「年份可以不填」。做法比照 GOV.UK 的 date input
-                     ——`<fieldset>`＋`<legend>` 分組、逐格 label、
-                     `bday-year/month/day` 這三個標準 autocomplete token。
-                     欄位順序用台灣慣用的年月日，與紙本初診表一致。 -->
+                    <!-- BOOKING-MINIMIZATION-2026-09-22：生日只收月與日，不收年份。
+                     月日兩格比照 GOV.UK 的 date input——`<fieldset>`＋`<legend>`
+                     分組、逐格 label、`bday-month/day` 標準 autocomplete token。 -->
                     <fieldset class="patient-fieldset date-fieldset">
                       <legend class="field-legend">
                         <span class="field-label"
@@ -418,20 +414,9 @@
                         >
                       </legend>
                       <p id="patient-birth-hint" class="field-hint">
-                        年份可以不填；月與日必填。
+                        只需要月與日，不必填年份。
                       </p>
                       <div class="date-input">
-                        <label
-                          ><span>西元年（選填）</span>
-                          <input
-                            id="patient-birth-year"
-                            type="text"
-                            inputmode="numeric"
-                            maxlength="4"
-                            autocomplete="bday-year"
-                            aria-describedby="patient-birth-hint patient-birth-error"
-                          />
-                        </label>
                         <label
                           ><span>月</span>
                           <input
@@ -441,7 +426,7 @@
                             maxlength="2"
                             autocomplete="bday-month"
                             required
-                            aria-describedby="patient-birth-error"
+                            aria-describedby="patient-birth-hint patient-birth-error"
                           />
                         </label>
                         <label
@@ -465,9 +450,47 @@
                       ></span>
                     </fieldset>
 
-                    <!-- P9／P10：「關於這次門診」放在證件欄**之前**，因為勾選
-                     「外籍人士」會決定下面要填身分證還是護照。控制項排在它影響
-                     的欄位後面，等於要使用者先回答再回頭改。 -->
+                    <!-- BOOKING-MINIMIZATION-2026-09-22：國籍恰好兩個選項，不收身分證
+                     或護照。它只是這次門診的資料，不用來辨認是誰。 -->
+                    <fieldset
+                      id="patient-nationality-field"
+                      class="patient-fieldset"
+                      aria-describedby="patient-nationality-error"
+                    >
+                      <legend class="field-legend">
+                        <span class="field-label"
+                          >國籍<span class="required-mark" aria-hidden="true"
+                            >*</span
+                          ></span
+                        >
+                      </legend>
+                      <div class="choice-row">
+                        <label class="consent-preview"
+                          ><input
+                            id="patient-nationality-domestic"
+                            type="radio"
+                            name="patient-nationality"
+                            value="domestic"
+                            required
+                          />本國</label
+                        >
+                        <label class="consent-preview"
+                          ><input
+                            id="patient-nationality-foreign"
+                            type="radio"
+                            name="patient-nationality"
+                            value="foreign"
+                          />外國</label
+                        >
+                      </div>
+                      <span
+                        id="patient-nationality-error"
+                        class="field-error"
+                        role="alert"
+                        hidden
+                      ></span>
+                    </fieldset>
+
                     <fieldset class="patient-fieldset">
                       <legend>關於這次門診（可複選，選填）</legend>
                       <div
@@ -476,61 +499,6 @@
                         role="group"
                       ></div>
                     </fieldset>
-
-                    <label id="patient-national-id-field"
-                      ><span class="field-label"
-                        >身分證字號<span
-                          class="required-mark"
-                          aria-hidden="true"
-                          >*</span
-                        ></span
-                      >
-                      <input
-                        id="patient-national-id"
-                        type="text"
-                        maxlength="10"
-                        autocapitalize="characters"
-                        autocomplete="off"
-                        required
-                        aria-describedby="patient-national-id-error patient-national-id-hint"
-                      />
-                      <span id="patient-national-id-hint" class="field-hint"
-                        >1 個英文字母加 9 位數字，例如
-                        A123456789。居留證同一種格式， 第二碼是 8 或 9。</span
-                      >
-                      <span
-                        id="patient-national-id-error"
-                        class="field-error"
-                        role="alert"
-                        hidden
-                      ></span>
-                    </label>
-                    <!-- 護照欄只在勾選「外籍人士」時出現，並在取消勾選時清空：
-                     收起來但仍帶著值的欄位照樣會被送出去。 -->
-                    <label id="patient-passport-field" hidden
-                      ><span class="field-label"
-                        >護照號碼<span class="required-mark" aria-hidden="true"
-                          >*</span
-                        ></span
-                      >
-                      <input
-                        id="patient-passport"
-                        type="text"
-                        maxlength="12"
-                        autocapitalize="characters"
-                        autocomplete="off"
-                        aria-describedby="patient-passport-error patient-passport-hint"
-                      />
-                      <span id="patient-passport-hint" class="field-hint"
-                        >請填護照上的號碼，6 至 12 位英文字母或數字。</span
-                      >
-                      <span
-                        id="patient-passport-error"
-                        class="field-error"
-                        role="alert"
-                        hidden
-                      ></span>
-                    </label>
                   </div>
                 </section>
                 <section
@@ -539,48 +507,11 @@
                 >
                   <h3 id="visit-supplement-heading">本次門診補充</h3>
                   <div class="patient-form-section-fields">
-                    <label class="consent-preview"
-                      ><input
-                        id="patient-nhi-card"
-                        type="checkbox"
-                        aria-describedby="patient-nhi-card-hint"
-                      />本次會攜帶健保卡
-                    </label>
-                    <!-- P8（業主 2026-07-27）：沒帶卡的後果要在勾選當下就講清楚，
-                     不是到了櫃台才知道。說明掛在勾選框的 aria-describedby 上，
-                     所以報讀器讀到那個勾選框時也會帶到這一句。 -->
+                    <!-- 健保卡：預約時不再詢問（BOOKING-MINIMIZATION-2026-09-22）。
+                     自費的後果仍然要事先講清楚，只是不收一個勾選值。 -->
                     <p id="patient-nhi-card-hint" class="field-hint">
-                      未攜帶健保卡者，本次看診須全額自費。
+                      看診請攜帶健保卡；未攜帶者本次看診須全額自費。
                     </p>
-
-                    <!-- P9（業主 2026-07-27）：可複選標籤。
-                     選項由 modules/constants.js 產生，本身不帶 id——一頁上兩組
-                     標籤若各自給 id 會撞名，而兩份客戶端都用
-                     `Object.fromEntries(querySelectorAll('[id]'))` 建 elements
-                     表，撞名會靜默覆蓋掉控制項。 -->
-                    <fieldset class="patient-fieldset">
-                      <legend>如何得知診所訊息（可複選，選填）</legend>
-                      <div
-                        id="patient-source-tags"
-                        class="tag-picker"
-                        role="group"
-                      ></div>
-                      <!-- 介紹人欄位只在勾了親友介紹或員工介紹時出現：沒有人介紹卻
-                       擺著一個「介紹人」欄位，等於在問一個不存在的問題。 -->
-                      <label id="patient-referrer-field" hidden
-                        ><span class="field-label">介紹人姓名</span>
-                        <input
-                          id="patient-referrer"
-                          type="text"
-                          maxlength="30"
-                          autocomplete="off"
-                          aria-describedby="patient-referrer-hint"
-                        />
-                        <span id="patient-referrer-hint" class="field-hint"
-                          >方便診所向介紹您的親友或同仁致意；不填也不影響預約。</span
-                        >
-                      </label>
-                    </fieldset>
 
                     <!-- P7（業主 2026-07-27）：患者自己的備註。與櫃台的營運備註分開
                      存成 `patientNote`，否則櫃台修改備註時會把患者寫的話蓋掉，
@@ -744,25 +675,9 @@
           關閉
         </button>
       </div>
-      <p>請同時提供兩項資料；查無結果時不會指出是哪一項不相符。</p>
-      <div class="booking-lookup-modes" role="group" aria-label="查詢方式">
-        <button
-          class="button button-secondary is-selected"
-          type="button"
-          data-booking-lookup-mode="phone"
-          aria-pressed="true"
-        >
-          電話＋生日
-        </button>
-        <button
-          class="button button-secondary"
-          type="button"
-          data-booking-lookup-mode="document"
-          aria-pressed="false"
-        >
-          證件號碼＋生日
-        </button>
-      </div>
+      <p>
+        請輸入預約時留的電話與生日（月、日）；查無結果時不會指出是哪一項不相符。
+      </p>
       <form id="booking-lookup-form" class="booking-lookup-form" novalidate>
         <label id="booking-lookup-phone-field"
           >聯絡電話
@@ -773,19 +688,31 @@
             autocomplete="tel"
           />
         </label>
-        <label id="booking-lookup-document-field" hidden
-          >身分證／居留證／護照號碼
-          <input
-            id="booking-lookup-document"
-            type="text"
-            autocapitalize="characters"
-            autocomplete="off"
-          />
-        </label>
-        <label
-          >生日
-          <input id="booking-lookup-birth" type="date" autocomplete="bday" />
-        </label>
+        <fieldset class="patient-fieldset date-fieldset">
+          <legend class="field-legend">生日</legend>
+          <div class="date-input">
+            <label
+              ><span>月</span>
+              <input
+                id="booking-lookup-birth-month"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                autocomplete="bday-month"
+              />
+            </label>
+            <label
+              ><span>日</span>
+              <input
+                id="booking-lookup-birth-day"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                autocomplete="bday-day"
+              />
+            </label>
+          </div>
+        </fieldset>
         <button class="button button-primary" type="submit">查詢預約</button>
       </form>
       <p

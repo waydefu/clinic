@@ -38,8 +38,9 @@ async function createCompletedVisit(page: Page): Promise<string> {
   });
   await page.locator('#booking-name').fill('測試患者甲');
   await page.locator('#booking-phone').fill('0912345678');
-  await page.locator('#booking-birth').fill('1990-05-20');
-  await page.locator('#booking-national-id').fill('A123456789');
+  await page.locator('#booking-birth-month').fill('05');
+  await page.locator('#booking-birth-day').fill('20');
+  await page.locator('#booking-nationality').selectOption('domestic');
   // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
   await page.locator('#booking-items [data-booking-item]').first().check();
   await page.locator('#slots [data-select-slot]').first().click();
@@ -229,8 +230,9 @@ test.describe('行動版 header 與重排', () => {
     });
     await page.locator('#booking-name').fill('通知測試患者');
     await page.locator('#booking-phone').fill('0912345678');
-    await page.locator('#booking-birth').fill('1990-05-20');
-    await page.locator('#booking-national-id').fill('A123456789');
+    await page.locator('#booking-birth-month').fill('05');
+    await page.locator('#booking-birth-day').fill('20');
+    await page.locator('#booking-nationality').selectOption('domestic');
     // 療程自 2026-07-27 起可複選，且至少要一項（W5）。
     await page.locator('#booking-items [data-booking-item]').first().check();
     await page.locator('#slots [data-select-slot]').first().click();
@@ -352,9 +354,8 @@ test.describe('患者端維護隔離', () => {
             patient: {
               name: '合成患者',
               phone: '0912345678',
-              birthDate: '1990-05-20',
-              nationalId: 'A123456789',
-              hasNhiCard: false
+              birthDate: '--05-20',
+              nationality: 'domestic'
             }
           })
         });

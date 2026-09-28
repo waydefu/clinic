@@ -1054,6 +1054,15 @@ elements['booking-kind'].addEventListener('change', () => {
   renderBookingForm();
 });
 
+// 櫃台建檔的生日兩格拼成 `--MM-DD`；只填一半回空字串，讓 domain 報 required。
+function staffMonthDay() {
+  const month = elements['booking-birth-month'].value.trim();
+  const day = elements['booking-birth-day'].value.trim();
+  return month && day
+    ? `--${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+    : '';
+}
+
 function shiftWeek(days) {
   const date = new Date(`${weekStart}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -1150,9 +1159,8 @@ elements['booking-form'].addEventListener('submit', async (event) => {
   const patient = {
     name: elements['booking-name'].value,
     phone: elements['booking-phone'].value,
-    birthDate: elements['booking-birth'].value,
-    nationalId: elements['booking-national-id'].value,
-    hasNhiCard: elements['booking-nhi-card'].checked
+    birthDate: staffMonthDay(),
+    nationality: elements['booking-nationality'].value
   };
   await runUiAction({
     control: event.submitter,
@@ -1344,9 +1352,14 @@ elements.appointments.addEventListener('click', (event) => {
   if (record !== undefined) {
     elements['booking-name'].value = record.name;
     elements['booking-phone'].value = record.phone;
-    elements['booking-birth'].value = record.birthDate;
-    elements['booking-national-id'].value = record.nationalId;
-    elements['booking-nhi-card'].checked = record.hasNhiCard === true;
+    // 新紀錄是 `--MM-DD`，瀏覽器端舊紀錄可能是完整日期；兩者都只取末五碼的
+    // 月日帶入，年份不再收集。
+    const [month = '', day = ''] = String(record.birthDate ?? '')
+      .slice(-5)
+      .split('-');
+    elements['booking-birth-month'].value = month;
+    elements['booking-birth-day'].value = day;
+    elements['booking-nationality'].value = record.nationality ?? '';
   }
   selectedSlotId = undefined;
   renderSlotList();
