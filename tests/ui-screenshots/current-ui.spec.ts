@@ -22,9 +22,10 @@ import {
 
 const PORT = 3211;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-// C6 使用新的 evidence id；C4、C5 與 C3 的目錄都是 immutable historical evidence。
-const CAPTURE_DATE = '2026-08-23';
-const EVIDENCE_ID = `ui-visual-c6-${CAPTURE_DATE}`;
+// CP-01 最小化表單後重拍，使用新的 evidence id；C6、C4、C5 與 C3 的目錄都是
+// immutable historical evidence。
+const CAPTURE_DATE = '2026-09-29';
+const EVIDENCE_ID = `ui-visual-cp01-${CAPTURE_DATE}`;
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
@@ -77,7 +78,17 @@ type Viewport = {
 type ConsoleCounts = {
   errors: number;
   warnings: number;
+  /** Known 404 of the CAL-PILOT client-config probe; see below. */
+  expectedSyntheticProbe404s: number;
 };
+
+// 本機合成 runtime 沒有 API。工作臺啟動時的 CAL-PILOT 探測
+// （apps/web/public/calendar-pilot-entry.js）收到非 2xx 就走合成模式，這是設計；
+// 但 Chromium 會把該 404 記成 console error。只放行「這一個網址的 404」並把次數
+// 寫進 manifest，其他任何錯誤仍讓擷取失敗。
+const EXPECTED_SYNTHETIC_PROBE_PATH = '/v1/calendar-session/client-config';
+const RESOURCE_404 =
+  'Failed to load resource: the server responded with a status of 404 (Not Found)';
 
 type CaptureEntry = {
   file: string;
@@ -107,20 +118,30 @@ const PHONE = { width: 375, height: 812 };
 function observeConsole(page: Page) {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const expectedProbe404s: string[] = [];
 
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error') {
+      const url = message.location().url;
+      if (
+        message.text() === RESOURCE_404 &&
+        url !== '' &&
+        new URL(url).pathname === EXPECTED_SYNTHETIC_PROBE_PATH
+      )
+        expectedProbe404s.push(url);
+      else errors.push(`${message.text()} @ ${url}`);
+    }
     if (message.type() === 'warning') warnings.push(message.text());
   });
   page.on('pageerror', (error) => {
     errors.push(`pageerror: ${error.message}`);
   });
 
-  return { errors, warnings };
+  return { errors, warnings, expectedProbe404s };
 }
 
 async function resetLocalState(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/staff');
   await page.evaluate((theme) => {
     window.localStorage.clear();
     window.localStorage.setItem('beauessence_theme', theme);
@@ -293,8 +314,10 @@ async function prepareCancellationPhoneFallback(page: Page): Promise<void> {
   await prepareBookingSuccess(page);
   await page.evaluate((key) => {
     const state = JSON.parse(localStorage.getItem(key) ?? 'null');
+    // 2026-09-07 起自助取消改為「當日 10:00 截止」（取代舊的 >20 分鐘規則）。
+    // 與 patient-booking e2e 相同，用昨日同時刻確保截止已過且與擷取時刻無關。
     state.appointments.at(-1).startsAt = new Date(
-      Date.now() + 19 * 60_000
+      Date.now() - 26 * 60 * 60_000
     ).toISOString();
     localStorage.setItem(key, JSON.stringify(state));
   }, STORAGE_KEY);
@@ -335,7 +358,7 @@ async function prepareMobileSuccessHeader(page: Page): Promise<void> {
 
 async function prepareCalendarEmpty(page: Page): Promise<void> {
   await login(page, 'admin', { fresh: false });
-  await page.goto('/#appointments-section');
+  await page.goto('/staff#appointments-section');
   await openDisclosure(page, '#week-calendar-disclosure');
   await expect(page.locator('.wv-date-table')).toBeVisible();
   await expect(page.locator('#week-view [data-week-event]')).toHaveCount(0);
@@ -345,7 +368,7 @@ async function prepareCalendarEvents(page: Page): Promise<void> {
   await login(page, 'admin', { fresh: false });
   await createBooking(page);
   await seedAppointmentCopies(page, 3);
-  await page.goto('/#appointments-section');
+  await page.goto('/staff#appointments-section');
   await openDisclosure(page, '#week-calendar-disclosure');
   await expect(page.locator('.wv-date-table')).toBeVisible();
   await expect(page.locator('#week-view [data-week-event]')).toHaveCount(3);
@@ -388,7 +411,7 @@ async function prepareCalendarOpenedException(page: Page): Promise<void> {
     return { openedDate, closedDate };
   }, STORAGE_KEY);
   await page.reload();
-  await page.goto('/#appointments-section');
+  await page.goto('/staff#appointments-section');
   await openDisclosure(page, '#week-calendar-disclosure');
   const calendar = page.locator('.wv-date-table');
   await expect(calendar).toBeVisible();
@@ -420,7 +443,7 @@ async function preparePrivacyDialog(page: Page): Promise<void> {
 const scenarios: Scenario[] = [
   {
     file: 'workbench--weekly-calendar-empty--desktop-1280x900--warm.png',
-    route: '/#appointments-section',
+    route: '/staff#appointments-section',
     role: 'admin',
     viewport: DESKTOP,
     state: 'four-open-date-columns-no-events',
@@ -428,7 +451,7 @@ const scenarios: Scenario[] = [
   },
   {
     file: 'workbench--weekly-calendar-opened-exception--desktop-1280x900--warm.png',
-    route: '/#appointments-section',
+    route: '/staff#appointments-section',
     role: 'admin',
     viewport: DESKTOP,
     state: 'normally-closed-Monday-opened-and-Thursday-closed',
@@ -436,7 +459,7 @@ const scenarios: Scenario[] = [
   },
   {
     file: 'workbench--weekly-calendar-events--desktop-1280x900--warm.png',
-    route: '/#appointments-section',
+    route: '/staff#appointments-section',
     role: 'admin',
     viewport: DESKTOP,
     state: 'three-actual-synthetic-events',
@@ -444,7 +467,7 @@ const scenarios: Scenario[] = [
   },
   {
     file: 'workbench--follow-up-case--desktop-1280x900--warm.png',
-    route: '/#appointments-section',
+    route: '/staff#appointments-section',
     role: 'admin',
     viewport: DESKTOP,
     state: 'completed-visit-follow-up-with-case-manager-field',
@@ -452,7 +475,7 @@ const scenarios: Scenario[] = [
   },
   {
     file: 'workbench--follow-up-case--phone-375x812--warm.png',
-    route: '/#appointments-section',
+    route: '/staff#appointments-section',
     role: 'admin',
     viewport: PHONE,
     state: 'completed-visit-follow-up-with-case-manager-field',
@@ -530,7 +553,7 @@ const scenarios: Scenario[] = [
     route: '/booking',
     role: 'public',
     viewport: DESKTOP,
-    state: 'more-than-20-minutes-confirmation-open',
+    state: 'before-same-day-10am-cutoff-confirmation-open',
     fullPage: false,
     prepare: prepareEligibleCancellation
   },
@@ -539,7 +562,7 @@ const scenarios: Scenario[] = [
     route: '/booking',
     role: 'public',
     viewport: PHONE,
-    state: '19-minutes-phone-primary-and-four-social-links',
+    state: 'past-same-day-10am-cutoff-phone-primary-and-four-social-links',
     fullPage: false,
     prepare: prepareCancellationPhoneFallback
   },
@@ -635,7 +658,8 @@ async function captureScenario(
       sha256: createHash('sha256').update(bytes).digest('hex'),
       consoleCounts: {
         errors: observed.errors.length,
-        warnings: observed.warnings.length
+        warnings: observed.warnings.length,
+        expectedSyntheticProbe404s: observed.expectedProbe404s.length
       }
     };
   } finally {
