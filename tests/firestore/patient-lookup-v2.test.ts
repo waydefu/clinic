@@ -113,3 +113,56 @@ describe('patient lookup v2 on the Firestore emulator', () => {
     await legacyRef.delete();
   });
 });
+
+describe('patient contact storage on the Firestore emulator', () => {
+  it('stores phone digits and month-day with the new patient', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const id = await directory.resolveFromIntake(
+      intake('0900-000-201', '合成患者丁'),
+      NOW,
+      nextId('patient_contact_new')
+    );
+    const data = (
+      await db.collection(PATIENT_COLLECTIONS.patients).doc(id).get()
+    ).data();
+    expect(data).toMatchObject({
+      name: '合成患者丁',
+      phoneDigits: '0900000201',
+      birthMonthDay: '--02-29'
+    });
+  });
+
+  it('fills a pre-existing record once on reuse and never overwrites', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const phone = '0900000202';
+    await db
+      .collection(PATIENT_COLLECTIONS.lookupIndex)
+      .doc(opaqueLookupIdentity(phone, '--02-29'))
+      .set({ patientIds: ['patient_contact_legacy'] });
+    await db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc('patient_contact_legacy')
+      .set({ patientId: 'patient_contact_legacy', name: '合成患者戊' });
+
+    await directory.resolveFromIntake(
+      intake(phone, '合成患者戊'),
+      NOW,
+      nextId('unused')
+    );
+    const ref = db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc('patient_contact_legacy');
+    expect((await ref.get()).data()).toMatchObject({
+      phoneDigits: '0900000202',
+      birthMonthDay: '--02-29'
+    });
+
+    await ref.update({ phoneDigits: '0900000999' });
+    await directory.resolveFromIntake(
+      intake(phone, '合成患者戊'),
+      NOW,
+      nextId('unused')
+    );
+    expect((await ref.get()).data()?.['phoneDigits']).toBe('0900000999');
+  });
+});
