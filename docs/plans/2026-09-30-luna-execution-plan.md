@@ -126,12 +126,25 @@
 `apps/api/src/firestore/business-delivery-export.repository.ts` 的 `rows` 產生處略過
 `patientArchived === true` 的預約。
 
+### 補充規則（2026-09-30 補，寫死）
+
+1. **查詢索引不能覆蓋：** 現在 `resolveFromIntake` 建立新病患時用
+   `transaction.set(lookupRef, { patientIds: [patientId], ... })`，會把索引整個蓋掉。改成：
+   先把索引裡**已封存**的 ID 從「候選」中排除再交給 `resolveIntakeCandidate`；建立新病患時寫
+   `patientIds: [...原本所有 ID（含已封存）, 新 ID]`。
+2. **復原前再檢查：** 復原時若同一個索引裡已經有另一位**未封存**病患 → 回 409（「已有新紀錄，
+   請聯絡開發者處理」），不得復原，避免同鍵兩位有效病患。
+3. **員工清單過濾位置：** 用 `git grep -n "toListRecord(" apps/api/src` 找出呼叫處，在呼叫處
+   把 `patientArchived === true` 的文件略過（不要改 `toListRecord` 本身的欄位規則）。
+4. **一個交易最多 500 筆寫入：** 封存／刪除前先算要寫幾筆；超過 400 筆 → 回 409
+   （「資料量過大，請聯絡開發者」）並**停止回報**，不要自己拆成多個交易。
+
 ### 測試（至少）
 
 單元：非 manager 全部拒絕；功能關閉 404；沒有 reauth 不寫入；reasonCode 非法拒絕。
 emulator：封存→清單與查詢看不到；30 天內復原成功、第 30 天整點復原失敗；未滿 30 天永久刪除失敗；
 legal hold 時永久刪除失敗；永久刪除後 `audit_events` 筆數不變、其他列出集合為 0；
-有未來 confirmed 預約時封存失敗；冪等重送與異內容 409；兩個同時封存只成功一個。
+有未來 confirmed 預約時封存失敗；冪等重送與異內容 409；兩個同時封存只成功一個；封存後同電話月日再預約 → 建新病患且索引同時保有兩個 ID；此時復原舊病患 → 409。
 
 **停止條件：** 發現其他集合也存病患 ID（用 `git grep -n "patientId" apps/api/src/firestore` 檢查）而本計畫沒列 → 停。
 
@@ -139,54 +152,124 @@ legal hold 時永久刪除失敗；永久刪除後 `audit_events` 筆數不變�
 
 ## L2 日曆新格式與手打事件自動對應
 
-**依據：** `CALENDAR-TITLE-FORMAT-2026-09-29`、`OWNER-BATCH-2026-09-29B` 第 3 項、ADR-0002 修訂段。
-**分支：** `cursor/luna-calendar-title`
+**依據：** `CALENDAR-TITLE-FORMAT-2026-09-29`、`OWNER-BATCH-2026-09-29B` 第 3 項、ADR-0002（含 2026-09-29 修訂段）。
+**分成兩個 PR，依序做：** L2a（寫出去的標題）→ L2b（讀回來的手打事件）。
 
-### 格式（寫死）
+### 已決定的設計（Claude 2026-09-30 決定，Luna 不得更改）
 
-- 系統寫入的預約標題：`{服務}{初診|回診}/{姓名}{電話} {MMDD}/{備註}`
-  - 服務：`service_snoring`→`止鼾`、`service_aesthetic`→`醫美`
-  - 電話：只留數字；生日：`--05-20` → `0520`
-  - 沒有備註就省略最後的 `/{備註}`；備註去掉換行（換成空白），最多 120 字
-  - **不寫**顧問／小編代碼、來源、完整生日
+1. **工作佇列（outbox）仍然不放個資。** API 寫入的 outbox job 維持只有 ID、狀態、時間。
+2. **標題由 worker 在送出前組出來。** worker 處理 job 時，依 `appointmentId` **唯讀**讀取
+   `appointments/{id}` 與 `patients/{patientId}`，組好標題後才呼叫 Google。worker 不寫病患資料。
+3. **自動對應只產生「建議」，不自動建立預約。** ADR-0002 規定外部變更只進待審清單、要自動套用必須
+   另寫新 ADR，所以本包只做到「系統找出建議病患 → 櫃台確認後用現有的『建立新預約』幫該病患建立」。
+   找不到或不確定 → 照現在一樣列為「未對應」。
+
+### L2a 系統寫出去的標題（分支 `cursor/luna-calendar-title-out`）
+
+**格式（寫死）：**
+
+- 預約：`{服務}{初診|回診}/{姓名}{電話} {MMDD}/{備註}`
+  - 服務：`service_snoring`→`止鼾`、`service_aesthetic`→`醫美`，其他 → 不寫服務字樣
+  - 電話：`phoneDigits` 原樣（只有數字）；生日：`--05-20` → `0520`
+  - 備註：`patientNote` 把換行換成一個空白、去頭尾空白；沒有備註就連前面的 `/` 一起省略
+  - 缺姓名、電話或生日任一項（例如舊病患、已封存、已刪除）→ **改用現在的最小標題**
+    （`formatClinicCalendarSummary` 的結果），不要拼半套
   - 例：`止鼾初診/合成患者甲0900000001 0520/想先詢問流程`
-- 保留時段：`⚠ HH:MM-HH:MM 保留時段(原因)`，時間用台北時間；原因沿用現有
-  `CALENDAR_BUSY_REASON_BY_LABEL` 的中文標籤。
-- 系統辨認自己的事件：用現有 event 的 `extendedProperties`（`linkId`），**不再**看標題前綴。
-  `apps/worker/src/calendar-sync/sync-engine.ts` 的 `looksLikePilotTitle` 改為檢查
-  extendedProperties 是否有本系統的 linkId。
+- 取消、未到、完成等狀態：沿用現在的狀態字樣前綴規則（看 `formatClinicCalendarSummary`），
+  接在新標題前面。
 
-### 手打事件自動對應（寫死）
+**要改的檔案與做法：**
 
-1. 從標題抽出所有 `09` 開頭的 10 位數字（先移除 `-`、空白）。**恰好 1 組**才繼續，否則「未對應」。
-2. 抽生日：標題中除了電話以外的 6 位數字（民國 `YYMMDD`）取後 4 碼，或 4 位數字 `MMDD`；
-   **恰好 1 組**且是合法月日才繼續，否則「未對應」。
-3. 用 `opaqueLookupIdentity(電話, '--MM-DD')`（`apps/api/src/patients/patient-directory.ts`）查
-   `patient_lookup_index_v2`：**恰好 1 位**候選且未封存 → 自動連結；0 位或 ≥2 位 → 「未對應」。
-4. 「未對應」的事件照現有流程進工作臺的候選清單（`unmatched`），時段視為占用。
-   **任何不確定都走未對應**，不得猜。
+1. `packages/domain/src/calendar-projection.ts`
+   - 新增並 export：
+     ```ts
+     export function formatClinicAppointmentTitle(input: {
+       readonly bookingKind: string;      // 'initial' | 'follow_up'
+       readonly itemId?: string;
+       readonly name?: string;
+       readonly phoneDigits?: string;
+       readonly birthMonthDay?: string;   // '--MM-DD'
+       readonly patientNote?: string;
+     }): string | undefined               // 缺必要欄位回 undefined
+     ```
+   - `buildClinicCalendarEventBody` 的 input 加 `readonly title?: string`；
+     `summary` 改成：有 `title` 時用「現有狀態前綴規則 ＋ title」，沒有時維持現在的結果。
+   - `assertClinicCalendarPayloadAllowlist` 不用改（標題是字串值，不是欄位名稱）。
+2. `apps/worker/src/calendar-port.ts`：`CalendarProjectionRequest` 加 `readonly title?: string;`
+3. `apps/worker/src/google-calendar.ts` 的 `eventBody()`：把 `request.title` 傳給
+   `buildClinicCalendarEventBody`（有值才傳）。
+4. 新檔 `apps/worker/src/calendar-title-source.ts`：
+   ```ts
+   export interface CalendarTitleSource {
+     /** 唯讀；任何錯誤或缺資料都回 undefined，絕不丟例外、絕不寫入。 */
+     titleFor(appointmentId: string): Promise<string | undefined>;
+   }
+   export class FirestoreCalendarTitleSource implements CalendarTitleSource { /* 讀 appointments、patients；patients 有 archivedAt 就回 undefined */ }
+   export const NO_CALENDAR_TITLE: CalendarTitleSource = { titleFor: async () => undefined };
+   ```
+5. `apps/worker/src/outbox-processor.ts`：constructor 多一個選用參數
+   `titleSource: CalendarTitleSource = NO_CALENDAR_TITLE`；在第 439 行附近呼叫
+   `this.calendar.project({...})` 之前 `const title = await this.titleSource.titleFor(job.appointmentId)`，
+   有值才放進 request。**同時更新那段中文註解**（原本寫「姓名、電話……一律不得離開本系統」），
+   改成「只有 ADR-0002 修訂段列的標題欄位，只在專用預約日曆」。
+6. worker 的組裝處（`git grep -n "new OutboxProcessor" apps/worker/src` 找非測試檔）傳入
+   `new FirestoreCalendarTitleSource(db)`；只有「專用預約日曆」的 port 才傳，其他（含 CAL-PILOT
+   合成同步）不傳。分不出哪個是專用預約日曆 → **停止並回報**。
 
-### 要改的檔案
+**測試：**
 
-- `packages/domain/src/calendar-sync.ts`：新增 `formatAppointmentTitle`、`formatReservedTitle`、
-  `extractCalendarContact`（回傳 `{ phoneDigits, monthDay } | undefined`）；舊的
-  `formatSyntheticAppointmentTitle` 保留給舊測試，不刪。
-- `apps/worker/src/calendar-sync/*`：寫入時改用新格式；判斷自己事件改用 extendedProperties。
-- 自動對應的查詢放在 API（worker 不直接讀病患資料？先用 `git grep -n "patient_lookup_index" apps/worker`
-  確認；若 worker 沒有讀病患集合的權限或程式 → **停止並回報**，由 Claude 決定放哪）。
-- 測試：`packages/domain/src/calendar-sync.test.ts` 加格式與抽取案例；現有「日曆不含個資」
-  的測試改成「只允許 ADR-0002 欄位」的正向＋反向測試（**不能直接刪掉**）。
+- `packages/domain/src/calendar-projection.test.ts`：
+  完整欄位、無備註、備註含換行、缺電話回 undefined、缺生日回 undefined、未知服務、回診。
+  另加反向測試：標題**不得**含年份、身分證字樣、`intakeNationality` 的值。
+- 現有「日曆不含個資」的測試：不要刪。改成兩條——沒給 `title` 時結果與現在完全相同；
+  給了 `title` 時 `summary` 只含上述欄位。
+- `apps/worker/src/outbox-processor.test.ts`：titleSource 回字串時 request 帶 `title`；
+  回 undefined 時不帶；titleSource 丟例外時 job 仍照原樣投影（不因標題失敗而卡住）。
+- 新 emulator 測試 `tests/firestore/calendar-title-source.test.ts`：完整資料、已封存、找不到病患。
+  **`beforeEach` 與 `afterAll` 都要清資料。**
 
-### 測試案例（抽取）
+### L2b 手打事件的建議病患（分支 `cursor/luna-calendar-title-in`，L2a 合併後才開）
+
+**抽取規則（寫死）：**
+
+1. 把標題裡的 `-`、全形／半形空白去掉後，找所有 `09\d{8}`。**恰好 1 組**才繼續。
+2. 從**原始標題**移除該電話後，找獨立的數字串（前後不是數字）：6 位數視為民國 `YYMMDD` 取後 4 碼，
+   4 位數視為 `MMDD`；只接受月 01–12、日在該月範圍（2 月接受 29）。**恰好 1 組**才繼續。
+3. 用 `opaqueLookupIdentity(電話, '--MM-DD')` 查 `patient_lookup_index_v2`：**恰好 1 位**、
+   且該病患沒有 `archivedAt` → 建議；其他情況 → 不建議。
+
+**要改的檔案與做法：**
+
+1. 把 `opaqueLookupIdentity` 從 `apps/api/src/patients/patient-directory.ts` **搬到**
+   `packages/domain/src/patient-identity.ts`（函式內容一字不改，包含 `rlk2_` 前綴與 `return-v2:` 字串），
+   API 端改成 `import { opaqueLookupIdentity } from '@beauessence/domain'` 並從 patient-directory
+   再 export 一次，讓既有 import 不壞。跑 `sync:domain`。**若 domain 不能用 `node:crypto`**
+   （瀏覽器也會載入 domain）→ **停止並回報**，不要自己換雜湊演算法。
+2. `packages/domain/src/calendar-sync.ts` 新增 `extractCalendarContact(title: string):
+   { phoneDigits: string; birthMonthDay: string } | undefined`，照上面規則。
+3. worker 的日曆同步寫入候選時（`apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts`，
+   `candidate.kind === 'unmatched'` 的地方）：用 2 算出聯絡資料 → 用 1 算鍵 → 唯讀查索引與病患 →
+   符合就在候選文件多寫 `suggestedPatientId` 與 `suggestionMethod: 'phone_month_day'`。
+   **不要**把電話、生日或鍵寫進候選文件。
+4. API 的候選清單回應（`apps/api/src/calendar/clinic-calendar-review.application-service.ts` 讀候選的地方）
+   多回 `suggestedPatientId`（只給員工）；contracts 對應 schema 加選用欄位。
+5. 工作臺候選清單：有 `suggestedPatientId` 時顯示「建議對應：{姓名}」與按鈕「為此病患建立預約」，
+   按下去打開現有的「建立新預約」表單並預填 `onBehalfPatientId` 與事件時間；建立成功後由櫃台照現有
+   方式把該候選標為已處理。**不新增自動建立預約的 API。**
+
+**測試案例（抽取，放 `packages/domain/src/calendar-sync.test.ts`）：**
 
 | 標題 | 預期 |
 | --- | --- |
 | `合成患者甲0900000001 0520` | `{ 0900000001, --05-20 }` |
-| `(IG)AS/顏/合成患者甲0900000001/止` | 無生日 → 未對應 |
 | `合成患者甲 0900-000-001 790520` | `{ 0900000001, --05-20 }` |
-| `0900000001 0900000002 0520` | 兩組電話 → 未對應 |
-| `合成患者甲0900000001 1332` | 月日不合法 → 未對應 |
-| `合成患者甲/鼻回` | 未對應 |
+| `(IG)AS/顏/合成患者甲0900000001/止` | undefined（沒有生日） |
+| `0900000001 0900000002 0520` | undefined（兩組電話） |
+| `合成患者甲0900000001 1332` | undefined（月日不合法） |
+| `合成患者甲0900000001 0520 0612` | undefined（兩組生日） |
+| `合成患者甲/鼻回` | undefined |
+
+emulator：恰好 1 位 → 有 `suggestedPatientId`；2 位 → 沒有；已封存 → 沒有；候選文件裡找不到電話字串。
 
 ---
 
@@ -195,44 +278,156 @@ legal hold 時永久刪除失敗；永久刪除後 `audit_events` 筆數不變�
 **依據：** `CP-03-UI-IN-WORKBENCH-2026-09-29`、ADR-0008、ADR-0009、L1 路由。
 **分支：** `cursor/luna-workbench-business-tab`
 
-### 做什麼
+### 1. 分頁與權限
 
-1. `apps/web/public/index.html` 加一個工作區段 `id="business-section"`，
-   `data-workspace-panel`、`data-restricted`（只有 manager 顯示，做法照現有 `audit-section`）。
-   左側導覽加「商務與驗收」。在 `apps/web/public/modules/workspace-tabs.js` 的
-   `ADMIN_PANEL_IDS` 加 `'business-section'`。
-2. 新檔 `apps/web/public/modules/business-view.js`：
-   - 月報：月份選擇（`<input type="month">`）→ `GET /v1/business-delivery/monthly-usage?month=`，
+1. `apps/web/public/index.html` 加 `<section id="business-section" data-workspace-panel hidden>`，
+   權限標記照現有 `audit-section`（`git grep -n "audit-section" apps/web/public` 找所有出現處，
+   每一處都照做一份 `business-section`）。左側導覽加「商務與驗收」。
+2. `apps/web/public/modules/workspace-tabs.js` 的 `ADMIN_PANEL_IDS` 加 `'business-section'`。
+
+### 2. 畫面（新檔 `apps/web/public/modules/business-view.js`）
+
+- 只在 C1 伺服器模式運作：`sessionStorage.getItem('calPilotCsrf')` 沒有值時，整個分頁只顯示
+  「此功能只在 C1 伺服器模式可用」，不發任何請求。
+- 所有請求用 `fetch('/v1/...', { credentials: 'same-origin' })`；POST 加
+  `X-CSRF-Token: sessionStorage.getItem('calPilotCsrf')` 與 `Content-Type: application/json`。
+- 四個區塊：
+  1. **月報**：`<input type="month">` → `GET /v1/business-delivery/monthly-usage?month=YYYY-MM`；
      顯示員工人數、預約數、完整度、分類、維護費（`null` 顯示「需人工確認」）。
-   - 里程碑：`GET /v1/business-delivery/milestones`，顯示五段狀態；兩個按鈕
-     「確認正式上線日」（要填日期＋證據編號）與「確認尾款」（要填證據編號）。
-   - 匯出：選起訖日期 → 建立 → 顯示狀態與剩餘次數 → 下載按鈕 → 撤銷按鈕。
-   - 封存：病患 ID 輸入 → 封存／復原；「待永久刪除」清單 → 永久刪除（選 reasonCode）；legal hold 開關。
-   - 所有 POST 帶 `X-CSRF-Token`（`sessionStorage.getItem('calPilotCsrf')`），做法照
-     `apps/web/public/modules/internal-test-booking-transport.js` 的 `v1()`。
-3. **重新登入橋接：** 在 `apps/web/src/calendar-pilot-entry.js`（有 Firebase）加：
-   ```js
-   window.addEventListener('beauessence:reauth-request', async (event) => {
-     // 用現有 Google＋TOTP 登入流程重新登入，取得新 ID token
-     // 成功：window.dispatchEvent(new CustomEvent('beauessence:reauth-result',
-     //   { detail: { requestId: event.detail.requestId, idToken } }))
-     // 失敗：detail 帶 { requestId, error: '重新登入未完成' }
-   });
-   ```
-   `business-view.js` 需要重新登入時發 `beauessence:reauth-request`（帶隨機 `requestId`），
-   等對應的 `beauessence:reauth-result`（60 秒逾時），拿到 `idToken` 放進
-   `x-reauth-id-token` header。**ID token 不得存進 localStorage／sessionStorage、不得記 log。**
-4. 本機合成模式（沒有 API）時，這個分頁只顯示「此功能只在 C1 伺服器模式可用」。
-5. 預算：跑 `corepack pnpm run check:perf`，看 `/index.html` 超出多少；在
-   `apps/web/performance-budget.json` 的 `/index.html` 項目把 `total`（以及超出的類別）
-   **只加到剛好通過再多 1 KiB**，並在 `justification` 句尾補一句：
-   `2026-09-30 CP-03-UI-IN-WORKBENCH-2026-09-29：商務與驗收分頁，業主核准小幅上調。`
-6. 新 e2e：`tests/e2e/business-tab.spec.ts`，並加進 `scripts/e2e-groups.mjs` 的 `e2e-ui` 群組。
-   用 `page.route('**/v1/business-delivery/**')` 模擬 API；驗證：manager 看得到、front_desk 看不到
-   （切過去被導回營運首頁）、月報與里程碑正確顯示、確認按鈕會發出 reauth-request 並帶 header。
-7. 跑 `corepack pnpm run check:ui`、`check:tokens`、`check:pages`，全部要過。
+  2. **里程碑**：`GET /v1/business-delivery/milestones`；五段狀態逐列顯示；
+     「確認正式上線日」（日期＋證據編號）與「確認尾款」（證據編號）兩個表單，
+     body 照 `MilestoneAcknowledgementRequestSchema`，`expectedVersion` 用畫面上的 `revision`。
+  3. **匯出**：起訖日期 → `POST /v1/business-delivery/exports`
+     （`{ idempotencyKey, format:'csv', from, to }`）→ 顯示狀態、剩餘次數；
+     下載用 `fetch` 取回文字後 `new Blob([text], { type: 'text/csv' })` ＋ `URL.createObjectURL`
+     觸發下載，檔名 `export-{from}-{to}.csv`；撤銷按鈕。
+  4. **封存**：照 L1 路由。
+- `idempotencyKey`：`crypto.randomUUID().replaceAll('-', '')`，同一次操作重試時沿用同一個鍵。
+- 文字全部用 `textContent` 放進畫面，**不用 innerHTML 放伺服器回來的值**。
 
-**停止條件：** `check:tokens` 要求的顏色／間距在 token 表裡找不到 → 停；預算需要加超過 5 KiB → 停。
+### 3. 重新登入（最難的部分，照抄骨架）
+
+登入程式（`apps/web/src/calendar-pilot-entry.js`）載有 Firebase，工作臺沒有。工作臺用事件請它幫忙。
+**注意：** 交給工作臺之後，登入程式的畫面區塊（`root`）已被刪除，所以不能用現有的 `promptTotp`，
+要自己開一個 `<dialog>`。
+
+在 `calendar-pilot-entry.js` 的 import 補上 `reauthenticateWithPopup`，並在 `boot()` 最前面註冊：
+
+```js
+function promptReauthTotp() {
+  return new Promise((resolve, reject) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'cp-dialog';
+    dialog.innerHTML =
+      '<form method="dialog" class="cp-form"><h2>輸入動態驗證碼</h2>' +
+      '<label class="cp-full">6 位數驗證碼<input name="code" inputmode="numeric" ' +
+      'autocomplete="one-time-code" pattern="[0-9]{6}" required /></label>' +
+      '<button class="cp-button cp-button-primary" value="ok">確認</button>' +
+      '<button class="cp-button" value="cancel" formnovalidate>取消</button></form>';
+    document.body.append(dialog);
+    dialog.addEventListener('close', () => {
+      const code = dialog.querySelector('input').value;
+      const ok = dialog.returnValue === 'ok' && /^[0-9]{6}$/.test(code);
+      dialog.remove();
+      if (ok) resolve(code);
+      else reject(new Error('已取消重新登入'));
+    });
+    dialog.showModal();
+  });
+}
+
+async function freshIdToken() {
+  const user = auth?.currentUser;
+  if (!user) throw new Error('請先登入');
+  try {
+    const result = await reauthenticateWithPopup(user, new GoogleAuthProvider());
+    return await result.user.getIdToken(true);
+  } catch (error) {
+    if (error?.code !== 'auth/multi-factor-auth-required') throw error;
+    const resolver = getMultiFactorResolver(auth, error);
+    const hint = resolver.hints.find(
+      (item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID
+    );
+    if (!hint) throw new Error('此帳號沒有設定動態驗證碼');
+    const code = await promptReauthTotp();
+    const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+    const result = await resolver.resolveSignIn(assertion);
+    return await result.user.getIdToken(true);
+  }
+}
+
+window.addEventListener('beauessence:reauth-request', async (event) => {
+  const requestId = event.detail?.requestId;
+  if (typeof requestId !== 'string') return;
+  try {
+    const idToken = await freshIdToken();
+    window.dispatchEvent(
+      new CustomEvent('beauessence:reauth-result', { detail: { requestId, idToken } })
+    );
+  } catch {
+    window.dispatchEvent(
+      new CustomEvent('beauessence:reauth-result', {
+        detail: { requestId, error: '重新登入未完成' }
+      })
+    );
+  }
+});
+```
+
+在 `business-view.js`：
+
+```js
+export function requestFreshIdToken(timeoutMs = 120_000) {
+  return new Promise((resolve, reject) => {
+    const requestId = crypto.randomUUID();
+    const timer = setTimeout(() => {
+      window.removeEventListener('beauessence:reauth-result', onResult);
+      reject(new Error('重新登入逾時'));
+    }, timeoutMs);
+    function onResult(event) {
+      if (event.detail?.requestId !== requestId) return;
+      clearTimeout(timer);
+      window.removeEventListener('beauessence:reauth-result', onResult);
+      if (typeof event.detail.idToken === 'string') resolve(event.detail.idToken);
+      else reject(new Error(event.detail.error ?? '重新登入未完成'));
+    }
+    window.addEventListener('beauessence:reauth-result', onResult);
+    window.dispatchEvent(
+      new CustomEvent('beauessence:reauth-request', { detail: { requestId } })
+    );
+  });
+}
+```
+
+需要重新登入的請求（建立匯出、確認里程碑、封存、永久刪除）：先 `await requestFreshIdToken()`，
+把結果放進 header `x-reauth-id-token`。**idToken 只存在區域變數，不得寫入 storage、不得 console.log。**
+
+**必須先確認的兩件事（做不到就停止並回報）：**
+
+1. 按鈕點下去**同步**發出 request 事件（不要先 `await` 別的東西），否則瀏覽器會擋彈出視窗。
+2. `apps/web/public/_headers` 或 Hosting 設定裡的 CSP 允許 Google 登入彈窗
+   （`git grep -n "frame-src\|Cross-Origin-Opener-Policy" apps/web firebase.json`）；
+   若 `Cross-Origin-Opener-Policy` 是 `same-origin`，彈窗會失效 → 停止並回報，不要自己改 CSP。
+
+### 4. 預算
+
+跑 `corepack pnpm run check:perf`。在 `apps/web/performance-budget.json` 的 `/index.html` 項目，
+把超出的類別與 `total` **只加到剛好通過再多 1 KiB**，並在 `justification` 句尾補：
+`2026-09-30 CP-03-UI-IN-WORKBENCH-2026-09-29：商務與驗收分頁，業主核准小幅上調。`
+需要加超過 5 KiB → 停止並回報。
+
+### 5. 測試
+
+- 新 e2e `tests/e2e/business-tab.spec.ts`，加進 `scripts/e2e-groups.mjs` 的 `e2e-ui` 群組。
+  用 `page.route('**/v1/business-delivery/**', ...)` 模擬 API；先
+  `page.evaluate(() => sessionStorage.setItem('calPilotCsrf', 'test-csrf'))` 進入伺服器模式。
+  驗證：manager 看得到分頁、front_desk 看不到（切過去回到營運首頁）；月報與里程碑顯示正確；
+  按「確認尾款」會發出 `beauessence:reauth-request`（在測試裡 `page.evaluate` 監聽並回
+  `beauessence:reauth-result` 帶假 token），之後的 POST 帶 `x-reauth-id-token` 與 `X-CSRF-Token`；
+  沒有 csrf 時只顯示「此功能只在 C1 伺服器模式可用」且沒有發請求。
+- 單元測試 `requestFreshIdToken`：成功、錯誤、逾時、別人的 requestId 不影響。
+- 重新登入彈窗本身無法自動測試 → PR 寫「需部署當天由業主實測」，**不要寫 PASS**。
+- `corepack pnpm run check:ui`、`check:tokens`、`check:pages` 都要過。
 
 ---
 
