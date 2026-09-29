@@ -1,5 +1,8 @@
 # 正式交付與商務需求的後續程式規劃
 
+**2026-09-29：** Q-USAGE／Q-RETENTION／Q-EXPORT／Q-EXIT 及還原演練的 C1 範圍答案見
+[商務交付政策封板](../product/2026-09-29-business-delivery-policy-decisions.md)；production 仍未核准。
+
 **2026-09-22 現行補充（不改寫以下 9/18 歷史）：** #149～154 已合併六個 domain 契約，
 後續應補 API／UI／runtime／policy，不重做契約。現行商務 authority 改以 Google Drive 原檔為準，
 本機九份 DOCX 僅歷史來源；金額已核對 80,000／30,000-30,000-20,000／1,800-500。
