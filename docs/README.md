@@ -48,6 +48,7 @@ Read in this order before changing a boundary or enabling a capability.
 Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [Phase 1 decision register](product/phase-1-decision-register.md) — the live status of every decision
+- [商務交付政策封板（2026-09-29）](product/2026-09-29-business-delivery-policy-decisions.md) — `BD-POLICY-2026-09-29`：業主對匯出、保存刪除、月用量、驗收尾款、還原演練、終止返還及測試期天數的回答；只適用 C1 合成環境，production 仍需專業審閱與另行授權
 - [Luna local authorized playbook](product/luna-local-authorized-playbook.md) — Luna starts here; `GROK_RESTS` / `LUNA_SOLE_EXECUTOR`. Not production authority
 - [Luna remaining-work map](product/luna-local-project-completion-master-plan.md) — Phases 0 and A–L for Luna after playbook Card 8 PASS. Not production authority
 - [Current execution and approval plan](product/current-execution-and-approval-plan.md) — human approval-packet checklist; remaining work is Luna-only after 2026-09-12
