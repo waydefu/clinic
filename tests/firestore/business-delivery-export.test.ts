@@ -115,6 +115,9 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
+  // Suites share one emulator database; leave no appointments or patients
+  // behind for the next suite.
+  await wipe();
   await deleteApp(app);
 });
 
