@@ -10,6 +10,10 @@ import {
 export const PITR_RETENTION = '604800s';
 export const DAILY_BACKUP_RETENTION = '2592000s';
 const DESTINATION_PATTERN = /^[a-z][a-z0-9-]{2,61}[a-z0-9]$/;
+// PITR clone accepts only whole-minute UTC timestamps, at most seven days back
+// (https://docs.cloud.google.com/firestore/native/docs/use-pitr, 2026-09-22).
+const WHOLE_MINUTE_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00(?:\.000)?Z$/;
+const PITR_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function internalTestBackupCollectCommands(projectId) {
   if (projectId === FORBIDDEN_STAGING_PROJECT) {
@@ -115,7 +119,7 @@ export function evaluateInternalTestBackup(evidence) {
   return { ok: issues.length === 0, issues };
 }
 
-export function assertInternalTestRestorePacket(packet, headSha) {
+export function assertInternalTestRestorePacket(packet, headSha, nowUtc) {
   const sha = String(packet?.sha ?? '').trim();
   const projectId = String(packet?.projectId ?? '').trim();
   const destinationDatabase = String(packet?.destinationDatabase ?? '').trim();
@@ -162,10 +166,25 @@ export function assertInternalTestRestorePacket(packet, headSha) {
       'internal-test restore packet must name snapshotTime, operator, and approver.'
     );
   }
-  if (Number.isNaN(Date.parse(snapshotTime))) {
+  if (
+    !WHOLE_MINUTE_UTC.test(snapshotTime) ||
+    Number.isNaN(Date.parse(snapshotTime))
+  ) {
     throw new Error(
-      'internal-test restore snapshotTime must be a parseable UTC timestamp.'
+      'internal-test restore snapshotTime must be a whole-minute UTC timestamp such as 2026-09-14T00:00:00Z.'
     );
+  }
+  if (nowUtc !== undefined) {
+    const nowMs = Date.parse(nowUtc);
+    const snapshotMs = Date.parse(snapshotTime);
+    if (Number.isNaN(nowMs)) {
+      throw new Error('internal-test restore plan needs a parseable clock.');
+    }
+    if (snapshotMs > nowMs || snapshotMs < nowMs - PITR_WINDOW_MS) {
+      throw new Error(
+        'internal-test restore snapshotTime must be within the last seven days (PITR window).'
+      );
+    }
   }
   return {
     sha,
@@ -177,8 +196,8 @@ export function assertInternalTestRestorePacket(packet, headSha) {
   };
 }
 
-export function planInternalTestRestore(packet, headSha) {
-  const authorized = assertInternalTestRestorePacket(packet, headSha);
+export function planInternalTestRestore(packet, headSha, nowUtc) {
+  const authorized = assertInternalTestRestorePacket(packet, headSha, nowUtc);
   return {
     execute: false,
     projectId: authorized.projectId,
@@ -188,7 +207,9 @@ export function planInternalTestRestore(packet, headSha) {
       'firestore',
       'databases',
       'clone',
-      '(default)',
+      // Official syntax names the source by resource path; the positional
+      // '(default)' form the helper used to print is not accepted.
+      `--source-database='projects/${authorized.projectId}/databases/(default)'`,
       `--destination-database=${authorized.destinationDatabase}`,
       `--snapshot-time=${authorized.snapshotTime}`,
       `--project=${authorized.projectId}`
@@ -216,7 +237,8 @@ export function runInternalTestBackupCli({
   env,
   stdout,
   stderr,
-  readFile
+  readFile,
+  now = () => new Date().toISOString()
 }) {
   const reader = readFile ?? ((path) => readFileSync(path, 'utf8'));
   const args = argv.filter((argument) => argument !== '--');
@@ -244,7 +266,11 @@ export function runInternalTestBackupCli({
       stderr.write(INSPECT_USAGE);
       return 2;
     }
-    const plan = planInternalTestRestore(restorePacketFromEnv(env), headSha);
+    const plan = planInternalTestRestore(
+      restorePacketFromEnv(env),
+      headSha,
+      now()
+    );
     stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
     return 0;
   } catch (error) {
