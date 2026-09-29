@@ -133,3 +133,53 @@ export type BusinessMilestonesResponse = z.infer<
 export type MilestoneAcknowledgementResponse = z.infer<
   typeof MilestoneAcknowledgementResponseSchema
 >;
+
+/**
+ * CP-04 export. The server fixes the columns (the approved allowlist) and the
+ * scope; the client only picks the Taipei date range. CSV is the only format
+ * this phase (`OWNER-BATCH-2026-09-29B` item 2), so any other value is refused.
+ */
+export const CreateBusinessExportRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    format: z.literal('csv'),
+    /** Inclusive Taipei calendar dates of the appointment start time. */
+    from: LocalDateSchema,
+    to: LocalDateSchema
+  })
+  .strict();
+
+export const RevokeBusinessExportRequestSchema = z
+  .object({ idempotencyKey: IdempotencyKeySchema })
+  .strict();
+
+export const BusinessExportStatusSchema = z.enum([
+  'ready',
+  'exhausted',
+  'expired',
+  'revoked',
+  'purged'
+]);
+
+export const BusinessExportJobSchema = z
+  .object({
+    exportId: OpaqueIdentifierSchema,
+    status: BusinessExportStatusSchema,
+    format: z.literal('csv'),
+    from: LocalDateSchema,
+    to: LocalDateSchema,
+    rowCount: z.number().int().min(0),
+    byteLength: z.number().int().min(0),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    createdAt: z.string(),
+    downloadExpiresAt: z.string(),
+    downloadsRemaining: z.number().int().min(0),
+    purgeAt: z.string(),
+    replayed: z.boolean().optional()
+  })
+  .strict();
+
+export type CreateBusinessExportRequest = z.infer<
+  typeof CreateBusinessExportRequestSchema
+>;
+export type BusinessExportJob = z.infer<typeof BusinessExportJobSchema>;

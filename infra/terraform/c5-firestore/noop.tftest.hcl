@@ -25,6 +25,11 @@ run "default_sha_is_noop" {
     condition     = length(google_firestore_backup_schedule.daily) == 0
     error_message = "C5 must create zero backup schedules when SHA is not_granted."
   }
+
+  assert {
+    condition     = length(google_firestore_field.export_chunk_ttl) == 0
+    error_message = "C5 must create zero TTL policies when SHA is not_granted."
+  }
 }
 
 run "named_sha_enables_native_firestore" {
@@ -94,6 +99,16 @@ run "named_sha_enables_native_firestore" {
   assert {
     condition     = google_firestore_backup_schedule.daily[0].database == "(default)"
     error_message = "C5 daily backup must target the default database."
+  }
+
+  assert {
+    condition     = google_firestore_field.export_chunk_ttl[0].collection == "bd_export_chunks"
+    error_message = "C5 export TTL must target only the export chunk collection."
+  }
+
+  assert {
+    condition     = google_firestore_field.export_chunk_ttl[0].field == "purgeAt"
+    error_message = "C5 export TTL must use the purgeAt field."
   }
 }
 

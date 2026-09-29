@@ -159,6 +159,19 @@
         }
       ],
       "note": "CP-03（BD-POLICY-2026-09-29）：只限 manager；BUSINESS_DELIVERY_* 設定不完整時路由回 404。不自動收費、不偽造正式運行月。"
+    },
+    "business_data_export": {
+      "permissions": ["export_business_data"],
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-002",
+          "description": "BD-POLICY-2026-09-29 與 OWNER-BATCH-2026-09-29B 只核准 C1 合成環境的 CSV 匯出；production 的資料存取與匯出仍待 D-002 與專業隱私／法律審閱。",
+          "blocks": "public_production_route"
+        }
+      ],
+      "note": "CP-04：只限 manager；建立需 10 分鐘內重新 Google＋TOTP；24 小時內最多下載 3 次；檔案 7 天由 Firestore TTL 刪除且 API 過期即拒絕。"
     }
   },
   "unrouted": {
