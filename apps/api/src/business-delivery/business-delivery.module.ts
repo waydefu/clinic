@@ -9,10 +9,16 @@ import {
   vitestWithoutFirestoreEmulator
 } from '../calendar/calendar-pilot.module.js';
 import { FirestoreBusinessDeliveryRepository } from '../firestore/business-delivery.repository.js';
+import { FirestoreBusinessExportRepository } from '../firestore/business-delivery-export.repository.js';
+import { BusinessExportApplicationService } from './business-export.application-service.js';
+import { BusinessExportController } from './business-export.controller.js';
 import { BusinessDeliveryApplicationService } from './business-delivery.application-service.js';
 import { readBusinessDeliveryConfig } from './business-delivery.config.js';
 import { BusinessDeliveryController } from './business-delivery.controller.js';
-import { BUSINESS_DELIVERY_APPLICATION } from './business-delivery.tokens.js';
+import {
+  BUSINESS_DELIVERY_APPLICATION,
+  BUSINESS_EXPORT_APPLICATION
+} from './business-delivery.tokens.js';
 import { FreshReauthenticationVerifier } from './reauthentication.js';
 
 /**
@@ -22,7 +28,7 @@ import { FreshReauthenticationVerifier } from './reauthentication.js';
  */
 @Module({
   imports: [CalendarPilotModule],
-  controllers: [BusinessDeliveryController],
+  controllers: [BusinessDeliveryController, BusinessExportController],
   providers: [
     CalendarPilotSessionGuard,
     {
@@ -47,6 +53,30 @@ import { FreshReauthenticationVerifier } from './reauthentication.js';
         return new BusinessDeliveryApplicationService(
           config,
           new FirestoreBusinessDeliveryRepository(getFirestore(app)),
+          new FreshReauthenticationVerifier(getAuth(app)),
+          clock
+        );
+      }
+    },
+    {
+      provide: BUSINESS_EXPORT_APPLICATION,
+      useFactory: () => {
+        const config = readBusinessDeliveryConfig(process.env);
+        const clock = () => new Date().toISOString();
+        const refuse = () => Promise.reject(new Error('disabled'));
+        if (!config.enabled || vitestWithoutFirestoreEmulator()) {
+          // Disabled: no Firebase client is created; every route answers 404.
+          return new BusinessExportApplicationService(
+            { enabled: false },
+            { create: refuse, get: refuse, download: refuse, revoke: refuse },
+            { assertFresh: refuse },
+            clock
+          );
+        }
+        const app = defaultFirebaseApp();
+        return new BusinessExportApplicationService(
+          config,
+          new FirestoreBusinessExportRepository(getFirestore(app)),
           new FreshReauthenticationVerifier(getAuth(app)),
           clock
         );
