@@ -35,6 +35,14 @@ export interface ApprovedBusinessDeliveryPolicy {
   };
   /** Fresh Google + TOTP re-authentication window for milestone confirmation. */
   readonly reauthenticationMaxAgeSeconds: number;
+  /** CP-04 export limits (`BD-POLICY-2026-09-29` §1, `OWNER-BATCH-2026-09-29B` item 2). */
+  readonly export: {
+    readonly formats: readonly ['csv'];
+    readonly downloadWindowHours: number;
+    readonly maxDownloads: number;
+    readonly fileRetentionDays: number;
+    readonly maxRangeDays: number;
+  };
 }
 
 export const BUSINESS_DELIVERY_POLICY_VERSIONS = [
@@ -59,7 +67,16 @@ const APPROVED_POLICIES: Readonly<
     }),
     lateEventCutoffDays: 5,
     maintenanceFeesTwd: Object.freeze({ normal: 1800, unused: 500 }),
-    reauthenticationMaxAgeSeconds: 600
+    reauthenticationMaxAgeSeconds: 600,
+    export: Object.freeze({
+      formats: Object.freeze(['csv'] as const),
+      downloadWindowHours: 24,
+      maxDownloads: 3,
+      fileRetentionDays: 7,
+      // Engineering bound, not a policy value: one year per file keeps each
+      // export inside a single atomic write.
+      maxRangeDays: 366
+    })
   })
 });
 
@@ -311,4 +328,35 @@ export function assertMilestoneAcknowledgementAllowed(input: {
       'final payment cannot be confirmed before one formal operation month.'
     );
   }
+}
+
+/**
+ * Half-open UTC range `[startAt, endAt)` covering the inclusive Taipei dates
+ * `from`..`to`. Rejects an inverted range or one longer than `maxDays`.
+ */
+export function taipeiDateRange(input: {
+  readonly from: string;
+  readonly to: string;
+  readonly maxDays: number;
+}): {
+  readonly startAt: string;
+  readonly endAt: string;
+  readonly days: number;
+} {
+  assertTaipeiCalendarDate(input.from);
+  assertTaipeiCalendarDate(input.to);
+  const startMs = Date.parse(`${input.from}T00:00:00.000+08:00`);
+  const lastMs = Date.parse(`${input.to}T00:00:00.000+08:00`);
+  const days = Math.round((lastMs - startMs) / 86_400_000) + 1;
+  if (days < 1) {
+    throw new DomainError('INVALID_VALUE', 'from must not be after to.');
+  }
+  if (days > input.maxDays) {
+    throw new DomainError('INVALID_VALUE', 'the export range is too long.');
+  }
+  return {
+    startAt: new Date(startMs).toISOString(),
+    endAt: new Date(lastMs + 86_400_000).toISOString(),
+    days
+  };
 }

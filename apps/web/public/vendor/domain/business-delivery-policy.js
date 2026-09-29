@@ -18,7 +18,16 @@ const APPROVED_POLICIES = Object.freeze({
         }),
         lateEventCutoffDays: 5,
         maintenanceFeesTwd: Object.freeze({ normal: 1800, unused: 500 }),
-        reauthenticationMaxAgeSeconds: 600
+        reauthenticationMaxAgeSeconds: 600,
+        export: Object.freeze({
+            formats: Object.freeze(['csv']),
+            downloadWindowHours: 24,
+            maxDownloads: 3,
+            fileRetentionDays: 7,
+            // Engineering bound, not a policy value: one year per file keeps each
+            // export inside a single atomic write.
+            maxRangeDays: 366
+        })
     })
 });
 export function resolveApprovedBusinessDeliveryPolicy(version, scope) {
@@ -178,4 +187,26 @@ export function assertMilestoneAcknowledgementAllowed(input) {
     if (status.finalPayment.status !== 'awaiting_acknowledgement') {
         throw new DomainError('INVALID_VALUE', 'final payment cannot be confirmed before one formal operation month.');
     }
+}
+/**
+ * Half-open UTC range `[startAt, endAt)` covering the inclusive Taipei dates
+ * `from`..`to`. Rejects an inverted range or one longer than `maxDays`.
+ */
+export function taipeiDateRange(input) {
+    assertTaipeiCalendarDate(input.from);
+    assertTaipeiCalendarDate(input.to);
+    const startMs = Date.parse(`${input.from}T00:00:00.000+08:00`);
+    const lastMs = Date.parse(`${input.to}T00:00:00.000+08:00`);
+    const days = Math.round((lastMs - startMs) / 86_400_000) + 1;
+    if (days < 1) {
+        throw new DomainError('INVALID_VALUE', 'from must not be after to.');
+    }
+    if (days > input.maxDays) {
+        throw new DomainError('INVALID_VALUE', 'the export range is too long.');
+    }
+    return {
+        startAt: new Date(startMs).toISOString(),
+        endAt: new Date(lastMs + 86_400_000).toISOString(),
+        days
+    };
 }

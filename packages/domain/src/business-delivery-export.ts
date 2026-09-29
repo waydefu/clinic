@@ -197,3 +197,131 @@ export function renderBusinessExportCsvPage(input: {
   }
   return `\uFEFF${lines.join('\r\n')}\r\n`;
 }
+
+/**
+ * The approved CP-04 export columns (`BD-POLICY-2026-09-29` §1) in file order,
+ * with the Traditional Chinese header each one prints. Field keys stay ASCII
+ * so the allowlist checks above apply unchanged.
+ */
+export const BUSINESS_EXPORT_COLUMNS = Object.freeze([
+  Object.freeze({ field: 'name', label: '姓名' }),
+  Object.freeze({ field: 'phone', label: '電話' }),
+  Object.freeze({ field: 'birthMonthDay', label: '生日（月-日）' }),
+  Object.freeze({ field: 'nationality', label: '國籍' }),
+  Object.freeze({ field: 'startsAt', label: '預約時間（台北）' }),
+  Object.freeze({ field: 'bookingKind', label: '初診／回診' }),
+  Object.freeze({ field: 'service', label: '服務' }),
+  Object.freeze({ field: 'status', label: '狀態' }),
+  Object.freeze({ field: 'patientNote', label: '備註' })
+] as const);
+
+export const BUSINESS_EXPORT_FIELDS: readonly string[] = Object.freeze(
+  BUSINESS_EXPORT_COLUMNS.map((column) => column.field)
+);
+
+const SERVICE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  service_snoring: '止鼾',
+  service_aesthetic: '醫美'
+});
+const STATUS_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  confirmed: '已預約',
+  arrived: '已到診',
+  cancellation_requested: '申請取消中',
+  cancelled: '已取消',
+  completed: '已完成',
+  no_show: '未到'
+});
+
+/**
+ * Excel reads a bare `0912000001` as a number and drops the leading zero, so
+ * the export groups digits with hyphens, which spreadsheets keep as text.
+ */
+function displayPhone(digits: string | undefined): string | null {
+  if (digits === undefined || !/^\d{8,20}$/.test(digits)) return null;
+  if (/^09\d{8}$/.test(digits))
+    return `${digits.slice(0, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+}
+
+function taipeiDateTime(isoUtc: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(new Date(isoUtc));
+  const part = (type: string) =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')} ${part('hour')}:${part('minute')}`;
+}
+
+/**
+ * Maps one stored appointment and its patient to the approved columns. A
+ * value the server does not hold (for example a record created before contact
+ * storage) is left blank; nothing is guessed or derived.
+ */
+export function toBusinessExportRow(input: {
+  readonly name?: string;
+  readonly phoneDigits?: string;
+  readonly birthMonthDay?: string;
+  readonly nationality?: string;
+  readonly startsAt?: string;
+  readonly bookingKind?: string;
+  readonly itemId?: string;
+  readonly status?: string;
+  readonly patientNote?: string;
+}): Readonly<Record<string, BusinessExportCell>> {
+  const monthDay = /^--(\d{2})-(\d{2})$/.exec(input.birthMonthDay ?? '');
+  return {
+    name: input.name ?? null,
+    phone: displayPhone(input.phoneDigits),
+    birthMonthDay: monthDay ? `${monthDay[1]}-${monthDay[2]}` : null,
+    nationality:
+      input.nationality === 'domestic'
+        ? '本國'
+        : input.nationality === 'foreign'
+          ? '外國'
+          : null,
+    startsAt:
+      input.startsAt !== undefined && !Number.isNaN(Date.parse(input.startsAt))
+        ? taipeiDateTime(input.startsAt)
+        : null,
+    bookingKind:
+      input.bookingKind === 'initial'
+        ? '初診'
+        : input.bookingKind === 'follow_up'
+          ? '回診'
+          : null,
+    service:
+      input.itemId === undefined
+        ? null
+        : (SERVICE_LABELS[input.itemId] ?? input.itemId),
+    status:
+      input.status === undefined
+        ? null
+        : (STATUS_LABELS[input.status] ?? input.status),
+    patientNote: input.patientNote ?? null
+  };
+}
+
+/**
+ * Renders a complete CSV file whose header row is the approved Chinese labels
+ * instead of the field keys. Same escaping and formula protection as the page
+ * renderer. Phones are hyphen-grouped by `toBusinessExportRow`.
+ */
+export function renderBusinessExportCsvFile(input: {
+  readonly rows: readonly Readonly<Record<string, BusinessExportCell>>[];
+}): string {
+  const page = renderBusinessExportCsvPage({
+    fields: BUSINESS_EXPORT_FIELDS,
+    rows: input.rows
+  });
+  const header = BUSINESS_EXPORT_COLUMNS.map((column) =>
+    csvCell(column.label)
+  ).join(',');
+  const firstBreak = page.indexOf('\r\n');
+  return `\uFEFF${header}${page.slice(firstBreak)}`;
+}

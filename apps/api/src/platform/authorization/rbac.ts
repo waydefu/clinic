@@ -63,7 +63,9 @@ export type Permission =
   // CP-03 (BD-POLICY-2026-09-29): the clinic owner reads usage/milestones and
   // confirms launch and final payment. No other role, including system_admin.
   | 'read_business_delivery'
-  | 'acknowledge_business_milestone';
+  | 'acknowledge_business_milestone'
+  // CP-04 (BD-POLICY-2026-09-29 §1): manager-only export.
+  | 'export_business_data';
 
 /**
  * Candidate permission matrix. Deliberately least-privilege: the front desk
@@ -115,7 +117,8 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
     'record_payroll_adjustment',
     'read_audit',
     'read_business_delivery',
-    'acknowledge_business_milestone'
+    'acknowledge_business_milestone',
+    'export_business_data'
   ],
   system_admin: [
     'create_appointment',

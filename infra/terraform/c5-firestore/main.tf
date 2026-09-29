@@ -34,3 +34,21 @@ resource "google_firestore_backup_schedule" "daily" {
   daily_recurrence {}
   depends_on = [google_firestore_database.synthetic]
 }
+
+# CP-04 export staging (OWNER-BATCH-2026-09-29B item 2): export file chunks
+# carry a `purgeAt` timestamp; Firestore TTL deletes them after it passes
+# (policy: 7 days). TTL deletion is best-effort and usually within a day of
+# purgeAt, so the API also refuses to serve any chunk past its purgeAt.
+# Single-field indexing is disabled because nothing queries this field.
+resource "google_firestore_field" "export_chunk_ttl" {
+  count      = local.apply_enabled ? 1 : 0
+  project    = var.project_id
+  database   = "(default)"
+  collection = "bd_export_chunks"
+  field      = "purgeAt"
+
+  ttl_config {}
+  index_config {}
+
+  depends_on = [google_firestore_database.synthetic]
+}
