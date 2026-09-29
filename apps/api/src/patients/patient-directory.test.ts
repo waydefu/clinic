@@ -256,3 +256,58 @@ describe('assertFollowUpBookable', () => {
     ).toBe('FOLLOW_UP_ALREADY_SCHEDULED');
   });
 });
+
+describe('patient contact storage (EXPORT-CONTACT-STORAGE-2026-09-29)', () => {
+  const NOW = '2026-09-29T04:00:00.000Z';
+
+  it('stores phone digits and month-day on a new patient, never a year', async () => {
+    const directory = new InMemoryPatientDirectory();
+    await directory.resolveFromIntake(INTAKE, NOW, () => 'patient_c01');
+    expect(directory.patients.get('patient_c01')).toEqual({
+      name: '合成患者甲',
+      phoneDigits: '0912000001',
+      birthMonthDay: '--01-15'
+    });
+  });
+
+  it('fills contact on reuse only when it is missing', async () => {
+    const directory = new InMemoryPatientDirectory();
+    directory.lookup.set(opaqueLookupIdentity('0912000001', '--01-15'), [
+      'patient_legacy'
+    ]);
+    directory.patients.set('patient_legacy', { name: '合成患者甲' });
+    await directory.resolveFromIntake(INTAKE, NOW, () => 'unused');
+    expect(directory.patients.get('patient_legacy')).toEqual({
+      name: '合成患者甲',
+      phoneDigits: '0912000001',
+      birthMonthDay: '--01-15'
+    });
+  });
+
+  it('never overwrites contact already stored', async () => {
+    const directory = new InMemoryPatientDirectory();
+    await directory.resolveFromIntake(INTAKE, NOW, () => 'patient_c02');
+    const stored = directory.patients.get('patient_c02');
+    directory.patients.set('patient_c02', {
+      ...stored!,
+      phoneDigits: '0912000999'
+    });
+    await directory.resolveFromIntake(INTAKE, NOW, () => 'unused');
+    expect(directory.patients.get('patient_c02')?.phoneDigits).toBe(
+      '0912000999'
+    );
+  });
+
+  it('stores nothing when the intake is refused as ambiguous', async () => {
+    const directory = new InMemoryPatientDirectory();
+    await directory.resolveFromIntake(INTAKE, NOW, () => 'patient_c03');
+    await expect(
+      directory.resolveFromIntake(
+        { ...INTAKE, name: '合成患者乙' },
+        NOW,
+        () => 'patient_c04'
+      )
+    ).rejects.toBeInstanceOf(DomainError);
+    expect(directory.patients.has('patient_c04')).toBe(false);
+  });
+});

@@ -118,6 +118,28 @@ export function assertFollowUpBookable(
   }
 }
 
+/**
+ * Contact values stored on the server-side patient record
+ * (`EXPORT-CONTACT-STORAGE-2026-09-29`, ADR-0007 2026-09-29 addendum) for the
+ * approved export and front-desk contact. They never enter logs, audit events,
+ * usage events or the lookup key; the key stays a one-way hash.
+ */
+export interface PatientContact {
+  readonly phoneDigits: string;
+  /** `--MM-DD`, never a year. */
+  readonly birthMonthDay: string;
+}
+
+export function patientContactOf(identity: {
+  readonly phone: string;
+  readonly birthDate: string;
+}): PatientContact {
+  return {
+    phoneDigits: patientPhoneDigits(identity.phone),
+    birthMonthDay: identity.birthDate
+  };
+}
+
 function stringField(
   data: Record<string, unknown> | undefined,
   key: string
@@ -193,7 +215,20 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
         name: stringField(snapshot.data(), 'name') ?? ''
       }));
       const decision = resolveIntakeCandidate(candidates, identity.name);
-      if (decision.kind === 'reuse') return decision.patientId;
+      const contact = patientContactOf(identity);
+      if (decision.kind === 'reuse') {
+        // Same key means the same phone digits and month-day, freshly given in
+        // this booking. Fill them only when missing; nothing is derived from
+        // the hash and no other record is touched (no batch backfill).
+        const reused = snapshots[ids.indexOf(decision.patientId)];
+        if (
+          reused?.exists === true &&
+          stringField(reused.data(), 'phoneDigits') === undefined
+        ) {
+          transaction.update(reused.ref, { ...contact, updatedAt: nowUtc });
+        }
+        return decision.patientId;
+      }
       if (decision.kind === 'ambiguous') throw ambiguousIdentity();
       const patientId = allocateId();
       transaction.set(lookupRef, {
@@ -206,6 +241,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
         {
           patientId,
           name: identity.name,
+          ...contact,
           createdAt: nowUtc,
           updatedAt: nowUtc
         }
@@ -348,7 +384,10 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
  */
 export class InMemoryPatientDirectory implements PatientDirectoryPort {
   public readonly lookup = new Map<string, string[]>();
-  public readonly patients = new Map<string, { name: string }>();
+  public readonly patients = new Map<
+    string,
+    { name: string; phoneDigits?: string; birthMonthDay?: string }
+  >();
   public readonly sessions = new Map<
     string,
     { patientId: string; expiresAt: string }
@@ -370,11 +409,17 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
       name: this.patients.get(patientId)?.name ?? ''
     }));
     const decision = resolveIntakeCandidate(candidates, identity.name);
-    if (decision.kind === 'reuse') return decision.patientId;
+    const contact = patientContactOf(identity);
+    if (decision.kind === 'reuse') {
+      const reused = this.patients.get(decision.patientId);
+      if (reused !== undefined && reused.phoneDigits === undefined)
+        this.patients.set(decision.patientId, { ...reused, ...contact });
+      return decision.patientId;
+    }
     if (decision.kind === 'ambiguous') throw ambiguousIdentity();
     const patientId = allocateId();
     this.lookup.set(lookupKey, [patientId]);
-    this.patients.set(patientId, { name: identity.name });
+    this.patients.set(patientId, { name: identity.name, ...contact });
     this.createdPatientCount += 1;
     return patientId;
   }
