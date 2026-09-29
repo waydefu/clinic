@@ -123,6 +123,41 @@ describe('planInternalTestRestore', () => {
       )
     ).toThrow(/not this HEAD/);
   });
+
+  it('names the source database with the official --source-database syntax', () => {
+    const plan = planInternalTestRestore(PACKET, HEAD);
+    expect(plan.cloneCommand).toBe(
+      `gcloud firestore databases clone --source-database='projects/${isolated}/databases/(default)' --destination-database=c5restore-drill --snapshot-time=2026-09-14T00:00:00.000Z --project=${isolated}`
+    );
+    // The positional form the helper used to print is rejected by gcloud.
+    expect(plan.cloneCommand).not.toMatch(/clone \(default\)/);
+  });
+
+  it.each([
+    '2026-09-14T00:00:30.000Z',
+    '2026-09-14T00:00:00.500Z',
+    '2026-09-14T08:00:00+08:00',
+    '2026-09-14'
+  ])('refuses non-whole-minute or non-UTC snapshot %s', (snapshotTime) => {
+    expect(() =>
+      planInternalTestRestore({ ...PACKET, snapshotTime }, HEAD)
+    ).toThrow(/whole-minute UTC/);
+  });
+
+  it('accepts a snapshot inside the seven-day PITR window', () => {
+    expect(
+      planInternalTestRestore(PACKET, HEAD, '2026-09-21T00:00:00.000Z').execute
+    ).toBe(false);
+  });
+
+  it.each([
+    ['older than seven days', '2026-09-21T00:00:00.001Z'],
+    ['in the future', '2026-09-13T23:59:00.000Z']
+  ])('refuses a snapshot %s', (_label, nowUtc) => {
+    expect(() => planInternalTestRestore(PACKET, HEAD, nowUtc)).toThrow(
+      /last seven days/
+    );
+  });
 });
 
 describe('internal-test backup inspect source', () => {
