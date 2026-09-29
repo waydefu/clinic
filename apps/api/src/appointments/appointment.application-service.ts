@@ -144,6 +144,11 @@ export function toBookingRequest(
     ...(command.intake === undefined
       ? {}
       : { intakeNationality: command.intake.nationality }),
+    // Advisory text: not part of the idempotency fingerprint, so a retried
+    // request replays the first booking even if the note was edited.
+    ...(command.patientNote === undefined || command.patientNote.trim() === ''
+      ? {}
+      : { patientNote: command.patientNote.trim() }),
     idempotency: createAppointmentIdempotency({
       key: command.idempotencyKey,
       actorId: context.audit.actorId,
@@ -513,7 +518,10 @@ export class AppointmentApplicationService {
         ...(patientScope ? {} : { patientId: record.patientId }),
         ...(patientScope || record.intakeNationality === undefined
           ? {}
-          : { intakeNationality: record.intakeNationality })
+          : { intakeNationality: record.intakeNationality }),
+        ...(patientScope || record.patientNote === undefined
+          ? {}
+          : { patientNote: record.patientNote })
       }
     ];
   }

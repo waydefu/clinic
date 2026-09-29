@@ -124,6 +124,10 @@ export function mapInternalTestBookingRequest(
         ...(body.intake === undefined &&
         typeof body.onBehalfPatientId === 'string'
           ? { onBehalfPatientId: body.onBehalfPatientId }
+          : {}),
+        ...(typeof body.patientNote === 'string' &&
+        body.patientNote.trim() !== ''
+          ? { patientNote: body.patientNote.trim() }
           : {})
       }
     };

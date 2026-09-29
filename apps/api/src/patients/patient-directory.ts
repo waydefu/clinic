@@ -180,7 +180,12 @@ export function toListRecord(
     ...(typeof data?.['startsAt'] === 'string'
       ? { startsAt: data['startsAt'] }
       : {}),
-    ...(intakeNationality === undefined ? {} : { intakeNationality })
+    ...(intakeNationality === undefined ? {} : { intakeNationality }),
+    ...(typeof data?.['patientNote'] === 'string' &&
+    data['patientNote'] !== '' &&
+    data['patientNote'].length <= 120
+      ? { patientNote: data['patientNote'] }
+      : {})
   };
 }
 

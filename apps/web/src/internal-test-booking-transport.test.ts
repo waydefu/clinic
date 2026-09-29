@@ -134,6 +134,23 @@ describe('mapInternalTestBookingRequest', () => {
     });
     expect(accountless?.body).not.toHaveProperty('patient');
     expect(accountless?.body).not.toHaveProperty('onBehalfPatientId');
+    expect(accountless?.body).not.toHaveProperty('patientNote');
+
+    const withNote = mapInternalTestBookingRequest('/bookings', 'POST', {
+      slotId: 'slot_001',
+      itemIds: ['service_consult'],
+      bookingKind: 'initial',
+      patientNote: '  合成備註  '
+    });
+    expect(withNote?.body).toMatchObject({ patientNote: '合成備註' });
+    expect(
+      mapInternalTestBookingRequest('/bookings', 'POST', {
+        slotId: 'slot_001',
+        itemIds: ['service_consult'],
+        bookingKind: 'initial',
+        patientNote: '   '
+      })?.body
+    ).not.toHaveProperty('patientNote');
 
     expect(
       mapInternalTestBookingRequest(

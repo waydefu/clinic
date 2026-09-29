@@ -307,6 +307,36 @@ describe('AppointmentApplicationService', () => {
     expect(reserve).toHaveBeenCalledTimes(1);
   });
 
+  it('trims the booking note and drops a blank one', () => {
+    const context = {
+      appointmentId: 'appointment_note_001',
+      patientId: 'patient_opaque_001',
+      requestedAt: '2026-07-23T14:30:00.000Z',
+      audit: {
+        actorId: 'actor_verified_001',
+        actorRole: 'test_front_desk',
+        correlationId: 'corr_note_001',
+        source: 'api' as const,
+        reasonCode: null,
+        policyVersion: null
+      }
+    };
+    expect(
+      toBookingRequest({ ...COMMAND, patientNote: '  合成備註  ' }, context)
+        .patientNote
+    ).toBe('合成備註');
+    expect(
+      'patientNote' in
+        toBookingRequest({ ...COMMAND, patientNote: '   ' }, context)
+    ).toBe(false);
+    // The note is advisory and not part of the retry fingerprint.
+    expect(
+      toBookingRequest({ ...COMMAND, patientNote: 'a' }, context).idempotency
+    ).toEqual(
+      toBookingRequest({ ...COMMAND, patientNote: 'b' }, context).idempotency
+    );
+  });
+
   it('keeps retry identity stable when server execution metadata changes', () => {
     const first = toBookingRequest(COMMAND, {
       appointmentId: 'appointment_server_001',
@@ -972,6 +1002,25 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
 
   // ADR-0007: nationality is a staff-only visit fact. The clinic list carries
   // it for the Workbench; a patient's own list never does, same as patientId.
+  it('returns the booking note on the staff clinic list only', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const { service } = createBoundService(patients);
+    patients.appointments.push({
+      appointmentId: 'appointment_note_list_001',
+      patientId: 'patient_opaque_102',
+      slotId: 'slot_001',
+      bookingKind: 'initial',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z',
+      patientNote: '合成備註'
+    });
+    const clinic = await service.list('clinic', {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    });
+    expect(clinic.appointments[0]?.patientNote).toBe('合成備註');
+  });
+
   it('returns intake nationality on the staff clinic list only', async () => {
     const patients = new InMemoryPatientDirectory();
     const { service } = createBoundService(patients);

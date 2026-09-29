@@ -132,6 +132,20 @@ describe('planBooking', () => {
     expect(JSON.stringify(plan.outboxJob)).not.toContain('foreign');
   });
 
+  it('keeps the booking note on the appointment only, never in audit or outbox', () => {
+    const plan = planBooking(
+      { ...request, patientNote: '合成備註：想先詢問流程' },
+      openSlot,
+      undefined
+    );
+    expect(plan.appointment.patientNote).toBe('合成備註：想先詢問流程');
+    expect(JSON.stringify(plan.auditEvent)).not.toContain('合成備註');
+    expect(JSON.stringify(plan.outboxJob)).not.toContain('合成備註');
+    expect(
+      'patientNote' in planBooking(request, openSlot, undefined).appointment
+    ).toBe(false);
+  });
+
   it('omits intake nationality when the request carries none', () => {
     const plan = planBooking(request, openSlot, undefined);
     expect('intakeNationality' in plan.appointment).toBe(false);

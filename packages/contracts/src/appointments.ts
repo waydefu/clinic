@@ -57,7 +57,12 @@ export const CreateAppointmentRequestSchema = z
     serviceId: OpaqueIdentifierSchema,
     bookingKind: z.enum(['initial', 'follow_up']),
     onBehalfPatientId: OpaqueIdentifierSchema.optional(),
-    intake: PatientIntakeSchema.optional()
+    intake: PatientIntakeSchema.optional(),
+    /**
+     * The patient's own booking note (BOOKING-NOTE-STORAGE-2026-09-29), at most
+     * 120 characters. Staff-only on read; never an identity, audit or log value.
+     */
+    patientNote: z.string().max(120).optional()
   })
   .strict();
 
@@ -100,7 +105,9 @@ export const GetAppointmentResponseSchema = z
     bookingKind: z.enum(['initial', 'follow_up']).optional(),
     slotId: OpaqueIdentifierSchema.optional(),
     patientId: OpaqueIdentifierSchema.optional(),
-    intakeNationality: NationalitySchema.optional()
+    intakeNationality: NationalitySchema.optional(),
+    /** Staff clinic list only, like `intakeNationality`. */
+    patientNote: z.string().max(120).optional()
   })
   .strict();
 

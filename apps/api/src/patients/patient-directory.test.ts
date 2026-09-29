@@ -223,6 +223,30 @@ describe('toListRecord intake nationality', () => {
   });
 });
 
+describe('toListRecord booking note', () => {
+  const row = {
+    patientId: 'patient_001',
+    slotId: 'slot_001',
+    bookingKind: 'initial',
+    status: 'confirmed'
+  };
+
+  it('passes a stored note of at most 120 characters', () => {
+    expect(
+      toListRecord('appointment_001', { ...row, patientNote: '合成備註' })
+        .patientNote
+    ).toBe('合成備註');
+  });
+
+  it('drops an empty, oversized or non-string note', () => {
+    for (const patientNote of ['', '甲'.repeat(121), 42])
+      expect(
+        'patientNote' in
+          toListRecord('appointment_001', { ...row, patientNote })
+      ).toBe(false);
+  });
+});
+
 describe('assertFollowUpBookable', () => {
   const codeOf = (run: () => unknown): string => {
     try {

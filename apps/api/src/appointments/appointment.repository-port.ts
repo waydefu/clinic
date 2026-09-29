@@ -27,6 +27,8 @@ export interface AppointmentRecord {
   readonly startsAt?: string;
   /** Staff-only visit fact (ADR-0007); absent on follow-ups and older rows. */
   readonly intakeNationality?: PatientNationality;
+  /** Staff-only booking note (BOOKING-NOTE-STORAGE-2026-09-29). */
+  readonly patientNote?: string;
 }
 
 export interface TransitionResult {
