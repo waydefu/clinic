@@ -23,8 +23,17 @@
   新 exact-SHA、UTC 時窗、完整 mutation、booking/config expiry 與 rollback 必須另外明確核准。
   附件所列 APPROVE 是建議草稿，不是 owner 已簽署該 execution packet。
 
-待決只限未有答案：BD policy 型別所需期限／角色／allowlist／保留／返還／人證，以及
-CURRENT_PROJECT_ACCEPTANCE 與遠端「正式上線實際運行滿一月」付款里程碑的映射。
+- `BD-POLICY-2026-09-29`：業主逐題回答 CP-POLICY 六組政策與測試期天數，全文見
+  [商務交付政策封板](2026-09-29-business-delivery-policy-decisions.md)。摘要：匯出只限
+  manager＋10 分鐘再驗證、下載 24 小時／3 次、檔案 7 天清除；封存 30 天可復原、永久刪除由
+  負責人再驗證＋理由且不自動刪、legal hold 只由負責人；月用量以伺服器紀錄、排除測試／維護、
+  月底後 5 天截止、缺漏改人工確認；CURRENT_PROJECT_ACCEPTANCE 只是工程驗收，尾款需真實運行滿
+  一日曆月＋負責人確認；測試期 20 天（含當天）＋最多調整 10 天；還原演練只在 C1 還原到新資料庫、
+  7 天清理、上限 NT$500，實際執行另核；終止需簽收才前進、失敗延後、結清由人處理。
+  **只適用 C1 合成環境**；production 套用需專業隱私／法律審閱與另行授權。
+
+上列 `BD-POLICY-2026-09-29` 已回答原本待決的 BD policy 期限／角色／allowlist／保留／返還／人證
+與付款里程碑映射。仍待決：production 套用的專業隱私／法律審閱，以及 CP-06-E 實際還原的執行核准。
 不得從 fixture 值推定核准，不重新詢問已定的出生年替代欄位。
 舊 D-001～D-016 production/privacy/launch 審批及 named reviewer 缺口維持原狀。
 
