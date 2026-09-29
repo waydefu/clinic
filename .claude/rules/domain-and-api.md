@@ -22,7 +22,7 @@ not historical.
   NAS effects are persisted as an outbox job and performed by `apps/worker` with
   an idempotency key, retry, dead letter and a runbook.
 - **Calendar is a projection**, never an availability lock and never a source of
-  truth (ADR-0002). It carries no medical data or free text, and no PII beyond
+  truth (ADR-0002). It carries no medical record data, and no PII or note beyond
   the ADR-0002 title fields on the dedicated appointment calendar. Never
   hand-build an event ID; use the
   base32hex encoder and prove the round trip.

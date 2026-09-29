@@ -27,8 +27,8 @@ restatement elsewhere as a replacement.
    Persist an outbox job, then let `apps/worker` perform the external effect
    with idempotency, retry, dead-letter handling and a runbook.
 4. Google Calendar is a projection, not an availability lock or source of
-   truth. No medical data, free text or credential; patient PII only as the
-   ADR-0002 title fields, on the dedicated appointment calendar.
+   truth. No medical record or credential; patient PII and the booking note
+   only as the ADR-0002 title fields, on the dedicated appointment calendar.
 5. Store timestamps in UTC. Convert only for display and payroll-period
    calculation using `Asia/Taipei`.
 6. Only an authorised clinic role may set an appointment to `completed`.
