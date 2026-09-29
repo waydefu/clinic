@@ -143,6 +143,22 @@
         }
       ],
       "note": "D-006 核准 audit retention 目標，不代表 D-002 data-access/export 已完成或 production audit 已上線。"
+    },
+    "business_delivery_usage_and_milestones": {
+      "permissions": [
+        "read_business_delivery",
+        "acknowledge_business_milestone"
+      ],
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-002",
+          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 資料存取與保存仍待 D-002 與專業隱私／法律審閱。",
+          "blocks": "public_production_route"
+        }
+      ],
+      "note": "CP-03（BD-POLICY-2026-09-29）：只限 manager；BUSINESS_DELIVERY_* 設定不完整時路由回 404。不自動收費、不偽造正式運行月。"
     }
   },
   "unrouted": {

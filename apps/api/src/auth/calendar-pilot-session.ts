@@ -29,6 +29,11 @@ import {
   AuthenticationRequiredError,
   DisabledAccountError
 } from '../platform/errors/api-error.js';
+import {
+  BUSINESS_DELIVERY_COLLECTIONS,
+  FIRST_ELIGIBLE_USE_DOC,
+  staffLoginUsageEvent
+} from '../business-delivery/usage-events.js';
 
 // Firebase Hosting strips incoming cookies before Cloud Run rewrites, except
 // the exact name `__session`. See Hosting cache docs, "Using cookies".
@@ -151,7 +156,13 @@ export class CalendarPilotSessionService {
     private readonly auth: Auth,
     private readonly db: Firestore,
     private readonly environment: NodeJS.ProcessEnv = process.env,
-    private readonly telemetry: CalendarPilotSessionGateTelemetry = NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY
+    private readonly telemetry: CalendarPilotSessionGateTelemetry = NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY,
+    /**
+     * CP-03 usage ingress (ADR-0008). When on, the session, its staff_login
+     * usage event and — for the first runtime login — the trial-start marker
+     * commit in one transaction; off keeps the single session create.
+     */
+    private readonly recordBusinessDeliveryUsage = false
   ) {}
 
   private emitGate(event: CalendarPilotSessionGateEvent): void {
@@ -247,10 +258,38 @@ export class CalendarPilotSessionService {
       revokedAt: null
     };
     try {
-      await this.db
+      const sessionRef = this.db
         .collection('calendar_pilot_sessions')
-        .doc(sessionId)
-        .create(record);
+        .doc(sessionId);
+      if (this.recordBusinessDeliveryUsage) {
+        const event = staffLoginUsageEvent({
+          uid: decoded.uid,
+          email: decoded.email,
+          occurredAt: now,
+          environment: this.environment
+        });
+        const firstUseRef = this.db
+          .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+          .doc(FIRST_ELIGIBLE_USE_DOC);
+        await this.db.runTransaction(async (transaction) => {
+          const firstUse = await transaction.get(firstUseRef);
+          transaction.create(sessionRef, record);
+          transaction.create(
+            this.db
+              .collection(BUSINESS_DELIVERY_COLLECTIONS.usageEvents)
+              .doc(event.eventId),
+            event
+          );
+          if (!firstUse.exists && event.eventClass === 'runtime')
+            transaction.create(firstUseRef, {
+              schemaVersion: 1,
+              occurredAt: now,
+              eventId: event.eventId
+            });
+        });
+      } else {
+        await sessionRef.create(record);
+      }
     } catch (error) {
       this.emitGate({
         correlationId,

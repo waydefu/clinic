@@ -1,0 +1,57 @@
+import { Module } from '@nestjs/common';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+
+import { CalendarPilotSessionGuard } from '../auth/calendar-pilot.guard.js';
+import {
+  CalendarPilotModule,
+  defaultFirebaseApp,
+  vitestWithoutFirestoreEmulator
+} from '../calendar/calendar-pilot.module.js';
+import { FirestoreBusinessDeliveryRepository } from '../firestore/business-delivery.repository.js';
+import { BusinessDeliveryApplicationService } from './business-delivery.application-service.js';
+import { readBusinessDeliveryConfig } from './business-delivery.config.js';
+import { BusinessDeliveryController } from './business-delivery.controller.js';
+import { BUSINESS_DELIVERY_APPLICATION } from './business-delivery.tokens.js';
+import { FreshReauthenticationVerifier } from './reauthentication.js';
+
+/**
+ * CP-03 business-delivery routes (ADR-0008). Mounted in AppModule but inert
+ * unless `readBusinessDeliveryConfig` finds a complete, approved
+ * configuration; every route then still needs the manager staff session.
+ */
+@Module({
+  imports: [CalendarPilotModule],
+  controllers: [BusinessDeliveryController],
+  providers: [
+    CalendarPilotSessionGuard,
+    {
+      provide: BUSINESS_DELIVERY_APPLICATION,
+      useFactory: () => {
+        const config = readBusinessDeliveryConfig(process.env);
+        const clock = () => new Date().toISOString();
+        if (!config.enabled || vitestWithoutFirestoreEmulator()) {
+          // Disabled: no Firebase client is created; every route answers 404.
+          return new BusinessDeliveryApplicationService(
+            { enabled: false },
+            {
+              usageEventsBetween: () => Promise.reject(new Error('disabled')),
+              milestoneState: () => Promise.reject(new Error('disabled')),
+              acknowledge: () => Promise.reject(new Error('disabled'))
+            },
+            { assertFresh: () => Promise.reject(new Error('disabled')) },
+            clock
+          );
+        }
+        const app = defaultFirebaseApp();
+        return new BusinessDeliveryApplicationService(
+          config,
+          new FirestoreBusinessDeliveryRepository(getFirestore(app)),
+          new FreshReauthenticationVerifier(getAuth(app)),
+          clock
+        );
+      }
+    }
+  ]
+})
+export class BusinessDeliveryModule {}
