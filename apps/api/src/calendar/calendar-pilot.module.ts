@@ -69,7 +69,10 @@ export function vitestWithoutFirestoreEmulator(): boolean {
           getAuth(app),
           getFirestore(app),
           process.env,
-          createCalendarPilotSessionGateTelemetry(logger)
+          createCalendarPilotSessionGateTelemetry(logger),
+          // CP-03 usage ingress is always on so coverage never depends on
+          // whether the report routes are enabled (ADR-0008).
+          true
         );
       }
     },

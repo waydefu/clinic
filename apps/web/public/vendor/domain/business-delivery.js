@@ -142,6 +142,32 @@ export function calculateBusinessDeliveryMilestones(input) {
 export function selectFirstEligibleUsageFromReplay(events) {
     return selectFirstEligibleUsage(events).occurredAt;
 }
+/**
+ * The formal-operation checkpoint counts from the owner-acknowledged launch
+ * date (the first Taipei date real data opened patient booking), not from the
+ * trial start (`BD-POLICY-2026-09-29` §4). The launch date is never inferred.
+ */
+export function calculateFormalOperationCheckpoint(input) {
+    assertPositiveInteger(input.policy.formalOperationCalendarMonths, 'formalOperationCalendarMonths');
+    const checkpointDate = addTaipeiCalendarMonthsClamped(input.launchDate, input.policy.formalOperationCalendarMonths);
+    return {
+        launchDate: input.launchDate,
+        checkpointDate,
+        checkpointAt: taipeiDateStartAt(checkpointDate)
+    };
+}
+/** Maintenance billing starts the Taipei day after the final-payment confirmation. */
+export function maintenanceStartDateAfter(confirmedAt) {
+    return addTaipeiCalendarDays(taipeiCalendarDate(confirmedAt), 1);
+}
+/** The Taipei calendar date of a UTC instant, for server-side comparisons. */
+export function taipeiCalendarDateOf(isoUtc) {
+    return taipeiCalendarDate(isoUtc);
+}
+/** Validates a Taipei `YYYY-MM-DD` date string, rejecting impossible dates. */
+export function assertTaipeiCalendarDate(value) {
+    parseTaipeiDate(value);
+}
 export function isBusinessDeliveryMilestoneTimestamp(value) {
     return isUtcIsoTimestamp(value);
 }

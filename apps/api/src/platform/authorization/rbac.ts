@@ -59,7 +59,11 @@ export type Permission =
   | 'assign_case_manager'
   | 'close_payroll_period'
   | 'record_payroll_adjustment'
-  | 'read_audit';
+  | 'read_audit'
+  // CP-03 (BD-POLICY-2026-09-29): the clinic owner reads usage/milestones and
+  // confirms launch and final payment. No other role, including system_admin.
+  | 'read_business_delivery'
+  | 'acknowledge_business_milestone';
 
 /**
  * Candidate permission matrix. Deliberately least-privilege: the front desk
@@ -109,7 +113,9 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
     'assign_case_manager',
     'close_payroll_period',
     'record_payroll_adjustment',
-    'read_audit'
+    'read_audit',
+    'read_business_delivery',
+    'acknowledge_business_milestone'
   ],
   system_admin: [
     'create_appointment',
