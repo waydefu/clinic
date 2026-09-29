@@ -44,6 +44,10 @@ import type {
   ReservationResult,
   TransitionResult
 } from '../appointments/appointment.repository-port.js';
+import {
+  BUSINESS_DELIVERY_COLLECTIONS,
+  bookingCreatedUsageEvent
+} from '../business-delivery/usage-events.js';
 
 export const COLLECTIONS = {
   slots: 'slots',
@@ -54,7 +58,10 @@ export const COLLECTIONS = {
   idempotencyKeys: 'idempotency_keys',
   schedules: 'schedules',
   followUps: 'follow_ups',
-  followUpState: 'patient_follow_up_states'
+  followUpState: 'patient_follow_up_states',
+  // Written in the reserve transaction for CP-03 (ADR-0008); listed here so
+  // every suite that wipes or snapshots booking state covers it too.
+  businessDeliveryUsageEvents: BUSINESS_DELIVERY_COLLECTIONS.usageEvents
 } as const;
 
 /**
@@ -203,6 +210,20 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         plan.outboxJob
       );
       transaction.create(idempotencyRef, plan.idempotencyRecord);
+      // CP-03 usage ingress (ADR-0008): committed with the booking or not at
+      // all. Replays return before this point, so each booking counts once.
+      const usageEvent = bookingCreatedUsageEvent({
+        appointmentId: plan.appointment.id,
+        occurredAt: request.requestedAt
+      });
+      // Keyed by appointment, so set() is idempotent and cannot fail a
+      // booking on a leftover record.
+      transaction.set(
+        this.db
+          .collection(COLLECTIONS.businessDeliveryUsageEvents)
+          .doc(usageEvent.eventId),
+        usageEvent
+      );
       if (request.bookingKind === 'follow_up') {
         transaction.set(
           followUpStateRef,

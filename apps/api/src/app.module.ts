@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
 import { HealthController } from './health.controller.js';
+import { BusinessDeliveryModule } from './business-delivery/business-delivery.module.js';
 import { CalendarPilotModule } from './calendar/calendar-pilot.module.js';
 import { InternalTestBookingModule } from './internal-test-booking/internal-test-booking.module.js';
 import { NoStoreInterceptor } from './platform/runtime/no-store.interceptor.js';
@@ -16,6 +17,7 @@ import { ObservabilityModule } from './platform/runtime/observability.module.js'
   imports: [
     ObservabilityModule,
     CalendarPilotModule,
+    BusinessDeliveryModule,
     InternalTestBookingModule.register()
   ],
   controllers: [HealthController],
