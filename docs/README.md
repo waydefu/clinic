@@ -82,6 +82,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [現有專案驗收矩陣（2026-09-22）](plans/2026-09-22-current-project-acceptance-matrix.md) — 88 項分層證據、原 F-01～14 對帳與技術／現有專案／production 的獨立 gate，不以 CI 代替現場或人證。
 - [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
 
+- [GPT-6 Luna 逐步執行計畫（2026-09-30）](plans/2026-09-30-luna-execution-plan.md) — L1 封存刪除、L2 日曆新格式、L3 工作臺商務分頁與重新登入、L4 還原驗證工具、L5 合作終止、L6 批次部署清單、L7 回歸／手冊／驗收；每包寫明檔案、規則、測試與停止條件
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
