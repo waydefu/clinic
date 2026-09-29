@@ -140,7 +140,10 @@ export function planBooking(request, slot, patientBookingGuard) {
         updatedAt: request.requestedAt,
         ...(request.intakeNationality === undefined
             ? {}
-            : { intakeNationality: request.intakeNationality })
+            : { intakeNationality: request.intakeNationality }),
+        ...(request.patientNote === undefined
+            ? {}
+            : { patientNote: request.patientNote })
     };
     const auditEvent = planAuditEvent({
         eventId: `audit_${request.appointmentId}_confirmed_${request.idempotency.recordId}`,

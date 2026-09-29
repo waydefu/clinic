@@ -455,6 +455,27 @@ describe('appointment query response', () => {
     ).toBe(false);
   });
 
+  it('bounds the staff-only booking note at 120 characters', () => {
+    const base = {
+      appointmentId: 'appointment_001',
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z'
+    };
+    expect(
+      GetAppointmentResponseSchema.parse({
+        ...base,
+        patientNote: '甲'.repeat(120)
+      }).patientNote
+    ).toHaveLength(120);
+    expect(
+      GetAppointmentResponseSchema.safeParse({
+        ...base,
+        patientNote: '甲'.repeat(121)
+      }).success
+    ).toBe(false);
+  });
+
   it('accepts only the two approved intake nationality values', () => {
     const base = {
       appointmentId: 'appointment_001',

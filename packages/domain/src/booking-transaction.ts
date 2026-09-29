@@ -76,6 +76,8 @@ export interface BookingRequest {
   readonly idempotency: IdempotencyContext;
   /** Intake metadata only: never an identity factor, audit value or Calendar field. */
   readonly intakeNationality?: PatientNationality;
+  /** Patient's own note, already trimmed and non-empty; never audited. */
+  readonly patientNote?: string;
 }
 
 export interface PlannedAppointment {
@@ -89,6 +91,7 @@ export interface PlannedAppointment {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly intakeNationality?: PatientNationality;
+  readonly patientNote?: string;
 }
 
 export interface PlannedOutboxJob {
@@ -311,7 +314,10 @@ export function planBooking(
     updatedAt: request.requestedAt,
     ...(request.intakeNationality === undefined
       ? {}
-      : { intakeNationality: request.intakeNationality })
+      : { intakeNationality: request.intakeNationality }),
+    ...(request.patientNote === undefined
+      ? {}
+      : { patientNote: request.patientNote })
   };
   const auditEvent = planAuditEvent({
     eventId: `audit_${request.appointmentId}_confirmed_${request.idempotency.recordId}`,
