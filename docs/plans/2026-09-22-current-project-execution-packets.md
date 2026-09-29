@@ -266,6 +266,8 @@ R1 / FILES_TO_READ（需要對應層時才讀）：
 
 ## CP-POLICY — BD 未決政策封板
 
+**2026-09-29：** 業主已回答，紀錄於[商務交付政策封板](../product/2026-09-29-business-delivery-policy-decisions.md)（`BD-POLICY-2026-09-29`，只適用 C1）。
+
 | # | PR 欄位 | 本包定義 |
 | --- | --- | --- |
 | 1 | PR NAME | docs: record bounded business-delivery policy decisions |
