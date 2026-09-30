@@ -126,7 +126,12 @@ function valuesEqual(actual, expected) {
 }
 
 function normalizeOccurredAt(value) {
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') {
+    const timestamp = Date.parse(value);
+    return Number.isFinite(timestamp)
+      ? new Date(timestamp).toISOString()
+      : null;
+  }
   if (value && typeof value.toDate === 'function')
     return value.toDate().toISOString();
   if (value instanceof Date) return value.toISOString();
@@ -134,9 +139,11 @@ function normalizeOccurredAt(value) {
 }
 
 /**
- * Read-only V1–V3 recovery clone verification. The supplied db must already be
- * bound to the explicitly validated named database. No mutation methods are
- * called or exposed by this verifier.
+ * Read-only V1–V3 verification against a caller-supplied cutoff manifest.
+ * Manifest provenance and completeness are not established here; V2 checks
+ * only its listed fields, and V3 checks only the listed audit receipts. The
+ * supplied db must be bound to the validated named database. No mutation
+ * methods are called. V4–V6 remain for the authorised CP-06-E drill.
  */
 export async function verifyRecoveryClone({ project, database, manifest, db }) {
   validateRecoveryTarget({ project, database });
@@ -146,7 +153,7 @@ export async function verifyRecoveryClone({ project, database, manifest, db }) {
 
   const counts = {};
   for (const collection of RECOVERY_COLLECTIONS) {
-    const result = await db.collection(collection).select('__name__').get();
+    const result = await db.collection(collection).select().get();
     counts[collection] = result.size;
   }
   const countMismatches = RECOVERY_COLLECTIONS.filter(
@@ -154,8 +161,10 @@ export async function verifyRecoveryClone({ project, database, manifest, db }) {
   );
 
   const appointmentMismatches = [];
+  let fieldComparisons = 0;
   for (const item of expected.sampleAppointments) {
     const fields = Object.keys(item.fields);
+    fieldComparisons += fields.length;
     const snapshot = await db
       .collection('appointments')
       .doc(item.id)
@@ -174,7 +183,7 @@ export async function verifyRecoveryClone({ project, database, manifest, db }) {
 
   const auditSnapshot = await db
     .collection('audit_events')
-    .select('__name__', 'occurredAt')
+    .select('occurredAt')
     .get();
   const actualAuditEvents = auditSnapshot.docs
     .map((document) => ({
@@ -187,13 +196,17 @@ export async function verifyRecoveryClone({ project, database, manifest, db }) {
         : (Date.parse(left.occurredAt ?? '') || 0) -
           (Date.parse(right.occurredAt ?? '') || 0)
     );
-  const expectedSortedAuditEvents = [...expected.expectedAuditEvents].sort(
-    (left, right) =>
+  const expectedSortedAuditEvents = expected.expectedAuditEvents
+    .map((event) => ({
+      id: event.id,
+      occurredAt: normalizeOccurredAt(event.occurredAt)
+    }))
+    .sort((left, right) =>
       left.occurredAt === right.occurredAt
         ? left.id.localeCompare(right.id)
         : Date.parse(left.occurredAt) - Date.parse(right.occurredAt)
-  );
-  const auditSequenceMatches = valuesEqual(
+    );
+  const auditMatchesExpectedList = valuesEqual(
     actualAuditEvents,
     expectedSortedAuditEvents
   );
@@ -216,20 +229,19 @@ export async function verifyRecoveryClone({ project, database, manifest, db }) {
       expected: expected.sampleAppointments.length,
       matched:
         expected.sampleAppointments.length - appointmentMismatches.length,
+      fieldComparisons,
       mismatches: appointmentMismatches
     },
     V3: {
-      status: auditSequenceMatches ? 'PASS' : 'FAIL',
+      status: auditMatchesExpectedList ? 'PASS' : 'FAIL',
       expected: expectedSortedAuditEvents.length,
       actual: actualAuditEvents.length,
-      continuous: auditSequenceMatches
+      matchesExpectedList: auditMatchesExpectedList
     }
   };
 
   return {
     schemaVersion: 1,
-    project,
-    database,
     checks,
     overall: Object.values(checks).every((check) => check.status === 'PASS')
       ? 'PASS'
@@ -299,7 +311,7 @@ if (import.meta.url === invokedPath) {
     if (report.overall !== 'PASS') process.exitCode = 1;
   } catch (error) {
     process.stdout.write(
-      `${JSON.stringify({ schemaVersion: 1, overall: 'FAIL', error: error.message }, null, 2)}\n`
+      `${JSON.stringify({ schemaVersion: 1, overall: 'FAIL', error: error instanceof SyntaxError ? 'invalid_manifest_json' : 'verification_failed' }, null, 2)}\n`
     );
     process.exitCode = 1;
   }
