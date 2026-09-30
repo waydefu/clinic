@@ -5,7 +5,9 @@ export default defineConfig({
     include: [
       'tests/firestore/**/*.test.ts',
       // Nest HTTP occupancy needs apps/api node_modules (`reflect-metadata`).
-      'apps/**/src/**/*.emulator.test.ts'
+      'apps/**/src/**/*.emulator.test.ts',
+      // CP-06-S named-database verifier integration (self-cleaning synthetic DB).
+      'scripts/recovery-clone-verify.test.mjs'
     ],
     testTimeout: 30_000,
     hookTimeout: 30_000,
