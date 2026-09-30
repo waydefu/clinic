@@ -165,11 +165,8 @@ export async function verifyRecoveryClone({ project, database, manifest, db }) {
   for (const item of expected.sampleAppointments) {
     const fields = Object.keys(item.fields);
     fieldComparisons += fields.length;
-    const snapshot = await db
-      .collection('appointments')
-      .doc(item.id)
-      .select(...fields)
-      .get();
+    const reference = db.collection('appointments').doc(item.id);
+    const [snapshot] = await db.getAll(reference, { fieldMask: fields });
     const data = snapshotData(snapshot);
     const mismatchedFields = fields.filter(
       (field) => !valuesEqual(data[field], item.fields[field])

@@ -47,6 +47,7 @@ function fakeSnapshot(id, data) {
 
 function fakeDb({
   omitAppointmentField = false,
+  omitAppointmentId,
   omitAuditId,
   terseAuditTime = false
 } = {}) {
@@ -57,6 +58,7 @@ function fakeDb({
     index,
     appointment
   ] of makeManifest().sampleAppointments.entries()) {
+    if (appointment.id === omitAppointmentId) continue;
     const data = { ...appointment.fields };
     if (omitAppointmentField && index === 0) delete data.syntheticFixture;
     documents.get('appointments').set(appointment.id, data);
@@ -93,26 +95,22 @@ function fakeDb({
           };
         },
         doc(id) {
-          return {
-            select(...selectedFields) {
-              return {
-                async get() {
-                  const data = collection.get(id);
-                  const selected =
-                    data === undefined
-                      ? undefined
-                      : Object.fromEntries(
-                          selectedFields
-                            .filter((field) => Object.hasOwn(data, field))
-                            .map((field) => [field, data[field]])
-                        );
-                  return fakeSnapshot(id, selected);
-                }
-              };
-            }
-          };
+          return { id, collection: name };
         }
       };
+    },
+    async getAll(reference, options) {
+      const collection = documents.get(reference.collection);
+      const data = collection.get(reference.id);
+      const selected =
+        data === undefined
+          ? undefined
+          : Object.fromEntries(
+              options.fieldMask
+                .filter((field) => Object.hasOwn(data, field))
+                .map((field) => [field, data[field]])
+            );
+      return [fakeSnapshot(reference.id, selected)];
     }
   };
 }
@@ -197,6 +195,22 @@ describe('recovery clone verifier target guard', () => {
     expect(report).not.toHaveProperty('project');
     expect(report).not.toHaveProperty('database');
   });
+
+  it('uses the installed Firestore SDK getAll fieldMask API, not DocumentReference.select', async () => {
+    const [{ initializeApp }, { getFirestore }] = await Promise.all([
+      import('firebase-admin/app'),
+      import('firebase-admin/firestore')
+    ]);
+    const app = initializeApp(
+      { projectId: PROJECT },
+      `recovery-sdk-shape-${Date.now()}`
+    );
+    const db = getFirestore(app, DATABASE);
+    const reference = db.collection('appointments').doc('synthetic-check');
+    expect(typeof db.getAll).toBe('function');
+    expect(typeof reference.select).toBe('undefined');
+    await app.delete();
+  });
 });
 
 describe('recovery clone verification report', () => {
@@ -235,14 +249,16 @@ describe('recovery clone verification report', () => {
   it('fails count, row-field, and missing-audit receipt comparisons without exposing values', async () => {
     const manifest = makeManifest();
     manifest.expectedCounts.patients = 2;
+    const db = fakeDb({
+      omitAppointmentField: true,
+      omitAuditId: 'synthetic_audit_02'
+    });
+    const getAllSpy = vi.spyOn(db, 'getAll');
     const report = await verifyRecoveryClone({
       project: PROJECT,
       database: DATABASE,
       manifest,
-      db: fakeDb({
-        omitAppointmentField: true,
-        omitAuditId: 'synthetic_audit_02'
-      })
+      db
     });
     expect(report.overall).toBe('FAIL');
     expect(report.checks.V1.status).toBe('FAIL');
@@ -250,6 +266,11 @@ describe('recovery clone verification report', () => {
     expect(report.checks.V2.mismatches[0]).toEqual({
       fields: ['syntheticFixture']
     });
+    expect(getAllSpy).toHaveBeenCalledTimes(10);
+    expect(getAllSpy).toHaveBeenCalledWith(
+      { id: 'synthetic_appointment_01', collection: 'appointments' },
+      { fieldMask: ['bookingKind', 'syntheticFixture'] }
+    );
     expect(report.checks.V3).toMatchObject({
       status: 'FAIL',
       expected: 2,
@@ -257,6 +278,21 @@ describe('recovery clone verification report', () => {
       matchesExpectedList: false
     });
     expect(JSON.stringify(report)).not.toContain('fixture-');
+  });
+
+  it('fails V2 when a manifest appointment document is absent', async () => {
+    const report = await verifyRecoveryClone({
+      project: PROJECT,
+      database: DATABASE,
+      manifest: makeManifest(),
+      db: fakeDb({ omitAppointmentId: 'synthetic_appointment_01' })
+    });
+    expect(report.checks.V2).toMatchObject({
+      status: 'FAIL',
+      expected: 10,
+      matched: 9,
+      mismatches: [{ fields: ['bookingKind', 'syntheticFixture'] }]
+    });
   });
 
   it('requires exactly ten unique sample appointments and six count entries', async () => {
