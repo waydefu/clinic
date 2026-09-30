@@ -1,19 +1,20 @@
 packages:
   - apps/*
   - packages/*
+# Keep dependencies in this checkout. pnpm 11 otherwise enables a global
+# virtual store, which makes older project-local installs incompatible.
+enableGlobalVirtualStore: false
+# A run/exec must report stale dependencies rather than reinstall them.
+# Prepare dependencies explicitly with `corepack pnpm install --frozen-lockfile`.
+verifyDepsBeforeRun: error
 allowBuilds:
   '@firebase/util': true
   esbuild: true
   protobufjs: true
   re2: false
 
-# pnpm 11.9 supply-chain maturity gate. 3.1.7 / 4.1.4 are the 2026-09-02
-# security patches (GHSA-58mr-gqgx-xq4g, GHSA-qw65-cvwx-89v3). They are
-# younger than the default release-age window, so they must be named here
-# or the resolver will refuse them. This is not an audit exception and does
-# not change audit:prod / audit:all thresholds.
-minimumReleaseAgeExclude:
-  - fast-uri@3.1.7 || 4.1.4
+# Security releases are subject to pnpm 11.9's default 24-hour maturity
+# window. The previous fast-uri release-age exclusion is no longer needed.
 
 # 安全性修補：把有 advisory 的傳遞相依鎖到已修補的版本。
 #
@@ -82,18 +83,26 @@ minimumReleaseAgeExclude:
 #                  原本鎖 ^5.0.8 已不足，改鎖 ^5.0.9。1.x／2.x 不在此次範圍內。
 overrides:
   find-my-way: '^9.6.1'
-  brace-expansion@^1: '^1.1.17'
-  brace-expansion@^2: '^2.1.3'
-  brace-expansion@^5: '^5.0.9'
+  # GHSA-qhr7-859c-m2p7 / GHSA-6j4f-fj2g-mc7p also affect dev paths:
+  # eslint/firebase-tools > minimatch 1.x; firebase-tools > minimatch 5.x.
+  brace-expansion@^1: '1.1.20'
+  # 2026-09-30 audit: GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7,
+  # GHSA-6j4f-fj2g-mc7p; firebase-admin/tools > glob > minimatch > 2.x.
+  brace-expansion@^2: '2.1.7'
+  brace-expansion@^5: '5.0.11'
   uuid: '>=11.1.1'
   '@opentelemetry/core': '2.8.0'
   tar@^7: '7.5.22'
   '@modelcontextprotocol/sdk': '1.30.0'
   '@hono/node-server': '2.0.12'
-  fast-uri@^3: '^3.1.7'
-  fast-uri@^4: '^4.1.4'
+  # 2026-09-30 audit: GHSA-hrr3-gc8f-f4qj / GHSA-jvvf-x445-j334;
+  # fastify > ajv/fast-json-stringify. Preserve each parent's major.
+  fast-uri@^3: '3.1.8'
+  fast-uri@^4: '4.1.5'
   fastify: '^5.12.1'
-  undici@^8: '^8.9.0'
+  # 2026-09-30 audit: GHSA-rfgv-xxqx-mfg5 / GHSA-w293-vg96-wgc3;
+  # firebase-tools > superstatic > re2 > node-gyp (development only).
+  undici@^8: '8.10.2'
   ip-address@^10: '^10.3.1'
   # 2026-09-09 GHSA-2883-xcg3-v3hh maxTotalMergeKeys; path firebase-tools > js-yaml and nested exegesis; same-major 4.3.1 → 4.3.2; not a dismiss.
   js-yaml@^4: '4.3.2'

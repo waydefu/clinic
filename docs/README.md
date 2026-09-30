@@ -162,6 +162,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 5. Operations
 
+- [Luna 開發環境與額度使用流程](runbooks/luna-development-environment.md) — 固定工具、明確依賴安裝、cache／網路準備、GitHub 管道與有界分工；官方模型評估尚待網路解除。
 - [Stage E operational runbook](runbooks/stage-e-operational.md) — API outage, booking write, Firestore, Calendar 410/watch, dead-letter, backup verbs, auth, rate-limit, IAM, rollback, isolated preview; not apply
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
@@ -190,6 +191,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-09-30 | [Luna 環境修復交接](reviews/2026-09-30-luna-environment-readiness.md) | Node／pnpm 與依賴修補、固定日期 fixture；網路設定、emulator／browser 與官方模型評估仍有明確障礙。不是後續所有工作已完成。 |
 | 2026-09-28 | [CP-02 C1 新預約驗收](reviews/2026-09-28-cp-02-c1-runtime-evidence.md) | CP-02 RUNTIME_PROVEN on isolated synthetic C1 at `1e0b84f`: BKG-01～05、07、09～12 runtime; BKG-06 not applicable by owner decision; BKG-08 two-candidate case kept on Emulator evidence. Three deviations recorded (API-only targeted apply, Hosting briefly pinned to an older revision before any write, legacy lookup proven structurally). Booking gate closed at the end. Open: C1 Workbench list shows no nationality. No production or D-series approval. |
 | 2026-09-28 | [P1-09 關帳](reviews/2026-09-28-p1-09-closeout.md) | P1-09 CLOSED on isolated synthetic C1: Stage F evaluator and `inspect:internal-preproduction` both `ok=true`, exit 0; all P09 rows, SEC-13/14 and Gate 16 PASS; F-06 evidence sets uploaded by the owner; booking gate closed early at owner direction. OPS-06 optional NOT_RUN. No production, live Hosting, real-data or D-series approval. |
 | 2026-09-28 | [P1-09 E2 停用員工實測](reviews/2026-09-28-p1-09-e2-disabled-staff.md) | Under the owner-approved E2 extension: a disabled staff account's next protected call on the same session was refused (401) and succeeded again after re-enable (200). First attempt void (idle timeout). Traffic rolled back afterwards. SEC-14 E2 PASS; WP-B6A manifest only. P1-09 `NOT_CLOSED`. |
