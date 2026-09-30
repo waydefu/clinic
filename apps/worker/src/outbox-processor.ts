@@ -487,7 +487,11 @@ export class OutboxProcessor {
           if (action === 'upsert') {
             try {
               title = await awaitWithAbort(
-                () => this.calendarTitleSource.titleFor(job.appointmentId),
+                () =>
+                  this.calendarTitleSource.titleFor(
+                    job.appointmentId,
+                    bookingKind
+                  ),
                 projectionSignal
               );
             } catch {

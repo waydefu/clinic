@@ -121,10 +121,11 @@ export function formatClinicCalendarSummary(input: {
   return `${prefix}${CALENDAR_ENTRY_SEPARATOR}${input.clinicName.trim()}${CALENDAR_ENTRY_SEPARATOR}${kindLabel}`;
 }
 
-const SERVICE_LABEL: Readonly<Record<string, string>> = Object.freeze({
-  service_snoring: '止鼾',
-  service_aesthetic: '醫美'
-});
+function clinicServiceLabel(itemId: string | undefined): string {
+  if (itemId === 'service_snoring') return '止鼾';
+  if (itemId === 'service_aesthetic') return '醫美';
+  return '';
+}
 
 /**
  * Format the owner-approved title fields for the dedicated appointment
@@ -163,8 +164,7 @@ export function formatClinicAppointmentTitle(input: {
   )
     return undefined;
 
-  const service = SERVICE_LABEL[input.itemId ?? ''];
-  const serviceAndKind = `${service ?? ''}${kindLabel}`;
+  const serviceAndKind = `${clinicServiceLabel(input.itemId)}${kindLabel}`;
   const note = (input.patientNote ?? '')
     .replace(/\r\n?|\n|\u2028|\u2029/gu, ' ')
     .trim();

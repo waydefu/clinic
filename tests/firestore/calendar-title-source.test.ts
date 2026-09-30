@@ -58,6 +58,9 @@ describe('FirestoreCalendarTitleSource', () => {
     await expect(
       source.titleFor('calendar_title_appointment_001')
     ).resolves.toBe('止鼾初診/合成患者甲99999999 0520/流程詢問 時段確認');
+    await expect(
+      source.titleFor('calendar_title_appointment_001', 'follow_up')
+    ).resolves.toBe('止鼾回診/合成患者甲99999999 0520/流程詢問 時段確認');
   });
 
   it('omits archived or missing patient records and missing appointments', async () => {

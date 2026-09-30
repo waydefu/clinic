@@ -92,10 +92,13 @@ export function formatClinicCalendarSummary(input) {
         return base;
     return `${prefix}${CALENDAR_ENTRY_SEPARATOR}${input.clinicName.trim()}${CALENDAR_ENTRY_SEPARATOR}${kindLabel}`;
 }
-const SERVICE_LABEL = Object.freeze({
-    service_snoring: '止鼾',
-    service_aesthetic: '醫美'
-});
+function clinicServiceLabel(itemId) {
+    if (itemId === 'service_snoring')
+        return '止鼾';
+    if (itemId === 'service_aesthetic')
+        return '醫美';
+    return '';
+}
 /**
  * Format the owner-approved title fields for the dedicated appointment
  * calendar. Missing or malformed required identity fragments fail closed so
@@ -120,8 +123,7 @@ export function formatClinicAppointmentTitle(input) {
         date.getUTCMonth() !== month - 1 ||
         date.getUTCDate() !== day)
         return undefined;
-    const service = SERVICE_LABEL[input.itemId ?? ''];
-    const serviceAndKind = `${service ?? ''}${kindLabel}`;
+    const serviceAndKind = `${clinicServiceLabel(input.itemId)}${kindLabel}`;
     const note = (input.patientNote ?? '')
         .replace(/\r\n?|\n|\u2028|\u2029/gu, ' ')
         .trim();

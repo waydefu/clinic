@@ -313,6 +313,21 @@ describe('outbox worker', () => {
 
   it('upserts a follow-up reminder even though its source visit is completed', async () => {
     await seedJob();
+    const titleSource: CalendarTitleSource = {
+      titleFor: (_appointmentId, bookingKind) => {
+        expect(bookingKind).toBe('follow_up');
+        return Promise.resolve('止鼾回診/合成患者甲99999999 0520');
+      }
+    };
+    processor = new OutboxProcessor(
+      db,
+      calendar,
+      metrics,
+      () => 0.5,
+      undefined,
+      undefined,
+      titleSource
+    );
     await db
       .collection(APPOINTMENTS_COLLECTION)
       .doc('appointment_001')
@@ -332,6 +347,7 @@ describe('outbox worker', () => {
       action: 'upsert',
       appointmentStatus: 'follow_up_required',
       bookingKind: 'follow_up',
+      title: '止鼾回診/合成患者甲99999999 0520',
       startsAt: '2030-02-01T04:15:00.000Z'
     });
   });

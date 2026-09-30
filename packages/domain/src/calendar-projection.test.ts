@@ -62,6 +62,15 @@ describe('clinic Calendar projection allowlist', () => {
         birthMonthDay: '--05-20'
       })
     ).toBe('醫美初診/合成患者丙99999999 0520');
+    expect(
+      formatClinicAppointmentTitle({
+        bookingKind: 'initial',
+        itemId: '__proto__',
+        name: '合成患者丙',
+        phoneDigits: '99999999',
+        birthMonthDay: '--05-20'
+      })
+    ).toBe('初診/合成患者丙99999999 0520');
   });
 
   it('omits an appointment title when required fields are missing or invalid', () => {

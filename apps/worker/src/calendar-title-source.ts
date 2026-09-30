@@ -11,7 +11,10 @@ function documentFields(
 }
 
 export interface CalendarTitleSource {
-  titleFor(appointmentId: string): Promise<string | undefined>;
+  titleFor(
+    appointmentId: string,
+    bookingKind?: string
+  ): Promise<string | undefined>;
 }
 
 /**
@@ -22,7 +25,10 @@ export interface CalendarTitleSource {
 export class FirestoreCalendarTitleSource implements CalendarTitleSource {
   public constructor(private readonly db: Firestore) {}
 
-  public async titleFor(appointmentId: string): Promise<string | undefined> {
+  public async titleFor(
+    appointmentId: string,
+    bookingKindOverride?: string
+  ): Promise<string | undefined> {
     try {
       const appointment = await this.db
         .collection('appointments')
@@ -46,7 +52,7 @@ export class FirestoreCalendarTitleSource implements CalendarTitleSource {
       )
         return undefined;
 
-      const bookingKind = appointmentData['bookingKind'];
+      const bookingKind = bookingKindOverride ?? appointmentData['bookingKind'];
       if (typeof bookingKind !== 'string') return undefined;
       const itemId = appointmentData['itemId'];
       const name = patientData['name'];
