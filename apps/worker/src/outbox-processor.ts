@@ -25,6 +25,10 @@ import {
   type CalendarPort
 } from './calendar-port.js';
 import {
+  NO_CALENDAR_TITLE,
+  type CalendarTitleSource
+} from './calendar-title-source.js';
+import {
   NOOP_WORKER_METRICS,
   type WorkerMetricsPort
 } from './worker-observability.js';
@@ -35,6 +39,43 @@ import {
 
 export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
+
+function awaitWithAbort<T>(
+  startOperation: () => Promise<T>,
+  signal: AbortSignal
+): Promise<T> {
+  if (signal.aborted)
+    return Promise.reject(
+      signal.reason instanceof Error ? signal.reason : new Error('Aborted.')
+    );
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      cleanup();
+      const reason =
+        signal.reason instanceof Error ? signal.reason : new Error('Aborted.');
+      reject(reason);
+    };
+    const cleanup = () => signal.removeEventListener('abort', onAbort);
+    signal.addEventListener('abort', onAbort, { once: true });
+    Promise.resolve()
+      .then(startOperation)
+      .then(
+        (value) => {
+          cleanup();
+          resolve(value);
+        },
+        (error: unknown) => {
+          cleanup();
+          reject(
+            error instanceof Error
+              ? error
+              : new Error('Calendar title source failed.')
+          );
+        }
+      );
+    if (signal.aborted) onAbort();
+  });
+}
 
 /**
  * 日曆投影預約狀態，不是可用性鎖。到診與完成更新同一事件，不得刪除；
@@ -146,7 +187,8 @@ export class OutboxProcessor {
     private readonly metrics: WorkerMetricsPort = NOOP_WORKER_METRICS,
     private readonly random: () => number = Math.random,
     private readonly monotonicNow: () => number = () => performance.now(),
-    private readonly workerId: string = randomUUID()
+    private readonly workerId: string = randomUUID(),
+    private readonly calendarTitleSource: CalendarTitleSource = NO_CALENDAR_TITLE
   ) {}
 
   /**
@@ -423,12 +465,14 @@ export class OutboxProcessor {
             'Calendar projection skipped because the worker lease has no safe time remaining.',
             true
           );
+        const projectionSignal = AbortSignal.timeout(projectionTimeoutMs);
         const projectionOptions: CalendarProjectionOptions = {
           timeoutMs: projectionTimeoutMs,
-          signal: AbortSignal.timeout(projectionTimeoutMs)
+          signal: projectionSignal
         };
-        // 投影內容只有識別碼、狀態、時間與掛號別。姓名、電話、身分證、
-        // 手術種類與備註一律不得離開本系統（ADR-0002）。
+        // Title reads are best-effort and bounded by the same lease deadline.
+        // Only the dedicated C1 appointment calendar receives the approved
+        // title fields; source errors preserve the existing minimal summary.
         if (
           shouldProjectFollowUpReminder({
             isFollowUpProjection,
@@ -436,6 +480,22 @@ export class OutboxProcessor {
             startsAt
           })
         ) {
+          const bookingKind = isFollowUpProjection
+            ? 'follow_up'
+            : ((appointment.data()?.['bookingKind'] as string) ?? '');
+          let title: string | undefined;
+          if (action === 'upsert') {
+            try {
+              title = await awaitWithAbort(
+                () => this.calendarTitleSource.titleFor(job.appointmentId),
+                projectionSignal
+              );
+            } catch {
+              // Never expose source errors or let optional enrichment block
+              // the ordinary projection.
+              title = undefined;
+            }
+          }
           await this.calendar.project(
             {
               idempotencyKey: job.idempotencyKey,
@@ -447,9 +507,8 @@ export class OutboxProcessor {
               startsAt,
               endsAt: startsAt === '' ? '' : clinicEventEnd(startsAt),
               colorId: CLINIC_EVENT_COLOR_ID,
-              bookingKind: isFollowUpProjection
-                ? 'follow_up'
-                : ((appointment.data()?.['bookingKind'] as string) ?? '')
+              bookingKind,
+              ...(title === undefined ? {} : { title })
             },
             projectionOptions
           );

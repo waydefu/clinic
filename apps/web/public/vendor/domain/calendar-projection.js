@@ -4,12 +4,10 @@ import { SLOT_MINUTE_MARKS } from './schedule.js';
 /**
  * Clinic Calendar projection allowlist and loop-prevention markers.
  *
- * Internal preproduction may carry synthetic operational fields. Forbidden
- * clinical, identity-document and money fields must never appear on the
- * Calendar payload. ADR-0002 still forbids emitting patient name/phone from
- * the clinic outbound adapter; they remain on the allowlist so a future
- * closed synthetic format can add them without silently introducing DOB or
- * diagnosis.
+ * Internal preproduction may carry the ADR-0002-approved appointment title
+ * fields on its dedicated appointment test calendar. Other calendars remain
+ * outside this projection. Forbidden clinical, identity-document and money
+ * fields must never appear on the Calendar payload.
  */
 export const CALENDAR_PROJECTION_SOURCE = 'clinic_db';
 export const CALENDAR_LINK_PROPERTY = 'beauessenceLinkId';
@@ -94,14 +92,56 @@ export function formatClinicCalendarSummary(input) {
         return base;
     return `${prefix}${CALENDAR_ENTRY_SEPARATOR}${input.clinicName.trim()}${CALENDAR_ENTRY_SEPARATOR}${kindLabel}`;
 }
+const SERVICE_LABEL = Object.freeze({
+    service_snoring: '止鼾',
+    service_aesthetic: '醫美'
+});
+/**
+ * Format the owner-approved title fields for the dedicated appointment
+ * calendar. Missing or malformed required identity fragments fail closed so
+ * callers can preserve the existing minimal clinic summary.
+ */
+export function formatClinicAppointmentTitle(input) {
+    const kindLabel = clinicBookingKindLabel(input.bookingKind);
+    const name = input.name?.trim();
+    const phoneDigits = input.phoneDigits;
+    const monthDay = /^--(\d{2})-(\d{2})$/.exec(input.birthMonthDay ?? '');
+    if (kindLabel === '' ||
+        name === undefined ||
+        name === '' ||
+        phoneDigits === undefined ||
+        !/^\d{8,20}$/.test(phoneDigits) ||
+        monthDay === null)
+        return undefined;
+    const month = Number(monthDay[1]);
+    const day = Number(monthDay[2]);
+    const date = new Date(Date.UTC(2000, month - 1, day));
+    if (date.getUTCFullYear() !== 2000 ||
+        date.getUTCMonth() !== month - 1 ||
+        date.getUTCDate() !== day)
+        return undefined;
+    const service = SERVICE_LABEL[input.itemId ?? ''];
+    const serviceAndKind = `${service ?? ''}${kindLabel}`;
+    const note = (input.patientNote ?? '')
+        .replace(/\r\n?|\n|\u2028|\u2029/gu, ' ')
+        .trim();
+    const base = `${serviceAndKind}/${name}${phoneDigits} ${monthDay[1]}${monthDay[2]}`;
+    return note === '' ? base : `${base}/${note}`;
+}
 export function buildClinicCalendarEventBody(input) {
-    return {
-        id: input.eventId,
-        summary: formatClinicCalendarSummary({
+    const prefix = OPERATIONAL_STATUS_PREFIX[input.appointmentStatus];
+    const summary = input.title === undefined
+        ? formatClinicCalendarSummary({
             clinicName: input.clinicName,
             bookingKind: input.bookingKind,
             appointmentStatus: input.appointmentStatus
-        }),
+        })
+        : prefix === undefined
+            ? input.title
+            : `${prefix}${CALENDAR_ENTRY_SEPARATOR}${input.title}`;
+    return {
+        id: input.eventId,
+        summary,
         description: `預約編號 ${input.appointmentId}`,
         location: input.clinicAddress,
         colorId: input.colorId,

@@ -14,6 +14,7 @@ import {
   type CalendarProjectionOptions,
   type CalendarProjectionRequest
 } from '../../apps/worker/src/calendar-port.js';
+import type { CalendarTitleSource } from '../../apps/worker/src/calendar-title-source.js';
 import {
   APPOINTMENTS_COLLECTION,
   OUTBOX_COLLECTION,
@@ -98,9 +99,9 @@ async function seedJob(id = 'outbox_001'): Promise<void> {
     bookingKind: 'initial',
     patientId: 'patient_001',
     // 以下欄位刻意存在，用來證明它們不會外洩到日曆。
-    patientName: '王測試',
-    nationalId: 'A123456789',
-    itemLabel: '鼻中膈彎曲'
+    patientName: '合成患者欄位',
+    nationalId: '合成證件字串',
+    itemLabel: '合成服務項目'
   });
   await db.collection(OUTBOX_COLLECTION).doc(id).set({
     appointmentId: 'appointment_001',
@@ -192,6 +193,67 @@ describe('outbox worker', () => {
         deadLettered: 0
       })
     ]);
+  });
+
+  it('passes a best-effort title to the calendar without storing it in outbox', async () => {
+    await seedJob();
+    const title = '止鼾初診/合成患者甲99999999 0520/流程詢問';
+    const titleSource: CalendarTitleSource = {
+      titleFor: (appointmentId) => {
+        expect(appointmentId).toBe('appointment_001');
+        return Promise.resolve(title);
+      }
+    };
+    processor = new OutboxProcessor(
+      db,
+      calendar,
+      metrics,
+      () => 0.5,
+      undefined,
+      undefined,
+      titleSource
+    );
+
+    await processor.processDue(NOW);
+
+    expect([...calendar.events.values()][0]?.title).toBe(title);
+    const storedJob = await jobState();
+    expect(storedJob).not.toHaveProperty('title');
+    expect(storedJob).not.toHaveProperty('patientName');
+    expect(storedJob).not.toHaveProperty('phoneDigits');
+    expect(storedJob).not.toHaveProperty('patientNote');
+  });
+
+  it('keeps the minimal projection when title lookup is empty or throws', async () => {
+    const sources: CalendarTitleSource[] = [
+      { titleFor: () => Promise.resolve(undefined) },
+      {
+        titleFor: () => Promise.reject(new Error('synthetic source failure'))
+      }
+    ];
+
+    for (const [index, titleSource] of sources.entries()) {
+      if (index > 0) {
+        await wipe();
+        calendar = new InMemoryCalendar();
+        metrics = new RecordingMetrics();
+      }
+      await seedJob();
+      processor = new OutboxProcessor(
+        db,
+        calendar,
+        metrics,
+        () => 0.5,
+        undefined,
+        undefined,
+        titleSource
+      );
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary.completed).toBe(1);
+      expect([...calendar.events.values()][0]).not.toHaveProperty('title');
+    }
   });
 
   it('cancels the calendar event when the appointment row is already gone', async () => {

@@ -7,6 +7,7 @@ import {
   calendarPayloadForbiddenKeys,
   calendarPayloadUsesAllowlistedEventKeys,
   clinicProjectionVersion,
+  formatClinicAppointmentTitle,
   formatClinicCalendarSummary,
   inboundFieldAllowlist,
   isOnBookingKindGrid,
@@ -31,6 +32,122 @@ const body = () =>
   });
 
 describe('clinic Calendar projection allowlist', () => {
+  it('formats approved appointment title fields and sanitizes note newlines', () => {
+    expect(
+      formatClinicAppointmentTitle({
+        bookingKind: 'initial',
+        itemId: 'service_snoring',
+        name: '合成患者甲',
+        phoneDigits: '99999999',
+        birthMonthDay: '--05-20',
+        patientNote: '流程詢問\r\n時段確認'
+      })
+    ).toBe('止鼾初診/合成患者甲99999999 0520/流程詢問 時段確認');
+    expect(
+      formatClinicAppointmentTitle({
+        bookingKind: 'follow_up',
+        itemId: 'unknown_service',
+        name: '合成患者乙',
+        phoneDigits: '99999999',
+        birthMonthDay: '--02-29',
+        patientNote: '  '
+      })
+    ).toBe('回診/合成患者乙99999999 0229');
+    expect(
+      formatClinicAppointmentTitle({
+        bookingKind: 'initial',
+        itemId: 'service_aesthetic',
+        name: '合成患者丙',
+        phoneDigits: '99999999',
+        birthMonthDay: '--05-20'
+      })
+    ).toBe('醫美初診/合成患者丙99999999 0520');
+  });
+
+  it('omits an appointment title when required fields are missing or invalid', () => {
+    const valid = {
+      bookingKind: 'initial',
+      name: '合成患者甲',
+      phoneDigits: '99999999',
+      birthMonthDay: '--05-20'
+    };
+    expect(
+      formatClinicAppointmentTitle({
+        bookingKind: valid.bookingKind,
+        phoneDigits: valid.phoneDigits,
+        birthMonthDay: valid.birthMonthDay
+      })
+    ).toBeUndefined();
+    expect(
+      formatClinicAppointmentTitle({
+        bookingKind: valid.bookingKind,
+        name: valid.name,
+        birthMonthDay: valid.birthMonthDay
+      })
+    ).toBeUndefined();
+    expect(
+      formatClinicAppointmentTitle({
+        bookingKind: valid.bookingKind,
+        name: valid.name,
+        phoneDigits: valid.phoneDigits
+      })
+    ).toBeUndefined();
+    expect(
+      formatClinicAppointmentTitle({ ...valid, phoneDigits: '1234' })
+    ).toBeUndefined();
+    expect(
+      formatClinicAppointmentTitle({ ...valid, birthMonthDay: '--02-30' })
+    ).toBeUndefined();
+  });
+
+  it('never includes full birth year, identity-document fields, or nationality in a title', () => {
+    const title = formatClinicAppointmentTitle({
+      bookingKind: 'initial',
+      itemId: 'service_snoring',
+      name: '合成患者甲',
+      phoneDigits: '99999999',
+      birthMonthDay: '--05-20',
+      patientNote: '流程詢問'
+    });
+    expect(title).toBe('止鼾初診/合成患者甲99999999 0520/流程詢問');
+    expect(title).not.toContain('1990');
+    expect(title).not.toContain('合成證件字串');
+    expect(title).not.toContain('synthetic-nationality');
+  });
+
+  it('uses an approved title with the existing operational status prefix', () => {
+    const payload = buildClinicCalendarEventBody({
+      eventId: EVENT_ID,
+      appointmentId: 'appointment_001',
+      appointmentStatus: 'arrived',
+      bookingKind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T05:00:00.000Z',
+      colorId: '10',
+      clinicName: '一森渼診所',
+      clinicAddress: '合成地址',
+      correlationId: 'corr_calendar_001',
+      title: '止鼾初診/合成患者甲99999999 0520'
+    });
+    expect(payload.summary).toBe('✅到診｜止鼾初診/合成患者甲99999999 0520');
+    const completedPayload = buildClinicCalendarEventBody({
+      eventId: EVENT_ID,
+      appointmentId: 'appointment_001',
+      appointmentStatus: 'completed',
+      bookingKind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T05:00:00.000Z',
+      colorId: '10',
+      clinicName: '一森渼診所',
+      clinicAddress: '合成地址',
+      correlationId: 'corr_calendar_001',
+      title: '止鼾初診/合成患者甲99999999 0520'
+    });
+    expect(completedPayload.summary).toBe(
+      '✅完成｜止鼾初診/合成患者甲99999999 0520'
+    );
+  });
+
   it('keeps confirmed titles on the existing clinic Canon', () => {
     expect(
       formatClinicCalendarSummary({

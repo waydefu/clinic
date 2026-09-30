@@ -63,6 +63,8 @@ export interface CalendarProjectionRequest extends OutboxTraceContext {
   /** 診所端事件的結束時間（開始 + `CLINIC_EVENT_MINUTES`）。 */
   readonly endsAt: string;
   readonly bookingKind: string;
+  /** Optional, ADR-0002-approved title for the dedicated appointment test calendar. */
+  readonly title?: string;
   /** 傳給 Google 的 `colorId`。 */
   readonly colorId: string;
 }
@@ -116,8 +118,8 @@ export class CalendarError extends Error {
  *    不是失敗。官方明說無法保證偵測 ID 衝突，因此 worker 不得把「已存在」
  *    當失敗重試。
  * 3. `cancel` 刪除不存在的事件（等同 410／404）同樣視為成功：目標狀態已達成。
- * 4. 事件內容只保留識別碼、狀態、時間、掛號別與 loop-prevention 標記，不含
- *    DOB、證件、診斷、麻醉或金流欄位。
+ * 4. 事件內容只保留識別碼、狀態、時間、掛號別、loop-prevention 標記，以及
+ *    專用 C1 預約測試日曆可選用的核准標題；不含完整生日、證件、診斷、麻醉或金流。
  *
  * 計數器供測試斷言「重試 N 次仍只有一個事件」與各動作各發生幾次。
  */
