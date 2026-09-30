@@ -27,7 +27,8 @@ const APPROVED_POLICIES = Object.freeze({
             // Engineering bound, not a policy value: one year per file keeps each
             // export inside a single atomic write.
             maxRangeDays: 366
-        })
+        }),
+        retention: Object.freeze({ recoverableDays: 30 })
     })
 });
 export function resolveApprovedBusinessDeliveryPolicy(version, scope) {

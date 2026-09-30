@@ -183,3 +183,116 @@ export type CreateBusinessExportRequest = z.infer<
   typeof CreateBusinessExportRequestSchema
 >;
 export type BusinessExportJob = z.infer<typeof BusinessExportJobSchema>;
+
+/** CP-05 retention requests are deliberately limited to opaque patient IDs. */
+export const RetentionReasonCodeSchema = z.enum([
+  'patient_request',
+  'retention_expired',
+  'duplicate_record',
+  'other'
+]);
+
+export const RetentionPatientRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    patientId: OpaqueIdentifierSchema
+  })
+  .strict();
+
+export const PermanentDeletePatientRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    patientId: OpaqueIdentifierSchema,
+    reasonCode: RetentionReasonCodeSchema
+  })
+  .strict();
+
+export const SetPatientLegalHoldRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    patientId: OpaqueIdentifierSchema,
+    hold: z.boolean(),
+    reasonCode: RetentionReasonCodeSchema
+  })
+  .strict();
+
+export const PatientArchivedResponseSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    state: z.literal('archived'),
+    restorableUntil: z.string()
+  })
+  .strict();
+
+export const PatientRestoredResponseSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    state: z.literal('active')
+  })
+  .strict();
+
+export const PatientRetentionLayersSchema = z
+  .object({
+    patients: z.number().int().min(0),
+    appointments: z.number().int().min(0),
+    patient_booking_guards: z.number().int().min(0),
+    patient_follow_up_states: z.number().int().min(0),
+    return_sessions: z.number().int().min(0),
+    follow_ups: z.number().int().min(0),
+    patient_lookup_index_v2: z.number().int().min(0)
+  })
+  .strict();
+
+export const PatientPermanentlyDeletedResponseSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    state: z.literal('deleted'),
+    layers: PatientRetentionLayersSchema
+  })
+  .strict();
+
+export const PatientLegalHoldResponseSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    legalHold: z.boolean()
+  })
+  .strict();
+
+export const PendingPatientDeletionSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    archivedAt: z.string(),
+    restorableUntil: z.string(),
+    legalHold: z.boolean()
+  })
+  .strict();
+
+export const PendingPatientDeletionResponseSchema = z
+  .object({ patients: z.array(PendingPatientDeletionSchema) })
+  .strict();
+
+export type RetentionReasonCode = z.infer<typeof RetentionReasonCodeSchema>;
+export type RetentionPatientRequest = z.infer<
+  typeof RetentionPatientRequestSchema
+>;
+export type PermanentDeletePatientRequest = z.infer<
+  typeof PermanentDeletePatientRequestSchema
+>;
+export type SetPatientLegalHoldRequest = z.infer<
+  typeof SetPatientLegalHoldRequestSchema
+>;
+export type PatientArchivedResponse = z.infer<
+  typeof PatientArchivedResponseSchema
+>;
+export type PatientRestoredResponse = z.infer<
+  typeof PatientRestoredResponseSchema
+>;
+export type PatientPermanentlyDeletedResponse = z.infer<
+  typeof PatientPermanentlyDeletedResponseSchema
+>;
+export type PatientLegalHoldResponse = z.infer<
+  typeof PatientLegalHoldResponseSchema
+>;
+export type PendingPatientDeletionResponse = z.infer<
+  typeof PendingPatientDeletionResponseSchema
+>;

@@ -159,9 +159,12 @@ export class FirestoreBusinessExportRepository {
       }
 
       const appointments = await transaction.get(appointmentsQuery);
+      const exportableAppointments = appointments.docs.filter(
+        (document) => document.data()['patientArchived'] !== true
+      );
       const patientIds = [
         ...new Set(
-          appointments.docs
+          exportableAppointments
             .map((document) => stringField(document.data(), 'patientId'))
             .filter((id): id is string => id !== undefined && id !== '')
         )
@@ -178,7 +181,7 @@ export class FirestoreBusinessExportRepository {
         patients.map((snapshot) => [snapshot.id, snapshot.data()])
       );
 
-      const rows = appointments.docs.map((document) => {
+      const rows = exportableAppointments.map((document) => {
         const data = document.data();
         const patient = patientById.get(stringField(data, 'patientId') ?? '');
         const name = stringField(patient, 'name');

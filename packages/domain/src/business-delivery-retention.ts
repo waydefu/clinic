@@ -20,7 +20,7 @@ export interface RetentionAuthorizationProof {
   readonly scopeId: string;
   readonly requestId: string;
   readonly authorizationReference: string;
-  readonly reauthenticationReference: string;
+  readonly reauthenticationReference?: string;
   readonly authorized: boolean;
   readonly reauthenticated: boolean;
 }
@@ -61,11 +61,17 @@ function addUtcDays(isoUtc: string, days: number): string {
   ).toISOString();
 }
 
-function assertProof(proof: RetentionAuthorizationProof): void {
-  if (!proof.authorized || !proof.reauthenticated) {
+function assertProof(
+  proof: RetentionAuthorizationProof,
+  requireReauthentication: boolean
+): void {
+  if (
+    !proof.authorized ||
+    (requireReauthentication && !proof.reauthenticated)
+  ) {
     throw new DomainError(
       'DELEGATION_NOT_AUTHORIZED',
-      'retention authorization and re-authentication are required.'
+      'retention authorization and required re-authentication are required.'
     );
   }
   assertOpaque(proof.scopeId, 'retention.scopeId');
@@ -74,10 +80,18 @@ function assertProof(proof: RetentionAuthorizationProof): void {
     proof.authorizationReference,
     'retention.authorizationReference'
   );
-  assertOpaque(
-    proof.reauthenticationReference,
-    'retention.reauthenticationReference'
-  );
+  if (proof.reauthenticated) {
+    if (proof.reauthenticationReference === undefined) {
+      throw new DomainError(
+        'DELEGATION_NOT_AUTHORIZED',
+        'a re-authentication reference is required.'
+      );
+    }
+    assertOpaque(
+      proof.reauthenticationReference,
+      'retention.reauthenticationReference'
+    );
+  }
 }
 
 function archiveWindow(input: {
@@ -141,7 +155,10 @@ export function planRetentionOperation(input: {
   assertOpaque(input.requestId, 'retention.requestId');
   assertUtcTimestamp(input.nowAt, 'nowAt');
   assertPolicy(input.policy);
-  assertProof(input.proof);
+  assertProof(
+    input.proof,
+    input.operation === 'archive' || input.operation === 'permanent_delete'
+  );
   if (input.proof.requestId !== input.requestId) {
     throw new DomainError(
       'INVALID_VALUE',
