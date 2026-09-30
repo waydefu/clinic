@@ -3,7 +3,8 @@
 ## 一句話與交付版本
 
 已修正使用者環境的 Node 版本、pnpm 隱性重裝與本專案 CI 的依賴／日期 fixture 障礙；
-下載主機與官方模型文件仍被網路政策封鎖，環境尚未全數就緒。
+下載主機與官方網站直連仍被網路政策封鎖，環境尚未全數就緒。
+初次查證為下列 12:30 snapshot；官方 GitHub 資料查閱與 Luna 試派的最新狀態見末尾補記。
 
 - 工作範圍：Luna 後續工作包的環境前置；對應執行書 §10.4。
 - 原始碼基準：`origin/main` `73c7afdfc38dd509904172eb6bd1159bc250f858`。
@@ -79,9 +80,9 @@ Node 實際在 `~/.local/share/clinic-tools/node-v24.20.0/bin/node`，
 
 ## 未處理事項與下一步
 
-1. **環境擁有者／ENV-3、ENV-4、MODEL-1：** 套用手冊 Network allowlist，
-   下載 pinned emulator／browser 並核對；官方模型資料可讀後再評估 Luna 分工。
-2. **主代理／GATE-2：** 讀取環境 PR 自動 CI，確認 fixture 與依賴修補在同一 SHA 的結果；
+1. **環境擁有者／ENV-3、ENV-4：** 套用手冊 Network allowlist，
+   下載 pinned emulator／browser 並核對；官網直連仍需設定，簡單 Luna 分工已可依末尾補記試派。
+2. **主代理／GATE-2：** `74d3a1c` 的 run 770 已通過；文件補記後的新 SHA 需另核對 CI。
    如果失敗，依真實 logs 繼續處理。保持 gate／安全邊界。
 3. **審查者與業主：** 審查／合併獨立環境 PR；主代理再從 main 更新 CP-05 #208，
    確認其 exact-SHA required evidence。此記錄不代表業主已合併。
@@ -90,4 +91,31 @@ Node 實際在 `~/.local/share/clinic-tools/node-v24.20.0/bin/node`，
 
 本次業主要求修復環境，並以節省額度為指標允許有條件的 Luna 子代理分工；
 沒有新增產品政策、部署／production／真實資料授權。Stage 位置與 D-series 決策不變。
-尚無官方能力／定價評估或可量測的額度節省數字；9 moderate 開發依賴風險仍須保留於交接。
+初次 12:30 snapshot 尚無官方能力／定價評估或可量測的額度節省數字；
+後續定位查證見補記，9 moderate 開發依賴風險仍須保留於交接。
+
+## 13:35 UTC 官方資料與 Luna 有界試派補記
+
+業主補充「上網查即可」後，透過可用的 GitHub connector 查閱 OpenAI 官方儲存庫，
+沒有繞過工作環境代理。來源與原文已加入 [操作手冊 §5](../runbooks/luna-development-environment.md#5-以完成同一工作包的總額度為指標)：
+
+- Codex `7219fd735bef2f9cfd0363fecdbbb212e3df5255` 的模型選單快照：
+  Luna 為 “Fast and affordable model for easier tasks.”
+- 同一 commit 的額度切換提示：“Switch to gpt-6-luna for lower credit usage?”
+- OpenAI Cookbook `2182005bcaf5a5cdd96bb46fb9995d08730e7b91` 的 agent optimization notebook：
+  先建立 baseline，品質維持後才接受節省；簡單步驟用小模型，限制上下文與工具輸出。
+
+判斷：官方定位足以支持有界、低風險的例行工作試派；這不是完整能力 benchmark 或定價表。
+Cookbook 的 GPT-5.4／5.6 範例數字不能套用到 Luna，也不能換算 Codex 訂閱額度。
+MODEL-1 對簡單任務試派的資料障礙已解除；官網直連與完整定價／benchmark 仍未查證。
+
+本次試派 `gpt-6-luna`、low reasoning、無聊天歷史，只更新操作手冊 §5。
+子代理只改指定檔案，沒有查網、執行測試、commit／push；主代理逐項核對三份來源、
+引文與分工界線，沒有發現來源誤引或越界。文件修改已採用，沒有可取得的額度使用明細，
+因此不宣稱節省比例。後續只擴大相同類型的有界工作，政策／權限／交易／隱私由主代理處理。
+
+先前 source CI 證據：[run 770](https://github.com/waydefu/clinic/actions/runs/36715878644)，
+`74d3a1ca8ea4523bc31bc3e289277cc1e70b5c0a` 全部 SUCCESS；unit 192 files／2217 tests、
+Firestore 23 files／174 tests、patient-portal 98 tests。不能算成後續文件 commit 的 CI 結果。
+本次文件連結／索引檢查 PASS，262 files；diff whitespace 檢查 PASS。
+沒有新增或本機執行實作測試。

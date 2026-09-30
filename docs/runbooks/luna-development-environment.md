@@ -128,17 +128,20 @@ L6 的部署清單仍交給業主執行。
 安裝與 cache 準備做一次，後續復用；測試依工作包要求與使用者授權執行。
 不要為填報數字重跑同一 gate；CI 的數字只算在它實際驗證的 commit 上。
 
-業主在本次對話允許簡單重複工作交給 `gpt-6-luna` 子代理，並要求先讀官網評估。
-截至本次交接，官網仍被網路政策封鎖，**尚未完成評估，也沒有派出 Luna**。
-可查閱的官方入口：
-[模型目錄](https://developers.openai.com/api/docs/models)、
-[Codex 文件](https://developers.openai.com/codex/)。這些連結是待查入口，並非已讀證據。
-不能把其他 mini／nano 模型的價格或成績當成 Luna 的證據。
+業主允許簡單重複工作交給 `gpt-6-luna` 子代理，並要求先查官方資料。官網直連仍回
+403，但已透過 OpenAI 官方 GitHub 原始資料查證定位；這足以支持有界低風險任務試派，
+不構成完整能力 benchmark 或定價評估。來源對模型的定位是官方來源事實；以下具體分工
+與試派規則是本專案的實務選擇：
 
-完成官方評估後，採用以下分工作為本專案的工作安排（不是官方能力宣稱）：
+- [Codex 模型選單快照](https://github.com/openai/codex/blob/7219fd735bef2f9cfd0363fecdbbb212e3df5255/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap)：GPT-6-Luna 標示為 “Fast and affordable model for easier tasks.”
+- [Codex 額度切換提示快照](https://github.com/openai/codex/blob/7219fd735bef2f9cfd0363fecdbbb212e3df5255/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__rate_limit_switch_prompt_popup.snap)：提示 “Switch to gpt-6-luna for lower credit usage?”
+- [OpenAI Cookbook 成本與品質最佳化範例](https://github.com/openai/openai-cookbook/blob/2182005bcaf5a5cdd96bb46fb9995d08730e7b91/examples/agent_optimization/optimizing_agents_for_cost_and_quality.ipynb)：先量 baseline、一次改一項，品質維持才接受節省；簡單步驟可路由小模型，例行任務用低 reasoning、高風險工作提高 reasoning，工具結果只回必要欄位，穩定指令放前、易變輸入放後以利 API prompt cache。此 notebook 示例 GPT-5.4／5.6，不能據此推算 Luna 價格或套用其示範節省比例；Codex 訂閱額度也不等於 API token 費率。
 
-- Luna：有確定輸入、限定檔案與可判定輸出的機械工作，例如逐檔連結盤點、
-  固定格式整理、按已審定對照表做替換。先試一個有界任務，檢查品質後再擴大。
+採用以下分工作為本專案的工作安排（不是官方能力宣稱）：
+
+- Luna：只試小上下文、簡短輸出的有界低風險例行工作，例如逐檔連結盤點、固定格式整理、
+  按已審定對照表做替換；從低 reasoning 開始，記錄品質、返工與同一工作包總用量，
+  品質不足或返工抵銷節省時不擴大。
 - 主代理：根因判斷、政策／權限／交易／隱私設計、跨包整合與最後審查。
 - 同一檔案只能有一位編輯者；子代理帶最小上下文，回報結果、檔案與未解問題。
   卡住時一次附上證據交回主代理，避免重複嘗試消耗額度。
