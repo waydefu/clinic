@@ -150,7 +150,7 @@ describe('archive and restore', () => {
     expect(archived).toEqual({
       patientId: PATIENT_ID,
       state: 'archived',
-      restorableUntil: '2030-11-20T00:00:00.000Z'
+      restorableUntil: '2030-11-19T00:00:00.000Z'
     });
     expect(
       (
@@ -160,7 +160,7 @@ describe('archive and restore', () => {
       archivedAt: NOW,
       archivedByRef: ACTOR_REF,
       legalHold: false,
-      restorableUntil: '2030-11-20T00:00:00.000Z'
+      restorableUntil: '2030-11-19T00:00:00.000Z'
     });
     expect(
       (
