@@ -172,6 +172,19 @@
         }
       ],
       "note": "CP-04：只限 manager；建立需 10 分鐘內重新 Google＋TOTP；24 小時內最多下載 3 次；檔案 7 天由 Firestore TTL 刪除且 API 過期即拒絕。"
+    },
+    "business_patient_retention": {
+      "permissions": ["manage_business_retention"],
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-002",
+          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 的保存與刪除仍待 D-002 與專業隱私／法律審閱。",
+          "blocks": "public_production_route"
+        }
+      ],
+      "note": "CP-05：只限 manager；封存可復原 30 天，逾期僅列待永久刪除；永久刪除需重新驗證、無 legal hold 並逐層清除。"
     }
   },
   "unrouted": {

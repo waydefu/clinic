@@ -11,7 +11,7 @@ import {
 
 const INTAKE = {
   name: '合成患者甲',
-  phone: '0912-000-001',
+  phone: '0900-000-001',
   birthDate: '--01-15',
   nationality: 'domestic' as const,
   privacyConsent: true as const
@@ -19,10 +19,10 @@ const INTAKE = {
 
 describe('opaque lookup identity', () => {
   it('is stable across phone punctuation and is not the raw phone number', () => {
-    expect(opaqueLookupIdentity('0912-000-001', '--01-15')).toBe(
-      opaqueLookupIdentity('0912000001', '--01-15')
+    expect(opaqueLookupIdentity('0900-000-001', '--01-15')).toBe(
+      opaqueLookupIdentity('0900000001', '--01-15')
     );
-    expect(opaqueLookupIdentity('0912000001', '--01-15')).not.toMatch(/0912/);
+    expect(opaqueLookupIdentity('0900000001', '--01-15')).not.toMatch(/0900/);
   });
 });
 
@@ -53,6 +53,24 @@ describe('phone + month-day identity (BOOKING-MINIMIZATION-2026-09-22)', () => {
     ).rejects.toMatchObject({ code: 'PATIENT_IDENTITY_AMBIGUOUS' });
   });
 
+  it('ignores archived candidates and preserves their IDs when creating a replacement', async () => {
+    const directory = new InMemoryPatientDirectory();
+    const key = opaqueLookupIdentity(INTAKE.phone, INTAKE.birthDate);
+    directory.lookup.set(key, ['patient_archived']);
+    directory.patients.set('patient_archived', {
+      name: INTAKE.name,
+      archivedAt: '2030-10-01T00:00:00.000Z'
+    });
+
+    await expect(
+      directory.resolveFromIntake(INTAKE, NOW, () => 'patient_replacement')
+    ).resolves.toBe('patient_replacement');
+    expect(directory.lookup.get(key)).toEqual([
+      'patient_archived',
+      'patient_replacement'
+    ]);
+  });
+
   it('answers a return lookup with several candidates exactly like a miss', async () => {
     const directory = new InMemoryPatientDirectory();
     const key = opaqueLookupIdentity(INTAKE.phone, INTAKE.birthDate);
@@ -60,7 +78,7 @@ describe('phone + month-day identity (BOOKING-MINIMIZATION-2026-09-22)', () => {
     directory.followUp.set('patient_001', { required: true });
     directory.followUp.set('patient_002', { required: true });
     await expect(
-      directory.lookupReturn('0912000001', '--01-15', NOW, () => 'session')
+      directory.lookupReturn('0900000001', '--01-15', NOW, () => 'session')
     ).resolves.toBeUndefined();
     expect(directory.sessions.size).toBe(0);
   });
@@ -70,7 +88,7 @@ describe('phone + month-day identity (BOOKING-MINIMIZATION-2026-09-22)', () => {
     await directory.resolveFromIntake(INTAKE, NOW, () => 'patient_001');
     directory.followUp.set('patient_001', { required: true });
     await expect(
-      directory.lookupReturn('0912000001', '1990-01-15', NOW, () => 'session')
+      directory.lookupReturn('0900000001', '1990-01-15', NOW, () => 'session')
     ).resolves.toBeUndefined();
   });
 
@@ -104,7 +122,7 @@ describe('InMemoryPatientDirectory', () => {
     expect(directory.createdPatientCount).toBe(1);
     await expect(
       directory.lookupReturn(
-        '0912000001',
+        '0900000001',
         '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
@@ -113,7 +131,7 @@ describe('InMemoryPatientDirectory', () => {
     directory.followUp.set('patient_001', { required: true });
     await expect(
       directory.lookupReturn(
-        '0912000001',
+        '0900000001',
         '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
@@ -125,10 +143,43 @@ describe('InMemoryPatientDirectory', () => {
     });
     await expect(
       directory.lookupReturn(
-        '0912000001',
+        '0900000001',
         '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not resolve or continue a return session for an archived patient', async () => {
+    const directory = new InMemoryPatientDirectory();
+    await directory.resolveFromIntake(
+      INTAKE,
+      '2026-07-23T14:30:00.000Z',
+      () => 'patient_001'
+    );
+    directory.followUp.set('patient_001', { required: true });
+    directory.patients.set('patient_001', {
+      ...directory.patients.get('patient_001')!,
+      archivedAt: '2030-10-01T00:00:00.000Z'
+    });
+    directory.sessions.set('session_ret_archived', {
+      patientId: 'patient_001',
+      expiresAt: '2030-10-20T00:15:00.000Z'
+    });
+
+    await expect(
+      directory.lookupReturn(
+        '0900000001',
+        '--01-15',
+        '2030-10-20T00:00:00.000Z',
+        () => 'unused'
+      )
+    ).resolves.toBeUndefined();
+    await expect(
+      directory.readReturnSession(
+        'session_ret_archived',
+        '2030-10-20T00:00:00.000Z'
       )
     ).resolves.toBeUndefined();
   });
@@ -154,7 +205,7 @@ describe('InMemoryPatientDirectory', () => {
     });
     await expect(
       directory.lookupReturn(
-        '0912000001',
+        '0900000001',
         '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
@@ -188,7 +239,7 @@ describe('InMemoryPatientDirectory', () => {
         startsAt: '2026-08-01T04:15:00.000Z'
       });
       const result = await directory.lookupReturn(
-        '0912000001',
+        '0900000001',
         '--01-15',
         '2026-07-23T14:30:00.000Z',
         () => 'session'
@@ -289,21 +340,21 @@ describe('patient contact storage (EXPORT-CONTACT-STORAGE-2026-09-29)', () => {
     await directory.resolveFromIntake(INTAKE, NOW, () => 'patient_c01');
     expect(directory.patients.get('patient_c01')).toEqual({
       name: '合成患者甲',
-      phoneDigits: '0912000001',
+      phoneDigits: '0900000001',
       birthMonthDay: '--01-15'
     });
   });
 
   it('fills contact on reuse only when it is missing', async () => {
     const directory = new InMemoryPatientDirectory();
-    directory.lookup.set(opaqueLookupIdentity('0912000001', '--01-15'), [
+    directory.lookup.set(opaqueLookupIdentity('0900000001', '--01-15'), [
       'patient_legacy'
     ]);
     directory.patients.set('patient_legacy', { name: '合成患者甲' });
     await directory.resolveFromIntake(INTAKE, NOW, () => 'unused');
     expect(directory.patients.get('patient_legacy')).toEqual({
       name: '合成患者甲',
-      phoneDigits: '0912000001',
+      phoneDigits: '0900000001',
       birthMonthDay: '--01-15'
     });
   });
@@ -314,11 +365,11 @@ describe('patient contact storage (EXPORT-CONTACT-STORAGE-2026-09-29)', () => {
     const stored = directory.patients.get('patient_c02');
     directory.patients.set('patient_c02', {
       ...stored!,
-      phoneDigits: '0912000999'
+      phoneDigits: '0900000999'
     });
     await directory.resolveFromIntake(INTAKE, NOW, () => 'unused');
     expect(directory.patients.get('patient_c02')?.phoneDigits).toBe(
-      '0912000999'
+      '0900000999'
     );
   });
 

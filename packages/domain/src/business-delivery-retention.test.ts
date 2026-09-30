@@ -92,6 +92,29 @@ describe('planRetentionOperation', () => {
     ).toThrow(/expired/);
   });
 
+  it('allows restoration without re-authentication while preserving the cutoff', () => {
+    expect(
+      planRetentionOperation({
+        operation: 'restore',
+        resourceId: 'resource_001',
+        requestId: 'request_009',
+        state: 'archived',
+        nowAt: '2030-01-30T00:00:00.000Z',
+        archivedAt: '2030-01-01T00:00:00.000Z',
+        recoverableUntil: '2030-01-31T00:00:00.000Z',
+        legalHold: false,
+        policy,
+        proof: {
+          scopeId: 'scope_c1',
+          requestId: 'request_009',
+          authorizationReference: 'auth_001',
+          authorized: true,
+          reauthenticated: false
+        }
+      })
+    ).toMatchObject({ resultingState: 'active', idempotency: 'new_operation' });
+  });
+
   it('requires the explicit delete gate after the recovery window', () => {
     const common = {
       operation: 'permanent_delete' as const,

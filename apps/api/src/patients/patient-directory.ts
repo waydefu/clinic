@@ -160,6 +160,10 @@ function stringArrayField(
     : [];
 }
 
+function isArchivedPatient(data: Record<string, unknown> | undefined): boolean {
+  return data?.['archivedAt'] !== undefined && data['archivedAt'] !== null;
+}
+
 /** Maps a stored appointment row to the list record. Exported for tests. */
 export function toListRecord(
   id: string,
@@ -206,7 +210,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     // creates for the same key retry and the second sees the first's patient.
     return this.db.runTransaction(async (transaction) => {
       const index = await transaction.get(lookupRef);
-      const ids = stringArrayField(index.data(), 'patientIds');
+      const ids = [...new Set(stringArrayField(index.data(), 'patientIds'))];
       const snapshots =
         ids.length === 0
           ? []
@@ -215,10 +219,18 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
                 this.db.collection(PATIENT_COLLECTIONS.patients).doc(id)
               )
             );
-      const candidates: PatientCandidate[] = snapshots.map((snapshot, i) => ({
-        patientId: ids[i] ?? '',
-        name: stringField(snapshot.data(), 'name') ?? ''
-      }));
+      const candidates: PatientCandidate[] = snapshots.flatMap(
+        (snapshot, i) => {
+          const data = snapshot.data();
+          if (!snapshot.exists || isArchivedPatient(data)) return [];
+          return [
+            {
+              patientId: ids[i] ?? '',
+              name: stringField(data, 'name') ?? ''
+            }
+          ];
+        }
+      );
       const decision = resolveIntakeCandidate(candidates, identity.name);
       const contact = patientContactOf(identity);
       if (decision.kind === 'reuse') {
@@ -237,8 +249,9 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       if (decision.kind === 'ambiguous') throw ambiguousIdentity();
       const patientId = allocateId();
       transaction.set(lookupRef, {
-        patientIds: [patientId],
-        createdAt: nowUtc,
+        ...(index.data() ?? {}),
+        patientIds: [...new Set([...ids, patientId])],
+        createdAt: stringField(index.data(), 'createdAt') ?? nowUtc,
         updatedAt: nowUtc
       });
       transaction.create(
@@ -268,8 +281,22 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       .collection(PATIENT_COLLECTIONS.lookupIndex)
       .doc(opaqueLookupIdentity(digits, birthDate))
       .get();
+    const candidateIds = stringArrayField(lookup.data(), 'patientIds');
+    const candidates =
+      candidateIds.length === 0
+        ? []
+        : await Promise.all(
+            candidateIds.map((id) =>
+              this.db.collection(PATIENT_COLLECTIONS.patients).doc(id).get()
+            )
+          );
     const patientId = resolveReturnCandidate(
-      stringArrayField(lookup.data(), 'patientIds')
+      candidateIds.filter((_, index) => {
+        const candidate = candidates[index];
+        return (
+          candidate?.exists === true && !isArchivedPatient(candidate.data())
+        );
+      })
     );
     if (patientId === undefined) return undefined;
     const state = await this.readFollowUpState(patientId);
@@ -323,8 +350,14 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     if (typeof data['expiresAt'] !== 'string' || data['expiresAt'] <= nowUtc) {
       return undefined;
     }
-    return typeof data['patientId'] === 'string'
-      ? data['patientId']
+    const patientId = stringField(data, 'patientId');
+    if (patientId === undefined) return undefined;
+    const patient = await this.db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc(patientId)
+      .get();
+    return patient.exists && !isArchivedPatient(patient.data())
+      ? patientId
       : undefined;
   }
 
@@ -367,9 +400,12 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       .orderBy('startsAt', 'asc')
       .limit(limit)
       .get();
-    return snapshot.docs.map((doc) =>
-      toListRecord(doc.id, doc.data() as Record<string, unknown>)
-    );
+    return snapshot.docs.flatMap((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      return data['patientArchived'] === true
+        ? []
+        : [toListRecord(doc.id, data)];
+    });
   }
 
   public async listClinic(limit: number): Promise<AppointmentRecord[]> {
@@ -378,9 +414,12 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       .orderBy('startsAt', 'asc')
       .limit(limit)
       .get();
-    return snapshot.docs.map((doc) =>
-      toListRecord(doc.id, doc.data() as Record<string, unknown>)
-    );
+    return snapshot.docs.flatMap((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      return data['patientArchived'] === true
+        ? []
+        : [toListRecord(doc.id, data)];
+    });
   }
 }
 
@@ -391,7 +430,12 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
   public readonly lookup = new Map<string, string[]>();
   public readonly patients = new Map<
     string,
-    { name: string; phoneDigits?: string; birthMonthDay?: string }
+    {
+      name: string;
+      phoneDigits?: string;
+      birthMonthDay?: string;
+      archivedAt?: string;
+    }
   >();
   public readonly sessions = new Map<
     string,
@@ -409,10 +453,13 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     await Promise.resolve();
     const identity = normalisePatientIdentity(intake);
     const lookupKey = opaqueLookupIdentity(identity.phone, identity.birthDate);
-    const candidates = (this.lookup.get(lookupKey) ?? []).map((patientId) => ({
-      patientId,
-      name: this.patients.get(patientId)?.name ?? ''
-    }));
+    const ids = this.lookup.get(lookupKey) ?? [];
+    const candidates = ids.flatMap((patientId) => {
+      const patient = this.patients.get(patientId);
+      return patient === undefined || patient.archivedAt !== undefined
+        ? []
+        : [{ patientId, name: patient.name }];
+    });
     const decision = resolveIntakeCandidate(candidates, identity.name);
     const contact = patientContactOf(identity);
     if (decision.kind === 'reuse') {
@@ -423,7 +470,7 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     }
     if (decision.kind === 'ambiguous') throw ambiguousIdentity();
     const patientId = allocateId();
-    this.lookup.set(lookupKey, [patientId]);
+    this.lookup.set(lookupKey, [...new Set([...ids, patientId])]);
     this.patients.set(patientId, { name: identity.name, ...contact });
     this.createdPatientCount += 1;
     return patientId;
@@ -440,7 +487,11 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     if (digits.length < 8 || digits.length > 20) return undefined;
     if (!isMonthDay(birthDate)) return undefined;
     const patientId = resolveReturnCandidate(
-      this.lookup.get(opaqueLookupIdentity(digits, birthDate)) ?? []
+      (this.lookup.get(opaqueLookupIdentity(digits, birthDate)) ?? []).filter(
+        (id) =>
+          this.patients.has(id) &&
+          this.patients.get(id)?.archivedAt === undefined
+      )
     );
     if (patientId === undefined) return undefined;
     const state = this.followUp.get(patientId);
@@ -481,7 +532,9 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     await Promise.resolve();
     const session = this.sessions.get(sessionId);
     if (session === undefined || session.expiresAt <= nowUtc) return undefined;
-    return session.patientId;
+    return this.patients.get(session.patientId)?.archivedAt === undefined
+      ? session.patientId
+      : undefined;
   }
 
   public async readFollowUpState(

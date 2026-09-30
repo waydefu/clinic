@@ -14,14 +14,20 @@ function assertPolicy(policy) {
 function addUtcDays(isoUtc, days) {
     return new Date(Date.parse(isoUtc) + days * 24 * 60 * 60 * 1000).toISOString();
 }
-function assertProof(proof) {
-    if (!proof.authorized || !proof.reauthenticated) {
-        throw new DomainError('DELEGATION_NOT_AUTHORIZED', 'retention authorization and re-authentication are required.');
+function assertProof(proof, requireReauthentication) {
+    if (!proof.authorized ||
+        (requireReauthentication && !proof.reauthenticated)) {
+        throw new DomainError('DELEGATION_NOT_AUTHORIZED', 'retention authorization and required re-authentication are required.');
     }
     assertOpaque(proof.scopeId, 'retention.scopeId');
     assertOpaque(proof.requestId, 'retention.requestId');
     assertOpaque(proof.authorizationReference, 'retention.authorizationReference');
-    assertOpaque(proof.reauthenticationReference, 'retention.reauthenticationReference');
+    if (proof.reauthenticated) {
+        if (proof.reauthenticationReference === undefined) {
+            throw new DomainError('DELEGATION_NOT_AUTHORIZED', 'a re-authentication reference is required.');
+        }
+        assertOpaque(proof.reauthenticationReference, 'retention.reauthenticationReference');
+    }
 }
 function archiveWindow(input) {
     assertUtcTimestamp(input.archivedAt, 'archivedAt');
@@ -51,7 +57,7 @@ export function planRetentionOperation(input) {
     assertOpaque(input.requestId, 'retention.requestId');
     assertUtcTimestamp(input.nowAt, 'nowAt');
     assertPolicy(input.policy);
-    assertProof(input.proof);
+    assertProof(input.proof, input.operation === 'archive' || input.operation === 'permanent_delete');
     if (input.proof.requestId !== input.requestId) {
         throw new DomainError('INVALID_VALUE', 'retention request references must agree.');
     }
