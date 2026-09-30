@@ -9,6 +9,9 @@
 
 ## 0. 每個工作包都要照做的規則
 
+開工前先依 [開發環境手冊](../runbooks/luna-development-environment.md) 核對
+Node／pnpm、明確安裝依賴、emulator／瀏覽器與網路。環境修復是獨立前置 PR。
+
 1. 開工前：
    ```bash
    git fetch origin && git switch -c cursor/luna-<包代號> origin/main

@@ -32,6 +32,12 @@ test.describe('患者線上預約', () => {
   });
 
   test('初次載入停在頁首，三步驟依序採指定的全寬版面', async ({ page }) => {
+    // The one-month booking horizon spans two month tabs in mid-month.
+    // At month end the first month's slots can all be past; wall-clock time
+    // must not change the data assumed by this layout fixture. Keep timers live.
+    await page.clock.setFixedTime(new Date('2030-10-15T09:00:00+08:00'));
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
     await expect(page.locator('#patient-title')).toBeVisible();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.locator('[data-step-indicator]')).toHaveCount(3);
