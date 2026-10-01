@@ -68,9 +68,12 @@ const restrictedDom = [
 ];
 let client = apiClient;
 let disposeBusinessView = () => {};
+let businessViewGeneration = 0;
+let activeBusinessViewGeneration = 0;
 
-function isBusinessViewActivationCurrent() {
+function isBusinessViewActivationCurrent(generation) {
   return (
+    generation === businessViewGeneration &&
     window.location.hash === '#business-section' &&
     isAdminSession() &&
     elements['business-section']?.isConnected
@@ -78,10 +81,10 @@ function isBusinessViewActivationCurrent() {
 }
 
 async function activateBusinessView() {
-  if (!isBusinessViewActivationCurrent()) return;
-  const availability = elements['business-section'].querySelector(
-    '#business-availability'
-  );
+  const generation = ++businessViewGeneration;
+  if (!isBusinessViewActivationCurrent(generation)) return;
+  const root = elements['business-section'];
+  const availability = root.querySelector('#business-availability');
   availability.textContent = '正在載入商務與驗收…';
   if (sessionStorage.getItem('calPilotCsrf')) {
     let prepareBusinessReauthentication;
@@ -89,34 +92,53 @@ async function activateBusinessView() {
       ({ prepareBusinessReauthentication } =
         await import('./modules/business-reauth.js'));
     } catch {
-      if (isBusinessViewActivationCurrent())
+      if (isBusinessViewActivationCurrent(generation))
         availability.textContent =
           'Google + TOTP 重新登入目前無法載入，請稍後再試。';
       return;
     }
-    if (!isBusinessViewActivationCurrent()) return;
+    if (!isBusinessViewActivationCurrent(generation)) return;
     try {
       await prepareBusinessReauthentication();
     } catch {
-      if (isBusinessViewActivationCurrent())
+      if (isBusinessViewActivationCurrent(generation))
         availability.textContent =
           'Google + TOTP 重新登入目前無法載入，請稍後再試。';
       return;
     }
   }
-  if (!isBusinessViewActivationCurrent()) return;
+  if (!isBusinessViewActivationCurrent(generation)) return;
   let initializeBusinessView;
+  let createBusinessViewAccessInvalidationCleanup;
   try {
-    ({ initializeBusinessView } = await import('./modules/business-view.js'));
+    ({ initializeBusinessView, createBusinessViewAccessInvalidationCleanup } =
+      await import('./modules/business-view.js'));
   } catch {
-    availability.textContent = '商務與驗收目前無法載入，請稍後再試。';
+    if (isBusinessViewActivationCurrent(generation))
+      availability.textContent = '商務與驗收目前無法載入，請稍後再試。';
     return;
   }
-  if (!isBusinessViewActivationCurrent()) return;
+  if (!isBusinessViewActivationCurrent(generation)) return;
+  const navLink = document.querySelector(
+    '[data-workspace-nav][href="#business-section"]'
+  );
   disposeBusinessView();
+  activeBusinessViewGeneration = generation;
   disposeBusinessView = initializeBusinessView({
-    root: elements['business-section'],
-    authorized: isAdminSession
+    root,
+    authorized: isAdminSession,
+    onAccessInvalidated: createBusinessViewAccessInvalidationCleanup({
+      isCurrent: () => generation === activeBusinessViewGeneration,
+      resetDisposer: () => {
+        activeBusinessViewGeneration = 0;
+        businessViewGeneration += 1;
+        disposeBusinessView = () => {};
+      },
+      elements,
+      restrictedDom,
+      root,
+      navLink
+    })
   });
   if (!sessionStorage.getItem('calPilotCsrf'))
     availability.textContent = '此功能只在 C1 伺服器模式可用';
@@ -127,6 +149,8 @@ window.addEventListener('hashchange', () => {
     void activateBusinessView();
     return;
   }
+  businessViewGeneration += 1;
+  activeBusinessViewGeneration = 0;
   disposeBusinessView();
   disposeBusinessView = () => {};
 });

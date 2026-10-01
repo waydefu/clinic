@@ -374,17 +374,59 @@ test.describe('商務與驗收工作區', () => {
     page
   }) => {
     const businessRequests = [];
+    await trackBusinessViewListeners(page);
     await page.route('**/v1/business-delivery/**', (route) => {
       businessRequests.push(route.request().url());
       return json(route, {});
     });
     await login(page, 'admin');
-    await page.goto('/staff#business-section');
+    await page.goto('/staff');
+    await expect(page.getByRole('link', { name: '商務與驗收' })).toBeVisible();
+    const baseline = await businessListenerSnapshot(page);
+    if (baseline === undefined)
+      throw new Error('Business view listener instrumentation is unavailable.');
+    const businessChunk = page.waitForRequest((request) =>
+      /\/modules\/business-view\.[a-f0-9]+\.js$/.test(request.url())
+    );
+    await page.getByRole('link', { name: '商務與驗收' }).click();
+    await businessChunk;
+    await expect
+      .poll(async () => {
+        const mounted = await businessListenerSnapshot(page);
+        return (
+          mounted?.['beauessence:workbench-access-change'] -
+          baseline['beauessence:workbench-access-change']
+        );
+      })
+      .toBe(2);
     await expect(page.locator('#business-section')).toContainText(
       '此功能只在 C1 伺服器模式可用'
     );
     await expect(page.locator('#business-content')).toBeHidden();
     expect(businessRequests).toEqual([]);
+    const mounted = await businessListenerSnapshot(page);
+    expect(
+      mounted?.['beauessence:workbench-access-change'] -
+        baseline['beauessence:workbench-access-change']
+    ).toBe(2);
+    expect(mounted?.hashchange).toBe(baseline.hashchange);
+    expect(mounted?.pagehide).toBe(baseline.pagehide);
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new CustomEvent('beauessence:workbench-access-change', {
+          detail: { authorized: false }
+        })
+      );
+    });
+    await expect(page.locator('#business-section')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '商務與驗收' })).toHaveCount(0);
+    await expect(page).toHaveURL(/#overview$/);
+    expect(await businessListenerSnapshot(page)).toEqual({
+      'beauessence:workbench-access-change':
+        baseline['beauessence:workbench-access-change'] + 1,
+      hashchange: baseline.hashchange,
+      pagehide: baseline.pagehide
+    });
     await switchRole(page, 'front');
     await expect(page.locator('#business-section')).toHaveCount(0);
     await page.goto('/staff#business-section');

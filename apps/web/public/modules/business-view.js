@@ -85,6 +85,31 @@ export function clearBusinessWriteIdempotencyKeys() {
   pendingWriteKeysCsrf = undefined;
 }
 
+/** Creates a one-shot parent cleanup for a permanently discarded workbench. */
+export function createBusinessViewAccessInvalidationCleanup({
+  isCurrent,
+  resetDisposer,
+  elements,
+  restrictedDom,
+  root,
+  navLink
+}) {
+  let invalidated = false;
+  return () => {
+    if (invalidated || !isCurrent()) return false;
+    invalidated = true;
+    resetDisposer();
+    for (const [id, element] of Object.entries(elements))
+      if (element === root || root.contains(element)) delete elements[id];
+    for (let index = restrictedDom.length - 1; index >= 0; index -= 1) {
+      const element = restrictedDom[index];
+      if (element === navLink || element === root || root.contains(element))
+        restrictedDom.splice(index, 1);
+    }
+    return true;
+  };
+}
+
 export function observeBusinessAccessChanges(target, storage) {
   const existing = accessChangeTargets.get(target);
   if (existing !== undefined) {
@@ -327,7 +352,8 @@ export function initializeBusinessView({
   authorized = () => true,
   storage = globalThis.sessionStorage,
   target = globalThis.window,
-  fetchImpl = globalThis.fetch
+  fetchImpl = globalThis.fetch,
+  onAccessInvalidated = () => {}
 } = {}) {
   if (!root || !root.isConnected || !authorized()) return () => {};
   observeBusinessAccessChanges(target, storage);
@@ -339,21 +365,31 @@ export function initializeBusinessView({
     '[data-workspace-nav][href="#business-section"]'
   );
   if (typeof csrf !== 'string' || csrf === '') {
+    let invalidated = false;
+    let listenerRemoved = false;
+    const removeAccessChangeListener = () => {
+      if (listenerRemoved) return;
+      listenerRemoved = true;
+      target.removeEventListener(
+        'beauessence:workbench-access-change',
+        onAccessChange
+      );
+    };
     const onAccessChange = (event) => {
       if (event.detail?.authorized === true) return;
+      if (invalidated) return;
+      invalidated = true;
+      removeAccessChangeListener();
       root.remove();
       navLink?.remove();
       target.history.replaceState(null, '', '#overview');
+      onAccessInvalidated();
     };
     target.addEventListener(
       'beauessence:workbench-access-change',
       onAccessChange
     );
-    return () =>
-      target.removeEventListener(
-        'beauessence:workbench-access-change',
-        onAccessChange
-      );
+    return removeAccessChangeListener;
   }
 
   if (!availability || !content) return () => {};
@@ -363,6 +399,7 @@ export function initializeBusinessView({
   availability.hidden = true;
   content.hidden = false;
   let disposed = false;
+  let accessInvalidationNotified = false;
   let activeController;
   const activeDownloadControllers = new Set();
   const viewController = new AbortController();
@@ -1236,10 +1273,14 @@ export function initializeBusinessView({
     synchronizePendingWriteKeyScope(storage?.getItem('calPilotCsrf'));
     if (event.detail?.authorized === true && isCurrentSession()) return;
     clearBusinessWriteIdempotencyKeys();
-    disposeView();
+    if (!disposeView()) return;
     root.remove();
     navLink?.remove();
     target.history.replaceState(null, '', '#overview');
+    if (!accessInvalidationNotified) {
+      accessInvalidationNotified = true;
+      onAccessInvalidated();
+    }
   };
   const onHashChange = () => {
     if (target.location.hash !== '#business-section') stopPending();

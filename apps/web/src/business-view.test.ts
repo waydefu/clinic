@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  createBusinessViewAccessInvalidationCleanup,
   clearBusinessWriteIdempotencyKey,
   clearBusinessWriteIdempotencyKeys,
   getBusinessWriteIdempotencyKey,
@@ -115,6 +116,72 @@ describe('business write idempotency keys', () => {
     expect(
       getBusinessWriteIdempotencyKey('export-create', payload, csrf)
     ).not.toBe(priorSession);
+  });
+});
+
+describe('business view access invalidation cleanup', () => {
+  it('releases only business bindings and resets the parent disposer once', () => {
+    const heading = {};
+    const availability = {};
+    const content = {};
+    const root = {
+      contains: vi.fn((node: object) =>
+        [heading, availability, content].includes(node)
+      )
+    };
+    const navLink = {};
+    const appointments = {};
+    const otherAdminNav = {};
+    const elements = {
+      'business-section': root,
+      'business-heading': heading,
+      'business-availability': availability,
+      'business-content': content,
+      'appointments-section': appointments
+    };
+    const restrictedDom = [navLink, root, appointments, otherAdminNav];
+    let generation = 4;
+    const retainedDisposer = vi.fn();
+    let parentDisposer = retainedDisposer;
+    const cleanup = createBusinessViewAccessInvalidationCleanup({
+      isCurrent: () => generation === 4,
+      resetDisposer: vi.fn(() => {
+        parentDisposer = () => {};
+        generation += 1;
+      }),
+      elements,
+      restrictedDom,
+      root,
+      navLink
+    });
+
+    expect(cleanup()).toBe(true);
+    expect(cleanup()).toBe(false);
+    expect(parentDisposer).not.toBe(retainedDisposer);
+    expect(elements).toEqual({ 'appointments-section': appointments });
+    expect(restrictedDom).toEqual([appointments, otherAdminNav]);
+    expect(root.contains).toHaveBeenCalledTimes(6);
+  });
+
+  it('does not discard a newer business view from a stale callback', () => {
+    const root = { contains: vi.fn(() => false) };
+    const elements = { 'business-section': root };
+    const restrictedDom = [root];
+    const resetDisposer = vi.fn();
+    const cleanup = createBusinessViewAccessInvalidationCleanup({
+      isCurrent: () => false,
+      resetDisposer,
+      elements,
+      restrictedDom,
+      root,
+      navLink: null
+    });
+
+    expect(cleanup()).toBe(false);
+    expect(resetDisposer).not.toHaveBeenCalled();
+    expect(elements).toEqual({ 'business-section': root });
+    expect(restrictedDom).toEqual([root]);
+    expect(root.contains).not.toHaveBeenCalled();
   });
 });
 
