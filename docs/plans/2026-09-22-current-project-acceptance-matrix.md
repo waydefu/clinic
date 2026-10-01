@@ -99,21 +99,21 @@ hash不能取代證據本體可訪問性。未核准的雲端/人證行保持NOT
 | OPS-07 | migration/version/artifact安全 | CI_PROVEN | 既有inspectors/historicalartifactgates | CP-00/08 | C1baseline/version/rules/index對齊；historicalartifact非liveauthority | migration+artifactinspectJSON |
 | OPS-08 | operationaldegrade與事故手冊 | NOT_PROVEN | runbook有程序，當前人走證據未齊 | CP-08/09 | 紙本/事後補登tabletop、權責/通知/恢復；不真停診 | synthetictabletop+operatorreceipt |
 | MILE-01 | 首次合格事件與milestone計算 | CI_PROVEN | #149contract/tests；fixture不是policy | CP-POLICY/03 | approvedtrial/adjustment/month；replay穩定、scope隔離 | policyversion+serverevent+tests |
-| MILE-02 | 里程碑持久化/API/UI/人確認 | NOT_PROVEN | runtimewiring未有 | CP-03 | 可信receipts、role/reauth、重播不啟動重複計費 | emulator+API/UI+humanack |
+| MILE-02 | 里程碑持久化/API/UI/人確認 | SOURCE_PROVEN | CP-03 API／transactional persistence source merged #198；Workbench UI、C1 runtime、負責人 receipt 仍未驗 | CP-03 | 可信receipts、role/reauth、重播不啟動重複計費 | emulator+API/UI+humanack |
 | MILE-03 | 正式上線實際一月與尾款 | BLOCKED | Drive01/03條件仍在；不可用synthetic代替 | CP-POLICY/10 | 依核准gate映射；若必要則真operatingmonth證據 | signedmapping+authorizedrealmilestoneproof |
 | USE-01 | monthcounts/dedupe/AND | CI_PROVEN | #152contract/tests | CP-03 | stafflogin=0 AND bookingcreate=0才unused；完成預約不是visitcompleted | fixedclock+dedupe+monthboundarytests |
-| USE-02 | trustedserver event ingress | NOT_PROVEN | 無BDAPI/workerwiring | CP-03 | 成功businesscommit與receipt一致；失敗/重播不重記 | atomicity/race/integration+runtime |
+| USE-02 | trustedserver event ingress | SOURCE_PROVEN | #198 為 staff login／booking create 加同交易 server event；C1 Cloud Run config/readback 尚未驗 | CP-03 | 成功businesscommit與receipt一致；失敗/重播不重記 | atomicity/race/integration+runtime |
 | USE-03 | 完整/不完整觀測與lateevent | CI_PROVEN | contractcompleteness支援；sourceingress缺 | CP-03 | gap→insufficientevidence不是零；latecorrection有audit | coverage+timewindow+lateeventfixtures |
-| USE-04 | 月報UI/1800或500/人審 | NOT_PROVEN | 僅domaincounts | CP-03/09 | 三種結果清楚；不自動invoicepaid；source範圍排synthetic | UI/reportrow+ownerreceipt |
+| USE-04 | 月報UI／人審 | NOT_PROVEN | #198 已有月報 API／domain 計算 source；Workbench UI、fresh C1 runtime、人審 receipt 尚缺。付款金額與測試期另有 CP09 文件差異待 owner reconciliation | CP-03/09 | 三種結果清楚；不自動invoicepaid；source範圍排synthetic | UI/reportrow+ownerreceipt |
 | EXP-01 | safeexport白名單/CSV | CI_PROVEN | #150contracttests | CP-04 | 正確欄/期間；formulaescape；PII非任意spread | downloadbytes/schema+negativefixtures |
 | EXP-02 | role+reauth+scope | SOURCE_PROVEN | contractauthproof；runtimeguard缺 | CP-04 | 6欄proof由server建；denied/跨clinic/stalereauth拒 | APInegative+audit |
-| EXP-03 | request→生成→ready/partial | NOT_PROVEN | exportjob/storeadapter缺 | CP-04 | uploadhash完成才ready；retry同scope不duplicated | jobstates/artifacthash+failures |
-| EXP-04 | download/TTL/revoke/cleanup | NOT_PROVEN | runtimeendpoint/UI缺 | CP-04 | 到期拒；重驗權；cleanup只export-owned | privateHTTP+objectmetadata+audit |
+| EXP-03 | request→生成→ready/partial | SOURCE_PROVEN | #205 已合併 export job／Firestore chunk store 與原子建檔 source；C1 runtime artifact/hash evidence 未有 | CP-04 | uploadhash完成才ready；retry同scope不duplicated | jobstates/artifacthash+failures |
+| EXP-04 | download/TTL/revoke/cleanup | SOURCE_PROVEN | #205 已合併 download／expiry／revoke route 及 `export_chunk_ttl` Terraform source；C1 TTL／API cleanup readback 未有 | CP-04 | 到期拒；重驗權；cleanup只export-owned | privateHTTP+objectmetadata+audit |
 | EXP-05 | 可讀檔案與人確認 | NOT_PROVEN | 未取得合成actualdownloadproof | CP-04/09 | 中文/換行/日期/欄位可讀，接收用途明確 | artifactQA+operatorack |
 | RET-01 | archive/softdelete/restore規則 | CI_PROVEN | #151contracttests | CP-05 | approvedwindow；角色/hold；拒無效轉移 | stategraph+boundarytests |
-| RET-02 | persisted lifecycle/API/UI | NOT_PROVEN | runtime缺 | CP-05 | 使用者明確可辨狀態；archive後讀權不繞過 | UI/API/DB+audit |
+| RET-02 | persisted lifecycle/API/UI | SOURCE_PROVEN | #208 已合併 CP-05 API／transactional persistence／idempotent audit source；Workbench lifecycle UI 與 C1 runtime readback 未有 | CP-05 | 使用者明確可辨狀態；archive後讀權不繞過 | UI/API/DB+audit |
 | RET-03 | legalhold與並行刪除 | CI_PROVEN | contracthold；cloudrace未證 | CP-05 | hold競爭先重驗；永久刪除不可跳過授權 | emulatorrace+boundedruntime |
-| RET-04 | preview→confirm exactscope | NOT_PROVEN | plan/executeadapter缺 | CP-05 | version/hash相符；集合改變停；非全部selector | previewreceipt+confirmbinding |
+| RET-04 | preview→confirm exactscope | NOT_PROVEN | #208 source routes accept a single patient ID and are fail-closed by policy; no preview/hash-bound confirm contract or UI evidence exists in current baseline | CP-05 | version/hash相符；集合改變停；非全部selector | previewreceipt+confirmbinding |
 | RET-05 | 多層partialfailure/retry | NOT_PROVEN | executor缺 | CP-05 | primary/export/Calendar/audit/backup分層，不假complete | layerreceipts+failure/retryproof |
 | RET-06 | backups自然淘汰與刪除清單 | SOURCE_PROVEN | runbook原則；policy/runtime缺 | CP-POLICY/05/06 | 備份未過期不能稱已刪；restore重套approvedtombstones | policy+retentionreadback+restoredcheck |
 | REC-01 | PITR+deleteprotection+daily30d | CLOUD_READBACK_PROVEN | 9/22datedC1(default)readback | CP-06 | freshDB(location/type/retention)及schedule | backupinspect+exactDBsnapshot |
@@ -124,17 +124,17 @@ hash不能取代證據本體可訪問性。未核准的雲端/人證行保持NOT
 | REC-06 | 實測RPO/RTO | NOT_PROVEN | D010target1h/4h不是實測 | CP-06 | 明確scenario、cutoff/snapshot/start/usable；比較actualtarget | timestamps+data-losswindow+elapsed |
 | REC-07 | 隔離/rollback/cleanuphandoff | NOT_PROVEN | 尚未clone | CP-06 | clone不跑mainworker；cleanup只approvedexactID；noAWS | IAM/dbbinding+sideeffectzero+cleanupreceipt |
 | TERM-01 | terminationrequiredfacts | CI_PROVEN | #153contracttests | CP-07 | notice/copyretention核准；缺項incomplete | policyversion+contracttests |
-| TERM-02 | case/API/UI與serverchecklist | NOT_PROVEN | wiringmissing | CP-07 | client不能送true假通；跨case拒；deadline/hold | API/UI+negativeemulator |
-| TERM-03 | 資料返還/收件對應 | NOT_PROVEN | export+recipientreceipt尚缺 | CP-04/07 | filehash/case/收件人角色/時間一致；下載不等於確認 | artifactreceipt+humanack |
+| TERM-02 | case/API/UI與serverchecklist | NOT_PROVEN | CP-07 termination case/controller/UI source 尚未合併 | CP-07 | client不能送true假通；跨case拒；deadline/hold | API/UI+negativeemulator |
+| TERM-03 | 資料返還/收件對應 | NOT_PROVEN | #205 export source 已合併；CP-07 recipient receipt／case binding source 與人證仍缺 | CP-04/07 | filehash/case/收件人角色/時間一致；下載不等於確認 | artifactreceipt+humanack |
 | TERM-04 | backup/audit disposition | SOURCE_PROVEN | contractrequiresconfirmed；actualmissing | CP-05/07 | 每層retained/pending/deleted有evidence；不earlyclose | layerproof+holdtest |
 | TERM-05 | partialretry/安全結案 | NOT_PROVEN | executor/runtime缺 | CP-07 | 缺收件或刪除失敗不結案；重播安全；不真停服務 | syntheticcaselifecycle+audit |
-| DOC-01 | 正式價格currentauthority | HUMAN_PROVEN | owner指示+Drive00/01/02/03/05/06已freshread | CP-09 | 80k/30-30-20/1800-500一致；未讀04/07/08不可標同步 | privateDriveversiondiff+ownerrecord |
-| DOC-02 | 資料欄位/privacy/API說明 | NOT_PROVEN | 新表單尚未實作/文檔未同步 | CP-01/09 | 不收year/四欄；legacy限制及國籍一致 | repo/Drivecrosswalk+runtimeUI |
+| DOC-01 | 正式價格／商務條款 current authority | BLOCKED | 2026-10-01 fresh Drive v2 index conflicts with repo-approved record on total/installment amounts and trial/tuning duration; owner reconciliation required; sanitized discrepancy recorded in CP-10 checklist | CP-09 | owner resolves exact current terms; only then crosswalk 00～08 and sign the policy mapping | private versioned redline+owner record |
+| DOC-02 | 資料欄位/privacy/API說明 | SOURCE_PROVEN | #191 minimized form, #203 phone/month-day storage, #204 booking note and current ADR/contracts are merged; C1 current-release behavior and Drive crosswalk remain unverified | CP-01/09 | 不收year/四欄；legacy限制及國籍一致 | repo/Drivecrosswalk+runtimeUI |
 | DOC-03 | Googlebackup/AWS/site排序 | SOURCE_PROVEN | 最新owner排序；遠端03/05舊independentcopy文字 | CP-09 | currentGoogle能力據實；AWS/site後置非已實現 | remoteapprovedredline/readback |
-| DOC-04 | 手冊可獨立操作與截圖 | NOT_PROVEN | 04未freshread；缺新版walkthrough | CP-09 | operator盲走所有核心flow；無真PII/憑證截圖 | manualQA+syntheticcaptures |
+| DOC-04 | 手冊可獨立操作與截圖 | NOT_PROVEN | 2026-10-01 source-guided 繁中管理者手冊已草擬；C1 blind walk、fresh synthetic captures、current Drive 04 reconciliation 尚未完成 | CP-09 | operator盲走所有核心flow；無真PII/憑證截圖 | manualQA+syntheticcaptures |
 | DOC-05 | 正式驗收/具名簽署/權限交接 | NOT_PROVEN | 未取得currentrelease正式acceptance | CP-10 | 版本/範圍/日期/owner；私有credential交接不入PR | signedacceptance+custodyreceipt |
-| GATE-01 | INTERNAL_PREPRODUCTION_COMPLETE | BLOCKED | P1-09未閉合 | CP-00 | 舊inspect+strictF全部、runtime/cloud/human一致 | P09closuremanifest |
-| GATE-02 | CURRENT_PROJECT_ACCEPTANCE | BLOCKED | newbooking/BD/restore/regression/docs/owner仍缺 | CP-10 | 所有current適用rows PROVEN；無重大未結；milestonemapping清楚 | finalsignedmatrix |
+| GATE-01 | INTERNAL_PREPRODUCTION_COMPLETE | BLOCKED | P1-09 itself was closed with dated C1 evidence on 2026-09-28; this wider gate has no current signed matrix/readback and must not be inferred from that closure | CP-00 | current scope's internal-preproduction evidence, runtime/cloud/human rows, and dated closure all agree | P09closuremanifest+current matrix |
+| GATE-02 | CURRENT_PROJECT_ACCEPTANCE | BLOCKED | CP-03/04/05 source merged, but current C1 runtime/UI, CP-06-E real restore, CP-07 receipts, CP08 regression, CP09 reconciliation and owner acceptance remain | CP-10 | 所有current適用rows PROVEN；無重大未結；milestonemapping清楚 | finalsignedmatrix |
 | GATE-03 | PRODUCTION_READY | NOT_PROVEN | productionD-series/隱私/cutover各自未齊 | 獨立productionpacket | 不得由C1/商務acceptance推出PASS | productionownerapprovals/evidence |
 | GATE-04 | PUBLIC_PRODUCTION_LAUNCHED | NOT_PROVEN | 本專案C1preview不是publiclaunch | 獨立productionpacket | officialroute/DNS/traffic+獨立cutover批准才true | productionrelease/readback |
 | GATE-05 | REAL_PATIENT_DATA_AUTHORIZED | NOT_PROVEN | 目前本計畫無真資料授權 | 獨立productionpacket | 具名合規/隱私/資料scope核准才true | authorizeddatareceipt |

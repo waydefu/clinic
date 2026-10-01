@@ -489,6 +489,10 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
 回退方式、當天驗收清單（每個功能一個正向＋一個反向操作）、手冊截圖清單。
 **Luna 不執行任何部署指令**，全部交給業主。
 
+**2026-10-01 狀態追加：** 文件草稿已建為 [C1 批次部署 packet](2026-10-01-c1-batch-deployment-packet.md)。它列 C1 隔離專案、internal preview channel、期限、操作 checkpoint、變數、rollback 與停止條件。執行 SHA 必須等 CP-03～CP-07 source 合併後由 owner 填入；packet 文件 commit 本身不授權 deployment。CP-07 termination source 尚未合併。C1 Business Delivery env/Secret Manager wiring 的候選 commit `8ebbe840ad875e27d2c453036e0956f172de8b72` 尚未合併、沒有 CI，且 first-enable sequence 有待修缺口。Terraform 變更包括 TTL 外的 env、secret container 與 API-only IAM；須以修正後最終 diff/CI/完整兩階段 plan-readback 更新 packet。Global COOP `same-origin` 對 reauth popup 的阻礙是 L3 source/runtime 決策依賴；不得以放寬 security header 解決。
+
+前段「Terraform 只有 `export_chunk_ttl` 一個新資源」是 2026-09-30 的預期，不能當作目前完整差異。2026-10-01 packet 按實際來源列 TTL、Business Delivery env/Secret Manager container/API-only IAM 兩階段 prerequisites；初始 infra commit 因 first-enable sequencing gap 尚不可使用，必須等修正版 commit、CI 和完整 plan/readback。
+
 ---
 
 ## L7 回歸、操作手冊、驗收清單（CP-08～CP-10）
@@ -500,6 +504,8 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
 2. CP-09：`docs/runbooks/` 下新增「管理者操作手冊」（繁中、給診所看的白話），章節：登入、
    預約管理、月報與驗收、匯出、封存與刪除、合作終止。截圖只用部署當天拍的合成資料畫面。
 3. CP-10：驗收清單文件，逐項列出「業主要看什麼、怎麼算通過」，最後一欄留給業主簽名日期。
+
+**2026-10-01 狀態追加：** [CP-08 evidence worksheet](2026-10-01-cp-08-regression-evidence-worksheet.md)、[繁中管理者操作手冊](../runbooks/manager-operations-manual.md) 與 [CP-10 checklist](2026-10-01-cp-10-current-project-acceptance-checklist.md) 已準備為 source-readiness 文件。worksheet 的 84 個目前適用 matrix rows、人工 reauth 與 human acceptance checks 仍是 `NOT_RUN`；BKG-06 沿用 owner N/A，GATE-03～05 維持獨立 gate。手冊的 UI/runtime 步驟和 screenshots placeholders 尚待同一 C1 release 的盲走及 fresh synthetic capture，不視為已可操作或證明。CP-06-E true restore 按 owner batch 移至 test-delivery 後 tuning，但仍是 final `CURRENT_PROJECT_ACCEPTANCE` 必要條件。L7 runtime 與 owner acceptance 未執行，故本次交接標為 `PARTIAL`，不是 CP-08 或 GATE-02 PASS。
 
 ---
 
@@ -513,3 +519,13 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
 | CP-04 匯出 API | #205 待合併 |
 | CP-06-S 計畫輸出修正 | 已合併（#199） |
 | L1～L7 | 本計畫 |
+
+---
+
+## 2026-10-01 current-source reconciliation（保留前述 2026-09-30 歷史）
+
+Source baseline `0870a5fd16c720cafc085f29594bef7afb30a71b` 已包含 PR #198 (CP-03), #205 (CP-04), #208 (CP-05), #210 (calendar-title source), #211 (dependency update), and #212 (isolated recovery verifier). Parent-provided merge context reports #210 head `63249db` and #212 head `e8115d` passed CI; this addendum makes no CI claim for the other PRs. #212 verifies a read-only isolated recovery clone path; it is not the real Google restore exercise. CP-06-E remains unexecuted and separately authorized. Infra candidate commit `8ebbe840ad875e27d2c453036e0956f172de8b72` is not in this baseline; it has no CI and its first-enable ordering needs a follow-up fix before it can be considered.
+
+CP-03/04/05 are source-merged, not deployed or runtime-accepted. Fresh C1 Cloud Run/env, Hosting and export TTL readbacks remain pending. Workbench CP-03/04/05 user-facing panels and CP-07 termination case/controller/UI source are not present in the current baseline. `DOC-01` is blocked: the current Drive v2 index and repo policy disagree on total/installment values and test/tuning duration; keep the discrepancy sanitized and await owner resolution before signing a crosswalk. The local approved `BD-POLICY-2026-09-29` record remains unchanged meanwhile.
+
+The 2026-09-30 appendix above is a historical snapshot: its “#205 待合併” line is superseded by the source state above. No source merge implies C1 apply, Hosting release, human acceptance, CP-08 PASS, payment acceptance, production readiness, AWS or website completion.
