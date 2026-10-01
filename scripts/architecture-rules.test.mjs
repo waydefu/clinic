@@ -240,6 +240,67 @@ describe('server-only domain import boundary', () => {
     ).toEqual([]);
   });
 
+  it.each([
+    [
+      "const target = './patient-lookup-identity.node.js'; await import(target);",
+      'import('
+    ],
+    ['const require = createRequire(import.meta.url);', 'createRequire(...)'],
+    ['const label = `${await import(target)}`;', 'import(']
+  ])(
+    'rejects unresolved module loads in a browser-shared source: %s',
+    (source, expected) => {
+      expect(
+        serverOnlyBoundaryViolations([
+          { path: 'packages/domain/src/index.ts', source },
+          nodeEntry,
+          pureIdentity
+        ])
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: 'packages/domain/src/index.ts',
+            detail: expect.stringContaining(expected)
+          })
+        ])
+      );
+    }
+  );
+
+  it('follows literal dynamic imports to pure modules', () => {
+    expect(
+      serverOnlyBoundaryViolations([
+        {
+          path: 'packages/domain/src/index.ts',
+          source: "await import('./calendar-helper.js');"
+        },
+        {
+          path: 'packages/domain/src/calendar-helper.ts',
+          source: 'export const ready = true;'
+        },
+        nodeEntry,
+        pureIdentity
+      ])
+    ).toEqual([]);
+  });
+
+  it('ignores opaque-load examples in comments and string literals', () => {
+    expect(
+      serverOnlyBoundaryViolations([
+        {
+          path: 'packages/domain/src/index.ts',
+          source: [
+            '// await import(target); createRequire(import.meta.url);',
+            'const quoted = "await import(target); createRequire(";',
+            'const templated = `example import(target) createRequire(`;'
+          ].join('\n')
+        },
+        nodeEntry,
+        pureIdentity
+      ])
+    ).toEqual([]);
+  });
+
   it('ignores comments and decoy strings that mention server-only imports', () => {
     expect(
       serverOnlyBoundaryViolations([

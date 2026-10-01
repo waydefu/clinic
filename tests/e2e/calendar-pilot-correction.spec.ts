@@ -1,5 +1,27 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { PERMISSIONS } from '../../apps/web/public/modules/constants.js';
+import { permissionsFor } from '../../apps/web/public/modules/permissions.js';
+import { ROLES } from '../../apps/web/public/vendor/domain/roles.js';
+
+const calendarBookingRole = ROLES.map((role) => {
+  const accountId = `e2e-role-${role}`;
+  const permissions = permissionsFor({
+    workspace: {
+      authenticated: true,
+      currentAccountId: accountId,
+      accounts: [{ id: accountId, role, status: 'active' }]
+    }
+  });
+  return { role, permissions };
+})
+  .filter(({ permissions }) => permissions.includes(PERMISSIONS.CREATE_BOOKING))
+  .sort(
+    (left, right) => left.permissions.length - right.permissions.length
+  )[0]?.role;
+
+if (calendarBookingRole === undefined)
+  throw new Error('No role has the canonical create-booking permission.');
 
 test.describe('CAL-PILOT controlled correction workbench', () => {
   test.beforeEach(async ({ page }) => {
@@ -146,9 +168,10 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     let handledCandidate: Record<string, unknown> | undefined;
     let candidatePending = true;
     let calendarLogoutAttempted = false;
-    await page.addInitScript(() => {
-      sessionStorage.setItem('calPilotRole', 'front_desk');
-    });
+    await page.addInitScript(
+      (role) => sessionStorage.setItem('calPilotRole', role),
+      calendarBookingRole
+    );
     await page.route('**/v1/**', async (route) => {
       const request = route.request();
       const path = new URL(request.url()).pathname;

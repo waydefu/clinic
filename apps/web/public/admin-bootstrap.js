@@ -34,6 +34,7 @@ import {
   PERMISSIONS,
   WORKBENCH_PROCEDURES
 } from './modules/constants.js';
+import { hasPermission } from './modules/permissions.js';
 import { overdueAppointments } from './modules/case-management.js';
 import { renderTagOptions } from './modules/tag-picker.js';
 import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
@@ -1064,7 +1065,8 @@ function openOrdinaryBookingWorkflow(options = {}) {
 
 function setBookingSuggestion(detail) {
   if (
-    !['manager', 'front_desk'].includes(state?.session?.account?.role) ||
+    state?.workspace?.authenticated !== true ||
+    !hasPermission(state, PERMISSIONS.CREATE_BOOKING) ||
     !/^[A-Za-z0-9_-]{1,128}$/.test(String(detail?.patientId ?? '')) ||
     !/^[A-Za-z0-9_-]{1,128}$/.test(String(detail?.candidateId ?? '')) ||
     typeof detail?.patientName !== 'string' ||
