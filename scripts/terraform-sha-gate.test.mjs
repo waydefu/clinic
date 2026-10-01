@@ -42,6 +42,34 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
     ]);
   });
 
+  it('accepts Terraform alignment while still requiring the exact SHA comparison', () => {
+    const files = {
+      main: '',
+      variables:
+        'default     = "not_granted"\nbeauessence-clinic-staging\nbeauessence-clinic-stg-[a-z0-9]{1,7}\n',
+      tftest: passingTftest
+    };
+    for (const [expression, expected] of [
+      ['var.exact_apply_authority_sha != "not_granted"', true],
+      ['var.exact_apply_authority_sha == "not_granted"', false],
+      ['var.other_sha != "not_granted"', false],
+      ['var.exact_apply_authority_sha != "not_granted" || true', false],
+      ['true', false]
+    ]) {
+      const result = evaluateCSliceTerraformSource(
+        C_SLICE_TERRAFORM_MODULES[0],
+        {
+          ...files,
+          main: `locals {\n  apply_enabled                      = ${expression}\n}`
+        }
+      );
+      const comparisonIssue = 'C1 must SHA-gate apply_enabled.';
+      if (expected)
+        expect(result.issues, expression).not.toContain(comparisonIssue);
+      else expect(result.issues, expression).toContain(comparisonIssue);
+    }
+  });
+
   it('prints validate/plan/test commands that never apply and fail closed without a SHA', () => {
     const commands = terraformValidateCommands('infra/terraform/c1-foundation');
     expect(commands.join('\n')).toContain('init -backend=false');

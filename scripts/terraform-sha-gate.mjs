@@ -164,8 +164,8 @@ export function evaluateCSliceTerraformSource(module, files) {
   const variables = files.variables ?? '';
   const tftest = files.tftest ?? '';
   if (
-    !main.includes(
-      'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
+    !/(?:^|[\n{])[ \t]*apply_enabled[ \t]*=[ \t]*var\.exact_apply_authority_sha[ \t]*!=[ \t]*"not_granted"[ \t]*(?=$|[\r\n}#])/m.test(
+      main
     )
   ) {
     issues.push(`${module.slice} must SHA-gate apply_enabled.`);
