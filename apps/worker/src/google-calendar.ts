@@ -38,8 +38,9 @@ import {
  *   server 短效 OAuth2 token → Calendar API。不得在 Cloud Run 掛私人金鑰
  *   JSON，也不得設 `GOOGLE_APPLICATION_CREDENTIALS`。本機／Emulator 測試
  *   仍可用 `GOOGLE_SERVICE_ACCOUNT_JSON`。日曆 ID 走 `GOOGLE_CALENDAR_ID`。
- * - **事件欄位最小化**：只放診所名稱、掛號別、時間、地址與預約編號。姓名、
- *   電話、身分證、手術種類、備註一律不離開本系統。
+ * - **事件欄位最小化**：專用 C1 預約測試日曆可使用 ADR-0002 核准的預約標題欄位；
+ *   身分證、完整生日、診斷、醫療紀錄與金流欄位永遠不得離開本系統。正式日曆
+ *   仍須等 D-009 核准。
  * - **專用測試日曆**：這是測試整合（2026-07-23 專案負責人授權「測試不審核」），
  *   D-009 的正式核准與正式日曆仍為 pending。日曆 ID 必須指向專用測試日曆，
  *   不得指向任何醫師私人或正式日曆。
@@ -548,7 +549,8 @@ export class GoogleCalendarClient implements CalendarPort {
 
   /**
    * Clinic projection body: operational allowlist plus loop-prevention
-   * markers. Name, phone, DOB and clinical/money fields stay off the wire.
+   * markers. The optional approved title is only wired by the dedicated C1
+   * appointment test worker; sensitive fields outside ADR-0002 stay off-wire.
    */
   private eventBody(request: CalendarProjectionRequest): string {
     const body = buildClinicCalendarEventBody({
@@ -561,7 +563,8 @@ export class GoogleCalendarClient implements CalendarPort {
       colorId: request.colorId,
       clinicName: this.clinicName,
       clinicAddress: this.clinicAddress,
-      correlationId: request.correlationId
+      correlationId: request.correlationId,
+      ...(request.title === undefined ? {} : { title: request.title })
     });
     assertClinicCalendarPayloadAllowlist(
       body as unknown as Record<string, unknown>

@@ -175,17 +175,17 @@ describe('GoogleCalendarClient', () => {
     expect(body).not.toHaveProperty('causationId');
   });
 
-  // ADR-0002：事件不得夾帶任何病患個資。
-  it('事件內容不含姓名、電話、身分證、看診項目或備註', async () => {
+  // Without an approved title, the legacy minimum remains unchanged.
+  it('沒有標題時維持最小摘要且不含病患欄位', async () => {
     const { impl, calls } = fakeFetch([201]);
     await client(impl).project(request());
     const raw = calls[0]?.body ?? '';
     for (const secret of [
-      '王測試',
-      '0912345678',
-      'A123456789',
+      '合成患者甲',
+      '99999999',
+      '合成證件字串',
       '止鼾',
-      '鼻中膈',
+      '合成服務項目',
       'dateOfBirth',
       'nationalId',
       'passport',
@@ -195,6 +195,18 @@ describe('GoogleCalendarClient', () => {
       'settlementAmount'
     ])
       expect(raw).not.toContain(secret);
+  });
+
+  it('writes the approved title on the appointment event', async () => {
+    const { impl, calls } = fakeFetch([201]);
+    await client(impl).project(
+      request({
+        title: '止鼾初診/合成患者甲99999999 0520/流程詢問'
+      })
+    );
+    expect(JSON.parse(calls[0]?.body ?? '{}').summary).toBe(
+      '止鼾初診/合成患者甲99999999 0520/流程詢問'
+    );
   });
 
   it('arrived and completed patch the same event id and keep Calendar history', async () => {

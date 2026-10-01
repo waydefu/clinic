@@ -6,6 +6,7 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 import { InMemoryCalendar } from './calendar-port.js';
+import { FirestoreCalendarTitleSource } from './calendar-title-source.js';
 import { createCalendarPort } from './google-calendar.js';
 import {
   assertInternalTestOutboxBootAllowed,
@@ -102,10 +103,14 @@ export function startInternalTestOutboxWorker(
 ): void {
   const execution = assertInternalTestOutboxBootAllowed(env);
   if (getApps().length === 0) initializeApp();
+  const db = getFirestore();
   const runtime = createInternalTestOutboxRuntime({
-    db: getFirestore(),
+    db,
     calendar:
-      execution === 'cloud' ? createCalendarPort(env) : new InMemoryCalendar()
+      execution === 'cloud' ? createCalendarPort(env) : new InMemoryCalendar(),
+    ...(execution === 'cloud'
+      ? { titleSource: new FirestoreCalendarTitleSource(db) }
+      : {})
   });
   createInternalTestOutboxServer(runtime, {
     processingEnabled: isInternalTestOutboxProcessingEnabled(env)
