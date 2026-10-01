@@ -50,6 +50,8 @@ import { FreshReauthenticationVerifier } from './reauthentication.js';
             { enabled: false },
             {
               usageEventsBetween: () => Promise.reject(new Error('disabled')),
+              hasStaffUsageCaptureGap: () =>
+                Promise.reject(new Error('disabled')),
               milestoneState: () => Promise.reject(new Error('disabled')),
               acknowledge: () => Promise.reject(new Error('disabled'))
             },

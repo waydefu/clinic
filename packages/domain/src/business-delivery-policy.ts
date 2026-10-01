@@ -133,15 +133,16 @@ export function taipeiMonthRange(month: string): {
 /**
  * Decides whether a month's server-side usage events can be treated as the
  * whole truth. Ingress is written in the same transaction as the login or
- * booking it describes, so the only gaps are "observation had not started"
- * and "late events may still arrive". Anything else is a manual review, never
- * a silent zero (`BD-POLICY-2026-09-29` §3).
+ * booking it describes. Known capture gaps require manual review even after
+ * the normal observation and late-event windows; they are never a silent zero
+ * (`BD-POLICY-2026-09-29` §3).
  */
 export function assessMonthlyUsageCompleteness(input: {
   readonly month: string;
   readonly observedSince: string;
   readonly now: string;
   readonly lateEventCutoffDays: number;
+  readonly hasCaptureGap?: boolean;
 }): {
   readonly completeness: BusinessReportCompleteness;
   readonly lockedAt: string;
@@ -169,6 +170,8 @@ export function assessMonthlyUsageCompleteness(input: {
   else if (Date.parse(input.now) < Date.parse(lockedAt))
     completeness = 'partial';
   else completeness = 'complete';
+  if (input.hasCaptureGap === true && completeness === 'complete')
+    completeness = 'partial';
   return { completeness, lockedAt };
 }
 

@@ -16,23 +16,28 @@
 
 ### 事件在同一個交易裡寫
 
-- **員工登入：** `CalendarPilotSessionService.create` 在同一個 Firestore 交易裡建立
+- **員工登入：** allowlist 有效時，`CalendarPilotSessionService.create` 在同一個
+  Firestore 交易裡建立
   session、`bd_usage_events` 的 `staff_login`，以及第一次 runtime 登入時的
   `bd_milestones/first_eligible_use`（測試期起算）。
+- 員工登入 allowlist 未就緒時，仍在同一交易建立 session 與
+  `bd_milestones/staff_usage_capture_gap_YYYY-MM`；不推定 runtime、不寫用量事件或首次使用
+  milestone。gap 只記月份、首次發現 UTC 時間與固定原因，不記身份。月報按 marker 的存在
+  將該月 completeness 降為 `partial`，不論晚到事件期限是否已過；文件缺漏或格式異常也按
+  有 gap 處理。此 marker 與事件同在既有 server-only milestones collection。
 - **預約建立：** `FirestoreBookingRepository.reserve` 在預約交易裡寫
   `booking_created`，文件 ID 由預約 ID 雜湊而來、用 `set` 冪等；重送在寫入前就返回，
   所以一筆預約只算一次。病患或員工建立的預約都算，因為兩者都走同一條寫入路徑。
 - 事件不含 email、UID、姓名、電話、生日。員工以 UID 的 SHA-256 代表，只用來算人數。
 - 維護／開發帳號由 `BUSINESS_DELIVERY_MAINTENANCE_EMAILS` 在**登入當下**分類，
   之後改設定不會改寫歷史。
-- 事件寫入永遠開啟，不跟報表開關綁在一起，覆蓋率才不會因為開關而出現缺口。
-- 員工登入事件要求該 allowlist 已設定且完整有效；未就緒時仍建立登入 session，
-  但不推定帳號為 runtime、不寫 `staff_login` 或 `first_eligible_use`。allowlist
-  readiness 與報表路由開關各自獨立：有效 allowlist 下，即使報表路由關閉仍會原子寫入事件。
-  allowlist 未就緒期間的登入不在事件紀錄內，不能視為用量覆蓋完整。
+- 可分類事件寫入不跟報表開關綁在一起；allowlist 未就緒的員工登入會留下月度 gap，
+  不會被報表開關或 `BUSINESS_DELIVERY_OBSERVED_SINCE` 假裝成完整覆蓋。有效 allowlist
+  下，即使報表路由關閉，事件仍會原子寫入。
 
-登入 allowlist 尚未就緒時不會產生員工登入事件，該期間屬於「觀測還沒開始」；其餘資料
-缺漏只可能是晚到事件還可能進來。`assessMonthlyUsageCompleteness` 據此判定 `complete`／`partial`／`unknown`；
+`BUSINESS_DELIVERY_OBSERVED_SINCE` 必須代表完整且分類設定已就緒的 capture 起點，不是單純
+初次部署時間；此設定不能覆蓋伺服器記錄到的 gap。`assessMonthlyUsageCompleteness` 依觀測
+起點、晚到事件期限和月度 gap marker 判定 `complete`／`partial`／`unknown`；
 非 `complete` 一律 `insufficient_evidence`，維護費顯示為 `null`（要人工確認），
 絕不當成零。
 
@@ -50,10 +55,10 @@ session 與時鐘決定，請求只帶證據參照與上線日期。
 
 ### 路由與權限
 
-| 路由 | 權限 |
-| --- | --- |
-| `GET /v1/business-delivery/monthly-usage?month=YYYY-MM` | `read_business_delivery` |
-| `GET /v1/business-delivery/milestones` | `read_business_delivery` |
+| 路由                                                         | 權限                                       |
+| ------------------------------------------------------------ | ------------------------------------------ |
+| `GET /v1/business-delivery/monthly-usage?month=YYYY-MM`      | `read_business_delivery`                   |
+| `GET /v1/business-delivery/milestones`                       | `read_business_delivery`                   |
 | `POST /v1/business-delivery/milestones/:id/acknowledgements` | `acknowledge_business_milestone`＋重新驗證 |
 
 - 兩個權限只給 `manager`（連 `system_admin` 都不給）。

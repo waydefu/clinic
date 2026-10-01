@@ -72,8 +72,9 @@ export function vitestWithoutFirestoreEmulator(): boolean {
           createCalendarPilotSessionGateTelemetry(logger),
           // Usage ingress is independent of the report routes gate. A valid
           // maintenance allowlist is required to classify staff logins; when
-          // it is absent or invalid, sessions still work but no login event or
-          // first-use milestone is recorded (ADR-0008).
+          // it is absent or invalid, sessions still work and a monthly gap
+          // marker is written without a login event or first-use milestone
+          // (ADR-0008).
           true
         );
       }

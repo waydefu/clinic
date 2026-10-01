@@ -15,7 +15,8 @@ import { hasValidMaintenanceEmailAllowlist } from './usage-events.js';
  * - `BUSINESS_DELIVERY_ENABLED=true`
  * - `BUSINESS_DELIVERY_POLICY_VERSION` — an approved version, e.g. `BD-POLICY-2026-09-29`
  * - `BUSINESS_DELIVERY_SCOPE` — a scope that version is approved for
- * - `BUSINESS_DELIVERY_OBSERVED_SINCE` — UTC instant ingress was first deployed
+ * - `BUSINESS_DELIVERY_OBSERVED_SINCE` — UTC instant complete classified capture began;
+ *   a deployment date alone is insufficient when the maintenance allowlist was not ready
  * - `BUSINESS_DELIVERY_MAINTENANCE_EMAILS` — non-empty comma-separated email allowlist
  */
 export type BusinessDeliveryConfig =

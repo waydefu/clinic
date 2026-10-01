@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { actorRefForUid } from '../business-delivery/usage-events.js';
+import {
+  actorRefForUid,
+  staffUsageCaptureGapDocumentId
+} from '../business-delivery/usage-events.js';
 import { CalendarPilotSessionService } from './calendar-pilot-session.js';
 
 const NOW = '2030-10-01T01:00:00.000Z';
@@ -189,13 +192,21 @@ describe('CalendarPilotSessionService usage ingress', () => {
     for (const [label, environment] of environments) {
       const db = fakeDb();
       await service(db, EMAIL, true, environment).create(ID_TOKEN, NOW);
-      expect(db.plainCreates, label).toHaveLength(1);
-      expect(db.plainCreates[0], label).toMatch(/^calendar_pilot_sessions\//);
-      expect(db.transactionCalls, label).toBe(0);
+      expect(db.plainCreates, label).toEqual([]);
+      expect(db.transactionCalls, label).toBe(1);
       expect(usageEvents(db), label).toEqual([]);
       expect(db.stored.has('bd_milestones/first_eligible_use'), label).toBe(
         false
       );
+      const gap = db.stored.get(
+        `bd_milestones/${staffUsageCaptureGapDocumentId('2030-10')}`
+      );
+      expect(gap, label).toEqual({
+        schemaVersion: 1,
+        month: '2030-10',
+        firstObservedAt: NOW,
+        reason: 'maintenance_allowlist_unready'
+      });
       expect(
         [...db.stored.keys()].some((path) =>
           path.startsWith('calendar_pilot_sessions/')
@@ -203,6 +214,47 @@ describe('CalendarPilotSessionService usage ingress', () => {
         label
       ).toBe(true);
     }
+  });
+
+  it('uses the Taipei month at the UTC month boundary for the capture gap', async () => {
+    const db = fakeDb();
+    const environment = {
+      CALENDAR_PILOT_MANAGER_EMAILS: `${EMAIL},${MAINTENANCE_EMAIL}`,
+      CALENDAR_PILOT_FRONT_DESK_EMAILS: ''
+    } as NodeJS.ProcessEnv;
+    const now = '2030-09-30T16:00:00.000Z';
+    await service(db, EMAIL, true, environment).create(ID_TOKEN, now);
+    expect(
+      db.stored.get(
+        `bd_milestones/${staffUsageCaptureGapDocumentId('2030-10')}`
+      )
+    ).toEqual({
+      schemaVersion: 1,
+      month: '2030-10',
+      firstObservedAt: now,
+      reason: 'maintenance_allowlist_unready'
+    });
+    expect(
+      db.stored.has(
+        `bd_milestones/${staffUsageCaptureGapDocumentId('2030-09')}`
+      )
+    ).toBe(false);
+  });
+
+  it('does not overwrite the first capture-gap observation', async () => {
+    const gapPath = `bd_milestones/${staffUsageCaptureGapDocumentId('2030-10')}`;
+    const db = fakeDb({ existing: [gapPath] });
+    const environment = {
+      CALENDAR_PILOT_MANAGER_EMAILS: `${EMAIL},${MAINTENANCE_EMAIL}`,
+      CALENDAR_PILOT_FRONT_DESK_EMAILS: ''
+    } as NodeJS.ProcessEnv;
+    await service(db, EMAIL, true, environment).create(ID_TOKEN, NOW);
+    expect(db.stored.get(gapPath)).toEqual({ existing: true });
+    expect(
+      [...db.stored.keys()].some((path) =>
+        path.startsWith('calendar_pilot_sessions/')
+      )
+    ).toBe(true);
   });
 
   it('records valid runtime login when the report gate is off', async () => {
@@ -225,6 +277,20 @@ describe('CalendarPilotSessionService usage ingress', () => {
     await expect(service(db).create(ID_TOKEN, NOW)).rejects.toThrow(
       'commit failed'
     );
+    expect(db.transactionCalls).toBe(1);
+    expect(db.plainCreates).toEqual([]);
+    expect(db.stored.size).toBe(0);
+  });
+
+  it('does not persist a session or capture gap when the gap transaction fails', async () => {
+    const db = fakeDb({ failCommit: true });
+    const environment = {
+      CALENDAR_PILOT_MANAGER_EMAILS: `${EMAIL},${MAINTENANCE_EMAIL}`,
+      CALENDAR_PILOT_FRONT_DESK_EMAILS: ''
+    } as NodeJS.ProcessEnv;
+    await expect(
+      service(db, EMAIL, true, environment).create(ID_TOKEN, NOW)
+    ).rejects.toThrow('commit failed');
     expect(db.transactionCalls).toBe(1);
     expect(db.plainCreates).toEqual([]);
     expect(db.stored.size).toBe(0);

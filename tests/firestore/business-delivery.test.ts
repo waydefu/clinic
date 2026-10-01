@@ -16,7 +16,12 @@ import {
   MILESTONE_ACKNOWLEDGEMENT_LOG,
   type AcknowledgeMilestoneCommand
 } from '../../apps/api/src/firestore/business-delivery.repository.js';
-import { BUSINESS_DELIVERY_COLLECTIONS } from '../../apps/api/src/business-delivery/usage-events.js';
+import {
+  BUSINESS_DELIVERY_COLLECTIONS,
+  FIRST_ELIGIBLE_USE_DOC,
+  staffUsageCaptureGapDocumentId
+} from '../../apps/api/src/business-delivery/usage-events.js';
+import { CalendarPilotSessionService } from '../../apps/api/src/auth/calendar-pilot-session.js';
 import { createAppointmentIdempotency } from '../../apps/api/src/idempotency/appointment-idempotency.js';
 import { ConflictError } from '../../apps/api/src/platform/errors/api-error.js';
 import {
@@ -90,6 +95,7 @@ async function wipe(): Promise<void> {
   for (const collection of [
     ...Object.values(COLLECTIONS),
     ...Object.values(BUSINESS_DELIVERY_COLLECTIONS),
+    'calendar_pilot_sessions',
     MILESTONE_ACKNOWLEDGEMENT_LOG
   ]) {
     const documents = await db.collection(collection).listDocuments();
@@ -173,6 +179,68 @@ describe('booking_created ingress', () => {
         '2030-01-31T16:00:00.000Z'
       )
     ).toEqual([]);
+  });
+});
+
+describe('staff login capture gap', () => {
+  it('atomically writes a session and reads back the Taipei-month gap marker', async () => {
+    const email = 'staff.capture@example.test';
+    const auth = {
+      verifyIdToken: () =>
+        Promise.resolve({
+          uid: 'uid_capture_gap_fixture_01',
+          email,
+          email_verified: true,
+          firebase: { sign_in_second_factor: 'totp' }
+        }),
+      getUser: () => Promise.resolve({ disabled: false }),
+      createSessionCookie: () => Promise.resolve('capture_gap_cookie_fixture')
+    };
+    const sessions = new CalendarPilotSessionService(
+      auth as never,
+      db,
+      {
+        CALENDAR_PILOT_MANAGER_EMAILS: email,
+        CALENDAR_PILOT_FRONT_DESK_EMAILS: ''
+      },
+      undefined,
+      true
+    );
+    const now = '2030-09-30T16:00:00.000Z';
+    await sessions.create('synthetic-id-token', now);
+
+    const gapId = staffUsageCaptureGapDocumentId('2030-10');
+    const gap = await db
+      .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+      .doc(gapId)
+      .get();
+    expect(gap.exists).toBe(true);
+    expect(gap.data()).toEqual({
+      schemaVersion: 1,
+      month: '2030-10',
+      firstObservedAt: now,
+      reason: 'maintenance_allowlist_unready'
+    });
+    expect(await repository.hasStaffUsageCaptureGap('2030-10')).toBe(true);
+    expect(await usageEventCount()).toBe(0);
+    expect(
+      (
+        await db
+          .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+          .doc(FIRST_ELIGIBLE_USE_DOC)
+          .get()
+      ).exists
+    ).toBe(false);
+    expect((await db.collection('calendar_pilot_sessions').get()).size).toBe(1);
+  });
+
+  it('treats any existing capture-gap document as a gap, including malformed data', async () => {
+    expect(await repository.hasStaffUsageCaptureGap('2030-10')).toBe(false);
+    await db
+      .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+      .doc(staffUsageCaptureGapDocumentId('2030-10'))
+      .set({ schemaVersion: 99 });
+    expect(await repository.hasStaffUsageCaptureGap('2030-10')).toBe(true);
   });
 });
 

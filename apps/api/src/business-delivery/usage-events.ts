@@ -1,11 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 /**
- * CP-03 usage ingress (ADR-0008). Each record is written in the same Firestore
- * transaction as the login or booking it describes, so a committed business
- * action always has its event and a failed one never does. Records carry no
- * email, UID, name, phone or birth value: staff are represented by a SHA-256
- * reference of the Firebase UID, used only to count distinct users.
+ * CP-03 usage ingress (ADR-0008). Classified events share a Firestore
+ * transaction with the login or booking they describe. An unclassifiable
+ * staff login writes a monthly capture-gap marker in the session transaction.
+ * Failed transactions persist neither. Records carry no email, UID, name,
+ * phone or birth value: staff are represented by a SHA-256 reference of the
+ * Firebase UID, used only to count distinct users.
  */
 export const BUSINESS_DELIVERY_COLLECTIONS = {
   usageEvents: 'bd_usage_events',
@@ -14,8 +15,14 @@ export const BUSINESS_DELIVERY_COLLECTIONS = {
 
 /** Document in `bd_milestones` holding the first runtime staff login. */
 export const FIRST_ELIGIBLE_USE_DOC = 'first_eligible_use';
+/** Prefix for a server-only monthly staff-usage capture gap marker. */
+export const STAFF_USAGE_CAPTURE_GAP_PREFIX = 'staff_usage_capture_gap_';
 /** Document in `bd_milestones` holding owner confirmations. */
 export const MILESTONE_ACKNOWLEDGEMENTS_DOC = 'acknowledgements';
+
+export function staffUsageCaptureGapDocumentId(month: string): string {
+  return `${STAFF_USAGE_CAPTURE_GAP_PREFIX}${month}`;
+}
 
 export type UsageEventKind = 'staff_login' | 'booking_created';
 export type UsageEventClass = 'runtime' | 'maintenance';
