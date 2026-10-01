@@ -17,6 +17,16 @@ Production-shaped defaults stay fail-closed: booking writes off, worker
 processing off, scheduler paused, images must be digest-pinned, mutable
 `latest` refused.
 
+Business Delivery report routes also default off. Enabling them requires the
+exact isolated C1 project, policy `BD-POLICY-2026-09-29`, scope
+`internal_synthetic`, and a valid UTC ISO-8601
+`business_delivery_observed_since` instant recording when ingress observation
+began. `business_delivery_maintenance_emails_secret_version` is a numeric
+Secret Manager version for the comma-separated maintenance/developer email
+allowlist. Keep those identities out of `terraform.tfvars`, source control,
+outputs, and plans; the API receives them through the existing secret mount.
+Do not enable this gate in production or for real data.
+
 `CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN` is the explicit non-secret input
 `firebase_auth_domain`. There is no fallback to
 `${project_id}.firebaseapp.com`. Empty is allowed only while

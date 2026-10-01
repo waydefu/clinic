@@ -150,6 +150,66 @@ variable "calendar_sync_enabled" {
   default     = false
 }
 
+variable "business_delivery_enabled" {
+  type        = bool
+  description = "Default false. Enables only the internal-synthetic Business Delivery report routes when the approved policy inputs below are complete."
+  default     = false
+}
+
+variable "business_delivery_policy_version" {
+  type        = string
+  description = "Approved Business Delivery policy version. Empty keeps the report gate incomplete."
+  default     = ""
+  validation {
+    condition = (
+      var.business_delivery_policy_version == "" ||
+      var.business_delivery_policy_version == "BD-POLICY-2026-09-29"
+    )
+    error_message = "Business Delivery policy version must be empty or BD-POLICY-2026-09-29."
+  }
+}
+
+variable "business_delivery_scope" {
+  type        = string
+  description = "Approved Business Delivery scope. Empty keeps the report gate incomplete."
+  default     = ""
+  validation {
+    condition = (
+      var.business_delivery_scope == "" ||
+      var.business_delivery_scope == "internal_synthetic"
+    )
+    error_message = "Business Delivery scope must be empty or internal_synthetic."
+  }
+}
+
+variable "business_delivery_observed_since" {
+  type        = string
+  description = "UTC ISO-8601 instant when ingress observation began. Required when enabling Business Delivery reports."
+  default     = ""
+  validation {
+    condition = var.business_delivery_observed_since == "" ? true : (
+      can(formatdate("YYYY-MM-DD'T'hh:mm:ssZ", var.business_delivery_observed_since)) ? (
+        can(regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$", var.business_delivery_observed_since)) &&
+        formatdate("YYYY-MM-DD'T'hh:mm:ssZ", var.business_delivery_observed_since) == format("%sZ", substr(var.business_delivery_observed_since, 0, 19))
+      ) : false
+    )
+    error_message = "Business Delivery observed-since must be empty or a valid UTC ISO-8601 timestamp ending in Z."
+  }
+}
+
+variable "business_delivery_maintenance_emails_secret_version" {
+  type        = string
+  description = "Numeric Secret Manager version for the comma-separated maintenance/developer email allowlist. Keep identities out of Terraform values and repository files; not_granted leaves the API env unset."
+  default     = "not_granted"
+  validation {
+    condition = (
+      var.business_delivery_maintenance_emails_secret_version == "not_granted" ||
+      can(regex("^[0-9]+$", var.business_delivery_maintenance_emails_secret_version))
+    )
+    error_message = "Business Delivery maintenance email secret version must be not_granted or numeric; latest is refused."
+  }
+}
+
 variable "calendar_sync_prerequisites_enabled" {
   type        = bool
   description = "First-stage opt-in: create only the dedicated identity, secret container, and access bindings, without the inbound service or Scheduler."

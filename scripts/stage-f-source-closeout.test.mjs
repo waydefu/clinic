@@ -131,6 +131,50 @@ describe('C1 config contract', () => {
         'api'
       ).missing
     ).not.toContain('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN_INVALID');
+    const businessDeliveryConfigNames = [
+      'BUSINESS_DELIVERY_ENABLED',
+      'BUSINESS_DELIVERY_POLICY_VERSION',
+      'BUSINESS_DELIVERY_SCOPE',
+      'BUSINESS_DELIVERY_OBSERVED_SINCE',
+      'BUSINESS_DELIVERY_MAINTENANCE_EMAILS'
+    ];
+    const businessDeliveryOff = evaluateRequiredCloudConfig(
+      { BUSINESS_DELIVERY_ENABLED: 'false' },
+      'api'
+    );
+    expect(
+      businessDeliveryOff.missing.filter((name) =>
+        businessDeliveryConfigNames.includes(name)
+      )
+    ).toEqual([]);
+    const businessDeliveryOnWithoutMaintenanceSecret =
+      evaluateRequiredCloudConfig(
+        {
+          BUSINESS_DELIVERY_ENABLED: 'true',
+          BUSINESS_DELIVERY_POLICY_VERSION: 'BD-POLICY-2026-09-29',
+          BUSINESS_DELIVERY_SCOPE: 'internal_synthetic',
+          BUSINESS_DELIVERY_OBSERVED_SINCE: '2030-09-01T00:00:00.000Z'
+        },
+        'api'
+      );
+    expect(businessDeliveryOnWithoutMaintenanceSecret.missing).toContain(
+      'BUSINESS_DELIVERY_MAINTENANCE_EMAILS'
+    );
+    const businessDeliveryConfigured = evaluateRequiredCloudConfig(
+      {
+        BUSINESS_DELIVERY_ENABLED: 'true',
+        BUSINESS_DELIVERY_POLICY_VERSION: 'BD-POLICY-2026-09-29',
+        BUSINESS_DELIVERY_SCOPE: 'internal_synthetic',
+        BUSINESS_DELIVERY_OBSERVED_SINCE: '2030-09-01T00:00:00.000Z',
+        BUSINESS_DELIVERY_MAINTENANCE_EMAILS: 'opaque-test-value'
+      },
+      'api'
+    );
+    expect(
+      businessDeliveryConfigured.missing.filter((name) =>
+        businessDeliveryConfigNames.includes(name)
+      )
+    ).toEqual([]);
     const redacted = redactConfigForLogs({
       GOOGLE_SERVICE_ACCOUNT_JSON: 'super-secret',
       GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01'

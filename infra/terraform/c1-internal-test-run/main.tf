@@ -19,6 +19,10 @@ locals {
     local.numeric_secret_version,
     var.calendar_sync_pseudonym_secret_version
   ))
+  business_delivery_maintenance_pin_numeric = can(regex(
+    local.numeric_secret_version,
+    var.business_delivery_maintenance_emails_secret_version
+  ))
   resolved_google_calendar_id_secret_version = var.worker_secret_versions.GOOGLE_CALENDAR_ID
   # Source SHA follows the image, not the approval: re-approving a later
   # commit must not rewrite the env of an image built earlier.
@@ -46,6 +50,7 @@ locals {
       "c1-calendar-service-account-json",
       "c1-synthetic-calendar-id"
     ]),
+    local.business_delivery_maintenance_pin_numeric ? toset(["c1-business-delivery-maintenance-emails"]) : toset([]),
     local.calendar_sync_prerequisites_active ? toset(["c1-calendar-pseudonym-key"]) : toset([])
   )
   api_secret_env = {
@@ -295,6 +300,14 @@ resource "google_secret_manager_secret_iam_member" "api" {
   member    = "serviceAccount:${google_service_account.api[0].email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "api_business_delivery_maintenance" {
+  for_each  = local.apply_enabled ? (local.business_delivery_maintenance_pin_numeric ? toset(["enabled"]) : toset([])) : toset([])
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.runtime["c1-business-delivery-maintenance-emails"].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.api[0].email}"
+}
+
 resource "google_secret_manager_secret_iam_member" "worker" {
   for_each  = local.apply_enabled ? local.worker_secret_env_when_mounted : {}
   project   = var.project_id
@@ -396,6 +409,22 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.internal_test_booking_expires_at_utc
       }
       env {
+        name  = "BUSINESS_DELIVERY_ENABLED"
+        value = var.business_delivery_enabled ? "true" : "false"
+      }
+      env {
+        name  = "BUSINESS_DELIVERY_POLICY_VERSION"
+        value = var.business_delivery_policy_version
+      }
+      env {
+        name  = "BUSINESS_DELIVERY_SCOPE"
+        value = var.business_delivery_scope
+      }
+      env {
+        name  = "BUSINESS_DELIVERY_OBSERVED_SINCE"
+        value = var.business_delivery_observed_since
+      }
+      env {
         name  = "INTERNAL_TEST_SOURCE_SHA"
         value = local.api_source_sha
       }
@@ -415,6 +444,18 @@ resource "google_cloud_run_v2_service" "api" {
           }
         }
       }
+      dynamic "env" {
+        for_each = local.apply_enabled && local.business_delivery_maintenance_pin_numeric ? toset(["enabled"]) : toset([])
+        content {
+          name = "BUSINESS_DELIVERY_MAINTENANCE_EMAILS"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.runtime["c1-business-delivery-maintenance-emails"].secret_id
+              version = var.business_delivery_maintenance_emails_secret_version
+            }
+          }
+        }
+      }
     }
   }
 
@@ -426,6 +467,17 @@ resource "google_cloud_run_v2_service" "api" {
   lifecycle {
     # Firebase Hosting pinTag adds a tagged 0% revision. Do not strip it.
     ignore_changes = [traffic]
+
+    precondition {
+      condition = !var.business_delivery_enabled || (
+        var.project_id == "beauessence-clinic-stg-c1a01" &&
+        var.business_delivery_policy_version == "BD-POLICY-2026-09-29" &&
+        var.business_delivery_scope == "internal_synthetic" &&
+        var.business_delivery_observed_since != "" &&
+        local.business_delivery_maintenance_pin_numeric
+      )
+      error_message = "Enabling Business Delivery reports requires the exact C1 synthetic project, approved policy and scope, a valid UTC observed-since timestamp, and a numeric maintenance email Secret Manager version."
+    }
   }
 }
 

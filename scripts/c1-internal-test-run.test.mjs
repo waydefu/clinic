@@ -210,4 +210,71 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
       /condition\s*=\s*var\.worker_secret_versions\.GOOGLE_CALENDAR_ID\s*==\s*"2"\s*\n\s*error_message = ".*must remain 2/
     );
   });
+
+  it('wires fail-closed Business Delivery inputs and secret-backed maintenance identities', () => {
+    const readme = read('infra/terraform/c1-internal-test-run/README.md');
+    const outputs = read('infra/terraform/c1-internal-test-run/outputs.tf');
+
+    expect(variables).toMatch(
+      /variable "business_delivery_enabled" \{[\s\S]*?type\s*=\s*bool[\s\S]*?default\s*=\s*false/
+    );
+    expect(variables).toContain(
+      'var.business_delivery_policy_version == "BD-POLICY-2026-09-29"'
+    );
+    expect(variables).toContain(
+      'can(formatdate("YYYY-MM-DD\'T\'hh:mm:ssZ", var.business_delivery_observed_since))'
+    );
+    expect(variables).toContain('\\\\.[0-9]+)?Z$');
+    expect(variables).toContain(
+      'var.business_delivery_scope == "internal_synthetic"'
+    );
+    expect(variables).toContain('variable "business_delivery_observed_since"');
+    expect(variables).toContain(
+      'Business Delivery observed-since must be empty or a valid UTC ISO-8601 timestamp ending in Z.'
+    );
+    expect(variables).toContain(
+      'variable "business_delivery_maintenance_emails_secret_version"'
+    );
+    expect(variables).toContain('latest is refused');
+
+    expect(main).toContain('precondition {');
+    expect(main).toContain(
+      'Enabling Business Delivery reports requires the exact C1 synthetic project'
+    );
+    expect(main).toContain('var.project_id == "beauessence-clinic-stg-c1a01"');
+    for (const name of [
+      'BUSINESS_DELIVERY_ENABLED',
+      'BUSINESS_DELIVERY_POLICY_VERSION',
+      'BUSINESS_DELIVERY_SCOPE',
+      'BUSINESS_DELIVERY_OBSERVED_SINCE'
+    ]) {
+      expect(main).toContain(`name  = "${name}"`);
+    }
+    expect(main).toContain(
+      'value = var.business_delivery_enabled ? "true" : "false"'
+    );
+    expect(main).toContain('value = var.business_delivery_policy_version');
+    expect(main).toContain('value = var.business_delivery_scope');
+    expect(main).toContain('value = var.business_delivery_observed_since');
+    expect(main).toContain('name = "BUSINESS_DELIVERY_MAINTENANCE_EMAILS"');
+    expect(main).toContain(
+      'secret  = google_secret_manager_secret.runtime["c1-business-delivery-maintenance-emails"].secret_id'
+    );
+    expect(main).toContain(
+      'version = var.business_delivery_maintenance_emails_secret_version'
+    );
+    expect(main).not.toContain(
+      'value = var.business_delivery_maintenance_emails'
+    );
+    expect(outputs).not.toContain('business_delivery');
+
+    expect(example).toContain('business_delivery_enabled');
+    expect(example).toContain(
+      'business_delivery_maintenance_emails_secret_version = "not_granted"'
+    );
+    expect(readme).toContain('Keep those identities out of `terraform.tfvars`');
+    expect(readme).toContain(
+      'the API receives them through the existing secret mount.'
+    );
+  });
 });
