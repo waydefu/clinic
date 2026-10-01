@@ -357,7 +357,14 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
       }
     );
     await expect(page.locator('#booking-suggestion')).toBeVisible();
-    await page.locator('[data-booking-shortcut]').first().click();
+    await expect(page.locator('#appointments-section')).toBeVisible();
+    await page.locator('[data-workspace-nav][href="#overview"]').click();
+    await expect(page.locator('#overview')).toBeVisible();
+    const ordinaryBookingShortcut = page
+      .locator('[data-booking-shortcut]')
+      .first();
+    await expect(ordinaryBookingShortcut).toBeVisible();
+    await ordinaryBookingShortcut.click();
     await expect(page.locator('#booking-suggestion')).toBeHidden();
     await expect(page.locator('#booking-suggestion-label')).toHaveText('');
     await expect(page.locator('#booking-name')).toHaveValue('');
