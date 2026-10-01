@@ -500,15 +500,7 @@ test.describe('商務與驗收工作區', () => {
         return json(route, { error: { message: '找不到指定的資料。' } }, 404);
       });
 
-      await page.goto('/staff#business-section');
-      await page.getByLabel('起始日期（台北）').fill('2026-09-01');
-      await page.getByLabel('結束日期（台北）').fill('2026-09-30');
-      await page.getByRole('button', { name: '重新登入並建立匯出' }).click();
-      await expect(page.locator('#business-section')).toContainText(
-        '匯出工作已建立'
-      );
-
-      await page.evaluate(() => {
+      await page.addInitScript(() => {
         const state = window as Window & {
           __businessCsvTest?: {
             started: boolean;
@@ -564,6 +556,14 @@ test.describe('商務與驗收工作區', () => {
           return createObjectURL(blob);
         };
       });
+
+      await page.goto('/staff#business-section');
+      await page.getByLabel('起始日期（台北）').fill('2026-09-01');
+      await page.getByLabel('結束日期（台北）').fill('2026-09-30');
+      await page.getByRole('button', { name: '重新登入並建立匯出' }).click();
+      await expect(page.locator('#business-section')).toContainText(
+        '匯出工作已建立'
+      );
 
       let downloadObserved = false;
       page.on('download', () => {
@@ -926,9 +926,10 @@ test.describe('商務與驗收工作區', () => {
       return json(route, { error: { message: '找不到指定的資料。' } }, 404);
     });
 
+    await page.clock.setFixedTime(new Date('2026-10-01T04:00:00.000Z'));
     await page.goto('/staff#business-section');
-    await page.getByLabel('通知日期（台北）').fill('2026-10-01');
     const noticeDate = await page.getByLabel('通知日期（台北）').inputValue();
+    expect(noticeDate).toBe('2026-10-01');
     await page.getByRole('button', { name: '重新登入並開啟終止通知' }).click();
     await expect(page.locator('#business-section')).toContainText(
       '合作終止通知進行中'
