@@ -78,7 +78,7 @@ const DYNAMIC_IMPORT_SPECIFIER = new RegExp(
 const HTML_REFERENCE = /\b(?:src|href)="(\/[^"#?]+)"/g;
 const CSS_REFERENCE = /url\(\s*['"]?(\/?[^'")]+)['"]?\s*\)/g;
 const CSS_IMPORT_REFERENCE =
-  /@import\s+(?:url\(\s*)?(?:(["'])([^"']+\.css)\1|([^"'\s)]+\.css))\s*\)?/gi;
+  /@import\b\s*(?:url\(\s*)?(?:(["'])([^"']+\.css)\1|([^"'\s)]+\.css))\s*\)?/gi;
 
 // `<meta property="og:image">` 刻意不在 HTML_REFERENCE 裡——`content=` 不是
 // `src`／`href`，所以 OG 圖永遠不會進入任何一頁的傳遞閉包。

@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { transform } from 'esbuild';
+import { gzipSync } from 'node:zlib';
+import { planHashedBuild } from './build-web.mjs';
 import {
   DEFERRED_BUSINESS_ASSET_SOURCES,
   moduleGraphDepth,
@@ -447,25 +450,40 @@ describe('deferred business asset budget', () => {
     );
   });
 
-  it('includes quoted and nested CSS imports in the aggregate gzip budget', () => {
+  it('includes minified quoted and nested CSS imports in the gzip budget', async () => {
     const fixture = deferredBusinessFixture();
-    fixture.files.set(
-      fixture.manifest['calendar-pilot.css'],
-      "@import './existing.abc123.css';"
-    );
-    fixture.files.set(
-      'built/existing.abc123.css',
-      "@import './nested.456def.css';"
-    );
-    fixture.files.set('built/nested.456def.css', 'x'.repeat(69633));
+    const rootCss = await transform('@import "./existing.abc123.css";', {
+      loader: 'css',
+      minify: true
+    });
+    const importedCss = await transform('@import "./nested.456def.css";', {
+      loader: 'css',
+      minify: true
+    });
+    let seed = 0x12345678;
+    const largeCssSource = Array.from({ length: 22_000 }, (_, index) => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const token = seed.toString(16).padStart(8, '0');
+      return `.r${index.toString(36)}{--payload:"${token}"}`;
+    }).join('');
+    const largeCss = await transform(largeCssSource, {
+      loader: 'css',
+      minify: true
+    });
+    fixture.files.set(fixture.manifest['calendar-pilot.css'], rootCss.code);
+    fixture.files.set('built/existing.abc123.css', importedCss.code);
+    fixture.files.set('built/nested.456def.css', largeCss.code);
+    const largeGzipBytes = gzipSync(largeCss.code).length;
 
     const report = planDeferredBusinessAssetReport(
       fixture.files,
       fixture.manifest,
       fixture.config,
-      rawSize
+      { transferSizeOf: (content) => gzipSync(content).length }
     );
 
+    expect(rootCss.code).toContain('@import"./existing.abc123.css"');
+    expect(largeGzipBytes).toBeGreaterThan(fixture.config.budgetBytes);
     expect(report.resources).toContain('built/existing.abc123.css');
     expect(report.resources).toContain('built/nested.456def.css');
     expect(report.violations.join('\n')).toContain(
@@ -496,12 +514,31 @@ describe('deferred business asset budget', () => {
     ).toHaveLength(1);
   });
 
-  it('fails closed when a CSS import target is missing from dist', () => {
+  it('does not parse a different at-keyword with an import prefix', () => {
     const fixture = deferredBusinessFixture();
     fixture.files.set(
       fixture.manifest['calendar-pilot.css'],
-      "@import './missing.abc123.css';"
+      '@important.css { color: red; }'
     );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations).toEqual([]);
+    expect(report.resources).not.toContain('built/ant.css');
+  });
+
+  it('fails closed when a minified CSS import target is missing from dist', async () => {
+    const fixture = deferredBusinessFixture();
+    const minifiedCss = await transform('@import "./missing.abc123.css";', {
+      loader: 'css',
+      minify: true
+    });
+    fixture.files.set(fixture.manifest['calendar-pilot.css'], minifiedCss.code);
 
     const report = planDeferredBusinessAssetReport(
       fixture.files,
@@ -597,5 +634,43 @@ describe('deferred business asset budget', () => {
     expect(report.violations.join('\n')).toContain(
       'deferred-asset-budget.json is missing'
     );
+  });
+
+  it('builds the minified CSS import regression through planHashedBuild', async () => {
+    const rootCss = await transform('@import "./extra.css";', {
+      loader: 'css',
+      minify: true
+    });
+    const extraCss = await transform('.extra { display: block; }', {
+      loader: 'css',
+      minify: true
+    });
+    const inputFiles = new Map([
+      ['index.html', html({ modules: ['app.js'] })],
+      ['app.js', 'export const appReady = true;'],
+      ['calendar-pilot-client.js', 'export const clientReady = true;'],
+      ['calendar-pilot.css', rootCss.code],
+      ['extra.css', extraCss.code],
+      ['modules/business-reauth.js', 'export const reauthReady = true;'],
+      ['modules/business-view.js', 'export const viewReady = true;']
+    ]);
+    const { outputs, manifest } = planHashedBuild(inputFiles);
+    const rootOutput = manifest.get('calendar-pilot.css');
+    const extraOutput = manifest.get('extra.css');
+    const report = planDeferredBusinessAssetReport(
+      outputs,
+      Object.fromEntries(manifest),
+      {
+        budgetBytes: 68 * 1024,
+        justification: 'New conservative deferred business asset ceiling.'
+      },
+      rawSize
+    );
+
+    expect(String(outputs.get(rootOutput))).toContain('@import"./extra.css"');
+    expect(extraOutput).toMatch(/extra\.[a-f0-9]{10}\.css$/);
+    expect(outputs.has(extraOutput)).toBe(true);
+    expect(outputs.has('extra.css')).toBe(false);
+    expect(report.violations.join('\n')).toContain('extra.css');
   });
 });
