@@ -339,6 +339,8 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     // Calendar handoff event. An ordinary booking shortcut must discard the
     // transient suggested patient and restore the normal patient fields.
     await page.goto('/staff?internalTestBooking=1');
+    await expect(page.locator('.app-shell')).toBeVisible();
+    await expect(page.locator('#current-account-label')).not.toBeEmpty();
     await page.evaluate(
       (eventDetail) => {
         window.dispatchEvent(

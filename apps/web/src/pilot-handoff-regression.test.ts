@@ -51,6 +51,7 @@ describe('pilot handoff regressions', () => {
       pathname: '/staff',
       search: '?calendarPilot=1'
     });
+    vi.stubGlobal('window', new EventTarget());
     vi.stubGlobal(
       'sessionStorage',
       storage({ calPilotCsrf: 'synthetic_csrf' })
