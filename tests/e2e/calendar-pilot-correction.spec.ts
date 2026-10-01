@@ -358,8 +358,56 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     );
     await expect(page.locator('#booking-suggestion')).toBeVisible();
     await expect(page.locator('#appointments-section')).toBeVisible();
+    const suggestionLabelBeforeOverview = await page
+      .locator('#booking-suggestion-label')
+      .textContent();
+    const patientFieldsBeforeOverview = await page
+      .locator('#booking-form .field-group')
+      .first()
+      .evaluate((fieldset) => ({
+        hidden: (fieldset as HTMLElement).hidden,
+        labels: fieldset.textContent,
+        controls: Array.from(
+          fieldset.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+            'input, select'
+          )
+        ).map((control) => ({
+          id: control.id,
+          value: control.value,
+          disabled: control.disabled
+        }))
+      }));
     await page.locator('[data-workspace-nav][href="#overview"]').click();
     await expect(page.locator('#overview')).toBeVisible();
+    const suggestion = page.locator('#booking-suggestion');
+    await expect(suggestion).toHaveJSProperty('hidden', false);
+    await expect(suggestion).not.toHaveAttribute('hidden', '');
+    expect(suggestionLabelBeforeOverview).toBe(
+      '為 合成患者乙 建立預約；病患資料已連結，不會建立另一份病患資料。'
+    );
+    await expect(page.locator('#booking-suggestion-label')).toHaveText(
+      suggestionLabelBeforeOverview ?? ''
+    );
+    await expect
+      .poll(() =>
+        page
+          .locator('#booking-form .field-group')
+          .first()
+          .evaluate((fieldset) => ({
+            hidden: (fieldset as HTMLElement).hidden,
+            labels: fieldset.textContent,
+            controls: Array.from(
+              fieldset.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+                'input, select'
+              )
+            ).map((control) => ({
+              id: control.id,
+              value: control.value,
+              disabled: control.disabled
+            }))
+          }))
+      )
+      .toEqual(patientFieldsBeforeOverview);
     const ordinaryBookingShortcut = page
       .locator('[data-booking-shortcut]')
       .first();
