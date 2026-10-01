@@ -1,7 +1,7 @@
 # 管理者操作手冊（C1 合成測試版）
 
 **適用對象：** 診所負責人與獲授權管理者。
-**狀態：** source-guided 草稿；登入與預約路徑已有 source，C1 當前版本的逐項現場行為尚待部署後驗證。L3 候選 `48e35ffe…` 已實作「商務與驗收」分頁、月用量／里程碑、CSV、保存與合作終止 UI；timezone gate 已通過，實際匯出標籤為「預約 CSV 匯出」。獨立 review、exact CI、合併、部署及 C1 runtime／盲走均待完成，候選 UI 不是目前 release 的可用功能。CP-07 API/domain source 另在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI787/run `36805449273` 12/12 jobs 成功，但尚未合併或部署。下文按候選 source 的實際標籤描述操作，使用前須對合併 release 完成 C1 runtime／盲走。
+**狀態：** source-guided 草稿；登入與預約路徑已有 source，C1 當前版本的逐項現場行為尚待部署後驗證。L3 UI 在 PR #216 candidate `bb916811…`，實作「商務與驗收」分頁、月用量／里程碑、CSV、保存與合作終止 UI；初版 75 tests，post-await/retry follow-up `0299` 涵蓋 64 fixtures，實際匯出標籤為「預約 CSV 匯出」。最終 exact CI/review、合併、部署及 C1 runtime／盲走均待完成，候選 UI 不是目前 release 的可用功能。L5 CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI787/run `36805449273` 12/12 jobs 成功，但尚未合併或部署。下文按候選 source 的實際標籤描述操作，使用前須對合併 release 完成 C1 runtime／盲走。
 **資料：** 目前只限 C1 synthetic test。請使用每次演練新建、完全虛構的姓名、電話、月日生日與預約；禁止真實病患、職員、行事曆、帳務或診療內容。不得用瀏覽器開發者工具、Postman 或自寫腳本繞過待完成的操作畫面。
 
 本手冊不取代部署核准、隱私／法律審閱或正式合約。若畫面、按鈕、狀態和手冊不一致，停止該步驟並記下時間、畫面名稱與合成測試代號；不要試另一條路徑。
@@ -70,7 +70,7 @@ CP-05 API 只接受單筆患者識別值；沒有 preview 或 fingerprint endpoi
 
 ## 6. 合作終止與資料返還收據
 
-**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI commit `48e35ffe…` 有 timezone gate passed；候選 UI 尚待 independent review/exact CI，獨立 review 進行中，尚未 CI／合併／部署或完成 C1 runtime／盲走；CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI 12/12 通過但未合併／部署。這些按鈕目前只是 source 候選。
+**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI 在 PR #216 candidate `bb916811…`；75 初版 tests、follow-up `0299` post-await/retry fixes 和 64 fixtures，不代表最終 CI。Final exact CI/review、合併、部署及 C1 runtime／盲走待完成；L5 CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI 12/12 通過但未合併／部署。這些按鈕目前只是 source 候選。
 
 1. 確認負責人已批准終止範圍，先建立 30 日通知。notice 起算後，在法定／約定到期日之前不可進入結案步驟；建立通知不等於立即終止服務。
 2. 通知期屆滿後，依已核准程序交付資料。負責人實際檢查已交付檔案後登記 data-return receipt；source 綁定先前建立且仍有效的匯出檔案 ID，系統記錄檔案 hash、時間及操作者。單純下載不等於收件確認。

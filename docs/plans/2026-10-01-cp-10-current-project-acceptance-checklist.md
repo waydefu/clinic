@@ -25,12 +25,12 @@
 | A-01 | 發佈版本與授權範圍 | exact source SHA、API/worker digest、Hosting version、C1 project/database、政策版本和 owner 核准時窗一致；只用合成資料 | NOT_RUN | — |
 | A-02 | CP-08 全系統回歸 | 84 個目前適用 matrix rows 有同 release 的逐列結果與證據；無 mandatory FAIL；人工 reauth 與 human AT 均完成；BKG-06 N/A 僅沿用既有 owner 決定 | NOT_RUN | — |
 | A-03 | 新預約及 Workbench 操作 | 業主觀察新預約、回診、預約列表及狀態更新；新欄位和敏感資料最小化 assertion 均通過 | NOT_RUN | — |
-| A-04 | CP-03 月用量與里程碑 | 成功事件與服務端 receipt 對得上；缺漏/重播/負向情境安全；Workbench 顯示與人確認流程可用；無自動認定付款 | NOT_RUN | L3 UI candidate `48e35ffe…`; timezone gate passed, independent review/exact CI/merge/runtime pending |
-| A-05 | CP-04 CSV 匯出 | 業主在 Workbench 經核准權限與 fresh reauth 匯出合成 CSV；欄位/期間正確、中文可讀、拒絕過期／跨 scope／未授權請求 | NOT_RUN | L3 UI candidate `48e35ffe…`; timezone gate passed, independent review/exact CI/merge/runtime pending |
+| A-04 | CP-03 月用量與里程碑 | 成功事件與服務端 receipt 對得上；缺漏/重播/負向情境安全；Workbench 顯示與人確認流程可用；無自動認定付款 | NOT_RUN | L3 PR #216 candidate `bb916811…`; 75 initial tests, follow-up `0299` post-await/retry fixes and 64 fixtures; final exact CI/review/merge/runtime pending |
+| A-05 | CP-04 CSV 匯出 | 業主在 Workbench 經核准權限與 fresh reauth 匯出合成 CSV；欄位/期間正確、中文可讀、拒絕過期／跨 scope／未授權請求 | NOT_RUN | L3 PR #216 candidate `bb916811…`; 75 initial tests, follow-up `0299` post-await/retry fixes and 64 fixtures; final exact CI/review/merge/runtime pending |
 | A-06 | CP-05 封存與資料權限 | 封存、復原、legal hold、到期判斷、永久刪除負向條件皆有逐層結果；備份尚在保存期時不宣稱已徹底刪除。現行 API 沒有 preview/fingerprint endpoint；不得以不存在的預覽畫面或 hash-bound 確認宣稱驗收完成 | NOT_RUN | — |
 | A-07 | Google 真實 restore（CP-06-E） | 在獨立核准的 C1 演練資源中 restore 到新 database，資料與 audit/idempotency 抽查一致、RPO/RTO 實測、隔離與清理有證據；原 database 未覆蓋 | NOT_RUN | — |
 | A-08 | 合作終止與返還收據 | merged release 具 CP-07 case；通知期 30 日屆滿後記錄資料返還 receipt，receipt 後另保留 30 日；缺 receipt/steps 或期限未到時 close 拒絕（預期 409）；期滿且條件齊全 close 只進 `manual_close_review`，不可當日正向結案。每個 POST 均以操作者 fresh Google＋TOTP 通過。人工 backup/audit/access receipts 只是聲明，不是雲端刪除或權限撤銷證據；不執行真實停診 | NOT_RUN | PR #213 head `7397f8e…` CI787 12/12 ready for review, but not merged/deployed or in current baseline |
-| A-09 | 繁中管理手冊盲走與截圖 | 管理者按手冊盲走登入、預約、月報／里程碑、CSV、archive/restore/legal hold/delete 與終止流程；只用 fresh synthetic captures，無 PII/secret | NOT_RUN | L3 UI candidate `48e35ffe…` has timezone gate passed; independent review/exact CI/merge/C1 runtime and screenshots pending |
+| A-09 | 繁中管理手冊盲走與截圖 | 管理者按手冊盲走登入、預約、月報／里程碑、CSV、archive/restore/legal hold/delete 與終止流程；只用 fresh synthetic captures，無 PII/secret | NOT_RUN | L3 PR #216 candidate `bb916811…` (75 initial tests; follow-up `0299` fixes and 64 fixtures); final exact CI/review/merge/C1 runtime and screenshots pending |
 | A-10 | Drive 00～08 文件與規則 crosswalk | owner 已解決 CP-09 中 00 index 與 repo policy 的價格／分期／試用與調整期差異；逐份 remote file readback 和本地/執行行為一致 | BLOCKED — owner reconciliation | sanitized CP-09 discrepancy; private source details remain outside repo |
 | A-11 | AWS 與官網範圍 | 確認 AWS/網站排序仍在本次 CURRENT_PROJECT_ACCEPTANCE 之後；不以尚未做 AWS/網站阻擋本 gate，也不宣稱已建置 | RECORDED — 範圍聲明，無 runtime PASS | `CURRENT-PROJECT-SEQUENCE-2026-09-22` |
 
