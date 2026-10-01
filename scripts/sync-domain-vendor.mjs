@@ -4,6 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
+import { selectBrowserDomainFiles } from './sync-domain-vendor-rules.mjs';
+
 // packages/domain 的編譯產物直接複製給瀏覽器載入（ADR-0004）。tsc 的輸出已是
 // 合格的瀏覽器 ESM：純函式、無 node: 匯入、相對匯入帶 .js 副檔名。
 //
@@ -35,9 +37,7 @@ async function readDist() {
   // 留在 vendor 只會變成必須跟著檢查的死重量。
   // Explicit `.node.js` entry points are server-only package subpaths. They
   // must never enter the browser's vendored domain output.
-  const files = entries
-    .filter((name) => name.endsWith('.js') && !name.endsWith('.node.js'))
-    .sort();
+  const files = selectBrowserDomainFiles(entries);
   const contents = new Map();
   for (const name of files) {
     const raw = await readFile(join(distDir, name), 'utf8');
