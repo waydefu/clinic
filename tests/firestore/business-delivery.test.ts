@@ -119,6 +119,7 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
+  await wipe();
   await deleteApp(app);
 });
 
