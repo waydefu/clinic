@@ -84,6 +84,13 @@ export function extractCalendarContact(
   )
     return undefined;
 
+  // A short numeric label wedged between a phone and the birthday is
+  // ambiguous (for example `0900000001 2 0520`). Keep a normal spaced
+  // phone + four/six digit birthday valid, but do not silently ignore that
+  // extra run while extracting the later date.
+  if (/^[\s-]*\d{1,3}[\s-]+\d{4,6}(?!\d)/u.test(title.slice(sourceEnd + 1)))
+    return undefined;
+
   const withoutPhone = `${title.slice(0, sourceStart)} ${title.slice(sourceEnd + 1)}`;
   const dates = [...withoutPhone.matchAll(/(?<!\d)(\d{6}|\d{4})(?!\d)/g)];
   if (dates.length !== 1) return undefined;

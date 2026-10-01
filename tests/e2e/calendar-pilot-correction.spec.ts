@@ -141,8 +141,11 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
   }) => {
     const startsAt = '2030-09-04T06:00:00.000Z';
     let booking: Record<string, unknown> | undefined;
+    let ordinaryBooking: Record<string, unknown> | undefined;
+    let bookingCount = 0;
     let handledCandidate: Record<string, unknown> | undefined;
     let candidatePending = true;
+    let calendarLogoutAttempted = false;
     await page.addInitScript(() => {
       sessionStorage.setItem('calPilotRole', 'front_desk');
     });
@@ -242,14 +245,27 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
         return;
       }
       if (path === '/v1/bookings' && request.method() === 'POST') {
-        booking = request.postDataJSON() as Record<string, unknown>;
+        const body = request.postDataJSON() as Record<string, unknown>;
+        if (booking === undefined) booking = body;
+        else ordinaryBooking = body;
+        bookingCount += 1;
         await route.fulfill({
           status: 201,
           json: {
-            appointmentId: 'appointment_manual_001',
+            appointmentId: `appointment_manual_00${bookingCount}`,
             status: 'confirmed',
             startsAt,
             endsAt: '2030-09-04T06:30:00.000Z'
+          }
+        });
+        return;
+      }
+      if (path === '/v1/calendar-session' && request.method() === 'DELETE') {
+        calendarLogoutAttempted = true;
+        await route.fulfill({
+          status: 503,
+          json: {
+            error: { code: 'SERVICE_UNAVAILABLE', message: 'delete failed' }
           }
         });
         return;
@@ -295,5 +311,84 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
       .toMatchObject({
         expectedVersion: 0
       });
+
+    // Re-enter the staff workbench without a page reload, then mimic the
+    // Calendar handoff event. An ordinary booking shortcut must discard the
+    // transient suggested patient and restore the normal patient fields.
+    await page.goto('/staff?internalTestBooking=1');
+    await page.evaluate(
+      (eventDetail) => {
+        window.dispatchEvent(
+          new CustomEvent('beauessence:calendar-booking-suggestion', {
+            detail: eventDetail
+          })
+        );
+      },
+      {
+        candidateId: 'candidate_ordinary_001',
+        patientId: 'patient_opaque_ordinary_001',
+        patientName: '合成患者乙',
+        startsAt
+      }
+    );
+    await expect(page.locator('#booking-suggestion')).toBeVisible();
+    await page.locator('[data-booking-shortcut]').first().click();
+    await expect(page.locator('#booking-suggestion')).toBeHidden();
+    await expect(page.locator('#booking-suggestion-label')).toHaveText('');
+    await expect(page.locator('#booking-name')).toHaveValue('');
+    await expect(
+      page.locator('#booking-form .field-group').first()
+    ).toBeVisible();
+
+    // A Calendar logout whose server teardown fails still logs out of the
+    // local workbench. The same document can then sign in again; the next
+    // ordinary booking must use the fresh form patient rather than the prior
+    // suggestion's opaque ID.
+    await page.evaluate(
+      (eventDetail) => {
+        window.dispatchEvent(
+          new CustomEvent('beauessence:calendar-booking-suggestion', {
+            detail: eventDetail
+          })
+        );
+      },
+      {
+        candidateId: 'candidate_logout_001',
+        patientId: 'patient_opaque_logout_001',
+        patientName: '合成患者丙',
+        startsAt
+      }
+    );
+    await expect(page.locator('#booking-suggestion')).toBeVisible();
+    await page.locator('#logout').click();
+    await expect.poll(() => calendarLogoutAttempted).toBe(true);
+    await expect(page.locator('#login-view')).toBeVisible();
+    await expect(page.locator('#booking-suggestion')).toBeHidden();
+    await expect(page.locator('#booking-suggestion-label')).toHaveText('');
+    await expect(page.locator('#booking-name')).toHaveValue('');
+    await page.locator('#login-account').fill('front');
+    await page.locator('#login-password').fill('beauessence-front');
+    await page.locator('#login-view button[type="submit"]').click();
+    await expect(page.locator('#login-view')).toBeHidden();
+    await expect(page.locator('#booking-suggestion')).toBeHidden();
+
+    await page.locator('[data-booking-shortcut]').first().click();
+    await page.locator('#booking-name').fill('一般預約患者');
+    await page.locator('#booking-phone').fill('0998765432');
+    await page.locator('#booking-birth-month').fill('04');
+    await page.locator('#booking-birth-day').fill('09');
+    await page.locator('#booking-nationality').selectOption('domestic');
+    await page.locator('#booking-items [data-booking-item]').first().check();
+    await page.locator('#slots [data-select-slot]').first().click();
+    await page.locator('#booking-form button[type="submit"]').click();
+    await expect
+      .poll(() => ordinaryBooking)
+      .toMatchObject({
+        slotId: 'slot_manual_001',
+        onBehalfPatientId: expect.any(String)
+      });
+    expect(ordinaryBooking?.onBehalfPatientId).not.toBe(
+      'patient_opaque_logout_001'
+    );
   });
 });

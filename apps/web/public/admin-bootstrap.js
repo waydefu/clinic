@@ -276,6 +276,11 @@ async function runUiAction({
 }
 
 async function post(path, body = {}) {
+  const previousSession = {
+    authenticated: state?.session?.authenticated === true,
+    accountId: state?.session?.account?.id,
+    role: state?.session?.account?.role
+  };
   const requiredPermission = (() => {
     if (path === '/reset') return PERMISSIONS.MANAGE_SYSTEM;
     if (path.startsWith('/schedule/')) return PERMISSIONS.MANAGE_SCHEDULE;
@@ -359,6 +364,17 @@ async function post(path, body = {}) {
       applyFollowUpContractWrite(state, path, body, result);
     }
   }
+  const sessionChanged =
+    previousSession.authenticated !==
+      (state?.session?.authenticated === true) ||
+    previousSession.accountId !== state?.session?.account?.id ||
+    previousSession.role !== state?.session?.account?.role;
+  if (
+    path === '/workspace/login' ||
+    path === '/workspace/logout' ||
+    sessionChanged
+  )
+    clearBookingSuggestion();
   if (!['/workspace/logout', '/reset'].includes(path)) {
     enforceRoleDomBoundary();
     render();
@@ -913,7 +929,7 @@ document.addEventListener('keydown', (event) => {
     !event.shiftKey
   ) {
     event.preventDefault();
-    openBookingWorkflow({ focusFirstField: true });
+    openOrdinaryBookingWorkflow({ focusFirstField: true });
   }
 });
 document.addEventListener('pointerdown', (event) => {
@@ -989,6 +1005,7 @@ elements['login-form'].addEventListener('submit', async (event) => {
 });
 
 elements['logout'].addEventListener('click', async () => {
+  clearBookingSuggestion();
   await runUiAction({
     control: elements['logout'],
     pendingLabel: '登出中…',
@@ -1038,6 +1055,11 @@ function openBookingWorkflow({ focusFirstField = false } = {}) {
       : elements['booking-workflow'].querySelector('summary');
     target?.focus();
   }, 0);
+}
+
+function openOrdinaryBookingWorkflow(options = {}) {
+  if (bookingSuggestion !== undefined) clearBookingSuggestion();
+  openBookingWorkflow(options);
 }
 
 function setBookingSuggestion(detail) {
@@ -1091,9 +1113,14 @@ function clearBookingSuggestion() {
   const patientFieldset =
     elements['booking-form'].querySelector('.field-group');
   patientFieldset.hidden = false;
-  for (const control of patientFieldset.querySelectorAll('input, select'))
+  for (const control of patientFieldset.querySelectorAll('input, select')) {
     control.disabled = false;
+    control.value = '';
+  }
   elements['booking-suggestion'].hidden = true;
+  elements['booking-suggestion-label'].textContent = '';
+  elements['booking-form-status'].hidden = true;
+  elements['booking-form-status'].textContent = '';
   selectedSlotId = undefined;
   renderSlotList();
   renderBookingForm();
@@ -1109,7 +1136,7 @@ elements['booking-suggestion-clear'].addEventListener(
 );
 
 for (const shortcut of document.querySelectorAll('[data-booking-shortcut]')) {
-  shortcut.addEventListener('click', () => openBookingWorkflow());
+  shortcut.addEventListener('click', () => openOrdinaryBookingWorkflow());
 }
 
 elements['slot-kind-filter'].addEventListener('change', () => {
