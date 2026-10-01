@@ -52,7 +52,7 @@ export const DEFERRED_BUSINESS_ASSET_SOURCES = Object.freeze([
 ]);
 const DEFERRED_BUSINESS_FEATURE_SOURCE = 'modules/business-view.js';
 const BUSINESS_SECTION_MARKER =
-  /<section\b(?=[^>]*\bid\s*=\s*(["'])business-section\1)[^>]*>/i;
+  /<section\b(?=[^>]*\bid\s*=\s*(?:(["'])business-section\1|business-section(?=[\s/>])))[^>]*>/i;
 
 function extensionOf(path) {
   const dot = path.lastIndexOf('.');
@@ -65,11 +65,20 @@ function resourceTypeOf(path) {
 
 // Initial page traversal follows static module edges. Dynamic imports remain
 // outside the initial budget and are followed when measuring a deferred group.
-const IMPORT_SPECIFIER = /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
-const DYNAMIC_IMPORT_SPECIFIER = /\bimport\s*\(\s*(['"])(\.[^'"]+\.js)\1\s*\)/g;
+const JS_GAP = String.raw`(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*`;
+const IMPORT_SPECIFIER = new RegExp(
+  `(?:\\bfrom${JS_GAP}|\\bimport${JS_GAP})(['"])(\\.[^'"]+\\.js)\\1`,
+  'g'
+);
+const DYNAMIC_IMPORT_SPECIFIER = new RegExp(
+  `\\bimport${JS_GAP}\\(${JS_GAP}(['"])(\\.[^'"]+\\.js)\\1${JS_GAP}\\)`,
+  'g'
+);
 // HTML 只用 root-absolute 參照子資源（build 會把它們改寫成雜湊檔名）。
 const HTML_REFERENCE = /\b(?:src|href)="(\/[^"#?]+)"/g;
 const CSS_REFERENCE = /url\(\s*['"]?(\/?[^'")]+)['"]?\s*\)/g;
+const CSS_IMPORT_REFERENCE =
+  /@import\s+(?:url\(\s*)?(?:(["'])([^"']+\.css)\1|([^"'\s)]+\.css))\s*\)?/gi;
 
 // `<meta property="og:image">` 刻意不在 HTML_REFERENCE 裡——`content=` 不是
 // `src`／`href`，所以 OG 圖永遠不會進入任何一頁的傳遞閉包。
@@ -136,7 +145,7 @@ function referencesOf(path, content, { includeDynamicImports = false } = {}) {
     }
   } else if (extension === '.js') {
     for (const match of source.matchAll(IMPORT_SPECIFIER)) {
-      found.add(posix.normalize(posix.join(posix.dirname(path), match[3])));
+      found.add(posix.normalize(posix.join(posix.dirname(path), match[2])));
     }
     if (includeDynamicImports) {
       for (const match of source.matchAll(DYNAMIC_IMPORT_SPECIFIER)) {
@@ -147,14 +156,19 @@ function referencesOf(path, content, { includeDynamicImports = false } = {}) {
       found.add(match[2].slice(1));
     }
   } else if (extension === '.css') {
-    for (const match of source.matchAll(CSS_REFERENCE)) {
-      const reference = match[1];
-      if (reference.startsWith('data:')) continue;
+    const addCssReference = (reference) => {
+      if (reference.startsWith('data:')) return;
       found.add(
         reference.startsWith('/')
           ? reference.slice(1)
           : posix.normalize(posix.join(posix.dirname(path), reference))
       );
+    };
+    for (const match of source.matchAll(CSS_REFERENCE)) {
+      addCssReference(match[1]);
+    }
+    for (const match of source.matchAll(CSS_IMPORT_REFERENCE)) {
+      addCssReference(match[2] ?? match[3]);
     }
   }
 

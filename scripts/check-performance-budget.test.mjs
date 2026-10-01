@@ -447,6 +447,72 @@ describe('deferred business asset budget', () => {
     );
   });
 
+  it('includes quoted and nested CSS imports in the aggregate gzip budget', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.manifest['calendar-pilot.css'],
+      "@import './existing.abc123.css';"
+    );
+    fixture.files.set(
+      'built/existing.abc123.css',
+      "@import './nested.456def.css';"
+    );
+    fixture.files.set('built/nested.456def.css', 'x'.repeat(69633));
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.resources).toContain('built/existing.abc123.css');
+    expect(report.resources).toContain('built/nested.456def.css');
+    expect(report.violations.join('\n')).toContain(
+      'exceeding the 69632-byte ceiling'
+    );
+  });
+
+  it('does not count the same CSS import twice when it also appears in url()', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.manifest['calendar-pilot.css'],
+      "@import url('./existing.abc123.css'); body { background: url('./existing.abc123.css'); }"
+    );
+    fixture.files.set(
+      'built/existing.abc123.css',
+      '.existing { display: block; }'
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(
+      report.resources.filter((path) => path === 'built/existing.abc123.css')
+    ).toHaveLength(1);
+  });
+
+  it('fails closed when a CSS import target is missing from dist', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.manifest['calendar-pilot.css'],
+      "@import './missing.abc123.css';"
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain('missing.abc123.css');
+  });
+
   it('includes dynamic imports in the deferred resource closure', () => {
     const fixture = deferredBusinessFixture();
     fixture.files.set(
@@ -463,6 +529,26 @@ describe('deferred business asset budget', () => {
     expect(report.violations.join('\n')).toContain(
       'missing-lazy-dependency.js'
     );
+  });
+
+  it('fails closed for comment-separated static, from, and dynamic imports', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.businessView,
+      "import /* side effect */ './missing-static.js'; import { value } /* imported names */ from /* target */ './missing-from.js'; import /* dynamic */ ('./missing-dynamic.js');"
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+    const violations = report.violations.join('\n');
+
+    expect(violations).toContain('missing-static.js');
+    expect(violations).toContain('missing-from.js');
+    expect(violations).toContain('missing-dynamic.js');
   });
 
   it('fails closed when the deferred budget config is incomplete or relaxes 68 KiB', () => {
@@ -489,7 +575,7 @@ describe('deferred business asset budget', () => {
 
   it('has no deferred group on a branch without the business-view feature', () => {
     const report = planDeferredBusinessAssetReport(
-      new Map([['index.html', html()]]),
+      new Map([['index.html', '<section id="case-section"></section>']]),
       undefined,
       undefined,
       { featurePresent: false, ...rawSize }
@@ -498,9 +584,9 @@ describe('deferred business asset budget', () => {
     expect(report).toMatchObject({ active: false, bytes: 0, violations: [] });
   });
 
-  it('activates the gate when the public HTML retains the business section', () => {
+  it('activates the gate for an unquoted business section id', () => {
     const files = new Map([
-      ['index.html', '<section id="business-section"></section>']
+      ['index.html', '<section id=business-section></section>']
     ]);
     const report = planDeferredBusinessAssetReport(files, undefined, undefined);
 
