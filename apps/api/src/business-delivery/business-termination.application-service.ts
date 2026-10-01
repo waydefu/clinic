@@ -5,7 +5,7 @@ import {
   CreateBusinessTerminationRequestSchema,
   type BusinessTerminationResponse
 } from '@beauessence/contracts';
-import { DomainError, isRole, taipeiCalendarDateOf } from '@beauessence/domain';
+import { isRole } from '@beauessence/domain';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import type {
@@ -68,12 +68,6 @@ export class BusinessTerminationApplicationService {
     authorizeTermination(authentication);
     const request = CreateBusinessTerminationRequestSchema.parse(body);
     const now = this.nowUtc();
-    if (request.noticeDate !== taipeiCalendarDateOf(now)) {
-      throw new DomainError(
-        'INVALID_VALUE',
-        'noticeDate must be the current Taipei calendar date.'
-      );
-    }
     await this.reauthentication.assertFresh({
       idToken: reauthenticationToken,
       actorId: authentication.actorId,

@@ -1,6 +1,9 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { resolveApprovedBusinessDeliveryPolicy } from '@beauessence/domain';
+import {
+  DomainError,
+  resolveApprovedBusinessDeliveryPolicy
+} from '@beauessence/domain';
 import type { BusinessTerminationResponse } from '@beauessence/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -28,6 +31,10 @@ const POLICY = resolveApprovedBusinessDeliveryPolicy(
   'BD-POLICY-2026-09-29',
   'internal_synthetic'
 );
+const PRODUCTION_REPLAY_POLICY = {
+  ...POLICY,
+  applicableScopes: ['production'] as const
+};
 const ACTOR = 'a'.repeat(64);
 const NOTICE_AT = '2030-10-20T04:00:00.000Z';
 const NOTICE_DATE = '2030-10-20';
@@ -163,6 +170,29 @@ describe('business termination notice and receipts', () => {
       version: 1,
       replayed: true
     });
+    const nextTaipeiDayReplay = await terminations.create({
+      ...command,
+      now: '2030-10-20T16:00:00.000Z'
+    });
+    expect(nextTaipeiDayReplay).toMatchObject({
+      terminationId: created.terminationId,
+      noticeStartedAt: NOTICE_AT,
+      replayed: true
+    });
+    await expect(
+      terminations.create({
+        ...command,
+        idempotencyKey: 'termination-key-stale-date-001',
+        now: '2030-10-20T16:00:00.000Z'
+      })
+    ).rejects.toBeInstanceOf(DomainError);
+    await expect(
+      terminations.create({
+        ...command,
+        scope: 'production',
+        policy: PRODUCTION_REPLAY_POLICY
+      })
+    ).rejects.toBeInstanceOf(ConflictError);
     await expect(
       terminations.create({ ...command, noticeDate: '2030-10-21' })
     ).rejects.toBeInstanceOf(ConflictError);
@@ -218,6 +248,13 @@ describe('business termination notice and receipts', () => {
       version: 2,
       receipts: ack.receipts
     });
+    await expect(
+      terminations.acknowledge({
+        ...ackCommand,
+        scope: 'production',
+        policy: PRODUCTION_REPLAY_POLICY
+      })
+    ).rejects.toBeInstanceOf(ConflictError);
     const storedReceipt = await db
       .collection(TERMINATION_COLLECTIONS.exportReceipts)
       .doc(job.exportId)
@@ -350,11 +387,20 @@ describe('business termination close review', () => {
             receiptKind,
             evidenceRef: `evidence_${receiptKind}`
           },
-          at(NOTICE_DUE, index * HOUR)
+          at(RETENTION_DUE, (index - 2) * HOUR)
         )
       );
     }
     expect(current.closeReadiness).toEqual({
+      ready: false,
+      missingSteps: ['controlled_copy_retention', 'access_revocation']
+    });
+    const atRetentionBoundary = await terminations.get(
+      created.terminationId,
+      RETENTION_DUE,
+      'internal_synthetic'
+    );
+    expect(atRetentionBoundary?.closeReadiness).toEqual({
       ready: false,
       missingSteps: ['access_revocation']
     });
@@ -418,6 +464,13 @@ describe('business termination close review', () => {
       competingCommands[competing[0]?.status === 'fulfilled' ? 0 : 1]!
     );
     expect(replay).toMatchObject({ replayed: true, version: ready.version });
+    await expect(
+      terminations.close({
+        ...competingCommands[competing[0]?.status === 'fulfilled' ? 0 : 1]!,
+        scope: 'production',
+        policy: PRODUCTION_REPLAY_POLICY
+      })
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('lists every missing step and does not accept a client assertion of completion', async () => {

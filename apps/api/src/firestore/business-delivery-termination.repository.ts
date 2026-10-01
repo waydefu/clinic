@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import {
   DomainError,
   planBusinessTerminationOperation,
+  taipeiCalendarDateOf,
   type ApprovedBusinessDeliveryPolicy,
   type BusinessTerminationState
 } from '@beauessence/domain';
@@ -119,6 +120,15 @@ function sha256(value: string): string {
 
 function requestHash(value: unknown): string {
   return sha256(JSON.stringify(value));
+}
+
+function assertPolicyScope(
+  policy: ApprovedBusinessDeliveryPolicy,
+  scope: 'internal_synthetic' | 'production'
+): void {
+  if (!(policy.applicableScopes as readonly string[]).includes(scope)) {
+    throw new ConflictError();
+  }
 }
 
 function terminationIdFor(idempotencyKey: string): string {
@@ -305,6 +315,7 @@ export class FirestoreBusinessTerminationRepository {
   public async create(
     command: CreateTerminationCommand
   ): Promise<BusinessTerminationResponse> {
+    assertPolicyScope(command.policy, command.scope);
     const terminationId = terminationIdFor(command.idempotencyKey);
     const recordRef = this.db
       .collection(TERMINATION_COLLECTIONS.records)
@@ -319,9 +330,27 @@ export class FirestoreBusinessTerminationRepository {
         logRef,
         recordRef
       );
+      if (existingRecord!.exists) {
+        const stored = existingRecord!.data() as StoredTermination;
+        if (
+          stored.terminationId !== terminationId ||
+          stored.scope !== command.scope
+        ) {
+          throw new ConflictError();
+        }
+      }
       const previous = replay<BusinessTerminationResponse>(existingLog!, hash);
-      if (previous.found) return { ...previous.result, replayed: true };
+      if (previous.found) {
+        if (!existingRecord!.exists) throw new ConflictError();
+        return { ...previous.result, replayed: true };
+      }
       if (existingRecord!.exists) throw new ConflictError();
+      if (command.noticeDate !== taipeiCalendarDateOf(command.now)) {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'noticeDate must be the current Taipei calendar date.'
+        );
+      }
 
       const requestId = operationRequestId(
         'create',
@@ -396,6 +425,7 @@ export class FirestoreBusinessTerminationRepository {
   public async acknowledge(
     command: AcknowledgeTerminationCommand
   ): Promise<BusinessTerminationResponse> {
+    assertPolicyScope(command.policy, command.scope);
     if (!TERMINATION_ID.test(command.terminationId))
       throw new NotFoundException();
     const request = command.request;
@@ -438,14 +468,19 @@ export class FirestoreBusinessTerminationRepository {
       if (exportReceiptRef !== undefined) references.push(exportReceiptRef);
       const snapshots = await transaction.getAll(...references);
       const [recordSnapshot, logSnapshot, exportSnapshot] = snapshots;
+      if (!recordSnapshot!.exists) throw new NotFoundException();
+      const record = recordSnapshot!.data() as StoredTermination;
+      if (
+        record.terminationId !== command.terminationId ||
+        record.scope !== command.scope
+      ) {
+        throw new ConflictError();
+      }
       const previous = replay<BusinessTerminationResponse>(
         logSnapshot!,
         actionHash
       );
       if (previous.found) return { ...previous.result, replayed: true };
-      if (!recordSnapshot!.exists) throw new NotFoundException();
-      const record = recordSnapshot!.data() as StoredTermination;
-      if (record.scope !== command.scope) throw new ConflictError();
 
       if (request.receiptKind !== 'data_return') {
         if (
@@ -627,6 +662,7 @@ export class FirestoreBusinessTerminationRepository {
   public async close(
     command: CloseTerminationCommand
   ): Promise<BusinessTerminationResponse> {
+    assertPolicyScope(command.policy, command.scope);
     if (!TERMINATION_ID.test(command.terminationId))
       throw new NotFoundException();
     const recordRef = this.db
@@ -644,14 +680,17 @@ export class FirestoreBusinessTerminationRepository {
         recordRef,
         logRef
       );
-      const previous = replay<BusinessTerminationResponse>(logSnapshot!, hash);
-      if (previous.found) return { ...previous.result, replayed: true };
       if (!recordSnapshot!.exists) throw new NotFoundException();
       const record = recordSnapshot!.data() as StoredTermination;
       if (
-        record.scope !== command.scope ||
-        record.version !== command.expectedVersion
+        record.terminationId !== command.terminationId ||
+        record.scope !== command.scope
       ) {
+        throw new ConflictError();
+      }
+      const previous = replay<BusinessTerminationResponse>(logSnapshot!, hash);
+      if (previous.found) return { ...previous.result, replayed: true };
+      if (record.version !== command.expectedVersion) {
         throw new ConflictError();
       }
       const missingSteps = closeMissingSteps(record, command.now);

@@ -7,7 +7,6 @@ import type {
   BusinessTerminationResponse,
   BusinessTerminationAcknowledgementRequest
 } from '@beauessence/contracts';
-import { DomainError } from '@beauessence/domain';
 import { ZodError } from 'zod';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -71,7 +70,8 @@ function staff(actorRole: string): AuthenticationContext {
 
 function setup(
   config: BusinessDeliveryConfig = ENABLED,
-  assertFresh: () => Promise<void> = () => Promise.resolve()
+  assertFresh: () => Promise<void> = () => Promise.resolve(),
+  nowUtc: () => string = () => NOW
 ) {
   const calls: {
     create: CreateTerminationCommand[];
@@ -104,7 +104,7 @@ function setup(
     config,
     repository,
     { assertFresh: assertFreshMock },
-    () => NOW
+    nowUtc
   );
   return { service, repository, calls, assertFresh: assertFreshMock };
 }
@@ -242,23 +242,24 @@ describe('BusinessTerminationApplicationService permissions and reauthentication
 });
 
 describe('BusinessTerminationApplicationService validation', () => {
-  it('requires the current Taipei date as the notice date', async () => {
-    const { service, repository } = setup();
-    await expect(
-      service.create(
-        { ...createBody, noticeDate: '2030-10-19' },
-        'fresh',
-        staff(MANAGER)
-      )
-    ).rejects.toBeInstanceOf(DomainError);
-    await expect(
-      service.create(
-        { ...createBody, noticeDate: '2030-10-21' },
-        'fresh',
-        staff(MANAGER)
-      )
-    ).rejects.toBeInstanceOf(DomainError);
-    expect(repository.create).not.toHaveBeenCalled();
+  it('passes same-body prior-day retries to the repository after Taipei midnight', async () => {
+    const nextTaipeiDay = '2030-10-20T16:00:00.000Z';
+    const { service, repository, calls, assertFresh } = setup(
+      ENABLED,
+      () => Promise.resolve(),
+      () => nextTaipeiDay
+    );
+
+    await service.create(createBody, 'fresh', staff(MANAGER));
+
+    expect(assertFresh).toHaveBeenCalledOnce();
+    expect(calls.create[0]).toMatchObject({
+      noticeDate: createBody.noticeDate,
+      now: nextTaipeiDay,
+      scope: 'internal_synthetic',
+      policy: POLICY
+    });
+    expect(repository.create).toHaveBeenCalledOnce();
   });
 
   it('rejects malformed or guessed data-return metadata', async () => {
