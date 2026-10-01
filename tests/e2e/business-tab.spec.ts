@@ -1,4 +1,7 @@
 import { expect, test, type Route } from '@playwright/test';
+import { gzipSync } from 'node:zlib';
+import { CANDIDATE_ROLE_PERMISSIONS } from '../../apps/api/src/platform/authorization/rbac.js';
+import { ROLES } from '../../packages/domain/src/roles.js';
 import { login, switchRole } from './support/workbench.js';
 
 const FIREBASE_CONFIG = {
@@ -36,7 +39,16 @@ const INITIAL_MILESTONES = {
   maintenance: { status: 'scheduled', startDate: '2026-11-01' }
 };
 
-async function enableServerSession(page, role = 'manager') {
+const BUSINESS_EXPORT_ROLE = ROLES.find((role) =>
+  CANDIDATE_ROLE_PERMISSIONS[role].includes('export_business_data')
+);
+
+if (BUSINESS_EXPORT_ROLE === undefined)
+  throw new Error('No candidate role is authorized for business data export.');
+
+const DEFERRED_CHUNKS_GZIP_CEILING_BYTES = 68 * 1024;
+
+async function enableServerSession(page, role = BUSINESS_EXPORT_ROLE) {
   await page.addInitScript((initialRole) => {
     sessionStorage.setItem('calPilotCsrf', 'csrf_synthetic_test');
     sessionStorage.setItem('calPilotRole', initialRole);
@@ -44,7 +56,8 @@ async function enableServerSession(page, role = 'manager') {
       'beauessence:reauth-request',
       (event) => {
         event.stopImmediatePropagation();
-        const { requestId } = event.detail;
+        const { requestId } = (event as CustomEvent<{ requestId: string }>)
+          .detail;
         const state = window as Window & { __reauthRequestIds?: string[] };
         state.__reauthRequestIds ??= [];
         state.__reauthRequestIds.push(requestId);
@@ -127,10 +140,23 @@ test.describe('商務與驗收工作區', () => {
     )
       throw new Error('A deferred workbench chunk did not respond.');
     await expect(page.locator('#business-section')).toContainText('月用量');
-    const reauthBytes = (await reauthResponse.body()).byteLength;
-    const stylesheetBytes = (await stylesheetResponse.body()).byteLength;
-    const clientBytes = (await clientResponse.body()).byteLength;
-    const businessBytes = (await businessResponse.body()).byteLength;
+    const [reauthBody, stylesheetBody, clientBody, businessBody] =
+      await Promise.all([
+        reauthResponse.body(),
+        stylesheetResponse.body(),
+        clientResponse.body(),
+        businessResponse.body()
+      ]);
+    const reauthBytes = reauthBody.byteLength;
+    const stylesheetBytes = stylesheetBody.byteLength;
+    const clientBytes = clientBody.byteLength;
+    const businessBytes = businessBody.byteLength;
+    const deferredGzipBytes = [
+      reauthBody,
+      stylesheetBody,
+      clientBody,
+      businessBody
+    ].reduce((total, body) => total + gzipSync(body).byteLength, 0);
     expect(reauthResponse.ok()).toBe(true);
     expect(stylesheetResponse.ok()).toBe(true);
     expect(clientResponse.ok()).toBe(true);
@@ -145,16 +171,21 @@ test.describe('商務與驗收工作區', () => {
     expect(stylesheetBytes).toBeGreaterThan(0);
     expect(clientBytes).toBeGreaterThan(0);
     expect(businessBytes).toBeGreaterThan(0);
+    expect(deferredGzipBytes).toBeLessThanOrEqual(
+      DEFERRED_CHUNKS_GZIP_CEILING_BYTES
+    );
     testInfo.annotations.push({
       type: 'deferred-business-and-reauth-chunks',
-      description: `reauth=${reauthBytes} raw bytes (${reauthRequest.url()}); CSS=${stylesheetBytes} raw bytes (${stylesheetRequest.url()}); client=${clientBytes} raw bytes (${clientRequest.url()}); business=${businessBytes} raw bytes (${businessRequest.url()})`
+      description: `aggregate gzip=${deferredGzipBytes} bytes (ceiling ${DEFERRED_CHUNKS_GZIP_CEILING_BYTES}); reauth=${reauthBytes} raw bytes (${reauthRequest.url()}); CSS=${stylesheetBytes} raw bytes (${stylesheetRequest.url()}); client=${clientBytes} raw bytes (${clientRequest.url()}); business=${businessBytes} raw bytes (${businessRequest.url()})`
     });
   });
 
   test('manager can read reports and acknowledge milestones; front desk is redirected', async ({
     page
   }) => {
-    let milestones = { ...INITIAL_MILESTONES };
+    let milestones: typeof INITIAL_MILESTONES & {
+      finalPayment: { status: string; acknowledgedDate?: string };
+    } = { ...INITIAL_MILESTONES };
     const writes = [];
     await enableServerSession(page);
     await page.route('**/v1/business-delivery/**', async (route) => {
@@ -350,6 +381,245 @@ test.describe('商務與驗收工作區', () => {
     expect(writes[1]?.headers['x-csrf-token']).toBe('csrf_synthetic_test');
   });
 
+  test('reuses an export key after a lost response and clears it after success', async ({
+    page
+  }) => {
+    await enableServerSession(page);
+    const job = {
+      exportId: 'export_synthetic_retry_001',
+      status: 'ready',
+      format: 'csv',
+      from: '2026-09-01',
+      to: '2026-09-30',
+      rowCount: 1,
+      byteLength: 40,
+      sha256: 'c'.repeat(64),
+      createdAt: '2026-10-01T00:00:00.000Z',
+      downloadExpiresAt: '2026-10-02T00:00:00.000Z',
+      downloadsRemaining: 1,
+      purgeAt: '2026-10-03T00:00:00.000Z'
+    };
+    const writes: Array<Record<string, unknown>> = [];
+    const acceptedByKey = new Map<string, typeof job>();
+    await page.route('**/v1/business-delivery/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path.endsWith('/monthly-usage')) return json(route, MONTHLY_USAGE);
+      if (path.endsWith('/milestones')) return json(route, INITIAL_MILESTONES);
+      if (path.endsWith('/pending-deletion'))
+        return json(route, { patients: [] });
+      if (
+        path === '/v1/business-delivery/exports' &&
+        request.method() === 'POST'
+      ) {
+        const body = request.postDataJSON() as Record<string, unknown>;
+        writes.push(body);
+        const key = String(body.idempotencyKey);
+        acceptedByKey.set(key, job);
+        if (writes.length === 1) return route.abort('connectionreset');
+        return json(route, acceptedByKey.get(key));
+      }
+      return json(route, { error: { message: '找不到指定的資料。' } }, 404);
+    });
+
+    await page.goto('/staff#business-section');
+    const fillExportDates = async () => {
+      await page.getByLabel('起始日期（台北）').fill('2026-09-01');
+      await page.getByLabel('結束日期（台北）').fill('2026-09-30');
+    };
+    const submitExport = () =>
+      page.getByRole('button', { name: '重新登入並建立匯出' }).click();
+
+    await fillExportDates();
+    await submitExport();
+    await expect(
+      page.getByRole('button', { name: '重新登入並建立匯出' })
+    ).toBeEnabled();
+    expect(writes).toHaveLength(1);
+
+    await page.getByRole('link', { name: '營運首頁' }).click();
+    await expect(page).toHaveURL(/#overview$/);
+    await page.getByRole('link', { name: '商務與驗收' }).click();
+    await expect(page.locator('#business-section')).toContainText('月用量');
+    await fillExportDates();
+    await submitExport();
+    await expect(page.locator('#business-section')).toContainText(
+      '匯出工作已建立'
+    );
+
+    expect(writes[1]?.['idempotencyKey']).toBe(writes[0]?.['idempotencyKey']);
+    await submitExport();
+    await expect(
+      page.getByRole('button', { name: '重新登入並建立匯出' })
+    ).toBeEnabled();
+    expect(writes).toHaveLength(3);
+    expect(writes[2]?.['idempotencyKey']).not.toBe(
+      writes[1]?.['idempotencyKey']
+    );
+  });
+
+  for (const accessChange of [
+    { name: 'authorization is revoked', authorized: false, csrf: null },
+    {
+      name: 'the manager session CSRF token rotates',
+      authorized: true,
+      csrf: 'csrf_rotated_session'
+    }
+  ]) {
+    test(`does not download CSV after ${accessChange.name} during the response`, async ({
+      page
+    }) => {
+      await enableServerSession(page);
+      const job = {
+        exportId: 'export_synthetic_delayed_001',
+        status: 'ready',
+        format: 'csv',
+        from: '2026-09-01',
+        to: '2026-09-30',
+        rowCount: 1,
+        byteLength: 40,
+        sha256: 'd'.repeat(64),
+        createdAt: '2026-10-01T00:00:00.000Z',
+        downloadExpiresAt: '2026-10-02T00:00:00.000Z',
+        downloadsRemaining: 1,
+        purgeAt: '2026-10-03T00:00:00.000Z'
+      };
+      await page.route('**/v1/business-delivery/**', async (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        if (path.endsWith('/monthly-usage')) return json(route, MONTHLY_USAGE);
+        if (path.endsWith('/milestones'))
+          return json(route, INITIAL_MILESTONES);
+        if (path.endsWith('/pending-deletion'))
+          return json(route, { patients: [] });
+        if (
+          path === '/v1/business-delivery/exports' &&
+          request.method() === 'POST'
+        )
+          return json(route, job);
+        return json(route, { error: { message: '找不到指定的資料。' } }, 404);
+      });
+
+      await page.goto('/staff#business-section');
+      await page.getByLabel('起始日期（台北）').fill('2026-09-01');
+      await page.getByLabel('結束日期（台北）').fill('2026-09-30');
+      await page.getByRole('button', { name: '重新登入並建立匯出' }).click();
+      await expect(page.locator('#business-section')).toContainText(
+        '匯出工作已建立'
+      );
+
+      await page.evaluate(() => {
+        const state = window as Window & {
+          __businessCsvTest?: {
+            started: boolean;
+            blobCreations: number;
+            objectUrlCreations: number;
+            resolveResponse?: () => void;
+          };
+        };
+        const effects = {
+          started: false,
+          blobCreations: 0,
+          objectUrlCreations: 0,
+          resolveResponse: undefined as (() => void) | undefined
+        };
+        state.__businessCsvTest = effects;
+
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = (input, init) => {
+          const url =
+            typeof input === 'string'
+              ? input
+              : input instanceof URL
+                ? input.href
+                : input.url;
+          if (!url.endsWith('/download')) return originalFetch(input, init);
+          effects.started = true;
+          return new Promise((resolve) => {
+            effects.resolveResponse = () =>
+              resolve({
+                ok: true,
+                status: 200,
+                text: () =>
+                  Promise.resolve(
+                    'opaque_id,created_at\nbooking_test_001,now\n'
+                  )
+              } as Response);
+          });
+        };
+
+        const NativeBlob = window.Blob;
+        Object.defineProperty(window, 'Blob', {
+          configurable: true,
+          value: new Proxy(NativeBlob, {
+            construct(target, args, newTarget) {
+              effects.blobCreations += 1;
+              return Reflect.construct(target, args, newTarget);
+            }
+          })
+        });
+        const createObjectURL = URL.createObjectURL.bind(URL);
+        URL.createObjectURL = (blob) => {
+          effects.objectUrlCreations += 1;
+          return createObjectURL(blob);
+        };
+      });
+
+      let downloadObserved = false;
+      page.on('download', () => {
+        downloadObserved = true;
+      });
+      const clickDownload = page
+        .getByRole('button', { name: '下載 CSV' })
+        .click();
+      await page.waitForFunction(
+        () =>
+          (window as Window & { __businessCsvTest?: { started: boolean } })
+            .__businessCsvTest?.started === true
+      );
+      await page.evaluate((change) => {
+        if (change.csrf === null) sessionStorage.removeItem('calPilotCsrf');
+        else sessionStorage.setItem('calPilotCsrf', change.csrf);
+        window.dispatchEvent(
+          new CustomEvent('beauessence:workbench-access-change', {
+            detail: { authorized: change.authorized }
+          })
+        );
+        const state = window as Window & {
+          __businessCsvTest?: { resolveResponse?: () => void };
+        };
+        state.__businessCsvTest?.resolveResponse?.();
+      }, accessChange);
+      await clickDownload;
+
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const state = window as Window & {
+              __businessCsvTest?: {
+                started: boolean;
+                blobCreations: number;
+                objectUrlCreations: number;
+              };
+            };
+            const effects = state.__businessCsvTest;
+            if (effects === undefined) return undefined;
+            return {
+              started: effects.started,
+              blobCreations: effects.blobCreations,
+              objectUrlCreations: effects.objectUrlCreations
+            };
+          })
+        )
+        .toEqual({
+          started: true,
+          blobCreations: 0,
+          objectUrlCreations: 0
+        });
+      expect(downloadObserved).toBe(false);
+    });
+  }
+
   test('handles archive conflict, restore, legal hold, and permanent deletion', async ({
     page
   }) => {
@@ -492,26 +762,69 @@ test.describe('商務與驗收工作區', () => {
     page
   }) => {
     await enableServerSession(page);
-    let retentionElapsed = false;
-    let record = {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const NOTICE_DAYS = 30;
+    const RETENTION_DAYS = 30;
+    type TerminationReceipt = {
+      receiptKind: string;
+      evidenceRef?: string;
+      exportId?: string;
+      sha256?: string;
+      actorRef: string;
+      acknowledgedAt: string;
+    };
+    type TerminationRecord = {
+      terminationId: 'termination_synthetic_001';
+      state: string;
+      noticeDate: string;
+      noticeStartedAt: string;
+      noticeDueAt: string;
+      controlledRetentionUntil: string | null;
+      version: number;
+      receipts: TerminationReceipt[];
+      closeReadiness: {
+        ready: boolean;
+        missingSteps: string[];
+      };
+    };
+    let serverNow = '2026-10-01T00:00:00.000Z';
+    let record: TerminationRecord = {
       terminationId: 'termination_synthetic_001',
       state: 'termination_pending',
       noticeDate: '2026-10-01',
-      noticeStartedAt: '2026-10-01T00:00:00.000Z',
-      noticeDueAt: '2026-10-08T00:00:00.000Z',
-      controlledRetentionUntil: '2026-11-08T00:00:00.000Z',
+      noticeStartedAt: serverNow,
+      noticeDueAt: '2026-10-31T00:00:00.000Z',
+      controlledRetentionUntil: null,
       version: 1,
       receipts: [],
-      closeReadiness: {
-        ready: false,
-        missingSteps: [
-          'data_return',
-          'controlled_copy_retention',
-          'backup_disposition',
-          'audit_disposition',
-          'access_revocation'
-        ]
-      }
+      closeReadiness: { ready: false, missingSteps: [] }
+    };
+    const updateCloseReadiness = () => {
+      const missingSteps: string[] = [];
+      if (Date.parse(serverNow) < Date.parse(record.noticeDueAt))
+        missingSteps.push('minimum_notice');
+      if (
+        !record.receipts.some(
+          (receipt) => receipt.receiptKind === 'data_return'
+        )
+      )
+        missingSteps.push('data_return');
+      if (
+        record.controlledRetentionUntil === null ||
+        Date.parse(serverNow) < Date.parse(record.controlledRetentionUntil)
+      )
+        missingSteps.push('controlled_copy_retention');
+      for (const kind of [
+        'backup_disposition',
+        'audit_disposition',
+        'access_revocation'
+      ])
+        if (!record.receipts.some((receipt) => receipt.receiptKind === kind))
+          missingSteps.push(kind);
+      record = {
+        ...record,
+        closeReadiness: { ready: missingSteps.length === 0, missingSteps }
+      };
     };
     const writes: Array<{
       path: string;
@@ -531,40 +844,63 @@ test.describe('商務與驗收工作區', () => {
       ) {
         const body = request.postDataJSON() as Record<string, unknown>;
         writes.push({ path, body, headers: request.headers() });
+        const noticeDate = String(body.noticeDate);
+        const noticeStartedAt = `${noticeDate}T00:00:00.000Z`;
+        serverNow = noticeStartedAt;
+        record = {
+          ...record,
+          noticeDate,
+          noticeStartedAt,
+          noticeDueAt: new Date(
+            Date.parse(noticeStartedAt) + NOTICE_DAYS * DAY_MS
+          ).toISOString()
+        };
+        updateCloseReadiness();
         return json(route, record);
       }
       if (path.endsWith('/acknowledgements') && request.method() === 'POST') {
         const body = request.postDataJSON() as Record<string, unknown>;
         writes.push({ path, body, headers: request.headers() });
+        const receiptKind = String(body.receiptKind);
+        const acknowledgedAt = serverNow;
+        const exportId = body.exportId;
+        const evidenceRef = body.evidenceRef;
+        const receiptEvidence =
+          typeof exportId === 'string'
+            ? { exportId, sha256: 'b'.repeat(64) }
+            : typeof evidenceRef === 'string'
+              ? { evidenceRef }
+              : undefined;
+        if (receiptEvidence === undefined)
+          throw new Error('The synthetic receipt evidence is malformed.');
         const receipt = {
-          receiptKind: body.receiptKind,
-          ...(body.exportId === undefined
-            ? { evidenceRef: body.evidenceRef }
-            : { exportId: body.exportId, sha256: 'b'.repeat(64) }),
+          receiptKind,
+          ...receiptEvidence,
           actorRef: 'actor_synthetic_001',
-          acknowledgedAt: '2026-10-01T01:00:00.000Z'
+          acknowledgedAt
         };
         record = {
           ...record,
           version: record.version + 1,
-          receipts: [...record.receipts, receipt],
-          closeReadiness: {
-            ready: retentionElapsed && record.receipts.length >= 3,
-            missingSteps: retentionElapsed
-              ? []
-              : [
-                  'controlled_copy_retention',
-                  'backup_disposition',
-                  'audit_disposition',
-                  'access_revocation'
-                ]
-          }
+          state:
+            receiptKind === 'data_return'
+              ? 'controlled_retention'
+              : record.state,
+          controlledRetentionUntil:
+            receiptKind === 'data_return'
+              ? new Date(
+                  Date.parse(acknowledgedAt) + RETENTION_DAYS * DAY_MS
+                ).toISOString()
+              : record.controlledRetentionUntil,
+          receipts: [...record.receipts, receipt]
         };
+        updateCloseReadiness();
         return json(route, { ...record, receipt });
       }
       if (path.endsWith('/close') && request.method() === 'POST') {
         const body = request.postDataJSON() as Record<string, unknown>;
         writes.push({ path, body, headers: request.headers() });
+        updateCloseReadiness();
         if (!record.closeReadiness.ready)
           return json(
             route,
@@ -584,17 +920,14 @@ test.describe('商務與驗收工作區', () => {
         return json(route, record);
       }
       if (path.includes('/terminations/') && request.method() === 'GET') {
-        if (retentionElapsed)
-          record = {
-            ...record,
-            closeReadiness: { ready: true, missingSteps: [] }
-          };
+        updateCloseReadiness();
         return json(route, record);
       }
       return json(route, { error: { message: '找不到指定的資料。' } }, 404);
     });
 
     await page.goto('/staff#business-section');
+    await page.getByLabel('通知日期（台北）').fill('2026-10-01');
     const noticeDate = await page.getByLabel('通知日期（台北）').inputValue();
     await page.getByRole('button', { name: '重新登入並開啟終止通知' }).click();
     await expect(page.locator('#business-section')).toContainText(
@@ -608,6 +941,8 @@ test.describe('商務與驗收工作區', () => {
       'synthetic-fresh-token'
     );
     expect(writes[0]?.headers['x-csrf-token']).toBe('csrf_synthetic_test');
+    expect(record.noticeStartedAt).toBe('2026-10-01T00:00:00.000Z');
+    expect(record.noticeDueAt).toBe('2026-10-31T00:00:00.000Z');
 
     await page.getByLabel('合作個案識別碼').fill('termination_synthetic_001');
     await page.getByRole('button', { name: '載入合作個案' }).click();
@@ -616,10 +951,10 @@ test.describe('商務與驗收工作區', () => {
     await expect(page.locator('#business-section')).toContainText(
       '409：仍缺少'
     );
+    expect(record.closeReadiness.missingSteps).toContain('minimum_notice');
+    expect(record.state).not.toBe('manual_close_review');
 
-    // The fixture advances the server's controlled-copy retention clock after
-    // proving that a premature close is denied.
-    retentionElapsed = true;
+    serverNow = record.noticeDueAt;
     await page.getByLabel('確認項目').selectOption('data_return');
     await page.getByLabel('已簽收匯出識別碼').fill('export_synthetic_001');
     await page.getByRole('button', { name: '重新登入並記錄確認' }).click();
@@ -635,9 +970,29 @@ test.describe('商務與驗收工作區', () => {
       await page.getByLabel('人工核對證據編號').fill(evidence);
       await page.getByRole('button', { name: '重新登入並記錄確認' }).click();
     }
+    expect(record.controlledRetentionUntil).toBe('2026-11-30T00:00:00.000Z');
+    expect(record.receipts[0]?.acknowledgedAt).toBe('2026-10-31T00:00:00.000Z');
+    await page.getByRole('button', { name: '重新登入並送交結案審查' }).click();
+    await expect(page.locator('#business-section')).toContainText(
+      '409：仍缺少'
+    );
+    expect(record.closeReadiness.missingSteps).toContain(
+      'controlled_copy_retention'
+    );
+    expect(record.state).not.toBe('manual_close_review');
+
+    serverNow = '2026-11-30T00:00:00.001Z';
+    await page.getByRole('button', { name: '載入合作個案' }).click();
+    await expect(page.locator('#business-section')).toContainText(
+      '必要步驟已記錄，可送交人工結案審查。'
+    );
     await page.getByRole('button', { name: '重新登入並送交結案審查' }).click();
     await expect(page.locator('#business-section')).toContainText(
       '已提交人工結案審查；服務仍待人員確認，系統沒有停用服務或刪除資料。'
+    );
+    expect(record.state).toBe('manual_close_review');
+    expect(writes.some((write) => /terminate|delete/.test(write.path))).toBe(
+      false
     );
 
     const posted = writes.slice(1);

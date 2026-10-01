@@ -50,6 +50,63 @@ const TERMINATION_RECEIPT_LABELS = Object.freeze({
   access_revocation: '帳號權限撤銷'
 });
 
+// Keep write keys while this module remains loaded so disposing and mounting
+// the workbench again after a lost response retries the same operation. The
+// map contains only transient payload fingerprints and opaque keys; it never
+// stores reauthentication tokens.
+const pendingWriteKeys = new Map();
+let pendingWriteKeysCsrf;
+const accessChangeTargets = new WeakMap();
+
+function synchronizePendingWriteKeyScope(csrf) {
+  const scope = typeof csrf === 'string' && csrf !== '' ? csrf : null;
+  if (pendingWriteKeysCsrf === scope) return;
+  pendingWriteKeys.clear();
+  pendingWriteKeysCsrf = scope;
+}
+
+export function getBusinessWriteIdempotencyKey(action, payload, csrf) {
+  synchronizePendingWriteKeyScope(csrf);
+  const fingerprint = `${action}\u0000${JSON.stringify(payload)}`;
+  const existing = pendingWriteKeys.get(fingerprint);
+  if (existing) return existing;
+  const key = globalThis.crypto.randomUUID().replaceAll('-', '');
+  pendingWriteKeys.set(fingerprint, key);
+  return key;
+}
+
+export function clearBusinessWriteIdempotencyKey(action, payload, csrf) {
+  synchronizePendingWriteKeyScope(csrf);
+  pendingWriteKeys.delete(`${action}\u0000${JSON.stringify(payload)}`);
+}
+
+export function clearBusinessWriteIdempotencyKeys() {
+  pendingWriteKeys.clear();
+  pendingWriteKeysCsrf = undefined;
+}
+
+export function observeBusinessAccessChanges(target, storage) {
+  const existing = accessChangeTargets.get(target);
+  if (existing !== undefined) {
+    existing.storage = storage;
+    return;
+  }
+  const subscription = { storage };
+  accessChangeTargets.set(target, subscription);
+  target.addEventListener('beauessence:workbench-access-change', (event) => {
+    const csrf = subscription.storage?.getItem('calPilotCsrf');
+    if (
+      event.detail?.authorized !== true ||
+      typeof csrf !== 'string' ||
+      csrf === ''
+    ) {
+      clearBusinessWriteIdempotencyKeys();
+      return;
+    }
+    synchronizePendingWriteKeyScope(csrf);
+  });
+}
+
 function customEvent(type, detail) {
   return new CustomEvent(type, { detail });
 }
@@ -273,9 +330,11 @@ export function initializeBusinessView({
   fetchImpl = globalThis.fetch
 } = {}) {
   if (!root || !root.isConnected || !authorized()) return () => {};
+  observeBusinessAccessChanges(target, storage);
   const availability = root.querySelector('#business-availability');
   const content = root.querySelector('#business-content');
   const csrf = storage?.getItem('calPilotCsrf');
+  synchronizePendingWriteKeyScope(csrf);
   const navLink = target.document.querySelector(
     '[data-workspace-nav][href="#business-section"]'
   );
@@ -305,8 +364,8 @@ export function initializeBusinessView({
   content.hidden = false;
   let disposed = false;
   let activeController;
+  const activeDownloadControllers = new Set();
   const viewController = new AbortController();
-  const idempotencyKeys = new Map();
   const status = element('p', 'form-status');
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
@@ -314,8 +373,19 @@ export function initializeBusinessView({
   const stopPending = () => {
     activeController?.abort();
     activeController = undefined;
+    for (const controller of activeDownloadControllers) controller.abort();
+    activeDownloadControllers.clear();
     viewController.abort();
   };
+  const isCurrentSession = () =>
+    storage?.getItem('calPilotCsrf') === csrf &&
+    typeof csrf === 'string' &&
+    csrf !== '';
+  const isViewActive = () =>
+    !disposed &&
+    !viewController.signal.aborted &&
+    authorized() &&
+    isCurrentSession();
   const setStatus = (message, state = 'info') => {
     status.textContent = message;
     status.dataset.state = state;
@@ -328,18 +398,10 @@ export function initializeBusinessView({
       target,
       fetchImpl
     });
-  const idempotencyKey = (action, payload) =>
-    `${action}\u0000${JSON.stringify(payload)}`;
-  const nextKey = (action, payload) => {
-    const fingerprint = idempotencyKey(action, payload);
-    const previous = idempotencyKeys.get(fingerprint);
-    if (previous) return previous;
-    const key = globalThis.crypto.randomUUID().replaceAll('-', '');
-    idempotencyKeys.set(fingerprint, key);
-    return key;
-  };
+  const nextKey = (action, payload) =>
+    getBusinessWriteIdempotencyKey(action, payload, csrf);
   const clearKey = (action, payload) =>
-    idempotencyKeys.delete(idempotencyKey(action, payload));
+    clearBusinessWriteIdempotencyKey(action, payload, csrf);
   const runWrite = async (
     control,
     action,
@@ -351,7 +413,7 @@ export function initializeBusinessView({
       responseLabel = () => '操作已完成。'
     } = {}
   ) => {
-    if (disposed || !authorized() || activeController) return;
+    if (!isViewActive() || activeController) return;
     const key = nextKey(action, payload);
     const body = { idempotencyKey: key, ...payload };
     const controller = new AbortController();
@@ -364,12 +426,14 @@ export function initializeBusinessView({
       const reauthToken = reauthenticate
         ? await requestFreshIdToken({ target, signal: controller.signal })
         : undefined;
+      if (!isViewActive() || controller.signal.aborted) return false;
       const result = await api(path, {
         method: 'POST',
         body,
         signal: controller.signal,
         ...(reauthToken === undefined ? {} : { reauthToken })
       });
+      if (!isViewActive() || controller.signal.aborted) return false;
       clearKey(action, payload);
       setStatus(responseLabel(result), 'success');
       if (refresh) await loadPendingDeletion();
@@ -711,12 +775,17 @@ export function initializeBusinessView({
       }
     });
     download.addEventListener('click', async () => {
+      if (!isViewActive()) return;
+      const controller = new AbortController();
+      activeDownloadControllers.add(controller);
       download.disabled = true;
       try {
         const result = await api(
           `/v1/business-delivery/exports/${encodeURIComponent(job.exportId)}/download`,
-          { responseType: 'text' }
+          { responseType: 'text', signal: controller.signal }
         );
+        if (!isViewActive() || controller.signal.aborted || !isCurrentSession())
+          return;
         const objectUrl = URL.createObjectURL(
           new Blob([result.content], { type: 'text/csv' })
         );
@@ -732,8 +801,10 @@ export function initializeBusinessView({
         updateExportCard(card, job);
         setStatus('CSV 已下載。', 'success');
       } catch (error) {
-        setStatus(reportError(error), 'error');
+        if (!controller.signal.aborted && isViewActive())
+          setStatus(reportError(error), 'error');
       } finally {
+        activeDownloadControllers.delete(controller);
         download.disabled = false;
       }
     });
@@ -755,6 +826,7 @@ export function initializeBusinessView({
 
   exportForm.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!isViewActive()) return;
     if (exportTo.value < exportFrom.value) {
       setStatus('結束日期不可早於起始日期。', 'error');
       exportTo.focus();
@@ -776,12 +848,14 @@ export function initializeBusinessView({
         target,
         signal: controller.signal
       });
+      if (!isViewActive() || controller.signal.aborted) return;
       const job = await api('/v1/business-delivery/exports', {
         method: 'POST',
         body: { idempotencyKey: key, ...payload },
         reauthToken,
         signal: controller.signal
       });
+      if (!isViewActive() || controller.signal.aborted) return;
       clearKey('export-create', payload);
       exportList.prepend(makeExportCard(job));
       setStatus('匯出工作已建立。', 'success');
@@ -1159,7 +1233,9 @@ export function initializeBusinessView({
   });
 
   const onAccessChange = (event) => {
-    if (event.detail?.authorized === true) return;
+    synchronizePendingWriteKeyScope(storage?.getItem('calPilotCsrf'));
+    if (event.detail?.authorized === true && isCurrentSession()) return;
+    clearBusinessWriteIdempotencyKeys();
     disposed = true;
     stopPending();
     root.remove();
@@ -1173,6 +1249,8 @@ export function initializeBusinessView({
     if (event.persisted) {
       activeController?.abort();
       activeController = undefined;
+      for (const controller of activeDownloadControllers) controller.abort();
+      activeDownloadControllers.clear();
       return;
     }
     stopPending();

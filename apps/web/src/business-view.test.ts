@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  clearBusinessWriteIdempotencyKey,
+  clearBusinessWriteIdempotencyKeys,
+  getBusinessWriteIdempotencyKey,
+  observeBusinessAccessChanges,
   requestBusinessApi,
   requestFreshIdToken
 } from '../public/modules/business-view.js';
@@ -14,6 +18,105 @@ function storage(csrf: string | null = 'csrf_test') {
 }
 
 afterEach(() => vi.useRealTimers());
+
+describe('business write idempotency keys', () => {
+  afterEach(() => clearBusinessWriteIdempotencyKeys());
+
+  it('reuses a pending key across mounts and clears it after success', () => {
+    const payload = { format: 'csv', from: '2026-09-01', to: '2026-09-30' };
+    const firstMount = getBusinessWriteIdempotencyKey(
+      'export-create',
+      payload,
+      'csrf_test'
+    );
+    const reenteredView = getBusinessWriteIdempotencyKey(
+      'export-create',
+      payload,
+      'csrf_test'
+    );
+
+    expect(reenteredView).toBe(firstMount);
+    expect(
+      getBusinessWriteIdempotencyKey(
+        'export-create',
+        { ...payload, to: '2026-10-01' },
+        'csrf_test'
+      )
+    ).not.toBe(firstMount);
+
+    clearBusinessWriteIdempotencyKey('export-create', payload, 'csrf_test');
+    expect(
+      getBusinessWriteIdempotencyKey('export-create', payload, 'csrf_test')
+    ).not.toBe(firstMount);
+  });
+
+  it('does not reuse a pending key after the CSRF session changes', () => {
+    const payload = { format: 'csv', from: '2026-09-01', to: '2026-09-30' };
+    const priorSession = getBusinessWriteIdempotencyKey(
+      'export-create',
+      payload,
+      'csrf_prior'
+    );
+    const newSession = getBusinessWriteIdempotencyKey(
+      'export-create',
+      payload,
+      'csrf_current'
+    );
+
+    expect(newSession).not.toBe(priorSession);
+    expect(
+      getBusinessWriteIdempotencyKey('export-create', payload, 'csrf_current')
+    ).toBe(newSession);
+  });
+
+  it('clears pending keys when an access-change event revokes authority', () => {
+    const target = new EventTarget();
+    observeBusinessAccessChanges(target, storage());
+    const payload = { format: 'csv', from: '2026-09-01', to: '2026-09-30' };
+    const priorKey = getBusinessWriteIdempotencyKey(
+      'export-create',
+      payload,
+      'csrf_test'
+    );
+
+    target.dispatchEvent(
+      new CustomEvent('beauessence:workbench-access-change', {
+        detail: { authorized: false }
+      })
+    );
+
+    expect(
+      getBusinessWriteIdempotencyKey('export-create', payload, 'csrf_test')
+    ).not.toBe(priorKey);
+  });
+
+  it('clears pending keys on an authorized event when CSRF changes', () => {
+    const target = new EventTarget();
+    let csrf = 'csrf_prior';
+    observeBusinessAccessChanges(target, {
+      getItem: vi.fn(() => csrf),
+      setItem: vi.fn(),
+      removeItem: vi.fn()
+    });
+    const payload = { format: 'csv', from: '2026-09-01', to: '2026-09-30' };
+    const priorSession = getBusinessWriteIdempotencyKey(
+      'export-create',
+      payload,
+      csrf
+    );
+    csrf = 'csrf_current';
+
+    target.dispatchEvent(
+      new CustomEvent('beauessence:workbench-access-change', {
+        detail: { authorized: true }
+      })
+    );
+
+    expect(
+      getBusinessWriteIdempotencyKey('export-create', payload, csrf)
+    ).not.toBe(priorSession);
+  });
+});
 
 describe('requestFreshIdToken', () => {
   it('dispatches synchronously and ignores another request ID', async () => {
