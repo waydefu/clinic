@@ -1,5 +1,5 @@
 locals {
-  apply_enabled = var.exact_apply_authority_sha != "not_granted"
+  apply_enabled                      = var.exact_apply_authority_sha != "not_granted"
   calendar_sync_prerequisites_active = var.calendar_sync_prerequisites_enabled || var.calendar_sync_enabled
   numeric_secret_version             = "^[0-9]+$"
   # Independent per-service pins. var.secret_resource_version is retired and

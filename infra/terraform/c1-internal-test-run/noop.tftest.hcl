@@ -207,8 +207,8 @@ run "business_delivery_maintenance_prerequisites_without_sha_are_noop" {
   command = plan
 
   variables {
-    exact_apply_authority_sha                         = "not_granted"
-    project_id                                        = "beauessence-clinic-stg-c1a01"
+    exact_apply_authority_sha                           = "not_granted"
+    project_id                                          = "beauessence-clinic-stg-c1a01"
     business_delivery_maintenance_prerequisites_enabled = true
     business_delivery_maintenance_emails_secret_version = "not_granted"
   }
@@ -237,8 +237,8 @@ run "business_delivery_maintenance_prerequisites_create_container_without_mount"
     project_id                                          = "beauessence-clinic-stg-c1a01"
     api_image                                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                               = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
-    business_delivery_enabled                          = false
+    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    business_delivery_enabled                           = false
     business_delivery_maintenance_emails_secret_version = "not_granted"
     business_delivery_maintenance_prerequisites_enabled = true
     api_secret_versions = {
@@ -276,6 +276,85 @@ run "business_delivery_maintenance_prerequisites_create_container_without_mount"
     ]) == "false"
     error_message = "The first preparation stage must leave Business Delivery report routes disabled."
   }
+}
+
+run "business_delivery_enable_mounts_only_the_api_with_the_numeric_pin" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha                           = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                                          = "beauessence-clinic-stg-c1a01"
+    api_image                                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    business_delivery_enabled                           = true
+    business_delivery_policy_version                    = "BD-POLICY-2026-09-29"
+    business_delivery_scope                             = "internal_synthetic"
+    business_delivery_observed_since                    = "2030-09-01T00:00:00Z"
+    business_delivery_maintenance_emails_secret_version = "7"
+    business_delivery_maintenance_prerequisites_enabled = true
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = { GOOGLE_CALENDAR_ID = "2" }
+  }
+
+  assert {
+    condition = {
+      for env in google_cloud_run_v2_service.api[0].template[0].containers[0].env : env.name => env.value
+      if contains(["BUSINESS_DELIVERY_ENABLED", "BUSINESS_DELIVERY_POLICY_VERSION", "BUSINESS_DELIVERY_SCOPE", "BUSINESS_DELIVERY_OBSERVED_SINCE"], env.name)
+      } == {
+      BUSINESS_DELIVERY_ENABLED        = "true"
+      BUSINESS_DELIVERY_POLICY_VERSION = "BD-POLICY-2026-09-29"
+      BUSINESS_DELIVERY_SCOPE          = "internal_synthetic"
+      BUSINESS_DELIVERY_OBSERVED_SINCE = "2030-09-01T00:00:00Z"
+    }
+    error_message = "The enable stage must wire all four approved Business Delivery inputs to the API."
+  }
+
+  assert {
+    condition = one([
+      for env in google_cloud_run_v2_service.api[0].template[0].containers[0].env : env.value_source[0].secret_key_ref[0].version
+      if env.name == "BUSINESS_DELIVERY_MAINTENANCE_EMAILS"
+    ]) == "7"
+    error_message = "The API maintenance secret must use the explicit numeric version, never latest."
+  }
+
+  assert {
+    condition = length([
+      for env in google_cloud_run_v2_service.worker[0].template[0].containers[0].env : env
+      if env.name == "BUSINESS_DELIVERY_MAINTENANCE_EMAILS"
+    ]) == 0
+    error_message = "The worker must never mount the Business Delivery maintenance allowlist."
+  }
+}
+
+run "business_delivery_enable_without_a_numeric_maintenance_pin_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha                           = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                                          = "beauessence-clinic-stg-c1a01"
+    api_image                                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    business_delivery_enabled                           = true
+    business_delivery_policy_version                    = "BD-POLICY-2026-09-29"
+    business_delivery_scope                             = "internal_synthetic"
+    business_delivery_observed_since                    = "2030-09-01T00:00:00Z"
+    business_delivery_maintenance_emails_secret_version = "not_granted"
+    business_delivery_maintenance_prerequisites_enabled = true
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = { GOOGLE_CALENDAR_ID = "2" }
+  }
+
+  expect_failures = [google_cloud_run_v2_service.api]
 }
 
 run "calendar_sync_is_opt_in_keyless_and_paused" {

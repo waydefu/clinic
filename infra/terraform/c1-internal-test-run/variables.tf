@@ -184,7 +184,7 @@ variable "business_delivery_scope" {
 
 variable "business_delivery_observed_since" {
   type        = string
-  description = "UTC ISO-8601 instant when ingress observation began. Required when enabling Business Delivery reports."
+  description = "UTC ISO-8601 instant when complete, classified ingress capture began. Do not backfill missing or invalid maintenance-allowlist periods as complete coverage. Required when enabling Business Delivery reports."
   default     = ""
   validation {
     condition = var.business_delivery_observed_since == "" ? true : (
