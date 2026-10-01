@@ -21,11 +21,31 @@ Business Delivery report routes also default off. Enabling them requires the
 exact isolated C1 project, policy `BD-POLICY-2026-09-29`, scope
 `internal_synthetic`, and a valid UTC ISO-8601
 `business_delivery_observed_since` instant recording when ingress observation
-began. `business_delivery_maintenance_emails_secret_version` is a numeric
-Secret Manager version for the comma-separated maintenance/developer email
-allowlist. Keep those identities out of `terraform.tfvars`, source control,
-outputs, and plans; the API receives them through the existing secret mount.
-Do not enable this gate in production or for real data.
+began. Prepare the maintenance/developer email allowlist in two separately
+authorized full Stage F plans. For the first plan, keep
+`business_delivery_enabled = false` and
+`business_delivery_maintenance_emails_secret_version = "not_granted"`, then
+set `business_delivery_maintenance_prerequisites_enabled = true`. The full
+plan creates the empty Secret Manager container and API-only accessor binding;
+the Cloud Run env remains unmounted. Do not use `-target`.
+
+After that stage is applied under fresh exact-SHA authority, add the
+comma-separated allowlist as a Secret Manager version using the approved
+private process. Keep those identities out of `terraform.tfvars` and other
+Terraform values; the API receives them through the existing secret mount.
+Never put the value in Terraform state, source control, shell history, logs,
+plans, or outputs. For the second full plan, set
+`business_delivery_maintenance_emails_secret_version` to that numeric version
+(never `latest`) and set the prerequisites flag back to `false`. If that
+separately authorized plan is intended to enable reports, set
+`business_delivery_enabled = true`, policy
+`BD-POLICY-2026-09-29`, scope `internal_synthetic`, and the actual UTC
+`business_delivery_observed_since` instant when ingress observation began.
+Otherwise keep the gate false and enable it only in a later authorized plan.
+The numeric pin keeps the container and IAM binding in the plan, and the API
+service explicitly depends on that binding before it mounts the version.
+Inspect and apply the complete plan under fresh authority. Do not enable this
+gate in production or for real data.
 
 `CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN` is the explicit non-secret input
 `firebase_auth_domain`. There is no fallback to

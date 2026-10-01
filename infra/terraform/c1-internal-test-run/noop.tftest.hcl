@@ -203,6 +203,81 @@ run "named_sha_with_digest_plans_isolated_run" {
   }
 }
 
+run "business_delivery_maintenance_prerequisites_without_sha_are_noop" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha                         = "not_granted"
+    project_id                                        = "beauessence-clinic-stg-c1a01"
+    business_delivery_maintenance_prerequisites_enabled = true
+    business_delivery_maintenance_emails_secret_version = "not_granted"
+  }
+
+  assert {
+    condition     = length(google_secret_manager_secret.runtime) == 0
+    error_message = "Business Delivery maintenance preparation must create no Secret Manager resources without exact-SHA authority."
+  }
+
+  assert {
+    condition     = length(google_secret_manager_secret_iam_member.api_business_delivery_maintenance) == 0
+    error_message = "Business Delivery maintenance preparation must create no API secret binding without exact-SHA authority."
+  }
+
+  assert {
+    condition     = length(google_cloud_run_v2_service.api) == 0
+    error_message = "Business Delivery maintenance preparation must create no Cloud Run API without exact-SHA authority."
+  }
+}
+
+run "business_delivery_maintenance_prerequisites_create_container_without_mount" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha                           = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                                          = "beauessence-clinic-stg-c1a01"
+    api_image                                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image                                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain                               = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    business_delivery_enabled                          = false
+    business_delivery_maintenance_emails_secret_version = "not_granted"
+    business_delivery_maintenance_prerequisites_enabled = true
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  assert {
+    condition     = contains(keys(google_secret_manager_secret.runtime), "c1-business-delivery-maintenance-emails")
+    error_message = "The explicitly enabled preparation stage must create the empty maintenance allowlist container."
+  }
+
+  assert {
+    condition     = length(google_secret_manager_secret_iam_member.api_business_delivery_maintenance) == 1
+    error_message = "The preparation stage must grant the API identity access to the maintenance allowlist secret."
+  }
+
+  assert {
+    condition = length([
+      for env in google_cloud_run_v2_service.api[0].template[0].containers[0].env : env
+      if env.name == "BUSINESS_DELIVERY_MAINTENANCE_EMAILS"
+    ]) == 0
+    error_message = "The maintenance allowlist env must remain unmounted while its version is not_granted."
+  }
+
+  assert {
+    condition = one([
+      for env in google_cloud_run_v2_service.api[0].template[0].containers[0].env : env.value
+      if env.name == "BUSINESS_DELIVERY_ENABLED"
+    ]) == "false"
+    error_message = "The first preparation stage must leave Business Delivery report routes disabled."
+  }
+}
+
 run "calendar_sync_is_opt_in_keyless_and_paused" {
   command = plan
 

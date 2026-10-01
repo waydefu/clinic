@@ -37,6 +37,7 @@ business_delivery_policy_version      = ""
 business_delivery_scope               = ""
 business_delivery_observed_since      = ""
 business_delivery_maintenance_emails_secret_version = "not_granted"
+business_delivery_maintenance_prerequisites_enabled = false
 worker_processing_enabled            = false
 worker_schedule_paused               = true
 api_secret_versions = {

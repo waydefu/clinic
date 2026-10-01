@@ -20,6 +20,9 @@ export const MILESTONE_ACKNOWLEDGEMENTS_DOC = 'acknowledgements';
 export type UsageEventKind = 'staff_login' | 'booking_created';
 export type UsageEventClass = 'runtime' | 'maintenance';
 
+const MAINTENANCE_EMAIL_ADDRESS =
+  /^[A-Z0-9!#$%&'*+/?=^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/?=^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
+
 export interface UsageEventRecordV1 {
   readonly schemaVersion: 1;
   readonly eventId: string;
@@ -36,6 +39,18 @@ function splitEmails(value: string | undefined): ReadonlySet<string> {
       .split(',')
       .map((item) => item.trim().toLowerCase())
       .filter((item) => item !== '')
+  );
+}
+
+/** Whether the configured comma-separated maintenance identities can be used safely. */
+export function hasValidMaintenanceEmailAllowlist(
+  value: string | undefined
+): boolean {
+  if (value === undefined || value.trim() === '') return false;
+  const emails = value.split(',').map((item) => item.trim());
+  return (
+    emails.length > 0 &&
+    emails.every((email) => MAINTENANCE_EMAIL_ADDRESS.test(email))
   );
 }
 

@@ -236,10 +236,13 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
       'variable "business_delivery_maintenance_emails_secret_version"'
     );
     expect(variables).toContain('latest is refused');
+    expect(variables).toMatch(
+      /variable "business_delivery_maintenance_prerequisites_enabled" \{[\s\S]*?type\s*=\s*bool[\s\S]*?default\s*=\s*false/
+    );
 
     expect(main).toContain('precondition {');
     expect(main).toContain(
-      'Enabling Business Delivery reports requires the exact C1 synthetic project'
+      'Business Delivery maintenance prerequisites and report routes are restricted to the exact C1 synthetic project'
     );
     expect(main).toContain('var.project_id == "beauessence-clinic-stg-c1a01"');
     for (const name of [
@@ -266,12 +269,40 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).not.toContain(
       'value = var.business_delivery_maintenance_emails'
     );
+    expect(main).toContain(
+      'business_delivery_maintenance_prerequisites_active = ('
+    );
+    expect(main).toContain(
+      'local.business_delivery_maintenance_prerequisites_active ? toset(["c1-business-delivery-maintenance-emails"])'
+    );
+    expect(main).toContain(
+      'for_each  = local.apply_enabled ? (local.business_delivery_maintenance_prerequisites_active ? toset(["enabled"])'
+    );
+    expect(main).toContain(
+      'for_each = local.apply_enabled && local.business_delivery_maintenance_pin_numeric ? toset(["enabled"])'
+    );
+    expect(main).toMatch(
+      /resource "google_cloud_run_v2_service" "api" \{[\s\S]*?depends_on = \[\s*google_project_service\.stage_f,\s*google_secret_manager_secret_iam_member\.api_business_delivery_maintenance\s*\]/
+    );
     expect(outputs).not.toContain('business_delivery');
 
     expect(example).toContain('business_delivery_enabled');
     expect(example).toContain(
       'business_delivery_maintenance_emails_secret_version = "not_granted"'
     );
+    expect(example).toContain(
+      'business_delivery_maintenance_prerequisites_enabled = false'
+    );
+    const tftest = read('infra/terraform/c1-internal-test-run/noop.tftest.hcl');
+    expect(tftest).toContain(
+      'business_delivery_maintenance_prerequisites_without_sha_are_noop'
+    );
+    expect(tftest).toContain(
+      'business_delivery_maintenance_prerequisites_create_container_without_mount'
+    );
+    expect(readme).toContain('For the first plan, keep');
+    expect(readme).toContain('Do not use `-target`.');
+    expect(readme).toContain('private process.');
     expect(readme).toContain('Keep those identities out of `terraform.tfvars`');
     expect(readme).toContain(
       'the API receives them through the existing secret mount.'

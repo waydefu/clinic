@@ -4,6 +4,7 @@ import {
   type ApprovedBusinessDeliveryPolicy,
   type BusinessReportScope
 } from '@beauessence/domain';
+import { hasValidMaintenanceEmailAllowlist } from './usage-events.js';
 
 /**
  * Runtime configuration for the CP-03 routes. Everything must be present and
@@ -15,6 +16,7 @@ import {
  * - `BUSINESS_DELIVERY_POLICY_VERSION` — an approved version, e.g. `BD-POLICY-2026-09-29`
  * - `BUSINESS_DELIVERY_SCOPE` — a scope that version is approved for
  * - `BUSINESS_DELIVERY_OBSERVED_SINCE` — UTC instant ingress was first deployed
+ * - `BUSINESS_DELIVERY_MAINTENANCE_EMAILS` — non-empty comma-separated email allowlist
  */
 export type BusinessDeliveryConfig =
   | { readonly enabled: false }
@@ -43,6 +45,13 @@ export function readBusinessDeliveryConfig(
     return { enabled: false };
   }
   if (!isBusinessDeliveryMilestoneTimestamp(observedSince)) {
+    return { enabled: false };
+  }
+  if (
+    !hasValidMaintenanceEmailAllowlist(
+      environment['BUSINESS_DELIVERY_MAINTENANCE_EMAILS']
+    )
+  ) {
     return { enabled: false };
   }
   return {

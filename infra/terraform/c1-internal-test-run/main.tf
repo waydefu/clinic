@@ -23,6 +23,10 @@ locals {
     local.numeric_secret_version,
     var.business_delivery_maintenance_emails_secret_version
   ))
+  business_delivery_maintenance_prerequisites_active = (
+    var.business_delivery_maintenance_prerequisites_enabled ||
+    local.business_delivery_maintenance_pin_numeric
+  )
   resolved_google_calendar_id_secret_version = var.worker_secret_versions.GOOGLE_CALENDAR_ID
   # Source SHA follows the image, not the approval: re-approving a later
   # commit must not rewrite the env of an image built earlier.
@@ -50,7 +54,7 @@ locals {
       "c1-calendar-service-account-json",
       "c1-synthetic-calendar-id"
     ]),
-    local.business_delivery_maintenance_pin_numeric ? toset(["c1-business-delivery-maintenance-emails"]) : toset([]),
+    local.business_delivery_maintenance_prerequisites_active ? toset(["c1-business-delivery-maintenance-emails"]) : toset([]),
     local.calendar_sync_prerequisites_active ? toset(["c1-calendar-pseudonym-key"]) : toset([])
   )
   api_secret_env = {
@@ -301,7 +305,7 @@ resource "google_secret_manager_secret_iam_member" "api" {
 }
 
 resource "google_secret_manager_secret_iam_member" "api_business_delivery_maintenance" {
-  for_each  = local.apply_enabled ? (local.business_delivery_maintenance_pin_numeric ? toset(["enabled"]) : toset([])) : toset([])
+  for_each  = local.apply_enabled ? (local.business_delivery_maintenance_prerequisites_active ? toset(["enabled"]) : toset([])) : toset([])
   project   = var.project_id
   secret_id = google_secret_manager_secret.runtime["c1-business-delivery-maintenance-emails"].secret_id
   role      = "roles/secretmanager.secretAccessor"
@@ -340,7 +344,10 @@ resource "google_cloud_run_v2_service" "api" {
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = true
   labels              = local.labels
-  depends_on          = [google_project_service.stage_f]
+  depends_on = [
+    google_project_service.stage_f,
+    google_secret_manager_secret_iam_member.api_business_delivery_maintenance
+  ]
 
   template {
     service_account                  = google_service_account.api[0].email
@@ -469,14 +476,16 @@ resource "google_cloud_run_v2_service" "api" {
     ignore_changes = [traffic]
 
     precondition {
-      condition = !var.business_delivery_enabled || (
-        var.project_id == "beauessence-clinic-stg-c1a01" &&
-        var.business_delivery_policy_version == "BD-POLICY-2026-09-29" &&
-        var.business_delivery_scope == "internal_synthetic" &&
-        var.business_delivery_observed_since != "" &&
-        local.business_delivery_maintenance_pin_numeric
+      condition = (
+        (!local.business_delivery_maintenance_prerequisites_active || var.project_id == "beauessence-clinic-stg-c1a01") &&
+        (!var.business_delivery_enabled || (
+          var.business_delivery_policy_version == "BD-POLICY-2026-09-29" &&
+          var.business_delivery_scope == "internal_synthetic" &&
+          var.business_delivery_observed_since != "" &&
+          local.business_delivery_maintenance_pin_numeric
+        ))
       )
-      error_message = "Enabling Business Delivery reports requires the exact C1 synthetic project, approved policy and scope, a valid UTC observed-since timestamp, and a numeric maintenance email Secret Manager version."
+      error_message = "Business Delivery maintenance prerequisites and report routes are restricted to the exact C1 synthetic project; enabling reports also requires the approved policy and scope, a valid UTC observed-since timestamp, and a numeric maintenance email Secret Manager version."
     }
   }
 }

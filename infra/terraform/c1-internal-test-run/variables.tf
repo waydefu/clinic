@@ -210,6 +210,12 @@ variable "business_delivery_maintenance_emails_secret_version" {
   }
 }
 
+variable "business_delivery_maintenance_prerequisites_enabled" {
+  type        = bool
+  description = "First-stage opt-in to create the maintenance-email Secret Manager container and API-only access binding. With the version not_granted, the API env remains unmounted."
+  default     = false
+}
+
 variable "calendar_sync_prerequisites_enabled" {
   type        = bool
   description = "First-stage opt-in: create only the dedicated identity, secret container, and access bindings, without the inbound service or Scheduler."
