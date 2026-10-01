@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFERRED_BUSINESS_ASSET_SOURCES,
   moduleGraphDepth,
-  planBudgetReport
+  planBudgetReport,
+  planDeferredBusinessAssetReport
 } from './check-performance-budget.mjs';
 
 // 傳輸大小在正式執行是 gzip；測試改用原始位元組長度，讓每個斷言都是可算的數字。
@@ -244,5 +246,270 @@ describe('budget report', () => {
     );
 
     expect(generous.violations ?? []).toEqual([]);
+  });
+});
+
+function deferredBusinessFixture() {
+  const manifest = Object.fromEntries(
+    DEFERRED_BUSINESS_ASSET_SOURCES.map((sourcePath) => {
+      const dot = sourcePath.lastIndexOf('.');
+      return [
+        sourcePath,
+        `built/${sourcePath.slice(0, dot)}.fixture${sourcePath.slice(dot)}`
+      ];
+    })
+  );
+  const client = manifest['calendar-pilot-client.js'];
+  const stylesheet = manifest['calendar-pilot.css'];
+  const reauth = manifest['modules/business-reauth.js'];
+  const businessView = manifest['modules/business-view.js'];
+  const files = new Map([
+    ['index.html', html({ modules: ['app.js'] })],
+    ['app.js', "import './shared.js';"],
+    ['shared.js', 'export const shared = 1;'],
+    [client, "import '../shared.js'; import './client-dependency.js';"],
+    ['built/client-dependency.js', 'export const client = 1;'],
+    [stylesheet, "body { background: url('./texture.svg'); }"],
+    ['built/texture.svg', '<svg></svg>'],
+    [
+      reauth,
+      "import('../calendar-pilot-client.fixture.js'); import('../../shared.js');"
+    ],
+    [businessView, "import '../../shared.js'; import './business-helper.js';"],
+    ['built/modules/business-helper.js', 'export const helper = 1;']
+  ]);
+  return {
+    files,
+    manifest,
+    config: {
+      budgetBytes: 68 * 1024,
+      justification: 'New conservative deferred business asset ceiling.'
+    },
+    businessView,
+    businessHelper: 'built/modules/business-helper.js'
+  };
+}
+
+describe('deferred business asset budget', () => {
+  it('accepts the inclusive 68 KiB limit and excludes initial/shared resources', () => {
+    const fixture = deferredBusinessFixture();
+    const initial = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      { ...rawSize, featurePresent: true }
+    );
+    const otherDeferredBytes =
+      initial.bytes -
+      Buffer.byteLength(fixture.files.get(fixture.businessHelper));
+    fixture.files.set(
+      fixture.businessHelper,
+      'x'.repeat(fixture.config.budgetBytes - otherDeferredBytes)
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.bytes).toBe(68 * 1024);
+    expect(report.violations).toEqual([]);
+    expect(report.resources).not.toContain('shared.js');
+    expect(report.resources).toContain('built/texture.svg');
+    expect(
+      report.resources.filter(
+        (path) => path === fixture.manifest['calendar-pilot-client.js']
+      )
+    ).toHaveLength(1);
+    expect(
+      report.resources.filter(
+        (path) => path === 'built/modules/business-helper.js'
+      )
+    ).toHaveLength(1);
+  });
+
+  it('rejects a deferred aggregate one byte above its configured ceiling', () => {
+    const fixture = deferredBusinessFixture();
+    const initial = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+    const otherDeferredBytes =
+      initial.bytes -
+      Buffer.byteLength(fixture.files.get(fixture.businessHelper));
+    fixture.files.set(
+      fixture.businessHelper,
+      'x'.repeat(fixture.config.budgetBytes + 1 - otherDeferredBytes)
+    );
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.bytes).toBe(68 * 1024 + 1);
+    expect(report.violations.join('\n')).toContain(
+      'exceeding the 69632-byte ceiling'
+    );
+  });
+
+  it('fails closed when the L3 feature exists but the build manifest is missing', () => {
+    const fixture = deferredBusinessFixture();
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      undefined,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'asset-manifest.json is missing'
+    );
+  });
+
+  it('fails closed when a required root has no exact manifest mapping', () => {
+    const fixture = deferredBusinessFixture();
+    delete fixture.manifest['modules/business-view.js'];
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'no safe exact mapping for modules/business-view.js'
+    );
+  });
+
+  it('fails closed when the deferred budget config is missing', () => {
+    const fixture = deferredBusinessFixture();
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      undefined
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'deferred-asset-budget.json is missing'
+    );
+  });
+
+  it('fails closed when the feature is in the manifest but its budget config is missing', () => {
+    const fixture = deferredBusinessFixture();
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      undefined,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'deferred-asset-budget.json is missing'
+    );
+  });
+
+  it('fails closed when a manifest-mapped root file is absent from dist', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.manifest['calendar-pilot.css'] = 'built/missing.fixture.css';
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'mapped asset calendar-pilot.css'
+    );
+  });
+
+  it('fails closed when a deferred dependency is missing from dist', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.businessView,
+      "import './missing-dependency.js';"
+    );
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'references a missing dist resource'
+    );
+  });
+
+  it('includes dynamic imports in the deferred resource closure', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.manifest['modules/business-reauth.js'],
+      "import('./missing-lazy-dependency.js'); import('../../shared.js');"
+    );
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'missing-lazy-dependency.js'
+    );
+  });
+
+  it('fails closed when the deferred budget config is incomplete or relaxes 68 KiB', () => {
+    const fixture = deferredBusinessFixture();
+    const incomplete = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      { budgetBytes: fixture.config.budgetBytes },
+      rawSize
+    );
+    const relaxed = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      {
+        ...fixture.config,
+        budgetBytes: fixture.config.budgetBytes + 1
+      },
+      rawSize
+    );
+
+    expect(incomplete.violations.join('\n')).toContain('justification');
+    expect(relaxed.violations.join('\n')).toContain('no greater than 69632');
+  });
+
+  it('has no deferred group on a branch without the business-view feature', () => {
+    const report = planDeferredBusinessAssetReport(
+      new Map([['index.html', html()]]),
+      undefined,
+      undefined,
+      { featurePresent: false, ...rawSize }
+    );
+
+    expect(report).toMatchObject({ active: false, bytes: 0, violations: [] });
+  });
+
+  it('activates the gate when the public HTML retains the business section', () => {
+    const files = new Map([
+      ['index.html', '<section id="business-section"></section>']
+    ]);
+    const report = planDeferredBusinessAssetReport(files, undefined, undefined);
+
+    expect(report.active).toBe(true);
+    expect(report.violations.join('\n')).toContain(
+      'asset-manifest.json is missing'
+    );
+    expect(report.violations.join('\n')).toContain(
+      'deferred-asset-budget.json is missing'
+    );
   });
 });

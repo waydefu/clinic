@@ -1,11 +1,11 @@
 import { gzipSync } from 'node:zlib';
-import { readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import { dirname, join, posix, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
 // 效能預算 gate：對 `apps/web/dist`（實際會部署的內容雜湊產物）計算每個 HTML
-// 進入點的「傳輸重量」，超過 `apps/web/performance-budget.json` 就讓建置失敗。
+// 進入點與延後商務分頁資源的「傳輸重量」，超過各自預算就讓建置失敗。
 //
 // 為什麼是靜態計算而不是在 CI 跑 Lighthouse：頁面重量的迴歸是**確定性**的
 // ——同樣的產物永遠得到同樣的位元組數，所以它適合當 gate。實驗室量到的時間
@@ -40,6 +40,19 @@ const RESOURCE_TYPE_BY_EXTENSION = new Map([
 ]);
 
 const KIB = 1024;
+const DEFERRED_BUSINESS_GZIP_BUDGET_BYTES = 68 * KIB;
+
+// Resolve these exact public-source roots through build-web's source → hashed
+// output manifest. The gate must not infer the current output hash from a name.
+export const DEFERRED_BUSINESS_ASSET_SOURCES = Object.freeze([
+  'calendar-pilot-client.js',
+  'calendar-pilot.css',
+  'modules/business-reauth.js',
+  'modules/business-view.js'
+]);
+const DEFERRED_BUSINESS_FEATURE_SOURCE = 'modules/business-view.js';
+const BUSINESS_SECTION_MARKER =
+  /<section\b(?=[^>]*\bid\s*=\s*(["'])business-section\1)[^>]*>/i;
 
 function extensionOf(path) {
   const dot = path.lastIndexOf('.');
@@ -50,8 +63,10 @@ function resourceTypeOf(path) {
   return RESOURCE_TYPE_BY_EXTENSION.get(extensionOf(path)) ?? 'other';
 }
 
-// 與 build-web.mjs 相同的前提：出貨的模組只有相對匯入、沒有裸名或動態 import。
+// Initial page traversal follows static module edges. Dynamic imports remain
+// outside the initial budget and are followed when measuring a deferred group.
 const IMPORT_SPECIFIER = /(\bfrom\s*|\bimport\s*)(['"])(\.[^'"]+\.js)\2/g;
+const DYNAMIC_IMPORT_SPECIFIER = /\bimport\s*\(\s*(['"])(\.[^'"]+\.js)\1\s*\)/g;
 // HTML 只用 root-absolute 參照子資源（build 會把它們改寫成雜湊檔名）。
 const HTML_REFERENCE = /\b(?:src|href)="(\/[^"#?]+)"/g;
 const CSS_REFERENCE = /url\(\s*['"]?(\/?[^'")]+)['"]?\s*\)/g;
@@ -100,7 +115,7 @@ const CSS_REFERENCE = /url\(\s*['"]?(\/?[^'")]+)['"]?\s*\)/g;
 const SCRIPT_ASSET_REFERENCE =
   /(['"])(\/[^'"\s]+\.(?:png|jpe?g|gif|webp|avif|svg|ico))\1/g;
 
-function referencesOf(path, content) {
+function referencesOf(path, content, { includeDynamicImports = false } = {}) {
   const source = String(content);
   const found = new Set();
   const extension = extensionOf(path);
@@ -123,6 +138,11 @@ function referencesOf(path, content) {
     for (const match of source.matchAll(IMPORT_SPECIFIER)) {
       found.add(posix.normalize(posix.join(posix.dirname(path), match[3])));
     }
+    if (includeDynamicImports) {
+      for (const match of source.matchAll(DYNAMIC_IMPORT_SPECIFIER)) {
+        found.add(posix.normalize(posix.join(posix.dirname(path), match[2])));
+      }
+    }
     for (const match of source.matchAll(SCRIPT_ASSET_REFERENCE)) {
       found.add(match[2].slice(1));
     }
@@ -139,6 +159,172 @@ function referencesOf(path, content) {
   }
 
   return [...found];
+}
+
+function resourceClosure(
+  rootPath,
+  files,
+  { includeDynamicImports = false } = {}
+) {
+  const reached = new Set([rootPath]);
+  const missing = [];
+  const queue = [rootPath];
+  while (queue.length > 0) {
+    const path = queue.shift();
+    for (const target of referencesOf(path, files.get(path), {
+      includeDynamicImports
+    })) {
+      if (reached.has(target)) continue;
+      if (!files.has(target)) {
+        missing.push(`${path} → /${target}`);
+        continue;
+      }
+      reached.add(target);
+      queue.push(target);
+    }
+  }
+  return { reached, missing };
+}
+
+function isPlainRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isSafeBuiltAssetPath(path) {
+  return (
+    typeof path === 'string' &&
+    path.length > 0 &&
+    !posix.isAbsolute(path) &&
+    posix.normalize(path) === path &&
+    !path
+      .split('/')
+      .some((part) => part === '' || part === '.' || part === '..')
+  );
+}
+
+/**
+ * Enforces the deferred employee business-tab transfer ceiling using exact
+ * build-manifest entries and the same transitive resource parser as page budgets.
+ * `featurePresent` lets the CLI fail closed when the source feature exists but
+ * its generated manifest is missing. Old branches with no business-view source
+ * legitimately have no deferred group.
+ */
+export function planDeferredBusinessAssetReport(
+  files,
+  assetManifest,
+  budgetConfig,
+  {
+    featurePresent = budgetConfig !== undefined ||
+      (isPlainRecord(assetManifest) &&
+        Object.hasOwn(assetManifest, DEFERRED_BUSINESS_FEATURE_SOURCE)) ||
+      BUSINESS_SECTION_MARKER.test(String(files.get('index.html') ?? '')),
+    transferSizeOf = (content) => Buffer.byteLength(content)
+  } = {}
+) {
+  if (!featurePresent)
+    return {
+      active: false,
+      resources: [],
+      bytes: 0,
+      budgetBytes: undefined,
+      violations: []
+    };
+
+  const violations = [];
+  if (!isPlainRecord(assetManifest)) {
+    violations.push(
+      'Deferred business budget: apps/web/asset-manifest.json is missing or invalid.'
+    );
+  }
+  if (!isPlainRecord(budgetConfig)) {
+    violations.push(
+      'Deferred business budget: apps/web/deferred-asset-budget.json is missing or invalid.'
+    );
+  }
+
+  let budgetBytes;
+  if (isPlainRecord(budgetConfig)) {
+    budgetBytes = budgetConfig.budgetBytes;
+    if (
+      !Number.isSafeInteger(budgetBytes) ||
+      budgetBytes <= 0 ||
+      budgetBytes > DEFERRED_BUSINESS_GZIP_BUDGET_BYTES
+    ) {
+      violations.push(
+        `Deferred business budget: budgetBytes must be a positive integer no greater than ${DEFERRED_BUSINESS_GZIP_BUDGET_BYTES}.`
+      );
+    }
+    if (
+      typeof budgetConfig.justification !== 'string' ||
+      budgetConfig.justification.trim() === ''
+    ) {
+      violations.push(
+        'Deferred business budget: justification must explain the configured ceiling.'
+      );
+    }
+  }
+
+  const deferredResources = new Set();
+  if (isPlainRecord(assetManifest)) {
+    for (const sourcePath of DEFERRED_BUSINESS_ASSET_SOURCES) {
+      const builtPath = assetManifest[sourcePath];
+      if (!isSafeBuiltAssetPath(builtPath)) {
+        violations.push(
+          `Deferred business budget: manifest has no safe exact mapping for ${sourcePath}.`
+        );
+        continue;
+      }
+      if (!files.has(builtPath)) {
+        violations.push(
+          `Deferred business budget: mapped asset ${sourcePath} → ${builtPath} is missing from apps/web/dist.`
+        );
+        continue;
+      }
+      const closure = resourceClosure(builtPath, files, {
+        includeDynamicImports: true
+      });
+      for (const resource of closure.reached) deferredResources.add(resource);
+      for (const reference of closure.missing) {
+        violations.push(
+          `Deferred business budget: deferred asset references a missing dist resource (${reference}).`
+        );
+      }
+    }
+  }
+
+  if (!files.has('index.html')) {
+    violations.push(
+      'Deferred business budget: initial /index.html asset closure is missing.'
+    );
+  }
+  const initialResources = files.has('index.html')
+    ? resourceClosure('index.html', files).reached
+    : new Set();
+  const resources = [...deferredResources]
+    .filter((path) => !initialResources.has(path))
+    .sort();
+  const bytes = resources.reduce(
+    (sum, path) => sum + transferSizeOf(files.get(path)),
+    0
+  );
+
+  if (
+    Number.isSafeInteger(budgetBytes) &&
+    budgetBytes > 0 &&
+    bytes > budgetBytes
+  ) {
+    violations.push(
+      `Deferred business transfer is ${bytes} gzip bytes across ${resources.length} resources, exceeding the ${budgetBytes}-byte ceiling.`
+    );
+  }
+
+  return {
+    active: true,
+    resources,
+    bytes,
+    budgetBytes,
+    violations
+  };
 }
 
 // 進入點掛載模組的方式，以及 build 注入的 preload 宣告。
@@ -227,21 +413,7 @@ export function planBudgetReport(
 
   const entries = entryPaths.map((entryPath) => {
     // 從 HTML 出發做傳遞閉包：HTML → css/js/圖，js → 相對匯入，css → url()。
-    const reached = new Set([entryPath]);
-    const missing = [];
-    const queue = [entryPath];
-    while (queue.length > 0) {
-      const path = queue.shift();
-      for (const target of referencesOf(path, files.get(path))) {
-        if (reached.has(target)) continue;
-        if (!files.has(target)) {
-          missing.push(`${path} → /${target}`);
-          continue;
-        }
-        reached.add(target);
-        queue.push(target);
-      }
-    }
+    const { reached, missing } = resourceClosure(entryPath, files);
 
     const sizes = new Map();
     const counts = new Map();
@@ -355,6 +527,25 @@ async function main() {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const distDir = join(repoRoot, 'apps', 'web', 'dist');
   const budgetPath = join(repoRoot, 'apps', 'web', 'performance-budget.json');
+  const deferredBudgetPath = join(
+    repoRoot,
+    'apps',
+    'web',
+    'deferred-asset-budget.json'
+  );
+  const assetManifestPath = join(
+    repoRoot,
+    'apps',
+    'web',
+    'asset-manifest.json'
+  );
+  const businessViewSourcePath = join(
+    repoRoot,
+    'apps',
+    'web',
+    'public',
+    DEFERRED_BUSINESS_FEATURE_SOURCE
+  );
 
   let files;
   try {
@@ -368,10 +559,56 @@ async function main() {
   }
 
   const budgets = JSON.parse(await readFile(budgetPath, 'utf8'));
-  const { entries, violations } = planBudgetReport(files, budgets, {
-    // 只有文字資產會被 Hosting 壓縮；圖片等二進位資產維持原始大小。
-    transferSizeOf: (content) => gzipSync(content).length
-  });
+  const { entries, violations: pageViolations } = planBudgetReport(
+    files,
+    budgets,
+    {
+      // 只有文字資產會被 Hosting 壓縮；圖片等二進位資產維持原始大小。
+      transferSizeOf: (content) => gzipSync(content).length
+    }
+  );
+
+  let assetManifest;
+  try {
+    assetManifest = JSON.parse(await readFile(assetManifestPath, 'utf8'));
+  } catch {
+    assetManifest = undefined;
+  }
+  let deferredBudget;
+  let deferredBudgetSourcePresent = false;
+  try {
+    await access(deferredBudgetPath);
+    deferredBudgetSourcePresent = true;
+  } catch {
+    // A source branch without config, manifest root, or business-view has no group.
+  }
+  try {
+    deferredBudget = JSON.parse(await readFile(deferredBudgetPath, 'utf8'));
+  } catch {
+    deferredBudget = undefined;
+  }
+  let businessViewSourcePresent = false;
+  try {
+    await access(businessViewSourcePath);
+    businessViewSourcePresent = true;
+  } catch {
+    // A source branch without the L3 business tab has no deferred group.
+  }
+  const deferredReport = planDeferredBusinessAssetReport(
+    files,
+    assetManifest,
+    deferredBudget,
+    {
+      featurePresent:
+        businessViewSourcePresent ||
+        deferredBudgetSourcePresent ||
+        (isPlainRecord(assetManifest) &&
+          Object.hasOwn(assetManifest, DEFERRED_BUSINESS_FEATURE_SOURCE)) ||
+        BUSINESS_SECTION_MARKER.test(String(files.get('index.html') ?? '')),
+      transferSizeOf: (content) => gzipSync(content).length
+    }
+  );
+  const violations = [...pageViolations, ...deferredReport.violations];
 
   const report = process.argv.includes('--report');
   if (report || violations.length > 0) {
@@ -392,6 +629,17 @@ async function main() {
       console.log(
         `  ${'total'.padEnd(11)} ${String(entry.counts.get('total')).padStart(3)} 個 ${formatKib(entry.sizes.get('total')).padStart(10)}`
       );
+    }
+    if (deferredReport.active) {
+      const budgetLabel =
+        deferredReport.budgetBytes === undefined
+          ? 'invalid/missing ceiling'
+          : `${deferredReport.budgetBytes} B ceiling`;
+      console.log(
+        `\nDeferred business: ${deferredReport.bytes} gzip B across ${deferredReport.resources.length} resources (${budgetLabel})`
+      );
+      for (const resource of deferredReport.resources)
+        console.log(`  ${resource}`);
     }
   }
 
