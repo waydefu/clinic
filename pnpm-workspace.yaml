@@ -83,6 +83,8 @@ allowBuilds:
 #                  原本鎖 ^5.0.8 已不足，改鎖 ^5.0.9。1.x／2.x 不在此次範圍內。
 overrides:
   find-my-way: '^9.6.1'
+  # GHSA-m9gg-hp2v-232j; firebase browser SDK > @firebase/firestore (~1.9.0).
+  '@grpc/grpc-js@~1.9.0': '1.14.5'
   # GHSA-qhr7-859c-m2p7 / GHSA-6j4f-fj2g-mc7p also affect dev paths:
   # eslint/firebase-tools > minimatch 1.x; firebase-tools > minimatch 5.x.
   brace-expansion@^1: '1.1.20'
