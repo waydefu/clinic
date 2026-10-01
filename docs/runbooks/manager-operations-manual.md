@@ -1,7 +1,7 @@
 # 管理者操作手冊（C1 合成測試版）
 
 **適用對象：** 診所負責人與獲授權管理者。
-**狀態：** source-guided 草稿；登入與預約路徑已有 source，C1 當前版本的逐項現場行為尚待部署後驗證。L3 UI 在 PR #216 candidate `bb916811…`，實作「商務與驗收」分頁、月用量／里程碑、CSV、保存與合作終止 UI；初版 75 tests，post-await/retry follow-up `0299` 涵蓋 64 fixtures，實際匯出標籤為「預約 CSV 匯出」。最終 exact CI/review、合併、部署及 C1 runtime／盲走均待完成，候選 UI 不是目前 release 的可用功能。L5 CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI787/run `36805449273` 12/12 jobs 成功，但尚未合併或部署。下文按候選 source 的實際標籤描述操作，使用前須對合併 release 完成 C1 runtime／盲走。
+**狀態：** source-guided 草稿；登入與預約路徑已有 source，C1 當前版本的逐項現場行為尚待部署後驗證。L3 UI 在 PR #216 head `91da1cce6147be76c010bd1935362c091e30b3d4`，實作「商務與驗收」分頁、月用量／里程碑、預約 CSV、保存與合作終止 UI；listener cleanup 通過 14 focused units 與 9 business E2Es，gate-fix `c1658660` 通過 32 focused tests 和 independent review，CI800/run `36853002771` 12/12 通過。PR READY、尚未合併或部署，仍須 designated Claude review → owner merge。L5 CP-07 API/domain source 在 PR #213 head `e517f387705d5b90fe0bef78ff4991548192314a`，CI799/run `36852875693` 12/12 通過；PR READY、未合併或部署。下文依候選 source 的實際標籤描述操作；使用前仍須對合併 release 完成 C1 runtime／盲走。
 **資料：** 目前只限 C1 synthetic test。請使用每次演練新建、完全虛構的姓名、電話、月日生日與預約；禁止真實病患、職員、行事曆、帳務或診療內容。不得用瀏覽器開發者工具、Postman 或自寫腳本繞過待完成的操作畫面。
 
 本手冊不取代部署核准、隱私／法律審閱或正式合約。若畫面、按鈕、狀態和手冊不一致，停止該步驟並記下時間、畫面名稱與合成測試代號；不要試另一條路徑。
@@ -15,7 +15,7 @@
 3. 登入後確認工作臺角色與權限正確。只有 manager 能查看核准的商務交付操作；`front_desk` 不能匯出或執行 CP-05 病患 lifecycle。遇到「帳號停用」、「需要重新登入」或 401／403，停止並請負責人檢查帳號，不換另一帳號代做。
 4. 離開共用電腦前，按「登出」，等待成功訊息，再重新載入確認仍在登入頁。登出錯誤時不要假設 session 已清除；停止使用該瀏覽器並回報。
 
-**L3 重新驗證限制：** 候選 UI 已有 fresh Google＋TOTP reauth bridge source，但尚未合併、CI 驗證或在 C1 真實 popup 走查。已知 C1 `Cross-Origin-Opener-Policy: same-origin` 會阻礙 popup；若 popup 被阻擋或沒有回到原操作，立刻停止。不要重複提交、複製 token、改 CSP／COOP、放寬 security header，或改走未授權的 redirect／Console 路徑。產品／資安 owner 與實作者須先完成 header precedence 與安全決策，再驗證真 popup；source bridge 存在不代表 reauth 已通過。
+**L3 重新驗證限制：** 候選 UI 已有 fresh Google＋TOTP reauth bridge source，PR #216 exact-head CI800/run `36853002771` passed 12/12；PR 尚未合併，且尚未在 C1 真實 popup 走查。已知 C1 `Cross-Origin-Opener-Policy: same-origin` 會阻礙 popup；若 popup 被阻擋或沒有回到原操作，立刻停止。不要重複提交、複製 token、改 CSP／COOP、放寬 security header，或改走未授權的 redirect／Console 路徑。產品／資安 owner 與實作者須先完成 header precedence 與安全決策，再驗證真 popup；source bridge 存在不代表 reauth 已通過。
 
 ## 2. 新增或管理預約
 
@@ -37,7 +37,7 @@
 
 ## 3. 查詢月用量與里程碑
 
-**候選畫面：** L3 source 在 `/staff` 增加「商務與驗收」分頁，其中有「月用量」區塊、月份欄位與「查看月報」按鈕，以及「里程碑與驗收」區塊。這些只在未合併候選 source 中；尚未完成 C1 runtime 與盲走驗證，不能當成現行 release 的可用功能。
+**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI 在 PR #216 head `91da1cce…`；gate-fix commit `c1658660` passed 32 focused tests and independent review, and CI800/run `36853002771` passed 12/12. PR READY, unmerged/undeployed; designated Claude review and owner merge remain pending. L5 CP-07 API/domain source is PR #213 head `e517f387…`; CI799/run `36852875693` passed 12/12. PR READY, unmerged/undeployed. These are candidate source UI controls, not accepted release behavior; C1 runtime and blind walk remain pending.
 
 1. 以 manager 登入 `/staff`，開啟「商務與驗收」分頁，選台北時間的月份。
 2. 查看員工成功登入與預約成功建立的彙總，以及觀測完整度和分類。C1 synthetic events 可用來驗證 runtime／maintenance 分類邏輯；這種測試不能單獨作正式財務用量證據，也不能概括為所有 synthetic 類事件一定排除在正式月報之外。只有正式政策確認、事件完整且員工登入 AND 預約建立都為零，才可判為 `unused`。缺漏或觀測時間不足顯示 `insufficient_evidence`，由負責人與維護方人工核對，不當零使用月。
@@ -46,7 +46,7 @@
 
 ## 4. 匯出 CSV
 
-**候選畫面：** L3 source 的「預約 CSV 匯出」區有起訖日期欄、欄位說明與「重新登入並建立匯出」按鈕；建立後顯示匯出卡片，提供「查詢狀態」、「下載 CSV」和「撤銷匯出」。候選 UI 尚未合併、CI 或 C1 runtime 驗證；CP08 成功前不要操作或改用 API client。
+**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI 在 PR #216 head `91da1cce…`；gate-fix commit `c1658660` passed 32 focused tests and independent review, and CI800/run `36853002771` passed 12/12. PR READY, unmerged/undeployed; designated Claude review and owner merge remain pending. L5 CP-07 API/domain source is PR #213 head `e517f387…`; CI799/run `36852875693` passed 12/12. PR READY, unmerged/undeployed. These are candidate source UI controls, not accepted release behavior; C1 runtime and blind walk remain pending.
 
 1. manager 登入 `/staff`，在「預約 CSV 匯出」選起訖台北日期並確認欄位說明。格式固定為 CSV；本期不提供 XLSX。
 2. 開始產檔前重新以 Google＋TOTP 驗證。重新驗證須屬同一登入者且在 10 分鐘內。逾時、視窗不回應或再次登入變成別人時，取消流程並回報；不要複製或儲存 token。
@@ -56,7 +56,7 @@
 
 ## 5. 封存、復原、法律保留與永久刪除
 
-**候選畫面：** L3 source 的「封存與保存管理」包含「待永久刪除清單」；清單只顯示不透明患者識別值、封存時間、可復原期限與 legal hold 狀態，不顯示患者姓名。候選表單有「重新登入並封存」、「復原封存患者」、「更新 legal hold」與「重新登入並永久刪除」；永久刪除另要求勾選「我確認永久刪除此患者資料」。候選 UI 尚未合併、CI 或 C1 runtime／盲走驗證，涉及病患資料及不可逆操作，沒有本次 synthetic fixture 的明確 owner approval 時不操作。
+**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI 在 PR #216 head `91da1cce…`；gate-fix commit `c1658660` passed 32 focused tests and independent review, and CI800/run `36853002771` passed 12/12. PR READY, unmerged/undeployed; designated Claude review and owner merge remain pending. L5 CP-07 API/domain source is PR #213 head `e517f387…`; CI799/run `36852875693` passed 12/12. PR READY, unmerged/undeployed. These are candidate source UI controls, not accepted release behavior; C1 runtime and blind walk remain pending.
 
 CP-05 API 只接受單筆患者識別值；沒有 preview 或 fingerprint endpoint，也沒有 hash-bound confirm contract。表單確認勾選不能替代核對單一患者、權限與操作範圍。沒有經驗收的正式 UI、exact synthetic record 與完整前後讀回時停止，不改用 API client。
 
@@ -70,7 +70,7 @@ CP-05 API 只接受單筆患者識別值；沒有 preview 或 fingerprint endpoi
 
 ## 6. 合作終止與資料返還收據
 
-**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI 在 PR #216 candidate `bb916811…`；75 初版 tests、follow-up `0299` post-await/retry fixes 和 64 fixtures，不代表最終 CI。Final exact CI/review、合併、部署及 C1 runtime／盲走待完成；L5 CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI 12/12 通過但未合併／部署。這些按鈕目前只是 source 候選。
+**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI 在 PR #216 head `91da1cce…`；gate-fix commit `c1658660` passed 32 focused tests and independent review, and CI800/run `36853002771` passed 12/12. PR READY, unmerged/undeployed; designated Claude review and owner merge remain pending. L5 CP-07 API/domain source is PR #213 head `e517f387…`; CI799/run `36852875693` passed 12/12. PR READY, unmerged/undeployed. These are candidate source UI controls, not accepted release behavior; C1 runtime and blind walk remain pending.
 
 1. 確認負責人已批准終止範圍，先建立 30 日通知。notice 起算後，在法定／約定到期日之前不可進入結案步驟；建立通知不等於立即終止服務。
 2. 通知期屆滿後，依已核准程序交付資料。負責人實際檢查已交付檔案後登記 data-return receipt；source 綁定先前建立且仍有效的匯出檔案 ID，系統記錄檔案 hash、時間及操作者。單純下載不等於收件確認。
