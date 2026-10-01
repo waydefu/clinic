@@ -78,6 +78,55 @@ describe('calendar sync contracts', () => {
     ).toBe(false);
   });
 
+  it('allows only the staff patient suggestion fields on an unmatched candidate', () => {
+    const suggested = {
+      candidateId: 'candidate_002',
+      kind: 'unmatched',
+      status: 'unmatched',
+      displayLabel: '未對應事件',
+      startsAt: '2026-09-02T06:00:00.000Z',
+      endsAt: '2026-09-02T06:30:00.000Z',
+      sourceVersion: 2,
+      expectedVersion: 0,
+      validationErrors: ['title_format_invalid'],
+      createdAt: '2026-08-28T08:00:00.000Z',
+      appointmentId: null,
+      before: null,
+      suggestedPatientId: 'patient_opaque_001',
+      suggestedPatientName: '合成患者甲',
+      suggestionMethod: 'phone_month_day'
+    };
+    expect(CalendarChangeCandidateSchema.parse(suggested)).toEqual(suggested);
+    for (const forbidden of [
+      { phoneDigits: '0900000001' },
+      { birthMonthDay: '--05-20' },
+      { lookupHash: 'rlk2_opaque_hash' }
+    ]) {
+      expect(
+        CalendarChangeCandidateSchema.safeParse({ ...suggested, ...forbidden })
+          .success
+      ).toBe(false);
+    }
+    expect(
+      CalendarChangeCandidateSchema.safeParse({
+        ...suggested,
+        suggestionMethod: 'name'
+      }).success
+    ).toBe(false);
+    expect(
+      CalendarChangeCandidateSchema.safeParse({
+        ...suggested,
+        kind: 'create_appointment'
+      }).success
+    ).toBe(false);
+    expect(
+      CalendarChangeCandidateSchema.safeParse({
+        ...suggested,
+        suggestionMethod: undefined
+      }).success
+    ).toBe(false);
+  });
+
   it('describes expiry and pending work without leaking connector state', () => {
     expect(
       CalendarSyncStatusSchema.parse({

@@ -126,6 +126,9 @@ export const CalendarChangeCandidateSchema = z
     validationErrors: z.array(CalendarValidationCodeSchema),
     createdAt: UtcIsoTimestampSchema,
     appointmentId: OpaqueIdentifierSchema.nullable().optional(),
+    suggestedPatientId: OpaqueIdentifierSchema.optional(),
+    suggestedPatientName: z.string().min(1).max(30).optional(),
+    suggestionMethod: z.literal('phone_month_day').optional(),
     changedFields: z
       .array(z.enum(['startsAt', 'endsAt', 'operationalStatus']))
       .max(8)
@@ -140,7 +143,22 @@ export const CalendarChangeCandidateSchema = z
       .strict()
       .nullable()
   })
-  .strict();
+  .strict()
+  .superRefine((candidate, context) => {
+    const hasPatientId = candidate.suggestedPatientId !== undefined;
+    const hasMethod = candidate.suggestionMethod !== undefined;
+    const hasName = candidate.suggestedPatientName !== undefined;
+    if (
+      hasPatientId !== hasMethod ||
+      (hasName && !hasPatientId) ||
+      (hasPatientId && candidate.kind !== 'unmatched')
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'Patient suggestions are only valid on unmatched candidates.',
+        path: ['suggestedPatientId']
+      });
+  });
 
 export const AvailabilityBlockSchema = z
   .object({

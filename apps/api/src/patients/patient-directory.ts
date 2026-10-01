@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import {
   DomainError,
   normalisePatientIdentity,
@@ -8,10 +7,13 @@ import {
   resolveReturnCandidate,
   type PatientCandidate
 } from '@beauessence/domain';
+import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
 import type { Firestore } from 'firebase-admin/firestore';
 
 import type { PatientIntake } from '@beauessence/contracts';
 import type { AppointmentRecord } from '../appointments/appointment.repository-port.js';
+
+export { opaqueLookupIdentity };
 
 export const PATIENT_COLLECTIONS = {
   patients: 'patients',
@@ -28,13 +30,6 @@ export const PATIENT_COLLECTIONS = {
 } as const;
 
 const RETURN_SESSION_MS = 15 * 60 * 1000;
-
-export function opaqueLookupIdentity(phone: string, birthDate: string): string {
-  return `rlk2_${createHash('sha256')
-    .update(`return-v2:${patientPhoneDigits(phone)}|${birthDate}`)
-    .digest('hex')
-    .slice(0, 32)}`;
-}
 
 function ambiguousIdentity(): DomainError {
   return new DomainError(

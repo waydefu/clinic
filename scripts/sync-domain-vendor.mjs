@@ -33,7 +33,11 @@ async function readDist() {
   }
   // 只搬瀏覽器實際會載入的 JS。宣告檔（.d.ts）與 source map 對執行沒有用，
   // 留在 vendor 只會變成必須跟著檢查的死重量。
-  const files = entries.filter((name) => name.endsWith('.js')).sort();
+  // Explicit `.node.js` entry points are server-only package subpaths. They
+  // must never enter the browser's vendored domain output.
+  const files = entries
+    .filter((name) => name.endsWith('.js') && !name.endsWith('.node.js'))
+    .sort();
   const contents = new Map();
   for (const name of files) {
     const raw = await readFile(join(distDir, name), 'utf8');

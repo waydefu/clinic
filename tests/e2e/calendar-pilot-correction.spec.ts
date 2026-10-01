@@ -135,4 +135,165 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     expect(correction).not.toHaveProperty('source');
     expect(correction).not.toHaveProperty('anesthesia');
   });
+
+  test('uses a patient suggestion in the existing booking flow and leaves candidate handling manual', async ({
+    page
+  }) => {
+    const startsAt = '2030-09-04T06:00:00.000Z';
+    let booking: Record<string, unknown> | undefined;
+    let handledCandidate: Record<string, unknown> | undefined;
+    let candidatePending = true;
+    await page.addInitScript(() => {
+      sessionStorage.setItem('calPilotRole', 'front_desk');
+    });
+    await page.route('**/v1/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === '/v1/calendar-session/client-config') {
+        await route.fulfill({
+          json: {
+            apiKey: 'test-api-key',
+            authDomain: 'example.invalid',
+            projectId: 'test-project',
+            appId: 'test-app-id'
+          }
+        });
+        return;
+      }
+      if (path === '/v1/calendar/status') {
+        await route.fulfill({
+          json: {
+            health: 'healthy',
+            activeSource: null,
+            lastSuccessfulSyncAt: null,
+            nextScheduledSyncAt: null,
+            pendingCandidateCount: candidatePending ? 1 : 0,
+            conflictCount: 0,
+            expiresAt: '2030-09-30T00:00:00.000Z'
+          }
+        });
+        return;
+      }
+      if (path === '/v1/calendar/sources') {
+        await route.fulfill({ json: [] });
+        return;
+      }
+      if (path === '/v1/calendar/candidates') {
+        await route.fulfill({
+          json: candidatePending
+            ? [
+                {
+                  candidateId: 'candidate_manual_001',
+                  kind: 'unmatched',
+                  status: 'unmatched',
+                  displayLabel: '未對應事件',
+                  startsAt,
+                  endsAt: '2030-09-04T06:30:00.000Z',
+                  sourceVersion: 1,
+                  expectedVersion: 0,
+                  validationErrors: ['title_format_invalid'],
+                  createdAt: '2030-09-01T00:00:00.000Z',
+                  appointmentId: null,
+                  before: null,
+                  suggestedPatientId: 'patient_opaque_001',
+                  suggestedPatientName: '合成患者甲',
+                  suggestionMethod: 'phone_month_day'
+                }
+              ]
+            : []
+        });
+        return;
+      }
+      if (path === '/v1/calendar/availability') {
+        await route.fulfill({
+          json: {
+            generatedAt: '2030-09-01T00:00:00.000Z',
+            sourceVersion: 1,
+            blocks: []
+          }
+        });
+        return;
+      }
+      if (path === '/v1/calendar/synthetic-appointments') {
+        await route.fulfill({ json: [] });
+        return;
+      }
+      if (path === '/v1/calendar/synthetic-patients') {
+        await route.fulfill({ json: [{ patientCode: 'A17' }] });
+        return;
+      }
+      if (path === '/v1/slots' && request.method() === 'GET') {
+        await route.fulfill({
+          json: {
+            slots: [
+              {
+                slotId: 'slot_manual_001',
+                kind: 'initial',
+                startsAt,
+                available: true
+              }
+            ]
+          }
+        });
+        return;
+      }
+      if (path === '/v1/bookings' && request.method() === 'GET') {
+        await route.fulfill({ json: { appointments: [] } });
+        return;
+      }
+      if (path === '/v1/bookings' && request.method() === 'POST') {
+        booking = request.postDataJSON() as Record<string, unknown>;
+        await route.fulfill({
+          status: 201,
+          json: {
+            appointmentId: 'appointment_manual_001',
+            status: 'confirmed',
+            startsAt,
+            endsAt: '2030-09-04T06:30:00.000Z'
+          }
+        });
+        return;
+      }
+      if (path === '/v1/calendar/candidates/candidate_manual_001/reject') {
+        handledCandidate = request.postDataJSON() as Record<string, unknown>;
+        candidatePending = false;
+        await route.fulfill({ json: { candidate: {}, projection: null } });
+        return;
+      }
+      await route.fulfill({ status: 404, json: {} });
+    });
+
+    await page.goto('/staff?calendarPilot=1&internalTestBooking=1');
+    await expect(page.getByText('建議對應：合成患者甲')).toBeVisible();
+    await page.getByRole('button', { name: '為此病患建立預約' }).click();
+    await expect(page.locator('#booking-suggestion')).toBeVisible();
+    await expect(page.locator('#booking-suggestion-label')).toContainText(
+      '合成患者甲'
+    );
+    await expect(page.locator('#booking-slot-hint')).toContainText('2030');
+    await expect(
+      page.locator('#booking-form .field-group').first()
+    ).toBeHidden();
+    await page.locator('#booking-items [data-booking-item]').first().check();
+    await page.locator('#booking-form button[type="submit"]').click();
+    await expect
+      .poll(() => booking)
+      .toMatchObject({
+        slotId: 'slot_manual_001',
+        onBehalfPatientId: 'patient_opaque_001'
+      });
+    expect(booking).not.toHaveProperty('patient');
+    expect(booking).not.toHaveProperty('phone');
+    expect(booking).not.toHaveProperty('birthDate');
+    expect(booking).not.toHaveProperty('lookupHash');
+    await expect(
+      page.getByRole('button', { name: '標記已處理' })
+    ).toBeVisible();
+    await page.getByRole('button', { name: '標記已處理' }).click();
+    await expect
+      .poll(() => handledCandidate)
+      .toMatchObject({
+        expectedVersion: 0
+      });
+  });
 });
