@@ -1,3 +1,6 @@
+import { taipeiTodayDate } from './taipei-time.js';
+import { formatDateTime } from './ui-format.js';
+
 const REAUTH_TIMEOUT_MS = 120_000;
 const RETENTION_REASONS = Object.freeze([
   ['patient_request', '患者要求'],
@@ -211,42 +214,9 @@ function reasonSelect(name) {
   return select;
 }
 
-function monthNow() {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en', {
-      timeZone: 'Asia/Taipei',
-      year: 'numeric',
-      month: '2-digit'
-    })
-      .formatToParts(new Date())
-      .map((part) => [part.type, part.value])
-  );
-  return `${parts.year}-${parts.month}`;
-}
-
-function taipeiTodayDate() {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en', {
-      timeZone: 'Asia/Taipei',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    })
-      .formatToParts(new Date())
-      .map((part) => [part.type, part.value])
-  );
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
 function dateLabel(value) {
   const parsed = Date.parse(value);
-  return Number.isNaN(parsed)
-    ? '日期無法判讀'
-    : new Intl.DateTimeFormat('zh-TW', {
-        timeZone: 'Asia/Taipei',
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      }).format(parsed);
+  return Number.isNaN(parsed) ? '日期無法判讀' : formatDateTime(parsed);
 }
 
 function monthStatus(data) {
@@ -426,7 +396,9 @@ export function initializeBusinessView({
   monthPanel.append(element('h3', '', '月用量'));
   const monthForm = document.createElement('form');
   monthForm.className = 'filter-bar';
-  const monthInput = input('month', 'month', { value: monthNow() });
+  const monthInput = input('month', 'month', {
+    value: taipeiTodayDate().slice(0, 7)
+  });
   const monthSubmit = button('查看月報', 'button button-primary', 'submit');
   monthForm.append(makeField('報表月份', monthInput), monthSubmit);
   const monthOutput = element('div', 'empty-state', '選擇月份以查看月用量。');
@@ -439,12 +411,12 @@ export function initializeBusinessView({
   milestonePanel.append(milestoneOutput, milestoneForms);
 
   const exportPanel = element('article', 'event-panel');
-  exportPanel.append(element('h3', '', '稽核 CSV 匯出'));
+  exportPanel.append(element('h3', '', '預約 CSV 匯出'));
   exportPanel.append(
     element(
       'p',
       'section-description',
-      '匯出欄位由伺服器固定；檔案有下載次數與保存期限限制。'
+      '僅匯出白名單預約欄位，不含稽核紀錄；檔案有下載次數與保存期限限制。'
     )
   );
   const exportForm = document.createElement('form');
