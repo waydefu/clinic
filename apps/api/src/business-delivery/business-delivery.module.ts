@@ -11,22 +11,26 @@ import {
 import { FirestoreBusinessDeliveryRepository } from '../firestore/business-delivery.repository.js';
 import { FirestoreBusinessExportRepository } from '../firestore/business-delivery-export.repository.js';
 import { FirestoreBusinessRetentionRepository } from '../firestore/business-delivery-retention.repository.js';
+import { FirestoreBusinessTerminationRepository } from '../firestore/business-delivery-termination.repository.js';
 import { BusinessExportApplicationService } from './business-export.application-service.js';
 import { BusinessExportController } from './business-export.controller.js';
 import { BusinessRetentionApplicationService } from './business-retention.application-service.js';
 import { BusinessRetentionController } from './business-retention.controller.js';
+import { BusinessTerminationApplicationService } from './business-termination.application-service.js';
+import { BusinessTerminationController } from './business-termination.controller.js';
 import { BusinessDeliveryApplicationService } from './business-delivery.application-service.js';
 import { readBusinessDeliveryConfig } from './business-delivery.config.js';
 import { BusinessDeliveryController } from './business-delivery.controller.js';
 import {
   BUSINESS_DELIVERY_APPLICATION,
   BUSINESS_EXPORT_APPLICATION,
-  BUSINESS_RETENTION_APPLICATION
+  BUSINESS_RETENTION_APPLICATION,
+  BUSINESS_TERMINATION_APPLICATION
 } from './business-delivery.tokens.js';
 import { FreshReauthenticationVerifier } from './reauthentication.js';
 
 /**
- * CP-03～05 business-delivery routes (ADR-0008～0010). Mounted in AppModule but inert
+ * CP-03～07 business-delivery routes (ADR-0008～0011). Mounted in AppModule but inert
  * unless `readBusinessDeliveryConfig` finds a complete, approved
  * configuration; every route then still needs the manager staff session.
  */
@@ -35,7 +39,8 @@ import { FreshReauthenticationVerifier } from './reauthentication.js';
   controllers: [
     BusinessDeliveryController,
     BusinessExportController,
-    BusinessRetentionController
+    BusinessRetentionController,
+    BusinessTerminationController
   ],
   providers: [
     CalendarPilotSessionGuard,
@@ -114,6 +119,29 @@ import { FreshReauthenticationVerifier } from './reauthentication.js';
         return new BusinessRetentionApplicationService(
           config,
           new FirestoreBusinessRetentionRepository(getFirestore(app)),
+          new FreshReauthenticationVerifier(getAuth(app)),
+          clock
+        );
+      }
+    },
+    {
+      provide: BUSINESS_TERMINATION_APPLICATION,
+      useFactory: () => {
+        const config = readBusinessDeliveryConfig(process.env);
+        const clock = () => new Date().toISOString();
+        const refuse = () => Promise.reject(new Error('disabled'));
+        if (!config.enabled || vitestWithoutFirestoreEmulator()) {
+          return new BusinessTerminationApplicationService(
+            { enabled: false },
+            { create: refuse, get: refuse, acknowledge: refuse, close: refuse },
+            { assertFresh: refuse },
+            clock
+          );
+        }
+        const app = defaultFirebaseApp();
+        return new BusinessTerminationApplicationService(
+          config,
+          new FirestoreBusinessTerminationRepository(getFirestore(app)),
           new FreshReauthenticationVerifier(getAuth(app)),
           clock
         );
