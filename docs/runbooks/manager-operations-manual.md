@@ -1,7 +1,7 @@
 # 管理者操作手冊（C1 合成測試版）
 
 **適用對象：** 診所負責人與獲授權管理者。
-**狀態：** source-guided 草稿；登入與預約路徑已有 source，C1 當前版本的逐項現場行為尚待部署後驗證。L3 候選 commit `b8ef86159fa062deed99ebccb1bdc1a48418f156` 已實作「商務與驗收」分頁及月用量／里程碑、CSV、保存與合作終止 UI source；75 個 scoped tests 通過，獨立 review 進行中，尚無 exact CI、合併、部署或 C1 runtime／盲走證據。候選 UI 不是目前可用功能。CP-07 API/domain source 另在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI787/run `36805449273` 的 12 jobs 成功，但該 source 尚未合併或部署。下文按候選 source 的實際標籤描述操作，所有動作仍待合併後的 C1 runtime／盲走驗證。
+**狀態：** source-guided 草稿；登入與預約路徑已有 source，C1 當前版本的逐項現場行為尚待部署後驗證。L3 候選 `48e35ffe…` 已實作「商務與驗收」分頁、月用量／里程碑、CSV、保存與合作終止 UI；timezone gate 已通過，實際匯出標籤為「預約 CSV 匯出」。獨立 review、exact CI、合併、部署及 C1 runtime／盲走均待完成，候選 UI 不是目前 release 的可用功能。CP-07 API/domain source 另在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI787/run `36805449273` 12/12 jobs 成功，但尚未合併或部署。下文按候選 source 的實際標籤描述操作，使用前須對合併 release 完成 C1 runtime／盲走。
 **資料：** 目前只限 C1 synthetic test。請使用每次演練新建、完全虛構的姓名、電話、月日生日與預約；禁止真實病患、職員、行事曆、帳務或診療內容。不得用瀏覽器開發者工具、Postman 或自寫腳本繞過待完成的操作畫面。
 
 本手冊不取代部署核准、隱私／法律審閱或正式合約。若畫面、按鈕、狀態和手冊不一致，停止該步驟並記下時間、畫面名稱與合成測試代號；不要試另一條路徑。
@@ -46,9 +46,9 @@
 
 ## 4. 匯出 CSV
 
-**候選畫面：** L3 source 的「稽核 CSV 匯出」區有起訖日期欄、欄位說明與「重新登入並建立匯出」按鈕；建立後顯示匯出卡片，提供「查詢狀態」、「下載 CSV」和「撤銷匯出」。候選 UI 尚未合併、CI 或 C1 runtime 驗證；CP08 成功前不要操作或改用 API client。
+**候選畫面：** L3 source 的「預約 CSV 匯出」區有起訖日期欄、欄位說明與「重新登入並建立匯出」按鈕；建立後顯示匯出卡片，提供「查詢狀態」、「下載 CSV」和「撤銷匯出」。候選 UI 尚未合併、CI 或 C1 runtime 驗證；CP08 成功前不要操作或改用 API client。
 
-1. manager 登入 `/staff`，在「稽核 CSV 匯出」選起訖台北日期並確認欄位說明。格式固定為 CSV；本期不提供 XLSX。
+1. manager 登入 `/staff`，在「預約 CSV 匯出」選起訖台北日期並確認欄位說明。格式固定為 CSV；本期不提供 XLSX。
 2. 開始產檔前重新以 Google＋TOTP 驗證。重新驗證須屬同一登入者且在 10 分鐘內。逾時、視窗不回應或再次登入變成別人時，取消流程並回報；不要複製或儲存 token。
 3. 產檔狀態為 ready 後，仍在登入後的 Workbench 下載。白名單欄位是姓名、電話、生日（月-日）、國籍、預約時間、初診／回診、服務、狀態、備註；病歷及稽核資料不得匯出。沒有的舊資料值留空，不推算、不從 hash 還原。
 4. 下載最多 3 次、24 小時失效；伺服器檔案最長 7 天後清除。若要提供診所工作檔，依核准流程由業主本人下載後放到其受控 Google Drive；本服務不寄 email、不產生公開分享網址、也不替使用者上傳 Drive。
@@ -70,7 +70,7 @@ CP-05 API 只接受單筆患者識別值；沒有 preview 或 fingerprint endpoi
 
 ## 6. 合作終止與資料返還收據
 
-**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI commit `b8ef86159fa062deed99ebccb1bdc1a48418f156` 有 75 個 scoped tests 通過，獨立 review 進行中，尚未 CI／合併／部署或完成 C1 runtime／盲走；CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI 12/12 通過但未合併／部署。這些按鈕目前只是 source 候選。
+**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI commit `48e35ffe…` 有 timezone gate passed；候選 UI 尚待 independent review/exact CI，獨立 review 進行中，尚未 CI／合併／部署或完成 C1 runtime／盲走；CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI 12/12 通過但未合併／部署。這些按鈕目前只是 source 候選。
 
 1. 確認負責人已批准終止範圍，先建立 30 日通知。notice 起算後，在法定／約定到期日之前不可進入結案步驟；建立通知不等於立即終止服務。
 2. 通知期屆滿後，依已核准程序交付資料。負責人實際檢查已交付檔案後登記 data-return receipt；source 綁定先前建立且仍有效的匯出檔案 ID，系統記錄檔案 hash、時間及操作者。單純下載不等於收件確認。
@@ -90,7 +90,7 @@ CP-05 API 只接受單筆患者識別值；沒有 preview 或 fingerprint endpoi
 | `manager-04-booking-server-readback.png` | 成功畫面與對應 server readback 的合成預約代號 | request headers／tokens、真 Calendar ID |
 | `manager-05-monthly-usage.png` | 候選「商務與驗收」分頁的「月用量」、月份欄與「查看月報」；完整／不足證據兩種狀態 | 真實登入事件／信箱、未核准金額或付款 claim |
 | `manager-06-milestone-receipt.png` | 候選「里程碑與驗收」待確認／receipt 狀態；只在 policy 差異解決後測試確認操作 | reauth token、真 owner signature 或未核准 milestone |
-| `manager-07-export-request-reauth.png` | 候選「稽核 CSV 匯出」日期範圍、欄位清單與 fresh reauth 提示 | Google email、TOTP、reauth token |
+| `manager-07-export-request-reauth.png` | 候選「預約 CSV 匯出」日期範圍、欄位清單與 fresh reauth 提示 | Google email、TOTP、reauth token |
 | `manager-08-export-download-check.png` | 候選匯出卡的「下載 CSV」與已授權下載之單筆合成檔案的可讀性檢查；不假設 Workbench 有 CSV preview | 真實個資、病歷、稽核資料、完整匯出檔複本 |
 | `manager-09-archive-form.png` | 候選「封存與保存管理」表單中的不透明 patient ID 欄與「重新登入並封存」；不是 scope preview/fingerprint | 真患者 ID／姓名／電話／生日 |
 | `manager-10-restore-result.png` | 30 日內成功復原後的安全狀態讀回 | 真實記錄、session cookie |

@@ -26,11 +26,14 @@
 
 ### 必須先關閉的 source blockers
 
-1. CP-07 source 存在於 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`；該 head 的 CI787 / run `36805449273` 12 個 jobs 全部成功。PR 可供 review、尚未合併或部署。baseline `0870a5fd16c720cafc085f29594bef7afb30a71b` 尚不含該 source，因此目前 release 不可視為已具 CP-07 行為。這份 exact CI 不替代最終 merged release CI 或 C1 runtime。
-2. CP-03～CP-05 API 已讀取 `BUSINESS_DELIVERY_ENABLED`、`BUSINESS_DELIVERY_POLICY_VERSION`、`BUSINESS_DELIVERY_SCOPE`、`BUSINESS_DELIVERY_OBSERVED_SINCE`；登入分類也讀取 `BUSINESS_DELIVERY_MAINTENANCE_EMAILS`。Terraform/source chain 為 `8ebbe840ad875e27d2c453036e0956f172de8b72` → `04b897d5f89d46aaf059f9de9b6457f603fd5329` → ingress-fix candidate `f14181ef4d09ebda03edb12ee492f8e8da6f415a`。04b 加入 explicit two-stage prerequisite opt-in，23 個 scoped tests/builds 通過；獨立 review 發現 allowlist 缺漏／無效時仍會產生 runtime usage event 並啟動 first-use。f141 修正候選已完成 21 scoped unit tests、API build、usage/emulator-type checks；獨立 review 進行中、exact CI 尚未執行，仍未合併／部署。不得宣稱任何 candidate 是最終修復或可部署。必須再檢閱 final merged diff、exact CI、private tfvars schema 與完整 plan，確認無 Console／gcloud env mutation 繞過 Terraform，並以修正後有效 allowlisted ingress 開始時間設定 `observed_since`；不得回填 invalid-allowlist/bootstrap 時段為完整 coverage。
-3. L3 candidate `b8ef86159fa062deed99ebccb1bdc1a48418f156` 已加入 Workbench「商務與驗收」分頁及月用量／里程碑、CSV、保存、終止 UI source；75 scoped tests 通過，獨立 review 進行中，尚無 exact CI、合併、部署、C1 runtime 或盲走證據。UI source 存在不等於可供診所操作；CP-08／CP-09 仍需 final release readback 與人員驗收。Global COOP `same-origin` 對 reauth popup 的阻礙仍是 L3 source/runtime 決策依賴，不得藉放寬安全標頭繞過。
-4. `OWNER-BATCH-2026-09-29B` 將 CP-06-E 真正還原安排在測試交付後微調期；它仍是 `CURRENT_PROJECT_ACCEPTANCE` 的必要證據。執行須另核准 exact SHA、restore 時窗、source／新 destination database、recovery Calendar、清理 ID 與預算；不得把本批 deploy authority 套用到還原。
+1. CP-07 source 存在於 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`；CI787 / run `36805449273` 的 12/12 jobs 成功。該 PR ready for review，但未合併、未部署；baseline `0870a5fd16c720cafc085f29594bef7afb30a71b` 不含此 source。最終 merged-release CI 和 C1 runtime 仍待驗。
+2. CP-03～CP-05 API source 已合併；L6 Terraform / API wiring candidate 在 PR #214。該 source 不是 TTL-only：除 C5 `export_chunk_ttl` 外，包含 Business Delivery API env、維護 Secret Manager container、API-only IAM 與兩階段 prerequisites opt-in。最新 source candidate 前綴 `f29ead5…` 含 allowlist ingress 與 monthly capture-gap fail-closed 修正。較早 teardown/emulator head `f6ee…` 的 CI789 12/12 jobs passed；目前 CI791 因 Terraform SHA formatter checker 與 historical Gitleaks full-ref false positive 失敗，窄修正及最終 exact-head CI pending。不得宣稱最終 source/CI 已通過。Terraform v1.16.4、Google provider 7.46.1 的 local fmt/validate 和 34 mock tests passed；未使用 backend state，這不等於 cloud plan。Terraform CLI blocker 已解除，但 fresh cloud plan/apply/readback 仍 `NOT_RUN`。
+3. `BUSINESS_DELIVERY_OBSERVED_SINCE` 必須是第一筆 **complete classified capture** 的實際 UTC instant。missing/invalid allowlist 與 bootstrap gaps 不構成完整 coverage；capture gap 要呈現 partial/null fee，並在既有 `bd_milestones` 記錄 marker，不帶 PII。不可回填合成事件或猜測 maintenance identity。最終 merged diff、exact CI、private tfvars schema 和完整 plan 尚待檢閱。
+4. L3 UI candidate `48e35ffe…` 已加入 Workbench「商務與驗收」分頁、用量／里程碑、封存與終止流程，以及實際標籤「預約 CSV 匯出」。timezone gate 已通過，初始 component budget 增 1、deferred asset 為 64,219 gzip bytes；獨立 review、exact CI、merge、C1 runtime、blind walk 仍 pending。合併 integration 初始 bundle 93.2 KiB 超過 93 KiB cap；等待 L2b 最終測量後只能作最小修正，最多使用已核准 5 KiB。整合 performance 未 PASS。全域 COOP `same-origin` 是 reauth popup 的已知阻礙；不得以放寬安全標頭繞過。
+5. L2b PR #215 candidate `0fece25…` 的 opaque-import architecture guard / canonical permission change，CI790 unit/fixture 與 suggestion E2E race 修正待辦；L5 PR #216 candidate `bb916811…` 的 CSV post-await guard / reauth-CSRF retry map，CI792 unit fixture、navigation/mobile 與 auth E2E 修正待辦。這些都不是 main baseline 的 source。最終 exact heads/CI 由 root 完成 readback 前保持 `PENDING_ROOT_FINAL_READBACK`。
+6. `OWNER-BATCH-2026-09-29B` 將 CP-06-E 真正還原安排在 test-delivery 後 tuning；它仍是 `CURRENT_PROJECT_ACCEPTANCE` 必要條件。執行須另核 exact SHA、restore window、source/new destination database、recovery Calendar、cleanup ID 與預算，不得套用本批 authority。
 
+基線中的 CP-03/04/05 source、L2a PR #210 與 L4 PR #212 不等於當前 C1 runtime/UI acceptance。PR #210/#212 為已合併來源，parent reports CI passed；#212 是 isolated recovery verifier，不是真正 Google restore。CP-05 #208 API 只收單一 patient ID，無 preview/fingerprint 或 hash-bound confirmation contract；此缺口保持明確，不能造不存在的 preview test。CP-03 synthetic C1 event 可驗證 runtime-vs-maintenance 分類，但不等於正式財務用量，也不能推定所有 synthetic 類別都排除於月報。
 ## 2. 功能設定與單一批次邊界
 
 以下是應用程式實際讀取的設定名稱。值只用本節及已接受的 C1 synthetic scope。maintenance identities/payload 絕不放入 Terraform variables、tfvars 或 Terraform state；owner 以私有檔提供 payload，Terraform 僅接收數字版本 pin。candidate wiring 尚未合併，按最終 landed diff 與新核准重新確認所有值。
@@ -40,7 +43,7 @@
 | `BUSINESS_DELIVERY_ENABLED` | 第一階段固定 `false`；第二階段只能在 owner 授權後 `true` | 第一階段先建必要安全前置，不啟用功能；空值／未知值必須 fail closed |
 | `BUSINESS_DELIVERY_POLICY_VERSION` | 階段一空字串；階段二 `BD-POLICY-2026-09-29`（依最終 source schema） | 未啟用時不提供政策；啟用僅此核准版本 |
 | `BUSINESS_DELIVERY_SCOPE` | 階段一空字串；階段二 `internal_synthetic` | 不可設成 production 或任意 scope |
-| `BUSINESS_DELIVERY_OBSERVED_SINCE` | 階段一空字串；階段二由 owner 填入修正後第一筆有效、allowlisted C1 ingress 的實際 UTC instant | 不得將 allowlist 缺漏／無效時段或 bootstrap events 回填成有效覆蓋；不得填本文件日期或 fixture 時間 |
+| `BUSINESS_DELIVERY_OBSERVED_SINCE` | 階段一空字串；階段二由 owner 填入修正後第一筆 complete classified capture 的實際 UTC instant | gaps 造成 partial/null fee 及 `bd_milestones` marker（無 PII）；不得回填 bootstrap/missing-invalid allowlist 時段或 fixture 時間 |
 | `BUSINESS_DELIVERY_MAINTENANCE_EMAILS` | runtime value 只可由 `c1-business-delivery-maintenance-emails` 的精確 numeric Secret Manager version 注入；payload 由 owner 私下建立並以 private file 上傳 | tfvars/state 只含版本 pin；maintenance identities 不得進 Terraform value、state、Git、plan output、screenshot 或 chat |
 | `INTERNAL_TEST_BOOKING_ENABLED` | `true`，僅在 owner 單獨核准的 gate 期間 | 需要單獨核准的 `INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC`；另記錄 Hosting expiry 與 apply 授權時窗 |
 | `INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC` | owner 單獨核准的實際 UTC gate expiry（private tfvars） | 不重用舊 expiry；不以 apply 時窗或 channel expiry 代替 |
@@ -48,18 +51,18 @@
 | `calendar_sync_enabled` / `calendar_sync_prerequisites_enabled` | `false` / `false` | inbound Calendar、Scheduler 不屬本批 |
 | API／worker Secret Manager version pins | 從 C1 現況與核准 source 私下 fresh-read，逐項輸入數字版本 | 不用 `latest`；不共用已退休 `secret_resource_version`；不得猜缺少值 |
 
-Terraform source diff 確認 `infra/terraform/c5-firestore/main.tf` 新增的資源是單一 Firestore TTL 欄位 `google_firestore_field.export_chunk_ttl`，collection `bd_export_chunks`、field `purgeAt`。只有在 C5 完整 plan 確認這是唯一新增變更、沒有 DB／backup schedule 替換或其他 drift 時，才可把該 plan 交業主審閱。TTL best-effort；API 仍必須在 `purgeAt` 後拒絕讀取。Terraform plan 是對實際 state 的 fresh read；以上 source diff 不代表實際 apply diff 必然只有一項。
+C5 Firestore module 的 TTL 欄位是 `google_firestore_field.export_chunk_ttl`，collection `bd_export_chunks`、field `purgeAt`。該模組的 plan 仍須確認無 DB／backup schedule 替換或其他 drift。TTL best-effort；API 仍必須在 `purgeAt` 後拒絕讀取。另有 PR #214 Business Delivery env/secret/IAM 變更；整個 C1 Terraform 批次不是 TTL-only。任何 apply plan 都須對實際 state fresh-read，逐資源核對。
 
 ### C1 Business Delivery env 與維護身份：兩階段 prerequisites，完整 plan，禁止 `-target`
 
-第一階段以 `business_delivery_maintenance_prerequisites_enabled=true` opt-in provision maintenance Secret Manager container 與 API-only IAM；runtime gate 保持 off，version pin 使用 `not_granted`，API 不 mount secret，worker 不獲 maintenance secret 權限。Stage 2 owner 私下提供 payload 並取得 numeric version 後，完整 plan 才可同時啟用 API runtime gate、固定版本 mount 與業務 env。此順序依 candidate `04b897d5f89d46aaf059f9de9b6457f603fd5329`，仍須對最終 merged source/CI 復核。
+第一階段以 `business_delivery_maintenance_prerequisites_enabled=true` opt-in provision maintenance Secret Manager container 與 API-only IAM；runtime gate 保持 off，version pin 使用 `not_granted`，API 不 mount secret，worker 不獲 maintenance secret 權限。Stage 2 owner 私下提供 payload 並取得 numeric version 後，完整 plan 才可同時啟用 API runtime gate、固定版本 mount 與業務 env。此順序依 PR #214 candidate source；exact full head/CI 最終修正待 root readback。Terraform CLI local fmt/validate/mock checks 已跑，不等於 cloud plan/readback。
 
 | Terraform input（候選已知名稱） | 階段一 prerequisites plan | 階段二 enable plan |
 | --- | --- | --- |
 | `business_delivery_enabled` | `false` | `true`，必須由本次新 exact-SHA 核准明確授權 |
 | `business_delivery_policy_version` | `""` | `"BD-POLICY-2026-09-29"` |
 | `business_delivery_scope` | `""` | `"internal_synthetic"` |
-| `business_delivery_observed_since` | `""` | Owner 填第一筆修正後有效 allowlisted ingress 的 UTC instant；bootstrap/missing-invalid allowlist events 不作 coverage 起點 |
+| `business_delivery_observed_since` | `""` | Owner 填第一筆修正後 complete classified capture 的 UTC instant；bootstrap/missing-invalid allowlist gaps 不是 coverage 起點 |
 | `business_delivery_maintenance_emails_secret_version` | `"not_granted"`；secret 不 mount | Owner 私下建立 payload 後填入實際 numeric version；不能使用 `latest` |
 | `business_delivery_maintenance_prerequisites_enabled` | `true`；明確建立 Secret Manager container 與 API-only IAM | `true`；保留 prerequisite，數字 pin 才令 API mount 生效 |
 
@@ -127,7 +130,7 @@ terraform -chdir=infra/terraform/c5-firestore apply -input=false \
 
 ### D. C1 Business Delivery prerequisites 與 enable：兩份完整 Terraform plan
 
-本批 C1 Terraform 不是 TTL-only mutation：除 C5 `export_chunk_ttl` 外，candidate source 還接線 Cloud Run Business Delivery env，並建立 maintenance-email Secret Manager container/API-only IAM。初始 commit `8ebbe840ad875e27d2c453036e0956f172de8b72` 的 first-enable ordering 有缺口；`04b897d5f89d46aaf059f9de9b6457f603fd5329` 補入 explicit opt-in `business_delivery_maintenance_prerequisites_enabled`，23 個 scoped tests/builds 通過，但 review 發現 allowlist ingress defect。follow-up source `f14181ef4d09ebda03edb12ee492f8e8da6f415a` 已完成 21 scoped unit tests、API build、usage/emulator-type checks，仍待獨立 review 與 exact CI，未合併。只有最終 source、review、CI 均核實後才可重新核准並執行；不得把 candidate 或本文件 commit 單獨視為 apply authority。
+本批 C1 Terraform 不是 TTL-only mutation：除 C5 `export_chunk_ttl` 外，PR #214 candidate 還接線 Cloud Run Business Delivery env，並建立 maintenance-email Secret Manager container/API-only IAM 及兩階段 prerequisites。較早 teardown/emulator head `f6ee…` 的 CI789 12/12 jobs passed；目前 PR #214 candidate prefix `f29ead5…` 含 allowlist 與 monthly capture-gap fail-closed 修正，但 CI791 因 Terraform SHA formatter checker 和 historical Gitleaks full-ref false positive 失敗，修正及最終 exact CI pending。Terraform v1.16.4／Google provider 7.46.1 local fmt/validate、34 mock tests passed，不含 backend state/cloud plan。只有最終 source、review、exact CI 和 fresh full plan/readback 均核實後才可重新核准並執行；本文件 commit 不能單獨作為 apply authority。
 
 於核准時窗開始前建立兩份不同的 private tfvars：`<PRIVATE_C1_STAGE1_TFVARS_PATH>` 與 `<PRIVATE_C1_STAGE2_TFVARS_PATH>`。第一份以 `business_delivery_maintenance_prerequisites_enabled=true` opt-in provision prerequisites，但 gate 明確 `false`、政策/scope/observedSince 為空、maintenance secret version 為 `not_granted`，API 不 mount secret；Stage 1 tfvars 不含任何 secret payload。owner 另以 private file 保管 payload，不放入 Terraform variables/state；只有取得 secret version 後，Stage 2 tfvars 才加入 numeric version pin，不能寫入 maintenance identities。初始化只做一次：
 
@@ -280,7 +283,7 @@ Stage 1/2 的部署 authority 不會自動等於 rollback authority；只有在�
 
 | Gate | 狀態 | 原因 |
 | --- | --- | --- |
-| Source commits | `BLOCKED` | CP-07 PR #213 source/CI 已證明但未合併；L6 source chain 的 latest ingress candidate `f14181e` 通過 21 scoped unit tests、API build、usage/emulator-type checks，獨立 review 與 exact CI/merge 待辦；最終 release source 尚未核實 |
+| Source commits | `BLOCKED` | PR #213 source CI787 12/12 passed but unmerged; PR #214 current candidate has CI791 formatting SHA checker and historical Gitleaks false-positive failures pending repair; PR #215 CI790 and PR #216 CI792 repairs pending. L3 independent review/exact CI pending; final release head: `PENDING_ROOT_FINAL_READBACK` |
 | Exact-CI | `NOT_RUN` | source-prerequisite 合併後才有最終 deploy SHA；本 packet 不重新執行 CI |
 | Exact-SHA authority | `NOT_AUTHORIZED` | OWNER-BATCH 只授權另行提出一份 exact-SHA packet；無 SHA/window/apply 核准 |
 | Terraform plan／apply | `NOT_RUN` | 無 credentials、fresh cloud state 或 owner-approved plan |
