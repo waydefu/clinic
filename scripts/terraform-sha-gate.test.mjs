@@ -156,6 +156,40 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
     expect(result.blockCount).toBe(original.blockCount);
   });
 
+  it('finds an actual C1 resource after quoted top-level braces', () => {
+    const relativeDirectory = 'infra/terraform/c1-foundation';
+    const main = read(`${relativeDirectory}/main.tf`);
+    const variables = read(`${relativeDirectory}/variables.tf`);
+    const tftest = read(`${relativeDirectory}/noop.tftest.hcl`);
+    const original = evaluateCSliceTerraformSource(
+      C_SLICE_TERRAFORM_MODULES[0],
+      { main, variables, tftest }
+    );
+    const mutatedMain = `${main}
+locals {
+  hidden_open = "{"
+}
+resource "google_project_service" "unguarded_after_string_brace" {
+  service = "logging.googleapis.com"
+}
+locals {
+  hidden_close = "}"
+}
+`;
+    const result = evaluateCSliceTerraformSource(C_SLICE_TERRAFORM_MODULES[0], {
+      main: mutatedMain,
+      variables,
+      tftest
+    });
+
+    expect(original.blockCount).toBe(16);
+    expect(result.ok).toBe(false);
+    expect(result.blockCount).toBe(17);
+    expect(result.issues).toContain(
+      'C1 resource google_project_service.unguarded_after_string_brace is not SHA-gated.'
+    );
+  });
+
   it('does not accept literals, heredocs, nested maps or duplicate locals as the gate', () => {
     const stringDecoy = exactApplyEnabled.replaceAll('"', '\\"');
     const mainSources = [
@@ -181,6 +215,12 @@ locals {
 }`,
       `locals {
   apply_enabled = ${exactApplyEnabled} || true
+}`,
+      `locals {
+  apply_enabled "=" ${exactApplyEnabled}
+}`,
+      `locals {
+  apply_enabled = var "." exact_apply_authority_sha "!=" "not_granted"
 }`
     ];
     for (const localsSource of mainSources) {
@@ -190,6 +230,13 @@ locals {
       );
       expect(result.issues).toContain('C1 must SHA-gate apply_enabled.');
     }
+
+    const quotedCountSymbols = findHclBlocks(`
+resource "google_project_service" "quoted_count_symbols" {
+  count = local "." apply_enabled "?" 1 ":" 0
+}
+`);
+    expect(blockIsApplyGated(quotedCountSymbols[0])).toBe(false);
   });
 
   it('prints validate/plan/test commands that never apply and fail closed without a SHA', () => {
@@ -257,6 +304,36 @@ resource "google_billing_budget" "c1" {
 `);
     expect(blocks).toHaveLength(1);
     expect(blockIsApplyGated(blocks[0])).toBe(true);
+  });
+
+  it('keeps quoted and heredoc delimiters out of block and expression nesting', () => {
+    for (const [index, [open, close]] of [
+      ['{', '}'],
+      ['[', ']'],
+      ['(', ')']
+    ].entries()) {
+      const blocks = findHclBlocks(`
+resource "google_project_service" "quoted_openers" {
+  delimiter_open = "${open}"
+  count = local.apply_enabled ? 1 : 0
+  delimiter_close = "${close}"
+  script = <<-EOT
+    }]) {[(
+    resource "google_project_service" "heredoc_decoy" {
+      count = local.apply_enabled ? 1 : 0
+    }
+  EOT
+}
+`);
+
+      expect(
+        blocks.map(({ name }) => name),
+        `delimiter pair ${index}`
+      ).toEqual(['quoted_openers']);
+      expect(blockIsApplyGated(blocks[0]), `delimiter pair ${index}`).toBe(
+        true
+      );
+    }
   });
 
   it('ignores comment and string resource/count decoys in the resource guard', () => {

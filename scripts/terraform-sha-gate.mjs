@@ -267,13 +267,17 @@ function nextNonNewline(tokens, start) {
   return index;
 }
 
+function isSymbol(token, value) {
+  return token?.kind === 'symbol' && token.value === value;
+}
+
 function findMatchingBrace(tokens, start) {
-  if (tokens[start]?.value !== '{')
+  if (!isSymbol(tokens[start], '{'))
     throw new Error('expected an HCL block opener');
   let depth = 0;
   for (let index = start; index < tokens.length; index += 1) {
-    if (tokens[index].value === '{') depth += 1;
-    else if (tokens[index].value === '}') {
+    if (isSymbol(tokens[index], '{')) depth += 1;
+    else if (isSymbol(tokens[index], '}')) {
       depth -= 1;
       if (depth === 0) return index;
       if (depth < 0) throw new Error('unbalanced HCL block braces');
@@ -299,7 +303,7 @@ function parseTopLevelHcl(source, tokens) {
     if (depth === 0 && token.kind === 'identifier') {
       if (token.value === 'locals') {
         const openIndex = nextNonNewline(tokens, index + 1);
-        if (tokens[openIndex]?.value !== '{')
+        if (!isSymbol(tokens[openIndex], '{'))
           throw new Error('could not parse top-level locals block');
         const closeIndex = findMatchingBrace(tokens, openIndex);
         localsBlocks.push(tokens.slice(openIndex + 1, closeIndex));
@@ -310,7 +314,7 @@ function parseTopLevelHcl(source, tokens) {
         const openIndex = nextNonNewline(tokens, nameIndex + 1);
         const type = parseStringLabel(tokens[typeIndex], 'resource type');
         const name = parseStringLabel(tokens[nameIndex], 'resource name');
-        if (tokens[openIndex]?.value !== '{')
+        if (!isSymbol(tokens[openIndex], '{'))
           throw new Error(`could not parse top-level ${token.value} block`);
         const closeIndex = findMatchingBrace(tokens, openIndex);
         resourceBlocks.push({
@@ -322,8 +326,8 @@ function parseTopLevelHcl(source, tokens) {
         });
       }
     }
-    if (token.value === '{') depth += 1;
-    else if (token.value === '}') {
+    if (isSymbol(token, '{')) depth += 1;
+    else if (isSymbol(token, '}')) {
       depth -= 1;
       if (depth < 0) throw new Error('unbalanced HCL block braces');
     }
@@ -341,7 +345,7 @@ function readAttributeExpression(tokens, start) {
     const token = tokens[index];
     if (token.kind === 'newline' && nesting.length === 0)
       return { expression, endIndex: index };
-    if (token.value === '}' && nesting.length === 0)
+    if (isSymbol(token, '}') && nesting.length === 0)
       return { expression, endIndex: index };
     if (
       token.kind === 'newline' &&
@@ -351,8 +355,9 @@ function readAttributeExpression(tokens, start) {
       expression.push(token);
       continue;
     }
-    if (matchingClose[token.value] !== undefined) nesting.push(token.value);
-    else if (closers.has(token.value)) {
+    if (token.kind === 'symbol' && matchingClose[token.value] !== undefined)
+      nesting.push(token.value);
+    else if (token.kind === 'symbol' && closers.has(token.value)) {
       const opener = nesting.pop();
       if (opener === undefined || matchingClose[opener] !== token.value)
         throw new Error('unbalanced HCL expression delimiters');
@@ -376,7 +381,7 @@ function directAttributeExpressions(bodyTokens, name) {
       token.value === name
     ) {
       const equalsIndex = nextNonNewline(bodyTokens, index + 1);
-      if (bodyTokens[equalsIndex]?.value === '=') {
+      if (isSymbol(bodyTokens[equalsIndex], '=')) {
         const { expression } = readAttributeExpression(
           bodyTokens,
           equalsIndex + 1
@@ -384,8 +389,9 @@ function directAttributeExpressions(bodyTokens, name) {
         expressions.push(expression);
       }
     }
-    if (matchingClose[token.value] !== undefined) nesting.push(token.value);
-    else if (closers.has(token.value)) {
+    if (token.kind === 'symbol' && matchingClose[token.value] !== undefined)
+      nesting.push(token.value);
+    else if (token.kind === 'symbol' && closers.has(token.value)) {
       const opener = nesting.pop();
       if (opener === undefined || matchingClose[opener] !== token.value)
         throw new Error('unbalanced HCL block expression delimiters');
@@ -405,10 +411,10 @@ function hasExactApplyEnabled(localsBlocks) {
     expression.length === 5 &&
     expression[0].kind === 'identifier' &&
     expression[0].value === 'var' &&
-    expression[1].value === '.' &&
+    isSymbol(expression[1], '.') &&
     expression[2].kind === 'identifier' &&
     expression[2].value === 'exact_apply_authority_sha' &&
-    expression[3].value === '!=' &&
+    isSymbol(expression[3], '!=') &&
     expression[4].kind === 'string' &&
     expression[4].raw === '"not_granted"'
   );
@@ -424,13 +430,13 @@ function isExactCountGate(expression) {
     tokens.length === 7 &&
     tokens[0].kind === 'identifier' &&
     tokens[0].value === 'local' &&
-    tokens[1].value === '.' &&
+    isSymbol(tokens[1], '.') &&
     tokens[2].kind === 'identifier' &&
     tokens[2].value === 'apply_enabled' &&
-    tokens[3].value === '?' &&
+    isSymbol(tokens[3], '?') &&
     tokens[4].kind === 'number' &&
     tokens[4].value === '1' &&
-    tokens[5].value === ':' &&
+    isSymbol(tokens[5], ':') &&
     tokens[6].kind === 'number' &&
     tokens[6].value === '0'
   );
@@ -442,10 +448,10 @@ function isEmptyCollectionForEachGate(expression) {
     tokens.length < 10 ||
     tokens[0].kind !== 'identifier' ||
     tokens[0].value !== 'local' ||
-    tokens[1].value !== '.' ||
+    !isSymbol(tokens[1], '.') ||
     tokens[2].kind !== 'identifier' ||
     tokens[2].value !== 'apply_enabled' ||
-    tokens[3].value !== '?'
+    !isSymbol(tokens[3], '?')
   )
     return false;
 
@@ -454,10 +460,21 @@ function isEmptyCollectionForEachGate(expression) {
   let separator = -1;
   for (let index = 4; index < tokens.length; index += 1) {
     const token = tokens[index];
-    if (['(', '[', '{'].includes(token.value)) nestingDepth += 1;
-    else if ([')', ']', '}'].includes(token.value)) nestingDepth -= 1;
-    else if (nestingDepth === 0 && token.value === '?') pendingTernaries += 1;
-    else if (nestingDepth === 0 && token.value === ':') {
+    if (token.kind === 'symbol' && ['(', '[', '{'].includes(token.value))
+      nestingDepth += 1;
+    else if (token.kind === 'symbol' && [')', ']', '}'].includes(token.value))
+      nestingDepth -= 1;
+    else if (
+      token.kind === 'symbol' &&
+      nestingDepth === 0 &&
+      token.value === '?'
+    )
+      pendingTernaries += 1;
+    else if (
+      token.kind === 'symbol' &&
+      nestingDepth === 0 &&
+      token.value === ':'
+    ) {
       pendingTernaries -= 1;
       if (pendingTernaries === 0) {
         separator = index;
@@ -470,18 +487,18 @@ function isEmptyCollectionForEachGate(expression) {
   const fallback = tokens.slice(separator + 1);
   if (
     fallback.length === 2 &&
-    fallback[0].value === '{' &&
-    fallback[1].value === '}'
+    isSymbol(fallback[0], '{') &&
+    isSymbol(fallback[1], '}')
   )
     return true;
   return (
     fallback.length === 5 &&
     fallback[0].kind === 'identifier' &&
     fallback[0].value === 'toset' &&
-    fallback[1].value === '(' &&
-    fallback[2].value === '[' &&
-    fallback[3].value === ']' &&
-    fallback[4].value === ')'
+    isSymbol(fallback[1], '(') &&
+    isSymbol(fallback[2], '[') &&
+    isSymbol(fallback[3], ']') &&
+    isSymbol(fallback[4], ')')
   );
 }
 
