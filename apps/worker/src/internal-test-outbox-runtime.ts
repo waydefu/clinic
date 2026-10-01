@@ -1,6 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 
 import { InMemoryCalendar, type CalendarPort } from './calendar-port.js';
+import { type CalendarTitleSource } from './calendar-title-source.js';
 import {
   OUTBOX_COLLECTION,
   OutboxProcessor,
@@ -46,6 +47,7 @@ export interface InternalTestOutboxRuntimeOptions {
   readonly metrics?: WorkerMetricsPort;
   readonly clock?: () => string;
   readonly random?: () => number;
+  readonly titleSource?: CalendarTitleSource;
 }
 
 /**
@@ -62,7 +64,10 @@ export function createInternalTestOutboxRuntime(
     options.db,
     calendar,
     metrics,
-    options.random ?? Math.random
+    options.random ?? Math.random,
+    undefined,
+    undefined,
+    options.titleSource
   );
   let emptyStreak = 0;
 
