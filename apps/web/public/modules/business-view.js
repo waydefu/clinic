@@ -1277,6 +1277,7 @@ export function initializeBusinessView({
     target.removeEventListener('hashchange', onHashChange);
     target.removeEventListener('pagehide', onPageHide);
     content.replaceChildren();
+    root.prepend(heading);
     content.hidden = true;
     availability.hidden = false;
     heading.classList.add('visually-hidden');

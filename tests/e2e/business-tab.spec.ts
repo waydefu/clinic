@@ -947,7 +947,13 @@ test.describe('商務與驗收工作區', () => {
 
     await page.getByLabel('合作個案識別碼').fill('termination_synthetic_001');
     await page.getByRole('button', { name: '載入合作個案' }).click();
-    await expect(page.locator('#business-section')).toContainText('操作者');
+    await expect(page.locator('#business-section')).toContainText(
+      '合作終止通知進行中'
+    );
+    await expect(page.locator('#business-section')).toContainText(
+      '尚無確認紀錄'
+    );
+    expect(record.receipts).toHaveLength(0);
     await page.getByRole('button', { name: '重新登入並送交結案審查' }).click();
     await expect(page.locator('#business-section')).toContainText(
       '409：仍缺少'
