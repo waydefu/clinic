@@ -10,6 +10,7 @@ import {
   completeGoogleSignIn,
   isCalendarPilotLogoutInProgress,
   isCalendarPilotSessionAuthenticationRequired,
+  registerCalendarPilotReauthenticationBridge,
   shouldHydrateCalendarPilotWorkbench,
   teardownCalendarPilotSessions,
   deleteCalendarPilotServerSession,
@@ -264,6 +265,95 @@ describe('completeGoogleSignIn', () => {
     });
     expect(getIdToken).not.toHaveBeenCalled();
     expect(createCalendarSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('registerCalendarPilotReauthenticationBridge', () => {
+  it('starts the token provider synchronously and returns a correlated token', async () => {
+    const target = new EventTarget();
+    const provider = vi.fn(() => Promise.resolve('synthetic-fresh-token'));
+    let result: unknown;
+    target.addEventListener('beauessence:reauth-result', (event) => {
+      result = (event as CustomEvent).detail;
+    });
+    const unregister = registerCalendarPilotReauthenticationBridge({
+      target,
+      getFreshIdToken: provider
+    });
+
+    target.dispatchEvent(
+      new CustomEvent('beauessence:reauth-request', {
+        detail: { requestId: 'request_synthetic_001' }
+      })
+    );
+    expect(provider).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    expect(result).toEqual({
+      requestId: 'request_synthetic_001',
+      idToken: 'synthetic-fresh-token'
+    });
+    unregister();
+  });
+
+  it('returns a generic error and never exposes provider error text', async () => {
+    const target = new EventTarget();
+    let result: unknown;
+    target.addEventListener('beauessence:reauth-result', (event) => {
+      result = (event as CustomEvent).detail;
+    });
+    const unregister = registerCalendarPilotReauthenticationBridge({
+      target,
+      getFreshIdToken: () =>
+        Promise.reject(new Error('private provider detail'))
+    });
+
+    target.dispatchEvent(
+      new CustomEvent('beauessence:reauth-request', {
+        detail: { requestId: 'request_synthetic_002' }
+      })
+    );
+    await Promise.resolve();
+    expect(result).toEqual({
+      requestId: 'request_synthetic_002',
+      error: '重新登入未完成'
+    });
+    expect(JSON.stringify(result)).not.toContain('private provider detail');
+    unregister();
+  });
+
+  it('discards the token if the correlated request was cancelled', async () => {
+    const target = new EventTarget();
+    let resolveToken: ((token: string) => void) | undefined;
+    const provider = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveToken = resolve;
+        })
+    );
+    const results: unknown[] = [];
+    target.addEventListener('beauessence:reauth-result', (event) => {
+      results.push((event as CustomEvent).detail);
+    });
+    const unregister = registerCalendarPilotReauthenticationBridge({
+      target,
+      getFreshIdToken: provider
+    });
+
+    target.dispatchEvent(
+      new CustomEvent('beauessence:reauth-request', {
+        detail: { requestId: 'request_synthetic_003' }
+      })
+    );
+    target.dispatchEvent(
+      new CustomEvent('beauessence:reauth-cancel', {
+        detail: { requestId: 'request_synthetic_003' }
+      })
+    );
+    resolveToken?.('late-synthetic-token');
+    await Promise.resolve();
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(results).toEqual([]);
+    unregister();
   });
 });
 

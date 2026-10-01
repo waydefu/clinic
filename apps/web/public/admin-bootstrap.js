@@ -67,6 +67,69 @@ const restrictedDom = [
   ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
 ];
 let client = apiClient;
+let disposeBusinessView = () => {};
+
+function isBusinessViewActivationCurrent() {
+  return (
+    window.location.hash === '#business-section' &&
+    isAdminSession() &&
+    elements['business-section']?.isConnected
+  );
+}
+
+async function activateBusinessView() {
+  if (!isBusinessViewActivationCurrent()) return;
+  const availability = elements['business-section'].querySelector(
+    '#business-availability'
+  );
+  availability.textContent = '正在載入商務與驗收…';
+  if (sessionStorage.getItem('calPilotCsrf')) {
+    let prepareBusinessReauthentication;
+    try {
+      ({ prepareBusinessReauthentication } =
+        await import('./modules/business-reauth.js'));
+    } catch {
+      if (isBusinessViewActivationCurrent())
+        availability.textContent =
+          'Google + TOTP 重新登入目前無法載入，請稍後再試。';
+      return;
+    }
+    if (!isBusinessViewActivationCurrent()) return;
+    try {
+      await prepareBusinessReauthentication();
+    } catch {
+      if (isBusinessViewActivationCurrent())
+        availability.textContent =
+          'Google + TOTP 重新登入目前無法載入，請稍後再試。';
+      return;
+    }
+  }
+  if (!isBusinessViewActivationCurrent()) return;
+  let initializeBusinessView;
+  try {
+    ({ initializeBusinessView } = await import('./modules/business-view.js'));
+  } catch {
+    availability.textContent = '商務與驗收目前無法載入，請稍後再試。';
+    return;
+  }
+  if (!isBusinessViewActivationCurrent()) return;
+  disposeBusinessView();
+  disposeBusinessView = initializeBusinessView({
+    root: elements['business-section'],
+    authorized: isAdminSession
+  });
+  if (!sessionStorage.getItem('calPilotCsrf'))
+    availability.textContent = '此功能只在 C1 伺服器模式可用';
+}
+
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#business-section') {
+    void activateBusinessView();
+    return;
+  }
+  disposeBusinessView();
+  disposeBusinessView = () => {};
+});
 
 function isAdminSession() {
   return (
@@ -466,6 +529,11 @@ function renderSession() {
       ? '可設定營業時間、改派個管、帳號與系統治理。'
       : '可處理預約、到診、登錄回診指示與首次個管指派。';
   applyWorkspacePanel();
+  window.dispatchEvent(
+    new CustomEvent('beauessence:workbench-access-change', {
+      detail: { authorized: isAdminSession() }
+    })
+  );
 }
 
 function renderFilters() {
@@ -2068,6 +2136,7 @@ try {
     }
   });
   render();
+  if (window.location.hash === '#business-section') void activateBusinessView();
   if (state.session.authenticated === true && !accessDenied)
     message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
   else elements['login-account'].focus();

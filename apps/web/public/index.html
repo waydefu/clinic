@@ -234,7 +234,10 @@
           >員工權限</a
         ><a href="#communications-section" data-workspace-nav data-admin-nav
           >患者端與系統</a
-        ><a href="#audit-section" data-workspace-nav data-admin-nav>稽核紀錄</a>
+        ><a href="#audit-section" data-workspace-nav data-admin-nav>稽核紀錄</a
+        ><a href="#business-section" data-workspace-nav data-admin-nav
+          >商務與驗收</a
+        >
       </nav>
       <main id="main-content" class="dashboard" tabindex="-1">
         <!-- 常駐頁面標題：hero 區（含可見 h1#workspace-title）在切換到各工作區
@@ -1171,6 +1174,20 @@
               <ol id="outbox-jobs" class="event-list"></ol>
             </article>
           </div>
+        </section>
+
+        <section
+          id="business-section"
+          class="workspace-section"
+          data-workspace-panel
+          aria-labelledby="business-heading"
+          data-admin-only
+        >
+          <h2 id="business-heading" class="visually-hidden">商務與驗收</h2>
+          <p id="business-availability" role="status" aria-live="polite">
+            此功能只在 C1 伺服器模式可用
+          </p>
+          <div id="business-content" hidden></div>
         </section>
       </main>
       <footer class="app-footer">

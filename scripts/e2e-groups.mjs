@@ -23,7 +23,8 @@ export const WORKFLOW = '.github/workflows/verify.yml';
 export const E2E_GROUPS = {
   'auth-rbac': [
     'delegated-deletion.spec.ts',
-    'role-maintenance-responsive.spec.ts'
+    'role-maintenance-responsive.spec.ts',
+    'business-tab.spec.ts'
   ],
   appointments: [
     'calendar-pilot-correction.spec.ts',
