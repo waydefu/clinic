@@ -68,10 +68,16 @@ export function staffLoginUsageEvent(input: {
   readonly email: string | undefined;
   readonly occurredAt: string;
   readonly environment: NodeJS.ProcessEnv;
-}): UsageEventRecordV1 {
-  const maintenance = splitEmails(
-    input.environment['BUSINESS_DELIVERY_MAINTENANCE_EMAILS']
-  );
+}): UsageEventRecordV1 | undefined {
+  const maintenanceAllowlist =
+    input.environment['BUSINESS_DELIVERY_MAINTENANCE_EMAILS'];
+  // Without a complete allowlist, staff cannot be safely classified as
+  // runtime or maintenance. Let session creation proceed without emitting an
+  // event or starting the first-use milestone.
+  if (!hasValidMaintenanceEmailAllowlist(maintenanceAllowlist))
+    return undefined;
+
+  const maintenance = splitEmails(maintenanceAllowlist);
   const email = (input.email ?? '').trim().toLowerCase();
   return {
     schemaVersion: 1,

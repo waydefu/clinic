@@ -158,9 +158,10 @@ export class CalendarPilotSessionService {
     private readonly environment: NodeJS.ProcessEnv = process.env,
     private readonly telemetry: CalendarPilotSessionGateTelemetry = NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY,
     /**
-     * CP-03 usage ingress (ADR-0008). When on, the session, its staff_login
-     * usage event and — for the first runtime login — the trial-start marker
-     * commit in one transaction; off keeps the single session create.
+     * CP-03 usage ingress (ADR-0008). When on and the maintenance allowlist is
+     * valid, the session, staff_login event and — for the first runtime login
+     * — the trial-start marker commit in one transaction. Off or an invalid
+     * allowlist keeps the single session create.
      */
     private readonly recordBusinessDeliveryUsage = false
   ) {}
@@ -268,25 +269,29 @@ export class CalendarPilotSessionService {
           occurredAt: now,
           environment: this.environment
         });
-        const firstUseRef = this.db
-          .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
-          .doc(FIRST_ELIGIBLE_USE_DOC);
-        await this.db.runTransaction(async (transaction) => {
-          const firstUse = await transaction.get(firstUseRef);
-          transaction.create(sessionRef, record);
-          transaction.create(
-            this.db
-              .collection(BUSINESS_DELIVERY_COLLECTIONS.usageEvents)
-              .doc(event.eventId),
-            event
-          );
-          if (!firstUse.exists && event.eventClass === 'runtime')
-            transaction.create(firstUseRef, {
-              schemaVersion: 1,
-              occurredAt: now,
-              eventId: event.eventId
-            });
-        });
+        if (event !== undefined) {
+          const firstUseRef = this.db
+            .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+            .doc(FIRST_ELIGIBLE_USE_DOC);
+          await this.db.runTransaction(async (transaction) => {
+            const firstUse = await transaction.get(firstUseRef);
+            transaction.create(sessionRef, record);
+            transaction.create(
+              this.db
+                .collection(BUSINESS_DELIVERY_COLLECTIONS.usageEvents)
+                .doc(event.eventId),
+              event
+            );
+            if (!firstUse.exists && event.eventClass === 'runtime')
+              transaction.create(firstUseRef, {
+                schemaVersion: 1,
+                occurredAt: now,
+                eventId: event.eventId
+              });
+          });
+        } else {
+          await sessionRef.create(record);
+        }
       } else {
         await sessionRef.create(record);
       }

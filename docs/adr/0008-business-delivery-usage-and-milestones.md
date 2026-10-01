@@ -26,9 +26,13 @@
 - 維護／開發帳號由 `BUSINESS_DELIVERY_MAINTENANCE_EMAILS` 在**登入當下**分類，
   之後改設定不會改寫歷史。
 - 事件寫入永遠開啟，不跟報表開關綁在一起，覆蓋率才不會因為開關而出現缺口。
+- 員工登入事件要求該 allowlist 已設定且完整有效；未就緒時仍建立登入 session，
+  但不推定帳號為 runtime、不寫 `staff_login` 或 `first_eligible_use`。allowlist
+  readiness 與報表路由開關各自獨立：有效 allowlist 下，即使報表路由關閉仍會原子寫入事件。
+  allowlist 未就緒期間的登入不在事件紀錄內，不能視為用量覆蓋完整。
 
-因為事件與業務動作同交易，資料缺漏只剩兩種：「觀測還沒開始」與「晚到事件還可能進來」。
-`assessMonthlyUsageCompleteness` 據此判定 `complete`／`partial`／`unknown`；
+登入 allowlist 尚未就緒時不會產生員工登入事件，該期間屬於「觀測還沒開始」；其餘資料
+缺漏只可能是晚到事件還可能進來。`assessMonthlyUsageCompleteness` 據此判定 `complete`／`partial`／`unknown`；
 非 `complete` 一律 `insufficient_evidence`，維護費顯示為 `null`（要人工確認），
 絕不當成零。
 
