@@ -48,6 +48,15 @@ if (BUSINESS_EXPORT_ROLE === undefined)
 
 const DEFERRED_CHUNKS_GZIP_CEILING_BYTES = 68 * 1024;
 
+type BusinessListenerSnapshot = Record<
+  'beauessence:workbench-access-change' | 'hashchange' | 'pagehide',
+  number
+>;
+
+type BusinessListenerTrackerWindow = Window & {
+  __businessListenerTracker?: { snapshot: () => BusinessListenerSnapshot };
+};
+
 async function enableServerSession(page, role = BUSINESS_EXPORT_ROLE) {
   await page.addInitScript((initialRole) => {
     sessionStorage.setItem('calPilotCsrf', 'csrf_synthetic_test');
@@ -73,6 +82,106 @@ async function enableServerSession(page, role = BUSINESS_EXPORT_ROLE) {
   await page.route('**/v1/calendar-session/client-config', (route) =>
     route.fulfill({ json: FIREBASE_CONFIG })
   );
+}
+
+async function trackBusinessViewListeners(page) {
+  await page.addInitScript(() => {
+    const eventTypes = [
+      'beauessence:workbench-access-change',
+      'hashchange',
+      'pagehide'
+    ] as const;
+    type TrackedEvent = (typeof eventTypes)[number];
+    type Snapshot = Record<TrackedEvent, number>;
+    const counts: Snapshot = {
+      'beauessence:workbench-access-change': 0,
+      hashchange: 0,
+      pagehide: 0
+    };
+    const registrations = new WeakMap<object, Set<string>>();
+    // Preserve the native methods for delegation from our instrumentation.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const originalAdd = EventTarget.prototype.addEventListener;
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const originalRemove = EventTarget.prototype.removeEventListener;
+    const captureOf = (options?: boolean | AddEventListenerOptions) =>
+      typeof options === 'boolean' ? options : options?.capture === true;
+    const registrationKey = (type: string, capture: boolean) =>
+      `${type}:${capture ? 'capture' : 'bubble'}`;
+    const record = (
+      listener: EventListenerOrEventListenerObject | null,
+      type: string,
+      capture: boolean,
+      add: boolean
+    ) => {
+      if (
+        listener === null ||
+        (typeof listener !== 'function' && typeof listener !== 'object') ||
+        !eventTypes.includes(type as TrackedEvent)
+      )
+        return;
+      let active = registrations.get(listener);
+      if (active === undefined) {
+        active = new Set();
+        registrations.set(listener, active);
+      }
+      const key = registrationKey(type, capture);
+      if (add && !active.has(key)) {
+        active.add(key);
+        counts[type as TrackedEvent] += 1;
+      } else if (!add && active.delete(key)) {
+        counts[type as TrackedEvent] -= 1;
+      }
+    };
+    EventTarget.prototype.addEventListener = function (
+      type,
+      listener,
+      options
+    ) {
+      if (this === window) record(listener, type, captureOf(options), true);
+      return originalAdd.call(this, type, listener, options);
+    };
+    EventTarget.prototype.removeEventListener = function (
+      type,
+      listener,
+      options
+    ) {
+      if (this === window) record(listener, type, captureOf(options), false);
+      return originalRemove.call(this, type, listener, options);
+    };
+    Object.defineProperty(window, '__businessListenerTracker', {
+      configurable: true,
+      value: { snapshot: () => ({ ...counts }) }
+    });
+  });
+}
+
+function businessListenerSnapshot(page) {
+  return page.evaluate(() =>
+    (
+      window as BusinessListenerTrackerWindow
+    ).__businessListenerTracker?.snapshot()
+  );
+}
+
+async function openBusinessViewWithListenerBaseline(page) {
+  await page.goto('/staff');
+  await expect(page.getByRole('link', { name: '商務與驗收' })).toBeVisible();
+  const baseline = await businessListenerSnapshot(page);
+  if (baseline === undefined)
+    throw new Error('Business view listener instrumentation is unavailable.');
+  await page.getByRole('link', { name: '商務與驗收' }).click();
+  await expect(page.locator('#business-section')).toContainText('月用量');
+  const mounted = await businessListenerSnapshot(page);
+  if (mounted === undefined)
+    throw new Error('Business view listener instrumentation is unavailable.');
+  expect(
+    mounted['beauessence:workbench-access-change'] -
+      baseline['beauessence:workbench-access-change']
+  ).toBe(2);
+  expect(mounted.hashchange - baseline.hashchange).toBe(1);
+  expect(mounted.pagehide - baseline.pagehide).toBe(1);
+  return { baseline, mounted };
 }
 
 function json(route: Route, body: unknown, status = 200) {
@@ -470,6 +579,7 @@ test.describe('商務與驗收工作區', () => {
       page
     }) => {
       await enableServerSession(page);
+      await trackBusinessViewListeners(page);
       const job = {
         exportId: 'export_synthetic_delayed_001',
         status: 'ready',
@@ -557,7 +667,7 @@ test.describe('商務與驗收工作區', () => {
         };
       });
 
-      await page.goto('/staff#business-section');
+      const { baseline } = await openBusinessViewWithListenerBaseline(page);
       await page.getByLabel('起始日期（台北）').fill('2026-09-01');
       await page.getByLabel('結束日期（台北）').fill('2026-09-30');
       await page.getByRole('button', { name: '重新登入並建立匯出' }).click();
@@ -590,6 +700,17 @@ test.describe('商務與驗收工作區', () => {
         };
         state.__businessCsvTest?.resolveResponse?.();
       }, accessChange);
+      await expect(page.locator('#business-section')).toHaveCount(0);
+      await expect(page.getByRole('link', { name: '商務與驗收' })).toHaveCount(
+        0
+      );
+      const disposed = await businessListenerSnapshot(page);
+      expect(disposed).toEqual({
+        'beauessence:workbench-access-change':
+          baseline['beauessence:workbench-access-change'] + 1,
+        hashchange: baseline.hashchange,
+        pagehide: baseline.pagehide
+      });
       await clickDownload;
 
       await expect

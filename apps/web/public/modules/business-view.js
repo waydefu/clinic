@@ -1236,8 +1236,7 @@ export function initializeBusinessView({
     synchronizePendingWriteKeyScope(storage?.getItem('calPilotCsrf'));
     if (event.detail?.authorized === true && isCurrentSession()) return;
     clearBusinessWriteIdempotencyKeys();
-    disposed = true;
-    stopPending();
+    disposeView();
     root.remove();
     navLink?.remove();
     target.history.replaceState(null, '', '#overview');
@@ -1255,6 +1254,27 @@ export function initializeBusinessView({
     }
     stopPending();
   };
+  let viewListenersRemoved = false;
+  const removeViewListeners = () => {
+    if (viewListenersRemoved) return;
+    viewListenersRemoved = true;
+    target.removeEventListener(
+      'beauessence:workbench-access-change',
+      onAccessChange
+    );
+    target.removeEventListener('hashchange', onHashChange);
+    target.removeEventListener('pagehide', onPageHide);
+  };
+  const disposeView = () => {
+    if (disposed) {
+      removeViewListeners();
+      return false;
+    }
+    disposed = true;
+    stopPending();
+    removeViewListeners();
+    return true;
+  };
   target.addEventListener(
     'beauessence:workbench-access-change',
     onAccessChange
@@ -1268,14 +1288,7 @@ export function initializeBusinessView({
 
   void Promise.all([loadMonth(), loadMilestones(), loadPendingDeletion()]);
   return () => {
-    disposed = true;
-    stopPending();
-    target.removeEventListener(
-      'beauessence:workbench-access-change',
-      onAccessChange
-    );
-    target.removeEventListener('hashchange', onHashChange);
-    target.removeEventListener('pagehide', onPageHide);
+    if (!disposeView()) return;
     content.replaceChildren();
     root.prepend(heading);
     content.hidden = true;
