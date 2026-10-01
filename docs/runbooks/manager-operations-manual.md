@@ -1,7 +1,7 @@
 # 管理者操作手冊（C1 合成測試版）
 
 **適用對象：** 診所負責人與獲授權管理者。
-**狀態：** source-guided 草稿；登入與預約路徑在程式已有實作，C1 當前版本的逐項現場行為尚待部署後驗證。商務用量、CSV、保存與合作終止功能目前沒有完整 Workbench 畫面；下文將未完成的按鈕／畫面明確標為「待程式與 runtime 驗證」，不可把 API 已存在當成可以直接使用。
+**狀態：** source-guided 草稿；登入與預約路徑已有 source，C1 當前版本的逐項現場行為尚待部署後驗證。L3 候選 commit `b8ef86159fa062deed99ebccb1bdc1a48418f156` 已實作「商務與驗收」分頁及月用量／里程碑、CSV、保存與合作終止 UI source；75 個 scoped tests 通過，獨立 review 進行中，尚無 exact CI、合併、部署或 C1 runtime／盲走證據。候選 UI 不是目前可用功能。CP-07 API/domain source 另在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI787/run `36805449273` 的 12 jobs 成功，但該 source 尚未合併或部署。下文按候選 source 的實際標籤描述操作，所有動作仍待合併後的 C1 runtime／盲走驗證。
 **資料：** 目前只限 C1 synthetic test。請使用每次演練新建、完全虛構的姓名、電話、月日生日與預約；禁止真實病患、職員、行事曆、帳務或診療內容。不得用瀏覽器開發者工具、Postman 或自寫腳本繞過待完成的操作畫面。
 
 本手冊不取代部署核准、隱私／法律審閱或正式合約。若畫面、按鈕、狀態和手冊不一致，停止該步驟並記下時間、畫面名稱與合成測試代號；不要試另一條路徑。
@@ -15,7 +15,7 @@
 3. 登入後確認工作臺角色與權限正確。只有 manager 能查看核准的商務交付操作；`front_desk` 不能匯出或執行 CP-05 病患 lifecycle。遇到「帳號停用」、「需要重新登入」或 401／403，停止並請負責人檢查帳號，不換另一帳號代做。
 4. 離開共用電腦前，按「登出」，等待成功訊息，再重新載入確認仍在登入頁。登出錯誤時不要假設 session 已清除；停止使用該瀏覽器並回報。
 
-**L3 重新驗證限制：** 敏感操作的 reauth UI 仍待完成與實機走查。現在 C1 response policy 含 `Cross-Origin-Opener-Policy: same-origin`；若新 Google＋TOTP popup 被阻擋或沒有回到操作畫面，立刻停止。不要重複提交、複製 token、改 CSP／COOP、改成較寬的安全標頭，或改走未授權的 redirect／Console 路徑。由產品／資安 owner 與實作者先作明確 source/runtime 決定，再安排 L3 修補與回歸。
+**L3 重新驗證限制：** 候選 UI 已有 fresh Google＋TOTP reauth bridge source，但尚未合併、CI 驗證或在 C1 真實 popup 走查。已知 C1 `Cross-Origin-Opener-Policy: same-origin` 會阻礙 popup；若 popup 被阻擋或沒有回到原操作，立刻停止。不要重複提交、複製 token、改 CSP／COOP、放寬 security header，或改走未授權的 redirect／Console 路徑。產品／資安 owner 與實作者須先完成 header precedence 與安全決策，再驗證真 popup；source bridge 存在不代表 reauth 已通過。
 
 ## 2. 新增或管理預約
 
@@ -37,56 +37,46 @@
 
 ## 3. 查詢月用量與里程碑
 
-**Workbench 商務頁面：待 CP-03 UI source／runtime 驗證。** 目前 API source 有下列管理者路由，但 C1 Cloud Run Terraform baseline 尚未傳入完整 `BUSINESS_DELIVERY_*` 設定，功能應 fail closed；請勿直接用網址列、瀏覽器 console 或 API client 手動呼叫。
-
-預計畫面完成後：
+**候選畫面：** L3 source 在 `/staff` 增加「商務與驗收」分頁，其中有「月用量」區塊、月份欄位與「查看月報」按鈕，以及「里程碑與驗收」區塊。這些只在未合併候選 source 中；尚未完成 C1 runtime 與盲走驗證，不能當成現行 release 的可用功能。
 
 1. 以 manager 登入 `/staff`，開啟「商務與驗收」分頁，選台北時間的月份。
-2. 查看員工成功登入與預約成功建立的彙總，以及 coverage／分類。合成、測試、開發、維護事件不算正式使用；只有事件資料覆蓋完整且員工登入 AND 預約建立都為零，才能是 `unused`。缺漏或觀測時間不足顯示 `insufficient_evidence`，由負責人與維護方人工核對，不當零使用月。
-3. 打開里程碑卡片，檢查每個 evidence reference、目前狀態與版本。對需人確認的項目，先重新 Google＋TOTP，再由具名負責人確認；server 會留下操作者、時間及不可改寫的紀錄。缺 evidence 時保持 blocked，不以畫面按鈕或經過的天數代替確認。
+2. 查看員工成功登入與預約成功建立的彙總，以及觀測完整度和分類。C1 synthetic events 可用來驗證 runtime／maintenance 分類邏輯；這種測試不能單獨作正式財務用量證據，也不能概括為所有 synthetic 類事件一定排除在正式月報之外。只有正式政策確認、事件完整且員工登入 AND 預約建立都為零，才可判為 `unused`。缺漏或觀測時間不足顯示 `insufficient_evidence`，由負責人與維護方人工核對，不當零使用月。
+3. 在「里程碑與驗收」區檢查 evidence reference、目前狀態與版本。若項目等候確認，候選 UI 會顯示「重新登入並確認正式上線日」或「重新登入並確認尾款」按鈕；只有政策差異由 owner 解決、正確里程碑經核准且 reauth popup 通過後，才由具名負責人確認。server receipt 會記錄操作者與時間。缺 evidence 時保持 blocked，不以畫面按鈕或經過的天數代替確認。
 4. 本地 Decision Register 所列測試期為 20 個台北日曆天（含起算日）加最多 10 天調整；本地付款政策另要求真實資料正式開放後滿一個日曆月並由負責人確認。這些付款／試用條款正待 CP-09 與現行 Drive 文件 reconciliation（見 CP-10）；在 owner 解決差異前，不用本畫面產生帳單、承諾金額或認定付款條件已達成。
-
-Source 路由（不是目前可供一般使用者操作的介面）：`GET /v1/business-delivery/monthly-usage?month=YYYY-MM`、`GET /v1/business-delivery/milestones`、`POST /v1/business-delivery/milestones/:milestoneId/acknowledgements`。所有 POST 同時需要有效員工 session、CSRF 和符合條件的 fresh reauth；只允許核准角色。
 
 ## 4. 匯出 CSV
 
-**Workbench 匯出畫面：待 CP-04 UI source／runtime 驗證。** 在正式操作介面出現且 CP08 成功之前，請勿嘗試 API 匯出。
+**候選畫面：** L3 source 的「稽核 CSV 匯出」區有起訖日期欄、欄位說明與「重新登入並建立匯出」按鈕；建立後顯示匯出卡片，提供「查詢狀態」、「下載 CSV」和「撤銷匯出」。候選 UI 尚未合併、CI 或 C1 runtime 驗證；CP08 成功前不要操作或改用 API client。
 
-預計已驗證的畫面流程：
-
-1. manager 登入 `/staff`，在「匯出」選起訖台北日期並確認欄位說明。格式固定為 CSV；本期不提供 XLSX。
+1. manager 登入 `/staff`，在「稽核 CSV 匯出」選起訖台北日期並確認欄位說明。格式固定為 CSV；本期不提供 XLSX。
 2. 開始產檔前重新以 Google＋TOTP 驗證。重新驗證須屬同一登入者且在 10 分鐘內。逾時、視窗不回應或再次登入變成別人時，取消流程並回報；不要複製或儲存 token。
-3. 產檔狀態為 ready 後，仍在登入後的 Workbench 下載。下載內容限姓名、電話、生日月日、國籍、預約時間、類別、服務、狀態及核准的備註；沒有的舊資料值留空，不推算、不從 hash 還原。
+3. 產檔狀態為 ready 後，仍在登入後的 Workbench 下載。白名單欄位是姓名、電話、生日（月-日）、國籍、預約時間、初診／回診、服務、狀態、備註；病歷及稽核資料不得匯出。沒有的舊資料值留空，不推算、不從 hash 還原。
 4. 下載最多 3 次、24 小時失效；伺服器檔案最長 7 天後清除。若要提供診所工作檔，依核准流程由業主本人下載後放到其受控 Google Drive；本服務不寄 email、不產生公開分享網址、也不替使用者上傳 Drive。
 5. 檢查 CSV UTF-8 中文、日期、開頭為 0 的電話與欄位可讀性。僅在完成檔案檢查後通知負責人；若欄位超出清單、資料列不是本次 synthetic fixture、下載被重用或檔案不可讀，停止並回報。
 
-API source（仍須 C1 runtime 驗證）：`POST /v1/business-delivery/exports`，body 固定為 `idempotencyKey`、`format:"csv"`、`from`、`to` 並帶 `x-reauth-id-token`；`GET /v1/business-delivery/exports/:exportId` 查狀態；`GET /v1/business-delivery/exports/:exportId/download` 下載；`POST /v1/business-delivery/exports/:exportId/revoke` 撤銷。每個要求均受 manager RBAC、session 與 scope 檢查。
-
 ## 5. 封存、復原、法律保留與永久刪除
 
-**Workbench lifecycle 畫面：待 CP-05 UI source／runtime 驗證。** CP-05 API source 有既定路由，但涉及病患資料及不可逆操作；沒有負責人對本次 synthetic fixture 的明確執行核准、可靠 UI 和完整前後讀回時，不操作。
+**候選畫面：** L3 source 的「封存與保存管理」包含「待永久刪除清單」；清單只顯示不透明患者識別值、封存時間、可復原期限與 legal hold 狀態，不顯示患者姓名。候選表單有「重新登入並封存」、「復原封存患者」、「更新 legal hold」與「重新登入並永久刪除」；永久刪除另要求勾選「我確認永久刪除此患者資料」。候選 UI 尚未合併、CI 或 C1 runtime／盲走驗證，涉及病患資料及不可逆操作，沒有本次 synthetic fixture 的明確 owner approval 時不操作。
 
-已記錄的 C1 來源流程如下：
+CP-05 API 只接受單筆患者識別值；沒有 preview 或 fingerprint endpoint，也沒有 hash-bound confirm contract。表單確認勾選不能替代核對單一患者、權限與操作範圍。沒有經驗收的正式 UI、exact synthetic record 與完整前後讀回時停止，不改用 API client。
 
-1. **封存：** 經理確認唯一 synthetic patient 及其全部預約；先檢查是否有未來 `confirmed`／`arrived` 預約。有此類預約時不能封存。封存前重新 Google＋TOTP；核對畫面列出 30 天可復原期限及會受影響的 appointment 數。按下確認後讀回該患者已從可查預約與回診 lookup 排除。
-2. **復原：** 在封存後 30 天內選取該 synthetic patient，核對預覽再復原；此操作不要求 fresh reauth，但仍需 manager session、CSRF 與清楚確認。已到期紀錄不能復原；復原不會重啟已撤銷登入 session。
-3. **Legal hold：** 僅診所負責人可建立或解除。選擇明確理由／範圍，確認狀態讀回；有 hold 的資料不可進永久刪除。若登入角色是否為負責人尚未經確認，停止並請負責人處理。
-4. **永久刪除：** 不會自動發生。只能在封存已滿 30 天、無 legal hold、依存關係已對帳、reason code 有效時，由核准的負責人重新 Google＋TOTP，輸入關閉清單內理由並確認 exact synthetic record。執行前再次核對預覽的數量和指紋；與預覽不一致、數量不是明確核准值或出現「全部」選擇時取消。
-5. 執行後核對 active patient、預約、lookup index 等層的結果；`audit_events`、BD audit 記錄與備份／PITR 依規則保留，不代表已即時刪除全部副本。還原備份時須重套已核准刪除紀錄。操作未完成、任何層 partial 或出現 hold 時保持未結，不重複操作、不把失敗改標 complete。
+1. **封存：** 由負責人核准一筆合成記錄與範圍。候選表單只收不透明患者識別碼，沒有 preview/fingerprint；必須先在同一核准 release 的受驗收 Workbench 讀回該 synthetic record 與其預約，確認沒有未來 `confirmed`／`arrived` 預約，否則停止。source 要求封存動作有 fresh Google＋TOTP。若畫面不能讓操作者把唯一對象對到本次核准並核對 30 日可復原期限，就不要執行。
+2. **復原：** 在封存後 30 日內，由 manager 核對同一合成記錄後申請復原。source contract 不要求此動作 fresh reauth；仍須 manager 登入並在畫面確認。已到期記錄不能復原；復原不會重啟已撤銷登入 session。沒有已驗證畫面時停止。
+3. **Legal hold：** 由有 `manage_business_retention` 權限的 manager，依已核准理由及範圍設定或解除；source contract 不要求此動作 fresh reauth。確認狀態讀回；有 hold 的資料不可永久刪除。權限或讀回不明時停止。
+4. **永久刪除：** 不會自動發生。只可在封存滿 30 天、無 legal hold、依存關係已對帳、reason code 屬核准選項時，對另行核准的 exact synthetic record 重新 Google＋TOTP 後執行。UI 候選提供患者識別欄、原因與確認勾選，但 source 沒有 preview/fingerprint 確認步驟；沒有正式 UI 的單一對象核對與本次範圍核准前，禁止操作。不得用「全部」選擇或擴大 scope。
+5. 執行後按回傳結果確認患者及預約狀態；audit 記錄與備份／PITR 依政策保留，因此不可宣稱所有副本已即時刪除。還原備份時須依核准流程處理既有刪除紀錄。操作未完成、任何層 partial 或出現 hold 時保持未結，不重複操作、不把失敗改標 complete。
 
-API source routes：`POST /v1/business-delivery/retention/archive`、`POST /v1/business-delivery/retention/restore`、`POST /v1/business-delivery/retention/legal-hold`、`POST /v1/business-delivery/retention/permanent-delete`、`GET /v1/business-delivery/retention/pending-deletion`。封存及永久刪除需要 `x-reauth-id-token`；復原與 legal hold 依 source contract 不要求 reauth。全部仍需登入 session／CSRF／manager permission；永久刪除與實際 synthetic 資料操作還需另外的精確範圍 owner 核准。**不可套用至真實病患或 production。**
+**本節所有 destructive synthetic 操作均另需精確範圍 owner approval。不可套用至真實病患或 production。**
 
 ## 6. 合作終止與資料返還收據
 
-**CP-07 case、收據畫面與完整 runtime：待 source PR、UI 及 CP08 驗證。** 現行 baseline 沒有 termination controller／case API，不應把下述流程當作已可執行按鈕。
+**候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI commit `b8ef86159fa062deed99ebccb1bdc1a48418f156` 有 75 個 scoped tests 通過，獨立 review 進行中，尚未 CI／合併／部署或完成 C1 runtime／盲走；CP-07 API/domain source 在 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d`，CI 12/12 通過但未合併／部署。這些按鈕目前只是 source 候選。
 
-1. 依負責人核准的終止範圍建立待辦：資料匯出、交付人／收件人、權限撤銷項目、需保留副本與期限、各層刪除／自然到期證據。費用結清由人處理；系統不自動扣款或以結清狀態阻擋返還。
-2. 匯出完整性驗證後，把匯出 artifact hash、文件版本、受控範圍和交付時間綁到 termination case；不得在公開 repository 保存 CSV 或完整個資。
-3. 診所負責人使用自己已登入的工作臺檢查收件檔，按「已收到」並重新驗證（若未來 UI 要求）。收據記錄負責人身分參照、UTC 時間、檔案 SHA-256 與 case ID；檔案下載成功不等於已簽收。
-4. 只有收件 receipt、controlled copy 保存期、員工／開發者權限處置及所有資料層的 evidence 都齊備，server 才可允許 case close。失敗、不同 hash、legal hold、備份未到期或 partial status 都維持 open，記明責任人和下一步。
-5. 不在本手冊操作真實合作終止、停用服務、撤銷真實人員帳號或永久刪除 production data。正式使用前還需要 CP-09 文件同步、專業審閱與另行授權。
-
-待交付 API 位置以 CP-07 source contract 為準；目前沒有可供診所使用的 termination route。不能用 CP-04 匯出 route 或一般「儲存」按鈕假裝已簽收。
+1. 確認負責人已批准終止範圍，先建立 30 日通知。notice 起算後，在法定／約定到期日之前不可進入結案步驟；建立通知不等於立即終止服務。
+2. 通知期屆滿後，依已核准程序交付資料。負責人實際檢查已交付檔案後登記 data-return receipt；source 綁定先前建立且仍有效的匯出檔案 ID，系統記錄檔案 hash、時間及操作者。單純下載不等於收件確認。
+3. 記錄 receipt 後，受控副本保留期才開始計算 30 日。backup、audit、access 三種 receipt 是負責人的處置聲明；它們不證明雲端備份已刪、稽核紀錄已刪或帳號權限已撤銷。相關實際處置須另外執行並保留受控證據。
+4. 所有要求步驟與期限完成後，提交 close review。系統只可轉為 `manual_close_review`，表示等待人工檢視；不代表合作已終止、服務已停用、資料已刪除或存取權已撤銷。缺少任何 receipt、期限未到或 version 不符時 close 應拒絕；不可當日通知並同日正向結案。
+5. PR #213 中每一個寫入動作都要求該操作者 fresh Google＋TOTP；若重新驗證失敗或超出 10 分鐘，停止並重新登入驗證。正式使用前還需要 CP-09 文件同步、專業審閱、CP-08 實測與另行授權。
 
 ## 7. 截圖清單（目前全為空白 placeholder）
 
@@ -98,14 +88,30 @@ API source routes：`POST /v1/business-delivery/retention/archive`、`POST /v1/b
 | `manager-02-workbench-session.png` | manager session 建立後的工作臺入口與角色 | staff email／UID、session cookie、真人名稱 |
 | `manager-03-booking-form.png` | `/booking` 只含姓名、電話、生日月日、國籍、服務、時間和備註的合成表單 | real-looking personal data、完整生日年份、憑證 |
 | `manager-04-booking-server-readback.png` | 成功畫面與對應 server readback 的合成預約代號 | request headers／tokens、真 Calendar ID |
-| `manager-05-monthly-usage.png` | 完整／不足證據兩種用量狀態，使用固定 synthetic fixtures | 真實登入事件／信箱、未核准金額或付款 claim |
-| `manager-06-milestone-receipt.png` | 等待確認及完成後 receipt 狀態 | reauth token、真 owner signature 或未核准 milestone |
-| `manager-07-export-request-reauth.png` | CSV 日期範圍、欄位清單與 fresh reauth 提示 | Google email、TOTP、reauth token |
-| `manager-08-export-csv-preview.png` | 合成 CSV 表頭、格式與一筆可讀 fixture | 真實個資、病歷、稽核資料、檔案內容完整複本 |
-| `manager-09-archive-preview.png` | one-patient exact scope、預約數與可復原期限 | 真患者 ID／姓名／電話／生日 |
+| `manager-05-monthly-usage.png` | 候選「商務與驗收」分頁的「月用量」、月份欄與「查看月報」；完整／不足證據兩種狀態 | 真實登入事件／信箱、未核准金額或付款 claim |
+| `manager-06-milestone-receipt.png` | 候選「里程碑與驗收」待確認／receipt 狀態；只在 policy 差異解決後測試確認操作 | reauth token、真 owner signature 或未核准 milestone |
+| `manager-07-export-request-reauth.png` | 候選「稽核 CSV 匯出」日期範圍、欄位清單與 fresh reauth 提示 | Google email、TOTP、reauth token |
+| `manager-08-export-download-check.png` | 候選匯出卡的「下載 CSV」與已授權下載之單筆合成檔案的可讀性檢查；不假設 Workbench 有 CSV preview | 真實個資、病歷、稽核資料、完整匯出檔複本 |
+| `manager-09-archive-form.png` | 候選「封存與保存管理」表單中的不透明 patient ID 欄與「重新登入並封存」；不是 scope preview/fingerprint | 真患者 ID／姓名／電話／生日 |
 | `manager-10-restore-result.png` | 30 日內成功復原後的安全狀態讀回 | 真實記錄、session cookie |
 | `manager-11-legal-hold.png` | 負責人設定 hold 與永久刪除阻擋狀態 | 法律個案內容或非 synthetic 患者資訊 |
 | `manager-12-permanent-delete-confirm-result.png` | 合成記錄、核准範圍、理由代碼及分層結果 | 真實病患、私有 reauth token、任何未授權 scope |
-| `manager-13-termination-receipt.png` | synthetic artifact hash、case 狀態、收件確認與時間 | Drive ID/連結、真 owner 身分、完整匯出檔 |
+| `manager-13-termination-notice.png` | 候選「合作終止與資料返還」台北通知日期與 30 日通知狀態 | 真合作資料、真 owner 身分 |
+| `manager-14-termination-data-return-receipt.png` | 合成 export 的收件 receipt 與 server 記錄時間/hash | CSV 全文、Drive ID/連結、真 owner 身分 |
+| `manager-15-termination-controlled-retention.png` | receipt 後 30 日受控保留期限及未完成項目 | 真合作資料、私有證據連結 |
+| `manager-16-termination-manual-close-review.png` | 屆期、receipt 齊全後的 `manual_close_review`（不是已結束狀態） | 真合作資料、未公開權限／刪除證據 |
 
 每次重新部署／SHA 變更都必須重拍受影響情境；舊版 UI 截圖不能充當新 SHA runtime evidence。只在所有安全檢查通過後才把去識別圖片納入後續經審核的文件變更；本次 placeholder 不可替代 CP08 或業主簽署。
+
+## 附錄 A：source contract 與技術操作界線（非診所日常操作步驟）
+
+以下 route 僅供工程／驗收人員對照 source，不代表診所可直接呼叫；正式操作仍須透過驗收後的 UI。除特別標明外，所有 POST 仍需有效 staff session、CSRF 和授權角色。
+
+| 功能 | source contract | Reauth 與限制 |
+| --- | --- | --- |
+| CP-03 月用量 | `GET /v1/business-delivery/monthly-usage?month=YYYY-MM`；`GET /v1/business-delivery/milestones`；`POST /v1/business-delivery/milestones/:milestoneId/acknowledgements` | acknowledgement POST 需 fresh Google＋TOTP，header `x-reauth-id-token`；10 分鐘有效；仍需 session/CSRF。 |
+| CP-04 CSV | `POST /v1/business-delivery/exports`；`GET /v1/business-delivery/exports/:exportId`；`GET /v1/business-delivery/exports/:exportId/download`；`POST /v1/business-delivery/exports/:exportId/revoke` | Create POST requires 10-minute fresh reauth (`x-reauth-id-token`) plus session/CSRF/manager scope. Download rechecks manager/scope/status/expiry each time but has no fresh-reauth header; revoke is session/CSRF/manager guarded and idempotent. |
+| CP-05 retention | `POST /v1/business-delivery/retention/archive`、`restore`、`legal-hold`、`permanent-delete`；`GET /v1/business-delivery/retention/pending-deletion` | POST request 有 `idempotencyKey` 與單一 `patientId`；permanent-delete 加 `reasonCode`；legal-hold 加 `hold` 和 `reasonCode`。Archive/permanent-delete 要求 10 分鐘內 fresh Google＋TOTP (`x-reauth-id-token`)；restore/legal-hold 不要求 reauth。session/CSRF/manager permission 均需；沒有 preview/fingerprint endpoint。 |
+| CP-07 termination | `POST /v1/business-delivery/terminations`；`GET /v1/business-delivery/terminations/:terminationId`；`POST /v1/business-delivery/terminations/:terminationId/acknowledgements`；`POST /v1/business-delivery/terminations/:terminationId/close` | 每個 POST 均需 session/CSRF、manager permission 與 10 分鐘內 fresh Google＋TOTP，header `x-reauth-id-token`。Notice body `{idempotencyKey, noticeDate}`；data-return body `{idempotencyKey, receiptKind:"data_return", exportId}`；其他 receipts 分別用 `receiptKind:"backup_disposition" | "audit_disposition" | "access_revocation"` 加 `evidenceRef`；close body `{idempotencyKey, expectedVersion}`，只能導向 `manual_close_review`。 |
+
+PR #213 contract 定義通知期 30 日，以及 data-return receipt 登記後 controlled-copy retention 30 日。時間未到或 evidence 不齊全時不可 close；HTTP contract 拒絕不應由人工繞過。

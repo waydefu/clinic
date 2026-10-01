@@ -1,6 +1,6 @@
 # CP-08 全系統回歸證據 worksheet（2026-10-01）
 
-本 worksheet 依 [現有專案驗收矩陣](2026-09-22-current-project-acceptance-matrix.md) 的 88 個既有 ID 建立，供同一個正式綁定 release 的逐列回歸。矩陣「目前證據分類」欄只是基線分類，並非本次測試結果。本文撰寫時沒有執行 CP-08；所有 84 個目前適用列維持 `NOT_RUN`，未執行的 manual reauth 與 human acceptance test 也保持 `NOT_RUN`。
+本 worksheet 依 [現有專案驗收矩陣](2026-09-22-current-project-acceptance-matrix.md) 的 88 個既有 ID 建立，供同一個正式綁定 release 的逐列回歸。矩陣「目前證據分類」欄只是基線分類，並非本次測試結果。本文撰寫時沒有執行 CP-08；所有 84 個目前適用列維持 `NOT_RUN`，未執行的 manual reauth 與 human acceptance test 也保持 `NOT_RUN`。CP-07 PR #213 head `7397f8e59553dc5022d0f29be20e56857104509d` 的 CI787/run `36805449273` 12 jobs 成功，但該 source 尚未合併或部署；其候選 source 證據不改變 current-baseline classification 或 CP-08 結果。
 
 只有在 CP-03～CP-07 source、CP-09 文件衝突、完整 C1 readback 和 CP-08 exact-release 授權條件均處理後，才可填寫執行欄。每次修正使 source SHA 改變時，重新綁定 release 並依依賴重跑；不得拼接不同 SHA 的舊 PASS。首次必要 assertion 失敗即記錄並停止受影響 sequence；不得現場修程式或擴大測試。
 
@@ -8,7 +8,7 @@
 
 | 欄位 | 執行前填寫 |
 | --- | --- |
-| source SHA（CP-03～CP-07 與相依變更全部合併後） | `<待授權 release SHA>` |
+| source SHA（CP-03～CP-07 與相依變更合併後；可包含本 worksheet 的 docs commit） | `<待授權 release SHA>` |
 | API revision / image digest | `<NOT_RUN>` |
 | worker revision / image digest | `<NOT_RUN>` |
 | Hosting version / channel | `<NOT_RUN>` |
@@ -81,21 +81,21 @@
 | OPS-07 | migration/version/artifact安全 | CI_PROVEN | C1baseline/version/rules/index對齊；historicalartifact非liveauthority | migration+artifactinspectJSON | `NOT_RUN` | — |
 | OPS-08 | operationaldegrade與事故手冊 | NOT_PROVEN | 紙本/事後補登tabletop、權責/通知/恢復；不真停診 | synthetictabletop+operatorreceipt | `NOT_RUN` | — |
 | MILE-01 | 首次合格事件與milestone計算 | CI_PROVEN | approvedtrial/adjustment/month；replay穩定、scope隔離 | policyversion+serverevent+tests | `NOT_RUN` | — |
-| MILE-02 | 里程碑持久化/API/UI/人確認 | SOURCE_PROVEN | 可信receipts、role/reauth、重播不啟動重複計費 | emulator+API/UI+humanack | `NOT_RUN` | — |
+| MILE-02 | 里程碑持久化/API/UI/人確認 | SOURCE_PROVEN | API source merged；L3 candidate `b8ef861...` includes milestone UI/reauth bridge with 75 scoped tests passed, but independent review/exact CI/merge/C1 runtime and owner receipt remain pending | emulator+candidate source/CI + future runtime/humanack | `NOT_RUN` | — |
 | MILE-03 | 正式上線實際一月與尾款 | BLOCKED | 依核准gate映射；若必要則真operatingmonth證據 | signedmapping+authorizedrealmilestoneproof | `NOT_RUN` | — |
 | USE-01 | monthcounts/dedupe/AND | CI_PROVEN | stafflogin=0 AND bookingcreate=0才unused；完成預約不是visitcompleted | fixedclock+dedupe+monthboundarytests | `NOT_RUN` | — |
 | USE-02 | trustedserver event ingress | SOURCE_PROVEN | 成功businesscommit與receipt一致；失敗/重播不重記 | atomicity/race/integration+runtime | `NOT_RUN` | — |
 | USE-03 | 完整/不完整觀測與lateevent | CI_PROVEN | gap→insufficientevidence不是零；latecorrection有audit | coverage+timewindow+lateeventfixtures | `NOT_RUN` | — |
-| USE-04 | 月報UI／人審 | NOT_PROVEN | 三種結果清楚；不自動invoicepaid；source範圍排synthetic | UI/reportrow+ownerreceipt | `NOT_RUN` | — |
+| USE-04 | 月報UI／人審 | NOT_PROVEN | 顯示分類與證據完整度；不自動invoicepaid；C1 synthetic 可驗 runtime-vs-maintenance 分類邏輯，但正式財務用量依 owner-approved policy/source 決定 | UI/reportrow+ownerreceipt+classificationfixtures | `NOT_RUN` | — |
 | EXP-01 | safeexport白名單/CSV | CI_PROVEN | 正確欄/期間；formulaescape；PII非任意spread | downloadbytes/schema+negativefixtures | `NOT_RUN` | — |
 | EXP-02 | role+reauth+scope | SOURCE_PROVEN | 6欄proof由server建；denied/跨clinic/stalereauth拒 | APInegative+audit | `NOT_RUN` | — |
 | EXP-03 | request→生成→ready/partial | SOURCE_PROVEN | uploadhash完成才ready；retry同scope不duplicated | jobstates/artifacthash+failures | `NOT_RUN` | — |
 | EXP-04 | download/TTL/revoke/cleanup | SOURCE_PROVEN | 到期拒；重驗權；cleanup只export-owned | privateHTTP+objectmetadata+audit | `NOT_RUN` | — |
 | EXP-05 | 可讀檔案與人確認 | NOT_PROVEN | 中文/換行/日期/欄位可讀，接收用途明確 | artifactQA+operatorack | `NOT_RUN` | — |
 | RET-01 | archive/softdelete/restore規則 | CI_PROVEN | approvedwindow；角色/hold；拒無效轉移 | stategraph+boundarytests | `NOT_RUN` | — |
-| RET-02 | persisted lifecycle/API/UI | SOURCE_PROVEN | 使用者明確可辨狀態；archive後讀權不繞過 | UI/API/DB+audit | `NOT_RUN` | — |
+| RET-02 | persisted lifecycle/API/UI | SOURCE_PROVEN | API source merged；L3 candidate `b8ef861...` adds archive/restore/legal-hold/delete forms and pending-deletion list; 75 scoped tests passed, but review/CI/merge/C1 runtime remain pending. No preview/fingerprint endpoint. | candidate source + future runtime/UI/API/DB/audit | `NOT_RUN` | — |
 | RET-03 | legalhold與並行刪除 | CI_PROVEN | hold競爭先重驗；永久刪除不可跳過授權 | emulatorrace+boundedruntime | `NOT_RUN` | — |
-| RET-04 | preview→confirm exactscope | NOT_PROVEN | version/hash相符；集合改變停；非全部selector | previewreceipt+confirmbinding | `NOT_RUN` | — |
+| RET-04 | preview→confirm exactscope | NOT_PROVEN | Current #208 API accepts one patient ID and has no preview/fingerprint or hash-bound confirm endpoint; record this contract gap, do not fabricate a preview test. Until an approved UI/source contract exists, remain NOT_RUN; any eventual test must bind one exact synthetic patient and stop if displayed scope differs. | source/contract review + future UI/runtime evidence | `NOT_RUN` | — |
 | RET-05 | 多層partialfailure/retry | NOT_PROVEN | primary/export/Calendar/audit/backup分層，不假complete | layerreceipts+failure/retryproof | `NOT_RUN` | — |
 | RET-06 | backups自然淘汰與刪除清單 | SOURCE_PROVEN | 備份未過期不能稱已刪；restore重套approvedtombstones | policy+retentionreadback+restoredcheck | `NOT_RUN` | — |
 | REC-01 | PITR+deleteprotection+daily30d | CLOUD_READBACK_PROVEN | freshDB(location/type/retention)及schedule | backupinspect+exactDBsnapshot | `NOT_RUN` | — |
@@ -106,14 +106,14 @@
 | REC-06 | 實測RPO/RTO | NOT_PROVEN | 明確scenario、cutoff/snapshot/start/usable；比較actualtarget | timestamps+data-losswindow+elapsed | `NOT_RUN` | — |
 | REC-07 | 隔離/rollback/cleanuphandoff | NOT_PROVEN | clone不跑mainworker；cleanup只approvedexactID；noAWS | IAM/dbbinding+sideeffectzero+cleanupreceipt | `NOT_RUN` | — |
 | TERM-01 | terminationrequiredfacts | CI_PROVEN | notice/copyretention核准；缺項incomplete | policyversion+contracttests | `NOT_RUN` | — |
-| TERM-02 | case/API/UI與serverchecklist | NOT_PROVEN | client不能送true假通；跨case拒；deadline/hold | API/UI+negativeemulator | `NOT_RUN` | — |
-| TERM-03 | 資料返還/收件對應 | NOT_PROVEN | filehash/case/收件人角色/時間一致；下載不等於確認 | artifactreceipt+humanack | `NOT_RUN` | — |
+| TERM-02 | case/API/UI與serverchecklist | NOT_PROVEN | Current merged baseline lacks PR #213. Candidate API/domain source head `7397f8e...` has CI787/run `36805449273` 12/12 green but is unmerged/unreleased. L3 UI candidate `b8ef861...` (75 scoped tests passed) supplies source labels/forms; independent review, exact CI, merge and C1 runtime/盲走 remain pending. After exact release binds: 30-day notice, retention only for 30 days after return receipt, missing steps reject, close yields `manual_close_review`. | source/CI records + future exact-release API/UI/runtime negative evidence | `NOT_RUN` | — |
+| TERM-03 | 資料返還/收件對應 | NOT_PROVEN | Candidate source ties data-return receipt to valid export ID and records server hash/actor/time; download alone is not receipt. Human backup/audit/access disposition entries are statements, not proof of cloud deletion/revocation. Current release runtime and human receipt unverified. | candidate contract + future artifact receipt + human acceptance | `NOT_RUN` | — |
 | TERM-04 | backup/audit disposition | SOURCE_PROVEN | 每層retained/pending/deleted有evidence；不earlyclose | layerproof+holdtest | `NOT_RUN` | — |
 | TERM-05 | partialretry/安全結案 | NOT_PROVEN | 缺收件或刪除失敗不結案；重播安全；不真停服務 | syntheticcaselifecycle+audit | `NOT_RUN` | — |
 | DOC-01 | 正式價格／商務條款 current authority | BLOCKED | owner resolves exact current terms; only then crosswalk 00～08 and sign the policy mapping | private versioned redline+owner record | `NOT_RUN` | — |
 | DOC-02 | 資料欄位/privacy/API說明 | SOURCE_PROVEN | 不收year/四欄；legacy限制及國籍一致 | repo/Drivecrosswalk+runtimeUI | `NOT_RUN` | — |
 | DOC-03 | Googlebackup/AWS/site排序 | SOURCE_PROVEN | currentGoogle能力據實；AWS/site後置非已實現 | remoteapprovedredline/readback | `NOT_RUN` | — |
-| DOC-04 | 手冊可獨立操作與截圖 | NOT_PROVEN | operator盲走所有核心flow；無真PII/憑證截圖 | manualQA+syntheticcaptures | `NOT_RUN` | — |
+| DOC-04 | 手冊可獨立操作與截圖 | NOT_PROVEN | Source-guided manual describes L3 UI candidate `b8ef861...`; 75 scoped tests passed, but independent review/exact CI/merge and C1 blind walk/fresh synthetic captures are pending. No screenshots are represented as captured. | manualQA+exact-release synthetic captures | `NOT_RUN` | — |
 | DOC-05 | 正式驗收/具名簽署/權限交接 | NOT_PROVEN | 版本/範圍/日期/owner；私有credential交接不入PR | signedacceptance+custodyreceipt | `NOT_RUN` | — |
 | GATE-01 | INTERNAL_PREPRODUCTION_COMPLETE | BLOCKED | current scope's internal-preproduction evidence, runtime/cloud/human rows, and dated closure all agree | P09closuremanifest+current matrix | `NOT_RUN` | — |
 | GATE-02 | CURRENT_PROJECT_ACCEPTANCE | BLOCKED | 所有current適用rows PROVEN；無重大未結；milestonemapping清楚 | finalsignedmatrix | `NOT_RUN` | — |
@@ -129,9 +129,10 @@
 | --- | --- | --- | --- | --- | --- |
 | MANUAL-AUTH-01 | SEC-01/02/04 | 業主使用新鮮 Google＋TOTP session 登入 Workbench，登出後舊 session/reload 不恢復；錯誤或逾期 MFA 拒絕。 | 去識別 UI/network/session receipt；不得記錄秘密 | NOT_RUN | — |
 | MANUAL-REAUTH-CP03 | MILE-02/USE-04 | 若該核准確認動作要求 reauth：同一操作者、10 分鐘內 fresh Google＋TOTP 可完成確認；缺失、逾期、不同操作者 token 拒絕且不建立/改寫 acknowledgement。 | 請求/拒絕分類、前後版本與 audit；不含 token | NOT_RUN | — |
-| MANUAL-REAUTH-CP04 | EXP-02/03/04/05 | manager 對已核准合成範圍完成 10 分鐘內 fresh reauth 後可建立/下載授權 CSV；缺失、逾期、不同角色或跨 scope 拒絕，且無 job/file/download side effect。 | safe HTTP/result、job count、artifact hash、audit/deny record | NOT_RUN | — |
-| MANUAL-REAUTH-CP05 | RET-02/03/04/05 | 對封存／永久刪除政策要求的動作，manager fresh reauth 成功；缺失、過期、不同操作者、未到期或有 legal hold 均拒絕，無越權寫入。 | synthetic record state before/after、operation/audit、deny record | NOT_RUN | — |
-| MANUAL-HUMAN-AT | DOC-04/05/OPS-08/EXP-05/TERM-03 | 診所操作人盲走登入、建立/查閱預約、月用量/里程碑、CSV、封存/復原/legal hold/刪除、終止返還 receipt；逐項指出不可做事項與失敗時停點。owner 另簽 CP-10，不用 agent 代簽。 | 逐項匿名觀察紀錄、問題清單、owner 簽名/日期欄（目前空白） | NOT_RUN | — |
+| MANUAL-REAUTH-CP04 | EXP-02/03/04/05 | manager 對核准合成範圍完成 10 分鐘內 fresh reauth 後可建立 CSV；缺失、逾期或異人 reauth 使建立拒絕且無 job/file side effect。下載不要求 reauth header，但每次仍需同一 manager session、scope、未過期且未撤銷；跨角色/scope、過期／第4次下載及 revoked 均拒。 | safe result、job count、artifact hash、audit/deny record | NOT_RUN | — |
+| MANUAL-REAUTH-CP05 | RET-02/03/04/05 | Archive/permanent-delete 由同一 manager fresh-reauthed 時成功；缺失、過期、異人、未到期或有 legal hold 的 permanent-delete 拒絕且無越權寫入。Restore/legal-hold source contracts 不要求 reauth。Current source has no preview/fingerprint call, so do not claim preview-bound evidence. | synthetic record state before/after、operation/audit、deny record；不含 token | NOT_RUN | — |
+| MANUAL-REAUTH-CP07 | TERM-02/03/04/05 | 每個 termination POST 均使用該 manager fresh Google＋TOTP（10 分鐘內）；缺失、過期、異人/無權 manager 均拒絕且不改 case。正向只可：notice 到期後記 data-return receipt；receipt 後 30 日 retention；期滿且 steps 齊全 close 只成 `manual_close_review`。同日 close 與 missing receipt/step 必須拒絕。 | case version/state before/after、deny/409 receipts、server receipt metadata；human disposition 不是 cloud delete/revoke proof | NOT_RUN | — |
+| MANUAL-HUMAN-AT | DOC-04/05/OPS-08/EXP-05/TERM-03 | 診所操作人盲走登入、建立/查閱預約、月用量/里程碑、CSV、封存/復原/legal hold/刪除、終止流程；L3 candidate `b8ef861...` provides UI source labels/forms but is not in a verified release. 指出30日通知、receipt後30日保留、`manual_close_review` 非結案，及人工 backup/audit/access statements 不能代替 cloud 證據。reauth popup 若受 COOP 阻擋即停止，不放寬標頭。owner 另簽 CP-10，不用 agent 代簽。 | 逐項匿名觀察紀錄、問題清單、fresh synthetic captures、owner 簽名/日期欄（目前空白） | NOT_RUN | — |
 | MANUAL-COOP-DEPENDENCY | MILE-02/EXP-02/RET-02 | 驗證 reauth popup/window 完成後 callback 與動作結果。現有全域 COOP `same-origin` 為已知 popup obstacle；遇阻即停，記錄結果供 L3 source/runtime 決策。不得放寬 security header。 | actual headers 與安全匿名化 popup result；無 secret | NOT_RUN | — |
 
 ## CP-08 closure decision

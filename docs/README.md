@@ -83,8 +83,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
 
 - [GPT-6 Luna 逐步執行計畫（2026-09-30）](plans/2026-09-30-luna-execution-plan.md) — L1 封存刪除、L2 日曆新格式、L3 工作臺商務分頁與重新登入、L4 還原驗證工具、L5 合作終止、L6 批次部署清單、L7 回歸／手冊／驗收；每包寫明檔案、規則、測試與停止條件
-- [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 isolated project/channel、變數、Terraform/Hosting checkpoints、expiry/rollback；execution SHA 留待 source 合併與 owner 填寫，不構成部署授權
-- [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 以 88 個既有 matrix IDs 建立同一 release 的 evidence 表；目前適用項、manual reauth 與 human AT 均維持 NOT_RUN
+- [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 isolated project/channel、兩階段 Terraform、Hosting checkpoints、明確數量預算、expiry/rollback；execution SHA 留待 source 合併與 owner 填寫，不構成部署授權
+- [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 以 88 個既有 matrix IDs 建立同一 release 的 evidence 表；PR #213 候選 source/CI 不取代 release evidence；目前適用項、manual reauth 與 human AT 均維持 NOT_RUN
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄、CP-06-E 前置、policy reconciliation blocker、工程驗收與真實營運月／付款確認分開
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
@@ -166,7 +166,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 5. Operations
 
-- [管理者操作手冊（繁體中文，source-readiness draft）](runbooks/manager-operations-manual.md) — 登入、預約、用量／里程碑、CSV、封存／復原／legal hold／刪除及合作終止；標記未驗證 UI/runtime 並列部署當天合成截圖清單
+- [管理者操作手冊（繁體中文，source-readiness draft）](runbooks/manager-operations-manual.md) — 診所操作流程與 L3 candidate 實際 UI 標籤、尚未驗證的 merge/CI/runtime、CP-05 無 preview/fingerprint API、CP-07 30+30 日與 `manual_close_review` 界線及 fresh synthetic capture 清單
 - [Luna 開發環境與額度使用流程](runbooks/luna-development-environment.md) — 固定工具、明確依賴安裝、cache／網路準備；已從官方 GitHub 查證 Luna 定位並試派有界文件工作。
 - [Stage E operational runbook](runbooks/stage-e-operational.md) — API outage, booking write, Firestore, Calendar 410/watch, dead-letter, backup verbs, auth, rate-limit, IAM, rollback, isolated preview; not apply
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
@@ -196,7 +196,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
-| 2026-10-01 | [L6/L7 source-readiness handoff](reviews/2026-10-01-luna-l6-l7-source-readiness.md) | `PARTIAL` docs-only handoff: C1 batch packet、CP-08 worksheet、繁中 manager manual 與 CP-10 checklist 已準備。Docs/governance checks passed; formatting unavailable because Prettier is absent. No deployment or regression run. CP-07 source、Terraform first-enable fix/CI、CP-06-E、CP-08、CP-09 owner reconciliation、screenshots 與 signature 仍 pending/blocking。 |
+| 2026-10-01 | [L6/L7 source-readiness handoff](reviews/2026-10-01-luna-l6-l7-source-readiness.md) | `PARTIAL` docs-only follow-up: CP-07 PR #213 head/12-job CI is source/CI-proven but unmerged/undeployed; L3 UI candidate `b8ef861` has 75 scoped tests passed with independent review pending; C1 ingress candidate `f14181e` has 21 scoped unit checks plus API build/emulator-type checks, with independent review/exact CI pending. CP-08/runtime, CP-06-E, owner reconciliation, screenshots and signature remain pending. |
 | 2026-09-30 | [Luna 環境修復交接](reviews/2026-09-30-luna-environment-readiness.md) | Node／pnpm 與 CI 障礙修復；官方 GitHub 定位已查證，Luna 文件試派完成。工具下載網路與後續 CLI 尚未備妥。 |
 | 2026-09-28 | [CP-02 C1 新預約驗收](reviews/2026-09-28-cp-02-c1-runtime-evidence.md) | CP-02 RUNTIME_PROVEN on isolated synthetic C1 at `1e0b84f`: BKG-01～05、07、09～12 runtime; BKG-06 not applicable by owner decision; BKG-08 two-candidate case kept on Emulator evidence. Three deviations recorded (API-only targeted apply, Hosting briefly pinned to an older revision before any write, legacy lookup proven structurally). Booking gate closed at the end. Open: C1 Workbench list shows no nationality. No production or D-series approval. |
 | 2026-09-28 | [P1-09 關帳](reviews/2026-09-28-p1-09-closeout.md) | P1-09 CLOSED on isolated synthetic C1: Stage F evaluator and `inspect:internal-preproduction` both `ok=true`, exit 0; all P09 rows, SEC-13/14 and Gate 16 PASS; F-06 evidence sets uploaded by the owner; booking gate closed early at owner direction. OPS-06 optional NOT_RUN. No production, live Hosting, real-data or D-series approval. |
