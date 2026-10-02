@@ -131,13 +131,112 @@ describe('C1 config contract', () => {
         'api'
       ).missing
     ).not.toContain('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN_INVALID');
+    const businessDeliveryConfigNames = [
+      'BUSINESS_DELIVERY_ENABLED',
+      'BUSINESS_DELIVERY_POLICY_VERSION',
+      'BUSINESS_DELIVERY_SCOPE',
+      'BUSINESS_DELIVERY_OBSERVED_SINCE',
+      'BUSINESS_DELIVERY_MAINTENANCE_EMAILS'
+    ];
+    const businessDeliveryOff = evaluateRequiredCloudConfig(
+      { BUSINESS_DELIVERY_ENABLED: 'false' },
+      'api'
+    );
+    expect(
+      businessDeliveryOff.missing.filter((name) =>
+        businessDeliveryConfigNames.includes(name)
+      )
+    ).toEqual([]);
+    const businessDeliveryOnWithoutMaintenanceSecret =
+      evaluateRequiredCloudConfig(
+        {
+          BUSINESS_DELIVERY_ENABLED: 'true',
+          BUSINESS_DELIVERY_POLICY_VERSION: 'BD-POLICY-2026-09-29',
+          BUSINESS_DELIVERY_SCOPE: 'internal_synthetic',
+          BUSINESS_DELIVERY_OBSERVED_SINCE: '2030-09-01T00:00:00.000Z'
+        },
+        'api'
+      );
+    expect(businessDeliveryOnWithoutMaintenanceSecret.missing).toContain(
+      'BUSINESS_DELIVERY_MAINTENANCE_EMAILS'
+    );
+    const validBusinessDeliveryConfig = {
+      BUSINESS_DELIVERY_ENABLED: 'true',
+      BUSINESS_DELIVERY_POLICY_VERSION: 'BD-POLICY-2026-09-29',
+      BUSINESS_DELIVERY_SCOPE: 'internal_synthetic',
+      BUSINESS_DELIVERY_OBSERVED_SINCE: '2030-09-01T00:00:00.000Z',
+      BUSINESS_DELIVERY_MAINTENANCE_EMAILS: 'maintenance@example.test'
+    };
+    const businessDeliveryConfigured = evaluateRequiredCloudConfig(
+      validBusinessDeliveryConfig,
+      'api'
+    );
+    expect(
+      businessDeliveryConfigured.missing.filter((name) =>
+        businessDeliveryConfigNames.includes(name)
+      )
+    ).toEqual([]);
+    expect(JSON.stringify(businessDeliveryConfigured)).not.toContain(
+      validBusinessDeliveryConfig.BUSINESS_DELIVERY_MAINTENANCE_EMAILS
+    );
+
+    const invalidBusinessDeliveryConfigs = [
+      [{ BUSINESS_DELIVERY_ENABLED: '1' }, 'BUSINESS_DELIVERY_ENABLED_INVALID'],
+      [
+        { ...validBusinessDeliveryConfig, BUSINESS_DELIVERY_ENABLED: 'true ' },
+        'BUSINESS_DELIVERY_ENABLED_INVALID'
+      ],
+      [
+        {
+          ...validBusinessDeliveryConfig,
+          BUSINESS_DELIVERY_POLICY_VERSION: 'unapproved-policy'
+        },
+        'BUSINESS_DELIVERY_POLICY_VERSION_INVALID'
+      ],
+      [
+        {
+          ...validBusinessDeliveryConfig,
+          BUSINESS_DELIVERY_SCOPE: 'production'
+        },
+        'BUSINESS_DELIVERY_SCOPE_INVALID'
+      ],
+      [
+        {
+          ...validBusinessDeliveryConfig,
+          BUSINESS_DELIVERY_OBSERVED_SINCE: '2030-02-31T00:00:00Z'
+        },
+        'BUSINESS_DELIVERY_OBSERVED_SINCE_INVALID'
+      ],
+      [
+        {
+          ...validBusinessDeliveryConfig,
+          BUSINESS_DELIVERY_MAINTENANCE_EMAILS: 'not-an-email'
+        },
+        'BUSINESS_DELIVERY_MAINTENANCE_EMAILS_INVALID'
+      ],
+      [
+        {
+          ...validBusinessDeliveryConfig,
+          BUSINESS_DELIVERY_MAINTENANCE_EMAILS: 'maintenance@example.test,'
+        },
+        'BUSINESS_DELIVERY_MAINTENANCE_EMAILS_INVALID'
+      ]
+    ];
+    for (const [env, expectedIssue] of invalidBusinessDeliveryConfigs) {
+      expect(evaluateRequiredCloudConfig(env, 'api').missing).toContain(
+        expectedIssue
+      );
+    }
     const redacted = redactConfigForLogs({
       GOOGLE_SERVICE_ACCOUNT_JSON: 'super-secret',
-      GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01'
+      GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+      BUSINESS_DELIVERY_MAINTENANCE_EMAILS: 'maintenance@example.test'
     });
     expect(redacted.GOOGLE_SERVICE_ACCOUNT_JSON).toBe('[redacted]');
     expect(redacted.GOOGLE_CLOUD_PROJECT).toBe('beauessence-clinic-stg-c1a01');
+    expect(redacted.BUSINESS_DELIVERY_MAINTENANCE_EMAILS).toBe('[redacted]');
     expect(JSON.stringify(redacted)).not.toContain('super-secret');
+    expect(JSON.stringify(redacted)).not.toContain('maintenance@example.test');
   });
 });
 

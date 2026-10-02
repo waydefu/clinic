@@ -95,6 +95,37 @@ describe('assessMonthlyUsageCompleteness', () => {
     ).toBe('complete');
   });
 
+  it('keeps a known capture-gap month partial after the late-event cutoff', () => {
+    expect(
+      assessMonthlyUsageCompleteness({
+        ...base,
+        now: '2031-01-01T00:00:00.000Z',
+        hasCaptureGap: true
+      })
+    ).toEqual({
+      completeness: 'partial',
+      lockedAt: '2030-11-05T16:00:00.000Z'
+    });
+  });
+
+  it('does not change pre-existing partial or unknown coverage for a capture gap', () => {
+    expect(
+      assessMonthlyUsageCompleteness({
+        ...base,
+        now: '2030-11-05T15:59:59.999Z',
+        hasCaptureGap: true
+      }).completeness
+    ).toBe('partial');
+    expect(
+      assessMonthlyUsageCompleteness({
+        ...base,
+        observedSince: '2030-11-01T00:00:00.000Z',
+        now: '2031-01-01T00:00:00.000Z',
+        hasCaptureGap: true
+      }).completeness
+    ).toBe('unknown');
+  });
+
   it('is partial when observation started inside the month', () => {
     expect(
       assessMonthlyUsageCompleteness({

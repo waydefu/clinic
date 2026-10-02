@@ -244,10 +244,11 @@ legal hold 時永久刪除失敗；永久刪除後 `audit_events` 筆數不變�
 **要改的檔案與做法：**
 
 1. 把 `opaqueLookupIdentity` 從 `apps/api/src/patients/patient-directory.ts` **搬到**
-   `packages/domain/src/patient-identity.ts`（函式內容一字不改，包含 `rlk2_` 前綴與 `return-v2:` 字串），
-   API 端改成 `import { opaqueLookupIdentity } from '@beauessence/domain'` 並從 patient-directory
-   再 export 一次，讓既有 import 不壞。跑 `sync:domain`。**若 domain 不能用 `node:crypto`**
-   （瀏覽器也會載入 domain）→ **停止並回報**，不要自己換雜湊演算法。
+   `packages/domain/src/patient-lookup-identity.node.ts`（函式內容一字不改，包含 `rlk2_` 前綴與
+   `return-v2:` 字串），以 `@beauessence/domain/patient-lookup-identity.node` 匯出為明確的伺服器專用
+   子路徑；不得從瀏覽器會載入的 domain 根 barrel 匯出。API 端從此子路徑匯入，並由
+   `patient-directory` 再 export 一次，讓既有 import 不壞。`sync:domain` 排除 `.node.js` 產物。
+   這保留既有 SHA-256 演算法與資料鍵，同時確保 `node:crypto` 不進瀏覽器可達模組圖；不是另造雜湊。
 2. `packages/domain/src/calendar-sync.ts` 新增 `extractCalendarContact(title: string):
    { phoneDigits: string; birthMonthDay: string } | undefined`，照上面規則。
 3. worker 的日曆同步寫入候選時（`apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts`，

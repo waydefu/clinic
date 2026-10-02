@@ -1,12 +1,51 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  extractCalendarContact,
   formatBusyTitle,
   formatSyntheticAppointmentTitle,
   parseCalendarEntry
 } from './calendar-sync.js';
 
 const patients = new Set(['A17', 'B04']);
+
+describe('manually entered Calendar contact suggestions', () => {
+  it.each([
+    [
+      '合成患者甲0900000001 0520',
+      { phoneDigits: '0900000001', birthMonthDay: '--05-20' }
+    ],
+    [
+      '合成患者甲 0900-000-001　790520',
+      { phoneDigits: '0900000001', birthMonthDay: '--05-20' }
+    ],
+    [
+      '合成患者甲0900000001 0229',
+      { phoneDigits: '0900000001', birthMonthDay: '--02-29' }
+    ]
+  ])('extracts one valid contact from %s', (title, expected) => {
+    expect(extractCalendarContact(title)).toEqual(expected);
+  });
+
+  it.each([
+    '(IG)AS/顏/合成患者甲0900000001/止',
+    '0900000001 0900000002 0520',
+    '合成患者甲0900000001 1332',
+    '合成患者甲0900000001 0230',
+    '合成患者甲0900000001 2 0520',
+    '合成患者甲0900000001-2-0520',
+    '合成患者甲0900000001 0520 0612',
+    '合成患者甲/鼻回',
+    '0900000001 20260520',
+    '合成患者甲09000000012 0520',
+    '合成患者甲190900000001 0520',
+    '合成患者甲1-0900000001 0520',
+    '0900000001 10520',
+    '0900000001 05200'
+  ])('declines ambiguous or invalid title %s', (title) => {
+    expect(extractCalendarContact(title)).toBeUndefined();
+  });
+});
 
 describe('calendar entry format', () => {
   it('parses the exact synthetic appointment title and clinic grid', () => {

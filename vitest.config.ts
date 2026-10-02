@@ -4,6 +4,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
+      '@beauessence/domain/patient-lookup-identity.node': fileURLToPath(
+        new URL(
+          './packages/domain/src/patient-lookup-identity.node.ts',
+          import.meta.url
+        )
+      ),
       '@beauessence/contracts': fileURLToPath(
         new URL('./packages/contracts/src/index.ts', import.meta.url)
       ),

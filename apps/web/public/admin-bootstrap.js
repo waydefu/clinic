@@ -34,6 +34,7 @@ import {
   PERMISSIONS,
   WORKBENCH_PROCEDURES
 } from './modules/constants.js';
+import { hasPermission } from './modules/permissions.js';
 import { overdueAppointments } from './modules/case-management.js';
 import { renderTagOptions } from './modules/tag-picker.js';
 import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
@@ -242,6 +243,7 @@ const BATCH_ELIGIBLE_STATUS = {
 };
 let slotKind = 'initial';
 let selectedSlotId;
+let bookingSuggestion;
 // 已決定回診但被「調整回診」重新開啟編輯的預約 id；讓它暫時回到逐筆回診確認。
 const editingFollowUps = new Set();
 // 週檢視目前顯示的週一（YYYY-MM-DD）。undefined 時於首次 render 對齊到
@@ -362,6 +364,11 @@ async function runUiAction({
 }
 
 async function post(path, body = {}) {
+  const previousSession = {
+    authenticated: state?.session?.authenticated === true,
+    accountId: state?.session?.account?.id,
+    role: state?.session?.account?.role
+  };
   const requiredPermission = (() => {
     if (path === '/reset') return PERMISSIONS.MANAGE_SYSTEM;
     if (path.startsWith('/schedule/')) return PERMISSIONS.MANAGE_SCHEDULE;
@@ -445,6 +452,17 @@ async function post(path, body = {}) {
       applyFollowUpContractWrite(state, path, body, result);
     }
   }
+  const sessionChanged =
+    previousSession.authenticated !==
+      (state?.session?.authenticated === true) ||
+    previousSession.accountId !== state?.session?.account?.id ||
+    previousSession.role !== state?.session?.account?.role;
+  if (
+    path === '/workspace/login' ||
+    path === '/workspace/logout' ||
+    sessionChanged
+  )
+    clearBookingSuggestion();
   if (!['/workspace/logout', '/reset'].includes(path)) {
     enforceRoleDomBoundary();
     render();
@@ -472,7 +490,12 @@ function applyContractWrite(path, body, result) {
   if (typeof result?.appointmentId !== 'string') return;
   const now = new Date().toISOString();
   if (path === '/bookings') {
-    const patient = upsertPatient(state, body.patient);
+    const patientId =
+      body.patient === undefined
+        ? body.onBehalfPatientId
+        : upsertPatient(state, body.patient).id;
+    if (typeof patientId !== 'string')
+      throw new Error('預約缺少可識別的患者。');
     const items = WORKBENCH_PROCEDURES.filter((item) =>
       (body.itemIds ?? []).includes(item.id)
     );
@@ -480,7 +503,7 @@ function applyContractWrite(path, body, result) {
       id: result.appointmentId,
       slotId: body.slotId,
       startsAt: result.startsAt,
-      patientId: patient.id,
+      patientId,
       bookingKind: body.bookingKind,
       itemIds: items.map((item) => item.id),
       itemLabel: items.map((item) => item.label).join('、'),
@@ -999,7 +1022,7 @@ document.addEventListener('keydown', (event) => {
     !event.shiftKey
   ) {
     event.preventDefault();
-    openBookingWorkflow({ focusFirstField: true });
+    openOrdinaryBookingWorkflow({ focusFirstField: true });
   }
 });
 document.addEventListener('pointerdown', (event) => {
@@ -1075,6 +1098,7 @@ elements['login-form'].addEventListener('submit', async (event) => {
 });
 
 elements['logout'].addEventListener('click', async () => {
+  clearBookingSuggestion();
   await runUiAction({
     control: elements['logout'],
     pendingLabel: '登出中…',
@@ -1126,8 +1150,87 @@ function openBookingWorkflow({ focusFirstField = false } = {}) {
   }, 0);
 }
 
+function openOrdinaryBookingWorkflow(options = {}) {
+  if (bookingSuggestion !== undefined) clearBookingSuggestion();
+  openBookingWorkflow(options);
+}
+
+function setBookingSuggestion(detail) {
+  if (
+    state?.workspace?.authenticated !== true ||
+    !hasPermission(state, PERMISSIONS.CREATE_BOOKING) ||
+    !/^[A-Za-z0-9_-]{1,128}$/.test(String(detail?.patientId ?? '')) ||
+    !/^[A-Za-z0-9_-]{1,128}$/.test(String(detail?.candidateId ?? '')) ||
+    typeof detail?.patientName !== 'string' ||
+    Number.isNaN(Date.parse(String(detail?.startsAt ?? '')))
+  )
+    return;
+
+  bookingSuggestion = {
+    patientId: detail.patientId,
+    patientName: detail.patientName,
+    candidateId: detail.candidateId
+  };
+  const patientFieldset =
+    elements['booking-form'].querySelector('.field-group');
+  patientFieldset.hidden = true;
+  for (const control of patientFieldset.querySelectorAll('input, select'))
+    control.disabled = true;
+  elements['booking-suggestion-label'].textContent =
+    `為 ${detail.patientName} 建立預約；病患資料已連結，不會建立另一份病患資料。`;
+  elements['booking-suggestion'].hidden = false;
+
+  const slot = state.slots.find(
+    (item) =>
+      item.startsAt === detail.startsAt && item.reservationId === undefined
+  );
+  selectedSlotId = slot?.id;
+  if (slot !== undefined) {
+    slotKind = slot.kind;
+    elements['booking-kind'].value = slot.kind;
+    elements['slot-kind-filter'].value = slot.kind;
+  }
+  openBookingWorkflow();
+  renderSlotList();
+  renderBookingForm();
+  message(
+    slot === undefined
+      ? `已帶入 ${detail.patientName}；事件時間 ${formatFullDate(detail.startsAt)} ${formatTime(detail.startsAt)} 目前不可預約，請另選時段。`
+      : `已帶入 ${detail.patientName} 與事件時間，請確認療程後送出。`,
+    slot === undefined ? 'warning' : 'info',
+    'booking-form-status'
+  );
+}
+
+function clearBookingSuggestion() {
+  bookingSuggestion = undefined;
+  const patientFieldset =
+    elements['booking-form'].querySelector('.field-group');
+  patientFieldset.hidden = false;
+  for (const control of patientFieldset.querySelectorAll('input, select')) {
+    control.disabled = false;
+    control.value = '';
+  }
+  elements['booking-suggestion'].hidden = true;
+  elements['booking-suggestion-label'].textContent = '';
+  elements['booking-form-status'].hidden = true;
+  elements['booking-form-status'].textContent = '';
+  selectedSlotId = undefined;
+  renderSlotList();
+  renderBookingForm();
+}
+
+window.addEventListener('beauessence:calendar-booking-suggestion', (event) => {
+  setBookingSuggestion(event.detail);
+});
+
+elements['booking-suggestion-clear'].addEventListener(
+  'click',
+  clearBookingSuggestion
+);
+
 for (const shortcut of document.querySelectorAll('[data-booking-shortcut]')) {
-  shortcut.addEventListener('click', () => openBookingWorkflow());
+  shortcut.addEventListener('click', () => openOrdinaryBookingWorkflow());
 }
 
 elements['slot-kind-filter'].addEventListener('change', () => {
@@ -1254,21 +1357,23 @@ elements['booking-form'].addEventListener('submit', async (event) => {
     birthDate: staffMonthDay(),
     nationality: elements['booking-nationality'].value
   };
+  const suggestedCandidateId = bookingSuggestion?.candidateId;
   await runUiAction({
     control: event.submitter,
     pendingLabel: '建立中…',
     pendingMessage: '正在建立預約，請稍候。',
     anchorId: 'booking-form-status',
     action: () => {
-      const owner = upsertPatient(state, patient);
+      const patientId =
+        bookingSuggestion?.patientId ?? upsertPatient(state, patient).id;
       return post('/bookings', {
         slotId: bookedSlotId,
         bookingKind: elements['booking-kind'].value,
         itemIds,
         noteTags,
         noteText: elements['booking-note'].value,
-        patient,
-        onBehalfPatientId: owner.id,
+        ...(bookingSuggestion === undefined ? { patient } : {}),
+        onBehalfPatientId: patientId,
         origin: 'staff'
       });
     },
@@ -1278,6 +1383,7 @@ elements['booking-form'].addEventListener('submit', async (event) => {
         (item) => item.slotId === bookedSlotId && item.status === 'confirmed'
       );
       selectedSlotId = undefined;
+      clearBookingSuggestion();
       elements['booking-form'].reset();
       render();
       const successMessage =
@@ -1292,6 +1398,12 @@ elements['booking-form'].addEventListener('submit', async (event) => {
             .querySelector(`[data-appointment-card="${created.id}"]`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 0);
+      if (suggestedCandidateId !== undefined)
+        window.dispatchEvent(
+          new CustomEvent('beauessence:calendar-booking-created', {
+            detail: { candidateId: suggestedCandidateId }
+          })
+        );
     },
     failureMessage: (error) => `未建立預約：${error.message}`
   });

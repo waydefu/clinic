@@ -1,12 +1,14 @@
 import { createHmac } from 'node:crypto';
 
 import {
+  extractCalendarContact,
   extractCalendarEventRange,
   isSelfProjectedCalendarEcho,
   parseCalendarEntry,
   planCalendarInboundDetection,
   resolveCalendarEventIdentity,
   type CalendarEntryValidationCode,
+  type CalendarContactSuggestion,
   type CalendarInboundMutableField,
   type ParsedCalendarEntry
 } from '@beauessence/domain';
@@ -109,6 +111,13 @@ export interface CalendarCandidateDraft {
 export interface CalendarMirrorMutation {
   readonly mirror: CalendarMirrorRecord;
   readonly candidate?: CalendarCandidateDraft;
+  /** Transient contact data for a server-side lookup; never persisted. */
+  readonly suggestionContact?: CalendarContactSuggestion;
+  /** The manual event's valid range, carried only to render a suggestion action. */
+  readonly unmatchedRange?: {
+    readonly startsAt: string;
+    readonly endsAt: string;
+  };
 }
 
 export interface CalendarSyncCommit {
@@ -412,7 +421,18 @@ export class CalendarSyncEngine {
             ? { changedFields: detection.changedFields }
             : {})
         };
-        mutations.push({ mirror, candidate });
+        const suggestionContact =
+          kind === 'unmatched' && typeof event.summary === 'string'
+            ? extractCalendarContact(event.summary)
+            : undefined;
+        mutations.push({
+          mirror,
+          candidate,
+          ...(suggestionContact === undefined ? {} : { suggestionContact }),
+          ...(kind === 'unmatched' && range !== undefined
+            ? { unmatchedRange: range }
+            : {})
+        });
         candidates += 1;
       }
 

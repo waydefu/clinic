@@ -9,6 +9,7 @@ import {
   layerViolations,
   opaqueDynamicImports,
   reachableRelativeModules,
+  serverOnlyBoundaryViolations,
   stripComments
 } from './architecture-rules.mjs';
 import {
@@ -68,9 +69,16 @@ const LAYERS = [
   {
     label: 'packages/domain',
     directory: join(root, 'packages', 'domain', 'src'),
-    match: (file) => file.endsWith('.ts'),
+    match: (file) => file.endsWith('.ts') && !file.endsWith('.node.ts'),
     allowedBare: ['vitest'],
-    why: 'domain 必須同時能在 Node 與瀏覽器載入，且不得認識任何外層。'
+    why: '瀏覽器可載入的 domain 核心必須同時能在 Node 與瀏覽器載入，且不得認識任何外層。'
+  },
+  {
+    label: 'packages/domain server-only entry points',
+    directory: join(root, 'packages', 'domain', 'src'),
+    match: (file) => file.endsWith('.node.ts'),
+    allowedBare: ['node:crypto'],
+    why: '伺服器專用 domain 子路徑不得進入瀏覽器 domain barrel，且只可使用明確的 Node 內建模組。'
   },
   {
     label: 'packages/contracts',
@@ -98,6 +106,20 @@ for (const layer of LAYERS) {
   for (const violation of layerViolations(layer, files)) {
     fail('layering', violation.detail);
   }
+}
+
+const domainSourceFiles = await Promise.all(
+  (
+    await walk(join(root, 'packages', 'domain', 'src'), (file) =>
+      file.endsWith('.ts')
+    )
+  ).map(async (file) => ({
+    path: repoPath(file),
+    source: await readFile(file, 'utf8')
+  }))
+);
+for (const violation of serverOnlyBoundaryViolations(domainSourceFiles)) {
+  fail('server-only-import-boundary', violation.detail);
 }
 
 // --- 規則 2：未接線的 API 程式必須是「宣告過的」 -------------------------

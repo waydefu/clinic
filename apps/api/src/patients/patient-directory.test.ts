@@ -19,6 +19,9 @@ const INTAKE = {
 
 describe('opaque lookup identity', () => {
   it('is stable across phone punctuation and is not the raw phone number', () => {
+    expect(opaqueLookupIdentity('0900000001', '--01-15')).toBe(
+      'rlk2_419cef9b92f07cec89263a4bda9dfa10'
+    );
     expect(opaqueLookupIdentity('0900-000-001', '--01-15')).toBe(
       opaqueLookupIdentity('0900000001', '--01-15')
     );
