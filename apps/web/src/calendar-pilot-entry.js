@@ -28,6 +28,7 @@ let auth;
 let root;
 let statusTimer;
 let logoutBusy = false;
+let candidateAwaitingBooking;
 
 function calendarPilotFirebaseApp(config) {
   const existing = getApps().find(
@@ -407,6 +408,38 @@ function candidateItem(candidate, correctionContext) {
       : '';
   item.querySelector('p').textContent =
     `${CANDIDATE_KIND_LABELS[candidate.kind] ?? '待審變更'}・${range}${candidate.appointmentId ? `・預約 ${candidate.appointmentId}` : ''}${changed}・偵測 ${displayTime(candidate.createdAt)}`;
+  if (
+    typeof candidate.suggestedPatientId === 'string' &&
+    typeof candidate.suggestedPatientName === 'string'
+  ) {
+    const suggestion = document.createElement('p');
+    suggestion.className = 'cp-subtle';
+    suggestion.textContent = `建議對應：${candidate.suggestedPatientName}`;
+    item.append(suggestion);
+    const createBooking = document.createElement('button');
+    createBooking.className = 'cp-button cp-button-primary';
+    createBooking.textContent = '為此病患建立預約';
+    createBooking.disabled =
+      candidate.startsAt === null ||
+      Number.isNaN(Date.parse(String(candidate.startsAt)));
+    createBooking.addEventListener('click', async () => {
+      if (createBooking.disabled) return;
+      createBooking.disabled = true;
+      candidateAwaitingBooking = candidate.candidateId;
+      await handoffToStaffWorkbench();
+      window.dispatchEvent(
+        new CustomEvent('beauessence:calendar-booking-suggestion', {
+          detail: {
+            candidateId: candidate.candidateId,
+            patientId: candidate.suggestedPatientId,
+            patientName: candidate.suggestedPatientName,
+            startsAt: candidate.startsAt
+          }
+        })
+      );
+    });
+    item.querySelector('.cp-actions').append(createBooking);
+  }
   const diff = item.querySelector('[data-candidate-diff]');
   if (candidate.before === null) diff.remove();
   else {
@@ -447,7 +480,7 @@ function candidateItem(candidate, correctionContext) {
   ) {
     const reject = document.createElement('button');
     reject.className = 'cp-button';
-    reject.textContent = '拒絕';
+    reject.textContent = candidate.suggestedPatientId ? '標記已處理' : '拒絕';
     reject.addEventListener('click', () =>
       reviewCandidate(candidate, 'reject', {}, reject)
     );
@@ -482,6 +515,31 @@ function candidateItem(candidate, correctionContext) {
   }
   return item;
 }
+
+window.addEventListener(
+  'beauessence:calendar-booking-created',
+  async (event) => {
+    const candidateId = event.detail?.candidateId;
+    if (
+      typeof candidateId !== 'string' ||
+      candidateId !== candidateAwaitingBooking ||
+      root === undefined
+    )
+      return;
+    candidateAwaitingBooking = undefined;
+    document.documentElement.classList.add('calendar-pilot-active');
+    document.body.append(root);
+    try {
+      await renderApplication();
+      announce('預約已建立；請確認後將原候選標記為已處理。');
+    } catch {
+      announce(
+        '預約已建立；請重新整理 Calendar 候選清單並標記已處理。',
+        'error'
+      );
+    }
+  }
+);
 
 function openCorrectionDrawer(candidate, context) {
   const dialog = root.querySelector('[data-correction-dialog]');

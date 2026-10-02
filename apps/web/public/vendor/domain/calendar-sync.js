@@ -14,6 +14,64 @@ export const CALENDAR_BUSY_REASON_BY_LABEL = Object.freeze({
     教育訓練: 'training',
     其他: 'other'
 });
+/**
+ * Extract the closed phone + month-day identity shape from a manually typed
+ * Calendar title. The result is transient input for a server-side lookup only;
+ * callers must never persist these values.
+ */
+export function extractCalendarContact(title) {
+    const compactCharacters = [];
+    const sourceIndexes = [];
+    for (let index = 0; index < title.length; index += 1) {
+        const character = title[index];
+        if (character === '-' || character === ' ' || character === '\u3000')
+            continue;
+        compactCharacters.push(character ?? '');
+        sourceIndexes.push(index);
+    }
+    const compact = compactCharacters.join('');
+    const phones = [...compact.matchAll(/09\d{8}/g)];
+    if (phones.length !== 1)
+        return undefined;
+    const phone = phones[0];
+    if (phone === undefined)
+        return undefined;
+    const compactStart = phone.index;
+    if (compactStart === undefined)
+        return undefined;
+    const sourceStart = sourceIndexes[compactStart];
+    const sourceEnd = sourceIndexes[compactStart + phone[0].length - 1];
+    if (sourceStart === undefined || sourceEnd === undefined)
+        return undefined;
+    if ((compactStart > 0 && /\d/.test(compact[compactStart - 1] ?? '')) ||
+        /\d/.test(title[sourceEnd + 1] ?? ''))
+        return undefined;
+    // A short numeric label wedged between a phone and the birthday is
+    // ambiguous (for example `0900000001 2 0520`). Keep a normal spaced
+    // phone + four/six digit birthday valid, but do not silently ignore that
+    // extra run while extracting the later date.
+    if (/^[\s-]*\d{1,3}[\s-]+\d{4,6}(?!\d)/u.test(title.slice(sourceEnd + 1)))
+        return undefined;
+    const withoutPhone = `${title.slice(0, sourceStart)} ${title.slice(sourceEnd + 1)}`;
+    const dates = [...withoutPhone.matchAll(/(?<!\d)(\d{6}|\d{4})(?!\d)/g)];
+    if (dates.length !== 1)
+        return undefined;
+    const rawDate = dates[0]?.[1];
+    if (rawDate === undefined)
+        return undefined;
+    const monthDay = rawDate.length === 6 ? rawDate.slice(-4) : rawDate;
+    const month = Number(monthDay.slice(0, 2));
+    const day = Number(monthDay.slice(2, 4));
+    if (month < 1 || month > 12 || day < 1)
+        return undefined;
+    const leapYear = new Date(Date.UTC(2000, month - 1, day));
+    if (leapYear.getUTCMonth() !== month - 1 || leapYear.getUTCDate() !== day)
+        return undefined;
+    return {
+        phoneDigits: phone[0],
+        birthMonthDay: `--${monthDay.slice(0, 2)}-${monthDay.slice(2, 4)}`
+    };
+}
 /** The already-approved clinic hours used by both CAL-PILOT surfaces. */
 export const CALENDAR_PILOT_SCHEDULE = Object.freeze({
     timeZone: TAIPEI_TIME_ZONE,
