@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "kind": "dated-full-project-audit-record",
+  "auditDate": "2026-10-02",
+  "timezone": "Asia/Taipei",
+  "repository": "waydefu/clinic",
+  "sourceSha": "4ccc752e0235b10b9dc8e4b903a149354250fdac",
+  "documentBranch": "agent/full-project-audit-20261002",
+  "sourceMutations": false,
+  "cloudMutations": false,
+  "sourceDiagnosticEvidenceRung": "TEST-VERIFIED",
+  "evidenceScope": "Synthetic source diagnostics with DB/HTTP/DOM boundary doubles; not provider or deployed acceptance",
+  "confirmedFindingCounts": {
+    "total": 15,
+    "P1": 6,
+    "P2": 9
+  },
+  "findings": [
+    {
+      "id": "AUD-01",
+      "priority": "P1",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "預約身分一致性有缺口",
+      "owner": "Web/API technical owner; named owner pending",
+      "details": "WITHHELD_PER_SECURITY_MD"
+    },
+    {
+      "id": "AUD-02",
+      "priority": "P1",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "排班發布漏掉並行新增預約",
+      "sourceFile": "apps/api/src/firestore/schedule.repository.ts",
+      "sourceLine": 58,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-03",
+      "priority": "P1",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "日曆核准與拒絕競爭造成部分提交",
+      "sourceFile": "apps/api/src/calendar/clinic-calendar-review.application-service.ts",
+      "sourceLine": 192,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-04",
+      "priority": "P1",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "診所日曆改期候選遺失目標時間",
+      "sourceFile": "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+      "sourceLine": 58,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-05",
+      "priority": "P1",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "舊重試重新建立已取消的回診提醒",
+      "sourceFile": "apps/worker/src/outbox-processor.ts",
+      "sourceLine": 443,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-06",
+      "priority": "P1",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "basic-ftp high 弱點使 main CI 失敗",
+      "sourceFile": "pnpm-lock.yaml",
+      "sourceLine": 1472,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-07",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "患者封存邊界未完整涵蓋一般流程",
+      "owner": "API/patient-lifecycle owner; named owner pending",
+      "details": "WITHHELD_PER_SECURITY_MD"
+    },
+    {
+      "id": "AUD-08",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "回診預約同鍵重試被前置檢查拒絕",
+      "sourceFile": "apps/api/src/appointments/appointment.application-service.ts",
+      "sourceLine": 313,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-09",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "診所日曆審核同鍵重試回傳衝突",
+      "sourceFile": "apps/api/src/calendar/clinic-calendar-review.application-service.ts",
+      "sourceLine": 120,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-10",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "CAL-PILOT 領取工作未遵守 nextAttemptAt",
+      "sourceFile": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+      "sourceLine": 90,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-11",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "查詢預約遺失掛號別，改期選項消失",
+      "sourceFile": "apps/web/public/patient-app.js",
+      "sourceLine": 93,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-12",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "改期後 ICS／Google 匯出仍是舊時間",
+      "sourceFile": "apps/web/public/patient-app.js",
+      "sourceLine": 1327,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-13",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "患者備註在工作臺 transport 被丟掉",
+      "sourceFile": "apps/web/public/modules/internal-test-booking-transport.js",
+      "sourceLine": 456,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-14",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "Terraform 必要檢查失敗只警告、不阻擋",
+      "sourceFile": "infra/terraform/c1-internal-test-run/main.tf",
+      "sourceLine": 115,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    },
+    {
+      "id": "AUD-15",
+      "priority": "P2",
+      "classification": "CONFIRMED",
+      "status": "OPEN",
+      "title": "API 模式仍告知資料只存瀏覽器",
+      "sourceFile": "apps/web/public/patient.html",
+      "sourceLine": 544,
+      "owner": "Technical owner for the subsystem in the Markdown; named owner pending"
+    }
+  ],
+  "ci": {
+    "runId": 37013633179,
+    "url": "https://github.com/waydefu/clinic/actions/runs/37013633179",
+    "conclusion": "FAIL",
+    "unit": {
+      "status": "PASS",
+      "files": 195,
+      "passed": 2260,
+      "skipped": 1
+    },
+    "firestore": {
+      "status": "PASS",
+      "files": 27,
+      "passed": 206
+    },
+    "e2e": {
+      "status": "PASS",
+      "groups": 6,
+      "passed": 446
+    },
+    "sast": "PASS",
+    "gitleaks": "PASS",
+    "productionAudit": {
+      "status": "PASS",
+      "knownVulnerabilities": 0
+    },
+    "fullAudit": {
+      "status": "FAIL",
+      "moderate": 9,
+      "high": 1
+    },
+    "sbomAndAttestation": "NOT_RUN",
+    "verificationEvidence": "FAIL"
+  },
+  "ciEvidence": {
+    "kind": "ci-verification",
+    "commit": "4ccc752e0235b10b9dc8e4b903a149354250fdac",
+    "generatedAt": "2026-10-02T13:35:52.354Z",
+    "runId": "37013633179",
+    "conclusion": "failure",
+    "artifactRetentionDays": 90
+  },
+  "localDiagnostics": {
+    "nodeVersion": "24.20.0",
+    "sourceCases": 12,
+    "sourceDiagnostics": "PASS",
+    "terraformCheckProbe": "PASS",
+    "dependencyBackedGates": "NOT_RUN",
+    "reason": "Audit checkout has no node_modules; no implicit install"
+  },
+  "runtime": {
+    "metadataObservedAt": "2026-10-02T14:26:00Z",
+    "activeBookingSourceCommit": "ffa5d33b4faf8149dd419e8bee98b55e17178061",
+    "apiBookingEnabled": false,
+    "activeWorkerSourceCommit": "ea1fbccc2932be8c8ba93c9a5328f3ae23d519f9",
+    "sameSourceAcceptance": "NOT_RUN",
+    "hostingCurrentRewrite": "UNVERIFIED",
+    "calendarConfigurationExpiry": "UNVERIFIED",
+    "schedulerObservationWindow": "2026-10-02T14:54:00Z/2026-10-02T14:57:00Z",
+    "calendarSyncScheduler": "Paused",
+    "outboxDrainScheduler": "Paused",
+    "lastExecutionDisplay": "尚未執行",
+    "schedulerInterpretation": "No cron-triggered invocations from the observed jobs; does not exclude direct HTTP or historical acceptance",
+    "githubMainDisplayAfterReload": "4ccc752/failure",
+    "privateCloseoutArtifacts": "NOT_REVERIFIED"
+  },
+  "unresolvedObservations": [
+    {
+      "classification": "NEEDS-RUNTIME-REPRODUCTION",
+      "area": "CAL-PILOT slow provider lease/fencing",
+      "countsAsConfirmedFinding": false
+    },
+    {
+      "classification": "LIKELY",
+      "area": "Follow-up booking reminder-cancel producer",
+      "countsAsConfirmedFinding": false
+    }
+  ],
+  "authority": {
+    "datedEvidenceOnly": true,
+    "P109": "Historical isolated synthetic closeout remains CLOSED",
+    "newRoadmapIdMapping": "UNVERIFIED",
+    "namedFindingOwners": "PENDING_ASSIGNMENT",
+    "productionGrant": false,
+    "newDeploymentGrant": false
+  },
+  "nextReview": "Recheck source and acceptance evidence after each scoped fix; fixed-SHA results do not carry forward",
+  "publication": {
+    "securityReproductionDetails": "Withheld according to SECURITY.md",
+    "originalLogsAndCloudOutputsIncluded": false,
+    "privateAdvisoryCreated": false,
+    "evidenceCustodyComplete": false
+  },
+  "localEvidenceManifest": [
+    {
+      "artifact": "full-project-audit.md",
+      "bytes": 23556,
+      "sha256": "114e4d674faf0531621ea2b18f93beefbe4eddbbda7bb199dc6869ca4ad4a1ba",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "audit-summary.json",
+      "bytes": 7198,
+      "sha256": "e29ed1762881bcd89df0492cc5cde09e2241a3d7810f4f2e04dafb1948a9978d",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "api-audit.md",
+      "bytes": 8803,
+      "sha256": "5749d58387afb79719f869e88949e05f29fb1d1bb119ca527dcddd0c8f8e3c66",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "worker-audit.md",
+      "bytes": 8969,
+      "sha256": "1b96a72b3ad265be3695e0e5f6c270818a7e290e8decf7ea73733dbc2becb92b",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "web-audit.md",
+      "bytes": 6201,
+      "sha256": "acc0f522b3abdcd88af6cf529000d7c384449fbd3aac78aaf93b09aeee1ec414",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "chrome-readonly-observations.json",
+      "bytes": 1872,
+      "sha256": "43d451df7a056a42c73310e2d75704340750806633fe54eef43d86b484062b98",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "verification-evidence/ci-verification.json",
+      "bytes": 942,
+      "sha256": "71aaf8794209f042bf6a557ec79e561704bc848bf8c6e89918b45fde31b1f197",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "repros/web-root-review.json",
+      "bytes": 3568,
+      "sha256": "60128db225263d523e260f07a3749b3f4f979fb63913884dbf43fcb31bed3dff",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "repros/api-root-review.json",
+      "bytes": 1006,
+      "sha256": "b4db6cde2c949230e08745b6e485a3a0c54e5a0ac12a450c7acd36abb579c469",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "repros/api-schedule-root-review.json",
+      "bytes": 1070,
+      "sha256": "f4a2ef468e605da58350cf96f0d0ba27f25958d9946b73651700a14d10c9c1ee",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "repros/api-followup-root-review.json",
+      "bytes": 645,
+      "sha256": "0202fcd239964856b231c91ba404eb3455bb311b60950129a3c9d86c71dc5e7d",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "repros/worker-root-review.json",
+      "bytes": 1702,
+      "sha256": "2034151107adfb6fe187c85b8af5a2b79ac4ee1a13a121c263df4a8ad7c87a85",
+      "custody": "Original local audit archive; not included in this PR"
+    },
+    {
+      "artifact": "repros/terraform-check/result.json",
+      "bytes": 226,
+      "sha256": "505deb0c1d3f100bb9524cb239504b28b7fa556306e28c65e77153157240052d",
+      "custody": "Original local audit archive; not included in this PR"
+    }
+  ],
+  "limitations": [
+    "Firestore/HTTP/DOM boundary doubles in new probes; emulator/HTTP integration regressions still needed",
+    "No deployment, cloud mutation, real data or provider acceptance",
+    "Audit findings are a fixed-SHA snapshot, not exhaustive security certification"
+  ]
+}
