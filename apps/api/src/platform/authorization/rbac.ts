@@ -67,7 +67,9 @@ export type Permission =
   // CP-04 (BD-POLICY-2026-09-29 §1): manager-only export.
   | 'export_business_data'
   // CP-05 (BD-POLICY-2026-09-29 §2): manager-only patient retention.
-  | 'manage_business_retention';
+  | 'manage_business_retention'
+  // CP-07 (BD-POLICY-2026-09-29 §6): manager-only termination evidence.
+  | 'manage_business_termination';
 
 /**
  * Candidate permission matrix. Deliberately least-privilege: the front desk
@@ -121,7 +123,8 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
     'read_business_delivery',
     'acknowledge_business_milestone',
     'export_business_data',
-    'manage_business_retention'
+    'manage_business_retention',
+    'manage_business_termination'
   ],
   system_admin: [
     'create_appointment',
