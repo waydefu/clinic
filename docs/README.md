@@ -193,7 +193,9 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-03 | [六位驗證需求與合併順序](reviews/2026-10-03-verification-direction-and-merge-order.md) | 業主原話「只有特殊情況才要6位驗證」已記錄；登入／操作再驗證與特殊情況清單待對應。#214～219 的當時 head 均有供應鏈／Verification evidence FAIL；合併順序與相依、同步 main 條件明列，未修改驗證實作或合併。 |
 | 2026-10-03 | [basic-ftp 供應鏈阻擋修復](reviews/2026-10-03-basic-ftp-supply-chain-repair.md) | 將 get-uri@6.0.5 的 development basic-ftp 鎖到 6.2.1，新增真實 CLI 依賴鏈與 loopback FTP 相容性回歸；不放寬審計 gate。CI／本機 gate 以紀錄及該 PR head 為準；未合併、未部署。 |
+| 2026-10-02 | [全專案稽核紀錄](reviews/2026-10-02-full-project-audit.md) / [JSON](reviews/2026-10-02-full-project-audit.json) | 固定 main `4ccc752`：15 個 CONFIRMED findings（6 P1、9 P2），全部未修；source diagnostics 有限驗證，同 SHA supply-chain / Verification evidence FAIL。C1 Scheduler 兩工作均 Paused；沒有部署或 provider 驗收。安全重現細節依 SECURITY.md 保留於本機。 |
 | 2026-10-02 | [C1 背景排程暫停紀錄](reviews/2026-10-02-c1-scheduler-pause.md) | 業主指示先暫停、需要測試時再開；outbox 排程已讀回 Paused，Calendar 同步維持 Paused。記錄 UTC 操作時間、證據摘要、重新測試及測後暫停流程；不宣稱費用歸零或新增部署／驗收權限。 |
 | 2026-09-30 | [Luna 環境修復交接](reviews/2026-09-30-luna-environment-readiness.md) | Node／pnpm 與 CI 障礙修復；官方 GitHub 定位已查證，Luna 文件試派完成。工具下載網路與後續 CLI 尚未備妥。 |
 | 2026-09-28 | [CP-02 C1 新預約驗收](reviews/2026-09-28-cp-02-c1-runtime-evidence.md) | CP-02 RUNTIME_PROVEN on isolated synthetic C1 at `1e0b84f`: BKG-01～05、07、09～12 runtime; BKG-06 not applicable by owner decision; BKG-08 two-candidate case kept on Emulator evidence. Three deviations recorded (API-only targeted apply, Hosting briefly pinned to an older revision before any write, legacy lookup proven structurally). Booking gate closed at the end. Open: C1 Workbench list shows no nationality. No production or D-series approval. |
