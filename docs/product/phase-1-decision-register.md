@@ -1,5 +1,15 @@
 # Phase 1 Decision Register
 
+## 2026-10-03 owner verification direction（先記錄，適用範圍待對應）
+
+- `STAFF-SIX-DIGIT-EXCEPTIONS-2026-10-03`：業主本次原話為
+  **「只有特殊情況才要6位驗證」**，要求新增紀錄。六位碼驗證的方向是只在特殊情況觸發。
+  原話尚未逐項定義特殊情況，亦尚未區分登入 MFA 與操作前的額外再驗證、既有 10 分鐘
+  有效期是否調整；這些實作對應為 `IMPLEMENTATION_SCOPE_PENDING`。
+  本次沒有改程式、停用登入 MFA、取消既有角色／session／CSRF 檢查，或修改
+  D-006 與 ADR-0008～0011 的既有控制。不得把未回答的對應自行填成業主已確認。
+  詳見[六位驗證需求與合併順序紀錄](../reviews/2026-10-03-verification-direction-and-merge-order.md)。
+
 ## 2026-09-22 owner scope overlay（不修改既有 D-series 狀態）
 
 本輪業主要求修正後開完整規劃 PR；以下是產品與先後順序，**不是新雲端授權**。
