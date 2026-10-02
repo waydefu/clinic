@@ -108,3 +108,25 @@ Google provider 或業主驗收。
 
 本輪變更全為 Markdown，依既有 .prettierignore 由 reviewer 排版；既有稽核 JSON
 未變，沒有重寫格式或 enforcement。紀錄可由 Git 回退，不需要 runtime rollback。
+
+## 2026-10-03 分支同步補充
+
+業主後續指示「你來吧」，授權把既有 PR 分支同步到最新 main，處理 merge conflict、
+正常推送並重跑 CI。[#220](https://github.com/waydefu/clinic/pull/220) 已於
+2026-10-03 01:04:57（2026-10-02 17:04:57 UTC）合入 main，merge commit 為
+`7eda5ee324dbcdf63091b50db7d961bb277b3772`。其 candidate `9043a54` 的
+[CI](https://github.com/waydefu/clinic/actions/runs/37037327693) 全部 12 checks PASS，
+包含 required Verification evidence；完整 audit 的 high 已歸零，9 development
+moderate 仍開放。上方六支 PR 的 FAIL 是同步之前的日期化快照，未被改成事後綠燈。
+
+本批處理 #214～#219：各分支合入同一 main `7eda5ee`，沒有把這些 PR 合到 main、
+互相合入未合併 feature，或修改六位驗證政策。#219 的 docs/README.md conflict
+保留本 PR 的稽核／驗證方向及 main 的供應鏈修復索引，未刪任何記錄。
+新 head／CI run 以各 PR 的實際讀回為準；本文件自身 commit 用上方 git log 查找，
+寫入此補充時新 head CI 為 NOT_RUN，其他分支仍同步中，不能將 #220 綠燈當作六支
+新候選的結果。本機完整 verify／Emulator／E2E／SBOM 為 NOT_RUN，原因是本機安裝
+已在 scoped 修復時重現 EPERM，執行 venue 改為各新 head 的 required Linux CI。
+
+接手第一步：確認每支同步後 exact head 的 required CI；後續每合一支 PR，下一支
+再同步當時 main。#216 的特殊驗證適用範圍及 #217 的最終 release packet 仍待對應。
+此同步沒有改 C1 Scheduler 暫停、雲端或 runtime／provider／產品驗收狀態。
