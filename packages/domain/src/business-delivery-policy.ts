@@ -45,6 +45,11 @@ export interface ApprovedBusinessDeliveryPolicy {
   };
   /** CP-05 recoverable period (`BD-POLICY-2026-09-29` §2). */
   readonly retention: { readonly recoverableDays: number };
+  /** CP-07 termination boundaries (`BD-POLICY-2026-09-29` §6). */
+  readonly termination: {
+    readonly minimumNoticeDays: number;
+    readonly controlledCopyRetentionDays: number;
+  };
 }
 
 export const BUSINESS_DELIVERY_POLICY_VERSIONS = [
@@ -79,7 +84,11 @@ const APPROVED_POLICIES: Readonly<
       // export inside a single atomic write.
       maxRangeDays: 366
     }),
-    retention: Object.freeze({ recoverableDays: 30 })
+    retention: Object.freeze({ recoverableDays: 30 }),
+    termination: Object.freeze({
+      minimumNoticeDays: 30,
+      controlledCopyRetentionDays: 30
+    })
   })
 });
 
