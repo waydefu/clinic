@@ -185,6 +185,19 @@
         }
       ],
       "note": "CP-05：只限 manager；封存可復原 30 天，逾期僅列待永久刪除；永久刪除需重新驗證、無 legal hold 並逐層清除。"
+    },
+    "business_delivery_termination": {
+      "permissions": ["manage_business_termination"],
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-002",
+          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 終止、資料返還與保存仍待 D-002 與專業隱私／法律審閱。",
+          "blocks": "public_production_route"
+        }
+      ],
+      "note": "CP-07：只限 manager；結案要求伺服器保存的資料返還收據、30 天受控副本保留期及三項可稽核人工清單證據。"
     }
   },
   "unrouted": {

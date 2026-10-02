@@ -58,12 +58,15 @@ allowBuilds:
 #                  patch。不可用無範圍的 `fast-uri: ^3.1.7`——那會把 4.x 降級。
 #   fastify        schema 根層 primitive coercion 繞過（GHSA-w2qp-rph6-63g4，
 #                  moderate）與 trustProxy hop-count 偽造（GHSA-3m5p-2c4r-xxw2，
-#                  moderate）。路徑：apps/api > @nestjs/platform-fastify >
-#                  fastify，**出貨面**。@nestjs/platform-fastify@11.1.28 精確釘
-#                  fastify 5.10.0；11.x 最新 11.2.3 仍精確釘 5.11.3，都 <5.12.1。
-#                  Nest 12.0.1 才帶 5.12.1，屬 framework 跨 major，不做。因此
-#                  比照 find-my-way，用無 selector 的 `fastify: '^5.12.1'`——
-#                  `fastify@^5` 對精確釘 5.10.0 可能套不上。樹上只有 5.x；
+#                  moderate）；另有 4 筆 high advisories
+#                  （GHSA-667r-xxjv-c9mm、GHSA-p68q-wchp-6fh7、
+#                  GHSA-hwr6-493r-vm6h、GHSA-9q9j-q6p8-xq58，patched >=5.12.2）
+#                  及 GHSA-4mh8-r7rc-xpvc（patched >=5.12.5）。路徑：apps/api >
+#                  @nestjs/platform-fastify > fastify，**出貨面**。
+#                  registry 中 fastify 5.12.5 發布於 2026-09-16，超過既有 24h
+#                  maturity gate；@nestjs/platform-fastify 11.2.6／11.2.7 都精確釘
+#                  fastify 5.11.3。Nest 12 屬 framework 跨 major，不做。因此用
+#                  無 selector 的 `fastify: '^5.12.5'` 保持在同 major；樹上只有 5.x，
 #                  不得改成 6.x。
 #
 # 以下三筆是 2026-08-04 修掉 fast-uri 之後才浮現的：`check:supply-chain` 依序跑
@@ -101,7 +104,11 @@ overrides:
   # fastify > ajv/fast-json-stringify. Preserve each parent's major.
   fast-uri@^3: '3.1.8'
   fast-uri@^4: '4.1.5'
-  fastify: '^5.12.1'
+  # 2026-10-01 audit: GHSA-667r-xxjv-c9mm / GHSA-p68q-wchp-6fh7 /
+  # GHSA-hwr6-493r-vm6h / GHSA-9q9j-q6p8-xq58 / GHSA-4mh8-r7rc-xpvc;
+  # apps/api > @nestjs/platform-fastify > fastify. 5.12.5 is the first shared
+  # same-major floor and is older than the 24-hour release-age maturity window.
+  fastify: '^5.12.5'
   # 2026-09-30 audit: GHSA-rfgv-xxqx-mfg5 / GHSA-w293-vg96-wgc3;
   # firebase-tools > superstatic > re2 > node-gyp (development only).
   undici@^8: '8.10.2'

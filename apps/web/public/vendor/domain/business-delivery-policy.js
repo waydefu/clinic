@@ -28,7 +28,11 @@ const APPROVED_POLICIES = Object.freeze({
             // export inside a single atomic write.
             maxRangeDays: 366
         }),
-        retention: Object.freeze({ recoverableDays: 30 })
+        retention: Object.freeze({ recoverableDays: 30 }),
+        termination: Object.freeze({
+            minimumNoticeDays: 30,
+            controlledCopyRetentionDays: 30
+        })
     })
 });
 export function resolveApprovedBusinessDeliveryPolicy(version, scope) {

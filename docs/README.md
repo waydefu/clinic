@@ -95,6 +95,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0008 — business-delivery usage events and milestones (CP-03)](adr/0008-business-delivery-usage-and-milestones.md)
 - [ADR-0009 — business-delivery safe export (CP-04)](adr/0009-business-delivery-export.md)
 - [ADR-0010 — business-delivery patient retention (CP-05)](adr/0010-business-delivery-retention.md)
+- [ADR-0011 — business-delivery termination and data return (CP-07)](adr/0011-business-delivery-termination.md)
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
 - [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
 - [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — production remains plan-only and blocked by production D-009/D-016; a 2026-09-11 banner records the owner product SLO (watch then `syncToken`, 1–5 minute compensation) without making `events.watch` executable; a 2026-08-30 banner still points to the separately approved synthetic-only five-minute poll
