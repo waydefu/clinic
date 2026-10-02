@@ -83,6 +83,9 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
 
 - [GPT-6 Luna 逐步執行計畫（2026-09-30）](plans/2026-09-30-luna-execution-plan.md) — L1 封存刪除、L2 日曆新格式、L3 工作臺商務分頁與重新登入、L4 還原驗證工具、L5 合作終止、L6 批次部署清單、L7 回歸／手冊／驗收；每包寫明檔案、規則、測試與停止條件
+- [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 source/release 綁定、exact-SHA、Terraform/Hosting expiry 與 runtime gate；目前 source 已整合，cloud plan/apply 與 C1 驗收仍 BLOCKED。
+- [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
+- [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
@@ -164,6 +167,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 ## 5. Operations
 
+- [管理者操作手冊（繁體中文，source-readiness draft）](runbooks/manager-operations-manual.md) — merged L3 UI 的操作標籤與 fresh reauth 邊界；C1 runtime、盲走、CP-08 captures 與 owner acceptance 仍待完成
 - [Luna 開發環境與額度使用流程](runbooks/luna-development-environment.md) — 固定工具、明確依賴安裝、cache／網路準備；已從官方 GitHub 查證 Luna 定位並試派有界文件工作。
 - [Stage E operational runbook](runbooks/stage-e-operational.md) — API outage, booking write, Firestore, Calendar 410/watch, dead-letter, backup verbs, auth, rate-limit, IAM, rollback, isolated preview; not apply
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
@@ -193,9 +197,10 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
-| 2026-10-03 | [六位驗證需求與合併順序](reviews/2026-10-03-verification-direction-and-merge-order.md) | 業主原話「只有特殊情況才要6位驗證」已記錄；登入／操作再驗證與特殊情況清單待對應。#214～219 的當時 head 均有供應鏈／Verification evidence FAIL；合併順序與相依、同步 main 條件明列，未修改驗證實作或合併。 |
-| 2026-10-03 | [basic-ftp 供應鏈阻擋修復](reviews/2026-10-03-basic-ftp-supply-chain-repair.md) | 將 get-uri@6.0.5 的 development basic-ftp 鎖到 6.2.1，新增真實 CLI 依賴鏈與 loopback FTP 相容性回歸；不放寬審計 gate。CI／本機 gate 以紀錄及該 PR head 為準；未合併、未部署。 |
-| 2026-10-02 | [全專案稽核紀錄](reviews/2026-10-02-full-project-audit.md) / [JSON](reviews/2026-10-02-full-project-audit.json) | 固定 main `4ccc752`：15 個 CONFIRMED findings（6 P1、9 P2），全部未修；source diagnostics 有限驗證，同 SHA supply-chain / Verification evidence FAIL。C1 Scheduler 兩工作均 Paused；沒有部署或 provider 驗收。安全重現細節依 SECURITY.md 保留於本機。 |
+| 2026-10-03 | [L6/L7 source-readiness handoff](reviews/2026-10-01-luna-l6-l7-source-readiness.md) | Current main `6131c7f` 已包含 #214～#216；各新 head 與 main verify run `37051691984` 均 12/12 PASS。#217 文件仍保留 CP-08 84 rows NOT_RUN、16 fresh captures 未執行、CP-10 NOT_SIGNED 與 runtime/deployment blockers。 |
+| 2026-10-03 | [六位驗證需求與合併順序](reviews/2026-10-03-verification-direction-and-merge-order.md) | 業主原話「只有特殊情況才要6位驗證」已記錄；登入／操作再驗證與特殊情況清單仍待對應。歷史順序紀錄保留；#214～#216、#218～#220 已依後續授權合併，#217 尚待本次文件同步與 exact-head CI。未修改驗證實作或政策。 |
+| 2026-10-03 | [basic-ftp 供應鏈阻擋修復](reviews/2026-10-03-basic-ftp-supply-chain-repair.md) | 將 get-uri@6.0.5 的 development basic-ftp 鎖到 6.2.1，新增真實 CLI 依賴鏈與 loopback FTP 相容性回歸；#220 已合入 main，未放寬審計 gate。 |
+| 2026-10-02 | [全專案稽核紀錄](reviews/2026-10-02-full-project-audit.md) / [JSON](reviews/2026-10-02-full-project-audit.json) | 固定 main `4ccc752`：15 個 CONFIRMED findings（6 P1、9 P2）是當時 snapshot；AUD-06 basic-ftp 由 #220 修復並以 exact-head CI 通過，其餘 14 項尚未在最終 source 逐項關帳。C1 Scheduler 兩工作均 Paused；沒有部署或 provider 驗收。安全重現細節依 SECURITY.md 保留於本機。 |
 | 2026-10-02 | [C1 背景排程暫停紀錄](reviews/2026-10-02-c1-scheduler-pause.md) | 業主指示先暫停、需要測試時再開；outbox 排程已讀回 Paused，Calendar 同步維持 Paused。記錄 UTC 操作時間、證據摘要、重新測試及測後暫停流程；不宣稱費用歸零或新增部署／驗收權限。 |
 | 2026-09-30 | [Luna 環境修復交接](reviews/2026-09-30-luna-environment-readiness.md) | Node／pnpm 與 CI 障礙修復；官方 GitHub 定位已查證，Luna 文件試派完成。工具下載網路與後續 CLI 尚未備妥。 |
 | 2026-09-28 | [CP-02 C1 新預約驗收](reviews/2026-09-28-cp-02-c1-runtime-evidence.md) | CP-02 RUNTIME_PROVEN on isolated synthetic C1 at `1e0b84f`: BKG-01～05、07、09～12 runtime; BKG-06 not applicable by owner decision; BKG-08 two-candidate case kept on Emulator evidence. Three deviations recorded (API-only targeted apply, Hosting briefly pinned to an older revision before any write, legacy lookup proven structurally). Booking gate closed at the end. Open: C1 Workbench list shows no nationality. No production or D-series approval. |

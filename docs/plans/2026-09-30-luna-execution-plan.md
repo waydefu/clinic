@@ -7,6 +7,8 @@
 **流程：** Luna 開 PR → Claude 審查 → 業主合併（`OWNER-BATCH-2026-09-29B` 第 8 項）。
 **不授權：** 部署、`terraform apply`、真實資料、production。L6 只準備清單，指令交給業主。
 
+**目前整合讀回（2026-10-03）：** `origin/main` 已到 `6131c7fc54f09369842f6edf73a26d42fed4c729`，#214、#215、#216 已依業主對話授權完成合併，各自 exact-head CI 12/12 PASS；#217 仍在本文件同步與 packet 更新階段。Chrome 操作回覆 `User unavailable`，因此 #214～#216 由已登入 GitHub CLI 完成。main verify run `37051691984` 已 12/12 PASS。這次只做 source/document 整合，沒有部署、apply、cloud readback 或 runtime 驗收；本段 supersede 後文較早的「尚未合併」snapshot。
+
 ## 0. 每個工作包都要照做的規則
 
 開工前先依 [開發環境手冊](../runbooks/luna-development-environment.md) 核對
@@ -495,6 +497,10 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
 回退方式、當天驗收清單（每個功能一個正向＋一個反向操作）、手冊截圖清單。
 **Luna 不執行任何部署指令**，全部交給業主。
 
+**2026-10-01 packet status snapshot:** [C1 批次部署 packet](2026-10-01-c1-batch-deployment-packet.md) contains the current source and authority state, including distinct apply/channel/booking expiries and owner-filled mutation budgets. The snapshot is superseded by the current-source reconciliation below. PR #213 is L5 termination API/domain; PR #216 is L3 Workbench UI. Do not conflate their evidence.
+
+前段「Terraform 只有 `export_chunk_ttl` 一個新資源」是 2026-09-30 的預期，不能當作目前完整差異。2026-10-01 packet 按 candidate source 列 TTL、Business Delivery env/Secret Manager container/API-only IAM 兩階段 prerequisites；allowlist ingress 與 monthly capture-gap fail-closed source 已在 PR #214，CI795 12/12 通過。它仍待 designated Claude review 和 owner merge；完整 cloud plan/readback 尚未核准，因此目前不能部署。
+
 ---
 
 ## L7 回歸、操作手冊、驗收清單（CP-08～CP-10）
@@ -506,6 +512,8 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
 2. CP-09：`docs/runbooks/` 下新增「管理者操作手冊」（繁中、給診所看的白話），章節：登入、
    預約管理、月報與驗收、匯出、封存與刪除、合作終止。截圖只用部署當天拍的合成資料畫面。
 3. CP-10：驗收清單文件，逐項列出「業主要看什麼、怎麼算通過」，最後一欄留給業主簽名日期。
+
+**2026-10-01 狀態追加：** [CP-08 evidence worksheet](2026-10-01-cp-08-regression-evidence-worksheet.md)、[繁中管理者操作手冊](../runbooks/manager-operations-manual.md) 與 [CP-10 checklist](2026-10-01-cp-10-current-project-acceptance-checklist.md) 已準備為 source-readiness 文件。worksheet 的 84 個目前適用 matrix rows、人工 reauth 與 human acceptance checks 仍是 `NOT_RUN`；BKG-06 沿用 owner N/A，GATE-03～05 維持獨立 gate。手冊的 UI/runtime 步驟和 screenshots placeholders 尚待同一 C1 release 的盲走及 fresh synthetic capture，不視為已可操作或證明。CP-06-E true restore 按 owner batch 移至 test-delivery 後 tuning，但仍是 final `CURRENT_PROJECT_ACCEPTANCE` 必要條件。L7 runtime 與 owner acceptance 未執行，故本次交接標為 `PARTIAL`，不是 CP-08 或 GATE-02 PASS。
 
 ---
 
@@ -519,3 +527,25 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
 | CP-04 匯出 API | #205 待合併 |
 | CP-06-S 計畫輸出修正 | 已合併（#199） |
 | L1～L7 | 本計畫 |
+
+---
+
+## 2026-10-01 current-source reconciliation（保留前述日期歷史）
+
+Source baseline `0870a5fd16c720cafc085f29594bef7afb30a71b` includes PR #198 (CP-03), #205 (CP-04), #208 (CP-05), #210 (L2a calendar title), #211 (dependency update), and #212 (isolated recovery verifier). Parent reports #210 head `63249db` and #212 head `e8115d` merged with CI passing. #212 is not the real Google restore CP-06-E. L2b, L3, L5 and L6 candidate branches are not in this baseline. CP-03/04/05 source is merged, but fresh C1 Cloud Run/env, Hosting, export TTL, retention, UI and acceptance readbacks remain pending.
+
+L5 PR #213 current head `e517f387705d5b90fe0bef78ff4991548192314a` includes the shared Gitleaks patch; CI799/run `36852875693` passed 12/12. Prior head `7397f8e…` passed CI787/run `36805449273` 12/12. PR #213 is READY, not merged or deployed. L6 PR #214 head `2e3edf70c050e6e4f161cfa8f37892ffa39123c7`; CI795/run `36846590947` passed 12/12 jobs, including exact CI emulator checks. Separately, local Terraform v1.16.4 / Google provider 7.46.1 fmt/validate, 34 mock tests and 83 gap-focused tests passed. PR #214 is READY, not merged or deployed. Fresh cloud plan/apply/readback remain `NOT_RUN`; earlier CI791 findings are fixed in current source. Official v8.30.1 pinned full-history scan at the 2026-10-01 11:02 UTC source snapshot covered 720 commits with zero findings; Gitleaks remediation also passed 4 focused tests and independent review.
+
+Business Delivery Terraform includes more than C5 `export_chunk_ttl`: API environment wiring, maintenance Secret Manager container, API-only IAM and two-stage prerequisite opt-in. Maintenance identities/payload remain in an owner-controlled private file, outside Terraform variables/state; tfvars contain only a numeric version pin. `BUSINESS_DELIVERY_OBSERVED_SINCE` binds to the first **complete classified capture** after valid ingress. Coverage gaps produce partial/null fee and a no-PII marker in existing `bd_milestones`; no bootstrap or allowlist-unready interval may be backfilled.
+
+L2b is PR #215 current head `972be99d5a0eb2965f03e6cc3a485cb655427cb5`, including the visible Overview shortcut navigation, post-navigation suggestion-state preservation, and bounded budget. CI796/run `36850157553` passed 12/12; PR #215 is READY, unmerged and undeployed. Older CI794/run `36845682914` passed 12/12 only for prior head `636204f…`. Shared SHA gate token-kind patch `10c` passed independent review and root's 6-file/31-test check. L3 is PR #216 current head `91da1cce6147be76c010bd1935362c091e30b3d4`; listener cleanup independent review passed 14 focused units and 9 business E2Es on Chromium 151. Gate-fix commit `c1658660cdfe5a25f1fd30372e350043a20b2c2f` passed 32 focused tests including real esbuild CSS minification and `planHashedBuild` regression; final independent gate review passed. CI800/run `36853002771` passed 12/12. PR #216 is READY, unmerged and undeployed, and awaits designated Claude review and owner merge. Prior head `ac4409e…` passed CI798/run `36851512049` 12/12, and older `1473b238…` passed CI797/run `36850439425` 12/12; neither proves the current head. Private integration measured initial bundle 95,812 B / 93.6 KiB (script 66,648 B, style 16,395 B, document 10,119 B, image 2,650 B); shared total/script/style budget 95/67/18 KiB; total delta +3 KiB under approved +5 KiB. The latest private integration at `b759097c4ebddfcfe0386dd26d3b8ef710170213` passed full verify (197 files, 2,351 tests plus 1 skipped) and verified four deferred chunks at 65,327 gzip B / 69,632 B (PASS); this is not exact PR CI or runtime evidence. PR #216 is L3, not L5; CI and independent Luna checks do not replace Claude review, and each source PR awaits the sequence Luna PR → designated Claude review → owner merge. Global COOP `same-origin` remains a known popup blocker; no security-header relaxation is proposed or implemented.
+
+The latest private integration snapshot `b759097c4ebddfcfe0386dd26d3b8ef710170213` passed full `pnpm verify`: 197 test files, 2,351 passed, 1 skipped / 2,352 total. Its deferred report measured 65,327 gzip B across four resources under the 69,632 B cap. It is private source-integration evidence, not merged-release exact CI. Earlier snapshot `3f5b476c…` (2,349 passed / 1 skipped) and `a97a86ab…` (2,345 passed / 1 skipped) are superseded; older `6e7f2b4…` had three unit failures later fixed. Gitleaks 4 focused tests, independent review and CI795 passed; official v8.30.1 pinned full-history scan at 2026-10-01 11:02 UTC covered 720 commits with 0 findings and exit 0. SHA token-kind patch `10c` passed independent review and root's 6-file/31-test check. Unchanged `c1-foundation`, `c2-c6` and `wp-b4` static inputs match the current unformatted source; no unrelated reformat, blanket ignore, or history rewrite is included.
+
+Owner assigned at most six Luna xhigh workers to bounded source preparation without mid-run monitoring; independent review follows handoff. Each source package stays in its own main-based PR with no stacking. Each package follows Luna PR → designated Claude review → owner merge. Preparation does not auto-merge, deploy, apply, or authorize runtime data mutation.
+
+The CP-08 worksheet keeps all 84 applicable rows `NOT_RUN` (88 IDs total); manual reauthentication, human walkthrough and 16 fresh synthetic captures are pending. The manager manual describes candidate UI source but not current production-ready controls. CP-05 has no preview/fingerprint endpoint. CP-07 lifecycle is a 30-day notice, data-return receipt, then 30-day controlled retention; every POST requires fresh Google+TOTP. Missing receipt/steps or early close is rejected; eligible close only reaches `manual_close_review`. Human backup/audit/access receipts are not proof of cloud deletion or access revocation. CP-10 remains `NOT_SIGNED`, with signature/date blank. CP-06-E true restore remains `NOT_RUN`, separately authorized and required for final current-project acceptance.
+
+CP-09 commercial terms remain blocked by a sanitized discrepancy between the private current document index and the repository-approved policy. Do not copy amounts, Drive IDs, or source text to the repository, and do not change the approved local policy without owner resolution. Engineering delivery/tuning acceptance is distinct from true-calendar-month payment acceptance. AWS/site work remains deferred.
+
+The 2026-09-30 appendix is a historical snapshot; its “#205 待合併” and TTL-only expectation are superseded by this reconciliation. No source merge or docs commit implies C1 apply, Hosting release, runtime acceptance, CP-08 PASS, CP-10 signature, payment acceptance, production readiness, AWS, or website completion. Main `6131c7fc54f09369842f6edf73a26d42fed4c729` now contains the merged #213/#214/#215/#216 source; #214/#215/#216 each passed 12/12 exact-head CI. #217 remains a documentation candidate and requires its own synced CI. The private integration verification is not merged-release proof.
