@@ -6,7 +6,8 @@ const COMPLETE = {
   BUSINESS_DELIVERY_ENABLED: 'true',
   BUSINESS_DELIVERY_POLICY_VERSION: 'BD-POLICY-2026-09-29',
   BUSINESS_DELIVERY_SCOPE: 'internal_synthetic',
-  BUSINESS_DELIVERY_OBSERVED_SINCE: '2030-09-01T00:00:00.000Z'
+  BUSINESS_DELIVERY_OBSERVED_SINCE: '2030-09-01T00:00:00.000Z',
+  BUSINESS_DELIVERY_MAINTENANCE_EMAILS: 'maintenance@example.test'
 };
 
 describe('readBusinessDeliveryConfig', () => {
@@ -31,7 +32,12 @@ describe('readBusinessDeliveryConfig', () => {
     ['BUSINESS_DELIVERY_SCOPE', 'production'],
     ['BUSINESS_DELIVERY_SCOPE', undefined],
     ['BUSINESS_DELIVERY_OBSERVED_SINCE', '2030-09-01'],
-    ['BUSINESS_DELIVERY_OBSERVED_SINCE', undefined]
+    ['BUSINESS_DELIVERY_OBSERVED_SINCE', undefined],
+    ['BUSINESS_DELIVERY_MAINTENANCE_EMAILS', undefined],
+    ['BUSINESS_DELIVERY_MAINTENANCE_EMAILS', ''],
+    ['BUSINESS_DELIVERY_MAINTENANCE_EMAILS', '  '],
+    ['BUSINESS_DELIVERY_MAINTENANCE_EMAILS', 'maintenance@example.test,'],
+    ['BUSINESS_DELIVERY_MAINTENANCE_EMAILS', 'not-an-email']
   ])('stays off when %s is %s', (name, value) => {
     const environment: Record<string, string | undefined> = { ...COMPLETE };
     if (value === undefined) delete environment[name];

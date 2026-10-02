@@ -58,6 +58,59 @@
       }
     },
     {
+      "name": "BUSINESS_DELIVERY_ENABLED",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true,
+      "allowedValues": ["true", "false"],
+      "notes": "Explicit false by default. Report routes require the approved C1 synthetic policy inputs below."
+    },
+    {
+      "name": "BUSINESS_DELIVERY_POLICY_VERSION",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true,
+      "requiredWhen": {
+        "BUSINESS_DELIVERY_ENABLED": "true"
+      },
+      "allowedValues": ["", "BD-POLICY-2026-09-29"],
+      "notes": "Only BD-POLICY-2026-09-29 is approved for internal_synthetic."
+    },
+    {
+      "name": "BUSINESS_DELIVERY_SCOPE",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true,
+      "requiredWhen": {
+        "BUSINESS_DELIVERY_ENABLED": "true"
+      },
+      "allowedValues": ["", "internal_synthetic"],
+      "notes": "Only internal_synthetic is approved."
+    },
+    {
+      "name": "BUSINESS_DELIVERY_OBSERVED_SINCE",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": true,
+      "requiredWhen": {
+        "BUSINESS_DELIVERY_ENABLED": "true"
+      },
+      "validation": "UTC_ISO_8601_OR_EMPTY",
+      "notes": "Valid UTC ISO-8601 instant when ingress observation began."
+    },
+    {
+      "name": "BUSINESS_DELIVERY_MAINTENANCE_EMAILS",
+      "class": "SECRET_REFERENCE",
+      "secretId": "c1-business-delivery-maintenance-emails",
+      "requiredFor": ["api"],
+      "cloudRequired": true,
+      "requiredWhen": {
+        "BUSINESS_DELIVERY_ENABLED": "true"
+      },
+      "validation": "EMAIL_ALLOWLIST",
+      "notes": "Comma-separated maintenance/developer identities. Never store the value in this contract or repository."
+    },
+    {
       "name": "INTERNAL_TEST_SOURCE_SHA",
       "class": "NON_SECRET_CONFIG",
       "requiredFor": ["api", "worker"],
