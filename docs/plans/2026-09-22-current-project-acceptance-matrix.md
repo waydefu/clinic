@@ -2,7 +2,7 @@
 
 狀態：基線盤點，**不是已通過的驗收表**。來源日期與authority見[主計畫](2026-09-22-current-project-acceptance-master-plan.md)。
 
-目前 source readback（2026-10-03）：`origin/main`=`6131c7fc54f09369842f6edf73a26d42fed4c729`，已包含 #214、#215、#216 的 merged source；各自 exact-head CI 均 12/12 PASS，main verify run `37051691984` 撰寫時仍在執行。下列矩陣的 `SOURCE_PROVEN`／`CI_PROVEN` 不能推升為 C1 runtime、CLOUD_READBACK 或 HUMAN_PROVEN；CP-08、runtime、owner receipt、CP-10 signature 仍依各列維持 `NOT_RUN`／`BLOCKED`。
+目前 source readback（2026-10-03）：`origin/main`=`6131c7fc54f09369842f6edf73a26d42fed4c729`，已包含 #214、#215、#216 的 merged source；各自 exact-head CI 均 12/12 PASS，main verify run `37051691984` 亦 12/12 PASS。下列矩陣的 `SOURCE_PROVEN`／`CI_PROVEN` 不能推升為 C1 runtime、CLOUD_READBACK 或 HUMAN_PROVEN；CP-08、runtime、owner receipt、CP-10 signature 仍依各列維持 `NOT_RUN`／`BLOCKED`。
 實作順序/24欄位見[工作包](2026-09-22-current-project-execution-packets.md)，
 P1-09實際操作見[operator packet](2026-09-22-p1-09-operator-packet.md)。
 

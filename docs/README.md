@@ -197,7 +197,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
-| 2026-10-03 | [L6/L7 source-readiness handoff](reviews/2026-10-01-luna-l6-l7-source-readiness.md) | Current main `6131c7f` 已包含 #214～#216；各新 head CI 12/12 PASS。#217 文件仍保留 CP-08 84 rows NOT_RUN、16 fresh captures 未執行、CP-10 NOT_SIGNED 與 runtime/deployment blockers。 |
+| 2026-10-03 | [L6/L7 source-readiness handoff](reviews/2026-10-01-luna-l6-l7-source-readiness.md) | Current main `6131c7f` 已包含 #214～#216；各新 head 與 main verify run `37051691984` 均 12/12 PASS。#217 文件仍保留 CP-08 84 rows NOT_RUN、16 fresh captures 未執行、CP-10 NOT_SIGNED 與 runtime/deployment blockers。 |
 | 2026-10-03 | [六位驗證需求與合併順序](reviews/2026-10-03-verification-direction-and-merge-order.md) | 業主原話「只有特殊情況才要6位驗證」已記錄；登入／操作再驗證與特殊情況清單仍待對應。歷史順序紀錄保留；#214～#216、#218～#220 已依後續授權合併，#217 尚待本次文件同步與 exact-head CI。未修改驗證實作或政策。 |
 | 2026-10-03 | [basic-ftp 供應鏈阻擋修復](reviews/2026-10-03-basic-ftp-supply-chain-repair.md) | 將 get-uri@6.0.5 的 development basic-ftp 鎖到 6.2.1，新增真實 CLI 依賴鏈與 loopback FTP 相容性回歸；#220 已合入 main，未放寬審計 gate。 |
 | 2026-10-02 | [全專案稽核紀錄](reviews/2026-10-02-full-project-audit.md) / [JSON](reviews/2026-10-02-full-project-audit.json) | 固定 main `4ccc752`：15 個 CONFIRMED findings（6 P1、9 P2）是當時 snapshot；AUD-06 basic-ftp 由 #220 修復並以 exact-head CI 通過，其餘 14 項尚未在最終 source 逐項關帳。C1 Scheduler 兩工作均 Paused；沒有部署或 provider 驗收。安全重現細節依 SECURITY.md 保留於本機。 |

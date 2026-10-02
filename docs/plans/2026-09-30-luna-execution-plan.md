@@ -7,7 +7,7 @@
 **流程：** Luna 開 PR → Claude 審查 → 業主合併（`OWNER-BATCH-2026-09-29B` 第 8 項）。
 **不授權：** 部署、`terraform apply`、真實資料、production。L6 只準備清單，指令交給業主。
 
-**目前整合讀回（2026-10-03）：** `origin/main` 已到 `6131c7fc54f09369842f6edf73a26d42fed4c729`，#214、#215、#216 已依業主對話授權完成合併，各自 exact-head CI 12/12 PASS；#217 仍在本文件同步與 packet 更新階段。Chrome 操作回覆 `User unavailable`，因此 #214～#216 由已登入 GitHub CLI 完成。main verify run `37051691984` 當時尚未完成。這次只做 source/document 整合，沒有部署、apply、cloud readback 或 runtime 驗收；本段 supersede 後文較早的「尚未合併」snapshot。
+**目前整合讀回（2026-10-03）：** `origin/main` 已到 `6131c7fc54f09369842f6edf73a26d42fed4c729`，#214、#215、#216 已依業主對話授權完成合併，各自 exact-head CI 12/12 PASS；#217 仍在本文件同步與 packet 更新階段。Chrome 操作回覆 `User unavailable`，因此 #214～#216 由已登入 GitHub CLI 完成。main verify run `37051691984` 已 12/12 PASS。這次只做 source/document 整合，沒有部署、apply、cloud readback 或 runtime 驗收；本段 supersede 後文較早的「尚未合併」snapshot。
 
 ## 0. 每個工作包都要照做的規則
 

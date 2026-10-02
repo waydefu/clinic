@@ -4,7 +4,7 @@
 
 ## 目前 source 整合讀回（2026-10-03）
 
-目前 `origin/main` 為 `6131c7fc54f09369842f6edf73a26d42fed4c729`，已包含 #213、#214、#215、#216、#218、#219、#220 的合併提交。#214 head `e089b55ee2847ae06d9e7c356125264bc8a61207`、#215 head `331992eeea8366b412ebe64591358f209a2e6f17`、#216 head `1197f0c43a6a8fb1ed01960e01e9a59cac151656` 的各自 CI 均為 12/12 PASS；main 這個最新合併提交的 verify run `37051691984` 當時仍在執行，必須以完成後的 exact-SHA readback 為準。這些 source CI 不等同 cloud plan、部署、C1 runtime 或人員驗收。
+目前 `origin/main` 為 `6131c7fc54f09369842f6edf73a26d42fed4c729`，已包含 #213、#214、#215、#216、#218、#219、#220 的合併提交。#214 head `e089b55ee2847ae06d9e7c356125264bc8a61207`、#215 head `331992eeea8366b412ebe64591358f209a2e6f17`、#216 head `1197f0c43a6a8fb1ed01960e01e9a59cac151656` 的各自 CI 均為 12/12 PASS；main verify run `37051691984` 亦已 12/12 PASS。這些 source CI 不等同 cloud plan、部署、C1 runtime 或人員驗收。
 
 本 packet 的舊 head、CI 與「尚未合併」文字是歷史 snapshot；它們保留作為日期證據，不可代替上面的 current source。此次合併由業主在對話中明確授權 Codex 依 #214→#215→#216→#217 執行；Chrome 通道回覆 `User unavailable`，#214～#216 改以已登入 GitHub CLI 完成，沒有新增 Claude review 證據，也沒有 cloud mutation。
 **範圍：** `OWNER-BATCH-2026-09-29B` 第 1、2、3 項；只限合成 C1。

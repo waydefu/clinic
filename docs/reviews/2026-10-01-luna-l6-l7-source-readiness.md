@@ -6,7 +6,7 @@
 
 ### Current release reconciliation (2026-10-03)
 
-`origin/main` is now `6131c7fc54f09369842f6edf73a26d42fed4c729`, including merged #213, #214, #215, #216, #218, #219, and #220. The synced source heads #214 `e089b55ee2847ae06d9e7c356125264bc8a61207`, #215 `331992eeea8366b412ebe64591358f209a2e6f17`, and #216 `1197f0c43a6a8fb1ed01960e01e9a59cac151656` each passed 12/12 exact-head CI. Main verify run `37051691984` was still in progress when this addendum was written. The dated rows below retain historical snapshots; they do not override this current source readback. There is no new designated Claude review evidence in this reconciliation. C1 runtime, cloud plan/apply, CP-08 captures, CP-10 signature, and owner acceptance remain pending.
+`origin/main` is now `6131c7fc54f09369842f6edf73a26d42fed4c729`, including merged #213, #214, #215, #216, #218, #219, and #220. The synced source heads #214 `e089b55ee2847ae06d9e7c356125264bc8a61207`, #215 `331992eeea8366b412ebe64591358f209a2e6f17`, and #216 `1197f0c43a6a8fb1ed01960e01e9a59cac151656` each passed 12/12 exact-head CI. Main verify run `37051691984` passed 12/12. The dated rows below retain historical snapshots; they do not override this current source readback. There is no new designated Claude review evidence in this reconciliation. C1 runtime, cloud plan/apply, CP-08 captures, CP-10 signature, and owner acceptance remain pending.
 
 ## Current evidence and blockers
 
@@ -64,13 +64,13 @@ Within the bounded L1–L7 source-readiness and confirmed-sibling scope, every i
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `docs/plans/2026-10-01-c1-batch-deployment-packet.md` | `7726567ec64a80e373133c577fe59b90cd88da9358798c6b450c27c5e5a08cf2` |
-| `docs/plans/2026-10-01-cp-08-regression-evidence-worksheet.md` | `11425dcd53d793956611090c25aedfcc224cdb423e5480bd8e537aaa92eda77b` |
+| `docs/plans/2026-10-01-c1-batch-deployment-packet.md` | `60b93c2ac715650f6c614fa50393869665b1b7bbc8780235016f18cace31d736` |
+| `docs/plans/2026-10-01-cp-08-regression-evidence-worksheet.md` | `9ea4f9d003a7ff2ce931c30d9747ead90979ccbf09a61fe44278af5f814eafa7` |
 | `docs/runbooks/manager-operations-manual.md` | `9dc8d295ea0eaca92ee9de4685018bd62e0c7f4cb46dc606b36e848e563499ab` |
 | `docs/plans/2026-10-01-cp-10-current-project-acceptance-checklist.md` | `e51aaf69cdbd5f12787630402b9ec8d3923dcdf5016304b633a0878d1f14f2ba` |
-| `docs/plans/2026-09-30-luna-execution-plan.md` | `3561dfada0759fc0f92cf37f6af5a8b00ea5ba825bdf8b71ff6cd764604cf822` |
-| `docs/plans/2026-09-22-current-project-acceptance-matrix.md` | `955611ac17a30eb95f8e7c10da4abc60bc35e4b2e4ca58dbf4c7e927da779103` |
-| `docs/README.md` | `feac8ca90296979e8088f46333514cc2cdd4009d0c0c80e448b84633f468ae53` |
+| `docs/plans/2026-09-30-luna-execution-plan.md` | `21861b21ee61a63cbabbff8c3dcbfcc17bcd90242b80a5c107815a153acd1c98` |
+| `docs/plans/2026-09-22-current-project-acceptance-matrix.md` | `4919c2bf7c8a2c9e1f7cd79df7e86b9a7025b7f8f76da23bd858c04d7dccc10c` |
+| `docs/README.md` | `12d463f3da9df3aeea656c24543e60f2c9974fa9e6cbabcdc00513c66c5201e5` |
 
 This handoff is omitted from the table to avoid self-hashing. The 16 planned C1/CP-08 fresh synthetic acceptance captures and runtime evidence have not been collected; CI/local source E2E artifacts, where present, are not C1 runtime evidence.
 
