@@ -28,7 +28,10 @@ import { actorRefForUid } from './usage-events.js';
 
 export type BusinessDeliveryRepositoryPort = Pick<
   FirestoreBusinessDeliveryRepository,
-  'usageEventsBetween' | 'milestoneState' | 'acknowledge'
+  | 'usageEventsBetween'
+  | 'hasStaffUsageCaptureGap'
+  | 'milestoneState'
+  | 'acknowledge'
 >;
 
 // Strict: a legacy alias must not widen a server session into a new role.
@@ -90,7 +93,8 @@ export class BusinessDeliveryApplicationService {
       month,
       observedSince: config.observedSince,
       now,
-      lateEventCutoffDays: config.policy.lateEventCutoffDays
+      lateEventCutoffDays: config.policy.lateEventCutoffDays,
+      hasCaptureGap: await this.repository.hasStaffUsageCaptureGap(month)
     });
     const events = await this.repository.usageEventsBetween(
       range.startAt,

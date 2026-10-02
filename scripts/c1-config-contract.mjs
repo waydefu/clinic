@@ -11,6 +11,26 @@ import {
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const SHA_PATTERN = /^[a-f0-9]{40}$/;
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+const EMAIL_ADDRESS_PATTERN =
+  /^[A-Z0-9!#$%&'*+/?=^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/?=^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
+const UTC_ISO_8601_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
+function isUtcIsoTimestamp(value) {
+  if (!UTC_ISO_8601_PATTERN.test(value)) return false;
+  const parsed = new Date(value);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value.slice(0, 10)
+  );
+}
+
+function isEmailAllowlist(value) {
+  const emails = value.split(',').map((email) => email.trim());
+  return (
+    emails.length > 0 &&
+    emails.every((email) => EMAIL_ADDRESS_PATTERN.test(email))
+  );
+}
 
 export const CONFIG_CONTRACT_PATH =
   'infra/config/c1-internal-test-config-contract.json';
@@ -64,6 +84,42 @@ export function evaluateC1ConfigContract(contract = loadC1ConfigContract()) {
       'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN authorizedHosts must be the exact isolated C1 preview allowlist.'
     );
   }
+  const businessDeliveryEntries = new Map(
+    (contract.entries ?? [])
+      .filter((entry) => entry.name?.startsWith('BUSINESS_DELIVERY_'))
+      .map((entry) => [entry.name, entry])
+  );
+  const expectedBusinessDeliveryConfig = {
+    BUSINESS_DELIVERY_ENABLED: ['true', 'false'],
+    BUSINESS_DELIVERY_POLICY_VERSION: ['', 'BD-POLICY-2026-09-29'],
+    BUSINESS_DELIVERY_SCOPE: ['', 'internal_synthetic']
+  };
+  for (const [name, allowedValues] of Object.entries(
+    expectedBusinessDeliveryConfig
+  )) {
+    const entry = businessDeliveryEntries.get(name);
+    if (
+      JSON.stringify(entry?.allowedValues) !== JSON.stringify(allowedValues)
+    ) {
+      issues.push(`${name} must declare the approved allowedValues.`);
+    }
+  }
+  if (
+    businessDeliveryEntries.get('BUSINESS_DELIVERY_OBSERVED_SINCE')
+      ?.validation !== 'UTC_ISO_8601_OR_EMPTY'
+  ) {
+    issues.push(
+      'BUSINESS_DELIVERY_OBSERVED_SINCE must declare UTC_ISO_8601_OR_EMPTY validation.'
+    );
+  }
+  if (
+    businessDeliveryEntries.get('BUSINESS_DELIVERY_MAINTENANCE_EMAILS')
+      ?.validation !== 'EMAIL_ALLOWLIST'
+  ) {
+    issues.push(
+      'BUSINESS_DELIVERY_MAINTENANCE_EMAILS must declare EMAIL_ALLOWLIST validation.'
+    );
+  }
   return { ok: issues.length === 0, issues };
 }
 
@@ -103,11 +159,33 @@ export function evaluateRequiredCloudConfig(env, surface, contract) {
     ) {
       continue;
     }
-    if (!requiredWhenSatisfied(entry, env)) continue;
-    const value = String(env?.[entry.name] ?? '').trim();
+    const required = requiredWhenSatisfied(entry, env);
+    const rawValue = String(env?.[entry.name] ?? '');
+    const value = rawValue.trim();
     if (value === '') {
-      missing.push(entry.name);
+      if (required) missing.push(entry.name);
       continue;
+    }
+    const validationValue = entry.name.startsWith('BUSINESS_DELIVERY_')
+      ? rawValue
+      : value;
+    if (
+      Array.isArray(entry.allowedValues) &&
+      !entry.allowedValues.includes(validationValue)
+    ) {
+      missing.push(`${entry.name}_INVALID`);
+    }
+    if (
+      entry.validation === 'UTC_ISO_8601_OR_EMPTY' &&
+      !isUtcIsoTimestamp(validationValue)
+    ) {
+      missing.push(`${entry.name}_INVALID`);
+    }
+    if (
+      entry.validation === 'EMAIL_ALLOWLIST' &&
+      !isEmailAllowlist(validationValue)
+    ) {
+      missing.push(`${entry.name}_INVALID`);
     }
     if (entry.name === 'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN') {
       const evaluation = evaluateC1FirebaseAuthDomain(value);

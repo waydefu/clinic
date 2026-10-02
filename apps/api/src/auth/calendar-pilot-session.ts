@@ -9,7 +9,8 @@ import type { Auth, DecodedIdToken } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import {
   STAFF_ABSOLUTE_SESSION_MS,
-  evaluateStaffSession
+  evaluateStaffSession,
+  taipeiCalendarDateOf
 } from '@beauessence/domain';
 
 import type { AuthenticationContext } from './authentication-context.js';
@@ -32,7 +33,8 @@ import {
 import {
   BUSINESS_DELIVERY_COLLECTIONS,
   FIRST_ELIGIBLE_USE_DOC,
-  staffLoginUsageEvent
+  staffLoginUsageEvent,
+  staffUsageCaptureGapDocumentId
 } from '../business-delivery/usage-events.js';
 
 // Firebase Hosting strips incoming cookies before Cloud Run rewrites, except
@@ -158,9 +160,11 @@ export class CalendarPilotSessionService {
     private readonly environment: NodeJS.ProcessEnv = process.env,
     private readonly telemetry: CalendarPilotSessionGateTelemetry = NOOP_CALENDAR_PILOT_SESSION_GATE_TELEMETRY,
     /**
-     * CP-03 usage ingress (ADR-0008). When on, the session, its staff_login
-     * usage event and — for the first runtime login — the trial-start marker
-     * commit in one transaction; off keeps the single session create.
+     * CP-03 usage ingress (ADR-0008). When on and the maintenance allowlist is
+     * valid, the session, staff_login event and — for the first runtime login
+     * — the trial-start marker commit in one transaction. When off, it writes
+     * only the session; when classification is unavailable, it writes the
+     * session and monthly gap marker in one transaction.
      */
     private readonly recordBusinessDeliveryUsage = false
   ) {}
@@ -268,25 +272,44 @@ export class CalendarPilotSessionService {
           occurredAt: now,
           environment: this.environment
         });
-        const firstUseRef = this.db
-          .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
-          .doc(FIRST_ELIGIBLE_USE_DOC);
-        await this.db.runTransaction(async (transaction) => {
-          const firstUse = await transaction.get(firstUseRef);
-          transaction.create(sessionRef, record);
-          transaction.create(
-            this.db
-              .collection(BUSINESS_DELIVERY_COLLECTIONS.usageEvents)
-              .doc(event.eventId),
-            event
-          );
-          if (!firstUse.exists && event.eventClass === 'runtime')
-            transaction.create(firstUseRef, {
-              schemaVersion: 1,
-              occurredAt: now,
-              eventId: event.eventId
-            });
-        });
+        if (event !== undefined) {
+          const firstUseRef = this.db
+            .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+            .doc(FIRST_ELIGIBLE_USE_DOC);
+          await this.db.runTransaction(async (transaction) => {
+            const firstUse = await transaction.get(firstUseRef);
+            transaction.create(sessionRef, record);
+            transaction.create(
+              this.db
+                .collection(BUSINESS_DELIVERY_COLLECTIONS.usageEvents)
+                .doc(event.eventId),
+              event
+            );
+            if (!firstUse.exists && event.eventClass === 'runtime')
+              transaction.create(firstUseRef, {
+                schemaVersion: 1,
+                occurredAt: now,
+                eventId: event.eventId
+              });
+          });
+        } else {
+          const month = taipeiCalendarDateOf(now).slice(0, 7);
+          const captureGapRef = this.db
+            .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+            .doc(staffUsageCaptureGapDocumentId(month));
+          await this.db.runTransaction(async (transaction) => {
+            const captureGap = await transaction.get(captureGapRef);
+            transaction.create(sessionRef, record);
+            if (!captureGap.exists) {
+              transaction.create(captureGapRef, {
+                schemaVersion: 1,
+                month,
+                firstObservedAt: now,
+                reason: 'maintenance_allowlist_unready'
+              });
+            }
+          });
+        }
       } else {
         await sessionRef.create(record);
       }

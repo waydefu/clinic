@@ -49,17 +49,24 @@ function fakeRepository(
   options: {
     readonly events?: BusinessReportEvent[];
     readonly state?: MilestoneState;
+    readonly captureGap?: boolean;
   } = {}
 ) {
   const ranges: Array<[string, string]> = [];
+  const captureGapMonths: string[] = [];
   const acknowledged: AcknowledgeMilestoneCommand[] = [];
   return {
     ranges,
+    captureGapMonths,
     acknowledged,
     repository: {
       usageEventsBetween(startAt: string, endAt: string) {
         ranges.push([startAt, endAt]);
         return Promise.resolve(options.events ?? []);
+      },
+      hasStaffUsageCaptureGap(month: string) {
+        captureGapMonths.push(month);
+        return Promise.resolve(options.captureGap ?? false);
       },
       milestoneState() {
         return Promise.resolve(
@@ -187,6 +194,31 @@ describe('monthlyUsage', () => {
     );
     expect(report.usageClassification).toBe('unused');
     expect(report.maintenanceFeeTwd).toBe(500);
+  });
+
+  it('keeps a month with a known staff capture gap incomplete after the cutoff', async () => {
+    const fake = fakeRepository({
+      captureGap: true,
+      events: [
+        staffLogin('e1', '2030-10-02T01:00:00.000Z', 'a1'),
+        {
+          eventId: 'e2',
+          occurredAt: '2030-10-04T01:00:00.000Z',
+          kind: 'booking_created',
+          eventClass: 'runtime'
+        }
+      ]
+    });
+    const report = await service(
+      '2030-12-01T00:00:00.000Z',
+      fake.repository
+    ).monthlyUsage({ month: '2030-10' }, staff(OWNER_ROLE));
+    expect(fake.captureGapMonths).toEqual(['2030-10']);
+    expect(report.completeness).toBe('partial');
+    expect(report.uniqueStaffUsers).toBe(1);
+    expect(report.bookingCreatedCount).toBe(1);
+    expect(report.usageClassification).toBe('insufficient_evidence');
+    expect(report.maintenanceFeeTwd).toBeNull();
   });
 
   it('never turns an unlocked month into unused, even with no events', async () => {
