@@ -24,6 +24,10 @@ describe('resolveApprovedBusinessDeliveryPolicy', () => {
     expect(POLICY.lateEventCutoffDays).toBe(5);
     expect(POLICY.maintenanceFeesTwd).toEqual({ normal: 1800, unused: 500 });
     expect(POLICY.reauthenticationMaxAgeSeconds).toBe(600);
+    expect(POLICY.termination).toEqual({
+      minimumNoticeDays: 30,
+      controlledCopyRetentionDays: 30
+    });
   });
 
   it.each([
@@ -42,6 +46,7 @@ describe('resolveApprovedBusinessDeliveryPolicy', () => {
   it('cannot be mutated by a caller', () => {
     expect(Object.isFrozen(POLICY)).toBe(true);
     expect(Object.isFrozen(POLICY.milestones)).toBe(true);
+    expect(Object.isFrozen(POLICY.termination)).toBe(true);
   });
 });
 

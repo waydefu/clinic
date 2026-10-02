@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BusinessTerminationAcknowledgementRequestSchema,
   BusinessMilestonesResponseSchema,
+  CloseBusinessTerminationRequestSchema,
+  CreateBusinessTerminationRequestSchema,
   MilestoneAcknowledgementRequestSchema,
   MonthlyUsageQuerySchema,
   MonthlyUsageResponseSchema
@@ -66,6 +69,97 @@ describe('MilestoneAcknowledgementRequestSchema', () => {
       MilestoneAcknowledgementRequestSchema.parse({
         ...base,
         launchDate: '2030-02-30'
+      })
+    ).toThrow();
+  });
+});
+
+describe('CP-07 termination contracts', () => {
+  const terminationKey = 'termination-key-00001';
+  const exportId = `exp_${'a'.repeat(40)}`;
+
+  it('accepts a local notice date and rejects client-selected notice evidence', () => {
+    expect(
+      CreateBusinessTerminationRequestSchema.parse({
+        idempotencyKey: terminationKey,
+        noticeDate: '2030-10-20'
+      })
+    ).toEqual({
+      idempotencyKey: terminationKey,
+      noticeDate: '2030-10-20'
+    });
+    expect(() =>
+      CreateBusinessTerminationRequestSchema.parse({
+        idempotencyKey: terminationKey,
+        noticeDate: '2030-02-30'
+      })
+    ).toThrow();
+  });
+
+  it('takes a data-return export ID but never accepts a client hash or actor/time', () => {
+    expect(
+      BusinessTerminationAcknowledgementRequestSchema.parse({
+        idempotencyKey: terminationKey,
+        receiptKind: 'data_return',
+        exportId
+      })
+    ).toEqual({
+      idempotencyKey: terminationKey,
+      receiptKind: 'data_return',
+      exportId
+    });
+    for (const extra of [
+      { sha256: 'a'.repeat(64) },
+      { actorRef: 'b'.repeat(64) },
+      { acknowledgedAt: '2030-10-20T00:00:00.000Z' },
+      { complete: true }
+    ]) {
+      expect(() =>
+        BusinessTerminationAcknowledgementRequestSchema.parse({
+          idempotencyKey: terminationKey,
+          receiptKind: 'data_return',
+          exportId,
+          ...extra
+        })
+      ).toThrow();
+    }
+  });
+
+  it('accepts only the three evidence-backed checklist receipts', () => {
+    for (const receiptKind of [
+      'backup_disposition',
+      'audit_disposition',
+      'access_revocation'
+    ] as const) {
+      expect(
+        BusinessTerminationAcknowledgementRequestSchema.parse({
+          idempotencyKey: terminationKey,
+          receiptKind,
+          evidenceRef: 'evidence_ref_1'
+        })
+      ).toMatchObject({ receiptKind, evidenceRef: 'evidence_ref_1' });
+    }
+    expect(() =>
+      BusinessTerminationAcknowledgementRequestSchema.parse({
+        idempotencyKey: terminationKey,
+        receiptKind: 'permission_revoke_everything',
+        evidenceRef: 'evidence_ref_1'
+      })
+    ).toThrow();
+  });
+
+  it('requires an expected version and rejects a caller-supplied close result', () => {
+    expect(
+      CloseBusinessTerminationRequestSchema.parse({
+        idempotencyKey: terminationKey,
+        expectedVersion: 3
+      })
+    ).toEqual({ idempotencyKey: terminationKey, expectedVersion: 3 });
+    expect(() =>
+      CloseBusinessTerminationRequestSchema.parse({
+        idempotencyKey: terminationKey,
+        expectedVersion: 3,
+        complete: true
       })
     ).toThrow();
   });
