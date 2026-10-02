@@ -193,6 +193,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-03 | [basic-ftp 供應鏈阻擋修復](reviews/2026-10-03-basic-ftp-supply-chain-repair.md) | 將 get-uri@6.0.5 的 development basic-ftp 鎖到 6.2.1，新增真實 CLI 依賴鏈與 loopback FTP 相容性回歸；不放寬審計 gate。CI／本機 gate 以紀錄及該 PR head 為準；未合併、未部署。 |
 | 2026-09-30 | [Luna 環境修復交接](reviews/2026-09-30-luna-environment-readiness.md) | Node／pnpm 與 CI 障礙修復；官方 GitHub 定位已查證，Luna 文件試派完成。工具下載網路與後續 CLI 尚未備妥。 |
 | 2026-09-28 | [CP-02 C1 新預約驗收](reviews/2026-09-28-cp-02-c1-runtime-evidence.md) | CP-02 RUNTIME_PROVEN on isolated synthetic C1 at `1e0b84f`: BKG-01～05、07、09～12 runtime; BKG-06 not applicable by owner decision; BKG-08 two-candidate case kept on Emulator evidence. Three deviations recorded (API-only targeted apply, Hosting briefly pinned to an older revision before any write, legacy lookup proven structurally). Booking gate closed at the end. Open: C1 Workbench list shows no nationality. No production or D-series approval. |
 | 2026-09-28 | [P1-09 關帳](reviews/2026-09-28-p1-09-closeout.md) | P1-09 CLOSED on isolated synthetic C1: Stage F evaluator and `inspect:internal-preproduction` both `ok=true`, exit 0; all P09 rows, SEC-13/14 and Gate 16 PASS; F-06 evidence sets uploaded by the owner; booking gate closed early at owner direction. OPS-06 optional NOT_RUN. No production, live Hosting, real-data or D-series approval. |
