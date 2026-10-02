@@ -139,6 +139,12 @@ overrides:
   # GHSA-x5fp-wj9c-mxmx (>=6.15.4) and GHSA-4mjr-xmp4-gh2g (>=6.16.0).
   # Same major; firebase-tools path only. Floor is 6.16.0.
   qs@^6: '6.16.0'
+  # 2026-10-03: GHSA-c475-qrg2-pj4r affects basic-ftp <=6.2.0.
+  # Dev-only firebase-tools > proxy-agent > pac-proxy-agent > get-uri@6.0.5.
+  # The parent still requests ^5.0.2; 6.2.1 is a reviewed cross-major fix,
+  # covered by the real get-uri loopback FTP/listing/cache regression test.
+  # Remove when get-uri's normal range resolves a patched basic-ftp version.
+  'get-uri@6.0.5>basic-ftp': '6.2.1'
 
 # 2026-08-01：本檔曾經有一筆 `auditConfig.ignoreGhsas` 例外
 # （GHSA-mh99-v99m-4gvg，SEC-03）。當時的解除條件寫的是「1.x／2.x 出現修補版」，
