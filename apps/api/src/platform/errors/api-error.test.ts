@@ -9,6 +9,7 @@ import { z } from 'zod';
 import {
   AuthenticationRequiredError,
   AuthorizationDeniedError,
+  ConflictError,
   DOMAIN_TO_API_CODE,
   PolicyAcceptanceRequiredError,
   RateLimitedError,
@@ -60,6 +61,17 @@ describe('mapErrorToApiResponse', () => {
     const mapped = mapErrorToApiResponse(new Error('boom'), CORRELATION);
     expect(mapped.status).toBe(500);
     expect(mapped.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('lists only fixed missing CP-07 steps when closure is blocked', () => {
+    const mapped = mapErrorToApiResponse(
+      new ConflictError(['access_revocation', 'controlled_copy_retention']),
+      CORRELATION
+    );
+    expect(mapped.status).toBe(409);
+    expect(mapped.body.error.message).toContain('員工與開發者權限撤銷證據');
+    expect(mapped.body.error.message).toContain('受控副本保存期');
+    expect(mapped.body.error.message).not.toContain('evidenceRef');
   });
 
   it('maps a missing verified patient identity to 401, not 500', () => {

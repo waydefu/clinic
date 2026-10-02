@@ -1,4 +1,8 @@
-import type { ApiErrorCode, ApiErrorResponse } from '@beauessence/contracts';
+import type {
+  ApiErrorCode,
+  ApiErrorResponse,
+  BusinessTerminationMissingStep
+} from '@beauessence/contracts';
 import { DomainError, type DomainErrorCode } from '@beauessence/domain';
 import { HttpException } from '@nestjs/common';
 import { ZodError } from 'zod';
@@ -90,11 +94,24 @@ export class ServiceUnavailableError extends PlatformError {
 
 export class ConflictError extends PlatformError {
   public readonly apiCode = 'CONFLICT' as const;
-  public constructor() {
+  public constructor(
+    public readonly missingSteps?: readonly BusinessTerminationMissingStep[]
+  ) {
     super('The requested state transition conflicts with current state.');
     this.name = 'ConflictError';
   }
 }
+
+const BUSINESS_TERMINATION_MISSING_STEP_LABELS: Record<
+  BusinessTerminationMissingStep,
+  string
+> = {
+  data_return: '資料返還簽收',
+  controlled_copy_retention: '受控副本保存期',
+  backup_disposition: '備份處置說明',
+  audit_disposition: '稽核處置證據',
+  access_revocation: '員工與開發者權限撤銷證據'
+};
 
 /**
  * Every domain code has an explicit transport home. The `Record` is exhaustive
@@ -231,15 +248,23 @@ export function mapErrorToApiResponse(
   correlationId: string
 ): MappedApiError {
   const code = classify(error);
+  const missingSteps =
+    error instanceof ConflictError ? error.missingSteps : undefined;
+  const safeMessage =
+    missingSteps === undefined || missingSteps.length === 0
+      ? (SAFE_MESSAGE_BY_API_CODE[code] ??
+        SAFE_MESSAGE_BY_API_CODE.INTERNAL_ERROR)
+      : `結案條件尚未完成：${missingSteps
+          .map((step) => BUSINESS_TERMINATION_MISSING_STEP_LABELS[step])
+          .filter((step) => step !== undefined)
+          .join('、')}`;
   return {
     status: HTTP_STATUS_BY_API_CODE[code] ?? 500,
     headers: retryAfterHeader(error),
     body: {
       error: {
         code,
-        message:
-          SAFE_MESSAGE_BY_API_CODE[code] ??
-          SAFE_MESSAGE_BY_API_CODE.INTERNAL_ERROR,
+        message: safeMessage,
         correlationId: safeCorrelationId(correlationId)
       }
     }
