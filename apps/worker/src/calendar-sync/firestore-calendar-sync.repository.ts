@@ -5,6 +5,7 @@ import {
   CALENDAR_INBOUND_AUDIT_ACTIONS,
   type ParsedCalendarEntry
 } from '@beauessence/domain';
+import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
 
 import type {
   CalendarCandidateDraft,
@@ -30,7 +31,28 @@ const CANDIDATES = 'calendar_pilot_candidates';
 const PREFLIGHTS = 'calendar_pilot_preflights';
 const APPOINTMENTS = 'calendar_pilot_appointments';
 const AUDITS = 'calendar_pilot_audit_events';
+const PATIENT_LOOKUP_INDEX = 'patient_lookup_index_v2';
+const CLINIC_PATIENTS = 'patients';
 const LEGACY_RESYNC_REASON = 'legacy_candidate_requires_resync';
+
+interface SuggestedPatient {
+  readonly patientId: string;
+}
+
+function indexedPatientIds(
+  data: Record<string, unknown> | undefined
+): string[] {
+  const value = data?.['patientIds'];
+  return Array.isArray(value)
+    ? [
+        ...new Set(
+          value.filter(
+            (item): item is string => typeof item === 'string' && item !== ''
+          )
+        )
+      ]
+    : [];
+}
 
 interface StoredConfiguration extends CalendarSourceConfiguration {
   readonly lastSuccessfulSyncAt?: string;
@@ -38,7 +60,11 @@ interface StoredConfiguration extends CalendarSourceConfiguration {
   readonly health?: string;
 }
 
-function publicCandidate(candidate: CalendarCandidateDraft) {
+function publicCandidate(
+  candidate: CalendarCandidateDraft,
+  suggestion?: SuggestedPatient,
+  unmatchedRange?: { readonly startsAt: string; readonly endsAt: string }
+) {
   const parsed = candidate.parsed;
   const previous = candidate.previousParsed;
   const status =
@@ -55,9 +81,15 @@ function publicCandidate(candidate: CalendarCandidateDraft) {
       : candidate.kind === 'unmatched'
         ? '未對應事件'
         : '格式需修正',
-    startsAt: parsed.ok ? parsed.startsAt : null,
-    endsAt: parsed.ok ? parsed.endsAt : null,
+    startsAt: parsed.ok ? parsed.startsAt : (unmatchedRange?.startsAt ?? null),
+    endsAt: parsed.ok ? parsed.endsAt : (unmatchedRange?.endsAt ?? null),
     appointmentId: candidate.localRecordId ?? null,
+    ...(suggestion === undefined
+      ? {}
+      : {
+          suggestedPatientId: suggestion.patientId,
+          suggestionMethod: 'phone_month_day' as const
+        }),
     ...(candidate.changedFields === undefined
       ? {}
       : { changedFields: candidate.changedFields }),
@@ -234,6 +266,60 @@ export class FirestoreCalendarSyncRepository
           .map((document) => [document.id, document.data()] as const)
       );
 
+      const suggestionLookupReads = await Promise.all(
+        commit.mutations.map(async (mutation) => {
+          if (
+            mutation.candidate?.kind !== 'unmatched' ||
+            mutation.suggestionContact === undefined
+          )
+            return undefined;
+          const lookupId = opaqueLookupIdentity(
+            mutation.suggestionContact.phoneDigits,
+            mutation.suggestionContact.birthMonthDay
+          );
+          const lookup = await transaction.get(
+            this.db.collection(PATIENT_LOOKUP_INDEX).doc(lookupId)
+          );
+          const ids = indexedPatientIds(lookup.data());
+          const [patientId] = ids;
+          return ids.length !== 1 ||
+            patientId === undefined ||
+            !/^[A-Za-z0-9_-]{1,128}$/.test(patientId)
+            ? undefined
+            : { candidateId: mutation.candidate.candidateId, patientId };
+        })
+      );
+      const patientIdsToRead = [
+        ...new Set(
+          suggestionLookupReads.flatMap((read) =>
+            read === undefined ? [] : [read.patientId]
+          )
+        )
+      ];
+      const patientDocuments =
+        patientIdsToRead.length === 0
+          ? []
+          : await transaction.getAll(
+              ...patientIdsToRead.map((patientId) =>
+                this.db.collection(CLINIC_PATIENTS).doc(patientId)
+              )
+            );
+      const activePatientIds = new Set(
+        patientDocuments.flatMap((patient) => {
+          const data = patient.data();
+          return patient.exists && data?.['archivedAt'] == null
+            ? [patient.id]
+            : [];
+        })
+      );
+      const suggestions = new Map(
+        suggestionLookupReads.flatMap((read) =>
+          read !== undefined && activePatientIds.has(read.patientId)
+            ? [[read.candidateId, { patientId: read.patientId }] as const]
+            : []
+        )
+      );
+
       for (const mutation of commit.mutations) {
         transaction.set(
           this.db.collection(MIRRORS).doc(mutation.mirror.mirrorId),
@@ -246,10 +332,15 @@ export class FirestoreCalendarSyncRepository
           const existingCandidate = existingCandidates.get(
             mutation.candidate.candidateId
           );
+          const suggestion = suggestions.get(mutation.candidate.candidateId);
           if (existingCandidate === undefined) {
             transaction.create(
               candidateRef,
-              publicCandidate(mutation.candidate)
+              publicCandidate(
+                mutation.candidate,
+                suggestion,
+                mutation.unmatchedRange
+              )
             );
             transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
               action:
@@ -266,7 +357,14 @@ export class FirestoreCalendarSyncRepository
             (typeof existingCandidate['expectedEtag'] !== 'string' ||
               existingCandidate['expectedEtag'].trim() === '')
           ) {
-            transaction.set(candidateRef, publicCandidate(mutation.candidate));
+            transaction.set(
+              candidateRef,
+              publicCandidate(
+                mutation.candidate,
+                suggestion,
+                mutation.unmatchedRange
+              )
+            );
             transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
               action: CALENDAR_INBOUND_AUDIT_ACTIONS.candidateCreated,
               candidateId: mutation.candidate.candidateId,

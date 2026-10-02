@@ -412,6 +412,40 @@ describe('CalendarSyncEngine', () => {
     expect(repository.clinicAppointments.size).toBe(0);
   });
 
+  it('passes only a transient parsed contact and event range for unmatched entries', async () => {
+    const repository = new MemoryRepository();
+    const reader = new FakeReader([
+      {
+        events: [
+          {
+            id: 'manual-contact-event',
+            etag: 'etag-manual-contact',
+            status: 'confirmed',
+            summary: '合成患者甲0900000001 0520',
+            start: { dateTime: '2026-09-02T14:00:00+08:00' },
+            end: { dateTime: '2026-09-02T14:30:00+08:00' }
+          }
+        ],
+        nextSyncToken: 'sync-manual-contact'
+      }
+    ]);
+
+    await new CalendarSyncEngine(reader, repository).run(NOW);
+
+    const mutation = repository.commits[0]?.mutations[0];
+    expect(mutation?.suggestionContact).toEqual({
+      phoneDigits: '0900000001',
+      birthMonthDay: '--05-20'
+    });
+    expect(mutation?.unmatchedRange).toEqual({
+      startsAt: '2026-09-02T06:00:00.000Z',
+      endsAt: '2026-09-02T06:30:00.000Z'
+    });
+    expect(mutation?.candidate).not.toHaveProperty('suggestionContact');
+    expect(mutation?.candidate).not.toHaveProperty('phoneDigits');
+    expect(mutation?.candidate).not.toHaveProperty('birthMonthDay');
+  });
+
   it('deduplicates the same change notification to one candidate', async () => {
     const repository = new MemoryRepository();
     const page = {

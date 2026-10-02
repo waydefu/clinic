@@ -66,7 +66,7 @@
   },
   {
     "path": "/index.html",
-    "justification": "內部工作臺，只有員工在用，因此比患者頁寬鬆。document 10 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 9.2 KiB 加餘裕；script 64／stylesheet 16 反映它比患者頁多出的排班、個管與稽核介面。total 92 是 2026-09-07 T1-BOOK-04（患者自助改期路徑進入共用 store，工作臺閉包一併變重）上調（原為 91）：壓縮後 gzip 實測仍超原上限 280 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。",
+    "justification": "內部工作臺，只有員工在用，因此比患者頁寬鬆。document 10 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 9.2 KiB 加餘裕；script 64／stylesheet 16 反映它比患者頁多出的排班、個管與稽核介面。total 92 是 2026-09-07 T1-BOOK-04（患者自助改期路徑進入共用 store，工作臺閉包一併變重）上調（原為 91）：壓縮後 gzip 實測仍超原上限 280 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。 2026-09-30 CP-03-UI-IN-WORKBENCH-2026-09-29：商務與驗收分頁，業主核准小幅上調。 2026-10-01 L2b/L3 最終 source 整合實測：initial document 10,119 B、script 66,648 B、stylesheet 16,395 B、image 2,650 B，total 95,812 B（93.6 KiB）；依 L3 執行計畫 §4 已核准的最多 5 KiB 增量，超出 baseline 的類別與 total 取整數剛好通過再加 1 KiB：script 67、stylesheet 18、total 95（相對 total 92 增加 3 KiB）。平行 source PR 共用同一預算 patch；counts、timings、module depth、其他頁面不變。商務首次選取才載入的四個 roots 以實際 manifest-mapped transitive union 扣除 initial closure 後共 65,327 gzip B，另由 deferred-asset-budget.json 的 68 KiB（69,632 B）gate 驗證。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -74,11 +74,11 @@
       },
       {
         "resourceType": "script",
-        "budget": 64
+        "budget": 67
       },
       {
         "resourceType": "stylesheet",
-        "budget": 16
+        "budget": 18
       },
       {
         "resourceType": "image",
@@ -90,7 +90,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 92
+        "budget": 95
       }
     ],
     "resourceCounts": [

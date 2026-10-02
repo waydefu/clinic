@@ -7,6 +7,8 @@
 **流程：** Luna 開 PR → Claude 審查 → 業主合併（`OWNER-BATCH-2026-09-29B` 第 8 項）。
 **不授權：** 部署、`terraform apply`、真實資料、production。L6 只準備清單，指令交給業主。
 
+**目前整合讀回（2026-10-03）：** `origin/main` 已到 `6131c7fc54f09369842f6edf73a26d42fed4c729`，#214、#215、#216 已依業主對話授權完成合併，各自 exact-head CI 12/12 PASS；#217 仍在本文件同步與 packet 更新階段。Chrome 操作回覆 `User unavailable`，因此 #214～#216 由已登入 GitHub CLI 完成。main verify run `37051691984` 當時尚未完成。這次只做 source/document 整合，沒有部署、apply、cloud readback 或 runtime 驗收；本段 supersede 後文較早的「尚未合併」snapshot。
+
 ## 0. 每個工作包都要照做的規則
 
 開工前先依 [開發環境手冊](../runbooks/luna-development-environment.md) 核對
@@ -244,10 +246,11 @@ legal hold 時永久刪除失敗；永久刪除後 `audit_events` 筆數不變�
 **要改的檔案與做法：**
 
 1. 把 `opaqueLookupIdentity` 從 `apps/api/src/patients/patient-directory.ts` **搬到**
-   `packages/domain/src/patient-identity.ts`（函式內容一字不改，包含 `rlk2_` 前綴與 `return-v2:` 字串），
-   API 端改成 `import { opaqueLookupIdentity } from '@beauessence/domain'` 並從 patient-directory
-   再 export 一次，讓既有 import 不壞。跑 `sync:domain`。**若 domain 不能用 `node:crypto`**
-   （瀏覽器也會載入 domain）→ **停止並回報**，不要自己換雜湊演算法。
+   `packages/domain/src/patient-lookup-identity.node.ts`（函式內容一字不改，包含 `rlk2_` 前綴與
+   `return-v2:` 字串），以 `@beauessence/domain/patient-lookup-identity.node` 匯出為明確的伺服器專用
+   子路徑；不得從瀏覽器會載入的 domain 根 barrel 匯出。API 端從此子路徑匯入，並由
+   `patient-directory` 再 export 一次，讓既有 import 不壞。`sync:domain` 排除 `.node.js` 產物。
+   這保留既有 SHA-256 演算法與資料鍵，同時確保 `node:crypto` 不進瀏覽器可達模組圖；不是另造雜湊。
 2. `packages/domain/src/calendar-sync.ts` 新增 `extractCalendarContact(title: string):
    { phoneDigits: string; birthMonthDay: string } | undefined`，照上面規則。
 3. worker 的日曆同步寫入候選時（`apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts`，
@@ -545,4 +548,4 @@ The CP-08 worksheet keeps all 84 applicable rows `NOT_RUN` (88 IDs total); manua
 
 CP-09 commercial terms remain blocked by a sanitized discrepancy between the private current document index and the repository-approved policy. Do not copy amounts, Drive IDs, or source text to the repository, and do not change the approved local policy without owner resolution. Engineering delivery/tuning acceptance is distinct from true-calendar-month payment acceptance. AWS/site work remains deferred.
 
-The 2026-09-30 appendix is a historical snapshot; its “#205 待合併” and TTL-only expectation are superseded by this reconciliation. No source merge or docs commit implies C1 apply, Hosting release, runtime acceptance, CP-08 PASS, CP-10 signature, payment acceptance, production readiness, AWS, or website completion. PR #213 CI799 and #216 CI800 each passed 12/12; #213/#214/#215/#216 are READY but unmerged. All four require designated Claude review followed by owner merge. The private integration verification is not merged-release proof.
+The 2026-09-30 appendix is a historical snapshot; its “#205 待合併” and TTL-only expectation are superseded by this reconciliation. No source merge or docs commit implies C1 apply, Hosting release, runtime acceptance, CP-08 PASS, CP-10 signature, payment acceptance, production readiness, AWS, or website completion. Main `6131c7fc54f09369842f6edf73a26d42fed4c729` now contains the merged #213/#214/#215/#216 source; #214/#215/#216 each passed 12/12 exact-head CI. #217 remains a documentation candidate and requires its own synced CI. The private integration verification is not merged-release proof.

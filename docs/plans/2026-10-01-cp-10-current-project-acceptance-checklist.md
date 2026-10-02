@@ -1,6 +1,8 @@
 # CP-10 現有專案業主驗收清單（2026-10-01）
 
 **狀態：** `BLOCKED / NOT_SIGNED`。這份表是待填核對清單，沒有完成 runtime 驗收、商務文件同步、付款驗收或業主簽署。
+
+目前 source readback（2026-10-03）：main `6131c7fc54f09369842f6edf73a26d42fed4c729` 已包含 #214、#215、#216 的 merged source；三支新 head 的 exact CI 均 12/12 PASS。這只更新 source reference，不填 API/worker readback、runtime 結果、業主簽名、日期或批准；CP-10 維持 `BLOCKED / NOT_SIGNED`。
 **範圍：** C1 隔離合成環境；不是 production、真實病患資料授權或正式上線核准。
 **依據：** [現有專案驗收矩陣](2026-09-22-current-project-acceptance-matrix.md)、[CP-08 回歸 worksheet](2026-10-01-cp-08-regression-evidence-worksheet.md)、`BD-POLICY-2026-09-29`、`OWNER-BATCH-2026-09-29B`。
 
@@ -8,7 +10,7 @@
 
 | 欄位 | 驗收前填寫 |
 | --- | --- |
-| source SHA（L2b～L6 source 與 CP-03～CP-07 相依變更都合併後；可包含本清單文件 commit） | `<待填；文件 commit 單獨不構成部署授權>` |
+| source SHA（L2b～L6 source 與 CP-03～CP-07 相依變更都合併後；可包含本清單文件 commit） | `6131c7fc54f09369842f6edf73a26d42fed4c729`（current main readback；文件 commit 單獨不構成部署授權） |
 | API / worker artifact digest 與 revision | `<待實際 readback>` |
 | Hosting version / channel / expiry | `<待實際 readback>` |
 | project / database / scope | C1 isolated synthetic；部署 packet 的實際 readback 待填 |

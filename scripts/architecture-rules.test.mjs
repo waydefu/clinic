@@ -6,6 +6,7 @@ import {
   layerViolations,
   opaqueDynamicImports,
   reachableRelativeModules,
+  serverOnlyBoundaryViolations,
   stripComments
 } from './architecture-rules.mjs';
 
@@ -159,6 +160,161 @@ describe('layerViolations', () => {
       { path: 'b.js', source: "import y from 'two';" }
     ];
     expect(layerViolations(browser, files)).toHaveLength(2);
+  });
+});
+
+describe('server-only domain import boundary', () => {
+  const nodeEntry = {
+    path: 'packages/domain/src/patient-lookup-identity.node.ts',
+    source: "import { patientPhoneDigits } from './patient-identity.js';"
+  };
+  const pureIdentity = {
+    path: 'packages/domain/src/patient-identity.ts',
+    source: 'export function patientPhoneDigits(value) { return value; }'
+  };
+
+  it('rejects a direct server-only re-export from the domain barrel', () => {
+    const files = [
+      {
+        path: 'packages/domain/src/index.ts',
+        source:
+          "export { opaqueLookupIdentity } from './patient-lookup-identity.node.js';"
+      },
+      nodeEntry,
+      pureIdentity
+    ];
+
+    expect(serverOnlyBoundaryViolations(files)).toMatchObject([
+      {
+        path: 'packages/domain/src/index.ts',
+        target: 'packages/domain/src/patient-lookup-identity.node.ts'
+      }
+    ]);
+  });
+
+  it('rejects a server-only import reached through an ordinary module', () => {
+    const files = [
+      {
+        path: 'packages/domain/src/index.ts',
+        source: "export { lookup } from './calendar-helper.js';"
+      },
+      {
+        path: 'packages/domain/src/calendar-helper.ts',
+        source:
+          "import { opaqueLookupIdentity } from './patient-lookup-identity.node.js';\nexport { opaqueLookupIdentity as lookup };"
+      },
+      nodeEntry,
+      pureIdentity
+    ];
+
+    expect(serverOnlyBoundaryViolations(files)).toContainEqual(
+      expect.objectContaining({
+        path: 'packages/domain/src/index.ts',
+        target: 'packages/domain/src/patient-lookup-identity.node.ts',
+        chain: [
+          'packages/domain/src/index.ts',
+          'packages/domain/src/calendar-helper.ts',
+          'packages/domain/src/patient-lookup-identity.node.ts'
+        ]
+      })
+    );
+  });
+
+  it('allows the server-only entry to import a pure domain module', () => {
+    expect(serverOnlyBoundaryViolations([nodeEntry, pureIdentity])).toEqual([]);
+  });
+
+  it('allows ordinary pure domain imports', () => {
+    expect(
+      serverOnlyBoundaryViolations([
+        {
+          path: 'packages/domain/src/index.ts',
+          source: "export { parse } from './calendar-sync.js';"
+        },
+        {
+          path: 'packages/domain/src/calendar-sync.ts',
+          source: "import { patientPhoneDigits } from './patient-identity.js';"
+        },
+        pureIdentity
+      ])
+    ).toEqual([]);
+  });
+
+  it.each([
+    [
+      "const target = './patient-lookup-identity.node.js'; await import(target);",
+      'import('
+    ],
+    ['const require = createRequire(import.meta.url);', 'createRequire(...)'],
+    ['const label = `${await import(target)}`;', 'import(']
+  ])(
+    'rejects unresolved module loads in a browser-shared source: %s',
+    (source, expected) => {
+      expect(
+        serverOnlyBoundaryViolations([
+          { path: 'packages/domain/src/index.ts', source },
+          nodeEntry,
+          pureIdentity
+        ])
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: 'packages/domain/src/index.ts',
+            detail: expect.stringContaining(expected)
+          })
+        ])
+      );
+    }
+  );
+
+  it('follows literal dynamic imports to pure modules', () => {
+    expect(
+      serverOnlyBoundaryViolations([
+        {
+          path: 'packages/domain/src/index.ts',
+          source: "await import('./calendar-helper.js');"
+        },
+        {
+          path: 'packages/domain/src/calendar-helper.ts',
+          source: 'export const ready = true;'
+        },
+        nodeEntry,
+        pureIdentity
+      ])
+    ).toEqual([]);
+  });
+
+  it('ignores opaque-load examples in comments and string literals', () => {
+    expect(
+      serverOnlyBoundaryViolations([
+        {
+          path: 'packages/domain/src/index.ts',
+          source: [
+            '// await import(target); createRequire(import.meta.url);',
+            'const quoted = "await import(target); createRequire(";',
+            'const templated = `example import(target) createRequire(`;'
+          ].join('\n')
+        },
+        nodeEntry,
+        pureIdentity
+      ])
+    ).toEqual([]);
+  });
+
+  it('ignores comments and decoy strings that mention server-only imports', () => {
+    expect(
+      serverOnlyBoundaryViolations([
+        {
+          path: 'packages/domain/src/index.ts',
+          source: [
+            "// export { lookup } from './patient-lookup-identity.node.js';",
+            'const decoy = "import { lookup } from \'./patient-lookup-identity.node.js\';";'
+          ].join('\n')
+        },
+        nodeEntry,
+        pureIdentity
+      ])
+    ).toEqual([]);
   });
 });
 

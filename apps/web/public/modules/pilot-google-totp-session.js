@@ -37,6 +37,74 @@ export const CALENDAR_PILOT_LOGOUT_GUARD_KEY = 'calPilotOut';
 
 let calendarPilotLogoutInFlight;
 
+/**
+ * Connect a user-gesture request in the workbench to the Firebase client.
+ * `getFreshIdToken` is called in the request event's synchronous dispatch
+ * stack so Firebase can open its Google popup before the browser clears user
+ * activation. A cancelled or late response is discarded by request ID.
+ */
+export function registerCalendarPilotReauthenticationBridge({
+  target = globalThis.window,
+  getFreshIdToken
+}) {
+  if (target === undefined || typeof getFreshIdToken !== 'function')
+    throw new TypeError(
+      'A reauthentication target and token provider are required.'
+    );
+
+  const activeRequests = new Set();
+  const dispatchResult = (detail) => {
+    target.dispatchEvent(
+      new CustomEvent('beauessence:reauth-result', { detail })
+    );
+  };
+  const onRequest = (event) => {
+    const requestId = event.detail?.requestId;
+    if (
+      typeof requestId !== 'string' ||
+      requestId === '' ||
+      activeRequests.has(requestId)
+    )
+      return;
+    activeRequests.add(requestId);
+
+    let pendingToken;
+    try {
+      pendingToken = getFreshIdToken();
+    } catch {
+      activeRequests.delete(requestId);
+      dispatchResult({ requestId, error: '重新登入未完成' });
+      return;
+    }
+    Promise.resolve(pendingToken).then(
+      (idToken) => {
+        if (!activeRequests.delete(requestId)) return;
+        if (typeof idToken !== 'string' || idToken === '') {
+          dispatchResult({ requestId, error: '重新登入未完成' });
+          return;
+        }
+        dispatchResult({ requestId, idToken });
+      },
+      () => {
+        if (activeRequests.delete(requestId))
+          dispatchResult({ requestId, error: '重新登入未完成' });
+      }
+    );
+  };
+  const onCancel = (event) => {
+    const requestId = event.detail?.requestId;
+    if (typeof requestId === 'string') activeRequests.delete(requestId);
+  };
+
+  target.addEventListener('beauessence:reauth-request', onRequest);
+  target.addEventListener('beauessence:reauth-cancel', onCancel);
+  return () => {
+    activeRequests.clear();
+    target.removeEventListener('beauessence:reauth-request', onRequest);
+    target.removeEventListener('beauessence:reauth-cancel', onCancel);
+  };
+}
+
 export function isCalendarPilotSessionAuthenticationRequired(error) {
   return (
     error !== null &&

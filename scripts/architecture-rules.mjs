@@ -6,6 +6,8 @@
 // `unrouted-inventory.mjs` 早先的拆法一致。
 //
 // 這裡的每一個函式都不碰檔案系統，輸入是字串或已讀好的檔案清單。
+import { posix } from 'node:path';
+import ts from 'typescript';
 
 /**
  * 移除註解，但**保留字串內容**。
@@ -132,23 +134,36 @@ export function reachableRelativeModules(entry, sources) {
  * 這是 fail-closed，不是 best-effort。
  */
 export function opaqueDynamicImports(source) {
-  const stripped = stripComments(source);
+  const sourceFile = ts.createSourceFile(
+    'opaque-import-check.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
   const found = [];
-  // `import.meta` 不會命中：那是 `import` 後面接 `.` 而不是 `(`。
-  for (const match of stripped.matchAll(/(?:^|[^\w.$])import\s*\(/g)) {
-    const rest = stripped.slice(match.index + match[0].length);
-    // 可靜態解析的兩種寫法：引號字面值，或無插值的樣板字串。
-    if (/^\s*(['"])[^'"]*\1\s*\)/.test(rest)) continue;
-    if (/^\s*`[^`$]*`\s*\)/.test(rest)) continue;
-    found.push(`import(${rest.split('\n')[0].slice(0, 48).trim()}`);
+  function visit(node) {
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword
+    ) {
+      const specifier = node.arguments[0];
+      if (
+        !specifier ||
+        (!ts.isStringLiteral(specifier) &&
+          !ts.isNoSubstitutionTemplateLiteral(specifier))
+      ) {
+        found.push(
+          `import(${specifier?.getText(sourceFile).slice(0, 48) ?? ''}`
+        );
+      }
+    }
+    if (ts.isIdentifier(node) && node.text === 'createRequire')
+      found.push('createRequire(...)');
+    ts.forEachChild(node, visit);
   }
-  // `createRequire` 讓 CJS 解析繞過整個 ESM 圖，走訪完全看不到。
-  const createRequireCount = [...stripped.matchAll(/\bcreateRequire\s*\(/g)]
-    .length;
-  for (let index = 0; index < createRequireCount; index += 1) {
-    found.push('createRequire(...)');
-  }
-  return found;
+  visit(sourceFile);
+  return [...new Set(found)];
 }
 
 /** 相對路徑（`.` 或 `/` 開頭）以外的都是裸名。 */
@@ -177,6 +192,80 @@ export function layerViolations(layer, files) {
       });
     }
   }
+  return violations;
+}
+
+/**
+ * Ensure browser-shared source modules cannot reach a server-only source module.
+ * The server-only entry itself may still import ordinary pure domain modules.
+ */
+export function serverOnlyBoundaryViolations(
+  files,
+  { serverOnlySuffix = '.node.ts', testSuffix = '.test.ts' } = {}
+) {
+  const sources = new Map(files.map(({ path, source }) => [path, source]));
+  const availablePaths = new Set(sources.keys());
+  const violations = [];
+
+  function resolveSourcePath(current, specifier) {
+    if (!specifier.startsWith('.')) return undefined;
+    const joined = posix.normalize(
+      posix.join(posix.dirname(current), specifier)
+    );
+    const candidates = [joined];
+    if (joined.endsWith('.js'))
+      candidates.push(`${joined.slice(0, -'.js'.length)}.ts`);
+    else if (!/\.[^/]+$/.test(joined)) candidates.push(`${joined}.ts`);
+    candidates.push(posix.join(joined, 'index.ts'));
+    return candidates.find((candidate) => availablePaths.has(candidate));
+  }
+
+  for (const [entryPath] of sources) {
+    if (
+      !entryPath.endsWith('.ts') ||
+      entryPath.endsWith(serverOnlySuffix) ||
+      entryPath.endsWith(testSuffix)
+    )
+      continue;
+
+    for (const occurrence of opaqueDynamicImports(
+      sources.get(entryPath) ?? ''
+    )) {
+      violations.push({
+        path: entryPath,
+        chain: [entryPath],
+        detail: `${entryPath} contains an unresolved module load (${occurrence}); the server-only boundary cannot verify it.`
+      });
+    }
+
+    const pending = [{ path: entryPath, chain: [entryPath] }];
+    const visited = new Set([entryPath]);
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (current === undefined) continue;
+      const source = sources.get(current.path);
+      if (source === undefined) continue;
+
+      for (const specifier of importSpecifiers(source)) {
+        const target = resolveSourcePath(current.path, specifier);
+        if (target === undefined) continue;
+        const chain = [...current.chain, target];
+        if (target.endsWith(serverOnlySuffix)) {
+          violations.push({
+            path: entryPath,
+            target,
+            chain,
+            detail: `${entryPath} reaches server-only module ${target} through ${chain.join(' -> ')}.`
+          });
+          continue;
+        }
+        if (visited.has(target)) continue;
+        visited.add(target);
+        pending.push({ path: target, chain });
+      }
+    }
+  }
+
   return violations;
 }
 

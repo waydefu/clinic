@@ -1,6 +1,8 @@
 # 現有專案驗收矩陣與證據格式
 
 狀態：基線盤點，**不是已通過的驗收表**。來源日期與authority見[主計畫](2026-09-22-current-project-acceptance-master-plan.md)。
+
+目前 source readback（2026-10-03）：`origin/main`=`6131c7fc54f09369842f6edf73a26d42fed4c729`，已包含 #214、#215、#216 的 merged source；各自 exact-head CI 均 12/12 PASS，main verify run `37051691984` 撰寫時仍在執行。下列矩陣的 `SOURCE_PROVEN`／`CI_PROVEN` 不能推升為 C1 runtime、CLOUD_READBACK 或 HUMAN_PROVEN；CP-08、runtime、owner receipt、CP-10 signature 仍依各列維持 `NOT_RUN`／`BLOCKED`。
 實作順序/24欄位見[工作包](2026-09-22-current-project-execution-packets.md)，
 P1-09實際操作見[operator packet](2026-09-22-p1-09-operator-packet.md)。
 
@@ -134,7 +136,7 @@ hash不能取代證據本體可訪問性。未核准的雲端/人證行保持NOT
 | DOC-04 | 手冊可獨立操作與截圖 | NOT_PROVEN | Source-guided manual describes PR #216 head `91da1cce…`; gate fix `c1658660` passed 32 focused tests and independent review; CI800 passed 12/12 and PR is READY, unmerged/undeployed. C1 blind walk, fresh synthetic acceptance captures and current Drive 04 reconciliation remain pending | CP-09 | operator盲走所有核心flow；無真PII/憑證截圖 | manualQA+exact-release synthetic captures |
 | DOC-05 | 正式驗收/具名簽署/權限交接 | NOT_PROVEN | 未取得currentrelease正式acceptance | CP-10 | 版本/範圍/日期/owner；私有credential交接不入PR | signedacceptance+custodyreceipt |
 | GATE-01 | INTERNAL_PREPRODUCTION_COMPLETE | BLOCKED | P1-09 itself was closed with dated C1 evidence on 2026-09-28; this wider gate has no current signed matrix/readback and must not be inferred from that closure | CP-00 | current scope's internal-preproduction evidence, runtime/cloud/human rows, and dated closure all agree | P09closuremanifest+current matrix |
-| GATE-02 | CURRENT_PROJECT_ACCEPTANCE | BLOCKED | CP-03/04/05 source merged. PRs #213/#214/#215/#216 passed exact recorded CI799/795/796/800 12/12 and are READY, but remain unmerged/undeployed and await designated Claude review then owner merge. Current C1 runtime/UI, CP-06-E true restore, CP-07 receipts, CP-08 regression, CP-09 reconciliation and owner acceptance remain | CP-10 | 所有current適用rows PROVEN；無重大未結；milestonemapping清楚 | finalsignedmatrix |
+| GATE-02 | CURRENT_PROJECT_ACCEPTANCE | BLOCKED | Main `6131c7fc54f09369842f6edf73a26d42fed4c729` contains the merged #213/#214/#215/#216 source, with #214/#215/#216 exact-head CI 12/12 PASS. Current C1 runtime/UI, CP-06-E true restore, CP-07 receipts, CP-08 regression, CP-09 reconciliation and owner acceptance remain | CP-10 | 所有current適用rows PROVEN；無重大未結；milestonemapping清楚 | finalsignedmatrix |
 | GATE-03 | PRODUCTION_READY | NOT_PROVEN | productionD-series/隱私/cutover各自未齊 | 獨立productionpacket | 不得由C1/商務acceptance推出PASS | productionownerapprovals/evidence |
 | GATE-04 | PUBLIC_PRODUCTION_LAUNCHED | NOT_PROVEN | 本專案C1preview不是publiclaunch | 獨立productionpacket | officialroute/DNS/traffic+獨立cutover批准才true | productionrelease/readback |
 | GATE-05 | REAL_PATIENT_DATA_AUTHORIZED | NOT_PROVEN | 目前本計畫無真資料授權 | 獨立productionpacket | 具名合規/隱私/資料scope核准才true | authorizeddatareceipt |

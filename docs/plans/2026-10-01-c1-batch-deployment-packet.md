@@ -1,6 +1,12 @@
 # C1 商務交付批次部署 packet（2026-10-01）
 
 **狀態：** `SOURCE_READINESS_BLOCKED`；文件準備完成，尚無本 packet 的雲端操作或 exact-SHA 授權。
+
+## 目前 source 整合讀回（2026-10-03）
+
+目前 `origin/main` 為 `6131c7fc54f09369842f6edf73a26d42fed4c729`，已包含 #213、#214、#215、#216、#218、#219、#220 的合併提交。#214 head `e089b55ee2847ae06d9e7c356125264bc8a61207`、#215 head `331992eeea8366b412ebe64591358f209a2e6f17`、#216 head `1197f0c43a6a8fb1ed01960e01e9a59cac151656` 的各自 CI 均為 12/12 PASS；main 這個最新合併提交的 verify run `37051691984` 當時仍在執行，必須以完成後的 exact-SHA readback 為準。這些 source CI 不等同 cloud plan、部署、C1 runtime 或人員驗收。
+
+本 packet 的舊 head、CI 與「尚未合併」文字是歷史 snapshot；它們保留作為日期證據，不可代替上面的 current source。此次合併由業主在對話中明確授權 Codex 依 #214→#215→#216→#217 執行；Chrome 通道回覆 `User unavailable`，#214～#216 改以已登入 GitHub CLI 完成，沒有新增 Claude review 證據，也沒有 cloud mutation。
 **範圍：** `OWNER-BATCH-2026-09-29B` 第 1、2、3 項；只限合成 C1。
 **專案：** `beauessence-clinic-stg-c1a01`；**區域：** `asia-east1`。
 **Firebase Hosting channel：** `internal-preproduction`；API 設定檔 `firebase.isolated-api-preview.json`；靜態回退設定 `firebase.isolated-preview.json`。
@@ -284,8 +290,8 @@ Stage 1/2 的部署 authority 不會自動等於 rollback authority；只有在�
 
 | Gate | 狀態 | 原因 |
 | --- | --- | --- |
-| Source commits | `BLOCKED` | PRs #213/#214/#215/#216 passed CI799/795/796/800 12/12 and are READY; all remain unmerged/undeployed and require designated Claude review then owner merge. PR #216 gate fix also passed 32 focused tests and independent review. No merged release SHA exists yet. |
-| Exact-CI | `NOT_RUN` | Recorded PR-head CI is green; final merged-release CI requires the Luna PR → Claude review → owner merge sequence, after source fixes are complete. |
+| Source commits | `BLOCKED` | Main `6131c7fc54f09369842f6edf73a26d42fed4c729` now contains #213, #214, #215 and #216; #214/#215/#216 new heads each passed 12/12 exact-head CI. This proves source integration only; no cloud plan, deployment or runtime acceptance. |
+| Exact-CI | `NOT_RUN` | Main verify run `37051691984` was still running when this packet was updated; #217's own exact-head CI is still required after its documentation sync. |
 | Exact-SHA authority | `NOT_AUTHORIZED` | OWNER-BATCH 只授權另行提出一份 exact-SHA packet；無 SHA/window/apply 核准 |
 | Terraform plan／apply | `NOT_RUN` | 無 credentials、fresh cloud state 或 owner-approved plan |
 | Hosting deploy | `NOT_RUN` | 無 fresh per-commit/project/channel/expiry approval |

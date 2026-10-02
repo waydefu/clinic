@@ -70,8 +70,11 @@ export function vitestWithoutFirestoreEmulator(): boolean {
           getFirestore(app),
           process.env,
           createCalendarPilotSessionGateTelemetry(logger),
-          // CP-03 usage ingress is always on so coverage never depends on
-          // whether the report routes are enabled (ADR-0008).
+          // Usage ingress is independent of the report routes gate. A valid
+          // maintenance allowlist is required to classify staff logins; when
+          // it is absent or invalid, sessions still work and a monthly gap
+          // marker is written without a login event or first-use milestone
+          // (ADR-0008).
           true
         );
       }

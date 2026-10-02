@@ -226,11 +226,11 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
   public async listCandidates(): Promise<readonly CalendarChangeCandidate[]> {
     const documents = await this.db
       .collection(COLLECTIONS.candidates)
-      .where('status', 'in', ['pending', 'conflict'])
+      .where('status', 'in', ['pending', 'conflict', 'unmatched'])
       .orderBy('createdAt', 'asc')
       .limit(100)
       .get();
-    return documents.docs.map((document) => {
+    const candidates = documents.docs.map((document) => {
       const {
         mirrorId: _mirrorId,
         expectedEtag: _expectedEtag,
@@ -241,6 +241,62 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         ...publicRecord
       } = document.data() as CandidateRecord & { readonly sourceId?: string };
       return publicRecord;
+    });
+    const suggestedPatientIds = [
+      ...new Set(
+        candidates.flatMap((candidate) =>
+          candidate.kind === 'unmatched' &&
+          typeof candidate.suggestedPatientId === 'string'
+            ? [candidate.suggestedPatientId]
+            : []
+        )
+      )
+    ];
+    const patientDocuments =
+      suggestedPatientIds.length === 0
+        ? []
+        : await this.db.getAll(
+            ...suggestedPatientIds.map((patientId) =>
+              this.db.collection('patients').doc(patientId)
+            )
+          );
+    const activeSuggestedPatients = new Map(
+      patientDocuments.flatMap((document) => {
+        const data = document.data() as Record<string, unknown> | undefined;
+        const name = data?.['name'];
+        return document.exists &&
+          data?.['archivedAt'] == null &&
+          typeof name === 'string' &&
+          name.trim() !== ''
+          ? [[document.id, name] as const]
+          : [];
+      })
+    );
+    return candidates.map((candidate) => {
+      if (candidate.kind !== 'unmatched') {
+        const {
+          suggestedPatientId: _suggestedPatientId,
+          suggestedPatientName: _suggestedPatientName,
+          suggestionMethod: _suggestionMethod,
+          ...withoutSuggestion
+        } = candidate;
+        return withoutSuggestion;
+      }
+      const suggestedPatientId = candidate.suggestedPatientId;
+      const suggestedPatientName =
+        suggestedPatientId === undefined
+          ? undefined
+          : activeSuggestedPatients.get(suggestedPatientId);
+      if (suggestedPatientName === undefined) {
+        const {
+          suggestedPatientId: _suggestedPatientId,
+          suggestedPatientName: _suggestedPatientName,
+          suggestionMethod: _suggestionMethod,
+          ...withoutSuggestion
+        } = candidate;
+        return withoutSuggestion;
+      }
+      return { ...candidate, suggestedPatientName };
     });
   }
 

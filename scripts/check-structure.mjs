@@ -338,6 +338,8 @@ const requiredPaths = [
   'scripts/generate-sbom.test.mjs',
   'scripts/review-artifact-attestation.test.mjs',
   'scripts/sync-domain-vendor.mjs',
+  'scripts/sync-domain-vendor-rules.mjs',
+  'scripts/sync-domain-vendor.test.mjs',
   'apps/web/public/vendor/domain/index.js',
   'apps/web/public/vendor/domain/manifest.json',
   'eslint.config.mjs',

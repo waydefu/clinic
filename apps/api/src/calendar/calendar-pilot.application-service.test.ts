@@ -7,6 +7,7 @@ import type { CalendarPilotRepositoryPort } from './calendar-pilot.repository-po
 const NOW = '2026-08-28T08:00:00.000Z';
 
 function repository() {
+  const listCandidates = vi.fn().mockResolvedValue([]);
   const requestSourcePreflight = vi
     .fn()
     .mockResolvedValue({ preflightId: 'p1' });
@@ -19,7 +20,7 @@ function repository() {
   const port = {
     getStatus: vi.fn(),
     listSources: vi.fn().mockResolvedValue([]),
-    listCandidates: vi.fn().mockResolvedValue([]),
+    listCandidates,
     getAvailability: vi.fn(),
     listSyntheticAppointments: vi.fn().mockResolvedValue([]),
     listSyntheticPatients: vi.fn().mockResolvedValue([]),
@@ -35,6 +36,7 @@ function repository() {
   } as unknown as CalendarPilotRepositoryPort;
   return {
     port,
+    listCandidates,
     requestSourcePreflight,
     reviewCandidate,
     correctCandidate
@@ -42,6 +44,37 @@ function repository() {
 }
 
 describe('CalendarPilotApplicationService role boundary', () => {
+  it('returns suggestions to clinic employees and denies other roles', async () => {
+    const repo = repository();
+    const suggested = {
+      candidateId: 'candidate_001',
+      kind: 'unmatched' as const,
+      status: 'unmatched' as const,
+      displayLabel: '未對應事件',
+      startsAt: '2026-08-28T04:00:00.000Z',
+      endsAt: '2026-08-28T04:30:00.000Z',
+      sourceVersion: 1,
+      expectedVersion: 0,
+      validationErrors: ['title_format_invalid' as const],
+      createdAt: NOW,
+      before: null,
+      suggestedPatientId: 'patient_opaque_001',
+      suggestedPatientName: '合成患者甲',
+      suggestionMethod: 'phone_month_day' as const
+    };
+    repo.listCandidates.mockResolvedValue([suggested]);
+    const service = new CalendarPilotApplicationService(repo.port, {
+      nowUtc: () => NOW
+    });
+
+    await expect(
+      service.candidates({ actorId: 'front_001', actorRole: 'front_desk' })
+    ).resolves.toEqual([suggested]);
+    expect(() =>
+      service.candidates({ actorId: 'patient_001', actorRole: 'patient' })
+    ).toThrow(AuthorizationDeniedError);
+  });
+
   it('allows only manager to request a source preflight', async () => {
     const repo = repository();
     const service = new CalendarPilotApplicationService(repo.port, {

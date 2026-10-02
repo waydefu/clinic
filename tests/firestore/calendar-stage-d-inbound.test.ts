@@ -3,11 +3,13 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { calendarEventIdForAppointment } from '@beauessence/domain';
+import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
 import {
   CalendarSyncEngine,
   CalendarSyncTokenExpiredError
 } from '../../apps/worker/src/calendar-sync/sync-engine.js';
 import { FirestoreCalendarSyncRepository } from '../../apps/worker/src/calendar-sync/firestore-calendar-sync.repository.js';
+import { FirestoreCalendarPilotRepository } from '../../apps/api/src/firestore/calendar-pilot.repository.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -28,6 +30,80 @@ async function wipe(names: readonly string[]): Promise<void> {
   }
 }
 
+const SUGGESTION_PHONE = '0987654321';
+const SUGGESTION_BIRTHDAY = '--11-23';
+const SUGGESTION_INDEX_ID = opaqueLookupIdentity(
+  SUGGESTION_PHONE,
+  SUGGESTION_BIRTHDAY
+);
+const SUGGESTION_PATIENT_IDS = [
+  'l2b_suggestion_patient_001',
+  'l2b_suggestion_patient_002',
+  'l2b_suggestion_patient_archived_001'
+] as const;
+
+async function clearSuggestionFixtures(): Promise<void> {
+  await Promise.all([
+    db.collection('patient_lookup_index_v2').doc(SUGGESTION_INDEX_ID).delete(),
+    ...SUGGESTION_PATIENT_IDS.map((patientId) =>
+      db.collection('patients').doc(patientId).delete()
+    )
+  ]);
+}
+
+async function seedSuggestionPatients(
+  patientIds: readonly string[],
+  archivedPatientIds: readonly string[] = []
+): Promise<void> {
+  await db
+    .collection('patient_lookup_index_v2')
+    .doc(SUGGESTION_INDEX_ID)
+    .set({
+      patientIds: [...patientIds]
+    });
+  await Promise.all(
+    patientIds.map((patientId, index) =>
+      db
+        .collection('patients')
+        .doc(patientId)
+        .set({
+          patientId,
+          name: index === 0 ? '合成患者甲' : '合成患者乙',
+          ...(archivedPatientIds.includes(patientId)
+            ? { archivedAt: '2030-10-01T00:00:00.000Z' }
+            : {})
+        })
+    )
+  );
+}
+
+async function runManualEvent(summary: string): Promise<void> {
+  const repository = new FirestoreCalendarSyncRepository(
+    db,
+    'synthetic-pseudonym-key-32-characters-min'
+  );
+  const engine = new CalendarSyncEngine(
+    {
+      listEvents: () =>
+        Promise.resolve({
+          events: [
+            {
+              id: 'manual_event_001',
+              etag: 'manual_etag_001',
+              status: 'confirmed',
+              summary,
+              start: { dateTime: '2026-09-02T14:00:00+08:00' },
+              end: { dateTime: '2026-09-02T14:30:00+08:00' }
+            }
+          ],
+          nextSyncToken: 'sync-manual-suggestion'
+        })
+    },
+    repository
+  );
+  await engine.run(NOW);
+}
+
 describe('Stage D Calendar inbound emulator', () => {
   beforeAll(() => {
     app = initializeApp(
@@ -38,10 +114,12 @@ describe('Stage D Calendar inbound emulator', () => {
   });
 
   afterAll(async () => {
+    await clearSuggestionFixtures();
     await deleteApp(app);
   });
 
   beforeEach(async () => {
+    await clearSuggestionFixtures();
     await wipe([
       'calendar_pilot_configuration',
       'calendar_pilot_sources',
@@ -139,6 +217,83 @@ describe('Stage D Calendar inbound emulator', () => {
     const candidates = await db.collection('calendar_pilot_candidates').get();
     expect(candidates.docs[0]?.data()?.['kind']).toBe('unmatched');
     expect(candidates.docs[0]?.data()?.['status']).toBe('unmatched');
+  });
+
+  it('suggests the sole active phone + month-day match without storing contact values', async () => {
+    const patientId = SUGGESTION_PATIENT_IDS[0];
+    await seedSuggestionPatients([patientId]);
+    await runManualEvent('合成患者甲 0987-654-321　801123');
+
+    const candidates = await db.collection('calendar_pilot_candidates').get();
+    expect(candidates.docs).toHaveLength(1);
+    const candidate = candidates.docs[0]?.data();
+    expect(candidate).toMatchObject({
+      kind: 'unmatched',
+      status: 'unmatched',
+      suggestedPatientId: patientId,
+      suggestionMethod: 'phone_month_day',
+      startsAt: '2026-09-02T06:00:00.000Z',
+      endsAt: '2026-09-02T06:30:00.000Z'
+    });
+    const serialized = JSON.stringify(candidate);
+    expect(serialized).not.toContain(SUGGESTION_PHONE);
+    expect(serialized).not.toContain(SUGGESTION_BIRTHDAY);
+    expect(serialized).not.toContain(SUGGESTION_INDEX_ID);
+    const apiCandidates = await new FirestoreCalendarPilotRepository(
+      db
+    ).listCandidates();
+    expect(apiCandidates[0]).toMatchObject({
+      suggestedPatientId: patientId,
+      suggestedPatientName: '合成患者甲',
+      suggestionMethod: 'phone_month_day'
+    });
+    await db
+      .collection('patients')
+      .doc(patientId)
+      .update({ archivedAt: '2030-10-01T00:00:00.000Z' });
+    const candidatesAfterArchive = await new FirestoreCalendarPilotRepository(
+      db
+    ).listCandidates();
+    expect(candidatesAfterArchive).toMatchObject([{ kind: 'unmatched' }]);
+    expect(candidatesAfterArchive).not.toContainEqual(
+      expect.objectContaining({ suggestedPatientId: patientId })
+    );
+    expect((await db.collection('appointments').get()).docs).toHaveLength(0);
+  });
+
+  it('does not suggest when the lookup index is ambiguous', async () => {
+    await seedSuggestionPatients(SUGGESTION_PATIENT_IDS.slice(0, 2));
+    await runManualEvent('合成患者甲0987654321 801123');
+
+    const candidate = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(candidate).not.toHaveProperty('suggestedPatientId');
+    expect(candidate).not.toHaveProperty('suggestionMethod');
+  });
+
+  it('does not suggest when the lookup index has no patient', async () => {
+    await runManualEvent('合成患者甲0987654321 801123');
+
+    const candidate = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(candidate).not.toHaveProperty('suggestedPatientId');
+    expect(candidate).not.toHaveProperty('suggestionMethod');
+  });
+
+  it('does not suggest an archived patient', async () => {
+    await seedSuggestionPatients(
+      [SUGGESTION_PATIENT_IDS[2]],
+      [SUGGESTION_PATIENT_IDS[2]]
+    );
+    await runManualEvent('合成患者甲0987654321 801123');
+
+    const candidate = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(candidate).not.toHaveProperty('suggestedPatientId');
+    expect(candidate).not.toHaveProperty('suggestionMethod');
   });
 
   it('keeps the clinic appointment when Calendar deletes the projected event', async () => {

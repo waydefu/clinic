@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./patient-lookup-identity.node": {
+      "types": "./dist/patient-lookup-identity.node.d.ts",
+      "default": "./dist/patient-lookup-identity.node.js"
     }
   },
   "scripts": {

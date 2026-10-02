@@ -12,7 +12,8 @@ import type { Firestore } from 'firebase-admin/firestore';
 import {
   BUSINESS_DELIVERY_COLLECTIONS,
   FIRST_ELIGIBLE_USE_DOC,
-  MILESTONE_ACKNOWLEDGEMENTS_DOC
+  MILESTONE_ACKNOWLEDGEMENTS_DOC,
+  staffUsageCaptureGapDocumentId
 } from '../business-delivery/usage-events.js';
 import { ConflictError } from '../platform/errors/api-error.js';
 
@@ -129,6 +130,18 @@ export class FirestoreBusinessDeliveryRepository {
         ...(data.actorRef === undefined ? {} : { actorId: data.actorRef })
       };
     });
+  }
+
+  /**
+   * Capture-gap markers are presence-only evidence. Any existing document,
+   * including a malformed one, makes that month incomplete.
+   */
+  public async hasStaffUsageCaptureGap(month: string): Promise<boolean> {
+    const snapshot = await this.db
+      .collection(BUSINESS_DELIVERY_COLLECTIONS.milestones)
+      .doc(staffUsageCaptureGapDocumentId(month))
+      .get();
+    return snapshot.exists;
   }
 
   public async milestoneState(): Promise<MilestoneState> {

@@ -4,6 +4,10 @@
 
 `PARTIAL`. The C1 batch packet, CP-08 regression worksheet, Traditional Chinese clinic-manager manual, CP-10 owner checklist, and this source-readiness closeout are prepared. This L7 package updates eight documents; the branch also carries a shared Fastify pnpm workspace/lock security patch and narrow Gitleaks config/test changes from source workstreams. No business behavior changed in those shared patches. This handoff does not claim L7 runtime completion, deployment authority, CP-08 PASS, or owner acceptance. No cloud operation, Drive write, C1 runtime test, authorized C1/CP-08 acceptance capture, or restore was performed here; CI/local source E2E attachments are engineering artifacts, not runtime evidence.
 
+### Current release reconciliation (2026-10-03)
+
+`origin/main` is now `6131c7fc54f09369842f6edf73a26d42fed4c729`, including merged #213, #214, #215, #216, #218, #219, and #220. The synced source heads #214 `e089b55ee2847ae06d9e7c356125264bc8a61207`, #215 `331992eeea8366b412ebe64591358f209a2e6f17`, and #216 `1197f0c43a6a8fb1ed01960e01e9a59cac151656` each passed 12/12 exact-head CI. Main verify run `37051691984` was still in progress when this addendum was written. The dated rows below retain historical snapshots; they do not override this current source readback. There is no new designated Claude review evidence in this reconciliation. C1 runtime, cloud plan/apply, CP-08 captures, CP-10 signature, and owner acceptance remain pending.
+
 ## Current evidence and blockers
 
 | Workstream | Current evidence | Remaining state |
@@ -60,13 +64,13 @@ Within the bounded L1–L7 source-readiness and confirmed-sibling scope, every i
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `docs/plans/2026-10-01-c1-batch-deployment-packet.md` | `38682eabcc1f70a98804b4aafb5a1a13c2cc094519540c491c9eebef88234240` |
-| `docs/plans/2026-10-01-cp-08-regression-evidence-worksheet.md` | `da9d510fa79e322707c1ffb4f9ea258754d735cc4e6ebe8bcee19f225adf6f47` |
-| `docs/runbooks/manager-operations-manual.md` | `f9a2122803509570e51d9abb282241f9618f065a32f812ad5de6ac0b4c5f7eac` |
-| `docs/plans/2026-10-01-cp-10-current-project-acceptance-checklist.md` | `16345299260a830d4c029d0f035b8f8ce988b4b2e6514d71a524259cd0140884` |
-| `docs/plans/2026-09-30-luna-execution-plan.md` | `7a47c41994de93d152925e20c31224d4230e437c28d92eb7e1d5299a6348a761` |
-| `docs/plans/2026-09-22-current-project-acceptance-matrix.md` | `fe840a50f9cf004ddb361a0eea28d57145ff45f64b5da344e7abf411aec26391` |
-| `docs/README.md` | `2aed8dbde92e0c1b6bb85563cd9548a3018f6031eb3b0fa5ab915b0d032829ee` |
+| `docs/plans/2026-10-01-c1-batch-deployment-packet.md` | `7726567ec64a80e373133c577fe59b90cd88da9358798c6b450c27c5e5a08cf2` |
+| `docs/plans/2026-10-01-cp-08-regression-evidence-worksheet.md` | `11425dcd53d793956611090c25aedfcc224cdb423e5480bd8e537aaa92eda77b` |
+| `docs/runbooks/manager-operations-manual.md` | `9dc8d295ea0eaca92ee9de4685018bd62e0c7f4cb46dc606b36e848e563499ab` |
+| `docs/plans/2026-10-01-cp-10-current-project-acceptance-checklist.md` | `e51aaf69cdbd5f12787630402b9ec8d3923dcdf5016304b633a0878d1f14f2ba` |
+| `docs/plans/2026-09-30-luna-execution-plan.md` | `3561dfada0759fc0f92cf37f6af5a8b00ea5ba825bdf8b71ff6cd764604cf822` |
+| `docs/plans/2026-09-22-current-project-acceptance-matrix.md` | `955611ac17a30eb95f8e7c10da4abc60bc35e4b2e4ca58dbf4c7e927da779103` |
+| `docs/README.md` | `feac8ca90296979e8088f46333514cc2cdd4009d0c0c80e448b84633f468ae53` |
 
 This handoff is omitted from the table to avoid self-hashing. The 16 planned C1/CP-08 fresh synthetic acceptance captures and runtime evidence have not been collected; CI/local source E2E artifacts, where present, are not C1 runtime evidence.
 
@@ -92,4 +96,4 @@ This handoff is omitted from the table to avoid self-hashing. The 16 planned C1/
 5. Run all 84 applicable CP-08 rows, manual reauthentication, human walkthrough and 16 fresh synthetic captures against one exact release. Preserve the CP-05 preview/fingerprint contract gap and known COOP popup dependency in test outcomes.
 6. Perform CP-06-E under its own exact authorization before final `CURRENT_PROJECT_ACCEPTANCE`. AWS/site work remains deferred.
 
-**Current stage:** `L6/L7 SOURCE_READINESS_PARTIAL`. L1/L2a/L2b/L3/L4/L5/L6 and shared-gate source workstreams are fixed or already correct. PRs #213/#214/#215/#216 passed their recorded exact-head CI 12/12 and are READY, but remain unmerged/unreleased; no designated Claude review or owner merge has occurred. Runtime credentials/approval, C1 readbacks, the 16 planned fresh C1/CP-08 synthetic acceptance captures, owner policy resolution and signature remain pending. There is no deployment, runtime acceptance, CP-08 PASS, owner acceptance, or change to production/public-launch/real-data authority.
+**Current stage:** `L6/L7 SOURCE_READINESS_PARTIAL`. L1/L2a/L2b/L3/L4/L5/L6 and shared-gate source workstreams are fixed or already correct. PRs #213/#214/#215/#216 are now represented in main `6131c7fc54f09369842f6edf73a26d42fed4c729`; #214/#215/#216 new exact-head CI each passed 12/12. #217 is still a documentation candidate and needs its own synced exact-head CI. Runtime credentials/approval, C1 readbacks, the 16 planned fresh C1/CP-08 synthetic acceptance captures, owner policy resolution and signature remain pending. There is no deployment, runtime acceptance, CP-08 PASS, owner acceptance, or change to production/public-launch/real-data authority.
