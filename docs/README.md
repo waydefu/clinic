@@ -192,6 +192,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-02 | [C1 背景排程暫停紀錄](reviews/2026-10-02-c1-scheduler-pause.md) | 業主指示先暫停、需要測試時再開；outbox 排程已讀回 Paused，Calendar 同步維持 Paused。記錄 UTC 操作時間、證據摘要、重新測試及測後暫停流程；不宣稱費用歸零或新增部署／驗收權限。 |
 | 2026-09-30 | [Luna 環境修復交接](reviews/2026-09-30-luna-environment-readiness.md) | Node／pnpm 與 CI 障礙修復；官方 GitHub 定位已查證，Luna 文件試派完成。工具下載網路與後續 CLI 尚未備妥。 |
 | 2026-09-28 | [CP-02 C1 新預約驗收](reviews/2026-09-28-cp-02-c1-runtime-evidence.md) | CP-02 RUNTIME_PROVEN on isolated synthetic C1 at `1e0b84f`: BKG-01～05、07、09～12 runtime; BKG-06 not applicable by owner decision; BKG-08 two-candidate case kept on Emulator evidence. Three deviations recorded (API-only targeted apply, Hosting briefly pinned to an older revision before any write, legacy lookup proven structurally). Booking gate closed at the end. Open: C1 Workbench list shows no nationality. No production or D-series approval. |
 | 2026-09-28 | [P1-09 關帳](reviews/2026-09-28-p1-09-closeout.md) | P1-09 CLOSED on isolated synthetic C1: Stage F evaluator and `inspect:internal-preproduction` both `ok=true`, exit 0; all P09 rows, SEC-13/14 and Gate 16 PASS; F-06 evidence sets uploaded by the owner; booking gate closed early at owner direction. OPS-06 optional NOT_RUN. No production, live Hosting, real-data or D-series approval. |
