@@ -471,6 +471,11 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
      **這就是「系統內按已收到」。**
    - `POST .../:id/close` `{ idempotencyKey, expectedVersion }`：伺服器自己檢查所有必要步驟
      （返還匯出已簽收、受控副本保留期滿），**不收 `complete: true`**；缺任何一步回 409 並列出缺什麼。
+   - 同一 acknowledgements 路由以嚴格 `receiptKind` 聯集記錄 `backup_disposition`、
+     `audit_disposition` 與 `access_revocation` 清單項目；只收 opaque `evidenceRef`，
+     actor、時間、版本與稽核紀錄由伺服器寫入。這是人員完成後的可稽核聲明，不會呼叫雲端或
+     身分服務證明或執行變更。資料返還簽收只接受有成功下載紀錄的伺服器匯出工作，雜湊取自該工作。
+     `close` 只把案件送入 `manual_close_review`，不自動停服務、撤權、刪除副本或視為合約結束。
 3. 不自動停用服務、不自動撤銷帳號（撤銷權限列為清單項目，由人操作後在系統打勾）。
 4. 測試同 L1 的格式：權限、reauth、冪等、缺步驟不能結案。
 

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import {
   IdempotencyKeySchema,
   LocalDateSchema,
-  OpaqueIdentifierSchema
+  OpaqueIdentifierSchema,
+  UtcIsoTimestampSchema
 } from './common.js';
 
 /**
@@ -183,6 +184,124 @@ export type CreateBusinessExportRequest = z.infer<
   typeof CreateBusinessExportRequestSchema
 >;
 export type BusinessExportJob = z.infer<typeof BusinessExportJobSchema>;
+
+/** CP-07 manager-only termination operations. */
+export const CreateBusinessTerminationRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    noticeDate: LocalDateSchema
+  })
+  .strict();
+
+export const BusinessTerminationChecklistItemSchema = z.enum([
+  'backup_disposition',
+  'audit_disposition',
+  'access_revocation'
+]);
+
+export const BusinessTerminationAcknowledgementRequestSchema =
+  z.discriminatedUnion('receiptKind', [
+    z
+      .object({
+        idempotencyKey: IdempotencyKeySchema,
+        receiptKind: z.literal('data_return'),
+        exportId: OpaqueIdentifierSchema
+      })
+      .strict(),
+    z
+      .object({
+        idempotencyKey: IdempotencyKeySchema,
+        receiptKind: BusinessTerminationChecklistItemSchema,
+        evidenceRef: OpaqueIdentifierSchema
+      })
+      .strict()
+  ]);
+
+export const CloseBusinessTerminationRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    expectedVersion: z.number().int().min(1)
+  })
+  .strict();
+
+export const BusinessTerminationStateSchema = z.enum([
+  'termination_pending',
+  'controlled_retention',
+  'manual_close_review'
+]);
+
+export const BusinessTerminationMissingStepSchema = z.enum([
+  'data_return',
+  'controlled_copy_retention',
+  'backup_disposition',
+  'audit_disposition',
+  'access_revocation'
+]);
+export type BusinessTerminationMissingStep = z.infer<
+  typeof BusinessTerminationMissingStepSchema
+>;
+
+export const BusinessTerminationReceiptSchema = z.discriminatedUnion(
+  'receiptKind',
+  [
+    z
+      .object({
+        receiptKind: z.literal('data_return'),
+        exportId: OpaqueIdentifierSchema,
+        actorRef: z.string().regex(/^[a-f0-9]{64}$/),
+        acknowledgedAt: UtcIsoTimestampSchema,
+        sha256: z.string().regex(/^[a-f0-9]{64}$/)
+      })
+      .strict(),
+    z
+      .object({
+        receiptKind: BusinessTerminationChecklistItemSchema,
+        evidenceRef: OpaqueIdentifierSchema,
+        actorRef: z.string().regex(/^[a-f0-9]{64}$/),
+        acknowledgedAt: UtcIsoTimestampSchema
+      })
+      .strict()
+  ]
+);
+
+export const BusinessTerminationResponseSchema = z
+  .object({
+    terminationId: OpaqueIdentifierSchema,
+    state: BusinessTerminationStateSchema,
+    noticeDate: LocalDateSchema,
+    noticeStartedAt: UtcIsoTimestampSchema,
+    noticeDueAt: UtcIsoTimestampSchema,
+    controlledRetentionUntil: UtcIsoTimestampSchema.nullable(),
+    version: z.number().int().min(1),
+    receipts: z.array(BusinessTerminationReceiptSchema),
+    closeReadiness: z
+      .object({
+        ready: z.boolean(),
+        missingSteps: z.array(BusinessTerminationMissingStepSchema)
+      })
+      .strict(),
+    replayed: z.boolean().optional()
+  })
+  .strict();
+
+export type CreateBusinessTerminationRequest = z.infer<
+  typeof CreateBusinessTerminationRequestSchema
+>;
+export type BusinessTerminationAcknowledgementRequest = z.infer<
+  typeof BusinessTerminationAcknowledgementRequestSchema
+>;
+export type CloseBusinessTerminationRequest = z.infer<
+  typeof CloseBusinessTerminationRequestSchema
+>;
+export type BusinessTerminationChecklistItem = z.infer<
+  typeof BusinessTerminationChecklistItemSchema
+>;
+export type BusinessTerminationReceipt = z.infer<
+  typeof BusinessTerminationReceiptSchema
+>;
+export type BusinessTerminationResponse = z.infer<
+  typeof BusinessTerminationResponseSchema
+>;
 
 /** CP-05 retention requests are deliberately limited to opaque patient IDs. */
 export const RetentionReasonCodeSchema = z.enum([
