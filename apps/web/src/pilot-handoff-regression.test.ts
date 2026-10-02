@@ -2,11 +2,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initialState, stagingRequest, storageKey } from '../public/store.js';
 import { completeGoogleSignIn } from '../public/modules/pilot-google-totp-session.js';
 
+const { firebaseOnAuthStateChanged, unsubscribeAuthState } = vi.hoisted(() => ({
+  firebaseOnAuthStateChanged: vi.fn(),
+  unsubscribeAuthState: vi.fn()
+}));
+
 vi.mock('firebase/app', () => ({
   getApps: () => [{ name: 'calendar-pilot' }]
 }));
 vi.mock('firebase/auth', async (importOriginal) =>
-  Object.assign({}, await importOriginal(), { getAuth: () => ({}) })
+  Object.assign({}, await importOriginal(), {
+    getAuth: () => ({}),
+    onAuthStateChanged: (auth, callback) => {
+      firebaseOnAuthStateChanged(auth, callback);
+      callback(null);
+      return unsubscribeAuthState;
+    }
+  })
 );
 vi.mock(
   '../public/modules/pilot-google-totp-session.js',
@@ -28,7 +40,10 @@ function storage(values: Record<string, string> = {}) {
   };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+});
 
 describe('pilot handoff regressions', () => {
   it('restores the OTP region after a cached calendar render fails', async () => {
@@ -77,6 +92,8 @@ describe('pilot handoff regressions', () => {
     });
     await import('./calendar-pilot-entry.js');
     await vi.waitFor(() => expect(completeGoogleSignIn).toHaveBeenCalledOnce());
+    expect(firebaseOnAuthStateChanged).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(unsubscribeAuthState).toHaveBeenCalledOnce());
     expect(fetchMock).toHaveBeenCalledWith(
       '/v1/calendar/status',
       expect.anything()

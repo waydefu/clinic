@@ -19,7 +19,8 @@ const ADMIN_PANEL_IDS = new Set([
   'schedule-section',
   'accounts-section',
   'communications-section',
-  'audit-section'
+  'audit-section',
+  'business-section'
 ]);
 let deniedHandler;
 

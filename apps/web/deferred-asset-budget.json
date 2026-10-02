@@ -1,0 +1,4 @@
+{
+  "budgetBytes": 69632,
+  "justification": "New conservative 68 KiB gzip ceiling for the employee business tab's first-use assets; resources already in the initial /index.html closure are excluded."
+}

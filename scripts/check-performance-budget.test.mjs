@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { transform } from 'esbuild';
+import { gzipSync } from 'node:zlib';
+import { planHashedBuild } from './build-web.mjs';
 import {
+  DEFERRED_BUSINESS_ASSET_SOURCES,
   moduleGraphDepth,
-  planBudgetReport
+  planBudgetReport,
+  planDeferredBusinessAssetReport
 } from './check-performance-budget.mjs';
 
 // 傳輸大小在正式執行是 gzip；測試改用原始位元組長度，讓每個斷言都是可算的數字。
@@ -244,5 +249,428 @@ describe('budget report', () => {
     );
 
     expect(generous.violations ?? []).toEqual([]);
+  });
+});
+
+function deferredBusinessFixture() {
+  const manifest = Object.fromEntries(
+    DEFERRED_BUSINESS_ASSET_SOURCES.map((sourcePath) => {
+      const dot = sourcePath.lastIndexOf('.');
+      return [
+        sourcePath,
+        `built/${sourcePath.slice(0, dot)}.fixture${sourcePath.slice(dot)}`
+      ];
+    })
+  );
+  const client = manifest['calendar-pilot-client.js'];
+  const stylesheet = manifest['calendar-pilot.css'];
+  const reauth = manifest['modules/business-reauth.js'];
+  const businessView = manifest['modules/business-view.js'];
+  const files = new Map([
+    ['index.html', html({ modules: ['app.js'] })],
+    ['app.js', "import './shared.js';"],
+    ['shared.js', 'export const shared = 1;'],
+    [client, "import '../shared.js'; import './client-dependency.js';"],
+    ['built/client-dependency.js', 'export const client = 1;'],
+    [stylesheet, "body { background: url('./texture.svg'); }"],
+    ['built/texture.svg', '<svg></svg>'],
+    [
+      reauth,
+      "import('../calendar-pilot-client.fixture.js'); import('../../shared.js');"
+    ],
+    [businessView, "import '../../shared.js'; import './business-helper.js';"],
+    ['built/modules/business-helper.js', 'export const helper = 1;']
+  ]);
+  return {
+    files,
+    manifest,
+    config: {
+      budgetBytes: 68 * 1024,
+      justification: 'New conservative deferred business asset ceiling.'
+    },
+    businessView,
+    businessHelper: 'built/modules/business-helper.js'
+  };
+}
+
+describe('deferred business asset budget', () => {
+  it('accepts the inclusive 68 KiB limit and excludes initial/shared resources', () => {
+    const fixture = deferredBusinessFixture();
+    const initial = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      { ...rawSize, featurePresent: true }
+    );
+    const otherDeferredBytes =
+      initial.bytes -
+      Buffer.byteLength(fixture.files.get(fixture.businessHelper));
+    fixture.files.set(
+      fixture.businessHelper,
+      'x'.repeat(fixture.config.budgetBytes - otherDeferredBytes)
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.bytes).toBe(68 * 1024);
+    expect(report.violations).toEqual([]);
+    expect(report.resources).not.toContain('shared.js');
+    expect(report.resources).toContain('built/texture.svg');
+    expect(
+      report.resources.filter(
+        (path) => path === fixture.manifest['calendar-pilot-client.js']
+      )
+    ).toHaveLength(1);
+    expect(
+      report.resources.filter(
+        (path) => path === 'built/modules/business-helper.js'
+      )
+    ).toHaveLength(1);
+  });
+
+  it('rejects a deferred aggregate one byte above its configured ceiling', () => {
+    const fixture = deferredBusinessFixture();
+    const initial = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+    const otherDeferredBytes =
+      initial.bytes -
+      Buffer.byteLength(fixture.files.get(fixture.businessHelper));
+    fixture.files.set(
+      fixture.businessHelper,
+      'x'.repeat(fixture.config.budgetBytes + 1 - otherDeferredBytes)
+    );
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.bytes).toBe(68 * 1024 + 1);
+    expect(report.violations.join('\n')).toContain(
+      'exceeding the 69632-byte ceiling'
+    );
+  });
+
+  it('fails closed when the L3 feature exists but the build manifest is missing', () => {
+    const fixture = deferredBusinessFixture();
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      undefined,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'asset-manifest.json is missing'
+    );
+  });
+
+  it('fails closed when a required root has no exact manifest mapping', () => {
+    const fixture = deferredBusinessFixture();
+    delete fixture.manifest['modules/business-view.js'];
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'no safe exact mapping for modules/business-view.js'
+    );
+  });
+
+  it('fails closed when the deferred budget config is missing', () => {
+    const fixture = deferredBusinessFixture();
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      undefined
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'deferred-asset-budget.json is missing'
+    );
+  });
+
+  it('fails closed when the feature is in the manifest but its budget config is missing', () => {
+    const fixture = deferredBusinessFixture();
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      undefined,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'deferred-asset-budget.json is missing'
+    );
+  });
+
+  it('fails closed when a manifest-mapped root file is absent from dist', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.manifest['calendar-pilot.css'] = 'built/missing.fixture.css';
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'mapped asset calendar-pilot.css'
+    );
+  });
+
+  it('fails closed when a deferred dependency is missing from dist', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.businessView,
+      "import './missing-dependency.js';"
+    );
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'references a missing dist resource'
+    );
+  });
+
+  it('includes minified quoted and nested CSS imports in the gzip budget', async () => {
+    const fixture = deferredBusinessFixture();
+    const rootCss = await transform('@import "./existing.abc123.css";', {
+      loader: 'css',
+      minify: true
+    });
+    const importedCss = await transform('@import "./nested.456def.css";', {
+      loader: 'css',
+      minify: true
+    });
+    let seed = 0x12345678;
+    const largeCssSource = Array.from({ length: 22_000 }, (_, index) => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const token = seed.toString(16).padStart(8, '0');
+      return `.r${index.toString(36)}{--payload:"${token}"}`;
+    }).join('');
+    const largeCss = await transform(largeCssSource, {
+      loader: 'css',
+      minify: true
+    });
+    fixture.files.set(fixture.manifest['calendar-pilot.css'], rootCss.code);
+    fixture.files.set('built/existing.abc123.css', importedCss.code);
+    fixture.files.set('built/nested.456def.css', largeCss.code);
+    const largeGzipBytes = gzipSync(largeCss.code).length;
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      { transferSizeOf: (content) => gzipSync(content).length }
+    );
+
+    expect(rootCss.code).toContain('@import"./existing.abc123.css"');
+    expect(largeGzipBytes).toBeGreaterThan(fixture.config.budgetBytes);
+    expect(report.resources).toContain('built/existing.abc123.css');
+    expect(report.resources).toContain('built/nested.456def.css');
+    expect(report.violations.join('\n')).toContain(
+      'exceeding the 69632-byte ceiling'
+    );
+  });
+
+  it('does not count the same CSS import twice when it also appears in url()', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.manifest['calendar-pilot.css'],
+      "@import url('./existing.abc123.css'); body { background: url('./existing.abc123.css'); }"
+    );
+    fixture.files.set(
+      'built/existing.abc123.css',
+      '.existing { display: block; }'
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(
+      report.resources.filter((path) => path === 'built/existing.abc123.css')
+    ).toHaveLength(1);
+  });
+
+  it('does not parse a different at-keyword with an import prefix', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.manifest['calendar-pilot.css'],
+      '@important.css { color: red; }'
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations).toEqual([]);
+    expect(report.resources).not.toContain('built/ant.css');
+  });
+
+  it('fails closed when a minified CSS import target is missing from dist', async () => {
+    const fixture = deferredBusinessFixture();
+    const minifiedCss = await transform('@import "./missing.abc123.css";', {
+      loader: 'css',
+      minify: true
+    });
+    fixture.files.set(fixture.manifest['calendar-pilot.css'], minifiedCss.code);
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain('missing.abc123.css');
+  });
+
+  it('includes dynamic imports in the deferred resource closure', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.manifest['modules/business-reauth.js'],
+      "import('./missing-lazy-dependency.js'); import('../../shared.js');"
+    );
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+
+    expect(report.violations.join('\n')).toContain(
+      'missing-lazy-dependency.js'
+    );
+  });
+
+  it('fails closed for comment-separated static, from, and dynamic imports', () => {
+    const fixture = deferredBusinessFixture();
+    fixture.files.set(
+      fixture.businessView,
+      "import /* side effect */ './missing-static.js'; import { value } /* imported names */ from /* target */ './missing-from.js'; import /* dynamic */ ('./missing-dynamic.js');"
+    );
+
+    const report = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      fixture.config,
+      rawSize
+    );
+    const violations = report.violations.join('\n');
+
+    expect(violations).toContain('missing-static.js');
+    expect(violations).toContain('missing-from.js');
+    expect(violations).toContain('missing-dynamic.js');
+  });
+
+  it('fails closed when the deferred budget config is incomplete or relaxes 68 KiB', () => {
+    const fixture = deferredBusinessFixture();
+    const incomplete = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      { budgetBytes: fixture.config.budgetBytes },
+      rawSize
+    );
+    const relaxed = planDeferredBusinessAssetReport(
+      fixture.files,
+      fixture.manifest,
+      {
+        ...fixture.config,
+        budgetBytes: fixture.config.budgetBytes + 1
+      },
+      rawSize
+    );
+
+    expect(incomplete.violations.join('\n')).toContain('justification');
+    expect(relaxed.violations.join('\n')).toContain('no greater than 69632');
+  });
+
+  it('has no deferred group on a branch without the business-view feature', () => {
+    const report = planDeferredBusinessAssetReport(
+      new Map([['index.html', '<section id="case-section"></section>']]),
+      undefined,
+      undefined,
+      { featurePresent: false, ...rawSize }
+    );
+
+    expect(report).toMatchObject({ active: false, bytes: 0, violations: [] });
+  });
+
+  it('activates the gate for an unquoted business section id', () => {
+    const files = new Map([
+      ['index.html', '<section id=business-section></section>']
+    ]);
+    const report = planDeferredBusinessAssetReport(files, undefined, undefined);
+
+    expect(report.active).toBe(true);
+    expect(report.violations.join('\n')).toContain(
+      'asset-manifest.json is missing'
+    );
+    expect(report.violations.join('\n')).toContain(
+      'deferred-asset-budget.json is missing'
+    );
+  });
+
+  it('builds the minified CSS import regression through planHashedBuild', async () => {
+    const rootCss = await transform('@import "./extra.css";', {
+      loader: 'css',
+      minify: true
+    });
+    const extraCss = await transform('.extra { display: block; }', {
+      loader: 'css',
+      minify: true
+    });
+    const inputFiles = new Map([
+      ['index.html', html({ modules: ['app.js'] })],
+      ['app.js', 'export const appReady = true;'],
+      ['calendar-pilot-client.js', 'export const clientReady = true;'],
+      ['calendar-pilot.css', rootCss.code],
+      ['extra.css', extraCss.code],
+      ['modules/business-reauth.js', 'export const reauthReady = true;'],
+      ['modules/business-view.js', 'export const viewReady = true;']
+    ]);
+    const { outputs, manifest } = planHashedBuild(inputFiles);
+    const rootOutput = manifest.get('calendar-pilot.css');
+    const extraOutput = manifest.get('extra.css');
+    const report = planDeferredBusinessAssetReport(
+      outputs,
+      Object.fromEntries(manifest),
+      {
+        budgetBytes: 68 * 1024,
+        justification: 'New conservative deferred business asset ceiling.'
+      },
+      rawSize
+    );
+
+    expect(String(outputs.get(rootOutput))).toContain('@import"./extra.css"');
+    expect(extraOutput).toMatch(/extra\.[a-f0-9]{10}\.css$/);
+    expect(outputs.has(extraOutput)).toBe(true);
+    expect(outputs.has('extra.css')).toBe(false);
+    expect(report.violations.join('\n')).toContain('extra.css');
   });
 });

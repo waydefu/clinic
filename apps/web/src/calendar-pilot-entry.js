@@ -8,16 +8,21 @@ import {
   getRedirectResult,
   multiFactor,
   onAuthStateChanged,
+  reauthenticateWithPopup,
   signInWithRedirect,
   signOut
 } from 'firebase/auth';
 import { CALENDAR_PILOT_SCHEDULE, planSlots } from '@beauessence/domain';
-import { resolveBootUser } from '../public/modules/pilot-auth-state.js';
+import {
+  firstAuthStateChanged,
+  resolveBootUser
+} from '../public/modules/pilot-auth-state.js';
 import {
   CALENDAR_PILOT_AUTH_OUTCOME,
   clearCalendarPilotClientAuthState,
   completeGoogleSignIn as completeGoogleTotpSignIn,
   isCalendarPilotLogoutInProgress,
+  registerCalendarPilotReauthenticationBridge,
   teardownCalendarPilotSessions
 } from '../public/modules/pilot-google-totp-session.js';
 
@@ -216,6 +221,79 @@ function promptTotp({ enrollmentKey } = {}) {
       { once: true }
     );
   });
+}
+
+function promptReauthTotp() {
+  return new Promise((resolve, reject) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'cp-dialog';
+    const form = document.createElement('form');
+    form.method = 'dialog';
+    form.className = 'cp-form';
+    const heading = document.createElement('h2');
+    heading.textContent = '輸入動態驗證碼';
+    const label = document.createElement('label');
+    label.className = 'cp-full';
+    label.append('6 位數驗證碼');
+    const input = document.createElement('input');
+    input.name = 'code';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'one-time-code';
+    input.pattern = '[0-9]{6}';
+    input.required = true;
+    label.append(input);
+    const confirm = document.createElement('button');
+    confirm.className = 'cp-button cp-button-primary';
+    confirm.value = 'ok';
+    confirm.textContent = '確認';
+    const cancel = document.createElement('button');
+    cancel.className = 'cp-button';
+    cancel.value = 'cancel';
+    cancel.formNoValidate = true;
+    cancel.textContent = '取消';
+    form.append(heading, label, confirm, cancel);
+    dialog.append(form);
+    dialog.addEventListener(
+      'close',
+      () => {
+        const code = input.value;
+        const accepted = dialog.returnValue === 'ok' && /^[0-9]{6}$/.test(code);
+        dialog.remove();
+        if (accepted) resolve(code);
+        else reject(new Error('已取消重新登入'));
+      },
+      { once: true }
+    );
+    document.body.append(dialog);
+    dialog.showModal();
+    input.focus();
+  });
+}
+
+async function freshIdToken() {
+  const user = auth?.currentUser;
+  if (!user) throw new Error('請先登入');
+  try {
+    const result = await reauthenticateWithPopup(
+      user,
+      new GoogleAuthProvider()
+    );
+    return await result.user.getIdToken(true);
+  } catch (error) {
+    if (error?.code !== 'auth/multi-factor-auth-required') throw error;
+    const resolver = getMultiFactorResolver(auth, error);
+    const hint = resolver.hints.find(
+      (item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID
+    );
+    if (!hint) throw new Error('此帳號沒有設定動態驗證碼', { cause: error });
+    const code = await promptReauthTotp();
+    const assertion = TotpMultiFactorGenerator.assertionForSignIn(
+      hint.uid,
+      code
+    );
+    const result = await resolver.resolveSignIn(assertion);
+    return await result.user.getIdToken(true);
+  }
 }
 
 async function completeGoogleSignIn() {
@@ -983,12 +1061,21 @@ function wantsCalendarPilotOverlay(search = '') {
   return new URLSearchParams(String(search)).get('calendarPilot') === '1';
 }
 
+function failPendingReauthentication() {
+  if (sessionStorage.getItem('calPilotCsrf') !== null) {
+    window.__beauessenceReauthBridgeReady = false;
+    window.__beauessenceReauthBridgeFailed = true;
+    window.dispatchEvent(new Event('beauessence:reauth-bridge-failed'));
+  }
+}
+
 async function boot() {
   if (isPublicBookingPath(location.pathname)) {
     document.documentElement.classList.add('synthetic-workbench-ready');
     return;
   }
   if (isCalendarPilotLogoutInProgress(sessionStorage)) {
+    failPendingReauthentication();
     document.documentElement.classList.add('synthetic-workbench-ready');
     return;
   }
@@ -997,6 +1084,7 @@ async function boot() {
     headers: { Accept: 'application/json' }
   }).catch(() => undefined);
   if (configResponse?.ok !== true) {
+    failPendingReauthentication();
     document.documentElement.classList.add('synthetic-workbench-ready');
     return;
   }
@@ -1007,6 +1095,22 @@ async function boot() {
   root.className = 'calendar-pilot-root';
   document.body.append(root);
   auth = getAuth(calendarPilotFirebaseApp(config));
+  try {
+    await firstAuthStateChanged((callback) =>
+      onAuthStateChanged(auth, callback)
+    );
+  } catch {
+    failPendingReauthentication();
+    document.documentElement.classList.add('synthetic-workbench-ready');
+    return;
+  }
+  registerCalendarPilotReauthenticationBridge({
+    target: window,
+    getFreshIdToken: freshIdToken
+  });
+  window.__beauessenceReauthBridgeFailed = false;
+  window.__beauessenceReauthBridgeReady = true;
+  window.dispatchEvent(new Event('beauessence:reauth-bridge-ready'));
   bootStatusView('正在完成登入…');
   const cachedCsrf = sessionStorage.getItem('calPilotCsrf');
   if (cachedCsrf !== null) {

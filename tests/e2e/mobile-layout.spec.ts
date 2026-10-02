@@ -607,7 +607,8 @@ const WORKSPACE_DESTINATIONS = [
   'case-section',
   'accounts-section',
   'communications-section',
-  'audit-section'
+  'audit-section',
+  'business-section'
 ];
 
 for (const width of [320, 360, 375, 390, 768]) {
@@ -635,7 +636,7 @@ for (const width of [320, 360, 375, 390, 768]) {
     await expect(trigger).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    await expect(nav.locator('a')).toHaveCount(7);
+    await expect(nav.locator('a')).toHaveCount(8);
     for (const id of WORKSPACE_DESTINATIONS) {
       const link = nav.locator(`a[href="#${id}"]`);
       await page.keyboard.press('Tab');

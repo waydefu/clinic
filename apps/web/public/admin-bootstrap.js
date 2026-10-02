@@ -68,6 +68,93 @@ const restrictedDom = [
   ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
 ];
 let client = apiClient;
+let disposeBusinessView = () => {};
+let businessViewGeneration = 0;
+let activeBusinessViewGeneration = 0;
+
+function isBusinessViewActivationCurrent(generation) {
+  return (
+    generation === businessViewGeneration &&
+    window.location.hash === '#business-section' &&
+    isAdminSession() &&
+    elements['business-section']?.isConnected
+  );
+}
+
+async function activateBusinessView() {
+  const generation = ++businessViewGeneration;
+  if (!isBusinessViewActivationCurrent(generation)) return;
+  const root = elements['business-section'];
+  const availability = root.querySelector('#business-availability');
+  availability.textContent = '正在載入商務與驗收…';
+  if (sessionStorage.getItem('calPilotCsrf')) {
+    let prepareBusinessReauthentication;
+    try {
+      ({ prepareBusinessReauthentication } =
+        await import('./modules/business-reauth.js'));
+    } catch {
+      if (isBusinessViewActivationCurrent(generation))
+        availability.textContent =
+          'Google + TOTP 重新登入目前無法載入，請稍後再試。';
+      return;
+    }
+    if (!isBusinessViewActivationCurrent(generation)) return;
+    try {
+      await prepareBusinessReauthentication();
+    } catch {
+      if (isBusinessViewActivationCurrent(generation))
+        availability.textContent =
+          'Google + TOTP 重新登入目前無法載入，請稍後再試。';
+      return;
+    }
+  }
+  if (!isBusinessViewActivationCurrent(generation)) return;
+  let initializeBusinessView;
+  let createBusinessViewAccessInvalidationCleanup;
+  try {
+    ({ initializeBusinessView, createBusinessViewAccessInvalidationCleanup } =
+      await import('./modules/business-view.js'));
+  } catch {
+    if (isBusinessViewActivationCurrent(generation))
+      availability.textContent = '商務與驗收目前無法載入，請稍後再試。';
+    return;
+  }
+  if (!isBusinessViewActivationCurrent(generation)) return;
+  const navLink = document.querySelector(
+    '[data-workspace-nav][href="#business-section"]'
+  );
+  disposeBusinessView();
+  activeBusinessViewGeneration = generation;
+  disposeBusinessView = initializeBusinessView({
+    root,
+    authorized: isAdminSession,
+    onAccessInvalidated: createBusinessViewAccessInvalidationCleanup({
+      isCurrent: () => generation === activeBusinessViewGeneration,
+      resetDisposer: () => {
+        activeBusinessViewGeneration = 0;
+        businessViewGeneration += 1;
+        disposeBusinessView = () => {};
+      },
+      elements,
+      restrictedDom,
+      root,
+      navLink
+    })
+  });
+  if (!sessionStorage.getItem('calPilotCsrf'))
+    availability.textContent = '此功能只在 C1 伺服器模式可用';
+}
+
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#business-section') {
+    void activateBusinessView();
+    return;
+  }
+  businessViewGeneration += 1;
+  activeBusinessViewGeneration = 0;
+  disposeBusinessView();
+  disposeBusinessView = () => {};
+});
 
 function isAdminSession() {
   return (
@@ -489,6 +576,11 @@ function renderSession() {
       ? '可設定營業時間、改派個管、帳號與系統治理。'
       : '可處理預約、到診、登錄回診指示與首次個管指派。';
   applyWorkspacePanel();
+  window.dispatchEvent(
+    new CustomEvent('beauessence:workbench-access-change', {
+      detail: { authorized: isAdminSession() }
+    })
+  );
 }
 
 function renderFilters() {
@@ -2180,6 +2272,7 @@ try {
     }
   });
   render();
+  if (window.location.hash === '#business-section') void activateBusinessView();
   if (state.session.authenticated === true && !accessDenied)
     message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
   else elements['login-account'].focus();
