@@ -11,7 +11,12 @@ import type {
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
-import { DomainError } from '@beauessence/domain';
+import {
+  DomainError,
+  planIdempotencyRecord,
+  resolveIdempotencyReplay,
+  type PlannedIdempotencyRecord
+} from '@beauessence/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
@@ -34,7 +39,10 @@ import type {
   ReservationResult,
   TransitionResult
 } from './appointment.repository-port.js';
-import { InMemoryPatientDirectory } from '../patients/patient-directory.js';
+import {
+  assertFollowUpBookable,
+  InMemoryPatientDirectory
+} from '../patients/patient-directory.js';
 
 const COMMAND: CreateAppointmentRequest = {
   idempotencyKey: 'booking_request_0001',
@@ -83,15 +91,25 @@ function createBoundService(
   patients?: InMemoryPatientDirectory,
   ids: () => string = () => 'appointment_server_001'
 ) {
+  // Follow-up entitlement is decided by the repository transaction, after it
+  // has replayed a recorded idempotency key (FirestoreBookingRepository.reserve).
+  // The stand-in repository applies the same rule so a service that stopped
+  // checking it would still be caught by the tests below.
   const reserve = vi.fn<
     (request: BookingRequest) => Promise<ReservationResult>
-  >(() =>
-    Promise.resolve({
+  >(async (request) => {
+    if (patients !== undefined) {
+      assertFollowUpBookable(
+        await patients.readFollowUpState(request.patientId),
+        request.bookingKind
+      );
+    }
+    return {
       appointmentId: 'appointment_server_001',
       replayed: false,
       startsAt: '2026-07-25T04:00:00.000Z'
-    })
-  );
+    };
+  });
   const reschedule = vi.fn<
     (request: RescheduleRequest) => Promise<ReservationResult>
   >(() =>
@@ -1120,5 +1138,146 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
       )
     ).rejects.toMatchObject({ code: 'FOLLOW_UP_NOT_ENTITLED' });
     expect(patients.createdPatientCount).toBe(0);
+  });
+});
+
+describe('follow-up booking retried with the same idempotency key (AUD-08)', () => {
+  const PATIENT_ID = 'patient_follow_retry_001';
+  const patientAuthentication: AuthenticationContext = {
+    actorId: PATIENT_ID,
+    actorRole: 'patient',
+    verifiedPatientId: PATIENT_ID
+  };
+  const FOLLOW_UP_BOOKING: CreateAppointmentRequest = {
+    idempotencyKey: 'booking_follow_retry_0001',
+    slotId: 'slot_follow_001',
+    serviceId: 'service_consult',
+    bookingKind: 'follow_up'
+  };
+  const FOLLOW_UP_STARTS_AT = '2026-07-25T04:15:00.000Z';
+
+  /**
+   * A repository stand-in with the ordering of the real transaction: a
+   * recorded idempotency key is replayed (or rejected for other content)
+   * before follow-up entitlement is judged, and a first booking moves the
+   * patient's active follow-up pointer to itself.
+   */
+  function entitledPatientWithRecordingRepository() {
+    const patients = new InMemoryPatientDirectory();
+    patients.followUp.set(PATIENT_ID, {
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001'
+    });
+    const recorded = new Map<string, PlannedIdempotencyRecord>();
+    let n = 0;
+    const bound = createBoundService(patients, () => `opaque_${++n}`);
+    bound.reserve.mockImplementation(async (request) => {
+      const replay = recorded.get(request.idempotency.recordId);
+      if (replay !== undefined) {
+        return {
+          appointmentId: resolveIdempotencyReplay(replay, request.idempotency),
+          replayed: true,
+          startsAt: FOLLOW_UP_STARTS_AT
+        };
+      }
+      assertFollowUpBookable(
+        await patients.readFollowUpState(request.patientId),
+        request.bookingKind
+      );
+      recorded.set(
+        request.idempotency.recordId,
+        planIdempotencyRecord(
+          request.idempotency,
+          request.appointmentId,
+          request.requestedAt
+        )
+      );
+      patients.appointments.push({
+        appointmentId: request.appointmentId,
+        patientId: request.patientId,
+        slotId: request.slotId,
+        bookingKind: request.bookingKind,
+        status: 'confirmed',
+        startsAt: FOLLOW_UP_STARTS_AT
+      });
+      patients.followUp.set(request.patientId, {
+        required: true,
+        sourceAppointmentId: 'appointment_source_001',
+        sourceFollowUpId: 'follow_up_001',
+        activeFollowUpAppointmentId: request.appointmentId
+      });
+      return {
+        appointmentId: request.appointmentId,
+        replayed: false,
+        startsAt: FOLLOW_UP_STARTS_AT
+      };
+    });
+    return { ...bound, patients, recorded };
+  }
+
+  it('replays the original result instead of refusing the retry', async () => {
+    const { patients, recorded, reserve, service } =
+      entitledPatientWithRecordingRepository();
+
+    const first = await service.create(
+      FOLLOW_UP_BOOKING,
+      patientAuthentication
+    );
+    expect(first.appointmentId).toBe('opaque_1');
+    // The state that used to turn the retry into FOLLOW_UP_ALREADY_SCHEDULED.
+    expect(
+      (await patients.readFollowUpState(PATIENT_ID))
+        ?.activeFollowUpAppointmentId
+    ).toBe('opaque_1');
+
+    const retried = await service.create(
+      FOLLOW_UP_BOOKING,
+      patientAuthentication
+    );
+
+    expect(retried).toEqual(first);
+    expect(reserve).toHaveBeenCalledTimes(2);
+    expect(recorded.size).toBe(1);
+    expect(patients.appointments).toHaveLength(1);
+  });
+
+  it('rejects the same key with different content as a reused key', async () => {
+    const { patients, service } = entitledPatientWithRecordingRepository();
+    await service.create(FOLLOW_UP_BOOKING, patientAuthentication);
+
+    await expect(
+      service.create(
+        { ...FOLLOW_UP_BOOKING, slotId: 'slot_follow_002' },
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+    expect(patients.appointments).toHaveLength(1);
+  });
+
+  it('still refuses a second follow-up under a new key', async () => {
+    const { patients, service } = entitledPatientWithRecordingRepository();
+    await service.create(FOLLOW_UP_BOOKING, patientAuthentication);
+
+    await expect(
+      service.create(
+        {
+          ...FOLLOW_UP_BOOKING,
+          idempotencyKey: 'booking_follow_retry_0002',
+          slotId: 'slot_follow_002'
+        },
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'FOLLOW_UP_ALREADY_SCHEDULED' });
+    expect(patients.appointments).toHaveLength(1);
+  });
+
+  it('fails closed when no patient directory is wired', async () => {
+    const { reserve, service } = createBoundService();
+
+    await expect(
+      service.create(FOLLOW_UP_BOOKING, patientAuthentication)
+    ).rejects.toMatchObject({ code: 'FOLLOW_UP_NOT_ENTITLED' });
+    expect(reserve).not.toHaveBeenCalled();
   });
 });

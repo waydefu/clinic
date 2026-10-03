@@ -632,6 +632,130 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     ).toBe(true);
   });
 
+  // AUD-08: the patient books the follow-up the clinic asked for, and the same
+  // request is sent again (lost response, double tap). The second response must
+  // be the first one, not a conflict raised by the booking the first one made.
+  it('replays a follow-up booking retried with the same key and rejects other content', async () => {
+    const harness = requireHarness();
+    expect(
+      (
+        await harness.inject({
+          method: 'POST',
+          url: '/v1/schedule/publish',
+          headers: managerHeaders(),
+          payload: { ...PUBLISH_BODY, idempotencyKey: 'schedule_publish_0014' }
+        })
+      ).statusCode
+    ).toBe(201);
+    const initial = JSON.parse(
+      (
+        await harness.inject({
+          method: 'POST',
+          url: '/v1/bookings',
+          headers: patientHeaders(),
+          payload: {
+            ...CREATE_BODY,
+            idempotencyKey: 'booking-idempotency-0017'
+          }
+        })
+      ).payload
+    ) as { appointmentId: string };
+    for (const step of ['arrive', 'complete'] as const) {
+      expect(
+        (
+          await harness.inject({
+            method: 'POST',
+            url: `/v1/bookings/${initial.appointmentId}/${step}`,
+            headers: managerHeaders(),
+            payload: { idempotencyKey: `${step}-idempotency-0017` }
+          })
+        ).statusCode
+      ).toBe(201);
+    }
+    expect(
+      (
+        await harness.inject({
+          method: 'POST',
+          url: `/v1/bookings/${initial.appointmentId}/follow-up`,
+          headers: managerHeaders(),
+          payload: {
+            idempotencyKey: 'follow-up-idempotency-0017',
+            decision: 'required',
+            dueDate: '2030-01-02',
+            dueTime: '12:15'
+          }
+        })
+      ).statusCode
+    ).toBe(201);
+
+    const followUpBody = {
+      idempotencyKey: 'booking-idempotency-0018',
+      slotId: 'slot_20300102_1215',
+      serviceId: 'service_consult',
+      bookingKind: 'follow_up'
+    } as const;
+    const first = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: followUpBody
+    });
+    expect(first.statusCode).toBe(201);
+    const firstBody = JSON.parse(first.payload) as { appointmentId: string };
+    const slotAfterFirst = await db
+      .collection(COLLECTIONS.slots)
+      .doc('slot_20300102_1215')
+      .get();
+    expect(slotAfterFirst.data()?.['reservationId']).toBe(
+      firstBody.appointmentId
+    );
+
+    const retried = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: followUpBody
+    });
+    expect(retried.statusCode).toBe(201);
+    expect(JSON.parse(retried.payload)).toEqual(JSON.parse(first.payload));
+
+    const otherContent = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: { ...followUpBody, slotId: 'slot_20300102_1245' }
+    });
+    expect(otherContent.statusCode).toBe(409);
+    expect(JSON.parse(otherContent.payload)).toMatchObject({
+      error: { code: 'IDEMPOTENCY_MISMATCH' }
+    });
+
+    const secondFollowUp = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: {
+        ...followUpBody,
+        idempotencyKey: 'booking-idempotency-0019',
+        slotId: 'slot_20300102_1245'
+      }
+    });
+    expect(secondFollowUp.statusCode).toBe(409);
+    expect(JSON.parse(secondFollowUp.payload)).toMatchObject({
+      error: { code: 'CONFLICT' }
+    });
+
+    const followUps = (
+      await db
+        .collection(COLLECTIONS.appointments)
+        .where('bookingKind', '==', 'follow_up')
+        .get()
+    ).docs;
+    expect(followUps.map((document) => document.id)).toEqual([
+      firstBody.appointmentId
+    ]);
+  });
+
   it('deletes a booking with a closed reason and projects the cancel outbox in memory', async () => {
     const harness = requireHarness();
     const published = await harness.inject({
