@@ -24,6 +24,14 @@ variable "project_id" {
     )
     error_message = "C1 internal-test project id must be isolated C1; beauessence-clinic-staging is refused."
   }
+  # Required condition (blocking). Applies whether or not a SHA is named.
+  validation {
+    condition = (
+      !local.calendar_sync_prerequisites_active ||
+      var.project_id == "beauessence-clinic-stg-c1a01"
+    )
+    error_message = "Inbound Calendar sync is restricted to the exact isolated C1 project."
+  }
 }
 
 variable "region" {
@@ -81,6 +89,16 @@ variable "api_image" {
     )
     error_message = "API image must be empty or a digest-pinned asia-east1 internal-test/api image. latest and staging cal-pilot paths are refused."
   }
+  # Required condition (blocking): naming a SHA to apply needs the image.
+  validation {
+    condition = (
+      !local.apply_enabled || (
+        var.api_image != "" &&
+        strcontains(var.api_image, var.project_id)
+      )
+    )
+    error_message = "Applying C1 internal-test Cloud Run requires a digest-pinned api_image for this project_id."
+  }
 }
 
 variable "worker_image" {
@@ -97,6 +115,16 @@ variable "worker_image" {
       )
     )
     error_message = "Worker image must be empty or a digest-pinned asia-east1 internal-test/worker image. latest and staging cal-pilot paths are refused."
+  }
+  # Required condition (blocking): naming a SHA to apply needs the image.
+  validation {
+    condition = (
+      !local.apply_enabled || (
+        var.worker_image != "" &&
+        strcontains(var.worker_image, var.project_id)
+      )
+    )
+    error_message = "Applying C1 internal-test Cloud Run requires a digest-pinned worker_image for this project_id."
   }
 }
 
@@ -130,6 +158,11 @@ variable "internal_test_booking_expires_at_utc" {
   type        = string
   description = "RFC3339 expiry for the internal-test booking gate. Required when enabling writes."
   default     = ""
+  # Required condition (blocking): enabling writes needs an expiry.
+  validation {
+    condition     = !var.internal_test_booking_enabled || var.internal_test_booking_expires_at_utc != ""
+    error_message = "Enabling isolated booking writes requires INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC."
+  }
 }
 
 variable "worker_processing_enabled" {
@@ -243,6 +276,15 @@ variable "calendar_sync_pseudonym_secret_version" {
     )
     error_message = "calendar_sync_pseudonym_secret_version must be not_granted or numeric. latest is refused."
   }
+  # Required condition (blocking): applying the inbound sync service needs the pin.
+  validation {
+    condition = (
+      !local.apply_enabled ||
+      !var.calendar_sync_enabled ||
+      can(regex(local.numeric_secret_version, var.calendar_sync_pseudonym_secret_version))
+    )
+    error_message = "Applying C1 internal-test Cloud Run with calendar_sync_enabled requires a numeric Secret Manager version pin in calendar_sync_pseudonym_secret_version. Missing pins fail closed and latest is refused."
+  }
 }
 
 variable "api_secret_versions" {
@@ -267,6 +309,20 @@ variable "api_secret_versions" {
     ])
     error_message = "Each api_secret_versions pin must be not_granted or a numeric Secret Manager version. latest is refused."
   }
+  # Required condition (blocking): every API mount needs its own numeric pin.
+  validation {
+    condition = (
+      !local.apply_enabled ||
+      alltrue([
+        for version in [
+          var.api_secret_versions.CALENDAR_PILOT_FIREBASE_WEB_API_KEY,
+          var.api_secret_versions.CALENDAR_PILOT_MANAGER_EMAILS,
+          var.api_secret_versions.CALENDAR_PILOT_FRONT_DESK_EMAILS
+        ] : can(regex(local.numeric_secret_version, version))
+      ])
+    )
+    error_message = "Applying C1 internal-test Cloud Run requires a numeric Secret Manager version pin for every API mount in api_secret_versions. Independent per-service inputs only; missing pins fail closed and latest is refused."
+  }
 }
 
 variable "worker_secret_versions" {
@@ -283,6 +339,14 @@ variable "worker_secret_versions" {
       can(regex("^[0-9]+$", var.worker_secret_versions.GOOGLE_CALENDAR_ID))
     )
     error_message = "worker_secret_versions.GOOGLE_CALENDAR_ID must be not_granted or a numeric Secret Manager version. latest is refused."
+  }
+  # Required condition (blocking): the worker Calendar mount needs its own numeric pin.
+  validation {
+    condition = (
+      !local.apply_enabled ||
+      can(regex(local.numeric_secret_version, var.worker_secret_versions.GOOGLE_CALENDAR_ID))
+    )
+    error_message = "Applying C1 internal-test Cloud Run requires a numeric Secret Manager version pin for every worker mount in worker_secret_versions. Independent per-service inputs only; missing pins fail closed and latest is refused."
   }
 }
 
@@ -316,5 +380,15 @@ variable "firebase_auth_domain" {
       )
     )
     error_message = "C1 firebase_auth_domain must be empty (noop) or the exact authorized isolated Hosting host. Scheme, wildcards, firebaseapp.com, beauessence-clinic-staging, production, official clinic domains, and arbitrary hosts are refused. Do not infer from request Host."
+  }
+  # Required condition (blocking): naming a SHA to apply needs the authDomain.
+  validation {
+    condition = (
+      !local.apply_enabled || (
+        var.firebase_auth_domain != "" &&
+        !strcontains(var.firebase_auth_domain, "firebaseapp.com")
+      )
+    )
+    error_message = "Applying C1 internal-test Cloud Run requires firebase_auth_domain set to an authorized isolated Hosting host. There is no fallback to project_id.firebaseapp.com."
   }
 }
