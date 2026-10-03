@@ -153,7 +153,7 @@ overrides:
 # （GHSA-mh99-v99m-4gvg，SEC-03）。當時的解除條件寫的是「1.x／2.x 出現修補版」，
 # 而 advisory 在 2026-07-31T19:37Z 修訂後補上了各 major 的 patched 版本
 # （1.1.17／2.1.3／3.0.3／5.0.8）。條件既已成立，就把它修掉而不是續期——
-# **例外的正確結局是被移除，不是被延長**。目前沒有任何 audit 例外。
+# **例外的正確結局是被移除，不是被延長**。目前的例外見檔尾 `auditConfig`。
 #
 # 閘門分兩層（2026-07-26 決定，`check:supply-chain` 依序跑兩個指令）：
 #
@@ -176,3 +176,11 @@ overrides:
 #
 # **解除條件**：各父套件的正常 range 已直接解析到上述安全版本後，逐條刪除
 # override，重建 lockfile 並重跑 supply-chain／Emulator gates。
+
+# 2026-10-03：GHSA-vfj7-8cjw-p6xm（braces <=3.0.3）在 2026-10-02T22:36Z 調升為 high，
+# 但 npm 上尚無修補版（最新 3.0.3）。唯一路徑是 firebase-tools > chokidar@3 > braces，
+# 只在開發／部署 CLI，不出貨；audit:prod 仍為乾淨。業主核准暫時例外，braces 3.0.4
+# 一發布就改用 override 並移除本段。登記於 security/audit-exceptions.json。
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
