@@ -147,6 +147,16 @@ describe('hosting security headers', () => {
     ).toContain('max-age=31536000');
   });
 
+  it('isolates the opener but lets Firebase reauthentication popups report back', () => {
+    // COOP-POPUP-REAUTH-2026-10-03: exactly one step below `same-origin`.
+    // `unsafe-none` or a missing header would re-expose the window to openers.
+    for (const config of [firebaseConfig, isolatedConfig]) {
+      expect(headerOn(config, '**', 'Cross-Origin-Opener-Policy')).toBe(
+        'same-origin-allow-popups'
+      );
+    }
+  });
+
   it('opts out of device access and the Privacy Sandbox APIs', () => {
     const policy = headerOn(firebaseConfig, '**', 'Permissions-Policy');
     for (const feature of [

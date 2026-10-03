@@ -1,5 +1,17 @@
 # Phase 1 Decision Register
 
+## 2026-10-03 重新登入彈窗的瀏覽器隔離設定
+
+- `COOP-POPUP-REAUTH-2026-10-03`：業主在本次對話選擇「設定放寬一格」。全站
+  `Cross-Origin-Opener-Policy` 由 `same-origin` 改為 `same-origin-allow-popups`，
+  理由是 L3 的 `reauthenticateWithPopup` 需要自己開的 Google 視窗回傳結果，
+  `same-origin` 會切斷這條回傳，使匯出、封存、永久刪除、終止與里程碑確認在
+  工作臺都無法完成。只放寬這一格：別的網站開啟本站時仍被隔離；CSP、CORP、
+  framing 與其他標頭不變；不得改為 `unsafe-none` 或移除標頭。來源為
+  `apps/web/csp-policy.mjs`，三份 Firebase Hosting 設定與部署後讀回檢查同步。
+  本決定只改原始碼，不構成部署授權；真 popup 仍須在部署後由業主實測。
+  本項取代先前文件中「不可放寬 COOP」的限制。
+
 ## 2026-10-03 owner verification direction（先記錄，適用範圍待對應）
 
 - `STAFF-SIX-DIGIT-EXCEPTIONS-2026-10-03`：業主本次原話為
