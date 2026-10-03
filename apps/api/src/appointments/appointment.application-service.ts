@@ -49,7 +49,6 @@ import {
   AuthorizationDeniedError
 } from '../platform/errors/api-error.js';
 import {
-  assertFollowUpBookable,
   opaqueLookupIdentity,
   type PatientDirectoryPort
 } from '../patients/patient-directory.js';
@@ -309,16 +308,15 @@ export class AppointmentApplicationService {
       authentication
     );
     const patientId = resolvedCreatePatientId(command, resolvedAuth);
-    if (command.bookingKind === 'follow_up') {
-      if (this.patients === undefined) {
-        throw new DomainError(
-          'FOLLOW_UP_NOT_ENTITLED',
-          'No follow-up entitlement exists.'
-        );
-      }
-      assertFollowUpBookable(
-        await this.patients.readFollowUpState(patientId),
-        command.bookingKind
+    // Whether the patient may book a follow-up is decided by the reserve
+    // transaction, after it has replayed a recorded idempotency key. Judging it
+    // here from the patient's current state turned the retry of a booking that
+    // had succeeded into FOLLOW_UP_ALREADY_SCHEDULED, because that very booking
+    // is what made the state unbookable (AUD-08).
+    if (command.bookingKind === 'follow_up' && this.patients === undefined) {
+      throw new DomainError(
+        'FOLLOW_UP_NOT_ENTITLED',
+        'No follow-up entitlement exists.'
       );
     }
     await this.authorization.assertCanCreate(resolvedAuth, command);
