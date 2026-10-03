@@ -320,4 +320,30 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
       'the API receives them through the existing secret mount.'
     );
   });
+
+  it('keeps the maintenance-emails container once it exists: flag stays true and secrets cannot be destroyed', () => {
+    const readme = read('infra/terraform/c1-internal-test-run/README.md');
+    const packet = read('docs/plans/2026-10-01-c1-batch-deployment-packet.md');
+
+    // With the flag false, returning the pin to not_granted removes the
+    // container (and every secret version). The README must not tell the
+    // operator to turn it off, and must agree with the deployment packet.
+    expect(readme).not.toMatch(/set the prerequisites flag back to `false`/);
+    expect(readme).toContain(
+      'keep `business_delivery_maintenance_prerequisites_enabled = true`'
+    );
+    expect(packet).toMatch(
+      /\| `business_delivery_maintenance_prerequisites_enabled` \| `true`[^|]*\| `true`/
+    );
+
+    const start = main.indexOf(
+      'resource "google_secret_manager_secret" "runtime"'
+    );
+    expect(start).toBeGreaterThanOrEqual(0);
+    const next = main.indexOf('\nresource "', start + 1);
+    const runtimeSecret = main.slice(start, next === -1 ? undefined : next);
+    expect(runtimeSecret).toMatch(
+      /lifecycle \{[\s\S]*?prevent_destroy\s*=\s*true[\s\S]*?\}/
+    );
+  });
 });
