@@ -1,6 +1,6 @@
 {
   "auditExceptions": {
-    "activeCount": 0,
+    "activeCount": 1,
     "releasedCount": 1
   },
   "generated": true,
@@ -15,7 +15,7 @@
     "roadmap": "docs/roadmap.md"
   },
   "schemaVersion": 1,
-  "sourceSnapshotSha256": "f1b3a73fec06ae068e70a9a66a8267a1fc24924b0f17e3d95bac040c944203ac",
+  "sourceSnapshotSha256": "bc5d1e6c3d04aded719a090965b96018a11111f64b8625840169e71b9219961c",
   "sources": [
     {
       "path": "docs/architecture/stage-2-gate-status.json",
@@ -23,7 +23,7 @@
     },
     {
       "path": "security/audit-exceptions.json",
-      "sha256": "16e6921c9cd6f5421ae26aa5ee773810a22d9ffc5e7b74e78c8b42e9f6c0bfde"
+      "sha256": "3c7ff1e30e212147c55c3c043734dbbdae85243f5afa0420ae70d7b5e5db12b3"
     }
   ],
   "stage2": {
