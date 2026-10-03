@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  planRetentionCalendarProjections,
+  planRetentionOperation
+} from './business-delivery-retention.js';
+import {
+  calendarEventIdForAppointment,
+  calendarEventIdForFollowUp
+} from './calendar-event-id.js';
 import { DomainError } from './errors.js';
-import { planRetentionOperation } from './business-delivery-retention.js';
 
 const policy = { recoverableDays: 30 } as const;
 const proof = {
@@ -178,5 +185,109 @@ describe('planRetentionOperation', () => {
       resultingState: 'permanently_deleted',
       idempotency: 'already_applied'
     });
+  });
+});
+
+describe('planRetentionCalendarProjections', () => {
+  const at = '2030-01-01T00:00:00.000Z';
+  const appointments = [
+    { id: 'appt_done', status: 'completed' },
+    { id: 'appt_gone', status: 'cancelled' }
+  ];
+  const followUps = [
+    {
+      appointmentId: 'appt_done',
+      decision: 'required',
+      dueAt: '2030-02-01T02:00:00.000Z'
+    },
+    { appointmentId: 'appt_undated', decision: 'required', dueAt: null },
+    { appointmentId: 'appt_none', decision: 'not_required', dueAt: null }
+  ];
+
+  it('re-projects every appointment and dated reminder on archive', () => {
+    const jobs = planRetentionCalendarProjections({
+      operation: 'archive',
+      requestId: 'retention_abc',
+      at,
+      appointments,
+      followUps
+    });
+    expect(
+      jobs.map((job) => [job.appointmentId, job.appointmentStatus])
+    ).toEqual([
+      ['appt_done', 'completed'],
+      ['appt_gone', 'cancelled'],
+      ['appt_done', 'follow_up_required']
+    ]);
+    expect(jobs[0]?.idempotencyKey).toBe(
+      calendarEventIdForAppointment('appt_done')
+    );
+    expect(jobs[2]).toMatchObject({
+      followUpSourceId: 'appt_done',
+      startsAt: '2030-02-01T02:00:00.000Z',
+      idempotencyKey: calendarEventIdForFollowUp('appt_done')
+    });
+    expect(new Set(jobs.map((job) => job.id)).size).toBe(jobs.length);
+  });
+
+  it('cancels every appointment event and dated reminder on permanent delete', () => {
+    const jobs = planRetentionCalendarProjections({
+      operation: 'permanent_delete',
+      requestId: 'retention_abc',
+      at,
+      appointments,
+      followUps
+    });
+    expect(jobs.map((job) => job.appointmentStatus)).toEqual([
+      'deleted',
+      'deleted',
+      'follow_up_not_required'
+    ]);
+    expect(jobs[2]).not.toHaveProperty('startsAt');
+  });
+
+  it('keeps PII-free, pending, immediately-due jobs with distinct ids per operation', () => {
+    const archive = planRetentionCalendarProjections({
+      operation: 'archive',
+      requestId: 'retention_abc',
+      at,
+      appointments,
+      followUps
+    });
+    const restore = planRetentionCalendarProjections({
+      operation: 'restore',
+      requestId: 'retention_abc',
+      at,
+      appointments,
+      followUps
+    });
+    for (const job of [...archive, ...restore]) {
+      expect(job).toMatchObject({
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: 0,
+        createdAt: at,
+        nextAttemptAt: at,
+        correlationId: 'retention_abc',
+        causationId: 'retention_abc'
+      });
+      expect(Object.keys(job).sort()).toEqual(
+        expect.not.arrayContaining(['name', 'phoneDigits', 'birthMonthDay'])
+      );
+    }
+    const archiveIds = new Set(archive.map((job) => job.id));
+    expect(restore.some((job) => archiveIds.has(job.id))).toBe(false);
+  });
+
+  it('rejects non-opaque identifiers', () => {
+    expect(() =>
+      planRetentionCalendarProjections({
+        operation: 'archive',
+        requestId: 'retention_abc',
+        at,
+        appointments: [{ id: 'bad/id', status: 'confirmed' }],
+        followUps: []
+      })
+    ).toThrow(DomainError);
   });
 });

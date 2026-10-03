@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto';
 
 import {
   DomainError,
+  planRetentionCalendarProjections,
   planRetentionOperation,
+  type PlannedRetentionCalendarJob,
   type ApprovedBusinessDeliveryPolicy,
   type RetentionOperation
 } from '@beauessence/domain';
@@ -127,6 +129,36 @@ function writeLog(
   transaction.create(reference, record);
 }
 
+function calendarInputs(
+  appointments: { readonly docs: readonly DocumentSnapshot[] },
+  followUps: { readonly docs: readonly DocumentSnapshot[] }
+) {
+  return {
+    appointments: appointments.docs.map((appointment) => ({
+      id: appointment.id,
+      status: stringField(appointment.data(), 'status') ?? 'unknown'
+    })),
+    followUps: followUps.docs.map((followUp) => {
+      const data: Record<string, unknown> = followUp.data() ?? {};
+      return {
+        appointmentId: followUp.id,
+        decision: data['decision'],
+        dueAt: data['dueAt']
+      };
+    })
+  };
+}
+
+function writeCalendarJobs(
+  transaction: Transaction,
+  db: Firestore,
+  jobs: readonly PlannedRetentionCalendarJob[]
+): void {
+  for (const job of jobs) {
+    transaction.set(db.collection(COLLECTIONS.outboxJobs).doc(job.id), job);
+  }
+}
+
 function assertWriteLimit(writeCount: number): void {
   if (writeCount > MAX_TRANSACTION_WRITES) throw new ConflictError();
 }
@@ -218,6 +250,9 @@ export class FirestoreBusinessRetentionRepository {
     const appointmentsQuery = this.db
       .collection(COLLECTIONS.appointments)
       .where('patientId', '==', command.patientId);
+    const followUpsQuery = this.db
+      .collection(COLLECTIONS.followUps)
+      .where('patientId', '==', command.patientId);
 
     return this.db.runTransaction(async (transaction) => {
       const existingLog = await transaction.get(logRef);
@@ -245,6 +280,8 @@ export class FirestoreBusinessRetentionRepository {
         throw new ConflictError();
       }
 
+      const followUps = await transaction.get(followUpsQuery);
+
       const plan = planRetention({
         operation: 'archive',
         command,
@@ -256,7 +293,14 @@ export class FirestoreBusinessRetentionRepository {
         state: 'archived',
         restorableUntil: plan.recoverableUntil!
       };
-      assertWriteLimit(appointments.size + 2);
+      // Rebuild every titled event from the archived record (minimal summary).
+      const calendarJobs = planRetentionCalendarProjections({
+        operation: 'archive',
+        requestId,
+        at: command.now,
+        ...calendarInputs(appointments, followUps)
+      });
+      assertWriteLimit(appointments.size + calendarJobs.length + 2);
 
       transaction.update(patientRef, {
         archivedAt: plan.archivedAt,
@@ -268,6 +312,7 @@ export class FirestoreBusinessRetentionRepository {
       for (const appointment of appointments.docs) {
         transaction.update(appointment.ref, { patientArchived: true });
       }
+      writeCalendarJobs(transaction, this.db, calendarJobs);
       writeLog(transaction, logRef, {
         action,
         patientId: command.patientId,
@@ -294,6 +339,9 @@ export class FirestoreBusinessRetentionRepository {
       .doc(command.patientId);
     const appointmentsQuery = this.db
       .collection(COLLECTIONS.appointments)
+      .where('patientId', '==', command.patientId);
+    const followUpsQuery = this.db
+      .collection(COLLECTIONS.followUps)
       .where('patientId', '==', command.patientId);
 
     return this.db.runTransaction(async (transaction) => {
@@ -349,11 +397,19 @@ export class FirestoreBusinessRetentionRepository {
       }
 
       const appointments = await transaction.get(appointmentsQuery);
+      const followUps = await transaction.get(followUpsQuery);
       const response: PatientRestoredResponse = {
         patientId: command.patientId,
         state: 'active'
       };
-      assertWriteLimit(appointments.size + 2);
+      // Restore the approved titles that archive stripped.
+      const calendarJobs = planRetentionCalendarProjections({
+        operation: 'restore',
+        requestId,
+        at: command.now,
+        ...calendarInputs(appointments, followUps)
+      });
+      assertWriteLimit(appointments.size + calendarJobs.length + 2);
 
       transaction.update(patientRef, {
         archivedAt: FieldValue.delete(),
@@ -366,6 +422,7 @@ export class FirestoreBusinessRetentionRepository {
           patientArchived: FieldValue.delete()
         });
       }
+      writeCalendarJobs(transaction, this.db, calendarJobs);
       writeLog(transaction, logRef, {
         action,
         patientId: command.patientId,
@@ -429,12 +486,20 @@ export class FirestoreBusinessRetentionRepository {
       const followUps = await transaction.get(followUpsQuery);
       const lookupIndexes = await transaction.get(lookupQuery);
 
+      // The calendar jobs below are the projection reconciliation: every
+      // appointment event and dated reminder is deleted by the worker.
       planRetention({
         operation: 'permanent_delete',
         command,
         requestId,
         patient,
         dependenciesReconciled: true
+      });
+      const calendarJobs = planRetentionCalendarProjections({
+        operation: 'permanent_delete',
+        requestId,
+        at: command.now,
+        ...calendarInputs(appointments, followUps)
       });
       const layers = {
         patients: 1,
@@ -453,6 +518,7 @@ export class FirestoreBusinessRetentionRepository {
         returnSessions.size +
         followUps.size +
         lookupIndexes.size +
+        calendarJobs.length +
         1;
       assertWriteLimit(writeCount);
 
@@ -478,6 +544,7 @@ export class FirestoreBusinessRetentionRepository {
       for (const followUp of followUps.docs) {
         transaction.delete(followUp.ref);
       }
+      writeCalendarJobs(transaction, this.db, calendarJobs);
       for (const lookup of lookupIndexes.docs) {
         const patientIds = Array.isArray(lookup.data()['patientIds'])
           ? (lookup.data()['patientIds'] as unknown[]).filter(
