@@ -63,7 +63,7 @@ interface StoredConfiguration extends CalendarSourceConfiguration {
 function publicCandidate(
   candidate: CalendarCandidateDraft,
   suggestion?: SuggestedPatient,
-  unmatchedRange?: { readonly startsAt: string; readonly endsAt: string }
+  eventRange?: { readonly startsAt: string; readonly endsAt: string }
 ) {
   const parsed = candidate.parsed;
   const previous = candidate.previousParsed;
@@ -81,8 +81,8 @@ function publicCandidate(
       : candidate.kind === 'unmatched'
         ? '未對應事件'
         : '格式需修正',
-    startsAt: parsed.ok ? parsed.startsAt : (unmatchedRange?.startsAt ?? null),
-    endsAt: parsed.ok ? parsed.endsAt : (unmatchedRange?.endsAt ?? null),
+    startsAt: parsed.ok ? parsed.startsAt : (eventRange?.startsAt ?? null),
+    endsAt: parsed.ok ? parsed.endsAt : (eventRange?.endsAt ?? null),
     appointmentId: candidate.localRecordId ?? null,
     ...(suggestion === undefined
       ? {}
@@ -339,7 +339,7 @@ export class FirestoreCalendarSyncRepository
               publicCandidate(
                 mutation.candidate,
                 suggestion,
-                mutation.unmatchedRange
+                mutation.unmatchedRange ?? mutation.proposedRange
               )
             );
             transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
@@ -362,7 +362,7 @@ export class FirestoreCalendarSyncRepository
               publicCandidate(
                 mutation.candidate,
                 suggestion,
-                mutation.unmatchedRange
+                mutation.unmatchedRange ?? mutation.proposedRange
               )
             );
             transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {

@@ -387,6 +387,82 @@ describe('CalendarSyncEngine', () => {
     });
   });
 
+  it('carries the moved event range on a reschedule candidate and nothing on a delete', async () => {
+    const repository = new MemoryRepository();
+    const appointmentId = 'appointment_001';
+    const eventId = calendarEventIdForAppointment(appointmentId);
+    repository.clinicAppointments.set(appointmentId, {
+      appointmentId,
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial'
+    });
+    const payload = buildClinicCalendarEventBody({
+      eventId,
+      appointmentId,
+      appointmentStatus: 'confirmed',
+      bookingKind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T05:00:00.000Z',
+      colorId: '10',
+      clinicName: '一森渼診所',
+      clinicAddress: 'synthetic-location',
+      correlationId: 'corr_calendar_001'
+    });
+    const baseline = {
+      id: eventId,
+      etag: 'etag-echo',
+      status: 'confirmed' as const,
+      summary: payload.summary,
+      start: payload.start,
+      end: payload.end,
+      extendedProperties: payload.extendedProperties
+    };
+    await new CalendarSyncEngine(
+      new FakeReader([{ events: [baseline], nextSyncToken: 'sync-echo' }]),
+      repository
+    ).run(NOW);
+
+    await new CalendarSyncEngine(
+      new FakeReader([
+        {
+          events: [
+            {
+              ...baseline,
+              etag: 'etag-moved',
+              start: { dateTime: '2030-01-03T12:30:00+08:00' },
+              end: { dateTime: '2030-01-03T13:30:00+08:00' }
+            }
+          ],
+          nextSyncToken: 'sync-moved'
+        }
+      ]),
+      repository
+    ).run(NOW);
+    const moved = repository.commits[1]?.mutations[0];
+    expect(moved?.candidate?.kind).toBe('update_appointment');
+    expect(moved?.proposedRange).toEqual({
+      startsAt: '2030-01-03T04:30:00.000Z',
+      endsAt: '2030-01-03T05:30:00.000Z'
+    });
+    expect(moved?.unmatchedRange).toBeUndefined();
+
+    await new CalendarSyncEngine(
+      new FakeReader([
+        {
+          events: [
+            { id: eventId, etag: 'etag-deleted', status: 'cancelled' as const }
+          ],
+          nextSyncToken: 'sync-deleted'
+        }
+      ]),
+      repository
+    ).run(NOW);
+    const deleted = repository.commits[2]?.mutations[0];
+    expect(deleted?.candidate?.kind).toBe('cancel_appointment');
+    expect(deleted?.proposedRange).toBeUndefined();
+  });
+
   it('marks an unknown manually created Calendar event unmatched', async () => {
     const repository = new MemoryRepository();
     const reader = new FakeReader([
