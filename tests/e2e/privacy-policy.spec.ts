@@ -96,6 +96,11 @@ test.describe('隱私權政策頁', () => {
     await expect(notice).toBeVisible();
     await expect(notice).toContainText('測試版本');
     await expect(notice).toContainText('不會傳送到診所');
+    // PRIVACY-INTERNAL-TEST-NOTICE-2026-10-04：內部測試路由（API 模式）的資料會送到
+    // 測試伺服器，上面那句只對本機模式成立；業主核准的例外句必須一字不差地在場。
+    await expect(notice).toContainText(
+      '例外：若網址帶有 internalTestBooking=1，或位於診所的隔離測試環境（內部測試路由），您在預約頁填寫的合成測試資料會送到診所的測試伺服器保存，不是只保存在您自己這台裝置的瀏覽器；此路由只供合成資料測試，請勿填真實資料。'
+    );
     // 草稿身分同樣要標示，避免被當成診所的正式聲明引用。
     await expect(page.locator('body')).toContainText('草稿');
   });
