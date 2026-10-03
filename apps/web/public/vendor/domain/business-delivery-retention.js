@@ -1,3 +1,4 @@
+import { calendarEventIdForAppointment, calendarEventIdForFollowUp } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
 import { assertUtcTimestamp } from './timestamp.js';
 const OPAQUE_IDENTIFIER = /^[A-Za-z0-9_-]{1,128}$/;
@@ -160,4 +161,69 @@ export function planRetentionOperation(input) {
         dependencyCheck: 'complete',
         idempotency: 'new_operation'
     };
+}
+const RETENTION_JOB_TAG = {
+    archive: 'ret_archive',
+    restore: 'ret_restore',
+    permanent_delete: 'ret_delete'
+};
+/**
+ * Calendar is a projection of the patient record (ADR-0002), and the
+ * appointment calendar carries the approved name/phone/month-day title. A
+ * retention operation therefore re-projects every event the patient can own:
+ *
+ * - archive / restore: re-upsert so the worker rebuilds the title from the
+ *   now-archived (minimal summary) or restored (full title) patient record;
+ * - permanent_delete: cancel (`events.delete`) every appointment event and
+ *   every dated follow-up reminder before the records disappear.
+ *
+ * The jobs carry identifiers, statuses and times only — never PII. The worker
+ * still reads the live appointment status for ordinary events, so a job for
+ * an already-cancelled appointment stays a harmless idempotent cancel.
+ */
+export function planRetentionCalendarProjections(input) {
+    assertOpaque(input.requestId, 'requestId');
+    assertUtcTimestamp(input.at, 'at');
+    const tag = RETENTION_JOB_TAG[input.operation];
+    const deleting = input.operation === 'permanent_delete';
+    const common = {
+        type: 'calendar_projection_requested',
+        correlationId: input.requestId,
+        causationId: input.requestId,
+        status: 'pending',
+        attempts: 0,
+        createdAt: input.at,
+        nextAttemptAt: input.at
+    };
+    const appointmentJobs = input.appointments.map((appointment) => {
+        assertOpaque(appointment.id, 'appointmentId');
+        return {
+            ...common,
+            id: `outbox_${appointment.id}_${tag}_${input.requestId}`,
+            appointmentId: appointment.id,
+            appointmentStatus: deleting ? 'deleted' : appointment.status,
+            idempotencyKey: calendarEventIdForAppointment(appointment.id)
+        };
+    });
+    // Only a dated `required` decision has a reminder event on the calendar.
+    const followUpJobs = input.followUps.flatMap((followUp) => {
+        if (followUp.decision !== 'required' || typeof followUp.dueAt !== 'string')
+            return [];
+        assertOpaque(followUp.appointmentId, 'followUpSourceId');
+        assertUtcTimestamp(followUp.dueAt, 'dueAt');
+        return [
+            {
+                ...common,
+                id: `outbox_followup_${followUp.appointmentId}_${tag}_${input.requestId}`,
+                appointmentId: followUp.appointmentId,
+                followUpSourceId: followUp.appointmentId,
+                appointmentStatus: deleting
+                    ? 'follow_up_not_required'
+                    : 'follow_up_required',
+                ...(deleting ? {} : { startsAt: followUp.dueAt }),
+                idempotencyKey: calendarEventIdForFollowUp(followUp.appointmentId)
+            }
+        ];
+    });
+    return [...appointmentJobs, ...followUpJobs];
 }
