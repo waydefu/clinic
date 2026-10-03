@@ -10,10 +10,7 @@ import { CalendarPilotSessionController } from '../auth/calendar-pilot-session.c
 import { createCalendarPilotSessionGateTelemetry } from '../auth/calendar-pilot-session-gate-telemetry.js';
 import { FirestoreCalendarPilotRepository } from '../firestore/calendar-pilot.repository.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
-import {
-  FirestoreClinicCalendarCandidateStore,
-  FirestoreClinicSlotLookup
-} from '../firestore/clinic-calendar-review.repository.js';
+import { FirestoreClinicCalendarCandidateStore } from '../firestore/clinic-calendar-review.repository.js';
 import { FirestoreDeniedAccessAuditStore } from '../firestore/denied-access-audit.repository.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
 import { ObservabilityModule } from '../platform/runtime/observability.module.js';
@@ -89,9 +86,10 @@ export function vitestWithoutFirestoreEmulator(): boolean {
         }
         const db = getFirestore(defaultFirebaseApp());
         const clinicReview = new ClinicCalendarReviewApplicationService(
-          new FirestoreBookingRepository(db),
-          new FirestoreClinicCalendarCandidateStore(db),
-          new FirestoreClinicSlotLookup(db),
+          new FirestoreClinicCalendarCandidateStore(
+            db,
+            new FirestoreBookingRepository(db)
+          ),
           clock.nowUtc
         );
         return new CalendarPilotApplicationService(
