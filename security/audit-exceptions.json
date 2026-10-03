@@ -12,5 +12,18 @@
       "evidence": "docs/reviews/2026-08-01-sast-migration-and-audit-governance-delivery.md"
     }
   ],
-  "exceptions": []
+  "exceptions": [
+    {
+      "ghsa": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "severity": "high",
+      "approvalId": "SUPPLY-CHAIN-BRACES-2026-10-03",
+      "approvalStatus": "approved",
+      "approvedOn": "2026-10-03",
+      "expiresOn": "2026-10-17",
+      "scope": "dev-only: firebase-tools > chokidar@3 > braces@3.0.3 (CLI/emulator tooling, not shipped); audit:prod stays clean",
+      "reason": "Advisory raised to high at 2026-10-02T22:36Z with no patched release on npm (latest 3.0.3; first patched listed as 3.0.4). chokidar@3 pins braces ~3.0.2, so no override can resolve it today.",
+      "releaseCondition": "Remove the ignore and pin braces >=3.0.4 by override as soon as it is published on npm, or when firebase-tools no longer depends on chokidar@3."
+    }
+  ]
 }

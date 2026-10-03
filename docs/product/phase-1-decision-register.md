@@ -22,6 +22,14 @@
   D-006 與 ADR-0008～0011 的既有控制。不得把未回答的對應自行填成業主已確認。
   詳見[六位驗證需求與合併順序紀錄](../reviews/2026-10-03-verification-direction-and-merge-order.md)。
 
+## 2026-10-03 開發工具 braces 弱點暫時例外
+
+- `SUPPLY-CHAIN-BRACES-2026-10-03`：業主在本次對話選擇「登記暫時例外，想辦法全綠」。
+  GHSA-vfj7-8cjw-p6xm（braces <=3.0.3）於 2026-10-02T22:36Z 調升為 high，npm 尚無修補版；
+  唯一路徑是不出貨的 firebase-tools > chokidar@3。只忽略這一筆，到期日 2026-10-17，
+  braces 3.0.4 一發布即改 override 並移除例外。出貨面 `audit:prod` 門檻不變且為乾淨。
+  登記於 `security/audit-exceptions.json`。
+
 ## 2026-09-22 owner scope overlay（不修改既有 D-series 狀態）
 
 本輪業主要求修正後開完整規劃 PR；以下是產品與先後順序，**不是新雲端授權**。
