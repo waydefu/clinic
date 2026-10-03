@@ -90,6 +90,22 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       .collection(COLLECTIONS.appointments)
       .doc(appointmentId)
       .get();
+    return this.recordOf(snapshot);
+  }
+
+  /** `read` inside a transaction the caller owns. */
+  public async readWithin(
+    transaction: Transaction,
+    appointmentId: string
+  ): Promise<AppointmentRecord | undefined> {
+    return this.recordOf(
+      await transaction.get(
+        this.db.collection(COLLECTIONS.appointments).doc(appointmentId)
+      )
+    );
+  }
+
+  private recordOf(snapshot: DocumentSnapshot): AppointmentRecord | undefined {
     if (!snapshot.exists) return undefined;
     const parsed = parseAppointmentSnapshot(snapshot.id, snapshot.data());
     return {
@@ -403,9 +419,16 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     transaction.set(guardDocument.ref, mutation.guard);
   }
 
-  /** 取消、提出取消、到診與未到；規則由 planTransition 決定。 */
+  /**
+   * 取消、提出取消、到診與未到；規則由 planTransition 決定。
+   *
+   * `within` lets a caller commit the transition together with its own writes.
+   * The transition reads and then writes, so the caller must have finished its
+   * own reads and may only write afterwards.
+   */
   public async transition(
-    request: TransitionRequest
+    request: TransitionRequest,
+    within?: Transaction
   ): Promise<TransitionResult> {
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
@@ -415,7 +438,9 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       .collection(COLLECTIONS.appointments)
       .doc(request.appointmentId);
 
-    return this.db.runTransaction(async (transaction) => {
+    const work = async (
+      transaction: Transaction
+    ): Promise<TransitionResult> => {
       // --- reads -------------------------------------------------------
       const replay = this.replayOf(
         await transaction.get(idempotencyRef),
@@ -503,7 +528,8 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         replayed: false,
         status: plan.nextStatus
       };
-    });
+    };
+    return within === undefined ? this.db.runTransaction(work) : work(within);
   }
 
   /**
@@ -601,9 +627,16 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     });
   }
 
-  /** 改期：同一筆交易內先占用新時段，再釋出原時段。 */
+  /**
+   * 改期：同一筆交易內先占用新時段，再釋出原時段。
+   *
+   * `within` lets a caller commit the reschedule together with its own
+   * writes. The reschedule reads and then writes, so the caller must have
+   * finished its own reads and may only write afterwards.
+   */
   public async reschedule(
-    request: RescheduleRequest
+    request: RescheduleRequest,
+    within?: Transaction
   ): Promise<ReservationResult> {
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
@@ -619,7 +652,9 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       .collection(COLLECTIONS.schedules)
       .doc('current');
 
-    return this.db.runTransaction(async (transaction) => {
+    const work = async (
+      transaction: Transaction
+    ): Promise<ReservationResult> => {
       // --- reads -------------------------------------------------------
       const replay = await this.reservationFromReplay(
         transaction,
@@ -706,7 +741,8 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         replayed: false,
         startsAt: plan.startsAt
       };
-    });
+    };
+    return within === undefined ? this.db.runTransaction(work) : work(within);
   }
 
   public async recordFollowUp(
