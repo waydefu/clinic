@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BusinessTerminationAcknowledgementRequestSchema,
+  BusinessTerminationReceiptSchema,
   BusinessMilestonesResponseSchema,
   CloseBusinessTerminationRequestSchema,
   CreateBusinessTerminationRequestSchema,
@@ -162,6 +163,47 @@ describe('CP-07 termination contracts', () => {
         complete: true
       })
     ).toThrow();
+  });
+});
+
+describe('BusinessTerminationReceiptSchema data_return', () => {
+  const receipt = {
+    receiptKind: 'data_return' as const,
+    exportId: 'exp_' + 'a'.repeat(40),
+    actorRef: 'b'.repeat(64),
+    acknowledgedAt: '2030-11-19T04:00:00.000Z',
+    sha256: 'c'.repeat(64)
+  };
+
+  it('records what the returned export covered', () => {
+    const withCoverage = {
+      ...receipt,
+      from: '2030-01-01',
+      to: '2030-10-20',
+      rowCount: 0,
+      byteLength: 128
+    };
+    expect(BusinessTerminationReceiptSchema.parse(withCoverage)).toEqual(
+      withCoverage
+    );
+  });
+
+  it('still accepts a receipt stored before coverage was recorded', () => {
+    expect(BusinessTerminationReceiptSchema.parse(receipt)).toEqual(receipt);
+  });
+
+  it('rejects malformed coverage values', () => {
+    for (const extra of [
+      { from: '2030-02-30' },
+      { to: 'yesterday' },
+      { rowCount: -1 },
+      { rowCount: 1.5 },
+      { byteLength: -1 }
+    ]) {
+      expect(() =>
+        BusinessTerminationReceiptSchema.parse({ ...receipt, ...extra })
+      ).toThrow();
+    }
   });
 });
 

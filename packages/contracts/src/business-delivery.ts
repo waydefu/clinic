@@ -250,7 +250,16 @@ export const BusinessTerminationReceiptSchema = z.discriminatedUnion(
         exportId: OpaqueIdentifierSchema,
         actorRef: z.string().regex(/^[a-f0-9]{64}$/),
         acknowledgedAt: UtcIsoTimestampSchema,
-        sha256: z.string().regex(/^[a-f0-9]{64}$/)
+        sha256: z.string().regex(/^[a-f0-9]{64}$/),
+        /**
+         * What the returned export covered, copied from the export job at
+         * acknowledgement time. Optional only because receipts stored before
+         * these fields existed do not carry them; new receipts always do.
+         */
+        from: LocalDateSchema.optional(),
+        to: LocalDateSchema.optional(),
+        rowCount: z.number().int().min(0).optional(),
+        byteLength: z.number().int().min(0).optional()
       })
       .strict(),
     z

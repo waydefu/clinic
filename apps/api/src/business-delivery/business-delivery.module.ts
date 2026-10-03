@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Inject, Module, type OnModuleInit } from '@nestjs/common';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -19,7 +19,10 @@ import { BusinessRetentionController } from './business-retention.controller.js'
 import { BusinessTerminationApplicationService } from './business-termination.application-service.js';
 import { BusinessTerminationController } from './business-termination.controller.js';
 import { BusinessDeliveryApplicationService } from './business-delivery.application-service.js';
-import { readBusinessDeliveryConfig } from './business-delivery.config.js';
+import {
+  readBusinessDeliveryConfig,
+  reportBusinessDeliveryAllowlistNotice
+} from './business-delivery.config.js';
 import { BusinessDeliveryController } from './business-delivery.controller.js';
 import {
   BUSINESS_DELIVERY_APPLICATION,
@@ -28,6 +31,10 @@ import {
   BUSINESS_TERMINATION_APPLICATION
 } from './business-delivery.tokens.js';
 import { FreshReauthenticationVerifier } from './reauthentication.js';
+import {
+  STRUCTURED_LOGGER,
+  type StructuredLogger
+} from '../platform/runtime/structured-logger.js';
 
 /**
  * CP-03～07 business-delivery routes (ADR-0008～0011). Mounted in AppModule but inert
@@ -151,4 +158,16 @@ import { FreshReauthenticationVerifier } from './reauthentication.js';
     }
   ]
 })
-export class BusinessDeliveryModule {}
+export class BusinessDeliveryModule implements OnModuleInit {
+  public constructor(
+    @Inject(STRUCTURED_LOGGER) private readonly logger: StructuredLogger
+  ) {}
+
+  /**
+   * The routes fail closed (404) when the maintenance allowlist is unusable.
+   * Say so once at startup, without the payload, so it is not a silent 404.
+   */
+  public onModuleInit(): void {
+    reportBusinessDeliveryAllowlistNotice(process.env, this.logger);
+  }
+}

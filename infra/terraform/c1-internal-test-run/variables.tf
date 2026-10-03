@@ -245,7 +245,7 @@ variable "business_delivery_maintenance_emails_secret_version" {
 
 variable "business_delivery_maintenance_prerequisites_enabled" {
   type        = bool
-  description = "First-stage opt-in to create the maintenance-email Secret Manager container and API-only access binding. With the version not_granted, the API env remains unmounted."
+  description = "First-stage opt-in to create the maintenance-email Secret Manager container and API-only access binding. With the version not_granted, the API env remains unmounted. Keep it true in every later stage and in the fail-closed rollback: with false, returning the version to not_granted would remove the container and every secret version."
   default     = false
 }
 
