@@ -112,6 +112,48 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 | V5 | 應用可用 | 建立並完成一筆合成預約；另建立並取消一筆，全程成功 |
 | V6 | 日曆一致 | 執行一次對帳，漂移數在預期範圍內 |
 
+#### 4.4.1 隔離 clone 唯讀驗證器（只涵蓋 V1～V3）
+
+`scripts/recovery-clone-verify.mjs`（CP-06-S，PR #212）對一個**新建、具名**的
+clone database 做唯讀的 V1～V3：六個 collection 的筆數、manifest 列出的 10 筆
+合成預約的指定欄位、manifest 列出的 audit 收據清單。它不呼叫任何寫入方法。
+
+**V4～V6 不在這支腳本內，留給 CP-06-E。** V4（outbox／冪等不重播）、V5（在
+named database 建立並完成、另建立並取消一筆合成預約）、V6（專屬 recovery
+Calendar 的一次對帳）需要另行核准的 restore、隔離 runner 與專屬 recovery
+Calendar（見 [CP-06 執行包](../plans/2026-09-22-current-project-execution-packets.md)）。
+驗證器 V1～V3 PASS 不是 restore 成功，也不是 RTO／RPO 證據；它不能取代 CP-06-E。
+
+指令（只在 CP-06-E 的核准時窗內，對核准的 clone 執行；`<…>` 由操作者在受控
+terminal 填入）：
+
+```bash
+node scripts/recovery-clone-verify.mjs \
+  --project <isolated C1 project id> \
+  --database <approved new clone database id> \
+  --manifest <PRIVATE_MANIFEST_PATH>
+```
+
+- `--project` 必須是 `beauessence-clinic-stg-` 加 1～7 碼的隔離 C1 專案；
+  `beauessence-clinic-staging` 與 `(default)` database 一律拒絕，且在讀取 manifest、
+  連線之前就拒絕。
+- 報告以 JSON 輸出到 stdout；`overall` 不是 `PASS` 時結束碼為 1。
+- **用唯讀身分執行。** 驗證器只做讀取，所以只授予該 clone 所在專案的
+  `roles/datastore.viewer` 即可；需要寫入權限才能跑就代表出錯，應停止而不是補權限。
+  不要用 owner／editor 或能寫 `(default)` 的身分。用 Application Default Credentials，
+  不要把 service account key 檔放進 repository 或貼進命令。此 viewer 權限足夠與否
+  尚未對真實 clone 驗證過（目前只有 fake db 單元測試與 named-database emulator
+  整合測試）；CP-06-E 首次執行時一併確認。
+- **manifest 的來源驗證器不負責。** 它只檢查 manifest 的形狀，不知道 manifest
+  從哪裡來、是否完整：V2 只比對 manifest 列出的欄位，V3 只比對列出的 audit 收據。
+  所以操作者必須在**事故 cutoff 之前**，用核准的程序從來源 database 產生這份
+  合成 manifest（預期筆數、恰好 10 筆預約及欄位值、audit 收據清單），保存在
+  私有證據目錄（不進 repository），並當場記下 `sha256sum <manifest 檔>`。
+- 報告含 `generatedAt`（UTC）與 `manifestSha256`（manifest **檔案位元組**的
+  SHA-256，可用 `sha256sum` 重現）。把報告和操作者先前記下的雜湊對照：不一致就
+  表示驗的不是原本那份 manifest，這次結果作廢。報告不含 project、database 名稱，
+  也不含資料庫裡的任何值，只含筆數、符合數與不一致的欄位名稱。
+
 ### 4.5 復原後
 
 1. 關閉維護模式，恢復 worker 排程。
