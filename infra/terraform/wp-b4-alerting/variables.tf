@@ -48,4 +48,9 @@ variable "alert_email_address" {
     )
     error_message = "alert_email_address must be empty in git or a single email supplied via local tfvar/secret."
   }
+  # Required condition (blocking): naming a SHA to apply needs the recipient.
+  validation {
+    condition     = !local.apply_enabled || var.alert_email_address != ""
+    error_message = "Applying WP-B4 requires alert_email_address from secret/tfvar. Recipients never land in git."
+  }
 }
