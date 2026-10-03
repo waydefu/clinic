@@ -34,7 +34,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import {
   assertFollowUpBookable,
-  isLiveFollowUp
+  assertPatientNotArchived,
+  isLiveFollowUp,
+  PATIENT_COLLECTIONS
 } from '../patients/patient-directory.js';
 import type {
   AppointmentRecord,
@@ -130,6 +132,9 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     const scheduleRef = this.db
       .collection(COLLECTIONS.schedules)
       .doc('current');
+    const patientRef = this.db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc(request.patientId);
 
     return this.db.runTransaction(async (transaction) => {
       // --- reads -------------------------------------------------------
@@ -139,6 +144,13 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         request.idempotency
       );
       if (replay !== undefined) return replay;
+
+      // The patient was resolved in an earlier transaction. Read the record
+      // here so an archive that committed in between makes this booking
+      // fail before anything is written (ADR-0010; archive and this
+      // transaction conflict on the patient document).
+      const patientDocument = await transaction.get(patientRef);
+      assertPatientNotArchived(patientDocument.data());
 
       const patientGuardDocument = await transaction.get(patientGuardRef);
       const slotDocument = await transaction.get(slotRef);
