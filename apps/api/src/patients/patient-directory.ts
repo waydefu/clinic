@@ -8,10 +8,15 @@ import {
   type PatientCandidate
 } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
-import type { Firestore } from 'firebase-admin/firestore';
+import type {
+  Firestore,
+  Query,
+  QueryDocumentSnapshot
+} from 'firebase-admin/firestore';
 
 import type { PatientIntake } from '@beauessence/contracts';
 import type { AppointmentRecord } from '../appointments/appointment.repository-port.js';
+import { ConflictError } from '../platform/errors/api-error.js';
 
 export { opaqueLookupIdentity };
 
@@ -30,6 +35,14 @@ export const PATIENT_COLLECTIONS = {
 } as const;
 
 const RETURN_SESSION_MS = 15 * 60 * 1000;
+
+/**
+ * Upper bound on appointment documents one staff list call may scan while
+ * skipping archived rows. Firestore cannot express "`patientArchived` is not
+ * true" for documents that lack the field, so the filter runs in memory and
+ * the list pages until it has `limit` active rows or runs out of rows.
+ */
+const LIST_SCAN_LIMIT = 1000;
 
 function ambiguousIdentity(): DomainError {
   return new DomainError(
@@ -157,6 +170,21 @@ function stringArrayField(
 
 function isArchivedPatient(data: Record<string, unknown> | undefined): boolean {
   return data?.['archivedAt'] !== undefined && data['archivedAt'] !== null;
+}
+
+/**
+ * Booking-create guard (ADR-0010 item 7, AUD-07). The patient is resolved in
+ * one transaction and the appointment is created in another, so the booking
+ * transaction must itself read `patients/{id}` and refuse when the patient was
+ * archived in between. Archive flags only the appointments that exist when it
+ * commits; a booking that slipped past would carry no `patientArchived` and
+ * would appear in staff lists and exports. A missing patient record is not
+ * refused here: this guard closes the archive race, nothing more.
+ */
+export function assertPatientNotArchived(
+  patient: Record<string, unknown> | undefined
+): void {
+  if (isArchivedPatient(patient)) throw new ConflictError();
 }
 
 /** Maps a stored appointment row to the list record. Exported for tests. */
@@ -389,32 +417,53 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     patientId: string,
     limit: number
   ): Promise<AppointmentRecord[]> {
-    const snapshot = await this.db
-      .collection('appointments')
-      .where('patientId', '==', patientId)
-      .orderBy('startsAt', 'asc')
-      .limit(limit)
-      .get();
-    return snapshot.docs.flatMap((doc) => {
-      const data = doc.data() as Record<string, unknown>;
-      return data['patientArchived'] === true
-        ? []
-        : [toListRecord(doc.id, data)];
-    });
+    return this.listActiveAppointments(
+      this.db
+        .collection('appointments')
+        .where('patientId', '==', patientId)
+        .orderBy('startsAt', 'asc'),
+      limit
+    );
   }
 
   public async listClinic(limit: number): Promise<AppointmentRecord[]> {
-    const snapshot = await this.db
-      .collection('appointments')
-      .orderBy('startsAt', 'asc')
-      .limit(limit)
-      .get();
-    return snapshot.docs.flatMap((doc) => {
-      const data = doc.data() as Record<string, unknown>;
-      return data['patientArchived'] === true
-        ? []
-        : [toListRecord(doc.id, data)];
-    });
+    return this.listActiveAppointments(
+      this.db.collection('appointments').orderBy('startsAt', 'asc'),
+      limit
+    );
+  }
+
+  /**
+   * Archived rows must not consume the page. The query is paged with a cursor
+   * (same ordering, so no new index) and archived rows are skipped until
+   * `limit` active rows are collected, the rows run out, or the scan bound is
+   * reached. Past the bound a call returns the active rows it found; archived
+   * rows are never returned either way.
+   */
+  private async listActiveAppointments(
+    ordered: Query,
+    limit: number
+  ): Promise<AppointmentRecord[]> {
+    const records: AppointmentRecord[] = [];
+    let scanned = 0;
+    let cursor: QueryDocumentSnapshot | undefined;
+    while (records.length < limit && scanned < LIST_SCAN_LIMIT) {
+      const page = await (
+        cursor === undefined ? ordered : ordered.startAfter(cursor)
+      )
+        .limit(limit)
+        .get();
+      for (const doc of page.docs) {
+        const data = doc.data() as Record<string, unknown>;
+        if (data['patientArchived'] === true) continue;
+        records.push(toListRecord(doc.id, data));
+        if (records.length === limit) break;
+      }
+      scanned += page.size;
+      if (page.size < limit) break;
+      cursor = page.docs[page.docs.length - 1];
+    }
+    return records;
   }
 }
 
