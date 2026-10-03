@@ -145,7 +145,10 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(variables).toContain('beauessence-clinic-staging');
     expect(variables).toContain('beauessence.com.tw');
     expect(main).toContain('value = var.firebase_auth_domain');
-    expect(main).toContain('auth_domain_required_on_apply');
+    expect(variables).toContain(
+      'Applying C1 internal-test Cloud Run requires firebase_auth_domain set to an authorized isolated Hosting host.'
+    );
+    expect(main).not.toContain('check "auth_domain_required_on_apply"');
     expect(main).not.toContain('${var.project_id}.firebaseapp.com');
     expect(example).toContain(
       'firebase_auth_domain                 = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"'
@@ -179,7 +182,16 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).toContain('version = var.api_secret_versions[env.key]');
     expect(main).toContain('version = var.worker_secret_versions[env.key]');
     expect(main).toContain('resolved_google_calendar_id_secret_version');
-    expect(main).toContain('check "secret_pins_required_on_apply"');
+    expect(variables).toContain(
+      'Applying C1 internal-test Cloud Run requires a numeric Secret Manager version pin for every API mount'
+    );
+    expect(variables).toContain(
+      'Applying C1 internal-test Cloud Run requires a numeric Secret Manager version pin for every worker mount'
+    );
+    expect(variables).toContain(
+      'calendar_sync_pseudonym_secret_version. Missing pins fail closed'
+    );
+    expect(main).not.toContain('check "secret_pins_required_on_apply"');
     expect(main).not.toContain('version = var.secret_resource_version');
     expect(main).not.toContain(
       'mount_secrets = local.apply_enabled && var.secret_resource_version'

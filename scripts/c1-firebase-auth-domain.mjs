@@ -130,9 +130,14 @@ export function inspectC1FirebaseAuthDomainSource(repoRoot = root) {
       'C1 Terraform must not hardcode project_id.firebaseapp.com as runtime authDomain.'
     );
   }
-  if (!main.includes('auth_domain_required_on_apply')) {
+  if (
+    !variables.includes(
+      'Applying C1 internal-test Cloud Run requires firebase_auth_domain set to an authorized isolated Hosting host.'
+    ) ||
+    main.includes('check "auth_domain_required_on_apply"')
+  ) {
     issues.push(
-      'C1 Terraform must fail closed when apply is missing firebase_auth_domain.'
+      'C1 Terraform must block apply (variable validation, not a warning-only check block) when firebase_auth_domain is missing.'
     );
   }
   if (
