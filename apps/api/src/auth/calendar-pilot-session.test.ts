@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  STAFF_ABSOLUTE_SESSION_MS,
-  STAFF_IDLE_SESSION_MS
-} from '@beauessence/domain';
+import { STAFF_ABSOLUTE_SESSION_MS } from '@beauessence/domain';
 
 import { CalendarPilotSessionController } from './calendar-pilot-session.controller.js';
 import {
@@ -81,7 +78,7 @@ describe('CAL-PILOT session policy', () => {
     ).toBe(false);
   });
 
-  it('enforces D-006 idle, absolute, disabled and revocation boundaries', () => {
+  it('enforces absolute, disabled and revocation boundaries without idle expiry', () => {
     const issuedAt = '2026-08-28T00:00:00.000Z';
     const issuedMs = Date.parse(issuedAt);
     const record = {
@@ -127,14 +124,16 @@ describe('CAL-PILOT session policy', () => {
         new Date(issuedMs + STAFF_ABSOLUTE_SESSION_MS).toISOString()
       )
     ).toBe(false);
+    // STAFF-SESSION-12H-2026-10-03: an untouched session stays active until
+    // the absolute limit; 30 minutes of inactivity no longer logs staff out.
     expect(
       isCalendarPilotSessionActive(
         record,
         'user_001',
         'manager',
-        new Date(issuedMs + STAFF_IDLE_SESSION_MS).toISOString()
+        new Date(issuedMs + 30 * 60 * 1000).toISOString()
       )
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isCalendarPilotSessionActive(
         record,
