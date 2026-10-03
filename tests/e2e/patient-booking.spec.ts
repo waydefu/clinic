@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { expect, test } from '@playwright/test';
 
 import {
@@ -226,6 +228,87 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('#patient-hero')).toBeVisible();
     await expect(service).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('#patient-name')).toHaveValue('');
+  });
+
+  // AUD-12：結果畫面的 .ics 與 Google 日曆網址讀的是建立當下的預約；改期後
+  // 沒更新，患者加入行事曆的仍是舊時間。
+  test('改期後結果畫面與兩種行事曆匯出都是新時間', async ({ page }) => {
+    await page.locator('[data-booking-type="initial"]').click();
+    await page.locator('#patient-services [data-service]').first().click();
+    await page.locator('[data-patient-slot]').first().click();
+    await page.locator('#patient-name').fill('改期匯出患者');
+    await page.locator('#patient-phone').fill('0977000333');
+    await fillBirthDate(page, { month: '04', day: '18' });
+    await chooseNationality(page);
+    await page.locator('#privacy-consent').check();
+    await page.locator('#synthetic-confirmation').check();
+    await submitBooking(page);
+
+    const original = (await syntheticState(page)).appointments.at(-1);
+    await makeLatestBookingSelfCancellable(page);
+    await lookupBooking(page, {
+      phone: '0977000333',
+      birth: { month: '04', day: '18' }
+    });
+    const select = page.locator('[data-managed-reschedule-slot]');
+    const optionValues = await select.evaluate((element: HTMLSelectElement) =>
+      [...element.options].map((option) => option.value).filter(Boolean)
+    );
+    await select.selectOption(optionValues[0]);
+    await page.locator('[data-managed-reschedule]').click();
+    await page.getByRole('button', { name: '確認改期' }).click();
+    await expect(page.locator('#booking-complete-heading')).toHaveText(
+      '預約已改期'
+    );
+
+    const moved = (await syntheticState(page)).appointments.find(
+      (item: { id: string }) => item.id === original.id
+    );
+    expect(moved.startsAt).not.toBe(original.startsAt);
+    const stamp = (iso: string) =>
+      new Date(iso)
+        .toISOString()
+        .replace(/[-:]/g, '')
+        .replace(/\.\d{3}/, '');
+
+    // 結果畫面顯示新時間（與查詢卡同一個格式）。
+    const newWhen = await page
+      .locator('.booking-lookup-card-heading strong')
+      .innerText();
+    await expect.soft(page.locator('#booking-result')).toContainText(newWhen);
+
+    await page.locator('#booking-management-close').click();
+    const href = await page
+      .locator('#add-to-google-calendar')
+      .getAttribute('href');
+    expect
+      .soft(new URL(href ?? '').searchParams.get('dates'))
+      .toBe(`${stamp(moved.startsAt)}/${stamp(moved.startsAt)}`);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#add-to-calendar').click()
+    ]);
+    const ics = readFileSync(await download.path(), 'utf8');
+    expect.soft(ics).toContain(`DTSTART:${stamp(moved.startsAt)}`);
+    expect.soft(ics).not.toContain(`DTSTART:${stamp(original.startsAt)}`);
+  });
+
+  // AUD-15 的本機模式對照：資料確實只在這台瀏覽器，三處告知維持原句。API 模式
+  // 的對照在 internal-test-booking.spec.ts。
+  test('本機模式的資料去向告知維持「只存在這台瀏覽器」', async ({ page }) => {
+    await expect(page.locator('#patient-preview-warning')).toContainText(
+      '測試資料只存本機瀏覽器'
+    );
+    await expect(page.locator('#patient-announcement')).toContainText(
+      '輸入的資料只會留在您這台裝置的瀏覽器'
+    );
+    await expect(page.locator('#synthetic-confirmation-text')).toHaveText(
+      '我了解此頁為測試版本，填寫的資料只會保存在我這台裝置的瀏覽器。'
+    );
+    await expect(page.locator('#patient-env-boundary')).toContainText(
+      '資料只保存在本機瀏覽器'
+    );
+    await expect(page.locator('body')).not.toContainText('測試伺服器');
   });
 
   test('固定顯示合成資料邊界，鍵盤可完成預約與取消且不發出後端請求', async ({
