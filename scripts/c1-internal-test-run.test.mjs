@@ -346,4 +346,29 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
       /lifecycle \{[\s\S]*?prevent_destroy\s*=\s*true[\s\S]*?\}/
     );
   });
+
+  it('documents Stage 1, 2a (mount the pin) and 2b (enable) because observed_since only exists after the mount', () => {
+    const readme = read('infra/terraform/c1-internal-test-run/README.md');
+    const packet = read('docs/plans/2026-10-01-c1-batch-deployment-packet.md');
+
+    // The enabling precondition needs a non-empty observed_since, which is the
+    // first complete classified capture and so cannot exist before the
+    // allowlist is mounted: the mount and the enable are separate plans.
+    expect(main).toContain('var.business_delivery_observed_since != ""');
+    for (const document of [readme, packet]) {
+      expect(document).toContain('Stage 2a');
+      expect(document).toContain('Stage 2b');
+    }
+    // Each stage keeps its own owner-filled budget row; no number is invented.
+    for (const row of ['Stage 2a mount-pin apply', 'Stage 2b enable apply']) {
+      const line = packet
+        .split('\n')
+        .find((candidate) => candidate.startsWith(`| C1 ${row}`));
+      expect(line).toBeDefined();
+      expect(line).toContain('`<OWNER_APPROVED_LIMIT>`');
+      expect(line).toContain('`<OWNER_APPROVAL_REQUIRED>`');
+      expect(line).toContain('`BLOCKED`');
+    }
+    expect(packet).toContain('<OWNER_FILLED_MEASURED_UTC_INSTANT>');
+  });
 });
