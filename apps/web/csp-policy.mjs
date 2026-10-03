@@ -27,7 +27,10 @@ export const ISOLATED_AUTH_FRAME =
 
 export const COMMON_SECURITY_HEADERS = Object.freeze([
   { key: 'Cache-Control', value: 'no-cache' },
-  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  // `same-origin-allow-popups` (COOP-POPUP-REAUTH-2026-10-03): Firebase
+  // reauthenticateWithPopup needs the popup it opens to report back. Pages
+  // opened by other sites still get their own browsing context group.
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
   { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
   {
     key: 'Permissions-Policy',
