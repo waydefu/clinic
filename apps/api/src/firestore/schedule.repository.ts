@@ -55,8 +55,6 @@ export class FirestoreScheduleRepository implements ScheduleRepositoryPort {
       .collection(COLLECTIONS.idempotencyKeys)
       .doc(request.idempotency.recordId);
     const scheduleRef = this.scheduleRef();
-    const openAppointments = await this.openAppointments();
-    const occupiedSlots = await this.listOccupiedSlots();
 
     return this.db.runTransaction(async (transaction) => {
       const idempotencyDocument = await transaction.get(idempotencyRef);
@@ -69,29 +67,32 @@ export class FirestoreScheduleRepository implements ScheduleRepositoryPort {
         ? parsePublishedScheduleSnapshot(scheduleDocument.data())
         : UNPUBLISHED_SCHEDULE;
 
-      const appointments: ScheduledAppointmentSnapshot[] = [];
-      for (const appointment of openAppointments) {
-        const latest = await transaction.get(
-          this.db.collection(COLLECTIONS.appointments).doc(appointment.id)
-        );
-        if (!latest.exists) continue;
-        const parsed = parseAppointmentSnapshot(latest.id, latest.data());
-        if (!OPEN_APPOINTMENT_STATUSES.includes(parsed.status)) continue;
-        appointments.push({
-          id: parsed.id,
-          slotId: parsed.slotId,
-          status: parsed.status
+      // Both reads are queries made inside this transaction. Listing the open
+      // appointments and the slot rows before it started left them out of what
+      // the commit is checked against: a booking created in between wrote a new
+      // appointment and slot row that this transaction never read, so the
+      // publication committed over it and orphaned the booking (AUD-02).
+      const openAppointmentDocuments = await transaction.get(
+        this.db
+          .collection(COLLECTIONS.appointments)
+          .where('status', 'in', OPEN_APPOINTMENT_STATUSES)
+      );
+      const appointments: ScheduledAppointmentSnapshot[] =
+        openAppointmentDocuments.docs.map((document) => {
+          const parsed = parseAppointmentSnapshot(document.id, document.data());
+          return {
+            id: parsed.id,
+            slotId: parsed.slotId,
+            status: parsed.status
+          };
         });
-      }
 
-      const existingSlots: SlotSnapshot[] = [];
-      for (const slot of occupiedSlots) {
-        const latest = await transaction.get(
-          this.db.collection(COLLECTIONS.slots).doc(slot.id)
-        );
-        if (!latest.exists) continue;
-        existingSlots.push(parseSlotSnapshot(latest.id, latest.data()));
-      }
+      const slotDocuments = await transaction.get(
+        this.db.collection(COLLECTIONS.slots)
+      );
+      const existingSlots: SlotSnapshot[] = slotDocuments.docs.map((document) =>
+        parseSlotSnapshot(document.id, document.data())
+      );
 
       const plan = planSchedulePublication(
         request,
@@ -128,25 +129,6 @@ export class FirestoreScheduleRepository implements ScheduleRepositoryPort {
 
   private scheduleRef() {
     return this.db.collection(COLLECTIONS.schedules).doc(SCHEDULE_DOCUMENT_ID);
-  }
-
-  private async openAppointments(): Promise<
-    readonly ScheduledAppointmentSnapshot[]
-  > {
-    const documents = await this.db
-      .collection(COLLECTIONS.appointments)
-      .where('status', 'in', OPEN_APPOINTMENT_STATUSES)
-      .get();
-    return documents.docs.flatMap((document) => {
-      const parsed = parseAppointmentSnapshot(document.id, document.data());
-      return [
-        {
-          id: parsed.id,
-          slotId: parsed.slotId,
-          status: parsed.status
-        }
-      ];
-    });
   }
 
   private async replayOf(
