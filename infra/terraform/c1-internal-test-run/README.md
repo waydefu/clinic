@@ -65,6 +65,14 @@ Secret Manager mounts use **independent per-service version inputs**:
 pin fails closed on apply. `latest` is refused. The retired shared
 `secret_resource_version` input cannot pin any mount.
 
+Required conditions are `validation` blocks in `variables.tf`, not `check`
+blocks: a failed `check` only prints a warning and `terraform plan` still exits
+0. A named SHA without digest-pinned images for this project, without
+`firebase_auth_domain`, or without a numeric pin for every mount, Calendar sync
+outside the exact C1 project, and booking writes without an expiry therefore
+fail `terraform plan` with a non-zero exit, and `noop.tftest.hcl` expects each
+failure on its variable. This needs Terraform 1.9 or later.
+
 Local `terraform.tfvars` migration: stop copying one numeric version
 onto every secret. Delete or ignore leftover `secret_resource_version`
 (including `= 1`). Set each API pin independently. Set

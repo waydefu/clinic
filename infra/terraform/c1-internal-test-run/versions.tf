@@ -1,5 +1,7 @@
 terraform {
-  required_version = ">= 1.8.0"
+  # 1.9 lets a variable validation refer to other variables and locals, which
+  # the blocking required conditions in variables.tf depend on.
+  required_version = ">= 1.9.0"
 
   backend "gcs" {}
 

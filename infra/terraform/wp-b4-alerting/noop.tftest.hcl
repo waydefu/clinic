@@ -48,3 +48,20 @@ run "staging_project_is_rejected" {
     var.project_id
   ]
 }
+
+# AUD-14: the required recipient must block the plan, not just warn. Expecting
+# var.* here fails with "Missing expected failure" if that validation stops
+# blocking; never expect a check.* block for a required condition.
+run "named_sha_without_alert_email_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-c1a01"
+    alert_email_address       = ""
+  }
+
+  expect_failures = [
+    var.alert_email_address
+  ]
+}
