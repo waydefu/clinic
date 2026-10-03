@@ -3,22 +3,8 @@ locals {
   calendar_sync_prerequisites_active = var.calendar_sync_prerequisites_enabled || var.calendar_sync_enabled
   numeric_secret_version             = "^[0-9]+$"
   # Independent per-service pins. var.secret_resource_version is retired and
-  # must not appear on any mount.
-  api_secret_pins_numeric = alltrue([
-    for version in [
-      var.api_secret_versions.CALENDAR_PILOT_FIREBASE_WEB_API_KEY,
-      var.api_secret_versions.CALENDAR_PILOT_MANAGER_EMAILS,
-      var.api_secret_versions.CALENDAR_PILOT_FRONT_DESK_EMAILS
-    ] : can(regex(local.numeric_secret_version, version))
-  ])
-  worker_secret_pins_numeric = can(regex(
-    local.numeric_secret_version,
-    var.worker_secret_versions.GOOGLE_CALENDAR_ID
-  ))
-  calendar_sync_pseudonym_pin_numeric = can(regex(
-    local.numeric_secret_version,
-    var.calendar_sync_pseudonym_secret_version
-  ))
+  # must not appear on any mount. Whether each pin is numeric is enforced for
+  # apply by the variable validations in variables.tf, not by a check block.
   business_delivery_maintenance_pin_numeric = can(regex(
     local.numeric_secret_version,
     var.business_delivery_maintenance_emails_secret_version
@@ -85,52 +71,13 @@ locals {
   }
 }
 
-check "images_required_on_apply" {
-  assert {
-    condition = !local.apply_enabled || (
-      var.api_image != "" &&
-      var.worker_image != "" &&
-      strcontains(var.api_image, var.project_id) &&
-      strcontains(var.worker_image, var.project_id)
-    )
-    error_message = "Applying C1 internal-test Cloud Run requires digest-pinned api_image and worker_image for this project_id."
-  }
-}
-
-check "calendar_sync_is_c1_only" {
-  assert {
-    condition     = !local.calendar_sync_prerequisites_active || var.project_id == "beauessence-clinic-stg-c1a01"
-    error_message = "Inbound Calendar sync is restricted to the exact isolated C1 project."
-  }
-}
-
-check "booking_expiry_required_when_enabled" {
-  assert {
-    condition     = !var.internal_test_booking_enabled || var.internal_test_booking_expires_at_utc != ""
-    error_message = "Enabling isolated booking writes requires INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC."
-  }
-}
-
-check "auth_domain_required_on_apply" {
-  assert {
-    condition = !local.apply_enabled || (
-      var.firebase_auth_domain != "" &&
-      !strcontains(var.firebase_auth_domain, "firebaseapp.com")
-    )
-    error_message = "Applying C1 internal-test Cloud Run requires firebase_auth_domain set to an authorized isolated Hosting host. There is no fallback to project_id.firebaseapp.com."
-  }
-}
-
-check "secret_pins_required_on_apply" {
-  assert {
-    condition = !local.apply_enabled || (
-      local.api_secret_pins_numeric &&
-      local.worker_secret_pins_numeric &&
-      (!var.calendar_sync_enabled || local.calendar_sync_pseudonym_pin_numeric)
-    )
-    error_message = "Applying C1 internal-test Cloud Run requires a numeric Secret Manager version pin for every API and worker mount. Independent per-service inputs only; missing pins fail closed and latest is refused."
-  }
-}
+# REQUIRED conditions are enforced by `validation` blocks in variables.tf
+# (images, Calendar-sync project, booking expiry, authDomain, secret pins), so an
+# invalid configuration makes `terraform plan` exit non-zero. A `check` block
+# only reports a warning: plan still exits 0 and the configuration can be
+# applied. Do not express a required condition as a `check` block;
+# scripts/terraform-required-conditions.test.mjs refuses any `check` block that
+# it does not list as advisory.
 
 resource "google_project_service" "stage_f" {
   for_each           = local.apply_enabled ? local.required_services : toset([])

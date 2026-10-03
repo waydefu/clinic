@@ -702,4 +702,47 @@ describe('booking write path in a Firestore transaction', () => {
       appointments.docs[0]?.id
     );
   });
+
+  // AUD-08: the transaction owns the replay, and it runs before the follow-up
+  // entitlement check, which the first booking has by then made impossible.
+  it('replays a follow_up retried with the same key and rejects other content for it', async () => {
+    await db.collection(COLLECTIONS.followUpState).doc('patient_001').set({
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001'
+    });
+    const request = bookingRequest({
+      appointmentId: 'appointment_follow_replay',
+      slotId: 'slot_20300102_1215',
+      bookingKind: 'follow_up',
+      idempotencyKey: 'idem_follow_replay'
+    });
+
+    await repository.reserve(request);
+    await expect(
+      repository.reserve({
+        ...request,
+        appointmentId: 'appointment_follow_replay_retry'
+      })
+    ).resolves.toEqual({
+      appointmentId: 'appointment_follow_replay',
+      replayed: true,
+      startsAt: '2030-01-02T04:15:00.000Z'
+    });
+    await expect(
+      repository.reserve(
+        bookingRequest({
+          appointmentId: 'appointment_follow_replay_other',
+          slotId: 'slot_20300102_1245',
+          bookingKind: 'follow_up',
+          idempotencyKey: 'idem_follow_replay'
+        })
+      )
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+
+    const appointments = await db.collection(COLLECTIONS.appointments).get();
+    expect(appointments.docs.map((document) => document.id)).toEqual([
+      'appointment_follow_replay'
+    ]);
+  });
 });

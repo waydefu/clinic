@@ -8,12 +8,9 @@ locals {
   }
 }
 
-check "email_required_on_apply" {
-  assert {
-    condition     = !local.apply_enabled || var.alert_email_address != ""
-    error_message = "Applying WP-B4 requires alert_email_address from secret/tfvar. Recipients never land in git."
-  }
-}
+# The required recipient is enforced by the alert_email_address validation in
+# variables.tf. A `check` block only warns (plan still exits 0), so it must not
+# carry a required condition.
 
 resource "google_pubsub_topic" "application_alerts" {
   count   = local.apply_enabled ? 1 : 0
