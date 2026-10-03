@@ -1,9 +1,14 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   isBusinessDeliveryMilestoneTimestamp,
   resolveApprovedBusinessDeliveryPolicy,
+  sanitizeStructuredLog,
   type ApprovedBusinessDeliveryPolicy,
-  type BusinessReportScope
+  type BusinessReportScope,
+  type StructuredLog
 } from '@beauessence/domain';
+import type { StructuredLogger } from '../platform/runtime/structured-logger.js';
 import { hasValidMaintenanceEmailAllowlist } from './usage-events.js';
 
 /**
@@ -61,4 +66,53 @@ export function readBusinessDeliveryConfig(
     scope: scope as BusinessReportScope,
     observedSince
   };
+}
+
+/** Stable code: the feature was requested but is off because the allowlist is unusable. */
+export const BUSINESS_DELIVERY_ALLOWLIST_INVALID_CODE =
+  'BUSINESS_DELIVERY_DISABLED_ALLOWLIST_INVALID';
+
+/**
+ * `readBusinessDeliveryConfig` fails closed and every route then answers 404,
+ * which looks the same as "feature not deployed". When the report routes are
+ * requested (`BUSINESS_DELIVERY_ENABLED=true`) but the maintenance allowlist
+ * is missing or malformed, this returns the one structured entry that says
+ * so. It carries a stable code only: never the payload, an address or a count.
+ */
+export function businessDeliveryAllowlistNotice(
+  environment: NodeJS.ProcessEnv,
+  now: () => string = () => new Date().toISOString()
+): StructuredLog | undefined {
+  if (environment['BUSINESS_DELIVERY_ENABLED'] !== 'true') return undefined;
+  if (
+    hasValidMaintenanceEmailAllowlist(
+      environment['BUSINESS_DELIVERY_MAINTENANCE_EMAILS']
+    )
+  ) {
+    return undefined;
+  }
+  return {
+    timestamp: now(),
+    environment: 'internal_test',
+    service: 'api',
+    correlationId: randomUUID(),
+    operation: 'business_delivery_config',
+    result: 'error',
+    errorCode: BUSINESS_DELIVERY_ALLOWLIST_INVALID_CODE,
+    durationMs: 0,
+    retryState: 'none'
+  };
+}
+
+/** Emits the notice once. A logging failure must never change boot. */
+export function reportBusinessDeliveryAllowlistNotice(
+  environment: NodeJS.ProcessEnv,
+  logger: StructuredLogger
+): void {
+  try {
+    const notice = businessDeliveryAllowlistNotice(environment);
+    if (notice !== undefined) logger.emit(sanitizeStructuredLog(notice));
+  } catch {
+    // Logging must never turn a fail-closed feature into a boot failure.
+  }
 }
