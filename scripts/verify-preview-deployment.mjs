@@ -46,7 +46,7 @@ const requiredHeaders = [
   ['content-security-policy', "default-src 'self'"],
   ['content-security-policy', "frame-ancestors 'none'"],
   ['content-security-policy', "require-trusted-types-for 'script'"],
-  ['cross-origin-opener-policy', 'same-origin'],
+  ['cross-origin-opener-policy', 'same-origin-allow-popups'],
   ['cross-origin-resource-policy', 'same-origin'],
   ['referrer-policy', 'no-referrer'],
   ['x-content-type-options', 'nosniff'],

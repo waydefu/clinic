@@ -17,7 +17,7 @@
 3. 登入後確認工作臺角色與權限正確。只有 manager 能查看核准的商務交付操作；`front_desk` 不能匯出或執行 CP-05 病患 lifecycle。遇到「帳號停用」、「需要重新登入」或 401／403，停止並請負責人檢查帳號，不換另一帳號代做。
 4. 離開共用電腦前，按「登出」，等待成功訊息，再重新載入確認仍在登入頁。登出錯誤時不要假設 session 已清除；停止使用該瀏覽器並回報。
 
-**L3 重新驗證限制：** merged source 已有 fresh Google＋TOTP reauth bridge，#216 exact-head CI800/run `37051138728` passed 12/12；它仍尚未在 C1 真實 popup 走查。已知 C1 `Cross-Origin-Opener-Policy: same-origin` 會阻礙 popup；若 popup 被阻擋或沒有回到原操作，立刻停止。不要重複提交、複製 token、改 CSP／COOP、放寬 security header，或改走未授權的 redirect／Console 路徑。產品／資安 owner 與實作者須先完成 header precedence 與安全決策，再驗證真 popup；source bridge 存在不代表 reauth 已通過。
+**L3 重新驗證限制：** merged source 已有 fresh Google＋TOTP reauth bridge，#216 exact-head CI800/run `37051138728` passed 12/12；它仍尚未在 C1 真實 popup 走查。業主已決定 `COOP-POPUP-REAUTH-2026-10-03`：COOP 改為 `same-origin-allow-popups`，讓 popup 能回傳結果；須等含此設定的版本部署後才能走查。若 popup 被阻擋或沒有回到原操作，立刻停止。不要重複提交、複製 token、自行改 CSP／COOP、再放寬 security header，或改走未授權的 redirect／Console 路徑；source bridge 存在不代表 reauth 已通過。
 
 ## 2. 新增或管理預約
 
