@@ -5,7 +5,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   calendarEventIdForAppointment,
   calendarEventIdForFollowUp,
-  MAX_ATTEMPTS
+  MAX_ATTEMPTS,
+  planRetentionCalendarProjections,
+  type RetentionOperation
 } from '@beauessence/domain';
 import {
   CLINIC_EVENT_COLOR_ID,
@@ -17,6 +19,7 @@ import {
 import type { CalendarTitleSource } from '../../apps/worker/src/calendar-title-source.js';
 import {
   APPOINTMENTS_COLLECTION,
+  FOLLOW_UPS_COLLECTION,
   OUTBOX_COLLECTION,
   OutboxProcessor
 } from '../../apps/worker/src/outbox-processor.js';
@@ -45,10 +48,34 @@ const later = (seconds: number) =>
   new Date(Date.parse(NOW) + seconds * 1000).toISOString();
 
 async function wipe(): Promise<void> {
-  for (const collection of [OUTBOX_COLLECTION, APPOINTMENTS_COLLECTION]) {
+  for (const collection of [
+    OUTBOX_COLLECTION,
+    APPOINTMENTS_COLLECTION,
+    FOLLOW_UPS_COLLECTION
+  ]) {
     const documents = await db.collection(collection).listDocuments();
     await Promise.all(documents.map((document) => document.delete()));
   }
+}
+
+/**
+ * The latest follow-up decision. Production writes this document in the same
+ * transaction as the reminder job (`recordFollowUp`), so a reminder job always
+ * has a matching decision; retention deletes it on permanent delete.
+ */
+async function seedFollowUpDecision(
+  decision: 'required' | 'not_required',
+  dueAt: string | null,
+  appointmentId = 'appointment_001'
+): Promise<void> {
+  await db.collection(FOLLOW_UPS_COLLECTION).doc(appointmentId).set({
+    schemaVersion: 1,
+    appointmentId,
+    patientId: 'patient_001',
+    decision,
+    dueAt,
+    decidedAt: NOW
+  });
 }
 
 // 種子鍵一律走與正式路徑相同的產生器：手寫字串會悄悄退回舊格式。
@@ -332,6 +359,7 @@ describe('outbox worker', () => {
       .collection(APPOINTMENTS_COLLECTION)
       .doc('appointment_001')
       .update({ status: 'completed' });
+    await seedFollowUpDecision('required', '2030-02-01T04:15:00.000Z');
     await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
       idempotencyKey: FOLLOW_UP_KEY,
       appointmentStatus: 'follow_up_required',
@@ -358,6 +386,7 @@ describe('outbox worker', () => {
       .collection(APPOINTMENTS_COLLECTION)
       .doc('appointment_001')
       .update({ status: 'completed' });
+    await seedFollowUpDecision('required', null);
     await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
       idempotencyKey: FOLLOW_UP_KEY,
       appointmentStatus: 'follow_up_required',
@@ -376,6 +405,7 @@ describe('outbox worker', () => {
       .collection(APPOINTMENTS_COLLECTION)
       .doc('appointment_001')
       .update({ status: 'completed' });
+    await seedFollowUpDecision('required', '2030-02-01T04:15:00.000Z');
     await db.collection(OUTBOX_COLLECTION).doc('outbox_001').update({
       idempotencyKey: FOLLOW_UP_KEY,
       appointmentStatus: 'follow_up_required',
@@ -389,6 +419,9 @@ describe('outbox worker', () => {
       'follow_up_not_required',
       'follow_up_scheduled'
     ]) {
+      // A real decision change rewrites the decision document with its job.
+      if (projectionStatus === 'follow_up_not_required')
+        await seedFollowUpDecision('not_required', null);
       await db
         .collection(OUTBOX_COLLECTION)
         .doc(`outbox_${projectionStatus}`)
@@ -408,6 +441,7 @@ describe('outbox worker', () => {
       expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
 
       if (projectionStatus === 'follow_up_not_required') {
+        await seedFollowUpDecision('required', '2030-02-01T04:15:00.000Z');
         await db
           .collection(OUTBOX_COLLECTION)
           .doc('outbox_restore_follow_up')
@@ -1105,5 +1139,284 @@ describe('outbox worker', () => {
     });
     expect((await jobState())?.['status']).toBe('completed');
     expect((await jobState())?.['attempts']).toBe(1);
+  });
+});
+
+// AUD-05: the reminder event is a projection of the LATEST stored decision
+// (`follow_ups/{sourceAppointmentId}`), not of whatever status an old job was
+// written with. A job that waited out a backoff, or was queued by retention,
+// must converge the Calendar on the current decision.
+describe('follow-up reminder projection follows the latest stored decision', () => {
+  const DUE_OLD = '2030-02-01T04:15:00.000Z';
+  const DUE_NEW = '2030-03-05T06:45:00.000Z';
+
+  async function seedCompletedVisit(): Promise<void> {
+    await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
+      status: 'completed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial',
+      patientId: 'patient_001'
+    });
+  }
+
+  async function seedReminderJob(
+    id: string,
+    appointmentStatus: string,
+    options: { readonly startsAt?: string; readonly attempts?: number } = {}
+  ): Promise<void> {
+    await db
+      .collection(OUTBOX_COLLECTION)
+      .doc(id)
+      .set({
+        appointmentId: 'appointment_001',
+        followUpSourceId: 'appointment_001',
+        correlationId: `corr_${id}`,
+        causationId: `audit_${id}`,
+        appointmentStatus,
+        idempotencyKey: FOLLOW_UP_KEY,
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: options.attempts ?? 0,
+        nextAttemptAt: NOW,
+        ...(options.startsAt === undefined
+          ? {}
+          : { startsAt: options.startsAt })
+      });
+  }
+
+  async function projectExistingReminder(startsAt: string): Promise<void> {
+    await calendar.project({
+      idempotencyKey: FOLLOW_UP_KEY,
+      action: 'upsert',
+      appointmentId: 'appointment_001',
+      correlationId: 'corr_existing_reminder',
+      causationId: 'audit_existing_reminder',
+      appointmentStatus: 'follow_up_required',
+      startsAt,
+      endsAt: new Date(Date.parse(startsAt) + 3_600_000).toISOString(),
+      bookingKind: 'follow_up',
+      colorId: CLINIC_EVENT_COLOR_ID
+    });
+  }
+
+  it('does not re-create a reminder that a newer decision cancelled when an older job is retried', async () => {
+    await seedCompletedVisit();
+    await seedFollowUpDecision('required', DUE_OLD);
+    await seedReminderJob('outbox_old_required', 'follow_up_required', {
+      startsAt: DUE_OLD
+    });
+
+    // The first attempt fails and backs off.
+    calendar.failNext(1);
+    await processor.processDue(NOW);
+    expect((await jobState('outbox_old_required'))?.['status']).toBe('pending');
+
+    // Meanwhile the clinic decides the follow-up is not needed; that job wins.
+    await seedFollowUpDecision('not_required', null);
+    await seedReminderJob('outbox_new_not_required', 'follow_up_not_required');
+    await processor.processDue(later(1));
+    expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
+    expect((await jobState('outbox_new_not_required'))?.['status']).toBe(
+      'completed'
+    );
+
+    // The old job is retried after its backoff: it must not bring the event back.
+    await processor.processDue(later(60));
+
+    expect((await jobState('outbox_old_required'))?.['status']).toBe(
+      'completed'
+    );
+    expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
+    expect(calendar.insertCount).toBe(0);
+  });
+
+  it('cancels the reminder when an old required job is retried after the decision was deleted', async () => {
+    await seedCompletedVisit();
+    await projectExistingReminder(DUE_OLD);
+    // Permanent delete removed `follow_ups/appointment_001`; nothing replaces it.
+    await seedReminderJob('outbox_old_required', 'follow_up_required', {
+      startsAt: DUE_OLD,
+      attempts: 1
+    });
+
+    await processor.processDue(NOW);
+
+    expect((await jobState('outbox_old_required'))?.['status']).toBe(
+      'completed'
+    );
+    expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
+    expect(calendar.cancelCount).toBe(1);
+    expect(calendar.conflictUpdateCount).toBe(0);
+  });
+
+  it('upserts at the latest stored due date, not the date an older job carries', async () => {
+    await seedCompletedVisit();
+    await seedFollowUpDecision('required', DUE_NEW);
+    await seedReminderJob('outbox_old_required', 'follow_up_required', {
+      startsAt: DUE_OLD
+    });
+
+    await processor.processDue(NOW);
+
+    expect(calendar.events.get(FOLLOW_UP_KEY)).toMatchObject({
+      action: 'upsert',
+      appointmentStatus: 'follow_up_required',
+      startsAt: DUE_NEW,
+      endsAt: '2030-03-05T07:45:00.000Z',
+      bookingKind: 'follow_up'
+    });
+    expect(calendar.insertCount).toBe(1);
+  });
+
+  it('keeps the reminder when an old not_required job is retried after a newer required decision', async () => {
+    await seedCompletedVisit();
+    await projectExistingReminder(DUE_OLD);
+    await seedFollowUpDecision('required', DUE_NEW);
+    await seedReminderJob('outbox_old_not_required', 'follow_up_not_required');
+
+    await processor.processDue(NOW);
+
+    expect(calendar.cancelCount).toBe(0);
+    expect(calendar.events.get(FOLLOW_UP_KEY)).toMatchObject({
+      action: 'upsert',
+      startsAt: DUE_NEW
+    });
+  });
+
+  it('does not project a dated reminder when the latest decision is required but unscheduled', async () => {
+    await seedCompletedVisit();
+    await seedFollowUpDecision('required', null);
+    await seedReminderJob('outbox_old_required', 'follow_up_required', {
+      startsAt: DUE_OLD
+    });
+
+    const summary = await processor.processDue(NOW);
+
+    expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+    expect(calendar.callCount).toBe(0);
+    expect(calendar.events.size).toBe(0);
+  });
+
+  it('dead-letters an unreadable stored decision without touching Calendar', async () => {
+    await seedCompletedVisit();
+    await projectExistingReminder(DUE_OLD);
+    const callsBefore = calendar.callCount;
+    await db
+      .collection(FOLLOW_UPS_COLLECTION)
+      .doc('appointment_001')
+      .set({ decision: 'maybe', dueAt: DUE_NEW });
+    await seedReminderJob('outbox_old_required', 'follow_up_required', {
+      startsAt: DUE_OLD
+    });
+
+    const summary = await processor.processDue(NOW);
+
+    expect(summary).toMatchObject({ claimed: 1, deadLettered: 1 });
+    expect(calendar.callCount).toBe(callsBefore);
+    expect(calendar.events.get(FOLLOW_UP_KEY)).toMatchObject({
+      startsAt: DUE_OLD
+    });
+  });
+
+  it('keeps a scheduled follow-up cancelling the reminder even while the decision stays required', async () => {
+    await seedCompletedVisit();
+    await projectExistingReminder(DUE_OLD);
+    await seedFollowUpDecision('required', DUE_OLD);
+    await seedReminderJob('outbox_scheduled', 'follow_up_scheduled');
+
+    await processor.processDue(NOW);
+
+    expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
+    expect(calendar.cancelCount).toBe(1);
+  });
+
+  // Patient retention (PR #222) enqueues reminder jobs from the planner.
+  describe('retention jobs from planRetentionCalendarProjections', () => {
+    function plannedJobs(operation: RetentionOperation, dueAt: string | null) {
+      return planRetentionCalendarProjections({
+        operation,
+        requestId: `req_${operation}_001`,
+        at: NOW,
+        appointments: [{ id: 'appointment_001', status: 'completed' }],
+        followUps:
+          dueAt === null
+            ? []
+            : [
+                {
+                  appointmentId: 'appointment_001',
+                  decision: 'required',
+                  dueAt
+                }
+              ]
+      });
+    }
+
+    async function enqueue(
+      jobs: ReturnType<typeof plannedJobs>
+    ): Promise<void> {
+      await Promise.all(
+        jobs.map((job) =>
+          db
+            .collection(OUTBOX_COLLECTION)
+            .doc(job.id)
+            .set({ ...job })
+        )
+      );
+    }
+
+    it.each(['archive', 'restore'] as const)(
+      'on %s re-upserts the reminder at the current stored due date',
+      async (operation) => {
+        await seedCompletedVisit();
+        await projectExistingReminder(DUE_OLD);
+        // The decision was changed after the old reminder was projected.
+        await seedFollowUpDecision('required', DUE_NEW);
+        await enqueue(plannedJobs(operation, DUE_NEW));
+
+        const summary = await processor.processDue(NOW);
+
+        expect(summary).toMatchObject({ claimed: 2, completed: 2 });
+        expect(calendar.events.get(FOLLOW_UP_KEY)).toMatchObject({
+          action: 'upsert',
+          appointmentStatus: 'follow_up_required',
+          startsAt: DUE_NEW
+        });
+      }
+    );
+
+    it('on permanent delete cancels the reminder and the visit event after the decision document is gone', async () => {
+      await seedCompletedVisit();
+      await projectExistingReminder(DUE_OLD);
+      await calendar.project({
+        idempotencyKey: CONFIRMED_KEY,
+        action: 'upsert',
+        appointmentId: 'appointment_001',
+        correlationId: 'corr_existing_visit',
+        causationId: 'audit_existing_visit',
+        appointmentStatus: 'completed',
+        startsAt: '2030-01-02T04:00:00.000Z',
+        endsAt: '2030-01-02T05:00:00.000Z',
+        bookingKind: 'initial',
+        colorId: CLINIC_EVENT_COLOR_ID
+      });
+      await seedFollowUpDecision('required', DUE_OLD);
+      const jobs = plannedJobs('permanent_delete', DUE_OLD);
+      // The retention transaction deletes the records, then enqueues the jobs.
+      await db
+        .collection(FOLLOW_UPS_COLLECTION)
+        .doc('appointment_001')
+        .delete();
+      await db
+        .collection(APPOINTMENTS_COLLECTION)
+        .doc('appointment_001')
+        .delete();
+      await enqueue(jobs);
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 2, completed: 2 });
+      expect(calendar.events.size).toBe(0);
+      expect(calendar.cancelCount).toBe(2);
+    });
   });
 });

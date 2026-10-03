@@ -118,6 +118,15 @@ export interface CalendarMirrorMutation {
     readonly startsAt: string;
     readonly endsAt: string;
   };
+  /**
+   * The moved event's target range for a clinic reschedule candidate. The
+   * clinic title is not a CAL-PILOT title, so the parsed entry carries no time;
+   * without this the persisted candidate has no target for review to apply.
+   */
+  readonly proposedRange?: {
+    readonly startsAt: string;
+    readonly endsAt: string;
+  };
 }
 
 export interface CalendarSyncCommit {
@@ -431,6 +440,12 @@ export class CalendarSyncEngine {
           ...(suggestionContact === undefined ? {} : { suggestionContact }),
           ...(kind === 'unmatched' && range !== undefined
             ? { unmatchedRange: range }
+            : {}),
+          ...(detection.action === 'candidate' &&
+          detection.status === 'pending' &&
+          detection.changeType === 'reschedule' &&
+          range !== undefined
+            ? { proposedRange: range }
             : {})
         });
         candidates += 1;
