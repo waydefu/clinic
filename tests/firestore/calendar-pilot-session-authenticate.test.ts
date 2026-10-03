@@ -195,18 +195,14 @@ describe('CAL-PILOT session integration through the real authenticate path', () 
     );
   });
 
-  it('rejects an idle-expired session but keeps a recently seen one', async () => {
+  it('keeps an untouched session active until the absolute limit', async () => {
+    // STAFF-SESSION-12H-2026-10-03: no idle timeout. Created at 08:00Z and
+    // never used again, the session is still valid one second before 12 hours.
     const cookie = await createSession();
-    await sessions.authenticate(cookie, NOW);
-
-    await db
-      .collection('calendar_pilot_sessions')
-      .doc(sessionIdOf(cookie))
-      .update({ lastSeenAt: '2026-09-06T07:29:59.000Z' });
 
     await expect(
-      sessions.authenticate(cookie, '2026-09-06T08:00:00.000Z')
-    ).rejects.toThrow(AuthenticationRequiredError);
+      sessions.authenticate(cookie, '2026-09-06T19:59:59.000Z')
+    ).resolves.toBeDefined();
   });
 
   it('rejects an absolute-expired session', async () => {
@@ -214,10 +210,10 @@ describe('CAL-PILOT session integration through the real authenticate path', () 
     await db
       .collection('calendar_pilot_sessions')
       .doc(sessionIdOf(cookie))
-      .update({ lastSeenAt: '2026-09-06T15:59:00.000Z' });
+      .update({ lastSeenAt: '2026-09-06T19:59:00.000Z' });
 
     await expect(
-      sessions.authenticate(cookie, '2026-09-06T16:00:01.000Z')
+      sessions.authenticate(cookie, '2026-09-06T20:00:01.000Z')
     ).rejects.toThrow(AuthenticationRequiredError);
   });
 

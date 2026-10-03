@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { DomainError } from './errors.js';
 import {
   STAFF_ABSOLUTE_SESSION_MS,
-  STAFF_IDLE_SESSION_MS,
   evaluateStaffSession
 } from './staff-session.js';
 
@@ -15,7 +14,7 @@ function iso(ms: number): string {
 }
 
 describe('evaluateStaffSession', () => {
-  it('keeps a session active inside the D-006 windows', () => {
+  it('keeps a session active inside the 12-hour window', () => {
     expect(
       evaluateStaffSession({
         now: iso(issuedMs + 10 * 60 * 1000),
@@ -37,20 +36,20 @@ describe('evaluateStaffSession', () => {
     ).toEqual({ active: false, reason: 'disabled' });
   });
 
-  it('enforces the 30-minute idle timeout', () => {
-    expect(STAFF_IDLE_SESSION_MS).toBe(30 * 60 * 1000);
+  it('does not expire an untouched session before the absolute limit', () => {
+    // STAFF-SESSION-12H-2026-10-03: no idle timeout.
     expect(
       evaluateStaffSession({
-        now: iso(issuedMs + STAFF_IDLE_SESSION_MS),
+        now: iso(issuedMs + STAFF_ABSOLUTE_SESSION_MS - 1_000),
         issuedAt,
         lastSeenAt: issuedAt,
         accountDisabled: false
       })
-    ).toEqual({ active: false, reason: 'idle_timeout' });
+    ).toEqual({ active: true });
   });
 
-  it('enforces the 8-hour absolute lifetime even if lastSeen is fresh', () => {
-    expect(STAFF_ABSOLUTE_SESSION_MS).toBe(8 * 60 * 60 * 1000);
+  it('enforces the 12-hour absolute lifetime even if lastSeen is fresh', () => {
+    expect(STAFF_ABSOLUTE_SESSION_MS).toBe(12 * 60 * 60 * 1000);
     const nowMs = issuedMs + STAFF_ABSOLUTE_SESSION_MS;
     expect(
       evaluateStaffSession({

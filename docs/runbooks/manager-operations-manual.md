@@ -15,7 +15,8 @@
 1. 使用核准的 C1 `internal-preproduction` Hosting 網址，開啟 `/staff`。先核對瀏覽器網址的主機屬於 isolated C1；不可用正式網站、`beauessence-clinic-staging` 或舊 `synthetic-review` 預覽。
 2. 選「使用 Google 帳號登入」，登入已授權的員工身分，完成 TOTP 動態驗證碼。第一次建立 TOTP 後，依畫面重新使用 Google 帳號登入，再輸入 TOTP；完成雙因素驗證之前不會建立 staff session。
 3. 登入後確認工作臺角色與權限正確。只有 manager 能查看核准的商務交付操作；`front_desk` 不能匯出或執行 CP-05 病患 lifecycle。遇到「帳號停用」、「需要重新登入」或 401／403，停止並請負責人檢查帳號，不換另一帳號代做。
-4. 離開共用電腦前，按「登出」，等待成功訊息，再重新載入確認仍在登入頁。登出錯誤時不要假設 session 已清除；停止使用該瀏覽器並回報。
+4. 登入一次可用 12 小時，期間不會因為閒置自動登出（`STAFF-SESSION-12H-2026-10-03`）；確認里程碑、匯出、封存、刪除與終止仍會要求重新輸入動態驗證碼。因此人員離座時請鎖定電腦。
+5. 離開共用電腦前，按「登出」，等待成功訊息，再重新載入確認仍在登入頁。登出錯誤時不要假設 session 已清除；停止使用該瀏覽器並回報。
 
 **L3 重新驗證限制：** merged source 已有 fresh Google＋TOTP reauth bridge，#216 exact-head CI800/run `37051138728` passed 12/12；它仍尚未在 C1 真實 popup 走查。業主已決定 `COOP-POPUP-REAUTH-2026-10-03`：COOP 改為 `same-origin-allow-popups`，讓 popup 能回傳結果；須等含此設定的版本部署後才能走查。若 popup 被阻擋或沒有回到原操作，立刻停止。不要重複提交、複製 token、自行改 CSP／COOP、再放寬 security header，或改走未授權的 redirect／Console 路徑；source bridge 存在不代表 reauth 已通過。
 
