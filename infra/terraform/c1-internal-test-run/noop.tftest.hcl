@@ -1,5 +1,11 @@
 # Credential-free proof that the default SHA creates zero Cloud Run resources.
 # This is not apply and not Stage F cloud mutation.
+#
+# Every "_is_rejected" run below must expect a BLOCKING construct (var.*,
+# a resource, an output). Never expect check.*: a check block only warns, so
+# `terraform test` would pass while `terraform plan` still exits 0 (AUD-14).
+# Required conditions live in variables.tf validations; a run that expects
+# var.x fails with "Missing expected failure" if that validation stops blocking.
 
 mock_provider "google" {}
 
@@ -102,7 +108,8 @@ run "named_sha_without_images_is_rejected" {
   }
 
   expect_failures = [
-    check.images_required_on_apply
+    var.api_image,
+    var.worker_image
   ]
 }
 
@@ -473,7 +480,7 @@ run "calendar_sync_refuses_another_staging_project" {
   }
 
   expect_failures = [
-    check.calendar_sync_is_c1_only
+    var.project_id
   ]
 }
 
@@ -553,7 +560,7 @@ run "named_sha_without_auth_domain_is_rejected" {
   }
 
   expect_failures = [
-    check.auth_domain_required_on_apply
+    var.firebase_auth_domain
   ]
 }
 
@@ -817,14 +824,12 @@ run "missing_calendar_pin_on_apply_is_rejected" {
     }
   }
 
+  # The variable validation blocks the plan, so nothing can be mounted at all.
+  # That is stronger than the former assertion that only the missing mount was
+  # skipped, and Terraform no longer evaluates mount locals after a blocked plan.
   expect_failures = [
-    check.secret_pins_required_on_apply
+    var.worker_secret_versions
   ]
-
-  assert {
-    condition     = length(local.worker_secret_env_when_mounted) == 0
-    error_message = "A missing Calendar pin must not mount GOOGLE_CALENDAR_ID."
-  }
 }
 
 run "missing_calendar_sync_pseudonym_pin_is_rejected" {
@@ -848,7 +853,7 @@ run "missing_calendar_sync_pseudonym_pin_is_rejected" {
   }
 
   expect_failures = [
-    check.secret_pins_required_on_apply
+    var.calendar_sync_pseudonym_secret_version
   ]
 }
 
@@ -872,7 +877,7 @@ run "missing_api_pin_on_apply_is_rejected" {
   }
 
   expect_failures = [
-    check.secret_pins_required_on_apply
+    var.api_secret_versions
   ]
 
   assert {
@@ -1019,4 +1024,70 @@ run "abbreviated_source_sha_is_rejected" {
     var.api_source_sha,
     var.worker_source_sha
   ]
+}
+
+# AUD-14: required conditions block the plan instead of warning.
+
+run "calendar_sync_prerequisites_without_sha_on_another_project_are_rejected" {
+  command = plan
+
+  variables {
+    calendar_sync_prerequisites_enabled = true
+    project_id                          = "beauessence-clinic-stg-smoke1"
+  }
+
+  expect_failures = [
+    var.project_id
+  ]
+}
+
+run "named_sha_with_worker_image_from_another_project_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-other1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    api_secret_versions = {
+      CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
+      CALENDAR_PILOT_MANAGER_EMAILS       = "1"
+      CALENDAR_PILOT_FRONT_DESK_EMAILS    = "1"
+    }
+    worker_secret_versions = {
+      GOOGLE_CALENDAR_ID = "2"
+    }
+  }
+
+  expect_failures = [
+    var.worker_image
+  ]
+}
+
+run "booking_enabled_without_expiry_is_rejected" {
+  command = plan
+
+  variables {
+    internal_test_booking_enabled        = true
+    internal_test_booking_expires_at_utc = ""
+  }
+
+  expect_failures = [
+    var.internal_test_booking_expires_at_utc
+  ]
+}
+
+run "booking_enabled_with_expiry_is_accepted" {
+  command = plan
+
+  variables {
+    internal_test_booking_enabled        = true
+    internal_test_booking_expires_at_utc = "2030-01-01T00:00:00Z"
+  }
+
+  assert {
+    condition     = var.internal_test_booking_enabled == true && local.apply_enabled == false
+    error_message = "Booking with an expiry must plan, and without a SHA it stays a no-op."
+  }
 }

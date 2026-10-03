@@ -1,3 +1,14 @@
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -54,5 +65,73 @@ describe('C1 firebase authDomain policy', () => {
     expect(isAuthorizedC1FirebaseAuthDomain('*.web.app')).toBe(false);
     expect(inspectC1FirebaseAuthDomainSource().issues).toEqual([]);
     expect(inspectC1FirebaseAuthDomainSource().ok).toBe(true);
+  });
+});
+
+describe('C1 firebase authDomain apply requirement', () => {
+  const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const files = [
+    'infra/terraform/c1-internal-test-run/main.tf',
+    'infra/terraform/c1-internal-test-run/variables.tf',
+    'infra/terraform/c1-internal-test-run/terraform.tfvars.example',
+    'infra/terraform/c1-internal-test-run/noop.tftest.hcl',
+    'apps/api/src/platform/runtime/c1-firebase-auth-domain.ts',
+    'infra/config/c1-internal-test-config-contract.json'
+  ];
+
+  function inspectMutatedCopy(mutate) {
+    const dir = mkdtempSync(join(tmpdir(), 'c1-authdomain-'));
+    try {
+      for (const file of files) {
+        mkdirSync(dirname(join(dir, file)), { recursive: true });
+        cpSync(join(repoRoot, file), join(dir, file));
+      }
+      mutate((file, change) => {
+        const target = join(dir, file);
+        writeFileSync(target, change(readFileSync(target, 'utf8')));
+      });
+      return inspectC1FirebaseAuthDomainSource(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  const blockingIssue =
+    'C1 Terraform must block apply (variable validation, not a warning-only check block) when firebase_auth_domain is missing.';
+
+  it('accepts an unmodified copy of the source', () => {
+    expect(inspectMutatedCopy(() => {})).toEqual({ ok: true, issues: [] });
+  });
+
+  it('reports a warning-only check block as not blocking apply', () => {
+    const result = inspectMutatedCopy((edit) => {
+      edit(
+        'infra/terraform/c1-internal-test-run/main.tf',
+        (source) =>
+          `${source}
+check "auth_domain_required_on_apply" {
+  assert {
+    condition     = true
+    error_message = "warn only"
+  }
+}
+`
+      );
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(blockingIssue);
+  });
+
+  it('reports a missing authDomain apply validation', () => {
+    const result = inspectMutatedCopy((edit) => {
+      edit('infra/terraform/c1-internal-test-run/variables.tf', (source) =>
+        source.replace(
+          'requires firebase_auth_domain set to an authorized isolated Hosting host.',
+          'requires nothing.'
+        )
+      );
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(blockingIssue);
   });
 });

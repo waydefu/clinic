@@ -11,6 +11,10 @@ This module is the Stage F exact-SHA apply target for:
 3. Log-based metrics and alert policies matching
    [wp-b4-alert-policies.json](../../monitoring/wp-b4-alert-policies.json)
 
+Applying (a named SHA) requires `alert_email_address`. That is a variable
+validation, so `terraform plan` fails with a non-zero exit when it is missing;
+a `check` block would only warn. This needs Terraform 1.9 or later.
+
 Human notification status after this source lands:
 
 `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED`
