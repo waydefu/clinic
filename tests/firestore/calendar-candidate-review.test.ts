@@ -11,10 +11,7 @@ import {
   FirestoreBookingRepository
 } from '../../apps/api/src/firestore/booking.repository.js';
 import { FirestoreCalendarPilotRepository } from '../../apps/api/src/firestore/calendar-pilot.repository.js';
-import {
-  FirestoreClinicCalendarCandidateStore,
-  FirestoreClinicSlotLookup
-} from '../../apps/api/src/firestore/clinic-calendar-review.repository.js';
+import { FirestoreClinicCalendarCandidateStore } from '../../apps/api/src/firestore/clinic-calendar-review.repository.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -207,9 +204,10 @@ describe('Calendar candidate rejection transaction', () => {
       new FirestoreCalendarPilotRepository(db),
       clock,
       new ClinicCalendarReviewApplicationService(
-        new FirestoreBookingRepository(db),
-        new FirestoreClinicCalendarCandidateStore(db),
-        new FirestoreClinicSlotLookup(db),
+        new FirestoreClinicCalendarCandidateStore(
+          db,
+          new FirestoreBookingRepository(db)
+        ),
         clock.nowUtc
       )
     );
