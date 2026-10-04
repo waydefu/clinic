@@ -2,6 +2,7 @@ import {
   assertOutboxTraceContext,
   fullJitterBackoffMilliseconds,
   isDue,
+  isUtcIsoTimestamp,
   parseOutboxSnapshot,
   planOutboxAttempt,
   DomainError,
@@ -39,6 +40,8 @@ import {
 
 export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
+/** Latest stored follow-up decision, keyed by the completed source visit. */
+export const FOLLOW_UPS_COLLECTION = 'follow_ups';
 
 function awaitWithAbort<T>(
   startOperation: () => Promise<T>,
@@ -89,7 +92,8 @@ function awaitWithAbort<T>(
  * （`planDeletion` 寫入 `deleted`），才能把同一把日曆事件取消。
  *
  * 到診／完成更新的是「就診」事件；若需要回診，另有一筆回診提醒事件（不同
- * event id、落在回診目標日），由回診投影負責，不受這裡影響。
+ * event id、落在回診目標日），由回診投影負責，不受這裡影響。回診提醒的動作與
+ * 日期則依 `follow_ups` 裡目前的決定，見 `resolveFollowUpReminderProjection`。
  */
 const UPSERT_PROJECTION_STATUSES = new Set([
   'confirmed',
@@ -139,6 +143,52 @@ export function shouldProjectFollowUpReminder(input: {
     return false;
   }
   return true;
+}
+
+const FOLLOW_UP_DECISION_JOB_STATUSES = new Set([
+  'follow_up_required',
+  'follow_up_not_required'
+]);
+
+export interface FollowUpReminderProjection {
+  readonly projectionStatus: 'follow_up_required' | 'follow_up_not_required';
+  /** The latest stored due date; empty when there is nothing dated to project. */
+  readonly startsAt: string;
+}
+
+/**
+ * 回診提醒投影的依據是 `follow_ups/{來源就診}` 裡**目前**的決定，不是工作建立時
+ * 帶的狀態與日期。舊工作可能等到退避結束、或由病人資料保存期處理排入，執行時
+ * 決定早已改變或被刪除：
+ *
+ * - 文件不存在（永久刪除已移除它）→ 取消，絕不 upsert；
+ * - `not_required` → 取消；
+ * - `required` 且有 `dueAt` → 以目前儲存的 `dueAt` upsert；
+ * - `required` 但未排定日期 → 沒有可投影的日期事件；
+ * - 內容無法判讀 → DomainError（不可重試的死信），不碰日曆。
+ */
+export function resolveFollowUpReminderProjection(
+  stored: Readonly<Record<string, unknown>> | undefined
+): FollowUpReminderProjection {
+  if (stored === undefined)
+    return { projectionStatus: 'follow_up_not_required', startsAt: '' };
+  const decision = stored['decision'];
+  if (decision === 'not_required')
+    return { projectionStatus: 'follow_up_not_required', startsAt: '' };
+  if (decision !== 'required')
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The stored follow-up decision is unreadable.'
+    );
+  const dueAt = stored['dueAt'];
+  if (dueAt === undefined || dueAt === null)
+    return { projectionStatus: 'follow_up_required', startsAt: '' };
+  if (typeof dueAt !== 'string' || !isUtcIsoTimestamp(dueAt))
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The stored follow-up due date is unreadable.'
+    );
+  return { projectionStatus: 'follow_up_required', startsAt: dueAt };
 }
 
 /** 租約時間：領走的工作若超過此秒數未回報，視為 worker 已死，可被重新領取。 */
@@ -441,18 +491,34 @@ export class OutboxProcessor {
       // 回診提醒則是另一個 event ID，動作由該投影自己的狀態決定；來源預約本來
       // 就必須是 completed，若誤用來源狀態會把新提醒當成 cancel。
       const isFollowUpProjection = job.followUpSourceId !== undefined;
-      const projectionStatus = isFollowUpProjection
+      let projectionStatus = isFollowUpProjection
         ? (job.appointmentStatus ?? 'unknown')
         : appointmentStatus;
-      // Dated follow-up reminders use job.startsAt. Required-but-unscheduled
-      // must not inherit the completed visit's time as a fake appointment.
-      const startsAt = isFollowUpProjection
+      // Dated follow-up reminders use the stored due date (below). Required-but-
+      // unscheduled must not inherit the completed visit's time as a fake
+      // appointment.
+      let startsAt = isFollowUpProjection
         ? (job.startsAt ?? '')
         : (job.startsAt ?? (appointment.data()?.['startsAt'] as string) ?? '');
       const attemptStartedAt = this.monotonicNow();
       let outcome: AttemptOutcome;
       let action: CalendarAction | undefined;
       try {
+        // A reminder decision job only says "re-project this reminder": what to
+        // do is decided by the latest stored decision (AUD-05). Read inside the
+        // try so a transient read failure is retried like any other attempt.
+        if (
+          job.followUpSourceId !== undefined &&
+          FOLLOW_UP_DECISION_JOB_STATUSES.has(job.appointmentStatus ?? '')
+        ) {
+          const decision = await this.db
+            .collection(FOLLOW_UPS_COLLECTION)
+            .doc(job.followUpSourceId)
+            .get();
+          ({ projectionStatus, startsAt } = resolveFollowUpReminderProjection(
+            decision.exists ? decision.data() : undefined
+          ));
+        }
         action = actionForStatus(projectionStatus);
         assertOutboxTraceContext(job);
         const projectionStartedAt = at();

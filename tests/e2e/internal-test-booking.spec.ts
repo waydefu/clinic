@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { expect, test, type Page } from '@playwright/test';
 
 import { chooseNationality, fillBirthDate } from './support/patient';
@@ -19,6 +21,10 @@ type ContractBooking = {
   status: 'confirmed' | 'arrived' | 'cancelled' | 'completed' | 'no_show';
   startsAt: string;
   endsAt?: string;
+  bookingKind?: 'initial' | 'follow_up';
+  slotId?: string;
+  patientId?: string;
+  patientNote?: string;
 };
 
 type CreateStub = 'closed' | ContractBooking;
@@ -80,6 +86,8 @@ async function stubV1(
   mutations: Partial<Record<MutationKind, MutationStub>> = {},
   extras: {
     getBooking?: ContractBooking;
+    /** Staff clinic list (`GET /v1/bookings`); a function so a test can echo what was posted. */
+    listBookings?: () => ContractBooking[];
     publish?: PublishStub;
     returnLookup?: ReturnLookupStub;
   } = {}
@@ -175,6 +183,14 @@ async function stubV1(
         return;
       }
     }
+    if (
+      path === '/v1/bookings' &&
+      method === 'GET' &&
+      extras.listBookings !== undefined
+    ) {
+      await route.fulfill({ json: { appointments: extras.listBookings() } });
+      return;
+    }
     const query = /^\/v1\/bookings\/[^/]+$/.exec(path);
     if (method === 'GET' && query !== null && extras.getBooking !== undefined) {
       posted.query = { path };
@@ -266,6 +282,14 @@ async function fillStaffOptInCreateForm(
 
 function upcomingIso(hoursFromNow: number): string {
   return new Date(Date.now() + hoursFromNow * 3_600_000).toISOString();
+}
+
+/** iCalendar／Google 日曆網址的 UTC 時間格式：20300102T040000Z。 */
+function calendarStamp(iso: string): string {
+  return new Date(iso)
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 }
 
 test.describe('internal-test booking occupancy overlay', () => {
@@ -1075,6 +1099,302 @@ test.describe('internal-test booking occupancy overlay', () => {
     );
     await expect(page.locator('.booking-lookup-card')).toBeVisible();
     expect(posted.query.path).toBe('/v1/bookings/appointment_api_001');
+  });
+
+  // AUD-11：GET /v1/bookings/:id 的回應帶 bookingKind 與 slotId，但查詢卡沒有
+  // 把它們留下來，於是改期選項（同掛號別、排除原時段）整個消失。
+  test('lookup by opaque id keeps the booking kind and slot so reschedule options remain', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const altStartsAt = upcomingIso(72);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_lookup_current',
+            kind: 'follow_up',
+            startsAt,
+            available: true
+          },
+          {
+            slotId: 'slot_lookup_alt',
+            kind: 'follow_up',
+            startsAt: altStartsAt,
+            available: true
+          },
+          {
+            slotId: 'slot_lookup_other_kind',
+            kind: 'initial',
+            startsAt: upcomingIso(96),
+            available: true
+          }
+        ]
+      },
+      'closed',
+      {
+        reschedule: {
+          appointmentId: 'appointment_api_001',
+          status: 'confirmed',
+          startsAt: altStartsAt,
+          endsAt: upcomingIso(72.5)
+        }
+      },
+      {
+        getBooking: {
+          appointmentId: 'appointment_api_001',
+          status: 'confirmed',
+          startsAt,
+          endsAt: upcomingIso(48.5),
+          bookingKind: 'follow_up',
+          slotId: 'slot_lookup_current'
+        }
+      }
+    );
+
+    await page.goto('/booking?internalTestBooking=1');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.locator('#booking-management-open').click();
+    await page.locator('#booking-lookup-phone').fill('appointment_api_001');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '找到 1 筆預約'
+    );
+    await expect(page.locator('.booking-lookup-card')).toContainText('回診');
+    const select = page.locator(
+      '[data-managed-reschedule-slot="appointment_api_001"]'
+    );
+    await expect(select).toBeVisible();
+    // 只有同掛號別、且不是原時段的空位。
+    expect(
+      await select.evaluate((element: HTMLSelectElement) =>
+        [...element.options].map((option) => option.value).filter(Boolean)
+      )
+    ).toEqual(['slot_lookup_alt']);
+
+    await select.selectOption('slot_lookup_alt');
+    await page.locator('[data-managed-reschedule]').click();
+    await page.getByRole('button', { name: '確認改期' }).click();
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '預約已改期'
+    );
+    expect(posted.reschedule.path).toBe(
+      '/v1/bookings/appointment_api_001/reschedule'
+    );
+    expect(posted.reschedule.body).toMatchObject({
+      targetSlotId: 'slot_lookup_alt'
+    });
+  });
+
+  // AUD-12：結果畫面的 .ics 與 Google 日曆網址讀的是建立當下的預約，改期後
+  // 沒有跟著更新，患者加入行事曆的仍是舊時間。
+  test('reschedule updates the result screen and both calendar exports to the new time', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const altStartsAt = upcomingIso(72);
+    await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          },
+          {
+            slotId: 'slot_overlay_alt',
+            kind: 'initial',
+            startsAt: altStartsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt: upcomingIso(48.5)
+      },
+      {
+        reschedule: {
+          appointmentId: 'appointment_api_001',
+          status: 'confirmed',
+          startsAt: altStartsAt,
+          endsAt: upcomingIso(72.5)
+        }
+      }
+    );
+
+    await createOptInBooking(page, 'slot_overlay_open', 'appointment_api_001');
+    await openCreatedBookingManagement(page);
+    const cardTime = page.locator('.booking-lookup-card-heading strong');
+    const oldWhen = await cardTime.innerText();
+    await page
+      .locator('[data-managed-reschedule-slot="appointment_api_001"]')
+      .selectOption('slot_overlay_alt');
+    await page.locator('[data-managed-reschedule]').click();
+    await page.getByRole('button', { name: '確認改期' }).click();
+    await expect(page.locator('#booking-complete-heading')).toHaveText(
+      '預約已改期'
+    );
+
+    // 結果畫面：顯示新時間，不再只說「已改期」。
+    const newWhen = await cardTime.innerText();
+    expect(newWhen).not.toBe(oldWhen);
+    await expect.soft(page.locator('#booking-result')).toContainText(newWhen);
+    await expect
+      .soft(page.locator('#booking-result'))
+      .not.toContainText(oldWhen);
+
+    // 兩種匯出都是新時間。
+    await page.locator('#booking-management-close').click();
+    const at = calendarStamp(altStartsAt);
+    const href = await page
+      .locator('#add-to-google-calendar')
+      .getAttribute('href');
+    expect
+      .soft(new URL(href ?? '').searchParams.get('dates'))
+      .toBe(`${at}/${at}`);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#add-to-calendar').click()
+    ]);
+    const ics = readFileSync(await download.path(), 'utf8');
+    expect.soft(ics).toContain(`DTSTART:${at}`);
+    expect.soft(ics).not.toContain(`DTSTART:${calendarStamp(startsAt)}`);
+  });
+
+  // AUD-13：患者備註經 POST /v1/bookings 送出、由伺服器只在櫃台清單回傳；
+  // 工作臺 transport 先前把它丟掉，渲染器永遠看不到。
+  test('a patient note from the booking page shows as plain text in the staff list', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const endsAt = upcomingIso(48.5);
+    const note = '<b>合成備註</b>：想問術後照護';
+    // 伺服器端的替身：回傳剛剛收到的備註，與 BOOKING-NOTE-STORAGE 一致。
+    const server: { storedNote?: string } = {};
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_note_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt
+      },
+      {},
+      {
+        listBookings: () => [
+          {
+            appointmentId: 'appointment_api_note_001',
+            status: 'confirmed',
+            startsAt,
+            endsAt,
+            bookingKind: 'initial',
+            slotId: 'slot_overlay_open',
+            patientId: 'patient_opaque_note_001',
+            ...(server.storedNote === undefined
+              ? {}
+              : { patientNote: server.storedNote })
+          }
+        ]
+      }
+    );
+
+    await page.goto('/booking?internalTestBooking=1');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await openPatientSlotStep(page);
+    await page.locator('[data-patient-slot="slot_overlay_open"]').click();
+    await fillPatientCreateForm(page);
+    await page.locator('#patient-note').fill(note);
+    await page.locator('#confirm-patient-booking').click();
+    await expect(page.locator('#booking-result')).toContainText(
+      'appointment_api_note_001'
+    );
+    expect(posted.body).toMatchObject({ patientNote: note });
+    server.storedNote = posted.body?.patientNote as string;
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await page.evaluate(() => {
+      window.location.hash = 'appointments-section';
+    });
+    await showAllAppointments(page);
+    const card = page.locator(
+      '[data-appointment-card="appointment_api_note_001"]'
+    );
+    await expect(card.locator('.note-chip')).toHaveText(`患者：${note}`);
+    // 備註是文字，不是標記：沒有任何元素是從備註內容長出來的。
+    await expect(card.locator('b')).toHaveCount(0);
+  });
+
+  // AUD-15：API 模式的資料會送到診所的測試伺服器；頁面不能照樣說「只存在
+  // 瀏覽器」。本機模式的對照在 patient-booking.spec.ts。
+  test('API mode states that the data is sent to the clinic test server, not kept only in the browser', async ({
+    page
+  }) => {
+    await stubV1(page, {
+      slots: [
+        {
+          slotId: 'slot_overlay_open',
+          kind: 'initial',
+          startsAt: upcomingIso(48),
+          available: true
+        }
+      ]
+    });
+    await page.goto('/booking?internalTestBooking=1');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+
+    const sentToServer = '會送到診所的測試伺服器';
+    const browserOnly =
+      /只(?:會)?(?:存|保存|留)在?(?:本機|我這台|您這台|這台|目前)/;
+    await expect(page.locator('#patient-preview-warning')).toContainText(
+      sentToServer
+    );
+    await expect(page.locator('#patient-announcement')).toContainText(
+      sentToServer
+    );
+
+    await openPatientSlotStep(page);
+    await page.locator('[data-patient-slot="slot_overlay_open"]').click();
+    await expect(page.locator('#synthetic-confirmation-text')).toHaveText(
+      `我了解此頁為測試版本，填寫的資料${sentToServer}。`
+    );
+
+    // 沒勾確認就送出：行內錯誤也要說同一件事。
+    await page.locator('#patient-name').fill('測試患者乙');
+    await page.locator('#patient-phone').fill('0922333444');
+    await fillBirthDate(page, { month: '11', day: '02' });
+    await chooseNationality(page);
+    await page.locator('#privacy-consent').check();
+    await page.locator('#confirm-patient-booking').click();
+    await expect(page.locator('#synthetic-confirmation-error')).toContainText(
+      sentToServer
+    );
+
+    // 畫面上看得見的文字，沒有任何一句還說資料只存在瀏覽器。
+    const visibleText = await page.locator('body').innerText();
+    expect(visibleText).not.toMatch(browserOnly);
   });
 
   test('verified return lookup switches the live flow to follow-up slots', async ({

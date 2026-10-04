@@ -63,7 +63,7 @@ interface StoredConfiguration extends CalendarSourceConfiguration {
 function publicCandidate(
   candidate: CalendarCandidateDraft,
   suggestion?: SuggestedPatient,
-  unmatchedRange?: { readonly startsAt: string; readonly endsAt: string }
+  eventRange?: { readonly startsAt: string; readonly endsAt: string }
 ) {
   const parsed = candidate.parsed;
   const previous = candidate.previousParsed;
@@ -81,8 +81,8 @@ function publicCandidate(
       : candidate.kind === 'unmatched'
         ? '未對應事件'
         : '格式需修正',
-    startsAt: parsed.ok ? parsed.startsAt : (unmatchedRange?.startsAt ?? null),
-    endsAt: parsed.ok ? parsed.endsAt : (unmatchedRange?.endsAt ?? null),
+    startsAt: parsed.ok ? parsed.startsAt : (eventRange?.startsAt ?? null),
+    endsAt: parsed.ok ? parsed.endsAt : (eventRange?.endsAt ?? null),
     appointmentId: candidate.localRecordId ?? null,
     ...(suggestion === undefined
       ? {}
@@ -281,18 +281,19 @@ export class FirestoreCalendarSyncRepository
             this.db.collection(PATIENT_LOOKUP_INDEX).doc(lookupId)
           );
           const ids = indexedPatientIds(lookup.data());
-          const [patientId] = ids;
-          return ids.length !== 1 ||
-            patientId === undefined ||
-            !/^[A-Za-z0-9_-]{1,128}$/.test(patientId)
+          // The index keeps archived patients' IDs (PR #208), so several IDs
+          // can still mean a single active patient. A malformed ID means a
+          // corrupt entry: fail closed rather than guess around it.
+          return ids.length === 0 ||
+            ids.some((id) => !/^[A-Za-z0-9_-]{1,128}$/.test(id))
             ? undefined
-            : { candidateId: mutation.candidate.candidateId, patientId };
+            : { candidateId: mutation.candidate.candidateId, patientIds: ids };
         })
       );
       const patientIdsToRead = [
         ...new Set(
           suggestionLookupReads.flatMap((read) =>
-            read === undefined ? [] : [read.patientId]
+            read === undefined ? [] : read.patientIds
           )
         )
       ];
@@ -312,12 +313,19 @@ export class FirestoreCalendarSyncRepository
             : [];
         })
       );
+      // Suggest only when exactly one indexed ID is an existing, non-archived
+      // patient; zero or several active patients leave the choice to staff.
       const suggestions = new Map(
-        suggestionLookupReads.flatMap((read) =>
-          read !== undefined && activePatientIds.has(read.patientId)
-            ? [[read.candidateId, { patientId: read.patientId }] as const]
-            : []
-        )
+        suggestionLookupReads.flatMap((read) => {
+          if (read === undefined) return [];
+          const active = read.patientIds.filter((patientId) =>
+            activePatientIds.has(patientId)
+          );
+          const [patientId] = active;
+          return active.length === 1 && patientId !== undefined
+            ? [[read.candidateId, { patientId }] as const]
+            : [];
+        })
       );
 
       for (const mutation of commit.mutations) {
@@ -339,7 +347,7 @@ export class FirestoreCalendarSyncRepository
               publicCandidate(
                 mutation.candidate,
                 suggestion,
-                mutation.unmatchedRange
+                mutation.unmatchedRange ?? mutation.proposedRange
               )
             );
             transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {
@@ -362,7 +370,7 @@ export class FirestoreCalendarSyncRepository
               publicCandidate(
                 mutation.candidate,
                 suggestion,
-                mutation.unmatchedRange
+                mutation.unmatchedRange ?? mutation.proposedRange
               )
             );
             transaction.create(this.db.collection(AUDITS).doc(randomUUID()), {

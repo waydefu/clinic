@@ -22,7 +22,10 @@ import {
   patientRescheduleTargets
 } from './modules/patient-booking-management.js';
 import { isUpcomingSlot } from './modules/schedule-engine.js';
-import { storageKey } from './modules/state-schema.js';
+import {
+  DEFAULT_ANNOUNCEMENT_BODY,
+  storageKey
+} from './modules/state-schema.js';
 import {
   emptyState,
   escapeHtml,
@@ -39,6 +42,17 @@ import { runPendingAction } from './modules/async-action.js';
 
 const identityKeyStorage = 'beauessence_patient_last_identity';
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
+// 資料去向的告知（AUD-15）。patient.html 內的預設文字是「本機模式」：資料只在
+// 這台瀏覽器（沒有 JavaScript 時也正確）。API 模式（內部測試路由）會把資料送到
+// 診所的測試伺服器，同樣那幾句就必須換掉，不能照樣說「只存瀏覽器」。
+const apiMode = isInternalTestBookingEnabled();
+const API_STORAGE_NOTICE = {
+  warning:
+    '合成測試預覽｜勿填真實患者或健康資料；測試資料會送到診所的測試伺服器。',
+  confirmation: '我了解此頁為測試版本，填寫的資料會送到診所的測試伺服器。',
+  confirmationError: '請勾選此項才能送出：確認資料會送到診所的測試伺服器。',
+  announcement: '目前為測試版本，輸入的資料會送到診所的測試伺服器。'
+};
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element])
 );
@@ -95,9 +109,11 @@ function managedFromContract(result, extras = {}) {
     id: result.appointmentId,
     startsAt: result.startsAt,
     status: result.status ?? 'confirmed',
-    bookingKind: extras.bookingKind,
+    // 查詢（GET /bookings/:id）的回應自帶 bookingKind 與 slotId；沒有它們，
+    // 改期選項（同掛號別、排除原時段）就算不出來。呼叫端另給的值優先。
+    bookingKind: extras.bookingKind ?? result.bookingKind,
     itemLabel: extras.itemLabel ?? '',
-    slotId: extras.slotId
+    slotId: extras.slotId ?? result.slotId
   };
 }
 
@@ -293,7 +309,7 @@ function renderWorkspace() {
   elements['patient-announcement'].hidden = a.status !== 'published';
   elements['patient-announcement'].innerHTML =
     a.status === 'published'
-      ? `<div><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.body)}</span></div>`
+      ? `<div><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(apiMode && a.body === DEFAULT_ANNOUNCEMENT_BODY ? API_STORAGE_NOTICE.announcement : a.body)}</span></div>`
       : '';
   const active = state.maintenanceActive === true;
   elements['patient-maintenance'].hidden = !active;
@@ -921,8 +937,9 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
       return;
     }
     if (!elements['synthetic-confirmation'].checked) {
-      elements['synthetic-confirmation-error'].textContent =
-        '請勾選此項才能送出：確認資料只保存在這台裝置的瀏覽器。';
+      elements['synthetic-confirmation-error'].textContent = apiMode
+        ? API_STORAGE_NOTICE.confirmationError
+        : '請勾選此項才能送出：確認資料只保存在這台裝置的瀏覽器。';
       elements['synthetic-confirmation-error'].hidden = false;
       elements['synthetic-confirmation'].focus();
       message(
@@ -1325,13 +1342,21 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
         renderManagedAppointments();
       }
       if (appointment.id === completedAppointmentId) {
+        // 結果畫面的兩個匯出（.ics 下載、Google 日曆網址）都讀
+        // completedAppointment；它不跟著新時間更新，改期後加入行事曆的仍是舊時間。
+        const { startsAt } = managedAppointments.find(
+          (item) => item.id === appointment.id
+        );
+        completedAppointment = { ...completedAppointment, startsAt };
+        elements['add-to-google-calendar'].href =
+          buildGoogleCalendarUrl(completedAppointment);
         elements['booking-complete-mark'].textContent = '✓';
         elements['booking-complete-eyebrow'].textContent = 'BOOKING UPDATED';
         elements['booking-complete-heading'].textContent = '預約已改期';
         elements['booking-complete-description'].textContent =
           '改期已完成，請以新時段為準。';
         elements['booking-result'].innerHTML =
-          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>狀態：已改期</span>`;
+          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>${escapeHtml(formatFullDate(startsAt))} ${escapeHtml(formatTime(startsAt))} · 狀態：已改期</span>`;
       }
       renderSlots();
       message('預約已改期，原時段已釋出。', 'success', 'booking-lookup-status');
@@ -1363,9 +1388,12 @@ window.addEventListener('storage', async (event) => {
 });
 
 const environmentBadge = document.querySelector('.environment-badge');
-if (isInternalTestBookingEnabled()) {
+if (apiMode) {
   environmentBadge.lastChild.textContent = 'INTERNAL TEST';
   elements['patient-env-boundary'].textContent = '內部測試路由 · 非正式上線';
+  elements['patient-preview-warning'].textContent = API_STORAGE_NOTICE.warning;
+  elements['synthetic-confirmation-text'].textContent =
+    API_STORAGE_NOTICE.confirmation;
 } else if (isOnline) {
   environmentBadge.lastChild.textContent = 'ONLINE PREVIEW';
   elements['patient-env-boundary'].textContent =

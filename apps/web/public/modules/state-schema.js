@@ -13,6 +13,10 @@ import { cloneSchedule, generateSlots } from './schedule-engine.js';
 // schemaVersion 7 的 blob 會被 isUsableState 丟棄，下一次 saveState 覆寫同鍵。
 export const storageKey = 'beauessence_synthetic_online_preview_v7';
 const SCHEMA_VERSION = 8;
+// 預設公告的內文是「本機模式」的資料去向。患者頁在 API 模式（資料送到診所的
+// 測試伺服器）要認得它並換掉，所以匯出這個值，不在兩處各抄一份字串。
+export const DEFAULT_ANNOUNCEMENT_BODY =
+  '目前為測試版本，輸入的資料只會留在您這台裝置的瀏覽器。';
 // 只清理由本應用歷史版本建立過的精確鍵名，不掃整個 localStorage，也不碰主題或
 // 同 origin 其他用途的資料。v1～v6 可由 Git 歷史逐一核對。
 const LEGACY_STORAGE_KEYS = Object.freeze([

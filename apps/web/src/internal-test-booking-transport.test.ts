@@ -4,7 +4,9 @@ import {
   httpTransportError,
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
+import { renderAppointments } from '../public/modules/admin-view.js';
 import { DEFAULT_BLOCKED_TIMES } from '../public/modules/constants.js';
+import { initialState } from '../public/modules/state-schema.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../public/vendor/domain/calendar-sync.js';
 import {
   applyDeleteContractWrite,
@@ -772,6 +774,81 @@ describe('createInternalTestBookingTransport', () => {
       slots: []
     });
     expect(local).not.toHaveBeenCalled();
+  });
+
+  // AUD-13：伺服器依 BOOKING-NOTE-STORAGE-2026-09-29 只在櫃台清單回傳患者備註；
+  // 工作臺 transport 把清單列映射成本機形狀時沒帶這一欄，備註在這裡被丟掉，
+  // 工作臺的渲染器（早已會顯示 appointment.patientNote）永遠看不到它。
+  describe('staff clinic list (AUD-13)', () => {
+    const SYNTHETIC_NOTE = '合成備註：想問術後照護';
+    const HOSTILE_NOTE = '<img src=x onerror=alert(1)>合成備註';
+
+    function stateWithListedNotes(notes: Array<string | undefined>) {
+      const local = vi.fn(() => Promise.resolve({ version: 8, slots: [] }));
+      const fetchImpl = vi.fn((url) => {
+        if (url === '/v1/slots') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ slots: [] })
+          });
+        }
+        if (url === '/v1/bookings') {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                appointments: notes.map((patientNote, index) => ({
+                  appointmentId: `appointment_api_00${index + 1}`,
+                  status: 'confirmed',
+                  startsAt: '2030-01-02T04:00:00.000Z',
+                  endsAt: '2030-01-02T04:30:00.000Z',
+                  bookingKind: 'initial',
+                  slotId: `slot_20300102_120${index}`,
+                  patientId: `patient_opaque_00${index + 1}`,
+                  ...(patientNote === undefined ? {} : { patientNote })
+                }))
+              })
+          });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          json: () => Promise.resolve({ error: { code: 'NOT_FOUND' } })
+        });
+      });
+      return createInternalTestBookingTransport({
+        local,
+        toError: httpTransportError,
+        fetchImpl
+      })('/state');
+    }
+
+    it('keeps the patient note on the mapped appointment and omits it when absent', async () => {
+      const state: any = await stateWithListedNotes([
+        SYNTHETIC_NOTE,
+        undefined,
+        ''
+      ]);
+      expect(state.appointments[0].patientNote).toBe(SYNTHETIC_NOTE);
+      expect(state.appointments[1]).not.toHaveProperty('patientNote');
+      expect(state.appointments[2]).not.toHaveProperty('patientNote');
+    });
+
+    it('renders the listed note as inert text in the staff list', async () => {
+      const state: any = await stateWithListedNotes([HOSTILE_NOTE]);
+      const render: any = initialState();
+      render.appointments = state.appointments;
+      const html = renderAppointments(render, {
+        status: 'all',
+        kind: 'all',
+        query: ''
+      });
+      expect(html).toContain('note-chip');
+      expect(html).toContain(
+        '患者：&lt;img src=x onerror=alert(1)&gt;合成備註'
+      );
+      expect(html).not.toContain('<img');
+    });
   });
 });
 
