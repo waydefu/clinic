@@ -16,7 +16,10 @@ import {
   type ArchivePatientCommand,
   type RestorePatientCommand
 } from '../../apps/api/src/firestore/business-delivery-retention.repository.js';
-import { createAppointmentIdempotency } from '../../apps/api/src/idempotency/appointment-idempotency.js';
+import {
+  createAppointmentIdempotency,
+  rescheduleAppointmentIdempotency
+} from '../../apps/api/src/idempotency/appointment-idempotency.js';
 import {
   FirestorePatientDirectory,
   PATIENT_COLLECTIONS
@@ -344,5 +347,206 @@ describe('booking create against an archived patient (AUD-07, partial)', () => {
         expect(appointment.data()['patientArchived']).toBe(true);
       }
     }
+  });
+});
+
+// A past-dated confirmed appointment does not stop an archive (only a future
+// confirmed or arrived one does), so it stays on the archived patient. Moving
+// it to a future slot would give an archived patient a future appointment,
+// which ADR-0010 item 7 forbids: archived patients stay out of booking flows.
+describe('reschedule of an archived patient’s appointment (ADR-0010 item 7)', () => {
+  function rescheduleRequest(input: {
+    readonly appointmentId: string;
+    readonly targetSlotId: string;
+    readonly idempotencyKey: string;
+    readonly expectedPatientId?: string;
+  }) {
+    return {
+      appointmentId: input.appointmentId,
+      targetSlotId: input.targetSlotId,
+      ...(input.expectedPatientId === undefined
+        ? {}
+        : { expectedPatientId: input.expectedPatientId }),
+      audit: {
+        actorId: 'actor_front_desk_001',
+        actorRole: 'test_front_desk',
+        correlationId: `corr_${input.idempotencyKey}`,
+        source: 'api' as const,
+        reasonCode: null,
+        policyVersion: null
+      },
+      requestedAt: REQUESTED_AT,
+      idempotency: rescheduleAppointmentIdempotency({
+        key: input.idempotencyKey,
+        actorId: 'actor_front_desk_001',
+        appointmentId: input.appointmentId,
+        targetSlotId: input.targetSlotId
+      })
+    };
+  }
+
+  /** Books, then archives; the booking is past at archive time, so it stays. */
+  async function archivedPatientWithPastConfirmedBooking(
+    phone: string,
+    patientId: string,
+    appointmentId: string
+  ): Promise<void> {
+    await resolvePatient(phone, patientId);
+    await bookings.reserve(
+      bookingRequest({
+        patientId,
+        appointmentId,
+        idempotencyKey: `idem_${appointmentId}`
+      })
+    );
+    await retention.archive(
+      archiveCommand(patientId, `archive-${appointmentId}`)
+    );
+    const appointment = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(appointmentId)
+      .get();
+    // The archive flagged the row; it is still confirmed and still movable.
+    expect(appointment.data()).toMatchObject({
+      status: 'confirmed',
+      patientArchived: true
+    });
+  }
+
+  it('refuses to move it to a future slot, and writes nothing', async () => {
+    await archivedPatientWithPastConfirmedBooking(
+      '0900000401',
+      'patient_arch_move_1',
+      'appointment_arch_move_1'
+    );
+    const before = await snapshotBookingState();
+
+    await expect(
+      bookings.reschedule(
+        rescheduleRequest({
+          appointmentId: 'appointment_arch_move_1',
+          targetSlotId: OTHER_SLOT_ID,
+          idempotencyKey: 'idem_move_arch_1'
+        })
+      )
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    expect(await snapshotBookingState()).toEqual(before);
+  });
+
+  it('refuses the same move requested by the patient too', async () => {
+    await archivedPatientWithPastConfirmedBooking(
+      '0900000402',
+      'patient_arch_move_2',
+      'appointment_arch_move_2'
+    );
+    const before = await snapshotBookingState();
+
+    await expect(
+      bookings.reschedule(
+        rescheduleRequest({
+          appointmentId: 'appointment_arch_move_2',
+          targetSlotId: OTHER_SLOT_ID,
+          idempotencyKey: 'idem_move_arch_2',
+          expectedPatientId: 'patient_arch_move_2'
+        })
+      )
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    expect(await snapshotBookingState()).toEqual(before);
+  });
+
+  it('keeps answering an unknown owner as not found instead of revealing the archive', async () => {
+    await archivedPatientWithPastConfirmedBooking(
+      '0900000403',
+      'patient_arch_move_3',
+      'appointment_arch_move_3'
+    );
+
+    await expect(
+      bookings.reschedule(
+        rescheduleRequest({
+          appointmentId: 'appointment_arch_move_3',
+          targetSlotId: OTHER_SLOT_ID,
+          idempotencyKey: 'idem_move_arch_3',
+          expectedPatientId: 'patient_someone_else'
+        })
+      )
+    ).rejects.toMatchObject({ code: 'APPOINTMENT_NOT_FOUND' });
+  });
+
+  it('replays a reschedule that committed before the archive', async () => {
+    const patientId = await resolvePatient('0900000404', 'patient_arch_move_4');
+    await bookings.reserve(
+      bookingRequest({
+        patientId,
+        appointmentId: 'appointment_arch_move_4',
+        idempotencyKey: 'idem_appointment_arch_move_4'
+      })
+    );
+    const request = rescheduleRequest({
+      appointmentId: 'appointment_arch_move_4',
+      targetSlotId: OTHER_SLOT_ID,
+      idempotencyKey: 'idem_move_arch_4'
+    });
+    await bookings.reschedule(request);
+    await retention.archive(archiveCommand(patientId, 'archive-move-arch-4'));
+
+    await expect(bookings.reschedule(request)).resolves.toMatchObject({
+      appointmentId: 'appointment_arch_move_4',
+      replayed: true
+    });
+  });
+
+  it('still reschedules for an active patient, before and after a restore', async () => {
+    const patientId = await resolvePatient('0900000405', 'patient_arch_move_5');
+    await bookings.reserve(
+      bookingRequest({
+        patientId,
+        appointmentId: 'appointment_arch_move_5',
+        idempotencyKey: 'idem_appointment_arch_move_5'
+      })
+    );
+    await expect(
+      bookings.reschedule(
+        rescheduleRequest({
+          appointmentId: 'appointment_arch_move_5',
+          targetSlotId: OTHER_SLOT_ID,
+          idempotencyKey: 'idem_move_arch_5a'
+        })
+      )
+    ).resolves.toMatchObject({ replayed: false });
+
+    await retention.archive(archiveCommand(patientId, 'archive-move-arch-5'));
+    await retention.restore(restoreCommand(patientId, 'restore-move-arch-5'));
+    await expect(
+      bookings.reschedule(
+        rescheduleRequest({
+          appointmentId: 'appointment_arch_move_5',
+          targetSlotId: SLOT_ID,
+          idempotencyKey: 'idem_move_arch_5b'
+        })
+      )
+    ).resolves.toMatchObject({ replayed: false });
+  });
+
+  it('keeps rescheduling for a patient that has no patient record (legacy fixtures)', async () => {
+    await bookings.reserve(
+      bookingRequest({
+        patientId: 'patient_without_record',
+        appointmentId: 'appointment_arch_move_6',
+        idempotencyKey: 'idem_appointment_arch_move_6'
+      })
+    );
+
+    await expect(
+      bookings.reschedule(
+        rescheduleRequest({
+          appointmentId: 'appointment_arch_move_6',
+          targetSlotId: OTHER_SLOT_ID,
+          idempotencyKey: 'idem_move_arch_6'
+        })
+      )
+    ).resolves.toMatchObject({ replayed: false });
   });
 });

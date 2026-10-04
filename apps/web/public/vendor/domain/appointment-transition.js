@@ -1,4 +1,4 @@
-import { assertReschedulable, assertSlotMeetsEarliestLead, assertTransitionAllowed, OPEN_STATUSES } from './appointment-rules.js';
+import { assertReschedulable, assertSlotMeetsEarliestLead, assertTransitionAllowed, assertWithinSelfRescheduleWindow, OPEN_STATUSES } from './appointment-rules.js';
 import { planAuditEvent } from './audit.js';
 import { assertSlotNotInPast, assertSlotWithinBookingHorizon } from './booking-horizon.js';
 import { patientBookingGuardHolds } from './booking-transaction.js';
@@ -234,6 +234,9 @@ export function planReschedule(request, appointment, targetSlot, patientBookingG
         (request.expectedPatientId !== undefined &&
             appointment.patientId !== request.expectedPatientId)) {
         throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
+    }
+    if (request.expectedPatientId !== undefined) {
+        assertWithinSelfRescheduleWindow(appointment.startsAt, request.requestedAt);
     }
     // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。
     assertReschedulable(appointment.status, appointment.slotId, targetSlot, appointment.bookingKind);

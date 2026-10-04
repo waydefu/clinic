@@ -532,3 +532,126 @@ describe('reschedule in a Firestore transaction', () => {
     );
   });
 });
+
+// Patient self-service window (10:00 Taipei on the appointment day). The
+// transaction judges it after replaying a recorded key, against the
+// appointment it read, so a same-key retry of a move that put the appointment
+// past the cutoff is answered with the first result.
+describe('patient self-service reschedule window in a Firestore transaction', () => {
+  const SLOT_NEXT_WEEK = 'slot_20300109_1200';
+  const SLOT_SAME_DAY_A = 'slot_20300102_1400';
+  const SLOT_SAME_DAY_B = 'slot_20300102_1430';
+  // 11:00 in Taipei on 2030-01-02: after that day's cutoff, while next week's
+  // appointment is still inside its own window.
+  const AFTER_CUTOFF_AT = '2030-01-02T03:00:00.000Z';
+
+  beforeEach(async () => {
+    await db.collection(COLLECTIONS.slots).doc(SLOT_A).set({
+      kind: 'initial',
+      startsAt: '2030-01-02T04:00:00.000Z'
+    });
+    await db.collection(COLLECTIONS.slots).doc(SLOT_NEXT_WEEK).set({
+      kind: 'initial',
+      startsAt: '2030-01-09T04:00:00.000Z',
+      reservationId: APPOINTMENT
+    });
+    await db
+      .collection(COLLECTIONS.slots)
+      .doc(SLOT_SAME_DAY_A)
+      .set({ kind: 'initial', startsAt: '2030-01-02T06:00:00.000Z' });
+    await db
+      .collection(COLLECTIONS.slots)
+      .doc(SLOT_SAME_DAY_B)
+      .set({ kind: 'initial', startsAt: '2030-01-02T06:30:00.000Z' });
+    await db.collection(COLLECTIONS.appointments).doc(APPOINTMENT).update({
+      slotId: SLOT_NEXT_WEEK,
+      startsAt: '2030-01-09T04:00:00.000Z'
+    });
+  });
+
+  const move = (
+    targetSlotId: string,
+    key: string,
+    who: 'patient' | 'staff' = 'patient'
+  ) =>
+    repository.reschedule({
+      appointmentId: APPOINTMENT,
+      targetSlotId,
+      ...(who === 'patient' ? { expectedPatientId: 'patient_001' } : {}),
+      audit: {
+        actorId: who === 'patient' ? 'patient_001' : 'actor_front_desk_001',
+        actorRole: who === 'patient' ? 'patient' : 'test_front_desk',
+        correlationId: `corr_${key}`,
+        source: 'api',
+        reasonCode: null,
+        policyVersion: null
+      },
+      requestedAt: AFTER_CUTOFF_AT,
+      idempotency: rescheduleAppointmentIdempotency({
+        key,
+        actorId: who === 'patient' ? 'patient_001' : 'actor_front_desk_001',
+        appointmentId: APPOINTMENT,
+        targetSlotId
+      })
+    });
+
+  it('replays the same request after the move put the appointment past the cutoff', async () => {
+    const first = await move(SLOT_SAME_DAY_A, 'idem_self_window');
+    expect(first).toMatchObject({
+      replayed: false,
+      startsAt: '2030-01-02T06:00:00.000Z'
+    });
+
+    const retried = await move(SLOT_SAME_DAY_A, 'idem_self_window');
+
+    expect(retried).toEqual({ ...first, replayed: true });
+    expect((await appointmentState())?.['slotId']).toBe(SLOT_SAME_DAY_A);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+
+  it('still rejects the same key for another target as a reused key', async () => {
+    await move(SLOT_SAME_DAY_A, 'idem_self_window_other');
+
+    await expect(
+      move(SLOT_SAME_DAY_B, 'idem_self_window_other')
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+
+    expect((await appointmentState())?.['slotId']).toBe(SLOT_SAME_DAY_A);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+
+  it('refuses a new key once the appointment sits past the cutoff, and writes nothing', async () => {
+    await move(SLOT_SAME_DAY_A, 'idem_self_window_first');
+    const auditsBefore = (await db.collection(COLLECTIONS.auditEvents).get())
+      .size;
+    const outboxBefore = (await db.collection(COLLECTIONS.outboxJobs).get())
+      .size;
+
+    await expect(
+      move(SLOT_SAME_DAY_B, 'idem_self_window_second')
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+
+    expect((await appointmentState())?.['slotId']).toBe(SLOT_SAME_DAY_A);
+    expect(
+      (await slotState(SLOT_SAME_DAY_B))?.['reservationId']
+    ).toBeUndefined();
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(
+      auditsBefore
+    );
+    expect((await db.collection(COLLECTIONS.outboxJobs).get()).size).toBe(
+      outboxBefore
+    );
+    expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
+      1
+    );
+  });
+
+  it('does not apply the patient window to staff', async () => {
+    await move(SLOT_SAME_DAY_A, 'idem_staff_window_first', 'staff');
+
+    await expect(
+      move(SLOT_SAME_DAY_B, 'idem_staff_window_second', 'staff')
+    ).resolves.toMatchObject({ replayed: false });
+    expect((await appointmentState())?.['slotId']).toBe(SLOT_SAME_DAY_B);
+  });
+});

@@ -1,8 +1,17 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it
+} from 'vitest';
 
 import { CalendarPilotApplicationService } from '../../apps/api/src/calendar/calendar-pilot.application-service.js';
+import { toTransitionRequest } from '../../apps/api/src/appointments/appointment.application-service.js';
 import { ClinicCalendarReviewApplicationService } from '../../apps/api/src/calendar/clinic-calendar-review.application-service.js';
 import {
   COLLECTIONS as BOOKING_COLLECTIONS,
@@ -11,6 +20,7 @@ import {
 import { FirestoreCalendarPilotRepository } from '../../apps/api/src/firestore/calendar-pilot.repository.js';
 import { FirestoreClinicCalendarCandidateStore } from '../../apps/api/src/firestore/clinic-calendar-review.repository.js';
 import { rescheduleAppointmentIdempotency } from '../../apps/api/src/idempotency/appointment-idempotency.js';
+import { PATIENT_COLLECTIONS } from '../../apps/api/src/patients/patient-directory.js';
 import { ConflictError } from '../../apps/api/src/platform/errors/api-error.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
@@ -555,5 +565,185 @@ describe('clinic Calendar review replays the original result for the same key (A
 
     expect(first.candidate.status).toBe('accepted');
     expect(replay).toEqual(first);
+  });
+});
+
+describe('clinic Calendar review compares the appointment status the candidate saw (stale status)', () => {
+  const STAFF_AUDIT = {
+    actorId: 'front_desk_002',
+    actorRole: 'front_desk' as const,
+    correlationId: 'corr_rival_cancel',
+    source: 'api' as const,
+    reasonCode: null,
+    policyVersion: null
+  };
+
+  async function cancelAppointmentNow(): Promise<void> {
+    await new FirestoreBookingRepository(db).transition(
+      toTransitionRequest(
+        APPOINTMENT_ID,
+        { idempotencyKey: 'rival_cancel_0001' },
+        'cancel',
+        { requestedAt: NOW, audit: STAFF_AUDIT }
+      )
+    );
+  }
+
+  async function recordStatusAtDetection(status: string): Promise<void> {
+    await db
+      .collection('calendar_pilot_candidates')
+      .doc(CANDIDATE_ID)
+      .update({ appointmentStatusAtDetection: status });
+  }
+
+  it.each([
+    ['a candidate that recorded the status', true],
+    ['a candidate written before the status was recorded', false]
+  ])(
+    'supersedes %s when the appointment was cancelled after it was created, and changes nothing else',
+    async (_label, recorded) => {
+      if (recorded) await recordStatusAtDetection('confirmed');
+      await cancelAppointmentNow();
+      const before = await snapshot();
+      const writtenBefore = await writeCounts();
+      expect(before.appointment?.['status']).toBe('cancelled');
+
+      const response = await review(
+        reviewService(db),
+        'accept',
+        `stale_status_${recorded ? 'recorded' : 'legacy'}`
+      );
+
+      const after = await snapshot();
+      expect(response?.candidate).toMatchObject({
+        status: 'superseded',
+        expectedVersion: 2
+      });
+      // The appointment, both slots and every appointment-side record are
+      // exactly as the cancel left them: no reschedule, no projection job.
+      expect(after.appointment).toEqual(before.appointment);
+      expect(after.reservation).toEqual(before.reservation);
+      expect(after.reservation.to).toBeUndefined();
+      const written = await writeCounts();
+      expect(written.appointmentAudits).toBe(writtenBefore.appointmentAudits);
+      expect(written.outboxJobs).toBe(writtenBefore.outboxJobs);
+      // Only the candidate decision itself was recorded.
+      expect(after.candidate).toMatchObject({
+        status: 'superseded',
+        expectedVersion: 2
+      });
+      expect(written.candidateAudits).toBe(1);
+    }
+  );
+
+  it('supersedes a Calendar delete candidate whose appointment was already cancelled', async () => {
+    await db.collection('calendar_pilot_candidates').doc(CANDIDATE_ID).update({
+      kind: 'cancel_appointment',
+      startsAt: null,
+      endsAt: null,
+      appointmentStatusAtDetection: 'confirmed',
+      changedFields: []
+    });
+    await cancelAppointmentNow();
+    const before = await snapshot();
+    const writtenBefore = await writeCounts();
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'stale_status_delete'
+    );
+
+    expect(response?.candidate.status).toBe('superseded');
+    expect((await snapshot()).appointment).toEqual(before.appointment);
+    const written = await writeCounts();
+    expect(written.appointmentAudits).toBe(writtenBefore.appointmentAudits);
+    expect(written.outboxJobs).toBe(writtenBefore.outboxJobs);
+  });
+
+  it('still approves a candidate whose appointment kept the recorded status', async () => {
+    await recordStatusAtDetection('confirmed');
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'status_unchanged_0001'
+    );
+
+    expect(response?.candidate.status).toBe('accepted');
+    expect((await snapshot()).appointment).toMatchObject({
+      slotId: SLOT_TO,
+      startsAt: TO_STARTS_AT
+    });
+  });
+});
+
+describe('clinic Calendar review never reschedules an archived patient’s appointment (ADR-0010 item 7)', () => {
+  const PATIENT_DOCUMENT = () =>
+    db.collection(PATIENT_COLLECTIONS.patients).doc('patient_001');
+
+  afterEach(async () => {
+    await PATIENT_DOCUMENT().delete();
+  });
+
+  it('refuses the approval with a conflict and commits nothing', async () => {
+    await PATIENT_DOCUMENT().set({
+      name: '合成患者甲',
+      archivedAt: '2029-12-10T08:00:00.000Z'
+    });
+    const before = await snapshot();
+    const writtenBefore = await writeCounts();
+
+    await expect(
+      review(reviewService(db), 'accept', 'archived_patient_0001')
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    // The candidate is still pending at its original version: the refusal
+    // rolled back the whole review transaction, not just the reschedule.
+    expect(await snapshot()).toEqual(before);
+    expect(await writeCounts()).toEqual(writtenBefore);
+    expect(before.candidate).toMatchObject({
+      status: 'pending',
+      expectedVersion: 1
+    });
+    expect(before.appointment).toMatchObject({
+      slotId: SLOT_FROM,
+      startsAt: FROM_STARTS_AT
+    });
+  });
+
+  it('still lets a manager reject the candidate of an archived patient', async () => {
+    await PATIENT_DOCUMENT().set({
+      name: '合成患者甲',
+      archivedAt: '2029-12-10T08:00:00.000Z'
+    });
+
+    const response = await review(
+      reviewService(db),
+      'reject',
+      'archived_patient_0002'
+    );
+
+    expect(response?.candidate.status).toBe('rejected');
+  });
+
+  it('approves for an active patient record and for a missing one', async () => {
+    await PATIENT_DOCUMENT().set({ name: '合成患者甲' });
+    const active = await review(
+      reviewService(db),
+      'accept',
+      'active_patient_0001'
+    );
+    expect(active?.candidate.status).toBe('accepted');
+
+    await wipe();
+    await seed();
+    await PATIENT_DOCUMENT().delete();
+    const missing = await review(
+      reviewService(db),
+      'accept',
+      'missing_patient_0001'
+    );
+    expect(missing?.candidate.status).toBe('accepted');
   });
 });

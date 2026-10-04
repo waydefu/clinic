@@ -693,6 +693,18 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
                 .collection(COLLECTIONS.patientBookingGuards)
                 .doc(appointment.patientId)
             );
+      // An archive only refuses while a future confirmed or arrived appointment
+      // exists, so a past-dated confirmed one can stay on an archived patient.
+      // Read the patient here so moving it cannot hand an archived patient a
+      // future appointment (ADR-0010 item 7).
+      const patientDocument =
+        appointment === undefined
+          ? undefined
+          : await transaction.get(
+              this.db
+                .collection(PATIENT_COLLECTIONS.patients)
+                .doc(appointment.patientId)
+            );
 
       const existingTarget = targetDocument.exists
         ? parseSlotSnapshot(targetDocument.id, targetDocument.data())
@@ -711,6 +723,11 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         targetSlot,
         this.patientGuardSnapshotOf(patientGuardDocument)
       );
+      // After the plan, so an ownership mismatch is still the same
+      // `APPOINTMENT_NOT_FOUND` as a missing row and never reveals an archive.
+      // A missing patient record is not refused: this closes the archive gap,
+      // nothing more (same as `reserve`).
+      assertPatientNotArchived(patientDocument?.data());
 
       // --- writes -------------------------------------------------------
       // Reserve the new slot before releasing the old one. If the new slot

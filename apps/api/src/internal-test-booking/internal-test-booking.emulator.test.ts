@@ -756,6 +756,92 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     ]);
   });
 
+  // The reschedule sibling of AUD-08: a patient moves an appointment that is
+  // still inside its self-service window to a same-day slot, after that day's
+  // 10:00 Taipei cutoff. The same request sent again must be answered with the
+  // first result, not judged against the new time.
+  it('replays a patient self-reschedule retried with the same key after the move put it past the cutoff', async () => {
+    const harness = requireHarness();
+    expect(
+      (
+        await harness.inject({
+          method: 'POST',
+          url: '/v1/schedule/publish',
+          headers: managerHeaders(),
+          payload: { ...PUBLISH_BODY, idempotencyKey: 'schedule_publish_0030' }
+        })
+      ).statusCode
+    ).toBe(201);
+    const booked = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: {
+        ...CREATE_BODY,
+        idempotencyKey: 'booking-idempotency-0030',
+        slotId: 'slot_20300109_1200'
+      }
+    });
+    expect(booked.statusCode).toBe(201);
+    const { appointmentId } = JSON.parse(booked.payload) as {
+      appointmentId: string;
+    };
+
+    // 11:00 in Taipei on 2030-01-02.
+    nowUtc = '2030-01-02T03:00:00.000Z';
+    const moveBody = {
+      idempotencyKey: 'booking-idempotency-0031',
+      targetSlotId: 'slot_20300102_1400'
+    };
+    const reschedule = (payload: object) =>
+      harness.inject({
+        method: 'POST',
+        url: `/v1/bookings/${appointmentId}/reschedule`,
+        headers: patientHeaders(),
+        payload
+      });
+
+    const first = await reschedule(moveBody);
+    expect(first.statusCode).toBe(201);
+    expect(JSON.parse(first.payload)).toMatchObject({
+      appointmentId,
+      startsAt: '2030-01-02T06:00:00.000Z'
+    });
+
+    const retried = await reschedule(moveBody);
+    expect(retried.statusCode).toBe(201);
+    expect(JSON.parse(retried.payload)).toEqual(JSON.parse(first.payload));
+
+    const otherContent = await reschedule({
+      ...moveBody,
+      targetSlotId: 'slot_20300102_1430'
+    });
+    expect(otherContent.statusCode).toBe(409);
+    expect(JSON.parse(otherContent.payload)).toMatchObject({
+      error: { code: 'IDEMPOTENCY_MISMATCH' }
+    });
+
+    // A new request is still judged by the window: the appointment now sits
+    // past that day's cutoff.
+    const newKey = await reschedule({
+      idempotencyKey: 'booking-idempotency-0032',
+      targetSlotId: 'slot_20300102_1430'
+    });
+    expect(newKey.statusCode).toBe(409);
+    expect(JSON.parse(newKey.payload)).toMatchObject({
+      error: { code: 'CONFLICT' }
+    });
+
+    const appointment = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(appointmentId)
+      .get();
+    expect(appointment.data()).toMatchObject({
+      slotId: 'slot_20300102_1400',
+      startsAt: '2030-01-02T06:00:00.000Z'
+    });
+  });
+
   it('deletes a booking with a closed reason and projects the cancel outbox in memory', async () => {
     const harness = requireHarness();
     const published = await harness.inject({

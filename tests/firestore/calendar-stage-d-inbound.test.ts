@@ -2,6 +2,7 @@ import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { CalendarChangeCandidateSchema } from '../../packages/contracts/src/calendar-sync.js';
 import { calendarEventIdForAppointment } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
 import {
@@ -183,6 +184,56 @@ describe('Stage D Calendar inbound emulator', () => {
     const live = await db.collection('appointments').doc(appointmentId).get();
     expect(live.data()?.['startsAt']).toBe('2030-01-02T06:15:00.000Z');
     expect(live.data()?.['status']).toBe('confirmed');
+  });
+
+  it('stores the status the appointment had on its candidate and keeps it out of the staff candidate list', async () => {
+    const appointmentId = 'appointment_001';
+    await db.collection('appointments').doc(appointmentId).set({
+      appointmentId,
+      status: 'confirmed',
+      startsAt: '2030-01-02T06:15:00.000Z',
+      bookingKind: 'follow_up'
+    });
+    const repository = new FirestoreCalendarSyncRepository(
+      db,
+      'synthetic-pseudonym-key-32-characters-min'
+    );
+    await new CalendarSyncEngine(
+      {
+        listEvents: () =>
+          Promise.resolve({
+            events: [
+              {
+                id: calendarEventIdForAppointment(appointmentId),
+                etag: 'etag-moved-status',
+                status: 'confirmed',
+                summary: 'manual move',
+                start: { dateTime: '2030-01-02T06:45:00.000Z' },
+                end: { dateTime: '2030-01-02T07:15:00.000Z' }
+              }
+            ],
+            nextSyncToken: 'sync-pending-status'
+          })
+      },
+      repository
+    ).run(NOW);
+
+    const stored = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(stored).toMatchObject({
+      kind: 'update_appointment',
+      appointmentStatusAtDetection: 'confirmed'
+    });
+    const listed = await new FirestoreCalendarPilotRepository(
+      db
+    ).listCandidates();
+    expect(listed).toHaveLength(1);
+    // The staff-facing shape is a strict contract; the internal field is not in it.
+    expect(listed[0]).not.toHaveProperty('appointmentStatusAtDetection');
+    expect(CalendarChangeCandidateSchema.safeParse(listed[0]).success).toBe(
+      true
+    );
   });
 
   it('does not auto-create a patient or appointment for an unmatched event', async () => {

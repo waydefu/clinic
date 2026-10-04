@@ -702,3 +702,94 @@ describe('planReschedule', () => {
     ).toBe('PATIENT_BOOKING_GUARD_MISMATCH');
   });
 });
+
+// The patient self-service window is judged here, after an idempotent replay
+// has been answered by the caller, and against the appointment as the
+// transaction reads it (a same-key retry of a move that put the appointment
+// past the cutoff must reach the replay, not this rule).
+describe('planReschedule patient self-service window', () => {
+  // 12:00 in Taipei on 2030-01-02; that day's 10:00 cutoff is 02:00 UTC.
+  const startsAt = '2030-01-02T04:00:00.000Z';
+  const target: SlotSnapshot = {
+    id: 'slot_20300102_1230',
+    kind: 'initial',
+    startsAt: '2030-01-02T04:30:00.000Z'
+  };
+  const BEFORE_CUTOFF = '2030-01-02T01:59:00.000Z';
+  const AT_CUTOFF = '2030-01-02T02:00:00.000Z';
+  const request = (
+    requestedAt: string,
+    overrides: { readonly expectedPatientId?: string } = {}
+  ) => ({
+    appointmentId: appointment.id,
+    targetSlotId: target.id,
+    ...overrides,
+    audit,
+    requestedAt,
+    idempotency: {
+      ...idempotencyFor(),
+      scope: `appointment:${appointment.id}:reschedule`
+    }
+  });
+  const plan = (
+    requestedAt: string,
+    overrides: { readonly expectedPatientId?: string } = {},
+    patch: Partial<AppointmentSnapshot> = {}
+  ) =>
+    planReschedule(
+      request(requestedAt, overrides),
+      { ...appointment, startsAt, ...patch },
+      target,
+      patientBookingGuard
+    );
+
+  it('lets the owning patient move an appointment strictly before the cutoff', () => {
+    expect(
+      plan(BEFORE_CUTOFF, { expectedPatientId: 'patient_001' }).reserveSlotId
+    ).toBe(target.id);
+  });
+
+  it('refuses the owning patient at and after the cutoff', () => {
+    for (const requestedAt of [AT_CUTOFF, '2030-01-02T02:30:00.000Z'])
+      expect(
+        codeOf(() => plan(requestedAt, { expectedPatientId: 'patient_001' }))
+      ).toBe('CANCELLATION_WINDOW_CLOSED');
+  });
+
+  it('fails closed for a patient when the appointment has no start time', () => {
+    expect(
+      codeOf(() =>
+        planReschedule(
+          request(BEFORE_CUTOFF, { expectedPatientId: 'patient_001' }),
+          appointment,
+          target,
+          patientBookingGuard
+        )
+      )
+    ).toBe('CANCELLATION_WINDOW_CLOSED');
+  });
+
+  it('does not apply the patient window to a request that is not patient self-service', () => {
+    expect(plan(AT_CUTOFF).reserveSlotId).toBe(target.id);
+    expect(plan('2030-01-02T02:30:00.000Z').reserveSlotId).toBe(target.id);
+  });
+
+  it('reports another patient’s appointment as not found, never as a closed window', () => {
+    expect(
+      codeOf(() => plan(AT_CUTOFF, { expectedPatientId: 'patient_other' }))
+    ).toBe('APPOINTMENT_NOT_FOUND');
+  });
+
+  it('judges the window before the target slot, as the caller did before the move into the transaction', () => {
+    expect(
+      codeOf(() =>
+        planReschedule(
+          request(AT_CUTOFF, { expectedPatientId: 'patient_001' }),
+          { ...appointment, startsAt },
+          undefined,
+          patientBookingGuard
+        )
+      )
+    ).toBe('CANCELLATION_WINDOW_CLOSED');
+  });
+});

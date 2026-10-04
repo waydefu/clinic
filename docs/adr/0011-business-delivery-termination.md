@@ -16,7 +16,9 @@ production 套用仍需專業隱私／法律審閱及另行明確授權。
    另要求 `expectedVersion`。
 3. 資料返還簽收只帶伺服器匯出 ID。伺服器交易讀取 `bd_export_jobs`，要求 CSV 工作有成功下載、
    未撤銷、未到清除期限，並把工作中已記錄的 SHA-256、伺服器時間和目前 manager actor ref
-   寫入收據。請求不能提供雜湊、簽收人或時間；同一匯出不能用於兩個終止案件。
+   寫入收據。請求不能提供雜湊、簽收人或時間；同一匯出不能用於兩個終止案件。收據也記錄所返還
+   匯出的日期範圍（`from`、`to`）、筆數（`rowCount`）與位元組大小（`byteLength`）；這只記錄事實，
+   不定義何謂「完整」匯出，該定義仍是 `BD-POLICY-2026-09-29` 第 6 節下尚待業主決定的事項。
 4. 同一個 acknowledgements 路由接受 `backup_disposition`、`audit_disposition` 與
    `access_revocation` 清單證據。每項只接受 opaque `evidenceRef`；操作者與時間由伺服器記錄。
    這代表經理在系統內留下人工完成聲明與證據參照，不證明雲端或身分供應商已執行相應變更。

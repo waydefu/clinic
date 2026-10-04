@@ -222,3 +222,104 @@ describe('calendar candidate approve and reject', () => {
     });
   });
 });
+
+describe('calendar candidate review and the appointment status since detection', () => {
+  const TARGET = {
+    id: 'slot_follow_up_0645',
+    kind: 'follow_up' as const,
+    startsAt: '2030-01-02T06:45:00.000Z'
+  };
+  const plan = (
+    liveStatus: ClinicAppointmentLiveSnapshot['status'],
+    candidate: ClinicCalendarCandidateSnapshot
+  ) =>
+    planCalendarCandidateReview({
+      role: 'manager',
+      action: 'accept',
+      candidate,
+      liveAppointment: { ...APPOINTMENT, status: liveStatus },
+      targetSlot: TARGET
+    });
+  const withoutRecordedStatus = (
+    candidate: ClinicCalendarCandidateSnapshot
+  ): ClinicCalendarCandidateSnapshot => {
+    const { expectedStatus: _recorded, ...rest } = candidate;
+    return rest;
+  };
+  const DELETE: ClinicCalendarCandidateSnapshot = {
+    ...PENDING,
+    changeType: 'delete',
+    changedFields: []
+  };
+
+  it.each(['arrived', 'cancelled', 'completed', 'no_show'] as const)(
+    'supersedes a candidate that saw a confirmed appointment once it is %s',
+    (status) => {
+      for (const candidate of [PENDING, DELETE])
+        expect(plan(status, candidate)).toMatchObject({
+          outcome: 'conflict',
+          nextStatus: 'superseded',
+          reason: 'stale',
+          mutateAppointment: false
+        });
+    }
+  );
+
+  it('still applies a candidate whose appointment kept the recorded status', () => {
+    expect(plan('confirmed', PENDING)).toMatchObject({
+      outcome: 'apply',
+      command: 'reschedule'
+    });
+    expect(plan('confirmed', DELETE)).toMatchObject({
+      outcome: 'apply',
+      command: 'cancel'
+    });
+  });
+
+  it('compares with the recorded status even when the live one is open', () => {
+    expect(
+      plan('arrived', { ...PENDING, expectedStatus: 'confirmed' }).outcome
+    ).toBe('conflict');
+    expect(
+      plan('arrived', { ...PENDING, expectedStatus: 'arrived' }).outcome
+    ).toBe('apply');
+  });
+
+  describe('a candidate that recorded no status', () => {
+    it.each(['cancelled', 'completed', 'no_show'] as const)(
+      'fails closed when the appointment is %s',
+      (status) => {
+        for (const candidate of [PENDING, DELETE])
+          expect(plan(status, withoutRecordedStatus(candidate))).toMatchObject({
+            outcome: 'conflict',
+            nextStatus: 'superseded',
+            reason: 'stale',
+            mutateAppointment: false
+          });
+      }
+    );
+
+    it.each(['confirmed', 'arrived', 'cancellation_requested'] as const)(
+      'stays approvable while the appointment is %s, a status reschedule and cancel accept',
+      (status) => {
+        expect(plan(status, withoutRecordedStatus(PENDING)).outcome).toBe(
+          'apply'
+        );
+        expect(plan(status, withoutRecordedStatus(DELETE)).outcome).toBe(
+          'apply'
+        );
+      }
+    );
+  });
+
+  it('does not let the status check change a rejection', () => {
+    expect(
+      planCalendarCandidateReview({
+        role: 'manager',
+        action: 'reject',
+        candidate: PENDING,
+        liveAppointment: { ...APPOINTMENT, status: 'cancelled' }
+      })
+    ).toMatchObject({ outcome: 'noop', nextStatus: 'rejected' });
+  });
+});

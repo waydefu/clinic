@@ -1,7 +1,8 @@
-import type {
-  CalendarChangeCandidate,
-  ReviewCalendarCandidateRequest,
-  ReviewCalendarCandidateResponse
+import {
+  AppointmentStatusSchema,
+  type CalendarChangeCandidate,
+  type ReviewCalendarCandidateRequest,
+  type ReviewCalendarCandidateResponse
 } from '@beauessence/contracts';
 import {
   CALENDAR_INBOUND_AUDIT_ACTIONS,
@@ -41,6 +42,12 @@ export interface ClinicCalendarCandidateRecord {
   readonly appointmentId?: string | null;
   readonly localRecordId?: string;
   readonly changedFields?: CalendarChangeCandidate['changedFields'];
+  /**
+   * The appointment's status when the worker detected the Calendar change.
+   * Internal: never part of the staff-facing candidate. Absent on candidates
+   * written before it was recorded.
+   */
+  readonly appointmentStatusAtDetection?: string;
 }
 
 export interface ClinicCalendarReviewCommand {
@@ -215,6 +222,12 @@ export class ClinicCalendarReviewApplicationService {
       };
     }
     const live = liveFrom(linked.record);
+    // Compare against the status the candidate saw, not the live one: the live
+    // status always equals itself and could never show a change. A missing or
+    // unreadable record is judged by the domain, which fails closed on it.
+    const statusAtDetection = AppointmentStatusSchema.safeParse(
+      stored.appointmentStatusAtDetection
+    );
     const targetSlot =
       stored.startsAt === null
         ? undefined
@@ -233,7 +246,9 @@ export class ClinicCalendarReviewApplicationService {
               : 'reschedule',
         appointmentId: linked.appointmentId,
         expectedStartsAt: stored.before?.startsAt ?? live.startsAt,
-        expectedStatus: live.status,
+        ...(statusAtDetection.success
+          ? { expectedStatus: statusAtDetection.data }
+          : {}),
         ...(stored.startsAt === null
           ? {}
           : { proposedStartsAt: stored.startsAt }),

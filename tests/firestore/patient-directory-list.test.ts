@@ -177,3 +177,106 @@ describe('staff appointment lists and archived rows (AUD-07, partial)', () => {
     ]);
   });
 });
+
+// The staff list used to read the OLDEST rows first with no lower time bound
+// and let the caller drop the rows outside its window afterwards, so with
+// enough old appointments the page held only rows that were then discarded.
+describe('staff appointment lists bounded by the caller window', () => {
+  const WINDOW = { from: startsAtOf(100), to: startsAtOf(110) };
+
+  /** `before` rows sort ahead of the window, then rows at the given indexes. */
+  async function seedAroundWindow(input: {
+    readonly before: number;
+    readonly inside: readonly number[];
+    readonly after?: readonly number[];
+    readonly archivedInside?: readonly number[];
+  }): Promise<void> {
+    for (let index = 0; index < input.before; index += 1)
+      await seedAppointment(`appt_old_${index}`, index, {});
+    for (const index of input.inside)
+      await seedAppointment(`appt_in_${index}`, index, {});
+    for (const index of input.archivedInside ?? [])
+      await seedAppointment(`appt_in_arch_${index}`, index, {
+        archived: true
+      });
+    for (const index of input.after ?? [])
+      await seedAppointment(`appt_after_${index}`, index, {});
+  }
+
+  it('returns the in-window rows when more than `limit` older rows sort first', async () => {
+    await seedAroundWindow({ before: 12, inside: [100, 103, 105] });
+
+    const rows = await directory.listClinic(5, WINDOW);
+
+    expect(rows.map((row) => row.appointmentId)).toEqual([
+      'appt_in_100',
+      'appt_in_103',
+      'appt_in_105'
+    ]);
+  });
+
+  it('does not return older rows to fill the page', async () => {
+    await seedAroundWindow({ before: 12, inside: [100] });
+
+    const rows = await directory.listClinic(5, WINDOW);
+
+    expect(rows.map((row) => row.appointmentId)).toEqual(['appt_in_100']);
+  });
+
+  it('stops at the upper bound and keeps both bounds inclusive', async () => {
+    await seedAroundWindow({
+      before: 3,
+      inside: [99, 100, 110, 111],
+      after: [300, 301]
+    });
+
+    const rows = await directory.listClinic(50, WINDOW);
+
+    expect(rows.map((row) => row.appointmentId)).toEqual([
+      'appt_in_100',
+      'appt_in_110'
+    ]);
+  });
+
+  it('pages through the window and still skips archived rows inside it', async () => {
+    await seedAroundWindow({
+      before: 12,
+      inside: [100, 104, 106, 108],
+      archivedInside: [101, 102, 103]
+    });
+
+    const rows = await directory.listClinic(3, WINDOW);
+
+    expect(rows.map((row) => row.appointmentId)).toEqual([
+      'appt_in_100',
+      'appt_in_104',
+      'appt_in_106'
+    ]);
+  });
+
+  it('bounds the patient list the same way', async () => {
+    await seedAroundWindow({ before: 12, inside: [100, 103] });
+    await seedAppointment('appt_other_101', 101, {
+      patientId: 'patient_list_other'
+    });
+
+    const rows = await directory.listByPatient(PATIENT_ID, 5, WINDOW);
+
+    expect(rows.map((row) => row.appointmentId)).toEqual([
+      'appt_in_100',
+      'appt_in_103'
+    ]);
+  });
+
+  it('is unchanged when no window is given', async () => {
+    await seedAroundWindow({ before: 4, inside: [100] });
+
+    const rows = await directory.listClinic(3);
+
+    expect(rows.map((row) => row.appointmentId)).toEqual([
+      'appt_old_0',
+      'appt_old_1',
+      'appt_old_2'
+    ]);
+  });
+});
