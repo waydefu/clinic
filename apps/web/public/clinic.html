@@ -48,6 +48,25 @@
       }
     </script>
     <link rel="stylesheet" href="/clinic-site.css" />
+    <link rel="stylesheet" href="/clinic-proof.css" />
+    <!-- 首屏第一張輪播照片：元素由 JS 產生，不預先載入就要等腳本跑完才開始下載。
+         寬窄螢幕各預載自己的尺寸，只會命中其中一個。 -->
+    <link
+      rel="preload"
+      as="image"
+      href="/clinic-assets/clinic-photo-logo-1400.webp"
+      type="image/webp"
+      media="(min-width: 48.0625rem)"
+      fetchpriority="high"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="/clinic-assets/clinic-photo-logo-800.webp"
+      type="image/webp"
+      media="(max-width: 48rem)"
+      fetchpriority="high"
+    />
   </head>
   <body>
     <a class="clinic-skip-link" href="#clinic-main">跳至主要內容</a>

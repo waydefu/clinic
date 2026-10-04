@@ -1,6 +1,7 @@
 import {
   BOOKING_PATH,
   CLINIC,
+  CLINIC_WEEKLY_HOURS,
   DOCTORS,
   HOME_DOCTOR_PROFILES,
   HOME_FAQS,
@@ -243,64 +244,344 @@ function renderSnoringTrackerSection() {
   );
 }
 
-function renderHome() {
-  const heroImage = image(
-    DOCTORS[0].image,
-    DOCTORS[0].imageAlt,
-    'clinic-hybrid-hero__image',
-    'eager'
-  );
-  heroImage.setAttribute('width', '800');
-  heroImage.setAttribute('height', '800');
-  heroImage.setAttribute('fetchpriority', 'high');
+// Visual Proof Sprint（2026-10-05，本機）：簽名 2「呼吸弧線」。
+// 舊官網衛教圖的白色橢圓軌道＋八角星點，改用 inline SVG 重畫，不出貨點陣圖。
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
+function svgNode(tagName, attrs = {}) {
+  const node = document.createElementNS(SVG_NS, tagName);
+  for (const [name, value] of Object.entries(attrs)) {
+    node.setAttribute(name, value);
+  }
+  return node;
+}
+
+function starPath(cx, cy, outer, inner) {
+  const points = [];
+  for (let index = 0; index < 16; index += 1) {
+    const radius = index % 2 === 0 ? outer : inner;
+    const angle = (Math.PI / 8) * index - Math.PI / 2;
+    points.push(
+      `${(cx + radius * Math.cos(angle)).toFixed(1)} ${(cy + radius * Math.sin(angle)).toFixed(1)}`
+    );
+  }
+  return `M${points.join('L')}Z`;
+}
+
+function breathArc() {
+  const svg = svgNode('svg', {
+    class: 'clinic-breath-arc',
+    viewBox: '0 0 900 420',
+    'aria-hidden': 'true',
+    focusable: 'false'
+  });
+  svg.append(
+    svgNode('ellipse', {
+      class: 'clinic-breath-arc__line',
+      cx: '470',
+      cy: '210',
+      rx: '430',
+      ry: '120',
+      transform: 'rotate(-10 470 210)',
+      pathLength: '1'
+    }),
+    svgNode('ellipse', {
+      class: 'clinic-breath-arc__line clinic-breath-arc__line--soft',
+      cx: '492',
+      cy: '236',
+      rx: '380',
+      ry: '92',
+      transform: 'rotate(-10 492 236)',
+      pathLength: '1'
+    }),
+    svgNode('path', {
+      class: 'clinic-breath-arc__star',
+      d: starPath(345, 347, 13, 4.5)
+    }),
+    svgNode('path', {
+      class: 'clinic-breath-arc__star',
+      d: starPath(861, 99, 10, 3.5)
+    })
+  );
+  return svg;
+}
+
+// 門診時間面板：依台北時間判斷「今天」的狀態。只依固定門診表推算，
+// 不知道國定假日或臨時休診，所以面板上一定附「另行公告」說明。
+const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+
+function taipeiNow() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(
+    parts.map((part) => [part.type, part.value])
+  );
+  return {
+    day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(
+      value.weekday
+    ),
+    minutes: Number(value.hour) * 60 + Number(value.minute)
+  };
+}
+
+function toMinutes(time) {
+  const [hour, minute] = time.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function todayStatus() {
+  const { day, minutes } = taipeiNow();
+  const today = CLINIC_WEEKLY_HOURS[day];
+  const label = `今天（週${WEEKDAY_LABELS[day]}）`;
+  if (today && minutes < toMinutes(today[0])) {
+    return {
+      open: false,
+      title: `${label}有門診`,
+      detail: `${today[0]} 開始看診`
+    };
+  }
+  if (today && minutes < toMinutes(today[1])) {
+    return { open: true, title: `${label}看診中`, detail: `${today[1]} 結束` };
+  }
+  for (let offset = 1; offset <= 7; offset += 1) {
+    const next = (day + offset) % 7;
+    const hours = CLINIC_WEEKLY_HOURS[next];
+    if (hours) {
+      return {
+        open: false,
+        title: today ? `${label}門診已結束` : `${label}休診`,
+        detail: `下次門診：${offset === 1 ? '明天' : '週' + WEEKDAY_LABELS[next]} ${hours[0]}`
+      };
+    }
+  }
+  return { open: false, title: `${label}休診`, detail: '' };
+}
+
+// 一週門診表（參考太田耳鼻咽喉科医院首屏下方的「診療時間」表）：
+// 欄＝星期、列＝時段，有門診的格子標 ○。資訊在 HTML 表格裡，報讀器可逐格讀。
+function weeklyScheduleTable(today) {
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const slots = [
+    ...new Set(Object.values(CLINIC_WEEKLY_HOURS).map((h) => h.join('–')))
+  ].sort();
+  const headRow = element('tr', {}, [
+    element('th', { attrs: { scope: 'col' }, text: '時段' }),
+    ...order.map((index) =>
+      element('th', {
+        className: index === today ? 'is-today' : undefined,
+        attrs: { scope: 'col', 'aria-label': `週${WEEKDAY_LABELS[index]}` },
+        text: WEEKDAY_LABELS[index]
+      })
+    )
+  ]);
+  const rows = slots.map((slot) =>
+    element('tr', {}, [
+      element('th', { attrs: { scope: 'row' }, text: slot }),
+      ...order.map((index) => {
+        const open = CLINIC_WEEKLY_HOURS[index]?.join('–') === slot;
+        return element('td', {
+          className:
+            [open ? 'is-open' : '', index === today ? 'is-today' : '']
+              .filter(Boolean)
+              .join(' ') || undefined,
+          attrs: { 'aria-label': open ? '有門診' : '無門診' },
+          text: open ? '○' : '—'
+        });
+      })
+    ])
+  );
+  return element('table', { className: 'clinic-hours-panel__table' }, [
+    element('caption', { className: 'visually-hidden', text: '每週門診時間' }),
+    element('thead', {}, [headRow]),
+    element('tbody', {}, rows)
+  ]);
+}
+
+function heroHoursPanel() {
+  const status = todayStatus();
+  const { day } = taipeiNow();
+  return element(
+    'aside',
+    {
+      className: 'clinic-hours-panel',
+      attrs: { 'aria-labelledby': 'clinic-hours-title' }
+    },
+    [
+      element('div', { className: 'clinic-hours-panel__info' }, [
+        element('h2', {
+          className: 'clinic-hours-panel__title',
+          attrs: { id: 'clinic-hours-title' },
+          text: '門診時間'
+        }),
+        element(
+          'p',
+          {
+            className: `clinic-hours-panel__status${status.open ? ' is-open' : ''}`
+          },
+          [
+            element('strong', { text: status.title }),
+            status.detail ? element('span', { text: status.detail }) : undefined
+          ]
+        ),
+        link(
+          `撥打電話 ${CLINIC.phoneDisplay}`,
+          CLINIC.phoneHref,
+          'clinic-button clinic-button--outline clinic-hours-panel__call'
+        ),
+        externalLink(
+          CLINIC.address,
+          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(CLINIC.address)}`,
+          'clinic-hours-panel__address'
+        )
+      ]),
+      element('div', { className: 'clinic-hours-panel__schedule' }, [
+        weeklyScheduleTable(day),
+        element('p', {
+          className: 'clinic-hours-panel__note',
+          text: '週日至週二休診。國定假日與臨時休診另行公告。'
+        })
+      ])
+    ]
+  );
+}
+
+// 首屏輪播：一森渼診所實景（舊官網付費素材，負責人 2026-10-05 指定）。
+// 標題文字固定不動，照片是背景。依 WCAG 2.2.2 提供暫停鈕；系統開啟
+// 「減少動態」時不輪播、不顯示按鈕，也只會下載第一張。
+// 第一張由 clinic.html 的 preload 預先下載；其他張輪到前一張才開始載入。
+const HERO_SLIDES = [
+  'logo',
+  'lounge',
+  'consult',
+  'reception',
+  'treatment',
+  'desk'
+];
+const HERO_SLIDE_NARROW = window.matchMedia('(max-width: 48rem)');
+
+function heroSlideSource(name) {
+  const width = HERO_SLIDE_NARROW.matches ? 800 : 1400;
+  return `/clinic-assets/clinic-photo-${name}-${width}.webp`;
+}
+
+function loadHeroSlide(slide) {
+  if (slide.dataset.loaded === 'true') return;
+  slide.style.backgroundImage = `url("${heroSlideSource(slide.dataset.slide)}")`;
+  slide.dataset.loaded = 'true';
+}
+
+function heroStage() {
+  const slides = element(
+    'div',
+    { className: 'clinic-hero__slides', attrs: { 'aria-hidden': 'true' } },
+    [
+      ...HERO_SLIDES.map((name, index) =>
+        element('div', {
+          className: `clinic-hero-slide is-${name}${index === 0 ? ' is-active' : ''}`,
+          attrs: { 'data-slide': name }
+        })
+      ),
+      breathArc()
+    ]
+  );
+  loadHeroSlide(slides.querySelector('.clinic-hero-slide'));
+  const pause = element('button', {
+    className: 'clinic-hero__pause',
+    text: '暫停照片輪播',
+    attrs: { type: 'button', 'aria-pressed': 'false', hidden: '' }
+  });
+  return { slides, pause };
+}
+
+function startHeroCarousel(root) {
+  const slides = [...root.querySelectorAll('.clinic-hero-slide')];
+  const pause = root.querySelector('.clinic-hero__pause');
+  if (slides.length < 2 || pause === null) return;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let index = 0;
+  let timer = null;
+  let paused = false;
+  const show = (next) => {
+    index = next % slides.length;
+    loadHeroSlide(slides[index]);
+    for (const [i, slide] of slides.entries()) {
+      slide.classList.toggle('is-active', i === index);
+    }
+    // 先把下一張載好，換場時才不會閃白
+    loadHeroSlide(slides[(index + 1) % slides.length]);
+  };
+  const stop = () => {
+    if (timer !== null) window.clearInterval(timer);
+    timer = null;
+  };
+  const start = () => {
+    stop();
+    if (paused || reduce.matches) return;
+    loadHeroSlide(slides[(index + 1) % slides.length]);
+    timer = window.setInterval(() => show(index + 1), 6000);
+  };
+  const sync = () => {
+    pause.hidden = reduce.matches;
+    if (reduce.matches && index !== 0) show(0);
+    start();
+  };
+  pause.addEventListener('click', () => {
+    paused = !paused;
+    pause.setAttribute('aria-pressed', String(paused));
+    pause.textContent = paused ? '繼續照片輪播' : '暫停照片輪播';
+    start();
+  });
+  reduce.addEventListener('change', sync);
+  sync();
+}
+
+function renderHome() {
+  // Visual Proof Sprint：首屏不放醫師照、不放診所照片（負責人 2026-10-05 指示）。
+  // 結構參考太田耳鼻咽喉科医院（上半部大視覺、下方寬版門診時間卡壓在交界），
+  // 風格不沿用：視覺是一森渼自己的霧林地平線＋呼吸弧線＋背景輪播。
+  const stage = heroStage();
   const hero = element(
     'section',
     {
-      className: 'clinic-hybrid-hero',
+      className: 'clinic-hybrid-hero clinic-hero--mist',
       attrs: { 'aria-labelledby': 'clinic-home-title' }
     },
     [
-      element('div', { className: 'clinic-shell clinic-hybrid-hero__grid' }, [
-        element('div', { className: 'clinic-hybrid-hero__copy' }, [
-          element('p', {
-            className: 'clinic-eyebrow',
-            text: HOME_PAGE.heroEyebrow
-          }),
-          element('h1', {
-            attrs: { id: 'clinic-home-title' },
-            text: HOME_PAGE.heroTitle
-          }),
-          element('p', {
-            text: HOME_PAGE.heroDescription
-          }),
-          element('div', { className: 'clinic-hybrid-hero__actions' }, [
-            link(
-              '先找出我的困擾',
-              '#clinic-symptoms',
-              'clinic-button clinic-button--outline'
-            ),
-            bookingLink('線上預約')
-          ]),
-          heroQuickFacts()
-        ]),
-        element('div', { className: 'clinic-hybrid-hero__visual' }, [
-          element('div', { className: 'clinic-hybrid-hero__media' }, [
-            heroImage,
-            element('div', { className: 'clinic-hybrid-hero__caption' }, [
-              element('span', { text: DOCTORS[0].name }),
-              element('strong', { text: HOME_PAGE.heroCaption })
+      element('div', { className: 'clinic-hero__stage' }, [
+        stage.slides,
+        element('div', { className: 'clinic-shell clinic-hero__copy-wrap' }, [
+          element('div', { className: 'clinic-hybrid-hero__copy' }, [
+            element('p', {
+              className: 'clinic-eyebrow',
+              text: HOME_PAGE.heroEyebrow
+            }),
+            element('h1', {
+              attrs: { id: 'clinic-home-title' },
+              text: HOME_PAGE.heroTitle
+            }),
+            element('p', {
+              text: HOME_PAGE.heroDescription
+            }),
+            element('div', { className: 'clinic-hybrid-hero__actions' }, [
+              bookingLink('線上預約'),
+              link(
+                '依症狀找相關療程',
+                '#clinic-symptoms',
+                'clinic-button clinic-button--outline'
+              )
             ])
           ]),
-          element(
-            'ul',
-            {
-              className: 'clinic-hybrid-hero__topics',
-              attrs: { 'aria-label': '主要照護方向' }
-            },
-            HOME_PAGE.heroTopics.map((topic) => element('li', { text: topic }))
-          )
+          stage.pause
         ])
+      ]),
+      // 門診時間：寬版卡片，壓在視覺區底緣（負責人 2026-10-05 選定）。
+      element('div', { className: 'clinic-shell clinic-hero__hours' }, [
+        heroHoursPanel()
       ])
     ]
   );
@@ -316,25 +597,61 @@ function renderHome() {
     `/clinic/nasal/${HOME_SYMPTOMS[0].slug}`,
     'clinic-button clinic-button--outline'
   );
+  // Visual Proof Sprint：症狀分三組，每組配一森渼舊官網自己的白色線稿
+  // （鼻子圖已移除原圖旁的手術刀）。分組結構參考太田耳鼻咽喉科医院，
+  // 圖示與內容不沿用對方。
   const symptomGrid = element('div', {
-    className: 'clinic-symptom-grid',
+    className: 'clinic-symptom-grid clinic-symptom-groups',
     attrs: { 'aria-label': '選擇目前最想改善的困擾' }
   });
-  for (const [index, symptom] of HOME_SYMPTOMS.entries()) {
-    symptomGrid.append(
-      element('button', {
-        className: 'clinic-symptom-button',
-        text: symptom.label,
-        attrs: {
-          type: 'button',
-          'aria-pressed': String(index === 0),
-          'aria-controls': 'clinic-symptom-guidance',
-          'data-service-slug': symptom.slug,
-          'data-symptom-index': String(index)
-        }
-      })
-    );
-  }
+  const symptomButton = (index) =>
+    element('button', {
+      className: 'clinic-symptom-button',
+      text: HOME_SYMPTOMS[index].label,
+      attrs: {
+        type: 'button',
+        'aria-pressed': String(index === 0),
+        'aria-controls': 'clinic-symptom-guidance',
+        'data-service-slug': HOME_SYMPTOMS[index].slug,
+        'data-symptom-index': String(index)
+      }
+    });
+  const groupIcon = (src, width, height) =>
+    element('img', {
+      className: 'clinic-symptom-group__icon',
+      attrs: { src, alt: '', width, height, loading: 'lazy', decoding: 'async' }
+    });
+  symptomGrid.append(
+    element('div', { className: 'clinic-symptom-group' }, [
+      groupIcon('/clinic-assets/icon-nose.webp', '280', '160'),
+      element('h3', { text: '鼻子不通' }),
+      element('div', { className: 'clinic-symptom-group__buttons' }, [
+        symptomButton(0),
+        symptomButton(4)
+      ])
+    ]),
+    element('div', { className: 'clinic-symptom-group' }, [
+      groupIcon('/clinic-assets/icon-mouthguard.webp', '251', '160'),
+      element('h3', { text: '打鼾與睡眠' }),
+      element('div', { className: 'clinic-symptom-group__buttons' }, [
+        symptomButton(1),
+        symptomButton(2),
+        symptomButton(3)
+      ])
+    ]),
+    element(
+      'div',
+      { className: 'clinic-symptom-group clinic-symptom-group--ask' },
+      [
+        groupIcon('/clinic-assets/icon-doctor.webp', '145', '160'),
+        element('h3', { text: '不確定是哪一種？' }),
+        element('p', {
+          text: '直接預約，由醫師檢查後再說明可能的原因與選項。'
+        }),
+        bookingLink('預約門診評估')
+      ]
+    )
+  );
   const symptomSection = element(
     'section',
     {
@@ -347,7 +664,7 @@ function renderHome() {
     [
       element('div', { className: 'clinic-shell' }, [
         sectionHeading(
-          'SYMPTOM GUIDE',
+          '依症狀查詢',
           '你最想改善哪一件事？',
           '選擇一項困擾，先了解可能相關的服務；這項導引不等於醫療診斷。'
         ),
@@ -499,6 +816,7 @@ function renderHome() {
     section.setAttribute('data-reveal', '');
   }
   main.replaceChildren(...sections);
+  startHeroCarousel(hero);
 
   for (const button of symptomGrid.querySelectorAll('.clinic-symptom-button')) {
     button.addEventListener('click', () => {
@@ -1179,7 +1497,7 @@ function indexGridCells(root) {
 function applyMotion() {
   const main = document.querySelector('#clinic-main');
   if (main === null) return;
-  splitHeadingWords(main);
+  // Visual Proof Sprint：主標不再逐字拆開浮現（決策 §10 移除項）。
   stageHero(main);
   indexGridCells(main);
   bindPointerEffects(main);

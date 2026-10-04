@@ -1,0 +1,123 @@
+/* Visual Proof Sprint（2026-10-05，本機原型，未核准、不部署）。
+   範圍只有預約頁頁首與第一題，只套淺色主題；護眼與深色維持原樣。
+   做法：舊官網霧林只出現在頁首「氛圍帶」，往下淡成晨霧；
+   步驟列與第一題放在同一張實心白卡上，輸入與選項後面沒有任何圖。 */
+:root[data-theme='light'] {
+  --proof-mist: #e4ece3;
+  --proof-forest-floor: #cdd8cd;
+  --proof-display:
+    'Noto Serif TC', 'Source Han Serif TC', 'Songti TC', 'Microsoft JhengHei',
+    'PingFang TC', sans-serif;
+}
+
+/* 與官網同一個標誌圖 ----------------------------------------------------- */
+.brand--lockup {
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand-lockup {
+  display: block;
+  width: auto;
+  height: 4.75rem;
+}
+
+:root[data-theme='dark'] .brand-lockup {
+  filter: var(--brand-mark-filter, none);
+}
+
+/* 氛圍帶 ---------------------------------------------------------------- */
+:root[data-theme='light'] .patient-body {
+  position: relative;
+  isolation: isolate;
+  background: var(--proof-mist);
+}
+
+:root[data-theme='light'] .patient-body::before {
+  position: absolute;
+  z-index: -1;
+  height: 24rem;
+  background: url('/clinic-assets/hero-forest.webp') right bottom / cover
+    no-repeat;
+  content: '';
+  inset: 0 0 auto;
+  /* 樹林只出現在右半；標題與說明落在左側晨霧上（實測對比見 proof 紀錄）。 */
+  mask-image:
+    linear-gradient(to bottom, #000 55%, transparent),
+    linear-gradient(to right, transparent 40%, #000 80%);
+  mask-composite: intersect;
+  pointer-events: none;
+}
+
+:root[data-theme='light'] .patient-header {
+  background: var(--surface);
+}
+
+:root[data-theme='light'] .patient-announcement {
+  background: rgb(255 255 255 / 70%);
+}
+
+/* 頁首文字 --------------------------------------------------------------- */
+.patient-hero h1 {
+  font-family: var(--proof-display, var(--font-serif-tc));
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+}
+
+.patient-hero .patient-hero-lead {
+  margin: var(--space-2xs) 0 0;
+  color: var(--ink);
+}
+
+/* 測試提示與狀態壓成細條，不搶第一題的位置 ----------------------------- */
+.patient-preview-warning {
+  padding: var(--space-2xs) var(--space-sm);
+  font-size: var(--text-micro, 0.875rem);
+}
+
+#patient-status.status-message {
+  padding: var(--space-2xs) var(--space-sm);
+  margin-block: var(--space-2xs);
+  font-size: var(--text-micro, 0.875rem);
+}
+
+/* 步驟列＋第一題＝同一張實心白卡 --------------------------------------- */
+:root[data-theme='light'] .booking-stepper {
+  margin-bottom: 0;
+  padding: var(--space-sm) var(--space-lg) 0;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-bottom: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+:root[data-theme='light'] .booking-stepper + .booking-panel {
+  margin-top: 0;
+  background: var(--surface);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+@media (max-width: 48rem) {
+  .brand-lockup {
+    height: 3.25rem;
+  }
+
+  :root[data-theme='light'] .patient-body::before {
+    height: 16rem;
+    background-image: url('/clinic-assets/horizon-mist.webp');
+    background-position: center bottom;
+    mask-image: linear-gradient(to bottom, #000 50%, transparent);
+    mask-composite: add;
+  }
+
+  :root[data-theme='light'] .booking-stepper {
+    padding: var(--space-xs) var(--space-sm) 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .patient-body::before {
+    display: none;
+  }
+}

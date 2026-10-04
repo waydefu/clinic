@@ -89,6 +89,7 @@
     </script>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/clinic-booking.css" />
+    <link rel="stylesheet" href="/booking-proof.css" />
     <!-- 同步載入：首次繪製前套用主題，避免閃爍（CSP 禁 inline script）。 -->
     <script src="/theme.js"></script>
   </head>
@@ -96,18 +97,18 @@
     <a class="skip-link" href="#patient-main">跳至預約內容</a>
     <header class="patient-header">
       <div class="patient-header-inner">
-        <a class="brand" href="/booking" aria-label="一森渼線上預約首頁"
+        <a
+          class="brand brand--lockup"
+          href="/booking"
+          aria-label="一森渼線上預約首頁"
           ><img
-            class="brand-mark"
-            src="/assets/brand-mark.webp"
+            class="brand-lockup"
+            src="/clinic-assets/clinic-logo.webp"
             alt=""
-            width="57"
-            height="80"
+            width="400"
+            height="223"
             decoding="async"
-          /><span
-            ><strong>一森渼診所</strong><small>Beau Essence Clinic</small></span
-          ></a
-        >
+        /></a>
         <span class="patient-credentials">
           <img
             src="/assets/nhi-mark.webp"
@@ -125,15 +126,6 @@
         >
           查詢／取消預約
         </button>
-        <label class="theme-picker-label"
-          ><span class="theme-picker-text">主題</span
-          ><select id="theme-picker" aria-label="顯示主題">
-            <option value="auto">跟隨系統</option>
-            <option value="light">淺色</option>
-            <option value="warm">護眼</option>
-            <option value="dark">深色</option>
-          </select></label
-        >
         <span class="environment-badge"
           ><span aria-hidden="true"></span>LOCAL TEST ONLY</span
         >
@@ -189,8 +181,10 @@
           aria-labelledby="patient-title"
         >
           <div>
-            <p class="eyebrow eyebrow-brand">BEAU ESSENCE · ONLINE BOOKING</p>
             <h1 id="patient-title">線上門診預約</h1>
+            <p class="patient-hero-lead">
+              三個步驟完成預約。需要協助請來電 02-2577-1314。
+            </p>
           </div>
         </section>
 
@@ -740,6 +734,15 @@
       </div>
       <div>
         <a href="/privacy">隱私權政策</a>
+        <label class="theme-picker-label"
+          ><span class="theme-picker-text">顯示模式</span
+          ><select id="theme-picker" aria-label="顯示模式">
+            <option value="auto">跟隨系統</option>
+            <option value="light">淺色</option>
+            <option value="warm">護眼</option>
+            <option value="dark">深色</option>
+          </select></label
+        >
       </div>
       <span id="patient-env-boundary">資料只保存在本機瀏覽器</span>
     </footer>
