@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
+import type {
+  CollectionReference,
+  DocumentSnapshot,
+  Firestore
+} from 'firebase-admin/firestore';
 
 import {
   formatBusyTitle,
@@ -57,6 +61,8 @@ interface PilotJob {
   readonly leaseOwner?: string;
   readonly leaseExpiresAt?: string;
   readonly attemptCount?: number;
+  /** Written by `retryJob`; absent on a job that has never been retried. */
+  readonly nextAttemptAt?: unknown;
 }
 
 function leaseExpired(job: PilotJob, now: string): boolean {
@@ -67,9 +73,58 @@ function leaseExpired(job: PilotJob, now: string): boolean {
 }
 
 /**
- * Claims pending work and reclaims processing work whose worker lease expired.
- * Each candidate is re-read in a transaction so two Worker instances cannot
- * take the same external effect concurrently.
+ * A pending job is due when its backoff has elapsed. Same convention as
+ * `isDue` in packages/domain/src/outbox.ts: a missing `nextAttemptAt` (every
+ * job the API enqueues, and any job never retried) is due immediately, so this
+ * cannot be a `nextAttemptAt <= now` range query — Firestore would drop those
+ * documents. A present but unreadable value fails closed (never due).
+ */
+function backoffElapsed(job: PilotJob, now: string): boolean {
+  const nextAttemptAt = job.nextAttemptAt;
+  if (nextAttemptAt === undefined || nextAttemptAt === null) return true;
+  return (
+    typeof nextAttemptAt === 'string' &&
+    Date.parse(nextAttemptAt) <= Date.parse(now)
+  );
+}
+
+/**
+ * Oldest-first pending jobs whose backoff has elapsed. Backed-off jobs are
+ * skipped while paging, so a full page of them cannot hide due work behind it.
+ */
+async function duePendingJobs(
+  collection: CollectionReference,
+  now: string,
+  limit: number
+): Promise<DocumentSnapshot[]> {
+  const due: DocumentSnapshot[] = [];
+  let cursor: DocumentSnapshot | undefined;
+  while (due.length < limit) {
+    const base = collection
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'asc')
+      .limit(JOB_BATCH_SIZE);
+    const page = await (
+      cursor === undefined ? base : base.startAfter(cursor)
+    ).get();
+    for (const document of page.docs) {
+      if (
+        due.length < limit &&
+        backoffElapsed(document.data() as PilotJob, now)
+      )
+        due.push(document);
+    }
+    if (page.docs.length < JOB_BATCH_SIZE) break;
+    cursor = page.docs[page.docs.length - 1];
+  }
+  return due;
+}
+
+/**
+ * Claims due pending work and reclaims processing work whose worker lease
+ * expired. Each candidate is re-read in a transaction so two Worker instances
+ * cannot take the same external effect concurrently, and the backoff is
+ * re-checked there against the authoritative document.
  */
 export async function claimCalendarPilotJobs(
   db: Firestore,
@@ -87,16 +142,9 @@ export async function claimCalendarPilotJobs(
       .orderBy('leaseExpiresAt', 'asc')
       .limit(limit)
       .get(),
-    collection
-      .where('status', '==', 'pending')
-      .orderBy('createdAt', 'asc')
-      .limit(limit)
-      .get()
+    duePendingJobs(collection, now, limit)
   ]);
-  const candidates = [...expiredProcessing.docs, ...pending.docs].slice(
-    0,
-    limit
-  );
+  const candidates = [...expiredProcessing.docs, ...pending].slice(0, limit);
   const claimed: DocumentSnapshot[] = [];
   for (const candidate of candidates) {
     const document = await db.runTransaction(async (transaction) => {
@@ -104,7 +152,7 @@ export async function claimCalendarPilotJobs(
       if (!current.exists) return undefined;
       const job = current.data() as PilotJob;
       if (
-        job.status !== 'pending' &&
+        !(job.status === 'pending' && backoffElapsed(job, now)) &&
         !(job.status === 'processing' && leaseExpired(job, now))
       )
         return undefined;

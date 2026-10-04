@@ -347,6 +347,92 @@ describe('Stage D Calendar inbound emulator', () => {
     expect(candidate).not.toHaveProperty('suggestionMethod');
   });
 
+  it('suggests the sole active patient when an archived patient shares the lookup key', async () => {
+    const activeId = SUGGESTION_PATIENT_IDS[0];
+    const archivedId = SUGGESTION_PATIENT_IDS[2];
+    // PR #208 keeps archived patients' IDs in the index, so a new patient with
+    // the same phone + month-day yields two indexed IDs but one active patient.
+    await seedSuggestionPatients([archivedId, activeId], [archivedId]);
+    await runManualEvent('合成患者甲0987654321 801123');
+
+    const candidate = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(candidate).toMatchObject({
+      kind: 'unmatched',
+      suggestedPatientId: activeId,
+      suggestionMethod: 'phone_month_day'
+    });
+    const serialized = JSON.stringify(candidate);
+    expect(serialized).not.toContain(archivedId);
+    expect(serialized).not.toContain(SUGGESTION_PHONE);
+    expect(serialized).not.toContain(SUGGESTION_BIRTHDAY);
+    expect(serialized).not.toContain(SUGGESTION_INDEX_ID);
+    const apiCandidates = await new FirestoreCalendarPilotRepository(
+      db
+    ).listCandidates();
+    expect(apiCandidates[0]).toMatchObject({
+      suggestedPatientId: activeId,
+      suggestedPatientName: '合成患者乙',
+      suggestionMethod: 'phone_month_day'
+    });
+  });
+
+  it('does not suggest when two active patients share the lookup key, archived or not', async () => {
+    await seedSuggestionPatients(
+      [
+        SUGGESTION_PATIENT_IDS[2],
+        SUGGESTION_PATIENT_IDS[0],
+        SUGGESTION_PATIENT_IDS[1]
+      ],
+      [SUGGESTION_PATIENT_IDS[2]]
+    );
+    await runManualEvent('合成患者甲0987654321 801123');
+
+    const candidate = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(candidate).toMatchObject({ kind: 'unmatched' });
+    expect(candidate).not.toHaveProperty('suggestedPatientId');
+    expect(candidate).not.toHaveProperty('suggestionMethod');
+  });
+
+  it('does not suggest when every indexed patient is archived or missing', async () => {
+    await seedSuggestionPatients(
+      [SUGGESTION_PATIENT_IDS[2]],
+      [SUGGESTION_PATIENT_IDS[2]]
+    );
+    // An index entry whose patient document no longer exists is not a patient.
+    await db
+      .collection('patient_lookup_index_v2')
+      .doc(SUGGESTION_INDEX_ID)
+      .set({
+        patientIds: [SUGGESTION_PATIENT_IDS[2], 'l2b_suggestion_patient_gone']
+      });
+    await runManualEvent('合成患者甲0987654321 801123');
+
+    const candidate = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(candidate).not.toHaveProperty('suggestedPatientId');
+    expect(candidate).not.toHaveProperty('suggestionMethod');
+  });
+
+  it('does not suggest from a malformed lookup index entry', async () => {
+    await seedSuggestionPatients([SUGGESTION_PATIENT_IDS[0]]);
+    await db
+      .collection('patient_lookup_index_v2')
+      .doc(SUGGESTION_INDEX_ID)
+      .set({ patientIds: [SUGGESTION_PATIENT_IDS[0], 'not/a-valid-id'] });
+    await runManualEvent('合成患者甲0987654321 801123');
+
+    const candidate = (
+      await db.collection('calendar_pilot_candidates').get()
+    ).docs[0]?.data();
+    expect(candidate).not.toHaveProperty('suggestedPatientId');
+    expect(candidate).not.toHaveProperty('suggestionMethod');
+  });
+
   it('keeps the clinic appointment when Calendar deletes the projected event', async () => {
     const appointmentId = 'appointment_001';
     await db.collection('appointments').doc(appointmentId).set({
