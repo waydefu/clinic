@@ -56,7 +56,14 @@ export class InternalTestBookingAuthenticator implements AppointmentAuthenticato
     request: AuthenticatableRequest
   ): Promise<AuthenticationContext> {
     const returnSession = header(request, 'x-return-session');
-    if (returnSession !== undefined && this.patients !== undefined) {
+    if (returnSession !== undefined) {
+      const staffCookie = readCalendarPilotSessionCookie(
+        header(request, 'cookie')
+      );
+      if (staffCookie !== undefined || bearerToken(request) !== undefined) {
+        throw new AuthenticationRequiredError();
+      }
+      if (this.patients === undefined) throw new AuthenticationRequiredError();
       const patientId = await this.patients.readReturnSession(
         returnSession,
         this.nowUtc()
