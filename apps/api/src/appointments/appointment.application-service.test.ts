@@ -17,6 +17,7 @@ import {
   DomainError,
   planIdempotencyRecord,
   planReschedule,
+  planTransition,
   resolveIdempotencyReplay,
   type PlannedIdempotencyRecord
 } from '@beauessence/domain';
@@ -152,6 +153,41 @@ function planStandInReschedule(
   );
 }
 
+/**
+ * What the transition transaction decides: the domain planner, applied to the
+ * appointment as the transaction reads it. The patient self-service window is
+ * therefore judged here, for a request that carries the verified patient id,
+ * and not by the service ahead of the transaction.
+ */
+function planStandInTransition(
+  request: TransitionRequest,
+  record: AppointmentRecord | undefined
+) {
+  const appointment: AppointmentSnapshot | undefined =
+    record === undefined
+      ? undefined
+      : {
+          id: record.appointmentId,
+          slotId: record.slotId,
+          patientId: record.patientId,
+          bookingKind: record.bookingKind,
+          status: record.status,
+          ...(record.startsAt === undefined
+            ? {}
+            : { startsAt: record.startsAt })
+        };
+  return planTransition(
+    request,
+    appointment,
+    appointment === undefined
+      ? undefined
+      : {
+          activeAppointmentIds: [appointment.id],
+          updatedAt: request.requestedAt
+        }
+  );
+}
+
 function createBoundService(
   patients?: InMemoryPatientDirectory,
   ids: () => string = () => 'appointment_server_001',
@@ -162,6 +198,8 @@ function createBoundService(
   const stored: { record: AppointmentRecord | undefined } = {
     record: OPEN_RECORD
   };
+  // The clock a test can move between two requests.
+  const time = { nowUtc };
   // Follow-up entitlement is decided by the repository transaction, after it
   // has replayed a recorded idempotency key (FirestoreBookingRepository.reserve).
   // The stand-in repository applies the same rule so a service that stopped
@@ -199,13 +237,14 @@ function createBoundService(
   );
   const transition = vi.fn<
     (request: TransitionRequest) => Promise<TransitionResult>
-  >(() =>
-    Promise.resolve({
-      appointmentId: 'appointment_server_001',
+  >((request) => {
+    const plan = planStandInTransition(request, stored.record);
+    return Promise.resolve({
+      appointmentId: plan.appointmentId,
       replayed: false,
-      status: 'cancelled'
-    })
-  );
+      status: plan.nextStatus
+    });
+  });
   const recordFollowUp = vi.fn(() =>
     Promise.resolve({
       appointmentId: 'appointment_server_001',
@@ -266,7 +305,7 @@ function createBoundService(
     repository,
     authorization,
     { next: ids },
-    { nowUtc: () => nowUtc },
+    { nowUtc: () => time.nowUtc },
     { next: () => 'corr_server_001' },
     patients
   );
@@ -288,6 +327,7 @@ function createBoundService(
     deleteAppointment,
     patients,
     stored,
+    time,
     service
   };
 }
@@ -692,26 +732,43 @@ describe('AppointmentApplicationService cancel', () => {
   });
 
   it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
-    const { read, transition, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
-    });
+    const { transition, service, stored } = createBoundary();
+    stored.record = { ...OPEN_RECORD, startsAt: '2026-07-23T04:00:00.000Z' };
 
     await expect(
       service.cancel('appointment_server_001', CANCEL_COMMAND, AUTHENTICATION)
     ).rejects.toMatchObject<Partial<DomainError>>({
       code: 'CANCELLATION_WINDOW_CLOSED'
     });
-    expect(transition).not.toHaveBeenCalled();
+    // The transaction judges the window, so it is reached and refuses.
+    expect(transition).toHaveBeenCalledOnce();
+  });
+
+  it('hands the verified patient id to the transition for a patient and none for staff', async () => {
+    const { transition, service } = createBoundary();
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+
+    await service.cancel(
+      'appointment_server_001',
+      CANCEL_COMMAND,
+      AUTHENTICATION
+    );
+    await service.cancel('appointment_server_001', CANCEL_COMMAND, staff);
+
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      expectedPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[1]?.[0]).not.toHaveProperty(
+      'expectedPatientId'
+    );
   });
 
   it('lets staff cancel after the patient cutoff', async () => {
-    const { read, transition, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
-    });
+    const { transition, service, stored } = createBoundary();
+    stored.record = { ...OPEN_RECORD, startsAt: '2026-07-23T04:00:00.000Z' };
     const staff: AuthenticationContext = {
       actorId: 'actor_verified_001',
       actorRole: 'test_front_desk'
@@ -1516,6 +1573,179 @@ describe('patient self-reschedule retried with the same idempotency key', () => 
       service.reschedule('appointment_server_001', SAME_DAY_MOVE, staff)
     ).resolves.toEqual(first);
     expect(recorded.size).toBe(1);
+  });
+});
+
+describe('patient self-cancel retried with the same idempotency key', () => {
+  const PATIENT_ID = 'patient_opaque_001';
+  const patientAuthentication: AuthenticationContext = {
+    actorId: PATIENT_ID,
+    actorRole: 'patient',
+    verifiedPatientId: PATIENT_ID
+  };
+  const STAFF: AuthenticationContext = {
+    actorId: 'actor_verified_001',
+    actorRole: 'test_front_desk'
+  };
+  // The appointment is at 12:00 in Taipei on 2026-07-23; that day's 10:00
+  // self-service cutoff is 02:00 UTC.
+  const APPOINTMENT_STARTS_AT = '2026-07-23T04:00:00.000Z';
+  const BEFORE_CUTOFF = '2026-07-23T01:59:00.000Z';
+  const AFTER_CUTOFF = '2026-07-23T03:00:00.000Z';
+
+  /**
+   * A repository stand-in with the ordering of the real transaction: a
+   * recorded idempotency key is replayed (or rejected for other content)
+   * before any rule is judged, and a first cancellation changes the stored row.
+   */
+  function recordingRepository() {
+    const recorded = new Map<string, PlannedIdempotencyRecord>();
+    const bound = createBoundService(
+      undefined,
+      () => 'appointment_server_001',
+      BEFORE_CUTOFF
+    );
+    bound.stored.record = {
+      ...OPEN_RECORD,
+      startsAt: APPOINTMENT_STARTS_AT
+    };
+    bound.transition.mockImplementation((request) => {
+      const replay = recorded.get(request.idempotency.recordId);
+      if (replay !== undefined) {
+        return Promise.resolve({
+          appointmentId: resolveIdempotencyReplay(replay, request.idempotency),
+          replayed: true,
+          status: bound.stored.record?.status ?? 'cancelled'
+        });
+      }
+      const plan = planStandInTransition(request, bound.stored.record);
+      recorded.set(request.idempotency.recordId, plan.idempotencyRecord);
+      if (bound.stored.record !== undefined) {
+        bound.stored.record = {
+          ...bound.stored.record,
+          status: plan.nextStatus
+        };
+      }
+      return Promise.resolve({
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        status: plan.nextStatus
+      });
+    });
+    return { ...bound, recorded };
+  }
+
+  it('replays the original result although the cutoff has passed since', async () => {
+    const { recorded, service, stored, time, transition } =
+      recordingRepository();
+
+    const first = await service.cancel(
+      'appointment_server_001',
+      CANCEL_COMMAND,
+      patientAuthentication
+    );
+    expect(first).toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'cancelled'
+    });
+    // The state that used to turn the retry into CANCELLATION_WINDOW_CLOSED.
+    time.nowUtc = AFTER_CUTOFF;
+
+    const retried = await service.cancel(
+      'appointment_server_001',
+      CANCEL_COMMAND,
+      patientAuthentication
+    );
+
+    expect(retried).toEqual(first);
+    expect(transition).toHaveBeenCalledTimes(2);
+    expect(recorded.size).toBe(1);
+    expect(stored.record?.status).toBe('cancelled');
+  });
+
+  it('still closes the window for a new key once the cutoff has passed', async () => {
+    const { recorded, service, stored, time } = recordingRepository();
+    await service.cancel(
+      'appointment_server_001',
+      CANCEL_COMMAND,
+      patientAuthentication
+    );
+    time.nowUtc = AFTER_CUTOFF;
+
+    await expect(
+      service.cancel(
+        'appointment_server_001',
+        { idempotencyKey: 'cancel_request_0002' },
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+    expect(recorded.size).toBe(1);
+    expect(stored.record?.status).toBe('cancelled');
+  });
+
+  it('refuses a first request made after the cutoff, and leaves the appointment unchanged', async () => {
+    const { recorded, service, stored, time } = recordingRepository();
+    time.nowUtc = AFTER_CUTOFF;
+
+    await expect(
+      service.cancel(
+        'appointment_server_001',
+        CANCEL_COMMAND,
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+    expect(recorded.size).toBe(0);
+    expect(stored.record?.status).toBe('confirmed');
+  });
+
+  it('fails closed for a patient when the stored appointment has no start time', async () => {
+    const { recorded, service, stored } = recordingRepository();
+    const { startsAt: _startsAt, ...withoutStart } = OPEN_RECORD;
+    stored.record = withoutStart;
+
+    await expect(
+      service.cancel(
+        'appointment_server_001',
+        CANCEL_COMMAND,
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+    expect(recorded.size).toBe(0);
+  });
+
+  it('does not apply the patient window to a staff retry or a staff first request', async () => {
+    const { recorded, service, stored, time } = recordingRepository();
+    time.nowUtc = AFTER_CUTOFF;
+
+    const first = await service.cancel(
+      'appointment_server_001',
+      CANCEL_COMMAND,
+      STAFF
+    );
+    await expect(
+      service.cancel('appointment_server_001', CANCEL_COMMAND, STAFF)
+    ).resolves.toEqual(first);
+    expect(recorded.size).toBe(1);
+    expect(stored.record?.status).toBe('cancelled');
+  });
+
+  it('keeps another patient’s appointment out of reach when the transaction is reached', async () => {
+    const { recorded, service, stored, time } = recordingRepository();
+    time.nowUtc = AFTER_CUTOFF;
+    stored.record = {
+      ...OPEN_RECORD,
+      startsAt: APPOINTMENT_STARTS_AT,
+      patientId: 'patient_other'
+    };
+
+    await expect(
+      service.cancel(
+        'appointment_server_001',
+        CANCEL_COMMAND,
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'APPOINTMENT_NOT_FOUND' });
+    expect(recorded.size).toBe(0);
   });
 });
 

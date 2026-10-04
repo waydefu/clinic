@@ -2,6 +2,7 @@ import {
   assertReschedulable,
   assertSlotMeetsEarliestLead,
   assertTransitionAllowed,
+  assertWithinSelfCancelWindow,
   assertWithinSelfRescheduleWindow,
   OPEN_STATUSES,
   type AppointmentStatusValue,
@@ -54,6 +55,20 @@ export interface AppointmentSnapshot {
 export interface TransitionRequest {
   readonly appointmentId: string;
   readonly transition: AppointmentTransition;
+  /**
+   * When set, the appointment must belong to this patient, so another patient's
+   * appointment is the same `APPOINTMENT_NOT_FOUND` as a missing row — never an
+   * ownership oracle.
+   *
+   * A request that carries it is the patient's own self-service request, so
+   * `planTransition` also applies the patient self-cancellation window to it.
+   * The window is judged here, against the appointment as the transaction read
+   * it and after the caller has replayed a recorded idempotency key, not by the
+   * caller beforehand: a same-key retry of a cancel that succeeded before the
+   * cutoff must be answered with the first result even when it arrives after it.
+   * Staff requests carry no patient id and are not subject to the window.
+   */
+  readonly expectedPatientId?: string;
   readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotency: IdempotencyContext;
@@ -338,11 +353,18 @@ export function planTransition(
   assertUtcTimestamp(request.requestedAt, 'requestedAt');
   assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
-  if (appointment === undefined) {
+  if (
+    appointment === undefined ||
+    (request.expectedPatientId !== undefined &&
+      appointment.patientId !== request.expectedPatientId)
+  ) {
     throw new DomainError(
       'APPOINTMENT_NOT_FOUND',
       'The appointment does not exist.'
     );
+  }
+  if (request.expectedPatientId !== undefined) {
+    assertWithinSelfCancelWindow(appointment.startsAt, request.requestedAt);
   }
   assertTransitionAllowed(request.transition, appointment.status);
   assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);

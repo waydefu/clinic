@@ -747,3 +747,136 @@ describe('clinic Calendar review never reschedules an archived patient’s appoi
     expect(missing?.candidate.status).toBe('accepted');
   });
 });
+
+describe('clinic Calendar review compares the appointment start the candidate saw (stale start)', () => {
+  const STAFF_AUDIT = {
+    actorId: 'front_desk_002',
+    actorRole: 'front_desk' as const,
+    correlationId: 'corr_rival_move_start',
+    source: 'api' as const,
+    reasonCode: null,
+    policyVersion: null
+  };
+
+  // A candidate created from an event the worker had never seen: it has no
+  // earlier Calendar entry, so the start the appointment had at detection is
+  // its only baseline.
+  async function makeFirstSeen(recordStart: boolean): Promise<void> {
+    await db
+      .collection('calendar_pilot_candidates')
+      .doc(CANDIDATE_ID)
+      .update({
+        before: null,
+        ...(recordStart
+          ? { appointmentStartsAtAtDetection: FROM_STARTS_AT }
+          : {})
+      });
+  }
+
+  async function moveAppointmentNow(): Promise<void> {
+    await new FirestoreBookingRepository(db).reschedule({
+      appointmentId: APPOINTMENT_ID,
+      targetSlotId: SLOT_OTHER,
+      audit: STAFF_AUDIT,
+      requestedAt: NOW,
+      idempotency: rescheduleAppointmentIdempotency({
+        key: 'rival_move_0002',
+        actorId: STAFF_AUDIT.actorId,
+        appointmentId: APPOINTMENT_ID,
+        targetSlotId: SLOT_OTHER
+      })
+    });
+  }
+
+  it('supersedes a first-seen candidate when the appointment was moved after it was created, and changes nothing else', async () => {
+    await makeFirstSeen(true);
+    await moveAppointmentNow();
+    const before = await snapshot();
+    const writtenBefore = await writeCounts();
+    expect(before.appointment).toMatchObject({
+      slotId: SLOT_OTHER,
+      startsAt: OTHER_STARTS_AT
+    });
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'stale_start_recorded_0001'
+    );
+
+    const after = await snapshot();
+    expect(response?.candidate).toMatchObject({
+      status: 'superseded',
+      expectedVersion: 2
+    });
+    // The appointment and every slot are exactly as the move left them: the
+    // candidate's time was not applied over the newer one.
+    expect(after.appointment).toEqual(before.appointment);
+    expect(after.reservation).toEqual(before.reservation);
+    expect(after.reservation.to).toBeUndefined();
+    const written = await writeCounts();
+    expect(written.appointmentAudits).toBe(writtenBefore.appointmentAudits);
+    expect(written.outboxJobs).toBe(writtenBefore.outboxJobs);
+    // Only the candidate decision itself was recorded.
+    expect(written.candidateAudits).toBe(1);
+  });
+
+  it('supersedes a first-seen Calendar delete candidate when the appointment was moved after it was created', async () => {
+    await db.collection('calendar_pilot_candidates').doc(CANDIDATE_ID).update({
+      kind: 'cancel_appointment',
+      startsAt: null,
+      endsAt: null,
+      changedFields: []
+    });
+    await makeFirstSeen(true);
+    await moveAppointmentNow();
+    const before = await snapshot();
+    const writtenBefore = await writeCounts();
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'stale_start_delete_0001'
+    );
+
+    expect(response?.candidate.status).toBe('superseded');
+    const after = await snapshot();
+    expect(after.appointment).toEqual(before.appointment);
+    expect(after.appointment?.['status']).toBe('confirmed');
+    const written = await writeCounts();
+    expect(written.appointmentAudits).toBe(writtenBefore.appointmentAudits);
+    expect(written.outboxJobs).toBe(writtenBefore.outboxJobs);
+  });
+
+  it('still approves a first-seen candidate whose appointment kept the recorded start', async () => {
+    await makeFirstSeen(true);
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'start_unchanged_0001'
+    );
+
+    expect(response?.candidate.status).toBe('accepted');
+    expect((await snapshot()).appointment).toMatchObject({
+      slotId: SLOT_TO,
+      startsAt: TO_STARTS_AT
+    });
+  });
+
+  // A first-seen candidate written before the start was recorded has nothing to
+  // compare with, so it is judged as it was before: this is the behaviour the
+  // recorded start exists to close, kept here for candidates that predate it.
+  it('judges a first-seen candidate that recorded no start as before', async () => {
+    await makeFirstSeen(false);
+    await moveAppointmentNow();
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'stale_start_legacy_0001'
+    );
+
+    expect(response?.candidate.status).toBe('accepted');
+  });
+});

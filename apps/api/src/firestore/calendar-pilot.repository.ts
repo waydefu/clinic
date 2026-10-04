@@ -73,6 +73,7 @@ interface CandidateRecord extends CalendarChangeCandidate {
   readonly previousParsed?: ParsedCalendarEntry;
   readonly localRecordId?: string;
   readonly appointmentStatusAtDetection?: string;
+  readonly appointmentStartsAtAtDetection?: string;
 }
 
 interface IdempotencyRecord<T> {
@@ -239,6 +240,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         previousParsed: _previousParsed,
         localRecordId: _local,
         appointmentStatusAtDetection: _statusAtDetection,
+        appointmentStartsAtAtDetection: _startsAtAtDetection,
         sourceId: _sourceId,
         ...publicRecord
       } = document.data() as CandidateRecord & { readonly sourceId?: string };

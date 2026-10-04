@@ -112,6 +112,15 @@ export interface CalendarCandidateDraft {
    * after detection makes the candidate stale. Internal: not served to staff.
    */
   readonly appointmentStatusAtDetection?: string;
+  /**
+   * The clinic appointment's start time when this change was detected. A
+   * candidate made from an event the mirror had never seen has no earlier
+   * Calendar entry to compare the appointment with, so this is its only
+   * baseline: the review compares it with the live start, and an appointment
+   * moved in the app after detection makes the candidate stale. Internal: not
+   * served to staff.
+   */
+  readonly appointmentStartsAtAtDetection?: string;
 }
 
 export interface CalendarMirrorMutation {
@@ -433,7 +442,10 @@ export class CalendarSyncEngine {
           ...(managedLink === undefined ? {} : { localRecordId: managedLink }),
           ...(liveAppointment === undefined
             ? {}
-            : { appointmentStatusAtDetection: liveAppointment.status }),
+            : {
+                appointmentStatusAtDetection: liveAppointment.status,
+                appointmentStartsAtAtDetection: liveAppointment.startsAt
+              }),
           ...(detection.action === 'candidate' &&
           detection.changedFields.length > 0
             ? { changedFields: detection.changedFields }

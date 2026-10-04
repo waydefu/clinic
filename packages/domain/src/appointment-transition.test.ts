@@ -793,3 +793,119 @@ describe('planReschedule patient self-service window', () => {
     ).toBe('CANCELLATION_WINDOW_CLOSED');
   });
 });
+
+// The patient self-service window is judged here for a transition that carries
+// the verified patient id, after an idempotent replay has been answered by the
+// caller and against the appointment as the transaction reads it (a same-key
+// retry of a cancel sent after the cutoff must reach the replay, not this rule).
+describe('planTransition patient self-service window', () => {
+  // 12:00 in Taipei on 2030-01-02; that day's 10:00 cutoff is 02:00 UTC.
+  const startsAt = '2030-01-02T04:00:00.000Z';
+  const BEFORE_CUTOFF = '2030-01-02T01:59:00.000Z';
+  const AT_CUTOFF = '2030-01-02T02:00:00.000Z';
+  const plan = (
+    transition: AppointmentTransition,
+    requestedAt: string,
+    overrides: { readonly expectedPatientId?: string } = {},
+    patch: Partial<AppointmentSnapshot> = {}
+  ) =>
+    planTransition(
+      {
+        appointmentId: appointment.id,
+        transition,
+        ...overrides,
+        audit,
+        requestedAt,
+        idempotency: idempotencyFor()
+      },
+      { ...appointment, startsAt, ...patch },
+      patientBookingGuard
+    );
+
+  it('lets the owning patient cancel strictly before the cutoff', () => {
+    expect(
+      plan('cancel', BEFORE_CUTOFF, { expectedPatientId: 'patient_001' })
+        .nextStatus
+    ).toBe('cancelled');
+  });
+
+  it('refuses the owning patient at and after the cutoff', () => {
+    for (const requestedAt of [AT_CUTOFF, '2030-01-02T02:30:00.000Z'])
+      expect(
+        codeOf(() =>
+          plan('cancel', requestedAt, { expectedPatientId: 'patient_001' })
+        )
+      ).toBe('CANCELLATION_WINDOW_CLOSED');
+  });
+
+  it('applies the same window to a patient’s request for cancellation', () => {
+    expect(
+      plan('request_cancellation', BEFORE_CUTOFF, {
+        expectedPatientId: 'patient_001'
+      }).nextStatus
+    ).toBe('cancellation_requested');
+    expect(
+      codeOf(() =>
+        plan('request_cancellation', AT_CUTOFF, {
+          expectedPatientId: 'patient_001'
+        })
+      )
+    ).toBe('CANCELLATION_WINDOW_CLOSED');
+  });
+
+  it('fails closed for a patient when the appointment has no start time', () => {
+    expect(
+      codeOf(() =>
+        planTransition(
+          {
+            appointmentId: appointment.id,
+            transition: 'cancel',
+            expectedPatientId: 'patient_001',
+            audit,
+            requestedAt: BEFORE_CUTOFF,
+            idempotency: idempotencyFor()
+          },
+          appointment,
+          patientBookingGuard
+        )
+      )
+    ).toBe('CANCELLATION_WINDOW_CLOSED');
+  });
+
+  it('does not apply the patient window to a request that is not patient self-service', () => {
+    for (const transition of [
+      'cancel',
+      'request_cancellation',
+      'no_show'
+    ] as const) {
+      expect(() => plan(transition, AT_CUTOFF)).not.toThrow();
+      expect(() => plan(transition, '2030-01-02T02:30:00.000Z')).not.toThrow();
+    }
+  });
+
+  it('reports another patient’s appointment as not found, never as a closed window', () => {
+    expect(
+      codeOf(() =>
+        plan('cancel', AT_CUTOFF, { expectedPatientId: 'patient_other' })
+      )
+    ).toBe('APPOINTMENT_NOT_FOUND');
+    expect(
+      codeOf(() =>
+        plan('cancel', BEFORE_CUTOFF, { expectedPatientId: 'patient_other' })
+      )
+    ).toBe('APPOINTMENT_NOT_FOUND');
+  });
+
+  it('judges the window before the status rule, as the caller did before the move into the transaction', () => {
+    expect(
+      codeOf(() =>
+        plan(
+          'cancel',
+          AT_CUTOFF,
+          { expectedPatientId: 'patient_001' },
+          { status: 'cancelled' }
+        )
+      )
+    ).toBe('CANCELLATION_WINDOW_CLOSED');
+  });
+});

@@ -655,3 +655,145 @@ describe('patient self-service reschedule window in a Firestore transaction', ()
     expect((await appointmentState())?.['slotId']).toBe(SLOT_SAME_DAY_B);
   });
 });
+
+// Patient self-cancel window (10:00 Taipei on the appointment day). The
+// transaction judges it after replaying a recorded key, against the
+// appointment it read, so a same-key retry of a cancel sent after the cutoff is
+// answered with the first result.
+describe('patient self-service cancel window in a Firestore transaction', () => {
+  // The seeded appointment is at 12:00 in Taipei on 2030-01-02; that day's
+  // 10:00 cutoff is 02:00 UTC.
+  const BEFORE_CUTOFF_AT = '2030-01-02T01:59:00.000Z';
+  const AFTER_CUTOFF_AT = '2030-01-02T03:00:00.000Z';
+
+  const cancelAs = (
+    who: 'patient' | 'other_patient' | 'staff',
+    key: string,
+    requestedAt: string,
+    kind: AppointmentTransition = 'cancel'
+  ) => {
+    const actorId =
+      who === 'staff'
+        ? 'actor_front_desk_001'
+        : who === 'patient'
+          ? 'patient_001'
+          : 'patient_other';
+    return repository.transition({
+      appointmentId: APPOINTMENT,
+      transition: kind,
+      ...(who === 'staff' ? {} : { expectedPatientId: actorId }),
+      audit: {
+        actorId,
+        actorRole: who === 'staff' ? 'test_front_desk' : 'patient',
+        correlationId: `corr_${key}`,
+        source: 'api',
+        reasonCode: null,
+        policyVersion: null
+      },
+      requestedAt,
+      idempotency: transitionAppointmentIdempotency({
+        key,
+        actorId,
+        appointmentId: APPOINTMENT,
+        transition: kind
+      })
+    });
+  };
+
+  it('lets the owning patient cancel before the cutoff', async () => {
+    await expect(
+      cancelAs('patient', 'idem_cancel_window_ok', BEFORE_CUTOFF_AT)
+    ).resolves.toMatchObject({ replayed: false, status: 'cancelled' });
+
+    expect((await appointmentState())?.['status']).toBe('cancelled');
+    expect((await slotState(SLOT_A))?.['reservationId']).toBeUndefined();
+  });
+
+  it('replays the same request sent again after the cutoff has passed', async () => {
+    const first = await cancelAs(
+      'patient',
+      'idem_cancel_window_replay',
+      BEFORE_CUTOFF_AT
+    );
+    expect(first).toMatchObject({ replayed: false, status: 'cancelled' });
+
+    const retried = await cancelAs(
+      'patient',
+      'idem_cancel_window_replay',
+      AFTER_CUTOFF_AT
+    );
+
+    expect(retried).toEqual({ ...first, replayed: true });
+    expect((await appointmentState())?.['status']).toBe('cancelled');
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+    expect((await db.collection(COLLECTIONS.outboxJobs).get()).size).toBe(1);
+  });
+
+  it('still rejects the same key for another transition as a reused key', async () => {
+    await cancelAs('patient', 'idem_cancel_window_other', BEFORE_CUTOFF_AT);
+
+    await expect(
+      cancelAs(
+        'patient',
+        'idem_cancel_window_other',
+        AFTER_CUTOFF_AT,
+        'request_cancellation'
+      )
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+
+    expect((await appointmentState())?.['status']).toBe('cancelled');
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+  });
+
+  it('refuses a first request after the cutoff, and writes nothing', async () => {
+    await expect(
+      cancelAs('patient', 'idem_cancel_window_late', AFTER_CUTOFF_AT)
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+
+    expect((await appointmentState())?.['status']).toBe('confirmed');
+    expect((await slotState(SLOT_A))?.['reservationId']).toBe(APPOINTMENT);
+    expect((await patientGuardState()).exists).toBe(true);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(0);
+    expect((await db.collection(COLLECTIONS.outboxJobs).get()).size).toBe(0);
+    expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
+      0
+    );
+  });
+
+  it('refuses a new key once the cutoff has passed, although the appointment is already cancelled', async () => {
+    await cancelAs('patient', 'idem_cancel_window_first', BEFORE_CUTOFF_AT);
+
+    await expect(
+      cancelAs('patient', 'idem_cancel_window_second', AFTER_CUTOFF_AT)
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+    expect((await db.collection(COLLECTIONS.idempotencyKeys).get()).size).toBe(
+      1
+    );
+  });
+
+  it('reports another patient’s appointment as not found, never as a closed window', async () => {
+    for (const requestedAt of [BEFORE_CUTOFF_AT, AFTER_CUTOFF_AT])
+      await expect(
+        cancelAs('other_patient', 'idem_cancel_window_bola', requestedAt)
+      ).rejects.toMatchObject({ code: 'APPOINTMENT_NOT_FOUND' });
+
+    expect((await appointmentState())?.['status']).toBe('confirmed');
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(0);
+  });
+
+  it('does not apply the patient window to staff', async () => {
+    const first = await cancelAs(
+      'staff',
+      'idem_cancel_window_staff',
+      AFTER_CUTOFF_AT
+    );
+    expect(first).toMatchObject({ replayed: false, status: 'cancelled' });
+
+    await expect(
+      cancelAs('staff', 'idem_cancel_window_staff', AFTER_CUTOFF_AT)
+    ).resolves.toMatchObject({ replayed: true });
+    expect((await appointmentState())?.['status']).toBe('cancelled');
+  });
+});

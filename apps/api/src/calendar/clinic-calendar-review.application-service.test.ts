@@ -646,3 +646,119 @@ describe('ClinicCalendarReviewApplicationService appointment status drift', () =
     });
   });
 });
+
+describe('ClinicCalendarReviewApplicationService appointment start drift', () => {
+  const approve = (idempotencyKey: string) => ({
+    candidateId: 'candidate_001',
+    action: 'accept' as const,
+    command: { idempotencyKey, expectedVersion: 1 },
+    authentication: { actorId: 'manager_001', actorRole: 'manager' as const }
+  });
+  // The appointment moved in the app after the candidate was created.
+  const movedInApp: AppointmentRecord = {
+    ...live,
+    startsAt: '2030-01-02T07:00:00.000Z',
+    slotId: 'slot_follow_up_0700'
+  };
+  // A candidate created from an event the worker had never seen before: there
+  // is no earlier Calendar entry to compare with, so the only baseline for the
+  // appointment's start is the one recorded when the change was detected.
+  const firstSeen: ClinicCalendarCandidateRecord = {
+    ...pending,
+    before: null,
+    appointmentStartsAtAtDetection: live.startsAt ?? ''
+  };
+
+  it('supersedes a first-seen reschedule candidate when the appointment was moved after detection', async () => {
+    const { service, reschedule, transition, committed } = harness({
+      live: movedInApp,
+      candidate: firstSeen
+    });
+    const result = await service.tryReview(approve('calendar_candidate_0050'));
+    expect(result?.candidate.status).toBe('superseded');
+    expect(reschedule).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+    expect(committed).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'superseded' })
+    );
+    expect(committed).not.toHaveBeenCalledWith(
+      expect.objectContaining({ change: expect.anything() })
+    );
+  });
+
+  it('supersedes a first-seen Calendar delete candidate when the appointment was moved after detection', async () => {
+    const { service, reschedule, transition } = harness({
+      live: movedInApp,
+      candidate: { ...firstSeen, kind: 'cancel_appointment', startsAt: null }
+    });
+    const result = await service.tryReview(approve('calendar_candidate_0051'));
+    expect(result?.candidate.status).toBe('superseded');
+    expect(transition).not.toHaveBeenCalled();
+    expect(reschedule).not.toHaveBeenCalled();
+  });
+
+  it('still approves a first-seen candidate whose appointment kept the recorded start', async () => {
+    const { service, reschedule } = harness({ candidate: firstSeen });
+    const result = await service.tryReview(approve('calendar_candidate_0052'));
+    expect(result?.candidate.status).toBe('accepted');
+    expect(reschedule).toHaveBeenCalledOnce();
+  });
+
+  it('keeps comparing a candidate that has an earlier Calendar entry with that entry', async () => {
+    // Both baselines are present and the Calendar entry still matches the live
+    // appointment: the entry decides, exactly as before the start was recorded.
+    const accepted = harness({
+      candidate: {
+        ...pending,
+        appointmentStartsAtAtDetection: '2030-01-02T05:00:00.000Z'
+      }
+    });
+    await expect(
+      accepted.service.tryReview(approve('calendar_candidate_0053'))
+    ).resolves.toMatchObject({ candidate: { status: 'accepted' } });
+    expect(accepted.reschedule).toHaveBeenCalledOnce();
+
+    const superseded = harness({ live: movedInApp, candidate: pending });
+    await expect(
+      superseded.service.tryReview(approve('calendar_candidate_0054'))
+    ).resolves.toMatchObject({ candidate: { status: 'superseded' } });
+    expect(superseded.reschedule).not.toHaveBeenCalled();
+  });
+
+  describe('a first-seen candidate that recorded no start (written before the field existed)', () => {
+    const legacyFirstSeen: ClinicCalendarCandidateRecord = {
+      ...pending,
+      before: null
+    };
+
+    // Not failed closed here: with nothing recorded there is no baseline to
+    // compare, so the candidate is judged as it was before the start was
+    // recorded. The status check still applies to it.
+    it('is judged as before, because it has no baseline to show a change', async () => {
+      const { service, reschedule } = harness({
+        live: movedInApp,
+        candidate: legacyFirstSeen
+      });
+      const result = await service.tryReview(
+        approve('calendar_candidate_0055')
+      );
+      expect(result?.candidate.status).toBe('accepted');
+      expect(reschedule).toHaveBeenCalledOnce();
+    });
+
+    it('treats an unreadable recorded start like a missing one', async () => {
+      const { service, reschedule } = harness({
+        live: movedInApp,
+        candidate: {
+          ...legacyFirstSeen,
+          appointmentStartsAtAtDetection: 42 as unknown as string
+        }
+      });
+      const result = await service.tryReview(
+        approve('calendar_candidate_0056')
+      );
+      expect(result?.candidate.status).toBe('accepted');
+      expect(reschedule).toHaveBeenCalledOnce();
+    });
+  });
+});

@@ -48,6 +48,14 @@ export interface ClinicCalendarCandidateRecord {
    * written before it was recorded.
    */
   readonly appointmentStatusAtDetection?: string;
+  /**
+   * The appointment's start time when the worker detected the Calendar change.
+   * Internal: never part of the staff-facing candidate. It is the baseline for
+   * a candidate with no earlier Calendar entry (`before`), which would
+   * otherwise have nothing to compare the live start with. Absent on candidates
+   * written before it was recorded.
+   */
+  readonly appointmentStartsAtAtDetection?: string;
 }
 
 export interface ClinicCalendarReviewCommand {
@@ -118,6 +126,29 @@ export interface ClinicCalendarCandidateStore {
     command: ClinicCalendarReviewCommand,
     decide: ClinicCalendarReviewDecider
   ): Promise<ReviewCalendarCandidateResponse | undefined>;
+}
+
+/**
+ * The start time the appointment must still have for the candidate to be
+ * current. The earlier Calendar entry decides when there is one, exactly as it
+ * always did. A candidate made from an event the mirror had never seen has none,
+ * and comparing the live start with itself could never show a change, so it is
+ * judged against the start the appointment had at detection. A candidate that
+ * recorded no start (written before the field existed) is judged as before: with
+ * nothing to compare it cannot show a change. An unreadable recorded value is
+ * treated like a missing one.
+ */
+function expectedStartsAtOf(
+  stored: ClinicCalendarCandidateRecord,
+  liveStartsAt: string
+): string {
+  const atDetection = stored.appointmentStartsAtAtDetection;
+  return (
+    stored.before?.startsAt ??
+    (typeof atDetection === 'string' && atDetection !== ''
+      ? atDetection
+      : liveStartsAt)
+  );
 }
 
 function liveFrom(record: AppointmentRecord): {
@@ -245,7 +276,7 @@ export class ClinicCalendarReviewApplicationService {
               ? 'unmatched'
               : 'reschedule',
         appointmentId: linked.appointmentId,
-        expectedStartsAt: stored.before?.startsAt ?? live.startsAt,
+        expectedStartsAt: expectedStartsAtOf(stored, live.startsAt),
         ...(statusAtDetection.success
           ? { expectedStatus: statusAtDetection.data }
           : {}),

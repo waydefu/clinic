@@ -504,6 +504,171 @@ describe('CalendarSyncEngine', () => {
     });
   });
 
+  describe('the appointment start a linked candidate records', () => {
+    const appointmentId = 'appointment_001';
+    const eventId = calendarEventIdForAppointment(appointmentId);
+    const APP_STARTS_AT = '2030-01-02T04:00:00.000Z';
+
+    function repositoryWithAppointment(status = 'confirmed') {
+      const repository = new MemoryRepository();
+      repository.clinicAppointments.set(appointmentId, {
+        appointmentId,
+        status,
+        startsAt: APP_STARTS_AT,
+        bookingKind: 'initial'
+      });
+      return repository;
+    }
+
+    function projectedBody(startsAt: string, endsAt: string) {
+      return buildClinicCalendarEventBody({
+        eventId,
+        appointmentId,
+        appointmentStatus: 'confirmed',
+        bookingKind: 'initial',
+        startsAt,
+        endsAt,
+        colorId: '10',
+        clinicName: '一森渼診所',
+        clinicAddress: 'synthetic-location',
+        correlationId: 'corr_calendar_001'
+      });
+    }
+
+    it('records the start the appointment had for an event seen for the first time, which has no earlier entry to compare with', async () => {
+      const repository = repositoryWithAppointment();
+      // The event was never mirrored before and already shows another time.
+      const moved = projectedBody(
+        '2030-01-03T04:00:00.000Z',
+        '2030-01-03T05:00:00.000Z'
+      );
+
+      await new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [
+              {
+                id: eventId,
+                etag: 'etag-first-seen',
+                status: 'confirmed',
+                summary: moved.summary,
+                start: moved.start,
+                end: moved.end,
+                extendedProperties: moved.extendedProperties
+              }
+            ],
+            nextSyncToken: 'sync-first-seen'
+          }
+        ]),
+        repository
+      ).run(NOW);
+
+      const candidate = repository.commits[0]?.mutations[0]?.candidate;
+      expect(candidate).toMatchObject({
+        kind: 'update_appointment',
+        localRecordId: appointmentId,
+        appointmentStatusAtDetection: 'confirmed',
+        appointmentStartsAtAtDetection: APP_STARTS_AT
+      });
+      expect(candidate).not.toHaveProperty('previousParsed');
+    });
+
+    /** Mirrors the projected event, then returns the engine inputs for a change. */
+    async function mirroredEvent(status = 'confirmed') {
+      const repository = repositoryWithAppointment(status);
+      const body = projectedBody(APP_STARTS_AT, '2030-01-02T05:00:00.000Z');
+      const baseline = {
+        id: eventId,
+        etag: 'etag-echo',
+        status: 'confirmed' as const,
+        summary: body.summary,
+        start: body.start,
+        end: body.end,
+        extendedProperties: body.extendedProperties
+      };
+      await new CalendarSyncEngine(
+        new FakeReader([{ events: [baseline], nextSyncToken: 'sync-echo' }]),
+        repository
+      ).run(NOW);
+      return { repository, baseline };
+    }
+
+    it('records the start the appointment had when a manual move was detected on a mirrored event', async () => {
+      const { repository, baseline } = await mirroredEvent();
+
+      await new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [
+              {
+                ...baseline,
+                etag: 'etag-manual-edit',
+                start: { dateTime: '2030-01-03T04:00:00.000Z' },
+                end: { dateTime: '2030-01-03T05:00:00.000Z' }
+              }
+            ],
+            nextSyncToken: 'sync-edit'
+          }
+        ]),
+        repository
+      ).run(NOW);
+
+      expect(repository.commits[1]?.mutations[0]?.candidate).toMatchObject({
+        kind: 'update_appointment',
+        appointmentStartsAtAtDetection: APP_STARTS_AT
+      });
+    });
+
+    // The appointment is no longer in the status its projection shows, so the
+    // cancelled event is not taken for the echo of the app's own projection.
+    it('records the start the appointment had when a manual Calendar delete was detected', async () => {
+      const { repository, baseline } = await mirroredEvent('arrived');
+
+      await new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [
+              { ...baseline, etag: 'etag-manual-delete', status: 'cancelled' }
+            ],
+            nextSyncToken: 'sync-delete'
+          }
+        ]),
+        repository
+      ).run(NOW);
+
+      expect(repository.commits[1]?.mutations[0]?.candidate).toMatchObject({
+        kind: 'cancel_appointment',
+        appointmentStartsAtAtDetection: APP_STARTS_AT
+      });
+    });
+
+    it('records nothing for an event that matches no clinic appointment', async () => {
+      const repository = new MemoryRepository();
+      await new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [
+              {
+                id: 'manual_event_001',
+                etag: 'etag-manual',
+                status: 'confirmed',
+                summary: '會議',
+                start: { dateTime: '2026-09-02T14:00:00+08:00' },
+                end: { dateTime: '2026-09-02T14:30:00+08:00' }
+              }
+            ],
+            nextSyncToken: 'sync-manual'
+          }
+        ]),
+        repository
+      ).run(NOW);
+
+      expect(repository.commits[0]?.mutations[0]?.candidate).not.toHaveProperty(
+        'appointmentStartsAtAtDetection'
+      );
+    });
+  });
+
   it('carries the moved event range on a reschedule candidate and nothing on a delete', async () => {
     const repository = new MemoryRepository();
     const appointmentId = 'appointment_001';
