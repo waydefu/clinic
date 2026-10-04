@@ -241,6 +241,14 @@ resource "google_secret_manager_secret" "runtime" {
       replicas { location = var.region }
     }
   }
+
+  lifecycle {
+    # Secret versions hold values that are in neither Terraform state nor git.
+    # A plan that would destroy or replace a container (for example the
+    # maintenance-emails one once its prerequisites flag and numeric pin are
+    # both off) must fail instead of deleting every version.
+    prevent_destroy = true
+  }
 }
 
 resource "google_secret_manager_secret_iam_member" "api" {

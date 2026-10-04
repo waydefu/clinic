@@ -20,31 +20,53 @@ processing off, scheduler paused, images must be digest-pinned, mutable
 Business Delivery report routes also default off. Enabling them requires the
 exact isolated C1 project, policy `BD-POLICY-2026-09-29`, scope
 `internal_synthetic`, and a valid UTC ISO-8601
-`business_delivery_observed_since` instant recording when ingress observation
-began. Prepare the maintenance/developer email allowlist in two separately
-authorized full Stage F plans. For the first plan, keep
+`business_delivery_observed_since` instant recording when complete, classified
+ingress capture began. The module refuses `business_delivery_enabled = true`
+with an empty `business_delivery_observed_since`, but that instant cannot be
+known at plan time of a single enabling stage: it only exists after the
+allowlist secret is mounted and the API has classified its first staff login or
+booking. Prepare the maintenance/developer email allowlist in three separately
+authorized full Stage F plans (Stage 1, Stage 2a, Stage 2b).
+Do not use `-target`.
+
+Stage 1 (create the container). For the first plan, keep
 `business_delivery_enabled = false` and
 `business_delivery_maintenance_emails_secret_version = "not_granted"`, then
 set `business_delivery_maintenance_prerequisites_enabled = true`. The full
 plan creates the empty Secret Manager container and API-only accessor binding;
-the Cloud Run env remains unmounted. Do not use `-target`.
+the Cloud Run env remains unmounted.
 
 After that stage is applied under fresh exact-SHA authority, add the
 comma-separated allowlist as a Secret Manager version using the approved
 private process. Keep those identities out of `terraform.tfvars` and other
 Terraform values; the API receives them through the existing secret mount.
 Never put the value in Terraform state, source control, shell history, logs,
-plans, or outputs. For the second full plan, set
-`business_delivery_maintenance_emails_secret_version` to that numeric version
-(never `latest`) and set the prerequisites flag back to `false`. If that
-separately authorized plan is intended to enable reports, set
-`business_delivery_enabled = true`, policy
-`BD-POLICY-2026-09-29`, scope `internal_synthetic`, and the actual UTC
-`business_delivery_observed_since` instant when ingress observation began.
-Otherwise keep the gate false and enable it only in a later authorized plan.
-The numeric pin keeps the container and IAM binding in the plan, and the API
-service explicitly depends on that binding before it mounts the version.
-Inspect and apply the complete plan under fresh authority. Do not enable this
+plans, or outputs.
+
+Stage 2a (mount the numeric pin, still disabled). For the second full plan,
+set `business_delivery_maintenance_emails_secret_version` to that numeric
+version (never `latest`) and keep `business_delivery_maintenance_prerequisites_enabled = true`.
+Keep `business_delivery_enabled = false` and leave
+`business_delivery_policy_version`, `business_delivery_scope` and
+`business_delivery_observed_since` empty. The API now mounts the version and
+classifies staff logins and bookings while the report routes stay off, so the
+first complete classified capture can happen. Do not set the flag back to
+`false`: with the flag `false`, a later return of the pin to `not_granted` (for
+example the fail-closed rollback below) makes the plan destroy
+`google_secret_manager_secret.runtime["c1-business-delivery-maintenance-emails"]`
+and every secret version in it. While the pin is numeric the container and IAM
+binding stay in the plan whatever the flag says; the flag keeps them there when
+the pin is `not_granted`. The API service explicitly depends on that binding
+before it mounts the version.
+
+Stage 2b (enable). Only after that first complete classified capture exists, a
+third full plan sets `business_delivery_enabled = true`, policy
+`BD-POLICY-2026-09-29`, scope `internal_synthetic`, and
+`business_delivery_observed_since` to the measured UTC instant of that capture.
+Never use a deployment time, an estimate or a backfilled instant. Keep the
+numeric pin and the prerequisites flag `true`.
+
+Inspect and apply each complete plan under fresh authority. Do not enable this
 gate in production or for real data.
 
 `CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN` is the explicit non-secret input
@@ -143,5 +165,9 @@ directory. Agent sandbox does not apply. Do not re-apply
 Rollback (future packet): route Cloud Run traffic to the previous
 revision/digest; set `worker_processing_enabled=false` and keep the
 scheduler paused; do not destroy the stack.
+For Business Delivery, the fail-closed rollback reuses the Stage 1 inputs
+(`business_delivery_enabled = false`, pin `not_granted`, prerequisites flag
+`true`): it unmounts the secret and leaves the container and its versions in
+place.
 
 See [c1-local-execution-packet.md](../../../docs/runbooks/c1-local-execution-packet.md).

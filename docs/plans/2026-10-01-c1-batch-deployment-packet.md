@@ -47,10 +47,10 @@
 
 | Runtime setting | C1 值／來源 | 用途與檢查 |
 | --- | --- | --- |
-| `BUSINESS_DELIVERY_ENABLED` | 第一階段固定 `false`；第二階段只能在 owner 授權後 `true` | 第一階段先建必要安全前置，不啟用功能；空值／未知值必須 fail closed |
-| `BUSINESS_DELIVERY_POLICY_VERSION` | 階段一空字串；階段二 `BD-POLICY-2026-09-29`（依最終 source schema） | 未啟用時不提供政策；啟用僅此核准版本 |
-| `BUSINESS_DELIVERY_SCOPE` | 階段一空字串；階段二 `internal_synthetic` | 不可設成 production 或任意 scope |
-| `BUSINESS_DELIVERY_OBSERVED_SINCE` | 階段一空字串；階段二由 owner 填入修正後第一筆 complete classified capture 的實際 UTC instant | gaps 造成 partial/null fee 及 `bd_milestones` marker（無 PII）；不得回填 bootstrap/missing-invalid allowlist 時段或 fixture 時間 |
+| `BUSINESS_DELIVERY_ENABLED` | Stage 1 與 Stage 2a 固定 `false`；Stage 2b 只能在 owner 授權後 `true` | Stage 1 先建必要安全前置、Stage 2a 只 mount 數字 pin，都不啟用功能；空值／未知值必須 fail closed |
+| `BUSINESS_DELIVERY_POLICY_VERSION` | Stage 1、2a 空字串；Stage 2b `BD-POLICY-2026-09-29`（依最終 source schema） | 未啟用時不提供政策；啟用僅此核准版本 |
+| `BUSINESS_DELIVERY_SCOPE` | Stage 1、2a 空字串；Stage 2b `internal_synthetic` | 不可設成 production 或任意 scope |
+| `BUSINESS_DELIVERY_OBSERVED_SINCE` | Stage 1、2a 空字串（此 instant 在 2a apply 前尚不存在）；Stage 2b 由 owner 填入 2a 之後實際量得的第一筆 complete classified capture 的 UTC instant | gaps 造成 partial/null fee 及 `bd_milestones` marker（無 PII）；不得回填 bootstrap/missing-invalid allowlist 時段或 fixture 時間 |
 | `BUSINESS_DELIVERY_MAINTENANCE_EMAILS` | runtime value 只可由 `c1-business-delivery-maintenance-emails` 的精確 numeric Secret Manager version 注入；payload 由 owner 私下建立並以 private file 上傳 | tfvars/state 只含版本 pin；maintenance identities 不得進 Terraform value、state、Git、plan output、screenshot 或 chat |
 | `INTERNAL_TEST_BOOKING_ENABLED` | `true`，僅在 owner 單獨核准的 gate 期間 | 需要單獨核准的 `INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC`；另記錄 Hosting expiry 與 apply 授權時窗 |
 | `INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC` | owner 單獨核准的實際 UTC gate expiry（private tfvars） | 不重用舊 expiry；不以 apply 時窗或 channel expiry 代替 |
@@ -60,20 +60,30 @@
 
 C5 Firestore module 的 TTL 欄位是 `google_firestore_field.export_chunk_ttl`，collection `bd_export_chunks`、field `purgeAt`。該模組的 plan 仍須確認無 DB／backup schedule 替換或其他 drift。TTL best-effort；API 仍必須在 `purgeAt` 後拒絕讀取。另有 PR #214 Business Delivery env/secret/IAM 變更；整個 C1 Terraform 批次不是 TTL-only。任何 apply plan 都須對實際 state fresh-read，逐資源核對。
 
-### C1 Business Delivery env 與維護身份：兩階段 prerequisites，完整 plan，禁止 `-target`
+### C1 Business Delivery env 與維護身份：三階段（Stage 1／2a／2b），完整 plan，禁止 `-target`
 
-第一階段以 `business_delivery_maintenance_prerequisites_enabled=true` opt-in provision maintenance Secret Manager container 與 API-only IAM；runtime gate 保持 off，version pin 使用 `not_granted`，API 不 mount secret，worker 不獲 maintenance secret 權限。Stage 2 owner 私下提供 payload 並取得 numeric version 後，完整 plan 才可同時啟用 API runtime gate、固定版本 mount 與業務 env。此順序依 PR #214 exact head；CI795/run `36846590947` passed 12/12. Terraform CLI local fmt/validate/mock checks 已跑，不等於 cloud plan/readback。
+Stage 1 以 `business_delivery_maintenance_prerequisites_enabled=true` opt-in provision maintenance Secret Manager container 與 API-only IAM；runtime gate 保持 off，version pin 使用 `not_granted`，API 不 mount secret，worker 不獲 maintenance secret 權限。Stage 2a：owner 私下提供 payload 並取得 numeric version 後，完整 plan 只 mount 該固定版本，runtime gate 仍 `false`。Stage 2b：量得 `business_delivery_observed_since` 之後，另一份完整 plan 才啟用 API runtime gate 與業務 env。此順序依 PR #214 exact head；CI795/run `36846590947` passed 12/12. Terraform CLI local fmt/validate/mock checks 已跑，不等於 cloud plan/readback。
 
-| Terraform input（候選已知名稱） | 階段一 prerequisites plan | 階段二 enable plan |
-| --- | --- | --- |
-| `business_delivery_enabled` | `false` | `true`，必須由本次新 exact-SHA 核准明確授權 |
-| `business_delivery_policy_version` | `""` | `"BD-POLICY-2026-09-29"` |
-| `business_delivery_scope` | `""` | `"internal_synthetic"` |
-| `business_delivery_observed_since` | `""` | Owner 填第一筆修正後 complete classified capture 的 UTC instant；bootstrap/missing-invalid allowlist gaps 不是 coverage 起點 |
-| `business_delivery_maintenance_emails_secret_version` | `"not_granted"`；secret 不 mount | Owner 私下建立 payload 後填入實際 numeric version；不能使用 `latest` |
-| `business_delivery_maintenance_prerequisites_enabled` | `true`；明確建立 Secret Manager container 與 API-only IAM | `true`；保留 prerequisite，數字 pin 才令 API mount 生效 |
+**為何 Stage 2 要拆成 2a 與 2b。** `infra/terraform/c1-internal-test-run/main.tf` 的 precondition 要求 `business_delivery_enabled=true` 時 `business_delivery_observed_since` 非空；而這個值是第一筆 complete classified capture 的 UTC instant，只有在 maintenance allowlist 已 mount、API 實際分類第一筆員工登入或預約事件之後才存在（有效 allowlist 下，事件即使報表路由關閉仍會寫入，見 [ADR-0008](../adr/0008-business-delivery-usage-and-milestones.md)）。單一「Stage 2 enable」plan 因此在 plan 時不可能知道該值。不可用部署時間、apply 時間、估計值或回填值代替。
 
-Stage 1 完整 plan/apply 僅可在最終 source/CI/owner 核准後 provision上述 container + API-only IAM，並讀回 gate false、API 無 maintenance secret mount、worker 無該 secret IAM/mount。其後 owner 以私有檔案執行 `gcloud secrets versions add ... --data-file=<PRIVATE_OWNER_CONTROLLED_SECRET_PAYLOAD_FILE>`；payload 不放 tfvars、Terraform state、命令列內容或 evidence。tfvars 只存 numeric version。再建立 Stage 2 **完整** plan，reviewer 檢查 gate true、政策/env 值與精確 numeric pin；API-only mount 應讀該版本，worker 仍不得 mount/access maintenance secret。Stage 2 另取得 exact-plan owner 核准後才 apply。兩階段都禁止 `terraform -target` 及 Console/gcloud env 直改。任何 IAM/mount/plan 與最終 merged source 不一致即停止。
+| Terraform input（候選已知名稱） | Stage 1 prerequisites plan | Stage 2a mount-pin plan | Stage 2b enable plan |
+| --- | --- | --- | --- |
+| `business_delivery_enabled` | `false` | `false` | `true`，必須由本次新 exact-SHA 核准明確授權 |
+| `business_delivery_policy_version` | `""` | `""` | `"BD-POLICY-2026-09-29"` |
+| `business_delivery_scope` | `""` | `""` | `"internal_synthetic"` |
+| `business_delivery_observed_since` | `""` | `""`；此 instant 尚不存在，不可預填 | `<OWNER_FILLED_MEASURED_UTC_INSTANT>`：owner 填 2a apply 之後實際量得的第一筆 complete classified capture 的 UTC instant；bootstrap／missing-invalid allowlist gaps 不是 coverage 起點 |
+| `business_delivery_maintenance_emails_secret_version` | `"not_granted"`；secret 不 mount | Owner 私下建立 payload 後填入實際 numeric version；不能使用 `latest` | 與 2a 相同的 numeric version |
+| `business_delivery_maintenance_prerequisites_enabled` | `true`；明確建立 Secret Manager container 與 API-only IAM | `true`；保留 prerequisite，數字 pin 才令 API mount 生效 | `true`；保留 prerequisite |
+
+Stage 1 完整 plan/apply 僅可在最終 source/CI/owner 核准後 provision上述 container + API-only IAM，並讀回 gate false、API 無 maintenance secret mount、worker 無該 secret IAM/mount。其後 owner 以私有檔案執行 `gcloud secrets versions add ... --data-file=<PRIVATE_OWNER_CONTROLLED_SECRET_PAYLOAD_FILE>`；payload 不放 tfvars、Terraform state、命令列內容或 evidence。tfvars 只存 numeric version。
+
+再建立 Stage 2a **完整** plan（只加入 numeric pin），reviewer 檢查 gate 仍 false、policy/scope/observedSince 仍為空、API-only mount 固定讀該 numeric version、worker 不得 mount/access maintenance secret、無其他 drift；2a 另取得 exact-plan owner 核准與自己的 mutation budget（§3 預算表「C1 Stage 2a mount-pin apply」）後才 apply。2a 讀回 gate 仍 off、API 已 mount 該版本、worker 無 mount/IAM。
+
+2a 之後，API 以 mount 的 allowlist 分類員工登入與預約事件。產生第一筆事件所需的合成登入或預約，屬 §4 `Staff auth`／`API／Booking` checkpoint 的預算（owner 另行填數，不在此新設數字）。owner 再以核准的唯讀 readback 取得第一筆 complete classified capture 的實際 UTC instant，並記錄於私有 evidence manifest；具體讀回方式由 owner 在 2a 的核准裡明列，本 packet 不替它新設程序，這次讀回計入 §3 預算表的「nonmutating checks」列。若 allowlist payload 格式有誤，capture 會留下 gap 而非 complete，必須先修正 payload，並以新的 numeric version 重新建立完整 plan，才能量得起點。
+
+最後建立 Stage 2b **完整** plan，不重用 2a plan；reviewer 檢查 gate true、政策/env 值、`business_delivery_observed_since` 等於 owner 記錄的 instant，以及 2a 的同一 numeric pin；API-only mount 讀該版本，worker 仍不得 mount/access maintenance secret。2b 另取得 exact-plan owner 核准與自己的 mutation budget（「C1 Stage 2b enable apply」）後才 apply。2b 後路由若仍回 404，先檢查 Cloud Run log 是否有單一結構化紀錄 `BUSINESS_DELIVERY_DISABLED_ALLOWLIST_INVALID`（只含穩定代碼，不含 payload、email 或數量），它表示 allowlist 無法使用、功能因此保持關閉。
+
+三階段都禁止 `terraform -target` 及 Console/gcloud env 直改。任何 IAM/mount/plan 與最終 merged source 不一致即停止。
 
 預期部署邊界：C1 API `internal-test-api`、既有 outbox `internal-test-outbox`、Firestore TTL，以及 `internal-preproduction` preview 上的 `/v1/**` rewrite。Calendar 只用專屬 synthetic test calendar。不得開啟 Calendar inbound、`events.watch`、正式 Calendar、正式流量或 Cloud Run production service。匯出僅 CSV；不建立 XLSX 或 Drive 整合。
 
@@ -135,11 +145,11 @@ terraform -chdir=infra/terraform/c5-firestore apply -input=false \
   <PRIVATE_EVIDENCE_DIR>/c5-firestore.tfplan
 ```
 
-### D. C1 Business Delivery prerequisites 與 enable：兩份完整 Terraform plan
+### D. C1 Business Delivery prerequisites、mount-pin 與 enable：三份完整 Terraform plan
 
 本批 C1 Terraform 不是 TTL-only mutation：PR #214 head `2e3edf70c050e6e4f161cfa8f37892ffa39123c7` 已由 CI795 / run `36846590947` 12/12 jobs 驗證，含 C5 `export_chunk_ttl`、Cloud Run Business Delivery env、maintenance Secret Manager container/API-only IAM、兩階段 prerequisites、allowlist ingress 和 monthly capture-gap fail-closed。Terraform v1.16.4／Google provider 7.46.1 fmt/validate、34 mock tests、83 gap-focused tests、exact CI emulator checks PASS。這不代表 cloud plan；只有最終合併 source、fresh full plan/readback 和新的明確授權都核實後才可執行。文件 commit 本身不是 apply authority。
 
-於核准時窗開始前建立兩份不同的 private tfvars：`<PRIVATE_C1_STAGE1_TFVARS_PATH>` 與 `<PRIVATE_C1_STAGE2_TFVARS_PATH>`。第一份以 `business_delivery_maintenance_prerequisites_enabled=true` opt-in provision prerequisites，但 gate 明確 `false`、政策/scope/observedSince 為空、maintenance secret version 為 `not_granted`，API 不 mount secret；Stage 1 tfvars 不含任何 secret payload。owner 另以 private file 保管 payload，不放入 Terraform variables/state；只有取得 secret version 後，Stage 2 tfvars 才加入 numeric version pin，不能寫入 maintenance identities。初始化只做一次：
+於核准時窗開始前建立三份不同的 private tfvars：`<PRIVATE_C1_STAGE1_TFVARS_PATH>`、`<PRIVATE_C1_STAGE2A_TFVARS_PATH>` 與 `<PRIVATE_C1_STAGE2B_TFVARS_PATH>`。第一份以 `business_delivery_maintenance_prerequisites_enabled=true` opt-in provision prerequisites，但 gate 明確 `false`、政策/scope/observedSince 為空、maintenance secret version 為 `not_granted`，API 不 mount secret；Stage 1 tfvars 不含任何 secret payload。owner 另以 private file 保管 payload，不放入 Terraform variables/state；只有取得 secret version 後，Stage 2a tfvars 才加入 numeric version pin（gate 仍 `false`、政策/scope/observedSince 仍為空），不能寫入 maintenance identities。Stage 2b tfvars 只在量得 `business_delivery_observed_since` 後才建立。初始化只做一次：
 
 ```bash
 terraform -chdir=infra/terraform/c1-internal-test-run init \
@@ -172,25 +182,43 @@ gcloud secrets versions list c1-business-delivery-maintenance-emails \
   --format='value(name)'
 ```
 
-只把最後核對出的 numeric version 放入 Stage 2 private tfvars；不允許 `latest`。第二階段填 `business_delivery_enabled=true`、`business_delivery_policy_version=BD-POLICY-2026-09-29`、`business_delivery_scope=internal_synthetic`、owner 指定的實際 ingress `business_delivery_observed_since` 及該 numeric secret pin，使用 Stage 1 更新後的 full state 再 plan，不重用 Stage 1 plan：
+只把最後核對出的 numeric version 放入 Stage 2a private tfvars；不允許 `latest`。Stage 2a 只填該 numeric secret pin（`business_delivery_enabled=false`，政策/scope/observedSince 為空），使用 Stage 1 更新後的 full state 再 plan，不重用 Stage 1 plan：
 
 ```bash
 terraform -chdir=infra/terraform/c1-internal-test-run plan -input=false \
-  -var-file=<PRIVATE_C1_STAGE2_TFVARS_PATH> \
-  -out=<PRIVATE_EVIDENCE_DIR>/c1-stage2-enable.tfplan
+  -var-file=<PRIVATE_C1_STAGE2A_TFVARS_PATH> \
+  -out=<PRIVATE_EVIDENCE_DIR>/c1-stage2a-mount-pin.tfplan
 terraform -chdir=infra/terraform/c1-internal-test-run show -json \
-  <PRIVATE_EVIDENCE_DIR>/c1-stage2-enable.tfplan \
-  > <PRIVATE_EVIDENCE_DIR>/c1-stage2-enable.plan.json
+  <PRIVATE_EVIDENCE_DIR>/c1-stage2a-mount-pin.tfplan \
+  > <PRIVATE_EVIDENCE_DIR>/c1-stage2a-mount-pin.plan.json
 ```
 
-檢閱完整 stage 2 plan：必須顯示 exact source SHA、C1 `project_id`、`asia-east1`、已核准 API revision digest、gate true、單獨核准的 booking gate expiry、owner policy/scope、numeric secret version、API-only secret mount 固定至該 version、worker 無 maintenance secret access、worker processing false、Scheduler paused、calendar sync disabled；不得 create/replace/delete 無關資源。payload 只由 owner private file 供 gcloud 讀取；numeric version readback 不唯一、sequence 或 resource diff 非 final source 所預期時停止。Owner 必須再審閱這份新保存的 exact plan 並給予該 stage 明確核准；只有之後 operator 才可：
+檢閱完整 Stage 2a plan：必須顯示 exact source SHA、C1 `project_id`、`asia-east1`、已核准 API revision digest、gate false（`BUSINESS_DELIVERY_ENABLED=false`，政策/scope/observedSince 為空）、單獨核准的 booking gate expiry、numeric secret version、API-only secret mount 固定至該 version、worker 無 maintenance secret access、worker processing false、Scheduler paused、calendar sync disabled；不得 create/replace/delete 無關資源。payload 只由 owner private file 供 gcloud 讀取；numeric version readback 不唯一、sequence 或 resource diff 非 final source 所預期時停止。Owner 必須再審閱這份新保存的 exact plan 並給予該 stage 明確核准；只有之後 operator 才可：
 
 ```bash
 terraform -chdir=infra/terraform/c1-internal-test-run apply -input=false \
-  <PRIVATE_EVIDENCE_DIR>/c1-stage2-enable.tfplan
+  <PRIVATE_EVIDENCE_DIR>/c1-stage2a-mount-pin.tfplan
 ```
 
-Stage 1 和 Stage 2 都用完整 Terraform plan/apply；禁止 `terraform -target`、Console/gcloud env 直改、把 secret payload 貼入 terminal argument、artifact、PR 或聊天，也不可讓 worker 綁 secret IAM。
+Stage 2a readback 與第一筆 complete classified capture 的量測完成、owner 把該 UTC instant 記入 Stage 2b private tfvars 的 `business_delivery_observed_since`（見上節）之後，才建立 Stage 2b plan。Stage 2b 填 `business_delivery_enabled=true`、`business_delivery_policy_version=BD-POLICY-2026-09-29`、`business_delivery_scope=internal_synthetic`、`business_delivery_observed_since=<OWNER_FILLED_MEASURED_UTC_INSTANT>` 及同一個 numeric secret pin，使用 Stage 2a 更新後的 full state 再 plan，不重用 2a plan：
+
+```bash
+terraform -chdir=infra/terraform/c1-internal-test-run plan -input=false \
+  -var-file=<PRIVATE_C1_STAGE2B_TFVARS_PATH> \
+  -out=<PRIVATE_EVIDENCE_DIR>/c1-stage2b-enable.tfplan
+terraform -chdir=infra/terraform/c1-internal-test-run show -json \
+  <PRIVATE_EVIDENCE_DIR>/c1-stage2b-enable.tfplan \
+  > <PRIVATE_EVIDENCE_DIR>/c1-stage2b-enable.plan.json
+```
+
+檢閱完整 Stage 2b plan：必須顯示 exact source SHA、C1 `project_id`、`asia-east1`、已核准 API revision digest、gate true、單獨核准的 booking gate expiry、owner policy/scope、與 owner 記錄一致的 `business_delivery_observed_since`、與 2a 相同的 numeric secret version、API-only secret mount 固定至該 version、worker 無 maintenance secret access、worker processing false、Scheduler paused、calendar sync disabled；不得 create/replace/delete 無關資源，也不得有 maintenance secret container 的 destroy 或 replace。Owner 必須再審閱這份新保存的 exact plan 並給予該 stage 明確核准；只有之後 operator 才可：
+
+```bash
+terraform -chdir=infra/terraform/c1-internal-test-run apply -input=false \
+  <PRIVATE_EVIDENCE_DIR>/c1-stage2b-enable.tfplan
+```
+
+Stage 1、2a 和 2b 都用完整 Terraform plan/apply；禁止 `terraform -target`、Console/gcloud env 直改、把 secret payload 貼入 terminal argument、artifact、PR 或聊天，也不可讓 worker 綁 secret IAM。
 
 ### E. 部署 C1 isolated Hosting preview
 
@@ -220,7 +248,8 @@ firebase hosting:channel:deploy internal-preproduction \
 | C5 Terraform TTL apply | `<OWNER_APPROVED_LIMIT>` applies of this exact saved plan | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
 | C1 Stage 1 prerequisites apply | `<OWNER_APPROVED_LIMIT>` applies of this exact saved plan | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
 | Secret payload version creation | `<OWNER_APPROVED_LIMIT>` new versions; payload handled only from owner-private file | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
-| C1 Stage 2 enable apply | `<OWNER_APPROVED_LIMIT>` applies of this exact saved plan | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
+| C1 Stage 2a mount-pin apply（`business_delivery_enabled=false`，numeric pin） | `<OWNER_APPROVED_LIMIT>` applies of this exact saved plan | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
+| C1 Stage 2b enable apply（量得 `business_delivery_observed_since` 之後） | `<OWNER_APPROVED_LIMIT>` applies of this exact saved plan | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
 | Hosting channel deploy / static rollback deploy | `<OWNER_APPROVED_LIMIT>` each; rollback is separately authorized | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
 | C5 TTL/API readback and other nonmutating checks | `<OWNER_APPROVED_LIMIT>` checks/requests | `<OWNER_APPROVAL_REQUIRED>` | `BLOCKED` |
 
@@ -264,7 +293,7 @@ firebase hosting:channel:deploy internal-preproduction \
   --project=beauessence-clinic-stg-c1a01
 ```
 
-C1 Cloud Run 回退必須用 final source 的 Stage 1 private tfvars（gate false、secret pin `not_granted`）建立新的完整 plan；不得用手改 service、`-target` 或舊 plan。核對 plan 保留正確 C1 專案、只回復核准的 API/worker digest 並移除 Secret mount、保留安全 prerequisites、TTL、database/PITR 與其他無關服務：
+C1 Cloud Run 回退必須用 final source 的 Stage 1 private tfvars（gate false、secret pin `not_granted`、`business_delivery_maintenance_prerequisites_enabled=true`；flag 不可改成 `false`，否則 plan 會刪除 maintenance secret container 與全部版本）建立新的完整 plan；不得用手改 service、`-target` 或舊 plan。核對 plan 保留正確 C1 專案、只回復核准的 API/worker digest 並移除 Secret mount、保留安全 prerequisites、TTL、database/PITR 與其他無關服務：
 
 ```bash
 terraform -chdir=infra/terraform/c1-internal-test-run plan -input=false \
@@ -282,7 +311,7 @@ terraform -chdir=infra/terraform/c1-internal-test-run apply -input=false \
   <PRIVATE_EVIDENCE_DIR>/c1-fail-closed-rollback.tfplan
 ```
 
-Stage 1/2 的部署 authority 不會自動等於 rollback authority；只有在同一份新 exact-SHA 批次核准裡明確列出 rollback target、UTC window 和完整 rollback plan review，才可執行以上回退命令。
+Stage 1、2a、2b 的部署 authority 不會自動等於 rollback authority；只有在同一份新 exact-SHA 批次核准裡明確列出 rollback target、UTC window 和完整 rollback plan review，才可執行以上回退命令。
 
 部署後保存但不公開：build provenance、immutable image digest、Terraform plan／apply transcript、C5 TTL readback、Cloud Run revisions／env-key names（隱去值）、Hosting version／channel expiry、HTTP headers/status 及逐項 CP08 evidence。`BUSINESS_DELIVERY_MAINTENANCE_EMAILS`、cookie、CSRF、TOTP、token、secret 值、完整病患資料與私有 Drive identifier 永遠不進 repository。
 

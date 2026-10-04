@@ -76,7 +76,7 @@ CP-05 API 只接受單筆患者識別值；沒有 preview 或 fingerprint endpoi
 **候選畫面：** L3 source 的「合作終止與資料返還」區含台北通知日期與「重新登入並開啟終止通知」；「載入合作個案」欄位；收據種類「資料返還」、「備份處置」、「稽核紀錄處置」、「帳號權限撤銷」；資料返還欄位「已簽收匯出識別碼」，其他收據使用「人工核對證據編號」；並提供「重新登入並記錄確認」及「重新登入並送交結案審查」。個案畫面顯示通知日、通知期起迄、受控保留期限、狀態、就緒／缺項與收據。L3 UI 在 PR #216 head `91da1cce…`；gate-fix commit `c1658660` passed 32 focused tests and independent review, and CI800/run `36853002771` passed 12/12. PR READY, unmerged/undeployed; designated Claude review and owner merge remain pending. L5 CP-07 API/domain source is PR #213 head `e517f387…`; CI799/run `36852875693` passed 12/12. PR READY, unmerged/undeployed. These are candidate source UI controls, not accepted release behavior; C1 runtime and blind walk remain pending.
 
 1. 確認負責人已批准終止範圍，先建立 30 日通知。notice 起算後，在法定／約定到期日之前不可進入結案步驟；建立通知不等於立即終止服務。
-2. 通知期屆滿後，依已核准程序交付資料。負責人實際檢查已交付檔案後登記 data-return receipt；source 綁定先前建立且仍有效的匯出檔案 ID，系統記錄檔案 hash、時間及操作者。單純下載不等於收件確認。
+2. 通知期屆滿後，依已核准程序交付資料。負責人實際檢查已交付檔案後登記 data-return receipt；source 綁定先前建立且仍有效的匯出檔案 ID，系統記錄檔案 hash、該匯出涵蓋的起訖日期、筆數與檔案大小、時間及操作者。系統只如實記錄這些事實，不判斷該匯出是否「完整」；負責人須在登記前自行核對起訖日期與筆數（完整性判準待 owner 決定）。單純下載不等於收件確認。
 3. 記錄 receipt 後，受控副本保留期才開始計算 30 日。backup、audit、access 三種 receipt 是負責人的處置聲明；它們不證明雲端備份已刪、稽核紀錄已刪或帳號權限已撤銷。相關實際處置須另外執行並保留受控證據。
 4. 所有要求步驟與期限完成後，提交 close review。系統只可轉為 `manual_close_review`，表示等待人工檢視；不代表合作已終止、服務已停用、資料已刪除或存取權已撤銷。缺少任何 receipt、期限未到或 version 不符時 close 應拒絕；不可當日通知並同日正向結案。
 5. PR #213 中每一個寫入動作都要求該操作者 fresh Google＋TOTP；若重新驗證失敗或超出 10 分鐘，停止並重新登入驗證。正式使用前還需要 CP-09 文件同步、專業審閱、CP-08 實測與另行授權。
