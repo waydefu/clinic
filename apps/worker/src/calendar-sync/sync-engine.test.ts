@@ -387,6 +387,123 @@ describe('CalendarSyncEngine', () => {
     });
   });
 
+  describe('the appointment status a linked candidate records', () => {
+    const appointmentId = 'appointment_001';
+    const eventId = calendarEventIdForAppointment(appointmentId);
+
+    /** Mirrors the projected event, then returns the engine inputs for a change. */
+    async function projectedEvent(status: string) {
+      const repository = new MemoryRepository();
+      repository.clinicAppointments.set(appointmentId, {
+        appointmentId,
+        status,
+        startsAt: '2030-01-02T04:00:00.000Z',
+        bookingKind: 'initial'
+      });
+      const payload = buildClinicCalendarEventBody({
+        eventId,
+        appointmentId,
+        appointmentStatus: 'confirmed',
+        bookingKind: 'initial',
+        startsAt: '2030-01-02T04:00:00.000Z',
+        endsAt: '2030-01-02T05:00:00.000Z',
+        colorId: '10',
+        clinicName: '一森渼診所',
+        clinicAddress: 'synthetic-location',
+        correlationId: 'corr_calendar_001'
+      });
+      const baseline = {
+        id: eventId,
+        etag: 'etag-echo',
+        status: 'confirmed' as const,
+        summary: payload.summary,
+        start: payload.start,
+        end: payload.end,
+        extendedProperties: payload.extendedProperties
+      };
+      await new CalendarSyncEngine(
+        new FakeReader([{ events: [baseline], nextSyncToken: 'sync-echo' }]),
+        repository
+      ).run(NOW);
+      return { repository, baseline };
+    }
+
+    it('keeps the status the appointment had when a manual move was detected', async () => {
+      const { repository, baseline } = await projectedEvent('confirmed');
+
+      await new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [
+              {
+                ...baseline,
+                etag: 'etag-manual-edit',
+                start: { dateTime: '2030-01-03T04:00:00.000Z' },
+                end: { dateTime: '2030-01-03T05:00:00.000Z' }
+              }
+            ],
+            nextSyncToken: 'sync-edit'
+          }
+        ]),
+        repository
+      ).run(NOW);
+
+      expect(repository.commits[1]?.mutations[0]?.candidate).toMatchObject({
+        kind: 'update_appointment',
+        localRecordId: appointmentId,
+        appointmentStatusAtDetection: 'confirmed'
+      });
+    });
+
+    it('keeps the status the appointment had when a manual Calendar delete was detected', async () => {
+      const { repository, baseline } = await projectedEvent('arrived');
+
+      await new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [
+              { ...baseline, etag: 'etag-manual-delete', status: 'cancelled' }
+            ],
+            nextSyncToken: 'sync-delete'
+          }
+        ]),
+        repository
+      ).run(NOW);
+
+      expect(repository.commits[1]?.mutations[0]?.candidate).toMatchObject({
+        kind: 'cancel_appointment',
+        localRecordId: appointmentId,
+        appointmentStatusAtDetection: 'arrived'
+      });
+    });
+
+    it('records nothing for an event that matches no clinic appointment', async () => {
+      const repository = new MemoryRepository();
+      await new CalendarSyncEngine(
+        new FakeReader([
+          {
+            events: [
+              {
+                id: 'manual_event_001',
+                etag: 'etag-manual',
+                status: 'confirmed',
+                summary: '會議',
+                start: { dateTime: '2026-09-02T14:00:00+08:00' },
+                end: { dateTime: '2026-09-02T14:30:00+08:00' }
+              }
+            ],
+            nextSyncToken: 'sync-manual'
+          }
+        ]),
+        repository
+      ).run(NOW);
+
+      const candidate = repository.commits[0]?.mutations[0]?.candidate;
+      expect(candidate).toBeDefined();
+      expect(candidate).not.toHaveProperty('appointmentStatusAtDetection');
+    });
+  });
+
   it('marks an unknown manually created Calendar event unmatched', async () => {
     const repository = new MemoryRepository();
     const reader = new FakeReader([

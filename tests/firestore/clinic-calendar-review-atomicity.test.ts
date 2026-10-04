@@ -3,6 +3,7 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { CalendarPilotApplicationService } from '../../apps/api/src/calendar/calendar-pilot.application-service.js';
+import { toTransitionRequest } from '../../apps/api/src/appointments/appointment.application-service.js';
 import { ClinicCalendarReviewApplicationService } from '../../apps/api/src/calendar/clinic-calendar-review.application-service.js';
 import {
   COLLECTIONS as BOOKING_COLLECTIONS,
@@ -555,5 +556,115 @@ describe('clinic Calendar review replays the original result for the same key (A
 
     expect(first.candidate.status).toBe('accepted');
     expect(replay).toEqual(first);
+  });
+});
+
+describe('clinic Calendar review compares the appointment status the candidate saw (stale status)', () => {
+  const STAFF_AUDIT = {
+    actorId: 'front_desk_002',
+    actorRole: 'front_desk' as const,
+    correlationId: 'corr_rival_cancel',
+    source: 'api' as const,
+    reasonCode: null,
+    policyVersion: null
+  };
+
+  async function cancelAppointmentNow(): Promise<void> {
+    await new FirestoreBookingRepository(db).transition(
+      toTransitionRequest(
+        APPOINTMENT_ID,
+        { idempotencyKey: 'rival_cancel_0001' },
+        'cancel',
+        { requestedAt: NOW, audit: STAFF_AUDIT }
+      )
+    );
+  }
+
+  async function recordStatusAtDetection(status: string): Promise<void> {
+    await db
+      .collection('calendar_pilot_candidates')
+      .doc(CANDIDATE_ID)
+      .update({ appointmentStatusAtDetection: status });
+  }
+
+  it.each([
+    ['a candidate that recorded the status', true],
+    ['a candidate written before the status was recorded', false]
+  ])(
+    'supersedes %s when the appointment was cancelled after it was created, and changes nothing else',
+    async (_label, recorded) => {
+      if (recorded) await recordStatusAtDetection('confirmed');
+      await cancelAppointmentNow();
+      const before = await snapshot();
+      const writtenBefore = await writeCounts();
+      expect(before.appointment?.['status']).toBe('cancelled');
+
+      const response = await review(
+        reviewService(db),
+        'accept',
+        `stale_status_${recorded ? 'recorded' : 'legacy'}`
+      );
+
+      const after = await snapshot();
+      expect(response?.candidate).toMatchObject({
+        status: 'superseded',
+        expectedVersion: 2
+      });
+      // The appointment, both slots and every appointment-side record are
+      // exactly as the cancel left them: no reschedule, no projection job.
+      expect(after.appointment).toEqual(before.appointment);
+      expect(after.reservation).toEqual(before.reservation);
+      expect(after.reservation.to).toBeUndefined();
+      const written = await writeCounts();
+      expect(written.appointmentAudits).toBe(writtenBefore.appointmentAudits);
+      expect(written.outboxJobs).toBe(writtenBefore.outboxJobs);
+      // Only the candidate decision itself was recorded.
+      expect(after.candidate).toMatchObject({
+        status: 'superseded',
+        expectedVersion: 2
+      });
+      expect(written.candidateAudits).toBe(1);
+    }
+  );
+
+  it('supersedes a Calendar delete candidate whose appointment was already cancelled', async () => {
+    await db.collection('calendar_pilot_candidates').doc(CANDIDATE_ID).update({
+      kind: 'cancel_appointment',
+      startsAt: null,
+      endsAt: null,
+      appointmentStatusAtDetection: 'confirmed',
+      changedFields: []
+    });
+    await cancelAppointmentNow();
+    const before = await snapshot();
+    const writtenBefore = await writeCounts();
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'stale_status_delete'
+    );
+
+    expect(response?.candidate.status).toBe('superseded');
+    expect((await snapshot()).appointment).toEqual(before.appointment);
+    const written = await writeCounts();
+    expect(written.appointmentAudits).toBe(writtenBefore.appointmentAudits);
+    expect(written.outboxJobs).toBe(writtenBefore.outboxJobs);
+  });
+
+  it('still approves a candidate whose appointment kept the recorded status', async () => {
+    await recordStatusAtDetection('confirmed');
+
+    const response = await review(
+      reviewService(db),
+      'accept',
+      'status_unchanged_0001'
+    );
+
+    expect(response?.candidate.status).toBe('accepted');
+    expect((await snapshot()).appointment).toMatchObject({
+      slotId: SLOT_TO,
+      startsAt: TO_STARTS_AT
+    });
   });
 });

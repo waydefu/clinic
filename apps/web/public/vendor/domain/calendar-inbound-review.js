@@ -1,3 +1,4 @@
+import { OPEN_STATUSES } from './appointment-rules.js';
 import { isOnBookingKindGrid } from './calendar-projection.js';
 import { isRole } from './roles.js';
 /**
@@ -73,6 +74,19 @@ export function planCalendarInboundDetection(input) {
         changedFields
     };
 }
+/**
+ * Whether the appointment's status moved on since the candidate was created.
+ * A candidate that recorded the status is stale as soon as the live status
+ * differs. One that recorded none (written before the status was recorded)
+ * cannot show a change, so it fails closed: it stays approvable only while the
+ * appointment is in a status that reschedule and cancel accept, the open
+ * statuses. A finished or cancelled appointment is never moved from Calendar.
+ */
+function isAppointmentStatusStale(expectedStatus, liveStatus) {
+    return expectedStatus === undefined
+        ? !OPEN_STATUSES.includes(liveStatus)
+        : liveStatus !== expectedStatus;
+}
 export function planCalendarCandidateReview(input) {
     if (!canReviewCalendarCandidate(input.role))
         return { outcome: 'denied', reason: 'role' };
@@ -100,8 +114,7 @@ export function planCalendarCandidateReview(input) {
     if (input.liveAppointment.appointmentId !== input.candidate.appointmentId ||
         (input.candidate.expectedStartsAt !== undefined &&
             input.liveAppointment.startsAt !== input.candidate.expectedStartsAt) ||
-        (input.candidate.expectedStatus !== undefined &&
-            input.liveAppointment.status !== input.candidate.expectedStatus)) {
+        isAppointmentStatusStale(input.candidate.expectedStatus, input.liveAppointment.status)) {
         return {
             outcome: 'conflict',
             nextStatus: 'superseded',

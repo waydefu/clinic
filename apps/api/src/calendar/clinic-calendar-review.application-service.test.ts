@@ -533,3 +533,116 @@ describe('ClinicCalendarReviewApplicationService idempotent retries', () => {
     expect(committed).toHaveBeenCalledOnce();
   });
 });
+
+describe('ClinicCalendarReviewApplicationService appointment status drift', () => {
+  const approve = (idempotencyKey: string) => ({
+    candidateId: 'candidate_001',
+    action: 'accept' as const,
+    command: { idempotencyKey, expectedVersion: 1 },
+    authentication: { actorId: 'manager_001', actorRole: 'manager' as const }
+  });
+  const recorded: ClinicCalendarCandidateRecord = {
+    ...pending,
+    appointmentStatusAtDetection: 'confirmed'
+  };
+  const cancelCandidate: ClinicCalendarCandidateRecord = {
+    ...recorded,
+    kind: 'cancel_appointment',
+    startsAt: null
+  };
+
+  it.each(['cancelled', 'arrived', 'completed', 'no_show'] as const)(
+    'supersedes a reschedule candidate when the appointment became %s after detection',
+    async (status) => {
+      const { service, reschedule, transition, committed } = harness({
+        live: { ...live, status },
+        candidate: recorded
+      });
+      const result = await service.tryReview(
+        approve('calendar_candidate_0040')
+      );
+      expect(result?.candidate.status).toBe('superseded');
+      expect(reschedule).not.toHaveBeenCalled();
+      expect(transition).not.toHaveBeenCalled();
+      expect(committed).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'superseded' })
+      );
+      expect(committed).not.toHaveBeenCalledWith(
+        expect.objectContaining({ change: expect.anything() })
+      );
+    }
+  );
+
+  it('supersedes a Calendar delete candidate when the appointment was already cancelled', async () => {
+    const { service, reschedule, transition } = harness({
+      live: { ...live, status: 'cancelled' },
+      candidate: cancelCandidate
+    });
+    const result = await service.tryReview(approve('calendar_candidate_0041'));
+    expect(result?.candidate.status).toBe('superseded');
+    expect(transition).not.toHaveBeenCalled();
+    expect(reschedule).not.toHaveBeenCalled();
+  });
+
+  it('still approves when the appointment is in the status the candidate recorded', async () => {
+    const { service, reschedule } = harness({ candidate: recorded });
+    const result = await service.tryReview(approve('calendar_candidate_0042'));
+    expect(result?.candidate.status).toBe('accepted');
+    expect(reschedule).toHaveBeenCalledOnce();
+  });
+
+  it('compares against the recorded status, not the live one, for any recorded value', async () => {
+    const { service, reschedule } = harness({
+      live: { ...live, status: 'arrived' },
+      candidate: { ...recorded, appointmentStatusAtDetection: 'confirmed' }
+    });
+    const result = await service.tryReview(approve('calendar_candidate_0043'));
+    expect(result?.candidate.status).toBe('superseded');
+    expect(reschedule).not.toHaveBeenCalled();
+  });
+
+  describe('a candidate that recorded no status (written before the field existed)', () => {
+    it.each(['cancelled', 'completed', 'no_show'] as const)(
+      'fails closed when the appointment is %s',
+      async (status) => {
+        const { service, reschedule, transition } = harness({
+          live: { ...live, status },
+          candidate: pending
+        });
+        const result = await service.tryReview(
+          approve('calendar_candidate_0044')
+        );
+        expect(result?.candidate.status).toBe('superseded');
+        expect(reschedule).not.toHaveBeenCalled();
+        expect(transition).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each(['confirmed', 'arrived', 'cancellation_requested'] as const)(
+      'may still be approved while the appointment is %s, the statuses reschedule accepts',
+      async (status) => {
+        const { service, reschedule } = harness({
+          live: { ...live, status },
+          candidate: pending
+        });
+        const result = await service.tryReview(
+          approve('calendar_candidate_0045')
+        );
+        expect(result?.candidate.status).toBe('accepted');
+        expect(reschedule).toHaveBeenCalledOnce();
+      }
+    );
+
+    it('treats an unreadable recorded status like a missing one', async () => {
+      const { service, reschedule } = harness({
+        live: { ...live, status: 'cancelled' },
+        candidate: { ...pending, appointmentStatusAtDetection: 'not_a_status' }
+      });
+      const result = await service.tryReview(
+        approve('calendar_candidate_0046')
+      );
+      expect(result?.candidate.status).toBe('superseded');
+      expect(reschedule).not.toHaveBeenCalled();
+    });
+  });
+});

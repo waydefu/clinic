@@ -106,6 +106,12 @@ export interface CalendarCandidateDraft {
   readonly previousParsed?: ParsedCalendarEntry;
   readonly localRecordId?: string;
   readonly changedFields?: readonly CalendarInboundMutableField[];
+  /**
+   * The clinic appointment's status when this change was detected. The review
+   * compares it with the live status, so an appointment cancelled or finished
+   * after detection makes the candidate stale. Internal: not served to staff.
+   */
+  readonly appointmentStatusAtDetection?: string;
 }
 
 export interface CalendarMirrorMutation {
@@ -416,6 +422,9 @@ export class CalendarSyncEngine {
             ? {}
             : { previousParsed: existing.parsed }),
           ...(managedLink === undefined ? {} : { localRecordId: managedLink }),
+          ...(liveAppointment === undefined
+            ? {}
+            : { appointmentStatusAtDetection: liveAppointment.status }),
           ...(detection.action === 'candidate' &&
           detection.changedFields.length > 0
             ? { changedFields: detection.changedFields }

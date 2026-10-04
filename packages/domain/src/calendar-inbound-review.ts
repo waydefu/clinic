@@ -1,4 +1,7 @@
-import type { AppointmentStatusValue } from './appointment-rules.js';
+import {
+  OPEN_STATUSES,
+  type AppointmentStatusValue
+} from './appointment-rules.js';
 import type { BookingKind, SlotSnapshot } from './booking-transaction.js';
 import {
   isOnBookingKindGrid,
@@ -47,6 +50,11 @@ export interface ClinicCalendarCandidateSnapshot {
   readonly changeType: CalendarInboundChangeType;
   readonly appointmentId?: string;
   readonly expectedStartsAt?: string;
+  /**
+   * The appointment status recorded when the change was detected. Candidates
+   * written before the status was recorded carry none; see
+   * `isAppointmentStatusStale`.
+   */
   readonly expectedStatus?: AppointmentStatusValue;
   readonly proposedStartsAt?: string;
   readonly proposedStatus?: AppointmentStatusValue;
@@ -152,6 +160,23 @@ export function planCalendarInboundDetection(input: {
   };
 }
 
+/**
+ * Whether the appointment's status moved on since the candidate was created.
+ * A candidate that recorded the status is stale as soon as the live status
+ * differs. One that recorded none (written before the status was recorded)
+ * cannot show a change, so it fails closed: it stays approvable only while the
+ * appointment is in a status that reschedule and cancel accept, the open
+ * statuses. A finished or cancelled appointment is never moved from Calendar.
+ */
+function isAppointmentStatusStale(
+  expectedStatus: AppointmentStatusValue | undefined,
+  liveStatus: AppointmentStatusValue
+): boolean {
+  return expectedStatus === undefined
+    ? !OPEN_STATUSES.includes(liveStatus)
+    : liveStatus !== expectedStatus;
+}
+
 export type CalendarCandidateReviewPlan =
   | {
       readonly outcome: 'denied';
@@ -226,8 +251,10 @@ export function planCalendarCandidateReview(input: {
     input.liveAppointment.appointmentId !== input.candidate.appointmentId ||
     (input.candidate.expectedStartsAt !== undefined &&
       input.liveAppointment.startsAt !== input.candidate.expectedStartsAt) ||
-    (input.candidate.expectedStatus !== undefined &&
-      input.liveAppointment.status !== input.candidate.expectedStatus)
+    isAppointmentStatusStale(
+      input.candidate.expectedStatus,
+      input.liveAppointment.status
+    )
   ) {
     return {
       outcome: 'conflict',
