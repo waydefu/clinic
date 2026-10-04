@@ -1,5 +1,20 @@
 # Phase 1 Decision Register
 
+## 2026-10-04 內部測試路由的隱私告知例外
+
+- `PRIVACY-INTERNAL-TEST-NOTICE-2026-10-04`：業主於 2026-10-04 在對話中核准（由協調者轉達），
+  在 `/privacy`（`apps/web/public/privacy.html`）與隱私權政策草案
+  （`docs/legal/privacy-policy-draft.md` §2）各新增一句例外，保留原有「資料只保存在瀏覽器、
+  不會傳送到診所」的句子，使 C1 內部測試（API 模式）患者頁的資料去向告知與隱私頁一致。
+  核准的原句：「例外：若網址帶有 internalTestBooking=1，或位於診所的隔離測試環境（內部測試路由），
+  您在預約頁填寫的合成測試資料會送到診所的測試伺服器保存，不是只保存在您自己這台裝置的瀏覽器；
+  此路由只供合成資料測試，請勿填真實資料。」
+  - **範圍：** 只描述合成測試路由（`internalTestBooking=1` 或隔離測試環境）的資料去向；
+    不改變 production 的隱私權政策，不構成 production 告知、同意或任何上線授權；
+    草稿仍是「草稿，尚未生效」，D-003 仍待核准。
+  - **對應實作：** `AUD-15`（`apps/web/public/patient-app.js` 在 API 模式把「只存瀏覽器」的
+    四句換成「會送到診所的測試伺服器」）。
+
 ## 2026-10-03 員工登入時效（六位驗證方向的對應）
 
 - `STAFF-SESSION-12H-2026-10-03`：業主在本次對話對 `STAFF-SIX-DIGIT-EXCEPTIONS-2026-10-03`
