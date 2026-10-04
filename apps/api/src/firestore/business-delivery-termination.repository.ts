@@ -68,6 +68,14 @@ interface StoredTerminationReceipt {
   readonly exportId?: string;
   readonly evidenceRef?: string;
   readonly sha256?: string;
+  /**
+   * What the returned export covered, copied from the export job. Absent on
+   * receipts stored before these fields were recorded.
+   */
+  readonly from?: string;
+  readonly to?: string;
+  readonly rowCount?: number;
+  readonly byteLength?: number;
 }
 
 interface StoredTermination {
@@ -108,6 +116,10 @@ interface StoredExportJob {
   readonly schemaVersion: 1;
   readonly exportId: string;
   readonly format: string;
+  readonly from?: unknown;
+  readonly to?: unknown;
+  readonly rowCount?: unknown;
+  readonly byteLength?: unknown;
   readonly sha256: string;
   readonly downloadCount: number;
   readonly revokedAt: string | null;
@@ -161,6 +173,31 @@ function replay<T>(
   return { found: true, result: existing.result as T };
 }
 
+interface ExportCoverage {
+  readonly from: string;
+  readonly to: string;
+  readonly rowCount: number;
+  readonly byteLength: number;
+}
+
+/** The facts an export job records about itself; undefined when malformed. */
+function exportCoverage(job: StoredExportJob): ExportCoverage | undefined {
+  const { from, to, rowCount, byteLength } = job;
+  if (
+    typeof from !== 'string' ||
+    typeof to !== 'string' ||
+    typeof rowCount !== 'number' ||
+    !Number.isInteger(rowCount) ||
+    rowCount < 0 ||
+    typeof byteLength !== 'number' ||
+    !Number.isInteger(byteLength) ||
+    byteLength < 0
+  ) {
+    return undefined;
+  }
+  return { from, to, rowCount, byteLength };
+}
+
 function receiptsFor(record: StoredTermination): BusinessTerminationReceipt[] {
   return record.receipts.map((receipt) =>
     receipt.receiptKind === 'data_return'
@@ -169,7 +206,15 @@ function receiptsFor(record: StoredTermination): BusinessTerminationReceipt[] {
           exportId: receipt.exportId!,
           actorRef: receipt.actorRef,
           acknowledgedAt: receipt.acknowledgedAt,
-          sha256: receipt.sha256!
+          sha256: receipt.sha256!,
+          ...(receipt.from === undefined ? {} : { from: receipt.from }),
+          ...(receipt.to === undefined ? {} : { to: receipt.to }),
+          ...(receipt.rowCount === undefined
+            ? {}
+            : { rowCount: receipt.rowCount }),
+          ...(receipt.byteLength === undefined
+            ? {}
+            : { byteLength: receipt.byteLength })
         }
       : {
           receiptKind: receipt.receiptKind,
@@ -551,10 +596,12 @@ export class FirestoreBusinessTerminationRepository {
         exportData.downloadCount < 1 ||
         exportData.revokedAt !== null ||
         typeof exportData.purgeAt?.toMillis !== 'function' ||
-        Date.parse(command.now) >= exportData.purgeAt.toMillis()
+        Date.parse(command.now) >= exportData.purgeAt.toMillis() ||
+        exportCoverage(exportData) === undefined
       ) {
         throw new ConflictError();
       }
+      const coverage = exportCoverage(exportData)!;
 
       const existingReceipt = record.receipts.find(
         (receipt) => receipt.receiptKind === 'data_return'
@@ -616,7 +663,8 @@ export class FirestoreBusinessTerminationRepository {
         exportId: request.exportId,
         actorRef: command.actorRef,
         acknowledgedAt: command.now,
-        sha256: exportData.sha256
+        sha256: exportData.sha256,
+        ...coverage
       };
       const updated: StoredTermination = {
         ...beforeRetention,
@@ -643,7 +691,8 @@ export class FirestoreBusinessTerminationRepository {
         terminationId: command.terminationId,
         actorRef: command.actorRef,
         acknowledgedAt: command.now,
-        sha256: exportData.sha256
+        sha256: exportData.sha256,
+        ...coverage
       });
       writeOperationLog(transaction, logRef, {
         terminationId: command.terminationId,

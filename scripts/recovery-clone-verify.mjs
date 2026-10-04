@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
@@ -15,6 +16,11 @@ export const RECOVERY_COLLECTIONS = Object.freeze([
 
 const DATABASE_PATTERN = /^[a-z][a-z0-9-]{2,61}[a-z0-9]$/;
 const FIELD_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+
+function sha256Hex(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
 
 function fail(message) {
   throw new Error(message);
@@ -144,12 +150,30 @@ function normalizeOccurredAt(value) {
  * only its listed fields, and V3 checks only the listed audit receipts. The
  * supplied db must be bound to the validated named database. No mutation
  * methods are called. V4–V6 remain for the authorised CP-06-E drill.
+ *
+ * The report records which manifest it was checked against
+ * (manifestSha256) and when it was produced (generatedAt, UTC), so a later
+ * reader can tie a PASS to one manifest file and one moment. Neither value
+ * comes from the database. The CLI hashes the exact manifest file bytes, which
+ * an operator can reproduce with sha256sum. A caller that passes only a parsed
+ * manifest gets the hash of its JSON.stringify form instead, which is not
+ * comparable to a file hash.
  */
-export async function verifyRecoveryClone({ project, database, manifest, db }) {
+export async function verifyRecoveryClone({
+  project,
+  database,
+  manifest,
+  db,
+  manifestSha256,
+  now = () => new Date()
+}) {
   validateRecoveryTarget({ project, database });
   const expected = validateManifest(manifest);
   if (!db || typeof db.collection !== 'function')
     fail('a Firestore database is required.');
+  if (manifestSha256 !== undefined && !SHA256_PATTERN.test(manifestSha256))
+    fail('manifestSha256 must be a lowercase hex SHA-256 digest.');
+  const manifestDigest = manifestSha256 ?? sha256Hex(JSON.stringify(manifest));
 
   const counts = {};
   for (const collection of RECOVERY_COLLECTIONS) {
@@ -239,6 +263,8 @@ export async function verifyRecoveryClone({ project, database, manifest, db }) {
 
   return {
     schemaVersion: 1,
+    generatedAt: now().toISOString(),
+    manifestSha256: manifestDigest,
     checks,
     overall: Object.values(checks).every((check) => check.status === 'PASS')
       ? 'PASS'
@@ -283,21 +309,39 @@ export async function runRecoveryCloneVerifier({
     );
     return { db: getFirestore(app, database), app };
   },
-  readManifestFile = (path) => readFile(path, 'utf8')
+  readManifestFile = (path) => readFile(path),
+  now = () => new Date()
 } = {}) {
   const { project, database, manifestPath } = parseRecoveryArgs(argv);
-  const manifest = JSON.parse(await readManifestFile(manifestPath));
+  const raw = await readManifestFile(manifestPath);
+  const bytes = typeof raw === 'string' ? Buffer.from(raw, 'utf8') : raw;
+  const manifest = JSON.parse(Buffer.from(bytes).toString('utf8'));
   const created = await createDb(project, database);
   try {
     return await verifyRecoveryClone({
       project,
       database,
       manifest,
-      db: created.db ?? created
+      db: created.db ?? created,
+      manifestSha256: sha256Hex(bytes),
+      now
     });
   } finally {
     if (created.app) await created.app.delete();
   }
+}
+
+/** The failure report names only a stable reason, never an error message. */
+export function recoveryFailureReport(error, now = () => new Date()) {
+  return {
+    schemaVersion: 1,
+    generatedAt: now().toISOString(),
+    overall: 'FAIL',
+    error:
+      error instanceof SyntaxError
+        ? 'invalid_manifest_json'
+        : 'verification_failed'
+  };
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : '';
@@ -308,7 +352,7 @@ if (import.meta.url === invokedPath) {
     if (report.overall !== 'PASS') process.exitCode = 1;
   } catch (error) {
     process.stdout.write(
-      `${JSON.stringify({ schemaVersion: 1, overall: 'FAIL', error: error instanceof SyntaxError ? 'invalid_manifest_json' : 'verification_failed' }, null, 2)}\n`
+      `${JSON.stringify(recoveryFailureReport(error), null, 2)}\n`
     );
     process.exitCode = 1;
   }

@@ -239,7 +239,11 @@ describe('business termination notice and receipts', () => {
           exportId: job.exportId,
           actorRef: ACTOR,
           acknowledgedAt: NOTICE_DUE,
-          sha256: job.sha256
+          sha256: job.sha256,
+          from: job.from,
+          to: job.to,
+          rowCount: job.rowCount,
+          byteLength: job.byteLength
         }
       ]
     });
@@ -263,7 +267,11 @@ describe('business termination notice and receipts', () => {
       terminationId: created.terminationId,
       actorRef: ACTOR,
       acknowledgedAt: NOTICE_DUE,
-      sha256: job.sha256
+      sha256: job.sha256,
+      from: job.from,
+      to: job.to,
+      rowCount: job.rowCount,
+      byteLength: job.byteLength
     });
     const auditLogs = await db
       .collection(TERMINATION_COLLECTIONS.log)
@@ -341,6 +349,132 @@ describe('business termination notice and receipts', () => {
     await expect(
       terminations.acknowledge(
         acknowledgement(second.terminationId, request, NOTICE_DUE)
+      )
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+});
+
+describe('business termination data-return receipt coverage', () => {
+  it('records the range, row count and byte length so a narrow or empty export is visible', async () => {
+    const created = await terminations.create(createTerminationCommand());
+    // A one-day export of an empty database is accepted (completeness is an
+    // open owner decision), but the receipt must say exactly what it was.
+    const job = await downloadedExport();
+    expect(job).toMatchObject({
+      from: NOTICE_DATE,
+      to: NOTICE_DATE,
+      rowCount: 0
+    });
+    expect(job.byteLength).toBeGreaterThan(0);
+
+    const ack = await terminations.acknowledge(
+      acknowledgement(
+        created.terminationId,
+        {
+          idempotencyKey: 'termination-ack-coverage-001',
+          receiptKind: 'data_return',
+          exportId: job.exportId
+        },
+        NOTICE_DUE
+      )
+    );
+    expect(ack.receipts).toEqual([
+      {
+        receiptKind: 'data_return',
+        exportId: job.exportId,
+        actorRef: ACTOR,
+        acknowledgedAt: NOTICE_DUE,
+        sha256: job.sha256,
+        from: NOTICE_DATE,
+        to: NOTICE_DATE,
+        rowCount: 0,
+        byteLength: job.byteLength
+      }
+    ]);
+    const stored = await db
+      .collection(TERMINATION_COLLECTIONS.records)
+      .doc(created.terminationId)
+      .get();
+    expect(stored.data()?.['receipts']).toEqual(ack.receipts);
+    const loaded = await terminations.get(
+      created.terminationId,
+      NOTICE_DUE,
+      'internal_synthetic'
+    );
+    expect(loaded?.receipts).toEqual(ack.receipts);
+  });
+
+  it('still reads a receipt stored before the coverage fields existed', async () => {
+    const created = await terminations.create(createTerminationCommand());
+    const job = await downloadedExport();
+    const ack = await terminations.acknowledge(
+      acknowledgement(
+        created.terminationId,
+        {
+          idempotencyKey: 'termination-ack-legacy-0001',
+          receiptKind: 'data_return',
+          exportId: job.exportId
+        },
+        NOTICE_DUE
+      )
+    );
+    await db
+      .collection(TERMINATION_COLLECTIONS.records)
+      .doc(created.terminationId)
+      .update({
+        receipts: [
+          {
+            receiptKind: 'data_return',
+            exportId: job.exportId,
+            actorRef: ACTOR,
+            acknowledgedAt: NOTICE_DUE,
+            sha256: job.sha256
+          }
+        ]
+      });
+    const loaded = await terminations.get(
+      created.terminationId,
+      NOTICE_DUE,
+      'internal_synthetic'
+    );
+    expect(loaded?.receipts).toEqual([
+      {
+        receiptKind: 'data_return',
+        exportId: job.exportId,
+        actorRef: ACTOR,
+        acknowledgedAt: NOTICE_DUE,
+        sha256: job.sha256
+      }
+    ]);
+    expect(ack.version).toBe(2);
+  });
+
+  it('refuses an export job that does not record what it covered', async () => {
+    const created = await terminations.create(createTerminationCommand());
+    const exportId = `exp_${'e'.repeat(40)}`;
+    await db
+      .collection(EXPORT_COLLECTIONS.jobs)
+      .doc(exportId)
+      .set({
+        schemaVersion: 1,
+        exportId,
+        format: 'csv',
+        sha256: 'd'.repeat(64),
+        downloadCount: 1,
+        revokedAt: null,
+        purgeAt: new Date('2031-01-01T00:00:00.000Z')
+      });
+    await expect(
+      terminations.acknowledge(
+        acknowledgement(
+          created.terminationId,
+          {
+            idempotencyKey: 'termination-ack-nocoverage-01',
+            receiptKind: 'data_return',
+            exportId
+          },
+          NOTICE_DUE
+        )
       )
     ).rejects.toBeInstanceOf(ConflictError);
   });

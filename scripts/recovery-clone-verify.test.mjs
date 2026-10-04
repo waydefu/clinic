@@ -1,8 +1,11 @@
+import { createHash } from 'node:crypto';
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   RECOVERY_COLLECTIONS,
   parseRecoveryArgs,
+  recoveryFailureReport,
   runRecoveryCloneVerifier,
   validateRecoveryTarget,
   verifyRecoveryClone
@@ -306,6 +309,146 @@ describe('recovery clone verification report', () => {
         db: fakeDb()
       })
     ).rejects.toThrow('exactly 10');
+  });
+});
+
+describe('recovery clone report provenance', () => {
+  const GENERATED_AT = '2030-01-02T03:04:05.678Z';
+  const fixedNow = () => new Date(GENERATED_AT);
+  const sha256 = (value) =>
+    createHash('sha256').update(value, 'utf8').digest('hex');
+
+  it('stamps a UTC generatedAt and the manifest hash on every report', async () => {
+    const manifest = makeManifest();
+    const report = await verifyRecoveryClone({
+      project: PROJECT,
+      database: DATABASE,
+      manifest,
+      db: fakeDb(),
+      now: fixedNow
+    });
+    expect(report.generatedAt).toBe(GENERATED_AT);
+    expect(report.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
+    expect(report.manifestSha256).toBe(sha256(JSON.stringify(manifest)));
+  });
+
+  it('uses the real clock in UTC when no clock is injected', async () => {
+    const before = Date.now();
+    const report = await verifyRecoveryClone({
+      project: PROJECT,
+      database: DATABASE,
+      manifest: makeManifest(),
+      db: fakeDb()
+    });
+    const stamped = Date.parse(report.generatedAt);
+    expect(report.generatedAt.endsWith('Z')).toBe(true);
+    expect(stamped).toBeGreaterThanOrEqual(before);
+    expect(stamped).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('hashes the exact manifest file bytes, so an operator can reproduce it with sha256sum', async () => {
+    const text = `${JSON.stringify(makeManifest(), null, 2)}
+`;
+    const report = await runRecoveryCloneVerifier({
+      argv: [
+        '--project',
+        PROJECT,
+        '--database',
+        DATABASE,
+        '--manifest',
+        'expected.json'
+      ],
+      createDb: () => Promise.resolve({ db: fakeDb() }),
+      readManifestFile: () => Promise.resolve(text),
+      now: fixedNow
+    });
+    expect(report.overall).toBe('PASS');
+    expect(report.manifestSha256).toBe(sha256(text));
+    expect(report.generatedAt).toBe(GENERATED_AT);
+
+    const asBytes = await runRecoveryCloneVerifier({
+      argv: [
+        '--project',
+        PROJECT,
+        '--database',
+        DATABASE,
+        '--manifest',
+        'expected.json'
+      ],
+      createDb: () => Promise.resolve({ db: fakeDb() }),
+      readManifestFile: () => Promise.resolve(Buffer.from(text, 'utf8')),
+      now: fixedNow
+    });
+    expect(asBytes.manifestSha256).toBe(report.manifestSha256);
+  });
+
+  it('changes the hash when the manifest changes, and keeps it on a FAIL report', async () => {
+    const manifest = makeManifest();
+    manifest.expectedCounts.patients = 2;
+    const report = await verifyRecoveryClone({
+      project: PROJECT,
+      database: DATABASE,
+      manifest,
+      db: fakeDb(),
+      now: fixedNow
+    });
+    expect(report.overall).toBe('FAIL');
+    expect(report.manifestSha256).toBe(sha256(JSON.stringify(manifest)));
+    expect(report.manifestSha256).not.toBe(
+      sha256(JSON.stringify(makeManifest()))
+    );
+  });
+
+  it('adds nothing from the database: only a hash and a timestamp', async () => {
+    const report = await verifyRecoveryClone({
+      project: PROJECT,
+      database: DATABASE,
+      manifest: makeManifest(),
+      db: fakeDb(),
+      now: fixedNow
+    });
+    expect(Object.keys(report).sort()).toEqual([
+      'checks',
+      'generatedAt',
+      'manifestSha256',
+      'overall',
+      'schemaVersion'
+    ]);
+    expect(report.manifestSha256).toMatch(/^[a-f0-9]{64}$/);
+    const serialized = JSON.stringify(report);
+    expect(serialized).not.toContain('fixture-');
+    expect(serialized).not.toContain('synthetic_');
+  });
+
+  it('rejects a supplied hash that is not a SHA-256 digest', async () => {
+    await expect(
+      verifyRecoveryClone({
+        project: PROJECT,
+        database: DATABASE,
+        manifest: makeManifest(),
+        db: fakeDb(),
+        manifestSha256: 'not-a-hash'
+      })
+    ).rejects.toThrow('manifestSha256');
+  });
+
+  it('stamps a failure report with the time but never an error message', () => {
+    expect(
+      recoveryFailureReport(new SyntaxError('secret detail'), fixedNow)
+    ).toEqual({
+      schemaVersion: 1,
+      generatedAt: GENERATED_AT,
+      overall: 'FAIL',
+      error: 'invalid_manifest_json'
+    });
+    expect(recoveryFailureReport(new Error('secret detail'), fixedNow)).toEqual(
+      {
+        schemaVersion: 1,
+        generatedAt: GENERATED_AT,
+        overall: 'FAIL',
+        error: 'verification_failed'
+      }
+    );
   });
 });
 
