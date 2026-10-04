@@ -2,7 +2,11 @@
 
 **狀態：** `SOURCE_READINESS_BLOCKED`；文件準備完成，尚無本 packet 的雲端操作或 exact-SHA 授權。
 
-## 目前 source 整合讀回（2026-10-03）
+## 目前 source 整合讀回（2026-10-04）
+
+`origin/main` 為 `e58e1c131e2c20607cce9e28f450fead1759bada`（#233 合併），main verify run `37199246153` success。它已包含 L1～L7（#208～#217）以及 2026-10-03～04 的稽核修正 #221～#233，逐項對照見[稽核修正收尾交接紀錄](../reviews/2026-10-04-audit-closeout-handoff.md)。下文 §1「依賴 source 狀態」各項所說的「未合併、待 Claude review」都已過時：#213～#216 已合併並經事後補審，#231 已修正本 packet 的 Stage 2a/2b 拆分、Terraform README 與維護名單 Secret 防刪。最終 release SHA 應為包含本次文件更新與交接紀錄的 main（合併後以 `git rev-parse origin/main` 取得），不得沿用本段的 SHA。source CI 仍不等同 cloud plan、部署、C1 runtime 或人員驗收；下列 2026-10-03 段落保留為日期證據。
+
+## 先前 source 整合讀回（2026-10-03，歷史）
 
 目前 `origin/main` 為 `6131c7fc54f09369842f6edf73a26d42fed4c729`，已包含 #213、#214、#215、#216、#218、#219、#220 的合併提交。#214 head `e089b55ee2847ae06d9e7c356125264bc8a61207`、#215 head `331992eeea8366b412ebe64591358f209a2e6f17`、#216 head `1197f0c43a6a8fb1ed01960e01e9a59cac151656` 的各自 CI 均為 12/12 PASS；main verify run `37051691984` 亦已 12/12 PASS。這些 source CI 不等同 cloud plan、部署、C1 runtime 或人員驗收。
 
@@ -319,8 +323,8 @@ Stage 1、2a、2b 的部署 authority 不會自動等於 rollback authority；�
 
 | Gate | 狀態 | 原因 |
 | --- | --- | --- |
-| Source commits | `BLOCKED` | Main `6131c7fc54f09369842f6edf73a26d42fed4c729` now contains #213, #214, #215 and #216; #214/#215/#216 new heads each passed 12/12 exact-head CI. This proves source integration only; no cloud plan, deployment or runtime acceptance. |
-| Exact-CI | `NOT_RUN` | Main verify run `37051691984` was still running when this packet was updated; #217's own exact-head CI is still required after its documentation sync. |
+| Source commits | `READY_FOR_EXACT_SHA_APPROVAL` | 2026-10-04: main `e58e1c1` contains L1–L7 and audit fixes #221–#233 (see the 2026-10-04 handoff). Release SHA = main after this documentation update merges. Proves source integration only; no cloud plan, deployment or runtime acceptance. |
+| Exact-CI | `PASS` (source `e58e1c1`) | Main verify run `37199246153` success on `e58e1c1`; the release SHA that includes this documentation update needs its own main verify run before approval. |
 | Exact-SHA authority | `NOT_AUTHORIZED` | OWNER-BATCH 只授權另行提出一份 exact-SHA packet；無 SHA/window/apply 核准 |
 | Terraform plan／apply | `NOT_RUN` | 無 credentials、fresh cloud state 或 owner-approved plan |
 | Hosting deploy | `NOT_RUN` | 無 fresh per-commit/project/channel/expiry approval |
