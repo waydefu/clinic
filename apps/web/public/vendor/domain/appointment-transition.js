@@ -1,4 +1,4 @@
-import { assertReschedulable, assertSlotMeetsEarliestLead, assertTransitionAllowed, assertWithinSelfRescheduleWindow, OPEN_STATUSES } from './appointment-rules.js';
+import { assertReschedulable, assertSlotMeetsEarliestLead, assertTransitionAllowed, assertWithinSelfCancelWindow, assertWithinSelfRescheduleWindow, OPEN_STATUSES } from './appointment-rules.js';
 import { planAuditEvent } from './audit.js';
 import { assertSlotNotInPast, assertSlotWithinBookingHorizon } from './booking-horizon.js';
 import { patientBookingGuardHolds } from './booking-transaction.js';
@@ -124,8 +124,13 @@ function releaseGuardMutation(guard, appointmentId, updatedAt) {
 export function planTransition(request, appointment, patientBookingGuard) {
     assertUtcTimestamp(request.requestedAt, 'requestedAt');
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
-    if (appointment === undefined) {
+    if (appointment === undefined ||
+        (request.expectedPatientId !== undefined &&
+            appointment.patientId !== request.expectedPatientId)) {
         throw new DomainError('APPOINTMENT_NOT_FOUND', 'The appointment does not exist.');
+    }
+    if (request.expectedPatientId !== undefined) {
+        assertWithinSelfCancelWindow(appointment.startsAt, request.requestedAt);
     }
     assertTransitionAllowed(request.transition, appointment.status);
     assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);

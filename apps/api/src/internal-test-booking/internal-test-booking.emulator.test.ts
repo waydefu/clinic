@@ -842,6 +842,92 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     });
   });
 
+  // The cancel sibling of the reschedule retry above: a patient cancels before
+  // the appointment day's 10:00 Taipei cutoff and the same request is sent
+  // again after it. The retry must be answered with the first result, while a
+  // first-time cancel after the cutoff is still refused.
+  it('replays a patient self-cancel retried with the same key after the cutoff has passed', async () => {
+    const harness = requireHarness();
+    expect(
+      (
+        await harness.inject({
+          method: 'POST',
+          url: '/v1/schedule/publish',
+          headers: managerHeaders(),
+          payload: { ...PUBLISH_BODY, idempotencyKey: 'schedule_publish_0040' }
+        })
+      ).statusCode
+    ).toBe(201);
+    const book = async (idempotencyKey: string, slotId: string) => {
+      const booked = await harness.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        headers: patientHeaders(),
+        payload: { ...CREATE_BODY, idempotencyKey, slotId }
+      });
+      expect(booked.statusCode).toBe(201);
+      return (JSON.parse(booked.payload) as { appointmentId: string })
+        .appointmentId;
+    };
+    // 12:00 and 12:30 in Taipei on 2030-01-02; that day's cutoff is 10:00.
+    const appointmentId = await book(
+      'booking-idempotency-0040',
+      'slot_20300102_1200'
+    );
+    const otherAppointmentId = await book(
+      'booking-idempotency-0041',
+      'slot_20300102_1230'
+    );
+    const cancel = (id: string, idempotencyKey: string) =>
+      harness.inject({
+        method: 'POST',
+        url: `/v1/bookings/${id}/cancel`,
+        headers: patientHeaders(),
+        payload: { idempotencyKey }
+      });
+
+    // 09:59 in Taipei: still inside the window.
+    nowUtc = '2030-01-02T01:59:00.000Z';
+    const first = await cancel(appointmentId, 'booking-idempotency-0042');
+    expect(first.statusCode).toBe(201);
+    expect(JSON.parse(first.payload)).toEqual({
+      appointmentId,
+      status: 'cancelled'
+    });
+
+    // 11:00 in Taipei: after the cutoff.
+    nowUtc = '2030-01-02T03:00:00.000Z';
+    const retried = await cancel(appointmentId, 'booking-idempotency-0042');
+    expect(retried.statusCode).toBe(201);
+    expect(JSON.parse(retried.payload)).toEqual(JSON.parse(first.payload));
+
+    // A new request is still judged by the window.
+    const newKey = await cancel(appointmentId, 'booking-idempotency-0043');
+    expect(newKey.statusCode).toBe(409);
+    expect(JSON.parse(newKey.payload)).toMatchObject({
+      error: { code: 'CONFLICT' }
+    });
+    const lateFirst = await cancel(
+      otherAppointmentId,
+      'booking-idempotency-0044'
+    );
+    expect(lateFirst.statusCode).toBe(409);
+    expect(JSON.parse(lateFirst.payload)).toMatchObject({
+      error: { code: 'CONFLICT' }
+    });
+
+    const cancelled = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(appointmentId)
+      .get();
+    expect(cancelled.data()).toMatchObject({ status: 'cancelled' });
+    const untouched = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(otherAppointmentId)
+      .get();
+    expect(untouched.data()).toMatchObject({ status: 'confirmed' });
+  });
+
   it('deletes a booking with a closed reason and projects the cancel outbox in memory', async () => {
     const harness = requireHarness();
     const published = await harness.inject({

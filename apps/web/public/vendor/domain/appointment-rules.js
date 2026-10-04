@@ -68,6 +68,12 @@ export function isWithinSelfCancelWindow(appointmentStartsAt, nowMs) {
         return false;
     return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));
 }
+function assertWithinSelfServiceWindow(appointmentStartsAt, requestedAt, message) {
+    if (appointmentStartsAt === undefined ||
+        !isWithinSelfCancelWindow(appointmentStartsAt, Date.parse(requestedAt))) {
+        throw new DomainError('CANCELLATION_WINDOW_CLOSED', message);
+    }
+}
 /**
  * A patient's own reschedule uses the same window as self-cancellation: it is
  * allowed strictly before the appointment day's cutoff and refused afterwards.
@@ -75,10 +81,15 @@ export function isWithinSelfCancelWindow(appointmentStartsAt, nowMs) {
  * window and must not call this.
  */
 export function assertWithinSelfRescheduleWindow(appointmentStartsAt, requestedAt) {
-    if (appointmentStartsAt === undefined ||
-        !isWithinSelfCancelWindow(appointmentStartsAt, Date.parse(requestedAt))) {
-        throw new DomainError('CANCELLATION_WINDOW_CLOSED', 'The self-reschedule window has closed.');
-    }
+    assertWithinSelfServiceWindow(appointmentStartsAt, requestedAt, 'The self-reschedule window has closed.');
+}
+/**
+ * A patient's own cancellation: allowed strictly before the appointment day's
+ * cutoff and refused afterwards, a missing start time failing closed. Staff
+ * requests are not subject to the window and must not call this.
+ */
+export function assertWithinSelfCancelWindow(appointmentStartsAt, requestedAt) {
+    assertWithinSelfServiceWindow(appointmentStartsAt, requestedAt, 'The self-cancellation window has closed.');
 }
 export const EARLIEST_BOOKING_LEAD_MS = 7_200_000;
 export function assertSlotMeetsEarliestLead(slotStartsAt, requestedAt) {

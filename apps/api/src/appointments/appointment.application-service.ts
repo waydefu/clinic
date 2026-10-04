@@ -25,11 +25,7 @@ import type {
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
-import {
-  DomainError,
-  isWithinSelfCancelWindow,
-  SLOT_DURATION_MINUTES
-} from '@beauessence/domain';
+import { DomainError, SLOT_DURATION_MINUTES } from '@beauessence/domain';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
@@ -200,6 +196,7 @@ export function toTransitionRequest(
   command: CancelAppointmentRequest,
   transition: AppointmentTransition,
   context: {
+    readonly expectedPatientId?: string;
     readonly requestedAt: string;
     readonly audit: AuditContext;
   }
@@ -207,6 +204,9 @@ export function toTransitionRequest(
   return {
     appointmentId,
     transition,
+    ...(context.expectedPatientId === undefined
+      ? {}
+      : { expectedPatientId: context.expectedPatientId }),
     audit: context.audit,
     requestedAt: context.requestedAt,
     idempotency: transitionAppointmentIdempotency({
@@ -550,21 +550,16 @@ export class AppointmentApplicationService {
       record === undefined ? {} : { appointmentPatientId: record.patientId }
     );
 
-    if (authentication.verifiedPatientId !== undefined) {
-      const nowMs = Date.parse(this.clock.nowUtc());
-      if (
-        record?.startsAt === undefined ||
-        !isWithinSelfCancelWindow(record.startsAt, nowMs)
-      ) {
-        throw new DomainError(
-          'CANCELLATION_WINDOW_CLOSED',
-          'The self-cancellation window has closed.'
-        );
-      }
-    }
-
+    // The patient self-service window is judged by the transition transaction
+    // (planTransition), after it has replayed a recorded idempotency key.
+    // Judging it here from the appointment's start time turned the retry of a
+    // cancel that had succeeded before the cutoff into CANCELLATION_WINDOW_CLOSED
+    // once the cutoff had passed.
     const result = await this.repository.transition(
       toTransitionRequest(appointmentId, command, 'cancel', {
+        ...(authentication.verifiedPatientId === undefined
+          ? {}
+          : { expectedPatientId: authentication.verifiedPatientId }),
         requestedAt: this.clock.nowUtc(),
         audit: {
           actorId: authentication.actorId,
