@@ -186,7 +186,7 @@ describe('Stage D Calendar inbound emulator', () => {
     expect(live.data()?.['status']).toBe('confirmed');
   });
 
-  it('stores the status the appointment had on its candidate and keeps it out of the staff candidate list', async () => {
+  it('stores the status and the start the appointment had on its candidate and keeps both out of the staff candidate list', async () => {
     const appointmentId = 'appointment_001';
     await db.collection('appointments').doc(appointmentId).set({
       appointmentId,
@@ -223,7 +223,8 @@ describe('Stage D Calendar inbound emulator', () => {
     ).docs[0]?.data();
     expect(stored).toMatchObject({
       kind: 'update_appointment',
-      appointmentStatusAtDetection: 'confirmed'
+      appointmentStatusAtDetection: 'confirmed',
+      appointmentStartsAtAtDetection: '2030-01-02T06:15:00.000Z'
     });
     const listed = await new FirestoreCalendarPilotRepository(
       db
@@ -231,6 +232,7 @@ describe('Stage D Calendar inbound emulator', () => {
     expect(listed).toHaveLength(1);
     // The staff-facing shape is a strict contract; the internal field is not in it.
     expect(listed[0]).not.toHaveProperty('appointmentStatusAtDetection');
+    expect(listed[0]).not.toHaveProperty('appointmentStartsAtAtDetection');
     expect(CalendarChangeCandidateSchema.safeParse(listed[0]).success).toBe(
       true
     );
