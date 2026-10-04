@@ -68,6 +68,16 @@ export interface PatientFollowUpState {
   readonly activeFollowUpAppointmentId?: string;
 }
 
+/**
+ * Inclusive UTC bounds on `startsAt` (ISO-8601, as stored). A list that only
+ * ever shows a time window asks the directory for that window, so the page
+ * holds rows the caller will return instead of the oldest rows on record.
+ */
+export interface AppointmentListWindow {
+  readonly from: string;
+  readonly to: string;
+}
+
 export interface PatientDirectoryPort {
   resolveFromIntake(
     intake: PatientIntake,
@@ -87,8 +97,15 @@ export interface PatientDirectoryPort {
   readFollowUpState(
     patientId: string
   ): Promise<PatientFollowUpState | undefined>;
-  listByPatient(patientId: string, limit: number): Promise<AppointmentRecord[]>;
-  listClinic(limit: number): Promise<AppointmentRecord[]>;
+  listByPatient(
+    patientId: string,
+    limit: number,
+    window?: AppointmentListWindow
+  ): Promise<AppointmentRecord[]>;
+  listClinic(
+    limit: number,
+    window?: AppointmentListWindow
+  ): Promise<AppointmentRecord[]>;
 }
 
 function isMonthDay(birthDate: string): boolean {
@@ -166,6 +183,25 @@ function stringArrayField(
         (item): item is string => typeof item === 'string' && item !== ''
       )
     : [];
+}
+
+function withinWindow(query: Query, window: AppointmentListWindow | undefined) {
+  return window === undefined
+    ? query
+    : query
+        .where('startsAt', '>=', window.from)
+        .where('startsAt', '<=', window.to);
+}
+
+/** Mirrors the Firestore window for the process-local directory. */
+function isInsideWindow(
+  startsAt: string | undefined,
+  window: AppointmentListWindow | undefined
+): boolean {
+  if (window === undefined) return true;
+  return (
+    startsAt !== undefined && startsAt >= window.from && startsAt <= window.to
+  );
 }
 
 function isArchivedPatient(data: Record<string, unknown> | undefined): boolean {
@@ -413,22 +449,40 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     };
   }
 
+  /**
+   * With a window the query carries `startsAt >= from` and `startsAt <= to`
+   * on the field it already orders by, so the existing (patientId, startsAt)
+   * composite index serves it and no index is added.
+   */
   public async listByPatient(
     patientId: string,
-    limit: number
+    limit: number,
+    window?: AppointmentListWindow
   ): Promise<AppointmentRecord[]> {
     return this.listActiveAppointments(
-      this.db
-        .collection('appointments')
-        .where('patientId', '==', patientId)
-        .orderBy('startsAt', 'asc'),
+      withinWindow(
+        this.db.collection('appointments').where('patientId', '==', patientId),
+        window
+      ).orderBy('startsAt', 'asc'),
       limit
     );
   }
 
-  public async listClinic(limit: number): Promise<AppointmentRecord[]> {
+  /**
+   * With a window the query carries `startsAt >= from` and `startsAt <= to`
+   * on the one field it orders by, which the automatic single-field index
+   * serves, so no index is added. Without one the oldest rows come first,
+   * however old.
+   */
+  public async listClinic(
+    limit: number,
+    window?: AppointmentListWindow
+  ): Promise<AppointmentRecord[]> {
     return this.listActiveAppointments(
-      this.db.collection('appointments').orderBy('startsAt', 'asc'),
+      withinWindow(this.db.collection('appointments'), window).orderBy(
+        'startsAt',
+        'asc'
+      ),
       limit
     );
   }
@@ -598,11 +652,15 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
 
   public async listByPatient(
     patientId: string,
-    limit: number
+    limit: number,
+    window?: AppointmentListWindow
   ): Promise<AppointmentRecord[]> {
     await Promise.resolve();
     return this.appointments
-      .filter((item) => item.patientId === patientId)
+      .filter(
+        (item) =>
+          item.patientId === patientId && isInsideWindow(item.startsAt, window)
+      )
       .slice()
       .sort((left, right) =>
         (left.startsAt ?? '').localeCompare(right.startsAt ?? '')
@@ -610,9 +668,13 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
       .slice(0, limit);
   }
 
-  public async listClinic(limit: number): Promise<AppointmentRecord[]> {
+  public async listClinic(
+    limit: number,
+    window?: AppointmentListWindow
+  ): Promise<AppointmentRecord[]> {
     await Promise.resolve();
     return this.appointments
+      .filter((item) => isInsideWindow(item.startsAt, window))
       .slice()
       .sort((left, right) =>
         (left.startsAt ?? '').localeCompare(right.startsAt ?? '')

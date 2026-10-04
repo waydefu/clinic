@@ -1518,3 +1518,120 @@ describe('patient self-reschedule retried with the same idempotency key', () => 
     expect(recorded.size).toBe(1);
   });
 });
+
+describe('AppointmentApplicationService list reads only the rows it will return', () => {
+  // The clock is 2026-07-23T14:30:00.000Z: the list shows appointments from
+  // seven days before it to 31 days after it.
+  const WINDOW = {
+    from: '2026-07-16T14:30:00.000Z',
+    to: '2026-08-23T14:30:00.000Z'
+  };
+  const STAFF: AuthenticationContext = {
+    actorId: 'actor_verified_001',
+    actorRole: 'test_front_desk'
+  };
+
+  function oldAppointments(count: number, patientId: string) {
+    return Array.from({ length: count }, (_, index) => ({
+      appointmentId: `appointment_old_${index}`,
+      patientId,
+      slotId: `slot_old_${index}`,
+      bookingKind: 'initial' as const,
+      status: 'completed' as const,
+      startsAt: new Date(
+        Date.parse('2026-01-01T04:00:00.000Z') + index * 30 * 60_000
+      ).toISOString()
+    }));
+  }
+
+  const inWindow = (patientId: string): AppointmentRecord[] => [
+    {
+      appointmentId: 'appointment_now_a',
+      patientId,
+      slotId: 'slot_now_a',
+      bookingKind: 'initial',
+      status: 'confirmed',
+      startsAt: '2026-07-24T04:00:00.000Z'
+    },
+    {
+      appointmentId: 'appointment_now_b',
+      patientId,
+      slotId: 'slot_now_b',
+      bookingKind: 'initial',
+      status: 'confirmed',
+      startsAt: '2026-07-25T04:00:00.000Z'
+    }
+  ];
+
+  it('passes the window it applies to the clinic list query', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const listClinic = vi.spyOn(patients, 'listClinic');
+    const { service } = createBoundService(patients);
+
+    await service.list('clinic', STAFF);
+
+    expect(listClinic).toHaveBeenCalledWith(50, WINDOW);
+  });
+
+  it('passes the same window to the patient list query', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const listByPatient = vi.spyOn(patients, 'listByPatient');
+    const { service } = createBoundService(patients);
+
+    await service.list('mine', {
+      actorId: 'patient_opaque_001',
+      actorRole: 'patient',
+      verifiedPatientId: 'patient_opaque_001'
+    });
+
+    expect(listByPatient).toHaveBeenCalledWith(
+      'patient_opaque_001',
+      50,
+      WINDOW
+    );
+  });
+
+  it('lists the appointments in the window although more than a page of older ones exist', async () => {
+    const patients = new InMemoryPatientDirectory();
+    patients.appointments.push(
+      ...oldAppointments(60, 'patient_opaque_101'),
+      ...inWindow('patient_opaque_101')
+    );
+    const { service } = createBoundService(patients);
+
+    const clinic = await service.list('clinic', STAFF);
+    const mine = await service.list('mine', {
+      actorId: 'patient_opaque_101',
+      actorRole: 'patient',
+      verifiedPatientId: 'patient_opaque_101'
+    });
+
+    const expected = ['appointment_now_a', 'appointment_now_b'];
+    expect(clinic.appointments.map((item) => item.appointmentId)).toEqual(
+      expected
+    );
+    expect(mine.appointments.map((item) => item.appointmentId)).toEqual(
+      expected
+    );
+  });
+
+  it('still drops a row outside the window that a directory returned anyway', async () => {
+    const patients = new InMemoryPatientDirectory();
+    patients.appointments.push(
+      ...oldAppointments(1, 'patient_opaque_101'),
+      ...inWindow('patient_opaque_101')
+    );
+    // A directory that ignores the window, like the in-memory one before.
+    vi.spyOn(patients, 'listClinic').mockImplementation(() =>
+      Promise.resolve([...patients.appointments])
+    );
+    const { service } = createBoundService(patients);
+
+    const clinic = await service.list('clinic', STAFF);
+
+    expect(clinic.appointments.map((item) => item.appointmentId)).toEqual([
+      'appointment_now_a',
+      'appointment_now_b'
+    ]);
+  });
+});

@@ -50,8 +50,13 @@ import {
 } from '../platform/errors/api-error.js';
 import {
   opaqueLookupIdentity,
+  type AppointmentListWindow,
   type PatientDirectoryPort
 } from '../patients/patient-directory.js';
+
+/** The lists show appointments from a week before now to 31 days after it. */
+const LIST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const LIST_HORIZON_MS = 31 * 24 * 60 * 60 * 1000;
 
 export interface AppointmentIdGenerator {
   next(): string;
@@ -424,7 +429,7 @@ export class AppointmentApplicationService {
     }
     if (scope === 'clinic') {
       await this.authorization.assertCanQuery(authentication, {});
-      const records = await this.patients.listClinic(50);
+      const records = await this.patients.listClinic(50, this.listWindow());
       return {
         appointments: records.flatMap((record) => this.toListItem(record))
       };
@@ -434,7 +439,11 @@ export class AppointmentApplicationService {
     await this.authorization.assertCanQuery(authentication, {
       appointmentPatientId: patientId
     });
-    const records = await this.patients.listByPatient(patientId, 50);
+    const records = await this.patients.listByPatient(
+      patientId,
+      50,
+      this.listWindow()
+    );
     return {
       appointments: records.flatMap((record) => this.toListItem(record, true))
     };
@@ -481,6 +490,19 @@ export class AppointmentApplicationService {
     };
   }
 
+  /**
+   * The window `toListItem` applies, handed to the directory as well: asking
+   * for the oldest rows and dropping the ones outside the window afterwards
+   * left the page with nothing once enough old appointments existed.
+   */
+  private listWindow(): AppointmentListWindow {
+    const nowMs = Date.parse(this.clock.nowUtc());
+    return {
+      from: new Date(nowMs - LIST_LOOKBACK_MS).toISOString(),
+      to: new Date(nowMs + LIST_HORIZON_MS).toISOString()
+    };
+  }
+
   private toListItem(
     record: import('./appointment.repository-port.js').AppointmentRecord,
     patientScope = false
@@ -488,9 +510,10 @@ export class AppointmentApplicationService {
     if (record.startsAt === undefined) return [];
     const startMs = Date.parse(record.startsAt);
     const nowMs = Date.parse(this.clock.nowUtc());
-    const lookbackMs = 7 * 24 * 60 * 60 * 1000;
-    const horizonMs = 31 * 24 * 60 * 60 * 1000;
-    if (startMs < nowMs - lookbackMs || startMs > nowMs + horizonMs) {
+    if (
+      startMs < nowMs - LIST_LOOKBACK_MS ||
+      startMs > nowMs + LIST_HORIZON_MS
+    ) {
       return [];
     }
     return [
