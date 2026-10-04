@@ -123,6 +123,27 @@ export function isWithinSelfCancelWindow(
   return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));
 }
 
+/**
+ * A patient's own reschedule uses the same window as self-cancellation: it is
+ * allowed strictly before the appointment day's cutoff and refused afterwards.
+ * A missing start time fails closed. Staff requests are not subject to the
+ * window and must not call this.
+ */
+export function assertWithinSelfRescheduleWindow(
+  appointmentStartsAt: string | undefined,
+  requestedAt: string
+): void {
+  if (
+    appointmentStartsAt === undefined ||
+    !isWithinSelfCancelWindow(appointmentStartsAt, Date.parse(requestedAt))
+  ) {
+    throw new DomainError(
+      'CANCELLATION_WINDOW_CLOSED',
+      'The self-reschedule window has closed.'
+    );
+  }
+}
+
 export const EARLIEST_BOOKING_LEAD_MS = 7_200_000;
 
 export function assertSlotMeetsEarliestLead(

@@ -6,14 +6,17 @@ import type {
   RescheduleAppointmentRequest
 } from '@beauessence/contracts';
 import type {
+  AppointmentSnapshot,
   BookingRequest,
   DeleteAppointmentRequest as DomainDeleteAppointmentRequest,
   RescheduleRequest,
+  SlotSnapshot,
   TransitionRequest
 } from '@beauessence/domain';
 import {
   DomainError,
   planIdempotencyRecord,
+  planReschedule,
   resolveIdempotencyReplay,
   type PlannedIdempotencyRecord
 } from '@beauessence/domain';
@@ -87,10 +90,78 @@ const OPEN_RECORD: AppointmentRecord = {
   startsAt: '2026-07-25T04:00:00.000Z'
 };
 
+/** Slots the stand-in repository can move an appointment to. */
+const TARGET_SLOTS: Readonly<Record<string, SlotSnapshot>> = {
+  slot_002: {
+    id: 'slot_002',
+    kind: 'initial',
+    startsAt: '2026-07-25T04:30:00.000Z'
+  },
+  // 15:00, 15:30 and 16:00 in Taipei on 2026-07-23: after that day's 10:00
+  // self-service cutoff.
+  slot_same_day_a: {
+    id: 'slot_same_day_a',
+    kind: 'initial',
+    startsAt: '2026-07-23T07:00:00.000Z'
+  },
+  slot_same_day_b: {
+    id: 'slot_same_day_b',
+    kind: 'initial',
+    startsAt: '2026-07-23T07:30:00.000Z'
+  },
+  slot_same_day_c: {
+    id: 'slot_same_day_c',
+    kind: 'initial',
+    startsAt: '2026-07-23T08:00:00.000Z'
+  }
+};
+
+/**
+ * What the reschedule transaction decides: the domain planner, applied to the
+ * appointment as the transaction reads it. Every rule the planner owns, the
+ * patient self-service window included, is therefore judged here and not by
+ * the service ahead of the transaction.
+ */
+function planStandInReschedule(
+  request: RescheduleRequest,
+  record: AppointmentRecord | undefined
+) {
+  const appointment: AppointmentSnapshot | undefined =
+    record === undefined
+      ? undefined
+      : {
+          id: record.appointmentId,
+          slotId: record.slotId,
+          patientId: record.patientId,
+          bookingKind: record.bookingKind,
+          status: record.status,
+          ...(record.startsAt === undefined
+            ? {}
+            : { startsAt: record.startsAt })
+        };
+  return planReschedule(
+    request,
+    appointment,
+    TARGET_SLOTS[request.targetSlotId],
+    appointment === undefined
+      ? undefined
+      : {
+          activeAppointmentIds: [appointment.id],
+          updatedAt: request.requestedAt
+        }
+  );
+}
+
 function createBoundService(
   patients?: InMemoryPatientDirectory,
-  ids: () => string = () => 'appointment_server_001'
+  ids: () => string = () => 'appointment_server_001',
+  nowUtc = '2026-07-23T14:30:00.000Z'
 ) {
+  // The appointment as the repository sees it. `read` and the reschedule
+  // stand-in share it so a test sets the row once.
+  const stored: { record: AppointmentRecord | undefined } = {
+    record: OPEN_RECORD
+  };
   // Follow-up entitlement is decided by the repository transaction, after it
   // has replayed a recorded idempotency key (FirestoreBookingRepository.reserve).
   // The stand-in repository applies the same rule so a service that stopped
@@ -112,18 +183,19 @@ function createBoundService(
   });
   const reschedule = vi.fn<
     (request: RescheduleRequest) => Promise<ReservationResult>
-  >(() =>
-    Promise.resolve({
-      appointmentId: 'appointment_server_001',
+  >((request) => {
+    const plan = planStandInReschedule(request, stored.record);
+    return Promise.resolve({
+      appointmentId: plan.appointmentId,
       replayed: false,
-      startsAt: '2026-07-25T04:30:00.000Z'
-    })
-  );
+      startsAt: plan.startsAt
+    });
+  });
   const patientIdOf = vi.fn<() => Promise<string | undefined>>(() =>
     Promise.resolve('patient_opaque_001')
   );
   const read = vi.fn<() => Promise<AppointmentRecord | undefined>>(() =>
-    Promise.resolve(OPEN_RECORD)
+    Promise.resolve(stored.record)
   );
   const transition = vi.fn<
     (request: TransitionRequest) => Promise<TransitionResult>
@@ -194,7 +266,7 @@ function createBoundService(
     repository,
     authorization,
     { next: ids },
-    { nowUtc: () => '2026-07-23T14:30:00.000Z' },
+    { nowUtc: () => nowUtc },
     { next: () => 'corr_server_001' },
     patients
   );
@@ -215,6 +287,7 @@ function createBoundService(
     recordFollowUp,
     deleteAppointment,
     patients,
+    stored,
     service
   };
 }
@@ -462,11 +535,8 @@ describe('AppointmentApplicationService reschedule', () => {
   });
 
   it('rejects a patient after the appointment-day 10:00 cutoff', async () => {
-    const { read, reschedule, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
-    });
+    const { reschedule, service, stored } = createBoundary();
+    stored.record = { ...OPEN_RECORD, startsAt: '2026-07-23T04:00:00.000Z' };
 
     await expect(
       service.reschedule(
@@ -477,15 +547,13 @@ describe('AppointmentApplicationService reschedule', () => {
     ).rejects.toMatchObject<Partial<DomainError>>({
       code: 'CANCELLATION_WINDOW_CLOSED'
     });
-    expect(reschedule).not.toHaveBeenCalled();
+    // The transaction judges the window, so it is reached and refuses.
+    expect(reschedule).toHaveBeenCalledOnce();
   });
 
   it('lets staff reschedule after the patient cutoff', async () => {
-    const { read, reschedule, service } = createBoundary();
-    read.mockResolvedValueOnce({
-      ...OPEN_RECORD,
-      startsAt: '2026-07-23T04:00:00.000Z'
-    });
+    const { reschedule, service, stored } = createBoundary();
+    stored.record = { ...OPEN_RECORD, startsAt: '2026-07-23T04:00:00.000Z' };
     const staff: AuthenticationContext = {
       actorId: 'actor_verified_001',
       actorRole: 'test_front_desk'
@@ -1279,5 +1347,174 @@ describe('follow-up booking retried with the same idempotency key (AUD-08)', () 
       service.create(FOLLOW_UP_BOOKING, patientAuthentication)
     ).rejects.toMatchObject({ code: 'FOLLOW_UP_NOT_ENTITLED' });
     expect(reserve).not.toHaveBeenCalled();
+  });
+});
+
+describe('patient self-reschedule retried with the same idempotency key', () => {
+  const PATIENT_ID = 'patient_opaque_001';
+  const patientAuthentication: AuthenticationContext = {
+    actorId: PATIENT_ID,
+    actorRole: 'patient',
+    verifiedPatientId: PATIENT_ID
+  };
+  // 11:00 in Taipei on 2026-07-23: after that day's 10:00 cutoff, while the
+  // appointment below (2026-07-25) is still inside its own window.
+  const NOW_AFTER_CUTOFF = '2026-07-23T03:00:00.000Z';
+  const SAME_DAY_MOVE: RescheduleAppointmentRequest = {
+    idempotencyKey: 'reschedule_retry_0001',
+    targetSlotId: 'slot_same_day_a'
+  };
+
+  /**
+   * A repository stand-in with the ordering of the real transaction: a
+   * recorded idempotency key is replayed (or rejected for other content)
+   * before any rule is judged, and a first reschedule moves the stored row.
+   */
+  function recordingRepository() {
+    const recorded = new Map<string, PlannedIdempotencyRecord>();
+    const bound = createBoundService(
+      undefined,
+      () => 'appointment_server_001',
+      NOW_AFTER_CUTOFF
+    );
+    bound.reschedule.mockImplementation((request) => {
+      const replay = recorded.get(request.idempotency.recordId);
+      if (replay !== undefined) {
+        return Promise.resolve({
+          appointmentId: resolveIdempotencyReplay(replay, request.idempotency),
+          replayed: true,
+          ...(bound.stored.record?.startsAt === undefined
+            ? {}
+            : { startsAt: bound.stored.record.startsAt })
+        });
+      }
+      const plan = planStandInReschedule(request, bound.stored.record);
+      recorded.set(request.idempotency.recordId, plan.idempotencyRecord);
+      bound.stored.record = {
+        ...OPEN_RECORD,
+        slotId: plan.reserveSlotId,
+        startsAt: plan.startsAt
+      };
+      return Promise.resolve({
+        appointmentId: plan.appointmentId,
+        replayed: false,
+        startsAt: plan.startsAt
+      });
+    });
+    return { ...bound, recorded };
+  }
+
+  it('replays the original result although the new time is already past the cutoff', async () => {
+    const { recorded, reschedule, service, stored } = recordingRepository();
+
+    const first = await service.reschedule(
+      'appointment_server_001',
+      SAME_DAY_MOVE,
+      patientAuthentication
+    );
+    expect(first.startsAt).toBe('2026-07-23T07:00:00.000Z');
+    // The state that used to turn the retry into CANCELLATION_WINDOW_CLOSED.
+    expect(stored.record?.startsAt).toBe('2026-07-23T07:00:00.000Z');
+
+    const retried = await service.reschedule(
+      'appointment_server_001',
+      SAME_DAY_MOVE,
+      patientAuthentication
+    );
+
+    expect(retried).toEqual(first);
+    expect(reschedule).toHaveBeenCalledTimes(2);
+    expect(recorded.size).toBe(1);
+    expect(stored.record?.slotId).toBe('slot_same_day_a');
+  });
+
+  it('rejects the same key with different content as a reused key', async () => {
+    const { recorded, service, stored } = recordingRepository();
+    await service.reschedule(
+      'appointment_server_001',
+      SAME_DAY_MOVE,
+      patientAuthentication
+    );
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        { ...SAME_DAY_MOVE, targetSlotId: 'slot_same_day_b' },
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+    expect(recorded.size).toBe(1);
+    expect(stored.record?.slotId).toBe('slot_same_day_a');
+  });
+
+  it('still closes the window for a new key once the appointment sits past the cutoff', async () => {
+    const { recorded, service, stored } = recordingRepository();
+    await service.reschedule(
+      'appointment_server_001',
+      SAME_DAY_MOVE,
+      patientAuthentication
+    );
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        {
+          idempotencyKey: 'reschedule_retry_0002',
+          targetSlotId: 'slot_same_day_b'
+        },
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+    expect(recorded.size).toBe(1);
+    expect(stored.record?.slotId).toBe('slot_same_day_a');
+  });
+
+  it('refuses a first request from a patient whose appointment is already inside the closed window, and leaves it unchanged', async () => {
+    const { recorded, service, stored } = recordingRepository();
+    stored.record = { ...OPEN_RECORD, startsAt: '2026-07-23T07:00:00.000Z' };
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        SAME_DAY_MOVE,
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+    expect(recorded.size).toBe(0);
+    expect(stored.record.startsAt).toBe('2026-07-23T07:00:00.000Z');
+  });
+
+  it('fails closed for a patient when the stored appointment has no start time', async () => {
+    const { recorded, service, stored } = recordingRepository();
+    const { startsAt: _startsAt, ...withoutStart } = OPEN_RECORD;
+    stored.record = withoutStart;
+
+    await expect(
+      service.reschedule(
+        'appointment_server_001',
+        SAME_DAY_MOVE,
+        patientAuthentication
+      )
+    ).rejects.toMatchObject({ code: 'CANCELLATION_WINDOW_CLOSED' });
+    expect(recorded.size).toBe(0);
+  });
+
+  it('does not apply the patient window to a staff retry or a staff first request', async () => {
+    const { recorded, service, stored } = recordingRepository();
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_001',
+      actorRole: 'test_front_desk'
+    };
+    stored.record = { ...OPEN_RECORD, startsAt: '2026-07-23T04:00:00.000Z' };
+
+    const first = await service.reschedule(
+      'appointment_server_001',
+      SAME_DAY_MOVE,
+      staff
+    );
+    await expect(
+      service.reschedule('appointment_server_001', SAME_DAY_MOVE, staff)
+    ).resolves.toEqual(first);
+    expect(recorded.size).toBe(1);
   });
 });

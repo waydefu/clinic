@@ -355,19 +355,11 @@ export class AppointmentApplicationService {
       record === undefined ? {} : { appointmentPatientId: record.patientId }
     );
 
-    if (authentication.verifiedPatientId !== undefined) {
-      const nowMs = Date.parse(this.clock.nowUtc());
-      if (
-        record?.startsAt === undefined ||
-        !isWithinSelfCancelWindow(record.startsAt, nowMs)
-      ) {
-        throw new DomainError(
-          'CANCELLATION_WINDOW_CLOSED',
-          'The self-reschedule window has closed.'
-        );
-      }
-    }
-
+    // The patient self-service window is judged by the reschedule transaction
+    // (planReschedule), after it has replayed a recorded idempotency key.
+    // Judging it here from the appointment's current time turned the retry of a
+    // move that had succeeded into CANCELLATION_WINDOW_CLOSED, because that very
+    // move is what put the appointment past its cutoff.
     const result = await this.repository.reschedule(
       toRescheduleRequest(appointmentId, command, {
         ...(authentication.verifiedPatientId === undefined

@@ -2,6 +2,7 @@ import {
   assertReschedulable,
   assertSlotMeetsEarliestLead,
   assertTransitionAllowed,
+  assertWithinSelfRescheduleWindow,
   OPEN_STATUSES,
   type AppointmentStatusValue,
   type AppointmentTransition
@@ -65,6 +66,13 @@ export interface RescheduleRequest {
    * When set, the appointment must belong to this patient. Callers that have
    * a verified patient identity pass it so a BOLA attempt is the same
    * `APPOINTMENT_NOT_FOUND` as a missing row — never an ownership oracle.
+   *
+   * A request that carries it is the patient's own self-service request, so
+   * `planReschedule` also applies the patient self-service window to it. The
+   * window is judged here, against the appointment as the transaction read it
+   * and after the caller has replayed a recorded idempotency key, not by the
+   * caller beforehand: a same-key retry of a move that put the appointment past
+   * its cutoff must be answered with the first result.
    */
   readonly expectedPatientId?: string;
   readonly audit: AuditContext;
@@ -502,6 +510,9 @@ export function planReschedule(
       'APPOINTMENT_NOT_FOUND',
       'The appointment does not exist.'
     );
+  }
+  if (request.expectedPatientId !== undefined) {
+    assertWithinSelfRescheduleWindow(appointment.startsAt, request.requestedAt);
   }
   // assertReschedulable 是 assertion 函式，通過後 targetSlot 已窄化為 SlotSnapshot。
   assertReschedulable(
