@@ -1,5 +1,15 @@
 export const BOOKING_PATH = '/booking';
 
+// 每週固定門診（Asia/Taipei，0＝週日）。與上方 hours 字串、clinic.html 的
+// JSON-LD openingHoursSpecification 是同一份資訊；正式施工時要納入既有的
+// 門診時間一致性檢查，三處一起改。
+export const CLINIC_WEEKLY_HOURS = {
+  3: ['12:00', '20:00'],
+  4: ['12:00', '20:00'],
+  5: ['12:00', '20:00'],
+  6: ['10:00', '18:00']
+};
+
 export const CLINIC = {
   name: '一森渼診所',
   englishName: 'Beau Essence Clinic',
@@ -68,10 +78,10 @@ export const HOME_PAGE = {
   seoTitle: '鼻功能與睡眠呼吸照護',
   seoDescription:
     '一森渼診所提供鼻塞、打鼾、鼻中隔與睡眠呼吸相關評估及線上預約資訊。',
-  heroEyebrow: 'FUNCTION · BREATH · SLEEP',
-  heroTitle: '今晚，不必再和呼吸拔河',
+  heroEyebrow: '一森渼診所｜鼻功能與睡眠呼吸門診',
+  heroTitle: '鼻塞、打鼾，\n先找出原因。',
   heroDescription:
-    '針對鼻塞、打鼾與睡眠呼吸困擾，先了解症狀與鼻腔結構，再由醫師一起說明適合的照護方向。',
+    '看診時，醫師會檢查鼻腔、\n了解你的打鼾與睡眠狀況，\n說明原因後再討論治療選項。',
   heroImage: '/clinic-assets/service-snoring.webp',
   heroImageAlt: '睡眠時張口呼吸的示意插圖',
   heroCaption: '從原因開始，找回安穩呼吸',

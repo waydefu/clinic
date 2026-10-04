@@ -125,6 +125,10 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [UI/UX 重設計計畫（2026-09-07）](design/2026-09-07-ui-ux-redesign-plan.md) — scope, invariants, files, review dependencies, verification and rollback for the owner-requested redesign PR
 
+- [Clinic Digital Experience 重設計決策（2026-10-05）](design/2026-10-05-clinic-digital-experience-redesign-decision.md) — 「霧林呼吸」方向、舊官網素材 KEEP／REPROCESS／RETIRE 清單、首頁與預約頁線框、共用設計系統、動效與預算提案；方向已獲負責人批准，附 Visual Proof gate
+
+- [Visual Proof Sprint 交接（2026-10-05）](design/2026-10-05-visual-proof-sprint-handoff.md) — 原型的參考網站、素材來源與位置、負責人 11 項決定、現況→提案量測與自評、有條件過關的 8 個條件
+
 - [Phase 0 local development](phase-0-local-development.md) — what exists locally and how to verify it
 - [Test-only sandbox baseline](product/test-only-sandbox-baseline.md) — the authority and limits of the synthetic-only profile
 - [Test-only scheduling and follow-up workbench](product/test-only-scheduling-follow-up-workbench.md) — scope of the synthetic scheduling and follow-up surface
@@ -197,6 +201,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-05 | [Visual Proof Sprint 交接](design/2026-10-05-visual-proof-sprint-handoff.md) | 草稿 PR 原型：首頁首屏（診所實景輪播＋門診時間卡）、症狀區三組自家線稿、預約頁頁首＋第一題，1440／390、淺色、減少動態。CLS 0；首頁 LCP +0.12～0.14 秒（本機 lab）；首屏文字最差對比 6.32。自評有條件過關。`pnpm verify`、e2e 本機 NOT_RUN；clinic freeze 與預算檢查預期失敗（未解凍、預算未調整）。無部署。 |
 | 2026-10-04 | [稽核修正收尾交接](reviews/2026-10-04-audit-closeout-handoff.md) | #221～#233 合併，main `e58e1c1` verify run `37199246153` success。稽核 AUD-02～05、08～15 已修，AUD-07 部分修，AUD-01 與 AUD-07 其餘細節未取得仍 OPEN。決定：COOP 放寬一格、員工 session 12 小時、braces 暫時例外（10/17 到期）、隱私頁內部測試例外句。C1 部署、runtime 與 CP-08/09/10、CP-06-E 全部 NOT_RUN。 |
 | 2026-10-03 | [L6/L7 source-readiness handoff](reviews/2026-10-01-luna-l6-l7-source-readiness.md) | Current main `6131c7f` 已包含 #214～#216；各新 head 與 main verify run `37051691984` 均 12/12 PASS。#217 文件仍保留 CP-08 84 rows NOT_RUN、16 fresh captures 未執行、CP-10 NOT_SIGNED 與 runtime/deployment blockers。 |
 | 2026-10-03 | [六位驗證需求與合併順序](reviews/2026-10-03-verification-direction-and-merge-order.md) | 業主原話「只有特殊情況才要6位驗證」已記錄；登入／操作再驗證與特殊情況清單仍待對應。歷史順序紀錄保留；#214～#216、#218～#220 已依後續授權合併，#217 尚待本次文件同步與 exact-head CI。未修改驗證實作或政策。 |

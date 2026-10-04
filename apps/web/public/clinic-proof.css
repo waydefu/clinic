@@ -1,0 +1,469 @@
+/* Visual Proof Sprint（2026-10-05，本機原型，未核准、不部署）。
+   範圍：首頁主視覺、門診時間卡、主視覺→症狀導引交界。
+   決策文件：docs/design/2026-10-05-clinic-digital-experience-redesign-decision.md
+   負責人 2026-10-05 指示：首屏不放醫師照、不放診所照片；文案要具體；
+   結構可參考太田耳鼻咽喉科医院（上半部大視覺＋下方寬版門診時間卡），
+   但風格與圖示一律用一森渼自己的（霧林地平線、呼吸弧線、白色線稿）。
+   正式施工時這些值會搬進 styles.css 的共用 token，不保留這個檔。 */
+:root {
+  --proof-mist: #e4ece3;
+  --proof-forest-floor: #cdd8cd;
+  /* 有高品質宋體的系統（macOS、裝了思源宋體的機器）用宋體；
+     Windows 沒有時跳過細明體，直接用正黑體，避免大標題邊緣發毛。 */
+  --proof-display:
+    'Noto Serif TC', 'Source Han Serif TC', 'Songti TC', 'Microsoft JhengHei',
+    'PingFang TC', sans-serif;
+}
+
+/* 主視覺 ------------------------------------------------------------------ */
+.clinic-hybrid-hero.clinic-hero--mist {
+  position: relative;
+  padding: 0;
+  isolation: isolate;
+  background: var(--proof-mist);
+  border-bottom: 0;
+}
+
+/* 視覺區：診所實景輪播在右側約六成，左緣與底部淡入晨霧——
+   「照片從霧裡浮出來」；標題在左側的淨霧上，文字後面沒有照片。 */
+.clinic-hero__stage {
+  position: relative;
+  display: grid;
+  min-height: min(42rem, calc(100vh - 6rem));
+  align-items: center;
+  padding: 4rem 0 9rem;
+}
+
+.clinic-hero__slides {
+  position: absolute;
+  width: 54%;
+  inset: 0 0 0 auto;
+  overflow: hidden;
+  mask-composite: intersect;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 28%),
+    linear-gradient(to bottom, #000 80%, transparent);
+  pointer-events: none;
+}
+
+.clinic-hero-slide {
+  position: absolute;
+  background-color: var(--proof-mist);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1200ms var(--clinic-ease-out);
+}
+
+.clinic-hero-slide.is-active {
+  opacity: 1;
+}
+
+/* 標誌牆：把標誌移出左側淡入區 */
+.clinic-hero-slide.is-logo {
+  background-position: 20% center;
+}
+
+.clinic-hero__copy-wrap {
+  position: relative;
+  z-index: 1;
+}
+
+.clinic-hero--mist .clinic-hybrid-hero__copy {
+  max-width: 40rem;
+}
+
+.clinic-hero--mist .clinic-eyebrow,
+.clinic-hero--mist .clinic-hybrid-hero__copy h1 {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.clinic-hero--mist .clinic-eyebrow {
+  color: var(--clinic-forest);
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: 0.16em;
+}
+
+.clinic-hero--mist .clinic-hybrid-hero__copy h1 {
+  max-width: none;
+  margin-top: 0.75rem;
+  color: var(--clinic-forest-deep);
+  font-family: var(--proof-display);
+  font-size: clamp(2.75rem, 1.4rem + 4vw, 4.75rem);
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: 0.04em;
+  line-height: 1.14;
+  white-space: pre-line;
+}
+
+.clinic-hero--mist .clinic-hybrid-hero__copy > p:not(.clinic-eyebrow) {
+  max-width: 34rem;
+  color: var(--clinic-ink);
+  font-size: var(--clinic-text-md);
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+/* 暫停鈕：WCAG 2.2.2；減少動態時由 JS 隱藏 */
+.clinic-hero__pause {
+  position: absolute;
+  z-index: 2;
+  right: max(1.5rem, calc((100% - 76rem) / 2));
+  bottom: 9.5rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  color: var(--clinic-forest-deep);
+  background: rgb(255 255 255 / 86%);
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius-pill);
+  font-size: var(--clinic-text-micro);
+  font-weight: var(--clinic-weight-bold);
+  cursor: pointer;
+}
+
+.clinic-hero__pause:focus-visible {
+  outline: 0.2rem solid var(--clinic-forest);
+  outline-offset: 0.15rem;
+}
+
+/* 呼吸弧線（簽名 2）：白線＋八角星點，在右半部繞過樹林 ----------------- */
+/* 放在照片底部淡入晨霧的位置，不穿過照片主體（例如標誌牆上的字） */
+.clinic-breath-arc {
+  position: absolute;
+  z-index: 1;
+  top: 64%;
+  left: 2%;
+  width: 84%;
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.clinic-breath-arc__line {
+  fill: none;
+  stroke: var(--clinic-white);
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.clinic-breath-arc__line--soft {
+  opacity: 0.6;
+  stroke-width: 1;
+}
+
+.clinic-breath-arc__star {
+  fill: var(--clinic-white);
+}
+
+/* 門診時間：寬版實心白卡，壓在視覺區底緣 ------------------------------- */
+.clinic-hero__hours {
+  position: relative;
+  z-index: 2;
+  margin-top: -7rem;
+  padding-bottom: clamp(3rem, 5vw, 4.5rem);
+}
+
+.clinic-hours-panel {
+  display: grid;
+  padding: 2rem 2.5rem;
+  background: var(--clinic-white);
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius-md);
+  box-shadow: 0 1.25rem 3rem rgb(22 72 58 / 12%);
+  gap: 1.5rem 3rem;
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.6fr);
+}
+
+.clinic-hours-panel__info,
+.clinic-hours-panel__schedule {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.clinic-hours-panel__title {
+  margin: 0;
+  color: var(--clinic-forest-deep);
+  font-family: var(--proof-display);
+  font-size: var(--clinic-text-xl);
+  font-weight: var(--clinic-weight-bold);
+}
+
+.clinic-hours-panel__status {
+  display: grid;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: var(--proof-mist);
+  border-left: 0.25rem solid var(--clinic-sage);
+  border-radius: var(--clinic-radius-sm);
+  gap: 0.125rem;
+}
+
+.clinic-hours-panel__status.is-open {
+  border-left-color: var(--clinic-forest);
+}
+
+.clinic-hours-panel__status strong {
+  color: var(--clinic-forest-deep);
+  font-size: var(--clinic-text-md);
+}
+
+.clinic-hours-panel__status span {
+  color: var(--clinic-ink);
+}
+
+.clinic-hours-panel__call {
+  justify-content: center;
+}
+
+.clinic-hours-panel__address {
+  color: var(--clinic-forest-deep);
+  font-size: var(--clinic-text-micro);
+}
+
+.clinic-hours-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--clinic-text-md);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.clinic-hours-panel__table th,
+.clinic-hours-panel__table td {
+  padding: 0.85rem 0.25rem;
+  border-bottom: 1px solid var(--clinic-line);
+}
+
+.clinic-hours-panel__table thead th {
+  color: var(--clinic-ink);
+  font-weight: var(--clinic-weight-bold);
+}
+
+.clinic-hours-panel__table tbody th {
+  padding-right: 1rem;
+  color: var(--clinic-ink);
+  font-weight: var(--clinic-weight-regular, 400);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.clinic-hours-panel__table td {
+  color: var(--clinic-muted);
+}
+
+.clinic-hours-panel__table td.is-open {
+  color: var(--clinic-forest);
+  font-weight: var(--clinic-weight-bold);
+}
+
+/* 今天那一欄：淡底色，表頭另有底線，不只靠顏色 */
+.clinic-hours-panel__table .is-today {
+  background: var(--proof-mist);
+}
+
+.clinic-hours-panel__table thead th.is-today {
+  box-shadow: inset 0 -0.2rem 0 var(--clinic-forest);
+}
+
+.clinic-hours-panel__note {
+  margin: 0;
+  color: var(--clinic-muted);
+  font-size: var(--clinic-text-micro);
+}
+
+/* 症狀導引：深森林綠底＋一森渼白色線稿 ---------------------------------- */
+.clinic-symptom-section {
+  padding-top: clamp(3rem, 6vw, 5rem);
+  color: var(--clinic-white);
+  background: var(--clinic-forest-deep);
+}
+
+.clinic-symptom-section .clinic-eyebrow {
+  color: var(--clinic-text-inverse-muted);
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: 0.16em;
+}
+
+.clinic-symptom-section h2 {
+  color: var(--clinic-white);
+  font-family: var(--proof-display);
+  font-weight: var(--clinic-weight-bold);
+  letter-spacing: 0.02em;
+}
+
+.clinic-symptom-section .clinic-section-heading > p:last-child {
+  color: var(--clinic-text-inverse-strong);
+}
+
+.clinic-symptom-groups {
+  align-items: stretch;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.clinic-symptom-group {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: var(--clinic-radius-md);
+  gap: 0.75rem;
+}
+
+.clinic-symptom-group__icon {
+  display: block;
+  /* 直排 flex 預設會把子元素撐滿整列寬度，圖示就被橫向拉長；
+     改成依內容寬度、保持原圖比例。 */
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
+  height: 5rem;
+  margin-bottom: 0.25rem;
+  object-fit: contain;
+  /* 舊線稿原本畫在 2756px 寬的畫布上，縮到 80px 高時線條會細到看不見；
+     兩層白色 drop-shadow 等於把線加粗約 1px。SVG 化後可移除。 */
+  filter: drop-shadow(0 0 0.4px var(--clinic-white))
+    drop-shadow(0 0 0.4px var(--clinic-white));
+}
+
+.clinic-symptom-group h3 {
+  margin: 0;
+  color: var(--clinic-white);
+  font-family: var(--proof-display);
+  font-size: var(--clinic-text-lg);
+  font-weight: var(--clinic-weight-bold);
+}
+
+.clinic-symptom-group__buttons {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.clinic-symptom-group--ask p {
+  margin: 0;
+  color: var(--clinic-text-inverse-strong);
+}
+
+.clinic-symptom-group--ask .clinic-button {
+  align-self: flex-start;
+  margin-top: auto;
+  color: var(--clinic-forest-deep);
+  background: var(--clinic-white);
+  border-color: var(--clinic-white);
+}
+
+.clinic-symptom-section .clinic-symptom-button {
+  min-height: 3.25rem;
+  border-color: transparent;
+}
+
+.clinic-symptom-section .clinic-symptom-button[aria-pressed='true'] {
+  color: var(--clinic-forest-deep);
+  background: var(--proof-mist);
+  border-color: var(--clinic-white);
+  box-shadow: inset 0 0 0 0.15rem var(--clinic-forest);
+}
+
+/* M2：呼吸弧線描繪一次。減少動態時直接顯示完整線條、不輪播。 --------- */
+@media (prefers-reduced-motion: no-preference) {
+  .clinic-motion .clinic-breath-arc__line {
+    animation: clinic-arc-draw 1200ms var(--clinic-ease-out) 200ms both;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  @keyframes clinic-arc-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-hero-slide {
+    transition: none;
+  }
+}
+
+/* 手機 ------------------------------------------------------------------ */
+@media (max-width: 48rem) {
+  /* 手機：照片放在標題區的下半部當背景，不另占高度（負責人 2026-10-05 指示）；
+     上緣淡入晨霧，標題與說明在霧上，按鈕（實心）疊在照片上。 */
+  .clinic-hero__stage {
+    min-height: 0;
+    padding: 2.5rem 0 6.5rem;
+  }
+
+  .clinic-hero__slides {
+    width: 100%;
+    height: 50%;
+    inset: auto 0 0;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      #000 32%,
+      #000 80%,
+      transparent
+    );
+  }
+
+  .clinic-hero-slide.is-logo {
+    background-position: 42% center;
+  }
+
+  .clinic-breath-arc {
+    top: auto;
+    bottom: 22%;
+    left: 8%;
+    width: 110%;
+  }
+
+  .clinic-hero--mist .clinic-button--outline {
+    background: var(--clinic-white);
+  }
+
+  .clinic-hero__pause {
+    right: 1rem;
+    bottom: 4.75rem;
+  }
+
+  .clinic-hero__hours {
+    margin-top: -4rem;
+  }
+
+  .clinic-hours-panel {
+    padding: 1.25rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clinic-hours-panel__table {
+    font-size: var(--clinic-text-body);
+  }
+
+  .clinic-hours-panel__table th,
+  .clinic-hours-panel__table td {
+    padding: 0.6rem 0.125rem;
+  }
+
+  .clinic-symptom-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clinic-symptom-group {
+    padding: 1.25rem;
+  }
+
+  .clinic-symptom-group__icon {
+    height: 3.75rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .clinic-hero__slides {
+    display: none;
+  }
+}
