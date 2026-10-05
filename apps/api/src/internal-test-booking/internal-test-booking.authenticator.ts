@@ -31,9 +31,13 @@ function header(
 
 function bearerToken(request: AuthenticatableRequest): string | undefined {
   const authorization = header(request, 'authorization');
-  if (authorization === undefined || !authorization.startsWith('Bearer ')) {
+  if (authorization === undefined) {
     return undefined;
   }
+  const scheme = authorization
+    .slice(0, 'Bearer '.length)
+    .replace(/[A-Z]/g, (character) => character.toLowerCase());
+  if (scheme !== 'bearer ') return undefined;
   const token = authorization.slice('Bearer '.length).trim();
   return token === '' ? undefined : token;
 }
