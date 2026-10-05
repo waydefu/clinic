@@ -31,9 +31,13 @@ function header(
 
 function bearerToken(request: AuthenticatableRequest): string | undefined {
   const authorization = header(request, 'authorization');
-  if (authorization === undefined || !authorization.startsWith('Bearer ')) {
+  if (authorization === undefined) {
     return undefined;
   }
+  const scheme = authorization
+    .slice(0, 'Bearer '.length)
+    .replace(/[A-Z]/g, (character) => character.toLowerCase());
+  if (scheme !== 'bearer ') return undefined;
   const token = authorization.slice('Bearer '.length).trim();
   return token === '' ? undefined : token;
 }
@@ -56,7 +60,14 @@ export class InternalTestBookingAuthenticator implements AppointmentAuthenticato
     request: AuthenticatableRequest
   ): Promise<AuthenticationContext> {
     const returnSession = header(request, 'x-return-session');
-    if (returnSession !== undefined && this.patients !== undefined) {
+    if (returnSession !== undefined) {
+      const staffCookie = readCalendarPilotSessionCookie(
+        header(request, 'cookie')
+      );
+      if (staffCookie !== undefined || bearerToken(request) !== undefined) {
+        throw new AuthenticationRequiredError();
+      }
+      if (this.patients === undefined) throw new AuthenticationRequiredError();
       const patientId = await this.patients.readReturnSession(
         returnSession,
         this.nowUtc()

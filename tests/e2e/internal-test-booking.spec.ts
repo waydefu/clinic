@@ -1505,6 +1505,116 @@ test.describe('internal-test booking occupancy overlay', () => {
     );
   });
 
+  test('restart after return booking isolates the next initial intake', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_return_001',
+            kind: 'follow_up',
+            startsAt,
+            available: true
+          },
+          {
+            slotId: 'slot_initial_002',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_synthetic_001',
+        status: 'confirmed',
+        startsAt
+      },
+      {},
+      {
+        returnLookup: { outcome: 'schedule', sessionId: 'synthetic_return_001' }
+      }
+    );
+    await page.goto('/booking?internalTestBooking=1');
+    await page.locator('#booking-management-open').click();
+    await page.locator('#booking-lookup-phone').fill('0912000001');
+    await page.locator('#booking-lookup-birth-month').fill('01');
+    await page.locator('#booking-lookup-birth-day').fill('15');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '已確認回診身分'
+    );
+    await page.locator('#booking-management-close').click();
+    await page.locator('[data-patient-slot="slot_return_001"]').click();
+    await page.locator('#confirm-patient-booking').click();
+    await expect(page.locator('#booking-result')).toContainText(
+      'appointment_synthetic_001'
+    );
+    expect(posted.createHeaders?.['x-return-session']).toBe(
+      'synthetic_return_001'
+    );
+
+    await page.locator('#book-another').click();
+    expect(
+      await page.evaluate(() => sessionStorage.getItem('itrs'))
+    ).toBeNull();
+    await expect(page.locator('[data-booking-type="initial"]')).toBeEnabled();
+    await openPatientSlotStep(page);
+    await page.locator('[data-patient-slot="slot_initial_002"]').click();
+    await fillPatientCreateForm(page);
+    await page.locator('#patient-name').fill('合成初診乙');
+    await page.locator('#confirm-patient-booking').click();
+    await expect(page.locator('#booking-result')).toContainText(
+      'appointment_synthetic_001'
+    );
+    expect(posted.body).toMatchObject({
+      bookingKind: 'initial',
+      intake: { name: '合成初診乙' }
+    });
+    expect(posted.createHeaders).not.toHaveProperty('x-return-session');
+  });
+
+  test('same-tab staff navigation does not inherit return-patient credentials', async ({
+    page
+  }) => {
+    const observed: Array<Record<string, string>> = [];
+    await stubV1(
+      page,
+      { slots: [] },
+      'closed',
+      {},
+      {
+        returnLookup: { outcome: 'schedule', sessionId: 'synthetic_return_001' }
+      }
+    );
+    await page.goto('/booking?internalTestBooking=1');
+    await page.locator('#booking-management-open').click();
+    await page.locator('#booking-lookup-phone').fill('0912000001');
+    await page.locator('#booking-lookup-birth-month').fill('01');
+    await page.locator('#booking-lookup-birth-day').fill('15');
+    await page.locator('#booking-lookup-form button[type="submit"]').click();
+    await expect(page.locator('#booking-lookup-status')).toContainText(
+      '已確認回診身分'
+    );
+    expect(await page.evaluate(() => sessionStorage.getItem('itrs'))).toBe(
+      'synthetic_return_001'
+    );
+    await page.route('**/v1/**', async (route) => {
+      observed.push(route.request().headers());
+      await route.fallback();
+    });
+    await login(page, 'admin', { path: '/staff?internalTestBooking=1' });
+    await expect.poll(() => observed.length).toBeGreaterThan(0);
+    expect(
+      await page.evaluate(() => sessionStorage.getItem('itrs'))
+    ).toBeNull();
+    expect(
+      observed.every((headers) => headers['x-return-session'] === undefined)
+    ).toBe(true);
+  });
+
   test('opt-in staff publish posts /v1/schedule/publish without patient fields', async ({
     page
   }) => {

@@ -26,6 +26,18 @@ function stageFM11Schedule() {
   };
 }
 
+let returnContextGeneration = 0;
+
+export function clearInternalTestReturnSession() {
+  returnContextGeneration += 1;
+  globalThis.sessionStorage?.removeItem('itrs');
+}
+
+function publicBookingLocation() {
+  const path = String(globalThis.location?.pathname ?? '');
+  return path === '/booking' || path.endsWith('/patient.html');
+}
+
 function storedReturnSession() {
   return globalThis.sessionStorage?.getItem('itrs') ?? undefined;
 }
@@ -33,6 +45,24 @@ function storedReturnSession() {
 function rememberReturnSession(sessionId) {
   if (typeof sessionId === 'string' && sessionId !== '')
     globalThis.sessionStorage?.setItem('itrs', sessionId);
+}
+
+function returnSessionForRequest(mapped) {
+  if (!publicBookingLocation()) return undefined;
+  const patientRead =
+    mapped.method === 'GET' &&
+    /^\/v1\/bookings(?:\/[A-Za-z0-9_-]+)?$/.test(mapped.url);
+  const patientWrite =
+    mapped.method === 'POST' &&
+    /^\/v1\/bookings\/[A-Za-z0-9_-]+\/(cancel|reschedule)$/.test(mapped.url);
+  const returnBooking =
+    mapped.url === '/v1/bookings' &&
+    mapped.method === 'POST' &&
+    mapped.body?.bookingKind === 'follow_up' &&
+    mapped.body?.intake === undefined;
+  return patientRead || patientWrite || returnBooking
+    ? storedReturnSession()
+    : undefined;
 }
 
 function overlayListedSlots(state, listed) {
@@ -320,7 +350,7 @@ export function applyDeleteContractWrite(state, path, result) {
 async function requestV1(
   fetchImpl,
   mapped,
-  { signal, csrfToken, accessToken, toError, credentials }
+  { signal, csrfToken, accessToken, toError, credentials, returnSession }
 ) {
   const headers = {
     Accept: 'application/json'
@@ -332,8 +362,9 @@ async function requestV1(
   if (typeof accessToken === 'string' && accessToken !== '') {
     headers.Authorization = `Bearer ${accessToken}`;
   }
-  const session = storedReturnSession();
-  if (typeof session === 'string') headers['x-return-session'] = session;
+  if (typeof returnSession === 'string' && returnSession !== '') {
+    headers['x-return-session'] = returnSession;
+  }
   const response = await fetchImpl(mapped.url, {
     method: mapped.method,
     headers,
@@ -378,8 +409,8 @@ export function createInternalTestBookingTransport({
     throw new TypeError('local transport is required.');
   if (typeof toError !== 'function')
     throw new TypeError('toError mapper is required.');
-  const path = String(globalThis.location?.pathname ?? '');
-  const publicBooking = path === '/booking' || path.endsWith('/patient.html');
+  const publicBooking = publicBookingLocation();
+  if (!publicBooking) clearInternalTestReturnSession();
   const resolvedCredentials =
     credentials ?? (publicBooking ? 'omit' : 'same-origin');
   const resolvedCsrf =
@@ -402,14 +433,24 @@ export function createInternalTestBookingTransport({
       csrfToken: resolvedCsrf(),
       accessToken: resolvedAccess(),
       toError,
-      credentials: resolvedCredentials
+      credentials: resolvedCredentials,
+      returnSession: returnSessionForRequest(mapped)
     });
 
   return async function internalTestBookingTransport(path, options = {}) {
+    const body = parseBody(options);
+    const isPost = String(options.method ?? 'GET').toUpperCase() === 'POST';
+    const isReturnLookup = isPost && path === '/patient/bookings/lookup';
+    const isNewIntake =
+      isPost &&
+      path === '/bookings' &&
+      (body.bookingKind === 'initial' || body.intake !== undefined);
+    if (isReturnLookup || isNewIntake) clearInternalTestReturnSession();
+    const lookupGeneration = returnContextGeneration;
     const mapped = mapInternalTestBookingRequest(
       path,
       options.method,
-      parseBody(options),
+      body,
       globalThis.location
     );
     if (mapped === undefined) {
@@ -477,9 +518,18 @@ export function createInternalTestBookingTransport({
       csrfToken: resolvedCsrf(),
       accessToken: resolvedAccess(),
       toError,
-      credentials: resolvedCredentials
+      credentials: resolvedCredentials,
+      returnSession: returnSessionForRequest(mapped)
     });
-    rememberReturnSession(payload?.sessionId);
+    if (isReturnLookup) {
+      if (
+        lookupGeneration !== returnContextGeneration ||
+        !publicBookingLocation()
+      ) {
+        throw new DOMException('Booking context changed.', 'AbortError');
+      }
+      rememberReturnSession(payload?.sessionId);
+    }
     if (path === '/schedule/publish' && payload !== undefined) {
       try {
         payload.slots = (await v1({ url: '/v1/slots', method: 'GET' })).slots;
