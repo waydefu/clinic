@@ -197,6 +197,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-05 | [AUD-01 身分上下文隔離本機交接](reviews/2026-10-05-aud01-identity-isolation.md) | 完整修復方案已核准；相關 Unit 119／119、Chromium booking E2E 31／31、型別／lint／format PASS。第一輪審閱大小寫缺口已重現並修正，第二輪 API 靜態複核 PASS、exact-head CI 待取得；完整 Unit 的 FTP 基線失敗保留，AUD-01 仍 OPEN。AUD-07、source freeze、merge／部署未完成。 |
 | 2026-10-04 | [稽核修正收尾交接](reviews/2026-10-04-audit-closeout-handoff.md) | #221～#233 合併，main `e58e1c1` verify run `37199246153` success。稽核 AUD-02～05、08～15 已修，AUD-07 部分修，AUD-01 與 AUD-07 其餘細節未取得仍 OPEN。決定：COOP 放寬一格、員工 session 12 小時、braces 暫時例外（10/17 到期）、隱私頁內部測試例外句。C1 部署、runtime 與 CP-08/09/10、CP-06-E 全部 NOT_RUN。 |
 | 2026-10-03 | [L6/L7 source-readiness handoff](reviews/2026-10-01-luna-l6-l7-source-readiness.md) | Current main `6131c7f` 已包含 #214～#216；各新 head 與 main verify run `37051691984` 均 12/12 PASS。#217 文件仍保留 CP-08 84 rows NOT_RUN、16 fresh captures 未執行、CP-10 NOT_SIGNED 與 runtime/deployment blockers。 |
 | 2026-10-03 | [六位驗證需求與合併順序](reviews/2026-10-03-verification-direction-and-merge-order.md) | 業主原話「只有特殊情況才要6位驗證」已記錄；登入／操作再驗證與特殊情況清單仍待對應。歷史順序紀錄保留；#214～#216、#218～#220 已依後續授權合併，#217 尚待本次文件同步與 exact-head CI。未修改驗證實作或政策。 |

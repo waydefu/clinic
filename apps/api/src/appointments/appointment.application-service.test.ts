@@ -983,29 +983,23 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     });
   });
 
-  it(
-    'rejects intake alongside a verified patient before resolution or reservation',
-    async () => {
-      const patients = new InMemoryPatientDirectory();
-      const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
-      const { assertCanCreate, reserve, service } = createBoundService(patients);
-      const verifiedPatient: AuthenticationContext = {
-        actorId: 'patient_opaque_001',
-        actorRole: 'patient',
-        verifiedPatientId: 'patient_opaque_001'
-      };
+  it('rejects intake alongside a verified patient before resolution or reservation', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
+    const { assertCanCreate, reserve, service } = createBoundService(patients);
+    const verifiedPatient: AuthenticationContext = {
+      actorId: 'patient_opaque_001',
+      actorRole: 'patient',
+      verifiedPatientId: 'patient_opaque_001'
+    };
 
-      await expect(
-        service.create(
-          { ...COMMAND, intake: SYNTHETIC_INTAKE },
-          verifiedPatient
-        )
-      ).rejects.toBeInstanceOf(AuthorizationDeniedError);
-      expect(resolveFromIntake).not.toHaveBeenCalled();
-      expect(assertCanCreate).not.toHaveBeenCalled();
-      expect(reserve).not.toHaveBeenCalled();
-    }
-  );
+    await expect(
+      service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, verifiedPatient)
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(resolveFromIntake).not.toHaveBeenCalled();
+    expect(assertCanCreate).not.toHaveBeenCalled();
+    expect(reserve).not.toHaveBeenCalled();
+  });
 
   it('still resolves intake for a staff-only new booking', async () => {
     const patients = new InMemoryPatientDirectory();
@@ -1024,7 +1018,10 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
       status: 'confirmed'
     });
 
-    expect(assertCanCreate).toHaveBeenCalledWith(staff, command);
+    expect(assertCanCreate).toHaveBeenCalledWith(
+      { ...staff, verifiedPatientId: 'opaque_1' },
+      command
+    );
     expect(reserve).toHaveBeenCalledWith(
       expect.objectContaining({
         patientId: 'opaque_1',
