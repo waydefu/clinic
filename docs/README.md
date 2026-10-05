@@ -83,6 +83,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
 
 - [GPT-6 Luna 逐步執行計畫（2026-09-30）](plans/2026-09-30-luna-execution-plan.md) — L1 封存刪除、L2 日曆新格式、L3 工作臺商務分頁與重新登入、L4 還原驗證工具、L5 合作終止、L6 批次部署清單、L7 回歸／手冊／驗收；每包寫明檔案、規則、測試與停止條件
+- [2026-10-05 外部稽核後續逐步計畫（Luna 可執行）](plans/2026-10-05-audit-followup-luna-plan.md) — plan-only：244 項稽核的 Wave 0～4 小包（一包一 PR）、Q1～Q9 業主決定、等 #238 標記與 ID 對照；braces 例外 10-17 到期優先；不授權部署、apply 或歷史改寫。
 - [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 source/release 綁定、exact-SHA、Terraform/Hosting expiry 與 runtime gate；目前 source 已整合，cloud plan/apply 與 C1 驗收仍 BLOCKED。
 - [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
