@@ -1051,6 +1051,12 @@ elements['add-to-calendar'].addEventListener('click', () => {
 });
 
 function restartBooking() {
+  if (apiMode) {
+    client.clearPatientContext?.();
+    managedAppointments = [];
+    lastLookupVerification = undefined;
+    renderManagedAppointments();
+  }
   elements['patient-booking-form'].reset();
   touched.clear();
   verifiedReturnBooking = false;

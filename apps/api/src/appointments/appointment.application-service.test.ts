@@ -983,6 +983,54 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     });
   });
 
+  it('rejects intake alongside a verified patient before resolution or reservation', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
+    const { assertCanCreate, reserve, service } = createBoundService(patients);
+    const verifiedPatient: AuthenticationContext = {
+      actorId: 'patient_opaque_001',
+      actorRole: 'patient',
+      verifiedPatientId: 'patient_opaque_001'
+    };
+
+    await expect(
+      service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, verifiedPatient)
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(resolveFromIntake).not.toHaveBeenCalled();
+    expect(assertCanCreate).not.toHaveBeenCalled();
+    expect(reserve).not.toHaveBeenCalled();
+  });
+
+  it('still resolves intake for a staff-only new booking', async () => {
+    const patients = new InMemoryPatientDirectory();
+    let n = 0;
+    const { assertCanCreate, reserve, service } = createBoundService(
+      patients,
+      () => `opaque_${++n}`
+    );
+    const staff: AuthenticationContext = {
+      actorId: 'actor_verified_002',
+      actorRole: 'test_front_desk'
+    };
+    const command = { ...COMMAND, intake: SYNTHETIC_INTAKE };
+
+    await expect(service.create(command, staff)).resolves.toMatchObject({
+      status: 'confirmed'
+    });
+
+    expect(assertCanCreate).toHaveBeenCalledWith(
+      { ...staff, verifiedPatientId: 'opaque_1' },
+      command
+    );
+    expect(reserve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientId: 'opaque_1',
+        audit: expect.objectContaining({ actorId: 'actor_verified_002' })
+      })
+    );
+    expect(patients.createdPatientCount).toBe(1);
+  });
+
   it('returns a generic miss for an unknown lookup and does not enumerate', async () => {
     const patients = new InMemoryPatientDirectory();
     const { service } = createBoundService(patients);

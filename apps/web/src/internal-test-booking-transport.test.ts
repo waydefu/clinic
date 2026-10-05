@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   httpTransportError,
@@ -11,11 +11,161 @@ import { CALENDAR_PILOT_SCHEDULE } from '../public/vendor/domain/calendar-sync.j
 import {
   applyDeleteContractWrite,
   applyFollowUpContractWrite,
+  clearInternalTestReturnSession,
   createInternalTestBookingTransport,
   isStageFM11Enabled,
   mapInternalTestBookingRequest,
   refreshPublishedOccupancy
 } from '../public/modules/internal-test-booking-transport.js';
+
+describe('return-patient context isolation', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function setup(pathname = '/booking') {
+    const memory = new Map<string, string>();
+    vi.stubGlobal('location', { pathname });
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => memory.set(key, value),
+      removeItem: (key: string) => memory.delete(key)
+    });
+    const fetchImpl = vi.fn(
+      (_url: string, _options: { headers: Record<string, string> }) =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ sessionId: 'synthetic_return_001' })
+        })
+    );
+    const transport = createInternalTestBookingTransport({
+      local: vi.fn(() => Promise.resolve({})),
+      toError: httpTransportError,
+      fetchImpl
+    });
+    return { memory, fetchImpl, transport };
+  }
+
+  const lookup = {
+    method: 'POST',
+    body: JSON.stringify({ phone: 'synthetic_phone', birthDate: '--01-01' })
+  };
+
+  it('keeps a verified session for legitimate return booking and self-service', async () => {
+    const { transport, fetchImpl } = setup();
+    await transport('/patient/bookings/lookup', lookup);
+    await transport('/bookings', {
+      method: 'POST',
+      body: JSON.stringify({ bookingKind: 'follow_up' })
+    });
+    await transport('/bookings/synthetic_booking_001');
+    await transport('/patient/bookings/synthetic_booking_001/self-cancel', {
+      method: 'POST'
+    });
+    await transport('/patient/bookings/synthetic_booking_001/self-reschedule', {
+      method: 'POST',
+      body: JSON.stringify({ targetSlotId: 'synthetic_slot_002' })
+    });
+    expect(fetchImpl.mock.calls[0]?.[1]?.headers).not.toHaveProperty(
+      'x-return-session'
+    );
+    for (const [, options] of fetchImpl.mock.calls.slice(1)) {
+      expect(options?.headers).toHaveProperty(
+        'x-return-session',
+        'synthetic_return_001'
+      );
+    }
+  });
+
+  it('clears a previous return session before a new initial intake', async () => {
+    const { transport, fetchImpl, memory } = setup();
+    await transport('/patient/bookings/lookup', lookup);
+    await transport('/bookings', {
+      method: 'POST',
+      body: JSON.stringify({
+        bookingKind: 'initial',
+        intake: { name: 'synthetic_person_002' }
+      })
+    });
+    expect(fetchImpl.mock.calls[1]?.[1]?.headers).not.toHaveProperty(
+      'x-return-session'
+    );
+    expect(memory.has('itrs')).toBe(false);
+  });
+
+  it('does not attach a return session to public or staff-only operations', async () => {
+    const { transport, fetchImpl, memory } = setup();
+    memory.set('itrs', 'synthetic_return_001');
+    await transport('/slots');
+    await transport('/schedule');
+    await transport('/bookings/synthetic_booking_001/complete', {
+      method: 'POST'
+    });
+    for (const [, options] of fetchImpl.mock.calls) {
+      expect(options?.headers).not.toHaveProperty('x-return-session');
+    }
+    expect(memory.get('itrs')).toBe('synthetic_return_001');
+  });
+
+  it('clears return context when a staff transport is created', async () => {
+    const { memory } = setup('/staff');
+    memory.set('itrs', 'synthetic_return_001');
+    const fetchImpl = vi.fn(
+      (_url: string, _options: { headers: Record<string, string> }) =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    );
+    const transport = createInternalTestBookingTransport({
+      local: vi.fn(() => Promise.resolve({})),
+      toError: httpTransportError,
+      fetchImpl
+    });
+    await transport('/bookings/synthetic_booking_001');
+    expect(memory.has('itrs')).toBe(false);
+    expect(fetchImpl.mock.calls[0]?.[1]?.headers).not.toHaveProperty(
+      'x-return-session'
+    );
+  });
+
+  it('does not use patient credentials after the current page switches to staff', async () => {
+    const { transport, fetchImpl, memory } = setup();
+    memory.set('itrs', 'synthetic_return_001');
+    vi.stubGlobal('location', { pathname: '/staff' });
+    await transport('/bookings/synthetic_booking_001');
+    expect(fetchImpl.mock.calls[0]?.[1]?.headers).not.toHaveProperty(
+      'x-return-session'
+    );
+  });
+
+  it('does not retain a previous identity when the next lookup fails', async () => {
+    const { transport, fetchImpl, memory } = setup();
+    memory.set('itrs', 'synthetic_return_001');
+    fetchImpl.mockRejectedValueOnce(new Error('Synthetic lookup failure'));
+    await expect(transport('/patient/bookings/lookup', lookup)).rejects.toThrow(
+      'Synthetic lookup failure'
+    );
+    expect(memory.has('itrs')).toBe(false);
+  });
+
+  it('does not reinstate an in-flight lookup after the flow is reset', async () => {
+    const { transport, fetchImpl, memory } = setup();
+    let finish!: (response: {
+      ok: boolean;
+      json: () => Promise<{ sessionId: string }>;
+    }) => void;
+    fetchImpl.mockImplementationOnce(
+      () => new Promise((resolve) => (finish = resolve))
+    );
+    const pending = transport('/patient/bookings/lookup', lookup);
+    const rejected = expect(pending).rejects.toMatchObject({
+      name: 'AbortError'
+    });
+    clearInternalTestReturnSession();
+    finish({
+      ok: true,
+      json: () => Promise.resolve({ sessionId: 'synthetic_return_001' })
+    });
+    await rejected;
+    expect(memory.has('itrs')).toBe(false);
+  });
+});
 
 const M11_LOCATION = {
   protocol: 'https:',

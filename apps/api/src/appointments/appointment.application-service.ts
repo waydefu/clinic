@@ -284,6 +284,12 @@ export class AppointmentApplicationService {
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
   ): Promise<AuthenticationContext> {
+    if (
+      command.intake !== undefined &&
+      authentication.verifiedPatientId !== undefined
+    ) {
+      throw new AuthorizationDeniedError();
+    }
     if (authentication.verifiedPatientId !== undefined) return authentication;
     if (command.intake !== undefined) {
       if (this.patients === undefined) throw new MissingVerifiedPatientError();

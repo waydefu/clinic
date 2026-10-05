@@ -312,13 +312,17 @@ export function isInternalTestBookingEnabled(location = globalThis.location) {
 
 export async function resolveApiClient() {
   if (!isInternalTestBookingEnabled()) return apiClient;
-  const { createInternalTestBookingTransport } =
+  const { createInternalTestBookingTransport, clearInternalTestReturnSession } =
     await import('./internal-test-booking-transport.js');
-  return createApiClient(
+  const client = createApiClient(
     createInternalTestBookingTransport({
       local: stagingRequest,
       toError: httpTransportError
     }),
     { timeoutMs: DEFAULT_TIMEOUT_MS }
   );
+  return Object.freeze({
+    ...client,
+    clearPatientContext: clearInternalTestReturnSession
+  });
 }
