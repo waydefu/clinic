@@ -359,16 +359,35 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
       expect(document).toContain('Stage 2a');
       expect(document).toContain('Stage 2b');
     }
-    // Each stage keeps its own owner-filled budget row; no number is invented.
+    // The owner has filled each stage's cap; the cap does not grant an exact
+    // plan. Keep the approved one-apply limit and the pending plan authority.
+    expect(packet).toContain('以下由 `wayde.fu` 在本次對話核准');
     for (const row of ['Stage 2a mount-pin apply', 'Stage 2b enable apply']) {
       const line = packet
         .split('\n')
         .find((candidate) => candidate.startsWith(`| C1 ${row}`));
       expect(line).toBeDefined();
-      expect(line).toContain('`<OWNER_APPROVED_LIMIT>`');
-      expect(line).toContain('`<OWNER_APPROVAL_REQUIRED>`');
+      expect(line.split('|')[2].trim()).toBe('1 次');
+      expect(line).toContain('plan');
+      expect(line).toContain('核准');
       expect(line).toContain('`BLOCKED`');
     }
+    expect(packet).toContain('上限不是 artifact、plan 或 fixture 已就緒的證明');
+    expect(packet).toContain('失敗與重試計入同類上限，不自動補額');
     expect(packet).toContain('<OWNER_FILLED_MEASURED_UTC_INSTANT>');
+  });
+
+  it('blocks build submission until the approved machine and source input are verified', () => {
+    const packet = read('docs/plans/2026-10-01-c1-batch-deployment-packet.md');
+
+    expect(packet).toContain('BLOCKED_MACHINE_TYPE_UNVERIFIED');
+    expect(packet).not.toContain('gcloud builds submit');
+    expect(packet).toContain('git worktree add --detach');
+    expect(packet).toContain(
+      'test "$(git rev-parse HEAD)" = "$APPROVED_SOURCE_SHA"'
+    );
+    expect(packet).toContain('BUILD_SOURCE_SHA="$(git rev-parse HEAD)"');
+    expect(packet).toContain('tracked-source archive');
+    expect(packet).not.toContain('--expires 7d');
   });
 });
