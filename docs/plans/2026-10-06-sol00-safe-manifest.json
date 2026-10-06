@@ -1,6 +1,6 @@
 {
-  "baseline": "f7ace1a8ac8626783af342b89b0ad14b1ae400de",
-  "phase": "PARTIAL / IN_PROGRESS",
+  "baseline": "01d36c96ae6be6cea91c891c494a6601b2abd4a3",
+  "phase": "BLOCKED / PARTIAL",
   "originalIDs": [
     "K4",
     "K5",
@@ -675,7 +675,7 @@
       "sourceBindings": [
         {
           "path": "pnpm-workspace.yaml",
-          "gitBlob": "88692aac66e13b1f0124a439835d8b71ba0ad2c2"
+          "gitBlob": "9c9f7a2e5b7dc69ce42a81cd9a925b78720f55d0"
         },
         {
           "path": "CONTRIBUTING.md",
@@ -18220,8 +18220,2223 @@
   "scope": "DOCS_ONLY_NO_IMPLEMENTATION",
   "futureSolConcurrencyCap": 2,
   "currentLunaReadOnlyCap": 4,
-  "schemaVersion": 1,
-  "publicationStatus": "APPROVED_DOCS_ONLY_FOLLOWUP_PENDING_PR_READBACK",
+  "schemaVersion": 2,
+  "publicationStatus": "PR_241_APPROVED_BRANCH_UPDATE_PENDING_EXACT_HEAD_READBACK",
+  "baselineRefresh": {
+    "priorSourceBaseline": "f7ace1a8ac8626783af342b89b0ad14b1ae400de",
+    "currentSourceBaseline": "01d36c96ae6be6cea91c891c494a6601b2abd4a3",
+    "mechanism": "MERGE_MAIN_PRESERVE_HISTORY_NO_REBASE_NO_FORCE_PUSH",
+    "priorPlanningHead": "b961214e1ef38d49cd5c830ab03ec37a5f53b766",
+    "mainIntegrationCommit": "c647315facb57a52f26c2e5feb0d478fc1a1b86a",
+    "mainNotModifiedByThisTask": true,
+    "onlyChangedPreviouslyBoundSource": "pnpm-workspace.yaml for B-19",
+    "B19Assessment": "The three dev-tool same-major patch pins do not change the existing unbounded uuid override assertion. This is source-text reassessment, not compatibility or deployed proof.",
+    "frozenResearchSourceBaseline": "f7ace1a8ac8626783af342b89b0ad14b1ae400de",
+    "frozenResearchAndRecovered40RowsUnchanged": true
+  },
+  "confirmedOriginalSourceCustodyGap": {
+    "disposition": "METADATA_BLOCKED_ORIGINAL_CLAIM_SOURCE_ANCHOR_UNAVAILABLE",
+    "confirmation": "Owner explicitly confirms original partB/partE and E1-E4 subreports were not preserved; only the consolidated report remains.",
+    "originalClaimSourceVerified": false,
+    "appliesToIDs": [
+      "B-24",
+      "E1-19",
+      "E1-27",
+      "E1-29",
+      "E1-33",
+      "E1-34",
+      "E1-35",
+      "E2-11",
+      "E3-18",
+      "E4-05",
+      "E4-06",
+      "E4-11",
+      "E3-21",
+      "E3-22",
+      "E3-23",
+      "E3-26",
+      "E3-27",
+      "E3-28",
+      "E3-29",
+      "E3-30",
+      "E3-33",
+      "E3-36",
+      "E3-37",
+      "E4-16",
+      "E4-17",
+      "E4-18",
+      "E4-19",
+      "E4-20",
+      "E4-22",
+      "E4-25",
+      "E4-26"
+    ],
+    "perIDGap": "Each row's sourceIdentityGap and metadataBlocker remain authoritative for the exact missing claim/pair/assertion; candidate sourceLocations are not original-claim acceptance.",
+    "nextPrerequisite": "Original audit custodian must reconstruct explicit de-identified claim/source assertions if a future original-claim review is requested. Do not guess, fabricate anchors or overwrite the unavailable original.",
+    "E411Scope": "Custody gap only. No Calendar payload, event, PII, secret or raw provider log is supplied, read, reproduced or published.",
+    "currentMainCandidatePlanningAllowed": true,
+    "candidatePlanningClosesOriginalMetadata": false
+  },
+  "finalPlanningReview": {
+    "reviewer": "SOL_PARENT",
+    "modelReviewEvidence": "INFERENTIAL_NOT_RUNTIME_ACCEPTANCE",
+    "lunaBatchOutcome": "CANCELLED_NO_USABLE_RESULT; no child conclusion was adopted",
+    "originalClaimAcceptanceComplete": false,
+    "comparableOriginalIDs": 213,
+    "metadataUnacceptedIDs": [
+      "B-24",
+      "E1-19",
+      "E1-27",
+      "E1-29",
+      "E1-33",
+      "E1-34",
+      "E1-35",
+      "E2-11",
+      "E3-18",
+      "E4-05",
+      "E4-06",
+      "E4-11",
+      "E3-21",
+      "E3-22",
+      "E3-23",
+      "E3-26",
+      "E3-27",
+      "E3-28",
+      "E3-29",
+      "E3-30",
+      "E3-33",
+      "E3-36",
+      "E3-37",
+      "E4-16",
+      "E4-17",
+      "E4-18",
+      "E4-19",
+      "E4-20",
+      "E4-22",
+      "E4-25",
+      "E4-26"
+    ],
+    "dedupeReviewedEntries": [
+      {
+        "id": "NEW-01",
+        "disposition": "SIBLING_DISTINCT_BOUNDARY",
+        "relatedIDs": ["K2", "B-34"],
+        "primaryPacket": "SOL-IDENTITY",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+            "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-02",
+        "disposition": "NET_NEW_BOUNDARY",
+        "relatedIDs": [],
+        "primaryPacket": "SOL-SESSION",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+            "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-03",
+        "disposition": "NET_NEW_BOUNDARY",
+        "relatedIDs": ["K9"],
+        "primaryPacket": "SOL-SESSION",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+            "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+          },
+          {
+            "path": "apps/api/src/auth/calendar-pilot-session.ts",
+            "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-04",
+        "disposition": "SIBLING_DISTINCT_BOUNDARY",
+        "relatedIDs": ["A01", "A11"],
+        "primaryPacket": "SOL-HTTP",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/auth/calendar-pilot.guard.ts",
+            "gitBlob": "35035d960761164eb099e789e80424123ffc6f86"
+          },
+          {
+            "path": "apps/api/src/auth/calendar-pilot-session.ts",
+            "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-05",
+        "disposition": "SIBLING_DISTINCT_BOUNDARY",
+        "relatedIDs": ["A01", "B-34"],
+        "primaryPacket": "SOL-TTL",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+            "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+          },
+          {
+            "path": "apps/api/src/patients/patient-directory.ts",
+            "gitBlob": "8d56fa010e65cc189df316e3329d4c35459a2b4e"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-06",
+        "disposition": "NET_NEW_BOUNDARY",
+        "relatedIDs": ["A09", "D-37"],
+        "primaryPacket": "SOL-EXPORT",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/firestore/business-delivery-export.repository.ts",
+            "gitBlob": "348cce324b247f1b5050ce63f28ba7a4de67717a"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-07",
+        "disposition": "NET_NEW_BOUNDARY",
+        "relatedIDs": [],
+        "primaryPacket": "SOL-SESSION",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/auth/calendar-pilot-session.ts",
+            "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-08",
+        "disposition": "NET_NEW_BOUNDARY",
+        "relatedIDs": ["K1", "E4-01"],
+        "primaryPacket": "SOL-SESSION",
+        "sourceBindings": [
+          {
+            "path": "apps/api/src/auth/calendar-pilot-session.controller.ts",
+            "gitBlob": "4a8092d3af23fcb6854e4f1a8dee77e2006b9044"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-09",
+        "disposition": "DEDUPED_SAME_ROOT",
+        "relatedIDs": ["D-11"],
+        "primaryPacket": "SOL-CALENDAR-ENVELOPE",
+        "sourceBindings": [
+          {
+            "path": "apps/worker/src/calendar-sync/sync-engine.ts",
+            "gitBlob": "807f94bedf8f85de64ca0cc7c53e9c944d38e395"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      },
+      {
+        "id": "NEW-10",
+        "disposition": "PARTIAL_DEDUPE_CANDIDATE",
+        "relatedIDs": ["B-01", "B-09"],
+        "primaryPacket": "SOL-IAM",
+        "sourceBindings": [
+          {
+            "path": "infra/terraform/cal-pilot/main.tf",
+            "gitBlob": "8136cdb17959930e8cc4c60db6b3d1bcfdfef93f"
+          }
+        ],
+        "assessment": "SOL source-boundary comparison on unchanged owning blobs; not runtime proof or formal net-new acceptance"
+      }
+    ],
+    "formalNetNewCount": null,
+    "netNewBlocker": "31 original claim/source anchors unavailable; comparable source-boundary dispositions cannot prove global net-new count",
+    "ownerMarkerClassification": [
+      {
+        "id": "A04",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:585-588; docs/adr/0007-minimized-booking-intake-and-identity-resolution.md:32-34",
+        "remainingQuestion": "公開schedule grid實際只回availability，還是含完整班表／其他員工欄位？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "A05",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:33-44; docs/adr/0010-business-delivery-retention.md:20-28",
+        "remainingQuestion": "session TTL欄位型別、Firestore原生TTL需求，以及既有文件遷移策略為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "A12",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/architecture/stage-e-monitoring.md:15-24; docs/architecture/stage-e-monitoring.md:53-55",
+        "remainingQuestion": "該source是否偏離此health/readiness response contract；真實依賴健康是否另需新增signal？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-01",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1314-1326; GOVERNANCE.md:81-86",
+        "remainingQuestion": "CI principal需要哪些精確permission/resource scope，是否已有獨立核准？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-02",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1319-1326; docs/document-lifecycle.md:64-68",
+        "remainingQuestion": "WIF trust條件中repo owner/repository/ref與可接受subject的精確allowlist為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-03",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:409-415; docs/product/phase-1-decision-register.md:543-546",
+        "remainingQuestion": "目前部署ingress／proxy chain是否符合上述Canon？須有同環境readback，不由source或CI推定。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-04",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:537-544; docs/product/phase-1-decision-register.md:540-542",
+        "remainingQuestion": "限流狀態持久化欄位採何種native expiry/TTL型別與cleanup authority？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-08",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:565-578; docs/product/phase-1-decision-register.md:1321-1326",
+        "remainingQuestion": "通知delivery principal、最小topic/subscription role及實際provider範圍是否已明確授權？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-09",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1253-1257; AGENTS.md:21-23; docs/product/phase-1-decision-register.md:1321-1326",
+        "remainingQuestion": "試行部署是否可使用long-lived key，及Auth Admin最小角色／退出清理條件為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-21",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "AGENTS.md:89-99; AGENTS.md:106-120",
+        "remainingQuestion": "具名聯絡資訊在canonical public repo中的公開目的／必要性與去識別處理是否已獲明確批准？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-25",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:565-578; docs/architecture/stage-e-monitoring.md:44-46",
+        "remainingQuestion": "現有logging bucket是否有明確sink目的、資料範圍與retention配置？這是待核實配置事實，Canon未要求新建外送sink。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-35",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1156-1161; docs/product/phase-1-decision-register.md:1050-1055",
+        "remainingQuestion": "集合數量上限及interval邊界是否屬已核准的domain invariant，或仍需由營運owner定義？不得自行加容量上限。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-48",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:70-76",
+        "remainingQuestion": "若到期前無修補版發布，屆時採取何種移除／阻擋或另行申請決策？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-49",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1253-1257; docs/product/phase-1-decision-register.md:1319-1326",
+        "remainingQuestion": "C2 Identity Platform/TOTP由哪個provider surface配置、授權的IAM principal與精確mutation scope為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-51",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/architecture/stage-e-monitoring.md:32-46; docs/product/phase-1-decision-register.md:567-578",
+        "remainingQuestion": "各source metric如何映射到核准signal/window/threshold，以及是否真的送達仍待同一環境證據。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "B-52",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0009-business-delivery-export.md:38-45; docs/adr/0010-business-delivery-retention.md:3-7",
+        "remainingQuestion": "跨JSON／Terraform對同TTL的管理來源屬工程authority；production retention仍須D-002及法律審閱。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "C07",
+        "blockingKinds": ["OWNER_POLICY_MISSING"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/INDEX.md:15; AGENTS.md:130-143",
+        "remainingQuestion": "UI取得固定上限資料時如何表示truncated/total/next cursor；採用哪種穩定pagination wire contract？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": true
+      },
+      {
+        "id": "D-08",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md:38-49; docs/adr/0007-minimized-booking-intake-and-identity-resolution.md:55-58",
+        "remainingQuestion": "若改用keyed lookup/HMAC，舊hash相容、雙讀／輪替與migration是否獲核准？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "D-09",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1162-1165; docs/product/phase-1-decision-register.md:428-431",
+        "remainingQuestion": "到診後no-show與改期回復的例外狀態矩陣、限制期間／override／emergency如何定義？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "D-10",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md:21-30; docs/adr/0007-minimized-booking-intake-and-identity-resolution.md:53-58",
+        "remainingQuestion": "國內／國外電話有效性與舊短證件值的精確遮罩規則是否另有核准？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "D-22",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "packages/domain/src/roles.ts:31-44; docs/product/phase-1-decision-register.md:1255-1265",
+        "remainingQuestion": "對未來新增欄位的read-projection是否採明確allowlist，現有Canon未定欄位映射。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "D-31",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:425-431; docs/adr/0002-calendar-is-a-projection-not-the-lock.md:59-62",
+        "remainingQuestion": "CAL-PILOT fixture是否代表未指定時長的合成預約，或另有核准slot end／409分類？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "D-35",
+        "blockingKinds": ["OWNER_POLICY_MISSING"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0008-business-delivery-usage-and-milestones.md:46-50",
+        "remainingQuestion": "正式go-live日期是否必須晚於測試期結束，及跨月／重疊如何處理？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": true
+      },
+      {
+        "id": "D-36",
+        "blockingKinds": ["OWNER_POLICY_MISSING"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0011-business-delivery-termination.md:11-16; docs/adr/0011-business-delivery-termination.md:20-29",
+        "remainingQuestion": "returnCompletedAt可否回填／使用未來時間、允許的clock skew及時間來源為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": true
+      },
+      {
+        "id": "E1-04",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1253-1257; docs/product/phase-1-decision-register.md:507-513",
+        "remainingQuestion": "該環境被授權的精確authDomain host集合與fallback值為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E1-06",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:947-949; docs/product/phase-1-decision-register.md:1321-1326",
+        "remainingQuestion": "各環境secret版本如何固定、輪替、掛載到revision及驗證？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E1-12",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "AGENTS.md:21-23; docs/product/phase-1-decision-register.md:1321-1326",
+        "remainingQuestion": "各長期credential的用途、持有者、全路徑退出／清理和rotation如何證明？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E1-18",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:954-959; docs/product/phase-1-decision-register.md:1194-1199",
+        "remainingQuestion": "snapshot有多筆budget時，哪個資源ID／project／期間才是本次授權目標？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E2-08",
+        "blockingKinds": [
+          "FRESH_OPERATION_AUTHORITY_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:961-964; AGENTS.md:39-44",
+        "remainingQuestion": "是否核准本次migration的exact SHA、資料scope、switch state與恢復／rollback？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E3-01",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "AGENTS.md:89-99; AGENTS.md:106-120",
+        "remainingQuestion": "本地material中個人聯絡識別是否為可公開的營業聯絡、由誰授權，需經去識別檢查。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E3-02",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md:8-15; docs/product/phase-1-decision-register.md:16-27",
+        "remainingQuestion": "production privacy notice的最終法務copy／policy version與acceptance記錄如何核准？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E3-03",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0002-calendar-is-a-projection-not-the-lock.md:80-94; docs/product/phase-1-decision-register.md:105-112",
+        "remainingQuestion": "production對Calendar欄位的privacy/legal notice文案與正式D-009 scope何時核准？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E3-05",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md:21-34; docs/adr/0009-business-delivery-export.md:9-11; AGENTS.md:84-87",
+        "remainingQuestion": "用途清冊要列哪些實際資料類別／保存與用途，及哪些只屬synthetic implementation？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E3-14",
+        "blockingKinds": ["CANON_AUTHORITY_CONFLICT"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/README.md:154-157; docs/design/ui-ux-rules.md:740-752",
+        "remainingQuestion": "CP-01是否已正式取代C4作為binding approval baseline，或只是較新的reference set？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E4-08",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:70-76; docs/document-lifecycle.md:31-37",
+        "remainingQuestion": "當前依賴版本是否已修補／例外是否可在期限前退出？需同commit dependency evidence。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E4-09",
+        "blockingKinds": ["OWNER_POLICY_MISSING"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "packages/domain/src/roles.ts:70-82; packages/domain/src/roles.ts:92-100",
+        "remainingQuestion": "「個管師」與「諮詢師」是否同一職務？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": true
+      },
+      {
+        "id": "E4-10",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "AGENTS.md:89-99; AGENTS.md:106-120",
+        "remainingQuestion": "現有輸出是否含個人聯絡資料、其公開用途／授權與去識別證據為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "E4-24",
+        "blockingKinds": ["OWNER_POLICY_MISSING"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/INDEX.md:15; AGENTS.md:130-143",
+        "remainingQuestion": "文件所稱pagination是否已有具名核准？若沒有，API response、cursor／截斷語意由誰定案？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": true
+      },
+      {
+        "id": "K3",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1258-1260; docs/product/phase-1-decision-register.md:37-44",
+        "remainingQuestion": "對外錯誤是否一律維持通用驗證失敗，內部telemetry採何種分類？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "K6",
+        "blockingKinds": [
+          "OWNER_POLICY_MISSING",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:537-544",
+        "remainingQuestion": "IPv6來源使用何種prefix／等價邊界作為限流identity？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": true
+      },
+      {
+        "id": "K7",
+        "blockingKinds": ["OWNER_POLICY_MISSING"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/INDEX.md:15; AGENTS.md:130-143",
+        "remainingQuestion": "列表API是否分頁、cursor/offset格式、截斷標記與排序穩定性為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": true
+      },
+      {
+        "id": "K9",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:408-415; AGENTS.md:72-83",
+        "remainingQuestion": "現有emulator host判定是否只接受受控本機目標，需從核准測試環境驗證；Canon未批准任意非空host。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "NEW-02",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0005-patient-intake-and-appointment-command-are-separate.md:33-45; docs/adr/0008-business-delivery-usage-and-milestones.md:64-70",
+        "remainingQuestion": "staff Bearer與cookie session是否同一session／CSRF生命週期、相容性及撤銷語意？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "NEW-06",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0009-business-delivery-export.md:38-47",
+        "remainingQuestion": "交易完成後若HTTP body未完整送達，是否仍算一次已核准download？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "NEW-10",
+        "blockingKinds": [
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:1319-1326; AGENTS.md:21-23",
+        "remainingQuestion": "builder principal、目標bucket、object權限與read/write用途的精確批准範圍為何？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "X-C03",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/adr/0004-browser-and-server-share-one-compiled-domain.md:53-60; AGENTS.md:37-38",
+        "remainingQuestion": "trusted HTML允許的navigation語法／scheme及meta-refresh處理尚無Canon規格；需安全威脅模型與caller範圍。",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      },
+      {
+        "id": "X-C06",
+        "blockingKinds": ["SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"],
+        "responsibleReviewer": "SOL_PARENT",
+        "canonicalEvidence": "docs/product/phase-1-decision-register.md:409-415; docs/product/phase-1-decision-register.md:480-487",
+        "remainingQuestion": "預覽host的精確allowlist／主域與可接受proxy host parsing是否已核准？",
+        "policyApproved": false,
+        "legacyOwnerFlagIsNewHumanPolicyDecision": false
+      }
+    ],
+    "ownerMarkerCounts": {
+      "total": 47,
+      "ownerPolicyMissing": 7,
+      "freshOperationAuthority": 1,
+      "canonConflict": 1,
+      "solDesignOrAuthorityReview": 38
+    },
+    "originalOwnerFlagRowsRetainedForProvenance": true
+  },
+  "finalExecutionGraph": {
+    "authoritativeForFuturePlanning": true,
+    "implementationAuthorized": false,
+    "originalPacketsReferenced": [
+      "EXT-METADATA",
+      "EXT-NOTIFICATION",
+      "LUNA-E2E-INVENTORY",
+      "LUNA-FIRESTORE-RUNNER",
+      "LUNA-READ-FAILURE",
+      "LUNA-ROBOTS-COMMENTS",
+      "LUNA-WORKBENCH-START",
+      "NO-WORK",
+      "SOL-ARCH-GATE",
+      "SOL-ASSET-BUILD",
+      "SOL-BUILD",
+      "SOL-BUSINESS",
+      "SOL-CALENDAR-CANDIDATE",
+      "SOL-CALENDAR-ENVELOPE",
+      "SOL-CALENDAR-LEASE",
+      "SOL-CALENDAR-RESTORE",
+      "SOL-CALENDAR-TESTS",
+      "SOL-CALENDAR-WATCH",
+      "SOL-CI-IAC",
+      "SOL-CI-SECURITY",
+      "SOL-CLI",
+      "SOL-CONFIG",
+      "SOL-CONTAINERS",
+      "SOL-CONTRACTS",
+      "SOL-DESIGN-GATE",
+      "SOL-DOC-GATE",
+      "SOL-DOCS",
+      "SOL-EXPORT",
+      "SOL-GOVERNANCE",
+      "SOL-HTML",
+      "SOL-HTTP",
+      "SOL-IAC-LIFECYCLE",
+      "SOL-IAM",
+      "SOL-IDENTITY",
+      "SOL-INGRESS",
+      "SOL-INTEGRATION",
+      "SOL-LIFECYCLE",
+      "SOL-LIST",
+      "SOL-MAINTENANCE",
+      "SOL-OBSERVABILITY",
+      "SOL-OUTBOX",
+      "SOL-PRIVACY",
+      "SOL-QUERY-INDEX",
+      "SOL-RBAC",
+      "SOL-RELEASE",
+      "SOL-RETENTION",
+      "SOL-RETURN",
+      "SOL-ROUTE-INVENTORY",
+      "SOL-RUNTIME-EVIDENCE",
+      "SOL-SAST",
+      "SOL-SCHEDULE",
+      "SOL-SECRETS",
+      "SOL-SESSION",
+      "SOL-SESSION-DOCS",
+      "SOL-SESSION-UI",
+      "SOL-STRUCTURE-GATE",
+      "SOL-SUPPLY",
+      "SOL-TTL",
+      "SOL-VISUAL-EVIDENCE"
+    ],
+    "supplementalSemanticEdges": [
+      {
+        "before": "SOL-INGRESS",
+        "after": "SOL-SESSION",
+        "phase": "DESIGN_AND_TRUST_INPUTS",
+        "reason": "Original SOL-02/SOL-05 plan requires trust-input / limiter identity design before staff session-abuse implementation; a shared write-set alone did not express this edge."
+      }
+    ],
+    "effectiveDependsOn": {
+      "EXT-METADATA": [],
+      "EXT-NOTIFICATION": [],
+      "LUNA-E2E-INVENTORY": [],
+      "LUNA-FIRESTORE-RUNNER": [],
+      "LUNA-READ-FAILURE": ["SOL-SESSION-UI"],
+      "LUNA-ROBOTS-COMMENTS": [],
+      "LUNA-WORKBENCH-START": [],
+      "NO-WORK": [],
+      "SOL-ARCH-GATE": [],
+      "SOL-ASSET-BUILD": [],
+      "SOL-BUILD": [],
+      "SOL-BUSINESS": [],
+      "SOL-CALENDAR-CANDIDATE": ["SOL-SCHEDULE"],
+      "SOL-CALENDAR-ENVELOPE": ["SOL-CALENDAR-LEASE"],
+      "SOL-CALENDAR-LEASE": [],
+      "SOL-CALENDAR-RESTORE": ["SOL-CALENDAR-ENVELOPE"],
+      "SOL-CALENDAR-TESTS": ["SOL-CALENDAR-ENVELOPE"],
+      "SOL-CALENDAR-WATCH": [],
+      "SOL-CI-IAC": [
+        "SOL-CI-SECURITY",
+        "SOL-IAC-LIFECYCLE",
+        "SOL-IAM",
+        "SOL-SUPPLY"
+      ],
+      "SOL-CI-SECURITY": [],
+      "SOL-CLI": ["SOL-CONFIG", "SOL-OBSERVABILITY"],
+      "SOL-CONFIG": ["SOL-IAC-LIFECYCLE"],
+      "SOL-CONTAINERS": [],
+      "SOL-CONTRACTS": [],
+      "SOL-DESIGN-GATE": [],
+      "SOL-DOC-GATE": [],
+      "SOL-DOCS": ["SOL-GOVERNANCE", "SOL-HTTP", "SOL-PRIVACY", "SOL-SESSION"],
+      "SOL-EXPORT": ["SOL-CONTRACTS", "SOL-RBAC"],
+      "SOL-GOVERNANCE": ["SOL-PRIVACY"],
+      "SOL-HTML": ["SOL-PRIVACY", "SOL-RUNTIME-EVIDENCE"],
+      "SOL-HTTP": ["SOL-CONTRACTS", "SOL-SESSION"],
+      "SOL-IAC-LIFECYCLE": ["SOL-IAM", "SOL-INGRESS"],
+      "SOL-IAM": ["SOL-INGRESS"],
+      "SOL-IDENTITY": ["SOL-CONTRACTS", "SOL-SESSION"],
+      "SOL-INGRESS": [],
+      "SOL-INTEGRATION": [
+        "SOL-ARCH-GATE",
+        "SOL-ASSET-BUILD",
+        "SOL-BUILD",
+        "SOL-BUSINESS",
+        "SOL-CALENDAR-CANDIDATE",
+        "SOL-CALENDAR-ENVELOPE",
+        "SOL-CALENDAR-LEASE",
+        "SOL-CALENDAR-RESTORE",
+        "SOL-CALENDAR-TESTS",
+        "SOL-CALENDAR-WATCH",
+        "SOL-CI-IAC",
+        "SOL-CI-SECURITY",
+        "SOL-CLI",
+        "SOL-CONFIG",
+        "SOL-CONTAINERS",
+        "SOL-CONTRACTS",
+        "SOL-DESIGN-GATE",
+        "SOL-DOC-GATE",
+        "SOL-DOCS",
+        "SOL-EXPORT",
+        "SOL-GOVERNANCE",
+        "SOL-HTML",
+        "SOL-HTTP",
+        "SOL-IAC-LIFECYCLE",
+        "SOL-IAM",
+        "SOL-IDENTITY",
+        "SOL-INGRESS",
+        "SOL-LIFECYCLE",
+        "SOL-LIST",
+        "SOL-MAINTENANCE",
+        "SOL-OBSERVABILITY",
+        "SOL-OUTBOX",
+        "SOL-PRIVACY",
+        "SOL-QUERY-INDEX",
+        "SOL-RBAC",
+        "SOL-RELEASE",
+        "SOL-RETENTION",
+        "SOL-RETURN",
+        "SOL-ROUTE-INVENTORY",
+        "SOL-RUNTIME-EVIDENCE",
+        "SOL-SAST",
+        "SOL-SCHEDULE",
+        "SOL-SECRETS",
+        "SOL-SESSION",
+        "SOL-SESSION-DOCS",
+        "SOL-SESSION-UI",
+        "SOL-STRUCTURE-GATE",
+        "SOL-SUPPLY",
+        "SOL-TTL",
+        "SOL-VISUAL-EVIDENCE"
+      ],
+      "SOL-LIFECYCLE": ["SOL-CONTRACTS"],
+      "SOL-LIST": ["SOL-CONTRACTS", "SOL-IDENTITY", "SOL-RETURN"],
+      "SOL-MAINTENANCE": [],
+      "SOL-OBSERVABILITY": ["SOL-IAC-LIFECYCLE", "SOL-IAM"],
+      "SOL-OUTBOX": [],
+      "SOL-PRIVACY": [
+        "SOL-CALENDAR-ENVELOPE",
+        "SOL-CALENDAR-RESTORE",
+        "SOL-IDENTITY"
+      ],
+      "SOL-QUERY-INDEX": ["SOL-CONTRACTS", "SOL-EXPORT", "SOL-TTL"],
+      "SOL-RBAC": ["SOL-CONTRACTS", "SOL-SESSION"],
+      "SOL-RELEASE": ["SOL-IAC-LIFECYCLE", "SOL-IAM", "SOL-INGRESS"],
+      "SOL-RETENTION": ["SOL-CONTRACTS"],
+      "SOL-RETURN": ["SOL-CONTRACTS", "SOL-IDENTITY", "SOL-INGRESS"],
+      "SOL-ROUTE-INVENTORY": ["SOL-LIST", "SOL-RETURN"],
+      "SOL-RUNTIME-EVIDENCE": ["SOL-IAM", "SOL-PRIVACY"],
+      "SOL-SAST": [],
+      "SOL-SCHEDULE": [
+        "SOL-CONTRACTS",
+        "SOL-IDENTITY",
+        "SOL-LIFECYCLE",
+        "SOL-RBAC",
+        "SOL-RETURN",
+        "SOL-TTL"
+      ],
+      "SOL-SECRETS": [],
+      "SOL-SESSION": ["SOL-CONTRACTS", "SOL-INGRESS"],
+      "SOL-SESSION-DOCS": ["SOL-RBAC", "SOL-SESSION"],
+      "SOL-SESSION-UI": ["SOL-SESSION"],
+      "SOL-STRUCTURE-GATE": [],
+      "SOL-SUPPLY": ["SOL-CI-SECURITY", "SOL-CONTRACTS", "SOL-OBSERVABILITY"],
+      "SOL-TTL": [
+        "SOL-IAC-LIFECYCLE",
+        "SOL-IDENTITY",
+        "SOL-RETURN",
+        "SOL-SESSION"
+      ],
+      "SOL-VISUAL-EVIDENCE": []
+    },
+    "packetPrerequisites": [
+      {
+        "packet": "EXT-METADATA",
+        "responsibleRole": "EXTERNAL_PROVIDER_WITH_SOL_ACCEPTANCE",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "EXTERNAL_CUSTODY_OR_PROVIDER_PREREQUISITE"
+        ],
+        "blockedFindingIDs": [
+          "B-24",
+          "E1-19",
+          "E1-27",
+          "E1-29",
+          "E1-33",
+          "E1-34",
+          "E1-35",
+          "E2-11",
+          "E3-18",
+          "E4-05",
+          "E4-06",
+          "E4-11",
+          "E3-21",
+          "E3-22",
+          "E3-23",
+          "E3-26",
+          "E3-27",
+          "E3-28",
+          "E3-29",
+          "E3-30",
+          "E3-33",
+          "E3-36",
+          "E3-37",
+          "E4-16",
+          "E4-17",
+          "E4-18",
+          "E4-19",
+          "E4-20",
+          "E4-22",
+          "E4-25",
+          "E4-26"
+        ],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "EXT-NOTIFICATION",
+        "responsibleRole": "EXTERNAL_PROVIDER_WITH_SOL_ACCEPTANCE",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "EXTERNAL_CUSTODY_OR_PROVIDER_PREREQUISITE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "LUNA-E2E-INVENTORY",
+        "responsibleRole": "LUNA_BOUNDED_SOURCE_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "LUNA-FIRESTORE-RUNNER",
+        "responsibleRole": "LUNA_BOUNDED_SOURCE_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "LUNA-READ-FAILURE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "LUNA-ROBOTS-COMMENTS",
+        "responsibleRole": "LUNA_BOUNDED_SOURCE_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "LUNA-WORKBENCH-START",
+        "responsibleRole": "LUNA_BOUNDED_SOURCE_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "NO-WORK",
+        "responsibleRole": "NO_IMPLEMENTATION",
+        "requirements": [],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-ARCH-GATE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-ASSET-BUILD",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-BUILD",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-BUSINESS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "OWNER_POLICY_MISSING"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CALENDAR-CANDIDATE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CALENDAR-ENVELOPE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CALENDAR-LEASE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CALENDAR-RESTORE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CALENDAR-TESTS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CALENDAR-WATCH",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CI-IAC",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CI-SECURITY",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CLI",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CONFIG",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CONTAINERS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-CONTRACTS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-DESIGN-GATE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "CANON_AUTHORITY_CONFLICT"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-DOC-GATE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-DOCS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-EXPORT",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-GOVERNANCE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-HTML",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-HTTP",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-IAC-LIFECYCLE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "FRESH_OPERATION_AUTHORITY_REQUIRED",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-IAM",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-IDENTITY",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-INGRESS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "OWNER_POLICY_MISSING",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-INTEGRATION",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-LIFECYCLE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-LIST",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "OWNER_POLICY_MISSING"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-MAINTENANCE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-OBSERVABILITY",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-OUTBOX",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-PRIVACY",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-QUERY-INDEX",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-RBAC",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "OWNER_POLICY_MISSING",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-RELEASE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-RETENTION",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "OWNER_POLICY_MISSING"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-RETURN",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-ROUTE-INVENTORY",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-RUNTIME-EVIDENCE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-SAST",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-SCHEDULE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-SECRETS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-SESSION",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-SESSION-DOCS",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-SESSION-UI",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-STRUCTURE-GATE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-SUPPLY",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-TTL",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF",
+          "RUNTIME_PROVIDER_PROOF_REQUIRED",
+          "SOL_DESIGN_OR_AUTHORITY_REVIEW_REQUIRED"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      },
+      {
+        "packet": "SOL-VISUAL-EVIDENCE",
+        "responsibleRole": "SOL_ONLY",
+        "requirements": [
+          "FRESH_IMPLEMENTATION_SCOPE_AUTHORITY",
+          "EXACT_BASELINE_SINGLE_WRITER_LEASE",
+          "SOL_DESIGN_ACCEPTANCE",
+          "SEPARATE_RUNTIME_PROVIDER_AUTHORITY_AND_PROOF"
+        ],
+        "blockedFindingIDs": [],
+        "dispatchAuthorized": false
+      }
+    ],
+    "actorAccounting": {
+      "parentAlwaysConsumesSolSlot": true,
+      "maxSolInstancesIncludingParent": 2,
+      "maxAdditionalSolChildInstances": 1,
+      "maxLunaInstances": 4,
+      "lowSeverityDoesNotAuthorizeTrustBoundaryWork": true
+    },
+    "effectiveWaves": [
+      {
+        "number": 1,
+        "packetIDs": [
+          "LUNA-E2E-INVENTORY",
+          "LUNA-FIRESTORE-RUNNER",
+          "LUNA-ROBOTS-COMMENTS",
+          "LUNA-WORKBENCH-START",
+          "SOL-ARCH-GATE",
+          "SOL-ASSET-BUILD"
+        ],
+        "assignments": [
+          {
+            "packet": "SOL-ARCH-GATE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-ASSET-BUILD",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          },
+          {
+            "packet": "LUNA-E2E-INVENTORY",
+            "actor": "LUNA_CHILD_1"
+          },
+          {
+            "packet": "LUNA-FIRESTORE-RUNNER",
+            "actor": "LUNA_CHILD_2"
+          },
+          {
+            "packet": "LUNA-ROBOTS-COMMENTS",
+            "actor": "LUNA_CHILD_3"
+          },
+          {
+            "packet": "LUNA-WORKBENCH-START",
+            "actor": "LUNA_CHILD_4"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 4,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 2,
+        "packetIDs": ["SOL-BUILD", "SOL-BUSINESS"],
+        "assignments": [
+          {
+            "packet": "SOL-BUILD",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-BUSINESS",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 3,
+        "packetIDs": ["SOL-CALENDAR-LEASE", "SOL-CALENDAR-WATCH"],
+        "assignments": [
+          {
+            "packet": "SOL-CALENDAR-LEASE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-CALENDAR-WATCH",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 4,
+        "packetIDs": ["SOL-CALENDAR-ENVELOPE", "SOL-CI-SECURITY"],
+        "assignments": [
+          {
+            "packet": "SOL-CALENDAR-ENVELOPE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-CI-SECURITY",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 5,
+        "packetIDs": ["SOL-CALENDAR-RESTORE", "SOL-CALENDAR-TESTS"],
+        "assignments": [
+          {
+            "packet": "SOL-CALENDAR-RESTORE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-CALENDAR-TESTS",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 6,
+        "packetIDs": ["SOL-CONTAINERS", "SOL-CONTRACTS"],
+        "assignments": [
+          {
+            "packet": "SOL-CONTAINERS",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-CONTRACTS",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 7,
+        "packetIDs": ["SOL-DESIGN-GATE", "SOL-DOC-GATE"],
+        "assignments": [
+          {
+            "packet": "SOL-DESIGN-GATE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-DOC-GATE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 8,
+        "packetIDs": ["SOL-INGRESS", "SOL-LIFECYCLE"],
+        "assignments": [
+          {
+            "packet": "SOL-INGRESS",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-LIFECYCLE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 9,
+        "packetIDs": ["SOL-IAM", "SOL-MAINTENANCE"],
+        "assignments": [
+          {
+            "packet": "SOL-IAM",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-MAINTENANCE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 10,
+        "packetIDs": ["SOL-IAC-LIFECYCLE", "SOL-OUTBOX"],
+        "assignments": [
+          {
+            "packet": "SOL-IAC-LIFECYCLE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-OUTBOX",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 11,
+        "packetIDs": ["SOL-CONFIG", "SOL-OBSERVABILITY"],
+        "assignments": [
+          {
+            "packet": "SOL-CONFIG",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-OBSERVABILITY",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 12,
+        "packetIDs": ["SOL-CLI", "SOL-RELEASE"],
+        "assignments": [
+          {
+            "packet": "SOL-CLI",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-RELEASE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 13,
+        "packetIDs": ["SOL-RETENTION", "SOL-SAST"],
+        "assignments": [
+          {
+            "packet": "SOL-RETENTION",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-SAST",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 14,
+        "packetIDs": ["SOL-SECRETS", "SOL-SESSION"],
+        "assignments": [
+          {
+            "packet": "SOL-SECRETS",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-SESSION",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 15,
+        "packetIDs": ["SOL-HTTP", "SOL-IDENTITY"],
+        "assignments": [
+          {
+            "packet": "SOL-HTTP",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-IDENTITY",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 16,
+        "packetIDs": ["SOL-PRIVACY", "SOL-RBAC"],
+        "assignments": [
+          {
+            "packet": "SOL-PRIVACY",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-RBAC",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 17,
+        "packetIDs": ["SOL-EXPORT", "SOL-GOVERNANCE"],
+        "assignments": [
+          {
+            "packet": "SOL-EXPORT",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-GOVERNANCE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 18,
+        "packetIDs": ["SOL-DOCS", "SOL-RETURN"],
+        "assignments": [
+          {
+            "packet": "SOL-DOCS",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-RETURN",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 19,
+        "packetIDs": ["SOL-LIST", "SOL-RUNTIME-EVIDENCE"],
+        "assignments": [
+          {
+            "packet": "SOL-LIST",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-RUNTIME-EVIDENCE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 20,
+        "packetIDs": ["SOL-HTML", "SOL-ROUTE-INVENTORY"],
+        "assignments": [
+          {
+            "packet": "SOL-HTML",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-ROUTE-INVENTORY",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 21,
+        "packetIDs": ["SOL-SESSION-DOCS", "SOL-SESSION-UI"],
+        "assignments": [
+          {
+            "packet": "SOL-SESSION-DOCS",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-SESSION-UI",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 22,
+        "packetIDs": ["LUNA-READ-FAILURE", "SOL-STRUCTURE-GATE"],
+        "assignments": [
+          {
+            "packet": "LUNA-READ-FAILURE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-STRUCTURE-GATE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 23,
+        "packetIDs": ["SOL-SUPPLY", "SOL-TTL"],
+        "assignments": [
+          {
+            "packet": "SOL-SUPPLY",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-TTL",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 24,
+        "packetIDs": ["SOL-CI-IAC", "SOL-QUERY-INDEX"],
+        "assignments": [
+          {
+            "packet": "SOL-CI-IAC",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-QUERY-INDEX",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 25,
+        "packetIDs": ["SOL-SCHEDULE", "SOL-VISUAL-EVIDENCE"],
+        "assignments": [
+          {
+            "packet": "SOL-SCHEDULE",
+            "actor": "SOL_PARENT"
+          },
+          {
+            "packet": "SOL-VISUAL-EVIDENCE",
+            "actor": "OPTIONAL_ONE_SOL_CHILD"
+          }
+        ],
+        "solInstancesIncludingParent": 2,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 26,
+        "packetIDs": ["SOL-CALENDAR-CANDIDATE"],
+        "assignments": [
+          {
+            "packet": "SOL-CALENDAR-CANDIDATE",
+            "actor": "SOL_PARENT"
+          }
+        ],
+        "solInstancesIncludingParent": 1,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      },
+      {
+        "number": 27,
+        "packetIDs": ["SOL-INTEGRATION"],
+        "assignments": [
+          {
+            "packet": "SOL-INTEGRATION",
+            "actor": "SOL_PARENT"
+          }
+        ],
+        "solInstancesIncludingParent": 1,
+        "lunaInstances": 0,
+        "dispatchAuthorized": false
+      }
+    ],
+    "waveSemantics": "THEORETICAL_LEASE_SCHEDULE_ONLY; prerequisites are not discharged by this order, CI or candidate source reading",
+    "originalLeaseOnlyWavesRetainedForHistory": true,
+    "planningClosurePrerequisite": {
+      "id": "ORIGINAL_CLAIM_CUSTODY_31",
+      "status": "BLOCKED",
+      "findingIDs": [
+        "B-24",
+        "E1-19",
+        "E1-27",
+        "E1-29",
+        "E1-33",
+        "E1-34",
+        "E1-35",
+        "E2-11",
+        "E3-18",
+        "E4-05",
+        "E4-06",
+        "E4-11",
+        "E3-21",
+        "E3-22",
+        "E3-23",
+        "E3-26",
+        "E3-27",
+        "E3-28",
+        "E3-29",
+        "E3-30",
+        "E3-33",
+        "E3-36",
+        "E3-37",
+        "E4-16",
+        "E4-17",
+        "E4-18",
+        "E4-19",
+        "E4-20",
+        "E4-22",
+        "E4-25",
+        "E4-26"
+      ],
+      "closesFromGreenCI": false
+    }
+  },
   "implementationAuthorized": false,
   "planningDoDComplete": false,
   "recovery": {

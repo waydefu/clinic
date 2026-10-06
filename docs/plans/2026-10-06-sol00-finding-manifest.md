@@ -1,6 +1,6 @@
 # 2026-10-06 SOL-00 逐 ID 安全摘要與 current-main manifest
 
-**狀態：PARTIAL / IN_PROGRESS；不是修復完成或施工授權。**
+**2026-10-07 狀態：BLOCKED / PARTIAL；不是修復完成或施工授權。** Current-main baseline：`01d36c96ae6be6cea91c891c494a6601b2abd4a3`。原研究成果與歷史 baseline 保留於 machine manifest 的 `baselineRefresh`。
 
 完整逐列欄位、source blobs、回歸規格與 packet graph 見 [machine manifest](2026-10-06-sol00-safe-manifest.json)；範圍與限制見 [follow-up plan](2026-10-06-sol00-safe-manifest-closeout-plan.md)。原始 244 IDs 與 NEW review IDs 分表；每個 ID 只有一個 primary route。
 
@@ -271,6 +271,8 @@
 | NEW-10 | Medium | HIGH_CONFIDENCE_CANDIDATE | project-wide Storage grants需分離已覆蓋的CI principal與builder bucket範圍候選。 | SOL-IAM | PARTIAL_DEDUPE_CANDIDATE; B-01, B-09 |
 
 ## 尚缺原 claim／source anchor 的精確清單
+
+業主確認原 partB／partE／E1～E4 分冊未保存，只有整併報告；本表 31 列全部維持 `METADATA_BLOCKED`。每列候選／counterevidence 是 current-main 判讀，不是原 finding 身分驗收。下列「提供者」代表未來重建去識別 claim/source 的責任，不表示原檔可取得；任何重建必須另標來源與限制。E4-11 僅 custody gap，不補造 reference 或讀取敏感 payload。
 
 | ID | 目前候選／counterevidence | 尚缺什麼 | 提供者／停止條件 |
 | --- | --- | --- | --- |

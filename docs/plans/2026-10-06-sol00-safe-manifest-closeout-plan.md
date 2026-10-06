@@ -1,8 +1,12 @@
 # 2026-10-06 SOL-00 安全 manifest／執行圖 follow-up 計畫
 
-**狀態：PARTIAL / IN_PROGRESS — 原 planning DoD 未完成。** 本輪只分析、規劃與更新 planning 文件；不修 production、不施工、不 merge、不部署。
+**2026-10-07 狀態：BLOCKED / PARTIAL — 原 planning DoD 未完成。** 本輪只分析、規劃與更新 #241 planning branch；不修 production、不施工、不合併 PR 到 main、不部署。
 
-**Source baseline：** `f7ace1a8ac8626783af342b89b0ad14b1ae400de`。重新 fetch 後 `origin/main` 不變；[#240](https://github.com/waydefu/clinic/pull/240) 已 MERGED，merge commit 為 baseline；#239 與 #238 已驗 ancestry。因此本輪是追加式 docs-only follow-up，不改寫 #239/#240 的歷史日期或證據，不再更新已 merged 的 branch。
+**Current source baseline：** `01d36c96ae6be6cea91c891c494a6601b2abd4a3`，即重新 fetch 的 `origin/main` 與 #242 merge commit。歷史 source baseline 為 `f7ace1a8ac8626783af342b89b0ad14b1ae400de`（#240）；#239／#238 ancestry 與原成果保留。依使用者明確選擇，只將 main merge 進 #241 branch，保留歷史；不 rebase、不 force-push、不碰 main。branch integration commit 為 `c647315facb57a52f26c2e5feb0d478fc1a1b86a`。本文件不引用包含此次文件更新的 commit；請用 `git log -- docs/plans/2026-10-06-sol00-safe-manifest-closeout-plan.md` 查交付版本。
+
+**原分冊 custody 已確認：** 業主目前可取得的檔案沒有保存 partB、partE 與 E1～E4 原分冊；整併報告只留下當時工作區位置。下列 31 IDs 全部維持 `METADATA_BLOCKED`，不把相似程式碼或後來整併摘要冒充原 claim/source 定位。可繼續 current-main 候選比對與施工規劃；原 claim 驗收和最終全部 dedupe 仍 BLOCKED。E4-11 僅記 custody gap，不提供、讀取或補造 Calendar payload／PII／secret／原始 log metadata。
+
+**Baseline impact：** main 相對歷史 baseline 只增加 #242 的三項 dev-tool patch、回歸與交接；537 舊 source bindings 中只 B-19 的 `pnpm-workspace.yaml` blob 改變。已重讀無上界 `uuid` override，原 source-text assessment 未被這三個 same-major pins 修正。其他 frozen source blobs 保持一致；不重跑或覆寫 40 筆原 Sol 研究。
 
 **引用：** [244-ID 原計畫](2026-10-05-audit-followup-luna-plan.md)、[#240 補充計畫](2026-10-05-audit-gap-sol-luna-execution-plan.md)、[逐 ID 人類索引](2026-10-06-sol00-finding-manifest.md)、[完整 machine manifest](2026-10-06-sol00-safe-manifest.json)、[本輪 handoff](../reviews/2026-10-06-sol00-planning-handoff.md)。
 
@@ -98,12 +102,24 @@ NEW-09 與 D-11 同根且同 primary `SOL-CALENDAR-ENVELOPE`；byte/time envelop
 
 ## 6. 獨立驗收與停止條件
 
+### 2026-10-07 bounded final planning review
+
+最終可用結果由 Sol parent 直接核對；三個 Luna 唯讀工作因無進度被取消，沒有可採用的交付，不能記成成功或安全複核 PASS。`finalPlanningReview` 與 `finalExecutionGraph` 是本次 planning overlay；原研究、owner marker 與 lease-only waves 保留作 provenance，不冒充新 runtime 驗收。
+
+- 10 NEW entries 已按可比對 source boundary 分別判為 distinct／sibling／same-root／partial candidate；NEW-09 同 D-11，NEW-10 的 CI principal 子項併 B-01、builder 子項仍候選。**正式淨新增數為 null／未決**，31 原 claim 不可比對，不能把來源邊界判讀說成全部 original-set final dedupe。
+- 47 個 conservative owner markers 現在逐 ID 分型：7 policy 缺口（D-35、D-36、E4-09、K6、K7、C07、E4-24）、1 fresh operation authority（E2-08）、1 Canon authority conflict（E3-14）、38 Sol design／authority review。這是 blocker 的責任分類，不是批准任何 policy 或關掉原 owner marker；runtime proof 另加 typed prerequisite。
+- 59 個 primary packets 保持 exactly-once；56 個非 external／no-work packets 的 **27 theoretical waves** 保留每檔單一 writer。最終 graph 補 `SOL-INGRESS → SOL-SESSION` trust-input design edge，不能只靠共檔 lease 表達 abuse identity 的依賴。
+- 52 Sol design scopes、4 future bounded Luna packets 不等於 dispatch。wave actor 明列 `SOL_PARENT` ＋最多 1 `OPTIONAL_ONE_SOL_CHILD`，Sol 包含 parent 總量最多 2；Luna 最多 4。Low severity 不釋放 auth／RBAC／IAM／identity／shared schema。
+- 每個 packet 明列 fresh implementation scope authority、exact-baseline single-writer lease、Sol design／policy／provider 等前提；全部 `dispatchAuthorized=false`。原 claim custody gate 仍 BLOCKED，不會因 CI green 自動滿足。
+
+機械 verifier 的 9 個負向案例須拒絕缺 ID、duplicate route、錯 blob、cycle、偽 DoD、偽原 claim-source acceptance、缺 trust semantic edge、parent＋2 Sol children、把 CI 當施工權限。它驗規格結構與守門條件，不把 model reasoning 提升為 runtime／policy acceptance。
+
 - [x] 244 original IDs、10 NEW review IDs unique primary routing；original severity 不變。
 - [x] 原 176 draft records 已收回；原 40 Sol rows 沒被覆蓋。
 - [x] 必要欄位、exact source blob bindings、DAG 無環與同 wave write-set 不相交可機械檢查。
-- [ ] 原 176 項全部精確 source／claim anchor accepted：31 METADATA_BLOCKED 尚未滿足。
+- [ ] 原 176 項全部精確 source／claim anchor accepted：31 METADATA_BLOCKED 尚未滿足，且業主確認原分冊未保存；沒有原 claim/source acceptance 的替代推論。
 - [ ] 原／NEW 語義 final dedupe、net-new count 與所有 owner／architecture issue 完整驗收。
 - [ ] 所有 construction packets 最終 scope／policy／lease release；本輪禁止施工。
 - [ ] 新 public planning PR 核准、推送、讀回 exact head 與 fresh CI。
 
-任何 payload／credential／PII／私有 runtime evidence 被引入，或任何 source/TF/workflow/security/gate diff，立即停止。沒有原分冊 anchor 時列 precise blocker，不替作者猜測。取得所缺去識別 anchor 後，只重判該 31 列，不重新啟動全部研究或丟掉已保留的成果。
+任何 payload／credential／PII／私有 runtime evidence 被引入，或相對 current main 出現任何 source/TF/workflow/security/gate diff，立即停止。main integration 的既有依賴修補不計成這次 planning 施工。缺原分冊 anchor 的 31 列各自保留 `sourceIdentityGap`、候選與提供者；未來若原稽核維護者重建去識別 claim/source，必須標示為重建證據，而不是復原了未保存的原檔。CI green 不關掉這 31 blockers，不批准 construction。
