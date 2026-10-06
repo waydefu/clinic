@@ -1,13 +1,11 @@
 # AI retrieval map
 
-Minimum authoritative context by task scope. Not the document catalogue —
-that remains [README.md](README.md). Authority scopes:
+Minimum task Canon; catalogue: [README.md](README.md). Authority scopes:
 [GOVERNANCE.md](../GOVERNANCE.md). Safety Floor: [AGENTS.md](../AGENTS.md).
-Generated projection (not Canon): [state/current.md](state/current.md).
+Projection (not Canon): [state/current.md](state/current.md).
 Dated governance conflicts (open and closed): [state/conflicts.md](state/conflicts.md).
 
-Load only the matching route. Do not load backend, security-history or
-deployment evidence for a UI-only change.
+Load the matching route only; avoid backend/security/deployment evidence for UI-only tasks.
 
 | Scope | Canon | ADR / contract | State | Procedure |
 | --- | --- | --- | --- | --- |
@@ -22,6 +20,8 @@ deployment evidence for a UI-only change.
 | supply-chain | CONTRIBUTING 9; [security/audit-exceptions.json](../security/audit-exceptions.json) | — | projection `auditExceptions` counts | `check:supply-chain`; gates-and-ci rule; auditor: `gh attestation verify sbom.cdx.json --repo waydefu/clinic --signer-workflow waydefu/clinic/.github/workflows/verify.yml` (SLSA-aligned provenance, not a SLSA level) |
 | documentation/evidence | [document-lifecycle.md](document-lifecycle.md); this catalogue [README.md](README.md) | — | [state/current.md](state/current.md) | `.claude/rules/docs-and-evidence.md`; skills `handoff-record`, `closeout`; [Luna remaining-work](product/luna-local-authorized-playbook.md) |
 | governance-change | [GOVERNANCE.md](../GOVERNANCE.md); AGENTS Safety Floor; this file | do not add ADRs for meta-governance | [state/conflicts.md](state/conflicts.md); waivers `docs/governance/waivers.json` | `.claude/README.md`; `check:governance` |
+
+[SOL-00](plans/2026-10-06-sol00-safe-manifest-closeout-plan.md) (plan-only).
 
 D-series answers are only in the [decision register](product/phase-1-decision-register.md).
 Owner input is not approval. Do not guess.
