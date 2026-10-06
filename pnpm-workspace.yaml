@@ -148,6 +148,17 @@ overrides:
   # covered by the real get-uri loopback FTP/listing/cache regression test.
   # Remove when get-uri's normal range resolves a patched basic-ftp version.
   'get-uri@6.0.5>basic-ftp': '6.2.1'
+  # 2026-10-06 GHSA-jqcg-44mw-7w3h: firebase-tools > Express (4/5) >
+  # proxy-addr; reject cross-family trust-subnet spoofing. Dev-only, same major.
+  proxy-addr@^2: '2.0.8'
+  # GHSA-68fv-2mgg-jv7q: Vitest > Vite > PostCSS > source-map-js;
+  # bound indexed section offsets before generating mappings. Dev-only patch.
+  source-map-js@^1: '1.2.2'
+  # GHSA-vc2v-76pw-4v95: firebase-tools > superstatic > compression;
+  # release zlib resources on aborted responses. Dev-only, same-major patch.
+  # All three releases predate the unchanged 24-hour maturity window.
+  # Remove each pin when its parent's normal resolution carries the fix.
+  compression@^1: '1.8.2'
 
 # 2026-08-01：本檔曾經有一筆 `auditConfig.ignoreGhsas` 例外
 # （GHSA-mh99-v99m-4gvg，SEC-03）。當時的解除條件寫的是「1.x／2.x 出現修補版」，
