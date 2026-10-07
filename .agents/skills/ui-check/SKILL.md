@@ -20,6 +20,13 @@ regressions. A visual score does not establish a gate PASS.
 
 ## 1. Automated gates
 
+For a substantial visual revision, first inspect the rendered result with
+`ui-design` at the affected desktop/mobile widths. A mechanical PASS cannot
+override visual FAIL. Keep that judgement separate from the engineering matrix
+below; neither screenshot quality nor prototype checks replace built-artifact
+verification. Include all eight clinic routes for shared shell/CSS regression,
+even when only the six principal pages are redesigned.
+
 From the repository root:
 
 Check runtime/dependencies and select applicable gates using
@@ -79,6 +86,13 @@ Then walk the matrix, taking evidence as you go:
 
 Read the accessibility tree rather than only screenshotting — it is what proves
 names, roles and structure. Screenshot for the visual claim.
+
+For an implemented motion change, use [ui-motion](../ui-motion/SKILL.md) to
+inspect normal playback, initial reduced motion and a preference change during
+playback. Capture the actual trigger and intermediate/settled states; a static
+screenshot cannot prove pacing or cancellation. Check affected lifecycle paths
+and console/CSP violations through teardown. Report missing playback/browser
+evidence explicitly; these observations execute R-17/§5, not a separate gate.
 
 Run automation on the content-hashed build as §5.1 requires. A source-tree
 prototype can supply bounded design evidence but cannot substitute for built
