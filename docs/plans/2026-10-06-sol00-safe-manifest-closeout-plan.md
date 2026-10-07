@@ -1,3 +1,60 @@
+# SOL-00 current-evidence planning closeout（2026-10-06；2026-10-07 v3更新）
+
+**Outcome：CLOSED_PENDING_PROTECTED_MERGE。** 只結束本次已授權的 planning / evidence orchestration；不宣稱254 findings已修、31 historical claims已恢復、全部global identity dedupe已知或production驗收完成。
+
+Source baseline `01d36c96ae6be6cea91c891c494a6601b2abd4a3`；#241前一head `ecefd935ce3b72b66069dd3d6e4964e37ccd3187`。包含本次更新的commit不能自我引用，以 `git log -- docs/plans/2026-10-06-sol00-safe-manifest-closeout-plan.md` 定位；fresh head/run/check與artifact另記PR delivery readback。
+
+**讀取權威：** [machine manifest](2026-10-06-sol00-safe-manifest.json) `schemaVersion=3`、`authoritativeStatePointer=/activeCloseout`。原rows／packets／waves／review／graph完整freeze為舊scope snapshot，不能拿舊31 METADATA_BLOCKED、47 owner markers或4 Luna cap當新dispatch規則；新逐列acceptance全部在 `activeCloseout.perFinding`。人類表見[254-ID索引](2026-10-06-sol00-finding-manifest.md)，交接見[handoff](../reviews/2026-10-06-sol00-planning-handoff.md)。
+
+## 1. 目前可達到的完成界線
+
+| Acceptance | 現況與證據上限 |
+| --- | --- |
+| Inventory | 原244 IDs與10 NEW，254/254單一primary；original severity不改。 |
+| 原Sol局部成果 | 原40筆與全254舊rows完全保留；新增overlay，不覆寫舊研究。 |
+| Source binding | 537 source blobs仍綁上述main，不把舊研究當新runtime。 |
+| 31 provenance | 31/31 `PROVENANCE_CLOSED_WITH_GAP`；`historicalClaimVerified=false`，available current source只到CANDIDATE。主動等原分冊的blocker為0。 |
+| Current semantic | 63個原generic assessment已逐列source/Canon重判：兩個唯讀子代理40列、全部回來後Sol parent再核23列及重要反證；全部254的目前scope、owner、positive/negative regression與DoD有明確終局。Source review是推論，不是runtime測試。 |
+| Dedupe | 完成至comparable current-evidence limit；10 raw NEW中2 current sibling（NEW-09/D-11、NEW-10/B-01），8原identity歧義；confirmed net-new minimum=0、formal global count=null。不把候選relatedID或共同write-set當exact duplicate。 |
+| Policy | 目前只有2個finding-linked真政策問題：A05實體session清除/保存期限、E4-09職務Q1；工程、操作權限、runtime採證與真正產品/法律政策分開。 |
+| Graph | 59 nodes、57 future scope packets、30 theoretical waves；acyclic、每列primary唯一、scope lease不碰撞。都是規格，不是dispatch或施工授權。 |
+| Luna | 3 READY packets：E2E inventory、Firestore runner、robots comments。Workbench-start有Sol session/bootstrap同檔核心lease，只到LUNA_AFTER_SOL；read failure保留Sol。 |
+| Current parallel cap | children最多2；總active reasoning agents最多2；parent不得與children同時工作，全部children回來才parent驗證/整合。已完成這批唯讀整理，不開Luna implementation。 |
+
+## 2. Provenance/finding不得再混為一談
+
+原partB、partE、E1～E4沒有保存，業主已確認；停止相同來源搜尋與索取。逐列保留缺失種類、old/source snapshot與available source的範圍。**provenance gap終局不是claim verified，更不是finding fixed。** E4-11不需要事件、PII、secret、Calendar原payload或補造capture metadata。後續若current code獨立重現缺陷，才形成另個可證據支持的current claim。
+
+31 IDs：`B-24`, `E1-19`, `E1-27`, `E1-29`, `E1-33`, `E1-34`, `E1-35`, `E2-11`, `E3-18`, `E3-21`, `E3-22`, `E3-23`, `E3-26`, `E3-27`, `E3-28`, `E3-29`, `E3-30`, `E3-33`, `E3-36`, `E3-37`, `E4-05`, `E4-06`, `E4-11`, `E4-16`, `E4-17`, `E4-18`, `E4-19`, `E4-20`, `E4-22`, `E4-25`, `E4-26`。
+
+## 3. Sol已定界的工程決策，不再當普通owner blocker
+
+- **清單續讀：** source的`ListAppointmentsResponseSchema`是strict。不可聲稱加JSON欄位舊client會忽略；保留appointments-only body，以選用Link/header capability和穩定(time,opaque ID)續讀，先測legacy schema/old-new組合、same-time tie、archive與cost/window/scope；真正breaking改格式仍需另授權。
+- **IPv6：** 保留既有per-trusted-IP policy，只做合法address/proxychain正規化；不自訂/64聚合、不放寬限流。
+- **Timestamp：** server `command.now`是返還clock；domain defensive future-bound和新業務backdate/試用先後政策不同。ADR-0008沒有強制trial先於go-live，不把absence直接當confirmed bug。
+- **Readiness：** 保留Stage E/API已核定的HTTP readiness條件；未測/unknown operational aggregate不可冒充provider健康，不能悄悄加入新503政策。
+- **UI/Canon：** C4設計核准與CP01 capture/reference分scope記，不把capture提升owner approval；不改gate/token或重寫dated approval。初始週錨沒有Canon defect證據，保留預設而非新增owner選項。
+- **Privacy/intake：** ADR-0007/已核定minimization涵蓋新intake與legacy synthetic state，按mode說明並保留legacy可讀；不擴大真實資料授權、不核准法律政策。
+- **Shared core：** workbench banner看似mechanical但與Sol session/bootstrap同檔，需Sol先封定narrow lease才可低模型handoff。
+
+每個primary scope有input files、owning source、write-set、forbidden scope、positive/negative regression、required CI、fresh scope/runtime authority與DoD；內容見machine overlay。shared primitive authority與serial leases避免同根修兩次／互踩。未來construction仍須獨立授權；schema/data migration、IAM、secret、real-provider採證與部署皆是protected action，不是architecture未定。
+
+## 4. 只剩protected predecessor與真正政策batch
+
+1. 獨立SDK [#244](https://github.com/waydefu/clinic/pull/244)已MERGE_READY；head `2c33345c945d553159699df651815c7c403dd10b`、[run37613664008](https://github.com/waydefu/clinic/actions/runs/37613664008) **12/12 PASS**。8/8新issuer regression、2531 unit PASS/1既有skip、316 Emulator PASS、六E2E/SAST/Gitleaks/aggregate PASS；無新exception/waiver/threshold變更。protected main merge未授權、未執行、無auto-merge。
+2. 只有#244合法整合後，才fetch/正常merge新main回#241（不rebase/force-push）並跑**#241自己新head**的完整required CI。現在main仍SDK1.30.0，因此本次#241重跑若audit+aggregate因同advisory fail，會保留FAIL，不借#244綠燈假冒。
+3. #241 protected merge亦須獨立fresh批准及其CI。
+4. Policy batch只保留：**A05**「到期拒絕不變，session實體清除/保存期限為何？」（不以auth expiry假充retention）；**E4-09**「個管師與諮詢師是否同職務？」（Q1未答不得套用其權限）。production D-001～D-003/D-009与Q2～Q4臨床/金額擴權仍deferred/protected，不在本planning偷渡。
+
+## 5. Gate與scope完成條件
+
+本版local驗證必須確認254 coverage、原severity/full frozen rows/40回收成果、537 blobs、31 provenance終局/無偽claim、2真政策問題、positive/negative spec、單一primary、DAG/semantic trust edge、同wave/file-prefix leases、全model combined cap2/parent不並行、Luna無核心碰撞、docs-only恰六檔與去敏。拒絕偽verified/fixed、以CI授權施工、cycle、duplicate、missing edge、Luna trust-boundary或parent+child混跑。
+
+Local covered-file checks與本次#241 CI在handoff/PR另核；本pre-commit文件不預造新head/run或報PASS。source/model審查、deterministic manifest gate、CI、production是不同rungs。
+
+<details>
+<summary>歷史v2 planning snapshot（不可當目前狀態或執行規則）</summary>
+
 # 2026-10-06 SOL-00 安全 manifest／執行圖 follow-up 計畫
 
 **2026-10-07 狀態：BLOCKED / PARTIAL — 原 planning DoD 未完成。** 本輪只分析、規劃與更新 #241 planning branch；不修 production、不施工、不合併 PR 到 main、不部署。
@@ -123,3 +180,6 @@ NEW-09 與 D-11 同根且同 primary `SOL-CALENDAR-ENVELOPE`；byte/time envelop
 - [ ] 新 public planning PR 核准、推送、讀回 exact head 與 fresh CI。
 
 任何 payload／credential／PII／私有 runtime evidence 被引入，或相對 current main 出現任何 source/TF/workflow/security/gate diff，立即停止。main integration 的既有依賴修補不計成這次 planning 施工。缺原分冊 anchor 的 31 列各自保留 `sourceIdentityGap`、候選與提供者；未來若原稽核維護者重建去識別 claim/source，必須標示為重建證據，而不是復原了未保存的原檔。CI green 不關掉這 31 blockers，不批准 construction。
+
+
+</details>

@@ -1,3 +1,44 @@
+# SOL-00 v3 planning/evidence closeout handoff
+
+**Outcome：CLOSED_PENDING_PROTECTED_MERGE。** 本次已授權planning工作做到目前證據上限；不是remediation/production完成。讀[plan](../plans/2026-10-06-sol00-safe-manifest-closeout-plan.md)、[254-ID索引](../plans/2026-10-06-sol00-finding-manifest.md)、[machine `/activeCloseout`](../plans/2026-10-06-sol00-safe-manifest.json)。
+
+Source baseline `01d36c96ae6be6cea91c891c494a6601b2abd4a3`；上一#241 head `ecefd935ce3b72b66069dd3d6e4964e37ccd3187`保留ancestry。本文件不引用自己的commit；以`git log -- docs/reviews/2026-10-06-sol00-planning-handoff.md`定位，最後head/run/digest在PR readback。
+
+## Changed / frozen
+
+- 恰六個原docs/index targets，無application/domain/worker/dependency/workflow修改。
+- 完整frozen254舊rows/原244IDs/原severity/40原Sol成果/176來源研究/537bindings未覆写；V3 overlay為新接受語意。
+- 31/31 provenance永久`PROVENANCE_CLOSED_WITH_GAP`，historicalClaimVerified=false；source存在只支援current candidate。原分冊不再索取或搜尋，不讀E4-11 payload。
+- 63 generic source assessments補實際定向審查（2唯讀child各20、全回傳後parent核40並直接補23），parent以strict-schema/readiness/Canon/lease反證修正child意見。不是runtime測試。
+- 59 nodes、57 planned future packets、30理論waves；254單一primary、3 Luna-ready、workbench-after-Sol、read failure Sol-only。全children<=2且parent不與children並行；不啟動施工。
+- 真政策A05 retention與E4-09 Q1，工程/操作/採證不混為owner選項。10 raw NEW=2 current siblings/8 identity ambiguity，confirmed minimum0/formal count null，並非10個新漏洞。
+
+## Gate status — pre-commit checkpoint
+
+| Gate | Status / claim |
+| --- | --- |
+| V3 manifest/immutable lineage/31 provenance/actor DAG/lease/cap2/negative mutation | PASS：254 coverage/full frozen prior ledger、244severity、537blobs、31永久gap、2policy、59nodes/57packets/30waves、global Luna core lease、combined cap2/parent不並行；13 active＋9 immutable-ledger負向mutation拒絕。Source/model判斷仍是推論。 |
+| docs links/governance/structure/tracked secrets/format/diff-six-file scope | PASS：283docs／INDEX6130bytes／361required files＋17PNG／1207tracked files；pinned Node24.20.0、Prettier3.9.5；恰六docs/index檔，diff check。最後handoff更新後同組再跑。 |
+| #241本次exact-head CI | PENDING_NEW_PUBLICATION；舊run37519557871 audit/aggregateFAIL保留，不沿用其他head |
+| #244獨立SDK修復 | CI-VERIFIED：head2c33345c945d553159699df651815c7c403dd10b，run37613664008，12/12PASS；8新回歸/2531unitPASS+1既有skip/316emulator/六E2E/SAST/Gitleaks/aggregate。Windows full unit2530/1 FTP fail/1skip及main同producerfailure保留，不放寬gate |
+| Original historical claim recovery/global complete identity dedupe | UNAVAILABLE / closed-with-gap；不虛構、不無限等待 |
+| Production/provider/IAM/secret/real data/migration/implementation | NOT_RUN / NOT_AUTHORISED；planning及CI不授權 |
+
+## 保留的失敗／venue變更
+
+- 初版INDEX為6275bytes而threshold6144，governance實際FAIL；只縮短本次SOL-00導航文字至6130，未放寬threshold/waiver，再跑PASS。
+- 原v2 standalone verifier所需disposable extraction/research cache已不存在，本次初次調用實際FAIL。沒有重造cache冒充原證據；fresh V3驗證改綁Git已發布ecefd935完整ledger/recovery unchanged與537 actual git blobs。以前40/176 raw比對屬歷史證據；raw cache目前UNAVAILABLE，全部254 frozen rows/recovery保存則有fresh computational proof。
+- #241舊node_modules formatter不存在；改用同pinned3.9.5的SDK worktree formatter，從#241 cwd跑並確認版本，不改任何dependency。完整source/build/types/unit/emulator/E2E/SAST由#241 required Linux CI完成，沒有skip或弱化。
+
+## Protected next batch
+
+#244=MERGE_READY/OWNER_MERGE_REQUIRED，無auto-merge/main merge。它合法整合後，已授權branch-only正常merge main進#241，再跑其新head CI；#241 protected merge另需fresh批准。現在mainSDK1.30仍存在，若#241自己的新run audit+aggregate同advisoryFAIL，完整保留FAIL與head，不拿#244綠燈覆蓋。
+
+兩個真正policy question及production deferred政策以plan一次列齊；不因owner merge等待阻斷已完成的provenance/source分析。公開交付只去敏衍生資料，無私有設定、原payload、原private evidence path或contact/project值。
+
+<details>
+<summary>Historical checkpoints（日期證據，非目前執行規則）</summary>
+
 # 2026-10-06 SOL-00 planning handoff（PARTIAL）
 
 **Outcome：BLOCKED，非 SOL-00 DONE。** 受控原始材料不在 repo；本輪 deliverable 是 [follow-up plan](../plans/2026-10-06-sol00-safe-manifest-closeout-plan.md)、[逐 ID 索引](../plans/2026-10-06-sol00-finding-manifest.md) 與 [完整 manifest](../plans/2026-10-06-sol00-safe-manifest.json)。沒有 production 修復、cloud／Calendar／data 操作、migration、合併 PR 到 main 或部署；只有經核准的 main-to-#241 branch integration。
@@ -71,3 +112,6 @@ PATH 的 Node 是 26.x，不符 repo engine；使用受控 cached Node 24.20.0�
 4. 只 push 該 docs-only branch／建立單一 follow-up，讀回 exact PR head及 required aggregate CI，不merge。CI green 仍不關31 blockers或批准construction。
 
 Artifact digests：最後提交前以 final file bytes 計算，在 exact-head delivery record／本機 verifier 結果提供；不對本文件製造自我引用 hash。
+
+
+</details>

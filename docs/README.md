@@ -85,9 +85,9 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [GPT-6 Luna 逐步執行計畫（2026-09-30）](plans/2026-09-30-luna-execution-plan.md) — L1 封存刪除、L2 日曆新格式、L3 工作臺商務分頁與重新登入、L4 還原驗證工具、L5 合作終止、L6 批次部署清單、L7 回歸／手冊／驗收；每包寫明檔案、規則、測試與停止條件
 - [2026-10-05 外部稽核後續逐步計畫（Luna 可執行）](plans/2026-10-05-audit-followup-luna-plan.md) — plan-only：244 項稽核的 Wave 0～4 小包（一包一 PR）、Q1～Q9 業主決定、等 #238 標記與 ID 對照；braces 例外 10-17 到期優先；不授權部署、apply 或歷史改寫。
 - [2026-10-05 稽核漏網複核與 Sol／Luna 執行圖補充計畫](plans/2026-10-05-audit-gap-sol-luna-execution-plan.md) — planning-only：#239 的增量複核、NEW 候選證據與限制、244 IDs 唯一 primary 路由、Sol-only 安全架構與有界 Luna 小包、依賴／平行群組／自主施工契約；W4 安全摘要缺失不冒稱 ready，不授權修復、Luna 施工、merge 或雲端操作。
-- [2026-10-06 SOL-00 安全 manifest／執行圖 follow-up](plans/2026-10-06-sol00-safe-manifest-closeout-plan.md) — PARTIAL：244 原 IDs 與 10 NEW review entries 唯一路由；176 draft records、40 Sol 回收成果保留，31 claim/source anchors 仍 METADATA_BLOCKED；只規劃，公開交付僅去敏 docs-only，不授權施工。
+- [SOL-00 current-evidence closeout](plans/2026-10-06-sol00-safe-manifest-closeout-plan.md) — CLOSED_PENDING_PROTECTED_MERGE：254唯一primary，31 provenance永久closed-with-gap／historical claims未驗；40原Sol與全部舊rows保留，3 Luna-ready／cap2／parent不並行；只docs，不施工。
 - [SOL-00 逐 ID 安全摘要索引](plans/2026-10-06-sol00-finding-manifest.md) — 244 原列與 NEW 去重／精確 blocker 表；不將 source 閱讀當 runtime 驗證。
-- [SOL-00 machine manifest／packet graph](plans/2026-10-06-sol00-safe-manifest.json) — source blobs、逐列必要欄位、primary owners、lease/DAG/waves 與 future handoff；planning DoD 未完成，沒有 implementation authority。
+- [SOL-00 machine manifest／packet graph](plans/2026-10-06-sol00-safe-manifest.json) — source blobs、逐列必要欄位、primary owners、lease/DAG/waves 與 future handoff；v3 `/activeCloseout` 完成至current-evidence limit；frozen舊ledger非目前狀態，沒有implementation authority。
 - [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 source/release 綁定、exact-SHA、Terraform/Hosting expiry 與 runtime gate；目前 source 已整合，cloud plan/apply 與 C1 驗收仍 BLOCKED。
 - [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
@@ -202,7 +202,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
-| 2026-10-07 | [SOL-00 planning handoff（BLOCKED）](reviews/2026-10-06-sol00-planning-handoff.md) | main 01d36c96 baseline，244+10 unique routes／typed owner prerequisites／含 parent 的 model-cap graph；31 原分冊 claim-source custody gaps 保留，formal net-new 未決。只更新 #241 branch、另核 fresh CI，不施工、不合併 PR 到 main、不部署。 |
+| 2026-10-07 | [SOL-00 current-evidence closeout](reviews/2026-10-06-sol00-planning-handoff.md) | CLOSED_PENDING_PROTECTED_MERGE：31 provenance終局不假claim、254 routing/63 source assessment/2 policy questions、3 Luna-ready/cap2；#244 repair exactCI12/12但main未合併，#241 CI另核，不施工或部署。 |
 | 2026-10-06 | [工具鏈三項 advisory 修補交接](reviews/2026-10-06-tooling-advisory-patches.md) | proxy-addr／source-map-js／compression 同-major patch；新回歸 18/18、dependency gates PASS，production graph 未變；本機既有 FTP 基線失敗保留，獨立修復 PR 的 exact-head required CI 另讀回，不 merge／部署。 |
 | 2026-10-05 | [AUD-01 身分上下文隔離本機交接](reviews/2026-10-05-aud01-identity-isolation.md) | 完整修復方案已核准；相關 Unit 119／119、Chromium booking E2E 31／31、型別／lint／format PASS。第一輪審閱大小寫缺口已重現並修正，第二輪 API 靜態複核 PASS、exact-head CI 待取得；完整 Unit 的 FTP 基線失敗保留，AUD-01 仍 OPEN。AUD-07、source freeze、merge／部署未完成。 |
 | 2026-10-04 | [稽核修正收尾交接](reviews/2026-10-04-audit-closeout-handoff.md) | #221～#233 合併，main `e58e1c1` verify run `37199246153` success。稽核 AUD-02～05、08～15 已修，AUD-07 部分修，AUD-01 與 AUD-07 其餘細節未取得仍 OPEN。決定：COOP 放寬一格、員工 session 12 小時、braces 暫時例外（10/17 到期）、隱私頁內部測試例外句。C1 部署、runtime 與 CP-08/09/10、CP-06-E 全部 NOT_RUN。 |
