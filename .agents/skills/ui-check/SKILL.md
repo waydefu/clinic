@@ -17,6 +17,12 @@ Design direction and visual refinement use [ui-design](../ui-design/SKILL.md).
 This skill validates the implemented result; it does not select a new style.
 Read the current brief/handoff so intentional changes are distinguished from
 regressions. A visual score does not establish a gate PASS.
+Use [ui-content](../ui-content/SKILL.md) for wording/information design; this
+verification does not approve medical claims or replace clinical review.
+Existing captures are technical regression fixtures. Visual success is judged
+against the brief and rendered design review, not similarity to the current
+website or an unapproved prototype. Updating an intentional baseline must
+follow the existing capture procedure; a legacy screenshot is not a style mandate.
 
 ## 1. Automated gates
 

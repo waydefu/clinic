@@ -199,6 +199,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-08 | [UI 技能國際視覺標準補強](reviews/2026-10-08-ui-skills-award-benchmark-handoff.md) | 撤掉未接受的自製教學頁；ui-design／ui-motion 加入已查證獎項與畫面研究，新增 ui-content；技能／freeze 本機檢查，exact-head required CI 另核，未改官網或授權部署。 |
 | 2026-10-07 | [MCP SDK OAuth advisory repair](reviews/2026-10-07-mcp-sdk-advisory-repair.md) | SDK exact override 1.30.0→1.31.0；8/8 issuer-binding 回歸、audit／CLI smoke／production graph PASS；本機既有 FTP failure 保留，獨立 repair exact-head CI 另核，protected merge 尚未授權。 |
 | 2026-10-06 | [工具鏈三項 advisory 修補交接](reviews/2026-10-06-tooling-advisory-patches.md) | proxy-addr／source-map-js／compression 同-major patch；新回歸 18/18、dependency gates PASS，production graph 未變；本機既有 FTP 基線失敗保留，獨立修復 PR 的 exact-head required CI 另讀回，不 merge／部署。 |
 | 2026-10-05 | [AUD-01 身分上下文隔離本機交接](reviews/2026-10-05-aud01-identity-isolation.md) | 完整修復方案已核准；相關 Unit 119／119、Chromium booking E2E 31／31、型別／lint／format PASS。第一輪審閱大小寫缺口已重現並修正，第二輪 API 靜態複核 PASS、exact-head CI 待取得；完整 Unit 的 FTP 基線失敗保留，AUD-01 仍 OPEN。AUD-07、source freeze、merge／部署未完成。 |

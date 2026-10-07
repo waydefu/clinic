@@ -18,9 +18,18 @@ Read only the reference needed:
   for attention, choreography, clinic-specific treatments and evidence.
 - [Anime.js selection and lifecycle](../../../.claude/skills/ui-motion/reference/animejs.md)
   for module cost, CSP/Trusted Types, cancellation and browser limitations.
+- [Verified award benchmarks](../../../.claude/skills/ui-design/reference/award-benchmarks.md)
+  for professionally judged work, observed motion and clinic adaptation limits.
 
 Each reference has one canonical copy in `.claude`. Generated `.agents`
 skills link there; the existing generator copies only `SKILL.md`.
+
+The existing site's motion is a before-state to examine, not the quality target.
+Derive the treatment from the brief, content and inspected jury-awarded cases.
+The owner's quality bar is international design-competition-level craft; a
+playing carousel or isolated compatibility test cannot establish it. Do not
+create unapproved low-grade demos or prescribe their timing/layout as models.
+Implement in the actual authorised candidate and critique the complete motion.
 
 ## Start from the visible experience
 

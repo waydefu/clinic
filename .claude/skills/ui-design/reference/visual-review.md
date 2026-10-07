@@ -7,6 +7,13 @@ large changes.
 
 ## Homepage benchmark gate
 
+Compare the candidate against the selected brief and the strongest relevant
+verified jury-awarded references, not merely against the old website. Use
+[award benchmarks](award-benchmarks.md) and record the reference relationship
+and why it serves this clinic. Existing screenshots detect technical regressions;
+their existence does not approve aesthetic quality. Unapproved prototypes and
+self-manufactured teaching samples cannot promote themselves to the benchmark.
+
 Complete the homepage first. Capture both widths, inspect the first screen,
 whole-page rhythm and necessary close-ups, identify its three weakest or most
 generic areas, change them, then capture again. Changing only the CSS numbers

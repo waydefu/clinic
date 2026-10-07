@@ -99,6 +99,14 @@ assistive-technology acceptance. Record gaps instead of silently filling them.
 
 ## First-party reference lessons and limits
 
+- The [verified award benchmarks](../../ui-design/reference/award-benchmarks.md)
+  distinguish jury records, current live behaviour and published archival
+  stills. Praxis's loading/reveal/drag states were observed, but its opening
+  recording was not reviewed end to end. Hyoumankind's object/material motion
+  is a creator-described direction, not verified current playback. Treat it
+  as a research question, not a ready-made timing prescription. An award does
+  not make long loading intros, blurred copy or custom scrolling appropriate
+  for this clinic. Choose the useful spatial relationship before any effect.
 - [Anime.js homepage](https://animejs.com/): normal-mode time-separated rendered
   frames showed the changing circular illustration as one dominant stage, while
   the heading/navigation kept their spatial anchors. Learn temporal unity and
@@ -117,5 +125,8 @@ assistive-technology acceptance. Record gaps instead of silently filling them.
   SC 2.3.3 is Level AAA; explanatory guidance does not create a new project gate
   or replace R-17 and the separate rules for automatically moving content.
 
-Project-authored guidance, researched 2026-10-07. No vendor assets, executable
-examples, fixed animation quota or automatic upstream updates are included.
+Project-authored guidance, researched 2026-10-07. The owner's 2026-10-08
+international-level bar is routed through
+[verified award benchmarks](../../ui-design/reference/award-benchmarks.md).
+No unapproved teaching prototypes, fixed animation quota or automatic upstream
+updates are included. Technical compatibility evidence is not visual acceptance.

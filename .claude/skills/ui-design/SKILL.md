@@ -11,6 +11,15 @@ relevant handoff. Acceptance stays in
 [`ui-ux-rules.md`](../../../docs/design/ui-ux-rules.md) R-1–R-26 and §5;
 implementation verification goes to [ui-check](../ui-check/SKILL.md).
 
+The current website supplies assets, source material and a before-state to
+criticise; its layout is not the visual success standard. Set that standard
+from the user's brand brief, actually inspected external references and
+professional composition/type judgement. For the selected clinic redesign,
+the owner's minimum is international design-competition-level craft. Use
+verified jury-awarded work through the benchmark reference below. Do not use
+self-made weak/improved examples, the old site or a mechanical PASS to lower
+that bar; do not manufacture a showcase to certify your own work.
+
 Read the relevant canonical reference for a substantial clinic redesign:
 
 - [Visual direction](../../../.claude/skills/ui-design/reference/visual-direction.md):
@@ -19,8 +28,12 @@ Read the relevant canonical reference for a substantial clinic redesign:
   screenshot, critique, structural revision and the homepage benchmark gate.
 - [Sources and rights](../../../.claude/skills/ui-design/reference/sources-and-rights.md):
   asset allocation, medical review state and publication boundaries.
+- [Visual foundations](../../../.claude/skills/ui-design/reference/visual-foundations.md):
+  Chinese typography, proportions, colour roles and composition decisions.
+- [Verified award benchmarks](../../../.claude/skills/ui-design/reference/award-benchmarks.md):
+  award provenance, inspected work, adaptation limits and the visual quality bar.
 
-These are three references, each with one canonical copy in `.claude`.
+These are five references, each with one canonical copy in `.claude`.
 The generated `.agents` skill deliberately links to those same files.
 The generator copies `SKILL.md` only; do not change it to duplicate references.
 
@@ -51,6 +64,8 @@ Translate the intended experience into observable choices: reading order,
 type roles, content density, image placement, surface treatment and emphasis.
 Explain those choices with the clinic's content and assets rather than words
 such as "premium". Reuse the project's tokens and shared components.
+For substantial wording or information-order work, use
+[ui-content](../ui-content/SKILL.md) while keeping the selected visual direction.
 
 ## Explore only when the direction is open
 
