@@ -20459,7 +20459,7 @@
     "schemaVersion": 3,
     "phase": "CLOSED_PENDING_PROTECTED_MERGE",
     "closureMeaning": "SOL-00 planning/evidence orchestration to current-evidence limit; not 254 remediation fixes, restored historical claims, global novelty identity or production acceptance.",
-    "sourceBaseline": "01d36c96ae6be6cea91c891c494a6601b2abd4a3",
+    "sourceBaseline": "2f9360cf5d670879b98705cd9a3b04eb71fe20bd",
     "legacySnapshotHead": "ecefd935ce3b72b66069dd3d6e4964e37ccd3187",
     "frozenLegacyFields": [
       "rows",
@@ -20602,7 +20602,7 @@
         "historicalClaimVerified": null,
         "planningDisposition": "CURRENT_EVIDENCE_LIMIT_ACCEPTED",
         "planningAcceptanceEvidenceType": "INFERENTIAL_SOURCE_AND_CANON_REVIEW",
-        "currentEvidence": "uuid override 的無上界是完整 source-text 事實；lockfile 對當前安裝的固定不等於未來更新範圍安全，亦不證明現版不相容。",
+        "currentEvidence": "uuid override 的無上界是完整 source-text 事實；lockfile 對當前安裝的固定不等於未來更新範圍安全，亦不證明現版不相容。；SDK合法merge後重新綁actual main blob，變動僅workspace exact override/comment（1.30→1.31），maturity/其他policy不改，不能當此original finding全部修好。",
         "confidence": "CURRENT_SOURCE_SCOPE_ONLY_NOT_RUNTIME",
         "rootCauseFamily": "DEPENDENCY_RANGE_POLICY",
         "dedupe": {
@@ -36251,9 +36251,10 @@
       "unitPassed": 2531,
       "unitExistingSkipped": 1,
       "emulatorPassed": 316,
-      "status": "MERGE_READY / OWNER_MERGE_REQUIRED",
-      "merged": false,
-      "autoMerge": false
+      "status": "MERGED_BY_OWNER_VERIFIED",
+      "merged": true,
+      "autoMerge": false,
+      "mergeCommit": "2f9360cf5d670879b98705cd9a3b04eb71fe20bd"
     },
     "planningDoDCompleteToEvidenceLimit": true,
     "implementationAuthorized": false,
@@ -36262,13 +36263,13 @@
     "protectedActionBatch": [
       {
         "action": "merge #244 to protected main",
-        "status": "OWNER_MERGE_REQUIRED",
-        "mustBeFreshlyApproved": true
+        "status": "COMPLETED_BY_OWNER_READBACK",
+        "mergeCommit": "2f9360cf5d670879b98705cd9a3b04eb71fe20bd"
       },
       {
-        "action": "after lawful #244 integration fetch/merge new main into #241 and run #241 exact-head CI",
-        "status": "PENDING_PREDECESSOR_PROTECTED_MERGE",
-        "authorisedBranchOnlyFollowup": true
+        "action": "normal merge new main into #241 and run its new head CI",
+        "status": "BRANCH_MAIN_MERGE_COMPLETED_CI_PENDING",
+        "mergeInto241": "41b41b9691d3906a7d82df0f1246eeedf68a4bf0"
       },
       {
         "action": "merge #241 to protected main",
@@ -36290,6 +36291,2664 @@
       "lunaReadyPackets": 3,
       "frozenPriorSolRows": 40,
       "sourceBlobBindings": 537
+    },
+    "originalResearchSourceBaseline": "01d36c96ae6be6cea91c891c494a6601b2abd4a3",
+    "currentSourceBindings": {
+      "B-10": [
+        {
+          "path": "infra/terraform/cal-pilot/main.tf",
+          "gitBlob": "8136cdb17959930e8cc4c60db6b3d1bcfdfef93f"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/variables.tf",
+          "gitBlob": "0cbf8dca7372117bb304e2749372bc2af94af0c2"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/README.md",
+          "gitBlob": "efca8cd65615ccd405f978ba1cf037c63d1b002f"
+        },
+        {
+          "path": "scripts/cal-pilot-release.ps1",
+          "gitBlob": "b294483e96324a055b50e1386167026b603c2cd1"
+        },
+        {
+          "path": "scripts/cal-pilot-extension-policy.test.mjs",
+          "gitBlob": "dee1161c02558b677d80d46c01a0c055861ad7ae"
+        }
+      ],
+      "B-11": [
+        {
+          "path": "infra/terraform/c1-foundation/main.tf",
+          "gitBlob": "8874d2aec4f7e7147aef310d938fb322789cd873"
+        },
+        {
+          "path": "infra/terraform/c5-firestore/main.tf",
+          "gitBlob": "99c6273bd7aab7030486d1524b6d81072e15c6e6"
+        },
+        {
+          "path": "infra/terraform/c1-foundation/noop.tftest.hcl",
+          "gitBlob": "d59419a5fe7c28b6bd14797badc5811d1bd719a2"
+        },
+        {
+          "path": "infra/terraform/c5-firestore/noop.tftest.hcl",
+          "gitBlob": "8eafa659fc2525c928c1ad553fc1f14b2e563e1f"
+        }
+      ],
+      "B-14": [
+        {
+          "path": "security/semgrep/upstream-rules.txt",
+          "gitBlob": "6b60333371cc0d7902db5349883deda69e5b35d7"
+        },
+        {
+          "path": "security/semgrep/clinic-javascript.yml",
+          "gitBlob": "4b6b7279724db211c7dfa31c52019bc2247e9881"
+        },
+        {
+          "path": "apps/api/src/main.ts",
+          "gitBlob": "a592546b525bf4ffade52a0160a7faeb7000fcbb"
+        },
+        {
+          "path": ".github/workflows/sast-scan.yml",
+          "gitBlob": "6644a3ac714bd1a4d6fca1bce33cd986cd0900f8"
+        }
+      ],
+      "B-19": [
+        {
+          "path": "pnpm-workspace.yaml",
+          "gitBlob": "da9f0281aa713ae5b7f8b741803157d39c25cfa9"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "gitBlob": "b3ea03edc4a38c6993eb1927ac59bcf10d5d8936"
+        },
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        }
+      ],
+      "B-23": [
+        {
+          "path": "apps/web/public/robots.txt",
+          "gitBlob": "07924f2d94f4fc2ce5929811483e0f180f19582b"
+        },
+        {
+          "path": "apps/web/csp-policy.mjs",
+          "gitBlob": "496775ac365a487870ec27407577682cbd27c3d5"
+        },
+        {
+          "path": "apps/web/src/security-headers.test.ts",
+          "gitBlob": "821c881ba27a89818ba7e99a3bf88738324400ce"
+        }
+      ],
+      "B-26": [
+        {
+          "path": "containers/api.Dockerfile",
+          "gitBlob": "84aa332d5d536828a34d214812f69a7f8325bc80"
+        },
+        {
+          "path": "containers/worker.Dockerfile",
+          "gitBlob": "9ef1b70eab448e5188899c166eb745003038eb00"
+        },
+        {
+          "path": "containers/internal-test-outbox.Dockerfile",
+          "gitBlob": "aa4914768a8f68f83d81826d4b7437060c49f49d"
+        }
+      ],
+      "B-27": [
+        {
+          "path": ".github/workflows/verify.yml",
+          "gitBlob": "1fbe75ac89ace6ee85c4cdf938c5c7d2d83a21e5"
+        },
+        {
+          "path": ".github/workflows/sast-scan.yml",
+          "gitBlob": "6644a3ac714bd1a4d6fca1bce33cd986cd0900f8"
+        }
+      ],
+      "B-29": [
+        {
+          "path": "gitleaks.toml",
+          "gitBlob": "29d02362fa4afd2c770380ee3994c73b60ee16f0"
+        },
+        {
+          "path": "scripts/check-gitleaks-config.test.mjs",
+          "gitBlob": "be2cd02fd6a5553b4d99d954198c465892e9e6d9"
+        },
+        {
+          "path": ".github/workflows/verify.yml",
+          "gitBlob": "1fbe75ac89ace6ee85c4cdf938c5c7d2d83a21e5"
+        }
+      ],
+      "B-30": [
+        {
+          "path": "security/semgrep/firestore-rules.yml",
+          "gitBlob": "1338134c93642c1020d5d61d16163848605ef029"
+        },
+        {
+          "path": "security/semgrep/firestore-rules.rules",
+          "gitBlob": "ae3a03113ce91428072f9c05c2a936ea60a1ae7e"
+        },
+        {
+          "path": ".github/workflows/sast-scan.yml",
+          "gitBlob": "6644a3ac714bd1a4d6fca1bce33cd986cd0900f8"
+        }
+      ],
+      "B-32": [
+        {
+          "path": ".npmrc",
+          "gitBlob": "1d7d15415e65f33b100a0862891a24fbe3d3a329"
+        },
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "gitBlob": "b3ea03edc4a38c6993eb1927ac59bcf10d5d8936"
+        }
+      ],
+      "B-15": [
+        {
+          "path": "packages/contracts/src/appointments.ts",
+          "gitBlob": "18665f08cc026deae7cc10b83b2458cd59ee288f"
+        },
+        {
+          "path": "packages/contracts/src/schedule.ts",
+          "gitBlob": "86c8e01f3242cc9e30b28dd1f1f9b357c240e83b"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.controller.ts",
+          "gitBlob": "2a1fa28dc740e1133f482ccc2dca4cb4f044d108"
+        },
+        {
+          "path": "apps/api/src/schedule/schedule.controller.ts",
+          "gitBlob": "b7335b32a650a2bba4cab56d4726801b0daa4f8b"
+        },
+        {
+          "path": "apps/api/src/app.module.ts",
+          "gitBlob": "0344cd09372bfcb45f34b47511cb7ae761a7a3f1"
+        }
+      ],
+      "B-17": [
+        {
+          "path": "packages/contracts/src/audit.ts",
+          "gitBlob": "d55c7e3223c62e01bb7c555eb3e6192cac7cbe5c"
+        },
+        {
+          "path": "packages/domain/src/audit.ts",
+          "gitBlob": "34e36bfbfaf1c007122ee04b58b4fd3d88625082"
+        },
+        {
+          "path": "packages/contracts/src/audit.test.ts",
+          "gitBlob": "6cad6980893eabd71327df3222c19655c6059e9b"
+        }
+      ],
+      "B-18": [
+        {
+          "path": ".claude/hooks/guard-commands.mjs",
+          "gitBlob": "19fc47f3e958db5a61c634f3f536c681e1595ff5"
+        },
+        {
+          "path": ".claude/hooks/guard-commands.test.mjs",
+          "gitBlob": "ffe57f88e49264fab735f3645cc732d6dac63b37"
+        },
+        {
+          "path": "README.md",
+          "gitBlob": "e8bc9bcf398349bfbcdb139e33cbc4dd3b3beb35"
+        },
+        {
+          "path": "GOVERNANCE.md",
+          "gitBlob": "15d5d525fced1b998a73c823949405f562266fcd"
+        }
+      ],
+      "B-20": [
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        },
+        {
+          "path": "infra/terraform/c1-foundation/versions.tf",
+          "gitBlob": "98e27f54a8f110e75ec565ea64770180e29fdf9d"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/versions.tf",
+          "gitBlob": "aea8fa79e3be387024a70fd854a45f5e2db3d2a9"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/.terraform.lock.hcl",
+          "gitBlob": "c494c9619e913af9a2e7b7db0028f46f2a1cc8cc"
+        },
+        {
+          "path": ".github/workflows/verify.yml",
+          "gitBlob": "1fbe75ac89ace6ee85c4cdf938c5c7d2d83a21e5"
+        }
+      ],
+      "B-16": [
+        {
+          "path": "packages/contracts/src/appointments.ts",
+          "gitBlob": "18665f08cc026deae7cc10b83b2458cd59ee288f"
+        },
+        {
+          "path": "packages/domain/src/patient-identity.ts",
+          "gitBlob": "68c89c1d0ccbb5a8ef5c411ed55b37a5aac7a83c"
+        },
+        {
+          "path": "packages/contracts/src/appointments.test.ts",
+          "gitBlob": "39cd2186519cea9de5ca0a0911757a8790f7f9e0"
+        }
+      ],
+      "B-22": [
+        {
+          "path": "apps/web/csp-policy.mjs",
+          "gitBlob": "496775ac365a487870ec27407577682cbd27c3d5"
+        },
+        {
+          "path": "apps/web/src/security-headers.test.ts",
+          "gitBlob": "821c881ba27a89818ba7e99a3bf88738324400ce"
+        },
+        {
+          "path": "firebase.json",
+          "gitBlob": "35839b33694e585fdfd3589f382ed587e7ba61c1"
+        }
+      ],
+      "B-24": [
+        {
+          "path": "infra/terraform/c1-internal-test-run/variables.tf",
+          "gitBlob": "31fffd070bf597124d8710497cae7a2116dfd0e8"
+        },
+        {
+          "path": "infra/terraform/c1-internal-test-run/main.tf",
+          "gitBlob": "4e08de3f64361cd23b9545e95b8f3f9ae6d6b8ed"
+        },
+        {
+          "path": "scripts/c1-internal-test-run.test.mjs",
+          "gitBlob": "56cc2ad3a034f9cc4fde8206f8d3add404c1f7dd"
+        },
+        {
+          "path": "scripts/internal-test-c1-identity.mjs",
+          "gitBlob": "2f9bf42f0d52d4f2324f17f2041e8ccd55b56db3"
+        },
+        {
+          "path": "scripts/internal-test-image-names.mjs",
+          "gitBlob": "50693b89dda201034f13992761d70dbdf347aa0f"
+        },
+        {
+          "path": "scripts/stage-f-source-closeout.test.mjs",
+          "gitBlob": "7d92c0a795a71f18d22915efb4e76b413aa20c7d"
+        },
+        {
+          "path": "scripts/c1-firebase-auth-domain.test.mjs",
+          "gitBlob": "e03600f02f0ef46dd1e200995881ef16fd7a8604"
+        }
+      ],
+      "B-25": [
+        {
+          "path": "infra/terraform/c1-foundation/main.tf",
+          "gitBlob": "8874d2aec4f7e7147aef310d938fb322789cd873"
+        },
+        {
+          "path": "docs/architecture/stage-e-monitoring.md",
+          "gitBlob": "bc1a5e1fa50511c59e979b0a95d334686baa9456"
+        }
+      ],
+      "B-28": [
+        {
+          "path": ".github/workflows/sast-scan.yml",
+          "gitBlob": "6644a3ac714bd1a4d6fca1bce33cd986cd0900f8"
+        },
+        {
+          "path": "docs/document-lifecycle.md",
+          "gitBlob": "bd9137d0bc1abe49fef0e5c29d7b8dbffc0b30c7"
+        }
+      ],
+      "B-33": [
+        {
+          "path": "packages/contracts/src/common.ts",
+          "gitBlob": "404eafd75a539c137f772b3255afc34350994add"
+        },
+        {
+          "path": "packages/contracts/src/common.test.ts",
+          "gitBlob": "6e9faf4034d87f65aa2dcf64ad73d3643ef16434"
+        }
+      ],
+      "B-34": [
+        {
+          "path": "packages/contracts/src/appointments.ts",
+          "gitBlob": "18665f08cc026deae7cc10b83b2458cd59ee288f"
+        },
+        {
+          "path": "packages/domain/src/patient-identity.ts",
+          "gitBlob": "68c89c1d0ccbb5a8ef5c411ed55b37a5aac7a83c"
+        },
+        {
+          "path": "packages/contracts/src/appointments.test.ts",
+          "gitBlob": "39cd2186519cea9de5ca0a0911757a8790f7f9e0"
+        }
+      ],
+      "B-35": [
+        {
+          "path": "packages/contracts/src/schedule.ts",
+          "gitBlob": "86c8e01f3242cc9e30b28dd1f1f9b357c240e83b"
+        },
+        {
+          "path": "packages/domain/src/schedule.ts",
+          "gitBlob": "8e6859b18b0e51ef374c234191e7672f5452f88c"
+        },
+        {
+          "path": "packages/contracts/src/schedule.test.ts",
+          "gitBlob": "bd126f769d39b54263cba8ae5cb6b6d8a2800265"
+        }
+      ],
+      "B-36": [
+        {
+          "path": "packages/contracts/src/schedule.ts",
+          "gitBlob": "86c8e01f3242cc9e30b28dd1f1f9b357c240e83b"
+        },
+        {
+          "path": "packages/contracts/src/follow-ups.ts",
+          "gitBlob": "06bed21d7e9d82b1d5e6b0891704ec5d3209b1af"
+        },
+        {
+          "path": "packages/contracts/src/business-delivery.ts",
+          "gitBlob": "4704a38015e3528c601d7a15a06f104cc8bcf8d1"
+        },
+        {
+          "path": "packages/contracts/src/common.ts",
+          "gitBlob": "404eafd75a539c137f772b3255afc34350994add"
+        }
+      ],
+      "B-37": [
+        {
+          "path": "packages/contracts/src/audit.ts",
+          "gitBlob": "d55c7e3223c62e01bb7c555eb3e6192cac7cbe5c"
+        },
+        {
+          "path": "packages/contracts/src/audit.test.ts",
+          "gitBlob": "6cad6980893eabd71327df3222c19655c6059e9b"
+        },
+        {
+          "path": "packages/contracts/package.json",
+          "gitBlob": "bd9a7abc1949a5de498d27e886b3453d112acb7c"
+        }
+      ],
+      "B-38": [
+        {
+          "path": "packages/contracts/src/business-delivery.ts",
+          "gitBlob": "4704a38015e3528c601d7a15a06f104cc8bcf8d1"
+        },
+        {
+          "path": "apps/api/src/business-delivery/business-export.application-service.ts",
+          "gitBlob": "3ecc1d988ac48b4f317f652b267f5fa89b9499bb"
+        },
+        {
+          "path": "apps/api/src/business-delivery/business-export.application-service.test.ts",
+          "gitBlob": "71228abc5fc6584b266ae2ab7624b7a2189b7567"
+        }
+      ],
+      "B-39": [
+        {
+          "path": "packages/config/package.json",
+          "gitBlob": "9b5032f82ede76a99cbd2f2b85f7b7e39fa23a71"
+        },
+        {
+          "path": "packages/config/src/firebase.ts",
+          "gitBlob": "740f9d6fe546067245608cd133c86ee2f5150af4"
+        },
+        {
+          "path": "packages/config/src/firebase.test.ts",
+          "gitBlob": "d546241de999c67e9801a4912aaadbe1e7fe923e"
+        },
+        {
+          "path": "tests/firestore/cal-pilot-extension.test.ts",
+          "gitBlob": "d2fbc87f0256462548a0f17c26359595e21be2b8"
+        }
+      ],
+      "B-42": [
+        {
+          "path": "infra/terraform/cal-pilot/versions.tf",
+          "gitBlob": "aea8fa79e3be387024a70fd854a45f5e2db3d2a9"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/.terraform.lock.hcl",
+          "gitBlob": "c494c9619e913af9a2e7b7db0028f46f2a1cc8cc"
+        },
+        {
+          "path": "infra/terraform/c1-foundation/.terraform.lock.hcl",
+          "gitBlob": "77addc9e6b256e7fd99a194cc013ae5b577379cc"
+        },
+        {
+          "path": "infra/terraform/wp-b4-alerting/.terraform.lock.hcl",
+          "gitBlob": "49cd13a5c1262114d96de1302614de103114f19f"
+        }
+      ],
+      "B-43": [
+        {
+          "path": "infra/monitoring/notification-path.json",
+          "gitBlob": "003820b147dc7c598fba87db8d915526c5c2c70d"
+        },
+        {
+          "path": "infra/terraform/wp-b4-alerting/main.tf",
+          "gitBlob": "0f8de7826a9604cb728b20d0c90d9c4a554ca70d"
+        },
+        {
+          "path": "docs/architecture/stage-e-monitoring.md",
+          "gitBlob": "bc1a5e1fa50511c59e979b0a95d334686baa9456"
+        }
+      ],
+      "B-44": [
+        {
+          "path": "infra/firestore/query-index-matrix.json",
+          "gitBlob": "f5ae765f30034abbcd88896d57dabe8cad0a028c"
+        },
+        {
+          "path": "scripts/firestore-index-plan.mjs",
+          "gitBlob": "89d922f41185aa4c83ba832a0ffb39363ba47d21"
+        },
+        {
+          "path": "apps/api/src/firestore/business-delivery.repository.ts",
+          "gitBlob": "411e282ae213a4784efbc9ed6d1e77c2123a3180"
+        },
+        {
+          "path": "apps/api/src/firestore/business-delivery-export.repository.ts",
+          "gitBlob": "348cce324b247f1b5050ce63f28ba7a4de67717a"
+        }
+      ],
+      "B-45": [
+        {
+          "path": "infra/config/c1-internal-test-config-contract.json",
+          "gitBlob": "1b881960c1e2b170c4d54eb3de6409909fbe07f3"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/c1-required-config.ts",
+          "gitBlob": "7feded9fe7fd3c7cbae811c0aad8f3a69bddc0ec"
+        },
+        {
+          "path": "apps/api/src/app.module.ts",
+          "gitBlob": "0344cd09372bfcb45f34b47511cb7ae761a7a3f1"
+        },
+        {
+          "path": "scripts/c1-config-contract.mjs",
+          "gitBlob": "164f3f456255baef80e896c3665331c9a5a787c8"
+        }
+      ],
+      "B-46": [
+        {
+          "path": "infra/terraform/c6-calendar/README.md",
+          "gitBlob": "e636e4ff3a1558c13887a0180591abbf71bca357"
+        },
+        {
+          "path": "apps/api/src/app.module.ts",
+          "gitBlob": "0344cd09372bfcb45f34b47511cb7ae761a7a3f1"
+        },
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.module.ts",
+          "gitBlob": "6da9957f4f671acd1c7ba69c3a9f505ed4719e92"
+        },
+        {
+          "path": "apps/api/src/calendar/calendar-watch.controller.ts",
+          "gitBlob": "9b390cd42457397b27eaa0d2cee3d4fd256ec326"
+        }
+      ],
+      "B-49": [
+        {
+          "path": "infra/terraform/c2-identity/main.tf",
+          "gitBlob": "4dad474192eacd27df34846c4217db236939837c"
+        },
+        {
+          "path": "infra/terraform/c2-identity/README.md",
+          "gitBlob": "dae32026f937675b3487fb37ab5be4d95e430801"
+        },
+        {
+          "path": "scripts/configure-c2-identity.mjs",
+          "gitBlob": "7d6eaccddb50a7f0aa38bacca696a991db8d3815"
+        },
+        {
+          "path": "scripts/configure-c2-identity.test.mjs",
+          "gitBlob": "33d5ae32afd0dce303a962de122d3ae6eeff6ff0"
+        }
+      ],
+      "B-50": [
+        {
+          "path": "infra/terraform/cal-pilot/main.tf",
+          "gitBlob": "8136cdb17959930e8cc4c60db6b3d1bcfdfef93f"
+        },
+        {
+          "path": "docs/product/phase-1-decision-register.md",
+          "gitBlob": "6cd7c85400f93209974210132058c106d13e1d86"
+        },
+        {
+          "path": "scripts/cal-pilot-extension-policy.test.mjs",
+          "gitBlob": "dee1161c02558b677d80d46c01a0c055861ad7ae"
+        }
+      ],
+      "B-51": [
+        {
+          "path": "packages/domain/src/observability.ts",
+          "gitBlob": "28c498fc54d04da86feed7b09c25c5986dfd3848"
+        },
+        {
+          "path": "infra/monitoring/wp-b4-alert-policies.json",
+          "gitBlob": "87f8c566442f36e2fb042a44c9521527ae03ddb0"
+        },
+        {
+          "path": "infra/terraform/wp-b4-alerting/main.tf",
+          "gitBlob": "0f8de7826a9604cb728b20d0c90d9c4a554ca70d"
+        },
+        {
+          "path": "scripts/wp-b4-alert-definitions.mjs",
+          "gitBlob": "4966c80e7cb272007dbf5fe0d482955e71bde074"
+        }
+      ],
+      "A03": [
+        {
+          "path": "apps/api/src/firestore/business-delivery-retention.repository.ts",
+          "gitBlob": "350ba1bfb7adfe0dd47a9ca7d64e08adfbee594a"
+        },
+        {
+          "path": "apps/api/src/business-delivery/business-retention.application-service.ts",
+          "gitBlob": "c213ef4dfad390413e44734705221a8dc116acb2"
+        },
+        {
+          "path": "apps/api/src/business-delivery/business-retention.controller.ts",
+          "gitBlob": "0c6a52565ec5d3035c3805defc103ab2c251fd86"
+        }
+      ],
+      "A04": [
+        {
+          "path": "apps/api/src/platform/authorization/rbac-appointment-policy.ts",
+          "gitBlob": "9a05e98e1010ade5c52933aff2c0e7a8a0cab10b"
+        },
+        {
+          "path": "apps/api/src/schedule/schedule.application-service.ts",
+          "gitBlob": "dff0bb75c2b02e27c11e72b0e98950730c2dd9eb"
+        },
+        {
+          "path": "apps/api/src/schedule/schedule.controller.ts",
+          "gitBlob": "b7335b32a650a2bba4cab56d4726801b0daa4f8b"
+        }
+      ],
+      "A06": [
+        {
+          "path": "apps/api/src/appointments/appointment.controller.ts",
+          "gitBlob": "2a1fa28dc740e1133f482ccc2dca4cb4f044d108"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.ts",
+          "gitBlob": "e3e8a6f246e9374324f1aec775f0adeb4937f532"
+        },
+        {
+          "path": "apps/api/src/firestore/booking.repository.ts",
+          "gitBlob": "5deb40d846e36d7165fa88d6d1df1e6e709b6317"
+        }
+      ],
+      "A07": [
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.controller.ts",
+          "gitBlob": "4a8092d3af23fcb6854e4f1a8dee77e2006b9044"
+        },
+        {
+          "path": "apps/web/public/calendar-pilot-entry.js",
+          "gitBlob": "0a91f0472a4d6676fc8e86165758dc69258a2bcb"
+        }
+      ],
+      "A08": [
+        {
+          "path": "apps/api/src/firestore/calendar-pilot.repository.ts",
+          "gitBlob": "ea3784c4c0f9113d13840a977513511e75761224"
+        }
+      ],
+      "A10": [
+        {
+          "path": "apps/api/src/platform/errors/api-error.ts",
+          "gitBlob": "f75b385bc7d5c5f7506c497b8a578e412fe8ef53"
+        },
+        {
+          "path": "apps/api/src/platform/authorization/rbac.ts",
+          "gitBlob": "9e1ccb2592b0c6dd59b42b6c37c014353739b595"
+        },
+        {
+          "path": "apps/api/src/platform/errors/api-exception.filter.ts",
+          "gitBlob": "e50fdb5e1626084f479dcbbcdf0fe15dc3a5b5bf"
+        }
+      ],
+      "C03": [
+        {
+          "path": "apps/web/public/index.html",
+          "gitBlob": "eac252febb1439f9e3cfbf1607c44aa9bee77537"
+        },
+        {
+          "path": "apps/web/public/store.js",
+          "gitBlob": "7e773381359a1f7f9034aea564af6ae52580341e"
+        },
+        {
+          "path": "apps/web/public/workbench.css",
+          "gitBlob": "1e9b175ff1be75e9d3a0be1533aff5a23eb31f1f"
+        }
+      ],
+      "C06": [
+        {
+          "path": "apps/web/public/robots.txt",
+          "gitBlob": "07924f2d94f4fc2ce5929811483e0f180f19582b"
+        }
+      ],
+      "C09": [
+        {
+          "path": "apps/web/public/modules/pilot-google-totp-session.js",
+          "gitBlob": "4845e214fe22728e8a98d2357819e0a82f47ae6b"
+        },
+        {
+          "path": "apps/web/public/modules/internal-test-booking-transport.js",
+          "gitBlob": "3ba4b86ce6d0c4869d1d29685cd164e74968aca1"
+        }
+      ],
+      "D-09": [
+        {
+          "path": "packages/domain/src/appointment-rules.ts",
+          "gitBlob": "989cbf09a178a3d811f7b674cabfe75dab6081ec"
+        },
+        {
+          "path": "packages/domain/src/appointment-transition.ts",
+          "gitBlob": "3f88c4055e3253040ba7b957201e58d8ac0fd5a6"
+        },
+        {
+          "path": "apps/api/src/firestore/booking.repository.ts",
+          "gitBlob": "5deb40d846e36d7165fa88d6d1df1e6e709b6317"
+        }
+      ],
+      "D-10": [
+        {
+          "path": "packages/domain/src/patient-identity.ts",
+          "gitBlob": "68c89c1d0ccbb5a8ef5c411ed55b37a5aac7a83c"
+        }
+      ],
+      "D-11": [
+        {
+          "path": "apps/worker/src/calendar-sync/google-sync-client.ts",
+          "gitBlob": "4fb253f79dd6535e7a915a42cae90b75c5dcbcac"
+        },
+        {
+          "path": "apps/worker/src/calendar-sync/sync-engine.ts",
+          "gitBlob": "807f94bedf8f85de64ca0cc7c53e9c944d38e395"
+        },
+        {
+          "path": "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+          "gitBlob": "9e0d901d043595c510dce8fffc763e07e1ade36c"
+        }
+      ],
+      "D-14": [
+        {
+          "path": "apps/worker/README.md",
+          "gitBlob": "16dec60b60164d85d75dca13f1a386d85d4268ed"
+        },
+        {
+          "path": "docs/adr/0002-calendar-is-a-projection-not-the-lock.md",
+          "gitBlob": "adefdad726601adb9367e4a162e0dfd63cfc0995"
+        }
+      ],
+      "D-15": [
+        {
+          "path": "apps/worker/src/internal-test-outbox-runtime.ts",
+          "gitBlob": "d6803a827704fc153d69b12af566a61adbfad066"
+        },
+        {
+          "path": "apps/worker/src/outbox-slo.ts",
+          "gitBlob": "24fda3bb241b2d4c569b381c0aa7dd85bf624bdf"
+        }
+      ],
+      "D-16": [
+        {
+          "path": "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+          "gitBlob": "9e0d901d043595c510dce8fffc763e07e1ade36c"
+        }
+      ],
+      "D-17": [
+        {
+          "path": "apps/worker/src/calendar-sync/sync-engine.ts",
+          "gitBlob": "807f94bedf8f85de64ca0cc7c53e9c944d38e395"
+        },
+        {
+          "path": "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+          "gitBlob": "9e0d901d043595c510dce8fffc763e07e1ade36c"
+        }
+      ],
+      "D-21": [
+        {
+          "path": "packages/domain/src/appointment.ts",
+          "gitBlob": "43f81fae5391d73731da3327c974c575cc8bbd74"
+        },
+        {
+          "path": "packages/domain/src/index.ts",
+          "gitBlob": "29aad92bbda1166f0aee938db19b7bb746a5b315"
+        }
+      ],
+      "D-22": [
+        {
+          "path": "packages/domain/src/field-projection.ts",
+          "gitBlob": "1919e4aa0af3d4c4ca73f4c6577ef305a93df12c"
+        },
+        {
+          "path": "packages/domain/src/field-projection.test.ts",
+          "gitBlob": "3c55d7bbd40b93dbb8f1e1fdcc394a5f7326b14f"
+        }
+      ],
+      "D-23": [
+        {
+          "path": "packages/domain/src/payroll.ts",
+          "gitBlob": "d65524de22e0f4bec5b99222bb018f3f25f200d7"
+        },
+        {
+          "path": "packages/domain/src/payroll.test.ts",
+          "gitBlob": "911c1362d1c5ee409e2737f6c1ef05c3ce002b95"
+        },
+        {
+          "path": "docs/architecture/api-v1-contract.md",
+          "gitBlob": "78a7fe7af481b15259c654e8bb28dce7045dc1ae"
+        }
+      ],
+      "D-24": [
+        {
+          "path": "packages/domain/src/business-delivery-policy.ts",
+          "gitBlob": "069b5c58f6432a8095d674b2403f4c719b4c5c14"
+        },
+        {
+          "path": "apps/api/src/business-delivery/business-delivery.application-service.ts",
+          "gitBlob": "11029b2ef651c0e769b68336d8b3a3c8fbd0262c"
+        }
+      ],
+      "D-27": [
+        {
+          "path": "apps/worker/src/calendar-sync/calendar-pilot-health.ts",
+          "gitBlob": "31babc663b9cfbc3257ac11ae1a627db6c6e990a"
+        }
+      ],
+      "D-28": [
+        {
+          "path": "apps/worker/src/calendar-sync/watch-channel.ts",
+          "gitBlob": "e7ce46073ee85086b7920f7f8c64dc70b0a75653"
+        },
+        {
+          "path": "apps/worker/src/calendar-sync/watch-channel.test.ts",
+          "gitBlob": "c9c64706c7ebac5bf20ec6703a968d58dfce75e8"
+        }
+      ],
+      "D-29": [
+        {
+          "path": "apps/worker/src/calendar-sync/watch-channel-lifecycle.ts",
+          "gitBlob": "82f9395b4597c6e2d4c5fb9120e3846c1880a4ff"
+        }
+      ],
+      "D-30": [
+        {
+          "path": "apps/worker/src/pilot/pilot-sanitizer.ts",
+          "gitBlob": "4f7c804afb2912c4ad25a5bd61ede595b541bd1a"
+        },
+        {
+          "path": "apps/worker/src/pilot/pilot-sanitizer.test.ts",
+          "gitBlob": "5db0ceed471fd1e833bcdbc0ee93e751e0872fc1"
+        }
+      ],
+      "D-31": [
+        {
+          "path": "apps/worker/src/pilot/pilot-calendar-clients.ts",
+          "gitBlob": "3c7182935f358657394ec0643e26975ce48868d2"
+        },
+        {
+          "path": "apps/worker/src/pilot/pilot-calendar-clients.test.ts",
+          "gitBlob": "64df663f143a660a0fbe35012ba6326d894f2923"
+        }
+      ],
+      "D-32": [
+        {
+          "path": "packages/domain/src/calendar-sync.ts",
+          "gitBlob": "a7108b108643ea7f33ba16a48bb64840da22cafc"
+        },
+        {
+          "path": "apps/worker/src/pilot/make-source-fixture.ts",
+          "gitBlob": "69690d6dc58a99064f4cabc28d2956dc9bd4c4c1"
+        }
+      ],
+      "D-33": [
+        {
+          "path": "apps/api/src/firestore/calendar-pilot.repository.ts",
+          "gitBlob": "ea3784c4c0f9113d13840a977513511e75761224"
+        }
+      ],
+      "D-34": [
+        {
+          "path": "packages/domain/src/observability.ts",
+          "gitBlob": "28c498fc54d04da86feed7b09c25c5986dfd3848"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/api-metrics.ts",
+          "gitBlob": "d0129c93830fa8bac8bea657c3c334c9621583e9"
+        }
+      ],
+      "D-35": [
+        {
+          "path": "packages/domain/src/business-delivery-policy.ts",
+          "gitBlob": "069b5c58f6432a8095d674b2403f4c719b4c5c14"
+        },
+        {
+          "path": "docs/adr/0008-business-delivery-usage-and-milestones.md",
+          "gitBlob": "bfab390d78307cf217eb4d8845a507849e31d68c"
+        }
+      ],
+      "D-36": [
+        {
+          "path": "packages/domain/src/business-delivery-termination.ts",
+          "gitBlob": "8334cc75f60226754b66c2f56c4565f3addcfa97"
+        }
+      ],
+      "D-37": [
+        {
+          "path": "packages/domain/src/business-delivery-export.ts",
+          "gitBlob": "35e4ba817f696b23169c02eacca7875aaefb642e"
+        },
+        {
+          "path": "packages/domain/src/business-delivery-backup.ts",
+          "gitBlob": "3d009074c7e7e7c276c6a0f667399a45e104d95f"
+        },
+        {
+          "path": "packages/domain/src/business-delivery-reporting.ts",
+          "gitBlob": "2855e3c6ca4d166861d837e5b4c6a749e9df2ea7"
+        },
+        {
+          "path": "packages/domain/src/field-projection.ts",
+          "gitBlob": "1919e4aa0af3d4c4ca73f4c6577ef305a93df12c"
+        }
+      ],
+      "D-39": [
+        {
+          "path": "docs/product/phase-1-decision-register.md",
+          "gitBlob": "6cd7c85400f93209974210132058c106d13e1d86"
+        },
+        {
+          "path": "docs/architecture/calendar-bidirectional-sync-plan.md",
+          "gitBlob": "cd1720a9d04be325658bcf0f64a6e98d128f9e90"
+        },
+        {
+          "path": "docs/architecture/first-stage-c0-authority.md",
+          "gitBlob": "c2aa9bccb1d42dab69ae676837c3b8e1e12a6322"
+        }
+      ],
+      "D-40": [
+        {
+          "path": "docs/implementation/phase-1-booking-mvp-execution-log.md",
+          "gitBlob": "b6575bc030f0efc52d3bb60b9238a1908b7134c4"
+        }
+      ],
+      "D-41": [
+        {
+          "path": "tests/firestore/calendar-stage-d-inbound.test.ts",
+          "gitBlob": "844a66c8e1b21cfd5fd08b065f3a921be680784d"
+        }
+      ],
+      "D-43": [
+        {
+          "path": "packages/domain/src/payroll.ts",
+          "gitBlob": "d65524de22e0f4bec5b99222bb018f3f25f200d7"
+        },
+        {
+          "path": "packages/domain/src/schedule.ts",
+          "gitBlob": "8e6859b18b0e51ef374c234191e7672f5452f88c"
+        },
+        {
+          "path": "packages/domain/src/published-schedule.ts",
+          "gitBlob": "da810ce0c73bbd8b69ec2884511900c593facaca"
+        },
+        {
+          "path": "packages/domain/src/timestamp.ts",
+          "gitBlob": "471f826abf0ec829347f92d5ccef65cfdaf8e0ab"
+        }
+      ],
+      "K3": [
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.ts",
+          "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+        },
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+          "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+        }
+      ],
+      "K8": [
+        {
+          "path": "apps/api/src/patients/patient-directory.ts",
+          "gitBlob": "8d56fa010e65cc189df316e3329d4c35459a2b4e"
+        },
+        {
+          "path": "packages/domain/src/schedule.ts",
+          "gitBlob": "8e6859b18b0e51ef374c234191e7672f5452f88c"
+        }
+      ],
+      "K9": [
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.gate.ts",
+          "gitBlob": "1859e6a8cad4e45e78324e2703c1ad58690a68bd"
+        },
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.gate.test.ts",
+          "gitBlob": "0a968b4ebb2031ffb6e5dfd060ecd357737f49c3"
+        }
+      ],
+      "X-C03": [
+        {
+          "path": "apps/web/public/modules/trusted-html.js",
+          "gitBlob": "5bd8bd4b5a2ba6cc6460769e18c63537ff16da2c"
+        },
+        {
+          "path": "apps/web/src/trusted-html.test.ts",
+          "gitBlob": "b8122147b80cfa1c32e607ed1618bf0bdd77609e"
+        }
+      ],
+      "E1-03": [
+        {
+          "path": "scripts/cal-pilot-runtime-update.ps1",
+          "gitBlob": "fb189877ca1f676038a55b73aa41038950677fc5"
+        }
+      ],
+      "E1-04": [
+        {
+          "path": "scripts/cal-pilot-runtime-update.ps1",
+          "gitBlob": "fb189877ca1f676038a55b73aa41038950677fc5"
+        },
+        {
+          "path": "scripts/c1-firebase-auth-domain.mjs",
+          "gitBlob": "7f646b948ea341ff0cfe11f57e14720ad8604e84"
+        }
+      ],
+      "E1-05": [
+        {
+          "path": "scripts/cal-pilot-release.ps1",
+          "gitBlob": "b294483e96324a055b50e1386167026b603c2cd1"
+        },
+        {
+          "path": "scripts/cal-pilot-update-policy.test.mjs",
+          "gitBlob": "a40b14a6bb131daef6dc00cc9e74ee194267798c"
+        },
+        {
+          "path": "scripts/cal-pilot-runtime-update-policy.test.mjs",
+          "gitBlob": "09dcc012975a13905d6abca7055584639b995056"
+        }
+      ],
+      "E1-06": [
+        {
+          "path": "scripts/cal-pilot-release.ps1",
+          "gitBlob": "b294483e96324a055b50e1386167026b603c2cd1"
+        },
+        {
+          "path": "scripts/cal-pilot-update.ps1",
+          "gitBlob": "42d4e6e10bc2ecdeeee9a4a5800fb82129eb595c"
+        },
+        {
+          "path": "scripts/cal-pilot-runtime-update.ps1",
+          "gitBlob": "fb189877ca1f676038a55b73aa41038950677fc5"
+        }
+      ],
+      "E1-08": [
+        {
+          "path": "scripts/check-audit-exceptions.mjs",
+          "gitBlob": "9fa8227f67c4d1973ea499715610776999a2001a"
+        },
+        {
+          "path": "scripts/check-audit-exceptions.test.mjs",
+          "gitBlob": "08e270e4a830a9cd97825e7b0081d890976ac7e5"
+        }
+      ],
+      "E1-09": [
+        {
+          "path": "scripts/check-architecture.mjs",
+          "gitBlob": "b26ef03a0c97179fd3704c0d989c5ab5fcbbe2ed"
+        },
+        {
+          "path": "scripts/architecture-rules.mjs",
+          "gitBlob": "7d0dc566200a8c28a31c6db545dac38fd7485ec4"
+        }
+      ],
+      "E1-10": [
+        {
+          "path": "scripts/build-web.mjs",
+          "gitBlob": "45328991dbaa7dcf61b2ee04eb13d2bec204411c"
+        },
+        {
+          "path": "scripts/check-performance-budget.mjs",
+          "gitBlob": "62f48f66c25d966bf4d5147f3226fbf516cd2124"
+        }
+      ],
+      "E1-07": [
+        {
+          "path": "scripts/cal-pilot-update.ps1",
+          "gitBlob": "42d4e6e10bc2ecdeeee9a4a5800fb82129eb595c"
+        },
+        {
+          "path": "scripts/cal-pilot-extension-policy.mjs",
+          "gitBlob": "8508c1b49f7ff17eb54d5abb2a65b7530dcf9aca"
+        },
+        {
+          "path": "scripts/cal-pilot-renew-hosting.ps1",
+          "gitBlob": "868d982ded356b357e2104bd58437a2843a30ae7"
+        },
+        {
+          "path": "docs/product/phase-1-decision-register.md",
+          "gitBlob": "6cd7c85400f93209974210132058c106d13e1d86"
+        }
+      ],
+      "E1-13": [
+        {
+          "path": "scripts/cal-pilot-renew-hosting.ps1",
+          "gitBlob": "868d982ded356b357e2104bd58437a2843a30ae7"
+        },
+        {
+          "path": "scripts/cal-pilot-extension-policy.test.mjs",
+          "gitBlob": "dee1161c02558b677d80d46c01a0c055861ad7ae"
+        }
+      ],
+      "E1-14": [
+        {
+          "path": "scripts/c1-firebase-auth-domain.mjs",
+          "gitBlob": "7f646b948ea341ff0cfe11f57e14720ad8604e84"
+        }
+      ],
+      "E1-15": [
+        {
+          "path": "scripts/c1-config-contract.mjs",
+          "gitBlob": "164f3f456255baef80e896c3665331c9a5a787c8"
+        },
+        {
+          "path": "infra/config/c1-internal-test-config-contract.json",
+          "gitBlob": "1b881960c1e2b170c4d54eb3de6409909fbe07f3"
+        },
+        {
+          "path": "scripts/stage-f-source-closeout.test.mjs",
+          "gitBlob": "7d92c0a795a71f18d22915efb4e76b413aa20c7d"
+        }
+      ],
+      "E1-16": [
+        {
+          "path": "scripts/booking-route-truth.mjs",
+          "gitBlob": "8b6407daad875dee15720d086b4d9a0f117756c5"
+        }
+      ],
+      "E1-17": [
+        {
+          "path": "scripts/c2-c6-smoke-evidence.mjs",
+          "gitBlob": "9c6fe4cd327ee2592a8232c4b8035fca221d5df0"
+        },
+        {
+          "path": "scripts/booking-route-truth.mjs",
+          "gitBlob": "8b6407daad875dee15720d086b4d9a0f117756c5"
+        }
+      ],
+      "E1-18": [
+        {
+          "path": "scripts/collect-c1-smoke.mjs",
+          "gitBlob": "c3d529f67367f16a1d413cd3e2eb794fadffc8ca"
+        },
+        {
+          "path": "scripts/collect-c1-smoke.test.mjs",
+          "gitBlob": "e85d01f9ab9a34ecdd40b43c1073d4442ef4e997"
+        }
+      ],
+      "E1-19": [
+        {
+          "path": "scripts/c1-internal-test-run.test.mjs",
+          "gitBlob": "56cc2ad3a034f9cc4fde8206f8d3add404c1f7dd"
+        },
+        {
+          "path": "scripts/c1-foundation.test.mjs",
+          "gitBlob": "e550cbf67b3945119acd7db48b6b96b24fa58c78"
+        },
+        {
+          "path": "scripts/internal-test-preview-plan.test.mjs",
+          "gitBlob": "030c276d5d43b822670064f6de5b078f2c407441"
+        },
+        {
+          "path": "scripts/check-performance-budget.test.mjs",
+          "gitBlob": "6df681e83ccb5cfc9f4d4d7de3351f41c52cb711"
+        }
+      ],
+      "E1-20": [
+        {
+          "path": "scripts/architecture-rules.mjs",
+          "gitBlob": "7d0dc566200a8c28a31c6db545dac38fd7485ec4"
+        },
+        {
+          "path": "scripts/architecture-rules.test.mjs",
+          "gitBlob": "15c377fee726236cf1b2f4bcd2feebc38205f02d"
+        }
+      ],
+      "E1-21": [
+        {
+          "path": "scripts/check-branch-protection.mjs",
+          "gitBlob": "a63b7c59e70d0488e570b6dc1efc5d4ae3c36c0e"
+        }
+      ],
+      "E1-22": [
+        {
+          "path": "scripts/check-design-tokens.mjs",
+          "gitBlob": "09dd1673531dba285e863ad4bcd43d019c5d7eb2"
+        },
+        {
+          "path": "scripts/check-design-tokens.test.mjs",
+          "gitBlob": "05af965766f267b55d0e8c68b200399b0c548633"
+        }
+      ],
+      "E1-23": [
+        {
+          "path": "scripts/check-docs-links.mjs",
+          "gitBlob": "82b553a662d6842c2ec82afbfe16b9c820060ab3"
+        },
+        {
+          "path": "scripts/check-docs-links.test.mjs",
+          "gitBlob": "199658f384ebf26bf63803b0abb8cda9107b5e23"
+        }
+      ],
+      "E1-24": [
+        {
+          "path": "scripts/configure-cal-pilot-identity.mjs",
+          "gitBlob": "338c5b307e914653c758f9a9b90ead211142591e"
+        },
+        {
+          "path": "scripts/configure-c2-identity.mjs",
+          "gitBlob": "7d6eaccddb50a7f0aa38bacca696a991db8d3815"
+        }
+      ],
+      "E1-25": [
+        {
+          "path": "scripts/check-governance.mjs",
+          "gitBlob": "590e1f48e8a196a1529f23bd09924b68df8f646e"
+        },
+        {
+          "path": "scripts/check-governance.test.mjs",
+          "gitBlob": "71de04a35c2000b892c8447efe137fa1cf8faf6f"
+        }
+      ],
+      "E1-26": [
+        {
+          "path": "scripts/c1-smoke-evidence.mjs",
+          "gitBlob": "9e31782198e88d452bbb81636f938f87b4dece5c"
+        },
+        {
+          "path": "scripts/c1-smoke-evidence.test.mjs",
+          "gitBlob": "ab8203a3e26956f042a94eaa8ac4fc75d0c6cad5"
+        }
+      ],
+      "E1-27": [
+        {
+          "path": "scripts/check-performance-budget.mjs",
+          "gitBlob": "62f48f66c25d966bf4d5147f3226fbf516cd2124"
+        },
+        {
+          "path": "scripts/check-performance-budget.test.mjs",
+          "gitBlob": "6df681e83ccb5cfc9f4d4d7de3351f41c52cb711"
+        },
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        }
+      ],
+      "E1-28": [
+        {
+          "path": "scripts/build-web.mjs",
+          "gitBlob": "45328991dbaa7dcf61b2ee04eb13d2bec204411c"
+        }
+      ],
+      "E1-29": [
+        {
+          "path": "scripts/check-public-pages.mjs",
+          "gitBlob": "e2604e366975af85ece21af10605c5432f59782d"
+        },
+        {
+          "path": "scripts/check-public-pages.test.mjs",
+          "gitBlob": "2d527703125eb4472381a1e718c20989c2803037"
+        },
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        }
+      ],
+      "E1-30": [
+        {
+          "path": "scripts/check-structure.mjs",
+          "gitBlob": "ea6084b6ceb724cbcd92ef2d3bef63957c9d869d"
+        }
+      ],
+      "E1-31": [
+        {
+          "path": "scripts/check-tracked-secrets.mjs",
+          "gitBlob": "e44f58afa5aaac773b4cea0edc83361101ef1403"
+        },
+        {
+          "path": "scripts/check-tracked-secrets.test.mjs",
+          "gitBlob": "1b1b29361e18cf729e220c64115105945d4ce4b4"
+        }
+      ],
+      "E1-32": [
+        {
+          "path": "scripts/build-brand-assets.mjs",
+          "gitBlob": "85b78d45774b0f00e38018afe192bd351f6212d2"
+        },
+        {
+          "path": "scripts/build-clinic-assets.mjs",
+          "gitBlob": "174f60a7e48add8363c5e65e13e429b6af2a4630"
+        }
+      ],
+      "E1-33": [
+        {
+          "path": "scripts/check-web-ui.mjs",
+          "gitBlob": "89eacebf77ef358192ede81c0463e9219d1133de"
+        },
+        {
+          "path": "scripts/web-ui-rules.test.mjs",
+          "gitBlob": "b83f25e6081b95c20ba820a4e08e56bd8180a200"
+        },
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        }
+      ],
+      "E1-34": [
+        {
+          "path": "scripts/build-web.mjs",
+          "gitBlob": "45328991dbaa7dcf61b2ee04eb13d2bec204411c"
+        },
+        {
+          "path": "scripts/check-public-pages.mjs",
+          "gitBlob": "e2604e366975af85ece21af10605c5432f59782d"
+        },
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        },
+        {
+          "path": "scripts/check-public-pages.test.mjs",
+          "gitBlob": "2d527703125eb4472381a1e718c20989c2803037"
+        }
+      ],
+      "E1-35": [
+        {
+          "path": "scripts/check-web-ui.mjs",
+          "gitBlob": "89eacebf77ef358192ede81c0463e9219d1133de"
+        },
+        {
+          "path": "scripts/web-ui-rules.test.mjs",
+          "gitBlob": "b83f25e6081b95c20ba820a4e08e56bd8180a200"
+        },
+        {
+          "path": "scripts/c1-internal-test-run.test.mjs",
+          "gitBlob": "56cc2ad3a034f9cc4fde8206f8d3add404c1f7dd"
+        },
+        {
+          "path": "scripts/phase0-snapshot.mjs",
+          "gitBlob": "c069a3b47afb878beae3d54dd7a2ec14defc18b1"
+        }
+      ],
+      "E2-01": [
+        {
+          "path": "scripts/configure-cal-pilot-identity.mjs",
+          "gitBlob": "338c5b307e914653c758f9a9b90ead211142591e"
+        },
+        {
+          "path": "scripts/configure-c2-identity.mjs",
+          "gitBlob": "7d6eaccddb50a7f0aa38bacca696a991db8d3815"
+        },
+        {
+          "path": "scripts/verify-preview-deployment.mjs",
+          "gitBlob": "7d8ebd9125fca1e5d11cb953958cce386700c5dc"
+        }
+      ],
+      "E2-02": [
+        {
+          "path": "scripts/generate-ci-evidence.mjs",
+          "gitBlob": "078930e74e60455de4f5a54faf924bd1f54ddc89"
+        },
+        {
+          "path": "scripts/generate-sast-evidence.mjs",
+          "gitBlob": "f52eec256f9fe0f94041dabb80c8252df57bfe6f"
+        },
+        {
+          "path": "scripts/merge-web-evidence.mjs",
+          "gitBlob": "a66733eea85c90e520a638386112125f104d7321"
+        }
+      ],
+      "E2-03": [
+        {
+          "path": "scripts/run-firestore-vitest.mjs",
+          "gitBlob": "c778a5e2d6cda408fbb10871202702ae945ccb59"
+        },
+        {
+          "path": "scripts/run-firestore-rules.mjs",
+          "gitBlob": "ab4fcf155a2b9a652d2b014a68e71254bc236e19"
+        }
+      ],
+      "E2-04": [
+        {
+          "path": "scripts/sequential-c-gate.mjs",
+          "gitBlob": "d7ad4d88a12c47412c84a163405149b457df0e75"
+        },
+        {
+          "path": "scripts/terraform-sha-gate.mjs",
+          "gitBlob": "85ac57c61ae7c2b08b0b98a2d913f886cb544c73"
+        }
+      ],
+      "E2-05": [
+        {
+          "path": "scripts/wp-b4-alert-definitions.mjs",
+          "gitBlob": "4966c80e7cb272007dbf5fe0d482955e71bde074"
+        },
+        {
+          "path": "scripts/historical-artifacts.mjs",
+          "gitBlob": "22920add620dd431f8f4ef6d0d5f078a1bd8fa83"
+        },
+        {
+          "path": "scripts/stage-f-acceptance-matrix.mjs",
+          "gitBlob": "59018162a94d0c94baeda67bb217820dfac26e4b"
+        }
+      ],
+      "E2-06": [
+        {
+          "path": "scripts/merge-web-evidence.mjs",
+          "gitBlob": "a66733eea85c90e520a638386112125f104d7321"
+        }
+      ],
+      "E2-07": [
+        {
+          "path": "scripts/phase0-snapshot.mjs",
+          "gitBlob": "c069a3b47afb878beae3d54dd7a2ec14defc18b1"
+        }
+      ],
+      "E2-08": [
+        {
+          "path": "scripts/migrate-cal-pilot-legacy-candidates.mjs",
+          "gitBlob": "7c5c16b72ea7e55bfdd2bd306c3a75795e5d7b0b"
+        }
+      ],
+      "E2-09": [
+        {
+          "path": "scripts/isolated-c1-project-id.mjs",
+          "gitBlob": "1645acd9e762b707a812ae54d8c3264732ca0a91"
+        },
+        {
+          "path": "scripts/internal-test-backup-inspect.mjs",
+          "gitBlob": "2313acb04c3eafa4094b85dc37ba8e9190323703"
+        },
+        {
+          "path": "scripts/migrate-cal-pilot-legacy-candidates.mjs",
+          "gitBlob": "7c5c16b72ea7e55bfdd2bd306c3a75795e5d7b0b"
+        }
+      ],
+      "E2-10": [
+        {
+          "path": "scripts/stage-e-evidence.mjs",
+          "gitBlob": "1b277865f97764741faf51f7148444fb0f026249"
+        }
+      ],
+      "E2-11": [
+        {
+          "path": "scripts/internal-test-backup-inspect.mjs",
+          "gitBlob": "2313acb04c3eafa4094b85dc37ba8e9190323703"
+        },
+        {
+          "path": "scripts/internal-test-monitoring-inspect.mjs",
+          "gitBlob": "f84c0e43e9fbd0207492b10ffeec2e8608a43fa8"
+        },
+        {
+          "path": "scripts/internal-test-hosting-inspect.mjs",
+          "gitBlob": "1160c9bdc47b56ed60c71a24cebcf9c6c5123dc1"
+        },
+        {
+          "path": "scripts/internal-test-migration-inspect.mjs",
+          "gitBlob": "df6e3f508aeae8e57e1e2613e1dbe9a28d9dafca"
+        },
+        {
+          "path": "scripts/internal-test-preview-plan.mjs",
+          "gitBlob": "d9f2b53777f63aede21432a01dad2ff77b029243"
+        },
+        {
+          "path": "scripts/internal-test-apply-plan.mjs",
+          "gitBlob": "7c0af1774553a6d490b1678d82863d0a7e77a08d"
+        },
+        {
+          "path": "scripts/firestore-index-plan.mjs",
+          "gitBlob": "89d922f41185aa4c83ba832a0ffb39363ba47d21"
+        },
+        {
+          "path": "package.json",
+          "gitBlob": "cde96f4ffdcca2450c1b6070327b6516205b19ec"
+        },
+        {
+          "path": "scripts/internal-test-preview-plan.test.mjs",
+          "gitBlob": "030c276d5d43b822670064f6de5b078f2c407441"
+        },
+        {
+          "path": "scripts/internal-test-apply-plan.test.mjs",
+          "gitBlob": "256eb9a43b117468eba50b81fad6d7708e41207d"
+        },
+        {
+          "path": "scripts/internal-test-backup-inspect.test.mjs",
+          "gitBlob": "4e6f7b5414ff5cd55a3e1402a6295f7434075902"
+        },
+        {
+          "path": "scripts/internal-test-monitoring-inspect.test.mjs",
+          "gitBlob": "8e5e3e7340e7c7fe9886e377ee120579ccc067c2"
+        }
+      ],
+      "E2-12": [
+        {
+          "path": "scripts/generate-sbom.mjs",
+          "gitBlob": "73d78532838dfa570a23a06fe05c0605ff190ba8"
+        },
+        {
+          "path": "scripts/generate-sbom.test.mjs",
+          "gitBlob": "bb16a66c4aecb75c7ae54c27f5e8fb05083b6b4d"
+        }
+      ],
+      "E3-05": [
+        {
+          "path": "docs/security/data-classification-and-field-inventory-2026-07-29.md",
+          "gitBlob": "0fd88e2c015b33c12b8da9700c2b7477862207fa"
+        },
+        {
+          "path": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md",
+          "gitBlob": "cb733c77a3e2a8cf1a23c24d822c5a007cdf13c5"
+        },
+        {
+          "path": "docs/adr/0009-business-delivery-export.md",
+          "gitBlob": "9b89396edbd031a44098df265263d7ee64b074d0"
+        }
+      ],
+      "E3-08": [
+        {
+          "path": "docs/runbooks/cal-pilot-import.md",
+          "gitBlob": "997764b97cef76ba1b63084efca7aa03f7ff1bf9"
+        },
+        {
+          "path": "apps/worker/src/pilot/pilot-import.ts",
+          "gitBlob": "d491f75f8641cfc3bf9ae25b17658f6b9555bb19"
+        }
+      ],
+      "E3-09": [
+        {
+          "path": "docs/runbooks/calendar-go-live.md",
+          "gitBlob": "bc21f3d444de3784cd2763177ee0bff94c83f72e"
+        },
+        {
+          "path": "apps/worker/src/google-calendar.ts",
+          "gitBlob": "df282962793f4d5e2ebcd672f60a2196662e04e4"
+        },
+        {
+          "path": "apps/worker/src/google-calendar.test.ts",
+          "gitBlob": "c98d7255164006d75aabb36d6c47c4da0b034a4f"
+        }
+      ],
+      "E3-10": [
+        {
+          "path": "docs/architecture/api-v1-contract.md",
+          "gitBlob": "78a7fe7af481b15259c654e8bb28dce7045dc1ae"
+        },
+        {
+          "path": "apps/api/src/app.module.ts",
+          "gitBlob": "0344cd09372bfcb45f34b47511cb7ae761a7a3f1"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.controller.ts",
+          "gitBlob": "2a1fa28dc740e1133f482ccc2dca4cb4f044d108"
+        },
+        {
+          "path": "apps/api/src/internal-test-booking/return-lookup.controller.ts",
+          "gitBlob": "8ba2ee180b2b9adaf451dff3944d04ee78be7bfc"
+        }
+      ],
+      "E3-11": [
+        {
+          "path": "docs/architecture/web-quality-gates-2026-07-24.md",
+          "gitBlob": "79e3e3384689c4120ce90fd87297bca7f51d46f6"
+        },
+        {
+          "path": "docs/document-lifecycle.md",
+          "gitBlob": "bd9137d0bc1abe49fef0e5c29d7b8dbffc0b30c7"
+        },
+        {
+          "path": "docs/state/current.md",
+          "gitBlob": "28ae3bde9fbe47e34fc03e133254be9b9a536562"
+        }
+      ],
+      "E3-12": [
+        {
+          "path": "docs/reviews/phase-1-approval-gate.md",
+          "gitBlob": "978c6adaeba3583ea574bc1a8301973e6cebca09"
+        },
+        {
+          "path": "docs/document-lifecycle.md",
+          "gitBlob": "bd9137d0bc1abe49fef0e5c29d7b8dbffc0b30c7"
+        },
+        {
+          "path": "docs/phase-1-execution-plan.md",
+          "gitBlob": "af70bca005bd3034189c3d71aeb66acb885737e8"
+        },
+        {
+          "path": "docs/state/current.md",
+          "gitBlob": "28ae3bde9fbe47e34fc03e133254be9b9a536562"
+        }
+      ],
+      "E3-13": [
+        {
+          "path": "docs/architecture/calendar-and-database-integration-plan.md",
+          "gitBlob": "3034d716b04ef6569cb49ebfb612b6ae839c4d2e"
+        },
+        {
+          "path": "docs/phase-1-execution-plan.md",
+          "gitBlob": "af70bca005bd3034189c3d71aeb66acb885737e8"
+        }
+      ],
+      "E3-14": [
+        {
+          "path": "docs/design/ui-ux-rules.md",
+          "gitBlob": "a80c1cfece21baba792b6232247377ed9df83f3d"
+        },
+        {
+          "path": "docs/design/test-only-operations-ui.md",
+          "gitBlob": "6e0ba5a113e92d7b4cbd587dbcb20209d3cbf4d6"
+        },
+        {
+          "path": "scripts/check-structure.mjs",
+          "gitBlob": "ea6084b6ceb724cbcd92ef2d3bef63957c9d869d"
+        },
+        {
+          "path": "tests/ui-screenshots/current-ui.spec.ts",
+          "gitBlob": "f27102e8ec62b1ad7e3b16c8ad2a075a12848546"
+        }
+      ],
+      "E3-15": [
+        {
+          "path": "docs/product/front-desk-followup-and-patient-ux-spec-2026-07-23.md",
+          "gitBlob": "ec1a1cd654e5c5ee748e3653d6c942e05c744a4e"
+        },
+        {
+          "path": "docs/architecture/api-v1-contract.md",
+          "gitBlob": "78a7fe7af481b15259c654e8bb28dce7045dc1ae"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.test.ts",
+          "gitBlob": "a2f12ceae14bc3ff549c2ae1a14175dbeeb70d9a"
+        }
+      ],
+      "E3-16": [
+        {
+          "path": "docs/adr/0005-patient-intake-and-appointment-command-are-separate.md",
+          "gitBlob": "ac808f913446fff8f9c0ecc6c756c1eec260e6c7"
+        },
+        {
+          "path": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md",
+          "gitBlob": "cb733c77a3e2a8cf1a23c24d822c5a007cdf13c5"
+        }
+      ],
+      "E3-17": [
+        {
+          "path": "docs/architecture/rbac-matrix.md",
+          "gitBlob": "828776745fe77fb5fad8338619b8f09ea520f293"
+        },
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.module.ts",
+          "gitBlob": "6da9957f4f671acd1c7ba69c3a9f505ed4719e92"
+        },
+        {
+          "path": "apps/api/src/platform/authorization/rbac-appointment-policy.test.ts",
+          "gitBlob": "5e1f3905e03bd322f53cb68eb04fe7b38beebfbf"
+        }
+      ],
+      "E4-02": [
+        {
+          "path": "docs/reviews/phase-1-approval-gate.md",
+          "gitBlob": "978c6adaeba3583ea574bc1a8301973e6cebca09"
+        },
+        {
+          "path": "docs/document-lifecycle.md",
+          "gitBlob": "bd9137d0bc1abe49fef0e5c29d7b8dbffc0b30c7"
+        },
+        {
+          "path": "docs/phase-1-execution-plan.md",
+          "gitBlob": "af70bca005bd3034189c3d71aeb66acb885737e8"
+        }
+      ],
+      "E4-09": [
+        {
+          "path": "docs/reviews/2026-08-06-enterprise-audit.md",
+          "gitBlob": "c548f88bd6253e762197acf573323f1533fba454"
+        },
+        {
+          "path": "packages/domain/src/roles.ts",
+          "gitBlob": "d3c0053f7a99175adff118e9b94904aba537649f"
+        },
+        {
+          "path": "docs/architecture/rbac-matrix.md",
+          "gitBlob": "828776745fe77fb5fad8338619b8f09ea520f293"
+        }
+      ],
+      "E3-20": [
+        {
+          "path": "docs/security/technical-security-decision-draft-2026-08-23.md",
+          "gitBlob": "4b3325656d8c529c65093f8a7c9870bb43a40211"
+        },
+        {
+          "path": "docs/state/current.md",
+          "gitBlob": "28ae3bde9fbe47e34fc03e133254be9b9a536562"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "gitBlob": "3dd6cfd8f24f0747d02a4da19653d9768f085c10"
+        }
+      ],
+      "E3-24": [
+        {
+          "path": "docs/plans/2026-10-01-cp-08-regression-evidence-worksheet.md",
+          "gitBlob": "b03ef91b7c2b71abc31a070e7f390a1313f8da8e"
+        },
+        {
+          "path": "docs/product/phase-1-decision-register.md",
+          "gitBlob": "6cd7c85400f93209974210132058c106d13e1d86"
+        },
+        {
+          "path": "docs/plans/2026-10-01-c1-batch-deployment-packet.md",
+          "gitBlob": "9a8537ff8d7573e7ae04aac9061a9cc514a7c3ba"
+        }
+      ],
+      "E3-25": [
+        {
+          "path": "docs/plans/2026-09-18-business-delivery-follow-up.md",
+          "gitBlob": "aa2414c5346073bb76c967297e282950fbb684e8"
+        },
+        {
+          "path": "docs/adr/0009-business-delivery-export.md",
+          "gitBlob": "9b89396edbd031a44098df265263d7ee64b074d0"
+        }
+      ],
+      "E3-31": [
+        {
+          "path": "docs/architecture/calendar-and-database-integration-plan.md",
+          "gitBlob": "3034d716b04ef6569cb49ebfb612b6ae839c4d2e"
+        },
+        {
+          "path": "docs/phase-1-execution-plan.md",
+          "gitBlob": "af70bca005bd3034189c3d71aeb66acb885737e8"
+        }
+      ],
+      "E3-32": [
+        {
+          "path": "docs/architecture/test-strategy.md",
+          "gitBlob": "ac2cc7eaeac7ac6f56fc999ecdb0a7b2dcf33dc9"
+        },
+        {
+          "path": "scripts/e2e-groups.mjs",
+          "gitBlob": "90d0a9971b596b34a37e4b8e3404af4baa1f21c4"
+        }
+      ],
+      "E3-34": [
+        {
+          "path": "docs/runbooks/backup-and-restore.md",
+          "gitBlob": "9bdc6be0b6f47058c87a77e6a23bdcc2ae57c1fc"
+        }
+      ],
+      "E4-23": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        },
+        {
+          "path": "tests/ui-screenshots/current-ui.spec.ts",
+          "gitBlob": "f27102e8ec62b1ad7e3b16c8ad2a075a12848546"
+        },
+        {
+          "path": "docs/design/ui-ux-rules.md",
+          "gitBlob": "a80c1cfece21baba792b6232247377ed9df83f3d"
+        },
+        {
+          "path": "scripts/check-structure.mjs",
+          "gitBlob": "ea6084b6ceb724cbcd92ef2d3bef63957c9d869d"
+        }
+      ],
+      "E3-18": [],
+      "E4-04": [
+        {
+          "path": "docs/plans/2026-09-14-internal-preproduction-remediation-plan.md",
+          "gitBlob": "8b29dcc8154ca1753c9bb0017d4c521a47ddc7c9"
+        },
+        {
+          "path": "docs/plans/2026-09-22-current-project-acceptance-matrix.md",
+          "gitBlob": "f08af3dfb736c36a797a2c8ee334fb4906cff1f4"
+        },
+        {
+          "path": "apps/web/public/modules/internal-test-booking-transport.js",
+          "gitBlob": "3ba4b86ce6d0c4869d1d29685cd164e74968aca1"
+        }
+      ],
+      "E4-05": [
+        {
+          "path": "docs/reviews/2026-09-28-p1-09-f06-evidence-manifest.md",
+          "gitBlob": "0502af1b353dbc24e61cf2eff3b33f3c95bbef61"
+        }
+      ],
+      "E4-06": [
+        {
+          "path": "docs/reviews/ui-visual-baseline-2026-07-28.md",
+          "gitBlob": "ce9bbc794e00f7eed7591bf8e5242d76309ac987"
+        },
+        {
+          "path": "docs/reviews/ui-visual-baseline-2026-08-06.md",
+          "gitBlob": "53f2fe607dd6027ec72d154342521380dcd7afb9"
+        },
+        {
+          "path": "docs/reviews/ui-visual-baseline-2026-08-07.md",
+          "gitBlob": "3ae5d1da37565328bb81e40aa92cf961a7fbc439"
+        },
+        {
+          "path": "docs/reviews/ui-visual-baseline-2026-08-10.md",
+          "gitBlob": "632a15a77980080363e3e6bcd9ffff0111f3e5a3"
+        },
+        {
+          "path": "docs/reviews/ui-visual-baseline-2026-08-20.md",
+          "gitBlob": "78049f2150e3320d0990c017d544eabebea11a93"
+        },
+        {
+          "path": "docs/reviews/ui-visual-baseline-2026-08-22.md",
+          "gitBlob": "c6b4d86e497c4aac4052bb0baebebd08aa6ad51c"
+        },
+        {
+          "path": "docs/reviews/ui-visual-cp01-2026-09-29.md",
+          "gitBlob": "8d92df7c09124748d83e9e0b267a19bd3d4910d1"
+        }
+      ],
+      "E4-07": [
+        {
+          "path": "scripts/verify-preview-deployment.mjs",
+          "gitBlob": "7d8ebd9125fca1e5d11cb953958cce386700c5dc"
+        },
+        {
+          "path": "firebase.json",
+          "gitBlob": "35839b33694e585fdfd3589f382ed587e7ba61c1"
+        },
+        {
+          "path": "docs/reviews/ui-visual-cp01-2026-09-29.md",
+          "gitBlob": "8d92df7c09124748d83e9e0b267a19bd3d4910d1"
+        }
+      ],
+      "E4-11": [],
+      "E3-21": [],
+      "E3-22": [],
+      "E3-23": [],
+      "E3-26": [],
+      "E3-27": [],
+      "E3-28": [],
+      "E3-29": [
+        {
+          "path": "docs/runbooks/c1-local-execution-packet.md",
+          "gitBlob": "3aed5e41dd54705c5b3e231672009e74f51c6cac"
+        },
+        {
+          "path": "docs/runbooks/synthetic-online-preview.md",
+          "gitBlob": "768b374560ad602db73f1f281d93b45f6d1b6364"
+        }
+      ],
+      "E3-30": [
+        {
+          "path": "docs/templates/stage-f-exact-sha-authority-packet.md",
+          "gitBlob": "dfeaa538626c082322a4ce1ec10f017a8a7e7fe8"
+        },
+        {
+          "path": "docs/architecture/stage-f-source-readiness.md",
+          "gitBlob": "913517e53154ff7104903191172e2ff3e5a579fb"
+        },
+        {
+          "path": "docs/plans/2026-10-01-c1-batch-deployment-packet.md",
+          "gitBlob": "9a8537ff8d7573e7ae04aac9061a9cc514a7c3ba"
+        }
+      ],
+      "E3-33": [],
+      "E3-35": [
+        {
+          "path": "docs/runbooks/cal-pilot-30-day-bidirectional-sync.md",
+          "gitBlob": "ba8be8ad8019ac02ad0b6ea80e0e5704bcdea9c4"
+        }
+      ],
+      "E3-36": [],
+      "E3-37": [],
+      "E4-13": [
+        {
+          "path": "apps/api/src/platform/authorization/delegated-authorization-attempt-store.ts",
+          "gitBlob": "18c573a3ce10f7e12e10dc07819772fbac0818f9"
+        },
+        {
+          "path": "apps/api/src/platform/authorization/delegated-authorization-service.ts",
+          "gitBlob": "ce0bab693bf6dc454b8db105f818286399d014f1"
+        }
+      ],
+      "E4-14": [
+        {
+          "path": "apps/api/src/platform/authorization/rbac-appointment-policy.ts",
+          "gitBlob": "9a05e98e1010ade5c52933aff2c0e7a8a0cab10b"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.controller.ts",
+          "gitBlob": "2a1fa28dc740e1133f482ccc2dca4cb4f044d108"
+        },
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.module.ts",
+          "gitBlob": "6da9957f4f671acd1c7ba69c3a9f505ed4719e92"
+        }
+      ],
+      "E4-15": [
+        {
+          "path": "docs/architecture/first-stage-c1-c6-execution.md",
+          "gitBlob": "c7b0eaeb3c9d06cbdce5de6cd66bc4215cbc69b7"
+        }
+      ],
+      "E4-16": [],
+      "E4-17": [],
+      "E4-18": [],
+      "E4-19": [],
+      "E4-20": [
+        {
+          "path": "docs/architecture/test-strategy.md",
+          "gitBlob": "ac2cc7eaeac7ac6f56fc999ecdb0a7b2dcf33dc9"
+        },
+        {
+          "path": "apps/web/public/modules/trusted-html.js",
+          "gitBlob": "5bd8bd4b5a2ba6cc6460769e18c63537ff16da2c"
+        },
+        {
+          "path": "apps/web/src/trusted-html.test.ts",
+          "gitBlob": "b8122147b80cfa1c32e607ed1618bf0bdd77609e"
+        }
+      ],
+      "E4-21": [
+        {
+          "path": "apps/worker/src/outbox-processor.ts",
+          "gitBlob": "21f6b0249fcb8320a678ea9f91b309cab0e73886"
+        }
+      ],
+      "E4-22": [],
+      "E4-25": [],
+      "E4-26": [],
+      "E5-01": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        }
+      ],
+      "E5-02": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        }
+      ],
+      "E5-03": [
+        {
+          "path": "apps/web/public/clinic-assets/clinic-logo.webp",
+          "gitBlob": "54f7c8200b91bbb2b596cf7f8023102ded8414ea"
+        },
+        {
+          "path": "scripts/check-performance-budget.mjs",
+          "gitBlob": "62f48f66c25d966bf4d5147f3226fbf516cd2124"
+        }
+      ],
+      "E5-04": [
+        {
+          "path": "scripts/build-clinic-assets.mjs",
+          "gitBlob": "174f60a7e48add8363c5e65e13e429b6af2a4630"
+        }
+      ],
+      "E5-05": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        }
+      ],
+      "E5-06": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        }
+      ],
+      "E5-07": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        },
+        {
+          "path": "scripts/check-structure.mjs",
+          "gitBlob": "ea6084b6ceb724cbcd92ef2d3bef63957c9d869d"
+        }
+      ],
+      "E5-08": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        }
+      ],
+      "E5-09": [
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        }
+      ],
+      "E5-10": [
+        {
+          "path": "scripts/check-structure.mjs",
+          "gitBlob": "ea6084b6ceb724cbcd92ef2d3bef63957c9d869d"
+        },
+        {
+          "path": "docs/reviews/assets/ui-visual-cp01-2026-09-29/manifest.json",
+          "gitBlob": "ab72d3f84b7097d3a3bd8ee40d3bf0b924eda38e"
+        }
+      ],
+      "K1": [
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.ts",
+          "gitBlob": "e3e8a6f246e9374324f1aec775f0adeb4937f532"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/wp-b2-rate-limiter.ts",
+          "gitBlob": "c1e315c2a03f504496e54e5990162a6fea2aa4cd"
+        },
+        {
+          "path": "packages/domain/src/patient-lookup-identity.node.ts",
+          "gitBlob": "ba0aa27394ad4ed5e79d08fd33136d42e013b96b"
+        }
+      ],
+      "K2": [
+        {
+          "path": "apps/api/src/patients/patient-directory.ts",
+          "gitBlob": "8d56fa010e65cc189df316e3329d4c35459a2b4e"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.ts",
+          "gitBlob": "e3e8a6f246e9374324f1aec775f0adeb4937f532"
+        }
+      ],
+      "K4": [
+        {
+          "path": "apps/api/src/firestore/rate-limit.repository.ts",
+          "gitBlob": "6dfd6454b6c5787cd22728bde0880df1ff5b61b8"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/wp-b2-rate-limiter.ts",
+          "gitBlob": "c1e315c2a03f504496e54e5990162a6fea2aa4cd"
+        }
+      ],
+      "K5": [
+        {
+          "path": "apps/api/src/app.module.ts",
+          "gitBlob": "0344cd09372bfcb45f34b47511cb7ae761a7a3f1"
+        },
+        {
+          "path": "apps/api/src/calendar/calendar-pilot.module.ts",
+          "gitBlob": "b9b513b0396c0be10ea2420ec3efccbdeb4d08df"
+        }
+      ],
+      "K6": [
+        {
+          "path": "apps/api/src/platform/runtime/client-ip.ts",
+          "gitBlob": "1568574a7f28954b91516a0b94578ee866bca1a5"
+        }
+      ],
+      "K7": [
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.ts",
+          "gitBlob": "e3e8a6f246e9374324f1aec775f0adeb4937f532"
+        }
+      ],
+      "A01": [
+        {
+          "path": "apps/api/src/appointments/appointment.controller.ts",
+          "gitBlob": "2a1fa28dc740e1133f482ccc2dca4cb4f044d108"
+        }
+      ],
+      "A02": [
+        {
+          "path": "apps/api/src/firestore/booking.repository.ts",
+          "gitBlob": "5deb40d846e36d7165fa88d6d1df1e6e709b6317"
+        },
+        {
+          "path": "apps/api/src/firestore/schedule.repository.ts",
+          "gitBlob": "1d99cef75177d0a8154cff810ae213757a7c7cc8"
+        }
+      ],
+      "A05": [
+        {
+          "path": "apps/api/src/patients/patient-directory.ts",
+          "gitBlob": "8d56fa010e65cc189df316e3329d4c35459a2b4e"
+        },
+        {
+          "path": "infra/terraform/c5-firestore/main.tf",
+          "gitBlob": "99c6273bd7aab7030486d1524b6d81072e15c6e6"
+        }
+      ],
+      "A09": [
+        {
+          "path": "apps/api/src/firestore/business-delivery-export.repository.ts",
+          "gitBlob": "348cce324b247f1b5050ce63f28ba7a4de67717a"
+        }
+      ],
+      "A11": [
+        {
+          "path": "apps/api/src/calendar/calendar-pilot.controller.ts",
+          "gitBlob": "eb70df35747592347334bdf45fc9fbd0eeca4e22"
+        }
+      ],
+      "A12": [
+        {
+          "path": "apps/api/src/health.controller.ts",
+          "gitBlob": "fb6fa3b7da45ece8d9deb91fcb01b7074377ed1f"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/operational-health.ts",
+          "gitBlob": "ad395c9b5438d19dc00b7fdb1343c358f375efb8"
+        }
+      ],
+      "B-01": [
+        {
+          "path": "infra/terraform/c1-foundation/main.tf",
+          "gitBlob": "8874d2aec4f7e7147aef310d938fb322789cd873"
+        }
+      ],
+      "B-02": [
+        {
+          "path": "infra/terraform/c1-foundation/main.tf",
+          "gitBlob": "8874d2aec4f7e7147aef310d938fb322789cd873"
+        }
+      ],
+      "B-03": [
+        {
+          "path": "apps/api/src/main.ts",
+          "gitBlob": "a592546b525bf4ffade52a0160a7faeb7000fcbb"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/client-ip.ts",
+          "gitBlob": "1568574a7f28954b91516a0b94578ee866bca1a5"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/main.tf",
+          "gitBlob": "8136cdb17959930e8cc4c60db6b3d1bcfdfef93f"
+        }
+      ],
+      "B-04": [
+        {
+          "path": "infra/terraform/c5-firestore/main.tf",
+          "gitBlob": "99c6273bd7aab7030486d1524b6d81072e15c6e6"
+        },
+        {
+          "path": "apps/api/src/firestore/rate-limit.repository.ts",
+          "gitBlob": "6dfd6454b6c5787cd22728bde0880df1ff5b61b8"
+        }
+      ],
+      "B-05": [
+        {
+          "path": ".github/workflows/verify.yml",
+          "gitBlob": "1fbe75ac89ace6ee85c4cdf938c5c7d2d83a21e5"
+        },
+        {
+          "path": "infra/terraform/c1-foundation/noop.tftest.hcl",
+          "gitBlob": "d59419a5fe7c28b6bd14797badc5811d1bd719a2"
+        }
+      ],
+      "B-06": [
+        {
+          "path": "infra/terraform/wp-b4-alerting/main.tf",
+          "gitBlob": "0f8de7826a9604cb728b20d0c90d9c4a554ca70d"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/structured-logger.ts",
+          "gitBlob": "5573b9ea6c4d81413ba67da5300c55d112d887e5"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/api-metrics.ts",
+          "gitBlob": "d0129c93830fa8bac8bea657c3c334c9621583e9"
+        }
+      ],
+      "B-07": [
+        {
+          "path": "infra/terraform/wp-b4-alerting/main.tf",
+          "gitBlob": "0f8de7826a9604cb728b20d0c90d9c4a554ca70d"
+        },
+        {
+          "path": "apps/api/src/platform/errors/api-error.ts",
+          "gitBlob": "f75b385bc7d5c5f7506c497b8a578e412fe8ef53"
+        }
+      ],
+      "B-08": [
+        {
+          "path": "infra/terraform/wp-b4-alerting/main.tf",
+          "gitBlob": "0f8de7826a9604cb728b20d0c90d9c4a554ca70d"
+        }
+      ],
+      "B-09": [
+        {
+          "path": "scripts/cal-pilot-release.ps1",
+          "gitBlob": "b294483e96324a055b50e1386167026b603c2cd1"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/main.tf",
+          "gitBlob": "8136cdb17959930e8cc4c60db6b3d1bcfdfef93f"
+        }
+      ],
+      "B-12": [
+        {
+          "path": "README.md",
+          "gitBlob": "e8bc9bcf398349bfbcdb139e33cbc4dd3b3beb35"
+        },
+        {
+          "path": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md",
+          "gitBlob": "cb733c77a3e2a8cf1a23c24d822c5a007cdf13c5"
+        }
+      ],
+      "B-13": [
+        {
+          "path": ".gitignore",
+          "gitBlob": "d141a37b57bed92383d1c497d9deaa28cbaafd0f"
+        },
+        {
+          "path": ".gcloudignore",
+          "gitBlob": "927b818dd7f20ab65d790f5b5458efc34abf0e3d"
+        }
+      ],
+      "B-21": [
+        {
+          "path": "firebase.json",
+          "gitBlob": "35839b33694e585fdfd3589f382ed587e7ba61c1"
+        },
+        {
+          "path": ".firebaserc",
+          "gitBlob": "eba0f215c7c1b33bbb17c48d328c1256e70fd81b"
+        },
+        {
+          "path": "docs/product/phase-1-decision-register.md",
+          "gitBlob": "6cd7c85400f93209974210132058c106d13e1d86"
+        }
+      ],
+      "B-31": [
+        {
+          "path": ".claude/settings.json",
+          "gitBlob": "d380cb78d5da622d2de67626e231e44a6e3d9d1b"
+        },
+        {
+          "path": ".gitignore",
+          "gitBlob": "d141a37b57bed92383d1c497d9deaa28cbaafd0f"
+        }
+      ],
+      "B-41": [
+        {
+          "path": "infra/terraform/c1-foundation/noop.tftest.hcl",
+          "gitBlob": "d59419a5fe7c28b6bd14797badc5811d1bd719a2"
+        },
+        {
+          "path": "infra/terraform/cal-pilot/main.tf",
+          "gitBlob": "8136cdb17959930e8cc4c60db6b3d1bcfdfef93f"
+        }
+      ],
+      "B-48": [
+        {
+          "path": "scripts/check-audit-exceptions.mjs",
+          "gitBlob": "9fa8227f67c4d1973ea499715610776999a2001a"
+        }
+      ],
+      "B-52": [
+        {
+          "path": "firestore.indexes.json",
+          "gitBlob": "7cbde5a6f5f3e322ced69324de64b5761e41222b"
+        },
+        {
+          "path": "infra/terraform/c5-firestore/main.tf",
+          "gitBlob": "99c6273bd7aab7030486d1524b6d81072e15c6e6"
+        }
+      ],
+      "B-54": [
+        {
+          "path": "infra/terraform/wp-b4-alerting/main.tf",
+          "gitBlob": "0f8de7826a9604cb728b20d0c90d9c4a554ca70d"
+        },
+        {
+          "path": "infra/monitoring/wp-b4-alert-policies.json",
+          "gitBlob": "87f8c566442f36e2fb042a44c9521527ae03ddb0"
+        }
+      ],
+      "B-55": [
+        {
+          "path": ".gitignore",
+          "gitBlob": "d141a37b57bed92383d1c497d9deaa28cbaafd0f"
+        }
+      ],
+      "C01": [
+        {
+          "path": "apps/web/public/admin-bootstrap.js",
+          "gitBlob": "5e65ab4c3239f7d1b5979cb10b0ae31cf94e567b"
+        }
+      ],
+      "C02": [
+        {
+          "path": "apps/web/public/modules/hydrate-staff.js",
+          "gitBlob": "f002f5f211fa9d80ce82ecaa7f7de508b606dbf3"
+        }
+      ],
+      "C04": [
+        {
+          "path": "apps/web/public/modules/internal-test-booking-transport.js",
+          "gitBlob": "3ba4b86ce6d0c4869d1d29685cd164e74968aca1"
+        }
+      ],
+      "C05": [
+        {
+          "path": "apps/web/README.md",
+          "gitBlob": "8cb73130d405a18b6f930710a0741829f4ff12fe"
+        }
+      ],
+      "C07": [
+        {
+          "path": "apps/web/public/modules/admin-view.js",
+          "gitBlob": "238b2002e3d6809a74da06adbf99abf2dd334165"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.ts",
+          "gitBlob": "e3e8a6f246e9374324f1aec775f0adeb4937f532"
+        }
+      ],
+      "X-C01": [
+        {
+          "path": "apps/web/public/patient-app.js",
+          "gitBlob": "1f66c92589512dc6b726c26033a3ea5e50551bcb"
+        }
+      ],
+      "X-C02": [
+        {
+          "path": "apps/web/public/modules/hydrate-staff.js",
+          "gitBlob": "f002f5f211fa9d80ce82ecaa7f7de508b606dbf3"
+        },
+        {
+          "path": "apps/web/src/calendar-pilot-entry.js",
+          "gitBlob": "a67c66a72db5b9d44c7e429c1b6300b3a08d3040"
+        }
+      ],
+      "X-C04": [
+        {
+          "path": "apps/web/src/calendar-pilot-entry.js",
+          "gitBlob": "a67c66a72db5b9d44c7e429c1b6300b3a08d3040"
+        }
+      ],
+      "X-C05": [
+        {
+          "path": "apps/web/public/admin-bootstrap.js",
+          "gitBlob": "5e65ab4c3239f7d1b5979cb10b0ae31cf94e567b"
+        }
+      ],
+      "X-C06": [
+        {
+          "path": "apps/web/public/modules/api-client.js",
+          "gitBlob": "cc2069cc0493ee5f3a6cc9f681232e6a960fa31e"
+        }
+      ],
+      "X-C07": [
+        {
+          "path": "apps/web/public/modules/internal-test-booking-transport.js",
+          "gitBlob": "3ba4b86ce6d0c4869d1d29685cd164e74968aca1"
+        },
+        {
+          "path": "apps/web/public/patient-app.js",
+          "gitBlob": "1f66c92589512dc6b726c26033a3ea5e50551bcb"
+        }
+      ],
+      "D-01": [
+        {
+          "path": "apps/worker/src/google-calendar.ts",
+          "gitBlob": "df282962793f4d5e2ebcd672f60a2196662e04e4"
+        },
+        {
+          "path": "packages/domain/src/calendar-projection.ts",
+          "gitBlob": "03961876658451f833425fa7a21bf8bc5019cd36"
+        }
+      ],
+      "D-02": [
+        {
+          "path": "apps/worker/src/calendar-sync/google-sync-client.ts",
+          "gitBlob": "4fb253f79dd6535e7a915a42cae90b75c5dcbcac"
+        }
+      ],
+      "D-03": [
+        {
+          "path": "apps/worker/src/calendar-smoke.ts",
+          "gitBlob": "f36a1acc31a350b34a888557eebac0bec51bc3a1"
+        }
+      ],
+      "D-05": [
+        {
+          "path": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+          "gitBlob": "f47a66193f15ef42745850cca10f8c89f58fed34"
+        }
+      ],
+      "D-07": [
+        {
+          "path": "packages/domain/src/schedule.ts",
+          "gitBlob": "8e6859b18b0e51ef374c234191e7672f5452f88c"
+        },
+        {
+          "path": "packages/domain/src/appointment-rules.ts",
+          "gitBlob": "989cbf09a178a3d811f7b674cabfe75dab6081ec"
+        },
+        {
+          "path": "apps/api/src/firestore/schedule.repository.ts",
+          "gitBlob": "1d99cef75177d0a8154cff810ae213757a7c7cc8"
+        }
+      ],
+      "D-08": [
+        {
+          "path": "apps/api/src/patients/patient-directory.ts",
+          "gitBlob": "8d56fa010e65cc189df316e3329d4c35459a2b4e"
+        },
+        {
+          "path": "packages/domain/src/patient-identity.ts",
+          "gitBlob": "68c89c1d0ccbb5a8ef5c411ed55b37a5aac7a83c"
+        }
+      ],
+      "D-12": [
+        {
+          "path": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+          "gitBlob": "f47a66193f15ef42745850cca10f8c89f58fed34"
+        }
+      ],
+      "D-25": [
+        {
+          "path": "packages/domain/src/observability.ts",
+          "gitBlob": "28c498fc54d04da86feed7b09c25c5986dfd3848"
+        }
+      ],
+      "D-38": [
+        {
+          "path": "docs/architecture/rbac-matrix.md",
+          "gitBlob": "828776745fe77fb5fad8338619b8f09ea520f293"
+        },
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.ts",
+          "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+        }
+      ],
+      "D-42": [
+        {
+          "path": "tests/firestore/schedule-publication.test.ts",
+          "gitBlob": "5af325d2d925f97c650572dd60179b41043b226f"
+        },
+        {
+          "path": "apps/worker/src/calendar-sync/google-sync-client.test.ts",
+          "gitBlob": "ba94a2652b85fb93b1c051fe1db783ee987a3c69"
+        }
+      ],
+      "E1-01": [
+        {
+          "path": "scripts/cal-pilot-rollback.ps1",
+          "gitBlob": "40b6b729502aaefa402f3fc9c19312b20ee8eec7"
+        },
+        {
+          "path": "scripts/disable-cal-pilot.mjs",
+          "gitBlob": "f7dec29d7db9d3bd1b187ebd83f7d1d65ea59e74"
+        }
+      ],
+      "E1-02": [
+        {
+          "path": "scripts/cal-pilot-runtime-update.ps1",
+          "gitBlob": "fb189877ca1f676038a55b73aa41038950677fc5"
+        },
+        {
+          "path": "scripts/cal-pilot-build-images.ps1",
+          "gitBlob": "449c8244cc86b23cdef9c92da0dc8cc729227156"
+        }
+      ],
+      "E1-11": [
+        {
+          "path": "scripts/cal-pilot-build-images.ps1",
+          "gitBlob": "449c8244cc86b23cdef9c92da0dc8cc729227156"
+        }
+      ],
+      "E1-12": [
+        {
+          "path": "scripts/cal-pilot-release.ps1",
+          "gitBlob": "b294483e96324a055b50e1386167026b603c2cd1"
+        }
+      ],
+      "E3-01": [
+        {
+          "path": "docs/security/technical-security-decision-draft-2026-08-23.md",
+          "gitBlob": "4b3325656d8c529c65093f8a7c9870bb43a40211"
+        },
+        {
+          "path": "docs/product/phase-1-decision-register.md",
+          "gitBlob": "6cd7c85400f93209974210132058c106d13e1d86"
+        },
+        {
+          "path": "firebase.json",
+          "gitBlob": "35839b33694e585fdfd3589f382ed587e7ba61c1"
+        }
+      ],
+      "E3-02": [
+        {
+          "path": "docs/legal/privacy-policy-draft.md",
+          "gitBlob": "5ad59d0a201fabdc51ea3f8b5524aeb3ecbaa149"
+        },
+        {
+          "path": "apps/web/public/privacy.html",
+          "gitBlob": "ff94b4b3f5575913ffe940b6f8855ff62d7e28f6"
+        }
+      ],
+      "E3-03": [
+        {
+          "path": "docs/legal/privacy-policy-draft.md",
+          "gitBlob": "5ad59d0a201fabdc51ea3f8b5524aeb3ecbaa149"
+        },
+        {
+          "path": "apps/web/public/privacy.html",
+          "gitBlob": "ff94b4b3f5575913ffe940b6f8855ff62d7e28f6"
+        },
+        {
+          "path": "packages/domain/src/calendar-projection.ts",
+          "gitBlob": "03961876658451f833425fa7a21bf8bc5019cd36"
+        }
+      ],
+      "E3-04": [
+        {
+          "path": "scripts/check-web-ui.mjs",
+          "gitBlob": "89eacebf77ef358192ede81c0463e9219d1133de"
+        },
+        {
+          "path": "docs/adr/0007-minimized-booking-intake-and-identity-resolution.md",
+          "gitBlob": "cb733c77a3e2a8cf1a23c24d822c5a007cdf13c5"
+        }
+      ],
+      "E3-06": [
+        {
+          "path": "docs/architecture/rbac-matrix.md",
+          "gitBlob": "828776745fe77fb5fad8338619b8f09ea520f293"
+        },
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.ts",
+          "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+        }
+      ],
+      "E3-07": [
+        {
+          "path": "apps/api/src/platform/runtime/maintenance-gate.ts",
+          "gitBlob": "38d024b69ef3a4add53269bf771e139ebcaf34c0"
+        },
+        {
+          "path": "docs/runbooks/backup-and-restore.md",
+          "gitBlob": "9bdc6be0b6f47058c87a77e6a23bdcc2ae57c1fc"
+        },
+        {
+          "path": "docs/runbooks/incident-response.md",
+          "gitBlob": "56326d1727500ad134293bf63bcc83468f4ffe23"
+        },
+        {
+          "path": "docs/runbooks/stage-e-operational.md",
+          "gitBlob": "017f5655c209662d5ef204593729afab32b07384"
+        }
+      ],
+      "E3-19": [
+        {
+          "path": "packages/domain/src/rate-limit-parameters.ts",
+          "gitBlob": "42a02a2c8d0e4d10d47b25df602f880b94633887"
+        },
+        {
+          "path": "docs/architecture/api-v1-contract.md",
+          "gitBlob": "78a7fe7af481b15259c654e8bb28dce7045dc1ae"
+        }
+      ],
+      "E4-01": [
+        {
+          "path": "docs/reviews/2026-09-26-p1-09-handoff.md",
+          "gitBlob": "95dba3de74e5791471802315609dfc935e2c7392"
+        },
+        {
+          "path": "docs/reviews/2026-09-28-p1-09-closeout.md",
+          "gitBlob": "384c3321fdbb83a139b5a66eaaf123d7b5192cbb"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.patient-flow.test.ts",
+          "gitBlob": "6511d8f2203a9dffd606c839555aadab11bd526f"
+        },
+        {
+          "path": "apps/api/src/platform/runtime/wp-b2-rate-limiter.ts",
+          "gitBlob": "c1e315c2a03f504496e54e5990162a6fea2aa4cd"
+        }
+      ],
+      "E4-03": [
+        {
+          "path": "docs/reviews/2026-10-05-aud01-identity-isolation.md",
+          "gitBlob": "b8940819c0257d1c57a5eefa3d81bd01fa260eb0"
+        },
+        {
+          "path": "docs/reviews/2026-10-04-audit-closeout-handoff.md",
+          "gitBlob": "bd2d75869339a6baad904ae56b654766323c6d9e"
+        }
+      ],
+      "E4-08": [
+        {
+          "path": "docs/product/luna-local-project-completion-master-plan.md",
+          "gitBlob": "a5b3f3ae4715aad12084b3c4c687f7d05a8b306a"
+        },
+        {
+          "path": "scripts/check-audit-exceptions.mjs",
+          "gitBlob": "9fa8227f67c4d1973ea499715610776999a2001a"
+        }
+      ],
+      "E4-10": [
+        {
+          "path": "docs/product/phase-1-decision-register.md",
+          "gitBlob": "6cd7c85400f93209974210132058c106d13e1d86"
+        }
+      ],
+      "E4-12": [
+        {
+          "path": "docs/reviews/2026-10-02-full-project-audit.md",
+          "gitBlob": "dac113456ade164eb17afb1009383ffcb113619f"
+        },
+        {
+          "path": "docs/reviews/2026-10-04-audit-closeout-handoff.md",
+          "gitBlob": "bd2d75869339a6baad904ae56b654766323c6d9e"
+        }
+      ],
+      "E4-24": [
+        {
+          "path": "docs/architecture/api-v1-contract.md",
+          "gitBlob": "78a7fe7af481b15259c654e8bb28dce7045dc1ae"
+        },
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.ts",
+          "gitBlob": "e3e8a6f246e9374324f1aec775f0adeb4937f532"
+        }
+      ],
+      "NEW-01": [
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+          "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+        }
+      ],
+      "NEW-02": [
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+          "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+        }
+      ],
+      "NEW-03": [
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+          "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+        },
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.ts",
+          "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+        }
+      ],
+      "NEW-04": [
+        {
+          "path": "apps/api/src/auth/calendar-pilot.guard.ts",
+          "gitBlob": "35035d960761164eb099e789e80424123ffc6f86"
+        },
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.ts",
+          "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+        }
+      ],
+      "NEW-05": [
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.authenticator.ts",
+          "gitBlob": "0b736b878d156c7f6fa7af3cbb989fb27c7b8a15"
+        },
+        {
+          "path": "apps/api/src/patients/patient-directory.ts",
+          "gitBlob": "8d56fa010e65cc189df316e3329d4c35459a2b4e"
+        }
+      ],
+      "NEW-06": [
+        {
+          "path": "apps/api/src/firestore/business-delivery-export.repository.ts",
+          "gitBlob": "348cce324b247f1b5050ce63f28ba7a4de67717a"
+        }
+      ],
+      "NEW-07": [
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.ts",
+          "gitBlob": "8d2eef79251ce0497ed2fe5844c734f0b612a4e3"
+        }
+      ],
+      "NEW-08": [
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.controller.ts",
+          "gitBlob": "4a8092d3af23fcb6854e4f1a8dee77e2006b9044"
+        }
+      ],
+      "NEW-09": [
+        {
+          "path": "apps/worker/src/calendar-sync/sync-engine.ts",
+          "gitBlob": "807f94bedf8f85de64ca0cc7c53e9c944d38e395"
+        }
+      ],
+      "NEW-10": [
+        {
+          "path": "infra/terraform/cal-pilot/main.tf",
+          "gitBlob": "8136cdb17959930e8cc4c60db6b3d1bcfdfef93f"
+        }
+      ]
+    },
+    "baselineRefreshAfterSDK": {
+      "main": "2f9360cf5d670879b98705cd9a3b04eb71fe20bd",
+      "mergedByOwner": true,
+      "sdkSourceTreeMatchesRepairHead": true,
+      "mergeInto241": "41b41b9691d3906a7d82df0f1246eeedf68a4bf0",
+      "mergeNotRebaseOrForcePush": true,
+      "sourceBindingDrift": [
+        {
+          "id": "B-19",
+          "path": "pnpm-workspace.yaml",
+          "before": "9c9f7a2e5b7dc69ce42a81cd9a925b78720f55d0",
+          "after": "da9f0281aa713ae5b7f8b741803157d39c25cfa9"
+        }
+      ],
+      "applicationDomainWorkerSources": "UNCHANGED_VS_PRE_SDK_BASELINE",
+      "frozenLegacyLedgerUntouched": true
     }
   }
 }

@@ -2,7 +2,7 @@
 
 **CLOSED_PENDING_PROTECTED_MERGE**：planning/evidence關帳，不是254個修復完成。
 
-Source baseline `01d36c96ae6be6cea91c891c494a6601b2abd4a3`；[machine manifest](2026-10-06-sol00-safe-manifest.json) `/activeCloseout/perFinding` 是目前權威。原ledger凍結；[計畫](2026-10-06-sol00-safe-manifest-closeout-plan.md)解釋scope，[handoff](../reviews/2026-10-06-sol00-planning-handoff.md)記producer/readback。
+Current source baseline `2f9360cf5d670879b98705cd9a3b04eb71fe20bd`；frozen研究仍綁原`01d36c96ae6be6cea91c891c494a6601b2abd4a3`，537 current bindings另列overlay；[machine manifest](2026-10-06-sol00-safe-manifest.json) `/activeCloseout/perFinding` 是目前權威。原ledger凍結；[計畫](2026-10-06-sol00-safe-manifest-closeout-plan.md)解釋scope，[handoff](../reviews/2026-10-06-sol00-planning-handoff.md)記producer/readback。
 
 表中CONFIRMED_CODE_FACT是source/model推論；LIKELY/CANDIDATE/NEEDS_RUNTIME_REPRODUCTION不是confirmed deployed bug。31 provenance gap永久終局，不再等原分冊，但歷史claim皆未verified。formal global net-new=null；raw NEW=10、confirmed minimum=0、2 current siblings、8 custody-limited identity ambiguity。
 

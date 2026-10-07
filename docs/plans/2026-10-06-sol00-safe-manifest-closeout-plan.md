@@ -2,7 +2,7 @@
 
 **Outcome：CLOSED_PENDING_PROTECTED_MERGE。** 只結束本次已授權的 planning / evidence orchestration；不宣稱254 findings已修、31 historical claims已恢復、全部global identity dedupe已知或production驗收完成。
 
-Source baseline `01d36c96ae6be6cea91c891c494a6601b2abd4a3`；#241前一head `ecefd935ce3b72b66069dd3d6e4964e37ccd3187`。包含本次更新的commit不能自我引用，以 `git log -- docs/plans/2026-10-06-sol00-safe-manifest-closeout-plan.md` 定位；fresh head/run/check與artifact另記PR delivery readback。
+Current source baseline `2f9360cf5d670879b98705cd9a3b04eb71fe20bd`（#244由owner合法merge）；frozen研究仍綁原`01d36c96ae6be6cea91c891c494a6601b2abd4a3`，actual-current537 bindings另列overlay。#241前一head `ecefd935ce3b72b66069dd3d6e4964e37ccd3187`。包含本次更新的commit不能自我引用，以 `git log -- docs/plans/2026-10-06-sol00-safe-manifest-closeout-plan.md` 定位；fresh head/run/check與artifact另記PR delivery readback。
 
 **讀取權威：** [machine manifest](2026-10-06-sol00-safe-manifest.json) `schemaVersion=3`、`authoritativeStatePointer=/activeCloseout`。原rows／packets／waves／review／graph完整freeze為舊scope snapshot，不能拿舊31 METADATA_BLOCKED、47 owner markers或4 Luna cap當新dispatch規則；新逐列acceptance全部在 `activeCloseout.perFinding`。人類表見[254-ID索引](2026-10-06-sol00-finding-manifest.md)，交接見[handoff](../reviews/2026-10-06-sol00-planning-handoff.md)。
 
@@ -41,8 +41,8 @@ Source baseline `01d36c96ae6be6cea91c891c494a6601b2abd4a3`；#241前一head `ece
 
 ## 4. 只剩protected predecessor與真正政策batch
 
-1. 獨立SDK [#244](https://github.com/waydefu/clinic/pull/244)已MERGE_READY；head `2c33345c945d553159699df651815c7c403dd10b`、[run37613664008](https://github.com/waydefu/clinic/actions/runs/37613664008) **12/12 PASS**。8/8新issuer regression、2531 unit PASS/1既有skip、316 Emulator PASS、六E2E/SAST/Gitleaks/aggregate PASS；無新exception/waiver/threshold變更。protected main merge未授權、未執行、無auto-merge。
-2. 只有#244合法整合後，才fetch/正常merge新main回#241（不rebase/force-push）並跑**#241自己新head**的完整required CI。現在main仍SDK1.30.0，因此本次#241重跑若audit+aggregate因同advisory fail，會保留FAIL，不借#244綠燈假冒。
+1. 獨立SDK [#244](https://github.com/waydefu/clinic/pull/244)已MERGE_READY；head `2c33345c945d553159699df651815c7c403dd10b`、[run37613664008](https://github.com/waydefu/clinic/actions/runs/37613664008) **12/12 PASS**。8/8新issuer regression、2531 unit PASS/1既有skip、316 Emulator PASS、六E2E/SAST/Gitleaks/aggregate PASS；無新exception/waiver/threshold變更。#244已由owner於2026-10-07T13:26:27Z合法merge為`2f9360cf5d670879b98705cd9a3b04eb71fe20bd`，source tree與repair head一致；不是本agent執行protected merge，無auto-merge。
+2. 已依既定授權正常merge新main回#241為`41b41b9691d3906a7d82df0f1246eeedf68a4bf0`，解README衝突並保留兩條索引，不rebase/force-push；application/domain/worker source未變，唯一研究binding drift是workspace override/comment。**#241自己的最後新head**需重跑完整required CI；不借#244綠燈，舊SDK1.30失敗保留日期scope。
 3. #241 protected merge亦須獨立fresh批准及其CI。
 4. Policy batch只保留：**A05**「到期拒絕不變，session實體清除/保存期限為何？」（不以auth expiry假充retention）；**E4-09**「個管師與諮詢師是否同職務？」（Q1未答不得套用其權限）。production D-001～D-003/D-009与Q2～Q4臨床/金額擴權仍deferred/protected，不在本planning偷渡。
 

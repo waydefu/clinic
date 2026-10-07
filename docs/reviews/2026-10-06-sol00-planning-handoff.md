@@ -2,7 +2,7 @@
 
 **Outcome：CLOSED_PENDING_PROTECTED_MERGE。** 本次已授權planning工作做到目前證據上限；不是remediation/production完成。讀[plan](../plans/2026-10-06-sol00-safe-manifest-closeout-plan.md)、[254-ID索引](../plans/2026-10-06-sol00-finding-manifest.md)、[machine `/activeCloseout`](../plans/2026-10-06-sol00-safe-manifest.json)。
 
-Source baseline `01d36c96ae6be6cea91c891c494a6601b2abd4a3`；上一#241 head `ecefd935ce3b72b66069dd3d6e4964e37ccd3187`保留ancestry。本文件不引用自己的commit；以`git log -- docs/reviews/2026-10-06-sol00-planning-handoff.md`定位，最後head/run/digest在PR readback。
+Current source baseline `2f9360cf5d670879b98705cd9a3b04eb71fe20bd`；frozen舊研究`01d36c96ae6be6cea91c891c494a6601b2abd4a3`不改，537 actual-current bindings另列。上一#241 head `ecefd935ce3b72b66069dd3d6e4964e37ccd3187`保留ancestry。本文件不引用自己的commit；以`git log -- docs/reviews/2026-10-06-sol00-planning-handoff.md`定位，最後head/run/digest在PR readback。
 
 ## Changed / frozen
 
@@ -32,7 +32,7 @@ Source baseline `01d36c96ae6be6cea91c891c494a6601b2abd4a3`；上一#241 head `ec
 
 ## Protected next batch
 
-#244=MERGE_READY/OWNER_MERGE_REQUIRED，無auto-merge/main merge。它合法整合後，已授權branch-only正常merge main進#241，再跑其新head CI；#241 protected merge另需fresh批准。現在mainSDK1.30仍存在，若#241自己的新run audit+aggregate同advisoryFAIL，完整保留FAIL與head，不拿#244綠燈覆蓋。
+#244已由owner合法merge為2f9360cf5d670879b98705cd9a3b04eb71fe20bd，GitHub merged-by-owner/merge SHA與repair source tree逐項回讀，無auto-merge；本agent未merge protected main。已授權branch-only正常merge新main進#241為41b41b9691d3906a7d82df0f1246eeedf68a4bf0。只有workspace override/comment source binding drift，原研究完全freeze、current binding新增；最後新head的完整CI另核。#241 protected merge仍需fresh批准，舊10/12SDK1.30FAIL不刪、不拿#244綠燈覆蓋。
 
 兩個真正policy question及production deferred政策以plan一次列齊；不因owner merge等待阻斷已完成的provenance/source分析。公開交付只去敏衍生資料，無私有設定、原payload、原private evidence path或contact/project值。
 
