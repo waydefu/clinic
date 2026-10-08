@@ -66,3 +66,33 @@ generated SKILL 不含 reference 子目錄，必須連回 canonical；舊 CI 綠
 現行版都不能證明新 head 或歷史版本。PR API 的 base.sha 在本次未反映新 main，
 須讀實際 main ref／fetch；有 merge conflict 時 pull_request 驗證不會啟動。
 整體設計與實機驗收仍由後續實作／業主審閱關閉。
+
+## CI 安裝阻擋修正
+
+業主指示「開始處理」後，修正 #243 的同一安裝阻擋。這是 CI runner 準備步驟，
+沒有修改 clinic／booking、套件版本、測試清單、SAST／evidence 的 needs 或部署權限。
+
+`CONFIRMED`：head `365476b` 的 run `37666936641` attempts 1／3 在 Ubuntu
+APT 索引下載停留至 20 分鐘 job limit，無障礙測試未開始；attempt 2 同一步驟再次
+停留而取消。最終 10/12 jobs success，e2e aggregate cancelled，Verification
+evidence 正確回報 failure。三份失敗 artifact 與日誌保留，沒有當成綠燈。
+
+對照實際 runner `ubuntu24/20261004.327` 的
+[APT mirror 配置](https://github.com/actions/runner-images/blob/ubuntu24/20261004.327/images/ubuntu/scripts/build/configure-apt-sources.sh)
+與[上游問題／修正](https://github.com/actions/runner-images/pull/14643)：既有三個來源
+含 Azure 優先來源及 Ubuntu 官方 HTTPS 替補。圖片原始設定已有 acquire bounds，
+仍不能保證每個索引快速完成；本修正優先使用既有官方 HTTPS 替補，沒有加入新 repo。
+
+- `scripts/prepare-ci-apt.mjs`：限定既有 GitHub Actions Linux x64 Ubuntu runner；
+  驗證來源集合後調整優先序，設定 retries 1／HTTP、HTTPS inactivity timeout 15 秒，
+  用真正的 `apt-config dump` 確認有效值，只輸出三個已驗證值。
+- `.github/workflows/verify.yml`：六個 E2E group 共用此準備步驟；瀏覽器及系統相依
+  安裝獨立 5 分鐘 timeout，整體 20 分鐘、安裝 failure 與 required aggregate 仍保留。
+- `scripts/prepare-ci-apt.test.mjs`：來源集合／優先序、idempotence、無效／重複／缺失
+  來源、wrong namespace／覆蓋／缺失 APT values、本機 CLI 拒絕及真實 Linux APT parser。
+
+本機 regression 為先 12 FAIL、2 PASS、1 Linux-only NOT_RUN，再 14 PASS、1 Linux-only
+NOT_RUN（15 tests）。使用既有 Vitest 4.1.11 的外部單項 runner／resolve alias；沒有
+在本 checkout 安裝依賴。新增兩檔的 canonical ESLint rules 單項檢查 PASS，格式及
+freeze 30 files PASS。Linux APT 與完整 matrix 待新 head CI；此段是 pre-commit
+證據，不能引用包含本段的 hash，交付版本與最終 CI 從 PR head／git log 另核。
