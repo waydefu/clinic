@@ -23,6 +23,13 @@ verified jury-awarded work through the benchmark reference below. Do not use
 self-made weak/improved examples, the old site or a mechanical PASS to lower
 that bar; do not manufacture a showcase to certify your own work.
 
+The owner also requires multi-source verification. Cross-check material visual
+decisions with actually inspected work from independent creators and relevant
+primary UX/type/motion guidance. Multiple URLs for the same work, one agency's
+portfolio or multiple AI reviewers do not establish independent corroboration.
+Record agreement, disagreement, clinic-specific adaptation and missing evidence;
+never turn source counts or averaged award scores into visual acceptance.
+
 Read the relevant canonical reference for a substantial clinic redesign:
 
 - [Visual direction](../../../.claude/skills/ui-design/reference/visual-direction.md):

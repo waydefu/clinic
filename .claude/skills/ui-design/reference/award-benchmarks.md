@@ -12,6 +12,43 @@ a claim that our site has won an award, or a promise of a future jury result.
 Daily website awards are not annual grand prizes. A jury score establishes the
 reference's provenance; it is not a numeric project gate or the maker's score.
 
+## Cross-check independent evidence
+
+The owner explicitly requires multiple sources. The initial pool was too
+concentrated: two of three examples were by ESE and all three WOTD records were
+from CSSDA. Keep those useful observations, but do not treat them as three
+independent confirmations of one composition.
+
+For a material design decision, compare at least two relevant, actually
+inspected works from different creators; use primary UX/type/motion guidance
+for the corresponding usability question and the clinic's rendered candidate
+to check the proposed adaptation. Seek another relevant source when evidence
+conflicts or only the wrong product category is represented. An organiser's
+record plus its creator's case study verifies provenance; they are still one
+work. Reposts, gallery thumbnails and several AI reviews are not independent
+observations. General guidance cannot prove that a particular composition is
+beautiful, and an award cannot prove accessibility or medical correctness.
+
+Record the decision, source ownership/relationship, actual viewport/state,
+agreement or conflict, retained relationship, rejected treatment and observed
+clinic result. Do not average unrelated jury scores, count links as votes,
+claim empirical user validation from expert judgement or make a link-count gate.
+
+Additional sources inspected on 2026-10-08:
+
+| Source | Verified evidence | Contribution and limits |
+| --- | --- | --- |
+| [Halo Dental / Awwwards](https://www.awwwards.com/sites/halo-dental) | Individual record: SOTD 2024-09-10, score 7.41; current organiser credit REF Digital. Its historical organiser announcement credits LG2; preserve the dated attribution rather than inferring a company history. | A second award organiser and different creative team. It is a dental-device company, not a clinic; its commerce and medical claims do not transfer. |
+| [Halo live website](https://halodental.com/) | Browser-inspected 1440×1000 and 375×812 opening; 1280×1000 product passage. The instrument fills the main field; a hand-held view gives its scale in the next passage. | Compare object/scene continuity with Studio Almond's inspected Hyoumankind stills for the owned mouthguard image. Reject black/orange styling, WebGL dependency and commerce. Still frames do not establish full playback, performance or identity with the 2024 version. |
+| [Ota ENT clinic](https://www.ota-jibika.jp/) | Current 1440×1000 and 375×812 openings, native navigation structure. Desktop groups hours/contact/access; mobile exposes menu, home, access, telephone and reservation in one row. | Different creator/product context; no verified design award claimed. Compare task visibility, not the mascot, circles, bitmap text, blue/orange palette, card treatment or reservation model. The mobile image's small embedded copy is a limitation, not an example to copy. |
+| [NN/G visual hierarchy](https://www.nngroup.com/articles/visual-hierarchy-ux-definition/) | Author's article read: relative contrast/scale and proximity express importance; enclosures can be used when implicit grouping is insufficient. | Check action emphasis and whether spacing already groups information. Its illustrative size/count suggestions are not clinic tokens, CJK metrics or proof of award-level craft. |
+| [W3C Chinese layout](https://www.w3.org/TR/clreq/) and [WAI carousel pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/) | Primary guidance read; Chinese punctuation/line breaking and carousel focus/hover/rotation-control responsibilities. | Verify actual local-font wrapping and interactions. These answer correctness questions, not aesthetic success; CLReq is a work-in-progress document. |
+
+The expanded pool includes ESE, Studio Almond, REF Digital and a Japanese ENT
+site, with CSSDA, AGDA and Awwwards provenance where verified. This diversity
+is a research basis, not certification of the clinic. The new local browser
+evidence remains outside the repository; no external artwork or code is copied.
+
 ## Verify the award and the version separately
 
 Verified on 2026-10-08 from the organisers' individual records:

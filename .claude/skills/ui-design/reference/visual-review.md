@@ -14,6 +14,13 @@ and why it serves this clinic. Existing screenshots detect technical regressions
 their existence does not approve aesthetic quality. Unapproved prototypes and
 self-manufactured teaching samples cannot promote themselves to the benchmark.
 
+Cross-check consequential decisions with independently created, actually
+inspected works and relevant primary usability/type/motion guidance. State what
+agrees, what conflicts and why the clinic adaptation is selected. Two projects
+from one agency or two pages describing one project are correlated evidence;
+multiple AI opinions do not supply new external sources. Neither source counts
+nor award-score averages establish visual acceptance.
+
 Complete the homepage first. Capture both widths, inspect the first screen,
 whole-page rhythm and necessary close-ups, identify its three weakest or most
 generic areas, change them, then capture again. Changing only the CSS numbers
