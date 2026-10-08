@@ -95,14 +95,18 @@ describe('effective APT bounds', () => {
       try {
         mkdirSync(path.join(fixture, 'parts'));
         writeFileSync(path.join(fixture, 'empty.conf'), '');
+        // APT_CONFIG is read before host config; command-line -o is applied
+        // afterwards and cannot stop the runner's parts from being loaded.
+        const isolatedConfig = path.join(fixture, 'isolated.conf');
+        writeFileSync(
+          isolatedConfig,
+          `Dir::Etc::parts "${path.join(fixture, 'parts')}";\n` +
+            `Dir::Etc::main "${path.join(fixture, 'empty.conf')}";\n`
+        );
         const dump = (retriesKey) =>
           execFileSync(
             'apt-config',
             [
-              '-o',
-              `Dir::Etc::parts=${path.join(fixture, 'parts')}`,
-              '-o',
-              `Dir::Etc::main=${path.join(fixture, 'empty.conf')}`,
               '-o',
               `${retriesKey}=1`,
               '-o',
@@ -111,7 +115,10 @@ describe('effective APT bounds', () => {
               'Acquire::https::Timeout=15',
               'dump'
             ],
-            { encoding: 'utf8' }
+            {
+              encoding: 'utf8',
+              env: { ...process.env, APT_CONFIG: isolatedConfig }
+            }
           );
         expect(() =>
           assertEffectiveAptBounds(dump('Acquire::Retries'))

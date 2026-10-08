@@ -96,3 +96,14 @@ NOT_RUN（15 tests）。使用既有 Vitest 4.1.11 的外部單項 runner／reso
 在本 checkout 安裝依賴。新增兩檔的 canonical ESLint rules 單項檢查 PASS，格式及
 freeze 30 files PASS。Linux APT 與完整 matrix 待新 head CI；此段是 pre-commit
 證據，不能引用包含本段的 hash，交付版本與最終 CI 從 PR head／git log 另核。
+
+授權後 head `94206a7` 的 run `37768627459` 已完整執行六組 E2E，皆 PASS；原本
+無障礙下載卡住的情況未重現。此 run 仍 FAIL：2545 unit tests PASS、1 FAIL、1 skip，
+失敗是新 Linux parser 測試的環境隔離，不是 production APT 準備步驟。原測試以 `-o`
+指定空 parts/main，但 APT 在套用 command-line options 前已讀入 runner 設定，導致
+wrong namespace 的 negative case 被既有正確值掩蓋。
+
+依 [APT 設定讀取順序](https://manpages.ubuntu.com/manpages/noble/man5/apt.conf.5.html)
+將測試 fixture 改為 `APT_CONFIG` 先指定空 parts/main；保留真正 parser 的 positive／
+negative case，不 skip／刪除測試，也不修改 runner 系統設定。此 run 的 evidence 仍為
+failure；修正後的新 head 需重新執行全部 required checks，不能引用前一 head 綠燈。
