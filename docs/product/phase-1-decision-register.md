@@ -1,5 +1,17 @@
 # Phase 1 Decision Register
 
+## 2026-10-10 開發工具 braces 例外延期
+
+- `SUPPLY-CHAIN-BRACES-2026-10-10`：業主在 2026-10-10 的對話中，從四個選項（延期、
+  強制換 chokidar 4、移除 firebase-tools 開發相依、不處理）選擇「延期到 2026-11-30」。
+  延續 `SUPPLY-CHAIN-BRACES-2026-10-03`，該例外原訂 2026-10-17 到期。
+- 2026-10-11 重新查證：GHSA-vfj7-8cjw-p6xm 仍未列任何修補版（影響 <=3.0.3，未撤回），
+  npm 上 braces 最新仍為 3.0.3，firebase-tools 最新版 15.33.0 仍依賴 chokidar ^3.6.0。
+  路徑與範圍不變：只在不出貨的 firebase-tools > chokidar@3；出貨面 `audit:prod` 門檻不變且為乾淨。
+- 解除條件：任何 braces 修補版發布即改 override 並移除例外；或 firebase-tools 不再依賴
+  chokidar@3 即升級並移除。到期仍無解時須再次取得業主核准，不得自行延長。
+- 只改例外到期日、理由與解除條件；不改 `audit:prod`／`audit:all` 門檻，不新增其他忽略項目。
+
 ## 2026-10-05 AUD-01 預約身分上下文隔離
 
 業主在本次核准表單選擇完整修復：初診、回診與員工請求隔離；重新開始時清除
