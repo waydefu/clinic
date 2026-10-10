@@ -202,6 +202,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-10 | [官網視覺／UI/UX／技能與 CI 詳細交接](reviews/2026-10-10-clinic-ui-design-implementation-handoff.md) | 區分 PR 技能／CI 與 repo 外 v14 原型；多來源決策、完整素材、90-file identity snapshot、歷史 19/19＋4/4 local checks、12/12 exact-head CI、預算、缺口及接手指令；首頁視覺／醫療／正式整合仍未驗收，不合併或部署。 |
 | 2026-10-08 | [UI 技能國際視覺標準補強](reviews/2026-10-08-ui-skills-award-benchmark-handoff.md) | 撤掉未接受的自製教學頁；ui-design／ui-motion 加入已查證獎項與畫面研究，新增 ui-content；技能／freeze 本機檢查，exact-head required CI 另核，未改官網或授權部署。 |
 | 2026-10-07 | [SOL-00 current-evidence closeout](reviews/2026-10-06-sol00-planning-handoff.md) | CLOSED_PENDING_PROTECTED_MERGE：31 provenance終局不假claim、254 routing/63 source assessment/2 policy questions、3 Luna-ready/cap2；#244已由owner合法merge，#241新main後CI另核，不施工或部署。 |
 | 2026-10-07 | [MCP SDK OAuth advisory repair](reviews/2026-10-07-mcp-sdk-advisory-repair.md) | SDK1.31.0／8/8 issuer回歸；#244 exact-head CI12/12，已由owner merge main 2f9360cf；本文為pre-commit handoff，失敗記錄保留；#241 CI另核。 |
