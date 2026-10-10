@@ -26,7 +26,11 @@ import {
   teardownCalendarPilotSessions
 } from '../public/modules/pilot-google-totp-session.js';
 import { bootCalendarPilot } from './calendar-pilot-boot.js';
-import { createCandidateReview } from './calendar-pilot-candidate-review.js';
+import {
+  createAppointmentCancel,
+  createBookingHandoff,
+  createCandidateReview
+} from './calendar-pilot-actions.js';
 
 const API = '/v1';
 const CALENDAR_PILOT_FIREBASE_APP = 'calendar-pilot';
@@ -502,22 +506,9 @@ function candidateItem(candidate, correctionContext) {
     createBooking.disabled =
       candidate.startsAt === null ||
       Number.isNaN(Date.parse(String(candidate.startsAt)));
-    createBooking.addEventListener('click', async () => {
-      if (createBooking.disabled) return;
-      createBooking.disabled = true;
-      candidateAwaitingBooking = candidate.candidateId;
-      await handoffToStaffWorkbench();
-      window.dispatchEvent(
-        new CustomEvent('beauessence:calendar-booking-suggestion', {
-          detail: {
-            candidateId: candidate.candidateId,
-            patientId: candidate.suggestedPatientId,
-            patientName: candidate.suggestedPatientName,
-            startsAt: candidate.startsAt
-          }
-        })
-      );
-    });
+    createBooking.addEventListener('click', () =>
+      handOffCandidate(candidate, createBooking)
+    );
     item.querySelector('.cp-actions').append(createBooking);
   }
   const diff = item.querySelector('[data-candidate-diff]');
@@ -764,6 +755,20 @@ const reviewCandidate = createCandidateReview({
   renderApplication,
   idempotency
 });
+const cancelAppointment = createAppointmentCancel({
+  request,
+  announce,
+  renderApplication,
+  idempotency
+});
+const handOffCandidate = createBookingHandoff({
+  handoffToStaffWorkbench,
+  announce,
+  setAwaitingCandidate: (candidateId) => {
+    candidateAwaitingBooking = candidateId;
+  },
+  target: window
+});
 
 function appointmentItem(appointment) {
   const item = document.createElement('li');
@@ -814,25 +819,9 @@ function appointmentItem(appointment) {
     const cancel = document.createElement('button');
     cancel.className = 'cp-button cp-button-danger';
     cancel.textContent = '取消';
-    cancel.addEventListener('click', async () => {
-      cancel.disabled = true;
-      try {
-        await request(
-          `/calendar/synthetic-appointments/${appointment.appointmentId}/cancel`,
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              idempotencyKey: idempotency('cancel'),
-              expectedVersion: appointment.version
-            })
-          }
-        );
-        announce('合成預約已取消，Google 刪除已排入同步。');
-        await renderApplication();
-      } catch (error) {
-        announce(error.message, 'error');
-      }
-    });
+    cancel.addEventListener('click', () =>
+      cancelAppointment(appointment, cancel)
+    );
     item.querySelector('.cp-actions').append(reschedule, cancel);
   }
   return item;

@@ -7,7 +7,11 @@ import {
 } from '../public/modules/api-client.js';
 import { createInternalTestBookingTransport } from '../public/modules/internal-test-booking-transport.js';
 import { initialState } from '../public/store.js';
-import { createCandidateReview } from './calendar-pilot-candidate-review.js';
+import {
+  createAppointmentCancel,
+  createBookingHandoff,
+  createCandidateReview
+} from './calendar-pilot-actions.js';
 
 const [manager, frontDesk] = OPERATIONAL_ROLES;
 export function memoryStorage(values: Record<string, string> = {}) {
@@ -289,5 +293,122 @@ describe('frontend trust boundary regressions', () => {
       resolution: 'synthetic_resolution'
     });
     expect(renderApplication).toHaveBeenCalledOnce();
+  });
+
+  it('appointment cancel failure restores the same control and remains single-flight', async () => {
+    let reject!: (error: Error) => void;
+    const request = vi.fn(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        })
+    );
+    const announce = vi.fn();
+    const renderApplication = vi.fn();
+    const cancel = createAppointmentCancel({
+      request,
+      announce,
+      renderApplication,
+      idempotency: () => 'synthetic_key'
+    });
+    const button = { disabled: false };
+    const appointment = { appointmentId: 'synthetic_appointment', version: 4 };
+    const pending = cancel(appointment, button);
+    expect(button.disabled).toBe(true);
+    const repeated = cancel(appointment, button);
+    expect(request).toHaveBeenCalledTimes(1);
+    reject(new Error('Synthetic cancel failure'));
+    await Promise.all([pending, repeated]);
+    expect(button.disabled).toBe(false);
+    expect(announce).toHaveBeenCalledWith('Synthetic cancel failure', 'error');
+    expect(renderApplication).not.toHaveBeenCalled();
+  });
+
+  it('successful appointment cancel keeps the expected version and refreshes the view', async () => {
+    const request = vi.fn(async (_path: string, _options: { body: string }) =>
+      Promise.resolve({})
+    );
+    const renderApplication = vi.fn(async () => {});
+    const button = { disabled: false };
+    await createAppointmentCancel({
+      request,
+      announce: vi.fn(),
+      renderApplication,
+      idempotency: () => 'synthetic_key'
+    })({ appointmentId: 'synthetic_appointment', version: 4 }, button);
+    expect(request.mock.calls[0]?.[0]).toBe(
+      '/calendar/synthetic-appointments/synthetic_appointment/cancel'
+    );
+    expect(JSON.parse(request.mock.calls[0]?.[1]?.body ?? '{}')).toEqual({
+      idempotencyKey: 'synthetic_key',
+      expectedVersion: 4
+    });
+    expect(renderApplication).toHaveBeenCalledOnce();
+    expect(button.disabled).toBe(false);
+  });
+
+  it('a failed workbench handoff restores the booking control and sends no suggestion', async () => {
+    const target = new EventTarget();
+    const suggestions: Event[] = [];
+    target.addEventListener(
+      'beauessence:calendar-booking-suggestion',
+      (event) => suggestions.push(event)
+    );
+    const awaiting: (string | undefined)[] = [];
+    const announce = vi.fn();
+    const handOff = createBookingHandoff({
+      handoffToStaffWorkbench: () =>
+        Promise.reject(new Error('Synthetic session needs verification')),
+      announce,
+      setAwaitingCandidate: (candidateId: string | undefined) =>
+        awaiting.push(candidateId),
+      target
+    });
+    const button = { disabled: false };
+    await handOff({ candidateId: 'synthetic_candidate' }, button);
+    expect(button.disabled).toBe(false);
+    expect(awaiting).toEqual(['synthetic_candidate', undefined]);
+    expect(announce).toHaveBeenCalledWith(
+      'Synthetic session needs verification',
+      'error'
+    );
+    expect(suggestions).toHaveLength(0);
+  });
+
+  it('a successful workbench handoff sends one suggestion and keeps the control busy', async () => {
+    const target = new EventTarget();
+    const suggestions: CustomEvent[] = [];
+    target.addEventListener(
+      'beauessence:calendar-booking-suggestion',
+      (event) => suggestions.push(event as CustomEvent)
+    );
+    const awaiting: (string | undefined)[] = [];
+    const handoff = vi.fn(() => Promise.resolve());
+    const handOff = createBookingHandoff({
+      handoffToStaffWorkbench: handoff,
+      announce: vi.fn(),
+      setAwaitingCandidate: (candidateId: string | undefined) =>
+        awaiting.push(candidateId),
+      target
+    });
+    const button = { disabled: false };
+    const candidate = {
+      candidateId: 'synthetic_candidate',
+      suggestedPatientId: 'synthetic_patient',
+      suggestedPatientName: 'Synthetic Patient',
+      startsAt: '2030-01-07T04:00:00.000Z'
+    };
+    await handOff(candidate, button);
+    await handOff(candidate, button);
+    expect(handoff).toHaveBeenCalledOnce();
+    expect(awaiting).toEqual(['synthetic_candidate']);
+    expect(button.disabled).toBe(true);
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0]?.detail).toEqual({
+      candidateId: 'synthetic_candidate',
+      patientId: 'synthetic_patient',
+      patientName: 'Synthetic Patient',
+      startsAt: '2030-01-07T04:00:00.000Z'
+    });
   });
 });

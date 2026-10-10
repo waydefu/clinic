@@ -276,32 +276,67 @@ function inspectApiComparatorSyntax(apiSource) {
     );
   }
 
-  let referencesAllowlist = false;
-  let deniesSomething = false;
-  let allowsUnconditionally = false;
-  const visit = (node) => {
-    if (
-      ts.isIdentifier(node) &&
-      node.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
+  // Every return of the comparator itself must either deny (`return false`) or
+  // allow only through allowlist membership (`ALLOWLIST.includes(host)`, casts
+  // allowed). Any other return form, including `return true`, is rejected.
+  // This is a structural rule, not a semantic proof: the comparator's actual
+  // behaviour is proven only by its own module-imported unit test.
+  const unwrap = (node) => {
+    let current = node;
+    while (
+      current !== undefined &&
+      (ts.isParenthesizedExpression(current) ||
+        ts.isAsExpression(current) ||
+        ts.isTypeAssertionExpression(current) ||
+        ts.isNonNullExpression(current))
     )
-      referencesAllowlist = true;
+      current = current.expression;
+    return current;
+  };
+  const allowsByMembership = (expression) => {
+    const call = unwrap(expression);
+    if (
+      call === undefined ||
+      !ts.isCallExpression(call) ||
+      call.arguments.length !== 1 ||
+      !ts.isIdentifier(call.arguments[0]) ||
+      !ts.isPropertyAccessExpression(call.expression) ||
+      call.expression.name.text !== 'includes'
+    )
+      return false;
+    const list = unwrap(call.expression.expression);
+    return (
+      list !== undefined &&
+      ts.isIdentifier(list) &&
+      list.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
+    );
+  };
+  let denies = false;
+  let allows = false;
+  let otherReturns = 0;
+  const visit = (node) => {
+    if (ts.isFunctionLike(node)) return;
     if (ts.isReturnStatement(node)) {
-      const kind = node.expression?.kind;
-      if (kind === ts.SyntaxKind.FalseKeyword) deniesSomething = true;
-      if (kind === ts.SyntaxKind.TrueKeyword) allowsUnconditionally = true;
+      if (node.expression?.kind === ts.SyntaxKind.FalseKeyword) denies = true;
+      else if (
+        node.expression !== undefined &&
+        allowsByMembership(node.expression)
+      )
+        allows = true;
+      else otherReturns += 1;
     }
     ts.forEachChild(node, visit);
   };
-  if (comparator?.body !== undefined) visit(comparator.body);
+  if (comparator?.body !== undefined) ts.forEachChild(comparator.body, visit);
   if (
     comparator?.body === undefined ||
     comparator.parameters.length !== 1 ||
-    !referencesAllowlist ||
-    !deniesSomething ||
-    allowsUnconditionally
+    !denies ||
+    !allows ||
+    otherReturns !== 0
   ) {
     issues.push(
-      'API runtime authDomain comparator must be an exported function that denies by default and allows only hosts in the exported allowlist.'
+      'API runtime authDomain comparator must be an exported function whose returns either deny or allow only by exported allowlist membership.'
     );
   }
   return issues;

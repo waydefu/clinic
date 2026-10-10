@@ -140,7 +140,7 @@ describe('C1 firebase authDomain API comparator syntax', () => {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const apiFile = 'apps/api/src/platform/runtime/c1-firebase-auth-domain.ts';
   const comparatorIssue =
-    'API runtime authDomain comparator must be an exported function that denies by default and allows only hosts in the exported allowlist.';
+    'API runtime authDomain comparator must be an exported function whose returns either deny or allow only by exported allowlist membership.';
   const allowlistIssue =
     'API runtime allowlist must be an exported array literal of exactly the authorized isolated preview hosts.';
 
@@ -191,6 +191,36 @@ describe('C1 firebase authDomain API comparator syntax', () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toContain(comparatorIssue);
   });
+
+  const finalReturn =
+    '  return (C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS as readonly string[]).includes(\n    host\n  );\n';
+  it.each([
+    ['a non-empty host', '  return host.length > 0;\n'],
+    ['any truthy host', '  return !!host;\n'],
+    [
+      'membership or true',
+      '  return (C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS as readonly string[]).includes(host) || true;\n'
+    ],
+    ['a provider suffix', "  return host.endsWith('.web.app');\n"],
+    [
+      'a prefix match over the allowlist',
+      '  return C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.some((h) => host.startsWith(h));\n'
+    ]
+  ])(
+    'rejects a final allow decided by %s even with an inert allowlist reference',
+    (_label, replacement) => {
+      const result = inspectWithApiSource((source) => {
+        if (!source.includes(finalReturn))
+          throw new Error('Owning comparator shape changed; update fixture.');
+        return source.replace(
+          finalReturn,
+          `  void C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS;\n${replacement}`
+        );
+      });
+      expect(result.ok).toBe(false);
+      expect(result.issues).toContain(comparatorIssue);
+    }
+  );
 
   it('rejects policy that exists only in comments', () => {
     const result = inspectWithApiSource(

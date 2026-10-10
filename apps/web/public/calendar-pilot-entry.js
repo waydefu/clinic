@@ -20,7 +20,11 @@ if (
       stylesheet.addEventListener('load', resolve, { once: true });
       stylesheet.addEventListener(
         'error',
-        () => reject(new Error('CAL-PILOT stylesheet failed to load.')),
+        () => {
+          // A failed link must not satisfy later stylesheet de-duplication.
+          stylesheet.remove();
+          reject(new Error('CAL-PILOT stylesheet failed to load.'));
+        },
         { once: true }
       );
     });

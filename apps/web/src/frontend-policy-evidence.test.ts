@@ -127,6 +127,51 @@ describe('synthetic hint mode isolation at the real loader', () => {
     run.finish({ ok: false });
     await run.pending;
   });
+  it('removes a failed auth stylesheet so a later reauthentication can add it again', async () => {
+    type FakeLink = {
+      dataset: Record<string, string>;
+      remove: ReturnType<typeof vi.fn>;
+      fail: () => void;
+    };
+    const appended: FakeLink[] = [];
+    vi.stubGlobal('location', {
+      hostname: 'unapproved.example',
+      protocol: 'https:',
+      port: '',
+      pathname: '/staff',
+      search: ''
+    });
+    vi.stubGlobal('sessionStorage', storage());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true }))
+    );
+    vi.stubGlobal('window', { dispatchEvent: vi.fn() });
+    vi.stubGlobal('document', {
+      documentElement: { dataset: {}, classList: { add: vi.fn() } },
+      head: { append: (link: FakeLink) => appended.push(link) },
+      createElement: () => {
+        const listeners: Record<string, () => void> = {};
+        return {
+          dataset: {},
+          remove: vi.fn(),
+          addEventListener: (type: string, listener: () => void) => {
+            listeners[type] = listener;
+          },
+          fail: () => listeners['error']?.()
+        };
+      }
+    });
+    vi.resetModules();
+    const pending = import('../public/calendar-pilot-entry.js');
+    await vi.waitFor(() => expect(appended).toHaveLength(1));
+    expect(appended[0]?.dataset).toHaveProperty('calendarPilotStyle');
+    appended[0]?.fail();
+    await expect(pending).rejects.toThrow(
+      'CAL-PILOT stylesheet failed to load.'
+    );
+    expect(appended[0]?.remove).toHaveBeenCalledOnce();
+  });
 });
 
 describe('existing workbench calendar anchor counter-evidence', () => {

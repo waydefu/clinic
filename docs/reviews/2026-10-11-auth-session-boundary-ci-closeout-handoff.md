@@ -30,9 +30,9 @@
 | `admin-bootstrap.js` 的週曆定位 | `modules/week-view.js` 的 `initialWeekStart(state, prior)` | `frontend-policy-evidence.test.ts` 直接 import |
 | `business-view.js` 內部的 `runWrite` | 同檔匯出 `createBusinessWriteRunner(...)`；所有寫入與建立匯出共用同一個 `writeLock`，單一進行中的保護不變 | 同上 |
 | `src/calendar-pilot-entry.js` 的 `boot()` | 新檔 `src/calendar-pilot-boot.js` 的 `bootCalendarPilot(ops)`；Firebase SDK 與畫面操作由入口檔以 `ops` 注入 | `frontend-session-authority.test.ts` 直接 import，以 `vi.stubGlobal` 提供瀏覽器全域 |
-| `src/calendar-pilot-entry.js` 的 `reviewCandidate()` | 新檔 `src/calendar-pilot-candidate-review.js` 的 `createCandidateReview(...)` | `frontend-trust-boundary.test.ts` 直接 import |
+| `src/calendar-pilot-entry.js` 的 `reviewCandidate()`，以及取消預約、交給工作臺建立預約兩個按鈕動作 | 新檔 `src/calendar-pilot-actions.js` 的 `createCandidateReview`、`createAppointmentCancel`、`createBookingHandoff`（後兩者見 §5 的 X-C04 修正） | `frontend-trust-boundary.test.ts` 直接 import |
 | `public/calendar-pilot-entry.js` 整支載入器 | 不改原始碼 | 以 `vi.stubGlobal` 換掉 `location`／`fetch`／`document`／`sessionStorage`，`vi.resetModules()` 後以字面路徑動態 import 真實模組 |
-| `scripts/c1-firebase-auth-domain.mjs` 執行 API 原始碼 | 改以 TypeScript parser 檢查語法樹：必須有匯出的核准清單陣列（內容與授權清單完全相同），以及匯出的比對函式（引用該清單、有拒絕分支、沒有無條件 `return true`）；註解不是語法，因此只寫在註解裡的政策不會通過 | `scripts/c1-firebase-auth-domain.test.mjs` 新增 5 個語法樹案例；比對函式的實際行為改由 `apps/api/src/platform/runtime/c1-firebase-auth-domain.test.ts` 以正常 import 驗證，並補上原本只在 `vm` 中探測的路徑、後綴、萬用字元與未核准主機案例 |
+| `scripts/c1-firebase-auth-domain.mjs` 執行 API 原始碼 | 改以 TypeScript parser 檢查語法樹：必須有匯出的核准清單陣列（內容與授權清單完全相同），以及匯出的比對函式；函式本身的每個 `return` 只能是 `return false`，或「核准清單.includes(識別字)」（允許型別轉換外框），其他任何回傳（含 `return true`）都拒絕。註解不是語法，只寫在註解裡的政策不會通過。這是結構規則，不是語意證明（見 §4 E1-14） | `scripts/c1-firebase-auth-domain.test.mjs` 新增 10 個語法樹案例（含審查找到的 5 種繞法）；比對函式的實際行為由 `apps/api/src/platform/runtime/c1-firebase-auth-domain.test.ts` 以正常 import 驗證，並補上原本只在 `vm` 中探測的路徑、後綴、萬用字元與未核准主機案例 |
 
 `src` 的兩個新模組會被 `bundleCalendarPilot` 打進同一個 bundle，不增加請求。工作臺開機函式最初放在獨立新模組時，`/index.html` 總量實測 95.2 KiB，超過 95 KiB 預算；改放進只有工作臺載入的 `workspace-tabs.js` 後為 94.9 KiB。**沒有調整任何預算數字**，但工作臺總量只剩約 0.1 KiB。
 
@@ -42,10 +42,11 @@
 | --- | --- |
 | Firestore Emulator 完整套件（`test:rules`） | PASS：31/31 檔、320/320 案例，464 秒 |
 | 受影響的兩個 Emulator 檔 | RED 重現後 PASS：14/14 |
-| E2E `auth-rbac` 群組（3 個 spec，與 CI 同一組檔案） | 補 `/me` 後先為 28 PASS／1 FAIL（延後載入案例）；最終 29/29 PASS |
+| E2E `auth-rbac` 群組（3 個 spec，與 CI 同一組檔案） | 補 `/me` 後先為 28 PASS／1 FAIL（延後載入案例）；最終 29/29 PASS。審查修正後與 `appointments` 一起重跑：73/73 PASS |
 | E2E `appointments` 群組（Calendar 開機、舊登入閃爍、週曆、工作臺生命週期） | 44/44 PASS |
-| 完整 unit（Windows 本機，`test:unit` 同一組排除條件） | 最終 2675 PASS／1 FAIL／1 SKIP，共 2677 個、213 個檔。唯一 FAIL 是既有的 Windows FTP 相容性測試（`ECONNRESET`），先前基準相同，不 skip、不 waive。第一次整套執行另有兩個失敗：`staff-booking-surfaces` 讀的開機字串已搬到 `calendar-pilot-boot.js`，已改為讀取該模組並保留同樣的檢查；`recovery-clone-verify` 的 `getAll` 案例在高負載下逾時，單獨與第二次整套執行皆通過，以 Linux CI 為準 |
-| 刻意破壞檢查（7 個變體） | 7/7 被抓到；每次執行後原檔還原 |
+| 完整 unit（Windows 本機，`test:unit` 同一組排除條件） | 審查修正後最終 2685 PASS／1 FAIL／1 SKIP，共 2687 個、213 個檔。唯一 FAIL 是既有的 Windows FTP 相容性測試（`ECONNRESET`），先前基準相同，不 skip、不 waive。第一次整套執行另有兩個失敗：`staff-booking-surfaces` 讀的開機字串已搬到 `calendar-pilot-boot.js`，已改為讀取該模組並保留同樣的檢查；`recovery-clone-verify` 的 `getAll` 案例在高負載下逾時，單獨與第二次整套執行皆通過，以 Linux CI 為準 |
+| 刻意破壞檢查（10 個變體，含審查後新增的 3 個修正） | 10/10 被抓到；同時確認測試檔有成功載入（載入失敗不算抓到），每次執行後原檔還原 |
+| 前一個 head `3468b6b` 的 exact-head CI | 12/12 PASS（run 38087168997），包括 Emulator、SAST、六個 E2E 群組與 `Verification evidence`。本文所在 head 另含 §5 的審查修正，其 CI 見 PR 說明 |
 | ESLint（所有變更檔）、Prettier（所有變更檔）、`git diff --check` | PASS |
 | `check-structure`、`check-architecture`、`check:ui`、`check:pages`、`check:tokens`、`check:docs`、`check:governance`、`check:secrets`、`check:e2e-groups`、`check:sync` | PASS |
 | `check:perf` | PASS；`/index.html` 文件 9.9、script 66.4／67、樣式 16.0、圖片 2.6、總量 94.9／95 KiB |
@@ -77,22 +78,34 @@
 | X-C02 | session | SOURCE_FIXED | 快取 CSRF 只是提示，一律由 `/me` 驗證（`frontend-session-authority`、business-tab／legacy-login-flash E2E） |
 | B-03 | 入口 | BLOCKED | 需要實際 ingress／XFF 形狀的唯讀證據，屬受保護的線上操作 |
 | E1-04 | 入口 | NO_CHANGE（現行 source 為精確集合） | 本分支未改此檢查；現行 `evaluateC1FirebaseAuthDomain` 以精確主機集合判定，並有本分支新增的拒絕案例。歷史 claim 本身未驗證 |
-| E1-14 | 入口 | SOURCE_FIXED | 不再以子字串推斷；改為語法樹檢查加比對函式自身的 import 測試（本次） |
+| E1-14 | 入口 | PARTIAL | 不再以子字串推斷：真實比對函式的語意由它自己的 import 測試證明；檢查腳本改為語法樹，且只接受「拒絕」或「核准清單 membership」兩種回傳。但語法樹仍無法證明任意寫法的語意（例如把參數換成清單內的常數），而 `stage-f-deployment-graph` 的 e2 關帳只取這個腳本的結果。要完整結案，需決定 e2 是否改用比對函式測試的結果，或另做不執行原始碼的語意證明 |
 | K6 | 入口 | SOURCE_FIXED | IPv6 正規化、不做 /64 聚合（SOL-00 §3 已定）；與 K4 的 key 切換同一部署批次 |
 | K9 | 入口 | SOURCE_FIXED | 隔離測試 gate 改為 UTC 與 loopback emulator 約束（`auth-boundary.regression`） |
 | X-C06 | 入口 | SOURCE_FIXED | 預覽主機判定由排除清單改為核准主機規則（`frontend-trust-boundary`） |
 | C03 | session UI | SOURCE_FIXED | 遠端探測失敗不顯示本機帳密提示（`frontend-policy-evidence`、legacy-login-flash E2E） |
 | C09 | session UI | SOURCE_FIXED | 病患 transport 不繼承 staff 或 Calendar 再驗證 token（`frontend-trust-boundary`） |
-| X-C04 | session UI | SOURCE_FIXED | 候選審核與商務寫入失敗後恢復同一個控制項、維持單一進行中 |
+| X-C04 | session UI | SOURCE_FIXED | 候選審核、取消預約、交給工作臺建立預約與商務寫入，失敗後都恢復同一個控制項並維持單一進行中。取消與建立預約兩個按鈕是獨立審查後才修（§5）；入口檔其餘按鈕已逐一確認在失敗時恢復 |
 | X-C05 | session UI | NOT_A_BUG（工程判定） | 週曆以最早資料定位是刻意的；SOL-00 §3 判定沒有 Canon 缺陷證據，保留現行預設並以測試釘住 |
 | A01 | HTTP | SOURCE_FIXED | 非法 booking 路徑 ID 回安全的 400（`sol29-http-boundary`） |
 | A11 | HTTP | SOURCE_FIXED | 非法 Calendar 路徑 ID 回安全的 400，且不改動資料 |
 | K5 | HTTP | SOURCE_FIXED | 全域例外處理由根模組持有，不依附試行模組 |
 | NEW-04 | HTTP | SOURCE_FIXED | 損壞的 session cookie 視為驗證失敗並清除（`auth-boundary.regression`） |
 
-小計（共 29）：SOURCE_FIXED 20、PARTIAL 2、OPEN 3（含 K3 政策題）、BLOCKED 2、NO_CHANGE 1、NOT_A_BUG 1。
+小計（共 29）：SOURCE_FIXED 19、PARTIAL 3（K4、E4-14、E1-14）、OPEN 3（含 K3 政策題）、BLOCKED 2、NO_CHANGE 1、NOT_A_BUG 1。
 
-## 5. Blockers 與已記錄的決定
+## 5. 獨立審查與後續修正
+
+`3468b6b` 推上後，由一個不參與實作的唯讀審查者逐行比對搬移的程式碼。結論：搬移部分都等價，沒有阻擋合併的程式錯誤；但交接高估了兩列，另有三個低嚴重度項目。處理如下：
+
+| 審查發現 | 分類 | 處理 |
+| --- | --- | --- |
+| c1 語法樹檢查可被繞過（例如 `void 清單;` 加上 `return host.length > 0`、`!!host`、`includes(host) \|\| true`、`endsWith`、`some(startsWith)`），E1-14 標 SOURCE_FIXED 高估 | CONFIRMED | 收緊為「每個回傳只能是拒絕或清單 membership」，5 種繞法都成為測試案例；E1-14 照實降為 PARTIAL。沒有採用「轉譯後寫成暫存檔再 import 執行」的做法，那等於換一種方式繞過 SAST 規則 |
+| Calendar「取消」按鈕失敗後停用不恢復；「為此病患建立預約」在交接工作臺失敗時停用、無公告，且等待中的候選 ID 沒有清除。X-C04 標 SOURCE_FIXED 高估 | CONFIRMED | 兩者移到 `calendar-pilot-actions.js`：失敗時恢復同一顆按鈕並公告，交接失敗時清除等待中的候選、不送出預約建議。新增 4 個回歸案例，刻意破壞檢查確認會變紅 |
+| 開機載入器的樣式載入失敗時 `<link>` 留在文件中，商務再驗證因去重而不再重試 | NEEDS-RUNTIME-REPRODUCTION | 載入器在 error 時移除該 `<link>`；新增以真實載入器模組驗證的回歸案例 |
+| 新接點的接線本身（`admin-bootstrap` 與入口檔傳入的存取函式）沒有單元測試 | LIKELY（測試缺口） | 未另加單元測試；接線由 `auth-rbac`、`appointments` 兩個 E2E 群組以真實開機流程覆蓋。漏傳任一存取函式會讓這兩組失敗，但單元層不會 |
+| `calendar-pilot-boot.js` 把 client-config 路徑寫成字面值，入口檔則用 `API` 常數 | 低 | 行為相同，未改；日後調整 API 前綴時兩處要一起改 |
+
+## 6. Blockers 與已記錄的決定
 
 1. **限流 key 切換**：業主 2026-10-10 選「下次 C1 部署時直接切換，舊計數作廢」（已記入決定登記簿）。不再是政策 blocker，但部署本身仍需該次精確版本的授權，且不得混跑新舊 writer。
 2. **HMAC 金鑰與識別鍵轉換（D-08）**：BLOCKED，需建立 secret 與資料轉換的另行授權。
@@ -100,12 +113,12 @@
 4. **政策**：session 實體保存期限（A05）業主已選 24 小時，屬 SOL-04 範圍，尚未實作也尚未記入登記簿；K3 停用帳號分類維持現狀，無政策授權不新增代碼。
 5. **新功能**：身分衝突改為「待櫃台確認」已記入登記簿，未實作；保存期限、可見範圍與稽核需另行設計。
 
-## 6. 不在本次範圍
+## 7. 不在本次範圍
 
 沒有 merge、deploy、修改 secret／IAM、執行 migration 或接觸真實資料；沒有啟動 Luna。`/clinic` 官網與其他 Sol 工作包不在本分支。
 
-## 7. 下一步
+## 8. 下一步
 
 1. 讀回本分支新 head 的完整 required CI（verify、rules、六個 E2E 群組、audit、SAST、Gitleaks 與彙總），結果寫在 PR 說明。
-2. 全綠後做一次獨立的唯讀審查，再交業主 review；合併需業主另行決定。
-3. 合併後依序處理 OPEN／PARTIAL 列（B-34、E3-19、K4 剩餘、E4-14），各自開新的工作包。
+2. 交業主 review；合併與否由業主決定。braces 例外延期是另一個 PR，與本分支同改決定登記簿開頭，後合併的一方需先同步 main。
+3. 合併後依序處理 OPEN／PARTIAL 列（B-34、E3-19、K4 剩餘、E4-14、E1-14 的 e2 證據來源），各自開新的工作包。
