@@ -1,10 +1,10 @@
+import { isIP } from 'node:net';
+
 /**
  * Source-IP derivation for WP-B2. Trust only the controlled proxy chain.
  * Client-supplied X-Forwarded-For values to the left of the trusted hops
  * are ignored so a spoofed header cannot pick the bucket key.
  */
-
-const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 
 export interface ClientIpRequest {
   readonly headers: Record<string, unknown>;
@@ -53,9 +53,22 @@ function forwardingList(headers: Record<string, unknown>): string[] {
 
 function normalizeIp(value: string): string {
   const trimmed = value.trim();
-  if (trimmed.startsWith('::ffff:')) return trimmed.slice('::ffff:'.length);
-  if (IPV4.test(trimmed) || trimmed.includes(':')) return trimmed;
-  return 'unknown';
+  const family = isIP(trimmed);
+  if (family === 4) return trimmed;
+  if (family !== 6) return 'unknown';
+  try {
+    // Canonicalize a validated IPv6 literal without DNS/network access.
+    const address = new URL(`http://[${trimmed}]/`).hostname.slice(1, -1);
+    const mapped = /^::ffff:([a-f0-9]{1,4}):([a-f0-9]{1,4})$/.exec(address);
+    if (mapped !== null) {
+      const high = Number.parseInt(mapped[1] ?? '', 16);
+      const low = Number.parseInt(mapped[2] ?? '', 16);
+      return `${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`;
+    }
+    return address;
+  } catch {
+    return 'unknown';
+  }
 }
 
 export function deriveClientIp(

@@ -1,4 +1,7 @@
-import { RateLimitedError } from '../errors/api-error.js';
+import {
+  RateLimitedError,
+  ServiceUnavailableError
+} from '../errors/api-error.js';
 import type { RateLimitPolicy } from '@beauessence/domain';
 
 export interface DurableRateLimitRecord {
@@ -36,6 +39,21 @@ export function planDurableRateLimit(
   policy: RateLimitPolicy,
   nowMs: number
 ): { record: DurableRateLimitRecord; result: DurableRateLimitConsumeResult } {
+  if (
+    !Number.isFinite(nowMs) ||
+    nowMs < 0 ||
+    (current !== undefined &&
+      (!Number.isSafeInteger(current.count) ||
+        current.count < 0 ||
+        !Number.isFinite(current.windowStartMs) ||
+        current.windowStartMs < 0 ||
+        current.windowStartMs > nowMs ||
+        (current.lockedUntilMs !== null &&
+          (!Number.isFinite(current.lockedUntilMs) ||
+            current.lockedUntilMs < 0))))
+  ) {
+    throw new ServiceUnavailableError();
+  }
   if (
     current?.lockedUntilMs !== undefined &&
     current.lockedUntilMs !== null &&

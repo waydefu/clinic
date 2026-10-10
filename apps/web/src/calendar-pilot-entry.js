@@ -20,6 +20,9 @@ import {
 import {
   CALENDAR_PILOT_AUTH_OUTCOME,
   clearCalendarPilotClientAuthState,
+  calendarPilotAuthenticationGeneration,
+  verifyCalendarPilotClientSession,
+  calendarPilotVerifiedActor,
   completeGoogleSignIn as completeGoogleTotpSignIn,
   isCalendarPilotLogoutInProgress,
   registerCalendarPilotReauthenticationBridge,
@@ -757,6 +760,7 @@ function openCorrectionDrawer(candidate, context) {
 }
 
 async function reviewCandidate(candidate, action, extra, button) {
+  if (button.disabled) return;
   button.disabled = true;
   try {
     await request(`/calendar/candidates/${candidate.candidateId}/${action}`, {
@@ -771,6 +775,8 @@ async function reviewCandidate(candidate, action, extra, button) {
     await renderApplication();
   } catch (error) {
     announce(error.message, 'error');
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -1048,6 +1054,17 @@ async function renderApplication() {
 }
 
 async function handoffToStaffWorkbench() {
+  const verified =
+    calendarPilotVerifiedActor() ??
+    (await verifyCalendarPilotClientSession(auth.currentUser?.uid));
+  if (
+    !verified ||
+    (auth.currentUser?.uid !== undefined &&
+      verified.actorId !== auth.currentUser.uid) ||
+    isCalendarPilotLogoutInProgress(sessionStorage)
+  ) {
+    throw new Error('請重新完成工作階段驗證。');
+  }
   document.documentElement.classList.remove('calendar-pilot-active');
   document.documentElement.classList.add('synthetic-workbench-ready');
   root?.remove();
@@ -1070,6 +1087,7 @@ function failPendingReauthentication() {
 }
 
 async function boot() {
+  const bootGeneration = calendarPilotAuthenticationGeneration();
   if (isPublicBookingPath(location.pathname)) {
     document.documentElement.classList.add('synthetic-workbench-ready');
     return;
@@ -1088,6 +1106,11 @@ async function boot() {
     document.documentElement.classList.add('synthetic-workbench-ready');
     return;
   }
+  if (
+    bootGeneration !== calendarPilotAuthenticationGeneration() ||
+    isCalendarPilotLogoutInProgress(sessionStorage)
+  )
+    return;
   const config = await configResponse.json();
   const calendarPilotWorkbench = wantsCalendarPilotOverlay(location.search);
   document.documentElement.classList.add('calendar-pilot-active');
@@ -1095,15 +1118,6 @@ async function boot() {
   root.className = 'calendar-pilot-root';
   document.body.append(root);
   auth = getAuth(calendarPilotFirebaseApp(config));
-  try {
-    await firstAuthStateChanged((callback) =>
-      onAuthStateChanged(auth, callback)
-    );
-  } catch {
-    failPendingReauthentication();
-    document.documentElement.classList.add('synthetic-workbench-ready');
-    return;
-  }
   registerCalendarPilotReauthenticationBridge({
     target: window,
     getFreshIdToken: freshIdToken
@@ -1116,6 +1130,16 @@ async function boot() {
   if (cachedCsrf !== null) {
     csrfToken = cachedCsrf;
     try {
+      const verified = await verifyCalendarPilotClientSession(
+        auth.currentUser?.uid
+      );
+      if (!verified) {
+        csrfToken = undefined;
+        if (!isCalendarPilotLogoutInProgress(sessionStorage))
+          showLogin('工作階段無法驗證，請重新登入。');
+        return;
+      }
+      if (bootGeneration !== calendarPilotAuthenticationGeneration()) return;
       if (calendarPilotWorkbench) {
         await renderApplication();
         return;
@@ -1131,9 +1155,28 @@ async function boot() {
     }
   }
   try {
+    await firstAuthStateChanged((callback) =>
+      onAuthStateChanged(auth, callback)
+    );
+  } catch {
+    failPendingReauthentication();
+    document.documentElement.classList.add('synthetic-workbench-ready');
+    return;
+  }
+  try {
     const result = await completeGoogleSignIn();
     if (result.outcome === CALENDAR_PILOT_AUTH_OUTCOME.AUTHENTICATED) {
       csrfToken = result.csrfToken;
+      const verified = await verifyCalendarPilotClientSession(
+        auth.currentUser?.uid
+      );
+      if (!verified) {
+        csrfToken = undefined;
+        if (!isCalendarPilotLogoutInProgress(sessionStorage))
+          showLogin('工作階段無法驗證，請重新登入。');
+        return;
+      }
+      if (isCalendarPilotLogoutInProgress(sessionStorage)) return;
       if (calendarPilotWorkbench) {
         await renderApplication();
         return;

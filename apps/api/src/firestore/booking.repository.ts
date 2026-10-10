@@ -1,3 +1,4 @@
+import { ServiceUnavailableError } from '../platform/errors/api-error.js';
 import {
   assertIdempotencyContext,
   DomainError,
@@ -33,6 +34,8 @@ import type {
 import { FieldValue } from 'firebase-admin/firestore';
 
 import {
+  FirestorePatientDirectory,
+  type PreparedPatientIntake,
   assertFollowUpBookable,
   assertPatientNotArchived,
   isLiveFollowUp,
@@ -120,7 +123,10 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
     };
   }
 
-  public async reserve(request: BookingRequest): Promise<ReservationResult> {
+  public async reserve(
+    request: BookingRequest,
+    intake?: PreparedPatientIntake
+  ): Promise<ReservationResult> {
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     const idempotencyRef = this.db
       .collection(COLLECTIONS.idempotencyKeys)
@@ -145,6 +151,23 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       );
       if (replay !== undefined) return replay;
 
+      const intakePlan =
+        intake === undefined
+          ? undefined
+          : await new FirestorePatientDirectory(this.db).planIntakeWithin(
+              transaction,
+              intake.intake,
+              request.requestedAt,
+              () => intake.patientId
+            );
+      if (
+        intakePlan !== undefined &&
+        intakePlan.patientId !== request.patientId
+      ) {
+        // A concurrent intake committed first. Retry the read-only preparation
+        // instead of changing the actor-scoped idempotency identity mid-flight.
+        throw new ServiceUnavailableError();
+      }
       // The patient was resolved in an earlier transaction. Read the record
       // here so an archive that committed in between makes this booking
       // fail before anything is written (ADR-0010; archive and this
@@ -199,6 +222,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       const plan = planBooking(request, slot, patientBookingGuard);
 
       // --- writes -------------------------------------------------------
+      intakePlan?.apply();
       transaction.set(
         this.db.collection(COLLECTIONS.appointments).doc(plan.appointment.id),
         request.bookingKind === 'follow_up'

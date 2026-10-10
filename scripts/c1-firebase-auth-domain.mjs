@@ -1,3 +1,5 @@
+import { Script } from 'node:vm';
+import { ModuleKind, transpileModule } from 'typescript';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -213,6 +215,45 @@ export function inspectC1FirebaseAuthDomainSource(repoRoot = root) {
     );
   }
 
+  // Run the owning pure comparator, not a substring in an inert comment.
+  // No require/process/network is supplied; generated mutants are time-bounded.
+  try {
+    const module = { exports: {} };
+    const javascript = transpileModule(apiSource, {
+      compilerOptions: { module: ModuleKind.CommonJS }
+    }).outputText;
+    new Script(javascript).runInNewContext(
+      { module, exports: module.exports },
+      { timeout: 1000 }
+    );
+    const comparator = module.exports.isAuthorizedC1FirebaseAuthDomain;
+    if (typeof comparator !== 'function')
+      throw new Error('No executable comparator.');
+    const probes = [
+      ...C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.map((value) => [value, true]),
+      ['', false],
+      ['unapproved.web.app', false],
+      [null, false],
+      [`https://${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}`, false],
+      [`${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}/__/auth/handler`, false],
+      [`${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}.unapproved.example`, false],
+      ['beauessence-clinic-staging.firebaseapp.com', false],
+      ['*.web.app', false]
+    ];
+    for (const [value, expected] of probes) {
+      // Execute each function call in the same bounded context, not outside it.
+      const sandbox = { comparator, value, result: undefined };
+      new Script('result = comparator(value)').runInNewContext(sandbox, {
+        timeout: 1000
+      });
+      if (sandbox.result !== expected)
+        throw new Error('Policy behavior mismatch.');
+    }
+  } catch {
+    issues.push(
+      'API runtime authDomain policy must execute approved and denied cases.'
+    );
+  }
   return { ok: issues.length === 0, issues };
 }
 

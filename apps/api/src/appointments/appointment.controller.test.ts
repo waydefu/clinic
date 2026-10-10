@@ -14,6 +14,7 @@ import type { CandidateRole } from '../platform/authorization/rbac.js';
 import { createRbacAppointmentPolicy } from '../platform/authorization/rbac-appointment-policy.js';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
+import { WP_B2_RATE_LIMITER } from '../platform/runtime/wp-b2-rate-limiter.js';
 import { createApplication } from '../main.js';
 import { AppointmentApplicationService } from './appointment.application-service.js';
 import {
@@ -176,6 +177,10 @@ const harnessRepository: AppointmentRepositoryPort = {
       useValue: OPEN_INTERNAL_TEST_SETTINGS
     },
     {
+      provide: WP_B2_RATE_LIMITER,
+      useValue: { assertRequest: () => Promise.resolve() }
+    },
+    {
       provide: INTERNAL_TEST_BOOKING_CLOCK,
       useValue: FIXED_INTERNAL_TEST_CLOCK
     }
@@ -203,6 +208,10 @@ class AppointmentRbacHarnessModule {}
           { next: () => 'corr_harness_001' }
         ),
       inject: [APPOINTMENT_AUTHORIZATION]
+    },
+    {
+      provide: WP_B2_RATE_LIMITER,
+      useValue: { assertRequest: () => Promise.resolve() }
     }
   ]
 })
@@ -234,12 +243,26 @@ class AppointmentMissingSettingsModule {}
       useValue: CLOSED_INTERNAL_TEST_SETTINGS
     },
     {
+      provide: WP_B2_RATE_LIMITER,
+      useValue: { assertRequest: () => Promise.resolve() }
+    },
+    {
       provide: INTERNAL_TEST_BOOKING_CLOCK,
       useValue: FIXED_INTERNAL_TEST_CLOCK
     }
   ]
 })
 class AppointmentClosedGateModule {}
+
+@Module({
+  controllers: [AppointmentController],
+  providers: (
+    Reflect.getMetadata('providers', AppointmentRbacHarnessModule) as Array<{
+      provide: unknown;
+    }>
+  ).filter((provider) => provider.provide !== WP_B2_RATE_LIMITER)
+})
+class AppointmentMissingLimiterModule {}
 
 function actorHeaders(
   role: CandidateRole,
@@ -282,6 +305,16 @@ describe('unrouted AppointmentController RBAC harness', () => {
         { logger: false, abortOnError: false }
       )
     ).rejects.toThrow(/InternalTestBookingSettings|Nest can't resolve/i);
+  });
+
+  it('refuses startup when the required request limiter is not injected', async () => {
+    await expect(
+      NestFactory.create(
+        AppointmentMissingLimiterModule,
+        new FastifyAdapter({ logger: false }),
+        { logger: false, abortOnError: false }
+      )
+    ).rejects.toThrow('WpB2RateLimiter');
   });
 
   it('returns HTTP 503 when the injected internal-test gate is closed', async () => {

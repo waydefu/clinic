@@ -283,41 +283,54 @@ export class AppointmentApplicationService {
   private async resolveCreateAuthentication(
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
-  ): Promise<AuthenticationContext> {
+  ): Promise<{
+    authentication: AuthenticationContext;
+    intake?: import('../patients/patient-directory.js').PreparedPatientIntake;
+  }> {
     if (
       command.intake !== undefined &&
       authentication.verifiedPatientId !== undefined
     ) {
       throw new AuthorizationDeniedError();
     }
-    if (authentication.verifiedPatientId !== undefined) return authentication;
+    if (authentication.verifiedPatientId !== undefined)
+      return { authentication };
+    // Intake is initial-booking identity, not proof for a return/follow-up.
+    if (command.bookingKind === 'follow_up' && command.intake !== undefined) {
+      throw new MissingVerifiedPatientError();
+    }
     if (command.intake !== undefined) {
       if (this.patients === undefined) throw new MissingVerifiedPatientError();
-      const patientId = await this.patients.resolveFromIntake(
+      const intake = await this.patients.prepareIntake(
         command.intake,
         this.clock.nowUtc(),
         () => this.ids.next()
       );
+      const patientId = intake.patientId;
       return {
-        actorId:
-          authentication.actorId === 'anonymous'
-            ? patientId
-            : authentication.actorId,
-        actorRole: authentication.actorRole,
-        verifiedPatientId: patientId
+        intake,
+        authentication: {
+          actorId:
+            authentication.actorId === 'anonymous'
+              ? patientId
+              : authentication.actorId,
+          actorRole: authentication.actorRole,
+          verifiedPatientId: patientId
+        }
       };
     }
-    return authentication;
+    return { authentication };
   }
 
   public async create(
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
   ): Promise<CreateAppointmentResponse> {
-    const resolvedAuth = await this.resolveCreateAuthentication(
+    const resolved = await this.resolveCreateAuthentication(
       command,
       authentication
     );
+    const resolvedAuth = resolved.authentication;
     const patientId = resolvedCreatePatientId(command, resolvedAuth);
     // Whether the patient may book a follow-up is decided by the reserve
     // transaction, after it has replayed a recorded idempotency key. Judging it
@@ -332,23 +345,25 @@ export class AppointmentApplicationService {
     }
     await this.authorization.assertCanCreate(resolvedAuth, command);
 
-    const result = await this.repository.reserve(
-      toBookingRequest(command, {
-        appointmentId: this.ids.next(),
-        patientId,
-        requestedAt: this.clock.nowUtc(),
-        audit: {
-          actorId: resolvedAuth.actorId,
-          actorRole: resolvedAuth.actorRole,
-          correlationId: this.correlations.next(),
-          source: 'api',
-          reasonCode: null,
-          // IP-001 internal-test identifier. accepted_at is audit.occurredAt.
-          // Create must not take a client privacyAcceptance payload.
-          policyVersion: INTERNAL_TEST_PRIVACY_POLICY_VERSION
-        }
-      })
-    );
+    const request = toBookingRequest(command, {
+      appointmentId: this.ids.next(),
+      patientId,
+      requestedAt: this.clock.nowUtc(),
+      audit: {
+        actorId: resolvedAuth.actorId,
+        actorRole: resolvedAuth.actorRole,
+        correlationId: this.correlations.next(),
+        source: 'api',
+        reasonCode: null,
+        // IP-001 internal-test identifier. accepted_at is audit.occurredAt.
+        // Create must not take a client privacyAcceptance payload.
+        policyVersion: INTERNAL_TEST_PRIVACY_POLICY_VERSION
+      }
+    });
+    const result =
+      resolved.intake === undefined
+        ? await this.repository.reserve(request)
+        : await this.repository.reserve(request, resolved.intake);
     return confirmedAppointmentResponse(
       result.appointmentId,
       requireReservationStart(result)

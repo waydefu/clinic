@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { RateLimitPolicy } from '@beauessence/domain';
 import type { Firestore } from 'firebase-admin/firestore';
 
@@ -9,8 +10,13 @@ import {
 
 export const RATE_LIMIT_COLLECTION = 'rate_limit_state';
 
-function documentId(key: string): string {
+function legacyDocumentId(key: string): string {
   return key.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 128);
+}
+
+function documentId(key: string): string {
+  // A dot cannot appear in a sanitized legacy alias, including a crafted key.
+  return `v2.${createHash('sha256').update(key).digest('hex')}`;
 }
 
 export class FirestoreDurableRateLimitStore implements DurableRateLimitStore {
@@ -26,20 +32,28 @@ export class FirestoreDurableRateLimitStore implements DurableRateLimitStore {
         .collection(RATE_LIMIT_COLLECTION)
         .doc(documentId(key));
       const snapshot = await transaction.get(ref);
-      const data = snapshot.data() ?? {};
+      // Carry forward an existing lock/counter once, without changing or
+      // deleting the old record. New-version writers have independent keys.
+      const legacy = snapshot.exists
+        ? undefined
+        : await transaction.get(
+            this.db.collection(RATE_LIMIT_COLLECTION).doc(legacyDocumentId(key))
+          );
+      const data = (snapshot.exists ? snapshot.data() : legacy?.data()) as
+        Record<string, unknown> | undefined;
       const current =
-        typeof data['count'] === 'number' &&
-        typeof data['windowStartMs'] === 'number'
-          ? {
+        data === undefined
+          ? undefined
+          : {
               count: data['count'],
               windowStartMs: data['windowStartMs'],
-              lockedUntilMs:
-                typeof data['lockedUntilMs'] === 'number'
-                  ? data['lockedUntilMs']
-                  : null
-            }
-          : undefined;
-      const planned = planDurableRateLimit(current, policy, nowMs);
+              lockedUntilMs: data['lockedUntilMs'] ?? null
+            };
+      const planned = planDurableRateLimit(
+        current as Parameters<typeof planDurableRateLimit>[0],
+        policy,
+        nowMs
+      );
       transaction.set(ref, {
         count: planned.record.count,
         windowStartMs: planned.record.windowStartMs,

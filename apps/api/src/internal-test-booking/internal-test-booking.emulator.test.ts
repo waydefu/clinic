@@ -15,7 +15,7 @@ import {
 } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Module } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { APP_FILTER, NestFactory } from '@nestjs/core';
 import {
   FastifyAdapter,
   type NestFastifyApplication
@@ -27,6 +27,8 @@ import {
   CALENDAR_PILOT_COOKIE,
   CalendarPilotSessionService
 } from '../auth/calendar-pilot-session.js';
+import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
+import { ApiSafetyModule } from '../firestore/api-safety.module.js';
 import { COLLECTIONS } from '../firestore/booking.repository.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
@@ -105,7 +107,9 @@ class FakeAuth {
       uid,
       email: account.email,
       email_verified: true,
+      auth_time: Math.floor(Date.now() / 1000),
       firebase: {
+        sign_in_provider: 'google.com',
         sign_in_second_factor: account.totp ? 'totp' : undefined
       }
     } as unknown as DecodedIdToken;
@@ -201,7 +205,9 @@ async function restoreLogicalSnapshot(
 
 function composingModule(auth: Auth, sessions: CalendarPilotSessionService) {
   @Module({
+    providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
     imports: [
+      ApiSafetyModule,
       InternalTestBookingModule.register({
         clock,
         auth,
@@ -265,6 +271,12 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     await instance.init();
     await instance.getHttpAdapter().getInstance().ready();
     nestApp = instance;
+    // Explicit synthetic trusted association for this injected SDK harness.
+    // Production has no UID association adapter and therefore fails closed.
+    Object.assign(instance.get('PatientDirectory'), {
+      readVerifiedPatientId: (uid: string) =>
+        Promise.resolve(uid === PATIENT_UID ? PATIENT_UID : undefined)
+    });
     const created = await sessions.create(fake.mintIdToken(MANAGER_UID));
     fake.linkSessionCookie(created.cookieValue, MANAGER_UID);
     managerCookie = `${CALENDAR_PILOT_COOKIE}=${created.cookieValue}`;

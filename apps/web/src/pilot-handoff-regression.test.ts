@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initialState, stagingRequest, storageKey } from '../public/store.js';
-import { completeGoogleSignIn } from '../public/modules/pilot-google-totp-session.js';
+import {
+  verifyCalendarPilotClientSession,
+  completeGoogleSignIn
+} from '../public/modules/pilot-google-totp-session.js';
 
 const { firebaseOnAuthStateChanged, unsubscribeAuthState } = vi.hoisted(() => ({
   firebaseOnAuthStateChanged: vi.fn(),
@@ -12,7 +15,7 @@ vi.mock('firebase/app', () => ({
 }));
 vi.mock('firebase/auth', async (importOriginal) =>
   Object.assign({}, await importOriginal(), {
-    getAuth: () => ({}),
+    getAuth: () => ({ currentUser: { uid: 'opaque_fixture' } }),
     onAuthStateChanged: (auth, callback) => {
       firebaseOnAuthStateChanged(auth, callback);
       callback(null);
@@ -69,7 +72,7 @@ describe('pilot handoff regressions', () => {
     vi.stubGlobal('window', new EventTarget());
     vi.stubGlobal(
       'sessionStorage',
-      storage({ calPilotCsrf: 'synthetic_csrf' })
+      storage({ calPilotCsrf: 'synthetic_csrf', calPilotRole: 'manager' })
     );
     vi.stubGlobal('document', {
       documentElement: { classList: { add() {} } },
@@ -78,8 +81,16 @@ describe('pilot handoff regressions', () => {
     });
     const fetchMock = vi.fn((url: string) =>
       Promise.resolve({
-        ok: url.endsWith('/client-config'),
-        json: () => Promise.resolve({ error: { code: 'CONFLICT' } })
+        ok: url.endsWith('/client-config') || url.endsWith('/me'),
+        json: () =>
+          Promise.resolve(
+            url.endsWith('/me')
+              ? {
+                  actorId: 'opaque_fixture',
+                  actorRole: sessionStorage.getItem('calPilotRole')
+                }
+              : { error: { code: 'CONFLICT' } }
+          )
       })
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -121,6 +132,16 @@ describe('pilot handoff regressions', () => {
             : { calPilotCsrf: 'synthetic_csrf', calPilotRole: role }
         )
       );
+      if (role !== 'missing')
+        await verifyCalendarPilotClientSession('opaque_fixture', {
+          storage: sessionStorage,
+          fetchImpl: async () =>
+            Promise.resolve({
+              ok: true,
+              json: async () =>
+                Promise.resolve({ actorId: 'opaque_fixture', actorRole: role })
+            })
+        });
       const state = initialState();
       state.workspace.authenticated = false;
       local.setItem(storageKey, JSON.stringify(state));

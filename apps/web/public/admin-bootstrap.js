@@ -1,6 +1,7 @@
 // Trusted Types 的 default policy。必須第一個匯入：它要在任何模組
 // 有機會寫 innerHTML 之前就註冊好。
 import './modules/trusted-html.js';
+
 import {
   appointmentPage,
   DEFAULT_APPOINTMENT_PAGE_SIZE,
@@ -23,6 +24,7 @@ import {
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
 import {
+  loadStaffServerAuthority,
   isInternalTestBookingEnabled,
   resolveApiClient
 } from './modules/api-client.js';
@@ -68,6 +70,7 @@ const restrictedDom = [
   ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
 ];
 let client = apiClient;
+let serverAuthority;
 let disposeBusinessView = () => {};
 let businessViewGeneration = 0;
 let activeBusinessViewGeneration = 0;
@@ -175,6 +178,9 @@ function enforceRoleDomBoundary() {
 // 不是安全邊界——權限仍由帳號角色決定，`state` 也已在瀏覽器內，登出不等於
 // 伺服器端撤銷（AUTH-001／D-006）。
 function renderGate() {
+  const credentialHint = document.querySelector('.login-hint');
+  if (credentialHint !== null)
+    credentialHint.hidden = serverAuthority !== undefined;
   const authenticated = state.session.authenticated === true;
   elements['login-view'].hidden = authenticated;
   appShell.hidden = !authenticated;
@@ -569,6 +575,17 @@ function applyContractWrite(path, body, result) {
 }
 
 function renderSession() {
+  if (state.session?.authenticated !== true || state.session.account == null) {
+    elements['current-account-label'].textContent = '';
+    elements['current-account-boundary'].textContent = '';
+    applyWorkspacePanel();
+    window.dispatchEvent(
+      new CustomEvent('beauessence:workbench-access-change', {
+        detail: { authorized: false }
+      })
+    );
+    return;
+  }
   elements['current-account-label'].textContent =
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
@@ -801,6 +818,8 @@ function renderBlockedTimesForm() {
 }
 
 function render() {
+  if (serverAuthority !== undefined && state !== undefined)
+    state = serverAuthority.applyCalendarPilotWorkbenchAuthority(state);
   renderGate();
   renderSession();
   renderFilters();
@@ -2256,11 +2275,40 @@ if (isInternalTestBookingEnabled()) {
 }
 
 try {
+  // Local prototype transport opt-in is not a Firebase identity mode.
+  let authorityBoundaryActive =
+    Boolean(sessionStorage.getItem('calPilotCsrf')) ||
+    document.documentElement.dataset.calendarSessionMode === 'server';
+  let enablingAuthority;
+  const enableServerAuthority = () =>
+    (enablingAuthority ??= (async () => {
+      serverAuthority = await loadStaffServerAuthority();
+      authorityBoundaryActive = true;
+      serverAuthority.bindCalendarPilotWorkbenchAuthority(
+        () => state,
+        (next) => {
+          state = next;
+          enforceRoleDomBoundary();
+          render();
+        }
+      );
+      if (state !== undefined) {
+        state = serverAuthority.applyCalendarPilotWorkbenchAuthority(state);
+        render();
+      }
+    })());
+  window.addEventListener(
+    'beauessence:calendar-session-enabled',
+    () => {
+      void enableServerAuthority();
+    },
+    { once: true }
+  );
+  if (authorityBoundaryActive) await enableServerAuthority();
   client = await resolveApiClient();
   state = await client.request('/state');
-  if (sessionStorage.getItem('calPilotCsrf')) {
-    state = (await import('./modules/hydrate-staff.js')).hydrateStaff(state);
-  }
+  if (authorityBoundaryActive)
+    state = serverAuthority.applyCalendarPilotWorkbenchAuthority(state);
   enforceRoleDomBoundary();
   let accessDenied = false;
   initWorkspaceTabs({

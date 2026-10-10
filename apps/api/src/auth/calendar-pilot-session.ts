@@ -9,6 +9,7 @@ import type { Auth, DecodedIdToken } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import {
   STAFF_ABSOLUTE_SESSION_MS,
+  assertUtcTimestamp,
   evaluateStaffSession,
   taipeiCalendarDateOf
 } from '@beauessence/domain';
@@ -47,12 +48,19 @@ export function readCalendarPilotSessionCookie(
 ): string | undefined {
   const raw = Array.isArray(header) ? header.join(';') : header;
   if (raw === undefined) return undefined;
+  let cookie: string | undefined;
   for (const part of raw.split(';')) {
     const [name, ...value] = part.trim().split('=');
-    if (name === CALENDAR_PILOT_COOKIE)
-      return decodeURIComponent(value.join('='));
+    if (name !== CALENDAR_PILOT_COOKIE) continue;
+    if (cookie !== undefined) throw new AuthenticationRequiredError();
+    try {
+      cookie = decodeURIComponent(value.join('='));
+    } catch {
+      throw new AuthenticationRequiredError();
+    }
+    if (cookie === '') throw new AuthenticationRequiredError();
   }
-  return undefined;
+  return cookie;
 }
 
 export function calendarPilotSessionSetCookie(
@@ -106,18 +114,17 @@ export function roleForCalendarPilotEmail(
   email: string | undefined,
   environment: NodeJS.ProcessEnv = process.env
 ): CalendarPilotStaffRole | undefined {
+  const managers = splitAllowlist(environment['CALENDAR_PILOT_MANAGER_EMAILS']);
+  const frontDesk = splitAllowlist(
+    environment['CALENDAR_PILOT_FRONT_DESK_EMAILS']
+  );
+  if ([...managers].some((address) => frontDesk.has(address))) {
+    throw new AuthenticationRequiredError();
+  }
   if (email === undefined) return undefined;
   const normalized = email.trim().toLowerCase();
-  if (
-    splitAllowlist(environment['CALENDAR_PILOT_MANAGER_EMAILS']).has(normalized)
-  )
-    return 'manager';
-  if (
-    splitAllowlist(environment['CALENDAR_PILOT_FRONT_DESK_EMAILS']).has(
-      normalized
-    )
-  )
-    return 'front_desk';
+  if (managers.has(normalized)) return 'manager';
+  if (frontDesk.has(normalized)) return 'front_desk';
   return undefined;
 }
 
@@ -140,12 +147,51 @@ export function isCalendarPilotSessionActive(
   ) {
     return false;
   }
-  return evaluateStaffSession({
-    now,
-    issuedAt: session.createdAt,
-    lastSeenAt: session.lastSeenAt,
-    accountDisabled
-  }).active;
+  try {
+    assertUtcTimestamp(session.expiresAt, 'staffSession.expiresAt');
+    if (Date.parse(now) >= Date.parse(session.expiresAt)) return false;
+    return evaluateStaffSession({
+      now,
+      issuedAt: session.createdAt,
+      lastSeenAt: session.lastSeenAt,
+      accountDisabled
+    }).active;
+  } catch {
+    // Invalid stored timestamps deny authentication, not a public 400/500.
+    return false;
+  }
+}
+
+function proofLifetime(token: DecodedIdToken, now: string) {
+  try {
+    assertUtcTimestamp(now, 'staffSession.now');
+  } catch {
+    throw new AuthenticationRequiredError();
+  }
+  if (!Number.isSafeInteger(token.auth_time) || token.auth_time < 0) {
+    throw new AuthenticationRequiredError();
+  }
+  const issuedMs = token.auth_time * 1000;
+  const nowMs = Date.parse(now);
+  const remainingMs = issuedMs + STAFF_ABSOLUTE_SESSION_MS - nowMs;
+  if (issuedMs > nowMs || remainingMs <= 0)
+    throw new AuthenticationRequiredError();
+  return {
+    expiresAt: new Date(issuedMs + STAFF_ABSOLUTE_SESSION_MS).toISOString(),
+    remainingMs
+  };
+}
+
+function sdkDenial(error: unknown): never {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'auth/user-disabled'
+  ) {
+    throw new DisabledAccountError();
+  }
+  throw new AuthenticationRequiredError();
 }
 
 /**
@@ -179,7 +225,8 @@ export class CalendarPilotSessionService {
 
   public async create(
     idToken: string,
-    now = new Date().toISOString()
+    now = new Date().toISOString(),
+    beforeIssue?: (actorId: string) => Promise<void>
   ): Promise<CreatedCalendarPilotSession> {
     const correlationId = randomUUID();
     const decoded = await this.auth
@@ -223,7 +270,7 @@ export class CalendarPilotSessionService {
       });
       throw new AuthenticationRequiredError();
     }
-    const user = await this.auth.getUser(decoded.uid);
+    const user = await this.auth.getUser(decoded.uid).catch(sdkDenial);
     if (user.disabled)
       this.emitGate({
         correlationId,
@@ -233,10 +280,18 @@ export class CalendarPilotSessionService {
       });
     if (user.disabled) throw new DisabledAccountError();
 
+    if (decoded.firebase?.sign_in_provider !== 'google.com') {
+      throw new AuthenticationRequiredError();
+    }
+    const lifetime = proofLifetime(decoded, now);
+    // firebase-admin's installed minimum is five minutes, not a new idle policy.
+    if (lifetime.remainingMs < 5 * 60 * 1000)
+      throw new AuthenticationRequiredError();
+    await beforeIssue?.(decoded.uid);
     let cookieValue: string;
     try {
       cookieValue = await this.auth.createSessionCookie(idToken, {
-        expiresIn: STAFF_ABSOLUTE_SESSION_MS
+        expiresIn: lifetime.remainingMs
       });
     } catch (error) {
       this.emitGate({
@@ -247,11 +302,32 @@ export class CalendarPilotSessionService {
       });
       throw error;
     }
+    // Recheck after external cookie issuance, before store/usage writes or
+    // returning credentials. This is not atomic across Firebase/Firestore.
+    const currentUser = await this.auth.getUser(decoded.uid).catch(() => {
+      throw new AuthenticationRequiredError();
+    });
+    if (currentUser.disabled) {
+      this.emitGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.accountEnabled,
+        result: 'denied',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.accountDisabled
+      });
+      throw new AuthenticationRequiredError();
+    }
+    if (roleForCalendarPilotEmail(decoded.email, this.environment) !== role) {
+      this.emitGate({
+        correlationId,
+        operation: CALENDAR_SESSION_GATE_OPERATION.allowlist,
+        result: 'denied',
+        errorCode: CALENDAR_SESSION_GATE_ERROR.allowlist
+      });
+      throw new AuthenticationRequiredError();
+    }
     const sessionId = digest(cookieValue);
     const csrfToken = randomBytes(32).toString('base64url');
-    const expiresAt = new Date(
-      Date.parse(now) + STAFF_ABSOLUTE_SESSION_MS
-    ).toISOString();
+    const expiresAt = lifetime.expiresAt;
     const record: CalendarPilotSessionRecord = {
       actorId: decoded.uid,
       actorRole: role,
@@ -331,7 +407,7 @@ export class CalendarPilotSessionService {
     return {
       cookieName: CALENDAR_PILOT_COOKIE,
       cookieValue,
-      cookieMaxAgeSeconds: STAFF_ABSOLUTE_SESSION_MS / 1000,
+      cookieMaxAgeSeconds: Math.floor(lifetime.remainingMs / 1000),
       csrfToken,
       authentication: { actorId: decoded.uid, actorRole: role }
     };
@@ -347,6 +423,7 @@ export class CalendarPilotSessionService {
       .catch(() => {
         throw new AuthenticationRequiredError();
       });
+    proofLifetime(decoded, now);
     const role = roleForCalendarPilotEmail(decoded.email, this.environment);
     if (
       decoded.email_verified !== true ||
@@ -354,7 +431,7 @@ export class CalendarPilotSessionService {
       !tokenHasTotpSecondFactor(decoded)
     )
       throw new AuthenticationRequiredError();
-    const user = await this.auth.getUser(decoded.uid);
+    const user = await this.auth.getUser(decoded.uid).catch(sdkDenial);
     if (user.disabled) throw new DisabledAccountError();
 
     const sessionId = digest(cookieValue);
@@ -373,7 +450,15 @@ export class CalendarPilotSessionService {
         )
       )
         throw new AuthenticationRequiredError();
-      transaction.update(ref, { lastSeenAt: now });
+      // Approximate operational metadata, never an idle authorization gate.
+      // This existing transaction serializes competing refreshes.
+      const lastSeenAt = Date.parse(session.lastSeenAt);
+      if (
+        !Number.isFinite(lastSeenAt) ||
+        Date.parse(now) - lastSeenAt >= 60_000
+      ) {
+        transaction.update(ref, { lastSeenAt: now });
+      }
     });
     return { actorId: decoded.uid, actorRole: role, sessionId };
   }

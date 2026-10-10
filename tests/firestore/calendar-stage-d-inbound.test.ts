@@ -239,6 +239,9 @@ describe('Stage D Calendar inbound emulator', () => {
   });
 
   it('does not auto-create a patient or appointment for an unmatched event', async () => {
+    const existingPatientIds = (await db.collection('patients').listDocuments())
+      .map((ref) => ref.id)
+      .sort();
     const repository = new FirestoreCalendarSyncRepository(
       db,
       'synthetic-pseudonym-key-32-characters-min'
@@ -266,7 +269,7 @@ describe('Stage D Calendar inbound emulator', () => {
     const appointments = await db.collection('appointments').listDocuments();
     const patients = await db.collection('patients').listDocuments();
     expect(appointments).toHaveLength(0);
-    expect(patients).toHaveLength(0);
+    expect(patients.map((ref) => ref.id).sort()).toEqual(existingPatientIds);
     const candidates = await db.collection('calendar_pilot_candidates').get();
     expect(candidates.docs[0]?.data()?.['kind']).toBe('unmatched');
     expect(candidates.docs[0]?.data()?.['status']).toBe('unmatched');

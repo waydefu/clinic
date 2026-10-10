@@ -1,3 +1,5 @@
+import { assertUtcTimestamp } from '@beauessence/domain';
+
 import { ServiceUnavailableError } from '../platform/errors/api-error.js';
 
 /**
@@ -40,6 +42,15 @@ export function assertInternalTestBookingWritable(
   settings: InternalTestBookingSettings
 ): void {
   if (!settings.enabled) throw new ServiceUnavailableError();
+  try {
+    assertUtcTimestamp(
+      settings.expiresAtUtc ?? '',
+      'internalTestBooking.expiresAtUtc'
+    );
+    assertUtcTimestamp(nowUtc, 'internalTestBooking.nowUtc');
+  } catch {
+    throw new ServiceUnavailableError();
+  }
   const expiresAtMs = Date.parse(settings.expiresAtUtc ?? '');
   if (!Number.isFinite(expiresAtMs)) throw new ServiceUnavailableError();
   const nowMs = Date.parse(nowUtc);
@@ -51,7 +62,17 @@ export function assertInternalTestBookingWritable(
   if (INTERNAL_TEST_BOOKING_FORBIDDEN_PROJECTS.has(projectId)) {
     throw new ServiceUnavailableError();
   }
-  if ((settings.emulatorHost ?? '').trim() !== '') return;
+  const emulatorHost = settings.emulatorHost?.trim() ?? '';
+  if (emulatorHost !== '') {
+    const authority = /^(localhost|127\.0\.0\.1|\[::1\]):([0-9]{1,5})$/i.exec(
+      emulatorHost
+    );
+    const port = Number(authority?.[2]);
+    if (authority === null || port < 1 || port > 65_535) {
+      throw new ServiceUnavailableError();
+    }
+    return;
+  }
   if (!INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST.has(projectId)) {
     throw new ServiceUnavailableError();
   }

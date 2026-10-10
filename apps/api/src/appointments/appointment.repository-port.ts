@@ -1,3 +1,4 @@
+import type { PreparedPatientIntake } from '../patients/patient-directory.js';
 import type {
   AppointmentStatusValue,
   BookingKind,
@@ -55,7 +56,10 @@ export interface DeletionResult {
  * application services and future controllers depend only on this port.
  */
 export interface AppointmentRepositoryPort {
-  reserve(request: BookingRequest): Promise<ReservationResult>;
+  reserve(
+    request: BookingRequest,
+    intake?: PreparedPatientIntake
+  ): Promise<ReservationResult>;
   reschedule(request: RescheduleRequest): Promise<ReservationResult>;
   transition(request: TransitionRequest): Promise<TransitionResult>;
   recordFollowUp(request: FollowUpDecisionRequest): Promise<FollowUpResult>;
