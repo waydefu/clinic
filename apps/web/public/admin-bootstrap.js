@@ -39,15 +39,17 @@ import {
 import { hasPermission } from './modules/permissions.js';
 import { overdueAppointments } from './modules/case-management.js';
 import { renderTagOptions } from './modules/tag-picker.js';
-import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
+import { taipeiTodayDate } from './modules/taipei-time.js';
 import {
   hydrateWeekView,
+  initialWeekStart,
   renderAgendaView,
   renderWeekView,
   weekStartOf
 } from './modules/week-view.js';
 import {
   applyWorkspacePanel,
+  bootStaffWorkbench,
   initWorkspaceTabs
 } from './modules/workspace-tabs.js';
 import {
@@ -262,13 +264,7 @@ let weekStart;
 const compactCalendar = window.matchMedia('(max-width: 48rem)');
 
 function renderWeek() {
-  if (weekStart === undefined) {
-    const earliest =
-      [...state.appointments, ...state.slots].sort((a, b) =>
-        (a.startsAt ?? '').localeCompare(b.startsAt ?? '')
-      )[0]?.startsAt ?? new Date().toISOString();
-    weekStart = weekStartOf(taipeiDate(earliest));
-  }
+  weekStart = initialWeekStart(state, weekStart);
   // 依寬度擇一渲染，**不是**兩份都畫再用 CSS 藏一份。兩份都在 DOM 裡的話，
   // 同一筆預約會有兩個 data-week-event 按鈕：下方的點擊處理器會抓到兩個，
   // 讀螢幕也會唸到兩個同名按鈕。斷點與 workbench.css 的 48rem 一致。
@@ -2274,56 +2270,23 @@ if (isInternalTestBookingEnabled()) {
   elements['environment-label'].textContent = 'LOCAL TEST ONLY';
 }
 
-try {
-  // Local prototype transport opt-in is not a Firebase identity mode.
-  let authorityBoundaryActive =
-    Boolean(sessionStorage.getItem('calPilotCsrf')) ||
-    document.documentElement.dataset.calendarSessionMode === 'server';
-  let enablingAuthority;
-  const enableServerAuthority = () =>
-    (enablingAuthority ??= (async () => {
-      serverAuthority = await loadStaffServerAuthority();
-      authorityBoundaryActive = true;
-      serverAuthority.bindCalendarPilotWorkbenchAuthority(
-        () => state,
-        (next) => {
-          state = next;
-          enforceRoleDomBoundary();
-          render();
-        }
-      );
-      if (state !== undefined) {
-        state = serverAuthority.applyCalendarPilotWorkbenchAuthority(state);
-        render();
-      }
-    })());
-  window.addEventListener(
-    'beauessence:calendar-session-enabled',
-    () => {
-      void enableServerAuthority();
-    },
-    { once: true }
-  );
-  if (authorityBoundaryActive) await enableServerAuthority();
-  client = await resolveApiClient();
-  state = await client.request('/state');
-  if (authorityBoundaryActive)
-    state = serverAuthority.applyCalendarPilotWorkbenchAuthority(state);
-  enforceRoleDomBoundary();
-  let accessDenied = false;
-  initWorkspaceTabs({
-    onDenied: () => {
-      accessDenied = true;
-      message('你目前沒有權限開啟這個主管工作區，已返回營運首頁。', 'error');
-      elements.status.setAttribute('tabindex', '-1');
-      elements.status.focus({ preventScroll: true });
-    }
-  });
-  render();
-  if (window.location.hash === '#business-section') void activateBusinessView();
-  if (state.session.authenticated === true && !accessDenied)
-    message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
-  else elements['login-account'].focus();
-} catch (error) {
-  message(error instanceof Error ? error.message : '無法載入工作臺。', 'error');
-}
+await bootStaffWorkbench({
+  getState: () => state,
+  setState: (next) => {
+    state = next;
+  },
+  setClient: (next) => {
+    client = next;
+  },
+  setServerAuthority: (next) => {
+    serverAuthority = next;
+  },
+  loadStaffServerAuthority,
+  resolveApiClient,
+  enforceRoleDomBoundary,
+  render,
+  initWorkspaceTabs,
+  message,
+  elements,
+  activateBusinessView
+});

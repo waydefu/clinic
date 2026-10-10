@@ -82,6 +82,15 @@ async function enableServerSession(page, role = BUSINESS_EXPORT_ROLE) {
   await page.route('**/v1/calendar-session/client-config', (route) =>
     route.fulfill({ json: FIREBASE_CONFIG })
   );
+  // The workbench trusts only the server's /me answer, never the storage hint.
+  // Like the API, the synthetic session answers only for its own CSRF header.
+  await page.route('**/v1/calendar-session/me', (route) =>
+    route.request().headers()['x-csrf-token'] === 'csrf_synthetic_test'
+      ? route.fulfill({
+          json: { actorId: 'opaque_business_staff', actorRole: role }
+        })
+      : route.fulfill({ status: 401, json: {} })
+  );
 }
 
 async function trackBusinessViewListeners(page) {
@@ -205,31 +214,44 @@ test.describe('商務與驗收工作區', () => {
       )
         chunkRequests.push(request.url());
     });
+    const identityReads: string[] = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/v1/calendar-session/me')
+        identityReads.push(request.url());
+    });
     await enableServerSession(page);
-    await page.goto('/staff');
-    await expect(page.getByRole('link', { name: '商務與驗收' })).toBeVisible();
-    expect(chunkRequests).toEqual([]);
-
-    const reauthChunk = page.waitForRequest((request) =>
-      /\/modules\/business-reauth\.[a-f0-9]+\.js$/.test(request.url())
-    );
+    // A cached CSRF is only a hint: in server mode the CAL-PILOT client and its
+    // stylesheet load at boot and verify it with /me before the workbench opens.
+    // The business view and its reauthentication chunk stay deferred.
     const authStylesheet = page.waitForRequest((request) =>
       /\/calendar-pilot(?:\.[a-f0-9]+)?\.css$/.test(request.url())
     );
     const clientChunk = page.waitForRequest((request) =>
       /\/calendar-pilot-client\.[a-f0-9]+\.js$/.test(request.url())
     );
+    await page.goto('/staff');
+    await expect(page.getByRole('link', { name: '商務與驗收' })).toBeVisible();
+    const [stylesheetRequest, clientRequest] = await Promise.all([
+      authStylesheet,
+      clientChunk
+    ]);
+    expect(identityReads.length).toBeGreaterThan(0);
+    expect(chunkRequests).toEqual([
+      stylesheetRequest.url(),
+      clientRequest.url()
+    ]);
+
+    const reauthChunk = page.waitForRequest((request) =>
+      /\/modules\/business-reauth\.[a-f0-9]+\.js$/.test(request.url())
+    );
     const businessChunk = page.waitForRequest((request) =>
       /\/modules\/business-view\.[a-f0-9]+\.js$/.test(request.url())
     );
     await page.getByRole('link', { name: '商務與驗收' }).click();
-    const [reauthRequest, stylesheetRequest, clientRequest, businessRequest] =
-      await Promise.all([
-        reauthChunk,
-        authStylesheet,
-        clientChunk,
-        businessChunk
-      ]);
+    const [reauthRequest, businessRequest] = await Promise.all([
+      reauthChunk,
+      businessChunk
+    ]);
     const [
       reauthResponse,
       stylesheetResponse,
@@ -270,10 +292,12 @@ test.describe('商務與驗收工作區', () => {
     expect(stylesheetResponse.ok()).toBe(true);
     expect(clientResponse.ok()).toBe(true);
     expect(businessResponse.ok()).toBe(true);
+    // Selecting the tab adds only the deferred chunks; the auth client and
+    // stylesheet from boot are not requested a second time.
     expect(chunkRequests).toEqual([
-      reauthRequest.url(),
       stylesheetRequest.url(),
       clientRequest.url(),
+      reauthRequest.url(),
       businessRequest.url()
     ]);
     expect(reauthBytes).toBeGreaterThan(0);
@@ -285,7 +309,7 @@ test.describe('商務與驗收工作區', () => {
     );
     testInfo.annotations.push({
       type: 'deferred-business-and-reauth-chunks',
-      description: `aggregate gzip=${deferredGzipBytes} bytes (ceiling ${DEFERRED_CHUNKS_GZIP_CEILING_BYTES}); reauth=${reauthBytes} raw bytes (${reauthRequest.url()}); CSS=${stylesheetBytes} raw bytes (${stylesheetRequest.url()}); client=${clientBytes} raw bytes (${clientRequest.url()}); business=${businessBytes} raw bytes (${businessRequest.url()})`
+      description: `aggregate gzip of boot auth client/CSS and deferred business/reauth=${deferredGzipBytes} bytes (ceiling ${DEFERRED_CHUNKS_GZIP_CEILING_BYTES}); reauth=${reauthBytes} raw bytes (${reauthRequest.url()}); CSS=${stylesheetBytes} raw bytes (${stylesheetRequest.url()}); client=${clientBytes} raw bytes (${clientRequest.url()}); business=${businessBytes} raw bytes (${businessRequest.url()})`
     });
   });
 

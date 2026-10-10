@@ -33,7 +33,12 @@ function waitForBridge(target) {
 }
 
 function loadStylesheet(documentRef) {
-  if (documentRef.querySelector('link[data-business-reauth-style]'))
+  // In server mode the CAL-PILOT loader has already added this stylesheet.
+  if (
+    documentRef.querySelector(
+      'link[data-business-reauth-style], link[data-calendar-pilot-style]'
+    )
+  )
     return Promise.resolve();
 
   const stylesheet = documentRef.createElement('link');

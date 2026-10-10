@@ -137,14 +137,21 @@ describe('public booking vs staff surfaces', () => {
       ),
       'utf8'
     );
+    // The CAL-PILOT client's boot order lives in its own bundled module.
+    const boot = readFileSync(
+      fileURLToPath(new URL('./calendar-pilot-boot.js', import.meta.url)),
+      'utf8'
+    );
     expect(client).toContain('handoffToStaffWorkbench');
     expect(client).toContain('使用 Google 帳號登入');
     expect(client).toContain('CAL-PILOT 合成日曆測試');
     expect(client).toContain('pilot-google-totp-session.js');
-    expect(client).toContain(
+    expect(client).toContain("from './calendar-pilot-boot.js'");
+    expect(boot).toContain(
       'CALENDAR_PILOT_AUTH_OUTCOME.NEEDS_REAUTHENTICATION'
     );
     expect(client).not.toContain('await user.getIdToken(true)');
+    expect(boot).not.toContain('await user.getIdToken(true)');
     expect(totpSession).toContain(
       '驗證器設定完成。請重新使用 Google 帳號登入，並輸入動態驗證碼完成雙重驗證。'
     );

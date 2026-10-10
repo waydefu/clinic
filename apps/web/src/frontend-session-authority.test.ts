@@ -1,22 +1,13 @@
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OPERATIONAL_ROLES } from '@beauessence/domain';
 import {
   CALENDAR_PILOT_AUTH_OUTCOME,
   beginCalendarPilotLogout,
   clearCalendarPilotClientAuthState,
-  isCalendarPilotLogoutInProgress,
-  calendarPilotAuthenticationGeneration,
   verifyCalendarPilotClientSession
 } from '../public/modules/pilot-google-totp-session.js';
+import { bootCalendarPilot } from './calendar-pilot-boot.js';
 
-const source = readFileSync(
-  new URL('./calendar-pilot-entry.js', import.meta.url),
-  'utf8'
-);
-const start = source.indexOf('async function boot()');
-const end = source.indexOf('\nvoid boot();', start);
 const actorId = 'synthetic_actor_001';
 const actorRole = OPERATIONAL_ROLES[0];
 
@@ -51,47 +42,38 @@ function harness(response: ResponseStub | Error) {
   const showLogin = vi.fn();
   const classList = { add: vi.fn(), remove: vi.fn() };
   const window = new EventTarget();
-  const boot = runInNewContext(
-    `let csrfToken, auth, root; ${source.slice(start, end)}; boot`,
-    {
-      API: '/v1',
-      location: { pathname: '/staff', search: '', reload: vi.fn() },
-      sessionStorage: storage,
-      window,
-      Event,
-      fetch,
-      document: {
-        documentElement: { classList },
-        createElement: () => ({}),
-        body: { append: vi.fn() }
-      },
-      isPublicBookingPath: () => false,
-      wantsCalendarPilotOverlay: () => false,
-      isCalendarPilotLogoutInProgress,
-      calendarPilotAuthenticationGeneration,
-      verifyCalendarPilotClientSession: (uid: string) =>
-        verifyCalendarPilotClientSession(uid, { storage, fetchImpl: fetch }),
-      clearCalendarPilotClientAuthState,
-      CALENDAR_PILOT_AUTH_OUTCOME,
-      getAuth: () => ({ currentUser: { uid: actorId } }),
-      calendarPilotFirebaseApp: () => ({}),
-      firstAuthStateChanged: () => Promise.resolve(null),
-      onAuthStateChanged: vi.fn(),
-      registerCalendarPilotReauthenticationBridge: vi.fn(),
-      freshIdToken: vi.fn(),
+  vi.stubGlobal('location', {
+    pathname: '/staff',
+    search: '',
+    reload: vi.fn()
+  });
+  vi.stubGlobal('sessionStorage', storage);
+  vi.stubGlobal('window', window);
+  vi.stubGlobal('fetch', fetch);
+  vi.stubGlobal('document', { documentElement: { classList } });
+  // The owning boot module; Firebase SDK and DOM effects are injected.
+  const boot = () =>
+    bootCalendarPilot({
+      initializeAuth: () => ({ currentUser: { uid: actorId } }),
+      mountRoot: vi.fn(),
+      setCsrfToken: vi.fn(),
+      registerReauthBridge: vi.fn(),
       bootStatusView: vi.fn(),
-      failPendingReauthentication: vi.fn(),
-      handoffToStaffWorkbench: handoff,
+      showLogin,
       renderApplication: render,
+      handoffToStaffWorkbench: handoff,
+      awaitFirstAuthState: () => Promise.resolve(null),
       completeGoogleSignIn: () =>
         Promise.resolve({
           outcome: CALENDAR_PILOT_AUTH_OUTCOME.NOT_AUTHENTICATED
-        }),
-      showLogin
-    }
-  );
+        })
+    });
   return { boot, storage, fetch, handoff, render, showLogin };
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('Calendar boot requires authoritative server identity', () => {
   it('verified matching staff session reaches the existing workbench handoff', async () => {

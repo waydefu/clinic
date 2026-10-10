@@ -1,5 +1,4 @@
-import { Script } from 'node:vm';
-import { ModuleKind, transpileModule } from 'typescript';
+import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -215,46 +214,97 @@ export function inspectC1FirebaseAuthDomainSource(repoRoot = root) {
     );
   }
 
-  // Run the owning pure comparator, not a substring in an inert comment.
-  // No require/process/network is supplied; generated mutants are time-bounded.
-  try {
-    const module = { exports: {} };
-    const javascript = transpileModule(apiSource, {
-      compilerOptions: { module: ModuleKind.CommonJS }
-    }).outputText;
-    new Script(javascript).runInNewContext(
-      { module, exports: module.exports },
-      { timeout: 1000 }
-    );
-    const comparator = module.exports.isAuthorizedC1FirebaseAuthDomain;
-    if (typeof comparator !== 'function')
-      throw new Error('No executable comparator.');
-    const probes = [
-      ...C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.map((value) => [value, true]),
-      ['', false],
-      ['unapproved.web.app', false],
-      [null, false],
-      [`https://${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}`, false],
-      [`${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}/__/auth/handler`, false],
-      [`${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}.unapproved.example`, false],
-      ['beauessence-clinic-staging.firebaseapp.com', false],
-      ['*.web.app', false]
-    ];
-    for (const [value, expected] of probes) {
-      // Execute each function call in the same bounded context, not outside it.
-      const sandbox = { comparator, value, result: undefined };
-      new Script('result = comparator(value)').runInNewContext(sandbox, {
-        timeout: 1000
-      });
-      if (sandbox.result !== expected)
-        throw new Error('Policy behavior mismatch.');
+  issues.push(...inspectApiComparatorSyntax(apiSource));
+  return { ok: issues.length === 0, issues };
+}
+
+/**
+ * Parses the owning API source instead of matching substrings, so policy text
+ * that only exists in comments, or a stub that always allows, is rejected. The
+ * real comparator's behaviour is exercised by its own module-imported unit test
+ * (apps/api/src/platform/runtime/c1-firebase-auth-domain.test.ts); this check
+ * never executes source text.
+ */
+function inspectApiComparatorSyntax(apiSource) {
+  const sourceFile = ts.createSourceFile(
+    'c1-firebase-auth-domain.ts',
+    apiSource,
+    ts.ScriptTarget.ES2022,
+    true,
+    ts.ScriptKind.TS
+  );
+  const isExported = (node) =>
+    (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0;
+  let allowlist;
+  let comparator;
+  for (const statement of sourceFile.statements) {
+    if (ts.isVariableStatement(statement) && isExported(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (
+          ts.isIdentifier(declaration.name) &&
+          declaration.name.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
+        )
+          allowlist = declaration.initializer;
+      }
     }
-  } catch {
+    if (
+      ts.isFunctionDeclaration(statement) &&
+      isExported(statement) &&
+      statement.name?.text === 'isAuthorizedC1FirebaseAuthDomain'
+    )
+      comparator = statement;
+  }
+
+  const issues = [];
+  while (allowlist !== undefined && ts.isAsExpression(allowlist))
+    allowlist = allowlist.expression;
+  const hosts =
+    allowlist !== undefined && ts.isArrayLiteralExpression(allowlist)
+      ? allowlist.elements.map((element) =>
+          ts.isStringLiteral(element) ? element.text : undefined
+        )
+      : undefined;
+  if (
+    hosts === undefined ||
+    hosts.length !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.length ||
+    hosts.some(
+      (host, index) => host !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS[index]
+    )
+  ) {
     issues.push(
-      'API runtime authDomain policy must execute approved and denied cases.'
+      'API runtime allowlist must be an exported array literal of exactly the authorized isolated preview hosts.'
     );
   }
-  return { ok: issues.length === 0, issues };
+
+  let referencesAllowlist = false;
+  let deniesSomething = false;
+  let allowsUnconditionally = false;
+  const visit = (node) => {
+    if (
+      ts.isIdentifier(node) &&
+      node.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
+    )
+      referencesAllowlist = true;
+    if (ts.isReturnStatement(node)) {
+      const kind = node.expression?.kind;
+      if (kind === ts.SyntaxKind.FalseKeyword) deniesSomething = true;
+      if (kind === ts.SyntaxKind.TrueKeyword) allowsUnconditionally = true;
+    }
+    ts.forEachChild(node, visit);
+  };
+  if (comparator?.body !== undefined) visit(comparator.body);
+  if (
+    comparator?.body === undefined ||
+    comparator.parameters.length !== 1 ||
+    !referencesAllowlist ||
+    !deniesSomething ||
+    allowsUnconditionally
+  ) {
+    issues.push(
+      'API runtime authDomain comparator must be an exported function that denies by default and allows only hosts in the exported allowlist.'
+    );
+  }
+  return issues;
 }
 
 function isDirectRun() {

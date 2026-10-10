@@ -15,6 +15,7 @@ if (
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
     stylesheet.href = './calendar-pilot.css';
+    stylesheet.dataset.calendarPilotStyle = '';
     const stylesheetLoaded = new Promise((resolve, reject) => {
       stylesheet.addEventListener('load', resolve, { once: true });
       stylesheet.addEventListener(

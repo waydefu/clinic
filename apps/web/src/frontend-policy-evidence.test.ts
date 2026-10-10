@@ -1,13 +1,6 @@
-import {
-  mkdtempSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync
-} from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OPERATIONAL_ROLES } from '@beauessence/domain';
 import {
@@ -20,8 +13,8 @@ import {
   shouldHydrateCalendarPilotWorkbench,
   teardownCalendarPilotSessions
 } from '../public/modules/pilot-google-totp-session.js';
-import { taipeiDate } from '../public/modules/taipei-time.js';
-import { weekStartOf } from '../public/modules/week-view.js';
+import { initialWeekStart } from '../public/modules/week-view.js';
+import { createBusinessWriteRunner } from '../public/modules/business-view.js';
 
 function storage(values: Record<string, string> = {}) {
   return {
@@ -81,10 +74,6 @@ describe('authoritative staff session prerequisites', () => {
 });
 
 describe('synthetic hint mode isolation at the real loader', () => {
-  const source = readFileSync(
-    new URL('../public/calendar-pilot-entry.js', import.meta.url),
-    'utf8'
-  );
   async function load(hostname: string, values: Record<string, string> = {}) {
     const classes = new Set<string>();
     let finish!: (value: object) => void;
@@ -94,24 +83,26 @@ describe('synthetic hint mode isolation at the real loader', () => {
           finish = resolve;
         })
     );
-    const pending = runInNewContext(`(async () => {${source}\n})()`, {
-      location: {
-        hostname,
-        protocol: 'http:',
-        port: '3100',
-        pathname: '/staff',
-        search: ''
-      },
-      sessionStorage: storage(values),
-      fetch,
-      document: {
-        documentElement: {
-          classList: { add: (name: string) => classes.add(name) }
-        },
-        head: { append: vi.fn() }
-      }
+    vi.stubGlobal('location', {
+      hostname,
+      protocol: 'http:',
+      port: '3100',
+      pathname: '/staff',
+      search: ''
     });
-    return Promise.resolve({ classes, pending, fetch, finish });
+    vi.stubGlobal('sessionStorage', storage(values));
+    vi.stubGlobal('fetch', fetch);
+    vi.stubGlobal('document', {
+      documentElement: {
+        classList: { add: (name: string) => classes.add(name) }
+      },
+      head: { append: vi.fn() }
+    });
+    // Evaluate the real loader module again against these browser globals.
+    vi.resetModules();
+    const pending = import('../public/calendar-pilot-entry.js');
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    return { classes, pending, fetch, finish };
   }
   it('preserves the local prototype fallback only after the server probe fails', async () => {
     const run = await load('127.0.0.1');
@@ -139,20 +130,13 @@ describe('synthetic hint mode isolation at the real loader', () => {
 });
 
 describe('existing workbench calendar anchor counter-evidence', () => {
-  const source = readFileSync(
-    new URL('../public/admin-bootstrap.js', import.meta.url),
-    'utf8'
-  );
-  const start = source.indexOf(
-    '  if (weekStart === undefined) {',
-    source.indexOf('function renderWeek()')
-  );
-  const end = source.indexOf('\n  //', start);
-  function select(state: object, prior?: string) {
-    return runInNewContext(
-      `let weekStart=prior; ${source.slice(start, end)}; weekStart`,
-      { state, prior, weekStartOf, taipeiDate, Date }
-    );
+  type CalendarRows = {
+    appointments: { startsAt?: string }[];
+    slots: { startsAt?: string }[];
+  };
+  // admin-bootstrap.renderWeek anchors through this exported module function.
+  function select(state: CalendarRows, prior?: string) {
+    return initialWeekStart(state, prior);
   }
   it('retains the intentionally dated local fixture week and future slot week', () => {
     vi.useFakeTimers();
@@ -259,12 +243,6 @@ describe('E1-14 executable policy evidence without private configuration', () =>
 
 describe('business review retry counter-evidence', () => {
   it('failure releases the spinner and retry keeps payload/key but requests new reauthentication', async () => {
-    const source = readFileSync(
-      new URL('../public/modules/business-view.js', import.meta.url),
-      'utf8'
-    );
-    const start = source.indexOf('  const runWrite = async (');
-    const end = source.indexOf('\n\n  const headingRow', start);
     let fail!: (error: Error) => void;
     const api = vi.fn(
       (_path: string, _options: { body: object; reauthToken: string }) =>
@@ -278,21 +256,18 @@ describe('business review retry counter-evidence', () => {
       .mockResolvedValueOnce('synthetic_fresh_002');
     const clearKey = vi.fn();
     const setStatus = vi.fn();
-    const runWrite = runInNewContext(
-      `let activeController; ${source.slice(start, end)}; runWrite`,
-      {
-        AbortController,
-        isViewActive: () => true,
-        nextKey: () => 'synthetic_stable_key',
-        target: new EventTarget(),
-        requestFreshIdToken,
-        api,
-        clearKey,
-        setStatus,
-        reportError: (error: Error) => error.message,
-        loadPendingDeletion: async () => {}
-      }
-    );
+    const runWrite = createBusinessWriteRunner({
+      writeLock: { controller: undefined },
+      isViewActive: () => true,
+      nextKey: () => 'synthetic_stable_key',
+      clearKey,
+      setStatus,
+      api,
+      target: new EventTarget(),
+      loadPendingDeletion: async () => {},
+      requestToken: requestFreshIdToken,
+      describeError: (error: Error) => error.message
+    });
     const button = { disabled: false };
     const payload = { patientId: 'synthetic_patient_001' };
     const pending = runWrite(

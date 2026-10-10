@@ -46,6 +46,7 @@ import {
   INTERNAL_TEST_BOOKING_CLOCK,
   INTERNAL_TEST_BOOKING_SETTINGS
 } from '../internal-test-booking/internal-test-booking.tokens.js';
+import { WP_B2_RATE_LIMITER } from '../platform/runtime/wp-b2-rate-limiter.js';
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 
@@ -176,6 +177,12 @@ function occupancyHarnessModule(
       {
         provide: INTERNAL_TEST_BOOKING_CLOCK,
         useValue: clock
+      },
+      // AppointmentController 必須取得 limiter，缺少時拒絕啟動。這裡只驗發布與
+      // 時段佔用，因此明確給一個全部放行的合成 limiter；配額本身由限流測試驗證。
+      {
+        provide: WP_B2_RATE_LIMITER,
+        useValue: { assertRequest: () => Promise.resolve() }
       }
     ]
   })
@@ -194,10 +201,12 @@ describe('Nest HTTP publish then lazy slot reservation', () => {
   beforeAll(async () => {
     firebaseApp = initializeApp({ projectId }, 'schedule-occupancy-http');
     db = getFirestore(firebaseApp);
+    // abortOnError: false — 啟動失敗時讓 beforeAll 帶著 Nest 的錯誤失敗，
+    // 而不是 process.abort() 讓 Vitest worker 無訊息地退出。
     const instance = await NestFactory.create<NestFastifyApplication>(
       occupancyHarnessModule(db, clock),
       new FastifyAdapter({ logger: false }),
-      { logger: false }
+      { logger: false, abortOnError: false }
     );
     instance.setGlobalPrefix('v1');
     await instance.init();

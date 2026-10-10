@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OPERATIONAL_ROLES } from '@beauessence/domain';
 import { hydrateStaff } from '../public/modules/hydrate-staff.js';
@@ -9,6 +7,7 @@ import {
 } from '../public/modules/api-client.js';
 import { createInternalTestBookingTransport } from '../public/modules/internal-test-booking-transport.js';
 import { initialState } from '../public/store.js';
+import { createCandidateReview } from './calendar-pilot-candidate-review.js';
 
 const [manager, frontDesk] = OPERATIONAL_ROLES;
 export function memoryStorage(values: Record<string, string> = {}) {
@@ -235,12 +234,6 @@ describe('frontend trust boundary regressions', () => {
   });
 
   it('candidate review failure restores the same control and remains single-flight', async () => {
-    const source = readFileSync(
-      new URL('./calendar-pilot-entry.js', import.meta.url),
-      'utf8'
-    );
-    const start = source.indexOf('async function reviewCandidate(');
-    const end = source.indexOf('\nfunction appointmentItem', start);
     let reject!: (error: Error) => void;
     const request = vi.fn(
       () =>
@@ -250,15 +243,12 @@ describe('frontend trust boundary regressions', () => {
     );
     const announce = vi.fn();
     const renderApplication = vi.fn();
-    const review = runInNewContext(
-      `${source.slice(start, end)}; reviewCandidate`,
-      {
-        request,
-        announce,
-        renderApplication,
-        idempotency: () => 'synthetic_key'
-      }
-    );
+    const review = createCandidateReview({
+      request,
+      announce,
+      renderApplication,
+      idempotency: () => 'synthetic_key'
+    });
     const button = { disabled: false };
     const candidate = {
       candidateId: 'synthetic_candidate',
@@ -276,26 +266,17 @@ describe('frontend trust boundary regressions', () => {
   });
 
   it('successful candidate review keeps the expected version and refreshes the view', async () => {
-    const source = readFileSync(
-      new URL('./calendar-pilot-entry.js', import.meta.url),
-      'utf8'
-    );
-    const start = source.indexOf('async function reviewCandidate(');
-    const end = source.indexOf('\nfunction appointmentItem', start);
     const request = vi.fn(async (_path: string, _options: { body: string }) =>
       Promise.resolve({})
     );
     const announce = vi.fn();
     const renderApplication = vi.fn(async () => {});
-    const review = runInNewContext(
-      `${source.slice(start, end)}; reviewCandidate`,
-      {
-        request,
-        announce,
-        renderApplication,
-        idempotency: () => 'synthetic_key'
-      }
-    );
+    const review = createCandidateReview({
+      request,
+      announce,
+      renderApplication,
+      idempotency: () => 'synthetic_key'
+    });
     await review(
       { candidateId: 'synthetic_candidate', expectedVersion: 3 },
       'resolve',

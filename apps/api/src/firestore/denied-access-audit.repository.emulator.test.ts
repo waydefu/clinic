@@ -32,6 +32,7 @@ import {
   INTERNAL_TEST_BOOKING_CLOCK,
   INTERNAL_TEST_BOOKING_SETTINGS
 } from '../internal-test-booking/internal-test-booking.tokens.js';
+import { WP_B2_RATE_LIMITER } from '../platform/runtime/wp-b2-rate-limiter.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -116,6 +117,12 @@ function harnessModule(store: FirestoreDeniedAccessAuditStore) {
       {
         provide: INTERNAL_TEST_BOOKING_CLOCK,
         useValue: { nowUtc: () => '2029-12-15T09:00:00.000Z' }
+      },
+      // AppointmentController 必須取得 limiter，缺少時拒絕啟動。這裡只驗拒絕存取的
+      // 稽核寫入，因此明確給一個全部放行的合成 limiter；配額本身由限流測試驗證。
+      {
+        provide: WP_B2_RATE_LIMITER,
+        useValue: { assertRequest: () => Promise.resolve() }
       }
     ]
   })
@@ -133,10 +140,12 @@ describe('Firestore denied-access audit over routed Nest HTTP', () => {
     firebaseApp = initializeApp({ projectId }, APP_NAME);
     db = getFirestore(firebaseApp);
     const store = new FirestoreDeniedAccessAuditStore(db);
+    // abortOnError: false — 啟動失敗時讓 beforeAll 帶著 Nest 的錯誤失敗，
+    // 而不是 process.abort() 讓 Vitest worker 無訊息地退出。
     const instance = await NestFactory.create<NestFastifyApplication>(
       harnessModule(store),
       new FastifyAdapter({ logger: false }),
-      { logger: false }
+      { logger: false, abortOnError: false }
     );
     instance.setGlobalPrefix('v1');
     await instance.init();

@@ -39,4 +39,18 @@ describe('isolated C1 Firebase authDomain allowlist', () => {
     ).toBe(false);
     expect(isIsolatedC1ProjectId('beauessence-clinic-staging')).toBe(false);
   });
+
+  it('rejects path, sibling-suffix, wildcard and unapproved web.app hosts', () => {
+    const host =
+      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+    for (const value of [
+      `${host}/__/auth/handler`,
+      `${host}.unapproved.example`,
+      '*.web.app',
+      'unapproved.web.app',
+      'beauessence-clinic-staging.firebaseapp.com'
+    ]) {
+      expect(isAuthorizedC1FirebaseAuthDomain(value)).toBe(false);
+    }
+  });
 });
