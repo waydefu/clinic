@@ -1,0 +1,10 @@
+import {readFile,writeFile,mkdir,rename} from 'node:fs/promises';
+const site=await readFile('site.css','utf8'),revision=await readFile('round2.css','utf8');
+await mkdir('revisions/round2-source',{recursive:true});
+await writeFile('revisions/round2-source/site-before-consolidation.css',site);
+await writeFile('site.css',site+'\n'+revision);
+await rename('round2.css','revisions/round2-source/round2.css');
+let s=await readFile('build-pages.mjs','utf8');
+s=s.replace("const reviewStyle = await readFile(new URL('round2.css',root),'utf8');\n",'');
+s=s.replace("style+'\\n'+reviewStyle","style").replace("style + '\\n' + reviewStyle +","style +");
+await writeFile('build-pages.mjs',s);

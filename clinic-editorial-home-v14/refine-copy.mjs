@@ -1,0 +1,1 @@
+import {readFile,writeFile} from 'node:fs/promises';const f=new URL('build-pages.mjs',import.meta.url);let s=await readFile(f,'utf8');s=s.replace('五类原因','五類原因').replace('需要處理的，<br>是構造，還是症狀？','鼻中隔彎曲，<br>一定要手術嗎？');await writeFile(f,s);

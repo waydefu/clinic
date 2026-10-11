@@ -1,0 +1,182 @@
+{
+  "scope": "Homepage prototype only; source repository freeze preserved",
+  "firstReview": {
+    "version": "v1",
+    "evidence": "output/playwright/clinic-editorial-home-20261006/v1/",
+    "verdict": "VISUAL FAIL: needs structural revision before expanding",
+    "issues": [
+      {
+        "route": "/clinic",
+        "viewport": 1440,
+        "element": "hero title",
+        "problem": "The title begins over the door's dark vertical edge and sits like a pasted banner caption.",
+        "why": "The title's axis does not belong to the physical brand sign; image and type compete rather than form one reading unit.",
+        "change": "Align desktop type to the sign's visual axis, use a stronger local sans display role, and preserve a separate mobile composition."
+      },
+      {
+        "route": "/clinic#care",
+        "viewport": "1440/375",
+        "element": "care composition",
+        "problem": "The full-face anatomy and small couple picture look like illustrations placed into available columns.",
+        "why": "A generic face dominates instead of the relevant anatomy; the additional small cartoon has no strong homepage role.",
+        "change": "Use a declared close crop of the existing nasal anatomy; build a two-part editorial index; reserve the couple artwork for the septoplasty narrative instead of forcing it into the homepage."
+      },
+      {
+        "route": "/clinic#team",
+        "viewport": "1440/375",
+        "element": "portraits and forest background",
+        "problem": "Portraits occupy too little ink area, and the background-atlas boundary is visible as a horizontal seam.",
+        "why": "Empty alpha margins weaken the physicians' identity while the asset-packing boundary becomes an unintended section divider.",
+        "change": "Trim only alpha margins, enlarge and align portraits with their names, and show only the forest region inside a bounded background plane."
+      }
+    ]
+  },
+  "v2": {
+    "status": "FAIL",
+    "evidence": "v2",
+    "issues": [
+      "Anatomy detail collapsed to caption width; fix intrinsic column width.",
+      "Forest plane edge still exposed a colour seam; blend only original forest region.",
+      "Care art was assigned to mismatched process labels; restore matching environmental/listening roles."
+    ]
+  },
+  "historicalBenchmarkBeforeOwnerReview": {
+    "version": "v5",
+    "verdict": "Self-review: suitable for controlled extension; owner acceptance and medical review remain pending",
+    "evidence": "output/playwright/clinic-editorial-home-20261006/v5/",
+    "criteria": {
+      "composition": "Physical clinic sign leads; text continues its axis, with independent mobile crop.",
+      "identity": "Owned wall, mist forest, portraits and original coral anatomy remain specific to Beau Essence.",
+      "dominantVisual": "Full clinic wall on opening; anatomy/sleep plates lead care spread.",
+      "cards": "No card grid, inset rounded photograph, shadow or decorative numbered labels.",
+      "rhythm": "Compact hours strip, two asymmetric care spreads, physician landscape, room photograph and dense practical footer.",
+      "crop": "Declared anatomy crop; portrait alpha crop; close and wide photo roles.",
+      "type": "Local sans display/name roles with serif editorial headings; zero font transfers.",
+      "mobile": "375 opening crop plus two-column anatomy/index, free sleep plate and offset physicians.",
+      "genericDefaults": "No repeated eyebrow/H2/card section or SaaS hero template.",
+      "portfolio": "Maker self-review considers the homepage coherent enough to extend; does not imply human approval."
+    },
+    "checks": "verification/results.json; scenes/contrast.json",
+    "remaining": [
+      "Clinic review of all medical/copy facts",
+      "Legacy promotional balloon visible in one gallery photo",
+      "Formal integration and content-hashed gates not performed"
+    ]
+  },
+  "ownerCorrection": {
+    "date": "2026-10-06",
+    "instruction": "Owner 2026-10-06: these complete graphics must not be arbitrarily cropped or split; continue using usable originals.",
+    "change": "Complete source canvases restored; former diagram/device fragments retired; native full-image reader and readable HTML explanations added.",
+    "evidence": "whole-art-proof/results.json; preserved-v1/; preserved-home/",
+    "status": "Rendered preservation and reader checks passed; medical and human visual acceptance remain pending"
+  },
+  "secondReview": {
+    "date": "2026-10-06",
+    "authority": "Owner requested second visual review and six refinements; then changed large deep-green surfaces to pale green",
+    "scope": "Local six-page prototype, homepage composition plus shared shell; no formal source integration or deployment",
+    "independentEvidence": "F:/診所專案/output/playwright/clinic-editorial-home-20261006/independent-review-round2-after/review.json",
+    "renderedEvidence": "F:/診所專案/output/playwright/clinic-editorial-home-20261006/round2-final/",
+    "decisions": [
+      {
+        "route": "/clinic",
+        "viewport": 1440,
+        "element": "h1",
+        "problem": "Centered at x420 below the physical sign; disconnected from the left editorial axis",
+        "change": "Move to x120 with the same lower photographic position; preserve the mobile x24 composition"
+      },
+      {
+        "route": "/clinic#care",
+        "viewport": [
+          1440,
+          375
+        ],
+        "element": "Care links",
+        "problem": "Repeated title link plus underlined reading link looked like a document index",
+        "change": "Single linked title/description with a 44px directional affordance; remove duplicate reading CTA"
+      },
+      {
+        "route": "/clinic",
+        "viewport": [
+          1440,
+          375
+        ],
+        "element": "Section surfaces",
+        "problem": "Repeated paper background weakened section rhythm",
+        "change": "Reuse owned mist/forest with pale-green care/team/footer and a warm environment passage; keep deep ink for reading"
+      },
+      {
+        "route": "/clinic#visit",
+        "viewport": [
+          1440,
+          375
+        ],
+        "element": "Arrival",
+        "problem": "Text-only directions with no geographic visual",
+        "change": "Source-verified full SVG diagram, zoom/keyboard reader and navigation; smartphone hours use full width"
+      },
+      {
+        "route": "Six primary clinic routes",
+        "viewport": [
+          1440,
+          375
+        ],
+        "element": "Footer",
+        "problem": "Minimal footer did not close the page or provide a complete site map",
+        "change": "Shared native footer: brand, care routes, public contacts/hours, official-color social symbols, privacy/copyright"
+      },
+      {
+        "route": "/clinic",
+        "viewport": 375,
+        "element": "Footer hours",
+        "problem": "Independent follow-up identified a split time range",
+        "change": "Separate date/time spans, keep time together; allow a single footer column when text scales to 200%"
+      }
+    ],
+    "status": "Independent review findings resolved in tested scope; prototype checks and focused final revision checks passed. Owner/clinical approval and formal build/CI remain separate."
+  },
+  "currentReview": {
+    "date": "2026-10-08",
+    "version": "multi-source-v14-20261008",
+    "scope": "Homepage source prototype; other five page outputs not regenerated",
+    "verdict": "Owner rejected the green buttons and conspicuous dots. Revised and rendered; award-level visual acceptance remains pending. Earlier self-review is historical, not authority to extend.",
+    "evidence": "F:/診所專案/output/playwright/clinic-editorial-home-20261006/multi-source-v14-20261008/",
+    "multiSourceDecisions": "multi-source-review.json",
+    "changes": [
+      {
+        "route": "/clinic",
+        "viewport": [1440, 375],
+        "element": "Hero and booking actions",
+        "problem": "Bright leaf rectangles became isolated colour blocks in the soft photographic composition.",
+        "why": "They pulled attention away from the physical clinic sign and reading hierarchy.",
+        "change": "Remove the hero block; attach its directional action to the text axis. Booking uses a restrained warm neutral surface without rounded corners. Remove separate green icon squares."
+      },
+      {
+        "route": "/clinic",
+        "viewport": [1440, 375],
+        "element": "Carousel dots",
+        "problem": "Six outlined 8px circles were more prominent than their indicator role required.",
+        "why": "Their border and contrast created a competing toolbar below the main composition.",
+        "change": "Use borderless neutral 4px inactive and 6px active dots; retain independent 44px targets, accessible labels, pause and manual reduced-motion behaviour."
+      },
+      {
+        "route": "/clinic",
+        "viewport": [769, 944, 1100],
+        "element": "Brand wall at intermediate widths",
+        "problem": "The desktop photograph scale cropped the wordmark at the actual in-app preview width.",
+        "why": "A visible brand mark cannot be preserved only at the two required screenshot widths.",
+        "change": "Add an intermediate camera framing, retain the distinct mobile framing, and inspect 769/944/1100 in addition to 1440/375."
+      },
+      {
+        "route": "/clinic#visit",
+        "viewport": [1440, 375],
+        "element": "Phone action",
+        "problem": "The old telephone pseudo-element and the new SVG both rendered; the latter wrapped below the number.",
+        "why": "Duplicated symbols broke alignment within the practical contact row.",
+        "change": "Remove the obsolete pseudo-element and align the number with one shared native SVG in an inline flex row."
+      }
+    ],
+    "checks": "F:/診所專案/output/playwright/clinic-editorial-home-20261006/multi-source-v14-verify-20261008/results.json; multi-source-v14-navigation-20261008/results.json",
+    "mechanicalResult": "19/19 prototype checks and 4/4 navigation runs PASS; gzip closure 203121 bytes, 14 images, fonts 0. Does not certify visual quality, formal build or CI integration.",
+    "remaining": ["Homepage visual benchmark before extending the other five pages", "Clinical review", "Physical device, real text zoom and screen reader review", "Formal integration authority and content-hashed verification"]
+  }
+}

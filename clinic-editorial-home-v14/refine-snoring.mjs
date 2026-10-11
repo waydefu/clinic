@@ -1,0 +1,1 @@
+import {readFile,writeFile} from 'node:fs/promises';const f=new URL('build-pages.mjs',import.meta.url);let s=await readFile(f,'utf8');s=s.replace('<h1>止鼾<br>五合一</h1>','<h1>止鼾<br><span>五合一</span></h1>');await writeFile(f,s);

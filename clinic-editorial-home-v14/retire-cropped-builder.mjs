@@ -1,0 +1,11 @@
+import {readFile,writeFile} from 'node:fs/promises';
+const file=new URL('build-assets.mjs',import.meta.url);let code=await readFile(file,'utf8');
+const begin=code.indexOf('const medical = [');const end=code.indexOf('const soft = await source(',begin);
+if(begin<0||end<0)throw Error('Expected former sprite builder not found');
+code=code.slice(0,begin)+`// Complete commissioned graphic, included in the homepage allocation without cropping.\nconst wholeArtwork = JSON.parse(await readFile(root + 'whole-art.manifest.json','utf8'));\nrecords.push({...wholeArtwork.records.find(record => record.name === 'whole-turbinate'), role:'Owner-preserved full medical graphic; homepage preview and full reader'});\n\n`+code.slice(end);
+await writeFile(file,code);
+const client=new URL('site.js',import.meta.url);let js=await readFile(client,'utf8');
+const block=/  const artwork = node\("div", null, \{[\s\S]*?\n  const copy = node\("div"\);/;
+if(!block.test(js))throw Error('Care artwork block not found');js=js.replace(block,'  const copy = node("div");');js=js.replace('entry.append(artwork, copy);','entry.append(copy);');
+js += '\ndocument.addEventListener("whole-image-open",()=>{paused=true;generation++;syncPlayback();});\n';
+await writeFile(client,js);

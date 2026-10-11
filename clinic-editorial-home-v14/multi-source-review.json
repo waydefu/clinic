@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-08",
+  "scope": "Homepage prototype decisions; expert design judgement, not empirical user validation or award certification",
+  "sourceEvidence": "F:/診所專案/output/playwright/multi-source-review-20261008/",
+  "independence": "Two ESE works are correlated. Organiser and creator records for one project establish provenance, not two independent compositions. AI reviewer counts and averaged jury scores are not acceptance.",
+  "sources": [
+    { "id": "beethoven", "creator": "ESE", "url": "https://www.colette-camenisch.com/en", "evidence": "Previously inspected 1440/375 typography and service index; hero video unavailable" },
+    { "id": "hyou", "creator": "Studio Almond", "url": "https://www.almond.studio/work/hyoumankind", "evidence": "Previously inspected published stills; actual object and use scene, not verified motion" },
+    { "id": "halo", "creator": "REF Digital, current organiser credit", "url": "https://halodental.com/", "award": "https://www.awwwards.com/sites/halo-dental", "evidence": "Individual SOTD record read in browser; 1440/375 opening and 1280 product passage inspected; not a clinic or a medical source" },
+    { "id": "ota", "creator": "Independent Japanese ENT website; no award claimed", "url": "https://www.ota-jibika.jp/", "evidence": "1440/375 opening and native navigation inspected; mobile embedded-image text remains small" },
+    { "id": "nng", "url": "https://www.nngroup.com/articles/visual-hierarchy-ux-definition/", "evidence": "Primary authored hierarchy and grouping guidance read; does not prove aesthetic quality" },
+    { "id": "wai", "url": "https://www.w3.org/WAI/ARIA/apg/patterns/carousel/", "evidence": "Primary interaction guidance read; pause/focus and explicit resumption matter" },
+    { "id": "clreq", "url": "https://www.w3.org/TR/clreq/", "evidence": "Primary CJK layout guidance read; work in progress, not a new project gate" }
+  ],
+  "decisions": [
+    {
+      "route": "/clinic",
+      "viewport": [320, 375],
+      "element": "Mobile navigation",
+      "sources": ["ota", "beethoven", "nng"],
+      "agreement": "Important care/contact destinations should be recognisable as a coherent directory.",
+      "conflict": "Ota's icon toolbar and Beethoven's oversized Latin typography are different treatments; neither dictates this clinic's shape or fonts.",
+      "change": "Derive four named care shortcuts from the existing homepage content; keep native details, Escape return and outside dismissal. Anchor the expanded menu to the header.",
+      "revision": "A first render clipped the menu at 375 (x=-97); corrected, then reduced the header booking width so 320 stays on one row."
+    },
+    {
+      "route": "/clinic#environment",
+      "viewport": [1440, 375],
+      "element": "Environment photograph and visit explanation",
+      "sources": ["hyou", "halo", "ota", "nng"],
+      "agreement": "A real subject/use scene and its associated explanation form a meaningful reading unit.",
+      "conflict": "Commerce, 3D, black/orange styling, bitmap prose and identical cards do not serve the retained clinic brand or budgets.",
+      "change": "Keep the owned room image, distinguish room selection from a coherent four-part visit explanation, restore the existing examination text verbatim and use compact run-in mobile paragraphs.",
+      "revision": "The first vertical mobile list was too long; the next render preserves all four statements with less repeated vertical separation."
+    },
+    {
+      "route": "/clinic",
+      "viewport": [1440, 375],
+      "element": "Controls, typography and motion",
+      "sources": ["halo", "beethoven", "nng", "wai", "clreq"],
+      "agreement": "Type, relative emphasis and stable state feedback must work together.",
+      "conflict": "Awarded expressive media does not override native usability, the owner-rejected bright controls, local fonts or reduced motion.",
+      "change": "Keep restrained action surfaces and small dots; remove the selected environment's green block, use the same directional SVG vocabulary in the footer, and provide a cancellable menu transition only in normal motion."
+    }
+  ],
+  "renderedEvidence": "F:/診所專案/output/playwright/clinic-editorial-home-20261006/multi-source-v14-20261008/",
+  "verification": {
+    "prototype": "19/19 PASS; multi-source-v14-verify-20261008/results.json",
+    "navigation": "4/4 PASS; Chromium/WebKit 320/375, multi-source-v14-navigation-20261008/results.json",
+    "allocation": "Explicit complete gzip closure 203121 bytes, 14 images, fonts 0; no new image resources or dependencies",
+    "medical": "Exact HOME_PROCESS_ITEMS[0..3] retained; pending clinic review",
+    "boundaries": "No formal app-source integration, freeze change, doctor booking or deployment"
+  },
+  "remaining": ["International-level overall visual acceptance", "Normal motion review through complete playback", "Real devices, screen reader and real browser text zoom", "Other five page extension after the homepage benchmark"]
+}

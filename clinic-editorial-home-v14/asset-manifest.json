@@ -1,0 +1,263 @@
+{
+  "createdAt": "2026-10-08T03:03:23.604Z",
+  "scope": "local homepage prototype; original and freeze untouched",
+  "imageCount": 14,
+  "imageBytes": 186531,
+  "records": [
+    {
+      "output": "assets/photo-logo.webp",
+      "bytes": 27200,
+      "requestedCapKiB": 27,
+      "allocationExceeded": false,
+      "width": 1600,
+      "height": 900,
+      "quality": 66,
+      "sha256": "36a52ae767824c30777b9689f1a60b4c8027dc50c5e500b35e7c5e2637096845",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/1-1-scaled-1.webp",
+      "sourceSha256": "29354ee11aa13c950749fb907b29dd46537d438cd67ecc077f780c6baf3ce128",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        1280
+      ],
+      "embeddedMedicalTextReview": "none observed"
+    },
+    {
+      "output": "assets/photo-consult.webp",
+      "bytes": 14766,
+      "requestedCapKiB": 14,
+      "allocationExceeded": true,
+      "width": 800,
+      "height": 450,
+      "quality": 62,
+      "sha256": "2c24cfd97608ae9cbad26ab964eafb9d4c8302e3a83b35897b329a8d3f305bbd",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/3-1-scaled-1.webp",
+      "sourceSha256": "6e62d385b842f7b82d0a16f38726d5a5c289d0a970d94b431e3a34fdb2589622",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed"
+    },
+    {
+      "output": "assets/photo-reception.webp",
+      "bytes": 13526,
+      "requestedCapKiB": 14,
+      "allocationExceeded": false,
+      "width": 800,
+      "height": 450,
+      "quality": 62,
+      "sha256": "0bef86699df539fde134279c731d667b9e6236c289ecaf12778453b7b7e78927",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/4-1-1-scaled-1.webp",
+      "sourceSha256": "09b964498aba376579766636a3d7b403b50f9ea67555d01902225c615a646d26",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed"
+    },
+    {
+      "output": "assets/photo-lounge.webp",
+      "bytes": 15308,
+      "requestedCapKiB": 15,
+      "allocationExceeded": false,
+      "width": 960,
+      "height": 540,
+      "quality": 62,
+      "sha256": "7f30e5688fbe78224b401f665d61fc8d15d7f283b5c139885ef414c09318c858",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/02/5-1-1.jpg",
+      "sourceSha256": "886ed3b491354afdb5f656c07158ff6e6d4a78263d93787df9e502b35c531581",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed"
+    },
+    {
+      "output": "assets/photo-treatment.webp",
+      "bytes": 10116,
+      "requestedCapKiB": 10,
+      "allocationExceeded": false,
+      "width": 900,
+      "height": 506,
+      "quality": 66,
+      "sha256": "b1ea1572297bdba1a42cc524093b16bf8d71e549a2e94979541da3d38226f407",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/02/6-1.jpg",
+      "sourceSha256": "b295731c217fd76946fc10a27a37187a54200398a73ee7cfa61d45b3926cbf8b",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed"
+    },
+    {
+      "output": "assets/photo-desk.webp",
+      "bytes": 13870,
+      "requestedCapKiB": 14,
+      "allocationExceeded": false,
+      "width": 800,
+      "height": 450,
+      "quality": 70,
+      "sha256": "e4a1d61897585dcfdb31ba9061016ed8f9a3b0f9c4023d99f982d2ea1a1287c1",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/2-1-scaled-1.webp",
+      "sourceSha256": "8bf3fca57c697dfe6f181639b0b94239b2a9cd39aafa6486804276a8f18371f0",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "pending: legacy promotional balloon"
+    },
+    {
+      "output": "assets/logo.webp",
+      "bytes": 5064,
+      "requestedCapKiB": 5,
+      "allocationExceeded": false,
+      "width": 240,
+      "height": 134,
+      "quality": 74,
+      "sha256": "c241fdcf978576facb2a89977d1f7eed45bfc3d274025eceafee3807212b918a",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-assets/clinic-logo.webp",
+      "sourceSha256": "d75608cda33fad2a83d5a67f5dddc78dcd71bbc880aefe8240b59a13a3ed27fe",
+      "role": "existing clinic identity"
+    },
+    {
+      "output": "assets/doctor-yan.webp",
+      "bytes": 10970,
+      "requestedCapKiB": 11,
+      "allocationExceeded": false,
+      "width": 320,
+      "height": 414,
+      "sourceCrop": {
+        "left": 131,
+        "top": 96,
+        "width": 563,
+        "height": 729
+      },
+      "quality": 74,
+      "sha256": "91fc602a3b451f0cdbf1bacceabbe29a11321219f1cf8476742ece8d7c98fa52",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yan.png",
+      "sourceSha256": "2c0ec54261cc17cc7b02b1eff5614eb326dfb67e0b33b7ae01ee12ea06fbd47c",
+      "role": "existing approved portrait",
+      "trimAlpha": true,
+      "resizeFallback": [
+        320
+      ]
+    },
+    {
+      "output": "assets/doctor-yang.webp",
+      "bytes": 9014,
+      "requestedCapKiB": 9,
+      "allocationExceeded": false,
+      "width": 300,
+      "height": 422,
+      "sourceCrop": {
+        "left": 176,
+        "top": 79,
+        "width": 711,
+        "height": 1001
+      },
+      "quality": 62,
+      "sha256": "0c3d90374c6ec958a575e72d597bf3676d186ba46d0720d4ddd0fa6c81fe7dae",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yang.png",
+      "sourceSha256": "f1316bdc9adb80e9353f9cf673fef18075092af6c036db2d5e6881e05920f2b4",
+      "role": "existing approved portrait",
+      "trimAlpha": true,
+      "resizeFallback": [
+        280
+      ]
+    },
+    {
+      "output": "assets/sleep-editorial.webp",
+      "bytes": 24124,
+      "requestedCapKiB": 24,
+      "allocationExceeded": false,
+      "width": 600,
+      "height": 400,
+      "quality": 66,
+      "sha256": "c1e2688ec10fc2151dfaeebbcadcb323ea37feea3f5cdb51c41698ac84437fbb",
+      "source": "F:\\診所專案\\tmp\\clinic-editorial-home-20261006\\source/sleep-editorial-v1.png",
+      "sourceSha256": "05ab19938f3b2a9d9b2ab19fd9ef0066dd4d09d98a4f31bbf3f60342d0092c51",
+      "role": "explicitly authorized replacement illustration",
+      "authority": "User 2026-10-06: old sleeping cartoon may be redrawn",
+      "resizeFallback": [
+        600
+      ]
+    },
+    {
+      "name": "whole-turbinate",
+      "file": "2025/04/11.jpg",
+      "width": 1440,
+      "capKiB": 30,
+      "label": "下鼻甲完整圖文",
+      "output": "assets/whole/whole-turbinate.webp",
+      "bytes": 30542,
+      "height": 810,
+      "quality": 68,
+      "sha256": "fdc4120bdeb692d0aeccd2825457029c71cbc8adc7b130e8cf52cfd6aa9de262",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/11.jpg",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/04/11.jpg",
+      "sourceSha256": "825ddf3fb4e24e473bc49eb06a077ea15063218f19b533f7e58050762b11eeee",
+      "originalWidth": 3840,
+      "originalHeight": 2160,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "role": "Owner-preserved full medical graphic; homepage preview and full reader"
+    },
+    {
+      "output": "assets/background-atlas.webp",
+      "bytes": 6072,
+      "requestedCapKiB": 6,
+      "allocationExceeded": false,
+      "width": 800,
+      "height": 837,
+      "quality": 62,
+      "sha256": "f526e0d5f90e4785ecaa21135539f23296a5c7f7484dfe9d45db44b4d3696d18",
+      "source": "existing soft-green + owned forest imagery",
+      "sourceSha256": "a22993fe669ff630e42a2b5a87f34eb84bab0e95af77788454f63a83f659c1f9",
+      "role": "existing brand backgrounds",
+      "sources": [
+        {
+          "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-assets/soft-green-bg.webp",
+          "sourceSha256": "0f2af54beadbf8c0bbe264bf7e53a7fd819ca7fa7ae0f6275107fed9e60977a6",
+          "region": [
+            0,
+            0,
+            1200,
+            833
+          ]
+        },
+        {
+          "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/hero-forest.webp",
+          "sourceSha256": "41571fb8dd3a0eaade4aa3126bf3611ae507052c7f8785e715d3e4db95c731f7",
+          "region": [
+            0,
+            833,
+            1200,
+            423
+          ]
+        }
+      ]
+    },
+    {
+      "output": "assets/clinic-map.svg",
+      "bytes": 3096,
+      "sha256": "ce8cb896b6a745935d75d6e9942d48f0af415f61eee6510560f5771315e65aa6",
+      "role": "Source-verified OSM arrival diagram",
+      "source": "map-social-sources.json",
+      "operation": "native vector, no external runtime request"
+    },
+    {
+      "output": "assets/social-icons.svg",
+      "bytes": 2863,
+      "sha256": "c896b814732726e77fb72cd6543ba968efb37d483b5c064773eb29bedb0685f3",
+      "role": "One shared brand icon sprite",
+      "source": "map-social-sources.json",
+      "operation": "native vector, no external runtime request"
+    }
+  ]
+}

@@ -1,0 +1,269 @@
+{
+  "scope": "page-specific local prototype derivatives; not added to homepage closure",
+  "records": [
+    {
+      "output": "assets/inner/profile-yan.webp",
+      "bytes": 24266,
+      "width": 563,
+      "height": 729,
+      "quality": 74,
+      "sha256": "1015ce52af83ae76df817cc54d5ff402ec98095c2c92bdc2a882f966074974ae",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yan.png",
+      "sourceSha256": "2c0ec54261cc17cc7b02b1eff5614eb326dfb67e0b33b7ae01ee12ea06fbd47c",
+      "sourceCrop": [
+        131,
+        96,
+        563,
+        729
+      ],
+      "lineage": "Same alpha boundary as homepage; no face retouching",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/profile-yang.webp",
+      "bytes": 23642,
+      "width": 620,
+      "height": 873,
+      "quality": 56,
+      "sha256": "d6a00b568e7687a389e18ec9e13c50c835bf42bd0afcddec8bdcd8d229328bab",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yang.png",
+      "sourceSha256": "f1316bdc9adb80e9353f9cf673fef18075092af6c036db2d5e6881e05920f2b4",
+      "sourceCrop": [
+        176,
+        79,
+        711,
+        1001
+      ],
+      "lineage": "Same alpha boundary as homepage; no face retouching",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/couple.webp",
+      "bytes": 23048,
+      "width": 900,
+      "height": 675,
+      "quality": 80,
+      "sha256": "1ed93ef9d3adcdc915f41808b84f815d24e68cd3375b6522b5e4e40cdf942d69",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/service-septoplasty.jpg",
+      "sourceSha256": "5d004fc929ffc3f931e35b0a93f0cca166345f6860fc565ce4c70e3612f4b09a",
+      "sourceCrop": [
+        1408,
+        439,
+        1152,
+        864
+      ],
+      "lineage": "Existing formal focus from original high-resolution owned couple illustration",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/daytime.webp",
+      "bytes": 24488,
+      "width": 420,
+      "height": 575,
+      "quality": 56,
+      "sha256": "d55951d321858a458607bc091beac6ee7de7be440552b0935314643c0c4d84b3",
+      "source": "F:\\診所專案\\tmp\\clinic-editorial-home-20261006\\source\\daytime-editorial-v1.png",
+      "sourceSha256": "3cce9236d038908625068a6d2171723252b5f66c1c62b0951b498cd558e30dc5",
+      "lineage": "Companion redraw of rejected flat-cartoon family; same watercolor language as the authorized sleeping figure; prompt source/daytime-editorial-v1.prompt.txt. Original remains archived.",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/flow-consult.webp",
+      "bytes": 3452,
+      "width": 240,
+      "height": 166,
+      "quality": 86,
+      "sha256": "fd3bffd9b6530b2f5c65525535a0538a26a8d8a87c2a1cbad158c9f1801784ce",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-consult.webp",
+      "sourceSha256": "6bb09afae77f474964fb6fe059c634c941e7179c1548429a7c212283f89ec931",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-consult.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "crop": [
+          35,
+          455,
+          225,
+          155
+        ],
+        "width": 300,
+        "height": 207,
+        "operation": "Crop original image; retain geometry/colours; necessary labels in HTML; no AI redraw; excluded corner is outside mouthguard body",
+        "label": "門診諮詢圖示",
+        "sha256": "6bb09afae77f474964fb6fe059c634c941e7179c1548429a7c212283f89ec931",
+        "bytes": 5614
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/flow-history.webp",
+      "bytes": 3836,
+      "width": 240,
+      "height": 255,
+      "quality": 86,
+      "sha256": "748eb3991295d7142dd61de8e516c3216ae08f48d31bd93178fbf69b6eb88b36",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-history.webp",
+      "sourceSha256": "1c4e2dd0021b5744f4db2b39739fffab5124e1e660393d24e709e89dcad3b55f",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-history.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "crop": [
+          690,
+          0,
+          160,
+          170
+        ],
+        "width": 300,
+        "height": 319,
+        "operation": "Crop original image; retain geometry/colours; necessary labels in HTML; no AI redraw; excluded corner is outside mouthguard body",
+        "label": "病史詢問圖示",
+        "sha256": "1c4e2dd0021b5744f4db2b39739fffab5124e1e660393d24e709e89dcad3b55f",
+        "bytes": 6436
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/flow-check.webp",
+      "bytes": 3872,
+      "width": 240,
+      "height": 254,
+      "quality": 86,
+      "sha256": "9a3fdb6a28037dd5f1d04d5b194f9ec50b14607d2ee884f00b84cdee7ae12544",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-check.webp",
+      "sourceSha256": "f3e3506fcddf650a21038f08e8ee961b52702d5e464e1f6b0a5d7ab5db14785a",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-check.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "crop": [
+          680,
+          445,
+          170,
+          180
+        ],
+        "width": 300,
+        "height": 318,
+        "operation": "Crop original image; retain geometry/colours; necessary labels in HTML; no AI redraw; excluded corner is outside mouthguard body",
+        "label": "鼻腔檢查圖示",
+        "sha256": "f3e3506fcddf650a21038f08e8ee961b52702d5e464e1f6b0a5d7ab5db14785a",
+        "bytes": 6416
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/flow-allergy.webp",
+      "bytes": 3948,
+      "width": 200,
+      "height": 128,
+      "quality": 86,
+      "sha256": "ab65f69c202dac2f518ede3efa830d0d0a3d1f1ed269cd5384bea167f544b70e",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-allergy.webp",
+      "sourceSha256": "25bcb5ed63ddfa8828985f409753c5e1ed76a8c1bdb0448dca23a4a35021abda",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-allergy.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "label": "過敏史圖示",
+        "operation": "Crop source artwork only; keep original unmodified; text recreated in HTML",
+        "crop": [
+          635,
+          1035,
+          235,
+          150
+        ],
+        "width": 200,
+        "height": 128,
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "bytes": 5196,
+        "sha256": "25bcb5ed63ddfa8828985f409753c5e1ed76a8c1bdb0448dca23a4a35021abda"
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/flow-habits.webp",
+      "bytes": 3996,
+      "width": 200,
+      "height": 157,
+      "quality": 86,
+      "sha256": "9e7cf6fa2d28195934b6138257bcb2a9482f6b55b96adc94d8ba5f739dd06007",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-habits.webp",
+      "sourceSha256": "911804e951d2bfe04824b544647725866adc91136f9b13387b0ae3b696dda3a8",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-habits.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "label": "睡眠與生活習慣圖示",
+        "operation": "Crop source artwork only; keep original unmodified; text recreated in HTML",
+        "crop": [
+          2130,
+          735,
+          230,
+          180
+        ],
+        "width": 200,
+        "height": 157,
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "bytes": 5106,
+        "sha256": "911804e951d2bfe04824b544647725866adc91136f9b13387b0ae3b696dda3a8"
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained"
+    },
+    {
+      "output": "assets/inner/flow-homecare.webp",
+      "bytes": 4954,
+      "width": 200,
+      "height": 180,
+      "quality": 86,
+      "sha256": "9ff69ef00e6f0eedb6b8bcdb44e41ca23c4361e4eb18e2a613ea7ef0aefbd6d0",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-homecare.webp",
+      "sourceSha256": "9954716ba8153b587e24279f389fbc381c5f1785593eca794e0580d172ce994e",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-homecare.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "label": "居家照護圖示",
+        "operation": "Crop source artwork only; keep original unmodified; text recreated in HTML",
+        "crop": [
+          2140,
+          165,
+          200,
+          180
+        ],
+        "width": 200,
+        "height": 180,
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "bytes": 6474,
+        "sha256": "9954716ba8153b587e24279f389fbc381c5f1785593eca794e0580d172ce994e"
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained"
+    }
+  ]
+}

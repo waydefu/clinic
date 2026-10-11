@@ -1,0 +1,1 @@
+import {readFile,writeFile} from 'node:fs/promises';const file=new URL('build-pages.mjs',import.meta.url);let s=await readFile(file,'utf8');s=s.replaceAll('"無",','"×",').replaceAll('"有",','"○",').replace('器械照片沿用原官網；處理部位與差異請對照上表，並在看診時確認。','看診時，可以請醫師說明處理部位與器械差異。').replace('牙套完整實物；照片沿用原官網。','牙套實物').replace('原官網完整牙套實物照片','完整牙套實物照片');await writeFile(file,s);

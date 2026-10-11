@@ -1,0 +1,780 @@
+{
+  "scope": "Source inventory + intended allocation; final per-route closures in final-verification/results.json",
+  "originalArchiveCount": 63,
+  "allocations": [
+    {
+      "output": "assets/photo-logo.webp",
+      "bytes": 24666,
+      "requestedCapKiB": 25,
+      "allocationExceeded": false,
+      "width": 1440,
+      "height": 810,
+      "quality": 70,
+      "sha256": "19008e322ef270378d4db4e5f1e7929ac0bdd82d2d5d22ff25cb140ea295c080",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/1-1-scaled-1.webp",
+      "sourceSha256": "29354ee11aa13c950749fb907b29dd46537d438cd67ecc077f780c6baf3ce128",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        1280
+      ],
+      "embeddedMedicalTextReview": "none observed",
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/photo-consult.webp",
+      "bytes": 14766,
+      "requestedCapKiB": 14,
+      "allocationExceeded": true,
+      "width": 800,
+      "height": 450,
+      "quality": 62,
+      "sha256": "2c24cfd97608ae9cbad26ab964eafb9d4c8302e3a83b35897b329a8d3f305bbd",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/3-1-scaled-1.webp",
+      "sourceSha256": "6e62d385b842f7b82d0a16f38726d5a5c289d0a970d94b431e3a34fdb2589622",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed",
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/photo-reception.webp",
+      "bytes": 13526,
+      "requestedCapKiB": 14,
+      "allocationExceeded": false,
+      "width": 800,
+      "height": 450,
+      "quality": 62,
+      "sha256": "0bef86699df539fde134279c731d667b9e6236c289ecaf12778453b7b7e78927",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/4-1-1-scaled-1.webp",
+      "sourceSha256": "09b964498aba376579766636a3d7b403b50f9ea67555d01902225c615a646d26",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed",
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/photo-lounge.webp",
+      "bytes": 15308,
+      "requestedCapKiB": 15,
+      "allocationExceeded": false,
+      "width": 960,
+      "height": 540,
+      "quality": 62,
+      "sha256": "7f30e5688fbe78224b401f665d61fc8d15d7f283b5c139885ef414c09318c858",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/02/5-1-1.jpg",
+      "sourceSha256": "886ed3b491354afdb5f656c07158ff6e6d4a78263d93787df9e502b35c531581",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed",
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/photo-treatment.webp",
+      "bytes": 10116,
+      "requestedCapKiB": 10,
+      "allocationExceeded": false,
+      "width": 900,
+      "height": 506,
+      "quality": 66,
+      "sha256": "b1ea1572297bdba1a42cc524093b16bf8d71e549a2e94979541da3d38226f407",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/02/6-1.jpg",
+      "sourceSha256": "b295731c217fd76946fc10a27a37187a54200398a73ee7cfa61d45b3926cbf8b",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "none observed",
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/photo-desk.webp",
+      "bytes": 13870,
+      "requestedCapKiB": 14,
+      "allocationExceeded": false,
+      "width": 800,
+      "height": 450,
+      "quality": 70,
+      "sha256": "e4a1d61897585dcfdb31ba9061016ed8f9a3b0f9c4023d99f982d2ea1a1287c1",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/2-1-scaled-1.webp",
+      "sourceSha256": "8bf3fca57c697dfe6f181639b0b94239b2a9cd39aafa6486804276a8f18371f0",
+      "role": "owned clinic photo",
+      "resizeFallback": [
+        900,
+        800
+      ],
+      "embeddedMedicalTextReview": "pending: legacy promotional balloon",
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/logo.webp",
+      "bytes": 5064,
+      "requestedCapKiB": 5,
+      "allocationExceeded": false,
+      "width": 240,
+      "height": 134,
+      "quality": 74,
+      "sha256": "c241fdcf978576facb2a89977d1f7eed45bfc3d274025eceafee3807212b918a",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-assets/clinic-logo.webp",
+      "sourceSha256": "d75608cda33fad2a83d5a67f5dddc78dcd71bbc880aefe8240b59a13a3ed27fe",
+      "role": "existing clinic identity",
+      "routes": [
+        "/clinic",
+        "/clinic/doctors",
+        "/clinic/nasal/snoring-five-in-one",
+        "/clinic/nasal/inferior-turbinate-surgery",
+        "/clinic/nasal/septoplasty",
+        "/clinic/nasal/snore-relief-mouthguard"
+      ]
+    },
+    {
+      "output": "assets/doctor-yan.webp",
+      "bytes": 10970,
+      "requestedCapKiB": 11,
+      "allocationExceeded": false,
+      "width": 320,
+      "height": 414,
+      "sourceCrop": {
+        "left": 131,
+        "top": 96,
+        "width": 563,
+        "height": 729
+      },
+      "quality": 74,
+      "sha256": "91fc602a3b451f0cdbf1bacceabbe29a11321219f1cf8476742ece8d7c98fa52",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yan.png",
+      "sourceSha256": "2c0ec54261cc17cc7b02b1eff5614eb326dfb67e0b33b7ae01ee12ea06fbd47c",
+      "role": "existing approved portrait",
+      "trimAlpha": true,
+      "resizeFallback": [
+        320
+      ],
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/doctor-yang.webp",
+      "bytes": 9014,
+      "requestedCapKiB": 9,
+      "allocationExceeded": false,
+      "width": 300,
+      "height": 422,
+      "sourceCrop": {
+        "left": 176,
+        "top": 79,
+        "width": 711,
+        "height": 1001
+      },
+      "quality": 62,
+      "sha256": "0c3d90374c6ec958a575e72d597bf3676d186ba46d0720d4ddd0fa6c81fe7dae",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yang.png",
+      "sourceSha256": "f1316bdc9adb80e9353f9cf673fef18075092af6c036db2d5e6881e05920f2b4",
+      "role": "existing approved portrait",
+      "trimAlpha": true,
+      "resizeFallback": [
+        280
+      ],
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/sleep-editorial.webp",
+      "bytes": 24124,
+      "requestedCapKiB": 24,
+      "allocationExceeded": false,
+      "width": 600,
+      "height": 400,
+      "quality": 66,
+      "sha256": "c1e2688ec10fc2151dfaeebbcadcb323ea37feea3f5cdb51c41698ac84437fbb",
+      "source": "F:\\診所專案\\tmp\\clinic-editorial-home-20261006\\source/sleep-editorial-v1.png",
+      "sourceSha256": "05ab19938f3b2a9d9b2ab19fd9ef0066dd4d09d98a4f31bbf3f60342d0092c51",
+      "role": "explicitly authorized replacement illustration",
+      "authority": "User 2026-10-06: old sleeping cartoon may be redrawn",
+      "resizeFallback": [
+        600
+      ],
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "name": "whole-turbinate",
+      "file": "2025/04/11.jpg",
+      "width": 1440,
+      "capKiB": 30,
+      "label": "下鼻甲完整圖文",
+      "output": "assets/whole/whole-turbinate.webp",
+      "bytes": 30542,
+      "height": 810,
+      "quality": 68,
+      "sha256": "fdc4120bdeb692d0aeccd2825457029c71cbc8adc7b130e8cf52cfd6aa9de262",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/11.jpg",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/04/11.jpg",
+      "sourceSha256": "825ddf3fb4e24e473bc49eb06a077ea15063218f19b533f7e58050762b11eeee",
+      "originalWidth": 3840,
+      "originalHeight": 2160,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "routes": [
+        "/clinic",
+        "/clinic/nasal/inferior-turbinate-surgery"
+      ],
+      "preservation": "Complete authored composition; whole-image resize only"
+    },
+    {
+      "output": "assets/background-atlas.webp",
+      "bytes": 8052,
+      "requestedCapKiB": 8,
+      "allocationExceeded": false,
+      "width": 800,
+      "height": 837,
+      "quality": 78,
+      "sha256": "0574a7f76dcea7f5a9c0477b5cb5c6af82a0a4dd03c4ca5bbdd58752daf510ca",
+      "source": "existing soft-green + owned forest imagery",
+      "sourceSha256": "a22993fe669ff630e42a2b5a87f34eb84bab0e95af77788454f63a83f659c1f9",
+      "role": "existing brand backgrounds",
+      "sources": [
+        {
+          "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-assets/soft-green-bg.webp",
+          "sourceSha256": "0f2af54beadbf8c0bbe264bf7e53a7fd819ca7fa7ae0f6275107fed9e60977a6",
+          "region": [
+            0,
+            0,
+            1200,
+            833
+          ]
+        },
+        {
+          "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/hero-forest.webp",
+          "sourceSha256": "41571fb8dd3a0eaade4aa3126bf3611ae507052c7f8785e715d3e4db95c731f7",
+          "region": [
+            0,
+            833,
+            1200,
+            423
+          ]
+        }
+      ],
+      "routes": [
+        "/clinic",
+        "/clinic/doctors",
+        "/clinic/nasal/snoring-five-in-one",
+        "/clinic/nasal/inferior-turbinate-surgery",
+        "/clinic/nasal/septoplasty",
+        "/clinic/nasal/snore-relief-mouthguard"
+      ]
+    },
+    {
+      "output": "assets/clinic-map.svg",
+      "bytes": 3096,
+      "sha256": "ce8cb896b6a745935d75d6e9942d48f0af415f61eee6510560f5771315e65aa6",
+      "role": "Source-verified OSM arrival diagram",
+      "source": "map-social-sources.json",
+      "operation": "native vector, no external runtime request",
+      "routes": [
+        "/clinic"
+      ]
+    },
+    {
+      "output": "assets/social-icons.svg",
+      "bytes": 2863,
+      "sha256": "c896b814732726e77fb72cd6543ba968efb37d483b5c064773eb29bedb0685f3",
+      "role": "One shared brand icon sprite",
+      "source": "map-social-sources.json",
+      "operation": "native vector, no external runtime request",
+      "routes": [
+        "/clinic",
+        "/clinic/doctors",
+        "/clinic/nasal/snoring-five-in-one",
+        "/clinic/nasal/inferior-turbinate-surgery",
+        "/clinic/nasal/septoplasty",
+        "/clinic/nasal/snore-relief-mouthguard"
+      ]
+    },
+    {
+      "output": "assets/inner/profile-yan.webp",
+      "bytes": 24266,
+      "width": 563,
+      "height": 729,
+      "quality": 74,
+      "sha256": "1015ce52af83ae76df817cc54d5ff402ec98095c2c92bdc2a882f966074974ae",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yan.png",
+      "sourceSha256": "2c0ec54261cc17cc7b02b1eff5614eb326dfb67e0b33b7ae01ee12ea06fbd47c",
+      "sourceCrop": [
+        131,
+        96,
+        563,
+        729
+      ],
+      "lineage": "Same alpha boundary as homepage; no face retouching",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/doctors"
+      ]
+    },
+    {
+      "output": "assets/inner/profile-yang.webp",
+      "bytes": 23642,
+      "width": 620,
+      "height": 873,
+      "quality": 56,
+      "sha256": "d6a00b568e7687a389e18ec9e13c50c835bf42bd0afcddec8bdcd8d229328bab",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/doctor-yang.png",
+      "sourceSha256": "f1316bdc9adb80e9353f9cf673fef18075092af6c036db2d5e6881e05920f2b4",
+      "sourceCrop": [
+        176,
+        79,
+        711,
+        1001
+      ],
+      "lineage": "Same alpha boundary as homepage; no face retouching",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/doctors"
+      ]
+    },
+    {
+      "output": "assets/inner/couple.webp",
+      "bytes": 23048,
+      "width": 900,
+      "height": 675,
+      "quality": 80,
+      "sha256": "1ed93ef9d3adcdc915f41808b84f815d24e68cd3375b6522b5e4e40cdf942d69",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/clinic-source/service-septoplasty.jpg",
+      "sourceSha256": "5d004fc929ffc3f931e35b0a93f0cca166345f6860fc565ce4c70e3612f4b09a",
+      "sourceCrop": [
+        1408,
+        439,
+        1152,
+        864
+      ],
+      "lineage": "Existing formal focus from original high-resolution owned couple illustration",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/nasal/septoplasty"
+      ]
+    },
+    {
+      "output": "assets/inner/daytime.webp",
+      "bytes": 24488,
+      "width": 420,
+      "height": 575,
+      "quality": 56,
+      "sha256": "d55951d321858a458607bc091beac6ee7de7be440552b0935314643c0c4d84b3",
+      "source": "F:\\診所專案\\tmp\\clinic-editorial-home-20261006\\source\\daytime-editorial-v1.png",
+      "sourceSha256": "3cce9236d038908625068a6d2171723252b5f66c1c62b0951b498cd558e30dc5",
+      "lineage": "Companion redraw of rejected flat-cartoon family; same watercolor language as the authorized sleeping figure; prompt source/daytime-editorial-v1.prompt.txt. Original remains archived.",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/nasal/snoring-five-in-one"
+      ]
+    },
+    {
+      "output": "assets/inner/flow-consult.webp",
+      "bytes": 3452,
+      "width": 240,
+      "height": 166,
+      "quality": 86,
+      "sha256": "fd3bffd9b6530b2f5c65525535a0538a26a8d8a87c2a1cbad158c9f1801784ce",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-consult.webp",
+      "sourceSha256": "6bb09afae77f474964fb6fe059c634c941e7179c1548429a7c212283f89ec931",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-consult.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "crop": [
+          35,
+          455,
+          225,
+          155
+        ],
+        "width": 300,
+        "height": 207,
+        "operation": "Crop original image; retain geometry/colours; necessary labels in HTML; no AI redraw; excluded corner is outside mouthguard body",
+        "label": "門診諮詢圖示",
+        "sha256": "6bb09afae77f474964fb6fe059c634c941e7179c1548429a7c212283f89ec931",
+        "bytes": 5614
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/nasal/snoring-five-in-one"
+      ]
+    },
+    {
+      "output": "assets/inner/flow-history.webp",
+      "bytes": 3836,
+      "width": 240,
+      "height": 255,
+      "quality": 86,
+      "sha256": "748eb3991295d7142dd61de8e516c3216ae08f48d31bd93178fbf69b6eb88b36",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-history.webp",
+      "sourceSha256": "1c4e2dd0021b5744f4db2b39739fffab5124e1e660393d24e709e89dcad3b55f",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-history.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "crop": [
+          690,
+          0,
+          160,
+          170
+        ],
+        "width": 300,
+        "height": 319,
+        "operation": "Crop original image; retain geometry/colours; necessary labels in HTML; no AI redraw; excluded corner is outside mouthguard body",
+        "label": "病史詢問圖示",
+        "sha256": "1c4e2dd0021b5744f4db2b39739fffab5124e1e660393d24e709e89dcad3b55f",
+        "bytes": 6436
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/nasal/snoring-five-in-one"
+      ]
+    },
+    {
+      "output": "assets/inner/flow-check.webp",
+      "bytes": 3872,
+      "width": 240,
+      "height": 254,
+      "quality": 86,
+      "sha256": "9a3fdb6a28037dd5f1d04d5b194f9ec50b14607d2ee884f00b84cdee7ae12544",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-check.webp",
+      "sourceSha256": "f3e3506fcddf650a21038f08e8ee961b52702d5e464e1f6b0a5d7ab5db14785a",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-check.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "crop": [
+          680,
+          445,
+          170,
+          180
+        ],
+        "width": 300,
+        "height": 318,
+        "operation": "Crop original image; retain geometry/colours; necessary labels in HTML; no AI redraw; excluded corner is outside mouthguard body",
+        "label": "鼻腔檢查圖示",
+        "sha256": "f3e3506fcddf650a21038f08e8ee961b52702d5e464e1f6b0a5d7ab5db14785a",
+        "bytes": 6416
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/nasal/snoring-five-in-one"
+      ]
+    },
+    {
+      "output": "assets/inner/flow-allergy.webp",
+      "bytes": 3948,
+      "width": 200,
+      "height": 128,
+      "quality": 86,
+      "sha256": "ab65f69c202dac2f518ede3efa830d0d0a3d1f1ed269cd5384bea167f544b70e",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-allergy.webp",
+      "sourceSha256": "25bcb5ed63ddfa8828985f409753c5e1ed76a8c1bdb0448dca23a4a35021abda",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-allergy.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "label": "過敏史圖示",
+        "operation": "Crop source artwork only; keep original unmodified; text recreated in HTML",
+        "crop": [
+          635,
+          1035,
+          235,
+          150
+        ],
+        "width": 200,
+        "height": 128,
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "bytes": 5196,
+        "sha256": "25bcb5ed63ddfa8828985f409753c5e1ed76a8c1bdb0448dca23a4a35021abda"
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": []
+    },
+    {
+      "output": "assets/inner/flow-habits.webp",
+      "bytes": 3996,
+      "width": 200,
+      "height": 157,
+      "quality": 86,
+      "sha256": "9e7cf6fa2d28195934b6138257bcb2a9482f6b55b96adc94d8ba5f739dd06007",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-habits.webp",
+      "sourceSha256": "911804e951d2bfe04824b544647725866adc91136f9b13387b0ae3b696dda3a8",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-habits.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "label": "睡眠與生活習慣圖示",
+        "operation": "Crop source artwork only; keep original unmodified; text recreated in HTML",
+        "crop": [
+          2130,
+          735,
+          230,
+          180
+        ],
+        "width": 200,
+        "height": 157,
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "bytes": 5106,
+        "sha256": "911804e951d2bfe04824b544647725866adc91136f9b13387b0ae3b696dda3a8"
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": [
+        "/clinic/nasal/snoring-five-in-one"
+      ]
+    },
+    {
+      "output": "assets/inner/flow-homecare.webp",
+      "bytes": 4954,
+      "width": 200,
+      "height": 180,
+      "quality": 86,
+      "sha256": "9ff69ef00e6f0eedb6b8bcdb44e41ca23c4361e4eb18e2a613ea7ef0aefbd6d0",
+      "source": "F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/assets/flow-homecare.webp",
+      "sourceSha256": "9954716ba8153b587e24279f389fbc381c5f1785593eca794e0580d172ce994e",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+      "preparedLineage": {
+        "output": "assets/flow-homecare.webp",
+        "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/new止鼾五合一2-下午12.03.22.webp",
+        "sourceSha256": "af5f0b79f9280e0f5226701faf08626ef90b1a0a1a50bedde2bb11a712322598",
+        "label": "居家照護圖示",
+        "operation": "Crop source artwork only; keep original unmodified; text recreated in HTML",
+        "crop": [
+          2140,
+          165,
+          200,
+          180
+        ],
+        "width": 200,
+        "height": 180,
+        "originalWidth": 2560,
+        "originalHeight": 1377,
+        "bytes": 6474,
+        "sha256": "9954716ba8153b587e24279f389fbc381c5f1785593eca794e0580d172ce994e"
+      },
+      "lineage": "Owned flow illustration; meaningful text remains native HTML",
+      "review": "pending clinic medical/content review; original geometry retained",
+      "routes": []
+    },
+    {
+      "name": "whole-snoring-causes",
+      "file": "2024/11/止鼾五合一1-1.png",
+      "width": 1600,
+      "capKiB": 60,
+      "label": "五類原因完整圖",
+      "output": "assets/whole/whole-snoring-causes.webp",
+      "bytes": 60892,
+      "height": 439,
+      "quality": 62,
+      "sha256": "c014858843b5ceab47288481368e18d81bc3c044604bcf687ed25259b386f64b",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2024/11/止鼾五合一1-1.png",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2024/11/止鼾五合一1-1.png",
+      "sourceSha256": "8e803ea5b2172d7a7604bae77ef110ba7299c572e71fdfded40396e910705fd5",
+      "originalWidth": 2600,
+      "originalHeight": 714,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "routes": [
+        "/clinic/nasal/snoring-five-in-one"
+      ],
+      "preservation": "Complete authored composition; whole-image resize only"
+    },
+    {
+      "name": "whole-mouthguard",
+      "file": "2025/04/2025止鼾好眠牙套圖1.jpg",
+      "width": 1440,
+      "capKiB": 40,
+      "label": "牙套完整圖文與實物",
+      "output": "assets/whole/whole-mouthguard.webp",
+      "bytes": 37572,
+      "height": 810,
+      "quality": 80,
+      "sha256": "996cbae37d676885d2d9fb5c04d41b465fed311246d39ea8ed189b7d66c7bf38",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceSha256": "5fe3371555dcd6fb5a64a5c84f8b2bc83e3bad6b89109dab167e9edb3476ae68",
+      "originalWidth": 3840,
+      "originalHeight": 2160,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "routes": [
+        "/clinic/nasal/snore-relief-mouthguard"
+      ],
+      "preservation": "Complete authored composition; whole-image resize only"
+    },
+    {
+      "name": "whole-instruments",
+      "file": "2025/04/下鼻甲手術圖1.jpg",
+      "width": 1440,
+      "capKiB": 34,
+      "label": "兩種器械完整比較圖",
+      "output": "assets/whole/whole-instruments.webp",
+      "bytes": 31988,
+      "height": 810,
+      "quality": 74,
+      "sha256": "95980d1371389754bb71ff0a783cd39adc35796c9d81c6cc4458a3e34578d467",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/下鼻甲手術圖1.jpg",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/04/下鼻甲手術圖1.jpg",
+      "sourceSha256": "cc3282806438b499ecbc2dd903d9bd1c6465419b5345fc18dc92748fb5446223",
+      "originalWidth": 3840,
+      "originalHeight": 2160,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "routes": [
+        "/clinic/nasal/inferior-turbinate-surgery"
+      ],
+      "preservation": "Complete authored composition; whole-image resize only"
+    },
+    {
+      "name": "whole-comparison-wide",
+      "file": "2025/05/0506.png",
+      "width": 1600,
+      "capKiB": 50,
+      "label": "九欄比較完整橫圖",
+      "output": "assets/whole/whole-comparison-wide.webp",
+      "bytes": 50650,
+      "height": 671,
+      "quality": 80,
+      "sha256": "c562b10649181f57aec90558a3437fd832e1118e81492fe79947854e778a1b90",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c",
+      "originalWidth": 6000,
+      "originalHeight": 2517,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "routes": [
+        "/clinic/nasal/inferior-turbinate-surgery"
+      ],
+      "preservation": "Complete authored composition; whole-image resize only"
+    },
+    {
+      "name": "whole-comparison-tall",
+      "file": "2025/05/05000006.png",
+      "width": 1000,
+      "capKiB": 50,
+      "label": "比較完整直圖；兩份附件是同一版本",
+      "output": "assets/whole/whole-comparison-tall.webp",
+      "bytes": 49376,
+      "height": 885,
+      "quality": 80,
+      "sha256": "eb2742cec0b7aee492fe6aa90254c257c3999016985c479a546ea3cdf6509f18",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/05000006.png",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/05/05000006.png",
+      "sourceSha256": "8c160f18d131dbd241f678d9ee25bb52fdf034f161759e8b5bdf1fdebdd51196",
+      "originalWidth": 4000,
+      "originalHeight": 3538,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "routes": [
+        "/clinic/nasal/inferior-turbinate-surgery"
+      ],
+      "preservation": "Complete authored composition; whole-image resize only"
+    },
+    {
+      "name": "whole-septum-types",
+      "file": "2025/06/鼻中隔手術2025.webp",
+      "width": 1600,
+      "capKiB": 40,
+      "label": "五種型態與說明完整圖",
+      "output": "assets/whole/whole-septum-types.webp",
+      "bytes": 37968,
+      "height": 493,
+      "quality": 80,
+      "sha256": "d4891d2d6442d82ec9e21ee531aeb2b7478869d64a661e1805e67969edf38ff8",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d",
+      "originalWidth": 2560,
+      "originalHeight": 789,
+      "operation": "resize-whole-only",
+      "crop": null,
+      "review": "All embedded medical claims and comparisons pending clinic review; original composition preserved",
+      "routes": [
+        "/clinic/nasal/septoplasty"
+      ],
+      "preservation": "Complete authored composition; whole-image resize only"
+    }
+  ],
+  "reserved": [
+    {
+      "group": "Original flat sleeping/daytime cartoons",
+      "decision": "Archive unchanged; use the two explicitly scoped redraws."
+    },
+    {
+      "group": "Extra flow, outline and decorative symbols",
+      "decision": "Preserve in source library; do not force into empty layout slots. Two prepared flow derivatives are reserved, not served."
+    },
+    {
+      "group": "Non-nasal, aesthetic/service promotional artwork",
+      "decision": "Outside this six-page nasal/sleep scope; retain original archive."
+    },
+    {
+      "group": "Legacy CTA/contact banners",
+      "decision": "Retain original; current navigation/contact/booking remains native, with no old-site redirect."
+    },
+    {
+      "group": "Earlier cut anatomy/device/type/appliance derivatives",
+      "decision": "Retired outside served assets; superseded by protected whole graphics."
+    },
+    {
+      "group": "Four small generic care symbols",
+      "decision": "Originals retained in the source library; homepage allocation prioritises the complete commissioned medical plate."
+    }
+  ],
+  "latestOwnerInstruction": "Owner 2026-10-06: these complete graphics must not be arbitrarily cropped or split; continue using usable originals."
+}

@@ -1,0 +1,1204 @@
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.breadcrumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.article-page h1 {
+  font: 700 4rem/1.2 var(--sans);
+  letter-spacing: -0.035em;
+}
+.article-page h2 {
+  font-size: 2.5rem;
+}
+.article-page h3 {
+  font-family: var(--sans);
+  font-size: 1.375rem;
+}
+.article-page figcaption {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin-top: 12px;
+}
+.article-page ul {
+  padding-left: 1.25em;
+}
+.article-page li + li {
+  margin-top: 8px;
+}
+.consultation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding-block: 32px 48px;
+  border-top: 1px solid var(--line);
+}
+.consultation p {
+  margin-right: auto;
+}
+.clinical-notes {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 64px;
+  padding-block: 48px 64px;
+  border-top: 1px solid var(--line);
+}
+.clinical-notes summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+}
+.clinical-notes details p,
+.clinical-notes details ul {
+  margin-block: 20px;
+  color: var(--muted);
+}
+.anatomy-opening {
+  padding-top: 32px;
+  padding-bottom: 64px;
+}
+.anatomy-opening h1 {
+  margin-bottom: 40px;
+}
+.anatomy-spread {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 100px;
+  align-items: center;
+}
+.anatomy-spread > figure {
+  width: 100%;
+  max-width: 430px;
+  justify-self: center;
+}
+.anatomy-spread > div {
+  max-width: 31rem;
+}
+.anatomy-spread h2 {
+  font-size: 2.125rem;
+  margin-bottom: 20px;
+}
+.anatomy-spread p {
+  color: var(--muted);
+}
+.anatomy-spread .text-link {
+  margin-block: 12px 32px;
+}
+.anatomy-spread h3 {
+  margin-bottom: 12px;
+}
+.comparison-section {
+  padding-block: 40px 48px;
+  border-top: 1px solid var(--line);
+}
+.comparison-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+.comparison-heading p {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.comparison-scroll {
+  overflow: auto;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+}
+.comparison-scroll:focus-visible {
+  outline: 3px solid var(--forest);
+  outline-offset: 4px;
+}
+.comparison-scroll table {
+  border-collapse: collapse;
+  min-width: 1150px;
+  width: 100%;
+  font-size: 0.875rem;
+}
+.comparison-scroll caption {
+  text-align: left;
+  padding-bottom: 20px;
+  color: var(--muted);
+}
+.comparison-scroll th,
+.comparison-scroll td {
+  text-align: left;
+  vertical-align: top;
+  padding: 18px 14px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.comparison-scroll thead th {
+  background: var(--mint);
+  color: var(--forest);
+}
+.comparison-scroll tr > th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--paper);
+  min-width: 115px;
+  z-index: 1;
+}
+.comparison-scroll td:nth-child(3) {
+  min-width: 190px;
+}
+.comparison-scroll td:last-child {
+  min-width: 170px;
+}
+.instrument-section {
+  padding-block: 40px 64px;
+}
+.instrument-spread {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  margin-top: 24px;
+}
+.instrument-spread figure {
+  min-width: 0;
+}
+.instrument-spread figcaption {
+  font: 700 1.5rem var(--sans);
+  color: var(--ink);
+}
+.instrument-section > .muted {
+  margin-top: 24px;
+}
+.team-opening {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding-block: 32px 20px;
+}
+.team-opening nav {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.editorial-profile {
+  display: grid;
+  grid-template-columns: 1.05fr 1.3fr 1fr;
+  column-gap: 56px;
+  row-gap: 28px;
+  padding-block: 36px 64px;
+  align-items: start;
+}
+.profile-identity {
+  grid-column: 2/4;
+  grid-row: 1;
+  max-width: 41rem;
+  padding-top: 24px;
+}
+.profile-identity > p:first-child {
+  color: var(--forest);
+  margin-bottom: 12px;
+}
+.profile-identity h2 {
+  font: 700 4.5rem/1.2 var(--sans);
+  letter-spacing: -0.025em;
+}
+.profile-identity h2 span {
+  display: inline-block;
+  font: 1.25rem var(--sans);
+  margin-left: 20px;
+}
+.profile-identity > p:last-child {
+  max-width: 35rem;
+  color: var(--muted);
+  margin-top: 24px;
+}
+.profile-portrait {
+  grid-column: 1;
+  grid-row: 1/4;
+  align-self: start;
+}
+.profile-portrait img {
+  width: 100%;
+  height: auto;
+}
+.profile-care {
+  grid-column: 2;
+  grid-row: 2;
+}
+.profile-education {
+  grid-column: 3;
+  grid-row: 2/4;
+}
+.profile-publications {
+  grid-column: 2;
+  grid-row: 3;
+}
+.editorial-profile h3 {
+  margin-bottom: 16px;
+}
+.editorial-profile ul {
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+.profile-yang {
+  grid-template-columns: 1fr 1.3fr 1.05fr;
+  border-top: 1px solid var(--line);
+  padding-top: 56px;
+}
+.profile-yang .profile-identity {
+  grid-column: 1/3;
+  grid-row: 1;
+}
+.profile-yang .profile-portrait {
+  grid-column: 3;
+  grid-row: 1/4;
+}
+.profile-yang .profile-care {
+  grid-column: 1;
+  grid-row: 2;
+}
+.profile-yang .profile-education {
+  grid-column: 2;
+  grid-row: 2/4;
+}
+.doctors-page main {
+  background-image: url("/visual-assets/background-atlas.webp");
+  background-position: center bottom;
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+}
+@media (max-width: 1100px) {
+  .anatomy-spread {
+    gap: 48px;
+  }
+  .editorial-profile {
+    gap: 32px;
+  }
+  .profile-identity h2 {
+    font-size: 3.5rem;
+  }
+  .instrument-spread {
+    gap: 40px;
+  }
+  .team-opening {
+    align-items: start;
+  }
+}
+@media (max-width: 768px) {
+  .article-page h1 {
+    font-size: 2.75rem;
+  }
+  .article-page h2 {
+    font-size: 2rem;
+  }
+  .breadcrumbs {
+    padding-top: 8px;
+  }
+  .anatomy-opening {
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+  .anatomy-opening h1 {
+    margin-bottom: 28px;
+  }
+  .anatomy-spread {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .anatomy-spread > figure {
+    max-width: 280px;
+  }
+  .anatomy-spread > div {
+    max-width: none;
+  }
+  .anatomy-spread h2 {
+    font-size: 1.75rem;
+  }
+  .anatomy-spread .text-link {
+    margin-bottom: 20px;
+  }
+  .comparison-section {
+    padding-block: 28px 24px;
+  }
+  .comparison-heading {
+    display: block;
+  }
+  .comparison-heading h2 {
+    font-size: 1.875rem;
+  }
+  .comparison-heading p {
+    margin-top: 16px;
+  }
+  .comparison-scroll table {
+    font-size: 1rem;
+    min-width: 1300px;
+  }
+  .comparison-scroll th,
+  .comparison-scroll td {
+    padding: 16px;
+  }
+  .instrument-section {
+    padding-block: 24px 36px;
+  }
+  .instrument-spread {
+    gap: 24px;
+  }
+  .instrument-spread figcaption {
+    font-size: 1.125rem;
+  }
+  .clinical-notes {
+    display: block;
+    padding-block: 28px 36px;
+  }
+  .clinical-notes h2 {
+    margin-bottom: 20px;
+  }
+  .consultation {
+    display: block;
+    padding-block: 24px 36px;
+  }
+  .consultation > .booking-link {
+    margin-top: 16px;
+    margin-right: 12px;
+  }
+  .consultation > .text-link {
+    display: block;
+    margin-top: 8px;
+  }
+  .team-opening {
+    display: block;
+    padding-block: 16px 0;
+  }
+  .team-opening nav {
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .editorial-profile {
+    grid-template-columns: 0.9fr 1.15fr;
+    gap: 24px 20px;
+    padding-block: 24px 36px;
+  }
+  .profile-identity {
+    grid-column: 1/-1;
+    grid-row: 1;
+    padding: 0;
+  }
+  .profile-identity h2 {
+    font-size: 3.5rem;
+  }
+  .profile-identity h2 span {
+    font-size: 1.125rem;
+    margin-left: 12px;
+  }
+  .profile-identity > p:last-child {
+    margin-top: 16px;
+  }
+  .profile-portrait {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+  }
+  .profile-care {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+  }
+  .profile-education {
+    grid-column: 1/-1;
+    grid-row: 3;
+  }
+  .profile-publications {
+    grid-column: 1/-1;
+    grid-row: 4;
+  }
+  .profile-yang .profile-identity {
+    grid-column: 1/-1;
+    grid-row: 1;
+  }
+  .profile-yang .profile-portrait {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .profile-yang .profile-care {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .profile-yang .profile-education {
+    grid-column: 1/-1;
+    grid-row: 3;
+  }
+  .profile-yang {
+    padding-top: 32px;
+  }
+  .doctors-page main {
+    background-size: auto 772px;
+  }
+  .profile-identity h2 {
+    overflow-wrap: anywhere;
+  }
+}
+/* Review revision: profile forest belongs behind the portrait, not an atlas sheet. */
+.doctors-page main {
+  background-image: none;
+}
+.editorial-profile {
+  position: relative;
+  isolation: isolate;
+}
+.profile-yan::before {
+  content: "";
+  position: absolute;
+  left: calc((100% - 100vw) / 2);
+  width: 100vw;
+  height: min(35.25vw, 423px);
+  bottom: 0;
+  background: url("/visual-assets/background-atlas.webp") center bottom/100%
+    auto no-repeat;
+  mask-image: linear-gradient(to bottom, transparent, black 75%);
+  opacity: 0.7;
+  z-index: -1;
+}
+.instrument-spread figcaption {
+  text-align: center;
+}
+.instrument-spread {
+  gap: 40px;
+}
+.instrument-section {
+  padding-top: 24px;
+}
+@media (max-width: 768px) {
+  .anatomy-spread {
+    grid-template-columns: 1fr 1.1fr;
+    gap: 20px;
+  }
+  .anatomy-spread > div {
+    display: contents;
+  }
+  .anatomy-spread h2 {
+    grid-column: 1/-1;
+    grid-row: 1;
+    font-size: 1.5rem;
+    margin: 0;
+  }
+  .anatomy-spread > figure {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+  }
+  .anatomy-spread > div > p {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .anatomy-spread .text-link {
+    grid-column: 2;
+    grid-row: 3;
+    margin: 0;
+  }
+  .anatomy-spread h3 {
+    grid-column: 1/-1;
+    grid-row: 4;
+    margin: 4px 0 0;
+  }
+  .anatomy-spread ul {
+    grid-column: 1/-1;
+    grid-row: 5;
+  }
+  .instrument-spread {
+    gap: 16px;
+  }
+  .profile-identity {
+    display: contents;
+  }
+  .profile-identity > p:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+    margin: 0;
+  }
+  .profile-identity h2 {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    font-size: 2.5rem;
+  }
+  .profile-identity h2 span {
+    display: block;
+    margin: 8px 0 0;
+  }
+  .profile-identity > p:last-child {
+    grid-column: 1/-1;
+    grid-row: 3;
+    margin: 0;
+  }
+  .profile-portrait {
+    grid-column: 2;
+    grid-row: 1/3;
+    align-self: end;
+  }
+  .profile-care {
+    grid-column: 1/-1;
+    grid-row: 4;
+  }
+  .profile-care ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+  .profile-care li + li {
+    margin: 0;
+  }
+  .profile-education {
+    grid-column: 1/-1;
+    grid-row: 5;
+  }
+  .profile-publications {
+    grid-column: 1/-1;
+    grid-row: 6;
+  }
+  .profile-yang .profile-identity {
+    display: contents;
+  }
+  .profile-yang .profile-identity > p:first-child,
+  .profile-yang .profile-identity h2 {
+    grid-column: 2;
+  }
+  .profile-yang .profile-portrait {
+    grid-column: 1;
+    grid-row: 1/3;
+  }
+  .profile-yang .profile-care {
+    grid-column: 1/-1;
+    grid-row: 4;
+  }
+  .profile-yang .profile-education {
+    grid-column: 1/-1;
+    grid-row: 5;
+  }
+  .profile-yan::before {
+    height: 260px;
+    background-size: auto 772px;
+  }
+  .editorial-profile {
+    row-gap: 20px;
+  }
+}
+@media (forced-colors: active) {
+  .profile-yan::before {
+    background-image: none;
+  }
+}
+/* Sleep opens with a human scene; the anatomy index and original daytime plate follow. */
+.snoring-opening {
+  padding-block: 24px 48px;
+}
+.snoring-stage {
+  position: relative;
+  min-height: 500px;
+}
+.snoring-stage h1 {
+  position: absolute;
+  left: 0;
+  top: 40px;
+  font-size: 6rem;
+  z-index: 1;
+}
+.snoring-stage figure {
+  width: 78%;
+  margin-left: auto;
+}
+.snoring-stage img {
+  width: 100%;
+  height: auto;
+}
+.snoring-intro {
+  display: flex;
+  gap: 64px;
+  align-items: center;
+  justify-content: space-between;
+}
+.snoring-intro p {
+  max-width: 40rem;
+  color: var(--muted);
+}
+.experience-band {
+  background: var(--mint);
+  padding-block: 44px;
+}
+.experience-spread {
+  display: grid;
+  grid-template-columns: 0.7fr 1.5fr;
+  gap: 80px;
+  align-items: center;
+}
+.experience-spread figure {
+  max-width: 240px;
+  justify-self: center;
+}
+.experience-spread figure img {
+  width: 100%;
+  height: auto;
+}
+.experience-spread h2 {
+  margin-bottom: 24px;
+}
+.experience-spread > div {
+  max-width: 40rem;
+}
+.experience-spread p {
+  color: var(--muted);
+}
+.body-causes {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 100px;
+  padding-block: 64px;
+}
+.body-causes > div > p {
+  color: var(--muted);
+  margin-top: 20px;
+  max-width: 36rem;
+}
+.body-causes dl {
+  margin: 28px 0 0;
+}
+.body-causes dl > div {
+  padding-block: 16px;
+  border-top: 1px solid var(--line);
+}
+.body-causes dt {
+  font: 700 1.375rem var(--sans);
+}
+.body-causes dd {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+.body-causes figure {
+  width: 100%;
+  max-width: 350px;
+  align-self: center;
+}
+.assessment-flow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 80px;
+  padding-block: 32px 64px;
+  border-top: 1px solid var(--line);
+}
+.assessment-flow h2 {
+  margin-bottom: 28px;
+}
+.assessment-flow > div ul {
+  color: var(--muted);
+}
+.assessment-entries {
+  list-style: none;
+  padding: 0 !important;
+}
+.assessment-entries li {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 28px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.assessment-entries img {
+  width: 100%;
+  height: auto;
+}
+.tracking-resources {
+  padding-block: 24px 48px;
+}
+.tracking-resources summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.tracking-resources p {
+  max-width: 48rem;
+  margin-top: 20px;
+  color: var(--muted);
+}
+.tracking-resources .text-link {
+  margin-top: 12px;
+  margin-right: 24px;
+}
+/* The partner image is a broad narrative plate, followed by a clinical anatomy strip. */
+.septal-opening {
+  padding-top: 24px;
+  background: var(--mint);
+}
+.septal-opening h1 {
+  margin-bottom: 32px;
+}
+.septal-scene {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 64px;
+  align-items: center;
+  padding-bottom: 40px;
+}
+.septal-scene > div {
+  max-width: 31rem;
+}
+.septal-scene h2 {
+  margin-bottom: 24px;
+}
+.septal-scene p {
+  color: var(--muted);
+}
+.septal-scene .text-link {
+  margin-top: 16px;
+}
+.septal-scene figure {
+  margin-right: -60px;
+}
+.septal-scene img {
+  width: 100%;
+  height: auto;
+}
+.types-spread {
+  padding-block: 64px 48px;
+}
+.type-plates {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
+  margin-top: 40px;
+  align-items: start;
+}
+.type-plates img {
+  width: 100%;
+  height: auto;
+}
+.type-plates figcaption h3 {
+  font-size: 1.25rem;
+  margin-top: 8px;
+}
+.type-plates figcaption p {
+  margin-top: 12px;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+.septal-decision {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 80px;
+  padding-block: 32px 60px;
+  border-top: 1px solid var(--line);
+}
+.septal-decision p {
+  max-width: 38rem;
+  color: var(--muted);
+}
+/* Appliance photography carries the page; ordered treatment is an actual sequence. */
+.appliance-opening {
+  padding-top: 24px;
+  padding-bottom: 48px;
+}
+.appliance-opening h1 {
+  margin-bottom: 32px;
+}
+.appliance-material {
+  margin-right: -60px;
+}
+.appliance-lead {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 80px;
+  align-items: center;
+  margin-top: 40px;
+}
+.appliance-lead p {
+  color: var(--muted);
+  max-width: 36rem;
+}
+.appliance-sequence {
+  display: grid;
+  grid-template-columns: 0.9fr 1.4fr;
+  gap: 80px;
+  padding-block: 40px 64px;
+  border-top: 1px solid var(--line);
+}
+.appliance-sequence ol {
+  margin: 0;
+  padding-left: 2.5rem;
+}
+.appliance-sequence li {
+  padding: 0 0 24px 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+.appliance-sequence li::marker {
+  font: 1.5rem var(--serif);
+  color: var(--forest);
+}
+.appliance-sequence h3 {
+  margin-bottom: 12px;
+}
+.appliance-sequence p {
+  color: var(--muted);
+}
+.appliance-object {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 80px;
+  align-items: center;
+  padding-block: 24px 48px;
+}
+.appliance-object h2 {
+  margin-bottom: 24px;
+}
+.appliance-object ul {
+  color: var(--muted);
+}
+.appliance-diagram {
+  width: 240px;
+  margin-top: 28px;
+}
+.appliance-care {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 80px;
+  padding-block: 32px 48px;
+  border-top: 1px solid var(--line);
+}
+.appliance-care ul {
+  color: var(--muted);
+}
+@media (max-width: 1100px) {
+  .snoring-stage h1 {
+    font-size: 5rem;
+  }
+  .snoring-stage {
+    min-height: 400px;
+  }
+  .body-causes,
+  .assessment-flow,
+  .experience-spread,
+  .septal-scene,
+  .septal-decision,
+  .appliance-lead,
+  .appliance-object,
+  .appliance-sequence,
+  .appliance-care {
+    gap: 40px;
+  }
+  .type-plates {
+    gap: 16px;
+  }
+  .septal-scene figure,
+  .appliance-material {
+    margin-right: -32px;
+  }
+}
+@media (max-width: 768px) {
+  .snoring-opening {
+    padding-block: 16px 32px;
+  }
+  .snoring-stage {
+    min-height: 330px;
+  }
+  .snoring-stage h1 {
+    font-size: 3.25rem;
+    top: 8px;
+  }
+  .snoring-stage figure {
+    position: relative;
+    padding-top: 100px;
+    width: calc(100% + 48px);
+    margin-left: -24px;
+  }
+  .snoring-intro {
+    display: block;
+  }
+  .snoring-intro .text-link {
+    margin-top: 12px;
+  }
+  .experience-band {
+    padding-block: 28px;
+  }
+  .experience-spread {
+    grid-template-columns: 0.75fr 1.3fr;
+    gap: 20px;
+  }
+  .experience-spread h2 {
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+  .experience-spread p {
+    font-size: 1rem;
+  }
+  .experience-spread figure {
+    align-self: start;
+    margin-top: 56px;
+  }
+  .body-causes {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 20px;
+    padding-block: 36px;
+  }
+  .body-causes > div {
+    display: contents;
+  }
+  .body-causes h2 {
+    grid-column: 1/-1;
+    font-size: 1.875rem;
+  }
+  .body-causes > div > p {
+    grid-column: 1/-1;
+    margin-top: 0;
+  }
+  .body-causes dl {
+    grid-column: 1/-1;
+    grid-row: 4;
+    margin: 0;
+  }
+  .body-causes figure {
+    grid-column: 2;
+    grid-row: 3;
+    max-width: 145px;
+    justify-self: end;
+    align-self: start;
+  }
+  .body-causes dl > div:first-child {
+    margin-right: 52%;
+    min-height: 195px;
+    padding-top: 20px;
+  }
+  .assessment-flow {
+    display: block;
+    padding-block: 28px 32px;
+  }
+  .assessment-flow h2 {
+    font-size: 1.875rem;
+  }
+  .assessment-entries {
+    margin-top: 32px;
+  }
+  .assessment-entries li {
+    grid-template-columns: 96px 1fr;
+    gap: 20px;
+  }
+  .tracking-resources {
+    padding-block: 20px 32px;
+  }
+  .septal-opening {
+    padding-top: 16px;
+  }
+  .septal-opening h1 {
+    margin-bottom: 24px;
+  }
+  .septal-scene {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 24px;
+    padding-bottom: 32px;
+  }
+  .septal-scene figure {
+    margin-right: -24px;
+    margin-left: 24px;
+    width: 100%;
+    max-width: 400px;
+  }
+  .septal-scene h2 {
+    font-size: 1.75rem;
+    margin-bottom: 16px;
+  }
+  .types-spread {
+    padding-block: 36px;
+  }
+  .types-spread h2 {
+    font-size: 1.875rem;
+  }
+  .type-plates {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 20px;
+    margin-top: 24px;
+  }
+  .type-plates > figure:last-child {
+    grid-column: 1/-1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: center;
+  }
+  .type-plates figcaption h3 {
+    font-size: 1.125rem;
+  }
+  .type-plates figcaption p {
+    font-size: 1rem;
+  }
+  .septal-decision {
+    display: block;
+    padding-block: 28px 36px;
+  }
+  .septal-decision h2 {
+    margin-bottom: 20px;
+  }
+  .appliance-opening {
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+  .appliance-opening h1 {
+    font-size: 2.5rem;
+    margin-bottom: 24px;
+  }
+  .appliance-material {
+    margin-inline: -24px;
+  }
+  .appliance-material figcaption {
+    margin-left: 24px;
+  }
+  .appliance-lead {
+    display: block;
+    margin-top: 28px;
+  }
+  .appliance-lead h2 {
+    font-size: 1.875rem;
+    margin-bottom: 20px;
+  }
+  .appliance-sequence {
+    display: block;
+    padding-block: 28px 36px;
+  }
+  .appliance-sequence h2 {
+    font-size: 1.875rem;
+    margin-bottom: 28px;
+  }
+  .appliance-sequence ol {
+    padding-left: 1.5rem;
+  }
+  .appliance-sequence li {
+    padding-left: 12px;
+  }
+  .appliance-object {
+    display: block;
+    padding-block: 24px 32px;
+  }
+  .appliance-object > div {
+    margin-top: 28px;
+  }
+  .appliance-object h2 {
+    font-size: 1.875rem;
+  }
+  .appliance-diagram {
+    width: 180px;
+    margin-left: auto;
+  }
+  .appliance-care {
+    display: block;
+    padding-block: 28px 36px;
+  }
+  .appliance-care h2 {
+    margin-bottom: 20px;
+  }
+}
+@media (max-width: 768px) {
+  .body-causes dl {
+    grid-row: 3;
+  }
+  .body-causes figure {
+    margin-top: 76px;
+  }
+  .body-causes dl > div:first-child {
+    margin-right: 0;
+    min-height: 0;
+  }
+  .body-causes dl > div:nth-child(2) {
+    margin-right: 52%;
+    min-height: 230px;
+  }
+  .snoring-stage {
+    min-height: 0;
+  }
+  .snoring-stage h1 {
+    position: static;
+    font-size: 3rem;
+  }
+  .snoring-stage h1 br {
+    display: none;
+  }
+  .snoring-stage h1 span {
+    display: inline-block;
+  }
+  .snoring-stage figure {
+    padding-top: 16px;
+    margin-left: -24px;
+  }
+  .snoring-intro {
+    margin-top: 12px;
+  }
+}
+.septal-opening h1 {
+  text-align: right;
+  font-size: 5rem;
+}
+.septal-scene {
+  grid-template-columns: 1.4fr 1fr;
+  align-items: end;
+}
+.septal-scene > div {
+  grid-column: 2;
+  grid-row: 1;
+  padding-bottom: 20px;
+}
+.septal-scene figure {
+  grid-column: 1;
+  grid-row: 1;
+  margin-right: 0;
+  margin-left: -60px;
+}
+.septal-scene h2 {
+  font-size: 2rem;
+}
+@media (max-width: 1100px) {
+  .septal-opening h1 {
+    font-size: 4rem;
+  }
+  .septal-scene figure {
+    margin-left: -32px;
+  }
+}
+@media (max-width: 768px) {
+  .septal-opening h1 {
+    text-align: center;
+    font-size: 2.75rem;
+  }
+  .septal-scene > div {
+    padding: 0;
+  }
+  .septal-scene figure {
+    margin-left: -24px;
+    margin-right: 0;
+    width: calc(100% + 24px);
+  }
+  .septal-scene h2 {
+    font-size: 1.75rem;
+  }
+}
+.profile-yan::before {
+  opacity: 0.55;
+}
+.profile-identity > p:last-child,
+.editorial-profile ul {
+  color: var(--ink);
+}
+.assessment-entries img {
+  mix-blend-mode: multiply;
+}
+.opening-graphic{padding-block:24px 48px}.opening-graphic h1{font-size:2.25rem}.opening-graphic>.whole-art{margin-top:24px}.graphic-lead{display:grid;grid-template-columns:1fr 1.2fr;gap:24px 64px;margin-top:32px;align-items:start}.graphic-lead p{color:var(--muted)}.graphic-lead>.graphic-transcript{grid-column:2}.graphic-transcript{margin-top:16px;border-top:1px solid var(--line)}.graphic-transcript summary{padding-block:12px;min-height:44px;cursor:pointer}.graphic-transcript>p,.graphic-transcript>ul,.graphic-transcript>dl{margin-block:20px}.cause-definitions,.type-definitions{display:grid;grid-template-columns:1fr 1fr;gap:24px 48px;margin:0}.cause-definitions dt,.type-definitions dt{font:700 1.25rem var(--sans)}.cause-definitions dd,.type-definitions dd{margin:12px 0 0;color:var(--muted)}.whole-causes{padding-block:48px 40px}.whole-causes>h2{margin-bottom:24px}.comparison-section>h2{margin-bottom:24px}.instrument-section .whole-art{margin-block:24px}.instrument-copy{max-width:40rem;color:var(--muted)}.appliance-function{display:grid;grid-template-columns:1fr 1.4fr;gap:80px;padding-block:32px 48px;border-top:1px solid var(--line)}.appliance-function ul{color:var(--muted)}
+@media(max-width:768px){.opening-graphic{padding-block:16px 32px}.opening-graphic h1{font-size:2rem}.graphic-lead{display:block;margin-top:24px}.graphic-lead h2{font-size:1.75rem;margin-bottom:20px}.graphic-lead p{margin-bottom:20px}.cause-definitions,.type-definitions{grid-template-columns:1fr;gap:20px}.whole-causes{padding-block:32px}.whole-causes>h2{font-size:1.875rem}.comparison-section>h2{font-size:1.875rem}.appliance-function{display:block;padding-block:28px 36px}.appliance-function h2{margin-bottom:20px}}

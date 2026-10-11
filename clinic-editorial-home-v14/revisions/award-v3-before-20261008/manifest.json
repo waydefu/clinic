@@ -1,0 +1,34 @@
+[
+  {
+    "file": "index.source.html",
+    "sha256": "fd7f5c4b8360b9a9e4bd2c1cf0c80ba839e52d228930873a92bdbe06317237b5"
+  },
+  {
+    "file": "site.css",
+    "sha256": "c34031787223bfaf88dbcc9b7143a22326be4c25efef543182b04f2f28d2e4fe"
+  },
+  {
+    "file": "client-source/site.js",
+    "sha256": "88017a18f306f81474bdecee6127392e92c4a3c05ec0d0c418d1554238f76130"
+  },
+  {
+    "file": "index.html",
+    "sha256": "f46fd8c7312265bec4779328611fee5eb0e01e89c61ba90600dc4f908e23a7fe"
+  },
+  {
+    "file": "home-site.css",
+    "sha256": "c34031787223bfaf88dbcc9b7143a22326be4c25efef543182b04f2f28d2e4fe"
+  },
+  {
+    "file": "site.js",
+    "sha256": "9c90b211fa9f4e60d62dceb2bbf08c361d28bbe7667dd2d846c6601de4b15b7f"
+  },
+  {
+    "file": "build-pages.mjs",
+    "sha256": "7503145d3af6fece9aa57c85a4c69ab0468b4afe1bbb57f9d1e9b93cda66227d"
+  },
+  {
+    "file": "build-client.mjs",
+    "sha256": "e2b1291f995c92f5ad87b220654321be41d28041d2a38610c09fb3b3c574e2d1"
+  }
+]

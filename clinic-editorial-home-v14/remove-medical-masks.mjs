@@ -1,0 +1,1 @@
+import {readFile,writeFile} from 'node:fs/promises';const f=new URL('article.css',import.meta.url);let css=await readFile(f,'utf8');for(const selector of ['\\.instrument-aperture','\\.appliance-object figure\\s*>\\s*img','\\.appliance-material img'])css=css.replace(new RegExp(selector+'\\s*\\{[^}]*\\}\\s*','g'),'');await writeFile(f,css);

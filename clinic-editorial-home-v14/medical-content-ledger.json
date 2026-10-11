@@ -1,0 +1,1230 @@
+{
+  "scope": "prototype only; original facts/canonical medical prose retained, no medical signoff inferred",
+  "contentHash": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+  "claims": [
+    {
+      "id": "comparison-0-0",
+      "text": "雙極射頻",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-1",
+      "text": "下鼻甲、軟顎、懸雍垂、舌根",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-2",
+      "text": "低溫加熱；氣化使蛋白質變性；不破壞外層黏膜；能有效維持功能",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-3",
+      "text": "短，30分鐘",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-4",
+      "text": "低",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 4",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-5",
+      "text": "×",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 5",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-6",
+      "text": "少",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 6",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-7",
+      "text": "×",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 7",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-0-8",
+      "text": "後遺症少，復原時間約一週",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 0, column 8",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-0",
+      "text": "微創止鼾凝結消融",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-1",
+      "text": "下鼻甲",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-2",
+      "text": "電頻凝結；由外層破壞；稍微破壞外層黏膜",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-3",
+      "text": "短，30～60分鐘",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-4",
+      "text": "低",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 4",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-5",
+      "text": "×",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 5",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-6",
+      "text": "較多",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 6",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-7",
+      "text": "×",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 7",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-1-8",
+      "text": "有可能沾黏，復原時間約兩週",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 1, column 8",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-0",
+      "text": "傳統手術",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-1",
+      "text": "下鼻甲",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-2",
+      "text": "直接切除下鼻甲；破壞性最大；出血量大",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-3",
+      "text": "長",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-4",
+      "text": "低；後遺症會引發空鼻症",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 4",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-5",
+      "text": "需住院3～5天",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 5",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-6",
+      "text": "最多",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 6",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-7",
+      "text": "○",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 7",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-2-8",
+      "text": "沾黏機率大，復原時間約4週",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 2, column 8",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-0",
+      "text": "廣達雷射",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-1",
+      "text": "下鼻甲",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-2",
+      "text": "低溫加熱；溫度不均；舊式儀器",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-3",
+      "text": "短",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-4",
+      "text": "高；因器械較老舊",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 4",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-5",
+      "text": "×",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 5",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-6",
+      "text": "較多",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 6",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-7",
+      "text": "○",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 7",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "comparison-3-8",
+      "text": "有可能沾黏，復原時間約兩週",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506-scaled.png",
+      "pointer": "row 3, column 8",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c"
+    },
+    {
+      "id": "turbinate-intro",
+      "text": "下鼻甲肥大會縮小鼻腔呼吸空間。若藥物治療效果有限，醫師可能依檢查結果評估是否以手術縮減肥厚組織，改善鼻塞、呼吸與睡眠品質。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[1].intro",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "turbinate-original-copy-0",
+      "text": "下鼻甲肥大常導致鼻塞",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/11.jpg",
+      "pointer": "complete original graphic, text 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/11.jpg",
+      "sourceSha256": "825ddf3fb4e24e473bc49eb06a077ea15063218f19b533f7e58050762b11eeee"
+    },
+    {
+      "id": "turbinate-original-copy-1",
+      "text": "呼吸不順甚至影響睡眠品質",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/11.jpg",
+      "pointer": "complete original graphic, text 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/11.jpg",
+      "sourceSha256": "825ddf3fb4e24e473bc49eb06a077ea15063218f19b533f7e58050762b11eeee"
+    },
+    {
+      "id": "turbinate-original-copy-2",
+      "text": "精準處理肥大的下鼻甲組織",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/11.jpg",
+      "pointer": "complete original graphic, text 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/11.jpg",
+      "sourceSha256": "825ddf3fb4e24e473bc49eb06a077ea15063218f19b533f7e58050762b11eeee"
+    },
+    {
+      "id": "turbinate-original-copy-3",
+      "text": "讓您輕鬆呼吸不卡卡！",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/11.jpg",
+      "pointer": "complete original graphic, text 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/11.jpg",
+      "sourceSha256": "825ddf3fb4e24e473bc49eb06a077ea15063218f19b533f7e58050762b11eeee"
+    },
+    {
+      "id": "turbinate-causes-0",
+      "text": "過敏性鼻炎、慢性發炎或反覆感染",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[1].sections[0].bullets[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "turbinate-causes-1",
+      "text": "長期使用鼻噴劑造成反彈性鼻塞",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[1].sections[0].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "turbinate-causes-2",
+      "text": "鼻中隔彎曲導致對側下鼻甲代償性肥大",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[1].sections[0].bullets[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "turbinate-causes-3",
+      "text": "長期鼻塞、打鼾、嗅覺下降、鼻音或鼻腔壓迫感",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[1].sections[0].bullets[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-0-0",
+      "text": "凝血問題、蟹足腫體質、藥物或麻醉過敏",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-0-1",
+      "text": "過往手術史與目前慢性疾病",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-0-2",
+      "text": "正在使用的抗凝血藥、保健食品或其他藥物",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-1-0",
+      "text": "輕微鼻塞與帶血分泌物通常是短期恢復反應",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-1-1",
+      "text": "一週內避免劇烈運動、彎腰與搬重物",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-1-2",
+      "text": "避免挖鼻、用力擤鼻或自行清除結痂",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-1-3",
+      "text": "兩週內避免酒精、辛辣與過熱食物",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "inferior-turbinate-surgery-note-1-4",
+      "text": "依醫囑用藥並準時回診；持續大量出血應立即就醫",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[4]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-summary-0",
+      "text": "專注鼻部功能、結構與外觀的整合評估，依每位患者的鼻腔條件規劃治療方向。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].summary",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-expertise-0-0",
+      "text": "鼻功能評估",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].expertise[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-expertise-0-1",
+      "text": "鼻整形與重建",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].expertise[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-expertise-0-2",
+      "text": "鼻中隔與鼻甲治療",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].expertise[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-0-0",
+      "text": "高雄醫學大學醫學系",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].education[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-0-1",
+      "text": "台灣耳鼻喉科專科醫師",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].education[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-0-2",
+      "text": "台北市聯合醫院主治醫師",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].education[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-0-3",
+      "text": "非公醫療協會鼻整形分會常委",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].education[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-0-4",
+      "text": "醫療交流促進會鼻整形分會常委",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].education[4]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-0-5",
+      "text": "顏面整形重建醫學會委員",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].education[5]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-0-6",
+      "text": "中西醫協會線雕分會常委",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].education[6]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-publications-0-0",
+      "text": "《鼻整形手術精萃》異體肋軟骨章節作者",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].publications[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-publications-0-1",
+      "text": "《Preservation Rhinoplasty》中文版譯者",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].publications[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-publications-0-2",
+      "text": "《Rhinoplasty & Septoplasty》中文版譯者",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].publications[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-publications-0-3",
+      "text": "《Rhinoplasty: Clinical Atlas》中文版副主譯",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].publications[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-publications-0-4",
+      "text": "《Aesthetic Septorhinoplasty》中文版副主譯",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[0].publications[4]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-summary-1",
+      "text": "以完整術前評估與麻醉照護為核心，協助患者在治療過程中獲得穩定、安全的醫療照護。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].summary",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-expertise-1-0",
+      "text": "麻醉評估",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].expertise[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-expertise-1-1",
+      "text": "術中安全照護",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].expertise[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-expertise-1-2",
+      "text": "術後恢復管理",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].expertise[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-1-0",
+      "text": "臺北醫學大學醫學系",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].education[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-1-1",
+      "text": "萬芳醫院麻醉科住院醫師",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].education[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-1-2",
+      "text": "萬芳醫院麻醉科總醫師",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].education[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-1-3",
+      "text": "禾馨怡仁婦幼中心麻醉科主治醫師",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].education[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "doctor-education-1-4",
+      "text": "禾馨桃園婦幼診所麻醉科主治醫師",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "DOCTORS[1].education[4]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-title-0",
+      "text": "體重過重",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-title-1",
+      "text": "鼻結構異常",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-detail-1",
+      "text": "鼻中膈彎曲、下鼻甲肥厚、過敏性鼻炎",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-title-2",
+      "text": "咽喉結構異常",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-detail-2",
+      "text": "舌頭肥厚後傾、軟顎無力、懸壅垂過長",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-title-3",
+      "text": "下巴短厚",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-title-4",
+      "text": "生活習慣欠佳",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[4]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-cause-detail-4",
+      "text": "抽菸、酒精",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].bullets[4]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-intro",
+      "text": "打鼾可能來自鼻腔阻塞、軟組織震動或睡眠呼吸障礙。診所會先由耳鼻喉科醫師檢查鼻腔結構與呼吸狀況，再依個別原因提出合適的治療方向。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].intro",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-body",
+      "text": "睡眠時上呼吸道變窄，氣流通過軟組織所產生的震動會形成鼾聲。若同時出現呼吸中止、夜間驚醒或白天嗜睡，可能與阻塞型睡眠呼吸中止症有關，建議進一步接受專業評估。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[0].paragraphs[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-multiple",
+      "text": "打鼾通常不是單一原因造成，下列因素常同時存在。實際情形仍需由醫師面診判斷。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[1].paragraphs[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-signals-0",
+      "text": "長期打鼾，已影響自己或家人的睡眠",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[2].bullets[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-signals-1",
+      "text": "體重較高或頸圍較粗，睡眠時容易呼吸不順",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[2].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-signals-2",
+      "text": "長期鼻塞、過敏性鼻炎或習慣張口呼吸",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[2].bullets[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-signals-3",
+      "text": "曾被觀察到睡眠呼吸中止、喘醒或白天嗜睡",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[2].bullets[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-flow-0",
+      "text": "了解鼾聲、睡眠與日間精神狀況",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[3].bullets[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-flow-1",
+      "text": "檢查鼻腔、鼻中隔與下鼻甲等上呼吸道結構",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[3].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-flow-2",
+      "text": "必要時建議睡眠檢查或轉介相關專科",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[3].bullets[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-flow-3",
+      "text": "依原因說明可行方案、限制與預期恢復情況",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[0].sections[3].bullets[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-resource-0",
+      "text": "門診時若能描述鼾聲的頻率與強度，評估會更有依據。SnoreLab 是常見的鼾聲錄音應用程式，可在自己的手機上錄下夜間鼾聲並留下紀錄，看診時提供給醫師參考。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "SNORING_SELF_TRACKING.paragraphs[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "snore-resource-1",
+      "text": "SnoreLab 由第三方開發，並非本診所提供的產品或服務，也不是診斷工具；它的紀錄不能取代醫師面診或睡眠檢查。是否需要進一步檢查，仍以門診評估為準。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "SNORING_SELF_TRACKING.paragraphs[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septal-intro",
+      "text": "鼻中隔是分隔左右鼻腔的結構。先天發育或外傷可能使鼻中隔偏曲；若造成長期鼻塞、反覆鼻竇問題、打鼾或睡眠品質下降，可由醫師評估是否需要矯正。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[2].intro",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septal-type-0",
+      "text": "C型彎曲",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-description-0",
+      "text": "原圖標示此為最常見的型態。鼻中隔呈C形彎曲，位於鼻腔前部。",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-type-1",
+      "text": "S型彎曲",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-description-1",
+      "text": "鼻中隔呈S形彎曲，通常位於鼻腔中、後部。",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-type-2",
+      "text": "尾端彎曲",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-description-2",
+      "text": "鼻中隔在鼻腔尾端彎曲，靠近鼻咽部。",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-type-3",
+      "text": "鼻中隔骨刺",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-description-3",
+      "text": "鼻中隔上長骨刺，通常位於鼻腔前、中部。",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-type-4",
+      "text": "鼻中隔增生",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 4",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-description-4",
+      "text": "鼻中隔組織增生，通常位於鼻腔下部。",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "pointer": "column 4",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d"
+    },
+    {
+      "id": "septal-treatment-0",
+      "text": "鼻中隔彎曲不一定需要手術。若沒有明顯症狀，可定期觀察；輕度鼻塞可先以藥物或鼻噴劑減少黏膜腫脹，但藥物無法改變骨與軟骨結構。症狀嚴重且影響生活時，再由醫師評估手術。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[2].sections[0].paragraphs[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-0-0",
+      "text": "凝血問題、藥物或麻醉過敏與蟹足腫體質",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-0-1",
+      "text": "過往鼻部手術、外傷史與慢性疾病",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-0-2",
+      "text": "正在使用的抗凝血藥、保健食品或其他藥物",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-1-0",
+      "text": "依手術情況，鼻腔可能暫時放置填塞物",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-1-1",
+      "text": "初期可依醫囑冰敷並保持口腔與鼻腔濕潤",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-1-2",
+      "text": "避免熱水澡、彎腰、劇烈活動、用力擤鼻或挖鼻",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-1-3",
+      "text": "恢復期間避免辛辣、飲酒與吸菸",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "septoplasty-note-1-4",
+      "text": "若大量出血、發燒或疼痛明顯加劇，應儘速回診",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES.sections[4]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-intro",
+      "text": "止鼾牙套可在睡眠時讓下顎或舌頭維持較前方的位置，減少上呼吸道塌陷。是否適用仍需經醫師評估牙齒、顳顎關節、鼻呼吸與睡眠狀況。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].intro",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-original-copy-0",
+      "text": "客製化專屬於您的牙套！",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "pointer": "complete original graphic, text 0",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceSha256": "5fe3371555dcd6fb5a64a5c84f8b2bc83e3bad6b89109dab167e9edb3476ae68"
+    },
+    {
+      "id": "appliance-original-copy-1",
+      "text": "非侵入式",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "pointer": "complete original graphic, text 1",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceSha256": "5fe3371555dcd6fb5a64a5c84f8b2bc83e3bad6b89109dab167e9edb3476ae68"
+    },
+    {
+      "id": "appliance-original-copy-2",
+      "text": "有效治療",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "pointer": "complete original graphic, text 2",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceSha256": "5fe3371555dcd6fb5a64a5c84f8b2bc83e3bad6b89109dab167e9edb3476ae68"
+    },
+    {
+      "id": "appliance-original-copy-3",
+      "text": "配戴舒適",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "pointer": "complete original graphic, text 3",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceSha256": "5fe3371555dcd6fb5a64a5c84f8b2bc83e3bad6b89109dab167e9edb3476ae68"
+    },
+    {
+      "id": "appliance-original-copy-4",
+      "text": "方便清潔",
+      "source": "https://beauessence.com.tw/wp-content/uploads/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "pointer": "complete original graphic, text 4",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion",
+      "sourceSnapshot": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceSha256": "5fe3371555dcd6fb5a64a5c84f8b2bc83e3bad6b89109dab167e9edb3476ae68"
+    },
+    {
+      "id": "appliance-step-0",
+      "text": "止鼾牙套可在睡眠時讓下顎或舌頭維持較前方的位置，減少上呼吸道塌陷。是否適用仍需經醫師評估牙齒、顳顎關節、鼻呼吸與睡眠狀況。",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].intro",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-step-1",
+      "text": "個別評估製作",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].highlights[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-step-2",
+      "text": "初期約需一至兩週適應，若持續疼痛應回診調整",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[2].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-step-3",
+      "text": "依醫師指示於每晚睡眠時配戴",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[2].bullets[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-step-4",
+      "text": "以清水與軟毛刷清潔，避免熱水造成變形",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[2].bullets[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-function-0",
+      "text": "將下顎維持在較前方位置，增加咽喉呼吸空間",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[1].bullets[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-function-1",
+      "text": "減少舌頭後墜造成的上呼吸道阻塞",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[1].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-function-2",
+      "text": "配合鼻呼吸評估，處理可能同時存在的鼻塞問題",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[1].bullets[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-care-0",
+      "text": "依醫師指示於每晚睡眠時配戴",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[2].bullets[0]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-care-1",
+      "text": "初期約需一至兩週適應，若持續疼痛應回診調整",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[2].bullets[1]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-care-2",
+      "text": "使用量身評估的裝置，不自行購買不合尺寸的產品",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[2].bullets[2]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    },
+    {
+      "id": "appliance-care-3",
+      "text": "以清水與軟毛刷清潔，避免熱水造成變形",
+      "source": "F:/診所專案/tmp/ui-check-refresh-20261005/apps/web/public/clinic-content.js",
+      "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+      "pointer": "NASAL_SERVICES[3].sections[2].bullets[3]",
+      "review": "pending clinic review; sourced existing content, no new efficacy assertion"
+    }
+  ],
+  "homepage": {
+    "source": "apps/web/public/clinic-content.js",
+    "sourceSha256": "91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397",
+    "review": "pending clinic review; existing canonical facts/copy retained",
+    "bindings": {
+      ".visit-strip": "CLINIC.hours/phone/address",
+      "#doctor-profiles": "DOCTORS[0..1], HOME_DOCTOR_PROFILES",
+      "#care-process": "HOME_PROCESS_ITEMS[0..3]; exact sourced wording, compact layout",
+      "#faq-list": "HOME_FAQS",
+      "#tracking-content": "SNORING_SELF_TRACKING",
+      "#care a": "NASAL_SERVICES titles/routes",
+      ".hero-copy": "Plain-language rendering of HOME_PROCESS_ITEMS[0..3]"
+    },
+    "scope": "No new efficacy, eligibility, recovery or booking-policy facts inferred"
+  },
+  "protectedGraphicClaims": [
+    {
+      "name": "whole-snoring-causes",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2024/11/止鼾五合一1-1.png",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2024/11/止鼾五合一1-1.png",
+      "sourceSha256": "8e803ea5b2172d7a7604bae77ef110ba7299c572e71fdfded40396e910705fd5",
+      "scope": "All embedded text, medical statements, numeric comparisons, symbols and rankings",
+      "review": "Pending clinic medical review; retained as source artwork, no new medical signoff"
+    },
+    {
+      "name": "whole-mouthguard",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/04/2025止鼾好眠牙套圖1.jpg",
+      "sourceSha256": "5fe3371555dcd6fb5a64a5c84f8b2bc83e3bad6b89109dab167e9edb3476ae68",
+      "scope": "All embedded text, medical statements, numeric comparisons, symbols and rankings",
+      "review": "Pending clinic medical review; retained as source artwork, no new medical signoff"
+    },
+    {
+      "name": "whole-instruments",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/下鼻甲手術圖1.jpg",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/04/下鼻甲手術圖1.jpg",
+      "sourceSha256": "cc3282806438b499ecbc2dd903d9bd1c6465419b5345fc18dc92748fb5446223",
+      "scope": "All embedded text, medical statements, numeric comparisons, symbols and rankings",
+      "review": "Pending clinic medical review; retained as source artwork, no new medical signoff"
+    },
+    {
+      "name": "whole-comparison-wide",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/0506.png",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/05/0506.png",
+      "sourceSha256": "06bfdd90892cb95f1685d3d7b78d498d3650467e1262b4c10b802f3383ef1e4c",
+      "scope": "All embedded text, medical statements, numeric comparisons, symbols and rankings",
+      "review": "Pending clinic medical review; retained as source artwork, no new medical signoff"
+    },
+    {
+      "name": "whole-turbinate",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/04/11.jpg",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/04/11.jpg",
+      "sourceSha256": "825ddf3fb4e24e473bc49eb06a077ea15063218f19b533f7e58050762b11eeee",
+      "scope": "All embedded text, medical statements, numeric comparisons, symbols and rankings",
+      "review": "Pending clinic medical review; retained as source artwork, no new medical signoff"
+    },
+    {
+      "name": "whole-comparison-tall",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/05/05000006.png",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/05/05000006.png",
+      "sourceSha256": "8c160f18d131dbd241f678d9ee25bb52fdf034f161759e8b5bdf1fdebdd51196",
+      "scope": "All embedded text, medical statements, numeric comparisons, symbols and rankings",
+      "review": "Pending clinic medical review; retained as source artwork, no new medical signoff"
+    },
+    {
+      "name": "whole-septum-types",
+      "source": "F:/診所專案/tmp/official-site-images-2026-10-05/2025/06/鼻中隔手術2025.webp",
+      "sourceUrl": "https://beauessence.com.tw/wp-content/uploads/2025/06/鼻中隔手術2025.webp",
+      "sourceSha256": "fa56caa4472cfc9f3dace73a6f77321f48257a7c5cc1998e43cf3596dbe9654d",
+      "scope": "All embedded text, medical statements, numeric comparisons, symbols and rankings",
+      "review": "Pending clinic medical review; retained as source artwork, no new medical signoff"
+    }
+  ]
+}

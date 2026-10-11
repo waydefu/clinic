@@ -1,0 +1,1 @@
+import {readFile,writeFile} from 'node:fs/promises';const f=new URL('build-pages.mjs',import.meta.url);let s=await readFile(f,'utf8');s=s.replace('原官網白天疲倦的人物插畫','成人白天疲倦情境的重畫插畫');await writeFile(f,s);

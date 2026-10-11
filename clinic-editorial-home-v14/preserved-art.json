@@ -1,0 +1,13 @@
+{
+  "authority": "Owner 2026-10-06: these complete graphics must not be arbitrarily cropped or split; continue using usable originals.",
+  "rule": "Resize/compress the whole canvas only; preserve original aspect ratio, text, labels, device body and relationships. No extraction, mask, object-fit cover or redraw.",
+  "jobs": [
+    {"name":"whole-snoring-causes","file":"2024/11/止鼾五合一1-1.png","width":1600,"capKiB":60,"label":"五類原因完整圖"},
+    {"name":"whole-mouthguard","file":"2025/04/2025止鼾好眠牙套圖1.jpg","width":1440,"capKiB":40,"label":"牙套完整圖文與實物"},
+    {"name":"whole-instruments","file":"2025/04/下鼻甲手術圖1.jpg","width":1440,"capKiB":34,"label":"兩種器械完整比較圖"},
+    {"name":"whole-comparison-wide","file":"2025/05/0506.png","width":1600,"capKiB":50,"label":"九欄比較完整橫圖"},
+    {"name":"whole-turbinate","file":"2025/04/11.jpg","width":1440,"capKiB":30,"label":"下鼻甲完整圖文"},
+    {"name":"whole-comparison-tall","file":"2025/05/05000006.png","width":1000,"capKiB":50,"label":"比較完整直圖；兩份附件是同一版本"},
+    {"name":"whole-septum-types","file":"2025/06/鼻中隔手術2025.webp","width":1600,"capKiB":40,"label":"五種型態與說明完整圖"}
+  ]
+}

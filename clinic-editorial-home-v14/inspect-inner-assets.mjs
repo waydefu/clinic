@@ -1,0 +1,1 @@
+import {readFile} from 'node:fs/promises';const j=JSON.parse(await readFile('F:/診所專案/tmp/visual-proof-2026-10-05/design-round-1/asset-map.json','utf8'));console.log(JSON.stringify(j.records.filter(r=>/anatomy|comparison|instrument|mouthguard-photo|septum|deviat|type|flow-/.test(r.output)),null,2));

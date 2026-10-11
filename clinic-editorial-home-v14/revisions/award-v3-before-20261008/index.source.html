@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>一森渼診所 · 首頁設計原型</title>
+    <link rel="stylesheet" href="/prototype/site.css" />
+    <script type="module" src="/prototype/site.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳至主要內容</a>
+    <div class="preview-note">本機設計樣稿 · 文案待診所確認</div>
+    <header class="site-header">
+      <a class="brand" href="/clinic" aria-label="一森渼診所首頁"
+        ><img
+          src="/visual-assets/logo.webp"
+          width="240"
+          height="134"
+          alt="一森渼 Beau Essence"
+      /></a>
+      <nav class="desktop-navigation" aria-label="主要導覽">
+        <a href="#care">鼻功能照護</a><a href="#team">醫師團隊</a
+        ><a href="#visit">門診與交通</a>
+      </nav>
+      <details class="mobile-navigation">
+        <summary>選單</summary>
+        <nav aria-label="手機主要導覽">
+          <a href="#care">鼻功能照護</a><a href="#team">醫師團隊</a
+          ><a href="#visit">門診與交通</a>
+        </nav>
+      </details>
+      <a class="booking-link" href="/booking">預約門診</a>
+    </header>
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-scene" data-photo="logo">
+          <img
+            id="hero-photo"
+            src="/visual-assets/photo-logo.webp"
+            width="1440"
+            height="810"
+            alt="一森渼診所入口的標誌牆"
+            fetchpriority="high"
+          />
+          <h1 id="hero-title">鼻塞、打鼾，<br />先了解你的狀況。</h1>
+          <div class="photo-controls">
+            <div
+              class="photo-dots"
+              id="hero-dots"
+              role="group"
+              aria-label="選擇診所照片"
+            ></div>
+            <button type="button" id="photo-play" aria-label="暫停輪播">
+              <span aria-hidden="true">Ⅱ</span>
+            </button>
+          </div>
+        </div>
+        <div class="hero-foot page-width">
+          <p>
+            看診時，先說明鼻塞、打鼾與睡眠狀況，<br
+              class="desktop-break"
+            />再和醫師討論處理方式。
+          </p>
+          <a href="#care" class="text-link"
+            >了解鼻功能照護 <span aria-hidden="true">↘</span></a
+          >
+        </div>
+      </section>
+      <p id="hero-error" class="photo-error page-width" hidden></p>
+      <aside class="visit-strip" aria-label="門診摘要">
+        <div class="page-width">
+          <div>
+            <span>門診時間</span>
+            <p id="quick-hours"></p>
+          </div>
+          <div><span>電話</span><a id="quick-phone"></a></div>
+          <div>
+            <span>診所地址</span><a id="quick-address" href="#visit"></a>
+          </div>
+        </div>
+      </aside>
+
+      <section
+        class="care-editorial page-width"
+        id="care"
+        aria-labelledby="care-title"
+      >
+        <div class="care-intro">
+          <h2 id="care-title">從鼻腔構造，<br />到睡眠狀況。</h2>
+          <p>先看看鼻腔的位置與構造，<br />再了解打鼾、睡眠與牙套的照護。</p>
+        </div>
+        <div class="nasal-spread">
+          <figure class="nasal-art whole-art">
+            <img
+              src="/visual-assets/whole/whole-turbinate.webp"
+              width="1440"
+              height="810"
+              alt="下鼻甲手術的完整圖文介紹"
+              data-whole-art="whole-turbinate"
+              loading="lazy"
+            />
+            <figcaption>
+              <button type="button" class="text-link" data-image-open>
+                放大閱讀 ↗
+              </button>
+            </figcaption>
+          </figure>
+          <div class="nasal-index">
+            <article>
+              <a
+                class="care-action"
+                href="/clinic/nasal/inferior-turbinate-surgery"
+                ><div>
+                  <h3>下鼻甲手術</h3>
+                  <p>認識下鼻甲的位置與評估。</p>
+                </div>
+                <span class="action-arrow" aria-hidden="true">↗</span></a
+              >
+            </article>
+            <article>
+              <a class="care-action" href="/clinic/nasal/septoplasty"
+                ><div>
+                  <h3>鼻中隔手術</h3>
+                  <p>認識鼻中隔的構造與不同型態。</p>
+                </div>
+                <span class="action-arrow" aria-hidden="true">↗</span></a
+              >
+            </article>
+          </div>
+        </div>
+        <div class="sleep-spread">
+          <figure class="sleep-art">
+            <img
+              src="/visual-assets/sleep-editorial.webp"
+              alt="成人睡眠情境插畫"
+              width="800"
+              height="533"
+              loading="lazy"
+            />
+          </figure>
+          <div class="sleep-index">
+            <article>
+              <a class="care-action" href="/clinic/nasal/snoring-five-in-one"
+                ><div>
+                  <h3>止鼾五合一</h3>
+                  <p>從打鼾與睡眠狀況，了解門診評估。</p>
+                </div>
+                <span class="action-arrow" aria-hidden="true">↗</span></a
+              >
+            </article>
+            <article>
+              <a
+                class="care-action"
+                href="/clinic/nasal/snore-relief-mouthguard"
+                ><div>
+                  <h3>止鼾好眠牙套</h3>
+                  <p>了解牙套的用途與配戴安排。</p>
+                </div>
+                <span class="action-arrow" aria-hidden="true">↗</span></a
+              >
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="team-field" id="team" aria-labelledby="team-title">
+        <div class="page-width">
+          <div class="team-heading">
+            <h2 id="team-title">醫師團隊</h2>
+            <a class="text-link" href="/clinic/doctors"
+              >完整學經歷與照護項目 <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <div id="doctor-profiles" class="doctor-profiles"></div>
+        </div>
+      </section>
+
+      <section
+        class="environment page-width"
+        id="environment"
+        aria-labelledby="environment-title"
+      >
+        <div class="environment-heading">
+          <h2 id="environment-title">來診所之前，<br />先看看裡面的空間。</h2>
+          <p>診間、櫃台與候診區。</p>
+        </div>
+        <div class="environment-spread">
+          <div class="environment-gallery">
+            <figure class="environment-photo">
+              <img
+                id="environment-photo"
+                src="/visual-assets/photo-consult.webp"
+                width="800"
+                height="450"
+                alt="一森渼診所看診空間"
+                loading="lazy"
+              />
+              <figcaption id="environment-caption">看診空間</figcaption>
+            </figure>
+            <div
+              id="environment-selectors"
+              class="environment-selectors"
+              role="group"
+              aria-label="選擇環境照片"
+            ></div>
+            <p id="environment-error" class="photo-error" hidden></p>
+          </div>
+          <div class="care-process" id="care-process"></div>
+        </div>
+      </section>
+
+      <section
+        class="visit page-width"
+        id="visit"
+        aria-labelledby="visit-title"
+      >
+        <div class="visit-heading">
+          <h2 id="visit-title">門診與交通</h2>
+          <p>看診前，先確認時間與到院方式。</p>
+        </div>
+        <div class="visit-content">
+          <figure class="arrival-map">
+            <img
+              src="/visual-assets/clinic-map.svg"
+              width="1200"
+              height="800"
+              alt="一森渼診所位於光復北路112號2樓的交通位置示意圖"
+              loading="lazy"
+            />
+            <figcaption>
+              <span>交通位置示意 · © OpenStreetMap contributors</span>
+              <div>
+                <button type="button" class="text-link" data-image-open>
+                  放大地圖 <span aria-hidden="true">↗</span></button
+                ><a
+                  id="map-link"
+                  class="text-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >路線導航 <span aria-hidden="true">↗</span></a
+                >
+              </div>
+            </figcaption>
+          </figure>
+          <div class="visit-info">
+            <div class="visit-location">
+              <h3>診所位置</h3>
+              <p id="visit-address"></p>
+            </div>
+            <div>
+              <h3>門診時間</h3>
+              <ul id="visit-hours"></ul>
+              <p class="muted">週一、週二、週日休診</p>
+            </div>
+            <div class="visit-contact">
+              <a href="/booking" class="booking-link"
+                >預約門診 <span aria-hidden="true">↗</span></a
+              ><a id="visit-phone" class="phone-link"></a><!-- visit-social -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="questions page-width" aria-labelledby="questions-title">
+        <h2 id="questions-title">看診前，你可能想知道</h2>
+        <div id="faq-list"></div>
+        <details class="tracking-note">
+          <summary>想先記錄自己的鼾聲？</summary>
+          <div id="tracking-content"></div>
+        </details>
+      </section>
+    </main>
+    <!-- shared-footer -->
+    <p
+      class="live-status"
+      id="photo-status"
+      role="status"
+      aria-live="polite"
+    ></p>
+    <noscript
+      ><p class="page-width">
+        互動照片與門診資料需要 JavaScript。請電話聯絡診所：<a
+          href="tel:+886225771314"
+          >02-2577-1314</a
+        >。
+      </p></noscript
+    >
+  </body>
+</html>

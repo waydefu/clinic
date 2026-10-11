@@ -1,0 +1,27 @@
+{
+  "generated": [
+    {
+      "file": "source/sleep-editorial-v1.png",
+      "prompt": "source/sleep-editorial-v1.prompt.txt",
+      "sha256": "05ab19938f3b2a9d9b2ab19fd9ef0066dd4d09d98a4f31bbf3f60342d0092c51",
+      "width": 1536,
+      "height": 1024,
+      "transparentPixels": 586335,
+      "role": "Non-diagnostic human-experience illustration; no actual patient represented",
+      "authority": "User allowed weak old sleeping-cartoon family to be redrawn; selective exception, originals retained",
+      "review": "visual draft; clinic/owner approval pending"
+    },
+    {
+      "file": "source/daytime-editorial-v1.png",
+      "prompt": "source/daytime-editorial-v1.prompt.txt",
+      "sha256": "3cce9236d038908625068a6d2171723252b5f66c1c62b0951b498cd558e30dc5",
+      "width": 1072,
+      "height": 1467,
+      "transparentPixels": 687660,
+      "role": "Non-diagnostic human-experience illustration; no actual patient represented",
+      "authority": "User allowed weak old sleeping-cartoon family to be redrawn; selective exception, originals retained",
+      "review": "visual draft; clinic/owner approval pending"
+    }
+  ],
+  "originalsUnchanged": true
+}
