@@ -1,6 +1,7 @@
 // Trusted Types 的 default policy。必須第一個匯入：它要在任何模組
 // 有機會寫 innerHTML 之前就註冊好。
 import './modules/trusted-html.js';
+
 import {
   appointmentPage,
   DEFAULT_APPOINTMENT_PAGE_SIZE,
@@ -23,6 +24,7 @@ import {
 } from './modules/admin-view.js';
 import { apiClient } from './modules/api-client.js';
 import {
+  loadStaffServerAuthority,
   isInternalTestBookingEnabled,
   resolveApiClient
 } from './modules/api-client.js';
@@ -37,15 +39,17 @@ import {
 import { hasPermission } from './modules/permissions.js';
 import { overdueAppointments } from './modules/case-management.js';
 import { renderTagOptions } from './modules/tag-picker.js';
-import { taipeiDate, taipeiTodayDate } from './modules/taipei-time.js';
+import { taipeiTodayDate } from './modules/taipei-time.js';
 import {
   hydrateWeekView,
+  initialWeekStart,
   renderAgendaView,
   renderWeekView,
   weekStartOf
 } from './modules/week-view.js';
 import {
   applyWorkspacePanel,
+  bootStaffWorkbench,
   initWorkspaceTabs
 } from './modules/workspace-tabs.js';
 import {
@@ -68,6 +72,7 @@ const restrictedDom = [
   ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
 ];
 let client = apiClient;
+let serverAuthority;
 let disposeBusinessView = () => {};
 let businessViewGeneration = 0;
 let activeBusinessViewGeneration = 0;
@@ -175,6 +180,9 @@ function enforceRoleDomBoundary() {
 // 不是安全邊界——權限仍由帳號角色決定，`state` 也已在瀏覽器內，登出不等於
 // 伺服器端撤銷（AUTH-001／D-006）。
 function renderGate() {
+  const credentialHint = document.querySelector('.login-hint');
+  if (credentialHint !== null)
+    credentialHint.hidden = serverAuthority !== undefined;
   const authenticated = state.session.authenticated === true;
   elements['login-view'].hidden = authenticated;
   appShell.hidden = !authenticated;
@@ -256,13 +264,7 @@ let weekStart;
 const compactCalendar = window.matchMedia('(max-width: 48rem)');
 
 function renderWeek() {
-  if (weekStart === undefined) {
-    const earliest =
-      [...state.appointments, ...state.slots].sort((a, b) =>
-        (a.startsAt ?? '').localeCompare(b.startsAt ?? '')
-      )[0]?.startsAt ?? new Date().toISOString();
-    weekStart = weekStartOf(taipeiDate(earliest));
-  }
+  weekStart = initialWeekStart(state, weekStart);
   // 依寬度擇一渲染，**不是**兩份都畫再用 CSS 藏一份。兩份都在 DOM 裡的話，
   // 同一筆預約會有兩個 data-week-event 按鈕：下方的點擊處理器會抓到兩個，
   // 讀螢幕也會唸到兩個同名按鈕。斷點與 workbench.css 的 48rem 一致。
@@ -569,6 +571,17 @@ function applyContractWrite(path, body, result) {
 }
 
 function renderSession() {
+  if (state.session?.authenticated !== true || state.session.account == null) {
+    elements['current-account-label'].textContent = '';
+    elements['current-account-boundary'].textContent = '';
+    applyWorkspacePanel();
+    window.dispatchEvent(
+      new CustomEvent('beauessence:workbench-access-change', {
+        detail: { authorized: false }
+      })
+    );
+    return;
+  }
   elements['current-account-label'].textContent =
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
@@ -801,6 +814,8 @@ function renderBlockedTimesForm() {
 }
 
 function render() {
+  if (serverAuthority !== undefined && state !== undefined)
+    state = serverAuthority.applyCalendarPilotWorkbenchAuthority(state);
   renderGate();
   renderSession();
   renderFilters();
@@ -2255,27 +2270,23 @@ if (isInternalTestBookingEnabled()) {
   elements['environment-label'].textContent = 'LOCAL TEST ONLY';
 }
 
-try {
-  client = await resolveApiClient();
-  state = await client.request('/state');
-  if (sessionStorage.getItem('calPilotCsrf')) {
-    state = (await import('./modules/hydrate-staff.js')).hydrateStaff(state);
-  }
-  enforceRoleDomBoundary();
-  let accessDenied = false;
-  initWorkspaceTabs({
-    onDenied: () => {
-      accessDenied = true;
-      message('你目前沒有權限開啟這個主管工作區，已返回營運首頁。', 'error');
-      elements.status.setAttribute('tabindex', '-1');
-      elements.status.focus({ preventScroll: true });
-    }
-  });
-  render();
-  if (window.location.hash === '#business-section') void activateBusinessView();
-  if (state.session.authenticated === true && !accessDenied)
-    message('工作臺已就緒。資料只保存在這台裝置的瀏覽器。', 'success');
-  else elements['login-account'].focus();
-} catch (error) {
-  message(error instanceof Error ? error.message : '無法載入工作臺。', 'error');
-}
+await bootStaffWorkbench({
+  getState: () => state,
+  setState: (next) => {
+    state = next;
+  },
+  setClient: (next) => {
+    client = next;
+  },
+  setServerAuthority: (next) => {
+    serverAuthority = next;
+  },
+  loadStaffServerAuthority,
+  resolveApiClient,
+  enforceRoleDomBoundary,
+  render,
+  initWorkspaceTabs,
+  message,
+  elements,
+  activateBusinessView
+});

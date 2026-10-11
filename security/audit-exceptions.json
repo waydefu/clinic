@@ -17,13 +17,13 @@
       "ghsa": "GHSA-vfj7-8cjw-p6xm",
       "package": "braces",
       "severity": "high",
-      "approvalId": "SUPPLY-CHAIN-BRACES-2026-10-03",
+      "approvalId": "SUPPLY-CHAIN-BRACES-2026-10-10",
       "approvalStatus": "approved",
-      "approvedOn": "2026-10-03",
-      "expiresOn": "2026-10-17",
+      "approvedOn": "2026-10-10",
+      "expiresOn": "2026-11-30",
       "scope": "dev-only: firebase-tools > chokidar@3 > braces@3.0.3 (CLI/emulator tooling, not shipped); audit:prod stays clean",
-      "reason": "Advisory raised to high at 2026-10-02T22:36Z with no patched release on npm (latest 3.0.3; first patched listed as 3.0.4). chokidar@3 pins braces ~3.0.2, so no override can resolve it today.",
-      "releaseCondition": "Remove the ignore and pin braces >=3.0.4 by override as soon as it is published on npm, or when firebase-tools no longer depends on chokidar@3."
+      "reason": "Advisory raised to high at 2026-10-02T22:36Z. Re-checked 2026-10-11: the advisory lists no patched version (vulnerable <= 3.0.3, not withdrawn), the latest braces on npm is 3.0.3, and the latest firebase-tools (15.33.0) still depends on chokidar ^3.6.0, which pins braces ~3.0.2. No override can resolve it. Extends SUPPLY-CHAIN-BRACES-2026-10-03, which would otherwise expire on 2026-10-17.",
+      "releaseCondition": "Remove the ignore as soon as any patched braces release is published (then pin it by override), or as soon as firebase-tools no longer depends on chokidar@3 (then upgrade it)."
     }
   ]
 }

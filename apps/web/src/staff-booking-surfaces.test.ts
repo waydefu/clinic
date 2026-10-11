@@ -1,3 +1,4 @@
+import { verifyCalendarPilotClientSession } from '../public/modules/pilot-google-totp-session.js';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,9 @@ describe('public booking vs staff surfaces', () => {
   it('enables Canonical Booking API on isolated C1 preview without Google login', () => {
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname:
           'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
         search: ''
@@ -16,25 +20,34 @@ describe('public booking vs staff surfaces', () => {
     ).toBe(true);
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: '?internalTestBooking=1'
       })
     ).toBe(true);
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname: '127.0.0.1',
         search: ''
       })
     ).toBe(false);
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname: 'beauessence-clinic-staging.web.app',
         search: '?internalTestBooking=1'
       })
     ).toBe(false);
   });
 
-  it('maps a server staff session onto Workbench chrome without public access', () => {
+  it('maps a server staff session onto Workbench chrome without public access', async () => {
     const storage = {
       getItem(name: string) {
         if (name === 'calPilotCsrf') return 'csrf_test';
@@ -42,6 +55,18 @@ describe('public booking vs staff surfaces', () => {
         return null;
       }
     };
+    await verifyCalendarPilotClientSession('opaque_server_staff', {
+      storage: storage as never,
+      fetchImpl: async () =>
+        Promise.resolve({
+          ok: true,
+          json: async () =>
+            Promise.resolve({
+              actorId: 'opaque_server_staff',
+              actorRole: storage.getItem('calPilotRole')
+            })
+        })
+    });
     const next = hydrateStaff(
       {
         workspace: {
@@ -61,8 +86,8 @@ describe('public booking vs staff surfaces', () => {
       storage
     );
     expect(next.session.authenticated).toBe(true);
-    expect(next.session.account.id).toBe('front_desk_test_001');
-    expect(next.workspace.currentAccountId).toBe('front_desk_test_001');
+    expect(next.session.account.id).toBe('opaque_server_staff');
+    expect(next.workspace.currentAccountId).toBe('opaque_server_staff');
   });
 
   it('does not load CAL-PILOT on the Booking Page', () => {
@@ -93,8 +118,8 @@ describe('public booking vs staff surfaces', () => {
     );
     expect(patient).not.toContain('calendar-pilot-entry.js');
     expect(patient).not.toContain('使用 Google 帳號登入');
-    expect(loader).toContain("includes('calendarPilot=1')");
-    expect(loader).toContain("sessionStorage.getItem('calPilotCsrf')");
+    expect(loader).toContain("location.pathname === '/booking'");
+    expect(loader).not.toContain("sessionStorage.getItem('calPilotCsrf')");
     expect(apiClient).toContain('beauessence-clinic-stg-');
     expect(apiClient).toContain("hostname.includes('--')");
     expect(transport).toContain("path === '/booking'");
@@ -112,14 +137,21 @@ describe('public booking vs staff surfaces', () => {
       ),
       'utf8'
     );
+    // The CAL-PILOT client's boot order lives in its own bundled module.
+    const boot = readFileSync(
+      fileURLToPath(new URL('./calendar-pilot-boot.js', import.meta.url)),
+      'utf8'
+    );
     expect(client).toContain('handoffToStaffWorkbench');
     expect(client).toContain('使用 Google 帳號登入');
     expect(client).toContain('CAL-PILOT 合成日曆測試');
     expect(client).toContain('pilot-google-totp-session.js');
-    expect(client).toContain(
+    expect(client).toContain("from './calendar-pilot-boot.js'");
+    expect(boot).toContain(
       'CALENDAR_PILOT_AUTH_OUTCOME.NEEDS_REAUTHENTICATION'
     );
     expect(client).not.toContain('await user.getIdToken(true)');
+    expect(boot).not.toContain('await user.getIdToken(true)');
     expect(totpSession).toContain(
       '驗證器設定完成。請重新使用 Google 帳號登入，並輸入動態驗證碼完成雙重驗證。'
     );
@@ -145,7 +177,12 @@ describe('public booking vs staff surfaces', () => {
     expect(client).not.toContain('.catch(\n      () => undefined');
   });
 
-  it('does not map a missing CSRF, patient role, or disabled account onto Workbench', () => {
+  it('does not map a missing CSRF, patient role, or disabled account onto Workbench', async () => {
+    await verifyCalendarPilotClientSession('opaque_server_staff', {
+      storage: { getItem: () => 'opaque_hint', removeItem: () => {} },
+      fetchImpl: () =>
+        Promise.resolve({ ok: false, json: () => Promise.resolve({}) })
+    });
     const workspace = {
       authenticated: false,
       currentAccountId: 'admin_test_001',

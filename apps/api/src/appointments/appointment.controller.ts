@@ -1,9 +1,9 @@
+import { DomainError } from '@beauessence/domain';
 import {
   Body,
   Controller,
   Get,
   Inject,
-  Optional,
   Param,
   Post,
   Query,
@@ -55,7 +55,8 @@ export interface AppointmentAuthenticator {
 const OPAQUE_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 function identifier(value: string): string {
-  if (!OPAQUE_ID.test(value)) throw new Error('Invalid opaque identifier.');
+  if (!OPAQUE_ID.test(value))
+    throw new DomainError('INVALID_VALUE', 'Invalid opaque identifier.');
   return value;
 }
 
@@ -77,7 +78,6 @@ export class AppointmentController {
     private readonly internalTestSettings: InternalTestBookingSettings,
     @Inject(INTERNAL_TEST_BOOKING_CLOCK)
     private readonly internalTestClock: InternalTestBookingClock,
-    @Optional()
     @Inject(WP_B2_RATE_LIMITER)
     private readonly rateLimiter?: WpB2RateLimiter
   ) {}

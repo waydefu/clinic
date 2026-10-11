@@ -20,6 +20,9 @@ function monthDayExists(value) {
     const carrier = new Date(Date.UTC(2000, month - 1, day));
     return carrier.getUTCMonth() === month - 1 && carrier.getUTCDate() === day;
 }
+export function isPatientBirthMonthDay(value) {
+    return MONTH_DAY_PATTERN.test(value) && monthDayExists(value);
+}
 function birthDateIssue(value) {
     if (value === '')
         return 'required';
@@ -47,7 +50,12 @@ export function patientIdentityIssues(input) {
             issues.push({ field, code });
     };
     push('name', requiredPatternIssue(text(input.name), NAME_PATTERN));
-    push('phone', requiredPatternIssue(text(input.phone), PHONE_PATTERN));
+    const phone = text(input.phone);
+    push('phone', requiredPatternIssue(phone, PHONE_PATTERN) ??
+        (patientPhoneDigits(phone).length < 8 ||
+            patientPhoneDigits(phone).length > 20
+            ? 'format'
+            : undefined));
     push('birthDate', birthDateIssue(text(input.birthDate)));
     push('nationality', nationalityIssue(text(input.nationality)));
     return issues;
@@ -115,7 +123,7 @@ export function birthDateHasYear(value) {
 }
 /** 身分證字號的遮罩呈現，只用於顯示舊紀錄。長度不足回破折號，不回半截號碼。 */
 export function maskNationalId(value) {
-    if (typeof value !== 'string' || value.length < 6)
+    if (typeof value !== 'string' || value.length <= 6)
         return '——';
     return `${value.slice(0, 3)}****${value.slice(-3)}`;
 }

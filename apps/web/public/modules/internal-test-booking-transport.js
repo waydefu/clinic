@@ -1,3 +1,8 @@
+import { calendarPilotAuthenticationGeneration } from './calendar-pilot-authority.js';
+async function clearCalendarPilotClientAuthState(storage) {
+  const session = await import('./pilot-google-totp-session.js');
+  session.clearCalendarPilotClientAuthState(storage);
+}
 import { DEFAULT_BLOCKED_TIMES } from './constants.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../vendor/domain/calendar-sync.js';
 
@@ -352,14 +357,16 @@ async function requestV1(
   mapped,
   { signal, csrfToken, accessToken, toError, credentials, returnSession }
 ) {
+  const generation = calendarPilotAuthenticationGeneration();
+  const isPublic = publicBookingLocation();
   const headers = {
     Accept: 'application/json'
   };
   if (mapped.body !== undefined) headers['Content-Type'] = 'application/json';
-  if (typeof csrfToken === 'string' && csrfToken !== '') {
+  if (!isPublic && typeof csrfToken === 'string' && csrfToken !== '') {
     headers['X-CSRF-Token'] = csrfToken;
   }
-  if (typeof accessToken === 'string' && accessToken !== '') {
+  if (!isPublic && typeof accessToken === 'string' && accessToken !== '') {
     headers.Authorization = `Bearer ${accessToken}`;
   }
   if (typeof returnSession === 'string' && returnSession !== '') {
@@ -368,12 +375,19 @@ async function requestV1(
   const response = await fetchImpl(mapped.url, {
     method: mapped.method,
     headers,
-    credentials: credentials ?? 'same-origin',
+    credentials: isPublic ? 'omit' : (credentials ?? 'same-origin'),
     signal,
     ...(mapped.body === undefined ? {} : { body: JSON.stringify(mapped.body) })
   });
   const payload = await response.json().catch(() => undefined);
   if (!response.ok) {
+    if (
+      !isPublic &&
+      generation === calendarPilotAuthenticationGeneration() &&
+      (response.status === 401 || payload?.error?.code === 'ACCOUNT_DISABLED')
+    ) {
+      await clearCalendarPilotClientAuthState(globalThis.sessionStorage);
+    }
     const error =
       payload !== null && typeof payload === 'object'
         ? payload.error
@@ -419,23 +433,19 @@ export function createInternalTestBookingTransport({
       publicBooking
         ? undefined
         : (globalThis.sessionStorage?.getItem('calPilotCsrf') ?? undefined));
-  const resolvedAccess =
-    accessToken ??
-    (() =>
-      publicBooking
-        ? undefined
-        : (globalThis.sessionStorage?.getItem('internalTestIdToken') ??
-          undefined));
-
-  const v1 = (mapped) =>
-    requestV1(fetchImpl, mapped, {
+  globalThis.sessionStorage?.removeItem('internalTestIdToken');
+  const resolvedAccess = accessToken ?? (() => undefined);
+  const v1 = async (mapped) => {
+    const isPublic = publicBookingLocation();
+    return requestV1(fetchImpl, mapped, {
       signal: undefined,
-      csrfToken: resolvedCsrf(),
-      accessToken: resolvedAccess(),
+      csrfToken: isPublic ? undefined : resolvedCsrf(),
+      accessToken: isPublic ? undefined : resolvedAccess(),
       toError,
-      credentials: resolvedCredentials,
+      credentials: isPublic ? 'omit' : resolvedCredentials,
       returnSession: returnSessionForRequest(mapped)
     });
+  };
 
   return async function internalTestBookingTransport(path, options = {}) {
     const body = parseBody(options);

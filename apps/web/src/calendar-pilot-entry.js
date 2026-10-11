@@ -18,13 +18,19 @@ import {
   resolveBootUser
 } from '../public/modules/pilot-auth-state.js';
 import {
-  CALENDAR_PILOT_AUTH_OUTCOME,
-  clearCalendarPilotClientAuthState,
+  verifyCalendarPilotClientSession,
+  calendarPilotVerifiedActor,
   completeGoogleSignIn as completeGoogleTotpSignIn,
   isCalendarPilotLogoutInProgress,
   registerCalendarPilotReauthenticationBridge,
   teardownCalendarPilotSessions
 } from '../public/modules/pilot-google-totp-session.js';
+import { bootCalendarPilot } from './calendar-pilot-boot.js';
+import {
+  createAppointmentCancel,
+  createBookingHandoff,
+  createCandidateReview
+} from './calendar-pilot-actions.js';
 
 const API = '/v1';
 const CALENDAR_PILOT_FIREBASE_APP = 'calendar-pilot';
@@ -500,22 +506,9 @@ function candidateItem(candidate, correctionContext) {
     createBooking.disabled =
       candidate.startsAt === null ||
       Number.isNaN(Date.parse(String(candidate.startsAt)));
-    createBooking.addEventListener('click', async () => {
-      if (createBooking.disabled) return;
-      createBooking.disabled = true;
-      candidateAwaitingBooking = candidate.candidateId;
-      await handoffToStaffWorkbench();
-      window.dispatchEvent(
-        new CustomEvent('beauessence:calendar-booking-suggestion', {
-          detail: {
-            candidateId: candidate.candidateId,
-            patientId: candidate.suggestedPatientId,
-            patientName: candidate.suggestedPatientName,
-            startsAt: candidate.startsAt
-          }
-        })
-      );
-    });
+    createBooking.addEventListener('click', () =>
+      handOffCandidate(candidate, createBooking)
+    );
     item.querySelector('.cp-actions').append(createBooking);
   }
   const diff = item.querySelector('[data-candidate-diff]');
@@ -756,23 +749,26 @@ function openCorrectionDrawer(candidate, context) {
   kind.focus();
 }
 
-async function reviewCandidate(candidate, action, extra, button) {
-  button.disabled = true;
-  try {
-    await request(`/calendar/candidates/${candidate.candidateId}/${action}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        idempotencyKey: idempotency(`candidate_${action}`),
-        expectedVersion: candidate.expectedVersion,
-        ...extra
-      })
-    });
-    announce('候選變更已處理；可用時段已重新檢查。');
-    await renderApplication();
-  } catch (error) {
-    announce(error.message, 'error');
-  }
-}
+const reviewCandidate = createCandidateReview({
+  request,
+  announce,
+  renderApplication,
+  idempotency
+});
+const cancelAppointment = createAppointmentCancel({
+  request,
+  announce,
+  renderApplication,
+  idempotency
+});
+const handOffCandidate = createBookingHandoff({
+  handoffToStaffWorkbench,
+  announce,
+  setAwaitingCandidate: (candidateId) => {
+    candidateAwaitingBooking = candidateId;
+  },
+  target: window
+});
 
 function appointmentItem(appointment) {
   const item = document.createElement('li');
@@ -823,25 +819,9 @@ function appointmentItem(appointment) {
     const cancel = document.createElement('button');
     cancel.className = 'cp-button cp-button-danger';
     cancel.textContent = '取消';
-    cancel.addEventListener('click', async () => {
-      cancel.disabled = true;
-      try {
-        await request(
-          `/calendar/synthetic-appointments/${appointment.appointmentId}/cancel`,
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              idempotencyKey: idempotency('cancel'),
-              expectedVersion: appointment.version
-            })
-          }
-        );
-        announce('合成預約已取消，Google 刪除已排入同步。');
-        await renderApplication();
-      } catch (error) {
-        announce(error.message, 'error');
-      }
-    });
+    cancel.addEventListener('click', () =>
+      cancelAppointment(appointment, cancel)
+    );
     item.querySelector('.cp-actions').append(reschedule, cancel);
   }
   return item;
@@ -1048,111 +1028,45 @@ async function renderApplication() {
 }
 
 async function handoffToStaffWorkbench() {
+  const verified =
+    calendarPilotVerifiedActor() ??
+    (await verifyCalendarPilotClientSession(auth.currentUser?.uid));
+  if (
+    !verified ||
+    (auth.currentUser?.uid !== undefined &&
+      verified.actorId !== auth.currentUser.uid) ||
+    isCalendarPilotLogoutInProgress(sessionStorage)
+  ) {
+    throw new Error('請重新完成工作階段驗證。');
+  }
   document.documentElement.classList.remove('calendar-pilot-active');
   document.documentElement.classList.add('synthetic-workbench-ready');
   root?.remove();
 }
 
-function isPublicBookingPath(pathname = '') {
-  return pathname === '/booking' || pathname.endsWith('/patient.html');
-}
-
-function wantsCalendarPilotOverlay(search = '') {
-  return new URLSearchParams(String(search)).get('calendarPilot') === '1';
-}
-
-function failPendingReauthentication() {
-  if (sessionStorage.getItem('calPilotCsrf') !== null) {
-    window.__beauessenceReauthBridgeReady = false;
-    window.__beauessenceReauthBridgeFailed = true;
-    window.dispatchEvent(new Event('beauessence:reauth-bridge-failed'));
-  }
-}
-
-async function boot() {
-  if (isPublicBookingPath(location.pathname)) {
-    document.documentElement.classList.add('synthetic-workbench-ready');
-    return;
-  }
-  if (isCalendarPilotLogoutInProgress(sessionStorage)) {
-    failPendingReauthentication();
-    document.documentElement.classList.add('synthetic-workbench-ready');
-    return;
-  }
-  const configResponse = await fetch(`${API}/calendar-session/client-config`, {
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json' }
-  }).catch(() => undefined);
-  if (configResponse?.ok !== true) {
-    failPendingReauthentication();
-    document.documentElement.classList.add('synthetic-workbench-ready');
-    return;
-  }
-  const config = await configResponse.json();
-  const calendarPilotWorkbench = wantsCalendarPilotOverlay(location.search);
-  document.documentElement.classList.add('calendar-pilot-active');
-  root = document.createElement('div');
-  root.className = 'calendar-pilot-root';
-  document.body.append(root);
-  auth = getAuth(calendarPilotFirebaseApp(config));
-  try {
-    await firstAuthStateChanged((callback) =>
-      onAuthStateChanged(auth, callback)
-    );
-  } catch {
-    failPendingReauthentication();
-    document.documentElement.classList.add('synthetic-workbench-ready');
-    return;
-  }
-  registerCalendarPilotReauthenticationBridge({
-    target: window,
-    getFreshIdToken: freshIdToken
-  });
-  window.__beauessenceReauthBridgeFailed = false;
-  window.__beauessenceReauthBridgeReady = true;
-  window.dispatchEvent(new Event('beauessence:reauth-bridge-ready'));
-  bootStatusView('正在完成登入…');
-  const cachedCsrf = sessionStorage.getItem('calPilotCsrf');
-  if (cachedCsrf !== null) {
-    csrfToken = cachedCsrf;
-    try {
-      if (calendarPilotWorkbench) {
-        await renderApplication();
-        return;
-      }
-      await handoffToStaffWorkbench();
-      return;
-    } catch {
-      clearCalendarPilotClientAuthState(sessionStorage);
-      csrfToken = undefined;
-      // renderApplication replaced the login DOM before its request failed.
-      // Restore the OTP region before processing a pending MFA redirect.
-      bootStatusView('正在完成登入…');
-    }
-  }
-  try {
-    const result = await completeGoogleSignIn();
-    if (result.outcome === CALENDAR_PILOT_AUTH_OUTCOME.AUTHENTICATED) {
-      csrfToken = result.csrfToken;
-      if (calendarPilotWorkbench) {
-        await renderApplication();
-        return;
-      }
-      await handoffToStaffWorkbench();
-      location.reload();
-      return;
-    }
-    if (result.outcome === CALENDAR_PILOT_AUTH_OUTCOME.NEEDS_REAUTHENTICATION) {
-      csrfToken = undefined;
-      showLogin(result.message);
-      return;
-    }
-  } catch (error) {
-    csrfToken = undefined;
-    showLogin(error.message ?? '登入失敗，請重新嘗試。');
-    return;
-  }
-  showLogin();
-}
-
-void boot();
+void bootCalendarPilot({
+  initializeAuth: (config) =>
+    (auth = getAuth(calendarPilotFirebaseApp(config))),
+  mountRoot: () => {
+    root = document.createElement('div');
+    root.className = 'calendar-pilot-root';
+    document.body.append(root);
+  },
+  setCsrfToken: (value) => {
+    csrfToken = value;
+  },
+  registerReauthBridge: () =>
+    registerCalendarPilotReauthenticationBridge({
+      target: window,
+      getFreshIdToken: freshIdToken
+    }),
+  bootStatusView,
+  showLogin,
+  renderApplication,
+  handoffToStaffWorkbench,
+  awaitFirstAuthState: (currentAuth) =>
+    firstAuthStateChanged((callback) =>
+      onAuthStateChanged(currentAuth, callback)
+    ),
+  completeGoogleSignIn
+});

@@ -1,3 +1,4 @@
+import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -213,7 +214,132 @@ export function inspectC1FirebaseAuthDomainSource(repoRoot = root) {
     );
   }
 
+  issues.push(...inspectApiComparatorSyntax(apiSource));
   return { ok: issues.length === 0, issues };
+}
+
+/**
+ * Parses the owning API source instead of matching substrings, so policy text
+ * that only exists in comments, or a stub that always allows, is rejected. The
+ * real comparator's behaviour is exercised by its own module-imported unit test
+ * (apps/api/src/platform/runtime/c1-firebase-auth-domain.test.ts); this check
+ * never executes source text.
+ */
+function inspectApiComparatorSyntax(apiSource) {
+  const sourceFile = ts.createSourceFile(
+    'c1-firebase-auth-domain.ts',
+    apiSource,
+    ts.ScriptTarget.ES2022,
+    true,
+    ts.ScriptKind.TS
+  );
+  const isExported = (node) =>
+    (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0;
+  let allowlist;
+  let comparator;
+  for (const statement of sourceFile.statements) {
+    if (ts.isVariableStatement(statement) && isExported(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (
+          ts.isIdentifier(declaration.name) &&
+          declaration.name.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
+        )
+          allowlist = declaration.initializer;
+      }
+    }
+    if (
+      ts.isFunctionDeclaration(statement) &&
+      isExported(statement) &&
+      statement.name?.text === 'isAuthorizedC1FirebaseAuthDomain'
+    )
+      comparator = statement;
+  }
+
+  const issues = [];
+  while (allowlist !== undefined && ts.isAsExpression(allowlist))
+    allowlist = allowlist.expression;
+  const hosts =
+    allowlist !== undefined && ts.isArrayLiteralExpression(allowlist)
+      ? allowlist.elements.map((element) =>
+          ts.isStringLiteral(element) ? element.text : undefined
+        )
+      : undefined;
+  if (
+    hosts === undefined ||
+    hosts.length !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.length ||
+    hosts.some(
+      (host, index) => host !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS[index]
+    )
+  ) {
+    issues.push(
+      'API runtime allowlist must be an exported array literal of exactly the authorized isolated preview hosts.'
+    );
+  }
+
+  // Every return of the comparator itself must either deny (`return false`) or
+  // allow only through allowlist membership (`ALLOWLIST.includes(host)`, casts
+  // allowed). Any other return form, including `return true`, is rejected.
+  // This is a structural rule, not a semantic proof: the comparator's actual
+  // behaviour is proven only by its own module-imported unit test.
+  const unwrap = (node) => {
+    let current = node;
+    while (
+      current !== undefined &&
+      (ts.isParenthesizedExpression(current) ||
+        ts.isAsExpression(current) ||
+        ts.isTypeAssertionExpression(current) ||
+        ts.isNonNullExpression(current))
+    )
+      current = current.expression;
+    return current;
+  };
+  const allowsByMembership = (expression) => {
+    const call = unwrap(expression);
+    if (
+      call === undefined ||
+      !ts.isCallExpression(call) ||
+      call.arguments.length !== 1 ||
+      !ts.isIdentifier(call.arguments[0]) ||
+      !ts.isPropertyAccessExpression(call.expression) ||
+      call.expression.name.text !== 'includes'
+    )
+      return false;
+    const list = unwrap(call.expression.expression);
+    return (
+      list !== undefined &&
+      ts.isIdentifier(list) &&
+      list.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
+    );
+  };
+  let denies = false;
+  let allows = false;
+  let otherReturns = 0;
+  const visit = (node) => {
+    if (ts.isFunctionLike(node)) return;
+    if (ts.isReturnStatement(node)) {
+      if (node.expression?.kind === ts.SyntaxKind.FalseKeyword) denies = true;
+      else if (
+        node.expression !== undefined &&
+        allowsByMembership(node.expression)
+      )
+        allows = true;
+      else otherReturns += 1;
+    }
+    ts.forEachChild(node, visit);
+  };
+  if (comparator?.body !== undefined) ts.forEachChild(comparator.body, visit);
+  if (
+    comparator?.body === undefined ||
+    comparator.parameters.length !== 1 ||
+    !denies ||
+    !allows ||
+    otherReturns !== 0
+  ) {
+    issues.push(
+      'API runtime authDomain comparator must be an exported function whose returns either deny or allow only by exported allowlist membership.'
+    );
+  }
+  return issues;
 }
 
 function isDirectRun() {

@@ -345,6 +345,68 @@ function reportError(error) {
   return error?.status === 409 ? `409：${message}` : message;
 }
 
+/**
+ * 商務寫入流程。writeLock 由整個分頁共用，同一時間只會有一筆寫入；失敗時保留
+ * 冪等鍵並放開按鈕，重試沿用同一份 payload 與鍵，但每次都重新要求新的再驗證 token。
+ */
+export function createBusinessWriteRunner({
+  writeLock,
+  isViewActive,
+  nextKey,
+  clearKey,
+  setStatus,
+  api,
+  target,
+  loadPendingDeletion,
+  requestToken = requestFreshIdToken,
+  describeError = reportError
+}) {
+  return async (
+    control,
+    action,
+    path,
+    payload,
+    {
+      reauthenticate = false,
+      refresh = false,
+      responseLabel = () => '操作已完成。'
+    } = {}
+  ) => {
+    if (!isViewActive() || writeLock.controller) return;
+    const key = nextKey(action, payload);
+    const body = { idempotencyKey: key, ...payload };
+    const controller = new AbortController();
+    writeLock.controller = controller;
+    control.disabled = true;
+    setStatus(reauthenticate ? '正在重新登入…' : '正在送出…');
+    try {
+      // This is deliberately the first asynchronous operation. The request
+      // event reaches Firebase synchronously from the user's submit gesture.
+      const reauthToken = reauthenticate
+        ? await requestToken({ target, signal: controller.signal })
+        : undefined;
+      if (!isViewActive() || controller.signal.aborted) return false;
+      const result = await api(path, {
+        method: 'POST',
+        body,
+        signal: controller.signal,
+        ...(reauthToken === undefined ? {} : { reauthToken })
+      });
+      if (!isViewActive() || controller.signal.aborted) return false;
+      clearKey(action, payload);
+      setStatus(responseLabel(result), 'success');
+      if (refresh) await loadPendingDeletion();
+      return result;
+    } catch (error) {
+      if (!controller.signal.aborted) setStatus(describeError(error), 'error');
+      return false;
+    } finally {
+      if (writeLock.controller === controller) writeLock.controller = undefined;
+      control.disabled = false;
+    }
+  };
+}
+
 /** Mounts the business workbench. A missing C1 CSRF token is a strict
  * no-network mode and leaves only the unavailable message visible. */
 export function initializeBusinessView({
@@ -400,7 +462,8 @@ export function initializeBusinessView({
   content.hidden = false;
   let disposed = false;
   let accessInvalidationNotified = false;
-  let activeController;
+  // 所有寫入（含建立匯出）共用這一把鎖：同一時間只會有一筆進行中。
+  const writeLock = { controller: undefined };
   const activeDownloadControllers = new Set();
   const viewController = new AbortController();
   const status = element('p', 'form-status');
@@ -408,8 +471,8 @@ export function initializeBusinessView({
   status.setAttribute('aria-live', 'polite');
 
   const stopPending = () => {
-    activeController?.abort();
-    activeController = undefined;
+    writeLock.controller?.abort();
+    writeLock.controller = undefined;
     for (const controller of activeDownloadControllers) controller.abort();
     activeDownloadControllers.clear();
     viewController.abort();
@@ -439,50 +502,16 @@ export function initializeBusinessView({
     getBusinessWriteIdempotencyKey(action, payload, csrf);
   const clearKey = (action, payload) =>
     clearBusinessWriteIdempotencyKey(action, payload, csrf);
-  const runWrite = async (
-    control,
-    action,
-    path,
-    payload,
-    {
-      reauthenticate = false,
-      refresh = false,
-      responseLabel = () => '操作已完成。'
-    } = {}
-  ) => {
-    if (!isViewActive() || activeController) return;
-    const key = nextKey(action, payload);
-    const body = { idempotencyKey: key, ...payload };
-    const controller = new AbortController();
-    activeController = controller;
-    control.disabled = true;
-    setStatus(reauthenticate ? '正在重新登入…' : '正在送出…');
-    try {
-      // This is deliberately the first asynchronous operation. The request
-      // event reaches Firebase synchronously from the user's submit gesture.
-      const reauthToken = reauthenticate
-        ? await requestFreshIdToken({ target, signal: controller.signal })
-        : undefined;
-      if (!isViewActive() || controller.signal.aborted) return false;
-      const result = await api(path, {
-        method: 'POST',
-        body,
-        signal: controller.signal,
-        ...(reauthToken === undefined ? {} : { reauthToken })
-      });
-      if (!isViewActive() || controller.signal.aborted) return false;
-      clearKey(action, payload);
-      setStatus(responseLabel(result), 'success');
-      if (refresh) await loadPendingDeletion();
-      return result;
-    } catch (error) {
-      if (!controller.signal.aborted) setStatus(reportError(error), 'error');
-      return false;
-    } finally {
-      if (activeController === controller) activeController = undefined;
-      control.disabled = false;
-    }
-  };
+  const runWrite = createBusinessWriteRunner({
+    writeLock,
+    isViewActive,
+    nextKey,
+    clearKey,
+    setStatus,
+    api,
+    target,
+    loadPendingDeletion
+  });
 
   const headingRow = element('div', 'section-heading');
   headingRow.append(
@@ -876,8 +905,8 @@ export function initializeBusinessView({
     };
     const key = nextKey('export-create', payload);
     const controller = new AbortController();
-    if (activeController) return;
-    activeController = controller;
+    if (writeLock.controller) return;
+    writeLock.controller = controller;
     exportSubmit.disabled = true;
     setStatus('正在重新登入…');
     try {
@@ -899,7 +928,7 @@ export function initializeBusinessView({
     } catch (error) {
       if (!controller.signal.aborted) setStatus(reportError(error), 'error');
     } finally {
-      if (activeController === controller) activeController = undefined;
+      if (writeLock.controller === controller) writeLock.controller = undefined;
       exportSubmit.disabled = false;
     }
   });
@@ -1287,8 +1316,8 @@ export function initializeBusinessView({
   };
   const onPageHide = (event) => {
     if (event.persisted) {
-      activeController?.abort();
-      activeController = undefined;
+      writeLock.controller?.abort();
+      writeLock.controller = undefined;
       for (const controller of activeDownloadControllers) controller.abort();
       activeDownloadControllers.clear();
       return;

@@ -737,7 +737,21 @@ async function bundleCalendarPilot(files, repoRoot) {
     platform: 'browser',
     target: 'es2022',
     write: false,
-    minify: false
+    minify: false,
+    plugins: [
+      {
+        name: 'shared-calendar-session-authority',
+        setup(plugin) {
+          plugin.onResolve(
+            { filter: /\/calendar-pilot-authority\.js$/ },
+            () => ({
+              path: './modules/calendar-pilot-authority.js',
+              external: true
+            })
+          );
+        }
+      }
+    ]
   });
   const output = result.outputFiles?.[0];
   if (output === undefined)

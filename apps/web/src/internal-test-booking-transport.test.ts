@@ -187,12 +187,18 @@ describe('isInternalTestBookingEnabled', () => {
   it('stays off without the query and on the forbidden preview host', () => {
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname: '127.0.0.1',
         search: ''
       })
     ).toBe(false);
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname: 'beauessence-clinic-staging.web.app',
         search: '?internalTestBooking=1'
       })
@@ -202,12 +208,18 @@ describe('isInternalTestBookingEnabled', () => {
   it('opts in with the explicit query, or automatically on isolated C1 preview', () => {
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: '?internalTestBooking=1'
       })
     ).toBe(true);
     expect(
       isInternalTestBookingEnabled({
+        protocol: 'https:',
+        pathname: '/staff',
+        port: '',
         hostname:
           'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
         search: ''

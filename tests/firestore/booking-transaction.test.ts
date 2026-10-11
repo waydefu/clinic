@@ -16,6 +16,11 @@ import {
 } from '../../packages/config/src/index.js';
 import { AuditEventV2Schema } from '../../packages/contracts/src/audit.js';
 import { IdempotencyRecordV1Schema } from '../../packages/contracts/src/idempotency.js';
+import { ServiceUnavailableError } from '../../apps/api/src/platform/errors/api-error.js';
+import {
+  FirestorePatientDirectory,
+  PATIENT_COLLECTIONS
+} from '../../apps/api/src/patients/patient-directory.js';
 import type { BookingRequest } from '@beauessence/domain';
 
 // The Emulator is disposable and never holds real data. `emulators:exec` sets
@@ -76,7 +81,10 @@ function bookingRequest(
 }
 
 async function wipe(): Promise<void> {
-  for (const collection of Object.values(COLLECTIONS)) {
+  for (const collection of new Set([
+    ...Object.values(COLLECTIONS),
+    ...Object.values(PATIENT_COLLECTIONS)
+  ])) {
     const documents = await db.collection(collection).listDocuments();
     await Promise.all(documents.map((document) => document.delete()));
   }
@@ -130,6 +138,141 @@ beforeEach(async () => {
 });
 
 describe('booking write path in a Firestore transaction', () => {
+  const INTAKE = {
+    name: 'opaque_intake_fixture',
+    phone: '0000000000',
+    birthDate: '--02-29',
+    nationality: 'domestic' as const,
+    privacyConsent: true as const
+  };
+  it('keeps intake preparation read-only and commits its identity with the booking', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const prepared = await directory.prepareIntake(
+      INTAKE,
+      REQUESTED_AT,
+      () => 'opaque_intake_patient'
+    );
+    expect(
+      (
+        await db
+          .collection(PATIENT_COLLECTIONS.patients)
+          .doc(prepared.patientId)
+          .get()
+      ).exists
+    ).toBe(false);
+    expect(
+      (await db.collection(PATIENT_COLLECTIONS.lookupIndex).get()).empty
+    ).toBe(true);
+    await repository.reserve(
+      bookingRequest({ patientId: prepared.patientId }),
+      prepared
+    );
+    expect(
+      (
+        await db
+          .collection(PATIENT_COLLECTIONS.patients)
+          .doc(prepared.patientId)
+          .get()
+      ).data()
+    ).toMatchObject({
+      patientId: prepared.patientId,
+      name: INTAKE.name,
+      phoneDigits: INTAKE.phone
+    });
+    expect(
+      (await db.collection(PATIENT_COLLECTIONS.lookupIndex).get()).size
+    ).toBe(1);
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(1);
+  });
+  it('failed initial reservation never persists an intake patient or lookup index', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const prepared = await directory.prepareIntake(
+      INTAKE,
+      REQUESTED_AT,
+      () => 'opaque_intake_patient'
+    );
+    await expect(
+      repository.reserve(
+        bookingRequest({
+          patientId: prepared.patientId,
+          slotId: 'opaque_missing_slot'
+        }),
+        prepared
+      )
+    ).rejects.toThrow();
+    expect(
+      (await db.collection(PATIENT_COLLECTIONS.patients).get()).empty
+    ).toBe(true);
+    expect(
+      (await db.collection(PATIENT_COLLECTIONS.lookupIndex).get()).empty
+    ).toBe(true);
+    expect((await db.collection(COLLECTIONS.appointments).get()).empty).toBe(
+      true
+    );
+  });
+  it('does not backfill a legacy contact when the booking is rejected', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const patientId = await directory.resolveFromIntake(
+      INTAKE,
+      REQUESTED_AT,
+      () => 'opaque_intake_patient'
+    );
+    const ref = db.collection(PATIENT_COLLECTIONS.patients).doc(patientId);
+    await ref.set({ patientId, name: INTAKE.name });
+    const before = (await ref.get()).data();
+    const prepared = await directory.prepareIntake(
+      INTAKE,
+      REQUESTED_AT,
+      () => 'opaque_unneeded_patient'
+    );
+    await expect(
+      repository.reserve(
+        bookingRequest({ patientId, slotId: 'opaque_missing_slot' }),
+        prepared
+      )
+    ).rejects.toThrow();
+    expect((await ref.get()).data()).toEqual(before);
+  });
+  it('retries identity resolution instead of silently rebinding an actor-scoped race', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const first = await directory.prepareIntake(
+      INTAKE,
+      REQUESTED_AT,
+      () => 'opaque_first_patient'
+    );
+    const stale = await directory.prepareIntake(
+      INTAKE,
+      REQUESTED_AT,
+      () => 'opaque_stale_patient'
+    );
+    const request = bookingRequest({ patientId: first.patientId });
+    await repository.reserve(request, first);
+    await expect(
+      repository.reserve(
+        bookingRequest({
+          patientId: stale.patientId,
+          slotId: OTHER_SLOT_ID,
+          appointmentId: 'opaque_second_appointment',
+          idempotencyKey: 'opaque_second_request'
+        }),
+        stale
+      )
+    ).rejects.toBeInstanceOf(ServiceUnavailableError);
+    expect((await db.collection(PATIENT_COLLECTIONS.patients).get()).size).toBe(
+      1
+    );
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(1);
+    const retry = await directory.prepareIntake(
+      INTAKE,
+      REQUESTED_AT,
+      () => 'opaque_unneeded_patient'
+    );
+    expect(retry.patientId).toBe(first.patientId);
+    await expect(repository.reserve(request, retry)).resolves.toMatchObject({
+      replayed: true
+    });
+  });
+
   it('writes the appointment, slot reservation, audit event and outbox job together', async () => {
     const request = bookingRequest();
     const result = await repository.reserve(request);

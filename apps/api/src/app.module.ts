@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 
+import { ApiSafetyModule } from './firestore/api-safety.module.js';
+import { ApiExceptionFilter } from './platform/errors/api-exception.filter.js';
 import { HealthController } from './health.controller.js';
 import { BusinessDeliveryModule } from './business-delivery/business-delivery.module.js';
 import { CalendarPilotModule } from './calendar/calendar-pilot.module.js';
@@ -16,11 +18,15 @@ import { ObservabilityModule } from './platform/runtime/observability.module.js'
 @Module({
   imports: [
     ObservabilityModule,
+    ApiSafetyModule,
     CalendarPilotModule,
     BusinessDeliveryModule,
     InternalTestBookingModule.register()
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor }]
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor },
+    { provide: APP_FILTER, useClass: ApiExceptionFilter }
+  ]
 })
 export class AppModule {}

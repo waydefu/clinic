@@ -182,7 +182,11 @@ describe('InternalTestBookingAuthenticator', () => {
       };
       const authenticator = new InternalTestBookingAuthenticator(
         {} as CalendarPilotSessionService,
-        auth as unknown as Auth
+        auth as unknown as Auth,
+        {
+          readVerifiedPatientId: async (uid: string) =>
+            Promise.resolve(uid === 'patient_opaque_001' ? uid : undefined)
+        } as PatientDirectoryPort
       );
 
       await expect(

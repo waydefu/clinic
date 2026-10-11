@@ -25,7 +25,7 @@ import {
 } from '../calendar/calendar-pilot.module.js';
 import { CALENDAR_PILOT_SESSIONS } from '../calendar/calendar-pilot.tokens.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
-import { FirestoreDurableRateLimitStore } from '../firestore/rate-limit.repository.js';
+import { ApiSafetyModule } from '../firestore/api-safety.module.js';
 import { FirestorePatientDirectory } from '../patients/patient-directory.js';
 import { FirestoreScheduleRepository } from '../firestore/schedule.repository.js';
 import type { CandidateRole } from '../platform/authorization/rbac.js';
@@ -37,15 +37,6 @@ import {
   AuthorizationDeniedError,
   ServiceUnavailableError
 } from '../platform/errors/api-error.js';
-import {
-  InMemoryDurableRateLimitStore,
-  type DurableRateLimitStore
-} from '../platform/runtime/durable-rate-limit-store.js';
-import {
-  RATE_LIMIT_STORE,
-  WP_B2_RATE_LIMITER,
-  WpB2RateLimiter
-} from '../platform/runtime/wp-b2-rate-limiter.js';
 import {
   SCHEDULE_APPLICATION,
   ScheduleController
@@ -109,7 +100,7 @@ export class InternalTestBookingModule {
   ): DynamicModule {
     return {
       module: InternalTestBookingModule,
-      imports: [CalendarPilotModule],
+      imports: [CalendarPilotModule, ApiSafetyModule],
       controllers: [
         AppointmentController,
         ScheduleController,
@@ -125,26 +116,6 @@ export class InternalTestBookingModule {
           useValue: options.clock ?? {
             nowUtc: () => new Date().toISOString()
           }
-        },
-        {
-          provide: RATE_LIMIT_STORE,
-          useFactory: () => {
-            // Vitest AppModule proofs boot without ADC or an emulator.
-            // Durable consume must not call Cloud Firestore there.
-            // Production and emulator suites keep the Firestore store.
-            if (vitestWithoutFirestoreEmulator()) {
-              return new InMemoryDurableRateLimitStore();
-            }
-            return new FirestoreDurableRateLimitStore(
-              getFirestore(defaultFirebaseApp())
-            );
-          }
-        },
-        {
-          provide: WP_B2_RATE_LIMITER,
-          inject: [RATE_LIMIT_STORE],
-          useFactory: (store: DurableRateLimitStore) =>
-            new WpB2RateLimiter(store)
         },
         {
           provide: 'PatientDirectory',

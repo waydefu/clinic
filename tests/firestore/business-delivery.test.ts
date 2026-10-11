@@ -192,7 +192,11 @@ describe('staff login capture gap', () => {
           uid: 'uid_capture_gap_fixture_01',
           email,
           email_verified: true,
-          firebase: { sign_in_second_factor: 'totp' }
+          auth_time: Date.parse(now) / 1000,
+          firebase: {
+            sign_in_provider: 'google.com',
+            sign_in_second_factor: 'totp'
+          }
         }),
       getUser: () => Promise.resolve({ disabled: false }),
       createSessionCookie: () => Promise.resolve('capture_gap_cookie_fixture')

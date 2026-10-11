@@ -111,6 +111,19 @@ export function weekStartOf(dateText) {
   return addDays(dateText, -weekdayIndex(dateText));
 }
 
+/**
+ * 週曆第一次顯示時停在哪一週。使用者已切換過的週（prior）原樣保留；否則取最早
+ * 一筆預約或時段所在的週，兩者都沒有才用現在。以台北日期算週。
+ */
+export function initialWeekStart(state, prior) {
+  if (prior !== undefined) return prior;
+  const earliest =
+    [...state.appointments, ...state.slots].sort((a, b) =>
+      (a.startsAt ?? '').localeCompare(b.startsAt ?? '')
+    )[0]?.startsAt ?? new Date().toISOString();
+  return weekStartOf(taipeiDate(earliest));
+}
+
 /** 某一天的營業時段。`extra_open` 例外自帶 intervals，優先於每週排班。 */
 function openIntervals(schedule, dateText) {
   const exception = schedule.dateExceptions.find(

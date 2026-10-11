@@ -202,7 +202,10 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-11 | [身份／session／API 邊界 CI 紅燈收尾交接](reviews/2026-10-11-auth-session-boundary-ci-closeout-handoff.md) | DRAFT_REVIEW_ONLY：Emulator harness、SAST 9 處動態執行、business-tab 8 個 E2E 皆本機重現後修正；獨立審查後再修 X-C04 兩個按鈕並收緊 c1 檢查；29 ID 逐列（SOURCE_FIXED 19、PARTIAL 3、OPEN 3、BLOCKED 2、其他 2）；exact-head CI 見 PR，不 merge／deploy。 |
+| 2026-10-10 | [身份／session／API 邊界 Draft 交接](reviews/2026-10-10-auth-session-boundary-draft-handoff.md) | DRAFT_REVIEW_ONLY：相關 Chromium 35/35，登出／重新驗證／患者建議隔離通過；full unit、Emulator 與 exact-head CI 分開回報。key cutover／policy／runtime blockers 保留，不 merge／deploy。 |
 | 2026-10-10 | [官網視覺／UI/UX／技能與 CI 詳細交接](reviews/2026-10-10-clinic-ui-design-implementation-handoff.md) | 區分 PR 技能／CI 與 repo 外 v14 原型；多來源決策、完整素材、90-file identity snapshot、歷史 19/19＋4/4 local checks、12/12 exact-head CI、預算、缺口及接手指令；首頁視覺／醫療／正式整合仍未驗收，不合併或部署。 |
+| 2026-10-08 | [Sol-only auth/session 首批本機交接](reviews/2026-10-08-sol-auth-session-boundary-handoff.md) | IN_PROGRESS：24有效RED＋69positive baseline；parent Sol only，沒有Luna。首批code/test已建立，整群未結案；Windows既有FTP與Emulator失敗保留，無commit/push/production。 |
 | 2026-10-08 | [UI 技能國際視覺標準補強](reviews/2026-10-08-ui-skills-award-benchmark-handoff.md) | 撤掉未接受的自製教學頁；ui-design／ui-motion 加入已查證獎項與畫面研究，新增 ui-content；技能／freeze 本機檢查，exact-head required CI 另核，未改官網或授權部署。 |
 | 2026-10-07 | [SOL-00 current-evidence closeout](reviews/2026-10-06-sol00-planning-handoff.md) | CLOSED_PENDING_PROTECTED_MERGE：31 provenance終局不假claim、254 routing/63 source assessment/2 policy questions、3 Luna-ready/cap2；#244已由owner合法merge，#241新main後CI另核，不施工或部署。 |
 | 2026-10-07 | [MCP SDK OAuth advisory repair](reviews/2026-10-07-mcp-sdk-advisory-repair.md) | SDK1.31.0／8/8 issuer回歸；#244 exact-head CI12/12，已由owner merge main 2f9360cf；本文為pre-commit handoff，失敗記錄保留；#241 CI另核。 |

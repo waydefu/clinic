@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
-import { getApp, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -11,17 +9,11 @@ import { createCalendarPilotSessionGateTelemetry } from '../auth/calendar-pilot-
 import { FirestoreCalendarPilotRepository } from '../firestore/calendar-pilot.repository.js';
 import { FirestoreBookingRepository } from '../firestore/booking.repository.js';
 import { FirestoreClinicCalendarCandidateStore } from '../firestore/clinic-calendar-review.repository.js';
-import { FirestoreDeniedAccessAuditStore } from '../firestore/denied-access-audit.repository.js';
-import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
 import { ObservabilityModule } from '../platform/runtime/observability.module.js';
 import {
   STRUCTURED_LOGGER,
   type StructuredLogger
 } from '../platform/runtime/structured-logger.js';
-import {
-  DENIED_AUTHORIZATION_AUDIT,
-  InMemoryDeniedAccessAuditSink
-} from '../platform/authorization/denied-access-audit.port.js';
 import { CalendarPilotApplicationService } from './calendar-pilot.application-service.js';
 import { ClinicCalendarReviewApplicationService } from './clinic-calendar-review.application-service.js';
 import { CalendarPilotController } from './calendar-pilot.controller.js';
@@ -31,25 +23,15 @@ import {
   CALENDAR_PILOT_SESSIONS
 } from './calendar-pilot.tokens.js';
 
-/**
- * Resolve the default Admin app only when a Nest factory first needs it.
- * Import-time `initializeApp()` raced emulator suites that create a named
- * app first, then called `getFirestore()` with no default app.
- */
-export function defaultFirebaseApp(): App {
-  if (getApps().some((app) => app.name === '[DEFAULT]')) return getApp();
-  return initializeApp();
-}
-
-export function vitestWithoutFirestoreEmulator(): boolean {
-  return (
-    process.env['VITEST'] !== undefined &&
-    process.env['FIRESTORE_EMULATOR_HOST'] === undefined
-  );
-}
+import { ApiSafetyModule } from '../firestore/api-safety.module.js';
+import {
+  defaultFirebaseApp,
+  vitestWithoutFirestoreEmulator
+} from '../platform/runtime/firebase-admin-app.js';
+export { defaultFirebaseApp, vitestWithoutFirestoreEmulator };
 
 @Module({
-  imports: [ObservabilityModule],
+  imports: [ObservabilityModule, ApiSafetyModule],
   controllers: [CalendarPilotSessionController, CalendarPilotController],
   providers: [
     {
@@ -99,21 +81,7 @@ export function vitestWithoutFirestoreEmulator(): boolean {
         );
       }
     },
-    {
-      provide: DENIED_AUTHORIZATION_AUDIT,
-      useFactory: () => {
-        // Vitest AppModule proofs boot without ADC. Awaited Firestore
-        // create() would still reject and fail the suite without a store.
-        if (vitestWithoutFirestoreEmulator()) {
-          return new InMemoryDeniedAccessAuditSink();
-        }
-        return new FirestoreDeniedAccessAuditStore(
-          getFirestore(defaultFirebaseApp())
-        );
-      }
-    },
-    CalendarPilotSessionGuard,
-    { provide: APP_FILTER, useClass: ApiExceptionFilter }
+    CalendarPilotSessionGuard
   ],
   exports: [CALENDAR_PILOT_SESSIONS]
 })
