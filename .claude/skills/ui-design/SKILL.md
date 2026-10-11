@@ -11,6 +11,39 @@ relevant handoff. Acceptance stays in
 [`ui-ux-rules.md`](../../../docs/design/ui-ux-rules.md) R-1–R-26 and §5;
 implementation verification goes to [ui-check](../ui-check/SKILL.md).
 
+The current website supplies assets, source material and a before-state to
+criticise; its layout is not the visual success standard. Set that standard
+from the user's brand brief, actually inspected external references and
+professional composition/type judgement. For the selected clinic redesign,
+the owner's minimum is international design-competition-level craft. Use
+verified jury-awarded work through the benchmark reference below. Do not use
+self-made weak/improved examples, the old site or a mechanical PASS to lower
+that bar; do not manufacture a showcase to certify your own work.
+
+The owner also requires multi-source verification. Cross-check material visual
+decisions with actually inspected work from independent creators and relevant
+primary UX/type/motion guidance. Multiple URLs for the same work, one agency's
+portfolio or multiple AI reviewers do not establish independent corroboration.
+Record agreement, disagreement, clinic-specific adaptation and missing evidence;
+never turn source counts or averaged award scores into visual acceptance.
+
+Read the relevant canonical reference for a substantial clinic redesign:
+
+- [Visual direction](../../../.claude/skills/ui-design/reference/visual-direction.md):
+  asset-led composition, typography, rhythm and mobile reconstruction.
+- [Rendered visual review](../../../.claude/skills/ui-design/reference/visual-review.md):
+  screenshot, critique, structural revision and the homepage benchmark gate.
+- [Sources and rights](../../../.claude/skills/ui-design/reference/sources-and-rights.md):
+  asset allocation, medical review state and publication boundaries.
+- [Visual foundations](../../../.claude/skills/ui-design/reference/visual-foundations.md):
+  Chinese typography, proportions, colour roles and composition decisions.
+- [Verified award benchmarks](../../../.claude/skills/ui-design/reference/award-benchmarks.md):
+  award provenance, inspected work, adaptation limits and the visual quality bar.
+
+These are five references, each with one canonical copy in `.claude`.
+The generated `.agents` skill deliberately links to those same files.
+The generator copies `SKILL.md` only; do not change it to duplicate references.
+
 ## Choose the scope
 
 - For a selected direction, refine that direction and the affected areas.
@@ -38,6 +71,8 @@ Translate the intended experience into observable choices: reading order,
 type roles, content density, image placement, surface treatment and emphasis.
 Explain those choices with the clinic's content and assets rather than words
 such as "premium". Reuse the project's tokens and shared components.
+For substantial wording or information-order work, use
+[ui-content](../ui-content/SKILL.md) while keeping the selected visual direction.
 
 ## Explore only when the direction is open
 
@@ -54,6 +89,20 @@ and carry the user's selection forward. If the user delegates the choice,
 record the selected option and its rationale without adding an approval step.
 
 ## Refine the actual page
+
+For the selected editorial clinic direction, inspect rendered pages before
+mechanical checks. Engineering correctness is the floor. A generic composition
+still fails after all mechanical checks pass. Own the visual judgement within
+the user's boundaries instead of asking them to choose every crop or spacing.
+
+For a site redesign, establish the homepage benchmark before extending the
+other five principal pages. Inspect 1440px and 375px, identify the three weakest
+structural decisions, change the composition where necessary and render again.
+Do not accept the first technically correct version or replace visual work
+with a large planning document. Extend a design language, not one section
+template with different text. Include the two existing personal physician
+routes when shared shell/CSS integration is later verified: six principal
+pages are eight clinic routes.
 
 Look at the rendered artifact at its real reading size, not just a compressed
 comparison sheet. Review the whole page and necessary close-ups:
@@ -73,8 +122,11 @@ comparison sheet. Review the whole page and necessary close-ups:
 Base a defect on a route, viewport, state and visible evidence. Propose the
 smallest correction within the chosen direction. Do not shrink text or hide
 overflow to conceal a layout failure. Necessary content stays in accessible
-HTML; decorative imagery cannot replace it (R-26). Motion needs a functional
-reason and R-17 compliance, not an animation quota.
+HTML; decorative imagery cannot replace it (R-26). Motion needs a visible
+contribution to feedback, continuity or editorial pacing and R-17 compliance,
+not an animation quota. For motion direction, Anime.js evaluation or playback
+review, use [ui-motion](../ui-motion/SKILL.md); watch normal playback as well as
+the reduced-motion fallback.
 
 ## Visual review and engineering handoff
 

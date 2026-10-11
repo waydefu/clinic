@@ -15,8 +15,21 @@ Design direction and visual refinement use [ui-design](../ui-design/SKILL.md).
 This skill validates the implemented result; it does not select a new style.
 Read the current brief/handoff so intentional changes are distinguished from
 regressions. A visual score does not establish a gate PASS.
+Use [ui-content](../ui-content/SKILL.md) for wording/information design; this
+verification does not approve medical claims or replace clinical review.
+Existing captures are technical regression fixtures. Visual success is judged
+against the brief and rendered design review, not similarity to the current
+website or an unapproved prototype. Updating an intentional baseline must
+follow the existing capture procedure; a legacy screenshot is not a style mandate.
 
 ## 1. Automated gates
+
+For a substantial visual revision, first inspect the rendered result with
+`ui-design` at the affected desktop/mobile widths. A mechanical PASS cannot
+override visual FAIL. Keep that judgement separate from the engineering matrix
+below; neither screenshot quality nor prototype checks replace built-artifact
+verification. Include all eight clinic routes for shared shell/CSS regression,
+even when only the six principal pages are redesigned.
 
 From the repository root:
 
@@ -77,6 +90,25 @@ Then walk the matrix, taking evidence as you go:
 
 Read the accessibility tree rather than only screenshotting — it is what proves
 names, roles and structure. Screenshot for the visual claim.
+
+For an implemented motion change, use [ui-motion](../ui-motion/SKILL.md) to
+inspect normal playback, initial reduced motion and a preference change during
+playback. Capture the actual trigger and intermediate/settled states; a static
+screenshot cannot prove pacing or cancellation. Check affected lifecycle paths
+and console/CSP violations through teardown. Report missing playback/browser
+evidence explicitly; these observations execute R-17/§5, not a separate gate.
+
+Three project-specific checks for motion:
+
+- Listen for `securitypolicyviolation` from page load until the animation has
+  completed, been cancelled and been torn down, in both Chromium and WebKit.
+  A clean start does not prove a clean cleanup.
+- Emulate reduced motion with `page.emulateMedia({ reducedMotion })`. In this
+  configuration `test.use({ reducedMotion })` did not take effect
+  ([design record §11](../../../docs/design/boutique-clinical-command-2026-07-25.md)).
+- When a change adds a module import, rerun `check:perf`. It fails a route
+  whose module discovery takes more round trips than `maxDiscoveryDepth`, and
+  any module that lacks a `modulepreload` declaration.
 
 Run automation on the content-hashed build as §5.1 requires. A source-tree
 prototype can supply bounded design evidence but cannot substitute for built
