@@ -36,6 +36,18 @@ export const CALENDAR_PILOT_CLIENT_AUTH_KEYS = Object.freeze([
 export const CALENDAR_PILOT_LOGOUT_GUARD_KEY = 'calPilotOut';
 
 let calendarPilotLogoutInFlight;
+import {
+  calendarPilotAuthenticationGeneration,
+  calendarPilotVerifiedActor,
+  subscribeCalendarPilotClientAuthority,
+  invalidateCalendarPilotAuthority,
+  approveCalendarPilotAuthority
+} from './calendar-pilot-authority.js';
+export {
+  calendarPilotAuthenticationGeneration,
+  calendarPilotVerifiedActor,
+  subscribeCalendarPilotClientAuthority
+};
 
 /**
  * Connect a user-gesture request in the workbench to the Firebase client.
@@ -114,11 +126,14 @@ export function isCalendarPilotSessionAuthenticationRequired(error) {
 }
 
 export function clearCalendarPilotClientAuthState(storage) {
+  storage.removeItem('internalTestIdToken');
   for (const key of CALENDAR_PILOT_CLIENT_AUTH_KEYS) storage.removeItem(key);
+  invalidateCalendarPilotAuthority();
 }
 
 export function beginCalendarPilotLogout(storage) {
   storage.setItem(CALENDAR_PILOT_LOGOUT_GUARD_KEY, '1');
+  invalidateCalendarPilotAuthority();
 }
 
 export function endCalendarPilotLogout(storage) {
@@ -131,9 +146,55 @@ export function isCalendarPilotLogoutInProgress(storage) {
 
 export function shouldHydrateCalendarPilotWorkbench(storage) {
   return (
-    Boolean(storage?.getItem('calPilotCsrf')) &&
+    calendarPilotVerifiedActor() !== undefined &&
+    calendarPilotVerifiedActor().csrfToken ===
+      storage?.getItem('calPilotCsrf') &&
     !isCalendarPilotLogoutInProgress(storage)
   );
+}
+
+export async function verifyCalendarPilotClientSession(
+  actorId,
+  {
+    storage = globalThis.sessionStorage,
+    fetchImpl = globalThis.fetch.bind(globalThis)
+  } = {}
+) {
+  const generation = calendarPilotAuthenticationGeneration();
+  const csrf = storage.getItem('calPilotCsrf');
+  const role = storage.getItem('calPilotRole');
+  try {
+    if (!csrf || isCalendarPilotLogoutInProgress(storage))
+      throw new Error('Missing session.');
+    const response = await fetchImpl('/v1/calendar-session/me', {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-CSRF-Token': csrf }
+    });
+    const principal = await response.json();
+    if (
+      !response.ok ||
+      generation !== calendarPilotAuthenticationGeneration() ||
+      isCalendarPilotLogoutInProgress(storage) ||
+      storage.getItem('calPilotCsrf') !== csrf ||
+      storage.getItem('calPilotRole') !== role ||
+      (actorId !== undefined && principal.actorId !== actorId) ||
+      principal.actorRole !== role ||
+      typeof principal.actorId !== 'string' ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(principal.actorId)
+    ) {
+      throw new Error('Session not verified.');
+    }
+    approveCalendarPilotAuthority({
+      actorId: principal.actorId,
+      actorRole: principal.actorRole,
+      csrfToken: csrf
+    });
+    return calendarPilotVerifiedActor();
+  } catch {
+    if (generation === calendarPilotAuthenticationGeneration())
+      clearCalendarPilotClientAuthState(storage);
+    return undefined;
+  }
 }
 
 export async function abandonFirebaseClientSession(ports) {
@@ -206,10 +267,11 @@ export function teardownCalendarPilotSessions(ports) {
   return calendarPilotLogoutInFlight;
 }
 
-export async function deleteCalendarPilotServerSession(ports) {
+export async function deleteCalendarPilotServerSession(ports, csrfToken) {
   const storage = ports.storage ?? globalThis.sessionStorage;
   const fetchImpl = ports.fetch ?? globalThis.fetch.bind(globalThis);
-  const csrf = storage.getItem('calPilotCsrf');
+  const csrf =
+    csrfToken === undefined ? storage.getItem('calPilotCsrf') : csrfToken;
   const headers = { Accept: 'application/json' };
   if (typeof csrf === 'string' && csrf !== '') headers['X-CSRF-Token'] = csrf;
   const response = await fetchImpl('/v1/calendar-session', {
@@ -235,9 +297,13 @@ export async function signOutCalendarPilotFirebaseFromClient(ports) {
 }
 
 export async function runWorkbenchCalendarPilotLogout(ports) {
+  // Retain only this request's header before teardown clears browser authority.
+  const csrf = (ports.storage ?? globalThis.sessionStorage).getItem(
+    'calPilotCsrf'
+  );
   try {
     await teardownCalendarPilotSessions({
-      deleteServerSession: () => deleteCalendarPilotServerSession(ports),
+      deleteServerSession: () => deleteCalendarPilotServerSession(ports, csrf),
       signOut: () => signOutCalendarPilotFirebaseFromClient(ports),
       storage: ports.storage ?? globalThis.sessionStorage
     });

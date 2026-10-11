@@ -71,6 +71,17 @@ test.describe('legacy synthetic login flash', () => {
         });
         return;
       }
+      if (path === '/v1/calendar-session/me') {
+        expect(route.request().headers()['x-csrf-token']).toBe(
+          'csrf_test_token'
+        );
+        // /state finishes first; the real authority subscription must hydrate.
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        await route.fulfill({
+          json: { actorId: 'opaque_server_staff', actorRole: 'manager' }
+        });
+        return;
+      }
       await route.fulfill({ status: 404, json: {} });
     });
 
@@ -85,5 +96,6 @@ test.describe('legacy synthetic login flash', () => {
       page.getByRole('heading', { name: '登入營運工作臺' })
     ).toBeHidden();
     await expect(page.locator('.calendar-pilot-root')).toHaveCount(0);
+    await expect(page.locator('.app-shell')).toBeVisible();
   });
 });

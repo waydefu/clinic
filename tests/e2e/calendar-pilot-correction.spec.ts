@@ -25,9 +25,11 @@ if (calendarBookingRole === undefined)
 
 test.describe('CAL-PILOT controlled correction workbench', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      sessionStorage.setItem('calPilotCsrf', 'csrf_test_token');
-    });
+    await page.addInitScript((role) => {
+      if (sessionStorage.getItem('calPilotCsrf') === null)
+        sessionStorage.setItem('calPilotCsrf', 'csrf_test_token');
+      sessionStorage.setItem('calPilotRole', role);
+    }, calendarBookingRole);
   });
 
   test('filters candidates, explains errors in Chinese and sends only closed fields', async ({
@@ -37,6 +39,15 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     await page.route('**/v1/**', async (route) => {
       const request = route.request();
       const path = new URL(request.url()).pathname;
+      if (path === '/v1/calendar-session/me') {
+        await route.fulfill({
+          json: {
+            actorId: 'opaque_server_staff',
+            actorRole: calendarBookingRole
+          }
+        });
+        return;
+      }
       if (path === '/v1/calendar-session/client-config') {
         await route.fulfill({
           json: {
@@ -168,6 +179,8 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     let handledCandidate: Record<string, unknown> | undefined;
     let candidatePending = true;
     let calendarLogoutAttempted = false;
+    let currentSessionCsrf = 'csrf_test_token';
+    let freshSessionVerified = false;
     await page.addInitScript(
       (role) => sessionStorage.setItem('calPilotRole', role),
       calendarBookingRole
@@ -175,6 +188,24 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     await page.route('**/v1/**', async (route) => {
       const request = route.request();
       const path = new URL(request.url()).pathname;
+      if (path === '/v1/calendar-session/me') {
+        if (request.headers()['x-csrf-token'] !== currentSessionCsrf) {
+          await route.fulfill({
+            status: 401,
+            json: { error: { code: 'AUTHENTICATION_REQUIRED' } }
+          });
+          return;
+        }
+        if (currentSessionCsrf === 'csrf_fresh_test_token')
+          freshSessionVerified = true;
+        await route.fulfill({
+          json: {
+            actorId: 'opaque_server_staff',
+            actorRole: calendarBookingRole
+          }
+        });
+        return;
+      }
       if (path === '/v1/calendar-session/client-config') {
         await route.fulfill({
           json: {
@@ -421,9 +452,9 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
     ).toBeVisible();
 
     // A Calendar logout whose server teardown fails still logs out of the
-    // local workbench. The same document can then sign in again; the next
-    // ordinary booking must use the fresh form patient rather than the prior
-    // suggestion's opaque ID.
+    // local workbench. Local credentials cannot restore server authority;
+    // a separately supplied fresh synthetic server session must not retain
+    // the prior suggestion's opaque ID.
     await page.evaluate(
       (eventDetail) => {
         window.dispatchEvent(
@@ -440,15 +471,35 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
       }
     );
     await expect(page.locator('#booking-suggestion')).toBeVisible();
+    const logoutControl = await page.locator('#logout').elementHandle();
     await page.locator('#logout').click();
     await expect.poll(() => calendarLogoutAttempted).toBe(true);
+    // A new session may only be issued after the previous teardown settled.
+    await expect
+      .poll(() =>
+        logoutControl!.evaluate(
+          (node) => (node as HTMLElement).dataset.busy !== 'true'
+        )
+      )
+      .toBe(true);
     await expect(page.locator('#login-view')).toBeVisible();
     await expect(page.locator('#booking-suggestion')).toBeHidden();
     await expect(page.locator('#booking-suggestion-label')).toHaveText('');
     await expect(page.locator('#booking-name')).toHaveValue('');
-    await page.locator('#login-account').fill('front');
-    await page.locator('#login-password').fill('beauessence-front');
-    await page.locator('#login-view button[type="submit"]').click();
+    // A new test server session is issued outside the application. The real
+    // boot must still verify /me before reopening its workbench.
+    currentSessionCsrf = 'csrf_fresh_test_token';
+    await page.evaluate((role) => {
+      sessionStorage.removeItem('calPilotOut');
+      sessionStorage.setItem('calPilotCsrf', 'csrf_fresh_test_token');
+      sessionStorage.setItem('calPilotRole', role);
+    }, calendarBookingRole);
+    await page.evaluate(() => {
+      window.location.hash = 'overview';
+    });
+    await page.reload();
+    await expect.poll(() => freshSessionVerified).toBe(true);
+    await expect(page.locator('.app-shell')).toBeVisible();
     await expect(page.locator('#login-view')).toBeHidden();
     await expect(page.locator('#booking-suggestion')).toBeHidden();
 

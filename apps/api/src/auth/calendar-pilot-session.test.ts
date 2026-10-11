@@ -180,8 +180,15 @@ describe('CAL-PILOT Hosting-forwarded session cookie contract', () => {
         })
     } as Pick<CalendarPilotSessionService, 'create'>;
     await new CalendarPilotSessionController(
-      sessions as CalendarPilotSessionService
-    ).create({ idToken: 'x'.repeat(100) }, reply);
+      sessions as CalendarPilotSessionService,
+      {
+        assertUnauthenticatedIp: async () => {},
+        assertIdentifiedWrite: async () => {}
+      } as never
+    ).create({ idToken: 'x'.repeat(100) }, reply, {
+      headers: {},
+      ip: '127.0.0.1'
+    });
     expect(reply.value).toBe(
       calendarPilotSessionSetCookie('opaque-session', 28_800)
     );

@@ -4,7 +4,6 @@ import type { AuthenticationContext } from '../auth/authentication-context.js';
 import {
   readCalendarPilotSessionCookie,
   roleForCalendarPilotEmail,
-  tokenHasTotpSecondFactor,
   type CalendarPilotSessionService
 } from '../auth/calendar-pilot-session.js';
 import type {
@@ -24,9 +23,17 @@ function header(
   name: string
 ): string | undefined {
   const value = request.headers[name] ?? request.headers[name.toLowerCase()];
+  if (value === undefined) return undefined;
   if (typeof value === 'string' && value.length > 0) return value;
-  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
-  return undefined;
+  if (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((part) => typeof part === 'string' && part.length > 0)
+  ) {
+    if (name === 'cookie') return value.join('; ');
+    if (value.length === 1) return value[0] as string;
+  }
+  throw new AuthenticationRequiredError();
 }
 
 function bearerToken(request: AuthenticatableRequest): string | undefined {
@@ -59,14 +66,20 @@ export class InternalTestBookingAuthenticator implements AppointmentAuthenticato
   public async authenticate(
     request: AuthenticatableRequest
   ): Promise<AuthenticationContext> {
+    const authorization = header(request, 'authorization');
+    const idToken = bearerToken(request);
+    if (authorization !== undefined && idToken === undefined) {
+      throw new AuthenticationRequiredError();
+    }
     const returnSession = header(request, 'x-return-session');
+    const cookie = readCalendarPilotSessionCookie(header(request, 'cookie'));
+    const credentials = [returnSession, cookie, idToken];
+    if (credentials.filter((value) => value !== undefined).length > 1) {
+      throw new AuthenticationRequiredError();
+    }
     if (returnSession !== undefined) {
-      const staffCookie = readCalendarPilotSessionCookie(
-        header(request, 'cookie')
-      );
-      if (staffCookie !== undefined || bearerToken(request) !== undefined) {
+      if (!OPAQUE_ID.test(returnSession))
         throw new AuthenticationRequiredError();
-      }
       if (this.patients === undefined) throw new AuthenticationRequiredError();
       const patientId = await this.patients.readReturnSession(
         returnSession,
@@ -80,7 +93,6 @@ export class InternalTestBookingAuthenticator implements AppointmentAuthenticato
       };
     }
 
-    const cookie = readCalendarPilotSessionCookie(header(request, 'cookie'));
     if (cookie !== undefined) {
       const authentication = await this.sessions.authenticate(cookie);
       if ((request.method ?? 'POST').toUpperCase() !== 'GET') {
@@ -94,7 +106,6 @@ export class InternalTestBookingAuthenticator implements AppointmentAuthenticato
       };
     }
 
-    const idToken = bearerToken(request);
     if (idToken === undefined) {
       return { actorId: 'anonymous', actorRole: 'patient' };
     }
@@ -103,22 +114,29 @@ export class InternalTestBookingAuthenticator implements AppointmentAuthenticato
     });
     if (decoded.email_verified !== true)
       throw new AuthenticationRequiredError();
-    const user = await this.auth.getUser(decoded.uid);
-    if (user.disabled) throw new DisabledAccountError();
     if (!OPAQUE_ID.test(decoded.uid)) throw new AuthenticationRequiredError();
+    const user = await this.auth.getUser(decoded.uid).catch(() => {
+      throw new AuthenticationRequiredError();
+    });
+    if (user.disabled) throw new DisabledAccountError();
 
     const staffRole = roleForCalendarPilotEmail(decoded.email);
     if (staffRole !== undefined) {
-      if (!tokenHasTotpSecondFactor(decoded)) {
-        throw new AuthenticationRequiredError();
-      }
-      return { actorId: decoded.uid, actorRole: staffRole };
+      // Staff must use the server session's expiry, revocation and CSRF gates.
+      // An ID token is exchanged by the session controller, not used here.
+      throw new AuthenticationRequiredError();
     }
 
+    // No Firebase UID -> patient inference. The directory must explicitly
+    // establish the association; accountless lookup is the Phase-1 default.
+    const patientId = await this.patients?.readVerifiedPatientId?.(decoded.uid);
+    if (patientId === undefined || !OPAQUE_ID.test(patientId)) {
+      throw new AuthenticationRequiredError();
+    }
     return {
       actorId: decoded.uid,
       actorRole: 'patient',
-      verifiedPatientId: decoded.uid
+      verifiedPatientId: patientId
     };
   }
 }

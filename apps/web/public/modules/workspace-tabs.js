@@ -138,3 +138,87 @@ export function initWorkspaceTabs({ onDenied } = {}) {
       applyWorkspacePanel({ scroll: true, behavior: 'auto' })
     );
 }
+
+/**
+ * 工作臺開機。伺服器身分邊界啟用時（有 C1 CSRF，或頁面已切到 server 模式），先載入
+ * 伺服器權威並綁定，再讀 /state，並在渲染前用權威過濾 /state；/me 比 /state 晚完成時，
+ * 綁定會再把結果補進 state。快取的 storage 只是提示，不是身分權威。
+ *
+ * 工作臺的狀態仍由 admin-bootstrap 持有，這裡透過 workbench 的存取函式讀寫：
+ * getState()／setState(next)／setClient(client)／setServerAuthority(authority)，
+ * 以及 loadStaffServerAuthority、resolveApiClient、enforceRoleDomBoundary、render、
+ * initWorkspaceTabs、message、elements、activateBusinessView。
+ */
+export async function bootStaffWorkbench(workbench) {
+  try {
+    // Local prototype transport opt-in is not a Firebase identity mode.
+    let authorityBoundaryActive =
+      Boolean(sessionStorage.getItem('calPilotCsrf')) ||
+      document.documentElement.dataset.calendarSessionMode === 'server';
+    let serverAuthority;
+    let enablingAuthority;
+    const enableServerAuthority = () =>
+      (enablingAuthority ??= (async () => {
+        serverAuthority = await workbench.loadStaffServerAuthority();
+        workbench.setServerAuthority(serverAuthority);
+        authorityBoundaryActive = true;
+        serverAuthority.bindCalendarPilotWorkbenchAuthority(
+          () => workbench.getState(),
+          (next) => {
+            workbench.setState(next);
+            workbench.enforceRoleDomBoundary();
+            workbench.render();
+          }
+        );
+        if (workbench.getState() !== undefined) {
+          workbench.setState(
+            serverAuthority.applyCalendarPilotWorkbenchAuthority(
+              workbench.getState()
+            )
+          );
+          workbench.render();
+        }
+      })());
+    window.addEventListener(
+      'beauessence:calendar-session-enabled',
+      () => {
+        void enableServerAuthority();
+      },
+      { once: true }
+    );
+    if (authorityBoundaryActive) await enableServerAuthority();
+    const client = await workbench.resolveApiClient();
+    workbench.setClient(client);
+    let state = await client.request('/state');
+    if (authorityBoundaryActive)
+      state = serverAuthority.applyCalendarPilotWorkbenchAuthority(state);
+    workbench.setState(state);
+    workbench.enforceRoleDomBoundary();
+    let accessDenied = false;
+    workbench.initWorkspaceTabs({
+      onDenied: () => {
+        accessDenied = true;
+        workbench.message(
+          '你目前沒有權限開啟這個主管工作區，已返回營運首頁。',
+          'error'
+        );
+        workbench.elements.status.setAttribute('tabindex', '-1');
+        workbench.elements.status.focus({ preventScroll: true });
+      }
+    });
+    workbench.render();
+    if (window.location.hash === '#business-section')
+      void workbench.activateBusinessView();
+    if (workbench.getState().session.authenticated === true && !accessDenied)
+      workbench.message(
+        '工作臺已就緒。資料只保存在這台裝置的瀏覽器。',
+        'success'
+      );
+    else workbench.elements['login-account'].focus();
+  } catch (error) {
+    workbench.message(
+      error instanceof Error ? error.message : '無法載入工作臺。',
+      'error'
+    );
+  }
+}

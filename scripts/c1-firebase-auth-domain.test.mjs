@@ -135,3 +135,116 @@ check "auth_domain_required_on_apply" {
     expect(result.issues).toContain(blockingIssue);
   });
 });
+
+describe('C1 firebase authDomain API comparator syntax', () => {
+  const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const apiFile = 'apps/api/src/platform/runtime/c1-firebase-auth-domain.ts';
+  const comparatorIssue =
+    'API runtime authDomain comparator must be an exported function whose returns either deny or allow only by exported allowlist membership.';
+  const allowlistIssue =
+    'API runtime allowlist must be an exported array literal of exactly the authorized isolated preview hosts.';
+
+  function inspectWithApiSource(change) {
+    const dir = mkdtempSync(join(tmpdir(), 'c1-authdomain-syntax-'));
+    try {
+      for (const file of [
+        'infra/terraform/c1-internal-test-run/main.tf',
+        'infra/terraform/c1-internal-test-run/variables.tf',
+        'infra/terraform/c1-internal-test-run/terraform.tfvars.example',
+        'infra/terraform/c1-internal-test-run/noop.tftest.hcl',
+        apiFile,
+        'infra/config/c1-internal-test-config-contract.json'
+      ]) {
+        mkdirSync(dirname(join(dir, file)), { recursive: true });
+        cpSync(join(repoRoot, file), join(dir, file));
+      }
+      const target = join(dir, apiFile);
+      writeFileSync(target, change(readFileSync(target, 'utf8')));
+      return inspectC1FirebaseAuthDomainSource(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('accepts the owning comparator and allowlist as written', () => {
+    expect(inspectWithApiSource((source) => source).issues).toEqual([]);
+  });
+
+  it('rejects a comparator that allows every host', () => {
+    const result = inspectWithApiSource((source) =>
+      source.replace(
+        /export function isAuthorizedC1FirebaseAuthDomain\([\s\S]*?\n\}\n/u,
+        'export function isAuthorizedC1FirebaseAuthDomain(value: string | undefined): boolean {\n  return true;\n}\n'
+      )
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(comparatorIssue);
+  });
+
+  it('rejects an allow shortcut hidden inside an otherwise intact comparator', () => {
+    const result = inspectWithApiSource((source) =>
+      source.replace(
+        "  if (host === '') return false;\n",
+        "  if (host === '') return false;\n  if (host.endsWith('.web.app')) return true;\n"
+      )
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(comparatorIssue);
+  });
+
+  const finalReturn =
+    '  return (C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS as readonly string[]).includes(\n    host\n  );\n';
+  it.each([
+    ['a non-empty host', '  return host.length > 0;\n'],
+    ['any truthy host', '  return !!host;\n'],
+    [
+      'membership or true',
+      '  return (C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS as readonly string[]).includes(host) || true;\n'
+    ],
+    ['a provider suffix', "  return host.endsWith('.web.app');\n"],
+    [
+      'a prefix match over the allowlist',
+      '  return C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.some((h) => host.startsWith(h));\n'
+    ]
+  ])(
+    'rejects a final allow decided by %s even with an inert allowlist reference',
+    (_label, replacement) => {
+      const result = inspectWithApiSource((source) => {
+        if (!source.includes(finalReturn))
+          throw new Error('Owning comparator shape changed; update fixture.');
+        return source.replace(
+          finalReturn,
+          `  void C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS;\n${replacement}`
+        );
+      });
+      expect(result.ok).toBe(false);
+      expect(result.issues).toContain(comparatorIssue);
+    }
+  );
+
+  it('rejects policy that exists only in comments', () => {
+    const result = inspectWithApiSource(
+      (source) =>
+        `${source
+          .split('\n')
+          .map((line) => `// ${line}`)
+          .join(
+            '\n'
+          )}\nexport const isAuthorizedC1FirebaseAuthDomain = () => true;\n`
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(comparatorIssue);
+    expect(result.issues).toContain(allowlistIssue);
+  });
+
+  it('rejects an allowlist that adds an unapproved host', () => {
+    const result = inspectWithApiSource((source) =>
+      source.replace(
+        "'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'",
+        "'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',\n  'unapproved.web.app'"
+      )
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(allowlistIssue);
+  });
+});

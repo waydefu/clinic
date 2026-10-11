@@ -285,28 +285,37 @@ export const apiClient = createApiClient(stagingRequest, {
   timeoutMs: DEFAULT_TIMEOUT_MS
 });
 
-const FORBIDDEN_PREVIEW_HOST = 'beauessence-clinic-staging.web.app';
-
+const C1_INTERNAL_HOST =
+  /^beauessence-clinic-stg-c1a01(?:--[a-z0-9-]+)?\.web\.app$/;
 export function isInternalTestBookingEnabled(location = globalThis.location) {
   if (location === undefined || location === null) return false;
-  const hostname = String(location.hostname ?? '');
+  const hostname = String(location.hostname ?? '').toLowerCase();
+  const protocol = String(location.protocol ?? '');
+  const path = String(location.pathname ?? '');
+  const port = String(location.port ?? '');
   if (
-    hostname === FORBIDDEN_PREVIEW_HOST ||
-    hostname.endsWith(`.${FORBIDDEN_PREVIEW_HOST}`)
-  ) {
+    !['/staff', '/booking', '/index.html', '/patient.html', '/'].includes(path)
+  )
     return false;
-  }
-  if (
+  const requested =
     new URLSearchParams(String(location.search ?? '')).get(
       'internalTestBooking'
-    ) === '1'
-  ) {
-    return true;
-  }
+    ) === '1';
+  const loopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(
+    hostname
+  );
+  if (loopback)
+    return (
+      requested &&
+      ['http:', 'https:'].includes(protocol) &&
+      (port === '' ||
+        (/^[0-9]+$/.test(port) && Number(port) > 0 && Number(port) <= 65535))
+    );
   return (
-    hostname.startsWith('beauessence-clinic-stg-') &&
-    hostname.includes('--') &&
-    hostname.endsWith('.web.app')
+    protocol === 'https:' &&
+    port === '' &&
+    C1_INTERNAL_HOST.test(hostname) &&
+    (requested || hostname.includes('--'))
   );
 }
 
@@ -325,4 +334,9 @@ export async function resolveApiClient() {
     ...client,
     clearPatientContext: clearInternalTestReturnSession
   });
+}
+
+/** Only load server identity glue when this page actually enters server mode. */
+export function loadStaffServerAuthority() {
+  return import('./hydrate-staff.js');
 }

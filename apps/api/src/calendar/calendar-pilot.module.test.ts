@@ -8,7 +8,12 @@ const source = readFileSync(
 
 describe('CalendarPilotModule Firebase wiring', () => {
   it('does not initialize Firebase at import time', () => {
-    expect(source).toMatch(/export function defaultFirebaseApp\(\): App \{/);
+    const runtime = readFileSync(
+      new URL('../platform/runtime/firebase-admin-app.ts', import.meta.url),
+      'utf8'
+    );
+    expect(source).toContain('export { defaultFirebaseApp');
+    expect(runtime).toMatch(/export function defaultFirebaseApp\(\): App \{/);
     expect(source).not.toMatch(
       /^if \(getApps\(\)\.length === 0\) initializeApp\(\);$/m
     );
@@ -17,9 +22,14 @@ describe('CalendarPilotModule Firebase wiring', () => {
   });
 
   it('keeps Vitest AppModule denial audits off Cloud Firestore', () => {
-    expect(source).toContain('InMemoryDeniedAccessAuditSink');
+    const shared = readFileSync(
+      new URL('../firestore/api-safety.module.ts', import.meta.url),
+      'utf8'
+    );
+    expect(source).toContain('ApiSafetyModule');
+    expect(shared).toContain('InMemoryDeniedAccessAuditSink');
     expect(source).toContain('vitestWithoutFirestoreEmulator');
-    expect(source).toContain('FirestoreDeniedAccessAuditStore');
+    expect(shared).toContain('FirestoreDeniedAccessAuditStore');
     expect(source).toContain('ClinicCalendarReviewApplicationService');
   });
 });

@@ -98,7 +98,7 @@ describe('accountless booking and return lookup HTTP', () => {
     const records = new Map<string, AppointmentRecord>();
     let n = 0;
     const repository: AppointmentRepositoryPort = {
-      reserve: (request) => {
+      reserve: async (request, intake) => {
         if (occupied.has(request.slotId)) {
           return Promise.reject(
             new DomainError('SLOT_UNAVAILABLE', 'The slot is taken.')
@@ -113,6 +113,12 @@ describe('accountless booking and return lookup HTTP', () => {
           status: 'confirmed',
           startsAt: '2026-07-25T04:00:00.000Z'
         };
+        if (intake !== undefined)
+          await patients.resolveFromIntake(
+            intake.intake,
+            request.requestedAt,
+            () => intake.patientId
+          );
         records.set(record.appointmentId, record);
         patients.appointments.push(record);
         return Promise.resolve({

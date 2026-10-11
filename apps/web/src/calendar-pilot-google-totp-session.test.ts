@@ -1,3 +1,5 @@
+import { verifyCalendarPilotClientSession } from '../public/modules/pilot-google-totp-session.js';
+import { OPERATIONAL_ROLES } from '@beauessence/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -371,12 +373,24 @@ describe('abandonFirebaseClientSession', () => {
 });
 
 describe('shouldHydrateCalendarPilotWorkbench', () => {
-  it('hydrates only with CSRF and no logout guard', () => {
-    expect(
-      shouldHydrateCalendarPilotWorkbench(
-        memoryStorage({ calPilotCsrf: 'csrf_test' })
-      )
-    ).toBe(true);
+  it('hydrates only with server-bound CSRF and no logout guard', async () => {
+    const verifiedStorage = memoryStorage({
+      calPilotCsrf: 'csrf_test',
+      calPilotRole: OPERATIONAL_ROLES[0]
+    });
+    await verifyCalendarPilotClientSession('opaque_staff', {
+      storage: verifiedStorage,
+      fetchImpl: async () =>
+        Promise.resolve({
+          ok: true,
+          json: async () =>
+            Promise.resolve({
+              actorId: 'opaque_staff',
+              actorRole: OPERATIONAL_ROLES[0]
+            })
+        })
+    });
+    expect(shouldHydrateCalendarPilotWorkbench(verifiedStorage)).toBe(true);
     expect(shouldHydrateCalendarPilotWorkbench(memoryStorage())).toBe(false);
     expect(
       shouldHydrateCalendarPilotWorkbench(
@@ -533,6 +547,31 @@ describe('deleteCalendarPilotServerSession', () => {
 });
 
 describe('runWorkbenchCalendarPilotLogout', () => {
+  it('retains the DELETE CSRF header after locking and clearing local authority', async () => {
+    const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
+    const fetch = vi.fn(() => {
+      expect(storage.getItem('calPilotCsrf')).toBeNull();
+      expect(isCalendarPilotLogoutInProgress(storage)).toBe(true);
+      return Promise.resolve({ ok: true });
+    });
+    await runWorkbenchCalendarPilotLogout({
+      fetch,
+      storage,
+      post: vi.fn(() => Promise.resolve()),
+      render: vi.fn(),
+      importClient: () =>
+        Promise.resolve({
+          signOutCalendarPilotFirebase: () => Promise.resolve()
+        })
+    });
+    expect(fetch).toHaveBeenCalledWith('/v1/calendar-session', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-CSRF-Token': 'csrf_test' }
+    });
+    expect(storage.getItem('calPilotCsrf')).toBeNull();
+  });
+
   it('locks local chrome when DELETE fails and still signs out', async () => {
     const storage = memoryStorage({ calPilotCsrf: 'csrf_test' });
     const post = vi.fn(() => Promise.resolve());

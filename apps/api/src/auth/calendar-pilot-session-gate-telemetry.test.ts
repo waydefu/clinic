@@ -134,7 +134,9 @@ function decodedToken(
     sub: GOOGLE_SUBJECT,
     email: EMAIL,
     email_verified: true,
+    auth_time: Date.parse(NOW) / 1000,
     firebase: {
+      sign_in_provider: 'google.com',
       sign_in_second_factor: 'totp',
       sign_in_second_factor_identifier: FACTOR_UID
     },

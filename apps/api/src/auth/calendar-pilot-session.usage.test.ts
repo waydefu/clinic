@@ -67,14 +67,18 @@ function fakeDb(options: { existing?: string[]; failCommit?: boolean } = {}) {
   return db;
 }
 
-function fakeAuth(email: string) {
+function fakeAuth(email: string, proofTime = NOW) {
   return {
     verifyIdToken: () =>
       Promise.resolve({
         uid: UID,
         email,
         email_verified: true,
-        firebase: { sign_in_second_factor: 'totp' }
+        auth_time: Date.parse(proofTime) / 1000,
+        firebase: {
+          sign_in_provider: 'google.com',
+          sign_in_second_factor: 'totp'
+        }
       }),
     getUser: () => Promise.resolve({ disabled: false }),
     createSessionCookie: () => Promise.resolve(COOKIE)
@@ -91,10 +95,11 @@ function service(
   db: ReturnType<typeof fakeDb>,
   email = EMAIL,
   record = true,
-  environment: NodeJS.ProcessEnv = ENVIRONMENT
+  environment: NodeJS.ProcessEnv = ENVIRONMENT,
+  proofTime = NOW
 ): CalendarPilotSessionService {
   return new CalendarPilotSessionService(
-    fakeAuth(email) as never,
+    fakeAuth(email, proofTime) as never,
     db as never,
     environment,
     undefined,
@@ -223,7 +228,7 @@ describe('CalendarPilotSessionService usage ingress', () => {
       CALENDAR_PILOT_FRONT_DESK_EMAILS: ''
     } as NodeJS.ProcessEnv;
     const now = '2030-09-30T16:00:00.000Z';
-    await service(db, EMAIL, true, environment).create(ID_TOKEN, now);
+    await service(db, EMAIL, true, environment, now).create(ID_TOKEN, now);
     expect(
       db.stored.get(
         `bd_milestones/${staffUsageCaptureGapDocumentId('2030-10')}`

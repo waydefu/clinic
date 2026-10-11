@@ -3,6 +3,7 @@ import {
   normalisePatientIdentity,
   PATIENT_NATIONALITIES,
   patientPhoneDigits,
+  isPatientBirthMonthDay,
   resolveIntakeCandidate,
   resolveReturnCandidate,
   type PatientCandidate
@@ -10,6 +11,7 @@ import {
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
 import type {
   Firestore,
+  Transaction,
   Query,
   QueryDocumentSnapshot
 } from 'firebase-admin/firestore';
@@ -78,7 +80,19 @@ export interface AppointmentListWindow {
   readonly to: string;
 }
 
+export interface PreparedPatientIntake {
+  readonly patientId: string;
+  readonly intake: PatientIntake;
+}
+
 export interface PatientDirectoryPort {
+  prepareIntake(
+    intake: PatientIntake,
+    nowUtc: string,
+    allocateId: () => string
+  ): Promise<PreparedPatientIntake>;
+  /** Explicit trusted association only; absence MUST deny token identity. */
+  readVerifiedPatientId?(actorId: string): Promise<string | undefined>;
   resolveFromIntake(
     intake: PatientIntake,
     nowUtc: string,
@@ -109,7 +123,7 @@ export interface PatientDirectoryPort {
 }
 
 function isMonthDay(birthDate: string): boolean {
-  return /^--\d{2}-\d{2}$/.test(birthDate);
+  return isPatientBirthMonthDay(birthDate);
 }
 
 /**
@@ -260,6 +274,40 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     nowUtc: string,
     allocateId: () => string
   ): Promise<string> {
+    return this.db.runTransaction(async (transaction) => {
+      const plan = await this.planIntakeWithin(
+        transaction,
+        intake,
+        nowUtc,
+        allocateId
+      );
+      plan.apply();
+      return plan.patientId;
+    });
+  }
+
+  public async prepareIntake(
+    intake: PatientIntake,
+    nowUtc: string,
+    allocateId: () => string
+  ): Promise<PreparedPatientIntake> {
+    return this.db.runTransaction(async (transaction) => {
+      const plan = await this.planIntakeWithin(
+        transaction,
+        intake,
+        nowUtc,
+        allocateId
+      );
+      return { patientId: plan.patientId, intake };
+    });
+  }
+
+  public async planIntakeWithin(
+    transaction: Transaction,
+    intake: PatientIntake,
+    nowUtc: string,
+    allocateId: () => string
+  ) {
     const identity = normalisePatientIdentity(intake);
     const lookupKey = opaqueLookupIdentity(identity.phone, identity.birthDate);
     const lookupRef = this.db
@@ -267,64 +315,70 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       .doc(lookupKey);
     // The index read and write share one transaction, so two concurrent
     // creates for the same key retry and the second sees the first's patient.
-    return this.db.runTransaction(async (transaction) => {
-      const index = await transaction.get(lookupRef);
-      const ids = [...new Set(stringArrayField(index.data(), 'patientIds'))];
-      const snapshots =
-        ids.length === 0
-          ? []
-          : await transaction.getAll(
-              ...ids.map((id) =>
-                this.db.collection(PATIENT_COLLECTIONS.patients).doc(id)
-              )
-            );
-      const candidates: PatientCandidate[] = snapshots.flatMap(
-        (snapshot, i) => {
-          const data = snapshot.data();
-          if (!snapshot.exists || isArchivedPatient(data)) return [];
-          return [
-            {
-              patientId: ids[i] ?? '',
-              name: stringField(data, 'name') ?? ''
-            }
-          ];
-        }
-      );
-      const decision = resolveIntakeCandidate(candidates, identity.name);
-      const contact = patientContactOf(identity);
-      if (decision.kind === 'reuse') {
-        // Same key means the same phone digits and month-day, freshly given in
-        // this booking. Fill them only when missing; nothing is derived from
-        // the hash and no other record is touched (no batch backfill).
-        const reused = snapshots[ids.indexOf(decision.patientId)];
-        if (
-          reused?.exists === true &&
-          stringField(reused.data(), 'phoneDigits') === undefined
-        ) {
-          transaction.update(reused.ref, { ...contact, updatedAt: nowUtc });
-        }
-        return decision.patientId;
-      }
-      if (decision.kind === 'ambiguous') throw ambiguousIdentity();
-      const patientId = allocateId();
-      transaction.set(lookupRef, {
-        ...(index.data() ?? {}),
-        patientIds: [...new Set([...ids, patientId])],
-        createdAt: stringField(index.data(), 'createdAt') ?? nowUtc,
-        updatedAt: nowUtc
-      });
-      transaction.create(
-        this.db.collection(PATIENT_COLLECTIONS.patients).doc(patientId),
+
+    const index = await transaction.get(lookupRef);
+    const ids = [...new Set(stringArrayField(index.data(), 'patientIds'))];
+    const snapshots =
+      ids.length === 0
+        ? []
+        : await transaction.getAll(
+            ...ids.map((id) =>
+              this.db.collection(PATIENT_COLLECTIONS.patients).doc(id)
+            )
+          );
+    const candidates: PatientCandidate[] = snapshots.flatMap((snapshot, i) => {
+      const data = snapshot.data();
+      if (!snapshot.exists || isArchivedPatient(data)) return [];
+      return [
         {
-          patientId,
-          name: identity.name,
-          ...contact,
-          createdAt: nowUtc,
-          updatedAt: nowUtc
+          patientId: ids[i] ?? '',
+          name: stringField(data, 'name') ?? ''
         }
-      );
-      return patientId;
+      ];
     });
+    const decision = resolveIntakeCandidate(candidates, identity.name);
+    const contact = patientContactOf(identity);
+    if (decision.kind === 'reuse') {
+      // Same key means the same phone digits and month-day, freshly given in
+      // this booking. Fill them only when missing; nothing is derived from
+      // the hash and no other record is touched (no batch backfill).
+      const reused = snapshots[ids.indexOf(decision.patientId)];
+      if (
+        reused?.exists === true &&
+        stringField(reused.data(), 'phoneDigits') === undefined
+      ) {
+        return {
+          patientId: decision.patientId,
+          apply: () => {
+            transaction.update(reused.ref, { ...contact, updatedAt: nowUtc });
+          }
+        };
+      }
+      return { patientId: decision.patientId, apply: () => {} };
+    }
+    if (decision.kind === 'ambiguous') throw ambiguousIdentity();
+    const patientId = allocateId();
+    return {
+      patientId,
+      apply: () => {
+        transaction.set(lookupRef, {
+          ...(index.data() ?? {}),
+          patientIds: [...new Set([...ids, patientId])],
+          createdAt: stringField(index.data(), 'createdAt') ?? nowUtc,
+          updatedAt: nowUtc
+        });
+        transaction.create(
+          this.db.collection(PATIENT_COLLECTIONS.patients).doc(patientId),
+          {
+            patientId,
+            name: identity.name,
+            ...contact,
+            createdAt: nowUtc,
+            updatedAt: nowUtc
+          }
+        );
+      }
+    };
   }
 
   public async lookupReturn(
@@ -543,6 +597,35 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
   public appointments: AppointmentRecord[] = [];
   public createdPatientCount = 0;
 
+  public async prepareIntake(
+    intake: PatientIntake,
+    _nowUtc: string,
+    allocateId: () => string
+  ): Promise<PreparedPatientIntake> {
+    const identity = normalisePatientIdentity(intake);
+    const candidates = (
+      this.lookup.get(
+        opaqueLookupIdentity(identity.phone, identity.birthDate)
+      ) ?? []
+    )
+      .filter(
+        (id) =>
+          this.patients.get(id)?.archivedAt === undefined &&
+          this.patients.has(id)
+      )
+      .map((id) => ({
+        patientId: id,
+        name: this.patients.get(id)?.name ?? ''
+      }));
+    const decision = resolveIntakeCandidate(candidates, identity.name);
+    if (decision.kind === 'ambiguous')
+      return Promise.reject(ambiguousIdentity());
+    return Promise.resolve({
+      patientId: decision.kind === 'reuse' ? decision.patientId : allocateId(),
+      intake
+    });
+  }
+
   public async resolveFromIntake(
     intake: PatientIntake,
     nowUtc: string,
@@ -630,7 +713,8 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     await Promise.resolve();
     const session = this.sessions.get(sessionId);
     if (session === undefined || session.expiresAt <= nowUtc) return undefined;
-    return this.patients.get(session.patientId)?.archivedAt === undefined
+    return this.patients.has(session.patientId) &&
+      this.patients.get(session.patientId)?.archivedAt === undefined
       ? session.patientId
       : undefined;
   }

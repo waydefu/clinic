@@ -191,3 +191,31 @@ domain message, stack trace, SDK error or identifier in `message`.
 Authentication and resource-scope checks happen before existence-sensitive
 mapping so that `NOT_FOUND` cannot become a patient or appointment enumeration
 oracle.
+
+
+### WP-B2 / WP-B2A request and lookup quota parameters
+
+The executable parameter authority is
+`packages/domain/src/rate-limit-parameters.ts`; request enforcement is
+`apps/api/src/platform/runtime/wp-b2-rate-limiter.ts`. These are independent
+of D-006's authorization-code control and do not weaken it:
+
+| Boundary | Limit and window | Extended lock |
+| --- | --- | --- |
+| Unauthenticated canonical source IP | 60 requests / 60 seconds | None |
+| Verified account writes | 30 writes / 60 seconds | None |
+| Failed lookup/auth, canonical source IP | 5 failures / 15 minutes | 15 minutes |
+| Failed lookup, opaque lookup identity across source IPs | 10 failures / 15 minutes | None |
+
+IP and lookup-identity controls are both applied. A client-claimed account,
+phone, MonthDay or bearer string is not a verified account quota key. Phone,
+MonthDay, raw tokens and cookie values must not appear in limiter document
+IDs. Numeric IPv6 aliases identify the same full host address; distinct
+hosts are not silently aggregated into an owner-unapproved subnet policy.
+These source contracts do not prove applied ingress/proxy configuration.
+
+The full-key limiter namespace preserves a legacy counter/lock only when its
+legacy spelling matches. An IPv6 normalization cutover therefore requires an
+approved quiesced deployment interval covering every active legacy window
+and lock, or an approved alias/data transition. Do not overlap old and new
+writers or claim that this local source change performs that transition.

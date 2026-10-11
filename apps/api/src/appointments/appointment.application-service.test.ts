@@ -205,12 +205,22 @@ function createBoundService(
   // The stand-in repository applies the same rule so a service that stopped
   // checking it would still be caught by the tests below.
   const reserve = vi.fn<
-    (request: BookingRequest) => Promise<ReservationResult>
-  >(async (request) => {
+    (
+      request: BookingRequest,
+      intake?: import('../patients/patient-directory.js').PreparedPatientIntake
+    ) => Promise<ReservationResult>
+  >(async (request, intake) => {
     if (patients !== undefined) {
       assertFollowUpBookable(
         await patients.readFollowUpState(request.patientId),
         request.bookingKind
+      );
+    }
+    if (patients !== undefined && intake !== undefined) {
+      await patients.resolveFromIntake(
+        intake.intake,
+        time.nowUtc,
+        () => intake.patientId
       );
     }
     return {
@@ -983,6 +993,21 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     });
   });
 
+  it('requires existing verified identity before resolving follow-up intake', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
+    const { reserve, service } = createBoundService(patients);
+    await expect(
+      service.create(
+        { ...COMMAND, bookingKind: 'follow_up', intake: SYNTHETIC_INTAKE },
+        anonymous
+      )
+    ).rejects.toBeInstanceOf(MissingVerifiedPatientError);
+    expect(resolveFromIntake).not.toHaveBeenCalled();
+    expect(patients.createdPatientCount).toBe(0);
+    expect(reserve).not.toHaveBeenCalled();
+  });
+
   it('rejects intake alongside a verified patient before resolution or reservation', async () => {
     const patients = new InMemoryPatientDirectory();
     const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
@@ -1026,6 +1051,10 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
       expect.objectContaining({
         patientId: 'opaque_1',
         audit: expect.objectContaining({ actorId: 'actor_verified_002' })
+      }),
+      expect.objectContaining({
+        patientId: 'opaque_1',
+        intake: SYNTHETIC_INTAKE
       })
     );
     expect(patients.createdPatientCount).toBe(1);
