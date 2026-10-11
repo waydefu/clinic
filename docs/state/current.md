@@ -15,9 +15,9 @@ Phase 1 execution plan. Containing Git revision:
 | Path | sha256 |
 | --- | --- |
 | `docs/architecture/stage-2-gate-status.json` | `f00fd064a62094dc4850ffa990829e63c03b01030cba6e50f35811771c7d06b5` |
-| `security/audit-exceptions.json` | `3c7ff1e30e212147c55c3c043734dbbdae85243f5afa0420ae70d7b5e5db12b3` |
+| `security/audit-exceptions.json` | `8a3d1b347f4c60fce6857268d3d76a7ef80992948cae3950802c76244caa5239` |
 
-**sourceSnapshotSha256:** `bc5d1e6c3d04aded719a090965b96018a11111f64b8625840169e71b9219961c`
+**sourceSnapshotSha256:** `07f1302c361da6ffb4e950852229ea97ec951b1aadc6322f396f1d21010c2e28`
 
 ## Stage 2 (from stage-2-gate-status.json)
 

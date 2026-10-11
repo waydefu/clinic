@@ -192,8 +192,11 @@ overrides:
 
 # 2026-10-03：GHSA-vfj7-8cjw-p6xm（braces <=3.0.3）在 2026-10-02T22:36Z 調升為 high，
 # 但 npm 上尚無修補版（最新 3.0.3）。唯一路徑是 firebase-tools > chokidar@3 > braces，
-# 只在開發／部署 CLI，不出貨；audit:prod 仍為乾淨。業主核准暫時例外，braces 3.0.4
-# 一發布就改用 override 並移除本段。登記於 security/audit-exceptions.json。
+# 只在開發／部署 CLI，不出貨；audit:prod 仍為乾淨。業主核准暫時例外。
+# 2026-10-10：上游仍無修補版（advisory 未列 patched 版本，firebase-tools 最新版仍依賴
+# chokidar@3），業主核准延期到 2026-11-30（SUPPLY-CHAIN-BRACES-2026-10-10）。
+# 任何 braces 修補版一發布就改用 override，或 firebase-tools 不再依賴 chokidar@3 就升級，
+# 並移除本段。登記於 security/audit-exceptions.json。
 auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
