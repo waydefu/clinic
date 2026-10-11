@@ -98,6 +98,18 @@ screenshot cannot prove pacing or cancellation. Check affected lifecycle paths
 and console/CSP violations through teardown. Report missing playback/browser
 evidence explicitly; these observations execute R-17/§5, not a separate gate.
 
+Three project-specific checks for motion:
+
+- Listen for `securitypolicyviolation` from page load until the animation has
+  completed, been cancelled and been torn down, in both Chromium and WebKit.
+  A clean start does not prove a clean cleanup.
+- Emulate reduced motion with `page.emulateMedia({ reducedMotion })`. In this
+  configuration `test.use({ reducedMotion })` did not take effect
+  ([design record §11](../../../docs/design/boutique-clinical-command-2026-07-25.md)).
+- When a change adds a module import, rerun `check:perf`. It fails a route
+  whose module discovery takes more round trips than `maxDiscoveryDepth`, and
+  any module that lacks a `modulepreload` declaration.
+
 Run automation on the content-hashed build as §5.1 requires. A source-tree
 prototype can supply bounded design evidence but cannot substitute for built
 artifact verification. Identify untested matrix rows instead of extending a

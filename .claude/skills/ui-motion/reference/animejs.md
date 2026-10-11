@@ -2,8 +2,35 @@
 
 Use the exact package version, build and feature set under consideration. This
 reference records 2026-10-07 research on Anime.js 4.5.0; future versions require
-new measurements. The package supports browser ESM without React. The user's
-Anime.js interest makes it a candidate, not an automatic app dependency change.
+new measurements. The package supports browser ESM without React.
+
+**Owner decision (2026-10-10, recorded in the
+[decision register](../../../../docs/product/phase-1-decision-register.md)):**
+Anime.js is not added to the project. Learn its techniques and implement them
+with CSS and the native Web Animations API. Adopting the library later needs a
+new owner decision and every prerequisite in
+[Before any adoption](#before-any-adoption).
+
+## Technique, native implementation and repository verdict
+
+Use this table to translate an Anime.js idea into the project's own code. The
+verdict reflects the current CSP/Trusted Types policy, budgets, R-17 and
+medical-advertising limits; it is not a judgement of the library.
+
+| Anime.js technique | Native implementation here | Verdict |
+| --- | --- | --- |
+| `animate`, keyframes, easing | CSS transition/`@keyframes`, or `element.animate()` | Use native. The JS engine alone is 12,561 B gzip (table below). |
+| `stagger` (time, grid, from centre) | One CSS custom property multiplied into `animation-delay`; the site already has `--clinic-stagger-*` | Learn the ordering idea. R-17 forbids domino-style entrances of whole sections. |
+| `timeline` (labels, relative offsets) | Classes with ordered delays, or sequenced native WAAPI effects | Learn "the first screen is one score": one ordered entrance, written once. |
+| Spring easing | CSS `linear()` or a cubic-bezier token | Only over-damped (no bounce). Bounce conflicts with the calm direction; Safari loses acceleration with custom `linear()`. |
+| `onScroll` thresholds and progress | IntersectionObserver for one-time entry; CSS scroll-driven animation only behind `@supports` | Do not use the library helper: it listens to scroll events and its debug overlay writes `innerHTML`. Scroll-linked and parallax motion breaks R-17. |
+| `splitText`, `scrambleText` | Readable headings; at most the site's existing word wrapper, never per-character Han splitting | Do not use. The splitter writes `innerHTML` (blocked by Trusted Types); per-character splitting breaks Chinese line breaking and punctuation. |
+| `createDrawable` (SVG line drawing) | `pathLength="1"` with CSS `stroke-dashoffset`, toggled by a class | Usable, native, for non-anatomical brand line art only. |
+| `morphTo`, `createMotionPath` | CSS `offset-path` for a path; no stable native morph | Never on medical figures: changing anatomy implies an outcome (see medical claims in [ui-content](../../ui-content/SKILL.md)). |
+| `createDraggable` | Scroll snap and buttons | Do not use. Drag-only control fails keyboard access; a before/after slider implies results. |
+| Layout/FLIP (4.3+) | Hand-written FLIP or View Transitions where supported | Not needed: the site has no reflowing interaction to animate. |
+| `waapi.animate` wrapper | Native `element.animate()` | Use native. The wrapper's cleanup is the suspected WebKit violation path (CSP section). |
+| `createScope` (media queries, revert) | One controller with `matchMedia` change listeners and an `AbortController` | Learn the structure: a single owner of setup and teardown. |
 
 ## Select by required behaviour
 
@@ -39,9 +66,11 @@ change size. No package lifecycle scripts or app dependency installation ran.
 | Root named WAAPI export | 10,477 | 4,692 |
 | Root whole namespace export | 120,738 | 42,800 |
 
-The dated homepage prototype measured 200,314 B gzip transfer, leaving 4,486 B
-under its 200 KiB ceiling. Even isolated WAAPI exceeds that slack by 200 B before
-new application work. This flags allocation pressure; adding separate gzip
+The homepage prototype measured 200,314 B gzip transfer on 2026-10-07, leaving
+4,486 B under its 200 KiB ceiling. The v14 prototype measured 203,121 B on
+2026-10-10, leaving 1,679 B ([handoff](../../../../docs/reviews/2026-10-10-clinic-ui-design-implementation-handoff.md)).
+Isolated WAAPI alone (4,686 B) now exceeds that slack by about 3 KB before any
+application work; adopting it would first require removing weight elsewhere. This flags allocation pressure; adding separate gzip
 totals does not establish the cost of a combined bundle. Do not claim it fits or
 can never fit until the actual replacement/shared-entry build is measured.
 
@@ -100,6 +129,15 @@ current WebKit policy. The observed association with style commit/cleanup needs
 an exact-path solution and a new test; do not weaken policy or extrapolate it to
 every Anime feature. Physical Safari was not tested.
 
+Source lead (likely, not yet proven by a test): in 4.5.0 the WAAPI wrapper's
+`cancel()` calls `commitStyles()` before cancelling
+(`dist/modules/waapi/waapi.js`, around line 437), and committing writes inline
+style. To turn the lead into a decision, add a lab control that calls native
+`element.animate(...).commitStyles()` and then `cancel()` under the same policy:
+if it reproduces the WebKit violation, the cause is style commit itself. The
+`onScroll` debug overlay also writes `innerHTML` (`dist/modules/events/scroll.js`,
+around line 645); never ship debug mode.
+
 Anime `splitText(..., { chars: true })` attempted a protected `innerHTML` write
 and raised `TypeError` requiring TrustedHTML in both tested browsers. It cannot
 be copied into this policy unchanged. Keep readable semantic headings; do not
@@ -113,6 +151,24 @@ notes browser-specific property/easing differences, including Safari's custom
 `linear()` easing limitation. Use suitable CSS cubic-bezier for a portable
 candidate and inspect dropped frames/layout/paint on target browsers. Desktop
 WebKit compatibility is not physical iPhone acceptance or GPU-performance proof.
+
+## Before any adoption
+
+Bytes are only one condition. All of these must hold before any Anime.js module
+enters the site:
+
+1. A new owner decision in the decision register (Safety Floor rule 7); the
+   2026-10-10 decision is not to add it.
+2. A bundling path. `scripts/build-web.mjs` minifies and hashes each public ES
+   module separately without bundling it, and the clinic budget sets
+   `moduleGraph.maxDiscoveryDepth` to 1. Anime subpaths import several levels of relative modules, so adoption
+   needs an explicit bundle step (as `bundleCalendarPilot` does for the CAL-PILOT
+   client) and a measured closure.
+3. A budget allocation that names what is removed or which approved increase
+   pays for it.
+4. Supply-chain gates: the dependency, lockfile, SBOM and licence check.
+5. A Chromium and WebKit CSP/Trusted Types lab pass for the exact features,
+   through completion, cancellation and teardown.
 
 ## Evidence and provenance
 

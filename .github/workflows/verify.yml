@@ -121,16 +121,7 @@ jobs:
       # webkit project 把 testMatch 收在 clinic-site.spec.ts，而那支屬於這一組。
       # 其餘四組不下載它（約 59 MB ＋ 系統相依），六組都裝等於為了兩分鐘的
       # 引擎覆蓋付六份下載。
-      # The Azure Ubuntu mirror repeatedly stalled before the tests started.
-      # Prefer the image's existing HTTPS fallbacks and verify effective APT
-      # bounds; installation errors still fail this job and the aggregate.
-      - name: Prepare Ubuntu package downloads
-        timeout-minutes: 1
-        run: node scripts/prepare-ci-apt.mjs
-
-      - name: Install Playwright browsers and system dependencies
-        timeout-minutes: 5
-        run: pnpm exec playwright install --with-deps chromium ${{ matrix.group == 'patient-portal' && 'webkit' || '' }}
+      - run: pnpm exec playwright install --with-deps chromium ${{ matrix.group == 'patient-portal' && 'webkit' || '' }}
 
       # playwright.config 的 webServer 會先 build（含 content-hash 的 dist）再
       # 以 WEB_ROOT=dist 啟動 server.mjs，因此 E2E 跑的是實際會部署的產物。

@@ -28,6 +28,9 @@ Each reference has one canonical copy in `.claude`. Generated `.agents`
 skills link there; the existing generator copies only `SKILL.md`.
 
 The existing site's motion is a before-state to examine, not the quality target.
+In particular, the word-split headings, card spotlight, magnetic buttons and
+scroll progress bar in `apps/web/public/clinic-site.js` are not precedents to
+copy; the owner chose on 2026-10-10 to rebuild the homepage from `main`.
 Derive the treatment from the brief, content and inspected jury-awarded cases.
 The owner's quality bar is international design-competition-level craft; a
 playing carousel or isolated compatibility test cannot establish it. Do not
@@ -58,6 +61,14 @@ bytes/request count and decoded-image memory when estimating cost.
 Use existing motion tokens where available; proposed timings are hypotheses
 to inspect, not universal acceptance thresholds.
 
+Each surface has its own token family; do not mix them. The clinic site uses
+`--clinic-duration-*`, `--clinic-ease-*` and `--clinic-stagger-*` in
+`clinic-site.css`; the workbench uses `--motion-fast/base/slow` and `--ease-*`
+in `styles.css`. A duration used from JavaScript reads the CSS token
+(`getComputedStyle`) instead of repeating a literal. `check:tokens` only scans
+CSS for `<number>ms` inside `transition`/`animation`, so seconds and JS literals
+pass unchecked; extending it is a gate change that ships with its own tests.
+
 Choose the temporal relationship before the tool. A timeline is useful when
 multiple changes must maintain an order or overlap; it is unnecessary merely
 because a page has multiple elements. Compare a few key frames or a small
@@ -71,11 +82,12 @@ Animation cannot invent medical claims or imply an unreviewed treatment result.
 
 ## Select the smallest suitable implementation
 
-CSS can handle a control's short visual feedback. Native WAAPI or the requested
-Anime.js WAAPI path can handle finite DOM transitions. Consider Anime's JS
-engine, timeline, scope or scroll helpers only for a demonstrated requirement;
-measure the exact imported feature set and build. Do not assume all root named
-imports include the whole package, or that a subpath is free.
+CSS can handle a control's short visual feedback. Native WAAPI can handle
+finite DOM transitions. The owner decided on 2026-10-10 not to add Anime.js:
+use its techniques through CSS and native WAAPI, following the technique table
+in the Anime.js reference. Adding the library again needs a new owner decision
+and that reference's adoption prerequisites; then measure the exact imported
+feature set and build, without assuming any import style is free.
 
 Keep HTML/CSS/ES Modules, native semantics, local fonts and the existing Trusted
 Types boundary. No React migration, CDN script, new booking model, framework

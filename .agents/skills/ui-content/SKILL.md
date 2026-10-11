@@ -34,6 +34,22 @@ Use the existing record or handoff rather than inventing another registry.
 If absent or ambiguous, leave it pending medical review and identify the gap.
 A polished rewrite, an old official page or an AI score is not clinical approval.
 
+Medical advertising law applies to the website. This is working guidance, not
+legal advice. Taiwan's Medical Care Act (醫療法) Articles 85–87, read
+2026-10-11 from the national law database: Article 85 lets online information
+go beyond the content list for other advertising, except in the situations of
+Article 103 paragraph 2, under rules set by the central authority; Article 86
+forbids promotion in another person's name, through interviews or news reports,
+by excerpting medical publications or by other improper means; Article 87
+treats content that implies or alludes to medical services as advertising,
+while health education that does not solicit business is not. The project's
+working rule: no before/after comparisons, success-rate counters, patient
+testimonial carousels or claims of a result. The rule covers images and motion
+too; an animation must not show or suggest an outcome, such as an airway
+widening or a symptom disappearing. The owner reviews the copy first
+(2026-10-10); professional or legal review is still recommended before launch,
+so leave unreviewed claims marked pending.
+
 Translate unfamiliar terms near their first use only when their explanation
 has a source. Shorten sentence structure; do not strengthen “may” into “will”,
 turn a relative comparison into a guarantee, omit an eligibility condition or

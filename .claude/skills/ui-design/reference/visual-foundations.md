@@ -36,6 +36,16 @@ W3C work-in-progress reference, not a new normative project gate. Its discussion
 of punctuation and regional layout is useful; it does not require book-style
 justification or one universal web reading width.
 
+On the clinic site, take sizes and letter-spacing from the existing tokens in
+`clinic-site.css`. Sizes follow a 1.2 modular scale, `--clinic-text-micro`
+(0.875rem) to `--clinic-text-5xl` (3.583rem); `check:tokens` rejects literal
+sizes, so a size off the scale needs a new token decided first. Han headings
+keep zero or positive tracking (`--clinic-tracking-tight` 0.02em to
+`--clinic-tracking-heading` 0.05em); negative letter-spacing, such as the
+v14 prototype's -0.025em, crowds the glyphs. Build a heading hierarchy from
+size and weight steps on that scale, not from a serif fallback that may render
+as a thin legacy face on Windows.
+
 ## Build proportions from a dominant relationship
 
 Mark the subject/ink area of each owned image, not only its rectangular bounds.

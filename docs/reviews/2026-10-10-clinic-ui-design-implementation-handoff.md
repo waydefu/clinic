@@ -335,3 +335,25 @@ route-specific build／measurement，或重分配真實 union；不能直接把�
 200% text、reduced motion、local fonts 0 KiB；不做 React migration、不安裝 animation
 framework、不新增 booking model、不改 freeze、不部署。以上記錄是 dated evidence，
 不會新增 production、真實資料、雲端或網站接管 authority。
+
+## 15. 2026-10-11 補充：CI 修復拆出與技能優化
+
+本節是追加紀錄，上面各節保留 2026-10-10 當時的內容。
+
+- **CI 修復拆成獨立 PR**：業主 2026-10-10 選擇把 `scripts/prepare-ci-apt.mjs`、
+  `scripts/prepare-ci-apt.test.mjs` 與 `verify.yml` 的安裝前步驟拆出，改由
+  [#247](https://github.com/waydefu/clinic/pull/247) 提交；本 PR 不再包含這三個檔案，
+  §4 表格中這兩列改由 #247 負責。
+- **業主決定**（已記入決定登記簿）：不引入 Anime.js，只學手法、以 CSS 與原生 WAAPI 實作；
+  官網醫療文案由業主本人先審，上線前仍建議專業審閱。
+- **技能更新**：
+  - `ui-motion/reference/animejs.md`：手法→原生做法→本 repo 判斷對照表；v14 實測
+    203,121 B、餘 1,679 B，WAAPI 子模組也放不下；`commitStyles` 線索與原生對照組；
+    `onScroll` 除錯模式寫 `innerHTML`；引入前置條件。
+  - `ui-motion/SKILL.md`：官網與工作臺各用自己的動效 token，JS 時長讀 CSS token；
+    `check:tokens` 只掃 CSS 的 `ms`；官網現有的逐字標題、聚光、磁吸、捲動進度條不是先例。
+  - `ui-check/SKILL.md`：動效驗證加三項（CSP 違規監聽到 teardown、`page.emulateMedia`、
+    新增 import 後重跑 `check:perf`）。
+  - `ui-content/SKILL.md`、`ui-design/reference/sources-and-rights.md`：醫療法第 85～87 條
+    （2026-10-11 依全國法規資料庫原文摘要，不是法律意見），圖片與動效不得暗示療效。
+  - `ui-design/reference/visual-foundations.md`：字級用 1.2 尺度 token，中文標題字距不用負值。

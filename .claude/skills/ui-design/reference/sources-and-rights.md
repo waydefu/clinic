@@ -54,10 +54,11 @@ work and remain paused until explicit resume when returning to normal motion.
 Keep `/booking` as the existing separate project boundary. Do not add a new
 booking form, model, controller or individual-physician booking flow. Keep the
 clinic freeze intact during design/prototyping. No React migration, deployment
-or implied production authority. The later Anime.js request permits research
-and measured selection within the task's scope; follow
-[ui-motion](../../ui-motion/SKILL.md) without treating a research request as
-authority to install a dependency or change the website.
+or implied production authority. After the Anime.js research, the owner decided
+on 2026-10-10 not to add the library: apply its techniques through CSS and native
+WAAPI as [ui-motion](../../ui-motion/SKILL.md) describes. Images and motion are
+also subject to the medical-advertising limits in
+[ui-content](../../ui-content/SKILL.md).
 
 Finish with reusable boundaries, source/review records, rendered evidence,
 honest validation status and a concrete integration handoff. Preserve formal
