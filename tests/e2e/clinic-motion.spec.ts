@@ -60,18 +60,164 @@ test.describe('減少動態偏好', () => {
     for (const id of ['#clinic-visit', '#clinic-faq']) {
       await expect(page.locator(id)).toHaveCSS('opacity', '1');
     }
-    // 捲動進度條在此偏好下不顯示，而不是顯示一條不動的線。
-    await expect(page.locator('.clinic-scroll-progress')).toBeHidden();
+    // 2026-10-11 改版拿掉了捲動進度條；它不可以再被加回來當裝飾。
+    await expect(page.locator('.clinic-scroll-progress')).toHaveCount(0);
+
+    // 相簿換照片時直接換，不做淡入。
+    const space = page.locator('#clinic-space');
+    await space.getByRole('button', { name: '下一張' }).click();
+    await expect(space.locator('.clinic-space__caption')).toContainText(
+      '2 / 4'
+    );
+    const running = await space
+      .locator('.clinic-space__photo')
+      .evaluate((node) => node.getAnimations().length);
+    expect(running).toBe(0);
+  });
+});
+
+test.describe('相簿換照片', () => {
+  test('一般模式下新照片淡入，時長取自動效 token', async ({ page }) => {
+    await page.goto('/clinic');
+    const space = page.locator('#clinic-space');
+    const photo = space.locator('.clinic-space__photo');
+    // 動畫與說明文字在同一段同步程式裡開始；MutationObserver 的回呼排在那段
+    // 程式之後，所以回呼裡一定看得到剛建立的動畫。
+    await page.evaluate(() => {
+      const img = document.querySelector('.clinic-space__photo');
+      const caption = document.querySelector('.clinic-space__caption');
+      if (!img || !caption) throw new Error('找不到相簿');
+      const record = window as unknown as Record<string, unknown>;
+      new MutationObserver((_, observer) => {
+        observer.disconnect();
+        const [animation] = img.getAnimations();
+        const effect = animation?.effect as KeyframeEffect | undefined;
+        record['__spaceFade'] = effect
+          ? {
+              duration: Number(effect.getComputedTiming().duration ?? 0),
+              opacity: String(effect.getKeyframes()[0]?.['opacity'])
+            }
+          : null;
+      }).observe(caption, {
+        subtree: true,
+        characterData: true,
+        childList: true
+      });
+    });
+    await space.getByRole('button', { name: '下一張' }).click();
+    const fade = await page
+      .waitForFunction(() => {
+        const record = window as unknown as Record<string, unknown>;
+        return '__spaceFade' in record ? { value: record['__spaceFade'] } : 0;
+      })
+      .then((handle) => handle.jsonValue());
+    const result = fade.value as { duration: number; opacity: string } | null;
+    expect(result, '換照片時沒有淡入').not.toBeNull();
+    expect(result!.opacity).toBe('0');
+    expect(result!.duration).toBeGreaterThan(0);
+    await expect(photo).toHaveCSS('opacity', '1');
   });
 });
 
 test.describe('補全的首頁資訊', () => {
+  // 2026-10-12 門診資訊改成星期 × 時段的打點表。逐格比對，並與 clinic.html 的
+  // openingHoursSpecification 對照——三處（文字、表格、結構化資料）任何一處改了而
+  // 其他沒跟上，這裡就會紅。
   test('門診時間與官網一致', async ({ page }) => {
     await page.goto('/clinic');
+    const rows = await page
+      .locator('#clinic-visit table.clinic-schedule tbody tr')
+      .evaluateAll((nodes) =>
+        nodes.map((row) => ({
+          time: row.querySelector('th')?.textContent?.trim(),
+          open: [...row.querySelectorAll('td')].map((cell) =>
+            cell.classList.contains('is-open')
+          )
+        }))
+      );
+    expect(rows).toEqual([
+      {
+        time: '12:00–20:00',
+        open: [false, false, true, true, true, false, false]
+      },
+      {
+        time: '10:00–18:00',
+        open: [false, false, false, false, false, true, false]
+      }
+    ]);
+
+    const structured = JSON.parse(
+      (await page.locator('#clinic-structured-data').textContent()) ?? '{}'
+    ) as {
+      openingHoursSpecification: {
+        dayOfWeek: string | string[];
+        opens: string;
+        closes: string;
+      }[];
+    };
+    const week = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    expect(
+      structured.openingHoursSpecification.map((spec) => {
+        const days = ([] as string[]).concat(spec.dayOfWeek);
+        return {
+          time: `${spec.opens}–${spec.closes}`,
+          open: week.map((day) => days.includes(day))
+        };
+      })
+    ).toEqual(rows);
+
+    // 每一格都有給報讀器的文字，不只靠打點。
+    await expect(
+      page.locator('#clinic-visit .clinic-schedule td .visually-hidden')
+    ).toHaveCount(14);
+    await expect(page.locator('#clinic-visit')).toContainText(
+      '週日、週一、週二休診'
+    );
+    // 首屏資訊卡仍是文字版。
+    const facts = page.locator('.clinic-hero-facts');
+    await expect(facts).toContainText('週三至週五 12:00–20:00');
+    await expect(facts).toContainText('週六 10:00–18:00');
+  });
+
+  // 業主 2026-10-12：Google 地圖要病人按下按鈕才載入。按之前不得有任何對 Google
+  // 的請求；按下後才建立 iframe，簡易地圖與按鈕一起退場，焦點移到地圖上。
+  test('Google 地圖點了才載入', async ({ page }) => {
+    const external: string[] = [];
+    await page.route(/^https:\/\/(www\.google\.com|maps\.)/, (route) => {
+      external.push(route.request().url());
+      return route.fulfill({ status: 204, body: '' });
+    });
+    await page.goto('/clinic');
     const visit = page.locator('#clinic-visit');
-    await expect(visit).toContainText('週三至週五 12:00–20:00');
-    await expect(visit).toContainText('週六 10:00–18:00');
-    await expect(visit).toContainText('週日、週一、週二');
+    await visit.scrollIntoViewIfNeeded();
+    await expect(visit.locator('.clinic-visit__map-image')).toBeVisible();
+    await expect(visit.locator('iframe')).toHaveCount(0);
+    await expect(
+      visit.getByRole('link', { name: '地圖資料 © OpenStreetMap 貢獻者' })
+    ).toHaveAttribute('href', 'https://www.openstreetmap.org/copyright');
+    expect(external).toEqual([]);
+
+    await visit.getByRole('button', { name: '顯示 Google 地圖' }).click();
+    const frame = visit.locator('iframe.clinic-visit__frame');
+    await expect(frame).toHaveAttribute(
+      'src',
+      /^https:\/\/www\.google\.com\/maps\?/
+    );
+    await expect(frame).toHaveAttribute('title', 'Google 地圖：一森渼診所位置');
+    await expect(frame).toBeFocused();
+    await expect(visit.locator('.clinic-visit__map-image')).toHaveCount(0);
+    await expect(
+      visit.getByRole('button', { name: '顯示 Google 地圖' })
+    ).toHaveCount(0);
+    await expect.poll(() => external.length).toBeGreaterThan(0);
   });
 
   test('社群連結是乾淨網址，沒有追蹤或登入牆', async ({ page }) => {
