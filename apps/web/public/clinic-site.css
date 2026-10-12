@@ -1413,7 +1413,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   width: var(--clinic-shell);
   padding: 4rem 0 3rem;
   margin-inline: auto;
-  grid-template-columns: 1.6fr repeat(3, 1fr);
+  /* 欄位可以縮到內容以下（minmax(0, …)），長字換行而不是把頁面撐寬：文字放大 200% 時，
+     社群名稱曾把頁面撐出 3px（CI 的字型比本機寬）。 */
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
   gap: clamp(1.5rem, 4vw, 4rem);
 }
 
@@ -1531,7 +1533,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   }
 
   .clinic-footer__inner {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .clinic-footer__brand {
@@ -1970,6 +1972,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 
 .clinic-social {
   display: inline-flex;
+  max-width: 100%;
   min-height: 2.75rem;
   align-items: center;
   gap: 0.5rem;
@@ -2016,7 +2019,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 }
 
 .clinic-social__label {
+  min-width: 0;
   font-weight: var(--clinic-weight-medium);
+  overflow-wrap: anywhere;
 }
 
 /* 首屏只有圖示：連結本身就是那顆品牌色圓形按鈕（形狀在連結上，不只在子元素上），
