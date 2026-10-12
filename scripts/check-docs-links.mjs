@@ -3,6 +3,7 @@ import { glob } from 'node:fs/promises';
 import { posix, resolve, sep } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { parsers } from 'prettier/plugins/markdown';
 
 // This project carries more governance documentation than code, and a stale
 // cross-reference is as misleading as stale code. Two rules are enforced:
@@ -220,24 +221,61 @@ export const STALE_CLAIMS = [
   ]
 ];
 
-const linkPattern = /\[[^\]]*\]\(([^)\s]+)\)/g;
+// Reuse the existing pinned parser; this parses Markdown, never formats it.
+// Rendered links count. Code examples, comments and unused definitions do not.
+const parseMarkdown = (text) => parsers.markdown.parse(text);
+
+function* markdownNodes(node) {
+  yield node;
+  for (const child of node.children ?? []) yield* markdownNodes(child);
+}
+
+function markdownLinks(tree) {
+  const nodes = [...markdownNodes(tree)];
+  const definitions = new Map();
+  for (const node of nodes)
+    if (node.type === 'definition' && !definitions.has(node.identifier))
+      definitions.set(node.identifier, node.url);
+
+  const links = [];
+  for (const node of nodes) {
+    let destination;
+    if (node.type === 'link' || node.type === 'image') destination = node.url;
+    if (node.type === 'linkReference' || node.type === 'imageReference')
+      destination = definitions.get(node.identifier);
+    if (!destination || /^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(destination))
+      continue;
+    const target = destination.split('#')[0];
+    if (target) links.push({ target, offset: node.position.start.offset });
+  }
+  return links;
+}
 
 export function linksIn(text) {
-  return [...text.matchAll(linkPattern)]
-    .map((match) => match[1])
-    .filter((target) => !/^(https?:|mailto:|#)/.test(target))
-    .map((target) => target.split('#')[0])
-    .filter((target) => target !== '');
+  return markdownLinks(parseMarkdown(text)).map(({ target }) => target);
+}
+
+function markdownText(node) {
+  return node.value ?? node.children?.map(markdownText).join('') ?? '';
+}
+
+function sectionRange(tree, heading) {
+  const headings = tree.children.filter((node) => node.type === 'heading');
+  const start = headings.findIndex(
+    (node) => node.depth === 2 && markdownText(node) === heading
+  );
+  if (start === -1) return undefined;
+  const next = headings.slice(start + 1).find((node) => node.depth <= 2);
+  return {
+    start: headings[start].position.end.offset,
+    end: next?.position.start.offset ?? tree.position.end.offset
+  };
 }
 
 export function sectionText(markdown, heading) {
-  const lines = markdown.split(/\r?\n/);
-  const start = lines.findIndex((line) => line.trim() === `## ${heading}`);
-  if (start === -1) return '';
-  const next = lines.findIndex(
-    (line, index) => index > start && line.startsWith('## ')
-  );
-  return lines.slice(start + 1, next === -1 ? undefined : next).join('\n');
+  const range = sectionRange(parseMarkdown(markdown), heading);
+  if (!range) return '';
+  return markdown.slice(range.start, range.end).replace(/^\r?\n/, '');
 }
 
 // Resolve a link the way a reader would: relative to the file it appears in,
@@ -273,16 +311,23 @@ export function reviewDocumentation({
         failures.push(`Broken link in ${file}: ${target}`);
     }
 
-  const indexedPaths = (section) =>
-    new Set(linksIn(section).map((target) => resolveLink(indexPath, target)));
+  // Parse the whole catalogue once so section links can use definitions from
+  // elsewhere in that same document, without counting the definitions as links.
+  const indexTree = parseMarkdown(indexText);
+  const catalogueLinks = markdownLinks(indexTree);
+  const indexedPaths = (heading) => {
+    const range = heading ? sectionRange(indexTree, heading) : undefined;
+    const links = heading
+      ? catalogueLinks.filter(
+          ({ offset }) => range && offset >= range.start && offset < range.end
+        )
+      : catalogueLinks;
+    return new Set(links.map(({ target }) => resolveLink(indexPath, target)));
+  };
 
-  const indexed = indexedPaths(indexText);
-  const indexedInReview = indexedPaths(
-    sectionText(indexText, '7. Review record')
-  );
-  const indexedAsSuperseded = indexedPaths(
-    sectionText(indexText, 'Superseded')
-  );
+  const indexed = indexedPaths();
+  const indexedInReview = indexedPaths('7. Review record');
+  const indexedAsSuperseded = indexedPaths('Superseded');
 
   for (const file of documents.keys()) {
     if (!file.startsWith('docs/')) continue;
