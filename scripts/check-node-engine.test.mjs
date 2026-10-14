@@ -18,6 +18,34 @@ const pinnedInstall = `NODE_VERSION="${NODE_FLOOR}"\n# Node ${NODE_RANGE}\n`;
 const pinnedEnvironment = `export PATH="$HOME/.nvm/versions/node/v${NODE_FLOOR}/bin:$PATH"\n`;
 
 describe('Node engine floor', () => {
+  it('keeps the same approved Node floor when pinned to its verified OCI digest', () => {
+    expect(
+      reviewNodeEngine({
+        enginesNode: NODE_RANGE,
+        workflowText: pinnedWorkflow,
+        dockerfileTexts: {
+          'containers/api.Dockerfile': `FROM node:${NODE_IMAGE_TAG}@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e\n`
+        }
+      })
+    ).toEqual([]);
+  });
+
+  it.each([
+    `${NODE_IMAGE_TAG}@sha256:bad`,
+    `${NODE_IMAGE_TAG}@sha256:${'0'.repeat(64)}`,
+    `${REJECTED_OLD_PATCH}-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e`
+  ])(
+    'does not let a malformed, unapproved or old digest reference bypass the floor: %s',
+    (tag) => {
+      expect(
+        reviewNodeEngine({
+          enginesNode: NODE_RANGE,
+          workflowText: pinnedWorkflow,
+          dockerfileTexts: { 'synthetic.Dockerfile': `FROM node:${tag}\n` }
+        }).length
+      ).toBeGreaterThan(0);
+    }
+  );
   it('rejects the unpatched 24.14.0 floor and accepts the current patch', () => {
     expect(rangeAllows(NODE_RANGE, REJECTED_OLD_PATCH)).toBe(false);
     expect(rangeAllows(NODE_RANGE, NODE_FLOOR)).toBe(true);
