@@ -41,7 +41,15 @@ async function walk(directory, predicate) {
   let entries;
   try {
     entries = await readdir(directory, { withFileTypes: true });
-  } catch {
+  } catch (error) {
+    const code =
+      typeof error?.code === 'string' && /^[A-Z][A-Z0-9_]*$/.test(error.code)
+        ? error.code
+        : 'UNKNOWN';
+    fail(
+      'scan-failure',
+      `Cannot scan required source directory ${repoPath(directory)} (${code}).`
+    );
     return found;
   }
   for (const entry of entries) {
@@ -198,7 +206,15 @@ async function reachableFrom(entry) {
     let source;
     try {
       source = await readFile(current, 'utf8');
-    } catch {
+    } catch (error) {
+      const code =
+        typeof error?.code === 'string' && /^[A-Z][A-Z0-9_]*$/.test(error.code)
+          ? error.code
+          : 'UNKNOWN';
+      fail(
+        'scan-failure',
+        `Cannot read required reachable module ${repoPath(current)} (${code}).`
+      );
       continue;
     }
     for (const specifier of importSpecifiers(source)) {
@@ -434,6 +450,11 @@ if (fieldBlock === null) {
 // --- 回報 ---------------------------------------------------------------
 if (failures.length > 0) {
   console.error('Architecture check failed:');
+  if (failures.some(({ rule }) => rule === 'scan-failure')) {
+    console.error(
+      'Source scan is incomplete; derived rule diagnostics are provisional.'
+    );
+  }
   for (const { rule, detail } of failures)
     console.error(`- [${rule}] ${detail}`);
   process.exitCode = 1;
