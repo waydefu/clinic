@@ -7,6 +7,24 @@ import {
 } from './c1-firebase-auth-domain.js';
 
 describe('isolated C1 Firebase authDomain allowlist', () => {
+  it('cannot authorize a host by mutating the exported runtime allowlist', () => {
+    const approved = C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS[0];
+    const unauthorized = 'other.web.app';
+    expect(Object.isFrozen(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS)).toBe(true);
+    expect(
+      Reflect.set(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS, '0', unauthorized)
+    ).toBe(false);
+    expect(
+      Reflect.set(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS, '1', unauthorized)
+    ).toBe(false);
+    expect(
+      Reflect.deleteProperty(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS, '0')
+    ).toBe(false);
+    expect(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS).toEqual([approved]);
+    expect(isAuthorizedC1FirebaseAuthDomain(approved)).toBe(true);
+    expect(isAuthorizedC1FirebaseAuthDomain(unauthorized)).toBe(false);
+  });
+
   it('accepts the current internal-preproduction Hosting host', () => {
     expect(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS).toEqual([
       'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'

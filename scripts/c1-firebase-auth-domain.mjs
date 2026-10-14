@@ -70,6 +70,19 @@ export function evaluateC1FirebaseAuthDomain(value) {
 }
 
 export function inspectC1FirebaseAuthDomainSource(repoRoot = root) {
+  try {
+    return inspectC1FirebaseAuthDomainSourceImpl(repoRoot);
+  } catch {
+    return {
+      ok: false,
+      issues: [
+        'C1 source inspection could not read required inputs; proof is unproven.'
+      ]
+    };
+  }
+}
+
+function inspectC1FirebaseAuthDomainSourceImpl(repoRoot) {
   const issues = [];
   const main = readFileSync(join(repoRoot, TERRAFORM_DIR, 'main.tf'), 'utf8');
   const variables = readFileSync(
@@ -219,11 +232,10 @@ export function inspectC1FirebaseAuthDomainSource(repoRoot = root) {
 }
 
 /**
- * Parses the owning API source instead of matching substrings, so policy text
- * that only exists in comments, or a stub that always allows, is rejected. The
- * real comparator's behaviour is exercised by its own module-imported unit test
- * (apps/api/src/platform/runtime/c1-firebase-auth-domain.test.ts); this check
- * never executes source text.
+ * Admits only a small, non-executing AST shape with literal provenance,
+ * parameter-derived normalization, pure deny guards, and reachable exact
+ * allowlist membership. The real comparator's behaviour is exercised by its
+ * own module-imported unit test; this check never executes source text.
  */
 function inspectApiComparatorSyntax(apiSource) {
   const sourceFile = ts.createSourceFile(
@@ -233,54 +245,10 @@ function inspectApiComparatorSyntax(apiSource) {
     true,
     ts.ScriptKind.TS
   );
-  const isExported = (node) =>
-    (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0;
-  let allowlist;
-  let comparator;
-  for (const statement of sourceFile.statements) {
-    if (ts.isVariableStatement(statement) && isExported(statement)) {
-      for (const declaration of statement.declarationList.declarations) {
-        if (
-          ts.isIdentifier(declaration.name) &&
-          declaration.name.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
-        )
-          allowlist = declaration.initializer;
-      }
-    }
-    if (
-      ts.isFunctionDeclaration(statement) &&
-      isExported(statement) &&
-      statement.name?.text === 'isAuthorizedC1FirebaseAuthDomain'
-    )
-      comparator = statement;
-  }
+  const comparatorIssue =
+    'API runtime authDomain comparator must be an exported function whose returns either deny or allow only by exported allowlist membership.';
+  if (sourceFile.parseDiagnostics.length > 0) return [comparatorIssue];
 
-  const issues = [];
-  while (allowlist !== undefined && ts.isAsExpression(allowlist))
-    allowlist = allowlist.expression;
-  const hosts =
-    allowlist !== undefined && ts.isArrayLiteralExpression(allowlist)
-      ? allowlist.elements.map((element) =>
-          ts.isStringLiteral(element) ? element.text : undefined
-        )
-      : undefined;
-  if (
-    hosts === undefined ||
-    hosts.length !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.length ||
-    hosts.some(
-      (host, index) => host !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS[index]
-    )
-  ) {
-    issues.push(
-      'API runtime allowlist must be an exported array literal of exactly the authorized isolated preview hosts.'
-    );
-  }
-
-  // Every return of the comparator itself must either deny (`return false`) or
-  // allow only through allowlist membership (`ALLOWLIST.includes(host)`, casts
-  // allowed). Any other return form, including `return true`, is rejected.
-  // This is a structural rule, not a semantic proof: the comparator's actual
-  // behaviour is proven only by its own module-imported unit test.
   const unwrap = (node) => {
     let current = node;
     while (
@@ -293,52 +261,398 @@ function inspectApiComparatorSyntax(apiSource) {
       current = current.expression;
     return current;
   };
-  const allowsByMembership = (expression) => {
+  const isString = (node, value) =>
+    node !== undefined &&
+    ts.isStringLiteral(unwrap(node)) &&
+    (value === undefined || unwrap(node).text === value);
+  const onlyExportModifier = (node) =>
+    (node.modifiers ?? []).every(
+      (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+    );
+  const bindings = new Map();
+  const bindingCounts = new Map();
+  const constants = new Map();
+  const exportedConstants = new Set();
+  const functions = new Map();
+  let moduleShapeValid = true;
+
+  const registerBinding = (name) => {
+    const count = (bindingCounts.get(name) ?? 0) + 1;
+    bindingCounts.set(name, count);
+    if (count > 1) moduleShapeValid = false;
+    bindings.set(name, true);
+  };
+
+  for (const statement of sourceFile.statements) {
+    if (ts.isVariableStatement(statement)) {
+      if (
+        (statement.declarationList.flags & ts.NodeFlags.BlockScoped) !==
+          ts.NodeFlags.Const ||
+        !onlyExportModifier(statement)
+      ) {
+        moduleShapeValid = false;
+        continue;
+      }
+      for (const declaration of statement.declarationList.declarations) {
+        if (
+          !ts.isIdentifier(declaration.name) ||
+          declaration.initializer === undefined
+        ) {
+          moduleShapeValid = false;
+          continue;
+        }
+        const name = declaration.name.text;
+        registerBinding(name);
+        const value = unwrap(declaration.initializer);
+        const frozen =
+          ts.isCallExpression(value) &&
+          value.questionDotToken === undefined &&
+          value.arguments.length === 1 &&
+          ts.isPropertyAccessExpression(value.expression) &&
+          value.expression.questionDotToken === undefined &&
+          ts.isIdentifier(unwrap(value.expression.expression)) &&
+          unwrap(value.expression.expression).text === 'Object' &&
+          value.expression.name.text === 'freeze';
+        const initializer = frozen ? unwrap(value.arguments[0]) : value;
+        if (ts.isStringLiteral(initializer)) {
+          constants.set(name, { kind: 'string', value: initializer.text });
+        } else if (ts.isArrayLiteralExpression(initializer)) {
+          const values = [];
+          let valid = true;
+          for (const element of initializer.elements) {
+            const literal = unwrap(element);
+            if (!ts.isStringLiteral(literal)) {
+              valid = false;
+              break;
+            }
+            values.push(literal.text);
+          }
+          if (valid)
+            constants.set(name, { kind: 'array', value: values, frozen });
+          else moduleShapeValid = false;
+        } else {
+          moduleShapeValid = false;
+        }
+        if (
+          statement.modifiers?.some(
+            (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+          )
+        )
+          exportedConstants.add(name);
+      }
+      continue;
+    }
+    if (ts.isFunctionDeclaration(statement)) {
+      if (
+        statement.name === undefined ||
+        statement.body === undefined ||
+        !onlyExportModifier(statement)
+      ) {
+        moduleShapeValid = false;
+        continue;
+      }
+      const name = statement.name.text;
+      registerBinding(name);
+      const declarations = functions.get(name) ?? [];
+      declarations.push(statement);
+      functions.set(name, declarations);
+      continue;
+    }
+    moduleShapeValid = false;
+  }
+
+  const issues = [];
+  const allowlist = constants.get('C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS');
+  const hosts = allowlist?.kind === 'array' ? allowlist.value : undefined;
+  if (
+    hosts === undefined ||
+    bindingCounts.get('C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS') !== 1 ||
+    !exportedConstants.has('C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS') ||
+    hosts.length !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS.length ||
+    hosts.some(
+      (host, index) => host !== C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS[index]
+    )
+  ) {
+    issues.push(
+      'API runtime allowlist must be an exported array literal of exactly the authorized isolated preview hosts.'
+    );
+  }
+
+  if (allowlist?.frozen !== true || bindings.has('Object')) {
+    issues.push(
+      'API runtime allowlist must use intrinsic Object.freeze on its literal array; mutable or shadowed initializers are unproven.'
+    );
+  }
+
+  const comparator = functions.get('isAuthorizedC1FirebaseAuthDomain');
+  const projectHelper = functions.get('isIsolatedC1ProjectId');
+  const markerList = constants.get('FORBIDDEN_AUTH_DOMAIN_MARKERS');
+  if (
+    exportedConstants.has('FORBIDDEN_AUTH_DOMAIN_MARKERS') &&
+    markerList?.frozen !== true
+  ) {
+    moduleShapeValid = false;
+  }
+  const approvedHost = C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS[0];
+  const topLevelNames = new Set(bindings.keys());
+
+  const getSingleParameterName = (fn) => {
+    if (
+      fn === undefined ||
+      fn.parameters.length !== 1 ||
+      fn.asteriskToken !== undefined ||
+      fn.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword
+      )
+    )
+      return undefined;
+    const parameter = fn.parameters[0];
+    if (
+      !ts.isIdentifier(parameter.name) ||
+      parameter.dotDotDotToken !== undefined ||
+      parameter.questionToken !== undefined ||
+      parameter.initializer !== undefined ||
+      topLevelNames.has(parameter.name.text)
+    )
+      return undefined;
+    return parameter.name.text;
+  };
+  const isTrimmedInput = (expression, inputName) => {
     const call = unwrap(expression);
     if (
-      call === undefined ||
       !ts.isCallExpression(call) ||
-      call.arguments.length !== 1 ||
-      !ts.isIdentifier(call.arguments[0]) ||
+      call.questionDotToken !== undefined ||
+      call.arguments.length !== 0 ||
       !ts.isPropertyAccessExpression(call.expression) ||
+      call.expression.questionDotToken !== undefined ||
+      call.expression.name.text !== 'trim'
+    )
+      return false;
+    const base = unwrap(call.expression.expression);
+    return (
+      ts.isBinaryExpression(base) &&
+      base.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken &&
+      ts.isIdentifier(unwrap(base.left)) &&
+      unwrap(base.left).text === inputName &&
+      isString(base.right, '')
+    );
+  };
+  const isMembershipReturn = (expression, hostName) => {
+    const call = unwrap(expression);
+    if (
+      !ts.isCallExpression(call) ||
+      call.questionDotToken !== undefined ||
+      call.arguments.length !== 1 ||
+      !ts.isIdentifier(unwrap(call.arguments[0])) ||
+      unwrap(call.arguments[0]).text !== hostName ||
+      !ts.isPropertyAccessExpression(call.expression) ||
+      call.expression.questionDotToken !== undefined ||
       call.expression.name.text !== 'includes'
     )
       return false;
     const list = unwrap(call.expression.expression);
     return (
-      list !== undefined &&
       ts.isIdentifier(list) &&
       list.text === 'C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS'
     );
   };
-  let denies = false;
-  let allows = false;
-  let otherReturns = 0;
-  const visit = (node) => {
-    if (ts.isFunctionLike(node)) return;
-    if (ts.isReturnStatement(node)) {
-      if (node.expression?.kind === ts.SyntaxKind.FalseKeyword) denies = true;
-      else if (
-        node.expression !== undefined &&
-        allowsByMembership(node.expression)
-      )
-        allows = true;
-      else otherReturns += 1;
-    }
-    ts.forEachChild(node, visit);
-  };
-  if (comparator?.body !== undefined) ts.forEachChild(comparator.body, visit);
-  if (
-    comparator?.body === undefined ||
-    comparator.parameters.length !== 1 ||
-    !denies ||
-    !allows ||
-    otherReturns !== 0
-  ) {
-    issues.push(
-      'API runtime authDomain comparator must be an exported function whose returns either deny or allow only by exported allowlist membership.'
+  const isFalseReturnBranch = (statement) => {
+    if (ts.isReturnStatement(statement))
+      return unwrap(statement.expression)?.kind === ts.SyntaxKind.FalseKeyword;
+    return (
+      ts.isBlock(statement) &&
+      statement.statements.length === 1 &&
+      ts.isReturnStatement(statement.statements[0]) &&
+      unwrap(statement.statements[0].expression)?.kind ===
+        ts.SyntaxKind.FalseKeyword
     );
+  };
+
+  const isEmptyGuard = (expression, hostName) => {
+    const condition = unwrap(expression);
+    return (
+      ts.isBinaryExpression(condition) &&
+      condition.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken &&
+      ts.isIdentifier(unwrap(condition.left)) &&
+      unwrap(condition.left).text === hostName &&
+      isString(condition.right, '')
+    );
+  };
+  const getHostIncludesLiteral = (expression, hostName) => {
+    const call = unwrap(expression);
+    if (
+      !ts.isCallExpression(call) ||
+      call.questionDotToken !== undefined ||
+      call.arguments.length !== 1 ||
+      !ts.isPropertyAccessExpression(call.expression) ||
+      call.expression.questionDotToken !== undefined ||
+      call.expression.name.text !== 'includes' ||
+      !ts.isIdentifier(unwrap(call.expression.expression)) ||
+      unwrap(call.expression.expression).text !== hostName ||
+      !ts.isStringLiteral(unwrap(call.arguments[0]))
+    )
+      return undefined;
+    return unwrap(call.arguments[0]).text;
+  };
+  const isMarkerSomeGuard = (expression, hostName) => {
+    const call = unwrap(expression);
+    if (
+      !ts.isCallExpression(call) ||
+      call.questionDotToken !== undefined ||
+      call.arguments.length !== 1 ||
+      !ts.isPropertyAccessExpression(call.expression) ||
+      call.expression.questionDotToken !== undefined ||
+      call.expression.name.text !== 'some' ||
+      !ts.isIdentifier(unwrap(call.expression.expression)) ||
+      unwrap(call.expression.expression).text !==
+        'FORBIDDEN_AUTH_DOMAIN_MARKERS' ||
+      markerList?.kind !== 'array' ||
+      bindingCounts.get('FORBIDDEN_AUTH_DOMAIN_MARKERS') !== 1
+    )
+      return false;
+    const callback = unwrap(call.arguments[0]);
+    if (
+      !ts.isArrowFunction(callback) ||
+      callback.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword
+      ) ||
+      callback.parameters.length !== 1
+    )
+      return false;
+    const parameter = callback.parameters[0];
+    if (
+      !ts.isIdentifier(parameter.name) ||
+      parameter.dotDotDotToken !== undefined ||
+      parameter.questionToken !== undefined ||
+      parameter.initializer !== undefined ||
+      parameter.name.text === hostName ||
+      topLevelNames.has(parameter.name.text) ||
+      ts.isBlock(callback.body)
+    )
+      return false;
+    const includes = unwrap(callback.body);
+    if (
+      !ts.isCallExpression(includes) ||
+      includes.questionDotToken !== undefined ||
+      includes.arguments.length !== 1 ||
+      !ts.isPropertyAccessExpression(includes.expression) ||
+      includes.expression.questionDotToken !== undefined ||
+      includes.expression.name.text !== 'includes' ||
+      !ts.isIdentifier(unwrap(includes.expression.expression)) ||
+      unwrap(includes.expression.expression).text !== hostName ||
+      !ts.isIdentifier(unwrap(includes.arguments[0])) ||
+      unwrap(includes.arguments[0]).text !== parameter.name.text
+    )
+      return false;
+    return !markerList.value.some((marker) => approvedHost.includes(marker));
+  };
+
+  const isPureProjectHelper = () => {
+    const fn = projectHelper?.length === 1 ? projectHelper[0] : undefined;
+    const parameterName = getSingleParameterName(fn);
+    if (
+      fn === undefined ||
+      !onlyExportModifier(fn) ||
+      !fn.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+      ) ||
+      parameterName === undefined ||
+      fn.body.statements.length !== 1 ||
+      !ts.isReturnStatement(fn.body.statements[0])
+    )
+      return false;
+    const comparison = unwrap(fn.body.statements[0].expression);
+    if (
+      !ts.isBinaryExpression(comparison) ||
+      comparison.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken ||
+      !isTrimmedInput(comparison.left, parameterName) ||
+      !ts.isIdentifier(unwrap(comparison.right)) ||
+      unwrap(comparison.right).text !== 'ISOLATED_C1_PROJECT_ID'
+    )
+      return false;
+    return (
+      constants.get('ISOLATED_C1_PROJECT_ID')?.kind === 'string' &&
+      bindingCounts.get('ISOLATED_C1_PROJECT_ID') === 1
+    );
+  };
+
+  const fn = comparator?.length === 1 ? comparator[0] : undefined;
+  const parameterName = getSingleParameterName(fn);
+  let comparatorValid =
+    moduleShapeValid &&
+    functions.size === 2 &&
+    comparator?.length === 1 &&
+    projectHelper?.length === 1 &&
+    fn !== undefined &&
+    onlyExportModifier(fn) &&
+    fn.modifiers?.some(
+      (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+    ) &&
+    parameterName !== undefined &&
+    isPureProjectHelper();
+  if (comparatorValid) {
+    const statements = fn.body.statements;
+    const first = statements[0];
+    if (
+      !ts.isVariableStatement(first) ||
+      (first.declarationList.flags & ts.NodeFlags.BlockScoped) !==
+        ts.NodeFlags.Const ||
+      (first.modifiers?.length ?? 0) !== 0 ||
+      first.declarationList.declarations.length !== 1
+    ) {
+      comparatorValid = false;
+    } else {
+      const declaration = first.declarationList.declarations[0];
+      if (
+        !ts.isIdentifier(declaration.name) ||
+        declaration.initializer === undefined ||
+        topLevelNames.has(declaration.name.text) ||
+        declaration.name.text === parameterName ||
+        !isTrimmedInput(declaration.initializer, parameterName)
+      ) {
+        comparatorValid = false;
+      } else {
+        const hostName = declaration.name.text;
+        const guardKinds = new Set();
+        for (let index = 1; index < statements.length - 1; index += 1) {
+          const statement = statements[index];
+          if (
+            !ts.isIfStatement(statement) ||
+            statement.elseStatement !== undefined ||
+            !isFalseReturnBranch(statement.thenStatement)
+          ) {
+            comparatorValid = false;
+            break;
+          }
+          if (isEmptyGuard(statement.expression, hostName)) {
+            guardKinds.add('empty');
+          } else {
+            const literal = getHostIncludesLiteral(
+              statement.expression,
+              hostName
+            );
+            if (literal !== undefined) {
+              if (approvedHost.includes(literal)) comparatorValid = false;
+              guardKinds.add('includes');
+            } else if (isMarkerSomeGuard(statement.expression, hostName)) {
+              guardKinds.add('markers');
+            } else {
+              comparatorValid = false;
+            }
+          }
+        }
+        const final = statements.at(-1);
+        comparatorValid &&=
+          guardKinds.has('empty') &&
+          guardKinds.has('includes') &&
+          guardKinds.has('markers') &&
+          ts.isReturnStatement(final) &&
+          final.expression !== undefined &&
+          isMembershipReturn(final.expression, hostName);
+      }
+    }
   }
+  if (!comparatorValid) issues.push(comparatorIssue);
   return issues;
 }
 
