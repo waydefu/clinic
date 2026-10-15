@@ -15,6 +15,10 @@ import type {
   CalendarSyncRepository,
   CalendarSyncState
 } from './sync-engine.js';
+import {
+  assertCalendarPilotWorkerLease,
+  type CalendarPilotWorkerLease
+} from './calendar-pilot-worker-lease.js';
 import type {
   CalendarSourceConfiguration,
   CalendarSourcePreflightResult,
@@ -111,7 +115,8 @@ export class FirestoreCalendarSyncRepository
 {
   public constructor(
     private readonly db: Firestore,
-    private readonly pseudonymKey: string
+    private readonly pseudonymKey: string,
+    private readonly workerLease?: CalendarPilotWorkerLease
   ) {
     if (pseudonymKey.length < 32)
       throw new Error(
@@ -328,6 +333,12 @@ export class FirestoreCalendarSyncRepository
         })
       );
 
+      // Inspect the live clock after all reads and immediately before writes.
+      if (this.workerLease !== undefined)
+        assertCalendarPilotWorkerLease(
+          configurationDocument.data()!,
+          this.workerLease
+        );
       for (const mutation of commit.mutations) {
         transaction.set(
           this.db.collection(MIRRORS).doc(mutation.mirror.mirrorId),
@@ -424,6 +435,8 @@ export class FirestoreCalendarSyncRepository
         configuration.data()?.['version'] !== expectedSourceVersion
       )
         throw new Error('CAL-PILOT source generation changed.');
+      if (this.workerLease !== undefined)
+        assertCalendarPilotWorkerLease(configuration.data()!, this.workerLease);
       transaction.update(this.db.collection(SOURCES).doc(sourceId), {
         syncToken: null,
         lastErrorCode: 'sync_token_expired'
