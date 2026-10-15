@@ -3,6 +3,10 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import { dirname, join, posix, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
+import {
+  cssAssetReferences,
+  resolveCssReference
+} from './web-build-planner.mjs';
 
 // 效能預算 gate：對 `apps/web/dist`（實際會部署的內容雜湊產物）計算每個 HTML
 // 進入點與延後商務分頁資源的「傳輸重量」，超過各自預算就讓建置失敗。
@@ -76,10 +80,6 @@ const DYNAMIC_IMPORT_SPECIFIER = new RegExp(
 );
 // HTML 只用 root-absolute 參照子資源（build 會把它們改寫成雜湊檔名）。
 const HTML_REFERENCE = /\b(?:src|href)="(\/[^"#?]+)"/g;
-const CSS_REFERENCE = /url\(\s*['"]?(\/?[^'")]+)['"]?\s*\)/g;
-const CSS_IMPORT_REFERENCE =
-  /@import\b\s*(?:url\(\s*)?(?:(["'])([^"']+\.css)\1|([^"'\s)]+\.css))\s*\)?/gi;
-
 // `<meta property="og:image">` 刻意不在 HTML_REFERENCE 裡——`content=` 不是
 // `src`／`href`，所以 OG 圖永遠不會進入任何一頁的傳遞閉包。
 //
@@ -156,19 +156,9 @@ function referencesOf(path, content, { includeDynamicImports = false } = {}) {
       found.add(match[2].slice(1));
     }
   } else if (extension === '.css') {
-    const addCssReference = (reference) => {
-      if (reference.startsWith('data:')) return;
-      found.add(
-        reference.startsWith('/')
-          ? reference.slice(1)
-          : posix.normalize(posix.join(posix.dirname(path), reference))
-      );
-    };
-    for (const match of source.matchAll(CSS_REFERENCE)) {
-      addCssReference(match[1]);
-    }
-    for (const match of source.matchAll(CSS_IMPORT_REFERENCE)) {
-      addCssReference(match[2] ?? match[3]);
+    for (const ref of cssAssetReferences(source)) {
+      const reference = resolveCssReference(path, ref.value);
+      if (reference !== undefined) found.add(reference.path);
     }
   }
 
