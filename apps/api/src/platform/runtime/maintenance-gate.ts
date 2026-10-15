@@ -1,5 +1,7 @@
 import { ServiceUnavailableError } from '../errors/api-error.js';
 
+export const MAINTENANCE_GATE = 'ApiMaintenanceGate';
+
 /**
  * The gate a controller checks before doing work, so a maintenance window is a
  * clean 503 rather than a half-applied write. The production gate reads a shared
@@ -8,7 +10,7 @@ import { ServiceUnavailableError } from '../errors/api-error.js';
  * This static implementation only fixes the boundary and mapping.
  */
 export interface MaintenanceGate {
-  assertAvailable(): void;
+  assertAvailable(): void | Promise<void>;
 }
 
 export class StaticMaintenanceGate implements MaintenanceGate {
