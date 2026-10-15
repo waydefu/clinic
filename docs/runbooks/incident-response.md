@@ -59,12 +59,25 @@ production 權限與告警仍未演練。上線前必須做一次完整 tabletop
 
 ### 3.3 止血優先於查因
 
-先讓患者與診所能運作，再找原因。可用的手段：
+先讓患者與診所能運作，再找原因。下列是需要各自授權與驗證的處置選項，
+不是本 source 已提供的操作開關：
 
-- 開啟維護模式（`StaticMaintenanceGate`，回 `SERVICE_UNAVAILABLE`）；
+- 需要停寫時，使用已部署、經核准且有 runtime 證據的維護控制；
 - 回滾到前一個 revision（見[基礎設施與維運計畫](../architecture/infrastructure-and-operations-plan-2026-07-24.md) §7）；
 - 暫停 worker 排程，避免錯誤狀態被投影到日曆；
 - 櫃台改用紙本，事後補登。
+
+```text
+MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
+```
+
+`StaticMaintenanceGate`／合成 HTTP guard 的拒絕測試只證明程式邊界；預設
+注入值仍是 `false`，不是可操作的共用旗標。前端維護畫面與 IP-001 gate
+也不能代替所有 API instance、相關寫入路徑及 worker 的停寫／排空證據。
+欠缺共用控制接線、worker 暫停／排空或驗證證據時，狀態為 **BLOCKED**，
+不得以「已開維護模式」宣稱已止血，亦不得因此進入還原或資料切換。
+後續 shared-flag／部署／停寫操作必須在另行核准的 exact-SHA isolated 包內
+驗證；不能降低既有權限、稽核或停寫要求來繞過這個前置。
 
 **保留現場**：止血的動作不得刪除日誌、稽核或資料。需要還原時，一律還原到新的
 database（[備份與還原 runbook](backup-and-restore.md) §4.3）。
