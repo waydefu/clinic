@@ -1,4 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, posix } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   isScannedMarkdown,
   linksIn,
@@ -496,5 +509,225 @@ describe('which markdown the gate discovers', () => {
       false
     );
     expect(isScannedMarkdown('test-results/spec/error-context.md')).toBe(false);
+  });
+});
+
+describe('documentation CLI filesystem boundary', () => {
+  const roots = [];
+
+  afterEach(() => {
+    for (const root of roots.splice(0))
+      rmSync(root, { recursive: true, force: true });
+  });
+
+  function temporaryRoot() {
+    const root = mkdtempSync(
+      join(
+        process.env.TMPDIR ?? process.env.RUNNER_TEMP ?? tmpdir(),
+        'docs-gate-'
+      )
+    );
+    roots.push(root);
+    return root;
+  }
+
+  function fixture() {
+    const root = temporaryRoot();
+    const files = new Set([
+      INDEX,
+      ...STALE_CLAIMS.map(([file]) => file),
+      'docs/product/plan.md',
+      '.claude/rules/example.md',
+      '.agents/skills/example/SKILL.md',
+      'target.txt'
+    ]);
+    for (const file of files) {
+      mkdirSync(dirname(join(root, file)), { recursive: true });
+      writeFileSync(join(root, file), '# Synthetic fixture\n');
+    }
+    writeFileSync(
+      join(root, INDEX),
+      index({
+        body: [...files]
+          .filter((file) => file.startsWith('docs/') && file !== INDEX)
+          .map((file) => `[fixture](${posix.relative('docs', file)})`)
+          .join('\n')
+      })
+    );
+    writeFileSync(
+      join(root, 'docs/product/plan.md'),
+      '[target](../../target.txt)\n'
+    );
+    mkdirSync(join(root, 'scripts'), { recursive: true });
+    copyFileSync(
+      fileURLToPath(new URL('./check-docs-links.mjs', import.meta.url)),
+      join(root, 'scripts/check-docs-links.mjs')
+    );
+    return root;
+  }
+
+  // Fault injection is confined to a fresh Node subprocess over synthetic files.
+  // Do not depend on chmod (Windows/admin runs can still read the file).
+  function faultPrelude(method, target, code) {
+    const source = `
+      import fs from 'node:fs/promises';
+      import { syncBuiltinESMExports } from 'node:module';
+      const original = fs[${JSON.stringify(method)}];
+      fs[${JSON.stringify(method)}] = function (...args) {
+        if (!${JSON.stringify(target)} || String(args[0]).replaceAll('\\\\', '/').endsWith(${JSON.stringify(target)})) {
+          throw Object.assign(new Error('synthetic opaque error detail'), { code: ${JSON.stringify(code)} });
+        }
+        return original.apply(this, args);
+      };
+      syncBuiltinESMExports();
+    `;
+    return ['--import', `data:text/javascript,${encodeURIComponent(source)}`];
+  }
+
+  function run(root, { cwd = root, fault = [] } = {}) {
+    const result = spawnSync(
+      process.execPath,
+      [...fault, join(root, 'scripts/check-docs-links.mjs')],
+      { cwd, encoding: 'utf8', timeout: 15000 }
+    );
+    expect(result.error).toBeUndefined();
+    return result;
+  }
+
+  it('passes a clean synthetic repository and an independent copied fixture', () => {
+    const root = fixture();
+    const copy = temporaryRoot();
+    cpSync(root, copy, { recursive: true });
+    for (const candidate of [root, copy]) {
+      const result = run(candidate);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Documentation check passed');
+      expect(result.stderr).toBe('');
+    }
+  });
+
+  it('anchors discovery, reads and linked non-markdown stats to the script root', () => {
+    const root = fixture();
+    const result = run(root, { cwd: temporaryRoot() });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Documentation check passed');
+    expect(result.stderr).toBe('');
+  });
+
+  it('does not scan a competing repository in the invocation cwd', () => {
+    const root = fixture();
+    const competing = fixture();
+    writeFileSync(
+      join(competing, 'docs/product/plan.md'),
+      '[gone](missing.md)'
+    );
+    expect(run(root, { cwd: competing }).status).toBe(0);
+    expect(run(competing).status).toBe(1);
+  });
+
+  it.each(['docs/product/plan.md', 'scripts/build-web.mjs'])(
+    'fails closed for invalid UTF-8 in %s',
+    (file) => {
+      const root = fixture();
+      writeFileSync(join(root, file), Buffer.from([0xc3, 0x28]));
+      const result = run(root);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `Scan failure reading ${file}: invalid UTF-8`
+      );
+      expect(result.stdout).not.toContain('Documentation check passed');
+    }
+  );
+
+  it('reports a missing required index as a scan failure, not an empty pass', () => {
+    const root = fixture();
+    unlinkSync(join(root, INDEX));
+    const result = run(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`Scan failure reading ${INDEX}`);
+  });
+
+  it('accepts valid Unicode, a literal replacement character and an existing BOM', () => {
+    const root = fixture();
+    for (const file of ['docs/product/plan.md', 'scripts/build-web.mjs'])
+      writeFileSync(
+        join(root, file),
+        Buffer.concat([
+          Buffer.from([0xef, 0xbb, 0xbf]),
+          Buffer.from('合成文件 \uFFFD\n', 'utf8')
+        ])
+      );
+    const result = run(root);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
+
+  it('keeps deleted link targets as broken links', () => {
+    const root = fixture();
+    unlinkSync(join(root, 'target.txt'));
+    const result = run(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Broken link in docs/product/plan.md: ../../target.txt'
+    );
+    expect(result.stderr).not.toContain('Scan failure');
+  });
+
+  it.each([
+    [
+      'readFile',
+      'docs/product/plan.md',
+      'EACCES',
+      'reading docs/product/plan.md'
+    ],
+    [
+      'readFile',
+      'scripts/build-web.mjs',
+      'EIO',
+      'reading scripts/build-web.mjs'
+    ],
+    ['stat', 'target.txt', 'EACCES', 'stating target.txt'],
+    ['glob', '', 'EIO', 'discovering markdown']
+  ])(
+    'classifies %s %s failure without exposing raw error details',
+    (method, target, code, label) => {
+      const root = fixture();
+      const result = run(root, { fault: faultPrelude(method, target, code) });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`Scan failure ${label}`);
+      expect(result.stderr).toContain(code);
+      expect(result.stderr).not.toContain('synthetic opaque error detail');
+      expect(result.stdout).not.toContain('Documentation check passed');
+    }
+  );
+
+  it.each(['.claude/rules/example.md', '.agents/skills/example/SKILL.md'])(
+    'retains broken-link checks in %s',
+    (file) => {
+      const root = fixture();
+      writeFileSync(join(root, file), '[gone](missing.md)');
+      const result = run(root);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`Broken link in ${file}: missing.md`);
+    }
+  );
+
+  it('does not scan or log when imported', () => {
+    const root = fixture();
+    const url = pathToFileURL(join(root, 'scripts/check-docs-links.mjs')).href;
+    const result = spawnSync(
+      process.execPath,
+      [
+        ...faultPrelude('glob', '', 'EIO'),
+        '--input-type=module',
+        '-e',
+        `await import(${JSON.stringify(url)})`
+      ],
+      { cwd: root, encoding: 'utf8', timeout: 15000 }
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
   });
 });
