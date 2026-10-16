@@ -28,6 +28,13 @@ import {
 } from './google-sync-client.js';
 import { CalendarSyncEngine, type CalendarSyncSummary } from './sync-engine.js';
 import {
+  ACTIVATION_COPY_PAGES,
+  activationCopyPageId,
+  assertSameCalendarActivationProgress,
+  parseCalendarActivationProgress,
+  runCalendarActivationStep
+} from './calendar-pilot-activation.js';
+import {
   assertCalendarPilotWorkerLease,
   CalendarPilotLeaseLostError,
   type CalendarPilotWorkerLease
@@ -69,6 +76,7 @@ interface PilotJob {
   readonly attemptCount?: number;
   /** Written by `retryJob`; absent on a job that has never been retried. */
   readonly nextAttemptAt?: unknown;
+  readonly activationProgress?: unknown;
 }
 
 function leaseExpired(job: PilotJob, now: string): boolean {
@@ -502,7 +510,11 @@ export class CalendarPilotRuntime {
 
   private withLease(
     lease: PilotLeaseContext,
-    write?: (transaction: Transaction, now: string) => void
+    write?: (
+      transaction: Transaction,
+      now: string,
+      currentJob?: Record<string, unknown>
+    ) => void
   ): Promise<() => void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(
@@ -519,7 +531,7 @@ export class CalendarPilotRuntime {
         lease,
         job?.data()
       );
-      write?.(transaction, now);
+      write?.(transaction, now, job?.data());
       return () => {
         assertCalendarPilotWorkerLease(
           configuration.data()!,
@@ -737,37 +749,88 @@ export class CalendarPilotRuntime {
   private async outbound(
     job: PilotJob,
     lease: PilotLeaseContext
-  ): Promise<'completed' | 'superseded'> {
-    const now = lease.now();
-    const configuration = await this.repository.loadConfiguration();
+  ): Promise<'completed' | 'superseded' | 'in_progress'> {
+    const configuration = await this.repository.loadSourceConfiguration();
     if (job.generation !== configuration.version) return 'superseded';
     const writer = this.writer(configuration.activeSourceId, lease);
     if (job.kind === 'calendar_source_activated') {
-      if (job.previousSourceId === undefined)
-        throw new Error('Previous source is missing.');
-      const appointments = await this.db
-        .collection('calendar_pilot_appointments')
-        .where('status', '==', 'confirmed')
-        .where('startsAt', '>=', now)
-        .get();
-      for (const document of appointments.docs) {
-        const appointment = storedAppointment(document.data());
-        await writer.upsert({
-          eventId: calendarEventId(document.id),
-          title: formatSyntheticAppointmentTitle({
-            patientCode: appointment.patientCode,
-            bookingKind: appointment.bookingKind,
-            serviceId: appointment.serviceId
-          }),
-          startsAt: appointment.startsAt,
-          endsAt: appointment.endsAt,
-          linkId: document.id
-        });
-      }
+      if (job.previousSourceId === undefined || lease.document === undefined)
+        throw new Error('Activation source or job is missing.');
+      // Two logical source IDs may name the same physical Calendar. Never
+      // remove the target Calendar's own projections as an old-source cleanup.
+      if (
+        this.source(job.previousSourceId).calendarId ===
+        this.source(configuration.activeSourceId).calendarId
+      )
+        return 'superseded';
+      const document = lease.document;
       const oldWriter = this.writer(job.previousSourceId, lease);
-      for (const document of appointments.docs)
-        await oldWriter.remove(calendarEventId(document.id));
-      return 'completed';
+      return runCalendarActivationStep({
+        db: this.db,
+        document,
+        sourceId: configuration.activeSourceId,
+        previousSourceId: job.previousSourceId,
+        generation: configuration.version,
+        // Persist only opaque bindings, never Calendar IDs from the registry.
+        sourceBinding: createHash('sha256')
+          .update(this.source(configuration.activeSourceId).calendarId)
+          .digest('hex'),
+        previousSourceBinding: createHash('sha256')
+          .update(this.source(job.previousSourceId).calendarId)
+          .digest('hex'),
+        now: lease.now,
+        progress: job.activationProgress,
+        copy: async (localRecordId, data) => {
+          const appointment = storedAppointment(data);
+          await writer.upsert({
+            eventId: calendarEventId(localRecordId),
+            title: formatSyntheticAppointmentTitle({
+              patientCode: appointment.patientCode,
+              bookingKind: appointment.bookingKind,
+              serviceId: appointment.serviceId
+            }),
+            startsAt: appointment.startsAt,
+            endsAt: appointment.endsAt,
+            linkId: localRecordId
+          });
+        },
+        removeOld: (localRecordId) =>
+          oldWriter.remove(calendarEventId(localRecordId)),
+        checkpoint: async (change) => {
+          await this.withLease(lease, (transaction, _now, currentJob) => {
+            assertSameCalendarActivationProgress(
+              change.expected,
+              currentJob?.['activationProgress']
+            );
+            const next = parseCalendarActivationProgress(change.next);
+            if (next === undefined)
+              throw new Error('Activation progress is missing.');
+            if (change.receipt !== undefined) {
+              const index =
+                change.receipt.kind === 'create'
+                  ? change.receipt.value.pageIndex
+                  : change.receipt.pageIndex;
+              const ref = document.ref
+                .collection(ACTIVATION_COPY_PAGES)
+                .doc(activationCopyPageId(index));
+              if (change.receipt.kind === 'create')
+                transaction.create(ref, change.receipt.value);
+              else transaction.delete(ref);
+            }
+            transaction.update(document.ref, {
+              activationProgress: next,
+              ...(change.release
+                ? {
+                    status: 'pending',
+                    leaseOwner: null,
+                    leaseExpiresAt: null,
+                    nextAttemptAt: null
+                  }
+                : {})
+            });
+          });
+        }
+      });
     }
     if (job.kind === 'calendar_projection_restore') {
       if (job.mirrorId === undefined)
@@ -837,6 +900,23 @@ export class CalendarPilotRuntime {
     return 'completed';
   }
 
+  private async hasUnfinishedActivation(generation: number): Promise<boolean> {
+    // API source activation enqueues one job per generation. Inspect at most
+    // two metadata records: duplicates/unknown states fail closed, without
+    // scanning history or depending on a pending job being claimable now.
+    const jobs = await this.db
+      .collection('calendar_pilot_outbox')
+      .where('kind', '==', 'calendar_source_activated')
+      .where('generation', '==', generation)
+      .limit(2)
+      .get();
+    if (jobs.size > 1) return true;
+    return jobs.docs.some((document) => {
+      const status: unknown = document.data()['status'];
+      return status !== 'completed' && status !== 'superseded';
+    });
+  }
+
   public async run(now = this.clock()): Promise<CalendarPilotRunSummary> {
     const owner = randomUUID();
     const generation = await this.acquire(owner, now);
@@ -845,6 +925,7 @@ export class CalendarPilotRuntime {
     const lease: PilotLeaseContext = { owner, generation, now: this.clock };
     let processedJobs = 0;
     let failedJobs = 0;
+    let activationInProgress = false;
     try {
       await this.withLease(lease);
       const jobs = await claimCalendarPilotJobs(this.db, owner, this.clock());
@@ -859,6 +940,10 @@ export class CalendarPilotRuntime {
             job.kind === 'calendar_source_preflight'
               ? 'completed'
               : await this.outbound(job, jobLease);
+          if (status === 'in_progress') {
+            activationInProgress = true;
+            continue;
+          }
           await this.completeJob(document, lease, status);
           processedJobs += 1;
         } catch (error) {
@@ -886,6 +971,13 @@ export class CalendarPilotRuntime {
           }
         }
       }
+      // Do not run inbound sync or advertise its healthy checkpoint while the
+      // current source switch is still copying/cleaning acknowledged pages.
+      if (
+        activationInProgress ||
+        (await this.hasUnfinishedActivation(generation))
+      )
+        return { acquired: true, processedJobs, failedJobs };
       await this.withLease(lease);
       const configuration = await this.repository.loadConfiguration();
       let sync;

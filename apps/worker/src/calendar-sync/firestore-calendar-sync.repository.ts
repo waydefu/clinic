@@ -135,11 +135,23 @@ export class FirestoreCalendarSyncRepository
     return document.data() as StoredConfiguration;
   }
 
+  public async loadSourceConfiguration(): Promise<CalendarSourceConfiguration> {
+    const configuration = await this.configuration();
+    return {
+      activeSourceId: configuration.activeSourceId,
+      ...(configuration.previousSourceId === undefined
+        ? {}
+        : { previousSourceId: configuration.previousSourceId }),
+      version: configuration.version,
+      expiresAt: configuration.expiresAt
+    };
+  }
+
   public async loadConfiguration(): Promise<
     CalendarSyncConfiguration & CalendarSourceConfiguration
   > {
     const [configuration, patients] = await Promise.all([
-      this.configuration(),
+      this.loadSourceConfiguration(),
       this.db.collection(PATIENTS).where('enabled', '==', true).get()
     ]);
     return {
