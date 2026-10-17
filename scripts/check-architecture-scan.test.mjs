@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const scanFault = vi.hoisted(() => ({ mode: undefined, hits: 0 }));
+const scanFault = vi.hoisted(() => ({
+  mode: undefined,
+  hits: 0,
+  lateReads: 0,
+  lateScans: 0
+}));
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
     async readFile(path, ...options) {
+      if (scanFault.hits > 0) scanFault.lateReads += 1;
       const normalized = String(path).replaceAll('\\', '/');
       if (
         scanFault.mode === 'READ_EIO' &&
@@ -21,6 +27,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       return actual.readFile(path, ...options);
     },
     async readdir(path, options) {
+      if (scanFault.hits > 0) scanFault.lateScans += 1;
       const normalized = String(path).replaceAll('\\', '/');
       if (
         scanFault.mode &&
@@ -61,6 +68,8 @@ beforeEach(() => {
   process.exitCode = undefined;
   scanFault.mode = undefined;
   scanFault.hits = 0;
+  scanFault.lateReads = 0;
+  scanFault.lateScans = 0;
   vi.resetModules();
 });
 afterEach(() => {
@@ -85,17 +94,24 @@ describe('architecture CLI required-source scan failures', () => {
       expect(output.mock.calls.flat().join('\n')).not.toMatch(
         /Architecture check passed/
       );
+      expect(scanFault.lateReads).toBe(0);
+      expect(scanFault.lateScans).toBe(0);
     }
   );
 
   it('reports a reachable-module read error as a scan failure, not evidence of missing routes', async () => {
     scanFault.mode = 'READ_EIO';
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const output = vi.spyOn(console, 'log').mockImplementation(() => {});
     await import('./check-architecture.mjs');
     expect(scanFault.hits).toBe(1);
     expect(process.exitCode).toBe(1);
     expect(errors.mock.calls.flat().join('\n')).toMatch(/scan-failure/i);
+    expect(output.mock.calls.flat().join('\n')).not.toMatch(
+      /Architecture check passed/
+    );
+    expect(scanFault.lateReads).toBe(0);
+    expect(scanFault.lateScans).toBe(0);
   });
 
   it('keeps the normal trusted source tree passing', async () => {
