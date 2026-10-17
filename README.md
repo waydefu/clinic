@@ -6,7 +6,17 @@ truth through a domain API, and project confirmed changes to Google Calendar
 through an idempotent outbox worker. The design keeps a path open for Android,
 iOS and a future NAS integration without direct database access.
 
-## Current status: Phase 1 Stage 1 — owner decisions in progress
+## Status and authority routing
+
+The status, product-roadmap and technical-baseline paragraphs below retain older
+checkpoints, not a live deployment report. For current scoped work, start with
+the [task retrieval map](docs/INDEX.md), then the
+[Phase 1 execution plan](docs/phase-1-execution-plan.md) and the routed Canon.
+The [generated state](docs/state/current.md) is a projection, not approval.
+Preview availability and other remote state are `UNVERIFIED` by this README;
+local code, dated evidence and an expired preview are not deployment authority.
+
+## Historical status snapshot: Phase 1 Stage 1 — owner decisions in progress
 
 Phase 0 is complete. The browser prototype covers the full booking flow, and
 the Firestore write path — reservation, every state transition, reschedule and

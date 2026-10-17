@@ -304,7 +304,7 @@ CP-02 若需 worker processing/drain/retry，或任何 Calendar create/update/de
 各 checkpoint 共用 §3 已核准的同類額度，不是每列都新增一份上限。只跑已具備 prerequisites 的少量路徑；12h session、24h／30d 等真實時間到期與多階段 termination 不以短測、改系統時鐘或直接造 DB 狀態假裝完成。不能完成的 assertion 單獨列 `NOT_RUN`，不能整列標 PASS。既有 source CI／review 只屬歷史證據，最終 source 核驗依本次 freeze SHA。
 
 | Checkpoint | 正向路徑 | 負向／邊界路徑與停損 | 數量預算 | 狀態 |
-| --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | API／Booking | `/v1/health/live` 200；核准數量的 C1 accountless synthetic booking create/readback | gate off/expired、錯誤 source、舊版 preview API target 不得成功；404 rewrite 為 FAIL，gate 關閉應 503 | create／update／cancel 各 5；read 共用 50；執行仍 `BLOCKED` | `NOT_RUN` |
 | Staff auth | 核准次數內依 final source 的 Google／必要驗證建立允許 role session | 錯／過期驗證、disabled staff、無 cookie、錯 CSRF 或無權角色拒絕且無寫入；不猜未解驗證政策 | sign-in 2；auth negative／stale reauth 各 5，共用 §3；執行仍 `BLOCKED` | `NOT_RUN` |
 | CP-03 用量／里程碑 | 核准的 synthetic report readback；測試 C1 runtime-vs-maintenance 分類與 server event/ack | coverage 缺口分類 `insufficient_evidence`；非 manager、stale/異人 reauth、重播異 payload 不通過。分類行為可由 C1 synthetic events 驗證，不能將測試事件直接視為正式財務用量或聲稱所有 synthetic 類別皆不入月報 | read 共用 50；negative／stale 各共用 5；執行仍 `BLOCKED` | `NOT_RUN`：Stage 2a／2b、final source 與 runtime 前置未完成 |
