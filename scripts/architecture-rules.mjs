@@ -1,9 +1,9 @@
 // 架構守衛的純判斷邏輯。
 //
 // `check-architecture.mjs` 的流程全部在 top-level 執行（讀檔、走目錄、寫
-// process.exitCode），所以它一旦被 import 就會整個跑起來，沒辦法測。判斷邏輯
-// 抽到這裡之後，測試 import 的是規則本身而不是那道 gate——這與
-// `unrouted-inventory.mjs` 早先的拆法一致。
+// process.exitCode），直接 import 會執行整道 gate；CLI 的故障測試因此以
+// filesystem mock 覆蓋讀取邊界。純判斷邏輯抽到這裡，普通測試不需觸及 I/O——
+// 這與 `unrouted-inventory.mjs` 的拆法一致。
 //
 // 這裡的每一個函式都不碰檔案系統，輸入是字串或已讀好的檔案清單。
 import { posix } from 'node:path';
@@ -17,66 +17,88 @@ import ts from 'typescript';
  * 中文註解會被誤判成違規。兩者都會讓守衛失去意義，方向相反而已。
  */
 export function stripComments(source) {
+  const parsed = ts.createSourceFile(
+    'architecture-comments.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+  const ranges = new Map();
+  const collect = (comments) => {
+    for (const range of comments ?? []) {
+      ranges.set(`${range.pos}:${range.end}`, range);
+    }
+  };
+  const visit = (node) => {
+    collect(ts.getLeadingCommentRanges(source, node.pos));
+    collect(ts.getTrailingCommentRanges(source, node.end));
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
   let output = '';
-  let index = 0;
-  let quote;
-  while (index < source.length) {
-    const character = source[index];
-    const next = source[index + 1];
-    if (quote !== undefined) {
-      output += character;
-      if (character === '\\') {
-        output += next ?? '';
-        index += 2;
-        continue;
-      }
-      if (character === quote) quote = undefined;
-      index += 1;
-      continue;
-    }
-    if (character === "'" || character === '"' || character === '`') {
-      quote = character;
-      output += character;
-      index += 1;
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      while (index < source.length && source[index] !== '\n') index += 1;
-      continue;
-    }
-    if (character === '/' && next === '*') {
-      index += 2;
-      while (
-        index < source.length &&
-        !(source[index] === '*' && source[index + 1] === '/')
-      )
-        index += 1;
-      index += 2;
-      continue;
-    }
-    output += character;
-    index += 1;
+  let cursor = 0;
+  for (const range of [...ranges.values()].sort((a, b) => a.pos - b.pos)) {
+    if (range.end <= cursor) continue;
+    if (range.pos > cursor) output += source.slice(cursor, range.pos);
+    cursor = range.end;
   }
-  return output;
+  return output + source.slice(cursor);
 }
 
 /**
  * 靜態與動態匯入的模組指定字串。
  *
- * **先剝註解再比對。** 樣式只要求 `import`／`export` 前面是空白或分隔符，而
- * `// import x from 'y';` 的 `//` 後面正是空白——沿用原始碼直接比對的話，一行
- * 被註解掉的 import 會被算成真的依賴，在層級守衛上變成一筆改不掉的假違規。
- * 這是 2026-08-01 補測試時發現的：原本的註解宣稱「註解裡的字串不會匹配」，
- * 但那句話講的是任意字串，不是被註解掉的 import 敘述。
+ * 只讀 compiler AST 的字面 module specifier，不求值 source。註解、字串與 regex
+ * decoy 不會產生匯入；compact 語法、type import 與 dynamic import options 保留。
+ * 非字面動態載入仍交由 opaqueDynamicImports 依既有契約 fail closed。
  */
-export function importSpecifiers(source) {
-  const found = [];
-  for (const match of stripComments(source).matchAll(
-    /(?:^|[\s;{(])(?:import|export)\s[^'"()]*?from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)|import\s*\(\s*`([^`$]+)`\s*\)|^\s*import\s*['"]([^'"]+)['"]/gm
-  )) {
-    found.push(match[1] ?? match[2] ?? match[3] ?? match[4]);
+function literalModuleSpecifier(node) {
+  let value = node;
+  while (value !== undefined && ts.isParenthesizedExpression(value)) {
+    value = value.expression;
   }
-  return found.filter((value) => value !== undefined);
+  return value !== undefined && ts.isStringLiteralLike(value)
+    ? value.text
+    : undefined;
+}
+
+export function importSpecifiers(source) {
+  const parsed = ts.createSourceFile(
+    'architecture-imports.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+  const found = [];
+  const addLiteral = (node) => {
+    const specifier = literalModuleSpecifier(node);
+    if (specifier !== undefined) found.push(specifier);
+  };
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      addLiteral(node.moduleSpecifier);
+    } else if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword
+    ) {
+      addLiteral(node.arguments[0]);
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference)
+    ) {
+      addLiteral(node.moduleReference.expression);
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument)
+    ) {
+      addLiteral(node.argument.literal);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return found;
 }
 
 /**
@@ -148,11 +170,7 @@ export function opaqueDynamicImports(source) {
       node.expression.kind === ts.SyntaxKind.ImportKeyword
     ) {
       const specifier = node.arguments[0];
-      if (
-        !specifier ||
-        (!ts.isStringLiteral(specifier) &&
-          !ts.isNoSubstitutionTemplateLiteral(specifier))
-      ) {
+      if (literalModuleSpecifier(specifier) === undefined) {
         found.push(
           `import(${specifier?.getText(sourceFile).slice(0, 48) ?? ''}`
         );
