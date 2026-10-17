@@ -6,7 +6,11 @@ import {
   GoogleCalendarSyncError,
   GoogleCalendarWatchClient
 } from './google-sync-client.js';
-import { CalendarSyncTokenExpiredError } from './sync-engine.js';
+import {
+  CalendarSyncEngine,
+  CalendarSyncTokenExpiredError,
+  type CalendarSyncRepository
+} from './sync-engine.js';
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -31,12 +35,103 @@ describe('GoogleCalendarEventReader', () => {
       '2026-07-29T00:00:00.000Z'
     );
     expect(fullUrl.searchParams.get('showDeleted')).toBe('true');
+    expect(fullUrl.searchParams.get('maxResults')).toBe('100');
 
     await reader.listEvents({ syncToken: 'sync-token' });
     const incrementalUrl = new URL(String(fetchImpl.mock.calls[1]?.[0]));
     expect(incrementalUrl.searchParams.get('syncToken')).toBe('sync-token');
+    expect(incrementalUrl.searchParams.get('maxResults')).toBe('100');
     expect(incrementalUrl.searchParams.has('timeMin')).toBe(false);
     expect(incrementalUrl.searchParams.has('timeMax')).toBe(false);
+  });
+
+  it.each(
+    ['nextPageToken', 'nextSyncToken'].flatMap((field) =>
+      [null, 0, {}, [], '', ' '].map((value) => ({ field, value }))
+    )
+  )(
+    'rejects present malformed $field without silently treating it as absent: $value',
+    async ({ field, value }) => {
+      const body = {
+        items: [],
+        ...(field === 'nextPageToken'
+          ? { nextSyncToken: 'would-be-final' }
+          : { nextPageToken: 'next' }),
+        [field]: value,
+        debug: 'SYNTHETIC_PRIVATE_CANARY'
+      };
+      const reader = new GoogleCalendarEventReader(
+        'calendar@example.invalid',
+        () => Promise.resolve('synthetic-token'),
+        () => Promise.resolve(response(body))
+      );
+      await expect(reader.listEvents({})).rejects.toMatchObject({
+        name: 'GoogleCalendarSyncError',
+        status: 200,
+        retryable: false,
+        message: 'Google Calendar returned an invalid response.'
+      });
+    }
+  );
+  it.each([null, {}, 3].map((items) => ({ items })))(
+    'rejects an explicitly malformed items container rather than checkpointing an empty page: $items',
+    async ({ items }) => {
+      const reader = new GoogleCalendarEventReader(
+        'calendar@example.invalid',
+        () => Promise.resolve('synthetic-token'),
+        () =>
+          Promise.resolve(response({ items, nextSyncToken: 'would-be-final' }))
+      );
+      await expect(reader.listEvents({})).rejects.toBeInstanceOf(
+        GoogleCalendarSyncError
+      );
+    }
+  );
+  it('keeps an omitted items property valid for a genuine empty final page', async () => {
+    const reader = new GoogleCalendarEventReader(
+      'calendar@example.invalid',
+      () => Promise.resolve('synthetic-token'),
+      () => Promise.resolve(response({ nextSyncToken: 'empty-final' }))
+    );
+    await expect(reader.listEvents({})).resolves.toEqual({
+      events: [],
+      nextSyncToken: 'empty-final'
+    });
+  });
+  it('does not let a malformed nextPageToken reach an engine commit or healthy checkpoint', async () => {
+    const commitSync = vi.fn(() => Promise.resolve());
+    const repository: CalendarSyncRepository = {
+      loadConfiguration: () =>
+        Promise.resolve({
+          activeSourceId: 'synthetic-source',
+          sourceVersion: 0,
+          expiresAt: '2027-01-01T00:00:00Z',
+          pseudonymKey: 'synthetic-pseudonym-key',
+          knownPatientCodes: new Set()
+        }),
+      loadSyncState: () => Promise.resolve({ sourceId: 'synthetic-source' }),
+      findMirror: () => Promise.resolve(undefined),
+      matchesManagedProjection: () => Promise.resolve(false),
+      loadAuthoritativeAppointment: () => Promise.resolve(undefined),
+      commitSync,
+      clearSyncToken: () => Promise.resolve()
+    };
+    const reader = new GoogleCalendarEventReader(
+      'calendar@example.invalid',
+      () => Promise.resolve('synthetic-token'),
+      () =>
+        Promise.resolve(
+          response({
+            items: [],
+            nextPageToken: { malformed: true },
+            nextSyncToken: 'must-not-commit'
+          })
+        )
+    );
+    await expect(
+      new CalendarSyncEngine(reader, repository).run('2026-09-01T00:00:00Z')
+    ).rejects.toBeInstanceOf(GoogleCalendarSyncError);
+    expect(commitSync).not.toHaveBeenCalled();
   });
 
   it('converts 410 into the dedicated rebuild signal', async () => {

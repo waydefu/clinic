@@ -95,7 +95,7 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
     );
     url.searchParams.set('singleEvents', 'true');
     url.searchParams.set('showDeleted', 'true');
-    url.searchParams.set('maxResults', '2500');
+    url.searchParams.set('maxResults', '100');
     if (request.syncToken !== undefined)
       url.searchParams.set('syncToken', request.syncToken);
     else {
@@ -125,13 +125,29 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
       );
 
     const raw = await responseJson(response);
-    if (typeof raw !== 'object' || raw === null)
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
       throw new GoogleCalendarSyncError(
         'Google Calendar returned an invalid response.',
         response.status,
         false
       );
     const body = raw as Record<string, unknown>;
+    const invalidToken = ['nextPageToken', 'nextSyncToken'].some((field) => {
+      const value = body[field];
+      return (
+        Object.hasOwn(body, field) &&
+        (typeof value !== 'string' || value.trim() === '')
+      );
+    });
+    if (
+      invalidToken ||
+      (Object.hasOwn(body, 'items') && !Array.isArray(body['items']))
+    )
+      throw new GoogleCalendarSyncError(
+        'Google Calendar returned an invalid response.',
+        response.status,
+        false
+      );
     const events = Array.isArray(body['items'])
       ? body['items'].flatMap((item) => {
           const event = safeEvent(item);
