@@ -140,9 +140,12 @@ export default tseslint.config(
     // 這兩支用 Playwright 的 chromium 做影像裁切與 WebP 編碼（這台機器沒有 sharp
     // 或 ImageMagick）。傳給 `page.evaluate()` 的函式在瀏覽器分頁裡執行，因此檔案
     // 同時需要 node 與 browser 兩組全域變數。
+    // design-score 的收集函式與 PNG 解碼同樣經 page.evaluate() 在瀏覽器裡執行。
     files: [
       'scripts/build-brand-assets.mjs',
-      'scripts/build-clinic-assets.mjs'
+      'scripts/build-clinic-assets.mjs',
+      'scripts/design-score/collect.mjs',
+      'scripts/design-score/score.mjs'
     ],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser }

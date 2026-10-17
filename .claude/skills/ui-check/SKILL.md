@@ -115,6 +115,14 @@ prototype can supply bounded design evidence but cannot substitute for built
 artifact verification. Identify untested matrix rows instead of extending a
 first-screen screenshot claim to the whole page or flow.
 
+### Measured visual evidence
+
+For a visible change on the clinic site, run [ui-score](../ui-score/SKILL.md)
+on the affected routes before and after. Its motion lint (compositor-only
+properties, duration limits, no infinite loops) and its contrast and target
+counts are evidence for this matrix; its aesthetic composite is advisory and
+never a PASS or FAIL. Report a motion-lint violation as a finding against R-17.
+
 ## 3. Say what you could not verify
 
 Contrast measured on real hardware, screen-reader behaviour, physical devices and
