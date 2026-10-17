@@ -245,17 +245,7 @@
       ],
       "note": "D-006 partial evidence: unrouted evaluator wires hashed verification, atomic lockout and denied-event audit. Caller-facing lock denials stay generic. Not routed C4."
     },
-    "src/platform/runtime/maintenance-gate.ts": {
-      "approvedPolicyDependencies": ["D-010"],
-      "remainingBlockers": [
-        {
-          "kind": "decision",
-          "id": "D-004",
-          "description": "正式公開／staff write 路由仍待 D-004 與後續 privacy gates；C1～C6 合成 foundation 完成不掛路由。"
-        }
-      ],
-      "note": "D-010 已核准平台目標；目前只有 process-local static gate，沒有已部署的共享旗標或 controller。"
-    },
+
     "src/book-pilot/book-pilot.tokens.ts": {
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
