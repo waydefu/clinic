@@ -667,10 +667,84 @@ describe('deferred business asset budget', () => {
       rawSize
     );
 
-    expect(String(outputs.get(rootOutput))).toContain('@import"./extra.css"');
+    expect(String(outputs.get(rootOutput))).toContain(
+      `@import"./${extraOutput}"`
+    );
     expect(extraOutput).toMatch(/extra\.[a-f0-9]{10}\.css$/);
     expect(outputs.has(extraOutput)).toBe(true);
     expect(outputs.has('extra.css')).toBe(false);
-    expect(report.violations.join('\n')).toContain('extra.css');
+    expect(report.resources).toContain(extraOutput);
+    expect(report.bytes).toBeGreaterThan(0);
+    expect(report.violations).toEqual([]);
+  });
+});
+
+describe('CSS URL identity in the resource closure', () => {
+  const roomy = [
+    {
+      path: '*',
+      justification: 'Synthetic closure regression.',
+      resourceSizes: [{ resourceType: 'total', budget: 100 }]
+    }
+  ];
+  it.each([
+    '@import "./leaf.css?version=1#part";',
+    '@import url("./leaf.css?version=1#part");',
+    '@import "/leaf.css?version=1#part";'
+  ])('counts the emitted stylesheet behind %s', (css) => {
+    const files = new Map([
+      ['index.html', html({ styles: ['root.css'] })],
+      ['root.css', css],
+      ['leaf.css', '.leaf{color:green}']
+    ]);
+    const report = planBudgetReport(files, roomy, rawSize);
+    expect(report.violations).toEqual([]);
+    expect(report.entries[0].resources).toEqual(
+      expect.arrayContaining(['root.css', 'leaf.css'])
+    );
+    expect(report.entries[0].counts.get('stylesheet')).toBe(2);
+    const denied = planBudgetReport(
+      files,
+      [
+        {
+          path: '*',
+          justification: 'Negative regression.',
+          resourceSizes: [{ resourceType: 'stylesheet', budget: 0 }]
+        }
+      ],
+      rawSize
+    );
+    expect(denied.violations.length).toBeGreaterThan(0);
+  });
+  it('resolves encoded image names and strips only lookup query/fragment', () => {
+    const css = '.x{background:url("./image%20name.svg?v=1#part")}';
+    const files = new Map([
+      ['index.html', html({ styles: ['root.css'] })],
+      ['root.css', css],
+      ['image name.svg', '<svg/>']
+    ]);
+    const report = planBudgetReport(files, roomy, rawSize);
+    expect(report.violations).toEqual([]);
+    expect(report.entries[0].resources).toContain('image name.svg');
+    expect(files.get('root.css')).toBe(css);
+  });
+  it('still rejects a missing local resource with a suffix', () => {
+    const files = new Map([
+      ['index.html', html({ styles: ['root.css'] })],
+      ['root.css', '@import "./missing.css?v#part";']
+    ]);
+    const report = planBudgetReport(files, roomy, rawSize);
+    expect(report.violations.join('\n')).toContain('missing.css');
+  });
+  it('does not count comments, unrelated strings, external, data or fragment references', () => {
+    const css =
+      '/* url(missing.png) @import "missing.css"; */ .x{content:"url(missing.png)";filter:url(#local);background:url(data:image/svg+xml,opaque)} @import "https://example.invalid/x.css"; @import url(//example.invalid/y.css);';
+    const files = new Map([
+      ['index.html', html({ styles: ['root.css'] })],
+      ['root.css', css]
+    ]);
+    const report = planBudgetReport(files, roomy, rawSize);
+    expect(report.violations).toEqual([]);
+    expect(report.entries[0].counts.get('stylesheet')).toBe(1);
   });
 });

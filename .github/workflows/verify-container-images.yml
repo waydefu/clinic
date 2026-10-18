@@ -1,0 +1,100 @@
+name: Container source verification
+
+on:
+  pull_request:
+    paths:
+      - 'containers/**'
+      - '.dockerignore'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.base.json'
+      - 'packages/**'
+      - 'apps/api/**'
+      - 'apps/worker/**'
+      - '.github/workflows/verify-container-images.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-source-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  images:
+    name: container-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [api, worker, internal-test-outbox]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build the exact checked-out candidate without publishing
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          docker build \
+            --file "containers/${TARGET}.Dockerfile" \
+            --build-arg "SOURCE_SHA=${GITHUB_SHA}" \
+            --tag "clinic-${TARGET}:ci" \
+            .
+
+      - name: Inspect final image and execute only isolated Node probes
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          mkdir -p container-evidence
+          docker image inspect "clinic-${TARGET}:ci" > "container-evidence/${TARGET}.json"
+          docker run --rm --network none --entrypoint node "clinic-${TARGET}:ci" --version \
+            > "container-evidence/${TARGET}-node.txt"
+          docker run --rm --network none --entrypoint node "clinic-${TARGET}:ci" \
+            -e 'const fs = require("node:fs"); const p = process.argv[1]; if (!fs.statSync(p).isFile()) process.exit(1)' \
+            "$(python -c 'import json,os; print(json.load(open("container-evidence/" + os.environ["TARGET"] + ".json"))[0]["Config"]["Cmd"][1])')"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          target = os.environ['TARGET']
+          root = Path('container-evidence')
+          image = json.loads((root / f'{target}.json').read_text())[0]
+          config = image['Config']
+          expected_commands = {
+              'api': ['node', 'dist/main.js'],
+              'worker': ['node', 'dist/calendar-sync/calendar-pilot-main.js'],
+              'internal-test-outbox': ['node', 'dist/internal-test-outbox-main.js'],
+          }
+          assert config['Labels']['org.opencontainers.image.revision'] == os.environ['GITHUB_SHA']
+          assert config['User'] == 'node'
+          assert config['Cmd'] == expected_commands[target]
+          assert 'NODE_ENV=production' in config['Env']
+          assert (root / f'{target}-node.txt').read_text().strip() == 'v24.20.0'
+          assert image['Id'].startswith('sha256:')
+          (root / f'{target}-summary.json').write_text(json.dumps({
+              'candidate': os.environ['GITHUB_SHA'],
+              'target': target,
+              'image_id': image['Id'],
+              'revision_label': config['Labels']['org.opencontainers.image.revision'],
+              'node': 'v24.20.0',
+              'user': config['User'],
+              'application_started': False,
+              'network': 'none',
+              'published': False,
+          }, indent=2) + '\n')
+          PY
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: container-source-${{ matrix.target }}-${{ github.sha }}
+          path: container-evidence/
+          if-no-files-found: error
+          retention-days: 14

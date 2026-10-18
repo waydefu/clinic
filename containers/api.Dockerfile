@@ -1,4 +1,4 @@
-FROM node:24.20.0-bookworm-slim AS build
+FROM node:24.20.0-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS build
 WORKDIR /workspace
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
@@ -14,7 +14,10 @@ RUN corepack pnpm --filter @beauessence/contracts build \
  && corepack pnpm --filter @beauessence/api build \
  && corepack pnpm --filter @beauessence/api deploy --prod --legacy /runtime
 
-FROM node:24.20.0-bookworm-slim
+FROM node:24.20.0-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
+ARG SOURCE_SHA
+RUN node -e 'if (!/^[0-9a-f]{40}$/.test(process.argv[1] ?? "")) process.exit(1)' "$SOURCE_SHA"
+LABEL org.opencontainers.image.revision="${SOURCE_SHA}"
 ENV NODE_ENV=production PORT=8080 HOST=0.0.0.0 ALLOW_NON_LOOPBACK_BIND=true
 WORKDIR /app
 COPY --from=build /runtime/ ./

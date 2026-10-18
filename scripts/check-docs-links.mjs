@@ -315,25 +315,59 @@ export function reviewDocumentation({
 }
 
 async function main() {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const scanFailures = [];
+  const scanFailure = (operation, error) => {
+    const detail =
+      error?.code === 'ERR_ENCODING_INVALID_ENCODED_DATA'
+        ? 'invalid UTF-8'
+        : /^[A-Z][A-Z0-9_]+$/.test(error?.code ?? '')
+          ? error.code
+          : 'unreadable';
+    scanFailures.push(`Scan failure ${operation}: ${detail}`);
+  };
+  const readText = async (file) => {
+    try {
+      const bytes = await readFile(resolve(root, file));
+      // Keep the previous BOM behavior, but never replace invalid byte sequences.
+      return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+        bytes
+      );
+    } catch (error) {
+      scanFailure(`reading ${file}`, error);
+      return undefined;
+    }
+  };
   const discovered = new Set();
-  for (const pattern of MARKDOWN_GLOBS)
-    for await (const entry of glob(pattern, { cwd: process.cwd() }))
-      discovered.add(entry.split(sep).join('/'));
+  for (const pattern of MARKDOWN_GLOBS) {
+    try {
+      for await (const entry of glob(pattern, { cwd: root }))
+        discovered.add(entry.split(sep).join('/'));
+    } catch (error) {
+      scanFailure(`discovering markdown (${pattern})`, error);
+    }
+  }
   const markdownFiles = [...discovered].filter(isScannedMarkdown);
+  if (!discovered.has(INDEX))
+    scanFailure(`reading ${INDEX}`, { code: 'ENOENT' });
 
   const documents = new Map(
-    await Promise.all(
-      markdownFiles.map(async (file) => [file, await readFile(file, 'utf8')])
-    )
+    (
+      await Promise.all(
+        markdownFiles.map(async (file) => [file, await readText(file)])
+      )
+    ).filter(([, text]) => text !== undefined)
   );
 
   const otherTexts = new Map(
-    await Promise.all(
-      staleClaimSources(documents).map(async (file) => [
-        file,
-        await readFile(file, 'utf8')
-      ])
-    )
+    (
+      await Promise.all(
+        staleClaimSources(documents).map(async (file) => [
+          file,
+          await readText(file)
+        ])
+      )
+    ).filter(([, text]) => text !== undefined)
   );
 
   // The link check must be able to see every file, not only markdown, because
@@ -351,15 +385,20 @@ async function main() {
     [...candidates].map(async (candidate) => {
       if (documents.has(candidate)) return;
       try {
-        await stat(resolve(process.cwd(), candidate));
+        await stat(resolve(root, candidate));
         existence.set(candidate, true);
-      } catch {
+      } catch (error) {
+        if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR')
+          scanFailure(`stating ${candidate}`, error);
         existence.set(candidate, false);
       }
     })
   );
 
-  const failures = reviewDocumentation({ documents, fileExists, otherTexts });
+  const failures = [
+    ...scanFailures.sort(),
+    ...reviewDocumentation({ documents, fileExists, otherTexts })
+  ];
 
   if (failures.length > 0) {
     console.error('Documentation check failed:');
@@ -373,7 +412,7 @@ async function main() {
 }
 
 function staleClaimSources(documents) {
-  return STALE_CLAIMS.map(([file]) => file).filter(
+  return [...new Set(STALE_CLAIMS.map(([file]) => file))].filter(
     (file) => !documents.has(file)
   );
 }
