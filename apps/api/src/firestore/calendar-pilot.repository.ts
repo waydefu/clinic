@@ -623,9 +623,12 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         candidate.sourceVersion !== configuration.version
       )
         throw new ConflictError();
-      if (candidate.status === 'unmatched' || candidate.kind === 'unmatched') {
-        if (command.action !== 'reject') throw new ConflictError();
-      } else if (!['pending', 'conflict'].includes(candidate.status))
+      if (!['pending', 'conflict', 'unmatched'].includes(candidate.status))
+        throw new ConflictError();
+      if (
+        (candidate.status === 'unmatched' || candidate.kind === 'unmatched') &&
+        command.action !== 'reject'
+      )
         throw new ConflictError();
 
       let restoreAppointmentId: string | undefined;

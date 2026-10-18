@@ -31,6 +31,8 @@ export interface ExternalCalendarEvent {
   };
 }
 
+export const MAX_CALENDAR_SYNC_MUTATIONS = 20;
+
 export interface CalendarEventPage {
   readonly events: readonly ExternalCalendarEvent[];
   readonly nextPageToken?: string;
@@ -125,6 +127,11 @@ export interface CalendarCandidateDraft {
 
 export interface CalendarMirrorMutation {
   readonly mirror: CalendarMirrorRecord;
+  /** Transient database baseline, never persisted or exposed through the API. */
+  readonly appointmentGuard?: {
+    readonly appointmentId: string;
+    readonly expected?: AuthoritativeAppointmentProjection;
+  };
   readonly candidate?: CalendarCandidateDraft;
   /** Transient contact data for a server-side lookup; never persisted. */
   readonly suggestionContact?: CalendarContactSuggestion;
@@ -158,6 +165,10 @@ export interface AuthoritativeAppointmentProjection {
   readonly status: string;
   readonly startsAt: string;
   readonly bookingKind: 'initial' | 'follow_up';
+  readonly readVersion?: {
+    readonly seconds: number;
+    readonly nanoseconds: number;
+  };
 }
 
 export interface CalendarSyncRepository {
@@ -277,6 +288,7 @@ export class CalendarSyncEngine {
       : { syncToken };
 
     let pageToken: string | undefined;
+    const pageTokens = new Set<string>();
     let pages = 0;
     let seen = 0;
     let candidates = 0;
@@ -307,8 +319,31 @@ export class CalendarSyncEngine {
       }
 
       pages += 1;
-      const mutations: CalendarMirrorMutation[] = [];
+      if (page.nextPageToken !== undefined) {
+        if (
+          page.nextPageToken.trim() === '' ||
+          pageTokens.has(page.nextPageToken) ||
+          page.nextSyncToken !== undefined
+        )
+          throw new Error('Calendar page token is invalid or repeated.');
+        pageTokens.add(page.nextPageToken);
+      } else if (
+        page.nextSyncToken === undefined ||
+        page.nextSyncToken.trim() === ''
+      ) {
+        throw new Error('Calendar terminal page has no valid nextSyncToken.');
+      }
+      let mutations: CalendarMirrorMutation[] = [];
       for (const event of page.events) {
+        if (mutations.length === MAX_CALENDAR_SYNC_MUTATIONS) {
+          await this.repository.commitSync({
+            sourceId: configuration.activeSourceId,
+            expectedSourceVersion: configuration.sourceVersion,
+            mutations,
+            fullSync
+          });
+          mutations = [];
+        }
         seen += 1;
         if (event.id.trim() === '' || event.etag.trim() === '') {
           skipped += 1;
@@ -341,6 +376,17 @@ export class CalendarSyncEngine {
             : await this.repository.loadAuthoritativeAppointment(
                 clinicAppointmentId
               );
+        const appointmentGuard =
+          clinicAppointmentId === undefined
+            ? {}
+            : {
+                appointmentGuard: {
+                  appointmentId: clinicAppointmentId,
+                  ...(liveAppointment === undefined
+                    ? {}
+                    : { expected: liveAppointment })
+                }
+              };
         const selfProjectedEcho =
           liveAppointment !== undefined &&
           isSelfProjectedCalendarEcho({
@@ -415,7 +461,7 @@ export class CalendarSyncEngine {
           updatedAt: now
         };
         if (kind === undefined || managedProjectionMatch || selfProjectedEcho) {
-          mutations.push({ mirror });
+          mutations.push({ mirror, ...appointmentGuard });
           skipped += 1;
           continue;
         }
@@ -457,6 +503,7 @@ export class CalendarSyncEngine {
             : undefined;
         mutations.push({
           mirror,
+          ...appointmentGuard,
           candidate,
           ...(suggestionContact === undefined ? {} : { suggestionContact }),
           ...(kind === 'unmatched' && range !== undefined

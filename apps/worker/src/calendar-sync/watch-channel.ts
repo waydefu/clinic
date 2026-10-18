@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 
 import type { CalendarCandidateKind } from './sync-engine.js';
 
@@ -20,6 +20,25 @@ import type { CalendarCandidateKind } from './sync-engine.js';
 export const COMPENSATION_SYNC_MIN_MS = 60_000;
 export const COMPENSATION_SYNC_MAX_MS = 5 * 60_000;
 export const DEFAULT_RENEWAL_LEAD_MS = 24 * 60 * 60 * 1000;
+
+// Google Calendar Push: a new channel ID is at most 64 characters.
+const WATCH_CHANNEL_ID_MAX_LENGTH = 64;
+
+function assertWellFormedChannelId(channelId: string): void {
+  if (!channelId.isWellFormed()) {
+    throw new Error('Watch channel id must be well-formed UTF-16.');
+  }
+}
+
+function assertNewWatchChannelId(channelId: string): void {
+  assertWellFormedChannelId(channelId);
+  if (
+    channelId.trim() === '' ||
+    [...channelId].length > WATCH_CHANNEL_ID_MAX_LENGTH
+  ) {
+    throw new Error('New watch channel id must contain 1 to 64 characters.');
+  }
+}
 
 export type InboundReviewReason =
   | 'unmatched'
@@ -73,7 +92,19 @@ export function nextWatchChannelId(previousChannelId: string): string {
   if (previousChannelId.trim() === '') {
     throw new Error('Previous watch channel id must be a non-empty string.');
   }
-  return `${previousChannelId}:next`;
+  // UTF-8 hashing must not silently replace distinct lone surrogate code units.
+  assertWellFormedChannelId(previousChannelId);
+  const extended = `${previousChannelId}:next`;
+  const next =
+    [...extended].length <= WATCH_CHANNEL_ID_MAX_LENGTH
+      ? extended
+      : createHash('sha256').update(previousChannelId).digest('hex');
+  if (next === previousChannelId) {
+    throw new Error(
+      'Replacement watch channel id must differ from the current id.'
+    );
+  }
+  return next;
 }
 
 /**
@@ -94,6 +125,7 @@ export function planWatchChannelReplacement(
   if (!renew) {
     return { renew: false, stopAfterOverlap: false, nextChannelId };
   }
+  assertNewWatchChannelId(nextChannelId);
   if (nextChannelId === current.channelId) {
     throw new Error(
       'Replacement watch channel id must differ from the current id.'
@@ -246,6 +278,7 @@ export function googleEventsWatchBody(input: {
   if (input.channelId.trim() === '' || input.address.trim() === '') {
     throw new Error('Watch channel id and address must be non-empty.');
   }
+  assertNewWatchChannelId(input.channelId);
   return {
     id: input.channelId,
     type: 'web_hook',

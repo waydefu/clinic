@@ -1,6 +1,14 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi
+} from 'vitest';
 
 import { CalendarChangeCandidateSchema } from '../../packages/contracts/src/calendar-sync.js';
 import { calendarEventIdForAppointment } from '@beauessence/domain';
@@ -144,6 +152,249 @@ describe('Stage D Calendar inbound emulator', () => {
     await db.collection('calendar_pilot_patients').doc('A17').set({
       enabled: true
     });
+  });
+
+  it.each(['cancelled', 'moved', 'aba', 'deleted'])(
+    'rejects a linked appointment changed between detection and transaction: %s',
+    async (change) => {
+      const appointmentId = 'guarded_appointment';
+      const appointment = db.collection('appointments').doc(appointmentId);
+      await appointment.set({
+        appointmentId,
+        status: 'confirmed',
+        startsAt: '2030-01-02T06:15:00.000Z',
+        bookingKind: 'follow_up'
+      });
+      const repository = new FirestoreCalendarSyncRepository(
+        db,
+        'synthetic-pseudonym-key-32-characters-min'
+      );
+      const original = repository.commitSync.bind(repository);
+      vi.spyOn(repository, 'commitSync').mockImplementationOnce(
+        async (commit) => {
+          if (change === 'deleted') await appointment.delete();
+          else if (change === 'aba') {
+            await appointment.update({ status: 'cancelled' });
+            await appointment.update({ status: 'confirmed' });
+          } else
+            await appointment.update(
+              change === 'cancelled'
+                ? { status: 'cancelled' }
+                : change === 'moved'
+                  ? { startsAt: '2030-01-02T06:30:00.000Z' }
+                  : { status: 'confirmed' }
+            );
+          await original(commit);
+        }
+      );
+      const reader = {
+        listEvents: () =>
+          Promise.resolve({
+            events: [
+              {
+                id: calendarEventIdForAppointment(appointmentId),
+                etag: 'guarded-etag',
+                status: 'confirmed' as const,
+                summary: 'manual move',
+                start: { dateTime: '2030-01-02T06:45:00.000Z' },
+                end: { dateTime: '2030-01-02T07:15:00.000Z' }
+              }
+            ],
+            nextSyncToken: 'guarded-next'
+          })
+      };
+      await expect(
+        new CalendarSyncEngine(reader, repository).run(NOW)
+      ).rejects.toThrow('appointment changed');
+      for (const collection of [
+        'calendar_pilot_mirrors',
+        'calendar_pilot_candidates',
+        'calendar_pilot_audit_events'
+      ])
+        expect((await db.collection(collection).get()).size).toBe(0);
+      expect(
+        (await db.collection('calendar_pilot_sources').doc(SOURCE).get()).data()
+      ).not.toHaveProperty('syncToken');
+      expect(
+        (
+          await db
+            .collection('calendar_pilot_configuration')
+            .doc('active')
+            .get()
+        ).data()
+      ).not.toHaveProperty('lastSuccessfulSyncAt');
+      await new CalendarSyncEngine(reader, repository).run(NOW);
+      expect(
+        (await db.collection('calendar_pilot_candidates').get()).size
+      ).toBe(1);
+      expect(
+        (await db.collection('calendar_pilot_audit_events').get()).size
+      ).toBe(1);
+    }
+  );
+
+  it('keeps committed page prefixes idempotent across an interrupted later chunk', async () => {
+    const repository = new FirestoreCalendarSyncRepository(
+      db,
+      'synthetic-pseudonym-key-32-characters-min'
+    );
+    const original = repository.commitSync.bind(repository);
+    let attempts = 0;
+    const spy = vi
+      .spyOn(repository, 'commitSync')
+      .mockImplementation(async (commit) => {
+        if (++attempts === 2) throw new Error('synthetic chunk stop');
+        await original(commit);
+      });
+    const reader = {
+      listEvents: () =>
+        Promise.resolve({
+          events: Array.from({ length: 47 }, (_, index) => ({
+            id: `bounded_${index}`,
+            etag: `etag_${index}`,
+            status: 'confirmed' as const,
+            summary: '[預約] 回診｜A17｜皮拉提斯',
+            start: { dateTime: '2026-09-02T06:00:00Z' },
+            end: { dateTime: '2026-09-02T06:30:00Z' }
+          })),
+          nextSyncToken: 'chunk-final'
+        })
+    };
+    await expect(
+      new CalendarSyncEngine(reader, repository).run(NOW)
+    ).rejects.toThrow('synthetic chunk stop');
+    expect((await db.collection('calendar_pilot_mirrors').get()).size).toBe(20);
+    expect((await db.collection('calendar_pilot_candidates').get()).size).toBe(
+      20
+    );
+    expect(
+      (await db.collection('calendar_pilot_audit_events').get()).size
+    ).toBe(20);
+    expect(
+      (await db.collection('calendar_pilot_sources').doc(SOURCE).get()).data()
+    ).not.toHaveProperty('syncToken');
+    spy.mockRestore();
+    await new CalendarSyncEngine(reader, repository).run(NOW);
+    for (const collection of [
+      'calendar_pilot_mirrors',
+      'calendar_pilot_candidates',
+      'calendar_pilot_audit_events'
+    ])
+      expect((await db.collection(collection).get()).size).toBe(47);
+    const audits = (
+      await db.collection('calendar_pilot_audit_events').get()
+    ).docs.map((document) => document.data()['candidateId']);
+    expect(new Set(audits).size).toBe(47);
+    expect(
+      (
+        await db.collection('calendar_pilot_sources').doc(SOURCE).get()
+      ).data()?.['syncToken']
+    ).toBe('chunk-final');
+  });
+
+  it('rejects a changed generation between chunks without advancing the source token', async () => {
+    const repository = new FirestoreCalendarSyncRepository(
+      db,
+      'synthetic-pseudonym-key-32-characters-min'
+    );
+    const original = repository.commitSync.bind(repository);
+    let attempts = 0;
+    vi.spyOn(repository, 'commitSync').mockImplementation(async (commit) => {
+      if (++attempts === 2)
+        await db
+          .collection('calendar_pilot_configuration')
+          .doc('active')
+          .update({ version: 2 });
+      await original(commit);
+    });
+    const reader = {
+      listEvents: () =>
+        Promise.resolve({
+          events: Array.from({ length: 21 }, (_, index) => ({
+            id: `generation_${index}`,
+            etag: `generation_etag_${index}`,
+            status: 'confirmed' as const,
+            summary: '[預約] 回診｜A17｜皮拉提斯',
+            start: { dateTime: '2026-09-02T06:00:00Z' },
+            end: { dateTime: '2026-09-02T06:30:00Z' }
+          })),
+          nextSyncToken: 'must-not-advance'
+        })
+    };
+    await expect(
+      new CalendarSyncEngine(reader, repository).run(NOW)
+    ).rejects.toThrow('generation');
+    expect((await db.collection('calendar_pilot_mirrors').get()).size).toBe(20);
+    expect(
+      (await db.collection('calendar_pilot_audit_events').get()).size
+    ).toBe(20);
+    expect(
+      (await db.collection('calendar_pilot_sources').doc(SOURCE).get()).data()
+    ).not.toHaveProperty('syncToken');
+  });
+
+  it('omits an optional patient suggestion when the complete index exceeds the fixed read budget', async () => {
+    await seedSuggestionPatients([SUGGESTION_PATIENT_IDS[0]]);
+    await db
+      .collection('patient_lookup_index_v2')
+      .doc(SUGGESTION_INDEX_ID)
+      .set({
+        patientIds: [
+          SUGGESTION_PATIENT_IDS[0],
+          ...Array.from(
+            { length: 100 },
+            (_, index) => `synthetic_missing_${index}`
+          )
+        ]
+      });
+    await runManualEvent('合成患者甲0987654321 801123');
+    const candidates = await db.collection('calendar_pilot_candidates').get();
+    expect(candidates.size).toBe(1);
+    expect(candidates.docs[0]?.data()['kind']).toBe('unmatched');
+    expect(candidates.docs[0]?.data()).not.toHaveProperty('suggestedPatientId');
+    expect(candidates.docs[0]?.data()).not.toHaveProperty('suggestionMethod');
+  });
+
+  it('refuses an oversized direct repository commit before starting its transaction', async () => {
+    const repository = new FirestoreCalendarSyncRepository(
+      db,
+      'synthetic-pseudonym-key-32-characters-min'
+    );
+    const original = repository.commitSync.bind(repository);
+    const spy = vi.spyOn(repository, 'commitSync');
+    const reader = {
+      listEvents: () =>
+        Promise.resolve({
+          events: [
+            {
+              id: 'bound_fixture',
+              etag: 'bound_etag',
+              status: 'confirmed' as const,
+              summary: '[預約] A17｜初診｜止鼾',
+              start: { dateTime: '2026-09-02T06:00:00Z' },
+              end: { dateTime: '2026-09-02T06:30:00Z' }
+            }
+          ],
+          nextSyncToken: 'bound-final'
+        })
+    };
+    await new CalendarSyncEngine(reader, repository).run(NOW);
+    const captured = spy.mock.calls[0]?.[0];
+    const mutation = captured?.mutations[0];
+    if (captured === undefined || mutation === undefined)
+      throw new Error('Expected actual engine commit fixture.');
+    const transaction = vi.spyOn(db, 'runTransaction');
+    try {
+      await expect(
+        original({
+          ...captured,
+          mutations: Array.from({ length: 21 }, () => mutation)
+        })
+      ).rejects.toThrow('resource bound');
+      expect(transaction).not.toHaveBeenCalled();
+    } finally {
+      transaction.mockRestore();
+    }
   });
 
   it('creates a pending candidate without mutating the clinic appointment', async () => {

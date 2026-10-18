@@ -208,3 +208,173 @@ describe('watch-channel (unwired)', () => {
     expect(() => parseWatchChannelRecord(null)).toThrow(/unreadable/);
   });
 });
+
+describe('bounded synthetic watch channel IDs, still unwired', () => {
+  it('keeps a 256-renewal chain within64 and distinct from every prior sample', () => {
+    let previous = 'chan-start';
+    const seen = new Set([previous]);
+    for (let round = 0; round < 256; round += 1) {
+      const next = nextWatchChannelId(previous);
+      expect(next.length).toBeLessThanOrEqual(64);
+      expect(seen.has(next)).toBe(false);
+      seen.add(next);
+      previous = next;
+    }
+    expect(seen.size).toBe(257);
+  });
+
+  it('keeps short legacy output exact and hashes the entire overlong predecessor', () => {
+    expect(nextWatchChannelId('chan-1')).toBe('chan-1:next');
+    const left = nextWatchChannelId('a'.repeat(100) + 'left');
+    const right = nextWatchChannelId('a'.repeat(100) + 'right');
+    expect(left).toMatch(/^[a-f0-9]{64}$/);
+    expect(right).toMatch(/^[a-f0-9]{64}$/);
+    expect(left).not.toBe(right);
+    expect(nextWatchChannelId('a'.repeat(100) + 'left')).toBe(left);
+  });
+
+  it.each(['', '   '])('continues rejecting the empty predecessor %j', (id) => {
+    expect(() => nextWatchChannelId(id)).toThrow(/non-empty/);
+  });
+
+  it.each(['', '   ', 'a'.repeat(65)])(
+    'rejects invalid replacement ID before planning a renewal: %j',
+    (id) => {
+      expect(() =>
+        planWatchChannelReplacement(CHANNEL, id, CHANNEL.expirationMs)
+      ).toThrow(/channel id/i);
+    }
+  );
+
+  it.each(['', '   ', 'a'.repeat(65)])(
+    'rejects invalid new-channel watch body: %j',
+    (id) => {
+      expect(() =>
+        googleEventsWatchBody({
+          channelId: id,
+          address: 'https://example.invalid/watch',
+          token: 'opaque',
+          expirationMs: CHANNEL.expirationMs
+        })
+      ).toThrow(/channel id/i);
+    }
+  );
+
+  it('accepts exact64 as supplied and does not normalize identifiers', () => {
+    const id = 'a'.repeat(64);
+    expect(
+      planWatchChannelReplacement(CHANNEL, id, CHANNEL.expirationMs)
+        .nextChannelId
+    ).toBe(id);
+    expect(
+      googleEventsWatchBody({
+        channelId: id,
+        address: 'https://example.invalid/watch',
+        token: 'opaque',
+        expirationMs: CHANNEL.expirationMs
+      }).id
+    ).toBe(id);
+    expect(
+      planWatchChannelReplacement(
+        CHANNEL,
+        '  chan-exact  ',
+        CHANNEL.expirationMs
+      ).nextChannelId
+    ).toBe('  chan-exact  ');
+  });
+
+  it('can still read and retire a legacy overlong channel without fabricating a migration', () => {
+    const id = 'a'.repeat(65);
+    expect(
+      parseWatchChannelRecord({ ...CHANNEL, channelId: id, schemaVersion: 1 })
+        .channelId
+    ).toBe(id);
+    expect(
+      googleChannelsStopBody({ channelId: id, resourceId: 'opaque' }).id
+    ).toBe(id);
+  });
+
+  it('keeps an unused replacement untouched when renewal is not needed', () => {
+    expect(
+      planWatchChannelReplacement(
+        CHANNEL,
+        '',
+        CHANNEL.expirationMs - 2 * 24 * 60 * 60 * 1000
+      )
+    ).toEqual({ renew: false, stopAfterOverlap: false, nextChannelId: '' });
+  });
+
+  it('pins the full predecessor UTF-8 SHA-256 to an independent known vector', () => {
+    expect(nextWatchChannelId('a'.repeat(100))).toBe(
+      '2816597888e4a0d3a36b82b83316ab32680eb8f00f8cd3b904d681246d285a0e'
+    );
+  });
+
+  it.each(['\uD800', '\uD801', '\uDC00', 'x\uD800y'])(
+    'rejects malformed UTF-16 instead of hashing a replacement character: %j',
+    (fragment) => {
+      const prior = parseWatchChannelRecord({
+        ...CHANNEL,
+        channelId: 'a'.repeat(100) + fragment,
+        schemaVersion: 1
+      });
+      expect(() => nextWatchChannelId(prior.channelId)).toThrow(
+        /well-formed UTF-16/
+      );
+      expect(() => nextWatchChannelId(fragment)).toThrow(/well-formed UTF-16/);
+    }
+  );
+
+  it.each(['\uD800', '\uDC00'])(
+    'rejects malformed UTF-16 at both new-request boundaries: %j',
+    (id) => {
+      expect(() =>
+        planWatchChannelReplacement(CHANNEL, id, CHANNEL.expirationMs)
+      ).toThrow(/well-formed UTF-16/);
+      expect(() =>
+        googleEventsWatchBody({
+          channelId: id,
+          address: 'https://example.invalid/watch',
+          token: 'opaque',
+          expirationMs: CHANNEL.expirationMs
+        })
+      ).toThrow(/well-formed UTF-16/);
+    }
+  );
+
+  it('preserves well-formed surrogate pairs and literal replacement characters exactly', () => {
+    for (const id of ['\uD800\uDC00', '\uD801\uDC00', '\uFFFD']) {
+      expect(nextWatchChannelId(id)).toBe(`${id}:next`);
+      expect(
+        planWatchChannelReplacement(CHANNEL, id, CHANNEL.expirationMs)
+          .nextChannelId
+      ).toBe(id);
+    }
+    const left = nextWatchChannelId('a'.repeat(100) + '\uD800\uDC00');
+    const right = nextWatchChannelId('a'.repeat(100) + '\uD801\uDC00');
+    expect(left).not.toBe(right);
+    expect([...left]).toHaveLength(64);
+    expect([...right]).toHaveLength(64);
+  });
+
+  it.each([
+    ['64 ASCII codepoints', 'a'.repeat(59), `${'a'.repeat(59)}:next`],
+    [
+      '65 ASCII codepoints',
+      'a'.repeat(60),
+      '11ee391211c6256460b6ed375957fadd8061cafbb31daf967db875aebd5aaad4'
+    ],
+    [
+      '64 including a surrogate pair',
+      'a'.repeat(58) + '\uD800\uDC00',
+      `${'a'.repeat(58)}\uD800\uDC00:next`
+    ]
+  ])(
+    'pins the suffix/hash generation boundary: %s',
+    (_name, previous, expected) => {
+      const next = nextWatchChannelId(previous);
+      expect(next).toBe(expected);
+      expect([...next]).toHaveLength(64);
+    }
+  );
+});

@@ -10,6 +10,9 @@ import {
 } from '@nestjs/common';
 import {
   PublishScheduleRequestSchema,
+  GetPublishedScheduleResponseSchema,
+  ListSlotsResponseSchema,
+  PublishScheduleResponseSchema,
   type GetPublishedScheduleResponse,
   type ListSlotsResponse,
   type PublishScheduleResponse
@@ -28,6 +31,7 @@ import {
   type InternalTestBookingClock
 } from '../internal-test-booking/internal-test-booking.tokens.js';
 import { deriveClientIp } from '../platform/runtime/client-ip.js';
+import { admitResponse } from '../platform/contracts/response-contract.js';
 import {
   WP_B2_RATE_LIMITER,
   WpB2RateLimiter
@@ -85,9 +89,12 @@ export class ScheduleController {
   ): Promise<ListSlotsResponse> {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, false);
-    return this.schedules.listSlots(
-      authentication,
-      assertInternalTestSlotKind(kind)
+    return admitResponse(
+      ListSlotsResponseSchema,
+      await this.schedules.listSlots(
+        authentication,
+        assertInternalTestSlotKind(kind)
+      )
     );
   }
 
@@ -97,7 +104,10 @@ export class ScheduleController {
   ): Promise<GetPublishedScheduleResponse> {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, false);
-    return this.schedules.read(authentication);
+    return admitResponse(
+      GetPublishedScheduleResponseSchema,
+      await this.schedules.read(authentication)
+    );
   }
 
   @Post('schedule/publish')
@@ -107,9 +117,12 @@ export class ScheduleController {
   ): Promise<PublishScheduleResponse> {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.schedules.publish(
-      PublishScheduleRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      PublishScheduleResponseSchema,
+      await this.schedules.publish(
+        PublishScheduleRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 }

@@ -16,6 +16,14 @@ import {
   RecordFollowUpRequestSchema,
   DeleteAppointmentRequestSchema,
   RescheduleAppointmentRequestSchema,
+  CancelAppointmentResponseSchema,
+  CreateAppointmentResponseSchema,
+  DeleteAppointmentResponseSchema,
+  GetAppointmentResponseSchema,
+  ListAppointmentsResponseSchema,
+  RecordFollowUpResponseSchema,
+  RescheduleAppointmentResponseSchema,
+  TransitionAppointmentResponseSchema,
   type GetAppointmentResponse
 } from '@beauessence/contracts';
 
@@ -31,6 +39,7 @@ import {
   type InternalTestBookingClock
 } from '../internal-test-booking/internal-test-booking.tokens.js';
 import { deriveClientIp } from '../platform/runtime/client-ip.js';
+import { admitResponse } from '../platform/contracts/response-contract.js';
 import {
   WP_B2_RATE_LIMITER,
   WpB2RateLimiter
@@ -112,9 +121,12 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.create(
-      CreateAppointmentRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      CreateAppointmentResponseSchema,
+      await this.appointments.create(
+        CreateAppointmentRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 
@@ -129,7 +141,10 @@ export class AppointmentController {
     const scope =
       parsed.scope ??
       (authentication.actorRole === 'patient' ? 'mine' : 'clinic');
-    return this.appointments.list(scope, authentication);
+    return admitResponse(
+      ListAppointmentsResponseSchema,
+      await this.appointments.list(scope, authentication)
+    );
   }
 
   @Get(':appointmentId')
@@ -139,7 +154,10 @@ export class AppointmentController {
   ): Promise<GetAppointmentResponse> {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, false);
-    return this.appointments.get(identifier(appointmentId), authentication);
+    return admitResponse(
+      GetAppointmentResponseSchema,
+      await this.appointments.get(identifier(appointmentId), authentication)
+    );
   }
 
   @Post(':appointmentId/cancel')
@@ -150,10 +168,13 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.cancel(
-      identifier(appointmentId),
-      CancelAppointmentRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      CancelAppointmentResponseSchema,
+      await this.appointments.cancel(
+        identifier(appointmentId),
+        CancelAppointmentRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 
@@ -165,10 +186,13 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.reschedule(
-      identifier(appointmentId),
-      RescheduleAppointmentRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      RescheduleAppointmentResponseSchema,
+      await this.appointments.reschedule(
+        identifier(appointmentId),
+        RescheduleAppointmentRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 
@@ -180,10 +204,13 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.arrive(
-      identifier(appointmentId),
-      CancelAppointmentRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      TransitionAppointmentResponseSchema,
+      await this.appointments.arrive(
+        identifier(appointmentId),
+        CancelAppointmentRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 
@@ -195,10 +222,13 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.complete(
-      identifier(appointmentId),
-      CancelAppointmentRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      TransitionAppointmentResponseSchema,
+      await this.appointments.complete(
+        identifier(appointmentId),
+        CancelAppointmentRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 
@@ -210,10 +240,13 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.markNoShow(
-      identifier(appointmentId),
-      CancelAppointmentRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      TransitionAppointmentResponseSchema,
+      await this.appointments.markNoShow(
+        identifier(appointmentId),
+        CancelAppointmentRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 
@@ -225,10 +258,13 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.recordFollowUp(
-      identifier(appointmentId),
-      RecordFollowUpRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      RecordFollowUpResponseSchema,
+      await this.appointments.recordFollowUp(
+        identifier(appointmentId),
+        RecordFollowUpRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 
@@ -240,10 +276,13 @@ export class AppointmentController {
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, true);
-    return this.appointments.delete(
-      identifier(appointmentId),
-      DeleteAppointmentRequestSchema.parse(body),
-      authentication
+    return admitResponse(
+      DeleteAppointmentResponseSchema,
+      await this.appointments.delete(
+        identifier(appointmentId),
+        DeleteAppointmentRequestSchema.parse(body),
+        authentication
+      )
     );
   }
 }

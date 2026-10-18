@@ -1,7 +1,7 @@
-import { once } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { createServer } from 'node:net';
+import { createConnection, createServer } from 'node:net';
 import { describe, expect, it } from 'vitest';
 
 function firebaseFtpDependencies() {
@@ -33,12 +33,16 @@ async function syntheticFtpServer() {
   const modifiedAt = '2020-01-01T00:00:00.000Z';
   const commands = [];
   const errors = [];
+  const observations = new EventEmitter();
   const sockets = new Set();
   const servers = new Set();
 
   function trackSocket(socket) {
     sockets.add(socket);
-    socket.on('error', (error) => errors.push(error));
+    socket.on('error', (error) => {
+      errors.push(error);
+      observations.emit('socketError', error);
+    });
     socket.once('close', () => sockets.delete(socket));
     return socket;
   }
@@ -98,7 +102,9 @@ async function syntheticFtpServer() {
       ) {
         control.write('200 Command accepted\r\n');
       } else if (command === 'QUIT') {
-        control.end('221 Goodbye\r\n');
+        // No further commands follow 221. Close both halves after flushing the
+        // terminal reply, before the FTP client disposes its control socket.
+        control.end('221 Goodbye\r\n', () => control.destroy());
       } else {
         control.write('502 Command unsupported\r\n');
       }
@@ -127,6 +133,7 @@ async function syntheticFtpServer() {
     modifiedAt,
     commands,
     errors,
+    observations,
     async close() {
       for (const socket of sockets) socket.destroy();
       await Promise.all(
@@ -149,6 +156,27 @@ describe('Firebase CLI FTP dependency compatibility', () => {
       semver.gte(basicFtp.version, '6.2.1'),
       packages.map(({ name, version }) => `${name}@${version}`).join(' > ')
     ).toBe(true);
+  });
+
+  it('still records an unexpected control reset before QUIT instead of suppressing transport errors', async () => {
+    const fixture = await syntheticFtpServer();
+    const url = new URL(fixture.url);
+    const connection = createConnection({
+      host: url.hostname,
+      port: Number(url.port)
+    });
+    try {
+      await once(connection, 'data');
+      const observed = once(fixture.observations, 'socketError');
+      connection.resetAndDestroy();
+      const [error] = await observed;
+      expect(error.code).toBe('ECONNRESET');
+      expect(fixture.errors).toEqual([error]);
+      expect(fixture.commands).not.toContain('QUIT');
+    } finally {
+      connection.destroy();
+      await fixture.close();
+    }
   });
 
   it('retrieves a loopback PAC file through get-uri listing fallback and honours cache', async () => {
