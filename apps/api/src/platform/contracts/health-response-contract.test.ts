@@ -24,10 +24,14 @@ const healthy = {
 const evaluation = vi.hoisted((): { value: Record<string, unknown> } => ({
   value: {}
 }));
-vi.mock('@beauessence/domain', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@beauessence/domain')>()),
-  evaluateOperationalHealth: () => evaluation.value
-}));
+type DomainModule = typeof import('@beauessence/domain');
+vi.mock('@beauessence/domain', async (importOriginal) => {
+  const actual = await importOriginal<DomainModule>();
+  return {
+    ...actual,
+    evaluateOperationalHealth: () => evaluation.value
+  };
+});
 let app: NestFastifyApplication | undefined;
 afterEach(async () => {
   await app?.close();
