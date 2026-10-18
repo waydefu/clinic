@@ -18,7 +18,7 @@ live status. Do not use sub-agents.
 Companion contracts in this file:
 
 - [Luna local authorized playbook](luna-local-authorized-playbook.md) — **Luna starts here**
-- [Session start](#1-session-start-do-not-reaudit-the-whole-project)
+- [Session start](#1-session-start-do-not-re-audit-the-whole-project)
 - [Checkpoint / resume](#2-checkpoint--resume-contract)
 - [Browser ownership](#3-browser-ownership-contract)
 - [Authority map](#4-remaining-authority-map)
@@ -54,7 +54,7 @@ Luna’s first file is the playbook. After identity Card 8 PASS, open the
 1. **Luna is the sole remaining executor.** No sub-agents. No waiting
    for Grok. Playbook cards in order; then the next phase.
 2. **Fresh-verify necessary state** at session start. Expand the audit only
-   when [§1](#1-session-start-do-not-reaudit-the-whole-project) says so.
+   when [§1](#1-session-start-do-not-re-audit-the-whole-project) says so.
 3. **Auto-continue** on engineering defects (see [§7](#7-automatic-continuation-vs-true-human-blockers)).
 4. **Stop for humans** only on true blockers (same section). Ask one minimal
    question. Never ask the user to paste secrets, tokens, or private keys
