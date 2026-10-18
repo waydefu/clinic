@@ -331,6 +331,8 @@ export class OutboxProcessor {
         } catch {
           transaction.update(reference, {
             status: 'dead_letter',
+            leaseOwner: FieldValue.delete(),
+            leaseExpiresAt: null,
             lastError: 'The outbox job is unreadable.'
           });
           return undefined;
@@ -422,6 +424,7 @@ export class OutboxProcessor {
         status: decision.status,
         attempts: decision.attempts,
         needsOperator: decision.needsOperator,
+        leaseOwner: FieldValue.delete(),
         leaseExpiresAt: null,
         ...(jitteredNextAttemptAt === undefined
           ? {}
@@ -685,6 +688,7 @@ export class OutboxProcessor {
         status: 'pending',
         attempts: 0,
         needsOperator: false,
+        leaseOwner: FieldValue.delete(),
         leaseExpiresAt: FieldValue.delete(),
         nextAttemptAt: now,
         requeuedAt: now,
