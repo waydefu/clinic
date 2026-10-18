@@ -48,8 +48,10 @@ import { InMemoryPatientDirectory } from '../patients/patient-directory.js';
 import { DomainError } from '@beauessence/domain';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
+type CryptoModule = typeof import('node:crypto');
+
 vi.mock('node:crypto', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:crypto')>();
+  const actual = await importOriginal<CryptoModule>();
   return {
     ...actual,
     randomUUID: () =>
