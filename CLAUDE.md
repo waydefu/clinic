@@ -152,8 +152,8 @@ Assume another agent or the user is working in this repository right now.
   `checkout -- .`, `restore .` or `stash` a tree containing them. If the tree is
   dirty at session start, report what you found and ask before touching it.
 - Work on `agent/<topic>` or `claude/<topic>`. Never commit to `main`, and never
-  push to `main` — branch protection here allows an administrator bypass, so the
-  gate will not stop you.
+  push to `main` — D-013 requires administrators to satisfy `Verification evidence`
+  too; administrator access does not permit bypassing the gate.
 - Rebase and force-push only your own branch, only with `--force-with-lease`.
 - Prefer a worktree under `.claude/worktrees/` for parallel work; it is
   gitignored and excluded from Prettier.
