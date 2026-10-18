@@ -71,7 +71,7 @@ leftover `admin` 讀取時對齊 `normaliseRole`）。`/index.html` gzip total �
 | --- | --- | --- | --- |
 | `manager`（schema v8；leftover `admin` 讀取對齊） | `manager` | `manager` | 已遷移，避免與 `system_admin` 混淆 |
 | `front_desk` | `front_desk` | `front_desk` | 一致，不動 |
-| — | `case_manager` | `consultant` | **需負責人確認**：`case_manager`（個管師）與諮詢師是同一個職務，還是兩個？見 §7 未解問題 |
+| — | `case_manager` | `consultant` | 負責人 2026-10-10 已答：同一個職務（§7 Q1，見決定登記簿） |
 | — | `patient` | `patient` | 瀏覽器端補上 |
 | — | — | `physician` | 全新，D-006 已核准 |
 
@@ -230,7 +230,7 @@ Rules 層的責任是「確保沒有人繞過 API」，不是複製一份角色�
 
 | # | 問題 | 影響 |
 | --- | --- | --- |
-| Q1 | **`case_manager`（個管師）與「諮詢師」是同一個職務嗎？** 現行程式有 `case_manager`，負責人的需求寫「諮詢師」與「個管」兩個詞並列 | 決定是收斂成一個角色還是兩個。若為兩個，§3.2 的權限要再拆 |
+| Q1 | **`case_manager`（個管師）與「諮詢師」是同一個職務嗎？** 現行程式有 `case_manager`，負責人的需求寫「諮詢師」與「個管」兩個詞並列 | **已答（2026-10-10）：同一個職務**，收斂成一個角色，§3.2 不拆；記於[決定登記簿](../product/phase-1-decision-register.md)「2026-10-10～11 Sol 開工前問答的其餘業主決定」 |
 | Q2 | 醫師可否看到自己主治病患的**金額**？ | §3.3 醫師列目前全空，依「不可查看不相關款項」推論而來，未經確認 |
 | Q3 | 管理者無臨床紀錄權（§3.4）是否可接受？ | 與「管理者：全部功能」的原始需求牴觸，但符合 D-014 的 accountable owner 原則 |
 | Q4 | 櫃檯的「查看及處理全部款項」是否包含**結算**（員工抽成）？ | §3.3 目前給櫃檯 `read_payment` 但不給 `read_settlement` |
