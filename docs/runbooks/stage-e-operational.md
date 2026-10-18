@@ -26,6 +26,22 @@ apply 都要 fresh exact-SHA packet。
 每份事故處置都含：症狀、偵測、立即止血、診斷、復原、rollback、驗證、升級、
 禁止事項、要留下的證據。
 
+### 停寫證據前置（不是可直接執行的維護開關）
+
+```text
+MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
+```
+
+`StaticMaintenanceGate` 與 HTTP guard 只提供可注入、可合成測試的拒絕邊界；
+AppModule 的預設值是 `false`，並非操作者可開啟的共用旗標。前端維護畫面、
+IP-001 gate 或單一回應 `SERVICE_UNAVAILABLE`，都不能證明所有 API instance
+及 worker 已停止相關寫入。排程暫停也不能代替已在執行工作的排空證據。
+
+shared-flag 控制、實際 routed 路徑及 worker 停寫／排空必須在另行核准的
+exact-SHA isolated 包內驗證。缺少接線、控制或證據時為 **BLOCKED**，
+不得宣稱全域停寫，亦不得跳過還原、切換或復原程序原有的前置條件。
+本文件與本機測試都不是 cloud apply、真實資料或 IAM／secret 操作權限。
+
 ## 共通禁止事項
 
 - 真實病患／日曆／薪資資料
@@ -50,8 +66,9 @@ apply 都要 fresh exact-SHA packet。
 `GET /v1/health/operational`。
 
 **Immediate containment.** 不要重啟只因 degraded。確認 liveness 與 readiness
-分開：非致命 backlog 不得讓 probe 殺掉程序。必要時開維護 gate
-（`SERVICE_UNAVAILABLE`），暫停 worker 排程。
+分開：非致命 backlog 不得讓 probe 殺掉程序。若需要停寫，先滿足上述
+停寫證據前置；只有已授權且可驗證的控制才算止血。欠缺證據時保留
+**BLOCKED**，不要把本機 static gate 當成維護開關。
 
 **Diagnosis.** 看 structured log 的 `correlationId`、`errorCode`、`operation`。
 404 表示 API 未掛載，不是健康的 fail-closed。Gate 關閉應為 503。
