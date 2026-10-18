@@ -83,7 +83,7 @@ const builders = [
     name: 'clinic',
     path: './build-clinic-assets.mjs',
     run: () => import('./build-clinic-assets.mjs'),
-    outputCount: 13
+    outputCount: 18
   }
 ];
 let savedArgv;
@@ -144,6 +144,38 @@ for (const builder of builders) {
         expect(JSON.parse(metadata[1].toString()).clinicHours).toBe(
           'synthetic-preserved-declaration'
         );
+      } else {
+        const outputs = [
+          'clinic-logo.webp',
+          'soft-green-bg.webp',
+          'doctor-yan.webp',
+          'doctor-yang.webp',
+          'service-turbinate.webp',
+          'service-septoplasty.webp',
+          'service-mouthguard.webp',
+          'service-snoring.webp',
+          'care-listening.webp',
+          'care-treatment.webp',
+          'care-environment.webp',
+          'care-aftercare.webp',
+          'home-brand-wall.webp',
+          'home-space-reception.webp',
+          'home-space-lounge.webp',
+          'home-space-consult.webp',
+          'home-space-treatment.webp'
+        ];
+        const manifest = [...state.writes].find(([path]) =>
+          path.endsWith('/clinic-assets.manifest.json')
+        );
+        expect(
+          JSON.parse(manifest[1].toString()).assets.map((asset) => asset.output)
+        ).toEqual(outputs.map((output) => `/clinic-assets/${output}`));
+        for (const output of outputs) {
+          const artifact = [...state.writes].find(([path]) =>
+            path.endsWith(`/${output}`)
+          );
+          expect(artifact[1].toString()).toBe('synthetic encoded bytes');
+        }
       }
     });
   });
