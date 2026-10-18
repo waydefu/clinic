@@ -2,8 +2,14 @@ import { createHash } from 'node:crypto';
 import { access, readFile, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import process from 'node:process';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { reviewNodeEngine } from './check-node-engine.mjs';
+
+const isDirectInvocation =
+  process.argv[1] !== undefined &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
 const requiredPaths = [
   'README.md',
@@ -236,6 +242,7 @@ const requiredPaths = [
   'scripts/check-clinic-freeze.test.mjs',
   'scripts/check-structure.mjs',
   'scripts/check-structure.test.mjs',
+  'scripts/check-structure-cli.test.mjs',
   'scripts/check-docs-links.mjs',
   'scripts/check-docs-links.test.mjs',
   'scripts/generate-ci-evidence.mjs',
@@ -286,6 +293,8 @@ const requiredPaths = [
   'infra/firestore/query-index-matrix.json',
   'containers/internal-test.cloudbuild.yaml',
   'containers/internal-test-outbox.Dockerfile',
+  'containers/api.Dockerfile',
+  'containers/worker.Dockerfile',
   'apps/api/src/platform/runtime/c1-required-config.ts',
   'apps/api/src/platform/runtime/c1-required-config.test.ts',
   'infra/monitoring/wp-b4-alert-policies.json',
@@ -390,362 +399,378 @@ export function findMissingPaths({ paths, isReadable }) {
   return paths.filter((candidate) => !isReadable(candidate));
 }
 
-const readable = new Set();
-await Promise.all(
-  requiredPaths.map(async (requiredPath) => {
-    try {
-      await access(requiredPath, constants.R_OK);
-      readable.add(requiredPath);
-    } catch {
-      /* absent or unreadable; reported below */
-    }
-  })
-);
-const missing = findMissingPaths({
-  paths: requiredPaths,
-  isReadable: (candidate) => readable.has(candidate)
-});
-
-if (missing.length > 0) {
-  console.error('Missing required project files:');
-  for (const requiredPath of missing) console.error(`- ${requiredPath}`);
-  process.exitCode = 1;
-} else {
-  console.log(
-    `Structure check passed (${requiredPaths.length} required files).`
+if (isDirectInvocation) {
+  const readable = new Set();
+  await Promise.all(
+    requiredPaths.map(async (requiredPath) => {
+      try {
+        await access(requiredPath, constants.R_OK);
+        readable.add(requiredPath);
+      } catch {
+        /* absent or unreadable; reported below */
+      }
+    })
   );
-}
+  const missing = findMissingPaths({
+    paths: requiredPaths,
+    isReadable: (candidate) => readable.has(candidate)
+  });
 
-// UI 參考圖是 dated evidence，不是跨 OS 的像素 golden；但 manifest、每張圖與其
-// metadata 必須一起存在且 hash 相符。否則文件仍有連結、實際證據卻已被換掉或漏掉，
-// `check:docs` 只會看到「檔名還在」而無法察覺。
-// **這一行是本檔內唯一要改的地方。** 重拍基線時改這裡的日期，required paths 與
-// 下面的 captureDate 斷言都由它派生。先前日期各自寫死在三處，2026-08-06 重拍時
-// 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
-// 竄改，實際上是檢查器自己還停在舊日期。
-const visualBaselineDirectory = 'docs/reviews/assets/ui-visual-cp01-2026-09-29';
-const visualBaselineDate = visualBaselineDirectory.slice(-'YYYY-MM-DD'.length);
-const visualBaselineErrors = [];
-try {
-  const manifest = JSON.parse(
-    await readFile(`${visualBaselineDirectory}/manifest.json`, 'utf8')
-  );
-  if (manifest.schemaVersion !== 1)
-    visualBaselineErrors.push('visual manifest schemaVersion must be 1');
-  if (manifest.sourceRevision !== 'commit-containing-this-manifest')
-    visualBaselineErrors.push(
-      'visual manifest must use the non-self-referential containing-commit marker'
-    );
-  if (
-    manifest.captureDate !== visualBaselineDate ||
-    Number.isNaN(Date.parse(manifest.fixedTime))
-  )
-    visualBaselineErrors.push(
-      'visual manifest must retain its capture date and parseable fixed application time'
-    );
-  if (manifest.referenceOnly !== true || manifest.crossOsPixelGate !== false)
-    visualBaselineErrors.push(
-      'visual manifest must identify these images as reference-only, not a cross-OS pixel gate'
-    );
-  if (
-    !Array.isArray(manifest.captureNormalization) ||
-    manifest.captureNormalization.length < 2
-  )
-    visualBaselineErrors.push(
-      'visual manifest must disclose full-page capture normalization'
-    );
-  for (const field of [
-    'os.platform',
-    'os.release',
-    'os.architecture',
-    'browser.name',
-    'browser.version',
-    'playwright',
-    'locale',
-    'timezone',
-    'theme',
-    'reducedMotion'
-  ]) {
-    const value = field
-      .split('.')
-      .reduce((current, key) => current?.[key], manifest.environment);
-    if (typeof value !== 'string' || value.length === 0)
-      visualBaselineErrors.push(
-        `visual manifest is missing environment field ${field}`
-      );
-  }
-  if (
-    manifest.environment?.workers !== 1 ||
-    manifest.environment?.serverPort !== 3211
-  )
-    visualBaselineErrors.push(
-      'visual manifest must retain its deterministic single-worker capture environment'
-    );
-  if (!Array.isArray(manifest.captures) || manifest.captures.length !== 17) {
-    visualBaselineErrors.push(
-      'visual manifest must declare exactly the seventeen reviewed UI captures'
-    );
+  if (missing.length > 0) {
+    console.error('Missing required project files:');
+    for (const requiredPath of missing) console.error(`- ${requiredPath}`);
+    process.exitCode = 1;
   } else {
-    const requiredScenarios = [
-      {
-        file: 'workbench--weekly-calendar-empty--desktop-1280x900--warm.png',
-        route: '/staff#appointments-section',
-        role: 'admin',
-        state: 'four-open-date-columns-no-events',
-        captureKind: 'reference-full-page',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'workbench--weekly-calendar-opened-exception--desktop-1280x900--warm.png',
-        route: '/staff#appointments-section',
-        role: 'admin',
-        state: 'normally-closed-Monday-opened-and-Thursday-closed',
-        captureKind: 'reference-full-page',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'workbench--weekly-calendar-events--desktop-1280x900--warm.png',
-        route: '/staff#appointments-section',
-        role: 'admin',
-        state: 'three-actual-synthetic-events',
-        captureKind: 'reference-full-page',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'workbench--follow-up-case--desktop-1280x900--warm.png',
-        route: '/staff#appointments-section',
-        role: 'admin',
-        state: 'completed-visit-follow-up-with-case-manager-field',
-        captureKind: 'reference-full-page',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'workbench--follow-up-case--phone-375x812--warm.png',
-        route: '/staff#appointments-section',
-        role: 'admin',
-        state: 'completed-visit-follow-up-with-case-manager-field',
-        captureKind: 'reference-full-page',
-        width: 375,
-        height: 812
-      },
-      {
-        file: 'booking--step-1-true-top--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'step-1-true-page-top-booking-only-header',
-        captureKind: 'reference-viewport',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--step-2--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'step-2-month-navigation-available-dates',
-        captureKind: 'reference-full-page',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--step-2-time-groups--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'step-2-morning-midday-evening-columns',
-        captureKind: 'reference-full-page',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--step-2--phone-375x812--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'step-2-contained-month-and-date-navigation',
-        captureKind: 'reference-full-page',
-        width: 375,
-        height: 812
-      },
-      {
-        file: 'booking--step-3--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'step-3-filled-two-semantic-columns',
-        captureKind: 'reference-full-page',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--step-3--phone-375x812--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'step-3-filled-sections-stacked',
-        captureKind: 'reference-full-page',
-        width: 375,
-        height: 812
-      },
-      {
-        file: 'booking--privacy-dialog-step-3--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'step-3-filled-policy-dialog-open',
-        captureKind: 'reference-viewport',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--cancellation-lookup--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'dual-field-phone-birth-lookup-result',
-        captureKind: 'reference-viewport',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--eligible-cancellation-confirmation--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'before-same-day-10am-cutoff-confirmation-open',
-        captureKind: 'reference-viewport',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--cancellation-phone-social-fallback--phone-375x812--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'past-same-day-10am-cutoff-phone-primary-and-four-social-links',
-        captureKind: 'reference-viewport',
-        width: 375,
-        height: 812
-      },
-      {
-        file: 'booking--success-result--desktop-1280x900--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'three-step-booking-success-result',
-        captureKind: 'reference-viewport',
-        width: 1280,
-        height: 900
-      },
-      {
-        file: 'booking--success-header-restored--phone-375x812--warm.png',
-        route: '/booking',
-        role: 'public',
-        state: 'mobile-success-header-lookup-and-theme-restored',
-        captureKind: 'reference-viewport',
-        width: 375,
-        height: 812
-      }
-    ];
-    for (const scenario of requiredScenarios) {
-      const matchingCapture = manifest.captures.find(
-        (capture) =>
-          capture.file === scenario.file &&
-          capture.route === scenario.route &&
-          capture.role === scenario.role &&
-          capture.state === scenario.state &&
-          capture.captureKind === scenario.captureKind &&
-          capture.viewport?.width === scenario.width &&
-          capture.viewport?.height === scenario.height
-      );
-      if (matchingCapture === undefined)
-        visualBaselineErrors.push(
-          `visual manifest is missing required scenario ${scenario.file}`
-        );
-    }
-
-    const declaredFiles = manifest.captures
-      .map((capture) => capture.file)
-      .sort();
-    const actualFiles = (await readdir(visualBaselineDirectory))
-      .filter((file) => file.endsWith('.png'))
-      .sort();
-    if (JSON.stringify(declaredFiles) !== JSON.stringify(actualFiles))
-      visualBaselineErrors.push(
-        'visual baseline PNG set does not exactly match manifest.captures'
-      );
-
-    for (const capture of manifest.captures) {
-      if (!/^[a-z0-9][a-z0-9.-]*\.png$/.test(capture.file)) {
-        visualBaselineErrors.push(
-          `visual capture has an unsafe or non-canonical filename: ${capture.file}`
-        );
-        continue;
-      }
-      for (const field of ['route', 'role', 'state', 'captureKind', 'sha256']) {
-        if (typeof capture[field] !== 'string' || capture[field].length === 0)
-          visualBaselineErrors.push(
-            `${capture.file} is missing manifest field ${field}`
-          );
-      }
-      if (
-        !Number.isInteger(capture.viewport?.width) ||
-        !Number.isInteger(capture.viewport?.height) ||
-        capture.deviceScaleFactor !== 1
-      )
-        visualBaselineErrors.push(
-          `${capture.file} has incomplete viewport/DPR metadata`
-        );
-      if (
-        capture.captureKind !== 'reference-full-page' &&
-        capture.captureKind !== 'reference-viewport'
-      )
-        visualBaselineErrors.push(
-          `${capture.file} has an unexpected capture kind`
-        );
-      // expectedSyntheticProbe404s counts only the documented CAL-PILOT
-      // client-config probe 404 of the API-less local runtime; any other
-      // console error still fails the capture itself.
-      if (
-        capture.consoleCounts?.errors !== 0 ||
-        capture.consoleCounts?.warnings !== 0 ||
-        !Number.isInteger(capture.consoleCounts?.expectedSyntheticProbe404s) ||
-        capture.consoleCounts.expectedSyntheticProbe404s < 0
-      )
-        visualBaselineErrors.push(
-          `${capture.file} was captured with console errors or warnings`
-        );
-
-      const bytes = await readFile(
-        `${visualBaselineDirectory}/${capture.file}`
-      );
-      const actualHash = createHash('sha256').update(bytes).digest('hex');
-      if (actualHash !== capture.sha256)
-        visualBaselineErrors.push(
-          `${capture.file} SHA-256 does not match the manifest`
-        );
-      if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
-        visualBaselineErrors.push(`${capture.file} is not a PNG`);
-      } else {
-        const width = bytes.readUInt32BE(16);
-        const height = bytes.readUInt32BE(20);
-        if (width !== capture.viewport.width)
-          visualBaselineErrors.push(
-            `${capture.file} width ${width} does not match its viewport ${capture.viewport.width}`
-          );
-        if (height < capture.viewport.height)
-          visualBaselineErrors.push(
-            `${capture.file} is shorter than its declared viewport`
-          );
-      }
-    }
+    console.log(
+      `Structure check passed (${requiredPaths.length} required files).`
+    );
   }
-} catch (error) {
-  visualBaselineErrors.push(
-    `could not validate the UI visual baseline: ${error instanceof Error ? error.message : String(error)}`
-  );
-}
 
-if (visualBaselineErrors.length > 0) {
-  console.error('UI visual baseline evidence check failed:');
-  for (const error of visualBaselineErrors) console.error(`- ${error}`);
-  process.exitCode = 1;
-} else {
-  console.log('UI visual baseline evidence check passed (17 reference PNGs).');
+  // UI 參考圖是 dated evidence，不是跨 OS 的像素 golden；但 manifest、每張圖與其
+  // metadata 必須一起存在且 hash 相符。否則文件仍有連結、實際證據卻已被換掉或漏掉，
+  // `check:docs` 只會看到「檔名還在」而無法察覺。
+  // **這一行是本檔內唯一要改的地方。** 重拍基線時改這裡的日期，required paths 與
+  // 下面的 captureDate 斷言都由它派生。先前日期各自寫死在三處，2026-08-06 重拍時
+  // 漏掉其中一處，gate 報「manifest 必須保留擷取日期」——那個訊息聽起來像圖片被
+  // 竄改，實際上是檢查器自己還停在舊日期。
+  const visualBaselineDirectory =
+    'docs/reviews/assets/ui-visual-cp01-2026-09-29';
+  const visualBaselineDate = visualBaselineDirectory.slice(
+    -'YYYY-MM-DD'.length
+  );
+  const visualBaselineErrors = [];
+  try {
+    const manifest = JSON.parse(
+      await readFile(`${visualBaselineDirectory}/manifest.json`, 'utf8')
+    );
+    if (manifest.schemaVersion !== 1)
+      visualBaselineErrors.push('visual manifest schemaVersion must be 1');
+    if (manifest.sourceRevision !== 'commit-containing-this-manifest')
+      visualBaselineErrors.push(
+        'visual manifest must use the non-self-referential containing-commit marker'
+      );
+    if (
+      manifest.captureDate !== visualBaselineDate ||
+      Number.isNaN(Date.parse(manifest.fixedTime))
+    )
+      visualBaselineErrors.push(
+        'visual manifest must retain its capture date and parseable fixed application time'
+      );
+    if (manifest.referenceOnly !== true || manifest.crossOsPixelGate !== false)
+      visualBaselineErrors.push(
+        'visual manifest must identify these images as reference-only, not a cross-OS pixel gate'
+      );
+    if (
+      !Array.isArray(manifest.captureNormalization) ||
+      manifest.captureNormalization.length < 2
+    )
+      visualBaselineErrors.push(
+        'visual manifest must disclose full-page capture normalization'
+      );
+    for (const field of [
+      'os.platform',
+      'os.release',
+      'os.architecture',
+      'browser.name',
+      'browser.version',
+      'playwright',
+      'locale',
+      'timezone',
+      'theme',
+      'reducedMotion'
+    ]) {
+      const value = field
+        .split('.')
+        .reduce((current, key) => current?.[key], manifest.environment);
+      if (typeof value !== 'string' || value.length === 0)
+        visualBaselineErrors.push(
+          `visual manifest is missing environment field ${field}`
+        );
+    }
+    if (
+      manifest.environment?.workers !== 1 ||
+      manifest.environment?.serverPort !== 3211
+    )
+      visualBaselineErrors.push(
+        'visual manifest must retain its deterministic single-worker capture environment'
+      );
+    if (!Array.isArray(manifest.captures) || manifest.captures.length !== 17) {
+      visualBaselineErrors.push(
+        'visual manifest must declare exactly the seventeen reviewed UI captures'
+      );
+    } else {
+      const requiredScenarios = [
+        {
+          file: 'workbench--weekly-calendar-empty--desktop-1280x900--warm.png',
+          route: '/staff#appointments-section',
+          role: 'admin',
+          state: 'four-open-date-columns-no-events',
+          captureKind: 'reference-full-page',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'workbench--weekly-calendar-opened-exception--desktop-1280x900--warm.png',
+          route: '/staff#appointments-section',
+          role: 'admin',
+          state: 'normally-closed-Monday-opened-and-Thursday-closed',
+          captureKind: 'reference-full-page',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'workbench--weekly-calendar-events--desktop-1280x900--warm.png',
+          route: '/staff#appointments-section',
+          role: 'admin',
+          state: 'three-actual-synthetic-events',
+          captureKind: 'reference-full-page',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'workbench--follow-up-case--desktop-1280x900--warm.png',
+          route: '/staff#appointments-section',
+          role: 'admin',
+          state: 'completed-visit-follow-up-with-case-manager-field',
+          captureKind: 'reference-full-page',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'workbench--follow-up-case--phone-375x812--warm.png',
+          route: '/staff#appointments-section',
+          role: 'admin',
+          state: 'completed-visit-follow-up-with-case-manager-field',
+          captureKind: 'reference-full-page',
+          width: 375,
+          height: 812
+        },
+        {
+          file: 'booking--step-1-true-top--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'step-1-true-page-top-booking-only-header',
+          captureKind: 'reference-viewport',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--step-2--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'step-2-month-navigation-available-dates',
+          captureKind: 'reference-full-page',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--step-2-time-groups--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'step-2-morning-midday-evening-columns',
+          captureKind: 'reference-full-page',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--step-2--phone-375x812--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'step-2-contained-month-and-date-navigation',
+          captureKind: 'reference-full-page',
+          width: 375,
+          height: 812
+        },
+        {
+          file: 'booking--step-3--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'step-3-filled-two-semantic-columns',
+          captureKind: 'reference-full-page',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--step-3--phone-375x812--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'step-3-filled-sections-stacked',
+          captureKind: 'reference-full-page',
+          width: 375,
+          height: 812
+        },
+        {
+          file: 'booking--privacy-dialog-step-3--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'step-3-filled-policy-dialog-open',
+          captureKind: 'reference-viewport',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--cancellation-lookup--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'dual-field-phone-birth-lookup-result',
+          captureKind: 'reference-viewport',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--eligible-cancellation-confirmation--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'before-same-day-10am-cutoff-confirmation-open',
+          captureKind: 'reference-viewport',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--cancellation-phone-social-fallback--phone-375x812--warm.png',
+          route: '/booking',
+          role: 'public',
+          state:
+            'past-same-day-10am-cutoff-phone-primary-and-four-social-links',
+          captureKind: 'reference-viewport',
+          width: 375,
+          height: 812
+        },
+        {
+          file: 'booking--success-result--desktop-1280x900--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'three-step-booking-success-result',
+          captureKind: 'reference-viewport',
+          width: 1280,
+          height: 900
+        },
+        {
+          file: 'booking--success-header-restored--phone-375x812--warm.png',
+          route: '/booking',
+          role: 'public',
+          state: 'mobile-success-header-lookup-and-theme-restored',
+          captureKind: 'reference-viewport',
+          width: 375,
+          height: 812
+        }
+      ];
+      for (const scenario of requiredScenarios) {
+        const matchingCapture = manifest.captures.find(
+          (capture) =>
+            capture.file === scenario.file &&
+            capture.route === scenario.route &&
+            capture.role === scenario.role &&
+            capture.state === scenario.state &&
+            capture.captureKind === scenario.captureKind &&
+            capture.viewport?.width === scenario.width &&
+            capture.viewport?.height === scenario.height
+        );
+        if (matchingCapture === undefined)
+          visualBaselineErrors.push(
+            `visual manifest is missing required scenario ${scenario.file}`
+          );
+      }
+
+      const declaredFiles = manifest.captures
+        .map((capture) => capture.file)
+        .sort();
+      const actualFiles = (await readdir(visualBaselineDirectory))
+        .filter((file) => file.endsWith('.png'))
+        .sort();
+      if (JSON.stringify(declaredFiles) !== JSON.stringify(actualFiles))
+        visualBaselineErrors.push(
+          'visual baseline PNG set does not exactly match manifest.captures'
+        );
+
+      for (const capture of manifest.captures) {
+        if (!/^[a-z0-9][a-z0-9.-]*\.png$/.test(capture.file)) {
+          visualBaselineErrors.push(
+            `visual capture has an unsafe or non-canonical filename: ${capture.file}`
+          );
+          continue;
+        }
+        for (const field of [
+          'route',
+          'role',
+          'state',
+          'captureKind',
+          'sha256'
+        ]) {
+          if (typeof capture[field] !== 'string' || capture[field].length === 0)
+            visualBaselineErrors.push(
+              `${capture.file} is missing manifest field ${field}`
+            );
+        }
+        if (
+          !Number.isInteger(capture.viewport?.width) ||
+          !Number.isInteger(capture.viewport?.height) ||
+          capture.deviceScaleFactor !== 1
+        )
+          visualBaselineErrors.push(
+            `${capture.file} has incomplete viewport/DPR metadata`
+          );
+        if (
+          capture.captureKind !== 'reference-full-page' &&
+          capture.captureKind !== 'reference-viewport'
+        )
+          visualBaselineErrors.push(
+            `${capture.file} has an unexpected capture kind`
+          );
+        // expectedSyntheticProbe404s counts only the documented CAL-PILOT
+        // client-config probe 404 of the API-less local runtime; any other
+        // console error still fails the capture itself.
+        if (
+          capture.consoleCounts?.errors !== 0 ||
+          capture.consoleCounts?.warnings !== 0 ||
+          !Number.isInteger(
+            capture.consoleCounts?.expectedSyntheticProbe404s
+          ) ||
+          capture.consoleCounts.expectedSyntheticProbe404s < 0
+        )
+          visualBaselineErrors.push(
+            `${capture.file} was captured with console errors or warnings`
+          );
+
+        const bytes = await readFile(
+          `${visualBaselineDirectory}/${capture.file}`
+        );
+        const actualHash = createHash('sha256').update(bytes).digest('hex');
+        if (actualHash !== capture.sha256)
+          visualBaselineErrors.push(
+            `${capture.file} SHA-256 does not match the manifest`
+          );
+        if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+          visualBaselineErrors.push(`${capture.file} is not a PNG`);
+        } else {
+          const width = bytes.readUInt32BE(16);
+          const height = bytes.readUInt32BE(20);
+          if (width !== capture.viewport.width)
+            visualBaselineErrors.push(
+              `${capture.file} width ${width} does not match its viewport ${capture.viewport.width}`
+            );
+          if (height < capture.viewport.height)
+            visualBaselineErrors.push(
+              `${capture.file} is shorter than its declared viewport`
+            );
+        }
+      }
+    }
+  } catch (error) {
+    visualBaselineErrors.push(
+      `could not validate the UI visual baseline: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  if (visualBaselineErrors.length > 0) {
+    console.error('UI visual baseline evidence check failed:');
+    for (const error of visualBaselineErrors) console.error(`- ${error}`);
+    process.exitCode = 1;
+  } else {
+    console.log(
+      'UI visual baseline evidence check passed (17 reference PNGs).'
+    );
+  }
 }
 
 // 在全新 clone 上，型別感知的 ESLint 需要先有 workspace 的 dist/*.d.ts；順序寫反
@@ -793,37 +818,39 @@ export function reviewVerifyOrdering(packageJson) {
   return errors;
 }
 
-const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
-const verifyOrderErrors = reviewVerifyOrdering(packageJson);
-const nodeEngineErrors = reviewNodeEngine({
-  enginesNode: packageJson.engines?.node,
-  workflowText: await readFile('.github/workflows/verify.yml', 'utf8'),
-  dockerfileTexts: {
-    'containers/api.Dockerfile': await readFile(
-      'containers/api.Dockerfile',
-      'utf8'
-    ),
-    'containers/worker.Dockerfile': await readFile(
-      'containers/worker.Dockerfile',
-      'utf8'
-    )
-  },
-  cursorInstallText: await readFile('.cursor/install.sh', 'utf8'),
-  cursorEnvironmentText: await readFile('.cursor/environment.json', 'utf8')
-});
+if (isDirectInvocation) {
+  const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+  const verifyOrderErrors = reviewVerifyOrdering(packageJson);
+  const nodeEngineErrors = reviewNodeEngine({
+    enginesNode: packageJson.engines?.node,
+    workflowText: await readFile('.github/workflows/verify.yml', 'utf8'),
+    dockerfileTexts: {
+      'containers/api.Dockerfile': await readFile(
+        'containers/api.Dockerfile',
+        'utf8'
+      ),
+      'containers/worker.Dockerfile': await readFile(
+        'containers/worker.Dockerfile',
+        'utf8'
+      )
+    },
+    cursorInstallText: await readFile('.cursor/install.sh', 'utf8'),
+    cursorEnvironmentText: await readFile('.cursor/environment.json', 'utf8')
+  });
 
-if (verifyOrderErrors.length > 0) {
-  console.error('Invalid clean-clone verify prerequisites:');
-  for (const error of verifyOrderErrors) console.error(`- ${error}`);
-  process.exitCode = 1;
-} else {
-  console.log('Clean-clone verify ordering check passed.');
-}
+  if (verifyOrderErrors.length > 0) {
+    console.error('Invalid clean-clone verify prerequisites:');
+    for (const error of verifyOrderErrors) console.error(`- ${error}`);
+    process.exitCode = 1;
+  } else {
+    console.log('Clean-clone verify ordering check passed.');
+  }
 
-if (nodeEngineErrors.length > 0) {
-  console.error('Node engine floor check failed:');
-  for (const error of nodeEngineErrors) console.error(`- ${error}`);
-  process.exitCode = 1;
-} else {
-  console.log('Node engine floor check passed.');
+  if (nodeEngineErrors.length > 0) {
+    console.error('Node engine floor check failed:');
+    for (const error of nodeEngineErrors) console.error(`- ${error}`);
+    process.exitCode = 1;
+  } else {
+    console.log('Node engine floor check passed.');
+  }
 }
