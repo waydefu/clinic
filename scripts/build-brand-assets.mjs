@@ -89,106 +89,108 @@ async function main() {
   mkdirSync(outputDir, { recursive: true });
 
   const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.goto('about:blank');
+  try {
+    const page = await browser.newPage();
+    await page.goto('about:blank');
 
-  for (const target of TARGETS) {
-    const bytes = readFileSync(join(sourceDir, target.source));
-    const dataUri = `data:image/png;base64,${bytes.toString('base64')}`;
+    for (const target of TARGETS) {
+      const bytes = readFileSync(join(sourceDir, target.source));
+      const dataUri = `data:image/png;base64,${bytes.toString('base64')}`;
 
-    const mime = `image/${target.format ?? 'webp'}`;
-    const encoded = await page.evaluate(
-      async ({ uri, crop, height, quality, type, background }) => {
-        const image = new Image();
-        image.src = uri;
-        await image.decode();
-        const box = crop ?? {
-          x: 0,
-          y: 0,
-          width: image.naturalWidth,
-          height: image.naturalHeight
-        };
-        const ratio = box.width / box.height;
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(height * ratio);
-        canvas.height = height;
-        const context = canvas.getContext('2d');
-        context.imageSmoothingQuality = 'high';
-        if (background) {
-          // 先鋪底再畫：JPEG 沒有 alpha 通道，沒鋪底的話瀏覽器會自己挑一個底色
-          // （通常是黑），半透明的邊緣就會壓出一圈髒邊。
-          context.fillStyle = background;
-          context.fillRect(0, 0, canvas.width, canvas.height);
+      const mime = `image/${target.format ?? 'webp'}`;
+      const encoded = await page.evaluate(
+        async ({ uri, crop, height, quality, type, background }) => {
+          const image = new Image();
+          image.src = uri;
+          await image.decode();
+          const box = crop ?? {
+            x: 0,
+            y: 0,
+            width: image.naturalWidth,
+            height: image.naturalHeight
+          };
+          const ratio = box.width / box.height;
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(height * ratio);
+          canvas.height = height;
+          const context = canvas.getContext('2d');
+          context.imageSmoothingQuality = 'high';
+          if (background) {
+            // 先鋪底再畫：JPEG 沒有 alpha 通道，沒鋪底的話瀏覽器會自己挑一個底色
+            // （通常是黑），半透明的邊緣就會壓出一圈髒邊。
+            context.fillStyle = background;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          context.drawImage(
+            image,
+            box.x,
+            box.y,
+            box.width,
+            box.height,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+          return {
+            dataUrl: canvas.toDataURL(type, quality),
+            width: canvas.width,
+            height: canvas.height
+          };
+        },
+        {
+          uri: dataUri,
+          crop: target.crop,
+          height: target.height,
+          quality: target.quality,
+          type: mime,
+          background: target.background ?? null
         }
-        context.drawImage(
-          image,
-          box.x,
-          box.y,
-          box.width,
-          box.height,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-        return {
-          dataUrl: canvas.toDataURL(type, quality),
-          width: canvas.width,
-          height: canvas.height
-        };
-      },
-      {
-        uri: dataUri,
-        crop: target.crop,
-        height: target.height,
-        quality: target.quality,
-        type: mime,
-        background: target.background ?? null
+      );
+
+      // 瀏覽器對認不得的格式是**默默退回 PNG**，不是報錯。少了這一行，一次打錯的
+      // format 會安靜地出貨一個副檔名與內容對不起來的檔案。
+      if (!encoded.dataUrl.startsWith(`data:${mime}`)) {
+        throw new Error(`${target.output}: 瀏覽器沒有輸出 ${mime}`);
       }
-    );
-
-    // 瀏覽器對認不得的格式是**默默退回 PNG**，不是報錯。少了這一行，一次打錯的
-    // format 會安靜地出貨一個副檔名與內容對不起來的檔案。
-    if (!encoded.dataUrl.startsWith(`data:${mime}`)) {
-      throw new Error(`${target.output}: 瀏覽器沒有輸出 ${mime}`);
-    }
-    const output = Buffer.from(encoded.dataUrl.split(',')[1], 'base64');
-    const destination = target.outputDir
-      ? join(repoRoot, ...target.outputDir)
-      : outputDir;
-    mkdirSync(destination, { recursive: true });
-    writeFileSync(join(destination, target.output), output);
-    console.log(
-      `${target.output}: ${encoded.width}×${encoded.height}, ${(output.length / 1024).toFixed(2)} KiB (來源 ${(bytes.length / 1024).toFixed(0)} KiB)`
-    );
-
-    if (target.metadata) {
-      // 只覆寫量得出來的欄位。clinicHours 那類「人審過什麼」的敘述留在檔案裡由
-      // 人維護——那正是 check-web-ui.mjs 拿來比對的東西，讓產生器改它就等於讓
-      // 稽核對象自己填答案。
-      const metadataPath = join(sourceDir, target.metadata);
-      const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
-      writeFileSync(
-        metadataPath,
-        `${JSON.stringify(
-          {
-            ...metadata,
-            width: encoded.width,
-            height: encoded.height,
-            bytes: output.length,
-            sha256: createHash('sha256').update(output).digest('hex')
-          },
-          null,
-          2
-        )}\n`
-      );
+      const output = Buffer.from(encoded.dataUrl.split(',')[1], 'base64');
+      const destination = target.outputDir
+        ? join(repoRoot, ...target.outputDir)
+        : outputDir;
+      mkdirSync(destination, { recursive: true });
+      writeFileSync(join(destination, target.output), output);
       console.log(
-        `  → ${target.metadata} 已更新（bytes／sha256／尺寸），上限 ${metadata.maxBytes ? `${(metadata.maxBytes / 1024).toFixed(0)} KiB` : '未設'}`
+        `${target.output}: ${encoded.width}×${encoded.height}, ${(output.length / 1024).toFixed(2)} KiB (來源 ${(bytes.length / 1024).toFixed(0)} KiB)`
       );
-    }
-  }
 
-  await browser.close();
+      if (target.metadata) {
+        // 只覆寫量得出來的欄位。clinicHours 那類「人審過什麼」的敘述留在檔案裡由
+        // 人維護——那正是 check-web-ui.mjs 拿來比對的東西，讓產生器改它就等於讓
+        // 稽核對象自己填答案。
+        const metadataPath = join(sourceDir, target.metadata);
+        const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+        writeFileSync(
+          metadataPath,
+          `${JSON.stringify(
+            {
+              ...metadata,
+              width: encoded.width,
+              height: encoded.height,
+              bytes: output.length,
+              sha256: createHash('sha256').update(output).digest('hex')
+            },
+            null,
+            2
+          )}\n`
+        );
+        console.log(
+          `  → ${target.metadata} 已更新（bytes／sha256／尺寸），上限 ${metadata.maxBytes ? `${(metadata.maxBytes / 1024).toFixed(0)} KiB` : '未設'}`
+        );
+      }
+    }
+  } finally {
+    await browser.close();
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
