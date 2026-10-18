@@ -5,6 +5,8 @@ steps:
       - build
       - --file
       - containers/api.Dockerfile
+      - --build-arg
+      - SOURCE_SHA=${_SOURCE_SHA}
       - --tag
       - asia-east1-docker.pkg.dev/$PROJECT_ID/cal-pilot/api:${_TAG}
       - .
@@ -15,6 +17,8 @@ steps:
       - build
       - --file
       - containers/worker.Dockerfile
+      - --build-arg
+      - SOURCE_SHA=${_SOURCE_SHA}
       - --tag
       - asia-east1-docker.pkg.dev/$PROJECT_ID/cal-pilot/worker:${_TAG}
       - .
@@ -26,3 +30,4 @@ options:
   logging: CLOUD_LOGGING_ONLY
 substitutions:
   _TAG: unset
+  _SOURCE_SHA: unset

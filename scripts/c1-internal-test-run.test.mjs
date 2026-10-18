@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -390,4 +391,75 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(packet).toContain('tracked-source archive');
     expect(packet).not.toContain('--expires 7d');
   });
+});
+
+const revisionValidator =
+  'if (!/^[0-9a-f]{40}$/.test(process.argv[1] ?? "")) process.exit(1)';
+const verifiedNodeReference =
+  'node:24.20.0-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e';
+
+describe('B-26 container source provenance without image build', () => {
+  it.each([
+    'containers/api.Dockerfile',
+    'containers/worker.Dockerfile',
+    'containers/internal-test-outbox.Dockerfile'
+  ])('pins every stage and a non-empty revision in %s', (path) => {
+    const source = read(path);
+    const stages = [...source.matchAll(/^FROM\s+(\S+)/gm)];
+    expect(stages.length).toBe(2);
+    for (const stage of stages) expect(stage[1]).toBe(verifiedNodeReference);
+    const finalStage = source.slice(source.lastIndexOf('\nFROM ') + 1);
+    expect(finalStage).toMatch(/^ARG SOURCE_SHA$/m);
+    expect(finalStage).toContain(
+      `RUN node -e '${revisionValidator}' "$SOURCE_SHA"`
+    );
+    expect(finalStage).toMatch(
+      /^LABEL org\.opencontainers\.image\.revision="\$\{SOURCE_SHA\}"$/m
+    );
+    expect(finalStage.indexOf('ARG SOURCE_SHA')).toBeLessThan(
+      finalStage.indexOf('LABEL ')
+    );
+    expect(finalStage).toMatch(/^USER node$/m);
+  });
+
+  it.each([
+    'containers/internal-test.cloudbuild.yaml',
+    'containers/cal-pilot.cloudbuild.yaml'
+  ])('passes source identity independently of display tags: %s', (path) => {
+    const source = read(path);
+    expect([...source.matchAll(/SOURCE_SHA=\$\{_SOURCE_SHA\}/g)]).toHaveLength(
+      2
+    );
+    expect(source).toMatch(/^ {2}_SOURCE_SHA: unset$/m);
+    expect(source).not.toContain('SOURCE_SHA=${_TAG}');
+  });
+
+  it.each([
+    ['a'.repeat(40), 0],
+    ['', 1],
+    ['unset', 1],
+    ['A'.repeat(40), 1],
+    ['f'.repeat(39), 1],
+    ['f'.repeat(41), 1],
+    ['a'.repeat(40) + '\n', 1],
+    ['a'.repeat(40) + '\r\n', 1],
+    ['$(synthetic-command)', 1]
+  ])(
+    'the trusted fixed SHA validator handles input %s with exit %s',
+    (value, status) => {
+      // This is a fixed trusted test program. Never evaluate a command extracted
+      // from arbitrary Dockerfile text or a mutated source fixture.
+      const result = spawnSync(
+        process.execPath,
+        ['-e', revisionValidator, value],
+        {
+          encoding: 'utf8',
+          timeout: 10000,
+          windowsHide: true
+        }
+      );
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(status);
+    }
+  );
 });
