@@ -87,9 +87,21 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 
 **先停止寫入，再還原。** 邊還原邊寫入，得到的是一份誰也說不清的資料。
 
-- 開啟維護模式（`apps/api/src/platform/runtime/maintenance-gate.ts` 的
-  `SERVICE_UNAVAILABLE`）；
-- 暫停 worker 的排程觸發，避免對帳把舊狀態又投影出去。
+```text
+MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
+```
+
+`StaticMaintenanceGate` 是程式介面，`MaintenanceGuard` 的預設注入值是
+`false`；這不是操作者可開啟的共用維護旗標，也不會停止 worker。合成 HTTP
+測試中的 `SERVICE_UNAVAILABLE`、前端維護畫面或 IP-001 gate 關閉，都不能
+當作所有寫入已停止的證據。
+
+只在另行核准的 exact-SHA isolated 操作包內，確認已部署的共用控制、所有
+相關 API instance／寫入路徑與 worker 的停寫／排空證據，再繼續 §4.3。
+必須暫停 worker 排程，並確認已執行的工作不再寫入或投影舊狀態；單純停止
+新觸發不等於排空。若旗標未接線、控制不可操作或證據不足，狀態是
+**BLOCKED**：不得跳過停寫前置，也不得開始 restore、切換連線或宣稱已止血。
+本 source／單元測試不提供這份 runtime 證據，亦不授予任何 cloud 操作權限。
 
 ### 4.3 還原
 
@@ -156,7 +168,8 @@ node scripts/recovery-clone-verify.mjs \
 
 ### 4.5 復原後
 
-1. 關閉維護模式，恢復 worker 排程。
+1. 只有停寫、還原驗證與解禁授權均已確認後，才解除實際生效且經驗證的維護
+   控制，恢復 worker 排程；不要以修改本機 static gate 或切換 UI 代替驗證。
 2. 執行一次完整對帳，把日曆拉回與 Firestore 一致（見
    [worker 執行與對帳計畫](../architecture/worker-runtime-and-reconciliation-plan-2026-07-24.md)）。
 3. 清點**還原時間點之後遺失的操作**，交給櫃台以紙本紀錄補登。
