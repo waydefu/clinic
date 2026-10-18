@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { NestFactory } from '@nestjs/core';
@@ -48,6 +48,16 @@ import { InMemoryPatientDirectory } from '../patients/patient-directory.js';
 import { DomainError } from '@beauessence/domain';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
+vi.mock('node:crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:crypto')>();
+  return {
+    ...actual,
+    randomUUID: () =>
+      // Reproduce the CI collision without making independent IDs identical.
+      `0912${actual.randomUUID().slice(4)}` as ReturnType<typeof actual.randomUUID>
+  };
+});
+
 const OPEN_INTERNAL_TEST_SETTINGS = {
   enabled: true,
   expiresAtUtc: '2029-12-01T00:00:00.000Z',
@@ -62,6 +72,45 @@ const INTAKE = {
   nationality: 'domestic' as const,
   privacyConsent: true as const
 };
+
+function expectPrivateErrorDataRedacted(body: string, pattern: RegExp): void {
+  const payload = JSON.parse(body) as {
+    error: { code: string; message: string; correlationId: string };
+  };
+  expect(payload).toEqual({
+    error: {
+      code: expect.any(String),
+      message: expect.any(String),
+      correlationId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      )
+    }
+  });
+  expect(payload.error.correlationId).toContain('0912');
+  expect(
+    JSON.stringify({ code: payload.error.code, message: payload.error.message })
+  ).not.toMatch(pattern);
+}
+
+describe('patient-data error assertions', () => {
+  it.each(['0912000001', '--01-15', '合成患者甲'])(
+    'still rejects a leaked patient value: %s',
+    (message) => {
+      expect(() =>
+        expectPrivateErrorDataRedacted(
+          JSON.stringify({
+            error: {
+              code: 'NOT_FOUND',
+              message,
+              correlationId: '09120000-0000-4000-8000-000000000000'
+            }
+          }),
+          /0912|01-15|合成患者/
+        )
+      ).toThrow();
+    }
+  );
+});
 
 function header(
   request: AuthenticatableRequest,
@@ -337,7 +386,7 @@ describe('accountless booking and return lookup HTTP', () => {
       }
     });
     expect(sibling.statusCode).toBe(409);
-    expect(sibling.body).not.toMatch(/0912|01-15|合成患者/);
+    expectPrivateErrorDataRedacted(sibling.body, /0912|01-15|合成患者/);
   });
 
   it('rejects an intake that still sends a removed identity field', async () => {
@@ -368,7 +417,7 @@ describe('accountless booking and return lookup HTTP', () => {
         payload: { phone: '0912000001', birthDate: '--01-15' }
       });
       expect(miss.statusCode).toBe(404);
-      expect(miss.body).not.toMatch(/0912|01-15|exists/i);
+      expectPrivateErrorDataRedacted(miss.body, /0912|01-15|exists/i);
     }
     const locked = await harness.inject({
       method: 'POST',
