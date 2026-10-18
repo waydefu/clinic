@@ -461,89 +461,90 @@ async function main() {
   const outputDir = join(repoRoot, 'apps', 'web', 'public', 'clinic-assets');
   mkdirSync(outputDir, { recursive: true });
 
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.goto('about:blank');
-
   const entries = [];
   let sourceBytes = 0;
   let outputBytes = 0;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto('about:blank');
 
-  for (const target of TARGETS) {
-    const bytes = readFileSync(join(sourceDir, target.source));
-    const mime = target.source.endsWith('.png')
-      ? 'image/png'
-      : target.source.endsWith('.webp')
-        ? 'image/webp'
-        : 'image/jpeg';
-    const encoded = await encode(page, {
-      dataUri: `data:${mime};base64,${bytes.toString('base64')}`,
-      trim: target.trim,
-      width: target.width,
-      aspect: target.aspect,
-      focus: target.focus,
-      letterbox: target.letterbox,
-      disc: target.disc,
-      background: target.background,
-      quality: target.quality
-    });
+    for (const target of TARGETS) {
+      const bytes = readFileSync(join(sourceDir, target.source));
+      const mime = target.source.endsWith('.png')
+        ? 'image/png'
+        : target.source.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
+      const encoded = await encode(page, {
+        dataUri: `data:${mime};base64,${bytes.toString('base64')}`,
+        trim: target.trim,
+        width: target.width,
+        aspect: target.aspect,
+        focus: target.focus,
+        letterbox: target.letterbox,
+        disc: target.disc,
+        background: target.background,
+        quality: target.quality
+      });
 
-    if (!encoded.dataUrl.startsWith('data:image/webp')) {
-      throw new Error(`${target.output}: 瀏覽器沒有輸出 WebP`);
-    }
-
-    // fail-closed：丟太多又沒指定裁切框就擋下來，並直接說要補什麼。
-    if (!target.focus && encoded.discardRatio > MAX_BLIND_DISCARD) {
-      const percent = (encoded.discardRatio * 100).toFixed(1);
-      const limit = (MAX_BLIND_DISCARD * 100).toFixed(0);
-      throw new Error(
-        `${target.output}: 置中裁切會丟掉來源的 ${percent}%（上限 ${limit}%）。\n` +
-          `  來源 ${encoded.trimmed.width}×${encoded.trimmed.height}` +
-          `（比例 ${(encoded.trimmed.width / encoded.trimmed.height).toFixed(2)}:1）` +
-          `，目標比例 ${target.aspect.toFixed(2)}:1。\n` +
-          `  這代表主體不可能同時留在畫面裡。請在 TARGETS 的這一筆補上 focus：\n` +
-          `    focus: { cx: 0.5, cy: 0.5, halfW: 0.25 }  // 依實際主體位置調整\n` +
-          `  cx／cy 是焦點在來源上的位置比例，halfW 是以來源寬度為單位的半寬。`
-      );
-    }
-
-    // 來源解析度不足以填滿目標寬度時，卡片在 Retina 下會糊。這不擋建置，但要講。
-    if (encoded.width < target.width) {
-      process.stderr.write(
-        `警告：${target.output} 只輸出到 ${encoded.width}px，` +
-          `低於目標 ${target.width}px——來源解析度不足，Retina 下會模糊。\n`
-      );
-    }
-    const output = Buffer.from(encoded.dataUrl.split(',')[1], 'base64');
-    writeFileSync(join(outputDir, target.output), output);
-
-    sourceBytes += bytes.length;
-    outputBytes += output.length;
-    entries.push({
-      output: `/clinic-assets/${target.output}`,
-      width: encoded.width,
-      height: encoded.height,
-      bytes: output.length,
-      sha256: createHash('sha256').update(output).digest('hex'),
-      source: {
-        file: `apps/web/clinic-source/${target.source}`,
-        bytes: bytes.length,
-        sha256: createHash('sha256').update(bytes).digest('hex')
+      if (!encoded.dataUrl.startsWith('data:image/webp')) {
+        throw new Error(`${target.output}: 瀏覽器沒有輸出 WebP`);
       }
-    });
 
-    console.log(
-      `${target.output.padEnd(24)} ${String(encoded.width).padStart(4)}×${String(
-        encoded.height
-      ).padEnd(
-        4
-      )} ${((output.length / 1024).toFixed(1) + ' KiB').padStart(10)}` +
-        `  (來源 ${(bytes.length / 1024).toFixed(0)} KiB` +
-        `${target.trim === 'alpha' ? `，墨跡 ${encoded.box.width}×${encoded.box.height}` : ''})`
-    );
+      // fail-closed：丟太多又沒指定裁切框就擋下來，並直接說要補什麼。
+      if (!target.focus && encoded.discardRatio > MAX_BLIND_DISCARD) {
+        const percent = (encoded.discardRatio * 100).toFixed(1);
+        const limit = (MAX_BLIND_DISCARD * 100).toFixed(0);
+        throw new Error(
+          `${target.output}: 置中裁切會丟掉來源的 ${percent}%（上限 ${limit}%）。\n` +
+            `  來源 ${encoded.trimmed.width}×${encoded.trimmed.height}` +
+            `（比例 ${(encoded.trimmed.width / encoded.trimmed.height).toFixed(2)}:1）` +
+            `，目標比例 ${target.aspect.toFixed(2)}:1。\n` +
+            `  這代表主體不可能同時留在畫面裡。請在 TARGETS 的這一筆補上 focus：\n` +
+            `    focus: { cx: 0.5, cy: 0.5, halfW: 0.25 }  // 依實際主體位置調整\n` +
+            `  cx／cy 是焦點在來源上的位置比例，halfW 是以來源寬度為單位的半寬。`
+        );
+      }
+
+      // 來源解析度不足以填滿目標寬度時，卡片在 Retina 下會糊。這不擋建置，但要講。
+      if (encoded.width < target.width) {
+        process.stderr.write(
+          `警告：${target.output} 只輸出到 ${encoded.width}px，` +
+            `低於目標 ${target.width}px——來源解析度不足，Retina 下會模糊。\n`
+        );
+      }
+      const output = Buffer.from(encoded.dataUrl.split(',')[1], 'base64');
+      writeFileSync(join(outputDir, target.output), output);
+
+      sourceBytes += bytes.length;
+      outputBytes += output.length;
+      entries.push({
+        output: `/clinic-assets/${target.output}`,
+        width: encoded.width,
+        height: encoded.height,
+        bytes: output.length,
+        sha256: createHash('sha256').update(output).digest('hex'),
+        source: {
+          file: `apps/web/clinic-source/${target.source}`,
+          bytes: bytes.length,
+          sha256: createHash('sha256').update(bytes).digest('hex')
+        }
+      });
+
+      console.log(
+        `${target.output.padEnd(24)} ${String(encoded.width).padStart(4)}×${String(
+          encoded.height
+        ).padEnd(
+          4
+        )} ${((output.length / 1024).toFixed(1) + ' KiB').padStart(10)}` +
+          `  (來源 ${(bytes.length / 1024).toFixed(0)} KiB` +
+          `${target.trim === 'alpha' ? `，墨跡 ${encoded.box.width}×${encoded.box.height}` : ''})`
+      );
+    }
+  } finally {
+    await browser.close();
   }
-
-  await browser.close();
 
   // 授權不是這個腳本算得出來的東西，所以它是一組**寫死的宣告**，改動必須是一次
   // 有名有據的決定，而不是跟著重跑而變。腳本負責的是可驗證的那一半——檔案、位元組
