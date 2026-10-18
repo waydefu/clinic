@@ -9,12 +9,13 @@ import { z } from 'zod';
  * 解得出來的字串，Safari／Firefox 不保證解出同一個時間。一個這樣的值存進資料庫，
  * 換一個 runtime 讀出來就是另一個時間。
  *
- * 三道檢查缺一不可：格式決定它是 ISO-8601、`Date` 決定月／時／分在範圍內
- * （`2026-13-01`、`25:00` 會是 NaN），日期比對決定它沒有溢位（`2026-02-31`
- * 兩者都過，卻會靜默滾成 3 月 3 日）。日期合法性重用 `isValidLocalDate`，
- * 與 `LocalDateSchema` 同一套規則，含閏年。
+ * 三道檢查缺一不可：格式限定 UTC 形狀與 00–23 時、00–59 分秒，避免
+ * `Date.parse` 將 `24:00` 靜默跨日。`Date` 檢查可解析性，日期合法性由
+ * `isValidLocalDate` 拒絕 `2026-02-31` 等溢位；與 `LocalDateSchema` 同一套
+ * 規則，含閏年。
  */
-const UTC_ISO_8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+const UTC_ISO_8601 =
+  /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?Z$/;
 
 export function isUtcIsoTimestamp(value: string): boolean {
   return (
