@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { ApiSafetyModule } from './firestore/api-safety.module.js';
 import { ApiExceptionFilter } from './platform/errors/api-exception.filter.js';
@@ -9,6 +9,11 @@ import { CalendarPilotModule } from './calendar/calendar-pilot.module.js';
 import { InternalTestBookingModule } from './internal-test-booking/internal-test-booking.module.js';
 import { NoStoreInterceptor } from './platform/runtime/no-store.interceptor.js';
 import { ObservabilityModule } from './platform/runtime/observability.module.js';
+import {
+  MAINTENANCE_GATE,
+  StaticMaintenanceGate
+} from './platform/runtime/maintenance-gate.js';
+import { MaintenanceGuard } from './platform/runtime/maintenance.guard.js';
 
 /**
  * CAL-PILOT is a separately approved, expiring synthetic-only surface.
@@ -25,6 +30,9 @@ import { ObservabilityModule } from './platform/runtime/observability.module.js'
   ],
   controllers: [HealthController],
   providers: [
+    // Compatibility default only: not a shared flag or an operational switch.
+    { provide: MAINTENANCE_GATE, useValue: new StaticMaintenanceGate(false) },
+    { provide: APP_GUARD, useClass: MaintenanceGuard },
     { provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor },
     { provide: APP_FILTER, useClass: ApiExceptionFilter }
   ]

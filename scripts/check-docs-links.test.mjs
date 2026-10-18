@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   rmSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync
 } from 'node:fs';
@@ -512,6 +513,133 @@ describe('which markdown the gate discovers', () => {
   });
 });
 
+describe('Markdown parser boundaries for links and index registration', () => {
+  it('does not treat fenced, indented or inline code as links', () => {
+    expect(linksIn('~~~md\n[example](./missing.md)\n~~~')).toEqual([]);
+    expect(linksIn('```md\n[example](./missing.md)\n```')).toEqual([]);
+    expect(linksIn('    [example](./missing.md)')).toEqual([]);
+    expect(linksIn('`[example](./missing.md)`')).toEqual([]);
+    expect(linksIn('``a `[example](./missing.md)` b``')).toEqual([]);
+  });
+
+  it('extracts rendered destinations with titles and balanced parentheses', () => {
+    expect(
+      linksIn('[a](./a.md "title") [b](<./b c.md>) [c](./d(e).md)')
+    ).toEqual(['./a.md', './b c.md', './d(e).md']);
+  });
+
+  it('extracts used reference links and images, not unused definitions', () => {
+    expect(
+      linksIn(
+        '[guide][TARGET]\n![image][]\n[shortcut]\n\n[target]: ./guide.md\n[image]: ./image.png\n[shortcut]: ./shortcut.md\n[unused]: ./missing.md'
+      )
+    ).toEqual(['./guide.md', './image.png', './shortcut.md']);
+  });
+
+  it('honours the first definition for duplicate reference labels', () => {
+    expect(linksIn('[x][id]\n\n[id]: ./first.md\n[id]: ./second.md')).toEqual([
+      './first.md'
+    ]);
+  });
+
+  it('does not parse escaped examples or HTML comments as Markdown links', () => {
+    expect(linksIn('\\[example](./missing.md)')).toEqual([]);
+    expect(linksIn('<!-- [example](./missing.md) -->')).toEqual([]);
+  });
+
+  it('checks a broken reference destination through the gate', () => {
+    const failures = review({
+      documents: [
+        [INDEX, index({ body: '- [guide](product/guide.md)' })],
+        ['docs/product/guide.md', '[missing][target]\n\n[target]: ./missing.md']
+      ],
+      fileExists: (path) =>
+        ['docs/README.md', 'docs/product/guide.md'].includes(path)
+    });
+    expect(failures).toContain(
+      'Broken link in docs/product/guide.md: ./missing.md'
+    );
+  });
+
+  it('does not let a code-only catalogue example register a docs page', () => {
+    const failures = review({
+      documents: [
+        [INDEX, index({ body: '~~~md\n- [orphan](product/orphan.md)\n~~~' })],
+        ['docs/product/orphan.md', '# Orphan']
+      ]
+    });
+    expect(failures).toContain(
+      'Document is not listed in docs/README.md: docs/product/orphan.md'
+    );
+  });
+
+  it('ignores fenced pseudo-headings when extracting index sections', () => {
+    const text = [
+      '## 7. Review record',
+      '~~~md',
+      '## Example heading',
+      '~~~',
+      '- [later](reviews/later.md)',
+      '## Superseded'
+    ].join('\n');
+    expect(sectionText(text, '7. Review record')).toContain('reviews/later.md');
+  });
+
+  it('does not accept a fenced Review heading/link as review registration', () => {
+    const failures = review({
+      documents: [
+        [
+          INDEX,
+          index({
+            body: '~~~md\n## 7. Review record\n- [orphan](reviews/orphan.md)\n~~~'
+          })
+        ],
+        ['docs/reviews/orphan.md', '# Orphan']
+      ]
+    });
+    expect(failures).toContain(
+      'Document is not listed in docs/README.md: docs/reviews/orphan.md'
+    );
+    expect(failures).toContain(
+      'Dated review is not listed in the Review record section: docs/reviews/orphan.md'
+    );
+  });
+
+  it('resolves section reference links using definitions outside that section', () => {
+    const failures = review({
+      documents: [
+        [
+          INDEX,
+          index({ review: '- [review][target]' }) + '\n[target]: reviews/r.md\n'
+        ],
+        ['docs/reviews/r.md', '# Review']
+      ]
+    });
+    expect(failures).toEqual([]);
+  });
+
+  it('preserves real links inside historical details and escaped-pipe tables', () => {
+    expect(
+      linksIn(
+        '<details>\n<summary>History</summary>\n\n[real](./real.md)\n\n</details>'
+      )
+    ).toEqual(['./real.md']);
+    expect(linksIn('| value \\| [cell](./cell.md) | `a\\|b` |')).toEqual([
+      './cell.md'
+    ]);
+  });
+
+  it('reports a target removed from a dirty tree instead of accepting its index entry', () => {
+    const failures = review({
+      documents: [[INDEX, index({ body: '- [deleted](product/deleted.md)' })]],
+      fileExists: (path) => path === INDEX
+    });
+    expect(failures).toContain(
+      'Broken link in docs/README.md: product/deleted.md'
+    );
+  });
+});
+
 describe('documentation CLI filesystem boundary', () => {
   const roots = [];
 
@@ -562,6 +690,12 @@ describe('documentation CLI filesystem boundary', () => {
     copyFileSync(
       fileURLToPath(new URL('./check-docs-links.mjs', import.meta.url)),
       join(root, 'scripts/check-docs-links.mjs')
+    );
+    mkdirSync(join(root, 'node_modules'), { recursive: true });
+    symlinkSync(
+      dirname(fileURLToPath(import.meta.resolve('prettier/package.json'))),
+      join(root, 'node_modules/prettier'),
+      'junction'
     );
     return root;
   }
