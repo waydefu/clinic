@@ -54,9 +54,11 @@ vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal<CryptoModule>();
   return {
     ...actual,
-    randomUUID: () =>
+    randomUUID: () => {
       // Reproduce the CI collision without making independent IDs identical.
-      `0912${actual.randomUUID().slice(4)}` as ReturnType<typeof actual.randomUUID>
+      const value = actual.randomUUID();
+      return `0912${value.slice(4)}` as ReturnType<typeof actual.randomUUID>;
+    }
   };
 });
 
