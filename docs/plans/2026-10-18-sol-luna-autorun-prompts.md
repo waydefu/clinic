@@ -29,15 +29,24 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 
    **(b) 完全結束 Desktop，再重新開啟（只要做一次）。** hook 的 matcher 已經在 2026-10-19 夜間改成 `.*`（你選的「全部工具都經過」，第 3.1 節）。但 matcher 是後端啟動時才讀入，所以要完全結束、再開一次才生效；如果改設定時 Desktop 已經開著，重開之前它還在用舊的 matcher。hook 檔本身每次呼叫都重新執行，之後只改檔案不用重開。Claude 不會代為重啟 Hermes 或 Desktop。
 
-   **(c) 在 Desktop 選（或新增）一個專案（Project），資料夾指到 `sol-run`。** 新對話要在這個專案裡開（第 5 步）。
-   - 資料夾是 `F:\診所專案\beauessence-appointment-platform-fresh\.claude\worktrees\sol-run`。
-   - 沒有選專案、直接開的新對話，Desktop 視為沒有工作資料夾（"No workspace"）。**這次執行不要用那種對話。**
-   - 另一個做法是把 Desktop 設定裡的預設專案資料夾設成 `sol-run`（或診所專案）。那樣所有 Desktop 對話（含沒選專案的）都受 clinic guard 管，補得上下面「殘餘風險」那一項；代價是你平常在 Desktop 做別的事也會被擋。這個設定由你自己決定與操作。
+   **(c) 在 Desktop 用指令面板把 `sol-run` 開成對話，歸在原本的「診所專案」裡。不要新增專案。** 開好的對話就是第 5 步要用的那個。
+   - 你在 Desktop 裡已經有一個專案叫「診所專案」，它的資料夾是 `F:\診所專案`。Desktop 會把對話歸到「資料夾包住該對話、而且最深」的那個專案；`sol-run` 在 `F:\診所專案` 底下，所以 Sol 的對話本來就歸在「診所專案」。
+   - **為什麼不要為 `sol-run` 另外新增專案：** 新增之後，這個資料夾的對話會從「診所專案」被拆走，診所的對話就分成兩個專案，之後不好找。
+   - 做法：
+     1. 在 Desktop 按 `Ctrl+K`，打開指令面板。
+     2. 貼上完整路徑 `F:\診所專案\beauessence-appointment-platform-fresh\.claude\worktrees\sol-run`。
+     3. **用滑鼠點**「Open folder as project — F:\診所專案\…」那一項。這台電腦按 Enter 沒有反應（輸入法的關係，2026-10-19 實測），所以請用點的。因為這個資料夾已經在「診所專案」的範圍內，這一步不會新增專案，只會開一個新的「UNTITLED SESSION」分頁，工作資料夾是 `sol-run`。
+   - 開好後看兩個地方：輸入框旁顯示「分離 HEAD」（`sol-run` 停在 `origin/main`，沒有分支）；狀態列顯示「診所專案」。兩個都對才用。
+   - 不要用 `Ctrl+O`：這個版本的 `Ctrl+O` 是「Add context」，只是把資料夾附加到目前的對話，不是開 Sol 的對話。
+   - 不要用一般的「新工作階段」（`Ctrl+N`）：它從 `F:\診所專案` 起頭，那裡不是 git repo，AGENTS.md 與 repo 技能不會載入。
+   - 對話要送出第一則訊息之後，才會出現在左邊的清單；開好之後先不用送任何訊息。
+   - 不在任何專案、也沒指定資料夾的新對話，Desktop 視為沒有工作資料夾（"No workspace"）。**這次執行不要用那種對話。**
+   - 另一個做法是把 Desktop 設定裡的預設專案資料夾設成 `sol-run`（或診所專案）。那樣所有 Desktop 對話（含不在任何專案的）都受 clinic guard 管，補得上下面「殘餘風險」那一項；代價是你平常在 Desktop 做別的事也會被擋。要不要設，由你自己決定與操作；不設也能照上面的做法開跑。「診所專案」這個專案本來就涵蓋 `F:\診所專案`，上面的做法不需要動這個設定。
 
    白話說明：
    - `sol-run` 是同一個 repo 的另一份工作資料夾。每次開跑前都先更新到最新的 `main`，只拿來當對話的資料夾，沒有人會改裡面的檔案。
    - 不用主資料夾的原因：主資料夾目前停在別人舊的分支（`agent/retire-public-mirror`，遠遠落後 `main`），從那裡開對話會載入舊的 AGENTS.md 與舊的技能。
-   - **桌面版怎麼知道這是診所專案：** Desktop 只有一個後端程序，用「預設專案資料夾」（沒設就是家目錄）啟動，不會跟著每個對話換資料夾，所以 hook 收到的資料夾不是對話的資料夾。clinic guard 2.3 版改成去讀 Hermes 替每個對話記下的資料夾（`<HERMES_HOME>/state.db` 的 `sessions.cwd`，唯讀），子代理沿用父代理的。選了 `sol-run` 專案的對話，這個資料夾在第一次用工具之前就已記下，所以一開始就在範圍內（第 2.3、3.2 節）。
+   - **桌面版怎麼知道這是診所專案：** Desktop 只有一個後端程序，用「預設專案資料夾」（沒設就是家目錄）啟動，不會跟著每個對話換資料夾，所以 hook 收到的資料夾不是對話的資料夾。clinic guard 2.3 版改成去讀 Hermes 替每個對話記下的資料夾（`<HERMES_HOME>/state.db` 的 `sessions.cwd`，唯讀），子代理沿用父代理的。照 (c) 在 `sol-run` 開的對話，這個資料夾在第一次用工具之前就已記下，所以一開始就在範圍內（第 2.3、3.2 節）。
    - **桌面版不能用 `-t`：** Desktop 沒有「這個對話只開哪些工具」的選項。它讀的是設定檔的 `platform_toolsets.cli`，是全域設定，所有對話共用。所以工具改由 clinic guard 在診所專案範圍內用白名單管：不在名單上的工具一律擋下，顯示 `(protected: tool)`，子代理也一樣。名單共 27 個工具（第 3.2 節）：終端機、讀檔、搜尋、寫檔、patch、行程管理、子代理、待辦、技能（只讀）、查過去對話、向你提問（`clarify`）、網頁搜尋與擷取、看圖，加上三個 MCP 的唯讀工具。
    - 不開的工具和原因（桌面版靠白名單擋，CLI 另外用 `-t` 關，兩者同時有效）：
      - `browser`、`image_gen`、`tts`：這次工作用不到；
@@ -53,7 +62,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
      - context7：查套件文件，2 個工具；
      - codebase-memory：程式碼索引與搜尋，只開 6 個查詢類工具（它會替專案建索引）。
    - **桌面版的 MCP 可能起不來（推論，沒驗證）：** serena 與 codebase-memory 以「工作資料夾」為準，並拒絕家目錄與 Hermes 資料夾，codebase-memory 還要求那是 git 專案的根目錄。桌面版的 MCP 伺服器是跟著後端程序起的，它們看到的可能是後端的資料夾（預設專案資料夾或家目錄），不是對話的 `sol-run`。若是這樣，這兩個會自己退出，工具不出現。不影響這次執行，Sol 會改用 `rg`、`cat`，Phase 0 會看到結果。
-   - **殘餘風險：** 沒有專案資料夾、又沒有提到任何診所路徑的 Desktop 對話，不在 hook 的範圍內；它的第一個動作若是 `computer_use`，會被放行。徹底的做法是改設定：把 browser、computer_use 這些工具組從 `platform_toolsets.cli` 拿掉，或用上面 (c) 的第三點把預設專案資料夾設成診所專案。這次執行請只用 `sol-run` 專案的對話。
+   - **殘餘風險：** 沒有專案資料夾、又沒有提到任何診所路徑的 Desktop 對話，不在 hook 的範圍內；它的第一個動作若是 `computer_use`，會被放行。徹底的做法是改設定：把 browser、computer_use 這些工具組從 `platform_toolsets.cli` 拿掉，或用上面 (c)「預設專案資料夾」那個做法把它設成診所專案。這次執行請只用照 (c) 在 `sol-run` 開的對話。
 
    **備用：用 CLI 啟動（Git Bash）。** CLI 可以用 `-t` 限定這次對話能用的工具組，沒列的都關掉，子代理繼承同一組；clinic guard 的白名單同樣有效。在 Git Bash 裡，整行貼上：
 
@@ -75,7 +84,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 
 **開始跑：**
 
-5. 在第 2 步 (c) 的 `sol-run` 專案裡開新對話（不要用沒選專案的對話），輸入 `/model`，確認是 `gpt-6.1-sol`。
+5. 用第 2 步 (c) 開好的那個對話（「診所專案」底下、工作資料夾是 `sol-run`；不要用沒有專案的對話，也不要用 `Ctrl+N` 開的），輸入 `/model`，確認是 `gpt-6.1-sol`。
 6. 把下面這段短訊息貼上送出。Sol 會自己從 `main` 分段讀第 4、6 節；第 4 節就是它的完整指示，所以不用貼整份提示詞（讀不到時，再把第 4 節「Sol 父代理提示詞」整段貼上）。Sol 會先做 Phase 0：測試設定、對帳、整理要你決定的問題。
 
    ```text
@@ -109,7 +118,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 - **`/goal`**：讓 Hermes 持續工作到達成目標的指令。
 - **L7**：Luna 的第 7 組工作，也就是回歸、手冊與驗收清單。
 - **braces**：只在開發工具裡用到的套件，有已知弱點，還沒有修補版。
-- **Desktop／專案（Project）**：Hermes Desktop 用「專案」決定一個對話的工作資料夾；沒選專案的對話沒有工作資料夾。
+- **Desktop／專案（Project）**：Hermes Desktop 的對話有自己的工作資料夾，並依資料夾歸到某個專案（包住它、而且最深的那一個）。你已有的「診所專案」涵蓋 `F:\診所專案`，`sol-run` 在它底下，所以 Sol 的對話歸在它裡面，不用另外新增專案；不在任何專案、也沒指定資料夾的對話沒有工作資料夾。
 - **matcher**：hook 設定裡指定「哪些工具的呼叫要經過這個 hook」的條件；`.*` 表示全部工具。
 - **工具白名單**：clinic guard 在診所專案範圍內，只放行名單上的 27 個工具，其餘一律擋下（`(protected: tool)`）。
 - **CAL-PILOT**：Google 日曆的合成資料測試授權。
@@ -181,7 +190,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - **後端程序：** Desktop 用 `resolveHermesCwd()` 啟動 `hermes serve`。資料夾的順序是「預設專案資料夾」設定、環境變數 `HERMES_DESKTOP_CWD`、（只有開發版）`INIT_CWD` 與程序目前的資料夾、最後是家目錄。每個 profile 一個後端，不會隨專案或對話重啟；
   - **hook 收到的 `cwd`：** 就是後端程序的資料夾（`Path.cwd()`）。hook 子程序沒有另外指定資料夾，繼承同一個，所以 hook 自己查到的資料夾也一樣。`extra` 只有 `task_id`、`tool_call_id`、`turn_id`、`api_request_id`；
   - **terminal 工具的資料夾：** 來自對話的資料夾，不是後端程序。Desktop 建立對話時把 `cwd` 與 `cwd_explicit` 送給 gateway，gateway 記成對話的工作資料夾，並在第一次呼叫工具之前存進 `state.db` 的 `sessions.cwd`。`workdir` 只有模型自己帶才會有；
-  - **選專案：** 要選一個專案，或設定預設專案資料夾。沒選專案的新對話維持 "No workspace"；
+  - **對話資料夾與專案（2026-10-19 讀 Desktop 原始碼更正）：** 對話歸到哪個專案，看它的資料夾落在哪個專案資料夾底下，最深的那個贏（`tui_gateway/project_tree.py`）。所以 `sol-run` 的對話本來就歸在涵蓋 `F:\診所專案` 的「診所專案」；若另外新增一個資料夾是 `sol-run` 的專案，反而會把這些對話從「診所專案」拆走。開法是 Ctrl+K 指令面板貼上路徑、點「Open folder as project」；資料夾已在既有專案範圍內時不會新增專案，只開一個新對話（前端 `store/projects.ts`）。一般的新對話（Ctrl+N）從專案根資料夾 `F:\診所專案` 起頭，不是 `sol-run`；沒有專案的新對話維持 "No workspace"；
   - **舊版 guard 的缺口：** Desktop 在診所專案裡的對話，hook 收到的 cwd 是預設專案資料夾或家目錄，要等指令或路徑提到診所專案才算在範圍內。2.3 版補上了（第 3.2 節）；
   - 來源：`apps/desktop/electron/main.ts`、`agent/shell_hooks.py`、`apps/desktop` 前端的 `use-session-actions/index.ts`、`tui_gateway/session_workdir.py`、`tui_gateway/server.py`、桌面版 README「Projects are the workspace abstraction」。
 - **工具：**
@@ -335,7 +344,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
      - 會碰雲端的腳本（第 4 節提示詞列的清單，例如 `scripts/seed-cal-pilot.mjs`、`scripts/phase0-snapshot.mjs`）：`cp`、`mv`、`rm`、`git add`、`git restore` 這類編輯動作，在寫入範圍內放行；另一邊在寫入範圍之外（例如 `cp` 到家目錄）則是 protected。執行它們是 protected（`cloud`），包括 `node`、`tsx`、`node --check`、`pnpm exec node --check`。
 - **作用範圍：** 只在診所工作區生效，也就是以下任一情況：
   - Hermes 的後端程序或 hook 收到的資料夾是診所專案；
-  - Hermes 替這個對話記下的工作資料夾（桌面版選的專案）是診所專案；讀不到就當沒有這個訊號，不擋（2.3 版）；
+  - Hermes 替這個對話記下的工作資料夾（桌面版是開對話時的資料夾，例如 `sol-run`）是診所專案；讀不到就當沒有這個訊號，不擋（2.3 版）；
   - 指令的工作目錄、檔案路徑引數（包括 V4A patch 裡的路徑與 `BEAUES~1` 這種短檔名）或指令內容提到診所專案；
   - 同一個對話先前已經碰過診所專案。
   訊息裡的自由文字與其他專案不受影響。
@@ -465,7 +474,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - 單純的檔名（例如 `auth.json`）不當路徑，這樣才不會誤擋；帶路徑的才檢查敏感檔。同樣為了不誤擋：`rg`、`grep`、`git grep` 的搜尋字串不檢查（第 3.2 節「允許的指令」）；相對路徑裡含 `|` 或 `^` 的，也當成正規式、不當路徑。反斜線與 `()` 沒有這樣處理，因為反斜線也是 Windows 的路徑分隔，`app/(group)/.env` 這種括號路徑是真的路徑；
   - repo 有被 git 追蹤的 `.npmrc`，套用憑證規則，所以 `cat .npmrc` 是 protected；`.env.example` 可以讀；
   - 「寫入範圍」2.2 版縮小到 worktree、`/tmp` 與使用者暫存資料夾，舊副本、公開鏡像與 repo 主資料夾現在擋得住；但範圍涵蓋所有 worktree，包括 `sol-run` 與其他工作階段的 worktree，所以擋不住改到那些資料夾（提示詞要求絕不編輯 `sol-run`，靠代理自己守）。
-  - **範圍外的桌面版對話：** 沒有專案資料夾、又沒有提到任何診所路徑的桌面版對話，hook 不在範圍內；它的第一個動作若是 `computer_use`，會被放行。徹底的做法是改設定：把這些工具組從 `platform_toolsets.cli` 拿掉，或把 Desktop 的預設專案資料夾設成診所專案（那樣所有 Desktop 對話都受管）。兩項都由業主決定；這次執行請只用 `sol-run` 專案的對話。
+  - **範圍外的桌面版對話：** 沒有專案資料夾、又沒有提到任何診所路徑的桌面版對話，hook 不在範圍內；它的第一個動作若是 `computer_use`，會被放行。徹底的做法是改設定：把這些工具組從 `platform_toolsets.cli` 拿掉，或把 Desktop 的預設專案資料夾設成診所專案（那樣所有 Desktop 對話都受管）。兩項都由業主決定；這次執行請只用照第 1 節第 2 步 (c) 在 `sol-run` 開的對話。
   - **網頁工具的引數不檢查：** `web_search`、`web_extract` 在工具白名單上，hook 不檢查它們的引數。terminal 的 `curl` 是 protected，但把網址交給 `web_extract`，網址本身（例如查詢字串）可以把資料帶出去。這是已知限制，hook 擋不到；只能靠提示詞的硬停止（第 2.7 節的防線 3）與業主留意，要補的話得改 hook，不在這次範圍。
 - **預期會遇到的 form 擋下**（代理常見的習慣，第 4 節提示詞已寫明改法）：`git symbolic-ref --short HEAD`、`nl -ba`、`xargs`、`timeout N 指令`、`command -v`／`type`（探測 node、tsx、git 是 form，探測 firebase、gcloud、curl、hermes 是 protected；改用 `which` 或直接執行）、`git commit -m "$(cat <<EOF …)"`、`gh pr create --body-file - <<EOF`、`git pull`、`sort -o`、`sed` 的寫入或自訂分隔字元寫法、`gh pr checkout`、`gh run cancel`、`gh browse`、`$TMPDIR/…` 這種變數路徑。與第一版不同的地方：`git branch -d` 現在是 protected；`bash -c '…'` 現在是 form；多行指令開頭的 `set -e` 是 protected（`set` 屬於 `environment`）。若想少一點重試，可以考慮把唯讀的 `git symbolic-ref` 與 `nl` 加進允許清單；那是改 hook，不在這次範圍。
 
@@ -473,7 +482,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 
 | 項目 | 現況 | 為什麼 |
 |---|---|---|
-| 對話資料夾（桌面版是選的專案，CLI 是啟動資料夾） | worktree `sol-run`（在 `.claude/worktrees/` 底下），每次開跑前都更新成 detached 在 `origin/main` | 主資料夾停在別人舊的分支，從那裡開對話會載入舊的 AGENTS.md 與技能 |
+| 對話資料夾（桌面版是用指令面板在 `sol-run` 開的對話，CLI 是啟動資料夾） | worktree `sol-run`（在 `.claude/worktrees/` 底下），每次開跑前都更新成 detached 在 `origin/main` | 主資料夾停在別人舊的分支，從那裡開對話會載入舊的 AGENTS.md 與技能 |
 | `sol-run` 的信任紀錄 | 已加進 `skills.trusted_project_dirs` | 要核可，repo 的 8 個專案技能才會載入 |
 | repo 主資料夾 | 曾短暫加入信任，之後又取消，已還原成原本的狀態 | 不讓舊分支的技能被載入 |
 | 工具組 | 桌面版沒有每個對話各自的工具組，靠 clinic guard 的工具白名單（第 3.2 節），沒有為此改工具組的設定。CLI（備用）每次啟動時用 `-t` 指定。兩種都一樣：MCP 伺服器能不能用，取決於它在設定檔裡有沒有啟用（第 3.1 節，10-19 起 serena、context7、codebase-memory 都已啟用） | 只開這次要用的工具；CLI 的子代理繼承同一組，桌面版的子代理同樣受白名單管（第 2.3 節） |
@@ -794,7 +803,7 @@ Hermes 沒有子代理設定檔，所以這段規則由 Sol 放進每個 `delega
 
 ## 7. 業主要做的事與時程
 
-- **開跑前：** 合併本 PR；照第 1 節第 2 步做：把 `sol-run` 更新到最新的 `main`、完全結束 Desktop 再重開一次（matcher `.*` 已經改好，重開才讀得進去），然後在 `sol-run` 專案裡開對話（不是 repo 主資料夾）。clinic guard 已核可（`hermes.cmd hooks list` 顯示 `✓ allowed`，10-19 讀回），不用再核可；`⚠ script modified since approval` 只是提醒，不會擋。以後 clinic guard 又被改過，開跑前再看一次 `hooks list`。
+- **開跑前：** 合併本 PR；照第 1 節第 2 步做：把 `sol-run` 更新到最新的 `main`、完全結束 Desktop 再重開一次（matcher `.*` 已經改好，重開才讀得進去），然後照 (c) 用 Ctrl+K 指令面板把 `sol-run` 開成對話（歸在原本的「診所專案」，不要新增專案，也不要用 repo 主資料夾）。clinic guard 已核可（`hermes.cmd hooks list` 顯示 `✓ allowed`，10-19 讀回），不用再核可；`⚠ script modified since approval` 只是提醒，不會擋。以後 clinic guard 又被改過，開跑前再看一次 `hooks list`。
 - **開跑前要決定的一件事：自動載入的 `hermes-coding-efficiency` 技能要保留還是停用。** 它是 profile 自動載入的，和這次執行有三處衝突（寫可用最多五個子代理、提到這個 repo 沒有的 AI_STATE 檔、描述這次沒有的 start_chat／CBM canary 交接流程），細節見第 2.3 節。業主 2026-10-04 的治理紀錄已把它退役，但它在 2026-10-13 又被重新啟用並改過。Claude 沒有動它。選項：
   - **保留：** 不動設定。提示詞已寫明衝突時以提示詞和 repo 為準，但治理同步工具會繼續回報 `skills.disabled` 偏移；
   - **停用：** 依 2026-10-04 的治理紀錄停用，改的是 Hermes 設定，由你自己做，或另外明確授權 Claude 做；Sol 與 Luna 不能動。治理同步工具回報偏移的原因也就沒了。
