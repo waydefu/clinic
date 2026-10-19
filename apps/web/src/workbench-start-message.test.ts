@@ -61,7 +61,10 @@ describe('workbench start copy follows the selected transport without widening a
       Object.assign(new Error('工作臺載入失敗。'), { status: 503 })
     );
     await h.boot();
-    expect(h.workbench.message).toHaveBeenCalledWith('工作臺載入失敗。', 'error');
+    expect(h.workbench.message).toHaveBeenCalledWith(
+      '工作臺載入失敗。',
+      'error'
+    );
     expect(h.workbench.message).not.toHaveBeenCalledWith(
       expect.any(String),
       'success'
