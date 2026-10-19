@@ -43,12 +43,12 @@ C1～C6 slice 取得 deployment authority 之後才有意義。
 
 | 分組 | Spec |
 | --- | --- |
-| `e2e-auth-rbac` | delegated-deletion、role-maintenance-responsive |
-| `e2e-appointments` | week-calendar、workbench-lifecycle |
-| `e2e-patient-portal` | clinic-site、patient-booking、privacy-policy |
-| `e2e-mobile` | mobile-layout、responsive |
-| `e2e-accessibility` | accessibility、manual-accessibility-preconditions、no-script |
-| `e2e-ui` | affordance、clinic-motion、performance、theme、typography |
+| `e2e-auth-rbac` | delegated-deletion.spec.ts、role-maintenance-responsive.spec.ts、business-tab.spec.ts |
+| `e2e-appointments` | calendar-pilot-correction.spec.ts、legacy-login-flash.spec.ts、week-calendar.spec.ts、workbench-lifecycle.spec.ts |
+| `e2e-patient-portal` | clinic-site.spec.ts、internal-test-booking.spec.ts、patient-booking.spec.ts、privacy-policy.spec.ts、public-404-recovery.spec.ts |
+| `e2e-mobile` | mobile-layout.spec.ts、responsive.spec.ts |
+| `e2e-accessibility` | accessibility.spec.ts、manual-accessibility-preconditions.spec.ts、no-script.spec.ts |
+| `e2e-ui` | affordance.spec.ts、clinic-motion.spec.ts、performance.spec.ts、theme.spec.ts、typography.spec.ts、ui-redesign.spec.ts |
 
 案例數不在策略文件硬編碼。分組成員的唯一真實來源是
 `scripts/e2e-groups.mjs`；案例數與通過狀態須查同一 commit 的 CI。2026-08-04 的
@@ -65,7 +65,7 @@ C1～C6 slice 取得 deployment authority 之後才有意義。
 | `follow-up` | 回診測試目前散在 `workbench-lifecycle` 內 | 回診 spec 拆出時 |
 | `surgery` | **無任何 spec**；手術功能未實作 | P4，D-014 核准後 |
 | `calendar-sync` | 同步測試目前在 Emulator 層，非 E2E | P3，D-009／D-016 核准後 |
-| `ui` | 目標清單未涵蓋，但有 5 支 spec 需要歸屬 | 已建立，**必須保留** |
+| `ui` | 目標清單未涵蓋，但有 6 支 spec 需要歸屬 | 已建立，**必須保留** |
 
 **空的 job 不建立。** 一個永遠綠燈的 `e2e-surgery` 會讓人以為手術流程有測試覆蓋，
 比沒有這個 job 更危險。功能實作時才建立對應分組。

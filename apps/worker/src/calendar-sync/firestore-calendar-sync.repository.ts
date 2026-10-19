@@ -7,7 +7,9 @@ import {
 } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
 
+import { MAX_CALENDAR_SYNC_MUTATIONS } from './sync-engine.js';
 import type {
+  AuthoritativeAppointmentProjection,
   CalendarCandidateDraft,
   CalendarMirrorRecord,
   CalendarSyncCommit,
@@ -15,6 +17,10 @@ import type {
   CalendarSyncRepository,
   CalendarSyncState
 } from './sync-engine.js';
+import {
+  assertCalendarPilotWorkerLease,
+  type CalendarPilotWorkerLease
+} from './calendar-pilot-worker-lease.js';
 import type {
   CalendarSourceConfiguration,
   CalendarSourcePreflightResult,
@@ -33,6 +39,7 @@ const APPOINTMENTS = 'calendar_pilot_appointments';
 const AUDITS = 'calendar_pilot_audit_events';
 const PATIENT_LOOKUP_INDEX = 'patient_lookup_index_v2';
 const CLINIC_PATIENTS = 'patients';
+const MAX_SUGGESTION_PATIENT_READS = 100;
 const LEGACY_RESYNC_REASON = 'legacy_candidate_requires_resync';
 
 interface SuggestedPatient {
@@ -111,7 +118,8 @@ export class FirestoreCalendarSyncRepository
 {
   public constructor(
     private readonly db: Firestore,
-    private readonly pseudonymKey: string
+    private readonly pseudonymKey: string,
+    private readonly workerLease?: CalendarPilotWorkerLease
   ) {
     if (pseudonymKey.length < 32)
       throw new Error(
@@ -130,11 +138,23 @@ export class FirestoreCalendarSyncRepository
     return document.data() as StoredConfiguration;
   }
 
+  public async loadSourceConfiguration(): Promise<CalendarSourceConfiguration> {
+    const configuration = await this.configuration();
+    return {
+      activeSourceId: configuration.activeSourceId,
+      ...(configuration.previousSourceId === undefined
+        ? {}
+        : { previousSourceId: configuration.previousSourceId }),
+      version: configuration.version,
+      expiresAt: configuration.expiresAt
+    };
+  }
+
   public async loadConfiguration(): Promise<
     CalendarSyncConfiguration & CalendarSourceConfiguration
   > {
     const [configuration, patients] = await Promise.all([
-      this.configuration(),
+      this.loadSourceConfiguration(),
       this.db.collection(PATIENTS).where('enabled', '==', true).get()
     ]);
     return {
@@ -205,15 +225,9 @@ export class FirestoreCalendarSyncRepository
     );
   }
 
-  public async loadAuthoritativeAppointment(appointmentId: string): Promise<
-    | {
-        readonly appointmentId: string;
-        readonly status: string;
-        readonly startsAt: string;
-        readonly bookingKind: 'initial' | 'follow_up';
-      }
-    | undefined
-  > {
+  public async loadAuthoritativeAppointment(
+    appointmentId: string
+  ): Promise<AuthoritativeAppointmentProjection | undefined> {
     const document = await this.db
       .collection('appointments')
       .doc(appointmentId)
@@ -229,15 +243,26 @@ export class FirestoreCalendarSyncRepository
       (bookingKind !== 'initial' && bookingKind !== 'follow_up')
     )
       return undefined;
+    const version = document.updateTime;
+    if (version === undefined)
+      throw new Error('Calendar appointment read version is missing.');
     return {
       appointmentId,
       status,
       startsAt,
-      bookingKind
+      bookingKind,
+      readVersion: {
+        seconds: version.seconds,
+        nanoseconds: version.nanoseconds
+      }
     };
   }
 
   public commitSync(commit: CalendarSyncCommit): Promise<void> {
+    if (commit.mutations.length > MAX_CALENDAR_SYNC_MUTATIONS)
+      return Promise.reject(
+        new Error('Calendar mutation batch exceeds its resource bound.')
+      );
     return this.db.runTransaction(async (transaction) => {
       const configurationDocument = await transaction.get(this.configRef());
       if (!configurationDocument.exists)
@@ -249,6 +274,42 @@ export class FirestoreCalendarSyncRepository
       )
         throw new Error('CAL-PILOT source generation changed.');
 
+      const guards = commit.mutations.flatMap((mutation) =>
+        mutation.appointmentGuard === undefined
+          ? []
+          : [mutation.appointmentGuard]
+      );
+      const appointmentIds = [
+        ...new Set(guards.map((guard) => guard.appointmentId))
+      ];
+      const appointments =
+        appointmentIds.length === 0
+          ? []
+          : await transaction.getAll(
+              ...appointmentIds.map((id) =>
+                this.db.collection('appointments').doc(id)
+              )
+            );
+      const liveAppointments = new Map(
+        appointments.map((document) => [document.id, document])
+      );
+      for (const guard of guards) {
+        const live = liveAppointments.get(guard.appointmentId);
+        const data: Record<string, unknown> | undefined = live?.data();
+        const expected = guard.expected;
+        const unchanged =
+          expected === undefined
+            ? live?.exists === false
+            : live?.exists === true &&
+              data?.['status'] === expected.status &&
+              data['startsAt'] === expected.startsAt &&
+              data['bookingKind'] === expected.bookingKind &&
+              live.updateTime?.seconds === expected.readVersion?.seconds &&
+              live.updateTime?.nanoseconds ===
+                expected.readVersion?.nanoseconds;
+        if (!unchanged)
+          throw new Error('Calendar appointment changed before sync commit.');
+      }
       const candidateDocuments = await Promise.all(
         commit.mutations
           .filter((mutation) => mutation.candidate !== undefined)
@@ -285,18 +346,25 @@ export class FirestoreCalendarSyncRepository
           // can still mean a single active patient. A malformed ID means a
           // corrupt entry: fail closed rather than guess around it.
           return ids.length === 0 ||
+            ids.length > MAX_SUGGESTION_PATIENT_READS ||
             ids.some((id) => !/^[A-Za-z0-9_-]{1,128}$/.test(id))
             ? undefined
             : { candidateId: mutation.candidate.candidateId, patientIds: ids };
         })
       );
-      const patientIdsToRead = [
-        ...new Set(
-          suggestionLookupReads.flatMap((read) =>
-            read === undefined ? [] : read.patientIds
-          )
-        )
-      ];
+      // Contact suggestions are optional hints, not patient selection. Never
+      // truncate an index and guess; omit any hint whose complete candidate
+      // set cannot fit this transaction's fixed read budget.
+      const patientBudget = new Set<string>();
+      const boundedSuggestionReads = suggestionLookupReads.map((read) => {
+        if (read === undefined) return undefined;
+        const added = read.patientIds.filter((id) => !patientBudget.has(id));
+        if (patientBudget.size + added.length > MAX_SUGGESTION_PATIENT_READS)
+          return undefined;
+        for (const id of added) patientBudget.add(id);
+        return read;
+      });
+      const patientIdsToRead = [...patientBudget];
       const patientDocuments =
         patientIdsToRead.length === 0
           ? []
@@ -316,7 +384,7 @@ export class FirestoreCalendarSyncRepository
       // Suggest only when exactly one indexed ID is an existing, non-archived
       // patient; zero or several active patients leave the choice to staff.
       const suggestions = new Map(
-        suggestionLookupReads.flatMap((read) => {
+        boundedSuggestionReads.flatMap((read) => {
           if (read === undefined) return [];
           const active = read.patientIds.filter((patientId) =>
             activePatientIds.has(patientId)
@@ -328,6 +396,12 @@ export class FirestoreCalendarSyncRepository
         })
       );
 
+      // Inspect the live clock after all reads and immediately before writes.
+      if (this.workerLease !== undefined)
+        assertCalendarPilotWorkerLease(
+          configurationDocument.data()!,
+          this.workerLease
+        );
       for (const mutation of commit.mutations) {
         transaction.set(
           this.db.collection(MIRRORS).doc(mutation.mirror.mirrorId),
@@ -424,6 +498,8 @@ export class FirestoreCalendarSyncRepository
         configuration.data()?.['version'] !== expectedSourceVersion
       )
         throw new Error('CAL-PILOT source generation changed.');
+      if (this.workerLease !== undefined)
+        assertCalendarPilotWorkerLease(configuration.data()!, this.workerLease);
       transaction.update(this.db.collection(SOURCES).doc(sourceId), {
         syncToken: null,
         lastErrorCode: 'sync_token_expired'

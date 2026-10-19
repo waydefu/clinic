@@ -3,9 +3,13 @@
 **2026-09-29：** Q-USAGE／Q-RETENTION／Q-EXPORT／Q-EXIT 及還原演練的 C1 範圍答案見
 [商務交付政策封板](../product/2026-09-29-business-delivery-policy-decisions.md)；production 仍未核准。
 
+**現行匯出邊界（以 ADR 為準）：** [ADR-0009](../adr/0009-business-delivery-export.md)
+已固定本期只做 CSV；下方 BD-02 的 CSV／XLSX 是 2026-09-18 歷史規劃，
+不是 XLSX 的實作、政策核准或部署授權。production 仍依既有 gate 保持未核准。
+
 **2026-09-22 現行補充（不改寫以下 9/18 歷史）：** #149～154 已合併六個 domain 契約，
 後續應補 API／UI／runtime／policy，不重做契約。現行商務 authority 改以 Google Drive 原檔為準，
-本機九份 DOCX 僅歷史來源；金額已核對 80,000／30,000-30,000-20,000／1,800-500。
+本機九份 DOCX 僅歷史來源；商務數值只由業主核定原檔核對，本文不轉載。
 依業主最新排序，AWS 獨立副本與新官網皆在 CURRENT_PROJECT_ACCEPTANCE 之後，
 不可用以下舊「不同位置獨立副本」語句倒灌為 current acceptance blocker。
 Google 現有 PITR／每日備份／刪除保護與真還原驗證仍屬當前工作。

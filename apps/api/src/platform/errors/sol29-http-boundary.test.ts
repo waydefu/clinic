@@ -40,7 +40,12 @@ const get = vi.fn(async (id: string) => {
     );
   if (id === 'opaque_unexpected')
     return Promise.reject(new Error('opaque_private_message'));
-  return Promise.resolve({ appointmentId: id });
+  return Promise.resolve({
+    appointmentId: id,
+    status: 'confirmed',
+    startsAt: '2026-10-15T01:00:00Z',
+    endsAt: '2026-10-15T01:30:00Z'
+  });
 });
 const authenticate = vi.fn(async () =>
   Promise.resolve({

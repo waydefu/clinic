@@ -1,4 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, posix } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   isScannedMarkdown,
   linksIn,
@@ -496,5 +510,358 @@ describe('which markdown the gate discovers', () => {
       false
     );
     expect(isScannedMarkdown('test-results/spec/error-context.md')).toBe(false);
+  });
+});
+
+describe('Markdown parser boundaries for links and index registration', () => {
+  it('does not treat fenced, indented or inline code as links', () => {
+    expect(linksIn('~~~md\n[example](./missing.md)\n~~~')).toEqual([]);
+    expect(linksIn('```md\n[example](./missing.md)\n```')).toEqual([]);
+    expect(linksIn('    [example](./missing.md)')).toEqual([]);
+    expect(linksIn('`[example](./missing.md)`')).toEqual([]);
+    expect(linksIn('``a `[example](./missing.md)` b``')).toEqual([]);
+  });
+
+  it('extracts rendered destinations with titles and balanced parentheses', () => {
+    expect(
+      linksIn('[a](./a.md "title") [b](<./b c.md>) [c](./d(e).md)')
+    ).toEqual(['./a.md', './b c.md', './d(e).md']);
+  });
+
+  it('extracts used reference links and images, not unused definitions', () => {
+    expect(
+      linksIn(
+        '[guide][TARGET]\n![image][]\n[shortcut]\n\n[target]: ./guide.md\n[image]: ./image.png\n[shortcut]: ./shortcut.md\n[unused]: ./missing.md'
+      )
+    ).toEqual(['./guide.md', './image.png', './shortcut.md']);
+  });
+
+  it('honours the first definition for duplicate reference labels', () => {
+    expect(linksIn('[x][id]\n\n[id]: ./first.md\n[id]: ./second.md')).toEqual([
+      './first.md'
+    ]);
+  });
+
+  it('does not parse escaped examples or HTML comments as Markdown links', () => {
+    expect(linksIn('\\[example](./missing.md)')).toEqual([]);
+    expect(linksIn('<!-- [example](./missing.md) -->')).toEqual([]);
+  });
+
+  it('checks a broken reference destination through the gate', () => {
+    const failures = review({
+      documents: [
+        [INDEX, index({ body: '- [guide](product/guide.md)' })],
+        ['docs/product/guide.md', '[missing][target]\n\n[target]: ./missing.md']
+      ],
+      fileExists: (path) =>
+        ['docs/README.md', 'docs/product/guide.md'].includes(path)
+    });
+    expect(failures).toContain(
+      'Broken link in docs/product/guide.md: ./missing.md'
+    );
+  });
+
+  it('does not let a code-only catalogue example register a docs page', () => {
+    const failures = review({
+      documents: [
+        [INDEX, index({ body: '~~~md\n- [orphan](product/orphan.md)\n~~~' })],
+        ['docs/product/orphan.md', '# Orphan']
+      ]
+    });
+    expect(failures).toContain(
+      'Document is not listed in docs/README.md: docs/product/orphan.md'
+    );
+  });
+
+  it('ignores fenced pseudo-headings when extracting index sections', () => {
+    const text = [
+      '## 7. Review record',
+      '~~~md',
+      '## Example heading',
+      '~~~',
+      '- [later](reviews/later.md)',
+      '## Superseded'
+    ].join('\n');
+    expect(sectionText(text, '7. Review record')).toContain('reviews/later.md');
+  });
+
+  it('does not accept a fenced Review heading/link as review registration', () => {
+    const failures = review({
+      documents: [
+        [
+          INDEX,
+          index({
+            body: '~~~md\n## 7. Review record\n- [orphan](reviews/orphan.md)\n~~~'
+          })
+        ],
+        ['docs/reviews/orphan.md', '# Orphan']
+      ]
+    });
+    expect(failures).toContain(
+      'Document is not listed in docs/README.md: docs/reviews/orphan.md'
+    );
+    expect(failures).toContain(
+      'Dated review is not listed in the Review record section: docs/reviews/orphan.md'
+    );
+  });
+
+  it('resolves section reference links using definitions outside that section', () => {
+    const failures = review({
+      documents: [
+        [
+          INDEX,
+          index({ review: '- [review][target]' }) + '\n[target]: reviews/r.md\n'
+        ],
+        ['docs/reviews/r.md', '# Review']
+      ]
+    });
+    expect(failures).toEqual([]);
+  });
+
+  it('preserves real links inside historical details and escaped-pipe tables', () => {
+    expect(
+      linksIn(
+        '<details>\n<summary>History</summary>\n\n[real](./real.md)\n\n</details>'
+      )
+    ).toEqual(['./real.md']);
+    expect(linksIn('| value \\| [cell](./cell.md) | `a\\|b` |')).toEqual([
+      './cell.md'
+    ]);
+  });
+
+  it('reports a target removed from a dirty tree instead of accepting its index entry', () => {
+    const failures = review({
+      documents: [[INDEX, index({ body: '- [deleted](product/deleted.md)' })]],
+      fileExists: (path) => path === INDEX
+    });
+    expect(failures).toContain(
+      'Broken link in docs/README.md: product/deleted.md'
+    );
+  });
+});
+
+describe('documentation CLI filesystem boundary', () => {
+  const roots = [];
+
+  afterEach(() => {
+    for (const root of roots.splice(0))
+      rmSync(root, { recursive: true, force: true });
+  });
+
+  function temporaryRoot() {
+    const root = mkdtempSync(
+      join(
+        process.env.TMPDIR ?? process.env.RUNNER_TEMP ?? tmpdir(),
+        'docs-gate-'
+      )
+    );
+    roots.push(root);
+    return root;
+  }
+
+  function fixture() {
+    const root = temporaryRoot();
+    const files = new Set([
+      INDEX,
+      ...STALE_CLAIMS.map(([file]) => file),
+      'docs/product/plan.md',
+      '.claude/rules/example.md',
+      '.agents/skills/example/SKILL.md',
+      'target.txt'
+    ]);
+    for (const file of files) {
+      mkdirSync(dirname(join(root, file)), { recursive: true });
+      writeFileSync(join(root, file), '# Synthetic fixture\n');
+    }
+    writeFileSync(
+      join(root, INDEX),
+      index({
+        body: [...files]
+          .filter((file) => file.startsWith('docs/') && file !== INDEX)
+          .map((file) => `[fixture](${posix.relative('docs', file)})`)
+          .join('\n')
+      })
+    );
+    writeFileSync(
+      join(root, 'docs/product/plan.md'),
+      '[target](../../target.txt)\n'
+    );
+    mkdirSync(join(root, 'scripts'), { recursive: true });
+    copyFileSync(
+      fileURLToPath(new URL('./check-docs-links.mjs', import.meta.url)),
+      join(root, 'scripts/check-docs-links.mjs')
+    );
+    mkdirSync(join(root, 'node_modules'), { recursive: true });
+    symlinkSync(
+      dirname(fileURLToPath(import.meta.resolve('prettier/package.json'))),
+      join(root, 'node_modules/prettier'),
+      'junction'
+    );
+    return root;
+  }
+
+  // Fault injection is confined to a fresh Node subprocess over synthetic files.
+  // Do not depend on chmod (Windows/admin runs can still read the file).
+  function faultPrelude(method, target, code) {
+    const source = `
+      import fs from 'node:fs/promises';
+      import { syncBuiltinESMExports } from 'node:module';
+      const original = fs[${JSON.stringify(method)}];
+      fs[${JSON.stringify(method)}] = function (...args) {
+        if (!${JSON.stringify(target)} || String(args[0]).replaceAll('\\\\', '/').endsWith(${JSON.stringify(target)})) {
+          throw Object.assign(new Error('synthetic opaque error detail'), { code: ${JSON.stringify(code)} });
+        }
+        return original.apply(this, args);
+      };
+      syncBuiltinESMExports();
+    `;
+    return ['--import', `data:text/javascript,${encodeURIComponent(source)}`];
+  }
+
+  function run(root, { cwd = root, fault = [] } = {}) {
+    const result = spawnSync(
+      process.execPath,
+      [...fault, join(root, 'scripts/check-docs-links.mjs')],
+      { cwd, encoding: 'utf8', timeout: 15000 }
+    );
+    expect(result.error).toBeUndefined();
+    return result;
+  }
+
+  it('passes a clean synthetic repository and an independent copied fixture', () => {
+    const root = fixture();
+    const copy = temporaryRoot();
+    cpSync(root, copy, { recursive: true });
+    for (const candidate of [root, copy]) {
+      const result = run(candidate);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Documentation check passed');
+      expect(result.stderr).toBe('');
+    }
+  });
+
+  it('anchors discovery, reads and linked non-markdown stats to the script root', () => {
+    const root = fixture();
+    const result = run(root, { cwd: temporaryRoot() });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Documentation check passed');
+    expect(result.stderr).toBe('');
+  });
+
+  it('does not scan a competing repository in the invocation cwd', () => {
+    const root = fixture();
+    const competing = fixture();
+    writeFileSync(
+      join(competing, 'docs/product/plan.md'),
+      '[gone](missing.md)'
+    );
+    expect(run(root, { cwd: competing }).status).toBe(0);
+    expect(run(competing).status).toBe(1);
+  });
+
+  it.each(['docs/product/plan.md', 'scripts/build-web.mjs'])(
+    'fails closed for invalid UTF-8 in %s',
+    (file) => {
+      const root = fixture();
+      writeFileSync(join(root, file), Buffer.from([0xc3, 0x28]));
+      const result = run(root);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `Scan failure reading ${file}: invalid UTF-8`
+      );
+      expect(result.stdout).not.toContain('Documentation check passed');
+    }
+  );
+
+  it('reports a missing required index as a scan failure, not an empty pass', () => {
+    const root = fixture();
+    unlinkSync(join(root, INDEX));
+    const result = run(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`Scan failure reading ${INDEX}`);
+  });
+
+  it('accepts valid Unicode, a literal replacement character and an existing BOM', () => {
+    const root = fixture();
+    for (const file of ['docs/product/plan.md', 'scripts/build-web.mjs'])
+      writeFileSync(
+        join(root, file),
+        Buffer.concat([
+          Buffer.from([0xef, 0xbb, 0xbf]),
+          Buffer.from('合成文件 \uFFFD\n', 'utf8')
+        ])
+      );
+    const result = run(root);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
+
+  it('keeps deleted link targets as broken links', () => {
+    const root = fixture();
+    unlinkSync(join(root, 'target.txt'));
+    const result = run(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Broken link in docs/product/plan.md: ../../target.txt'
+    );
+    expect(result.stderr).not.toContain('Scan failure');
+  });
+
+  it.each([
+    [
+      'readFile',
+      'docs/product/plan.md',
+      'EACCES',
+      'reading docs/product/plan.md'
+    ],
+    [
+      'readFile',
+      'scripts/build-web.mjs',
+      'EIO',
+      'reading scripts/build-web.mjs'
+    ],
+    ['stat', 'target.txt', 'EACCES', 'stating target.txt'],
+    ['glob', '', 'EIO', 'discovering markdown']
+  ])(
+    'classifies %s %s failure without exposing raw error details',
+    (method, target, code, label) => {
+      const root = fixture();
+      const result = run(root, { fault: faultPrelude(method, target, code) });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`Scan failure ${label}`);
+      expect(result.stderr).toContain(code);
+      expect(result.stderr).not.toContain('synthetic opaque error detail');
+      expect(result.stdout).not.toContain('Documentation check passed');
+    }
+  );
+
+  it.each(['.claude/rules/example.md', '.agents/skills/example/SKILL.md'])(
+    'retains broken-link checks in %s',
+    (file) => {
+      const root = fixture();
+      writeFileSync(join(root, file), '[gone](missing.md)');
+      const result = run(root);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`Broken link in ${file}: missing.md`);
+    }
+  );
+
+  it('does not scan or log when imported', () => {
+    const root = fixture();
+    const url = pathToFileURL(join(root, 'scripts/check-docs-links.mjs')).href;
+    const result = spawnSync(
+      process.execPath,
+      [
+        ...faultPrelude('glob', '', 'EIO'),
+        '--input-type=module',
+        '-e',
+        `await import(${JSON.stringify(url)})`
+      ],
+      { cwd: root, encoding: 'utf8', timeout: 15000 }
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
   });
 });

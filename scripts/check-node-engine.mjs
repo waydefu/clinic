@@ -7,6 +7,9 @@
 export const NODE_FLOOR = '24.20.0';
 export const NODE_RANGE = `>=${NODE_FLOOR} <25`;
 export const NODE_IMAGE_TAG = `${NODE_FLOOR}-bookworm-slim`;
+export const NODE_IMAGE_DIGEST =
+  'sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e';
+export const NODE_IMAGE_REFERENCE = `${NODE_IMAGE_TAG}@${NODE_IMAGE_DIGEST}`;
 export const REJECTED_OLD_PATCH = '24.14.0';
 export const REJECTED_CURSOR_PATCH = '24.18.0';
 
@@ -40,7 +43,7 @@ function reviewDockerfileImages(dockerfileTexts, errors) {
     if (tags.length === 0)
       errors.push(`${path} has no FROM node: image to review`);
     for (const tag of tags) {
-      if (tag !== NODE_IMAGE_TAG)
+      if (tag !== NODE_IMAGE_TAG && tag !== NODE_IMAGE_REFERENCE)
         errors.push(`${path} FROM node:${tag} must be node:${NODE_IMAGE_TAG}`);
     }
   }

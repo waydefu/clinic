@@ -1,11 +1,14 @@
 import { Controller, Get, Inject, Optional } from '@nestjs/common';
-import type {
-  HealthResponse,
-  OperationalHealthResponse
+import {
+  HealthResponseSchema,
+  OperationalHealthResponseSchema,
+  type HealthResponse,
+  type OperationalHealthResponse
 } from '@beauessence/contracts';
 import { evaluateOperationalHealth } from '@beauessence/domain';
 
 import { ServiceUnavailableError } from './platform/errors/api-error.js';
+import { admitResponse } from './platform/contracts/response-contract.js';
 import {
   OPERATIONAL_HEALTH_PROBE,
   ProcessOnlyOperationalHealthProbe,
@@ -22,12 +25,18 @@ export class HealthController {
 
   @Get()
   public getHealth(): HealthResponse {
-    return { service: 'api', status: 'ok' };
+    return admitResponse(HealthResponseSchema, {
+      service: 'api',
+      status: 'ok'
+    });
   }
 
   @Get('live')
   public getLive(): HealthResponse {
-    return { service: 'api', status: 'ok' };
+    return admitResponse(HealthResponseSchema, {
+      service: 'api',
+      status: 'ok'
+    });
   }
 
   @Get('ready')
@@ -36,20 +45,23 @@ export class HealthController {
     if (evaluation.readiness === 'not_ready') {
       throw new ServiceUnavailableError();
     }
-    return { service: 'api', status: 'ok' };
+    return admitResponse(HealthResponseSchema, {
+      service: 'api',
+      status: 'ok'
+    });
   }
 
   @Get('operational')
   public getOperational(): OperationalHealthResponse {
     const evaluation = evaluateOperationalHealth(this.snapshot());
-    return {
+    return admitResponse(OperationalHealthResponseSchema, {
       service: 'api',
       status: evaluation.status,
       liveness: evaluation.liveness,
       readiness: evaluation.readiness,
       checks: [...evaluation.checks],
       firingAlerts: [...evaluation.firingAlerts]
-    };
+    });
   }
 
   private snapshot() {

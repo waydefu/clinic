@@ -11,6 +11,7 @@ import {
   FirestoreBookingRepository
 } from '../../apps/api/src/firestore/booking.repository.js';
 import { FirestoreCalendarPilotRepository } from '../../apps/api/src/firestore/calendar-pilot.repository.js';
+import { ConflictError } from '../../apps/api/src/platform/errors/api-error.js';
 import { FirestoreClinicCalendarCandidateStore } from '../../apps/api/src/firestore/clinic-calendar-review.repository.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
@@ -339,4 +340,117 @@ describe('Calendar candidate rejection transaction', () => {
       true
     );
   });
+});
+
+const UNMATCHED_ID = 'candidate_unmatched_terminal_guard';
+async function seedUnmatchedTerminalFixture(
+  status = 'unmatched',
+  expectedVersion = 1
+) {
+  await db
+    .collection('calendar_pilot_mirrors')
+    .doc('mirror_unmatched_terminal_guard')
+    .create({
+      sourceId: SOURCE_ID,
+      externalEventId: 'manual_unmatched_terminal_guard',
+      etag: '"unmatched-etag"',
+      parsed: { ok: false, errors: ['title_format_invalid'] },
+      localDirty: false,
+      sourceVersion: 1
+    });
+  await db
+    .collection('calendar_pilot_candidates')
+    .doc(UNMATCHED_ID)
+    .create({
+      candidateId: UNMATCHED_ID,
+      kind: 'unmatched',
+      status,
+      displayLabel: '未對應事件',
+      startsAt: null,
+      endsAt: null,
+      sourceId: SOURCE_ID,
+      sourceVersion: 1,
+      expectedVersion,
+      validationErrors: ['title_format_invalid'],
+      createdAt: NOW,
+      before: null,
+      mirrorId: 'mirror_unmatched_terminal_guard',
+      expectedEtag: '"unmatched-etag"',
+      parsed: { ok: false, errors: ['title_format_invalid'] },
+      appointmentId: null
+    });
+}
+async function candidateDecisionSnapshot() {
+  return Promise.all(
+    COLLECTIONS.map(async (collection) => ({
+      collection,
+      documents: (await db.collection(collection).get()).docs
+        .map((document) => ({ id: document.id, data: document.data() }))
+        .sort((a, b) => a.id.localeCompare(b.id))
+    }))
+  );
+}
+
+describe('terminal unmatched candidate decision guard', () => {
+  it('keeps exact rejection replay but refuses a new decision at the terminal candidate fresh version without writing', async () => {
+    await seedUnmatchedTerminalFixture();
+    const repository = new FirestoreCalendarPilotRepository(db);
+    const command = reviewCommand({
+      candidateId: UNMATCHED_ID,
+      idempotencyKey: 'unmatched_first_decision'
+    });
+    const first = await repository.reviewCandidate(command);
+    expect(first.candidate).toMatchObject({
+      status: 'rejected',
+      expectedVersion: 2
+    });
+    const audits = (await db.collection('calendar_pilot_audit_events').get())
+      .docs;
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.data()).toMatchObject({
+      action: 'calendar_candidate_reject',
+      candidateId: UNMATCHED_ID
+    });
+    const before = await candidateDecisionSnapshot();
+    await expect(
+      repository.reviewCandidate({
+        ...command,
+        occurredAt: '2026-09-24T03:01:00.000Z'
+      })
+    ).resolves.toEqual(first);
+    expect(await candidateDecisionSnapshot()).toEqual(before);
+    await expect(
+      repository.reviewCandidate({
+        ...command,
+        idempotencyKey: 'unmatched_stale_decision'
+      })
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(await candidateDecisionSnapshot()).toEqual(before);
+    await expect(
+      repository.reviewCandidate({
+        ...command,
+        idempotencyKey: 'unmatched_second_decision',
+        expectedVersion: 2
+      })
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(await candidateDecisionSnapshot()).toEqual(before);
+  });
+  it.each(['accepted', 'superseded'])(
+    'denies a new unmatched-kind decision on terminal persisted status %s',
+    async (status) => {
+      await seedUnmatchedTerminalFixture(status, 2);
+      const repository = new FirestoreCalendarPilotRepository(db);
+      const before = await candidateDecisionSnapshot();
+      await expect(
+        repository.reviewCandidate(
+          reviewCommand({
+            candidateId: UNMATCHED_ID,
+            expectedVersion: 2,
+            idempotencyKey: 'unmatched_terminal_fresh_key'
+          })
+        )
+      ).rejects.toBeInstanceOf(ConflictError);
+      expect(await candidateDecisionSnapshot()).toEqual(before);
+    }
+  );
 });

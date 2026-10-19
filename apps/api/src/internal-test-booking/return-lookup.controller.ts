@@ -1,5 +1,9 @@
 import { Body, Controller, Inject, Optional, Post, Req } from '@nestjs/common';
-import { ReturnLookupRequestSchema } from '@beauessence/contracts';
+import {
+  ReturnLookupRequestSchema,
+  ReturnLookupResponseSchema
+} from '@beauessence/contracts';
+import { admitResponse } from '../platform/contracts/response-contract.js';
 
 import {
   APPOINTMENT_APPLICATION,
@@ -60,10 +64,13 @@ export class ReturnLookupController {
           : { ip, actorId, write: false }
       );
     }
-    return this.appointments.lookupReturn(
-      ReturnLookupRequestSchema.parse(body),
-      ip,
-      this.rateLimiter
+    return admitResponse(
+      ReturnLookupResponseSchema,
+      await this.appointments.lookupReturn(
+        ReturnLookupRequestSchema.parse(body),
+        ip,
+        this.rateLimiter
+      )
     );
   }
 }

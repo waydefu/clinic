@@ -878,3 +878,118 @@ describe('CalendarSyncEngine', () => {
     expect(repository.clinicAppointments.get('appointment_001')).toEqual(live);
   });
 });
+
+describe('bounded inbound commit and terminal checkpoint protocol', () => {
+  const page = () => ({
+    events: Array.from({ length: 47 }, (_, index) =>
+      appointment(`bounded_event_${index}`, `bounded_etag_${index}`)
+    ),
+    nextSyncToken: 'bounded-complete'
+  });
+  it('commits at most20 mutations and advances the checkpoint only on the last chunk', async () => {
+    const repository = new MemoryRepository();
+    const result = await new CalendarSyncEngine(
+      new FakeReader([page()]),
+      repository
+    ).run(NOW);
+    expect(result.candidates).toBe(47);
+    expect(repository.commits.map((commit) => commit.mutations.length)).toEqual(
+      [20, 20, 7]
+    );
+    for (const commit of repository.commits.slice(0, -1)) {
+      expect(commit.nextSyncToken).toBeUndefined();
+      expect(commit.completedAt).toBeUndefined();
+    }
+    expect(repository.commits.at(-1)?.nextSyncToken).toBe('bounded-complete');
+  });
+  it('resumes a failed middle chunk from the unchanged sync token without replaying the durable prefix', async () => {
+    class Interrupted extends MemoryRepository {
+      attempts = 0;
+      fail = true;
+      override async commitSync(commit: CalendarSyncCommit): Promise<void> {
+        if (++this.attempts === 2 && this.fail)
+          throw new Error('synthetic middle stop');
+        await super.commitSync(commit);
+      }
+    }
+    const repository = new Interrupted();
+    await expect(
+      new CalendarSyncEngine(new FakeReader([page()]), repository).run(NOW)
+    ).rejects.toThrow('synthetic middle stop');
+    expect(repository.mirrors.size).toBe(20);
+    expect(repository.state.syncToken).toBeUndefined();
+    repository.fail = false;
+    await new CalendarSyncEngine(new FakeReader([page()]), repository).run(NOW);
+    expect(repository.mirrors.size).toBe(47);
+    const candidates = repository.commits.flatMap((commit) =>
+      commit.mutations.flatMap((mutation) =>
+        mutation.candidate === undefined ? [] : [mutation.candidate.candidateId]
+      )
+    );
+    expect(candidates).toHaveLength(47);
+    expect(new Set(candidates).size).toBe(47);
+    expect(repository.state.syncToken).toBe('bounded-complete');
+  });
+  it.each([undefined, '', ' '])(
+    'does not persist a healthy terminal checkpoint without a valid sync token: %s',
+    async (token) => {
+      const repository = new MemoryRepository();
+      const response = {
+        events: [appointment('bounded_single', 'etag_single')],
+        ...(token === undefined ? {} : { nextSyncToken: token })
+      };
+      await expect(
+        new CalendarSyncEngine(new FakeReader([response]), repository).run(NOW)
+      ).rejects.toThrow('nextSyncToken');
+      expect(repository.commits).toHaveLength(0);
+      expect(repository.mirrors.size).toBe(0);
+    }
+  );
+  it('rejects mutually inconsistent page/sync tokens before persisting the premature token', async () => {
+    const repository = new MemoryRepository();
+    await expect(
+      new CalendarSyncEngine(
+        new FakeReader([
+          { events: [], nextPageToken: 'next', nextSyncToken: 'premature' },
+          { events: [], nextSyncToken: 'done' }
+        ]),
+        repository
+      ).run(NOW)
+    ).rejects.toThrow('token');
+    expect(repository.commits).toHaveLength(0);
+  });
+  it('rejects a repeated page token before committing that repeated page', async () => {
+    const repository = new MemoryRepository();
+    const reader = new FakeReader([
+      { events: [], nextPageToken: 'same' },
+      { events: [], nextPageToken: 'same' }
+    ]);
+    await expect(
+      new CalendarSyncEngine(reader, repository).run(NOW)
+    ).rejects.toThrow('token');
+    expect(reader.requests).toHaveLength(2);
+    expect(repository.commits).toHaveLength(1);
+  });
+  it('keeps malformed pilot entries visible as invalid candidates rather than claiming dead-letter delivery', async () => {
+    const repository = new MemoryRepository();
+    const summary = await new CalendarSyncEngine(
+      new FakeReader([
+        {
+          events: [
+            {
+              ...appointment('invalid_title', 'invalid_etag'),
+              summary: '[預約] 無效格式'
+            },
+            appointment('', 'empty-id')
+          ],
+          nextSyncToken: 'counted'
+        }
+      ]),
+      repository
+    ).run(NOW);
+    expect(summary).toMatchObject({ seen: 2, candidates: 1, skipped: 1 });
+    expect(repository.commits[0]?.mutations[0]?.candidate?.kind).toBe(
+      'invalid_format'
+    );
+  });
+});
