@@ -1,5 +1,26 @@
 # Phase 1 Decision Register
 
+## 2026-10-20 官網 `/clinic` 改版（#249）不等 C1，準備合併
+
+專案負責人在 2026-10-20 的對話中決定。沒有另行提供 approval ID，不另造。
+
+- **決定**：Draft PR #249（`agent/clinic-redesign-20261011`）現在就整理到可以合併，不等下一次 C1 部署。
+  這取代 2026-10-11 條目的「C1 部署完成後才合併」、2026-10-12 療程插圖條目的「合併時機仍是 C1 部署完成後」，
+  以及 `docs/design/2026-10-11-clinic-homepage-redesign.md` 的同一句；那幾條的其餘內容不變。
+- **誰按合併**：由專案負責人本人按下。本條不授權任何工作階段代為合併、推送或發佈預覽頻道。
+- **仍然不授權**：部署、live channel Hosting、接管現行由廠商租約經營的官網
+  （`DELIVERY_DEFERRED_DUE_TO_EXISTING_VENDOR_LEASE` 與 `PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED` 不變）；
+  也不授權讓 `/clinic` 被搜尋引擎索引，`noindex` 維持。合併進 `main` 只是原始碼狀態，不是上線。
+- **上線前待辦仍成立，合併不結清它們**：
+  (1) 醫療文案審閱，含醫師個人頁頭銜「自體肋隆鼻權威」與下鼻甲手術頁「常見的下鼻甲處理方式」比較表（中性版）；
+  (2) 器材照（雙極射頻探針、凝結夾）是否為廠商產品照，以及 AI 工具產生的兩張療程插圖的商用條款，
+  記在 `apps/web/clinic-assets.manifest.json` 的 `openItem` 與 `additionalLicences`；
+  (3) 隱私權說明是否另加地圖一節，與 `privacy.html` 的 4 KiB 文件預算。
+- **合併後的後續**：Draft PR #274（`agent/booking-restyle-20261019`，booking 改版）帶有 `brand-tokens.css`，
+  `clinic-site.css` 之後要改採它。#249 與 #274 都改了 `apps/web/performance-budget.json`、本登記簿、
+  `scripts/check-clinic-freeze.mjs`、`scripts/check-design-tokens.mjs` 這四個檔案；兩者中後合併的那一個，
+  必須先重新同步這四個檔案。
+
 ## 2026-10-19 Phase 0 業主回答與來源凍結候選界線
 
 業主在本輪 Sol 父代理的 Phase 0 決定簡報後回答以下問題。未另提供 approval ID，不另造。
