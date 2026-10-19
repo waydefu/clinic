@@ -5,16 +5,57 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 [決定登記簿](../product/phase-1-decision-register.md)逐次取得業主明確授權。
 **依據：** 決定登記簿「2026-10-18 交付節奏與 Sol／Luna 執行方式」條目。
 **基準：** 寫於 `origin/main` `8746063`（2026-10-18，#263 合併後），#264 合併後更新（`origin/main` `cee408a`）。
-**執行環境：** 業主的 Hermes Agent（Windows，終端機是 Git Bash）。`<HERMES_HOME>` 指 `%LOCALAPPDATA%\hermes`。
+**執行環境：** 業主的 Hermes Agent，實際用的是 Hermes Desktop（桌面版，Windows）；CLI 的終端機是 Git Bash，列為備用。`<HERMES_HOME>` 指 `%LOCALAPPDATA%\hermes`。
 若改用 Codex CLI，見[附錄 A](#附錄-a若改用-codex-cli)。
 **2026-10-19 更新：** clinic guard 依審查結果修成 2.1 版，再補成 2.2 版（第 3.2 節）；Hermes 的壓縮、輔助任務與 MCP 設定做了效能調整（第 3.1 節）；新增第 3.4 節。
+**2026-10-19 夜間更新：** 業主用的是桌面版，第 1 節改寫成桌面版的用法；clinic guard 補成 2.3 版（工具白名單、依對話資料夾判斷範圍）；業主選了「全部工具都經過」，hook 的 matcher 已改成 `.*`（第 3.1、3.2 節），Desktop 要完全結束再重開一次才會生效；`clinic_guard.py` 已核可，`hermes.cmd hooks list` 顯示 `✓ allowed`（10-19 讀回）；第 2.3 節新增「桌面版的對話資料夾」一項。
 
 ## 1. 怎麼用（白話）
 
 **開始前：**
 
 1. **先合併這份文件的 PR。** Sol 會從 `main` 重讀第 4 節的規則；對話很長被壓縮後，它才找得回來。
-2. **一律從專用的啟動資料夾 `sol-run` 用 Hermes CLI 啟動，不要從 repo 主資料夾啟動。** 擋指令的 hook 靠啟動資料夾判斷「現在在診所專案」，`sol-run` 在診所專案底下，符合。在 Git Bash 裡，整行貼上：
+2. **一律用專用資料夾 `sol-run` 開對話，不要用 repo 主資料夾。** 擋指令的 hook 要靠對話的資料夾判斷「現在在診所專案」，`sol-run` 在診所專案底下，符合。業主用的是 Hermes Desktop（桌面版），依下面三小步做：
+
+   **(a) 先把 `sol-run` 更新到最新的 `main`**（要等第 1 步的 PR 合併之後再做，才拿得到合併後的這份文件）。開 PowerShell，兩個指令分開貼：
+
+   ```powershell
+   cd "F:\診所專案\beauessence-appointment-platform-fresh\.claude\worktrees\sol-run"
+   ```
+
+   ```powershell
+   git fetch -q origin; git checkout -q --detach origin/main
+   ```
+
+   **(b) 完全結束 Desktop，再重新開啟（只要做一次）。** hook 的 matcher 已經在 2026-10-19 夜間改成 `.*`（你選的「全部工具都經過」，第 3.1 節）。但 matcher 是後端啟動時才讀入，所以要完全結束、再開一次才生效；如果改設定時 Desktop 已經開著，重開之前它還在用舊的 matcher。hook 檔本身每次呼叫都重新執行，之後只改檔案不用重開。Claude 不會代為重啟 Hermes 或 Desktop。
+
+   **(c) 在 Desktop 選（或新增）一個專案（Project），資料夾指到 `sol-run`。** 新對話要在這個專案裡開（第 5 步）。
+   - 資料夾是 `F:\診所專案\beauessence-appointment-platform-fresh\.claude\worktrees\sol-run`。
+   - 沒有選專案、直接開的新對話，Desktop 視為沒有工作資料夾（"No workspace"）。**這次執行不要用那種對話。**
+   - 另一個做法是把 Desktop 設定裡的預設專案資料夾設成 `sol-run`（或診所專案）。那樣所有 Desktop 對話（含沒選專案的）都受 clinic guard 管，補得上下面「殘餘風險」那一項；代價是你平常在 Desktop 做別的事也會被擋。這個設定由你自己決定與操作。
+
+   白話說明：
+   - `sol-run` 是同一個 repo 的另一份工作資料夾。每次開跑前都先更新到最新的 `main`，只拿來當對話的資料夾，沒有人會改裡面的檔案。
+   - 不用主資料夾的原因：主資料夾目前停在別人舊的分支（`agent/retire-public-mirror`，遠遠落後 `main`），從那裡開對話會載入舊的 AGENTS.md 與舊的技能。
+   - **桌面版怎麼知道這是診所專案：** Desktop 只有一個後端程序，用「預設專案資料夾」（沒設就是家目錄）啟動，不會跟著每個對話換資料夾，所以 hook 收到的資料夾不是對話的資料夾。clinic guard 2.3 版改成去讀 Hermes 替每個對話記下的資料夾（`<HERMES_HOME>/state.db` 的 `sessions.cwd`，唯讀），子代理沿用父代理的。選了 `sol-run` 專案的對話，這個資料夾在第一次用工具之前就已記下，所以一開始就在範圍內（第 2.3、3.2 節）。
+   - **桌面版不能用 `-t`：** Desktop 沒有「這個對話只開哪些工具」的選項。它讀的是設定檔的 `platform_toolsets.cli`，是全域設定，所有對話共用。所以工具改由 clinic guard 在診所專案範圍內用白名單管：不在名單上的工具一律擋下，顯示 `(protected: tool)`，子代理也一樣。名單共 27 個工具（第 3.2 節）：終端機、讀檔、搜尋、寫檔、patch、行程管理、子代理、待辦、技能（只讀）、查過去對話、向你提問（`clarify`）、網頁搜尋與擷取、看圖，加上三個 MCP 的唯讀工具。
+   - 不開的工具和原因（桌面版靠白名單擋，CLI 另外用 `-t` 關，兩者同時有效）：
+     - `browser`、`image_gen`、`tts`：這次工作用不到；
+     - `computer_use`：可以控制桌面，風險太大；
+     - `code_execution`：這次用不到，關掉能少一條可能繞過 hook 的路（見第 2.7 節；即使開著，hook 也一律擋 `execute_code`）；
+     - `memory`：會寫進業主全域的 Hermes 記憶，不該讓這次執行去寫；
+     - `cronjob`：會留下排程，這次不需要；
+     - `connections`：遠端連接器的探索、執行與帳號授權，不該在這次執行裡動用；
+     - kanban 與 `start_chat`：這次執行用不到；
+     - repomap MCP：profile 自己的 `hermes-coding-efficiency` 技能寫明，RepoMap 在效能測試後已停用（設定檔裡也是關的）。
+   - 三個 MCP（serena、context7、codebase-memory）要在 Hermes 設定裡是啟用的才有作用，這三個在 2026-10-19 都已啟用（第 3.1 節）：
+     - serena：程式碼查詢，只開唯讀的 4 個工具；
+     - context7：查套件文件，2 個工具；
+     - codebase-memory：程式碼索引與搜尋，只開 6 個查詢類工具（它會替專案建索引）。
+   - **桌面版的 MCP 可能起不來（推論，沒驗證）：** serena 與 codebase-memory 以「工作資料夾」為準，並拒絕家目錄與 Hermes 資料夾，codebase-memory 還要求那是 git 專案的根目錄。桌面版的 MCP 伺服器是跟著後端程序起的，它們看到的可能是後端的資料夾（預設專案資料夾或家目錄），不是對話的 `sol-run`。若是這樣，這兩個會自己退出，工具不出現。不影響這次執行，Sol 會改用 `rg`、`cat`，Phase 0 會看到結果。
+   - **殘餘風險：** 沒有專案資料夾、又沒有提到任何診所路徑的 Desktop 對話，不在 hook 的範圍內；它的第一個動作若是 `computer_use`，會被放行。徹底的做法是改設定：把 browser、computer_use 這些工具組從 `platform_toolsets.cli` 拿掉，或用上面 (c) 的第三點把預設專案資料夾設成診所專案。這次執行請只用 `sol-run` 專案的對話。
+
+   **備用：用 CLI 啟動（Git Bash）。** CLI 可以用 `-t` 限定這次對話能用的工具組，沒列的都關掉，子代理繼承同一組；clinic guard 的白名單同樣有效。在 Git Bash 裡，整行貼上：
 
    ```bash
    cd /f/診所專案/beauessence-appointment-platform-fresh/.claude/worktrees/sol-run && git fetch -q origin && git checkout -q --detach origin/main && hermes.cmd -t terminal,file,delegation,todo,skills,session_search,clarify,web,vision,mcp-serena,mcp-context7,mcp-codebase-memory
@@ -22,37 +63,26 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 
    Git Bash 裡沒有 `hermes` 這個指令，只有 `hermes.cmd` 能用（本文其他 Hermes 子指令，例如 `hermes.cmd update`，在 Git Bash 也這樣寫）；PowerShell 可以直接寫 `hermes`。
 
-   白話說明：
-   - `sol-run` 是同一個 repo 的另一份工作資料夾。每次啟動都先切到最新的 `main`，只拿來啟動 Hermes，沒有人會改裡面的檔案。
-   - 不用主資料夾的原因：主資料夾目前停在別人舊的分支（`agent/retire-public-mirror`，遠遠落後 `main`），從那裡啟動會載入舊的 AGENTS.md 與舊的技能。
-   - `-t` 限定這次對話能用的工具，沒列的都關掉；子代理繼承同一組。
-   - 三個 `mcp-…` 是 MCP 工具組，名字就是 `mcp-` 加上設定檔裡的伺服器名稱。**它們要在 Hermes 設定裡是啟用的才有作用**，沒啟用的伺服器會被無聲略過。這三個在 2026-10-19 都已在預設設定啟用（第 3.1 節）：
-     - `mcp-serena`：程式碼查詢，只開唯讀的 4 個工具；
-     - `mcp-context7`：查套件文件，2 個工具；
-     - `mcp-codebase-memory`：程式碼索引與搜尋，只開 6 個查詢類工具（它會替專案建索引）。
-   - serena 與 codebase-memory 要從診所專案的 git 資料夾啟動才起得來（`sol-run` 符合）；從家目錄或 Hermes 資料夾啟動，這兩個會自己退出，工具就不會出現。
-   - 關掉的工具和原因：
-     - `browser`、`image_gen`、`tts`：這次工作用不到；
-     - `computer_use`：可以控制桌面，風險太大；
-     - `code_execution`：這次用不到，關掉能少一條可能繞過 hook 的路（見第 2.7 節；即使開著，hook 也一律擋 `execute_code`）；
-     - `memory`：會寫進業主全域的 Hermes 記憶，不該讓這次執行去寫；
-     - `cronjob`：會留下排程，這次不需要；
-     - `connections`：遠端連接器的探索、執行與帳號授權，不該在這次執行裡動用；
-     - repomap MCP：profile 自己的 `hermes-coding-efficiency` 技能寫明，RepoMap 在效能測試後已停用。
-
-   Hermes Desktop 的對話不保證會被判斷成診所專案，所以這次不要用 Desktop。
-3. **第一次啟動時核可 hook。**
-   - Hermes 會問要不要允許 `clinic_guard.py`，按允許，它會記住。沒有跳出詢問的話，改用 `hermes.cmd --accept-hooks` 啟動。
-   - 用 `hermes.cmd hooks list` 確認 `clinic_guard.py` 顯示 `✓ allowed`。**沒有核可，hook 就不會執行，請不要開跑。**
-   - 2026-10-19 讀回時，`clinic_guard.py` 仍顯示 `not allowlisted`，也就是還沒核可，hook 目前不會執行。核可是安全同意的動作，只有你能做（Claude 不會代為設定 `HERMES_ACCEPT_HOOKS` 或改核可紀錄）。
-   - 修改已核可的 hook 檔，**不需要**重新核可：核可紀錄以「事件＋指令」為鍵，這兩項沒變就沿用。`hermes.cmd hooks doctor` 只會在 hook 檔的修改時間和核可時不同時提出警告，不會擋，也不會要求重新核可。10-19 把 matcher 加上 `read_file`、`search_files`，改的是 matcher，不是事件或指令，所以同樣不需要重新核可。
-   - 所以 hook 檔被改動時，Hermes 不會停下來問你。代理被明確禁止修改 Hermes 與 hook 設定（第 4 節的硬停止）；`doctor` 出現修改時間警告時，請確認那是你或 Claude 做的改動。
+   CLI 的三個 `mcp-…` 是 MCP 工具組，名字就是 `mcp-` 加上設定檔裡的伺服器名稱；沒啟用的伺服器會被無聲略過。從 `sol-run` 啟動時，serena 與 codebase-memory 認得到工作資料夾；從家目錄或 Hermes 資料夾啟動，這兩個會自己退出，工具就不會出現。
+3. **確認 hook 已核可（2026-10-19 已核可，這一步只要看一眼）。**
+   - 用 `hermes.cmd hooks list`（PowerShell 可寫 `hermes hooks list`）看 `clinic_guard.py` 那一項。2026-10-19 讀回時，matcher 是 `.*`，並顯示 `✓ allowed`，所以 hook 會執行，不需要再核可。
+   - 同一項還會出現一行 `⚠ script modified since approval`（核可之後 hook 檔改過）。**這只是提醒，不會擋，hook 照常執行。** 原因：Hermes 核可時記下 hook 檔的修改時間，之後 clinic guard 補成 2.3 版，檔案時間變了。核可紀錄存在 Hermes 資料夾（`<HERMES_HOME>/shell-hooks-allowlist.json`）。
+   - 以後如果又有人改 clinic guard（例如再補一版），開跑前用 `hermes.cmd hooks list` 再看一次：確認還是 `✓ allowed`、matcher 還是 `.*`，並確認那次改動是你或 Claude 做的。
+   - 如果哪天（例如 Hermes 更新之後）看到 `✗ not allowlisted`，hook 就不會執行，**請不要開跑**。核可是安全同意的動作，只有你能做（Claude 不會代為設定 `HERMES_ACCEPT_HOOKS` 或改核可紀錄）：用 CLI 核可一次，第一次啟動時按允許；沒有跳出詢問的話，改用 `hermes.cmd --accept-hooks` 啟動。桌面版會不會跳出詢問，沒有確認過。
+   - 修改已核可的 hook 檔，**不需要**重新核可：核可紀錄以「事件＋指令」為鍵，這兩項沒變就沿用。`hermes.cmd hooks doctor` 也只會在 hook 檔的修改時間和核可時不同時提出警告，不會擋，也不會要求重新核可。10-19 把 matcher 加上 `read_file`、`search_files`，以及夜間改成 `.*`，改的都是 matcher，不是事件或指令，所以同樣不需要重新核可。
+   - 所以 hook 檔被改動時，Hermes 不會停下來問你。代理被明確禁止修改 Hermes 與 hook 設定（第 4 節的硬停止）；看到修改時間的警告時，請確認那是你或 Claude 做的改動。
 4. **雲端帳號維持登入**（業主 10-18 決定）。所以部署類動作主要靠 hook 擋，見第 2.7 節。
 
 **開始跑：**
 
-5. 開新對話，輸入 `/model`，確認是 `gpt-6.1-sol`。
-6. 把第 4 節「Sol 父代理提示詞」整段貼上送出。Sol 會先做 Phase 0：測試設定、對帳、整理要你決定的問題。這一步你要在場：
+5. 在第 2 步 (c) 的 `sol-run` 專案裡開新對話（不要用沒選專案的對話），輸入 `/model`，確認是 `gpt-6.1-sol`。
+6. 把下面這段短訊息貼上送出。Sol 會自己從 `main` 分段讀第 4、6 節；第 4 節就是它的完整指示，所以不用貼整份提示詞（讀不到時，再把第 4 節「Sol 父代理提示詞」整段貼上）。Sol 會先做 Phase 0：測試設定、對帳、整理要你決定的問題。
+
+   ```text
+   你是這次執行的 Sol 父代理。先從 main 分段讀 docs/plans/2026-10-18-sol-luna-autorun-prompts.md 的第 4 節和第 6 節：先用 git show origin/main:docs/plans/2026-10-18-sol-luna-autorun-prompts.md | rg -n '^## ' 找行號，再用 sed -n 'A,Bp' 分段印。第 4 節就是你的完整指示，照做。只做 Phase 0，做完停下來回報，等我回覆。
+   ```
+
+   Phase 0 這一步你要在場：
    - Sol 和一個 Luna 子代理都會試一次合併指令，兩個都必須被擋下，畫面會出現「BLOCKED by clinic guard (protected: merge)」；
    - 請在畫面上確認 Luna 子代理用的模型是 `gpt-6-luna`；
    - 三個 MCP 是背景啟動的，第一回合可能還沒連上，第二回合起才會出現。請看 Sol 回報有沒有看到 serena、context7、codebase-memory 的工具。這是 10-19 才啟用的設定，還沒有在 `sol-run` 實際跑過；沒出現也不影響這次執行，Sol 會改用 `rg`、`cat` 這些指令。
@@ -64,7 +94,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 - **合併 PR：** Sol 會標出「現在可以合併」的那一個 PR（已跟上最新 `main`、CI 綠）。你只合併那一個；Sol 再讓下一個跟上 `main`、等 CI 跑完後通知你。每合併一個，大約要等一輪 CI。
 - **Sol 停下來的時候**（目標達成、300 輪用完、或在等你）：處理完你那邊的事，輸入 `/goal resume` 讓它繼續。
 - **看到「BLOCKED by clinic guard」** 是規則擋下了指令，屬於正常情況。括號裡分兩種：
-  - `(protected: …)`：擋下的是受保護動作。Sol 會寫進決定簡報或標 BLOCKED-EXTERNAL，不會換寫法再試；
+  - `(protected: …)`：擋下的是受保護動作。Sol 會寫進決定簡報或標 BLOCKED-EXTERNAL，不會換寫法再試。其中 `(protected: tool)` 是用了這次不開的工具，Sol 會改用 terminal 與允許的指令完成工作；
   - `(form)`：不是受保護動作，只是指令寫法不在 hook 允許的範圍（hook 只放行簡單、單純的指令）。Sol 與 Luna 會照訊息改寫成允許的寫法再試，不用你處理。
 
 **名詞小抄：**
@@ -79,6 +109,9 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 - **`/goal`**：讓 Hermes 持續工作到達成目標的指令。
 - **L7**：Luna 的第 7 組工作，也就是回歸、手冊與驗收清單。
 - **braces**：只在開發工具裡用到的套件，有已知弱點，還沒有修補版。
+- **Desktop／專案（Project）**：Hermes Desktop 用「專案」決定一個對話的工作資料夾；沒選專案的對話沒有工作資料夾。
+- **matcher**：hook 設定裡指定「哪些工具的呼叫要經過這個 hook」的條件；`.*` 表示全部工具。
+- **工具白名單**：clinic guard 在診所專案範圍內，只放行名單上的 27 個工具，其餘一律擋下（`(protected: tool)`）。
 - **CAL-PILOT**：Google 日曆的合成資料測試授權。
 
 ## 2. 事實與限制
@@ -132,8 +165,8 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - 所以原本的 `<HERMES_HOME>/governance/hooks/authority_gate.py`（它的做法是要求人工確認）在這台實際上不會擋任何東西；
   - hook 回「擋下」（exit 2 加 `{"action":"block"}`）則不受這個模式影響，一定生效。
   - 來源：`agent/shell_hooks.py`、`tools/approval.py`、`website/docs/user-guide/features/hooks.md`。
-- **hook 的核可：** 新 hook 要經本人同意才會執行，否則會被略過（`hermes.cmd hooks list` 顯示 `✗ not allowlisted`）。核可紀錄在 `<HERMES_HOME>/shell-hooks-allowlist.json`。
-  - 核可以「事件＋指令」為鍵。已核可的 hook 改檔案內容**不需要**重新核可；`hermes.cmd hooks doctor` 只會在修改時間和核可時不同時提出警告，不會擋，也不會要求重新核可。
+- **hook 的核可：** 新 hook 要經本人同意才會執行，否則會被略過（`hermes.cmd hooks list` 顯示 `✗ not allowlisted`）。核可紀錄在 `<HERMES_HOME>/shell-hooks-allowlist.json`。這台的 `clinic_guard.py` 已在 2026-10-19 核可，現在顯示 `✓ allowed`。
+  - 核可以「事件＋指令」為鍵。已核可的 hook 改檔案內容**不需要**重新核可；`hermes.cmd hooks doctor` 只會在修改時間和核可時不同時提出警告，不會擋，也不會要求重新核可。`hooks list` 上的 `⚠ script modified since approval` 就是這個提醒，hook 照常執行。
 - **長時間執行：**
   - `/goal` 每回合結束後由判斷模型決定「完成、繼續、卡住」，預設上限 20 回合，這台已調成 300（`goals.max_turns`）；
   - 目標內容與完成條件會跟著對話保存，壓縮與 `/resume` 後都還在。
@@ -144,15 +177,24 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - 壓縮門檻是視窗的一半：有效視窗被設成 272000 token，所以約在 136000 時壓縮（`compression.threshold_tokens` 設的 256000 比這高，沒有作用，沒動）。壓縮一次大約回到 35K～45K，長時間執行會壓縮很多次；
   - 如果想恢復 10-18 的保護，把 `protect_first_n` 改回 3 即可，但它只延後淡出的時間。
 - **專案說明檔：** Hermes 只載入一種：repo 有 AGENTS.md 時會載入它，**不會載入 CLAUDE.md**。所以提示詞要求 Sol 自己讀 CLAUDE.md。來源：`website/docs/user-guide/features/context-files.md`。
+- **桌面版（Desktop）的對話資料夾**（2026-10-19 夜間讀取）：
+  - **後端程序：** Desktop 用 `resolveHermesCwd()` 啟動 `hermes serve`。資料夾的順序是「預設專案資料夾」設定、環境變數 `HERMES_DESKTOP_CWD`、（只有開發版）`INIT_CWD` 與程序目前的資料夾、最後是家目錄。每個 profile 一個後端，不會隨專案或對話重啟；
+  - **hook 收到的 `cwd`：** 就是後端程序的資料夾（`Path.cwd()`）。hook 子程序沒有另外指定資料夾，繼承同一個，所以 hook 自己查到的資料夾也一樣。`extra` 只有 `task_id`、`tool_call_id`、`turn_id`、`api_request_id`；
+  - **terminal 工具的資料夾：** 來自對話的資料夾，不是後端程序。Desktop 建立對話時把 `cwd` 與 `cwd_explicit` 送給 gateway，gateway 記成對話的工作資料夾，並在第一次呼叫工具之前存進 `state.db` 的 `sessions.cwd`。`workdir` 只有模型自己帶才會有；
+  - **選專案：** 要選一個專案，或設定預設專案資料夾。沒選專案的新對話維持 "No workspace"；
+  - **舊版 guard 的缺口：** Desktop 在診所專案裡的對話，hook 收到的 cwd 是預設專案資料夾或家目錄，要等指令或路徑提到診所專案才算在範圍內。2.3 版補上了（第 3.2 節）；
+  - 來源：`apps/desktop/electron/main.ts`、`agent/shell_hooks.py`、`apps/desktop` 前端的 `use-session-actions/index.ts`、`tui_gateway/session_workdir.py`、`tui_gateway/server.py`、桌面版 README「Projects are the workspace abstraction」。
 - **工具：**
-  - 啟動時用 `-t` 指定這次對話要開的工具組，沒列的都關掉；子代理繼承父代理的工具組（來源：`website/docs/user-guide/features/delegation.md`）；
-  - 這次開：terminal、file、delegation、todo、skills、session_search、clarify、web、vision，加上 MCP 的 serena、context7 與 codebase-memory；
-  - 這次關：browser、computer_use（可以控制桌面）、code_execution、image_gen、tts、memory（會寫進業主全域的 Hermes 記憶）、cronjob、connections，以及 repomap MCP（profile 自己的 `hermes-coding-efficiency` 技能寫明，RepoMap 在效能測試後已停用）。
+  - **CLI：** 啟動時用 `-t` 指定這次對話要開的工具組，沒列的都關掉；子代理繼承父代理的工具組（來源：`website/docs/user-guide/features/delegation.md`）；
+  - **桌面版：** 沒有每個對話各自的工具組選項。它讀設定檔的 `platform_toolsets.cli`（環境變數 `HERMES_TUI_TOOLSETS` 可覆寫，`agent.disabled_toolsets` 會扣掉，程式碼模式可能換成 `coding` 加 MCP；`project`、`desktop_ui`、`catalog` 一律加上）。這是全域設定，Capabilities 分頁也是全域，不是每個對話一份。這台的 `cli` 清單包含 browser、computer_use、cronjob、image_gen、tts、memory、start_chat、code_execution。所以桌面版的工具限制只能靠 clinic guard 的工具白名單（第 3.2 節）；
+  - 這次要用（CLI 開、桌面版放行）：terminal、file、delegation、todo、skills、session_search、clarify、web、vision，加上 MCP 的 serena、context7 與 codebase-memory；
+  - 這次不用（CLI 關、桌面版擋成 `(protected: tool)`）：browser、computer_use（可以控制桌面）、code_execution、image_gen、tts、memory（會寫進業主全域的 Hermes 記憶）、cronjob、connections、kanban、start_chat；repomap MCP 則是設定檔已關（profile 自己的 `hermes-coding-efficiency` 技能寫明，RepoMap 在效能測試後已停用）。
 - **MCP 伺服器：**
   - 設定在預設設定（`mcp_servers`）：serena（只開 4 個唯讀工具）、context7（2 個）、codebase-memory（6 個查詢類工具：`search_graph`、`trace_path`、`get_code_snippet`、`get_architecture`、`list_projects`、`check_index_coverage`）。repomap 仍是關的。serena 原本在預設設定是關的，只有其他 profile 開著；`-t mcp-serena` 在它沒啟用時會無聲失效，所以 2026-10-19 已把它在預設設定打開（審查 d1）。codebase-memory 是從 `cbmcanary` profile 照抄過來的設定；
   - 互動式對話（CLI、桌面版）**不會被 MCP 啟動卡住**：連線在背景進行，第一次建立代理最多等 1.5 秒，還沒連上的伺服器會在回合之間補上。所以 serena 光 import 就要 12～15 秒，最壞的情況是前一兩個回合看不到它的工具；
   - serena（經 workspace_guard 包裝）與 codebase-memory（轉接程式自帶守門）都以對話的工作資料夾（`${workspaceFolder}`）為準，並拒絕家目錄與 Hermes 資料夾；codebase-memory 還要求那是 git 專案的根目錄。所以從 `sol-run` 啟動才有用，從別處啟動它們會立刻退出（不會狂重啟，只是工具不出現）；
   - **還沒有在 `sol-run` 實際跑過。** 10-19 套用設定後只做了唯讀檢查（`hermes.cmd mcp list` 顯示三個都是 enabled），沒有實際啟動 serena 與 codebase-memory，所以 `sol-run`（git 的工作資料夾，不是主資料夾）能不能起來，是推論，要看 Phase 0 的結果（第 1 節第 6 步）；codebase-memory 建的索引放在哪裡，也還沒確認；
+  - **桌面版的 MCP 可能起不來（推論，沒驗證）：** 桌面版只有一個後端程序，MCP 伺服器是跟著後端起的，它們看到的「工作資料夾」可能是後端的資料夾（預設專案資料夾或家目錄），不是對話的 `sol-run`。若是這樣，serena 與 codebase-memory 會自己退出，工具不出現；不影響這次執行（Sol 改用 `rg`、`cat`），Phase 0 會看到結果；
   - 每個伺服器的閒置回收與連線上限見第 3.1、3.4 節。
 - **技能：**
   - repo 的專案技能要先執行 `hermes.cmd skills trust` 才會載入，核可紀錄存在 `skills.trusted_project_dirs`；
@@ -192,22 +234,23 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   2. `main` 的分支保護：必須經過 PR、不能 force push、不能刪除；
   3. 提示詞裡的硬停止；
   4. 業主留意合併。
-- **殘餘風險：** hook 只看得到 terminal、execute_code、write_file、patch、process_manage、skill_manage、read_file、search_files 這八種工具的內容（10-19 才加上最後兩種）。其他工具它看不到，包括 MCP 工具：那三個 MCP 只開查詢類工具，serena 與 codebase-memory 另有各自的工作資料夾守門（第 2.3 節）。它也看不到寫進 repo 檔案、之後再被執行的程式碼，例如 `package.json` 的 script（用 `pnpm test` 跑）、用 `node` 執行的 `.mjs` 檔、vitest 測試。寫成程式碼、再透過這些方式間接使用已登入憑證的做法，可能擋不到。這是業主接受的取捨。
+- **殘餘風險：** 2.3 版起 hook 掛在所有工具上（matcher `.*`），診所專案範圍內不在白名單的工具一律擋下（第 3.2 節），所以 MCP 與桌面版專用工具也看得到；白名單內的 MCP 工具只做路徑引數檢查，另有各自的工作資料夾守門（第 2.3 節）。它看不到的有兩類。（1）範圍外的對話：沒有專案資料夾、又沒有提到任何診所路徑的桌面版對話，第一個動作若是 `computer_use` 就會放行（第 3.2 節「已知限制」）。（2）寫進 repo 檔案、之後再被執行的程式碼，例如 `package.json` 的 script（用 `pnpm test` 跑）、用 `node` 執行的 `.mjs` 檔、vitest 測試。寫成程式碼、再透過這些方式間接使用已登入憑證的做法，可能擋不到。這是業主接受的取捨。另有一項已知限制是這次補記的，還沒請業主逐項確認：白名單內的 `web_search`、`web_extract` 不檢查引數，網址可以把資料帶出去（第 3.2 節「已知限制」）。
 
 ## 3. Hermes 設定（Claude 於 2026-10-18 套用，2026-10-19 再調整）
 
 ### 3.1 設定檔的改動
 
-`<HERMES_HOME>/config.yaml`。每一批改動前都先備份，備份在同資料夾，由舊到新共四份：
+`<HERMES_HOME>/config.yaml`。每一批改動前都先備份，備份在同資料夾，由舊到新共五份：
 
 | 備份檔 | 備份的是哪個時間點 |
 |---|---|
 | `config.yaml.20261018-182956-before-clinic-guard.bak` | 2026-10-18 動手之前的原檔 |
 | `config.yaml.20261018-after-clinic-guard.bak` | 加完 clinic guard 與各項上限之後、改技能信任（第 3.3 節）之前 |
 | `config.yaml.20261018-before-guard-v2.bak` | 把 hook 改寫成第二版（白名單）之前 |
-| `config.yaml.20261019-before-perf-tuning.bak` | 2026-10-19 效能調整之前；和現在的差別就是下面「10-19 效能調整」那一批 |
+| `config.yaml.20261019-before-perf-tuning.bak` | 2026-10-19 效能調整之前；和下一份（`before-desktop`）的差別就是下面「10-19 效能調整」那一批 |
+| `config.yaml.20261019-before-desktop.bak` | 2026-10-19 夜間把 hook matcher 改成 `.*`（桌面版）之前；和現在的差別就是下面「10-19 夜間：桌面版」那一批 |
 
-- 要還原時，把想要的備份複製回 `config.yaml`。只想撤銷 10-19 的調整，用最新的那份。較舊的備份不含後來才改的設定（例如技能信任），還原前先比對差異。
+- 要還原時，把想要的備份複製回 `config.yaml`。只想撤銷 10-19 夜間的 matcher 改動，用最新的那份（`before-desktop`）；想撤銷整個 10-19 效能調整，用 `before-perf-tuning` 那份。較舊的備份不含後來才改的設定（例如技能信任），還原前先比對差異。
 - 備份檔留在 Hermes 資料夾，不進 repo。
 
 **10-18 的改動：**
@@ -216,7 +259,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 |---|---|---|---|
 | `delegation.max_concurrent_children` | 2 | 5 | 業主決定 Luna 最多 2 個；電腦硬體也只撐得住這樣 |
 | `goals.max_turns` | 300 | 預設 20 | 讓 `/goal` 能長時間執行 |
-| `hooks.pre_tool_call` | 新增 `clinic_guard.py`（`fail_closed: true`，`timeout` 25 秒，排在 `authority_gate.py` 前面）。matcher 現在是 `terminal\|execute_code\|write_file\|patch\|process_manage\|skill_manage\|read_file\|search_files`（後兩個是 10-19 加的） | 只有 `authority_gate.py` | 確認提示關閉時仍能擋下危險指令 |
+| `hooks.pre_tool_call` | 新增 `clinic_guard.py`（`fail_closed: true`，`timeout` 25 秒，排在 `authority_gate.py` 前面）。matcher 原本是 `terminal\|execute_code\|write_file\|patch\|process_manage\|skill_manage\|read_file\|search_files`（後兩個是 10-19 加的；10-19 夜間改成 `.*`，見下面桌面版那一批） | 只有 `authority_gate.py` | 確認提示關閉時仍能擋下危險指令 |
 
 **10-19 效能調整**（依本機設定唯讀稽核，只動這些鍵，不重啟任何程式）：
 
@@ -233,12 +276,41 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 
 - 不變的設定：`model.default: gpt-6.1-sol`、`delegation.model: gpt-6-luna`（`reasoning_effort` 仍是 xhigh）、`approvals.mode: off`、`compression.threshold_tokens`、`review` 輔助任務（沒有這個鍵）、repomap（仍關閉）。
 - 稽核還建議把 `delegation` 的推理強度降到 high，以及調整 `compression.threshold_tokens`（現在沒有作用），這兩項沒套用。
-- 套用後的唯讀檢查：`hermes.cmd config check` 無錯誤；`hermes.cmd mcp list` 顯示 serena（4 個工具）、context7（2 個）、codebase-memory（6 個）啟用，repomap 關閉；`hermes.cmd hooks list` 顯示 matcher 已更新，但 `clinic_guard.py` 仍是 `not allowlisted`（第 1 節第 3 步）。
+- 套用後的唯讀檢查：`hermes.cmd config check` 無錯誤；`hermes.cmd mcp list` 顯示 serena（4 個工具）、context7（2 個）、codebase-memory（6 個）啟用，repomap 關閉；`hermes.cmd hooks list` 顯示 matcher 已更新。當時 `clinic_guard.py` 還是 `not allowlisted`；之後已核可，現況見下面「10-19 夜間：桌面版」。
 - 治理同步工具（`governance/tools/sync.py --check`）在 10-18 的改動後不會判成偏移：它只要求 `authority_gate.py` 排在最後。它回報的 `skills.disabled` 偏移是原本就有的，與這次無關（原因見第 2.3 節「技能」一項）。10-19 的調整之後尚未重跑這個檢查。
+
+**10-19 夜間：桌面版**（業主選定之後才套用；只動這一個鍵，Claude 沒有重啟任何程式）：
+
+| 設定 | 改成 | 原本 | 為什麼 |
+|---|---|---|---|
+| `hooks.pre_tool_call` 裡 `clinic_guard.py` 那一項的 `matcher` | `.*` | `terminal\|execute_code\|write_file\|patch\|process_manage\|skill_manage\|read_file\|search_files` | Hermes 用完整比對（`re.fullmatch`）工具名稱，`.*` 讓每個工具（含 MCP 與桌面版專用工具）都經過 hook，白名單才擋得到。舊的八個工具 matcher 讓其他工具繞過 hook |
+
+- **業主的選擇：** 業主選了「全部工具都經過」，原話「改成全部工具都經過」。Claude 據此套用 `.*`（Claude 的解讀，未經業主逐項確認：包括 MCP 與桌面版專用工具在內，每個工具呼叫前都先過 clinic guard）。
+- **業主接受的代價：** 每個工具呼叫都多跑一次 hook，每次約 0.45 秒（第 3.2 節「速度」）。所有 Hermes 對話的每個工具呼叫都一樣，不只 `sol-run` 的對話；範圍外的呼叫，hook 只是回傳放行。
+- **備份：** 改之前先備份成 `config.yaml.20261019-before-desktop.bak`（上面表格的第五份）；要撤銷這一改，把它複製回 `config.yaml`。
+- 只改 `matcher`；`command`、`timeout`、`fail_closed` 與 `authority_gate.py` 那一項都沒動。用 ruamel 保留原本的格式改，設定檔前後只有這一行不同。
+- hook 的核可紀錄以「事件＋指令」為鍵，這項改動不需要重新核可（第 1 節第 3 步）。
+- **套用後的讀回（10-19）：** `hermes.cmd hooks list` 顯示 `clinic_guard.py` 的 matcher 是 `.*`，並顯示 `✓ allowed`（核可時間 2026-10-19）。另有一行 `⚠ script modified since approval`，只是提醒，不會擋；原因是核可之後 hook 檔補成了 2.3 版。
+- **還要做一件事：** matcher 在後端啟動時讀入，所以業主要完全結束 Desktop 再重開一次才生效（第 1 節第 2 步）。Claude 不會代為重啟。
 
 ### 3.2 clinic guard hook
 
-- **位置：** `<HERMES_HOME>/clinic-guard/clinic_guard.py`，測試在同資料夾的 `test_clinic_guard.py`。這是本機設定，不在 repo 裡。2026-10-18 把第一版「列出要擋的」改寫成第二版的白名單；2026-10-19 依審查找到的 8 項主要與 10 項次要問題修成 2.1 版，之後再依審查補成 2.2 版（下一項）。舊版備份在同資料夾：`clinic_guard.v1.py.bak`（第一版）、`clinic_guard.v2.py.bak`（第二版，2.1 版修改前）與 `clinic_guard.v21.py.bak`（2.1 版，2.2 版修改前）。
+- **位置：** `<HERMES_HOME>/clinic-guard/clinic_guard.py`，測試在同資料夾的 `test_clinic_guard.py`。這是本機設定，不在 repo 裡。2026-10-18 把第一版「列出要擋的」改寫成第二版的白名單；2026-10-19 依審查找到的 8 項主要與 10 項次要問題修成 2.1 版，之後再依審查補成 2.2 版，10-19 夜間為了桌面版補成 2.3 版（下面兩項）。舊版備份在同資料夾：`clinic_guard.v1.py.bak`（第一版）、`clinic_guard.v2.py.bak`（第二版，2.1 版修改前）、`clinic_guard.v21.py.bak`（2.1 版，2.2 版修改前）與 `clinic_guard.v22.py.bak`（2.2 版，2.3 版修改前）。
+- **2.3 版的改動（2026-10-19 夜間，為了桌面版）：**
+  1. **工具白名單（只在診所專案範圍內）。** 工具名稱不在 `TOOL_ALLOWLIST` 上，一律 protected，類別是 `tool`，訊息是「the tool 'X' is off for this run」（嘗試 `execute_code` 時另附「改用 terminal 工具與允許的指令」的提示）。共 27 個：
+     - 一般工具 15 個：`terminal`、`read_file`、`search_files`、`write_file`、`patch`、`process_manage`、`delegate_task`、`todo_list`、`skills_list`、`skill_view`、`session_search`、`clarify`、`web_search`、`web_extract`、`vision_analyze`；
+     - MCP 唯讀工具 12 個，名稱是 `mcp__<伺服器>__<工具>`，伺服器或工具名稱裡的連字號換成底線：
+       - serena 4 個：`get_symbols_overview`、`find_symbol`、`find_referencing_symbols`、`search_for_pattern`；
+       - context7 2 個：`resolve_library_id`、`query_docs`；
+       - codebase-memory 6 個：`search_graph`、`trace_path`、`get_code_snippet`、`get_architecture`、`list_projects`、`check_index_coverage`；
+     - 待辦工具在桌面版叫 `todo_list`，不是 `todo`；沒有 `send_message` 這個工具（Hermes 刻意不讓代理呼叫）；
+     - 擋下的包括：`computer_use`、`browser_*`（navigate、snapshot、click、type、scroll、back、press、get_images、vision、console、cdp、dialog、exec，以及 `browser_vault_*`）、`image_generate`、`text_to_speech`、`cronjob_manage`、`memory`、`start_chat`、`kanban_*`、`execute_code`、`skill_manage`、`manage_connections`、`manage_catalog`、`desktop_project`、desktop_ui 的工具，以及其他所有 MCP 工具。
+  2. **MCP 工具的路徑引數也套用敏感路徑規則**（`relative_path`、`path`、`paths` 等）。
+  3. **範圍判斷改強。** 桌面版的 hook 收到的資料夾不是對話的資料夾（第 2.3 節），所以以下任一出現診所專案都算在範圍內：
+     - 任何像路徑的工具引數，包括 V4A patch 裡的路徑，以及 `BEAUES~1` 這種短檔名；
+     - Hermes 替這個對話記下的工作資料夾：hook 從 `<HERMES_HOME>/state.db` 讀 `sessions.cwd`，子代理沿著 `parent_session_id` 往上找，最多 6 層。唯讀，逾時 0.5 秒；讀不到、沒有紀錄或資料庫打不開，都當成「沒有訊號」，不會擋；
+     - 訊息裡的自由文字和其他專案仍然不算。
+  4. **matcher 改成 `.*`**，每個工具都經過 hook（見下面「掛在哪些工具上」與第 3.1 節）。
 - **2.2 版的改動（2026-10-19，依後續審查補的六項）：**
   1. **家目錄底下一律是憑證區（`credentials`）。** 使用者家目錄底下的任何路徑，不分寫法都是 protected：`~`、`$HOME`、`${HOME}`、`%USERPROFILE%`，以及磁碟機代號開頭、`/c/`、`/mnt/c/`、`//?/` 開頭後面接使用者資料夾的寫法；反斜線與大小寫變化也算。
      - 適用於 `read_file`、`search_files`、`write_file`、`patch`、指令裡的路徑、`>`、`>>`、`tee`、`cp`、`mv`；
@@ -262,11 +334,12 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
      - `command -v`、`type` 探測 `node`、`tsx`、`git` 是 form（訊息是「this run does not probe tools」），改用 `which`，或直接執行該工具；探測 `firebase`、`gcloud`、`curl`、`hermes`（含 `type -p gcloud`）是 protected；
      - 會碰雲端的腳本（第 4 節提示詞列的清單，例如 `scripts/seed-cal-pilot.mjs`、`scripts/phase0-snapshot.mjs`）：`cp`、`mv`、`rm`、`git add`、`git restore` 這類編輯動作，在寫入範圍內放行；另一邊在寫入範圍之外（例如 `cp` 到家目錄）則是 protected。執行它們是 protected（`cloud`），包括 `node`、`tsx`、`node --check`、`pnpm exec node --check`。
 - **作用範圍：** 只在診所工作區生效，也就是以下任一情況：
-  - Hermes 啟動的資料夾是診所專案；
-  - 指令的工作目錄、檔案路徑或指令內容提到診所專案；
+  - Hermes 的後端程序或 hook 收到的資料夾是診所專案；
+  - Hermes 替這個對話記下的工作資料夾（桌面版選的專案）是診所專案；讀不到就當沒有這個訊號，不擋（2.3 版）；
+  - 指令的工作目錄、檔案路徑引數（包括 V4A patch 裡的路徑與 `BEAUES~1` 這種短檔名）或指令內容提到診所專案；
   - 同一個對話先前已經碰過診所專案。
-  其他專案不受影響。
-- **掛在哪些工具上：** terminal、execute_code、write_file、patch、process_manage、skill_manage、read_file、search_files 八種。`hooks.pre_tool_call` 的 matcher 是 `terminal|execute_code|write_file|patch|process_manage|skill_manage|read_file|search_files`（對工具名稱做完整比對）；`timeout` 25 秒，`fail_closed: true`。
+  訊息裡的自由文字與其他專案不受影響。
+- **掛在哪些工具上：** 所有工具。`hooks.pre_tool_call` 的 matcher 是 `.*`（Hermes 對工具名稱做完整比對 `re.fullmatch`；每個工具呼叫都經過 `_dispatch_authorized_once`，所以每個工具都會到 hook）；`timeout` 25 秒，`fail_closed: true`。2.2 版以前的 matcher 只列 terminal、execute_code、write_file、patch、process_manage、skill_manage、read_file、search_files 八個工具，其他工具（包括 MCP 與桌面版專用工具）完全繞過 hook。在診所專案範圍內，工具先過白名單，名單上的再依各自的規則檢查（下面「允許的指令」）；範圍外的呼叫，hook 輸出 `{}` 放行。
   - `read_file`、`search_files` 是 10-19 才加上的。之前讀檔工具完全不經過 hook，Hermes 自己的讀檔黑名單又只涵蓋 Hermes 的憑證與 `.env`，所以憑證檔其實讀得到；現在這兩個工具的 `path`、`file_glob`，以及檔名搜尋時的 `pattern`，都套用下面的敏感路徑規則。內容搜尋的 `pattern` 是正規式，不檢查；`path` 是家目錄或磁碟根目錄也擋（protected）。2.2 版起，家目錄底下的任何路徑都擋，只有溢出檔可讀（上一項的第 1、2 點）。
   - 所以本節講憑證與敏感路徑的規則，現在對 terminal 與這兩個讀檔工具都成立。
 - **做法是白名單：** 只放行列在清單上的簡單指令，其餘一律擋下。terminal 指令依序過三關：
@@ -294,8 +367,9 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   | 受保護動作 | `BLOCKED by clinic guard (protected: <類別>)` | 這是受保護動作 | 記成 BLOCKED-EXTERNAL，或寫進業主決定簡報；不要換寫法重試 |
   | 寫法不被接受 | `BLOCKED by clinic guard (form)` | 不是受保護動作，只是指令的寫法不在允許範圍；訊息一定指出有問題的那一段（`Offending part`） | 照訊息改寫成允許的簡單指令（單一指令，或只讀工具的管線；也可以用 `&&`、`;` 串接），再試 |
 
-  - protected 的類別：`merge`、`cloud`、`credentials`、`environment`、`agent-cli`、`network`、`remote-access`、`system`、`shell`、`push`、`worktree`、`history`、`config`、`hooks`、`github`、`exec`、`deploy`、`data`、`migration`、`publish`、`secrets`、`visibility`、`execute_code`、`process-input`、`skill`、`user-config`、`guard-error`；
+  - protected 的類別：`merge`、`cloud`、`credentials`、`environment`、`agent-cli`、`network`、`remote-access`、`system`、`shell`、`push`、`worktree`、`history`、`config`、`hooks`、`github`、`exec`、`deploy`、`data`、`migration`、`publish`、`secrets`、`visibility`、`tool`、`process-input`、`user-config`、`guard-error`；
   - 其中 `data`、`migration`、`publish`、`secrets`、`visibility` 五類來自 `authority_gate.py` 的規則：`data` 是資料庫資料的變更，`migration` 是資料庫或 schema 遷移，`publish` 是發布套件、容器映像或 GitHub release，`secrets` 是建立或變更機密與登入資料，`visibility` 是 repo 公開、私有或所有權的變更；
+  - `tool` 是 2.3 版新增的：呼叫的工具不在白名單上。`execute_code` 與 `skill_manage` 以前各有自己的類別（`execute_code`、`skill`），現在也歸在這裡；
   - hook 自己出錯時是 `(protected: guard-error)`，結束碼 2。
 - **允許的指令：**
   - 唯讀工具：`cat`、`head`、`tail`、`wc`、`ls`、`pwd`、`cd`、`echo`、`printf`、`grep`、`rg`、`sort`、`uniq`、`cut`、`tr`、`diff`、`cmp`、`comm`、`basename`、`dirname`、`realpath`、`readlink`、`file`、`stat`、`du`、`df`、`date`、`true`、`false`、`test`、`[`、`which`、`jq`、`tree`、`xxd`、`od`、`sha256sum`、`sha1sum`、`md5sum`、`sleep`（60 秒以內）；
@@ -350,7 +424,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - 其他程式（`agent-cli`、`network`、`remote-access`、`system`、`shell`）：hermes、codex、curl、ssh、sudo、PowerShell、cmd 等；
   - 改寫歷史（`history`）；執行內嵌程式碼，例如 `node -e`（`exec`）；寫入 `.git` 內部（`worktree`）。
 - **其他工具：**
-  - `execute_code`、`skill_manage`：一律 protected。`skill_manage` 會改全域技能，這次執行中不改技能；
+  - `execute_code`、`skill_manage`：2.3 版起不在工具白名單上，一律 protected（`(protected: tool)`）。`skill_manage` 會改全域技能，這次執行中不改技能；
   - `process_manage`：`list`、`poll`、`log`、`status`、`wait`、`kill`、`handoff` 放行；`write`、`submit`、`stdin`、`close`、`send`、`input` 這些輸入類動作，以及其他沒列的動作、沒寫 action 的呼叫，都是 protected（`process-input`）。對跑著的程序輸入，等於繞過指令檢查；
   - `write_file`、`patch`：套用敏感路徑規則與 `.git/` 規則，檢查 `path`、`file_path` 等欄位。`patch` 的內文（V4A 格式）裡，`*** Add File:`、`*** Update File:`、`*** Delete File:`、`*** Move to:`、`*** Move File: a -> b` 的每個路徑也同樣檢查。寫入的目標另外受「寫入範圍」限制（只能在診所工作區或 `/tmp`）；
   - `read_file`、`search_files`（10-19 起）：對 `path`、`file_glob`，以及檔名搜尋時的 `pattern` 套用敏感路徑規則；`path` 是家目錄或磁碟根目錄時 protected。
@@ -358,7 +432,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - 拆解指令的邏輯沿用原本的 `authority_gate.py`；它認出的類別，在診所工作區一律改成擋下（protected）；
   - 在診所工作區內，hook 自己出錯時也擋下（fail-closed）；
   - 輸入與輸出都固定為 UTF-8。否則 Windows 會把「診所專案」讀成亂碼，造成判斷失敗而全部放行。
-- **測試：** 2.2 版有 141 項測試方法，全部通過（`unittest test_clinic_guard`）。表格形式的案例逐列斷言，共 3,437 列，每列寫明預期的結果與種類（放行、form 或 protected）。2.1 版是 108 項（原有 82 項加新增 26 項）與 2,413 列（原本 1,518 列）。涵蓋：
+- **測試：** 2.3 版有 166 項測試方法（2.2 版的 141 項加新增 25 項），全部通過（`unittest test_clinic_guard`）。表格形式的案例逐列斷言，2.2 版共 3,437 列，每列寫明預期的結果與種類（放行、form 或 protected）。2.1 版是 108 項（原有 82 項加新增 26 項）與 2,413 列（原本 1,518 列）。涵蓋：
   - 第一版仍有效的案例，以及審查中找到的各項弱點；
   - 在真實的暫存 git repo 上做 detached HEAD 的推送、用 `workdir` 解析 HEAD、`cd` 與 `git -C` 的追蹤；
   - process_manage、skill_manage、V4A patch；
@@ -366,6 +440,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - 端到端的子程序執行，包含以原始位元組送出的 UTF-8 與格式錯誤的輸入；
   - 2.1 版新增：sed、`git grep`、gh 旗標、node 腳本、家目錄寫法、`/dev/tcp`、寫入範圍等。其中 sed 的測試用真的 GNU sed 確認放行的寫法只會印出、被拒絕的 `w` 腳本真的會寫檔；
   - 2.2 版新增：家目錄的各種寫法、溢出檔的讀與寫、縮小後的寫入範圍、拼接與大括號展開、名稱過濾、`command -v`、雲端腳本的編輯與執行。測試表之外，另外對 `decide` 與 `check_terminal` 跑了約 330 條新探測，並有 10 次經過 `main()` 的端到端實跑（見下面「速度」）。探測腳本放在 Claude 的暫存資料夾，不在 repo。
+  - 2.3 版新增 25 項：工具白名單（名單上的放行、名單外的擋下，兩個方向都測）、MCP 的路徑引數、從 `state.db` 讀對話資料夾（含沿 `parent_session_id` 往上找、唯讀、讀不到時不擋）、V4A patch 路徑與短檔名的範圍判斷。測試用暫存資料庫，沒有開過真實的 `state.db`；全部跑完約 56 秒。
 
   2.1 版當時驗證新測試真的抓得到舊問題：把這 26 項新測試拿去跑第二版的備份，全部失敗（417 個失敗、12 個錯誤）。另外：
   - 對真實的 `sol-run` 實測（第二版時做的）：它是 detached，所以寫 `HEAD` 的推送得到 form 擋下；
@@ -378,6 +453,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   ../hermes-agent/venv/Scripts/python.exe -m unittest test_clinic_guard -v
   ```
 
+- **速度（2.3 版）：** 每次 hook 呼叫約 0.42～0.53 秒，和 2.2 版的 0.41～0.51 秒相近；單是啟動 Python 就要 0.27～0.37 秒。量測用 5 萬列的合成資料庫，沒有開真實的 `state.db`。matcher 改成 `.*` 之後，所有 Hermes 對話的每個工具呼叫都要付這個成本（約 0.45 秒，業主接受）。
 - **速度：** 2.2 版端到端跑 10 次：每次都是獨立的程序，從 stdin 送 JSON，經過真正的 `main()`；10 次都回傳預期的結束碼與輸出。耗時最短 0.403 秒、中位數 0.448 秒、平均 0.439 秒、最長 0.470 秒，和審查時量到的約 0.5 秒相符。2.1 版端到端各跑 20 次（用 Hermes 的 Python），每次呼叫的耗時：
   - `git status` 平均 0.46 秒（中位數 0.46，最短 0.43、最長 0.49）；
   - 較重的複合指令平均 0.46 秒（最長 0.51）；
@@ -389,16 +465,18 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - 單純的檔名（例如 `auth.json`）不當路徑，這樣才不會誤擋；帶路徑的才檢查敏感檔。同樣為了不誤擋：`rg`、`grep`、`git grep` 的搜尋字串不檢查（第 3.2 節「允許的指令」）；相對路徑裡含 `|` 或 `^` 的，也當成正規式、不當路徑。反斜線與 `()` 沒有這樣處理，因為反斜線也是 Windows 的路徑分隔，`app/(group)/.env` 這種括號路徑是真的路徑；
   - repo 有被 git 追蹤的 `.npmrc`，套用憑證規則，所以 `cat .npmrc` 是 protected；`.env.example` 可以讀；
   - 「寫入範圍」2.2 版縮小到 worktree、`/tmp` 與使用者暫存資料夾，舊副本、公開鏡像與 repo 主資料夾現在擋得住；但範圍涵蓋所有 worktree，包括 `sol-run` 與其他工作階段的 worktree，所以擋不住改到那些資料夾（提示詞要求絕不編輯 `sol-run`，靠代理自己守）。
+  - **範圍外的桌面版對話：** 沒有專案資料夾、又沒有提到任何診所路徑的桌面版對話，hook 不在範圍內；它的第一個動作若是 `computer_use`，會被放行。徹底的做法是改設定：把這些工具組從 `platform_toolsets.cli` 拿掉，或把 Desktop 的預設專案資料夾設成診所專案（那樣所有 Desktop 對話都受管）。兩項都由業主決定；這次執行請只用 `sol-run` 專案的對話。
+  - **網頁工具的引數不檢查：** `web_search`、`web_extract` 在工具白名單上，hook 不檢查它們的引數。terminal 的 `curl` 是 protected，但把網址交給 `web_extract`，網址本身（例如查詢字串）可以把資料帶出去。這是已知限制，hook 擋不到；只能靠提示詞的硬停止（第 2.7 節的防線 3）與業主留意，要補的話得改 hook，不在這次範圍。
 - **預期會遇到的 form 擋下**（代理常見的習慣，第 4 節提示詞已寫明改法）：`git symbolic-ref --short HEAD`、`nl -ba`、`xargs`、`timeout N 指令`、`command -v`／`type`（探測 node、tsx、git 是 form，探測 firebase、gcloud、curl、hermes 是 protected；改用 `which` 或直接執行）、`git commit -m "$(cat <<EOF …)"`、`gh pr create --body-file - <<EOF`、`git pull`、`sort -o`、`sed` 的寫入或自訂分隔字元寫法、`gh pr checkout`、`gh run cancel`、`gh browse`、`$TMPDIR/…` 這種變數路徑。與第一版不同的地方：`git branch -d` 現在是 protected；`bash -c '…'` 現在是 form；多行指令開頭的 `set -e` 是 protected（`set` 屬於 `environment`）。若想少一點重試，可以考慮把唯讀的 `git symbolic-ref` 與 `nl` 加進允許清單；那是改 hook，不在這次範圍。
 
 ### 3.3 啟動資料夾、工具與技能
 
 | 項目 | 現況 | 為什麼 |
 |---|---|---|
-| 啟動資料夾 | worktree `sol-run`（在 `.claude/worktrees/` 底下），每次啟動都 detached 在 `origin/main` | 主資料夾停在別人舊的分支，從那裡啟動會載入舊的 AGENTS.md 與技能 |
+| 對話資料夾（桌面版是選的專案，CLI 是啟動資料夾） | worktree `sol-run`（在 `.claude/worktrees/` 底下），每次開跑前都更新成 detached 在 `origin/main` | 主資料夾停在別人舊的分支，從那裡開對話會載入舊的 AGENTS.md 與技能 |
 | `sol-run` 的信任紀錄 | 已加進 `skills.trusted_project_dirs` | 要核可，repo 的 8 個專案技能才會載入 |
 | repo 主資料夾 | 曾短暫加入信任，之後又取消，已還原成原本的狀態 | 不讓舊分支的技能被載入 |
-| 工具組 | 每次啟動時用 `-t` 指定，沒有為此改工具組的設定；MCP 伺服器能不能用，取決於它在設定檔裡有沒有啟用（第 3.1 節，10-19 起 serena、context7、codebase-memory 都已啟用） | 只開這次要用的工具，子代理繼承同一組（第 2.3 節） |
+| 工具組 | 桌面版沒有每個對話各自的工具組，靠 clinic guard 的工具白名單（第 3.2 節），沒有為此改工具組的設定。CLI（備用）每次啟動時用 `-t` 指定。兩種都一樣：MCP 伺服器能不能用，取決於它在設定檔裡有沒有啟用（第 3.1 節，10-19 起 serena、context7、codebase-memory 都已啟用） | 只開這次要用的工具；CLI 的子代理繼承同一組，桌面版的子代理同樣受白名單管（第 2.3 節） |
 | `hermes-coding-efficiency` 技能衝突 | 沒有動，留給業主決定 | 業主 10-04 退役、10-13 又重新啟用並改過；提示詞已寫明衝突時以提示詞和 repo 為準；保留或停用，列在第 7 節請業主決定 |
 
 ### 3.4 本機效能、開機與 Hermes 更新
@@ -421,7 +499,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
 把以下整段貼給 Hermes 新對話的第一則訊息：
 
 ````text
-你是 GPT-6.1 Sol，這次執行的父代理（協調者兼主要實作者），在 Hermes 裡執行。repo：waydefu/clinic（公開 repo）。Hermes 是從 sol-run 這個 worktree 啟動的（F:/診所專案/beauessence-appointment-platform-fresh/.claude/worktrees/sol-run，停在最新的 main，只拿來啟動；絕不編輯裡面的檔案）。
+你是 GPT-6.1 Sol，這次執行的父代理（協調者兼主要實作者），在 Hermes Desktop 裡執行。repo：waydefu/clinic（公開 repo）。這個對話的資料夾是 sol-run 這個 worktree（F:/診所專案/beauessence-appointment-platform-fresh/.claude/worktrees/sol-run，停在最新的 main，只拿來當對話的資料夾；絕不編輯裡面的檔案）。
 本提示詞的正本在 main 的 docs/plans/2026-10-18-sol-luna-autorun-prompts.md 第 4 節，Luna 的規則在第 6 節。以下時機都要重讀這兩節，並重讀執行紀錄（見「Phase 0 之後」）：
 - 每開始一個 packet；
 - 對話被壓縮之後；
@@ -484,7 +562,7 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - stage-f-*.mjs；
   - pnpm 的 verify:preview、plan:*、inspect:stage-f-*、inspect:internal-test-migration。
   它們的 *.test.mjs 由 CI 跑，不在此限。這些腳本在 worktree 裡可以修改、cp、mv、rm、git add、git restore 與 commit（cp、mv 的另一邊要在 worktree 或 /tmp 裡）；不能執行，包括 node --check 與 pnpm exec node --check（hook 擋成受保護動作）。
-- 所有新的 worktree 一律用絕對路徑，建在主 repo 的 worktree 資料夾底下：F:/診所專案/beauessence-appointment-platform-fresh/.claude/worktrees/<名稱>。你是從 sol-run 啟動的，相對路徑會落到 sol-run 裡面，那是錯的位置。
+- 所有新的 worktree 一律用絕對路徑，建在主 repo 的 worktree 資料夾底下：F:/診所專案/beauessence-appointment-platform-fresh/.claude/worktrees/<名稱>。你的對話資料夾是 sol-run，相對路徑會落到 sol-run 裡面，那是錯的位置。
 
 # 技能與工具
 - 用 repo 的技能：
@@ -494,10 +572,13 @@ secret／IAM、資料遷移、TTL 雲端設定、改寫歷史、放寬 gate 或�
   - handoff-record：最後那份有日期的交接紀錄；
   - ui-check、ui-content、ui-design、ui-motion：只在 UI 類 packet 用。
 - profile 另外自動載入 hermes-coding-efficiency 技能。它和本提示詞或 repo 規則衝突時（子代理上限、AI_STATE、start_chat／CBM 交接），以本提示詞和 repo 為準。codebase-memory 只當查詢工具用，不走該技能描述的交接流程。
-- 這次只開這些工具：terminal、file、delegation、todo、skills、session_search、clarify、web、vision，加上三個 MCP：serena（程式碼查詢）、context7（查套件文件）、codebase-memory（程式碼索引搜尋）。不要嘗試用其他工具。
+- 這次能用的工具由 clinic guard 的白名單決定，只有這 27 個：
+  - 一般工具 15 個：terminal、read_file、search_files、write_file、patch、process_manage、delegate_task、todo_list、skills_list、skill_view、session_search、clarify、web_search、web_extract、vision_analyze；
+  - 三個 MCP 的唯讀工具 12 個：serena（mcp__serena__get_symbols_overview、find_symbol、find_referencing_symbols、search_for_pattern）、context7（mcp__context7__resolve_library_id、query_docs）、codebase-memory（mcp__codebase_memory__search_graph、trace_path、get_code_snippet、get_architecture、list_projects、check_index_coverage）；
+  - 其他工具（browser_*、computer_use、image_generate、text_to_speech、cronjob_manage、memory、start_chat、kanban_*、execute_code、skill_manage 等）會被擋成 `(protected: tool)`。不要嘗試，也不要換個工具名稱再試。
   - 三個 MCP 是背景啟動的：第一回合可能還沒連上，第二回合起才會出現。看不到時不要等，也不要想辦法重啟，改用 rg、cat、git grep。它們閒置會自動回收，下次呼叫時自動重起，第一次呼叫會多等幾秒。
   - 它們只是輔助。從它們得到的結果，要用 repo 裡的檔案核對；repo 與登記簿才是依據。
-- hook 另外一律擋下（protected）：skill_manage（不改技能）、execute_code，以及 process_manage 的輸入類動作（write、submit、stdin、close、send、input）。process_manage 只用 list、poll、log、status、wait、kill、handoff。
+- hook 另外一律擋下（protected）：不在上面白名單的工具（包括 skill_manage 不改技能、execute_code），訊息是 `(protected: tool)`；以及 process_manage 的輸入類動作（write、submit、stdin、close、send、input）。process_manage 只用 list、poll、log、status、wait、kill、handoff。
 
 # Phase 0：測設定、對帳、排程（做完就停下來回報，等業主回覆）
 1. 測設定（業主在場）：
@@ -688,7 +769,7 @@ Hermes 沒有子代理設定檔，所以這段規則由 Sol 放進每個 `delega
    - node、tsx 只執行 repo 裡的相對路徑腳本（不含 ..，不在 node_modules 底下），在 worktree 裡下（用 workdir）；不用絕對路徑腳本，不用 --env-file；
    - read_file、search_files 也受 hook 管：家目錄底下的任何路徑（不論寫法）、憑證與登入資料會被擋，一律當受保護動作；例外是 /tmp 與唯讀的溢出檔（見上面「長輸出」那一項）；rg、grep 的 --exclude*、--include* 與以 ! 開頭的 -g 的值不當路徑，可以照常寫；
    - 要在某個 worktree 裡下指令，用 terminal 的 workdir 指到它的絕對路徑，或寫 git -C <絕對路徑> <子指令>；
-   - 不用 skill_manage、execute_code，也不用 process_manage 的輸入類動作（write、submit、stdin、close、send、input）；hook 一律擋這些；
+   - 不用 skill_manage、execute_code，也不用 process_manage 的輸入類動作（write、submit、stdin、close、send、input）；其他不在 clinic guard 白名單的工具（browser、computer_use、memory、cronjob_manage 等）也不要用。hook 一律擋這些，訊息是 `(protected: tool)` 或 `(protected: process-input)`；
    - 被擋時看訊息括號：(form) 只是寫法不被接受，照訊息的 Offending part 改寫成允許的簡單指令再試；(protected: …) 是受保護動作，不要換寫法重試，直接回報 Sol。
 6. 這台電腦很慢：不在本機裝套件或跑測試，驗證交給 CI。仍然先寫會失敗的測試，再修。
 7. 一次整理好 commit 再推送。開 Draft PR，說明寫：做了什麼、跑了什麼（本機寫 NOT_RUN 與原因）、證據等級、沒做什麼。
@@ -713,7 +794,7 @@ Hermes 沒有子代理設定檔，所以這段規則由 Sol 放進每個 `delega
 
 ## 7. 業主要做的事與時程
 
-- **開跑前：** 合併本 PR；用第 1 節第 2 步的指令啟動 Hermes（從 `sol-run`，不是 repo 主資料夾），核可 clinic guard（`hermes.cmd hooks list` 看到 `✓ allowed`；2026-10-19 讀回時還沒核可，核可前 hook 不會執行）。
+- **開跑前：** 合併本 PR；照第 1 節第 2 步做：把 `sol-run` 更新到最新的 `main`、完全結束 Desktop 再重開一次（matcher `.*` 已經改好，重開才讀得進去），然後在 `sol-run` 專案裡開對話（不是 repo 主資料夾）。clinic guard 已核可（`hermes.cmd hooks list` 顯示 `✓ allowed`，10-19 讀回），不用再核可；`⚠ script modified since approval` 只是提醒，不會擋。以後 clinic guard 又被改過，開跑前再看一次 `hooks list`。
 - **開跑前要決定的一件事：自動載入的 `hermes-coding-efficiency` 技能要保留還是停用。** 它是 profile 自動載入的，和這次執行有三處衝突（寫可用最多五個子代理、提到這個 repo 沒有的 AI_STATE 檔、描述這次沒有的 start_chat／CBM canary 交接流程），細節見第 2.3 節。業主 2026-10-04 的治理紀錄已把它退役，但它在 2026-10-13 又被重新啟用並改過。Claude 沒有動它。選項：
   - **保留：** 不動設定。提示詞已寫明衝突時以提示詞和 repo 為準，但治理同步工具會繼續回報 `skills.disabled` 偏移；
   - **停用：** 依 2026-10-04 的治理紀錄停用，改的是 Hermes 設定，由你自己做，或另外明確授權 Claude 做；Sol 與 Luna 不能動。治理同步工具回報偏移的原因也就沒了。
@@ -745,6 +826,7 @@ Hermes 沒有子代理設定檔，所以這段規則由 Sol 放進每個 `delega
   - `website/docs/user-guide/windows-native.md`；
   - `agent/shell_hooks.py`、`tools/approval.py`、`tools/delegate_tool.py`、`tools/terminal_tool.py`；
   - 2026-10-19 補讀：`hermes_cli/mcp_startup.py`、`hermes_cli/toolset_validation.py`、`tools/mcp_tool_discovery.py`、`tools/mcp_tool_server_run.py`、`agent/auxiliary_client.py`、`agent/context_compressor.py`，以及 `website/docs/user-guide/configuration.md`、`features/mcp.md`、`reference/mcp-config-reference.md`；clinic guard 2.1、2.2 版的審查與測試結果。
+  - 2026-10-19 夜間補讀（桌面版）：`apps/desktop/electron/main.ts`、`apps/desktop` 前端的 `use-session-actions/index.ts`、`tui_gateway/server.py`、`tui_gateway/session_workdir.py`、`toolsets.py` 與工具登錄表，以及桌面版 README「Projects are the workspace abstraction」。
 - **外部（2026-10-18 查詢）：**
   - [OpenAI releases GPT-6.1 Sol（TechEnclave）](https://techenclave.com/news/items/openai-releases-gpt-6-1-sol-for-codex-chatgpt-work-and-the-api)
   - [Sol Nearly Eclipses Astra（The Batch）](https://www.deeplearning.ai/the-batch/sol-nearly-eclipses-astra)

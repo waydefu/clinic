@@ -58,7 +58,12 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
       `/goal` 上限。
     - 2026-10-19 再依審查結果與本機設定稽核補做：hook 修成 2.2 版（家目錄底下一律視為憑證區，寫入範圍縮到 worktree 與暫存資料夾）並加掛 `read_file`、`search_files`，
       Hermes 的壓縮、輔助任務與 MCP 設定做了效能調整（`protect_first_n` 改回 0，開啟 serena 與
-      codebase-memory）；hook 仍需業主核可才會生效。
+      codebase-memory）；當時 hook 尚未核可，之後已核可（見下一項）。
+    - 2026-10-19 夜間，業主原話：「我的是桌面版」；之後在 hook 的作用範圍上選了「全部工具都經過」，
+      原話「改成全部工具都經過」。Claude 的處置（未經業主逐項確認）：為桌面版把 hook 補成 2.3 版
+      （工具白名單、依對話資料夾判斷範圍）；業主選定後才把 hook 的 matcher 改成 `.*`（備份
+      `config.yaml.20261019-before-desktop.bak`）。讀回時 `clinic_guard.py` 顯示 `✓ allowed`；
+      每個工具呼叫約多 0.45 秒；Desktop 要完全結束再重開一次，新的 matcher 才生效。
     - 細節與已知殘餘風險見
       [2026-10-18 Sol／Luna 一路跑完](../plans/2026-10-18-sol-luna-autorun-prompts.md) 第 2.3、2.7、3 節。
   - 殘餘風險：hook 擋不到的寫法，仍可能用到已登入的雲端憑證。這是業主接受的取捨。
