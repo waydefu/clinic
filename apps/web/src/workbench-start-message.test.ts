@@ -2,9 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { bootStaffWorkbench } from '../public/modules/workspace-tabs.js';
 
-const localMessage = '工作臺已就緒。資料只保存在這台裝置的瀏覽器。';
-const apiMessage =
-  '工作臺已就緒。預約資料以內部測試服務為準，部分介面資料仍保存在這台裝置的瀏覽器。';
+const localMessage = '已就緒。資料只存本機瀏覽器。';
+const apiMessage = '已就緒。預約以測試服務為準。';
 
 function harness({
   apiMode = false,
@@ -27,7 +26,7 @@ function harness({
     setClient: vi.fn(),
     loadStaffServerAuthority: vi.fn(),
     resolveApiClient: () => Promise.resolve({ request }),
-    isInternalTestBookingEnabled: () => apiMode,
+    isApi: () => apiMode,
     enforceRoleDomBoundary: vi.fn(),
     render: vi.fn(),
     initWorkspaceTabs: vi.fn(({ onDenied }: { onDenied: () => void }) => {

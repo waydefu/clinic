@@ -146,7 +146,7 @@ export function initWorkspaceTabs({ onDenied } = {}) {
  *
  * 工作臺的狀態仍由 admin-bootstrap 持有，這裡透過 workbench 的存取函式讀寫：
  * getState()／setState(next)／setClient(client)／setServerAuthority(authority)，
- * 以及 loadStaffServerAuthority、resolveApiClient、isInternalTestBookingEnabled、
+ * 以及 loadStaffServerAuthority、resolveApiClient、isApi、
  * enforceRoleDomBoundary、render、initWorkspaceTabs、message、elements、
  * activateBusinessView。
  */
@@ -212,9 +212,9 @@ export async function bootStaffWorkbench(workbench) {
       void workbench.activateBusinessView();
     if (workbench.getState().session.authenticated === true && !accessDenied)
       workbench.message(
-        workbench.isInternalTestBookingEnabled?.() === true
-          ? '工作臺已就緒。預約資料以內部測試服務為準，部分介面資料仍保存在這台裝置的瀏覽器。'
-          : '工作臺已就緒。資料只保存在這台裝置的瀏覽器。',
+        workbench.isApi?.() === true
+          ? '已就緒。預約以測試服務為準。'
+          : '已就緒。資料只存本機瀏覽器。',
         'success'
       );
     else workbench.elements['login-account'].focus();

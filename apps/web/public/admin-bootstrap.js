@@ -2283,7 +2283,7 @@ await bootStaffWorkbench({
   },
   loadStaffServerAuthority,
   resolveApiClient,
-  isInternalTestBookingEnabled,
+  isApi: isInternalTestBookingEnabled,
   enforceRoleDomBoundary,
   render,
   initWorkspaceTabs,

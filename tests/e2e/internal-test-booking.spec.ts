@@ -387,7 +387,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await login(page);
     await page.reload();
     await expect(page.locator('#status')).toHaveText(
-      '工作臺已就緒。資料只保存在這台裝置的瀏覽器。'
+      '已就緒。資料只存本機瀏覽器。'
     );
 
     await stubV1(page, { slots: [] }, 'closed', {}, { listBookings: () => [] });
@@ -397,7 +397,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     });
     await page.reload();
     await expect(page.locator('#status')).toHaveText(
-      '工作臺已就緒。預約資料以內部測試服務為準，部分介面資料仍保存在這台裝置的瀏覽器。'
+      '已就緒。預約以測試服務為準。'
     );
   });
 
