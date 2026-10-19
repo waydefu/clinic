@@ -17,6 +17,12 @@ import { fileURLToPath } from 'node:url';
  * apps/web/public/clinic-booking.css only. Every other hash is unchanged,
  * including soft-green-bg.webp, which the booking page references and never
  * modifies.
+ *
+ * 2026-10-20: the owner reviewed the restyled page and asked for the clinic info
+ * to move above the booking flow, on the first step only, with no text links
+ * (docs/product/phase-1-decision-register.md, 2026-10-20 follow-up under the same
+ * entry). The two-column layout became one centred column, so
+ * apps/web/public/clinic-booking.css was rebaselined once more. Nothing else.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -28,7 +34,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-content.js':
     '91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397',
   'apps/web/public/clinic-booking.css':
-    'b44bddb5347c58edbb37b8d25476780a9006c2d22bc0a67af8b6481b99f13246',
+    '84b381c928eb9cd95b9ec289ceac4fb518e95c8ab15c437bd85c77ea1262d68d',
   'apps/web/clinic-assets.manifest.json':
     'a60b2e038d112cab269bd541a274be027e3b930be365408d01ae2e8a9e1951ec',
   'apps/web/public/clinic-assets/care-aftercare.webp':

@@ -169,10 +169,11 @@ test.describe('三個主題', () => {
 
     // `complete` 對載入失敗的圖片一樣是 true——naturalWidth 才分得出「載到了」
     // 與「路徑壞掉，瀏覽器安靜地放棄了」。後者在版面上只是少一塊，很容易出貨。
-    // 健保標章桌機在左側資訊欄、單欄版面在頁尾；視窗 1280 寬，量資訊欄那一枚。
+    // 健保標章第一步在標題帶的資訊卡裡（48rem 以下不顯示）、頁尾另有一枚（延遲載入）；
+    // 視窗 1280 寬，量資訊卡那一枚。
     for (const selector of [
       '.patient-header .brand img',
-      '.patient-info .patient-credentials img'
+      '.booking-facts .patient-credentials img'
     ]) {
       const natural = await page
         .locator(selector)

@@ -1,11 +1,11 @@
 [
   {
     "path": "/patient.html",
-    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。total 71 是 2026-09-07 T1-BOOK-04（患者自助改期：查詢即本人、當日 10:00 截止、一個月 horizon、同一原子操作先佔新時段再釋出舊時段）上調（原為 70）：壓縮共用 store／management／schedule-engine 後 gzip 實測仍超原上限 76 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。 2026-10-19 預約頁換膚（業主「官網與預約頁風格要相同」，決策登錄同日條，負責人核可的上限：image 約 12、total 約 78、stylesheet 請求數 3，script 不變）：頁首與頁尾改用官網標誌（assets/booking-logo.webp，144×80，去掉舊的 brand-mark.webp）、新增共用 brand-tokens.css、標題帶淡綠底圖 soft-green-bg.webp（凍結素材，經 CSS url() 進入閉包，所以 image 多一個請求）。實測 gzip：document 7,140 B（7.0 KiB）、script 49,774 B（48.6）、stylesheet 11,647 B（11.4）、image 10,962 B（10.7）、total 79,523 B（77.7 KiB）；請求數 stylesheet 3、image 4（標誌、健保標章、favicon、底圖）、total 40。stylesheet 10→12、image 6→12、total 71→78、stylesheet 請求數 2→3、image 請求數 3→4；document／script／font／total 請求數／timings／module depth 不變。這份預算量的是 HTML 能追到的閉包（og:image 不在其中，見 check-performance-budget.mjs），不是頁面實測。",
+    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。total 71 是 2026-09-07 T1-BOOK-04（患者自助改期：查詢即本人、當日 10:00 截止、一個月 horizon、同一原子操作先佔新時段再釋出舊時段）上調（原為 70）：壓縮共用 store／management／schedule-engine 後 gzip 實測仍超原上限 76 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。 2026-10-19 預約頁換膚（業主「官網與預約頁風格要相同」，決策登錄同日條，負責人核可的上限：image 約 12、total 約 78、stylesheet 請求數 3，script 不變）：頁首與頁尾改用官網標誌（assets/booking-logo.webp，144×80，去掉舊的 brand-mark.webp）、新增共用 brand-tokens.css、標題帶淡綠底圖 soft-green-bg.webp（凍結素材，經 CSS url() 進入閉包，所以 image 多一個請求）。實測 gzip：document 7,140 B（7.0 KiB）、script 49,774 B（48.6）、stylesheet 11,647 B（11.4）、image 10,962 B（10.7）、total 79,523 B（77.7 KiB）；請求數 stylesheet 3、image 4（標誌、健保標章、favicon、底圖）、total 40。stylesheet 10→12、image 6→12、total 71→78、stylesheet 請求數 2→3、image 請求數 3→4；document／script／font／total 請求數／timings／module depth 不變。這份預算量的是 HTML 能追到的閉包（og:image 不在其中，見 check-performance-budget.mjs），不是頁面實測。 2026-10-20 預約頁診所資訊卡（業主 2026-10-19 看過頁面後的要求：「診所資訊不要放那，放預約頁上方即可，且僅須第一頁，然後不要有文字連結」；專案負責人核可 document 與 total 上調）：第一步標題帶新增門診時間、地址、電話、健保門診四項的資訊卡，圖示用官網的時鐘、圖釘、電話三個內嵌 SVG（只增加 document 的位元組：不新增圖檔，也不能放進 CSS 的 data URI，因為 CSP 是 img-src 'self'），同時移除左欄資訊區與其中的 tel: 連結。實測 gzip：document 7,426 B（7.25 KiB）、script 49,774 B（48.61）、stylesheet 11,760 B（11.48）、image 10,962 B（10.71）、total 79,922 B（78.05 KiB）；請求數不變（script 32、stylesheet 3、image 4、total 40）。document 7→7.5、total 78→78.5；stylesheet、image、script、font、請求數、timings、module depth 都不變。",
     "resourceSizes": [
       {
         "resourceType": "document",
-        "budget": 7
+        "budget": 7.5
       },
       {
         "resourceType": "script",
@@ -25,7 +25,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 78
+        "budget": 78.5
       }
     ],
     "resourceCounts": [

@@ -46,6 +46,10 @@
   /* 標題帶的背景：現有素材庫的淡綠底圖。深色主題改用深綠漸層，不載入圖。 */
   --booking-band-image: url('/clinic-assets/soft-green-bg.webp');
   --booking-footer: var(--brand-mist);
+
+  /* 預約內容欄：單欄置中，標題帶、資訊卡與預約流程同寬。取 min 而不是直接寫
+     64rem，窄螢幕就跟著 --brand-shell 留兩側邊距。 */
+  --booking-column: min(64rem, var(--brand-shell));
 }
 
 :root[data-theme='warm'] {
@@ -232,7 +236,7 @@ html {
   margin: 0 auto;
   overflow: visible;
   padding: var(--space-2xl) 0 var(--space-lg);
-  width: var(--brand-shell);
+  width: var(--booking-column);
 }
 
 .patient-hero::after {
@@ -257,73 +261,92 @@ html {
 }
 
 /* ------------------------------------------------------------------
- * 6. 版面：桌機左側診所資訊、右側預約流程；手機單欄
+ * 6. 版面：單欄置中；診所資訊卡在標題帶下方（只在第一步）
  * ------------------------------------------------------------------ */
 .booking-layout {
-  display: grid;
-  gap: var(--space-lg) var(--space-xl);
-  grid-template-columns: minmax(0, 1fr);
   margin: 0 auto;
   padding: 0 0 var(--space-3xl);
-  width: var(--brand-shell);
+  width: var(--booking-column);
 }
 
-.booking-flow {
-  min-width: 0;
+/* 診所資訊卡（官網首屏資訊卡同款：白底、柔和陰影、每項＝淡綠圓底圖示＋標籤＋值）。
+   它在標題帶（#patient-hero）裡，patient-app.js 只在第一步顯示標題帶、其餘步驟與
+   結果頁一律 hidden，所以卡片自己只在第一步出現，不需要另外的狀態選擇器。
+   卡片裡沒有連結：電話是純文字（頁尾有 tel: 連結）。
+   手機（48rem 以下）整張不顯示——首屏要留給預約的第一個問題（mobile-layout.spec.ts
+   釘著步驟列的位置），同樣的資訊在頁尾（R-13：換了位置，沒有不見）。
+   寬度：64rem 以上一列四項，48–64rem 兩列各兩項。 */
+.booking-facts {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
+  display: grid;
+  gap: var(--space-sm) var(--space-lg);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: var(--space-lg) 0 0;
+  padding: var(--space-md) var(--space-lg);
 }
 
-/* 手機與平板不顯示：同樣的門診時間、地址、電話與健保標章在頁尾（R-13：資訊換了
-   位置，沒有不見）。 */
-.patient-info {
-  display: none;
+.booking-facts li {
+  align-items: center;
+  column-gap: var(--space-xs);
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+}
+
+.booking-facts li:last-child {
+  display: flex;
+}
+
+.booking-facts svg {
+  background: var(--forest-light);
+  border-radius: var(--radius-circle);
+  color: var(--forest);
+  fill: none;
+  height: 2.5rem;
+  padding: var(--space-2xs);
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 2.5rem;
+}
+
+.booking-facts strong {
+  color: var(--forest-dark);
+}
+
+.booking-facts strong ~ span {
+  color: var(--ink-muted);
+  grid-column: 2;
+}
+
+.booking-facts .patient-credentials {
+  color: var(--forest-dark);
+  gap: var(--space-xs);
+}
+
+.booking-facts .patient-credentials img {
+  height: 2.5rem;
+  width: 2.5rem;
 }
 
 @media (min-width: 64rem) {
-  .booking-layout {
-    align-items: start;
-    grid-template-columns: 17.5rem minmax(0, 1fr);
-  }
-
-  .patient-info {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    box-shadow: var(--elevation-1);
-    display: grid;
-    gap: var(--space-md);
-    padding: var(--space-lg);
+  .booking-facts {
+    grid-template-columns:
+      minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, 1.2fr)
+      auto;
   }
 }
 
-.patient-info h2 {
-  color: var(--forest-dark);
-  font-family: var(--font-sans);
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-wide);
+@media (max-width: 48rem) {
+  .booking-facts {
+    display: none;
+  }
 }
 
-.patient-info dl {
-  display: grid;
-  gap: var(--space-sm);
-  margin: 0;
-}
-
-.patient-info dt {
-  color: var(--forest-dark);
-  font-weight: var(--weight-bold);
-}
-
-.patient-info dd {
-  color: var(--ink-muted);
-  margin: var(--space-4xs) 0 0;
-}
-
-.patient-info address {
-  font-style: normal;
-}
-
-.patient-info a,
 .booking-footer a {
   align-items: center;
   color: var(--forest-dark);
@@ -335,7 +358,8 @@ html {
 }
 
 /* 健保特約標章：官方標章襯白底、不改色（styles.css 的 .patient-credentials）。
-   這裡只把字級升到內文，並讓標籤在頁尾的窄版也留著（styles.css 在手機把它收掉）。 */
+   這裡只把字級升到內文，並讓標籤在頁尾的窄版也留著（styles.css 在手機把它收掉）。
+   第一步的資訊卡有一枚，頁尾有一枚；第二步起與手機沒有資訊卡，頁尾那枚每個寬度都顯示。 */
 .patient-credentials {
   color: var(--ink-muted);
   font-size: var(--text-body);
@@ -348,13 +372,6 @@ html {
 
 .booking-footer .patient-credentials > span {
   display: inline;
-}
-
-/* 桌機的健保標章在左側資訊欄，頁尾那一枚只給單欄版面。 */
-@media (min-width: 64rem) {
-  .booking-footer__brand .patient-credentials {
-    display: none;
-  }
 }
 
 /* ------------------------------------------------------------------
@@ -663,7 +680,7 @@ html {
   }
 
   .patient-header,
-  .patient-info,
+  .booking-facts,
   .patient-contact-card,
   .booking-panel,
   .service-choice,

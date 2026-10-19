@@ -29,9 +29,10 @@
 - 預算：document 7,140 B（7.0 KiB）、script 49,774 B（48.6）、stylesheet 11,647 B（11.4）、image 10,962 B（10.7）、
   total 79,523 B（77.7 KiB）。已調整：stylesheet 10→12、image 6→12、total 71→78、stylesheet 請求數 2→3。
   底圖經 CSS `url()` 進入預算閉包，使 image 請求數 3→4（標誌、健保標章、favicon、底圖）——這一項不在上列核可數字內，
-  是核可計畫的直接後果，已在 `justification` 載明。document 預算只剩 28 B 餘裕。
+  是核可計畫的直接後果，已在 `justification` 載明。document 預算當時只剩 28 B 餘裕（2026-10-20 追記的資訊卡用掉了，見下方）。
 - 凍結：`scripts/check-clinic-freeze.mjs` 只重新基準 `clinic-booking.css`
-  （`8a979d8e…c202` → `b44bddb5…3246`），檔頭註解引用本條；其餘 29 個雜湊不變，`soft-green-bg.webp` 位元組未動。
+  （`8a979d8e…c202` → `b44bddb5…3246`；2026-10-20 追記再重新基準一次，`b44bddb5…3246` → `84b381c9…d68d`），檔頭註解引用本條；
+  其餘 29 個雜湊不變，`soft-green-bg.webp` 位元組未動。
 - 標誌：頁首與頁尾用 `apps/web/public/assets/booking-logo.webp`（144×80，4,998 B），
   由 `apps/web/clinic-source/clinic-logo.png` 依 alpha 邊界裁掉透明留白（x76 y44 1384×771）後縮小並編成 WebP：
   `ffmpeg -i clinic-logo.png -vf "format=rgba,crop=1384:771:76:44,scale=144:80:flags=lanczos" -c:v libwebp -quality 70 -preset drawing -compression_level 6`。
@@ -48,6 +49,38 @@
   self-contained」）把 `/clinic` 視為凍結路由、不得從預約頁宣傳。負責人在 2026-10-19 的對話中被告知風險後，
   明確選擇保留連到 `/clinic`，而不是改連現行官網或拿掉出口。已知風險：預約頁若比新官網（#249）先上線，
   病患會從預約頁進到尚未核准發布的官網；兩頁上線時程須一併確認。
+
+### 2026-10-20 追記：診所資訊卡改放標題帶，只在第一步，卡片內沒有文字連結
+
+業主在 2026-10-19 看過預約頁後說（原話）：
+
+> 診所資訊不要放那，放預約頁上方即可，且僅須第一頁，然後不要有文字連結。
+
+專案負責人在 2026-10-20 的對話中帶回業主的決定並核可下列做法；沒有另行提供 approval ID，不另造。
+範圍仍只是版面調整，不動預約流程、`patient-app.js`、表單欄位、文案、JSON-LD、canonical、noindex。
+
+- **版面。** 取消 2026-10-19 版本的桌機雙欄（左側診所資訊、右側預約流程）。預約內容改成單一置中欄，寬度
+  `min(64rem, var(--brand-shell))`（`--booking-column`），標題帶、資訊卡與預約流程同寬；頁首、頁尾仍用 `--brand-shell`。
+- **診所資訊卡。** 放在標題帶（`#patient-hero`）內、頁面標題正下方：白底卡片、柔和陰影，每項＝淡綠圓底圖示＋標籤＋值，
+  內容是門診時間、地址、電話（兩組）與健保門診標章，沒有社群圖示。64rem 以上一列四項，48–64rem 兩列各兩項。
+  圖示是官網的時鐘、圖釘、電話三個內嵌 SVG（`aria-hidden`、`focusable="false"`），不新增圖檔。
+- **只在第一步。** 卡片在標題帶裡，而 `patient-app.js` 在第二、三步與結果頁都會把標題帶設成 `hidden`
+  （`display:none`），所以卡片自動只在第一步出現，不需要新的狀態選擇器，`patient-app.js` 不動。
+- **卡片內沒有文字連結。** 電話改成純文字（兩個 `tel:` 連結拿掉）；頁尾的連結本次不動。頁尾的健保標章恢復在所有寬度顯示
+  （2026-10-19 版本在 64rem 以上因為左欄有一枚而把它藏起來；現在第二步起沒有資訊卡，所以頁尾那枚一律顯示）。
+- **M1（手機）。** 48rem 以下整張資訊卡不顯示（`display:none`）。理由：`tests/e2e/mobile-layout.spec.ts` 要求 375×812 時步驟列
+  的上緣小於視窗高度的 72%（約 585px），守的是「第一個問題在首屏」。從 CSS 推算目前約 446–457px，剩餘約 130px；
+  手機 2×2 精簡卡（含標籤）約 190–200px，會把步驟列推到約 636–657px，放不下。測試沒有放寬。同樣的門診時間、地址、電話與
+  健保標章在頁尾（R-13：資訊換了位置，沒有不見）。業主 2026-10-20 選擇此做法。
+- **I2（圖示）與預算上調。** 內嵌 SVG 讓 `/patient.html` 的 document 從 7,140 B 增為 7,426 B，超過原 7 KiB 預算；
+  CSS 的 data URI 不可行（CSP 是 `img-src 'self'`），外部 SVG 檔違反「不新增圖檔」。專案負責人於 2026-10-20 核可只調整
+  `apps/web/performance-budget.json` 的 `/patient.html`：document 7→7.5 KiB、total 78→78.5 KiB，其餘不變，`justification` 已載明。
+  gzip 實測：document 7,426 B（7.25 KiB）、script 49,774 B（48.61）、stylesheet 11,760 B（11.48）、image 10,962 B（10.71）、
+  total 79,922 B（78.05 KiB）；請求數不變（script 32、stylesheet 3、image 4、total 40）。
+- **凍結。** `scripts/check-clinic-freeze.mjs` 只重新基準 `apps/web/public/clinic-booking.css`
+  （`b44bddb5…3246` → `84b381c9…d68d`），其餘雜湊不變。
+- **驗證。** 本機沒有執行 e2e／Lighthouse（舊筆電不執行 Playwright），交給 CI 與人工。`tests/e2e/theme.spec.ts` 的健保標章選擇器
+  已由 `.patient-info …` 改為 `.booking-facts …`。`/booking` 的視覺基線截圖仍待另行重拍。
 
 ### 不得擴張的限制
 

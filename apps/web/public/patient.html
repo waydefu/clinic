@@ -181,48 +181,59 @@
           <div class="patient-hero-inner">
             <p class="eyebrow eyebrow-brand">BEAU ESSENCE · ONLINE BOOKING</p>
             <h1 id="patient-title">線上門診預約</h1>
+            <!-- 診所資訊卡：門診時間、地址、電話與健保特約標章，放在標題下方。它在
+                 標題帶（#patient-hero）裡，所以只在第一步出現——patient-app.js 在第二、
+                 三步與結果頁會把整個標題帶設成 hidden（display:none），卡片跟著離開
+                 無障礙樹與 Tab 順序。卡片裡刻意沒有連結：電話是純文字（頁尾有 tel:）。
+                 手機（48rem 以下）不顯示，首屏留給預約流程，同樣的資訊在頁尾。
+                 時間與地址必須與頁尾、JSON-LD、noscript 後備逐字一致（check:ui 比對）。 -->
+            <ul class="booking-facts" aria-label="診所資訊">
+              <li>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19z" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+                <strong>門診時間</strong>
+                <span>週三至週五 12:00–20:00</span>
+                <span>週六 10:00–18:00</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 21.5c-4-4.1-7-7.5-7-11.4a7 7 0 0 1 14 0c0 3.9-3 7.3-7 11.4z"
+                  />
+                  <path d="M12 7.4a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z" />
+                </svg>
+                <strong>地址</strong>
+                <span>臺北市松山區光復北路112號2樓</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M5 3.5h3a1.6 1.6 0 0 1 1.6 1.3l.5 2.9a1.6 1.6 0 0 1-.45 1.4L8 10.8a13.6 13.6 0 0 0 5.2 5.2l1.7-1.65a1.6 1.6 0 0 1 1.4-.45l2.9 .55a1.6 1.6 0 0 1 1.3 1.6V19a1.6 1.6 0 0 1-1.7 1.6C10.6 20.1 3.9 13.4 3.4 5.2A1.6 1.6 0 0 1 5 3.5z"
+                  />
+                </svg>
+                <strong>電話</strong>
+                <span>02-2577-1314</span>
+                <span>0800-000-913（免付費）</span>
+              </li>
+              <li>
+                <span class="patient-credentials">
+                  <img
+                    src="/assets/nhi-mark.webp"
+                    alt="全民健康保險特約醫事服務機構"
+                    width="64"
+                    height="64"
+                    decoding="async"
+                  />
+                  <span aria-hidden="true">健保門診</span>
+                </span>
+              </li>
+            </ul>
           </div>
         </section>
 
         <div class="booking-layout">
-          <!-- 桌機左欄：門診時間、地址、電話與健保特約標章。手機與平板不顯示這一欄
-               （styles 以 display:none 收掉），同樣的資訊在頁尾，所以不是資訊消失。
-               時間與地址必須與頁尾、JSON-LD、noscript 後備逐字一致（check:ui 比對）。
-               用 section 而不是 aside：complementary 地標必須在最上層，不能放進 main。 -->
-          <section class="patient-info" aria-labelledby="patient-info-heading">
-            <h2 id="patient-info-heading">診所資訊</h2>
-            <dl>
-              <div>
-                <dt>門診時間</dt>
-                <dd>週三至週五 12:00–20:00</dd>
-                <dd>週六 10:00–18:00</dd>
-              </div>
-              <div>
-                <dt>地址</dt>
-                <dd>
-                  <address>臺北市松山區光復北路112號2樓</address>
-                </dd>
-              </div>
-              <div>
-                <dt>電話</dt>
-                <dd><a href="tel:+886225771314">02-2577-1314</a></dd>
-                <dd>
-                  <a href="tel:+886800000913">0800-000-913（免付費）</a>
-                </dd>
-              </div>
-            </dl>
-            <span class="patient-credentials">
-              <img
-                src="/assets/nhi-mark.webp"
-                alt="全民健康保險特約醫事服務機構"
-                width="64"
-                height="64"
-                decoding="async"
-              />
-              <span aria-hidden="true">健保門診</span>
-            </span>
-          </section>
-
           <div class="booking-flow">
             <p
               id="patient-preview-warning"
@@ -795,7 +806,8 @@
               decoding="async"
             />
             <p>專注鼻功能、呼吸與睡眠，以傾聽與專業陪伴每一次醫療選擇。</p>
-            <!-- 健保特約標章：桌機在左側資訊欄，單欄版面（手機與平板）在這裡。 -->
+            <!-- 健保特約標章：第一步的資訊卡（標題帶）有一枚；第二步起與手機沒有資訊卡，
+                 所以每個寬度、每一步都留這一枚。 -->
             <span class="patient-credentials">
               <img
                 src="/assets/nhi-mark.webp"
