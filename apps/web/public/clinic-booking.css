@@ -59,6 +59,10 @@
     var(--surface-inverse-deep)
   );
   --booking-footer: var(--surface-inverse-deep);
+
+  /* 官網標誌是鼠尾草綠線稿，styles.css 給工作臺標誌的 brightness(1.4) 在深綠頁首上幾乎看不見；
+     預約頁深色主題改成淺灰單色。 */
+  --brand-mark-filter: brightness(0) invert(0.9);
 }
 
 @media (max-width: 48rem) {

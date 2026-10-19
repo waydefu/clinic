@@ -31,7 +31,7 @@
   底圖經 CSS `url()` 進入預算閉包，使 image 請求數 3→4（標誌、健保標章、favicon、底圖）——這一項不在上列核可數字內，
   是核可計畫的直接後果，已在 `justification` 載明。document 預算只剩 28 B 餘裕。
 - 凍結：`scripts/check-clinic-freeze.mjs` 只重新基準 `clinic-booking.css`
-  （`8a979d8e…c202` → `d24c52e5…4242`），檔頭註解引用本條；其餘 29 個雜湊不變，`soft-green-bg.webp` 位元組未動。
+  （`8a979d8e…c202` → `b44bddb5…3246`），檔頭註解引用本條；其餘 29 個雜湊不變，`soft-green-bg.webp` 位元組未動。
 - 標誌：頁首與頁尾用 `apps/web/public/assets/booking-logo.webp`（144×80，4,998 B），
   由 `apps/web/clinic-source/clinic-logo.png` 依 alpha 邊界裁掉透明留白（x76 y44 1384×771）後縮小並編成 WebP：
   `ffmpeg -i clinic-logo.png -vf "format=rgba,crop=1384:771:76:44,scale=144:80:flags=lanczos" -c:v libwebp -quality 70 -preset drawing -compression_level 6`。
@@ -44,6 +44,10 @@
   對淺色套用的值，改成淺色要動共用的 `theme.js`，工作臺 `/index.html` 的 total 預算只剩 22 B）。
 - 預約頁頁首現在連到官網 `/clinic`（標誌與「回官網」）；`check:ui` 與 e2e 原先釘住「預約頁不出現 `/clinic`」，
   已改成「恰好兩個官網出口，醫師頁與工作臺根路徑仍不得出現」。
+- **放寬 2026-08-20 的「預約頁自成一體」防線。** 那條防線（commit `9ee84af`「keep vendor booking surface
+  self-contained」）把 `/clinic` 視為凍結路由、不得從預約頁宣傳。負責人在 2026-10-19 的對話中被告知風險後，
+  明確選擇保留連到 `/clinic`，而不是改連現行官網或拿掉出口。已知風險：預約頁若比新官網（#249）先上線，
+  病患會從預約頁進到尚未核准發布的官網；兩頁上線時程須一併確認。
 
 ### 不得擴張的限制
 
