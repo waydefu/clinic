@@ -25,7 +25,7 @@ function checkoutSettings(text) {
       if (step.uses === undefined) return []; // run step
       if (typeof step.uses !== 'string')
         throw new Error('Expected a literal action reference');
-      if (!step.uses.startsWith('actions/checkout@')) return [];
+      if (!/^actions\/checkout(?:\/[^@]*)?@/i.test(step.uses)) return [];
       return [
         {
           job,
@@ -78,6 +78,29 @@ describe('checkout source policy', () => {
       { job: 'verify', step: 1, values: [false] }
     ]);
   });
+
+  it.each(['Actions/Checkout', 'ACTIONS/CHECKOUT', 'actions/checkout/.'])(
+    'does not miss checkout reference %s when testing its input',
+    (reference) => {
+      const source = checkout(...explicitFalse).replace(
+        'actions/checkout@',
+        `${reference}@`
+      );
+      expect(checkoutSettings(source)).toEqual([
+        { job: 'verify', step: 1, values: [false] }
+      ]);
+      expect(
+        violations(
+          checkoutSettings(
+            source.replace(
+              'persist-credentials: false',
+              'persist-credentials: true'
+            )
+          )
+        )
+      ).toHaveLength(1);
+    }
+  );
 
   it.each(['true', '"true"', '${{ inputs.persist }}'])(
     'does not treat %s as a declared false',
