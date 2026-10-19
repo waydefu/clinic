@@ -1,7 +1,7 @@
 [
   {
     "path": "/patient.html",
-    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。total 71 是 2026-09-07 T1-BOOK-04（患者自助改期：查詢即本人、當日 10:00 截止、一個月 horizon、同一原子操作先佔新時段再釋出舊時段）上調（原為 70）：壓縮共用 store／management／schedule-engine 後 gzip 實測仍超原上限 76 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。",
+    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。total 71 是 2026-09-07 T1-BOOK-04（患者自助改期：查詢即本人、當日 10:00 截止、一個月 horizon、同一原子操作先佔新時段再釋出舊時段）上調（原為 70）：壓縮共用 store／management／schedule-engine 後 gzip 實測仍超原上限 76 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。 2026-10-19 預約頁換膚（業主「官網與預約頁風格要相同」，決策登錄同日條，負責人核可的上限：image 約 12、total 約 78、stylesheet 請求數 3，script 不變）：頁首與頁尾改用官網標誌（assets/booking-logo.webp，144×80，去掉舊的 brand-mark.webp）、新增共用 brand-tokens.css、標題帶淡綠底圖 soft-green-bg.webp（凍結素材，經 CSS url() 進入閉包，所以 image 多一個請求）。實測 gzip：document 7,140 B（7.0 KiB）、script 49,774 B（48.6）、stylesheet 11,647 B（11.4）、image 10,962 B（10.7）、total 79,523 B（77.7 KiB）；請求數 stylesheet 3、image 4（標誌、健保標章、favicon、底圖）、total 40。stylesheet 10→12、image 6→12、total 71→78、stylesheet 請求數 2→3、image 請求數 3→4；document／script／font／total 請求數／timings／module depth 不變。這份預算量的是 HTML 能追到的閉包（og:image 不在其中，見 check-performance-budget.mjs），不是頁面實測。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -13,11 +13,11 @@
       },
       {
         "resourceType": "stylesheet",
-        "budget": 10
+        "budget": 12
       },
       {
         "resourceType": "image",
-        "budget": 6
+        "budget": 12
       },
       {
         "resourceType": "font",
@@ -25,7 +25,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 71
+        "budget": 78
       }
     ],
     "resourceCounts": [
@@ -35,11 +35,11 @@
       },
       {
         "resourceType": "stylesheet",
-        "budget": 2
+        "budget": 3
       },
       {
         "resourceType": "image",
-        "budget": 3
+        "budget": 4
       },
       {
         "resourceType": "total",

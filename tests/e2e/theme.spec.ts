@@ -13,17 +13,40 @@ type Rgb = { r: number; g: number; b: number };
 
 const THEMES = ['light', 'warm', 'dark'] as const;
 
-test.describe('護眼暖色預設與顯式偏好', () => {
-  test('fresh browser 的 active surfaces 都以 warm 呈現', async ({ page }) => {
+test.describe('預設主題與顯式偏好', () => {
+  // 2026-10-19（業主「官網與預約頁風格要相同」）：預約頁的預設改為 light，由
+  // <html data-default-theme="light"> 宣告；工作臺、隱私權政策與 404 沒有宣告，
+  // 仍是 warm。兩半都要釘：只釘預約頁，工作臺被連帶改掉也不會有人發現。
+  test('fresh browser：預約頁預設 light，其餘 active surfaces 維持 warm', async ({
+    page
+  }) => {
     await page.goto('/booking');
     await page.evaluate(() =>
       window.localStorage.removeItem('beauessence_theme')
     );
 
-    for (const url of ['/staff', '/booking', '/privacy', '/404.html']) {
+    for (const [url, theme] of [
+      ['/staff', 'warm'],
+      ['/booking', 'light'],
+      ['/privacy', 'warm'],
+      ['/404.html', 'warm']
+    ]) {
       await page.goto(url);
-      await expect(page.locator('html')).toHaveAttribute('data-theme', 'warm');
+      await expect(page.locator('html'), url).toHaveAttribute(
+        'data-theme',
+        theme
+      );
     }
+  });
+
+  test('使用者存過的偏好永遠優先於頁面預設', async ({ page }) => {
+    await page.goto('/booking');
+    await page.evaluate(() =>
+      window.localStorage.setItem('beauessence_theme', 'warm')
+    );
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'warm');
+    await expect(page.locator('#theme-picker')).toHaveValue('warm');
   });
 
   test('light、dark 與 auto 都可顯式選取並在重新載入後保留', async ({
@@ -36,9 +59,9 @@ test.describe('護眼暖色預設與顯式偏好', () => {
     await page.reload();
 
     const picker = page.locator('#theme-picker');
-    await expect(picker).toHaveValue('warm');
+    await expect(picker).toHaveValue('light');
 
-    for (const preference of ['dark', 'light', 'auto']) {
+    for (const preference of ['dark', 'warm', 'auto', 'light']) {
       await picker.selectOption(preference);
       await page.reload();
       await expect(page.locator('#theme-picker')).toHaveValue(preference);
@@ -146,9 +169,10 @@ test.describe('三個主題', () => {
 
     // `complete` 對載入失敗的圖片一樣是 true——naturalWidth 才分得出「載到了」
     // 與「路徑壞掉，瀏覽器安靜地放棄了」。後者在版面上只是少一塊，很容易出貨。
+    // 健保標章桌機在左側資訊欄、單欄版面在頁尾；視窗 1280 寬，量資訊欄那一枚。
     for (const selector of [
-      '.brand-mark',
-      '.patient-header .patient-credentials img'
+      '.patient-header .brand img',
+      '.patient-info .patient-credentials img'
     ]) {
       const natural = await page
         .locator(selector)
@@ -161,7 +185,7 @@ test.describe('三個主題', () => {
     const filterFor = async (theme: string) => {
       await applyTheme(page, '/booking', theme);
       return page
-        .locator('.brand-mark')
+        .locator('.patient-header .brand img')
         .evaluate((element) => window.getComputedStyle(element).filter);
     };
 
@@ -238,7 +262,9 @@ test.describe('品牌層（香檳金與系統字體）', () => {
     expect(fontHints).toBe(0);
   });
 
-  test('香檳金三個主題各自不同，且品牌眉題真的是金色', async ({ page }) => {
+  test('香檳金三個主題各自不同，且品牌眉題對底色維持 AA 對比', async ({
+    page
+  }) => {
     const seen = new Map<string, string>();
 
     for (const theme of THEMES) {
@@ -254,9 +280,10 @@ test.describe('品牌層（香檳金與系統字體）', () => {
         );
       seen.set(theme, token);
 
-      // 品牌眉題必須真的拿到金色。`.eyebrow-brand` 與 `.eyebrow` 權重相同，
-      // 靠**順序**決勝：若有人把它移到 `.eyebrow` 前面，綠色會蓋掉金色，而且
-      // 完全沒有錯誤訊息。這一條就是釘住那個。
+      // 2026-10-19：預約頁眉題文字改用 forest，不再是金字——標題帶的淡綠底圖最暗處
+      // 亮度約 0.63，金色小字只有 3.9:1，forest 是 6.1:1；金色只留給眉題後面那條
+      // 純裝飾的短線。所以這裡驗的是「眉題對實際底色過 AA」，金色 token 在三個主題
+      // 各不相同則由下面的斷言守住。
       // 患者頁有兩個品牌眉題（hero 與預約完成頁），這裡量 hero 那一個。
       const eyebrow = await paintedStyle(page, '.patient-hero .eyebrow-brand');
 

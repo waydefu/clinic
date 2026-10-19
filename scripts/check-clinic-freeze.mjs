@@ -9,6 +9,14 @@ import { fileURLToPath } from 'node:url';
  * only this dated visual revision (docs/design/2026-09-07-ui-ux-redesign-plan.md).
  * Rebaseline only the three edited CSS/renderer files; assets, public content,
  * guard failure behavior and every deployment/operational boundary stay intact.
+ *
+ * 2026-10-19: the owner asked that the booking page share the official site's
+ * look ("官網與預約頁風格要相同，背景要用現有素材庫的"); the project lead approved the
+ * plan the same day (docs/product/phase-1-decision-register.md, 2026-10-19
+ * booking-page reskin entry). That authorises one more rebaseline, of
+ * apps/web/public/clinic-booking.css only. Every other hash is unchanged,
+ * including soft-green-bg.webp, which the booking page references and never
+ * modifies.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -20,7 +28,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-content.js':
     '91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397',
   'apps/web/public/clinic-booking.css':
-    '8a979d8ee09f9203034c45a232cd0500ff61c729a9edd0afc9292057a497c202',
+    'd24c52e5fb59b6d844bc7da95693f0c5955436ec9b8badc866be92e42a4e4242',
   'apps/web/clinic-assets.manifest.json':
     'a60b2e038d112cab269bd541a274be027e3b930be365408d01ae2e8a9e1951ec',
   'apps/web/public/clinic-assets/care-aftercare.webp':

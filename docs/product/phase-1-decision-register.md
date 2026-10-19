@@ -1,5 +1,57 @@
 # Phase 1 Decision Register
 
+## 2026-10-19 預約頁換膚：與官網同風格（共用品牌 token）
+
+業主在 2026-10-19 提出以下要求，專案負責人在同日的對話中核可下方計畫。沒有另行提供 approval ID，不另造。
+本節只定預約頁的視覺換膚；不改 D-001～D-016 的狀態，不授予任何受保護作業。
+
+### 業主原話
+
+> 官網與預約頁風格要相同，背景要用現有素材庫的
+
+### 負責人核可的計畫
+
+1. **共用品牌 token。** 從官網新設計（Draft PR #249，`agent/clinic-redesign-20261011`，尚未合併）抽出
+   `apps/web/public/brand-tokens.css`（`--brand-*`）。預約頁現在就載入它；官網的 `clinic-site.css`
+   在 #249 合併之後才改讀同一份檔案。本次不動 #249，也不動官網。
+2. **範圍是換膚加版面調整。** 預約流程、`patient-app.js` 邏輯、表單欄位、文案、JSON-LD（含「醫學美容」項目）、
+   canonical、robots noindex 都不變。
+3. **背景。** 只用官網既有的 `soft-green-bg.webp`（凍結素材，只引用、不修改），只鋪在最上面的標題帶並往下淡出到畫布色；
+   深色主題改用深綠漸層、不載入圖。
+4. **主題。** 保留自動／淺色／護眼／深色四種；預約頁的預設改為淺色，工作臺維持原預設；使用者存過的偏好優先。
+5. **預算（`/patient.html`，`apps/web/performance-budget.json`）。** image 約 12 KiB、total 約 78 KiB、stylesheet 請求數 3；
+   script 預算不變；image 不得超過 12、total 不得超過 78，放不下就停手回報，不再往上調。
+   stylesheet 的 KiB 只在 total 78 之內依需要上調。
+6. **本登錄條目與凍結重新基準。** 新增本條目；凍結清單中只重新基準 `apps/web/public/clinic-booking.css`，其餘雜湊不動。
+
+### 實作結果（2026-10-19，gzip 實測）
+
+- 預算：document 7,140 B（7.0 KiB）、script 49,774 B（48.6）、stylesheet 11,647 B（11.4）、image 10,962 B（10.7）、
+  total 79,523 B（77.7 KiB）。已調整：stylesheet 10→12、image 6→12、total 71→78、stylesheet 請求數 2→3。
+  底圖經 CSS `url()` 進入預算閉包，使 image 請求數 3→4（標誌、健保標章、favicon、底圖）——這一項不在上列核可數字內，
+  是核可計畫的直接後果，已在 `justification` 載明。document 預算只剩 28 B 餘裕。
+- 凍結：`scripts/check-clinic-freeze.mjs` 只重新基準 `clinic-booking.css`
+  （`8a979d8e…c202` → `d24c52e5…4242`），檔頭註解引用本條；其餘 29 個雜湊不變，`soft-green-bg.webp` 位元組未動。
+- 標誌：頁首與頁尾用 `apps/web/public/assets/booking-logo.webp`（144×80，4,998 B），
+  由 `apps/web/clinic-source/clinic-logo.png` 依 alpha 邊界裁掉透明留白（x76 y44 1384×771）後縮小並編成 WebP：
+  `ffmpeg -i clinic-logo.png -vf "format=rgba,crop=1384:771:76:44,scale=144:80:flags=lanczos" -c:v libwebp -quality 70 -preset drawing -compression_level 6`。
+  現有的兩條素材管線都沒走：`build:clinic-assets` 每次重寫整份凍結的 manifest 與全部素材；`build:brand` 與前者同樣需要
+  Playwright，本機（舊筆電）禁用。要改由管線重產時，bytes 會略有不同，需重量預算。舊的 `brand-mark.webp` 不再被預約頁引用，
+  仍留給工作臺。
+- 版面取捨（未經業主逐項確認）：手機版內容欄兩側各留 1rem（官網為 1.5rem）；標題帶眉題文字用 forest、金色只留給短線
+  （金色小字在底圖最暗處只有約 3.9:1）；焦點環用實算過的 `--brand-focus-ring`（#7a5400，對白底 6.78:1，官網現用的
+  #d49b45 只有 2.45:1），深色主題沿用 `styles.css` 的淺琥珀；`<meta name="theme-color">` 不動（`#155c48` 已等於 `theme.js`
+  對淺色套用的值，改成淺色要動共用的 `theme.js`，工作臺 `/index.html` 的 total 預算只剩 22 B）。
+- 預約頁頁首現在連到官網 `/clinic`（標誌與「回官網」）；`check:ui` 與 e2e 原先釘住「預約頁不出現 `/clinic`」，
+  已改成「恰好兩個官網出口，醫師頁與工作臺根路徑仍不得出現」。
+
+### 不得擴張的限制
+
+- 官網採用 `brand-tokens.css` 要等 #249 合併之後，另做；本條不授權合併任何 PR。
+- merge、部署、預覽頻道與其他受保護動作仍須各該次的明確授權；不得由本條反推。
+- `/booking` 的視覺基線截圖（`docs/reviews/ui-visual-c4-2026-08-22.md` 與其 manifest）已與新版面不符，要另行重拍才能更新，
+  本次沒有改任何基線雜湊。本機沒有執行 e2e／Lighthouse，驗證交給 CI 與人工。
+
 ## 2026-10-19 Phase 0 業主回答與來源凍結候選界線
 
 業主在本輪 Sol 父代理的 Phase 0 決定簡報後回答以下問題。未另提供 approval ID，不另造。

@@ -1,131 +1,669 @@
-/* Public-to-booking brand continuity. Shared tokens own theme and state. */
+/*
+ * 預約頁換膚。只有 patient.html 載入這份檔案（工作臺載入的是 styles.css +
+ * workbench.css），所以這裡的所有覆寫都不會影響員工端。
+ *
+ * 2026-10-19 業主要求「官網與預約頁風格要相同，背景要用現有素材庫的」，負責人核可
+ * 先抽共用 token（brand-tokens.css）、預約頁現在就用，範圍是換膚加版面調整，預約
+ * 流程與文案不動。決策登錄 docs/product/phase-1-decision-register.md 的 2026-10-19
+ * 預約頁換膚條。
+ *
+ * 作法：不複製一套顏色，而是在 :root 把 styles.css 的語意 token 指向品牌 token。
+ * 這個 :root（特異度 0,1,0）只蓋淺色預設值；護眼與深色由 styles.css 的
+ * :root[data-theme] 區塊（0,2,0）照舊決定，所以三個主題仍然各自成立。元件規則
+ * 一律引用語意 token，換主題只是換值。
+ */
+
+/* ------------------------------------------------------------------
+ * 1. token
+ * ------------------------------------------------------------------ */
 :root {
-  --patient-header-height: 5.5rem;
+  --patient-header-height: 4.5rem;
+
+  --canvas: var(--brand-mist-soft);
+  --surface-soft: var(--brand-mist-soft);
+  --surface-tint: var(--brand-sage-50);
+  --surface-tint-strong: var(--brand-sage-100);
+  --forest-light: var(--brand-sage-100);
+  --ink-muted: var(--brand-muted);
+  --line: var(--brand-line);
+  --forest: var(--brand-forest);
+  --forest-dark: var(--brand-forest-deep);
+  --accent-solid: var(--brand-forest);
+  --accent-solid-strong: var(--brand-forest-deep);
+
+  /* 圓角與陰影改成官網的：卡片一階、膠囊一階；卡片陰影與頁首陰影兩階。 */
+  --radius-md: var(--brand-radius-card);
+  --radius-lg: var(--brand-radius-card);
+  --radius-xl: var(--brand-radius-card);
+  --radius-pill: var(--brand-radius-pill);
+  --elevation-1: var(--brand-elevation-card);
+  --elevation-2: var(--brand-elevation-header);
+
+  /* 焦點環：官網的 #d49b45 對白底只有 2.45:1，改用實算過的 --brand-focus-ring。
+     深色主題由 styles.css 的 :root[data-theme='dark'] 繼續用淺琥珀。 */
+  --focus-ring: var(--brand-focus-ring);
+
+  /* 標題帶的背景：現有素材庫的淡綠底圖。深色主題改用深綠漸層，不載入圖。 */
+  --booking-band-image: url('/clinic-assets/soft-green-bg.webp');
+  --booking-footer: var(--brand-mist);
 }
+
+:root[data-theme='warm'] {
+  --booking-footer: var(--surface-tint);
+}
+
+:root[data-theme='dark'] {
+  --booking-band-image: linear-gradient(
+    to bottom,
+    var(--surface-inverse-soft),
+    var(--surface-inverse-deep)
+  );
+  --booking-footer: var(--surface-inverse-deep);
+}
+
+@media (max-width: 48rem) {
+  :root {
+    --patient-header-height: 4rem;
+
+    /* 手機版內容欄兩側各留 1rem（官網是 1.5rem）：預約表單的欄位需要寬度。 */
+    --brand-shell: min(76rem, calc(100% - 2rem));
+  }
+
+  /* 手機的第二、三步沒有頁首（styles.css 收掉了），捲動時不必再讓出它的高度。 */
+  :root:has(
+    .patient-body:is([data-booking-flow-step='2'], [data-booking-flow-step='3'])
+  ) {
+    --patient-header-height: 0rem;
+  }
+}
+
+/* ------------------------------------------------------------------
+ * 2. 頁面底與標題帶
+ *
+ * 淡綠底圖只鋪在頁面最上面一段，往下淡出到畫布色。它放在 ::before 而不是 hero
+ * 本身：hero 在第二步之後會被收起，底圖不該跟著消失；放偽元素也讓文字的實際
+ * 底色維持畫布色，axe 與 theme.spec 量到的對比不受影響。
+ * ------------------------------------------------------------------ */
+html {
+  scroll-padding-top: calc(var(--patient-header-height) + var(--space-xs));
+}
+
 .patient-body {
   background: var(--canvas);
+  isolation: isolate;
+  position: relative;
 }
-.patient-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  box-shadow: none;
+
+.patient-body::before {
+  background:
+    linear-gradient(to bottom, transparent 55%, var(--canvas)),
+    var(--booking-band-image) left top / cover;
+  content: '';
+  height: 26rem;
+  inset: 0 0 auto;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
 }
-.patient-header-inner {
-  min-height: var(--patient-header-height);
-  gap: var(--space-md);
-}
+
 #patient-main {
+  margin: 0;
+  max-width: none;
   min-height: calc(100vh - var(--patient-header-height));
   min-height: calc(100dvh - var(--patient-header-height));
-  max-width: 64rem;
+  padding: 0;
 }
+
+#patient-booking-app:not([hidden]) {
+  display: block;
+}
+
+/* ------------------------------------------------------------------
+ * 3. 測試預覽公告帶（環境徽章與公告併成一條，在頁首之上）
+ * ------------------------------------------------------------------ */
+.patient-notice {
+  align-items: center;
+  background: var(--surface-inverse);
+  color: var(--on-inverse);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-xs);
+  justify-content: center;
+  padding: var(--space-2xs) var(--space-sm);
+}
+
+.patient-notice > div {
+  margin: 0;
+  max-width: none;
+  padding: 0;
+}
+
+/* styles.css 的 .patient-announcement span 會把徽章也撐成內文字級；徽章維持 14px。 */
+.patient-notice .environment-badge {
+  font-size: var(--text-micro);
+}
+
+.patient-notice #patient-announcement > div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs) var(--space-xs);
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------------
+ * 4. 頁首：半透明白到淡綠的漸層加背景模糊（官網同款）
+ * ------------------------------------------------------------------ */
+.patient-header {
+  background: var(--surface);
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--surface) 82%, transparent),
+    color-mix(in srgb, var(--surface-tint-strong) 66%, transparent)
+  );
+  border-bottom: 0;
+  box-shadow: var(--elevation-2);
+  -webkit-backdrop-filter: blur(1rem) saturate(1.4);
+  backdrop-filter: blur(1rem) saturate(1.4);
+  position: sticky;
+  top: 0;
+}
+
+.patient-body .patient-header .patient-header-inner {
+  align-items: center;
+  column-gap: var(--space-sm);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin: 0 auto;
+  max-width: none;
+  min-height: var(--patient-header-height);
+  padding: var(--space-3xs) 0;
+  row-gap: var(--space-2xs);
+  width: var(--brand-shell);
+}
+
 .patient-header .brand {
   color: var(--forest-dark);
   text-decoration: none;
 }
-.patient-header .brand strong {
-  font-family: var(--font-serif-tc);
-  letter-spacing: var(--tracking-label);
+
+.patient-header .brand img {
+  display: block;
+  filter: var(--brand-mark-filter);
+  height: 2.75rem;
+  width: auto;
 }
-.patient-header .brand small {
-  color: var(--ink-muted);
-  letter-spacing: var(--tracking-wide);
-}
-.patient-announcement {
+
+/* 「回官網」：標誌已經連到官網，這條是給找不到標誌可以按的人，所以手機收掉。
+   它不在 <nav> 裡，靠底線表達可以按（R-2）。 */
+.patient-site-link {
+  align-items: center;
   color: var(--forest-dark);
-  background: var(--surface-tint);
-  border-bottom: 1px solid var(--line);
+  display: inline-flex;
+  font-weight: var(--weight-bold);
+  margin-inline-start: auto;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-2xs);
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+  white-space: nowrap;
 }
-.patient-announcement strong {
-  color: var(--forest);
+
+.patient-header .patient-management-open {
+  flex: 0 1 auto;
+  max-width: 100%;
+  white-space: normal;
 }
+
+/* ------------------------------------------------------------------
+ * 5. 標題帶（第一步才出現，JS 控制 hidden）
+ * ------------------------------------------------------------------ */
 .patient-hero {
-  padding: var(--space-sm) 0;
   background: none;
   border: 0;
   border-radius: 0;
   box-shadow: none;
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+  padding: var(--space-2xl) 0 var(--space-lg);
+  width: var(--brand-shell);
 }
+
 .patient-hero::after {
   content: none;
 }
-.patient-hero .eyebrow-brand {
-  color: var(--brand-metallic-text);
+
+/* 眉題用 forest 而不是金：底圖最暗的一小塊亮度約 0.63，金色小字只有 3.9:1，
+   forest 是 6.1:1。金色的短線（.eyebrow-brand::after）仍是純裝飾。
+   選擇器多帶一層 .patient-hero-inner：styles.css 有一條
+   `.patient-hero > div > p:last-of-type`（特異度 0,2,2），原本是要收起介紹段落，
+   實際上連這條眉題一起命中了。 */
+.patient-hero .patient-hero-inner > .eyebrow-brand {
+  color: var(--forest);
+  display: flex;
 }
+
 .patient-hero h1 {
-  font-family: var(--font-serif-tc);
+  color: var(--forest-dark);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-wide);
 }
-.booking-panel-heading h2 {
+
+/* ------------------------------------------------------------------
+ * 6. 版面：桌機左側診所資訊、右側預約流程；手機單欄
+ * ------------------------------------------------------------------ */
+.booking-layout {
+  display: grid;
+  gap: var(--space-lg) var(--space-xl);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0 auto;
+  padding: 0 0 var(--space-3xl);
+  width: var(--brand-shell);
+}
+
+.booking-flow {
+  min-width: 0;
+}
+
+/* 手機與平板不顯示：同樣的門診時間、地址、電話與健保標章在頁尾（R-13：資訊換了
+   位置，沒有不見）。 */
+.patient-info {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .booking-layout {
+    align-items: start;
+    grid-template-columns: 17.5rem minmax(0, 1fr);
+  }
+
+  .patient-info {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--elevation-1);
+    display: grid;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+  }
+}
+
+.patient-info h2 {
+  color: var(--forest-dark);
   font-family: var(--font-sans);
-  letter-spacing: var(--tracking-tight);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
 }
+
+.patient-info dl {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.patient-info dt {
+  color: var(--forest-dark);
+  font-weight: var(--weight-bold);
+}
+
+.patient-info dd {
+  color: var(--ink-muted);
+  margin: var(--space-4xs) 0 0;
+}
+
+.patient-info address {
+  font-style: normal;
+}
+
+.patient-info a,
+.booking-footer a {
+  align-items: center;
+  color: var(--forest-dark);
+  display: inline-flex;
+  min-height: var(--control-height-md);
+  min-width: var(--control-height-md);
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
+/* 健保特約標章：官方標章襯白底、不改色（styles.css 的 .patient-credentials）。
+   這裡只把字級升到內文，並讓標籤在頁尾的窄版也留著（styles.css 在手機把它收掉）。 */
+.patient-credentials {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+}
+
+.patient-credentials img {
+  height: 2rem;
+  width: 2rem;
+}
+
+.booking-footer .patient-credentials > span {
+  display: inline;
+}
+
+/* 桌機的健保標章在左側資訊欄，頁尾那一枚只給單欄版面。 */
+@media (min-width: 64rem) {
+  .booking-footer__brand .patient-credentials {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------
+ * 7. 預約流程：面板、卡片、按鈕
+ * ------------------------------------------------------------------ */
 .patient-preview-warning {
-  border: 0;
-  border-left: 3px solid var(--line-accent);
-  border-radius: 0;
   background: var(--surface-tint);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-accent);
+  border-radius: var(--radius-md);
+  margin: 0;
 }
+
+/* 狀態訊息停在頁首下方，而不是被頁首壓住。 */
+#patient-status.status-message {
+  top: calc(var(--patient-header-height) + var(--space-2xs));
+}
+
 .booking-stepper {
   padding: var(--space-xs) 0;
-  background: none;
-  border: 0;
-  border-radius: 0;
 }
-.booking-stepper li {
-  padding: var(--space-xs) var(--space-2xs);
-}
-.booking-panel,
-.patient-contact-card {
-  border-color: var(--line-strong);
-  box-shadow: none;
-}
+
 .booking-panel {
-  padding: var(--space-xl);
-}
-.service-choice {
   background: var(--surface);
-  border-color: var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  box-shadow: none;
+  box-shadow: var(--elevation-1);
+  padding: var(--space-xl);
+  scroll-margin-top: 0;
 }
-.service-choice:hover,
-.service-choice.is-selected {
-  background: var(--surface-tint);
-  box-shadow: none;
-  transform: none;
+
+.booking-panel-heading h2,
+.patient-form-section > h3 {
+  font-family: var(--font-sans);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
 }
+
 .booking-context {
   border-left: 3px solid var(--forest);
+  border-radius: var(--radius-sm);
 }
-.patient-form-section {
+
+/* 按鈕：膠囊、48px 高。主要＝forest 實心；次要＝1px forest 外框；第三級＝淡綠底。 */
+.button {
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  line-height: 1.25;
+  min-height: 3rem;
+  padding: var(--space-xs) var(--space-lg);
+}
+
+.button-primary {
+  background: var(--accent-solid);
+  box-shadow: none;
+  color: var(--on-accent);
+}
+
+.button-secondary {
+  background: var(--surface);
+  border-color: var(--forest);
+  color: var(--forest-dark);
+}
+
+.button-secondary:not(:disabled):hover {
+  background: var(--forest-light);
+  border-color: var(--forest-dark);
+}
+
+.button-tertiary {
+  background: var(--surface-tint);
+  color: var(--forest-dark);
+}
+
+.booking-back {
+  border-color: var(--forest);
+}
+
+/* 卡片：白底、官方圓角、柔和陰影。選取＝forest 2px 外框加淡綠底，還有勾號，
+   不只靠顏色（WCAG 1.4.1）。外框從 1px 變 2px 時內距各少 1px，內容不會位移。 */
+.service-choice {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
+  transform: none;
+}
+
+.service-choice:hover {
+  background: var(--surface);
+  border-color: var(--forest);
+  transform: none;
+}
+
+.service-choice.is-selected {
+  background: var(--forest-light);
+  border-width: 2px;
+  padding: calc(var(--space-sm) - 1px);
+}
+
+.slot-chip {
+  background: var(--surface);
   border-radius: var(--radius-md);
 }
-.patient-footer {
-  background: var(--surface-inverse-deep);
+
+.slot-chip:hover {
+  border-color: var(--forest);
+  border-width: 1px;
 }
+
+.slot-chip.is-selected {
+  background: var(--forest-light);
+  border-width: 2px;
+  padding: calc(var(--space-xs) - 1px) calc(var(--space-2xs) - 1px);
+}
+
+.patient-slot-month {
+  border-radius: var(--radius-pill);
+}
+
+.patient-slot-month[aria-selected='true'] {
+  border-width: 2px;
+  padding: calc(var(--space-2xs) - 1px) calc(var(--space-sm) - 1px);
+}
+
+/* 日期卡：寬度多留一點，「N 個時段 · ✓ 已選」放得進同一行；真的放不下時只在空白
+   處換行，「已選」兩個字不拆開。 */
+.patient-slot-dates {
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+}
+
+.patient-slot-date {
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
+}
+
+.patient-slot-date small {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.patient-slot-date[aria-selected='true'] {
+  border-width: 2px;
+  padding: calc(var(--space-xs) - 1px);
+}
+
+/* 焦點環統一用 --focus-ring（styles.css 的幾條元件規則原本用 forest 或 currentColor）。 */
+.service-choice:focus-visible,
+.slot-chip:focus-visible,
+.booking-back:focus-visible,
+.patient-slot-date:focus-visible,
+.patient-slot-month:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------
+ * 8. 頁尾：淺色四欄（官網同款），主題選單與隱私權政策收在最後一欄
+ * ------------------------------------------------------------------ */
+.patient-body .patient-footer {
+  background: var(--booking-footer);
+  color: var(--ink);
+  display: block;
+  padding: 0;
+}
+
+.patient-body .patient-footer > .booking-footer {
+  display: block;
+  margin: 0 auto;
+  width: var(--brand-shell);
+}
+
+.booking-footer__grid {
+  display: grid;
+  gap: var(--space-xl);
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  padding: var(--space-2xl) 0 var(--space-xl);
+}
+
+/* 每一欄都是「標題、內容」直排、間距一致；justify-items 讓連結與選單不被拉滿欄寬。 */
+.booking-footer__grid > div {
+  align-content: start;
+  display: grid;
+  gap: var(--space-xs);
+  justify-items: start;
+}
+
+.booking-footer h2 {
+  color: var(--forest-dark);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  margin: 0;
+}
+
+.booking-footer p,
+.booking-footer address,
+.patient-body .patient-footer span {
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  font-style: normal;
+  margin: 0;
+}
+
+.booking-footer address {
+  display: grid;
+  gap: var(--space-3xs);
+  justify-items: start;
+}
+
+.booking-footer__brand > img {
+  display: block;
+  filter: var(--brand-mark-filter);
+  height: 2.75rem;
+  width: auto;
+}
+
+.booking-footer__brand p {
+  max-width: 23rem;
+}
+
+.booking-footer__legal {
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-lg);
+  padding: var(--space-sm) 0;
+}
+
+@media (max-width: 64rem) {
+  .booking-footer__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 48rem) {
-  .patient-body {
-    --patient-header-height: 4.5rem;
+  .booking-footer__grid {
+    gap: var(--space-lg);
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-xl) 0 var(--space-lg);
   }
-  .patient-header-inner {
-    min-height: var(--patient-header-height);
-    gap: var(--space-2xs) var(--space-xs);
+}
+
+/* ------------------------------------------------------------------
+ * 9. 手機
+ * ------------------------------------------------------------------ */
+@media (max-width: 48rem) {
+  .patient-body::before {
+    height: 18rem;
   }
+
+  .patient-site-link {
+    display: none;
+  }
+
+  .patient-header .patient-management-open {
+    margin-inline-start: auto;
+  }
+
+  .patient-header .brand img {
+    height: 2.5rem;
+  }
+
+  .patient-hero {
+    padding: var(--space-xl) 0 var(--space-xs);
+  }
+
+  .booking-layout {
+    padding-bottom: var(--space-2xl);
+  }
+
   .booking-panel {
     padding: var(--space-lg);
   }
 }
+
 @media (max-width: 30rem) {
   .booking-panel {
     padding: var(--space-sm);
   }
 }
+
+/* ------------------------------------------------------------------
+ * 10. 動態與高對比
+ * ------------------------------------------------------------------ */
+/* 按鈕 hover 的 1px 上浮是 styles.css 給的；偏好減少動態時收掉。 */
+@media (prefers-reduced-motion: reduce) {
+  .button:not(:disabled):hover {
+    transform: none;
+  }
+}
+
 @media (forced-colors: active) {
+  .patient-body::before {
+    display: none;
+  }
+
+  .patient-header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: Canvas;
+    border-bottom: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
   .patient-header,
+  .patient-info,
   .patient-contact-card,
   .booking-panel,
-  .service-choice {
+  .service-choice,
+  .patient-slot-date {
     box-shadow: none;
   }
 }

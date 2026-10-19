@@ -319,10 +319,10 @@ test.describe('internal-test booking occupancy overlay', () => {
       '內部測試路由'
     );
     await expect(
-      page.locator('.patient-header .environment-badge')
+      page.locator('.patient-notice .environment-badge')
     ).toContainText('LOCAL TEST ONLY');
     await expect(
-      page.locator('.patient-header .environment-badge')
+      page.locator('.patient-notice .environment-badge')
     ).not.toContainText('INTERNAL TEST');
   });
 
@@ -341,7 +341,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       '內部測試路由 · 非正式上線'
     );
     await expect(
-      page.locator('.patient-header .environment-badge')
+      page.locator('.patient-notice .environment-badge')
     ).toContainText('INTERNAL TEST');
   });
 
