@@ -72,7 +72,7 @@ describe('runVitest', () => {
     expect(processObject.exitCode).toBe(1);
   });
 
-  it('reports an asynchronous spawn error and ignores a later successful close', async () => {
+  it('handles async spawn error before a later close(0)', async () => {
     const { child, processObject, spawnProcess } = createHarness();
     const reportError = vi
       .spyOn(console, 'error')
@@ -89,7 +89,7 @@ describe('runVitest', () => {
     );
   });
 
-  it('reports a synchronous spawn throw through the same failure path', async () => {
+  it('reports a sync spawn throw through the same failure path', async () => {
     const processObject = {
       execPath: '/synthetic/node',
       argv: [

@@ -8,7 +8,10 @@ const vitestEntryPoint = fileURLToPath(
   new URL('../node_modules/vitest/vitest.mjs', import.meta.url)
 );
 
-export function runVitest({ spawnProcess = spawn, processObject = process } = {}) {
+export function runVitest({
+  spawnProcess = spawn,
+  processObject = process
+} = {}) {
   return new Promise((resolveCompletion) => {
     let completed = false;
 
