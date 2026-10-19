@@ -6,7 +6,11 @@ const localMessage = '工作臺已就緒。資料只保存在這台裝置的瀏�
 const apiMessage =
   '工作臺已就緒。預約資料以內部測試服務為準，部分介面資料仍保存在這台裝置的瀏覽器。';
 
-function harness({ apiMode = false, authenticated = true, denied = false } = {}) {
+function harness({
+  apiMode = false,
+  authenticated = true,
+  denied = false
+} = {}) {
   vi.stubGlobal('sessionStorage', { getItem: () => null });
   vi.stubGlobal('document', { documentElement: { dataset: {} } });
   vi.stubGlobal('window', {
@@ -46,14 +50,17 @@ describe('workbench start copy follows the selected transport without widening a
   it.each([
     { apiMode: false, message: localMessage },
     { apiMode: true, message: apiMessage }
-  ])('describes the actual data boundary in API mode=$apiMode', async (mode) => {
-    const h = harness(mode);
-    await h.boot();
-    expect(h.request).toHaveBeenCalledWith('/state');
-    expect(h.workbench.message).toHaveBeenCalledWith(mode.message, 'success');
-    expect(h.workbench.enforceRoleDomBoundary).toHaveBeenCalledOnce();
-    expect(h.workbench.loadStaffServerAuthority).not.toHaveBeenCalled();
-  });
+  ])(
+    'describes the actual data boundary in API mode=$apiMode',
+    async (mode) => {
+      const h = harness(mode);
+      await h.boot();
+      expect(h.request).toHaveBeenCalledWith('/state');
+      expect(h.workbench.message).toHaveBeenCalledWith(mode.message, 'success');
+      expect(h.workbench.enforceRoleDomBoundary).toHaveBeenCalledOnce();
+      expect(h.workbench.loadStaffServerAuthority).not.toHaveBeenCalled();
+    }
+  );
 
   it('does not turn a failed state load into a successful start', async () => {
     const h = harness({ apiMode: true });
