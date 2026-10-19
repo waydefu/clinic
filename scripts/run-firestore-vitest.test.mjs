@@ -74,9 +74,7 @@ describe('runVitest', () => {
 
   it('handles async spawn error before a later close(0)', async () => {
     const { child, processObject, spawnProcess } = createHarness();
-    const reportError = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
+    const reportError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const completion = runVitest({ spawnProcess, processObject });
 
     child.emit('error', new Error('synthetic spawn failure'));
@@ -102,9 +100,7 @@ describe('runVitest', () => {
     const spawnProcess = vi.fn(() => {
       throw new Error('synthetic synchronous failure');
     });
-    const reportError = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
+    const reportError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const completion = runVitest({ spawnProcess, processObject });
 
