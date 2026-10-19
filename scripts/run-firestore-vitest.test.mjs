@@ -1,4 +1,9 @@
 import { EventEmitter } from 'node:events';
+import { spawnSync } from 'node:child_process';
+import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import process from 'node:process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runVitest } from './run-firestore-vitest.mjs';
@@ -109,5 +114,68 @@ describe('runVitest', () => {
     expect(reportError).toHaveBeenCalledWith(
       'Unable to start Firestore Vitest: synthetic synchronous failure'
     );
+  });
+});
+
+async function withNativeEntryFixture(run) {
+  const fixtureRoot = await mkdtemp(join(tmpdir(), 'firestore-vitest-entry-'));
+  const targetRoot = join(fixtureRoot, 'target');
+  const targetRunner = join(targetRoot, 'scripts', 'run-firestore-vitest.mjs');
+  const aliasRoot = join(fixtureRoot, 'alias');
+
+  try {
+    await mkdir(join(targetRoot, 'scripts'), { recursive: true });
+    await mkdir(join(targetRoot, 'node_modules', 'vitest'), { recursive: true });
+    await cp(
+      fileURLToPath(new URL('./run-firestore-vitest.mjs', import.meta.url)),
+      targetRunner
+    );
+    await writeFile(
+      join(targetRoot, 'node_modules', 'vitest', 'vitest.mjs'),
+      'process.exit(23);\n'
+    );
+    await symlink(
+      targetRoot,
+      aliasRoot,
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
+
+    await run({
+      targetRoot,
+      targetRunner,
+      aliasRunner: join(aliasRoot, 'scripts', 'run-firestore-vitest.mjs')
+    });
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+}
+
+describe('native Node entry detection', () => {
+  it('runs the synthetic Vitest stub for the canonical runner path', async () => {
+    await withNativeEntryFixture(async ({ targetRoot, targetRunner }) => {
+      const result = spawnSync(process.execPath, [targetRunner], {
+        cwd: targetRoot,
+        encoding: 'utf8',
+        timeout: 10_000
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(23);
+    });
+  });
+
+  it('runs the synthetic Vitest stub through a directory alias', async () => {
+    await withNativeEntryFixture(async ({ targetRoot, aliasRunner }) => {
+      const result = spawnSync(process.execPath, [aliasRunner], {
+        cwd: targetRoot,
+        encoding: 'utf8',
+        timeout: 10_000
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(23);
+    });
   });
 });

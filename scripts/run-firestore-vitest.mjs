@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import process from 'node:process';
-import { resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const workspaceRoot = fileURLToPath(new URL('../', import.meta.url));
 const vitestEntryPoint = fileURLToPath(
@@ -52,7 +52,7 @@ export function runVitest({
 
 if (
   process.argv[1] !== undefined &&
-  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   await runVitest();
 }
