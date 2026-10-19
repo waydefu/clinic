@@ -125,7 +125,9 @@ async function withNativeEntryFixture(run) {
 
   try {
     await mkdir(join(targetRoot, 'scripts'), { recursive: true });
-    await mkdir(join(targetRoot, 'node_modules', 'vitest'), { recursive: true });
+    await mkdir(join(targetRoot, 'node_modules', 'vitest'), {
+      recursive: true
+    });
     await cp(
       fileURLToPath(new URL('./run-firestore-vitest.mjs', import.meta.url)),
       targetRunner
