@@ -78,6 +78,89 @@ function onlyBlock(tokens, kind) {
   return matches[0].body;
 }
 
+function literalEnvName(body) {
+  const expressions = directAttributeExpressions(body, 'name');
+  if (expressions.length !== 1) return undefined;
+  const tokens = expressions[0].filter(({ kind }) => kind !== 'newline');
+  if (
+    tokens.length !== 1 ||
+    tokens[0].kind !== 'string' ||
+    !/^[A-Za-z_][A-Za-z0-9_]*$/.test(tokens[0].value)
+  )
+    return undefined;
+  return tokens[0].value;
+}
+
+// Discover only a constant-key, literal-value object; do not evaluate HCL.
+function constantMapKeys(expression) {
+  const tokens = expression.filter(({ kind }) => kind !== 'newline');
+  if (
+    tokens[0]?.kind !== 'symbol' ||
+    tokens[0].value !== '{' ||
+    tokens.at(-1)?.kind !== 'symbol' ||
+    tokens.at(-1).value !== '}'
+  )
+    return undefined;
+  const keys = [];
+  for (let index = 1; index < tokens.length - 1;) {
+    const key = tokens[index++];
+    const equals = tokens[index++];
+    if (
+      !['identifier', 'string'].includes(key.kind) ||
+      !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key.value) ||
+      equals?.kind !== 'symbol' ||
+      equals.value !== '='
+    )
+      return undefined;
+    const value = tokens[index++];
+    if (value?.kind !== 'string' || /[\\]|\$\{|%\{/.test(value.value))
+      return undefined;
+    keys.push(key.value);
+    if (tokens[index]?.value === ',') index += 1;
+  }
+  return new Set(keys).size === keys.length ? keys : undefined;
+}
+
+function dynamicEnvCannotOverrideAuthDomain(block, mainTokens) {
+  const content = onlyBlock(block.body, 'content');
+  const literal = literalEnvName(content);
+  if (literal !== undefined)
+    return literal !== 'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN';
+  if (
+    !attribute(content, 'name', 'env.key') ||
+    directAttributeExpressions(block.body, 'iterator').length !== 0 ||
+    !attribute(
+      block.body,
+      'for_each',
+      'local.apply_enabled ? local.api_secret_env_when_mounted : {}'
+    )
+  )
+    return false;
+
+  const locals = blocks(mainTokens, 'locals');
+  const definitions = (name) =>
+    locals.flatMap((local) => directAttributeExpressions(local.body, name));
+  const mounted = definitions('api_secret_env_when_mounted');
+  const maps = definitions('api_secret_env');
+  if (
+    mounted.length !== 1 ||
+    maps.length !== 1 ||
+    !equalExpression(
+      mounted[0],
+      `local.apply_enabled ? {
+      for env_name, secret_id in local.api_secret_env :
+      env_name => secret_id
+      if can(regex(local.numeric_secret_version, var.api_secret_versions[env_name]))
+    } : {}`
+    )
+  )
+    return false;
+  const keys = constantMapKeys(maps[0]);
+  return (
+    keys !== undefined && !keys.includes('CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN')
+  );
+}
+
 export function inspectC1AuthDomainHcl({
   variables,
   main,
@@ -137,8 +220,22 @@ export function inspectC1AuthDomainHcl({
     if (resources.length !== 1) return false;
     const template = onlyBlock(resources[0].bodyTokens, 'template');
     const container = onlyBlock(template, 'containers');
-    const env = blocks(container, 'env').filter((block) =>
-      attribute(block.body, 'name', '"CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN"')
+    const direct = blocks(container, 'env');
+    if (direct.some((block) => literalEnvName(block.body) === undefined))
+      return false;
+    const dynamic = blocks(container, 'dynamic').filter(
+      (block) => block.labels.length === 1 && block.labels[0] === 'env'
+    );
+    const mainTokens = tokenizeHcl(main);
+    if (
+      dynamic.some(
+        (block) => !dynamicEnvCannotOverrideAuthDomain(block, mainTokens)
+      )
+    )
+      return false;
+    const env = direct.filter(
+      (block) =>
+        literalEnvName(block.body) === 'CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'
     );
     return (
       env.length === 1 &&

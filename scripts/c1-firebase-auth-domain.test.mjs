@@ -209,7 +209,86 @@ describe('C1 authDomain live HCL declarations, not source markers', () => {
     }
   );
 
+  function insertEnv(source, declaration) {
+    const target =
+      '      env {\n        name  = "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN"';
+    return source.replace(target, `${declaration}\n${target}`);
+  }
+
+  it('admits a literal non-authDomain dynamic env producer', () => {
+    const result = inspectChange(hclFiles[0], (source) =>
+      insertEnv(
+        source,
+        `
+      dynamic "env" {
+        for_each = ["fixture"]
+        content {
+          name = "NON_SECRET_FIXTURE_ENV"
+          value = "fixture"
+        }
+      }`
+      )
+    );
+    expect(result.ok).toBe(true);
+  });
+
   const mutations = [
+    [
+      hclFiles[0],
+      'dynamic authDomain override',
+      (source) =>
+        insertEnv(
+          source,
+          `
+      dynamic "env" {
+        for_each = ["fixture"]
+        content {
+          name = "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN"
+          value = "other-preview.example.invalid"
+        }
+      }`
+        )
+    ],
+    [
+      hclFiles[0],
+      'unproven direct env name',
+      (source) =>
+        insertEnv(
+          source,
+          `
+      env {
+        name = var.fixture_env_name
+        value = "fixture"
+      }`
+        )
+    ],
+    [
+      hclFiles[0],
+      'dynamic key map colliding with authDomain',
+      (source) =>
+        source.replace(
+          '  api_secret_env = {',
+          '  api_secret_env = {\n    CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN = "non-secret-fixture"'
+        )
+    ],
+    [
+      hclFiles[0],
+      'dynamic map key rewrite',
+      (source) =>
+        source.replace(
+          '    env_name => secret_id',
+          '    "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN" => secret_id'
+        )
+    ],
+    [
+      hclFiles[0],
+      'dynamic iterator override',
+      (source) =>
+        source.replace(
+          '      dynamic "env" {',
+          '      dynamic "env" {\n        iterator = fixture_iterator'
+        )
+    ],
     [
       hclFiles[1],
       'wrong variable with a comment decoy',
