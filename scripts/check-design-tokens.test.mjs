@@ -172,6 +172,41 @@ describe('token review', () => {
     expect(standaloneSheet.violations).toEqual([]);
   });
 
+  // 2026-10-19：brand-tokens.css 是官網與預約頁共用的 token 定義檔，以 full 樣式表
+  // 掃描。慣例與 styles.css 相同——色值、圓角、陰影的字面值只能寫在 :root（那裡就是
+  // 定義處），元件規則裡出現字面值照樣要擋；而它自成一體（官網也載入它、不載入
+  // styles.css），所以作用域只有它自己的 token。
+  it('lets a token-definition sheet keep literals inside :root only', () => {
+    const definitions = [
+      ':root {',
+      '  --brand-forest: #184f40;',
+      '  --brand-radius-card: 0.75rem;',
+      '  --brand-elevation-card: 0 0.8rem 2rem rgb(22 72 58 / 5%);',
+      '}'
+    ].join('\n');
+    const scope = [...definedTokens(definitions)];
+
+    const clean = planTokenReview(
+      sheets([
+        { name: 'brand-tokens.css', source: definitions, scope, full: true }
+      ])
+    );
+    expect(clean.violations).toEqual([]);
+
+    const leaked = planTokenReview(
+      sheets([
+        {
+          name: 'brand-tokens.css',
+          source: `${definitions}\n.card { color: #184f40; border-radius: 12px; }`,
+          scope,
+          full: true
+        }
+      ])
+    );
+    expect(leaked.violations.join('\n')).toContain('#184f40');
+    expect(leaked.violations.join('\n')).toContain('12px');
+  });
+
   // scope 規則對兩種樣式表都適用：用了沒定義的 token，宣告一樣會靜默失效。
   it('applies the scope rule to a standalone sheet as well', () => {
     const review = planTokenReview(

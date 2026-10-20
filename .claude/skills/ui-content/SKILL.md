@@ -95,6 +95,21 @@ way to obtain first-level knowledge. Resolve unreadable or conflicting source
 labels through review, not plausible guessing. “Unavailable in source” and
 “not applicable” are different entries.
 
+## Earn trust with facts, not adjectives
+
+Research on health sites finds that appearance decides rejection while credible
+information decides selection. Before handing copy over, check the Stanford web
+credibility points that apply: the real organisation is visible (name, address,
+hours, licence where appropriate); doctors are named with verifiable credentials;
+contact is easy; pages show when they were last reviewed; promotion is
+restrained; there are no typos or broken links. Treatment pages are health
+education in this order: what it is, causes or structure, who should be
+assessed, what the visit involves, aftercare and risks. Never add outcome rates,
+before/after comparisons, testimonials, rankings or guarantees (Medical Care Act
+arts. 85–87). Name everyday functions (breathing through the nose, sleeping,
+smell) rather than leading with disease. Quotation marks are 「」 and 『』;
+emphasis is weight, never italics.
+
 ## Review the actual outcome
 
 Compare original and revised meanings, then inspect the rendered reading order,

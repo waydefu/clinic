@@ -206,11 +206,12 @@ async function prepareBookingStepOne(page: Page): Promise<void> {
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.locator('#patient-title')).toBeVisible();
   await expect(page.locator('.booking-clinic-info')).toHaveCount(0);
+  // 2026-10-19：頁首標誌與「回官網」連到官網，出口只有這兩處。
   await expect(page.locator('.patient-header .brand')).toHaveAttribute(
     'href',
-    '/booking'
+    '/clinic'
   );
-  await expect(page.locator('a[href="/clinic"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/clinic"]')).toHaveCount(2);
   await expect(page.locator('a[href="/clinic/doctors"]')).toHaveCount(0);
   await expect(page.locator('a[href="/"]')).toHaveCount(0);
 }

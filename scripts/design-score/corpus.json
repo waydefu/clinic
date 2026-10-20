@@ -1,0 +1,197 @@
+{
+  "description": "美學計分的參考與驗證語料。award＝Awwwards 健康／診所類 2023 年起獲榮譽提名或每日最佳；nominee＝同類別有提名但未得獎；baseline＝一般台灣診所網站；subject＝本專案受測版本。網址與獎項於 2026-10-12 從 Awwwards 網站頁讀取。網站可能在得獎後改版，標籤反映的是得獎當時的版本，這是語料的已知雜訊。",
+  "collectedOn": "2026-10-12",
+  "entries": [
+    {
+      "name": "award-heva-health",
+      "url": "https://www.hevahealth.com/",
+      "label": "award",
+      "note": "Site of the Day 2024-07-26"
+    },
+    {
+      "name": "award-function-health",
+      "url": "https://www.functionhealth.com/",
+      "label": "award",
+      "note": "Honorable Mention 2024-07-09"
+    },
+    {
+      "name": "award-bevel-health",
+      "url": "https://www.bevel.health/",
+      "label": "award",
+      "note": "Honorable Mention 2026-05-11"
+    },
+    {
+      "name": "award-pomegranate-health",
+      "url": "https://pomegranate.health/",
+      "label": "award",
+      "note": "Honorable Mention 2025-07-26"
+    },
+    {
+      "name": "award-nervana-health",
+      "url": "https://nervana.reformcollective.com/",
+      "label": "award",
+      "note": "Honorable Mention 2025-02-03"
+    },
+    {
+      "name": "award-sky-clinics",
+      "url": "https://skyclinics.al/",
+      "label": "award",
+      "note": "Honorable Mention 2026-07-14"
+    },
+    {
+      "name": "award-klearmind",
+      "url": "https://klearmindclinics.com/",
+      "label": "award",
+      "note": "Honorable Mention 2025-08-30"
+    },
+    {
+      "name": "award-debski-clinic",
+      "url": "https://www.debskiclinic.pl/",
+      "label": "award",
+      "note": "Honorable Mention 2023-10-24"
+    },
+    {
+      "name": "award-royal-clinic",
+      "url": "https://royalclinic.pl/",
+      "label": "award",
+      "note": "Honorable Mention 2023-09-18"
+    },
+    {
+      "name": "award-asterie-clinic",
+      "url": "https://asterieclinic.com.au/",
+      "label": "award",
+      "note": "Honorable Mention 2023-08-02",
+      "exclude": "2026-10-12 網域已停放（GoDaddy 待售頁），不是診所網站"
+    },
+    {
+      "name": "nominee-pegasus-clinic",
+      "url": "https://pegasus-clinic.com/",
+      "label": "nominee",
+      "note": "nominee 2025-09-06",
+      "exclude": "2026-10-12 防火牆擋下自動化瀏覽（NinjaFirewall）"
+    },
+    {
+      "name": "nominee-sakai-kids-dental",
+      "url": "https://sakai-kids-dc.com/",
+      "label": "nominee",
+      "note": "nominee 2025-01-13",
+      "exclude": "2026-10-12 防火牆擋下自動化瀏覽"
+    },
+    {
+      "name": "nominee-kaminskyi-clinic",
+      "url": "https://kaminskyi.clinic/en/",
+      "label": "nominee",
+      "note": "nominee 2024-03-22",
+      "exclude": "2026-10-12 只剩「網站已搬家」通知頁"
+    },
+    {
+      "name": "nominee-marylebone-smile",
+      "url": "https://marylebonesmileclinic.co.uk/",
+      "label": "nominee",
+      "note": "nominee 2024-04-17"
+    },
+    {
+      "name": "nominee-memory-clinic",
+      "url": "https://cliniquememoire.ca/",
+      "label": "nominee",
+      "note": "nominee 2023-09-04"
+    },
+    {
+      "name": "nominee-mave-health",
+      "url": "https://www.mavehealth.com/",
+      "label": "nominee",
+      "note": "nominee 2026-02-14"
+    },
+    {
+      "name": "nominee-cascaid-health",
+      "url": "https://www.cascaidhealth.com/",
+      "label": "nominee",
+      "note": "nominee 2026-02-09"
+    },
+    {
+      "name": "nominee-heureka-health",
+      "url": "https://heureka.health/",
+      "label": "nominee",
+      "note": "nominee 2025-02-26"
+    },
+    {
+      "name": "baseline-beauessence-official",
+      "url": "https://beauessence.com.tw/",
+      "label": "baseline",
+      "note": "診所現行官網（廠商經營）"
+    },
+    {
+      "name": "baseline-nisshin-clinic",
+      "url": "https://www.nisshinclinic.com.tw/",
+      "label": "baseline",
+      "note": "板橋耳鼻喉科"
+    },
+    {
+      "name": "baseline-hung-clinic",
+      "url": "https://www.hungclinic.com.tw/",
+      "label": "baseline",
+      "note": "內湖耳鼻喉科"
+    },
+    {
+      "name": "baseline-jt-clinic",
+      "url": "https://www.jtclinic.com.tw/",
+      "label": "baseline",
+      "note": "高雄耳鼻喉科"
+    },
+    {
+      "name": "baseline-zhengou-ent",
+      "url": "https://www.zhengouent.com/",
+      "label": "baseline",
+      "note": "台中耳鼻喉科"
+    },
+    {
+      "name": "baseline-yikang-ent",
+      "url": "https://ecom.1655.com.tw/",
+      "label": "baseline",
+      "note": "台北耳鼻喉科"
+    },
+    {
+      "name": "baseline-drbird",
+      "url": "https://drbird.tw/",
+      "label": "baseline",
+      "note": "台灣診所（研究中列為宣傳型基準）",
+      "exclude": "2026-10-12 首頁輪播圖在自動化截圖中沒有載出，首屏大片空白"
+    },
+    {
+      "name": "baseline-highendvision",
+      "url": "http://highendvision.com.tw/",
+      "label": "baseline",
+      "note": "台灣眼科診所"
+    },
+    {
+      "name": "baseline-aasta-clinic",
+      "url": "https://www.aastaclinic.com.tw/",
+      "label": "baseline",
+      "note": "台北皮膚科"
+    },
+    {
+      "name": "baseline-derma-clinic",
+      "url": "https://www.dermaclinic.com.tw/",
+      "label": "baseline",
+      "note": "台北皮膚科"
+    },
+    {
+      "name": "baseline-docj",
+      "url": "http://docj.com.tw/",
+      "label": "baseline",
+      "note": "台北皮膚科"
+    },
+    {
+      "name": "subject-branch",
+      "url": "http://127.0.0.1:3210/clinic",
+      "label": "subject",
+      "note": "改版分支目前版本（dist，含測試版橫幅）"
+    },
+    {
+      "name": "subject-v14-prototype",
+      "url": "http://127.0.0.1:3216/clinic",
+      "label": "subject",
+      "note": "GPT 原型 v14"
+    }
+  ]
+}

@@ -27,13 +27,20 @@ import process from 'node:process';
 // 療程圖從官網抓回來時是三種格式混著（PNG／JPG／WebP），輸出統一成 WebP，所以
 // 來源檔名要另外對照。
 const SERVICE_SOURCES = {
-  // 原本是 service-snoring.png（五個成因的資訊圖）。2026-08-07 那份內容改以 HTML
-  // 呈現，卡片圖換成官網「打鼾嚴重的常見症狀」裡的側睡人物插圖，只取插圖。
-  snoring: 'service-snoring-symptoms.jpg',
+  // 2026-10-12 業主換圖：止鼾五合一與鼻中隔手術改用業主以 AI 工具產生的水彩插圖
+  // （權利依據見 manifest 的 additionalLicences）。舊來源 service-snoring-symptoms.jpg
+  // 與 service-septoplasty.jpg 已移除，需要時從 git 歷史取回。
+  snoring: 'service-snoring-open-mouth.webp',
   turbinate: 'service-turbinate.jpg',
-  septoplasty: 'service-septoplasty.jpg',
+  septoplasty: 'service-septoplasty-fatigue.webp',
   mouthguard: 'service-mouthguard.webp'
 };
+
+// 四張療程圖共用的底色。2026-10-12 的兩張插圖是透明底（約四成畫面透明），卡片與
+// 內頁主圖都用 cover 填滿 4:3 框，透明處會透出區塊底色而像缺角，所以先鋪底色再畫；
+// 下鼻甲與牙套改成整圓取出後也放在這個底色上。顏色原本量自那兩張投影片右側的底色
+// rgb(237 238 219)。
+const SERVICE_PAPER = 'rgb(237 238 219)';
 
 // 置中裁切最多容許丟掉多少來源面積。超過就必須宣告 `focus`，否則建置失敗。
 //
@@ -71,9 +78,10 @@ const TARGETS = [
     width: 800,
     quality: 0.5
   },
-  // 醫師照：`.clinic-card-grid--doctors` 最寬 54rem／2 欄，扣掉 2rem gap 後每張
-  // 約 416px，`aspect-ratio: 4 / 4.2`。760 是 1.83 倍——doctor-yan 原圖只有
-  // 825px 寬，2 倍會變成放大既有像素，那只會讓檔案變大而不會變清楚。
+  // 醫師照：最大的顯示位置是醫師個人頁的 `.clinic-doctor-profile__image`（1440 寬時
+  // 約 514px，`aspect-ratio: 4 / 4.2`）；醫師團隊卡片更小。760 約是 1.5 倍——doctor-yan
+  // 原圖只有 825px 寬，2 倍會變成放大既有像素，那只會讓檔案變大而不會變清楚。
+  // （2026-10-12 前這裡依的是已刪除的 `.clinic-card-grid--doctors`，數字隨之更新。）
   {
     source: 'doctor-yan.png',
     output: 'doctor-yan.webp',
@@ -88,11 +96,13 @@ const TARGETS = [
     aspect: 4 / 4.2,
     quality: 0.76
   },
-  // 療程卡：`.clinic-card-grid--services` 4 欄，shell 最寬 73rem，扣掉 3 道
-  // 2rem gap 後每張約 268px，`aspect-ratio: 4 / 3`。
+  // 療程圖：首頁服務列的縮圖是 7rem 寬；最大的顯示位置是療程內頁的
+  // `.clinic-service-hero__image`（1440 寬時約 522px，`aspect-ratio: 4 / 3`）。
+  // （2026-10-12 前這裡依的是已刪除的 `.clinic-card-grid--services`。）
   //
-  // 這三張來源是 2560×1440 的行銷投影片：標題與內文排在左半、插圖排在右半、
-  // 品牌標誌在右上。置中裁到 4:3 會從兩側各切掉 320px，正好切在標題上——
+  // 下鼻甲與牙套兩張來源是 2560×1440 的行銷投影片（2026-10-12 之前鼻中隔也是）：
+  // 標題與內文排在左半、插圖排在右半、品牌標誌在右上。置中裁到 4:3 會從兩側各切掉
+  // 320px，正好切在標題上——
   // 「下鼻甲手術」→「鼻甲手術」、「好眠牙套」→「子眠牙套」。
   //
   // 因此裁到**只取右側插圖**：投影片上的標題與內文本來就與卡片自己的 title／
@@ -107,7 +117,12 @@ const TARGETS = [
     output: 'service-turbinate.webp',
     width: 540,
     aspect: 4 / 3,
-    focus: { cx: 0.783, cy: 0.6, halfW: 0.2168 },
+    // 2026-10-12：右側插圖是一個直徑約 860px 的圓，比文字右緣以右能裁出的 4:3 框
+    // 還高，舊的 focus 裁法會切掉圓的上下緣，看起來像被剪壞。改成沿圓周整個剪下、
+    // 放在與另外三張相同的底色上。圓心與半徑是在圓周上取 180 條射線、以最小平方法
+    // 擬合出來的（殘差中位數 0.3px）。
+    disc: { x: 1985.3, y: 882.5, r: 430.2, height: 0.86 },
+    background: SERVICE_PAPER,
     quality: 0.78
   },
   {
@@ -115,30 +130,38 @@ const TARGETS = [
     output: 'service-septoplasty.webp',
     width: 540,
     aspect: 4 / 3,
-    // 這張的插圖是自由形狀（枕頭＋人物），比另外兩張的圓形寬。
-    focus: { cx: 0.775, cy: 0.605, halfW: 0.225 },
-    quality: 0.78
+    // 來源是直式 1072×1467（桌前揉眼的人物，下方是水瓶、紙與筆），裁成 4:3 一定
+    // 會丟掉約 45%。保留頭部、揉眼的手與肩膀：取全寬，上緣 y≈100（頭髮從 y≈178
+    // 開始），下緣 y≈904，剛好停在水瓶蓋（y≈915）之前，不留半截瓶蓋。
+    focus: { cx: 0.5, cy: 0.342, halfW: 0.5 },
+    background: SERVICE_PAPER,
+    // 水彩紙紋很吃位元組：0.78 是 17.2 KiB，0.62 是 13.5 KiB，肉眼比對看不出差別。
+    quality: 0.62
   },
   {
     source: SERVICE_SOURCES.mouthguard,
     output: 'service-mouthguard.webp',
     width: 540,
     aspect: 4 / 3,
-    focus: { cx: 0.822, cy: 0.585, halfW: 0.178 },
+    // 同上：灰色圓直徑約 845px，舊裁法切掉圓的左下。牙套線稿整個在圓內。
+    disc: { x: 2088.6, y: 897.9, r: 422.8, height: 0.86 },
+    background: SERVICE_PAPER,
     quality: 0.78
   },
-  // 止鼾五合一那張沒有插圖可取——整張都是資訊（5 個成因、8 個子項）。它已於
-  // 2026-08-07 改以 HTML 呈現（`clinic-content.js` 裡「打鼾的五個常見成因」那一節），
-  // 卡片圖改用官網「打鼾嚴重的常見症狀」裡的側睡人物插圖，同樣只取插圖、不含文字。
+  // 止鼾五合一：仰睡張口呼吸的人物插圖。「打鼾的五個常見成因」自 2026-08-07 起以
+  // HTML 呈現（`clinic-content.js`），卡片圖只放插圖、不含文字。
   {
     source: SERVICE_SOURCES.snoring,
     output: 'service-snoring.webp',
     width: 540,
     aspect: 4 / 3,
-    // 兩側都有文字：左欄最右緣 x≈0.454、右欄最左緣 x≈0.705，可用範圍只有中間
-    // 0.251 寬，所以 halfW 卡在 0.125。
-    focus: { cx: 0.5795, cy: 0.615, halfW: 0.125 },
-    quality: 0.78
+    // 來源 1536×1024（3:2）的頭髮頂端在 y≈28，裁成 4:3 時頭頂貼著上緣、手肘與枕頭
+    // 被切掉，看起來像被剪壞（業主要求療程縮圖不要有被切的感覺）。改成不裁切：整張
+    // 放進 4:3、靠下對齊，上方約 11% 由底色補上。
+    letterbox: 'bottom',
+    background: SERVICE_PAPER,
+    // 水彩紙紋很吃位元組：0.78 與 0.62 肉眼比對看不出差別，取 0.62。
+    quality: 0.62
   },
   // 照護卡圖示：`.clinic-care-card__icon` 是 4.1rem＝65.6px，`object-fit: contain`。
   // 這四張本來就只有 4–8 KiB，轉檔省下的不多，但留著 PNG 會讓 clinic-assets 同時
@@ -148,6 +171,33 @@ const TARGETS = [
     output: `care-${slug}.webp`,
     width: 132,
     quality: 0.85
+  })),
+  // 2026-10-11 首頁改版：品牌牆是首屏主圖，橫跨整個視窗寬（設計基準 1440px）。
+  // 來源只有 2560px 寬，2 倍會超過原圖，所以取 1920（1.33 倍）。牆面紋理在品質
+  // 0.7 下仍清楚，實測 35.9 KiB；手機用同一檔以 object-position 改成直式構圖。
+  // 來源：官網 2025/06/1-1-scaled-1.webp（sha256 29354ee11aa1…）。
+  {
+    source: 'home-brand-wall.webp',
+    output: 'home-brand-wall.webp',
+    width: 1920,
+    aspect: 16 / 9,
+    quality: 0.7
+  },
+  // 首頁「診所空間」相簿：主圖約佔 shell 的 2/3（約 760px），1280 為 1.68 倍。
+  // 16:10 從 16:9 原圖只裁掉 10% 寬，低於 MAX_BLIND_DISCARD。四張合計實測約 96 KiB。
+  // 來源依序為官網 2025/06/4-1-1-scaled-1.webp、2025/02/5-1-1.jpg、
+  // 2025/06/3-1-scaled-1.webp、2025/02/6-1.jpg；2-1（診桌照）未選用。
+  ...[
+    ['reception', 'webp'],
+    ['lounge', 'jpg'],
+    ['consult', 'webp'],
+    ['treatment', 'jpg']
+  ].map(([slug, extension]) => ({
+    source: `home-space-${slug}.${extension}`,
+    output: `home-space-${slug}.webp`,
+    width: 1280,
+    aspect: 16 / 10,
+    quality: 0.6
   }))
 ];
 
@@ -160,8 +210,18 @@ const TARGETS = [
  * 2026-08-07：這段註解原本只是建議，四張療程圖沒有人照做，於是被置中裁切默默切掉
  * 25～63% 的畫面（標題「止鼾好眠牙套」被切成「子眠牙套」）。現在 main() 有一道
  * fail-closed 門檻會強制執行它，見 MAX_BLIND_DISCARD。
+ *
+ * `letterbox: 'bottom'` 是另一條路：完全不裁切，整張縮進目標比例後靠下對齊，空出來的
+ * 部分由 `background` 補上。只適合透明底或底色單純的插圖，照片會留下一條色帶。
+ *
+ * `disc` 則是把來源上一個圓形插圖整個取出來：以 { x, y, r }（來源像素，量測方式見
+ * TARGETS 的註解）沿圓周剪下，置中放在 `background` 上，直徑佔畫面高度的 `height`。
+ * 剪的半徑比量到的小 1.5px，避免把圓外的投影片底色一起帶進來。
  */
-async function encode(page, { dataUri, trim, width, aspect, focus, quality }) {
+async function encode(
+  page,
+  { dataUri, trim, width, aspect, focus, letterbox, disc, background, quality }
+) {
   return page.evaluate(
     async ({
       uri,
@@ -169,6 +229,9 @@ async function encode(page, { dataUri, trim, width, aspect, focus, quality }) {
       targetWidth,
       targetAspect,
       focusBox,
+      letterboxAlign,
+      discCircle,
+      fill,
       encodeQuality
     }) => {
       const image = new Image();
@@ -226,15 +289,30 @@ async function encode(page, { dataUri, trim, width, aspect, focus, quality }) {
       const trimmed = { width: box.width, height: box.height };
       let discardRatio = 0;
 
+      if (discCircle) {
+        const radius = discCircle.r - 1.5;
+        box = {
+          x: discCircle.x - radius,
+          y: discCircle.y - radius,
+          width: radius * 2,
+          height: radius * 2
+        };
+      }
+      // 這兩種模式都不裁主體，多出來的空間在下面由底色補上。
+      const keepWhole = Boolean(letterboxAlign || discCircle);
+
       if (typeof targetAspect === 'number') {
         const sourceAspect = box.width / box.height;
         // 置中裁切會丟掉多少：兩個比例的比值就是保留的面積比例。
-        discardRatio =
-          1 -
-          Math.min(sourceAspect, targetAspect) /
-            Math.max(sourceAspect, targetAspect);
+        discardRatio = keepWhole
+          ? 0
+          : 1 -
+            Math.min(sourceAspect, targetAspect) /
+              Math.max(sourceAspect, targetAspect);
 
-        if (focusBox) {
+        if (keepWhole) {
+          // 不裁切。
+        } else if (focusBox) {
           // 具名裁切框：主體不在畫面中央時走這條。halfW 是「以來源寬度為單位的
           // 半寬」，高度由目標比例決定，最後把框夾回畫布內，不容許超出邊界。
           let cropWidth = focusBox.halfW * 2 * box.width;
@@ -285,20 +363,70 @@ async function encode(page, { dataUri, trim, width, aspect, focus, quality }) {
       const outputWidth = Math.min(targetWidth, Math.round(box.width));
       const canvas = document.createElement('canvas');
       canvas.width = outputWidth;
-      canvas.height = Math.round(outputWidth / (box.width / box.height));
+      canvas.height = Math.round(
+        outputWidth / (keepWhole ? targetAspect : box.width / box.height)
+      );
+      let destination = {
+        x: 0,
+        y: 0,
+        width: canvas.width,
+        height: canvas.height
+      };
+      if (discCircle) {
+        const size = canvas.height * discCircle.height;
+        destination = {
+          x: (canvas.width - size) / 2,
+          y: (canvas.height - size) / 2,
+          width: size,
+          height: size
+        };
+      } else if (letterboxAlign) {
+        const scale = Math.min(
+          canvas.width / box.width,
+          canvas.height / box.height
+        );
+        const drawWidth = box.width * scale;
+        const drawHeight = box.height * scale;
+        destination = {
+          x: (canvas.width - drawWidth) / 2,
+          y:
+            letterboxAlign === 'bottom'
+              ? canvas.height - drawHeight
+              : (canvas.height - drawHeight) / 2,
+          width: drawWidth,
+          height: drawHeight
+        };
+      }
       const context = canvas.getContext('2d');
       context.imageSmoothingQuality = 'high';
+      if (fill) {
+        context.fillStyle = fill;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      if (discCircle) {
+        context.save();
+        context.beginPath();
+        context.arc(
+          destination.x + destination.width / 2,
+          destination.y + destination.height / 2,
+          destination.width / 2,
+          0,
+          Math.PI * 2
+        );
+        context.clip();
+      }
       context.drawImage(
         image,
         box.x,
         box.y,
         box.width,
         box.height,
-        0,
-        0,
-        canvas.width,
-        canvas.height
+        destination.x,
+        destination.y,
+        destination.width,
+        destination.height
       );
+      if (discCircle) context.restore();
       return {
         dataUrl: canvas.toDataURL('image/webp', encodeQuality),
         width: canvas.width,
@@ -319,6 +447,9 @@ async function encode(page, { dataUri, trim, width, aspect, focus, quality }) {
       targetWidth: width,
       targetAspect: aspect ?? null,
       focusBox: focus ?? null,
+      letterboxAlign: letterbox ?? null,
+      discCircle: disc ?? null,
+      fill: background ?? null,
       encodeQuality: quality
     }
   );
@@ -351,6 +482,9 @@ async function main() {
         width: target.width,
         aspect: target.aspect,
         focus: target.focus,
+        letterbox: target.letterbox,
+        disc: target.disc,
+        background: target.background,
         quality: target.quality
       });
 
@@ -429,8 +563,71 @@ async function main() {
       basis: '診所自有（自行拍攝或委製，著作權屬一森渼診所）',
       confirmedBy: 'wayde.fu',
       confirmedOn: '2026-08-02',
-      scope: '本 manifest 列出的素材，用於本專案的診所官網；無期限限制'
+      scope:
+        '2026-08-02 確認當時本 manifest 已列出的素材，用於本專案的診所官網；無期限限制。' +
+        '之後加入或替換的素材不適用本筆（包括 origin 與 licenceStatus），各以 additionalLicences 逐檔記錄'
     },
+    // 2026-08-02 那次確認只涵蓋當時列出的素材。之後加入的每一批都在這裡逐檔列出
+    // 自己的確認，不借用上面那一筆。
+    additionalLicences: [
+      {
+        files: [
+          'apps/web/clinic-source/home-brand-wall.webp',
+          'apps/web/clinic-source/home-space-reception.webp',
+          'apps/web/clinic-source/home-space-lounge.jpg',
+          'apps/web/clinic-source/home-space-consult.webp',
+          'apps/web/clinic-source/home-space-treatment.jpg'
+        ],
+        origin: 'beauessence.com.tw',
+        basis: '診所自有（自行拍攝或委製，著作權屬一森渼診所）',
+        confirmedBy: 'wayde.fu',
+        confirmedOn: '2026-10-12',
+        scope: '用於本專案的診所官網；無期限限制'
+      },
+      {
+        files: [
+          'apps/web/clinic-source/service-snoring-open-mouth.webp',
+          'apps/web/clinic-source/service-septoplasty-fatigue.webp'
+        ],
+        origin: '業主提供',
+        basis: '業主以 AI 工具產生，業主確認可用於診所官網',
+        confirmedBy: 'wayde.fu',
+        confirmedOn: '2026-10-12',
+        scope: '用於本專案的診所官網',
+        openItem: '上線前再確認所用 AI 工具的商用條款'
+      },
+      {
+        // 2026-10-12 器材與牙套照片同樣不經過本腳本，去背流程記在設計紀錄。
+        files: [
+          'apps/web/clinic-source/device-bipolar-rf.png',
+          'apps/web/clinic-source/device-coagulation-forceps.png',
+          'apps/web/clinic-source/mouthguard-photo.png'
+        ],
+        origin:
+          '業主提供（官網投影片「雙極射頻／微創止鼾凝結消融」與「客製化專屬於您的牙套」，2026-10-12 對話中提供）',
+        basis:
+          '業主指示使用；只去背取出器材與牙套本身，不含投影片上的文字、皇冠與標章',
+        confirmedBy: 'wayde.fu',
+        confirmedOn: '2026-10-12',
+        scope: '下鼻甲手術頁的器材卡片與止鼾好眠牙套頁的實品照',
+        openItem: '上線前確認器材照片是否為廠商產品照、可否用於診所官網'
+      },
+      {
+        // 2026-10-12 首頁地圖不經過本腳本的編碼流程，但權利紀錄集中在這裡。
+        files: [
+          'apps/web/public/clinic-assets/visit-map.svg',
+          'apps/web/public/clinic-assets/visit-map-compact.svg'
+        ],
+        origin:
+          'OpenStreetMap（scripts/build-visit-map.mjs 以 Overpass 匯出的道路、捷運站與公園資料繪製）',
+        basis:
+          'OpenStreetMap 資料採 ODbL 1.0；繪成的地圖屬產出作品（Produced Work），只須標示「© OpenStreetMap 貢獻者」並連到 https://www.openstreetmap.org/copyright',
+        confirmedBy: '依授權條款（不需業主另行確認）',
+        confirmedOn: '2026-10-12',
+        scope:
+          '首頁「門診時間與交通」的預設地圖（桌機寬版與手機近距離版）；頁面以 .clinic-visit__credit 標示來源'
+      }
+    ],
     totals: { sourceBytes, outputBytes },
     assets: entries
   };

@@ -1,77 +1,77 @@
-# Review rendered evidence
+# Critique and polish
 
-Inspect the existing six principal clinic pages at 1440px and 375px before a
-substantial redesign. Read only the repository documents relevant to the
-current decision. Name the main three to five visual defects before making
-large changes.
+The loop that turns a correct page into a crafted one: measure, look, name the
+three weakest relationships, change them, render again. Engineering
+correctness is the floor; a page that passes every gate can still look generic.
 
-## Homepage benchmark gate
+## Each round
 
-Compare the candidate against the selected brief and the strongest relevant
-verified jury-awarded references, not merely against the old website. Use
-[award benchmarks](award-benchmarks.md) and record the reference relationship
-and why it serves this clinic. Existing screenshots detect technical regressions;
-their existence does not approve aesthetic quality. Unapproved prototypes and
-self-manufactured teaching samples cannot promote themselves to the benchmark.
+1. Render the homepage, one doctor page and one treatment page at 1440 × 900
+   and 375 × 844 (DPR 1 for comparability; look at DPR 2–3 for crispness).
+2. Run [ui-score](../../ui-score/SKILL.md) on the same routes. Read the
+   component breakdown and the hard gates before looking at the overall number.
+3. Look at the screenshots at real reading size, whole page and close-ups.
+4. Write the critique below, pick the three weakest relationships, fix them,
+   repeat. Stop a round when the critique finds no structural default and the
+   score has not regressed.
 
-Cross-check consequential decisions with independently created, actually
-inspected works and relevant primary usability/type/motion guidance. State what
-agrees, what conflicts and why the clinic adaptation is selected. Two projects
-from one agency or two pages describing one project are correlated evidence;
-multiple AI opinions do not supply new external sources. Neither source counts
-nor award-score averages establish visual acceptance.
+## Critique protocol
 
-Complete the homepage first. Capture both widths, inspect the first screen,
-whole-page rhythm and necessary close-ups, identify its three weakest or most
-generic areas, change them, then capture again. Changing only the CSS numbers
-you initially chose is not sufficient when the composition is weak.
+Rate each facet of the validated VisAWI model 1–7 and write one sentence of
+evidence for each:
 
-Judge the rendered result:
+- **Simplicity:** one clear protagonist per screen; few alignment lines; nothing
+  competes with the primary task.
+- **Diversity:** enough variation in scale, density and image to keep reading
+  interesting, without breaking the system.
+- **Colour:** roles are consistent; accents are rare and meaningful.
+- **Craftsmanship:** type, space, imagery and motion are integrated skilfully;
+  details are finished. This facet separates award-level from tidy.
 
-- With logo/navigation removed, does the opening still belong to this clinic?
-- Could replacing the copy with SaaS or hotel copy leave the layout intact?
-- Does the first screen form one composition with a clear visual protagonist?
-- Do the image scale/crop, type roles and spacing form a deliberate hierarchy?
-- Is there card soup, a repeated section recipe or another generated-UI default?
-- Does the page alternate dense and open passages instead of uniform padding?
-- Does 375px have a considered composition of its own?
-- Would the maker put this screenshot in a design-company portfolio?
+Then answer, with route, viewport and element for every "no":
 
-If an obvious structural default remains, continue revising the homepage.
-Only then extend its language to the five other pages, with their own content
-rhythm and remembered composition. Mechanical PASS plus generic visuals is
-visual FAIL. A maker's self-review is not human acceptance or medical approval.
+- With the logo removed, does the opening still belong to this clinic?
+- Would replacing the copy with hotel or SaaS copy leave the layout intact?
+  (If yes, the design is not about this content.)
+- Is there card soup or one section recipe repeated?
+- Do hours, contact and booking appear without a decorative detour?
+- Does 375 px read as its own composition?
+- Would a design jury put this screenshot in a portfolio?
 
-## Make criticism inspectable
+Record each issue as: route, viewport/state, element, visible defect, why it
+weakens hierarchy or composition, the concrete change. "More modern" or
+"cleaner" is not a reason.
 
-For each issue record route, viewport/state, element, visible defect, why it
-weakens hierarchy/composition and the concrete change. Do not justify changes
-as merely more modern, premium or clean. Distinguish structural revision from
-minor refinement and retain useful before/after evidence.
+## How score and critique interact
 
-Inspect actual image edges and ink area: alpha margins can shrink a portrait,
-atlas boundaries can appear as seams, and a technically successful extraction
-can leave a broken-looking corner. Test foreground text over the real
-photograph/background. Axe alone cannot establish that contrast.
+- A score drop on a component is a prompt to look, not a verdict. Confirm it on
+  the screenshot before changing anything.
+- Never trade a gate (contrast, target size, motion lint, reduced-motion parity)
+  for score.
+- Do not chase a single metric. If the alignment count improves while the page
+  becomes monotonous, the critique wins.
+- Compare a page with its own previous version and with the award corpus
+  distribution; never with a single favourite reference.
 
-For protected whole graphics, compare the original and rendered canvas: all
-labels, text and image edges remain present, the ratio is unchanged, and no
-cover, mask or clipping rule hides content. Enlarging a scrollable view is a
-reading aid, not permission to edit the graphic. Check keyboard enlargement,
-Escape and focus return, alongside the native text alternative at 200%.
+## Polish checklist
 
-Check all gallery images, not just the first. Verify normal and 200% text,
-actual focus visibility on light and dark surfaces, pause/resume, error/retry
-and competing asynchronous selections. Screenshots do not prove those states.
+- Headings and list items: no one- or two-character last lines at 320, 375,
+  768, 1280 px.
+- Prose measure 17–40 characters; leading set (not `normal`); tracking ≤ 0.05em.
+- Numbers in hours, phones and tables use tabular numerals.
+- Concentric radii; icon-side padding optically balanced.
+- Focus rings visible on every surface, following the radius, in forced colours.
+- Images: no stray crop edges, no sliver of a cut object at a frame edge,
+  consistent background for illustrations, 1 px edge on tinted backgrounds.
+- Hover and focus change colour or opacity only; nothing moves out from under
+  the pointer; no layout shift.
+- Motion passes the lint in ui-score and looks calm at normal speed.
+- Gallery: every image, not just the first; rapid selection; error state.
+- 200% text and WCAG 1.4.12 spacing overrides do not clip anything.
 
 ## Evidence boundaries
 
-Label local source prototypes separately from content-hashed build captures.
-Do not overwrite formal baselines or edit their recorded hashes/dimensions.
-Report mechanical matrix rows as PASS/FAIL/NOT_RUN with their evidence; keep
-physical device, screen-reader and true browser text zoom checks separate.
-
-When shared clinic shell/CSS is integrated, verify all eight routes, including
-the two unchanged personal physician pages. Review their regressions without
-silently expanding the six-page redesign scope. Use `ui-check` and the existing
-formal gates for implementation acceptance.
+Label prototype captures separately from content-hashed build captures; never
+edit recorded baseline hashes. Static screenshots do not prove animation,
+keyboard, screen-reader or real-device behaviour; list those as unverified.
+When shared shell or CSS changes, check all eight clinic routes.

@@ -75,7 +75,13 @@ const CEILINGS = {
     //     明顯改變區塊的呼吸感。網格在 1.5→2→3→4rem 之間跳得很開，官網的
     //     大留白沒有對應的階，該補哪一階要先決定，不是逐條硬套。
     //   - 兩處 `margin: -1px` 是 1px 的邊框對齊修正，不是版面間距。
-    'clinic-site.css': 9
+    //
+    // 2026-10-12 內頁改版刪掉卡片外框、舊首頁殘留規則與已無作用的動效後降到 7。
+    //
+    // 2026-10-12 方向 A+B：療程內文的 2.75rem 與手機頁首的 1.75rem 對齊到 3／2rem，
+    // 錨點偏移改用 --clinic-scroll-anchor-offset；新增一筆 -3rem（首屏資訊卡上移
+    // 一階間距疊在照片下緣）。剩 4 筆：兩處 -1px 邊框修正、404 的 6rem 與這一筆。
+    'clinic-site.css': 4
   },
   '間距 clamp 端點': {
     // 2026-08-07 首次納入檢查。先前 `parts.some(part => part.includes('('))`
@@ -88,7 +94,10 @@ const CEILINGS = {
     // 與「間距字面值」剩下的項目是同一個問題：
     // 網格在 1.5→2→3→4rem 之間跳得很開，官網的大留白沒有對應的階。
     // **要收斂之前得先決定補哪一階，不是逐條硬套。**
-    'clinic-site.css': 11,
+    //
+    // 2026-10-12 內頁改版把頁首、醫師頁、療程頁與預約區塊的留白改成 3／4rem 這兩階，
+    // 並刪掉舊首頁殘留規則，降到 3。
+    'clinic-site.css': 3,
     'styles.css': 2,
     'workbench.css': 1
   },
@@ -101,7 +110,12 @@ const CEILINGS = {
     // 所以沒有可以比對的尺度，端點一律先登記在檯面上。
     // **不要為了讓這個數字歸零而把它們改成 --space-***，那會寫進一條語意不對
     // 的規則；要收斂得先決定容器寬度的級數長什麼樣。
-    'clinic-site.css': 4
+    //
+    // 2026-10-12 header 收合不再縮小品牌圖標（那是版面屬性的動畫），少一筆，降到 3。
+    //
+    // 同日頁首變薄，頁首標誌改以固定高度定尺寸，桌機與手機兩條寬度 clamp 移除，
+    // 剩頁尾標誌一筆，降到 1。
+    'clinic-site.css': 1
   }
 };
 
@@ -642,17 +656,26 @@ async function main() {
   // 沒被掃到的那三份可以隨便寫死色、斷點、字重而這支腳本照樣印「全部為零」——
   // 一個只涵蓋一半的檢查比沒有檢查更容易誤導。實際上 clinic-booking.css 當時
   // 就有一個範圍外的斷點（62rem）。
-  const [styles, workbench, error, clinicBooking, clinicSite, privacy] =
-    await Promise.all([
-      read('styles.css'),
-      read('workbench.css'),
-      read('error.css'),
-      read('clinic-booking.css'),
-      read('clinic-site.css'),
-      read('privacy.css')
-    ]);
+  const [
+    styles,
+    workbench,
+    error,
+    clinicBooking,
+    clinicSite,
+    privacy,
+    brandTokens
+  ] = await Promise.all([
+    read('styles.css'),
+    read('workbench.css'),
+    read('error.css'),
+    read('clinic-booking.css'),
+    read('clinic-site.css'),
+    read('privacy.css'),
+    read('brand-tokens.css')
+  ]);
 
   const base = definedTokens(styles);
+  const brand = definedTokens(brandTokens);
   const withBase = (source) => new Set([...base, ...definedTokens(source)]);
   const sheets = new Map([
     ['styles.css', { source: styles, scope: base, full: true }],
@@ -661,11 +684,20 @@ async function main() {
       'workbench.css',
       { source: workbench, scope: withBase(workbench), full: true }
     ],
-    // clinic-booking.css 同樣與 styles.css 一起載入（患者頁的視覺橋接層）。
+    // clinic-booking.css 同樣與 styles.css 一起載入（患者頁的視覺橋接層），而且
+    // 2026-10-19 起還與 brand-tokens.css 一起載入，所以 --brand-* 也在它的作用域內。
     [
       'clinic-booking.css',
-      { source: clinicBooking, scope: withBase(clinicBooking), full: true }
+      {
+        source: clinicBooking,
+        scope: new Set([...withBase(clinicBooking), ...brand]),
+        full: true
+      }
     ],
+    // brand-tokens.css（2026-10-19）是官網與預約頁共用的 token 定義檔：色值、圓角與
+    // 陰影的字面值只寫在 :root，其餘位置仍受全套規則檢查。它自成一體、不載入
+    // styles.css（官網也會載入它），所以作用域只有它自己的 token。
+    ['brand-tokens.css', { source: brandTokens, scope: brand, full: true }],
     // error.css 與 privacy.css 是自成一頁的獨立樣式表，不載入 styles.css
     // ——它們只有自己的 token，所以只檢查「用了自己沒定義的東西」。
     ['error.css', { source: error, scope: definedTokens(error), full: false }],
