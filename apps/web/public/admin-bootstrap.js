@@ -265,9 +265,7 @@ const compactCalendar = window.matchMedia('(max-width: 48rem)');
 
 function renderWeek() {
   weekStart = initialWeekStart(state, weekStart);
-  // 依寬度擇一渲染，**不是**兩份都畫再用 CSS 藏一份。兩份都在 DOM 裡的話，
-  // 同一筆預約會有兩個 data-week-event 按鈕：下方的點擊處理器會抓到兩個，
-  // 讀螢幕也會唸到兩個同名按鈕。斷點與 workbench.css 的 48rem 一致。
+  // 依 48rem 斷點只畫一份，避免重複預約按鈕、點擊處理與朗讀。
   elements['week-view'].innerHTML = assertRenderable(
     (compactCalendar.matches ? renderAgendaView : renderWeekView)(
       state,
