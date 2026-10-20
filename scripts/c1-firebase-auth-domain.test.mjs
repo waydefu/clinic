@@ -136,6 +136,60 @@ check "auth_domain_required_on_apply" {
   });
 });
 
+describe('C1 authDomain live HCL declarations, not source markers', () => {
+  const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const hclFiles = [
+    'infra/terraform/c1-internal-test-run/main.tf',
+    'infra/terraform/c1-internal-test-run/variables.tf',
+    'infra/terraform/c1-internal-test-run/terraform.tfvars.example',
+    'infra/terraform/c1-internal-test-run/noop.tftest.hcl'
+  ];
+  const sources = [
+    ...hclFiles,
+    'apps/api/src/platform/runtime/c1-firebase-auth-domain.ts',
+    'infra/config/c1-internal-test-config-contract.json'
+  ];
+  const wrappers = [
+    [
+      'line comments',
+      (source) =>
+        source
+          .split('\n')
+          .map((line) => `# ${line}`)
+          .join('\n')
+    ],
+    ['block comment', (source) => `/*\n${source}\n*/\n`],
+    [
+      'inert heredoc',
+      (source) => `unused = <<E1_14_FIXTURE\n${source}\nE1_14_FIXTURE\n`
+    ]
+  ];
+
+  it.each(
+    hclFiles.flatMap((file) =>
+      wrappers.map(([label, wrap]) => [file, label, wrap])
+    )
+  )(
+    'rejects %s when its required policy exists only in %s',
+    (file, _label, wrap) => {
+      const directory = mkdtempSync(join(tmpdir(), 'c1-hcl-live-'));
+      try {
+        for (const source of sources) {
+          mkdirSync(dirname(join(directory, source)), { recursive: true });
+          cpSync(join(repoRoot, source), join(directory, source));
+        }
+        const target = join(directory, file);
+        writeFileSync(target, wrap(readFileSync(target, 'utf8')));
+        const result = inspectC1FirebaseAuthDomainSource(directory);
+        expect(result.ok).toBe(false);
+        expect(result.issues.length).toBeGreaterThan(0);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    }
+  );
+});
+
 describe('C1 firebase authDomain API comparator syntax', () => {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const apiFile = 'apps/api/src/platform/runtime/c1-firebase-auth-domain.ts';
