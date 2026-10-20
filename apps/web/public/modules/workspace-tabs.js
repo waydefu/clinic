@@ -213,8 +213,8 @@ export async function bootStaffWorkbench(workbench) {
     if (workbench.getState().session.authenticated === true && !accessDenied)
       workbench.message(
         workbench.isApi?.() === true
-          ? '已就緒。預約以測試服務為準。'
-          : '已就緒。資料只存本機瀏覽器。',
+          ? '預約依測試服務。'
+          : '資料只存此瀏覽器。',
         'success'
       );
     else workbench.elements['login-account'].focus();

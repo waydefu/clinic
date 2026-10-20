@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { bootStaffWorkbench } from '../public/modules/workspace-tabs.js';
 
-const localMessage = '已就緒。資料只存本機瀏覽器。';
-const apiMessage = '已就緒。預約以測試服務為準。';
+const localMessage = '資料只存此瀏覽器。';
+const apiMessage = '預約依測試服務。';
 
 function harness({
   apiMode = false,

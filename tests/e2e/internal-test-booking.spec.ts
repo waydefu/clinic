@@ -386,9 +386,7 @@ test.describe('internal-test booking occupancy overlay', () => {
   }) => {
     await login(page);
     await page.reload();
-    await expect(page.locator('#status')).toHaveText(
-      '已就緒。資料只存本機瀏覽器。'
-    );
+    await expect(page.locator('#status')).toHaveText('資料只存此瀏覽器。');
 
     await stubV1(page, { slots: [] }, 'closed', {}, { listBookings: () => [] });
     await login(page, undefined, {
@@ -396,9 +394,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       path: '/staff?internalTestBooking=1'
     });
     await page.reload();
-    await expect(page.locator('#status')).toHaveText(
-      '已就緒。預約以測試服務為準。'
-    );
+    await expect(page.locator('#status')).toHaveText('預約依測試服務。');
   });
 
   test('staff opt-in with a closed slot list hides the synthetic bookable grid', async ({
