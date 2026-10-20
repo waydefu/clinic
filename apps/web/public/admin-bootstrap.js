@@ -1,6 +1,6 @@
 // Trusted Types 的 default policy。必須第一個匯入：它要在任何模組
 // 有機會寫 innerHTML 之前就註冊好。
-import './modules/trusted-html.js';
+import { assertRenderable } from './modules/trusted-html.js';
 
 import {
   appointmentPage,
@@ -268,9 +268,13 @@ function renderWeek() {
   // 依寬度擇一渲染，**不是**兩份都畫再用 CSS 藏一份。兩份都在 DOM 裡的話，
   // 同一筆預約會有兩個 data-week-event 按鈕：下方的點擊處理器會抓到兩個，
   // 讀螢幕也會唸到兩個同名按鈕。斷點與 workbench.css 的 48rem 一致。
-  elements['week-view'].innerHTML = (
-    compactCalendar.matches ? renderAgendaView : renderWeekView
-  )(state, weekStart, taipeiTodayDate());
+  elements['week-view'].innerHTML = assertRenderable(
+    (compactCalendar.matches ? renderAgendaView : renderWeekView)(
+      state,
+      weekStart,
+      taipeiTodayDate()
+    )
+  );
   hydrateWeekView(elements['week-view']);
   scrollWeekViewToNow();
   const end = new Date(`${weekStart}T12:00:00Z`);
@@ -617,15 +621,11 @@ function renderAppointmentList() {
   for (const id of [...selectedAppointments])
     if (!visible.has(id)) selectedAppointments.delete(id);
 
-  elements.appointments.innerHTML = renderAppointments(
-    state,
-    filters,
-    appointmentSort,
-    selectedAppointments,
-    {
+  elements.appointments.innerHTML = assertRenderable(
+    renderAppointments(state, filters, appointmentSort, selectedAppointments, {
       page: page.page,
       pageSize: page.pageSize
-    }
+    })
   );
   elements['appointment-result-summary'].textContent =
     `共 ${page.totalCount} 筆結果，本頁顯示 ${page.ids.length} 筆` +
@@ -736,7 +736,9 @@ function countSummary(summaryKey, listKey, selector, unit) {
 // 時段清單在四個地方重畫（首次 render、切換掛號別、選取時段、建立完成）。
 // 集中成一個函式，摘要才不會有某條路徑忘了更新。
 function renderSlotList() {
-  elements.slots.innerHTML = renderSlots(state, slotKind, selectedSlotId);
+  elements.slots.innerHTML = assertRenderable(
+    renderSlots(state, slotKind, selectedSlotId)
+  );
   countSummary('slot-summary', 'slots', '[data-select-slot]', '個可預約時段');
 }
 
@@ -747,8 +749,8 @@ function renderSummary() {
   elements['available-count'].textContent = String(counts.available);
   elements['confirmed-count'].textContent = String(counts.pending);
   elements['completed-count'].textContent = String(counts.completed);
-  elements['task-list'].innerHTML = renderTasks(state);
-  elements['next-up'].innerHTML = renderNextUp(state);
+  elements['task-list'].innerHTML = assertRenderable(renderTasks(state));
+  elements['next-up'].innerHTML = assertRenderable(renderNextUp(state));
   // 待辦件數是「有幾種待辦還沒清掉」，不是總筆數——首頁要回答的是「還有幾件事
   // 要處理」。零筆的待辦本來就不會出現，所以直接數卡片。
   const openTasks = elements['task-list'].querySelectorAll('.task-card').length;
@@ -762,10 +764,17 @@ function renderBookingForm() {
   if (elements['booking-items'].querySelector('label') === null)
     elements['booking-items'].insertAdjacentHTML(
       'beforeend',
-      renderTagOptions(WORKBENCH_PROCEDURES, [], { data: 'data-booking-item' })
+      assertRenderable(
+        renderTagOptions(WORKBENCH_PROCEDURES, [], {
+          data: 'data-booking-item'
+        })
+      )
     );
   if (elements['booking-tags'].querySelector('label') === null)
-    elements['booking-tags'].insertAdjacentHTML('beforeend', renderTagPicker());
+    elements['booking-tags'].insertAdjacentHTML(
+      'beforeend',
+      assertRenderable(renderTagPicker())
+    );
   const slot = state.slots.find((item) => item.id === selectedSlotId);
   elements['booking-slot-hint'].textContent =
     slot === undefined
@@ -779,10 +788,11 @@ function renderBookingForm() {
 function renderCommunicationForms() {
   const a = state.workspace.announcement;
   elements['operations-announcement'].hidden = a.status !== 'published';
-  elements['operations-announcement'].innerHTML =
+  elements['operations-announcement'].innerHTML = assertRenderable(
     a.status === 'published'
       ? `<strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.body)}</span>`
-      : '';
+      : ''
+  );
   if (!isAdminSession()) return;
   elements['announcement-status'].value = a.status;
   elements['announcement-title'].value = a.title;
@@ -793,7 +803,9 @@ function renderCommunicationForms() {
   elements['maintenance-body'].value = m.body;
   elements['maintenance-starts-at'].value = m.startsAt ?? '';
   elements['maintenance-resume-at'].value = m.resumeAt ?? '';
-  elements['release-list'].innerHTML = renderReleases(state.workspace);
+  elements['release-list'].innerHTML = assertRenderable(
+    renderReleases(state.workspace)
+  );
   countSummary(
     'release-list-summary',
     'release-list',
@@ -824,11 +836,12 @@ function render() {
   renderSlotList();
   renderWeek();
   renderAppointmentList();
-  elements['follow-up-list'].innerHTML = renderFollowUps(
-    state,
-    editingFollowUps
+  elements['follow-up-list'].innerHTML = assertRenderable(
+    renderFollowUps(state, editingFollowUps)
   );
-  elements['case-assignment-list'].innerHTML = renderCaseAssignments(state);
+  elements['case-assignment-list'].innerHTML = assertRenderable(
+    renderCaseAssignments(state)
+  );
   // 每個清單的內容都是整批置換，所以清單本身不是 live region；改由這些簡短的
   // 摘要負責公告「變了、現在有幾筆」。詳見 index.html 裡 #appointments 上方的
   // 說明。計數一律直接數 DOM，數字才不會和實際畫出來的東西分家。
@@ -846,13 +859,11 @@ function render() {
   );
   renderCommunicationForms();
   if (isAdminSession()) {
-    elements['published-schedule'].innerHTML = renderSchedule(
-      state.schedule,
-      false
+    elements['published-schedule'].innerHTML = assertRenderable(
+      renderSchedule(state.schedule, false)
     );
-    elements['draft-schedule'].innerHTML = renderSchedule(
-      state.scheduleDraft,
-      true
+    elements['draft-schedule'].innerHTML = assertRenderable(
+      renderSchedule(state.scheduleDraft, true)
     );
     renderBlockedTimesForm();
     elements['schedule-draft-status'].textContent = state.scheduleMeta
@@ -863,25 +874,28 @@ function render() {
       `status-chip ${state.scheduleMeta.draftDirty ? 'is-reserved' : 'is-available'}`;
     elements['publish-schedule'].disabled = !state.scheduleMeta.draftDirty;
     elements['discard-schedule'].disabled = !state.scheduleMeta.draftDirty;
-    elements['account-list'].innerHTML = renderAccounts(state.workspace);
+    elements['account-list'].innerHTML = assertRenderable(
+      renderAccounts(state.workspace)
+    );
     countSummary(
       'account-summary',
       'account-list',
       '[data-account-row]',
       '個帳號'
     );
-    elements['delegation-list'].innerHTML = renderDelegations(state.workspace);
+    elements['delegation-list'].innerHTML = assertRenderable(
+      renderDelegations(state.workspace)
+    );
     countSummary(
       'delegation-summary',
       'delegation-list',
       '[data-authorization-row]',
       '組授權碼'
     );
-    elements['audit-events'].innerHTML = renderAudit(
-      state,
-      elements['audit-filter'].value
+    elements['audit-events'].innerHTML = assertRenderable(
+      renderAudit(state, elements['audit-filter'].value)
     );
-    elements['outbox-jobs'].innerHTML = renderOutbox(state);
+    elements['outbox-jobs'].innerHTML = assertRenderable(renderOutbox(state));
   }
   syncBell();
   // 某些 render helper 會依資料狀態更新 hidden；最後重新套用工作區可見性，
@@ -948,13 +962,15 @@ function syncBell() {
         ]
           .filter((part) => part !== '')
           .join('；')}。`;
-  elements['notification-list'].innerHTML = pending
-    .map(({ appointment: item, reason }) => {
-      const person = state.patients.find((p) => p.id === item.patientId);
-      // 原因要寫出來。清單裡現在有兩種通知，而「排在前面」不是任何人讀得到的線索。
-      return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '—')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
-    })
-    .join('');
+  elements['notification-list'].innerHTML = assertRenderable(
+    pending
+      .map(({ appointment: item, reason }) => {
+        const person = state.patients.find((p) => p.id === item.patientId);
+        // 原因要寫出來。清單裡現在有兩種通知，而「排在前面」不是任何人讀得到的線索。
+        return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '—')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
+      })
+      .join('')
+  );
   elements['notification-goto'].hidden = pending.length === 0;
   if (pending.length === 0) setNotificationOpen(false);
 }
@@ -1656,7 +1672,7 @@ elements.appointments.addEventListener('click', async (event) => {
   // 被下一個看螢幕的人捲到。
   if (action === 'print_intake') {
     const sheet = elements['intake-print'];
-    sheet.innerHTML = renderIntakeSheet(state, id);
+    sheet.innerHTML = assertRenderable(renderIntakeSheet(state, id));
     sheet.hidden = false;
     sheet.removeAttribute('aria-hidden');
     window.print();
@@ -2210,9 +2226,8 @@ elements['release-form'].addEventListener('submit', async (event) => {
 });
 
 elements['audit-filter'].addEventListener('change', () => {
-  elements['audit-events'].innerHTML = renderAudit(
-    state,
-    elements['audit-filter'].value
+  elements['audit-events'].innerHTML = assertRenderable(
+    renderAudit(state, elements['audit-filter'].value)
   );
 });
 

@@ -15,7 +15,7 @@ const calendarPilotEntry = readFileSync(
 describe('CAL-PILOT Trusted Types entrypoint', () => {
   it('loads the single audited default policy before Firebase or application code', () => {
     expect(calendarPilotEntry.trimStart()).toMatch(
-      /^import '\.\.\/public\/modules\/trusted-html\.js';/
+      /^import \{ assertRenderable \} from '\.\.\/public\/modules\/trusted-html\.js';/
     );
     expect(
       calendarPilotEntry.match(/public\/modules\/trusted-html\.js/g)
