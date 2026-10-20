@@ -46,6 +46,7 @@ import {
 } from '../platform/runtime/wp-b2-rate-limiter.js';
 import { InMemoryPatientDirectory } from '../patients/patient-directory.js';
 import { DomainError } from '@beauessence/domain';
+import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 
 type CryptoModule = typeof import('node:crypto');
@@ -290,12 +291,12 @@ describe('accountless booking and return lookup HTTP', () => {
   }
 
   it.each([
-    ['--02-30', 400, 400],
-    ['--02-29', 201, 200]
+    ['--02-30', 400, 404],
+    ['--02-29', 201, 201]
   ] as const)(
-    'enforces yearless calendar validity for create and return lookup: %s',
+    'enforces yearless calendar validity for create and eligible return lookup: %s',
     async (birthDate, createStatus, lookupStatus) => {
-      const { harness } = await start();
+      const { harness, patients } = await start();
       const created = await harness.inject({
         method: 'POST',
         url: '/v1/bookings',
@@ -309,6 +310,29 @@ describe('accountless booking and return lookup HTTP', () => {
       });
       expect(created.statusCode).toBe(createStatus);
 
+      if (birthDate === '--02-29') {
+        const patientId = patients.appointments[0]?.patientId;
+        if (patientId === undefined) {
+          throw new Error(
+            'The accepted synthetic intake must create a patient.'
+          );
+        }
+        // Existing lookup policy requires an eligible follow-up, not just intake.
+        patients.followUp.set(patientId, { required: true });
+      } else {
+        expect(patients.createdPatientCount).toBe(0);
+        // An invalid legacy index must not bypass calendar admission. With the
+        // month-day guard removed, this eligible synthetic row would resolve.
+        const patientId = 'synthetic_impossible_birth';
+        patients.lookup.set(opaqueLookupIdentity(INTAKE.phone, birthDate), [
+          patientId
+        ]);
+        patients.patients.set(patientId, {
+          name: 'Synthetic calendar boundary'
+        });
+        patients.followUp.set(patientId, { required: true });
+      }
+
       const lookedUp = await harness.inject({
         method: 'POST',
         url: '/v1/return-lookup',
@@ -318,6 +342,10 @@ describe('accountless booking and return lookup HTTP', () => {
       if (birthDate === '--02-30') {
         expect(created.body).not.toContain(birthDate);
         expect(lookedUp.body).not.toContain(birthDate);
+        expect(patients.sessions.size).toBe(0);
+      } else {
+        expect(lookedUp.json().outcome).toBe('schedule');
+        expect(patients.sessions.size).toBe(1);
       }
     }
   );
