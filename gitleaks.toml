@@ -10,7 +10,7 @@
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = """
 單元測試裡的合成識別碼。gitleaks 的 generic-api-key 規則會對任何名稱含 key 的
 指派值告警，而本專案的契約測試大量使用冪等鍵——它們是測試資料，不是憑證：
@@ -36,17 +36,23 @@ description = """
 generic-api-key 會把檔名含 auth 的那一列當成金鑰。允許的形狀是
 `<vendor-js>": "<64 lowercase hex>"`。AWS／GitHub／Google 憑證不是這個形狀。
 """
+regexTarget = "secret"
+regexes = [
+  '''^payroll-close-key-\d{4}$''',
+  '''^schedule_publish_\d{4}$''',
+  '''^schedule_publish_occupancy_\d{4}$''',
+  '''^schedule-publish-key-\d{4}$''',
+  '''^booking-idempotency-\d{4}$''',
+  '''^arrive-idempotency-\d{4}$''',
+  '''^complete-idempotency-\d{4}$''',
+  '''^follow-up-idempotency-\d{4}$''',
+  '''^stagef_c1_schedule_publish_v0$'''
+]
+
+[[allowlists]]
+description = "Only the complete synthetic export body or one vendor digest row."
 regexTarget = "line"
 regexes = [
-  '''payroll-close-key-\d{4}''',
-  '''schedule_publish_\d{4}''',
-  '''schedule_publish_occupancy_\d{4}''',
-  '''schedule-publish-key-\d{4}''',
-  '''booking-idempotency-\d{4}''',
-  '''arrive-idempotency-\d{4}''',
-  '''complete-idempotency-\d{4}''',
-  '''follow-up-idempotency-\d{4}''',
-  '''stagef_c1_schedule_publish_v0''',
   '''^\s*body: \{ idempotencyKey: 'synthetic[_]key_\d{10}', format: 'csv' \},\s*$''',
-  '''"[A-Za-z0-9.-]+\.js": "[a-f0-9]{64}"'''
+  '''^\s*"[A-Za-z0-9.-]+\.js": "[a-f0-9]{64}",?\s*$'''
 ]

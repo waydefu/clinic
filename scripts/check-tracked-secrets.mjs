@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 export const forbiddenCredentialPath = [
   /(^|\/)\.env($|\.)/i,
-  /\.(key|p12|pfx|pem)$/i,
+  /\.(key|p12|pfx|pem|crt|cer|der|jks|keystore)$/i,
   /(^|\/)[^/]*(credential|service[-_]?account|secret)[^/]*\.json$/i
 ];
 
@@ -100,8 +100,13 @@ export function renderPassLine({ scanned, deletedInWorktree }) {
   return `Tracked-secret check passed (${scanned} tracked files${skipped}).`;
 }
 
-async function main() {
-  const tracked = execFileSync('git', ['ls-files', '-z'], {
+export async function scanRepository({ cwd = process.cwd() } = {}) {
+  const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd,
+    encoding: 'utf8'
+  }).trim();
+  const tracked = execFileSync('git', ['ls-files', '--full-name', '-z'], {
+    cwd: root,
     encoding: 'utf8'
   })
     .split('\0')
@@ -109,18 +114,28 @@ async function main() {
 
   const sources = new Map(
     await Promise.all(
-      tracked.map(async (filePath) => [
-        filePath,
-        existsSync(filePath) ? await readFile(filePath, 'utf8') : null
-      ])
+      tracked.map(async (filePath) => {
+        const absolute = path.resolve(root, filePath);
+        // Classify forbidden paths without opening their bytes. Untracked
+        // files are never enumerated, from any invocation directory.
+        const source = !existsSync(absolute)
+          ? null
+          : inspectPath(filePath) !== null
+            ? ''
+            : await readFile(absolute, 'utf8');
+        return [filePath, source];
+      })
     )
   );
 
-  const result = scanTrackedFiles({
+  return scanTrackedFiles({
     tracked,
     readSource: (filePath) => sources.get(filePath) ?? null
   });
+}
 
+async function main() {
+  const result = await scanRepository();
   if (result.findings.length > 0) {
     console.error('Tracked-secret check failed:');
     for (const finding of result.findings) console.error(`- ${finding}`);

@@ -13,6 +13,13 @@ coverage/
 !.env.example
 *.pem
 *.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
 service-account*.json
 # Safe local drop for Google service-account keys; nothing here is committed.
 secrets/
