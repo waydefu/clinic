@@ -381,33 +381,41 @@ test.describe('患者預約頁手機版', () => {
   });
 
   // 英文副標先前在 48rem 以下被 display:none 收掉，患者頁的品牌在手機上因此只剩
-  // 中文——而患者頁正是對外的那一面。它疊在標誌的 40px 高度之內，本來就不需要用
-  // 「藏起來」去換版面空間。
-  test('品牌的英文副標在手機仍然看得見', async ({ page }) => {
+  // 中文——而患者頁正是對外的那一面。2026-10-19 起頁首的品牌是官網標誌圖，中英文
+  // 名稱都在圖裡；這條改守「圖載到了、看得見、帶著中英文名稱、沒被擠掉」。
+  test('頁首的品牌標誌在手機看得見、載入成功並帶著中英文名稱', async ({
+    page
+  }) => {
     await page.goto(BOOKING_ROUTE);
-    const subtitle = page.locator('.patient-header .brand small');
-    await expect(subtitle).toBeVisible();
-    // 只釘品牌名，不釘後面那個字。副標在 2026-07-27 併站時由
-    // 「Beau Essence Appointment」改成「Beau Essence Clinic」——那是文案決定，
-    // 這條測試要擋的是**副標整個消失**，不是文案不准改。
-    await expect(subtitle).toContainText('Beau Essence');
+    const logo = page.locator('.patient-header .brand img');
+    await expect(logo).toBeVisible();
+    // 只釘品牌名，不釘完整句子：那是文案決定，這條要擋的是名稱整個消失。
+    await expect(logo).toHaveAttribute('alt', /一森渼診所/);
+    await expect(logo).toHaveAttribute('alt', /Beau Essence/);
+    expect(
+      await logo.evaluate((element: HTMLImageElement) => element.naturalWidth),
+      '標誌沒有載入'
+    ).toBeGreaterThan(0);
 
-    const box = await subtitle.boundingBox();
-    // 一行約 14px。0 高度代表又被收掉了，過高代表被擠成逐字換行。
-    expect(box?.height ?? 0).toBeGreaterThan(8);
-    expect(box?.height ?? 0).toBeLessThan(48);
+    const box = await logo.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 
-  test('booking-only 頁首不暴露診所、醫師或工作臺導覽', async ({ page }) => {
+  // 2026-10-19：標誌連到官網（業主要求兩邊風格一致，出口只有頁首的標誌與「回官網」）。
+  // 醫師頁與工作臺根路徑仍不得出現，也不得長出導覽或漢堡選單。
+  test('booking 頁首只有官網出口，不暴露醫師或工作臺導覽', async ({ page }) => {
     await page.goto(BOOKING_ROUTE);
     await expect(page.locator('.patient-header .brand')).toHaveAttribute(
       'href',
-      '/booking'
+      '/clinic'
     );
     await expect(page.locator('.patient-menu-button')).toHaveCount(0);
     await expect(page.locator('#patient-nav')).toHaveCount(0);
-    await expect(page.locator('a[href="/clinic"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/clinic"]')).toHaveCount(2);
+    await expect(page.locator('.patient-header a[href="/clinic"]')).toHaveCount(
+      2
+    );
     await expect(page.locator('a[href="/clinic/doctors"]')).toHaveCount(0);
     await expect(page.locator('a[href="/"]')).toHaveCount(0);
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
@@ -586,16 +594,21 @@ test.describe('患者預約頁手機版', () => {
 test.describe('患者預約頁在最窄的常見螢幕', () => {
   test.use({ viewport: NARROW });
 
-  // 320px 是英文副標唯一真的可能放不下的寬度。它必須靠換行解決，而不是靠
-  // 消失，而且換行不得把頁面推出水平捲軸。
-  test('320px 下英文副標換行而不是消失', async ({ page }) => {
+  // 320px 是頁首最擠的寬度：標誌與「查詢／取消預約」都必須完整留在畫面內，而且
+  // 不得把頁面推出水平捲軸（2026-10-19 前這裡守的是英文副標不消失）。
+  test('320px 下頁首的標誌與查詢入口都完整在畫面內', async ({ page }) => {
     await page.goto(BOOKING_ROUTE);
-    const subtitle = page.locator('.patient-header .brand small');
-    await expect(subtitle).toBeVisible();
-
-    const box = await subtitle.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThan(8);
-    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(320);
+    for (const selector of [
+      '.patient-header .brand img',
+      '#booking-management-open'
+    ]) {
+      const box = await page.locator(selector).boundingBox();
+      expect(box, selector).not.toBeNull();
+      expect(box?.x ?? -1, selector).toBeGreaterThanOrEqual(0);
+      expect((box?.x ?? 0) + (box?.width ?? 0), selector).toBeLessThanOrEqual(
+        320
+      );
+    }
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 });
@@ -871,7 +884,7 @@ test.describe('internal-test booking on a phone', () => {
     await page.reload();
 
     await expect(
-      page.locator('.patient-header .environment-badge')
+      page.locator('.patient-notice .environment-badge')
     ).toContainText('INTERNAL TEST');
     await expect(page.locator('#patient-env-boundary')).toHaveText(
       '內部測試路由 · 非正式上線'

@@ -199,12 +199,22 @@ describe('clinic route integration', () => {
     }
   });
 
-  it('keeps the vendor booking surface self-contained while preserving its visual layer', () => {
+  // 2026-10-19（業主「官網與預約頁風格要相同」）：預約頁頁首改為官網風格，標誌與
+  // 「回官網」連到 /clinic；醫師頁與工作臺根路徑仍不得出現在預約頁。樣式依序載入
+  // 共用層、品牌 token、預約頁換膚。
+  it('links the booking header to the official site only and loads the brand tokens before the booking skin', () => {
     const patient = repoFile('apps/web/public/patient.html');
-    expect(patient).toContain('class="brand" href="/booking"');
-    expect(patient).not.toContain('href="/clinic"');
+    expect(patient).toContain('class="brand booking-brand" href="/clinic"');
+    expect(patient.match(/<a\b[^>]*\bhref="\/clinic"/g)).toHaveLength(2);
     expect(patient).not.toContain('href="/clinic/doctors"');
     expect(patient).not.toMatch(/<a\b[^>]*\bhref="\/"/);
-    expect(patient).toContain('href="/clinic-booking.css"');
+    const stylesheets = [
+      ...patient.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)
+    ].map((match) => match[1]);
+    expect(stylesheets).toEqual([
+      '/styles.css',
+      '/brand-tokens.css',
+      '/clinic-booking.css'
+    ]);
   });
 });

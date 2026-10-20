@@ -6,9 +6,11 @@ import { fileURLToPath } from 'node:url';
 /**
  * Clinic freeze guard: all 30 files remain protected.
  * The owner's 2026-10-11 decision (docs/product/phase-1-decision-register.md,
- * "官網 `/clinic` 改版提前開發與解凍") lets the homepage redesign merge only
- * after the next C1 deployment. This rebaseline covers the four files that
- * redesign edits: renderer, stylesheet, public content and asset manifest.
+ * "官網 `/clinic` 改版提前開發與解凍") originally tied the homepage redesign's merge to
+ * the next C1 deployment. That was superseded on 2026-10-20: the redesign (Draft PR
+ * #249) is merged now; see the 2026-10-20 register entry
+ * ("官網 `/clinic` 改版（#249）不等 C1，準備合併"). This rebaseline covers the four
+ * files that redesign edits: renderer, stylesheet, public content and asset manifest.
  * On 2026-10-12 the owner also replaced the snoring and septoplasty
  * illustrations (two outputs rehashed, two sources replaced by the new files;
  * the old JPG sources were removed) and asked that no service thumbnail look
@@ -20,6 +22,20 @@ import { fileURLToPath } from 'node:url';
  * redesign files were rehashed. The new map SVGs are not frozen files.
  * Every other asset, source image, guard failure behaviour and deployment
  * boundary stays exactly as the 2026-09-07 revision left it.
+ *
+ * 2026-10-19: the owner asked that the booking page share the official site's
+ * look ("官網與預約頁風格要相同，背景要用現有素材庫的"); the project lead approved the
+ * plan the same day (docs/product/phase-1-decision-register.md, 2026-10-19
+ * booking-page reskin entry). That authorises one more rebaseline, of
+ * apps/web/public/clinic-booking.css only. Every other hash is unchanged,
+ * including soft-green-bg.webp, which the booking page references and never
+ * modifies.
+ *
+ * 2026-10-20: the owner reviewed the restyled page and asked for the clinic info
+ * to move above the booking flow, on the first step only, with no text links
+ * (docs/product/phase-1-decision-register.md, 2026-10-20 follow-up under the same
+ * entry). The two-column layout became one centred column, so
+ * apps/web/public/clinic-booking.css was rebaselined once more. Nothing else.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -31,7 +47,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-content.js':
     '64a8b65bd29f7ee32896a1750d87c341f15bab8c0a6e297c896106c74722b663',
   'apps/web/public/clinic-booking.css':
-    '8a979d8ee09f9203034c45a232cd0500ff61c729a9edd0afc9292057a497c202',
+    '84b381c928eb9cd95b9ec289ceac4fb518e95c8ab15c437bd85c77ea1262d68d',
   'apps/web/clinic-assets.manifest.json':
     '56bce15f8632fd5309689d953e9a0a92a67e6f9c604120fd4ce32e0151ada633',
   'apps/web/public/clinic-assets/care-aftercare.webp':

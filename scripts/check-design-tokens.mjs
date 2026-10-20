@@ -656,17 +656,26 @@ async function main() {
   // 沒被掃到的那三份可以隨便寫死色、斷點、字重而這支腳本照樣印「全部為零」——
   // 一個只涵蓋一半的檢查比沒有檢查更容易誤導。實際上 clinic-booking.css 當時
   // 就有一個範圍外的斷點（62rem）。
-  const [styles, workbench, error, clinicBooking, clinicSite, privacy] =
-    await Promise.all([
-      read('styles.css'),
-      read('workbench.css'),
-      read('error.css'),
-      read('clinic-booking.css'),
-      read('clinic-site.css'),
-      read('privacy.css')
-    ]);
+  const [
+    styles,
+    workbench,
+    error,
+    clinicBooking,
+    clinicSite,
+    privacy,
+    brandTokens
+  ] = await Promise.all([
+    read('styles.css'),
+    read('workbench.css'),
+    read('error.css'),
+    read('clinic-booking.css'),
+    read('clinic-site.css'),
+    read('privacy.css'),
+    read('brand-tokens.css')
+  ]);
 
   const base = definedTokens(styles);
+  const brand = definedTokens(brandTokens);
   const withBase = (source) => new Set([...base, ...definedTokens(source)]);
   const sheets = new Map([
     ['styles.css', { source: styles, scope: base, full: true }],
@@ -675,11 +684,20 @@ async function main() {
       'workbench.css',
       { source: workbench, scope: withBase(workbench), full: true }
     ],
-    // clinic-booking.css 同樣與 styles.css 一起載入（患者頁的視覺橋接層）。
+    // clinic-booking.css 同樣與 styles.css 一起載入（患者頁的視覺橋接層），而且
+    // 2026-10-19 起還與 brand-tokens.css 一起載入，所以 --brand-* 也在它的作用域內。
     [
       'clinic-booking.css',
-      { source: clinicBooking, scope: withBase(clinicBooking), full: true }
+      {
+        source: clinicBooking,
+        scope: new Set([...withBase(clinicBooking), ...brand]),
+        full: true
+      }
     ],
+    // brand-tokens.css（2026-10-19）是官網與預約頁共用的 token 定義檔：色值、圓角與
+    // 陰影的字面值只寫在 :root，其餘位置仍受全套規則檢查。它自成一體、不載入
+    // styles.css（官網也會載入它），所以作用域只有它自己的 token。
+    ['brand-tokens.css', { source: brandTokens, scope: brand, full: true }],
     // error.css 與 privacy.css 是自成一頁的獨立樣式表，不載入 styles.css
     // ——它們只有自己的 token，所以只檢查「用了自己沒定義的東西」。
     ['error.css', { source: error, scope: definedTokens(error), full: false }],

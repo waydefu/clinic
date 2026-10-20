@@ -583,12 +583,29 @@ requireText(
   '勿填真實患者或健康資料；測試資料只存本機瀏覽器。',
   'Patient preview no longer warns against real patient or health data.'
 );
+// 2026-10-19（業主「官網與預約頁風格要相同」，決策登錄同日條）：預約頁頁首改為官網
+// 風格，標誌連到官網 /clinic，並多一條「回官網」文字連結。先前這裡釘的是標誌回
+// /booking（預約頁自成一體）；那條改成釘新的出口，而醫師頁與工作臺根路徑仍不得
+// 出現在預約頁。官網入口只有頁首這兩處。
 requireText(
   files.patientHtml,
-  'class="brand" href="/booking"',
-  'Patient brand no longer returns to the self-contained booking surface.'
+  'class="brand booking-brand" href="/clinic"',
+  'Patient logo no longer links to the official site (/clinic).'
 );
-for (const href of ['/clinic', '/clinic/doctors', '/']) {
+requireText(
+  files.patientHtml,
+  '<a class="patient-site-link" href="/clinic">回官網</a>',
+  'Patient header lost its 回官網 link.'
+);
+{
+  const clinicLinks =
+    files.patientHtml.match(/<a\b[^>]*\bhref=["']\/clinic["']/g) ?? [];
+  if (clinicLinks.length !== 2)
+    failures.push(
+      `Patient booking surface must link to /clinic exactly twice (header logo and 回官網), found ${clinicLinks.length}.`
+    );
+}
+for (const href of ['/clinic/doctors', '/']) {
   const escaped = href.replaceAll('/', '\\/');
   if (
     new RegExp(`<a\\b[^>]*\\bhref=["']${escaped}["']`).test(files.patientHtml)
@@ -689,8 +706,8 @@ if (ogMetadata.clinicHours !== expectedOgHours) {
 }
 for (const [marker, description] of [
   [
-    '<meta property="og:image" content="/og-booking.jpg" />',
-    'patient.html no longer publishes the reviewed Open Graph image'
+    '<meta property="og:image" content="https://beauessence.com.tw/og-booking.jpg" />',
+    'patient.html no longer publishes the reviewed Open Graph image (absolute URL)'
   ],
   [
     '<meta property="og:image:width" content="1200" />',
@@ -701,8 +718,8 @@ for (const [marker, description] of [
     'patient.html no longer declares the Open Graph image height'
   ],
   [
-    '<meta name="twitter:image" content="/og-booking.jpg" />',
-    'patient.html Twitter metadata no longer uses the reviewed Open Graph image'
+    '<meta name="twitter:image" content="https://beauessence.com.tw/og-booking.jpg" />',
+    'patient.html Twitter metadata no longer uses the reviewed Open Graph image (absolute URL)'
   ]
 ])
   requireText(files.patientHtml, marker, description);
