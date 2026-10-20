@@ -129,7 +129,9 @@ describe('assertRenderable', () => {
     }
     expect(failure).toBeInstanceOf(TypeError);
     expect((failure as Error).message).toContain('escapeHtml()');
-    expect((failure as Error).message).not.toContain('SYNTHETIC_PAYLOAD_MARKER');
+    expect((failure as Error).message).not.toContain(
+      'SYNTHETIC_PAYLOAD_MARKER'
+    );
   });
 
   it('coerces once and returns the unchanged safe string', () => {
