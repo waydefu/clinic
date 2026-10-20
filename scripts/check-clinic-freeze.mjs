@@ -5,11 +5,6 @@ import { fileURLToPath } from 'node:url';
 
 /**
  * Clinic freeze guard: all 30 files remain protected.
- * The owner's 2026-09-07 full UI/UX redesign and new-PR instruction authorises
- * only this dated visual revision (docs/design/2026-09-07-ui-ux-redesign-plan.md).
- * Rebaseline only the three edited CSS/renderer files; assets, public content,
- * guard failure behavior and every deployment/operational boundary stay intact.
- *
  * The owner's 2026-10-11 decision (docs/product/phase-1-decision-register.md,
  * "官網 `/clinic` 改版提前開發與解凍") originally tied the homepage redesign's merge to
  * the next C1 deployment. That was superseded on 2026-10-20: the redesign (Draft PR
