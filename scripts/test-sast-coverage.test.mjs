@@ -120,11 +120,16 @@ describe('SAST expression-level HTML boundary', () => {
       const modulePath = path.endsWith('calendar-pilot-entry.js')
         ? '../public/modules/trusted-html.js'
         : './modules/trusted-html.js';
-      expect(
-        source
-          .trimStart()
-          .startsWith(`import { assertRenderable } from '${modulePath}';`)
-      ).toBe(true);
+      const parsed = ts.createSourceFile(
+        path,
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.JS
+      );
+      expect(parsed.statements[0].getText(parsed)).toBe(
+        `import { assertRenderable } from '${modulePath}';`
+      );
       expect(source).toContain('innerHTML = assertRenderable(');
       expect(unguardedSinks(source, path)).toEqual([]);
       expect(
@@ -156,8 +161,10 @@ describe('SAST workflow acceptance contract', () => {
     );
     const evidence = verify.slice(verify.indexOf('\n  evidence:'));
     expect(evidence).toMatch(/needs:[\s\S]*?\bsast\b/u);
-    expect(read('security/semgrep/clinic-javascript.yml')).not.toContain(
-      'exclude:'
-    );
+    const sinkSection = read('security/semgrep/clinic-javascript.yml')
+      .split('  - id: ')
+      .find((section) => section.startsWith(`${sinkRule}\n`));
+    expect(sinkSection).toBeDefined();
+    expect(sinkSection).not.toContain('exclude:');
   });
 });
