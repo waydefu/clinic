@@ -169,9 +169,8 @@ describe('ScheduleController RBAC harness', () => {
     'rejects a schedule response with %s without leaking the rejected payload',
     async (defect) => {
       const harness = await startHarness();
-      const application = harness.get<ScheduleApplicationService>(
-        SCHEDULE_APPLICATION
-      );
+      const application =
+        harness.get<ScheduleApplicationService>(SCHEDULE_APPLICATION);
       const valid = {
         publishedVersion: 1,
         publishedAt: '2029-12-15T09:00:00.000Z',

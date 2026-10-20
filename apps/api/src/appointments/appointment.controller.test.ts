@@ -316,7 +316,9 @@ describe('unrouted AppointmentController RBAC harness', () => {
         defect === 'unexpected field'
           ? { ...valid, unexpectedDetail: 'synthetic_unexpected_response' }
           : { ...valid, endsAt: 'Sep 02 2026 Z' };
-      const create = vi.spyOn(application, 'create').mockResolvedValue(malformed);
+      const create = vi
+        .spyOn(application, 'create')
+        .mockResolvedValue(malformed);
       const request = {
         method: 'POST' as const,
         url: '/v1/bookings',

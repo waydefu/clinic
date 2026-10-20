@@ -42,28 +42,31 @@ const consumers = [
   }
 ];
 
-describe.each(consumers)('$name uses the shared HH:MM boundary', ({ accepts }) => {
-  it.each(['00:00', '00:01', '12:30', '23:59'])('accepts %s', (time) => {
-    expect(accepts(time)).toBe(true);
-  });
+describe.each(consumers)(
+  '$name uses the shared HH:MM boundary',
+  ({ accepts }) => {
+    it.each(['00:00', '00:01', '12:30', '23:59'])('accepts %s', (time) => {
+      expect(accepts(time)).toBe(true);
+    });
 
-  it.each([
-    '24:00',
-    '25:00',
-    '23:60',
-    '00:60',
-    '9:00',
-    '09:0',
-    '09:00:00',
-    '09:00Z',
-    ' 09:00',
-    '09:00 ',
-    '１２:００',
-    ''
-  ])('rejects %s without coercion', (time) => {
-    expect(accepts(time)).toBe(false);
-  });
-});
+    it.each([
+      '24:00',
+      '25:00',
+      '23:60',
+      '00:60',
+      '9:00',
+      '09:0',
+      '09:00:00',
+      '09:00Z',
+      ' 09:00',
+      '09:00 ',
+      '１２:００',
+      ''
+    ])('rejects %s without coercion', (time) => {
+      expect(accepts(time)).toBe(false);
+    });
+  }
+);
 
 describe('independent date primitives retain their own semantics', () => {
   it('does not turn a business month into a calendar date or month-day', () => {

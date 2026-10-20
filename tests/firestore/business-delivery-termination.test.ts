@@ -4,12 +4,10 @@ import {
   DomainError,
   resolveApprovedBusinessDeliveryPolicy
 } from '@beauessence/domain';
-import {
-  BusinessTerminationResponseSchema,
-  type BusinessTerminationResponse
-} from '@beauessence/contracts';
+import type { BusinessTerminationResponse } from '@beauessence/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { BusinessTerminationResponseSchema } from '../../packages/contracts/src/business-delivery.js';
 import {
   EXPORT_COLLECTIONS,
   FirestoreBusinessExportRepository,
