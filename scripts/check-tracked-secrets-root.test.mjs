@@ -4,6 +4,7 @@ import {
   mkdirSync,
   writeFileSync,
   unlinkSync,
+  symlinkSync,
   rmSync
 } from 'node:fs';
 import os from 'node:os';
@@ -64,6 +65,34 @@ describe('tracked scanner native root boundary (only non-secret fixtures)', () =
     expect(fromRoot.deletedInWorktree).toEqual(['removed.txt']);
     expect(fromRoot.scanned).toBe(3);
   });
+
+  it.each(['leaf', 'ancestor', 'dangling'])(
+    'rejects a tracked %s link without opening its non-secret target',
+    async (kind) => {
+      const root = repository();
+      const outside = mkdtempSync(
+        path.join(os.tmpdir(), 'synthetic-link-target-')
+      );
+      roots.push(outside);
+      writeFileSync(
+        path.join(outside, 'child.txt'),
+        'non-secret fixture text\n'
+      );
+      const linked = kind === 'ancestor' ? 'nested' : 'root.txt';
+      rmSync(path.join(root, linked), { recursive: true, force: true });
+      // Directory junctions also exercise Windows without symlink privilege.
+      // On POSIX these are ordinary directory symlinks. No actual key exists.
+      symlinkSync(outside, path.join(root, linked), 'junction');
+      if (kind === 'dangling')
+        rmSync(outside, { recursive: true, force: true });
+      const result = await scanRepository({ cwd: root });
+      const tracked = kind === 'ancestor' ? 'nested/child.txt' : 'root.txt';
+      expect(result.findings).toContain(
+        `${tracked}: refusing symbolic link in tracked path`
+      );
+      expect(result.deletedInWorktree).not.toContain(tracked);
+    }
+  );
 
   it.each(['key', 'pem', 'p12', 'pfx', 'crt', 'cer', 'der', 'jks', 'keystore'])(
     'classifies nested %s paths without opening actual files',

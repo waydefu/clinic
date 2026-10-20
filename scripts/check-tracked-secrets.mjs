@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -100,6 +99,47 @@ export function renderPassLine({ scanned, deletedInWorktree }) {
   return `Tracked-secret check passed (${scanned} tracked files${skipped}).`;
 }
 
+async function readTrackedSource(root, filePath) {
+  const components = filePath.split('/');
+  let absolute = root;
+  for (const [index, component] of components.entries()) {
+    absolute = path.join(absolute, component);
+    let info;
+    try {
+      info = await lstat(absolute);
+    } catch (error) {
+      if (error.code === 'ENOENT') return { source: null };
+      throw error;
+    }
+    if (info.isSymbolicLink()) {
+      return {
+        source: '',
+        finding: `${filePath}: refusing symbolic link in tracked path`
+      };
+    }
+    const leaf = index === components.length - 1;
+    if (!leaf && !info.isDirectory()) {
+      return {
+        source: '',
+        finding: `${filePath}: refusing non-directory tracked ancestor`
+      };
+    }
+    if (leaf) {
+      // Classify sensitive filenames before opening any bytes. lstat never
+      // follows a leaf or ancestor link, including a dangling link.
+      if (inspectPath(filePath) !== null) return { source: '' };
+      if (!info.isFile()) {
+        return {
+          source: '',
+          finding: `${filePath}: refusing non-regular tracked file`
+        };
+      }
+      return { source: await readFile(absolute, 'utf8') };
+    }
+  }
+  throw new Error('Empty tracked path');
+}
+
 export async function scanRepository({ cwd = process.cwd() } = {}) {
   const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
     cwd,
@@ -114,24 +154,26 @@ export async function scanRepository({ cwd = process.cwd() } = {}) {
 
   const sources = new Map(
     await Promise.all(
-      tracked.map(async (filePath) => {
-        const absolute = path.resolve(root, filePath);
-        // Classify forbidden paths without opening their bytes. Untracked
-        // files are never enumerated, from any invocation directory.
-        const source = !existsSync(absolute)
-          ? null
-          : inspectPath(filePath) !== null
-            ? ''
-            : await readFile(absolute, 'utf8');
-        return [filePath, source];
-      })
+      tracked.map(async (filePath) => [
+        filePath,
+        await readTrackedSource(root, filePath)
+      ])
     )
   );
 
-  return scanTrackedFiles({
+  const result = scanTrackedFiles({
     tracked,
-    readSource: (filePath) => sources.get(filePath) ?? null
+    readSource: (filePath) => sources.get(filePath)?.source ?? null
   });
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      ...[...sources.values()].flatMap(({ finding }) =>
+        finding === undefined ? [] : [finding]
+      )
+    ]
+  };
 }
 
 async function main() {
