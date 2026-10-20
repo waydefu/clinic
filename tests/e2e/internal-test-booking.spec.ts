@@ -381,6 +381,22 @@ test.describe('internal-test booking occupancy overlay', () => {
     ).toHaveCount(0);
   });
 
+  test('staff start distinguishes browser-local data from the internal-test overlay', async ({
+    page
+  }) => {
+    await login(page);
+    await page.reload();
+    await expect(page.locator('#status')).toHaveText('資料只存此瀏覽器。');
+
+    await stubV1(page, { slots: [] }, 'closed', {}, { listBookings: () => [] });
+    await login(page, undefined, {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await page.reload();
+    await expect(page.locator('#status')).toHaveText('預約依測試服務。');
+  });
+
   test('staff opt-in with a closed slot list hides the synthetic bookable grid', async ({
     page
   }) => {
