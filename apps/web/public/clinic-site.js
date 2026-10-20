@@ -6,9 +6,13 @@ import {
   HOME_FAQS,
   HOME_PAGE,
   HOME_PROCESS_ITEMS,
+  HOME_SPACE,
   HOME_SYMPTOMS,
+  HOME_VISIT,
+  ICONS,
   NASAL_SERVICES,
   NAVIGATION,
+  SEPTUM_ILLUSTRATIONS,
   SNORING_SELF_TRACKING
 } from './clinic-content.js';
 
@@ -57,12 +61,116 @@ function image(src, alt, className, loading = 'lazy') {
   });
 }
 
-function sectionHeading(eyebrow, heading, description) {
-  return element('div', { className: 'clinic-section-heading' }, [
-    element('p', { className: 'clinic-eyebrow', text: eyebrow }),
-    element('h2', { text: heading }),
-    description ? element('p', { text: description }) : undefined
-  ]);
+// 圖示與插圖一律用 createElementNS 逐一建立節點，不把字串當成標記解析——頁面開著
+// Trusted Types，而且資料只是座標，沒有理由當成標記解析。圖示是裝飾，旁邊一定有
+// 文字，所以對輔助科技隱藏。找不到的圖示回傳 null，element() 會略過它。
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgShape(viewBox, className) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', viewBox);
+  svg.setAttribute('class', className);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  return svg;
+}
+
+// 圖示資料是精簡格式（見 clinic-content.js）：字串是預設線條樣式的路徑。
+const DEFAULT_STROKE = { fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
+
+function svgIcon(name, className = 'clinic-icon') {
+  const paths = ICONS[name];
+  if (!paths) return null;
+  const svg = svgShape('0 0 24 24', className);
+  for (const entry of paths) {
+    const part =
+      typeof entry === 'string' ? { ...DEFAULT_STROKE, d: entry } : entry;
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', part.d);
+    path.setAttribute('fill', part.fill ?? 'none');
+    if (part.fillRule) path.setAttribute('fill-rule', part.fillRule);
+    if (part.stroke) {
+      path.setAttribute('stroke', part.stroke);
+      path.setAttribute('stroke-width', String(part.strokeWidth ?? 2));
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+    }
+    svg.append(path);
+  }
+  return svg;
+}
+
+// 鼻中隔類型的示意圖：五張共用鼻子本體，只換鼻中隔那一條。各部位的顏色由 CSS
+// 依 class 決定（膚色鼻子、深色鼻孔、黃色鼻中隔），資料裡不寫顏色。
+function septumIllustration(type) {
+  const septum = SEPTUM_ILLUSTRATIONS.septum[type];
+  if (!septum) return null;
+  const svg = svgShape(SEPTUM_ILLUSTRATIONS.viewBox, 'clinic-septum__art');
+  for (const part of [
+    ...SEPTUM_ILLUSTRATIONS.base,
+    { part: 'septum', d: septum }
+  ]) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', part.d);
+    path.setAttribute('class', `clinic-septum__${part.part}`);
+    svg.append(path);
+  }
+  return svg;
+}
+
+// 社群平台以圖示呈現（業主 2026-10-12：社群很重要，直接用圖示）。連結文字保留給
+// 輔助科技；`labelled` 為 true 時名稱也顯示在圖示旁。
+const SOCIAL_ICON = {
+  LINE: 'line',
+  Instagram: 'instagram',
+  Messenger: 'messenger',
+  Facebook: 'facebook'
+};
+
+function socialLink(social, { labelled = true, className = '' } = {}) {
+  const key = SOCIAL_ICON[social.label] ?? 'chat';
+  const anchor = externalLink(
+    '',
+    social.href,
+    `clinic-social clinic-social--${key} ${className}`.trim()
+  );
+  anchor.append(
+    element('span', { className: 'clinic-social__badge' }, [
+      svgIcon(key, 'clinic-social__icon')
+    ]),
+    element('span', {
+      className: labelled ? 'clinic-social__label' : 'visually-hidden',
+      text: social.label
+    })
+  );
+  return anchor;
+}
+
+function socialRow(className, options) {
+  return element(
+    'div',
+    { className: `clinic-social-row ${className}` },
+    CLINIC.socialLinks.map((social) => socialLink(social, options))
+  );
+}
+
+// 頁尾是靜態 HTML（沒有 JS 時仍是文字連結），這裡只替它補上同一組圖示。
+function enhanceFooterSocial() {
+  for (const anchor of document.querySelectorAll('.clinic-footer__social a')) {
+    const social = CLINIC.socialLinks.find((item) => item.href === anchor.href);
+    if (!social) continue;
+    const label = anchor.textContent.trim();
+    anchor.classList.add(
+      'clinic-social',
+      `clinic-social--${SOCIAL_ICON[social.label]}`
+    );
+    anchor.replaceChildren(
+      element('span', { className: 'clinic-social__badge' }, [
+        svgIcon(SOCIAL_ICON[social.label], 'clinic-social__icon')
+      ]),
+      element('span', { className: 'clinic-social__label', text: label })
+    );
+  }
 }
 
 /**
@@ -147,7 +255,10 @@ function heroQuickFacts() {
     },
     [
       element('div', { className: 'clinic-hero-fact' }, [
-        element('dt', { text: '門診時間' }),
+        element('dt', {}, [
+          svgIcon('clock', 'clinic-hero-fact__icon'),
+          '門診時間'
+        ]),
         element('dd', {}, [
           element(
             'ul',
@@ -157,28 +268,28 @@ function heroQuickFacts() {
         ])
       ]),
       element('div', { className: 'clinic-hero-fact' }, [
-        element('dt', { text: '電話' }),
+        element('dt', {}, [svgIcon('phone', 'clinic-hero-fact__icon'), '電話']),
         element('dd', {}, [link(CLINIC.phoneDisplay, CLINIC.phoneHref)])
       ]),
       element('div', { className: 'clinic-hero-fact' }, [
-        element('dt', { text: '地址' }),
+        element('dt', {}, [svgIcon('pin', 'clinic-hero-fact__icon'), '地址']),
         element('dd', {}, [link(CLINIC.address, '#clinic-visit')])
-      ])
+      ]),
+      element(
+        'div',
+        { className: 'clinic-hero-fact clinic-hero-fact--social' },
+        [
+          element('dt', {}, [
+            svgIcon('chat', 'clinic-hero-fact__icon'),
+            '社群'
+          ]),
+          element('dd', {}, [
+            socialRow('clinic-social-row--compact', { labelled: false })
+          ])
+        ]
+      )
     ]
   );
-}
-
-function homeDoctorCard(doctor, focus, summary) {
-  return element('article', { className: 'clinic-doctor-card' }, [
-    image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
-    element('div', { className: 'clinic-doctor-card__body' }, [
-      element('p', { className: 'clinic-eyebrow', text: 'MEDICAL TEAM' }),
-      element('h3', {}, [link(doctor.name, `/clinic/doctors/${doctor.slug}`)]),
-      element('p', { className: 'clinic-home-doctor__focus', text: focus }),
-      element('p', { text: summary }),
-      link('認識醫師', `/clinic/doctors/${doctor.slug}`, 'clinic-text-link')
-    ])
-  ]);
 }
 
 /**
@@ -194,9 +305,7 @@ function renderSnoringTrackerSection() {
         item.label,
         item.href,
         `clinic-button ${
-          isOfficialSite
-            ? 'clinic-button--outline-light'
-            : 'clinic-button--light'
+          isOfficialSite ? 'clinic-button--outline' : 'clinic-button--primary'
         }`
       )
     );
@@ -211,10 +320,6 @@ function renderSnoringTrackerSection() {
     [
       element('div', { className: 'clinic-shell clinic-snore-app__grid' }, [
         element('div', { className: 'clinic-snore-app__copy' }, [
-          element('p', {
-            className: 'clinic-eyebrow',
-            text: SNORING_SELF_TRACKING.eyebrow
-          }),
           element('h2', {
             attrs: { id: 'clinic-snore-app-title' },
             text: SNORING_SELF_TRACKING.heading
@@ -243,71 +348,241 @@ function renderSnoringTrackerSection() {
   );
 }
 
-function renderHome() {
+// 首頁主線四段（空間 → 困擾 → 流程 → 醫師）的標題前有紅銅色序號，取自品牌牆的
+// 銅字（2026-10-12 方向 A+B）。序號只是版面節奏，不是內容，對輔助科技隱藏。
+function homeHeading(id, heading, description, index) {
+  return element(
+    'div',
+    {
+      className: index ? 'clinic-home-heading has-index' : 'clinic-home-heading'
+    },
+    [
+      index
+        ? element('span', {
+            className: 'clinic-home-heading__index',
+            text: index,
+            attrs: { 'aria-hidden': 'true' }
+          })
+        : undefined,
+      element('h2', { attrs: { id }, text: heading }),
+      description ? element('p', { text: description }) : undefined
+    ]
+  );
+}
+
+// 首屏：品牌牆是唯一主角（業主 2026-10-10：一張清晰的品牌牆、不輪播）。
+// 2026-10-12 方向 A+B：桌機標題在左、照片在右並延伸到視窗右緣；手機照片在上、
+// 標題在下。文字一律不疊在照片上，標誌完整留在畫面內。門診時間、電話與地址
+// 是一張浮在照片下緣的白色資訊卡。首屏文字不做進場動畫。
+function renderHomeArrival() {
   const heroImage = image(
-    DOCTORS[0].image,
-    DOCTORS[0].imageAlt,
-    'clinic-hybrid-hero__image',
+    HOME_PAGE.heroImage,
+    HOME_PAGE.heroImageAlt,
+    'clinic-arrival__image',
     'eager'
   );
-  heroImage.setAttribute('width', '800');
-  heroImage.setAttribute('height', '800');
+  heroImage.setAttribute('width', '1920');
+  heroImage.setAttribute('height', '1080');
   heroImage.setAttribute('fetchpriority', 'high');
 
-  const hero = element(
+  return element(
     'section',
     {
-      className: 'clinic-hybrid-hero',
+      className: 'clinic-arrival',
       attrs: { 'aria-labelledby': 'clinic-home-title' }
     },
     [
-      element('div', { className: 'clinic-shell clinic-hybrid-hero__grid' }, [
-        element('div', { className: 'clinic-hybrid-hero__copy' }, [
-          element('p', {
-            className: 'clinic-eyebrow',
-            text: HOME_PAGE.heroEyebrow
-          }),
-          element('h1', {
-            attrs: { id: 'clinic-home-title' },
-            text: HOME_PAGE.heroTitle
-          }),
-          element('p', {
-            text: HOME_PAGE.heroDescription
-          }),
-          element('div', { className: 'clinic-hybrid-hero__actions' }, [
+      element('div', { className: 'clinic-arrival__stage' }, [
+        element('div', { className: 'clinic-arrival__copy' }, [
+          element(
+            'h1',
+            { attrs: { id: 'clinic-home-title' } },
+            HOME_PAGE.heroTitleLines.map((line, index) =>
+              element('span', { className: 'clinic-arrival__line' }, [
+                index === HOME_PAGE.heroTitleLines.length - 1
+                  ? element('span', {
+                      className: 'clinic-highlight',
+                      text: line
+                    })
+                  : line
+              ])
+            )
+          ),
+          element('p', { text: HOME_PAGE.heroDescription }),
+          element('div', { className: 'clinic-arrival__actions' }, [
+            bookingLink('線上預約'),
             link(
               '先找出我的困擾',
               '#clinic-symptoms',
               'clinic-button clinic-button--outline'
-            ),
-            bookingLink('線上預約')
-          ]),
-          heroQuickFacts()
+            )
+          ])
         ]),
-        element('div', { className: 'clinic-hybrid-hero__visual' }, [
-          element('div', { className: 'clinic-hybrid-hero__media' }, [
-            heroImage,
-            element('div', { className: 'clinic-hybrid-hero__caption' }, [
-              element('span', { text: DOCTORS[0].name }),
-              element('strong', { text: HOME_PAGE.heroCaption })
-            ])
-          ]),
+        element('div', { className: 'clinic-arrival__media' }, [heroImage])
+      ]),
+      element('div', { className: 'clinic-shell clinic-arrival__facts' }, [
+        heroQuickFacts()
+      ])
+    ]
+  );
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// 動效時長讀 CSS token，不在 JS 重複寫一份數字。
+function motionDuration(token) {
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(token)
+    .trim();
+  const seconds = /^([\d.]+)s$/.exec(value);
+  if (seconds) return Number(seconds[1]) * 1000;
+  const milliseconds = /^([\d.]+)ms$/.exec(value);
+  return milliseconds ? Number(milliseconds[1]) : 0;
+}
+
+// 「診所空間」相簿：依進門順序的四張照片，由使用者用按鈕或縮圖切換，不自動輪播。
+// 只有最新一次選擇會生效；圖片解碼完成才同時換上照片與說明，換圖只做淡入。
+function renderHomeSpace() {
+  const photos = HOME_SPACE.photos;
+  let current = 0;
+  let generation = 0;
+
+  const viewerImage = image(
+    photos[0].src,
+    photos[0].alt,
+    'clinic-space__photo'
+  );
+  viewerImage.setAttribute('width', '1280');
+  viewerImage.setAttribute('height', '800');
+  const captionLabel = element('strong', { text: photos[0].label });
+  const captionText = element('span', { text: photos[0].caption });
+  const captionCount = element('span', {
+    className: 'clinic-space__count',
+    text: `1 / ${photos.length}`
+  });
+  const caption = element(
+    'figcaption',
+    {
+      className: 'clinic-space__caption',
+      attrs: { 'aria-live': 'polite', 'aria-atomic': 'true' }
+    },
+    [captionLabel, captionText, captionCount]
+  );
+
+  const thumbs = photos.map((photo, index) => {
+    const thumbImage = image(photo.src, '', 'clinic-space__thumb-image');
+    thumbImage.setAttribute('width', '1280');
+    thumbImage.setAttribute('height', '800');
+    return element(
+      'button',
+      {
+        className: 'clinic-space__thumb',
+        attrs: {
+          type: 'button',
+          'aria-pressed': String(index === 0),
+          'data-space-index': String(index)
+        }
+      },
+      [thumbImage, element('span', { text: photo.label })]
+    );
+  });
+
+  async function show(index) {
+    const next = (index + photos.length) % photos.length;
+    if (next === current) return;
+    current = next;
+    generation += 1;
+    const ticket = generation;
+    const photo = photos[next];
+    for (const [thumbIndex, thumb] of thumbs.entries()) {
+      thumb.setAttribute('aria-pressed', String(thumbIndex === next));
+    }
+    const loader = new Image();
+    loader.src = photo.src;
+    try {
+      await loader.decode();
+    } catch {
+      // 解碼失敗仍換上照片與說明，讓瀏覽器以一般方式載入。
+    }
+    if (ticket !== generation) return;
+    viewerImage.src = photo.src;
+    viewerImage.alt = photo.alt;
+    captionLabel.textContent = photo.label;
+    captionText.textContent = photo.caption;
+    captionCount.textContent = `${next + 1} / ${photos.length}`;
+    if (!prefersReducedMotion() && typeof viewerImage.animate === 'function') {
+      viewerImage.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: motionDuration('--clinic-duration-effect-fast'),
+        easing: 'ease-out'
+      });
+    }
+  }
+
+  const previous = element('button', {
+    className: 'clinic-space__step',
+    text: '上一張',
+    attrs: { type: 'button' }
+  });
+  const following = element('button', {
+    className: 'clinic-space__step',
+    text: '下一張',
+    attrs: { type: 'button' }
+  });
+  previous.addEventListener('click', () => void show(current - 1));
+  following.addEventListener('click', () => void show(current + 1));
+  for (const thumb of thumbs) {
+    thumb.addEventListener(
+      'click',
+      () => void show(Number(thumb.getAttribute('data-space-index')))
+    );
+  }
+
+  return element(
+    'section',
+    {
+      className: 'clinic-space',
+      attrs: { id: 'clinic-space', 'aria-labelledby': 'clinic-space-title' }
+    },
+    [
+      element('div', { className: 'clinic-shell clinic-space__layout' }, [
+        element('figure', { className: 'clinic-space__viewer' }, [
+          viewerImage,
+          caption
+        ]),
+        element('div', { className: 'clinic-space__aside' }, [
+          homeHeading(
+            'clinic-space-title',
+            HOME_SPACE.title,
+            HOME_SPACE.description,
+            '01'
+          ),
+          element(
+            'div',
+            {
+              className: 'clinic-space__steps',
+              attrs: { role: 'group', 'aria-label': '切換照片' }
+            },
+            [previous, following]
+          ),
           element(
             'ul',
             {
-              className: 'clinic-hybrid-hero__topics',
-              attrs: { 'aria-label': '主要照護方向' }
+              className: 'clinic-space__thumbs',
+              attrs: { 'aria-label': '選擇要看的空間' }
             },
-            HOME_PAGE.heroTopics.map((topic) => element('li', { text: topic }))
+            thumbs.map((thumb) => element('li', {}, [thumb]))
           )
         ])
       ])
     ]
   );
+}
 
-  const guidanceTitle = element('strong', {
-    text: HOME_SYMPTOMS[0].title
-  });
+// 困擾導覽與四項照護放在同一段：左邊選困擾，右邊的照護索引同步標出相關服務。
+function renderHomeCare() {
+  const guidanceTitle = element('strong', { text: HOME_SYMPTOMS[0].title });
   const guidanceDescription = element('p', {
     text: HOME_SYMPTOMS[0].description
   });
@@ -318,7 +593,7 @@ function renderHome() {
   );
   const symptomGrid = element('div', {
     className: 'clinic-symptom-grid',
-    attrs: { 'aria-label': '選擇目前最想改善的困擾' }
+    attrs: { role: 'group', 'aria-label': '選擇目前最想改善的困擾' }
   });
   for (const [index, symptom] of HOME_SYMPTOMS.entries()) {
     symptomGrid.append(
@@ -335,177 +610,91 @@ function renderHome() {
       })
     );
   }
-  const symptomSection = element(
-    'section',
-    {
-      className: 'clinic-symptom-section',
-      attrs: {
-        id: 'clinic-symptoms',
-        'aria-labelledby': 'clinic-symptoms-title'
-      }
-    },
-    [
-      element('div', { className: 'clinic-shell' }, [
-        sectionHeading(
-          'SYMPTOM GUIDE',
-          '你最想改善哪一件事？',
-          '選擇一項困擾，先了解可能相關的服務；這項導引不等於醫療診斷。'
-        ),
-        symptomGrid,
-        element(
-          'div',
-          {
-            className: 'clinic-symptom-guidance',
-            attrs: { id: 'clinic-symptom-guidance' }
-          },
-          [
-            element(
-              'div',
-              {
-                className: 'clinic-symptom-guidance__copy',
-                attrs: {
-                  role: 'status',
-                  'aria-live': 'polite',
-                  'aria-atomic': 'true'
-                }
-              },
-              [guidanceTitle, guidanceDescription]
-            ),
-            guidanceLink
-          ]
-        )
-      ])
-    ]
-  );
-  symptomSection
-    .querySelector('h2')
-    ?.setAttribute('id', 'clinic-symptoms-title');
 
-  const serviceGrid = element('div', {
-    className: 'clinic-card-grid clinic-card-grid--services'
+  const index = element('ol', {
+    className: 'clinic-care__index',
+    attrs: { 'aria-label': '四項鼻功能與睡眠照護' }
   });
   for (const service of NASAL_SERVICES) {
-    const card = serviceCard(service);
-    card.setAttribute('data-service-card', service.slug);
+    const card = element(
+      'article',
+      {
+        className: 'clinic-service-card',
+        attrs: { 'data-service-card': service.slug }
+      },
+      [
+        image(service.image, service.imageAlt, 'clinic-service-card__image'),
+        element('div', { className: 'clinic-service-card__body' }, [
+          element('h3', {}, [
+            link(service.title, `/clinic/nasal/${service.slug}`)
+          ]),
+          element('p', { text: service.subtitle })
+        ])
+      ]
+    );
     card.classList.toggle(
       'is-recommended',
       service.slug === HOME_SYMPTOMS[0].slug
     );
-    serviceGrid.append(card);
+    index.append(element('li', {}, [card]));
   }
-  const services = element(
+
+  const section = element(
     'section',
     {
-      className: 'clinic-section clinic-section--white clinic-home-services',
-      attrs: { id: 'nasal-services', 'aria-labelledby': 'services-title' }
+      className: 'clinic-care',
+      attrs: {
+        id: 'nasal-services',
+        'aria-labelledby': 'clinic-symptoms-title'
+      }
     },
     [
-      element('div', { className: 'clinic-shell' }, [
-        sectionHeading(
-          'FOUR CARE DIRECTIONS',
-          '四項鼻功能與睡眠照護',
-          '首頁只保留鼻塞、打鼾與睡眠呼吸相關服務，讓下一步更容易理解。'
+      element('div', { className: 'clinic-shell clinic-care__layout' }, [
+        element(
+          'div',
+          { className: 'clinic-care__guide', attrs: { id: 'clinic-symptoms' } },
+          [
+            homeHeading(
+              'clinic-symptoms-title',
+              '你最想改善哪一件事？',
+              '選一項困擾，先看可能相關的服務；這項導覽不是醫療診斷。',
+              '02'
+            ),
+            symptomGrid,
+            element(
+              'div',
+              {
+                className: 'clinic-symptom-guidance',
+                attrs: { id: 'clinic-symptom-guidance' }
+              },
+              [
+                element(
+                  'div',
+                  {
+                    className: 'clinic-symptom-guidance__copy',
+                    attrs: {
+                      role: 'status',
+                      'aria-live': 'polite',
+                      'aria-atomic': 'true'
+                    }
+                  },
+                  [guidanceTitle, guidanceDescription]
+                ),
+                guidanceLink
+              ]
+            )
+          ]
         ),
-        serviceGrid
+        index
       ])
     ]
   );
-  services.querySelector('h2')?.setAttribute('id', 'services-title');
-
-  const processList = element(
-    'ol',
-    { className: 'clinic-home-process__list' },
-    HOME_PROCESS_ITEMS.map((item) =>
-      element('li', {}, [
-        element('h3', { text: item.title }),
-        element('p', { text: item.description })
-      ])
-    )
-  );
-  const processSection = element(
-    'section',
-    {
-      className: 'clinic-home-process',
-      attrs: { 'aria-labelledby': 'clinic-process-title' }
-    },
-    [
-      element('div', { className: 'clinic-shell' }, [
-        sectionHeading(
-          'ASSESSMENT PROCESS',
-          '把複雜的問題，分成四個清楚步驟',
-          '不是先選手術，而是先了解困擾、檢查原因，再一起比較處理方向。'
-        ),
-        processList
-      ])
-    ]
-  );
-  processSection
-    .querySelector('h2')
-    ?.setAttribute('id', 'clinic-process-title');
-
-  const homeDoctorGrid = element('div', {
-    className:
-      'clinic-card-grid clinic-card-grid--doctors clinic-home-doctor-grid'
-  });
-  for (const profile of HOME_DOCTOR_PROFILES) {
-    const doctor = DOCTORS.find((item) => item.slug === profile.slug);
-    if (doctor) {
-      homeDoctorGrid.append(
-        homeDoctorCard(doctor, profile.focus, profile.summary)
-      );
-    }
-  }
-  const doctors = element(
-    'section',
-    {
-      className: 'clinic-section clinic-home-doctors',
-      attrs: { 'aria-labelledby': 'home-doctors-title' }
-    },
-    [
-      element('div', { className: 'clinic-shell' }, [
-        sectionHeading(
-          'MEDICAL TEAM',
-          '先完整評估，再討論適合你的方向',
-          '評估、手術與恢復由醫療團隊共同把關；首頁只呈現鼻功能與手術照護相關資訊。'
-        ),
-        homeDoctorGrid,
-        element('div', { className: 'clinic-section-action' }, [
-          link(
-            '查看醫師介紹',
-            '/clinic/doctors',
-            'clinic-button clinic-button--outline'
-          )
-        ])
-      ])
-    ]
-  );
-  doctors.querySelector('h2')?.setAttribute('id', 'home-doctors-title');
-
-  const visitSection = renderHomeVisitSection();
-  const faqSection = renderHomeFaqSection();
-  const snoringTrackerSection = renderSnoringTrackerSection();
-  const sections = [
-    hero,
-    symptomSection,
-    services,
-    processSection,
-    snoringTrackerSection,
-    doctors,
-    visitSection,
-    faqSection,
-    callToAction()
-  ];
-  for (const section of sections.slice(1)) {
-    section.setAttribute('data-reveal', '');
-  }
-  main.replaceChildren(...sections);
 
   for (const button of symptomGrid.querySelectorAll('.clinic-symptom-button')) {
     button.addEventListener('click', () => {
-      const index = Number(button.getAttribute('data-symptom-index'));
-      const symptom = HOME_SYMPTOMS[index];
+      const symptom =
+        HOME_SYMPTOMS[Number(button.getAttribute('data-symptom-index'))];
       if (!symptom) return;
-
       for (const candidate of symptomGrid.querySelectorAll(
         '.clinic-symptom-button'
       )) {
@@ -514,7 +703,7 @@ function renderHome() {
       guidanceTitle.textContent = symptom.title;
       guidanceDescription.textContent = symptom.description;
       guidanceLink.setAttribute('href', `/clinic/nasal/${symptom.slug}`);
-      for (const card of serviceGrid.querySelectorAll('[data-service-card]')) {
+      for (const card of index.querySelectorAll('[data-service-card]')) {
         card.classList.toggle(
           'is-recommended',
           card.getAttribute('data-service-card') === symptom.slug
@@ -522,64 +711,265 @@ function renderHome() {
       }
     });
   }
+  return section;
 }
 
-function renderHomeVisitSection() {
-  const section = element(
+function renderHomeProcess() {
+  return element(
     'section',
     {
-      className: 'clinic-section clinic-section--white',
-      attrs: { id: 'clinic-visit', 'aria-labelledby': 'visit-title' }
+      className: 'clinic-process',
+      attrs: { 'aria-labelledby': 'clinic-process-title' }
     },
     [
       element('div', { className: 'clinic-shell' }, [
-        sectionHeading(
-          'VISIT US',
-          '門診時間與交通',
-          '就診前想先確認的資訊都放在這裡；門診時間如遇國定假日將另行公告。'
+        homeHeading(
+          'clinic-process-title',
+          '看診會怎麼進行',
+          '不是先選手術，而是先了解困擾、檢查原因，再一起比較處理方向。',
+          '03'
         ),
-        element('hr', { className: 'clinic-section-rule' }),
-        element('div', { className: 'clinic-visit-grid' }, [
-          element('article', { className: 'clinic-visit-card' }, [
-            element('h3', { text: '門診時間' }),
-            element('ul', { className: 'clinic-visit-list' }, [
-              ...CLINIC.hours.map((line) => element('li', { text: line })),
-              element('li', { text: '週日、週一、週二　休診' })
+        element(
+          'ol',
+          { className: 'clinic-process__list' },
+          HOME_PROCESS_ITEMS.map((item) =>
+            element('li', {}, [
+              element('span', { className: 'clinic-process__icon' }, [
+                svgIcon(item.icon)
+              ]),
+              element('h3', { text: item.title }),
+              element('p', { text: item.description })
             ])
-          ]),
-          element('article', { className: 'clinic-visit-card' }, [
-            element('h3', { text: '地址與交通' }),
-            element('p', { text: CLINIC.address }),
-            externalLink(
-              '在 Google 地圖開啟',
-              `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                CLINIC.address
-              )}`,
-              'clinic-button clinic-button--outline'
-            )
-          ]),
-          element('article', { className: 'clinic-visit-card' }, [
-            element('h3', { text: '聯絡方式' }),
-            element('ul', { className: 'clinic-visit-list' }, [
-              element('li', {}, [link(CLINIC.phoneDisplay, CLINIC.phoneHref)]),
-              element('li', {}, [
-                link(CLINIC.tollFreeDisplay, CLINIC.tollFreeHref)
-              ])
-            ]),
-            element(
-              'div',
-              { className: 'clinic-visit-social' },
-              CLINIC.socialLinks.map((social) =>
-                externalLink(social.label, social.href, 'clinic-social-chip')
-              )
-            )
-          ])
+          )
+        )
+      ])
+    ]
+  );
+}
+
+function renderHomeDoctors() {
+  const profiles = element('div', { className: 'clinic-team__profiles' });
+  for (const profile of HOME_DOCTOR_PROFILES) {
+    const doctor = DOCTORS.find((item) => item.slug === profile.slug);
+    if (!doctor) continue;
+    const href = `/clinic/doctors/${doctor.slug}`;
+    profiles.append(
+      element('article', { className: 'clinic-doctor-card' }, [
+        image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
+        element('div', { className: 'clinic-doctor-card__body' }, [
+          element('h3', {}, [link(doctor.name, href)]),
+          element('p', {
+            className: 'clinic-doctor-card__focus',
+            text: profile.focus
+          }),
+          element('p', { text: profile.summary }),
+          link('醫師介紹', href, 'clinic-text-link')
+        ])
+      ])
+    );
+  }
+  return element(
+    'section',
+    {
+      className: 'clinic-team',
+      attrs: { 'aria-labelledby': 'home-doctors-title' }
+    },
+    [
+      element('div', { className: 'clinic-shell' }, [
+        homeHeading(
+          'home-doctors-title',
+          '醫師團隊',
+          '評估、手術與恢復由醫療團隊共同把關。',
+          '04'
+        ),
+        profiles,
+        element('p', { className: 'clinic-team__more' }, [
+          link('查看醫師介紹', '/clinic/doctors', 'clinic-text-link')
         ])
       ])
     ]
   );
-  section.querySelector('h2')?.setAttribute('id', 'visit-title');
-  return section;
+}
+
+function renderHome() {
+  const sections = [
+    renderHomeArrival(),
+    renderHomeSpace(),
+    renderHomeCare(),
+    renderHomeProcess(),
+    renderHomeDoctors(),
+    renderSnoringTrackerSection(),
+    renderHomeVisitSection(),
+    renderHomeFaqSection(),
+    callToAction()
+  ];
+  for (const section of sections.slice(1)) {
+    section.setAttribute('data-reveal', '');
+  }
+  main.replaceChildren(...sections);
+}
+
+// 門診表：星期 × 時段打點，資料來自 CLINIC.schedule。打點與橫線只是視覺記號，
+// 每一格另有「看診／休診」文字給輔助科技。
+function scheduleTable() {
+  const head = element('tr', {}, [
+    element('th', { text: '時段', attrs: { scope: 'col' } }),
+    ...CLINIC.weekdays.map((day) =>
+      element('th', { attrs: { scope: 'col' } }, [
+        element('span', { className: 'visually-hidden', text: '週' }),
+        day
+      ])
+    )
+  ]);
+  const rows = CLINIC.schedule.map((slot) =>
+    element('tr', {}, [
+      element('th', { text: slot.time, attrs: { scope: 'row' } }),
+      ...CLINIC.weekdays.map((day) => {
+        const open = slot.days.includes(day);
+        return element('td', { className: open ? 'is-open' : undefined }, [
+          element('span', {
+            text: open ? '●' : '－',
+            attrs: { 'aria-hidden': 'true' }
+          }),
+          element('span', {
+            className: 'visually-hidden',
+            text: open ? '看診' : '休診'
+          })
+        ]);
+      })
+    ])
+  );
+  return element('table', { className: 'clinic-schedule' }, [
+    element('caption', { className: 'visually-hidden', text: '每週門診時段' }),
+    element('thead', {}, [head]),
+    element('tbody', {}, rows)
+  ]);
+}
+
+// 地圖：預設是本站的簡易地圖，按下按鈕才換成 Google 地圖（業主 2026-10-12）。
+// 按之前不會向 Google 送出任何請求；網站的 CSP 只在官網這一面允許
+// https://www.google.com 的框架（apps/web/csp-policy.mjs）。
+function visitMap() {
+  const mapImage = image(
+    HOME_VISIT.mapImage,
+    HOME_VISIT.mapImageAlt,
+    'clinic-visit__map-image'
+  );
+  mapImage.setAttribute('width', '1600');
+  mapImage.setAttribute('height', '900');
+  const credit = element('p', { className: 'clinic-visit__credit' }, [
+    externalLink(HOME_VISIT.mapAttribution, HOME_VISIT.mapAttributionHref)
+  ]);
+  const loadButton = element('button', {
+    className: 'clinic-button clinic-button--primary',
+    text: '顯示 Google 地圖',
+    attrs: { type: 'button', 'aria-describedby': 'clinic-visit-consent' }
+  });
+  const controls = element('div', { className: 'clinic-visit__controls' }, [
+    loadButton,
+    element('p', {
+      text: HOME_VISIT.googleConsent,
+      attrs: { id: 'clinic-visit-consent' }
+    })
+  ]);
+  const picture = element('picture', {}, [
+    element('source', {
+      attrs: {
+        media: '(max-width: 48rem)',
+        srcset: HOME_VISIT.mapImageCompact,
+        width: '600',
+        height: '450'
+      }
+    }),
+    mapImage
+  ]);
+  const canvas = element('div', { className: 'clinic-visit__canvas' }, [
+    picture,
+    credit
+  ]);
+  const figure = element('figure', { className: 'clinic-visit__map' }, [
+    canvas,
+    controls
+  ]);
+  loadButton.addEventListener('click', () => {
+    const frame = element('iframe', {
+      className: 'clinic-visit__frame',
+      attrs: {
+        src: HOME_VISIT.googleEmbedSrc,
+        title: HOME_VISIT.googleEmbedTitle,
+        referrerpolicy: 'no-referrer',
+        sandbox:
+          'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox',
+        allowfullscreen: ''
+      }
+    });
+    canvas.replaceChildren(frame);
+    controls.remove();
+    figure.classList.add('is-live');
+    frame.focus();
+  });
+  return figure;
+}
+
+function renderHomeVisitSection() {
+  return element(
+    'section',
+    {
+      className: 'clinic-visit',
+      attrs: { id: 'clinic-visit', 'aria-labelledby': 'visit-title' }
+    },
+    // 資訊卡在 DOM 裡排在地圖前面：報讀器先讀到標題與門診時間，再讀到地圖。
+    // 畫面上兩者疊在同一格，卡片靠 z-index 蓋在地圖上，順序不影響外觀。
+    [
+      element('div', { className: 'clinic-shell clinic-visit__inner' }, [
+        element('div', { className: 'clinic-visit__card' }, [
+          homeHeading('visit-title', '門診時間與交通'),
+          scheduleTable(),
+          element('p', {
+            className: 'clinic-visit__note',
+            text: HOME_VISIT.closedNote
+          }),
+          element('dl', { className: 'clinic-visit__facts' }, [
+            element('div', {}, [
+              element('dt', {}, [
+                svgIcon('pin', 'clinic-hero-fact__icon'),
+                '地址'
+              ]),
+              element('dd', {}, [
+                element('span', { text: CLINIC.address }),
+                externalLink(
+                  '在 Google 地圖開啟',
+                  HOME_VISIT.googleOpenHref,
+                  'clinic-text-link'
+                )
+              ])
+            ]),
+            element('div', {}, [
+              element('dt', {}, [
+                svgIcon('phone', 'clinic-hero-fact__icon'),
+                '電話'
+              ]),
+              element('dd', {}, [
+                link(CLINIC.phoneDisplay, CLINIC.phoneHref),
+                link(CLINIC.tollFreeDisplay, CLINIC.tollFreeHref)
+              ])
+            ])
+          ]),
+          element('div', { className: 'clinic-visit__actions' }, [
+            bookingLink('線上預約')
+          ]),
+          element(
+            'div',
+            { className: 'clinic-visit-social clinic-social-row' },
+            CLINIC.socialLinks.map((social) =>
+              socialLink(social, { className: 'clinic-social-chip' })
+            )
+          )
+        ])
+      ]),
+      visitMap()
+    ]
+  );
 }
 
 function renderHomeFaqSection() {
@@ -600,58 +990,39 @@ function renderHomeFaqSection() {
     },
     [
       element('div', { className: 'clinic-shell' }, [
-        sectionHeading(
-          'FAQ',
+        homeHeading(
+          'faq-title',
           '預約前，你可能想先知道',
           '以下說明僅供一般衛教參考，實際狀況仍以醫師面診評估為準。'
         ),
-        element('hr', { className: 'clinic-section-rule' }),
         list
       ])
     ]
   );
-  section.querySelector('h2')?.setAttribute('id', 'faq-title');
   return section;
 }
 
-function serviceCard(service) {
-  const imageLink = link(
-    '',
-    `/clinic/nasal/${service.slug}`,
-    'clinic-service-card__media'
-  );
-  imageLink.append(
-    image(service.image, service.imageAlt, 'clinic-service-card__image')
-  );
-  return element('article', { className: 'clinic-service-card' }, [
-    imageLink,
-    element('div', { className: 'clinic-service-card__body' }, [
-      element('p', { className: 'clinic-eyebrow', text: service.eyebrow }),
-      element('h3', {}, [link(service.title, `/clinic/nasal/${service.slug}`)]),
-      element('p', { text: service.subtitle }),
-      link('了解更多', `/clinic/nasal/${service.slug}`, 'clinic-text-link')
-    ])
-  ]);
-}
-
+// 內頁沿用首頁的版面語彙（2026-10-12）：不放英文小標、標題用無襯線字、區塊以細線
+// 分隔，不用卡片陰影與拱形相框。醫師卡與首頁「醫師團隊」同一組樣式。
 function doctorCard(doctor) {
   return element('article', { className: 'clinic-doctor-card' }, [
     image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
     element('div', { className: 'clinic-doctor-card__body' }, [
-      element('p', { className: 'clinic-eyebrow', text: 'MEDICAL TEAM' }),
       element('h2', {}, [link(doctor.name, `/clinic/doctors/${doctor.slug}`)]),
-      element('strong', { text: doctor.title }),
+      element('p', {
+        className: 'clinic-doctor-card__focus',
+        text: doctor.title
+      }),
       element('p', { text: doctor.summary }),
       link('醫師介紹', `/clinic/doctors/${doctor.slug}`, 'clinic-text-link')
     ])
   ]);
 }
 
-function pageHero(eyebrow, title, description) {
+function pageHero(title, description) {
   return element('section', { className: 'clinic-page-hero' }, [
     element('div', { className: 'clinic-shell clinic-page-hero__inner' }, [
       element('div', {}, [
-        element('p', { className: 'clinic-eyebrow', text: eyebrow }),
         element('h1', { text: title }),
         element('p', { text: description })
       ]),
@@ -661,45 +1032,36 @@ function pageHero(eyebrow, title, description) {
 }
 
 function renderDoctors() {
-  const grid = element('div', {
-    className: 'clinic-card-grid clinic-card-grid--doctors'
-  });
-  for (const doctor of DOCTORS) grid.append(doctorCard(doctor));
+  const profiles = element('div', { className: 'clinic-team__profiles' });
+  for (const doctor of DOCTORS) profiles.append(doctorCard(doctor));
   main.replaceChildren(
     pageHero(
-      'MEDICAL TEAM',
       '醫師團隊',
       '以專業分工共同照護，讓每一步評估與治療都有清楚依據。'
     ),
-    element('section', { className: 'clinic-section' }, [
-      element('div', { className: 'clinic-shell' }, [grid])
+    element('section', { className: 'clinic-team' }, [
+      element('div', { className: 'clinic-shell' }, [profiles])
     ]),
     callToAction()
   );
 }
 
 function renderDoctor(doctor) {
-  const expertise = element('ul', { className: 'clinic-pill-list' });
-  for (const item of doctor.expertise) {
-    expertise.append(element('li', { text: item }));
-  }
-  const education = listFrom(doctor.education);
+  // 專業領域原本是膠囊標籤，長得像可以按的按鈕（首頁的困擾選擇就是膠囊按鈕），
+  // 改成與學經歷相同的清單。
   const details = [
     element('section', {}, [
-      element('p', { className: 'clinic-eyebrow', text: 'EXPERTISE' }),
       element('h2', { text: '專業領域' }),
-      expertise
+      listFrom(doctor.expertise)
     ]),
     element('section', {}, [
-      element('p', { className: 'clinic-eyebrow', text: 'EDUCATION' }),
       element('h2', { text: '學經歷' }),
-      education
+      listFrom(doctor.education)
     ])
   ];
   if (doctor.publications.length > 0) {
     details.push(
       element('section', {}, [
-        element('p', { className: 'clinic-eyebrow', text: 'PUBLICATIONS' }),
         element('h2', { text: '專業著作與譯作' }),
         listFrom(doctor.publications)
       ])
@@ -724,7 +1086,6 @@ function renderDoctor(doctor) {
             'eager'
           ),
           element('div', { className: 'clinic-doctor-profile__intro' }, [
-            element('p', { className: 'clinic-eyebrow', text: 'MEDICAL TEAM' }),
             element('h1', { text: doctor.name }),
             element('strong', { text: doctor.title }),
             element('p', { text: doctor.summary }),
@@ -755,7 +1116,6 @@ function resourceSection(resources) {
     );
   }
   return element('section', { className: 'clinic-resource' }, [
-    element('p', { className: 'clinic-eyebrow', text: resources.eyebrow }),
     element('h2', { text: resources.heading }),
     ...resources.paragraphs.map((text) => element('p', { text })),
     actions
@@ -768,20 +1128,195 @@ function listFrom(items) {
   return list;
 }
 
+// 「打鼾的五個常見成因」：原文是「成因：細項、細項」，在這裡拆成卡片標題與細項，
+// 文字本身不改。卡片之間的箭頭只是視覺，對輔助科技隱藏。
+function causeCards(section) {
+  return element(
+    'ol',
+    { className: 'clinic-causes' },
+    section.bullets.map((bullet, index) => {
+      const [title, rest] = bullet.split('：');
+      return element('li', { className: 'clinic-causes__item' }, [
+        element('div', { className: 'clinic-causes__card' }, [
+          element('div', { className: 'clinic-causes__top' }, [
+            element('span', { className: 'clinic-causes__icon' }, [
+              svgIcon(section.icons?.[index])
+            ]),
+            // 清單本身是有序的，編號只是視覺，不進可及名稱。
+            element('span', {
+              className: 'clinic-causes__number',
+              text: String(index + 1),
+              attrs: { 'aria-hidden': 'true' }
+            })
+          ]),
+          element('h3', { text: title }),
+          rest
+            ? element(
+                'ul',
+                { className: 'clinic-sparkle-list' },
+                rest.split('、').map((item) => element('li', { text: item }))
+              )
+            : undefined
+        ])
+      ]);
+    })
+  );
+}
+
+function stepFlow(section) {
+  return element(
+    'ol',
+    { className: 'clinic-steps' },
+    section.bullets.map((bullet, index) =>
+      element('li', {}, [
+        element('span', { className: 'clinic-steps__icon' }, [
+          svgIcon(section.icons?.[index])
+        ]),
+        element('p', { text: bullet })
+      ])
+    )
+  );
+}
+
+function septumTypes(section) {
+  return element(
+    'ul',
+    { className: 'clinic-septum' },
+    section.items.map((item) =>
+      element('li', { className: 'clinic-septum__card' }, [
+        element('h3', { text: item.title }),
+        element('div', { className: 'clinic-septum__figure' }, [
+          septumIllustration(item.type)
+        ]),
+        element(
+          'p',
+          {},
+          item.lines.flatMap((line, index) =>
+            index === 0 ? [line] : [element('br'), line]
+          )
+        )
+      ])
+    )
+  );
+}
+
+// 處理方式比較表（業主 2026-10-12 選定中性版）。真正的表格：欄標題與列標題各有
+// scope，手機上由 CSS 改排成一種方式一張卡片，每格以 data-label 顯示欄名。
+function compareTable(section) {
+  const cell = (items) =>
+    items.length > 1
+      ? element(
+          'ul',
+          { className: 'clinic-compare__list' },
+          items.map((item) => element('li', { text: item }))
+        )
+      : items[0];
+  const devices = section.devices
+    ? element(
+        'ul',
+        { className: 'clinic-devices' },
+        section.devices.map((device) =>
+          element('li', { className: 'clinic-devices__card' }, [
+            element('div', { className: 'clinic-devices__figure' }, [
+              image(device.image, device.imageAlt, 'clinic-devices__image')
+            ]),
+            element('h3', { text: device.name }),
+            element('p', { text: `治療部位：${device.scope}` })
+          ])
+        )
+      )
+    : undefined;
+  return element('div', { className: 'clinic-compare' }, [
+    devices,
+    // 手機版把表格改成區塊排版，部分瀏覽器會因此拿掉表格語意，所以明確標上角色。
+    element('table', { attrs: { role: 'table' } }, [
+      element('caption', {
+        className: 'visually-hidden',
+        text: section.heading
+      }),
+      element('thead', { attrs: { role: 'rowgroup' } }, [
+        element('tr', { attrs: { role: 'row' } }, [
+          element('th', {
+            text: '方式',
+            attrs: { scope: 'col', role: 'columnheader' }
+          }),
+          ...section.columns.map((column) =>
+            element('th', {
+              text: column,
+              attrs: { scope: 'col', role: 'columnheader' }
+            })
+          )
+        ])
+      ]),
+      element(
+        'tbody',
+        { attrs: { role: 'rowgroup' } },
+        section.rows.map((row) =>
+          element('tr', { attrs: { role: 'row' } }, [
+            element('th', {
+              text: row.name,
+              attrs: { scope: 'row', role: 'rowheader' }
+            }),
+            ...row.cells.map((items, index) =>
+              element(
+                'td',
+                {
+                  attrs: { 'data-label': section.columns[index], role: 'cell' }
+                },
+                [cell(items)]
+              )
+            )
+          ])
+        )
+      )
+    ]),
+    element('p', { className: 'clinic-compare__note', text: section.note })
+  ]);
+}
+
 function renderService(service) {
   const highlights = element('ul', { className: 'clinic-highlight-list' });
-  for (const item of service.highlights) {
-    highlights.append(element('li', { text: item }));
+  for (const [index, item] of service.highlights.entries()) {
+    highlights.append(
+      element('li', {}, [
+        element('span', { className: 'clinic-highlight-list__icon' }, [
+          svgIcon(service.highlightIcons?.[index])
+        ]),
+        element('span', { text: item })
+      ])
+    );
   }
   const content = element('div', { className: 'clinic-service-content' });
   for (const section of service.sections) {
-    const sectionNode = element('section', {}, [
-      element('h2', { text: section.heading })
-    ]);
+    const sectionNode = element(
+      'section',
+      { className: section.layout ? `is-${section.layout}` : undefined },
+      [element('h2', { text: section.heading })]
+    );
     for (const paragraph of section.paragraphs ?? []) {
       sectionNode.append(element('p', { text: paragraph }));
     }
-    if (section.bullets) sectionNode.append(listFrom(section.bullets));
+    if (section.photo) {
+      sectionNode.append(
+        element('figure', { className: 'clinic-product-photo' }, [
+          element('div', { className: 'clinic-devices__figure' }, [
+            image(
+              section.photo.image,
+              section.photo.imageAlt,
+              'clinic-devices__image'
+            )
+          ]),
+          element('figcaption', { text: section.photo.caption })
+        ])
+      );
+    }
+    if (section.layout === 'causes') sectionNode.append(causeCards(section));
+    else if (section.layout === 'steps') sectionNode.append(stepFlow(section));
+    else if (section.layout === 'compare')
+      sectionNode.append(compareTable(section));
+    else if (section.layout === 'septum-types')
+      sectionNode.append(septumTypes(section));
+    else if (section.bullets) sectionNode.append(listFrom(section.bullets));
     content.append(sectionNode);
   }
   if (service.resources) content.append(resourceSection(service.resources));
@@ -795,7 +1330,6 @@ function renderService(service) {
     element('section', { className: 'clinic-service-hero' }, [
       element('div', { className: 'clinic-shell clinic-service-hero__grid' }, [
         element('div', { className: 'clinic-service-hero__copy' }, [
-          element('p', { className: 'clinic-eyebrow', text: service.eyebrow }),
           element('h1', { text: service.title }),
           element('p', {
             className: 'clinic-service-hero__subtitle',
@@ -817,7 +1351,6 @@ function renderService(service) {
       element('div', { className: 'clinic-shell clinic-content-grid' }, [
         content,
         element('aside', { className: 'clinic-medical-note' }, [
-          element('p', { className: 'clinic-eyebrow', text: 'MEDICAL NOTE' }),
           element('h2', { text: '先評估，再選擇' }),
           element('p', {
             text: '本頁內容僅供一般衛教參考，實際診斷、適應症、風險與恢復時間會因個人狀況而異，需由醫師面診後說明。'
@@ -834,18 +1367,22 @@ function callToAction() {
   return element('section', { className: 'clinic-cta' }, [
     element('div', { className: 'clinic-shell clinic-cta__inner' }, [
       element('div', {}, [
-        element('p', { className: 'clinic-eyebrow', text: 'APPOINTMENT' }),
         element('h2', { text: '讓專業評估，成為安心的第一步' }),
         element('p', {
           text: `線上選擇門診時段，或致電 ${CLINIC.phoneDisplay} 由專人協助。`
         })
       ]),
       element('div', { className: 'clinic-cta__actions' }, [
-        bookingLink('前往線上預約'),
+        // 2026-10-12 淺色系：收尾區改成舊版的淡綠背景圖，按鈕回到主色實心＋外框。
+        link(
+          '前往線上預約',
+          BOOKING_PATH,
+          'clinic-button clinic-button--primary'
+        ),
         link(
           `致電 ${CLINIC.phoneDisplay}`,
           CLINIC.phoneHref,
-          'clinic-button clinic-button--outline-light'
+          'clinic-button clinic-button--outline'
         )
       ])
     ])
@@ -976,14 +1513,6 @@ if (menuButton instanceof HTMLButtonElement) {
 
 function enableMotion() {
   document.documentElement.classList.add('clinic-motion');
-  if (document.querySelector('.clinic-scroll-progress') === null) {
-    document.body.prepend(
-      element('div', {
-        className: 'clinic-scroll-progress',
-        attrs: { 'aria-hidden': 'true' }
-      })
-    );
-  }
 }
 
 /**
@@ -1020,17 +1549,6 @@ function observeReveals(root) {
   }
 }
 
-/** Hero 內各層的進場順序。 */
-function stageHero(root) {
-  const copy = root.querySelector('.clinic-hybrid-hero__copy');
-  if (copy === null) return;
-  for (const [index, child] of [...copy.children].entries()) {
-    child.style.setProperty('--clinic-stagger', String(index));
-  }
-  const visual = root.querySelector('.clinic-hybrid-hero__visual');
-  if (visual !== null) visual.style.setProperty('--clinic-stagger', '2');
-}
-
 /**
  * 捲離頁首時把 header 收合。
  *
@@ -1053,136 +1571,9 @@ function observeHeaderCondense() {
   ).observe(sentinel);
 }
 
-/**
- * 把標題拆成一個字一個 span，讓它可以逐字浮現（動效 21）。
- *
- * 只拆一次，而且**保留原本的文字內容**：報讀器讀的是另外留的那份完整字串，
- * 拆成 span 不影響它。整段一律走 `textContent` 與 `createElement`——把 HTML
- * 字串指派給元素會帶進 XSS 風險，`clinic-site.test.ts` 用純文字比對釘住了這
- * 一點。那道比對連註解都會掃到，所以這裡只能敘述它、不能寫出那個屬性名。
- */
-function splitHeadingWords(root) {
-  const heading = root.querySelector('.clinic-hybrid-hero__copy h1');
-  if (heading === null || heading.querySelector('.clinic-word') !== null)
-    return;
-
-  const text = heading.textContent ?? '';
-  const words = text.split(/(\s+)/u).filter(Boolean);
-  // 中文沒有空白分隔，`split` 會得到一整段。那種情況改成逐字拆。
-  const units = words.length > 1 ? words : [...text];
-
-  // 視覺層對報讀器隱藏，另外保留一份完整文字。
-  //
-  // 拆成一堆 `display: inline-block` 的 span 之後，可及名稱的計算會在每個
-  // inline-block 之間補一個空白——中文標題於是變成「從 順 暢 呼 吸 開 始」，
-  // 報讀器會逐字唸出主標題。那不是測試的怪癖，是真的聽不懂。
-  const visual = element('span', { attrs: { 'aria-hidden': 'true' } });
-  for (const [index, unit] of units.entries()) {
-    const span = element('span', { className: 'clinic-word', text: unit });
-    span.style.setProperty('--clinic-word-index', String(index));
-    visual.append(span);
-  }
-
-  heading.replaceChildren(
-    element('span', { className: 'visually-hidden', text }),
-    visual
-  );
-}
-
-/**
- * 指標聚光燈與磁吸（動效 18、20）。
- *
- * 只寫 CSS 自訂屬性，不直接改 style.transform——把「怎麼畫」留在 CSS，
- * `prefers-reduced-motion` 才有辦法一次關掉全部。指標事件用 `pointermove`
- * 而不是 `mousemove`，觸控筆與觸控都會走同一條路徑。
- */
-function bindPointerEffects(root) {
-  const spotlightTargets = root.querySelectorAll(
-    '.clinic-service-card, .clinic-doctor-card, .clinic-visit-card'
-  );
-  for (const card of spotlightTargets) {
-    card.addEventListener('pointermove', (event) => {
-      const box = card.getBoundingClientRect();
-      card.style.setProperty(
-        '--clinic-x',
-        `${((event.clientX - box.left) / box.width) * 100}%`
-      );
-      card.style.setProperty(
-        '--clinic-y',
-        `${((event.clientY - box.top) / box.height) * 100}%`
-      );
-    });
-  }
-
-  const magnets = document.querySelectorAll(
-    '.clinic-button--primary, .clinic-header__booking'
-  );
-  for (const magnet of magnets) {
-    magnet.addEventListener('pointermove', (event) => {
-      const box = magnet.getBoundingClientRect();
-      // 上限 0.25rem。再大就變成按鈕在閃躲游標。
-      const limit = 4;
-      const x =
-        ((event.clientX - (box.left + box.width / 2)) / box.width) * limit;
-      const y =
-        ((event.clientY - (box.top + box.height / 2)) / box.height) * limit;
-      magnet.style.setProperty('--clinic-magnet-x', `${x.toFixed(2)}px`);
-      magnet.style.setProperty('--clinic-magnet-y', `${y.toFixed(2)}px`);
-    });
-    magnet.addEventListener('pointerleave', () => {
-      magnet.style.removeProperty('--clinic-magnet-x');
-      magnet.style.removeProperty('--clinic-magnet-y');
-    });
-  }
-}
-
-/** 導覽聚光指示條（動效 22）。 */
-function bindNavSpotlight() {
-  const list = navigation.querySelector('.clinic-navigation__list');
-  if (list === null || list.querySelector('.clinic-nav-spotlight') !== null)
-    return;
-
-  const spotlight = element('span', {
-    className: 'clinic-nav-spotlight',
-    attrs: { 'aria-hidden': 'true' }
-  });
-  list.append(spotlight);
-
-  const move = (target) => {
-    const listBox = list.getBoundingClientRect();
-    const box = target.getBoundingClientRect();
-    spotlight.style.width = `${box.width}px`;
-    spotlight.style.transform = `translate3d(${box.left - listBox.left}px, 0, 0)`;
-    spotlight.style.opacity = '1';
-  };
-
-  for (const anchor of list.querySelectorAll(':scope > li > a')) {
-    anchor.addEventListener('pointerenter', () => move(anchor));
-    // 鍵盤也要有：只綁 pointer 事件等於這個回饋對 Tab 使用者不存在。
-    anchor.addEventListener('focus', () => move(anchor));
-  }
-  list.addEventListener('pointerleave', () => {
-    spotlight.style.opacity = '0';
-  });
-}
-
-/** 網格逐格錯開（動效 24）。 */
-function indexGridCells(root) {
-  const grids = root.querySelectorAll('.clinic-card-grid, .clinic-visit-grid');
-  for (const grid of grids) {
-    for (const [index, cell] of [...grid.children].entries()) {
-      cell.style.setProperty('--clinic-cell', String(index));
-    }
-  }
-}
-
 function applyMotion() {
   const main = document.querySelector('#clinic-main');
   if (main === null) return;
-  splitHeadingWords(main);
-  stageHero(main);
-  indexGridCells(main);
-  bindPointerEffects(main);
   observeReveals(main);
 }
 
@@ -1194,6 +1585,6 @@ function applyMotion() {
 enableMotion();
 observeHeaderCondense();
 renderNavigation();
-bindNavSpotlight();
+enhanceFooterSocial();
 renderRoute();
 applyMotion();

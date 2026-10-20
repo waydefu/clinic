@@ -1,11 +1,11 @@
 [
   {
     "path": "/patient.html",
-    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。total 71 是 2026-09-07 T1-BOOK-04（患者自助改期：查詢即本人、當日 10:00 截止、一個月 horizon、同一原子操作先佔新時段再釋出舊時段）上調（原為 70）：壓縮共用 store／management／schedule-engine 後 gzip 實測仍超原上限 76 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。",
+    "justification": "對外的主要頁面，門檻最嚴。document 7 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 6.6 KiB 加餘裕；script 50／stylesheet 10 是 2026-07-25 加上 esbuild 壓縮後訂的；font 0 KiB 是「不載入中文字體」這個決定的執行方式，不是量出來的上限。total 71 是 2026-09-07 T1-BOOK-04（患者自助改期：查詢即本人、當日 10:00 截止、一個月 horizon、同一原子操作先佔新時段再釋出舊時段）上調（原為 70）：壓縮共用 store／management／schedule-engine 後 gzip 實測仍超原上限 76 B，繼續壓縮需刪必要驗證或做非最小架構重構；script／stylesheet／counts／timings 皆不放寬。 2026-10-19 預約頁換膚（業主「官網與預約頁風格要相同」，決策登錄同日條，負責人核可的上限：image 約 12、total 約 78、stylesheet 請求數 3，script 不變）：頁首與頁尾改用官網標誌（assets/booking-logo.webp，144×80，去掉舊的 brand-mark.webp）、新增共用 brand-tokens.css、標題帶淡綠底圖 soft-green-bg.webp（凍結素材，經 CSS url() 進入閉包，所以 image 多一個請求）。實測 gzip：document 7,140 B（7.0 KiB）、script 49,774 B（48.6）、stylesheet 11,647 B（11.4）、image 10,962 B（10.7）、total 79,523 B（77.7 KiB）；請求數 stylesheet 3、image 4（標誌、健保標章、favicon、底圖）、total 40。stylesheet 10→12、image 6→12、total 71→78、stylesheet 請求數 2→3、image 請求數 3→4；document／script／font／total 請求數／timings／module depth 不變。這份預算量的是 HTML 能追到的閉包（og:image 不在其中，見 check-performance-budget.mjs），不是頁面實測。 2026-10-20 預約頁診所資訊卡（業主 2026-10-19 看過頁面後的要求：「診所資訊不要放那，放預約頁上方即可，且僅須第一頁，然後不要有文字連結」；專案負責人核可 document 與 total 上調）：第一步標題帶新增門診時間、地址、電話、健保門診四項的資訊卡，圖示用官網的時鐘、圖釘、電話三個內嵌 SVG（只增加 document 的位元組：不新增圖檔，也不能放進 CSS 的 data URI，因為 CSP 是 img-src 'self'），同時移除左欄資訊區與其中的 tel: 連結。實測 gzip：document 7,426 B（7.25 KiB）、script 49,774 B（48.61）、stylesheet 11,760 B（11.48）、image 10,962 B（10.71）、total 79,922 B（78.05 KiB）；請求數不變（script 32、stylesheet 3、image 4、total 40）。document 7→7.5、total 78→78.5；stylesheet、image、script、font、請求數、timings、module depth 都不變。",
     "resourceSizes": [
       {
         "resourceType": "document",
-        "budget": 7
+        "budget": 7.5
       },
       {
         "resourceType": "script",
@@ -13,11 +13,11 @@
       },
       {
         "resourceType": "stylesheet",
-        "budget": 10
+        "budget": 12
       },
       {
         "resourceType": "image",
-        "budget": 6
+        "budget": 12
       },
       {
         "resourceType": "font",
@@ -25,7 +25,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 71
+        "budget": 78.5
       }
     ],
     "resourceCounts": [
@@ -35,11 +35,11 @@
       },
       {
         "resourceType": "stylesheet",
-        "budget": 2
+        "budget": 3
       },
       {
         "resourceType": "image",
-        "budget": 3
+        "budget": 4
       },
       {
         "resourceType": "total",
@@ -131,7 +131,7 @@
   },
   {
     "path": "/clinic.html",
-    "justification": "診所官網。image 180 KiB／14 檔是 2026-08-02 把 12 張素材轉成 WebP 後的實測 127.3 KiB／13 檔加餘裕（原始素材 2.2 MB，見 2026-07-27 業主需求批次的 C2）。**檔數從 3 調到 14 不是放寬**：其中 9 張本來就會被下載，只是先前只有 JS 用字串常數指到它們，而預算的傳遞閉包看不見那種參照；同一天補上之後 gate 才第一次量到整頁的影像重量。script 20／stylesheet 14 是 2026-08-01 首頁動效與資訊補全後上調的（原為 12／7），業主當日同意擴充首頁預算；動效以 CSS transform／opacity 為主，cumulative-layout-shift 仍維持 0.1 不放寬——那是動效最容易踩壞的一項，放寬它等於讓這道預算失去意義。其餘欄位是實測值加餘裕。",
+    "justification": "診所官網。image 180 KiB／14 檔是 2026-08-02 把 12 張素材轉成 WebP 後的實測 127.3 KiB／13 檔加餘裕（原始素材 2.2 MB，見 2026-07-27 業主需求批次的 C2）。**檔數從 3 調到 14 不是放寬**：其中 9 張本來就會被下載，只是先前只有 JS 用字串常數指到它們，而預算的傳遞閉包看不見那種參照；同一天補上之後 gate 才第一次量到整頁的影像重量。script 20／stylesheet 14 是 2026-08-01 首頁動效與資訊補全後上調的（原為 12／7），業主當日同意擴充首頁預算；動效以 CSS transform／opacity 為主，cumulative-layout-shift 仍維持 0.1 不放寬——那是動效最容易踩壞的一項，放寬它等於讓這道預算失去意義。其餘欄位是實測值加餘裕。 2026-10-11 首頁改版（決定登記簿「官網 /clinic 改版提前開發與解凍」）：業主核准圖片預算依實測放寬 30～60 KiB。新增品牌牆首圖與四張診所空間照（合計 131.3 KiB），實測 image 227.0 KiB／14 檔、total 250.3 KiB／18 個；image 改為 228（+48，在核准範圍內），total 改為 252（+52：圖片 +48，加上改版樣式與文件約 1.3 KiB 的實測增量與餘裕）。檔數 14／18 不變，script、stylesheet、document、timings、module depth 不變。 2026-10-12 業主換掉止鼾五合一與鼻中隔手術兩張療程插圖（新圖為水彩紙紋，品質 0.62 後兩張合計 24.6 KiB，舊圖 20.7 KiB）：實測 image 230.8 KiB／14 檔、total 254.1 KiB／18 個；image 改為 234（相對 2026-08-02 的 180 為 +54，仍在業主核准的 30～60 KiB 內），total 改為 258。檔數不變。 同日內頁改版後：刪掉舊首頁殘留樣式，其中引用的 soft-green-bg.webp 不再下載，下鼻甲與牙套兩張療程圖改成整圓取出；實測 image 224.4 KiB／13 檔、total 246.1 KiB／17 個、stylesheet 7.1 KiB，預算收回 image 228、total 250。 2026-10-12 視覺方向 A+B（決策登記簿「官網視覺方向 A+B 與『點了才載入』的 Google 地圖」）：業主要求用上舊背景圖 soft-green-bg.webp（2.9 KB，首屏、內頁頁首與收尾區共用），首頁「門診時間與交通」加入本站自繪的 OpenStreetMap 地圖（桌機寬版 10.8 KB、手機近距離版 5.7 KB，以 <picture> 依寬度擇一下載；預算閉包兩張都算）。實測 image 233.3 KiB／16 檔、total 256.2 KiB／20 個；image 改為 234（相對 2026-08-02 的 180 為 +54，仍在業主核准的 30～60 KiB 內），total 改為 258，image 檔數 14→16、total 檔數 18→20。Google 地圖只在病人按下按鈕後載入，不在本頁的載入預算內。 2026-10-12 第二輪（業主要求更豐富的配色、社群圖示與視覺化，並指示使用投影片裡的器材照與牙套實品照；業主同日選擇「接受，調高預算」）：新增自繪圖示與鼻中隔插圖（路徑資料，腳本約 +4.8 KiB gzip）、兩張器材去背照（各約 15.6 KiB）與牙套實品照（17.5 KiB）。實測 image 281.5 KiB／19 檔、script 20.1 KiB、total 312.5 KiB／23 個；image 改為 284、script 21、total 314，image 檔數 16→19、total 檔數 20→23。圖片已超出 2026-10-11 核准的 30～60 KiB 範圍，以本日業主決定為準。注意：這是預算閉包的計法——療程頁專用的照片只在療程頁才會下載，首頁實際不會載入；之後若把療程頁內容改成進入該頁才載入，應把這裡的數字收回。",
     "resourceSizes": [
       {
         "resourceType": "document",
@@ -139,7 +139,7 @@
       },
       {
         "resourceType": "script",
-        "budget": 20
+        "budget": 21
       },
       {
         "resourceType": "stylesheet",
@@ -147,7 +147,7 @@
       },
       {
         "resourceType": "image",
-        "budget": 180
+        "budget": 284
       },
       {
         "resourceType": "font",
@@ -155,7 +155,7 @@
       },
       {
         "resourceType": "total",
-        "budget": 200
+        "budget": 314
       }
     ],
     "resourceCounts": [
@@ -169,11 +169,11 @@
       },
       {
         "resourceType": "image",
-        "budget": 14
+        "budget": 19
       },
       {
         "resourceType": "total",
-        "budget": 18
+        "budget": 23
       }
     ],
     "timings": [

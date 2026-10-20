@@ -1,95 +1,70 @@
 ---
 name: ui-motion
-description: Design, implement or review purposeful motion in the clinic's HTML/CSS/ES Modules interface, including Anime.js evaluation, temporal composition, gallery transitions, interrupted playback and reduced-motion fallbacks. Use when motion quality or an animation dependency is part of the task, not for every spacing or copy change. Works with ui-design and ui-check; does not grant installation, production or booking authority.
+description: Design, implement or review motion in the clinic's HTML/CSS/ES Modules interface with concrete duration and easing tokens, compositor-only properties, interruptible transitions, CSS springs, scroll-driven and view-transition enhancements and reduced-motion parity. Use when motion quality, an animation technique or an animation dependency is part of the task. Works with ui-design, ui-score (motion lint) and ui-check; does not grant installation, production or booking authority.
 ---
 
 # Compose and verify motion
 
-Use [ui-design](../ui-design/SKILL.md) for the page's visual direction and
-[ui-check](../ui-check/SKILL.md) for implementation verification. Acceptance
-remains [ui-ux-rules.md](../../../docs/design/ui-ux-rules.md) R-17 and §5;
-this skill supplies a method, not another governance gate. Read the current
-task/brief first: a research or review request does not authorise website edits.
-Preserve earlier user authorisation and the existing clinic/booking boundaries.
+Use [ui-design](../ui-design/SKILL.md) for the page's direction,
+[ui-score](../ui-score/SKILL.md) for the motion lint and
+[ui-check](../ui-check/SKILL.md) for verification. Acceptance remains
+[ui-ux-rules.md](../../../docs/design/ui-ux-rules.md) R-17 and §5. Values and
+sources: [`docs/design/2026-10-12-design-research.md`](../../../docs/design/2026-10-12-design-research.md) §5.
 
-Read only the reference needed:
+References:
 
-- [Motion design and rendered review](../../../.claude/skills/ui-motion/reference/motion-design.md)
-  for attention, choreography, clinic-specific treatments and evidence.
-- [Anime.js selection and lifecycle](../../../.claude/skills/ui-motion/reference/animejs.md)
-  for module cost, CSP/Trusted Types, cancellation and browser limitations.
-- [Verified award benchmarks](../../../.claude/skills/ui-design/reference/award-benchmarks.md)
-  for professionally judged work, observed motion and clinic adaptation limits.
+- [Motion patterns and values](../../../.claude/skills/ui-motion/reference/motion-design.md):
+  tokens, patterns with code shape, clinic candidates, evidence.
+- [Anime.js selection and lifecycle](../../../.claude/skills/ui-motion/reference/animejs.md):
+  why the library is not used (owner decision 2026-10-10) and the native equivalents.
 
-Each reference has one canonical copy in `.claude`. Generated `.agents`
-skills link there; the existing generator copies only `SKILL.md`.
+## Decide whether to move at all
 
-The existing site's motion is a before-state to examine, not the quality target.
-In particular, the word-split headings, card spotlight, magnetic buttons and
-scroll progress bar in `apps/web/public/clinic-site.js` are not precedents to
-copy; the owner chose on 2026-10-10 to rebuild the homepage from `main`.
-Derive the treatment from the brief, content and inspected jury-awarded cases.
-The owner's quality bar is international design-competition-level craft; a
-playing carousel or isolated compatibility test cannot establish it. Do not
-create unapproved low-grade demos or prescribe their timing/layout as models.
-Implement in the actual authorised candidate and critique the complete motion.
+Motion earns its place by explaining a change, confirming an action, keeping
+spatial continuity, or one rare moment of delight. Frequency decides: anything
+keyboard-initiated or seen many times a day gets no animation; give every input
+visible feedback within 100 ms; spend at most one signature moment per page.
+Premium motion is fast, purposeful, consistent and interruptible; gimmicky
+motion is long, looping, autoplaying, decorative or scroll-hijacking.
 
-## Start from the visible experience
+## Tokens
 
-Inspect the actual route at the affected desktop/mobile widths with normal
-motion enabled. Watch first arrival, a relevant interaction and its completion;
-a source search or static screenshot cannot establish motion quality. Check
-reduced motion separately. Name missing playback evidence instead of assuming
-that a demo, CSS declaration or imported library proves an animation works.
+| Use | Duration | Easing | Clinic token (current → target) |
+| --- | --- | --- | --- |
+| Press, toggle, colour/opacity hover | 100–150 ms | `cubic-bezier(0.2, 0, 0, 1)` | `--clinic-duration-effect-swift` 0.16s |
+| Small reveal (tooltip, menu, accordion) | 150–200 ms | enter `cubic-bezier(0.05, 0.7, 0.1, 1)` | — (add) |
+| Panel, dialog, gallery crossfade | 240–300 ms | enter as above; exit `cubic-bezier(0.3, 0, 0.8, 0.15)` at 65–85% of enter | `--clinic-duration-effect-fast` 0.24s |
+| Entrance reveal (opacity + small translate) | 500–600 ms | `--clinic-ease-out` | `--clinic-duration-spatial-base` 0.5s |
+| Large travel or page change | ≤ 450 ms | standard | `--clinic-duration-spatial-slow` 0.8s → should drop to ≤ 0.6s |
 
-Fix composition before trying to animate it. Preserve the chosen editorial,
-natural clinic direction, brand photographs, portraits and paid illustrations.
-Motion may support orientation, feedback or the pacing of an existing visual
-relationship. It need not be limited to a button-state change, but it needs an
-observable contribution. Do not set an animation quota or animate every section.
+Never `linear` for UI movement; never the weak CSS keywords where a token
+exists. JavaScript reads durations from CSS custom properties
+(`getComputedStyle`), never literals. `check:tokens` only sees CSS `ms` values
+inside `transition`/`animation`; the ui-score motion lint covers what runs.
 
-## Write one brief for each selected treatment
+## Rules for every animation
 
-Record route, viewport, element, trigger and the intended focus of attention.
-Describe the before, intermediate and settled compositions: what stays still,
-what changes, in what order, with what duration/easing and why. State the static
-fallback and interruption behaviour. Separate engineering effort, transfer
-bytes/request count and decoded-image memory when estimating cost.
-Use existing motion tokens where available; proposed timings are hypotheses
-to inspect, not universal acceptance thresholds.
-
-Each surface has its own token family; do not mix them. The clinic site uses
-`--clinic-duration-*`, `--clinic-ease-*` and `--clinic-stagger-*` in
-`clinic-site.css`; the workbench uses `--motion-fast/base/slow` and `--ease-*`
-in `styles.css`. A duration used from JavaScript reads the CSS token
-(`getComputedStyle`) instead of repeating a literal. `check:tokens` only scans
-CSS for `<number>ms` inside `transition`/`animation`, so seconds and JS literals
-pass unchecked; extending it is a gate change that ships with its own tests.
-
-Choose the temporal relationship before the tool. A timeline is useful when
-multiple changes must maintain an order or overlap; it is unnecessary merely
-because a page has multiple elements. Compare a few key frames or a small
-isolated trial when the strongest treatment is unclear, then own the choice.
-
-Primary copy and required information stay readable without JS and before any
-scroll trigger. Do not delay the page behind an intro, split all headings into
-moving letters, or use parallax/tilt to decorate clinical content. Keep supplied
-whole medical figures intact unless the owner specifically approves alteration.
-Animation cannot invent medical claims or imply an unreviewed treatment result.
-
-## Select the smallest suitable implementation
-
-CSS can handle a control's short visual feedback. Native WAAPI can handle
-finite DOM transitions. The owner decided on 2026-10-10 not to add Anime.js:
-use its techniques through CSS and native WAAPI, following the technique table
-in the Anime.js reference. Adding the library again needs a new owner decision
-and that reference's adoption prerequisites; then measure the exact imported
-feature set and build, without assuming any import style is free.
-
-Keep HTML/CSS/ES Modules, native semantics, local fonts and the existing Trusted
-Types boundary. No React migration, CDN script, new booking model, framework
-installation or budget increase follows from a research request. Do not weaken
-CSP or create a permissive Trusted Types policy to accommodate a demo.
+- Animate `transform` and `opacity` only; list properties explicitly, never
+  `transition: all`; `will-change` only on an element about to move.
+- State-driven UI uses transitions (they retarget mid-flight); keyframes only
+  for one-off sequences.
+- Never start from `scale(0)`; start at 0.93–0.97. Put `transform-origin` where
+  the motion physically starts (the trigger).
+- Exits are shorter and milder than entrances.
+- Stagger: 30–50 ms per item, at most five items, whole sequence ≤ 500 ms,
+  first item without delay.
+- Springs without a library: parameterise as (duration, bounce), pre-sample to a
+  CSS `linear()` easing in a build step; bounce 0 for clinical content.
+- Scroll-driven animation and cross-document view transitions are progressive
+  enhancement inside `@supports` and `@media (prefers-reduced-motion: no-preference)`;
+  content is complete and visible without them.
+- Dialogs and popovers animate with `@starting-style` and
+  `transition-behavior: allow-discrete`, no JS.
+- Reduced motion removes movement (translate, scale, parallax, zoom) and keeps
+  opacity changes; write the static end state as default and add motion inside
+  the `no-preference` block. Autoplay stops entirely.
+- No motion may imply a treatment result (no count-ups, before/after wipes,
+  "airflow improving" animations).
 
 ## Own the entire lifecycle
 
@@ -103,34 +78,17 @@ Keep focus and touch geometry stable; animation must not postpone an action.
 - Guard every asynchronous image decode and completion with current intent.
   Commit a photo and its description together; an older resolve, failed decode
   or cancelled animation cannot overwrite the latest valid selection.
-- Pause/cancel appropriately on hidden/pagehide. On pageshow, including BFCache,
-  restore one controller and preserve explicit pause intent. A global engine's
-  hidden-document setting does not manage application timers or decode work.
+- Pause/cancel on hidden/pagehide; on pageshow (including BFCache) restore one
+  controller and preserve explicit pause intent.
 - Teardown removes listeners, disconnects observers, cancels timers/effects and
-  invalidates pending work. Verify style restoration; `cancel`, `revert` and
-  native `finished` promises have different semantics. Cleanup must be safe to
-  repeat and must not erase another controller's transforms.
+  invalidates pending work; it must be safe to repeat.
 
-## Review the actual motion, then verify the implementation
+## Verify
 
-For a substantial clinic treatment, view normal playback at 1440px and 375px.
-Record a clip or trace plus before/intermediate/settled evidence, trigger and
-preference. Critique attention, continuity, overlap and the final composition;
-revise the weakest relationship and watch again. A recording exists only as
-evidence after someone actually watches it. Screenshots alone do not show pacing.
-
-During research, unavailable viewport/playback evidence can leave the proposed
-frames as labelled hypotheses. Keep those rows unverified; a synthetic lab or
-one default desktop capture cannot accept the clinic's 1440/375 composition.
-
-Exercise reduced motion initially and during playback, rapid repeated input,
-keyboard/focus, image failure and the lifecycle paths affected by the change.
-Check console/CSP violations through completion and teardown, not only startup.
-Report untested browsers, hardware and lifecycle paths explicitly. A synthetic
-lab establishes compatibility only for its tested feature and environment.
-
-Measure the built route's full resource closure and request count against the
-existing budgets, including shared imports. No increased budget, lazy-loading
-loophole or vendor's advertised gzip figure substitutes for project measurement.
-Give ui-check the motion brief, inspected evidence, interruption results, cost
-and remaining gaps. Keep prototype, isolated lab and formal build claims separate.
+Run the ui-score motion lint (properties, durations, loops) on the affected
+routes in both normal and reduced-motion modes. Then watch normal playback at
+1440 and 375 px; a recording is evidence only after someone watches it.
+Exercise rapid repeated input, keyboard, image failure and the lifecycle paths
+the change touches. Check console and CSP violations through completion and
+teardown. Measure the built route against the existing budgets. Report
+untested browsers, devices and paths explicitly.

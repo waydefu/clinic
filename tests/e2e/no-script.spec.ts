@@ -16,11 +16,17 @@ test.describe('JavaScript 未執行時的後備', () => {
     await page.goto('/booking');
 
     // 電話是這個畫面唯一的行動點，必須真的可以撥。
+    // 2026-10-19 起頁尾也有同樣兩個撥號連結（官網風格的聯絡欄），所以後備區塊要
+    // 限定範圍；頁尾那一份另外驗證它同樣不靠 JavaScript。
+    const fallback = page.locator('.noscript-fallback');
     await expect(
-      page.getByRole('link', { name: '02-2577-1314' })
+      fallback.getByRole('link', { name: '02-2577-1314' })
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: '0800-000-913（免付費）' })
+      fallback.getByRole('link', { name: '0800-000-913（免付費）' })
+    ).toBeVisible();
+    await expect(
+      page.locator('.patient-footer a[href="tel:+886225771314"]')
     ).toBeVisible();
 
     const text = await page.locator('body').innerText();

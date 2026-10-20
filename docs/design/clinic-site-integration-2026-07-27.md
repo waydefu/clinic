@@ -44,9 +44,10 @@ an additional treatment category or route.
 - `clinic-site.js` selects the current route and creates accessible DOM nodes.
   It does not use `innerHTML`, preserving the existing Trusted Types boundary.
 - `clinic-site.css` owns the public clinic presentation and responsive layout.
-- `clinic-booking.css` is a small override layer after `styles.css`. It uses the
-  existing booking design tokens, so light, warm and dark themes remain
-  functional.
+- `clinic-booking.css` is the booking page's skin, loaded after `styles.css` and
+  `brand-tokens.css`. Since 2026-10-19 it maps the existing booking design
+  tokens onto the shared `--brand-*` tokens (decision register, same date), so
+  light, warm and dark themes remain functional.
 - `server.mjs` and `firebase.json` declare matching local and Hosting routes.
 
 The public clinic shell contains a desktop and mobile navigation, breadcrumb

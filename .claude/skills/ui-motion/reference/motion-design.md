@@ -31,7 +31,7 @@ content must remain usable, even when a justified enhancement is lost.
 | Content relationship | Treatment worth testing | What must remain stable |
 | --- | --- | --- |
 | Homepage brand photograph and opening copy | A finite, quiet photographic arrival or decoded photo crossfade; establish the clinic sign as the visual anchor | Brand legibility, readable copy from first paint, useful crop at 375px, fixed control geometry |
-| Six photos in one editorial gallery | Retain the gallery's spatial frame while the selected image changes; photo/description commit together | Latest selection, explicit pause intent, image failure recovery and keyboard operation |
+| The four-photo "走進診所" gallery (user-driven, no autoplay) | Retain the gallery's frame while the selected image changes; photo and description commit together after decode | Latest selection wins, image failure recovery, keyboard operation, no motion under reduced motion |
 | Long medical article and its anatomy | A user-selected association between existing explanation and whole figure, or a restrained chapter cue | All claims and diagrams available without animation; no moving/cropped anatomy to imply an effect |
 | Mouthguard assessment, making, adjustment, wearing and care | Show the existing sequence and current reading position; optional emphasis follows an explicit selection | Complete ordered HTML, correct content and no invented clinical outcome |
 | Physician profiles | At most a quiet transition attached to a real navigation action | Portrait/name/role remain readable together; no tilted portraits, testimonial carousel or doctor booking CTA |
@@ -40,6 +40,56 @@ These are candidates for the chosen layout, not instructions to add five effects
 A still portrait or whole comparison table is often the strongest decision.
 Do not animate a medical figure's internal parts to create a clinical explanation
 that has not been sourced and reviewed. Preserve owner-supplied full figures.
+
+## Patterns with their code shape
+
+Durations and curves come from the token table in the skill. Each pattern below
+is the smallest native implementation that meets the rules; adapt names to the
+clinic tokens.
+
+**Entrance reveal (once per section).** Static visible state is the default;
+motion only when the preference allows and JS has marked the page:
+
+```css
+@media (prefers-reduced-motion: no-preference) {
+  .clinic-motion [data-reveal] { opacity: 0; transform: translate3d(0, 0.75rem, 0);
+    transition: opacity var(--clinic-duration-spatial-base) var(--clinic-ease-out),
+                transform var(--clinic-duration-spatial-base) var(--clinic-ease-out); }
+  .clinic-motion [data-reveal].is-revealed { opacity: 1; transform: none; }
+}
+```
+
+Translate 8–24 px, never scale large objects; stagger only inside one group.
+
+**Photo crossfade.** Decode the next image first, then animate two stacked
+layers (old fading out, new fading in) with the panel duration; changing `src`
+then fading the single image is a reveal, not a crossfade. Guard with a
+generation counter so a late decode cannot win.
+
+**Dialog, popover, mobile menu.** `@starting-style` for the entry state plus
+`transition: opacity, transform, overlay allow-discrete, display allow-discrete`;
+exit shorter than entry. Top-layer semantics keep focus and Escape native.
+
+**Page change.** `@view-transition { navigation: auto; }` in both documents
+(same origin only; Chromium and Safari 18.2+; Firefox falls back to a normal
+navigation). Root crossfade 250–300 ms; a shared element (doctor card portrait
+to profile portrait) needs a unique `view-transition-name` set in CSS or via
+CSSOM, never an inline style attribute under the CSP. Under reduced motion use an
+opacity-only crossfade of 100–150 ms or none.
+
+**Scroll-driven accents.** `animation-timeline: view()` with `animation-range`
+(for example `entry 10% cover 30%`), inside
+`@supports (animation-timeline: view())` and the `no-preference` query. Content
+must be fully visible where unsupported.
+
+**Hover and press.** Colour or opacity only, about 125 ms in and slower out;
+`:active` may scale to 0.97. Hover on a stable parent, animate a child, so the
+element never moves out from under the pointer.
+
+**Springs.** Apple's model: stiffness = (2π / duration)², damping =
+4π(1 − bounce) / duration (mass 1). Sample the step response at about 35–60
+points in a build script and emit `linear(...)`; bounce 0 (critically damped)
+for clinical content. Set the CSS duration to the computed settling time.
 
 ## Choreograph before coding
 
@@ -125,7 +175,9 @@ assistive-technology acceptance. Record gaps instead of silently filling them.
   SC 2.3.3 is Level AAA; explanatory guidance does not create a new project gate
   or replace R-17 and the separate rules for automatically moving content.
 
-Project-authored guidance, researched 2026-10-07. The owner's 2026-10-08
+Project-authored guidance, researched 2026-10-07; patterns and values added
+2026-10-12 from the motion research (Material 3 tokens, Carbon, NN/g, Kowalski,
+Comeau, Apple spring model, Chrome view-transition and scroll-driven docs). The owner's 2026-10-08
 international-level bar is routed through
 [verified award benchmarks](../../ui-design/reference/award-benchmarks.md).
 No unapproved teaching prototypes, fixed animation quota or automatic upstream

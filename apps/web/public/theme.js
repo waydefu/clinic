@@ -4,15 +4,21 @@
 (() => {
   'use strict';
   const STORAGE_KEY = 'beauessence_theme';
+  const PREFERENCES = ['light', 'warm', 'dark', 'auto'];
   const THEME_COLORS = { light: '#155c48', warm: '#1d5c48', dark: '#101714' };
+  // 頁面可以在 <html data-default-theme="…"> 宣告「使用者沒選過時的預設」：預約頁
+  // 宣告 light（2026-10-19 業主要求與官網同風格）。沒宣告或值不合法就是 warm，
+  // 工作臺、隱私權政策與 404 因此維持原樣。使用者自己選過的偏好永遠優先。
+  const declared = document.documentElement.getAttribute('data-default-theme');
+  const DEFAULT_PREFERENCE = PREFERENCES.includes(declared) ? declared : 'warm';
   const media = window.matchMedia('(prefers-color-scheme: dark)');
 
   const storedPreference = () => {
     try {
       const value = window.localStorage.getItem(STORAGE_KEY);
-      return ['light', 'warm', 'dark', 'auto'].includes(value) ? value : 'warm';
+      return PREFERENCES.includes(value) ? value : DEFAULT_PREFERENCE;
     } catch {
-      return 'warm';
+      return DEFAULT_PREFERENCE;
     }
   };
 

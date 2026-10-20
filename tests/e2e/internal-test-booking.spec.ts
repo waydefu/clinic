@@ -319,10 +319,10 @@ test.describe('internal-test booking occupancy overlay', () => {
       '內部測試路由'
     );
     await expect(
-      page.locator('.patient-header .environment-badge')
+      page.locator('.patient-notice .environment-badge')
     ).toContainText('LOCAL TEST ONLY');
     await expect(
-      page.locator('.patient-header .environment-badge')
+      page.locator('.patient-notice .environment-badge')
     ).not.toContainText('INTERNAL TEST');
   });
 
@@ -341,7 +341,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       '內部測試路由 · 非正式上線'
     );
     await expect(
-      page.locator('.patient-header .environment-badge')
+      page.locator('.patient-notice .environment-badge')
     ).toContainText('INTERNAL TEST');
   });
 
@@ -379,6 +379,22 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(
       page.locator('[data-patient-slot="slot_overlay_taken"]')
     ).toHaveCount(0);
+  });
+
+  test('staff start distinguishes browser-local data from the internal-test overlay', async ({
+    page
+  }) => {
+    await login(page);
+    await page.reload();
+    await expect(page.locator('#status')).toHaveText('資料只存此瀏覽器。');
+
+    await stubV1(page, { slots: [] }, 'closed', {}, { listBookings: () => [] });
+    await login(page, undefined, {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await page.reload();
+    await expect(page.locator('#status')).toHaveText('預約依測試服務。');
   });
 
   test('staff opt-in with a closed slot list hides the synthetic bookable grid', async ({
