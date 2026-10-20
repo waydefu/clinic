@@ -1,5 +1,4 @@
-// Trusted Types 的 default policy。必須第一個匯入：它要在任何模組
-// 有機會寫 innerHTML 之前就註冊好。
+// Trusted Types default policy 必須先於其他模組註冊。
 import { assertRenderable } from './modules/trusted-html.js';
 
 import {
@@ -258,9 +257,7 @@ const editingFollowUps = new Set();
 // 最早一筆預約／時段所在的週，讓合成資料一進來就有內容可看。
 let weekStart;
 
-// 手機用行程表、桌機用時間網格。48rem 與 workbench.css 的斷點是同一個數字，
-// 改其中一個就要改另一個——CSS 自訂屬性不能用在 media query 條件裡，所以這份
-// 對應只能靠註解維持。
+// 手機行程、桌機週曆；48rem 與 workbench.css 同步，media query 不能用 CSS 變數。
 const compactCalendar = window.matchMedia('(max-width: 48rem)');
 
 function renderWeek() {
