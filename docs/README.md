@@ -131,6 +131,10 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [UI/UX 重設計計畫（2026-09-07）](design/2026-09-07-ui-ux-redesign-plan.md) — scope, invariants, files, review dependencies, verification and rollback for the owner-requested redesign PR
 
+- [網頁設計、動效與美學評分研究（2026-10-12）](design/2026-10-12-design-research.md) — 得獎評審標準、第一印象證據、專業流程、繁中排版與動效的具體值、醫療網站模式，以及程式化美學評分的指標與使用紀律
+
+- [官網改版（2026-10-11～12）](design/2026-10-11-clinic-homepage-redesign.md) — 首頁品牌牆與相簿、內頁改版、療程插圖替換與素材權利、動效取捨、預算，以及待業主審的文案對照表；2026-10-20 起不等 C1，合併時機見決策登記簿同日條目
+
 - [Phase 0 local development](phase-0-local-development.md) — what exists locally and how to verify it
 - [Test-only sandbox baseline](product/test-only-sandbox-baseline.md) — the authority and limits of the synthetic-only profile
 - [Test-only scheduling and follow-up workbench](product/test-only-scheduling-follow-up-workbench.md) — scope of the synthetic scheduling and follow-up surface

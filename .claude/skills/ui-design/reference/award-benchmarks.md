@@ -12,6 +12,28 @@ a claim that our site has won an award, or a promise of a future jury result.
 Daily website awards are not annual grand prizes. A jury score establishes the
 reference's provenance; it is not a numeric project gate or the maker's score.
 
+## Calibration (2026-10-12)
+
+What the bar means in numbers, from the official evaluation page and sampled
+public score pages (sources in `docs/design/2026-10-12-design-research.md`):
+
+- Awwwards weights: Design 40%, Usability 30%, Creativity 20%, Content 10%;
+  at least 18 jurors with the three outlying scores removed.
+- Honorable Mention from 6.5; sampled Sites of the Day 7.11–7.52 (Podium,
+  LPAS, Nine To Five, HEVA Health). Target: every criterion at least 7.2.
+- Developer Award above 7, from six sub-scores; accessibility was the lowest
+  on all three sampled winners (6.40–7.20). Mobile Excellence needs 75/100.
+- Health/clinic is a hard category: the clinic list's first page had only
+  Honorable Mentions; HEVA Health is the health SOTD found.
+
+The award corpus used by [ui-score](../../ui-score/SKILL.md) as its reference
+distribution lives in `scripts/design-score/corpus.json`: Awwwards health and
+clinic Honorable Mentions or SOTD from 2023 on, same-category nominees without
+an award, and ordinary Taiwanese clinic sites. Labels describe the awarded
+version; a site may have changed since, which is known noise. Refresh the
+corpus by reading each Awwwards site page (URL and award labels), not from
+memory, and record the date.
+
 ## Cross-check independent evidence
 
 The owner explicitly requires multiple sources. The initial pool was too

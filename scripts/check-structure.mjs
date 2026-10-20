@@ -192,6 +192,9 @@ const requiredPaths = [
   'apps/web/public/clinic.html',
   'apps/web/public/clinic-site.css',
   'apps/web/public/clinic-booking.css',
+  // 官網與預約頁共用的品牌 token（2026-10-19 決策）。少了它，預約頁的 --brand-*
+  // 全部靜默失效；官網在 #249 合併後也會改讀它。
+  'apps/web/public/brand-tokens.css',
   'apps/web/public/clinic-site.js',
   'apps/web/public/clinic-content.js',
   'apps/web/public/404.html',
@@ -209,6 +212,10 @@ const requiredPaths = [
   'apps/web/public/og-booking.jpg',
   'apps/web/public/assets/brand-mark.webp',
   'apps/web/public/assets/nhi-mark.webp',
+  // 預約頁頁首與頁尾的標誌（2026-10-19）：官網標誌 clinic-source/clinic-logo.png
+  // 去透明留白後縮成 160×89。不走 build:clinic-assets（它會重寫凍結的 manifest），
+  // 也不走 build:brand（需要 Playwright）；產法記在決策登錄 2026-10-19 條。
+  'apps/web/public/assets/booking-logo.webp',
   // 官網素材與品牌資產同一套做法：未出貨的原圖留在 *-source/，出貨的 WebP 進
   // 版控。manifest 記錄每一張的來源、尺寸與 SHA-256，是 C2 授權確認的對象。
   'scripts/build-clinic-assets.mjs',

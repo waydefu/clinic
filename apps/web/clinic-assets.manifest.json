@@ -6,11 +6,63 @@
     "basis": "診所自有（自行拍攝或委製，著作權屬一森渼診所）",
     "confirmedBy": "wayde.fu",
     "confirmedOn": "2026-08-02",
-    "scope": "本 manifest 列出的素材，用於本專案的診所官網；無期限限制"
+    "scope": "2026-08-02 確認當時本 manifest 已列出的素材，用於本專案的診所官網；無期限限制。之後加入或替換的素材不適用本筆（包括 origin 與 licenceStatus），各以 additionalLicences 逐檔記錄"
   },
+  "additionalLicences": [
+    {
+      "files": [
+        "apps/web/clinic-source/home-brand-wall.webp",
+        "apps/web/clinic-source/home-space-reception.webp",
+        "apps/web/clinic-source/home-space-lounge.jpg",
+        "apps/web/clinic-source/home-space-consult.webp",
+        "apps/web/clinic-source/home-space-treatment.jpg"
+      ],
+      "origin": "beauessence.com.tw",
+      "basis": "診所自有（自行拍攝或委製，著作權屬一森渼診所）",
+      "confirmedBy": "wayde.fu",
+      "confirmedOn": "2026-10-12",
+      "scope": "用於本專案的診所官網；無期限限制"
+    },
+    {
+      "files": [
+        "apps/web/clinic-source/service-snoring-open-mouth.webp",
+        "apps/web/clinic-source/service-septoplasty-fatigue.webp"
+      ],
+      "origin": "業主提供",
+      "basis": "業主以 AI 工具產生，業主確認可用於診所官網",
+      "confirmedBy": "wayde.fu",
+      "confirmedOn": "2026-10-12",
+      "scope": "用於本專案的診所官網",
+      "openItem": "上線前再確認所用 AI 工具的商用條款"
+    },
+    {
+      "files": [
+        "apps/web/public/clinic-assets/visit-map.svg",
+        "apps/web/public/clinic-assets/visit-map-compact.svg"
+      ],
+      "origin": "OpenStreetMap（scripts/build-visit-map.mjs 以 Overpass 匯出的道路、捷運站與公園資料繪製）",
+      "basis": "OpenStreetMap 資料採 ODbL 1.0；繪成的地圖屬產出作品（Produced Work），只須標示「© OpenStreetMap 貢獻者」並連到 https://www.openstreetmap.org/copyright",
+      "confirmedBy": "依授權條款（不需業主另行確認）",
+      "confirmedOn": "2026-10-12",
+      "scope": "首頁「門診時間與交通」的預設地圖（桌機寬版與手機近距離版）；頁面以 .clinic-visit__credit 標示來源"
+    },
+    {
+      "files": [
+        "apps/web/clinic-source/device-bipolar-rf.png",
+        "apps/web/clinic-source/device-coagulation-forceps.png",
+        "apps/web/clinic-source/mouthguard-photo.png"
+      ],
+      "origin": "業主提供（官網投影片「雙極射頻／微創止鼾凝結消融」與「客製化專屬於您的牙套」，2026-10-12 對話中提供）",
+      "basis": "業主指示使用；只去背取出器材與牙套本身，不含投影片上的文字、皇冠與標章",
+      "confirmedBy": "wayde.fu",
+      "confirmedOn": "2026-10-12",
+      "scope": "下鼻甲手術頁的器材卡片與止鼾好眠牙套頁的實品照",
+      "openItem": "上線前確認器材照片是否為廠商產品照、可否用於診所官網"
+    }
+  ],
   "totals": {
-    "sourceBytes": 2633640,
-    "outputBytes": 113862
+    "sourceBytes": 3688114,
+    "outputBytes": 249086
   },
   "assets": [
     {
@@ -65,8 +117,8 @@
       "output": "/clinic-assets/service-turbinate.webp",
       "width": 540,
       "height": 405,
-      "bytes": 4826,
-      "sha256": "2facd26d81cd1b28c8c28bc59b07a6d7a807f4719634b3d1f9c5662457ef5970",
+      "bytes": 4024,
+      "sha256": "779f0c2454dcafc519e0faf15b5ade9bfd12f73f39219d509db58deaa26ca3e5",
       "source": {
         "file": "apps/web/clinic-source/service-turbinate.jpg",
         "bytes": 204155,
@@ -77,20 +129,20 @@
       "output": "/clinic-assets/service-septoplasty.webp",
       "width": 540,
       "height": 405,
-      "bytes": 12374,
-      "sha256": "437dcbb24b080669c9c2c409f8da5dcaa727597f02f3d10c9c53e66155b006cb",
+      "bytes": 13850,
+      "sha256": "055e5228e201b3441f490579741f09fe1d8c88954e7d1d3ccc8450005c7b94b3",
       "source": {
-        "file": "apps/web/clinic-source/service-septoplasty.jpg",
-        "bytes": 236478,
-        "sha256": "5d004fc929ffc3f931e35b0a93f0cca166345f6860fc565ce4c70e3612f4b09a"
+        "file": "apps/web/clinic-source/service-septoplasty-fatigue.webp",
+        "bytes": 287874,
+        "sha256": "943a8e6df68c14cd8d7af9d54985c392775274f813888887a74d313476404d19"
       }
     },
     {
       "output": "/clinic-assets/service-mouthguard.webp",
       "width": 540,
       "height": 405,
-      "bytes": 9572,
-      "sha256": "0336e510cebfa63f5eea67b4f88d6870e99e1899f541617613e2d1dc4c7a2a28",
+      "bytes": 6586,
+      "sha256": "f8156e6dbe2090b6fc98a4d4be92c48180dba02f805fda2686d116499cea6d74",
       "source": {
         "file": "apps/web/clinic-source/service-mouthguard.webp",
         "bytes": 89956,
@@ -101,12 +153,12 @@
       "output": "/clinic-assets/service-snoring.webp",
       "width": 540,
       "height": 405,
-      "bytes": 8842,
-      "sha256": "13e09041abcb7f22754e1dfecb043d2af4517f3193f3d075e1167959e6f45f02",
+      "bytes": 11316,
+      "sha256": "1ec8b0b4b872cdecc8a048de462f402ca3ca5c106a2a25db71fb270e6e4b0586",
       "source": {
-        "file": "apps/web/clinic-source/service-snoring-symptoms.jpg",
-        "bytes": 497703,
-        "sha256": "9b29b1b85cdb0d1603298437c8c81a17612aa33556fa96b481fd28bf17d458ec"
+        "file": "apps/web/clinic-source/service-snoring-open-mouth.webp",
+        "bytes": 277974,
+        "sha256": "7383cf9aa0c3218e23d4935aa72a8e1d2879657712e1df60a431deabc237eae0"
       }
     },
     {
@@ -155,6 +207,66 @@
         "file": "apps/web/clinic-source/care-aftercare.png",
         "bytes": 6582,
         "sha256": "c49db2a5060fade84bba3171804f85b305e016d047f4f09645647cc3d9cd1dbe"
+      }
+    },
+    {
+      "output": "/clinic-assets/home-brand-wall.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 36718,
+      "sha256": "361a122eaa4d31f5366f835bc8e8fadf2952c0bc8b91e96a628979e356aa6167",
+      "source": {
+        "file": "apps/web/clinic-source/home-brand-wall.webp",
+        "bytes": 105574,
+        "sha256": "29354ee11aa13c950749fb907b29dd46537d438cd67ecc077f780c6baf3ce128"
+      }
+    },
+    {
+      "output": "/clinic-assets/home-space-reception.webp",
+      "width": 1280,
+      "height": 800,
+      "bytes": 28168,
+      "sha256": "cbb610dadb4e8f8b14c20d751eeedc87fee3809e138bf56669e95040f7ca4d15",
+      "source": {
+        "file": "apps/web/clinic-source/home-space-reception.webp",
+        "bytes": 107876,
+        "sha256": "09b964498aba376579766636a3d7b403b50f9ea67555d01902225c615a646d26"
+      }
+    },
+    {
+      "output": "/clinic-assets/home-space-lounge.webp",
+      "width": 1280,
+      "height": 800,
+      "bytes": 23592,
+      "sha256": "7cdf38cdfbbccca6d2361e7354087242dc7ebf401aff30ba63b196f5612f7111",
+      "source": {
+        "file": "apps/web/clinic-source/home-space-lounge.jpg",
+        "bytes": 430252,
+        "sha256": "886ed3b491354afdb5f656c07158ff6e6d4a78263d93787df9e502b35c531581"
+      }
+    },
+    {
+      "output": "/clinic-assets/home-space-consult.webp",
+      "width": 1280,
+      "height": 800,
+      "bytes": 30228,
+      "sha256": "9a9505379bdf37563d613e1dd3ee1317c9a3abeef1af4bf03c5b8b9c412a99a6",
+      "source": {
+        "file": "apps/web/clinic-source/home-space-consult.webp",
+        "bytes": 113808,
+        "sha256": "6e62d385b842f7b82d0a16f38726d5a5c289d0a970d94b431e3a34fdb2589622"
+      }
+    },
+    {
+      "output": "/clinic-assets/home-space-treatment.webp",
+      "width": 1280,
+      "height": 800,
+      "bytes": 16356,
+      "sha256": "b62a50f0b475d61f894e01f63bf5df11c0ae75eb83d79ab62e419632078020c3",
+      "source": {
+        "file": "apps/web/clinic-source/home-space-treatment.jpg",
+        "bytes": 465297,
+        "sha256": "b295731c217fd76946fc10a27a37187a54200398a73ee7cfa61d45b3926cbf8b"
       }
     }
   ]

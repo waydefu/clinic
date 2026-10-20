@@ -153,7 +153,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com https://www.google.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           {
             "key": "X-Frame-Options",
@@ -166,7 +166,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com https://www.google.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           {
             "key": "X-Frame-Options",
@@ -179,7 +179,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com https://www.google.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           {
             "key": "X-Frame-Options",
@@ -192,7 +192,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com https://www.google.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           {
             "key": "X-Frame-Options",
@@ -205,7 +205,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com https://www.google.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           {
             "key": "X-Frame-Options",
@@ -218,7 +218,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
+            "value": "default-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self'; script-src 'self' https://apis.google.com; img-src 'self'; font-src 'self'; frame-src 'self' https://beauessence-clinic-stg-c1a01.firebaseapp.com https://www.google.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'"
           },
           {
             "key": "X-Frame-Options",

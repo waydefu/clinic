@@ -1,0 +1,74 @@
+/*
+ * 一森渼診所品牌 token：官網與預約頁共用的單一來源。
+ *
+ * 2026-10-19 業主要求「官網與預約頁風格要相同，背景要用現有素材庫的」，負責人核可
+ * 先抽出這份共用 token（決策登錄 docs/product/phase-1-decision-register.md 的
+ * 2026-10-19 條）。值取自官網改版 Draft PR #249（agent/clinic-redesign-20261011）
+ * `clinic-site.css` 的 `:root`；預約頁（patient.html）現在就載入它。
+ *
+ * #249 合併之後，官網的 `clinic-site.css` 應改讀這份檔案：刪掉它自己那份重複的
+ * `--clinic-*` 色值、圓角與陰影，改成 `var(--brand-*)`，並在 clinic.html 載入本檔。
+ * 在那之前兩邊的值相同、各有一份——只改一邊就是分岔，所以兩邊要一起改。
+ *
+ * 命名空間 `--brand-*`：不與 styles.css 的無前綴 token、官網的 `--clinic-*` 撞名。
+ * styles.css 已有 `--brand-metallic-*` 與 `--brand-mark-filter`（香檳金裝飾組），
+ * 本檔刻意不使用那兩個名稱。香檳金只作裝飾；這裡的 gold 系列同樣只作色塊或底色。
+ *
+ * 這是 token 定義檔：色值、圓角與陰影的字面值只寫在 `:root`，元件規則一律引用。
+ * check:tokens 把它當成自成一體的樣式表掃描（它不載入 styles.css，所以只認自己的 token）。
+ *
+ * 焦點環（--brand-focus-ring）的對比，2026-10-19 以 WCAG 相對亮度實算：
+ *   #7a5400 對 白 6.78、#f8f7f2 6.32、#f5efe3（護眼畫布）5.92、#f6f2e3 6.05、
+ *           #eaf0e6 5.85、sage-50 6.14、sage-100 5.48、sage-200 4.51、sage-300 3.55
+ *           ——都 ≥3:1（R-11、WCAG 2.4.11／1.4.11）。
+ *   #d49b45（官網 #249 現用）對 白 只有 2.45、#f8f7f2 2.28、#f5efe3 2.14、
+ *           sage-100 1.98，全部不及格，所以不沿用。
+ * 深色主題的焦點環仍由 styles.css 的 `--focus-ring`（淺琥珀）負責，不在本檔。
+ *
+ * 其餘小字配對（實算）：forest 對 白 9.41、對 sage-100 7.60；muted 對 白 6.17、
+ * 對 #f8f7f2 5.75、對 sage-100 4.98；gold-ink 對 白 5.54、對 #f8f7f2 5.16。
+ */
+:root {
+  /* 主色。forest 實心底配白字 9.41:1；forest-deep 是 hover 與標題色。 */
+  --brand-forest: #184f40;
+  --brand-forest-deep: #103b30;
+  --brand-green: #37664f;
+
+  /* 鼠尾草綠色階，取自診所自己的衛教圖。sage 是原本的單一鼠尾草色。 */
+  --brand-sage: #8eaa9c;
+  --brand-sage-50: #f0f5ee;
+  --brand-sage-100: #dfeadd;
+  --brand-sage-200: #c4d8c3;
+  --brand-sage-300: #a9c2a9;
+  --brand-sage-400: #8eac8f;
+
+  /* 畫布與底色：mist 是淡綠霧，mist-soft 是頁面畫布，cream 是米黃。 */
+  --brand-mist: #eaf0e6;
+  --brand-mist-soft: #f8f7f2;
+  --brand-cream: #f6f2e3;
+  --brand-white: #ffffff;
+  --brand-line: #dbe7df;
+
+  /* 金色。gold／gold-soft 只當色塊或底色，上面一律放深綠字；gold-ink 是小字金，
+     白 5.54:1、#f8f7f2 5.16:1。三者都不承載狀態、焦點或互動。 */
+  --brand-gold: #e8a915;
+  --brand-gold-soft: #f6d98a;
+  --brand-gold-ink: #8a6100;
+
+  --brand-ink: #182e27;
+  --brand-muted: #56655a;
+
+  /* 圓角：卡片與膠囊兩階。 */
+  --brand-radius-card: 0.75rem;
+  --brand-radius-pill: 99rem;
+
+  /* 陰影兩階：卡片與頁首。 */
+  --brand-elevation-card: 0 0.8rem 2rem rgb(22 72 58 / 5%);
+  --brand-elevation-header: 0 0.5rem 1.5rem rgb(22 72 58 / 8%);
+
+  /* 版心：官網與預約頁同寬，兩側至少各留 1.5rem。 */
+  --brand-shell: min(76rem, calc(100% - 3rem));
+
+  /* 焦點環：功能性顏色，必須對相鄰顏色達 3:1，所以與裝飾用的 gold 分開宣告。 */
+  --brand-focus-ring: #7a5400;
+}
