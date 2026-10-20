@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
 
 const CLINIC_ROUTES = [
-  ['/clinic', '今晚，不必再和呼吸拔河'],
+  ['/clinic', '鼻塞、打鼾與睡眠呼吸門診'],
   ['/clinic/doctors', '醫師團隊'],
   ['/clinic/doctors/yan-cheng-an', '顏正安 院長'],
   ['/clinic/doctors/yang-sheng-feng', '楊昇峯 醫師'],
@@ -18,8 +18,8 @@ test.describe('診所網站整合', () => {
     test(`${path} 可閱讀並能前往既有預約流程`, async ({ page }) => {
       await page.goto(path);
 
-      // 首頁標題的視覺逐字動畫會保留一份報讀器專用完整字串；比可及名稱，
-      // 不用重複的 textContent 當成語意。
+      // 比可及名稱，不用 textContent：標題若日後加上視覺拆字，報讀器專用的
+      // 完整字串會讓 textContent 重複。
       await expect(
         page.getByRole('heading', { level: 1 })
       ).toHaveAccessibleName(heading);
@@ -87,6 +87,85 @@ test.describe('診所網站整合', () => {
     ).toHaveAttribute('href', '/clinic/nasal/snore-relief-mouthguard');
   });
 
+  // 相簿由使用者自己翻（業主 2026-10-11 決定不輪播）。說明區是 aria-live，
+  // 所以照片、替代文字、說明與「第幾張」必須一起換，按鈕狀態也要跟上。
+  test('診所空間相簿可前後翻頁、點縮圖，連點時只留最後一次', async ({
+    page
+  }) => {
+    await page.goto('/clinic');
+    const space = page.locator('#clinic-space');
+    const photo = space.locator('.clinic-space__photo');
+    const caption = space.locator('.clinic-space__caption');
+    const thumbs = space.locator('.clinic-space__thumb');
+
+    await expect(caption).toHaveAttribute('aria-live', 'polite');
+    await expect(caption).toContainText('接待櫃檯');
+    await expect(caption).toContainText('1 / 4');
+    await expect(thumbs).toHaveCount(4);
+    await expect(thumbs.nth(0)).toHaveAttribute('aria-pressed', 'true');
+
+    await space.getByRole('button', { name: '下一張' }).click();
+    await expect(caption).toContainText('候診區');
+    await expect(caption).toContainText('2 / 4');
+    await expect(photo).toHaveAttribute('alt', '候診區的深綠色長椅與小圓桌');
+    await expect(thumbs.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(thumbs.nth(0)).toHaveAttribute('aria-pressed', 'false');
+
+    // 從第 1 張往前要繞回最後一張。
+    const previous = space.getByRole('button', { name: '上一張' });
+    await previous.click();
+    await expect(caption).toContainText('1 / 4');
+    await previous.click();
+    await expect(caption).toContainText('治療室');
+    await expect(caption).toContainText('4 / 4');
+
+    await thumbs.filter({ hasText: '診間' }).click();
+    await expect(caption).toContainText('3 / 4');
+    await expect(photo).toHaveAttribute(
+      'src',
+      '/clinic-assets/home-space-consult.webp'
+    );
+  });
+
+  test('相簿連點時，晚到的照片不會蓋掉最後一次選擇', async ({ page }) => {
+    // 讓候診區照片先卡住、等兩次點選都做完才放行：候診區解碼完成時已經不是
+    // 最新的選擇，不可以把畫面換回去。
+    let releaseLounge: () => void = () => {};
+    const loungeHeld = new Promise<void>((resolve) => {
+      releaseLounge = resolve;
+    });
+    await page.route(
+      '**/clinic-assets/home-space-lounge.webp',
+      async (route) => {
+        await loungeHeld;
+        await route.continue();
+      }
+    );
+    // WebKit 的 load 事件會等所有圖片（包含被卡住的這張縮圖），所以只等 DOM。
+    await page.goto('/clinic', { waitUntil: 'domcontentloaded' });
+    const space = page.locator('#clinic-space');
+    const photo = space.locator('.clinic-space__photo');
+    const caption = space.locator('.clinic-space__caption');
+    const thumbs = space.locator('.clinic-space__thumb');
+
+    await thumbs.nth(1).click();
+    await thumbs.nth(0).click();
+    // 候診區還卡著，畫面停在原本的接待櫃檯，按鈕狀態已跟著最後一次點選。
+    await expect(thumbs.nth(0)).toHaveAttribute('aria-pressed', 'true');
+    await expect(caption).toContainText('1 / 4');
+
+    const loungeArrived = page.waitForResponse('**/home-space-lounge.webp');
+    releaseLounge();
+    await loungeArrived;
+    await page.waitForTimeout(500);
+    await expect(caption).toContainText('接待櫃檯');
+    await expect(caption).toContainText('1 / 4');
+    await expect(photo).toHaveAttribute(
+      'src',
+      '/clinic-assets/home-space-reception.webp'
+    );
+  });
+
   test('行動選單可開啟並用 Escape 關閉', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/clinic');
@@ -110,6 +189,150 @@ test.describe('診所網站整合', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: '線上門診預約' })
     ).toBeVisible();
+  });
+
+  // 業主 2026-10-12：社群平台直接用圖示呈現。圖示對報讀器隱藏，連結名稱仍是
+  // 平台名稱；首屏只有圖示，門診資訊卡與頁尾另有看得見的名稱。
+  test('社群平台以圖示呈現，連結名稱仍是平台名稱', async ({ page }) => {
+    await page.goto('/clinic');
+    for (const scope of ['.clinic-arrival', '#clinic-visit']) {
+      const area = page.locator(scope);
+      await expect(area.locator('a.clinic-social')).toHaveCount(4);
+      for (const name of ['LINE', 'Instagram', 'Messenger', 'Facebook']) {
+        const link = area.getByRole('link', { name, exact: true });
+        await expect(link).toHaveAttribute('target', '_blank');
+        await expect(link.locator('svg')).toHaveAttribute(
+          'aria-hidden',
+          'true'
+        );
+      }
+    }
+    const footer = page.locator('.clinic-footer__social a.clinic-social');
+    await expect(footer).toHaveCount(3);
+    await expect(footer.locator('svg path').first()).toBeAttached();
+  });
+
+  // 成因卡片是把原文「成因：細項、細項」拆開排版。拼回去必須與原文一字不差。
+  test('止鼾頁的五個成因以卡片呈現，文字與原文一致', async ({ page }) => {
+    await page.goto('/clinic/nasal/snoring-five-in-one');
+    const cards = page.locator('.clinic-causes__item');
+    await expect(cards).toHaveCount(5);
+    const rebuilt = await cards.evaluateAll((items) =>
+      items.map((item) => {
+        const title = item
+          .querySelector('h3')
+          ?.textContent?.replace(/^\d+/, '')
+          .trim();
+        const details = [...item.querySelectorAll('li')].map((li) =>
+          li.textContent?.trim()
+        );
+        return details.length > 0 ? `${title}：${details.join('、')}` : title;
+      })
+    );
+    expect(rebuilt).toEqual([
+      '體重過重',
+      '鼻結構異常：鼻中膈彎曲、下鼻甲肥厚、過敏性鼻炎',
+      '咽喉結構異常：舌頭肥厚後傾、軟顎無力、懸壅垂過長',
+      '下巴短厚',
+      '生活習慣欠佳：抽菸、酒精'
+    ]);
+    await expect(
+      page.getByRole('heading', { level: 3, name: '鼻結構異常', exact: true })
+    ).toBeVisible();
+  });
+
+  test('鼻中隔頁列出五種彎曲類型並附示意圖', async ({ page }) => {
+    await page.goto('/clinic/nasal/septoplasty');
+    const cards = page.locator('.clinic-septum__card');
+    await expect(cards).toHaveCount(5);
+    await expect(cards.locator('h3')).toHaveText([
+      'C型彎曲',
+      'S型彎曲',
+      '尾端彎曲',
+      '鼻中隔骨刺',
+      '鼻中隔增生'
+    ]);
+    for (const card of await cards.all()) {
+      const art = card.locator('svg.clinic-septum__art');
+      await expect(art).toHaveAttribute('aria-hidden', 'true');
+      await expect(art.locator('.clinic-septum__septum')).toHaveCount(1);
+      await expect(art.locator('.clinic-septum__nostril')).not.toHaveCount(0);
+    }
+  });
+
+  // 業主 2026-10-12 選定比較表的中性版：只有客觀項目，沒有排名與療效比較。這裡同時
+  // 釘住「不能出現」的字眼，避免日後從原圖把它們加回來。
+  test('下鼻甲頁的處理方式比較是中性版，附兩張器材照片', async ({ page }) => {
+    await page.goto('/clinic/nasal/inferior-turbinate-surgery');
+    const compare = page.locator('.clinic-compare');
+    await expect(compare.locator('tbody th[scope="row"]')).toHaveText([
+      '雙極射頻',
+      '微創止鼾凝結消融',
+      '傳統手術',
+      '廣達雷射'
+    ]);
+    await expect(compare.locator('thead th')).toHaveText([
+      '方式',
+      '治療部位',
+      '治療原理',
+      '手術時間',
+      '住院',
+      '塞棉條'
+    ]);
+    const devices = compare.locator('.clinic-devices__card');
+    await expect(devices).toHaveCount(2);
+    for (const device of await devices.all()) {
+      const img = device.locator('img');
+      await expect(img).toHaveAttribute('alt', /器材/);
+      // 屬性對了不代表檔案存在：捲到畫面內，確認真的解碼出寬度。
+      await img.scrollIntoViewIfNeeded();
+      await expect
+        .poll(() =>
+          img.evaluate((node) => (node as HTMLImageElement).naturalWidth)
+        )
+        .toBeGreaterThan(0);
+    }
+    for (const banned of [
+      '復發',
+      '有效治療',
+      '能有效維持功能',
+      '破壞性最大',
+      '出血量大',
+      '舊式儀器',
+      '溫度不均',
+      '後遺症'
+    ]) {
+      await expect(page.locator('main')).not.toContainText(banned);
+    }
+  });
+
+  // 牙套實品照取自業主投影片，只取牙套本身；投影片上的「有效治療」不得跟著出現。
+  test('牙套頁有實品照，且沒有效果宣稱', async ({ page }) => {
+    await page.goto('/clinic/nasal/snore-relief-mouthguard');
+    const photo = page.locator('.clinic-product-photo img');
+    await expect(photo).toHaveAttribute('alt', /牙套/);
+    await expect(photo).toHaveAttribute(
+      'src',
+      '/clinic-assets/mouthguard-photo.webp'
+    );
+    await photo.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        photo.evaluate((node) => (node as HTMLImageElement).naturalWidth)
+      )
+      .toBeGreaterThan(0);
+    await expect(page.locator('main')).not.toContainText('有效治療');
+  });
+
+  test('療程重點以圖示標章呈現', async ({ page }) => {
+    for (const path of CLINIC_ROUTES.map(([route]) => route).filter((route) =>
+      route.startsWith('/clinic/nasal/')
+    )) {
+      await page.goto(path);
+      const badges = page.locator('.clinic-highlight-list li');
+      await expect(badges).toHaveCount(3);
+      await expect(badges.locator('svg')).toHaveCount(3);
+    }
   });
 });
 

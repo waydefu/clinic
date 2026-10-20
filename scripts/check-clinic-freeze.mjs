@@ -10,6 +10,24 @@ import { fileURLToPath } from 'node:url';
  * Rebaseline only the three edited CSS/renderer files; assets, public content,
  * guard failure behavior and every deployment/operational boundary stay intact.
  *
+ * The owner's 2026-10-11 decision (docs/product/phase-1-decision-register.md,
+ * "官網 `/clinic` 改版提前開發與解凍") originally tied the homepage redesign's merge to
+ * the next C1 deployment. That was superseded on 2026-10-20: the redesign (Draft PR
+ * #249) is merged now; see the 2026-10-20 register entry
+ * ("官網 `/clinic` 改版（#249）不等 C1，準備合併"). This rebaseline covers the four
+ * files that redesign edits: renderer, stylesheet, public content and asset manifest.
+ * On 2026-10-12 the owner also replaced the snoring and septoplasty
+ * illustrations (two outputs rehashed, two sources replaced by the new files;
+ * the old JPG sources were removed) and asked that no service thumbnail look
+ * cut off, so the turbinate and mouthguard outputs were re-rendered as whole
+ * circles and rehashed too. The count stays at 30.
+ * Later on 2026-10-12 the owner chose visual direction A+B, the old
+ * background image and a click-to-load Google map (register entry
+ * "官網視覺方向 A+B 與『點了才載入』的 Google 地圖"); only the same four
+ * redesign files were rehashed. The new map SVGs are not frozen files.
+ * Every other asset, source image, guard failure behaviour and deployment
+ * boundary stays exactly as the 2026-09-07 revision left it.
+ *
  * 2026-10-19: the owner asked that the booking page share the official site's
  * look ("官網與預約頁風格要相同，背景要用現有素材庫的"); the project lead approved the
  * plan the same day (docs/product/phase-1-decision-register.md, 2026-10-19
@@ -28,15 +46,15 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
     '3b5c0de6caab960f2bdbc883fcfe5a38452bf08c5572be1202fbd647274583e8',
   'apps/web/public/clinic-site.js':
-    '185a27972e9a62aca52ec1660605fd05233e412e3d0fb3ee98c129a81f450a27',
+    '7705db8d3b44d22f710138f2587134790045b902687299cdacc7ead2f7959a56',
   'apps/web/public/clinic-site.css':
-    'af37d3a280f92d8bd95b87cbcaee306d11b9de305fe6c86e754dbb3385258dd3',
+    '228879322cce9efbec78964e11b00eb2ec753dbe7727bd10a217928c71e37b73',
   'apps/web/public/clinic-content.js':
-    '91e0265f4e715e8f7c99fd7c68d408e71731e9d10beb1a95104396f766940397',
+    '64a8b65bd29f7ee32896a1750d87c341f15bab8c0a6e297c896106c74722b663',
   'apps/web/public/clinic-booking.css':
     '84b381c928eb9cd95b9ec289ceac4fb518e95c8ab15c437bd85c77ea1262d68d',
   'apps/web/clinic-assets.manifest.json':
-    'a60b2e038d112cab269bd541a274be027e3b930be365408d01ae2e8a9e1951ec',
+    '56bce15f8632fd5309689d953e9a0a92a67e6f9c604120fd4ce32e0151ada633',
   'apps/web/public/clinic-assets/care-aftercare.webp':
     '357a5456cd34d5358330982ced3e21d7184d4dff27e22996f61761c9d859ab2b',
   'apps/web/public/clinic-assets/care-environment.webp':
@@ -52,13 +70,13 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-assets/doctor-yang.webp':
     '08d82dea869b851a0ba4e8238c140d47b84dcc783fd3a60e3ebd1639a1adcb45',
   'apps/web/public/clinic-assets/service-mouthguard.webp':
-    '0336e510cebfa63f5eea67b4f88d6870e99e1899f541617613e2d1dc4c7a2a28',
+    'f8156e6dbe2090b6fc98a4d4be92c48180dba02f805fda2686d116499cea6d74',
   'apps/web/public/clinic-assets/service-septoplasty.webp':
-    '437dcbb24b080669c9c2c409f8da5dcaa727597f02f3d10c9c53e66155b006cb',
+    '055e5228e201b3441f490579741f09fe1d8c88954e7d1d3ccc8450005c7b94b3',
   'apps/web/public/clinic-assets/service-snoring.webp':
-    '13e09041abcb7f22754e1dfecb043d2af4517f3193f3d075e1167959e6f45f02',
+    '1ec8b0b4b872cdecc8a048de462f402ca3ca5c106a2a25db71fb270e6e4b0586',
   'apps/web/public/clinic-assets/service-turbinate.webp':
-    '2facd26d81cd1b28c8c28bc59b07a6d7a807f4719634b3d1f9c5662457ef5970',
+    '779f0c2454dcafc519e0faf15b5ade9bfd12f73f39219d509db58deaa26ca3e5',
   'apps/web/public/clinic-assets/soft-green-bg.webp':
     '0f2af54beadbf8c0bbe264bf7e53a7fd819ca7fa7ae0f6275107fed9e60977a6',
   'apps/web/clinic-source/care-aftercare.png':
@@ -77,10 +95,10 @@ export const CLINIC_FREEZE_BASELINE = {
     'f1316bdc9adb80e9353f9cf673fef18075092af6c036db2d5e6881e05920f2b4',
   'apps/web/clinic-source/service-mouthguard.webp':
     '1625d9e0e3d63bfe59d2d4e9defd016528b7fec51d12bb07533c416f89b48377',
-  'apps/web/clinic-source/service-septoplasty.jpg':
-    '5d004fc929ffc3f931e35b0a93f0cca166345f6860fc565ce4c70e3612f4b09a',
-  'apps/web/clinic-source/service-snoring-symptoms.jpg':
-    '9b29b1b85cdb0d1603298437c8c81a17612aa33556fa96b481fd28bf17d458ec',
+  'apps/web/clinic-source/service-septoplasty-fatigue.webp':
+    '943a8e6df68c14cd8d7af9d54985c392775274f813888887a74d313476404d19',
+  'apps/web/clinic-source/service-snoring-open-mouth.webp':
+    '7383cf9aa0c3218e23d4935aa72a8e1d2879657712e1df60a431deabc237eae0',
   'apps/web/clinic-source/service-turbinate.jpg':
     '0166ed81572ca16aecf3fdbcbbc040b12c5bf8db8c2ad75e317ebd5c4246d457',
   'apps/web/clinic-source/soft-green-bg.png':
