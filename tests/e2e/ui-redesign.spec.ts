@@ -103,24 +103,103 @@ for (const width of [320, 360, 375, 390, 768, 1024, 1280, 1440]) {
   });
 }
 
-test('官網主視覺完整顯示既有醫師肖像，說明不覆蓋影像', async ({ page }) => {
-  await page.goto('/clinic');
-  const portrait = page.locator('.clinic-hybrid-hero__image');
-  await expect(portrait).toHaveAttribute('alt', '顏正安院長形象照');
-  await expect(portrait).toHaveCSS('object-fit', 'contain');
-  const imageBox = await portrait.boundingBox();
-  const captionBox = await page
-    .locator('.clinic-hybrid-hero__caption')
-    .boundingBox();
-  expect(imageBox).not.toBeNull();
-  expect(captionBox).not.toBeNull();
-  expect(captionBox!.y).toBeGreaterThanOrEqual(
-    imageBox!.y + imageBox!.height - 1
-  );
-  await expect(
-    page.locator('.clinic-hybrid-hero__actions a[href="/booking"]')
-  ).toBeVisible();
-});
+// 首屏品牌牆（業主 2026-10-11 決定）：照片用 object-fit: cover 填滿，邊緣可以裁，
+// 但牆上的標誌必須整個留在畫面內；標題、說明與按鈕不覆蓋影像。2026-10-12 方向
+// A+B 起桌機文字在照片左側、手機在照片下方，所以改成檢查「不重疊」而不是「在下方」；
+// 門診資訊卡刻意疊在照片下緣，但不能碰到標誌。標誌位置
+// 以來源圖的比例記錄（1920×1080 編碼後量測，四周各留約 1% 餘裕）；換圖時要重量。
+// 尺寸挑的是會把取景推到極端的組合：常見筆電的實際可視高度（1366×657）、矮寬
+// 視窗、超寬螢幕，以及直式平板與手機。
+const BRAND_WALL_LOGO = { left: 0.26, top: 0.19, right: 0.59, bottom: 0.53 };
+
+for (const viewport of [
+  { width: 3440, height: 1300 },
+  { width: 1920, height: 960 },
+  { width: 1440, height: 900 },
+  { width: 1366, height: 657 },
+  { width: 1280, height: 720 },
+  { width: 1280, height: 500 },
+  { width: 1024, height: 768 },
+  { width: 768, height: 1024 },
+  { width: 375, height: 812 },
+  { width: 320, height: 568 }
+]) {
+  test(`官網首屏 ${viewport.width}×${viewport.height} 品牌牆標誌完整，文字不覆蓋照片`, async ({
+    page
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/clinic');
+    const wall = page.locator('.clinic-arrival__image');
+    await expect(wall).toHaveAttribute(
+      'alt',
+      '一森渼診所入口的品牌牆，牆上是診所標誌'
+    );
+    await wall.evaluate((node) => (node as HTMLImageElement).decode());
+
+    const geometry = await wall.evaluate((node, logo) => {
+      const img = node as HTMLImageElement;
+      const box = img.getBoundingClientRect();
+      const style = getComputedStyle(img);
+      const scale =
+        style.objectFit === 'cover'
+          ? Math.max(
+              box.width / img.naturalWidth,
+              box.height / img.naturalHeight
+            )
+          : Math.min(
+              box.width / img.naturalWidth,
+              box.height / img.naturalHeight
+            );
+      const drawnWidth = img.naturalWidth * scale;
+      const drawnHeight = img.naturalHeight * scale;
+      const [x, y] = style.objectPosition
+        .split(' ')
+        .map((part) => Number.parseFloat(part) / 100);
+      const originX = box.left + (box.width - drawnWidth) * x;
+      const originY = box.top + (box.height - drawnHeight) * y;
+      const rect = (el: Element) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      };
+      return {
+        image: rect(img),
+        logo: {
+          left: originX + logo.left * drawnWidth,
+          top: originY + logo.top * drawnHeight,
+          right: originX + logo.right * drawnWidth,
+          bottom: originY + logo.bottom * drawnHeight
+        },
+        copy: [...document.querySelectorAll('.clinic-arrival__copy > *')].map(
+          rect
+        ),
+        facts: rect(document.querySelector('.clinic-arrival__facts')!)
+      };
+    }, BRAND_WALL_LOGO);
+
+    expect(geometry.logo.left).toBeGreaterThanOrEqual(geometry.image.left);
+    expect(geometry.logo.right).toBeLessThanOrEqual(geometry.image.right);
+    expect(geometry.logo.top).toBeGreaterThanOrEqual(geometry.image.top);
+    expect(geometry.logo.bottom).toBeLessThanOrEqual(geometry.image.bottom);
+
+    type Box = { left: number; top: number; right: number; bottom: number };
+    const overlaps = (a: Box, b: Box) =>
+      a.left < b.right - 1 &&
+      b.left < a.right - 1 &&
+      a.top < b.bottom - 1 &&
+      b.top < a.bottom - 1;
+    expect(geometry.copy.length, '首屏標題、說明或按鈕不見了').toBe(3);
+    for (const block of geometry.copy) {
+      expect(overlaps(block, geometry.image), '首屏文字蓋到照片上').toBe(false);
+    }
+    expect(overlaps(geometry.facts, geometry.logo), '資訊卡蓋到標誌').toBe(
+      false
+    );
+
+    await expect(
+      page.locator('.clinic-arrival__actions a[href="/booking"]')
+    ).toBeVisible();
+  });
+}
 
 test('患者手機首屏可開始選擇，選擇與返回仍保留', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -142,15 +221,21 @@ test('患者手機首屏可開始選擇，選擇與返回仍保留', async ({ pa
   await expect(choice).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('官網首屏主要文案與醫師說明不以低透明度進場', async ({ page }) => {
+test('官網首屏品牌牆與主要文案不以低透明度進場', async ({ page }) => {
   await page.goto('/clinic');
-  const animated = await page
-    .locator('.clinic-hybrid-hero__copy > *, .clinic-hybrid-hero__visual')
-    .evaluateAll((elements) =>
-      elements
-        .filter((element) => getComputedStyle(element).animationName !== 'none')
-        .map((element) => element.className)
-    );
+  const hero = page.locator(
+    '.clinic-arrival__copy > *, .clinic-arrival__media, .clinic-arrival__image'
+  );
+  // 選擇器若因改版落空，evaluateAll 會在零個元素上回傳 []，變成沒測到東西的綠燈。
+  await expect(hero).toHaveCount(5);
+  await expect(page.locator('.clinic-arrival')).not.toHaveAttribute(
+    'data-reveal'
+  );
+  const animated = await hero.evaluateAll((elements) =>
+    elements
+      .filter((element) => getComputedStyle(element).animationName !== 'none')
+      .map((element) => element.className)
+  );
   expect(animated).toEqual([]);
 });
 
