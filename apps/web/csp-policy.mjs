@@ -25,6 +25,12 @@ export const STAGING_AUTH_FRAME =
 export const ISOLATED_AUTH_FRAME =
   'https://beauessence-clinic-stg-c1a01.firebaseapp.com';
 
+// 官網「門診時間與交通」的地圖（業主 2026-10-12 決定：點了才載入 Google 地圖）。
+// 只有 clinic 這一面（/clinic、/privacy、/404）允許這個框架來源；staff、booking、
+// widget 不變。頁面預設顯示本站自繪的地圖，病人按下按鈕才建立 iframe，所以
+// 沒按之前瀏覽器不會向 Google 發出任何請求。不用萬用字元，只開這一個 origin。
+export const CLINIC_MAP_FRAME = 'https://www.google.com';
+
 export const COMMON_SECURITY_HEADERS = Object.freeze([
   { key: 'Cache-Control', value: 'no-cache' },
   // `same-origin-allow-popups` (COOP-POPUP-REAUTH-2026-10-03): Firebase
@@ -47,9 +53,16 @@ export const HSTS_HEADER = Object.freeze({
   value: 'max-age=31536000; includeSubDomains'
 });
 
-export function contentSecurityPolicy({ authFrame, frameAncestors }) {
-  const frameSrc =
-    authFrame === null ? "frame-src 'self'" : `frame-src 'self' ${authFrame}`;
+export function contentSecurityPolicy({
+  authFrame,
+  frameAncestors,
+  extraFrames = []
+}) {
+  const frameSrc = [
+    "frame-src 'self'",
+    ...(authFrame === null ? [] : [authFrame]),
+    ...extraFrames
+  ].join(' ');
   return [
     "default-src 'self'",
     "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
@@ -75,7 +88,8 @@ export function surfaceCsp(surface, authFrame) {
   }
   return contentSecurityPolicy({
     authFrame,
-    frameAncestors: "'none'"
+    frameAncestors: "'none'",
+    extraFrames: surface === 'clinic' ? [CLINIC_MAP_FRAME] : []
   });
 }
 

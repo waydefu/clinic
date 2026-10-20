@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  CLINIC_MAP_FRAME,
   ISOLATED_AUTH_FRAME,
   STAGING_AUTH_FRAME,
   firebaseHostingHeaderBlocks,
@@ -80,6 +81,46 @@ describe('hosting security headers', () => {
     expect(csp).not.toContain('unsafe-eval');
     expect(csp).not.toContain('https://*.googleapis.com');
     expect(csp).not.toContain('https://*.firebaseapp.com');
+  });
+
+  // 業主 2026-10-12：官網地圖「點了才載入 Google 地圖」。只有 clinic 這一面多開
+  // 一個框架來源，而且是單一 origin；其他介面一律不能跟著被打開。
+  it('allows the Google map frame on clinic pages only', () => {
+    expect(CLINIC_MAP_FRAME).toBe('https://www.google.com');
+    for (const [config, authFrame] of [
+      [firebaseConfig, STAGING_AUTH_FRAME],
+      [isolatedConfig, ISOLATED_AUTH_FRAME]
+    ] as const) {
+      for (const source of [
+        '/clinic',
+        '/clinic/**',
+        '/clinic.html',
+        '/privacy',
+        '/privacy.html',
+        '/404.html'
+      ]) {
+        const directive = headerOn(config, source, 'Content-Security-Policy')
+          .split(';')
+          .map((part: string) => part.trim())
+          .find((part: string) => part.startsWith('frame-src'));
+        expect(directive).toBe(
+          `frame-src 'self' ${authFrame} ${CLINIC_MAP_FRAME}`
+        );
+      }
+      for (const source of [
+        '/staff',
+        '/index.html',
+        '/booking',
+        '/patient.html',
+        '/widget',
+        '/widget/**'
+      ]) {
+        expect(
+          headerOn(config, source, 'Content-Security-Policy')
+        ).not.toContain(CLINIC_MAP_FRAME);
+      }
+    }
+    expect(surfaceCsp('clinic', STAGING_AUTH_FRAME)).not.toContain('*');
   });
 
   it('removes the staging origin from isolated internal-preproduction CSP', () => {
