@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { OPERATIONAL_ROLES } from '@beauessence/domain';
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { NestFactory } from '@nestjs/core';
@@ -148,6 +149,7 @@ describe('ScheduleController RBAC harness', () => {
   afterEach(async () => {
     await app?.close();
     app = undefined;
+    vi.restoreAllMocks();
   });
 
   async function startHarness(): Promise<NestFastifyApplication> {
@@ -162,6 +164,46 @@ describe('ScheduleController RBAC harness', () => {
     app = instance;
     return instance;
   }
+
+  it.each(['unexpected field', 'invalid UTC timestamp'])(
+    'rejects a schedule response with %s without leaking the rejected payload',
+    async (defect) => {
+      const harness = await startHarness();
+      const application = harness.get<ScheduleApplicationService>(
+        SCHEDULE_APPLICATION
+      );
+      const valid = {
+        publishedVersion: 1,
+        publishedAt: '2029-12-15T09:00:00.000Z',
+        slotCount: 4
+      };
+      const malformed =
+        defect === 'unexpected field'
+          ? { ...valid, unexpectedDetail: 'synthetic_unexpected_response' }
+          : { ...valid, publishedAt: 'Sep 02 2026 Z' };
+      const publish = vi
+        .spyOn(application, 'publish')
+        .mockResolvedValue(malformed);
+      const request = {
+        method: 'POST' as const,
+        url: '/v1/schedule/publish',
+        headers: actorHeaders(OPERATIONAL_ROLES[0]),
+        payload: PUBLISH_BODY
+      };
+
+      const denied = await harness.inject(request);
+      expect(denied.statusCode).toBe(500);
+      expect(denied.body).not.toContain('synthetic_unexpected_response');
+      expect(denied.body).not.toContain('Sep 02 2026 Z');
+      expect(denied.body).not.toContain('Invalid application response.');
+
+      publish.mockResolvedValue(valid);
+      const accepted = await harness.inject(request);
+      expect(accepted.statusCode).toBe(201);
+      expect(accepted.json()).toEqual(valid);
+      expect(publish).toHaveBeenCalledTimes(2);
+    }
+  );
 
   it('rejects anonymous slot list with 401', async () => {
     const harness = await startHarness();

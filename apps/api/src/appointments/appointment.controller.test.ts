@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { OPERATIONAL_ROLES } from '@beauessence/domain';
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { NestFactory } from '@nestjs/core';
@@ -282,6 +283,7 @@ describe('unrouted AppointmentController RBAC harness', () => {
     await app?.close();
     app = undefined;
     ownerPatientId = 'patient_001';
+    vi.restoreAllMocks();
   });
 
   async function startHarness(): Promise<NestFastifyApplication> {
@@ -296,6 +298,47 @@ describe('unrouted AppointmentController RBAC harness', () => {
     app = instance;
     return instance;
   }
+
+  it.each(['unexpected field', 'invalid UTC timestamp'])(
+    'rejects an application response with %s as server failure, not client 400',
+    async (defect) => {
+      const harness = await startHarness();
+      const application = harness.get<AppointmentApplicationService>(
+        APPOINTMENT_APPLICATION
+      );
+      const valid = {
+        appointmentId: 'synthetic_response',
+        status: 'confirmed' as const,
+        startsAt: '2026-07-25T04:00:00.000Z',
+        endsAt: '2026-07-25T04:30:00.000Z'
+      };
+      const malformed =
+        defect === 'unexpected field'
+          ? { ...valid, unexpectedDetail: 'synthetic_unexpected_response' }
+          : { ...valid, endsAt: 'Sep 02 2026 Z' };
+      const create = vi.spyOn(application, 'create').mockResolvedValue(malformed);
+      const request = {
+        method: 'POST' as const,
+        url: '/v1/bookings',
+        payload: CREATE_BODY,
+        headers: actorHeaders(OPERATIONAL_ROLES[4], {
+          'x-test-patient-id': 'synthetic_patient'
+        })
+      };
+
+      const denied = await harness.inject(request);
+      expect(denied.statusCode).toBe(500);
+      expect(denied.body).not.toContain('synthetic_unexpected_response');
+      expect(denied.body).not.toContain('Sep 02 2026 Z');
+      expect(denied.body).not.toContain('Invalid application response.');
+
+      create.mockResolvedValue(valid);
+      const accepted = await harness.inject(request);
+      expect(accepted.statusCode).toBe(201);
+      expect(accepted.json()).toEqual(valid);
+      expect(create).toHaveBeenCalledTimes(2);
+    }
+  );
 
   it('fails closed when internal-test settings are not injected', async () => {
     await expect(

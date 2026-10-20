@@ -289,6 +289,39 @@ describe('accountless booking and return lookup HTTP', () => {
     return { harness: instance, patients };
   }
 
+  it.each([
+    ['--02-30', 400, 400],
+    ['--02-29', 201, 200]
+  ] as const)(
+    'enforces yearless calendar validity for create and return lookup: %s',
+    async (birthDate, createStatus, lookupStatus) => {
+      const { harness } = await start();
+      const created = await harness.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload: {
+          idempotencyKey: 'synthetic_calendar_0001',
+          slotId: 'slot_001',
+          serviceId: 'service_consult',
+          bookingKind: 'initial',
+          intake: { ...INTAKE, birthDate }
+        }
+      });
+      expect(created.statusCode).toBe(createStatus);
+
+      const lookedUp = await harness.inject({
+        method: 'POST',
+        url: '/v1/return-lookup',
+        payload: { phone: INTAKE.phone, birthDate }
+      });
+      expect(lookedUp.statusCode).toBe(lookupStatus);
+      if (birthDate === '--02-30') {
+        expect(created.body).not.toContain(birthDate);
+        expect(lookedUp.body).not.toContain(birthDate);
+      }
+    }
+  );
+
   it('creates an accountless booking and reads it back from the server list', async () => {
     const { harness } = await start();
     const created = await harness.inject({
