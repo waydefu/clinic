@@ -178,7 +178,7 @@ function scanHeredoc(source, start) {
 
 // This is a narrow lexer for block/attribute discovery, not an HCL parser.
 // Anything outside the supported lexical forms raises and makes the gate fail closed.
-function tokenizeHcl(source) {
+export function tokenizeHcl(source) {
   const tokens = [];
   let index = 0;
   const push = (kind, value, start, end, raw = source.slice(start, end)) =>
@@ -368,7 +368,7 @@ function readAttributeExpression(tokens, start) {
   return { expression, endIndex: tokens.length };
 }
 
-function directAttributeExpressions(bodyTokens, name) {
+export function directAttributeExpressions(bodyTokens, name) {
   const expressions = [];
   const nesting = [];
   const matchingClose = { '(': ')', '[': ']', '{': '}' };

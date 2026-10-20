@@ -165,6 +165,25 @@ describe('C1 authDomain live HCL declarations, not source markers', () => {
     ]
   ];
 
+  function inspectChange(file, change) {
+    const directory = mkdtempSync(join(tmpdir(), 'c1-hcl-live-'));
+    try {
+      for (const source of sources) {
+        mkdirSync(dirname(join(directory, source)), { recursive: true });
+        cpSync(join(repoRoot, source), join(directory, source));
+      }
+      const target = join(directory, file);
+      const source = readFileSync(target, 'utf8');
+      const mutated = change(source);
+      if (mutated === source)
+        throw new Error('Mutation did not change fixture');
+      writeFileSync(target, mutated);
+      return inspectC1FirebaseAuthDomainSource(directory);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }
+
   it.each(
     hclFiles.flatMap((file) =>
       wrappers.map(([label, wrap]) => [file, label, wrap])
@@ -172,22 +191,83 @@ describe('C1 authDomain live HCL declarations, not source markers', () => {
   )(
     'rejects %s when its required policy exists only in %s',
     (file, _label, wrap) => {
-      const directory = mkdtempSync(join(tmpdir(), 'c1-hcl-live-'));
-      try {
-        for (const source of sources) {
-          mkdirSync(dirname(join(directory, source)), { recursive: true });
-          cpSync(join(repoRoot, source), join(directory, source));
-        }
-        const target = join(directory, file);
-        writeFileSync(target, wrap(readFileSync(target, 'utf8')));
-        const result = inspectC1FirebaseAuthDomainSource(directory);
-        expect(result.ok).toBe(false);
-        expect(result.issues.length).toBeGreaterThan(0);
-      } finally {
-        rmSync(directory, { recursive: true, force: true });
-      }
+      const result = inspectChange(file, wrap);
+      expect(result.ok).toBe(false);
+      expect(result.issues.length).toBeGreaterThan(0);
     }
   );
+
+  it.each(hclFiles)(
+    'accepts live %s with harmless comments and CRLF',
+    (file) => {
+      expect(
+        inspectChange(
+          file,
+          (source) => `# fixture comment\r\n${source.replaceAll('\n', '\r\n')}`
+        ).ok
+      ).toBe(true);
+    }
+  );
+
+  const mutations = [
+    [
+      hclFiles[1],
+      'wrong variable with a comment decoy',
+      (source) =>
+        source.replace(
+          'variable "firebase_auth_domain"',
+          'variable "unused_auth_domain"'
+        ) + '\n# variable "firebase_auth_domain"\n'
+    ],
+    [
+      hclFiles[1],
+      'allow-all host condition',
+      (source) =>
+        source.replace('var.firebase_auth_domain == "" || (', 'true || (')
+    ],
+    [
+      hclFiles[1],
+      'non-blocking apply condition',
+      (source) =>
+        source.replace(
+          '!local.apply_enabled || (\n        var.firebase_auth_domain',
+          'true || (\n        var.firebase_auth_domain'
+        )
+    ],
+    [
+      hclFiles[0],
+      'env in the wrong service',
+      (source) =>
+        source.replace(
+          'resource "google_cloud_run_v2_service" "api"',
+          'resource "google_cloud_run_v2_service" "unused_api"'
+        )
+    ],
+    [
+      hclFiles[3],
+      'warning-only expected failures',
+      (source) =>
+        source.replaceAll(
+          '    var.firebase_auth_domain\n',
+          '    check.auth_domain_required_on_apply\n'
+        )
+    ],
+    [
+      hclFiles[1],
+      'unsupported lexical input',
+      (source) => `${source}\n$ invalid_fixture\n`
+    ],
+    [hclFiles[1], 'duplicate named policy', (source) => `${source}\n${source}`]
+  ];
+  it.each(mutations)('rejects %s with %s', (file, _label, mutate) => {
+    const result = inspectChange(file, mutate);
+    expect(result.ok).toBe(false);
+    expect(
+      result.issues.some((issue) =>
+        issue.startsWith('C1 authDomain requires live')
+      )
+    ).toBe(true);
+  });
 });
 
 describe('C1 firebase authDomain API comparator syntax', () => {
