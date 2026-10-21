@@ -198,7 +198,8 @@ export function acceptWatchNotification(input: {
   const state = input.state;
   const channel = [state.current, state.overlapping].find(
     (item) =>
-      item?.channelId === input.channelId && item.calendarId === input.calendarId
+      item?.channelId === input.channelId &&
+      item.calendarId === input.calendarId
   );
   const notificationKey = notificationDedupeKey(
     input.channelId,
@@ -206,7 +207,8 @@ export function acceptWatchNotification(input: {
   );
   const eventKey = eventDedupeKey(input.calendarId, input.eventId, input.etag);
   const duplicate =
-    state.seenNotifications.has(notificationKey) || state.seenEvents.has(eventKey);
+    state.seenNotifications.has(notificationKey) ||
+    state.seenEvents.has(eventKey);
   const count = state.seenNotifications.size + state.seenEvents.size;
   const capacityWarning =
     state.capacity === undefined || count >= state.capacity.warningAtEntries;
@@ -233,7 +235,12 @@ export function acceptWatchNotification(input: {
   )
     return { ...result, accepted: false, httpStatus: 404 };
   if (state.capacity === undefined || count + 2 > state.capacity.maxEntries)
-    return { ...result, accepted: false, httpStatus: 503, capacityWarning: true };
+    return {
+      ...result,
+      accepted: false,
+      httpStatus: 503,
+      capacityWarning: true
+    };
   return {
     ...result,
     accepted: true,

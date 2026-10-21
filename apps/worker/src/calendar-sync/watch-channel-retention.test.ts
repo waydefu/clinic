@@ -67,7 +67,9 @@ describe('synthetic watch retention and backpressure', () => {
       const first = acceptWatchNotification(notification(initial()));
       const next = await renewal(first.state, renew);
       expect(next.renewed).toBe(renew);
-      expect(next.state.seenNotifications).toEqual(first.state.seenNotifications);
+      expect(next.state.seenNotifications).toEqual(
+        first.state.seenNotifications
+      );
       expect(next.state.seenEvents).toEqual(first.state.seenEvents);
       expect(next.state.inFlightEvents).toEqual(first.state.inFlightEvents);
       const replay = acceptWatchNotification({
@@ -83,7 +85,9 @@ describe('synthetic watch retention and backpressure', () => {
   });
 
   it('retains completed dedupe across retirement and another renewal', async () => {
-    const first = completed(acceptWatchNotification(notification(initial())).state);
+    const first = completed(
+      acceptWatchNotification(notification(initial())).state
+    );
     const next = await renewal(first);
     const adapter = new InMemoryWatchAdapter();
     const retired = await retireOverlappingWatchChannel({
@@ -167,7 +171,8 @@ describe('synthetic watch retention and backpressure', () => {
     const prune = (state: WatchLifecycleState, nowMs: number) =>
       pruneWatchDedupe({ state, nowMs, retryHorizon: RETRY });
     expect(prune(settled, NOW)).toBe(settled);
-    expect(pruneWatchDedupe({ state: settled, nowMs: boundary + 1 })).toBe(settled);
+    const noProof = pruneWatchDedupe({ state: settled, nowMs: boundary + 1 });
+    expect(noProof).toBe(settled);
     expect(prune(settled, boundary)).toBe(settled);
     expect(prune(active, boundary + 1)).toBe(active);
     const cleared = prune(settled, boundary + 1);
@@ -181,7 +186,9 @@ describe('synthetic watch retention and backpressure', () => {
   });
 
   it('retains the latest expiry after overlap retirement', async () => {
-    const first = completed(acceptWatchNotification(notification(initial())).state);
+    const first = completed(
+      acceptWatchNotification(notification(initial())).state
+    );
     const renewed = await renewal(first);
     const retired = await retireOverlappingWatchChannel({
       adapter: new InMemoryWatchAdapter(),
@@ -214,12 +221,16 @@ describe('synthetic watch retention and backpressure', () => {
       calendarId: 'cal-other'
     });
     expect(foreign.accepted).toBe(false);
-    const altered = acceptWatchNotification(notification(state, '1', 'evt-other'));
+    const altered = acceptWatchNotification(
+      notification(state, '1', 'evt-other')
+    );
     expect(altered.accepted).toBe(false);
   });
 
   it('rejects invalid retry proof without clearing', () => {
-    const state = completed(acceptWatchNotification(notification(initial())).state);
+    const state = completed(
+      acceptWatchNotification(notification(initial())).state
+    );
     for (const maxRetryMs of [-1, Infinity, Number.NaN]) {
       expect(() =>
         pruneWatchDedupe({
