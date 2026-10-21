@@ -4,6 +4,7 @@ import {
   acceptWatchNotification,
   emptyWatchLifecycleState,
   InMemoryWatchAdapter,
+  completeWatchEvent,
   renewWatchChannelWithOverlap,
   retireOverlappingWatchChannel,
   watchChannelNeedsRenewal
@@ -33,6 +34,7 @@ describe('synthetic watch channel lifecycle', () => {
     const renewal = await renewWatchChannelWithOverlap({
       adapter,
       current: CURRENT,
+      state: emptyWatchLifecycleState({ maxEntries: 20, warningAtEntries: 16 }),
       nextChannelId: 'chan-new',
       nowMs: now,
       nextExpirationMs: Date.parse('2026-10-20T00:00:00.000Z')
@@ -45,6 +47,7 @@ describe('synthetic watch channel lifecycle', () => {
 
     const first = acceptWatchNotification({
       state: renewal.state,
+      nowMs: now,
       channelId: 'chan-old',
       messageNumber: '1',
       calendarId: 'cal-a',
@@ -52,7 +55,13 @@ describe('synthetic watch channel lifecycle', () => {
       etag: 'etag-1'
     });
     const overlap = acceptWatchNotification({
-      state: first.state,
+      state: completeWatchEvent({
+        state: first.state,
+        calendarId: 'cal-a',
+        eventId: 'evt-9',
+        etag: 'etag-1'
+      }),
+      nowMs: now,
       channelId: 'chan-new',
       messageNumber: '2',
       calendarId: 'cal-a',
@@ -78,6 +87,7 @@ describe('synthetic watch channel lifecycle', () => {
   it('ignores notifications from unknown channels', () => {
     const accepted = acceptWatchNotification({
       state: emptyWatchLifecycleState(),
+      nowMs: Date.parse('2026-09-19T01:00:00.000Z'),
       channelId: 'chan-stray',
       messageNumber: '1',
       calendarId: 'cal-a',
