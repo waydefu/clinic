@@ -28,6 +28,15 @@ describe('AuditEventV2Schema', () => {
     expect(AuditEventV2Schema.parse(EVENT)).toEqual(EVENT);
   });
 
+  it('rejects an unknown action without widening the audit vocabulary', () => {
+    expect(
+      AuditEventV2Schema.safeParse({
+        ...EVENT,
+        action: 'synthetic_unknown_action'
+      }).success
+    ).toBe(false);
+  });
+
   it.each([
     ['patient name', { fullName: 'Synthetic Patient' }],
     ['phone number', { mobileE164: '+15555550123' }],

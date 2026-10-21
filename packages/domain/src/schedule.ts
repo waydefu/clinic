@@ -12,6 +12,7 @@ import {
   type IdempotencyContext,
   type PlannedIdempotencyRecord
 } from './idempotency.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 /**
  * The clinic's booking grid, as pure rules.
@@ -492,15 +493,6 @@ export function assertScheduleVersionMatches(
     throw new DomainError(
       'SCHEDULE_VERSION_CONFLICT',
       `The schedule moved to version ${current.publishedVersion} while this draft targeted ${expectedVersion}.`
-    );
-  }
-}
-
-function assertUtcTimestamp(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
     );
   }
 }

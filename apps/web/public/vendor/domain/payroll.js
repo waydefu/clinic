@@ -161,11 +161,6 @@ function assertPayrollPeriod(value) {
         throw new DomainError('INVALID_VALUE', 'payrollPeriod must use the YYYY-MM Taipei-period format.');
     }
 }
-function assertCloseUtcTimestamp(value, fieldName) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
-    }
-}
 /**
  * The payable total for a locked period: the signed-off snapshot plus every
  * adjustment against it. Callers must not add `delta`s themselves — the ledger
@@ -228,7 +223,7 @@ function countManagerPeriodCredits(credits, managerId, payrollPeriod) {
 export function planPayrollPeriodClose(request, credits, current) {
     assertOpaqueIdentifier(request.managerId, 'managerId');
     assertPayrollPeriod(request.payrollPeriod);
-    assertCloseUtcTimestamp(request.requestedAt, 'requestedAt');
+    assertUtcTimestamp(request.requestedAt, 'requestedAt');
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     if (current !== undefined) {
         throw new DomainError('PAYROLL_PERIOD_ALREADY_CLOSED', `The payroll period ${request.payrollPeriod} is already closed.`);
@@ -271,7 +266,7 @@ export function planPayrollPeriodClose(request, credits, current) {
 export function planPayrollAdjustment(request, closed, adjustments = []) {
     assertOpaqueIdentifier(request.managerId, 'managerId');
     assertPayrollPeriod(request.payrollPeriod);
-    assertCloseUtcTimestamp(request.requestedAt, 'requestedAt');
+    assertUtcTimestamp(request.requestedAt, 'requestedAt');
     assertIdempotencyContext(request.idempotency, request.audit.actorId);
     if (closed === undefined || closed.status !== 'locked') {
         throw new DomainError('PAYROLL_PERIOD_NOT_CLOSED', 'Only a closed payroll period can carry an adjustment.');

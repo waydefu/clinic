@@ -102,8 +102,14 @@ overrides:
   '@opentelemetry/core': '2.8.0'
   tar@^7: '7.5.22'
   # GHSA-6qxp-vccf-f47h: bind OAuth credentials to their authorization issuer.
+  # GHSA-22jm-h49p-29qw / GHSA-46jr-4wx8-v453: bind experimental tasks to
+  # their session and bound validation memory. First shared patched floor 1.32.0.
   # firebase-tools 15.25.0 accepts ^1.24.0; no parent CLI upgrade required.
-  '@modelcontextprotocol/sdk': '1.31.0'
+  '@modelcontextprotocol/sdk': '1.32.0'
+  # GHSA-587h-7wmj-h5pm: Windows launch-editor existence-check bypass.
+  # vitest > vite and @vitest/mocker > vite; dev-only, same-major patch.
+  # Remove when both parents normally resolve the fix; preserve the 7.x line.
+  vite@^7: '7.3.7'
   '@hono/node-server': '2.0.12'
   # 2026-09-30 audit: GHSA-hrr3-gc8f-f4qj / GHSA-jvvf-x445-j334;
   # fastify > ajv/fast-json-stringify. Preserve each parent's major.
