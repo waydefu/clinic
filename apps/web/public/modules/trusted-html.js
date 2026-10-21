@@ -44,10 +44,7 @@ export function assertRenderable(html) {
   const text = String(html);
   for (const pattern of EXECUTABLE_MARKUP) {
     if (pattern.test(text)) {
-      throw new TypeError(
-        'Refusing to render markup containing executable content. ' +
-          'A value was very likely interpolated without escapeHtml().'
-      );
+      throw new TypeError('Unsafe HTML; check escapeHtml().');
     }
   }
   return text;
