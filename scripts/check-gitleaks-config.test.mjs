@@ -4,16 +4,27 @@ import { describe, expect, it } from 'vitest';
 const config = await readFile(new URL('../gitleaks.toml', import.meta.url), {
   encoding: 'utf8'
 });
-const regexesBlock = config.match(/regexes\s*=\s*\[([\s\S]*?)\n\]/)?.[1];
-if (!regexesBlock) {
-  throw new Error('Could not read the gitleaks allowlist regexes');
+const allowlists = config
+  .split('[[allowlists]]')
+  .slice(1)
+  .map((block) => ({
+    target: block.match(/regexTarget = "(secret|line)"/)?.[1],
+    patterns: [...block.matchAll(/^\s*'''(.*?)''',?\s*$/gm)].map(
+      ([, pattern]) => new RegExp(pattern)
+    )
+  }));
+if (allowlists.length !== 2 || allowlists.some(({ target }) => !target)) {
+  throw new Error('Expected separate secret and full-line allowlists');
 }
-const allowlistPatterns = [
-  ...regexesBlock.matchAll(/^\s*'''(.*?)''',?\s*$/gm)
-].map(([, pattern]) => new RegExp(pattern));
 
-const matchesAllowlist = (line) =>
-  allowlistPatterns.some((pattern) => pattern.test(line));
+// This is a configuration-shape regression only. CI additionally exercises
+// these scopes with the actual pinned Go scanner, not JavaScript semantics.
+const matchesAllowlist = (line, secret = '') =>
+  allowlists.some(({ target, patterns }) =>
+    patterns.some((pattern) =>
+      pattern.test(target === 'secret' ? secret : line)
+    )
+  );
 
 // Reconstruct the historically verified synthetic request line without coupling
 // this shared config test to the optional web package in other worktrees.
@@ -26,19 +37,22 @@ describe('gitleaks allowlist', () => {
   });
 
   it('allowlists only documented synthetic and vendor-sha256 shapes', () => {
-    expect(config).toContain("'''payroll-close-key-\\d{4}'''");
-    expect(config).toContain("'''schedule_publish_\\d{4}'''");
-    expect(config).toContain("'''schedule_publish_occupancy_\\d{4}'''");
-    expect(config).toContain("'''schedule-publish-key-\\d{4}'''");
-    expect(config).toContain("'''booking-idempotency-\\d{4}'''");
-    expect(config).toContain("'''arrive-idempotency-\\d{4}'''");
-    expect(config).toContain("'''complete-idempotency-\\d{4}'''");
-    expect(config).toContain("'''follow-up-idempotency-\\d{4}'''");
-    expect(config).toContain("'''stagef_c1_schedule_publish_v0'''");
+    expect(config).toContain("'''^payroll-close-key-\\d{4}$'''");
+    expect(config).toContain("'''^schedule_publish_\\d{4}$'''");
+    expect(config).toContain("'''^schedule_publish_occupancy_\\d{4}$'''");
+    expect(config).toContain("'''^schedule-publish-key-\\d{4}$'''");
+    expect(config).toContain("'''^booking-idempotency-\\d{4}$'''");
+    expect(config).toContain("'''^arrive-idempotency-\\d{4}$'''");
+    expect(config).toContain("'''^complete-idempotency-\\d{4}$'''");
+    expect(config).toContain("'''^follow-up-idempotency-\\d{4}$'''");
+    expect(config).toContain("'''^stagef_c1_schedule_publish_v0$'''");
     expect(config).toContain(
       "'''^\\s*body: \\{ idempotencyKey: 'synthetic[_]key_\\d{10}', format: 'csv' \\},\\s*$'''"
     );
-    expect(config).toContain("'''\"[A-Za-z0-9.-]+\\.js\": \"[a-f0-9]{64}\"'''");
+    expect(config).toContain(
+      "'''^\\s*\"[A-Za-z0-9.-]+\\.js\": \"[a-f0-9]{64}\",?\\s*$'''"
+    );
+    expect(config).toContain('regexTarget = "secret"');
     expect(config).toContain('regexTarget = "line"');
   });
 

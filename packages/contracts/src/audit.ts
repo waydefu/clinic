@@ -132,7 +132,7 @@ export const AuditEventV2Schema = z
       path: readonly (string | number)[]
     ): void => {
       context.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message,
         path: [...path]
       });

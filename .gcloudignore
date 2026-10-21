@@ -3,6 +3,22 @@
 .codex
 .env
 .env.*
+# Cloud upload exclusion is intentionally stricter than the public Git example.
+**/.env
+**/.env.*
+**/secrets/**
+**/*service-account*.json
+**/*service_account*.json
+**/*credential*.json
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.crt
+**/*.cer
+**/*.der
+**/*.jks
+**/*.keystore
 **/*.jsonl
 **/node_modules
 **/dist

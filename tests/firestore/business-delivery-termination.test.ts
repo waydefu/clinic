@@ -7,6 +7,7 @@ import {
 import type { BusinessTerminationResponse } from '@beauessence/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { BusinessTerminationResponseSchema } from '../../packages/contracts/src/business-delivery.js';
 import {
   EXPORT_COLLECTIONS,
   FirestoreBusinessExportRepository,
@@ -279,6 +280,24 @@ describe('business termination notice and receipts', () => {
       .get();
     expect(auditLogs.size).toBe(2);
     const auditEvents = auditLogs.docs.map((document) => document.data());
+    for (const event of auditEvents) {
+      expect(Object.keys(event).sort()).toEqual(
+        [
+          'schemaVersion',
+          'terminationId',
+          'action',
+          'actorRef',
+          'at',
+          'idempotencyKeyHash',
+          'version',
+          'requestHash',
+          'result'
+        ].sort()
+      );
+      expect(
+        BusinessTerminationResponseSchema.safeParse(event['result']).success
+      ).toBe(true);
+    }
     expect(auditEvents).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

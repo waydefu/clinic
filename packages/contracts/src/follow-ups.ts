@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   IdempotencyKeySchema,
   LocalDateSchema,
+  LocalTimeSchema,
   OpaqueIdentifierSchema,
   UtcIsoTimestampSchema
 } from './common.js';
@@ -22,8 +23,6 @@ import {
  * time are optional paired metadata. They are not a `follow_up` Appointment
  * and must not occupy a booking slot. `not_required` must not carry a target.
  */
-
-const LocalTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 
 export const FollowUpDecisionSchema = z.enum(['required', 'not_required']);
 
