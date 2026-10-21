@@ -92,6 +92,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 source/release 綁定、exact-SHA、Terraform/Hosting expiry 與 runtime gate；目前 source 已整合，cloud plan/apply 與 C1 驗收仍 BLOCKED。
 - [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
+- [SOL-BUSINESS 可追溯試用調整模型（2026-10-22）](plans/2026-10-22-sol-business-adjustment-design.md) — design-proposed：D-24 重用 milestone state／既有 log，不新增 collection／API；合法輸入、批准來源、撤銷重播與原起點綁定送業主審，未實作不算關帳。
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
