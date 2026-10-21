@@ -15,7 +15,7 @@ const calendarPilotEntry = readFileSync(
 describe('CAL-PILOT Trusted Types entrypoint', () => {
   it('loads the single audited default policy before Firebase or application code', () => {
     expect(calendarPilotEntry.trimStart()).toMatch(
-      /^import '\.\.\/public\/modules\/trusted-html\.js';/
+      /^import \{ assertRenderable \} from '\.\.\/public\/modules\/trusted-html\.js';/
     );
     expect(
       calendarPilotEntry.match(/public\/modules\/trusted-html\.js/g)
@@ -117,5 +117,32 @@ describe('assertRenderable', () => {
     expect(() =>
       assertRenderable(`<td class="patient-name">${patientName}</td>`)
     ).toThrow(/escapeHtml/);
+  });
+
+  it('keeps the rejection diagnostic actionable without echoing input', () => {
+    const payload = '<img onerror="SYNTHETIC_PAYLOAD_MARKER">';
+    let failure: unknown;
+    try {
+      assertRenderable(payload);
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(TypeError);
+    expect((failure as Error).message).toContain('escapeHtml()');
+    expect((failure as Error).message).not.toContain(
+      'SYNTHETIC_PAYLOAD_MARKER'
+    );
+  });
+
+  it('coerces once and returns the unchanged safe string', () => {
+    let coercions = 0;
+    const input = {
+      toString() {
+        coercions += 1;
+        return '<b>synthetic fixture</b>';
+      }
+    };
+    expect(assertRenderable(input)).toBe('<b>synthetic fixture</b>');
+    expect(coercions).toBe(1);
   });
 });

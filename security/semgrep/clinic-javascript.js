@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { cors } from 'hono/cors';
+import { assertRenderable } from '../../apps/web/public/modules/trusted-html.js';
 
 export function unsafeDynamicCode(source) {
   // ruleid: clinic.javascript.dynamic-code-execution
@@ -66,3 +67,44 @@ document.querySelector('main').textContent = 'safe text';
 
 // ok: clinic.javascript.jwt-none-algorithm
 export const safeJwtOptions = { algorithms: ['RS256'] };
+
+export function nestCors(app) {
+  // ruleid: clinic.javascript.credentialed-wildcard-cors
+  app.enableCors({ origin: '*', credentials: true });
+  // ok: clinic.javascript.credentialed-wildcard-cors
+  app.enableCors({
+    origin: 'https://synthetic.example.invalid',
+    credentials: true
+  });
+  // ruleid: clinic.javascript.credentialed-wildcard-cors
+  app.enableCors({ credentials: true, origin: true });
+  // ok: clinic.javascript.credentialed-wildcard-cors
+  app.enableCors({ origin: '*', credentials: false });
+}
+
+export function fastifyCors(app, plugin) {
+  // ruleid: clinic.javascript.credentialed-wildcard-cors
+  app.register(plugin, { credentials: true, origin: '*' });
+  // ok: clinic.javascript.credentialed-wildcard-cors
+  app.register(plugin, {
+    credentials: true,
+    origin: ['https://synthetic.example.invalid']
+  });
+  // ruleid: clinic.javascript.credentialed-wildcard-cors
+  app.register(plugin, { origin: true, credentials: true });
+  // ok: clinic.javascript.credentialed-wildcard-cors
+  app.register(plugin, { origin: '*', credentials: false });
+}
+
+export function checkedHtml(element, html) {
+  // ok: clinic.javascript.html-sink-outside-trusted-entrypoint
+  element.innerHTML = assertRenderable(html);
+  // ok: clinic.javascript.html-sink-outside-trusted-entrypoint
+  element.outerHTML = assertRenderable(html);
+  // ok: clinic.javascript.html-sink-outside-trusted-entrypoint
+  element.insertAdjacentHTML('beforeend', assertRenderable(html));
+  // ok: clinic.javascript.html-sink-outside-trusted-entrypoint
+  element.innerHTML = '';
+  // ruleid: clinic.javascript.html-sink-outside-trusted-entrypoint
+  element.innerHTML = html;
+}
