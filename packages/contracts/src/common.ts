@@ -61,6 +61,8 @@ export const LocalDateSchema = z
   .string()
   .refine(isValidLocalDate, 'Must be a real YYYY-MM-DD calendar date.');
 
+export const LocalTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
+
 export const OpaqueIdentifierSchema = z
   .string()
   .min(1)

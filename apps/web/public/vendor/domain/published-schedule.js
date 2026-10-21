@@ -2,6 +2,7 @@ import { assertSlotMeetsEarliestLead, isSlotOccupied } from './appointment-rules
 import { assertSlotNotInPast, assertSlotWithinBookingHorizon, bookingHorizonEndExclusive, taipeiCalendarDate } from './booking-horizon.js';
 import { DomainError } from './errors.js';
 import { assertScheduleValid, planSlots } from './schedule.js';
+import { assertUtcTimestamp } from './timestamp.js';
 /** Inclusive days from Taipei today through the last bookable date. */
 function bookingHorizonDayCount(taipeiToday) {
     const startMs = Date.parse(`${taipeiToday}T00:00:00+08:00`);
@@ -21,11 +22,6 @@ export const UNPUBLISHED_SCHEDULE = {
     publishedAt: null,
     schedule: null
 };
-function assertUtcIso(value, fieldName) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
-    }
-}
 export function parsePublishedScheduleSnapshot(data) {
     if (data === null || typeof data !== 'object' || Array.isArray(data)) {
         throw new DomainError('INVALID_VALUE', 'The published schedule is unreadable.');
@@ -48,7 +44,7 @@ export function parsePublishedScheduleSnapshot(data) {
     if (typeof publishedAt !== 'string') {
         throw new DomainError('INVALID_VALUE', 'The published schedule is unreadable.');
     }
-    assertUtcIso(publishedAt, 'publishedAt');
+    assertUtcTimestamp(publishedAt, 'publishedAt');
     assertScheduleValid(record['schedule']);
     return {
         publishedVersion,

@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 export const forbiddenCredentialPath = [
   /(^|\/)\.env($|\.)/i,
-  /\.(key|p12|pfx|pem)$/i,
+  /\.(key|p12|pfx|pem|crt|cer|der|jks|keystore)$/i,
   /(^|\/)[^/]*(credential|service[-_]?account|secret)[^/]*\.json$/i
 ];
 
@@ -100,8 +99,54 @@ export function renderPassLine({ scanned, deletedInWorktree }) {
   return `Tracked-secret check passed (${scanned} tracked files${skipped}).`;
 }
 
-async function main() {
-  const tracked = execFileSync('git', ['ls-files', '-z'], {
+async function readTrackedSource(root, filePath) {
+  const components = filePath.split('/');
+  let absolute = root;
+  for (const [index, component] of components.entries()) {
+    absolute = path.join(absolute, component);
+    let info;
+    try {
+      info = await lstat(absolute);
+    } catch (error) {
+      if (error.code === 'ENOENT') return { source: null };
+      throw error;
+    }
+    if (info.isSymbolicLink()) {
+      return {
+        source: '',
+        finding: `${filePath}: refusing symbolic link in tracked path`
+      };
+    }
+    const leaf = index === components.length - 1;
+    if (!leaf && !info.isDirectory()) {
+      return {
+        source: '',
+        finding: `${filePath}: refusing non-directory tracked ancestor`
+      };
+    }
+    if (leaf) {
+      // Classify sensitive filenames before opening any bytes. lstat never
+      // follows a leaf or ancestor link, including a dangling link.
+      if (inspectPath(filePath) !== null) return { source: '' };
+      if (!info.isFile()) {
+        return {
+          source: '',
+          finding: `${filePath}: refusing non-regular tracked file`
+        };
+      }
+      return { source: await readFile(absolute, 'utf8') };
+    }
+  }
+  throw new Error('Empty tracked path');
+}
+
+export async function scanRepository({ cwd = process.cwd() } = {}) {
+  const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd,
+    encoding: 'utf8'
+  }).trim();
+  const tracked = execFileSync('git', ['ls-files', '--full-name', '-z'], {
+    cwd: root,
     encoding: 'utf8'
   })
     .split('\0')
@@ -111,16 +156,28 @@ async function main() {
     await Promise.all(
       tracked.map(async (filePath) => [
         filePath,
-        existsSync(filePath) ? await readFile(filePath, 'utf8') : null
+        await readTrackedSource(root, filePath)
       ])
     )
   );
 
   const result = scanTrackedFiles({
     tracked,
-    readSource: (filePath) => sources.get(filePath) ?? null
+    readSource: (filePath) => sources.get(filePath)?.source ?? null
   });
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      ...[...sources.values()].flatMap(({ finding }) =>
+        finding === undefined ? [] : [finding]
+      )
+    ]
+  };
+}
 
+async function main() {
+  const result = await scanRepository();
   if (result.findings.length > 0) {
     console.error('Tracked-secret check failed:');
     for (const finding of result.findings) console.error(`- ${finding}`);
