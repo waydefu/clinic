@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   IdempotencyKeySchema,
   LocalDateSchema,
+  LocalTimeSchema,
   OpaqueIdentifierSchema,
   UtcIsoTimestampSchema
 } from './common.js';
@@ -13,8 +14,6 @@ import {
  * pattern, a bounded set of weekdays, and no free text anywhere. A schedule
  * carries no patient data by construction — there is no field for it.
  */
-
-const LocalTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 
 export const TimeIntervalSchema = z
   .object({

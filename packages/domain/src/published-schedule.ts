@@ -16,6 +16,7 @@ import {
   type Schedule,
   type SlotGenerationOptions
 } from './schedule.js';
+import { assertUtcTimestamp } from './timestamp.js';
 
 /** Inclusive days from Taipei today through the last bookable date. */
 function bookingHorizonDayCount(taipeiToday: string): number {
@@ -52,15 +53,6 @@ export const UNPUBLISHED_SCHEDULE: PublishedScheduleSnapshot = {
   publishedAt: null,
   schedule: null
 };
-
-function assertUtcIso(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
-    );
-  }
-}
 
 export function parsePublishedScheduleSnapshot(
   data: unknown
@@ -102,7 +94,7 @@ export function parsePublishedScheduleSnapshot(
       'The published schedule is unreadable.'
     );
   }
-  assertUtcIso(publishedAt, 'publishedAt');
+  assertUtcTimestamp(publishedAt, 'publishedAt');
   assertScheduleValid(record['schedule'] as Schedule | undefined);
   return {
     publishedVersion,

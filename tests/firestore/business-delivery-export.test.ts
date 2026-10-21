@@ -165,6 +165,11 @@ describe('export creation', () => {
     await repository.download(job.exportId, ACTOR, NOW);
     const log = await db.collection(EXPORT_COLLECTIONS.log).get();
     expect(log.size).toBe(2);
+    for (const document of log.docs) {
+      expect(Object.keys(document.data()).sort()).toEqual(
+        ['schemaVersion', 'exportId', 'action', 'actorRef', 'at'].sort()
+      );
+    }
     const serialized = JSON.stringify(
       log.docs.map((document) => document.data())
     );

@@ -2,6 +2,7 @@ import { planAuditEvent } from './audit.js';
 import { taipeiCalendarDate } from './booking-horizon.js';
 import { DomainError } from './errors.js';
 import { assertIdempotencyContext, planIdempotencyRecord } from './idempotency.js';
+import { assertUtcTimestamp } from './timestamp.js';
 /**
  * The clinic's booking grid, as pure rules.
  *
@@ -293,11 +294,6 @@ export function scheduleImpact(appointments, candidateSlots) {
 export function assertScheduleVersionMatches(expectedVersion, current) {
     if (expectedVersion !== current.publishedVersion) {
         throw new DomainError('SCHEDULE_VERSION_CONFLICT', `The schedule moved to version ${current.publishedVersion} while this draft targeted ${expectedVersion}.`);
-    }
-}
-function assertUtcTimestamp(value, fieldName) {
-    if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-        throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);
     }
 }
 /**
