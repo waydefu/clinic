@@ -136,6 +136,219 @@ check "auth_domain_required_on_apply" {
   });
 });
 
+describe('C1 authDomain live HCL declarations, not source markers', () => {
+  const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const hclFiles = [
+    'infra/terraform/c1-internal-test-run/main.tf',
+    'infra/terraform/c1-internal-test-run/variables.tf',
+    'infra/terraform/c1-internal-test-run/terraform.tfvars.example',
+    'infra/terraform/c1-internal-test-run/noop.tftest.hcl'
+  ];
+  const sources = [
+    ...hclFiles,
+    'apps/api/src/platform/runtime/c1-firebase-auth-domain.ts',
+    'infra/config/c1-internal-test-config-contract.json'
+  ];
+  const wrappers = [
+    [
+      'line comments',
+      (source) =>
+        source
+          .split('\n')
+          .map((line) => `# ${line}`)
+          .join('\n')
+    ],
+    ['block comment', (source) => `/*\n${source}\n*/\n`],
+    [
+      'inert heredoc',
+      (source) => `unused = <<E1_14_FIXTURE\n${source}\nE1_14_FIXTURE\n`
+    ]
+  ];
+
+  function inspectChange(file, change) {
+    const directory = mkdtempSync(join(tmpdir(), 'c1-hcl-live-'));
+    try {
+      for (const source of sources) {
+        mkdirSync(dirname(join(directory, source)), { recursive: true });
+        cpSync(join(repoRoot, source), join(directory, source));
+      }
+      const target = join(directory, file);
+      const source = readFileSync(target, 'utf8');
+      const mutated = change(source);
+      if (mutated === source)
+        throw new Error('Mutation did not change fixture');
+      writeFileSync(target, mutated);
+      return inspectC1FirebaseAuthDomainSource(directory);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }
+
+  it.each(
+    hclFiles.flatMap((file) =>
+      wrappers.map(([label, wrap]) => [file, label, wrap])
+    )
+  )(
+    'rejects %s when its required policy exists only in %s',
+    (file, _label, wrap) => {
+      const result = inspectChange(file, wrap);
+      expect(result.ok).toBe(false);
+      expect(result.issues.length).toBeGreaterThan(0);
+    }
+  );
+
+  it.each(hclFiles)(
+    'accepts live %s with harmless comments and CRLF',
+    (file) => {
+      expect(
+        inspectChange(
+          file,
+          (source) => `# fixture comment\r\n${source.replaceAll('\n', '\r\n')}`
+        ).ok
+      ).toBe(true);
+    }
+  );
+
+  function insertEnv(source, declaration) {
+    const target =
+      '      env {\n        name  = "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN"';
+    return source.replace(target, `${declaration}\n${target}`);
+  }
+
+  it('admits a literal non-authDomain dynamic env producer', () => {
+    const result = inspectChange(hclFiles[0], (source) =>
+      insertEnv(
+        source,
+        `
+      dynamic "env" {
+        for_each = ["fixture"]
+        content {
+          name = "NON_SECRET_FIXTURE_ENV"
+          value = "fixture"
+        }
+      }`
+      )
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  const mutations = [
+    [
+      hclFiles[0],
+      'dynamic authDomain override',
+      (source) =>
+        insertEnv(
+          source,
+          `
+      dynamic "env" {
+        for_each = ["fixture"]
+        content {
+          name = "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN"
+          value = "other-preview.example.invalid"
+        }
+      }`
+        )
+    ],
+    [
+      hclFiles[0],
+      'unproven direct env name',
+      (source) =>
+        insertEnv(
+          source,
+          `
+      env {
+        name = var.fixture_env_name
+        value = "fixture"
+      }`
+        )
+    ],
+    [
+      hclFiles[0],
+      'dynamic key map colliding with authDomain',
+      (source) =>
+        source.replace(
+          '  api_secret_env = {',
+          '  api_secret_env = {\n    CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN = "non-secret-fixture"'
+        )
+    ],
+    [
+      hclFiles[0],
+      'dynamic map key rewrite',
+      (source) =>
+        source.replace(
+          '    env_name => secret_id',
+          '    "CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN" => secret_id'
+        )
+    ],
+    [
+      hclFiles[0],
+      'dynamic iterator override',
+      (source) =>
+        source.replace(
+          '      dynamic "env" {',
+          '      dynamic "env" {\n        iterator = fixture_iterator'
+        )
+    ],
+    [
+      hclFiles[1],
+      'wrong variable with a comment decoy',
+      (source) =>
+        source.replace(
+          'variable "firebase_auth_domain"',
+          'variable "unused_auth_domain"'
+        ) + '\n# variable "firebase_auth_domain"\n'
+    ],
+    [
+      hclFiles[1],
+      'allow-all host condition',
+      (source) =>
+        source.replace('var.firebase_auth_domain == "" || (', 'true || (')
+    ],
+    [
+      hclFiles[1],
+      'non-blocking apply condition',
+      (source) =>
+        source.replace(
+          '!local.apply_enabled || (\n        var.firebase_auth_domain',
+          'true || (\n        var.firebase_auth_domain'
+        )
+    ],
+    [
+      hclFiles[0],
+      'env in the wrong service',
+      (source) =>
+        source.replace(
+          'resource "google_cloud_run_v2_service" "api"',
+          'resource "google_cloud_run_v2_service" "unused_api"'
+        )
+    ],
+    [
+      hclFiles[3],
+      'warning-only expected failures',
+      (source) =>
+        source.replaceAll(
+          '    var.firebase_auth_domain\n',
+          '    check.auth_domain_required_on_apply\n'
+        )
+    ],
+    [
+      hclFiles[1],
+      'unsupported lexical input',
+      (source) => `${source}\n$ invalid_fixture\n`
+    ],
+    [hclFiles[1], 'duplicate named policy', (source) => `${source}\n${source}`]
+  ];
+  it.each(mutations)('rejects %s with %s', (file, _label, mutate) => {
+    const result = inspectChange(file, mutate);
+    expect(result.ok).toBe(false);
+    expect(
+      result.issues.some((issue) =>
+        issue.startsWith('C1 authDomain requires live')
+      )
+    ).toBe(true);
+  });
+});
+
 describe('C1 firebase authDomain API comparator syntax', () => {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const apiFile = 'apps/api/src/platform/runtime/c1-firebase-auth-domain.ts';

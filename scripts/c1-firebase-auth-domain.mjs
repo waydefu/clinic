@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { inspectC1AuthDomainHcl } from './c1-firebase-auth-domain-hcl.mjs';
 import {
   C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS,
   ISOLATED_C1_FIREBASE_AUTH_DOMAIN,
@@ -228,6 +229,15 @@ function inspectC1FirebaseAuthDomainSourceImpl(repoRoot) {
   }
 
   issues.push(...inspectApiComparatorSyntax(apiSource));
+  issues.push(
+    ...inspectC1AuthDomainHcl({
+      variables,
+      main,
+      example,
+      tftest,
+      approvedHost: ISOLATED_C1_FIREBASE_AUTH_DOMAIN
+    })
+  );
   return { ok: issues.length === 0, issues };
 }
 
