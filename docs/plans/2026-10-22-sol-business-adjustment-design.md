@@ -1,7 +1,7 @@
 # SOL-BUSINESS：可追溯試用調整模型提案
 
 日期：2026-10-22（Asia/Taipei）。狀態：**DESIGN-PROPOSED／BLOCKED-OWNER**，不是新政策或可用功能。
-Packet：SOL-BUSINESS；本次只推進 D-24。原 packet 的 D-35、D-41 保留既有來源結論，不借本提案重新關帳。
+Packet：SOL-BUSINESS；本次只推進 D-24。原 packet 的 D-35、E3-25 保留既有來源結論，不借本提案重新關帳。
 依據：[#268 保守版原話](https://github.com/waydefu/clinic/pull/268#issuecomment-6322342715)、
 [既定政策 §4](../product/2026-09-29-business-delivery-policy-decisions.md#4-驗收與付款里程碑cp-03)、
 [ADR-0008](../adr/0008-business-delivery-usage-and-milestones.md)。原話登記 PR #281 尚待業主合併。
