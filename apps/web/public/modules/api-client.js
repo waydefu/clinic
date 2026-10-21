@@ -286,7 +286,7 @@ export const apiClient = createApiClient(stagingRequest, {
 });
 
 const C1_INTERNAL_HOST =
-  /^beauessence-clinic-stg-c1a01(?:--[a-z0-9-]+)?\.web\.app$/;
+  'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
 export function isInternalTestBookingEnabled(location = globalThis.location) {
   if (location === undefined || location === null) return false;
   const hostname = String(location.hostname ?? '').toLowerCase();
@@ -311,12 +311,7 @@ export function isInternalTestBookingEnabled(location = globalThis.location) {
       (port === '' ||
         (/^[0-9]+$/.test(port) && Number(port) > 0 && Number(port) <= 65535))
     );
-  return (
-    protocol === 'https:' &&
-    port === '' &&
-    C1_INTERNAL_HOST.test(hostname) &&
-    (requested || hostname.includes('--'))
-  );
+  return protocol === 'https:' && port === '' && hostname === C1_INTERNAL_HOST;
 }
 
 export async function resolveApiClient() {
