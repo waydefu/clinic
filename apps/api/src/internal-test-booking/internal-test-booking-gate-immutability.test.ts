@@ -20,7 +20,9 @@ describe('internal booking authority cannot be mutated through exports', () => {
     const original = [...INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST];
     try {
       INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST.clear();
-      INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST.add('synthetic_unapproved_project');
+      INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST.add(
+        'synthetic_unapproved_project'
+      );
       expect(() => assertInternalTestBookingWritable(NOW, OPEN)).not.toThrow();
       expect(() =>
         assertInternalTestBookingWritable(NOW, {

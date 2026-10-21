@@ -311,11 +311,7 @@ export function isInternalTestBookingEnabled(location = globalThis.location) {
       (port === '' ||
         (/^[0-9]+$/.test(port) && Number(port) > 0 && Number(port) <= 65535))
     );
-  return (
-    protocol === 'https:' &&
-    port === '' &&
-    hostname === C1_INTERNAL_HOST
-  );
+  return protocol === 'https:' && port === '' && hostname === C1_INTERNAL_HOST;
 }
 
 export async function resolveApiClient() {
