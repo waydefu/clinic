@@ -16,4 +16,4 @@ rules:
       include:
         - '*.rules'
     pattern-regex: >-
-      (?m)^\s*allow\s+(?:read|write|create|update|delete)(?:\s*,\s*(?:read|write|create|update|delete))*\s*:\s*if\s+true\s*;
+      (?m)^\s*allow\s+(?:read|write|get|list|create|update|delete)(?:\s*,\s*(?:read|write|get|list|create|update|delete))*\s*:\s*if\s+(?:\(\s*)*(?:true(?:\s*(?:&&|==|\|\|)\s*true)?|false\s*(?:==\s*false|\|\|\s*true)|true\s*\|\|\s*false|!\s*(?:\(\s*)*false(?:\s*\))*|1\s*==\s*1|request\.auth\s*!=\s*null\s*\|\|\s*true|true\s*\|\|\s*request\.auth\s*!=\s*null)(?:\s*\))*\s*;

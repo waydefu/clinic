@@ -1,6 +1,6 @@
 // Trusted Types 的 default policy。必須第一個匯入：它要在任何模組
 // 有機會寫 innerHTML 之前就註冊好。
-import './modules/trusted-html.js';
+import { assertRenderable } from './modules/trusted-html.js';
 import {
   BOOKING_KIND_LABELS,
   CLINIC,
@@ -307,10 +307,11 @@ function renderHours() {
 function renderWorkspace() {
   const a = state.workspace.announcement;
   elements['patient-announcement'].hidden = a.status !== 'published';
-  elements['patient-announcement'].innerHTML =
+  elements['patient-announcement'].innerHTML = assertRenderable(
     a.status === 'published'
       ? `<div><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(apiMode && a.body === DEFAULT_ANNOUNCEMENT_BODY ? API_STORAGE_NOTICE.announcement : a.body)}</span></div>`
-      : '';
+      : ''
+  );
   const active = state.maintenanceActive === true;
   elements['patient-maintenance'].hidden = !active;
   elements['patient-booking-app'].hidden = active;
@@ -368,10 +369,12 @@ function renderFollowUpChoice() {
 }
 
 function renderServices() {
-  elements['patient-services'].innerHTML = PATIENT_SERVICES.map(
-    (service) =>
-      `<button class="service-choice${service.id === selectedServiceId ? ' is-selected' : ''}" type="button" data-service="${escapeHtml(service.id)}" aria-pressed="${service.id === selectedServiceId}"${dataReady ? '' : ' disabled'}><strong>${escapeHtml(service.label)}</strong><span>${escapeHtml(service.note)}</span></button>`
-  ).join('');
+  elements['patient-services'].innerHTML = assertRenderable(
+    PATIENT_SERVICES.map(
+      (service) =>
+        `<button class="service-choice${service.id === selectedServiceId ? ' is-selected' : ''}" type="button" data-service="${escapeHtml(service.id)}" aria-pressed="${service.id === selectedServiceId}"${dataReady ? '' : ' disabled'}><strong>${escapeHtml(service.label)}</strong><span>${escapeHtml(service.note)}</span></button>`
+    ).join('')
+  );
 }
 
 // P2（業主 2026-07-27）：醫師已登錄回診指示時，這位患者這一次要走的是回診，
@@ -419,10 +422,8 @@ function renderBookingTypeButtons() {
 // 「關於這次門診」的可複選標籤。選項是常數，畫一次就好——重畫會清掉使用者
 // 已經勾好的選擇。
 function renderPatientTags() {
-  elements['patient-request-tags'].innerHTML = renderTagOptions(
-    PATIENT_REQUEST_TAGS,
-    [],
-    { data: 'data-request-tag' }
+  elements['patient-request-tags'].innerHTML = assertRenderable(
+    renderTagOptions(PATIENT_REQUEST_TAGS, [], { data: 'data-request-tag' })
   );
 }
 
@@ -464,8 +465,9 @@ function renderPatientContactLinks() {
   const socialLayout = compact
     ? 'booking-social-fallback patient-contact-socials'
     : 'patient-contact-grid patient-contact-socials';
-  elements['patient-contact-options'].innerHTML =
-    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><a class="button button-primary patient-contact-link patient-contact-phone" href="${escapeHtml(CLINIC.phoneHref)}">${patientContactIcon('電話')}&nbsp;<span>${escapeHtml(CLINIC.phoneDisplay)}</span></a><span>其他聯絡方式</span><div class="${socialLayout}" data-contact-layout="${compact ? 'compact' : 'labeled'}" aria-label="其他聯絡方式">${socialLinks}</div>`;
+  elements['patient-contact-options'].innerHTML = assertRenderable(
+    `<strong>需要其他協助？</strong><p>急事請直接來電；社群訊息可能無法即時回覆，也不會自動送出或更改預約。</p><a class="button button-primary patient-contact-link patient-contact-phone" href="${escapeHtml(CLINIC.phoneHref)}">${patientContactIcon('電話')}&nbsp;<span>${escapeHtml(CLINIC.phoneDisplay)}</span></a><span>其他聯絡方式</span><div class="${socialLayout}" data-contact-layout="${compact ? 'compact' : 'labeled'}" aria-label="其他聯絡方式">${socialLinks}</div>`
+  );
 }
 
 function checkedTagIds(containerId, attribute) {
@@ -548,9 +550,11 @@ function renderSlots() {
     elements['patient-slot-months'].replaceChildren();
     elements['patient-slot-dates'].replaceChildren();
     elements['active-slot-date-label'].textContent = '目前沒有可預約日期';
-    elements['patient-slots'].innerHTML = emptyState(
-      '目前沒有可預約時段',
-      '診所發布新的營業時間後，時段會自動更新。'
+    elements['patient-slots'].innerHTML = assertRenderable(
+      emptyState(
+        '目前沒有可預約時段',
+        '診所發布新的營業時間後，時段會自動更新。'
+      )
     );
     return;
   }
@@ -563,23 +567,29 @@ function renderSlots() {
   );
   if (!monthGroups.some((group) => group.key === activeSlotDate))
     activeSlotDate = monthGroups[0].key;
-  elements['patient-slot-months'].innerHTML = months
-    .map((month) => {
-      const selected = month === activeSlotMonth;
-      return `<button class="patient-slot-month" type="button" role="tab" data-slot-month="${escapeHtml(month)}" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}">${escapeHtml(monthLabel(month))}</button>`;
-    })
-    .join('');
-  elements['patient-slot-dates'].innerHTML = monthGroups
-    .map((group) => {
-      const selected = group.key === activeSlotDate;
-      const label = compactDateLabel(group.key);
-      return `<button class="patient-slot-date" type="button" role="tab" data-slot-date="${escapeHtml(group.key)}" aria-label="${escapeHtml(group.label)}，${group.slots.length} 個時段" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}"><strong>${escapeHtml(label.weekday)}</strong><span>${escapeHtml(label.date)}</span><small>${group.slots.length} 個時段${selected ? ' · ✓ 已選' : ''}</small></button>`;
-    })
-    .join('');
+  elements['patient-slot-months'].innerHTML = assertRenderable(
+    months
+      .map((month) => {
+        const selected = month === activeSlotMonth;
+        return `<button class="patient-slot-month" type="button" role="tab" data-slot-month="${escapeHtml(month)}" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}">${escapeHtml(monthLabel(month))}</button>`;
+      })
+      .join('')
+  );
+  elements['patient-slot-dates'].innerHTML = assertRenderable(
+    monthGroups
+      .map((group) => {
+        const selected = group.key === activeSlotDate;
+        const label = compactDateLabel(group.key);
+        return `<button class="patient-slot-date" type="button" role="tab" data-slot-date="${escapeHtml(group.key)}" aria-label="${escapeHtml(group.label)}，${group.slots.length} 個時段" aria-selected="${selected}" tabindex="${selected ? '0' : '-1'}"><strong>${escapeHtml(label.weekday)}</strong><span>${escapeHtml(label.date)}</span><small>${group.slots.length} 個時段${selected ? ' · ✓ 已選' : ''}</small></button>`;
+      })
+      .join('')
+  );
   const active = groups.find((group) => group.key === activeSlotDate);
   elements['active-slot-date-label'].textContent =
     `${active.label} · ${active.slots.length} 個可預約時段`;
-  elements['patient-slots'].innerHTML = renderDayGroup(active);
+  elements['patient-slots'].innerHTML = assertRenderable(
+    renderDayGroup(active)
+  );
 }
 
 function selectedService() {
@@ -1005,8 +1015,9 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
         elements['booking-complete-description'].textContent =
           '請於門診時間前十分鐘抵達櫃台。';
         elements['booking-complete-reminder'].hidden = false;
-        elements['booking-result'].innerHTML =
-          `<strong>預約編號：${escapeHtml(result.appointmentId)}</strong><span>${escapeHtml(formatFullDate(result.startsAt))} ${escapeHtml(formatTime(result.startsAt))} · ${escapeHtml(itemLabel)}</span>`;
+        elements['booking-result'].innerHTML = assertRenderable(
+          `<strong>預約編號：${escapeHtml(result.appointmentId)}</strong><span>${escapeHtml(formatFullDate(result.startsAt))} ${escapeHtml(formatTime(result.startsAt))} · ${escapeHtml(itemLabel)}</span>`
+        );
         await refreshPublishedGrid();
         renderAll();
         showBookingResult();
@@ -1034,8 +1045,9 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
       elements['booking-complete-description'].textContent =
         '請於門診時間前十分鐘抵達櫃台。資料仍只保存在目前瀏覽器。';
       elements['booking-complete-reminder'].hidden = false;
-      elements['booking-result'].innerHTML =
-        `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`;
+      elements['booking-result'].innerHTML = assertRenderable(
+        `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`
+      );
       renderAll();
       showBookingResult();
       message(`預約已建立：${appointment.id}。`, 'success');
@@ -1085,35 +1097,37 @@ function lookupVerification() {
 }
 
 function renderManagedAppointments() {
-  elements['booking-lookup-results'].innerHTML = managedAppointments
-    .map((appointment) => {
-      const eligibility = patientCancellationEligibility(
-        appointment,
-        Date.now()
-      );
-      const status = statusLabel(appointment.status);
-      const cancelAction = eligibility.allowed
-        ? `<button class="button button-primary" type="button" data-managed-cancel="${escapeHtml(appointment.id)}">取消這筆預約</button>`
-        : ['phone_required', 'time_unavailable'].includes(eligibility.code)
-          ? cancellationContactFallback()
-          : '';
-      const targets = eligibility.allowed
-        ? patientRescheduleTargets(state, appointment, Date.now())
-        : [];
-      const rescheduleAction =
-        eligibility.allowed && targets.length > 0
-          ? `<div class="booking-lookup-reschedule"><label>改期時段<select name="targetSlotId" data-managed-reschedule-slot="${escapeHtml(appointment.id)}"><option value="">請選擇新時段</option>${targets
-              .map(
-                (slot) =>
-                  `<option value="${escapeHtml(slot.id)}">${escapeHtml(formatFullDate(slot.startsAt))} ${escapeHtml(formatTime(slot.startsAt))}</option>`
-              )
-              .join(
-                ''
-              )}</select></label><button class="button button-secondary" type="button" data-managed-reschedule="${escapeHtml(appointment.id)}">改期</button></div>`
-          : '';
-      return `<article class="booking-lookup-card"><div class="booking-lookup-card-heading"><strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(status)}</span></div><span>${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel)}</span><span class="code">預約末碼 ${escapeHtml(appointment.id.slice(-4))}</span>${rescheduleAction}${cancelAction}</article>`;
-    })
-    .join('');
+  elements['booking-lookup-results'].innerHTML = assertRenderable(
+    managedAppointments
+      .map((appointment) => {
+        const eligibility = patientCancellationEligibility(
+          appointment,
+          Date.now()
+        );
+        const status = statusLabel(appointment.status);
+        const cancelAction = eligibility.allowed
+          ? `<button class="button button-primary" type="button" data-managed-cancel="${escapeHtml(appointment.id)}">取消這筆預約</button>`
+          : ['phone_required', 'time_unavailable'].includes(eligibility.code)
+            ? cancellationContactFallback()
+            : '';
+        const targets = eligibility.allowed
+          ? patientRescheduleTargets(state, appointment, Date.now())
+          : [];
+        const rescheduleAction =
+          eligibility.allowed && targets.length > 0
+            ? `<div class="booking-lookup-reschedule"><label>改期時段<select name="targetSlotId" data-managed-reschedule-slot="${escapeHtml(appointment.id)}"><option value="">請選擇新時段</option>${targets
+                .map(
+                  (slot) =>
+                    `<option value="${escapeHtml(slot.id)}">${escapeHtml(formatFullDate(slot.startsAt))} ${escapeHtml(formatTime(slot.startsAt))}</option>`
+                )
+                .join(
+                  ''
+                )}</select></label><button class="button button-secondary" type="button" data-managed-reschedule="${escapeHtml(appointment.id)}">改期</button></div>`
+            : '';
+        return `<article class="booking-lookup-card"><div class="booking-lookup-card-heading"><strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span class="status-chip status-${escapeHtml(appointment.status)}">${escapeHtml(status)}</span></div><span>${escapeHtml(BOOKING_KIND_LABELS[appointment.bookingKind] ?? '')} · ${escapeHtml(appointment.itemLabel)}</span><span class="code">預約末碼 ${escapeHtml(appointment.id.slice(-4))}</span>${rescheduleAction}${cancelAction}</article>`;
+      })
+      .join('')
+  );
 }
 
 function cancellationContactFallback() {
@@ -1281,8 +1295,9 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
         elements['booking-complete-description'].textContent =
           '取消已完成，原時段已釋出。';
         elements['booking-complete-reminder'].hidden = true;
-        elements['booking-result'].innerHTML =
-          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>狀態：已取消</span>`;
+        elements['booking-result'].innerHTML = assertRenderable(
+          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>狀態：已取消</span>`
+        );
       }
       renderSlots();
       message('預約已取消，原時段已釋出。', 'success', 'booking-lookup-status');
@@ -1361,8 +1376,9 @@ elements['booking-lookup-results'].addEventListener('click', async (event) => {
         elements['booking-complete-heading'].textContent = '預約已改期';
         elements['booking-complete-description'].textContent =
           '改期已完成，請以新時段為準。';
-        elements['booking-result'].innerHTML =
-          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>${escapeHtml(formatFullDate(startsAt))} ${escapeHtml(formatTime(startsAt))} · 狀態：已改期</span>`;
+        elements['booking-result'].innerHTML = assertRenderable(
+          `<strong>預約末碼：${escapeHtml(completedAppointmentId.slice(-4))}</strong><span>${escapeHtml(formatFullDate(startsAt))} ${escapeHtml(formatTime(startsAt))} · 狀態：已改期</span>`
+        );
       }
       renderSlots();
       message('預約已改期，原時段已釋出。', 'success', 'booking-lookup-status');
