@@ -287,6 +287,10 @@ export function pruneWatchDedupe(input: {
     readonly maxRetryMs: number;
     readonly evidenceRef: string;
   };
+  /** Inject only an authority-backed resolver, never notification input. */
+  readonly retryHorizonAuthority?: {
+    approvedMaxRetryMs(evidenceRef: string): number | undefined;
+  };
 }): WatchLifecycleState {
   const proof = input.retryHorizon;
   if (proof === undefined) return input.state;
@@ -297,6 +301,11 @@ export function pruneWatchDedupe(input: {
     !/^[A-Za-z0-9_-]{1,128}$/u.test(proof.evidenceRef)
   )
     throw new Error('Watch retry horizon requires a valid evidenced bound.');
+  if (
+    input.retryHorizonAuthority?.approvedMaxRetryMs(proof.evidenceRef) !==
+    proof.maxRetryMs
+  )
+    return input.state;
   const expiry = Math.max(
     input.state.retentionExpirationMs,
     input.state.current?.expirationMs ?? 0,

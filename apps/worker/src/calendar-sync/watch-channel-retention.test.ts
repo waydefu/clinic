@@ -23,6 +23,10 @@ const NOW = Date.parse('2026-09-19T01:00:00.000Z');
 // Test fixtures only: neither limits nor duration are approved live policy.
 const LIMITS = { maxEntries: 4, warningAtEntries: 2 };
 const RETRY = { maxRetryMs: 60_000, evidenceRef: 'synthetic_retry_bound' };
+const RETRY_AUTHORITY = {
+  approvedMaxRetryMs: (ref: string) =>
+    ref === RETRY.evidenceRef ? RETRY.maxRetryMs : undefined
+};
 
 function initial(): WatchLifecycleState {
   return { ...emptyWatchLifecycleState(LIMITS), current: CURRENT };
@@ -169,7 +173,12 @@ describe('synthetic watch retention and backpressure', () => {
     const settled = completed(active);
     const boundary = CURRENT.expirationMs + RETRY.maxRetryMs;
     const prune = (state: WatchLifecycleState, nowMs: number) =>
-      pruneWatchDedupe({ state, nowMs, retryHorizon: RETRY });
+      pruneWatchDedupe({
+        state,
+        nowMs,
+        retryHorizon: RETRY,
+        retryHorizonAuthority: RETRY_AUTHORITY
+      });
     expect(prune(settled, NOW)).toBe(settled);
     const noProof = pruneWatchDedupe({ state: settled, nowMs: boundary + 1 });
     expect(noProof).toBe(settled);
@@ -195,7 +204,12 @@ describe('synthetic watch retention and backpressure', () => {
       state: renewed.state
     });
     const prune = (nowMs: number) =>
-      pruneWatchDedupe({ state: retired, nowMs, retryHorizon: RETRY });
+      pruneWatchDedupe({
+        state: retired,
+        nowMs,
+        retryHorizon: RETRY,
+        retryHorizonAuthority: RETRY_AUTHORITY
+      });
     expect(prune(CURRENT.expirationMs + RETRY.maxRetryMs + 1)).toBe(retired);
     const later = retired.current!.expirationMs + RETRY.maxRetryMs + 1;
     expect(prune(later).seenEvents.size).toBe(0);
@@ -225,6 +239,33 @@ describe('synthetic watch retention and backpressure', () => {
       notification(state, '1', 'evt-other')
     );
     expect(altered.accepted).toBe(false);
+  });
+
+  it('does not treat a plausible reference or caller-chosen duration as proof', () => {
+    const state = completed(
+      acceptWatchNotification(notification(initial())).state
+    );
+    const nowMs = CURRENT.expirationMs + RETRY.maxRetryMs + 1;
+    const authority = {
+      approvedMaxRetryMs: (ref: string) =>
+        ref === RETRY.evidenceRef ? RETRY.maxRetryMs : undefined
+    };
+    const unverified = { state, nowMs, retryHorizon: RETRY };
+    expect(pruneWatchDedupe(unverified)).toBe(state);
+    for (const retryHorizon of [
+      { maxRetryMs: 0, evidenceRef: 'plausible_but_unverified' },
+      { ...RETRY, maxRetryMs: 0 },
+      { ...RETRY, evidenceRef: 'different_reference' }
+    ]) {
+      expect(
+        pruneWatchDedupe({
+          state,
+          nowMs,
+          retryHorizon,
+          retryHorizonAuthority: authority
+        })
+      ).toBe(state);
+    }
   });
 
   it('rejects invalid retry proof without clearing', () => {
