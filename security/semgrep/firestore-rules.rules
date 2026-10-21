@@ -10,6 +10,43 @@ service cloud.firestore {
 
       // ok: clinic.firestore.unconditional-access
       allow update, delete: if false;
+
+      // ruleid: clinic.firestore.unconditional-access
+      allow get: if true;
+      // ruleid: clinic.firestore.unconditional-access
+      allow list: if (true);
+      // ruleid: clinic.firestore.unconditional-access
+      allow read: if ((true));
+      // ruleid: clinic.firestore.unconditional-access
+      allow write: if !false;
+      // ruleid: clinic.firestore.unconditional-access
+      allow create: if !(false);
+      // ruleid: clinic.firestore.unconditional-access
+      allow update: if true && true;
+      // ruleid: clinic.firestore.unconditional-access
+      allow delete: if false || true;
+      // ruleid: clinic.firestore.unconditional-access
+      allow get, list:
+        if (true || false);
+      // ruleid: clinic.firestore.unconditional-access
+      allow read: if true == true;
+      // ruleid: clinic.firestore.unconditional-access
+      allow write: if false == false;
+      // ruleid: clinic.firestore.unconditional-access
+      allow create: if 1 == 1;
+      // ruleid: clinic.firestore.unconditional-access
+      allow update: if request.auth != null || true;
+      // ruleid: clinic.firestore.unconditional-access
+      allow delete: if true || request.auth != null;
+
+      // ok: clinic.firestore.unconditional-access
+      allow get: if request.auth != null && true;
+      // ok: clinic.firestore.unconditional-access
+      allow list: if true && request.auth != null;
+      // ok: clinic.firestore.unconditional-access
+      allow read: if (true || false) && request.auth != null;
+      // ok: clinic.firestore.unconditional-access
+      allow write: if false && true;
     }
   }
 }

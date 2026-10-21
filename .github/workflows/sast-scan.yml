@@ -1,8 +1,8 @@
 name: sast-scan
 
-# GitHub code-scanning upload is unavailable for the current private personal
-# repository without GitHub Code Security. That platform capability is
-# independent from whether a scanner actually ran successfully.
+# This workflow retains commit-bound JSON/SARIF artifacts and does not upload
+# to GitHub Code Scanning. Visibility alone does not establish permission or
+# entitlement; those platform capabilities are unverified by this workflow.
 #
 # This workflow therefore runs Semgrep Community Edition as the blocking SAST
 # gate with repository-owned rules plus a reviewed high/medium-confidence
@@ -107,6 +107,11 @@ jobs:
           printf '%s\n' "$test_exit_code" > output/evidence/semgrep-rule-test-exit-code.txt
           exit "$test_exit_code"
 
+      - name: Prove former-entrypoint coverage and missing-config failure
+        env:
+          SEMGREP_IMAGE: semgrep/semgrep:1.171.0@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8
+        run: node scripts/test-sast-coverage.mjs
+
       # --error makes findings exit 1. --strict makes parse/config warnings
       # fail rather than quietly reducing scan coverage. Exit codes >=2 are
       # scanner/configuration failures. The step preserves the exact code
@@ -134,6 +139,7 @@ jobs:
           config_args=(
             --config security/semgrep/clinic-javascript.yml
             --config security/semgrep/firestore-rules.yml
+            --config security/semgrep/clinic-terraform.yml
           )
           for relative_rule in "${upstream_rules[@]}"; do
             if [[ ! "$relative_rule" =~ ^(javascript|typescript)/[A-Za-z0-9._/-]+\.ya?ml$ ]] ||
@@ -180,6 +186,7 @@ jobs:
             --exclude playwright-report \
             --exclude security/semgrep/clinic-javascript.js \
             --exclude security/semgrep/firestore-rules.rules \
+            --exclude security/semgrep/clinic-terraform.tf \
             --exclude test-results \
             .
           scan_exit_code=$?
@@ -196,12 +203,12 @@ jobs:
           SAST_ENGINE_IMAGE: semgrep/semgrep:1.171.0@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8
           SAST_RULES_REPOSITORY: semgrep/semgrep-rules
           SAST_RULES_REVISION: 40b8c63f75dc7c22c8a77482d73bfb864b146f7e
-          SAST_LOCAL_RULE_CONFIGS: security/semgrep/clinic-javascript.yml,security/semgrep/firestore-rules.yml
+          SAST_LOCAL_RULE_CONFIGS: security/semgrep/clinic-javascript.yml,security/semgrep/firestore-rules.yml,security/semgrep/clinic-terraform.yml
           SAST_UPSTREAM_RULE_MANIFEST: security/semgrep/upstream-rules.txt
           SAST_UPSTREAM_RULE_ROOT: .semgrep-rules
           SAST_EXPECTED_UPSTREAM_RULE_COUNT: 68
-          SAST_CONFIGURED_RULE_COUNT: 82
-          GITHUB_CODE_SCANNING_UPLOAD_STATUS: unavailable-private-personal-repository
+          SAST_CONFIGURED_RULE_COUNT: 83
+          GITHUB_CODE_SCANNING_UPLOAD_STATUS: not-uploaded-by-workflow
         run: node scripts/generate-sast-evidence.mjs
 
       - name: Upload SAST results and verification evidence

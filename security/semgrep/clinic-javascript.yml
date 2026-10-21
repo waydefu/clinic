@@ -111,12 +111,17 @@ rules:
     pattern-either:
       - pattern: 'cors({ ..., origin: "*", ..., credentials: true, ... })'
       - pattern: 'cors({ ..., credentials: true, ..., origin: "*", ... })'
+      - pattern: 'cors({ ..., origin: true, ..., credentials: true, ... })'
+      - pattern: '$APP.enableCors({ ..., origin: "*", ..., credentials: true, ... })'
+      - pattern: '$APP.enableCors({ ..., origin: true, ..., credentials: true, ... })'
+      - pattern: '$APP.register($PLUGIN, { ..., origin: "*", ..., credentials: true, ... })'
+      - pattern: '$APP.register($PLUGIN, { ..., origin: true, ..., credentials: true, ... })'
 
   - id: clinic.javascript.html-sink-outside-trusted-entrypoint
     message: >-
-      HTML injection sinks are only allowed in the three audited browser
-      entrypoints that load the repository Trusted Types default policy before
-      application code.
+      HTML injection sinks must explicitly use the repository assertRenderable
+      structural check. Keep contextual escaping, CSP and the Trusted Types
+      default policy; this check is not a general-purpose HTML sanitizer.
     severity: ERROR
     languages: [javascript, typescript]
     metadata:
@@ -126,17 +131,20 @@ rules:
         - 'CWE-79: Improper Neutralization of Input During Web Page Generation'
       coverage: trusted-types-html-sinks
       source: repository-owned
-    paths:
-      exclude:
-        - /apps/web/public/admin-bootstrap.js
-        - /apps/web/public/patient-app.js
-        - /apps/web/src/calendar-pilot-entry.js
-    pattern-either:
-      - pattern: $ELEMENT.innerHTML = $HTML
-      - pattern: $ELEMENT.outerHTML = $HTML
-      - pattern: $ELEMENT.insertAdjacentHTML(...)
-      - pattern: document.write(...)
-      - pattern: document.writeln(...)
+    patterns:
+      - pattern-either:
+          - pattern: $ELEMENT.innerHTML = $HTML
+          - pattern: $ELEMENT.outerHTML = $HTML
+          - pattern: $ELEMENT.insertAdjacentHTML(...)
+          - pattern: document.write(...)
+          - pattern: document.writeln(...)
+      - pattern-not: $ELEMENT.innerHTML = assertRenderable(...)
+      - pattern-not: $ELEMENT.outerHTML = assertRenderable(...)
+      - pattern-not: $ELEMENT.insertAdjacentHTML($POSITION, assertRenderable(...))
+      - pattern-not: document.write(assertRenderable(...))
+      - pattern-not: document.writeln(assertRenderable(...))
+      - pattern-not: $ELEMENT.innerHTML = ""
+      - pattern-not: $ELEMENT.outerHTML = ""
 
   - id: clinic.javascript.unapproved-trusted-types-policy
     message: >-
