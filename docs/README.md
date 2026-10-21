@@ -87,11 +87,13 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [2026-10-05 稽核漏網複核與 Sol／Luna 執行圖補充計畫](plans/2026-10-05-audit-gap-sol-luna-execution-plan.md) — planning-only：#239 的增量複核、NEW 候選證據與限制、244 IDs 唯一 primary 路由、Sol-only 安全架構與有界 Luna 小包、依賴／平行群組／自主施工契約；W4 安全摘要缺失不冒稱 ready，不授權修復、Luna 施工、merge 或雲端操作。
 - [SOL-00 current-evidence closeout](plans/2026-10-06-sol00-safe-manifest-closeout-plan.md) — CLOSED_PENDING_PROTECTED_MERGE：254唯一primary，31 provenance永久closed-with-gap／historical claims未驗；40原Sol與全部舊rows保留，3 Luna-ready／cap2／parent不並行；只docs，不施工。
 - [2026-10-18 Sol／Luna 一路跑完：設定與提示詞](plans/2026-10-18-sol-luna-autorun-prompts.md) — planning-only：GPT-6.1 Sol 父代理＋最多 2 個 GPT-6 Luna 子代理、CI 優先；凍結條件為 manifest 55 個 Sol packet 全部完成，終態定義、strict 分支保護下的合併節奏、Codex 設定檔與規則檔、受保護動作硬停、`/goal`；不授權 merge／部署。
+- [SOL-CALENDAR-LEASE 嚴格零派送協調設計（2026-10-22）](plans/2026-10-22-sol-calendar-lease-coordination.md) — design-proposed：D-05／D-12 保留零派送承諾；排空後生效、未知狀態停止的 admission 邊界待核，既有一次窗口與文件 CI 不是 provider 證據。
 - [SOL-00 逐 ID 安全摘要索引](plans/2026-10-06-sol00-finding-manifest.md) — 244 原列與 NEW 去重／精確 blocker 表；不將 source 閱讀當 runtime 驗證。
 - [SOL-00 machine manifest／packet graph](plans/2026-10-06-sol00-safe-manifest.json) — source blobs、逐列必要欄位、primary owners、lease/DAG/waves 與 future handoff；v3 `/activeCloseout` 完成至current-evidence limit；frozen舊ledger非目前狀態，沒有implementation authority。
 - [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 source/release 綁定、exact-SHA、Terraform/Hosting expiry 與 runtime gate；目前 source 已整合，cloud plan/apply 與 C1 驗收仍 BLOCKED。
 - [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
+- [SOL-BUSINESS 可追溯試用調整模型（2026-10-22）](plans/2026-10-22-sol-business-adjustment-design.md) — design-proposed：D-24 重用 milestone state／既有 log，不新增 collection／API；合法輸入、批准來源、撤銷重播與原起點綁定送業主審，未實作不算關帳。
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
