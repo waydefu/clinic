@@ -49,4 +49,30 @@ describe('deriveClientIp', () => {
       })
     ).toBe('192.0.2.8');
   });
+
+  it('canonicalizes equivalent IPv6 without grouping different hosts', () => {
+    const direct = (ip: string) => deriveClientIp({ headers: {}, ip }, 0);
+    expect(direct('2001:0db8:0001:0002:0000:0000:0000:0001')).toBe(
+      direct('2001:db8:1:2::1')
+    );
+    expect(direct('2001:db8:1:2::1')).not.toBe(direct('2001:db8:1:2::2'));
+    expect(direct('::ffff:192.0.2.8')).toBe(direct('192.0.2.8'));
+    for (const invalid of [
+      '2001:db8::1/64',
+      '2001:db8::1, 2001:db8::2',
+      'fe80::1%eth0',
+      'not_an_address'
+    ]) {
+      expect(direct(invalid)).toBe('unknown');
+    }
+    expect(
+      deriveClientIp(
+        {
+          ip: '2001:db8:1:2::2',
+          headers: { 'x-forwarded-for': '2001:db8:1:2::1' }
+        },
+        0
+      )
+    ).toBe('2001:db8:1:2::2');
+  });
 });

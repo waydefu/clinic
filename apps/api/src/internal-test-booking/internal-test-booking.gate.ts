@@ -8,13 +8,20 @@ import { ServiceUnavailableError } from '../platform/errors/api-error.js';
  * project outside the isolated allowlist (unless the Firestore emulator is
  * bound) all refuse the write.
  */
-export const INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST = new Set([
+const AUTHORIZED_PROJECTS = Object.freeze([
   'beauessence-clinic-stg-c1a01'
-]);
-
-export const INTERNAL_TEST_BOOKING_FORBIDDEN_PROJECTS = new Set([
+] as const);
+const FORBIDDEN_PROJECTS = Object.freeze([
   'beauessence-clinic-staging'
-]);
+] as const);
+
+// Compatibility snapshots, not writable handles to the authoritative policy.
+export const INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST = new Set<string>(
+  AUTHORIZED_PROJECTS
+);
+export const INTERNAL_TEST_BOOKING_FORBIDDEN_PROJECTS = new Set<string>(
+  FORBIDDEN_PROJECTS
+);
 
 export interface InternalTestBookingSettings {
   readonly enabled: boolean;
@@ -59,7 +66,7 @@ export function assertInternalTestBookingWritable(
   }
 
   const projectId = settings.projectId?.trim() ?? '';
-  if (INTERNAL_TEST_BOOKING_FORBIDDEN_PROJECTS.has(projectId)) {
+  if ((FORBIDDEN_PROJECTS as readonly string[]).includes(projectId)) {
     throw new ServiceUnavailableError();
   }
   const emulatorHost = settings.emulatorHost?.trim() ?? '';
@@ -73,7 +80,7 @@ export function assertInternalTestBookingWritable(
     }
     return;
   }
-  if (!INTERNAL_TEST_BOOKING_PROJECT_ALLOWLIST.has(projectId)) {
+  if (!(AUTHORIZED_PROJECTS as readonly string[]).includes(projectId)) {
     throw new ServiceUnavailableError();
   }
 }
