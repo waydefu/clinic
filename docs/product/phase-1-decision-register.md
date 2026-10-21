@@ -1,5 +1,52 @@
 # Phase 1 Decision Register
 
+## 2026-10-22 Sol 保守版方向與 SUPPLY-ORDER 補登
+
+本節由 Sol 依業主已採用的 `sol-longrun` 規則補登四題原話；公開追溯為
+[#268 業主答案登記](https://github.com/waydefu/clinic/pull/268#issuecomment-6322342715)。
+沒有另行提供 approval ID，不另造；不改 D-001～D-016 的狀態。
+
+### 業主原話與適用方向
+
+> 我建議選保守版
+
+此句適用 #268 先前簡報的 BUSINESS、LEASE、WATCH、INGRESS 四題：
+
+- **BUSINESS（D-24）**：業主沒有指定既有核准來源，採用沿用既有 milestone state 的最小可追溯調整模型；
+  先提出合法輸入、批准引用、撤銷／重播及原始試用起算關聯的設計，不新增 collection 或 API。
+  既有試用日數、最多調整日數及尾款滿月＋業主確認政策不變；不推導 D-35 新日期下界。
+- **LEASE（D-05／D-12）**：維持嚴格零派送，先提出跨系統 fencing／協調設計。
+  現有允許交易快照後一次派送的測試，不能當成零派送的證明；不得把外部 HTTP 放入 Firestore transaction。
+  本方向不是既有實作或 provider 驗收通過，也不授權直接更換協調架構。
+- **INGRESS**：主機與 IPv6 都必須 exact-host 完全相符，不放寬成 prefix 或 project-family。
+  此為比對方向，不會憑空核准尚未列出的 CAL-PILOT／default／preview 主機清單；不授權 provider 或部署。
+- **WATCH（D-29）**：另有以下業主補充，優先於把保留理解成永久保存的說法。
+
+> 照建議，但補充：不是永久保存，而是不能無條件自動過期；只有在能證明已超出所有重試與舊通知可能回來的期間後才能清除。容量滿時停止新處理並保留待重試，不可丟資料。
+
+WATCH 清除必須同時可驗證：舊通道已停止或到期、已超過最長重試期間、沒有正在處理中的工作。
+具體期間須在實作 PR 說明提出並由業主審，不由代理猜數字。容量將滿先告警；容量滿時對新通知回未成功，
+讓來源稍後重送，不得回成功後丟資料，也不得刪除舊記錄騰空間。未接線 helper 不因本項決定獲准接入 production。
+
+### 先前 SUPPLY-ORDER 回答補登
+
+業主原話已於 2026-10-21 登記於
+[#268 原始留言](https://github.com/waydefu/clinic/pull/268#issuecomment-6313473719)：
+
+> 允許先開一個只修這 3 個 high 漏洞的最小依賴 PR，可以在記錄此決定的 PR 合併前先做。
+
+僅限 GHSA-22jm-h49p-29qw、GHSA-46jr-4wx8-v453（`@modelcontextprotocol/sdk`）及
+GHSA-587h-7wmj-h5pm（`vite`）的最小來源修補，不新增豁免、不降 gate、不改無關套件。
+[#280](https://github.com/waydefu/clinic/pull/280) 已由業主合併是來源事實，不是整包 SOL-SUPPLY 結案或部署授權。
+
+### 執行界線與仍未回答的項目
+
+- 本批回答的登記 docs PR 排在合併佇列第一。依業主採用的本輪執行規則，依賴這批答案的來源工作可以先開 Draft PR；
+  登記 PR 合併前不得標為「現在可以合併」。未審的具體設計、數值或主機 identity 仍須送業主核定。
+- DESIGN-SCOPE、PRIVACY 及 #268 列出的七項外部證據維持 BLOCKED；不代填、不把來源或合成 CI 冒充外部驗收。
+- 不合併、不部署、不操作真實資料、不讀憑證，不授予 secret、IAM、migration、雲端 TTL、例外延期或其他受保護動作。
+  來源凍結候選仍須逐包由業主核准，BLOCKED 不算完成，凍結 SHA 仍由業主決定。
+
 ## 2026-10-20 官網 `/clinic` 改版（#249）不等 C1，準備合併
 
 專案負責人在 2026-10-20 的對話中決定。沒有另行提供 approval ID，不另造。
