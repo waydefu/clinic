@@ -1,0 +1,55 @@
+name: sol-format-diagnostic
+
+on:
+  push:
+    branches: [agent/sol-format-diagnostic-20261022]
+
+permissions:
+  contents: read
+
+jobs:
+  format-and-reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Produce exact pinned formatter patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = b81df44731642b1f520be0ae187b6c416645adc8
+          test "$(git rev-parse HEAD:scripts/cal-pilot-auth-domain-denial.test.mjs)" = "$(git rev-parse HEAD^:scripts/cal-pilot-auth-domain-denial.test.mjs)"
+          test "$(pnpm exec prettier --version)" = 3.9.5
+          mkdir -p output/format-diagnostic
+          git rev-parse HEAD > output/format-diagnostic/diagnostic-commit.txt
+          git rev-parse HEAD^ > output/format-diagnostic/input-commit.txt
+          pnpm exec prettier --write scripts/cal-pilot-auth-domain-denial.test.mjs
+          pnpm exec prettier --check scripts/cal-pilot-auth-domain-denial.test.mjs
+          git diff --binary -- scripts/cal-pilot-auth-domain-denial.test.mjs > output/format-diagnostic/format.patch
+          cp scripts/cal-pilot-auth-domain-denial.test.mjs output/format-diagnostic/formatted.test.mjs
+
+      - name: Reproduce native predicate without deployment script or provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run scripts/cal-pilot-auth-domain-denial.test.mjs 2>&1 | tee output/format-diagnostic/native-unit.log
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ always() }}
+        with:
+          name: sol-format-diagnostic-${{ github.sha }}
+          path: output/format-diagnostic/
+          if-no-files-found: error
+          retention-days: 7
