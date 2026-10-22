@@ -79,12 +79,11 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   private readonly intentIds = new Set<string>();
 
   public constructor(owner: string, generation = 0) {
-    if (
-      owner.trim() === '' ||
-      !Number.isSafeInteger(generation) ||
-      generation < 0
-    )
-      throw new Error('Synthetic Calendar lease identity is invalid.');
+    if (owner.trim() === '') {
+      throw new Error('Synthetic lease owner is missing.');
+    }
+    if (!Number.isSafeInteger(generation) || generation < 0)
+      throw new Error('Synthetic lease generation is invalid.');
     this.lease = this.newLease(owner, generation);
   }
 
