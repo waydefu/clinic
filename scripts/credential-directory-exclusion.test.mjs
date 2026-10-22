@@ -9,6 +9,8 @@ import { inspectPath, scanTrackedFiles } from './check-tracked-secrets.mjs';
 const protectedPaths = [
   'cal-pilot-keys/synthetic-canary.json',
   'nested/cal-pilot-keys/synthetic-canary.json',
+  'cal-pilot-keys/.env.example',
+  'secrets/.env.example',
   'secrets/synthetic-canary.json',
   'nested/secrets/synthetic-canary.json'
 ];
