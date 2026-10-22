@@ -23,7 +23,19 @@ function sheets(entries) {
 
 describe('token extraction', () => {
   it('keeps non-root targets out of root scope', () => {
-    const selectors = ['a:not(:root)', ':root .card', ':root::before'];
+    const selectors = [
+      'a:not(:root)',
+      ':root .card',
+      ':root>.card',
+      ':root+.card',
+      ':root~.card',
+      ':root||.card',
+      ':root::before',
+      ':rooted',
+      ':root()',
+      '.card[data-claim=":root"]',
+      '.\\:root'
+    ];
     for (const selector of selectors) {
       const source = `${selector} { --local: 1rem; color: #abcdef; }`;
       expect(definedTokens(source).has('--local')).toBe(false);
@@ -54,10 +66,16 @@ describe('token extraction', () => {
   it('ignores quoted braces and commented root claims', () => {
     const source = `
       /* :root { --ghost: 1rem; } */
-      :root { --json: "}"; --space-a: 1rem; }
+      :root { --json: "🧪}"; --space-a: 1rem; }
       /* @property --registered-ghost { syntax: "*"; } */
     `;
     expect([...definedTokens(source)]).toEqual(['--json', '--space-a']);
+  });
+
+  it('rejects root authority inside a component rule', () => {
+    const source = '.wrapper { :root { --local: 1rem; color: #abcdef; } }';
+    expect(definedTokens(source).has('--local')).toBe(false);
+    expect(outsideRootBlocks(source)).toContain('color: #abcdef');
   });
 
   it('does not promote a nested component token to global', () => {
