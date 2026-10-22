@@ -198,8 +198,9 @@ describe('synthetic trial adjustment data flow', () => {
   it('shares the existing acknowledgement revision', async () => {
     const first = plan().state;
     const { service, repository } = fixture(first, 1);
+    const permission = 'acknowledge_business_milestone';
     const acknowledger = ROLES.find((role) =>
-      CANDIDATE_ROLE_PERMISSIONS[role].includes('acknowledge_business_milestone')
+      CANDIDATE_ROLE_PERMISSIONS[role].includes(permission)
     )!;
     repository.acknowledge.mockResolvedValue({ revision: 2, replayed: false });
     await expect(
@@ -276,9 +277,8 @@ describe('synthetic trial adjustment data flow', () => {
         acknowledgements: {}
       });
     expect(statusAt(before).trial.status).toBe('in_progress');
-    expect(statusAt(calculated.adjustedTrialEndExclusiveAt).trial.status).toBe(
-      'ended'
-    );
+    const end = statusAt(calculated.adjustedTrialEndExclusiveAt);
+    expect(end.trial.status).toBe('ended');
   });
 
   it('rejects an adjustment without the original first use', () => {
