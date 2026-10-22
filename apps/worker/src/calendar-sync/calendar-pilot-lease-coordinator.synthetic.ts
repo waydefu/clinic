@@ -3,13 +3,14 @@ import {
   type CalendarPilotWorkerLease
 } from './calendar-pilot-worker-lease.js';
 
-export interface CalendarPilotSyntheticLease
-  extends Pick<CalendarPilotWorkerLease, 'owner' | 'generation'> {
+export interface CalendarPilotSyntheticLease extends Pick<
+  CalendarPilotWorkerLease,
+  'owner' | 'generation'
+> {
   readonly token: string;
 }
 
-export interface CalendarPilotSyntheticAdmission
-  extends CalendarPilotSyntheticLease {
+export interface CalendarPilotSyntheticAdmission extends CalendarPilotSyntheticLease {
   readonly admissionId: string;
   readonly segmentId: string;
 }
