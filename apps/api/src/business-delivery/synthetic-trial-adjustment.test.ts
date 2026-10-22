@@ -59,15 +59,19 @@ function plan(
 
 function fixture(snapshot?: unknown, revision = 0) {
   const repository = {
-    usageEventsBetween: vi.fn(async () => []),
-    hasStaffUsageCaptureGap: vi.fn(async () => false),
-    milestoneState: vi.fn(async () => ({
-      revision,
-      firstEligibleUseAt,
-      acknowledgements: {},
-      ...(snapshot === undefined ? {} : { syntheticTrialAdjustment: snapshot })
-    })),
-    acknowledge: vi.fn(async () => ({ revision: 1, replayed: false }))
+    usageEventsBetween: vi.fn(() => Promise.resolve([])),
+    hasStaffUsageCaptureGap: vi.fn(() => Promise.resolve(false)),
+    milestoneState: vi.fn(() => {
+      return Promise.resolve({
+        revision,
+        firstEligibleUseAt,
+        acknowledgements: {},
+        ...(snapshot === undefined ? {} : { syntheticTrialAdjustment: snapshot })
+      });
+    }),
+    acknowledge: vi.fn(() => {
+      return Promise.resolve({ revision: 1, replayed: false });
+    })
   };
   const service = new BusinessDeliveryApplicationService(
     {
@@ -77,7 +81,7 @@ function fixture(snapshot?: unknown, revision = 0) {
       observedSince: firstEligibleUseAt
     },
     repository,
-    { assertFresh: vi.fn(async () => undefined) },
+    { assertFresh: vi.fn(() => Promise.resolve()) },
     () => '2030-10-22T00:00:00.000Z'
   );
   return { repository, service };
