@@ -101,6 +101,8 @@ export function assessMonthlyUsageCompleteness(input) {
  */
 export function evaluateBusinessMilestones(input) {
     assertUtcTimestamp(input.now, 'now');
+    if (input.firstEligibleUseAt === undefined && input.adjustmentDays !== undefined)
+        throw new DomainError('INVALID_VALUE', 'Trial adjustment requires first use.');
     const nowMs = Date.parse(input.now);
     const today = taipeiCalendarDateOf(input.now);
     let trial = { status: 'not_started' };
@@ -110,14 +112,17 @@ export function evaluateBusinessMilestones(input) {
                 occurredAt: input.firstEligibleUseAt,
                 actorKind: 'real_staff'
             },
-            policy: input.policy.milestones
+            policy: input.policy.milestones,
+            ...(input.adjustmentDays === undefined
+                ? {}
+                : { adjustmentDays: input.adjustmentDays })
         });
         trial = {
-            status: nowMs < Date.parse(calculated.trialEndExclusiveAt)
+            status: nowMs < Date.parse(calculated.adjustedTrialEndExclusiveAt)
                 ? 'in_progress'
                 : 'ended',
             startDate: calculated.firstEligibleUseDate,
-            endExclusiveDate: calculated.trialEndExclusiveDate
+            endExclusiveDate: calculated.adjustedTrialEndExclusiveDate
         };
     }
     const launch = input.acknowledgements.formalLaunch;
