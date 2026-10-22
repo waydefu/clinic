@@ -188,9 +188,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
    * Release only a segment that this model itself still records as not started.
    * No caller-supplied boolean, timeout, or evidence reference grants authority.
    */
-  public releaseUndispatched(
-    admission: CalendarPilotSyntheticAdmission
-  ): void {
+  public releaseUndispatched(admission: CalendarPilotSyntheticAdmission): void {
     const record = this.admissionRecord(admission);
     if (record.state !== 'admitted')
       throw new Error(
@@ -203,9 +201,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   public commit(): CalendarPilotSyntheticLease {
     if (this.phase !== 'quiescent' || this.intent === undefined)
       throw new Error('Calendar lease cannot commit before quiescence.');
-    if (
-      [...this.admissions.values()].some(({ state }) => state !== 'settled')
-    )
+    if ([...this.admissions.values()].some(({ state }) => state !== 'settled'))
       throw new Error('Calendar lease has unsettled synthetic admissions.');
     const generation = this.lease.generation + 1;
     if (!Number.isSafeInteger(generation))
