@@ -81,12 +81,9 @@ function Assert-CandidateSha {
 }
 
 function Assert-AuthDomain {
-  if (
-    $AuthDomain -ne $defaultAuthDomain -and
-    $AuthDomain -notmatch '^[A-Za-z0-9.-]+\.(firebaseapp\.com|web\.app)$'
-  ) {
-    throw 'Unsupported authDomain. Use the default firebaseapp.com host or an explicit authorized preview host.'
-  }
+  # C1 exact-host authority is not CAL-PILOT runtime-update authority.
+  # No exact identity is approved for this path; deny before cloud preflight.
+  throw 'Unsupported authDomain. No exact CAL-PILOT runtime-update identity is authorized.'
 }
 
 function Assert-ImmutableImage([string]$Image, [string]$Component, [string]$Label) {
@@ -206,9 +203,9 @@ function Invoke-ZeroTrafficHealthProbe([string]$Url, [string]$Token) {
   }
 }
 
+Assert-AuthDomain
 Assert-PreflightTools
 Assert-CandidateSha
-Assert-AuthDomain
 Assert-ImmutableImage $ExpectedApiImage 'api' 'Expected API image'
 Assert-ImmutableImage $ExpectedWorkerImage 'worker' 'Expected Worker image'
 if ($ExpectedApiRevision -notmatch '^cal-pilot-api-[a-z0-9-]+$' -or $ExpectedWorkerRevision -notmatch '^cal-pilot-worker-[a-z0-9-]+$') {
