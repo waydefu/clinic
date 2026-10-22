@@ -59,7 +59,8 @@ describe('CAL-PILOT auth-domain authority stays closed', () => {
   });
 
   it('places denial before preflight can consult a cloud login', () => {
-    const callPattern = /^Assert-(?:AuthDomain|PreflightTools|CandidateSha)$/gmu;
+    const callPattern =
+      /^Assert-(?:AuthDomain|PreflightTools|CandidateSha)$/gmu;
     const calls = source.match(callPattern);
     expect(calls).toEqual([
       'Assert-AuthDomain',
