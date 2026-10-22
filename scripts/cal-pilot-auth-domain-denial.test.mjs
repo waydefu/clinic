@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import vitestConfig from '../vitest.config.ts';
 
 const source = readFileSync(
   new URL('./cal-pilot-runtime-update.ps1', import.meta.url),
@@ -25,7 +26,7 @@ let invocation;
 
 // Compile only the inspected local predicate, never dot-source the deployment
 // script. Share one native process, not nine cold starts during the full suite.
-// Every input/result is asserted; the native deadline remains five seconds.
+// Every input/result is asserted; reuse the repository's existing test budget.
 function invokePredicates() {
   if (invocation !== undefined) return invocation;
   const command = [
@@ -53,7 +54,7 @@ function invokePredicates() {
   const env = { ...process.env, SYNTHETIC_AUTH_DOMAINS: data };
   invocation = spawnSync('pwsh', [...flags, command], {
     encoding: 'utf8',
-    timeout: 5000,
+    timeout: vitestConfig.test.testTimeout,
     env
   });
   return invocation;
