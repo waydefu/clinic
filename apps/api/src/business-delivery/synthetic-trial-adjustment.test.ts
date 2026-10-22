@@ -66,7 +66,9 @@ function fixture(snapshot?: unknown, revision = 0) {
         revision,
         firstEligibleUseAt,
         acknowledgements: {},
-        ...(snapshot === undefined ? {} : { syntheticTrialAdjustment: snapshot })
+        ...(snapshot === undefined
+          ? {}
+          : { syntheticTrialAdjustment: snapshot })
       });
     }),
     acknowledge: vi.fn(() => {
