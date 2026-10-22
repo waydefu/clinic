@@ -43,6 +43,7 @@ const UNUSABLE: ReadonlyArray<Partial<SyntheticWatchRegistration>> = [
   { resourceId: '' },
   { resourceId: '   ' },
   { expirationMs: NOW },
+  { expirationMs: NOW + 0.5 },
   { expirationMs: Number.NaN },
   { expirationMs: Number.POSITIVE_INFINITY },
   { retired: true }
