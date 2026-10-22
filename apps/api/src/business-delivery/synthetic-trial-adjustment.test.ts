@@ -20,6 +20,7 @@ const policy = resolveApprovedBusinessDeliveryPolicy(
   'BD-POLICY-2026-09-29',
   'internal_synthetic'
 );
+const maxDays = policy.milestones.maxAdjustmentDays;
 const firstEligibleUseAt = '2030-10-01T00:00:00.000Z';
 const owner = ROLES.find((role) =>
   CANDIDATE_ROLE_PERMISSIONS[role].includes('read_business_delivery')
@@ -29,7 +30,7 @@ const approval: SyntheticTrialAdjustmentCommand = {
   commandId: 'synthetic_command_a',
   kind: 'approve',
   adjustmentId: 'synthetic_adjustment_a',
-  adjustmentDays: policy.milestones.maxAdjustmentDays,
+  adjustmentDays: maxDays,
   approvalRef: 'synthetic_approval_a',
   expectedVersion: 0,
   actorRef: 'a'.repeat(64),
@@ -83,7 +84,7 @@ function fixture(snapshot?: unknown, revision = 0) {
 }
 
 describe('synthetic trial adjustment data flow', () => {
-  it.each([0, policy.milestones.maxAdjustmentDays])(
+  it.each([0, maxDays])(
     'carries a %s-day fixture through repository port, service and domain',
     async (adjustmentDays) => {
       const planned = plan(initial(), { ...approval, adjustmentDays });
@@ -130,23 +131,20 @@ describe('synthetic trial adjustment data flow', () => {
 
   it('rejects conflicting, stale and reused approvals', () => {
     const first = plan();
-    expect(() =>
-      plan(first.state, { ...approval, adjustmentDays: 0 })
-    ).toThrow();
-    expect(() =>
-      plan(first.state, { ...approval, commandId: 'synthetic_command_b' })
-    ).toThrow();
-    expect(() =>
-      plan(first.state, {
-        ...approval,
-        commandId: 'synthetic_command_b',
-        adjustmentId: 'synthetic_adjustment_b',
-        expectedVersion: 1
-      })
-    ).toThrow();
+    const conflict = { ...approval, adjustmentDays: 0 };
+    const stale = { ...approval, commandId: 'synthetic_command_b' };
+    const reused = {
+      ...approval,
+      commandId: 'synthetic_command_b',
+      adjustmentId: 'synthetic_adjustment_b',
+      expectedVersion: 1
+    };
+    expect(() => plan(first.state, conflict)).toThrow();
+    expect(() => plan(first.state, stale)).toThrow();
+    expect(() => plan(first.state, reused)).toThrow();
   });
 
-  it.each([-1, 0.5, policy.milestones.maxAdjustmentDays + 1, NaN, Infinity])(
+  it.each([-1, 0.5, maxDays + 1, NaN, Infinity])(
     'rejects an invalid or excessive total %s without changing the log',
     (adjustmentDays) => {
       const before = initial();
@@ -176,7 +174,7 @@ describe('synthetic trial adjustment data flow', () => {
     expect(view.trial).toEqual(ordinary.trial);
   });
 
-  it('rejects malformed or incorrectly bound stored fixtures', async () => {
+  it('rejects malformed or mismatched stored fixtures', async () => {
     const first = plan().state;
     for (const malformed of [
       null,
@@ -197,7 +195,7 @@ describe('synthetic trial adjustment data flow', () => {
     await expect(service.milestones(authentication)).rejects.toThrow();
   });
 
-  it('shares revisions with the existing acknowledgement flow', async () => {
+  it('shares the existing acknowledgement revision', async () => {
     const first = plan().state;
     const { service, repository } = fixture(first, 1);
     const acknowledger = ROLES.find((role) =>
@@ -264,7 +262,7 @@ describe('synthetic trial adjustment data flow', () => {
       policy: policy.milestones,
       ...(days === undefined ? {} : { adjustmentDays: days })
     });
-    expect(calculated.adjustmentDays).toBe(policy.milestones.maxAdjustmentDays);
+    expect(calculated.adjustmentDays).toBe(maxDays);
     expect(calculated.firstEligibleUseAt).toBe(start);
     const before = new Date(
       Date.parse(calculated.adjustedTrialEndExclusiveAt) - 1
@@ -294,7 +292,7 @@ describe('synthetic trial adjustment data flow', () => {
     ).toThrow();
   });
 
-  it('does not create a third acknowledgement entry point', async () => {
+  it('rejects adjustment acknowledgement commands', async () => {
     const { service, repository } = fixture();
     await expect(
       service.acknowledge('trial_adjustment', {}, undefined, authentication)
