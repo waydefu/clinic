@@ -31,15 +31,12 @@ function invokePredicate(value) {
     '  exit 3',
     '}'
   ].join('\n');
-  return spawnSync(
-    'pwsh',
-    ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command],
-    {
-      encoding: 'utf8',
-      timeout: 5000,
-      env: { ...process.env, SYNTHETIC_AUTH_DOMAIN: value }
-    }
-  );
+  const flags = ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'];
+  return spawnSync('pwsh', [...flags, command], {
+    encoding: 'utf8',
+    timeout: 5000,
+    env: { ...process.env, SYNTHETIC_AUTH_DOMAIN: value }
+  });
 }
 
 describe('CAL-PILOT auth-domain authority stays closed', () => {
