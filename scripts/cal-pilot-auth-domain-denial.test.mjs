@@ -10,52 +10,65 @@ const helperPattern = /^function Assert-AuthDomain \{[\s\S]*?^\}/mu;
 const helper = source.match(helperPattern)?.[0];
 if (helper === undefined) throw new Error('Auth-domain helper is missing.');
 
+const cases = [
+  '',
+  'synthetic-project.firebaseapp.com',
+  'other-project.firebaseapp.com',
+  'other-project.web.app',
+  'preview--other-project.web.app',
+  'https://other-project.web.app',
+  'other-project.web.app/path',
+  'synthetic-project.firebaseapp.com:443',
+  '127.0.0.1'
+];
+let invocation;
+
 // Compile only the inspected local predicate, never dot-source the deployment
-// script. No preflight, SDK, credentials, network, or provider is involved.
-function invokePredicate(value) {
+// script. Share one native process, not nine cold starts during the full suite.
+// Every input/result is asserted; the native deadline remains five seconds.
+function invokePredicates() {
+  if (invocation !== undefined) return invocation;
   const command = [
     "$ErrorActionPreference = 'Stop'",
     'Set-StrictMode -Version Latest',
     "$defaultAuthDomain = 'synthetic-project.firebaseapp.com'",
-    '$AuthDomain = $env:SYNTHETIC_AUTH_DOMAIN',
-    'if ([string]::IsNullOrWhiteSpace($AuthDomain)) {',
-    '  $AuthDomain = $defaultAuthDomain',
-    '}',
     helper,
-    'try {',
-    '  Assert-AuthDomain',
-    "  [Console]::WriteLine('ACCEPT')",
-    '  exit 0',
-    '} catch {',
-    "  [Console]::WriteLine('REJECT:' + $_.Exception.Message)",
-    '  exit 3',
-    '}'
+    '$values = ConvertFrom-Json $env:SYNTHETIC_AUTH_DOMAINS',
+    '$results = @(foreach ($value in $values) {',
+    '  $AuthDomain = [string]$value',
+    '  if ([string]::IsNullOrWhiteSpace($AuthDomain)) {',
+    '    $AuthDomain = $defaultAuthDomain',
+    '  }',
+    '  try {',
+    '    Assert-AuthDomain',
+    "    [PSCustomObject]@{ value = [string]$value; accepted = $true; message = '' }",
+    '  } catch {',
+    '    [PSCustomObject]@{ value = [string]$value; accepted = $false; message = $_.Exception.Message }',
+    '  }',
+    '})',
+    '[Console]::WriteLine((ConvertTo-Json -InputObject $results -Compress))'
   ].join('\n');
   const flags = ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'];
-  return spawnSync('pwsh', [...flags, command], {
+  const data = JSON.stringify(cases);
+  const env = { ...process.env, SYNTHETIC_AUTH_DOMAINS: data };
+  invocation = spawnSync('pwsh', [...flags, command], {
     encoding: 'utf8',
     timeout: 5000,
-    env: { ...process.env, SYNTHETIC_AUTH_DOMAIN: value }
+    env
   });
+  return invocation;
 }
 
 describe('CAL-PILOT auth-domain authority stays closed', () => {
-  it.each([
-    '',
-    'synthetic-project.firebaseapp.com',
-    'other-project.firebaseapp.com',
-    'other-project.web.app',
-    'preview--other-project.web.app',
-    'https://other-project.web.app',
-    'other-project.web.app/path',
-    'synthetic-project.firebaseapp.com:443',
-    '127.0.0.1'
-  ])('rejects unapproved identity %j natively', (value) => {
-    const result = invokePredicate(value);
+  it.each(cases)('rejects unapproved identity %j natively', (value) => {
+    const result = invokePredicates();
     expect(result.error).toBeUndefined();
-    expect(result.status).toBe(3);
-    expect(result.stdout).toContain('REJECT:Unsupported authDomain.');
-    expect(result.stdout).not.toContain('ACCEPT');
+    expect(result.status).toBe(0);
+    const outcomes = JSON.parse(result.stdout);
+    expect(outcomes.map((outcome) => outcome.value)).toEqual(cases);
+    const outcome = outcomes.find((outcome) => outcome.value === value);
+    expect(outcome.accepted).toBe(false);
+    expect(outcome.message).toContain('Unsupported authDomain.');
   });
 
   it('places denial before preflight can consult a cloud login', () => {
