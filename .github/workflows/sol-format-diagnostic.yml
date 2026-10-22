@@ -14,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: b81df44731642b1f520be0ae187b6c416645adc8
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -27,14 +28,15 @@ jobs:
 
       - name: Produce exact pinned formatter patch
         shell: bash
+        env:
+          DIAGNOSTIC_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = b81df44731642b1f520be0ae187b6c416645adc8
-          test "$(git rev-parse HEAD:scripts/cal-pilot-auth-domain-denial.test.mjs)" = "$(git rev-parse HEAD^:scripts/cal-pilot-auth-domain-denial.test.mjs)"
+          test "$(git rev-parse HEAD)" = b81df44731642b1f520be0ae187b6c416645adc8
           test "$(pnpm exec prettier --version)" = 3.9.5
           mkdir -p output/format-diagnostic
-          git rev-parse HEAD > output/format-diagnostic/diagnostic-commit.txt
-          git rev-parse HEAD^ > output/format-diagnostic/input-commit.txt
+          printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/format-diagnostic/diagnostic-commit.txt
+          git rev-parse HEAD > output/format-diagnostic/input-commit.txt
           pnpm exec prettier --write scripts/cal-pilot-auth-domain-denial.test.mjs
           pnpm exec prettier --check scripts/cal-pilot-auth-domain-denial.test.mjs
           git diff --binary -- scripts/cal-pilot-auth-domain-denial.test.mjs > output/format-diagnostic/format.patch
