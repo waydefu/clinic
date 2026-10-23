@@ -457,6 +457,12 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
     ];
     const failures: string[] = [];
     for (const value of invalid) {
+      if (rules.isOnBookingKindGrid(value, 'initial')) {
+        failures.push(`grid:accepted:${value}`);
+      }
+      if (rules.toBusinessExportRow({ startsAt: value }).startsAt !== null) {
+        failures.push(`export:accepted:${value}`);
+      }
       for (const [index, probe] of probes.entries()) {
         try {
           probe.run(value);
@@ -477,6 +483,12 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       '2030-01-02T12:00:00.123456Z',
       '2030-01-02T12:00:00.123456789Z'
     ].map((value) => {
+      if (
+        !rules.isOnBookingKindGrid(value, 'initial') ||
+        rules.toBusinessExportRow({ startsAt: value }).startsAt === null
+      ) {
+        throw new Error('Valid UTC grid/export input was rejected.');
+      }
       rules.assertWithinSelfCancelWindow(value, now);
       rules.assertWithinSelfRescheduleWindow(value, now);
       rules.assertSlotMeetsEarliestLead(value, now);
