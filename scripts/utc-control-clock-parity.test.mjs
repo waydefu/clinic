@@ -47,15 +47,21 @@ describe.each([
   { name: 'domain', rules: domain },
   { name: 'browser', rules: browser }
 ])('$name UTC outbox clocks and payroll history', ({ rules }) => {
-  it.each(invalidTimes)('keeps unscheduled work denied with clock %s', (value) => {
-    expect(rules.isDue(pending, value)).toBe(false);
-  });
+  it.each(invalidTimes)(
+    'keeps unscheduled work denied with clock %s',
+    (value) => {
+      expect(rules.isDue(pending, value)).toBe(false);
+    }
+  );
 
-  it.each(invalidTimes)('keeps scheduled work denied with clock %s', (value) => {
-    expect(
-      rules.isDue({ ...pending, nextAttemptAt: snapshot.closedAt }, value)
-    ).toBe(false);
-  });
+  it.each(invalidTimes)(
+    'keeps scheduled work denied with clock %s',
+    (value) => {
+      expect(
+        rules.isDue({ ...pending, nextAttemptAt: snapshot.closedAt }, value)
+      ).toBe(false);
+    }
+  );
 
   it.each(invalidTimes)('keeps malformed next-attempt %s denied', (value) => {
     expect(
@@ -65,15 +71,30 @@ describe.each([
 
   describe.each([
     { name: 'success', outcome: { kind: 'succeeded' }, attempts: 0 },
-    { name: 'retry', outcome: { kind: 'failed', reason: 'synthetic', retryable: true }, attempts: 0 },
-    { name: 'non-retryable', outcome: { kind: 'failed', reason: 'synthetic', retryable: false }, attempts: 0 },
-    { name: 'exhausted', outcome: { kind: 'failed', reason: 'synthetic', retryable: true }, attempts: rules.MAX_ATTEMPTS - 1 }
+    {
+      name: 'retry',
+      outcome: { kind: 'failed', reason: 'synthetic', retryable: true },
+      attempts: 0
+    },
+    {
+      name: 'non-retryable',
+      outcome: { kind: 'failed', reason: 'synthetic', retryable: false },
+      attempts: 0
+    },
+    {
+      name: 'exhausted',
+      outcome: { kind: 'failed', reason: 'synthetic', retryable: true },
+      attempts: rules.MAX_ATTEMPTS - 1
+    }
   ])('$name attempt', ({ outcome, attempts }) => {
-    it.each(invalidTimes)('rejects invalid clock %s without a decision', (value) => {
-      expect(() =>
-        rules.planOutboxAttempt({ ...pending, attempts }, outcome, value)
-      ).toThrow(expect.objectContaining({ code: 'INVALID_TIMESTAMP' }));
-    });
+    it.each(invalidTimes)(
+      'rejects invalid clock %s without a decision',
+      (value) => {
+        expect(() =>
+          rules.planOutboxAttempt({ ...pending, attempts }, outcome, value)
+        ).toThrow(expect.objectContaining({ code: 'INVALID_TIMESTAMP' }));
+      }
+    );
   });
 
   it.each(invalidTimes)('refuses corrupted closed-at %s', (value) => {
@@ -84,7 +105,9 @@ describe.each([
 
   it.each(invalidTimes)('refuses corrupted recorded-at %s', (value) => {
     expect(() =>
-      rules.payrollTotalAfterAdjustments(snapshot, [{ ...adjustment, recordedAt: value }])
+      rules.payrollTotalAfterAdjustments(snapshot, [
+        { ...adjustment, recordedAt: value }
+      ])
     ).toThrow(expect.objectContaining({ code: 'INVALID_TIMESTAMP' }));
   });
 
@@ -95,10 +118,24 @@ describe.each([
     '2030-01-02T04:00:00.123456789Z'
   ])('preserves valid UTC precision for %s', (value) => {
     expect(rules.isDue(pending, value)).toBe(true);
-    expect(rules.planOutboxAttempt(pending, { kind: 'succeeded' }, value)).toMatchObject({ status: 'completed', attempts: 1 });
-    const retry = rules.planOutboxAttempt(pending, { kind: 'failed', reason: 'synthetic', retryable: true }, value);
-    expect(Date.parse(retry.nextAttemptAt) - Date.parse(value)).toBe(rules.BASE_BACKOFF_SECONDS * 1000);
-    expect(rules.payrollTotalAfterAdjustments({ ...snapshot, closedAt: value }, [])).toBe(1);
-    expect(rules.payrollTotalAfterAdjustments(snapshot, [{ ...adjustment, recordedAt: value }])).toBe(2);
+    expect(
+      rules.planOutboxAttempt(pending, { kind: 'succeeded' }, value)
+    ).toMatchObject({ status: 'completed', attempts: 1 });
+    const retry = rules.planOutboxAttempt(
+      pending,
+      { kind: 'failed', reason: 'synthetic', retryable: true },
+      value
+    );
+    expect(Date.parse(retry.nextAttemptAt) - Date.parse(value)).toBe(
+      rules.BASE_BACKOFF_SECONDS * 1000
+    );
+    expect(
+      rules.payrollTotalAfterAdjustments({ ...snapshot, closedAt: value }, [])
+    ).toBe(1);
+    expect(
+      rules.payrollTotalAfterAdjustments(snapshot, [
+        { ...adjustment, recordedAt: value }
+      ])
+    ).toBe(2);
   });
 });

@@ -484,15 +484,20 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       },
       {
         code: 'INVALID_TIMESTAMP',
-        run: (value: string) => rules.planOutboxAttempt(job, { kind: 'succeeded' }, value)
+        run: (value: string) =>
+          rules.planOutboxAttempt(job, { kind: 'succeeded' }, value)
       },
       {
         code: 'INVALID_TIMESTAMP',
-        run: (value: string) => rules.payrollTotalAfterAdjustments({ ...closed, closedAt: value }, [])
+        run: (value: string) =>
+          rules.payrollTotalAfterAdjustments({ ...closed, closedAt: value }, [])
       },
       {
         code: 'INVALID_TIMESTAMP',
-        run: (value: string) => rules.payrollTotalAfterAdjustments(closed, [{ ...adjustment, recordedAt: value }])
+        run: (value: string) =>
+          rules.payrollTotalAfterAdjustments(closed, [
+            { ...adjustment, recordedAt: value }
+          ])
       }
     ];
     const failures: string[] = [];
@@ -531,7 +536,9 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       }
       rules.planOutboxAttempt(job, { kind: 'succeeded' }, value);
       rules.payrollTotalAfterAdjustments({ ...closed, closedAt: value }, []);
-      rules.payrollTotalAfterAdjustments(closed, [{ ...adjustment, recordedAt: value }]);
+      rules.payrollTotalAfterAdjustments(closed, [
+        { ...adjustment, recordedAt: value }
+      ]);
       if (
         !rules.isOnBookingKindGrid(value, 'initial') ||
         rules.toBusinessExportRow({ startsAt: value }).startsAt === null

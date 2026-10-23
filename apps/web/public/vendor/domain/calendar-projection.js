@@ -1,6 +1,7 @@
 import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
 import { CALENDAR_ENTRY_SEPARATOR } from './calendar-sync.js';
 import { SLOT_MINUTE_MARKS } from './schedule.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 /**
  * Clinic Calendar projection allowlist and loop-prevention markers.
  *
@@ -267,7 +268,7 @@ function taipeiMinute(iso) {
     return new Date(Date.parse(iso) + 8 * 60 * 60 * 1000).getUTCMinutes();
 }
 export function isOnBookingKindGrid(startsAt, bookingKind) {
-    if (Number.isNaN(Date.parse(startsAt)))
+    if (!isUtcIsoTimestamp(startsAt))
         return false;
     return SLOT_MINUTE_MARKS[bookingKind].includes(taipeiMinute(startsAt));
 }

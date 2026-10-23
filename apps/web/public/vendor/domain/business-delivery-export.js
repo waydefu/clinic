@@ -1,4 +1,5 @@
 import { DomainError } from './errors.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 const OPAQUE_IDENTIFIER = /^[A-Za-z0-9_-]{1,128}$/;
 const FIELD_NAME = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
 const MAX_EXPORT_PAGE_SIZE = 1000;
@@ -184,7 +185,7 @@ export function toBusinessExportRow(input) {
             : input.nationality === 'foreign'
                 ? '外國'
                 : null,
-        startsAt: input.startsAt !== undefined && !Number.isNaN(Date.parse(input.startsAt))
+        startsAt: input.startsAt !== undefined && isUtcIsoTimestamp(input.startsAt)
             ? taipeiDateTime(input.startsAt)
             : null,
         bookingKind: input.bookingKind === 'initial'
