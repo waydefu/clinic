@@ -25,7 +25,8 @@ const probes = [
   {
     name: 'self-cancellation window start',
     code: 'INVALID_VALUE',
-    run: (rules, value) => rules.isWithinSelfCancelWindow(value, Date.parse(now))
+    run: (rules, value) =>
+      rules.isWithinSelfCancelWindow(value, Date.parse(now))
   },
   {
     name: 'cancellation appointment start',
@@ -45,7 +46,8 @@ const probes = [
   {
     name: 'reschedule request time',
     code: 'CANCELLATION_WINDOW_CLOSED',
-    run: (rules, value) => rules.assertWithinSelfRescheduleWindow(startsAt, value)
+    run: (rules, value) =>
+      rules.assertWithinSelfRescheduleWindow(startsAt, value)
   },
   {
     name: 'earliest-lead slot start',
@@ -90,7 +92,9 @@ describe.each([
 ])('$name UTC temporal admission', ({ rules }) => {
   describe.each(probes)('$name', ({ run, code }) => {
     it.each(rejected)('rejects %s before date normalization', (value) => {
-      expect(() => run(rules, value)).toThrow(expect.objectContaining({ code }));
+      expect(() => run(rules, value)).toThrow(
+        expect.objectContaining({ code })
+      );
     });
   });
 
@@ -104,10 +108,14 @@ describe.each([
     expect(rules.taipeiCalendarDate(value)).toBe('2030-01-02');
     expect(rules.isWithinSelfCancelWindow(value, Date.parse(now))).toBe(true);
     expect(() => rules.assertWithinSelfCancelWindow(value, now)).not.toThrow();
-    expect(() => rules.assertWithinSelfRescheduleWindow(value, now)).not.toThrow();
+    expect(() =>
+      rules.assertWithinSelfRescheduleWindow(value, now)
+    ).not.toThrow();
     expect(() => rules.assertSlotMeetsEarliestLead(value, now)).not.toThrow();
     expect(() => rules.assertSlotNotInPast(value, now)).not.toThrow();
-    expect(() => rules.assertSlotWithinBookingHorizon(value, now)).not.toThrow();
+    expect(() =>
+      rules.assertSlotWithinBookingHorizon(value, now)
+    ).not.toThrow();
   });
 
   it('keeps non-finite cancellation clocks denied', () => {
