@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { expect, test } from '@playwright/test';
 
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
@@ -377,4 +379,93 @@ test.describe('診所官網麵包屑語意', () => {
       await expect(page.locator('nav.clinic-breadcrumb')).toHaveCount(1);
     }
   });
+});
+
+// This spec already runs in Chromium and WebKit. Exercise the served hashed
+// module, not Node's interpretation of the browser-vendor source file.
+test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async ({ page }) => {
+  const manifest: unknown = JSON.parse(
+    await readFile(
+      new URL('../../apps/web/asset-manifest.json', import.meta.url),
+      'utf8'
+    )
+  );
+  if (
+    typeof manifest !== 'object' ||
+    manifest === null ||
+    !('vendor/domain/index.js' in manifest)
+  ) {
+    throw new Error('Built domain entry is missing from the asset manifest.');
+  }
+  const modulePath = manifest['vendor/domain/index.js'];
+  if (typeof modulePath !== 'string') {
+    throw new Error('Built domain entry is not a path.');
+  }
+  expect(modulePath).not.toBe('vendor/domain/index.js');
+
+  await page.goto('/clinic');
+  await page
+    .getByRole('link', {
+      name: /線上預約|預約諮詢|預約門診|預約專業評估/
+    })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/booking$/);
+
+  const result = await page.evaluate(async (url) => {
+    const rules = await import(url);
+    const now = '2030-01-02T00:00:00.000Z';
+    const startsAt = '2030-01-02T12:00:00.000Z';
+    const invalid = [
+      '2030-02-30T01:00:00Z',
+      '2030-01-02T01:00:00+08:00',
+      '2030-01-02 01:00:00Z'
+    ];
+    const probes = [
+      { code: 'INVALID_VALUE', run: (value: string) => rules.selfCancelCutoffAt(value) },
+      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotMeetsEarliestLead(value, now) },
+      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotMeetsEarliestLead(startsAt, value) },
+      { code: 'CANCELLATION_WINDOW_CLOSED', run: (value: string) => rules.assertWithinSelfCancelWindow(startsAt, value) },
+      { code: 'CANCELLATION_WINDOW_CLOSED', run: (value: string) => rules.assertWithinSelfRescheduleWindow(startsAt, value) },
+      { code: 'INVALID_VALUE', run: (value: string) => rules.taipeiCalendarDate(value) },
+      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotNotInPast(value, now) },
+      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotWithinBookingHorizon(value, now) }
+    ];
+    const failures: string[] = [];
+    for (const value of invalid) {
+      for (const [index, probe] of probes.entries()) {
+        try {
+          probe.run(value);
+          failures.push(`${index}:accepted:${value}`);
+        } catch (error) {
+          const code = typeof error === 'object' && error !== null && 'code' in error
+            ? error.code
+            : undefined;
+          if (code !== probe.code) failures.push(`${index}:wrong-code:${value}`);
+        }
+      }
+    }
+    const accepted = [
+      '2030-01-02T12:00:00Z',
+      '2030-01-02T12:00:00.123Z',
+      '2030-01-02T12:00:00.123456Z',
+      '2030-01-02T12:00:00.123456789Z'
+    ].map((value) => {
+      rules.assertWithinSelfCancelWindow(value, now);
+      rules.assertWithinSelfRescheduleWindow(value, now);
+      rules.assertSlotMeetsEarliestLead(value, now);
+      rules.assertSlotNotInPast(value, now);
+      rules.assertSlotWithinBookingHorizon(value, now);
+      return rules.selfCancelCutoffAt(value);
+    });
+    return { failures, accepted };
+  }, `/${modulePath}`);
+
+  expect(result.failures).toEqual([]);
+  expect(result.accepted).toEqual([
+    '2030-01-02T02:00:00.000Z',
+    '2030-01-02T02:00:00.000Z',
+    '2030-01-02T02:00:00.000Z',
+    '2030-01-02T02:00:00.000Z'
+  ]);
 });
