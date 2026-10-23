@@ -28,6 +28,14 @@ export function isUtcIsoTimestamp(value) {
     // ——它會靜默滾成 3 月 3 日。輸入既然是 UTC，正確的日期一定原樣往返。
     return parsed.toISOString().slice(0, 10) === value.slice(0, 10);
 }
+/** External Calendar datetimes may carry an explicit offset before UTC storage. */
+const RFC3339_DATE_TIME = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/i;
+export function isRfc3339Timestamp(value) {
+    const localTime = RFC3339_DATE_TIME.exec(value)?.[1];
+    return (localTime !== undefined &&
+        isUtcIsoTimestamp(`${localTime.toUpperCase()}Z`) &&
+        Number.isFinite(Date.parse(value)));
+}
 export function assertUtcTimestamp(value, fieldName) {
     if (!isUtcIsoTimestamp(value)) {
         throw new DomainError('INVALID_TIMESTAMP', `${fieldName} must be a valid UTC ISO-8601 timestamp.`);

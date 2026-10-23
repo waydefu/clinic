@@ -33,40 +33,55 @@ describe.each([
   { name: 'browser', rules: browser }
 ])('$name external Calendar datetime admission', ({ rules }) => {
   describe.each(['start', 'end'])('%s boundary', (field) => {
-    it.each(malformed)('rejects malformed RFC3339 projection input %s', (value) => {
-      const startsAt = field === 'start' ? value : '2029-01-01T00:00:00Z';
-      const endsAt = field === 'end' ? value : '2030-12-31T23:59:59Z';
-      expect(rules.extractCalendarEventRange(busy(startsAt, endsAt))).toBeUndefined();
-    });
+    it.each(malformed)(
+      'rejects malformed RFC3339 projection input %s',
+      (value) => {
+        const startsAt = field === 'start' ? value : '2029-01-01T00:00:00Z';
+        const endsAt = field === 'end' ? value : '2030-12-31T23:59:59Z';
+        expect(
+          rules.extractCalendarEventRange(busy(startsAt, endsAt))
+        ).toBeUndefined();
+      }
+    );
     it.each(malformed)('rejects malformed RFC3339 entry input %s', (value) => {
       const startsAt = field === 'start' ? value : '2029-01-01T00:00:00Z';
       const endsAt = field === 'end' ? value : '2030-12-31T23:59:59Z';
-      expect(rules.parseCalendarEntry(busy(startsAt, endsAt), new Set())).toMatchObject({
+      expect(
+        rules.parseCalendarEntry(busy(startsAt, endsAt), new Set())
+      ).toMatchObject({
         ok: false,
         errors: expect.arrayContaining(['time_invalid'])
       });
     });
   });
-  it.each(valid)('preserves valid explicit offset normalization %s', (startsAt) => {
-    const endsAt = '2030-12-31T23:59:59Z';
-    const expected = {
-      startsAt: new Date(startsAt).toISOString(),
-      endsAt: new Date(endsAt).toISOString()
-    };
-    const input = busy(startsAt, endsAt);
-    expect(rules.extractCalendarEventRange(input)).toEqual(expected);
-    expect(rules.parseCalendarEntry(input, new Set())).toMatchObject({
-      ok: true,
-      kind: 'busy',
-      ...expected
-    });
-  });
+  it.each(valid)(
+    'preserves valid explicit offset normalization %s',
+    (startsAt) => {
+      const endsAt = '2030-12-31T23:59:59Z';
+      const expected = {
+        startsAt: new Date(startsAt).toISOString(),
+        endsAt: new Date(endsAt).toISOString()
+      };
+      const input = busy(startsAt, endsAt);
+      expect(rules.extractCalendarEventRange(input)).toEqual(expected);
+      expect(rules.parseCalendarEntry(input, new Set())).toMatchObject({
+        ok: true,
+        kind: 'busy',
+        ...expected
+      });
+    }
+  );
   it('preserves the separate real-calendar all-day path', () => {
-    expect(rules.parseCalendarEntry({
-      summary: '[忙碌] 休假',
-      start: { date: '2030-01-02' },
-      end: { date: '2030-01-03' }
-    }, new Set())).toMatchObject({ ok: true, kind: 'busy', allDay: true });
+    expect(
+      rules.parseCalendarEntry(
+        {
+          summary: '[忙碌] 休假',
+          start: { date: '2030-01-02' },
+          end: { date: '2030-01-03' }
+        },
+        new Set()
+      )
+    ).toMatchObject({ ok: true, kind: 'busy', allDay: true });
   });
 });
 
@@ -89,15 +104,23 @@ describe('worker external Calendar datetime admission', () => {
       });
     });
   });
-  it.each(valid)('preserves valid worker offset normalization %s', (startsAt) => {
-    const endsAt = new Date(Date.parse(startsAt) + 30 * 60_000).toISOString();
-    expect(sanitizeSourceEvent({
-      id: 'synthetic_time_guard',
-      start: { dateTime: startsAt },
-      end: { dateTime: endsAt }
-    }, options)).toMatchObject({
-      ok: true,
-      event: { startsAt: new Date(startsAt).toISOString() }
-    });
-  });
+  it.each(valid)(
+    'preserves valid worker offset normalization %s',
+    (startsAt) => {
+      const endsAt = new Date(Date.parse(startsAt) + 30 * 60_000).toISOString();
+      expect(
+        sanitizeSourceEvent(
+          {
+            id: 'synthetic_time_guard',
+            start: { dateTime: startsAt },
+            end: { dateTime: endsAt }
+          },
+          options
+        )
+      ).toMatchObject({
+        ok: true,
+        event: { startsAt: new Date(startsAt).toISOString() }
+      });
+    }
+  );
 });

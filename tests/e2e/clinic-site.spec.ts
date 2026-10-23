@@ -565,7 +565,9 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       for (const field of ['start', 'end']) {
         const input = {
           summary: '[忙碌] 會議',
-          start: { dateTime: field === 'start' ? value : '2029-01-01T00:00:00Z' },
+          start: {
+            dateTime: field === 'start' ? value : '2029-01-01T00:00:00Z'
+          },
           end: { dateTime: field === 'end' ? value : '2030-12-31T23:59:59Z' }
         };
         if (rules.extractCalendarEventRange(input) !== undefined) {
@@ -593,7 +595,11 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       const expected = new Date(value).toISOString();
       const range = rules.extractCalendarEventRange(input);
       const parsed = rules.parseCalendarEntry(input, new Set());
-      if (range?.startsAt !== expected || !parsed.ok || parsed.startsAt !== expected) {
+      if (
+        range?.startsAt !== expected ||
+        !parsed.ok ||
+        parsed.startsAt !== expected
+      ) {
         failures.push(`provider-valid:${value}`);
       }
     }

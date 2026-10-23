@@ -1,4 +1,5 @@
 import { SLOT_DURATION_MINUTES, SLOT_MINUTE_MARKS, TAIPEI_TIME_ZONE, isValidLocalDate, planSlots } from './schedule.js';
+import { isRfc3339Timestamp } from './timestamp.js';
 export const CALENDAR_ENTRY_SEPARATOR = '｜';
 export const CALENDAR_BOOKING_KIND_BY_LABEL = Object.freeze({
     初診: 'initial',
@@ -113,6 +114,8 @@ function isNonEmptyString(value) {
 function normalizedTimedRange(start, end) {
     if (!isNonEmptyString(start?.dateTime) || !isNonEmptyString(end?.dateTime))
         return 'time_missing';
+    if (!isRfc3339Timestamp(start.dateTime) || !isRfc3339Timestamp(end.dateTime))
+        return 'time_invalid';
     const startMs = Date.parse(start.dateTime);
     const endMs = Date.parse(end.dateTime);
     if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs)
