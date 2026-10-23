@@ -385,10 +385,7 @@ test.describe('診所官網麵包屑語意', () => {
 // module, not Node's interpretation of the browser-vendor source file.
 test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async ({ page }) => {
   const manifest: unknown = JSON.parse(
-    await readFile(
-      new URL('../../apps/web/asset-manifest.json', import.meta.url),
-      'utf8'
-    )
+    await readFile('apps/web/asset-manifest.json', 'utf8')
   );
   if (
     typeof manifest !== 'object' ||
@@ -422,14 +419,41 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       '2030-01-02 01:00:00Z'
     ];
     const probes = [
-      { code: 'INVALID_VALUE', run: (value: string) => rules.selfCancelCutoffAt(value) },
-      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotMeetsEarliestLead(value, now) },
-      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotMeetsEarliestLead(startsAt, value) },
-      { code: 'CANCELLATION_WINDOW_CLOSED', run: (value: string) => rules.assertWithinSelfCancelWindow(startsAt, value) },
-      { code: 'CANCELLATION_WINDOW_CLOSED', run: (value: string) => rules.assertWithinSelfRescheduleWindow(startsAt, value) },
-      { code: 'INVALID_VALUE', run: (value: string) => rules.taipeiCalendarDate(value) },
-      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotNotInPast(value, now) },
-      { code: 'INVALID_VALUE', run: (value: string) => rules.assertSlotWithinBookingHorizon(value, now) }
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.selfCancelCutoffAt(value)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.assertSlotMeetsEarliestLead(value, now)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) =>
+          rules.assertSlotMeetsEarliestLead(startsAt, value)
+      },
+      {
+        code: 'CANCELLATION_WINDOW_CLOSED',
+        run: (value: string) =>
+          rules.assertWithinSelfCancelWindow(startsAt, value)
+      },
+      {
+        code: 'CANCELLATION_WINDOW_CLOSED',
+        run: (value: string) =>
+          rules.assertWithinSelfRescheduleWindow(startsAt, value)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.taipeiCalendarDate(value)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.assertSlotNotInPast(value, now)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.assertSlotWithinBookingHorizon(value, now)
+      }
     ];
     const failures: string[] = [];
     for (const value of invalid) {
@@ -438,10 +462,12 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
           probe.run(value);
           failures.push(`${index}:accepted:${value}`);
         } catch (error) {
-          const code = typeof error === 'object' && error !== null && 'code' in error
-            ? error.code
-            : undefined;
-          if (code !== probe.code) failures.push(`${index}:wrong-code:${value}`);
+          const code =
+            typeof error === 'object' && error !== null && 'code' in error
+              ? error.code
+              : undefined;
+          if (code !== probe.code)
+            failures.push(`${index}:wrong-code:${value}`);
         }
       }
     }
