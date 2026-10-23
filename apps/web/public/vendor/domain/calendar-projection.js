@@ -1,7 +1,7 @@
 import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
-import { CALENDAR_ENTRY_SEPARATOR } from './calendar-sync.js';
+import { CALENDAR_ENTRY_SEPARATOR, parseRfc3339Timestamp } from './calendar-sync.js';
 import { SLOT_MINUTE_MARKS } from './schedule.js';
-import { isRfc3339Timestamp, isUtcIsoTimestamp } from './timestamp.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 /**
  * Clinic Calendar projection allowlist and loop-prevention markers.
  *
@@ -205,10 +205,8 @@ export function extractCalendarEventRange(event) {
     const end = event.end?.dateTime;
     if (typeof start !== 'string' || typeof end !== 'string')
         return undefined;
-    if (!isRfc3339Timestamp(start) || !isRfc3339Timestamp(end))
-        return undefined;
-    const startMs = Date.parse(start);
-    const endMs = Date.parse(end);
+    const startMs = parseRfc3339Timestamp(start);
+    const endMs = parseRfc3339Timestamp(end);
     if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs)
         return undefined;
     return {
