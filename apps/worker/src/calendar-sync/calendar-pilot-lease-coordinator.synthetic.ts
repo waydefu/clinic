@@ -16,16 +16,10 @@ export interface CalendarPilotSyntheticAdmission extends CalendarPilotSyntheticL
 }
 
 export type CalendarPilotSyntheticQuarantineReason =
-  | 'unknown_worker'
-  | 'unknown_in_flight'
-  | 'unverifiable_isolation';
+  'unknown_worker' | 'unknown_in_flight' | 'unverifiable_isolation';
 
 export type CalendarPilotSyntheticCoordinatorPhase =
-  | 'active'
-  | 'draining'
-  | 'quiescent'
-  | 'committed'
-  | 'quarantined';
+  'active' | 'draining' | 'quiescent' | 'committed' | 'quarantined';
 
 export interface CalendarPilotSyntheticCoordinatorSnapshot {
   readonly phase: CalendarPilotSyntheticCoordinatorPhase;
