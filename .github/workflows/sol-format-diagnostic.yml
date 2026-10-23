@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 42326c4f80342cab5ded39f9a60ba1aa1ed4310e
+          ref: 01df53f9b74ccd8b77f4f2bf42c1bedd423bc435
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -32,46 +32,15 @@ jobs:
           DIAGNOSTIC_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 42326c4f80342cab5ded39f9a60ba1aa1ed4310e
+          test "$(git rev-parse HEAD)" = 01df53f9b74ccd8b77f4f2bf42c1bedd423bc435
           test "$(pnpm exec prettier --version)" = 3.9.5
           mkdir -p output/format-diagnostic
           printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/format-diagnostic/diagnostic-commit.txt
           git rev-parse HEAD > output/format-diagnostic/input-commit.txt
-          pnpm exec prettier --write scripts/booking-time-admission-parity.test.mjs packages/domain/src/appointment-rules.ts packages/domain/src/booking-horizon.ts
-          pnpm exec prettier --check scripts/booking-time-admission-parity.test.mjs packages/domain/src/appointment-rules.ts packages/domain/src/booking-horizon.ts
-          git diff --binary -- scripts/booking-time-admission-parity.test.mjs packages/domain/src/appointment-rules.ts packages/domain/src/booking-horizon.ts > output/format-diagnostic/format.patch
-          cp scripts/booking-time-admission-parity.test.mjs output/format-diagnostic/formatted.test.mjs
-          cp packages/domain/src/appointment-rules.ts output/format-diagnostic/appointment-rules.ts
-          cp packages/domain/src/booking-horizon.ts output/format-diagnostic/booking-horizon.ts
-
-      - name: Build canonical browser domain payload
-        shell: bash
-        run: |
-          set -euo pipefail
-          pnpm --filter @beauessence/domain build
-          pnpm run sync:domain
-          git diff --binary -- apps/web/public/vendor/domain > output/format-diagnostic/vendor.patch
-          cp -R apps/web/public/vendor/domain output/format-diagnostic/vendor-domain
-
-      - name: Exercise UTC admission in domain and actual browser vendor
-        shell: bash
-        run: |
-          set -euo pipefail
-          pnpm exec vitest run scripts/booking-time-admission-parity.test.mjs 2>&1 | tee output/format-diagnostic/temporal-unit.log
-
-      - name: Prove the same harness still rejects legacy sources
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin a2e77036f5af100198fee5bf5d869939ec5b1788
-          for file in packages/domain/src/appointment-rules.ts packages/domain/src/booking-horizon.ts apps/web/public/vendor/domain/appointment-rules.js apps/web/public/vendor/domain/booking-horizon.js; do
-            git show "a2e77036f5af100198fee5bf5d869939ec5b1788:$file" > "$file"
-          done
-          printf '%s\n' a2e77036f5af100198fee5bf5d869939ec5b1788 > output/format-diagnostic/legacy-input-commit.txt
-          if pnpm exec vitest run scripts/booking-time-admission-parity.test.mjs 2>&1 | tee output/format-diagnostic/legacy-unit.log; then
-            printf '%s\n' 'Legacy source unexpectedly passed.'
-            exit 1
-          fi
+          pnpm exec prettier --write tests/e2e/clinic-site.spec.ts
+          pnpm exec prettier --check tests/e2e/clinic-site.spec.ts
+          git diff --binary -- tests/e2e/clinic-site.spec.ts > output/format-diagnostic/format.patch
+          cp tests/e2e/clinic-site.spec.ts output/format-diagnostic/clinic-site.spec.ts
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() }}
