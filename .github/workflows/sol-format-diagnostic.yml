@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: f7b1eabd7a1d2d56c21cc98d74608f8c6b499783
+          ref: cf62a1c53e5dcf14ebc4aae633a7488e792f641d
           persist-credentials: false
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,12 +46,14 @@ jobs:
           DIAGNOSTIC_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = f7b1eabd7a1d2d56c21cc98d74608f8c6b499783
+          test "$(git rev-parse HEAD)" = cf62a1c53e5dcf14ebc4aae633a7488e792f641d
           test "$(pnpm exec prettier --version)" = 3.9.5
           mkdir -p output/calendar-time-probe/green output/calendar-time-probe/red
           printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/calendar-time-probe/diagnostic-commit.txt
           git rev-parse HEAD > output/calendar-time-probe/input-commit.txt
-          cp diagnostic-input/scripts/calendar-budget-report.mjs scripts/
+          cp diagnostic-input/scripts/calendar-budget-report.mjs diagnostic-input/scripts/calendar-provider-time-probe-report.mjs scripts/
+          pnpm exec prettier --write scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts
+          pnpm exec prettier --check scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts
           git diff --binary -- scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts > output/calendar-time-probe/format.patch
           cp scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts output/calendar-time-probe/
           for mode in green red; do
@@ -69,6 +71,8 @@ jobs:
           pnpm run sync:domain
           git diff --binary -- apps/web/public/vendor/domain > output/calendar-time-probe/vendor.patch
           cp -R apps/web/public/vendor/domain output/calendar-time-probe/vendor-domain
+          pnpm exec vitest run scripts/calendar-time-admission-parity.test.mjs --exclude 'diagnostic-input/**' --reporter=verbose --reporter=json --outputFile.json=output/calendar-time-probe/green/result.json 2>&1 | tee output/calendar-time-probe/green/unit.log
+          node scripts/calendar-provider-time-probe-report.mjs output/calendar-time-probe/green green cf62a1c53e5dcf14ebc4aae633a7488e792f641d
           pnpm run build:web
           cp -R apps/web/dist output/calendar-time-probe/dist
           set +e
@@ -78,6 +82,23 @@ jobs:
           printf '%s\n' "$budget" > output/calendar-time-probe/budget-exit.txt
           node scripts/calendar-budget-report.mjs
           pnpm exec playwright test tests/e2e/clinic-site.spec.ts --project=chromium --project=webkit --grep '預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間' --reporter=list 2>&1 | tee output/calendar-time-probe/native-browser.log
+
+      - name: Reproduce the identical harness on original source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
+          for file in packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts; do
+            git show "e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd:$file" > "$file"
+          done
+          pnpm --filter @beauessence/domain build
+          pnpm run sync:domain
+          set +e
+          pnpm exec vitest run scripts/calendar-time-admission-parity.test.mjs --exclude 'diagnostic-input/**' --reporter=verbose --reporter=json --outputFile.json=output/calendar-time-probe/red/result.json 2>&1 | tee output/calendar-time-probe/red/unit.log
+          result=${PIPESTATUS[0]}
+          set -e
+          test "$result" -ne 0
+          node scripts/calendar-provider-time-probe-report.mjs output/calendar-time-probe/red red e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
 
       - name: Enforce the unchanged performance budget result
         shell: bash
