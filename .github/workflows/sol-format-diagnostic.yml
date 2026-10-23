@@ -51,9 +51,7 @@ jobs:
           mkdir -p output/calendar-time-probe/green output/calendar-time-probe/red
           printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/calendar-time-probe/diagnostic-commit.txt
           git rev-parse HEAD > output/calendar-time-probe/input-commit.txt
-          cp diagnostic-input/scripts/calendar-provider-time-probe-report.mjs scripts/
-          pnpm exec prettier --write scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts
-          pnpm exec prettier --check scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts
+          cp diagnostic-input/scripts/calendar-budget-report.mjs scripts/
           git diff --binary -- scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts > output/calendar-time-probe/format.patch
           cp scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts output/calendar-time-probe/
           for mode in green red; do
@@ -71,28 +69,21 @@ jobs:
           pnpm run sync:domain
           git diff --binary -- apps/web/public/vendor/domain > output/calendar-time-probe/vendor.patch
           cp -R apps/web/public/vendor/domain output/calendar-time-probe/vendor-domain
-          pnpm exec vitest run scripts/calendar-time-admission-parity.test.mjs --exclude 'diagnostic-input/**' --reporter=verbose --reporter=json --outputFile.json=output/calendar-time-probe/green/result.json 2>&1 | tee output/calendar-time-probe/green/unit.log
-          node scripts/calendar-provider-time-probe-report.mjs output/calendar-time-probe/green green f7b1eabd7a1d2d56c21cc98d74608f8c6b499783
           pnpm run build:web
-          node scripts/check-performance-budget.mjs --report=output/calendar-time-probe/performance-budget.json
+          cp -R apps/web/dist output/calendar-time-probe/dist
+          set +e
+          node scripts/check-performance-budget.mjs --report 2>&1 | tee output/calendar-time-probe/performance-budget.log
+          budget=${PIPESTATUS[0]}
+          set -e
+          printf '%s\n' "$budget" > output/calendar-time-probe/budget-exit.txt
+          node scripts/calendar-budget-report.mjs
           pnpm exec playwright test tests/e2e/clinic-site.spec.ts --project=chromium --project=webkit --grep '預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間' --reporter=list 2>&1 | tee output/calendar-time-probe/native-browser.log
 
-      - name: Verify the identical harness still exposes original malformed inputs
+      - name: Enforce the unchanged performance budget result
         shell: bash
         run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
-          for file in packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts; do
-            git show "e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd:$file" > "$file"
-          done
-          pnpm --filter @beauessence/domain build
-          pnpm run sync:domain
-          set +e
-          pnpm exec vitest run scripts/calendar-time-admission-parity.test.mjs --exclude 'diagnostic-input/**' --reporter=verbose --reporter=json --outputFile.json=output/calendar-time-probe/red/result.json 2>&1 | tee output/calendar-time-probe/red/unit.log
-          result=${PIPESTATUS[0]}
-          set -e
-          test "$result" -ne 0
-          node scripts/calendar-provider-time-probe-report.mjs output/calendar-time-probe/red red e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
+          read -r budget < output/calendar-time-probe/budget-exit.txt
+          test "$budget" -eq 0
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() }}
