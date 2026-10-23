@@ -413,6 +413,34 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
     const rules = await import(url);
     const now = '2030-01-02T00:00:00.000Z';
     const startsAt = '2030-01-02T12:00:00.000Z';
+    const job = {
+      id: 'synthetic_utc_outbox',
+      appointmentId: 'synthetic_utc_appointment',
+      idempotencyKey: 'synthetic_utc_key',
+      correlationId: 'synthetic_utc_correlation',
+      causationId: 'synthetic_utc_causation',
+      status: 'pending',
+      attempts: 0
+    };
+    const closed = {
+      id: 'synthetic_utc_payroll',
+      managerId: 'synthetic_utc_manager',
+      payrollPeriod: '2030-01',
+      status: 'locked',
+      creditCount: 1,
+      closedAt: now
+    };
+    const adjustment = {
+      id: 'synthetic_utc_adjustment',
+      periodId: closed.id,
+      managerId: closed.managerId,
+      payrollPeriod: closed.payrollPeriod,
+      sequence: 1,
+      delta: 1,
+      reasonCode: 'SYNTHETIC_UTC_CORRECTION',
+      recordedAt: startsAt,
+      resultingCreditCount: 2
+    };
     const invalid = [
       '2030-02-30T01:00:00Z',
       '2030-01-02T01:00:00+08:00',
@@ -453,10 +481,25 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       {
         code: 'INVALID_VALUE',
         run: (value: string) => rules.assertSlotWithinBookingHorizon(value, now)
+      },
+      {
+        code: 'INVALID_TIMESTAMP',
+        run: (value: string) => rules.planOutboxAttempt(job, { kind: 'succeeded' }, value)
+      },
+      {
+        code: 'INVALID_TIMESTAMP',
+        run: (value: string) => rules.payrollTotalAfterAdjustments({ ...closed, closedAt: value }, [])
+      },
+      {
+        code: 'INVALID_TIMESTAMP',
+        run: (value: string) => rules.payrollTotalAfterAdjustments(closed, [{ ...adjustment, recordedAt: value }])
       }
     ];
     const failures: string[] = [];
     for (const value of invalid) {
+      if (rules.isDue(job, value)) {
+        failures.push(`outbox:accepted:${value}`);
+      }
       if (rules.isOnBookingKindGrid(value, 'initial')) {
         failures.push(`grid:accepted:${value}`);
       }
@@ -483,6 +526,12 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       '2030-01-02T12:00:00.123456Z',
       '2030-01-02T12:00:00.123456789Z'
     ].map((value) => {
+      if (!rules.isDue(job, value)) {
+        throw new Error('Valid UTC outbox clock was rejected.');
+      }
+      rules.planOutboxAttempt(job, { kind: 'succeeded' }, value);
+      rules.payrollTotalAfterAdjustments({ ...closed, closedAt: value }, []);
+      rules.payrollTotalAfterAdjustments(closed, [{ ...adjustment, recordedAt: value }]);
       if (
         !rules.isOnBookingKindGrid(value, 'initial') ||
         rules.toBusinessExportRow({ startsAt: value }).startsAt === null
