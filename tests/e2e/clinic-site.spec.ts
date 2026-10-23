@@ -552,6 +552,51 @@ test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async 
       rules.assertSlotWithinBookingHorizon(value, now);
       return rules.selfCancelCutoffAt(value);
     });
+    for (const value of [
+      'Jan 02 2030 Z',
+      '2030-01-02',
+      '2030-01-02 01:00:00Z',
+      '2030-01-02T01:00:00',
+      '2030-02-30T01:00:00Z',
+      '2030-02-30T01:00:00+08:00',
+      '2030-01-02T24:00:00Z',
+      '2030-01-02T24:00:00+08:00'
+    ]) {
+      for (const field of ['start', 'end']) {
+        const input = {
+          summary: '[忙碌] 會議',
+          start: { dateTime: field === 'start' ? value : '2029-01-01T00:00:00Z' },
+          end: { dateTime: field === 'end' ? value : '2030-12-31T23:59:59Z' }
+        };
+        if (rules.extractCalendarEventRange(input) !== undefined) {
+          failures.push(`provider-projection:${field}:${value}`);
+        }
+        const parsed = rules.parseCalendarEntry(input, new Set());
+        if (parsed.ok || !parsed.errors.includes('time_invalid')) {
+          failures.push(`provider-entry:${field}:${value}`);
+        }
+      }
+    }
+    for (const value of [
+      '2030-01-02T12:00:00Z',
+      '2030-01-02T12:00:00+00:00',
+      '2030-01-02T12:00:00+08:00',
+      '2030-01-02T12:00:00-07:00',
+      '2030-01-02T12:00:00.123456789+08:00',
+      '2030-01-02t12:00:00z'
+    ]) {
+      const input = {
+        summary: '[忙碌] 會議',
+        start: { dateTime: value },
+        end: { dateTime: '2030-12-31T23:59:59Z' }
+      };
+      const expected = new Date(value).toISOString();
+      const range = rules.extractCalendarEventRange(input);
+      const parsed = rules.parseCalendarEntry(input, new Set());
+      if (range?.startsAt !== expected || !parsed.ok || parsed.startsAt !== expected) {
+        failures.push(`provider-valid:${value}`);
+      }
+    }
     return { failures, accepted };
   }, `/${modulePath}`);
 

@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { isRfc3339Timestamp } from '@beauessence/domain';
 
 /**
  * CAL-PILOT-001 的消毒層——這支檔案就是整個試辦的保護機制本身。
@@ -146,7 +147,7 @@ export function sanitizeSourceEvent(
     return { ok: false, reason: 'all_day_unsupported' };
 
   const startsAtRaw = source.start?.dateTime;
-  if (!isNonEmptyString(startsAtRaw))
+  if (!isNonEmptyString(startsAtRaw) || !isRfc3339Timestamp(startsAtRaw))
     return { ok: false, reason: 'malformed_time' };
 
   const startMs = Date.parse(startsAtRaw);
@@ -155,6 +156,8 @@ export function sanitizeSourceEvent(
   // 跨日事件在單日欄的週檢視裡無法正確表達，同樣擋下而不是硬塞。
   const endsAtRaw = source.end?.dateTime;
   if (isNonEmptyString(endsAtRaw)) {
+    if (!isRfc3339Timestamp(endsAtRaw))
+      return { ok: false, reason: 'malformed_time' };
     const endMs = Date.parse(endsAtRaw);
     if (Number.isNaN(endMs)) return { ok: false, reason: 'malformed_time' };
     if (endMs < startMs) return { ok: false, reason: 'malformed_time' };

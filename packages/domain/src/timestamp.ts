@@ -31,6 +31,19 @@ export function isUtcIsoTimestamp(value: string): boolean {
   return parsed.toISOString().slice(0, 10) === value.slice(0, 10);
 }
 
+/** External Calendar datetimes may carry an explicit offset before UTC storage. */
+const RFC3339_DATE_TIME =
+  /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/i;
+
+export function isRfc3339Timestamp(value: string): boolean {
+  const localTime = RFC3339_DATE_TIME.exec(value)?.[1];
+  return (
+    localTime !== undefined &&
+    isUtcIsoTimestamp(`${localTime.toUpperCase()}Z`) &&
+    Number.isFinite(Date.parse(value))
+  );
+}
+
 export function assertUtcTimestamp(value: string, fieldName: string): void {
   if (!isUtcIsoTimestamp(value)) {
     throw new DomainError(
