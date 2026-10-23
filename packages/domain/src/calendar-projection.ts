@@ -1,7 +1,10 @@
 import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
-import { CALENDAR_ENTRY_SEPARATOR } from './calendar-sync.js';
+import {
+  CALENDAR_ENTRY_SEPARATOR,
+  parseRfc3339Timestamp
+} from './calendar-sync.js';
 import { SLOT_MINUTE_MARKS } from './schedule.js';
-import { parseRfc3339Timestamp, isUtcIsoTimestamp } from './timestamp.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 import type { BookingKind } from './booking-transaction.js';
 
 /**

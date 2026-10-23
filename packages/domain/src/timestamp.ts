@@ -31,14 +31,6 @@ export function isUtcIsoTimestamp(value: string): boolean {
   return parsed.toISOString().slice(0, 10) === value.slice(0, 10);
 }
 
-/** External Calendar datetimes require an explicit offset before UTC storage. */
-export function parseRfc3339Timestamp(value: string): number {
-  const normalized = value.toUpperCase();
-  return isUtcIsoTimestamp(normalized.replace(/[+-]\d{2}:\d{2}$/, 'Z'))
-    ? Date.parse(normalized)
-    : NaN;
-}
-
 export function assertUtcTimestamp(value: string, fieldName: string): void {
   if (!isUtcIsoTimestamp(value)) {
     throw new DomainError(

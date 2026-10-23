@@ -6,7 +6,7 @@ import {
   planSlots,
   type Schedule
 } from './schedule.js';
-import { parseRfc3339Timestamp } from './timestamp.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 
 export const CALENDAR_ENTRY_SEPARATOR = '｜';
 
@@ -188,6 +188,14 @@ const TAIPEI_OFFSET = '+08:00';
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+/** External Calendar datetimes require an explicit offset before UTC storage. */
+export function parseRfc3339Timestamp(value: string): number {
+  const normalized = value.toUpperCase();
+  return isUtcIsoTimestamp(normalized.replace(/[+-]\d{2}:\d{2}$/, 'Z'))
+    ? Date.parse(normalized)
+    : NaN;
 }
 
 function normalizedTimedRange(
