@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: eda36825591bc73df0b00a2df8fe048a4c85a97e
+          ref: a278c6e4769cc265bdb5c9380b5f41c817f61b58
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -32,22 +32,40 @@ jobs:
           DIAGNOSTIC_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = eda36825591bc73df0b00a2df8fe048a4c85a97e
+          test "$(git rev-parse HEAD)" = a278c6e4769cc265bdb5c9380b5f41c817f61b58
           test "$(pnpm exec prettier --version)" = 3.9.5
           mkdir -p output/format-diagnostic
           printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/format-diagnostic/diagnostic-commit.txt
           git rev-parse HEAD > output/format-diagnostic/input-commit.txt
-          pnpm exec prettier --write scripts/utc-grid-export-parity.test.mjs tests/e2e/clinic-site.spec.ts
-          pnpm exec prettier --check scripts/utc-grid-export-parity.test.mjs tests/e2e/clinic-site.spec.ts
-          git diff --binary -- scripts/utc-grid-export-parity.test.mjs tests/e2e/clinic-site.spec.ts > output/format-diagnostic/format.patch
-          cp scripts/utc-grid-export-parity.test.mjs output/format-diagnostic/utc-grid-export-parity.test.mjs
-          cp tests/e2e/clinic-site.spec.ts output/format-diagnostic/clinic-site.spec.ts
+          pnpm exec prettier --write scripts/utc-grid-export-parity.test.mjs scripts/utc-control-clock-parity.test.mjs tests/e2e/clinic-site.spec.ts packages/domain/src/calendar-projection.ts packages/domain/src/business-delivery-export.ts packages/domain/src/outbox.ts packages/domain/src/payroll.ts
+          pnpm exec prettier --check scripts/utc-grid-export-parity.test.mjs scripts/utc-control-clock-parity.test.mjs tests/e2e/clinic-site.spec.ts packages/domain/src/calendar-projection.ts packages/domain/src/business-delivery-export.ts packages/domain/src/outbox.ts packages/domain/src/payroll.ts
+          git diff --binary -- scripts/utc-grid-export-parity.test.mjs scripts/utc-control-clock-parity.test.mjs tests/e2e/clinic-site.spec.ts packages/domain/src/calendar-projection.ts packages/domain/src/business-delivery-export.ts packages/domain/src/outbox.ts packages/domain/src/payroll.ts > output/format-diagnostic/format.patch
+          cp scripts/utc-grid-export-parity.test.mjs scripts/utc-control-clock-parity.test.mjs tests/e2e/clinic-site.spec.ts packages/domain/src/calendar-projection.ts packages/domain/src/business-delivery-export.ts packages/domain/src/outbox.ts packages/domain/src/payroll.ts output/format-diagnostic/
 
-      - name: Reproduce grid and stored-export admission
+      - name: Compile canonical browser payload and verify all UTC guards
         shell: bash
         run: |
           set -euo pipefail
-          pnpm exec vitest run scripts/utc-grid-export-parity.test.mjs 2>&1 | tee output/format-diagnostic/grid-export-unit.log
+          pnpm --filter @beauessence/domain build
+          pnpm run sync:domain
+          git diff --binary -- apps/web/public/vendor/domain > output/format-diagnostic/vendor.patch
+          cp -R apps/web/public/vendor/domain output/format-diagnostic/vendor-domain
+          pnpm exec vitest run scripts/booking-time-admission-parity.test.mjs scripts/utc-grid-export-parity.test.mjs scripts/utc-control-clock-parity.test.mjs 2>&1 | tee output/format-diagnostic/all-utc-unit.log
+
+      - name: Prove the unchanged new harness detects the previous guard holes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin e98f92256414d1eef79bf300c17fbc41e1377e26
+          for stem in calendar-projection business-delivery-export outbox payroll; do
+            git show "e98f92256414d1eef79bf300c17fbc41e1377e26:packages/domain/src/$stem.ts" > "packages/domain/src/$stem.ts"
+            git show "e98f92256414d1eef79bf300c17fbc41e1377e26:apps/web/public/vendor/domain/$stem.js" > "apps/web/public/vendor/domain/$stem.js"
+          done
+          printf '%s\n' e98f92256414d1eef79bf300c17fbc41e1377e26 > output/format-diagnostic/legacy-input-commit.txt
+          if pnpm exec vitest run scripts/booking-time-admission-parity.test.mjs scripts/utc-grid-export-parity.test.mjs scripts/utc-control-clock-parity.test.mjs 2>&1 | tee output/format-diagnostic/legacy-utc-unit.log; then
+            printf '%s\n' 'Legacy guard source unexpectedly passed.'
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() }}
