@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
+          ref: 8ea83bfca46950a188a1e73d25774bd3b0c6c316
           persist-credentials: false
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,36 +38,50 @@ jobs:
           DIAGNOSTIC_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
+          test "$(git rev-parse HEAD)" = 8ea83bfca46950a188a1e73d25774bd3b0c6c316
           test "$(pnpm exec prettier --version)" = 3.9.5
-          mkdir -p output/calendar-time-probe
+          mkdir -p output/calendar-time-probe/green output/calendar-time-probe/red
           printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/calendar-time-probe/diagnostic-commit.txt
           git rev-parse HEAD > output/calendar-time-probe/input-commit.txt
-          cp diagnostic-input/scripts/calendar-provider-time-probe.test.mjs scripts/
           cp diagnostic-input/scripts/calendar-provider-time-probe-report.mjs scripts/
-          pnpm exec prettier --write scripts/calendar-provider-time-probe.test.mjs scripts/calendar-provider-time-probe-report.mjs
-          pnpm exec prettier --check scripts/calendar-provider-time-probe.test.mjs scripts/calendar-provider-time-probe-report.mjs
-          cp scripts/calendar-provider-time-probe.test.mjs scripts/calendar-provider-time-probe-report.mjs output/calendar-time-probe/
-          sha256sum scripts/calendar-provider-time-probe.test.mjs > output/calendar-time-probe/harness.sha256
+          pnpm exec prettier --write scripts/calendar-time-admission-parity.test.mjs scripts/calendar-provider-time-probe-report.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts
+          pnpm exec prettier --check scripts/calendar-time-admission-parity.test.mjs scripts/calendar-provider-time-probe-report.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts
+          git diff --binary -- scripts/calendar-time-admission-parity.test.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts > output/calendar-time-probe/format.patch
+          cp scripts/calendar-time-admission-parity.test.mjs scripts/calendar-provider-time-probe-report.mjs packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts tests/e2e/clinic-site.spec.ts output/calendar-time-probe/
+          for mode in green red; do
+            cp scripts/calendar-time-admission-parity.test.mjs output/calendar-time-probe/$mode/
+            cp output/calendar-time-probe/diagnostic-commit.txt output/calendar-time-probe/$mode/
+          done
+          cp output/calendar-time-probe/input-commit.txt output/calendar-time-probe/green/
+          printf '%s\n' e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd > output/calendar-time-probe/red/input-commit.txt
 
-      - name: Compile canonical browser payload without any provider
+      - name: Compile canonical browser payload and verify the candidate
         shell: bash
         run: |
           set -euo pipefail
           pnpm --filter @beauessence/domain build
           pnpm run sync:domain
-          git diff --exit-code -- packages/domain/src apps/web/public/vendor/domain
+          git diff --binary -- apps/web/public/vendor/domain > output/calendar-time-probe/vendor.patch
+          cp -R apps/web/public/vendor/domain output/calendar-time-probe/vendor-domain
+          pnpm exec vitest run scripts/calendar-time-admission-parity.test.mjs --exclude 'diagnostic-input/**' --reporter=verbose --reporter=json --outputFile.json=output/calendar-time-probe/green/result.json 2>&1 | tee output/calendar-time-probe/green/unit.log
+          node scripts/calendar-provider-time-probe-report.mjs output/calendar-time-probe/green green 8ea83bfca46950a188a1e73d25774bd3b0c6c316
 
-      - name: Reproduce malformed inputs while preserving valid offsets
+      - name: Reproduce with the identical harness and original source
         shell: bash
         run: |
           set -euo pipefail
+          git fetch --no-tags --depth=1 origin e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
+          for file in packages/domain/src/timestamp.ts packages/domain/src/calendar-sync.ts packages/domain/src/calendar-projection.ts apps/worker/src/pilot/pilot-sanitizer.ts; do
+            git show "e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd:$file" > "$file"
+          done
+          pnpm --filter @beauessence/domain build
+          pnpm run sync:domain
           set +e
-          pnpm exec vitest run scripts/calendar-provider-time-probe.test.mjs --exclude 'diagnostic-input/**' --reporter=verbose --reporter=json --outputFile.json=output/calendar-time-probe/result.json 2>&1 | tee output/calendar-time-probe/unit.log
+          pnpm exec vitest run scripts/calendar-time-admission-parity.test.mjs --exclude 'diagnostic-input/**' --reporter=verbose --reporter=json --outputFile.json=output/calendar-time-probe/red/result.json 2>&1 | tee output/calendar-time-probe/red/unit.log
           result=${PIPESTATUS[0]}
           set -e
           test "$result" -ne 0
-          node scripts/calendar-provider-time-probe-report.mjs
+          node scripts/calendar-provider-time-probe-report.mjs output/calendar-time-probe/red red e3f0eb2eb5dfb640aaf2d7d39d7a5b35b4ffe3dd
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() }}
