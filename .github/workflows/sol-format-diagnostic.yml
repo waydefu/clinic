@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 3f4dad6b785cbb7a84a4320e4b17fde73f15b95b
+          ref: 7c2a4b0affdceae9c271404190affb5f9d93a36e
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -32,30 +32,22 @@ jobs:
           DIAGNOSTIC_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 3f4dad6b785cbb7a84a4320e4b17fde73f15b95b
+          test "$(git rev-parse HEAD)" = 7c2a4b0affdceae9c271404190affb5f9d93a36e
           test "$(pnpm exec prettier --version)" = 3.9.5
           mkdir -p output/format-diagnostic
           printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/format-diagnostic/diagnostic-commit.txt
           git rev-parse HEAD > output/format-diagnostic/input-commit.txt
-          pnpm exec prettier --write scripts/cal-pilot-auth-domain-denial.test.mjs
-          pnpm exec prettier --check scripts/cal-pilot-auth-domain-denial.test.mjs
-          git diff --binary -- scripts/cal-pilot-auth-domain-denial.test.mjs > output/format-diagnostic/format.patch
-          cp scripts/cal-pilot-auth-domain-denial.test.mjs output/format-diagnostic/formatted.test.mjs
+          pnpm exec prettier --write apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.ts apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.test.ts
+          pnpm exec prettier --check apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.ts apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.test.ts
+          git diff --binary -- apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.ts apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.test.ts > output/format-diagnostic/format.patch
+          cp apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.ts output/format-diagnostic/formatted.ts
+          cp apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.test.ts output/format-diagnostic/formatted.test.ts
 
-      - name: Reproduce native predicate without deployment script or provider
+      - name: Exercise the isolated in-memory lease prototype
         shell: bash
         run: |
           set -euo pipefail
-          pnpm exec vitest run scripts/cal-pilot-auth-domain-denial.test.mjs 2>&1 | tee output/format-diagnostic/native-unit.log
-
-      - name: Prove the batched harness still rejects the legacy source
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin b81df44731642b1f520be0ae187b6c416645adc8
-          git show b81df44731642b1f520be0ae187b6c416645adc8:scripts/cal-pilot-runtime-update.ps1 > scripts/cal-pilot-runtime-update.ps1
-          printf '%s\n' b81df44731642b1f520be0ae187b6c416645adc8 > output/format-diagnostic/legacy-input-commit.txt
-          pnpm exec vitest run scripts/cal-pilot-auth-domain-denial.test.mjs 2>&1 | tee output/format-diagnostic/legacy-unit.log
+          pnpm exec vitest run apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.test.ts 2>&1 | tee output/format-diagnostic/synthetic-unit.log
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ always() }}
