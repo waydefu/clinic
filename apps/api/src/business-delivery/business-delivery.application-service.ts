@@ -24,15 +24,20 @@ import { evaluateAccess } from '../platform/authorization/rbac.js';
 import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
 import type { BusinessDeliveryConfig } from './business-delivery.config.js';
 import type { FreshReauthenticationVerifier } from './reauthentication.js';
+import { resolveSyntheticTrialAdjustmentDays } from './synthetic-trial-adjustment.js';
 import { actorRefForUid } from './usage-events.js';
+
+export type BusinessMilestoneViewState = MilestoneState & {
+  /** In-memory synthetic fixture only; the Firestore adapter does not read it. */
+  readonly syntheticTrialAdjustment?: unknown;
+};
 
 export type BusinessDeliveryRepositoryPort = Pick<
   FirestoreBusinessDeliveryRepository,
-  | 'usageEventsBetween'
-  | 'hasStaffUsageCaptureGap'
-  | 'milestoneState'
-  | 'acknowledge'
->;
+  'usageEventsBetween' | 'hasStaffUsageCaptureGap' | 'acknowledge'
+> & {
+  milestoneState(): Promise<BusinessMilestoneViewState>;
+};
 
 // Strict: a legacy alias must not widen a server session into a new role.
 function staffRole(authentication: AuthenticationContext): Role {
@@ -174,11 +179,20 @@ export class BusinessDeliveryApplicationService {
 
   private view(
     config: Extract<BusinessDeliveryConfig, { enabled: true }>,
-    state: MilestoneState
+    state: BusinessMilestoneViewState
   ): BusinessMilestonesResponse {
+    const adjustmentDays = resolveSyntheticTrialAdjustmentDays({
+      snapshot: state.syntheticTrialAdjustment,
+      ...(state.firstEligibleUseAt === undefined
+        ? {}
+        : { firstEligibleUseAt: state.firstEligibleUseAt }),
+      milestoneRevision: state.revision,
+      policy: config.policy
+    });
     const status = evaluateBusinessMilestones({
       policy: config.policy,
       now: this.nowUtc(),
+      ...(adjustmentDays === undefined ? {} : { adjustmentDays }),
       ...(state.firstEligibleUseAt === undefined
         ? {}
         : { firstEligibleUseAt: state.firstEligibleUseAt }),
