@@ -1,5 +1,5 @@
 import { DomainError } from './errors.js';
-import { assertUtcTimestamp } from './timestamp.js';
+import { assertUtcTimestamp, isUtcIsoTimestamp } from './timestamp.js';
 
 /**
  * Retry policy for the outbox, as a pure decision.
@@ -244,9 +244,12 @@ export function fullJitterBackoffMilliseconds(
 
 /** 只有 pending 且已到重試時間的工作可被取用。 */
 export function isDue(job: OutboxJob, now: string): boolean {
-  if (job.status !== 'pending') return false;
+  if (job.status !== 'pending' || !isUtcIsoTimestamp(now)) return false;
   if (job.nextAttemptAt === undefined) return true;
-  return Date.parse(job.nextAttemptAt) <= Date.parse(now);
+  return (
+    isUtcIsoTimestamp(job.nextAttemptAt) &&
+    Date.parse(job.nextAttemptAt) <= Date.parse(now)
+  );
 }
 
 export function planOutboxAttempt(
@@ -261,6 +264,7 @@ export function planOutboxAttempt(
     );
   }
 
+  assertUtcTimestamp(now, 'now');
   const attempts = job.attempts + 1;
 
   if (outcome.kind === 'succeeded') {

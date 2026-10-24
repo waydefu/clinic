@@ -1,4 +1,5 @@
 import { DomainError } from './errors.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 /**
  * Patient booking horizon (Q8 / D-004 direction: one month).
  *
@@ -39,11 +40,10 @@ export function bookingHorizonEndExclusive(taipeiToday) {
         .slice(0, 10);
 }
 function utcMs(value) {
-    const ms = Date.parse(value);
-    if (!Number.isFinite(ms)) {
+    if (!isUtcIsoTimestamp(value)) {
         throw new DomainError('INVALID_VALUE', 'The appointment start must be a parseable timestamp.');
     }
-    return ms;
+    return Date.parse(value);
 }
 export function taipeiCalendarDate(isoUtc) {
     return new Intl.DateTimeFormat('en-CA', {

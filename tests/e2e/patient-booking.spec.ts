@@ -320,9 +320,9 @@ test.describe('患者線上預約', () => {
     });
     await page.reload();
 
-    const headerBoundary = page.locator('.patient-header .environment-badge');
-    await expect(headerBoundary).toBeVisible();
-    await expect(headerBoundary).toContainText('LOCAL TEST ONLY');
+    const noticeBoundary = page.locator('.patient-notice .environment-badge');
+    await expect(noticeBoundary).toBeVisible();
+    await expect(noticeBoundary).toContainText('LOCAL TEST ONLY');
     const dataBoundary = page.locator('.patient-data-boundary');
     await expect(dataBoundary).toBeVisible();
     await expect(dataBoundary).toContainText('勿填真實患者或健康資料');

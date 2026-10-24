@@ -184,6 +184,25 @@ const EXPECTED_M11_SCHEDULE = {
 };
 
 describe('isInternalTestBookingEnabled', () => {
+  it('rejects default and sibling hosts even with a copied opt-in query', () => {
+    for (const hostname of [
+      'beauessence-clinic-stg-c1a01.web.app',
+      'beauessence-clinic-stg-c1a01.firebaseapp.com',
+      'beauessence-clinic-stg-c1a01--unapproved-channel.web.app',
+      `${M11_LOCATION.hostname}.unapproved.example`,
+      'beauessence.com.tw',
+      'unapproved.web.app'
+    ]) {
+      expect(
+        isInternalTestBookingEnabled({
+          ...M11_LOCATION,
+          hostname,
+          search: '?internalTestBooking=1'
+        })
+      ).toBe(false);
+    }
+  });
+
   it('stays off without the query and on the forbidden preview host', () => {
     expect(
       isInternalTestBookingEnabled({
@@ -211,7 +230,7 @@ describe('isInternalTestBookingEnabled', () => {
         protocol: 'https:',
         pathname: '/staff',
         port: '',
-        hostname: 'beauessence-clinic-stg-c1a01.web.app',
+        hostname: M11_LOCATION.hostname,
         search: '?internalTestBooking=1'
       })
     ).toBe(true);

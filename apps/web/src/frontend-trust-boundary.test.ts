@@ -211,7 +211,8 @@ describe('frontend trust boundary regressions', () => {
     expect(
       isInternalTestBookingEnabled({
         protocol: 'https:',
-        hostname: 'beauessence-clinic-stg-c1a01.web.app',
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
         port: '',
         pathname: '/booking',
         search: '?internalTestBooking=1'

@@ -151,11 +151,16 @@ corepack pnpm verify
 
 ## 現行 UI 視覺證據
 
-現行基線已記錄於
-[2026-08-22 UI 視覺基準](../reviews/ui-visual-baseline-2026-08-22.md)：13 張 PNG 與
-[manifest](../reviews/assets/ui-visual-baseline-2026-08-22/manifest.json)均已建立並由
-structure guard 驗證。這組影像是 reference-only 人工複核證據，不是跨 OS 像素 gate；
-2026-08-20 與更早的截圖及下列日期紀錄仍只算歷史證據，不能代表目前 UI。
+現行技術參考圖集是
+[2026-09-29 CP-01 視覺參考](../reviews/ui-visual-cp01-2026-09-29.md)與其
+[manifest](../reviews/assets/ui-visual-cp01-2026-09-29/manifest.json)：17 張
+reference-only PNG，與 structure guard、capture fixture 及文件索引的技術指向一致。
+這不是跨 OS 像素 gate，也不構成新的業主核准，不能證明後續所有 UI 變更已驗收。
+
+[C4](../reviews/ui-visual-c4-2026-08-22.md) 的設計核准脈絡、
+[C3](../reviews/ui-visual-baseline-2026-08-22.md)、C6 與更早截圖及下列日期紀錄
+都保留為各自當時的歷史證據；CP-01 技術參考不會改寫或取代其中的業主決定。
+重拍與核准的區別及同步位置見[介面規則書 §5.5](ui-ux-rules.md#55-可重現-ui-截圖與視覺證據)。
 
 ## 歷史驗證紀錄（截至 2026-07-26）
 

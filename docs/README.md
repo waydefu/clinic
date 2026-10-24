@@ -87,11 +87,13 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [2026-10-05 稽核漏網複核與 Sol／Luna 執行圖補充計畫](plans/2026-10-05-audit-gap-sol-luna-execution-plan.md) — planning-only：#239 的增量複核、NEW 候選證據與限制、244 IDs 唯一 primary 路由、Sol-only 安全架構與有界 Luna 小包、依賴／平行群組／自主施工契約；W4 安全摘要缺失不冒稱 ready，不授權修復、Luna 施工、merge 或雲端操作。
 - [SOL-00 current-evidence closeout](plans/2026-10-06-sol00-safe-manifest-closeout-plan.md) — CLOSED_PENDING_PROTECTED_MERGE：254唯一primary，31 provenance永久closed-with-gap／historical claims未驗；40原Sol與全部舊rows保留，3 Luna-ready／cap2／parent不並行；只docs，不施工。
 - [2026-10-18 Sol／Luna 一路跑完：設定與提示詞](plans/2026-10-18-sol-luna-autorun-prompts.md) — planning-only：GPT-6.1 Sol 父代理＋最多 2 個 GPT-6 Luna 子代理、CI 優先；凍結條件為 manifest 55 個 Sol packet 全部完成，終態定義、strict 分支保護下的合併節奏、Codex 設定檔與規則檔、受保護動作硬停、`/goal`；不授權 merge／部署。
+- [SOL-CALENDAR-LEASE 嚴格零派送協調設計（2026-10-22）](plans/2026-10-22-sol-calendar-lease-coordination.md) — design-proposed：D-05／D-12 保留零派送承諾；排空後生效、未知狀態停止的 admission 邊界待核，既有一次窗口與文件 CI 不是 provider 證據。
 - [SOL-00 逐 ID 安全摘要索引](plans/2026-10-06-sol00-finding-manifest.md) — 244 原列與 NEW 去重／精確 blocker 表；不將 source 閱讀當 runtime 驗證。
 - [SOL-00 machine manifest／packet graph](plans/2026-10-06-sol00-safe-manifest.json) — source blobs、逐列必要欄位、primary owners、lease/DAG/waves 與 future handoff；v3 `/activeCloseout` 完成至current-evidence limit；frozen舊ledger非目前狀態，沒有implementation authority。
 - [C1 商務交付批次部署 packet（2026-10-01）](plans/2026-10-01-c1-batch-deployment-packet.md) — C1 source/release 綁定、exact-SHA、Terraform/Hosting expiry 與 runtime gate；目前 source 已整合，cloud plan/apply 與 C1 驗收仍 BLOCKED。
 - [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
+- [SOL-BUSINESS 可追溯試用調整模型（2026-10-22）](plans/2026-10-22-sol-business-adjustment-design.md) — design-proposed：D-24 重用 milestone state／既有 log，不新增 collection／API；合法輸入、批准來源、撤銷重播與原起點綁定送業主審，未實作不算關帳。
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
@@ -131,6 +133,10 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [UI/UX 重設計計畫（2026-09-07）](design/2026-09-07-ui-ux-redesign-plan.md) — scope, invariants, files, review dependencies, verification and rollback for the owner-requested redesign PR
 
+- [網頁設計、動效與美學評分研究（2026-10-12）](design/2026-10-12-design-research.md) — 得獎評審標準、第一印象證據、專業流程、繁中排版與動效的具體值、醫療網站模式，以及程式化美學評分的指標與使用紀律
+
+- [官網改版（2026-10-11～12）](design/2026-10-11-clinic-homepage-redesign.md) — 首頁品牌牆與相簿、內頁改版、療程插圖替換與素材權利、動效取捨、預算，以及待業主審的文案對照表；2026-10-20 起不等 C1，合併時機見決策登記簿同日條目
+
 - [Phase 0 local development](phase-0-local-development.md) — what exists locally and how to verify it
 - [Test-only sandbox baseline](product/test-only-sandbox-baseline.md) — the authority and limits of the synthetic-only profile
 - [Test-only scheduling and follow-up workbench](product/test-only-scheduling-follow-up-workbench.md) — scope of the synthetic scheduling and follow-up surface
@@ -155,7 +161,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [App Shell 與日程工作區重構規劃](design/ui-shell-and-scheduling-redesign-plan.md) — plan-only P1/P2 design: the global shell, navigation grouping that keeps visit types as event filters rather than top-level items, the scheduling workspace, event-type versus status tokens, and the five-step reversible page migration
 - [行動版 UX 規劃](design/mobile-ux-plan.md) — plan-only drawer navigation, day-list default, table-to-card rules, full-screen sheets and the six-viewport acceptance matrix
 - [測試策略](architecture/test-strategy.md) — the ten test layers with what does and does not exist, the six E2E groups and how they differ from the eight-group target, role direct-URL tests, and why automated axe never replaces the manual pass
-- [2026-09-29 CP-01 UI visual reference set](reviews/ui-visual-cp01-2026-09-29.md) — **the current reference set**: seventeen warm-theme references retaken after the CP-01 minimized Step 3 form; also fixes three capture-spec drifts (`/staff` front door, same-day 10:00 cancellation cutoff, the documented CAL-PILOT probe 404); reference evidence, not a cross-OS pixel gate
+- [2026-09-29 CP-01 UI visual reference set](reviews/ui-visual-cp01-2026-09-29.md) and [manifest](reviews/assets/ui-visual-cp01-2026-09-29/manifest.json) — **the current technical reference set**: seventeen warm-theme reference-only captures retaken after the CP-01 minimized Step 3 form; also fixes three capture-spec drifts (`/staff` front door, same-day 10:00 cancellation cutoff, the documented CAL-PILOT probe 404); not a cross-OS pixel gate, not new owner approval and not acceptance of every later UI change. Historical C4 approval remains dated evidence, separate from this technical reference
 - [2026-08-23 C6 final runtime visual evidence](reviews/ui-visual-c6-2026-08-23.md) — superseded as the current set on 2026-09-29, kept as history: seventeen warm-theme desktop/mobile references captured on the exact-C6 runtime, adding the required mobile success screen that proves the header, 查詢／取消預約 and theme control return after a phone booking; also covers the inline compact Step 2/3 headings, the Step 3 clinic contact block, month and period selection, cancellation contacts, open-day/exception calendar, Case follow-up and privacy; reference evidence, not a cross-OS pixel gate
 - [2026-08-22 C4 final owner-correction visual evidence](reviews/ui-visual-c4-2026-08-22.md) — superseded by C6 and kept unchanged as historical C4 evidence: sixteen warm-theme desktop/mobile references for the compact three-step booking flow, month and period selection, full cancellation contacts, open-day/exception calendar, Case follow-up and privacy; reference evidence, not a cross-OS pixel gate
 - [2026-08-22 UI visual baseline](reviews/ui-visual-baseline-2026-08-22.md) — superseded by C4 and kept unchanged as historical C3 evidence: thirteen warm-theme desktop/mobile references for the prior corrected date-column calendar, Case follow-up, booking Steps 1–3, privacy, dual-field lookup, cancellation cutoff/fallback and success result

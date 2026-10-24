@@ -22,6 +22,74 @@ function sheets(entries) {
 }
 
 describe('token extraction', () => {
+  it('keeps non-root targets out of root scope', () => {
+    const selectors = [
+      'a:not(:root)',
+      ':root .card',
+      ':root>.card',
+      ':root+.card',
+      ':root~.card',
+      ':root||.card',
+      ':root::before',
+      ':rooted',
+      ':root()',
+      '.card[data-claim=":root"]',
+      '.\\:root'
+    ];
+    for (const selector of selectors) {
+      const source = `${selector} { --local: 1rem; color: #abcdef; }`;
+      expect(definedTokens(source).has('--local')).toBe(false);
+      expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+    }
+  });
+
+  it('does not exempt a mixed root and component selector', () => {
+    const source = ':root, .card { --global: 1rem; color: #abcdef; }';
+    expect(definedTokens(source).has('--global')).toBe(true);
+    expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+  });
+
+  it('keeps actual root compound and functional selectors', () => {
+    const selectors = [
+      ':root[data-theme="dark"]',
+      ':root:has(.card)',
+      ':is(:root)',
+      ':where(html:root, :root.theme)'
+    ];
+    for (const selector of selectors) {
+      const source = `${selector} { --global: 1rem; color: #abcdef; }`;
+      expect(definedTokens(source).has('--global')).toBe(true);
+      expect(outsideRootBlocks(source)).not.toContain('color: #abcdef');
+    }
+  });
+
+  it('ignores quoted braces and commented root claims', () => {
+    const source = `
+      /* :root { --ghost: 1rem; } */
+      :root { --json: "🧪}"; --space-a: 1rem; }
+      /* @property --registered-ghost { syntax: "*"; } */
+    `;
+    expect([...definedTokens(source)]).toEqual(['--json', '--space-a']);
+  });
+
+  it('rejects root authority inside a component rule', () => {
+    const source = '.wrapper { :root { --local: 1rem; color: #abcdef; } }';
+    expect(definedTokens(source).has('--local')).toBe(false);
+    expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+  });
+
+  it('does not promote a nested component token to global', () => {
+    const source = `
+      :root {
+        --global: 1rem;
+        .card { --local: 1rem; color: #abcdef; }
+      }
+    `;
+    expect(definedTokens(source).has('--global')).toBe(true);
+    expect(definedTokens(source).has('--local')).toBe(false);
+    expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+  });
+
   it('collects tokens declared in a :root block', () => {
     expect([
       ...definedTokens(':root {\n  --colour-ink: #111;\n  --space-2: 8px;\n}')
@@ -170,6 +238,41 @@ describe('token review', () => {
     );
 
     expect(standaloneSheet.violations).toEqual([]);
+  });
+
+  // 2026-10-19：brand-tokens.css 是官網與預約頁共用的 token 定義檔，以 full 樣式表
+  // 掃描。慣例與 styles.css 相同——色值、圓角、陰影的字面值只能寫在 :root（那裡就是
+  // 定義處），元件規則裡出現字面值照樣要擋；而它自成一體（官網也載入它、不載入
+  // styles.css），所以作用域只有它自己的 token。
+  it('lets a token-definition sheet keep literals inside :root only', () => {
+    const definitions = [
+      ':root {',
+      '  --brand-forest: #184f40;',
+      '  --brand-radius-card: 0.75rem;',
+      '  --brand-elevation-card: 0 0.8rem 2rem rgb(22 72 58 / 5%);',
+      '}'
+    ].join('\n');
+    const scope = [...definedTokens(definitions)];
+
+    const clean = planTokenReview(
+      sheets([
+        { name: 'brand-tokens.css', source: definitions, scope, full: true }
+      ])
+    );
+    expect(clean.violations).toEqual([]);
+
+    const leaked = planTokenReview(
+      sheets([
+        {
+          name: 'brand-tokens.css',
+          source: `${definitions}\n.card { color: #184f40; border-radius: 12px; }`,
+          scope,
+          full: true
+        }
+      ])
+    );
+    expect(leaked.violations.join('\n')).toContain('#184f40');
+    expect(leaked.violations.join('\n')).toContain('12px');
   });
 
   // scope 規則對兩種樣式表都適用：用了沒定義的 token，宣告一樣會靜默失效。

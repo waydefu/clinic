@@ -61,22 +61,48 @@ export class InMemoryWatchAdapter implements SyntheticWatchAdapter {
   }
 }
 
+export interface WatchDedupeCapacity {
+  readonly maxEntries: number;
+  readonly warningAtEntries: number;
+}
+
 export interface WatchLifecycleState {
   readonly current?: WatchChannelRecord;
   readonly overlapping?: WatchChannelRecord;
   readonly seenNotifications: ReadonlySet<string>;
   readonly seenEvents: ReadonlySet<string>;
+  readonly notificationEvents: ReadonlyMap<string, string>;
+  readonly inFlightEvents: ReadonlySet<string>;
+  /** Keep the latest registered expiry even after overlap retirement. */
+  readonly retentionExpirationMs: number;
+  readonly capacity?: WatchDedupeCapacity;
 }
 
-export function emptyWatchLifecycleState(): WatchLifecycleState {
+export function emptyWatchLifecycleState(
+  capacity?: WatchDedupeCapacity
+): WatchLifecycleState {
+  if (
+    capacity !== undefined &&
+    (!Number.isSafeInteger(capacity.maxEntries) ||
+      capacity.maxEntries < 2 ||
+      !Number.isSafeInteger(capacity.warningAtEntries) ||
+      capacity.warningAtEntries < 1 ||
+      capacity.warningAtEntries >= capacity.maxEntries)
+  )
+    throw new Error('Watch dedupe capacity requires finite explicit limits.');
   return {
     seenNotifications: new Set(),
-    seenEvents: new Set()
+    seenEvents: new Set(),
+    notificationEvents: new Map(),
+    inFlightEvents: new Set(),
+    retentionExpirationMs: 0,
+    ...(capacity === undefined ? {} : { capacity: { ...capacity } })
   };
 }
 
 export async function renewWatchChannelWithOverlap(input: {
   readonly adapter: SyntheticWatchAdapter;
+  readonly state: WatchLifecycleState;
   readonly current: WatchChannelRecord;
   readonly nextChannelId: string;
   readonly nowMs: number;
@@ -85,28 +111,64 @@ export async function renewWatchChannelWithOverlap(input: {
   readonly state: WatchLifecycleState;
   readonly renewed: boolean;
 }> {
+  if (
+    input.state.current !== undefined &&
+    (input.state.current.channelId !== input.current.channelId ||
+      input.state.current.calendarId !== input.current.calendarId ||
+      input.state.current.expirationMs !== input.current.expirationMs)
+  )
+    throw new Error('Watch renewal must use the current state.');
   const plan = planWatchChannelReplacement(
     input.current,
     input.nextChannelId,
     input.nowMs
   );
+  const retentionExpirationMs = Math.max(
+    input.state.retentionExpirationMs,
+    input.current.expirationMs
+  );
   if (!plan.renew) {
     return {
       renewed: false,
-      state: {
-        current: input.current,
-        seenNotifications: new Set(),
-        seenEvents: new Set()
-      }
+      state: { ...input.state, current: input.current, retentionExpirationMs }
     };
   }
-  const next = await input.adapter.watch({
+  if (input.state.overlapping !== undefined)
+    throw new Error('Retire the existing overlap before renewing again.');
+  if (
+    !Number.isSafeInteger(input.nowMs) ||
+    !Number.isSafeInteger(input.nextExpirationMs) ||
+    input.nextExpirationMs <= input.nowMs
+  )
+    throw new Error('Replacement watch expiry must be a future timestamp.');
+  const next: unknown = await input.adapter.watch({
     channelId: plan.nextChannelId,
     expirationMs: input.nextExpirationMs
   });
+  // An adapter response must be usable before it can replace the known channel.
+  // Rejection leaves caller state intact; do not stop an unverified resource.
+  if (
+    next === null ||
+    typeof next !== 'object' ||
+    Array.isArray(next) ||
+    !('channelId' in next) ||
+    typeof next.channelId !== 'string' ||
+    next.channelId !== plan.nextChannelId ||
+    !('resourceId' in next) ||
+    typeof next.resourceId !== 'string' ||
+    next.resourceId.trim() === '' ||
+    !('expirationMs' in next) ||
+    typeof next.expirationMs !== 'number' ||
+    !Number.isSafeInteger(next.expirationMs) ||
+    next.expirationMs <= input.nowMs ||
+    !('retired' in next) ||
+    next.retired !== false
+  )
+    throw new Error('Watch replacement response is unusable.');
   return {
     renewed: true,
     state: {
+      ...input.state,
       current: {
         channelId: next.channelId,
         resourceId: next.resourceId,
@@ -115,8 +177,7 @@ export async function renewWatchChannelWithOverlap(input: {
         token: input.current.token
       },
       overlapping: input.current,
-      seenNotifications: new Set(),
-      seenEvents: new Set()
+      retentionExpirationMs: Math.max(retentionExpirationMs, next.expirationMs)
     }
   };
 }
@@ -127,17 +188,19 @@ export async function retireOverlappingWatchChannel(input: {
 }): Promise<WatchLifecycleState> {
   if (input.state.overlapping === undefined) return input.state;
   await input.adapter.stop(input.state.overlapping.channelId);
+  const { overlapping, ...state } = input.state;
   return {
-    ...(input.state.current === undefined
-      ? {}
-      : { current: input.state.current }),
-    seenNotifications: input.state.seenNotifications,
-    seenEvents: input.state.seenEvents
+    ...state,
+    retentionExpirationMs: Math.max(
+      state.retentionExpirationMs,
+      overlapping.expirationMs
+    )
   };
 }
 
 export function acceptWatchNotification(input: {
   readonly state: WatchLifecycleState;
+  readonly nowMs: number;
   readonly channelId: string;
   readonly messageNumber: string;
   readonly calendarId: string;
@@ -147,38 +210,140 @@ export function acceptWatchNotification(input: {
   readonly state: WatchLifecycleState;
   readonly duplicate: boolean;
   readonly knownChannel: boolean;
+  readonly accepted: boolean;
+  readonly httpStatus: 200 | 404 | 503;
+  /** The future ingress must emit this alert before acknowledging new work. */
+  readonly capacityWarning: boolean;
 } {
-  const knownChannel =
-    input.state.current?.channelId === input.channelId ||
-    input.state.overlapping?.channelId === input.channelId;
-  if (!knownChannel) {
-    return { state: input.state, duplicate: false, knownChannel: false };
-  }
+  const state = input.state;
+  const channel = [state.current, state.overlapping].find(
+    (item) =>
+      item?.channelId === input.channelId &&
+      item.calendarId === input.calendarId
+  );
   const notificationKey = notificationDedupeKey(
     input.channelId,
     input.messageNumber
   );
   const eventKey = eventDedupeKey(input.calendarId, input.eventId, input.etag);
   const duplicate =
-    input.state.seenNotifications.has(notificationKey) ||
-    input.state.seenEvents.has(eventKey);
-  const seenNotifications = new Set(input.state.seenNotifications);
-  const seenEvents = new Set(input.state.seenEvents);
-  seenNotifications.add(notificationKey);
-  seenEvents.add(eventKey);
-  return {
+    state.seenNotifications.has(notificationKey) ||
+    state.seenEvents.has(eventKey);
+  const count = state.seenNotifications.size + state.seenEvents.size;
+  const capacityWarning =
+    state.capacity === undefined || count >= state.capacity.warningAtEntries;
+  const result = {
+    state,
     duplicate,
-    knownChannel: true,
+    knownChannel: channel !== undefined,
+    capacityWarning
+  };
+  if (channel === undefined)
+    return { ...result, accepted: false, httpStatus: 404 };
+  if (duplicate) {
+    const bound = state.notificationEvents.get(notificationKey);
+    const pending =
+      state.inFlightEvents.has(eventKey) ||
+      !state.seenEvents.has(eventKey) ||
+      (bound !== undefined && bound !== eventKey);
+    return { ...result, accepted: !pending, httpStatus: pending ? 503 : 200 };
+  }
+  if (
+    !Number.isSafeInteger(input.nowMs) ||
+    !Number.isSafeInteger(channel.expirationMs) ||
+    input.nowMs >= channel.expirationMs
+  )
+    return { ...result, accepted: false, httpStatus: 404 };
+  if (state.capacity === undefined || count + 2 > state.capacity.maxEntries)
+    return {
+      ...result,
+      accepted: false,
+      httpStatus: 503,
+      capacityWarning: true
+    };
+  return {
+    ...result,
+    accepted: true,
+    httpStatus: 200,
+    capacityWarning: count + 2 >= state.capacity.warningAtEntries,
     state: {
-      ...(input.state.current === undefined
-        ? {}
-        : { current: input.state.current }),
-      ...(input.state.overlapping === undefined
-        ? {}
-        : { overlapping: input.state.overlapping }),
-      seenNotifications,
-      seenEvents
+      ...state,
+      seenNotifications: new Set([...state.seenNotifications, notificationKey]),
+      seenEvents: new Set([...state.seenEvents, eventKey]),
+      notificationEvents: new Map([
+        ...state.notificationEvents,
+        [notificationKey, eventKey]
+      ]),
+      inFlightEvents: new Set([...state.inFlightEvents, eventKey]),
+      retentionExpirationMs: Math.max(
+        state.retentionExpirationMs,
+        channel.expirationMs
+      )
     }
+  };
+}
+
+/** Only successful processing settles a reservation; failure retains it for retry. */
+export function completeWatchEvent(input: {
+  readonly state: WatchLifecycleState;
+  readonly calendarId: string;
+  readonly eventId: string;
+  readonly etag: string;
+}): WatchLifecycleState {
+  const key = eventDedupeKey(input.calendarId, input.eventId, input.etag);
+  if (!input.state.seenEvents.has(key))
+    throw new Error('Only admitted watch work can be completed.');
+  if (!input.state.inFlightEvents.has(key)) return input.state;
+  const inFlightEvents = new Set(input.state.inFlightEvents);
+  inFlightEvents.delete(key);
+  return { ...input.state, inFlightEvents };
+}
+
+/** No unconditional TTL: an authorised, evidenced retry bound is required. */
+export function pruneWatchDedupe(input: {
+  readonly state: WatchLifecycleState;
+  readonly nowMs: number;
+  readonly retryHorizon?: {
+    readonly maxRetryMs: number;
+    readonly evidenceRef: string;
+  };
+  /** Inject only an authority-backed resolver, never notification input. */
+  readonly retryHorizonAuthority?: {
+    approvedMaxRetryMs(evidenceRef: string): number | undefined;
+  };
+}): WatchLifecycleState {
+  const proof = input.retryHorizon;
+  if (proof === undefined) return input.state;
+  if (
+    !Number.isSafeInteger(input.nowMs) ||
+    !Number.isSafeInteger(proof.maxRetryMs) ||
+    proof.maxRetryMs < 0 ||
+    !/^[A-Za-z0-9_-]{1,128}$/u.test(proof.evidenceRef)
+  )
+    throw new Error('Watch retry horizon requires a valid evidenced bound.');
+  if (
+    input.retryHorizonAuthority?.approvedMaxRetryMs(proof.evidenceRef) !==
+    proof.maxRetryMs
+  )
+    return input.state;
+  const expiry = Math.max(
+    input.state.retentionExpirationMs,
+    input.state.current?.expirationMs ?? 0,
+    input.state.overlapping?.expirationMs ?? 0
+  );
+  const horizon = expiry + proof.maxRetryMs;
+  if (
+    expiry === 0 ||
+    !Number.isSafeInteger(horizon) ||
+    input.nowMs <= horizon ||
+    input.state.inFlightEvents.size !== 0
+  )
+    return input.state;
+  return {
+    ...input.state,
+    seenNotifications: new Set(),
+    seenEvents: new Set(),
+    notificationEvents: new Map()
   };
 }
 

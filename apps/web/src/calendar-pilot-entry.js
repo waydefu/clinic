@@ -1,4 +1,4 @@
-import '../public/modules/trusted-html.js';
+import { assertRenderable } from '../public/modules/trusted-html.js';
 import { getApps, initializeApp } from 'firebase/app';
 import {
   GoogleAuthProvider,
@@ -206,7 +206,7 @@ function promptTotp({ enrollmentKey } = {}) {
   return new Promise((resolve) => {
     const region = root.querySelector('[data-otp-region]');
     region.hidden = false;
-    region.innerHTML = `
+    region.innerHTML = assertRenderable(`
       <div class="cp-otp">
         <h2>${enrollmentKey ? '設定驗證器' : '輸入動態驗證碼'}</h2>
         ${enrollmentKey ? `<p>請在驗證器 App 新增下列金鑰；金鑰只顯示這一次。</p><code class="cp-secret">${escapeHtml(enrollmentKey)}</code>` : ''}
@@ -214,7 +214,7 @@ function promptTotp({ enrollmentKey } = {}) {
           <label class="cp-full">6 位數驗證碼<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required /></label>
           <button class="cp-button cp-button-primary cp-full" type="submit">驗證並繼續</button>
         </form>
-      </div>`;
+      </div>`);
     region.querySelector('[data-otp-form]').addEventListener(
       'submit',
       (event) => {
@@ -334,18 +334,18 @@ function showLogin(statusMessage) {
 }
 
 function bootStatusView(message) {
-  root.innerHTML = `
+  root.innerHTML = assertRenderable(`
     <main class="cp-login" aria-labelledby="cp-boot-heading">
       <section class="cp-login-card">
         <h1 id="cp-boot-heading">CAL-PILOT</h1>
         <p data-login-status role="status" aria-live="polite">${escapeHtml(message)}</p>
         <div data-otp-region hidden></div>
       </section>
-    </main>`;
+    </main>`);
 }
 
 function loginView() {
-  root.innerHTML = `
+  root.innerHTML = assertRenderable(`
     <main class="cp-login" aria-labelledby="cp-login-heading">
       <section class="cp-login-card">
         <img src="/assets/brand-mark.webp" alt="" width="57" height="80" />
@@ -356,7 +356,7 @@ function loginView() {
         <p data-login-status role="status" aria-live="polite"></p>
         <div data-otp-region hidden></div>
       </section>
-    </main>`;
+    </main>`);
   root
     .querySelector('[data-google-login]')
     .addEventListener('click', async () => {
@@ -376,7 +376,9 @@ function loginView() {
 function sourceItem(source) {
   const item = document.createElement('li');
   item.className = 'cp-list-item';
-  item.innerHTML = `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p></div><div class="cp-actions"></div></div>`;
+  item.innerHTML = assertRenderable(
+    `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p></div><div class="cp-actions"></div></div>`
+  );
   item.querySelector('strong').textContent = source.displayName;
   item.querySelector('p').textContent = source.active
     ? `目前來源・版本 ${source.version}`
@@ -478,7 +480,9 @@ function candidateItem(candidate, correctionContext) {
   item.className = 'cp-list-item cp-event';
   item.dataset.status = candidate.status;
   item.dataset.candidateType = candidateCategory(candidate);
-  item.innerHTML = `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p><dl class="cp-diff" data-candidate-diff></dl><ul class="cp-validation" data-validation-errors></ul></div><div class="cp-actions"></div></div>`;
+  item.innerHTML = assertRenderable(
+    `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p><dl class="cp-diff" data-candidate-diff></dl><ul class="cp-validation" data-validation-errors></ul></div><div class="cp-actions"></div></div>`
+  );
   item.querySelector('strong').textContent = candidate.displayLabel;
   const range =
     candidate.startsAt === null
@@ -614,7 +618,7 @@ window.addEventListener(
 
 function openCorrectionDrawer(candidate, context) {
   const dialog = root.querySelector('[data-correction-dialog]');
-  dialog.innerHTML = `
+  dialog.innerHTML = assertRenderable(`
     <form class="cp-correction" data-correction-form>
       <div class="cp-row"><div><p class="cp-kicker">格式需修正</p><h2>受控修正候選</h2></div><button class="cp-button" type="button" data-close-correction>關閉</button></div>
       <p class="cp-alert">只能選合成代碼與封閉欄位；無法輸入姓名、電話、來源、麻醉或臨床文字。</p>
@@ -622,7 +626,7 @@ function openCorrectionDrawer(candidate, context) {
       <fieldset data-appointment-correction><legend>預約</legend><div class="cp-form"><label>合成患者<select name="patientCode"></select></label><label>掛號別<select name="bookingKind"><option value="initial">初診</option><option value="follow_up">回診</option></select></label><label>項目<select name="serviceId"><option value="service_snoring">止鼾</option><option value="service_aesthetic">醫美</option></select></label><label>合法 30 分鐘時段<select name="startsAt"></select></label></div></fieldset>
       <fieldset data-busy-correction hidden><legend>忙碌</legend><div class="cp-form"><label>原因<select name="busyReason"><option value="meeting">會議</option><option value="leave">休假</option><option value="training">教育訓練</option><option value="other">其他</option></select></label><label>時間類型<select name="timeKind"><option value="timed">指定起訖</option><option value="all_day">整天／跨日</option></select></label><label data-timed-field>開始時間（台北）<input name="busyStartsAt" type="datetime-local" step="60" required /></label><label data-timed-field>結束時間（台北）<input name="busyEndsAt" type="datetime-local" step="60" required /></label><label data-all-day-field hidden>開始日期<input name="startDate" type="date" required disabled /></label><label data-all-day-field hidden>結束日期（不含）<input name="endDate" type="date" required disabled /></label></div></fieldset>
       <button class="cp-button cp-button-primary" type="submit">重新檢查並核准</button>
-    </form>`;
+    </form>`);
   dialog
     .querySelector('h2')
     .insertAdjacentText('afterend', `目前：${candidate.displayLabel}`);
@@ -773,7 +777,9 @@ const handOffCandidate = createBookingHandoff({
 function appointmentItem(appointment) {
   const item = document.createElement('li');
   item.className = 'cp-list-item cp-event';
-  item.innerHTML = `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p></div><div class="cp-actions"></div></div>`;
+  item.innerHTML = assertRenderable(
+    `<div class="cp-row"><div><strong></strong><p class="cp-subtle"></p></div><div class="cp-actions"></div></div>`
+  );
   item.querySelector('strong').textContent =
     `${appointment.patientCode}・${appointment.bookingKind === 'initial' ? '初診' : '回診'}・${appointment.serviceId === 'service_snoring' ? '止鼾' : '醫美'}`;
   item.querySelector('p').textContent =
@@ -853,7 +859,7 @@ function toUtc(localValue) {
 }
 
 function applicationSkeleton(isPatient) {
-  root.innerHTML = `
+  root.innerHTML = assertRenderable(`
     <div class="cp-shell">
       <header class="cp-topbar">
         <div class="cp-brand"><img src="/assets/brand-mark.webp" alt="" /><div><strong>一森渼診所</strong><span>CAL-PILOT 合成同步測試</span></div></div>
@@ -867,7 +873,7 @@ function applicationSkeleton(isPatient) {
         <section class="cp-card"><h2>共用時段鏡像</h2><p>文字標籤同時區分預約與忙碌，不只依靠顏色。</p><ul class="cp-list" data-availability></ul></section>
       </main>
       ${isPatient ? '' : '<dialog class="cp-dialog" data-correction-dialog aria-label="受控修正候選"></dialog>'}
-    </div>`;
+    </div>`);
 }
 
 function empty(list, text) {

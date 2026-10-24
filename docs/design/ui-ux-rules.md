@@ -737,29 +737,34 @@ gate。每次擷取必須使用打包後的 `apps/web/dist`、固定的合成 se
 - 截圖不能取代語意／accessible-name、axe、鍵盤、幾何與 reflow、焦點、螢幕閱讀器
   及效能測試；影像看起來正確，不代表流程或可及性正確。
 
-現行基線是
-[2026-08-22 C4 視覺證據](../reviews/ui-visual-c4-2026-08-22.md)與其 manifest：
-共 16 張 reference-only PNG，覆蓋 warm-theme 工作臺開放日／加開例外週曆、Case
-follow-up、booking Step 1～3、月份與上午／中午／晚間、privacy dialog、雙欄位查詢、
-取消確認／電話與社群 fallback 與成功結果。
-它們是人工跨電腦複核的參考
-證據，不是跨 OS 像素 golden；同日較早的
+現行**技術參考圖集**是
+[2026-09-29 CP-01 視覺參考](../reviews/ui-visual-cp01-2026-09-29.md)與其
+[manifest](../reviews/assets/ui-visual-cp01-2026-09-29/manifest.json)：17 張
+reference-only PNG，對應 CP-01 最小化表單後的合成畫面。這是
+`check-structure.mjs` 與 `current-ui.spec.ts` 目前指向的圖集，不是跨 OS 像素 gate，
+也不構成新的業主核准，不能證明後續所有 UI 變更已驗收。
+
+設計核准與技術參考必須分開：
+[2026-08-22 C4](../reviews/ui-visual-c4-2026-08-22.md) 保留當時的核准脈絡與
+16 張 reference-only PNG，不因 CP-01 重拍而改寫或取得新的核准；同日較早的
 [C3](../reviews/ui-visual-baseline-2026-08-22.md) 與更早的日期截圖（含
 [2026-08-20](../reviews/ui-visual-baseline-2026-08-20.md)、
 [2026-08-10](../reviews/ui-visual-baseline-2026-08-10.md)、
 [2026-08-07](../reviews/ui-visual-baseline-2026-08-07.md)、
 [2026-08-06](../reviews/ui-visual-baseline-2026-08-06.md) 與
-[2026-07-28](../reviews/ui-visual-baseline-2026-07-28.md) 五批）仍只算歷史證據。
+[2026-07-28](../reviews/ui-visual-baseline-2026-07-28.md) 五批）也保留為歷史證據。
 
-**基線是 approval artifact，不是「最新的截圖」。** 重拍的流程是：先擷到新的
-evidence id 目錄（舊目錄因此不會被動到）、與前一份逐張 diff、確認每一處差異都是
-預期的，最後才把 required paths 指過去。C4 即使與 C3 同為 2026-08-22，仍使用
-`ui-visual-c4-2026-08-22` 新目錄，沒有就地改寫 C3 或更早的 historical evidence。
+**核准基線是 approval artifact，不是「最新的截圖」。** 重拍技術參考圖集時，先擷到
+新的 evidence id 目錄（舊目錄因此不會被動到）、與前一份逐張 diff，確認每一處差異
+都是預期的並說明原因，再同步技術指向；這個動作不能取代所需的業主核准。
+C4 即使與 C3 同為 2026-08-22，
+仍使用 `ui-visual-c4-2026-08-22` 新目錄，沒有就地改寫 C3 或更早的歷史證據。
 
-**重拍基線時，evidence id 在四個地方**：`current-ui.spec.ts` 的 `EVIDENCE_ID`、
-`check-structure.mjs` 的 required paths 與 `visualBaselineDirectory`、新的基準文件，
-以及本段的指向。`capture:ui` 會**就地覆寫** `EVIDENCE_ID` 指到的目錄——忘了換 id
-就跑，會把舊基線的圖換掉。跑之前先確認工作區乾淨，跑完看 `git status`。
+**重拍時需同步六處技術指向**：`current-ui.spec.ts` 的 `EVIDENCE_ID`、
+`check-structure.mjs` 的 required paths 與 `visualBaselineDirectory`、新的參考文件、
+本段、`test-only-operations-ui.md` 與 `docs/README.md`。`capture:ui` 會**就地覆寫**
+`EVIDENCE_ID` 指到的目錄——忘了換 id 就跑，會把舊圖換掉。跑之前先確認工作區乾淨，
+跑完看 `git status`。
 
 ## 6. 例外處理
 

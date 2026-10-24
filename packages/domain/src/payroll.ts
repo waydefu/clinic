@@ -325,15 +325,6 @@ function assertPayrollPeriod(value: string): void {
   }
 }
 
-function assertCloseUtcTimestamp(value: string, fieldName: string): void {
-  if (!value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
-    throw new DomainError(
-      'INVALID_TIMESTAMP',
-      `${fieldName} must be a valid UTC ISO-8601 timestamp.`
-    );
-  }
-}
-
 /**
  * A locked snapshot of one manager's payroll period.
  *
@@ -424,10 +415,12 @@ export function payrollTotalAfterAdjustments(
   snapshot: PayrollPeriodSnapshot,
   adjustments: readonly PayrollAdjustment[]
 ): number {
+  assertUtcTimestamp(snapshot.closedAt, 'snapshot.closedAt');
   const ordered = [...adjustments].sort((a, b) => a.sequence - b.sequence);
   let total = snapshot.creditCount;
 
   for (const [index, adjustment] of ordered.entries()) {
+    assertUtcTimestamp(adjustment.recordedAt, 'adjustment.recordedAt');
     if (
       adjustment.periodId !== snapshot.id ||
       adjustment.managerId !== snapshot.managerId ||
@@ -505,7 +498,7 @@ export function planPayrollPeriodClose(
 ): PayrollPeriodClosePlan {
   assertOpaqueIdentifier(request.managerId, 'managerId');
   assertPayrollPeriod(request.payrollPeriod);
-  assertCloseUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertUtcTimestamp(request.requestedAt, 'requestedAt');
   assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
   if (current !== undefined) {
@@ -568,7 +561,7 @@ export function planPayrollAdjustment(
 ): PayrollAdjustmentPlan {
   assertOpaqueIdentifier(request.managerId, 'managerId');
   assertPayrollPeriod(request.payrollPeriod);
-  assertCloseUtcTimestamp(request.requestedAt, 'requestedAt');
+  assertUtcTimestamp(request.requestedAt, 'requestedAt');
   assertIdempotencyContext(request.idempotency, request.audit.actorId);
 
   if (closed === undefined || closed.status !== 'locked') {

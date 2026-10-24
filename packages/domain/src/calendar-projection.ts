@@ -1,6 +1,10 @@
 import { fromCalendarEventId, isCalendarEventId } from './calendar-event-id.js';
-import { CALENDAR_ENTRY_SEPARATOR } from './calendar-sync.js';
+import {
+  CALENDAR_ENTRY_SEPARATOR,
+  parseRfc3339Timestamp
+} from './calendar-sync.js';
 import { SLOT_MINUTE_MARKS } from './schedule.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 import type { BookingKind } from './booking-transaction.js';
 
 /**
@@ -313,8 +317,8 @@ export function extractCalendarEventRange(
   const start = event.start?.dateTime;
   const end = event.end?.dateTime;
   if (typeof start !== 'string' || typeof end !== 'string') return undefined;
-  const startMs = Date.parse(start);
-  const endMs = Date.parse(end);
+  const startMs = parseRfc3339Timestamp(start);
+  const endMs = parseRfc3339Timestamp(end);
   if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs)
     return undefined;
   return {
@@ -404,7 +408,7 @@ export function isOnBookingKindGrid(
   startsAt: string,
   bookingKind: BookingKind
 ): boolean {
-  if (Number.isNaN(Date.parse(startsAt))) return false;
+  if (!isUtcIsoTimestamp(startsAt)) return false;
   return SLOT_MINUTE_MARKS[bookingKind].includes(taipeiMinute(startsAt));
 }
 

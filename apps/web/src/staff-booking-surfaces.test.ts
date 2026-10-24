@@ -26,7 +26,7 @@ describe('public booking vs staff surfaces', () => {
         hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: '?internalTestBooking=1'
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isInternalTestBookingEnabled({
         protocol: 'https:',
@@ -121,7 +121,24 @@ describe('public booking vs staff surfaces', () => {
     expect(loader).toContain("location.pathname === '/booking'");
     expect(loader).not.toContain("sessionStorage.getItem('calPilotCsrf')");
     expect(apiClient).toContain('beauessence-clinic-stg-');
-    expect(apiClient).toContain("hostname.includes('--')");
+    for (const pathname of ['/staff', '/booking']) {
+      const location = {
+        protocol: 'https:',
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        port: '',
+        pathname,
+        search: ''
+      };
+      expect(isInternalTestBookingEnabled(location)).toBe(true);
+      expect(
+        isInternalTestBookingEnabled({
+          ...location,
+          hostname: 'beauessence-clinic-stg-c1a01--unapproved.web.app',
+          search: '?internalTestBooking=1'
+        })
+      ).toBe(false);
+    }
     expect(transport).toContain("path === '/booking'");
     expect(transport).toContain("publicBooking ? 'omit' : 'same-origin'");
     const client = readFileSync(

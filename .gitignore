@@ -13,9 +13,17 @@ coverage/
 !.env.example
 *.pem
 *.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
 service-account*.json
 # Safe local drop for Google service-account keys; nothing here is committed.
 secrets/
+cal-pilot-keys/
 
 # Patient, payroll, backup, and local exports
 exports/
@@ -45,6 +53,19 @@ output/playwright/
 !*.tfvars.example
 # Machine-readable verification evidence is generated per run/deployment.
 output/evidence/
+# 美學計分的量測結果與截圖（scripts/design-score）。不放 test-results：Playwright 每次執行都會清空那裡。
+output/design-score/
+# 設計方向樣板（原型，不出貨）。
+output/style-tiles/
+# 地圖產生器的 OpenStreetMap 原始資料（scripts/build-visit-map.mjs 的輸入，約 480 KB）。
+output/map-data/
+# 圖示、器材與牙套去背的預覽與中間檔，以及本機 E2E 紀錄（2026-10-12）。
+output/icons/
+output/devices/
+output/mouthguard/
+output/e2e-run*.txt
+output/map-check/
+output/*.log
 # Playwright run artifacts
 test-results/
 playwright-report/
