@@ -485,43 +485,39 @@ export function createInternalTestBookingTransport({
         (Array.isArray(localResult?.appointments) &&
           Array.isArray(localResult?.slots));
       if (!overlay) return localResult;
-      try {
-        const next = overlayListedSlots(
-          localResult,
-          await v1({ url: '/v1/slots', method: 'GET' })
-        );
-        const published = await v1({
-          url: '/v1/schedule',
-          method: 'GET'
-        }).catch(() => undefined);
-        const listed = await v1({
-          url: '/v1/bookings',
-          method: 'GET'
-        }).catch(() => ({ appointments: [] }));
-        const withSchedule =
-          published === undefined
-            ? next
-            : overlayPublishedSchedule(next, published);
-        return {
-          ...withSchedule,
-          appointments: (listed?.appointments ?? []).map((item) => ({
-            id: item.appointmentId,
-            slotId: item.slotId ?? item.appointmentId,
-            startsAt: item.startsAt,
-            patientId: item.patientId,
-            bookingKind: item.bookingKind,
-            status: item.status,
-            intakeNationality: item.intakeNationality,
-            // 患者在預約表單自填的備註（BOOKING-NOTE-STORAGE-2026-09-29）：
-            // 伺服器只在櫃台清單回傳；這裡不帶，工作臺就永遠看不到它。
-            ...(typeof item.patientNote === 'string' && item.patientNote !== ''
-              ? { patientNote: item.patientNote }
-              : {})
-          }))
-        };
-      } catch {
-        return { ...localResult, slots: [], appointments: [] };
-      }
+      const next = overlayListedSlots(
+        localResult,
+        await v1({ url: '/v1/slots', method: 'GET' })
+      );
+      const published = await v1({
+        url: '/v1/schedule',
+        method: 'GET'
+      });
+      const listed = await v1({
+        url: '/v1/bookings',
+        method: 'GET'
+      });
+      const withSchedule =
+        published === undefined
+          ? next
+          : overlayPublishedSchedule(next, published);
+      return {
+        ...withSchedule,
+        appointments: (listed?.appointments ?? []).map((item) => ({
+          id: item.appointmentId,
+          slotId: item.slotId ?? item.appointmentId,
+          startsAt: item.startsAt,
+          patientId: item.patientId,
+          bookingKind: item.bookingKind,
+          status: item.status,
+          intakeNationality: item.intakeNationality,
+          // 患者在預約表單自填的備註（BOOKING-NOTE-STORAGE-2026-09-29）：
+          // 伺服器只在櫃台清單回傳；這裡不帶，工作臺就永遠看不到它。
+          ...(typeof item.patientNote === 'string' && item.patientNote !== ''
+            ? { patientNote: item.patientNote }
+            : {})
+        }))
+      };
     }
     const payload = await requestV1(fetchImpl, mapped, {
       signal: options.signal,

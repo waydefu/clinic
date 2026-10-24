@@ -685,7 +685,7 @@ describe('createInternalTestBookingTransport', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('keeps /state on the local store and maps a 503 through the v1 envelope', async () => {
+  it('rejects /state on a 503 read and maps the v1 error envelope', async () => {
     const local = vi.fn(() => Promise.resolve({ version: 8 }));
     const fetchImpl = vi.fn(() =>
       Promise.resolve({
@@ -707,10 +707,10 @@ describe('createInternalTestBookingTransport', () => {
       fetchImpl
     });
 
-    await expect(transport('/state')).resolves.toEqual({
-      version: 8,
-      slots: [],
-      appointments: []
+    await expect(transport('/state')).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+      retryable: true,
+      correlationId: 'corr_gate'
     });
     expect(fetchImpl).toHaveBeenCalled();
     await expect(
@@ -748,11 +748,140 @@ describe('createInternalTestBookingTransport', () => {
       toError: httpTransportError,
       fetchImpl
     });
-    await expect(transport('/state')).resolves.toEqual({
+    await expect(transport('/state')).rejects.toMatchObject({
+      code: 'UNAUTHENTICATED'
+    });
+    expect(local).toHaveBeenCalledOnce();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  const stateReadFailures: Array<{
+    endpoint: string;
+    label: string;
+    status?: number;
+    network?: boolean;
+  }> = [
+    { endpoint: '/v1/slots', label: 'slots HTTP 401', status: 401 },
+    { endpoint: '/v1/slots', label: 'slots HTTP 403', status: 403 },
+    { endpoint: '/v1/slots', label: 'slots HTTP 503', status: 503 },
+    { endpoint: '/v1/slots', label: 'slots network failure', network: true },
+    { endpoint: '/v1/schedule', label: 'schedule HTTP 401', status: 401 },
+    { endpoint: '/v1/schedule', label: 'schedule HTTP 403', status: 403 },
+    { endpoint: '/v1/schedule', label: 'schedule HTTP 503', status: 503 },
+    { endpoint: '/v1/schedule', label: 'schedule network failure', network: true },
+    { endpoint: '/v1/bookings', label: 'bookings HTTP 401', status: 401 },
+    { endpoint: '/v1/bookings', label: 'bookings HTTP 403', status: 403 },
+    { endpoint: '/v1/bookings', label: 'bookings HTTP 503', status: 503 },
+    { endpoint: '/v1/bookings', label: 'bookings network failure', network: true }
+  ];
+
+  it.each(stateReadFailures)(
+    'propagates $label from /state instead of returning local empties',
+    async ({ endpoint, status, network }) => {
+      const reads: string[] = [];
+      const local = vi.fn(() =>
+        Promise.resolve({
+          version: 8,
+          slots: [{ id: 'local_slot' }],
+          appointments: [{ id: 'local_appointment' }]
+        })
+      );
+      const fetchImpl = vi.fn((url: string) => {
+        reads.push(url);
+        if (url === endpoint) {
+          if (network)
+            return Promise.reject(new TypeError('synthetic network failure'));
+          const code =
+            status === 401
+              ? 'UNAUTHENTICATED'
+              : status === 403
+                ? 'FORBIDDEN'
+                : 'SERVICE_UNAVAILABLE';
+          return Promise.resolve({
+            ok: false,
+            status,
+            json: () =>
+              Promise.resolve({
+                error: { code, message: 'synthetic read failure' }
+              })
+          });
+        }
+        if (url === '/v1/slots') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ slots: [] })
+          });
+        }
+        if (url === '/v1/schedule') {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                publishedVersion: 1,
+                publishedAt: '2030-01-01T00:00:00.000Z',
+                schedule: { timeZone: 'Asia/Taipei' }
+              })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ appointments: [] })
+        });
+      });
+      const transport = createInternalTestBookingTransport({
+        local,
+        toError: httpTransportError,
+        fetchImpl
+      });
+
+      await expect(transport('/state')).rejects.toBeInstanceOf(Error);
+      expect(local).toHaveBeenCalledOnce();
+      const orderedReads = ['/v1/slots', '/v1/schedule', '/v1/bookings'];
+      expect(reads).toEqual(
+        orderedReads.slice(0, orderedReads.indexOf(endpoint) + 1)
+      );
+    }
+  );
+
+  it('keeps valid empty arrays from the three reads as a successful empty state', async () => {
+    const local = vi.fn(() => Promise.resolve({ version: 8, slots: [] }));
+    const fetchImpl = vi.fn((url: string) => {
+      if (url === '/v1/slots') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ slots: [] })
+        });
+      }
+      if (url === '/v1/schedule') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              publishedVersion: 1,
+              publishedAt: '2030-01-01T00:00:00.000Z',
+              schedule: { timeZone: 'Asia/Taipei' }
+            })
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ appointments: [] })
+      });
+    });
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+
+    await expect(transport('/state')).resolves.toMatchObject({
       version: 8,
       slots: [],
-      appointments: []
+      appointments: [],
+      schedule: { timeZone: 'Asia/Taipei' },
+      scheduleMeta: { publishedVersion: 1 }
     });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
   it('omits cookies on the public booking path so staff sessions stay separated', async () => {
@@ -811,11 +940,8 @@ describe('createInternalTestBookingTransport', () => {
         method: 'POST',
         body: JSON.stringify({ username: 'admin', password: 'secret' })
       })
-    ).resolves.toEqual({
-      version: 8,
-      appointments: [],
-      slots: []
-    });
+    ).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    expect(local).toHaveBeenCalledOnce();
   });
 
   it('overlays listed slots onto local /state when the gate answers', async () => {
