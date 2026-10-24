@@ -55,6 +55,8 @@ type CapturedPost = {
   body?: Record<string, unknown>;
 };
 
+type StateReadName = 'slots' | 'schedule' | 'bookings';
+type StateReadFailure = 401 | 403 | 503 | 'network';
 type PublishStub =
   | 'closed'
   | {
@@ -90,6 +92,7 @@ async function stubV1(
     listBookings?: () => ContractBooking[];
     publish?: PublishStub;
     returnLookup?: ReturnLookupStub;
+    readFailures?: Partial<Record<StateReadName, StateReadFailure>>;
   } = {}
 ): Promise<{
   body?: Record<string, unknown>;
@@ -130,11 +133,61 @@ async function stubV1(
     publish: {},
     returnLookup: {}
   };
+  const failedReads = new Set<StateReadName>();
   await page.route('**/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const method = route.request().method();
-    if (path === '/v1/slots' && occupancy !== 'closed') {
+    const readName: StateReadName | undefined =
+      path === '/v1/slots'
+        ? 'slots'
+        : path === '/v1/schedule'
+          ? 'schedule'
+          : path === '/v1/bookings' && method === 'GET'
+            ? 'bookings'
+            : undefined;
+    const readFailure =
+      readName === undefined ? undefined : extras.readFailures?.[readName];
+    if (
+      method === 'GET' &&
+      readName !== undefined &&
+      readFailure !== undefined &&
+      !failedReads.has(readName)
+    ) {
+      failedReads.add(readName);
+      if (readFailure === 'network') {
+        await route.abort();
+        return;
+      }
+      const code =
+        readFailure === 401
+          ? 'UNAUTHENTICATED'
+          : readFailure === 403
+            ? 'FORBIDDEN'
+            : 'SERVICE_UNAVAILABLE';
+      await route.fulfill({
+        status: readFailure,
+        json: { error: { code, message: 'synthetic read failure' } }
+      });
+      return;
+    }
+    if (path === '/v1/slots' && method === 'GET' && occupancy !== 'closed') {
       await route.fulfill({ json: occupancy });
+      return;
+    }
+    if (path === '/v1/schedule' && method === 'GET') {
+      await route.fulfill({
+        json: {
+          publishedVersion: 1,
+          publishedAt: '2030-01-01T00:00:00.000Z',
+          schedule: { timeZone: 'Asia/Taipei' }
+        }
+      });
+      return;
+    }
+    if (path === '/v1/bookings' && method === 'GET') {
+      await route.fulfill({
+        json: { appointments: extras.listBookings?.() ?? [] }
+      });
       return;
     }
     if (path === '/v1/bookings' && method === 'POST') {
@@ -182,14 +235,6 @@ async function stubV1(
         await route.fulfill({ status: 200, json: stub });
         return;
       }
-    }
-    if (
-      path === '/v1/bookings' &&
-      method === 'GET' &&
-      extras.listBookings !== undefined
-    ) {
-      await route.fulfill({ json: { appointments: extras.listBookings() } });
-      return;
     }
     const query = /^\/v1\/bookings\/[^/]+$/.exec(path);
     if (method === 'GET' && query !== null && extras.getBooking !== undefined) {
@@ -326,10 +371,10 @@ test.describe('internal-test booking occupancy overlay', () => {
     ).not.toContainText('INTERNAL TEST');
   });
 
-  test('opt-in with a closed slot list hides the synthetic bookable grid', async ({
+  test('opt-in with valid empty read arrays shows the successful empty state', async ({
     page
   }) => {
-    await stubV1(page, 'closed');
+    await stubV1(page, { slots: [] });
     await page.goto('/booking?internalTestBooking=1');
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
@@ -337,12 +382,198 @@ test.describe('internal-test booking occupancy overlay', () => {
     await openPatientSlotStep(page);
     await expect(page.getByText('目前沒有可預約時段')).toBeVisible();
     await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '重試' })).toHaveCount(0);
     await expect(page.locator('#patient-env-boundary')).toHaveText(
       '內部測試路由 · 非正式上線'
     );
     await expect(
       page.locator('.patient-notice .environment-badge')
     ).toContainText('INTERNAL TEST');
+  });
+
+  const fixedReadSlot = {
+    slotId: 'slot_retry_open',
+    kind: 'initial',
+    startsAt: '2030-01-02T04:00:00.000Z',
+    available: true
+  };
+  const stateReadFailures: Array<{
+    endpoint: StateReadName;
+    label: string;
+    failure: StateReadFailure;
+  }> = [
+    { endpoint: 'slots', label: 'slots HTTP 401', failure: 401 },
+    { endpoint: 'slots', label: 'slots HTTP 403', failure: 403 },
+    { endpoint: 'slots', label: 'slots HTTP 503', failure: 503 },
+    { endpoint: 'slots', label: 'slots network failure', failure: 'network' },
+    { endpoint: 'schedule', label: 'schedule HTTP 401', failure: 401 },
+    { endpoint: 'schedule', label: 'schedule HTTP 403', failure: 403 },
+    { endpoint: 'schedule', label: 'schedule HTTP 503', failure: 503 },
+    { endpoint: 'schedule', label: 'schedule network failure', failure: 'network' },
+    { endpoint: 'bookings', label: 'bookings HTTP 401', failure: 401 },
+    { endpoint: 'bookings', label: 'bookings HTTP 403', failure: 403 },
+    { endpoint: 'bookings', label: 'bookings HTTP 503', failure: 503 },
+    { endpoint: 'bookings', label: 'bookings network failure', failure: 'network' }
+  ];
+
+  for (const readFailure of stateReadFailures) {
+    test(`initial ${readFailure.label} shows a retry and recovers without mutation`, async ({
+      page
+    }) => {
+      await page.clock.install({ time: new Date('2030-01-01T00:00:00.000Z') });
+      await page.addInitScript(() => window.localStorage.clear());
+      const posted = await stubV1(
+        page,
+        { slots: [fixedReadSlot] },
+        'closed',
+        {},
+        { readFailures: { [readFailure.endpoint]: readFailure.failure } }
+      );
+      await page.goto('/booking?internalTestBooking=1');
+
+      await expect(page.locator('#patient-status')).toContainText(
+        '無法載入診所預約資料'
+      );
+      await expect(page.getByRole('button', { name: '重試' })).toBeVisible();
+      await expect(page.locator('#patient-slots')).toContainText('無法載入門診時段');
+      await expect(page.locator('#patient-slots')).not.toContainText('目前沒有可預約時段');
+      await expect(
+        page.locator('#patient-services [data-service]').first()
+      ).toBeDisabled();
+      await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
+
+      await page.getByRole('button', { name: '重試' }).click();
+      await expect(
+        page.locator('[data-booking-type="initial"]')
+      ).toBeEnabled();
+      await openPatientSlotStep(page);
+      await expect(
+        page.locator('[data-patient-slot="slot_retry_open"]')
+      ).toBeVisible();
+      expect(posted.body).toBeUndefined();
+    });
+  }
+
+  test('storage refresh failure removes stale availability and retries reads only', async ({
+    page
+  }, testInfo) => {
+    await page.clock.install({ time: new Date('2030-01-01T00:00:00.000Z') });
+    await page.addInitScript(() => window.localStorage.clear());
+    const readFailures: Partial<Record<StateReadName, StateReadFailure>> = {};
+    const posted = await stubV1(
+      page,
+      { slots: [fixedReadSlot] },
+      'closed',
+      {},
+      { readFailures }
+    );
+    await page.goto('/booking?internalTestBooking=1');
+    await openPatientSlotStep(page);
+    await expect(
+      page.locator('[data-patient-slot="slot_retry_open"]')
+    ).toBeVisible();
+
+    readFailures.slots = 403;
+    const stateKey = await page.evaluate(() => window.localStorage.key(0));
+    expect(stateKey).not.toBeNull();
+    await page.evaluate((key) => {
+      window.dispatchEvent(new StorageEvent('storage', { key }));
+    }, stateKey);
+
+    await expect(page.locator('#patient-status')).toContainText(
+      '無法載入診所預約資料'
+    );
+    await expect(
+      page.locator('#patient-read-status').getByRole('button', { name: '重試' })
+    ).toBeVisible();
+    await expect(page.locator('#patient-slots')).toContainText('無法載入門診時段');
+    await expect(page.locator('#patient-slots')).not.toContainText('目前沒有可預約時段');
+    await expect(
+      page.locator('#patient-services [data-service]').first()
+    ).toBeDisabled();
+    await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
+    await testInfo.attach('synthetic-read-failure', {
+      body: await page.screenshot(),
+      contentType: 'image/png'
+    });
+
+    await page.getByRole('button', { name: '重試' }).click();
+    await expect(
+      page.locator('[data-booking-type="initial"]')
+    ).toBeEnabled();
+    await openPatientSlotStep(page);
+    await expect(
+      page.locator('[data-patient-slot="slot_retry_open"]')
+    ).toBeVisible();
+    expect(posted.body).toBeUndefined();
+  });
+
+  test('an older successful read cannot reopen availability after a newer failed refresh', async ({
+    page
+  }, testInfo) => {
+    await page.clock.install({ time: new Date('2030-01-01T00:00:00.000Z') });
+    await page.addInitScript(() => window.localStorage.clear());
+    const posted = await stubV1(page, { slots: [fixedReadSlot] });
+    await page.goto('/booking?internalTestBooking=1');
+    await openPatientSlotStep(page);
+    await expect(
+      page.locator('[data-patient-slot="slot_retry_open"]')
+    ).toBeVisible();
+
+    let slotReads = 0;
+    let releaseOlder: (() => void) | undefined;
+    const holdOlder = new Promise<void>((resolve) => {
+      releaseOlder = resolve;
+    });
+    await page.route('**/v1/slots', async (route) => {
+      slotReads += 1;
+      if (slotReads === 1) {
+        await holdOlder;
+        await route.fulfill({ json: { slots: [fixedReadSlot] } });
+      } else if (slotReads === 2) {
+        await route.fulfill({
+          status: 503,
+          json: { error: { code: 'SERVICE_UNAVAILABLE', message: 'synthetic read failure' } }
+        });
+      } else {
+        await route.fallback();
+      }
+    });
+    const stateKey = await page.evaluate(() => window.localStorage.key(0));
+    expect(stateKey).not.toBeNull();
+    await page.evaluate((key) => {
+      window.dispatchEvent(new StorageEvent('storage', { key }));
+    }, stateKey);
+    await expect.poll(() => slotReads).toBe(1);
+    await page.evaluate((key) => {
+      window.dispatchEvent(new StorageEvent('storage', { key }));
+    }, stateKey);
+    await expect(page.locator('#patient-read-status')).toContainText(
+      '無法載入診所預約資料'
+    );
+
+    const olderLastRead = page.waitForResponse((response) =>
+      response.url().endsWith('/v1/bookings') && response.request().method() === 'GET'
+    );
+    if (releaseOlder === undefined) throw new Error('Synthetic read barrier was not registered');
+    releaseOlder();
+    await (await olderLastRead).finished();
+    await testInfo.attach('synthetic-stale-read-rejected', {
+      body: await page.screenshot(),
+      contentType: 'image/png'
+    });
+    await expect(page.locator('#patient-read-status')).toContainText(
+      '無法載入診所預約資料'
+    );
+    await expect(page.getByRole('button', { name: '重試' })).toBeVisible();
+    await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
+    await expect(page.locator('#patient-slots')).not.toContainText('目前沒有可預約時段');
+
+    await page.getByRole('button', { name: '重試' }).click();
+    await expect(
+      page.locator('[data-patient-slot="slot_retry_open"]')
+    ).toBeVisible();
+    expect(posted.body).toBeUndefined();
   });
 
   test('opt-in overlays published occupancy and keeps occupied slots unbookable', async ({
@@ -397,10 +628,10 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(page.locator('#status')).toHaveText('預約依測試服務。');
   });
 
-  test('staff opt-in with a closed slot list hides the synthetic bookable grid', async ({
+  test('staff opt-in with a valid empty slot list hides the synthetic bookable grid', async ({
     page
   }) => {
-    await stubV1(page, 'closed');
+    await stubV1(page, { slots: [] });
     await login(page, 'admin', {
       fresh: true,
       path: '/staff?internalTestBooking=1'
