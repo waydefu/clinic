@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 2ba13d8ca2cd1c58c2f7571493419d850fe122a0
+          ref: 2ba13d8ecbc5db28f9a3f0cf00866fba71c5db24
           persist-credentials: false
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,7 +36,7 @@ jobs:
           DIAGNOSTIC_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 2ba13d8ca2cd1c58c2f7571493419d850fe122a0
+          test "$(git rev-parse HEAD)" = 2ba13d8ecbc5db28f9a3f0cf00866fba71c5db24
           test "$(pnpm --version)" = 11.9.0
           mkdir -p output/supply-chain-diagnostic
           git rev-parse HEAD > output/supply-chain-diagnostic/input-commit.txt

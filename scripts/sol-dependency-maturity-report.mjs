@@ -17,7 +17,7 @@ const releases = packages.map(({ name, version, file }) => {
   return { name, version, releasedAt: releasedAt.toISOString(), eligibleAt: new Date(releasedAt.getTime() + 24 * 60 * 60_000).toISOString(), ageMs, mature24Hours: ageMs >= 24 * 60 * 60_000 };
 });
 const result = { input: readFileSync(`${directory}/input-commit.txt`, 'utf8').trim(), diagnostic: readFileSync(`${directory}/diagnostic-commit.txt`, 'utf8').trim(), observedAt: observedAt.toISOString(), releases, policySha256: createHash('sha256').update(readFileSync('pnpm-workspace.yaml')).digest('hex'), minimumReleaseAgeChanged: false, newAuditException: false };
-assert.equal(result.input, '2ba13d8ca2cd1c58c2f7571493419d850fe122a0');
+assert.equal(result.input, '2ba13d8ecbc5db28f9a3f0cf00866fba71c5db24');
 assert.match(result.diagnostic, /^[a-f0-9]{40}$/u);
 writeFileSync(`${directory}/release-maturity.json`, JSON.stringify(result, null, 2));
 console.log(JSON.stringify(result, null, 2));
