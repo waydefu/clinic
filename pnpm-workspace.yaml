@@ -111,18 +111,26 @@ overrides:
   # Remove when both parents normally resolve the fix; preserve the 7.x line.
   vite@^7: '7.3.7'
   '@hono/node-server': '2.0.12'
-  # 2026-09-30 audit: GHSA-hrr3-gc8f-f4qj / GHSA-jvvf-x445-j334;
-  # fastify > ajv/fast-json-stringify. Preserve each parent's major.
-  fast-uri@^3: '3.1.8'
-  fast-uri@^4: '4.1.5'
+  # GHSA-w74x-v6f9-j3xg / GHSA-wjr9-j795-jxcr: fastify >
+  # ajv/fast-json-stringify. Preserve each parent's major; no audit waiver.
+  fast-uri@^3: '3.1.9'
+  fast-uri@^4: '4.2.3'
+  # GHSA-mrhx-c7xc-m3w5: bound validation memory for oversized inputs.
+  # API/contracts and MCP CLI paths use Zod 4; preserve that major.
+  # Remove once normal parent resolution carries >=4.6.6 everywhere.
+  zod@^4: '4.6.6'
+  # GHSA-27r3-jxmh-p828: compressed-body DoS in the development-only
+  # firebase-tools / exegesis / Express paths. Preserve both parent majors.
+  body-parser@^1: '1.20.9'
+  body-parser@^2: '2.4.0'
   # 2026-10-01 audit: GHSA-667r-xxjv-c9mm / GHSA-p68q-wchp-6fh7 /
   # GHSA-hwr6-493r-vm6h / GHSA-9q9j-q6p8-xq58 / GHSA-4mh8-r7rc-xpvc;
   # apps/api > @nestjs/platform-fastify > fastify. 5.12.5 is the first shared
   # same-major floor and is older than the 24-hour release-age maturity window.
   fastify: '^5.12.5'
-  # 2026-09-30 audit: GHSA-rfgv-xxqx-mfg5 / GHSA-w293-vg96-wgc3;
-  # firebase-tools > superstatic > re2 > node-gyp (development only).
-  undici@^8: '8.10.2'
+  # GHSA-xjj6-f33q-929c: bound content-encoding failures in the dev-only
+  # firebase-tools > superstatic > re2 > node-gyp chain; preserve 8.x.
+  undici@^8: '8.12.2'
   ip-address@^10: '^10.3.1'
   # 2026-09-09 GHSA-2883-xcg3-v3hh maxTotalMergeKeys; path firebase-tools > js-yaml and nested exegesis; same-major 4.3.1 → 4.3.2; not a dismiss.
   js-yaml@^4: '4.3.2'
@@ -143,7 +151,8 @@ overrides:
   # No auditConfig.ignoreGhsas. No gate-threshold change.
   hono: '4.13.7'
   postcss@^8: '8.5.23'
-  undici@^6: '^6.28.0'
+  # GHSA-xjj6-f33q-929c: firebase-tools (development only); preserve 6.x.
+  undici@^6: '6.29.1'
   re2: '1.26.1'
   morgan: '1.12.0'
   # 2026-09-10 pnpm audit (not yet in Dependabot open list): qs 6.15.3

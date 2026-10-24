@@ -1,5 +1,62 @@
 # Phase 1 Decision Register
 
+## 2026-10-22 Sol 全局 closeout 與純合成實作範圍核准
+
+業主在本輪對話明確核准，沒有另外提供 approval ID，不另造。
+完整原話及後續指令依序登記於
+[#268 純合成核准](https://github.com/waydefu/clinic/pull/268#issuecomment-6330313890)、
+[#268 blocker 檢視與新動作](https://github.com/waydefu/clinic/pull/268#issuecomment-6330746099)、
+[#268 全局 closeout](https://github.com/waydefu/clinic/pull/268#issuecomment-6330790714)。
+本節不改 D-001～D-016 狀態，不改 ADR 或 production／real-data 權限。
+
+### 已核准的實作範圍
+
+> BUSINESS：依 #282 已合併的模型做合成資料流與測試；正式批准來源尚未指定前，真正 writer／批准入口保持停用，不自行新增 collection、API 或正式資料寫入。
+
+依已合併的 [#282 模型](../plans/2026-10-22-sol-business-adjustment-design.md)，
+可做純合成資料流、既有計算與 service 的回歸；正式批准來源、正式 writer／批准入口仍未核准。
+不新增 collection、公開 API、migration 或正式資料寫入；合成批准不是可供正式 writer 信任的權威。
+
+> LEASE：依 #283 做純合成協調原型與回歸測試；不得建立或修改雲端服務，不接 provider，不部署；無法證明隔離／排空時維持停止或 quarantine，不自行接管未知狀態。
+
+依已合併的 [#283 候選](../plans/2026-10-22-sol-calendar-lease-coordination.md)，
+可做 admission／draining／quiescence／quarantine 的純合成原型與回歸，目標仍為嚴格零派送。
+不改既有 provider runtime 接線，不將單程序／stub 的成功當實際網路隔離證明。
+
+> DESIGN-SCOPE：核准只處理 current-source scope；歷史 claim 保留未驗證，不補猜。
+
+這僅解除 E1-22 當前來源範圍的待答問題；不產生原始 predicate、歷史像素或 claim 證據，
+`historicalClaimVerified` 保持未驗證。只做 current-source 可獨立驗證的工作，不擴大 UI 或 gate 權限。
+
+### 全局持續推進與結案門檻
+
+> 執行策略改為「全局持續推進」，不再因單一 blocker 整輪停止
+
+遇單包 owner／external blocker，記錄缺項、提供者、最小證據與不可提供的敏感內容，
+暫留 BLOCKED 並重算依賴，續做不受影響的合法工作。僅在所有剩餘包都無合法可執行工作時，
+一次提出完整 owner brief。這取代前輪「遇下一個 blocker 整輪停止」的節奏，不取代安全界線。
+BUSINESS、LEASE、DESIGN-SCOPE 先行；CONTRACTS／INGRESS 的必要來源或外部證據未取得前，
+不得聲稱固定數量的後續包已解鎖。SOL-INTEGRATION 在所有真正前置完成後最後執行。
+
+目標是 #268 原 43 個未完成包逐包有唯一、可追溯的處置與證據，最終三類 BLOCKED 都為零；
+`readyToStart=[]` 必須因全部完成而非全被阻擋。這是成功門檻，不是宣告目前已完成，
+也不准將 BLOCKED 改標 NO-WORK、將局部 helper／文件／CI 成功等同完整 packet DONE。
+source freeze 仍須原有完整前置、逐項證據及業主操作；本節不授權代理凍結或合併。
+
+### 保持封閉的邊界
+
+- WATCH：保留 #284；期限 UNSET。無可靠權威不清除、不正式持久化／provider 接線；
+  channel TTL、單次 backoff、fixture 數字都不是最大重試期限。可做不猜政策的純來源／測試。
+- INGRESS：僅目前已核 C1 exact host；其他 CAL-PILOT／default／preview identity 未有精確權威前拒絕。
+  B-03 實際入口／provider 證據不得以 CI 替代。
+- PRIVACY：正式告知文與可公開角色信箱未備妥前 BLOCKED，不代擬已核法律版本；
+  與法律文字無關的可獨立驗證 current-source 工作不因此一律停下。
+- 原七項外部證據／受保護恢復授權仍缺。不得自行 merge、部署、讀憑證、改 IAM／secret、
+  migration、真實資料、production、provider 實接或繞過 clinic guard。
+- 前次被拒的 `F:/tmp` 路徑不重試；業主檢視後的新動作只用原允許的 literal `/tmp/...`
+  或合法 worktree，不把兩者當同義、不修改或放寬 guard。
+- 本批登記 PR 為隊首；已授權來源可先開 Draft，但登記合併前不宣稱現在可合併。
+
 ## 2026-10-22 Sol 保守版方向與 SUPPLY-ORDER 補登
 
 本節由 Sol 依業主已採用的 `sol-longrun` 規則補登四題原話；公開追溯為

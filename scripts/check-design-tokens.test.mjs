@@ -22,6 +22,74 @@ function sheets(entries) {
 }
 
 describe('token extraction', () => {
+  it('keeps non-root targets out of root scope', () => {
+    const selectors = [
+      'a:not(:root)',
+      ':root .card',
+      ':root>.card',
+      ':root+.card',
+      ':root~.card',
+      ':root||.card',
+      ':root::before',
+      ':rooted',
+      ':root()',
+      '.card[data-claim=":root"]',
+      '.\\:root'
+    ];
+    for (const selector of selectors) {
+      const source = `${selector} { --local: 1rem; color: #abcdef; }`;
+      expect(definedTokens(source).has('--local')).toBe(false);
+      expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+    }
+  });
+
+  it('does not exempt a mixed root and component selector', () => {
+    const source = ':root, .card { --global: 1rem; color: #abcdef; }';
+    expect(definedTokens(source).has('--global')).toBe(true);
+    expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+  });
+
+  it('keeps actual root compound and functional selectors', () => {
+    const selectors = [
+      ':root[data-theme="dark"]',
+      ':root:has(.card)',
+      ':is(:root)',
+      ':where(html:root, :root.theme)'
+    ];
+    for (const selector of selectors) {
+      const source = `${selector} { --global: 1rem; color: #abcdef; }`;
+      expect(definedTokens(source).has('--global')).toBe(true);
+      expect(outsideRootBlocks(source)).not.toContain('color: #abcdef');
+    }
+  });
+
+  it('ignores quoted braces and commented root claims', () => {
+    const source = `
+      /* :root { --ghost: 1rem; } */
+      :root { --json: "🧪}"; --space-a: 1rem; }
+      /* @property --registered-ghost { syntax: "*"; } */
+    `;
+    expect([...definedTokens(source)]).toEqual(['--json', '--space-a']);
+  });
+
+  it('rejects root authority inside a component rule', () => {
+    const source = '.wrapper { :root { --local: 1rem; color: #abcdef; } }';
+    expect(definedTokens(source).has('--local')).toBe(false);
+    expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+  });
+
+  it('does not promote a nested component token to global', () => {
+    const source = `
+      :root {
+        --global: 1rem;
+        .card { --local: 1rem; color: #abcdef; }
+      }
+    `;
+    expect(definedTokens(source).has('--global')).toBe(true);
+    expect(definedTokens(source).has('--local')).toBe(false);
+    expect(outsideRootBlocks(source)).toContain('color: #abcdef');
+  });
+
   it('collects tokens declared in a :root block', () => {
     expect([
       ...definedTokens(':root {\n  --colour-ink: #111;\n  --space-2: 8px;\n}')

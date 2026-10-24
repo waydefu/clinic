@@ -227,9 +227,14 @@ export function evaluateBusinessMilestones(input: {
   readonly policy: ApprovedBusinessDeliveryPolicy;
   readonly now: string;
   readonly firstEligibleUseAt?: string;
+  /** Already-resolved total; approval authority belongs to the caller's port. */
+  readonly adjustmentDays?: number;
   readonly acknowledgements: BusinessMilestoneAcknowledgements;
 }): BusinessMilestoneStatus {
   assertUtcTimestamp(input.now, 'now');
+  const hasAdjustment = input.adjustmentDays !== undefined;
+  if (input.firstEligibleUseAt === undefined && hasAdjustment)
+    throw new DomainError('INVALID_VALUE', 'Missing trial first use.');
   const nowMs = Date.parse(input.now);
   const today = taipeiCalendarDateOf(input.now);
 
@@ -240,15 +245,16 @@ export function evaluateBusinessMilestones(input: {
         occurredAt: input.firstEligibleUseAt,
         actorKind: 'real_staff'
       },
-      policy: input.policy.milestones
+      policy: input.policy.milestones,
+      ...(input.adjustmentDays === undefined
+        ? {}
+        : { adjustmentDays: input.adjustmentDays })
     });
+    const trialEnd = calculated.adjustedTrialEndExclusiveAt;
     trial = {
-      status:
-        nowMs < Date.parse(calculated.trialEndExclusiveAt)
-          ? 'in_progress'
-          : 'ended',
+      status: nowMs < Date.parse(trialEnd) ? 'in_progress' : 'ended',
       startDate: calculated.firstEligibleUseDate,
-      endExclusiveDate: calculated.trialEndExclusiveDate
+      endExclusiveDate: calculated.adjustedTrialEndExclusiveDate
     };
   }
 

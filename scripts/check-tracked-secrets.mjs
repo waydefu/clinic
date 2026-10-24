@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url';
 // 判斷邏輯全部匯出且不碰檔案系統，因為它自己曾經在髒工作區崩潰，把「有人刪了
 // 檔案」誤報成「掃描失敗」——一個會假紅燈的 gate，最後會被當成雜訊繞過。
 
+const forbiddenCredentialDirectory = /(^|\/)(cal-pilot-keys|secrets)(\/|$)/i;
+
 export const forbiddenCredentialPath = [
+  forbiddenCredentialDirectory,
   /(^|\/)\.env($|\.)/i,
   /\.(key|p12|pfx|pem|crt|cer|der|jks|keystore)$/i,
   /(^|\/)[^/]*(credential|service[-_]?account|secret)[^/]*\.json$/i
@@ -21,7 +24,10 @@ export const tokenPatterns = [
 ];
 
 export function isAllowedExamplePath(filePath) {
-  return /(^|\/)\.env\.example$/i.test(filePath);
+  return (
+    !forbiddenCredentialDirectory.test(filePath) &&
+    /(^|\/)\.env\.example$/i.test(filePath)
+  );
 }
 
 export function hasPrivateKeyMaterial(content) {
