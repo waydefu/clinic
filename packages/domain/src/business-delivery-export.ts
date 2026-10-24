@@ -1,4 +1,5 @@
 import { DomainError } from './errors.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 
 /**
  * BD-02 export primitives are intentionally policy-neutral. The owner must
@@ -286,7 +287,7 @@ export function toBusinessExportRow(input: {
           ? '外國'
           : null,
     startsAt:
-      input.startsAt !== undefined && !Number.isNaN(Date.parse(input.startsAt))
+      input.startsAt !== undefined && isUtcIsoTimestamp(input.startsAt)
         ? taipeiDateTime(input.startsAt)
         : null,
     bookingKind:

@@ -1,5 +1,6 @@
 import type { BookingKind, SlotSnapshot } from './booking-transaction.js';
 import { DomainError } from './errors.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 
 /**
  * The single source of truth for what a booking, transition or reschedule is
@@ -91,17 +92,17 @@ export function assertWithinActiveBookingLimit(activeCount: number): void {
  * Patient self-cancellation cutoff, single source (Q6 / D-005 direction:
  * 10:00 Asia/Taipei on the appointment day; afterwards call the clinic).
  * Returns the cutoff instant: the appointment's Taipei calendar date at
- * 10:00 local, i.e. 02:00 UTC. Throws INVALID_VALUE for an unparseable
- * appointment start; callers fail closed.
+ * 10:00 local, i.e. 02:00 UTC. Throws INVALID_VALUE for an invalid or non-UTC
+ * appointment timestamp; callers fail closed.
  */
 export function selfCancelCutoffAt(appointmentStartsAt: string): string {
-  const startsAtMs = Date.parse(appointmentStartsAt);
-  if (!Number.isFinite(startsAtMs)) {
+  if (!isUtcIsoTimestamp(appointmentStartsAt)) {
     throw new DomainError(
       'INVALID_VALUE',
       'The appointment start must be a parseable timestamp.'
     );
   }
+  const startsAtMs = Date.parse(appointmentStartsAt);
   const day = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Taipei',
     year: 'numeric',
@@ -130,6 +131,7 @@ function assertWithinSelfServiceWindow(
 ): void {
   if (
     appointmentStartsAt === undefined ||
+    !isUtcIsoTimestamp(requestedAt) ||
     !isWithinSelfCancelWindow(appointmentStartsAt, Date.parse(requestedAt))
   ) {
     throw new DomainError('CANCELLATION_WINDOW_CLOSED', message);
@@ -175,14 +177,14 @@ export function assertSlotMeetsEarliestLead(
   slotStartsAt: string,
   requestedAt: string
 ): void {
-  const startMs = Date.parse(slotStartsAt);
-  const requestedMs = Date.parse(requestedAt);
-  if (!Number.isFinite(startMs) || !Number.isFinite(requestedMs)) {
+  if (!isUtcIsoTimestamp(slotStartsAt) || !isUtcIsoTimestamp(requestedAt)) {
     throw new DomainError(
       'INVALID_VALUE',
       'The appointment start must be a parseable timestamp.'
     );
   }
+  const startMs = Date.parse(slotStartsAt);
+  const requestedMs = Date.parse(requestedAt);
   if (startMs < requestedMs + EARLIEST_BOOKING_LEAD_MS) {
     throw new DomainError(
       'SLOT_UNAVAILABLE',

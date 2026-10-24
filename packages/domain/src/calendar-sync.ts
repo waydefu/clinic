@@ -6,6 +6,7 @@ import {
   planSlots,
   type Schedule
 } from './schedule.js';
+import { isUtcIsoTimestamp } from './timestamp.js';
 
 export const CALENDAR_ENTRY_SEPARATOR = '｜';
 
@@ -189,14 +190,22 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+/** External Calendar datetimes require an explicit offset before UTC storage. */
+export function parseRfc3339Timestamp(value: string): number {
+  const normalized = value.toUpperCase();
+  return isUtcIsoTimestamp(normalized.replace(/[+-]\d{2}:\d{2}$/, 'Z'))
+    ? Date.parse(normalized)
+    : NaN;
+}
+
 function normalizedTimedRange(
   start: CalendarEntryTime | undefined,
   end: CalendarEntryTime | undefined
 ): { startsAt: string; endsAt: string } | CalendarEntryValidationCode {
   if (!isNonEmptyString(start?.dateTime) || !isNonEmptyString(end?.dateTime))
     return 'time_missing';
-  const startMs = Date.parse(start.dateTime);
-  const endMs = Date.parse(end.dateTime);
+  const startMs = parseRfc3339Timestamp(start.dateTime);
+  const endMs = parseRfc3339Timestamp(end.dateTime);
   if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs)
     return 'time_invalid';
   return {

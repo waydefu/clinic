@@ -1,5 +1,5 @@
 import { DomainError } from './errors.js';
-import { assertUtcTimestamp } from './timestamp.js';
+import { assertUtcTimestamp, isUtcIsoTimestamp } from './timestamp.js';
 /** 連續失敗達此次數即進入死信，改由人工處理。 */
 export const MAX_ATTEMPTS = 6;
 /** 指數退避的基數與上限，避免外部服務故障時把它打得更慘。 */
@@ -135,16 +135,18 @@ export function fullJitterBackoffMilliseconds(attempts, sample) {
 }
 /** 只有 pending 且已到重試時間的工作可被取用。 */
 export function isDue(job, now) {
-    if (job.status !== 'pending')
+    if (job.status !== 'pending' || !isUtcIsoTimestamp(now))
         return false;
     if (job.nextAttemptAt === undefined)
         return true;
-    return Date.parse(job.nextAttemptAt) <= Date.parse(now);
+    return (isUtcIsoTimestamp(job.nextAttemptAt) &&
+        Date.parse(job.nextAttemptAt) <= Date.parse(now));
 }
 export function planOutboxAttempt(job, outcome, now) {
     if (job.status === 'completed' || job.status === 'dead_letter') {
         throw new DomainError('INVALID_VALUE', 'A finished outbox job cannot be attempted again.');
     }
+    assertUtcTimestamp(now, 'now');
     const attempts = job.attempts + 1;
     if (outcome.kind === 'succeeded') {
         return { status: 'completed', attempts, needsOperator: false };

@@ -415,10 +415,12 @@ export function payrollTotalAfterAdjustments(
   snapshot: PayrollPeriodSnapshot,
   adjustments: readonly PayrollAdjustment[]
 ): number {
+  assertUtcTimestamp(snapshot.closedAt, 'snapshot.closedAt');
   const ordered = [...adjustments].sort((a, b) => a.sequence - b.sequence);
   let total = snapshot.creditCount;
 
   for (const [index, adjustment] of ordered.entries()) {
+    assertUtcTimestamp(adjustment.recordedAt, 'adjustment.recordedAt');
     if (
       adjustment.periodId !== snapshot.id ||
       adjustment.managerId !== snapshot.managerId ||

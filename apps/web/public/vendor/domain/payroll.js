@@ -173,9 +173,11 @@ function assertPayrollPeriod(value) {
  * returning a plausible number from it would hide that.
  */
 export function payrollTotalAfterAdjustments(snapshot, adjustments) {
+    assertUtcTimestamp(snapshot.closedAt, 'snapshot.closedAt');
     const ordered = [...adjustments].sort((a, b) => a.sequence - b.sequence);
     let total = snapshot.creditCount;
     for (const [index, adjustment] of ordered.entries()) {
+        assertUtcTimestamp(adjustment.recordedAt, 'adjustment.recordedAt');
         if (adjustment.periodId !== snapshot.id ||
             adjustment.managerId !== snapshot.managerId ||
             adjustment.payrollPeriod !== snapshot.payrollPeriod) {

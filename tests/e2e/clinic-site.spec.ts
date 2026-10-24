@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { expect, test } from '@playwright/test';
 
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
@@ -377,4 +379,237 @@ test.describe('診所官網麵包屑語意', () => {
       await expect(page.locator('nav.clinic-breadcrumb')).toHaveCount(1);
     }
   });
+});
+
+// This spec already runs in Chromium and WebKit. Exercise the served hashed
+// module, not Node's interpretation of the browser-vendor source file.
+test('預約入口載入的雜湊模組在瀏覽器拒絕非 UTC 時間', async ({ page }) => {
+  const manifest: unknown = JSON.parse(
+    await readFile('apps/web/asset-manifest.json', 'utf8')
+  );
+  if (
+    typeof manifest !== 'object' ||
+    manifest === null ||
+    !('vendor/domain/index.js' in manifest)
+  ) {
+    throw new Error('Built domain entry is missing from the asset manifest.');
+  }
+  const modulePath = manifest['vendor/domain/index.js'];
+  if (typeof modulePath !== 'string') {
+    throw new Error('Built domain entry is not a path.');
+  }
+  expect(modulePath).not.toBe('vendor/domain/index.js');
+
+  await page.goto('/clinic');
+  await page
+    .getByRole('link', {
+      name: /線上預約|預約諮詢|預約門診|預約專業評估/
+    })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/booking$/);
+
+  const result = await page.evaluate(async (url) => {
+    const rules = await import(url);
+    const now = '2030-01-02T00:00:00.000Z';
+    const startsAt = '2030-01-02T12:00:00.000Z';
+    const job = {
+      id: 'synthetic_utc_outbox',
+      appointmentId: 'synthetic_utc_appointment',
+      idempotencyKey: 'synthetic_utc_key',
+      correlationId: 'synthetic_utc_correlation',
+      causationId: 'synthetic_utc_causation',
+      status: 'pending',
+      attempts: 0
+    };
+    const closed = {
+      id: 'synthetic_utc_payroll',
+      managerId: 'synthetic_utc_manager',
+      payrollPeriod: '2030-01',
+      status: 'locked',
+      creditCount: 1,
+      closedAt: now
+    };
+    const adjustment = {
+      id: 'synthetic_utc_adjustment',
+      periodId: closed.id,
+      managerId: closed.managerId,
+      payrollPeriod: closed.payrollPeriod,
+      sequence: 1,
+      delta: 1,
+      reasonCode: 'SYNTHETIC_UTC_CORRECTION',
+      recordedAt: startsAt,
+      resultingCreditCount: 2
+    };
+    const invalid = [
+      '2030-02-30T01:00:00Z',
+      '2030-01-02T01:00:00+08:00',
+      '2030-01-02 01:00:00Z'
+    ];
+    const probes = [
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.selfCancelCutoffAt(value)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.assertSlotMeetsEarliestLead(value, now)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) =>
+          rules.assertSlotMeetsEarliestLead(startsAt, value)
+      },
+      {
+        code: 'CANCELLATION_WINDOW_CLOSED',
+        run: (value: string) =>
+          rules.assertWithinSelfCancelWindow(startsAt, value)
+      },
+      {
+        code: 'CANCELLATION_WINDOW_CLOSED',
+        run: (value: string) =>
+          rules.assertWithinSelfRescheduleWindow(startsAt, value)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.taipeiCalendarDate(value)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.assertSlotNotInPast(value, now)
+      },
+      {
+        code: 'INVALID_VALUE',
+        run: (value: string) => rules.assertSlotWithinBookingHorizon(value, now)
+      },
+      {
+        code: 'INVALID_TIMESTAMP',
+        run: (value: string) =>
+          rules.planOutboxAttempt(job, { kind: 'succeeded' }, value)
+      },
+      {
+        code: 'INVALID_TIMESTAMP',
+        run: (value: string) =>
+          rules.payrollTotalAfterAdjustments({ ...closed, closedAt: value }, [])
+      },
+      {
+        code: 'INVALID_TIMESTAMP',
+        run: (value: string) =>
+          rules.payrollTotalAfterAdjustments(closed, [
+            { ...adjustment, recordedAt: value }
+          ])
+      }
+    ];
+    const failures: string[] = [];
+    for (const value of invalid) {
+      if (rules.isDue(job, value)) {
+        failures.push(`outbox:accepted:${value}`);
+      }
+      if (rules.isOnBookingKindGrid(value, 'initial')) {
+        failures.push(`grid:accepted:${value}`);
+      }
+      if (rules.toBusinessExportRow({ startsAt: value }).startsAt !== null) {
+        failures.push(`export:accepted:${value}`);
+      }
+      for (const [index, probe] of probes.entries()) {
+        try {
+          probe.run(value);
+          failures.push(`${index}:accepted:${value}`);
+        } catch (error) {
+          const code =
+            typeof error === 'object' && error !== null && 'code' in error
+              ? error.code
+              : undefined;
+          if (code !== probe.code)
+            failures.push(`${index}:wrong-code:${value}`);
+        }
+      }
+    }
+    const accepted = [
+      '2030-01-02T12:00:00Z',
+      '2030-01-02T12:00:00.123Z',
+      '2030-01-02T12:00:00.123456Z',
+      '2030-01-02T12:00:00.123456789Z'
+    ].map((value) => {
+      if (!rules.isDue(job, value)) {
+        throw new Error('Valid UTC outbox clock was rejected.');
+      }
+      rules.planOutboxAttempt(job, { kind: 'succeeded' }, value);
+      rules.payrollTotalAfterAdjustments({ ...closed, closedAt: value }, []);
+      rules.payrollTotalAfterAdjustments(closed, [
+        { ...adjustment, recordedAt: value }
+      ]);
+      if (
+        !rules.isOnBookingKindGrid(value, 'initial') ||
+        rules.toBusinessExportRow({ startsAt: value }).startsAt === null
+      ) {
+        throw new Error('Valid UTC grid/export input was rejected.');
+      }
+      rules.assertWithinSelfCancelWindow(value, now);
+      rules.assertWithinSelfRescheduleWindow(value, now);
+      rules.assertSlotMeetsEarliestLead(value, now);
+      rules.assertSlotNotInPast(value, now);
+      rules.assertSlotWithinBookingHorizon(value, now);
+      return rules.selfCancelCutoffAt(value);
+    });
+    for (const value of [
+      'Jan 02 2030 Z',
+      '2030-01-02',
+      '2030-01-02 01:00:00Z',
+      '2030-01-02T01:00:00',
+      '2030-02-30T01:00:00Z',
+      '2030-02-30T01:00:00+08:00',
+      '2030-01-02T24:00:00Z',
+      '2030-01-02T24:00:00+08:00'
+    ]) {
+      for (const field of ['start', 'end']) {
+        const input = {
+          summary: '[忙碌] 會議',
+          start: {
+            dateTime: field === 'start' ? value : '2029-01-01T00:00:00Z'
+          },
+          end: { dateTime: field === 'end' ? value : '2030-12-31T23:59:59Z' }
+        };
+        if (rules.extractCalendarEventRange(input) !== undefined) {
+          failures.push(`provider-projection:${field}:${value}`);
+        }
+        const parsed = rules.parseCalendarEntry(input, new Set());
+        if (parsed.ok || !parsed.errors.includes('time_invalid')) {
+          failures.push(`provider-entry:${field}:${value}`);
+        }
+      }
+    }
+    for (const [value, expected] of [
+      ['2030-01-02T12:00:00Z', '2030-01-02T12:00:00.000Z'],
+      ['2030-01-02T12:00:00+00:00', '2030-01-02T12:00:00.000Z'],
+      ['2030-01-02T12:00:00+08:00', '2030-01-02T04:00:00.000Z'],
+      ['2030-01-02T12:00:00-07:00', '2030-01-02T19:00:00.000Z'],
+      ['2030-01-02T12:00:00.123456789+08:00', '2030-01-02T04:00:00.123Z'],
+      ['2030-01-02t12:00:00z', '2030-01-02T12:00:00.000Z']
+    ] as const) {
+      const input = {
+        summary: '[忙碌] 會議',
+        start: { dateTime: value },
+        end: { dateTime: '2030-12-31T23:59:59Z' }
+      };
+      const range = rules.extractCalendarEventRange(input);
+      const parsed = rules.parseCalendarEntry(input, new Set());
+      if (
+        range?.startsAt !== expected ||
+        !parsed.ok ||
+        parsed.startsAt !== expected
+      ) {
+        failures.push(`provider-valid:${value}`);
+      }
+    }
+    return { failures, accepted };
+  }, `/${modulePath}`);
+
+  expect(result.failures).toEqual([]);
+  expect(result.accepted).toEqual([
+    '2030-01-02T02:00:00.000Z',
+    '2030-01-02T02:00:00.000Z',
+    '2030-01-02T02:00:00.000Z',
+    '2030-01-02T02:00:00.000Z'
+  ]);
 });
