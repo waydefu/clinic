@@ -787,11 +787,19 @@ describe('createInternalTestBookingTransport', () => {
     { endpoint: '/v1/schedule', label: 'schedule HTTP 401', status: 401 },
     { endpoint: '/v1/schedule', label: 'schedule HTTP 403', status: 403 },
     { endpoint: '/v1/schedule', label: 'schedule HTTP 503', status: 503 },
-    { endpoint: '/v1/schedule', label: 'schedule network failure', network: true },
+    {
+      endpoint: '/v1/schedule',
+      label: 'schedule network failure',
+      network: true
+    },
     { endpoint: '/v1/bookings', label: 'bookings HTTP 401', status: 401 },
     { endpoint: '/v1/bookings', label: 'bookings HTTP 403', status: 403 },
     { endpoint: '/v1/bookings', label: 'bookings HTTP 503', status: 503 },
-    { endpoint: '/v1/bookings', label: 'bookings network failure', network: true }
+    {
+      endpoint: '/v1/bookings',
+      label: 'bookings network failure',
+      network: true
+    }
   ];
 
   it.each(stateReadFailures)(

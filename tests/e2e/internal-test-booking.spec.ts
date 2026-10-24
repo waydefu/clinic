@@ -409,11 +409,19 @@ test.describe('internal-test booking occupancy overlay', () => {
     { endpoint: 'schedule', label: 'schedule HTTP 401', failure: 401 },
     { endpoint: 'schedule', label: 'schedule HTTP 403', failure: 403 },
     { endpoint: 'schedule', label: 'schedule HTTP 503', failure: 503 },
-    { endpoint: 'schedule', label: 'schedule network failure', failure: 'network' },
+    {
+      endpoint: 'schedule',
+      label: 'schedule network failure',
+      failure: 'network'
+    },
     { endpoint: 'bookings', label: 'bookings HTTP 401', failure: 401 },
     { endpoint: 'bookings', label: 'bookings HTTP 403', failure: 403 },
     { endpoint: 'bookings', label: 'bookings HTTP 503', failure: 503 },
-    { endpoint: 'bookings', label: 'bookings network failure', failure: 'network' }
+    {
+      endpoint: 'bookings',
+      label: 'bookings network failure',
+      failure: 'network'
+    }
   ];
 
   for (const readFailure of stateReadFailures) {
@@ -435,17 +443,19 @@ test.describe('internal-test booking occupancy overlay', () => {
         '無法載入診所預約資料'
       );
       await expect(page.getByRole('button', { name: '重試' })).toBeVisible();
-      await expect(page.locator('#patient-slots')).toContainText('無法載入門診時段');
-      await expect(page.locator('#patient-slots')).not.toContainText('目前沒有可預約時段');
+      await expect(page.locator('#patient-slots')).toContainText(
+        '無法載入門診時段'
+      );
+      await expect(page.locator('#patient-slots')).not.toContainText(
+        '目前沒有可預約時段'
+      );
       await expect(
         page.locator('#patient-services [data-service]').first()
       ).toBeDisabled();
       await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
 
       await page.getByRole('button', { name: '重試' }).click();
-      await expect(
-        page.locator('[data-booking-type="initial"]')
-      ).toBeEnabled();
+      await expect(page.locator('[data-booking-type="initial"]')).toBeEnabled();
       await openPatientSlotStep(page);
       await expect(
         page.locator('[data-patient-slot="slot_retry_open"]')
@@ -456,7 +466,7 @@ test.describe('internal-test booking occupancy overlay', () => {
 
   test('storage refresh failure removes stale availability and retries reads only', async ({
     page
-  }, testInfo) => {
+  }) => {
     await page.clock.install({ time: new Date('2030-01-01T00:00:00.000Z') });
     await page.addInitScript(() => window.localStorage.clear());
     const readFailures: Partial<Record<StateReadName, StateReadFailure>> = {};
@@ -486,21 +496,23 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(
       page.locator('#patient-read-status').getByRole('button', { name: '重試' })
     ).toBeVisible();
-    await expect(page.locator('#patient-slots')).toContainText('無法載入門診時段');
-    await expect(page.locator('#patient-slots')).not.toContainText('目前沒有可預約時段');
+    await expect(page.locator('#patient-slots')).toContainText(
+      '無法載入門診時段'
+    );
+    await expect(page.locator('#patient-slots')).not.toContainText(
+      '目前沒有可預約時段'
+    );
     await expect(
       page.locator('#patient-services [data-service]').first()
     ).toBeDisabled();
     await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
-    await testInfo.attach('synthetic-read-failure', {
+    await test.info().attach('synthetic-read-failure', {
       body: await page.screenshot(),
       contentType: 'image/png'
     });
 
     await page.getByRole('button', { name: '重試' }).click();
-    await expect(
-      page.locator('[data-booking-type="initial"]')
-    ).toBeEnabled();
+    await expect(page.locator('[data-booking-type="initial"]')).toBeEnabled();
     await openPatientSlotStep(page);
     await expect(
       page.locator('[data-patient-slot="slot_retry_open"]')
@@ -510,7 +522,7 @@ test.describe('internal-test booking occupancy overlay', () => {
 
   test('an older successful read cannot reopen availability after a newer failed refresh', async ({
     page
-  }, testInfo) => {
+  }) => {
     await page.clock.install({ time: new Date('2030-01-01T00:00:00.000Z') });
     await page.addInitScript(() => window.localStorage.clear());
     const posted = await stubV1(page, { slots: [fixedReadSlot] });
@@ -533,7 +545,12 @@ test.describe('internal-test booking occupancy overlay', () => {
       } else if (slotReads === 2) {
         await route.fulfill({
           status: 503,
-          json: { error: { code: 'SERVICE_UNAVAILABLE', message: 'synthetic read failure' } }
+          json: {
+            error: {
+              code: 'SERVICE_UNAVAILABLE',
+              message: 'synthetic read failure'
+            }
+          }
         });
       } else {
         await route.fallback();
@@ -552,13 +569,16 @@ test.describe('internal-test booking occupancy overlay', () => {
       '無法載入診所預約資料'
     );
 
-    const olderLastRead = page.waitForResponse((response) =>
-      response.url().endsWith('/v1/bookings') && response.request().method() === 'GET'
+    const olderLastRead = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/v1/bookings') &&
+        response.request().method() === 'GET'
     );
-    if (releaseOlder === undefined) throw new Error('Synthetic read barrier was not registered');
+    if (releaseOlder === undefined)
+      throw new Error('Synthetic read barrier was not registered');
     releaseOlder();
     await (await olderLastRead).finished();
-    await testInfo.attach('synthetic-stale-read-rejected', {
+    await test.info().attach('synthetic-stale-read-rejected', {
       body: await page.screenshot(),
       contentType: 'image/png'
     });
@@ -567,7 +587,9 @@ test.describe('internal-test booking occupancy overlay', () => {
     );
     await expect(page.getByRole('button', { name: '重試' })).toBeVisible();
     await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
-    await expect(page.locator('#patient-slots')).not.toContainText('目前沒有可預約時段');
+    await expect(page.locator('#patient-slots')).not.toContainText(
+      '目前沒有可預約時段'
+    );
 
     await page.getByRole('button', { name: '重試' }).click();
     await expect(
