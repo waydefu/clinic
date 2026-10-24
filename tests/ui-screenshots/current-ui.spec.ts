@@ -37,7 +37,7 @@ const FINDING_IDS = [
   'E5-07',
   'E5-08',
   'E5-09',
-  'E5-10'
+  'E5-10',
 ];
 const EVIDENCE_ID_PATTERN = /^ui-visual-e5-[0-9]+-[0-9]+$/;
 const SOURCE_REVISION_PATTERN = /^[0-9a-f]{40}$/;
@@ -56,9 +56,15 @@ const ALLOWED_PNG_CHUNKS = new Set([
   'hIST',
   'pHYs',
   'sPLT',
-  'tRNS'
+  'tRNS',
 ]);
-const PNG_METADATA_CHUNKS = new Set(['eXIf', 'tEXt', 'zTXt', 'iTXt', 'tIME']);
+const PNG_METADATA_CHUNKS = new Set([
+  'eXIf',
+  'tEXt',
+  'zTXt',
+  'iTXt',
+  'tIME',
+]);
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
@@ -157,7 +163,7 @@ function resolveCaptureMetadata(
   return {
     evidenceId,
     sourceRevision,
-    captureDate: new Date().toISOString().slice(0, 10)
+    captureDate: new Date().toISOString().slice(0, 10),
   };
 }
 
@@ -186,7 +192,11 @@ function inspectPng(bytes: Buffer): Viewport {
       throw new Error(`PNG contains an unreviewed chunk ${chunkType}`);
 
     if (chunkType === 'IHDR') {
-      if (offset !== PNG_SIGNATURE.length || chunkLength !== 13 || width !== undefined)
+      if (
+        offset !== PNG_SIGNATURE.length ||
+        chunkLength !== 13 ||
+        width !== undefined
+      )
         throw new Error('PNG has an invalid IHDR');
       width = bytes.readUInt32BE(offset + 8);
       height = bytes.readUInt32BE(offset + 12);
@@ -247,7 +257,9 @@ function validateManifestCoverage(
       !/^[0-9a-f]{64}$/.test(matching[0].sha256) ||
       matching[0].consoleCounts.errors !== 0 ||
       matching[0].consoleCounts.warnings !== 0 ||
-      !Number.isInteger(matching[0].consoleCounts.expectedSyntheticProbe404s) ||
+      !Number.isInteger(
+        matching[0].consoleCounts.expectedSyntheticProbe404s
+      ) ||
       matching[0].consoleCounts.expectedSyntheticProbe404s < 0
     )
       throw new Error(`manifest metadata is invalid for ${scenario.file}`);
@@ -275,7 +287,7 @@ function makePngFixture(
       ? [chunk(metadataChunk, Buffer.from('synthetic metadata'))]
       : []),
     chunk('IDAT', Buffer.from([0])),
-    chunk('IEND', Buffer.alloc(0))
+    chunk('IEND', Buffer.alloc(0)),
   ]);
 }
 
@@ -751,75 +763,89 @@ const scenarios: Scenario[] = [
   }
 ];
 
-test('synthetic capture validators accept exact references and reject unsafe evidence', () => {
-  const sha = 'a'.repeat(40);
-  const metadata = resolveCaptureMetadata('ui-visual-e5-1234-1', sha);
-  expect(metadata.sourceRevision).toBe(sha);
-  expect(metadata.captureDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  expect(FINDING_IDS).toEqual([
-    'E5-01',
-    'E5-02',
-    'E5-03',
-    'E5-04',
-    'E5-05',
-    'E5-06',
-    'E5-07',
-    'E5-08',
-    'E5-09',
-    'E5-10'
-  ]);
-  expect(() => resolveCaptureMetadata(EVIDENCE_ID, sha)).toThrow();
-  expect(() => resolveCaptureMetadata('../ui-visual-e5-1234-1', sha)).toThrow();
-  expect(() =>
-    resolveCaptureMetadata('ui-visual-e5-1234-1', 'commit-containing-this-manifest')
-  ).toThrow();
-
-  const captureFixture = (
-    scenario: Scenario,
-    sha256 = 'b'.repeat(64)
-  ): CaptureEntry => ({
-    file: scenario.file,
-    route: scenario.route,
-    role: scenario.role,
-    viewport: scenario.viewport,
-    deviceScaleFactor: DEVICE_SCALE_FACTOR,
-    state: scenario.state,
-    captureKind:
-      scenario.fullPage === false
-        ? 'reference-viewport'
-        : 'reference-full-page',
-    sha256,
-    consoleCounts: {
-      errors: 0,
-      warnings: 0,
-      expectedSyntheticProbe404s: 0
-    }
-  });
-  const first = captureFixture(scenarios[0]);
-  const second = captureFixture(scenarios[1], first.sha256);
-  expect(() =>
-    validateManifestCoverage([first, second], scenarios.slice(0, 2))
-  ).not.toThrow();
-  expect(() => validateManifestCoverage([first, first], [scenarios[0]])).toThrow(
-    /duplicate/
-  );
-  expect(() =>
-    validateManifestCoverage([first], scenarios.slice(0, 2))
-  ).toThrow(/count/);
-  expect(() =>
-    validateManifestCoverage([{ ...first, route: '/wrong' }], [scenarios[0]])
-  ).toThrow(/metadata/);
-
-  const cleanPng = makePngFixture(DESKTOP.width, DESKTOP.height);
-  expect(inspectPng(cleanPng)).toEqual(DESKTOP);
-  expect(() =>
-    assertPngMatchesViewport(makePngFixture(PHONE.width, PHONE.height), DESKTOP)
-  ).toThrow();
-  for (const chunk of PNG_METADATA_CHUNKS)
+test(
+  'synthetic capture validators accept exact references and reject unsafe evidence',
+  () => {
+    const sha = 'a'.repeat(40);
+    const metadata = resolveCaptureMetadata('ui-visual-e5-1234-1', sha);
+    expect(metadata.sourceRevision).toBe(sha);
+    expect(metadata.captureDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(FINDING_IDS).toEqual([
+      'E5-01',
+      'E5-02',
+      'E5-03',
+      'E5-04',
+      'E5-05',
+      'E5-06',
+      'E5-07',
+      'E5-08',
+      'E5-09',
+      'E5-10',
+    ]);
+    expect(() => resolveCaptureMetadata(EVIDENCE_ID, sha)).toThrow();
     expect(() =>
-      inspectPng(makePngFixture(DESKTOP.width, DESKTOP.height, chunk))
-    ).toThrow(/metadata chunk/);
-});
+      resolveCaptureMetadata('../ui-visual-e5-1234-1', sha)
+    ).toThrow();
+    expect(() =>
+      resolveCaptureMetadata(
+        'ui-visual-e5-1234-1',
+        'commit-containing-this-manifest'
+      )
+    ).toThrow();
+
+    const captureFixture = (
+      scenario: Scenario,
+      sha256 = 'b'.repeat(64)
+    ): CaptureEntry => ({
+      file: scenario.file,
+      route: scenario.route,
+      role: scenario.role,
+      viewport: scenario.viewport,
+      deviceScaleFactor: DEVICE_SCALE_FACTOR,
+      state: scenario.state,
+      captureKind:
+        scenario.fullPage === false
+          ? 'reference-viewport'
+          : 'reference-full-page',
+      sha256,
+      consoleCounts: {
+        errors: 0,
+        warnings: 0,
+        expectedSyntheticProbe404s: 0,
+      },
+    });
+    const first = captureFixture(scenarios[0]);
+    const second = captureFixture(scenarios[1], first.sha256);
+    expect(() =>
+      validateManifestCoverage([first, second], scenarios.slice(0, 2))
+    ).not.toThrow();
+    expect(() =>
+      validateManifestCoverage([first, first], [scenarios[0]])
+    ).toThrow(/duplicate/);
+    expect(() =>
+      validateManifestCoverage([first], scenarios.slice(0, 2))
+    ).toThrow(/count/);
+    expect(() =>
+      validateManifestCoverage(
+        [{ ...first, route: '/wrong' }],
+        [scenarios[0]]
+      )
+    ).toThrow(/metadata/);
+
+    const cleanPng = makePngFixture(DESKTOP.width, DESKTOP.height);
+    expect(inspectPng(cleanPng)).toEqual(DESKTOP);
+    expect(() =>
+      assertPngMatchesViewport(
+        makePngFixture(PHONE.width, PHONE.height),
+        DESKTOP
+      )
+    ).toThrow();
+    for (const chunk of PNG_METADATA_CHUNKS)
+      expect(() =>
+        inspectPng(makePngFixture(DESKTOP.width, DESKTOP.height, chunk))
+      ).toThrow(/metadata chunk/);
+  }
+);
 
 async function captureScenario(
   browser: Browser,
@@ -973,7 +999,9 @@ test('capture the current synthetic UI reference set', async ({ browser }) => {
   validateManifestCoverage(persistedManifest.captures, scenarios);
   for (const capture of persistedManifest.captures) {
     const bytes = await readFile(join(outputDirectory, capture.file));
-    expect(createHash('sha256').update(bytes).digest('hex')).toBe(capture.sha256);
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      capture.sha256
+    );
     assertPngMatchesViewport(bytes, capture.viewport);
   }
 
