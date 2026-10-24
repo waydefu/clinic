@@ -1,26 +1,24 @@
-name: sol-format-diagnostic
+name: SOL format producer
 
 on:
-  push:
-    branches: [agent/sol-format-diagnostic-20261022]
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact source SHA whose capture spec needs canonical formatting
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  format-and-reproduce:
+  format:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 2ba13d8ecbc5db28f9a3f0cf00866fba71c5db24
-          persist-credentials: false
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          path: diagnostic-input
+          ref: ${{ inputs.source_sha }}
           persist-credentials: false
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -30,51 +28,25 @@ jobs:
           node-version: 24.20.0
           cache: pnpm
 
-      - name: Bind the existing PR head and candidate dependency policy
-        shell: bash
-        env:
-          DIAGNOSTIC_COMMIT: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = 2ba13d8ecbc5db28f9a3f0cf00866fba71c5db24
-          test "$(pnpm --version)" = 11.9.0
-          mkdir -p output/supply-chain-diagnostic
-          git rev-parse HEAD > output/supply-chain-diagnostic/input-commit.txt
-          printf '%s\n' "$DIAGNOSTIC_COMMIT" > output/supply-chain-diagnostic/diagnostic-commit.txt
-          cp diagnostic-input/pnpm-workspace.yaml pnpm-workspace.yaml
-          cp pnpm-workspace.yaml output/supply-chain-diagnostic/
+      - run: pnpm install --frozen-lockfile
 
-      - name: Verify published patched versions and unchanged maturity floor
-        shell: bash
+      - name: Record exact source and input hash
         run: |
-          set -euo pipefail
-          npm view zod time --json > output/supply-chain-diagnostic/zod-time.json
-          npm view fast-uri time --json > output/supply-chain-diagnostic/fast-uri-time.json
-          npm view body-parser time --json > output/supply-chain-diagnostic/body-parser-time.json
-          npm view undici time --json > output/supply-chain-diagnostic/undici-time.json
-          node diagnostic-input/scripts/sol-dependency-maturity-report.mjs
+          mkdir -p output/format-producer
+          git rev-parse HEAD > output/format-producer/source-revision.txt
+          sha256sum tests/ui-screenshots/current-ui.spec.ts > output/format-producer/input.sha256
 
-      - name: Resolve the minimal candidate lockfile without install hooks
-        shell: bash
-        run: |
-          set -euo pipefail
-          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
-          cp pnpm-lock.yaml output/supply-chain-diagnostic/
-          git diff --binary -- pnpm-workspace.yaml pnpm-lock.yaml > output/supply-chain-diagnostic/candidate.patch
-          sha256sum pnpm-workspace.yaml pnpm-lock.yaml > output/supply-chain-diagnostic/candidate.sha256
+      - name: Format only the capture spec
+        run: pnpm exec prettier --write tests/ui-screenshots/current-ui.spec.ts
 
-      - name: Install the exact generated lock and verify the existing gate
-        shell: bash
+      - name: Save formatted source and hash
         run: |
-          set -euo pipefail
-          pnpm install --frozen-lockfile
-          pnpm exec prettier --check pnpm-workspace.yaml pnpm-lock.yaml
-          pnpm run check:supply-chain 2>&1 | tee output/supply-chain-diagnostic/supply-chain.log
+          cp tests/ui-screenshots/current-ui.spec.ts output/format-producer/current-ui.spec.ts
+          sha256sum output/format-producer/current-ui.spec.ts > output/format-producer/formatted.sha256
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ always() }}
         with:
-          name: sol-supply-chain-${{ github.sha }}
-          path: output/supply-chain-diagnostic/
+          name: sol-visual-format-${{ inputs.source_sha }}
+          path: output/format-producer/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
