@@ -23,6 +23,7 @@ coverage/
 service-account*.json
 # Safe local drop for Google service-account keys; nothing here is committed.
 secrets/
+cal-pilot-keys/
 
 # Patient, payroll, backup, and local exports
 exports/
