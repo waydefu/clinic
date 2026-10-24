@@ -141,10 +141,30 @@ export async function renewWatchChannelWithOverlap(input: {
     input.nextExpirationMs <= input.nowMs
   )
     throw new Error('Replacement watch expiry must be a future timestamp.');
-  const next = await input.adapter.watch({
+  const next: unknown = await input.adapter.watch({
     channelId: plan.nextChannelId,
     expirationMs: input.nextExpirationMs
   });
+  // An adapter response must be usable before it can replace the known channel.
+  // Rejection leaves caller state intact; do not stop an unverified resource.
+  if (
+    next === null ||
+    typeof next !== 'object' ||
+    Array.isArray(next) ||
+    !('channelId' in next) ||
+    typeof next.channelId !== 'string' ||
+    next.channelId !== plan.nextChannelId ||
+    !('resourceId' in next) ||
+    typeof next.resourceId !== 'string' ||
+    next.resourceId.trim() === '' ||
+    !('expirationMs' in next) ||
+    typeof next.expirationMs !== 'number' ||
+    !Number.isSafeInteger(next.expirationMs) ||
+    next.expirationMs <= input.nowMs ||
+    !('retired' in next) ||
+    next.retired !== false
+  )
+    throw new Error('Watch replacement response is unusable.');
   return {
     renewed: true,
     state: {
