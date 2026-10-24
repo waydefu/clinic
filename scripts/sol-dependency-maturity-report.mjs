@@ -5,7 +5,11 @@ const directory = 'output/supply-chain-diagnostic';
 const packages = [
   { name: 'zod', version: '4.6.6', file: 'zod-time.json' },
   { name: 'fast-uri', version: '3.1.9', file: 'fast-uri-time.json' },
-  { name: 'fast-uri', version: '4.2.3', file: 'fast-uri-time.json' }
+  { name: 'fast-uri', version: '4.2.3', file: 'fast-uri-time.json' },
+  { name: 'body-parser', version: '1.20.9', file: 'body-parser-time.json' },
+  { name: 'body-parser', version: '2.4.0', file: 'body-parser-time.json' },
+  { name: 'undici', version: '6.29.1', file: 'undici-time.json' },
+  { name: 'undici', version: '8.12.2', file: 'undici-time.json' }
 ];
 const observedAt = new Date();
 const releases = packages.map(({ name, version, file }) => {

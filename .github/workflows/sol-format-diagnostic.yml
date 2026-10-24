@@ -50,6 +50,8 @@ jobs:
           set -euo pipefail
           npm view zod time --json > output/supply-chain-diagnostic/zod-time.json
           npm view fast-uri time --json > output/supply-chain-diagnostic/fast-uri-time.json
+          npm view body-parser time --json > output/supply-chain-diagnostic/body-parser-time.json
+          npm view undici time --json > output/supply-chain-diagnostic/undici-time.json
           node diagnostic-input/scripts/sol-dependency-maturity-report.mjs
 
       - name: Resolve the minimal candidate lockfile without install hooks
