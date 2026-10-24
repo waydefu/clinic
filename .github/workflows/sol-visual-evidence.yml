@@ -1,0 +1,52 @@
+name: SOL visual evidence (non-required)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sol-visual-evidence.yml'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'playwright.screenshots.config.ts'
+      - 'scripts/build-clinic-assets.mjs'
+      - 'scripts/build-web.mjs'
+      - 'tests/e2e/support/**'
+      - 'tests/ui-screenshots/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Synthetic screenshots and manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium for the existing capture fixture
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Capture synthetic UI evidence
+        run: pnpm capture:ui
+        env:
+          UI_VISUAL_EVIDENCE_ID: ui-visual-e5-${{ github.run_id }}-${{ github.run_attempt }}
+          UI_VISUAL_SOURCE_REVISION: ${{ github.sha }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sol-visual-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: docs/reviews/assets/ui-visual-e5-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
