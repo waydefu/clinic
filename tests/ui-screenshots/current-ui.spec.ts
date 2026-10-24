@@ -1,8 +1,10 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { arch, platform, release } from 'node:os';
+import process from 'node:process';
 import { join } from 'node:path';
 
 import {
@@ -22,10 +24,41 @@ import {
 
 const PORT = 3211;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-// CP-01 最小化表單後重拍，使用新的 evidence id；C6、C4、C5 與 C3 的目錄都是
-// immutable historical evidence。
+// Keep the historical CP-01 identifier for the overwrite-denial fixture below.
 const CAPTURE_DATE = '2026-09-29';
 const EVIDENCE_ID = `ui-visual-cp01-${CAPTURE_DATE}`;
+const FINDING_IDS = [
+  'E5-01',
+  'E5-02',
+  'E5-03',
+  'E5-04',
+  'E5-05',
+  'E5-06',
+  'E5-07',
+  'E5-08',
+  'E5-09',
+  'E5-10'
+];
+const EVIDENCE_ID_PATTERN = /^ui-visual-e5-[0-9]+-[0-9]+$/;
+const SOURCE_REVISION_PATTERN = /^[0-9a-f]{40}$/;
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const ALLOWED_PNG_CHUNKS = new Set([
+  'IHDR',
+  'PLTE',
+  'IDAT',
+  'IEND',
+  'cHRM',
+  'gAMA',
+  'iCCP',
+  'sBIT',
+  'sRGB',
+  'bKGD',
+  'hIST',
+  'pHYs',
+  'sPLT',
+  'tRNS'
+]);
+const PNG_METADATA_CHUNKS = new Set(['eXIf', 'tEXt', 'zTXt', 'iTXt', 'tIME']);
 // 凍結的時鐘，讓合成狀態可重現。它**不是**擷取時間——兩者在 manifest 裡分開記錄，
 // 正是為了不讓「畫面上顯示的日期」被誤讀成「這批圖是哪天拍的」。刻意沿用
 // 2026-07-28 那批的值，讓兩批圖的合成資料落在同一個時間點，比對時只剩樣式差異。
@@ -34,7 +67,6 @@ const LOCALE = 'zh-TW';
 const TIME_ZONE = 'Asia/Taipei';
 const THEME = 'warm';
 const DEVICE_SCALE_FACTOR = 1;
-const SOURCE_REVISION = 'commit-containing-this-manifest';
 const NORMALIZATION_STYLESHEET_PATH =
   '/__ui-reference-capture-normalization.css';
 // Chromium 的 fullPage 截圖會把 fixed／sticky 元件畫在某個任意拼接片段上，甚至把
@@ -54,13 +86,6 @@ const FULL_PAGE_CAPTURE_STYLE = `
   }
 `;
 const repoRoot = process.cwd();
-const outputDirectory = join(
-  repoRoot,
-  'docs',
-  'reviews',
-  'assets',
-  EVIDENCE_ID
-);
 const playwrightVersion = (
   JSON.parse(
     readFileSync(
@@ -112,8 +137,147 @@ type Scenario = {
   prepare: (page: Page) => Promise<void>;
 };
 
+type CaptureMetadata = {
+  evidenceId: string;
+  sourceRevision: string;
+  captureDate: string;
+};
+
 const DESKTOP = { width: 1280, height: 900 };
 const PHONE = { width: 375, height: 812 };
+
+function resolveCaptureMetadata(
+  evidenceId: string | undefined,
+  sourceRevision: string | undefined
+): CaptureMetadata {
+  if (!evidenceId || !EVIDENCE_ID_PATTERN.test(evidenceId))
+    throw new Error('capture requires a new ui-visual-e5 run ID');
+  if (!sourceRevision || !SOURCE_REVISION_PATTERN.test(sourceRevision))
+    throw new Error('capture requires the exact 40-character CI source SHA');
+  return {
+    evidenceId,
+    sourceRevision,
+    captureDate: new Date().toISOString().slice(0, 10)
+  };
+}
+
+// shortcut: inspect PNG chunk framing and metadata, not CRC or pixel decoding; upgrade if decoding is required.
+function inspectPng(bytes: Buffer): Viewport {
+  if (!bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE))
+    throw new Error('capture output is not a PNG');
+
+  let offset = PNG_SIGNATURE.length;
+  let width: number | undefined;
+  let height: number | undefined;
+  let hasImageData = false;
+  let hasEnd = false;
+
+  while (offset < bytes.length) {
+    if (offset + 12 > bytes.length)
+      throw new Error('PNG has a truncated chunk header');
+    const chunkLength = bytes.readUInt32BE(offset);
+    const chunkType = bytes.toString('ascii', offset + 4, offset + 8);
+    const nextOffset = offset + 12 + chunkLength;
+    if (nextOffset > bytes.length)
+      throw new Error(`PNG ${chunkType} chunk is truncated`);
+    if (PNG_METADATA_CHUNKS.has(chunkType))
+      throw new Error(`PNG metadata chunk ${chunkType} is not allowed`);
+    if (!ALLOWED_PNG_CHUNKS.has(chunkType))
+      throw new Error(`PNG contains an unreviewed chunk ${chunkType}`);
+
+    if (chunkType === 'IHDR') {
+      if (offset !== PNG_SIGNATURE.length || chunkLength !== 13 || width !== undefined)
+        throw new Error('PNG has an invalid IHDR');
+      width = bytes.readUInt32BE(offset + 8);
+      height = bytes.readUInt32BE(offset + 12);
+    } else if (chunkType === 'IDAT') {
+      if (width === undefined) throw new Error('PNG IDAT precedes IHDR');
+      hasImageData = true;
+    } else if (chunkType === 'IEND') {
+      if (chunkLength !== 0 || nextOffset !== bytes.length)
+        throw new Error('PNG has an invalid IEND or trailing bytes');
+      hasEnd = true;
+      break;
+    }
+    offset = nextOffset;
+  }
+
+  if (width === undefined || height === undefined || !hasImageData || !hasEnd)
+    throw new Error('PNG is missing required image chunks');
+  return { width, height };
+}
+
+function assertPngMatchesViewport(bytes: Buffer, viewport: Viewport): void {
+  const dimensions = inspectPng(bytes);
+  expect(dimensions.width).toBe(viewport.width);
+  expect(dimensions.height).toBeGreaterThanOrEqual(viewport.height);
+}
+
+function validateManifestCoverage(
+  captures: CaptureEntry[],
+  expectedScenarios: Scenario[]
+): void {
+  const files = captures.map((capture) => capture.file);
+  if (new Set(files).size !== files.length)
+    throw new Error('manifest contains duplicate capture file references');
+  if (captures.length !== expectedScenarios.length)
+    throw new Error('manifest capture count does not cover the expected scenarios');
+
+  const expectedFiles = expectedScenarios
+    .map((scenario) => scenario.file)
+    .sort();
+  if (JSON.stringify([...files].sort()) !== JSON.stringify(expectedFiles))
+    throw new Error('manifest capture files do not exactly cover the scenarios');
+
+  for (const scenario of expectedScenarios) {
+    const matching = captures.filter((capture) => capture.file === scenario.file);
+    const expectedKind =
+      scenario.fullPage === false
+        ? 'reference-viewport'
+        : 'reference-full-page';
+    if (
+      matching.length !== 1 ||
+      matching[0].route !== scenario.route ||
+      matching[0].role !== scenario.role ||
+      matching[0].state !== scenario.state ||
+      matching[0].captureKind !== expectedKind ||
+      matching[0].viewport.width !== scenario.viewport.width ||
+      matching[0].viewport.height !== scenario.viewport.height ||
+      matching[0].deviceScaleFactor !== DEVICE_SCALE_FACTOR ||
+      !/^[0-9a-f]{64}$/.test(matching[0].sha256) ||
+      matching[0].consoleCounts.errors !== 0 ||
+      matching[0].consoleCounts.warnings !== 0 ||
+      !Number.isInteger(matching[0].consoleCounts.expectedSyntheticProbe404s) ||
+      matching[0].consoleCounts.expectedSyntheticProbe404s < 0
+    )
+      throw new Error(`manifest metadata is invalid for ${scenario.file}`);
+  }
+}
+
+function makePngFixture(
+  width: number,
+  height: number,
+  metadataChunk?: string
+): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const header = Buffer.alloc(8);
+    header.writeUInt32BE(data.length, 0);
+    header.write(type, 4, 4, 'ascii');
+    return Buffer.concat([header, data, Buffer.alloc(4)]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  return Buffer.concat([
+    PNG_SIGNATURE,
+    chunk('IHDR', header),
+    ...(metadataChunk
+      ? [chunk(metadataChunk, Buffer.from('synthetic metadata'))]
+      : []),
+    chunk('IDAT', Buffer.from([0])),
+    chunk('IEND', Buffer.alloc(0))
+  ]);
+}
 
 function observeConsole(page: Page) {
   const errors: string[] = [];
@@ -587,9 +751,80 @@ const scenarios: Scenario[] = [
   }
 ];
 
+test('synthetic capture validators accept exact references and reject unsafe evidence', () => {
+  const sha = 'a'.repeat(40);
+  const metadata = resolveCaptureMetadata('ui-visual-e5-1234-1', sha);
+  expect(metadata.sourceRevision).toBe(sha);
+  expect(metadata.captureDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  expect(FINDING_IDS).toEqual([
+    'E5-01',
+    'E5-02',
+    'E5-03',
+    'E5-04',
+    'E5-05',
+    'E5-06',
+    'E5-07',
+    'E5-08',
+    'E5-09',
+    'E5-10'
+  ]);
+  expect(() => resolveCaptureMetadata(EVIDENCE_ID, sha)).toThrow();
+  expect(() => resolveCaptureMetadata('../ui-visual-e5-1234-1', sha)).toThrow();
+  expect(() =>
+    resolveCaptureMetadata('ui-visual-e5-1234-1', 'commit-containing-this-manifest')
+  ).toThrow();
+
+  const captureFixture = (
+    scenario: Scenario,
+    sha256 = 'b'.repeat(64)
+  ): CaptureEntry => ({
+    file: scenario.file,
+    route: scenario.route,
+    role: scenario.role,
+    viewport: scenario.viewport,
+    deviceScaleFactor: DEVICE_SCALE_FACTOR,
+    state: scenario.state,
+    captureKind:
+      scenario.fullPage === false
+        ? 'reference-viewport'
+        : 'reference-full-page',
+    sha256,
+    consoleCounts: {
+      errors: 0,
+      warnings: 0,
+      expectedSyntheticProbe404s: 0
+    }
+  });
+  const first = captureFixture(scenarios[0]);
+  const second = captureFixture(scenarios[1], first.sha256);
+  expect(() =>
+    validateManifestCoverage([first, second], scenarios.slice(0, 2))
+  ).not.toThrow();
+  expect(() => validateManifestCoverage([first, first], [scenarios[0]])).toThrow(
+    /duplicate/
+  );
+  expect(() =>
+    validateManifestCoverage([first], scenarios.slice(0, 2))
+  ).toThrow(/count/);
+  expect(() =>
+    validateManifestCoverage([{ ...first, route: '/wrong' }], [scenarios[0]])
+  ).toThrow(/metadata/);
+
+  const cleanPng = makePngFixture(DESKTOP.width, DESKTOP.height);
+  expect(inspectPng(cleanPng)).toEqual(DESKTOP);
+  expect(() =>
+    assertPngMatchesViewport(makePngFixture(PHONE.width, PHONE.height), DESKTOP)
+  ).toThrow();
+  for (const chunk of PNG_METADATA_CHUNKS)
+    expect(() =>
+      inspectPng(makePngFixture(DESKTOP.width, DESKTOP.height, chunk))
+    ).toThrow(/metadata chunk/);
+});
+
 async function captureScenario(
   browser: Browser,
-  scenario: Scenario
+  scenario: Scenario,
+  outputDirectory: string
 ): Promise<CaptureEntry> {
   const context = await browser.newContext({
     baseURL: BASE_URL,
@@ -648,6 +883,7 @@ async function captureScenario(
     await settlePage(page);
     assertConsoleClean(scenario.file, observed);
     const bytes = await readFile(outputPath);
+    assertPngMatchesViewport(bytes, scenario.viewport);
     return {
       file: scenario.file,
       route: scenario.route,
@@ -669,18 +905,32 @@ async function captureScenario(
 }
 
 test('capture the current synthetic UI reference set', async ({ browser }) => {
-  await mkdir(outputDirectory, { recursive: true });
+  const metadata = resolveCaptureMetadata(
+    process.env.UI_VISUAL_EVIDENCE_ID,
+    process.env.UI_VISUAL_SOURCE_REVISION
+  );
+  const outputDirectory = join(
+    repoRoot,
+    'docs',
+    'reviews',
+    'assets',
+    metadata.evidenceId
+  );
+  await mkdir(outputDirectory);
 
   const captures: CaptureEntry[] = [];
   for (const scenario of scenarios) {
-    captures.push(await captureScenario(browser, scenario));
+    captures.push(await captureScenario(browser, scenario, outputDirectory));
   }
+  validateManifestCoverage(captures, scenarios);
 
   const manifest = {
     schemaVersion: 1,
-    captureDate: CAPTURE_DATE,
+    evidenceId: metadata.evidenceId,
+    findingIDs: FINDING_IDS,
+    captureDate: metadata.captureDate,
     fixedTime: FIXED_TIME,
-    sourceRevision: SOURCE_REVISION,
+    sourceRevision: metadata.sourceRevision,
     referenceOnly: true,
     crossOsPixelGate: false,
     captureNormalization: [
@@ -713,6 +963,19 @@ test('capture the current synthetic UI reference set', async ({ browser }) => {
     `${JSON.stringify(manifest, null, 2)}\n`,
     'utf8'
   );
+
+  const persistedManifest = JSON.parse(
+    await readFile(join(outputDirectory, 'manifest.json'), 'utf8')
+  ) as typeof manifest;
+  expect(persistedManifest.evidenceId).toBe(metadata.evidenceId);
+  expect(persistedManifest.findingIDs).toEqual(FINDING_IDS);
+  expect(persistedManifest.sourceRevision).toBe(metadata.sourceRevision);
+  validateManifestCoverage(persistedManifest.captures, scenarios);
+  for (const capture of persistedManifest.captures) {
+    const bytes = await readFile(join(outputDirectory, capture.file));
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(capture.sha256);
+    assertPngMatchesViewport(bytes, capture.viewport);
+  }
 
   const actualFiles = (await readdir(outputDirectory)).sort();
   const expectedFiles = [
