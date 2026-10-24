@@ -225,14 +225,22 @@ function validateManifestCoverage(
   if (new Set(files).size !== files.length)
     throw new Error('manifest contains duplicate capture file references');
   if (captures.length !== expectedScenarios.length)
-    throw new Error('manifest capture count does not cover the expected scenarios');
+    throw new Error(
+      'manifest capture count does not cover the expected scenarios'
+    );
 
-  const expectedFiles = expectedScenarios.map((scenario) => scenario.file).sort();
+  const expectedFiles = expectedScenarios
+    .map((scenario) => scenario.file)
+    .sort();
   if (JSON.stringify([...files].sort()) !== JSON.stringify(expectedFiles))
-    throw new Error('manifest capture files do not exactly cover the scenarios');
+    throw new Error(
+      'manifest capture files do not exactly cover the scenarios'
+    );
 
   for (const scenario of expectedScenarios) {
-    const matching = captures.filter((capture) => capture.file === scenario.file);
+    const matching = captures.filter(
+      (capture) => capture.file === scenario.file
+    );
     const expectedKind =
       scenario.fullPage === false
         ? 'reference-viewport'
@@ -773,7 +781,10 @@ test('synthetic capture validators accept exact references and reject unsafe evi
   expect(() => resolveCaptureMetadata(EVIDENCE_ID, sha)).toThrow();
   expect(() => resolveCaptureMetadata('../ui-visual-e5-1234-1', sha)).toThrow();
   expect(() =>
-    resolveCaptureMetadata('ui-visual-e5-1234-1', 'commit-containing-this-manifest')
+    resolveCaptureMetadata(
+      'ui-visual-e5-1234-1',
+      'commit-containing-this-manifest'
+    )
   ).toThrow();
 
   const captureFixture = (
@@ -812,7 +823,10 @@ test('synthetic capture validators accept exact references and reject unsafe evi
     validateManifestCoverage([{ ...first, route: '/wrong' }], [scenarios[0]])
   ).toThrow(/metadata/);
   expect(() =>
-    validateManifestCoverage([{ ...first, sha256: 'x'.repeat(64) }], [scenarios[0]])
+    validateManifestCoverage(
+      [{ ...first, sha256: 'x'.repeat(64) }],
+      [scenarios[0]]
+    )
   ).toThrow(/metadata/);
 
   const framedPng = makePngFixture(DESKTOP.width, DESKTOP.height);
