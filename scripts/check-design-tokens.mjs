@@ -128,6 +128,126 @@ function ceilingFor(label, sheet) {
 // `.slot-chip-mark` 的記號都要跟著所在文字縮放，換成 rem 會切斷那個關係。
 const RELATIVE_FONT_SIZE = /^[0-9.]+em$/;
 
+// Preserve UTF-16 offsets while hiding text that cannot delimit CSS blocks.
+function cssStructure(source) {
+  const chars = source.split('');
+  for (let index = 0; index < source.length; index += 1) {
+    if (source.startsWith('/*', index)) {
+      const close = source.indexOf('*/', index + 2);
+      const end = close < 0 ? source.length : close + 2;
+      chars.fill('\0', index, end);
+      index = end - 1;
+    } else if (source[index] === '"' || source[index] === "'") {
+      const quote = source[index];
+      let end = index + 1;
+      while (end < source.length) {
+        if (source[end] === '\\') end += 2;
+        else if (source[end++] === quote) break;
+      }
+      chars.fill('\0', index, Math.min(end, source.length));
+      index = end - 1;
+    } else if (source[index] === '\\') {
+      // An escaped colon must not become authority to declare a root scope.
+      chars[index] = 'x';
+      if (index + 1 < source.length) chars[++index] = 'x';
+    }
+  }
+  return chars.join('');
+}
+
+function rootTarget(value) {
+  const selector = value.replaceAll('\0', '').trim();
+  let root = false;
+  let pseudoElement = false;
+  let parentheses = 0;
+  let brackets = 0;
+  for (let index = 0; index < selector.length; index += 1) {
+    const char = selector[index];
+    if (char === '[') brackets += 1;
+    else if (char === ']') brackets -= 1;
+    if (brackets < 0) return false;
+    if (brackets > 0 || char === ']') continue;
+    if (char === '(') parentheses += 1;
+    else if (char === ')') parentheses -= 1;
+    if (parentheses < 0) return false;
+    if (parentheses > 0 || char === ')') continue;
+    const group = /^:(?:is|where)\(/i.exec(selector.slice(index));
+    if (group) {
+      const start = index + group[0].length;
+      let end = start;
+      let depth = 1;
+      while (end < selector.length && depth > 0) {
+        if (selector[end] === '(') depth += 1;
+        else if (selector[end] === ')') depth -= 1;
+        end += 1;
+      }
+      if (depth !== 0) return false;
+      const arguments_ = splitArguments(selector.slice(start, end - 1));
+      root ||= arguments_.length > 0 && arguments_.every(rootTarget);
+      index = end - 1;
+    } else if (char === ':' && selector[index + 1] === ':') {
+      pseudoElement = true;
+    } else if (/^:root(?![\w-]|\()/i.test(selector.slice(index))) {
+      root = true;
+    } else if (/[\s>+~|]/.test(char)) {
+      root = false;
+      pseudoElement = false;
+    }
+  }
+  return root && !pseudoElement && parentheses === 0 && brackets === 0;
+}
+
+function cssBlocks(code) {
+  const blocks = [];
+  const stack = [];
+  let start = 0;
+  let parentheses = 0;
+  let brackets = 0;
+  for (let index = 0; index < code.length; index += 1) {
+    const char = code[index];
+    if (char === '(') parentheses += 1;
+    else if (char === ')') parentheses -= 1;
+    else if (char === '[') brackets += 1;
+    else if (char === ']') brackets -= 1;
+    if (parentheses !== 0 || brackets !== 0) continue;
+    if (char === '{') {
+      const parent = stack.at(-1);
+      const block = {
+        start,
+        bodyStart: index + 1,
+        selector: code.slice(start, index).replaceAll('\0', '').trim(),
+        parent,
+        children: []
+      };
+      parent?.children.push(block);
+      stack.push(block);
+      start = index + 1;
+    } else if (char === '}') {
+      const block = stack.pop();
+      if (block) {
+        block.end = index + 1;
+        blocks.push(block);
+      }
+      start = index + 1;
+    } else if (char === ';') {
+      start = index + 1;
+    }
+  }
+  return blocks.sort((left, right) => left.start - right.start);
+}
+
+function globalStyleContext(block) {
+  for (let parent = block.parent; parent; parent = parent.parent) {
+    if (
+      !/^@(?:media|supports|layer|container|scope|starting-style)\b/i.test(
+        parent.selector
+      )
+    )
+      return false;
+  }
+  return true;
+}
+
 /**
  * 找出每個 `:root` 區塊的範圍。**大括號要真的配對，不能靠縮排猜。**
  *
@@ -143,25 +263,32 @@ const RELATIVE_FONT_SIZE = /^[0-9.]+em$/;
  *
  * 兩個用途共用這一個掃描，邊界才只有一種說法。
  *
- * @returns {{ start: number, bodyStart: number, end: number }[]}
- *   `start` 是 `:root` 的起點，`bodyStart` 是 `{` 之後，`end` 是配對 `}` 之後。
+ * `start` 由整個 selector 起算，`bodyStart` 是 `{` 之後，`end` 是配對 `}` 之後。
+ * `rootOnly` 區分「有宣告全域 token」與「整條規則可豁免字面值」；混合 selector
+ * 只能有前者。`nestedRanges` 保留子規則的檢查，不能把它們升格成全域宣告。
+ * 本輪只驗 current-source fixtures；上面保留的歷史測量不作為本輪重驗證據。
  */
 export function rootBlockRanges(source) {
-  const opening = /:root[^{]*\{/g;
+  const code = cssStructure(source);
   const ranges = [];
-  let match;
-  while ((match = opening.exec(source)) !== null) {
-    const bodyStart = opening.lastIndex;
-    let depth = 1;
-    let index = bodyStart;
-    while (index < source.length && depth > 0) {
-      const character = source[index];
-      if (character === '{') depth += 1;
-      else if (character === '}') depth -= 1;
-      index += 1;
-    }
-    ranges.push({ start: match.index, bodyStart, end: index });
-    opening.lastIndex = index;
+  for (const block of cssBlocks(code)) {
+    const selectors = splitArguments(block.selector);
+    const targets = selectors.map(rootTarget);
+    if (!targets.some(Boolean) || !globalStyleContext(block)) continue;
+    ranges.push({
+      start: block.start,
+      bodyStart: block.bodyStart,
+      end: block.end,
+      rootOnly: targets.every(Boolean),
+      nestedRanges: block.children.map((child) => {
+        const valueBlock = /^--[\w-]+\s*:/.test(child.selector);
+        return {
+          start: valueBlock ? child.bodyStart - 1 : child.start,
+          end: child.end,
+          preserveOutside: !valueBlock
+        };
+      })
+    });
   }
   return ranges;
 }
@@ -175,11 +302,14 @@ export function rootBlockRanges(source) {
  */
 export function definedTokens(source) {
   const defined = new Set();
-  for (const { bodyStart, end } of rootBlockRanges(source)) {
-    // end 已越過配對的 `}`，body 要退一格。
-    for (const match of source
-      .slice(bodyStart, end - 1)
-      .matchAll(/(--[a-z0-9-]+):/g)) {
+  const code = cssStructure(source);
+  for (const { bodyStart, end, nestedRanges } of rootBlockRanges(source)) {
+    const chars = code.slice(bodyStart, end - 1).split('');
+    for (const child of nestedRanges) {
+      chars.fill('\0', child.start - bodyStart, child.end - bodyStart);
+    }
+    const body = chars.join('');
+    for (const match of body.matchAll(/(--[a-z0-9-]+):/g)) {
       defined.add(match[1]);
     }
   }
@@ -187,7 +317,7 @@ export function definedTokens(source) {
   // 就無法對自訂屬性做動畫（瀏覽器不知道 `0deg` 到 `360deg` 之間要怎麼內插）。
   // 只認 `:root` 會讓這個守衛把正確的現代寫法報成「未定義」，於是把人推回舊寫法，
   // 或者更糟：在 `:root` 再寫一次同一個初始值，讓同一件事有兩個來源。
-  for (const match of source.matchAll(/@property\s+(--[a-z0-9-]+)/g)) {
+  for (const match of code.matchAll(/@property\s+(--[a-z0-9-]+)/g)) {
     defined.add(match[1]);
   }
   return defined;
@@ -394,9 +524,20 @@ export function reviewFontSizeClamp(value) {
 
 /** `:root` 區塊以外的內容——寫死顏色只有在這裡才算違規。 */
 export function outsideRootBlocks(source) {
+  const removed = [];
+  for (const range of rootBlockRanges(source)) {
+    if (!range.rootOnly) continue;
+    let start = range.start;
+    for (const child of range.nestedRanges) {
+      if (!child.preserveOutside) continue;
+      removed.push({ start, end: child.start });
+      start = child.end;
+    }
+    removed.push({ start, end: range.end });
+  }
   let result = '';
   let copiedTo = 0;
-  for (const { start, end } of rootBlockRanges(source)) {
+  for (const { start, end } of removed) {
     result += source.slice(copiedTo, start);
     copiedTo = end;
   }
