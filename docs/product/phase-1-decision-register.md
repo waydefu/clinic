@@ -1,5 +1,56 @@
 # Phase 1 Decision Register
 
+## 2026-10-24 Sol v2：43 包來源收尾與外部驗收分離
+
+專案負責人為工程師，不是診所業主；工程範圍、設計與測試方案由負責人核。
+正式營運批准人、隱私告知原文與公開信箱等對外承諾，由有權代表診所的人確認，負責人代為轉達。
+負責人在本輪對話明確採用 `sol-longrun-v2`；以下四項原文已登記並讀回
+[#268 決定紀錄](https://github.com/waydefu/clinic/pull/268#issuecomment-6384695242)。
+未另提供 approval ID，不另造；不改 D-001～D-016 狀態、ADR 或 Safety Floor。
+
+### 負責人決定原文
+
+**決定 1　下游解鎖：選「可以先開工」**
+> 上游列「外部驗收未完成」，下游照常做程式與測試；外部驗收另列清單、最後一起做。30 包可以動。
+
+**決定 2　外部驗收：選「先列清單，之後排一天做」**
+> Sol 不碰實際環境，只把每項要測什麼、怎麼測、成功標準寫成一份測試單；你挑一天在場，再逐項授權執行。
+
+**決定 3　七個工程小題：選「全部照建議」**
+> ① E4-15 照保守範圍：只替既有 CAL-PILOT 讀取路徑補資料檢查與合成測試；不新增 collection、API、index、writer、資料版本，不雙寫、不 migration、不接 provider 或真實資料。
+> ② 授權 Sol 在原 worktree（luna-read-failure-20261019）修 READ-FAILURE 那 4 個檔，走正常 PR／CI；不改 guard、不清理或重設別人的變更。
+> ③ DESIGN-GATE 以目前來源結案，E1-22 的歷史說法記「未驗證」（historicalClaimVerified 保持 null）。
+> ④ WATCH 這階段不開自動清除，以來源完成結案：容量快滿告警、滿了回未成功讓來源重送、不丟資料、不刪舊紀錄。
+> ⑤ BUSINESS 正式寫入延到 Stage 3，這階段以合成模型結案；正式批准入口與 writer 保持關閉。
+> ⑥ SAST 和截圖可在 CI 用合成資料重做新證據，舊的記「未驗證」；新證據用新的 evidence ID，不覆蓋歷史。
+> ⑦ 不碰 auth、RBAC、IAM、共用 schema、migration（與共同文件）的 MEDIUM 包可以派 Luna，由 Sol 審查。
+
+**決定 4　合併方式：選「小包可以合併成一個 PR」**
+> 同一層、改的檔案不重疊的 MEDIUM 包，最多 3 包合成一個 PR，每包的證據分開寫；HIGH 的身分鏈仍一包一個 PR。
+
+### 本次取代的適用方式與驗收界線
+
+- 本節取代下方 2026-10-22「CONTRACTS／INGRESS 的必要來源或外部證據未取得前，
+  不得聲稱固定數量的後續包已解鎖」的適用方式。下游可做程式與測試的必要條件是：
+  上游來源 PR 全部已合併、合併後 main CI 綠、其剩餘缺項僅是外部測試單或診所文案。
+  「30 包可以動」是負責人決定原文，不代表尚未逐包核對就有 30 包立即可開工。
+- 關鍵鏈仍串行：CONTRACTS → SESSION → IDENTITY → RETURN → TTL → SCHEDULE →
+  CALENDAR-CANDIDATE → INTEGRATION；SOL-INTEGRATION 最後且 parentExclusive。
+- 全包 DONE-MERGED 仍須每個 finding 的來源修補或既有修補、同 SHA 正／負測試、
+  負責人合併與合併後 main CI。ALREADY_FIXED／NO-WORK 仍須證據，不把 BLOCKED 改標 NO-WORK。
+- 來源與測試已合併、只差外部實測者，在 #268 寫 `BLOCKED-EXTERNAL` 並註明
+  「SOURCE-DONE／外部驗收未完成」。不算完成、不報 DONE；須負責人逐包核准，才成為來源凍結候選。
+  PRIVACY 及確需正式告知原文的段落可列「SOURCE-DONE／待診所文案」，不發布草稿或自行核定法律文字。
+- WATCH 核對須涵蓋自動清除、自動到期、Firestore TTL 欄位與排程刪除路徑；這階段不啟用它們。
+  雲端 TTL 設定保持受保護，不以本節修改；容量預警與滿載拒絕重送須有測試。
+- 外部測試單僅列 INGRESS、NOTIFICATION、MAINTENANCE、LEASE、SECRETS 的逐項操作、
+  成功／拒絕標準、停止／回復、合成資料與允許效果；Sol 不執行。
+  執行 SHA 由操作者當天填；目標僅用既有精確核准，缺者列明需新授權，不猜 host／project。
+- 本登記 PR 排合併佇列第一。依賴本節的工作可以先開工並開 Draft PR；
+  登記 PR 合併前，不宣稱這些 PR「現在可以合併」。
+- 不授予合併、部署、實際環境、provider、憑證、IAM、secret、guard、migration、真實資料、
+  production、雲端 TTL、例外延期、凍結或其他受保護動作；不降 gate、不增加例外。
+
 ## 2026-10-22 Sol 全局 closeout 與純合成實作範圍核准
 
 業主在本輪對話明確核准，沒有另外提供 approval ID，不另造。
