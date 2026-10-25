@@ -555,7 +555,7 @@ test.describe('internal-test booking occupancy overlay', () => {
 
     await page.getByRole('button', { name: '重試' }).click();
     await expect(page.locator('[data-booking-type="initial"]')).toBeEnabled();
-    await openPatientSlotStep(page);
+    await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
     await expect(
       page.locator('[data-patient-slot="slot_retry_open"]')
     ).toBeVisible();
@@ -584,7 +584,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       if (slotReads === 1) {
         await holdOlder;
         await route.fulfill({ json: { slots: [fixedReadSlot] } });
-      } else if (slotReads === 2) {
+      } else if (slotReads === 2 || slotReads === 3) {
         await route.fulfill({
           status: 503,
           json: {
@@ -598,15 +598,13 @@ test.describe('internal-test booking occupancy overlay', () => {
         await route.fallback();
       }
     });
-    const stateKey = await page.evaluate(() => window.localStorage.key(0));
-    expect(stateKey).not.toBeNull();
     await page.evaluate((key) => {
       window.dispatchEvent(new StorageEvent('storage', { key }));
-    }, stateKey);
+    }, storageKey);
     await expect.poll(() => slotReads).toBe(1);
     await page.evaluate((key) => {
       window.dispatchEvent(new StorageEvent('storage', { key }));
-    }, stateKey);
+    }, storageKey);
     await expect(page.locator('#patient-read-status')).toContainText(
       '無法載入診所預約資料'
     );

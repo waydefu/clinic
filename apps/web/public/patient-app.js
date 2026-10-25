@@ -478,6 +478,7 @@ function checkedTagIds(containerId, attribute) {
 }
 
 function availableSlots() {
+  if (!dataReady) return [];
   return state.slots
     .filter(
       (slot) =>
@@ -742,13 +743,6 @@ function stateReadStatusAnchor() {
     elements['patient-status'].classList.remove('visually-hidden');
     return undefined;
   }
-  if (elements['patient-read-status'] === undefined) {
-    const status = document.createElement('p');
-    status.id = 'patient-read-status';
-    status.className = 'form-status';
-    elements['patient-slots'].before(status);
-    elements[status.id] = status;
-  }
   return 'patient-read-status';
 }
 
@@ -758,7 +752,6 @@ async function requestPatientState({ retry = false } = {}) {
     stateReadPending = true;
     dataReady = false;
     selectedSlotId = undefined;
-    elements['active-slot-date-label'].textContent = '正在更新診所預約資料';
     if (state !== undefined) {
       state = { ...state, slots: [], appointments: [] };
       renderAll();
@@ -779,15 +772,15 @@ async function requestPatientState({ retry = false } = {}) {
     if (generation !== stateReadGeneration) return undefined;
     stateReadPending = false;
     if (!apiMode) throw error;
+    dataReady = false;
     if (state !== undefined) {
       state = { ...state, slots: [], appointments: [] };
       renderAll();
     } else {
+      elements['patient-booking-app'].hidden = false;
       renderBookingTypeButtons();
       renderServices();
-      elements['active-slot-date-label'].textContent = '暫時無法載入可預約日期';
-      elements['patient-slots'].textContent =
-        '無法載入門診時段，請按「重試」重新載入。';
+      renderSlots();
     }
     const detail =
       error instanceof Error && error.message !== ''
@@ -1197,9 +1190,10 @@ function renderManagedAppointments() {
           : ['phone_required', 'time_unavailable'].includes(eligibility.code)
             ? cancellationContactFallback()
             : '';
-        const targets = eligibility.allowed
-          ? patientRescheduleTargets(state, appointment, Date.now())
-          : [];
+        const targets =
+          eligibility.allowed && dataReady
+            ? patientRescheduleTargets(state, appointment, Date.now())
+            : [];
         const rescheduleAction =
           eligibility.allowed && targets.length > 0
             ? `<div class="booking-lookup-reschedule"><label>改期時段<select name="targetSlotId" data-managed-reschedule-slot="${escapeHtml(appointment.id)}"><option value="">請選擇新時段</option>${targets
