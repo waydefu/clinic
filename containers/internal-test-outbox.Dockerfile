@@ -2,12 +2,15 @@ FROM node:24.20.0-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd
 WORKDIR /workspace
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY apps/worker/package.json apps/worker/package.json
 RUN CI=true corepack pnpm install --frozen-lockfile
+COPY packages/contracts packages/contracts
 COPY packages/domain packages/domain
 COPY apps/worker apps/worker
-RUN corepack pnpm --filter @beauessence/domain build \
+RUN corepack pnpm --filter @beauessence/contracts build \
+ && corepack pnpm --filter @beauessence/domain build \
  && corepack pnpm --filter @beauessence/worker build \
  && corepack pnpm --filter @beauessence/worker deploy --prod --legacy /runtime
 

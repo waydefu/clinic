@@ -97,6 +97,37 @@ beforeEach(async () => {
 });
 
 describe('CAL-PILOT overlapping creation race', () => {
+  it('rejects an unreadable overlap before any appointment or outbox write', async () => {
+    const block = {
+      kind: 'busy',
+      startsAt: FIRST_START,
+      endsAt: '2026-02-30T06:00:00Z',
+      displayLabel: 'Synthetic unreadable busy'
+    };
+    const ref = db
+      .collection('calendar_pilot_availability_blocks')
+      .doc('bad_block');
+    await ref.set(block);
+    await expect(
+      repository.createSyntheticAppointment(
+        createCommand({
+          idempotencyKey: 'unreadable_overlap',
+          patientCode: 'A17'
+        })
+      )
+    ).rejects.toThrow('Unreadable CAL-PILOT record.');
+    for (const collection of [
+      'calendar_pilot_appointments',
+      'calendar_pilot_projections',
+      'calendar_pilot_patient_guards',
+      'calendar_pilot_outbox',
+      'calendar_pilot_idempotency',
+      'calendar_pilot_audit_events'
+    ])
+      expect((await db.collection(collection).get()).size).toBe(0);
+    expect((await ref.get()).data()).toEqual(block);
+  });
+
   it('lets exactly one of two concurrent same-kind overlapping creates win', async () => {
     const attempts = [
       repository.createSyntheticAppointment(
