@@ -266,9 +266,7 @@ test.describe('隱私權政策頁', () => {
         await expect(body).toContainText(fact);
     });
 
-    test('告知模組載入失敗仍可讀全文，且不建立同意或預約', async ({
-      page
-    }) => {
+    test('告知模組載入失敗仍可讀全文，且不建立同意或預約', async ({ page }) => {
       let blockedImports = 0;
       await page.route('**/policy-dialog-content*.js', async (route) => {
         blockedImports += 1;
