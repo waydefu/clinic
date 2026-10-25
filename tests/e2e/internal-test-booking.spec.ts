@@ -155,10 +155,9 @@ async function stubV1(
       method === 'GET' &&
       readName !== undefined &&
       readFailure !== undefined &&
-      (failedReads.get(readName) ?? 0) <
-        (readFailure === 401 || readFailure === 403 ? 1 : 2)
+      (failedReads.get(readName) ?? 0) < (readFailure === 503 ? 2 : 1)
     ) {
-      // Retryable GETs already retry once; exhaust that read before manual retry.
+      // Only HTTP 503 is auto-retryable; a raw network error needs manual retry.
       failedReads.set(readName, (failedReads.get(readName) ?? 0) + 1);
       if (readFailure === 'network') {
         await route.abort();

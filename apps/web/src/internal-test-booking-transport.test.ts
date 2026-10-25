@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   httpTransportError,
@@ -559,6 +559,16 @@ describe('mapInternalTestBookingRequest', () => {
 });
 
 describe('createInternalTestBookingTransport', () => {
+  beforeEach(() => {
+    const memory = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => memory.set(key, value),
+      removeItem: (key: string) => memory.delete(key)
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
   it('posts only the contract fields and returns the v1 body', async () => {
     const local = vi.fn();
     const fetchImpl = vi.fn(() =>
@@ -749,6 +759,7 @@ describe('createInternalTestBookingTransport', () => {
   });
 
   it('does not keep local slots when the published grid cannot be loaded', async () => {
+    sessionStorage.setItem('calPilotCsrf', 'synthetic_csrf');
     const local = vi.fn(() =>
       Promise.resolve({ version: 8, slots: [{ id: 'local_slot' }] })
     );
@@ -770,6 +781,7 @@ describe('createInternalTestBookingTransport', () => {
     await expect(transport('/state')).rejects.toMatchObject({
       code: 'UNAUTHENTICATED'
     });
+    expect(sessionStorage.getItem('calPilotCsrf')).toBeNull();
     expect(local).toHaveBeenCalledOnce();
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
@@ -861,7 +873,9 @@ describe('createInternalTestBookingTransport', () => {
         fetchImpl
       });
 
-      await expect(transport('/state')).rejects.toBeInstanceOf(Error);
+      await expect(transport('/state')).rejects.toMatchObject({
+        name: network ? 'TypeError' : 'ApiClientError'
+      });
       expect(local).toHaveBeenCalledOnce();
       const orderedReads = ['/v1/slots', '/v1/schedule', '/v1/bookings'];
       expect(reads).toEqual(
@@ -1130,6 +1144,17 @@ describe('createInternalTestBookingTransport', () => {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ slots: [] })
+          });
+        }
+        if (url === '/v1/schedule') {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                publishedVersion: 1,
+                publishedAt: '2030-01-01T00:00:00.000Z',
+                schedule: initialState().schedule
+              })
           });
         }
         if (url === '/v1/bookings') {
