@@ -8,8 +8,20 @@ import type {
 } from 'firebase-admin/firestore';
 
 import {
+  CalendarPilotJobLeaseRecordSchema,
+  CalendarPilotJobSelectionRecordSchema,
+  CalendarPilotLeaseConfigurationRecordSchema,
+  CalendarPilotMirrorReviewRecordSchema,
+  CalendarPilotRuntimeAppointmentRecordSchema,
+  CalendarPilotRuntimeConfigurationRecordSchema,
+  CalendarPilotRuntimeJobRecordSchema,
+  parseCalendarPilotRecord,
+  type CalendarPilotRuntimeJobRecord
+} from '@beauessence/contracts';
+import {
   formatBusyTitle,
   formatSyntheticAppointmentTitle,
+  isUtcIsoTimestamp,
   parseCalendarEntry,
   type CalendarBookingKind,
   type CalendarServiceId,
@@ -54,32 +66,12 @@ interface SourceSecret {
 
 type SourceRegistry = Readonly<Record<string, SourceSecret>>;
 
-interface PilotJob {
-  readonly kind:
-    | 'calendar_source_preflight'
-    | 'calendar_projection_upsert'
-    | 'calendar_projection_delete'
-    | 'calendar_projection_restore'
-    | 'calendar_source_activated';
-  readonly status:
-    'pending' | 'processing' | 'completed' | 'failed' | 'superseded';
-  readonly sourceId?: string;
-  readonly previousSourceId?: string;
-  readonly localRecordId?: string;
-  readonly mirrorId?: string;
-  readonly writeMode?: 'update_existing';
-  readonly restoreSource?: 'confirmed_appointment';
-  readonly expectedEtag?: string;
-  readonly generation?: number;
-  readonly leaseOwner?: string;
-  readonly leaseExpiresAt?: string;
-  readonly attemptCount?: number;
-  /** Written by `retryJob`; absent on a job that has never been retried. */
-  readonly nextAttemptAt?: unknown;
-  readonly activationProgress?: unknown;
-}
+type PilotJob = CalendarPilotRuntimeJobRecord;
 
-function leaseExpired(job: PilotJob, now: string): boolean {
+function leaseExpired(
+  job: Pick<PilotJob, 'leaseExpiresAt'>,
+  now: string
+): boolean {
   return (
     typeof job.leaseExpiresAt !== 'string' ||
     Date.parse(job.leaseExpiresAt) <= Date.parse(now)
@@ -93,11 +85,15 @@ function leaseExpired(job: PilotJob, now: string): boolean {
  * cannot be a `nextAttemptAt <= now` range query — Firestore would drop those
  * documents. A present but unreadable value fails closed (never due).
  */
-function backoffElapsed(job: PilotJob, now: string): boolean {
+function backoffElapsed(
+  job: Pick<PilotJob, 'nextAttemptAt'>,
+  now: string
+): boolean {
   const nextAttemptAt = job.nextAttemptAt;
   if (nextAttemptAt === undefined || nextAttemptAt === null) return true;
   return (
     typeof nextAttemptAt === 'string' &&
+    isUtcIsoTimestamp(nextAttemptAt) &&
     Date.parse(nextAttemptAt) <= Date.parse(now)
   );
 }
@@ -124,7 +120,13 @@ async function duePendingJobs(
     for (const document of page.docs) {
       if (
         due.length < limit &&
-        backoffElapsed(document.data() as PilotJob, now)
+        backoffElapsed(
+          parseCalendarPilotRecord(
+            CalendarPilotJobSelectionRecordSchema,
+            document.data()
+          ),
+          now
+        )
       )
         due.push(document);
     }
@@ -164,7 +166,10 @@ export async function claimCalendarPilotJobs(
     const document = await db.runTransaction(async (transaction) => {
       const current = await transaction.get(candidate.ref);
       if (!current.exists) return undefined;
-      const job = current.data() as PilotJob;
+      const job = parseCalendarPilotRecord(
+        CalendarPilotRuntimeJobRecordSchema,
+        current.data()
+      );
       if (
         !(job.status === 'pending' && backoffElapsed(job, now)) &&
         !(job.status === 'processing' && leaseExpired(job, now))
@@ -323,57 +328,23 @@ function safeFailureCode(error: unknown): string {
 }
 
 function storedAppointment(value: unknown): StoredAppointment {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    throw new Error('Synthetic appointment record is invalid.');
-  const data = value as Record<string, unknown>;
-  if (
-    typeof data['patientCode'] !== 'string' ||
-    !['initial', 'follow_up'].includes(String(data['bookingKind'])) ||
-    !['service_snoring', 'service_aesthetic'].includes(
-      String(data['serviceId'])
-    ) ||
-    typeof data['startsAt'] !== 'string' ||
-    typeof data['endsAt'] !== 'string'
-  )
-    throw new Error('Synthetic appointment record is invalid.');
-  return data as unknown as StoredAppointment;
+  return parseCalendarPilotRecord(
+    CalendarPilotRuntimeAppointmentRecordSchema,
+    value
+  );
 }
 
 function storedMirror(value: unknown): StoredMirror {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    throw new Error('Calendar mirror record is invalid.');
-  const data = value as Record<string, unknown>;
-  const parsed = data['parsed'];
-  if (
-    typeof data['externalEventId'] !== 'string' ||
-    data['externalEventId'].trim() === '' ||
-    typeof data['etag'] !== 'string' ||
-    data['etag'].trim() === '' ||
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    Array.isArray(parsed) ||
-    (parsed as Record<string, unknown>)['ok'] !== true
-  )
-    throw new Error('Calendar mirror record is invalid.');
-  const parsedRecord = parsed as Record<string, unknown>;
-  if (
-    parsedRecord['allDay'] === true &&
-    (typeof parsedRecord['startDate'] !== 'string' ||
-      typeof parsedRecord['endDate'] !== 'string')
-  )
-    throw new Error('Calendar mirror record is invalid.');
-  if (
-    !['appointment', 'busy'].includes(String(parsedRecord['kind'])) ||
-    typeof parsedRecord['displayLabel'] !== 'string' ||
-    typeof parsedRecord['startsAt'] !== 'string' ||
-    typeof parsedRecord['endsAt'] !== 'string'
-  )
-    throw new Error('Calendar mirror record is invalid.');
+  const data = parseCalendarPilotRecord(
+    CalendarPilotMirrorReviewRecordSchema,
+    value
+  );
+  if (!data.parsed.ok) throw new Error('Calendar mirror record is invalid.');
   return {
-    externalEventId: data['externalEventId'],
-    etag: data['etag'],
-    parsed: parsed as StoredMirror['parsed'],
-    ...(typeof data['linkId'] === 'string' ? { linkId: data['linkId'] } : {})
+    externalEventId: data.externalEventId,
+    etag: data.etag,
+    parsed: data.parsed,
+    ...(data.linkId === undefined ? {} : { linkId: data.linkId })
   };
 }
 
@@ -526,18 +497,25 @@ export class CalendarPilotRuntime {
           : await transaction.get(lease.document.ref);
       if (!configuration.exists || (job !== undefined && !job.exists))
         throw new CalendarPilotLeaseLostError();
-      const now = assertCalendarPilotWorkerLease(
-        configuration.data()!,
-        lease,
-        job?.data()
+      const configurationData = parseCalendarPilotRecord(
+        CalendarPilotLeaseConfigurationRecordSchema,
+        configuration.data()
       );
-      write?.(transaction, now, job?.data());
+      const jobData =
+        job === undefined
+          ? undefined
+          : parseCalendarPilotRecord(
+              CalendarPilotJobLeaseRecordSchema,
+              job.data()
+            );
+      const now = assertCalendarPilotWorkerLease(
+        configurationData,
+        lease,
+        jobData
+      );
+      write?.(transaction, now, jobData);
       return () => {
-        assertCalendarPilotWorkerLease(
-          configuration.data()!,
-          lease,
-          job?.data()
-        );
+        assertCalendarPilotWorkerLease(configurationData, lease, jobData);
       };
     });
   }
@@ -597,11 +575,14 @@ export class CalendarPilotRuntime {
       const document = await transaction.get(ref);
       if (!document.exists)
         throw new Error('CAL-PILOT configuration is missing.');
-      const configuration = document.data() as Record<string, unknown>;
+      const configuration = parseCalendarPilotRecord(
+        CalendarPilotRuntimeConfigurationRecordSchema,
+        document.data()
+      );
       const expiresAt = configuration['expiresAt'];
       if (
         typeof expiresAt !== 'string' ||
-        !Number.isFinite(Date.parse(expiresAt)) ||
+        !isUtcIsoTimestamp(expiresAt) ||
         Date.parse(now) >= Date.parse(expiresAt)
       ) {
         transaction.update(ref, {
@@ -621,7 +602,7 @@ export class CalendarPilotRuntime {
         leaseExpiresAt !== undefined &&
         leaseExpiresAt !== null &&
         (typeof leaseExpiresAt !== 'string' ||
-          !Number.isFinite(Date.parse(leaseExpiresAt)) ||
+          !isUtcIsoTimestamp(leaseExpiresAt) ||
           Date.parse(leaseExpiresAt) > Date.parse(now))
       )
         return undefined;
@@ -649,7 +630,12 @@ export class CalendarPilotRuntime {
       .doc('active');
     await this.db.runTransaction(async (transaction) => {
       const document = await transaction.get(ref);
-      if (document.data()?.['workerLeaseOwner'] !== owner) return;
+      if (!document.exists) return;
+      const configuration = parseCalendarPilotRecord(
+        CalendarPilotRuntimeConfigurationRecordSchema,
+        document.data()
+      );
+      if (configuration.workerLeaseOwner !== owner) return;
       transaction.update(ref, {
         workerLeaseOwner: null,
         workerLeaseExpiresAt: null
@@ -912,7 +898,13 @@ export class CalendarPilotRuntime {
       .get();
     if (jobs.size > 1) return true;
     return jobs.docs.some((document) => {
-      const status: unknown = document.data()['status'];
+      const record = CalendarPilotJobSelectionRecordSchema.safeParse(
+        document.data()
+      );
+      // Preserve the existing admission denial for unreadable activation
+      // metadata; never turn an unknown record into a terminal activation.
+      if (!record.success) return true;
+      const status = record.data.status;
       return status !== 'completed' && status !== 'superseded';
     });
   }
@@ -930,7 +922,10 @@ export class CalendarPilotRuntime {
       await this.withLease(lease);
       const jobs = await claimCalendarPilotJobs(this.db, owner, this.clock());
       for (const document of jobs) {
-        const job = document.data() as PilotJob;
+        const job = parseCalendarPilotRecord(
+          CalendarPilotRuntimeJobRecordSchema,
+          document.data()
+        );
         const jobLease = { ...lease, document };
         try {
           await this.withLease(jobLease);

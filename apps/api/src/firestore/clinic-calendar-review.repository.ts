@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 
+import { ReviewCalendarCandidateResponseSchema } from '@beauessence/contracts';
 import type {
   CalendarChangeCandidate,
   ReviewCalendarCandidateResponse
@@ -127,10 +128,10 @@ export class FirestoreClinicCalendarCandidateStore implements ClinicCalendarCand
         replay: async () => {
           const document = await transaction.get(idempotencyRef);
           if (!document.exists) return undefined;
-          const record =
-            parsePilotIdempotencyRecord<ReviewCalendarCandidateResponse>(
-              document.data()
-            );
+          const record = parsePilotIdempotencyRecord(
+            document.data(),
+            ReviewCalendarCandidateResponseSchema
+          );
           if (record.fingerprint !== fingerprint) throw new ConflictError();
           return record.response;
         }

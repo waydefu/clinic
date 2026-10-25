@@ -460,6 +460,14 @@ describe('bounded CAL-PILOT source activation', () => {
     expect(effects).toHaveLength(0);
   });
 
+  it('fails closed on an unknown activation record version', async () => {
+    await jobRef().update({ status: 'completed', schemaVersion: 2 });
+    const summary = await tick();
+    expect(summary).not.toHaveProperty('sync');
+    expect(engineCallCount()).toBe(0);
+    expect(effects).toHaveLength(0);
+  });
+
   it('fails closed on duplicate current-generation activations instead of trusting one limited result', async () => {
     await jobRef().update({ status: 'completed' });
     await db.collection(OUTBOX).doc('duplicate_activation').set({
