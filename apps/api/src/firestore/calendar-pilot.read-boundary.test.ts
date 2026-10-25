@@ -6,9 +6,15 @@ import { FirestoreCalendarPilotRepository } from './calendar-pilot.repository.js
 function store(value: unknown) {
   const snapshot = { exists: value !== undefined, data: () => value };
   const query = { get: async () => ({ docs: [] }) };
-  const collection = vi.fn(() => ({
-    doc: () => ({ get: async () => snapshot }),
-    where: () => ({ orderBy: () => ({ limit: () => query }) })
+  const collection = vi.fn((name: string) => ({
+    doc: () => ({
+      get: async () =>
+        name === 'calendar_pilot_sources' ? { exists: false } : snapshot
+    }),
+    where: () => ({
+      orderBy: () => ({ limit: () => query }),
+      count: () => ({ get: async () => ({ data: () => ({ count: 0 }) }) })
+    })
   }));
   const runTransaction = vi.fn();
   const db = { collection, runTransaction } as unknown as Firestore;
@@ -69,6 +75,22 @@ describe('CAL-PILOT API stored read boundary', () => {
       repository.getAvailability('2030-01-02T00:00:00Z')
     ).rejects.toThrow('Unreadable CAL-PILOT record.');
     expect(collection).toHaveBeenCalledTimes(1);
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it('renders omitted sync clocks as null without a write', async () => {
+    const legacy = {
+      activeSourceId: configuration.activeSourceId,
+      version: configuration.version,
+      expiresAt: configuration.expiresAt,
+      health: configuration.health,
+      inboundEnabled: configuration.inboundEnabled,
+      outboundEnabled: configuration.outboundEnabled
+    };
+    const { repository, runTransaction } = store(legacy);
+    const result = await repository.getStatus('2030-01-02T00:00:00Z');
+    expect(result.lastSuccessfulSyncAt).toBeNull();
+    expect(result.nextScheduledSyncAt).toBeNull();
     expect(runTransaction).not.toHaveBeenCalled();
   });
 

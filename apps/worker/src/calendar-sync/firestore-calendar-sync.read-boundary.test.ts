@@ -52,6 +52,36 @@ describe('CAL-PILOT worker stored read boundary', () => {
     ).resolves.toEqual({ sourceId: 'synthetic_source', ...source });
   });
 
+  it.each([
+    { displayName: 'Synthetic source' },
+    { syncToken: 'synthetic_token' },
+    { lastSyncedAt: '2030-01-02T00:00:00Z' }
+  ])('reads sync state without unrelated source fields', async (value) => {
+    const result = await repository(value).repository.loadSyncState(
+      'synthetic_source'
+    );
+    expect(result.sourceId).toBe('synthetic_source');
+    expect(result.syncToken).toBe(
+      'syncToken' in value ? value.syncToken : undefined
+    );
+    expect(result.lastSuccessfulSyncAt).toBe(
+      'lastSyncedAt' in value ? value.lastSyncedAt : undefined
+    );
+  });
+
+  it.each([
+    { syncToken: 12 },
+    { lastSyncedAt: 'Jul 25 2026 Z' },
+    { lastFullSyncAt: '2030-02-30T00:00:00Z' },
+    { schemaVersion: 2 }
+  ])('still rejects malformed sync state without a write', async (value) => {
+    const store = repository(value);
+    await expect(
+      store.repository.loadSyncState('synthetic_source')
+    ).rejects.toThrow('Unreadable CAL-PILOT record.');
+    expect(store.writes).not.toHaveBeenCalled();
+  });
+
   it('accepts the existing configuration without a new data version', async () => {
     await expect(
       repository(configuration).repository.loadSourceConfiguration()

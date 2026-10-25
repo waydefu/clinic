@@ -325,12 +325,12 @@ describe('Calendar candidate rejection transaction', () => {
         sourceId: SOURCE_ID,
         sourceVersion: 1,
         expectedVersion: 1,
-        validationErrors: ['unmatched_event'],
+        validationErrors: ['title_format_invalid'],
         createdAt: NOW,
         before: null,
         mirrorId: MIRROR_ID,
         expectedEtag: '"etag-001"',
-        parsed: { ok: false, errors: ['unmatched_event'] }
+        parsed: { ok: false, errors: ['title_format_invalid'] }
       });
 
     const repository = new FirestoreCalendarPilotRepository(db);
@@ -392,6 +392,20 @@ async function candidateDecisionSnapshot() {
 }
 
 describe('terminal unmatched candidate decision guard', () => {
+  it('rejects unknown diagnostics without changing any collection', async () => {
+    await seedUnmatchedTerminalFixture();
+    await db.collection('calendar_pilot_candidates').doc(UNMATCHED_ID).update({
+      validationErrors: ['unmatched_event'],
+      parsed: { ok: false, errors: ['unmatched_event'] }
+    });
+    const before = await candidateDecisionSnapshot();
+    const repository = new FirestoreCalendarPilotRepository(db);
+    await expect(
+      repository.reviewCandidate(reviewCommand({ candidateId: UNMATCHED_ID }))
+    ).rejects.toThrow('Unreadable CAL-PILOT record.');
+    expect(await candidateDecisionSnapshot()).toEqual(before);
+  });
+
   it('keeps exact rejection replay but refuses a new decision at the terminal candidate fresh version without writing', async () => {
     await seedUnmatchedTerminalFixture();
     const repository = new FirestoreCalendarPilotRepository(db);

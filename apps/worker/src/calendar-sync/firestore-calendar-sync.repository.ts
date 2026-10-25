@@ -6,6 +6,7 @@ import {
   CalendarPilotMirrorRecordSchema,
   CalendarPilotSourceConfigurationSchema,
   CalendarPilotSourceRecordSchema,
+  CalendarPilotSyncStateRecordSchema,
   CalendarSourcePreflightResponseSchema,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
@@ -183,7 +184,7 @@ export class FirestoreCalendarSyncRepository
     const document = await this.db.collection(SOURCES).doc(sourceId).get();
     if (!document.exists) throw new Error('CAL-PILOT source is missing.');
     const data = parseCalendarPilotRecord(
-      CalendarPilotSourceRecordSchema,
+      CalendarPilotSyncStateRecordSchema,
       document.data()
     );
     return {

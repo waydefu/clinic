@@ -5,8 +5,8 @@ import {
   CalendarPilotAppointmentRecordSchema,
   CalendarPilotCandidateRecordSchema,
   CalendarPilotConfigurationRecordSchema,
-  CalendarPilotMirrorRecordSchema,
-  CalendarPilotSourceRecordSchema,
+  CalendarPilotMirrorReviewRecordSchema,
+  CalendarPilotSourceSummaryRecordSchema,
   CalendarSourceCommandResponseSchema,
   CalendarSourcePreflightResponseSchema,
   ReviewCalendarCandidateResponseSchema,
@@ -102,9 +102,9 @@ function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function documentData<T>(schema: z.ZodType<T>, document: DocumentSnapshot): T {
-  if (!document.exists) throw new ConflictError();
-  return parseCalendarPilotRecord(schema, document.data());
+function documentData<T>(schema: z.ZodType<T>, doc: DocumentSnapshot): T {
+  if (!doc.exists) throw new ConflictError();
+  return parseCalendarPilotRecord(schema, doc.data());
 }
 
 function assertActive(configuration: ConfigurationRecord, now: string): void {
@@ -144,7 +144,7 @@ function sourceSummary(
   document: DocumentSnapshot,
   configuration: ConfigurationRecord
 ): CalendarSourceSummary {
-  const data = documentData(CalendarPilotSourceRecordSchema, document);
+  const data = documentData(CalendarPilotSourceSummaryRecordSchema, document);
   return {
     sourceId: document.id,
     displayName: String(data['displayName']),
@@ -203,8 +203,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       activeSource: sourceDocument.exists
         ? sourceSummary(sourceDocument, configuration)
         : null,
-      lastSuccessfulSyncAt: configuration.lastSuccessfulSyncAt,
-      nextScheduledSyncAt: expired ? null : configuration.nextScheduledSyncAt,
+      lastSuccessfulSyncAt: configuration.lastSuccessfulSyncAt ?? null,
+      nextScheduledSyncAt: expired
+        ? null
+        : (configuration.nextScheduledSyncAt ?? null),
       pendingCandidateCount: pending.data().count,
       conflictCount: conflicts.data().count,
       expiresAt: configuration.expiresAt
@@ -657,7 +659,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
           throw new ConflictError();
 
         const mirror = documentData(
-          CalendarPilotMirrorRecordSchema,
+          CalendarPilotMirrorReviewRecordSchema,
           await transaction.get(
             this.db.collection(COLLECTIONS.mirrors).doc(candidate.mirrorId)
           )
@@ -838,7 +840,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         throw new ConflictError();
 
       const mirror = documentData(
-        CalendarPilotMirrorRecordSchema,
+        CalendarPilotMirrorReviewRecordSchema,
         await transaction.get(
           this.db.collection('calendar_pilot_mirrors').doc(candidate.mirrorId)
         )

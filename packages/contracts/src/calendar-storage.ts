@@ -34,8 +34,8 @@ export const CalendarPilotSourceConfigurationSchema = z
 export const CalendarPilotConfigurationRecordSchema =
   CalendarPilotSourceConfigurationSchema.extend({
     health: CalendarSyncHealthSchema,
-    lastSuccessfulSyncAt: UtcIsoTimestampSchema.nullable(),
-    nextScheduledSyncAt: UtcIsoTimestampSchema.nullable(),
+    lastSuccessfulSyncAt: UtcIsoTimestampSchema.nullable().optional(),
+    nextScheduledSyncAt: UtcIsoTimestampSchema.nullable().optional(),
     inboundEnabled: z.boolean(),
     outboundEnabled: z.boolean()
   });
@@ -52,6 +52,17 @@ export const CalendarPilotSourceRecordSchema = z
     lastErrorCode: z.string().min(1).max(64).nullable().optional()
   })
   .passthrough();
+
+export const CalendarPilotSourceSummaryRecordSchema =
+  CalendarPilotSourceRecordSchema.omit({ enabled: true });
+
+export const CalendarPilotSyncStateRecordSchema =
+  CalendarPilotSourceRecordSchema.pick({
+    schemaVersion: true,
+    syncToken: true,
+    lastSyncedAt: true,
+    lastFullSyncAt: true
+  });
 
 export const CalendarPilotParsedEntrySchema = z.union([
   z
@@ -112,6 +123,15 @@ export const CalendarPilotMirrorRecordSchema = z
     updatedAt: UtcIsoTimestampSchema
   })
   .passthrough();
+
+export const CalendarPilotMirrorReviewRecordSchema =
+  CalendarPilotMirrorRecordSchema.pick({
+    schemaVersion: true,
+    externalEventId: true,
+    etag: true,
+    parsed: true,
+    linkId: true
+  });
 
 export const CalendarPilotCandidateRecordSchema =
   CalendarChangeCandidateSchema.safeExtend({

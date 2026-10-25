@@ -5,7 +5,9 @@ import {
   CalendarPilotCandidateRecordSchema,
   CalendarPilotConfigurationRecordSchema,
   CalendarPilotMirrorRecordSchema,
+  CalendarPilotMirrorReviewRecordSchema,
   CalendarPilotSourceRecordSchema,
+  CalendarPilotSourceSummaryRecordSchema,
   parseCalendarPilotRecord
 } from './calendar-storage.js';
 import { CalendarSourcePreflightResponseSchema } from './calendar-sync.js';
@@ -152,6 +154,63 @@ describe.each(cases)('stored $name', ({ schema, value, invalid }) => {
       expect(String(error)).toBe('Error: Unreadable CAL-PILOT record.');
     }
   });
+});
+
+it('does not treat source metadata as an allowlist permission', () => {
+  const metadata = { displayName: source.displayName };
+  expect(
+    parseCalendarPilotRecord(CalendarPilotSourceSummaryRecordSchema, metadata)
+  ).toEqual(metadata);
+  expect(() =>
+    parseCalendarPilotRecord(CalendarPilotSourceRecordSchema, metadata)
+  ).toThrow('Unreadable CAL-PILOT record.');
+});
+
+it('keeps omitted sync clocks distinct from malformed clocks', () => {
+  const value = {
+    activeSourceId: configuration.activeSourceId,
+    version: configuration.version,
+    expiresAt: configuration.expiresAt,
+    health: configuration.health,
+    inboundEnabled: configuration.inboundEnabled,
+    outboundEnabled: configuration.outboundEnabled
+  };
+  expect(
+    parseCalendarPilotRecord(CalendarPilotConfigurationRecordSchema, value)
+  ).toEqual(value);
+  expect(() =>
+    parseCalendarPilotRecord(CalendarPilotConfigurationRecordSchema, {
+      ...value,
+      lastSuccessfulSyncAt: 'Jul 25 2026 Z'
+    })
+  ).toThrow('Unreadable CAL-PILOT record.');
+});
+
+it('validates consumed mirror fields without requiring worker metadata', () => {
+  const partial = {
+    externalEventId: mirror.externalEventId,
+    etag: mirror.etag,
+    parsed: mirror.parsed,
+    linkId: 'synthetic_appointment'
+  };
+  expect(
+    parseCalendarPilotRecord(CalendarPilotMirrorReviewRecordSchema, partial)
+  ).toEqual(partial);
+  expect(() =>
+    parseCalendarPilotRecord(CalendarPilotMirrorRecordSchema, partial)
+  ).toThrow('Unreadable CAL-PILOT record.');
+  expect(() =>
+    parseCalendarPilotRecord(CalendarPilotMirrorReviewRecordSchema, {
+      ...partial,
+      etag: 12
+    })
+  ).toThrow('Unreadable CAL-PILOT record.');
+  expect(() =>
+    parseCalendarPilotRecord(CalendarPilotMirrorReviewRecordSchema, {
+      ...partial,
+      parsed: { ok: true }
+    })
+  ).toThrow('Unreadable CAL-PILOT record.');
 });
 
 it('validates stored candidate and appointment fields before use', () => {
