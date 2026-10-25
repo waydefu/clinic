@@ -846,7 +846,7 @@ describe('createInternalTestBookingTransport', () => {
               Promise.resolve({
                 publishedVersion: 1,
                 publishedAt: '2030-01-01T00:00:00.000Z',
-                schedule: { timeZone: 'Asia/Taipei' }
+                schedule: initialState().schedule
               })
           });
         }
@@ -886,7 +886,7 @@ describe('createInternalTestBookingTransport', () => {
             Promise.resolve({
               publishedVersion: 1,
               publishedAt: '2030-01-01T00:00:00.000Z',
-              schedule: { timeZone: 'Asia/Taipei' }
+              schedule: initialState().schedule
             })
         });
       }
@@ -905,7 +905,7 @@ describe('createInternalTestBookingTransport', () => {
       version: 8,
       slots: [],
       appointments: [],
-      schedule: { timeZone: 'Asia/Taipei' },
+      schedule: initialState().schedule,
       scheduleMeta: { publishedVersion: 1 }
     });
     expect(fetchImpl).toHaveBeenCalledTimes(3);
@@ -1019,7 +1019,7 @@ describe('createInternalTestBookingTransport', () => {
           Promise.resolve({
             publishedVersion: 1,
             publishedAt: '2029-12-15T09:00:00.000Z',
-            schedule: { timeZone: 'Asia/Taipei' }
+            schedule: initialState().schedule
           })
       });
     });
@@ -1046,7 +1046,7 @@ describe('createInternalTestBookingTransport', () => {
           intakeNationality: 'foreign'
         }
       ],
-      schedule: { timeZone: 'Asia/Taipei' },
+      schedule: initialState().schedule,
       scheduleMeta: { publishedVersion: 1 }
     });
   });
@@ -1061,7 +1061,7 @@ describe('createInternalTestBookingTransport', () => {
             Promise.resolve({
               publishedVersion: 1,
               publishedAt: '2029-12-15T09:00:00.000Z',
-              schedule: { timeZone: 'Asia/Taipei' }
+              schedule: initialState().schedule
             })
         });
       }

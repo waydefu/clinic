@@ -761,8 +761,7 @@ async function requestPatientState({ retry = false } = {}) {
     elements['patient-slot-months'].replaceChildren();
     elements['patient-slot-dates'].replaceChildren();
     elements['patient-slots'].replaceChildren();
-    elements['active-slot-date-label'].textContent =
-      '正在更新診所預約資料';
+    elements['active-slot-date-label'].textContent = '正在更新診所預約資料';
     if (state !== undefined) {
       state = { ...state, slots: [], appointments: [] };
       renderAll();
@@ -789,8 +788,7 @@ async function requestPatientState({ retry = false } = {}) {
     } else {
       renderBookingTypeButtons();
       renderServices();
-      elements['active-slot-date-label'].textContent =
-        '暫時無法載入可預約日期';
+      elements['active-slot-date-label'].textContent = '暫時無法載入可預約日期';
       elements['patient-slots'].textContent =
         '無法載入門診時段，請按「重試」重新載入。';
     }

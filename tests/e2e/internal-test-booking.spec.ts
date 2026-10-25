@@ -2,6 +2,10 @@ import { readFileSync } from 'node:fs';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+  initialState,
+  storageKey
+} from '../../apps/web/public/modules/state-schema.js';
 import { chooseNationality, fillBirthDate } from './support/patient';
 import {
   login,
@@ -179,7 +183,7 @@ async function stubV1(
         json: {
           publishedVersion: 1,
           publishedAt: '2030-01-01T00:00:00.000Z',
-          schedule: { timeZone: 'Asia/Taipei' }
+          schedule: initialState().schedule
         }
       });
       return;
@@ -463,6 +467,44 @@ test.describe('internal-test booking occupancy overlay', () => {
       expect(posted.body).toBeUndefined();
     });
   }
+
+  test('keeps malformed reads closed until retry', async ({ page }) => {
+    await page.clock.install({ time: new Date('2030-01-01T00:00:00.000Z') });
+    await page.addInitScript(() => window.localStorage.clear());
+    const posted = await stubV1(page, { slots: [fixedReadSlot] });
+    await page.goto('/booking?internalTestBooking=1');
+    await openPatientSlotStep(page);
+    let malformed = true;
+    await page.route('**/v1/schedule', async (route) => {
+      if (!malformed) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        json: {
+          publishedVersion: 1,
+          publishedAt: '2030-01-01T00:00:00.000Z',
+          schedule: { timeZone: 'Asia/Taipei' }
+        }
+      });
+    });
+    await page.evaluate((key) => {
+      window.dispatchEvent(new StorageEvent('storage', { key }));
+    }, storageKey);
+    const status = page.locator('#patient-read-status');
+    await expect(status).toContainText('無法載入診所預約資料');
+    await expect(status).not.toContainText('weeklyAvailability');
+    await expect(page.locator('[data-patient-slot]')).toHaveCount(0);
+    await expect(
+      page.locator('#patient-services [data-service]').first()
+    ).toBeDisabled();
+    malformed = false;
+    await status.getByRole('button', { name: '重試' }).click();
+    await expect(
+      page.locator('[data-patient-slot="slot_retry_open"]')
+    ).toBeVisible();
+    expect(posted.body).toBeUndefined();
+  });
 
   test('storage refresh failure removes stale availability and retries reads only', async ({
     page
