@@ -62,6 +62,34 @@
         "destination": "/clinic.html"
       },
       {
+        "source": "/clinic/doctors",
+        "destination": "/clinic-route/doctors.html"
+      },
+      {
+        "source": "/clinic/doctors/yan-cheng-an",
+        "destination": "/clinic-route/doctors/yan-cheng-an.html"
+      },
+      {
+        "source": "/clinic/doctors/yang-sheng-feng",
+        "destination": "/clinic-route/doctors/yang-sheng-feng.html"
+      },
+      {
+        "source": "/clinic/nasal/snoring-five-in-one",
+        "destination": "/clinic-route/nasal/snoring-five-in-one.html"
+      },
+      {
+        "source": "/clinic/nasal/inferior-turbinate-surgery",
+        "destination": "/clinic-route/nasal/inferior-turbinate-surgery.html"
+      },
+      {
+        "source": "/clinic/nasal/septoplasty",
+        "destination": "/clinic-route/nasal/septoplasty.html"
+      },
+      {
+        "source": "/clinic/nasal/snore-relief-mouthguard",
+        "destination": "/clinic-route/nasal/snore-relief-mouthguard.html"
+      },
+      {
         "source": "/clinic/**",
         "destination": "/clinic.html"
       }
