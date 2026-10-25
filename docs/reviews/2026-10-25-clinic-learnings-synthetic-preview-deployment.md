@@ -2,8 +2,8 @@
 
 ## 現行狀態
 
-**目前頻道上是 `b681e59`（見文末〈追加部署：`b681e59`〉）。下面的表與實測是同日稍早
-`36f182c` 的部署，保留不改。**
+**目前頻道上是 `a0409c2`（見文末〈追加部署：`a0409c2`〉）。下面的表與實測是同日稍早
+`36f182c` 的部署，保留不改；`b681e59` 的追加部署也保留在文末。**
 
 **DEPLOYED AND SMOKED — PR #302 head `36f182c` 靜態預覽；四項實測通過。**
 本次只更新 Hosting preview channel，沒有動 live、CAL-PILOT、Cloud Run 或任何後端。
@@ -92,3 +92,28 @@ live），並實測官網與預約頁的連結」。此核准只涵蓋這一次�
 | 句子裡的連結 | 照舊保留底線（地圖出處「地圖資料 © OpenStreetMap」） |
 | 預約頁「回官網」與頁尾 3 個連結 | PASS：無底線、淡底色、1px 細框、膠囊圓角，高 44px |
 | 預約頁深色主題 | 本機預覽（同一來源）實測：按鈕顏色隨主題變成淡綠；預覽頻道上沒有另外切主題 |
+
+## 追加部署：`a0409c2`
+
+同日負責人指示「素材不要用真實診所圖」並選「只換鼾聲區」，另要求「預約頁社群圖補上顏色」，
+#302 加上 `a0409c2`。負責人核准：「#302 的 CI 全綠後，把 a0409c2 發到
+beauessence-clinic-staging 的 synthetic-review 預覽頻道（30 天，只發 preview、不動
+live），並實測鼾聲區背景、門診卡電話與預約頁社群圖示」。此核准只涵蓋這一次部署。
+
+| 欄位 | 結果 |
+| --- | --- |
+| 部署版本 | #302 head `a0409c2` |
+| 該版本 CI | `verify` run `40176306531` on `a0409c2` — 12/12 checks `success`，含 `Verification evidence` |
+| 期限 | `30d`，到期 `2026-11-24T08:26:30Z`（2026-11-24 16:26 Asia/Taipei） |
+| Release／version | `1792916833307000`／`cab4858634568296` |
+| Release time | `2026-10-25T08:27:13Z`（16:27 Asia/Taipei） |
+| live channel | 未變：仍是 2026-08-22 的 release `1787409828279000` |
+| 部署方式 | 同上：detached worktree 切到 `a0409c2`（lockfile 與 `firebase.json` 與 `b681e59` 相同），一次性設定檔只移除 `/v1/**` |
+
+| 實測 | 結果 |
+| --- | --- |
+| 鼾聲區背景 | PASS：`soft-green-bg.webp` HTTP 200，`background-position: 50% 0%`，底色 `rgb(196,216,195)` 作載入前後備；畫面看得到左上葉影 |
+| 門診時間與交通卡的兩支電話 | PASS：無底線、淡底色（alpha 0.07）、1px 細框，高 44px，`tel:` 連結正確 |
+| 預約頁「其他聯絡方式」社群圖示（電腦版圓形） | PASS：LINE `rgb(6,199,85)`、Instagram 漸層（底色 `rgb(221,48,193)`）、Messenger／Facebook `rgb(8,102,255)`，圖示皆白色 |
+| 預約頁「需要其他協助？」電話按鈕 | PASS：無底線 |
+| 手機版帶文字的社群按鈕 | NOT_RUN：只測電腦版（`data-contact-layout="compact"`）；手機版同一組 CSS 由 CI 的 e2e-mobile 覆蓋版面，顏色未在實機確認 |
