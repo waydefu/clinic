@@ -137,7 +137,7 @@ async function stubV1(
     publish: {},
     returnLookup: {}
   };
-  const failedReads = new Set<StateReadName>();
+  const failedReads = new Map<StateReadName, number>();
   await page.route('**/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const method = route.request().method();
@@ -155,9 +155,11 @@ async function stubV1(
       method === 'GET' &&
       readName !== undefined &&
       readFailure !== undefined &&
-      !failedReads.has(readName)
+      (failedReads.get(readName) ?? 0) <
+        (readFailure === 401 || readFailure === 403 ? 1 : 2)
     ) {
-      failedReads.add(readName);
+      // Retryable GETs already retry once; exhaust that read before manual retry.
+      failedReads.set(readName, (failedReads.get(readName) ?? 0) + 1);
       if (readFailure === 'network') {
         await route.abort();
         return;
@@ -526,11 +528,9 @@ test.describe('internal-test booking occupancy overlay', () => {
     ).toBeVisible();
 
     readFailures.slots = 403;
-    const stateKey = await page.evaluate(() => window.localStorage.key(0));
-    expect(stateKey).not.toBeNull();
     await page.evaluate((key) => {
       window.dispatchEvent(new StorageEvent('storage', { key }));
-    }, stateKey);
+    }, storageKey);
 
     await expect(page.locator('#patient-status')).toContainText(
       '無法載入診所預約資料'

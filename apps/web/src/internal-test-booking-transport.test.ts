@@ -911,6 +911,31 @@ describe('createInternalTestBookingTransport', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
+  it('rejects a malformed published schedule before returning state', async () => {
+    const snapshot = initialState();
+    const local = vi.fn(() => Promise.resolve(snapshot));
+    const fetchImpl = vi.fn((url: RequestInfo | URL) =>
+      Promise.resolve(
+        Response.json(
+          url === '/v1/slots'
+            ? { slots: [] }
+            : url === '/v1/schedule'
+              ? {
+                  publishedVersion: 1,
+                  publishedAt: '2030-01-01T00:00:00.000Z',
+                  schedule: { timeZone: 'Asia/Taipei' }
+                }
+              : { appointments: [] }
+        )
+      )
+    );
+    const dependencies = { local, toError: httpTransportError, fetchImpl };
+    const transport = createInternalTestBookingTransport(dependencies);
+
+    await expect(transport('/state')).rejects.toThrow('營業時間設定無效');
+    expect(snapshot.schedule).toEqual(initialState().schedule);
+  });
+
   it('omits cookies on the public booking path so staff sessions stay separated', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve({

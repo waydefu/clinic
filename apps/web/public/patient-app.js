@@ -758,9 +758,6 @@ async function requestPatientState({ retry = false } = {}) {
     stateReadPending = true;
     dataReady = false;
     selectedSlotId = undefined;
-    elements['patient-slot-months'].replaceChildren();
-    elements['patient-slot-dates'].replaceChildren();
-    elements['patient-slots'].replaceChildren();
     elements['active-slot-date-label'].textContent = '正在更新診所預約資料';
     if (state !== undefined) {
       state = { ...state, slots: [], appointments: [] };
@@ -1522,12 +1519,12 @@ renderBookingTypeButtons();
 renderPatientTags();
 renderPatientContactLinks();
 
+// 初始載入不搶焦點；失敗時也要讓狀態與重試按鈕留在可見的第一步。
+showStep(1, { focusHeading: false, scroll: false });
 try {
   client = await resolveApiClient();
   const loadedState = await requestPatientState();
-  // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。
   if (loadedState !== undefined && !loadedState.maintenanceActive) {
-    showStep(1, { focusHeading: false, scroll: false });
     message('已載入診所發布的門診時段。', 'success');
     // 放在載入成功之後：`?notice-read=1` 的公告要蓋掉上面那句，讓使用者知道
     // 已套用測試用閱讀確認，同時明說系統沒有保存正式同意紀錄。

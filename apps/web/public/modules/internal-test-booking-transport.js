@@ -4,6 +4,7 @@ async function clearCalendarPilotClientAuthState(storage) {
   session.clearCalendarPilotClientAuthState(storage);
 }
 import { DEFAULT_BLOCKED_TIMES } from './constants.js';
+import { validateSchedule } from './schedule-engine.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../vendor/domain/calendar-sync.js';
 
 const STAGE_F_SCHEDULE_IDEMPOTENCY = 'stagef_c1_schedule_publish_v0';
@@ -107,6 +108,7 @@ function overlayPublishedSchedule(state, published) {
     }
   };
   if (published.schedule !== null && published.schedule !== undefined) {
+    validateSchedule(published.schedule);
     next.schedule = published.schedule;
     if (state.scheduleMeta?.draftDirty !== true) {
       next.scheduleDraft = published.schedule;
