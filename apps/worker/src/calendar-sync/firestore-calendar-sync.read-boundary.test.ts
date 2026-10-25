@@ -7,7 +7,9 @@ function repository(value: unknown) {
   const snapshot = { exists: value !== undefined, data: () => value };
   const writes = vi.fn();
   const db = {
-    collection: () => ({ doc: () => ({ get: async () => snapshot }) }),
+    collection: () => ({
+      doc: () => ({ get: () => Promise.resolve(snapshot) })
+    }),
     runTransaction: writes
   } as unknown as Firestore;
   return {

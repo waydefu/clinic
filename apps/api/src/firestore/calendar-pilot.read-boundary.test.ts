@@ -5,15 +5,19 @@ import { FirestoreCalendarPilotRepository } from './calendar-pilot.repository.js
 
 function store(value: unknown) {
   const snapshot = { exists: value !== undefined, data: () => value };
-  const query = { get: async () => ({ docs: [] }) };
+  const query = { get: () => Promise.resolve({ docs: [] }) };
   const collection = vi.fn((name: string) => ({
     doc: () => ({
-      get: async () =>
-        name === 'calendar_pilot_sources' ? { exists: false } : snapshot
+      get: () =>
+        Promise.resolve(
+          name === 'calendar_pilot_sources' ? { exists: false } : snapshot
+        )
     }),
     where: () => ({
       orderBy: () => ({ limit: () => query }),
-      count: () => ({ get: async () => ({ data: () => ({ count: 0 }) }) })
+      count: () => ({
+        get: () => Promise.resolve({ data: () => ({ count: 0 }) })
+      })
     })
   }));
   const runTransaction = vi.fn();
