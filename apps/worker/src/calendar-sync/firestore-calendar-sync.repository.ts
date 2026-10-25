@@ -69,11 +69,9 @@ function indexedPatientIds(
     : [];
 }
 
-interface StoredConfiguration extends CalendarSourceConfiguration {
-  readonly lastSuccessfulSyncAt?: string;
-  readonly nextScheduledSyncAt?: string;
-  readonly health?: string;
-}
+type StoredConfiguration = ReturnType<
+  typeof CalendarPilotSourceConfigurationSchema.parse
+>;
 
 function publicCandidate(
   candidate: CalendarCandidateDraft,
@@ -212,12 +210,15 @@ export class FirestoreCalendarSyncRepository
       .where('externalEventId', '==', externalEventId)
       .limit(1)
       .get();
-    return query.empty
-      ? undefined
-      : parseCalendarPilotRecord(
-          CalendarPilotMirrorRecordSchema,
-          query.docs[0]!.data()
-        );
+    if (query.empty) return undefined;
+    const { linkId, ...mirror } = parseCalendarPilotRecord(
+      CalendarPilotMirrorRecordSchema,
+      query.docs[0]!.data()
+    );
+    return {
+      ...mirror,
+      ...(linkId === undefined ? {} : { linkId })
+    };
   }
 
   public async matchesManagedProjection(

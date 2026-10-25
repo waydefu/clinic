@@ -211,6 +211,33 @@ it('retains the existing configuration lease fields without changing them', () =
   ).toEqual(configuration);
 });
 
+it.each([
+  {
+    ok: true,
+    kind: 'busy',
+    busyReason: 'meeting',
+    displayLabel: 'Synthetic meeting',
+    startsAt: now,
+    endsAt: '2030-01-02T00:30:00Z'
+  },
+  {
+    ok: true,
+    kind: 'busy',
+    busyReason: 'leave',
+    displayLabel: 'Synthetic all-day leave',
+    startsAt: '2030-01-01T16:00:00Z',
+    endsAt: '2030-01-02T16:00:00Z',
+    allDay: true,
+    startDate: '2030-01-02',
+    endDate: '2030-01-03'
+  }
+])('accepts the existing timed and all-day busy shapes', (parsed) => {
+  const value = { ...mirror, parsed };
+  expect(
+    parseCalendarPilotRecord(CalendarPilotMirrorRecordSchema, value)
+  ).toEqual(value);
+});
+
 it('accepts a stored invalid-format mirror for the existing review queue', () => {
   const invalidFormat = {
     ...mirror,

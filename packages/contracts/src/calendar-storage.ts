@@ -73,18 +73,22 @@ export const CalendarPilotParsedEntrySchema = z.union([
       busyReason: CalendarBusyReasonSchema,
       displayLabel: nonEmpty,
       startsAt: UtcIsoTimestampSchema,
-      endsAt: UtcIsoTimestampSchema,
-      allDay: z.literal(true).optional(),
-      startDate: LocalDateSchema.optional(),
-      endDate: LocalDateSchema.optional()
+      endsAt: UtcIsoTimestampSchema
     })
-    .strict()
-    .refine(
-      (entry) =>
-        entry.allDay !== true ||
-        (entry.startDate !== undefined && entry.endDate !== undefined),
-      'All-day entries require both dates.'
-    ),
+    .strict(),
+  z
+    .object({
+      ok: z.literal(true),
+      kind: z.literal('busy'),
+      busyReason: CalendarBusyReasonSchema,
+      displayLabel: nonEmpty,
+      startsAt: UtcIsoTimestampSchema,
+      endsAt: UtcIsoTimestampSchema,
+      allDay: z.literal(true),
+      startDate: LocalDateSchema,
+      endDate: LocalDateSchema
+    })
+    .strict(),
   z
     .object({
       ok: z.literal(false),

@@ -66,28 +66,9 @@ const COLLECTIONS = {
   outbox: 'calendar_pilot_outbox'
 } as const;
 
-interface ConfigurationRecord {
-  readonly activeSourceId: string;
-  readonly previousSourceId?: string;
-  readonly version: number;
-  readonly expiresAt: string;
-  readonly health: CalendarSyncStatus['health'];
-  readonly lastSuccessfulSyncAt: string | null;
-  readonly nextScheduledSyncAt: string | null;
-  readonly inboundEnabled: boolean;
-  readonly outboundEnabled: boolean;
-}
+type ConfigurationRecord = z.infer<typeof CalendarPilotConfigurationRecordSchema>;
 
-interface CandidateRecord extends CalendarChangeCandidate {
-  readonly mirrorId: string;
-  readonly expectedEtag: string;
-  readonly sourceId: string;
-  readonly parsed: ParsedCalendarEntry;
-  readonly previousParsed?: ParsedCalendarEntry;
-  readonly localRecordId?: string;
-  readonly appointmentStatusAtDetection?: string;
-  readonly appointmentStartsAtAtDetection?: string;
-}
+type CandidateRecord = z.infer<typeof CalendarPilotCandidateRecordSchema>;
 
 interface IdempotencyRecord<T> {
   readonly fingerprint: string;
@@ -121,10 +102,7 @@ function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function documentData<T>(
-  schema: z.ZodType<T>,
-  document: DocumentSnapshot
-): T {
+function documentData<T>(schema: z.ZodType<T>, document: DocumentSnapshot): T {
   if (!document.exists) throw new ConflictError();
   return parseCalendarPilotRecord(schema, document.data());
 }
