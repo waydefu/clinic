@@ -65,10 +65,14 @@
    * 分成兩個 token 是因為它們的**語意不同**：焦點環是功能性顏色，必須對相鄰
    * 顏色達 3:1（R-11）；徽標底色是裝飾。規則書 R-16 對共用系統的規定是
    * 「品牌香檳金只作裝飾，不承載狀態、焦點、互動」，而官網這支金色目前正是
-   * 焦點環。命名先把兩者分開，**顏色值本身不動**；是否要讓焦點環改用非品牌色
-   * 需要先量對比再決定，已記在交接紀錄。
+   * 焦點環。
+   *
+   * 2026-10-25 起焦點環改用 brand-tokens.css 的 `--brand-focus-ring`（#7a5400）：
+   * 舊值 #d49b45 對白底只有 2.45:1、淡綠底 1.98:1，不到 3:1（R-11）；新值對官網所有
+   * 淺色底都 ≥ 5.48:1（實算見 brand-tokens.css 檔頭）。官網還沒載入 brand-tokens.css
+   * （總量預算 313.6／314 KiB 放不下多一支樣式表），所以值先抄一份，兩邊要一起改。
    * ----------------------------------------------------------------- */
-  --clinic-focus-ring: #d49b45;
+  --clinic-focus-ring: #7a5400;
   --clinic-badge-preview: #e6c483;
 
   /* 陰影兩階。`--clinic-shadow` 是既有的大範圍柔和陰影（浮層用）。 */
@@ -3459,6 +3463,39 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   .clinic-service-card:hover,
   .clinic-doctor-card:hover {
     transform: none;
+  }
+}
+
+/* Windows 高對比（forced-colors）：瀏覽器把底色與陰影換成系統色，按鈕與卡片的
+   框線照樣看得到，但只靠底色或內陰影表示的狀態會消失。這裡用系統色補回：
+   目前所在頁、已選的困擾、目前的空間照片、推薦的照護卡。 */
+@media (forced-colors: active) {
+  /* 半透明的玻璃頁首在高對比下會透出底下的照片，與預約頁一樣改成實心底。 */
+  .clinic-header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: Canvas;
+    border-bottom: 1px solid CanvasText;
+  }
+
+  .clinic-navigation a[aria-current='page'] {
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+  }
+
+  /* 不關掉 forced-color-adjust 的話，瀏覽器會在字後面墊一塊 Canvas 底，HighlightText
+     的白字就落在白底上看不見。 */
+  .clinic-symptom-button[aria-pressed='true'] {
+    forced-color-adjust: none;
+    color: HighlightText;
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .clinic-space__thumb[aria-pressed='true'],
+  .clinic-care .clinic-service-card.is-recommended {
+    outline: 0.2rem solid Highlight;
+    outline-offset: -0.2rem;
   }
 }
 

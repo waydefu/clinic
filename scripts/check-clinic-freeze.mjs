@@ -57,11 +57,11 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    'f0e79cdc0a7c64a9f449c123879f16a21a9ae4a810e39b1e092b0d4f5f46234d',
+    'cd02ea2d3ae6a5a98fd8bcf3ed340bd309bdaa475459cb171739aac907cc4f37',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
-    '400c5d976178b78fea3ec856de6b085ab61742084848fc484fc090943424ae35',
+    '722e4068a9fb28177b3c2b73240bfe272d435c405bbdbc2a93e74dabc4ae810d',
   'apps/web/clinic-assets.manifest.json':
     '56bce15f8632fd5309689d953e9a0a92a67e6f9c604120fd4ce32e0151ada633',
   'apps/web/public/clinic-assets/care-aftercare.webp':

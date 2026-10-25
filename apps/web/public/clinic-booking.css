@@ -203,7 +203,8 @@ html {
   width: auto;
 }
 
-/* 「回官網」：標誌已經連到官網，這條是給找不到標誌可以按的人，所以手機收掉。
+/* 「回官網」：標誌已經連到官網，這條是給沒發現標誌可以按的人。手機原本收掉，
+   2026-10-25 綜合評分發現手機上因此沒有明顯的回官網入口，負責人要求補回。
    它不在 <nav> 裡，靠檔尾的淡色膠囊表達可以按（R-2）。 */
 .patient-site-link {
   align-items: center;
@@ -621,12 +622,19 @@ html {
     height: 18rem;
   }
 
+  /* styles.css 在手機替頁首項目排了 order（標誌 1、查詢 4），沒排的會跑到標誌前面。 */
   .patient-site-link {
-    display: none;
+    order: 2;
   }
 
+  /* 320px 放不下三項時查詢會換到第二列，靠右才會和回官網排在同一側。 */
   .patient-header .patient-management-open {
     margin-inline-start: auto;
+  }
+
+  /* 三項共 308px：間距收到 8px，常見的 360px 手機（可用 328px）才排得進同一列。 */
+  .patient-body .patient-header .patient-header-inner {
+    column-gap: var(--space-2xs);
   }
 
   .patient-header .brand img {

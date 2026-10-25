@@ -125,13 +125,15 @@ export function clinicRoutePageFiles(content) {
  * 以**已建好的** clinic.html 為模板，所以雜湊資產參照、modulepreload 與 noindex
  * 與它逐字相同；只換 <title>、description，並補上 clinic-site.js 的 setMeta() 會
  * 寫入的那一組標籤。標籤名稱與值必須與 setMeta() 一致，runtime 才會是原地覆寫
- * （idempotent）而不是重複。`/clinic` 本身仍由 clinic.html 承載，不在此列。
+ * （idempotent）而不是重複。`/clinic` 本身仍由 clinic.html 承載：同一組標籤也寫回
+ * `clinic.html`（首頁的標題、描述與主圖）。它同時是 `/clinic/**` 軟 404 的後備頁，
+ * JS 執行前會帶首頁的 canonical，與今天標題已經是首頁標題的行為一致。
  *
  * canonical／og:url／og:image／twitter:image 需要絕對網址，而建置不知道網域：
  * 沒給 origin 就整組省略，交給 runtime 補，也不寫出錯誤的絕對網址。
  */
 export function planClinicRoutePages(clinicHtml, content, { origin } = {}) {
-  const { CLINIC } = content;
+  const { CLINIC, HOME_PAGE } = content;
   const isPreview = /<meta\s+name="robots"[^>]*content="[^"]*noindex/i.test(
     clinicHtml
   );
@@ -141,7 +143,16 @@ export function planClinicRoutePages(clinicHtml, content, { origin } = {}) {
     throw new Error(
       'clinic.html has no <title> or description meta to replace.'
     );
-  const routes = clinicRoutePageList(content);
+  const routes = [
+    {
+      path: '/clinic',
+      title: HOME_PAGE.seoTitle,
+      description: HOME_PAGE.seoDescription,
+      image: HOME_PAGE.heroImage,
+      file: 'clinic.html'
+    },
+    ...clinicRoutePageList(content)
+  ];
   const pages = new Map();
   for (const route of routes) {
     const title = escapeHtml(
@@ -305,11 +316,13 @@ async function main() {
   await minifyStylesheets(files);
   await minifyModules(files);
   const { outputs, manifest } = planHashedBuild(files);
-  // 唯讀取用 runtime 同一份內容；網域由 WEB_SITE_ORIGIN 提供，未設就不寫絕對網址。
+  // 唯讀取用 runtime 同一份內容。網域可由 WEB_SITE_ORIGIN 指定；未設時用預約頁
+  // patient.html 的 canonical 已經宣告的同一個網域，兩邊才不會各說各話。這個網域
+  // 本身仍待診所確認（決策登記 D-011），上線前要和 patient.html 一起核對。
   const clinicContent = await import(
     pathToFileURL(join(publicDir, 'clinic-content.js')).href
   );
-  const origin = process.env.WEB_SITE_ORIGIN || undefined;
+  const origin = process.env.WEB_SITE_ORIGIN || 'https://beauessence.com.tw';
   for (const [path, html] of planClinicRoutePages(
     String(outputs.get('clinic.html')),
     clinicContent,

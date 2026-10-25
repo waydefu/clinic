@@ -319,6 +319,11 @@ describe('per-route clinic pages', () => {
   ].join('\n');
   const content = {
     CLINIC: { name: '一森渼診所' },
+    HOME_PAGE: {
+      seoTitle: '首頁',
+      seoDescription: '首頁描述',
+      heroImage: '/img/hero.webp'
+    },
     DOCTORS: [
       {
         slug: 'dr-a',
@@ -344,7 +349,8 @@ describe('per-route clinic pages', () => {
     expect([...result.keys()].sort()).toEqual([
       'clinic-route/doctors.html',
       'clinic-route/doctors/dr-a.html',
-      'clinic-route/nasal/svc.html'
+      'clinic-route/nasal/svc.html',
+      'clinic.html'
     ]);
     const list = result.get('clinic-route/doctors.html');
     expect(list).toContain('<title>【測試用】醫師團隊｜一森渼診所</title>');
@@ -366,7 +372,9 @@ describe('per-route clinic pages', () => {
       '/clinic/doctors/dr-a',
       '/clinic/nasal/svc'
     ]);
-    expect([...files.values()].sort()).toEqual([...pages().keys()].sort());
+    expect([...files.values()].sort()).toEqual(
+      [...pages().keys()].filter((file) => file !== 'clinic.html').sort()
+    );
     for (const file of files.values()) expect(file).toMatch(/^clinic-route\//);
   });
 
@@ -410,6 +418,21 @@ describe('per-route clinic pages', () => {
     );
   });
 
+  it('writes the home page tags back into clinic.html itself', () => {
+    const home = pages(clinicHtml, { origin: 'https://example.invalid' }).get(
+      'clinic.html'
+    );
+    expect(home).toContain('<title>【測試用】首頁｜一森渼診所</title>');
+    expect(home).toContain('name="description" content="首頁描述"');
+    expect(home).not.toContain('home description');
+    expect(home).toContain(
+      '<link rel="canonical" href="https://example.invalid/clinic" />'
+    );
+    expect(home).toContain(
+      'property="og:image" content="https://example.invalid/img/hero.webp"'
+    );
+  });
+
   it('fails loudly when the shell has no title or description to replace', () => {
     expect(() => pages('<head></head>')).toThrow(/clinic\.html/);
   });
@@ -419,9 +442,11 @@ describe('per-route clinic pages', () => {
     const html = clinicHtml;
     const result = adapter.planClinicRoutePages(html, real);
     expect([...result.keys()].sort()).toEqual(
-      real.CLINIC_ROUTES.filter((route) => route !== '/clinic')
-        .map((route) => `clinic-route${route.slice(7)}.html`)
-        .sort()
+      real.CLINIC_ROUTES.map((route) =>
+        route === '/clinic'
+          ? 'clinic.html'
+          : `clinic-route${route.slice(7)}.html`
+      ).sort()
     );
   });
 });
