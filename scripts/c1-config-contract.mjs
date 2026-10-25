@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// Native Node uses the tracked pure-domain build; check:sync binds it to TS.
+import { isUtcIsoTimestamp } from '../apps/web/public/vendor/domain/timestamp.js';
 import { evaluateC1FirebaseAuthDomain } from './c1-firebase-auth-domain.mjs';
 import {
   C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS,
@@ -13,16 +15,6 @@ const SHA_PATTERN = /^[a-f0-9]{40}$/;
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const EMAIL_ADDRESS_PATTERN =
   /^[A-Z0-9!#$%&'*+/?=^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/?=^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
-const UTC_ISO_8601_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
-
-function isUtcIsoTimestamp(value) {
-  if (!UTC_ISO_8601_PATTERN.test(value)) return false;
-  const parsed = new Date(value);
-  return (
-    !Number.isNaN(parsed.getTime()) &&
-    parsed.toISOString().slice(0, 10) === value.slice(0, 10)
-  );
-}
 
 function isEmailAllowlist(value) {
   const emails = value.split(',').map((email) => email.trim());
