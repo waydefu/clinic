@@ -36,16 +36,24 @@ import { fileURLToPath } from 'node:url';
  * (docs/product/phase-1-decision-register.md, 2026-10-20 follow-up under the same
  * entry). The two-column layout became one centred column, so
  * apps/web/public/clinic-booking.css was rebaselined once more. Nothing else.
+ *
+ * 2026-10-25: the project lead asked for the Active Theory review's adoptable items
+ * (docs/product/phase-1-decision-register.md, 2026-10-25 entry "官網卡片質感、換頁
+ * 接續、圖片淡入與官方社群配色"): glass cards with a hover lift, a card-to-page view
+ * transition, a load fade on card images, and social badges in the official brand
+ * colours and the official Messenger glyph. That authorises one
+ * rebaseline of the renderer, stylesheet and public content. No copy, asset,
+ * image or asset manifest changed.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
     '3b5c0de6caab960f2bdbc883fcfe5a38452bf08c5572be1202fbd647274583e8',
   'apps/web/public/clinic-site.js':
-    '7705db8d3b44d22f710138f2587134790045b902687299cdacc7ead2f7959a56',
+    '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    '228879322cce9efbec78964e11b00eb2ec753dbe7727bd10a217928c71e37b73',
+    '29f91517c9b630da0084b1d08c0a90630252d10b235b1c4f1654c9b9a7643246',
   'apps/web/public/clinic-content.js':
-    '64a8b65bd29f7ee32896a1750d87c341f15bab8c0a6e297c896106c74722b663',
+    '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
     '84b381c928eb9cd95b9ec289ceac4fb518e95c8ab15c437bd85c77ea1262d68d',
   'apps/web/clinic-assets.manifest.json':

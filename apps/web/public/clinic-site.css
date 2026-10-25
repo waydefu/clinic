@@ -35,9 +35,20 @@
   --clinic-nostril: #6e2b1c;
   --clinic-septum: #ffe14d;
   --clinic-brand-line: #06c755;
-  --clinic-brand-instagram: #e4405f;
-  --clinic-brand-facebook: #1877f2;
-  --clinic-brand-messenger: #0084ff;
+  /* 社群品牌色取自官方品牌檔（2026-10-25）：LINE_Brand_icon.png 的 #06c755；
+     Facebook_Logo_Primary.png 與 Messenger_Icon_Primary_Blue.svg 都是 Facebook Blue
+     #0866ff（Messenger 已改回單色）；Instagram 是 IG_brand_asset_pack_2023 漸層字形
+     上取樣的色階（底部黃、兩側紅、頂部紫）。 */
+  --clinic-brand-instagram: radial-gradient(
+    circle farthest-corner at 50% 100%,
+    #f6ca45 0%,
+    #f2ab3c 30%,
+    #ea425c 60%,
+    #dd30c1 80%,
+    #ad24d8 100%
+  );
+  --clinic-brand-facebook: #0866ff;
+  --clinic-brand-messenger: #0866ff;
   --clinic-shadow: 0 1.25rem 3.75rem rgb(22 72 58 / 10%);
   --clinic-radius: 0.75rem;
   --clinic-shell: min(76rem, calc(100% - 3rem));
@@ -60,6 +71,9 @@
   /* 陰影兩階。`--clinic-shadow` 是既有的大範圍柔和陰影（浮層用）。 */
   --clinic-elevation-card: 0 0.8rem 2rem rgb(22 72 58 / 5%);
   --clinic-elevation-header: 0 0.5rem 1.5rem rgb(22 72 58 / 8%);
+  /* 2026-10-25：卡片懸停浮起時的陰影，與主要按鈕懸停時的光暈。 */
+  --clinic-elevation-raised: 0 1.25rem 2.5rem rgb(22 72 58 / 12%);
+  --clinic-elevation-glow: 0 0 0 0.375rem rgb(24 79 64 / 16%);
 
   /* -----------------------------------------------------------------
    * 字體堆疊。**一個字型檔都不下載**（2026-07-25 負責人拍板的 0 KiB 預算），
@@ -3351,5 +3365,96 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 @media (max-width: 48rem) {
   .clinic-arrival__copy p {
     font-size: var(--clinic-text-body);
+  }
+}
+
+/* ==========================================================================
+   2026-10-25 卡片質感、轉場與圖片載入（參考 Active Theory 的玻璃卡片與接續式
+   換頁；只用 CSS 與瀏覽器內建的 View Transitions，沒有 WebGL）。
+   ========================================================================== */
+
+/* 霧綠底上的白卡改成半透明玻璃：白色八成、邊緣一道亮線，底色透一點上來。 */
+.clinic-care .clinic-service-card,
+.clinic-team .clinic-doctor-card {
+  background: color-mix(in srgb, var(--clinic-white) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--clinic-white) 90%, transparent);
+  backdrop-filter: blur(0.75rem) saturate(1.2);
+}
+
+/* 整張卡片是連結，懸停或鍵盤聚焦時浮起。只動 transform 與陰影，圖片本身不動。 */
+@media (hover: hover) {
+  .clinic-service-card:hover,
+  .clinic-doctor-card:hover,
+  .clinic-care .clinic-service-card:hover,
+  .clinic-team .clinic-doctor-card:hover {
+    box-shadow: var(--clinic-elevation-raised);
+    transform: translate3d(0, -0.25rem, 0);
+  }
+}
+
+.clinic-service-card:focus-within,
+.clinic-doctor-card:focus-within {
+  box-shadow: var(--clinic-elevation-raised);
+}
+
+/* 主要按鈕懸停時多一圈柔和光暈，讓「線上預約」在頁首更容易被找到。 */
+.clinic-header__booking,
+.clinic-button--primary {
+  transition:
+    background var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    border-color var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    color var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    box-shadow var(--clinic-duration-effect-swift) var(--clinic-ease-out),
+    transform var(--clinic-duration-effect-swift) var(--clinic-ease-out);
+}
+
+@media (hover: hover) {
+  .clinic-header__booking:hover,
+  .clinic-button--primary:hover {
+    box-shadow: var(--clinic-elevation-glow);
+  }
+}
+
+/* 卡片圖片載入前先顯示柔和底色，載入後淡入一次（clinic-site.js 的
+   fadeInCardImages）。只動 opacity，不縮放、不遮罩。 */
+.clinic-service-card__image,
+.clinic-doctor-card__image {
+  background: linear-gradient(
+    135deg,
+    var(--clinic-mist),
+    var(--clinic-sage-100)
+  );
+}
+
+.clinic-motion .clinic-service-card__image.is-loaded,
+.clinic-motion .clinic-doctor-card__image.is-loaded {
+  animation: clinic-image-in var(--clinic-duration-spatial-base)
+    var(--clinic-ease-out) both;
+}
+
+@keyframes clinic-image-in {
+  from {
+    opacity: 0.35;
+  }
+}
+
+/* 卡片到內頁：同名的卡片圖與內頁主圖由瀏覽器接續移動（clinic-site.js 的
+   assignMorphNames）。新舊畫面維持瀏覽器預設的等比寬度，不裁切。 */
+::view-transition-group(*) {
+  animation-duration: var(--clinic-duration-spatial-base);
+  animation-timing-function: var(--clinic-ease-out);
+}
+
+/* 全站的減少動態規則用 `*` 選取，選不到轉場的偽元素，這裡另外關掉。 */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  .clinic-service-card:hover,
+  .clinic-doctor-card:hover {
+    transform: none;
   }
 }
