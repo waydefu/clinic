@@ -394,10 +394,13 @@ async function candidateDecisionSnapshot() {
 describe('terminal unmatched candidate decision guard', () => {
   it('rejects unknown diagnostics without changing any collection', async () => {
     await seedUnmatchedTerminalFixture();
-    await db.collection('calendar_pilot_candidates').doc(UNMATCHED_ID).update({
-      validationErrors: ['unmatched_event'],
-      parsed: { ok: false, errors: ['unmatched_event'] }
-    });
+    await db
+      .collection('calendar_pilot_candidates')
+      .doc(UNMATCHED_ID)
+      .update({
+        validationErrors: ['unmatched_event'],
+        parsed: { ok: false, errors: ['unmatched_event'] }
+      });
     const before = await candidateDecisionSnapshot();
     const repository = new FirestoreCalendarPilotRepository(db);
     await expect(

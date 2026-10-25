@@ -66,7 +66,9 @@ const COLLECTIONS = {
   outbox: 'calendar_pilot_outbox'
 } as const;
 
-type ConfigurationRecord = z.infer<typeof CalendarPilotConfigurationRecordSchema>;
+type ConfigurationRecord = z.infer<
+  typeof CalendarPilotConfigurationRecordSchema
+>;
 
 type CandidateRecord = z.infer<typeof CalendarPilotCandidateRecordSchema>;
 

@@ -57,9 +57,8 @@ describe('CAL-PILOT worker stored read boundary', () => {
     { syncToken: 'synthetic_token' },
     { lastSyncedAt: '2030-01-02T00:00:00Z' }
   ])('reads sync state without unrelated source fields', async (value) => {
-    const result = await repository(value).repository.loadSyncState(
-      'synthetic_source'
-    );
+    const result =
+      await repository(value).repository.loadSyncState('synthetic_source');
     expect(result.sourceId).toBe('synthetic_source');
     expect(result.syncToken).toBe(
       'syncToken' in value ? value.syncToken : undefined
