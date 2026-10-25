@@ -98,6 +98,37 @@ describe('evaluateCalendarPilotHealth', () => {
 });
 
 describe('inspectCalendarPilotHealth', () => {
+  it.each([
+    { health: 'unknown' },
+    { expiresAt: '2030-02-30T00:00:00Z' },
+    { inboundEnabled: 'true' },
+    { schemaVersion: 2 }
+  ])(
+    'rejects malformed stored configuration without an ok result',
+    async (invalid) => {
+      await expect(
+        inspectCalendarPilotHealth(
+          fakeStore({
+            config: {
+              health: 'healthy',
+              expiresAt: '2026-11-28T00:00:00.000Z',
+              inboundEnabled: true,
+              outboundEnabled: true,
+              ...invalid
+            }
+          }),
+          NOW
+        )
+      ).rejects.toThrow('Unreadable CAL-PILOT record.');
+    }
+  );
+
+  it('keeps missing configuration distinct from unreadable data', async () => {
+    await expect(
+      inspectCalendarPilotHealth(fakeStore({ config: null }), NOW)
+    ).resolves.toMatchObject({ health: 'missing' });
+  });
+
   it('reads only configuration and outbox status counts', async () => {
     const inspection = await inspectCalendarPilotHealth(
       fakeStore({

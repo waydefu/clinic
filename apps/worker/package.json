@@ -9,6 +9,7 @@
     "start:internal-test-outbox": "node dist/internal-test-outbox-main.js"
   },
   "dependencies": {
+    "@beauessence/contracts": "workspace:*",
     "@beauessence/domain": "workspace:*",
     "firebase-admin": "^14.2.0"
   }

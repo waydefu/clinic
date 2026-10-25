@@ -1,3 +1,5 @@
+import { isUtcIsoTimestamp } from '@beauessence/domain';
+
 export interface CalendarPilotWorkerLease {
   readonly owner: string;
   readonly generation: number;
@@ -28,7 +30,9 @@ export class CalendarPilotLeaseLostError extends Error {
 }
 
 function timestamp(value: unknown): number {
-  return typeof value === 'string' ? Date.parse(value) : Number.NaN;
+  return typeof value === 'string' && isUtcIsoTimestamp(value)
+    ? Date.parse(value)
+    : Number.NaN;
 }
 
 /**
