@@ -155,6 +155,84 @@ afterAll(async () => {
 });
 
 describe('CAL-PILOT dispatch and completion use live lease state', () => {
+  it('serializes concurrent complete runs behind the global lease', async () => {
+    let releaseToken = () => {};
+    let signalToken = () => {};
+    const tokenReached = new Promise<void>((resolve) => {
+      signalToken = resolve;
+    });
+    const tokenBarrier = new Promise<void>((resolve) => {
+      releaseToken = resolve;
+    });
+    let tokenProviderCalls = 0;
+    providers.beforeToken = () => {
+      tokenProviderCalls += 1;
+      if (tokenProviderCalls === 1) {
+        signalToken();
+        return tokenBarrier;
+      }
+    };
+
+    const ownerRun = run();
+    let competingRun: ReturnType<typeof run> | undefined;
+    try {
+      await Promise.race([
+        tokenReached,
+        ownerRun.then(() => {
+          throw new Error(
+            'The owner run completed before reaching the token barrier.'
+          );
+        })
+      ]);
+      const configurationBefore = (await configuration().get()).data();
+      const jobABefore = await state('job_a');
+      const jobBBefore = await state('job_b');
+      const owner = configurationBefore?.['workerLeaseOwner'];
+      expect(owner).toEqual(expect.any(String));
+      expect(jobABefore).toMatchObject({
+        status: 'processing',
+        leaseOwner: owner
+      });
+      expect(jobBBefore).toMatchObject({
+        status: 'processing',
+        leaseOwner: owner
+      });
+
+      competingRun = run();
+      await expect(competingRun).resolves.toMatchObject({
+        acquired: false,
+        processedJobs: 0,
+        failedJobs: 0
+      });
+      expect(tokenProviderCalls).toBe(1);
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(engineCallCount()).toBe(0);
+      expect((await configuration().get()).data()).toEqual(configurationBefore);
+      expect(await state('job_a')).toEqual(jobABefore);
+      expect(await state('job_b')).toEqual(jobBBefore);
+
+      releaseToken();
+      await expect(ownerRun).resolves.toMatchObject({
+        acquired: true,
+        processedJobs: 2,
+        failedJobs: 0
+      });
+      expect(dispatch).toHaveBeenCalledTimes(2);
+      expect(engineCallCount()).toBe(1);
+      expect(await state('job_a')).toMatchObject({
+        status: 'completed',
+        leaseOwner: null
+      });
+      expect(await state('job_b')).toMatchObject({
+        status: 'completed',
+        leaseOwner: null
+      });
+    } finally {
+      releaseToken();
+      await Promise.allSettled([ownerRun, competingRun]);
+    }
+  });
+
   it('preserves valid generation zero rather than imposing a new positive-only policy', async () => {
     await configuration().update({ version: 0 });
     for (const id of ['job_a', 'job_b'])
