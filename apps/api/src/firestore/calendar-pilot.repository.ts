@@ -1,5 +1,18 @@
 import { createHash, randomUUID } from 'node:crypto';
 
+import type { z } from 'zod';
+import {
+  CalendarPilotAppointmentRecordSchema,
+  CalendarPilotCandidateRecordSchema,
+  CalendarPilotConfigurationRecordSchema,
+  CalendarPilotMirrorRecordSchema,
+  CalendarPilotSourceRecordSchema,
+  CalendarSourceCommandResponseSchema,
+  CalendarSourcePreflightResponseSchema,
+  ReviewCalendarCandidateResponseSchema,
+  SyntheticAppointmentCommandResponseSchema,
+  parseCalendarPilotRecord
+} from '@beauessence/contracts';
 import type {
   CalendarAvailabilityResponse,
   CalendarChangeCandidate,
@@ -82,7 +95,8 @@ interface IdempotencyRecord<T> {
 }
 
 export function parsePilotIdempotencyRecord<T>(
-  data: unknown
+  data: unknown,
+  responseSchema: z.ZodType<T>
 ): IdempotencyRecord<T> {
   if (data === null || typeof data !== 'object' || Array.isArray(data))
     throw new ConflictError();
@@ -99,7 +113,7 @@ export function parsePilotIdempotencyRecord<T>(
     throw new ConflictError();
   return {
     fingerprint: record.fingerprint,
-    response: record.response as T
+    response: parseCalendarPilotRecord(responseSchema, record.response)
   };
 }
 
@@ -107,9 +121,12 @@ function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function documentData<T>(document: DocumentSnapshot): T {
+function documentData<T>(
+  schema: z.ZodType<T>,
+  document: DocumentSnapshot
+): T {
   if (!document.exists) throw new ConflictError();
-  return document.data() as T;
+  return parseCalendarPilotRecord(schema, document.data());
 }
 
 function assertActive(configuration: ConfigurationRecord, now: string): void {
@@ -149,7 +166,7 @@ function sourceSummary(
   document: DocumentSnapshot,
   configuration: ConfigurationRecord
 ): CalendarSourceSummary {
-  const data = document.data() as DocumentData;
+  const data = documentData(CalendarPilotSourceRecordSchema, document);
   return {
     sourceId: document.id,
     displayName: String(data['displayName']),
@@ -178,7 +195,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
   }
 
   private async configuration(): Promise<ConfigurationRecord> {
-    return documentData<ConfigurationRecord>(
+    return documentData(
+      CalendarPilotConfigurationRecordSchema,
       await this.configurationRef().get()
     );
   }
@@ -243,7 +261,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         appointmentStartsAtAtDetection: _startsAtAtDetection,
         sourceId: _sourceId,
         ...publicRecord
-      } = document.data() as CandidateRecord & { readonly sourceId?: string };
+      } = documentData(CalendarPilotCandidateRecordSchema, document);
       return publicRecord;
     });
     const suggestedPatientIds = [
@@ -347,8 +365,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .orderBy('startsAt', 'asc')
       .limit(200)
       .get();
-    return documents.docs.map(
-      (document) => document.data() as SyntheticAppointment
+    return documents.docs.map((document) =>
+      documentData(CalendarPilotAppointmentRecordSchema, document)
     );
   }
 
@@ -366,7 +384,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
   public async getSourcePreflight(
     preflightId: string
   ): Promise<CalendarSourcePreflightResponse> {
-    return documentData<CalendarSourcePreflightResponse>(
+    return documentData(
+      CalendarSourcePreflightResponseSchema,
       await this.db.collection(COLLECTIONS.preflights).doc(preflightId).get()
     );
   }
@@ -375,7 +394,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     command: CalendarSourceCommand
   ): Promise<CalendarSourcePreflightResponse> {
     return this.db.runTransaction(async (transaction) => {
-      const configuration = documentData<ConfigurationRecord>(
+      const configuration = documentData(
+        CalendarPilotConfigurationRecordSchema,
         await transaction.get(this.configurationRef())
       );
       assertActive(configuration, command.occurredAt);
@@ -392,10 +412,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         })
       );
       if (replay.exists) {
-        const record =
-          parsePilotIdempotencyRecord<CalendarSourcePreflightResponse>(
-            replay.data()
-          );
+        const record = parsePilotIdempotencyRecord(
+          replay.data(),
+          CalendarSourcePreflightResponseSchema
+        );
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return record.response;
       }
@@ -471,7 +491,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     requestedSourceId: string | undefined
   ): Promise<CalendarSourceCommandResponse> {
     return this.db.runTransaction(async (transaction) => {
-      const configuration = documentData<ConfigurationRecord>(
+      const configuration = documentData(
+        CalendarPilotConfigurationRecordSchema,
         await transaction.get(this.configurationRef())
       );
       assertActive(configuration, command.occurredAt);
@@ -492,10 +513,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         })
       );
       if (replay.exists) {
-        const record =
-          parsePilotIdempotencyRecord<CalendarSourceCommandResponse>(
-            replay.data()
-          );
+        const record = parsePilotIdempotencyRecord(
+          replay.data(),
+          CalendarSourceCommandResponseSchema
+        );
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return record.response;
       }
@@ -509,8 +530,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
           this.db.collection(COLLECTIONS.preflights).doc(command.preflightId)
         )
       ]);
-      const preflightData =
-        documentData<CalendarSourcePreflightResponse>(preflight);
+      const preflightData = documentData(
+        CalendarSourcePreflightResponseSchema,
+        preflight
+      );
       if (
         !source.exists ||
         source.data()?.['enabled'] !== true ||
@@ -576,7 +599,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     readonly projection: CalendarEventProjection | null;
   }> {
     return this.db.runTransaction(async (transaction) => {
-      const configuration = documentData<ConfigurationRecord>(
+      const configuration = documentData(
+        CalendarPilotConfigurationRecordSchema,
         await transaction.get(this.configurationRef())
       );
       assertActive(configuration, command.occurredAt);
@@ -599,10 +623,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       );
       const replay = await transaction.get(idempotencyRef);
       if (replay.exists) {
-        const record = parsePilotIdempotencyRecord<{
-          candidate: CalendarChangeCandidate;
-          projection: CalendarEventProjection | null;
-        }>(replay.data());
+        const record = parsePilotIdempotencyRecord(
+          replay.data(),
+          ReviewCalendarCandidateResponseSchema
+        );
         const isLegacyExactReplay =
           record.fingerprint === legacyFingerprint &&
           record.response.candidate?.candidateId === command.candidateId &&
@@ -617,7 +641,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         .collection(COLLECTIONS.candidates)
         .doc(command.candidateId);
       const candidateDocument = await transaction.get(candidateRef);
-      const candidate = documentData<CandidateRecord>(candidateDocument);
+      const candidate = documentData(
+        CalendarPilotCandidateRecordSchema,
+        candidateDocument
+      );
       if (
         candidate.expectedVersion !== command.expectedVersion ||
         candidate.sourceVersion !== configuration.version
@@ -639,7 +666,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         const appointmentId = candidate.localRecordId;
         if (typeof appointmentId !== 'string' || appointmentId.trim() === '')
           throw new ConflictError();
-        const appointment = documentData<SyntheticAppointment>(
+        const appointment = documentData(
+          CalendarPilotAppointmentRecordSchema,
           await transaction.get(
             this.db.collection(COLLECTIONS.appointments).doc(appointmentId)
           )
@@ -650,7 +678,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         )
           throw new ConflictError();
 
-        const mirror = documentData<DocumentData>(
+        const mirror = documentData(
+          CalendarPilotMirrorRecordSchema,
           await transaction.get(
             this.db.collection(COLLECTIONS.mirrors).doc(candidate.mirrorId)
           )
@@ -776,7 +805,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     readonly projection: CalendarEventProjection | null;
   }> {
     return this.db.runTransaction(async (transaction) => {
-      const configuration = documentData<ConfigurationRecord>(
+      const configuration = documentData(
+        CalendarPilotConfigurationRecordSchema,
         await transaction.get(this.configurationRef())
       );
       assertActive(configuration, command.occurredAt);
@@ -784,7 +814,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       const candidateRef = this.db
         .collection(COLLECTIONS.candidates)
         .doc(command.candidateId);
-      const candidate = documentData<CandidateRecord>(
+      const candidate = documentData(
+        CalendarPilotCandidateRecordSchema,
         await transaction.get(candidateRef)
       );
       const idempotencyRef = this.db
@@ -813,10 +844,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         })
       );
       if (replay.exists) {
-        const record = parsePilotIdempotencyRecord<{
-          candidate: CalendarChangeCandidate;
-          projection: CalendarEventProjection | null;
-        }>(replay.data());
+        const record = parsePilotIdempotencyRecord(
+          replay.data(),
+          ReviewCalendarCandidateResponseSchema
+        );
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return record.response;
       }
@@ -828,7 +859,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       )
         throw new ConflictError();
 
-      const mirror = documentData<{ readonly etag?: unknown }>(
+      const mirror = documentData(
+        CalendarPilotMirrorRecordSchema,
         await transaction.get(
           this.db.collection('calendar_pilot_mirrors').doc(candidate.mirrorId)
         )
@@ -1183,7 +1215,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       readonly occurredAt: string;
     }
   ): Promise<SyntheticAppointmentCommandResponse> {
-    const existing = documentData<SyntheticAppointment>(
+    const existing = documentData(
+      CalendarPilotAppointmentRecordSchema,
       await this.db
         .collection(COLLECTIONS.appointments)
         .doc(appointmentId)
@@ -1217,7 +1250,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       readonly occurredAt: string;
     }
   ): Promise<SyntheticAppointmentCommandResponse> {
-    const existing = documentData<SyntheticAppointment>(
+    const existing = documentData(
+      CalendarPilotAppointmentRecordSchema,
       await this.db
         .collection(COLLECTIONS.appointments)
         .doc(appointmentId)
@@ -1249,7 +1283,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
     fingerprint: string
   ): Promise<SyntheticAppointmentCommandResponse> {
     return this.db.runTransaction(async (transaction) => {
-      const configuration = documentData<ConfigurationRecord>(
+      const configuration = documentData(
+        CalendarPilotConfigurationRecordSchema,
         await transaction.get(this.configurationRef())
       );
       assertActive(configuration, command.occurredAt);
@@ -1268,10 +1303,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         .doc(hash(`${command.actorId}:${command.idempotencyKey}`).slice(0, 40));
       const replay = await transaction.get(idempotencyRef);
       if (replay.exists) {
-        const record =
-          parsePilotIdempotencyRecord<SyntheticAppointmentCommandResponse>(
-            replay.data()
-          );
+        const record = parsePilotIdempotencyRecord(
+          replay.data(),
+          SyntheticAppointmentCommandResponseSchema
+        );
         if (record.fingerprint !== fingerprint) throw new ConflictError();
         return { ...record.response, replayed: true };
       }

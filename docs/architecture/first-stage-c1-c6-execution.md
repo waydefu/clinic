@@ -106,7 +106,7 @@ Machine: `scripts/sequential-c-gate.mjs`. Live tree with C1～C6 smoke is
 
 | ID | Class | Action now |
 | --- | --- | --- |
-| DATA-R03 remaining codecs / worker casts / alerting | C6 blocker *if* C6 uses those collections | new unwired `calendar_watch_channels` has schemaVersion 1 fail-closed parser; remaining CAL-PILOT `documentData<T>` / worker `as T` still OPEN |
+| DATA-R03 remaining codecs / worker casts / alerting | C6 blocker *if* C6 uses those collections | unwired `calendar_watch_channels` retains its schemaVersion 1 parser; the v2 source candidate adds read-only guards for existing CAL-PILOT configuration/source/preflight/mirror/candidate/appointment records and validates idempotent responses. No new collection, writer, persisted version, migration or provider connection. Required CI is pending; remaining runtime/outbox/availability reads and deployed alerting stay OPEN. This does not verify the historical E4-15 claim. |
 | SCM-R04 `stream-json@1` / `csv-parse@5` | delayable debt; not C6 synthetic blocker | no force-upgrade |
 
 ## Hard stop

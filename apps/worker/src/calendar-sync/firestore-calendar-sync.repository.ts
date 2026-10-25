@@ -2,6 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import type { Firestore } from 'firebase-admin/firestore';
 import {
+  CalendarPilotAppointmentRecordSchema,
+  CalendarPilotMirrorRecordSchema,
+  CalendarPilotSourceConfigurationSchema,
+  CalendarPilotSourceRecordSchema,
+  CalendarSourcePreflightResponseSchema,
+  parseCalendarPilotRecord
+} from '@beauessence/contracts';
+import {
   CALENDAR_INBOUND_AUDIT_ACTIONS,
   type ParsedCalendarEntry
 } from '@beauessence/domain';
@@ -135,7 +143,10 @@ export class FirestoreCalendarSyncRepository
     const document = await this.configRef().get();
     if (!document.exists)
       throw new Error('CAL-PILOT configuration is missing.');
-    return document.data() as StoredConfiguration;
+    return parseCalendarPilotRecord(
+      CalendarPilotSourceConfigurationSchema,
+      document.data()
+    );
   }
 
   public async loadSourceConfiguration(): Promise<CalendarSourceConfiguration> {
@@ -173,7 +184,10 @@ export class FirestoreCalendarSyncRepository
   public async loadSyncState(sourceId: string): Promise<CalendarSyncState> {
     const document = await this.db.collection(SOURCES).doc(sourceId).get();
     if (!document.exists) throw new Error('CAL-PILOT source is missing.');
-    const data = document.data()!;
+    const data = parseCalendarPilotRecord(
+      CalendarPilotSourceRecordSchema,
+      document.data()
+    );
     return {
       sourceId,
       ...(typeof data['syncToken'] === 'string'
@@ -200,7 +214,10 @@ export class FirestoreCalendarSyncRepository
       .get();
     return query.empty
       ? undefined
-      : (query.docs[0]!.data() as CalendarMirrorRecord);
+      : parseCalendarPilotRecord(
+          CalendarPilotMirrorRecordSchema,
+          query.docs[0]!.data()
+        );
   }
 
   public async matchesManagedProjection(
@@ -212,7 +229,10 @@ export class FirestoreCalendarSyncRepository
       .doc(linkId)
       .get();
     if (!appointment.exists) return false;
-    const data = appointment.data()!;
+    const data = parseCalendarPilotRecord(
+      CalendarPilotAppointmentRecordSchema,
+      appointment.data()
+    );
     if (!parsed.ok) return data['status'] === 'cancelled';
     if (parsed.kind !== 'appointment') return false;
     return (
@@ -267,7 +287,10 @@ export class FirestoreCalendarSyncRepository
       const configurationDocument = await transaction.get(this.configRef());
       if (!configurationDocument.exists)
         throw new Error('CAL-PILOT configuration is missing.');
-      const configuration = configurationDocument.data() as StoredConfiguration;
+      const configuration = parseCalendarPilotRecord(
+        CalendarPilotSourceConfigurationSchema,
+        configurationDocument.data()
+      );
       if (
         configuration.activeSourceId !== commit.sourceId ||
         configuration.version !== commit.expectedSourceVersion
@@ -517,7 +540,10 @@ export class FirestoreCalendarSyncRepository
   ): Promise<CalendarSourceRecord | undefined> {
     const document = await this.db.collection(SOURCES).doc(sourceId).get();
     if (!document.exists) return undefined;
-    const data = document.data()!;
+    const data = parseCalendarPilotRecord(
+      CalendarPilotSourceRecordSchema,
+      document.data()
+    );
     return {
       sourceId,
       displayName: String(data['displayName']),
@@ -545,7 +571,10 @@ export class FirestoreCalendarSyncRepository
       .doc(preflightId)
       .get();
     return document.exists
-      ? (document.data() as CalendarSourcePreflightResult)
+      ? parseCalendarPilotRecord(
+          CalendarSourcePreflightResponseSchema,
+          document.data()
+        )
       : undefined;
   }
 
@@ -559,7 +588,10 @@ export class FirestoreCalendarSyncRepository
       const document = await transaction.get(this.configRef());
       if (!document.exists)
         throw new Error('CAL-PILOT configuration is missing.');
-      const configuration = document.data() as StoredConfiguration;
+      const configuration = parseCalendarPilotRecord(
+        CalendarPilotSourceConfigurationSchema,
+        document.data()
+      );
       if (configuration.version !== input.expectedVersion)
         throw new Error('CAL-PILOT source generation changed.');
       transaction.update(this.configRef(), {
