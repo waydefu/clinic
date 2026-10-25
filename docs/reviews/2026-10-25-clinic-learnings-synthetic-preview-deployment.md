@@ -2,8 +2,8 @@
 
 ## 現行狀態
 
-**目前頻道上是 `a0409c2`（見文末〈追加部署：`a0409c2`〉）。下面的表與實測是同日稍早
-`36f182c` 的部署，保留不改；`b681e59` 的追加部署也保留在文末。**
+**目前頻道上是 `85b8312`（見文末〈追加部署：`85b8312`〉）。下面的表與實測是同日稍早
+`36f182c` 的部署，保留不改；`b681e59`、`a0409c2` 的追加部署也保留在文末。**
 
 **DEPLOYED AND SMOKED — PR #302 head `36f182c` 靜態預覽；四項實測通過。**
 本次只更新 Hosting preview channel，沒有動 live、CAL-PILOT、Cloud Run 或任何後端。
@@ -117,3 +117,40 @@ live），並實測鼾聲區背景、門診卡電話與預約頁社群圖示」�
 | 預約頁「其他聯絡方式」社群圖示（電腦版圓形） | PASS：LINE `rgb(6,199,85)`、Instagram 漸層（底色 `rgb(221,48,193)`）、Messenger／Facebook `rgb(8,102,255)`，圖示皆白色 |
 | 預約頁「需要其他協助？」電話按鈕 | PASS：無底線 |
 | 手機版帶文字的社群按鈕 | NOT_RUN：只測電腦版（`data-contact-layout="compact"`）；手機版同一組 CSS 由 CI 的 e2e-mobile 覆蓋版面，顏色未在實機確認 |
+
+## 追加部署：`85b8312`
+
+同日負責人依 v2 綜合評分（`docs/reviews/2026-10-25-public-site-audit-v2.md`，在
+`agent/site-audit-20261025`）要求「在 #302 先修不必業主定稿的項目」，#302 先加上
+`acb1d1d`（首頁區塊漸層，未單獨部署），再加上 `85b8312`：官網焦點框與高對比模式、
+官網各頁 canonical 與 og:image、預約頁 JSON-LD 拿掉「醫學美容」、手機版預約頁補回
+「回官網」、備註欄加上勿填病情的提醒。負責人核准：「#302 的 CI 全綠後，把 85b8312 發到
+beauessence-clinic-staging 的 synthetic-review 預覽頻道（30 天，只發 preview、不動
+live），並實測官網各頁 canonical 與 og:image、焦點框、手機版預約頁回官網與備註提醒」。
+此核准只涵蓋這一次部署。
+
+| 欄位 | 結果 |
+| --- | --- |
+| 部署版本 | #302 head `85b8312`（含 `acb1d1d` 的漸層） |
+| 該版本 CI | `verify` run `40200084267` on `85b8312` — 12/12 checks `success`，含 `Verification evidence` |
+| 期限 | `30d`，到期 `2026-11-24T14:06:11Z`（2026-11-24 22:06 Asia/Taipei） |
+| Release／version | `1792937229698000`／`639492cfb42c12be`，129 files |
+| Release time | `2026-10-25T14:07:09Z`（22:07 Asia/Taipei） |
+| live channel | 未變：仍是 2026-08-22 的 release `1787409828279000` |
+| 部署方式 | 同上：detached worktree 切到 `85b8312`（lockfile、`package.json` 與 `firebase.json` 與 `a0409c2` 相同），一次性設定檔只移除 `/v1/**` |
+
+| 實測 | 結果 |
+| --- | --- |
+| 官網各頁 canonical 與 og:image（原始 HTML，JS 執行前） | PASS：`/clinic` 與 8 條路由都有 canonical、og:url、og:image，網域為 `https://beauessence.com.tw`（與預約頁相同，D-011 待確認）；8 張分享圖在預覽上都回 200 `image/webp`；不存在的路徑後備到 `clinic.html`，帶首頁的 canonical |
+| JS 執行後的標籤 | PASS：canonical、og:image、og:url、twitter:image 各只有 1 個；runtime 改寫成當下網域（預覽上是預覽網址），正式網域相同時兩者一致 |
+| 官網焦點框 | PASS：鍵盤 Tab 到「線上預約」時 `:focus-visible`，外框 `solid 3px rgb(122, 84, 0)` |
+| 高對比模式（Playwright 模擬 `forced-colors: active`） | PASS：已選的困擾用系統 Highlight 底且文字可見、推薦的照護卡有實線外框、目前所在頁有底線、頁首是實心底 |
+| 手機版預約頁「回官網」 | PASS：360px 寬與標誌、「查詢／取消預約」同一列（標誌 16–88、回官網 98–172、查詢 182–344），320px 時查詢換到第二列靠右；兩種寬度都沒有水平捲動；點了到 `/clinic` |
+| 備註欄提醒 | PASS：走到第 3 步，備註欄下方顯示「最多 120 字。請不要在這裡寫病情細節或其他健康資料，看診時再當面告訴醫師。」，`aria-describedby` 指向它 |
+| 預約頁 JSON-LD | PASS：不再含「醫學美容」 |
+| 手機版帶文字的社群按鈕（上一筆 NOT_RUN） | PASS：360px 畫面上 LINE、Instagram、Messenger、Facebook 都有官方配色 |
+| `/v1/health` | PASS：HTTP 404，預覽沒有 backend rewrite |
+
+**限制：** 高對比模式只用 Playwright 模擬，沒有在真的 Windows 高對比主題下開，屬
+`External manual verification required`。焦點框只量了白底上的一個按鈕；其餘底色的
+對比是本機以計算後樣式逐一算出（最低約 4.4:1，在淡綠背景圖上）。
