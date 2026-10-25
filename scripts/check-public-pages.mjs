@@ -57,6 +57,8 @@ const ROUTING_KINDS = new Set(['exact', 'shared-shell', 'hosting-404']);
 const ROOT_REDIRECT = { source: '/', destination: '/clinic', type: 302 };
 const ROUTE_PATTERN =
   /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
+// 建置把每條官網路由頁放在這個目錄；名稱刻意不會等於任何對外路徑（見 build-web.mjs）。
+const ROUTE_PAGE_DIRECTORY = 'clinic-route';
 const ENTRY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*\.html$/;
 const DATA_SOURCE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const CAL_PILOT_API_REWRITE = Object.freeze({
@@ -345,7 +347,7 @@ function addExpectedMapping(map, route, entry, source, failures) {
   else if (previous === undefined) map.set(route, { entry, source });
 }
 
-function buildExpectedRouting(pages, dataRouteSources, failures) {
+function buildExpectedRouting(pages, dataRouteSources, routePages, failures) {
   const serverMappings = new Map();
   const rewrites = new Map();
   const redirects = new Map();
@@ -420,6 +422,20 @@ function buildExpectedRouting(pages, dataRouteSources, failures) {
         `${sourceName} 少了 shared shell canonical route ${page.route}。`
       );
 
+    // 每條路由頁（clinic-route/…）與資料路由雙向對得上，並各有一筆精確 rewrite。
+    for (const route of seen) {
+      if (route !== page.route && !routePages.has(route))
+        failures.push(
+          `${route} 在 ${sourceName} 裡，但建置沒有為它產生路由頁（clinicRoutePageFiles）。`
+        );
+    }
+    for (const [route, file] of routePages) {
+      if (!route.startsWith(`${page.route}/`)) continue;
+      if (seen.has(route)) rewrites.set(route, `/${file}`);
+      else
+        failures.push(`建置會產生 ${file}，但 ${route} 不在 ${sourceName}。`);
+    }
+
     if (page.routing.hostingWildcard !== null)
       rewrites.set(page.routing.hostingWildcard, `/${page.entry}`);
   }
@@ -441,6 +457,7 @@ function buildExpectedRouting(pages, dataRouteSources, failures) {
     serverMappings,
     rewrites,
     redirects,
+    routePageFiles: new Set(routePages.values()),
     dataRouteCount: dataRoutes.size
   };
 }
@@ -588,7 +605,49 @@ function firebaseRules(firebase, name, failures) {
   return value;
 }
 
-function compareFirebaseRewrites(expected, rules, failures) {
+/**
+ * 路由頁的 rewrite 在每份 Hosting 設定裡都必須存在、指向建置真的產出的檔案，
+ * 且排在 `/clinic/**` 這類萬用規則之前（第一個符合的規則生效）。
+ */
+function compareRoutePageRewrites(routePages, rules, label, failures) {
+  const statics = rules.filter(
+    (rule) =>
+      isRecord(rule) && !hasOwn(rule, 'run') && typeof rule.source === 'string'
+  );
+  const emitted = new Set([...routePages.values()].map((file) => `/${file}`));
+  for (const [route, file] of routePages) {
+    const index = statics.findIndex((rule) => rule.source === route);
+    if (index === -1) {
+      failures.push(`${label} rewrites 少了 ${route} → /${file}。`);
+      continue;
+    }
+    if (statics[index].destination !== `/${file}`)
+      failures.push(
+        `${label} rewrite ${route} 指向 ${statics[index].destination}；建置產出的是 /${file}。`
+      );
+    const wildcard = statics.findIndex(
+      (rule) =>
+        rule.source.endsWith('/**') &&
+        route.startsWith(rule.source.slice(0, -2))
+    );
+    if (wildcard !== -1 && wildcard < index)
+      failures.push(
+        `${label} 的 ${route} 精確 rewrite 必須排在 ${statics[wildcard].source} 之前，否則永遠不會生效。`
+      );
+  }
+  for (const rule of statics) {
+    if (
+      typeof rule.destination === 'string' &&
+      rule.destination.startsWith(`/${ROUTE_PAGE_DIRECTORY}/`) &&
+      !emitted.has(rule.destination)
+    )
+      failures.push(
+        `${label} rewrite ${rule.source} 指向建置不會產出的 ${rule.destination}。`
+      );
+  }
+}
+
+function compareFirebaseRewrites(expected, rules, failures, routePageFiles) {
   const actual = new Map();
   let apiRewriteCount = 0;
   for (const [index, value] of rules.entries()) {
@@ -642,8 +701,13 @@ function compareFirebaseRewrites(expected, rules, failures) {
     );
     if (!isRoute(value.source) && !isWildcardRoute(value.source))
       failures.push(`${label}.source 必須是合法 route 或 /** route。`);
-    if (!isEntryPath(value.destination))
-      failures.push(`${label}.destination 必須是 /<kebab-case>.html。`);
+    if (
+      !isEntryPath(value.destination) &&
+      !routePageFiles.has(String(value.destination).slice(1))
+    )
+      failures.push(
+        `${label}.destination 必須是 /<kebab-case>.html 或建置產出的路由頁。`
+      );
     if (typeof value.source !== 'string') continue;
     if (actual.has(value.source))
       failures.push(`firebase.json rewrites 重複宣告 ${value.source}。`);
@@ -931,7 +995,7 @@ export function compareIsolatedApiPreviewHosting(
   }
 }
 
-function compareBudgets(pages, budgets, failures) {
+function compareBudgets(pages, budgets, routePageFiles, failures) {
   if (!Array.isArray(budgets)) {
     failures.push('apps/web/performance-budget.json 頂層必須是 array。');
     return;
@@ -943,14 +1007,21 @@ function compareBudgets(pages, budgets, failures) {
       failures.push(`${label}.path 必須是字串。`);
       continue;
     }
-    if (!isEntryPath(value.path))
-      failures.push(`${label}.path 必須是 /<entry>.html。`);
+    if (!isEntryPath(value.path) && !routePageFiles.has(value.path.slice(1)))
+      failures.push(`${label}.path 必須是 /<entry>.html 或建置產出的路由頁。`);
     if (actual.has(value.path))
       failures.push(`performance-budget.json 重複宣告 ${value.path}。`);
     else actual.set(value.path, index);
   }
 
-  const expected = new Set(pages.map((page) => `/${page.entry}`));
+  const expected = new Set([
+    ...pages.map((page) => `/${page.entry}`),
+    ...[...routePageFiles].map((file) => `/${file}`)
+  ]);
+  for (const file of routePageFiles) {
+    if (!actual.has(`/${file}`))
+      failures.push(`performance-budget.json 沒有路由頁 /${file} 的預算。`);
+  }
   for (const page of pages) {
     const path = `/${page.entry}`;
     if (!actual.has(path))
@@ -1380,18 +1451,24 @@ export function checkPublicPageConfiguration({
   buildIndexableEntries,
   registerDecisions = null,
   scanSources = {},
-  dataRouteSources = {}
+  dataRouteSources = {},
+  clinicRoutePages = new Map()
 }) {
   const failures = [];
   const pages = validateInventory(inventory, failures);
-  const expected = buildExpectedRouting(pages, dataRouteSources, failures);
+  const expected = buildExpectedRouting(
+    pages,
+    dataRouteSources,
+    clinicRoutePages,
+    failures
+  );
   const parsedServer = extractPrettyPaths(serverSource);
   failures.push(...parsedServer.failures);
   const parsedRoot = extractRootRedirect(serverSource);
   failures.push(...parsedRoot.failures);
   compareServerRootRedirect(parsedRoot.rule, failures);
 
-  compareBudgets(pages, budgets, failures);
+  compareBudgets(pages, budgets, expected.routePageFiles, failures);
   compareIndexableEntries(pages, buildIndexableEntries, failures);
   compareDecisionRequirements(pages, registerDecisions, failures);
   compareServerMappings(
@@ -1400,11 +1477,21 @@ export function checkPublicPageConfiguration({
     parsedServer.mappings,
     failures
   );
+  const firebaseRewrites = firebaseRules(firebase, 'rewrites', failures);
   compareFirebaseRewrites(
     expected.rewrites,
-    firebaseRules(firebase, 'rewrites', failures),
-    failures
+    firebaseRewrites,
+    failures,
+    expected.routePageFiles
   );
+  const rewritesOf = (config) =>
+    Array.isArray(config?.hosting?.rewrites) ? config.hosting.rewrites : [];
+  for (const [label, rules] of [
+    ['firebase.json', firebaseRewrites],
+    ['firebase.isolated-preview.json', rewritesOf(isolatedFirebase)],
+    ['firebase.isolated-api-preview.json', rewritesOf(isolatedApiFirebase)]
+  ])
+    compareRoutePageRewrites(clinicRoutePages, rules, label, failures);
   compareFirebaseRedirects(
     expected.redirects,
     firebaseRules(firebase, 'redirects', failures),
@@ -1455,7 +1542,8 @@ export async function repositoryInputs() {
     scanSources,
     dataRouteSources: {
       CLINIC_ROUTES: clinicContent.CLINIC_ROUTES
-    }
+    },
+    clinicRoutePages: buildWeb.clinicRoutePageFiles(clinicContent)
   };
 }
 

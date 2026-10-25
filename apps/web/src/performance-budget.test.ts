@@ -229,6 +229,14 @@ describe('the shipped performance budget', () => {
       '/patient.html',
       '/index.html',
       '/clinic.html',
+      // 官網每條路由各一頁，與 /clinic.html 同一份殼與預算（build-web.mjs 的 clinic-route/）。
+      '/clinic-route/doctors.html',
+      '/clinic-route/doctors/yan-cheng-an.html',
+      '/clinic-route/doctors/yang-sheng-feng.html',
+      '/clinic-route/nasal/snoring-five-in-one.html',
+      '/clinic-route/nasal/inferior-turbinate-surgery.html',
+      '/clinic-route/nasal/septoplasty.html',
+      '/clinic-route/nasal/snore-relief-mouthguard.html',
       '/privacy.html',
       '/404.html'
     ]);

@@ -1,6 +1,6 @@
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import process from 'node:process';
 
 // 把 apps/web/public 產出成內容雜湊過的 apps/web/dist。
@@ -71,6 +71,123 @@ export function planHashedBuild(
 function extensionOf(path) {
   const dot = path.lastIndexOf('.');
   return dot === -1 ? '' : path.slice(dot);
+}
+
+const escapeHtml = (text) =>
+  String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+// 路由 → 頁面清單（單一來源）：與 clinic-site.js renderRoute() 的路由、標題、描述一致。
+// 檔案放在 `clinic-route/` 之下，一個絕不會等於任何對外路徑的目錄名：若寫在 `clinic/`
+// 下，目錄會遮住 `/clinic` 的 rewrite；用 flat 檔 + firebase.json 的精確 rewrite
+// 也避開 Hosting 對目錄索引的結尾斜線 301。
+function clinicRoutePageList({ DOCTORS, NASAL_SERVICES }) {
+  return [
+    {
+      path: '/clinic/doctors',
+      title: '醫師團隊',
+      description: '認識一森渼診所專業醫師團隊。',
+      image: '/clinic-assets/clinic-logo.webp'
+    },
+    ...DOCTORS.map((doctor) => ({
+      path: `/clinic/doctors/${doctor.slug}`,
+      title: doctor.name,
+      description: doctor.summary,
+      image: doctor.image
+    })),
+    ...NASAL_SERVICES.map((service) => ({
+      path: `/clinic/nasal/${service.slug}`,
+      title: service.title,
+      description: service.subtitle,
+      image: service.image
+    }))
+  ].map((route) => ({
+    ...route,
+    file: `clinic-route${route.path.slice('/clinic'.length)}.html`
+  }));
+}
+
+/** 路由 → 建置會產出的頁面檔（供 check-public-pages 比對 firebase rewrites 與預算）。 */
+export function clinicRoutePageFiles(content) {
+  return new Map(
+    clinicRoutePageList(content).map((route) => [route.path, route.file])
+  );
+}
+
+/**
+ * 官網每條路由各產一份靜態 HTML（`clinic-route/<路由>.html`，由 firebase.json 的
+ * 精確 rewrite 供應），讓標題、描述、OG、Twitter 在任何 JavaScript 執行前就是正確的（搜尋與分享預覽的爬蟲不跑 JS）。
+ *
+ * 以**已建好的** clinic.html 為模板，所以雜湊資產參照、modulepreload 與 noindex
+ * 與它逐字相同；只換 <title>、description，並補上 clinic-site.js 的 setMeta() 會
+ * 寫入的那一組標籤。標籤名稱與值必須與 setMeta() 一致，runtime 才會是原地覆寫
+ * （idempotent）而不是重複。`/clinic` 本身仍由 clinic.html 承載：同一組標籤也寫回
+ * `clinic.html`（首頁的標題、描述與主圖）。它同時是 `/clinic/**` 軟 404 的後備頁，
+ * JS 執行前會帶首頁的 canonical，與今天標題已經是首頁標題的行為一致。
+ *
+ * canonical／og:url／og:image／twitter:image 需要絕對網址，而建置不知道網域：
+ * 沒給 origin 就整組省略，交給 runtime 補，也不寫出錯誤的絕對網址。
+ */
+export function planClinicRoutePages(clinicHtml, content, { origin } = {}) {
+  const { CLINIC, HOME_PAGE } = content;
+  const isPreview = /<meta\s+name="robots"[^>]*content="[^"]*noindex/i.test(
+    clinicHtml
+  );
+  const TITLE = /<title>[^<]*<\/title>/;
+  const DESCRIPTION = /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/;
+  if (!TITLE.test(clinicHtml) || !DESCRIPTION.test(clinicHtml))
+    throw new Error(
+      'clinic.html has no <title> or description meta to replace.'
+    );
+  const routes = [
+    {
+      path: '/clinic',
+      title: HOME_PAGE.seoTitle,
+      description: HOME_PAGE.seoDescription,
+      image: HOME_PAGE.heroImage,
+      file: 'clinic.html'
+    },
+    ...clinicRoutePageList(content)
+  ];
+  const pages = new Map();
+  for (const route of routes) {
+    const title = escapeHtml(
+      `${isPreview ? '【測試用】' : ''}${route.title}｜${CLINIC.name}`
+    );
+    const description = escapeHtml(route.description);
+    const tags = [
+      `<meta name="description" content="${description}" />`,
+      `<meta property="og:title" content="${title}" />`,
+      `<meta property="og:description" content="${description}" />`,
+      '<meta property="og:type" content="website" />',
+      '<meta property="og:locale" content="zh_TW" />',
+      `<meta property="og:site_name" content="${escapeHtml(CLINIC.name)}" />`,
+      '<meta name="twitter:card" content="summary_large_image" />',
+      `<meta name="twitter:title" content="${title}" />`,
+      `<meta name="twitter:description" content="${description}" />`
+    ];
+    if (origin !== undefined) {
+      const url = escapeHtml(new URL(route.path, origin).href);
+      const image = escapeHtml(new URL(route.image, origin).href);
+      tags.push(
+        `<meta property="og:url" content="${url}" />`,
+        `<meta property="og:image" content="${image}" />`,
+        `<meta name="twitter:image" content="${image}" />`,
+        `<link rel="canonical" href="${url}" />`
+      );
+    }
+    pages.set(
+      route.file,
+      clinicHtml
+        .replace(TITLE, () => `<title>${title}</title>`)
+        .replace(DESCRIPTION, () => tags.join('\n    '))
+    );
+  }
+  return pages;
 }
 
 async function collectFiles(root) {
@@ -199,6 +316,19 @@ async function main() {
   await minifyStylesheets(files);
   await minifyModules(files);
   const { outputs, manifest } = planHashedBuild(files);
+  // 唯讀取用 runtime 同一份內容。網域可由 WEB_SITE_ORIGIN 指定；未設時用預約頁
+  // patient.html 的 canonical 已經宣告的同一個網域，兩邊才不會各說各話。這個網域
+  // 本身仍待診所確認（決策登記 D-011），上線前要和 patient.html 一起核對。
+  const clinicContent = await import(
+    pathToFileURL(join(publicDir, 'clinic-content.js')).href
+  );
+  const origin = process.env.WEB_SITE_ORIGIN || 'https://beauessence.com.tw';
+  for (const [path, html] of planClinicRoutePages(
+    String(outputs.get('clinic.html')),
+    clinicContent,
+    { origin }
+  ))
+    outputs.set(path, html);
 
   await rm(distDir, { recursive: true, force: true });
   for (const [outPath, content] of outputs) {

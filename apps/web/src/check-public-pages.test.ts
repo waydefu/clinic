@@ -11,6 +11,17 @@ import {
 type PrettyPath = [route: string, entry: string];
 
 const CLINIC_ROUTES = ['/clinic', '/clinic/doctors', '/clinic/doctors/example'];
+// 建置為每條資料路由產生的靜態頁（scripts/build-web.mjs 的 clinicRoutePageFiles），
+// 每條各需一筆精確 rewrite（排在 /clinic/** 之前）與一筆預算。
+const ROUTE_PAGES = new Map([
+  ['/clinic/doctors', 'clinic-route/doctors.html'],
+  ['/clinic/doctors/example', 'clinic-route/doctors/example.html']
+]);
+const ROUTE_PAGE_REWRITES = [...ROUTE_PAGES].map(([source, file]) => ({
+  source,
+  destination: `/${file}`
+}));
+
 const PRETTY_PATHS: PrettyPath[] = [
   ['/staff', 'index.html'],
   ['/booking', 'patient.html'],
@@ -126,7 +137,8 @@ function fixture() {
       'patient.html',
       'privacy.html',
       'clinic.html',
-      '404.html'
+      '404.html',
+      ...ROUTE_PAGES.values()
     ].map((entry) => ({ path: `/${entry}` })),
     serverSource: serverSource(),
     firebase: {
@@ -172,6 +184,7 @@ function fixture() {
           { source: '/booking', destination: '/patient.html' },
           { source: '/privacy', destination: '/privacy.html' },
           { source: '/clinic', destination: '/clinic.html' },
+          ...ROUTE_PAGE_REWRITES,
           { source: '/clinic/**', destination: '/clinic.html' }
         ]
       }
@@ -211,6 +224,7 @@ function fixture() {
           { source: '/booking', destination: '/patient.html' },
           { source: '/privacy', destination: '/privacy.html' },
           { source: '/clinic', destination: '/clinic.html' },
+          ...ROUTE_PAGE_REWRITES,
           { source: '/clinic/**', destination: '/clinic.html' }
         ]
       }
@@ -258,6 +272,7 @@ function fixture() {
           { source: '/booking', destination: '/patient.html' },
           { source: '/privacy', destination: '/privacy.html' },
           { source: '/clinic', destination: '/clinic.html' },
+          ...ROUTE_PAGE_REWRITES,
           { source: '/clinic/**', destination: '/clinic.html' }
         ]
       }
@@ -269,7 +284,8 @@ function fixture() {
       affordance: scanSource([], 'affordance'),
       'mobile-layout': scanSource([], 'mobile-layout')
     },
-    dataRouteSources: { CLINIC_ROUTES: [...CLINIC_ROUTES] }
+    dataRouteSources: { CLINIC_ROUTES: [...CLINIC_ROUTES] },
+    clinicRoutePages: new Map(ROUTE_PAGES)
   };
 }
 

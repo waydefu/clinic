@@ -119,7 +119,8 @@ describe('checkPublicPageConfiguration', () => {
       isolatedFirebase: structuredClone(inputs.isolatedFirebase),
       isolatedApiFirebase: structuredClone(inputs.isolatedApiFirebase),
       scanSources: { ...inputs.scanSources },
-      dataRouteSources: { ...inputs.dataRouteSources }
+      dataRouteSources: { ...inputs.dataRouteSources },
+      clinicRoutePages: new Map(inputs.clinicRoutePages)
     };
     change(copy);
     return checkPublicPageConfiguration(copy);
@@ -238,5 +239,106 @@ describe('checkPublicPageConfiguration', () => {
         c.isolatedApiFirebase.hosting.rewrites.shift();
       }).failures.length
     ).toBeGreaterThan(0);
+  });
+
+  // 每條官網路由有各自的靜態頁（clinic-route/…），由三份 Hosting 設定各自用精確
+  // rewrite 供應。漏掉任何一份，該路由在那個環境就靜默退回共用外殼。
+  describe('per-route clinic pages', () => {
+    const CONFIGS = {
+      firebase: 'firebase.json',
+      isolatedFirebase: 'firebase.isolated-preview.json',
+      isolatedApiFirebase: 'firebase.isolated-api-preview.json'
+    };
+    const route = '/clinic/doctors';
+    const failuresOf = (change) => mutate(change).failures.join('\n');
+
+    it('has a route page for every non-shell clinic route', () => {
+      expect(inputs.clinicRoutePages.get(route)).toBe(
+        'clinic-route/doctors.html'
+      );
+      expect(inputs.clinicRoutePages.size).toBe(
+        inputs.dataRouteSources.CLINIC_ROUTES.length - 1
+      );
+    });
+
+    it.each(Object.entries(CONFIGS))(
+      'fails when %s lacks an exact rewrite for a route page',
+      (key, label) => {
+        const text = failuresOf((c) => {
+          const rules = c[key].hosting.rewrites;
+          rules.splice(
+            rules.findIndex((rule) => rule.source === route),
+            1
+          );
+        });
+        expect(text).toContain(label);
+        expect(text).toContain(route);
+      }
+    );
+
+    it.each(Object.entries(CONFIGS))(
+      'fails when %s rewrites to a page the build does not emit',
+      (key, label) => {
+        const text = failuresOf((c) => {
+          c[key].hosting.rewrites.find(
+            (rule) => rule.source === route
+          ).destination = '/clinic-route/missing.html';
+        });
+        expect(text).toContain(label);
+        expect(text).toContain('/clinic-route/missing.html');
+      }
+    );
+
+    it.each(Object.entries(CONFIGS))(
+      'fails when %s puts the exact rewrite after the /clinic/** catch-all',
+      (key, label) => {
+        const text = failuresOf((c) => {
+          const rules = c[key].hosting.rewrites;
+          const [rule] = rules.splice(
+            rules.findIndex((item) => item.source === route),
+            1
+          );
+          rules.push(rule);
+        });
+        expect(text).toContain(label);
+        expect(text).toContain('/clinic/**');
+      }
+    );
+
+    it('fails when a route page has no rewrite anywhere', () => {
+      const text = failuresOf((c) => {
+        c.clinicRoutePages.set(
+          '/clinic/nasal/new-page',
+          'clinic-route/nasal/new-page.html'
+        );
+      });
+      expect(text).toContain('/clinic/nasal/new-page');
+    });
+
+    it('fails when a route page has no budget, or a budget has no page', () => {
+      expect(
+        failuresOf((c) => {
+          c.budgets = c.budgets.filter(
+            (budget) => budget.path !== '/clinic-route/doctors.html'
+          );
+        })
+      ).toContain('/clinic-route/doctors.html');
+      expect(
+        failuresOf((c) => {
+          c.budgets.push({ ...c.budgets[0], path: '/clinic-route/ghost.html' });
+        })
+      ).toContain('/clinic-route/ghost.html');
+    });
+
+    it('fails when CLINIC_ROUTES gains a route that has no page', () => {
+      expect(
+        failuresOf((c) => {
+          c.dataRouteSources.CLINIC_ROUTES = [
+            ...c.dataRouteSources.CLINIC_ROUTES,
+            '/clinic/extra'
+          ];
+        })
+      ).toContain('/clinic/extra');
+    });
   });
 });
