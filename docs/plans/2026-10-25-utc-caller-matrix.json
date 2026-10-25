@@ -1,0 +1,4113 @@
+{
+  "findingId": "D-43",
+  "status": "REFERENCE_INVENTORY_NOT_PACKET_ACCEPTANCE",
+  "baseline": {
+    "sourceSha": "a6d14a8eef7ca0c0d51e335303311afab28de64c",
+    "run": 40168102780,
+    "qualityJob": 121093188979
+  },
+  "candidateBinding": "Per-file SHA-256 binds the working candidate. Fresh PR CI supplies execution evidence for the added regressions; baseline passes do not verify a changed source file.",
+  "validationSemantics": "Domain UTC instants use the canonical domain predicate. Wire schemas retain contracts calendar constraints. External RFC3339 normalization, typed arithmetic, optional undated values and unguarded stored-record admissions are distinct contexts, not interchangeable acceptance evidence.",
+  "validators": {
+    "domainUtc": "packages/domain/src/timestamp.ts (tracked vendor distribution for native/browser)",
+    "wireUtcSchema": "packages/contracts/src/common.ts:UtcIsoTimestampSchema",
+    "wireUtcPredicate": "packages/contracts/src/common.ts:isUtcIsoTimestamp"
+  },
+  "testBindingSemantics": "References inherit their record baselineModuleSuites and additionalRegressionSuites plus the shared suites below. A module pass is not an assertion that every arithmetic context has its own field-level UTC regression.",
+  "sharedRegressionSuites": [
+    "packages/domain/src/timestamp.test.ts",
+    "packages/contracts/src/common.test.ts",
+    "scripts/utc-control-clock-parity.test.mjs",
+    "scripts/utc-grid-export-parity.test.mjs",
+    "scripts/calendar-time-admission-parity.test.mjs"
+  ],
+  "newRegressionSuite": "scripts/utc-caller-boundary.test.mjs",
+  "summary": {
+    "files": 99,
+    "references": 417,
+    "guardAndSchemaReferences": 201,
+    "dateParseContexts": 216,
+    "importsAndDefinitions": 79,
+    "legacySuffixCandidates": [],
+    "withoutBaselineModuleSuite": [
+      "apps/api/src/firestore/business-delivery-export.repository.ts",
+      "apps/api/src/firestore/business-delivery-retention.repository.ts",
+      "apps/api/src/firestore/business-delivery-termination.repository.ts",
+      "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "apps/web/public/admin-bootstrap.js",
+      "apps/web/public/modules/admin-view.js",
+      "apps/web/public/modules/case-management.js",
+      "apps/web/public/modules/schedule-engine.js",
+      "apps/web/public/vendor/domain/audit.js",
+      "apps/web/src/calendar-pilot-entry.js",
+      "apps/worker/src/calendar-port.ts",
+      "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+      "apps/worker/src/internal-test-outbox-runtime.ts",
+      "packages/domain/src/audit.ts",
+      "scripts/activate-cal-pilot.mjs",
+      "scripts/migrate-cal-pilot-legacy-candidates.mjs"
+    ]
+  },
+  "records": [
+    {
+      "file": "apps/api/src/appointments/appointment.application-service.ts",
+      "references": [
+        {
+          "line": 108,
+          "kind": "date-parse-context",
+          "code": "Date.parse(startsAt) + SLOT_DURATION_MINUTES * 60_000",
+          "validator": null
+        },
+        {
+          "line": 431,
+          "kind": "date-parse-context",
+          "code": "Date.parse(record.startsAt) + SLOT_DURATION_MINUTES * 60_000",
+          "validator": null
+        },
+        {
+          "line": 520,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(this.clock.nowUtc());",
+          "validator": null
+        },
+        {
+          "line": 532,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(record.startsAt);",
+          "validator": null
+        },
+        {
+          "line": 533,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(this.clock.nowUtc());",
+          "validator": null
+        },
+        {
+          "line": 546,
+          "kind": "date-parse-context",
+          "code": "Date.parse(record.startsAt) + SLOT_DURATION_MINUTES * 60_000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/appointments/appointment.application-service.test.ts",
+          "declaredCases": 61
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ba63ac3308fab6be2d84bc14830abecccfd17a52e14203bf096d5c18a5b3de96",
+      "candidateGitBlob": "b89a449113211320eb1955441cd57c069a23e115",
+      "baselineGitBlob": "b89a449113211320eb1955441cd57c069a23e115",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/auth/calendar-pilot-session.ts",
+      "references": [
+        {
+          "line": 151,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(session.expiresAt, 'staffSession.expiresAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 152,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(now) >= Date.parse(session.expiresAt)) return false;",
+          "validator": null
+        },
+        {
+          "line": 167,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(now, 'staffSession.now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 175,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(now);",
+          "validator": null
+        },
+        {
+          "line": 455,
+          "kind": "date-parse-context",
+          "code": "const lastSeenAt = Date.parse(session.lastSeenAt);",
+          "validator": null
+        },
+        {
+          "line": 458,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) - lastSeenAt >= 60_000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/auth/calendar-pilot-session.test.ts",
+          "declaredCases": 9
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "4b9ae8e91dc2ca0f321fcea06c6b75fe0463e28f4f503edc04f063e0bcb71705",
+      "candidateGitBlob": "8f41945e495aa33f6bb1669ff9c08b6e6cbf8686",
+      "baselineGitBlob": "8f41945e495aa33f6bb1669ff9c08b6e6cbf8686",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/book-pilot/book-pilot.gate.ts",
+      "references": [
+        {
+          "line": 17,
+          "kind": "date-parse-context",
+          "code": "const expiresAtMs = Date.parse(settings.expiresAtUtc ?? '');",
+          "validator": null
+        },
+        {
+          "line": 19,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(nowUtc);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/book-pilot/book-pilot.gate.test.ts",
+          "declaredCases": 7
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "e8ab1fde5fe0c71fe09a07fef8cee25a7e25f04b58009ba8cebb9ec4871e241a",
+      "candidateGitBlob": "4e2e1a308e037c2ec27f483a651a6bb13517570b",
+      "baselineGitBlob": "4e2e1a308e037c2ec27f483a651a6bb13517570b",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/business-delivery/reauthentication.ts",
+      "references": [
+        {
+          "line": 32,
+          "kind": "date-parse-context",
+          "code": "const ageSeconds = Date.parse(input.now) / 1000 - decoded.auth_time;",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/business-delivery/reauthentication.test.ts",
+          "declaredCases": 10
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "69e9022ae6cfc6834c0fc734b35964ea5a5dfefbcaa7e054b1656ca646a5ad45",
+      "candidateGitBlob": "c381229f7d88e2eb629e57da798a8b8be1a9716a",
+      "baselineGitBlob": "c381229f7d88e2eb629e57da798a8b8be1a9716a",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/business-delivery/synthetic-trial-adjustment.ts",
+      "references": [
+        {
+          "line": 70,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(row.approvedAt, 'approvedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 97,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(row.firstEligibleUseAt, 'firstEligibleUseAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 141,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.firstEligibleUseAt, 'firstEligibleUseAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/business-delivery/synthetic-trial-adjustment.test.ts",
+          "declaredCases": 18
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "7df46215b00a4d4ea5750988800b56b36679448cf78471b41ea50154f18c47f5",
+      "candidateGitBlob": "6cda30016d9af1be6caee1885da218b3f4ba1d15",
+      "baselineGitBlob": "6cda30016d9af1be6caee1885da218b3f4ba1d15",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/api/src/firestore/business-delivery-export.repository.ts",
+      "references": [
+        {
+          "line": 99,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(now);",
+          "validator": null
+        },
+        {
+          "line": 102,
+          "kind": "date-parse-context",
+          "code": "if (nowMs >= Date.parse(job.downloadExpiresAt)) return 'expired';",
+          "validator": null
+        },
+        {
+          "line": 218,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(command.now);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "aac18555497df741bd31624a7a71b9955e648e36ce5c2c577ee8615f6b7a9949",
+      "candidateGitBlob": "348cce324b247f1b5050ce63f28ba7a4de67717a",
+      "baselineGitBlob": "348cce324b247f1b5050ce63f28ba7a4de67717a",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/firestore/business-delivery-retention.repository.ts",
+      "references": [
+        {
+          "line": 272,
+          "kind": "date-parse-context",
+          "code": "startsAt === undefined ? NaN : Date.parse(startsAt);",
+          "validator": null
+        },
+        {
+          "line": 276,
+          "kind": "date-parse-context",
+          "code": "startsAtMs > Date.parse(command.now)",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "f8d797ba71098b6727303f6df31ee1af8d544e2c95c061c0756e2abfb98070dc",
+      "candidateGitBlob": "350ba1bfb7adfe0dd47a9ca7d64e08adfbee594a",
+      "baselineGitBlob": "350ba1bfb7adfe0dd47a9ca7d64e08adfbee594a",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/firestore/business-delivery-termination.repository.ts",
+      "references": [
+        {
+          "line": 244,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) < Date.parse(record.controlledRetentionUntil)",
+          "validator": null
+        },
+        {
+          "line": 599,
+          "kind": "date-parse-context",
+          "code": "Date.parse(command.now) >= exportData.purgeAt.toMillis() ||",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "0acbb48be6c6af53b55c5f4792c3c0d7a3148c8dd9b942970b1471b7763d9384",
+      "candidateGitBlob": "7b205f7edf375bad1084551faf7bb84fb0016a2f",
+      "baselineGitBlob": "7b205f7edf375bad1084551faf7bb84fb0016a2f",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "references": [
+        {
+          "line": 116,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(now) >= Date.parse(configuration.expiresAt))",
+          "validator": null
+        },
+        {
+          "line": 126,
+          "kind": "date-parse-context",
+          "code": "return new Date(Date.parse(startsAt) + 30 * 60_000).toISOString();",
+          "validator": null
+        },
+        {
+          "line": 204,
+          "kind": "date-parse-context",
+          "code": "const expired = Date.parse(now) >= Date.parse(configuration.expiresAt);",
+          "validator": null
+        },
+        {
+          "line": 425,
+          "kind": "date-parse-context",
+          "code": "expiresAt: new Date(Date.parse(completedAt) + 15 * 60_000).toISOString()",
+          "validator": null
+        },
+        {
+          "line": 522,
+          "kind": "date-parse-context",
+          "code": "Date.parse(command.occurredAt) >= Date.parse(preflightData.expiresAt)",
+          "validator": null
+        },
+        {
+          "line": 1027,
+          "kind": "date-parse-context",
+          "code": "Date.parse(parsed.startsAt) >= Date.parse(configuration.expiresAt)",
+          "validator": null
+        },
+        {
+          "line": 1041,
+          "kind": "date-parse-context",
+          "code": "Date.parse(String(document.data()['endsAt'])) >",
+          "validator": null
+        },
+        {
+          "line": 1042,
+          "kind": "date-parse-context",
+          "code": "Date.parse(parsed.startsAt) &&",
+          "validator": null
+        },
+        {
+          "line": 1259,
+          "kind": "date-parse-context",
+          "code": "Date.parse(appointment.startsAt) >= Date.parse(configuration.expiresAt)",
+          "validator": null
+        },
+        {
+          "line": 1306,
+          "kind": "date-parse-context",
+          "code": "Date.parse(String(document.data()['endsAt'])) >",
+          "validator": null
+        },
+        {
+          "line": 1307,
+          "kind": "date-parse-context",
+          "code": "Date.parse(appointment.startsAt) &&",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "13e7c18e5d26a78faa6e30ec8d334a22804493814784cfe71a6f258cedcd1a23",
+      "candidateGitBlob": "7fac9511b68f8e5698cff8e40702a0ced44aab81",
+      "baselineGitBlob": "7fac9511b68f8e5698cff8e40702a0ced44aab81",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/internal-test-booking/internal-test-booking.gate.ts",
+      "references": [
+        {
+          "line": 53,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 57,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(nowUtc, 'internalTestBooking.nowUtc');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 61,
+          "kind": "date-parse-context",
+          "code": "const expiresAtMs = Date.parse(settings.expiresAtUtc ?? '');",
+          "validator": null
+        },
+        {
+          "line": 63,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(nowUtc);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/internal-test-booking/internal-test-booking.gate.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "10087487c429a5f1b31eedd19d26ec4b00f2e23c1e26007021c1d9dc44ea8d0d",
+      "candidateGitBlob": "54bd49d161ebe7dc1e6787faf424f99949d79189",
+      "baselineGitBlob": "54bd49d161ebe7dc1e6787faf424f99949d79189",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/patients/patient-directory.ts",
+      "references": [
+        {
+          "line": 421,
+          "kind": "date-parse-context",
+          "code": "Date.parse(nowUtc) + RETURN_SESSION_MS",
+          "validator": null
+        },
+        {
+          "line": 445,
+          "kind": "date-parse-context",
+          "code": "endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString(),",
+          "validator": null
+        },
+        {
+          "line": 684,
+          "kind": "date-parse-context",
+          "code": "Date.parse(nowUtc) + RETURN_SESSION_MS",
+          "validator": null
+        },
+        {
+          "line": 700,
+          "kind": "date-parse-context",
+          "code": "Date.parse(appointment.startsAt) + 30 * 60_000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/patients/patient-directory.test.ts",
+          "declaredCases": 21
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "4f93f5df4199ea8673a30e379dd61cbba21104fb895bee396c4ef938e2523ee0",
+      "candidateGitBlob": "ceed353cc160049999b0eae159d60d840bf86926",
+      "baselineGitBlob": "ceed353cc160049999b0eae159d60d840bf86926",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/api/src/schedule/schedule.application-service.ts",
+      "references": [
+        {
+          "line": 152,
+          "kind": "date-parse-context",
+          "code": "Date.parse(slot.startsAt) + SLOT_DURATION_MINUTES * 60_000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/api/src/schedule/schedule.application-service.test.ts",
+          "declaredCases": 3
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "f38974750dec4105242e0c5e0336d972ebc0c9f1302fad6fb36b273b01c013dc",
+      "candidateGitBlob": "dff0bb75c2b02e27c11e72b0e98950730c2dd9eb",
+      "baselineGitBlob": "dff0bb75c2b02e27c11e72b0e98950730c2dd9eb",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/admin-bootstrap.js",
+      "references": [
+        {
+          "line": 1191,
+          "kind": "date-parse-context",
+          "code": "Number.isNaN(Date.parse(String(detail?.startsAt ?? '')))",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "61dea6791d6829f06e9ef5c3306e8f60bbc3d18f5e489d6052965684476c3aa5",
+      "candidateGitBlob": "1d55471e47bcf792c04a5a7453a87c45a1c2018b",
+      "baselineGitBlob": "1d55471e47bcf792c04a5a7453a87c45a1c2018b",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/modules/admin-view.js",
+      "references": [
+        {
+          "line": 341,
+          "kind": "date-parse-context",
+          "code": "(item) => item.status === 'confirmed' && Date.parse(item.startsAt) > now",
+          "validator": null
+        },
+        {
+          "line": 344,
+          "kind": "date-parse-context",
+          "code": "(left, right) => Date.parse(left.startsAt) - Date.parse(right.startsAt)",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "8d8db42a7606b096bedaa5a9de5b95e9f38f3c15d0bb490ed6e42056c03e5b83",
+      "candidateGitBlob": "238b2002e3d6809a74da06adbf99abf2dd334165",
+      "baselineGitBlob": "238b2002e3d6809a74da06adbf99abf2dd334165",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/modules/business-view.js",
+      "references": [
+        {
+          "line": 300,
+          "kind": "date-parse-context",
+          "code": "const parsed = Date.parse(value);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "apps/web/src/business-view.test.ts", "declaredCases": 14 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "1042de444b830a8b256ba0820309a48e0d541917d4e466da5d27434861133678",
+      "candidateGitBlob": "5aef2d35702dd65b24510c961ff350da0bed1d70",
+      "baselineGitBlob": "5aef2d35702dd65b24510c961ff350da0bed1d70",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/modules/case-management.js",
+      "references": [
+        {
+          "line": 118,
+          "kind": "date-parse-context",
+          "code": "item.status === 'confirmed' && Date.parse(item.startsAt) < threshold",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "6dd891a94ad533b84f9e4e5cc1dd81f2230d23499d996576743380f75fa2b136",
+      "candidateGitBlob": "a6fb76da23ec3724f5f183708ae8e7f7ae940451",
+      "baselineGitBlob": "a6fb76da23ec3724f5f183708ae8e7f7ae940451",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/modules/schedule-engine.js",
+      "references": [
+        {
+          "line": 88,
+          "kind": "date-parse-context",
+          "code": "return Date.parse(`${bookingHorizonEndExclusive(startDate)}T00:00:00+08:00`);",
+          "validator": null
+        },
+        {
+          "line": 93,
+          "kind": "date-parse-context",
+          "code": "(windowEndMs(startDate) - Date.parse(`${startDate}T00:00:00+08:00`)) /",
+          "validator": null
+        },
+        {
+          "line": 101,
+          "kind": "date-parse-context",
+          "code": "return Date.parse(slot.startsAt) > now;",
+          "validator": null
+        },
+        {
+          "line": 110,
+          "kind": "date-parse-context",
+          "code": "const startsAt = Date.parse(slot?.startsAt);",
+          "validator": null
+        },
+        {
+          "line": 114,
+          "kind": "date-parse-context",
+          "code": "startsAt >= Date.parse(`${startDate}T00:00:00+08:00`) &&",
+          "validator": null
+        },
+        {
+          "line": 120,
+          "kind": "date-parse-context",
+          "code": "if (!Number.isFinite(Date.parse(slot?.startsAt)))",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "2cbd32991ffc2d4dfa3d75d1e644fdd495ceb86e54c651d84856e9d1d31d1d8a",
+      "candidateGitBlob": "238e6f9752ae3c0bca887196247c4f10770890c2",
+      "baselineGitBlob": "238e6f9752ae3c0bca887196247c4f10770890c2",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/appointment-rules.js",
+      "references": [
+        {
+          "line": 51,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(appointmentStartsAt)) {",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 54,
+          "kind": "date-parse-context",
+          "code": "const startsAtMs = Date.parse(appointmentStartsAt);",
+          "validator": null
+        },
+        {
+          "line": 70,
+          "kind": "date-parse-context",
+          "code": "return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));",
+          "validator": null
+        },
+        {
+          "line": 74,
+          "kind": "guard-reference",
+          "code": "!isUtcIsoTimestamp(requestedAt) ||",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 75,
+          "kind": "date-parse-context",
+          "code": "!isWithinSelfCancelWindow(appointmentStartsAt, Date.parse(requestedAt))) {",
+          "validator": null
+        },
+        {
+          "line": 98,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(slotStartsAt) || !isUtcIsoTimestamp(requestedAt)) {",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 101,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(slotStartsAt);",
+          "validator": null
+        },
+        {
+          "line": 102,
+          "kind": "date-parse-context",
+          "code": "const requestedMs = Date.parse(requestedAt);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/appointment-cutoff.test.ts",
+          "declaredCases": 7
+        }
+      ],
+      "additionalRegressionSuites": ["scripts/utc-caller-boundary.test.mjs"],
+      "sourceSha256": "ada6391996be2900c30d0224a1a1266e3511f567aabe0634e26ce406f40b1c05",
+      "candidateGitBlob": "3b4b03d6d0b6aebfe95d878cf183c2765c05c275",
+      "baselineGitBlob": "3b4b03d6d0b6aebfe95d878cf183c2765c05c275",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/appointment-transition.js",
+      "references": [
+        {
+          "line": 67,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(startsAt, 'startsAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 125,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 187,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 236,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/appointment-transition.test.ts",
+          "declaredCases": 47
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "871001db647b359ab9406ca38f69070fdc66d74e09313b8cf4560d3d9f9acee5",
+      "candidateGitBlob": "da6cce74edf4a626d5e7db692ed69a67734f9af3",
+      "baselineGitBlob": "da6cce74edf4a626d5e7db692ed69a67734f9af3",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/appointment.js",
+      "references": [
+        {
+          "line": 18,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 19,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(cancellationCutoffAt, 'cancellationCutoffAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 23,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(requestedAt) > Date.parse(cancellationCutoffAt)) {",
+          "validator": null
+        },
+        {
+          "line": 33,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(completedAt, 'completedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 48,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(startsAt, `${fieldName}.startsAt`);",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 49,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(endsAt, `${fieldName}.endsAt`);",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 50,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(startsAt) >= Date.parse(endsAt)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/appointment.test.ts",
+          "declaredCases": 3
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "613f282c668304de2c616711f3849e641dc735126534fd8086cf01330d521ae5",
+      "candidateGitBlob": "8203082d4fcb8ac4f0ccfd6a774a1e4c1a6c1f67",
+      "baselineGitBlob": "8203082d4fcb8ac4f0ccfd6a774a1e4c1a6c1f67",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/audit.js",
+      "references": [
+        {
+          "line": 30,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.occurredAt, 'audit.occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": ["scripts/utc-caller-boundary.test.mjs"],
+      "sourceSha256": "68a51f5d552201284ef2e8e7b652f2c012fe482d8a54ad7cfe671845cb2e4656",
+      "candidateGitBlob": "479df785932c38b0d2743b61b5650236ae19f00b",
+      "baselineGitBlob": "479df785932c38b0d2743b61b5650236ae19f00b",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/booking-horizon.js",
+      "references": [
+        {
+          "line": 43,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(value)) {",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 46,
+          "kind": "date-parse-context",
+          "code": "return Date.parse(value);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/booking-horizon.test.ts",
+          "declaredCases": 12
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "4bedaa286ea0f8af9c8f276334c53417f2e31e79bbf41a2d63e779e176b3b922",
+      "candidateGitBlob": "912f2cd7e633d4edb0105103fb8c333abfe3051a",
+      "baselineGitBlob": "912f2cd7e633d4edb0105103fb8c333abfe3051a",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/booking-transaction.js",
+      "references": [
+        {
+          "line": 31,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(record['startsAt'], 'startsAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 85,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(updatedAt, 'updatedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 114,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/booking-transaction.test.ts",
+          "declaredCases": 24
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "f50a7434f40042e4b00d4a181614d25f899d72ddcb68d0d0ef5f64ef8d3961e6",
+      "candidateGitBlob": "7a68b2468294a7e8a268a6905e19c1a29d6824c9",
+      "baselineGitBlob": "7a68b2468294a7e8a268a6905e19c1a29d6824c9",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/business-delivery-backup.js",
+      "references": [
+        {
+          "line": 63,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(drill.startedAt, 'backup.startedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 64,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(drill.usableAt, 'backup.usableAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 65,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(drill.usableAt) < Date.parse(drill.startedAt)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-backup.test.ts",
+          "declaredCases": 5
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ee720de553bbfb2ccf942a432db1355c76b905f0474604e65e149041f2ab1ffb",
+      "candidateGitBlob": "89eff08dcc878790476c3620022003352d9737a7",
+      "baselineGitBlob": "89eff08dcc878790476c3620022003352d9737a7",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/business-delivery-export.js",
+      "references": [
+        {
+          "line": 188,
+          "kind": "guard-reference",
+          "code": "startsAt: input.startsAt !== undefined && isUtcIsoTimestamp(input.startsAt)",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-export.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "0f55ffb19c9e2f3eef037d58850b33d4d9bc6abdde77fc28450efd7098ffdebc",
+      "candidateGitBlob": "7a6a8aa1506d3523b5bc0fe45bea0dc291fd3b19",
+      "baselineGitBlob": "7a6a8aa1506d3523b5bc0fe45bea0dc291fd3b19",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/business-delivery-policy.js",
+      "references": [
+        {
+          "line": 75,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.observedSince, 'observedSince');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 76,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 82,
+          "kind": "date-parse-context",
+          "code": "const lockedAt = new Date(Date.parse(range.endAt) + input.lateEventCutoffDays * 86_400_000).toISOString();",
+          "validator": null
+        },
+        {
+          "line": 83,
+          "kind": "date-parse-context",
+          "code": "const observedSinceMs = Date.parse(input.observedSince);",
+          "validator": null
+        },
+        {
+          "line": 85,
+          "kind": "date-parse-context",
+          "code": "if (observedSinceMs >= Date.parse(range.endAt))",
+          "validator": null
+        },
+        {
+          "line": 87,
+          "kind": "date-parse-context",
+          "code": "else if (observedSinceMs > Date.parse(range.startAt))",
+          "validator": null
+        },
+        {
+          "line": 89,
+          "kind": "date-parse-context",
+          "code": "else if (Date.parse(input.now) < Date.parse(lockedAt))",
+          "validator": null
+        },
+        {
+          "line": 103,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 107,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(input.now);",
+          "validator": null
+        },
+        {
+          "line": 123,
+          "kind": "date-parse-context",
+          "code": "status: nowMs < Date.parse(trialEnd) ? 'in_progress' : 'ended',",
+          "validator": null
+        },
+        {
+          "line": 142,
+          "kind": "date-parse-context",
+          "code": "const reached = nowMs >= Date.parse(checkpoint.checkpointAt);",
+          "validator": null
+        },
+        {
+          "line": 180,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 210,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(`${input.from}T00:00:00.000+08:00`);",
+          "validator": null
+        },
+        {
+          "line": 211,
+          "kind": "date-parse-context",
+          "code": "const lastMs = Date.parse(`${input.to}T00:00:00.000+08:00`);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-policy.test.ts",
+          "declaredCases": 37
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "881c0d1f44b22b6623a16918eee13c6c50511ef262046045ec50a458e5dc5aa8",
+      "candidateGitBlob": "8ae9447e0ff294357675edb2f47ce605559c94a3",
+      "baselineGitBlob": "8ae9447e0ff294357675edb2f47ce605559c94a3",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/business-delivery-reporting.js",
+      "references": [
+        {
+          "line": 17,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(occurredAt, 'occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-reporting.test.ts",
+          "declaredCases": 4
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ee2bd2f052e0c274d3b3c7af6fff290ab7c8f6cf8405bc30079689de3f295016",
+      "candidateGitBlob": "20a18bfb056f7a637a9063cc049bb93147189033",
+      "baselineGitBlob": "20a18bfb056f7a637a9063cc049bb93147189033",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/business-delivery-retention.js",
+      "references": [
+        {
+          "line": 16,
+          "kind": "date-parse-context",
+          "code": "return new Date(Date.parse(isoUtc) + days * 24 * 60 * 60 * 1000).toISOString();",
+          "validator": null
+        },
+        {
+          "line": 34,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.archivedAt, 'archivedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 41,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.archivedAt, 'archivedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 49,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.nowAt, 'nowAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 59,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.nowAt, 'nowAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 133,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(input.nowAt) >= Date.parse(verifiedRecoverableUntil)) {",
+          "validator": null
+        },
+        {
+          "line": 149,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(input.nowAt) < Date.parse(verifiedRecoverableUntil)) {",
+          "validator": null
+        },
+        {
+          "line": 186,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.at, 'at');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 213,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(followUp.dueAt, 'dueAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-retention.test.ts",
+          "declaredCases": 10
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "a4e242830bb28d100bb266ba03746b638e6fa86c3f272a38d502b9f48aed64e3",
+      "candidateGitBlob": "9b57d986e6ba6d4b07c1e843d5f1118d7a9a848e",
+      "baselineGitBlob": "9b57d986e6ba6d4b07c1e843d5f1118d7a9a848e",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/business-delivery-termination.js",
+      "references": [
+        {
+          "line": 20,
+          "kind": "date-parse-context",
+          "code": "return new Date(Date.parse(isoUtc) + days * 24 * 60 * 60 * 1000).toISOString();",
+          "validator": null
+        },
+        {
+          "line": 37,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(noticeStartedAt, 'noticeStartedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 38,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(noticeDueAt, 'noticeDueAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 56,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.returnCompletedAt, 'returnCompletedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 63,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.returnCompletedAt, 'returnCompletedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 64,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.controlledRetentionUntil, 'controlledRetentionUntil');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 88,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.nowAt, 'nowAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 148,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(input.nowAt) < Date.parse(verifiedNotice.noticeDueAt) &&",
+          "validator": null
+        },
+        {
+          "line": 158,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(completedAt) < Date.parse(verifiedNotice.noticeStartedAt)) {",
+          "validator": null
+        },
+        {
+          "line": 235,
+          "kind": "date-parse-context",
+          "code": "Date.parse(input.nowAt) < Date.parse(controlledRetentionUntil)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-termination.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "e8d2f7e48bcbc27a35f6265c2075ae180a4a5e3cd5bf0dad969846c0fb5c1981",
+      "candidateGitBlob": "72e770dda15b2fd194cd4b3cac5e6e4aef9c3e86",
+      "baselineGitBlob": "72e770dda15b2fd194cd4b3cac5e6e4aef9c3e86",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/business-delivery.js",
+      "references": [
+        {
+          "line": 46,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(isoUtc, 'timestamp');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 69,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(at, 'earlyEnd.endedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 70,
+          "kind": "date-parse-context",
+          "code": "const atMs = Date.parse(at);",
+          "validator": null
+        },
+        {
+          "line": 71,
+          "kind": "date-parse-context",
+          "code": "if (atMs < Date.parse(startAt) || atMs >= Date.parse(endAt)) {",
+          "validator": null
+        },
+        {
+          "line": 83,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(event.occurredAt, 'occurredAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 86,
+          "kind": "date-parse-context",
+          "code": ".sort((left, right) => Date.parse(left.occurredAt) - Date.parse(right.occurredAt));",
+          "validator": null
+        },
+        {
+          "line": 102,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(firstEligibleUse.occurredAt, 'firstEligibleUse.occurredAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 172,
+          "kind": "guard-reference",
+          "code": "return isUtcIsoTimestamp(value);",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery.test.ts",
+          "declaredCases": 8
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "db0a7d36858f9197d05462be39c84d3dde17f0cb16a5092a64102c57cf6192d8",
+      "candidateGitBlob": "67b93bd6894f1705a88dfb1499b127d658dcf9e3",
+      "baselineGitBlob": "67b93bd6894f1705a88dfb1499b127d658dcf9e3",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/calendar-projection.js",
+      "references": [
+        {
+          "line": 268,
+          "kind": "date-parse-context",
+          "code": "return new Date(Date.parse(iso) + 8 * 60 * 60 * 1000).getUTCMinutes();",
+          "validator": null
+        },
+        {
+          "line": 271,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(startsAt))",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/calendar-projection.test.ts",
+          "declaredCases": 12
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "f8b292dc9f2de21c6db8dac2bb890537f26521f05bcd15cb9271207b3210cfc5",
+      "candidateGitBlob": "b2b6129467251edddb4ee9688222bc8bc2bd57cb",
+      "baselineGitBlob": "b2b6129467251edddb4ee9688222bc8bc2bd57cb",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/calendar-sync.js",
+      "references": [
+        {
+          "line": 117,
+          "kind": "guard-reference",
+          "code": "return isUtcIsoTimestamp(normalized.replace(/[+-]\\d{2}:\\d{2}$/, 'Z'))",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 118,
+          "kind": "date-parse-context",
+          "code": "? Date.parse(normalized)",
+          "validator": null
+        },
+        {
+          "line": 141,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(`${start.date}T00:00:00${TAIPEI_OFFSET}`);",
+          "validator": null
+        },
+        {
+          "line": 142,
+          "kind": "date-parse-context",
+          "code": "const endMs = Date.parse(`${end.date}T00:00:00${TAIPEI_OFFSET}`);",
+          "validator": null
+        },
+        {
+          "line": 151,
+          "kind": "date-parse-context",
+          "code": "const taipei = new Date(Date.parse(iso) + 8 * 60 * 60 * 1000);",
+          "validator": null
+        },
+        {
+          "line": 155,
+          "kind": "date-parse-context",
+          "code": "return new Date(Date.parse(iso) + 8 * 60 * 60 * 1000)",
+          "validator": null
+        },
+        {
+          "line": 160,
+          "kind": "date-parse-context",
+          "code": "if (Number.isNaN(Date.parse(startsAt)))",
+          "validator": null
+        },
+        {
+          "line": 195,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(range.endsAt) - Date.parse(range.startsAt) !==",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/calendar-sync.test.ts",
+          "declaredCases": 24
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "2fb6ea13065179d6e5c016f6319f9ec96ebcf6e311b5ed50bd2fdd668448222f",
+      "candidateGitBlob": "3a304871858b0b2bdbe0ceebff934a0bd861ade7",
+      "baselineGitBlob": "3a304871858b0b2bdbe0ceebff934a0bd861ade7",
+      "matchesBaselineSource": true,
+      "context": "Includes legitimate external RFC3339 normalization before strict UTC validation; other UTC fields remain strict. See calendar-time-admission-parity.test.mjs and module tests."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/case-assignment.js",
+      "references": [
+        {
+          "line": 29,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 39,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(request.requestedAt) <= Date.parse(current.activeFrom)) {",
+          "validator": null
+        },
+        {
+          "line": 93,
+          "kind": "date-parse-context",
+          "code": "const ordered = [...periods].sort((left, right) => Date.parse(left.activeFrom) - Date.parse(right.activeFrom));",
+          "validator": null
+        },
+        {
+          "line": 95,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(period.activeFrom, 'period.activeFrom');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 103,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(period.activeUntil, 'period.activeUntil');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 104,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(period.activeUntil) <= Date.parse(period.activeFrom)) {",
+          "validator": null
+        },
+        {
+          "line": 109,
+          "kind": "date-parse-context",
+          "code": "Date.parse(next.activeFrom) < Date.parse(period.activeUntil)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/case-assignment.test.ts",
+          "declaredCases": 9
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "4deded259b47694cffbe5838b54f028e61135ba91d5b59235e2a6985ef705bd1",
+      "candidateGitBlob": "e8fdd33e6912424c4788f42ee7f2dc4349eb1bbf",
+      "baselineGitBlob": "e8fdd33e6912424c4788f42ee7f2dc4349eb1bbf",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/denied-access-audit.js",
+      "references": [
+        {
+          "line": 33,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.occurredAt, 'deniedAccessAudit.occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/denied-access-audit.test.ts",
+          "declaredCases": 3
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "98f24db03de0c2cc600dcb0af8e9f4807aa79d414a0cc7e9dc533745a79b1cfa",
+      "candidateGitBlob": "6785df2065bf505a5e3bc24fd994825be799345f",
+      "baselineGitBlob": "6785df2065bf505a5e3bc24fd994825be799345f",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/denied-delegation-audit.js",
+      "references": [
+        {
+          "line": 23,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.occurredAt, 'deniedDelegationAudit.occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/denied-delegation-audit.test.ts",
+          "declaredCases": 4
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "50a182729da3ab1a275c47c0c562d42e348fcaad1a89060b2bb117b6928e0191",
+      "candidateGitBlob": "6443401d0713d723b79a5b76c6eb3d45c3168b5c",
+      "baselineGitBlob": "6443401d0713d723b79a5b76c6eb3d45c3168b5c",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/follow-up.js",
+      "references": [
+        {
+          "line": 17,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/follow-up.test.ts", "declaredCases": 10 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "d91cf246ed7d967ae0780935d84ca6643102c10c737df8b673cb31a91cf4aa29",
+      "candidateGitBlob": "fecfc393dc588877b0df79a111a6a6db211c8134",
+      "baselineGitBlob": "fecfc393dc588877b0df79a111a6a6db211c8134",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/outbox.js",
+      "references": [
+        {
+          "line": 91,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(nextAttemptAt, 'nextAttemptAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 96,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(startsAt, 'startsAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 138,
+          "kind": "guard-reference",
+          "code": "if (job.status !== 'pending' || !isUtcIsoTimestamp(now))",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 142,
+          "kind": "guard-reference",
+          "code": "return (isUtcIsoTimestamp(job.nextAttemptAt) &&",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 143,
+          "kind": "date-parse-context",
+          "code": "Date.parse(job.nextAttemptAt) <= Date.parse(now));",
+          "validator": null
+        },
+        {
+          "line": 149,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 171,
+          "kind": "date-parse-context",
+          "code": "const nextAttemptAt = new Date(Date.parse(now) + backoffSeconds(attempts) * 1000).toISOString();",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/outbox.test.ts", "declaredCases": 25 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "7ccdea08885a51a25d26121c5275e8afe2f1c0daf66682079774dfe9fab7470f",
+      "candidateGitBlob": "2bef745bed9ca0f578e51cd4d7ca3280bd93138f",
+      "baselineGitBlob": "2bef745bed9ca0f578e51cd4d7ca3280bd93138f",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/payroll.js",
+      "references": [
+        {
+          "line": 21,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(appointment.completedAt, 'appointment.completedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 89,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(completedAt, 'completedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 107,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(assignment.activeFrom, 'assignment.activeFrom');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 109,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(assignment.activeUntil, 'assignment.activeUntil');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 111,
+          "kind": "date-parse-context",
+          "code": "const completedAt = Date.parse(appointment.completedAt);",
+          "validator": null
+        },
+        {
+          "line": 112,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(assignment.activeFrom) > completedAt ||",
+          "validator": null
+        },
+        {
+          "line": 114,
+          "kind": "date-parse-context",
+          "code": "Date.parse(assignment.activeUntil) <= completedAt)) {",
+          "validator": null
+        },
+        {
+          "line": 176,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(snapshot.closedAt, 'snapshot.closedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 180,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(adjustment.recordedAt, 'adjustment.recordedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 228,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 271,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 295,
+          "kind": "date-parse-context",
+          "code": "const requestedAt = Date.parse(request.requestedAt);",
+          "validator": null
+        },
+        {
+          "line": 296,
+          "kind": "date-parse-context",
+          "code": "if (requestedAt < Date.parse(closed.closedAt)) {",
+          "validator": null
+        },
+        {
+          "line": 299,
+          "kind": "date-parse-context",
+          "code": "if (latest !== undefined && requestedAt < Date.parse(latest.recordedAt)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/payroll.test.ts", "declaredCases": 13 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "2012a3a825ec7739315e4a562758d21b0700a0ac28b262e83162a0fc723afea9",
+      "candidateGitBlob": "eb2f9c0560bd904043d02a1a8ee7d6d12fa39f5e",
+      "baselineGitBlob": "eb2f9c0560bd904043d02a1a8ee7d6d12fa39f5e",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/published-schedule.js",
+      "references": [
+        {
+          "line": 8,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(`${taipeiToday}T00:00:00+08:00`);",
+          "validator": null
+        },
+        {
+          "line": 9,
+          "kind": "date-parse-context",
+          "code": "const endMs = Date.parse(`${bookingHorizonEndExclusive(taipeiToday)}T00:00:00+08:00`);",
+          "validator": null
+        },
+        {
+          "line": 47,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(publishedAt, 'publishedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/published-schedule.test.ts",
+          "declaredCases": 5
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "eebd0257d4707be7aa7db602340a0d26c5c042d69f0d962c7075e0c3d227a043",
+      "candidateGitBlob": "be8b0cd62ac8d197ca36f4a4977fe251a2acdc44",
+      "baselineGitBlob": "be8b0cd62ac8d197ca36f4a4977fe251a2acdc44",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/schedule.js",
+      "references": [
+        {
+          "line": 311,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/schedule.test.ts", "declaredCases": 22 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "540915fc8f971d0ac808a0b365fe7f89aa2876c6cb7eb382a91c5f1e0aa5f2f0",
+      "candidateGitBlob": "861e0ff586198f21cc84677bd45f86142215b5e9",
+      "baselineGitBlob": "861e0ff586198f21cc84677bd45f86142215b5e9",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/staff-session.js",
+      "references": [
+        {
+          "line": 17,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'staffSession.now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 18,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.issuedAt, 'staffSession.issuedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 19,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.lastSeenAt, 'staffSession.lastSeenAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 27,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(input.now);",
+          "validator": null
+        },
+        {
+          "line": 28,
+          "kind": "date-parse-context",
+          "code": "const issuedMs = Date.parse(input.issuedAt);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/staff-session.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "7f09deaea1a5b7851d978b2029c7f4d23c68231e0976f2df544c71062e1ea921",
+      "candidateGitBlob": "be8ff6066dbde255ee6e51ae496e9bf71a02a339",
+      "baselineGitBlob": "be8ff6066dbde255ee6e51ae496e9bf71a02a339",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/web/public/vendor/domain/timestamp.js",
+      "references": [
+        {
+          "line": 32,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(value)) {",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/timestamp.test.ts", "declaredCases": 22 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "687ae57b03cc553e0e83928800a5c0760e4345f480563bd9b0d19e3e8f242e74",
+      "candidateGitBlob": "3eccb7f975eaceec6445889a0007d7d01e806a9a",
+      "baselineGitBlob": "3eccb7f975eaceec6445889a0007d7d01e806a9a",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/web/src/calendar-pilot-entry.js",
+      "references": [
+        {
+          "line": 129,
+          "kind": "date-parse-context",
+          "code": "if (iso === null || Number.isNaN(Date.parse(iso))) return '';",
+          "validator": null
+        },
+        {
+          "line": 161,
+          "kind": "date-parse-context",
+          "code": "const expiry = Date.parse(expiresAt);",
+          "validator": null
+        },
+        {
+          "line": 168,
+          "kind": "date-parse-context",
+          "code": "Date.parse(slot.startsAt) <= now ||",
+          "validator": null
+        },
+        {
+          "line": 169,
+          "kind": "date-parse-context",
+          "code": "Date.parse(slot.startsAt) >= expiry",
+          "validator": null
+        },
+        {
+          "line": 172,
+          "kind": "date-parse-context",
+          "code": "const slotEnd = Date.parse(slot.startsAt) + 30 * 60_000;",
+          "validator": null
+        },
+        {
+          "line": 180,
+          "kind": "date-parse-context",
+          "code": "Date.parse(block.startsAt) < slotEnd &&",
+          "validator": null
+        },
+        {
+          "line": 181,
+          "kind": "date-parse-context",
+          "code": "Date.parse(block.endsAt) > Date.parse(slot.startsAt)",
+          "validator": null
+        },
+        {
+          "line": 512,
+          "kind": "date-parse-context",
+          "code": "Number.isNaN(Date.parse(String(candidate.startsAt)));",
+          "validator": null
+        },
+        {
+          "line": 724,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(busyEndsAt) <= Date.parse(busyStartsAt))",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "cd53465f464bc12092b169afb402e5b91a739669846a2b2e1dfae1c3dcc0924b",
+      "candidateGitBlob": "4947dc243650f505f3dfbc5eff7b4361295b3d0a",
+      "baselineGitBlob": "4947dc243650f505f3dfbc5eff7b4361295b3d0a",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/calendar-port.ts",
+      "references": [
+        {
+          "line": 47,
+          "kind": "date-parse-context",
+          "code": "Date.parse(startsAt) + CLINIC_EVENT_MINUTES * 60_000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "0e935d90d7a4a0fee904c121396c7171ea15b71f3726dc866fd2883936bfd011",
+      "candidateGitBlob": "a66440feb2ce6f2c2a3abc98fe00bfc05ab01d32",
+      "baselineGitBlob": "a66440feb2ce6f2c2a3abc98fe00bfc05ab01d32",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/calendar-sync/calendar-pilot-activation.ts",
+      "references": [
+        {
+          "line": 86,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(value, 'activation timestamp');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/calendar-sync/calendar-pilot-activation.test.ts",
+          "declaredCases": 34
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "37e5d6b8a176b9cb0d0100e82111c792e80399ac361b3a7364eb7868c0b31290",
+      "candidateGitBlob": "729df61f9c4559f687d156860a0d95ce508a2bd1",
+      "baselineGitBlob": "729df61f9c4559f687d156860a0d95ce508a2bd1",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "apps/worker/src/calendar-sync/calendar-pilot-health.ts",
+      "references": [
+        {
+          "line": 87,
+          "kind": "date-parse-context",
+          "code": "Number.isFinite(Date.parse(input.expiresAt)) &&",
+          "validator": null
+        },
+        {
+          "line": 88,
+          "kind": "date-parse-context",
+          "code": "Date.parse(input.nowUtc) >= Date.parse(input.expiresAt);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/calendar-sync/calendar-pilot-health.test.ts",
+          "declaredCases": 5
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "568a99ecf38b0a4ed2ebcbfda03694ffce0300a1ec41d2678cb0f1dead0d994d",
+      "candidateGitBlob": "31babc663b9cfbc3257ac11ae1a627db6c6e990a",
+      "baselineGitBlob": "31babc663b9cfbc3257ac11ae1a627db6c6e990a",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+      "references": [
+        {
+          "line": 85,
+          "kind": "date-parse-context",
+          "code": "Date.parse(job.leaseExpiresAt) <= Date.parse(now)",
+          "validator": null
+        },
+        {
+          "line": 101,
+          "kind": "date-parse-context",
+          "code": "Date.parse(nextAttemptAt) <= Date.parse(now)",
+          "validator": null
+        },
+        {
+          "line": 176,
+          "kind": "date-parse-context",
+          "code": "leaseExpiresAt: new Date(Date.parse(now) + LEASE_MS).toISOString()",
+          "validator": null
+        },
+        {
+          "line": 591,
+          "kind": "date-parse-context",
+          "code": "if (!Number.isFinite(Date.parse(now)))",
+          "validator": null
+        },
+        {
+          "line": 604,
+          "kind": "date-parse-context",
+          "code": "!Number.isFinite(Date.parse(expiresAt)) ||",
+          "validator": null
+        },
+        {
+          "line": 605,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) >= Date.parse(expiresAt)",
+          "validator": null
+        },
+        {
+          "line": 624,
+          "kind": "date-parse-context",
+          "code": "!Number.isFinite(Date.parse(leaseExpiresAt)) ||",
+          "validator": null
+        },
+        {
+          "line": 625,
+          "kind": "date-parse-context",
+          "code": "Date.parse(leaseExpiresAt) > Date.parse(now))",
+          "validator": null
+        },
+        {
+          "line": 638,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) + LEASE_MS",
+          "validator": null
+        },
+        {
+          "line": 688,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) + Math.min(5 * 60_000, 10_000 * 2 ** attemptCount)",
+          "validator": null
+        },
+        {
+          "line": 708,
+          "kind": "date-parse-context",
+          "code": "timeMin: new Date(Date.parse(now) - 30 * 86_400_000).toISOString(),",
+          "validator": null
+        },
+        {
+          "line": 709,
+          "kind": "date-parse-context",
+          "code": "timeMax: new Date(Date.parse(now) + 60 * 86_400_000).toISOString()",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/calendar-sync/calendar-pilot-runtime.test.ts",
+          "declaredCases": 9
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "2987f6e8f3ffe176d518431ba889e4585ad68a8abdd6cb3c9888cdb7afbe2ddd",
+      "candidateGitBlob": "72fc42d9a078ae902d08d880f8b91e5ff37613ee",
+      "baselineGitBlob": "72fc42d9a078ae902d08d880f8b91e5ff37613ee",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/calendar-sync/calendar-pilot-worker-lease.ts",
+      "references": [
+        {
+          "line": 33,
+          "kind": "guard-reference",
+          "code": "return typeof value === 'string' && isUtcIsoTimestamp(value)",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 34,
+          "kind": "date-parse-context",
+          "code": "? Date.parse(value)",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/calendar-sync/calendar-pilot-worker-lease.test.ts",
+          "declaredCases": 29
+        }
+      ],
+      "additionalRegressionSuites": ["scripts/utc-caller-boundary.test.mjs"],
+      "sourceSha256": "09f7b34ac25208c61ccf2aa77792ac3d9bffce28eb321f9bd7eec643289ff1bc",
+      "candidateGitBlob": "a59513ba865aa7ffd49f2bc2ae28581f8ca47004",
+      "baselineGitBlob": "20619f5cbbaf17dbcd20786f6ce8cf2b4c5ebf3b",
+      "matchesBaselineSource": false,
+      "context": "The canonical UTC guard precedes Date.parse for the live clock, config expiry, global lease and job lease. Expiry/ownership/no-renewal semantics are unchanged."
+    },
+    {
+      "file": "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+      "references": [
+        {
+          "line": 482,
+          "kind": "date-parse-context",
+          "code": "Date.parse(commit.completedAt) + 5 * 60_000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "f4b198224c55c18e0f0f3263d538c0a6f523cbcf7c7a7232cff07e2fbd0980d4",
+      "candidateGitBlob": "116d1231153684a4d3f9a34076c932721fcb35a5",
+      "baselineGitBlob": "116d1231153684a4d3f9a34076c932721fcb35a5",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/calendar-sync/source-switch.ts",
+      "references": [
+        {
+          "line": 79,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(now) >= Date.parse(configuration.expiresAt))",
+          "validator": null
+        },
+        {
+          "line": 95,
+          "kind": "date-parse-context",
+          "code": "expiresAt: new Date(Date.parse(now) + PREFLIGHT_LIFETIME_MS).toISOString()",
+          "validator": null
+        },
+        {
+          "line": 113,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(now) >= Date.parse(configuration.expiresAt))",
+          "validator": null
+        },
+        {
+          "line": 129,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(now) >= Date.parse(preflight.expiresAt))",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/calendar-sync/source-switch.test.ts",
+          "declaredCases": 4
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "b9bb71ad91aa97f0e113dfb83a34d2d2af28ca4d4b386e84ed23fb28869a9c1c",
+      "candidateGitBlob": "c8b51a74e4ae2e58ba9b3cc4fada9bad2474f095",
+      "baselineGitBlob": "c8b51a74e4ae2e58ba9b3cc4fada9bad2474f095",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/calendar-sync/sync-engine.ts",
+      "references": [
+        {
+          "line": 270,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(now) >= Date.parse(configuration.expiresAt))",
+          "validator": null
+        },
+        {
+          "line": 278,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(now);",
+          "validator": null
+        },
+        {
+          "line": 560,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) - Date.parse(state.lastFullSyncAt) >=",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/calendar-sync/sync-engine.test.ts",
+          "declaredCases": 30
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "3dc28ea450c88a1d7d7a9ea65bb08f0f4e043d5cffb572da683f196adf6224c3",
+      "candidateGitBlob": "0bef658f960031ee1893605bb75d4dc0a278cb90",
+      "baselineGitBlob": "0bef658f960031ee1893605bb75d4dc0a278cb90",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/internal-test-outbox-runtime.ts",
+      "references": [
+        {
+          "line": 141,
+          "kind": "date-parse-context",
+          "code": "const oldestMs = oldest === undefined ? Number.NaN : Date.parse(oldest);",
+          "validator": null
+        },
+        {
+          "line": 142,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(nowUtc);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "533a602adf9132fe0d8555aef9e4cbc09efb9b4e0206c7c94355ff17a3aade3a",
+      "candidateGitBlob": "d6803a827704fc153d69b12af566a61adbfad066",
+      "baselineGitBlob": "d6803a827704fc153d69b12af566a61adbfad066",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "apps/worker/src/outbox-processor.ts",
+      "references": [
+        {
+          "line": 186,
+          "kind": "guard-reference",
+          "code": "if (typeof dueAt !== 'string' || !isUtcIsoTimestamp(dueAt))",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 349,
+          "kind": "date-parse-context",
+          "code": "Date.parse(existingLeaseExpiresAt) <= Date.parse(claimedAt);",
+          "validator": null
+        },
+        {
+          "line": 358,
+          "kind": "date-parse-context",
+          "code": "Date.parse(claimedAt) + LEASE_SECONDS * 1000",
+          "validator": null
+        },
+        {
+          "line": 401,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) +",
+          "validator": null
+        },
+        {
+          "line": 463,
+          "kind": "date-parse-context",
+          "code": "const batchInstantMs = Date.parse(now);",
+          "validator": null
+        },
+        {
+          "line": 529,
+          "kind": "date-parse-context",
+          "code": "Date.parse(job.leaseExpiresAt) -",
+          "validator": null
+        },
+        {
+          "line": 530,
+          "kind": "date-parse-context",
+          "code": "Date.parse(projectionStartedAt) -",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/outbox-processor.action-for-status.test.ts",
+          "declaredCases": 9
+        }
+      ],
+      "additionalRegressionSuites": ["scripts/utc-caller-boundary.test.mjs"],
+      "sourceSha256": "7a80d8160882f4b68d97f5719135f47970ad5c1ae7d061c6f6f10f0fbecb1194",
+      "candidateGitBlob": "264158923e06682735dced3af344c468680e84f1",
+      "baselineGitBlob": "264158923e06682735dced3af344c468680e84f1",
+      "matchesBaselineSource": true,
+      "context": "A null/undefined follow-up dueAt is intentionally undated; a present dueAt must be strict UTC. Lease arithmetic is separately listed."
+    },
+    {
+      "file": "apps/worker/src/pilot/pilot-calendar-clients.ts",
+      "references": [
+        {
+          "line": 157,
+          "kind": "date-parse-context",
+          "code": "Date.parse(event.startsAt) + 30 * 60_000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "apps/worker/src/pilot/pilot-calendar-clients.test.ts",
+          "declaredCases": 8
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ba9eafc697c3d027e723a88fb164ea2f0fa983ce95c99dcfffb36950ac2f3403",
+      "candidateGitBlob": "3c7182935f358657394ec0643e26975ce48868d2",
+      "baselineGitBlob": "3c7182935f358657394ec0643e26975ce48868d2",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/contracts/src/appointments.ts",
+      "references": [
+        {
+          "line": 73,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 74,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 103,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 104,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 117,
+          "kind": "schema-reference",
+          "code": "startAfter: UtcIsoTimestampSchema.optional(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 138,
+          "kind": "schema-reference",
+          "code": "expiresAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 141,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema.optional(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 142,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema.optional()",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 209,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 210,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/appointments.test.ts",
+          "declaredCases": 63
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ab3f740d79d9b9a7305b35e4df4e0f65413b48a72dafbdca2442edc261eac015",
+      "candidateGitBlob": "18665f08cc026deae7cc10b83b2458cd59ee288f",
+      "baselineGitBlob": "18665f08cc026deae7cc10b83b2458cd59ee288f",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/contracts/src/audit.ts",
+      "references": [
+        {
+          "line": 71,
+          "kind": "schema-reference",
+          "code": "dueAt: UtcIsoTimestampSchema.nullable()",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 83,
+          "kind": "schema-reference",
+          "code": "activeFrom: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 84,
+          "kind": "schema-reference",
+          "code": "activeUntil: UtcIsoTimestampSchema.nullable()",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 113,
+          "kind": "schema-reference",
+          "code": "occurredAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/contracts/src/audit.test.ts", "declaredCases": 13 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "0b19586d8e90c50b8cf7577931351498b7a9ec1a0d0f7e3f4f5ba6394f54a836",
+      "candidateGitBlob": "9fbad2f39139d97bd456b95aa81c905a88d2c64e",
+      "baselineGitBlob": "9fbad2f39139d97bd456b95aa81c905a88d2c64e",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/contracts/src/business-delivery.ts",
+      "references": [
+        {
+          "line": 252,
+          "kind": "schema-reference",
+          "code": "acknowledgedAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 270,
+          "kind": "schema-reference",
+          "code": "acknowledgedAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 281,
+          "kind": "schema-reference",
+          "code": "noticeStartedAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 282,
+          "kind": "schema-reference",
+          "code": "noticeDueAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 283,
+          "kind": "schema-reference",
+          "code": "controlledRetentionUntil: UtcIsoTimestampSchema.nullable(),",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/business-delivery.test.ts",
+          "declaredCases": 14
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "c9b859f21e1ca7d7eedb63dd373dd4218eeb6462756adf7039f7b5981893e8b4",
+      "candidateGitBlob": "4704a38015e3528c601d7a15a06f104cc8bcf8d1",
+      "baselineGitBlob": "4704a38015e3528c601d7a15a06f104cc8bcf8d1",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/contracts/src/calendar-sync.ts",
+      "references": [
+        {
+          "line": 85,
+          "kind": "schema-reference",
+          "code": "lastSyncedAt: UtcIsoTimestampSchema.nullable(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 94,
+          "kind": "schema-reference",
+          "code": "lastSuccessfulSyncAt: UtcIsoTimestampSchema.nullable(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 95,
+          "kind": "schema-reference",
+          "code": "nextScheduledSyncAt: UtcIsoTimestampSchema.nullable(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 98,
+          "kind": "schema-reference",
+          "code": "expiresAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 107,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 108,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 122,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema.nullable(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 123,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema.nullable(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 127,
+          "kind": "schema-reference",
+          "code": "createdAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 140,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 141,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 168,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 169,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 216,
+          "kind": "schema-reference",
+          "code": "completedAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 217,
+          "kind": "schema-reference",
+          "code": "expiresAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 251,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 263,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 264,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 289,
+          "kind": "schema-reference",
+          "code": "generatedAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 308,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 309,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 322,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 330,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/calendar-sync.test.ts",
+          "declaredCases": 8
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ca62832ec69131669a8ef13249c3541f05fdc8733447bfdb88d7017154ebbbea",
+      "candidateGitBlob": "e37f61101f69cf454ec1ab31f1ab84816c63353e",
+      "baselineGitBlob": "e37f61101f69cf454ec1ab31f1ab84816c63353e",
+      "matchesBaselineSource": true,
+      "context": "Includes legitimate external RFC3339 normalization before strict UTC validation; other UTC fields remain strict. See calendar-time-admission-parity.test.mjs and module tests."
+    },
+    {
+      "file": "packages/contracts/src/case-assignment.ts",
+      "references": [
+        {
+          "line": 33,
+          "kind": "schema-reference",
+          "code": "activeFrom: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/case-assignment.test.ts",
+          "declaredCases": 7
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "4661af65fde33441e13da9b8815fedb89f091d6c034d19d1f371e56a17017b3d",
+      "candidateGitBlob": "6275f0d987fb9a01cf6d9041a1fd00c3535fdda2",
+      "baselineGitBlob": "6275f0d987fb9a01cf6d9041a1fd00c3535fdda2",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/contracts/src/common.ts",
+      "references": [
+        {
+          "line": 24,
+          "kind": "date-parse-context",
+          "code": "!Number.isNaN(Date.parse(value))",
+          "validator": null
+        },
+        {
+          "line": 30,
+          "kind": "guard-reference",
+          "code": ".refine(isUtcIsoTimestamp, 'Must be a valid UTC ISO-8601 timestamp.');",
+          "validator": "wireUtcPredicate"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/contracts/src/common.test.ts", "declaredCases": 22 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "7a74b9cea7f8a8e171ab3f8efa8d0f921c8f490ff72be0a19497108eaf1c3531",
+      "candidateGitBlob": "e741b755eda291590194dcf0f21250794e72362c",
+      "baselineGitBlob": "e741b755eda291590194dcf0f21250794e72362c",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/contracts/src/follow-ups.ts",
+      "references": [
+        {
+          "line": 63,
+          "kind": "schema-reference",
+          "code": "dueAt: UtcIsoTimestampSchema.nullable()",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/follow-ups.test.ts",
+          "declaredCases": 8
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "fe93e0c9d9748d0be776ad4ae30dd3c1bafef06279eddc6392c3a460534f8307",
+      "candidateGitBlob": "3b6cffae59e5e213aad671b2ce0cc1f5ebec557d",
+      "baselineGitBlob": "3b6cffae59e5e213aad671b2ce0cc1f5ebec557d",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/contracts/src/idempotency.ts",
+      "references": [
+        {
+          "line": 39,
+          "kind": "schema-reference",
+          "code": "recordedAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/idempotency.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "c3b5ca564d1a883f7bdf577d8da67be3b73ac7d841c538c909e934f5f05ae438",
+      "candidateGitBlob": "a6f347782b6d34a0f514e8aabed0a877d51721ea",
+      "baselineGitBlob": "a6f347782b6d34a0f514e8aabed0a877d51721ea",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/contracts/src/payroll.ts",
+      "references": [
+        {
+          "line": 66,
+          "kind": "schema-reference",
+          "code": "closedAt: UtcIsoTimestampSchema",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 82,
+          "kind": "schema-reference",
+          "code": "recordedAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/payroll.test.ts",
+          "declaredCases": 11
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "b5287abedda3e9d5aa615dc78320ac5abd16c83302bf38a54f3a00cccd0797dc",
+      "candidateGitBlob": "9438aa06b85f9cf425a0eec8fc41fd038c99ad61",
+      "baselineGitBlob": "9438aa06b85f9cf425a0eec8fc41fd038c99ad61",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/contracts/src/schedule.ts",
+      "references": [
+        {
+          "line": 78,
+          "kind": "schema-reference",
+          "code": "publishedAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 86,
+          "kind": "schema-reference",
+          "code": "publishedAt: UtcIsoTimestampSchema.nullable(),",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 95,
+          "kind": "schema-reference",
+          "code": "startsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        },
+        {
+          "line": 96,
+          "kind": "schema-reference",
+          "code": "endsAt: UtcIsoTimestampSchema,",
+          "validator": "wireUtcSchema"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/contracts/src/schedule.test.ts",
+          "declaredCases": 14
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "8777791f35399d0c0d6e7d5b361cf5b8338a5c7fc790b6eb5036f32092b500c3",
+      "candidateGitBlob": "106ac9b370f15f85d2b78eb379ceec90ceb3031a",
+      "baselineGitBlob": "106ac9b370f15f85d2b78eb379ceec90ceb3031a",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/appointment-rules.ts",
+      "references": [
+        {
+          "line": 99,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(appointmentStartsAt)) {",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 105,
+          "kind": "date-parse-context",
+          "code": "const startsAtMs = Date.parse(appointmentStartsAt);",
+          "validator": null
+        },
+        {
+          "line": 124,
+          "kind": "date-parse-context",
+          "code": "return nowMs < Date.parse(selfCancelCutoffAt(appointmentStartsAt));",
+          "validator": null
+        },
+        {
+          "line": 134,
+          "kind": "guard-reference",
+          "code": "!isUtcIsoTimestamp(requestedAt) ||",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 135,
+          "kind": "date-parse-context",
+          "code": "!isWithinSelfCancelWindow(appointmentStartsAt, Date.parse(requestedAt))",
+          "validator": null
+        },
+        {
+          "line": 180,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(slotStartsAt) || !isUtcIsoTimestamp(requestedAt)) {",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 186,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(slotStartsAt);",
+          "validator": null
+        },
+        {
+          "line": 187,
+          "kind": "date-parse-context",
+          "code": "const requestedMs = Date.parse(requestedAt);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/appointment-cutoff.test.ts",
+          "declaredCases": 7
+        }
+      ],
+      "additionalRegressionSuites": ["scripts/utc-caller-boundary.test.mjs"],
+      "sourceSha256": "2d1604fb0334db218f2fba0ea2dc1895e5814ba21e39f08d7c71d15e8d09233d",
+      "candidateGitBlob": "039d9cebf671f5887228ba6f2de700b7ef38aa14",
+      "baselineGitBlob": "039d9cebf671f5887228ba6f2de700b7ef38aa14",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/appointment-transition.ts",
+      "references": [
+        {
+          "line": 264,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(startsAt, 'startsAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 353,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 445,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 523,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/appointment-transition.test.ts",
+          "declaredCases": 47
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "cda6b47bf757c3c746d79ddcf5d6c8d882ae85e36e0196d3b3ef5d4157b1e2e0",
+      "candidateGitBlob": "3f88c4055e3253040ba7b957201e58d8ac0fd5a6",
+      "baselineGitBlob": "3f88c4055e3253040ba7b957201e58d8ac0fd5a6",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/appointment.ts",
+      "references": [
+        {
+          "line": 63,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 64,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(cancellationCutoffAt, 'cancellationCutoffAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 73,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(requestedAt) > Date.parse(cancellationCutoffAt)) {",
+          "validator": null
+        },
+        {
+          "line": 92,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(completedAt, 'completedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 121,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(startsAt, `${fieldName}.startsAt`);",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 122,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(endsAt, `${fieldName}.endsAt`);",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 124,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(startsAt) >= Date.parse(endsAt)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/appointment.test.ts",
+          "declaredCases": 3
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "21798768d939f5148dcc9d19744c913884ed91bfd637e49573216a4a9ffe333a",
+      "candidateGitBlob": "43f81fae5391d73731da3327c974c575cc8bbd74",
+      "baselineGitBlob": "43f81fae5391d73731da3327c974c575cc8bbd74",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/audit.ts",
+      "references": [
+        {
+          "line": 181,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.occurredAt, 'audit.occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": ["scripts/utc-caller-boundary.test.mjs"],
+      "sourceSha256": "09d1e3fa0ffcecb301e2bb333ccb6630ee014a50c2b074829826c09943a0d459",
+      "candidateGitBlob": "34e36bfbfaf1c007122ee04b58b4fd3d88625082",
+      "baselineGitBlob": "34e36bfbfaf1c007122ee04b58b4fd3d88625082",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/booking-horizon.ts",
+      "references": [
+        {
+          "line": 49,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(value)) {",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 55,
+          "kind": "date-parse-context",
+          "code": "return Date.parse(value);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/booking-horizon.test.ts",
+          "declaredCases": 12
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "055b2c6191e274ee85bbb1accedb3ac19949cc44217018ca8ebcb493421bcb60",
+      "candidateGitBlob": "2d8e2eff799516d7b9147e898e604a91fee96850",
+      "baselineGitBlob": "2d8e2eff799516d7b9147e898e604a91fee96850",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/booking-transaction.ts",
+      "references": [
+        {
+          "line": 153,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(record['startsAt'], 'startsAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 232,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(updatedAt, 'updatedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 280,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/booking-transaction.test.ts",
+          "declaredCases": 24
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "6f30356cd411fdcfdeac5db5accacfeb8175b30f9339b524b7ed0cf1264f100f",
+      "candidateGitBlob": "9fa3fbc7b81be10edc537b045f504913d801959f",
+      "baselineGitBlob": "9fa3fbc7b81be10edc537b045f504913d801959f",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/business-delivery-backup.ts",
+      "references": [
+        {
+          "line": 161,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(drill.startedAt, 'backup.startedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 162,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(drill.usableAt, 'backup.usableAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 163,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(drill.usableAt) < Date.parse(drill.startedAt)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-backup.test.ts",
+          "declaredCases": 5
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "56ef4cbfb3a6f3a87502087bcd4f696b96145eae8c5d21233d620e155203703d",
+      "candidateGitBlob": "3d009074c7e7e7c276c6a0f667399a45e104d95f",
+      "baselineGitBlob": "3d009074c7e7e7c276c6a0f667399a45e104d95f",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/business-delivery-export.ts",
+      "references": [
+        {
+          "line": 290,
+          "kind": "guard-reference",
+          "code": "input.startsAt !== undefined && isUtcIsoTimestamp(input.startsAt)",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-export.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "0915db09331b9714e66e2704b4d4b171dcc8a33ea960e55c8ca34696c534871f",
+      "candidateGitBlob": "56c284b6b848985ea64699077c1997e7e20f35d0",
+      "baselineGitBlob": "56c284b6b848985ea64699077c1997e7e20f35d0",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/business-delivery-policy.ts",
+      "references": [
+        {
+          "line": 159,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.observedSince, 'observedSince');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 160,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 172,
+          "kind": "date-parse-context",
+          "code": "Date.parse(range.endAt) + input.lateEventCutoffDays * 86_400_000",
+          "validator": null
+        },
+        {
+          "line": 174,
+          "kind": "date-parse-context",
+          "code": "const observedSinceMs = Date.parse(input.observedSince);",
+          "validator": null
+        },
+        {
+          "line": 176,
+          "kind": "date-parse-context",
+          "code": "if (observedSinceMs >= Date.parse(range.endAt)) completeness = 'unknown';",
+          "validator": null
+        },
+        {
+          "line": 177,
+          "kind": "date-parse-context",
+          "code": "else if (observedSinceMs > Date.parse(range.startAt))",
+          "validator": null
+        },
+        {
+          "line": 179,
+          "kind": "date-parse-context",
+          "code": "else if (Date.parse(input.now) < Date.parse(lockedAt))",
+          "validator": null
+        },
+        {
+          "line": 234,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 238,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(input.now);",
+          "validator": null
+        },
+        {
+          "line": 255,
+          "kind": "date-parse-context",
+          "code": "status: nowMs < Date.parse(trialEnd) ? 'in_progress' : 'ended',",
+          "validator": null
+        },
+        {
+          "line": 275,
+          "kind": "date-parse-context",
+          "code": "const reached = nowMs >= Date.parse(checkpoint.checkpointAt);",
+          "validator": null
+        },
+        {
+          "line": 321,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 369,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(`${input.from}T00:00:00.000+08:00`);",
+          "validator": null
+        },
+        {
+          "line": 370,
+          "kind": "date-parse-context",
+          "code": "const lastMs = Date.parse(`${input.to}T00:00:00.000+08:00`);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-policy.test.ts",
+          "declaredCases": 37
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "c57c41aaa29ba51ec0325b3d8095dcb5842a5695abb62b5b2c7f527bbc35f845",
+      "candidateGitBlob": "f6f56ad96f6a26f69ccaff1b7d74e4ce30701cc8",
+      "baselineGitBlob": "f6f56ad96f6a26f69ccaff1b7d74e4ce30701cc8",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/business-delivery-reporting.ts",
+      "references": [
+        {
+          "line": 60,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(occurredAt, 'occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-reporting.test.ts",
+          "declaredCases": 4
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ebf14ce50e539a7212c74c4c2063a7b9bbff621b32e176b597b96bb384ea39a7",
+      "candidateGitBlob": "2855e3c6ca4d166861d837e5b4c6a749e9df2ea7",
+      "baselineGitBlob": "2855e3c6ca4d166861d837e5b4c6a749e9df2ea7",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/business-delivery-retention.ts",
+      "references": [
+        {
+          "line": 64,
+          "kind": "date-parse-context",
+          "code": "Date.parse(isoUtc) + days * 24 * 60 * 60 * 1000",
+          "validator": null
+        },
+        {
+          "line": 105,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.archivedAt, 'archivedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 126,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.archivedAt, 'archivedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 137,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.nowAt, 'nowAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 160,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.nowAt, 'nowAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 253,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(input.nowAt) >= Date.parse(verifiedRecoverableUntil)) {",
+          "validator": null
+        },
+        {
+          "line": 276,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(input.nowAt) < Date.parse(verifiedRecoverableUntil)) {",
+          "validator": null
+        },
+        {
+          "line": 357,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.at, 'at');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 386,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(followUp.dueAt, 'dueAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-retention.test.ts",
+          "declaredCases": 10
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "5936d3586d7b3866d6b83a6182a128d1122d5e43fdcf0668d1f66ab935e9b9d1",
+      "candidateGitBlob": "092a5b503453f53a4fbb9934f769b74a3a754e2c",
+      "baselineGitBlob": "092a5b503453f53a4fbb9934f769b74a3a754e2c",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/business-delivery-termination.ts",
+      "references": [
+        {
+          "line": 89,
+          "kind": "date-parse-context",
+          "code": "Date.parse(isoUtc) + days * 24 * 60 * 60 * 1000",
+          "validator": null
+        },
+        {
+          "line": 125,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(noticeStartedAt, 'noticeStartedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 126,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(noticeDueAt, 'noticeDueAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 163,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.returnCompletedAt, 'returnCompletedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 180,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.returnCompletedAt, 'returnCompletedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 181,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 246,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.nowAt, 'nowAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 326,
+          "kind": "date-parse-context",
+          "code": "Date.parse(input.nowAt) < Date.parse(verifiedNotice.noticeDueAt) &&",
+          "validator": null
+        },
+        {
+          "line": 341,
+          "kind": "date-parse-context",
+          "code": "Date.parse(completedAt) < Date.parse(verifiedNotice.noticeStartedAt)",
+          "validator": null
+        },
+        {
+          "line": 444,
+          "kind": "date-parse-context",
+          "code": "Date.parse(input.nowAt) < Date.parse(controlledRetentionUntil)",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery-termination.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ebe35bf0d1b33573d7e43692d7193d6647cf7e0af2ac3e60bd143e276ff2c770",
+      "candidateGitBlob": "8334cc75f60226754b66c2f56c4565f3addcfa97",
+      "baselineGitBlob": "8334cc75f60226754b66c2f56c4565f3addcfa97",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/business-delivery.ts",
+      "references": [
+        {
+          "line": 101,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(isoUtc, 'timestamp');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 134,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(at, 'earlyEnd.endedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 135,
+          "kind": "date-parse-context",
+          "code": "const atMs = Date.parse(at);",
+          "validator": null
+        },
+        {
+          "line": 136,
+          "kind": "date-parse-context",
+          "code": "if (atMs < Date.parse(startAt) || atMs >= Date.parse(endAt)) {",
+          "validator": null
+        },
+        {
+          "line": 154,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(event.occurredAt, 'occurredAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 159,
+          "kind": "date-parse-context",
+          "code": "Date.parse(left.occurredAt) - Date.parse(right.occurredAt)",
+          "validator": null
+        },
+        {
+          "line": 189,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 313,
+          "kind": "guard-reference",
+          "code": "return isUtcIsoTimestamp(value);",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/business-delivery.test.ts",
+          "declaredCases": 8
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "befc4324075f7d8b0e4480f962b246e88906100277ce1bbb2ec01d33d042ba17",
+      "candidateGitBlob": "ae97eb15163814229a47d4cde31ee2c80ad15046",
+      "baselineGitBlob": "ae97eb15163814229a47d4cde31ee2c80ad15046",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/calendar-projection.ts",
+      "references": [
+        {
+          "line": 404,
+          "kind": "date-parse-context",
+          "code": "return new Date(Date.parse(iso) + 8 * 60 * 60 * 1000).getUTCMinutes();",
+          "validator": null
+        },
+        {
+          "line": 411,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(startsAt)) return false;",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/calendar-projection.test.ts",
+          "declaredCases": 12
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "173ef695296f8a5fcb1a7556b109d56126c5ddb28ff5a378fe9d8645641765ff",
+      "candidateGitBlob": "72b9f5550918135178ccd233279bb9290607d6e5",
+      "baselineGitBlob": "72b9f5550918135178ccd233279bb9290607d6e5",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/calendar-sync.ts",
+      "references": [
+        {
+          "line": 196,
+          "kind": "guard-reference",
+          "code": "return isUtcIsoTimestamp(normalized.replace(/[+-]\\d{2}:\\d{2}$/, 'Z'))",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 197,
+          "kind": "date-parse-context",
+          "code": "? Date.parse(normalized)",
+          "validator": null
+        },
+        {
+          "line": 228,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(`${start.date}T00:00:00${TAIPEI_OFFSET}`);",
+          "validator": null
+        },
+        {
+          "line": 229,
+          "kind": "date-parse-context",
+          "code": "const endMs = Date.parse(`${end.date}T00:00:00${TAIPEI_OFFSET}`);",
+          "validator": null
+        },
+        {
+          "line": 239,
+          "kind": "date-parse-context",
+          "code": "const taipei = new Date(Date.parse(iso) + 8 * 60 * 60 * 1000);",
+          "validator": null
+        },
+        {
+          "line": 244,
+          "kind": "date-parse-context",
+          "code": "return new Date(Date.parse(iso) + 8 * 60 * 60 * 1000)",
+          "validator": null
+        },
+        {
+          "line": 253,
+          "kind": "date-parse-context",
+          "code": "if (Number.isNaN(Date.parse(startsAt))) return false;",
+          "validator": null
+        },
+        {
+          "line": 301,
+          "kind": "date-parse-context",
+          "code": "Date.parse(range.endsAt) - Date.parse(range.startsAt) !==",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/calendar-sync.test.ts",
+          "declaredCases": 24
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "c3ae483d341222bbfa9cf26d0b4af9da2b9564f8e371cf203d682cb74d71983d",
+      "candidateGitBlob": "4fb91f3febf292e392bcc41e7df81fc3a1d3c827",
+      "baselineGitBlob": "4fb91f3febf292e392bcc41e7df81fc3a1d3c827",
+      "matchesBaselineSource": true,
+      "context": "Includes legitimate external RFC3339 normalization before strict UTC validation; other UTC fields remain strict. See calendar-time-admission-parity.test.mjs and module tests."
+    },
+    {
+      "file": "packages/domain/src/case-assignment.ts",
+      "references": [
+        {
+          "line": 93,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 110,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(request.requestedAt) <= Date.parse(current.activeFrom)) {",
+          "validator": null
+        },
+        {
+          "line": 186,
+          "kind": "date-parse-context",
+          "code": "(left, right) => Date.parse(left.activeFrom) - Date.parse(right.activeFrom)",
+          "validator": null
+        },
+        {
+          "line": 189,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(period.activeFrom, 'period.activeFrom');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 200,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(period.activeUntil, 'period.activeUntil');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 201,
+          "kind": "date-parse-context",
+          "code": "if (Date.parse(period.activeUntil) <= Date.parse(period.activeFrom)) {",
+          "validator": null
+        },
+        {
+          "line": 210,
+          "kind": "date-parse-context",
+          "code": "Date.parse(next.activeFrom) < Date.parse(period.activeUntil)",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/case-assignment.test.ts",
+          "declaredCases": 9
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "d86850a32790f4c6a9542ad591a45a9a19c9f9cdd594493bc85f7b50ce62a19b",
+      "candidateGitBlob": "78ad0f22eb93ecbab822cf078d7500aa2e5d0a2e",
+      "baselineGitBlob": "78ad0f22eb93ecbab822cf078d7500aa2e5d0a2e",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/denied-access-audit.ts",
+      "references": [
+        {
+          "line": 89,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.occurredAt, 'deniedAccessAudit.occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/denied-access-audit.test.ts",
+          "declaredCases": 3
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "036ff326ed05ecff9cb124b908cbff3cb7527f357fd05efbb279bdcd895d7b07",
+      "candidateGitBlob": "ad60bab804aa23edc29dbb8de2579db21202daee",
+      "baselineGitBlob": "ad60bab804aa23edc29dbb8de2579db21202daee",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/denied-delegation-audit.ts",
+      "references": [
+        {
+          "line": 78,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.occurredAt, 'deniedDelegationAudit.occurredAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/denied-delegation-audit.test.ts",
+          "declaredCases": 4
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "31e65a967a93ccd4cae0bf806c3047d14e942a55cbbd0b4edb3cc6b205808520",
+      "candidateGitBlob": "3d6441072c88bca96a7f999ae5075542477f3560",
+      "baselineGitBlob": "3d6441072c88bca96a7f999ae5075542477f3560",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/follow-up.ts",
+      "references": [
+        {
+          "line": 104,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/follow-up.test.ts", "declaredCases": 10 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "dba3fddc904a3bb923ba8a4236a171a937c774542ef7a65871b6dc27b98f5a32",
+      "candidateGitBlob": "24665b8d460ba319a2519c0982cdf22f016be5cc",
+      "baselineGitBlob": "24665b8d460ba319a2519c0982cdf22f016be5cc",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/outbox.ts",
+      "references": [
+        {
+          "line": 171,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(nextAttemptAt, 'nextAttemptAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 176,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(startsAt, 'startsAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 247,
+          "kind": "guard-reference",
+          "code": "if (job.status !== 'pending' || !isUtcIsoTimestamp(now)) return false;",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 250,
+          "kind": "guard-reference",
+          "code": "isUtcIsoTimestamp(job.nextAttemptAt) &&",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 251,
+          "kind": "date-parse-context",
+          "code": "Date.parse(job.nextAttemptAt) <= Date.parse(now)",
+          "validator": null
+        },
+        {
+          "line": 267,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(now, 'now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 294,
+          "kind": "date-parse-context",
+          "code": "Date.parse(now) + backoffSeconds(attempts) * 1000",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/outbox.test.ts", "declaredCases": 25 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "6424215a5f6e7bcf9341406a040f070487d959007fa8d30bc97ec689504bfae3",
+      "candidateGitBlob": "8db2882636e10d572f99687f6aeeaaf3d7308d06",
+      "baselineGitBlob": "8db2882636e10d572f99687f6aeeaaf3d7308d06",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/payroll.ts",
+      "references": [
+        {
+          "line": 85,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(appointment.completedAt, 'appointment.completedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 191,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(completedAt, 'completedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 224,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(assignment.activeFrom, 'assignment.activeFrom');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 226,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(assignment.activeUntil, 'assignment.activeUntil');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 229,
+          "kind": "date-parse-context",
+          "code": "const completedAt = Date.parse(appointment.completedAt as string);",
+          "validator": null
+        },
+        {
+          "line": 231,
+          "kind": "date-parse-context",
+          "code": "Date.parse(assignment.activeFrom) > completedAt ||",
+          "validator": null
+        },
+        {
+          "line": 233,
+          "kind": "date-parse-context",
+          "code": "Date.parse(assignment.activeUntil) <= completedAt)",
+          "validator": null
+        },
+        {
+          "line": 418,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(snapshot.closedAt, 'snapshot.closedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 423,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(adjustment.recordedAt, 'adjustment.recordedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 501,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 564,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 605,
+          "kind": "date-parse-context",
+          "code": "const requestedAt = Date.parse(request.requestedAt);",
+          "validator": null
+        },
+        {
+          "line": 606,
+          "kind": "date-parse-context",
+          "code": "if (requestedAt < Date.parse(closed.closedAt)) {",
+          "validator": null
+        },
+        {
+          "line": 612,
+          "kind": "date-parse-context",
+          "code": "if (latest !== undefined && requestedAt < Date.parse(latest.recordedAt)) {",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/payroll.test.ts", "declaredCases": 13 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "0b51ccb3c65636c438d1415e69eb3d07fcc24f210b1fee9707b2f6d930a377e5",
+      "candidateGitBlob": "a4f002d169d7c8824324e48e01c74da6bab8be15",
+      "baselineGitBlob": "a4f002d169d7c8824324e48e01c74da6bab8be15",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/published-schedule.ts",
+      "references": [
+        {
+          "line": 23,
+          "kind": "date-parse-context",
+          "code": "const startMs = Date.parse(`${taipeiToday}T00:00:00+08:00`);",
+          "validator": null
+        },
+        {
+          "line": 24,
+          "kind": "date-parse-context",
+          "code": "const endMs = Date.parse(",
+          "validator": null
+        },
+        {
+          "line": 97,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(publishedAt, 'publishedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/published-schedule.test.ts",
+          "declaredCases": 5
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "7027148a5f7c8902ce91e527e318e55ac4a7c5d36ceff8bb4569560cc4c5870c",
+      "candidateGitBlob": "0e01bbe2519440070b2bcaf04e47bc082a9c0e1a",
+      "baselineGitBlob": "0e01bbe2519440070b2bcaf04e47bc082a9c0e1a",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/schedule.ts",
+      "references": [
+        {
+          "line": 517,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(request.requestedAt, 'requestedAt');",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/schedule.test.ts", "declaredCases": 22 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "8cfb48a6812aa224bc1c28a6c8b71d1cfd8bc4850d89ff79796a80bc46a523ef",
+      "candidateGitBlob": "9ae91941fdcbd6a6d81634cea261cb2c38116353",
+      "baselineGitBlob": "9ae91941fdcbd6a6d81634cea261cb2c38116353",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "packages/domain/src/staff-session.ts",
+      "references": [
+        {
+          "line": 36,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.now, 'staffSession.now');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 37,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.issuedAt, 'staffSession.issuedAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 38,
+          "kind": "guard-reference",
+          "code": "assertUtcTimestamp(input.lastSeenAt, 'staffSession.lastSeenAt');",
+          "validator": "domainUtc"
+        },
+        {
+          "line": 50,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(input.now);",
+          "validator": null
+        },
+        {
+          "line": 51,
+          "kind": "date-parse-context",
+          "code": "const issuedMs = Date.parse(input.issuedAt);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "packages/domain/src/staff-session.test.ts",
+          "declaredCases": 6
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "92e6c3143b25e9821746e59a242e4c72e2b465a8da19b422bce34acb46f1f00d",
+      "candidateGitBlob": "a26121e694b62ad92a2251586a6f5bc31c99a9bb",
+      "baselineGitBlob": "a26121e694b62ad92a2251586a6f5bc31c99a9bb",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "packages/domain/src/timestamp.ts",
+      "references": [
+        {
+          "line": 35,
+          "kind": "guard-reference",
+          "code": "if (!isUtcIsoTimestamp(value)) {",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "packages/domain/src/timestamp.test.ts", "declaredCases": 22 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "9cd91a8cb60ea2411d35e55c6c1d9b75cb54347161979bfb7f660016247020ed",
+      "candidateGitBlob": "471f826abf0ec829347f92d5ccef65cfdaf8e0ab",
+      "baselineGitBlob": "471f826abf0ec829347f92d5ccef65cfdaf8e0ab",
+      "matchesBaselineSource": true,
+      "context": "Canonical UTC guard/schema references; baseline suite execution is distinct from field-level caller regression."
+    },
+    {
+      "file": "scripts/activate-cal-pilot.mjs",
+      "references": [
+        {
+          "line": 13,
+          "kind": "date-parse-context",
+          "code": "if (!config.exists || Date.parse(now) >= Date.parse(config.data().expiresAt))",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "c546d9ddaafad0cc801ded4d0bfe330fb68ecc5a988288ded54a1babfbd96636",
+      "candidateGitBlob": "235473249b0302094234086cff9298c5db684683",
+      "baselineGitBlob": "235473249b0302094234086cff9298c5db684683",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/c1-calendar-sync-bootstrap.mjs",
+      "references": [
+        {
+          "line": 14,
+          "kind": "date-parse-context",
+          "code": "Number.isNaN(Date.parse(value))",
+          "validator": null
+        },
+        {
+          "line": 37,
+          "kind": "date-parse-context",
+          "code": "const expiresAtMs = Date.parse(expiresAt);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "scripts/c1-calendar-sync-bootstrap.test.mjs",
+          "declaredCases": 2
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "ec272262b5d3cce80a09f9a26627bdfe4adac8e91455cb98d482d3859d625f18",
+      "candidateGitBlob": "5991edc320b0e41e7ac7827be53cc8d06dffae45",
+      "baselineGitBlob": "5991edc320b0e41e7ac7827be53cc8d06dffae45",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/c1-config-contract.mjs",
+      "references": [
+        {
+          "line": 172,
+          "kind": "guard-reference",
+          "code": "!isUtcIsoTimestamp(validationValue)",
+          "validator": "domainUtc"
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "scripts/stage-f-source-closeout.test.mjs",
+          "declaredCases": 5
+        }
+      ],
+      "additionalRegressionSuites": ["scripts/utc-caller-boundary.test.mjs"],
+      "sourceSha256": "009cef65004c45bd78ab20b517a763432eae9fd89ac408010a3df1a4c0ed46c1",
+      "candidateGitBlob": "548a75422b35b1357bcd5b1430ea465896d84f82",
+      "baselineGitBlob": "164f3f456255baef80e896c3665331c9a5a787c8",
+      "matchesBaselineSource": false,
+      "context": "Config trims values except BUSINESS_DELIVERY_ raw literals; empty conditional fields are not timestamp instants."
+    },
+    {
+      "file": "scripts/cal-pilot-extension-policy.mjs",
+      "references": [
+        {
+          "line": 16,
+          "kind": "date-parse-context",
+          "code": "!Number.isFinite(Date.parse(value))",
+          "validator": null
+        },
+        {
+          "line": 19,
+          "kind": "date-parse-context",
+          "code": "return Date.parse(value);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "scripts/cal-pilot-extension-policy.test.mjs",
+          "declaredCases": 5
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "7717c1aec38268b08b4fa62502178ecfd84d1fc06d914e20a9118f988b75ea2a",
+      "candidateGitBlob": "8508c1b49f7ff17eb54d5abb2a65b7530dcf9aca",
+      "baselineGitBlob": "8508c1b49f7ff17eb54d5abb2a65b7530dcf9aca",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/check-structure.mjs",
+      "references": [
+        {
+          "line": 461,
+          "kind": "date-parse-context",
+          "code": "Number.isNaN(Date.parse(manifest.fixedTime))",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "scripts/check-structure.test.mjs", "declaredCases": 31 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "f8bef02de24f978150872bd918d2c33946adf092c46db197add7af03c702cedd",
+      "candidateGitBlob": "4f055e49ee5cc027b34f8d1701852085787c853c",
+      "baselineGitBlob": "4f055e49ee5cc027b34f8d1701852085787c853c",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/internal-test-backup-inspect.mjs",
+      "references": [
+        {
+          "line": 171,
+          "kind": "date-parse-context",
+          "code": "Number.isNaN(Date.parse(snapshotTime))",
+          "validator": null
+        },
+        {
+          "line": 178,
+          "kind": "date-parse-context",
+          "code": "const nowMs = Date.parse(nowUtc);",
+          "validator": null
+        },
+        {
+          "line": 179,
+          "kind": "date-parse-context",
+          "code": "const snapshotMs = Date.parse(snapshotTime);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "scripts/internal-test-backup-inspect.test.mjs",
+          "declaredCases": 17
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "3cc70901afd7fa63d86adae5e3f941c9f074ec5ad73c45eae2046ae7db4ce2bb",
+      "candidateGitBlob": "2313acb04c3eafa4094b85dc37ba8e9190323703",
+      "baselineGitBlob": "2313acb04c3eafa4094b85dc37ba8e9190323703",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/internal-test-hosting-inspect.mjs",
+      "references": [
+        {
+          "line": 77,
+          "kind": "date-parse-context",
+          "code": "const expireMs = Date.parse(expireTime);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "scripts/internal-test-hosting-inspect.test.mjs",
+          "declaredCases": 8
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "e07b4a36b40cc8c72f4545d3b59ddca0c8b316fa5fa03f90782db23113c945a0",
+      "candidateGitBlob": "1160c9bdc47b56ed60c71a24cebcf9c6c5123dc1",
+      "baselineGitBlob": "1160c9bdc47b56ed60c71a24cebcf9c6c5123dc1",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/migrate-cal-pilot-legacy-candidates.mjs",
+      "references": [
+        {
+          "line": 260,
+          "kind": "date-parse-context",
+          "code": "Date.parse(candidate.createdAt) >=",
+          "validator": null
+        },
+        {
+          "line": 261,
+          "kind": "date-parse-context",
+          "code": "Date.parse(migrationAudit.occurredAt) &&",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "6219a804cfc57906495674bd78616c04d04759861763c7e092fdf081000ec64b",
+      "candidateGitBlob": "7c5c16b72ea7e55bfdd2bd306c3a75795e5d7b0b",
+      "baselineGitBlob": "7c5c16b72ea7e55bfdd2bd306c3a75795e5d7b0b",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/recovery-clone-verify.mjs",
+      "references": [
+        {
+          "line": 107,
+          "kind": "date-parse-context",
+          "code": "!Number.isFinite(Date.parse(event.occurredAt))",
+          "validator": null
+        },
+        {
+          "line": 136,
+          "kind": "date-parse-context",
+          "code": "const timestamp = Date.parse(value);",
+          "validator": null
+        },
+        {
+          "line": 217,
+          "kind": "date-parse-context",
+          "code": ": (Date.parse(left.occurredAt ?? '') || 0) -",
+          "validator": null
+        },
+        {
+          "line": 218,
+          "kind": "date-parse-context",
+          "code": "(Date.parse(right.occurredAt ?? '') || 0)",
+          "validator": null
+        },
+        {
+          "line": 228,
+          "kind": "date-parse-context",
+          "code": ": Date.parse(left.occurredAt) - Date.parse(right.occurredAt)",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        {
+          "path": "scripts/recovery-clone-verify.test.mjs",
+          "declaredCases": 17
+        }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "bb201869e8a8758e2145547652f4de6ac8923166bf8e6408d490363003161b27",
+      "candidateGitBlob": "35dc1cc1d1eb86f5874682bf5a812f29b0a56fc9",
+      "baselineGitBlob": "35dc1cc1d1eb86f5874682bf5a812f29b0a56fc9",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    },
+    {
+      "file": "scripts/web-a11y-waivers.mjs",
+      "references": [
+        {
+          "line": 21,
+          "kind": "date-parse-context",
+          "code": "const time = Date.parse(`${value}T00:00:00Z`);",
+          "validator": null
+        }
+      ],
+      "baselineModuleSuites": [
+        { "path": "scripts/web-a11y-waivers.test.mjs", "declaredCases": 15 }
+      ],
+      "additionalRegressionSuites": [],
+      "sourceSha256": "c344b238eade7d4d7b4ed98b4031d848f0c203c6006542240bfb20188839a21f",
+      "candidateGitBlob": "47f6d07102e6cb508d7ec56a5260ef0fdc3d66d1",
+      "baselineGitBlob": "47f6d07102e6cb508d7ec56a5260ef0fdc3d66d1",
+      "matchesBaselineSource": true,
+      "context": "Date.parse is also arithmetic, not automatically a validator. Direct CAL-PILOT stored-read admission must be checked under E4-15; no runtime proof is implied."
+    }
+  ]
+}

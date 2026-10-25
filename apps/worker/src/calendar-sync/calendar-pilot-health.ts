@@ -1,3 +1,8 @@
+import {
+  CalendarPilotHealthRecordSchema,
+  parseCalendarPilotRecord
+} from '@beauessence/contracts';
+
 /**
  * Read-only CAL-PILOT `/health` inspect. Does not call Google Calendar and
  * does not mount CalendarWatchController. Labels stay low-cardinality: no
@@ -121,7 +126,12 @@ export async function inspectCalendarPilotHealth(
     outbox.where('status', '==', 'processing').get(),
     outbox.where('status', '==', 'failed').get()
   ]);
-  const data = configuration.exists ? configuration.data() : undefined;
+  const data = configuration.exists
+    ? parseCalendarPilotRecord(
+        CalendarPilotHealthRecordSchema,
+        configuration.data()
+      )
+    : undefined;
   const inboundEnabled = recordField(data, 'inboundEnabled');
   const outboundEnabled = recordField(data, 'outboundEnabled');
   const evaluated = evaluateCalendarPilotHealth({
