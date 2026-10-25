@@ -209,6 +209,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-25 | [官網與預約頁 synthetic-review 預覽部署](reviews/2026-10-25-clinic-booking-synthetic-preview-deployment.md) | Exact `aee87f5` 已部署至 `beauessence-clinic-staging` 的 `synthetic-review`，30 天，至 2026-11-24 13:21（Asia/Taipei）；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/booking` 實機開啟正常，`/v1/health` 404；`verify:preview` 298/451，失敗為雜湊資產 CSP 與工作臺文案的既有腳本假設，已如實記錄 |
 | 2026-10-11 | [身份／session／API 邊界 CI 紅燈收尾交接](reviews/2026-10-11-auth-session-boundary-ci-closeout-handoff.md) | DRAFT_REVIEW_ONLY：Emulator harness、SAST 9 處動態執行、business-tab 8 個 E2E 皆本機重現後修正；獨立審查後再修 X-C04 兩個按鈕並收緊 c1 檢查；29 ID 逐列（SOURCE_FIXED 19、PARTIAL 3、OPEN 3、BLOCKED 2、其他 2）；exact-head CI 見 PR，不 merge／deploy。 |
 | 2026-10-10 | [身份／session／API 邊界 Draft 交接](reviews/2026-10-10-auth-session-boundary-draft-handoff.md) | DRAFT_REVIEW_ONLY：相關 Chromium 35/35，登出／重新驗證／患者建議隔離通過；full unit、Emulator 與 exact-head CI 分開回報。key cutover／policy／runtime blockers 保留，不 merge／deploy。 |
 | 2026-10-10 | [官網視覺／UI/UX／技能與 CI 詳細交接](reviews/2026-10-10-clinic-ui-design-implementation-handoff.md) | 區分 PR 技能／CI 與 repo 外 v14 原型；多來源決策、完整素材、90-file identity snapshot、歷史 19/19＋4/4 local checks、12/12 exact-head CI、預算、缺口及接手指令；首頁視覺／醫療／正式整合仍未驗收，不合併或部署。 |
