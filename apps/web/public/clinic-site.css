@@ -3486,3 +3486,58 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 .clinic-text-link:hover {
   background-color: color-mix(in srgb, currentColor 14%, transparent);
 }
+
+/* 純色區塊改成柔和漸層（2026-10-25，負責人：「單色背景看要不做點漸層」）。每區保留
+   原本的底色當 background-color，上面疊一層同色系的直向漸層與一處淡白光暈：
+   色階只在相鄰的品牌 token 之間移動，不新增顏色，文字對比不受影響（底色最深處仍是
+   原本的 token）。地圖蓋滿的「門診時間與交通」與透明底的 FAQ 不套用。 */
+.clinic-space {
+  background-color: var(--clinic-cream);
+  background-image:
+    radial-gradient(
+      circle at 12% 0%,
+      color-mix(in srgb, var(--clinic-white) 55%, transparent),
+      transparent 45%
+    ),
+    linear-gradient(180deg, var(--clinic-cream), var(--clinic-mist-soft));
+}
+
+.clinic-care {
+  background-color: var(--clinic-surface-subtle);
+  background-image:
+    radial-gradient(
+      circle at 88% 0%,
+      color-mix(in srgb, var(--clinic-white) 60%, transparent),
+      transparent 50%
+    ),
+    linear-gradient(160deg, var(--clinic-surface-subtle), var(--clinic-sage-50));
+}
+
+.clinic-process {
+  background-color: var(--clinic-cream);
+  background-image: linear-gradient(
+    180deg,
+    var(--clinic-mist-soft),
+    var(--clinic-cream)
+  );
+}
+
+.clinic-team {
+  background-color: var(--clinic-sage-100);
+  background-image:
+    radial-gradient(
+      circle at 15% 100%,
+      color-mix(in srgb, var(--clinic-white) 45%, transparent),
+      transparent 50%
+    ),
+    linear-gradient(180deg, var(--clinic-sage-50), var(--clinic-sage-100));
+}
+
+.clinic-footer {
+  background-color: var(--clinic-surface-subtle);
+  background-image: linear-gradient(
+    180deg,
+    var(--clinic-surface-subtle),
+    var(--clinic-sage-100)
+  );
+}
