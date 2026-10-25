@@ -134,6 +134,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 
 - [UI/UX 重設計計畫（2026-09-07）](design/2026-09-07-ui-ux-redesign-plan.md) — scope, invariants, files, review dependencies, verification and rollback for the owner-requested redesign PR
 
+- [公開網站綜合評分標準 v2（2026-10-25）](design/site-audit-rubric.md) — 官網與預約頁 100 分制八面向的細項、證據來源與上限規則，外加視覺分數；`site-audit` 技能照這份評分
 - [網頁設計、動效與美學評分研究（2026-10-12）](design/2026-10-12-design-research.md) — 得獎評審標準、第一印象證據、專業流程、繁中排版與動效的具體值、醫療網站模式，以及程式化美學評分的指標與使用紀律
 
 - [官網改版（2026-10-11～12）](design/2026-10-11-clinic-homepage-redesign.md) — 首頁品牌牆與相簿、內頁改版、療程插圖替換與素材權利、動效取捨、預算，以及待業主審的文案對照表；2026-10-20 起不等 C1，合併時機見決策登記簿同日條目
@@ -210,6 +211,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-25 | [官網與預約頁綜合評分（v2 標準）](reviews/2026-10-25-public-site-audit-v2.md) | 受評 #302（`a0409c2` 預覽／`acb1d1d` 本機）：官網 64.5／100、預約頁 77／100，視覺 61.8／44.6；官網比 v1 低 4 分主要因標準變嚴（F 上限、H 檔案大小、B 實測）。最大缺口：官網醫療廣告用語、原始 HTML 無正文、節流 LCP 4.3～4.5 秒、官網焦點框對比 2.45:1 |
 | 2026-10-25 | [官網改進候選（#302）synthetic-review 預覽部署](reviews/2026-10-25-clinic-learnings-synthetic-preview-deployment.md) | PR #302 head `36f182c`（CI 12/12）部署至 `synthetic-review`，30 天至 2026-11-24 15:35（Asia/Taipei），取代上午的 main `aee87f5`；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/clinic/doctors` 等內頁 200 無轉址且 JS 前即有各自標題與 og；不存在路徑仍顯示 404 畫面；卡片到內頁轉場經 `pageswap` 確認；面板內 lazy 圖片不載入屬測試環境限制；同日依序追加 `b681e59`、`a0409c2`、`85b8312`（評分後的焦點框、canonical／og:image、預約頁回官網與備註提醒），現行為 `85b8312`，到期 2026-11-24 22:06 |
 | 2026-10-25 | [官網與預約頁 synthetic-review 預覽部署](reviews/2026-10-25-clinic-booking-synthetic-preview-deployment.md) | Exact `aee87f5` 已部署至 `beauessence-clinic-staging` 的 `synthetic-review`，30 天，至 2026-11-24 13:21（Asia/Taipei）；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/booking` 實機開啟正常，`/v1/health` 404；`verify:preview` 298/451，失敗為雜湊資產 CSP 與工作臺文案的既有腳本假設，已如實記錄 |
 | 2026-10-11 | [身份／session／API 邊界 CI 紅燈收尾交接](reviews/2026-10-11-auth-session-boundary-ci-closeout-handoff.md) | DRAFT_REVIEW_ONLY：Emulator harness、SAST 9 處動態執行、business-tab 8 個 E2E 皆本機重現後修正；獨立審查後再修 X-C04 兩個按鈕並收緊 c1 檢查；29 ID 逐列（SOURCE_FIXED 19、PARTIAL 3、OPEN 3、BLOCKED 2、其他 2）；exact-head CI 見 PR，不 merge／deploy。 |
