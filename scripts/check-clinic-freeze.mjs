@@ -51,7 +51,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    '29f91517c9b630da0084b1d08c0a90630252d10b235b1c4f1654c9b9a7643246',
+    'c0c449c6fcfb3446c2c5fde8b2679e94bc510f486bab97fcf35eb9a554d0f011',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':

@@ -47,6 +47,9 @@
     #dd30c1 80%,
     #ad24d8 100%
   );
+  /* 漸層底下的實心底色（同一份字形的洋紅）：不支援漸層時的後備，也讓按鈕的
+     background-color 不是透明（affordance 檢查以它判斷「有形狀」）。 */
+  --clinic-brand-instagram-solid: #dd30c1;
   --clinic-brand-facebook: #0866ff;
   --clinic-brand-messenger: #0866ff;
   --clinic-shadow: 0 1.25rem 3.75rem rgb(22 72 58 / 10%);
@@ -2017,6 +2020,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 
 .clinic-social--instagram .clinic-social__badge {
   background: var(--clinic-brand-instagram);
+  background-color: var(--clinic-brand-instagram-solid);
 }
 
 .clinic-social--facebook .clinic-social__badge {
@@ -2052,6 +2056,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 
 .clinic-social-row--compact .clinic-social--instagram {
   background: var(--clinic-brand-instagram);
+  background-color: var(--clinic-brand-instagram-solid);
 }
 
 .clinic-social-row--compact .clinic-social--facebook {
