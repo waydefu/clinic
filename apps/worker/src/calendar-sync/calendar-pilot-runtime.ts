@@ -92,6 +92,7 @@ function backoffElapsed(
   const nextAttemptAt = job.nextAttemptAt;
   if (nextAttemptAt === undefined || nextAttemptAt === null) return true;
   return (
+    typeof nextAttemptAt === 'string' &&
     isUtcIsoTimestamp(nextAttemptAt) &&
     Date.parse(nextAttemptAt) <= Date.parse(now)
   );
@@ -339,7 +340,12 @@ function storedMirror(value: unknown): StoredMirror {
     value
   );
   if (!data.parsed.ok) throw new Error('Calendar mirror record is invalid.');
-  return { ...data, parsed: data.parsed };
+  return {
+    externalEventId: data.externalEventId,
+    etag: data.etag,
+    parsed: data.parsed,
+    ...(data.linkId === undefined ? {} : { linkId: data.linkId })
+  };
 }
 
 export function calendarWriteEventForMirror(
@@ -575,6 +581,7 @@ export class CalendarPilotRuntime {
       );
       const expiresAt = configuration['expiresAt'];
       if (
+        typeof expiresAt !== 'string' ||
         !isUtcIsoTimestamp(expiresAt) ||
         Date.parse(now) >= Date.parse(expiresAt)
       ) {
@@ -594,7 +601,8 @@ export class CalendarPilotRuntime {
       if (
         leaseExpiresAt !== undefined &&
         leaseExpiresAt !== null &&
-        (!isUtcIsoTimestamp(leaseExpiresAt) ||
+        (typeof leaseExpiresAt !== 'string' ||
+          !isUtcIsoTimestamp(leaseExpiresAt) ||
           Date.parse(leaseExpiresAt) > Date.parse(now))
       )
         return undefined;

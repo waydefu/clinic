@@ -326,7 +326,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       generatedAt: now,
       sourceVersion: configuration.version,
       blocks: blocks.docs.map((document) => {
-        const data = documentData(CalendarPilotAvailabilityRecordSchema, document);
+        const data = documentData(
+          CalendarPilotAvailabilityRecordSchema,
+          document
+        );
         return {
           blockId: document.id,
           kind: data.kind,
@@ -522,7 +525,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       );
       if (
         !source.exists ||
-        documentData(CalendarPilotEnabledRecordSchema, source).enabled !== true ||
+        documentData(CalendarPilotEnabledRecordSchema, source).enabled !==
+          true ||
         preflightData.sourceId !== sourceId ||
         preflightData.expectedVersion !== command.expectedVersion ||
         preflightData.status !== 'passed' ||
@@ -867,7 +871,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         );
         if (
           !patient.exists ||
-          documentData(CalendarPilotEnabledRecordSchema, patient).enabled !== true
+          documentData(CalendarPilotEnabledRecordSchema, patient).enabled !==
+            true
         )
           throw new ConflictError();
         const endsAt = addThirtyMinutes(command.startsAt);
@@ -1001,7 +1006,10 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
             )
           : undefined;
       const appointmentData = appointment?.exists
-        ? documentData(CalendarPilotAppointmentIdentityRecordSchema, appointment)
+        ? documentData(
+            CalendarPilotAppointmentIdentityRecordSchema,
+            appointment
+          )
         : undefined;
       const patientCode = appointmentData?.patientCode;
       const guard =

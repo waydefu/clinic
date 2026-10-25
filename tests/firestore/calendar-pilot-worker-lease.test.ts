@@ -201,7 +201,9 @@ describe('CAL-PILOT job claiming honours nextAttemptAt (AUD-10)', () => {
         claimCalendarPilotJobs(db, 'worker_clock', NOW)
       ).resolves.toHaveLength(0);
       expect((await jobState('unreadable_clock'))?.['status']).toBe('pending');
-      expect(await jobState('unreadable_clock')).not.toHaveProperty('leaseOwner');
+      expect(await jobState('unreadable_clock')).not.toHaveProperty(
+        'leaseOwner'
+      );
     }
   );
 

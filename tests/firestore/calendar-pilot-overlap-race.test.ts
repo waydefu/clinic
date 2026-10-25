@@ -110,7 +110,10 @@ describe('CAL-PILOT overlapping creation race', () => {
     await ref.set(block);
     await expect(
       repository.createSyntheticAppointment(
-        createCommand({ idempotencyKey: 'unreadable_overlap', patientCode: 'A17' })
+        createCommand({
+          idempotencyKey: 'unreadable_overlap',
+          patientCode: 'A17'
+        })
       )
     ).rejects.toThrow('Unreadable CAL-PILOT record.');
     for (const collection of [
