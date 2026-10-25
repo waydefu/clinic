@@ -14,6 +14,7 @@ import {
   downloadIcs
 } from './modules/calendar-export.js';
 import { confirmDialog } from './modules/confirm-dialog.js';
+import { openPolicyDialog } from './modules/policy-dialog.js';
 import { fieldErrors } from './modules/patient-registry.js';
 import {
   PATIENT_LOOKUP_ERROR,
@@ -925,21 +926,17 @@ elements['open-privacy-policy'].addEventListener('click', (event) => {
   )
     return;
   event.preventDefault();
-  void import('./modules/policy-dialog.js')
-    .then(({ openPolicyDialog }) =>
-      openPolicyDialog({
-        onRead: () => {
-          elements['privacy-consent'].checked = true;
-          elements['privacy-consent-error'].hidden = true;
-          elements['privacy-consent-error'].textContent = '';
-          updateSubmitState();
-          message('已標記為讀過告知草稿；系統未保存正式同意紀錄。', 'success');
-        }
-      })
-    )
-    .catch(() => {
-      window.location.assign(elements['open-privacy-policy'].href);
-    });
+  void openPolicyDialog({
+    onRead: () => {
+      elements['privacy-consent'].checked = true;
+      elements['privacy-consent-error'].hidden = true;
+      elements['privacy-consent-error'].textContent = '';
+      updateSubmitState();
+      message('已標記為讀過告知草稿；系統未保存正式同意紀錄。', 'success');
+    }
+  }).catch(() => {
+    window.location.assign(elements['open-privacy-policy'].href);
+  });
 });
 
 // 從政策頁按「已閱讀草稿，回到預約」回來時帶著 ?notice-read=1。

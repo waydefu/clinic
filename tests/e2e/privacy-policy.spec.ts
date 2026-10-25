@@ -246,7 +246,7 @@ test.describe('隱私權政策頁', () => {
     test('六項事實仍然找得到，只是改由入口一次展開', async ({ page }) => {
       const moduleRequests: string[] = [];
       page.on('request', (request) => {
-        if (request.url().includes('/policy-dialog'))
+        if (request.url().includes('/policy-dialog-content'))
           moduleRequests.push(request.url());
       });
       await reachDetailsStep(page);
@@ -270,7 +270,7 @@ test.describe('隱私權政策頁', () => {
       page
     }) => {
       let blockedImports = 0;
-      await page.route('**/policy-dialog*.js', async (route) => {
+      await page.route('**/policy-dialog-content*.js', async (route) => {
         blockedImports += 1;
         await route.abort();
       });
