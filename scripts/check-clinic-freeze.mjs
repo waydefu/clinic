@@ -46,7 +46,10 @@ import { fileURLToPath } from 'node:url';
  * image or asset manifest changed. Later the same day the lead asked for fewer
  * underlined text links ("盡量不要文字連結，不太美觀"); standalone links on both
  * pages became tinted pill buttons, which rebaselined clinic-site.css again and
- * apps/web/public/clinic-booking.css once.
+ * apps/web/public/clinic-booking.css once. A third request the same day (snore
+ * section background from the owner's soft-green image, visit-card phones as
+ * tinted buttons, booking-page social icons in official colours) rebaselined
+ * both stylesheets once more.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -54,11 +57,11 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    'cf1653d7629d9e70e9c5e986615664502be1deb6576d763d97b1d06e93e8bddc',
+    '580d24b194bdcf28abbb9c52fcc772ff4e99cf8caf8933869b9bb9750644a01c',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
-    'cb22238274233006fd7b99785c0dd6b8a21cf6cb998856f8a60b8c393ded8357',
+    '400c5d976178b78fea3ec856de6b085ab61742084848fc484fc090943424ae35',
   'apps/web/clinic-assets.manifest.json':
     '56bce15f8632fd5309689d953e9a0a92a67e6f9c604120fd4ce32e0151ada633',
   'apps/web/public/clinic-assets/care-aftercare.webp':

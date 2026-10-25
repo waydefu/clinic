@@ -703,3 +703,41 @@ html {
 .patient-body .patient-footer > .booking-footer a:hover {
   background-color: color-mix(in srgb, currentColor 14%, transparent);
 }
+
+/* 用 <a> 做的按鈕不畫底線：styles.css 的 .button 沒有清掉連結的預設底線，於是「需要其他
+   協助？」的電話按鈕等處有底線（2026-10-25，負責人：「盡量不要文字連結」）。按鈕本身
+   已有底色與形狀（R-2）。 */
+.patient-body a.button {
+  text-decoration: none;
+}
+
+/* 「其他聯絡方式」的社群圖示：圓底用各平台官方色，圖示白色（2026-10-25，負責人：
+   「預約頁社群圖補上顏色」）。色值定義在 brand-tokens.css 的 --brand-social-*；
+   Instagram 漸層底下另鋪實心色作後備。圓底畫在 svg 本身，所以
+   電腦版的圓形圖示與手機版帶文字的按鈕都適用。 */
+.patient-contact-socials .patient-contact-link svg {
+  color: var(--brand-social-glyph);
+  border-radius: var(--radius-circle);
+}
+
+.patient-contact-socials .button svg {
+  box-sizing: content-box;
+  padding: var(--space-3xs);
+}
+
+.patient-contact-link--line svg {
+  background: var(--brand-social-line);
+}
+
+.patient-contact-link--facebook svg {
+  background: var(--brand-social-facebook);
+}
+
+.patient-contact-link--messenger svg {
+  background: var(--brand-social-messenger);
+}
+
+.patient-contact-link--instagram svg {
+  background: var(--brand-social-instagram);
+  background-color: var(--brand-social-instagram-solid);
+}

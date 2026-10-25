@@ -58,6 +58,23 @@
   --brand-ink: #182e27;
   --brand-muted: #56655a;
 
+  /* 社群平台官方色（2026-10-25，取自官方品牌檔，與官網 clinic-site.css 的
+     --clinic-brand-* 同值）：LINE_Brand_icon.png；Facebook 與 Messenger 都是 Facebook
+     Blue；Instagram 是 2023 品牌包漸層字形上取樣的色階，另附實心後備色。不隨主題變色。 */
+  --brand-social-line: #06c755;
+  --brand-social-facebook: #0866ff;
+  --brand-social-messenger: #0866ff;
+  --brand-social-instagram: radial-gradient(
+    circle farthest-corner at 50% 100%,
+    #f6ca45 0%,
+    #f2ab3c 30%,
+    #ea425c 60%,
+    #dd30c1 80%,
+    #ad24d8 100%
+  );
+  --brand-social-instagram-solid: #dd30c1;
+  --brand-social-glyph: #ffffff;
+
   /* 圓角：卡片與膠囊兩階。 */
   --brand-radius-card: 0.75rem;
   --brand-radius-pill: 99rem;

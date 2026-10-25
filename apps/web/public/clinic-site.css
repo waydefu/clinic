@@ -1949,6 +1949,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   display: grid;
   margin: 0;
   justify-items: start;
+  gap: 0.5rem;
 }
 
 .clinic-visit__facts dd > span {
@@ -2478,7 +2479,10 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   overflow: hidden;
   padding: 4rem 0;
   color: var(--clinic-ink);
-  background: var(--clinic-sage-200);
+  /* 2026-10-25：改用業主原有的淡綠水霧底圖（與首屏、行動呼籲區同一張），取景對齊
+     上緣，露出左上的葉影；圖還沒載入時是原本的鼠尾草底色。不用診所實景照（負責人）。 */
+  background: var(--clinic-sage-200) url('/clinic-assets/soft-green-bg.webp')
+    center top / cover no-repeat;
 }
 
 .clinic-snore-app__grid {
@@ -3463,6 +3467,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
    可以按的形狀（R-2）；高度沿用各自原本的 44px（R-3）。句子裡的連結不在此列，照舊
    保留底線（R-2 豁免 3）。首屏的社群圖示本身就是圓形按鈕，不套用。 */
 .clinic-hero-fact a:not(.clinic-social),
+.clinic-visit__facts dd > a:not(.clinic-text-link),
 .clinic-footer a,
 .clinic-text-link {
   padding: 0.25rem 0.75rem;
@@ -3476,6 +3481,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 }
 
 .clinic-hero-fact a:not(.clinic-social):hover,
+.clinic-visit__facts dd > a:not(.clinic-text-link):hover,
 .clinic-footer a:hover,
 .clinic-text-link:hover {
   background-color: color-mix(in srgb, currentColor 14%, transparent);
