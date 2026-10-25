@@ -385,12 +385,7 @@ function renderServices() {
 // 停用之後還要把已選類型換掉，否則畫面停在一個按不到的選擇上：使用者按下看診
 // 項目時會拿到初診的時段，而初診那顆是灰的。
 function bookingTypeAvailability() {
-  // 這個函式會在**資料到達之前**被呼叫一次：第一次繪製刻意先把常數內容畫出來
-  // 佔住版面（見檔案末端關於 CLS 的註解）。此時 `state` 還是 undefined，而
-  // `latestFollowUp()` 會去讀 `state.followUps`——對回訪的患者（本機已記著
-  // patientId）那是一個會炸掉整個模組初始化的存取，症狀是「頁面看起來畫好了，
-  // 但所有按鈕都沒有反應」。兩顆按鈕在 dataReady 之前本來就一律停用，所以這裡
-  // 回什麼都不影響使用者。
+  // 載入前沒有 state；先畫選項，但按鈕仍由 dataReady 停用。
   if (state === undefined) return { initial: true, follow_up: true };
   const hasFollowUp =
     latestFollowUp() !== undefined || verifiedReturnBooking === true;
@@ -1507,10 +1502,7 @@ if (apiMode) {
     '公開網址持有人可存取 · 資料只保存在本機瀏覽器';
 }
 
-// 不依賴資料的內容先畫（但停用）：看診項目與看診類型是常數，沒有理由等一次
-// 往返。等資料回來才畫，第一步的選項會在載入完成的那一刻突然長出來，把底下
-// 整段往下推——這正是效能預算裡 CLS 那條在量的東西（修正前實測 0.28，遠超
-// 0.1 的良好界線）。先畫佔住版面、載入完成才啟用，兩個問題一起解決。
+// 先畫常數選項避免 CLS；資料到齊前保持停用。
 renderServices();
 renderBookingTypeButtons();
 // 標籤是常數，只畫一次：重畫會清掉使用者已經勾好的選擇。
