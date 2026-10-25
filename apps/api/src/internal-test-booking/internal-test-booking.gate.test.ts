@@ -92,6 +92,45 @@ describe('assertInternalTestBookingWritable', () => {
     ).not.toThrow();
   });
 
+  it.each(['127.0.0.1:8080', 'localhost:8080', '[::1]:8080'])(
+    'allows explicit loopback emulators: %s',
+    (emulatorHost: string) => {
+      expect(() =>
+        assertInternalTestBookingWritable(
+          OPEN_NOW,
+          settings({ projectId: undefined, emulatorHost })
+        )
+      ).not.toThrow();
+    }
+  );
+
+  it.each([
+    'firestore.example.invalid:8080',
+    '0.0.0.0:8080',
+    'http://localhost:8080',
+    'localhost:8080/path',
+    'localhost',
+    'localhost:0',
+    'localhost:65536',
+    '::1:8080'
+  ])('rejects target %s', (emulatorHost: string) => {
+    expect(() =>
+      assertInternalTestBookingWritable(OPEN_NOW, settings({ emulatorHost }))
+    ).toThrow(ServiceUnavailableError);
+  });
+
+  it('does not let a local emulator override the forbidden project', () => {
+    expect(() =>
+      assertInternalTestBookingWritable(
+        OPEN_NOW,
+        settings({
+          projectId: 'beauessence-clinic-staging',
+          emulatorHost: '127.0.0.1:8080'
+        })
+      )
+    ).toThrow(ServiceUnavailableError);
+  });
+
   it('reads fail-closed defaults from env', () => {
     const fromEnv = internalTestBookingSettingsFromEnv({});
     expect(fromEnv.enabled).toBe(false);
