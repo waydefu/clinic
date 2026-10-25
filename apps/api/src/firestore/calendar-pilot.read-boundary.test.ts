@@ -3,9 +3,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { FirestoreCalendarPilotRepository } from './calendar-pilot.repository.js';
 
-function store(value: unknown) {
+function store(value: unknown, blocks: readonly unknown[] = []) {
   const snapshot = { exists: value !== undefined, data: () => value };
-  const query = { get: () => Promise.resolve({ docs: [] }) };
+  const query = {
+    get: () =>
+      Promise.resolve({
+        docs: blocks.map((block, index) => ({
+          id: `synthetic_block_${index}`,
+          exists: true,
+          data: () => block
+        }))
+      })
+  };
   const collection = vi.fn((name: string) => ({
     doc: () => ({
       get: () =>
@@ -65,6 +74,73 @@ describe('CAL-PILOT API stored read boundary', () => {
     });
     expect(runTransaction).not.toHaveBeenCalled();
   });
+
+  it('accepts an existing availability block without rewriting it', async () => {
+    const block = {
+      kind: 'appointment',
+      bookingKind: 'initial',
+      startsAt: '2030-01-02T00:00:00Z',
+      endsAt: '2030-01-02T00:30:00Z',
+      displayLabel: 'Synthetic appointment',
+      sourceVersion: 1
+    };
+    const before = structuredClone(block);
+    const { repository, runTransaction } = store(configuration, [block]);
+    await expect(
+      repository.getAvailability(block.startsAt)
+    ).resolves.toMatchObject({
+      blocks: [
+        {
+          blockId: 'synthetic_block_0',
+          kind: 'appointment',
+          bookingKind: 'initial',
+          startsAt: block.startsAt,
+          endsAt: block.endsAt,
+          displayLabel: block.displayLabel
+        }
+      ]
+    });
+    expect(block).toEqual(before);
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      kind: 'busy',
+      startsAt: '2030-01-02T00:00:00Z',
+      endsAt: '2030-02-30T00:00:00Z',
+      displayLabel: 'Synthetic busy'
+    },
+    {
+      kind: 'unknown',
+      startsAt: '2030-01-02T00:00:00Z',
+      endsAt: '2030-01-02T00:30:00Z',
+      displayLabel: 'Synthetic busy'
+    },
+    {
+      kind: 'appointment',
+      bookingKind: 'unknown',
+      startsAt: '2030-01-02T00:00:00Z',
+      endsAt: '2030-01-02T00:30:00Z',
+      displayLabel: 'Synthetic appointment'
+    },
+    {
+      kind: 'busy',
+      startsAt: '2030-01-02T00:00:00Z',
+      endsAt: '2030-01-02T00:30:00Z',
+      displayLabel: 'Synthetic busy',
+      schemaVersion: 2
+    }
+  ])(
+    'refuses malformed availability rather than returning success',
+    async (block) => {
+      const { repository, runTransaction } = store(configuration, [block]);
+      await expect(
+        repository.getAvailability('2030-01-02T00:00:00Z')
+      ).rejects.toThrow('Unreadable CAL-PILOT record.');
+      expect(runTransaction).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([
     null,

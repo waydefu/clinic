@@ -34,6 +34,15 @@ describe('parsePilotIdempotencyRecord', () => {
     );
   });
 
+  it('rejects a versioned envelope without inventing a new stored format', () => {
+    expect(() =>
+      parsePilotIdempotencyRecord(
+        { fingerprint: 'abc', response: { ok: true }, schemaVersion: 2 },
+        responseSchema
+      )
+    ).toThrow('Unreadable CAL-PILOT record.');
+  });
+
   it('rejects a malformed replay response instead of trusting a generic cast', () => {
     expect(() =>
       parsePilotIdempotencyRecord(

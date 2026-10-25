@@ -189,6 +189,22 @@ describe('CAL-PILOT job claiming honours nextAttemptAt (AUD-10)', () => {
     expect((await jobState('garbled_number'))?.['status']).toBe('pending');
   });
 
+  it.each([
+    'Aug 31 2026 Z',
+    '2026-02-30T00:00:00Z',
+    '2026-08-31T00:00:00+00:00'
+  ])(
+    'does not claim a non-canonical stored backoff: %s',
+    async (nextAttemptAt) => {
+      await seedPending('unreadable_clock', { nextAttemptAt });
+      await expect(
+        claimCalendarPilotJobs(db, 'worker_clock', NOW)
+      ).resolves.toHaveLength(0);
+      expect((await jobState('unreadable_clock'))?.['status']).toBe('pending');
+      expect(await jobState('unreadable_clock')).not.toHaveProperty('leaseOwner');
+    }
+  );
+
   it('is not starved by a full page of older jobs that are still backing off', async () => {
     for (let index = 0; index < 20; index += 1)
       await seedPending(`backoff_${String(index).padStart(2, '0')}`, {

@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CalendarPilotAppointmentIdentityRecordSchema,
   CalendarPilotAppointmentRecordSchema,
+  CalendarPilotAvailabilityOverlapRecordSchema,
+  CalendarPilotAvailabilityRecordSchema,
   CalendarPilotCandidateRecordSchema,
+  CalendarPilotEnabledRecordSchema,
+  CalendarPilotGuardRecordSchema,
+  CalendarPilotHealthRecordSchema,
+  CalendarPilotJobSelectionRecordSchema,
+  CalendarPilotRuntimeAppointmentRecordSchema,
+  CalendarPilotRuntimeJobRecordSchema,
   CalendarPilotConfigurationRecordSchema,
   CalendarPilotMirrorRecordSchema,
   CalendarPilotMirrorReviewRecordSchema,
@@ -306,3 +315,104 @@ it('accepts a stored invalid-format mirror for the existing review queue', () =>
     parseCalendarPilotRecord(CalendarPilotMirrorRecordSchema, invalidFormat)
   ).toEqual(invalidFormat);
 });
+
+const readBoundaryCases = [
+  {
+    name: 'enabled permission',
+    schema: CalendarPilotEnabledRecordSchema,
+    value: { enabled: true },
+    invalid: { enabled: 'true' }
+  },
+  {
+    name: 'guard',
+    schema: CalendarPilotGuardRecordSchema,
+    value: { recordId: null },
+    invalid: { recordId: 12 }
+  },
+  {
+    name: 'appointment identity',
+    schema: CalendarPilotAppointmentIdentityRecordSchema,
+    value: { patientCode: 'A01', version: 0 },
+    invalid: { patientCode: 'unknown' }
+  },
+  {
+    name: 'availability overlap',
+    schema: CalendarPilotAvailabilityOverlapRecordSchema,
+    value: { endsAt: now },
+    invalid: { endsAt: '2030-02-30T00:00:00Z' }
+  },
+  {
+    name: 'availability',
+    schema: CalendarPilotAvailabilityRecordSchema,
+    value: {
+      kind: 'busy',
+      bookingKind: null,
+      startsAt: now,
+      endsAt: now,
+      displayLabel: 'Synthetic busy'
+    },
+    invalid: { kind: 'unknown' }
+  },
+  {
+    name: 'runtime appointment',
+    schema: CalendarPilotRuntimeAppointmentRecordSchema,
+    value: mirror.parsed,
+    invalid: { ...mirror.parsed, startsAt: 'Jan 2 2030 Z' }
+  },
+  {
+    name: 'health',
+    schema: CalendarPilotHealthRecordSchema,
+    value: {
+      health: 'healthy',
+      expiresAt: now,
+      inboundEnabled: true,
+      outboundEnabled: true
+    },
+    invalid: { health: 'unknown' }
+  },
+  {
+    name: 'job selection',
+    schema: CalendarPilotJobSelectionRecordSchema,
+    value: { status: 'pending', nextAttemptAt: null },
+    invalid: { status: 'unknown' }
+  },
+  {
+    name: 'runtime job',
+    schema: CalendarPilotRuntimeJobRecordSchema,
+    value: {
+      kind: 'calendar_projection_delete',
+      status: 'pending',
+      generation: 0,
+      attemptCount: 0,
+      localRecordId: 'synthetic_record'
+    },
+    invalid: { kind: 'unknown', status: 'pending' }
+  }
+];
+
+describe.each(readBoundaryCases)(
+  'consumed $name fields',
+  ({ schema, value, invalid }) => {
+    it('accepts the existing writer shape without modifying it', () => {
+      const before = structuredClone(value);
+      expect(parseCalendarPilotRecord<unknown>(schema, value)).toEqual(value);
+      expect(value).toEqual(before);
+    });
+
+    it.each([null, [], 'synthetic', undefined])(
+      'rejects a non-record %s',
+      (value) => {
+        expect(() => parseCalendarPilotRecord<unknown>(schema, value)).toThrow(
+          'Unreadable CAL-PILOT record.'
+        );
+      }
+    );
+
+    it('rejects malformed fields and an unknown version with a fixed error', () => {
+      for (const record of [invalid, { ...value, schemaVersion: 2 }])
+        expect(() => parseCalendarPilotRecord<unknown>(schema, record)).toThrow(
+          'Unreadable CAL-PILOT record.'
+        );
+    });
+  }
+);

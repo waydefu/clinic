@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import {
   CalendarPilotAppointmentRecordSchema,
+  CalendarPilotLeaseConfigurationRecordSchema,
   CalendarPilotMirrorRecordSchema,
   CalendarPilotSourceConfigurationSchema,
   CalendarPilotSourceRecordSchema,
@@ -424,7 +425,10 @@ export class FirestoreCalendarSyncRepository
       // Inspect the live clock after all reads and immediately before writes.
       if (this.workerLease !== undefined)
         assertCalendarPilotWorkerLease(
-          configurationDocument.data()!,
+          parseCalendarPilotRecord(
+            CalendarPilotLeaseConfigurationRecordSchema,
+            configurationDocument.data()
+          ),
           this.workerLease
         );
       for (const mutation of commit.mutations) {
@@ -517,14 +521,25 @@ export class FirestoreCalendarSyncRepository
   ): Promise<void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(this.configRef());
+      if (!configuration.exists)
+        throw new Error('CAL-PILOT source generation changed.');
+      const configurationData = parseCalendarPilotRecord(
+        CalendarPilotSourceConfigurationSchema,
+        configuration.data()
+      );
       if (
-        !configuration.exists ||
-        configuration.data()?.['activeSourceId'] !== sourceId ||
-        configuration.data()?.['version'] !== expectedSourceVersion
+        configurationData.activeSourceId !== sourceId ||
+        configurationData.version !== expectedSourceVersion
       )
         throw new Error('CAL-PILOT source generation changed.');
       if (this.workerLease !== undefined)
-        assertCalendarPilotWorkerLease(configuration.data()!, this.workerLease);
+        assertCalendarPilotWorkerLease(
+          parseCalendarPilotRecord(
+            CalendarPilotLeaseConfigurationRecordSchema,
+            configuration.data()
+          ),
+          this.workerLease
+        );
       transaction.update(this.db.collection(SOURCES).doc(sourceId), {
         syncToken: null,
         lastErrorCode: 'sync_token_expired'
