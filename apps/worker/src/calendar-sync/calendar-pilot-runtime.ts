@@ -898,10 +898,13 @@ export class CalendarPilotRuntime {
       .get();
     if (jobs.size > 1) return true;
     return jobs.docs.some((document) => {
-      const status = parseCalendarPilotRecord(
-        CalendarPilotJobSelectionRecordSchema,
+      const record = CalendarPilotJobSelectionRecordSchema.safeParse(
         document.data()
-      ).status;
+      );
+      // Preserve the existing admission denial for unreadable activation
+      // metadata; never turn an unknown record into a terminal activation.
+      if (!record.success) return true;
+      const status = record.data.status;
       return status !== 'completed' && status !== 'superseded';
     });
   }

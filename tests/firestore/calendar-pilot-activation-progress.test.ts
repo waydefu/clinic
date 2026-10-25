@@ -452,13 +452,19 @@ describe('bounded CAL-PILOT source activation', () => {
     expect(effects).toHaveLength(0);
   });
 
-  it('fails closed on an unknown current activation status', async () => {
-    await jobRef().update({ status: 'unknown' });
-    const summary = await tick();
-    expect(summary).not.toHaveProperty('sync');
-    expect(engineCallCount()).toBe(0);
-    expect(effects).toHaveLength(0);
-  });
+  it.each([
+    { status: 'unknown' },
+    { status: 'completed', schemaVersion: 2 }
+  ])(
+    'fails closed on unreadable current activation metadata: %j',
+    async (invalid) => {
+      await jobRef().update(invalid);
+      const summary = await tick();
+      expect(summary).not.toHaveProperty('sync');
+      expect(engineCallCount()).toBe(0);
+      expect(effects).toHaveLength(0);
+    }
+  );
 
   it('fails closed on duplicate current-generation activations instead of trusting one limited result', async () => {
     await jobRef().update({ status: 'completed' });
