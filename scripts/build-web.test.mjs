@@ -304,3 +304,149 @@ describe('CSS emitted-reference graph', () => {
     expect(() => plan(new Map([['root.css', css]]))).toThrow(/cannot emit/)
   );
 });
+
+describe('per-route clinic pages', () => {
+  const clinicHtml = [
+    '<!doctype html><html><head>',
+    '    <meta name="robots" content="noindex, nofollow" />',
+    '    <meta',
+    '      name="description"',
+    '      content="home description"',
+    '    />',
+    '    <title>【測試用】Home｜一森渼診所</title>',
+    '    <link rel="stylesheet" href="/clinic-site.css" />',
+    '  </head><body><script type="module" src="/clinic-site.js"></script></body></html>'
+  ].join('\n');
+  const content = {
+    CLINIC: { name: '一森渼診所' },
+    HOME_PAGE: {
+      seoTitle: '首頁',
+      seoDescription: '首頁描述',
+      heroImage: '/img/hero.webp'
+    },
+    DOCTORS: [
+      {
+        slug: 'dr-a',
+        name: 'A <b>"醫師"</b> & Co',
+        summary: "it's <i>ok</i>",
+        image: '/img/a.webp'
+      }
+    ],
+    NASAL_SERVICES: [
+      { slug: 'svc', title: '療程', subtitle: '副標', image: '/img/s.webp' }
+    ]
+  };
+  const pages = (html = clinicHtml, options) =>
+    adapter.planClinicRoutePages(html, content, options);
+  const refs = (html) =>
+    [...html.matchAll(/(?:href|src)="([^"]+)"/g)]
+      .map((m) => m[1])
+      .filter((value) => !value.startsWith('http'))
+      .sort();
+
+  it('emits a flat file per route under clinic-route/ with the runtime title and description', () => {
+    const result = pages();
+    expect([...result.keys()].sort()).toEqual([
+      'clinic-route/doctors.html',
+      'clinic-route/doctors/dr-a.html',
+      'clinic-route/nasal/svc.html',
+      'clinic.html'
+    ]);
+    const list = result.get('clinic-route/doctors.html');
+    expect(list).toContain('<title>【測試用】醫師團隊｜一森渼診所</title>');
+    expect(list).toContain('content="認識一森渼診所專業醫師團隊。"');
+    expect(list).toContain(
+      'property="og:title" content="【測試用】醫師團隊｜一森渼診所"'
+    );
+    expect(list).toContain('name="twitter:card" content="summary_large_image"');
+    const service = result.get('clinic-route/nasal/svc.html');
+    expect(service).toContain('<title>【測試用】療程｜一森渼診所</title>');
+    expect(service).toContain('content="副標"');
+    expect(service).not.toContain('home description');
+  });
+
+  it('maps every route to the file the build emits and never writes under clinic/', () => {
+    const files = adapter.clinicRoutePageFiles(content);
+    expect([...files.keys()].sort()).toEqual([
+      '/clinic/doctors',
+      '/clinic/doctors/dr-a',
+      '/clinic/nasal/svc'
+    ]);
+    expect([...files.values()].sort()).toEqual(
+      [...pages().keys()].filter((file) => file !== 'clinic.html').sort()
+    );
+    for (const file of files.values()) expect(file).toMatch(/^clinic-route\//);
+  });
+
+  it('keeps hashed asset references and noindex identical to clinic.html', () => {
+    for (const html of pages().values()) {
+      expect(refs(html)).toEqual(refs(clinicHtml));
+      expect(html).toContain(
+        '<meta name="robots" content="noindex, nofollow" />'
+      );
+    }
+  });
+
+  it('drops the test prefix only when clinic.html is not noindex', () => {
+    const live = clinicHtml.replace(/<meta name="robots"[^>]*>/, '');
+    expect(pages(live).get('clinic-route/doctors.html')).toContain(
+      '<title>醫師團隊｜一森渼診所</title>'
+    );
+  });
+
+  it('escapes inserted text for attribute and text contexts', () => {
+    const html = pages().get('clinic-route/doctors/dr-a.html');
+    expect(html).toContain(
+      '<title>【測試用】A &lt;b&gt;&quot;醫師&quot;&lt;/b&gt; &amp; Co｜一森渼診所</title>'
+    );
+    expect(html).toContain('content="it&#39;s &lt;i&gt;ok&lt;/i&gt;"');
+    expect(html).not.toContain('<b>');
+  });
+
+  it('omits origin-dependent URLs without an origin and emits absolute ones with it', () => {
+    const bare = pages().get('clinic-route/doctors/dr-a.html');
+    for (const key of ['canonical', 'og:url', 'og:image', 'twitter:image'])
+      expect(bare).not.toContain(key);
+    const absolute = pages(clinicHtml, {
+      origin: 'https://example.invalid'
+    }).get('clinic-route/doctors/dr-a.html');
+    expect(absolute).toContain(
+      '<link rel="canonical" href="https://example.invalid/clinic/doctors/dr-a" />'
+    );
+    expect(absolute).toContain(
+      'property="og:image" content="https://example.invalid/img/a.webp"'
+    );
+  });
+
+  it('writes the home page tags back into clinic.html itself', () => {
+    const home = pages(clinicHtml, { origin: 'https://example.invalid' }).get(
+      'clinic.html'
+    );
+    expect(home).toContain('<title>【測試用】首頁｜一森渼診所</title>');
+    expect(home).toContain('name="description" content="首頁描述"');
+    expect(home).not.toContain('home description');
+    expect(home).toContain(
+      '<link rel="canonical" href="https://example.invalid/clinic" />'
+    );
+    expect(home).toContain(
+      'property="og:image" content="https://example.invalid/img/hero.webp"'
+    );
+  });
+
+  it('fails loudly when the shell has no title or description to replace', () => {
+    expect(() => pages('<head></head>')).toThrow(/clinic\.html/);
+  });
+
+  it('covers every route that clinic-content.js declares', async () => {
+    const real = await import('../apps/web/public/clinic-content.js');
+    const html = clinicHtml;
+    const result = adapter.planClinicRoutePages(html, real);
+    expect([...result.keys()].sort()).toEqual(
+      real.CLINIC_ROUTES.map((route) =>
+        route === '/clinic'
+          ? 'clinic.html'
+          : `clinic-route${route.slice(7)}.html`
+      ).sort()
+    );
+  });
+});

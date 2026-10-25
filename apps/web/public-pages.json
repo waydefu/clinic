@@ -44,7 +44,7 @@
       "audience": "public",
       "indexable": false,
       "scans": ["axe", "responsive", "affordance", "mobile-layout"],
-      "note": "診所官網首頁；已具備路由專屬 metadata 與 MedicalClinic 結構化資料，但在正式網域、絕對 canonical 與發布核准完成前維持 noindex。其餘七條 /clinic/** 路由由 clinic-content.js 的 CLINIC_ROUTES 產生，共用同一個 entry。",
+      "note": "診所官網首頁；已具備路由專屬 metadata 與 MedicalClinic 結構化資料，但在正式網域、絕對 canonical 與發布核准完成前維持 noindex。其餘七條 /clinic/** 路由由 clinic-content.js 的 CLINIC_ROUTES 產生，共用同一個 entry；建置另為其中七條各產一份 clinic-route/ 靜態頁（獨立 title／meta），由三份 Hosting 設定的精確 rewrite 供應，/clinic/** 萬用規則與 /clinic 仍回 clinic.html（含 404 後備）。",
       "routing": {
         "kind": "shared-shell",
         "entryRedirect": { "status": 301 },
