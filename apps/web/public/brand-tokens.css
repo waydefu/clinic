@@ -21,8 +21,8 @@
  *   #7a5400 對 白 6.78、#f8f7f2 6.32、#f5efe3（護眼畫布）5.92、#f6f2e3 6.05、
  *           #eaf0e6 5.85、sage-50 6.14、sage-100 5.48、sage-200 4.51、sage-300 3.55
  *           ——都 ≥3:1（R-11、WCAG 2.4.11／1.4.11）。
- *   #d49b45（官網 #249 現用）對 白 只有 2.45、#f8f7f2 2.28、#f5efe3 2.14、
- *           sage-100 1.98，全部不及格，所以不沿用。
+ *   #d49b45（官網 2026-10-25 前的焦點環）對 白 只有 2.45、#f8f7f2 2.28、#f5efe3 2.14、
+ *           sage-100 1.98，全部不及格，所以不沿用；官網已改成同一個 #7a5400。
  * 深色主題的焦點環仍由 styles.css 的 `--focus-ring`（淺琥珀）負責，不在本檔。
  *
  * 其餘小字配對（實算）：forest 對 白 9.41、對 sage-100 7.60；muted 對 白 6.17、
@@ -57,6 +57,23 @@
 
   --brand-ink: #182e27;
   --brand-muted: #56655a;
+
+  /* 社群平台官方色（2026-10-25，取自官方品牌檔，與官網 clinic-site.css 的
+     --clinic-brand-* 同值）：LINE_Brand_icon.png；Facebook 與 Messenger 都是 Facebook
+     Blue；Instagram 是 2023 品牌包漸層字形上取樣的色階，另附實心後備色。不隨主題變色。 */
+  --brand-social-line: #06c755;
+  --brand-social-facebook: #0866ff;
+  --brand-social-messenger: #0866ff;
+  --brand-social-instagram: radial-gradient(
+    circle farthest-corner at 50% 100%,
+    #f6ca45 0%,
+    #f2ab3c 30%,
+    #ea425c 60%,
+    #dd30c1 80%,
+    #ad24d8 100%
+  );
+  --brand-social-instagram-solid: #dd30c1;
+  --brand-social-glyph: #ffffff;
 
   /* 圓角：卡片與膠囊兩階。 */
   --brand-radius-card: 0.75rem;

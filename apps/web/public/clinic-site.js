@@ -9,6 +9,7 @@ import {
   HOME_SPACE,
   HOME_SYMPTOMS,
   HOME_VISIT,
+  ICON_VIEW_BOXES,
   ICONS,
   NASAL_SERVICES,
   NAVIGATION,
@@ -61,6 +62,14 @@ function image(src, alt, className, loading = 'lazy') {
   });
 }
 
+// 卡片與內頁主圖共用同一個轉場名稱，跨頁時瀏覽器會把卡片的圖接到內頁主圖
+// （2026-10-25）。名稱等畫面組好後才由 assignMorphNames() 掛上：同一頁出現兩個
+// 同名元素時，瀏覽器會整個放棄轉場，所以只給每個名稱的第一個元素。
+function morph(node, key) {
+  node.dataset.morph = key;
+  return node;
+}
+
 // 圖示與插圖一律用 createElementNS 逐一建立節點，不把字串當成標記解析——頁面開著
 // Trusted Types，而且資料只是座標，沒有理由當成標記解析。圖示是裝飾，旁邊一定有
 // 文字，所以對輔助科技隱藏。找不到的圖示回傳 null，element() 會略過它。
@@ -81,7 +90,7 @@ const DEFAULT_STROKE = { fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
 function svgIcon(name, className = 'clinic-icon') {
   const paths = ICONS[name];
   if (!paths) return null;
-  const svg = svgShape('0 0 24 24', className);
+  const svg = svgShape(ICON_VIEW_BOXES[name] ?? '0 0 24 24', className);
   for (const entry of paths) {
     const part =
       typeof entry === 'string' ? { ...DEFAULT_STROKE, d: entry } : entry;
@@ -623,7 +632,10 @@ function renderHomeCare() {
         attrs: { 'data-service-card': service.slug }
       },
       [
-        image(service.image, service.imageAlt, 'clinic-service-card__image'),
+        morph(
+          image(service.image, service.imageAlt, 'clinic-service-card__image'),
+          `service-${service.slug}`
+        ),
         element('div', { className: 'clinic-service-card__body' }, [
           element('h3', {}, [
             link(service.title, `/clinic/nasal/${service.slug}`)
@@ -755,7 +767,10 @@ function renderHomeDoctors() {
     const href = `/clinic/doctors/${doctor.slug}`;
     profiles.append(
       element('article', { className: 'clinic-doctor-card' }, [
-        image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
+        morph(
+          image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
+          `doctor-${doctor.slug}`
+        ),
         element('div', { className: 'clinic-doctor-card__body' }, [
           element('h3', {}, [link(doctor.name, href)]),
           element('p', {
@@ -1006,7 +1021,10 @@ function renderHomeFaqSection() {
 // 分隔，不用卡片陰影與拱形相框。醫師卡與首頁「醫師團隊」同一組樣式。
 function doctorCard(doctor) {
   return element('article', { className: 'clinic-doctor-card' }, [
-    image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
+    morph(
+      image(doctor.image, doctor.imageAlt, 'clinic-doctor-card__image'),
+      `doctor-${doctor.slug}`
+    ),
     element('div', { className: 'clinic-doctor-card__body' }, [
       element('h2', {}, [link(doctor.name, `/clinic/doctors/${doctor.slug}`)]),
       element('p', {
@@ -1079,11 +1097,14 @@ function renderDoctor(doctor) {
         'div',
         { className: 'clinic-shell clinic-doctor-profile__grid' },
         [
-          image(
-            doctor.image,
-            doctor.imageAlt,
-            'clinic-doctor-profile__image',
-            'eager'
+          morph(
+            image(
+              doctor.image,
+              doctor.imageAlt,
+              'clinic-doctor-profile__image',
+              'eager'
+            ),
+            `doctor-${doctor.slug}`
           ),
           element('div', { className: 'clinic-doctor-profile__intro' }, [
             element('h1', { text: doctor.name }),
@@ -1339,11 +1360,14 @@ function renderService(service) {
           highlights,
           bookingLink('預約專業評估')
         ]),
-        image(
-          service.image,
-          service.imageAlt,
-          'clinic-service-hero__image',
-          'eager'
+        morph(
+          image(
+            service.image,
+            service.imageAlt,
+            'clinic-service-hero__image',
+            'eager'
+          ),
+          `service-${service.slug}`
         )
       ])
     ]),
@@ -1571,10 +1595,45 @@ function observeHeaderCondense() {
   ).observe(sentinel);
 }
 
+function assignMorphNames(root) {
+  const seen = new Set();
+  for (const node of root.querySelectorAll('[data-morph]')) {
+    const key = node.dataset.morph;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    node.style.setProperty('view-transition-name', `clinic-${key}`);
+  }
+}
+
+/**
+ * 卡片圖片載入時淡入（2026-10-25）。
+ *
+ * 只處理還沒載完的圖：已經在快取裡的圖直接顯示，不為了動畫先藏起來。等待時看到的
+ * 是 CSS 給的柔和底色；載完才加上 `is-loaded` 播一次淡入。只動 opacity，圖片本身
+ * 不縮放不遮罩（業主 2026-08-01）。
+ */
+function fadeInCardImages(root) {
+  const images = root.querySelectorAll(
+    '.clinic-service-card__image, .clinic-doctor-card__image'
+  );
+  for (const img of images) {
+    if (!(img instanceof HTMLImageElement) || img.complete) continue;
+    img.classList.add('is-pending');
+    const settle = () => {
+      img.classList.remove('is-pending');
+      img.classList.add('is-loaded');
+    };
+    img.addEventListener('load', settle, { once: true });
+    img.addEventListener('error', settle, { once: true });
+  }
+}
+
 function applyMotion() {
   const main = document.querySelector('#clinic-main');
   if (main === null) return;
   observeReveals(main);
+  assignMorphNames(main);
+  fadeInCardImages(main);
 }
 
 // 換頁轉場刻意不寫在這裡。這個站是真實的跨文件導覽，不是 SPA——`renderRoute()`
