@@ -155,6 +155,38 @@ afterAll(async () => {
 });
 
 describe('CAL-PILOT dispatch and completion use live lease state', () => {
+  it.each([
+    { kind: 'unknown' },
+    { generation: 1.5 },
+    { attemptCount: -1 },
+    { schemaVersion: 2 }
+  ])(
+    'rejects unreadable outbox data before claiming or dispatching',
+    async (invalid: Record<string, unknown>) => {
+      await db.collection(OUTBOX).doc('job_a').update(invalid);
+      await expect(run()).rejects.toThrow('Unreadable CAL-PILOT record.');
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(engineCallCount()).toBe(0);
+      expect((await state('job_a'))?.['status']).toBe('pending');
+      expect((await state('job_b'))?.['status']).toBe('pending');
+      expect(
+        (await configuration().get()).data()?.['workerLeaseOwner']
+      ).toBeNull();
+    }
+  );
+
+  it('disables a malformed configuration clock before acquiring a lease', async () => {
+    await configuration().update({ expiresAt: 'Sep 2 2026 Z' });
+    await expect(run()).resolves.toMatchObject({ acquired: false });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect((await state('job_a'))?.['status']).toBe('pending');
+    expect((await configuration().get()).data()).toMatchObject({
+      inboundEnabled: false,
+      outboundEnabled: false,
+      health: 'expired'
+    });
+  });
+
   it('preserves valid generation zero rather than imposing a new positive-only policy', async () => {
     await configuration().update({ version: 0 });
     for (const id of ['job_a', 'job_b'])

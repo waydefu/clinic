@@ -195,6 +195,461 @@
     }
   },
   {
+    "path": "/clinic-route/doctors.html",
+    "justification": "與 /clinic.html 相同的殼與資產閉包；建置時依路由產生，只換 title 與 meta（2026-10-25 負責人核准每頁獨立標題）",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 21
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 14
+      },
+      {
+        "resourceType": "image",
+        "budget": 284
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 314
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 19
+      },
+      {
+        "resourceType": "total",
+        "budget": 23
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
+    "path": "/clinic-route/doctors/yan-cheng-an.html",
+    "justification": "與 /clinic.html 相同的殼與資產閉包；建置時依路由產生，只換 title 與 meta（2026-10-25 負責人核准每頁獨立標題）",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 21
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 14
+      },
+      {
+        "resourceType": "image",
+        "budget": 284
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 314
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 19
+      },
+      {
+        "resourceType": "total",
+        "budget": 23
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
+    "path": "/clinic-route/doctors/yang-sheng-feng.html",
+    "justification": "與 /clinic.html 相同的殼與資產閉包；建置時依路由產生，只換 title 與 meta（2026-10-25 負責人核准每頁獨立標題）",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 21
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 14
+      },
+      {
+        "resourceType": "image",
+        "budget": 284
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 314
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 19
+      },
+      {
+        "resourceType": "total",
+        "budget": 23
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
+    "path": "/clinic-route/nasal/snoring-five-in-one.html",
+    "justification": "與 /clinic.html 相同的殼與資產閉包；建置時依路由產生，只換 title 與 meta（2026-10-25 負責人核准每頁獨立標題）",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 21
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 14
+      },
+      {
+        "resourceType": "image",
+        "budget": 284
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 314
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 19
+      },
+      {
+        "resourceType": "total",
+        "budget": 23
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
+    "path": "/clinic-route/nasal/inferior-turbinate-surgery.html",
+    "justification": "與 /clinic.html 相同的殼與資產閉包；建置時依路由產生，只換 title 與 meta（2026-10-25 負責人核准每頁獨立標題）",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 21
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 14
+      },
+      {
+        "resourceType": "image",
+        "budget": 284
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 314
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 19
+      },
+      {
+        "resourceType": "total",
+        "budget": 23
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
+    "path": "/clinic-route/nasal/septoplasty.html",
+    "justification": "與 /clinic.html 相同的殼與資產閉包；建置時依路由產生，只換 title 與 meta（2026-10-25 負責人核准每頁獨立標題）",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 21
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 14
+      },
+      {
+        "resourceType": "image",
+        "budget": 284
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 314
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 19
+      },
+      {
+        "resourceType": "total",
+        "budget": 23
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
+    "path": "/clinic-route/nasal/snore-relief-mouthguard.html",
+    "justification": "與 /clinic.html 相同的殼與資產閉包；建置時依路由產生，只換 title 與 meta（2026-10-25 負責人核准每頁獨立標題）",
+    "resourceSizes": [
+      {
+        "resourceType": "document",
+        "budget": 3
+      },
+      {
+        "resourceType": "script",
+        "budget": 21
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 14
+      },
+      {
+        "resourceType": "image",
+        "budget": 284
+      },
+      {
+        "resourceType": "font",
+        "budget": 0
+      },
+      {
+        "resourceType": "total",
+        "budget": 314
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "script",
+        "budget": 2
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 1
+      },
+      {
+        "resourceType": "image",
+        "budget": 19
+      },
+      {
+        "resourceType": "total",
+        "budget": 23
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 1800
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1
+      }
+    ],
+    "moduleGraph": {
+      "maxDiscoveryDepth": 1
+    }
+  },
+  {
     "path": "/privacy.html",
     "justification": "法律文件頁，刻意零指令碼、零字型（privacy-policy.spec.ts 有斷言釘住）。document 4 KiB 是 2026-07-27 停止出貨 HTML 註解後的實測 3.2 KiB 加餘裕。",
     "resourceSizes": [

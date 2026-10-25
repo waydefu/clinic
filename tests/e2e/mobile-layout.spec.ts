@@ -423,6 +423,21 @@ test.describe('患者預約頁手機版', () => {
     expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
   });
 
+  // 2026-10-25：手機原本把「回官網」收掉，負責人要求補回。styles.css 在手機替頁首
+  // 項目排了 order，沒排到的「回官網」一度跑到標誌前面，所以位置也要守。
+  test('手機頁首的「回官網」看得見、排在標誌之後', async ({ page }) => {
+    await page.goto(BOOKING_ROUTE);
+    const link = page.locator('.patient-header .patient-site-link');
+    await expect(link).toBeVisible();
+    const logoBox = await page.locator('.patient-header .brand').boundingBox();
+    const linkBox = await link.boundingBox();
+    expect(linkBox?.x ?? 0).toBeGreaterThanOrEqual(
+      (logoBox?.x ?? 0) + (logoBox?.width ?? 0) - 1
+    );
+    expect(linkBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
   // 「類型與項目」先前因為 overflow-wrap: anywhere 被排成「類型與項／目」，
   // 最後一個字自己一行。中文可以在任何字之間斷行，所以這不是邊界情況。
   test('步驟標籤不得把最後一個字擠到第二行', async ({ page }) => {

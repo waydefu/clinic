@@ -210,6 +210,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-10-25 | [官網改進候選（#302）synthetic-review 預覽部署](reviews/2026-10-25-clinic-learnings-synthetic-preview-deployment.md) | PR #302 head `36f182c`（CI 12/12）部署至 `synthetic-review`，30 天至 2026-11-24 15:35（Asia/Taipei），取代上午的 main `aee87f5`；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/clinic/doctors` 等內頁 200 無轉址且 JS 前即有各自標題與 og；不存在路徑仍顯示 404 畫面；卡片到內頁轉場經 `pageswap` 確認；面板內 lazy 圖片不載入屬測試環境限制；同日依序追加 `b681e59`、`a0409c2`、`85b8312`（評分後的焦點框、canonical／og:image、預約頁回官網與備註提醒），現行為 `85b8312`，到期 2026-11-24 22:06 |
 | 2026-10-25 | [官網與預約頁 synthetic-review 預覽部署](reviews/2026-10-25-clinic-booking-synthetic-preview-deployment.md) | Exact `aee87f5` 已部署至 `beauessence-clinic-staging` 的 `synthetic-review`，30 天，至 2026-11-24 13:21（Asia/Taipei）；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/booking` 實機開啟正常，`/v1/health` 404；`verify:preview` 298/451，失敗為雜湊資產 CSP 與工作臺文案的既有腳本假設，已如實記錄 |
 | 2026-10-11 | [身份／session／API 邊界 CI 紅燈收尾交接](reviews/2026-10-11-auth-session-boundary-ci-closeout-handoff.md) | DRAFT_REVIEW_ONLY：Emulator harness、SAST 9 處動態執行、business-tab 8 個 E2E 皆本機重現後修正；獨立審查後再修 X-C04 兩個按鈕並收緊 c1 檢查；29 ID 逐列（SOURCE_FIXED 19、PARTIAL 3、OPEN 3、BLOCKED 2、其他 2）；exact-head CI 見 PR，不 merge／deploy。 |
 | 2026-10-10 | [身份／session／API 邊界 Draft 交接](reviews/2026-10-10-auth-session-boundary-draft-handoff.md) | DRAFT_REVIEW_ONLY：相關 Chromium 35/35，登出／重新驗證／患者建議隔離通過；full unit、Emulator 與 exact-head CI 分開回報。key cutover／policy／runtime blockers 保留，不 merge／deploy。 |

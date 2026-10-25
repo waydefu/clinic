@@ -173,6 +173,7 @@ Lighthouse `budget.json` 的格式以便日後直接餵進 Lighthouse CI，而 L
 | 2026-07-27 | `/privacy.html` image／total | 1 KiB／1 檔／7 KiB | 3 KiB／2 檔／8 KiB | 頁首加入診所標誌（與預約頁同一份 2.4 KiB 的 WebP，多數訪客已在預約頁快取過）。實測 total 7.4 KiB。 |
 | 2026-08-01 | `/clinic.html` script／stylesheet | 12 KiB／7 KiB | 20 KiB／14 KiB | 首頁動效與門診時間／交通資訊補全，業主當日同意擴充首頁預算。動效限用 CSS transform／opacity，`cumulative-layout-shift` 維持 0.1 不放寬。（補記：這一列在當時的變更裡漏了，2026-08-02 補上。） |
 | 2026-08-02 | `/clinic.html` image／total | 560 KiB／3 檔／595 KiB | 180 KiB／14 檔／200 KiB | **這是調降，不是調高。** 12 張官網素材轉 WebP 後由 2210 KiB 降到 129 KiB，實測整頁 13 檔 127.3 KiB／total 146.3 KiB。檔數 3 → 14 是因為同日修好 `check:perf` 的盲點：它先前不追 JS 字串常數指到的圖，12 張裡有 9 張因此對預算隱形——那 1.7 MB 一直都會被下載。 |
+| 2026-10-25 | `/clinic-route/**.html`（七頁） | 無 | 與 `/clinic.html` 相同 | 官網每條路由各產一份靜態頁（只換 title 與 meta），共用同一份殼與資產閉包，所以直接複製 `/clinic.html` 的全部數字，沒有放寬任何一項。負責人 2026-10-25 核准每頁獨立標題；`check:pages` 會比對這七筆預算與建置實際產出的頁面。 |
 
 ## 3. SBOM 與授權政策
 
