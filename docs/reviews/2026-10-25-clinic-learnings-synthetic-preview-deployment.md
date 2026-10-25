@@ -2,6 +2,9 @@
 
 ## 現行狀態
 
+**目前頻道上是 `b681e59`（見文末〈追加部署：`b681e59`〉）。下面的表與實測是同日稍早
+`36f182c` 的部署，保留不改。**
+
 **DEPLOYED AND SMOKED — PR #302 head `36f182c` 靜態預覽；四項實測通過。**
 本次只更新 Hosting preview channel，沒有動 live、CAL-PILOT、Cloud Run 或任何後端。
 這是 PR 候選版本，不是 main；它取代同頻道上午部署的 main `aee87f5`
@@ -63,3 +66,29 @@ synthetic-review 預覽頻道（30 天，只發 preview、不動 live），並�
 ## 下架
 
 到期自動失效；提前下架：`firebase hosting:channel:delete synthetic-review --project beauessence-clinic-staging --force`。
+
+## 追加部署：`b681e59`
+
+同日負責人看了預覽上的底線連結後要求「盡量不要文字連結，不太美觀」，#302 加上
+`b681e59`（獨立連結改成淡色按鈕）。負責人核准：「#302 的 CI 全綠後，把 b681e59 發到
+beauessence-clinic-staging 的 synthetic-review 預覽頻道（30 天，只發 preview、不動
+live），並實測官網與預約頁的連結」。此核准只涵蓋這一次部署。
+
+| 欄位 | 結果 |
+| --- | --- |
+| 部署版本 | #302 head `b681e59` |
+| 該版本 CI | `verify` run `40174466891` on `b681e59` — 12/12 checks `success`，含 `Verification evidence` |
+| 期限 | `30d`，到期 `2026-11-24T07:58:14Z`（2026-11-24 15:58 Asia/Taipei） |
+| Release／version | `1792915140973000`／`2d7fbc78bd0bef72` |
+| Release time | `2026-10-25T07:59:00Z`（15:59 Asia/Taipei） |
+| live channel | 未變：仍是 2026-08-22 的 release `1787409828279000` |
+| 部署方式 | 同上：同一個 detached worktree 切到 `b681e59`（lockfile 與 `firebase.json` 與 `36f182c` 相同），一次性設定檔只移除 `/v1/**` |
+
+| 實測 | 結果 |
+| --- | --- |
+| 官網首屏資訊卡的電話、地址 | PASS：無底線、淡底色（alpha 0.07）、1px 細框，高 44px（地址折行 66px） |
+| 官網頁尾 7 個連結（電話、預約、社群、隱私權說明） | PASS：同上，高 44–54px |
+| 官網文字型行動連結（醫師介紹等） | PASS：同上，高 44px |
+| 句子裡的連結 | 照舊保留底線（地圖出處「地圖資料 © OpenStreetMap」） |
+| 預約頁「回官網」與頁尾 3 個連結 | PASS：無底線、淡底色、1px 細框、膠囊圓角，高 44px |
+| 預約頁深色主題 | 本機預覽（同一來源）實測：按鈕顏色隨主題變成淡綠；預覽頻道上沒有另外切主題 |
