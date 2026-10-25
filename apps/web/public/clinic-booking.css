@@ -204,7 +204,7 @@ html {
 }
 
 /* 「回官網」：標誌已經連到官網，這條是給找不到標誌可以按的人，所以手機收掉。
-   它不在 <nav> 裡，靠底線表達可以按（R-2）。 */
+   它不在 <nav> 裡，靠檔尾的淡色膠囊表達可以按（R-2）。 */
 .patient-site-link {
   align-items: center;
   color: var(--forest-dark);
@@ -213,8 +213,6 @@ html {
   margin-inline-start: auto;
   min-height: var(--control-height-md);
   padding: 0 var(--space-2xs);
-  text-decoration: underline;
-  text-underline-offset: 0.25rem;
   white-space: nowrap;
 }
 
@@ -353,8 +351,6 @@ html {
   display: inline-flex;
   min-height: var(--control-height-md);
   min-width: var(--control-height-md);
-  text-decoration: underline;
-  text-underline-offset: 0.25rem;
 }
 
 /* 健保特約標章：官方標章襯白底、不改色（styles.css 的 .patient-credentials）。
@@ -687,4 +683,23 @@ html {
   .patient-slot-date {
     box-shadow: none;
   }
+}
+
+/* 「回官網」與頁尾連結改成淡色膠囊按鈕，不用底線（2026-10-25，負責人：「盡量不要
+   文字連結，不太美觀」）。底色與細框取自文字顏色（currentColor），四種主題（含深色）
+   都會跟著變色，仍是看得出可以按的形狀（R-2）；高度沿用 --control-height-md（R-3）。
+   頁尾選擇器要壓過 styles.css 的 `.patient-footer > div:first-child a`（共用檔，那條
+   給工作臺頁尾的行文連結保留底線）。 */
+.patient-site-link,
+.patient-body .patient-footer > .booking-footer a {
+  background-color: color-mix(in srgb, currentColor 7%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: var(--radius-pill);
+  padding-inline: var(--space-xs);
+  text-decoration: none;
+}
+
+.patient-site-link:hover,
+.patient-body .patient-footer > .booking-footer a:hover {
+  background-color: color-mix(in srgb, currentColor 14%, transparent);
 }

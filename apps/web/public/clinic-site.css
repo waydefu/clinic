@@ -492,8 +492,8 @@ a {
   list-style: none;
 }
 
-/* 連結沿用內文色，只以底線表示可點——首屏這一區是資訊而不是行動呼籲，
-   用色塊會跟下面兩顆 CTA 搶視線。底線本身就是非顏色的可辨識訊號。
+/* 連結沿用內文色——首屏這一區是資訊而不是行動呼籲，不用實心色塊跟下面兩顆 CTA
+   搶視線；可點的形狀是檔尾的淡色圓角按鈕（2026-10-25 起取代底線）。
    電話與地址是獨立連結（不在句子裡），因此不適用 SC 2.5.8 的 Inline 例外，
    必須自己撐到規則書 R-3 的 44px 可點高度；`inline-flex` 讓可點區包含內距而
    不是只有文字的行高。 */
@@ -502,8 +502,6 @@ a {
   align-items: center;
   min-height: 2.75rem;
   color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.25rem;
 }
 
 .clinic-eyebrow {
@@ -611,12 +609,11 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 }
 
 /* 文字型 CTA。它是獨立的入口（不是句子裡的連結），所以吃 R-3 的 44px 下限——
-   實測「安排門診評估」原本只有 104×21。用 inline-flex 撐高，底線與字級不變。 */
+   實測「安排門診評估」原本只有 104×21。用 inline-flex 撐高；外觀是檔尾的淡色圓角按鈕。 */
 .clinic-text-link {
   color: var(--clinic-green);
   font-size: var(--clinic-text-body);
   font-weight: var(--clinic-weight-bold);
-  text-underline-offset: 0.3rem;
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
@@ -1457,11 +1454,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   gap: 0.5rem;
 }
 
-/* 頁尾的社群名稱保留底線，與頁尾其他連結一致；底線只畫在文字下。 */
+/* 頁尾的社群連結與頁尾其他連結一致，外觀是檔尾的淡色圓角按鈕。 */
 .clinic-footer__social .clinic-social {
   gap: 0.75rem;
-  text-decoration: underline;
-  text-underline-offset: 0.25rem;
 }
 
 /* 頁尾的每一個連結都是獨立的入口——電話會被按下去撥號、社群與隱私權說明會被
@@ -1470,7 +1465,6 @@ body:not(:has(.clinic-noscript)) #clinic-main {
    用 inline-flex 撐高而不是加 padding：後者會把頁尾的行距一起撐開。 */
 .clinic-footer a {
   color: inherit;
-  text-underline-offset: 0.25rem;
   display: inline-flex;
   align-items: center;
   min-width: 2.75rem;
@@ -3462,4 +3456,27 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   .clinic-doctor-card:hover {
     transform: none;
   }
+}
+
+/* 獨立連結改成淡色圓角按鈕，不用底線（2026-10-25，負責人：「盡量不要文字連結，
+   不太美觀」）。底色與細框取自文字顏色（currentColor）的淡色，在任何底色上都是看得出
+   可以按的形狀（R-2）；高度沿用各自原本的 44px（R-3）。句子裡的連結不在此列，照舊
+   保留底線（R-2 豁免 3）。首屏的社群圖示本身就是圓形按鈕，不套用。 */
+.clinic-hero-fact a:not(.clinic-social),
+.clinic-footer a,
+.clinic-text-link {
+  padding: 0.25rem 0.75rem;
+  background-color: color-mix(in srgb, currentColor 7%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  /* 地址在窄欄會折成兩行，全圓角折行後兩端變形，所以用中等圓角。 */
+  border-radius: var(--clinic-radius-md);
+  text-decoration: none;
+  transition: background-color var(--clinic-duration-effect-swift)
+    var(--clinic-ease-out);
+}
+
+.clinic-hero-fact a:not(.clinic-social):hover,
+.clinic-footer a:hover,
+.clinic-text-link:hover {
+  background-color: color-mix(in srgb, currentColor 14%, transparent);
 }

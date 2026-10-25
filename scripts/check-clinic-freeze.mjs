@@ -43,7 +43,10 @@ import { fileURLToPath } from 'node:url';
  * transition, a load fade on card images, and social badges in the official brand
  * colours and the official Messenger glyph. That authorises one
  * rebaseline of the renderer, stylesheet and public content. No copy, asset,
- * image or asset manifest changed.
+ * image or asset manifest changed. Later the same day the lead asked for fewer
+ * underlined text links ("盡量不要文字連結，不太美觀"); standalone links on both
+ * pages became tinted pill buttons, which rebaselined clinic-site.css again and
+ * apps/web/public/clinic-booking.css once.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -51,11 +54,11 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    'c0c449c6fcfb3446c2c5fde8b2679e94bc510f486bab97fcf35eb9a554d0f011',
+    'cf1653d7629d9e70e9c5e986615664502be1deb6576d763d97b1d06e93e8bddc',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
-    '84b381c928eb9cd95b9ec289ceac4fb518e95c8ab15c437bd85c77ea1262d68d',
+    'cb22238274233006fd7b99785c0dd6b8a21cf6cb998856f8a60b8c393ded8357',
   'apps/web/clinic-assets.manifest.json':
     '56bce15f8632fd5309689d953e9a0a92a67e6f9c604120fd4ce32e0151ada633',
   'apps/web/public/clinic-assets/care-aftercare.webp':
