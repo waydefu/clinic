@@ -92,6 +92,35 @@ describe('evaluateInternalTestBackup', () => {
 });
 
 describe('planInternalTestRestore', () => {
+  it.each(['2026-02-30T00:00:00Z', '2026-02-28T24:00:00Z'])(
+    'refuses a normalized rather than real snapshot date %s',
+    (snapshotTime) => {
+      expect(() =>
+        planInternalTestRestore({ ...PACKET, snapshotTime }, HEAD)
+      ).toThrow(/whole-minute UTC/);
+    }
+  );
+
+  it.each([
+    'Sep 21 2026 GMT',
+    '2026-09-21T24:00:00Z',
+    '2026-09-21T08:00:00+08:00'
+  ])('refuses a noncanonical restore clock %s', (nowUtc) => {
+    expect(() => planInternalTestRestore(PACKET, HEAD, nowUtc)).toThrow(
+      /parseable clock/
+    );
+  });
+
+  it('accepts a real leap day without enabling execution', () => {
+    expect(
+      planInternalTestRestore(
+        { ...PACKET, snapshotTime: '2028-02-29T00:00:00Z' },
+        HEAD,
+        '2028-03-01T00:00:00.123456Z'
+      ).execute
+    ).toBe(false);
+  });
+
   it('prints execute:false clone onto a new database', () => {
     const plan = planInternalTestRestore(PACKET, HEAD);
     expect(plan.execute).toBe(false);

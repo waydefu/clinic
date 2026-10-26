@@ -455,7 +455,7 @@ async function encode(
   );
 }
 
-async function main() {
+export async function main() {
   const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const sourceDir = join(repoRoot, 'apps', 'web', 'clinic-source');
   const outputDir = join(repoRoot, 'apps', 'web', 'public', 'clinic-assets');

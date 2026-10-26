@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+import { isUtcIsoTimestamp } from '../apps/web/public/vendor/domain/timestamp.js';
+
 import {
   FORBIDDEN_STAGING_PROJECT,
   isIsolatedC1ProjectId,
@@ -168,18 +170,18 @@ export function assertInternalTestRestorePacket(packet, headSha, nowUtc) {
   }
   if (
     !WHOLE_MINUTE_UTC.test(snapshotTime) ||
-    Number.isNaN(Date.parse(snapshotTime))
+    !isUtcIsoTimestamp(snapshotTime)
   ) {
     throw new Error(
       'internal-test restore snapshotTime must be a whole-minute UTC timestamp such as 2026-09-14T00:00:00Z.'
     );
   }
   if (nowUtc !== undefined) {
-    const nowMs = Date.parse(nowUtc);
-    const snapshotMs = Date.parse(snapshotTime);
-    if (Number.isNaN(nowMs)) {
+    if (!isUtcIsoTimestamp(nowUtc)) {
       throw new Error('internal-test restore plan needs a parseable clock.');
     }
+    const nowMs = Date.parse(nowUtc);
+    const snapshotMs = Date.parse(snapshotTime);
     if (snapshotMs > nowMs || snapshotMs < nowMs - PITR_WINDOW_MS) {
       throw new Error(
         'internal-test restore snapshotTime must be within the last seven days (PITR window).'
