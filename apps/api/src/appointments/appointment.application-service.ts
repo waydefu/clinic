@@ -25,7 +25,11 @@ import type {
   RescheduleRequest,
   TransitionRequest
 } from '@beauessence/domain';
-import { DomainError, SLOT_DURATION_MINUTES } from '@beauessence/domain';
+import {
+  assertUtcTimestamp,
+  DomainError,
+  SLOT_DURATION_MINUTES
+} from '@beauessence/domain';
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import type { AppointmentAuthorizationPolicy } from './appointment.policy.js';
@@ -280,6 +284,12 @@ export class AppointmentApplicationService {
     private readonly patients?: PatientDirectoryPort
   ) {}
 
+  private nowUtc(): string {
+    const now = this.clock.nowUtc();
+    assertUtcTimestamp(now, 'clock.nowUtc');
+    return now;
+  }
+
   private async resolveCreateAuthentication(
     command: CreateAppointmentRequest,
     authentication: AuthenticationContext
@@ -303,7 +313,7 @@ export class AppointmentApplicationService {
       if (this.patients === undefined) throw new MissingVerifiedPatientError();
       const intake = await this.patients.prepareIntake(
         command.intake,
-        this.clock.nowUtc(),
+        this.nowUtc(),
         () => this.ids.next()
       );
       const patientId = intake.patientId;
@@ -348,7 +358,7 @@ export class AppointmentApplicationService {
     const request = toBookingRequest(command, {
       appointmentId: this.ids.next(),
       patientId,
-      requestedAt: this.clock.nowUtc(),
+      requestedAt: this.nowUtc(),
       audit: {
         actorId: resolvedAuth.actorId,
         actorRole: resolvedAuth.actorRole,
@@ -391,7 +401,7 @@ export class AppointmentApplicationService {
         ...(authentication.verifiedPatientId === undefined
           ? {}
           : { expectedPatientId: authentication.verifiedPatientId }),
-        requestedAt: this.clock.nowUtc(),
+        requestedAt: this.nowUtc(),
         audit: {
           actorId: authentication.actorId,
           actorRole: authentication.actorRole,
@@ -484,7 +494,7 @@ export class AppointmentApplicationService {
     const result = await this.patients.lookupReturn(
       command.phone,
       command.birthDate,
-      this.clock.nowUtc(),
+      this.nowUtc(),
       () => this.ids.next()
     );
     if (result === undefined) {
@@ -517,7 +527,7 @@ export class AppointmentApplicationService {
    * left the page with nothing once enough old appointments existed.
    */
   private listWindow(): AppointmentListWindow {
-    const nowMs = Date.parse(this.clock.nowUtc());
+    const nowMs = Date.parse(this.nowUtc());
     return {
       from: new Date(nowMs - LIST_LOOKBACK_MS).toISOString(),
       to: new Date(nowMs + LIST_HORIZON_MS).toISOString()
@@ -529,8 +539,9 @@ export class AppointmentApplicationService {
     patientScope = false
   ): GetAppointmentResponse[] {
     if (record.startsAt === undefined) return [];
+    assertUtcTimestamp(record.startsAt, 'appointment.startsAt');
     const startMs = Date.parse(record.startsAt);
-    const nowMs = Date.parse(this.clock.nowUtc());
+    const nowMs = Date.parse(this.nowUtc());
     if (
       startMs < nowMs - LIST_LOOKBACK_MS ||
       startMs > nowMs + LIST_HORIZON_MS
@@ -581,7 +592,7 @@ export class AppointmentApplicationService {
         ...(authentication.verifiedPatientId === undefined
           ? {}
           : { expectedPatientId: authentication.verifiedPatientId }),
-        requestedAt: this.clock.nowUtc(),
+        requestedAt: this.nowUtc(),
         audit: {
           actorId: authentication.actorId,
           actorRole: authentication.actorRole,
@@ -664,7 +675,7 @@ export class AppointmentApplicationService {
 
     const result = await this.repository.recordFollowUp(
       toFollowUpRequest(appointmentId, command, {
-        requestedAt: this.clock.nowUtc(),
+        requestedAt: this.nowUtc(),
         audit: {
           actorId: authentication.actorId,
           actorRole: authentication.actorRole,
@@ -691,7 +702,7 @@ export class AppointmentApplicationService {
     await this.authorization.assertCanDelete(authentication);
     const result = await this.repository.deleteAppointment(
       toDeleteRequest(appointmentId, command, {
-        requestedAt: this.clock.nowUtc(),
+        requestedAt: this.nowUtc(),
         audit: {
           actorId: authentication.actorId,
           actorRole: authentication.actorRole,
@@ -728,7 +739,7 @@ export class AppointmentApplicationService {
 
     const result = await this.repository.transition(
       toTransitionRequest(appointmentId, command, transition, {
-        requestedAt: this.clock.nowUtc(),
+        requestedAt: this.nowUtc(),
         audit: {
           actorId: authentication.actorId,
           actorRole: authentication.actorRole,
