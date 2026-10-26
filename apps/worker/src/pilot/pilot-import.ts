@@ -1,6 +1,6 @@
 /* eslint-disable no-console -- 這是本機一次性 CLI，進度必須印到 stdout。 */
 /**
- * CAL-PILOT-001 匯入 CLI —— **由診所負責人在自己的電腦上執行**。
+ * CAL-PILOT-001 歷史匯入實作。CLI 已停用，以下不是現行操作指示。
  *
  * 它做的事，一句話：把真實日曆在指定期間內的預約，消毒成「只有時間與代號」的
  * 假事件，寫進另一本專用測試日曆。
@@ -185,7 +185,13 @@ async function main(): Promise<void> {
   console.log('來源日曆全程未被修改——讀取用戶端沒有任何寫入方法。');
 }
 
-main().catch((error: unknown) => {
+// Historical implementation only: the retired CLI must not read keys or sources.
+void main;
+Promise.reject(
+  new Error(
+    'LEGACY_CALENDAR_IMPORT_DISABLED: use synthetic-only tests; no credential or source reads are authorized.'
+  )
+).catch((error: unknown) => {
   // 只印訊息，不印堆疊：堆疊可能夾帶參數內容。
   console.error('失敗：', error instanceof Error ? error.message : '未知錯誤');
   process.exitCode = 1;
