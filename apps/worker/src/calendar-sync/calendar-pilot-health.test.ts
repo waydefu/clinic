@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   evaluateCalendarPilotHealth,
   inspectCalendarPilotHealth,
   type CalendarPilotHealthStore
 } from './calendar-pilot-health.js';
+import { createCalendarPilotServer } from './calendar-pilot-main.js';
 
 const NOW = '2026-09-14T01:00:00.000Z';
 
@@ -98,6 +99,68 @@ describe('evaluateCalendarPilotHealth', () => {
 });
 
 describe('inspectCalendarPilotHealth', () => {
+  const healthyConfiguration = {
+    health: 'healthy',
+    expiresAt: '2028-03-01T00:00:00Z',
+    inboundEnabled: true,
+    outboundEnabled: true
+  };
+
+  it.each([
+    '2026-02-30T00:00:00Z',
+    '2026-01-01T24:00:00Z',
+    '2026-01-01T00:00:00',
+    '2026-01-01T08:00:00+08:00',
+    'Jan 1 2026 GMT'
+  ])('rejects clock %s before reading configuration or outbox', async (now) => {
+    const store = fakeStore({ config: healthyConfiguration });
+    const collection = vi.spyOn(store, 'collection');
+    await expect(inspectCalendarPilotHealth(store, now)).rejects.toThrow(/UTC/);
+    expect(collection).not.toHaveBeenCalled();
+  });
+
+  it.each(['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.123456789Z'])(
+    'accepts leap-day clock %s',
+    async (now) => {
+      await expect(
+        inspectCalendarPilotHealth(
+          fakeStore({ config: healthyConfiguration }),
+          now
+        )
+      ).resolves.toMatchObject({ health: 'ok', alerts: [] });
+    }
+  );
+
+  it('serves HTTP 503 for a rejected clock without database access or a drain', async () => {
+    const store = fakeStore({ config: healthyConfiguration });
+    const collection = vi.spyOn(store, 'collection');
+    const run = vi.fn(() => Promise.resolve());
+    const server = createCalendarPilotServer({
+      run,
+      inspect: () => inspectCalendarPilotHealth(store, '2026-02-30T00:00:00Z')
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve)
+    );
+    try {
+      const address = server.address();
+      if (address === null || typeof address === 'string')
+        throw new Error('Expected a loopback TCP address.');
+      const response = await fetch(`http://127.0.0.1:${address.port}/health`);
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({
+        error: 'worker_unavailable'
+      });
+      expect(collection).not.toHaveBeenCalled();
+      expect(run).not.toHaveBeenCalled();
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+        server.closeAllConnections();
+      });
+    }
+  });
+
   it.each([
     { health: 'unknown' },
     { expiresAt: '2030-02-30T00:00:00Z' },
