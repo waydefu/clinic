@@ -1,5 +1,6 @@
 import {
   assertOutboxTraceContext,
+  assertUtcTimestamp,
   fullJitterBackoffMilliseconds,
   isDue,
   isUtcIsoTimestamp,
@@ -459,6 +460,7 @@ export class OutboxProcessor {
     now = new Date().toISOString(),
     maxJobs = 50
   ): Promise<ProcessSummary> {
+    assertUtcTimestamp(now, 'outbox.now');
     const batchStartedAt = this.monotonicNow();
     const batchInstantMs = Date.parse(now);
     const at = (): string =>
@@ -672,6 +674,7 @@ export class OutboxProcessor {
     operatorId: string,
     now = new Date().toISOString()
   ): Promise<boolean> {
+    assertUtcTimestamp(now, 'outbox.now');
     return this.db.runTransaction(async (transaction) => {
       const reference = this.db.collection(OUTBOX_COLLECTION).doc(jobId);
       const snapshot = await transaction.get(reference);

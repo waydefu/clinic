@@ -1,3 +1,5 @@
+import { isUtcIsoTimestamp } from '@beauessence/domain';
+
 import { ServiceUnavailableError } from '../platform/errors/api-error.js';
 
 /**
@@ -13,7 +15,12 @@ export function assertBookPilotWritable(
   nowUtc: string,
   settings: BookPilotSettings
 ): void {
-  if (!settings.enabled) throw new ServiceUnavailableError();
+  if (
+    !settings.enabled ||
+    !isUtcIsoTimestamp(nowUtc) ||
+    !isUtcIsoTimestamp(settings.expiresAtUtc ?? '')
+  )
+    throw new ServiceUnavailableError();
   const expiresAtMs = Date.parse(settings.expiresAtUtc ?? '');
   if (!Number.isFinite(expiresAtMs)) throw new ServiceUnavailableError();
   const nowMs = Date.parse(nowUtc);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildClinicCalendarEventBody,
@@ -127,6 +127,44 @@ function appointment(id: string, etag: string) {
 }
 
 describe('CalendarSyncEngine', () => {
+  it.each([
+    '2026-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2026-02-28T24:00:00Z',
+    '2026-02-28T00:00:00',
+    '2026-02-28T08:00:00+08:00',
+    'Feb 28 2026 GMT'
+  ])(
+    'rejects noncanonical sync clock %s before repository or provider reads',
+    async (now) => {
+      const repository = new MemoryRepository();
+      const load = vi.spyOn(repository, 'loadConfiguration');
+      const reader = new FakeReader([
+        { events: [], nextSyncToken: 'synthetic-token' }
+      ]);
+      await expect(
+        new CalendarSyncEngine(reader, repository).run(now)
+      ).rejects.toThrow(/UTC/iu);
+      expect(load).not.toHaveBeenCalled();
+      expect(reader.requests).toEqual([]);
+      expect(repository.commits).toEqual([]);
+    }
+  );
+
+  it('keeps a real leap day with fractional UTC precision', async () => {
+    const repository = new MemoryRepository();
+    repository.configuration = {
+      ...repository.configuration,
+      expiresAt: '2028-03-01T00:00:00Z'
+    };
+    const reader = new FakeReader([
+      { events: [], nextSyncToken: 'synthetic-token' }
+    ]);
+    const now = '2028-02-29T00:00:00.123456Z';
+    await expect(
+      new CalendarSyncEngine(reader, repository).run(now)
+    ).resolves.toMatchObject({ completedAt: now });
+  });
   it('mirrors an initial system-linked write without creating a duplicate candidate', async () => {
     const repository = new MemoryRepository();
     repository.managedLinks.add('appointment_001');
