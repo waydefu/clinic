@@ -10,6 +10,20 @@ import {
 } from './cal-pilot-extension-policy.mjs';
 
 describe('CAL-PILOT extension policy', () => {
+  it.each(['now', 'currentExpiry'])(
+    'rejects a normalized calendar date in %s before planning a renewal',
+    (field) => {
+      expect(() =>
+        nextHostingExpiry({
+          now: '2026-09-28T05:18:46Z',
+          currentExpiry: '2026-10-05T05:18:46Z',
+          targetExpiry: CAL_PILOT_EXTENDED_EXPIRY,
+          [field]: '2026-09-31T05:18:46Z'
+        })
+      ).toThrow(`${field} must be an exact UTC timestamp.`);
+    }
+  );
+
   it('accepts only the approved staging expiry transition', () => {
     expect(() =>
       validateExtensionRequest({
