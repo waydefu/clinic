@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -72,6 +72,239 @@ describe('calendar pilot canonical runtime clock', () => {
       expect(runTransaction).toHaveBeenCalledOnce();
     }
   );
+});
+
+function jobDocument(id: string, row: unknown): DocumentSnapshot {
+  const ref = { id };
+  return {
+    id,
+    ref,
+    exists: true,
+    data: () => row
+  } as unknown as DocumentSnapshot;
+}
+
+function setupJobClaim(
+  candidates: {
+    readonly processing: readonly DocumentSnapshot[];
+    readonly pending: readonly DocumentSnapshot[];
+  },
+  authoritativeRows: Readonly<Record<string, unknown>>
+) {
+  let queryIndex = 0;
+  const collection = vi.fn(() => {
+    const query = {
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      get: vi.fn(() =>
+        Promise.resolve({
+          docs: candidates[queryIndex++ === 0 ? 'processing' : 'pending']
+        })
+      )
+    };
+    return query;
+  });
+  const update = vi.fn();
+  const runTransaction = vi.fn((callback: (transaction: never) => unknown) =>
+    Promise.resolve(
+      callback({
+        get: vi.fn((ref: { readonly id: string }) => {
+          const row = authoritativeRows[ref.id];
+          return Promise.resolve({
+            exists: row !== undefined,
+            ref,
+            data: () => row
+          });
+        }),
+        update
+      } as never)
+    )
+  );
+  const db = { collection, runTransaction } as unknown as Firestore;
+  return { db, update, runTransaction };
+}
+
+describe('calendar pilot job UTC admission', () => {
+  const owner = 'synthetic_worker';
+
+  it.each([
+    {
+      name: 'claims an expired processing lease',
+      leaseExpiresAt: '2025-12-31T23:59:59.000Z',
+      expectedClaimCount: 1
+    },
+    {
+      name: 'does not claim a lease renewed by the transaction read',
+      leaseExpiresAt: '2026-01-01T00:00:01.000Z',
+      expectedClaimCount: 0
+    },
+    {
+      name: 'rejects a noncanonical transaction lease at the schema',
+      leaseExpiresAt: '2026-01-01T08:00:00+08:00',
+      expectedClaimCount: undefined
+    }
+  ])(
+    '$name',
+    async ({
+      leaseExpiresAt,
+      expectedClaimCount
+    }: {
+      leaseExpiresAt: string;
+      expectedClaimCount: number | undefined;
+    }) => {
+      const now = '2026-01-01T00:00:00.000Z';
+      const queryRow = {
+        kind: 'calendar_projection_delete',
+        status: 'processing',
+        leaseOwner: 'previous_worker',
+        leaseExpiresAt: '2025-12-31T23:59:59.000Z'
+      };
+      const candidate = jobDocument('processing_job', queryRow);
+      const currentRow = { ...queryRow, leaseExpiresAt };
+      const { db, update } = setupJobClaim(
+        { processing: [candidate], pending: [] },
+        { processing_job: currentRow }
+      );
+
+      if (expectedClaimCount === undefined)
+        await expect(claimCalendarPilotJobs(db, owner, now)).rejects.toThrow(
+          'Unreadable CAL-PILOT record.'
+        );
+      else
+        expect(await claimCalendarPilotJobs(db, owner, now)).toHaveLength(
+          expectedClaimCount
+        );
+      expect(update).toHaveBeenCalledTimes(expectedClaimCount ?? 0);
+    }
+  );
+
+  it.each([
+    {
+      name: 'claims a due timestamp',
+      nextAttemptAt: '2025-12-31T23:59:59.000Z',
+      includeNextAttemptAt: true,
+      expectedClaimCount: 1
+    },
+    {
+      name: 'skips a future timestamp',
+      nextAttemptAt: '2026-01-01T00:00:01.000Z',
+      includeNextAttemptAt: true,
+      expectedClaimCount: 0
+    },
+    {
+      name: 'claims null backoff',
+      nextAttemptAt: null,
+      includeNextAttemptAt: true,
+      expectedClaimCount: 1
+    },
+    {
+      name: 'claims missing backoff',
+      nextAttemptAt: undefined,
+      includeNextAttemptAt: false,
+      expectedClaimCount: 1
+    },
+    {
+      name: 'skips an impossible date',
+      nextAttemptAt: '2026-02-30T00:00:00Z',
+      includeNextAttemptAt: true,
+      expectedClaimCount: 0
+    },
+    {
+      name: 'skips an offset timestamp',
+      nextAttemptAt: '2026-01-01T08:00:00+08:00',
+      includeNextAttemptAt: true,
+      expectedClaimCount: 0
+    },
+    {
+      name: 'skips a legacy date string',
+      nextAttemptAt: 'Jan 1 2026 GMT',
+      includeNextAttemptAt: true,
+      expectedClaimCount: 0
+    }
+  ])(
+    '$name without updating a rejected candidate',
+    async ({
+      nextAttemptAt,
+      includeNextAttemptAt,
+      expectedClaimCount
+    }: {
+      nextAttemptAt: string | null | undefined;
+      includeNextAttemptAt: boolean;
+      expectedClaimCount: number;
+    }) => {
+      const row = {
+        kind: 'calendar_projection_delete',
+        status: 'pending',
+        ...(includeNextAttemptAt ? { nextAttemptAt } : {})
+      };
+      const candidate = jobDocument('pending_job', row);
+      const { db, update } = setupJobClaim(
+        { processing: [], pending: [candidate] },
+        { pending_job: row }
+      );
+
+      expect(
+        await claimCalendarPilotJobs(db, owner, '2026-01-01T00:00:00.000Z')
+      ).toHaveLength(expectedClaimCount);
+      expect(update).toHaveBeenCalledTimes(expectedClaimCount);
+    }
+  );
+
+  it.each([
+    {
+      name: 'future backoff',
+      nextAttemptAt: '2026-01-01T00:00:01.000Z'
+    },
+    { name: 'malformed backoff', nextAttemptAt: 'Jan 1 2026 GMT' }
+  ])(
+    'rechecks a due query snapshot against a transaction with $name',
+    async ({ nextAttemptAt }: { nextAttemptAt: string }) => {
+      const queryRow = {
+        kind: 'calendar_projection_delete',
+        status: 'pending',
+        nextAttemptAt: '2025-12-31T23:59:59.000Z'
+      };
+      const candidate = jobDocument('pending_job', queryRow);
+      const { db, update, runTransaction } = setupJobClaim(
+        { processing: [], pending: [candidate] },
+        {
+          pending_job: {
+            ...queryRow,
+            nextAttemptAt
+          }
+        }
+      );
+
+      await expect(
+        claimCalendarPilotJobs(db, owner, '2026-01-01T00:00:00.000Z')
+      ).resolves.toEqual([]);
+      expect(runTransaction).toHaveBeenCalledOnce();
+      expect(update).not.toHaveBeenCalled();
+    }
+  );
+
+  it('writes the established lease shape for a real leap-day candidate', async () => {
+    const now = '2028-02-29T23:58:59.987654321Z';
+    const row = {
+      kind: 'calendar_projection_delete',
+      status: 'pending',
+      nextAttemptAt: '2028-02-29T23:58:59.000Z'
+    };
+    const candidate = jobDocument('pending_job', row);
+    const { db, update } = setupJobClaim(
+      { processing: [], pending: [candidate] },
+      { pending_job: row }
+    );
+
+    expect(await claimCalendarPilotJobs(db, owner, now)).toHaveLength(1);
+    expect(update).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenCalledWith(candidate.ref, {
+      status: 'processing',
+      leaseOwner: owner,
+      leaseExpiresAt: '2028-03-01T00:02:59.987Z'
+    });
+  });
 });
 
 describe('calendar pilot runtime configuration', () => {
