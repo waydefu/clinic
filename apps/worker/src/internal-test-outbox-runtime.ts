@@ -1,3 +1,4 @@
+import { assertUtcTimestamp, isUtcIsoTimestamp } from '@beauessence/domain';
 import type { Firestore } from 'firebase-admin/firestore';
 
 import { InMemoryCalendar, type CalendarPort } from './calendar-port.js';
@@ -91,6 +92,7 @@ export function createInternalTestOutboxRuntime(
       };
     },
     async run(nowUtc = options.clock?.() ?? new Date().toISOString()) {
+      assertUtcTimestamp(nowUtc, 'nowUtc');
       const summary = await processor.processDue(nowUtc);
       const snapshot = await readOutboxQueueSnapshot(options.db, nowUtc);
       try {
@@ -120,6 +122,7 @@ export async function readOutboxQueueSnapshot(
   db: Firestore,
   nowUtc: string
 ): Promise<WorkerQueueSnapshotMetric> {
+  assertUtcTimestamp(nowUtc, 'nowUtc');
   const collection = db.collection(OUTBOX_COLLECTION);
   const [pending, inProgress, deadLettered, oldestDue] = await Promise.all([
     collection.where('status', '==', 'pending').get(),
@@ -138,7 +141,10 @@ export async function readOutboxQueueSnapshot(
     typeof oldestRecord['nextAttemptAt'] === 'string'
       ? oldestRecord['nextAttemptAt']
       : undefined;
-  const oldestMs = oldest === undefined ? Number.NaN : Date.parse(oldest);
+  const oldestMs =
+    oldest !== undefined && isUtcIsoTimestamp(oldest)
+      ? Date.parse(oldest)
+      : Number.NaN;
   const nowMs = Date.parse(nowUtc);
   const oldestPendingAgeSeconds =
     Number.isFinite(oldestMs) && Number.isFinite(nowMs)

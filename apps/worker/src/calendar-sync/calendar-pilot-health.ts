@@ -2,6 +2,7 @@ import {
   CalendarPilotHealthRecordSchema,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
+import { assertUtcTimestamp } from '@beauessence/domain';
 
 /**
  * Read-only CAL-PILOT `/health` inspect. Does not call Google Calendar and
@@ -119,6 +120,7 @@ export async function inspectCalendarPilotHealth(
   db: CalendarPilotHealthStore,
   nowUtc: string
 ): Promise<CalendarPilotHealthInspection> {
+  assertUtcTimestamp(nowUtc, 'nowUtc');
   const outbox = db.collection('calendar_pilot_outbox');
   const [configuration, pending, processing, failed] = await Promise.all([
     db.collection('calendar_pilot_configuration').doc('active').get(),

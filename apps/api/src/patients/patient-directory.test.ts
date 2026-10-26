@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import type { Firestore } from 'firebase-admin/firestore';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DomainError } from '@beauessence/domain';
 
 import {
   assertFollowUpBookable,
+  FirestorePatientDirectory,
   InMemoryPatientDirectory,
   opaqueLookupIdentity,
+  PATIENT_COLLECTIONS,
   toListRecord
 } from './patient-directory.js';
 
@@ -16,6 +19,201 @@ const INTAKE = {
   nationality: 'domestic' as const,
   privacyConsent: true as const
 };
+
+describe.each(['firestore', 'memory'] as const)(
+  'return lookup UTC admission (%s)',
+  (adapter) => {
+    const NOW = '2028-02-29T00:00:00.123456789Z';
+    const invalidTimes = [
+      '2026-02-30T00:00:00Z',
+      '2026-01-01T24:00:00Z',
+      '2026-01-01T00:00:00',
+      '2026-01-01T08:00:00+08:00',
+      'Jan 1 2026 GMT'
+    ];
+
+    function setup(
+      startsAt = NOW,
+      status: 'confirmed' | 'cancelled' = 'confirmed'
+    ) {
+      const appointment = {
+        appointmentId: 'synthetic_appointment',
+        patientId: 'synthetic_patient',
+        slotId: 'synthetic_slot',
+        bookingKind: 'follow_up' as const,
+        status,
+        startsAt
+      };
+      const followUp = {
+        required: true,
+        activeFollowUpAppointmentId: appointment.appointmentId
+      };
+      const allocateId = vi.fn(() => 'synthetic_session');
+      if (adapter === 'memory') {
+        const directory = new InMemoryPatientDirectory();
+        directory.lookup.set(
+          opaqueLookupIdentity(INTAKE.phone, INTAKE.birthDate),
+          [appointment.patientId]
+        );
+        directory.patients.set(appointment.patientId, { name: INTAKE.name });
+        directory.followUp.set(appointment.patientId, followUp);
+        directory.appointments.push(appointment);
+        return {
+          directory,
+          allocateId,
+          reads: vi.spyOn(directory.lookup, 'get'),
+          sessionCount: () => directory.sessions.size,
+          writeData: () => directory.sessions.get('rs_synthetic_session')
+        };
+      }
+      const values = new Map<string, Record<string, unknown>>([
+        [
+          PATIENT_COLLECTIONS.lookupIndex,
+          { patientIds: [appointment.patientId] }
+        ],
+        [PATIENT_COLLECTIONS.patients, { name: INTAKE.name }],
+        [PATIENT_COLLECTIONS.followUpState, followUp],
+        ['appointments', appointment]
+      ]);
+      const writes: Record<string, unknown>[] = [];
+      const collection = vi.fn((name: string) => ({
+        doc: vi.fn(() => ({
+          get: () =>
+            Promise.resolve({
+              exists: values.has(name),
+              data: () => values.get(name)
+            }),
+          create: (data: Record<string, unknown>) => {
+            writes.push(data);
+            return Promise.resolve();
+          }
+        }))
+      }));
+      return {
+        directory: new FirestorePatientDirectory({
+          collection
+        } as unknown as Firestore),
+        allocateId,
+        reads: collection,
+        sessionCount: () => writes.length,
+        writeData: () => writes[0]
+      };
+    }
+
+    it.each(invalidTimes)(
+      'rejects clock %s before patient access',
+      async (now) => {
+        const fixture = setup();
+        await expect(
+          fixture.directory.lookupReturn(
+            INTAKE.phone,
+            INTAKE.birthDate,
+            now,
+            fixture.allocateId
+          )
+        ).rejects.toBeInstanceOf(DomainError);
+        expect(fixture.reads).not.toHaveBeenCalled();
+        expect(fixture.allocateId).not.toHaveBeenCalled();
+        expect(fixture.sessionCount()).toBe(0);
+      }
+    );
+
+    it.each(invalidTimes)(
+      'rejects stored startsAt %s before session creation',
+      async (startsAt) => {
+        const fixture = setup(startsAt);
+        await expect(
+          fixture.directory.lookupReturn(
+            INTAKE.phone,
+            INTAKE.birthDate,
+            NOW,
+            fixture.allocateId
+          )
+        ).rejects.toBeInstanceOf(DomainError);
+        expect(fixture.allocateId).not.toHaveBeenCalled();
+        expect(fixture.sessionCount()).toBe(0);
+      }
+    );
+
+    it('does not leave a session behind when stored time cannot be parsed', async () => {
+      const fixture = setup('not-a-time');
+      await expect(
+        fixture.directory.lookupReturn(
+          INTAKE.phone,
+          INTAKE.birthDate,
+          NOW,
+          fixture.allocateId
+        )
+      ).rejects.toThrow();
+      expect(fixture.sessionCount()).toBe(0);
+      expect(fixture.allocateId).not.toHaveBeenCalled();
+    });
+
+    it.each(['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.123Z', NOW])(
+      'preserves valid UTC precision %s and existing durations',
+      async (now) => {
+        const fixture = setup(now);
+        const result = await fixture.directory.lookupReturn(
+          INTAKE.phone,
+          INTAKE.birthDate,
+          now,
+          fixture.allocateId
+        );
+        expect(result).toEqual({
+          sessionId: 'rs_synthetic_session',
+          expiresAt: new Date(Date.parse(now) + 15 * 60_000).toISOString(),
+          outcome: 'existing',
+          appointmentId: 'synthetic_appointment',
+          startsAt: now,
+          endsAt: new Date(Date.parse(now) + 30 * 60_000).toISOString(),
+          patientId: 'synthetic_patient'
+        });
+        expect(fixture.allocateId).toHaveBeenCalledOnce();
+        expect(fixture.sessionCount()).toBe(1);
+        expect(fixture.writeData()).toMatchObject({
+          patientId: 'synthetic_patient',
+          expiresAt: result?.expiresAt
+        });
+        if (adapter === 'firestore')
+          expect(fixture.writeData()).toHaveProperty('createdAt', now);
+      }
+    );
+
+    it.each([
+      ['short', INTAKE.birthDate],
+      [INTAKE.phone, '1990-01-15']
+    ])('preserves identifier denial for %s / %s', async (phone, birthDate) => {
+      const fixture = setup();
+      await expect(
+        fixture.directory.lookupReturn(
+          phone,
+          birthDate,
+          'not-a-time',
+          fixture.allocateId
+        )
+      ).resolves.toBeUndefined();
+      expect(fixture.reads).not.toHaveBeenCalled();
+      expect(fixture.allocateId).not.toHaveBeenCalled();
+      expect(fixture.sessionCount()).toBe(0);
+    });
+
+    it('keeps a cancelled follow-up on the scheduling path', async () => {
+      const fixture = setup('not-a-time', 'cancelled');
+      const result = await fixture.directory.lookupReturn(
+        INTAKE.phone,
+        INTAKE.birthDate,
+        NOW,
+        fixture.allocateId
+      );
+      expect(result).toMatchObject({
+        outcome: 'schedule',
+        patientId: 'synthetic_patient'
+      });
+      expect(result).not.toHaveProperty('startsAt');
+      expect(fixture.sessionCount()).toBe(1);
+    });
+  }
+);
 
 describe('opaque lookup identity', () => {
   it('is stable across phone punctuation and is not the raw phone number', () => {
