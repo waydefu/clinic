@@ -1,4 +1,5 @@
 import {
+  assertUtcTimestamp,
   DomainError,
   normalisePatientIdentity,
   PATIENT_NATIONALITIES,
@@ -390,6 +391,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     const digits = patientPhoneDigits(phone);
     if (digits.length < 8 || digits.length > 20) return undefined;
     if (!isMonthDay(birthDate)) return undefined;
+    assertUtcTimestamp(nowUtc, 'nowUtc');
     const lookup = await this.db
       .collection(PATIENT_COLLECTIONS.lookupIndex)
       .doc(opaqueLookupIdentity(digits, birthDate))
@@ -416,18 +418,9 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     if (state?.required !== true) {
       return undefined;
     }
-    const sessionId = `rs_${allocateId()}`;
-    const expiresAt = new Date(
-      Date.parse(nowUtc) + RETURN_SESSION_MS
-    ).toISOString();
-    await this.db
-      .collection(PATIENT_COLLECTIONS.returnSessions)
-      .doc(sessionId)
-      .create({
-        patientId,
-        createdAt: nowUtc,
-        expiresAt
-      });
+    let existing:
+      | Pick<ReturnLookupResult, 'appointmentId' | 'startsAt' | 'endsAt'>
+      | undefined;
     const activeId = state?.activeFollowUpAppointmentId;
     if (typeof activeId === 'string') {
       const appointment = await this.db
@@ -436,17 +429,34 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
         .get();
       const startsAt = stringField(appointment.data(), 'startsAt');
       if (typeof startsAt === 'string' && isLiveFollowUp(appointment.data())) {
-        return {
-          sessionId,
-          expiresAt,
-          outcome: 'existing',
+        assertUtcTimestamp(startsAt, 'appointment.startsAt');
+        existing = {
           appointmentId: activeId,
           startsAt,
-          endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString(),
-          patientId
+          endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString()
         };
       }
     }
+    const expiresAt = new Date(
+      Date.parse(nowUtc) + RETURN_SESSION_MS
+    ).toISOString();
+    const sessionId = `rs_${allocateId()}`;
+    await this.db
+      .collection(PATIENT_COLLECTIONS.returnSessions)
+      .doc(sessionId)
+      .create({
+        patientId,
+        createdAt: nowUtc,
+        expiresAt
+      });
+    if (existing !== undefined)
+      return {
+        sessionId,
+        expiresAt,
+        outcome: 'existing',
+        ...existing,
+        patientId
+      };
     return { sessionId, expiresAt, outcome: 'schedule', patientId };
   }
 
@@ -667,6 +677,7 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     const digits = patientPhoneDigits(phone);
     if (digits.length < 8 || digits.length > 20) return undefined;
     if (!isMonthDay(birthDate)) return undefined;
+    assertUtcTimestamp(nowUtc, 'nowUtc');
     const patientId = resolveReturnCandidate(
       (this.lookup.get(opaqueLookupIdentity(digits, birthDate)) ?? []).filter(
         (id) =>
@@ -679,30 +690,38 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     if (state?.required !== true) {
       return undefined;
     }
-    const sessionId = `rs_${allocateId()}`;
-    const expiresAt = new Date(
-      Date.parse(nowUtc) + RETURN_SESSION_MS
-    ).toISOString();
-    this.sessions.set(sessionId, { patientId, expiresAt });
+    let existing:
+      | Pick<ReturnLookupResult, 'appointmentId' | 'startsAt' | 'endsAt'>
+      | undefined;
     const activeId = state?.activeFollowUpAppointmentId;
     if (typeof activeId === 'string') {
       const appointment = this.appointments.find(
         (item) => item.appointmentId === activeId
       );
       if (appointment?.startsAt !== undefined && isLiveFollowUp(appointment)) {
-        return {
-          sessionId,
-          expiresAt,
-          outcome: 'existing',
+        assertUtcTimestamp(appointment.startsAt, 'appointment.startsAt');
+        existing = {
           appointmentId: activeId,
           startsAt: appointment.startsAt,
           endsAt: new Date(
             Date.parse(appointment.startsAt) + 30 * 60_000
-          ).toISOString(),
-          patientId
+          ).toISOString()
         };
       }
     }
+    const expiresAt = new Date(
+      Date.parse(nowUtc) + RETURN_SESSION_MS
+    ).toISOString();
+    const sessionId = `rs_${allocateId()}`;
+    this.sessions.set(sessionId, { patientId, expiresAt });
+    if (existing !== undefined)
+      return {
+        sessionId,
+        expiresAt,
+        outcome: 'existing',
+        ...existing,
+        patientId
+      };
     return { sessionId, expiresAt, outcome: 'schedule', patientId };
   }
 
