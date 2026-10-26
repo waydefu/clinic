@@ -1,3 +1,5 @@
+import { isUtcIsoTimestamp } from '@beauessence/domain';
+
 export interface CalendarSourceRecord {
   readonly sourceId: string;
   readonly displayName: string;
@@ -72,6 +74,10 @@ export class CalendarSourceSwitchService {
     sourceId: string,
     now = new Date().toISOString()
   ): Promise<CalendarSourcePreflightResult> {
+    if (!isUtcIsoTimestamp(now))
+      throw new CalendarSourceSwitchError(
+        'Calendar source clock must be a UTC timestamp.'
+      );
     const [configuration, source] = await Promise.all([
       this.repository.loadConfiguration(),
       this.repository.findSource(sourceId)
@@ -105,6 +111,10 @@ export class CalendarSourceSwitchService {
     readonly now?: string;
   }): Promise<CalendarSourceSwitchResult> {
     const now = input.now ?? new Date().toISOString();
+    if (!isUtcIsoTimestamp(now))
+      throw new CalendarSourceSwitchError(
+        'Calendar source clock must be a UTC timestamp.'
+      );
     const [configuration, source, preflight] = await Promise.all([
       this.repository.loadConfiguration(),
       this.repository.findSource(input.sourceId),
@@ -149,6 +159,10 @@ export class CalendarSourceSwitchService {
     expectedVersion: number,
     now = new Date().toISOString()
   ): Promise<CalendarSourceSwitchResult> {
+    if (!isUtcIsoTimestamp(now))
+      throw new CalendarSourceSwitchError(
+        'Calendar source clock must be a UTC timestamp.'
+      );
     const configuration = await this.repository.loadConfiguration();
     if (configuration.previousSourceId === undefined)
       throw new CalendarSourceSwitchError(
