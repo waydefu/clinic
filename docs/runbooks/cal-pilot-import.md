@@ -1,6 +1,19 @@
-# 日曆搬運工具 使用教學
+# 歷史日曆搬運工具：已停用
 
-## 這個工具在做什麼
+**狀態：`LEGACY_CALENDAR_IMPORT_DISABLED`。** 這不是現階段的操作入口。
+`apps/worker/src/pilot/pilot-import.ts` 直接拒絕執行，不讀金鑰檔、不讀來源日曆、不派送。
+下方只保留歷史文字供追溯；即使能消毒，也不代表獲准讀取真實資料。
+
+現階段只可在單元測試使用記憶體合成事件，或依已核範圍準備
+[30 日合成 CAL-PILOT 測試單](cal-pilot-30-day-bidirectional-sync.md)。
+後者的實際 provider／日曆／部署仍需操作當日 exact-SHA、精確目標與到期授權；本頁不授權執行。
+不得沿用舊步驟下載金鑰、建立帳號、讀真實來源、切換日曆或刪除資料。
+權限與實際資料界線以 [Safety Floor](../../AGENTS.md) 及
+[決定登記簿](../product/phase-1-decision-register.md) 為準。
+
+<details><summary>停用的歷史教學；不可照做</summary>
+
+## 這個工具過去在做什麼
 
 把診所真實日曆上的預約，**只保留「幾點」和「一個代號」**，複製到另一本測試日曆。
 
@@ -246,3 +259,5 @@ Remove-Item Env:CAL_PILOT_SOURCE_KEY_FILE, Env:CAL_PILOT_WRITER_KEY_FILE, Env:CA
 - 這個工具**不會**把資料寫進預約系統，也不會影響任何真實預約。
 - 相關治理限制見
   [CAL-PILOT-001 readiness](../integration/google-calendar-pilot-readiness.md)。
+
+</details>

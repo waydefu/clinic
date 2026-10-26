@@ -188,10 +188,10 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [C1 local execution packet](runbooks/c1-local-execution-packet.md) — ADC/CLI commands for the new isolated C1 project; no secrets; C1 foundation smoke PASSed on `beauessence-clinic-stg-c1a01`
 - [C2～C6 local execution packet](runbooks/c2-c6-local-execution-packet.md) — sequential Identity/session/RBAC/Firestore/Calendar dry-run and apply packets; SHA-gated; booking stays UNROUTED
-- [日曆搬運工具使用教學](runbooks/cal-pilot-import.md) — owner-run CAL-PILOT import CLI in plain language: what it copies (time and an opaque label only), the three guarantees it enforces in code, PowerShell setup, a deliberately tiny first run, what each skip reason means, how to clean up by batch ID and what every error message means
+- [歷史日曆搬運工具（已停用）](runbooks/cal-pilot-import.md) — retired real-data/key-file CLI; rejects before credential or source reads; archived instructions are not current authority
 - [CAL-PILOT 合成雙向同步操作手冊](runbooks/cal-pilot-30-day-bidirectional-sync.md) — synthetic-only event format, shared availability, Google＋TOTP, source switching, immutable release sequence, rollback, expiry and budget boundaries
 - [Calendar sync failure runbook](runbooks/calendar-sync-failure.md) — outbox retry, dead letter and manual recovery
-- [Calendar go-live runbook](runbooks/calendar-go-live.md) — who does what to wire the real Google Calendar test integration (credentials stay with the owner)
+- [Calendar 合成接線邊界](runbooks/calendar-go-live.md) — current CLOUD_ADC versus local compatibility contract; historical credential steps are retired, not current operation instructions
 - [Backup and restore runbook](runbooks/backup-and-restore.md) — what is protected, approved RTO/RPO targets whose capability remains unverified, the restore procedure and the quarterly drill requirement
 - [Incident response runbook](runbooks/incident-response.md) — severity levels, roles, communication, the privacy-incident path and the postmortem template
 - [Month close runbook](runbooks/month-close.md) — provisional list, review, approval and lock

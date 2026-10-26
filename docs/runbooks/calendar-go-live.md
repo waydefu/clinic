@@ -1,4 +1,27 @@
-# Runbook：接上真實 Google Calendar（測試整合）
+# Calendar 接線邊界（僅合成來源準備）
+
+**狀態：來源準備，不是部署或連線授權。** 舊的金鑰下載與真實連線步驟已退役，
+下方僅作歷史追溯。現階段的實際操作須依
+[決定登記簿](../product/phase-1-decision-register.md) 及 fresh exact-SHA／精確目標／到期授權；
+不得讀真實病患日曆或建立、下載、讀取憑證。
+
+## 現行來源契約
+
+- Cloud Run 測試整合使用 `GOOGLE_CALENDAR_AUTH=CLOUD_ADC` 與附加服務身分；
+  此模式拒絕 `GOOGLE_SERVICE_ACCOUNT_JSON` 與 `GOOGLE_APPLICATION_CREDENTIALS`，
+  不掛載私鑰檔。不因本頁而核准新的身分、角色或 Calendar ACL。
+- 本機 `SERVICE_ACCOUNT_JSON` 是程式保留的相容模式，不是本輪建立或準備金鑰的指示。
+- 未明確啟用測試模式時不得連線；只可依現有合成來源回歸核對允許與拒絕分支。
+- Google HTTP 的單次等待既有預設為 30 秒；outbox 的重試仍由原工作契約決定。
+  操作工具的有界等待不授權重送未知結果的身分變更。
+- [30 日合成 CAL-PILOT](cal-pilot-30-day-bidirectional-sync.md) 與
+  [C2～C6 操作 packet](c2-c6-local-execution-packet.md) 是各自受限的準備入口，
+  不是 production、憑證、IAM 或真實資料權限。失敗恢復見
+  [calendar-sync-failure](calendar-sync-failure.md)。
+
+<details><summary>退役的歷史接線步驟；不可照做</summary>
+
+## 歷史狀態
 
 **狀態：** 用戶端已完成，尚未實際連線。依 2026-07-23 專案負責人的測試授權
 （見[決策登錄](../product/phase-1-decision-register.md)）。D-009 正式核准仍為
@@ -119,3 +142,5 @@ Remove-Item Env:GOOGLE_SERVICE_ACCOUNT_JSON, Env:GOOGLE_CALENDAR_ID, Env:GOOGLE_
 - 服務帳號金鑰永遠不進 Git、日誌或前端。
 - 工作臺（瀏覽器）永遠不直接呼叫 Google——只有 worker 會，且經 outbox
   （ADR-0002、ADR-0003）。
+
+</details>

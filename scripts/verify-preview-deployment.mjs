@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 
+import { withRequestDeadline } from './request-deadline.mjs';
+
 const execFileAsync = promisify(execFile);
 const outputDirectory =
   process.env.PREVIEW_EVIDENCE_OUTPUT_DIR ?? 'output/evidence';
@@ -76,11 +78,16 @@ function checkHeaders(response, label, expectedCache) {
 async function inspectHtml(path, label, markers) {
   const url = new URL(path, baseUrl);
   try {
-    const response = await fetch(url, {
-      headers: { 'user-agent': 'beauessence-preview-verifier/1' },
-      redirect: 'follow'
+    const { response, body } = await withRequestDeadline(async (signal) => {
+      const response = await fetch(url, {
+        headers: { 'user-agent': 'beauessence-preview-verifier/1' },
+        redirect: 'follow',
+        signal
+      });
+      const body = await response.text();
+      signal.throwIfAborted();
+      return { response, body };
     });
-    const body = await response.text();
     record(`${label}: HTTP 200`, response.status === 200, `${response.status}`);
     record(
       `${label}: remains on staging host`,
@@ -134,8 +141,15 @@ record(
 for (const asset of [...assets].sort()) {
   const label = `asset ${new URL(asset).pathname}`;
   try {
-    const response = await fetch(asset, {
-      headers: { 'user-agent': 'beauessence-preview-verifier/1' }
+    const response = await withRequestDeadline(async (signal) => {
+      const response = await fetch(asset, {
+        headers: { 'user-agent': 'beauessence-preview-verifier/1' },
+        signal
+      });
+      // Only headers are inspected; do not leave an unread body streaming.
+      await response.body?.cancel();
+      signal.throwIfAborted();
+      return response;
     });
     record(`${label}: HTTP 200`, response.status === 200, `${response.status}`);
     checkHeaders(response, label, ['public', 'max-age=31536000', 'immutable']);
