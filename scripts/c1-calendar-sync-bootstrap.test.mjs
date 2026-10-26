@@ -18,6 +18,29 @@ function environment(overrides = {}) {
 }
 
 describe('C1 Calendar sync bootstrap gate', () => {
+  it.each([
+    '2026-02-30T12:00:00Z',
+    '2026-02-28T24:00:00Z',
+    '2026-02-29T12:00:00Z'
+  ])('rejects a normalized rather than real UTC expiry %s', (expiresAt) => {
+    expect(() =>
+      planC1CalendarSyncBootstrap(
+        environment({ C1_CALENDAR_SYNC_EXPIRES_AT: expiresAt }),
+        new Date('2026-02-20T12:00:00Z')
+      )
+    ).toThrow('C1_CALENDAR_SYNC_EXPIRES_AT must be an exact UTC timestamp.');
+  });
+
+  it('retains a real leap day and approved fractional UTC precision', () => {
+    const expiresAt = '2028-02-29T12:00:00.123456Z';
+    expect(
+      planC1CalendarSyncBootstrap(
+        environment({ C1_CALENDAR_SYNC_EXPIRES_AT: expiresAt }),
+        new Date('2028-02-20T12:00:00Z')
+      ).configuration.expiresAt
+    ).toBe(expiresAt);
+  });
+
   it('plans one bounded synthetic source without credentials', () => {
     const plan = planC1CalendarSyncBootstrap(environment(), NOW);
     expect(plan.configuration).toMatchObject({

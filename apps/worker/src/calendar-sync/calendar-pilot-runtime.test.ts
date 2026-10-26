@@ -1,12 +1,78 @@
-import { describe, expect, it } from 'vitest';
+import type { Firestore } from 'firebase-admin/firestore';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   assertExpectedMirrorEtag,
+  CalendarPilotRuntime,
+  claimCalendarPilotJobs,
   C1_SYNTHETIC_CALENDAR_SOURCE_ID,
   calendarWriteEventForConfirmedAppointment,
   calendarWriteEventForMirror,
   resolveCalendarPilotRuntimeConfiguration
 } from './calendar-pilot-runtime.js';
+
+describe('calendar pilot canonical runtime clock', () => {
+  const environment = {
+    CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+    GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+    CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
+    GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+    GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+  };
+  function setup() {
+    const query = {
+      doc: vi.fn(() => ({})),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      get: vi.fn(() => Promise.resolve({ docs: [] }))
+    };
+    const collection = vi.fn(() => query);
+    const runTransaction = vi.fn(() => Promise.resolve(undefined));
+    const db = { collection, runTransaction } as unknown as Firestore;
+    return { db, collection, runTransaction };
+  }
+
+  it.each([
+    '2026-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2026-01-01T24:00:00Z',
+    '2026-01-01T00:00:00',
+    '2026-01-01T08:00:00+08:00',
+    'Jan 1 2026 GMT'
+  ])(
+    'rejects noncanonical clock %s before lease or job access',
+    async (now) => {
+      const { db, collection, runTransaction } = setup();
+      const runtime = new CalendarPilotRuntime(db, environment, () => now);
+      await expect(runtime.run()).rejects.toThrow(/lease/iu);
+      await expect(
+        claimCalendarPilotJobs(db, 'synthetic_worker', now)
+      ).rejects.toThrow(/lease/iu);
+      expect(collection).not.toHaveBeenCalled();
+      expect(runTransaction).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.123456Z'])(
+    'keeps valid leap-day UTC precision %s',
+    async (now) => {
+      const { db, collection, runTransaction } = setup();
+      const runtime = new CalendarPilotRuntime(db, environment, () => now);
+      await expect(runtime.run()).resolves.toEqual({
+        acquired: false,
+        processedJobs: 0,
+        failedJobs: 0
+      });
+      await expect(
+        claimCalendarPilotJobs(db, 'synthetic_worker', now)
+      ).resolves.toEqual([]);
+      expect(collection).toHaveBeenCalledWith('calendar_pilot_configuration');
+      expect(collection).toHaveBeenCalledWith('calendar_pilot_outbox');
+      expect(runTransaction).toHaveBeenCalledOnce();
+    }
+  );
+});
 
 describe('calendar pilot runtime configuration', () => {
   const pseudonymKey = 'p'.repeat(32);

@@ -150,6 +150,7 @@ export async function claimCalendarPilotJobs(
 ): Promise<readonly DocumentSnapshot[]> {
   if (!Number.isInteger(limit) || limit < 1 || limit > JOB_BATCH_SIZE)
     throw new Error('Calendar pilot job claim limit is invalid.');
+  if (!isUtcIsoTimestamp(now)) throw new CalendarPilotLeaseLostError();
   const collection = db.collection('calendar_pilot_outbox');
   const [expiredProcessing, pending] = await Promise.all([
     collection
@@ -566,8 +567,7 @@ export class CalendarPilotRuntime {
     owner: string,
     now: string
   ): Promise<number | undefined> {
-    if (!Number.isFinite(Date.parse(now)))
-      throw new CalendarPilotLeaseLostError();
+    if (!isUtcIsoTimestamp(now)) throw new CalendarPilotLeaseLostError();
     const ref = this.db
       .collection('calendar_pilot_configuration')
       .doc('active');
