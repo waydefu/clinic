@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { initialState } from '../../apps/web/public/modules/state-schema.js';
 import { PERMISSIONS } from '../../apps/web/public/modules/constants.js';
 import { permissionsFor } from '../../apps/web/public/modules/permissions.js';
 import { ROLES } from '../../apps/web/public/vendor/domain/roles.js';
@@ -290,6 +291,16 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
                 available: true
               }
             ]
+          }
+        });
+        return;
+      }
+      if (path === '/v1/schedule' && request.method() === 'GET') {
+        await route.fulfill({
+          json: {
+            publishedVersion: 1,
+            publishedAt: '2030-01-01T00:00:00.000Z',
+            schedule: initialState().schedule
           }
         });
         return;

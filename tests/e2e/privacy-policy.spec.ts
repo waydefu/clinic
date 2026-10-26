@@ -244,10 +244,17 @@ test.describe('隱私權政策頁', () => {
     // 摘要不再攤在表單上，所以那六件事**必須**在展開的全文裡找得到——否則這次
     // 改版就是把告知從「低調」變成「沒有」。
     test('六項事實仍然找得到，只是改由入口一次展開', async ({ page }) => {
+      const moduleRequests: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().includes('/policy-dialog-content'))
+          moduleRequests.push(request.url());
+      });
       await reachDetailsStep(page);
+      expect(moduleRequests).toEqual([]);
       await page.locator('#open-privacy-policy').click();
       const body = page.locator('.policy-dialog-body');
       await expect(body).toBeVisible();
+      expect(moduleRequests).toHaveLength(1);
       for (const fact of [
         '一森渼診所',
         '蒐集目的',
@@ -257,6 +264,34 @@ test.describe('隱私權政策頁', () => {
         '不提供個人資料的影響'
       ])
         await expect(body).toContainText(fact);
+    });
+
+    test('告知模組載入失敗仍可讀全文，且不建立同意或預約', async ({ page }) => {
+      let blockedImports = 0;
+      await page.route('**/policy-dialog-content*.js', async (route) => {
+        blockedImports += 1;
+        await route.abort();
+      });
+      await reachDetailsStep(page);
+      expect(blockedImports).toBe(0);
+      await expect(page.locator('#privacy-consent')).not.toBeChecked();
+      const storedBefore = await page.evaluate(
+        (key) => window.localStorage.getItem(key),
+        STORAGE_KEY
+      );
+
+      await page.locator('#open-privacy-policy').click();
+      await expect(page).toHaveURL(/\/privacy$/);
+      await expect(
+        page.getByRole('heading', { level: 1, name: /隱私權政策/ })
+      ).toBeVisible();
+      expect(blockedImports).toBeGreaterThan(0);
+      expect(
+        await page.evaluate(
+          (key) => window.localStorage.getItem(key),
+          STORAGE_KEY
+        )
+      ).toBe(storedBefore);
     });
 
     test('沒有確認已閱讀草稿就送不出去，而且說得出少了什麼', async ({

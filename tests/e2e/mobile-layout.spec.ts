@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { initialState } from '../../apps/web/public/modules/state-schema.js';
+
 import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes.js';
 import {
   chooseNationality,
@@ -881,8 +883,24 @@ test.describe('診所官網首屏帶得走實用資訊', () => {
 test.describe('internal-test booking on a phone', () => {
   test.use({ viewport: PHONE });
 
-  async function failClosedV1(page: Page): Promise<void> {
+  async function failClosedV1(page: Page, allowReads = false): Promise<void> {
     await page.route('**/v1/**', async (route) => {
+      if (allowReads && route.request().method() === 'GET') {
+        const replies: Record<string, unknown> = {
+          '/v1/slots': { slots: [] },
+          '/v1/bookings': { appointments: [] },
+          '/v1/schedule': {
+            publishedVersion: 1,
+            publishedAt: '2030-01-01T00:00:00.000Z',
+            schedule: initialState().schedule
+          }
+        };
+        const reply = replies[new URL(route.request().url()).pathname];
+        if (reply !== undefined) {
+          await route.fulfill({ json: reply });
+          return;
+        }
+      }
       await route.fulfill({
         status: 404,
         json: { error: { code: 'NOT_FOUND' } }
@@ -910,7 +928,7 @@ test.describe('internal-test booking on a phone', () => {
   test('opt-in /staff labels INTERNAL TEST and does not overflow', async ({
     page
   }) => {
-    await failClosedV1(page);
+    await failClosedV1(page, true);
     await login(page, 'admin', {
       fresh: true,
       path: '/staff?internalTestBooking=1'

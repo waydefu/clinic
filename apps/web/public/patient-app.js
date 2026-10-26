@@ -76,6 +76,8 @@ let verifiedReturnBooking = false;
 // 診所資料（門診時段、公告）是非同步載入的。在它到達之前，選項可以先畫出來
 // 佔住版面，但**不能可按**：按下去會走進需要 state 的路徑。
 let dataReady = false;
+let stateReadPending = false;
+let stateReadGeneration = 0;
 let maintenanceWasActive = false;
 let maintenanceResumeTimer;
 
@@ -346,8 +348,7 @@ function scheduleMaintenanceResume() {
   if (!Number.isFinite(delay) || delay <= 0) return;
   maintenanceResumeTimer = window.setTimeout(
     async () => {
-      state = await client.request('/state');
-      renderAll();
+      await requestPatientState();
     },
     Math.min(delay + 50, 2_147_000_000)
   );
@@ -481,6 +482,7 @@ function checkedTagIds(containerId, attribute) {
 }
 
 function availableSlots() {
+  if (!dataReady) return [];
   return state.slots
     .filter(
       (slot) =>
@@ -553,13 +555,22 @@ function renderSlots() {
     activeSlotMonth = undefined;
     elements['patient-slot-months'].replaceChildren();
     elements['patient-slot-dates'].replaceChildren();
-    elements['active-slot-date-label'].textContent = '目前沒有可預約日期';
-    elements['patient-slots'].innerHTML = assertRenderable(
-      emptyState(
-        '目前沒有可預約時段',
-        '診所發布新的營業時間後，時段會自動更新。'
-      )
-    );
+    if (apiMode && !dataReady) {
+      elements['active-slot-date-label'].textContent = stateReadPending
+        ? '正在更新診所預約資料'
+        : '暫時無法載入可預約日期';
+      elements['patient-slots'].textContent = stateReadPending
+        ? '正在載入診所預約資料。'
+        : '無法載入門診時段，請按「重試」重新載入。';
+    } else {
+      elements['active-slot-date-label'].textContent = '目前沒有可預約日期';
+      elements['patient-slots'].innerHTML = assertRenderable(
+        emptyState(
+          '目前沒有可預約時段',
+          '診所發布新的營業時間後，時段會自動更新。'
+        )
+      );
+    }
     return;
   }
 
@@ -729,6 +740,66 @@ function renderAll() {
   renderSlots();
 }
 
+function stateReadStatusAnchor() {
+  const step = document.body.dataset.bookingFlowStep;
+  if (step === '3') return 'patient-submit-status';
+  if (step !== '2') {
+    elements['patient-status'].classList.remove('visually-hidden');
+    return undefined;
+  }
+  return 'patient-read-status';
+}
+
+async function requestPatientState({ retry = false } = {}) {
+  const generation = ++stateReadGeneration;
+  if (apiMode) {
+    stateReadPending = true;
+    dataReady = false;
+    selectedSlotId = undefined;
+    if (state !== undefined) {
+      state = { ...state, slots: [], appointments: [] };
+      renderAll();
+    }
+    if (retry) message('正在重新載入診所預約資料。', 'info');
+  }
+
+  try {
+    const loaded = await client.request('/state');
+    if (generation !== stateReadGeneration) return undefined;
+    state = loaded;
+    stateReadPending = false;
+    dataReady = true;
+    renderAll();
+    if (apiMode && retry) message('已重新載入診所預約資料。', 'success');
+    return state;
+  } catch (error) {
+    if (generation !== stateReadGeneration) return undefined;
+    stateReadPending = false;
+    if (!apiMode) throw error;
+    dataReady = false;
+    if (state !== undefined) {
+      state = { ...state, slots: [], appointments: [] };
+      renderAll();
+    } else {
+      elements['patient-booking-app'].hidden = false;
+      renderBookingTypeButtons();
+      renderServices();
+      renderSlots();
+    }
+    const detail =
+      error instanceof Error && error.message !== ''
+        ? error.message
+        : '請稍後再試。';
+    message(
+      `無法載入診所預約資料：${detail}`,
+      'error',
+      stateReadStatusAnchor(),
+      () => requestPatientState({ retry: true })
+    );
+    return undefined;
+  }
+}
+
 document.querySelectorAll('[data-booking-type]').forEach((button) =>
   button.addEventListener('click', () => {
     const type = button.dataset.bookingType;
@@ -863,6 +934,8 @@ elements['open-privacy-policy'].addEventListener('click', (event) => {
       updateSubmitState();
       message('已標記為讀過告知草稿；系統未保存正式同意紀錄。', 'success');
     }
+  }).catch(() => {
+    window.location.assign(elements['open-privacy-policy'].href);
   });
 });
 
@@ -921,6 +994,15 @@ function hasReturnSession() {
 
 elements['patient-booking-form'].addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (apiMode && (!dataReady || selectedSlotId === undefined)) {
+    message(
+      '未送出預約：請重新載入門診時段後再選擇。',
+      'error',
+      'patient-submit-status',
+      () => requestPatientState({ retry: true })
+    );
+    return;
+  }
   const reuseReturn = hasReturnSession() && selectedBookingType === 'follow_up';
   if (!reuseReturn) {
     // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
@@ -1114,9 +1196,10 @@ function renderManagedAppointments() {
           : ['phone_required', 'time_unavailable'].includes(eligibility.code)
             ? cancellationContactFallback()
             : '';
-        const targets = eligibility.allowed
-          ? patientRescheduleTargets(state, appointment, Date.now())
-          : [];
+        const targets =
+          eligibility.allowed && dataReady
+            ? patientRescheduleTargets(state, appointment, Date.now())
+            : [];
         const rescheduleAction =
           eligibility.allowed && targets.length > 0
             ? `<div class="booking-lookup-reschedule"><label>改期時段<select name="targetSlotId" data-managed-reschedule-slot="${escapeHtml(appointment.id)}"><option value="">請選擇新時段</option>${targets
@@ -1407,9 +1490,9 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
 // 靜地不同步（v4→v5 當下就發生了）。
 window.addEventListener('storage', async (event) => {
   if (event.key !== storageKey) return;
-  state = await client.request('/state');
-  renderAll();
-  if (state.maintenanceActive)
+  const refreshed = await requestPatientState();
+  if (refreshed === undefined) return;
+  if (refreshed.maintenanceActive)
     message('預約系統已進入維護，請稍後再試。', 'info');
 });
 
@@ -1436,14 +1519,12 @@ renderBookingTypeButtons();
 renderPatientTags();
 renderPatientContactLinks();
 
+// 初始載入不搶焦點；失敗時也要讓狀態與重試按鈕留在可見的第一步。
+showStep(1, { focusHeading: false, scroll: false });
 try {
   client = await resolveApiClient();
-  state = await client.request('/state');
-  dataReady = true;
-  renderAll();
-  // 初始載入不搶焦點，使用者可能正要用鍵盤操作跳過導覽。
-  if (!state.maintenanceActive) {
-    showStep(1, { focusHeading: false, scroll: false });
+  const loadedState = await requestPatientState();
+  if (loadedState !== undefined && !loadedState.maintenanceActive) {
     message('已載入診所發布的門診時段。', 'success');
     // 放在載入成功之後：`?notice-read=1` 的公告要蓋掉上面那句，讓使用者知道
     // 已套用測試用閱讀確認，同時明說系統沒有保存正式同意紀錄。

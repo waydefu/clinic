@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   httpTransportError,
@@ -559,6 +559,16 @@ describe('mapInternalTestBookingRequest', () => {
 });
 
 describe('createInternalTestBookingTransport', () => {
+  beforeEach(() => {
+    const memory = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => memory.set(key, value),
+      removeItem: (key: string) => memory.delete(key)
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
   it('posts only the contract fields and returns the v1 body', async () => {
     const local = vi.fn();
     const fetchImpl = vi.fn(() =>
@@ -704,7 +714,7 @@ describe('createInternalTestBookingTransport', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('keeps /state on the local store and maps a 503 through the v1 envelope', async () => {
+  it('rejects /state on a 503 read and maps the v1 error envelope', async () => {
     const local = vi.fn(() => Promise.resolve({ version: 8 }));
     const fetchImpl = vi.fn(() =>
       Promise.resolve({
@@ -726,10 +736,10 @@ describe('createInternalTestBookingTransport', () => {
       fetchImpl
     });
 
-    await expect(transport('/state')).resolves.toEqual({
-      version: 8,
-      slots: [],
-      appointments: []
+    await expect(transport('/state')).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+      retryable: true,
+      correlationId: 'corr_gate'
     });
     expect(fetchImpl).toHaveBeenCalled();
     await expect(
@@ -749,6 +759,7 @@ describe('createInternalTestBookingTransport', () => {
   });
 
   it('does not keep local slots when the published grid cannot be loaded', async () => {
+    sessionStorage.setItem('calPilotCsrf', 'synthetic_csrf');
     const local = vi.fn(() =>
       Promise.resolve({ version: 8, slots: [{ id: 'local_slot' }] })
     );
@@ -767,11 +778,176 @@ describe('createInternalTestBookingTransport', () => {
       toError: httpTransportError,
       fetchImpl
     });
-    await expect(transport('/state')).resolves.toEqual({
+    await expect(transport('/state')).rejects.toMatchObject({
+      code: 'UNAUTHENTICATED'
+    });
+    expect(sessionStorage.getItem('calPilotCsrf')).toBeNull();
+    expect(local).toHaveBeenCalledOnce();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  const stateReadFailures: Array<{
+    endpoint: string;
+    label: string;
+    status?: number;
+    network?: boolean;
+  }> = [
+    { endpoint: '/v1/slots', label: 'slots HTTP 401', status: 401 },
+    { endpoint: '/v1/slots', label: 'slots HTTP 403', status: 403 },
+    { endpoint: '/v1/slots', label: 'slots HTTP 503', status: 503 },
+    { endpoint: '/v1/slots', label: 'slots network failure', network: true },
+    { endpoint: '/v1/schedule', label: 'schedule HTTP 401', status: 401 },
+    { endpoint: '/v1/schedule', label: 'schedule HTTP 403', status: 403 },
+    { endpoint: '/v1/schedule', label: 'schedule HTTP 503', status: 503 },
+    {
+      endpoint: '/v1/schedule',
+      label: 'schedule network failure',
+      network: true
+    },
+    { endpoint: '/v1/bookings', label: 'bookings HTTP 401', status: 401 },
+    { endpoint: '/v1/bookings', label: 'bookings HTTP 403', status: 403 },
+    { endpoint: '/v1/bookings', label: 'bookings HTTP 503', status: 503 },
+    {
+      endpoint: '/v1/bookings',
+      label: 'bookings network failure',
+      network: true
+    }
+  ];
+
+  it.each(stateReadFailures)(
+    'propagates $label from /state instead of returning local empties',
+    async ({ endpoint, status, network }) => {
+      const reads: string[] = [];
+      const local = vi.fn(() =>
+        Promise.resolve({
+          version: 8,
+          slots: [{ id: 'local_slot' }],
+          appointments: [{ id: 'local_appointment' }]
+        })
+      );
+      const fetchImpl = vi.fn((url: string) => {
+        reads.push(url);
+        if (url === endpoint) {
+          if (network)
+            return Promise.reject(new TypeError('synthetic network failure'));
+          const code =
+            status === 401
+              ? 'UNAUTHENTICATED'
+              : status === 403
+                ? 'FORBIDDEN'
+                : 'SERVICE_UNAVAILABLE';
+          return Promise.resolve({
+            ok: false,
+            status,
+            json: () =>
+              Promise.resolve({
+                error: { code, message: 'synthetic read failure' }
+              })
+          });
+        }
+        if (url === '/v1/slots') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ slots: [] })
+          });
+        }
+        if (url === '/v1/schedule') {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                publishedVersion: 1,
+                publishedAt: '2030-01-01T00:00:00.000Z',
+                schedule: initialState().schedule
+              })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ appointments: [] })
+        });
+      });
+      const transport = createInternalTestBookingTransport({
+        local,
+        toError: httpTransportError,
+        fetchImpl
+      });
+
+      await expect(transport('/state')).rejects.toMatchObject({
+        name: network ? 'TypeError' : 'ApiClientError'
+      });
+      expect(local).toHaveBeenCalledOnce();
+      const orderedReads = ['/v1/slots', '/v1/schedule', '/v1/bookings'];
+      expect(reads).toEqual(
+        orderedReads.slice(0, orderedReads.indexOf(endpoint) + 1)
+      );
+    }
+  );
+
+  it('keeps valid empty arrays from the three reads as a successful empty state', async () => {
+    const local = vi.fn(() => Promise.resolve({ version: 8, slots: [] }));
+    const fetchImpl = vi.fn((url: string) => {
+      if (url === '/v1/slots') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ slots: [] })
+        });
+      }
+      if (url === '/v1/schedule') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              publishedVersion: 1,
+              publishedAt: '2030-01-01T00:00:00.000Z',
+              schedule: initialState().schedule
+            })
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ appointments: [] })
+      });
+    });
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl
+    });
+
+    await expect(transport('/state')).resolves.toMatchObject({
       version: 8,
       slots: [],
-      appointments: []
+      appointments: [],
+      schedule: initialState().schedule,
+      scheduleMeta: { publishedVersion: 1 }
     });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects a malformed published schedule before returning state', async () => {
+    const snapshot = initialState();
+    const local = vi.fn(() => Promise.resolve(snapshot));
+    const fetchImpl = vi.fn((url: RequestInfo | URL) =>
+      Promise.resolve(
+        Response.json(
+          url === '/v1/slots'
+            ? { slots: [] }
+            : url === '/v1/schedule'
+              ? {
+                  publishedVersion: 1,
+                  publishedAt: '2030-01-01T00:00:00.000Z',
+                  schedule: { timeZone: 'Asia/Taipei' }
+                }
+              : { appointments: [] }
+        )
+      )
+    );
+    const dependencies = { local, toError: httpTransportError, fetchImpl };
+    const transport = createInternalTestBookingTransport(dependencies);
+
+    await expect(transport('/state')).rejects.toThrow('營業時間設定無效');
+    expect(snapshot.schedule).toEqual(initialState().schedule);
   });
 
   it('omits cookies on the public booking path so staff sessions stay separated', async () => {
@@ -830,11 +1006,8 @@ describe('createInternalTestBookingTransport', () => {
         method: 'POST',
         body: JSON.stringify({ username: 'admin', password: 'secret' })
       })
-    ).resolves.toEqual({
-      version: 8,
-      appointments: [],
-      slots: []
-    });
+    ).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    expect(local).toHaveBeenCalledOnce();
   });
 
   it('overlays listed slots onto local /state when the gate answers', async () => {
@@ -885,7 +1058,7 @@ describe('createInternalTestBookingTransport', () => {
           Promise.resolve({
             publishedVersion: 1,
             publishedAt: '2029-12-15T09:00:00.000Z',
-            schedule: { timeZone: 'Asia/Taipei' }
+            schedule: initialState().schedule
           })
       });
     });
@@ -912,7 +1085,7 @@ describe('createInternalTestBookingTransport', () => {
           intakeNationality: 'foreign'
         }
       ],
-      schedule: { timeZone: 'Asia/Taipei' },
+      schedule: initialState().schedule,
       scheduleMeta: { publishedVersion: 1 }
     });
   });
@@ -927,7 +1100,7 @@ describe('createInternalTestBookingTransport', () => {
             Promise.resolve({
               publishedVersion: 1,
               publishedAt: '2029-12-15T09:00:00.000Z',
-              schedule: { timeZone: 'Asia/Taipei' }
+              schedule: initialState().schedule
             })
         });
       }
@@ -971,6 +1144,17 @@ describe('createInternalTestBookingTransport', () => {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ slots: [] })
+          });
+        }
+        if (url === '/v1/schedule') {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                publishedVersion: 1,
+                publishedAt: '2030-01-01T00:00:00.000Z',
+                schedule: initialState().schedule
+              })
           });
         }
         if (url === '/v1/bookings') {
