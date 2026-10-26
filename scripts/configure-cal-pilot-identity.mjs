@@ -1,5 +1,7 @@
 import { getApps, initializeApp } from 'firebase-admin/app';
 
+import { withRequestDeadline } from './request-deadline.mjs';
+
 const projectId = process.env['GOOGLE_CLOUD_PROJECT'];
 const previewDomain = process.env['CALENDAR_PILOT_PREVIEW_DOMAIN'];
 if (projectId !== 'beauessence-clinic-staging')
@@ -27,20 +29,26 @@ async function identityRequest(
   allowedErrorStatuses = [],
   allowedErrorMessages = []
 ) {
-  const accessToken = await credential.getAccessToken();
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com${path}`,
-    {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${accessToken.access_token}`,
-        'Content-Type': 'application/json',
-        'x-goog-user-project': projectId,
-        ...(init.headers ?? {})
+  const { response, payload } = await withRequestDeadline(async (signal) => {
+    const accessToken = await credential.getAccessToken();
+    signal.throwIfAborted();
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com${path}`,
+      {
+        ...init,
+        signal,
+        headers: {
+          Authorization: `Bearer ${accessToken.access_token}`,
+          'Content-Type': 'application/json',
+          'x-goog-user-project': projectId,
+          ...(init.headers ?? {})
+        }
       }
-    }
-  );
-  const payload = await response.json().catch(() => ({}));
+    );
+    const payload = await response.json().catch(() => ({}));
+    signal.throwIfAborted();
+    return { response, payload };
+  });
   if (response.ok) return payload;
   const status = payload?.error?.status;
   const message = payload?.error?.message;
