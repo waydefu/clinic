@@ -4,15 +4,13 @@ import { pathToFileURL } from 'node:url';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
+import { isUtcIsoTimestamp } from '../apps/web/public/vendor/domain/timestamp.js';
+
 export const C1_CALENDAR_SYNC_PROJECT = 'beauessence-clinic-stg-c1a01';
 export const C1_CALENDAR_SYNC_SOURCE_ID = 'c1_synthetic_calendar';
 
 function utc(value, name) {
-  if (
-    typeof value !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/u.test(value) ||
-    Number.isNaN(Date.parse(value))
-  )
+  if (!isUtcIsoTimestamp(value))
     throw new Error(`${name} must be an exact UTC timestamp.`);
   return value;
 }

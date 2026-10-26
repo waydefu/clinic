@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
+import { isUtcIsoTimestamp } from '../apps/web/public/vendor/domain/timestamp.js';
+
 import { isIsolatedC1ProjectId } from './isolated-c1-project-id.mjs';
 
 export const RECOVERY_COLLECTIONS = Object.freeze([
@@ -103,8 +105,7 @@ function validateManifest(manifest) {
       Array.isArray(event) ||
       typeof event.id !== 'string' ||
       event.id.length === 0 ||
-      typeof event.occurredAt !== 'string' ||
-      !Number.isFinite(Date.parse(event.occurredAt))
+      !isUtcIsoTimestamp(event.occurredAt)
     )
       fail(
         `manifest expectedAuditEvents[${index}] must contain id and occurredAt.`
@@ -133,10 +134,7 @@ function valuesEqual(actual, expected) {
 
 function normalizeOccurredAt(value) {
   if (typeof value === 'string') {
-    const timestamp = Date.parse(value);
-    return Number.isFinite(timestamp)
-      ? new Date(timestamp).toISOString()
-      : null;
+    return isUtcIsoTimestamp(value) ? new Date(value).toISOString() : null;
   }
   if (value && typeof value.toDate === 'function')
     return value.toDate().toISOString();

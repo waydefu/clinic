@@ -1,3 +1,5 @@
+import { isUtcIsoTimestamp } from '../apps/web/public/vendor/domain/timestamp.js';
+
 export const CAL_PILOT_PROJECT_ID = 'beauessence-clinic-staging';
 export const CAL_PILOT_ORIGINAL_EXPIRY = '2026-09-29T04:51:37Z';
 export const CAL_PILOT_EXTENDED_EXPIRY = '2026-11-28T04:51:37Z';
@@ -10,11 +12,7 @@ const PREVIEW_RENEWAL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const PREVIEW_MAX_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
 function timestamp(value, field) {
-  if (
-    typeof value !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value) ||
-    !Number.isFinite(Date.parse(value))
-  )
+  if (!isUtcIsoTimestamp(value))
     throw new Error(`${field} must be an exact UTC timestamp.`);
   return Date.parse(value);
 }

@@ -52,7 +52,8 @@ function fakeDb({
   omitAppointmentField = false,
   omitAppointmentId,
   omitAuditId,
-  terseAuditTime = false
+  terseAuditTime = false,
+  auditTime
 } = {}) {
   const documents = new Map(
     RECOVERY_COLLECTIONS.map((collection) => [collection, new Map()])
@@ -70,9 +71,11 @@ function fakeDb({
   for (const event of makeManifest().expectedAuditEvents) {
     if (event.id !== omitAuditId)
       documents.get('audit_events').set(event.id, {
-        occurredAt: terseAuditTime
-          ? event.occurredAt.replace('.000Z', 'Z')
-          : new Date(event.occurredAt)
+        occurredAt:
+          auditTime?.(event) ??
+          (terseAuditTime
+            ? event.occurredAt.replace('.000Z', 'Z')
+            : new Date(event.occurredAt))
       });
   }
 
@@ -217,6 +220,40 @@ describe('recovery clone verifier target guard', () => {
 });
 
 describe('recovery clone verification report', () => {
+  it('does not normalize legacy stored audit text into passing evidence', async () => {
+    const report = await verifyRecoveryClone({
+      project: PROJECT,
+      database: DATABASE,
+      manifest: makeManifest(),
+      db: fakeDb({
+        auditTime: (event) =>
+          event.id === 'synthetic_audit_01'
+            ? 'Jan 1 2030 GMT'
+            : event.occurredAt
+      })
+    });
+    expect(report.checks.V3.status).toBe('FAIL');
+    expect(report.overall).toBe('FAIL');
+  });
+
+  it.each(['Jan 1 2030 GMT', '2030-02-30T00:00:00Z', '2030-01-01T24:00:00Z'])(
+    'rejects a noncanonical audit manifest timestamp before database reads: %s',
+    async (occurredAt) => {
+      const manifest = makeManifest();
+      manifest.expectedAuditEvents[0].occurredAt = occurredAt;
+      const collection = vi.fn();
+      await expect(
+        verifyRecoveryClone({
+          project: PROJECT,
+          database: DATABASE,
+          manifest,
+          db: { collection }
+        })
+      ).rejects.toThrow(/must contain id and occurredAt/);
+      expect(collection).not.toHaveBeenCalled();
+    }
+  );
+
   it('passes counts, ten manifest-selected appointment rows, and the expected audit list', async () => {
     const report = await verifyRecoveryClone({
       project: PROJECT,
