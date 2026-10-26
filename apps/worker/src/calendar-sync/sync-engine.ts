@@ -4,6 +4,7 @@ import {
   extractCalendarContact,
   extractCalendarEventRange,
   isSelfProjectedCalendarEcho,
+  isUtcIsoTimestamp,
   parseCalendarEntry,
   planCalendarInboundDetection,
   resolveCalendarEventIdentity,
@@ -548,6 +549,10 @@ export class CalendarSyncEngine {
   }
 
   public run(now = new Date().toISOString()): Promise<CalendarSyncSummary> {
+    if (!isUtcIsoTimestamp(now))
+      return Promise.reject(
+        new Error('Calendar sync clock must be a UTC timestamp.')
+      );
     return this.repository
       .loadConfiguration()
       .then((configuration) =>

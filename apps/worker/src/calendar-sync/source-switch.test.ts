@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   CalendarSourceSwitchError,
@@ -89,6 +89,53 @@ function service(
 }
 
 describe('CalendarSourceSwitchService', () => {
+  it.each([
+    '2026-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2026-02-28T24:00:00Z',
+    '2026-02-28T00:00:00',
+    '2026-02-28T08:00:00+08:00',
+    'Feb 28 2026 GMT'
+  ])(
+    'rejects noncanonical preflight/activation clock %s without probe or mutation',
+    async (now) => {
+      const repository = new MemoryRepository();
+      const switcher = service(repository);
+      const load = vi.spyOn(repository, 'loadConfiguration');
+      await expect(switcher.preflight('source_b', now)).rejects.toBeInstanceOf(
+        CalendarSourceSwitchError
+      );
+      expect(load).not.toHaveBeenCalled();
+      expect(repository.preflights.size).toBe(0);
+      const preflight = await switcher.preflight('source_b', NOW);
+      load.mockClear();
+      const before = repository.configuration;
+      await expect(
+        switcher.activate({
+          sourceId: 'source_b',
+          expectedVersion: 1,
+          preflightId: preflight.preflightId,
+          now
+        })
+      ).rejects.toBeInstanceOf(CalendarSourceSwitchError);
+      await expect(
+        switcher.rollback(preflight.preflightId, 1, now)
+      ).rejects.toBeInstanceOf(CalendarSourceSwitchError);
+      expect(load).not.toHaveBeenCalled();
+      expect(repository.configuration).toBe(before);
+    }
+  );
+
+  it('accepts a real leap day with fractional UTC precision', async () => {
+    const repository = new MemoryRepository();
+    repository.configuration = {
+      ...repository.configuration,
+      expiresAt: '2028-03-01T00:00:00Z'
+    };
+    const now = '2028-02-29T00:00:00.123456Z';
+    const preflight = await service(repository).preflight('source_b', now);
+    expect(preflight.completedAt).toBe(now);
+  });
   it('keeps the old source active when write preflight fails', async () => {
     const repository = new MemoryRepository();
     const switcher = service(repository, false);
