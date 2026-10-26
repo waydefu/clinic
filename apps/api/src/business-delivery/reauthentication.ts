@@ -1,3 +1,4 @@
+import { isUtcIsoTimestamp } from '@beauessence/domain';
 import type { Auth } from 'firebase-admin/auth';
 
 import { tokenHasTotpSecondFactor } from '../auth/calendar-pilot-session.js';
@@ -21,7 +22,11 @@ export class FreshReauthenticationVerifier {
     readonly now: string;
     readonly maxAgeSeconds: number;
   }): Promise<void> {
-    if (input.idToken === undefined || input.idToken.trim() === '') {
+    if (
+      input.idToken === undefined ||
+      input.idToken.trim() === '' ||
+      !isUtcIsoTimestamp(input.now)
+    ) {
       throw new AuthenticationRequiredError();
     }
     const decoded = await this.auth
