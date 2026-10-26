@@ -41,6 +41,32 @@ const input = {
 };
 
 describe('FreshReauthenticationVerifier', () => {
+  it.each([
+    '2026-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2026-02-28T24:00:00Z',
+    '2026-02-28T00:00:00',
+    '2026-02-28T08:00:00+08:00',
+    'Feb 28 2026 GMT'
+  ])('rejects noncanonical clock %s before token verification', async (now) => {
+    const { instance, calls } = verifier(
+      token({ auth_time: Date.parse(now) / 1000 })
+    );
+    await expect(
+      instance.assertFresh({ ...input, now })
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+    expect(calls).toEqual([]);
+  });
+
+  it('accepts a real leap day with fractional UTC precision', async () => {
+    const now = '2028-02-29T00:00:00.123456Z';
+    const { instance } = verifier(
+      token({ auth_time: Date.parse(now) / 1000 - 60 })
+    );
+    await expect(
+      instance.assertFresh({ ...input, now })
+    ).resolves.toBeUndefined();
+  });
   it('accepts a fresh, revocation-checked TOTP sign-in by the same user', async () => {
     const { instance, calls } = verifier(token());
     await expect(instance.assertFresh(input)).resolves.toBeUndefined();
