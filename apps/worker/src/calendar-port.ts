@@ -1,4 +1,5 @@
 import {
+  assertUtcTimestamp,
   isCalendarEventId,
   type OutboxTraceContext
 } from '@beauessence/domain';
@@ -43,6 +44,7 @@ export const CLINIC_EVENT_COLOR_ID = '10';
 
 /** 依開始時間推算診所端事件的結束時間。 */
 export function clinicEventEnd(startsAt: string): string {
+  assertUtcTimestamp(startsAt, 'startsAt');
   return new Date(
     Date.parse(startsAt) + CLINIC_EVENT_MINUTES * 60_000
   ).toISOString();

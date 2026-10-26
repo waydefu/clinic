@@ -1826,6 +1826,83 @@ describe('patient self-cancel retried with the same idempotency key', () => {
   });
 });
 
+describe('AppointmentApplicationService canonical UTC admission', () => {
+  const INVALID_TIMESTAMPS = [
+    'Jul 25 2026 Z',
+    '2026-02-30T04:00:00Z',
+    '2026-07-25T12:00:00+08:00',
+    '2026-07-25T04:00:00',
+    '2026-07-25T24:00:00Z',
+    'not-a-timestamp'
+  ];
+
+  it.each(INVALID_TIMESTAMPS)(
+    'rejects clock %s before directory reads or reservation',
+    async (nowUtc) => {
+      const patients = new InMemoryPatientDirectory();
+      const { reserve, service, time } = createBoundService(patients);
+      const listClinic = vi.spyOn(patients, 'listClinic');
+      const listByPatient = vi.spyOn(patients, 'listByPatient');
+      time.nowUtc = nowUtc;
+
+      await expect(
+        service.list('clinic', AUTHENTICATION)
+      ).rejects.toMatchObject({
+        code: 'INVALID_TIMESTAMP'
+      });
+      await expect(service.list('mine', AUTHENTICATION)).rejects.toMatchObject({
+        code: 'INVALID_TIMESTAMP'
+      });
+      await expect(
+        service.create(COMMAND, AUTHENTICATION)
+      ).rejects.toMatchObject({
+        code: 'INVALID_TIMESTAMP'
+      });
+      expect(listClinic).not.toHaveBeenCalled();
+      expect(listByPatient).not.toHaveBeenCalled();
+      expect(reserve).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(INVALID_TIMESTAMPS)(
+    'rejects a directory row with startsAt %s before projection',
+    async (startsAt) => {
+      const patients = new InMemoryPatientDirectory();
+      const { service } = createBoundService(patients);
+      const records = [{ ...OPEN_RECORD, startsAt }];
+      // Exercise the application boundary even if an adapter ignores its window.
+      vi.spyOn(patients, 'listClinic').mockResolvedValue(records);
+      vi.spyOn(patients, 'listByPatient').mockResolvedValue(records);
+
+      await expect(
+        service.list('clinic', AUTHENTICATION)
+      ).rejects.toMatchObject({
+        code: 'INVALID_TIMESTAMP'
+      });
+      await expect(service.list('mine', AUTHENTICATION)).rejects.toMatchObject({
+        code: 'INVALID_TIMESTAMP'
+      });
+    }
+  );
+
+  it.each([
+    '2024-02-29T04:00:00Z',
+    '2026-07-25T04:00:00.000Z',
+    '2026-07-25T04:00:00.123456789Z'
+  ])('preserves valid UTC %s in both list projections', async (timestamp) => {
+    const patients = new InMemoryPatientDirectory();
+    const { service, time } = createBoundService(patients);
+    time.nowUtc = timestamp;
+    patients.appointments.push({ ...OPEN_RECORD, startsAt: timestamp });
+
+    for (const scope of ['clinic', 'mine'] as const) {
+      await expect(service.list(scope, AUTHENTICATION)).resolves.toMatchObject({
+        appointments: [{ startsAt: timestamp }]
+      });
+    }
+  });
+});
+
 describe('AppointmentApplicationService list reads only the rows it will return', () => {
   // The clock is 2026-07-23T14:30:00.000Z: the list shows appointments from
   // seven days before it to 31 days after it.
