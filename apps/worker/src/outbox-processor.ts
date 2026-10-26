@@ -347,7 +347,8 @@ export class OutboxProcessor {
         const claimedAt = at();
         const leaseExpired =
           existingLeaseExpiresAt === undefined ||
-          Date.parse(existingLeaseExpiresAt) <= Date.parse(claimedAt);
+          (isUtcIsoTimestamp(existingLeaseExpiresAt) &&
+            Date.parse(existingLeaseExpiresAt) <= Date.parse(claimedAt));
 
         if (job.status === 'in_progress' && !leaseExpired) return undefined;
         if (job.status === 'pending' && !isDue(job, claimedAt))
