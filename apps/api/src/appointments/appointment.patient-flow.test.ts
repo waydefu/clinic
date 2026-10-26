@@ -292,6 +292,7 @@ describe('accountless booking and return lookup HTTP', () => {
 
   it.each([
     ['--02-30', 400, 404],
+    ['--04-31', 400, 404],
     ['--02-29', 201, 201]
   ] as const)(
     'enforces yearless calendar validity for create and eligible return lookup: %s',
@@ -320,17 +321,33 @@ describe('accountless booking and return lookup HTTP', () => {
         // Existing lookup policy requires an eligible follow-up, not just intake.
         patients.followUp.set(patientId, { required: true });
       } else {
+        expect(patients.appointments).toHaveLength(0);
         expect(patients.createdPatientCount).toBe(0);
-        // An invalid legacy index must not bypass calendar admission. With the
-        // month-day guard removed, this eligible synthetic row would resolve.
-        const patientId = 'synthetic_impossible_birth';
+        expect(patients.patients.size).toBe(0);
+
+        const validCreate = await harness.inject({
+          method: 'POST',
+          url: '/v1/bookings',
+          payload: {
+            idempotencyKey: 'synthetic_calendar_control_0001',
+            slotId: 'slot_001',
+            serviceId: 'service_consult',
+            bookingKind: 'initial',
+            intake: INTAKE
+          }
+        });
+        expect(validCreate.statusCode).toBe(201);
+        const patientId = patients.appointments[0]?.patientId;
+        if (patientId === undefined) {
+          throw new Error(
+            'The valid synthetic control intake must create a patient.'
+          );
+        }
+        patients.followUp.set(patientId, { required: true });
+        // A stale invalid key must not mint a session for this valid synthetic patient.
         patients.lookup.set(opaqueLookupIdentity(INTAKE.phone, birthDate), [
           patientId
         ]);
-        patients.patients.set(patientId, {
-          name: 'Synthetic calendar boundary'
-        });
-        patients.followUp.set(patientId, { required: true });
       }
 
       const lookedUp = await harness.inject({
@@ -339,7 +356,7 @@ describe('accountless booking and return lookup HTTP', () => {
         payload: { phone: INTAKE.phone, birthDate }
       });
       expect(lookedUp.statusCode).toBe(lookupStatus);
-      if (birthDate === '--02-30') {
+      if (birthDate !== '--02-29') {
         expect(created.body).not.toContain(birthDate);
         expect(lookedUp.body).not.toContain(birthDate);
         expect(patients.sessions.size).toBe(0);
