@@ -163,15 +163,25 @@ try {
 } finally {
   $apiIdentityToken = $null
   $workerIdentityToken = $null
-  if ($apiSmokeBindingAdded) {
-    gcloud run services remove-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-  }
-  if ($workerSmokeBindingAdded) {
-    gcloud run services remove-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-  }
-  if ($smokeConfigurationCreated) {
-    gcloud auth revoke $smokeIdentityEmail --configuration $smokeConfiguration --quiet 2>$null
-    gcloud config configurations delete $smokeConfiguration --quiet | Out-Null
+  # A failed cleanup must not skip the remaining independent cleanup attempts.
+  try {
+    if ($apiSmokeBindingAdded) {
+      gcloud run services remove-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+    }
+  } finally {
+    try {
+      if ($workerSmokeBindingAdded) {
+        gcloud run services remove-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+      }
+    } finally {
+      if ($smokeConfigurationCreated) {
+        try {
+          gcloud auth revoke $smokeIdentityEmail --configuration $smokeConfiguration --quiet 2>$null
+        } finally {
+          gcloud config configurations delete $smokeConfiguration --quiet | Out-Null
+        }
+      }
+    }
   }
 }
 
