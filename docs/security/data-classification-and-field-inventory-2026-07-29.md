@@ -64,20 +64,52 @@ payroll, social-channel or NAS records.
 
 ## 3. Local Firestore/contract baseline
 
-These collections are executable only against the disposable local Emulator.
-They intentionally carry opaque IDs rather than a patient profile, but the IDs
-remain linkable. They are not an approved production schema.
+**Source refresh: 2026-10-28.** The patient and business-delivery rows below
+cover the collection registries in
+[`patient-directory.ts`](../../apps/api/src/patients/patient-directory.ts),
+[`usage-events.ts`](../../apps/api/src/business-delivery/usage-events.ts),
+[`business-delivery-export.repository.ts`](../../apps/api/src/firestore/business-delivery-export.repository.ts),
+[`business-delivery-retention.repository.ts`](../../apps/api/src/firestore/business-delivery-retention.repository.ts)
+and [`business-delivery-termination.repository.ts`](../../apps/api/src/firestore/business-delivery-termination.repository.ts).
+These are source observations, not evidence of live documents, deployed TTL,
+provider behaviour or an approved production schema. Internal-test execution
+remains subject to the project, expiry and synthetic-data gates in
+[AGENTS.md](../../AGENTS.md); public production and real-data use remain disabled.
 
-| Collection/contract | Current minimum fields | Tier | Important boundary |
+The original six collection rows are the 2026-07-29 baseline, not re-verified
+by this refresh. Sections 2 and 4 likewise remain dated snapshots. The added
+rows list representative stored fields and their purpose; the per-field
+production approval worksheet in section 5 is still required.
+
+| Collection/contract | Observed fields / purpose | Tier | Important boundary |
 | --- | --- | --- | --- |
 | `slots` | slot ID, kind, start time, optional reservation ID | `P1`/`P2` | Reservation ID makes the row linkable; D-004 still owns capacity and occupancy |
-| `appointments` | appointment, patient and slot IDs; start time; booking kind; one item ID; status; timestamps | `P3` | Current one-item contract does not match the approved multi-item direction; do not route before D-004 reconciliation |
+| `appointments` | appointment, patient and slot IDs; start time; booking kind; one item ID; status; timestamps | `P3` | Historical one-item baseline, not a current contract acceptance; D-004 reconciliation is separate |
 | `patient_booking_guards` | active appointment ID, status, update time; document keyed by patient ID | `P2` | Concurrency guard only, not a patient profile or authentication record |
 | `audit_events` | narrow Audit v2 envelope: actor/resource/trace IDs, action, time, result, reason code, policy version and allowlisted state | `P2` | No names, contacts, identifiers or notes; do not add generic payload/free-text fields |
 | `outbox_jobs` | job/appointment/event/trace IDs, projection status, timing, attempts, error and lease metadata | `P2` | No patient profile; errors must stay generic/redacted |
 | `idempotency_keys` | actor/scope/request hash, resource reference, recorded time | `P2` | Request hash is not a place to store a raw request or direct identifier |
-| Appointment command contracts | idempotency key, slot/service ID and booking kind; server supplies verified patient/actor context and timestamps | `P2`/`P3` | ADR-0005 keeps patient intake/verification separate; no public route exists |
-| Calendar projection | clinic name, booking-kind label, opaque appointment/event ID, time, location and color | `P2` | Strict allowlist: no name, phone, ID, service/medical detail, notes or attendee; D-009 still pending |
+| `patients` | `name`, `phoneDigits`, `birthMonthDay`, timestamps and retention state; patient matching and approved contact/export support | `P3` | Current writes use birthday `--MM-DD`, never a year; storage is server-side and contacts stay out of usage/audit/log payloads. Calendar is only the ADR-0002 exception below |
+| `patient_lookup_index` | legacy phone/full-birth-date hash lookup | `P2` | Registered as legacy; current directory neither reads nor writes it. No migration, backfill or inference from old hashes is authorised here |
+| `patient_lookup_index_v2` | phone/month-day hash key, `patientIds` and update time; candidate matching | `P2` | A one-way lookup hash remains linkable, not anonymous; ambiguity must not select a patient arbitrarily |
+| `return_sessions` | `patientId`, `createdAt`, `expiresAt`; short-lived return-booking lookup bridge | `P3` | Application expiry is not evidence of deployed Firestore TTL; no profile copy or new authentication authority |
+| `patient_follow_up_states` | `required`, source appointment/follow-up IDs and active follow-up appointment ID | `P3` | Care/appointment inference; state is not permission to expose medical records or add clinical fields |
+| `bd_usage_events` | schema/event ID, kind, runtime/maintenance class, occurrence time and optional `actorRef`; usage counting | `P2` | Staff reference is SHA-256 of UID, never raw UID, email, name, phone or birth value; hashing is not anonymisation |
+| `bd_milestones` | first-use, capture-gap and owner-acknowledgement milestone records | `P2` | Usage/commercial-delivery evidence only; a marker is not proof that missing events were captured |
+| `bd_export_jobs` | export ID/range, row/byte/chunk counts, hash, creator reference, expiry/download/revocation state and policy version | `P3` | Describes a restricted export; metadata does not authorise a download or a production data flow |
+| `bd_export_chunks` | `exportId`, `index`, CSV `content`, `purgeAt`; bounded export-file storage | `P3` | Content can include direct contact fields; it is not an opaque-ID-only collection. Download, revocation and retention controls remain separate |
+| `bd_export_log` | export/action/actor references and time; export operation trail | `P2` | No CSV content or patient contact values in log entries |
+| `bd_retention_log` | action, patient/actor references, time, request hash, result and optional reason code | `P3` | Patient-linked retention/legal-hold evidence; no arbitrary free-text reason or new retention period is approved here |
+| `bd_terminations` | state/version, notice and retention times, receipt/evidence references, creator and policy version | `P3` | Contract-termination/return workflow; this inventory does not approve deletion, backup disposition or evidence retention |
+| `bd_termination_log` | termination/action/actor references, time, request/idempotency hashes, version and result | `P3` | Replay/audit trail can retain receipt-linked state; keep it restricted and do not copy exported CSV into it |
+| `bd_termination_export_receipts` | termination/export references, acknowledgement, hash and export-coverage facts | `P3` | Return-of-data evidence, not a copy of the export; receipt presence alone does not prove delivery or legal acceptance |
+| Appointment command contracts | idempotency key, slot/service ID and booking kind; server supplies verified patient/actor context and timestamps | `P2`/`P3` | ADR-0005 keeps patient intake/verification separate; public production routes remain disabled |
+| Calendar projection | appointment/event linkage and allowlisted title fields on the dedicated appointment calendar | `P3` when title includes identity or notes | Only the [ADR-0002 2026-09-29 amendment](../adr/0002-calendar-is-a-projection-not-the-lock.md#2026-09-29-修訂專用預約日曆的標題欄位) permits name, phone, birthday month/day, booking kind/service and patient booking note there. No other calendar, full birthday, government ID, medical record or credential; production still requires D-009 |
+
+This refresh adds no field, collection, permission, retention duration or legal
+basis. It does not re-verify all UI/API fields, historical data, deployed
+access controls or data-subject-rights workflows, and does not by itself close
+E3-05 or the privacy packet.
 
 ## 4. Secrets and authentication material
 

@@ -166,7 +166,7 @@ export class FirestoreCalendarSyncRepository
   > {
     const [configuration, patients] = await Promise.all([
       this.loadSourceConfiguration(),
-      this.db.collection(PATIENTS).where('enabled', '==', true).get()
+      this.db.collection(PATIENTS).where('enabled', '==', true).select().get()
     ]);
     return {
       activeSourceId: configuration.activeSourceId,
