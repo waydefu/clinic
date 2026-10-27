@@ -20,11 +20,23 @@ const REGISTRIES = [
   [
     'TERMINATION_COLLECTIONS',
     '../apps/api/src/firestore/business-delivery-termination.repository.ts'
+  ],
+  [
+    'MILESTONE_ACKNOWLEDGEMENT_LOG',
+    '../apps/api/src/firestore/business-delivery.repository.ts'
   ]
 ];
 
 // shortcut: flat ASCII string literals only; upgrade to a TS AST if registries become computed.
 function flatRegistryValues(source, name) {
+  const literal = source.match(
+    new RegExp(
+      `^export\\s+const\\s+${name}\\s*=\\s*(['"])([A-Za-z0-9_-]+)\\1\\s*;`,
+      'm'
+    )
+  );
+  if (literal) return [literal[2]];
+
   const declaration = source.match(
     new RegExp(
       `export\\s+const\\s+${name}\\s*=\\s*\\{([\\s\\S]*?)\\}\\s*as\\s+const\\s*;`
@@ -64,7 +76,7 @@ function missingCollections(required, section) {
 }
 
 describe('data-field inventory collection baseline', () => {
-  it('documents every unique literal collection in all five registries', () => {
+  it('documents every unique collection in registries and standalone exports', () => {
     const required = [
       ...new Set(
         REGISTRIES.flatMap(([name, path]) =>
@@ -87,24 +99,40 @@ describe('data-field inventory collection baseline', () => {
     expect(missingCollections(required, section)).toEqual([]);
   });
 
-  it('does not count prose mentioning a collection as a table row', () => {
-    const fixtureWithPatientsRow = `## ${SECTION}\n\n| \`collection\` | Purpose |\n| --- | --- |\n| \`patients\` | registry |\n| \`appointments\` | registry |\n`;
-    const fixtureWithoutPatientsRow = fixtureWithPatientsRow.replace(
-      '| `patients` | registry |\n',
-      ''
-    );
-    const fixture = `${fixtureWithoutPatientsRow}\nThe prose still mentions patients.\n`;
-    const section = sectionText(fixture, SECTION);
+  it.each(['patients', 'bd_milestone_acknowledgement_log'])(
+    'does not count prose mentioning %s as a table row',
+    (collection) => {
+      const fixtureWithRow = `## ${SECTION}\n\n| \`collection\` | Purpose |\n| --- | --- |\n| \`${collection}\` | registry |\n| \`appointments\` | registry |\n`;
+      const fixtureWithoutRow = fixtureWithRow.replace(
+        `| \`${collection}\` | registry |\n`,
+        ''
+      );
+      const fixture = `${fixtureWithoutRow}\nThe prose still mentions ${collection}.\n`;
+      const section = sectionText(fixture, SECTION);
 
-    expect(missingCollections(['patients'], section)).toEqual(['patients']);
-  });
+      expect(missingCollections([collection], section)).toEqual([collection]);
+    }
+  );
 
-  it('fails closed on computed registry fields', () => {
-    expect(() =>
-      flatRegistryValues(
-        'export const TEST_COLLECTIONS = { patients: collectionName } as const;',
-        'TEST_COLLECTIONS'
-      )
-    ).toThrow(/non-literal/);
+  it.each(["'", '"'])(
+    'reads a standalone collection with %s quotes',
+    (quote) => {
+      expect(
+        flatRegistryValues(
+          `export const TEST_COLLECTIONS = ${quote}test_collection${quote};`,
+          'TEST_COLLECTIONS'
+        )
+      ).toEqual(['test_collection']);
+    }
+  );
+
+  it.each([
+    [
+      'export const TEST_COLLECTIONS = { patients: collectionName } as const;',
+      /non-literal/
+    ],
+    ["export const TEST_COLLECTIONS = 'prefix' + suffix;", /Missing/]
+  ])('fails closed on computed declarations: %s', (source, error) => {
+    expect(() => flatRegistryValues(source, 'TEST_COLLECTIONS')).toThrow(error);
   });
 });
