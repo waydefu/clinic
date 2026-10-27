@@ -36,7 +36,7 @@ import { parseRfc3339Timestamp } from '@beauessence/domain';
 export interface PilotEvent {
   /** HMAC 導出的不透明 ID；不可還原回來源 event ID。 */
   readonly pilotId: string;
-  /** 畫面上顯示的假名，例如「患者 A17」。 */
+  /** 非唯一的顯示假名，例如「患者 A17」；識別與去重使用 pilotId。 */
   readonly displayLabel: string;
   /** RFC3339，已正規化。 */
   readonly startsAt: string;
@@ -102,8 +102,8 @@ export function pilotIdFor(sourceId: string, key: string): string {
  * 由不透明 ID 導出人看得懂的假名，例如「患者 A17」。
  *
  * 只從 HMAC 輸出取值，**不碰姓名、電話或任何來源明文**——所以它不是「遮蔽過的
- * 姓名」，而是與姓名完全無關的代號。工作臺需要區分「這兩格是不是同一個人」，
- * 這個標籤剛好夠用，也僅止於此。
+ * 姓名」，而是與姓名完全無關的顯示代號。標籤空間有限，可能碰撞，不能用來判斷
+ * 是否為同一筆來源事件；配對、去重與唯一識別應使用 pilotId，不是 displayLabel。
  */
 export function displayLabelFor(pilotId: string): string {
   const letter = DISPLAY_LETTERS[parseInt(pilotId.slice(0, 2), 16) % 24] ?? 'A';

@@ -36,7 +36,13 @@ candidate，不讓 Calendar 成為容量鎖，提案不得被當成已核准或�
 snapshot 指標；metric 不含 appointment、patient 或 trace IDs，metrics adapter
 失敗也不會改變 job delivery 結果。
 
-**投影欄位限制**：只送識別碼、狀態、開始時間與掛號別。姓名、電話、身分證、
-手術種類與備註一律不得離開本系統，並有測試持續驗證。
+**投影欄位限制（2026-07-21 歷史範圍）**：當時只送識別碼、狀態、開始時間與掛號別，
+並禁止姓名、電話、身分證、手術種類與備註離開本系統。
+
+**現行範圍**依 [ADR-0002 的 2026-09-29 修訂](../../docs/adr/0002-calendar-is-a-projection-not-the-lock.md)：
+僅診所專用預約日曆的事件標題允許姓名、電話、生日月日、初診／回診與服務、病患自填的
+預約備註；共用或個人日曆不適用。身分證、護照、含年份的完整生日、手術種類、病歷、
+診斷與存取憑證仍禁止。這項既有核准不改變 Calendar 只作投影的原則，也不取代
+production D-009、隱私政策專業審閱或真實資料授權；本輪只使用合成資料。
 
 驗證：`corepack pnpm verify` 與 `corepack pnpm test:rules`。
