@@ -1,6 +1,9 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { resolveApprovedBusinessDeliveryPolicy } from '@beauessence/domain';
+import {
+  DomainError,
+  resolveApprovedBusinessDeliveryPolicy
+} from '@beauessence/domain';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { COLLECTIONS } from '../../apps/api/src/firestore/booking.repository.js';
@@ -235,6 +238,36 @@ describe('download limits', () => {
       settled.filter((result) => result.status === 'fulfilled')
     ).toHaveLength(1);
   });
+
+  it.each([
+    'not-a-timestamp',
+    '2030-10-21T00:00:00',
+    '2030-10-21T08:00:00+08:00',
+    '2030-02-30T00:00:00.000Z'
+  ])(
+    'refuses malformed stored expiry %s without consuming a download',
+    async (downloadExpiresAt) => {
+      const job = await repository.create(command());
+      const record = db.collection(EXPORT_COLLECTIONS.jobs).doc(job.exportId);
+      await record.update({ downloadExpiresAt });
+      const before = (await record.get()).data();
+      const logsBefore = (await db.collection(EXPORT_COLLECTIONS.log).get())
+        .size;
+      const chunksBefore = await chunkCount();
+
+      await expect(repository.get(job.exportId, NOW)).rejects.toBeInstanceOf(
+        DomainError
+      );
+      await expect(
+        repository.download(job.exportId, ACTOR, NOW)
+      ).rejects.toBeInstanceOf(DomainError);
+      expect((await record.get()).data()).toEqual(before);
+      expect((await db.collection(EXPORT_COLLECTIONS.log).get()).size).toBe(
+        logsBefore
+      );
+      expect(await chunkCount()).toBe(chunksBefore);
+    }
+  );
 
   it('refuses after the 24-hour window and after purgeAt even before TTL runs', async () => {
     const job = await repository.create(command());
